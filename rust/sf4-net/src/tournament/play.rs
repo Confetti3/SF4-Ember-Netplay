@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ember_protocol::{
-    api::Capabilities,
+    api::{Capabilities, ErrorCode},
     challenge::Action,
     encoding::{Counter, is_prefixed_id, prefixed_id},
     play::{
@@ -23,7 +23,7 @@ use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 use super::{
-    Code, Failure, Locked, Outcome, Shared,
+    Code, Failure, Locked, Outcome, Refusal, Shared,
     bridges::Approved,
     client::{self, Body, BridgeCall, Verb, now},
     spool::Entry,
@@ -622,15 +622,16 @@ pub async fn report_game(
 /// report is invalid or its bridge is no longer approved.
 fn settled(failure: &Failure) -> bool {
     match failure {
-        Failure::Bridge(code) => matches!(
-            code.as_str(),
-            "stale_revision"
-                | "idempotency_conflict"
-                | "invalid_signature"
-                | "invalid_request"
-                | "not_found"
-                | "forbidden"
+        Failure::Bridge(Refusal::Error(code)) => matches!(
+            code,
+            ErrorCode::StaleRevision
+                | ErrorCode::IdempotencyConflict
+                | ErrorCode::InvalidSignature
+                | ErrorCode::InvalidRequest
+                | ErrorCode::NotFound
+                | ErrorCode::Forbidden
         ),
+        Failure::Bridge(_) => false,
         Failure::Local(code) => matches!(
             code,
             Code::InvalidRequest | Code::NotFound | Code::BridgeNotApproved
@@ -685,11 +686,7 @@ fn unreachable_bridge(failure: &Failure) -> bool {
         Failure::Local(code) => {
             matches!(code, Code::BridgeUnreachable | Code::BridgeResponseTooLarge)
         }
-        Failure::Bridge(code) => {
-            code.len() == 8
-                && code.starts_with("http_5")
-                && code[6..].bytes().all(|b| b.is_ascii_digit())
-        }
+        Failure::Bridge(refusal) => refusal.is_server_failure(),
         Failure::Identity(_) => false,
     }
 }
@@ -824,7 +821,7 @@ mod tests {
             move |command: Value| async move {
                 sent.lock().unwrap().push(command.get("ready").cloned());
                 if fails {
-                    Err(Failure::Bridge("bridge_unavailable".into()))
+                    Err(Failure::Bridge(Refusal::Status(503)))
                 } else {
                     Ok(json!({}))
                 }
@@ -1005,7 +1002,7 @@ mod tests {
                     .unwrap()
                     .push(command.get("held_binding").cloned());
                 if fails {
-                    Err(Failure::Bridge("bridge_unavailable".into()))
+                    Err(Failure::Bridge(Refusal::Status(503)))
                 } else {
                     Ok(json!({}))
                 }
@@ -1191,25 +1188,28 @@ mod tests {
     // cannot be reached alone for the rest of the pass.
     #[test]
     fn reports_settle_on_refusals_of_either_side_and_not_on_trouble_reaching_a_bridge() {
-        let bridge = |code: &str| Failure::Bridge(code.into());
+        let bridge = |code: ErrorCode| Failure::Bridge(Refusal::Error(code));
         for code in [
-            "stale_revision",
-            "idempotency_conflict",
-            "invalid_signature",
-            "invalid_request",
-            "not_found",
-            "forbidden",
+            ErrorCode::StaleRevision,
+            ErrorCode::IdempotencyConflict,
+            ErrorCode::InvalidSignature,
+            ErrorCode::InvalidRequest,
+            ErrorCode::NotFound,
+            ErrorCode::Forbidden,
         ] {
-            assert!(settled(&bridge(code)), "{code}");
+            assert!(settled(&bridge(code)), "{code:?}");
         }
-        for code in [
-            "rate_limited",
-            "unauthenticated",
-            "http_502",
-            "internal",
-            "bridge_not_approved",
+        for code in [ErrorCode::RateLimited, ErrorCode::Unauthenticated] {
+            assert!(!settled(&bridge(code)), "{code:?}");
+        }
+        // A status alone, or a word of the bridge that spells a helper code,
+        // settles nothing.
+        for refusal in [
+            Refusal::Status(502),
+            Refusal::Reason("internal".into()),
+            Refusal::Reason("bridge_not_approved".into()),
         ] {
-            assert!(!settled(&bridge(code)), "{code}");
+            assert!(!settled(&Failure::Bridge(refusal.clone())), "{refusal:?}");
         }
         for code in [
             Code::InvalidRequest,
@@ -1226,18 +1226,16 @@ mod tests {
         for failure in [
             Failure::new(Code::BridgeUnreachable),
             Failure::new(Code::BridgeResponseTooLarge),
-            bridge("http_500"),
-            bridge("http_503"),
+            Failure::Bridge(Refusal::Status(500)),
+            Failure::Bridge(Refusal::Status(503)),
         ] {
             assert!(unreachable_bridge(&failure), "{failure:?}");
         }
         for failure in [
             Failure::new(Code::Internal),
             Failure::new(Code::IdentityBusy),
-            bridge("http_404"),
-            bridge("http_5000"),
-            bridge("http_5x1"),
-            bridge("rate_limited"),
+            Failure::Bridge(Refusal::Status(404)),
+            bridge(ErrorCode::ServiceUnavailable),
         ] {
             assert!(!unreachable_bridge(&failure), "{failure:?}");
         }

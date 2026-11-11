@@ -9,7 +9,7 @@ use std::{
 
 use ember_protocol::{
     EmberId,
-    api::{ApiError, BridgeProfile, Capabilities, SigningKey, SigningKeys, WELL_KNOWN_PATH},
+    api::{BridgeProfile, Capabilities, ErrorCode, SigningKey, SigningKeys, WELL_KNOWN_PATH},
     challenge::{
         Action, Challenge, Expected, MAX_PROOF_BODY, Method, ProvenRequest, command_digest,
     },
@@ -20,7 +20,7 @@ use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::{Value, json, value::RawValue};
 use zeroize::Zeroizing;
 
-use super::{Code, Failure, Locked, Outcome, Shared, bridges::Approved};
+use super::{Code, Failure, Locked, Outcome, Refusal, Shared, bridges::Approved};
 
 pub(super) const MAX_RESPONSE: usize = 64 * 1024;
 const JSON: &str = "application/json";
@@ -32,8 +32,6 @@ pub(super) const CREATE_TIMEOUT: Duration = Duration::from_secs(45);
 pub(super) const POLICY: OriginPolicy = OriginPolicy::AllowLoopbackHttp;
 /// Renew a cached session this long before it expires.
 const SESSION_MARGIN_SECS: u64 = 30;
-/// The bridge's code for a session it no longer accepts.
-const UNAUTHENTICATED: &str = "unauthenticated";
 
 /// A bridge session, valid only for the origin that issued it and the
 /// Ember ID that opened it.
@@ -553,44 +551,18 @@ pub(super) fn read<T: DeserializeOwned>(
 
 /// The failure for an answer that is not a success of its route.
 pub(super) fn refused(status: u16, body: &[u8], refusals: &Refusals<'_>) -> Failure {
-    let failure = refusal(status, body, refusals.reasons);
+    let refusal = Refusal::read(status, body, refusals.reasons);
     match refusals.missing {
-        Some(missing) if status == 404 && !refusals.reasons.contains(&failure.as_str()) => {
+        Some(missing) if status == 404 && !refusal.is_listed(refusals.reasons) => {
             Failure::new(missing)
         }
-        _ => failure,
+        _ => Failure::Bridge(refusal),
     }
 }
 
-/// The failure for a bridge's refusal: its `details.reason` when that is one
-/// of `reasons`, which a caller words apart, else its error code, or
-/// `http_<status>` when the body names none. A listed reason with a
-/// `details.cause` is `<reason>_<cause>` when `reasons` lists that too; a
-/// reason that is not listed never takes a cause, so `room` and `full` are
-/// not `room_full`.
+/// The failure for a bridge's refusal (`Refusal::read`).
 pub(super) fn refusal(status: u16, body: &[u8], reasons: &[&str]) -> Failure {
-    let error = serde_json::from_slice::<ApiError>(body).ok();
-    let reason = error.as_ref().and_then(|error| {
-        let details = &error.error.details;
-        let reason = details.get("reason")?.as_str()?;
-        let cause = details.get("cause").and_then(|cause| cause.as_str());
-        if let (true, Some(cause)) = (reasons.contains(&reason), cause) {
-            let caused = format!("{reason}_{cause}");
-            if reasons.contains(&caused.as_str()) {
-                return Some(caused);
-            }
-        }
-        // Tournament Mode by invitation is the same answer wherever an
-        // organizer is turned away, so the game always words it.
-        (reasons.contains(&reason) || reason == "invite_required").then(|| reason.to_owned())
-    });
-    let code = || {
-        error
-            .and_then(|error| serde_json::to_value(error.error.code).ok())
-            .and_then(|code| code.as_str().map(str::to_owned))
-            .unwrap_or_else(|| format!("http_{status}"))
-    };
-    Failure::Bridge(reason.unwrap_or_else(code))
+    Failure::Bridge(Refusal::read(status, body, reasons))
 }
 
 /// Whether this build pins `bridge_id` (builtin.rs).
@@ -746,7 +718,7 @@ where
     let bridge = approved(shared, bridge_id)?;
     let token = session(shared, &bridge).await?;
     match operation(bridge.clone(), token).await {
-        Err(Failure::Bridge(code)) if code == UNAUTHENTICATED => {
+        Err(Failure::Bridge(refusal)) if refusal.is(ErrorCode::Unauthenticated) => {
             shared.client.forget_session(bridge_id);
             let token = session(shared, &bridge).await?;
             operation(bridge, token).await
@@ -980,12 +952,12 @@ mod tests {
     fn a_refusal_is_the_bridges_code_or_the_status_and_a_404_may_be_a_missing_route() {
         let body = refusal_body("brand_new_code", None);
         let unknown = refusal(409, &body, &[]);
-        assert!(matches!(&unknown, Failure::Bridge(code) if code == "http_409"));
+        assert!(matches!(&unknown, Failure::Bridge(Refusal::Status(409))));
         let known = refusal(403, &refusal_body("forbidden", None), &[]);
-        assert!(matches!(&known, Failure::Bridge(code) if code == "forbidden"));
+        assert!(matches!(&known, Failure::Bridge(Refusal::Error(ErrorCode::Forbidden))));
         let reasons = ["room_full"];
         let worded = refusal(409, &refusal_body("forbidden", Some("room_full")), &reasons);
-        assert!(matches!(&worded, Failure::Bridge(code) if code == "room_full"));
+        assert!(matches!(&worded, Failure::Bridge(refusal) if refusal.is_reason("room_full")));
 
         let route = Refusals {
             reasons: &reasons,
@@ -1002,14 +974,14 @@ mod tests {
             &[200],
             &route,
         );
-        assert!(matches!(named, Err(Failure::Bridge(code)) if code == "room_full"));
+        assert!(matches!(named, Err(Failure::Bridge(refusal)) if refusal.is_reason("room_full")));
         let other = answer(403, &refusal_body("forbidden", None), &[200], &route);
-        assert!(matches!(other, Err(Failure::Bridge(code)) if code == "forbidden"));
+        assert!(matches!(other, Err(Failure::Bridge(Refusal::Error(ErrorCode::Forbidden)))));
         let plain = Refusals {
             reasons: &reasons,
             missing: None,
         };
         let not_found = answer(404, &refusal_body("not_found", None), &[200], &plain);
-        assert!(matches!(not_found, Err(Failure::Bridge(code)) if code == "not_found"));
+        assert!(matches!(not_found, Err(Failure::Bridge(Refusal::Error(ErrorCode::NotFound)))));
     }
 }

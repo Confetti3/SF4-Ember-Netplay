@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use ember_protocol::{
     Error as ProtocolError,
+    api::ErrorCode,
     rooms::{
         BANNED, CreateRoom, INVALID_NAME, ROOM_FULL, ROOM_LIMIT, ROOM_LOCKED, ROOM_NOT_FOUND,
         ROOM_NOT_OPEN, RoomAdmission, RoomList, RoomSummary, TicketRequest, UNSUPPORTED_BUILD,
@@ -66,7 +67,7 @@ fn invalid_request() -> Failure {
 /// `own_delay_unsupported` and never retried as a room with the shared delay.
 fn create_failure(failure: Failure, own_delay: bool) -> Failure {
     match failure {
-        Failure::Bridge(code) if own_delay && code == "invalid_request" => {
+        Failure::Bridge(refusal) if own_delay && refusal.is(ErrorCode::InvalidRequest) => {
             Failure::new(Code::OwnDelayUnsupported)
         }
         other => other,
@@ -264,7 +265,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::tournament::Request;
+    use crate::tournament::{Refusal, Request};
 
     fn request(value: Value) -> Request {
         serde_json::from_value(value).expect("a request")
@@ -345,7 +346,7 @@ mod tests {
             "http_502",
         ] {
             assert_eq!(
-                create_failure(Failure::Bridge(code.into()), true).as_str(),
+                create_failure(Failure::Bridge(Refusal::Reason(code.into())), true).as_str(),
                 code
             );
         }

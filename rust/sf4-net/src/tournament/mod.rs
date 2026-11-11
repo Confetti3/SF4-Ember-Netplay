@@ -13,6 +13,7 @@ mod desk;
 mod discord;
 mod play;
 mod ranking;
+mod refusal;
 mod replays;
 mod rooms;
 mod sign_in;
@@ -22,6 +23,7 @@ mod test_support;
 mod watch;
 
 use std::{
+    borrow::Cow,
     future::Future,
     path::{Path, PathBuf},
     sync::{
@@ -46,6 +48,7 @@ use crate::{
 };
 
 pub use builtin::Builtin;
+pub use refusal::Refusal;
 
 /// Bridge requests in flight at once (spec 25.1).
 const HTTP_CONCURRENCY: usize = 4;
@@ -461,9 +464,9 @@ impl Code {
 pub enum Failure {
     Local(Code),
     Identity(identity::Failure),
-    /// A bridge's error code, or the reason it gives that a caller words
-    /// apart, or `http_<status>` when its answer names neither.
-    Bridge(String),
+    /// A bridge's refusal: the reason it gives that a caller words apart, its
+    /// error code, or its status when its answer names neither.
+    Bridge(Refusal),
 }
 
 impl From<identity::Failure> for Failure {
@@ -478,19 +481,16 @@ impl Failure {
     }
 
     /// The code on the IPC wire.
-    pub fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> Cow<'_, str> {
         match self {
-            Self::Local(code) => code.as_str(),
-            Self::Identity(failure) => failure.as_str(),
-            Self::Bridge(code) => code,
+            Self::Local(code) => Cow::Borrowed(code.as_str()),
+            Self::Identity(failure) => Cow::Borrowed(failure.as_str()),
+            Self::Bridge(refusal) => refusal.text(),
         }
     }
 
     fn into_reason(self) -> String {
-        match self {
-            Self::Bridge(code) => code,
-            other => other.as_str().to_owned(),
-        }
+        self.as_str().into_owned()
     }
 }
 
@@ -1139,6 +1139,8 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
 mod tests {
     use std::{collections::HashSet, time::Duration};
 
+    use ember_protocol::api::ErrorCode;
+
     use super::*;
 
     // Every op the list names is the tag serde reads for its variant, each
@@ -1432,9 +1434,13 @@ mod tests {
         }
         let from_identity: Failure = identity::Failure::WrongPassphrase.into();
         assert_eq!(from_identity.as_str(), "wrong_passphrase");
-        let bridge = Failure::Bridge("http_502".into());
+        let bridge = Failure::Bridge(Refusal::Status(502));
         assert_eq!(bridge.as_str(), "http_502");
         assert_eq!(bridge.into_reason(), "http_502");
+        let coded = Failure::Bridge(Refusal::Error(ErrorCode::Forbidden));
+        assert_eq!(coded.into_reason(), "forbidden");
+        let worded = Failure::Bridge(Refusal::Reason("room_full".into()));
+        assert_eq!(worded.into_reason(), "room_full");
     }
 
     /// The identity member of the next answer, whether it has one.
