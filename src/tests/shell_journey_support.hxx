@@ -41,7 +41,7 @@ struct Harness {
   shell.SetAnnouncedStore([]{return std::vector<sf4e::platform::AnnouncedMatch>{};},[](const std::vector<sf4e::platform::AnnouncedMatch>&){return true;});
  }
  void Frame(unsigned buttons=0,int count=1,float seconds=1.f/60){
-  for(int i=0;i<count;++i){auto& io=ImGui::GetIO();io.DeltaTime=seconds;SetMenuInput({buttons,0});ImGui::NewFrame();
+  for(int i=0;i<count;++i){imgui.Use();auto& io=ImGui::GetIO();io.DeltaTime=seconds;SetMenuInput({buttons,0});ImGui::NewFrame();
    shell.Draw(view,&open,[&](ShellAction a){actions.push_back(a);return accept;},selection,developer);
    ImGui::Render();}
  }
