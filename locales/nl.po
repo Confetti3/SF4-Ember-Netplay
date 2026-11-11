@@ -2476,6 +2476,9 @@ msgstr "Terug naar de kamer."
 msgid "runtime.table_game_cancelled"
 msgstr "Partij geannuleerd. Ga terug naar de kamer en meld je weer klaar."
 
+msgid "runtime.match_start_timeout"
+msgstr "De partij is niet binnen een minuut begonnen en is voor beide spelers geannuleerd. Meld je in de kamer weer klaar."
+
 msgid "runtime.practice_ended"
 msgstr "Oefenen gestopt. Ga terug naar de kamer en meld je weer klaar."
 

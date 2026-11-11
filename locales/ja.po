@@ -2476,6 +2476,9 @@ msgstr "ルームに戻っています。"
 msgid "runtime.table_game_cancelled"
 msgstr "この対戦席のゲームはキャンセルされました。ルームに戻って再度準備完了にしてください。"
 
+msgid "runtime.match_start_timeout"
+msgstr "1分以内にゲームが始まらなかったため、両プレイヤーのゲームをキャンセルしました。ルームで再度準備完了にしてください。"
+
 msgid "runtime.practice_ended"
 msgstr "練習を終了しました。ルームに戻って再度準備完了にしてください。"
 

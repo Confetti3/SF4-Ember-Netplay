@@ -833,6 +833,8 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
                 const auto result=ggpo_synchronize_input(ggpo[i],synchronized,sizeof(synchronized),&disconnected);
                 if(result==GGPO_ERRORCODE_NOT_SYNCHRONIZED || result==GGPO_ERRORCODE_PREDICTION_THRESHOLD) continue;
                 CHECK(result==GGPO_OK && disconnected==0 && ggpo_advance_frame(ggpo[i])==GGPO_OK);
+                // GGPO runs: what the runtime tells the session, so a long recovery is not a start timeout.
+                if(matches[i]) matches[i]->GameRunning();
                 ++frames[i]; inputAdded[i]=false;
             }
         };

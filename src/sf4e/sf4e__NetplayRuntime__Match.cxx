@@ -11,6 +11,16 @@ bool GenerationFinished(const room::Table& table, std::uint64_t generation) {
 	return (generation && runtime->teardown.committedEndGeneration == generation) || netplay::GenerationEnded(table, generation);
 }
 
+// What the player reads when this PC's match session fails (IrohMatchSession::Error).
+// A spectator in the game, or one whose view never started, lost its one link,
+// to P1: its stream, not a seat. A fighter whose game never started called it
+// off for the table; any other failure lost the connection.
+const char* MatchFailureNotice(const std::string& failure, bool spectator, bool entered) {
+	const bool startTimedOut = failure == "match_start_timeout";
+	if (spectator && (entered || startTimedOut)) return "runtime.spectator_stream_lost";
+	return startTimedOut ? "runtime.match_start_timeout" : "runtime.match_connection_lost";
+}
+
 // Records the lock release a spectator owes the room after its own setup or
 // stream failure of the admitted generation. It reads only the room projection
 // and does not depend on a battle having been entered, so it covers a failure
@@ -576,10 +586,11 @@ void TickMatch() {
 			runtime->entry.sessionlessCloseGeneration = 0;
 			HandleSessionlessClose(closedGeneration);
 		}
+		// This generation's GGPO session runs: its start is over (IrohMatchSession::StartTimeoutMs).
+		// An earlier game's session is retired before the next is granted, so its phase is never read for this one.
+		if (runtime->match && Game::Battle::System::ggpo && GetGgpoSyncPhase() == GgpoSyncPhase::Running) runtime->match->GameRunning();
 		if (runtime->match && !runtime->match->Tick(Game::Battle::System::ggpo != nullptr)) {
-			// A spectator in the game lost its one link, to P1: its stream, not a seat.
-			runtime->error = loc::T(LocalIsSpectator() && runtime->entry.matchEntered ?
-				"runtime.spectator_stream_lost" : "runtime.match_connection_lost");
+			runtime->error = loc::T(MatchFailureNotice(runtime->match->Error(), LocalIsSpectator(), runtime->entry.matchEntered));
 			// A spectator has no seat to lose: a control reconnect that briefly
 			// empties the projection must not turn its stream failure into a room exit.
 			if (UserApp::netplay && (LocalIsSpectator() || UserApp::netplay->client.GetRoomSnapshot().roomEpoch)) {

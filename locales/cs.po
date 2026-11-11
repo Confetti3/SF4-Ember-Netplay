@@ -2476,6 +2476,9 @@ msgstr "Návrat do místnosti."
 msgid "runtime.table_game_cancelled"
 msgstr "Zápas u tohoto stolu byl zrušen. Vraťte se do místnosti a znovu potvrďte Připraven."
 
+msgid "runtime.match_start_timeout"
+msgstr "Zápas se do minuty nespustil, a proto byl zrušen pro oba hráče. V místnosti znovu potvrďte Připraven."
+
 msgid "runtime.practice_ended"
 msgstr "Trénink skončil. Vraťte se do místnosti a znovu potvrďte Připraven."
 

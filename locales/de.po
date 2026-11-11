@@ -2476,6 +2476,9 @@ msgstr "Zurück zum Raum."
 msgid "runtime.table_game_cancelled"
 msgstr "Das Spiel an diesem Tisch wurde abgebrochen. Zurück zum Raum und erneut Bereit drücken."
 
+msgid "runtime.match_start_timeout"
+msgstr "Das Spiel ist nicht innerhalb einer Minute gestartet und wurde für beide Spieler abgebrochen. Im Raum erneut Bereit drücken."
+
 msgid "runtime.practice_ended"
 msgstr "Übung beendet. Zurück zum Raum und erneut Bereit drücken."
 

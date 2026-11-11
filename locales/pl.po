@@ -2476,6 +2476,9 @@ msgstr "Powrót do pokoju."
 msgid "runtime.table_game_cancelled"
 msgstr "Walka przy tym stole została anulowana. Wróć do pokoju i ponownie zgłoś gotowość."
 
+msgid "runtime.match_start_timeout"
+msgstr "Walka nie rozpoczęła się w ciągu minuty, więc została anulowana dla obu graczy. Zgłoś gotowość ponownie w pokoju."
+
 msgid "runtime.practice_ended"
 msgstr "Trening zakończony. Wróć do pokoju i ponownie zgłoś gotowość."
 

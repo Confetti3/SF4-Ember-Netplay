@@ -2476,6 +2476,9 @@ msgstr "Volviendo a la sala."
 msgid "runtime.table_game_cancelled"
 msgstr "Se canceló la partida de esta mesa. Vuelve a la sala y marca Listo otra vez."
 
+msgid "runtime.match_start_timeout"
+msgstr "La partida no empezó en un minuto, así que se canceló para los dos jugadores. Marca Listo otra vez en la sala."
+
 msgid "runtime.practice_ended"
 msgstr "Práctica terminada. Vuelve a la sala y marca Listo otra vez."
 

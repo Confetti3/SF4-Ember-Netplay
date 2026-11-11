@@ -2476,6 +2476,9 @@ msgstr "正在返回房间。"
 msgid "runtime.table_game_cancelled"
 msgstr "此对战席的对战已取消。请返回房间重新准备。"
 
+msgid "runtime.match_start_timeout"
+msgstr "对战未能在一分钟内开始，已为双方取消。请在房间中重新准备。"
+
 msgid "runtime.practice_ended"
 msgstr "练习已结束。请返回房间重新准备。"
 

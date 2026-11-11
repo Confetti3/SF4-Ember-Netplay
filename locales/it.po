@@ -2476,6 +2476,9 @@ msgstr "Ritorno alla sala."
 msgid "runtime.table_game_cancelled"
 msgstr "Partita al tavolo annullata. Torna alla sala per selezionare Pronto."
 
+msgid "runtime.match_start_timeout"
+msgstr "La partita non è iniziata entro un minuto ed è stata annullata per entrambi i giocatori. Seleziona di nuovo Pronto nella sala."
+
 msgid "runtime.practice_ended"
 msgstr "Pratica terminata. Torna alla sala per selezionare Pronto."
 
