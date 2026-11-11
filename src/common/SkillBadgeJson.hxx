@@ -62,9 +62,11 @@ inline void from_json(const nlohmann::json& json, WonGame& game) {
 	if (!table.is_number_unsigned() || table.get<std::uint64_t>() > 255 || !generation.is_number_unsigned())
 		throw std::invalid_argument("won game");
 	const auto fighter = [](const nlohmann::json& value) {
-		if (!value.is_number_unsigned() || value.get<std::uint64_t>() >= static_cast<std::uint64_t>(selection::FighterCount))
+		// An integer of either kind: a fighter written from an int is a signed
+		// number until the text is parsed back.
+		if (!value.is_number_integer() || value.get<std::int64_t>() < 0 || value.get<std::int64_t>() >= selection::FighterCount)
 			throw std::invalid_argument("won game fighter");
-		return static_cast<int>(value.get<std::uint64_t>());
+		return static_cast<int>(value.get<std::int64_t>());
 	};
 	const auto place = json.find("game");
 	if (place != json.end() && (!place->is_number_unsigned() || place->get<std::uint64_t>() > MaximumGameInBattle))
