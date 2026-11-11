@@ -678,3 +678,49 @@ async fn migration_057_keeps_rated_games_sittings_and_ratings_and_an_older_bridg
     assert_eq!(pairs, vec!["100:300:10:7000".to_owned()]);
     assert_eq!(ratings, before.2);
 }
+
+/// A bridge can hold a rated game whose room was deleted while foreign keys
+/// were off. The rebuilt table checks its key as each row lands, so the copy
+/// leaves that game behind rather than stopping the bridge from starting.
+#[tokio::test]
+async fn migration_057_leaves_behind_a_rated_game_whose_room_is_gone_and_keeps_the_rest() {
+    let dir = TempDir::new("levels-migration-orphan");
+    let path = dir.join("bridge.sqlite3");
+    {
+        let connection = database_at_056(&path);
+        // Foreign keys are off on this connection, as they were for the bridge
+        // that lost the room: the delete does not cascade.
+        connection
+            .execute_batch(
+                "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, created_at)
+                   VALUES ('room', 'Friendly matches', 8, 'build', 'emb_player1', 1000),
+                          ('gone', 'Player 1''s room', 8, 'build', 'emb_player1', 1000);
+                 INSERT INTO rated_games (room_id, table_id, generation)
+                   VALUES ('room', 0, 1), ('gone', 0, 1), ('room', 7, 2), ('gone', 3, 5);
+                 DELETE FROM rooms WHERE room_id = 'gone';",
+            )
+            .unwrap();
+        let orphans: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM rated_games WHERE room_id = 'gone'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(orphans, 2, "the fixture must hold rows without a room");
+    }
+    drop(Db::open(&path).unwrap());
+
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let kept: Vec<(String, i64, i64, i64)> = connection
+        .prepare("SELECT room_id, table_id, generation, game FROM rated_games ORDER BY table_id")
+        .unwrap()
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(
+        kept,
+        vec![("room".to_owned(), 0, 1, 0), ("room".to_owned(), 7, 2, 0)]
+    );
+}
