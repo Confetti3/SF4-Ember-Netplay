@@ -266,6 +266,31 @@ pub fn show(
     badge_of(tx, &account, now).map(Some)
 }
 
+/// The class last shown for Discord account `account`, read without
+/// remembering anything: what its friends see (docs/design/FRIENDS.md). None
+/// when it does not take part, the developer mark for a developer, and
+/// otherwise the band last shown, settled while its aged rating is.
+pub fn last_shown(
+    tx: &Transaction<'_>,
+    account: &str,
+    developers: &[String],
+    now: u64,
+) -> Result<Option<SkillBadge>> {
+    if !takes_part(tx, account)? {
+        return Ok(None);
+    }
+    let developer = Developers {
+        accounts: developers,
+        shown: true,
+    };
+    if developer.mark(account) {
+        return Ok(Some(SkillBadge::DEVELOPER));
+    }
+    let (rating, band) = load(tx, account, now)?;
+    let settled = band != 0 && rating.deviation <= SETTLED_DEVIATION;
+    Ok(Some(SkillBadge::class(band, settled)))
+}
+
 /// The class to show for `account` now, band 0 while it is still placing. It
 /// is remembered as the class last shown, which is what the margin is
 /// measured from, so the class ranges can change before anyone has seen one.
