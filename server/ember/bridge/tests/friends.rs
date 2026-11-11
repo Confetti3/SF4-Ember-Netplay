@@ -724,7 +724,7 @@ async fn a_friends_public_room_is_joinable_on_the_same_build() {
 #[tokio::test]
 async fn appearing_offline_freezes_what_friends_see() {
     let world = World::start().await;
-    let (mut a, mut b, c) = (
+    let (mut a, mut b, mut c) = (
         world.join(1, A, "Player 1").await,
         world.join(2, B, "Player 2").await,
         world.join(3, C, "Player 3").await,
@@ -748,6 +748,7 @@ async fn appearing_offline_freezes_what_friends_see() {
         world.bridge.clock.advance(400);
         world.renew(&mut a).await;
         world.renew(&mut b).await;
+        world.renew(&mut c).await;
         world.sync(&b, menus()).await;
         assert_eq!(presence(world.sync(&a, menus()).await), offline);
     }
