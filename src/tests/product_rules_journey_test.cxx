@@ -221,6 +221,7 @@ void ClassNames() {
 // Character select wait, and the countdown stands full until the WIN, from
 // which the guard's time and the countdown both start.
 void ScenesBeforeWin() {
+ {
  Harness h;SeatedPair(h,24);
  auto& t=h.view.room.tables[0];t.phase=room::TablePhase::Playing;
  h.Screen("room");
@@ -237,6 +238,8 @@ void ScenesBeforeWin() {
  const auto sent=h.actions.size();
  h.Choose("again");
  Check(h.actions.size()>sent&&h.actions.back().command.kind==netplay::CommandKind::Rematch,"Rematch over the WIN did not send the room's Ready");
+ }
+ // Each harness has its own ImGui context, so the first is gone before the next.
  // A second prompt, answered during the scenes: Rematch counts there.
  Harness g;SeatedPair(g,25);
  auto& u=g.view.room.tables[0];u.phase=room::TablePhase::Playing;
