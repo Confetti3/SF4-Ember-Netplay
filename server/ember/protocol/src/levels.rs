@@ -181,11 +181,8 @@ wire_enum! {
     /// The caller's relation to the player a card is of. The bridge says
     /// `None` for a player who blocked the caller, and always before it
     /// offers friends.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
     pub enum Relation {
-        /// Also what an unknown relation reads as, so a relation a later
-        /// bridge adds does not fail the whole answer.
-        #[serde(other)]
         None = "none",
         Friend = "friend",
         /// The caller asked them.
@@ -194,6 +191,15 @@ wire_enum! {
         Received = "received",
         /// The caller blocked them.
         Blocked = "blocked",
+    }
+}
+
+/// An unknown relation reads as `None`, so a relation a later bridge adds does
+/// not fail the whole answer.
+impl<'de> Deserialize<'de> for Relation {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+        let name = String::deserialize(deserializer)?;
+        Ok(Self::parse(&name).unwrap_or(Self::None))
     }
 }
 
