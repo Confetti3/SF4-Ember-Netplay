@@ -6,6 +6,7 @@ pub mod events;
 pub mod expiry;
 pub mod idempotency;
 pub mod ledger;
+pub mod levels;
 pub mod links;
 pub mod lobbies;
 pub mod lookup;
@@ -134,6 +135,8 @@ pub fn router(state: AppState) -> Router {
         )
         .route(ember_protocol::skill::BOARD_PATH, get(ranking::board))
         .route("/v1/ranking/board/public", get(ranking::public_board))
+        .route(ember_protocol::levels::LEVELS_PATH, get(levels::own))
+        .route(ember_protocol::levels::LOOKUP_PATH, post(levels::lookup))
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
         .route("/v1/lobbies/{id}/queue", post(lobbies::join))

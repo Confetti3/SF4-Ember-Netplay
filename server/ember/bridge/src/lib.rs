@@ -8,6 +8,7 @@
 mod archive;
 mod audit;
 mod auth;
+mod cards;
 pub mod config;
 mod ctx;
 mod db;

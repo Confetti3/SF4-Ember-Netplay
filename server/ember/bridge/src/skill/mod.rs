@@ -67,7 +67,7 @@ const SITTING_SECS: u64 = 3 * 60 * 60;
 /// rematch that keeps the table's generation) move ratings. Room hosts before
 /// 1.6.0 did not say which game of its battle a game was, so these games took
 /// their first game's key and were never rated. FIGHTER_LEVELS.md (Open
-/// questions) recommends rating them; the owner has not confirmed it. False
+/// questions) recommends rating them. False
 /// rates only each battle's first game, as before; every game still counts
 /// toward its sitting and record and earns levels either way.
 const RATE_GAMES_AFTER_THE_FIRST: bool = true;
