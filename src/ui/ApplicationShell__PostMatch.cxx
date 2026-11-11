@@ -148,6 +148,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
             PostMatchPrompt prompt;
             prompt.table = fought.table; prompt.generation = fought.generation; prompt.result = fought.result;
             prompt.until = now + PostMatchSeconds;
+            prompt.opened = now;
             prompt.failures = v.readyFailureSequence;
             // A set the result has already ended rotated its seats: the opponent is the set's.
             const auto [p1, p2] = GameSeats(t, fought.generation);
@@ -214,6 +215,10 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
             if (p.left && p.after == AfterPostMatch::None) { p.left = false; p.answered = true; }
             if (!p.left) { p.theyChose = p.theyDeclined = false; p.until = now + PostMatchSeconds; }
         }
+        // A press made to skip the WIN's scenes lands on the prompt as it
+        // opens: for Branding::leaveGuardSeconds over the WIN only Rematch
+        // counts, so such a press cannot end the pair's rematch in place.
+        p.leaveGuarded = !p.onResults && Fighting(v.session.match) && now < p.opened + ember::Product().branding.leaveGuardSeconds;
         // Put in front on the results screen once, as the room comes back.
         if (p.onResults && !p.resultsShown && !p.left && open) {
             p.resultsShown = true;
@@ -395,8 +400,8 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     // not only once the fighter select refuses another fighter.
     const bool keeps = KeeperKnown(t, p.generation) && room::KeepsFighter(v.room, v.room.localMember);
     rows.push_back(Row("fighter", loc::T("postmatch.character_select"),
-        rotation + loc::T(keeps ? "selection.winner_keeps_fighter" : "postmatch.character_select.detail"), !p.left));
-    rows.push_back(Row("back", loc::T("postmatch.back"), rotation + loc::T(KeepsSeat(v.room, t, p.generation, p.result) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left));
+        rotation + loc::T(keeps ? "selection.winner_keeps_fighter" : "postmatch.character_select.detail"), !p.left && !p.leaveGuarded));
+    rows.push_back(Row("back", loc::T("postmatch.back"), rotation + loc::T(KeepsSeat(v.room, t, p.generation, p.result) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left && !p.leaveGuarded));
     // The Ultra is the one row after the buttons, so Left and Right step it
     // (a footer row, MenuGridCells) and the bar's own walk stays as it was.
     // It shows while it can change, and once Rematch has set it; where it
@@ -554,7 +559,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
     AnswerDialog(submit);
     // Over the WIN the choice stays shown until the game is over (UpdatePostMatch).
     const auto leave = [&](AfterPostMatch after) {
-        if (p.left) return;
+        // Still guarded (Branding::leaveGuardSeconds): a press from the WIN's scenes.
+        if (p.left || p.leaveGuarded) return;
         if (!netplay::Fighting(v.session.match)) { ClosePostMatch(v, after, open); return; }
         // Back or Character select takes back a pair's Rematch: the room's
         // answer may still end its question, but it readies nobody here.

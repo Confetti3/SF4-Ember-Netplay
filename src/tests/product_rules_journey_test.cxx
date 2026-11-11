@@ -153,6 +153,14 @@ void ResultsRematch() {
  // Back over the WIN.
  fight();h.view.matchResult=true;h.Frame();
  Check(h.shell.Navigation().Screen()=="post-match","The WIN's prompt did not open");
+ // Branding::leaveGuardSeconds: a Back or X pressed as the prompt opens (one
+ // made to skip the WIN's scenes) declines nothing; after the guard it does.
+ const double guard=ember::Product().branding.leaveGuardSeconds;
+ if(guard>0){
+  h.Press(MenuInput::Back);h.Press(MenuInput::Fighter);
+  Check(!h.shell.PostMatchLeft()&&h.shell.Navigation().Screen()=="post-match","A Back or X pressed as the WIN's prompt opened declined the rematch");
+  h.Wait(static_cast<float>(guard));
+ }
  h.Choose("back");
  Check(h.shell.PostMatchLeft(),"Back over the WIN was not this fighter's decline");
  std::size_t sent=h.actions.size();

@@ -160,6 +160,12 @@ struct Branding {
 	// (ApplicationShell__PostMatch.cxx). Off (SF4 Ember), the prompt ends with
 	// the WIN and the room is shown.
 	bool rematchOnResults = false;
+	// Over the WIN, Back to room and Character select count only this many
+	// seconds after the post-match prompt opens; Rematch counts at once. A
+	// press made to skip the game's scenes that lands on the new prompt then
+	// declines nothing, and the pair's rematch in place still stands. 0 (SF4
+	// Ember): every answer counts at once.
+	double leaveGuardSeconds = 0;
 };
 
 // A product's own text for a few msgids of one locale's shared catalog: a PO

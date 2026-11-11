@@ -36,6 +36,8 @@ constexpr ember::ProductIdentity RulesOn = {
 		Ranks,
 		GameRankName,
 		true,
+		// Back to room and Character select wait 2 s over the WIN.
+		2.0,
 	},
 	L"sf4e-product-rules-test",
 	false,

@@ -28,6 +28,11 @@ struct PostMatchPrompt {
     // The game's result, once the runtime has it (FoughtGame::result).
     room::MatchResult result = room::MatchResult::Abort;
     double until = 0;
+    // When it opened over the WIN, and whether Back to room and Character
+    // select still wait out Branding::leaveGuardSeconds from then (set each
+    // frame by UpdatePostMatch; never on the room's results).
+    double opened = 0;
+    bool leaveGuarded = false;
     bool chose = false, starting = false;
     // An Arcade pair's Rematch chosen here (Table::deciding): once both
     // chose it the room asks no more, and the prompt readies the player.

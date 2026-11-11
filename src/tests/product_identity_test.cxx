@@ -43,7 +43,7 @@ static void TestBranding() {
 	CHECK(theme.rule == theme.border && !theme.barFocus && !theme.quietButtons && !theme.upperTitles && !theme.promptOnGround);
 	// USF4's battle HUD; the Members rows show each player's main, and the
 	// post-match prompt reads the opponent's answer from the room.
-	CHECK(branding.battleHud == nullptr && !branding.roomFacesArePicks && !branding.answersFromInput);
+	CHECK(branding.battleHud == nullptr && !branding.roomFacesArePicks && !branding.answersFromInput && branding.leaveGuardSeconds == 0);
 	// The version resources are written from cmake/sf4e_product.cmake.
 	CHECK(Same(branding.productName, SF4E_TEST_PRODUCT_NAME));
 	CHECK(Same(SF4E_TEST_PRODUCT_COMPANY, "SF4 Ember Netplay Contributors"));
