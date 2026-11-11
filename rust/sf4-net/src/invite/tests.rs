@@ -102,6 +102,7 @@ fn relay_regions_are_stable_codes_and_never_a_url() {
         ("https://euc1-1.relay.n0.iroh.link./", "euc1"),
         ("https://aps1-1.relay.n0.iroh.link./", "aps1"),
         ("https://relay.embernetplay.link./", "use1"),
+        ("https://relay-eu.embernetplay.link./", "euc1"),
     ];
     assert_eq!(RELAYS, wire);
     let n0 = iroh::defaults::prod::default_relay_map();
@@ -109,10 +110,10 @@ fn relay_regions_are_stable_codes_and_never_a_url() {
         assert_eq!(RELAYS[index].1, *code);
         assert!(n0.contains(&pinned(index)), "{code}");
     }
-    // Exactly these relays are active; neither of n0's US relays is.
+    // Exactly these relays are active; of n0's, only Asia's is.
     let expected: std::collections::BTreeSet<RelayUrl> = [
         "https://relay.embernetplay.link./",
-        "https://euc1-1.relay.n0.iroh.link./",
+        "https://relay-eu.embernetplay.link./",
         "https://aps1-1.relay.n0.iroh.link./",
     ]
     .iter()
@@ -125,6 +126,7 @@ fn relay_regions_are_stable_codes_and_never_a_url() {
     for url in [
         "https://use1-1.relay.n0.iroh.link./",
         "https://usw1-1.relay.n0.iroh.link./",
+        "https://euc1-1.relay.n0.iroh.link./",
     ] {
         assert!(!expected.contains(&url.parse().unwrap()), "{url}");
     }
@@ -143,11 +145,12 @@ fn relay_regions_are_stable_codes_and_never_a_url() {
     }
     // Neither of n0's US relays is active: both are blocked by some US
     // providers' router filters. Ember's relay, coded use1, covers both
-    // US regions, so no relay of this build reports usw1.
+    // US regions, so no relay of this build reports usw1. Europe is on
+    // Ember's relay as well, in place of n0's.
     assert_eq!(relay_for_region("use1"), Some(pinned(4)));
-    assert_eq!(relay_for_region("euc1"), Some(pinned(2)));
+    assert_eq!(relay_for_region("euc1"), Some(pinned(5)));
     assert_eq!(relay_for_region("aps1"), Some(pinned(3)));
-    for index in [0, 1] {
+    for index in [0, 1, 2] {
         assert!(!active.contains(&pinned(index)));
     }
     for code in ["usw1", "other", "", "USE1", "euc2"] {

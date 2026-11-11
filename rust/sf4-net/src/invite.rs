@@ -35,21 +35,27 @@ const RECOVERY_HEADER: usize = HEADER + 32 + 8 + 8;
 // Append only: never reorder, remove or reuse an entry. A peer of another
 // build never reads these invitations (the build check refuses them first),
 // so an appended entry needs no new invite version.
-const RELAYS: [(&str, &str); 5] = [
+const RELAYS: [(&str, &str); 6] = [
     ("https://use1-1.relay.n0.iroh.link./", "use1"),
     ("https://usw1-1.relay.n0.iroh.link./", "usw1"),
     ("https://euc1-1.relay.n0.iroh.link./", "euc1"),
     ("https://aps1-1.relay.n0.iroh.link./", "aps1"),
     // Ember's own relay, on the VPS in Kansas: both US regions reach it.
     ("https://relay.embernetplay.link./", "use1"),
+    // Ember's relay for Europe, run by a community host (server/relay). The
+    // name is Ember's, so the relay can move to another host without a new
+    // build.
+    ("https://relay-eu.embernetplay.link./", "euc1"),
 ];
 
 /// The RELAYS entries this build's endpoints use, one per region they cover.
 /// Some US internet providers' router filters (Xfinity, Spectrum, Cox) block
 /// n0's US and Asia relays over HTTPS since 2026-11-08, and iroh picks a home
 /// relay by latency alone, so a US player must not be able to land on one:
-/// Ember's relay replaces both n0 US relays. Europe and Asia stay on n0's.
-const ACTIVE: [usize; 3] = [4, 2, 3];
+/// Ember's relay replaces both n0 US relays. Europe has Ember's relay too, so
+/// a block that spreads to n0's Europe relay cannot cut it off. Asia stays on
+/// n0's.
+const ACTIVE: [usize; 3] = [4, 5, 3];
 
 fn pinned(index: usize) -> RelayUrl {
     RELAYS[index].0.parse().expect("pinned relay URL")

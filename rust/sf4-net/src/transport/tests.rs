@@ -611,13 +611,24 @@ async fn closed_ggpo_socket_with_peer_traffic_keeps_the_runtime_responsive() {
 /// relay, learns its public address from the relay's QUIC address discovery
 /// and sees no captive portal; then two relay-only endpoints connect through
 /// it and exchange a stream.
+///
+/// With `EMBER_LIVE_RELAY` set to a relay URL (`https://host./`), that relay
+/// alone is checked: a candidate, before `invite::RELAYS` pins it.
 #[tokio::test]
 #[ignore = "needs the internet and the live relays"]
 async fn live_relays_answer_probes_and_carry_a_relay_only_connection() {
     use iroh::{RelayMap, RelayUrl, Watcher as _};
     use std::time::Duration;
     const ALPN: &[u8] = b"sf4e/live-relay-check/1";
-    for relay in crate::invite::relay_map().urls::<Vec<RelayUrl>>() {
+    let relays = match std::env::var("EMBER_LIVE_RELAY") {
+        Ok(candidate) => vec![
+            candidate
+                .parse::<RelayUrl>()
+                .expect("EMBER_LIVE_RELAY: a relay URL such as https://host./"),
+        ],
+        Err(_) => crate::invite::relay_map().urls::<Vec<RelayUrl>>(),
+    };
+    for relay in relays {
         let only = || {
             Endpoint::builder(presets::N0)
                 .relay_mode(RelayMode::Custom(RelayMap::from_iter([
@@ -649,6 +660,14 @@ async fn live_relays_answer_probes_and_carry_a_relay_only_connection() {
         );
         assert_eq!(report.preferred_relay.as_ref(), Some(&relay), "{relay}");
         assert!(report.global_v4.is_some(), "{relay}: no QUIC address discovery");
+        // A relay behind a proxy or a container network that rewrites the
+        // packets' source would report that network's address to every
+        // player instead of their own.
+        let seen = *report.global_v4.unwrap().ip();
+        assert!(
+            !(seen.is_private() || seen.is_loopback() || seen.is_link_local()),
+            "{relay}: QUIC address discovery reported a local address"
+        );
         // iroh checks for a captive portal only when its probes are slow, so
         // an unset answer is fine; a portal seen on our own relay is not.
         assert_ne!(report.captive_portal, Some(true), "{relay}");
