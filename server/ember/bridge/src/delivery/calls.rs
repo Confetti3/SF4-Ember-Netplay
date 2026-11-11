@@ -13,10 +13,10 @@
 //! (401, 403, 404) or a post it refuses (400) is not tried again.
 use ember_protocol::play::play_url;
 use reqwest::Url;
-use rusqlite::{OptionalExtension, Transaction, params};
+use rusqlite::{OptionalExtension, ToSql, Transaction, params};
 use serde_json::{Value, json};
 
-use super::{BATCH, Leased, Outcome, Queue, Record, Settled, webhooks::post_signed};
+use super::{BATCH, Leased, Outcome, Queue, Record, Table, webhooks::post_signed};
 use crate::{AppState, error::Result};
 
 /// Discord's own hosts for channel webhooks.
@@ -299,8 +299,10 @@ pub struct Calls;
 impl Queue for Calls {
     type Item = Due;
 
-    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Due>>> {
-        let rows = tx
+    const TABLE: Table = Table::outbox("desk_posts");
+
+    fn due(&self, tx: &Transaction<'_>, now: u64) -> Result<Vec<Leased<Due>>> {
+        Ok(tx
             .prepare(
                 "SELECT p.id, p.attempts, p.first_attempt_at, p.body, e.discord_webhook
                  FROM desk_posts p JOIN organizer_events e ON e.id = p.event_id
@@ -319,14 +321,11 @@ impl Queue for Calls {
                     },
                 })
             })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for row in &rows {
-            tx.execute(
-                "UPDATE desk_posts SET next_attempt_at = ?1, attempts = ?2 WHERE id = ?3",
-                params![until, row.attempt, row.item.id],
-            )?;
-        }
-        Ok(rows)
+            .collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    fn key(item: &Due) -> Vec<&dyn ToSql> {
+        vec![&item.id]
     }
 
     async fn attempt(&self, state: &AppState, item: &Due) -> Outcome {
@@ -351,24 +350,7 @@ impl Queue for Calls {
     }
 
     fn record(&self, tx: &Transaction<'_>, leased: &Leased<Due>, record: &Record) -> Result<()> {
-        let (status, next, error) = match &record.settled {
-            Settled::Delivered => ("delivered", record.at, None),
-            Settled::Retry { at, error } => ("pending", *at, Some(error)),
-            Settled::Refused(error) | Settled::Expired(error) => ("dead", record.at, Some(error)),
-        };
-        tx.execute(
-            "UPDATE desk_posts SET state = ?1, next_attempt_at = ?2,
-                first_attempt_at = COALESCE(first_attempt_at, ?3), last_error = ?4
-             WHERE id = ?5 AND state = 'pending' AND attempts = ?6",
-            params![
-                status,
-                next,
-                record.first_attempt_at,
-                error,
-                leased.item.id,
-                leased.attempt
-            ],
-        )?;
+        Self::TABLE.record(tx, &Self::key(&leased.item), leased.attempt, record)?;
         Ok(())
     }
 }
