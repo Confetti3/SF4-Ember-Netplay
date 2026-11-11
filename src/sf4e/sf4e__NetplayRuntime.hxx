@@ -42,6 +42,7 @@
 #include "../netplay/WatchPlay.hxx"
 #include "../netplay/OwedAbort.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/LevelRequests.hxx"
 #include "../netplay/RankingRequests.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../netplay/SettingsStore.hxx"
@@ -269,6 +270,8 @@ struct Runtime {
     netplay::publicrooms::Status publicRooms;
     // Rankings: the requests in flight and what the interface sees.
     netplay::rankings::Requests rankings;
+    // The player's own fighter levels: the read in flight and the last answer.
+    netplay::levels::Requests levels;
     // Match links from the browser (ember://tournament/open), from a later
     // launcher or the start argument, and the last one the interface was given.
     platform::MatchLinkMailbox matchLinks;
@@ -542,6 +545,13 @@ void ExpirePublicRooms(std::uint64_t nowMs);
 void DispatchRankings(const netplay::tournament::Command& command, bool helperReady);
 bool TakeRankingsAnswer(const session::TournamentAnswer& answer);
 void ExpireRankings(std::uint64_t nowMs);
+
+// Fighter levels (sf4e__NetplayRuntime__Levels.cxx): the player's own, read on
+// the menu's ask, once at start and after a set this PC fought.
+void DispatchLevels(const netplay::tournament::Command& command, bool helperReady);
+bool TakeLevelsAnswer(const session::TournamentAnswer& answer);
+// Expires lost reads, notes sets that ended, and starts the reads that are due.
+void TickLevels(bool helperReady, std::uint64_t nowMs);
 
 // Controllers (sf4e__NetplayRuntime__Input.cxx).
 std::string DeviceName(const input::Device& device);

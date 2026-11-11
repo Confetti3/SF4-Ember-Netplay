@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/Levels.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 
@@ -50,5 +51,10 @@ std::optional<netplay::publicrooms::Admission> DecodeAdmission(const nlohmann::j
 // A ranking_standing or ranking_choose answer's standing, and a ranking_board answer's board.
 std::optional<netplay::rankings::Standing> DecodeStanding(const nlohmann::json& data);
 std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const nlohmann::json& data);
+
+// A levels_me answer's levels, and a cards_lookup answer's cards (one per
+// selector, in order; nullopt inside for a selector that found no card).
+std::optional<netplay::levels::Own> DecodeOwnLevels(const nlohmann::json& data);
+std::optional<std::vector<std::optional<netplay::levels::Card>>> DecodeCards(const nlohmann::json& data);
 
 } }

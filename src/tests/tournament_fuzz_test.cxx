@@ -259,6 +259,72 @@ static void TestRankings() {
 		CHECK(session::ReadTournamentAnswer({{"op", op}, {"request_id", 7u}, {"ok", true}, {"data", json::object()}}).has_value());
 }
 
+// The player's own levels read as one of two shapes, and a card look-up as one
+// card or nothing per player; anything the bridge would not send reads as nothing.
+static void TestLevels() {
+	using Kind = netplay::levels::Own::Kind;
+	using netplay::levels::Relation;
+	CHECK(session::DecodeOwnLevels({{"levels", "no_account"}})->kind == Kind::NoAccount);
+	const json entry = {{"fighter", 3u}, {"level", 42u}, {"games", 1000u}, {"wins", 900u}, {"floor", 1845u}, {"next", 1932u}, {"since", 1729468800u}};
+	const auto own = session::DecodeOwnLevels({{"levels", "counted"}, {"fighters", json::array({entry})}});
+	CHECK(own && own->kind == Kind::Counted && !own->shown && own->fighters[3].level == 42 && own->fighters[3].games == 1000 &&
+		own->fighters[3].wins == 900 && own->fighters[3].floor == 1845 && own->fighters[3].next == 1932 &&
+		own->fighters[3].since == 1729468800 && own->fighters[2].level == 0);
+	const auto shown = session::DecodeOwnLevels({{"levels", "counted"}, {"shown", true}, {"fighters", json::array()}});
+	CHECK(shown && shown->shown);
+	// The last level has no next one, and any other level has one.
+	auto maxed = entry;
+	maxed["level"] = 60u;
+	maxed.erase("next");
+	CHECK(session::DecodeOwnLevels({{"levels", "counted"}, {"fighters", json::array({maxed})}}));
+	maxed["next"] = 1932u;
+	CHECK(!session::DecodeOwnLevels({{"levels", "counted"}, {"fighters", json::array({maxed})}}));
+	const auto changed = [&](const char* key, const json& value) {
+		auto row = entry;
+		row[key] = value;
+		return json{{"levels", "counted"}, {"fighters", json::array({row})}};
+	};
+	auto lacking = entry;
+	lacking.erase("next");
+	auto extra = entry;
+	extra["rank"] = 1u;
+	auto second = entry;
+	second["fighter"] = 2u;
+	for (const json& invalid : {json{{"levels", "ranked"}}, json{{"levels", "no_account"}, {"fighters", json::array()}},
+			json{{"levels", "counted"}}, json{{"levels", "counted"}, {"fighters", json::array()}, {"rank", 1u}},
+			json{{"levels", "counted"}, {"shown", 1u}, {"fighters", json::array()}},
+			changed("fighter", 44u), changed("level", 0u), changed("level", 61u), changed("wins", 1001u), changed("floor", 1901u),
+			changed("next", 1900u), changed("since", -1), changed("games", "1000"),
+			json{{"levels", "counted"}, {"fighters", json::array({lacking})}},
+			json{{"levels", "counted"}, {"fighters", json::array({extra})}},
+			json{{"levels", "counted"}, {"fighters", json::array({entry, entry})}},
+			json{{"levels", "counted"}, {"fighters", json::array({entry, second})}}})
+		CHECK(!session::DecodeOwnLevels(invalid));
+
+	const auto cards = session::DecodeCards({{"cards", json::array({
+		json{{"fighters", json::array({json{{"fighter", 3u}, {"level", 31u}, {"games", 612u}}})}, {"relation", "none"}}, nullptr,
+		json{{"relation", "friend"}}, json{{"fighters", json::array()}, {"relation", "blocked"}}})}});
+	CHECK(cards && cards->size() == 4 && (*cards)[0] && (*cards)[0]->levelsShown && (*cards)[0]->relation == Relation::None &&
+		(*cards)[0]->fighters.size() == 1 && (*cards)[0]->fighters[0].fighter == 3 && (*cards)[0]->fighters[0].level == 31 &&
+		(*cards)[0]->fighters[0].games == 612 && !(*cards)[1] && (*cards)[2] && !(*cards)[2]->levelsShown &&
+		(*cards)[2]->relation == Relation::Friend && (*cards)[3]->levelsShown && (*cards)[3]->fighters.empty() &&
+		(*cards)[3]->relation == Relation::Blocked);
+	for (const char* relation : {"sent", "received"}) CHECK(session::DecodeCards({{"cards", json::array({json{{"relation", relation}}})}}));
+	json seventeen = json::array();
+	for (std::size_t i = 0; i <= netplay::levels::MaxLookup; ++i) seventeen.push_back(json{{"relation", "none"}});
+	const auto card = [](const json& fighter) { return json{{"cards", json::array({json{{"fighters", json::array({fighter})}, {"relation", "none"}}})}}; };
+	for (const json& invalid : {json{{"cards", json::array()}}, json{{"cards", seventeen}}, json{{"cards", json::array({json::object()})}},
+			json{{"cards", json::array({json{{"relation", "enemy"}}})}}, json{{"cards", json::array({json{{"relation", "none"}, {"name", "Player 1"}}})}},
+			json{{"cards", json::array({nullptr})}, {"total", 1u}},
+			card(json{{"fighter", 3u}, {"level", 31u}, {"games", 612u}, {"wins", 300u}}),
+			card(json{{"fighter", 44u}, {"level", 31u}, {"games", 612u}}), card(json{{"fighter", 3u}, {"level", 0u}, {"games", 612u}}),
+			json{{"cards", json::array({json{{"fighters", json::array({json{{"fighter", 3u}, {"level", 1u}, {"games", 1u}},
+				json{{"fighter", 3u}, {"level", 1u}, {"games", 1u}}})}, {"relation", "none"}}})}}})
+		CHECK(!session::DecodeCards(invalid));
+	for (const char* op : {"levels_me", "cards_lookup"})
+		CHECK(session::ReadTournamentAnswer({{"op", op}, {"request_id", 7u}, {"ok", true}, {"data", json::object()}}).has_value());
+}
+
 static void TestPrepareWindow() {
 	const auto decode = [](const json& extra) {
 		json reply = {{"state", "permitted"}, {"permit_id", "per_x"}, {"match_generation", "7"},
@@ -464,6 +530,9 @@ static void FuzzAnswers(Random& random) {
 			for (std::size_t i = 0; i < board->size(); ++i)
 				CHECK((*board)[i].band >= 1 && (*board)[i].band <= SkillBadge::Classes && (!i || (*board)[i - 1].band >= (*board)[i].band));
 		}
+		if (const auto own = session::DecodeOwnLevels(data))
+			for (const auto& fighter : own->fighters) CHECK(fighter.level <= netplay::levels::MaxLevel && fighter.wins <= fighter.games);
+		if (const auto cards = session::DecodeCards(data)) CHECK(!cards->empty() && cards->size() <= netplay::levels::MaxLookup);
 		if (const auto list = session::DecodeAssignments(data)) {
 			CHECK(list->size() <= 50);
 			for (const auto& item : *list) CHECK((item.slot == 0 || item.slot == 1) && item.gamesToWin <= room::MaxSetLength &&
@@ -858,6 +927,7 @@ int main() {
 	Random random(Seed());
 	TestRoomListDetails();
 	TestRankings();
+	TestLevels();
 	TestAssignmentTimes();
 	TestPrepareWindow();
 	TestStartingWins();

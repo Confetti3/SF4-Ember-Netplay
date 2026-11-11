@@ -324,7 +324,7 @@ bool TakeWatchAnswer(const session::TournamentAnswer& answer, std::uint64_t nowM
 void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 	if (answer.requestId && answer.requestId == runtime->assignmentRequest) { TakeAssignments(answer); return; }
 	if (TakeReplaySent(answer, nowMs) || TakePackSaved(answer)) return;
-	if (TakePublicRoomsAnswer(answer) || TakeRankingsAnswer(answer) || TakeWatchAnswer(answer, nowMs)) return;
+	if (TakePublicRoomsAnswer(answer) || TakeRankingsAnswer(answer) || TakeLevelsAnswer(answer) || TakeWatchAnswer(answer, nowMs)) return;
 	const auto found = runtime->tournamentRequests.find(answer.requestId);
 	if (found == runtime->tournamentRequests.end()) return;
 	const auto kind = found->second.kind;
@@ -506,6 +506,9 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 	case Op::RankingBoard:
 		DispatchRankings(command, helperReady);
 		return;
+	case Op::LevelsMe:
+		DispatchLevels(command, helperReady);
+		return;
 	default:
 		return;
 	}
@@ -514,6 +517,7 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 void TickTournament(bool helperReady) {
 	ExpirePublicRooms(GetTickCount64());
 	ExpireRankings(GetTickCount64());
+	TickLevels(helperReady, GetTickCount64());
 	if (!runtime->room) return;
 	OpenMatchLink(runtime->matchLinks.Take());
 	OpenConnectLink(runtime->connectLinks.Take());

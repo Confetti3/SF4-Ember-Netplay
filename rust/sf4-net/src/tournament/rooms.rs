@@ -130,15 +130,20 @@ pub async fn list(shared: &Arc<Shared>, bridge_id: &str, build: &str) -> Outcome
 }
 
 /// The ticket request this helper makes for `build`, checked. The class and
-/// the developer mark are asked for only from a bridge that offers ranking:
-/// an older one refuses either field.
-fn ticket_request(endpoint_id: &str, build: &str, ranking: bool) -> Result<TicketRequest, Failure> {
+/// the developer mark are asked for only from a bridge that offers ranking,
+/// and the card token only from one that offers levels: an older one refuses
+/// any of those fields.
+fn ticket_request(
+    endpoint_id: &str,
+    build: &str,
+    offered: play::Features,
+) -> Result<TicketRequest, Failure> {
     let request = TicketRequest {
         endpoint_id: endpoint_id.to_owned(),
         build_id: build.to_owned(),
-        skill_badge: ranking,
-        developer_badge: ranking,
-        card: false,
+        skill_badge: offered.ranking,
+        developer_badge: offered.ranking,
+        card: offered.levels,
     };
     request.check().map_err(|_| invalid_request())?;
     Ok(request)
@@ -168,7 +173,7 @@ pub async fn create(
         _ => invalid_request(),
     })?;
     // Nothing is opened that this helper could not then take a ticket for.
-    ticket_request(&shared.endpoint_id, build, false)?;
+    ticket_request(&shared.endpoint_id, build, play::Features::default())?;
     let body = serde_json::to_vec(&command).map_err(|_| Failure::new(Code::Internal))?;
     let call = BridgeCall::new(Verb::Post, "/v1/rooms", &[201])
         .body(Body::Json(&body))
@@ -208,16 +213,16 @@ pub async fn ticket(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build:
 
 /// Asks for the ticket and checks the admission before it is answered.
 async fn admit(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build: &str) -> Outcome {
-    ticket_request(&shared.endpoint_id, build, false)?;
+    ticket_request(&shared.endpoint_id, build, play::Features::default())?;
     let path = format!("/v1/rooms/{room_id}/tickets");
     let path = &path;
     client::with_session(shared, bridge_id, |bridge, token| async move {
         // What the bridge offers, read once a run; a failed read asks as
         // an older build would, which every bridge answers.
-        let ranking = play::features(shared, &bridge, play::Need::Nothing)
+        let offered = play::features(shared, &bridge, play::Need::Nothing)
             .await
-            .is_ok_and(|features| features.ranking);
-        let body = serde_json::to_vec(&ticket_request(&shared.endpoint_id, build, ranking)?)
+            .unwrap_or_default();
+        let body = serde_json::to_vec(&ticket_request(&shared.endpoint_id, build, offered)?)
             .map_err(|_| Failure::new(Code::Internal))?;
         let call = BridgeCall::new(Verb::Post, path, &[201])
             .body(Body::Json(&body))
@@ -440,11 +445,41 @@ mod tests {
     #[test]
     fn a_ticket_asks_for_badges_only_from_a_bridge_that_offers_ranking() {
         let endpoint = "ab".repeat(32);
-        let older = serde_json::to_value(ticket_request(&endpoint, "b1", false).unwrap()).unwrap();
+        let ask = |offered| serde_json::to_value(ticket_request(&endpoint, "b1", offered).unwrap()).unwrap();
+        let older = ask(play::Features::default());
         assert_eq!(older, json!({ "endpoint_id": endpoint, "build_id": "b1" }));
-        let ranking = serde_json::to_value(ticket_request(&endpoint, "b1", true).unwrap()).unwrap();
+        let ranking = ask(play::Features {
+            ranking: true,
+            ..play::Features::default()
+        });
         assert_eq!(ranking["skill_badge"], json!(true));
         assert_eq!(ranking["developer_badge"], json!(true));
+        assert!(ranking.get("card").is_none());
+    }
+
+    #[test]
+    fn a_ticket_asks_for_a_card_token_only_from_a_bridge_that_lists_levels() {
+        let endpoint = "ab".repeat(32);
+        let ask = |offered| serde_json::to_value(ticket_request(&endpoint, "b1", offered).unwrap()).unwrap();
+        let levels = ask(play::Features {
+            levels: true,
+            ..play::Features::default()
+        });
+        assert_eq!(levels["card"], json!(true));
+        // The class and the mark are a different feature's fields.
+        assert!(levels.get("skill_badge").is_none() && levels.get("developer_badge").is_none());
+        let friends_only = ask(play::Features {
+            friends: true,
+            ..play::Features::default()
+        });
+        assert!(friends_only.get("card").is_none());
+        let both = ask(play::Features {
+            ranking: true,
+            levels: true,
+            ..play::Features::default()
+        });
+        assert_eq!(both["card"], json!(true));
+        assert_eq!(both["skill_badge"], json!(true));
     }
 
     #[test]

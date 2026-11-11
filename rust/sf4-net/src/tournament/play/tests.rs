@@ -211,22 +211,22 @@ fn a_bridge_offers_what_its_capabilities_list() {
         ready,
         Features {
             ready: true,
-            watch: false,
-            ranking: false,
-            unchanged: false,
+            ..Features::default()
         }
     );
     let watch = Features::of(&capabilities(&["matches.play", WATCH_FEATURE]));
     assert_eq!(
         watch,
         Features {
-            ready: false,
             watch: true,
-            ranking: false,
-            unchanged: false,
+            ..Features::default()
         }
     );
     assert!(Features::of(&capabilities(&[RANKING_FEATURE])).ranking);
+    let social = Features::of(&capabilities(&[LEVELS_FEATURE, FRIENDS_FEATURE]));
+    assert!(social.levels && social.friends && !social.ranking);
+    assert!(Features::of(&capabilities(&[LEVELS_FEATURE])).levels);
+    assert!(!Features::of(&capabilities(&[LEVELS_FEATURE])).friends);
     assert!(Features::of(&capabilities(&[CLAIM_UNCHANGED_FEATURE])).unchanged);
     assert_eq!(
         Features::of(&capabilities(&["matches.play"])),

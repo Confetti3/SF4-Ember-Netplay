@@ -17,6 +17,8 @@
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/Answered.hxx"
+#include "../netplay/Levels.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
@@ -226,6 +228,8 @@ struct ShellView {
     // The bridge's public rooms and the answer to the last create or ticket request.
     netplay::publicrooms::Status publicRooms;
     netplay::rankings::Status rankings;
+    // The player's own fighter levels, as last read.
+    netplay::Answered<netplay::levels::Own> levels;
     // Ember's replay archive, newest first, and what the runtime says of
     // replays (RuntimeSnapshot::Replays, ui/ReplaysView.hxx), as published.
     // A replay link's file waits there until the player answers: the Replays

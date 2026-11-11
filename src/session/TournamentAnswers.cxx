@@ -207,6 +207,7 @@ bool IsTournamentPlayOp(const std::string& op) {
 		op == "match_leave" || op == "assignment_list" || op == "match_watch" || op == "match_unwatch" ||
 		op == "room_list" || op == "room_create" || op == "room_ticket" ||
 		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" ||
+		op == "levels_me" || op == "cards_lookup" ||
 		op == "replay_send" || op == "replay_archive" || op == "replay_pack";
 }
 
@@ -447,6 +448,125 @@ std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const json
 			board.push_back(std::move(entry));
 		}
 		return board;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+namespace {
+// A counter of any size, as the levels answers carry them.
+std::uint64_t Unsigned(const json& object, const char* key) {
+	return Seconds(object, key);
+}
+
+// The fighter id of an entry, which must come after the one before it so that
+// no fighter appears twice.
+std::size_t NextFighter(const json& object, int& previous) {
+	const auto fighter = Small(object, "fighter", selection::FighterCount - 1);
+	if (static_cast<int>(fighter) <= previous) throw std::invalid_argument("fighter");
+	previous = static_cast<int>(fighter);
+	return fighter;
+}
+
+// A level and its games, as an entry and a card carry them.
+void ReadLevel(const json& object, std::uint8_t& level, std::uint64_t& games) {
+	level = static_cast<std::uint8_t>(Small(object, "level", netplay::levels::MaxLevel));
+	if (level == 0) throw std::invalid_argument("level");
+	games = Unsigned(object, "games");
+}
+
+netplay::levels::FighterLevel DecodeFighterLevel(const json& entry) {
+	netplay::levels::FighterLevel fighter;
+	Strict(entry, {"fighter", "level", "games", "wins", "floor", "next", "since"});
+	ReadLevel(entry, fighter.level, fighter.games);
+	fighter.wins = Unsigned(entry, "wins");
+	fighter.floor = Unsigned(entry, "floor");
+	fighter.since = Unsigned(entry, "since");
+	if (fighter.wins > fighter.games || fighter.games > UINT64_MAX - fighter.wins) throw std::invalid_argument("wins");
+	const auto points = fighter.games + fighter.wins;
+	if (fighter.floor > points) throw std::invalid_argument("floor");
+	// The last level has no next one; every other has one still ahead.
+	const bool hasNext = entry.find("next") != entry.end();
+	if (hasNext != (fighter.level != netplay::levels::MaxLevel)) throw std::invalid_argument("next");
+	if (hasNext) {
+		fighter.next = Unsigned(entry, "next");
+		if (fighter.next <= points) throw std::invalid_argument("next");
+	}
+	return fighter;
+}
+
+netplay::levels::Relation DecodeRelation(const json& card) {
+	using netplay::levels::Relation;
+	const auto relation = Text(card, "relation", 16);
+	if (relation == "none") return Relation::None;
+	if (relation == "friend") return Relation::Friend;
+	if (relation == "sent") return Relation::Sent;
+	if (relation == "received") return Relation::Received;
+	if (relation == "blocked") return Relation::Blocked;
+	throw std::invalid_argument("relation");
+}
+
+netplay::levels::Card DecodeCard(const json& value) {
+	netplay::levels::Card card;
+	const auto& object = Strict(value, {"fighters", "relation"});
+	card.relation = DecodeRelation(object);
+	if (const auto fighters = object.find("fighters"); fighters != object.end()) {
+		if (!fighters->is_array() || fighters->size() > static_cast<std::size_t>(selection::FighterCount)) throw std::invalid_argument("fighters");
+		// Present, even when empty, means the player shows levels.
+		card.levelsShown = true;
+		int previous = -1;
+		for (const auto& row : *fighters) {
+			Strict(row, {"fighter", "level", "games"});
+			netplay::levels::CardFighter fighter;
+			fighter.fighter = static_cast<std::uint8_t>(NextFighter(row, previous));
+			ReadLevel(row, fighter.level, fighter.games);
+			card.fighters.push_back(fighter);
+		}
+	}
+	return card;
+}
+}
+
+std::optional<netplay::levels::Own> DecodeOwnLevels(const json& data) {
+	try {
+		netplay::levels::Own own;
+		const auto levels = Text(data, "levels", 16);
+		if (levels == "no_account") {
+			Strict(data, {"levels"});
+			own.kind = netplay::levels::Own::Kind::NoAccount;
+			return own;
+		}
+		if (levels != "counted") return std::nullopt;
+		Strict(data, {"levels", "shown", "fighters"});
+		own.kind = netplay::levels::Own::Kind::Counted;
+		if (const auto shown = data.find("shown"); shown != data.end()) {
+			if (!shown->is_boolean()) return std::nullopt;
+			own.shown = shown->get<bool>();
+		}
+		const auto& rows = data.at("fighters");
+		if (!rows.is_array() || rows.size() > static_cast<std::size_t>(selection::FighterCount)) return std::nullopt;
+		int previous = -1;
+		for (const auto& row : rows) {
+			const auto fighter = NextFighter(row, previous);
+			own.fighters[fighter] = DecodeFighterLevel(row);
+		}
+		return own;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+std::optional<std::vector<std::optional<netplay::levels::Card>>> DecodeCards(const json& data) {
+	try {
+		const auto& rows = Strict(data, {"cards"}).at("cards");
+		if (!rows.is_array() || rows.empty() || rows.size() > netplay::levels::MaxLookup) return std::nullopt;
+		std::vector<std::optional<netplay::levels::Card>> cards;
+		cards.reserve(rows.size());
+		for (const auto& row : rows) {
+			if (row.is_null()) cards.emplace_back();
+			else cards.emplace_back(DecodeCard(row));
+		}
+		return cards;
 	} catch (const std::exception&) {
 		return std::nullopt;
 	}

@@ -281,6 +281,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayRuntime__Tournament.cxx"
     "src/sf4e/sf4e__NetplayRuntime__PublicRooms.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Rankings.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Levels.cxx"
     "src/sf4e/sf4e__NetplayRuntime__RandomFighter.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
     "src/sf4e/sf4e__NetplayPresentation.cxx"
