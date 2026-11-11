@@ -160,7 +160,11 @@ test("a connection finds players by their connected Challonge account", { timeou
     const { origin } = bridge;
     const provider = new BridgeClient({ origin, credential: bridge.providerToken });
     assert.ok(((await provider.getCapabilities()).features as string[]).includes("sites"));
-    assert.deepEqual(await provider.getSignInSites(), [{
+    // A site an organizer can create events on also lists its creation choices.
+    const sites = await provider.getSignInSites();
+    assert.ok(sites.length === 1 && "create" in sites[0]!);
+    const { create: _create, ...site } = sites[0]! as Record<string, unknown>;
+    assert.deepEqual([site], [{
       id: "challonge", display_name: "Challonge", sign_in: true, lookup_by: "username",
       authorize_origin: challonge.origin, authorize_path: "/oauth/authorize", organizer: true,
     }]);

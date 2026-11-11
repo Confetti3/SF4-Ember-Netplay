@@ -623,7 +623,7 @@ static void Sound(const RoomAuthority& authority, const std::string& what) {
 	for (const auto& m : r.members) {
 		const int table = TableOf(authority, m.id);
 		sound(m.table == table && (table < 0 ? m.seat < 0 && m.status == MemberStatus::Idle :
-			m.seat == (r.tables[table].p1 == m.id ? 0 : 1) && m.status == MemberStatus::Seated), "member row");
+			m.seat == (r.tables[table].p1 == m.id ? 0 : 1) && (m.status == MemberStatus::Seated || m.status == MemberStatus::Ready)), "member row");
 	}
 }
 

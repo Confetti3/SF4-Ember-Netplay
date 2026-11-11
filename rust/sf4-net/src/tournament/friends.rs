@@ -190,7 +190,7 @@ mod tests {
                     .await
                     .unwrap_err()
                     .as_str()
-                    .to_owned()
+                    .into_owned()
             }
         };
         assert_eq!(refused_sync(sync_of(bad_main)).await, "invalid_request");
@@ -205,7 +205,7 @@ mod tests {
                     .await
                     .unwrap_err()
                     .as_str()
-                    .to_owned()
+                    .into_owned()
             }
         };
         // A request names a card with its label or a code, never both or neither.
