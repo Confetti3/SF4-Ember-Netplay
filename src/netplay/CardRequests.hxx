@@ -34,7 +34,7 @@ public:
 	// The least time between look-ups, and the wait after a set ends.
 	static constexpr std::uint64_t MinGapMs = 10000, SetEndedMs = 8000;
 	// The helper's code for a bridge that has no levels.
-	static constexpr const char* Unavailable = "levels_unavailable";
+	static constexpr const char* Unavailable = "points_unavailable";
 
 	Cards() : published_(std::make_shared<const Map>()) {}
 

@@ -29,7 +29,7 @@ public:
 	// Reads after a set this PC fought ended, counted from when it did.
 	static constexpr std::uint64_t FirstReadMs = 8000, SecondReadMs = 20000;
 	// The helper's code for a bridge that has no levels.
-	static constexpr const char* Unavailable = "levels_unavailable";
+	static constexpr const char* Unavailable = "points_unavailable";
 
 	// The first read is due at once: the one at start.
 	Requests() : due_(1, 0) {}

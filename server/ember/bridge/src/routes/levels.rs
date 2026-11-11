@@ -23,7 +23,7 @@ use crate::{
 const REQUESTS_PER_WINDOW: usize = 60;
 const WINDOW_SECS: u64 = 10 * 60;
 
-/// `GET /v1/levels/me`. Read only: nothing is remembered as shown.
+/// `GET /v1/points/me`. Read only: nothing is remembered as shown.
 pub async fn own(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
     let (player, _) = admit(&state, &headers).await?;
     let levels = state
@@ -110,7 +110,7 @@ async fn admit(state: &AppState, headers: &HeaderMap) -> Result<(Player, u64)> {
     state
         .rate
         .check(
-            &format!("levels:{}", player.ember_id.as_str()),
+            &format!("points:{}", player.ember_id.as_str()),
             REQUESTS_PER_WINDOW,
             WINDOW_SECS,
             now,

@@ -299,7 +299,7 @@ pub struct TicketRequest {
     pub developer_badge: bool,
     /// The joiner's build shows other players' cards and wants a card token
     /// in the ticket (`RoomTicket::card`, `docs/design/FIGHTER_LEVELS.md`). A
-    /// build sends it only to a bridge that lists `levels`, since an older
+    /// build sends it only to a bridge that lists `points`, since an older
     /// one refuses the field.
     #[serde(default, skip_serializing_if = "is_false")]
     pub card: bool,

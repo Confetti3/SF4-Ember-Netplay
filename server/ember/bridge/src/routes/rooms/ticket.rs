@@ -126,7 +126,7 @@ pub async fn ticket(
             issued_at: now,
             expires_at: now + TICKET_SECS,
             badge,
-            // A build asks only a bridge that lists `levels`, so a ticket
+            // A build asks only a bridge that lists `points`, so a ticket
             // that carries a card reaches only a helper that reads one.
             card: card_account.and_then(|account| cards::issue(&state.keys, &account, now)),
         })

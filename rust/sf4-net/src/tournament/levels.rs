@@ -2,8 +2,8 @@
 //! contracts"): the player's own levels and the look-up of other players'
 //! cards. Like the ranking routes these use the player session alone, and
 //! what the bridge answers is checked before the game sees it. A bridge that
-//! does not list `levels` is never asked, and is told apart as
-//! `levels_unavailable`, as one that answers 404 is.
+//! does not list `points` is never asked, and is told apart as
+//! `points_unavailable`, as one that answers 404 is.
 use std::sync::Arc;
 
 use super::{
@@ -12,7 +12,7 @@ use super::{
     play::{self, Need},
 };
 use ember_protocol::levels::{
-    CardAnswers, CardLookup, CardSelector, LEVELS_PATH, LOOKUP_PATH, OwnLevels,
+    CardAnswers, CardLookup, CardSelector, POINTS_PATH, LOOKUP_PATH, OwnLevels,
 };
 
 /// A 404 is a bridge without the routes; no reason is worded apart.
@@ -21,7 +21,7 @@ const REFUSALS: Refusals<'static> = Refusals {
     missing: Some(Code::LevelsUnavailable),
 };
 
-/// The bridge's capabilities list `levels`, or this is `levels_unavailable`
+/// The bridge's capabilities list `points`, or this is `points_unavailable`
 /// and nothing is asked of it. One that lacks the feature is read again on
 /// the next request, so a bridge upgraded meanwhile is heard.
 async fn offered(shared: &Arc<Shared>, bridge_id: &str) -> Result<(), Failure> {
@@ -36,7 +36,7 @@ async fn offered(shared: &Arc<Shared>, bridge_id: &str) -> Result<(), Failure> {
 /// The player's own levels on `bridge_id`.
 pub async fn own(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
     offered(shared, bridge_id).await?;
-    let call = BridgeCall::new(Verb::Get, LEVELS_PATH, &[200]).refusals(REFUSALS);
+    let call = BridgeCall::new(Verb::Get, POINTS_PATH, &[200]).refusals(REFUSALS);
     let levels: OwnLevels = client::request_as(shared, bridge_id, &call).await?;
     levels.check().map_err(|_| invalid_response())?;
     to_json(&levels)
@@ -90,10 +90,10 @@ mod tests {
 
     #[test]
     fn requests_have_the_shapes_the_game_sends() {
-        let own = json!({ "op": "levels_me", "bridge_id": "brg_x" });
+        let own = json!({ "op": "points_me", "bridge_id": "brg_x" });
         let lookup = json!({ "op": "cards_lookup", "bridge_id": "brg_x",
             "cards": [{ "card": TOKEN }, { "friend": FRIEND }] });
-        for (value, op) in [(own, "levels_me"), (lookup, "cards_lookup")] {
+        for (value, op) in [(own, "points_me"), (lookup, "cards_lookup")] {
             let parsed: Request = serde_json::from_value(value.clone()).expect("a request");
             assert_eq!(parsed.op(), op);
             assert_eq!(parsed.lane(), Lane::Bridge);
@@ -104,8 +104,8 @@ mod tests {
     #[test]
     fn requests_with_unknown_members_or_selectors_are_refused() {
         for bad in [
-            json!({ "op": "levels_me" }),
-            json!({ "op": "levels_me", "bridge_id": "brg_x", "extra": 1 }),
+            json!({ "op": "points_me" }),
+            json!({ "op": "points_me", "bridge_id": "brg_x", "extra": 1 }),
             json!({ "op": "cards_lookup", "bridge_id": "brg_x" }),
             json!({ "op": "cards_lookup", "bridge_id": "brg_x", "cards": [], "extra": 1 }),
             json!({ "op": "cards_lookup", "bridge_id": "brg_x", "cards": [{ "code": TOKEN }] }),
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn a_bridge_without_levels_is_told_apart() {
-        assert_eq!(reply(404, b"").unwrap_err().as_str(), "levels_unavailable");
+        assert_eq!(reply(404, b"").unwrap_err().as_str(), "points_unavailable");
         let not_found = serde_json::to_vec(&json!({ "error": {
             "code": "not_found", "message": "m", "retryable": false,
             "request_id": "req_1", "details": {},
@@ -162,7 +162,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             reply(404, &not_found).unwrap_err().as_str(),
-            "levels_unavailable"
+            "points_unavailable"
         );
         let limited = serde_json::to_vec(&json!({ "error": {
             "code": "rate_limited", "message": "m", "retryable": false,
@@ -174,30 +174,33 @@ mod tests {
     }
 
     #[test]
-    fn what_the_bridge_answers_is_read_strictly() {
-        let counted = br#"{"levels":"counted","shown":true,"fighters":[
+    fn what_the_bridge_answers_is_read_leniently_about_members_and_strictly_about_values() {
+        let counted = br#"{"points":"counted","shown":true,"fighters":[
             {"fighter":3,"points":1900,"games":1000,"wins":900,"tier":3,"next":2500,"since":1}]}"#;
         assert!(read::<OwnLevels>(counted).unwrap().check().is_ok());
-        for bad in [
-            &br#"{"levels":"counted","fighters":[],"extra":1}"#[..],
-            br#"{"levels":"top"}"#,
-            br#"{"levels":"counted","fighters":[{"fighter":3,"points":1,"games":1,"wins":0,"tier":0,"next":200,"since":1,"extra":1}]}"#,
-        ] {
-            assert_eq!(
-                read::<OwnLevels>(bad).unwrap_err().as_str(),
-                "bridge_invalid_response"
-            );
-        }
+        // An unknown state is refused.
+        assert_eq!(
+            read::<OwnLevels>(br#"{"points":"top"}"#)
+                .unwrap_err()
+                .as_str(),
+            "bridge_invalid_response"
+        );
+        // A member a later bridge adds is ignored.
+        let extra = br#"{"points":"counted","extra":1,"fighters":[{"fighter":3,"points":1,"games":1,"wins":0,"tier":0,"next":200,"since":1,"extra":1}]}"#;
+        assert!(read::<OwnLevels>(extra).unwrap().check().is_ok());
         // A fighter whose numbers disagree parses but does not check.
         let wrong = read::<OwnLevels>(
-            br#"{"levels":"counted","fighters":[{"fighter":3,"points":14,"games":5,"wins":9,"tier":0,"next":200,"since":1}]}"#,
+            br#"{"points":"counted","fighters":[{"fighter":3,"points":14,"games":5,"wins":9,"tier":0,"next":200,"since":1}]}"#,
         )
         .unwrap();
         assert!(wrong.check().is_err());
 
-        // Another player's card holds no wins or games.
+        // Another player's card is read without what it does not know, and a
+        // relation it does not know is none.
         let card = br#"{"cards":[{"fighters":[{"fighter":3,"points":1986,"tier":3,"wins":1}],"relation":"none"}]}"#;
-        assert!(read::<CardAnswers>(card).is_err());
+        assert!(read::<CardAnswers>(card).is_ok());
+        let later = br#"{"cards":[{"relation":"blocked_by"}]}"#;
+        assert!(read::<CardAnswers>(later).is_ok());
         // An answer with another count of entries than the request is refused.
         let answers = read::<CardAnswers>(br#"{"cards":[{"relation":"friend"},null]}"#).unwrap();
         let one = CardLookup {

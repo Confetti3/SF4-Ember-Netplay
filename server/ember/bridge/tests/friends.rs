@@ -22,7 +22,7 @@ use ember_bridge::{config, integrations::Secrets};
 use ember_protocol::{
     encoding::b64u,
     friends::{ACTIONS_PATH, FriendAction, FriendsState, SYNC_PATH},
-    levels::{CARD_PREFIX, CARD_VALID_SECS, LEVELS_PATH, LOOKUP_PATH},
+    levels::{CARD_PREFIX, CARD_VALID_SECS, POINTS_PATH, LOOKUP_PATH},
     skill::{BOARD_PATH, STANDING_PATH},
 };
 use reqwest::StatusCode;
@@ -131,10 +131,16 @@ fn ids(list: &Json_) -> Vec<String> {
 
 impl World {
     async fn start() -> Self {
+        Self::start_with(true).await
+    }
+
+    /// A bridge whose `rooms.friends` switch is `friends`.
+    async fn start_with(friends: bool) -> Self {
         let (fake, url) = supervisor::fake_supervisor().await;
         let bridge = Bridge::start_with(
             |config| {
                 supervisor::enable(config, url);
+                config.rooms.as_mut().unwrap().friends = friends;
                 config.discord = Some(config::Discord {
                     client_id: "1546980049692135514".into(),
                     api_base: "http://127.0.0.1:9/api".into(),
@@ -334,7 +340,7 @@ async fn offers(bridge: &Bridge, feature: &str) -> bool {
 async fn friends_are_offered_beside_levels_where_discord_sign_in_is() {
     let world = World::start().await;
     assert!(offers(&world.bridge, "friends").await);
-    assert!(offers(&world.bridge, "levels").await);
+    assert!(offers(&world.bridge, "points").await);
     // A player without a Discord account has no friends list.
     let lone = player(&world.bridge, 9).await;
     let lone = Member {
@@ -355,7 +361,7 @@ async fn friends_are_offered_beside_levels_where_discord_sign_in_is() {
 
     // Public rooms without Discord sign-in: no friends, and 404.
     let (rooms, _fake) = common::public_rooms::start().await;
-    assert!(offers(&rooms, "levels").await);
+    assert!(offers(&rooms, "points").await);
     assert!(!offers(&rooms, "friends").await);
     let caller = player(&rooms, 1).await;
     for path in [SYNC_PATH, ACTIONS_PATH] {
@@ -854,7 +860,7 @@ async fn every_action_and_route_is_scanned() {
         .act(&b, json!({ "action": "remove", "friend": friend }))
         .await;
     world.act(&b, json!({ "action": "forget" })).await;
-    for path in [LEVELS_PATH, STANDING_PATH, BOARD_PATH, "/v1/rooms?detail=1"] {
+    for path in [POINTS_PATH, STANDING_PATH, BOARD_PATH, "/v1/rooms?detail=1"] {
         let (status, answer) = world.get(&a, path).await;
         assert_eq!(status, StatusCode::OK, "{path}: {answer}");
     }
@@ -875,7 +881,47 @@ async fn every_action_and_route_is_scanned() {
         .iter()
         .map(|(path, _)| path.clone())
         .collect();
-    for path in [SYNC_PATH, ACTIONS_PATH, LOOKUP_PATH, LEVELS_PATH, STANDING_PATH, BOARD_PATH] {
+    for path in [SYNC_PATH, ACTIONS_PATH, LOOKUP_PATH, POINTS_PATH, STANDING_PATH, BOARD_PATH] {
         assert!(paths.contains(path), "{path} was not called");
     }
+}
+
+#[test]
+fn friends_are_off_unless_the_rooms_setting_turns_them_on() {
+    let rooms: config::Rooms =
+        serde_json::from_value(json!({ "supervisor_url": "http://127.0.0.1:8790" })).unwrap();
+    assert!(!rooms.friends);
+    let rooms: config::Rooms = serde_json::from_value(
+        json!({ "supervisor_url": "http://127.0.0.1:8790", "friends": true }),
+    )
+    .unwrap();
+    assert!(rooms.friends);
+}
+
+/// Friends ship dormant: with the switch off, Discord sign-in and public rooms
+/// do not offer them, their routes answer as an unknown route, a look-up
+/// answers null for a friend selector, and a card's relation is none.
+#[tokio::test]
+async fn friends_stay_dormant_while_the_switch_is_off() {
+    let world = World::start_with(false).await;
+    assert!(!offers(&world.bridge, "friends").await);
+    // Points and the card look-up do not depend on the switch.
+    assert!(offers(&world.bridge, "points").await);
+    let a = world.member(1, A, "Player 1").await;
+    let b = world.member(2, B, "Player 2").await;
+
+    let sync = json!({ "build_id": BUILD, "listing": { "name": "Player 1" }, "presence": menus() });
+    let (status, _) = world.post(&a, SYNC_PATH, sync).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = world
+        .post(&a, ACTIONS_PATH, json!({ "action": "new_code" }))
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let friend = "fr_11111111-1111-4111-8111-111111111111";
+    let cards = world
+        .cards(&a, json!([{ "friend": friend }, { "card": world.card(&b) }]))
+        .await;
+    assert_eq!(cards[0], Json_::Null);
+    assert_eq!(cards[1]["relation"], json!("none"));
 }

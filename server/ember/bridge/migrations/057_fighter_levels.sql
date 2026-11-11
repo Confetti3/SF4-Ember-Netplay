@@ -37,7 +37,12 @@ CREATE TABLE rated_games_next (
     game INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (room_id, table_id, generation, game)
 ) WITHOUT ROWID;
+-- Only the rows whose room still exists: the new table's foreign key is
+-- checked as each row lands, and a bridge can hold a rated game whose room was
+-- deleted while foreign keys were off. That game has nothing to cascade from,
+-- and one such row would fail the copy and stop the bridge from starting.
 INSERT INTO rated_games_next (room_id, table_id, generation, game)
-    SELECT room_id, table_id, generation, 0 FROM rated_games;
+    SELECT room_id, table_id, generation, 0 FROM rated_games
+    WHERE room_id IN (SELECT room_id FROM rooms);
 DROP TABLE rated_games;
 ALTER TABLE rated_games_next RENAME TO rated_games;

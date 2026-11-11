@@ -246,7 +246,7 @@ mod tests {
     }
 
     #[test]
-    fn the_state_is_read_strictly() {
+    fn the_state_is_read_ignoring_members_it_does_not_know() {
         let state = json!({ "code": "4F2A-91CX", "friends": [], "incoming": [],
             "outgoing": [], "invites": [], "blocked": [] });
         let read = |value: &Value| -> Result<FriendsState, Failure> {
@@ -255,15 +255,17 @@ mod tests {
         assert!(read(&state).unwrap().check().is_ok());
         let mut with_extra = state.clone();
         with_extra["extra"] = json!(1);
+        assert!(read(&with_extra).unwrap().check().is_ok());
         let mut without_code = state.clone();
         without_code.as_object_mut().unwrap().remove("code");
         let mut in_friend = state.clone();
         in_friend["friends"] = json!([{ "id": FRIEND, "name": "Player 3", "since": 1,
             "presence": { "state": "offline" }, "extra": 1 }]);
+        assert!(read(&in_friend).unwrap().check().is_ok());
         let mut unknown_state = state.clone();
         unknown_state["friends"] = json!([{ "id": FRIEND, "name": "Player 3", "since": 1,
             "presence": { "state": "away" } }]);
-        for bad in [with_extra, without_code, in_friend, unknown_state] {
+        for bad in [without_code, unknown_state] {
             assert_eq!(
                 read(&bad).unwrap_err().as_str(),
                 "bridge_invalid_response",

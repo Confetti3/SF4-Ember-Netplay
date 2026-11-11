@@ -372,7 +372,7 @@ requests! {
     RankingStanding => "ranking_standing", Bridge;
     RankingChoose => "ranking_choose", Bridge;
     RankingBoard => "ranking_board", Bridge;
-    LevelsMe => "levels_me", Bridge;
+    LevelsMe => "points_me", Bridge;
     CardsLookup => "cards_lookup", Bridge;
     FriendsSync => "friends_sync", Bridge;
     FriendsAct => "friends_act", Bridge;
@@ -466,7 +466,7 @@ impl Code {
             Self::InvalidRequest => "invalid_request",
             Self::InviteInvalid => "invite_invalid",
             Self::Io => "io",
-            Self::LevelsUnavailable => "levels_unavailable",
+            Self::LevelsUnavailable => "points_unavailable",
             Self::MatchLeft => "match_left",
             Self::NotABridge => "not_a_bridge",
             Self::NotBound => "not_bound",
@@ -1448,7 +1448,7 @@ mod tests {
             (Code::InvalidRequest, "invalid_request"),
             (Code::InviteInvalid, "invite_invalid"),
             (Code::Io, "io"),
-            (Code::LevelsUnavailable, "levels_unavailable"),
+            (Code::LevelsUnavailable, "points_unavailable"),
             (Code::MatchLeft, "match_left"),
             (Code::NotABridge, "not_a_bridge"),
             (Code::NotBound, "not_bound"),

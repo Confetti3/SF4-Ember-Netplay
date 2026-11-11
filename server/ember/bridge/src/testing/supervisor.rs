@@ -223,6 +223,7 @@ pub fn enable(config: &mut Config, url: String) {
     config.rooms = Some(config::Rooms {
         supervisor_url: url,
         skill_badges: false,
+        friends: false,
         developers: Vec::new(),
     });
     config.integration_secrets = Some("unused-in-tests.json".into());

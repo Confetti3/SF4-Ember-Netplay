@@ -17,7 +17,7 @@ use ember_protocol::{
         WATCH_FEATURE,
     },
     friends::FRIENDS_FEATURE,
-    levels::LEVELS_FEATURE,
+    levels::POINTS_FEATURE,
     report::Outcome as GameOutcome,
     skill::RANKING_FEATURE,
 };
@@ -79,7 +79,7 @@ impl Features {
             ready: lists(CLAIM_READY_FEATURE),
             watch: lists(WATCH_FEATURE),
             ranking: lists(RANKING_FEATURE),
-            levels: lists(LEVELS_FEATURE),
+            levels: lists(POINTS_FEATURE),
             friends: lists(FRIENDS_FEATURE),
             unchanged: lists(CLAIM_UNCHANGED_FEATURE),
         }

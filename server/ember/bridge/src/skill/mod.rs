@@ -1,6 +1,6 @@
 //! The hidden rating behind a player's public room class
 //! (docs/design/SKILL_BADGE.md), and the fighter levels counted beside it
-//! (docs/design/FIGHTER_LEVELS.md, `levels`).
+//! (docs/design/FIGHTER_LEVELS.md, `points`).
 //!
 //! Public room hosts report each game they saw won; the bridge counts it
 //! here, once, between the two players' Discord accounts. An Ember ID costs

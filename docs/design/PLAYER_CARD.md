@@ -11,13 +11,13 @@ makes them easier or harder is said at each.
 
 | Card | Shown on | Built from |
 |---|---|---|
-| Your own, full | Profile, Card tab | preferences (name, flag, main, worn title and icon), your standing (class), `levels/me`, the friend code |
+| Your own, full | Profile, Card tab | preferences (name, flag, main, worn title and icon), your standing (class), `points/me`, the friend code |
 | Your own, small | Home (the L tag, as today) | the same |
 | A room member's | the member's page in a public room | the room snapshot (name, flag, class, main, the fighter picked) and the card look-up by their token |
 | A friend's | Profile, Friends tab, beside the list | the friends state and the card look-up by friend id |
 
 No new bridge table or route belongs to the card: it is put together from
-`levels/me`, `cards/lookup` (`FIGHTER_LEVELS.md`) and the friends state
+`points/me`, `cards/lookup` (`FIGHTER_LEVELS.md`) and the friends state
 (`FRIENDS.md`). Migrations 057 and 058 are in those documents.
 
 ## What a card shows
@@ -184,7 +184,7 @@ whose ten seconds end before the bridge has counted the set (it polls rooms
 every 5 seconds). So the `After` board becomes two toasts, shown over Ember's
 menus only, as every toast is (`ApplicationShell__Toasts.cxx`):
 
-- **The set**: when `levels/me` after the set differs from the one before,
+- **The set**: when `points/me` after the set differs from the one before,
   one toast per fighter that gained: the fighter's tile with its points, a
   `Meter` whose fresh part is this set, "3 games this set, 2 won".
 - **New frame**: "Cammy reached the Silver frame", when the tier the bridge

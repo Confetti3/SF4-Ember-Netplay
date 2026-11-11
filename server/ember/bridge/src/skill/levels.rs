@@ -9,7 +9,7 @@
 //! without a data change or a client update.
 use ember_protocol::{
     EmberId,
-    levels::{CardFighter, OwnFighter, OwnLevels, PlayerCard, Relation},
+    levels::{CardFighter, MAX_TIER, OwnFighter, OwnLevels, PlayerCard, Relation},
 };
 use rusqlite::{Transaction, params};
 
@@ -19,6 +19,19 @@ use crate::error::Result;
 /// The points where each tier begins, Ash to Ember: the frame colours of
 /// `v2::TierColor`. The one place the thresholds are written.
 const TIER_STARTS: [u64; 5] = [0, 200, 700, 1500, 2500];
+
+// The protocol names the last tier and clients draw one frame colour for each,
+// so the table has one start per tier, begins at 0 and only goes up. A table
+// that does not is a build error, not a points answer every client refuses.
+const _: () = {
+    assert!(TIER_STARTS.len() == MAX_TIER as usize + 1);
+    assert!(TIER_STARTS[0] == 0);
+    let mut at = 1;
+    while at < TIER_STARTS.len() {
+        assert!(TIER_STARTS[at - 1] < TIER_STARTS[at]);
+        at += 1;
+    }
+};
 
 /// The tier `points` reach, 0 to `TIER_STARTS.len() - 1`.
 pub fn tier(points: u64) -> u8 {

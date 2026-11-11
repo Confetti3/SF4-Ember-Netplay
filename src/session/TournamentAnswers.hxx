@@ -52,7 +52,7 @@ std::optional<netplay::publicrooms::Admission> DecodeAdmission(const nlohmann::j
 std::optional<netplay::rankings::Standing> DecodeStanding(const nlohmann::json& data);
 std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const nlohmann::json& data);
 
-// A levels_me answer's levels, and a cards_lookup answer's cards (one per
+// A points_me answer's levels, and a cards_lookup answer's cards (one per
 // selector, in order; nullopt inside for a selector that found no card).
 std::optional<netplay::levels::Own> DecodeOwnLevels(const nlohmann::json& data);
 std::optional<std::vector<std::optional<netplay::levels::Card>>> DecodeCards(const nlohmann::json& data);

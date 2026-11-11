@@ -4,8 +4,12 @@
 //! live only in the bridge, so these types carry what a client needs to draw
 //! the points and their progress, and nothing of the rating.
 //!
-//! Every type refuses unknown members: a build asks only a bridge that lists
-//! [`LEVELS_FEATURE`], and an older bridge answers 404.
+//! Requests are strict and answers are tolerant. A request (`CardLookup`,
+//! `CardSelector`) refuses unknown members, so a client's mistake is caught at
+//! the bridge. An answer (`OwnLevels`, `OwnFighter`, `CardAnswers`,
+//! `PlayerCard`, `CardFighter`) ignores members it does not know, so a field a
+//! later bridge adds does not break a client already out. A build asks only a
+//! bridge that lists [`POINTS_FEATURE`], and an older bridge answers 404.
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -15,9 +19,9 @@ use crate::{
 };
 
 /// The capability a bridge with the levels routes offers.
-pub const LEVELS_FEATURE: &str = "levels";
+pub const POINTS_FEATURE: &str = "points";
 /// `GET` the caller's `OwnLevels`.
-pub const LEVELS_PATH: &str = "/v1/levels/me";
+pub const POINTS_PATH: &str = "/v1/points/me";
 /// `POST` a `CardLookup`, answered with `CardAnswers`.
 pub const LOOKUP_PATH: &str = "/v1/cards/lookup";
 /// Fighters a player can have points for: 0 to 43, USF4's roster.
@@ -47,9 +51,9 @@ pub fn is_card_token(text: &str) -> bool {
     })
 }
 
-/// The caller's own points (`GET /v1/levels/me`).
+/// The caller's own points (`GET /v1/points/me`).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "levels", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(tag = "points", rename_all = "snake_case")]
 pub enum OwnLevels {
     /// No Discord account is connected to the caller's Ember ID, and points
     /// belong to one.
@@ -65,7 +69,6 @@ pub enum OwnLevels {
 
 /// One played fighter's points and what they were counted from.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct OwnFighter {
     /// 0 to `FIGHTERS` - 1.
     pub fighter: u8,
@@ -178,7 +181,7 @@ wire_enum! {
     /// The caller's relation to the player a card is of. The bridge says
     /// `None` for a player who blocked the caller, and always before it
     /// offers friends.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
     pub enum Relation {
         None = "none",
         Friend = "friend",
@@ -191,10 +194,18 @@ wire_enum! {
     }
 }
 
+/// An unknown relation reads as `None`, so a relation a later bridge adds does
+/// not fail the whole answer.
+impl<'de> Deserialize<'de> for Relation {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+        let name = String::deserialize(deserializer)?;
+        Ok(Self::parse(&name).unwrap_or(Self::None))
+    }
+}
+
 /// What a card shows of one fighter to someone else: the points and the
 /// frame, never wins or games.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct CardFighter {
     /// 0 to `FIGHTERS` - 1.
     pub fighter: u8,
@@ -221,7 +232,6 @@ impl CardFighter {
 
 /// One player's card in a look-up answer.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct PlayerCard {
     /// The fighters played, ascending by `fighter`, each once; absent when
     /// the player does not show points.
@@ -249,7 +259,6 @@ impl PlayerCard {
 /// The answer to a `CardLookup`: one entry per selector, in order, `null`
 /// for a selector that names nobody the caller may see.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct CardAnswers {
     pub cards: Vec<Option<PlayerCard>>,
 }
@@ -282,6 +291,22 @@ mod tests {
 
     fn read<T: DeserializeOwned>(value: &Value) -> T {
         serde_json::from_value(value.clone()).unwrap()
+    }
+
+    /// Adds a member the type does not have at `pointer` and expects `T` to
+    /// read the value as it reads the one without it.
+    fn ignores_extra<T: DeserializeOwned + PartialEq + std::fmt::Debug>(
+        value: &Value,
+        pointer: &str,
+    ) {
+        let mut extended = value.clone();
+        extended
+            .pointer_mut(pointer)
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert("extra".into(), json!(1));
+        assert_eq!(read::<T>(&extended), read::<T>(value), "{pointer:?}");
     }
 
     /// Adds a member the type does not have at `pointer` and expects a refusal.
@@ -321,11 +346,11 @@ mod tests {
 
     #[test]
     fn the_own_points_in_the_design_round_trip() {
-        let none = json!({"levels": "no_account"});
+        let none = json!({"points": "no_account"});
         assert_eq!(read::<OwnLevels>(&none), OwnLevels::NoAccount {});
         assert_eq!(serde_json::to_value(OwnLevels::NoAccount {}).unwrap(), none);
 
-        let counted = json!({"levels": "counted", "shown": true, "fighters": [
+        let counted = json!({"points": "counted", "shown": true, "fighters": [
             {"fighter": 3, "points": 1986, "games": 1284, "wins": 702,
              "tier": 3, "floor": 1500, "next": 2500, "since": 1729468800}]});
         let levels: OwnLevels = read(&counted);
@@ -347,7 +372,7 @@ mod tests {
         assert!(hidden.check().is_ok());
         assert_eq!(
             serde_json::to_string(&hidden).unwrap(),
-            r#"{"levels":"counted","fighters":[{"fighter":43,"points":3717,"games":2480,"wins":1237,"tier":4,"floor":2500,"since":1729468800}]}"#
+            r#"{"points":"counted","fighters":[{"fighter":43,"points":3717,"games":2480,"wins":1237,"tier":4,"floor":2500,"since":1729468800}]}"#
         );
         let nobody = OwnLevels::Counted {
             shown: false,
@@ -356,32 +381,28 @@ mod tests {
         assert!(nobody.check().is_ok());
         assert_eq!(
             serde_json::to_string(&nobody).unwrap(),
-            r#"{"levels":"counted","fighters":[]}"#
+            r#"{"points":"counted","fighters":[]}"#
         );
     }
 
     #[test]
-    fn own_points_refuse_unknown_members_and_unknown_states() {
-        let none = json!({"levels": "no_account"});
-        refuses_extra::<OwnLevels>(&none, "");
-        let counted = json!({"levels": "counted", "fighters": [
+    fn own_points_ignore_unknown_members_and_refuse_unknown_states() {
+        let none = json!({"points": "no_account"});
+        ignores_extra::<OwnLevels>(&none, "");
+        let counted = json!({"points": "counted", "fighters": [
             {"fighter": 3, "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 200, "since": 1}]});
-        refuses_extra::<OwnLevels>(&counted, "");
-        refuses_extra::<OwnLevels>(&counted, "/fighters/0");
-        assert!(serde_json::from_value::<OwnLevels>(json!({"levels": "top"})).is_err());
+        ignores_extra::<OwnLevels>(&counted, "");
+        ignores_extra::<OwnLevels>(&counted, "/fighters/0");
+        assert!(serde_json::from_value::<OwnLevels>(json!({"points": "top"})).is_err());
         assert!(serde_json::from_value::<OwnLevels>(json!({"fighters": []})).is_err());
         // A member that is missing is refused, not defaulted.
-        assert!(serde_json::from_value::<OwnLevels>(json!({"levels": "counted"})).is_err());
+        assert!(serde_json::from_value::<OwnLevels>(json!({"points": "counted"})).is_err());
         assert!(
             serde_json::from_value::<OwnFighter>(
                 json!({"fighter": 3, "games": 1, "wins": 0, "since": 1})
             )
             .is_err()
         );
-        // The old level members are unknown now.
-        let mut old = counted.clone();
-        old["fighters"][0]["level"] = json!(1);
-        assert!(serde_json::from_value::<OwnLevels>(old).is_err());
     }
 
     #[test]
@@ -576,15 +597,17 @@ mod tests {
         };
         assert_eq!(long.check(), Err(Error::InvalidField("cards")));
 
-        refuses_extra::<CardAnswers>(&wire, "");
-        refuses_extra::<CardAnswers>(&wire, "/cards/0");
-        refuses_extra::<CardAnswers>(&wire, "/cards/0/fighters/0");
-        // Wins, games and the old level are never on another player's card.
-        for member in ["wins", "games", "level"] {
+        ignores_extra::<CardAnswers>(&wire, "");
+        ignores_extra::<CardAnswers>(&wire, "/cards/0");
+        ignores_extra::<CardAnswers>(&wire, "/cards/0/fighters/0");
+        // Wins and games are not on another player's card: the bridge never
+        // sends them, and a reader that is sent them keeps none.
+        for member in ["wins", "games"] {
             let mut with_member = wire.clone();
             with_member["cards"][0]["fighters"][0][member] = json!(3);
-            assert!(
-                serde_json::from_value::<CardAnswers>(with_member).is_err(),
+            assert_eq!(
+                read::<CardAnswers>(&with_member),
+                read::<CardAnswers>(&wire),
                 "{member}"
             );
         }
@@ -639,6 +662,10 @@ mod tests {
             assert_eq!(serde_json::to_value(relation).unwrap(), name);
         }
         assert_eq!(Relation::ALL.len(), 5);
-        assert!(serde_json::from_value::<Relation>(json!("blocked_by")).is_err());
+        // A relation a later bridge adds reads as none.
+        assert_eq!(
+            serde_json::from_value::<Relation>(json!("blocked_by")).unwrap(),
+            Relation::None
+        );
     }
 }

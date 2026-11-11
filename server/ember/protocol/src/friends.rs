@@ -4,7 +4,12 @@
 //! account; no answer here carries a Discord ID or name, an Ember ID or a
 //! rating.
 //!
-//! Every type refuses unknown members: a build asks only a bridge that lists
+//! Requests are strict and answers are tolerant. A request (`FriendsSync` and
+//! its parts, `FriendAction`) refuses unknown members, so a client's mistake
+//! is caught at the bridge. An answer (`FriendsState` and its parts) ignores
+//! members it does not know, so a field a later bridge adds does not break a
+//! client already out; the exceptions are `SkillBadge` and `InviteRoom`, which
+//! other answers share. A build asks only a bridge that lists
 //! [`FRIENDS_FEATURE`], and an older bridge answers 404.
 use serde::{Deserialize, Serialize};
 
@@ -353,7 +358,6 @@ impl FriendAction {
 
 /// A friend's main fighter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct MainFighter {
     /// 0 to `FIGHTERS` - 1.
     pub fighter: u8,
@@ -385,7 +389,6 @@ impl MainFighter {
 
 /// A public room a friend is in.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct FriendRoom {
     /// 32 hex digits.
     pub room_id: String,
@@ -415,7 +418,7 @@ impl FriendRoom {
 /// Where a friend is, as the caller may see it. A friend who appears offline
 /// is `Offline`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(tag = "state", rename_all = "snake_case")]
 pub enum FriendPresence {
     Offline {
         /// When they were last seen (unix seconds), when known.
@@ -463,7 +466,6 @@ impl FriendPresence {
 /// The wins between the caller and another account, from the caller's side,
 /// and their last game. Absent before their first counted game.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct PairRecord {
     pub won: u64,
     pub lost: u64,
@@ -483,7 +485,6 @@ impl PairRecord {
 /// How often the caller and a request's sender have played. Absent before
 /// their first counted game.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct Played {
     pub games: u64,
     /// Unix seconds.
@@ -501,7 +502,6 @@ impl Played {
 
 /// One friend.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct Friend {
     /// `fr_`: the name both sides use for the friendship.
     pub id: String,
@@ -535,7 +535,6 @@ impl Friend {
 
 /// A request the caller received.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct IncomingRequest {
     /// `rq_`.
     pub id: String,
@@ -560,7 +559,6 @@ impl IncomingRequest {
 /// A request the caller sent, including one that was declined or could never
 /// be seen, which stays "sent".
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct OutgoingRequest {
     /// `rq_`.
     pub id: String,
@@ -578,7 +576,6 @@ impl OutgoingRequest {
 
 /// An invite the caller received and that is still live.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct ReceivedInvite {
     /// `iv_`.
     pub id: String,
@@ -599,7 +596,6 @@ impl ReceivedInvite {
 
 /// An account the caller blocked, with the name to list it under.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct BlockedPlayer {
     /// `bl_`.
     pub id: String,
@@ -617,7 +613,6 @@ impl BlockedPlayer {
 /// Everything a client shows of its friends. Both routes answer the whole
 /// state, and the client replaces its own with it.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct FriendsState {
     /// The caller's friend code (`is_friend_code`).
     pub code: String,
@@ -689,6 +684,22 @@ mod tests {
         assert_eq!(check(&parsed), Ok(()), "{value}");
         assert_eq!(&serde_json::to_value(&parsed).unwrap(), value);
         parsed
+    }
+
+    /// Adds a member the type does not have at `pointer` and expects `T` to
+    /// read the value as it reads the one without it.
+    fn ignores_extra<T: DeserializeOwned + PartialEq + std::fmt::Debug>(
+        value: &Value,
+        pointer: &str,
+    ) {
+        let mut extended = value.clone();
+        extended
+            .pointer_mut(pointer)
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert("extra".into(), json!(1));
+        assert_eq!(read::<T>(&extended), read::<T>(value), "{pointer:?}");
     }
 
     /// Adds a member the type does not have at `pointer` and expects a refusal.
@@ -768,13 +779,12 @@ mod tests {
     }
 
     #[test]
-    fn every_state_member_refuses_what_it_does_not_know() {
+    fn every_state_member_ignores_what_it_does_not_know() {
         let wire = state_wire();
         for pointer in [
             "",
             "/friends/0",
             "/friends/0/main",
-            "/friends/0/badge",
             "/friends/0/presence",
             "/friends/0/presence/room",
             "/friends/0/record",
@@ -782,12 +792,16 @@ mod tests {
             "/incoming/0/played",
             "/outgoing/0",
             "/invites/0",
-            "/invites/0/room",
             "/blocked/0",
         ] {
+            ignores_extra::<FriendsState>(&wire, pointer);
+        }
+        // The badge and the invited room are types other answers share, and
+        // they keep refusing what they do not know.
+        for pointer in ["/friends/0/badge", "/invites/0/room"] {
             refuses_extra::<FriendsState>(&wire, pointer);
         }
-        // Nor may a member of the state be left out.
+        // A member of the state may not be left out, though.
         for member in [
             "code", "friends", "incoming", "outgoing", "invites", "blocked",
         ] {
