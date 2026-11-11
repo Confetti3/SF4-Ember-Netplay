@@ -1,5 +1,6 @@
 #include "IrohRoom.hxx"
 #include "IdentityEvents.hxx"
+#include "SocialAnswers.hxx"
 #include <spdlog/spdlog.h>
 #include "HelperErrorScope.hxx"
 #include "../common/JsonDump.hxx"
@@ -884,11 +885,15 @@ void IrohRoom::Poll() {
 				continue;
 			}
 			if (type == "tournament") {
-				// Identity and bridge answers have no epoch either. Play answers
-				// go to the runtime; the rest are what the Ember ID screens show.
-				if (auto answer = ReadTournamentAnswer(event)) {
+				// Identity and bridge answers have no epoch either. Play and
+				// friends answers go to the runtime; the rest are what the
+				// Ember ID screens show.
+				TournamentAnswer answer;
+				auto play = ReadTournamentAnswer(event);
+				if (play) answer = std::move(*play);
+				if (play || ReadSocialAnswer(event, answer)) {
 					if (tournamentAnswers_.size() >= 64) tournamentAnswers_.pop_front();
-					tournamentAnswers_.push_back(std::move(*answer));
+					tournamentAnswers_.push_back(std::move(answer));
 					continue;
 				}
 				ApplyTournamentEvent(event, identity_);
