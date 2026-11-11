@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Error, Result,
     encoding::{is_false, is_prefixed_id, is_single_line},
-    levels::{FIGHTERS, MAX_LEVEL, is_card_token},
+    levels::{FIGHTERS, MAX_TIER, is_card_token},
     play::{check_build, is_hex},
     rooms::{MAX_CAPACITY, MAX_NAME, MIN_CAPACITY, check_room_name, is_country, is_player_name},
     skill::{Listing, SkillBadge},
@@ -357,9 +357,13 @@ impl FriendAction {
 pub struct MainFighter {
     /// 0 to `FIGHTERS` - 1.
     pub fighter: u8,
-    /// 1 to `MAX_LEVEL`; absent while the friend does not show levels.
+    /// At least 1; absent while the friend does not show points. Present
+    /// exactly when `tier` is.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub level: Option<u8>,
+    pub points: Option<u64>,
+    /// 0 to `MAX_TIER`: the frame colour of `points`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tier: Option<u8>,
 }
 
 impl MainFighter {
@@ -367,11 +371,13 @@ impl MainFighter {
         if self.fighter >= FIGHTERS {
             return Err(Error::InvalidField("fighter"));
         }
-        if self
-            .level
-            .is_some_and(|level| !(1..=MAX_LEVEL).contains(&level))
+        if self.points == Some(0) {
+            return Err(Error::InvalidField("points"));
+        }
+        if self.points.is_some() != self.tier.is_some()
+            || self.tier.is_some_and(|tier| tier > MAX_TIER)
         {
-            return Err(Error::InvalidField("level"));
+            return Err(Error::InvalidField("tier"));
         }
         Ok(())
     }
@@ -705,7 +711,7 @@ mod tests {
             "code": "4F2A-91CX",
             "friends": [{
                 "id": FRIEND, "name": "Player 3", "country": "FR", "since": 1730073600,
-                "main": {"fighter": 5, "level": 31},
+                "main": {"fighter": 5, "points": 1986, "tier": 3},
                 "badge": {"band": 7, "settled": true},
                 "presence": {"state": "room", "status": "fighting", "table": 0,
                     "room": {"room_id": ROOM, "name": "Player 1's room",
@@ -885,21 +891,41 @@ mod tests {
         assert_eq!(
             friend(&|f| f.main = Some(MainFighter {
                 fighter: 44,
-                level: None
+                points: None,
+                tier: None
             })),
             Err(Error::InvalidField("fighter"))
         );
         assert_eq!(
             friend(&|f| f.main = Some(MainFighter {
                 fighter: 4,
-                level: Some(61)
+                points: Some(5),
+                tier: Some(5)
             })),
-            Err(Error::InvalidField("level"))
+            Err(Error::InvalidField("tier"))
+        );
+        // Points and tier come together.
+        assert_eq!(
+            friend(&|f| f.main = Some(MainFighter {
+                fighter: 4,
+                points: Some(5),
+                tier: None
+            })),
+            Err(Error::InvalidField("tier"))
+        );
+        assert_eq!(
+            friend(&|f| f.main = Some(MainFighter {
+                fighter: 4,
+                points: Some(0),
+                tier: Some(0)
+            })),
+            Err(Error::InvalidField("points"))
         );
         assert!(
             friend(&|f| f.main = Some(MainFighter {
                 fighter: 4,
-                level: None
+                points: None,
+                tier: None
             }))
             .is_ok()
         );
