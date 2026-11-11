@@ -68,6 +68,7 @@ constexpr const char* SentRow = "friends-sent";
 constexpr const char* BlockedRow = "friends-blocked";
 constexpr const char* AppearRow = "friends-appear-offline";
 constexpr const char* NewCodeRow = "friends-new-code";
+constexpr const char* ForgetRow = "friends-turn-off";
 constexpr const char* TheirCodeRow = "friends-their-code";
 constexpr const char* SendRow = "friends-send";
 constexpr const char* NoteRow = "friends-note";
@@ -109,8 +110,12 @@ public:
     static constexpr const char* SentScreen = friends_panel::SentRow;
     static constexpr const char* BlockedScreen = friends_panel::BlockedRow;
     static constexpr const char* VisitScreen = "friends-visit";
-    // The tab, or a page over it: the screens the friends are kept fresh on.
-    static bool Shown(const std::string& screen) { return screen == Screen || screen == AddScreen || screen == SentScreen || screen == BlockedScreen; }
+    // Settings, Online, Friends: the panel of Appear offline, the friend code and Turn off friends.
+    static constexpr const char* SettingsScreen = "tab-online/friends";
+    // The tab, a page over it or the Settings panel: the screens the friends are kept fresh on.
+    static bool Shown(const std::string& screen) { return screen == Screen || screen == AddScreen || screen == SentScreen || screen == BlockedScreen || screen == SettingsScreen; }
+    // The Settings panel's rows, which Activate takes as the tab's own.
+    static bool SettingsRow(const std::string& row);
     static bool Owns(const std::string& screen) { return Shown(screen) || screen == VisitScreen; }
 
     // Every frame: Visit when the tab opens (again when its cadence lapsed) and Leave when it closes; the question
@@ -132,6 +137,13 @@ public:
     void Shortcut(const ShellView& view, const MenuAction& action, MenuNavigation& nav);
     // The header's chips and the hint bar's shortcuts, and the popout asked for opened on its row.
     void Dress(const ShellView& view, const std::string& screen, const std::vector<MenuEntry>& rows, GameMenu& menu);
+    // Settings, Online, Friends: Appear offline, the friend code (Select asks for a new one) and Turn off friends,
+    // each disabled with the state's words while the friends cannot be used.
+    std::vector<MenuEntry> SettingsRows(const ShellView& view);
+    // A room member's Add friend (and Accept request: the bridge accepts a mutual request) and Block, by the
+    // card token their ticket carried and their room name. A refusal or what went through is said as a notice.
+    void RequestMember(const ShellView& view, const std::string& card, const std::string& name, const Submit& submit);
+    void BlockMember(const ShellView& view, const std::string& card, const std::string& name, const Submit& submit);
     // The Friends tab's board at the cursor, in a body `height` tall.
     void Draw(const ShellView& view, GameMenu& menu, const std::vector<MenuEntry>& rows, MenuAction& action, float height);
 

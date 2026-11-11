@@ -11,12 +11,14 @@
 // --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's levels (--screen card, fighters,
 //   card-edit or home)
 // --friends full|requests|empty|noaccount|unavailable|loading|unreachable|offline: the player's friends in that state
-//   (--screen friends, friends-add, friends-sent or friends-blocked; UiLabSocial.hxx)
+//   (--screen friends, friends-add, friends-sent or friends-blocked; UiLabSocial.hxx); with --toasts the requests and an
+//   invite arrive as toasts (--friends full --toasts); --screen tab-online/friends is the Settings panel
 // --levels: fighter points in the game's digits, bands on pictures and meters
 //   (all of it shows in --size 3840x2160)
 // --points public|private with --room or --arcade: every member's card as the bridge would have it, in a public room
 //   or a private one (which shows none). Akira keeps their points private and Riley has no card yet; FRaccie's
-//   own points are --profile's (played). On a wide window --screen room-members --keys enter opens a member's page.
+//   own points are --profile's (played). On a wide window --screen room-members --keys enter opens a member's popout, and a
+//   second enter their page; the relations go round the members (none, friend, request sent, received, blocked).
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
 // --check report.txt (with --shot): appends each line cut short, text taller than its row and cards overlapping on the
 //   last frame to the report, named by the shot, and exits 2 when there is any (lab/uilab-v2-check.sh tours every screen)
@@ -277,6 +279,9 @@ void RoomPoints(ui::ShellView& view, bool listed) {
             account += one.second;
         }
         card.account = {account, 0};
+        using netplay::levels::Relation;
+        static const Relation relations[] = {Relation::None, Relation::Friend, Relation::Sent, Relation::Received, Relation::Blocked};
+        card.relation = relations[m.id % 5];
         (*cards)[m.card.ToString()] = card;
     }
     view.memberCards = cards;
@@ -653,6 +658,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         // As the Toasts board: a room notice, a match called and, newest, a Discord invitation.
         if (toasts && frame == 3) shell.Say(loc::T("notice.left_room"), ui::Tone::Success, 600, ui::ToastKind::Room);
         if (toasts && frame == 4) shell.Say(loc::T("tournament.assigned_notice"), ui::Tone::Pending, 600, ui::ToastKind::Match, {{loc::T("toast.open"), "tournament-matches", ""}, {loc::T("updates.launch_later")}});
+        if (toasts && !friendsState.empty()) uilab::FriendsComing(view, frame);
         if (toasts && frame == 5) shell.Say(loc::T("discord.invitation_notice"), ui::Tone::Neutral, 600, ui::ToastKind::Invitation, {{loc::T("toast.join"), "discord-invitation", "invite-switch"}, {loc::T("updates.launch_later")}});
         if (identityAsked && identityAsked != view.identityTicket) {
             view.identityTicket = identityAsked; view.identityRequest = view.identity.requestId = identityAsked + 100; view.identity.ok = true;

@@ -5,6 +5,7 @@
 #include "ApplicationShell.hxx"
 #include "MenuRows.hxx"
 #include "NetworkFeedback.hxx"
+#include "PlayerCard.hxx"
 #include "RoomFeedback.hxx"
 #include "RoomPanelBoard.hxx"
 #include "Theme.hxx"
@@ -144,7 +145,8 @@ public:
         // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.
         const bool keys = KeyboardPrompts();
         menu.typesText = f.screen == "room-chat" && ChatTypable(v);
-        menu.shortcutHints = menu.typesText && keys ? std::vector<LegendHint>{} : RoomShortcutHints();
+        // A member's page offers its rows and Back alone (PROFILE.md, "Hint bar"): the room's shortcuts still work there.
+        menu.shortcutHints = (menu.typesText && keys) || f.screen == "room-member" ? std::vector<LegendHint>{} : RoomShortcutHints();
         // On a wide board LB and RB step its areas, named once for the pair; a
         // narrow board's tab strip already shows them at its ends.
         if (f.screen == "room" && !f.shell.roomBoardNarrow_) {
@@ -158,14 +160,17 @@ public:
         if (auto leave = ShortcutHint(MenuInput::Leave, placeExit)) menu.shortcutHints.insert(menu.shortcutHints.begin(), std::move(*leave));
         if (!keys) menu.backHint = placeExit;
     }
-    // A member's page: their card (the fighter they are playing, their points and the account's) under the words of the row in focus.
+    // A member's page: their card (the fighter they are playing, their points and the account's) above the words of the row in focus.
     GameMenu::Detail Detail(const ScreenFrame& f) const override {
         if (f.screen != "room-member") return {};
         ApplicationShell* s = &f.shell; const ShellView* v = &f.view;
         return [s, v](const std::string&) {
             const auto* member = room::FindMember(v->room, s->selectedMember_);
             if (!member) return;
-            DrawMemberPoints(PointsOf(*v, *member), member->name, SeatPicture(SeatLookOf(*v, *member), RoomFighterArt(s->preferences_)));
+            const float height = 160 * Scale(), width = ImGui::GetContentRegionAvail().x;
+            const auto p = ImGui::GetCursorScreenPos();
+            DrawOtherCard(ImGui::GetWindowDrawList(), {p, ImVec2(p.x + width, p.y + height)}, MemberOtherCard(*v, *member, RoomFighterArt(s->preferences_)));
+            ImGui::Dummy(ImVec2(width, height));
         };
     }
     // The Members list as player tags.

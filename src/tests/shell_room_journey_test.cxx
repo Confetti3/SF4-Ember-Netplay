@@ -617,8 +617,8 @@ static void RoomBoardJourneys() {
  Check(h.actions.size()==count,"Stale confirmation cancelled a different game");h.Press(MenuInput::Back);
  h.Screen("room");h.Choose("leave");count=h.actions.size();h.Press(MenuInput::Select);Check(h.actions.size()==count,"Leave default was not Cancel");
  h.Choose("leave");h.Press(MenuInput::Right);h.Press(MenuInput::Select);Check(h.actions.size()==count+1&&Is<commands::LeaveRoom>(h.actions.back()),"Confirmed leave");
-  // Kick, third of a member's actions, asks first on the member's page.
-  h.Screen("room");h.Choose("room-members");h.Choose("member-2");h.Press(MenuInput::Down);h.Press(MenuInput::Down);h.Press(MenuInput::Select);h.Frame(0,2);
+  // Kick, fourth of a member's actions, asks first on the member's page.
+  h.Screen("room");h.Choose("room-members");h.Choose("member-2");h.Press(MenuInput::Down);h.Press(MenuInput::Down);h.Press(MenuInput::Down);h.Press(MenuInput::Select);h.Frame(0,2);
   h.view.room.members.pop_back();h.Frame();h.Press(MenuInput::Right);h.Press(MenuInput::Select);Check(Is<commands::LeaveRoom>(h.actions.back()),"Removed member was kicked");
  h.Screen("room");h.Choose("room-chat");h.Frame(0,4);ImGui::GetIO().AddInputCharactersUTF8("Hello");h.Frame();
  count=h.actions.size();h.Press(MenuInput::Down);Check(h.actions.size()==count,"Scrolling the chat sent it");

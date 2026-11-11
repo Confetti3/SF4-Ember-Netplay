@@ -1369,6 +1369,48 @@ msgstr "Twojego pokoju nie można teraz zaproponować."
 msgid "friends.busy"
 msgstr "Poczekaj na zakończenie ostatniej prośby."
 
+msgid "friends.accept_member"
+msgstr "Przyjmij zaproszenie"
+
+msgid "friends.add_member"
+msgstr "Dodaj znajomego"
+
+msgid "friends.request_sent"
+msgstr "Zaproszenie wysłane"
+
+msgid "friends.blocked_member"
+msgstr "Zablokowany"
+
+msgid "friends.blocked_member_detail"
+msgstr "Odblokuj w Profil, Znajomi, Zablokowani."
+
+msgid "friends.block"
+msgstr "Zablokuj"
+
+msgid "friends.block_detail"
+msgstr "Kończy każdą znajomość i zaproszenie między wami. Cofniesz to w Profil, Znajomi, Zablokowani."
+
+msgid "friends.toast_request"
+msgstr "{0} chce zostać twoim znajomym"
+
+msgid "friends.toast_invite"
+msgstr "{0} zaprasza cię do swojego pokoju"
+
+msgid "friends.later"
+msgstr "Później"
+
+msgid "friends.dismiss"
+msgstr "Odrzuć"
+
+msgid "friends.turn_off"
+msgstr "Wyłącz znajomych"
+
+msgid "friends.turn_off_detail"
+msgstr "Usuwa twoich znajomych, zaproszenia, blokady i kod znajomego."
+
+msgid "room.member_card"
+msgstr "Karta gracza"
+
 msgid "level.points_to"
 msgstr "Do {1} brakuje punktów: {0}"
 

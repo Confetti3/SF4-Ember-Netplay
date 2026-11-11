@@ -201,6 +201,47 @@ MenuEntry FriendRowOf(const nf::Friend& entry, bool canInvite, std::uint64_t now
 }
 
 std::string DateOf(std::uint64_t at) { return at ? LocalTime(at, "%Y-%m-%d") : std::string("-"); }
+
+// The words that say why the friends cannot be used now, or null when they can: the state's own, or the gate's.
+const char* UnusableWords(Mode mode, Gate gate) {
+    switch (mode) {
+    case Mode::NoAccount: return "friends.no_account";
+    case Mode::Unavailable: return "friends.unavailable";
+    case Mode::Loading: return "friends.loading";
+    case Mode::Unreachable: return "friends.unreachable";
+    case Mode::Listed: break;
+    }
+    return gate.actWhy;
+}
+}
+
+bool FriendsPanel::SettingsRow(const std::string& row) { return row == AppearRow || row == NewCodeRow || row == ForgetRow; }
+
+std::vector<MenuEntry> FriendsPanel::SettingsRows(const ShellView& v) {
+    const auto& f = v.friends;
+    const auto& state = StateOf(f);
+    const Gate gate = GateOf(f, service_, pending_.active);
+    const char* why = UnusableWords(ModeOf(f, service_), gate);
+    const auto detail = [&](const char* words) { return why ? std::string(loc::T(why)) : std::string(loc::T(words)); };
+    auto appear = Row(AppearRow, loc::T("friends.appear_offline"), detail("friends.appear_offline_detail"), !why);
+    appear.value = loc::T(state.appearOffline ? "common.on" : "common.off");
+    auto code = ConfirmRow(NewCodeRow, loc::T("friends.code"), detail("friends.new_code_detail"), !why);
+    code.value = state.code.empty() ? std::string("-") : state.code;
+    auto off = ConfirmRow(ForgetRow, loc::T("friends.turn_off"), detail("friends.turn_off_detail"), !why);
+    for (auto* row : {&appear, &code, &off}) if (pending_.active && pending_.row == row->id) row->value = "...";
+    return {appear, code, off};
+}
+
+void FriendsPanel::RequestMember(const ShellView& v, const std::string& card, const std::string& name, const Submit& submit) {
+    const Gate gate = GateOf(v.friends, service_, pending_.active);
+    if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
+    Send(v, nf::Command::RequestCard(Bridge(v), card, name), submit, {}, loc::Tf("friends.request_sent_to", name));
+}
+
+void FriendsPanel::BlockMember(const ShellView& v, const std::string& card, const std::string& name, const Submit& submit) {
+    const Gate gate = GateOf(v.friends, service_, pending_.active);
+    if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
+    Send(v, nf::Command::BlockCard(Bridge(v), card, name), submit);
 }
 
 const std::string& FriendsPanel::Bridge(const ShellView& view) const { return view.friends.bridge.empty() ? bridge_ : view.friends.bridge; }
@@ -430,6 +471,11 @@ bool FriendsPanel::Activate(const ShellView& v, const MenuAction& a, MenuNavigat
     if (a.id == NewCodeRow) {
         if (!gate.act) refuse(gate.actWhy);
         else Send(v, nf::Command::NewCode(bridge), submit, a.id);
+        return true;
+    }
+    if (a.id == ForgetRow) {
+        if (!gate.act) refuse(gate.actWhy);
+        else Send(v, nf::Command::Forget(bridge), submit, a.id);
         return true;
     }
     if (a.id == SendRow) {

@@ -40,6 +40,7 @@ MemberPoints PointsOf(const ShellView& view, const room::Member& member) {
     if (!card) return out;
     out.known = true;
     out.account = card->account;
+    out.relation = card->relation;
     for (const auto& played : card->fighters)
         if (played.points) out.fighters.push_back(played);
     std::sort(out.fighters.begin(), out.fighters.end(), [](const netplay::levels::CardFighter& a, const netplay::levels::CardFighter& b) {

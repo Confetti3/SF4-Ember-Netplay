@@ -1369,6 +1369,48 @@ msgstr "Dein Raum kann gerade nicht angeboten werden."
 msgid "friends.busy"
 msgstr "Warte, bis die letzte Anfrage abgeschlossen ist."
 
+msgid "friends.accept_member"
+msgstr "Anfrage annehmen"
+
+msgid "friends.add_member"
+msgstr "Freund hinzufügen"
+
+msgid "friends.request_sent"
+msgstr "Anfrage gesendet"
+
+msgid "friends.blocked_member"
+msgstr "Blockiert"
+
+msgid "friends.blocked_member_detail"
+msgstr "Hebe die Blockierung unter Profil, Freunde, Blockiert auf."
+
+msgid "friends.block"
+msgstr "Blockieren"
+
+msgid "friends.block_detail"
+msgstr "Beendet jede Freundschaft und Anfrage zwischen euch. Rückgängig unter Profil, Freunde, Blockiert."
+
+msgid "friends.toast_request"
+msgstr "{0} möchte befreundet sein"
+
+msgid "friends.toast_invite"
+msgstr "{0} lädt dich in den Raum ein"
+
+msgid "friends.later"
+msgstr "Später"
+
+msgid "friends.dismiss"
+msgstr "Verwerfen"
+
+msgid "friends.turn_off"
+msgstr "Freunde ausschalten"
+
+msgid "friends.turn_off_detail"
+msgstr "Löscht deine Freunde, Anfragen, Blockierungen und deinen Freundescode."
+
+msgid "room.member_card"
+msgstr "Spielerkarte"
+
 msgid "level.points_to"
 msgstr "{0} Punkte bis {1}"
 

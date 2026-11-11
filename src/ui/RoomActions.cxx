@@ -286,6 +286,15 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(!v.canTrain||!submit(commands::Training{v.session.generation,TrainingEntry::Room}))error_=loc::T("room.training.unavailable");
   return;
  }
+ if(a.id=="player-card"){nav.Push("room-member");return;}
+ // Add friend, Accept request and Block name the member by the token their ticket carried and their room name.
+ if(a.id=="friend-request"||a.id=="friend-block"){
+  const auto* m=room::FindMember(v.room,selectedMember_);
+  if(!m||!m->card.Present()){error_=loc::T("room.member_left.detail");return;}
+  if(a.id=="friend-request")friends_.RequestMember(v,m->card.ToString(),m->name,submit);
+  else friends_.BlockMember(v,m->card.ToString(),m->name,submit);
+  return;
+ }
  if(a.id=="steam-profile"){
   // The runtime opens Steam's overlay on the profile when it is up, and the browser page otherwise.
   const auto* m=room::FindMember(v.room,selectedMember_);

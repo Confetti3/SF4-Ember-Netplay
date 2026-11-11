@@ -1369,6 +1369,48 @@ msgstr "你的房间目前无法发出邀请。"
 msgid "friends.busy"
 msgstr "请等待上一个请求完成。"
 
+msgid "friends.accept_member"
+msgstr "接受请求"
+
+msgid "friends.add_member"
+msgstr "添加好友"
+
+msgid "friends.request_sent"
+msgstr "请求已发送"
+
+msgid "friends.blocked_member"
+msgstr "已拉黑"
+
+msgid "friends.blocked_member_detail"
+msgstr "可在个人资料、好友、已拉黑中解除。"
+
+msgid "friends.block"
+msgstr "拉黑"
+
+msgid "friends.block_detail"
+msgstr "结束你们之间的所有好友关系和请求。可在个人资料、好友、已拉黑中恢复。"
+
+msgid "friends.toast_request"
+msgstr "{0} 想和你成为好友"
+
+msgid "friends.toast_invite"
+msgstr "{0} 邀请你加入其房间"
+
+msgid "friends.later"
+msgstr "稍后"
+
+msgid "friends.dismiss"
+msgstr "关闭"
+
+msgid "friends.turn_off"
+msgstr "关闭好友功能"
+
+msgid "friends.turn_off_detail"
+msgstr "删除你的好友、请求、黑名单和好友码。"
+
+msgid "room.member_card"
+msgstr "玩家名片"
+
 msgid "level.points_to"
 msgstr "距离{1}还差 {0} 积分"
 

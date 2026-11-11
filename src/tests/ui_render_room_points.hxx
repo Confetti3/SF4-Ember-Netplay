@@ -2,7 +2,7 @@
 // The room shots of fighter points (PLAYER_CARD.md, "Levels on the room board"):
 // a public room whose members have cards (one has played nothing, one has no
 // card yet, this PC's own come from the player's own points), the same
-// room as a private one, which shows none, and the Members screen. The room,
+// room as a private one, which shows none, the Members screen and a member's page with its card and chip. The room,
 // the cards and the player's points are put back at the end.
 #include "../ui/ApplicationShell.hxx"
 #include <map>
@@ -29,6 +29,8 @@ void ShootRoomPoints(sf4e::ui::ShellView& view,const Draw& draw,const Page& page
         std::uint64_t account=0;
         for(const auto& one:played){card.fighters.push_back({static_cast<std::uint8_t>(one.first),one.second,tierOf(one.second)});account+=one.second;}
         card.account={account,0};
+        // Player 3 is a friend and Player 4 has been sent a request: the member's page says so on its card.
+        card.relation=member.id==3?netplay::levels::Relation::Friend:member.id==4?netplay::levels::Relation::Sent:netplay::levels::Relation::None;
         (*map)[member.card.ToString()]=card;
     }
     view.memberCards=map;
@@ -40,6 +42,10 @@ void ShootRoomPoints(sf4e::ui::ShellView& view,const Draw& draw,const Page& page
     view.room.serverOwned=true;
     page("room");draw("room-points");
     page("room-members");draw("room-points-members");
+    // Player 3's page: Select on the third member opens their actions and Player card, the first, opens the page.
+    page("room-members");draw(nullptr,ui::MenuInput::Down,1);draw(nullptr,0,1);draw(nullptr,ui::MenuInput::Down,1);draw(nullptr,0,2);
+    draw(nullptr,ui::MenuInput::Select,1);draw(nullptr,0,3);draw(nullptr,ui::MenuInput::Select,1);draw(nullptr,0,4);
+    draw("room-points-member");
     view.room.serverOwned=false;
     page("room");draw("room-points-private");
     view.room=room;view.levels=levels;view.memberCards=cards;

@@ -27,6 +27,21 @@ const char* Name(const room::Snapshot& snapshot, room::MemberId id) {
     const auto* member = Member(snapshot, id);
     return member ? member->name.c_str() : loc::T(id ? "room.member_left" : "room.open_seat");
 }
+// A member's relation as the popout's choice and the page's row show it: Add friend or Accept request to act on,
+// the other states only to say (PROFILE.md, "In a public room").
+struct Relating { const char* label; const char* detail; bool enabled; };
+Relating RelatingOf(netplay::levels::Relation relation) {
+    using netplay::levels::Relation;
+    switch (relation) {
+    case Relation::Friend: return {"friends.are_friends", nullptr, false};
+    case Relation::Sent: return {"friends.request_sent", nullptr, false};
+    case Relation::Received: return {"friends.accept_member", nullptr, true};
+    case Relation::Blocked: return {"friends.blocked_member", "friends.blocked_member_detail", false};
+    default: return {"friends.add_member", nullptr, true};
+    }
+}
+// Whether the member has a card to ask about: another member of a public room whose card the bridge returned.
+bool CanRelate(const ShellView& v, const room::Member& m, const MemberPoints& points) { return points.known && m.id != v.room.localMember && m.card.Present(); }
 const char* StatusName(room::MemberStatus status) {
     switch (status) {
     case room::MemberStatus::Queued: return loc::T("room.status.queued");
@@ -346,8 +361,14 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   if(*id==s.localMember){row.info=true;continue;}
   const auto* m=Member(s,*id);
   if(!m)continue;
-  row.choices={{"mute",loc::T(muted_.count(*id)?"room.unmute_member":"room.mute_member"),loc::T("room.mute_member.detail")},
-   {"steam-profile",loc::T("room.steam_profile"),loc::T(m->steamId.Present()?"room.steam_profile.detail":"room.steam_profile.none"),m->steamId.Present()}};
+  // Player card first, then Add friend or the state it is in (a member with no card has neither).
+  row.choices={{"player-card",loc::T("room.member_card"),{}}};
+  if(const auto points=PointsOf(v,*m);CanRelate(v,*m,points)){
+   const auto relating=RelatingOf(points.relation);
+   row.choices.push_back({"friend-request",loc::T(relating.label),relating.detail?loc::T(relating.detail):std::string(),relating.enabled});
+  }
+  row.choices.push_back({"mute",loc::T(muted_.count(*id)?"room.unmute_member":"room.mute_member"),loc::T("room.mute_member.detail")});
+  row.choices.push_back({"steam-profile",loc::T("room.steam_profile"),loc::T(m->steamId.Present()?"room.steam_profile.detail":"room.steam_profile.none"),m->steamId.Present()});
   if(!tournamentRoom)row.choices.push_back({"kick",loc::T("room.kick_member"),loc::Tf("room.kick_member.detail",m->name),host});
   row.choices.push_back({"transfer-host",loc::T("room.transfer_host"),loc::Tf("room.transfer_host.detail",m->name),host&&!room::IsWatcher(s,*id)});
   row.popout=true;
@@ -643,6 +664,13 @@ void ApplicationShell::RoomMemberRows(std::vector<MenuEntry>& rows,const RoomScr
  const bool host=c.host;
  const bool tournamentRoom=c.tournamentRoom;
    const auto* m=Member(s,selectedMember_);const bool other=m&&m->id!=s.localMember;
+   // How this member stands with the player: Add friend, Accept request, or the state; none without a card.
+   const auto points=m?PointsOf(c.v,*m):MemberPoints{};
+   const bool relate=m&&CanRelate(c.v,*m,points);
+   if(relate){
+    const auto relating=RelatingOf(points.relation);
+    rows.push_back(Row("friend-request",loc::T(relating.label),relating.detail?loc::T(relating.detail):std::string(),relating.enabled));
+   }
    rows.push_back(Row("mute",loc::T(muted_.count(selectedMember_)?"room.unmute_member":"room.mute_member"),loc::T(m?"room.mute_member.detail":"room.member_left.detail"),other));
    // Only a member who chose to show the room their profile has one to open.
    const bool hasSteam=m&&m->steamId.Present();
@@ -655,6 +683,9 @@ void ApplicationShell::RoomMemberRows(std::vector<MenuEntry>& rows,const RoomScr
    rows.push_back(ConfirmRow("transfer-host",loc::T("room.transfer_host"),m?loc::Tf("room.transfer_host.detail",m->name):loc::T("room.member_left.detail"),
     host&&other&&!room::IsWatcher(s,selectedMember_)));
    rows.back().detailText=DetailText::Name;
+   // Block is on this page only, for a member whose card the bridge returned.
+   if(relate&&points.relation!=netplay::levels::Relation::Blocked)
+    rows.push_back(ConfirmRow("friend-block",loc::T("friends.block"),loc::T("friends.block_detail")));
 }
 void ApplicationShell::RoomChatRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
  using namespace room;

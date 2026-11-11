@@ -1369,6 +1369,48 @@ msgstr "Ваше лобби сейчас нельзя предложить."
 msgid "friends.busy"
 msgstr "Дождитесь завершения последнего запроса."
 
+msgid "friends.accept_member"
+msgstr "Принять запрос"
+
+msgid "friends.add_member"
+msgstr "Добавить в друзья"
+
+msgid "friends.request_sent"
+msgstr "Запрос отправлен"
+
+msgid "friends.blocked_member"
+msgstr "Заблокирован"
+
+msgid "friends.blocked_member_detail"
+msgstr "Разблокируйте в разделе Профиль, Друзья, Заблокированные."
+
+msgid "friends.block"
+msgstr "Заблокировать"
+
+msgid "friends.block_detail"
+msgstr "Прекращает любую дружбу и запрос между вами. Отменить можно в разделе Профиль, Друзья, Заблокированные."
+
+msgid "friends.toast_request"
+msgstr "{0} хочет подружиться"
+
+msgid "friends.toast_invite"
+msgstr "{0} приглашает вас в своё лобби"
+
+msgid "friends.later"
+msgstr "Позже"
+
+msgid "friends.dismiss"
+msgstr "Закрыть"
+
+msgid "friends.turn_off"
+msgstr "Отключить друзей"
+
+msgid "friends.turn_off_detail"
+msgstr "Удаляет ваших друзей, запросы, блокировки и код друга."
+
+msgid "room.member_card"
+msgstr "Карточка игрока"
+
 msgid "level.points_to"
 msgstr "До {1} осталось очков: {0}"
 

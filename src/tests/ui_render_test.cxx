@@ -839,7 +839,7 @@ int main(int argc, char** argv) {
                 std::string shot=screen;std::replace(shot.begin(),shot.end(),'/','-');draw(shot.c_str());};
             SetMenuGlyphs(3,0x40000,0x20000);
             ShootGameSettingsCard(view,draw);
-            for(const char* screen:{"home","profile","main-character","online","create","join","tab-player","player","tab-matches/defaults","tab-matches/training-replays","tab-interface/match-hud","tab-interface/room-layout","tab-access/speech","tab-access/text","tab-online/discord","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","tab-player","player","tab-matches/defaults","tab-matches/training-replays","tab-interface/match-hud","tab-interface/room-layout","tab-access/speech","tab-access/text","tab-online/discord","tab-online/friends","about"})page(screen);
             // A Settings panel reaches the right end of the tabs over it wherever it shows beside its rail (a narrow window shows the rail alone).
             {float tabsEnd=0;SetMenuCardProbe([&](const char* id,ImVec2,ImVec2 max){if(std::string(id)=="tabs")tabsEnd=max.x;});page("tab-access/text");SetMenuCardProbe({});
              if(!ui::v2::Narrow(FindWindow("EmberShell")->Size.x,ui::Scale())){const auto* rows=FindWindow("settings rows");

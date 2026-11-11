@@ -1369,6 +1369,48 @@ msgstr "지금은 내 방을 제안할 수 없습니다."
 msgid "friends.busy"
 msgstr "이전 요청이 끝날 때까지 기다리세요."
 
+msgid "friends.accept_member"
+msgstr "요청 수락"
+
+msgid "friends.add_member"
+msgstr "친구 추가"
+
+msgid "friends.request_sent"
+msgstr "요청 전송됨"
+
+msgid "friends.blocked_member"
+msgstr "차단됨"
+
+msgid "friends.blocked_member_detail"
+msgstr "프로필, 친구, 차단에서 해제할 수 있습니다."
+
+msgid "friends.block"
+msgstr "차단"
+
+msgid "friends.block_detail"
+msgstr "두 사람 사이의 모든 친구 관계와 요청을 끝냅니다. 프로필, 친구, 차단에서 되돌릴 수 있습니다."
+
+msgid "friends.toast_request"
+msgstr "{0}님이 친구 요청을 보냈습니다"
+
+msgid "friends.toast_invite"
+msgstr "{0}님이 방에 초대했습니다"
+
+msgid "friends.later"
+msgstr "나중에"
+
+msgid "friends.dismiss"
+msgstr "닫기"
+
+msgid "friends.turn_off"
+msgstr "친구 기능 끄기"
+
+msgid "friends.turn_off_detail"
+msgstr "친구, 요청, 차단, 친구 코드를 삭제합니다."
+
+msgid "room.member_card"
+msgstr "플레이어 카드"
+
 msgid "level.points_to"
 msgstr "{1}까지 {0}포인트"
 

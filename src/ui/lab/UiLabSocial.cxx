@@ -80,4 +80,27 @@ bool Friends(ui::ShellView& view, const std::string& which) {
     f.state.revision = f.state.finished = 1;
     return true;
 }
+
+void FriendsComing(ui::ShellView& view, int frame) {
+    static std::shared_ptr<const nf::State> full;
+    auto& f = view.friends;
+    if (frame == 0) {
+        // The list as it was first read, with nothing waiting: what arrives later is said as a toast.
+        full = f.state.value;
+        if (!full) return;
+        auto first = std::make_shared<nf::State>(*full);
+        first->incoming.clear(); first->invites.clear();
+        f.state.value = first;
+    } else if (frame == 6 && full) {
+        // Player 9 and Player 12 ask, then Player 3 invites to their room: one toast a frame.
+        auto asked = std::make_shared<nf::State>(*full);
+        asked->invites.clear();
+        f.state.value = asked; ++f.state.revision; ++f.state.finished;
+    } else if (frame == 8 && full) {
+        auto invited = std::make_shared<nf::State>(*full);
+        nf::Invite invite; invite.id = "iv_1"; invite.friendId = "fr_3"; invite.room.value = std::string(32, 'a'); invite.expiresAt = Now + Hour;
+        invited->invites = {invite};
+        f.state.value = invited; ++f.state.revision; ++f.state.finished;
+    }
+}
 }

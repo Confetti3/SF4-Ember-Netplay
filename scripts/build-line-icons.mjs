@@ -58,6 +58,8 @@ const icons = [
   ['ShieldStar', ['shield-star']],
   ['Crown', ['crown']],
   ['Brush', ['brush']],
+  // The Friends panel.
+  ['Users', ['users']],
 ];
 
 // `d` checked against what LineIcons.cxx strokes and written back as its
