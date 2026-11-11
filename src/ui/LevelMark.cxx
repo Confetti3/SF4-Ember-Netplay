@@ -42,18 +42,17 @@ namespace v2 {
 namespace {
 // The most points shown: six digits.
 constexpr std::uint64_t TopPoints = 999999;
-// A plate's number stands this share of its height tall, and the plate keeps
-// this share of its height clear at each side of the number.
-constexpr float PlateCap = .44f, PlateSide = .22f;
-// A band takes this share of its picture's height (20 px at least), and its
-// number this share of the band.
-constexpr float BandShare = .22f, BandCap = .58f;
+// A band takes this share of its picture's height (20 px at least), its number
+// this share of the band, and keeps this share of the band clear at each side.
+constexpr float BandShare = .22f, BandCap = .58f, BandMargin = .11f;
 
 // White, as the game draws its points; the gold of its "rank up" digits for a gain.
 constexpr ImU32 White = IM_COL32(255, 255, 255, 255), Gold = IM_COL32(255, 200, 64, 255);
-// The label before a plate's number stands this share of the plate's height, and
-// is set off from the plate by this share of it.
-constexpr float LabelSize = .34f, LabelGap = .16f;
+// The dark outline round the label's letters, as the game's own digits have one.
+constexpr ImU32 Outline = IM_COL32(10, 10, 14, 255);
+// The space between a number and its label, and the label's outline, as shares
+// of the digits' height; the gap after a gain's plus.
+constexpr float Space = .3f, OutlineShare = 1.f / 14, GainGap = .16f;
 
 // The art's digits, empty while the game's sheet loads or when it is missing.
 PointDigitSheet DigitArt() {
@@ -86,11 +85,21 @@ Number NumberOf(const PointDigitSheet& art, std::uint64_t value, float cap, poin
     return number;
 }
 ImVec2 Uv(const point_digits::Box& box, int x, int y) { return ImVec2(float(box.x + x) / point_digits::SheetSide, float(box.y + y) / point_digits::SheetSide); }
+// White text in the heading font with a dark outline: the text offset by about a
+// fourteenth of `cap` in the eight directions in near black, then the text on top.
+void OutlinedText(ImDrawList* draw, float size, ImVec2 at, const char* text, ImU32 fill, float cap) {
+    const float edge = (std::max)(1.f, std::round(cap * OutlineShare));
+    for (int dy = -1; dy <= 1; ++dy)
+        for (int dx = -1; dx <= 1; ++dx)
+            if (dx || dy) draw->AddText(HeadingFont(), size, ImVec2(at.x + dx * edge, at.y + dy * edge), Outline, text);
+    draw->AddText(HeadingFont(), size, at, fill, text);
+}
 // The number with its top left at `at`.
 void DrawNumber(ImDrawList* draw, const Number& number, ImVec2 at) {
     if (!number.art.sheet) {
         const float size = FallbackSize(number.cap);
-        draw->AddText(HeadingFont(), size, ImVec2(at.x, std::round(at.y + (number.cap - size) * .5f)), number.set == point_digits::Gold ? Gold : White, number.text.c_str());
+        OutlinedText(draw, size, ImVec2(at.x, std::round(at.y + (number.cap - size) * .5f)), number.text.c_str(),
+            number.set == point_digits::Gold ? Gold : White, number.cap);
         return;
     }
     for (int i = 0; i < number.layout.count; ++i) {
@@ -100,35 +109,27 @@ void DrawNumber(ImDrawList* draw, const Number& number, ImVec2 at) {
             Uv(placed.source, 0, 0), Uv(placed.source, placed.source.w, placed.source.h));
     }
 }
-// The number centred in `box` and clipped to it.
-void DrawCentred(ImDrawList* draw, const Number& number, Box box) {
-    draw->PushClipRect(box.min, box.max, true);
-    DrawNumber(draw, number, ImVec2(std::round(box.min.x + (box.W() - number.width) * .5f), std::round(box.min.y + (box.H() - number.cap) * .5f)));
-    draw->PopClipRect();
+// SF4's line under a player's name: the number, a space, then the two-letter
+// label, the digits `cap` tall and the label's capitals as tall as they are.
+struct Line {
+    Number number;
+    const char* label = "";
+    float size = 0, space = 0, width = 0;
+};
+Line LineOf(const PointDigitSheet& art, std::uint64_t points, float cap, const char* labelId) {
+    Line line;
+    line.number = NumberOf(art, points, cap, point_digits::White);
+    line.label = loc::T(labelId);
+    line.size = FallbackSize(cap);
+    line.space = std::round(cap * Space);
+    line.width = line.number.width + line.space + std::round(HeadingFont()->CalcTextSizeA(line.size, FLT_MAX, 0, line.label).x);
+    return line;
 }
-// A plate `height` tall: its number, and its width, square at least.
-struct Plate { Number number; float width; };
-Plate PlateOf(const PointDigitSheet& art, std::uint64_t points, float height) {
-    Plate plate{NumberOf(art, points, std::round(height * PlateCap), point_digits::White), 0};
-    plate.width = (std::max)(std::round(height), plate.number.width + 2 * std::round(height * PlateSide));
-    return plate;
-}
-// The label's text size, and the room it and its gap take before a plate `height` tall.
-float LabelFont(float height) { return std::round(height * LabelSize); }
-float LabelRoom(float height) {
-    return std::round(HeadingFont()->CalcTextSizeA(LabelFont(height), FLT_MAX, 0, loc::T("points.label")).x) + std::round(height * LabelGap);
-}
-// The number in a band `band` tall over `width`: its cap, shrunk until it fits
-// the width less a margin each side, down to 1 px.
-Number BandNumber(const PointDigitSheet& art, std::uint64_t points, float band, float width) {
-    float cap = std::round(band * BandCap);
-    const float room = (std::max)(1.f, width - 2 * std::round(band * PlateSide * .5f));
-    Number number = NumberOf(art, points, cap, point_digits::White);
-    while (number.width > room && cap > 1) {
-        cap = (std::max)(1.f, (std::min)(cap - 1, std::floor(cap * room / number.width)));
-        number = NumberOf(art, points, cap, point_digits::White);
-    }
-    return number;
+// The line with its top left at `at`.
+void DrawLine(ImDrawList* draw, const Line& line, ImVec2 at) {
+    DrawNumber(draw, line.number, at);
+    OutlinedText(draw, line.size, ImVec2(at.x + line.number.width + line.space, std::round(at.y + (line.number.cap - line.size) * .5f)),
+        line.label, White, line.number.cap);
 }
 }
 
@@ -136,27 +137,21 @@ Tier FrameTier(int tier) {
     return static_cast<Tier>(static_cast<int>(Tier::Ash) + (std::max)(0, (std::min)(tier, static_cast<int>(Tier::Ember) - static_cast<int>(Tier::Ash))));
 }
 
-float LevelWidth(std::uint64_t points, float height) {
-    return LabelRoom(height) + PlateOf(DigitArt(), points, height).width;
+float LevelWidth(std::uint64_t points, float height, const char* labelId) {
+    return LineOf(DigitArt(), points, std::round(height), labelId).width;
 }
 
-float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, int tier) {
-    const Plate plate = PlateOf(DigitArt(), points, height);
-    const float s = Scale(), edge = 2 * s, room = LabelRoom(height), label = LabelFont(height);
-    const ImVec2 origin(std::round(at.x), std::round(at.y));
-    draw->AddText(HeadingFont(), label, ImVec2(origin.x, std::round(origin.y + (height - label) * .5f)), White, loc::T("points.label"));
-    const Box box{ImVec2(origin.x + room, origin.y), ImVec2(origin.x + room + plate.width, origin.y + std::round(height))};
-    draw->AddRectFilled(box.min, box.max, Colors().ink, 4 * s);
-    DrawCentred(draw, plate.number, Inset(box, edge, edge));
-    draw->AddRect(box.min, box.max, TierColor(FrameTier(tier)).stripe, 4 * s, 0, edge);
-    return room + plate.width;
+float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, const char* labelId) {
+    const Line line = LineOf(DigitArt(), points, std::round(height), labelId);
+    DrawLine(draw, line, ImVec2(std::round(at.x), std::round(at.y)));
+    return line.width;
 }
 
 float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain) {
     if (gain == 0) return 0;
     // The sheet has no plus: it is drawn in the heading font, in the digits' gold.
     const float size = std::round(height * 1.3f);
-    const float plus = std::round(HeadingFont()->CalcTextSizeA(size, FLT_MAX, 0, "+").x) + std::round(height * LabelGap);
+    const float plus = std::round(HeadingFont()->CalcTextSizeA(size, FLT_MAX, 0, "+").x) + std::round(height * GainGap);
     const Number number = NumberOf(DigitArt(), gain, std::round(height), point_digits::Gold);
     const ImVec2 origin(std::round(at.x), std::round(at.y));
     draw->AddText(HeadingFont(), size, ImVec2(origin.x, std::round(origin.y + (height - size) * .5f)), Gold, "+");
@@ -164,13 +159,22 @@ float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain) {
     return plus + number.width;
 }
 
-void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, int tier) {
+void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points) {
     if (tile.H() <= 0) return;
     const float s = Scale(), band = std::round((std::min)(tile.H(), (std::max)(tile.H() * BandShare, 20 * s)));
     const Box foot{ImVec2(tile.min.x, tile.max.y - band), tile.max};
     draw->AddRectFilled(foot.min, foot.max, color::Alpha(Colors().ink, .88f));
-    DrawCentred(draw, BandNumber(DigitArt(), points, band, foot.W()), foot);
-    draw->AddRect(tile.min, tile.max, TierColor(FrameTier(tier)).stripe, 0, 0, 2 * s);
+    // The line shrinks until it fits the picture's width less a margin each side, down to 1 px.
+    const float room = (std::max)(1.f, foot.W() - 2 * std::round(band * BandMargin));
+    float cap = std::round(band * BandCap);
+    Line line = LineOf(DigitArt(), points, cap, "points.label");
+    while (line.width > room && cap > 1) {
+        cap = (std::max)(1.f, (std::min)(cap - 1, std::floor(cap * room / line.width)));
+        line = LineOf(DigitArt(), points, cap, "points.label");
+    }
+    draw->PushClipRect(foot.min, foot.max, true);
+    DrawLine(draw, line, ImVec2(std::round(foot.min.x + (foot.W() - line.width) * .5f), std::round(foot.min.y + (foot.H() - cap) * .5f)));
+    draw->PopClipRect();
 }
 
 void Meter(ImDrawList* draw, Box box, float part, float fresh) {

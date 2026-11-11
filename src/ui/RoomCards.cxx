@@ -30,7 +30,7 @@ void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max) {
  const float s=Scale(),h=max.y-min.y,face=h-12*s;auto* d=ImGui::GetWindowDrawList();
  const v2::Box portrait{ImVec2(min.x+6*s,min.y+6*s),ImVec2(min.x+6*s+face,max.y-6*s)};
  DrawCharacterPortrait(FighterPicture{card.mainFighter,card.art},portrait.min,portrait.max);
- if(card.points)v2::LevelBand(d,portrait,card.points->points,card.points->tier);
+ if(card.points)v2::LevelBand(d,portrait,card.points->points);
  const float x=min.x+16*s+face,w=max.x-x-14*s;
  v2::TagView tag{card.label,{},{},card.marks,card.latency};tag.link=card.link;
  v2::Tag(d,ImVec2(x,min.y+5*s),w,tag,v2::TagSize::S);
@@ -38,25 +38,19 @@ void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max) {
  DrawCardText(elided,ImVec2(x,max.y-20*s),w,card.record.empty()?card.status:card.status+" \xC2\xB7 "+card.record,14*s,palette::Muted);
  NoteUserText(card.name);
 }
-void DrawMemberPoints(const MemberPoints& points) {
- const float s=Scale(),line=32*s,gap=8*s,width=ImGui::GetContentRegionAvail().x;
+void DrawMemberPoints(const MemberPoints& points,const std::string& name,const FighterPicture& face) {
+ if(!points.known)return;
+ const float s=Scale(),side=72*s,gap=12*s,line=16*s,width=ImGui::GetContentRegionAvail().x;
  const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
- const ImVec2 start=ImGui::GetCursorScreenPos();
- ImVec2 at(start.x,start.y+12*s);
- if(points.show==MemberPoints::Show::Private)at.y+=v2::Paragraph(d,at,width,loc::T("room.member_points_private"),14*s,c.muted);
- else{
-  const std::size_t shown=(std::min)(points.fighters.size(),static_cast<std::size_t>(3));
-  // The names stand in one column, after the widest plate.
-  float plates=0;
-  for(std::size_t i=0;i<shown;++i)plates=(std::max)(plates,v2::LevelWidth(points.fighters[i].points,line));
-  for(std::size_t i=0;i<shown;++i){
-   const auto& played=points.fighters[i];
-   v2::Level(d,at,line,played.points,played.tier);
-   if(const auto* fighter=selection::FindFighter(played.fighter))
-    v2::Text(d,ImVec2(at.x+plates+12*s,at.y+(line-16*s)*.5f),(std::max)(0.f,width-plates-12*s),fighter->name,16*s,c.text,HeadingFont());
-   at.y+=line+gap;
-  }
- }
- ImGui::Dummy(ImVec2(width,at.y-start.y));
+ const ImVec2 start=ImGui::GetCursorScreenPos(),top(start.x,start.y+12*s);
+ DrawCharacterPortrait(face,top,ImVec2(top.x+side,top.y+side),c.frame);
+ // SF4's lines under the name: the points of the fighter they are playing, then the account's.
+ const float x=top.x+side+gap,room=(std::max)(0.f,width-side-gap);
+ NoteUserText(name);
+ v2::Text(d,ImVec2(x,top.y),room,name,18*s,c.text,HeadingFont());
+ const auto played=points.Of(face.fighter);
+ v2::Level(d,ImVec2(x,top.y+28*s),line,played?played->points:0,"points.label");
+ v2::Level(d,ImVec2(x,top.y+52*s),line,points.account.points,"points.account_label");
+ ImGui::Dummy(ImVec2(width,12*s+side));
 }
 } }

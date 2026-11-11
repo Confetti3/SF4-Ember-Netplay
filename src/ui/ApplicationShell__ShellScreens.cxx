@@ -158,12 +158,14 @@ public:
         if (auto leave = ShortcutHint(MenuInput::Leave, placeExit)) menu.shortcutHints.insert(menu.shortcutHints.begin(), std::move(*leave));
         if (!keys) menu.backHint = placeExit;
     }
-    // A member's page: their points under the words of the row in focus.
+    // A member's page: their card (the fighter they are playing, their points and the account's) under the words of the row in focus.
     GameMenu::Detail Detail(const ScreenFrame& f) const override {
         if (f.screen != "room-member") return {};
         ApplicationShell* s = &f.shell; const ShellView* v = &f.view;
         return [s, v](const std::string&) {
-            if (const auto* member = room::FindMember(v->room, s->selectedMember_)) DrawMemberPoints(PointsOf(*v, *member));
+            const auto* member = room::FindMember(v->room, s->selectedMember_);
+            if (!member) return;
+            DrawMemberPoints(PointsOf(*v, *member), member->name, SeatPicture(SeatLookOf(*v, *member), RoomFighterArt(s->preferences_)));
         };
     }
     // The Members list as player tags.

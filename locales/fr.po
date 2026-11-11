@@ -1087,6 +1087,9 @@ msgstr "Classe"
 msgid "points.label"
 msgstr "FP"
 
+msgid "points.account_label"
+msgstr "BP"
+
 msgid "level.value"
 msgstr "{0} points"
 
@@ -1101,12 +1104,6 @@ msgstr "{0} points avant {1}"
 
 msgid "level.top"
 msgstr "Cadre maximal"
-
-msgid "level.hidden"
-msgstr "Les autres ne voient pas vos points tant que vous ne participez pas au classement."
-
-msgid "room.member_points_private"
-msgstr "Ce joueur garde ses points privés."
 
 msgid "level.no_account"
 msgstr "Connectez Discord dans Paramètres, Jeu en ligne pour gagner des points."

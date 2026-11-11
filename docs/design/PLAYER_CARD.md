@@ -27,15 +27,21 @@ No new bridge table or route belongs to the card: it is put together from
 | Name, flag | yes | yes, as the room or the friend's game sends it |
 | Class emblem (game's own, `RankingEmblem`) | yes, from the standing | yes, as the room shows it, or the friend's last shown class |
 | Worn title on its tier plate, worn icon | yes | no: titles are not served yet (`ShellView::earnedAwards` is filled only in the UI lab), so nobody else's can be vouched for |
-| Main's portrait with its points and tier | yes | yes, while they show points |
+| Main's portrait with its points | yes | yes |
+| Account points (BP) | yes | yes |
 | The fighter picked for this set with its points | in a room | in a room |
-| Three fighters: the main, then the two highest by points | yes | yes, while they show points |
+| Three fighters: the main, then the two highest by points | yes | yes |
 | Progress of the main (meter, "1986 points", "514 points to Ember") | yes | no |
 | Counted games, win rate, fighters played (12 of 44) | yes | no |
 | A fighter's points and tier | yes | yes |
 | A fighter's games and wins | Fighters tab | never |
 | Friend code | yes | never |
 | Network link (Cable, Wi-Fi) | yes | in a room, as today |
+
+A card is public: it is how players find each other to add friends, so what
+the table says another's card shows is shown whether or not that player takes
+part in ranking. It is `null` only for an account with no Discord account
+connected, and for a player who blocked the caller.
 
 Decided against, against the boards:
 
@@ -56,9 +62,9 @@ Decided against, against the boards:
   games}`, the main first; `games` is the own card's only), `picked` (the
   fighter of this set, -1 for none), `progress` (`{points, tier, next}` for
   the main; own card only), `facts` (own only: counted games, win rate,
-  fighters played), `friendCode` (own only), `levelsShown` (false: draw no
-  points and say why on your own card). One view for every card; whoever fills it leaves out what the table
-  above says they must.
+  fighters played), `account` (the account's points, BP; 0 until a game
+  counts), `friendCode` (own only). One view for every card; whoever fills it
+  leaves out what the table above says they must.
 - `ShellView` gains `levels` (`netplay::levels::Own`) and `memberCards`
   (token to `netplay::levels::Card`), mapped in `sf4e__Overlay.cxx` like
   `rankings`. `ApplicationShell.hxx` is 978 lines: P6 first moves `ShellView`
@@ -75,12 +81,13 @@ Added to `V2.hxx` (P5), each used by at least two screens:
 
 | Part | Draws | Used by |
 |---|---|---|
-| `v2::Level(d, at, height, points, tier)` | the label "FP" and the points in the game's own digits (white) on dark ground, framed in the tier's stripe colour; up to six digits, the plate growing with the number; returns its width | card, Fighters tab, toasts, friends list |
-| `v2::LevelBand(d, tile, points, tier)` | a dark band across a fighter picture's foot with the number centred in it, shrunk to fit the picture's width, and the picture's edge in the tier's stripe colour; nothing for 0 points | card strip, room seats, cabinets, member rows, friends panel |
+| `v2::Level(d, at, height, points, labelId)` | SF4's line: the points in the game's own digits (white), a space, then the label ("FP" or "BP") in the heading font, white with a dark outline and as tall as the digits; no plate, box, background or frame; up to six digits; returns its width | card, member card, room cabinets, friends list |
+| `v2::LevelBand(d, tile, points)` | the line `<n> FP` centred on a short dark shade across a fighter picture's foot, shrunk to fit the picture's width; the shade is only for legibility over art, with no frame round the picture | card strip, room seats, member rows, Fighters tab |
 | `v2::Meter(d, box, part, fresh)` | a progress bar on `c.frame`, `part` in `c.accent`, the latest `fresh` of it in `c.accentLight` | card, Fighters panel, the set toast |
 
-Both take the tier as the bridge sent it (0 Ash to 4 Ember, `v2::FrameTier`)
-and never work one out from the points.
+The tier (0 Ash to 4 Ember, `v2::FrameTier`) is the bridge's to decide and is
+never worked out from the points; it never colours the number, and may colour
+only a picture's own outer frame where a caller already draws one.
 
 The boards' level chip beside a name (fighter name and number in one pill)
 is not added: every place a member's points show already draws that member's
@@ -112,9 +119,10 @@ so `ApplicationShell` gains one panel line and no members.
 
 Board (`Body`), the `Main` board's order: the title on its plate, the hero
 (the main drawn as Settings, Room layout, Pictures says: portrait or figure,
-`SelectionArt::Portrait` or `Character`, large), with the points plate
-(`v2::Level`, the fighter, "1,284 games") at its foot left and the class
-plate (emblem, "Class", letters) at its foot right; the name line (flag,
+`SelectionArt::Portrait` or `Character`, large), with SF4's arrangement at its
+foot left (the main's name, and under it two lines: the main's points as
+"1986 FP" and the account's as "2331 BP", `v2::Level`) and the class plate
+(emblem, "Class", letters) at its foot right; the name line (flag,
 name, link); the main's meter, "1986 points" and "514 points to Ember" (the next tier's name; "Top frame" at Ember; the meter runs from the tier's start, `floor`, to the next tier's points); the facts row; the fighters
 strip.
 
@@ -126,8 +134,8 @@ Select shows the code and offers New code (`FRIENDS.md`). Back is Home.
 Under 900 px (`v2::Narrow`) the plates stack under the hero and the facts
 take two lines, as the L tag's do.
 
-Without a Discord account the hero says "Connect Discord in Settings, Online
-to earn points" in place of the points plate; with a bridge that does not
+Without a Discord account the card says "Connect Discord in Settings, Online
+to earn points" under its facts; with a bridge that does not
 count points, "This service does not count points yet".
 
 ### Fighters tab
@@ -140,8 +148,7 @@ right the focused fighter's panel (`v2::Panel`, titled with the fighter,
 "Main" chip when it is): a large tile, "1986 points", the meter, "514 points
 to Ember" (or "Top frame"), Games, Won, Since, "How points are earned", the
 five frames (each in its tier's colour with the tier's name, no numbers: the
-thresholds are the bridge's and are not drawn) and, when `shown` is false, "Others do not see your points while
-you do not take part in ranking."
+thresholds are the bridge's and are not drawn).
 
 Navigation: the grid's rows are placed; the D-pad moves by geometry; the
 panel follows the focus and holds nothing focusable. Select is Make main
@@ -156,11 +163,14 @@ board (`v2::Words`).
 
 The member popout (`RoomPanel.cxx`, the `row.choices` of a member row) gains
 "Player card", which opens the member's page (`room-member`) as Kick and
-Make host do, and "Add friend" (`FRIENDS.md`). The page draws the small card
-above its rows: tile with the picked fighter's `LevelBand` (else the main's),
-flag, name, "Cammy · class A · 612 games", and the other two fighters with
-their points. Its rows are today's (mute, Steam profile, kick, make host)
-plus Add friend and Block (`FRIENDS.md`).
+Make host do, and "Add friend" (`FRIENDS.md`). In a public room the page draws
+the member's card above its rows, as SF4 draws a player under their name: the
+face of the fighter they are playing (the one they picked, `Member::fighter`,
+else their main: `SeatLookOf`), their name, and under it exactly two lines,
+that fighter's points as "612 FP" (0 when not played) and their account's as
+"2331 BP". There is no list of their best fighters. A private room draws
+nothing. Its rows are today's (mute, Steam profile, kick, make host) plus Add
+friend and Block (`FRIENDS.md`).
 
 The `Room` board's hint bar ("X Add friend", "Y Chat") cannot be: X, Y and
 View are the room's own shortcuts on every room screen (Fighter, Table
@@ -171,7 +181,7 @@ friend lives in the popout and on the member's page instead.
 
 - A seat (`DrawSeat`): `LevelBand` on the seat's picture, for the fighter
   picked (`Member::fighter`), else the main. Nothing for a player without a
-  card, one who does not show points, or a private room.
+  card or a private room.
 - The Members list (`DrawMemberRow`) and Arcade cabinets
   (`RoomPanelArcade.cxx`): the same on their pictures.
 - The match HUD: no points (`FIGHTER_LEVELS.md`, Open questions).
@@ -203,13 +213,14 @@ string commits did (`716a08d25` touched every `locales/*.po`):
 | `profile.tab.fighters` | Fighters |
 | `card.edit` | Edit card |
 | `card.class` | Class |
+| `points.label` | FP |
+| `points.account_label` | BP |
 | `level.value` | {0} points |
 | `level.games` | {0} games |
 | `level.points_to` | {0} points to {1} |
 | `level.top` | Top frame |
 | `level.reached` | {0} reached the {1} frame |
 | `level.set` | {0} games this set, {1} won |
-| `level.hidden` | Others do not see your points while you do not take part in ranking. |
 | `level.no_account` | Connect Discord in Settings, Online to earn points. |
 | `level.unavailable` | This service does not count points yet. |
 | `level.loading` | Reading your points. |
@@ -236,8 +247,8 @@ Numbering is shared with `FIGHTER_LEVELS.md`, which has P0 to P5.
 
 | Package | Owns | Depends | Tests | Only in the game |
 |---|---|---|---|---|
-| P6 Profile and own card | `src/ui/ShellView.hxx` (moved out), `src/ui/{ProfilePanel.hxx,ProfilePanel.cxx,PlayerCard.hxx,PlayerCard.cxx}`, `src/ui/GameMenu.hxx` (`PlayerCardView`), `src/ui/GameMenuDraw.cxx` (Home card), `src/ui/ApplicationShell.{hxx,cxx}` (panel line, `PublishPlayerCard`), `src/ui/ApplicationShell__Awards.cxx` (strip), `src/ui/ApplicationShell__Toasts.cxx` (set and level toasts), `src/sf4e/sf4e__Overlay.cxx` (view mapping), `src/ui/lab/*` (states: no account, unavailable, fresh, top tier, hidden), the `sf4e_ui` source line, `locales/*.po` | P4, P5 | `uilab-v2-check.sh` on card, fighters at four sizes; toast choice from two `Own` values; strip order | the card's hero art from a real install; LB/RB through all five tabs on a pad and a stick |
-| P7 Room | `src/ui/{RoomPanelTables.cxx,RoomPanelArcade.cxx,RoomCards.hxx,RoomCards.cxx,RoomPanel.cxx,RoomActions.cxx}`, `locales/*.po` | P6 | lab room cases with points on seats, cabinets, members; a private room's snapshot with `card` draws none | points on seats in a live public room, and fresh after a set |
+| P6 Profile and own card | `src/ui/ShellView.hxx` (moved out), `src/ui/{ProfilePanel.hxx,ProfilePanel.cxx,PlayerCard.hxx,PlayerCard.cxx}`, `src/ui/GameMenu.hxx` (`PlayerCardView`), `src/ui/GameMenuDraw.cxx` (Home card), `src/ui/ApplicationShell.{hxx,cxx}` (panel line, `PublishPlayerCard`), `src/ui/ApplicationShell__Awards.cxx` (strip), `src/ui/ApplicationShell__Toasts.cxx` (set and level toasts), `src/sf4e/sf4e__Overlay.cxx` (view mapping), `src/ui/lab/*` (states: no account, unavailable, fresh, top tier), the `sf4e_ui` source line, `locales/*.po` | P4, P5 | `uilab-v2-check.sh` on card, fighters at four sizes; toast choice from two `Own` values; strip order | the card's hero art from a real install; LB/RB through all five tabs on a pad and a stick |
+| P7 Room | `src/ui/{RoomPanelTables.cxx,RoomPanelArcade.cxx,RoomCards.hxx,RoomCards.cxx,RoomPanel.cxx,RoomActions.cxx}`, `locales/*.po` | P6 | lab room cases with points on seats, cabinets, members; a private room's snapshot with `card` draws none; a card of a player who has played nothing draws 0 | points on seats in a live public room, and fresh after a set |
 
 **If 1.6.0 is cut short**: P6 alone on top of the points slice of
 `FIGHTER_LEVELS.md` shows the own card and the Fighters tab. P7 waits for

@@ -481,28 +481,34 @@ std::uint8_t ReadTier(const json& object) {
 	return static_cast<std::uint8_t>(Small(object, "tier", netplay::levels::TierCount - 1));
 }
 
-netplay::levels::FighterLevel DecodeFighterLevel(const json& entry) {
-	netplay::levels::FighterLevel fighter;
+// One count of points, a fighter's or the account's, checked as strictly as
+// the bridge checks it. A fighter is listed only with a counted game; the
+// account is always sent, with no game and no `since` until one is counted.
+netplay::levels::Level DecodeLevel(const json& entry, bool listedFighter) {
+	netplay::levels::Level level;
 	Object(entry);
-	fighter.points = Unsigned(entry, "points");
-	fighter.games = Unsigned(entry, "games");
-	fighter.wins = Unsigned(entry, "wins");
-	fighter.tier = ReadTier(entry);
-	fighter.floor = Unsigned(entry, "floor");
-	fighter.since = Unsigned(entry, "since");
-	if (fighter.wins > fighter.games || fighter.games > UINT64_MAX - fighter.wins) throw std::invalid_argument("wins");
-	// A listed fighter has a counted game, and its points are its games and wins.
-	if (fighter.points == 0 || fighter.points != fighter.games + fighter.wins) throw std::invalid_argument("points");
+	level.points = Unsigned(entry, "points");
+	level.games = Unsigned(entry, "games");
+	level.wins = Unsigned(entry, "wins");
+	level.tier = ReadTier(entry);
+	level.floor = Unsigned(entry, "floor");
+	if (level.wins > level.games || level.games > UINT64_MAX - level.wins) throw std::invalid_argument("wins");
+	// The points are the games and wins.
+	if (listedFighter && level.games == 0) throw std::invalid_argument("games");
+	if (level.points != level.games + level.wins) throw std::invalid_argument("points");
+	// The first counted game is told exactly when there is one.
+	if ((entry.find("since") != entry.end()) != (level.games > 0)) throw std::invalid_argument("since");
+	if (level.games > 0) level.since = Unsigned(entry, "since");
 	// A tier begins at or below the points, and the first begins at 0.
-	if (fighter.floor > fighter.points || (fighter.tier == 0 && fighter.floor != 0)) throw std::invalid_argument("floor");
+	if (level.floor > level.points || (level.tier == 0 && level.floor != 0)) throw std::invalid_argument("floor");
 	// The last tier has no next one; every other has one still ahead.
 	const bool hasNext = entry.find("next") != entry.end();
-	if (hasNext != (fighter.tier != netplay::levels::TierCount - 1)) throw std::invalid_argument("next");
+	if (hasNext != (level.tier != netplay::levels::TierCount - 1)) throw std::invalid_argument("next");
 	if (hasNext) {
-		fighter.next = Unsigned(entry, "next");
-		if (fighter.next <= fighter.points) throw std::invalid_argument("next");
+		level.next = Unsigned(entry, "next");
+		if (level.next <= level.points) throw std::invalid_argument("next");
 	}
-	return fighter;
+	return level;
 }
 
 netplay::levels::Relation DecodeRelation(const json& card) {
@@ -521,10 +527,12 @@ netplay::levels::Card DecodeCard(const json& value) {
 	netplay::levels::Card card;
 	const auto& object = Object(value);
 	card.relation = DecodeRelation(object);
+	const auto& account = Object(object.at("account"));
+	card.account.points = Unsigned(account, "points");
+	card.account.tier = ReadTier(account);
+	// A card with no `fighters` is of a player who has played none.
 	if (const auto fighters = object.find("fighters"); fighters != object.end()) {
 		if (!fighters->is_array() || fighters->size() > static_cast<std::size_t>(selection::FighterCount)) throw std::invalid_argument("fighters");
-		// Present, even when empty, means the player shows points.
-		card.levelsShown = true;
 		int previous = -1;
 		for (const auto& row : *fighters) {
 			Object(row);
@@ -550,16 +558,13 @@ std::optional<netplay::levels::Own> DecodeOwnLevels(const json& data) {
 		}
 		if (tag != "counted") return std::nullopt;
 		own.kind = netplay::levels::Own::Kind::Counted;
-		if (const auto shown = data.find("shown"); shown != data.end()) {
-			if (!shown->is_boolean()) return std::nullopt;
-			own.shown = shown->get<bool>();
-		}
+		own.account = DecodeLevel(data.at("account"), false);
 		const auto& rows = data.at("fighters");
 		if (!rows.is_array() || rows.size() > static_cast<std::size_t>(selection::FighterCount)) return std::nullopt;
 		int previous = -1;
 		for (const auto& row : rows) {
 			const auto fighter = NextFighter(row, previous);
-			own.fighters[fighter] = DecodeFighterLevel(row);
+			own.fighters[fighter] = DecodeLevel(row, true);
 		}
 		return own;
 	} catch (const std::exception&) {

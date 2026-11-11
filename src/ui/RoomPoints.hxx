@@ -1,7 +1,7 @@
 #pragma once
-// What a public room shows of its members' fighter points (PLAYER_CARD.md,
-// "A room member's card" and "Levels on the room board"): the one place that
-// decides whether a member has points to show and which. The board's seats,
+// What a public room shows of its members' points (PLAYER_CARD.md, "A room
+// member's card" and "Levels on the room board"): the one place that decides
+// whether a member has points to show and which. The board's seats,
 // cabinets and member rows, and the member's card, only ask it.
 #include "../netplay/Levels.hxx"
 #include <cstdint>
@@ -20,17 +20,15 @@ struct SeatPoints {
 };
 
 struct MemberPoints {
-    enum class Show : std::uint8_t {
-        // Draw none: not a public room, no card token or card yet, no points read.
-        Nothing,
-        // The player does not show their points: say so on their card, draw none elsewhere.
-        Private,
-        Points,
-    } show = Show::Nothing;
+    // False: draw none (not a public room, no card token or card yet, no points
+    // read). A card is public, so every member with a card has points to show.
+    bool known = false;
+    // Their account points (BP); 0 while no game is counted.
+    netplay::levels::CardAccount account;
     // The fighters they have played, most points first (the lower fighter first on a tie).
     std::vector<netplay::levels::CardFighter> fighters;
 
-    // The points for `fighter`, or none: not shown, or not among the fighters played.
+    // The points for `fighter`, or none: not known, or not among the fighters played.
     std::optional<SeatPoints> Of(int fighter) const;
 };
 

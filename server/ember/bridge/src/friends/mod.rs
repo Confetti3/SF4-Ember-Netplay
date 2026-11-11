@@ -203,16 +203,13 @@ pub fn state(
     Ok(state)
 }
 
-/// A friend's main fighter, with its points and tier while they show points.
+/// A friend's main fighter, with its points and tier once it has been played.
 fn main_of(tx: &Transaction<'_>, friend: &FriendRow) -> Result<Option<MainFighter>> {
     let Some(fighter) = friend.shown.main else {
         return Ok(None);
     };
-    let shown = skill::levels::card(tx, &friend.account)?.and_then(|card| card.fighters);
-    let played = shown
-        .into_iter()
-        .flatten()
-        .find(|played| played.fighter == fighter);
+    let played = skill::levels::card(tx, &friend.account)?
+        .and_then(|card| card.fighters.into_iter().find(|played| played.fighter == fighter));
     Ok(Some(MainFighter {
         fighter,
         points: played.map(|played| played.points),

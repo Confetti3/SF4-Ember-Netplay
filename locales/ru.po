@@ -1085,7 +1085,10 @@ msgid "card.class"
 msgstr "Класс"
 
 msgid "points.label"
-msgstr "ОБ"
+msgstr "FP"
+
+msgid "points.account_label"
+msgstr "BP"
 
 msgid "level.value"
 msgstr "Очки: {0}"
@@ -1101,12 +1104,6 @@ msgstr "До {1} осталось очков: {0}"
 
 msgid "level.top"
 msgstr "Высшая рамка"
-
-msgid "level.hidden"
-msgstr "Другие игроки не видят ваши очки, пока вы не участвуете в рейтинге."
-
-msgid "room.member_points_private"
-msgstr "Этот игрок скрывает свои очки."
 
 msgid "level.no_account"
 msgstr "Подключите Discord в разделе Настройки, Игра по сети, чтобы получать очки."

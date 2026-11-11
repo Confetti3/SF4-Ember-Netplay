@@ -20,7 +20,7 @@ std::vector<int> PlayedFighters(const Own& own) {
     return played;
 }
 
-float Part(const FighterLevel& level) {
+float Part(const Level& level) {
     // A fighter with no points has no tier from the bridge yet: an empty meter, not the top.
     if (!level.points && !level.next) return 0.f;
     if (!level.next || level.next <= level.floor) return 1.f;
@@ -30,6 +30,7 @@ float Part(const FighterLevel& level) {
 
 void Fill(PlayerCardView& view, const netplay::Answered<Own>& answer, int main) {
     view.fighters.clear();
+    view.account = 0;
     view.progress = {};
     view.facts = {};
     const bool hasMain = main >= 0 && main < static_cast<int>(Own{}.fighters.size());
@@ -46,7 +47,7 @@ void Fill(PlayerCardView& view, const netplay::Answered<Own>& answer, int main) 
         if (hasMain) view.fighters.push_back({main, 0, 0, 0});
         return;
     }
-    view.levelsShown = own.shown;
+    view.account = own.account.points;
     const auto add = [&](int fighter) { view.fighters.push_back({fighter, own.fighters[fighter].points, own.fighters[fighter].tier, own.fighters[fighter].games}); };
     if (hasMain) add(main);
     for (const int fighter : PlayedFighters(own)) {
@@ -80,13 +81,13 @@ const char* NoLevelWords(const PlayerCardView& card) {
 }
 
 namespace {
-// The points plate and the class plate across the hero's foot (PLAYER_CARD.md,
-// Card tab): the main's points with its name and games at the left, the class
-// emblem at the right. A main without points shows 0; why it has none is said
-// under the card's facts.
+// SF4's arrangement across the hero's foot (PLAYER_CARD.md, Card tab): the
+// main's name, under it two lines, the main's points as "<n> FP" and the
+// account's as "<n> BP", and the class emblem at the right. A main without points
+// shows 0; why it has none is said under the card's facts.
 void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int main) {
     const auto& c = v2::Colors();
-    const float s = Scale(), pad = 12 * s, plate = foot.H() - 2 * pad;
+    const float s = Scale(), pad = 12 * s, line = 16 * s;
     float right = foot.max.x - pad;
     const auto& badge = card.profile.marks.badge;
     if (badge.HasClass()) {
@@ -99,14 +100,15 @@ void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int mai
     const float left = foot.min.x + pad, room = right - left;
     const auto* fighter = main >= 0 ? selection::FindFighter(main) : nullptr;
     const bool leads = !card.fighters.empty() && card.fighters.front().fighter == main;
-    const std::uint64_t points = leads ? card.fighters.front().points : 0, games = leads ? card.fighters.front().games : 0;
-    const float width = v2::Level(d, ImVec2(left, foot.min.y + pad), plate, points, leads ? card.fighters.front().tier : 0), x = left + width + pad,
-                text = (std::max)(0.f, room - width - pad);
+    const std::uint64_t points = leads ? card.fighters.front().points : 0;
     if (fighter) {
-        v2::Text(d, ImVec2(x, foot.min.y + pad + 4 * s), text, fighter->name, 18 * s, c.text, HeadingFont());
-        v2::Text(d, ImVec2(x, foot.min.y + pad + 30 * s), text, player_card::GamesWords(games), 14 * s, c.muted);
+        v2::Text(d, ImVec2(left, foot.min.y + 8 * s), room, fighter->name, 17 * s, c.text, HeadingFont());
+        v2::Level(d, ImVec2(left, foot.min.y + 30 * s), line, points, "points.label");
+        v2::Level(d, ImVec2(left, foot.min.y + 52 * s), line, card.account, "points.account_label");
     } else {
-        v2::Paragraph(d, ImVec2(x, foot.min.y + pad), text, loc::T("profile.choose_main_detail"), 14 * s, c.muted);
+        // No main: the account's points stand first, and the words that ask for one under them.
+        v2::Level(d, ImVec2(left, foot.min.y + 8 * s), line, card.account, "points.account_label");
+        v2::Paragraph(d, ImVec2(left, foot.min.y + 32 * s), room, loc::T("profile.choose_main_detail"), 14 * s, c.muted);
     }
 }
 
@@ -117,7 +119,7 @@ void DrawStripTile(ImDrawList* d, v2::Box box, const CardFighter& fighter, Fight
     v2::CardGround(d, box, focused, hovered);
     const v2::Box tile{ImVec2(box.min.x + pad, box.min.y + pad), ImVec2(box.max.x - pad, box.min.y + pad + side)};
     DrawCharacterPortrait(FighterPicture{fighter.fighter, art, 0, 0}, tile.min, tile.max, c.frame);
-    v2::LevelBand(d, tile, fighter.points, fighter.tier);
+    v2::LevelBand(d, tile, fighter.points);
     const float y = tile.max.y + 6 * s;
     v2::Text(d, ImVec2(box.min.x + pad, y), side, selection::FindFighter(fighter.fighter)->name, 14 * s, c.text, HeadingFont());
     v2::Text(d, ImVec2(box.min.x + pad, y + 20 * s), side, player_card::GamesWords(fighter.games), 12 * s, c.muted);
@@ -175,7 +177,7 @@ float DrawCardTab(const ShellView& v, int main, const PlayerCardView& card, cons
     // The main's meter: "1986 points" and the points to the next tier, or the
     // top frame. A main without points has an empty meter and 0 points.
     if (main >= 0) {
-        const player_card::FighterLevel none{};
+        const player_card::Level none{};
         const auto& own = counted ? v.levels.value.fighters[main] : none;
         v2::Text(d, ImVec2(x, y), room, loc::Tf("level.value", own.points), 20 * s, c.text, HeadingFont());
         y += 30 * s;
@@ -192,7 +194,6 @@ float DrawCardTab(const ShellView& v, int main, const PlayerCardView& card, cons
         {loc::T("card.fighters_played"), loc::Tf("card.of", card.facts.fightersPlayed, static_cast<int>(v.levels.value.fighters.size()))}};
     y += v2::FactCells(d, ImVec2(x, y), room, facts, room < 520 * s ? 2 : 3) + 14 * s;
     if (const char* why = player_card::NoLevelWords(card)) y += v2::Paragraph(d, ImVec2(x, y), room, loc::T(why), 14 * s, c.muted) + 14 * s;
-    if (counted && !card.levelsShown) y += v2::Paragraph(d, ImVec2(x, y), room, loc::T("level.hidden"), 14 * s, c.muted) + 14 * s;
     // The strip: the main and the two highest others, each a row whose Select opens the Fighters tab.
     const float between = 12 * s, tile = (std::min)(150 * s, (room - 2 * between) / 3), tileHeight = tile + 56 * s;
     int shown = 0;

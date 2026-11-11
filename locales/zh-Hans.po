@@ -1085,7 +1085,10 @@ msgid "card.class"
 msgstr "段位"
 
 msgid "points.label"
-msgstr "点数"
+msgstr "FP"
+
+msgid "points.account_label"
+msgstr "BP"
 
 msgid "level.value"
 msgstr "{0} 积分"
@@ -1101,12 +1104,6 @@ msgstr "距离{1}还差 {0} 积分"
 
 msgid "level.top"
 msgstr "最高边框"
-
-msgid "level.hidden"
-msgstr "在你不参与排名期间，其他玩家看不到你的积分。"
-
-msgid "room.member_points_private"
-msgstr "该玩家未公开自己的积分。"
 
 msgid "level.no_account"
 msgstr "在设置的在线对战中关联 Discord，即可获得积分。"

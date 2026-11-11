@@ -1085,7 +1085,10 @@ msgid "card.class"
 msgstr "クラス"
 
 msgid "points.label"
-msgstr "点数"
+msgstr "FP"
+
+msgid "points.account_label"
+msgstr "BP"
 
 msgid "level.value"
 msgstr "{0}ポイント"
@@ -1101,12 +1104,6 @@ msgstr "{1}まであと{0}ポイント"
 
 msgid "level.top"
 msgstr "最上位のフレーム"
-
-msgid "level.hidden"
-msgstr "ランキングに参加していない間は、他のプレイヤーにポイントは表示されません。"
-
-msgid "room.member_points_private"
-msgstr "このプレイヤーはポイントを公開していません。"
 
 msgid "level.no_account"
 msgstr "設定のオンライン対戦でDiscordを連携すると、ポイントがたまります。"

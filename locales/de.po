@@ -1087,6 +1087,9 @@ msgstr "Klasse"
 msgid "points.label"
 msgstr "FP"
 
+msgid "points.account_label"
+msgstr "BP"
+
 msgid "level.value"
 msgstr "{0} Punkte"
 
@@ -1101,12 +1104,6 @@ msgstr "{0} Punkte bis {1}"
 
 msgid "level.top"
 msgstr "Höchster Rahmen"
-
-msgid "level.hidden"
-msgstr "Andere sehen deine Punkte nicht, solange du nicht am Ranking teilnimmst."
-
-msgid "room.member_points_private"
-msgstr "Dieser Spieler hält seine Punkte privat."
 
 msgid "level.no_account"
 msgstr "Verbinde Discord unter Einstellungen, Online-Spiel, um Punkte zu sammeln."

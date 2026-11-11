@@ -4,10 +4,11 @@
 
 namespace sf4e { namespace ui {
 namespace {
-// The player's own points as the card a member would show: the fighters they have played.
+// The player's own points as the card a member would show: the account's and
+// the fighters they have played.
 netplay::levels::Card OwnCard(const netplay::levels::Own& own) {
     netplay::levels::Card card;
-    card.levelsShown = true;
+    card.account = {own.account.points, own.account.tier};
     for (std::size_t fighter = 0; fighter < own.fighters.size(); ++fighter) {
         const auto& level = own.fighters[fighter];
         if (level.points) card.fighters.push_back({static_cast<std::uint8_t>(fighter), level.points, level.tier});
@@ -17,7 +18,7 @@ netplay::levels::Card OwnCard(const netplay::levels::Own& own) {
 }
 
 std::optional<SeatPoints> MemberPoints::Of(int fighter) const {
-    if (show != Show::Points) return std::nullopt;
+    if (!known) return std::nullopt;
     for (const auto& played : fighters)
         if (played.fighter == fighter) return SeatPoints{played.points, played.tier};
     return std::nullopt;
@@ -37,11 +38,8 @@ MemberPoints PointsOf(const ShellView& view, const room::Member& member) {
         card = &own;
     }
     if (!card) return out;
-    if (!card->levelsShown) {
-        out.show = MemberPoints::Show::Private;
-        return out;
-    }
-    out.show = MemberPoints::Show::Points;
+    out.known = true;
+    out.account = card->account;
     for (const auto& played : card->fighters)
         if (played.points) out.fighters.push_back(played);
     std::sort(out.fighters.begin(), out.fighters.end(), [](const netplay::levels::CardFighter& a, const netplay::levels::CardFighter& b) {

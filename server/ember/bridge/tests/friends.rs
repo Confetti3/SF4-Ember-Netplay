@@ -888,18 +888,18 @@ async fn every_action_and_route_is_scanned() {
 }
 
 #[test]
-fn friends_are_off_unless_the_rooms_setting_turns_them_on() {
+fn friends_are_on_unless_the_rooms_setting_turns_them_off() {
     let rooms: config::Rooms =
         serde_json::from_value(json!({ "supervisor_url": "http://127.0.0.1:8790" })).unwrap();
-    assert!(!rooms.friends);
+    assert!(rooms.friends);
     let rooms: config::Rooms = serde_json::from_value(
-        json!({ "supervisor_url": "http://127.0.0.1:8790", "friends": true }),
+        json!({ "supervisor_url": "http://127.0.0.1:8790", "friends": false }),
     )
     .unwrap();
-    assert!(rooms.friends);
+    assert!(!rooms.friends);
 }
 
-/// Friends ship dormant: with the switch off, Discord sign-in and public rooms
+/// An operator can switch friends off: with the switch off, Discord sign-in and public rooms
 /// do not offer them, their routes answer as an unknown route, a look-up
 /// answers null for a friend selector, and a card's relation is none.
 #[tokio::test]

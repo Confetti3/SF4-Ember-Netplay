@@ -8,7 +8,7 @@
 //! belong to the account and follow it to whichever Ember ID it is connected
 //! to. A game with a fighter who has no Discord account counts for neither.
 //! A game with a fighter whose account does not take part (`ranking`) still
-//! counts toward the pair's sitting and record and earns levels; it moves no
+//! counts toward the pair's sitting and record and earns points; it moves no
 //! rating. Only the class (`SkillBadge`) ever leaves the bridge: inside room
 //! tickets, on the player's own standing and on the ranking board.
 mod glicko;
@@ -119,9 +119,10 @@ impl TryFrom<[u8; 2]> for Fighters {
 
 /// Counts `room_id`'s reported games that are not counted yet. A host reports
 /// its recent games on every poll; each counts the first time only, in this
-/// order: the pair's sitting and record, the fighters' levels (within the
-/// sitting's full games), then the ratings (both accounts taking part). The
-/// levels never read the ratings' rules.
+/// order: the pair's sitting and record, the points (within the sitting's
+/// full games: each account's, and each fighter's when the game named them),
+/// then the ratings (both accounts taking part). The points never read the
+/// ratings' rules.
 pub fn record_games(
     tx: &Transaction<'_>,
     room_id: &str,
@@ -149,11 +150,13 @@ pub fn record_games(
             continue;
         }
         let full = played(tx, &winner, &loser, now)? <= FULL_REPEATS;
-        if let Some(fighters) = game.fighters
-            && full
-        {
-            levels::count(tx, &winner, fighters.winner, true, now)?;
-            levels::count(tx, &loser, fighters.loser, false, now)?;
+        if full {
+            levels::count_account(tx, &winner, true, now)?;
+            levels::count_account(tx, &loser, false, now)?;
+            if let Some(fighters) = game.fighters {
+                levels::count(tx, &winner, fighters.winner, true, now)?;
+                levels::count(tx, &loser, fighters.loser, false, now)?;
+            }
         }
         if game.moves_ratings() && takes_part(tx, &winner)? && takes_part(tx, &loser)? {
             let sitting = if full { 1.0 } else { REPEAT_WEIGHT };

@@ -1,8 +1,9 @@
-//! Fighter points: the games a public room host reports earn each player's
-//! fighter points beside the rating, every game of a battle counts, the
-//! repeat cap holds for every pair, and a room member's card token opens
-//! another player's card for seven days. Migration 057 keeps every rated
-//! game, sitting and rating it finds.
+//! Points: the games a public room host reports earn each player's account
+//! points and fighter points beside the rating, every game of a battle
+//! counts, the repeat cap holds for every pair, and a room member's card token
+//! opens another player's card, public whether or not they take part in
+//! ranking, for seven days. Migration 057 keeps every rated game, sitting and
+//! rating it finds; 059 adds the account points.
 mod common;
 
 use std::path::Path;
@@ -14,6 +15,7 @@ use common::{
     supervisor::{BUILD, ENDPOINT, Supervisor, report},
 };
 use ember_bridge::{Db, testing::TempDir};
+use rusqlite::OptionalExtension;
 use ember_protocol::{
     encoding::b64u,
     levels::{CARD_PREFIX, CARD_VALID_SECS, LOOKUP_PATH, POINTS_PATH, is_card_token},
@@ -119,8 +121,27 @@ async fn fighters(bridge: &Bridge, account: &'static str) -> Vec<(u8, u64, u64)>
         .unwrap()
 }
 
-/// `GET /v1/points/me` for `player`, with each fighter's `since` checked and
-/// left out.
+/// Discord account `account`'s stored (games, wins) of account points, none
+/// before its first counted game.
+async fn account_points(bridge: &Bridge, account: &'static str) -> Option<(u64, u64)> {
+    bridge
+        .state()
+        .db
+        .read(move |tx| {
+            Ok(tx
+                .query_row(
+                    "SELECT games, wins FROM account_points WHERE discord_user_id = ?1",
+                    [account],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?)
+        })
+        .await
+        .unwrap()
+}
+
+/// `GET /v1/points/me` for `player`, with the account's and each fighter's
+/// `since` checked and left out.
 async fn own(bridge: &Bridge, player: &Player) -> Json_ {
     let (status, mut levels) = send(
         bridge,
@@ -134,6 +155,12 @@ async fn own(bridge: &Bridge, player: &Player) -> Json_ {
     assert_eq!(status, StatusCode::OK, "{levels}");
     let parsed: ember_protocol::levels::OwnLevels = serde_json::from_value(levels.clone()).unwrap();
     parsed.check().unwrap();
+    if let Some(account) = levels.get_mut("account") {
+        let games = account["games"].as_u64().unwrap();
+        let since = account.as_object_mut().unwrap().remove("since");
+        assert_eq!(since.is_some(), games > 0, "{account}");
+        assert!(since.is_none_or(|since| since.as_u64().unwrap() > 0));
+    }
     let fighters = levels
         .get_mut("fighters")
         .and_then(Json_::as_array_mut)
@@ -208,7 +235,8 @@ async fn each_players_fighter_earns_points_from_a_game() {
     let unlinked = player(&bridge, 3).await;
     assert_eq!(
         own(&bridge, &first).await,
-        json!({ "points": "counted", "shown": true, "fighters": [] })
+        json!({ "points": "counted", "fighters": [],
+            "account": { "points": 0, "games": 0, "wins": 0, "tier": 0, "floor": 0, "next": 500 } })
     );
     assert_eq!(
         own(&bridge, &unlinked).await,
@@ -224,17 +252,22 @@ async fn each_players_fighter_earns_points_from_a_game() {
     .await;
     assert_eq!(
         own(&bridge, &first).await,
-        json!({ "points": "counted", "shown": true, "fighters": [
+        json!({ "points": "counted",
+            "account": { "points": 2, "games": 1, "wins": 1, "tier": 0, "floor": 0, "next": 500 },
+            "fighters": [
             { "fighter": 3, "points": 2, "games": 1, "wins": 1, "tier": 0, "floor": 0, "next": 200 }] })
     );
     assert_eq!(
         own(&bridge, &second).await,
-        json!({ "points": "counted", "shown": true, "fighters": [
+        json!({ "points": "counted",
+            "account": { "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 500 },
+            "fighters": [
             { "fighter": 7, "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 200 }] })
     );
     // The poll after reports the same game: it counted once.
     ember_bridge::poll_rooms(bridge.state()).await;
     assert_eq!(fighters(&bridge, "100").await, vec![(3, 1, 1)]);
+    assert_eq!(account_points(&bridge, "100").await, Some((1, 1)));
 
     // A second win on another fighter, then more games on the first: a win is 2 points.
     play(
@@ -253,6 +286,11 @@ async fn each_players_fighter_earns_points_from_a_game() {
         json!([
             { "fighter": 0, "points": 2, "games": 1, "wins": 1, "tier": 0, "floor": 0, "next": 200 },
             { "fighter": 3, "points": 6, "games": 3, "wins": 3, "tier": 0, "floor": 0, "next": 200 }])
+    );
+    // The account counts every game, the fighters each their own.
+    assert_eq!(
+        own(&bridge, &first).await["account"],
+        json!({ "points": 8, "games": 4, "wins": 4, "tier": 0, "floor": 0, "next": 500 })
     );
     // A game with a fighter who has no Discord account counts for nobody.
     play(
@@ -295,7 +333,7 @@ async fn every_game_of_a_battle_played_on_in_place_counts() {
 }
 
 #[tokio::test]
-async fn past_eight_games_in_a_sitting_a_game_earns_no_points() {
+async fn past_eight_games_in_a_sitting_a_game_earns_no_points_of_either_kind() {
     let (bridge, fake, room_id, first, second) = two_players().await;
     let sitting: Vec<Json_> = (1..=9)
         .map(|generation| game(generation, 0, &first, &second, Some([3, 7])))
@@ -303,6 +341,9 @@ async fn past_eight_games_in_a_sitting_a_game_earns_no_points() {
     play(&bridge, &fake, &room_id, sitting).await;
     assert_eq!(fighters(&bridge, "100").await, vec![(3, 8, 8)]);
     assert_eq!(fighters(&bridge, "200").await, vec![(7, 8, 0)]);
+    // The account's points stop at the same game.
+    assert_eq!(account_points(&bridge, "100").await, Some((8, 8)));
+    assert_eq!(account_points(&bridge, "200").await, Some((8, 0)));
     // The pair's record counts every game.
     let record: (String, String, u64, u64) = bridge
         .state()
@@ -329,10 +370,12 @@ async fn past_eight_games_in_a_sitting_a_game_earns_no_points() {
     .await;
     assert_eq!(fighters(&bridge, "100").await, vec![(3, 9, 8)]);
     assert_eq!(fighters(&bridge, "200").await, vec![(7, 9, 1)]);
+    assert_eq!(account_points(&bridge, "100").await, Some((9, 8)));
+    assert_eq!(account_points(&bridge, "200").await, Some((9, 1)));
 }
 
 #[tokio::test]
-async fn a_game_without_fighters_is_rated_and_earns_no_points() {
+async fn a_game_without_fighters_is_rated_and_earns_account_points_only() {
     let (bridge, fake, room_id, first, second) = two_players().await;
     play(
         &bridge,
@@ -344,7 +387,13 @@ async fn a_game_without_fighters_is_rated_and_earns_no_points() {
     let rated = ratings(&bridge).await;
     assert_eq!(rated.len(), 2);
     assert!(fighters(&bridge, "100").await.is_empty());
-    assert_eq!(own(&bridge, &first).await["fighters"], json!([]));
+    let levels = own(&bridge, &first).await;
+    assert_eq!(levels["fighters"], json!([]));
+    assert_eq!(
+        levels["account"],
+        json!({ "points": 2, "games": 1, "wins": 1, "tier": 0, "floor": 0, "next": 500 })
+    );
+    assert_eq!(account_points(&bridge, "200").await, Some((1, 0)));
 
     // Fighters outside the roster, or not two of them: the game does not
     // read, so it is skipped alone.
@@ -361,10 +410,11 @@ async fn a_game_without_fighters_is_rated_and_earns_no_points() {
     .await;
     assert_eq!(ratings(&bridge).await, rated);
     assert!(fighters(&bridge, "100").await.is_empty());
+    assert_eq!(account_points(&bridge, "100").await, Some((1, 1)));
 }
 
 #[tokio::test]
-async fn a_player_who_does_not_take_part_earns_points_and_shows_none() {
+async fn a_player_who_does_not_take_part_earns_points_and_shows_them() {
     let (bridge, fake, room_id, first, second) = two_players().await;
     sql(
         &bridge,
@@ -378,16 +428,18 @@ async fn a_player_who_does_not_take_part_earns_points_and_shows_none() {
         vec![game(1, 0, &first, &second, Some([3, 7]))],
     )
     .await;
-    // No rating moved; both fighters counted.
+    // No rating moved; both accounts and both fighters counted.
     assert!(ratings(&bridge).await.is_empty());
     assert_eq!(
         own(&bridge, &second).await,
-        json!({ "points": "counted", "fighters": [
+        json!({ "points": "counted",
+            "account": { "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 500 },
+            "fighters": [
             { "fighter": 7, "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 200 }] })
     );
 
-    // Others see the points of a player who takes part, and none of one who
-    // does not: never wins or games.
+    // A card is public: others see the points of a player who does not take
+    // part as of one who does, never wins or games.
     let (first_card, second_card) = (
         token(&bridge, &first, &room_id).await,
         token(&bridge, &second, &room_id).await,
@@ -400,9 +452,62 @@ async fn a_player_who_does_not_take_part_earns_points_and_shows_none() {
         )
         .await,
         json!([
-            { "fighters": [{ "fighter": 3, "points": 2, "tier": 0 }], "relation": "none" },
-            { "relation": "none" }])
+            { "account": { "points": 2, "tier": 0 },
+              "fighters": [{ "fighter": 3, "points": 2, "tier": 0 }], "relation": "none" },
+            { "account": { "points": 1, "tier": 0 },
+              "fighters": [{ "fighter": 7, "points": 1, "tier": 0 }], "relation": "none" }])
     );
+}
+
+/// Sets Discord account `account`'s account points directly.
+async fn set_account_points(bridge: &Bridge, account: &'static str, games: u64, wins: u64) {
+    bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT OR REPLACE INTO account_points
+                   (discord_user_id, games, wins, first_at, played_at)
+                 VALUES (?1, ?2, ?3, 1729468800, 1729468800)",
+                rusqlite::params![account, games, wins],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn account_points_use_their_own_tier_thresholds() {
+    let (bridge, _fake, room_id, first, second) = two_players().await;
+    // (games, wins) -> (points, tier, floor, next), at and just under each
+    // threshold: 500, 2000, 5000 and 10000.
+    for (games, wins, tier, floor, next) in [
+        (300, 199, 0, 0, Some(500)),
+        (300, 200, 1, 500, Some(2000)),
+        (1000, 999, 1, 500, Some(2000)),
+        (1000, 1000, 2, 2000, Some(5000)),
+        (2500, 2499, 2, 2000, Some(5000)),
+        (2500, 2500, 3, 5000, Some(10_000)),
+        (5000, 4999, 3, 5000, Some(10_000)),
+        (5000, 5000, 4, 10_000, None),
+        (9000, 3000, 4, 10_000, None),
+    ] {
+        set_account_points(&bridge, "100", games, wins).await;
+        let points = games + wins;
+        let mut want = json!({ "points": points, "games": games, "wins": wins,
+            "tier": tier, "floor": floor });
+        if let Some(next) = next {
+            want["next"] = json!(next);
+        }
+        assert_eq!(own(&bridge, &first).await["account"], want);
+        // The card carries the points and the same tier.
+        let card = token(&bridge, &first, &room_id).await;
+        assert_eq!(
+            cards(&bridge, &second, json!([{ "card": card }])).await[0]["account"],
+            json!({ "points": points, "tier": tier })
+        );
+    }
 }
 
 #[tokio::test]
@@ -428,8 +533,8 @@ async fn a_card_token_rides_in_a_ticket_that_asks_and_opens_for_seven_days() {
     // A fresh token each join, naming the same player.
     let rejoined = token(&bridge, &second, &room_id).await;
     assert_ne!(joined, rejoined);
-    let card =
-        json!({ "fighters": [{ "fighter": 7, "points": 1, "tier": 0 }], "relation": "none" });
+    let card = json!({ "account": { "points": 1, "tier": 0 },
+        "fighters": [{ "fighter": 7, "points": 1, "tier": 0 }], "relation": "none" });
     assert_eq!(
         cards(
             &bridge,
@@ -488,7 +593,10 @@ async fn a_look_up_takes_one_to_sixteen_well_formed_selectors() {
     let token = sealed(&bridge, 0x01, 200, bridge.state().now());
     assert_eq!(
         cards(&bridge, &first, json!(vec![json!({ "card": token }); 16])).await,
-        json!(vec![json!({ "fighters": [], "relation": "none" }); 16])
+        json!(vec![
+            json!({ "account": { "points": 0, "tier": 0 }, "fighters": [], "relation": "none" });
+            16
+        ])
     );
     for bad in [
         json!([]),
@@ -729,4 +837,91 @@ async fn migration_057_leaves_behind_a_rated_game_whose_room_is_gone_and_keeps_t
         kept,
         vec![("room".to_owned(), 0, 1, 0), ("room".to_owned(), 7, 2, 0)]
     );
+}
+
+/// Applies `migrations/` up to 058 as a bridge from before 059 did, each
+/// recorded by its number only.
+fn database_at_058(path: &Path) -> rusqlite::Connection {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .filter(|name| name.as_str() < "059")
+        .collect();
+    names.sort();
+    assert_eq!(names.len(), 58);
+    let mut connection = rusqlite::Connection::open(path).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)",
+        )
+        .unwrap();
+    for name in names {
+        let version: i64 = name[..3].parse().unwrap();
+        let transaction = connection.transaction().unwrap();
+        transaction
+            .execute_batch(&std::fs::read_to_string(dir.join(&name)).unwrap())
+            .unwrap();
+        transaction
+            .execute(
+                "INSERT INTO schema_migrations (version, applied_at) VALUES (?1, 1000)",
+                [version],
+            )
+            .unwrap();
+        transaction.commit().unwrap();
+    }
+    connection
+}
+
+#[tokio::test]
+async fn migration_059_adds_account_points_and_keeps_the_fighter_points() {
+    let dir = TempDir::new("account-points-migration");
+    let path = dir.join("bridge.sqlite3");
+    {
+        let connection = database_at_058(&path);
+        connection
+            .execute_batch(
+                "INSERT INTO fighter_levels (discord_user_id, fighter, games, wins, first_at, played_at)
+                   VALUES ('100', 3, 4, 2, 1000, 2000);",
+            )
+            .unwrap();
+    }
+    drop(Db::open(&path).unwrap());
+
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let rows: i64 = connection
+        .query_row("SELECT COUNT(*) FROM account_points", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(rows, 0);
+    let kept: (i64, i64) = connection
+        .query_row(
+            "SELECT games, wins FROM fighter_levels WHERE discord_user_id = '100'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(kept, (4, 2));
+    // One row an account, and never more wins than games.
+    connection
+        .execute(
+            "INSERT INTO account_points (discord_user_id, games, wins, first_at, played_at)
+             VALUES ('100', 4, 2, 1000, 2000)",
+            [],
+        )
+        .unwrap();
+    for statement in [
+        "INSERT INTO account_points VALUES ('100', 1, 0, 1, 1)",
+        "INSERT INTO account_points VALUES ('200', 1, 2, 1, 1)",
+    ] {
+        assert!(connection.execute(statement, []).is_err(), "{statement}");
+    }
+    drop(connection);
+
+    // Opened again by this bridge, nothing runs twice.
+    drop(Db::open(&path).unwrap());
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let rows: i64 = connection
+        .query_row("SELECT COUNT(*) FROM account_points", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(rows, 1);
 }
