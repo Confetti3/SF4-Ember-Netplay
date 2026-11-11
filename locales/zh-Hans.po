@@ -1088,193 +1088,193 @@ msgid "friends.tab_count"
 msgstr "好友 · {0}"
 
 msgid "friends.requests_heading"
-msgstr "REQUESTS · {0}"
+msgstr "请求 · {0}"
 
 msgid "friends.in_room"
-msgstr "IN A ROOM · {0}"
+msgstr "房间中 · {0}"
 
 msgid "friends.online"
-msgstr "ONLINE · {0}"
+msgstr "在线 · {0}"
 
 msgid "friends.offline"
-msgstr "OFFLINE · {0}"
+msgstr "离线 · {0}"
 
 msgid "friends.playing_table"
-msgstr "Playing at table {0} · {1}"
+msgstr "在对战席 {0} 对战 · {1}"
 
 msgid "friends.watching_table"
-msgstr "Watching table {0} · {1}"
+msgstr "观战对战席 {0} · {1}"
 
 msgid "friends.waiting_room"
-msgstr "In {0}"
+msgstr "在 {0}"
 
 msgid "friends.training_room"
-msgstr "In Training · {0}"
+msgstr "训练中 · {0}"
 
 msgid "friends.private_room"
-msgstr "In a private room"
+msgstr "在私人房间"
 
 msgid "friends.menus"
-msgstr "At the menus"
+msgstr "在菜单中"
 
 msgid "friends.offline_play"
-msgstr "Playing offline"
+msgstr "离线游玩"
 
 msgid "friends.last_online"
-msgstr "Last online {0}"
+msgstr "上次在线 {0}"
 
 msgid "friends.hours_ago"
-msgstr "{0} h ago"
+msgstr "{0} 小时前"
 
 msgid "friends.days_ago"
-msgstr "{0} d ago"
+msgstr "{0} 天前"
 
 msgid "friends.join"
-msgstr "Join"
+msgstr "加入"
 
 msgid "friends.join_room"
-msgstr "Join their room"
+msgstr "加入其房间"
 
 msgid "friends.watch"
-msgstr "Watch"
+msgstr "观战"
 
 msgid "friends.invite"
-msgstr "Invite"
+msgstr "邀请"
 
 msgid "friends.invite_room"
-msgstr "Invite to my room"
+msgstr "邀请到我的房间"
 
 msgid "friends.more"
-msgstr "More"
+msgstr "更多"
 
 msgid "friends.open"
-msgstr "Open"
+msgstr "打开"
 
 msgid "friends.change"
-msgstr "Change"
+msgstr "更改"
 
 msgid "friends.accept"
-msgstr "Accept"
+msgstr "接受"
 
 msgid "friends.decline"
-msgstr "Decline"
+msgstr "拒绝"
 
 msgid "friends.decline_block"
-msgstr "Decline and block"
+msgstr "拒绝并拉黑"
 
 msgid "friends.remove"
-msgstr "Remove friend"
+msgstr "删除好友"
 
 msgid "friends.remove_block"
-msgstr "Remove and block"
+msgstr "删除并拉黑"
 
 msgid "friends.unblock"
-msgstr "Unblock"
+msgstr "解除拉黑"
 
 msgid "friends.cancel_request"
-msgstr "Cancel request"
+msgstr "取消请求"
 
 msgid "friends.add"
-msgstr "Add a friend"
+msgstr "添加好友"
 
 msgid "friends.are_friends"
-msgstr "Friends"
+msgstr "好友"
 
 msgid "friends.played_you"
-msgstr "Played you {0} games, last {1}"
+msgstr "与你对战 {0} 场，最近一次 {1}"
 
 msgid "friends.not_played"
-msgstr "You have not played each other yet."
+msgstr "你们还没有对战过。"
 
 msgid "friends.record"
-msgstr "You and {0}"
+msgstr "你和 {0}"
 
 msgid "friends.last_played"
-msgstr "Last played"
+msgstr "上次对战"
 
 msgid "friends.since"
-msgstr "Friend since"
+msgstr "成为好友"
 
 msgid "friends.your_code"
-msgstr "Your code {0}"
+msgstr "你的好友码 {0}"
 
 msgid "friends.code"
-msgstr "Friend code"
+msgstr "好友码"
 
 msgid "friends.code_detail"
-msgstr "Give this code to a player so they can add you."
+msgstr "把此好友码给其他玩家，对方即可添加你。"
 
 msgid "friends.their_code"
-msgstr "Their friend code"
+msgstr "对方的好友码"
 
 msgid "friends.new_code"
-msgstr "New code"
+msgstr "新好友码"
 
 msgid "friends.new_code_detail"
-msgstr "The old code stops working. One new code a day."
+msgstr "旧好友码将失效。每天可生成一个新好友码。"
 
 msgid "friends.send"
-msgstr "Send request"
+msgstr "发送请求"
 
 msgid "friends.send_detail"
-msgstr "Sends a friend request to that code."
+msgstr "向该好友码发送好友请求。"
 
 msgid "friends.sent"
-msgstr "Sent ({0})"
+msgstr "已发送 ({0})"
 
 msgid "friends.sent_ago"
-msgstr "Sent {0}"
+msgstr "发送于 {0}"
 
 msgid "friends.blocked"
-msgstr "Blocked ({0})"
+msgstr "已拉黑 ({0})"
 
 msgid "friends.appear_offline"
-msgstr "Appear offline"
+msgstr "显示为离线"
 
 msgid "friends.appear_offline_detail"
-msgstr "Friends see you as offline. You still see them and can still invite."
+msgstr "好友看到你是离线状态。你仍能看到他们，也仍可邀请。"
 
 msgid "friends.appearing_offline"
-msgstr "Appearing offline"
+msgstr "正显示为离线"
 
 msgid "friends.invite_reveals"
-msgstr "Your invite shows this friend where you are."
+msgstr "你的邀请会让这位好友看到你所在的位置。"
 
 msgid "friends.unreachable"
-msgstr "Could not reach the service. Friends show when it answers."
+msgstr "无法连接服务。服务响应后会显示好友。"
 
 msgid "friends.not_updated"
-msgstr "Not updated"
+msgstr "未更新"
 
 msgid "friends.loading"
-msgstr "Reading your friends."
+msgstr "正在读取你的好友。"
 
 msgid "friends.empty"
-msgstr "Add friends from a public room: open a member's Player card. Or send them your friend code."
+msgstr "从公开房间添加好友：打开成员的玩家名片，或把你的好友码发给对方。"
 
 msgid "friends.request_sent_to"
-msgstr "Request sent to {0}."
+msgstr "已向 {0} 发送请求。"
 
 msgid "friends.invite_sent"
-msgstr "Invite sent to {0}."
+msgstr "已向 {0} 发送邀请。"
 
 msgid "friends.visit_title"
-msgstr "GO TO A FRIEND"
+msgstr "前往好友"
 
 msgid "friends.visit_stay"
-msgstr "Stay here"
+msgstr "留在这里"
 
 msgid "friends.visit_stay_detail"
-msgstr "Do not go. Your room or game stays as it is."
+msgstr "不前往。你的房间或对局保持原样。"
 
 msgid "friends.visit_join"
-msgstr "Leave and join {0}"
+msgstr "离开并加入 {0}"
 
 msgid "friends.visit_watch"
-msgstr "Leave and watch {0}"
+msgstr "离开并观战 {0}"
 
 msgid "friends.visit_detail"
-msgstr "Your current room or game ends when you go."
+msgstr "你一离开，当前的房间或对局就会结束。"
 
 msgid "card.edit"
 msgstr "编辑名片"

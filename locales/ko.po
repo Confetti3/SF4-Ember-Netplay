@@ -1088,193 +1088,193 @@ msgid "friends.tab_count"
 msgstr "친구 · {0}"
 
 msgid "friends.requests_heading"
-msgstr "REQUESTS · {0}"
+msgstr "요청 · {0}"
 
 msgid "friends.in_room"
-msgstr "IN A ROOM · {0}"
+msgstr "방 안 · {0}"
 
 msgid "friends.online"
-msgstr "ONLINE · {0}"
+msgstr "온라인 · {0}"
 
 msgid "friends.offline"
-msgstr "OFFLINE · {0}"
+msgstr "오프라인 · {0}"
 
 msgid "friends.playing_table"
-msgstr "Playing at table {0} · {1}"
+msgstr "테이블 {0}에서 플레이 중 · {1}"
 
 msgid "friends.watching_table"
-msgstr "Watching table {0} · {1}"
+msgstr "테이블 {0} 관전 중 · {1}"
 
 msgid "friends.waiting_room"
-msgstr "In {0}"
+msgstr "{0}에 있음"
 
 msgid "friends.training_room"
-msgstr "In Training · {0}"
+msgstr "트레이닝 중 · {0}"
 
 msgid "friends.private_room"
-msgstr "In a private room"
+msgstr "비공개 방에 있음"
 
 msgid "friends.menus"
-msgstr "At the menus"
+msgstr "메뉴 화면"
 
 msgid "friends.offline_play"
-msgstr "Playing offline"
+msgstr "오프라인 플레이 중"
 
 msgid "friends.last_online"
-msgstr "Last online {0}"
+msgstr "마지막 접속 {0}"
 
 msgid "friends.hours_ago"
-msgstr "{0} h ago"
+msgstr "{0}시간 전"
 
 msgid "friends.days_ago"
-msgstr "{0} d ago"
+msgstr "{0}일 전"
 
 msgid "friends.join"
-msgstr "Join"
+msgstr "참가"
 
 msgid "friends.join_room"
-msgstr "Join their room"
+msgstr "상대 방에 참가"
 
 msgid "friends.watch"
-msgstr "Watch"
+msgstr "관전"
 
 msgid "friends.invite"
-msgstr "Invite"
+msgstr "초대"
 
 msgid "friends.invite_room"
-msgstr "Invite to my room"
+msgstr "내 방에 초대"
 
 msgid "friends.more"
-msgstr "More"
+msgstr "더 보기"
 
 msgid "friends.open"
-msgstr "Open"
+msgstr "열기"
 
 msgid "friends.change"
-msgstr "Change"
+msgstr "변경"
 
 msgid "friends.accept"
-msgstr "Accept"
+msgstr "수락"
 
 msgid "friends.decline"
-msgstr "Decline"
+msgstr "거절"
 
 msgid "friends.decline_block"
-msgstr "Decline and block"
+msgstr "거절 후 차단"
 
 msgid "friends.remove"
-msgstr "Remove friend"
+msgstr "친구 삭제"
 
 msgid "friends.remove_block"
-msgstr "Remove and block"
+msgstr "삭제 후 차단"
 
 msgid "friends.unblock"
-msgstr "Unblock"
+msgstr "차단 해제"
 
 msgid "friends.cancel_request"
-msgstr "Cancel request"
+msgstr "요청 취소"
 
 msgid "friends.add"
-msgstr "Add a friend"
+msgstr "친구 추가"
 
 msgid "friends.are_friends"
-msgstr "Friends"
+msgstr "친구"
 
 msgid "friends.played_you"
-msgstr "Played you {0} games, last {1}"
+msgstr "나와 {0}번 플레이, 마지막은 {1}"
 
 msgid "friends.not_played"
-msgstr "You have not played each other yet."
+msgstr "아직 서로 플레이한 적이 없습니다."
 
 msgid "friends.record"
-msgstr "You and {0}"
+msgstr "나와 {0}"
 
 msgid "friends.last_played"
-msgstr "Last played"
+msgstr "마지막 플레이"
 
 msgid "friends.since"
-msgstr "Friend since"
+msgstr "친구가 된 날"
 
 msgid "friends.your_code"
-msgstr "Your code {0}"
+msgstr "내 코드 {0}"
 
 msgid "friends.code"
-msgstr "Friend code"
+msgstr "친구 코드"
 
 msgid "friends.code_detail"
-msgstr "Give this code to a player so they can add you."
+msgstr "이 코드를 다른 플레이어에게 알려 주면 나를 추가할 수 있습니다."
 
 msgid "friends.their_code"
-msgstr "Their friend code"
+msgstr "상대 친구 코드"
 
 msgid "friends.new_code"
-msgstr "New code"
+msgstr "새 코드"
 
 msgid "friends.new_code_detail"
-msgstr "The old code stops working. One new code a day."
+msgstr "이전 코드는 사용할 수 없게 됩니다. 새 코드는 하루에 한 번입니다."
 
 msgid "friends.send"
-msgstr "Send request"
+msgstr "요청 보내기"
 
 msgid "friends.send_detail"
-msgstr "Sends a friend request to that code."
+msgstr "해당 코드로 친구 요청을 보냅니다."
 
 msgid "friends.sent"
-msgstr "Sent ({0})"
+msgstr "전송됨 ({0})"
 
 msgid "friends.sent_ago"
-msgstr "Sent {0}"
+msgstr "전송 {0}"
 
 msgid "friends.blocked"
-msgstr "Blocked ({0})"
+msgstr "차단됨 ({0})"
 
 msgid "friends.appear_offline"
-msgstr "Appear offline"
+msgstr "오프라인으로 표시"
 
 msgid "friends.appear_offline_detail"
-msgstr "Friends see you as offline. You still see them and can still invite."
+msgstr "친구에게 오프라인으로 보입니다. 나는 친구를 계속 볼 수 있고 초대도 할 수 있습니다."
 
 msgid "friends.appearing_offline"
-msgstr "Appearing offline"
+msgstr "오프라인으로 표시 중"
 
 msgid "friends.invite_reveals"
-msgstr "Your invite shows this friend where you are."
+msgstr "초대하면 이 친구에게 내 위치가 보입니다."
 
 msgid "friends.unreachable"
-msgstr "Could not reach the service. Friends show when it answers."
+msgstr "서비스에 연결할 수 없습니다. 응답하면 친구가 표시됩니다."
 
 msgid "friends.not_updated"
-msgstr "Not updated"
+msgstr "업데이트 안 됨"
 
 msgid "friends.loading"
-msgstr "Reading your friends."
+msgstr "친구를 불러오는 중입니다."
 
 msgid "friends.empty"
-msgstr "Add friends from a public room: open a member's Player card. Or send them your friend code."
+msgstr "공개 방에서 친구를 추가하세요. 참가자의 플레이어 카드를 열면 됩니다. 또는 친구 코드를 보내세요."
 
 msgid "friends.request_sent_to"
-msgstr "Request sent to {0}."
+msgstr "{0}님에게 요청을 보냈습니다."
 
 msgid "friends.invite_sent"
-msgstr "Invite sent to {0}."
+msgstr "{0}님에게 초대를 보냈습니다."
 
 msgid "friends.visit_title"
-msgstr "GO TO A FRIEND"
+msgstr "친구에게 가기"
 
 msgid "friends.visit_stay"
-msgstr "Stay here"
+msgstr "여기에 남기"
 
 msgid "friends.visit_stay_detail"
-msgstr "Do not go. Your room or game stays as it is."
+msgstr "가지 않습니다. 지금 방이나 게임은 그대로입니다."
 
 msgid "friends.visit_join"
-msgstr "Leave and join {0}"
+msgstr "나가서 {0}님 방에 참가"
 
 msgid "friends.visit_watch"
-msgstr "Leave and watch {0}"
+msgstr "나가서 {0}님 관전"
 
 msgid "friends.visit_detail"
-msgstr "Your current room or game ends when you go."
+msgstr "가면 지금 방이나 게임이 끝납니다."
 
 msgid "card.edit"
 msgstr "카드 편집"
