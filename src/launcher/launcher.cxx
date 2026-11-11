@@ -44,6 +44,7 @@
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include "GameLocator.hxx"
+#include "StreamHostFiles.hxx"
 #include "RunningGameFocus.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
@@ -578,7 +579,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     ConfigureLauncherLogging();
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     sf4e::Payload payload{};
-    bool offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false, hostPublicRoom = false;
+    bool writeStreamHost = false, offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false, hostPublicRoom = false;
     DWORD waitPid = 0;
     std::string localeOverride, joinUri;
     std::vector<std::string> offerWords;
@@ -588,6 +589,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     app.add_flag("--console", payload.args.bShowConsole, "Show diagnostic logging.");
     app.add_flag("--offline", offline, "Start at the native game menu without networking.");
     app.add_flag("--host-public-room", hostPublicRoom, "Open the last public room created again, and again whenever it closes, watching its games (a stream PC).");
+    app.add_flag("--write-stream-host", writeStreamHost, "Write the stream PC control panel to %APPDATA%\\sf4e\\stream-host and show that folder.");
     app.add_flag("--updates", updates, "Open update and recovery controls.");
     app.add_flag("--recovery", recovery, "Open launch recovery controls.");
     app.add_flag("--update-error", updateError, "Show updater recovery after an installation failure.");
@@ -610,6 +612,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     if (!localeOverride.empty() && sf4e::loc::ValidPreference(localeOverride)) {
         languagePreference = localeOverride;
         sf4e::loc::SetActive(sf4e::platform::ResolveUiLocale(languagePreference));
+    }
+    // The control panel is embedded here, not shipped as a package file (cmake/sf4e_stream_host.cmake).
+    if (writeStreamHost) {
+        const std::wstring folder = sf4e::launcher::WriteStreamHostFiles();
+        if (folder.empty()) spdlog::error("Could not write the stream host files");
+        else ShellExecuteW(nullptr, L"open", folder.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        return folder.empty() ? 1 : 0;
     }
     // The link is a room's short code, never logged, a tournament match, a
     // public room of a service (its IDs are not logged either), or a

@@ -4,8 +4,9 @@
 # and the game has run long or is low on memory, shows what the log says,
 # and packs the logs and crash dumps to send.
 #
-# Put this file (and EmberStreamHost.cmd) in the Ember folder, beside
-# Launcher.exe, and start EmberStreamHost.cmd. Windows PowerShell 5.1.
+# Ember writes this file, EmberStreamHost.cmd and the README to
+# %APPDATA%\sf4e\stream-host when Launcher.exe --write-stream-host runs; start
+# EmberStreamHost.cmd there. Windows PowerShell 5.1.
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 # The title screen learns from a real Start which pad or keyboard plays, so
 # Enter is sent to the game's window the way scripts/run-selftest.ps1 does.
@@ -45,8 +46,12 @@ $logs = Join-Path $env:APPDATA 'sf4e\logs'
 $gameLog = Join-Path $logs 'sf4e.log'
 
 # Settings: the Ember folder and the tick boxes and numbers on the window.
-# Ember ships it in scripts\stream-host; copied beside Launcher.exe it works there too.
-$emberHome = if (Test-Path -LiteralPath (Join-Path $here 'Launcher.exe')) { $here } else { Split-Path (Split-Path $here) }
+# Launcher.exe --write-stream-host names its own folder in EmberFolder.txt beside
+# this script; copied beside Launcher.exe instead, the script finds it there.
+$folderFile = Join-Path $here 'EmberFolder.txt'
+$emberHome = if (Test-Path -LiteralPath (Join-Path $here 'Launcher.exe')) { $here }
+    elseif (Test-Path -LiteralPath $folderFile) { (Get-Content -LiteralPath $folderFile -Raw -Encoding UTF8).Trim() }
+    else { $here }
 $settings = [ordered]@{ emberFolder = $emberHome; restartHours = 12; memoryRestart = $true; memoryMB = 120; emptyMinutes = 10 }
 if (Test-Path $settingsPath) {
     try { (Get-Content $settingsPath -Raw | ConvertFrom-Json).psobject.Properties | ForEach-Object { $settings[$_.Name] = $_.Value } } catch {}
