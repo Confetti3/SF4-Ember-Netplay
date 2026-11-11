@@ -12,10 +12,10 @@ using namespace sf4e::netplay::levels;
 using Batch = std::vector<std::string>;
 using Answers = std::vector<std::optional<Card>>;
 
-static Card Showing(std::uint8_t fighter, std::uint8_t level) {
+static Card Showing(std::uint8_t fighter, std::uint64_t points) {
 	Card card;
 	card.levelsShown = true;
-	card.fighters.push_back({fighter, level, 100});
+	card.fighters.push_back({fighter, points, 0});
 	return card;
 }
 
@@ -39,7 +39,7 @@ static void JoinAsks() {
 	cards.Sent(7, {"c1.a"}, 100);
 	EXPECT(cards.Awaiting(7) && !cards.Awaiting(8) && cards.Take(100 + Cards::MinGapMs).empty());
 	cards.Finish("", Answers{Showing(3, 31)});
-	EXPECT(!cards.Awaiting(7) && cards.Published()->size() == 1 && cards.Published()->at("c1.a").fighters[0].level == 31);
+	EXPECT(!cards.Awaiting(7) && cards.Published()->size() == 1 && cards.Published()->at("c1.a").fighters[0].points == 31);
 	// A second member joins: it waits for the gap.
 	cards.Observe(1, {"c1.a", "c1.b"}, {0, 0}, 200);
 	EXPECT(cards.Take(200).empty());
@@ -92,7 +92,7 @@ static void SetEndAsks() {
 	EXPECT(cards.Take(40000 + Cards::SetEndedMs) == both);
 	EXPECT(cards.Published()->size() == 1);
 	Look(cards, 2, 40000 + Cards::SetEndedMs, Answers{Showing(1, 3), Showing(4, 5)});
-	EXPECT(cards.Published()->size() == 2 && cards.Published()->at("c1.a").fighters[0].level == 3);
+	EXPECT(cards.Published()->size() == 2 && cards.Published()->at("c1.a").fighters[0].points == 3);
 	EXPECT(cards.Take(1000000).empty());
 }
 
