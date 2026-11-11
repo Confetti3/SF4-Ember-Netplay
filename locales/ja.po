@@ -1084,6 +1084,9 @@ msgstr "カードを編集"
 msgid "card.class"
 msgstr "クラス"
 
+msgid "points.label"
+msgstr "点数"
+
 msgid "level.value"
 msgstr "{0}ポイント"
 
