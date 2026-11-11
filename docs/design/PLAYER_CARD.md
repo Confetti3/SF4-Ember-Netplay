@@ -75,7 +75,7 @@ Added to `V2.hxx` (P5), each used by at least two screens:
 
 | Part | Draws | Used by |
 |---|---|---|
-| `v2::Level(d, at, height, points, tier)` | the points in Ember's digits on dark ground, framed in the tier's stripe colour; up to six digits, the plate growing with the number; returns its width | card, Fighters tab, toasts, friends list |
+| `v2::Level(d, at, height, points, tier)` | the label "FP" and the points in the game's own digits (white) on dark ground, framed in the tier's stripe colour; up to six digits, the plate growing with the number; returns its width | card, Fighters tab, toasts, friends list |
 | `v2::LevelBand(d, tile, points, tier)` | a dark band across a fighter picture's foot with the number centred in it, shrunk to fit the picture's width, and the picture's edge in the tier's stripe colour; nothing for 0 points | card strip, room seats, cabinets, member rows, friends panel |
 | `v2::Meter(d, box, part, fresh)` | a progress bar on `c.frame`, `part` in `c.accent`, the latest `fresh` of it in `c.accentLight` | card, Fighters panel, the set toast |
 
@@ -115,7 +115,7 @@ Board (`Body`), the `Main` board's order: the title on its plate, the hero
 `SelectionArt::Portrait` or `Character`, large), with the points plate
 (`v2::Level`, the fighter, "1,284 games") at its foot left and the class
 plate (emblem, "Class", letters) at its foot right; the name line (flag,
-name, link); the main's meter, "1986 points" and "514 points to Ember" (the next tier's name; "Top frame" at Ember; the meter runs from none to the next tier's points, since the client does not know the tier's start); the facts row; the fighters
+name, link); the main's meter, "1986 points" and "514 points to Ember" (the next tier's name; "Top frame" at Ember; the meter runs from the tier's start, `floor`, to the next tier's points); the facts row; the fighters
 strip.
 
 Navigation: the strip's three tiles are the rows (`PressEntry`, placed);
@@ -139,8 +139,8 @@ yet. Each starts earning points with its first rated public game." On the
 right the focused fighter's panel (`v2::Panel`, titled with the fighter,
 "Main" chip when it is): a large tile, "1986 points", the meter, "514 points
 to Ember" (or "Top frame"), Games, Won, Since, "How points are earned", the
-five frames (one sample number each; the thresholds are the bridge's and are
-not drawn) and, when `shown` is false, "Others do not see your points while
+five frames (each in its tier's colour with the tier's name, no numbers: the
+thresholds are the bridge's and are not drawn) and, when `shown` is false, "Others do not see your points while
 you do not take part in ranking."
 
 Navigation: the grid's rows are placed; the D-pad moves by geometry; the
