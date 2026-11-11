@@ -5,9 +5,9 @@
 # It can be run as often as you like: a rule it already added is replaced, never doubled. Every rule sits in the
 # group "Ember", and that group is all -Remove touches, so rules you made yourself are left alone.
 # Windows asks for administrator rights once, and only when there is something to change.
-#   Matches      : sf4-net.exe, inbound, Private and Public networks.
-#   Match port   : UDP 45760-45763 inbound, Private and Public networks. sf4-net.exe takes the first free one
-#                  (rust/sf4-net/src/transport/fixed_port.rs), and it is the port to forward in a router.
+#   Matches      : sf4-net.exe, inbound, Private and Public networks. The rule is for the program, not for its
+#                  ports (UDP 45760-45763, rust/sf4-net/src/transport/fixed_port.rs), so nothing else on the PC
+#                  is let in through them.
 #   Phone remote : TCP 47321-47328 in, private networks only, and only from the local subnet.
 param([switch]$Remove, [string]$Folder)
 $ErrorActionPreference = 'Stop'
@@ -69,6 +69,5 @@ if ($Remove) {
 }
 
 Set-EmberRule 'Ember matches (sf4-net.exe)' @{ Direction = 'Inbound'; Program = (Join-Path $Folder $matchProgram); Profile = @('Private','Public') }
-Set-EmberRule 'Ember match port (UDP 45760-45763)' @{ Direction = 'Inbound'; Protocol = 'UDP'; LocalPort = '45760-45763'; Profile = @('Private','Public') }
 Set-EmberRule 'Ember phone remote' @{ Direction = 'Inbound'; Protocol = 'TCP'; LocalPort = '47321-47328'; RemoteAddress = 'LocalSubnet'; Profile = 'Private' }
 Write-Host "Ember is allowed through Windows Firewall for $Folder."
