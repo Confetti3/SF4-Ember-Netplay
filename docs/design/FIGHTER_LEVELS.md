@@ -121,11 +121,10 @@ player only ever plays in 1.5.x rooms and never sees a level.
 
 ## Bridge
 
-### Migration 058 (`058_fighter_levels.sql`)
+### Migration 057 (`057_fighter_levels.sql`)
 
-057 is left to the migration-ledger change on `wip/160-bridge`; `db.rs`
-allows a gap (55 is absent at this base). If 057 stays unused, renumber at
-merge.
+The file is also named in the list in `src/db/migrations.rs`, which records
+each migration by file name and checksum.
 
 ```sql
 -- Each fighter's counted games for a Discord account (FIGHTER_LEVELS.md).
@@ -307,12 +306,14 @@ renderer). The game draws them from an atlas, never from a font.
 
 - **Source and output.** The generator moves into the repository as
   `scripts/level-digits/make_level_digits.py` (Pillow only; the TTF stays a
-  mockup tool) and writes `assets/level/digits.png` and
+  mockup tool) and writes `assets/input/level_digits.png` and
   `src/common/LevelDigits.hxx`, both checked in. The build never runs Python;
-  `CMakeLists.txt` installs `assets/level` beside `assets/flags`.
+  the rule that installs `assets/input` ships it. It cannot have a folder of
+  its own: Stable 1.4.1's updater refuses a package path it does not know,
+  and `assets\input\*.png` is one of the two patterns it leaves open.
   `scripts/level-digits/check_level_digits.py` renders again and fails when
   either file differs, as `check-flag-atlas.py` does for flags.
-  `assets/level/README.md` says the art is Ember's own, like
+  `assets/input/README.md` says the art is Ember's own, like
   `mark_developer.png`.
 - **Layers.** Each digit is two sprites: *under* (the shadow, red rim, orange
   and yellow spreads of `flame`) and *core* (the white stroke). A number draws
@@ -322,8 +323,9 @@ renderer). The game draws them from an atlas, never from a font.
   supersampled, as `render_mask` does). A number drawn `h` tall uses the
   smallest size at least `h`, so it scales down by at most half; above 80 it
   scales up (a card at 175 % interface scale). Each cell carries the glow pad
-  `0.3h + 4`, so cells are about `1.56h` by `1.69h`; ten digits by two
-  layers by three sizes is about 1,280 by 480 px, decoded at its own size like
+  `0.3h + 4` and the brush tips reach past the cap, so cells are about
+  `1.9h` by `2.35h`; ten digits by two
+  layers by three sizes is 1,273 by 586 px, decoded at its own size like
   the flag atlas (`SelectionArt::Impl::Policy` `exactWidth`, `exactHeight`).
 - **The header.** For each size: the cap height, and for each digit its two
   cells (x, y, w, h in the atlas), the ink's left bearing and the advance,
@@ -358,10 +360,10 @@ cap).
 |---|---|---|---|---|
 | P0 Contracts | `server/ember/protocol/src/{levels.rs,friends.rs,lib.rs}`, `rooms/mod.rs` (`TicketRequest::card`), `rooms/ticket.rs` (`RoomTicket::card`) | none | shapes, `check`, unknown fields refused, tickets without `card` byte-identical | none |
 | P1 Room host | `src/common/{SkillBadge.hxx,SkillBadgeJson.hxx}`, `src/session/{RoomAuthority.hxx,RoomModelServerOwned.cxx,RoomModelActions.cxx,RoomModel.cxx,RoomTypes.hxx,RoomModelJson.cxx,Admission.hxx,IrohRoomPeers.cxx}`, `server/roomhost/{RoomHostStatus.hxx,README.md}`, `server/ember-rooms/src/protocol.rs`, `server/ember/bridge/src/routes/rooms/supervisor.rs` (the limit only), `rust/sf4-net/src/{control.rs,service/controls.rs,service/protocol.rs}` | P0 | `room_server_owned_test` (fighters, game index across a rematch in place, old checkpoint restores), `room_host_config_test` (largest line), `session_server_moderation_test` (card admitted, forged card ignored), ember-rooms limits test, helper `connected` with `card` | two 1.6.0 PCs in a public room: a set of three games in place reaches the bridge as three games |
-| P2 Bridge levels | `migrations/058_fighter_levels.sql`, `src/db.rs` (one line), `src/skill/{mod.rs,levels.rs}`, `src/cards.rs`, `src/routes/{levels.rs,mod.rs,discovery.rs}`, `src/routes/rooms/ticket.rs`, `tests/levels.rs` | P0 | migration from 056 keeps rated games and pairs; three games of one generation count three times; cap at nine; a game without fighters rates but levels nothing; opted-out player levels, shows none; token round trip, 7-day expiry, wrong purpose; 404 shape | none |
+| P2 Bridge levels | `migrations/057_fighter_levels.sql`, `src/db/migrations.rs` (one line), `src/skill/{mod.rs,levels.rs}`, `src/cards.rs`, `src/routes/{levels.rs,mod.rs,discovery.rs}`, `src/routes/rooms/ticket.rs`, `tests/levels.rs` | P0 | migration from 056 keeps rated games and pairs; three games of one generation count three times; cap at nine; a game without fighters rates but levels nothing; opted-out player levels, shows none; token round trip, 7-day expiry, wrong purpose; 404 shape | none |
 | P3 Bridge friends | `FRIENDS.md` | P2 | there | there |
 | P4 Helper and runtime | `rust/sf4-net/src/tournament/{levels.rs,friends.rs,mod.rs,play.rs,rooms.rs}`, `src/netplay/{Levels.hxx,LevelRequests.hxx,Friends.hxx,FriendRequests.hxx,TournamentStatus.hxx}`, `src/session/SocialAnswers.{hxx,cxx}`, `src/sf4e/{sf4e__NetplayRuntime__Social.cxx,sf4e__NetplayRuntime.hxx,sf4e__NetplayRuntime__Status.cxx}` (publishing levels and friends; dropping `card` outside public rooms), the answer hook beside `TakeRankingsAnswer`, the netplay and session library lines of `CMakeLists.txt`, `src/tests/{social_answers_test.cxx,tournament_fuzz_test.cxx}` | P0; P1 for `Member::card` | ops round-trip, `card` asked only with `levels` listed, strict decoders refuse unknown members, request cadence | none |
-| P5 Digits and level parts | `scripts/level-digits/*`, `assets/level/*`, `src/common/LevelDigits.hxx`, `src/ui/LevelMark.{hxx,cxx}`, `src/ui/V2.hxx` (declarations of `Level`, `LevelWidth`, `LevelTier`, `LevelBand`, `Meter`, `PLAYER_CARD.md`), `src/ui/SelectionArt.{hxx,cxx}`, the install line and the `sf4e_ui` source line of `CMakeLists.txt`, the lab case | none | checker passes; layout widths for 1 to 60 at each size; lab renders a strip of 1 to 60 | the flame against the Dev mark at three sizes |
+| P5 Digits and level parts | `scripts/level-digits/*`, `assets/input/level_digits.png`, `src/common/LevelDigits.hxx`, `src/ui/LevelMark.{hxx,cxx}`, `src/ui/V2.hxx` (declarations of `Level`, `LevelWidth`, `LevelTier`, `LevelBand`, `Meter`, `PLAYER_CARD.md`), `src/ui/SelectionArt.{hxx,cxx}`, the install line and the `sf4e_ui` source line of `CMakeLists.txt`, the lab case | none | checker passes; layout widths for 1 to 60 at each size; lab renders a strip of 1 to 60 | the flame against the Dev mark at three sizes |
 | P6 to P8 Interface | `PLAYER_CARD.md`, `FRIENDS.md` | P4, P5 (P8 also P3) | there | there |
 
 **Smallest slice that ships something visible.** P0 (levels types and

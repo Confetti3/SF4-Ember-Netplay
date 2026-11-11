@@ -26,9 +26,9 @@ nothing here to change.
 
 ## Data model
 
-### Migration 059 (`059_friends.sql`)
+### Migration 058 (`058_friends.sql`)
 
-After 058 (`FIGHTER_LEVELS.md`; 057 is left to the migration-ledger change).
+After 057 (`FIGHTER_LEVELS.md`).
 
 ```sql
 -- A Discord account's friends settings and how friends see it: the name,
@@ -96,7 +96,7 @@ CREATE INDEX friend_blocks_blocked ON friend_blocks(blocked, blocker);
 
 Ids are `prefixed_id` (`fr_`, `rq_`, `bl_`, `iv_`), random, and say nothing.
 The friendship's record (wins each way, last game) is `rated_pairs`
-(`FIGHTER_LEVELS.md`, migration 058); it counts from that migration on.
+(`FIGHTER_LEVELS.md`, migration 057); it counts from that migration on.
 
 ### Kept in memory
 
@@ -436,7 +436,7 @@ Numbering is shared with `FIGHTER_LEVELS.md` (P0 to P5) and
 
 | Package | Owns | Depends | Tests | Only in the game |
 |---|---|---|---|---|
-| P3 Bridge friends | `migrations/059_friends.sql`, `src/db.rs` (one line), `src/friends/{mod.rs,store.rs,presence.rs}`, `src/routes/friends.rs`, `src/routes/{mod.rs,discovery.rs,levels.rs}` (routes, feature, `relation` and the `friend` selector), `src/lib.rs` (presence and invites in `AppState`), `src/routes/expiry.rs` (the request sweep), `tests/friends.rs` | P2 | request by card and code; mutual request accepts; hidden requests look sent; daily, pending and inbox limits; block removes everything both ways and hides from cards; forget; joinable by build; appear offline freezes `seen_at`; no Discord ID in any answer (a test that scans every answer for the seeded IDs) | none |
+| P3 Bridge friends | `migrations/058_friends.sql`, `src/db/migrations.rs` (one line), `src/friends/{mod.rs,store.rs,presence.rs}`, `src/routes/friends.rs`, `src/routes/{mod.rs,discovery.rs,levels.rs}` (routes, feature, `relation` and the `friend` selector), `src/lib.rs` (presence and invites in `AppState`), `src/routes/expiry.rs` (the request sweep), `tests/friends.rs` | P2 | request by card and code; mutual request accepts; hidden requests look sent; daily, pending and inbox limits; block removes everything both ways and hides from cards; forget; joinable by build; appear offline freezes `seen_at`; no Discord ID in any answer (a test that scans every answer for the seeded IDs) | none |
 | P8 Friends interface | `src/ui/{FriendsPanel.hxx,FriendsPanel.cxx}`, `src/ui/ProfilePanel.cxx` (the tab), `src/ui/ShellView.hxx` (`friends`), `src/sf4e/sf4e__Overlay.cxx` (mapping), `src/ui/ApplicationShell__Settings.cxx` (Friends panel), `src/ui/ApplicationShell__Toasts.cxx` (request and invite toasts), `src/ui/{RoomPanel.cxx,RoomActions.cxx}` (Add friend, Block), `src/ui/lab/*`, `locales/*.po` | P3, P4, P6, P7 | lab: no account, unavailable, empty, full groups, requests, appear offline, narrow; navigation from a row into the panel and back | two PCs: request from a room, accept from a toast, join and watch a public room, invite into a private room, appear offline, remove |
 
 Friends ship last: the levels slice and the room's cards do not need them.

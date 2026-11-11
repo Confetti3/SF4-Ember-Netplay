@@ -18,7 +18,7 @@ makes them easier or harder is said at each.
 
 No new bridge table or route belongs to the card: it is put together from
 `levels/me`, `cards/lookup` (`FIGHTER_LEVELS.md`) and the friends state
-(`FRIENDS.md`). Migrations 058 and 059 are in those documents.
+(`FRIENDS.md`). Migrations 057 and 058 are in those documents.
 
 ## What a card shows
 
