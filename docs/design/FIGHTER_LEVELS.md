@@ -151,19 +151,25 @@ INSERT INTO rated_games_next SELECT room_id, table_id, generation, 0 FROM rated_
 DROP TABLE rated_games;
 ALTER TABLE rated_games_next RENAME TO rated_games;
 
--- A pair's lifetime record beside its sitting. Rows are kept now: a new
--- sitting restarts `games` in place instead of deleting the row.
-ALTER TABLE rated_pairs ADD COLUMN first_wins INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE rated_pairs ADD COLUMN second_wins INTEGER NOT NULL DEFAULT 0;
+-- A pair's lifetime record, in a table of its own. The sitting stays in
+-- `rated_pairs`, whose rows a bridge from before this migration deletes
+-- three hours after a pair's last game: after a rollback that delete would
+-- have wiped win columns kept there.
+CREATE TABLE pair_records (
+    first TEXT NOT NULL, second TEXT NOT NULL,
+    first_wins INTEGER NOT NULL, second_wins INTEGER NOT NULL,
+    played_at INTEGER NOT NULL,
+    PRIMARY KEY (first, second)
+) WITHOUT ROWID;
 ```
 
-Indexes: `fighter_levels` is read only by account (its key). `rated_pairs` is
-read by pair (its key); friends read it by pair too (`FRIENDS.md`).
+Indexes: `fighter_levels` is read only by account (its key). `pair_records`
+is read by pair (its key); friends read it by pair too (`FRIENDS.md`).
 
-Row lifetimes: `fighter_levels` and `rated_pairs` for good (at most 44 rows
+Row lifetimes: `fighter_levels` and `pair_records` for good (at most 44 rows
 per account; one per pair that ever played); `rated_games` with its room row,
-as before. Table and column names are kept; `rated_pairs` now covers every
-pair of Discord accounts, which its comment says.
+and `rated_pairs` (the sitting) for three hours after a pair's last game, both
+as before. The sitting now covers every pair of Discord accounts.
 
 ### `record_games` (`server/ember/bridge/src/skill/mod.rs`)
 
@@ -174,18 +180,19 @@ levels never read them:
    skip.
 2. Both Discord accounts (`account`, any account, not `rated_account`); none
    or the same: skip.
-3. The pair's sitting (`rated_pairs`): `games` restarts at 1 when
-   `played_at` is over three hours old, else adds 1; the winner's side of
-   `first_wins`/`second_wins` adds 1; `played_at` is now. The old
-   `DELETE FROM rated_pairs WHERE played_at < ?` goes.
+3. The pair's sitting (`rated_pairs`, as before: a row older than three hours
+   is deleted, then `games` adds 1) and its record (`pair_records`): the
+   winner's side of `first_wins`/`second_wins` adds 1; `played_at` is now.
 4. With `fighters` and a sitting count of at most `FULL_REPEATS`: upsert both
    rows of `fighter_levels` (`skill/levels.rs`).
 5. Both accounts take part in ranking (`ranking_choices`): rate as today,
    with the sitting weight from step 3.
 
-This removes `sitting_weight`'s own delete-and-count; a game where one side
-does not take part now counts toward the pair's sitting, which only matters
-for a pair whose choice changes mid-sitting.
+A game where one side does not take part now counts toward the pair's
+sitting, which only matters for a pair whose choice changes mid-sitting. A
+game whose `fighters` is present but is not two fighters is skipped whole, as
+any game the bridge cannot read. Whether games after a battle's first move
+ratings is one constant, `RATE_GAMES_AFTER_THE_FIRST`.
 
 ## Wire contracts
 

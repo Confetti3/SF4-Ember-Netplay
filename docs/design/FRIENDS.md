@@ -95,7 +95,7 @@ CREATE INDEX friend_blocks_blocked ON friend_blocks(blocked, blocker);
 | `friend_blocks` | blocker (key), blocked (index, on every request) | until unblocked or forgotten |
 
 Ids are `prefixed_id` (`fr_`, `rq_`, `bl_`, `iv_`), random, and say nothing.
-The friendship's record (wins each way, last game) is `rated_pairs`
+The friendship's record (wins each way, last game) is `pair_records`
 (`FIGHTER_LEVELS.md`, migration 057); it counts from that migration on.
 
 ### Kept in memory
@@ -198,7 +198,7 @@ offline). Rate limits answer 429.
 | `badge` | `SkillBadge`: their class as last shown (`skill_ratings.band`, settled by the aged deviation), read without remembering anything; the developer mark for a developer; absent when they do not take part, or classes are hidden |
 | `presence.state` | `offline` (with `seen_at` when known), `online` (with `activity`), `room` (with `status`, `table`, and `room` for a public room or `private: true`) |
 | `room.joinable` | open, not locked, not full, and of the caller's build |
-| `record` | the pair's wins from the caller's side and their last game (`rated_pairs`); absent before their first counted game |
+| `record` | the pair's wins from the caller's side and their last game (`pair_records`); absent before their first counted game |
 | `incoming` | at most 50 visible; `played` is the same pair record, so a receiver sees whether they played the sender |
 | `outgoing` | including hidden ones, which stay "sent" |
 | `invites` | received and live; `room` as sent |
@@ -254,7 +254,7 @@ invite box says).
   anything of an account to the account it blocked. A card token opens only
   on the bridge.
 - **Removing** a friend is silent: they stop seeing presence at their next
-  sync; the record stays in `rated_pairs` and shows again only if they become
+  sync; the record stays in `pair_records` and shows again only if they become
   friends again.
 - **Turning friends off** (`forget`) deletes everything the player keeps;
   blocks others placed on them are those players' own and stay.
