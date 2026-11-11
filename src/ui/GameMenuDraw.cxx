@@ -200,9 +200,9 @@ v2::Share FitMenuRow(const MenuEntry& e, float room, float gap, bool grows) {
     // What the value gives way down to depends on the row, not on the word it
     // shows now, so stepping a value or a status changing never moves the rows:
     // a control (arrows, a switch) to under half the row, a fixed value to its
-    // chevron's place (cut; the detail pane says it whole).
+    // chevron's place (cut; the detail pane says it whole), unless it reads whole.
     const float wanted = MenuValueWidth(e);
-    const float least = (std::min)(wanted, e.adjustable ? room * .45f : ValueFrame(e));
+    const float least = e.wholeValue ? wanted : (std::min)(wanted, e.adjustable ? room * .45f : ValueFrame(e));
     return v2::ShareLine(ImGui::CalcTextSize(e.label.c_str()).x, wanted, least, room, gap, grows);
 }
 MenuRowLayout LayOutBoardRow(const MenuEntry& e, ImVec2 at, float width) {

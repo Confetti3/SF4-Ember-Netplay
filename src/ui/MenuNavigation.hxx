@@ -90,6 +90,9 @@ struct MenuEntry {
     // A disabled row's pane says nothing more than its detail does: no "Unavailable".
     bool quiet = false;
     bool valueHighlighted = false;
+    // A value that must read whole (a code to pass on): it goes under the label
+    // when the line is too short for both, rather than being cut beside it.
+    bool wholeValue = false;
     // An adjustable value's words all shown on the row as chips, the value
     // among them lit ("LP MP HP EX"): Left and Right move along them, and
     // Select (with opens) takes the lit one. No arrows.
