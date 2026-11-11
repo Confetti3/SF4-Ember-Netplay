@@ -560,19 +560,35 @@ float TitlePlate(ImDrawList* draw, ImVec2 at, float room, float line, const std:
     return w;
 }
 
+namespace {
+// How far a fact's value sits lower when a key wraps onto a second line: the
+// same for every cell, so the rules and values stay level across the cells.
+float FactKeyExtra(float width, const std::vector<TagView::Fact>& facts, std::size_t across) {
+    const float s = Scale(), room = width / across - 28 * s;
+    for (const auto& fact : facts)
+        if (HeadingHeight(fact.key, room, 12 * s) > 12 * s) return 12 * s * HeadingLine;
+    return 0;
+}
+std::size_t FactAcross(const std::vector<TagView::Fact>& facts, std::size_t across) { return (std::max<std::size_t>)(1, (std::min)(across, facts.size())); }
+}
+float FactCellsHeight(float width, const std::vector<TagView::Fact>& facts, std::size_t across) {
+    if (facts.empty()) return 0;
+    across = FactAcross(facts, across);
+    return (52 * Scale() + FactKeyExtra(width, facts, across)) * ((facts.size() + across - 1) / across);
+}
 float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across) {
     const auto& c = Colors();
-    const float s = Scale(), height = 52 * s;
-    across = (std::max<std::size_t>)(1, (std::min)(across, facts.size()));
-    const float cell = width / across;
+    const float s = Scale();
+    across = FactAcross(facts, across);
+    const float cell = width / across, extra = FactKeyExtra(width, facts, across), height = 52 * s + extra;
     for (std::size_t i = 0; i < facts.size(); ++i) {
         const ImVec2 p(at.x + cell * (i % across), at.y + height * (i / across));
         if (i % across == 0) draw->AddLine(p, ImVec2(at.x + width, p.y), c.border, s);
         else draw->AddLine(p, ImVec2(p.x, p.y + height), c.border, s);
-        draw->AddText(HeadingFont(), 12 * s, ImVec2(p.x + 14 * s, p.y + 10 * s), c.muted, Fit(facts[i].key, cell - 28 * s, 12 * s, HeadingFont()).c_str());
-        draw->AddText(HeadingFont(), 15 * s, ImVec2(p.x + 14 * s, p.y + 26 * s), c.text, Fit(facts[i].value, cell - 28 * s, 15 * s, HeadingFont()).c_str());
+        Heading(draw, ImVec2(p.x + 14 * s, p.y + 10 * s), cell - 28 * s, facts[i].key, 12 * s, c.muted);
+        draw->AddText(HeadingFont(), 15 * s, ImVec2(p.x + 14 * s, p.y + 26 * s + extra), c.text, Fit(facts[i].value, cell - 28 * s, 15 * s, HeadingFont()).c_str());
     }
-    return facts.empty() ? 0 : height * ((facts.size() + across - 1) / across);
+    return FactCellsHeight(width, facts, across);
 }
 
 namespace {
@@ -581,7 +597,7 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
     const auto& c = Colors();
     const float s = Scale(), pad = 20 * s, tile = 96 * s, band = tile + 36 * s, line = 34 * s, nameSize = 26 * s;
     const std::size_t count = tag.facts.size(), across = width < 640 * s && count > 2 ? (count + 1) / 2 : count;
-    const float factHeight = 52 * s, height = band + (count ? factHeight * ((count + across - 1) / across) : 0);
+    const float height = band + FactCellsHeight(width, tag.facts, across);
     draw->AddRectFilled(at, ImVec2(at.x + width, at.y + height), color::Alpha(c.panel, .94f), 4 * s);
     draw->AddRectFilledMultiColor(at, ImVec2(at.x + width * .7f, at.y + band), c.header, color::Alpha(c.header, 0), color::Alpha(c.header, 0), c.header);
     const ImVec2 t(at.x + pad, at.y + 18 * s);
