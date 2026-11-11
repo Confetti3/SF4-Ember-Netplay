@@ -138,11 +138,22 @@ float DrawAdd(const BoardFrame& f, const MenuEntry& e, ImVec2 at, float width, b
         const bool coded = !code.empty() && e.value.size() >= code.size() && e.value.compare(e.value.size() - code.size(), code.size(), code) == 0;
         const std::string words = coded ? e.value.substr(0, e.value.size() - code.size()) : e.value, shown = coded ? code : std::string();
         const float wordsWide = TextWidth(words, 15 * s, ImGui::GetFont()), codeWide = TextWidth(shown, 17 * s, HeadingFont());
-        const float right = box.max.x - 18 * s, start = (std::max)(right - wordsWide - codeWide, x + label + 16 * s);
-        // Only text there is room for: a value with no code of its own, or a narrow row, leaves nothing to draw.
-        const float codeRoom = right - start - wordsWide;
-        if (!words.empty() && right > start) v2::Text(f.d, ImVec2(start, mid - 8 * s), (std::min)(wordsWide + 1, right - start), words, 15 * s, c.muted);
-        if (!shown.empty() && codeRoom > 0) v2::Text(f.d, ImVec2(start + wordsWide, mid - 9 * s), codeRoom, shown, 17 * s, c.text, HeadingFont());
+        const float right = box.max.x - 18 * s, left = x + label + 16 * s, room = right - left;
+        // The code matters more than the words before it: both when they fit, else the code alone, else the code shrunk.
+        // A value with no code of its own is words alone, shrunk before it is cut.
+        if (room > 0) {
+            if (shown.empty()) {
+                const float w = (std::min)(wordsWide + 1, room);
+                v2::TextShrunk(f.d, ImVec2(right - w, mid - 8 * s), w, words, 15 * s, 11 * s, c.muted);
+            } else if (wordsWide + codeWide <= room) {
+                if (!words.empty()) v2::Text(f.d, ImVec2(right - codeWide - wordsWide, mid - 8 * s), wordsWide + 1, words, 15 * s, c.muted);
+                v2::Text(f.d, ImVec2(right - codeWide, mid - 9 * s), codeWide + 1, shown, 17 * s, c.text, HeadingFont());
+            } else if (codeWide <= room) {
+                v2::Text(f.d, ImVec2(right - codeWide, mid - 9 * s), codeWide + 1, shown, 17 * s, c.text, HeadingFont());
+            } else {
+                v2::TextShrunk(f.d, ImVec2(left, mid - 9 * s), room, shown, 17 * s, 12 * s, c.text, HeadingFont());
+            }
+        }
     }
     Finish(f, e, box);
     return box.max.y;

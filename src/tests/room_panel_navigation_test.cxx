@@ -293,7 +293,7 @@ int main() try {
         Check(shell.UnreadChat() == 1, "A mute from the last room hid a new member's message");
         // Seen in the room itself, they are not muted there either.
         shell.Navigation().Push("room"); frame();
-        Check(!row("member-3").choices.empty() && row("member-3").choices[0].label == loc::T("room.mute_member"), "The next room's member showed as muted");
+        Check(memberAction("member-3", "mute").label == loc::T("room.mute_member"), "The next room's member showed as muted");
         view.room = savedRoom; shell.Navigation().Home(); frame();
     }
     shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
