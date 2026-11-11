@@ -37,7 +37,7 @@ MinVersion=10.0
 
 [Tasks]
 Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
-Name: firewall; Description: "Allow the phone remote in Windows Firewall (asks for administrator rights)"; Flags: unchecked
+Name: firewall; Description: "Allow Ember matches and the phone remote in Windows Firewall (asks for administrator rights)"; Flags: unchecked
 
 [Files]
 Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion uninsneveruninstall; Check: FreshInstall
@@ -56,7 +56,7 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\Launcher.exe"; WorkingDir: "{
 ; administrator rights. Declining leaves Launcher.exe to report the old runtime.
 Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing the Microsoft Visual C++ runtime. This can take a minute..."; BeforeInstall: RuntimeBar(True); AfterInstall: RuntimeBar(False); Check: RuntimeOutdated
 ; The firewall rules need administrator rights too, so this is asked for only when the task is chosen.
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{localappdata}\{#AppName} Setup\ember-firewall.ps1"""; Verb: runas; Flags: runhidden waituntilterminated; StatusMsg: "Allowing Ember in Windows Firewall..."; Tasks: firewall
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{localappdata}\{#AppName} Setup\ember-firewall.ps1"" -Folder ""{app}"""; Verb: runas; Flags: runhidden waituntilterminated; StatusMsg: "Allowing Ember in Windows Firewall..."; Tasks: firewall
 Filename: "{app}\Launcher.exe"; Description: "{cm:LaunchProgram,{#AppName}}"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
