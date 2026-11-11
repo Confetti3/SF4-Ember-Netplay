@@ -15,7 +15,7 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"button-layout",loc::T("player.button_layout")},{"button-layout-button",loc::T("button_layout.edit_button")},
         {"player",loc::T("screen.player")},{"controllers",loc::T("player.controllers")},
         {"main-character",loc::T("screen.main_character")},{"about",loc::T("screen.about")},
-        {"profile",loc::T("home.profile")},{"awards",loc::T("screen.awards")},{"awards-icons",loc::T("screen.awards")},
+        {"profile",loc::T("home.profile")},{"card",loc::T("profile.tab.card")},{"fighters",loc::T("profile.tab.fighters")},{"awards",loc::T("screen.awards")},{"awards-icons",loc::T("screen.awards")},
         {"training",loc::T("training_select.title")},{"sent-reports",loc::T("reports.sent_list")},{"discord-invitation",loc::T("screen.discord_invitation")},
         {"public-rooms",loc::T("screen.public_rooms")},{"rankings",loc::T("screen.rankings")},{"rankings-board",loc::T("rankings.players")},{"identity",loc::T("screen.identity")},{"identity-backup",loc::T("screen.identity_backup")},
         {"linked-accounts",loc::T("screen.linked_accounts")},{"tournament-matches",loc::T("screen.tournament_matches")},{"tournament-desk",loc::T("screen.tournament_desk")},{"desk-event",loc::T("desk.view.queue")},{"desk-set",loc::T("tournament.match")},{"desk-draft",loc::T("desk.draft.new")},{"discord-connect",loc::T("screen.connect_discord")},

@@ -545,6 +545,36 @@ void Icon(ImDrawList* d, int icon, ImVec2 at, float size, ImU32 ink) {
     if (icon >= 0 && icon < IconCount) DrawLineIcon(d, Icons[icon], at, size, ink, 1.5f);
 }
 
+float TitlePlate(ImDrawList* draw, ImVec2 at, float room, float line, const std::string& title, Tier tier) {
+    const float s = Scale(), x = at.x, y = at.y;
+    // The plate grows to its title, and a title longer than the room steps down a size.
+    const float cut = line / 3, stripe = line / 2, need = TextWidth(title, 15 * s, HeadingFont()) + stripe + 10 * s + cut + 6 * s;
+    const float w = (std::min)(room, (std::max)(340 * s, need));
+    const ImVec2 plate[] = {{x + cut, y}, {x + w, y}, {x + w - cut, y + line}, {x, y + line}};
+    const ImVec2 mark[] = {{x + cut, y}, {x + stripe, y}, {x + stripe - cut, y + line}, {x, y + line}};
+    const auto colors = TierColor(tier);
+    draw->AddConvexPolyFilled(plate, 4, colors.plate);
+    draw->AddConvexPolyFilled(mark, 4, colors.stripe);
+    const float size = need > w ? 13 * s : 15 * s;
+    draw->AddText(HeadingFont(), size, ImVec2(x + stripe + 10 * s, y + (line - size) * .5f), Colors().text, Fit(title, w - stripe - 10 * s - cut, size, HeadingFont()).c_str());
+    return w;
+}
+
+float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across) {
+    const auto& c = Colors();
+    const float s = Scale(), height = 52 * s;
+    across = (std::max<std::size_t>)(1, (std::min)(across, facts.size()));
+    const float cell = width / across;
+    for (std::size_t i = 0; i < facts.size(); ++i) {
+        const ImVec2 p(at.x + cell * (i % across), at.y + height * (i / across));
+        if (i % across == 0) draw->AddLine(p, ImVec2(at.x + width, p.y), c.border, s);
+        else draw->AddLine(p, ImVec2(p.x, p.y + height), c.border, s);
+        draw->AddText(HeadingFont(), 12 * s, ImVec2(p.x + 14 * s, p.y + 10 * s), c.muted, Fit(facts[i].key, cell - 28 * s, 12 * s, HeadingFont()).c_str());
+        draw->AddText(HeadingFont(), 15 * s, ImVec2(p.x + 14 * s, p.y + 26 * s), c.text, Fit(facts[i].value, cell - 28 * s, 15 * s, HeadingFont()).c_str());
+    }
+    return facts.empty() ? 0 : height * ((facts.size() + across - 1) / across);
+}
+
 namespace {
 // The L tag (Tag): the profile card.
 float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) {
@@ -572,30 +602,12 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
     NoteUserText(tag.name);
     draw->AddText(HeadingFont(), nameSize, ImVec2(x + marks, y + (line - nameSize) * .5f), c.text, Fit(tag.name, room - marks, nameSize, HeadingFont(), false).c_str());
     y += line + 8 * s;
-    // The title on its plate: a slanted bar with the accent's stripe at its start.
     if (!tag.title.empty()) {
-        // The plate grows to its title, and a title longer than the room steps down a size.
-        const float cut = line / 3, stripe = line / 2, need = TextWidth(tag.title, 15 * s, HeadingFont()) + stripe + 10 * s + cut + 6 * s;
-        const float w = (std::min)(room, (std::max)(340 * s, need));
-        const ImVec2 plate[] = {{x + cut, y}, {x + w, y}, {x + w - cut, y + line}, {x, y + line}};
-        const ImVec2 mark[] = {{x + cut, y}, {x + stripe, y}, {x + stripe - cut, y + line}, {x, y + line}};
-        const auto tier = TierColor(tag.tier);
-        draw->AddConvexPolyFilled(plate, 4, tier.plate);
-        draw->AddConvexPolyFilled(mark, 4, tier.stripe);
-        const float size = need > w ? 13 * s : 15 * s;
-        draw->AddText(HeadingFont(), size, ImVec2(x + stripe + 10 * s, y + (line - size) * .5f), c.text, Fit(tag.title, w - stripe - 10 * s - cut, size, HeadingFont()).c_str());
+        TitlePlate(draw, ImVec2(x, y), room, line, tag.title, tag.tier);
         y += line + 8 * s;
     }
     draw->AddText(ImGui::GetFont(), 14 * s, ImVec2(x, y), c.muted, Fit(tag.about, room, 14 * s).c_str());
-    // The facts, a cell each, key over value.
-    const float cell = count ? width / across : 0;
-    for (std::size_t i = 0; i < count; ++i) {
-        const ImVec2 p(at.x + cell * (i % across), at.y + band + factHeight * (i / across));
-        if (i % across == 0) draw->AddLine(p, ImVec2(at.x + width, p.y), c.border, s);
-        else draw->AddLine(p, ImVec2(p.x, p.y + factHeight), c.border, s);
-        draw->AddText(HeadingFont(), 12 * s, ImVec2(p.x + 14 * s, p.y + 10 * s), c.muted, Fit(tag.facts[i].key, cell - 28 * s, 12 * s, HeadingFont()).c_str());
-        draw->AddText(HeadingFont(), 15 * s, ImVec2(p.x + 14 * s, p.y + 26 * s), c.text, Fit(tag.facts[i].value, cell - 28 * s, 15 * s, HeadingFont()).c_str());
-    }
+    FactCells(draw, ImVec2(at.x, at.y + band), width, tag.facts, across);
     draw->AddRect(at, ImVec2(at.x + width, at.y + height), c.border, 4 * s, 0, s);
     return height;
 }

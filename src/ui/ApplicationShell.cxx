@@ -229,11 +229,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   // Back leaves a pending invitation's screen without answering it, so Home
   // keeps a way back to it until it is answered or expires.
   if(v.discordPending)rows.insert(rows.begin(),Row("discord-invitation",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail")));
-  // The player's card is a row too (drawn as the card); Select opens the awards wall.
-  rows.push_back(Row("awards",loc::T("awards.card"),loc::T("awards.card_detail")));
+  // The player's card is a row too (drawn as the card); Select opens Profile on Card.
+  rows.push_back(Row("card",loc::T("awards.card"),loc::T("awards.card_detail")));
   if(developer)rows.push_back(Row("developer","Developer","Development tools."));
   // Right on the list reaches the card beside it, Left goes back to the list's top.
-  for(auto& r:rows)if(r.id=="awards")r.left=rows.front().id;else r.right="awards";
+  for(auto& r:rows)if(r.id=="card")r.left=rows.front().id;else r.right="card";
  }else if(screen=="training"){
   rows=TrainingSelectRows(v,title);
  }else if(screen=="discord-invitation"){
@@ -373,7 +373,7 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  tag.facts={{loc::T("profile.main_badge"),selection::FindFighter(preferences_.mainFighter)->name}};
  if(record.available)tag.facts.push_back({loc::T("profile.record"),RecordValue(record)});
  // The levels the Card tab draws; Home's tag has none.
- card::Fill(card,v.levels,preferences_.mainFighter);
+ player_card::Fill(card,v.levels,preferences_.mainFighter);
  SetMenuPlayerCard(std::move(card));
  std::vector<MenuNewsItem> news;
  for(const auto& n:v.services.update.news)news.push_back({n.title,n.date.empty()?n.tag:n.date+" \xC2\xB7 "+n.tag});
@@ -395,6 +395,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id=="awards")nav.Push("awards");
+ else if(a.id=="card")nav.Push(ProfilePanel::CardScreen);
  else if(a.id=="country"){countryPicker_.Open();nav.Push(CountryPicker::Screen);nav.Prefer(CountryPicker::RowId(preferences_.country));}
  // A letter on the board goes to its first country, whose code it carries.
  else if(screen==CountryPicker::Screen&&a.id.compare(0,7,"letter-")==0)nav.Prefer("country-"+a.id.substr(7));
@@ -642,6 +643,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdatePublicBridge(v,nav.Screen());
  {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
+ profile_.Update(v,nav.Screen(),identity_.UsableBridge(v),submit);
  {std::string said;if(rankings_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
  if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();ShowNotice(loc::T("public.setup_done"),Tone::Success,now+4);}

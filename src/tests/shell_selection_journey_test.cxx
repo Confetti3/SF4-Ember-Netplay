@@ -17,7 +17,7 @@ void HomeCardRight(){
  using namespace sf4e;
  Harness h;h.Frame();
  h.Screen("home");h.FocusOn("settings");h.Press(MenuInput::Right);
- Check(h.shell.Navigation().Focus()=="awards","Right on Home did not reach the player card");
+ Check(h.shell.Navigation().Focus()=="card","Right on Home did not reach the player card");
  h.Press(MenuInput::Left);
  Check(h.shell.Navigation().Focus()=="online","Left on the player card did not go back to the top of the list");
 }

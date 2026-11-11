@@ -1,0 +1,46 @@
+#pragma once
+#include "ShellAction.hxx"
+#include "GameMenu.hxx"
+#include "MenuNavigation.hxx"
+#include <functional>
+#include <string>
+#include <vector>
+
+namespace sf4e { namespace ui {
+struct ShellView;
+
+// Profile (docs/design/PLAYER_CARD.md): the player's own pages under one strip,
+// Card and Fighters here and the awards wall's Titles and Icons
+// (ApplicationShell__Awards.cxx), LB and RB stepping through them. Home's card
+// opens it on Card.
+//
+// The levels are read from the helper when the player opens any of them, and
+// once at start for the service and Ember ID the interface can use, as
+// RankingsPanel reads the standing for the card on Home. A read the queue
+// refused is asked again next frame; one that went out and failed is not
+// asked again until Profile is opened.
+class ProfilePanel {
+public:
+    using Submit = std::function<bool(ShellAction)>;
+    static constexpr const char* CardScreen = "card";
+    static constexpr const char* FightersScreen = "fighters";
+    static bool Owns(const std::string& screen) { return screen == CardScreen || screen == FightersScreen; }
+    // Every screen under the strip, the awards wall's two included.
+    static bool InStrip(const std::string& screen) { return Owns(screen) || screen == "awards" || screen == "awards-icons"; }
+    // The strip over `screen` and the eyebrow "Profile · name".
+    static void Dress(GameMenu& menu, const std::string& screen, const std::string& name);
+    // Every frame: the levels read on opening and at start. `bridge` is the
+    // usable service, empty without one.
+    void Update(const ShellView& view, const std::string& screen, const std::string& bridge, const Submit& submit);
+    // The shell is hidden: a read not sent yet is dropped, and showing it again reads afresh.
+    void Conceal();
+    // The screen's rows, from the card the shell published (`card`), the
+    // fighter read for `main` and whether the player can change it now.
+    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, const PlayerCardView& card, bool editable, std::string& title) const;
+    // The screen's board at the cursor: the Card tab (PlayerCard.cxx) or the Fighters tab.
+    void Draw(const ShellView& view, int main, const std::string& screen, const std::vector<MenuEntry>& rows, MenuNavigation& navigation, MenuAction& action);
+private:
+    std::string read_, focus_;
+    bool visiting_ = false, want_ = false;
+};
+} }

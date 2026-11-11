@@ -1,4 +1,4 @@
-// The awards wall (Awards.dc.html): every title (on the Titles tab) and icon
+// The awards wall (Awards.dc.html), the last two tabs of Profile (ProfilePanel): every title (on the Titles tab) and icon
 // (on Icons), earned or locked with how to earn it, the one worn marked. Select
 // on an earned one wears it; the player's card above or beside the wall shows
 // the result. Each award is a row ("award:<id>"), so the pad, the keys and a
@@ -59,10 +59,8 @@ public:
         return true;
     }
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
-        menu.eyebrow = loc::T("home.profile");
+        ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName);
         menu.headerChips.push_back({EarnedCount(f.view), v2::Colors().accentLight});
-        menu.tabs = {{"awards", loc::T("awards.titles")}, {"awards-icons", loc::T("awards.icons")}};
-        menu.tab = f.screen == "awards" ? 0 : 1;
     }
     ScreenGrid Grid(const ScreenFrame&) const override { return {AwardColumns(), 100}; }
     GameMenu::Body Body(const ScreenFrame& f) const override {

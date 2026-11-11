@@ -304,7 +304,7 @@ void V2AuditJourneys() {
   Check(seen.back()=="tab-player"&&std::set<std::string>(seen.begin(),seen.end()).size()==6,"RB does not reach every Settings tab and wrap to the first");
   h.Press(MenuInput::PrevTab);Check(h.shell.Navigation().Screen()==seen[5],"LB on the first tab did not wrap to the last");
   h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="home","A tab stepped to stacked on the one it left");
-  h.Screen("awards");h.Press(MenuInput::PrevTab);Check(h.shell.Navigation().Screen()=="awards-icons","LB on Titles did not wrap to Icons");
+  h.Screen("awards");h.Press(MenuInput::PrevTab);Check(h.shell.Navigation().Screen()=="fighters","LB on Titles did not step to Fighters");
   h.Press(ControllerButtons(0x400,input::PadDirectInput,input::MenuButtons{}.heavyPunch,{}));Check(h.shell.Navigation().Screen()=="awards","A stick's HP did not step the tab");
   SetMenuGlyphs(input::PadDirectInput,input::MenuButtons{1u<<18,1u<<17,"LK","MK"});h.Frame();
   Check(!std::strcmp(MenuShortcutGlyph(MenuInput::PrevTab),"LP")&&!std::strcmp(MenuShortcutGlyph(MenuInput::NextTab),"HP"),"A stick's tab buttons are not named LP and HP");
