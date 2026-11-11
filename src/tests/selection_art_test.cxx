@@ -84,7 +84,7 @@ std::string DigitSheet(int drop = 0, int taller = 0) {
         const std::size_t keep = row.columns.size() - (&row == &rows[5] ? drop : 0);
         for (std::size_t i = 0; i < keep; ++i)
             for (int y = row.top - (&row == &rows[4] && i == 0 ? taller : 0); y <= row.bottom; ++y)
-                for (int x = row.columns[i].first; x <= row.columns[i].second; ++x) dds[128 + (y * 256 + x) * 4 + 3] = 'ÿ';
+                for (int x = row.columns[i].first; x <= row.columns[i].second; ++x) dds[128 + (y * 256 + x) * 4 + 3] = '\xff';
     }
     return dds;
 }
