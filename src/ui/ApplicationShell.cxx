@@ -651,6 +651,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
  profile_.Update(v,nav.Screen(),identity_.UsableBridge(v),submit);
+ friends_.Update(v,nav,identity_.UsableBridge(v),now,submit);
+ {std::string said;Tone tone;if(friends_.TakeSaid(said,tone))ShowNotice(said,tone,now+(tone==Tone::Error?6:4));}
  {std::string said;if(rankings_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
  if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();ShowNotice(loc::T("public.setup_done"),Tone::Success,now+4);}

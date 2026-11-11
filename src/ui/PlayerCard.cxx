@@ -1,4 +1,5 @@
 #include "PlayerCard.hxx"
+#include "MenuRows.hxx"
 #include "ShellView.hxx"
 #include "SignInSites.hxx"
 #include "Theme.hxx"
@@ -285,6 +286,15 @@ float DrawStrip(ImDrawList* d, float x, float y, float room, const PlayerCardVie
     }
     return shown ? y + height : y;
 }
+}
+
+
+// Connect Discord, the way to points and friends a player without an account has.
+MenuEntry ConnectDiscordRow() {
+    auto connect = Row(DiscordConnectScreen, loc::T("screen.connect_discord"), loc::T("rankings.connect_detail"));
+    connect.value = loc::T("identity.discord_none");
+    connect.hint = loc::T("screen.connect_discord");
+    return connect;
 }
 
 float DrawRowButton(const char* id, ImVec2 at, float width, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, bool changed) {

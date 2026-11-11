@@ -2,6 +2,7 @@
 #include "MenuPresentation.hxx"
 #include "PlayerCard.hxx"
 #include "NetworkFeedback.hxx"
+#include "FriendsPanel.hxx"
 #include "PublicRoomsCards.hxx"
 #include "RowId.hxx"
 #include "RankingsCards.hxx"
@@ -159,8 +160,8 @@ public:
     }
 };
 
-// Profile: the player's Card and Fighters pages and the Friends holding page,
-// under the strip the awards wall shares.
+// Profile: the player's Card and Fighters pages, under the strip Friends and
+// the awards wall share.
 class ApplicationShell::ProfileScreens final : public ScreenPanel {
 public:
     bool Owns(const std::string& screen) const override { return ProfilePanel::Owns(screen); }
@@ -186,8 +187,6 @@ public:
         if (a.delta == MenuInput::Options && f.screen == ProfilePanel::CardScreen) f.shell.menu_.navigation.Push(CardEditRow);
     }
     GameMenu::Body Body(const ScreenFrame& f) const override {
-        // The holding page for Friends is a list of rows.
-        if (f.screen == ProfilePanel::FriendsScreen) return {};
         ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::string* screen = &f.screen;
         return [shell, view, screen](const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback&) {
             shell->profile_.Draw(*view, shell->preferences_.mainFighter, *screen, rows, nav, action, height);
@@ -197,6 +196,37 @@ public:
         ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName);
         // In a room X is the room's own shortcut on every screen (RoomShortcut).
         if (f.screen == ProfilePanel::CardScreen && f.view.session.room == netplay::RoomState::Idle) menu.shortcutHints = ShortcutHints({{MenuInput::Options, loc::T("card.edit")}});
+    }
+};
+
+// Friends: the tab under Profile's strip, the pages over it (Add a friend, Sent, Blocked) and the
+// question a Join asks. The tab draws a board of its own; the pages are lists.
+class ApplicationShell::FriendsScreens final : public ScreenPanel {
+public:
+    bool Owns(const std::string& screen) const override { return FriendsPanel::Owns(screen); }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override {
+        return f.shell.friends_.Rows(f.view, f.screen, f.shell.menu_.navigation.Choosing(), title);
+    }
+    // Connect Discord is the Ember ID panel's.
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        auto& nav = f.shell.menu_.navigation;
+        if (a.id == DiscordConnectScreen) { f.shell.identity_.Activate(a, f.view, nav); return true; }
+        return f.shell.friends_.Activate(f.view, a, nav, submit);
+    }
+    bool Adjust(const ScreenFrame& f, const MenuAction& a) const override { return f.shell.friends_.Adjust(a); }
+    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override { return f.shell.friends_.Choose(f.view, a, submit); }
+    void Shortcut(const ScreenFrame& f, const MenuAction& a) const override { f.shell.friends_.Shortcut(f.view, a, f.shell.menu_.navigation); }
+    GameMenu::Body Body(const ScreenFrame& f) const override {
+        if (f.screen != FriendsPanel::Screen) return {};
+        ApplicationShell* shell = &f.shell; const ShellView* view = &f.view;
+        return [shell, view](const std::vector<MenuEntry>& rows, MenuNavigation&, MenuAction& action, float height, const MenuVisualFeedback&) {
+            shell->friends_.Draw(*view, shell->menu_, rows, action, height);
+        };
+    }
+    void Dress(const ScreenFrame& f, GameMenu& menu) const override {
+        if (f.screen == FriendsPanel::Screen) ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName);
+        else if (FriendsPanel::Shown(f.screen)) menu.eyebrow = loc::Tf("profile.eyebrow", f.shell.preferences_.displayName);
+        if (f.rows) f.shell.friends_.Dress(f.view, f.screen, *f.rows, menu);
     }
 };
 
@@ -279,9 +309,10 @@ const ScreenPanel* ApplicationShell::ScreenOf(const std::string& screen) {
     static const PublicRoomsScreens publicRooms{};
     static const RankingsScreens rankings{};
     static const ProfileScreens profile{};
+    static const FriendsScreens friends{};
     static const ReplaysScreens replays{};
     static const IdentityScreens identity{};
-    static const ScreenPanel* const owners[] = {&publicRooms, &rankings, &profile, &replays, &identity, &SettingsOwner(), &OnlineOwner(),
+    static const ScreenPanel* const owners[] = {&publicRooms, &rankings, &profile, &friends, &replays, &identity, &SettingsOwner(), &OnlineOwner(),
         &WelcomeOwner(), &NewsOwner(), &AwardsOwner(), &NotificationsOwner(), &RoomOwner()};
     for (const ScreenPanel* owner : owners)
         if (owner->Owns(screen)) return owner;
