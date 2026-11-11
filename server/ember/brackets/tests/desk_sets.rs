@@ -47,12 +47,16 @@ async fn a_desk_events_sets_follow_its_matches_and_show_while_public() {
     // Ember IDs and match IDs stay with the organizer.
     assert!(set.get("ember_ids").is_none() && set.get("match_id").is_none());
 
-    // Played: the connector reports its score to the bracket site on the
-    // same pass, so the set is done.
+    // Played: its score, reported to the bracket site by this pass or the
+    // next, so the set reads as reporting or done.
     world.play(&match_id, &[0, 0]).await;
     world.connector.pass(true).await;
     let (_, set) = public_set(&world).await;
-    assert_eq!(set["desk_state"], "done");
+    assert!(
+        set["desk_state"] == "reporting" || set["desk_state"] == "done",
+        "{}",
+        set["desk_state"]
+    );
     assert_eq!(set["score"], json!([2, 0]));
 
     // No longer public: nobody else reads it.

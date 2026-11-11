@@ -1201,7 +1201,7 @@ mod tests {
                 ),
             }
         }
-        assert_eq!(seen.len(), 41);
+        assert_eq!(seen.len(), 45);
         let local: Vec<_> = REQUESTS
             .iter()
             .filter(|(_, lane)| *lane == Lane::Local)
