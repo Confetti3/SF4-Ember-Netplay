@@ -1102,6 +1102,9 @@ msgstr "Nejvyšší rám"
 msgid "level.hidden"
 msgstr "Ostatní hráči nevidí vaše body, dokud se neúčastníte žebříčku."
 
+msgid "room.member_points_private"
+msgstr "Tento hráč má své body soukromé."
+
 msgid "level.no_account"
 msgstr "Připojte Discord v Nastavení, Hra online, a získávejte body."
 

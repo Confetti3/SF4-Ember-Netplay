@@ -11,6 +11,9 @@
 // --profile played|fresh|sixty|hidden|noaccount|unavailable|loading: the player's levels (--screen card or fighters)
 // --levels: fighter points in the game's digits, bands on pictures and meters
 //   (all of it shows in --size 3840x2160)
+// --points public|private with --room or --arcade: every member's card as the bridge would have it, in a public room
+//   or a private one (which shows none). Akira keeps their points private and Riley has no card yet; FRaccie's
+//   own points are --profile's (played). On a wide window --screen room-members --keys enter opens a member's page.
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
 // --check report.txt (with --shot): appends each line cut short, text taller than its row and cards overlapping on the
 //   last frame to the report, named by the shot, and exits 2 when there is any (lab/uilab-v2-check.sh tours every screen)
@@ -18,7 +21,7 @@
 //   and writes each step there; exits when it is done, 3 when a step failed
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
 // --seats watch|none with --room: FRaccie watches table 2's game, or has no place in the Classic room
-// UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--profile state] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--points public|private] [--rankings] [--profile state] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 // --trace trace.txt (with --shot): writes the screen and the focused row before the first key and after each one,
 //   so a walk's presses can be counted without reading the pictures
@@ -48,6 +51,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <map>
+#include <memory>
 #include <set>
 #include <sstream>
 #include <string>
@@ -245,6 +250,29 @@ void ArcadeRoom(ui::ShellView& view, room::RoomType type, const std::string& sea
     else { view.room.tables[3].deciding = true; view.room.tables[3].rematch[1] = true; view.room.tables[4].waitingSince = 1; }
     for (auto& line : view.room.chat) line.sender = static_cast<room::MemberId>((line.sender - 1) % view.room.members.size() + 1);
 }
+// --points: the cards of the room's members, by token (Member::card). The others' points are made up from their
+// fighter and main; the local member has no token, so the board reads their own points (--profile) as it would.
+void RoomPoints(ui::ShellView& view, bool listed) {
+    view.room.serverOwned = listed;
+    constexpr std::uint64_t starts[netplay::levels::TierCount] = {0, 200, 700, 1500, 2500};
+    const std::uint64_t spread[] = {3480, 1986, 860, 412, 230, 86, 19};
+    auto cards = std::make_shared<netplay::levels::CardMap>();
+    for (auto& m : view.room.members) {
+        if (m.id == view.room.localMember) continue;
+        m.card = CardToken::Parsed("c1.lab" + std::to_string(m.id));
+        if (m.name == "Riley") continue;
+        netplay::levels::Card card;
+        card.levelsShown = m.name != "Akira";
+        std::map<int, std::uint64_t> played{{m.fighter, spread[m.id % 7]}, {m.mainFighter, spread[(m.id + 3) % 7]}, {(m.id * 5) % 44, 41}};
+        for (const auto& one : played) {
+            std::uint8_t tier = 0;
+            while (tier + 1 < netplay::levels::TierCount && one.second >= starts[tier + 1]) ++tier;
+            card.fighters.push_back({static_cast<std::uint8_t>(one.first), one.second, tier});
+        }
+        (*cards)[m.card.ToString()] = card;
+    }
+    view.memberCards = cards;
+}
 // A trusted Ember ID and a relay in Europe; PublicRooms lists rooms once asked.
 void PublicLab(ui::ShellView& view) {
     auto& id = view.identity;
@@ -381,6 +409,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     float textSize = 1;
     bool tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
+    std::string points;  // --points public|private
     std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
@@ -411,6 +440,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--rankings") rankings = true;
         else if (args[i] == "--levels") levels = true;
         else if (args[i] == "--profile" && more) profile = args[++i];
+        else if (args[i] == "--points" && more) points = args[++i];
         else if (args[i] == "--playback") playback = true;
         else if (args[i] == "--caption") caption = true;
         else if (args[i] == "--screen" && more) screen = args[++i];
@@ -484,6 +514,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (!walkFrom.empty() && !walk.StartAt(walkFrom)) { if (walkLog.is_open()) walkLog << "FAIL walk-from: no step named " << walkFrom << std::endl; return 3; }
     if (rankings) Rankings(view);
     if (!profile.empty()) Profile(view, profile);
+    if (!points.empty()) {
+        if (profile.empty()) Profile(view, "played");
+        RoomPoints(view, points != "private");
+    }
     // Fighter select (--screen selection) with every fighter, costume and colour there.
     ui::FighterSelector selector;
     selection::Pick pick;

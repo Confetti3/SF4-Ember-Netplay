@@ -1102,6 +1102,9 @@ msgstr "Marco máximo"
 msgid "level.hidden"
 msgstr "Los demás no ven tus puntos mientras no participes en el ranking."
 
+msgid "room.member_points_private"
+msgstr "Este jugador mantiene privados sus puntos."
+
 msgid "level.no_account"
 msgstr "Conecta Discord en Ajustes, Juego online para ganar puntos."
 
