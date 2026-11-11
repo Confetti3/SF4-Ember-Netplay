@@ -1088,193 +1088,193 @@ msgid "friends.tab_count"
 msgstr "フレンド · {0}"
 
 msgid "friends.requests_heading"
-msgstr "REQUESTS · {0}"
+msgstr "リクエスト · {0}"
 
 msgid "friends.in_room"
-msgstr "IN A ROOM · {0}"
+msgstr "ルーム内 · {0}"
 
 msgid "friends.online"
-msgstr "ONLINE · {0}"
+msgstr "オンライン · {0}"
 
 msgid "friends.offline"
-msgstr "OFFLINE · {0}"
+msgstr "オフライン · {0}"
 
 msgid "friends.playing_table"
-msgstr "Playing at table {0} · {1}"
+msgstr "対戦席{0}で対戦中 · {1}"
 
 msgid "friends.watching_table"
-msgstr "Watching table {0} · {1}"
+msgstr "対戦席{0}を観戦中 · {1}"
 
 msgid "friends.waiting_room"
-msgstr "In {0}"
+msgstr "{0} にいます"
 
 msgid "friends.training_room"
-msgstr "In Training · {0}"
+msgstr "トレーニング中 · {0}"
 
 msgid "friends.private_room"
-msgstr "In a private room"
+msgstr "プライベートルームにいます"
 
 msgid "friends.menus"
-msgstr "At the menus"
+msgstr "メニュー画面"
 
 msgid "friends.offline_play"
-msgstr "Playing offline"
+msgstr "オフライン対戦中"
 
 msgid "friends.last_online"
-msgstr "Last online {0}"
+msgstr "最終オンライン {0}"
 
 msgid "friends.hours_ago"
-msgstr "{0} h ago"
+msgstr "{0}時間前"
 
 msgid "friends.days_ago"
-msgstr "{0} d ago"
+msgstr "{0}日前"
 
 msgid "friends.join"
-msgstr "Join"
+msgstr "参加"
 
 msgid "friends.join_room"
-msgstr "Join their room"
+msgstr "ルームに参加"
 
 msgid "friends.watch"
-msgstr "Watch"
+msgstr "観戦"
 
 msgid "friends.invite"
-msgstr "Invite"
+msgstr "招待"
 
 msgid "friends.invite_room"
-msgstr "Invite to my room"
+msgstr "自分のルームに招待"
 
 msgid "friends.more"
-msgstr "More"
+msgstr "その他"
 
 msgid "friends.open"
-msgstr "Open"
+msgstr "開く"
 
 msgid "friends.change"
-msgstr "Change"
+msgstr "変更"
 
 msgid "friends.accept"
-msgstr "Accept"
+msgstr "承認"
 
 msgid "friends.decline"
-msgstr "Decline"
+msgstr "拒否"
 
 msgid "friends.decline_block"
-msgstr "Decline and block"
+msgstr "拒否してブロック"
 
 msgid "friends.remove"
-msgstr "Remove friend"
+msgstr "フレンドを削除"
 
 msgid "friends.remove_block"
-msgstr "Remove and block"
+msgstr "削除してブロック"
 
 msgid "friends.unblock"
-msgstr "Unblock"
+msgstr "ブロック解除"
 
 msgid "friends.cancel_request"
-msgstr "Cancel request"
+msgstr "リクエストを取り消す"
 
 msgid "friends.add"
-msgstr "Add a friend"
+msgstr "フレンドを追加"
 
 msgid "friends.are_friends"
-msgstr "Friends"
+msgstr "フレンド"
 
 msgid "friends.played_you"
-msgstr "Played you {0} games, last {1}"
+msgstr "あなたと{0}回対戦、最後は{1}"
 
 msgid "friends.not_played"
-msgstr "You have not played each other yet."
+msgstr "まだお互いに対戦していません。"
 
 msgid "friends.record"
-msgstr "You and {0}"
+msgstr "あなたと{0}"
 
 msgid "friends.last_played"
-msgstr "Last played"
+msgstr "最後の対戦"
 
 msgid "friends.since"
-msgstr "Friend since"
+msgstr "フレンドになった日"
 
 msgid "friends.your_code"
-msgstr "Your code {0}"
+msgstr "あなたのコード {0}"
 
 msgid "friends.code"
-msgstr "Friend code"
+msgstr "フレンドコード"
 
 msgid "friends.code_detail"
-msgstr "Give this code to a player so they can add you."
+msgstr "このコードを相手に伝えると、あなたをフレンドに追加できます。"
 
 msgid "friends.their_code"
-msgstr "Their friend code"
+msgstr "相手のフレンドコード"
 
 msgid "friends.new_code"
-msgstr "New code"
+msgstr "新しいコード"
 
 msgid "friends.new_code_detail"
-msgstr "The old code stops working. One new code a day."
+msgstr "古いコードは使えなくなります。新しいコードは1日1回です。"
 
 msgid "friends.send"
-msgstr "Send request"
+msgstr "リクエストを送信"
 
 msgid "friends.send_detail"
-msgstr "Sends a friend request to that code."
+msgstr "このコードにフレンドリクエストを送ります。"
 
 msgid "friends.sent"
-msgstr "Sent ({0})"
+msgstr "送信済み ({0})"
 
 msgid "friends.sent_ago"
-msgstr "Sent {0}"
+msgstr "送信 {0}"
 
 msgid "friends.blocked"
-msgstr "Blocked ({0})"
+msgstr "ブロック中 ({0})"
 
 msgid "friends.appear_offline"
-msgstr "Appear offline"
+msgstr "オフライン表示"
 
 msgid "friends.appear_offline_detail"
-msgstr "Friends see you as offline. You still see them and can still invite."
+msgstr "フレンドにはオフラインと表示されます。あなたからは引き続きフレンドが見え、招待もできます。"
 
 msgid "friends.appearing_offline"
-msgstr "Appearing offline"
+msgstr "オフライン表示中"
 
 msgid "friends.invite_reveals"
-msgstr "Your invite shows this friend where you are."
+msgstr "招待すると、このフレンドにあなたの居場所が伝わります。"
 
 msgid "friends.unreachable"
-msgstr "Could not reach the service. Friends show when it answers."
+msgstr "サービスに接続できません。応答するとフレンドが表示されます。"
 
 msgid "friends.not_updated"
-msgstr "Not updated"
+msgstr "未更新"
 
 msgid "friends.loading"
-msgstr "Reading your friends."
+msgstr "フレンドを読み込み中です。"
 
 msgid "friends.empty"
-msgstr "Add friends from a public room: open a member's Player card. Or send them your friend code."
+msgstr "公開ルームでフレンドを追加します。メンバーのプレイヤーカードを開いてください。またはフレンドコードを送ってください。"
 
 msgid "friends.request_sent_to"
-msgstr "Request sent to {0}."
+msgstr "{0} さんにリクエストを送信しました。"
 
 msgid "friends.invite_sent"
-msgstr "Invite sent to {0}."
+msgstr "{0} さんに招待を送信しました。"
 
 msgid "friends.visit_title"
-msgstr "GO TO A FRIEND"
+msgstr "フレンドのもとへ"
 
 msgid "friends.visit_stay"
-msgstr "Stay here"
+msgstr "このまま残る"
 
 msgid "friends.visit_stay_detail"
-msgstr "Do not go. Your room or game stays as it is."
+msgstr "移動しません。今のルームや対戦はそのままです。"
 
 msgid "friends.visit_join"
-msgstr "Leave and join {0}"
+msgstr "退出して {0} に参加"
 
 msgid "friends.visit_watch"
-msgstr "Leave and watch {0}"
+msgstr "退出して {0} を観戦"
 
 msgid "friends.visit_detail"
-msgstr "Your current room or game ends when you go."
+msgstr "移動すると、今のルームや対戦は終了します。"
 
 msgid "card.edit"
 msgstr "カードを編集"

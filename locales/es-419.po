@@ -1088,193 +1088,193 @@ msgid "friends.tab_count"
 msgstr "Amigos · {0}"
 
 msgid "friends.requests_heading"
-msgstr "REQUESTS · {0}"
+msgstr "SOLICITUDES · {0}"
 
 msgid "friends.in_room"
-msgstr "IN A ROOM · {0}"
+msgstr "EN UNA SALA · {0}"
 
 msgid "friends.online"
-msgstr "ONLINE · {0}"
+msgstr "EN LÍNEA · {0}"
 
 msgid "friends.offline"
-msgstr "OFFLINE · {0}"
+msgstr "DESCONECTADOS · {0}"
 
 msgid "friends.playing_table"
-msgstr "Playing at table {0} · {1}"
+msgstr "Jugando en la mesa {0} · {1}"
 
 msgid "friends.watching_table"
-msgstr "Watching table {0} · {1}"
+msgstr "Viendo la mesa {0} · {1}"
 
 msgid "friends.waiting_room"
-msgstr "In {0}"
+msgstr "En {0}"
 
 msgid "friends.training_room"
-msgstr "In Training · {0}"
+msgstr "En Entrenamiento · {0}"
 
 msgid "friends.private_room"
-msgstr "In a private room"
+msgstr "En una sala privada"
 
 msgid "friends.menus"
-msgstr "At the menus"
+msgstr "En los menús"
 
 msgid "friends.offline_play"
-msgstr "Playing offline"
+msgstr "Jugando sin conexión"
 
 msgid "friends.last_online"
-msgstr "Last online {0}"
+msgstr "Última conexión {0}"
 
 msgid "friends.hours_ago"
-msgstr "{0} h ago"
+msgstr "hace {0} h"
 
 msgid "friends.days_ago"
-msgstr "{0} d ago"
+msgstr "hace {0} d"
 
 msgid "friends.join"
-msgstr "Join"
+msgstr "Entrar"
 
 msgid "friends.join_room"
-msgstr "Join their room"
+msgstr "Entrar a su sala"
 
 msgid "friends.watch"
-msgstr "Watch"
+msgstr "Ver"
 
 msgid "friends.invite"
-msgstr "Invite"
+msgstr "Invitar"
 
 msgid "friends.invite_room"
-msgstr "Invite to my room"
+msgstr "Invitar a mi sala"
 
 msgid "friends.more"
-msgstr "More"
+msgstr "Más"
 
 msgid "friends.open"
-msgstr "Open"
+msgstr "Abrir"
 
 msgid "friends.change"
-msgstr "Change"
+msgstr "Cambiar"
 
 msgid "friends.accept"
-msgstr "Accept"
+msgstr "Aceptar"
 
 msgid "friends.decline"
-msgstr "Decline"
+msgstr "Rechazar"
 
 msgid "friends.decline_block"
-msgstr "Decline and block"
+msgstr "Rechazar y bloquear"
 
 msgid "friends.remove"
-msgstr "Remove friend"
+msgstr "Quitar amigo"
 
 msgid "friends.remove_block"
-msgstr "Remove and block"
+msgstr "Quitar y bloquear"
 
 msgid "friends.unblock"
-msgstr "Unblock"
+msgstr "Desbloquear"
 
 msgid "friends.cancel_request"
-msgstr "Cancel request"
+msgstr "Cancelar solicitud"
 
 msgid "friends.add"
-msgstr "Add a friend"
+msgstr "Agregar un amigo"
 
 msgid "friends.are_friends"
-msgstr "Friends"
+msgstr "Amigos"
 
 msgid "friends.played_you"
-msgstr "Played you {0} games, last {1}"
+msgstr "Jugó {0} partidas contigo, la última {1}"
 
 msgid "friends.not_played"
-msgstr "You have not played each other yet."
+msgstr "Aún no han jugado entre ustedes."
 
 msgid "friends.record"
-msgstr "You and {0}"
+msgstr "Tú y {0}"
 
 msgid "friends.last_played"
-msgstr "Last played"
+msgstr "Última partida"
 
 msgid "friends.since"
-msgstr "Friend since"
+msgstr "Amigos desde"
 
 msgid "friends.your_code"
-msgstr "Your code {0}"
+msgstr "Tu código {0}"
 
 msgid "friends.code"
-msgstr "Friend code"
+msgstr "Código de amigo"
 
 msgid "friends.code_detail"
-msgstr "Give this code to a player so they can add you."
+msgstr "Dale este código a un jugador para que pueda agregarte."
 
 msgid "friends.their_code"
-msgstr "Their friend code"
+msgstr "Su código de amigo"
 
 msgid "friends.new_code"
-msgstr "New code"
+msgstr "Código nuevo"
 
 msgid "friends.new_code_detail"
-msgstr "The old code stops working. One new code a day."
+msgstr "El código anterior deja de funcionar. Un código nuevo al día."
 
 msgid "friends.send"
-msgstr "Send request"
+msgstr "Enviar solicitud"
 
 msgid "friends.send_detail"
-msgstr "Sends a friend request to that code."
+msgstr "Envía una solicitud de amistad a ese código."
 
 msgid "friends.sent"
-msgstr "Sent ({0})"
+msgstr "Enviadas ({0})"
 
 msgid "friends.sent_ago"
-msgstr "Sent {0}"
+msgstr "Enviada {0}"
 
 msgid "friends.blocked"
-msgstr "Blocked ({0})"
+msgstr "Bloqueados ({0})"
 
 msgid "friends.appear_offline"
-msgstr "Appear offline"
+msgstr "Aparecer desconectado"
 
 msgid "friends.appear_offline_detail"
-msgstr "Friends see you as offline. You still see them and can still invite."
+msgstr "Tus amigos te ven desconectado. Tú sigues viéndolos y puedes seguir invitando."
 
 msgid "friends.appearing_offline"
-msgstr "Appearing offline"
+msgstr "Apareces desconectado"
 
 msgid "friends.invite_reveals"
-msgstr "Your invite shows this friend where you are."
+msgstr "Tu invitación le muestra a este amigo dónde estás."
 
 msgid "friends.unreachable"
-msgstr "Could not reach the service. Friends show when it answers."
+msgstr "No se pudo contactar con el servicio. Los amigos aparecerán cuando responda."
 
 msgid "friends.not_updated"
-msgstr "Not updated"
+msgstr "Sin actualizar"
 
 msgid "friends.loading"
-msgstr "Reading your friends."
+msgstr "Cargando tus amigos."
 
 msgid "friends.empty"
-msgstr "Add friends from a public room: open a member's Player card. Or send them your friend code."
+msgstr "Agrega amigos desde una sala pública: abre la tarjeta de jugador de un miembro. O envíale tu código de amigo."
 
 msgid "friends.request_sent_to"
-msgstr "Request sent to {0}."
+msgstr "Solicitud enviada a {0}."
 
 msgid "friends.invite_sent"
-msgstr "Invite sent to {0}."
+msgstr "Invitación enviada a {0}."
 
 msgid "friends.visit_title"
-msgstr "GO TO A FRIEND"
+msgstr "IR CON UN AMIGO"
 
 msgid "friends.visit_stay"
-msgstr "Stay here"
+msgstr "Quedarme aquí"
 
 msgid "friends.visit_stay_detail"
-msgstr "Do not go. Your room or game stays as it is."
+msgstr "No ir. Tu sala o partida sigue como está."
 
 msgid "friends.visit_join"
-msgstr "Leave and join {0}"
+msgstr "Salir y entrar con {0}"
 
 msgid "friends.visit_watch"
-msgstr "Leave and watch {0}"
+msgstr "Salir y ver a {0}"
 
 msgid "friends.visit_detail"
-msgstr "Your current room or game ends when you go."
+msgstr "Tu sala o partida actual termina cuando vayas."
 
 msgid "card.edit"
 msgstr "Editar tarjeta"

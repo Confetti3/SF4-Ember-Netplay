@@ -1088,193 +1088,193 @@ msgid "friends.tab_count"
 msgstr "Друзья · {0}"
 
 msgid "friends.requests_heading"
-msgstr "REQUESTS · {0}"
+msgstr "ЗАПРОСЫ · {0}"
 
 msgid "friends.in_room"
-msgstr "IN A ROOM · {0}"
+msgstr "В ЛОББИ · {0}"
 
 msgid "friends.online"
-msgstr "ONLINE · {0}"
+msgstr "В СЕТИ · {0}"
 
 msgid "friends.offline"
-msgstr "OFFLINE · {0}"
+msgstr "НЕ В СЕТИ · {0}"
 
 msgid "friends.playing_table"
-msgstr "Playing at table {0} · {1}"
+msgstr "Играет в ячейке {0} · {1}"
 
 msgid "friends.watching_table"
-msgstr "Watching table {0} · {1}"
+msgstr "Смотрит ячейку {0} · {1}"
 
 msgid "friends.waiting_room"
-msgstr "In {0}"
+msgstr "В {0}"
 
 msgid "friends.training_room"
-msgstr "In Training · {0}"
+msgstr "В тренировке · {0}"
 
 msgid "friends.private_room"
-msgstr "In a private room"
+msgstr "В закрытом лобби"
 
 msgid "friends.menus"
-msgstr "At the menus"
+msgstr "В меню"
 
 msgid "friends.offline_play"
-msgstr "Playing offline"
+msgstr "Играет без сети"
 
 msgid "friends.last_online"
-msgstr "Last online {0}"
+msgstr "Был в сети {0}"
 
 msgid "friends.hours_ago"
-msgstr "{0} h ago"
+msgstr "{0} ч назад"
 
 msgid "friends.days_ago"
-msgstr "{0} d ago"
+msgstr "{0} дн. назад"
 
 msgid "friends.join"
-msgstr "Join"
+msgstr "Войти"
 
 msgid "friends.join_room"
-msgstr "Join their room"
+msgstr "Войти в его лобби"
 
 msgid "friends.watch"
-msgstr "Watch"
+msgstr "Смотреть"
 
 msgid "friends.invite"
-msgstr "Invite"
+msgstr "Пригласить"
 
 msgid "friends.invite_room"
-msgstr "Invite to my room"
+msgstr "Пригласить в моё лобби"
 
 msgid "friends.more"
-msgstr "More"
+msgstr "Ещё"
 
 msgid "friends.open"
-msgstr "Open"
+msgstr "Открыть"
 
 msgid "friends.change"
-msgstr "Change"
+msgstr "Изменить"
 
 msgid "friends.accept"
-msgstr "Accept"
+msgstr "Принять"
 
 msgid "friends.decline"
-msgstr "Decline"
+msgstr "Отклонить"
 
 msgid "friends.decline_block"
-msgstr "Decline and block"
+msgstr "Отклонить и заблокировать"
 
 msgid "friends.remove"
-msgstr "Remove friend"
+msgstr "Удалить из друзей"
 
 msgid "friends.remove_block"
-msgstr "Remove and block"
+msgstr "Удалить и заблокировать"
 
 msgid "friends.unblock"
-msgstr "Unblock"
+msgstr "Разблокировать"
 
 msgid "friends.cancel_request"
-msgstr "Cancel request"
+msgstr "Отменить запрос"
 
 msgid "friends.add"
-msgstr "Add a friend"
+msgstr "Добавить в друзья"
 
 msgid "friends.are_friends"
-msgstr "Friends"
+msgstr "Друзья"
 
 msgid "friends.played_you"
-msgstr "Played you {0} games, last {1}"
+msgstr "Поединков с вами: {0}, последний {1}"
 
 msgid "friends.not_played"
-msgstr "You have not played each other yet."
+msgstr "Вы ещё не играли друг с другом."
 
 msgid "friends.record"
-msgstr "You and {0}"
+msgstr "Вы и {0}"
 
 msgid "friends.last_played"
-msgstr "Last played"
+msgstr "Последний поединок"
 
 msgid "friends.since"
-msgstr "Friend since"
+msgstr "Друзья с"
 
 msgid "friends.your_code"
-msgstr "Your code {0}"
+msgstr "Ваш код {0}"
 
 msgid "friends.code"
-msgstr "Friend code"
+msgstr "Код друга"
 
 msgid "friends.code_detail"
-msgstr "Give this code to a player so they can add you."
+msgstr "Передайте этот код игроку, чтобы он мог добавить вас."
 
 msgid "friends.their_code"
-msgstr "Their friend code"
+msgstr "Код друга игрока"
 
 msgid "friends.new_code"
-msgstr "New code"
+msgstr "Новый код"
 
 msgid "friends.new_code_detail"
-msgstr "The old code stops working. One new code a day."
+msgstr "Старый код перестанет работать. Один новый код в день."
 
 msgid "friends.send"
-msgstr "Send request"
+msgstr "Отправить запрос"
 
 msgid "friends.send_detail"
-msgstr "Sends a friend request to that code."
+msgstr "Отправляет запрос в друзья на этот код."
 
 msgid "friends.sent"
-msgstr "Sent ({0})"
+msgstr "Отправленные ({0})"
 
 msgid "friends.sent_ago"
-msgstr "Sent {0}"
+msgstr "Отправлен {0}"
 
 msgid "friends.blocked"
-msgstr "Blocked ({0})"
+msgstr "Заблокированные ({0})"
 
 msgid "friends.appear_offline"
-msgstr "Appear offline"
+msgstr "Показываться не в сети"
 
 msgid "friends.appear_offline_detail"
-msgstr "Friends see you as offline. You still see them and can still invite."
+msgstr "Друзья видят вас не в сети. Вы по-прежнему видите их и можете приглашать."
 
 msgid "friends.appearing_offline"
-msgstr "Appearing offline"
+msgstr "Вы не в сети для друзей"
 
 msgid "friends.invite_reveals"
-msgstr "Your invite shows this friend where you are."
+msgstr "Ваше приглашение покажет этому другу, где вы находитесь."
 
 msgid "friends.unreachable"
-msgstr "Could not reach the service. Friends show when it answers."
+msgstr "Не удалось связаться с сервисом. Друзья появятся, когда он ответит."
 
 msgid "friends.not_updated"
-msgstr "Not updated"
+msgstr "Не обновлено"
 
 msgid "friends.loading"
-msgstr "Reading your friends."
+msgstr "Загрузка списка друзей."
 
 msgid "friends.empty"
-msgstr "Add friends from a public room: open a member's Player card. Or send them your friend code."
+msgstr "Добавляйте друзей из открытого лобби: откройте карточку игрока участника. Или отправьте ему свой код друга."
 
 msgid "friends.request_sent_to"
-msgstr "Request sent to {0}."
+msgstr "Запрос отправлен: {0}."
 
 msgid "friends.invite_sent"
-msgstr "Invite sent to {0}."
+msgstr "Приглашение отправлено: {0}."
 
 msgid "friends.visit_title"
-msgstr "GO TO A FRIEND"
+msgstr "К ДРУГУ"
 
 msgid "friends.visit_stay"
-msgstr "Stay here"
+msgstr "Остаться здесь"
 
 msgid "friends.visit_stay_detail"
-msgstr "Do not go. Your room or game stays as it is."
+msgstr "Не идти. Ваше лобби или поединок останется как есть."
 
 msgid "friends.visit_join"
-msgstr "Leave and join {0}"
+msgstr "Выйти и присоединиться к {0}"
 
 msgid "friends.visit_watch"
-msgstr "Leave and watch {0}"
+msgstr "Выйти и смотреть {0}"
 
 msgid "friends.visit_detail"
-msgstr "Your current room or game ends when you go."
+msgstr "Ваше текущее лобби или поединок закончится, когда вы уйдёте."
 
 msgid "card.edit"
 msgstr "Изменить карточку"
