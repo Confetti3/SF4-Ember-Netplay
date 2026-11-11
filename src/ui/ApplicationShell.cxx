@@ -8,6 +8,7 @@
 #include "RoomFeedback.hxx"
 #include "NetworkFeedback.hxx"
 #include "MenuPresentation.hxx"
+#include "PlayerCard.hxx"
 #include "SignInSites.hxx"
 #include "RoomControls.hxx"
 #include "V2.hxx"
@@ -371,6 +372,8 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));
  tag.facts={{loc::T("profile.main_badge"),selection::FindFighter(preferences_.mainFighter)->name}};
  if(record.available)tag.facts.push_back({loc::T("profile.record"),RecordValue(record)});
+ // The levels the Card tab draws; Home's tag has none.
+ card::Fill(card,v.levels,preferences_.mainFighter);
  SetMenuPlayerCard(std::move(card));
  std::vector<MenuNewsItem> news;
  for(const auto& n:v.services.update.news)news.push_back({n.title,n.date.empty()?n.tag:n.date+" \xC2\xB7 "+n.tag});

@@ -2,8 +2,9 @@
 // levels. The read goes to the helper on the tournament channel and is
 // answered by request id, like rankings; netplay::levels::Requests decides
 // what each answer does, and the interface reads the result from the
-// published status. Reads come when the menu asks (Command::Op::LevelsMe),
-// once at start, and twice after a set this PC fought ended.
+// published status. Reads come when the menu asks (Command::Op::LevelsMe: the
+// profile's own at start and when Profile opens), and twice after a set this PC
+// fought ended, to the service the menu last read from.
 #include "sf4e__NetplayRuntime.hxx"
 #include "../session/TournamentAnswers.hxx"
 
@@ -14,17 +15,6 @@ using nlohmann::json;
 using internal::SendBridgeRequest;
 
 std::string CurrentId() { return runtime->room ? runtime->room->Identity().emberId : std::string(); }
-
-// The service the automatic reads go to: the one the menu last read from, or
-// before it has, Ember's own built-in one once the player's ID is ready.
-std::string AutomaticBridge() {
-	if (!runtime->levels.Bridge().empty()) return runtime->levels.Bridge();
-	if (!runtime->room) return {};
-	const auto& identity = runtime->room->Identity();
-	if (identity.state != "ready") return {};
-	for (const auto& bridge : identity.bridges) if (bridge.builtin) return bridge.id;
-	return {};
-}
 
 // The generation of each table's last set when this player sat in it.
 std::vector<std::uint64_t> SetsFought(const room::Snapshot& snapshot) {
@@ -43,6 +33,8 @@ void DispatchLevels(const Command& command, bool helperReady) {
 	auto& requests = runtime->levels;
 	requests.Scope(command.bridgeId, CurrentId());
 	if (!requests.MayRead()) return;
+	// A read the menu asks for answers the reads that were due.
+	requests.TakeDue(GetTickCount64());
 	const json request = {{"op", "levels_me"}, {"bridge_id", command.bridgeId}};
 	requests.Sent(helperReady ? SendBridgeRequest(request) : 0, GetTickCount64());
 }
@@ -73,7 +65,9 @@ void TickLevels(bool helperReady, std::uint64_t nowMs) {
 		requests.NoteSets(snapshot.roomEpoch, SetsFought(snapshot), nowMs);
 	}
 	if (!helperReady) return;
-	const auto bridge = AutomaticBridge();
+	// The service is the one the menu last read from: the interface sends the
+	// first read, which names it, so nothing is asked before then.
+	const auto bridge = requests.Bridge();
 	if (bridge.empty() || !requests.MayRead() || !requests.TakeDue(nowMs)) return;
 	Command command;
 	command.op = Command::Op::LevelsMe;
