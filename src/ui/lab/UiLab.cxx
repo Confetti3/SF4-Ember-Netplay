@@ -8,6 +8,8 @@
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
+// --levels: fighter levels 1 to 60 on their plates at the digits' three sizes, bands on pictures and meters
+//   (all of it shows in --size 3840x2160)
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
 // --check report.txt (with --shot): appends each line cut short, text taller than its row and cards overlapping on the
 //   last frame to the report, named by the shot, and exits 2 when there is any (lab/uilab-v2-check.sh tours every screen)
@@ -15,7 +17,7 @@
 //   and writes each step there; exits when it is done, 3 when a step failed
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
 // --seats watch|none with --room: FRaccie watches table 2's game, or has no place in the Classic room
-// UiLab.exe [--size WxH] [--scale 1.25] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 // --trace trace.txt (with --shot): writes the screen and the focused row before the first key and after each one,
 //   so a walk's presses can be counted without reading the pictures
@@ -41,6 +43,7 @@
 #include <array>
 #include <cfloat>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -291,6 +294,37 @@ void Rankings(ui::ShellView& view) {
         board->push_back({{std::get<0>(p), CountryCode::Parsed(std::get<1>(p))}, static_cast<std::uint8_t>(std::get<2>(p)), std::string(std::get<0>(p)) == "FRaccie"});
     r.board.value = board; r.board.loaded = true; r.board.revision = r.board.finished = 1;
 }
+// --levels: every level on its plate (FIGHTER_LEVELS.md, The digits atlas),
+// wrapping across the window, at plates 36, 72 and 143 px tall, whose digits
+// stand at the atlas's own sizes, 20, 40 and 80 px, whatever the interface
+// scale; then a band on a picture at each frame's first level and at 60, each
+// over a meter part way with a fresh end.
+void DrawLevels() {
+    namespace v2 = ui::v2;
+    const auto* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
+    ImGui::Begin("Lab levels", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground);
+    auto* d = ImGui::GetWindowDrawList();
+    const auto& c = v2::Colors();
+    const float s = ui::Scale(), gap = std::round(8 * s), left = vp->Pos.x + 16 * s, right = vp->Pos.x + vp->Size.x - 16 * s;
+    d->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), c.panel);
+    ImVec2 at(left, vp->Pos.y + 16 * s);
+    for (const float height : {36.f, 72.f, 143.f}) {
+        for (int level = 1; level <= 60; ++level) {
+            if (at.x + v2::LevelWidth(level, height) > right) at = ImVec2(left, at.y + height + gap);
+            at.x += v2::Level(d, at, height, level) + gap;
+        }
+        at = ImVec2(left, at.y + height + 2 * gap);
+    }
+    const float tile = std::round(96 * s), bar = std::round(8 * s);
+    for (int i = 0; i < 6; ++i) {
+        const ImVec2 min(left + i * (tile + gap), at.y), max(min.x + tile, min.y + tile);
+        ui::DrawCharacterPortrait(i * 7, min, max, c.frame);
+        v2::LevelBand(d, {min, max}, i < 5 ? 1 + 12 * i : 60);
+        v2::Meter(d, {ImVec2(min.x, max.y + gap), ImVec2(max.x, max.y + gap + bar)}, .2f * i + .1f, .08f);
+    }
+    ImGui::End();
+}
 }
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
@@ -310,7 +344,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     int pictureMode = 0;  // --picture 0|1|2: the watched game's picture Small, Big or Off
     std::string hidePanes;  // --hide members|chat|both: the room board's panels hidden
     int hud = -1;
-    bool trainingPanel = false, update = false, publicLab = false, rankings = false, playback = false, caption = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
+    bool trainingPanel = false, update = false, publicLab = false, rankings = false, playback = false, caption = false, toasts = false, levels = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
     // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
@@ -330,6 +364,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--training") trainingPanel = true;
         else if (args[i] == "--public") publicLab = true;
         else if (args[i] == "--rankings") rankings = true;
+        else if (args[i] == "--levels") levels = true;
         else if (args[i] == "--playback") playback = true;
         else if (args[i] == "--caption") caption = true;
         else if (args[i] == "--screen" && more) screen = args[++i];
@@ -549,6 +584,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             ui::DrawExportCaption(shown);
             // After the caption: a window that never comes to the front is put behind those made before it.
             DrawLabBackdrop();
+        } else if (levels) {
+            DrawLevels();
         } else if (hud >= 0) {
             // A fight's HUD: the art stands in for the game behind it.
             DrawLabBackdrop();

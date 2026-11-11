@@ -214,6 +214,26 @@ extern const Award Awards[11];
 const Award* FindAward(const std::string& id);
 const char* TierName(Tier tier);
 
+// A fighter's level (FIGHTER_LEVELS.md, PLAYER_CARD.md), in Ember's own brush
+// digits: drawn from the digits' art, or while that has not loaded the heading
+// font's digits in ivory, on the same ground and frame. Each part draws
+// nothing for level 0 (not played). Speech and the text probe read the words a
+// caller puts beside it ("Level 42"), never the number drawn. LevelMark.cxx.
+// The frame's tier: Ash 1 to 12, Copper 13 to 24, Silver 25 to 36, Gold 37 to
+// 48, Ember from 49; None for 0.
+Tier LevelTier(int level);
+// The number on dark ground in a plate `height` tall with its top left at `at`,
+// framed in its tier's stripe colour, at least as wide as it is tall. Returns
+// its width, which LevelWidth gives without drawing.
+float Level(ImDrawList* draw, ImVec2 at, float height, int level);
+float LevelWidth(int level, float height);
+// Over a fighter's picture `tile`: a dark band across its foot with the number
+// centred in it, and the picture's edge in the tier's stripe colour.
+void LevelBand(ImDrawList* draw, Box tile, int level);
+// A progress bar on the frame's ground: `part` of it (0 to 1) in the accent,
+// and the last `fresh` of that part (the same measure) in the light accent.
+void Meter(ImDrawList* draw, Box box, float part, float fresh);
+
 // The player tag: flag · rank · name · title · indicators, always in that
 // order. Space short: status goes first, then the title; flag, rank, name and
 // ping always stay. L is the profile card: the main's portrait beside the

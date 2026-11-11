@@ -179,6 +179,7 @@ sf4e_add_unit_test(NAME WineBuiltin SOURCES src/tests/wine_builtin_test.cxx STD 
 sf4e_add_unit_test(NAME Win32Cursor SOURCES src/tests/win32_cursor_test.cxx LIBS sf4e_ui LABELS ui)
 sf4e_add_unit_test(NAME CountryPicker SOURCES src/tests/country_picker_test.cxx LIBS sf4e_ui TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME V2Layout SOURCES src/tests/v2_layout_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME LevelMark SOURCES src/tests/level_mark_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME AppearanceGrid SOURCES src/tests/appearance_grid_test.cxx TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME MenuSpeech SOURCES src/tests/menu_speech_test.cxx LIBS sf4e_localization STD 17 LABELS ui)
 sf4e_add_unit_test(NAME SpeechLinux SOURCES src/tests/speech_linux_test.cxx STD 17)
@@ -191,6 +192,10 @@ if(Python3_Interpreter_FOUND)
     # The frame data the phone remote shows: its shape and numbers that cannot be right (docs/guides/FRAME_DATA.md).
     add_test(NAME FrameData COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/scripts/framedata/validate.py" "${CMAKE_SOURCE_DIR}/assets/framedata/usf4.json")
     sf4e_test_labels(LABELS training TESTS FrameData)
+    # The level digits' atlas and header against a new render (scripts/level-digits); skipped without Pillow.
+    add_test(NAME LevelDigits COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/scripts/level-digits/check_level_digits.py")
+    set_tests_properties(LevelDigits PROPERTIES TIMEOUT 60 SKIP_RETURN_CODE 77)
+    sf4e_test_labels(LABELS ui TESTS LevelDigits)
 endif()
 target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
 # The UI lab (src/ui/lab/UiLab.cxx): the shell in a window of its own, for working on layouts.
