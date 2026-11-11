@@ -858,7 +858,7 @@ mod tests {
         // status is offline.
         assert!(matches!(
             serde_json::from_value::<FriendPresence>(json!({"state": "offline", "status": "idle"})),
-            Ok(FriendPresence::Offline {})
+            Ok(FriendPresence::Offline { .. })
         ));
         let private_with_room = FriendPresence::Room {
             status: RoomStatus::Idle,
