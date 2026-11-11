@@ -255,66 +255,66 @@ void StartHelper() {
         spdlog::warn("Session trace could not be opened (error {}); lifecycle states will count as dropped", GetLastError());
 	runtime->displayName = GetConfig().displayName;
 	if (runtime->displayName.empty()) runtime->displayName = "Player";
-	runtime->preferences.displayName = runtime->displayName;
+	auto& preferences = runtime->EditPreferences();
+	preferences.displayName = runtime->displayName;
     nlohmann::json saved; std::string settingsError;
     netplay::SettingsStore store(netplay::SettingsStore::DefaultDirectory());
     if (store.LoadLauncher(saved, settingsError)) {
-        if(saved.contains("onlineRecord")&&!netplay::ReadProfileRecord(saved["onlineRecord"],runtime->preferences.record))
+        if(saved.contains("onlineRecord")&&!netplay::ReadProfileRecord(saved["onlineRecord"],preferences.record))
             runtime->error=loc::T("runtime.record_invalid");
         // The delay and Auto load from settings here, never from the
         // launcher's config copy of the delay (InputDelayPreference.hxx).
-        netplay::ReadInputDelayPreference(saved,runtime->preferences);
+        netplay::ReadInputDelayPreference(saved,preferences);
         try {
-            netplay::ReadBoolPreferences(saved, runtime->preferences);
-            runtime->preferences.buttonPrompts = netplay::ReadButtonPrompts(saved);
-            runtime->preferences.controllerMappings = netplay::ReadControllerMappings(saved);
-            runtime->preferences.buttonLayouts = gamepads::ReadLayouts(saved, [](unsigned, gamepads::LayoutLoadError) {});
+            netplay::ReadBoolPreferences(saved, preferences);
+            preferences.buttonPrompts = netplay::ReadButtonPrompts(saved);
+            preferences.controllerMappings = netplay::ReadControllerMappings(saved);
+            preferences.buttonLayouts = gamepads::ReadLayouts(saved, [](unsigned, gamepads::LayoutLoadError) {});
             const int hudSize = saved.value("matchHudSize", 1);
-            runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
+            preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;
-            runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= netplay::MaxMatchHudAnchor ? hudAnchor : 0;
+            preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= netplay::MaxMatchHudAnchor ? hudAnchor : 0;
             const int pictureSpot = saved.contains("pictureSpot") && saved["pictureSpot"].is_number_integer() ? saved["pictureSpot"].get<int>() : 0;
-            runtime->preferences.pictureSpot = pictureSpot >= 0 && pictureSpot <= 11 ? pictureSpot : 0;
+            preferences.pictureSpot = pictureSpot >= 0 && pictureSpot <= 11 ? pictureSpot : 0;
             // Before pictureMode there was the bool watchedPicture, off by default: everyone starts on Small now.
             const int pictureMode = saved.contains("pictureMode") && saved["pictureMode"].is_number_integer() ? saved["pictureMode"].get<int>() : netplay::PictureSmall;
-            runtime->preferences.pictureMode = pictureMode >= netplay::PictureSmall && pictureMode <= netplay::PictureOff ? pictureMode : netplay::PictureSmall;
+            preferences.pictureMode = pictureMode >= netplay::PictureSmall && pictureMode <= netplay::PictureOff ? pictureMode : netplay::PictureSmall;
             const auto text = [&](const char* key) { return saved.contains(key) && saved[key].is_string() ? saved[key].get<std::string>() : std::string(); };
-            runtime->preferences.wornTitle = text("wornTitle"); runtime->preferences.wornIcon = text("wornIcon");
-            for (int part = 0; part < netplay::GameThemePartCount; ++part) runtime->preferences.gameThemes[part] = text(netplay::GameThemeKeys[part]);
+            preferences.wornTitle = text("wornTitle"); preferences.wornIcon = text("wornIcon");
+            for (int part = 0; part < netplay::GameThemePartCount; ++part) preferences.gameThemes[part] = text(netplay::GameThemeKeys[part]);
             const auto percent = [&](const char* key, int fallback) { return saved.contains(key) && saved[key].is_number_integer() ? saved[key].get<int>() : fallback; };
             const int roomColumn = percent("roomColumn", netplay::DefaultRoomColumn), roomSplit = percent("roomSplit", netplay::DefaultRoomSplit);
-            runtime->preferences.roomColumn = roomColumn >= netplay::MinRoomColumn && roomColumn <= netplay::MaxRoomColumn ? roomColumn : netplay::DefaultRoomColumn;
-            runtime->preferences.roomSplit = roomSplit >= netplay::MinRoomSplit && roomSplit <= netplay::MaxRoomSplit ? roomSplit : netplay::DefaultRoomSplit;
+            preferences.roomColumn = roomColumn >= netplay::MinRoomColumn && roomColumn <= netplay::MaxRoomColumn ? roomColumn : netplay::DefaultRoomColumn;
+            preferences.roomSplit = roomSplit >= netplay::MinRoomSplit && roomSplit <= netplay::MaxRoomSplit ? roomSplit : netplay::DefaultRoomSplit;
             const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
-            runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
-            runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
-            runtime->preferences.country = netplay::ReadCountryPreference(saved);
+            preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
+            preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
+            preferences.country = netplay::ReadCountryPreference(saved);
             const auto since = saved.find("shareReplaysSince");
-            runtime->preferences.shareReplaysSince = since != saved.end() && since->is_number_unsigned() ? since->get<std::uint64_t>() : 0;
-            runtime->preferences.speech = netplay::ReadSpeechPreferences(saved);
-            runtime->preferences.roomFilter = netplay::ReadRoomFilter(saved);
+            preferences.shareReplaysSince = since != saved.end() && since->is_number_unsigned() ? since->get<std::uint64_t>() : 0;
+            preferences.speech = netplay::ReadSpeechPreferences(saved);
+            preferences.roomFilter = netplay::ReadRoomFilter(saved);
             const int volume = saved.value("readySoundVolume", 100);
-            runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
+            preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
-            runtime->preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
+            preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);
-            runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
+            preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
     {
         // Sharing covers games saved since it came on: on with no cutoff (the
         // default-on first run, or older settings) starts it now, saved here
         // since the preferences writer starts later, so no older game is sent.
-        auto& preferences = runtime->preferences;
         const auto loaded = preferences.shareReplaysSince;
         preferences.shareReplaysSince = netplay::ShareReplaysSince(preferences.shareReplays, loaded, static_cast<std::uint64_t>(_time64(nullptr)));
         if (preferences.shareReplaysSince != loaded && !store.SaveLauncher({{"shareReplaysSince", preferences.shareReplaysSince}}, settingsError))
             spdlog::warn("Replays: when sharing came on could not be saved: {}", settingsError);
     }
     // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.
-    if (!saved.contains("inputDelay")) runtime->preferences.welcomed = false;
-    MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
-    GameThemes::Use(runtime->preferences.gameThemes);
+    if (!saved.contains("inputDelay")) preferences.welcomed = false;
+    MenuMusic::Use(preferences.endlessLobbyMusic);
+    GameThemes::Use(preferences.gameThemes);
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
     runtime->hostPublicRoom = EnvFlag("SF4E_HOST_PUBLIC_ROOM");
     {
@@ -369,10 +369,10 @@ void StartHelper() {
         if (length && length < std::size(text)) runtime->replayLinkAsked = platform::ResolveReplayFile(platform::WideToUtf8(std::wstring(text, length)));
         if (!runtime->replayLinks.Open()) spdlog::warn("Replays: replay links cannot reach this game");
     }
-	runtime->preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
-	runtime->preferences.lobby.roundCount = GetConfig().roundCount;
-	runtime->preferences.lobby.roundTime = GetConfig().roundTimeIntegral;
-	if (!runtime->preferences.lobby.Valid()) runtime->preferences.lobby = {};
+	preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
+	preferences.lobby.roundCount = GetConfig().roundCount;
+	preferences.lobby.roundTime = GetConfig().roundTimeIntegral;
+	if (!preferences.lobby.Valid()) preferences.lobby = {};
 	{
 		nlohmann::json saved;
 		std::string error;
@@ -382,7 +382,7 @@ void StartHelper() {
 			spdlog::warn("Settings could not be loaded: {}", error);
 			runtime->error = loc::T("runtime.settings_unreadable");
 		}
-		else if (!netplay::ReadRoomPreferences(saved, runtime->preferences))
+		else if (!netplay::ReadRoomPreferences(saved, preferences))
 			runtime->error = loc::T("runtime.room_defaults_invalid");
 	}
 	if (pendingBootstrap.helperPid) {

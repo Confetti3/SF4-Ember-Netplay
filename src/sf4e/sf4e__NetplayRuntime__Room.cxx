@@ -432,7 +432,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
         // UI drafts cannot replace the game-thread-owned match record or sharing cutoff.
         command.preferences=netplay::AcceptedPreferences(runtime->preferences,std::move(command.preferences),static_cast<std::uint64_t>(_time64(nullptr)));
 		if (OverlayPrefs::SavePlayerPreferences(command.preferences)) {
-			runtime->preferences = command.preferences;
+			runtime->EditPreferences() = command.preferences;
             Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
 			MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
 			GameThemes::Use(runtime->preferences.gameThemes);
@@ -452,7 +452,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 	case netplay::Effect::HostRoom:
 	case netplay::Effect::JoinInvite: {
 		if (decision.effect == netplay::Effect::HostRoom) {
-			runtime->preferences = netplay::AcceptedPreferences(runtime->preferences, command.preferences, static_cast<std::uint64_t>(_time64(nullptr)));
+			runtime->EditPreferences() = netplay::AcceptedPreferences(runtime->preferences, command.preferences, static_cast<std::uint64_t>(_time64(nullptr)));
 			if (!OverlayPrefs::SavePlayerPreferences(runtime->preferences))
 				runtime->error = loc::T("runtime.room_defaults_save_failed");
 		}
@@ -524,10 +524,10 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
         if(!automatic) {
             if(selected<MinimumInputDelay || selected>MaximumInputDelay) break;
             runtime->selectedDelay=selected;
-            runtime->preferences.inputDelay=selected;
+            runtime->EditPreferences().inputDelay=selected;
         }
         // A chosen number turns Auto off; choosing Auto keeps the number saved.
-        runtime->preferences.autoInputDelay=automatic;
+        runtime->EditPreferences().autoInputDelay=automatic;
         if(automatic) runtime->autoDelayCheck.Want(GetTickCount64());
         UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
         if(!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error=loc::T("runtime.delay_save_failed");
@@ -944,7 +944,7 @@ void ConfirmLobbySettings() {
 		netplay::LobbySettings current;
 		current.editionSelect = lobby.editionSelect; current.roundCount = lobby.roundCount; current.roundTime = lobby.roundTime.integral;
 		if (current == *runtime->pendingLobbySettings) {
-			runtime->preferences.lobby = current;
+			runtime->EditPreferences().lobby = current;
 			if (!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error = loc::T("runtime.lobby_defaults_save_failed");
 			runtime->pendingLobbySettings.reset();
 		} else if (GetTickCount64() >= runtime->lobbySettingsDeadline) {

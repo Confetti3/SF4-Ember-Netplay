@@ -34,6 +34,7 @@
 #include "../netplay/AutoDelayCheck.hxx"
 #include "../netplay/CreatedRules.hxx"
 #include "../netplay/BoundedMailbox.hxx"
+#include "../netplay/Revisioned.hxx"
 #include "../netplay/MatchResultOutbox.hxx"
 #include "../netplay/MatchEndRules.hxx"
 #include "../netplay/ParkedIntent.hxx"
@@ -405,7 +406,12 @@ struct Runtime {
 	ULONGLONG errorShownAtMs = 0;
 	std::unique_ptr<netplay::LobbySettings> pendingLobbySettings;
 	ULONGLONG lobbySettingsDeadline = 0;
-	netplay::PlayerPreferences preferences;
+	// Read as `preferences`; changed only through EditPreferences(), which moves
+	// the revision that PublishFingerprint compares, so no writer can leave a
+	// throttled fight showing old settings.
+	netplay::Revisioned<netplay::PlayerPreferences> preferencesStore;
+	const netplay::PlayerPreferences& preferences = preferencesStore.Get();
+	netplay::PlayerPreferences& EditPreferences() { return preferencesStore.Edit(); }
 	netplay::SessionController controller;
 	// Shared with the bridge (sf4e__RuntimeBridge), which producers on other
 	// threads push through; StopHelper closes it before this object goes.

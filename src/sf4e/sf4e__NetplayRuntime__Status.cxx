@@ -364,13 +364,7 @@ std::uint64_t PublishFingerprint() {
     { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); mix(call.serial); }
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
-    for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
-    mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
-    mix(runtime->preferences.autoDelayStyle); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.shareReplaysSince); mix(runtime->preferences.pictureSpot); mix(runtime->preferences.pictureMode); mix(runtime->preferences.roomColumn); mix(runtime->preferences.roomSplit);
-    mixString(runtime->preferences.wornTitle); mixString(runtime->preferences.wornIcon); for (const auto& theme : runtime->preferences.gameThemes) mixString(theme);
-    { const auto& speech = runtime->preferences.speech; mix(speech.enabled); mix(speech.rate); mix(speech.volume); mix(speech.details); mix(speech.hints); mix(speech.position); mix(speech.chime); mix(speech.chimeVolume);
-      mix(speech.introHeard); mix(speech.tick); mix(speech.describeUsed); mix(speech.remind); }
-    { const auto& filter = runtime->preferences.roomFilter; mix(static_cast<std::uint64_t>(filter.scope)); mixString(filter.region); mix(static_cast<std::uint64_t>(filter.type)); mix(filter.openSeats); mix(filter.wiredOnly); }
+    mix(runtime->preferencesStore.Revision());
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
     mix(AtMainMenu());

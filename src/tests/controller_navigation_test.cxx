@@ -11,6 +11,7 @@
 #include "../training/TrainingSession.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/PublishCadence.hxx"
+#include "../netplay/Revisioned.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "imgui_test_support.hxx"
 #include <imgui.h>
@@ -361,6 +362,26 @@ void PracticeFightPresses(){
    "A press between scheduled publications was lost or held over a fight the menu is shown over");
   else Check(publications==3,"A fight without menu navigation was no longer throttled");
  }
+}
+// What the throttled fight republishes on for the preferences: one revision,
+// moved by every Edit() and by nothing else, so a field the match HUD reads
+// cannot be missed by a hand-written list.
+void PreferencesRevisionCounts(){
+ struct Settings{int size=1;bool hud=true;};
+ sf4e::netplay::Revisioned<Settings> settings;
+ const auto& read=settings.Get();
+ Check(settings.Revision()==0&&read.size==1,"A new preferences cell was not at revision 0 with its defaults");
+ settings.Edit().size=2;
+ Check(settings.Revision()==1&&read.size==2,"An edit did not move the revision or show through the reference");
+ const std::uint64_t before=settings.Revision();
+ Check(read.hud&&settings.Revision()==before,"Reading moved the revision");
+ settings.Edit()=Settings{};settings.Edit().hud=false;
+ Check(settings.Revision()==before+2&&!read.hud,"Each edit was not counted once");
+ // The throttle publishes a fight again when the revision moved, and not before.
+ sf4e::netplay::PublishCadence cadence;unsigned publications=0;
+ const auto due=[&]{if(cadence.Due(false,[&]{return settings.Revision();}))++publications;};
+ due();due();settings.Edit().size=3;due();due();
+ Check(publications==1,"A preferences edit was not published, or an unchanged revision was");
 }
 // The pad in offline Training: Back tapped resets, held saves, and Start
 // pressed while Back is held opens the controls or closes them. None of the
@@ -958,5 +979,5 @@ void ProfileRecords(){
 void DialogContract();
 void HintPresses();
 void DialogRepeat();
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();PreferencesRevisionCounts();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
