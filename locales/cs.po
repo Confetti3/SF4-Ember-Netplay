@@ -725,7 +725,10 @@ msgid "home.profile"
 msgstr "Profil"
 
 msgid "home.profile_detail"
-msgstr "Vaše jméno, hlavní postava a místní potvrzená bilance online."
+msgstr "Vaše karta, bojovníci, přátelé a ocenění."
+
+msgid "home.profile_requests"
+msgstr "Žádosti: {0}"
 
 msgid "home.settings"
 msgstr "Nastavení"
@@ -1078,11 +1081,47 @@ msgstr "Karta"
 msgid "profile.tab.fighters"
 msgstr "Bojovníci"
 
+msgid "profile.tab.friends"
+msgstr "Přátelé"
+
+msgid "friends.tab_count"
+msgstr "Přátelé · {0}"
+
+msgid "friends.coming"
+msgstr "Přátelé přijdou v této verzi."
+
 msgid "card.edit"
 msgstr "Upravit kartu"
 
 msgid "card.class"
 msgstr "Třída"
+
+msgid "card.account"
+msgstr "Účet"
+
+msgid "card.progress"
+msgstr "POSTUP"
+
+msgid "card.top_fighters"
+msgstr "NEJLEPŠÍ BOJOVNÍCI"
+
+msgid "card.choose_main"
+msgstr "Vybrat hlavního"
+
+msgid "card.edit_detail"
+msgstr "Vaše jméno, vlajka, hlavní, titul a ikona."
+
+msgid "card.title_row"
+msgstr "Titul"
+
+msgid "card.icon_row"
+msgstr "Ikona"
+
+msgid "card.none"
+msgstr "Žádný"
+
+msgid "card.award_detail"
+msgstr "Otevře Ocenění. Vyberte tam získané ocenění, abyste ho nosili."
 
 msgid "points.label"
 msgstr "FP"
@@ -1164,6 +1203,12 @@ msgstr "Načítání vašich bodů."
 
 msgid "level.none"
 msgstr "Odehrajte veřejný hodnocený zápas a začněte získávat body."
+
+msgid "level.not_played"
+msgstr "Zatím nehráno"
+
+msgid "level.unreachable"
+msgstr "Službu se nepodařilo zastihnout. Vaše body se zobrazí, až odpoví."
 
 msgid "card.counted_games"
 msgstr "Hodnocené zápasy"

@@ -725,7 +725,10 @@ msgid "home.profile"
 msgstr "Profil"
 
 msgid "home.profile_detail"
-msgstr "Twoja nazwa, główna postać i potwierdzony lokalnie bilans walk online."
+msgstr "Twoja karta, wojownicy, znajomi i wyróżnienia."
+
+msgid "home.profile_requests"
+msgstr "Zaproszenia: {0}"
 
 msgid "home.settings"
 msgstr "Ustawienia"
@@ -1078,11 +1081,47 @@ msgstr "Karta"
 msgid "profile.tab.fighters"
 msgstr "Wojownicy"
 
+msgid "profile.tab.friends"
+msgstr "Znajomi"
+
+msgid "friends.tab_count"
+msgstr "Znajomi · {0}"
+
+msgid "friends.coming"
+msgstr "Znajomi pojawią się w tej wersji."
+
 msgid "card.edit"
 msgstr "Edytuj kartę"
 
 msgid "card.class"
 msgstr "Klasa"
+
+msgid "card.account"
+msgstr "Konto"
+
+msgid "card.progress"
+msgstr "POSTĘP"
+
+msgid "card.top_fighters"
+msgstr "NAJLEPSI WOJOWNICY"
+
+msgid "card.choose_main"
+msgstr "Wybierz głównego"
+
+msgid "card.edit_detail"
+msgstr "Twoja nazwa, flaga, główny, tytuł i ikona."
+
+msgid "card.title_row"
+msgstr "Tytuł"
+
+msgid "card.icon_row"
+msgstr "Ikona"
+
+msgid "card.none"
+msgstr "Brak"
+
+msgid "card.award_detail"
+msgstr "Otwiera Wyróżnienia. Wybierz tam zdobyte wyróżnienie, aby je nosić."
 
 msgid "points.label"
 msgstr "FP"
@@ -1164,6 +1203,12 @@ msgstr "Wczytywanie twoich punktów."
 
 msgid "level.none"
 msgstr "Zagraj w publiczną grę rankingową, aby zacząć zdobywać punkty."
+
+msgid "level.not_played"
+msgstr "Jeszcze nie grano"
+
+msgid "level.unreachable"
+msgstr "Nie udało się połączyć z usługą. Twoje punkty pojawią się, gdy odpowie."
 
 msgid "card.counted_games"
 msgstr "Gry rankingowe"
