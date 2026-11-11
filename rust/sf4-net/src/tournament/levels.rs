@@ -132,7 +132,7 @@ mod tests {
                     .await
                     .unwrap_err()
                     .as_str()
-                    .to_owned()
+                    .into_owned()
             }
         };
         assert_eq!(refused(vec![]).await, "invalid_request");
