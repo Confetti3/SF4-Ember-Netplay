@@ -12,6 +12,7 @@
 #include "../ui/RecoveryMenu.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "imgui_test_support.hxx"
+#include "shell_action_support.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <algorithm>
@@ -23,8 +24,9 @@
 #include <set>
 #include <stdexcept>
 using namespace sf4e::ui;
+using namespace sf4e::test;
+namespace commands=sf4e::commands;
 using Button=ControllerSample;
-using Kind=sf4e::netplay::CommandKind;
 namespace {
 void Check(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
 // The fighter drawn right of `fighter` in USFIV's select order, which is where Right goes.

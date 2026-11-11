@@ -205,8 +205,8 @@ void LinkJourney(){
  Check(tickets(j)==1&&lastTicketIs(j,OtherBridge,LinkRoom),"A room link did not ask its service for its room's ticket");
  Check(j.status==loc::T("room.joining_status")&&j.joins()==0,"A room link joined before its admission arrived");
  j.Admit("",LinkRoom);
- Check(j.joins()==1&&h.actions.back().command.invitation=="sf4e3:host-invitation"&&!h.actions.back().publicTicket.empty()&&
-  h.actions.back().command.generation==h.view.session.generation,"The admission of a linked room did not join with its invitation and ticket");
+ Check(j.joins()==1&&Is<commands::JoinRoom>(h.actions.back(),[&](const commands::JoinRoom& join){return join.invitation=="sf4e3:host-invitation"&&!join.publicTicket.empty()&&
+  join.generation==h.view.session.generation;}),"The admission of a linked room did not join with its invitation and ticket");
  h.Frame(0,5);Check(j.joins()==1&&tickets(j)==1,"A room link was followed twice");
  // The list on screen is the link's service's, not the selected one's.
  const auto listed=[&]{for(const auto* r:j.requests())if(r->op==Op::RoomList)return r->bridgeId;return std::string();};
@@ -344,7 +344,7 @@ void PasteJourney(){
  Clipboard(std::string("ember://room/open?room=")+LinkRoom+"&bridge="+LinkBridge);
  h.Choose("pr-paste");h.Frame(0,2);
  Check(tickets(j)==2&&lastTicketIs(j,LinkBridge,LinkRoom),"The pasted ember: link did not ask for its room");
- j.Admit();Check(j.joins()==1&&h.actions.back().command.invitation=="sf4e3:host-invitation","The pasted link's admission did not join");
+ j.Admit();Check(j.joins()==1&&Is<commands::JoinRoom>(h.actions.back(),[](const commands::JoinRoom& join){return join.invitation=="sf4e3:host-invitation";}),"The pasted link's admission did not join");
  // An untrusted service, pasted: said, and nothing asked.
  h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);
  Clipboard(std::string("ember://room/open?bridge=")+OtherBridge+"&room="+LinkRoom);
@@ -363,7 +363,7 @@ void JoinPasteJourney(){
  const auto sent=h.actions.size();
  h.Choose("join-now");h.Frame(0,2);
  Check(h.shell.Navigation().Screen()=="public-rooms","A room link in Join did not open Public rooms");
- bool invited=false;for(std::size_t i=sent;i<h.actions.size();++i)invited=invited||h.actions[i].command.kind==Kind::JoinInvite;
+ bool invited=false;for(std::size_t i=sent;i<h.actions.size();++i)invited=invited||Is<commands::JoinRoom>(h.actions[i]);
  Check(!invited,"A room link in Join was sent as an invitation");
  j.answerIdentityUntilIdle();
  Check(tickets(j)==1&&lastTicketIs(j,LinkBridge,LinkRoom),"A room link in Join did not ask for its room");

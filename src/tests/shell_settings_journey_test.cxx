@@ -51,7 +51,7 @@ void Drag(Harness& h, ImVec2 from, float dx, float dy) {
 }
 void Click(Harness& h, ImVec2 at) { Drag(h, at, 0, 0); }
 std::size_t RoomSaves(const Harness& h, std::size_t from) {
- return static_cast<std::size_t>(std::count_if(h.actions.begin() + static_cast<std::ptrdiff_t>(from), h.actions.end(), [](const ShellAction& a) { return a.roomSettings; }));
+ return static_cast<std::size_t>(std::count_if(h.actions.begin() + static_cast<std::ptrdiff_t>(from), h.actions.end(), [](const ShellAction& a) { return Is<commands::RoomSettings>(a); }));
 }
 // A room this player has joined, healthy, with its own member.
 void InRoom(Harness& h, std::uint64_t epoch) {
@@ -97,7 +97,7 @@ void RoomSettingsFollowOneRule() {
  h.Press(MenuInput::Right); h.Wait(1); h.Frame();
  const std::string stepped = drawn.Value("arrange-column");
  Check(stepped != column && RoomSaves(h, second) == 1, "Right on Room layout's column did not change and save it after the fight");
- h.view.preferences = h.actions.back().preferences; h.Frame();
+ h.view.preferences = std::get<commands::RoomSettings>(h.actions.back()).preferences; h.Frame();
  const auto third = h.actions.size();
  Drag(h, drawn.Centre("##room-column"), -120, 0); h.Wait(1); h.Frame();
  Check(drawn.Value("arrange-column") != stepped && RoomSaves(h, third) == 1, "The picture's grip did not drag and save the column after the fight");
@@ -126,7 +126,7 @@ void RetrySaveOnPanelScreens() {
   Check(drawn.Shown("retry-save") && drawn.Open("retry-save"), ("Retry saving was not drawn, or not open," + where).c_str());
   const auto mark = h.actions.size();
   h.Press(MenuInput::Select); h.Frame();
-  const bool saved = std::any_of(h.actions.begin() + static_cast<std::ptrdiff_t>(mark), h.actions.end(), [](const ShellAction& a) { return a.command.kind == Kind::SavePreferences; });
+  const bool saved = std::any_of(h.actions.begin() + static_cast<std::ptrdiff_t>(mark), h.actions.end(), [](const ShellAction& a) { return Is<commands::SavePreferences>(a); });
   Check(saved && h.shell.Navigation().Screen() == screen, ("Retry saving did not retry the save" + where).c_str());
  }
  // A room's own settings: their save failed, the retry is open in the room and goes out as the room's request.
@@ -144,7 +144,7 @@ void RetrySaveOnPanelScreens() {
  Check(reach(h), "Down from the panel's rows did not return to Retry saving");
  const auto mark = h.actions.size();
  h.Press(MenuInput::Select); h.Frame();
- Check(RoomSaves(h, mark) == 1 && h.actions.back().preferences.roomColumn == netplay::DefaultRoomColumn + netplay::RoomColumnStep,
+ Check(RoomSaves(h, mark) == 1 && Is<commands::RoomSettings>(h.actions.back(), [](const commands::RoomSettings& s) { return s.preferences.roomColumn == netplay::DefaultRoomColumn + netplay::RoomColumnStep; }),
   "Retry saving did not send the room setting again in the room's own request");
 }
 
@@ -186,14 +186,15 @@ void SaveWhileHidden() {
  h.Press(MenuInput::Select);
  Check(h.actions.size() == mark && h.shell.Navigation().Screen() == "main-character", "The main was saved before Ember hid");
  hidden(1); hidden(1.f / 60);
- const auto sent = std::find_if(h.actions.begin() + static_cast<std::ptrdiff_t>(mark), h.actions.end(), [](const ShellAction& a) { return a.command.kind == Kind::SavePreferences; });
- Check(sent != h.actions.end() && sent->preferences.mainFighter == main, "A setting left unsaved was not saved while Ember was hidden");
+ const auto sent = std::find_if(h.actions.begin() + static_cast<std::ptrdiff_t>(mark), h.actions.end(), [](const ShellAction& a) { return Is<commands::SavePreferences>(a); });
+ const auto* save = sent != h.actions.end() ? As<commands::SavePreferences>(*sent) : nullptr;
+ Check(save && save->preferences.mainFighter == main, "A setting left unsaved was not saved while Ember was hidden");
  Check(h.shell.Navigation().Screen() == "main-character", "The main-character screen closed before the save was acknowledged");
- h.view.preferences = sent->preferences; hidden(1.f / 60);
+ h.view.preferences = save->preferences; hidden(1.f / 60);
  Check(h.shell.Navigation().Screen() == "profile", "The save's acknowledgment was not taken while Ember was hidden");
  const auto after = h.actions.size();
  h.Frame(0, 40);
- Check(std::none_of(h.actions.begin() + static_cast<std::ptrdiff_t>(after), h.actions.end(), [](const ShellAction& a) { return a.command.kind == Kind::SavePreferences; }),
+ Check(std::none_of(h.actions.begin() + static_cast<std::ptrdiff_t>(after), h.actions.end(), [](const ShellAction& a) { return Is<commands::SavePreferences>(a); }),
   "The save went out again once Ember showed");
 }
 }

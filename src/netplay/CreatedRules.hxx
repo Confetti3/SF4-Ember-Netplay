@@ -40,10 +40,11 @@ public:
     // A SetRules with no answer by then is sent again.
     static constexpr std::uint64_t RetryMs = 1500;
 
-    // `tableCount`: how many tables an Arcade type plays at.
-    void Start(const TableSetup& setup, std::uint64_t nowMs, room::RoomType type = room::RoomType::Classic, bool wiredOnly = false, std::uint8_t tableCount = room::TableCount) {
+    // `charter`: the room as it was created; its type, its Wired players only
+    // rule and how many tables an Arcade type plays at are what is set here.
+    void Start(const TableSetup& setup, std::uint64_t nowMs, const room::Charter& charter = room::Charter()) {
         *this = CreatedRules();
-        active_ = true; setup_ = setup; type_ = type; wiredOnly_ = wiredOnly; tableCount_ = tableCount; armedAtMs_ = nowMs;
+        active_ = true; setup_ = setup; type_ = charter.type; wiredOnly_ = charter.wiredOnly; tableCount_ = charter.tableCount; armedAtMs_ = nowMs;
     }
     void Cancel(const char* why) { if (active_) { active_ = false; ended_ = why; } }
     bool Active() const { return active_; }

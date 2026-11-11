@@ -11,9 +11,7 @@
 namespace sf4e { namespace selftest {
 namespace {
 
-using NetplayFacade::RuntimeCommand;
-using netplay::CommandKind;
-using online::Command;
+using online::Generation;
 using online::Now;
 
 // Done: the outcome is written (Finish).
@@ -25,8 +23,9 @@ struct Room : Steps<Stage> {
 
 bool Host() { return Requested() == Test::RoomHost; }
 
-RuntimeCommand Action(room::ActionKind kind) {
-	RuntimeCommand request = Command(CommandKind::RoomAction);
+commands::RoomAction Action(room::ActionKind kind) {
+	commands::RoomAction request;
+	request.generation = Generation();
 	const auto& room = Now()->Room();
 	request.roomAction.kind = kind; request.roomAction.table = 0;
 	request.roomAction.roomEpoch = room.roomEpoch; request.roomAction.revision = room.revision;
@@ -54,10 +53,9 @@ void TickRoom() {
 	switch (run.stage) {
 	case Stage::Setup: {
 		if (!online::SetupReady(run, *now)) break;
-		RuntimeCommand request = Command(Host() ? CommandKind::HostRoom : CommandKind::SavePreferences);
-		request.preferences = online::TestPreferences(*now, Host());
-		request.displayName = request.preferences.displayName;
-		NetplayFacade::SubmitRuntimeCommand(std::move(request));
+		auto preferences = online::TestPreferences(*now, Host());
+		if (Host()) { commands::HostRoom host; host.generation = Generation(); host.preferences = std::move(preferences); NetplayFacade::SubmitRuntimeCommand(std::move(host)); }
+		else NetplayFacade::SubmitRuntimeCommand(commands::SavePreferences{Generation(), std::move(preferences)});
 		run.Enter(Host() ? Stage::Opening : Stage::Join);
 		break;
 	}
@@ -66,8 +64,8 @@ void TickRoom() {
 		if (now->preferences.displayName != online::TestPreferences(*now, Host()).displayName) { if (run.Late(10)) run.Fail("room", "the guest's settings were not taken"); break; }
 		const std::string invitation = online::ReadLine(run.inviteFile);
 		if (invitation.empty()) { if (run.Late(180)) run.Fail("room", "no invitation arrived from the host"); break; }
-		RuntimeCommand request = Command(CommandKind::JoinInvite);
-		request.command.invitation = invitation;
+		commands::JoinRoom request;
+		request.generation = Generation(); request.invitation = invitation;
 		NetplayFacade::SubmitRuntimeCommand(std::move(request));
 		run.Enter(Stage::Opening);
 		break;
@@ -84,7 +82,7 @@ void TickRoom() {
 	case Stage::Seat:
 		// The host takes Player 1's seat at the first table, the guest Player 2's.
 		if (now->localSlot == seat) { Say(true, "seat", "Player " + std::to_string(seat + 1)); run.Enter(Stage::Ready); break; }
-		if (run.Every(3)) { RuntimeCommand request = Action(room::ActionKind::Queue); request.roomAction.seat = static_cast<std::int8_t>(seat); NetplayFacade::SubmitRuntimeCommand(std::move(request)); }
+		if (run.Every(3)) { auto request = Action(room::ActionKind::Queue); request.roomAction.seat = static_cast<std::int8_t>(seat); NetplayFacade::SubmitRuntimeCommand(std::move(request)); }
 		if (run.Late(30)) run.Fail("seat", now->helperError.empty() ? "never taken" : now->helperError, Stage::Leaving);
 		break;
 	case Stage::Ready: {
@@ -106,7 +104,7 @@ void TickRoom() {
 		break;
 	case Stage::Leaving:
 		if (now->session.room == netplay::RoomState::Idle) { Say(true, "left the room"); run.Enter(Stage::Done); Finish(); break; }
-		if (run.Every(3)) NetplayFacade::SubmitRuntimeCommand(Command(CommandKind::LeaveRoom));
+		if (run.Every(3)) NetplayFacade::SubmitRuntimeCommand(commands::LeaveRoom{Generation()});
 		if (run.Late(30)) run.Fail("leave", "the room never let go");
 		break;
 	case Stage::Done:

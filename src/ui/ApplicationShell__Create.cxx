@@ -80,7 +80,16 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
   preferences_.roomTemplates.erase(preferences_.roomTemplates.begin()+createTemplate_);
   createTemplate_=-1;createTables_.reset();preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
  }
- else if(a.id=="host")Send(CommandKind::HostRoom,v,submit);
+ else if(a.id=="host"){
+  commands::HostRoom host;host.generation=v.session.generation;host.preferences=PreferencesToSend();
+  host.charter.type=createType_;host.charter.practice=createPractice_;host.charter.delayPolicy=preferences_.roomDelayPolicy;
+  host.charter.tableCount=static_cast<std::uint8_t>(CreateTableCount());host.charter.wiredOnly=preferences_.roomWiredOnly;
+  // Opened from a template: the runtime sets its tables once the room is up.
+  if(createTables_)host.createdRules=CreateTables(preferences_.tableRules);
+  // A room opened here is not the public one the panel joined.
+  publicRooms_.ForgetCurrent();
+  Send(std::move(host),submit);
+ }
 }
 // Create's own choice, never one of the saved preferences.
 bool ApplicationShell::CreateAdjust(const MenuAction& a) {

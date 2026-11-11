@@ -121,9 +121,11 @@ void SendPermitReady(const Output& output) {
 }
 
 // A room command the runtime would not carry out leaves the state machine
-// waiting out its open timeout; the log says why the room never came.
-void RoomCommand(netplay::Command command, const char* what, JoinKind join = JoinKind::Private) {
-	const auto outcome = DispatchTournamentRoomCommand(std::move(command), join);
+// waiting out its open timeout; the log says why the room never came. It is
+// made for the controller's generation now.
+template <typename Room> void RoomCommand(Room command, const char* what) {
+	command.generation = runtime->controller.GetSnapshot().generation;
+	const auto outcome = DispatchTournamentRoomCommand(std::move(command));
 	if (outcome == netplay::DispatchOutcome::Dispatched) spdlog::info("Tournament: {}", what);
 	else spdlog::warn("Tournament: {} not started (outcome {})", what, static_cast<int>(outcome));
 }
@@ -137,17 +139,22 @@ void Execute(const Output& output, std::uint64_t nowMs) {
 	case Output::Kind::Forget:
 		SendRequest(output, nowMs);
 		break;
-	case Output::Kind::Host:
-		RoomCommand({netplay::CommandKind::HostRoom, {}, {}}, "opening the match's room");
+	case Output::Kind::Host: {
+		// A Classic room, with the player's own preferences saved as it opens.
+		commands::HostRoom host; host.preferences = runtime->preferences;
+		RoomCommand(std::move(host), "opening the match's room");
 		break;
-	case Output::Kind::Join:
-		RoomCommand({netplay::CommandKind::JoinInvite, {}, output.invitation}, "joining the match's room");
+	}
+	case Output::Kind::Join: {
+		commands::JoinRoom join; join.invitation = output.invitation;
+		RoomCommand(std::move(join), "joining the match's room");
 		break;
+	}
 	case Output::Kind::Leave: {
 		// Not in a room, or already leaving it (the player left by hand).
 		const auto room = runtime->controller.GetSnapshot().room;
 		if (room == netplay::RoomState::Idle || room == netplay::RoomState::Closing) break;
-		RoomCommand({netplay::CommandKind::LeaveRoom, {}, {}}, "leaving the room");
+		RoomCommand(commands::LeaveRoom{}, "leaving the room");
 		break;
 	}
 	case Output::Kind::Bind:
@@ -167,13 +174,15 @@ void ExecuteWatch(const WatchOutput& output, std::uint64_t nowMs) {
 	case WatchOutput::Kind::Unwatch:
 		SendWatchRequest(output, nowMs);
 		break;
-	case WatchOutput::Kind::Join:
-		RoomCommand({netplay::CommandKind::JoinInvite, {}, output.invitation}, "joining the match's room as a watcher", JoinKind::Observer);
+	case WatchOutput::Kind::Join: {
+		commands::JoinRoom join; join.invitation = output.invitation; join.join = JoinKind::Observer;
+		RoomCommand(std::move(join), "joining the match's room as a watcher");
 		break;
+	}
 	case WatchOutput::Kind::Leave: {
 		const auto room = runtime->controller.GetSnapshot().room;
 		if (room == netplay::RoomState::Idle || room == netplay::RoomState::Closing) break;
-		RoomCommand({netplay::CommandKind::LeaveRoom, {}, {}}, "leaving the watched room");
+		RoomCommand(commands::LeaveRoom{}, "leaving the watched room");
 		break;
 	}
 	}

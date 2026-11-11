@@ -1,6 +1,10 @@
 #include "shell_journey_support.hxx"
 #include "../ui/ControllersScreen.hxx"
 namespace {
+// A controller request carrying the setup wizard's `command`.
+bool SetupCommandIs(const ShellAction& action, sf4e::gamepads::SetupCommand command) {
+    return Is<commands::Pad>(action, [&](const commands::Pad& pad) { return pad.padAction.command == command; });
+}
 // The summary's Select and Back are the newly recorded LK and MK, and its
 // hint bar's glyphs name them, while the stick's installed menu buttons (buttons 3 and
 // 2: its record is unknown, so the game's generic default) do nothing until
@@ -47,7 +51,7 @@ void GameplayTargetSummary() {
     tick(0, {*setup.recorded[LkStep]});
     Check(h.actions.size() == before, "New LK selected before release");
     tick(0);
-    Check(h.actions.size() == before + 1 && h.actions.back().padAction.command == SetupCommand::Save, "New LK did not select Save on release");
+    Check(h.actions.size() == before + 1 && SetupCommandIs(h.actions.back(), SetupCommand::Save), "New LK did not select Save on release");
     // Keyboard input has its own path while the target owns controller navigation.
     ImGui::GetIO().AddKeyEvent(ImGuiKey_DownArrow, true); tick(0);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_DownArrow, false); tick(0);
@@ -90,11 +94,11 @@ void SetupJourneys() {
     pad.identity = {"prompt-guid", "", "prompt-path", pad.name}; pad.state = RowState::Unmapped;
     h.view.pads = {pad}; h.Frame();
     h.view.pads[0].raw = {{RawKind::Button, 0}}; h.view.pads[0].pressed = true; h.Frame();
-    Check(h.actions.back().padAction.kind == ControllerRequest::Kind::Prompt, "First press did not show automatic setup prompt");
+    Check(PadIs(h.actions.back(), ControllerRequest::Kind::Prompt), "First press did not show automatic setup prompt");
     Check(ImGui::GetTopMostPopupModal(), "Automatic setup prompt did not own the menu");
     h.Frame(0, 3); Check(h.shell.Navigation().Screen() == "home", "Triggering press opened setup without a release");
     h.Press(MenuInput::Back);
-    Check(h.actions.back().padAction.kind == ControllerRequest::Kind::DeclinePrompt, "Prompt Back did not decline");
+    Check(PadIs(h.actions.back(), ControllerRequest::Kind::DeclinePrompt), "Prompt Back did not decline");
     const auto declined = h.actions.size();
     h.view.pads[0].pressed = false; h.view.pads[0].raw.clear(); h.Frame();
     h.view.pads[0].pressed = true; h.view.pads[0].raw = {{RawKind::Button, 0}}; h.Frame();
@@ -104,7 +108,7 @@ void SetupJourneys() {
     h.view.pads[0].pressed = true; h.view.pads[0].raw = {{RawKind::Button, 0}}; h.Frame();
     h.view.pads[0].pressed = false; h.view.pads[0].raw.clear(); h.Frame();
     h.view.pads[0].pressed = true; h.view.pads[0].raw = {{RawKind::Button, 0}}; h.Frame();
-    Check(h.shell.Navigation().Screen() == "pad-setup" && h.actions.back().padAction.kind == ControllerRequest::Kind::Setup,
+    Check(h.shell.Navigation().Screen() == "pad-setup" && PadIs(h.actions.back(), ControllerRequest::Kind::Setup),
         "Prompt did not open setup after release and the next press");
     h.view.padSetup.padId = 10; h.view.padSetup.identity = pad.identity;
     auto& state = h.view.padSetup.state; state.active = true; h.Frame();
@@ -116,7 +120,7 @@ void SetupJourneys() {
     Check(h.shell.Navigation().Focus() == "cancel" && h.shell.Navigation().Confirming(), "Summary MK did not open cancel confirmation");
     state.summaryInput.up = state.summaryInput.down = false; h.Frame(); h.Press(MenuInput::Back);
     Check(!h.shell.Navigation().Confirming() && h.shell.Navigation().Screen() == "pad-setup", "Summary confirmation Back left setup");
-    h.Choose("save"); Check(h.actions.back().padAction.command == SetupCommand::Save, "Summary Save did not submit save");
+    h.Choose("save"); Check(SetupCommandIs(h.actions.back(), SetupCommand::Save), "Summary Save did not submit save");
     state.active = false; h.view.padSetup.outcome = SetupEnd::Saved; ++h.view.padSetup.revision;
     h.view.pads[0].state = RowState::Recognised; h.view.pads[0].slot = 0; h.view.pads[0].customMapping = true; h.Frame();
     Check(h.shell.Navigation().Screen() == "controllers" && h.shell.Navigation().Focus() == "pad-10", "Save did not focus the controller on Controllers");
@@ -128,7 +132,7 @@ void SetupJourneys() {
     state.summaryInput.action = SetupMenuAction::Back; ++state.summaryInput.sequence; h.Frame();
     Check(h.shell.Navigation().Confirming(), "Cancel confirmation did not open before hiding");
     h.shell.Background(h.view, h.view.room, [&](ShellAction action) { h.actions.push_back(std::move(action)); return true; });
-    Check(h.actions.back().padAction.command == SetupCommand::LeftMenu && !h.shell.NoticeOpen(), "Hidden wizard did not cancel silently");
+    Check(SetupCommandIs(h.actions.back(), SetupCommand::LeftMenu) && !h.shell.NoticeOpen(), "Hidden wizard did not cancel silently");
     h.shell.ShowPlay(); h.shell.ShowPlay(); h.Frame();
     Check(h.shell.Navigation().Screen() == "controllers", "Reopening lost the silent cancel destination");
 }
@@ -142,11 +146,11 @@ static void GamePressPrompt() {
     pad.identity = {"held-guid", "", "held-path", pad.name}; pad.state = RowState::Unmapped; pad.directInputIndex = 4;
     h.view.pads = {pad}; h.Frame();
     h.view.pads[0].pressed = true; h.Frame();
-    Check(h.actions.back().padAction.kind == ControllerRequest::Kind::Prompt, "A press read by the game did not prompt setup");
+    Check(PadIs(h.actions.back(), ControllerRequest::Kind::Prompt), "A press read by the game did not prompt setup");
     h.Frame(0, 3); Check(h.shell.Navigation().Screen() == "home", "The prompting press opened setup without a release");
     h.view.pads[0].pressed = false; h.Frame();
     h.view.pads[0].pressed = true; h.Frame();
-    Check(h.shell.Navigation().Screen() == "pad-setup" && h.actions.back().padAction.kind == ControllerRequest::Kind::Setup,
+    Check(h.shell.Navigation().Screen() == "pad-setup" && PadIs(h.actions.back(), ControllerRequest::Kind::Setup),
         "A release and press read by the game did not open setup");
 }
 static void ControllerSettingsJourney() {
@@ -162,7 +166,7 @@ static void ControllerSettingsJourney() {
         Check(h.shell.Navigation().Screen() == "pad-setup", "Setup did not open wizard");
         h.view.padSetup.state.active = true; h.Frame();
         ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, true); h.Frame();
-        Check(h.actions.back().padAction.command == SetupCommand::Escape, "Capture Esc did not cancel");
+        Check(SetupCommandIs(h.actions.back(), SetupCommand::Escape), "Capture Esc did not cancel");
         ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, false);
         h.view.padSetup.state.active = false; h.view.padSetup.outcome = SetupEnd::Escape; ++h.view.padSetup.revision; h.Frame();
         Check(h.shell.Navigation().Screen() == "controllers", "Wizard cancel did not return to Controllers");
@@ -180,18 +184,18 @@ static void ControllerSettingsJourney() {
     Check(h.shell.Navigation().Choosing(), "Controller choice did not open");
     const auto count = h.actions.size(); h.Press(MenuInput::Select);
     Check(!h.shell.Navigation().Choosing() && h.actions.size() == count + 1, "Play did not submit once");
-    Check(h.actions.back().padAction.kind == ControllerRequest::Kind::Play && h.actions.back().padAction.id == 7, "Play did not name the selected pad");
+    Check(Is<commands::Pad>(h.actions.back(), [](const commands::Pad& pad) { return pad.padAction.kind == ControllerRequest::Kind::Play && pad.padAction.id == 7; }), "Play did not name the selected pad");
     h.view.pads[0].gameplay = true; h.Frame();
     Check(!row("pad-7").choices[0].enabled && row("pad-7").choices[0].detail == loc::T("controllers.choice_play_current"), "Current pad play rule is wrong");
     h.Choose("pad-7"); h.Press(MenuInput::Right); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
-    Check(h.actions.back().padAction.kind == ControllerRequest::Kind::Setup, "Setup choice did not use the shared entry point");
+    Check(PadIs(h.actions.back(), ControllerRequest::Kind::Setup), "Setup choice did not use the shared entry point");
     cancelSetup();
     h.view.pads[0].gameplay = false; h.view.canChangeController = h.view.canEditPreferences = false; h.Frame();
     Check(!row("pad-7").choices[0].enabled && row("pad-7").choices[0].detail == loc::T("settings.leave_room_to_edit"), "Room did not lock Play");
     Check(!row("pad-7").choices[2].enabled, "Room did not lock Setup");
     h.view.canChangeController = h.view.canEditPreferences = true;
     h.view.pads[0].state = RowState::Unmapped; h.Frame(); h.Choose("pad-7");
-    Check(h.actions.back().padAction.kind == ControllerRequest::Kind::Setup, "Unmapped row did not use the shared setup entry point");
+    Check(PadIs(h.actions.back(), ControllerRequest::Kind::Setup), "Unmapped row did not use the shared setup entry point");
     cancelSetup();
     h.view.pads[0].state = RowState::Recognised; h.view.pads[0].customMapping = true; h.Frame();
     Check(row("pad-7").choices.size() == 4 && row("pad-7").choices[3].id == "forget", "Saved mapping did not offer Forget");
@@ -206,13 +210,13 @@ static void ControllerSettingsJourney() {
     Check(row("game-reads-pads").value == "On" && row("game-reads-pads").detail.find(loc::T("player.game_reads_pending")) != std::string::npos, "Opt-out did not show On and pending");
     Check(h.actions.size() == before, "Opt-out bypassed normal autosave");
     h.Frame(0, 45);
-    Check(h.actions.back().command.kind == Kind::SavePreferences && !h.actions.back().preferences.controllerLayer, "Opt-out did not autosave the inverse layer setting");
-    h.view.preferences = h.actions.back().preferences; h.Frame();
+    Check(Is<commands::SavePreferences>(h.actions.back(), [](const commands::SavePreferences& s) { return !s.preferences.controllerLayer; }), "Opt-out did not autosave the inverse layer setting");
+    h.view.preferences = std::get<commands::SavePreferences>(h.actions.back()).preferences; h.Frame();
     Check(row("game-reads-pads").detail.find(loc::T("player.game_reads_pending")) != std::string::npos, "Saved opt-out lost pending before restart");
     h.Press(MenuInput::Left); h.Frame(0, 45);
-    Check(h.actions.back().preferences.controllerLayer && row("game-reads-pads").value == "Off", "Left did not restore the layer setting");
+    Check(Is<commands::SavePreferences>(h.actions.back(), [](const commands::SavePreferences& s) { return s.preferences.controllerLayer; }) && row("game-reads-pads").value == "Off", "Left did not restore the layer setting");
     Check(row("game-reads-pads").detail.find(loc::T("player.game_reads_pending")) == std::string::npos, "Returning to running mode left pending text");
-    h.view.preferences = h.actions.back().preferences; h.Frame();
+    h.view.preferences = std::get<commands::SavePreferences>(h.actions.back()).preferences; h.Frame();
     h.view.canEditPreferences = false; h.Frame();
     Check(!row("game-reads-pads").enabled && row("game-reads-pads").detail == loc::T("settings.leave_room_to_edit"), "Locked opt-out has the wrong detail");
     const auto locked = h.actions.size(); h.Press(MenuInput::Right); h.Frame(0, 45);

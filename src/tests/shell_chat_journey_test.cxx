@@ -7,6 +7,10 @@
 #include <cmath>
 
 namespace {
+// A room chat message saying `text`.
+bool ChatSaid(const ShellAction& action,const std::string& text){
+ return Is<sf4e::commands::RoomAction>(action,[&](const sf4e::commands::RoomAction& sent){return sent.roomAction.kind==sf4e::room::ActionKind::Chat&&sent.roomAction.text==text;});
+}
 // A joined room of three members (1 is this player) the chat journeys draw.
 void JoinChatRoom(Harness& h,std::uint64_t epoch){
  using namespace sf4e;
@@ -261,8 +265,7 @@ void ChatJourneys(){
  h.Press(MenuInput::Select);Check(h.shell.Navigation().Editing(),"Select on the empty message box did not open the keyboard");
  io.AddInputCharactersUTF8("gg");h.Frame(0,2);
  {const auto before=h.actions.size();key(ImGuiKey_Enter);
-  Check(!h.shell.Navigation().Editing()&&h.actions.size()==before+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&
-   h.actions.back().roomAction.text=="gg","The message written on the keyboard was not sent");}
+  Check(!h.shell.Navigation().Editing()&&h.actions.size()==before+1&&ChatSaid(h.actions.back(),"gg"),"The message written on the keyboard was not sent");}
  say(1,"gg");h.Frame(0,2);
  Check(h.shell.Navigation().Screen()=="room-chat"&&row("compose").value.empty(),"The keyboard's message stayed in the draft after the room had it");
  io.AddInputCharactersUTF8("fct ");h.Frame(0,2);key(ImGuiKey_F);key(ImGuiKey_Space);
@@ -284,7 +287,7 @@ void ChatJourneys(){
  io.AddInputCharactersUTF8("llo");h.Frame(0,2);
  auto sent=h.actions.size();
  key(ImGuiKey_Enter);
- Check(h.actions.size()==sent+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="fct Hello",
+ Check(h.actions.size()==sent+1&&ChatSaid(h.actions.back(),"fct Hello"),
   "Enter did not send the draft");
  key(ImGuiKey_Enter);
  Check(h.actions.size()==sent+1,"Enter sent the same text twice while it was on its way");
@@ -301,7 +304,7 @@ void ChatJourneys(){
  h.Wait(9);h.Frame();
  Check(row("compose").value=="Try again"&&row("compose").enabled,"A message the room never took lost its draft");
  key(ImGuiKey_KeypadEnter);
- Check(h.actions.size()==sent+2&&h.actions.back().roomAction.text=="Try again","A refused message could not be sent again, or the numpad's Enter does not send");
+ Check(h.actions.size()==sent+2&&ChatSaid(h.actions.back(),"Try again"),"A refused message could not be sent again, or the numpad's Enter does not send");
  // A connection that is lost leaves the box and the draft alone. Enter holds the message and it goes out once, when the room is back.
  h.Wait(9);h.Frame();
  h.view.session.control=netplay::Health::Lost;h.Frame(0,2);
@@ -309,7 +312,7 @@ void ChatJourneys(){
  sent=h.actions.size();key(ImGuiKey_Enter);
  Check(h.actions.size()==sent&&!row("compose").enabled,"A message was sent into a lost connection, or Enter did not hold it");
  h.view.session.control=netplay::Health::Healthy;h.Frame(0,5);
- Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Try again","A held message did not go out when the connection came back");
+ Check(h.actions.size()==sent+1&&ChatSaid(h.actions.back(),"Try again"),"A held message did not go out when the connection came back");
  h.Frame(0,5);Check(h.actions.size()==sent+1&&row("compose").value=="Try again","A held message went out twice, or its draft left before the room had it");
  // The draft is the player's own for the room they are in: another room starts empty.
  JoinChatRoom(h,21);h.Frame(0,3);
@@ -424,7 +427,7 @@ void ChatJourneys(){
  sent=h.actions.size();key(ImGuiKey_Enter);key(ImGuiKey_Enter);
  Check(h.actions.size()==sent&&!row("compose").enabled&&row("compose").value==drafted,"A message was sent while the room was fenced, or was not held");
  flip();h.Frame(0,3);
- Check(h.actions.size()==sent+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text==drafted,
+ Check(h.actions.size()==sent+1&&ChatSaid(h.actions.back(),drafted),
   "A held message did not go out when the room could take it");
  for(int i=0;i<6;++i){flip();h.Frame();}
  Check(h.actions.size()==sent+1,"A held message went out again as the fence flipped");
@@ -445,11 +448,11 @@ void ChatJourneys(){
  Check(row("compose").value=="Too late!","The draft was not left to edit while a message was held");
  Check(!row("compose").enabled,"Send stayed offered while a message was held");
  h.view.session.authorityWritable=true;h.Frame(0,4);
- Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Too late","The held message was replaced by the edited draft, or not sent");
+ Check(h.actions.size()==sent+1&&ChatSaid(h.actions.back(),"Too late"),"The held message was replaced by the edited draft, or not sent");
  say(1,"Too late");h.Frame(0,2);
  Check(row("compose").value=="Too late!"&&row("compose").enabled,"The held message's arrival took the edited draft, or the edited draft could not be sent");
  key(ImGuiKey_Enter);
- Check(h.actions.size()==sent+2&&h.actions.back().roomAction.text=="Too late!","The edited draft was not sent after the held message");
+ Check(h.actions.size()==sent+2&&ChatSaid(h.actions.back(),"Too late!"),"The edited draft was not sent after the held message");
  say(1,"Too late!");h.Frame(0,2);
  // A retry held while the original is still on its way does not repeat it when the original turns up.
  io.AddInputCharactersUTF8("Retry me");h.Frame(0,2);
@@ -472,7 +475,7 @@ void ChatJourneys(){
  hidden(3,1.f/60);h.view.session.authorityWritable=true;hidden(3,1.f/60);
  Check(h.actions.size()==sent,"A held message was sent from a frame that could not see the room");
  h.Frame(0,3);
- Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Away A","A message held while Ember was hidden was lost, or the edited draft went instead");
+ Check(h.actions.size()==sent+1&&ChatSaid(h.actions.back(),"Away A"),"A message held while Ember was hidden was lost, or the edited draft went instead");
  h.Frame(0,5);Check(h.actions.size()==sent+1&&row("compose").value=="Away A B","A message held while Ember was hidden went out twice, or touched the draft");
  say(1,"Away A");h.Frame(0,2);
  // A submission the runtime refuses leaves the message held; it is tried again later and goes out once.
@@ -481,17 +484,17 @@ void ChatJourneys(){
  io.AddInputCharactersUTF8("!");h.Frame(0,2);
  Check(row("compose").value=="Away A B!"&&!row("compose").enabled,"The refusal fixture did not hold the message with an edited draft");
  sent=h.actions.size();h.accept=false;h.view.session.authorityWritable=true;h.Frame();
- Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Away A B"&&!row("compose").enabled,"A refused submission dropped the held message");
+ Check(h.actions.size()==sent+1&&ChatSaid(h.actions.back(),"Away A B")&&!row("compose").enabled,"A refused submission dropped the held message");
  h.Frame(0,5);
  Check(h.actions.size()==sent+1,"A refused submission was tried again at once");
  // It stays held through more refusals than any limit would allow, each retry a little later than the last.
  for(int refusal=2;refusal<=7;++refusal){
   h.Wait(5.5f);h.Frame();
-  Check(h.actions.size()==sent+refusal&&h.actions.back().roomAction.text=="Away A B"&&!row("compose").enabled&&row("compose").value=="Away A B!",
+  Check(h.actions.size()==sent+refusal&&ChatSaid(h.actions.back(),"Away A B")&&!row("compose").enabled&&row("compose").value=="Away A B!",
    "A message was given up after repeated refusals, or the edited draft went instead");
  }
  h.accept=true;h.Wait(5.5f);h.Frame(0,2);
- Check(h.actions.size()==sent+8&&h.actions.back().roomAction.text=="Away A B","A refused submission was not sent once the runtime took submissions again");
+ Check(h.actions.size()==sent+8&&ChatSaid(h.actions.back(),"Away A B"),"A refused submission was not sent once the runtime took submissions again");
  h.Frame(0,5);Check(h.actions.size()==sent+8&&row("compose").value=="Away A B!","The retried message went out twice, or touched the draft");
  say(1,"Away A B");h.Frame(0,2);
  // After a long fence the hint holds through short writable gaps, as the status line does.
@@ -538,7 +541,7 @@ void ChatJourneys(){
  h.Screen("room-chat");h.Frame(0,3);
  io.AddInputCharactersUTF8("Nice read");h.Frame(0,2);
  sent=h.actions.size();key(ImGuiKey_Enter);
- Check(h.actions.size()==sent+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Nice read",
+ Check(h.actions.size()==sent+1&&ChatSaid(h.actions.back(),"Nice read"),
   "A spectator's message during the game it watches was not sent");
  h.view.watchedGame={};h.view.session.match=netplay::MatchState::None;
  // Who else is typing: one line above the box, never the player or a muted member, and the box stays where it is.
@@ -574,7 +577,7 @@ void ChatJourneys(){
  h.Screen("room-chat");h.Frame(0,3);io.AddInputCharactersUTF8("?");h.Frame(0,2);
  Check(h.shell.ChatTyping(),"Typing on return did not count");
  key(ImGuiKey_Enter);
- Check(h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="brb!?"&&!h.shell.ChatTyping(),
+ Check(ChatSaid(h.actions.back(),"brb!?")&&!h.shell.ChatTyping(),
   "A sent draft still counted as typing");
  SetMenuEntriesProbe({});
 }

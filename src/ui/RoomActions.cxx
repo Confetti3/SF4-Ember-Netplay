@@ -124,19 +124,15 @@ void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
  if(a.delta==MenuInput::Fighter){selectionFresh_=true;selectionOpenOn_=RoomSelectionStart(v.room);}
  nav.Home();nav.Push("room");nav.Push(target);
 }
-void ApplicationShell::StepPick(const ShellView& v,ShellAction::SelectionStep step,const Submit& submit) {
- ShellAction request;request.command.generation=v.session.generation;request.selectionStep=step;submit(std::move(request));
-}
+void ApplicationShell::StepPick(SelectionStep step,const Submit& submit) { submit(step); }
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {
  using namespace room;auto& nav=menu_.navigation;
- const auto sendDelay=[&](netplay::CommandKind kind,int selected){
-  if(!RoomActionsAvailable(v) || v.delayLocked ||
-     (kind==netplay::CommandKind::CheckConnection && (!v.canProbe || v.probeStatus=="checking"))) {
+ // Check connection, and a delay to apply (check false).
+ const auto sendDelay=[&](ShellAction request,bool check){
+  if(!RoomActionsAvailable(v) || v.delayLocked || (check && (!v.canProbe || v.probeStatus=="checking"))) {
    Refuse(RoomWaitReason(v),[](const ShellView& now){return !RoomActionsAvailable(now)||now.delayLocked;});return false;
   }
-  ShellAction request;request.command.kind=kind;request.command.generation=v.session.generation;request.selectedDelay=selected;
-  if(!submit(std::move(request))){error_=loc::T("error.queue_failed");return false;}
-  error_.clear();return true;
+  return Send(std::move(request),submit);
  };
  // Typed text first: a text row's id can share a keyed row's prefix ("table-name"
  // beside "table-0"), so a commit never reaches the numeric rows below (EMBER-68).
@@ -255,20 +251,19 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    if(!link.empty()){ImGui::SetClipboardText(link.c_str());error_.clear();ShowNotice(loc::T("public.link_copied"),Tone::Success,ImGui::GetTime()+3);}
    return;
   }
-  if(a.id=="replace-room"){ShellAction request;request.command.kind=netplay::CommandKind::ReplaceRoom;request.command.generation=v.session.generation;
-   if(!submit(std::move(request)))error_=loc::T("error.queue_failed");
-   else{error_.clear();
+  if(a.id=="replace-room"){
+   if(Send(commands::ReplaceRoom{v.session.generation},submit)){
     // The old invitation dies with the old room epoch. Say so while the row is
     // still on screen, rather than letting friends fail to rejoin silently.
     // This is a caution, not a success.
     notice_=loc::T("room.replacement_opening");
     noticeTone_=Tone::Pending;noticeUntil_=ImGui::GetTime()+8;}
    return;}
-  if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
+  if(a.id=="check-connection"){sendDelay(commands::CheckConnection{v.session.generation},true);return;}
   if(a.id=="input-delay"){
    // Select takes the recommendation; Left and Right choose a delay, or Auto before the smallest.
    const int selected=a.kind==MenuAction::Adjust?StepInputDelay(v.preferences.autoInputDelay,v.selectedDelay,a.delta):-1;
-   sendDelay(netplay::CommandKind::ApplyDelay,selected);return;
+   sendDelay(commands::ApplyDelay{v.session.generation,selected},false);return;
   }
   if(a.id=="ultra"||a.id=="room-ultra"||a.id=="appearance"){
    // Select shows the Ultra or costume cards (a costume goes on to its
@@ -277,7 +272,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    const bool ultra=a.id!="appearance";
    if(a.kind==MenuAction::Adjust){
     if(v.canEditSelection&&RoomActionsAvailable(v))
-     StepPick(v,{ultra?ShellAction::SelectionStep::Field::Ultra:ShellAction::SelectionStep::Field::Color,a.delta},submit);
+     StepPick({ultra?SelectionStep::Field::Ultra:SelectionStep::Field::Color,a.delta},submit);
    }else if(SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=ultra?SelectionStart::Ultras:SelectionStart::Costumes;nav.Push("selection");}
    return;
   }
@@ -285,18 +280,17 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    if(a.kind==MenuAction::Activate&&SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=a.id=="stage"?SelectionStart::Stage:SelectionStart::Options;nav.Push("selection");}
    return;
   }
- if(a.id=="leave"){Send(netplay::CommandKind::LeaveRoom,v,submit);return;}
+ if(a.id=="leave"){SendLeave(v,submit);return;}
  if(a.id=="room-training"){
   // No room command: the runtime sends the game on, if the room still allows it, while the room stays as it is.
-  ShellAction training;training.command.generation=v.session.generation;training.training=TrainingEntry::Room;
-  if(!v.canTrain||!submit(std::move(training)))error_=loc::T("room.training.unavailable");
+  if(!v.canTrain||!submit(commands::Training{v.session.generation,TrainingEntry::Room}))error_=loc::T("room.training.unavailable");
   return;
  }
  if(a.id=="steam-profile"){
   // The runtime opens Steam's overlay on the profile when it is up, and the browser page otherwise.
   const auto* m=room::FindMember(v.room,selectedMember_);
   if(!m||!m->steamId.Present()){error_=loc::T("room.member_left.detail");return;}
-  ShellAction open;open.command.generation=v.session.generation;
+  commands::Service open;open.generation=v.session.generation;
   open.service=platform::ServiceAction::OpenSteamProfile;open.steamProfile=m->steamId;
   if(!submit(std::move(open)))error_=loc::T("error.queue_failed");else error_.clear();
   return;

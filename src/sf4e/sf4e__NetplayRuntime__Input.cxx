@@ -338,10 +338,10 @@ bool BindRuntimeInput(int localSlot) {
 // place (rematch::GoesOnInPlace).
 static bool ParkedRematchChangesPick() {
     const auto* parked=runtime->readyIntent.Parked();
-    const auto* press=parked?std::get_if<commands::Room>(parked):nullptr;
+    const auto* press=parked?std::get_if<commands::Ready>(parked):nullptr;
     const int side=runtime->matchBinding.matchInputSide;
     if(!press||!UserApp::netplay||side<0||side>1)return false;
-    return !rematch::GoesOnInPlace(selection::FromNative(UserApp::netplay->client._matchData.chara[side]),selection::FromNative(press->character));
+    return !rematch::GoesOnInPlace(selection::FromNative(UserApp::netplay->client._matchData.chara[side]),press->pick);
 }
 
 bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {

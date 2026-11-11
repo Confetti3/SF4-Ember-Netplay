@@ -9,6 +9,7 @@
 #include "../ui/Theme.hxx"
 #include "../ui/V2.hxx"
 #include "imgui_test_support.hxx"
+#include "shell_action_support.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <algorithm>
@@ -312,29 +313,29 @@ int main() try {
     Check(row("check-connection").enabled && row("input-delay").opens && row("input-delay").hint == "Apply recommendation",
         "Delay actions were not available");
     focus("check-connection"); press(MenuInput::Select);
-    Check(actions.back().command.kind == netplay::CommandKind::CheckConnection && actions.back().selectedDelay == -1,
+    Check(test::Is<commands::CheckConnection>(actions.back()),
         "Check connection did not use its command seam");
     focus("input-delay"); press(MenuInput::Select);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == -1,
+    Check(test::Is<commands::ApplyDelay>(actions.back(), [](const commands::ApplyDelay& apply) { return apply.selectedDelay == -1; }),
         "Select on Input delay did not request the measured value");
     press(MenuInput::Right);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 3,
+    Check(test::Is<commands::ApplyDelay>(actions.back(), [](const commands::ApplyDelay& apply) { return apply.selectedDelay == 3; }),
         "Manual delay did not submit the bounded value");
     // 0 frames can be chosen: Left from 1 chooses 0, the row shows it and
     // says what it needs, and Right from 0 steps back to 1.
     view.selectedDelay = 1; frame(); press(MenuInput::Left);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 0,
+    Check(test::Is<commands::ApplyDelay>(actions.back(), [](const commands::ApplyDelay& apply) { return apply.selectedDelay == 0; }),
         "Left from one frame did not choose 0 frames");
     view.selectedDelay = 0; frame();
     Check(row("input-delay").value == "0 frames" && row("input-delay").detail.find(loc::Tf("room.selected_delay.detail", MinimumInputDelay, MaximumInputDelay)) != std::string::npos &&
         row("input-delay").detail.find("from 0 to 5 frames") != std::string::npos,
         "Input delay did not show 0 frames and what it needs");
     press(MenuInput::Right);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
+    Check(test::Is<commands::ApplyDelay>(actions.back(), [](const commands::ApplyDelay& apply) { return apply.selectedDelay == 1; }),
         "Right from 0 frames did not choose one frame");
     // The choice stops at MaximumInputDelay; a larger delay a room still holds shows as that.
     view.selectedDelay = MaximumInputDelay; frame(); press(MenuInput::Right);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == MaximumInputDelay,
+    Check(test::Is<commands::ApplyDelay>(actions.back(), [](const commands::ApplyDelay& apply) { return apply.selectedDelay == MaximumInputDelay; }),
         "Right at the largest delay did not stay there");
     view.selectedDelay = InputDelayWireCeiling; frame();
     Check(row("input-delay").value == "5 frames",
@@ -344,7 +345,7 @@ int main() try {
     // once the opponent is measured, the delay it resolves to; Select no longer
     // takes the recommendation, and Right returns to 0 frames.
     press(MenuInput::Left);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == AutoInputDelayChoice,
+    Check(test::Is<commands::ApplyDelay>(actions.back(), [](const commands::ApplyDelay& apply) { return apply.selectedDelay == AutoInputDelayChoice; }),
         "Left from 0 frames did not choose Auto");
     view.preferences.autoInputDelay = true; view.selectedDelay = 2; frame();
     Check(row("input-delay").value == "Auto", "Auto showed a delay before measuring the opponent");
@@ -354,7 +355,7 @@ int main() try {
         row("input-delay").detail.find("Match: At least 3 frames") != std::string::npos,
         "Auto did not show its delay and bounds, or still offered the recommendation");
     press(MenuInput::Right);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 0,
+    Check(test::Is<commands::ApplyDelay>(actions.back(), [](const commands::ApplyDelay& apply) { return apply.selectedDelay == 0; }),
         "Right from Auto did not choose 0 frames");
     view.preferences.autoInputDelay = false; view.autoDelayMeasured = false; view.selectedDelay = 2; frame();
     // Fighter, Ultra and Appearance sit under Ready. Left and Right step the
@@ -399,10 +400,10 @@ int main() try {
     Check(row("stage").enabled && row("stage").value == "Random" && !row("stage").adjustable,
         "P1 cannot change the stage from the table page, or it advertises stepping in place");
     focus("ultra"); press(MenuInput::Right);
-    using Field = ShellAction::SelectionStep::Field;
-    Check(actions.back().selectionStep.field == Field::Ultra && actions.back().selectionStep.delta == 1, "Right on Ultra did not step it");
+    using Field = SelectionStep::Field;
+    Check(test::Is<SelectionStep>(actions.back(), [](const SelectionStep& step) { return step.field == Field::Ultra && step.delta == 1; }), "Right on Ultra did not step it");
     focus("appearance"); press(MenuInput::Left);
-    Check(actions.back().selectionStep.field == Field::Color && actions.back().selectionStep.delta == -1, "Left on Appearance did not step the color");
+    Check(test::Is<SelectionStep>(actions.back(), [](const SelectionStep& step) { return step.field == Field::Color && step.delta == -1; }), "Left on Appearance did not step the color");
     view.ultraSteps = false; view.colorSteps = false; frame();
     Check(!row("ultra").adjustable, "A fighter with one Ultra still offers to step it");
     Check(!row("appearance").adjustable, "A costume with one color still offers to step it");
@@ -460,12 +461,12 @@ int main() try {
                 shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
             }
             focus("ultra"); const auto beforeSteps = actions.size(); press(MenuInput::Right);
-            Check(actions.size() == beforeSteps + 1 && actions.back().selectionStep.field == Field::Ultra &&
-                actions.back().selectionStep.delta == 1 && shell.Navigation().Focus() == "ultra",
+            Check(actions.size() == beforeSteps + 1 && test::Is<SelectionStep>(actions.back(), [](const SelectionStep& step) { return step.field == Field::Ultra && step.delta == 1; }) &&
+                shell.Navigation().Focus() == "ultra",
                 "Unseated Right did not step Ultra in place");
             focus("appearance"); press(MenuInput::Left);
-            Check(actions.size() == beforeSteps + 2 && actions.back().selectionStep.field == Field::Color &&
-                actions.back().selectionStep.delta == -1 && shell.Navigation().Focus() == "appearance",
+            Check(actions.size() == beforeSteps + 2 && test::Is<SelectionStep>(actions.back(), [](const SelectionStep& step) { return step.field == Field::Color && step.delta == -1; }) &&
+                shell.Navigation().Focus() == "appearance",
                 "Unseated Left did not step color in place");
             shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
             // The board opened on the first table with a free seat (Table 2); the
@@ -510,10 +511,10 @@ int main() try {
         focus("rounds"); press(MenuInput::Right); focus("time"); press(MenuInput::Left);
         Check(actions.size() == beforeRules, "Changing a rule sent it before Apply");
         focus("apply-rules"); press(MenuInput::Select);
-        Check(actions.size() == beforeRules + 1 && actions.back().roomAction.kind == room::ActionKind::SetRules &&
-            actions.back().roomAction.rules.roundCount == 5 && actions.back().roomAction.rules.roundTime == 60,
+        Check(actions.size() == beforeRules + 1 && test::Is<commands::RoomAction>(actions.back(), [](const commands::RoomAction& sent) { return sent.roomAction.kind == room::ActionKind::SetRules &&
+            sent.roomAction.rules.roundCount == 5 && sent.roomAction.rules.roundTime == 60; }),
             "Apply rules did not send the edited rounds and time");
-        view.room.tables[0].rules = actions.back().roomAction.rules; ++view.room.tables[0].revision; frame();
+        view.room.tables[0].rules = std::get<commands::RoomAction>(actions.back()).roomAction.rules; ++view.room.tables[0].revision; frame();
         Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "apply-rules"; }),
             "Apply rules stayed after the rules were applied");
         // Everyone else reads the rules on one line.
@@ -564,7 +565,7 @@ int main() try {
     focus("replace-room"); const auto beforeReplace = actions.size(); press(MenuInput::Select);
     Check(actions.size() == beforeReplace, "Replacement confirmation did not default to Cancel");
     press(MenuInput::Right); press(MenuInput::Select);
-    Check(actions.size() == beforeReplace + 1 && actions.back().command.kind == netplay::CommandKind::ReplaceRoom,
+    Check(actions.size() == beforeReplace + 1 && test::Is<commands::ReplaceRoom>(actions.back()),
         "Confirmed replacement did not submit ReplaceRoom");
 
     shell.Navigation().Home(); shell.Navigation().Push("room");
@@ -586,8 +587,9 @@ int main() try {
         view.room.members[1].steamId = SteamId::Parsed("76561200000000000"); ++view.room.revision; frame();
         Check(memberAction("member-2", "steam-profile").enabled && memberAction("member-2", "steam-profile").detail == loc::T("room.steam_profile.detail"), "A shared Steam profile was not offered");
         pickMemberAction("member-2", "steam-profile");
-        Check(actions.size() == beforeSteam + 1 && actions.back().service == platform::ServiceAction::OpenSteamProfile &&
-            actions.back().steamProfile.ToString() == "76561200000000000", "Steam profile did not ask to open that member's profile");
+        Check(actions.size() == beforeSteam + 1 && test::Is<commands::Service>(actions.back(), [](const commands::Service& service) {
+            return service.service == platform::ServiceAction::OpenSteamProfile && service.steamProfile.ToString() == "76561200000000000"; }),
+            "Steam profile did not ask to open that member's profile");
         view.room.members[1].steamId = SteamId(); ++view.room.revision; frame();
         Check(!memberAction("member-2", "steam-profile").enabled, "A profile the member took away stayed offered");
         view.room.members[1].steamId = SteamId::Parsed("76561200000000000"); ++view.room.revision; frame();
@@ -596,8 +598,8 @@ int main() try {
     const auto beforeTransfer = actions.size(); pickMemberAction("member-2", "transfer-host"); frame(); frame();
     Check(actions.size() == beforeTransfer, "Transfer host confirmation did not default to Cancel");
     press(MenuInput::Right); press(MenuInput::Select);
-    Check(actions.size() == beforeTransfer + 1 && actions.back().roomAction.kind == room::ActionKind::TransferHost &&
-        actions.back().roomAction.target == 2, "Transfer host action was not submitted");
+    Check(actions.size() == beforeTransfer + 1 && test::Is<commands::RoomAction>(actions.back(), [](const commands::RoomAction& sent) { return sent.roomAction.kind == room::ActionKind::TransferHost &&
+        sent.roomAction.target == 2; }), "Transfer host action was not submitted");
 
     // A committed terminal receipt is a room-wide eligibility fence.  The
     // snapshot carries it before any failed action, so Ready/Queue/Watch are
@@ -621,19 +623,19 @@ int main() try {
         "Terminal receipt disabled Stop watching, stranding the spectator in the finished match");
     const auto beforeUnwatch = actions.size();
     focus("unwatch"); press(MenuInput::Select);
-    Check(actions.size() == beforeUnwatch + 1 && actions.back().roomAction.kind == room::ActionKind::Unwatch,
+    Check(actions.size() == beforeUnwatch + 1 && test::RoomActionIs(actions.back(), room::ActionKind::Unwatch),
         "Stop watching did not emit one unwatch action during the terminal wait");
     // Lock-in is not admission either: the spectator still returning is who
     // it is for. It sends the wanted value, not a toggle.
     Check(row("lock-spectating").enabled && row("lock-spectating").label == "Lock in to watch",
         "Terminal receipt disabled a spectator's lock-in");
     focus("lock-spectating"); press(MenuInput::Select);
-    Check(actions.size() == beforeUnwatch + 2 && actions.back().roomAction.kind == room::ActionKind::LockSpectating &&
-        actions.back().roomAction.locked, "Lock in did not emit one locking action");
+    Check(actions.size() == beforeUnwatch + 2 && test::Is<commands::RoomAction>(actions.back(), [](const commands::RoomAction& sent) { return sent.roomAction.kind == room::ActionKind::LockSpectating &&
+        sent.roomAction.locked; }), "Lock in did not emit one locking action");
     view.room.members[0].spectatorLocked = true; ++view.room.revision; frame();
     Check(row("lock-spectating").label == "Release lock-in", "A locked-in spectator was offered Lock in again");
     press(MenuInput::Select);
-    Check(actions.size() == beforeUnwatch + 3 && !actions.back().roomAction.locked, "Release lock-in did not unlock");
+    Check(actions.size() == beforeUnwatch + 3 && test::Is<commands::RoomAction>(actions.back(), [](const commands::RoomAction& sent) { return sent.roomAction.kind == room::ActionKind::LockSpectating && !sent.roomAction.locked; }), "Release lock-in did not unlock");
     view.room.members[0].spectatorLocked = false;
     // A queued member is listed as a spectator of the game it waits out, but
     // the authority refuses it a lock-in, so the panel must not offer one.
@@ -662,8 +664,8 @@ int main() try {
         "A watcher at another table was told to leave it before queueing here");
     const auto beforeWatcherQueue = actions.size();
     focus("queue"); press(MenuInput::Select);
-    Check(actions.size() == beforeWatcherQueue + 1 && actions.back().roomAction.kind == room::ActionKind::Queue &&
-        actions.back().roomAction.table == 0, "A watcher's Queue at another table was not sent");
+    Check(actions.size() == beforeWatcherQueue + 1 && test::Is<commands::RoomAction>(actions.back(), [](const commands::RoomAction& sent) { return sent.roomAction.kind == room::ActionKind::Queue &&
+        sent.roomAction.table == 0; }), "A watcher's Queue at another table was not sent");
     view.room.tables[1].spectators.clear(); view.room.tables[1].queue = {1};
     view.room.members[0].status = room::MemberStatus::Queued; ++view.room.revision; frame();
     Check(!row("queue").enabled && !row("watch").enabled && row("queue").detail.find("Leave your current table") != std::string::npos,
@@ -715,7 +717,7 @@ int main() try {
         row("selection").detail.find("finish returning") != std::string::npos,
         "Seated terminal receipt blocked Ready or hid the selection fence");
     press(MenuInput::Select);
-    Check(actions.size() == beforeBlockedReady + 1 && actions.back().command.kind == netplay::CommandKind::Ready &&
+    Check(actions.size() == beforeBlockedReady + 1 && test::ReadyIs(actions.back()) &&
         shell.Navigation().Focus() == "ready", "Ready during the receipt wait was dropped or lost focus");
     focus("selection"); const auto beforeBlockedSelection = selectionDraws;
     press(MenuInput::Select);
@@ -727,7 +729,7 @@ int main() try {
     Check(row("ready").enabled && row("selection").enabled && shell.Navigation().Focus() == "ready",
         "Committed terminal completion failed to unlock controls with focus intact");
     press(MenuInput::Select);
-    Check(actions.size() == beforeBlockedReady + 2 && actions.back().command.kind == netplay::CommandKind::Ready,
+    Check(actions.size() == beforeBlockedReady + 2 && test::ReadyIs(actions.back()),
         "Ready did not dispatch after terminal completion");
     focus("selection"); press(MenuInput::Select);
     Check(shell.Navigation().Screen() == "selection" && selectionDraws > beforeBlockedSelection,
@@ -829,7 +831,7 @@ int main() try {
     Check(row("ready").enabled, "A held start could not be cancelled");
     const auto beforeHeldUnready = actions.size();
     focus("ready"); press(MenuInput::Select);
-    Check(actions.size() == beforeHeldUnready + 1 && actions.back().roomAction.kind == room::ActionKind::Unready,
+    Check(actions.size() == beforeHeldUnready + 1 && test::RoomActionIs(actions.back(), room::ActionKind::Unready),
         "Cancelling a held start did not send Unready");
     // The held start is a Ready to take back, not a game: every row says so.
     // The runtime locks the fighter for a readied seat, as it does here.
@@ -843,7 +845,7 @@ int main() try {
     shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); focus("table-0"); frame(); frame();
     const auto beforeHeldBack = actions.size();
     press(MenuInput::Back);
-    Check(actions.size() == beforeHeldBack + 1 && actions.back().roomAction.kind == room::ActionKind::Unready &&
+    Check(actions.size() == beforeHeldBack + 1 && test::RoomActionIs(actions.back(), room::ActionKind::Unready) &&
         shell.Navigation().Screen() == "room", "B during the held start did not take Ready back");
     view.canEditSelection = true;
     view.room.tables[0].phase = room::TablePhase::Waiting; view.room.tables[0].spectatorHold = false;
@@ -925,7 +927,7 @@ int main() try {
         Check(!shell.NoticeOpen(), "A lock-in that ended opened a modal");
         view.room.members[0].spectatorLocked = true; held.spectators = {1, 3}; ++view.room.revision; frame(); frame();
         focus("lock-spectating"); press(MenuInput::Select);
-        Check(actions.back().roomAction.kind == room::ActionKind::LockSpectating && !actions.back().roomAction.locked, "Release lock-in was not sent");
+        Check(test::Is<commands::RoomAction>(actions.back(), [](const commands::RoomAction& sent) { return sent.roomAction.kind == room::ActionKind::LockSpectating && !sent.roomAction.locked; }), "Release lock-in was not sent");
         view.room.members[0].spectatorLocked = false; ++view.room.revision; frame(); frame();
         Check(menuStatus != T("room.lock_in_ended.dropped"), "The player's own release was announced as the room's");
         view.room.members = members; view.room.localTerminalPending = false;
@@ -1016,7 +1018,7 @@ int main() try {
     press(MenuInput::Options);
     Check(shell.Navigation().Screen() == "room-table", "Y did not enter the table");
     focus("queue"); const auto beforeQueue = actions.size(); press(MenuInput::Select);
-    Check(actions.size() == beforeQueue + 1 && actions.back().roomAction.kind == room::ActionKind::Queue,
+    Check(actions.size() == beforeQueue + 1 && test::RoomActionIs(actions.back(), room::ActionKind::Queue),
         "Queue entry submitted zero or duplicate actions");
     view.room.tables[0].queue = {1}; ++view.room.revision; frame();
     for (int i = 0; i < 20; ++i) frame();
@@ -1028,11 +1030,11 @@ int main() try {
     Check(shell.Navigation().Screen() == "room", "Keyboard Back did not return to the room");
     focus("table-0"); press(MenuInput::Select);
     const auto beforeLeave = actions.size(); click(targets.at("unqueue"));
-    Check(actions.size() == beforeLeave + 1 && actions.back().roomAction.kind == room::ActionKind::Unqueue,
+    Check(actions.size() == beforeLeave + 1 && test::RoomActionIs(actions.back(), room::ActionKind::Unqueue),
         "Mouse queue exit submitted zero or duplicate actions");
     view.room.tables[0].queue.clear(); ++view.room.revision; frame();
     const auto beforeMouseQueue = actions.size(); click(targets.at("queue"));
-    Check(actions.size() == beforeMouseQueue + 1 && actions.back().roomAction.kind == room::ActionKind::Queue,
+    Check(actions.size() == beforeMouseQueue + 1 && test::RoomActionIs(actions.back(), room::ActionKind::Queue),
         "Mouse queue entry submitted zero or duplicate actions");
     view.room.tables[0].queue = {1}; ++view.room.revision; frame();
     view.room.tables[0].queue.clear(); view.room.tables[0].p2 = 1;
@@ -1320,8 +1322,8 @@ int main() try {
     focus("abandon-result"); const auto beforeAbandon = actions.size(); press(MenuInput::Select);
     Check(actions.size() == beforeAbandon, "Abandon confirmation did not default to Cancel");
     press(MenuInput::Right); press(MenuInput::Select);
-    Check(actions.size() == beforeAbandon + 1 && actions.back().roomAction.kind == room::ActionKind::AbortMatch &&
-        actions.back().roomAction.matchGeneration == 9, "Confirmed abandon did not submit a generation-scoped AbortMatch");
+    Check(actions.size() == beforeAbandon + 1 && test::Is<commands::RoomAction>(actions.back(), [](const commands::RoomAction& sent) { return sent.roomAction.kind == room::ActionKind::AbortMatch &&
+        sent.roomAction.matchGeneration == 9; }), "Confirmed abandon did not submit a generation-scoped AbortMatch");
     // A live game is never cut short by its own fighter, except a Practice
     // match this PC fights in, which ends only when its round time runs out.
     // Ember opened over that fight lands on the board at End practice, which
@@ -1340,8 +1342,8 @@ int main() try {
     const auto abortsSince = [&](std::size_t from) {
         std::vector<room::Action> aborts;
         for (std::size_t i = from; i < actions.size(); ++i)
-            if (actions[i].command.kind == netplay::CommandKind::RoomAction && actions[i].roomAction.kind == room::ActionKind::AbortMatch)
-                aborts.push_back(actions[i].roomAction);
+            if (test::RoomActionIs(actions[i], room::ActionKind::AbortMatch))
+                aborts.push_back(std::get<commands::RoomAction>(actions[i]).roomAction);
         return aborts;
     };
     const auto beforeEnd = actions.size(); press(MenuInput::Select);
@@ -1668,7 +1670,7 @@ int main() try {
                 }
                 const auto before = actions.size();
                 click(targets.at(option));
-                const bool sat = actions.size() == before + 1 && actions.back().roomAction.kind == room::ActionKind::Queue;
+                const bool sat = actions.size() == before + 1 && test::RoomActionIs(actions.back(), room::ActionKind::Queue);
                 if (strip == 0 ? !sat : shell.Navigation().Screen() == "room") {
                     std::cerr << "scale " << scale << " size " << size.x << "x" << size.y << " " << option << '\n';
                     Check(false, "A click on the seat chooser's strip picked nothing");
@@ -1860,12 +1862,12 @@ int main() try {
             Check(at() == "ready", "Left along the bar did not come back to Rematch past New opponent");
             const auto asked = actions.size();
             focus("new-opponent"); frame(); press(MenuInput::Select);
-            Check(actions.size() == asked + 1 && actions.back().roomAction.kind == room::ActionKind::NewOpponent &&
-                actions.back().roomAction.table == 0, "The bar's New opponent did not ask the room for a new opponent");
+            Check(actions.size() == asked + 1 && test::Is<commands::RoomAction>(actions.back(), [](const commands::RoomAction& sent) { return sent.roomAction.kind == room::ActionKind::NewOpponent &&
+                sent.roomAction.table == 0; }), "The bar's New opponent did not ask the room for a new opponent");
             const auto rematch = actions.size();
             focus("ready"); frame(); press(MenuInput::Select);
-            Check(actions.size() == rematch + 1 && actions.back().roomAction.kind == room::ActionKind::Rematch &&
-                actions.back().roomAction.table == 0, "The bar's Rematch did not answer the room's question");
+            Check(actions.size() == rematch + 1 && test::Is<commands::RoomAction>(actions.back(), [](const commands::RoomAction& sent) { return sent.roomAction.kind == room::ActionKind::Rematch &&
+                sent.roomAction.table == 0; }), "The bar's Rematch did not answer the room's question");
             // A table frees up: New opponent is offered.
             view.room.tables[7].phase = room::TablePhase::Idle; view.room.tables[7].p1 = view.room.tables[7].p2 = 0;
             view.room.cabinets[7] = view.room.cabinets[15] = 0;

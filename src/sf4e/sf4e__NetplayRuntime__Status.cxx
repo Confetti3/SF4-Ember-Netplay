@@ -797,12 +797,13 @@ void PublishAndTickDiscordInvite() {
         spdlog::info("Discord: submitting {} for the pending invitation", next==discord::Next::Leave ? "leave" : "join");
         // Another room replaces the one being watched, as Leave does.
         runtime->watch.Stop();
-        RuntimeCommand invite;
-        invite.command={next==discord::Next::Leave ? netplay::CommandKind::LeaveRoom : netplay::CommandKind::JoinInvite,
-            view.session.generation,next==discord::Next::Join ? runtime->discordInvite.Secret() : std::string()};
-        invite.preferences=runtime->preferences;
-        invite.discordRevision=runtime->discordInvite.Revision();
-        SubmitRuntimeCommand(std::move(invite));
+        const auto revision=runtime->discordInvite.Revision();
+        if (next==discord::Next::Leave) SubmitRuntimeCommand(commands::LeaveRoom{view.session.generation,revision});
+        else {
+            commands::JoinRoom join;
+            join.generation=view.session.generation; join.invitation=runtime->discordInvite.Secret(); join.discordRevision=revision;
+            SubmitRuntimeCommand(std::move(join));
+        }
     }
 }
 } // namespace internal

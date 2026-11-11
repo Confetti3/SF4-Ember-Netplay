@@ -107,72 +107,14 @@ struct TraceFields {
     }
 };
 
-// A RuntimeCommand is one of these families. Each holds the fields its handler
-// reads, under the RuntimeCommand names, so a handler reads `command.x` as it
-// did. Every family but Identity and Tournament carries the controller
-// generation it was made for (`command.command.generation`), and its handler
-// checks that first.
-namespace commands {
-struct Identity { netplay::IdentityRequest identity; };
-struct Tournament { netplay::tournament::Command tournament; };
-struct Training { netplay::Command command; TrainingEntry training = TrainingEntry::None; };
-struct LeaveWatchedGame { netplay::Command command; netplay::WatchedGame leaveWatchedGame; };
-struct DiscordInvite {
-    netplay::Command command;
-    discord::InviteAction discordAction = discord::InviteAction::None;
-    std::uint64_t discordRevision = 0;
-};
-struct PreviewSound { netplay::Command command; int previewSoundVolume = -1; };
-struct Replay { netplay::Command command; replay::Request replay; };
-struct ShortInvitation { netplay::Command command; };
-struct Pad { netplay::Command command; gamepads::ControllerRequest padAction; };
-// Save only the settings a room leaves open, from `preferences` (RuntimeRequest::roomSettings).
-struct RoomSettings { netplay::Command command; netplay::PlayerPreferences preferences; };
-struct Input { netplay::Command command; input::Action inputAction = input::Action::None; };
-struct Service {
-    netplay::Command command;
-    platform::ServiceAction service = platform::ServiceAction::None;
-    std::string servicePath;
-    launcher::InstallOffer updateOffer;
-    updates::UpdateChannel updateChannel = updates::UpdateChannel::Stable;
-    SteamId steamProfile;
-    reports::Submission reportSubmission;
-};
-// A room command: netplay::Command and what its kinds carry.
-struct Room {
-    netplay::Command command;
-    // With JoinInvite or LeaveRoom from a Discord invitation: re-validated here.
-    std::uint64_t discordRevision = 0;
-    netplay::PlayerPreferences preferences;
-    std::string publicTicket;
-    std::optional<netplay::TableSetup> createdRules;
-    JoinKind join = JoinKind::Private;
-    bool practiceRoom = false;
-    room::RoomType arcadeRoom = room::RoomType::Classic;
-    room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
-    std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
-    bool wiredOnly = false;
-    Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
-    int stage = 0;
-    selection::RandomPool randomPool;
-    room::Action roomAction;
-    int selectedDelay = -1;
-    // RuntimeCommand::roomSettings: save only the settings a room leaves open, from `preferences`; sent alone.
-    bool roomSettings = false;
-};
+// A parked command waits under one of these (Runtime::readyIntent and the rest).
+using Intent = netplay::ParkedIntent<RuntimeRequest>;
+// The game's form of the pick a Ready carries.
+inline Dimps::GameEvents::VsMode::ConfirmedCharaConditions NativePick(const selection::Pick& pick) {
+    Dimps::GameEvents::VsMode::ConfirmedCharaConditions native{};
+    selection::ToNative(pick, native);
+    return native;
 }
-using TypedCommand = std::variant<commands::Identity, commands::Tournament, commands::Training, commands::LeaveWatchedGame,
-    commands::DiscordInvite, commands::PreviewSound, commands::Replay, commands::ShortInvitation, commands::Pad,
-    commands::RoomSettings, commands::Input, commands::Service, commands::Room>;
-// The one place that decides which family a submitted command is. A command
-// with several families' fields set is the first of: identity, tournament,
-// Training from the room, leave the watched game, Discord invite action, sound
-// preview, replay, short link, pad request, room settings save, input action, service, else a room
-// command. So the hidden shell's submit, which fills identity and a room
-// command together, is an identity request.
-TypedCommand Classify(RuntimeCommand command);
-
-using Intent = netplay::ParkedIntent<TypedCommand>;
 
 // The networking errors that stay until networking is back. They are kept as a
 // kind and a code, and their sentence is made from the catalog when it is
@@ -506,8 +448,8 @@ void DrainActionReplies();
 void ConfirmLobbySettings();
 void ResolvePendingIntents(bool helperReady);
 // A room command (host, join, leave) on tournament play's behalf, through
-// the same checks as a press.
-netplay::DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command, JoinKind join);
+// the same checks as a press, for the controller's generation now.
+netplay::DispatchOutcome DispatchTournamentRoomCommand(RuntimeRequest command);
 // A joined room ended for the player. True when watching a match took it as
 // its own news (a notice, then a fresh ask), so the generic error is not shown.
 bool EndWatchedRoom(netplay::tournament::WatchRoomEnd end);
@@ -546,8 +488,8 @@ void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverit
 // The room ended this PC's game with no result: retire it and say so.
 void EndUnscoredMatch(room::MatchResult result);
 void RetireFinishedMatch(const char* label);
-// The player's leave of the game this PC watches (RuntimeCommand::
-// leaveWatchedGame), decided against the stream and the room as they are when
+// The player's leave of the game this PC watches (commands::
+// LeaveWatchedGame), decided against the stream and the room as they are when
 // it runs (netplay::LeaveOfWatchedGame): nothing once that view is gone, only
 // the rest of the stream once the room has finished the game, otherwise an
 // Unwatch scoped to the game and the player's own end of the stream. Deferred
@@ -642,8 +584,8 @@ void TickRandomFighter();
 struct RandomFighterRoll { int fighter = -1; std::uint64_t serial = 0; };
 RandomFighterRoll CurrentRandomFighter();
 // A Ready or Rematch of a Random pick takes the rolled fighter as it is
-// dispatched, fresh or parked; every other command is left as it is.
-TypedCommand& WithRandomFighter(TypedCommand& command);
+// dispatched, fresh or parked.
+void WithRandomFighter(commands::Ready& ready);
 // Tests only: the roll draws from `roll` instead of a random engine; an empty
 // one restores the engine.
 void SetRandomFighterRollForTest(std::function<int()> roll);

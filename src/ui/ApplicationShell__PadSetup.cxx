@@ -5,16 +5,13 @@
 namespace sf4e { namespace ui {
 using namespace gamepads;
 void ApplicationShell::SetupControl(SetupCommand command, const ShellView& view, const Submit& submit, int step) {
-    ShellAction action; action.command.generation = view.session.generation;
-    action.padAction = {ControllerRequest::Kind::SetupControl, setupPad_ ? setupPad_->id : 0, command, step};
-    if (!submit(std::move(action))) error_ = loc::T("error.queue_failed");
+    const ControllerRequest request{ControllerRequest::Kind::SetupControl, setupPad_ ? setupPad_->id : 0, command, step};
+    if (!submit(sf4e::commands::Pad{view.session.generation, request})) error_ = loc::T("error.queue_failed");
 }
 void ApplicationShell::BeginPadSetup(const PadView& pad, const ShellView& view, const Submit& submit) {
     if (!view.atMainMenu || !view.canEditPreferences || view.session.room != netplay::RoomState::Idle ||
         view.padLayer != Layer::Active || setupPad_) return;
-    ShellAction action; action.command.generation = view.session.generation;
-    action.padAction = {ControllerRequest::Kind::Setup, pad.id};
-    if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return; }
+    if (!submit(sf4e::commands::Pad{view.session.generation, {ControllerRequest::Kind::Setup, pad.id}})) { error_ = loc::T("error.queue_failed"); return; }
     setupFromLayout_ = menu_.navigation.Screen() == "button-layout";
     reopenScreen_ = "pad-setup";
     setupPad_ = pad; setupStarting_ = true; setupRevision_ = view.padSetup.revision;
@@ -75,7 +72,7 @@ void ApplicationShell::UpdatePadSetup(const ShellView& view, const Submit& submi
     }
     if (setupPrompt_) {
         if (!visible || !view.atMainMenu || !menu_.NoticeOpen()) {
-            ShellAction action; action.command.generation = view.session.generation; action.padAction.kind = ControllerRequest::Kind::DeclinePrompt;
+            sf4e::commands::Pad action; action.generation = view.session.generation; action.padAction.kind = ControllerRequest::Kind::DeclinePrompt;
             submit(std::move(action)); menu_.CloseNotice(); setupPrompt_.reset(); return;
         }
         const auto pad = std::find_if(view.pads.begin(), view.pads.end(), [&](const PadView& p) { return Same(p.identity, setupPrompt_->identity); });
@@ -95,7 +92,7 @@ void ApplicationShell::UpdatePadSetup(const ShellView& view, const Submit& submi
         setupPrompted_.push_back(pad.identity); setupPrompt_ = pad; setupPromptReleased_ = false;
         NoteUserText(pad.name.c_str());
         menu_.ShowNotice(loc::Tf("pad_setup.prompt_text", pad.name), loc::T("pad_setup.prompt_heading"), loc::T("pad_setup.not_now"));
-        ShellAction action; action.command.generation = view.session.generation; action.padAction = {ControllerRequest::Kind::Prompt, pad.id}; submit(std::move(action));
+        submit(sf4e::commands::Pad{view.session.generation, {ControllerRequest::Kind::Prompt, pad.id}});
         break;
     }
 }

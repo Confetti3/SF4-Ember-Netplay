@@ -35,32 +35,28 @@ struct Journey {
   const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;
  }
  std::vector<const netplay::IdentityRequest*> identity() const{
-  std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;
+  std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(const auto* i=As<commands::Identity>(a))out.push_back(&i->identity);return out;
  }
  // The public room requests sent so far.
  std::vector<const Command*> requests() const{
   std::vector<const Command*> out;
-  for(const auto& a:h.actions)if(a.tournament.op==Op::RoomList||a.tournament.op==Op::RoomCreate||a.tournament.op==Op::RoomTicket)out.push_back(&a.tournament);
+  for(const auto& a:h.actions)if(const auto* t=As<commands::Tournament>(a))if(t->tournament.op==Op::RoomList||t->tournament.op==Op::RoomCreate||t->tournament.op==Op::RoomTicket)out.push_back(&t->tournament);
   return out;
  }
  // The list requests sent so far.
  std::size_t lists() const{
-  return static_cast<std::size_t>(std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return a.tournament.op==Op::RoomList;}));
+  return static_cast<std::size_t>(std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return TournamentIs(a,Op::RoomList);}));
  }
  // The service has answered the newest list request: the rooms, or a failure.
  void Answer(const std::vector<netplay::publicrooms::Room>& rooms,const char* error=""){
   auto& list=h.view.publicRooms;list.bridge="brg_1";list.rooms=rooms;list.loading=false;list.error=error;++list.listed;h.Frame(0,2);
  }
- // Private rooms hosted: ShellAction's kind starts as HostRoom, so the other
- // requests it can carry say it was not one.
+ // Private rooms hosted.
  std::size_t hosts() const{
-  return static_cast<std::size_t>(std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){
-   return a.command.kind==Kind::HostRoom&&a.identity.op==IdentityOp::None&&a.tournament.op==Op::None&&a.inputAction==input::Action::None&&
-    a.service==platform::ServiceAction::None&&a.discordAction==discord::InviteAction::None&&!a.shortInvitation&&a.previewSoundVolume<0&&
-    a.roomAction.kind==room::Action().kind&&a.selectedDelay<0;}));
+  return static_cast<std::size_t>(std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return Is<commands::HostRoom>(a);}));
  }
  std::size_t joins() const{
-  return static_cast<std::size_t>(std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::JoinInvite;}));
+  return static_cast<std::size_t>(std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return Is<commands::JoinRoom>(a);}));
  }
  // The helper answers the newest Ember ID request.
  void answerIdentity(){
@@ -84,7 +80,7 @@ struct Journey {
  // The identity of the newest create or ticket request sent, 0 when none.
  std::uint64_t lastAdmission() const{
   std::uint64_t id=0;
-  for(const auto& a:h.actions)if(a.tournament.op==Op::RoomCreate||a.tournament.op==Op::RoomTicket)id=a.tournament.request;
+  for(const auto& a:h.actions)if(TournamentIs(a,Op::RoomCreate)||TournamentIs(a,Op::RoomTicket))id=As<commands::Tournament>(a)->tournament.request;
   return id;
  }
  // The runtime has answered the create or ticket request with that identity.

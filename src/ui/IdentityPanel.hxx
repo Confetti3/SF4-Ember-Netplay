@@ -2,6 +2,7 @@
 #ifndef SF4E_EMBER_SERVICE
 #define SF4E_EMBER_SERVICE "https://bridge.embernetplay.link"
 #endif
+#include "ShellAction.hxx"
 #include "MenuNavigation.hxx"
 #include "MatchAnnouncements.hxx"
 #include "PublicRoomsSetup.hxx"
@@ -22,7 +23,6 @@
 
 namespace sf4e { namespace ui {
 struct ShellView;
-struct ShellAction;
 enum class Tone;
 
 // The Ember ID screens: the identity itself, its backup and restore, the

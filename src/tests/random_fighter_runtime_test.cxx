@@ -83,10 +83,10 @@ int RematchSends(const char* name, std::uint32_t mine, std::uint32_t theirs, roo
     r.Snapshot(playing);
     internal::TickRandomFighter();
     // Rematch over the held WIN: parked with the fighter just played.
-    internal::commands::Room rematch;
-    rematch.command = {netplay::CommandKind::Rematch, runtime.controller.GetSnapshot().generation, {}};
-    rematch.character = Pressed(5, 1);
-    runtime.readyIntent.Defer(internal::TypedCommand(rematch), rematch.command.generation, GetTickCount64(), internal::Intent::Budget::Timed);
+    commands::Ready rematch;
+    rematch.generation = runtime.controller.GetSnapshot().generation; rematch.rematch = true;
+    rematch.pick = selection::FromNative(Pressed(5, 1));
+    runtime.readyIntent.Defer(RuntimeRequest(rematch), rematch.generation, GetTickCount64(), internal::Intent::Budget::Timed);
     CHECK(runtime.readyIntent.Parked());
     // The room's settled result, its teardown not yet acknowledged.
     auto settled = Room(revision++, 5);

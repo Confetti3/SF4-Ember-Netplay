@@ -93,9 +93,9 @@ void JoinJourney(){
  Check(j.requests().size()==asked,"A second room was asked for while one is pending");
  Check(j.joins()==0,"A room was joined before its admission arrived");
  j.Admit();
- Check(j.joins()==1&&h.actions.back().command.kind==Kind::JoinInvite&&h.actions.back().command.invitation=="sf4e3:host-invitation"&&
-  h.actions.back().publicTicket=="{\"ticket\":{\"room_id\":\"b\"},\"kid\":\"k1\",\"signature\":\"sig\"}"&&
-  h.actions.back().command.generation==h.view.session.generation,"The admission did not join with the invitation and the ticket");
+ Check(j.joins()==1&&Is<commands::JoinRoom>(h.actions.back(),[&](const commands::JoinRoom& join){return join.invitation=="sf4e3:host-invitation"&&
+  join.publicTicket=="{\"ticket\":{\"room_id\":\"b\"},\"kid\":\"k1\",\"signature\":\"sig\"}"&&
+  join.generation==h.view.session.generation;}),"The admission did not join with the invitation and the ticket");
  const auto joined=j.joins();h.Frame(0,5);Check(j.joins()==joined,"An admission joined twice");
  // The room opens: the controller's own opening state takes over the screen.
  h.view.session.room=netplay::RoomState::Opening;h.view.session.generation.room=1;h.Frame(0,2);
@@ -157,8 +157,8 @@ void AbandonedRequestJourney(){
  h.Frame(0,5);Check(j.joins()==0,"An abandoned admission joined on a later frame");
  // The chosen room's own answer joins with its invitation and ticket.
  j.AdmitAs(second,"","b","sf4e3:room-b-invitation","{\"ticket\":{\"room_id\":\"b\"},\"kid\":\"k1\",\"signature\":\"b\"}");
- Check(j.joins()==1&&h.actions.back().command.invitation=="sf4e3:room-b-invitation"&&
-  h.actions.back().publicTicket=="{\"ticket\":{\"room_id\":\"b\"},\"kid\":\"k1\",\"signature\":\"b\"}","The chosen room was not joined with its own admission");
+ Check(j.joins()==1&&Is<commands::JoinRoom>(h.actions.back(),[](const commands::JoinRoom& join){return join.invitation=="sf4e3:room-b-invitation"&&
+  join.publicTicket=="{\"ticket\":{\"room_id\":\"b\"},\"kid\":\"k1\",\"signature\":\"b\"}";}),"The chosen room was not joined with its own admission");
  // A request that was never abandoned still joins once, and an old answer replayed does not join again.
  h.Frame(0,5);Check(j.joins()==1,"An admission joined twice");
  j.AdmitAs(first);Check(j.joins()==1,"A replayed answer to an old request joined");
@@ -172,8 +172,8 @@ void AbandonedCreateJourney(){
  j.List({MakeRoom("a","Friday Night",3,8)});
  h.view.preferences.roomName="Open Mic";h.view.preferences.roomCapacity=6;h.Frame(0,2);
  h.Choose("pr-create");h.Frame(0,40);
- const auto saved=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
- Check(saved!=h.actions.rend(),"The visibility was not saved");
+ const auto* saved=Last<commands::SavePreferences>(h.actions);
+ Check(saved,"The visibility was not saved");
  h.view.preferences=saved->preferences;h.Frame(0,2);
  h.Choose("host");
  const auto first=j.lastAdmission();
@@ -188,7 +188,7 @@ void AbandonedCreateJourney(){
  j.AdmitAs(first,"","b","sf4e3:abandoned-room");
  Check(j.joins()==0,"The abandoned create's answer joined while the new one waited");
  j.AdmitAs(second,"","c","sf4e3:second-room");
- Check(j.joins()==1&&h.actions.back().command.invitation=="sf4e3:second-room","The new create did not join with its own admission");
+ Check(j.joins()==1&&Is<commands::JoinRoom>(h.actions.back(),[](const commands::JoinRoom& join){return join.invitation=="sf4e3:second-room";}),"The new create did not join with its own admission");
 }
 
 // Create on Public sends room_create with the room's name and capacity, never
@@ -207,8 +207,8 @@ void CreateJourney(){
  Check(j.row("host")&&j.row("host")->label==loc::T("public.create")&&j.row("host")->enabled,"Create is not Create public room");
  // The choice is saved with the other room defaults.
  h.Frame(0,40);
- const auto saved=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
- Check(saved!=h.actions.rend()&&saved->preferences.roomPublic,"The visibility was not saved with the room defaults");
+ const auto* saved=Last<commands::SavePreferences>(h.actions);
+ Check(saved&&saved->preferences.roomPublic,"The visibility was not saved with the room defaults");
  h.view.preferences=saved->preferences;h.Frame(0,2);
  h.Choose("host");
  Check(j.requests().back()->op==Op::RoomCreate&&j.requests().back()->roomName=="Open Mic"&&j.requests().back()->capacity==6&&
@@ -216,7 +216,7 @@ void CreateJourney(){
  Check(j.hosts()==0,"A public room opened a private room");
  Check(j.status==loc::T("room.creating_status")&&!j.row("host")->enabled,"A room being created is not shown as pending");
  j.Admit("","b");
- Check(j.joins()==1&&h.actions.back().command.invitation=="sf4e3:host-invitation"&&!h.actions.back().publicTicket.empty(),"The new room's admission did not join");
+ Check(j.joins()==1&&Is<commands::JoinRoom>(h.actions.back(),[](const commands::JoinRoom& join){return join.invitation=="sf4e3:host-invitation"&&!join.publicTicket.empty();}),"The new room's admission did not join");
  // A refusal says why on Create and the player can try again.
  h.Choose("host");j.Admit("room_limit");
  Check(j.status==loc::T("public.failure.room_limit")&&j.row("host")->enabled&&j.joins()==1,"A refused create did not say why");
@@ -238,7 +238,7 @@ void CreateJourney(){
 
 // Opens Create on Public, picks first to 3, loser stays, and creates the room.
 // The new room's join carries those rules; the shell sends nothing else.
-static const ShellAction& CreateWithChosenRules(Journey& j){
+static const commands::JoinRoom& CreateWithChosenRules(Journey& j){
  auto& h=j.h;j.OpenList();
  j.List({});
  h.view.preferences.roomName="Open Mic";h.Frame(0,2);
@@ -252,8 +252,8 @@ static const ShellAction& CreateWithChosenRules(Journey& j){
  bool savedAny=false;
  for(int i=0;i<4;++i){
   h.Frame(0,40);
-  const auto last=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
-  if(last!=h.actions.rend()){savedAny=true;h.view.preferences=last->preferences;}
+  const auto* last=Last<commands::SavePreferences>(h.actions);
+  if(last){savedAny=true;h.view.preferences=last->preferences;}
  }
  const auto& saved=h.view.preferences;
  Check(savedAny&&saved.publicTableRules.format==room::SetFormat::Ft3&&
@@ -262,8 +262,8 @@ static const ShellAction& CreateWithChosenRules(Journey& j){
  h.Frame(0,2);
  h.Choose("host");j.Admit("","b");
  Check(j.joins()==1,"The new room's admission did not join");
- const auto join=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::JoinInvite;});
- Check(join->createdRules&&*join->createdRules==netplay::TableSetup::Same(saved.publicTableRules),"The created room's join did not carry the chosen rules");
+ const auto* join=Last<commands::JoinRoom>(h.actions);
+ Check(join&&join->createdRules&&*join->createdRules==netplay::TableSetup::Same(saved.publicTableRules),"The created room's join did not carry the chosen rules");
  return *join;
 }
 
@@ -291,12 +291,12 @@ void TemplateJourney(){
   j.row("set-length")->value==SetLengthText(room::SetFormat::Ft3)&&j.row("delete-template"),"The template did not set Create's rows");
  // The rows' save is acknowledged, as the runtime does.
  h.Frame(0,40);
- const auto save=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
- if(save!=h.actions.rend())h.view.preferences=save->preferences;
+ const auto* save=Last<commands::SavePreferences>(h.actions);
+ if(save)h.view.preferences=save->preferences;
  h.Frame(0,2);
  h.Choose("host");j.Admit("","b");
- const auto join=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::JoinInvite;});
- Check(join!=h.actions.rend()&&join->createdRules&&*join->createdRules==saved.tables,"The room's join did not carry the template's tables");
+ const auto* join=Last<commands::JoinRoom>(h.actions);
+ Check(join&&join->createdRules&&*join->createdRules==saved.tables,"The room's join did not carry the template's tables");
 }
 void OwnDelayJourney(){
  Journey j;auto& h=j.h;j.OpenList();
@@ -307,9 +307,9 @@ void OwnDelayJourney(){
  // Create on Public saves its visibility with the room defaults; the runtime has that save before the next one is sent.
  const auto settle=[&]{
   h.Frame(0,40);
-  const auto last=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
-  Check(last!=h.actions.rend(),"The room defaults were not saved");
-  if(last==h.actions.rend())return room::DelayPolicy::Shared;
+  const auto* last=Last<commands::SavePreferences>(h.actions);
+  Check(last,"The room defaults were not saved");
+  if(!last)return room::DelayPolicy::Shared;
   h.view.preferences=last->preferences;h.Frame(0,2);return last->preferences.roomDelayPolicy;
  };
  Check(settle()==room::DelayPolicy::Shared,"Create on Public saved a delay policy nobody chose");
@@ -339,8 +339,8 @@ void CreateWithRulesJourney(){
  {
   Journey other;other.OpenList();other.List({MakeRoom("a","Friday Night",3,8)});
   other.h.Choose("pr-room:a");other.Admit("","a");
-  const auto join=std::find_if(other.h.actions.rbegin(),other.h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::JoinInvite;});
-  Check(join!=other.h.actions.rend()&&!join->createdRules,"A room joined from the list carried created rules");
+  const auto* join=Last<commands::JoinRoom>(other.h.actions);
+  Check(join&&!join->createdRules,"A room joined from the list carried created rules");
  }
  Journey j;auto& h=j.h;
  const auto rules=*CreateWithChosenRules(j).createdRules;
@@ -362,7 +362,7 @@ void CreateWithRulesJourney(){
   return std::optional<room::Action>(action);
  };
  const auto shellRules=[&]{return std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){
-  return a.command.kind==Kind::RoomAction&&a.roomAction.kind==room::ActionKind::SetRules;});};
+  return RoomActionIs(a,room::ActionKind::SetRules);});};
  h.view.room=authority.SnapshotFor(creator);h.Frame(0,4);
  const auto first=tick();
  Check(first&&first->table==0,"Table 1's rules were not sent first");
@@ -469,8 +469,8 @@ void HostedLastRoomJourney(){
  h.view.hostPublicRoom=true;h.Frame(0,2);j.answerIdentityUntilIdle();h.Frame(0,2);
  Check(Creates(j)==1&&j.requests().back()->roomName=="Stream room"&&j.requests().back()->capacity==8,"A stream PC did not open its template's room");
  j.Admit();
- const auto join=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::JoinInvite;});
- Check(join!=h.actions.rend()&&join->arcadeRoom==room::RoomType::King&&join->tableCount==1&&join->createdRules&&*join->createdRules==saved.tables,"A stream PC did not open the last room's type and tables");
+ const auto* join=Last<commands::JoinRoom>(h.actions);
+ Check(join&&join->charter.type==room::RoomType::King&&join->charter.tableCount==1&&join->createdRules&&*join->createdRules==saved.tables,"A stream PC did not open the last room's type and tables");
 }
 
 // Rooms that can be joined come first, near ones before far ones once the region
@@ -548,7 +548,7 @@ void QuickJoinJourney(){
   k.List({arcade,classic,distant});
   const auto settle=[&]{
    h.Wait(1);
-   for(std::size_t i=h.actions.size();i-->0;)if(h.actions[i].command.kind==Kind::SavePreferences){h.view.preferences=h.actions[i].preferences;break;}
+   for(std::size_t i=h.actions.size();i-->0;)if(const auto* save=As<commands::SavePreferences>(h.actions[i])){h.view.preferences=save->preferences;break;}
    h.Frame(0,2);
   };
   // The filters page: steps a row, saves, and goes back to the list.
@@ -592,7 +592,7 @@ void FilterJourney(){
  const auto settle=[&]{
   h.Wait(1);
   for(std::size_t i=h.actions.size();i-->seen;)
-   if(h.actions[i].command.kind==Kind::SavePreferences){h.view.preferences=h.actions[i].preferences;break;}
+   if(const auto* save=As<commands::SavePreferences>(h.actions[i])){h.view.preferences=save->preferences;break;}
   seen=h.actions.size();h.Frame(0,2);
  };
  // The page's values as the last step left them, and the Filters row's summary on the list.
@@ -665,7 +665,7 @@ void FilterJourney(){
  Check(Shown(j).empty()&&j.row("pr-clear-filters"),"Filters that match no room did not offer to clear them");
 
  // Saved with the preferences, and kept on leaving and coming back.
- const auto saved=std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
+ const auto saved=std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return Is<commands::SavePreferences>(a);});
  Check(saved>=1&&h.view.preferences.roomFilter.wiredOnly&&h.view.preferences.roomFilter.openSeats&&h.view.preferences.roomFilter.type==netplay::publicrooms::RoomFilter::Type::King&&
   h.view.preferences.roomFilter.scope==netplay::publicrooms::RoomFilter::Region::All,"The filter was not sent to be saved");
  h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);relist();
@@ -761,8 +761,8 @@ void CreateOpeningJourney(){
  h.Choose("pr-create");
  Check(h.shell.Navigation().Screen()=="create"&&j.row("room-name")&&j.row("room-name")->value==loc::Tf("public.default_name","Ken"),"A new public room is not named for its host");
  h.Frame(0,40);
- const auto saved=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
- Check(saved!=h.actions.rend()&&saved->preferences.roomPublic&&saved->preferences.roomName==loc::Tf("public.default_name","Ken"),"The host's name for the room was not saved with the defaults");
+ const auto* saved=Last<commands::SavePreferences>(h.actions);
+ Check(saved&&saved->preferences.roomPublic&&saved->preferences.roomName==loc::Tf("public.default_name","Ken"),"The host's name for the room was not saved with the defaults");
  h.view.preferences=saved->preferences;h.Frame(0,2);
  h.Choose("host");
  Check(j.requests().back()->op==Op::RoomCreate&&j.requests().back()->roomName==loc::Tf("public.default_name","Ken")&&j.status==loc::T("room.creating_status"),"Create did not send the host's name or say Creating");
@@ -797,7 +797,7 @@ void CurrentRoomJourney(){
  v.identity.known=true;v.identity.state="ready";
  double now=0;
  const auto update=[&](double step=.1){now+=step;panel.Update(v,"public-rooms",LinkBridge,false,submit,now);};
- const auto lastRequest=[&]{std::uint64_t id=0;for(const auto& a:sent)if(a.tournament.op==Op::RoomTicket||a.tournament.op==Op::RoomCreate)id=a.tournament.request;return id;};
+ const auto lastRequest=[&]{std::uint64_t id=0;for(const auto& a:sent)if(TournamentIs(a,Op::RoomTicket)||TournamentIs(a,Op::RoomCreate))id=As<commands::Tournament>(a)->tournament.request;return id;};
  const auto admit=[&](const char* roomId,const char* name){
   auto& list=v.publicRooms;list.failure.clear();
   list.admission=netplay::publicrooms::Admission{{roomId,name,"use1",1,8,0},"sf4e3:inv","{\"ticket\":{}}"};

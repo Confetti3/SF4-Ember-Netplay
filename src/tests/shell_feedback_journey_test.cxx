@@ -33,7 +33,7 @@ void NoticeOverDialogs() {
  auto sent=h.actions.size();h.Press(MenuInput::Select);
  Check(h.actions.size()==sent&&!h.shell.Navigation().Confirming(),"Cancel on Use keyboard still switched the device");
  h.Choose("keyboard");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(h.actions.size()==sent+1&&h.actions.back().inputAction==input::Action::UseKeyboard,"Confirming Use keyboard did not switch the device");
+ Check(h.actions.size()==sent+1&&Is<commands::Input>(h.actions.back(),[](const commands::Input& i){return i.inputAction==input::Action::UseKeyboard;}),"Confirming Use keyboard did not switch the device");
 }
 // The failed language save speaks on the Interface screen only, and everything
 // more urgent outranks it.
@@ -161,13 +161,13 @@ void ProblemReportJourneys() {
   Check(rows.size()==2&&rows[0].id=="send-reports","Settings' Problem reports panel does not hold its two rows");
   Check(rows[0].value==loc::T("common.off")&&!h.view.preferences.sendProblemReports,"Problem reports are not off at first");
   h.FocusOn("send-reports");h.Press(MenuInput::Right);h.Frame(0,45);
-  Check(!h.actions.empty()&&h.actions.back().command.kind==netplay::CommandKind::SavePreferences&&h.actions.back().preferences.sendProblemReports,
+  Check(!h.actions.empty()&&Is<commands::SavePreferences>(h.actions.back(),[](const commands::SavePreferences& s){return s.preferences.sendProblemReports;}),
    "Turning problem reports on did not save");
-  h.view.preferences=h.actions.back().preferences;h.Frame();
+  h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
   Check(rows[0].value==loc::T("common.on"),"The setting does not show it is on");
   h.FocusOn("send-reports");h.Press(MenuInput::Left);h.Frame(0,45);
-  Check(h.actions.back().command.kind==netplay::CommandKind::SavePreferences&&!h.actions.back().preferences.sendProblemReports,"Turning problem reports off did not save");
-  h.view.preferences=h.actions.back().preferences;h.Frame();
+  Check(Is<commands::SavePreferences>(h.actions.back(),[](const commands::SavePreferences& s){return !s.preferences.sendProblemReports;}),"Turning problem reports off did not save");
+  h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
   h.Choose("sent-reports");
   Check(h.shell.Navigation().Screen()=="sent-reports"&&rows.size()==1&&rows[0].id=="sent-none","Sent reports does not say there are none");
   // Discord keeps only its own rows.
@@ -251,7 +251,7 @@ void V2AuditJourneys() {
   Harness h;invited(h);
   h.Frame(MenuInput::Select,4);h.Frame(0,2);
   Check(h.shell.Navigation().Screen()=="discord-invitation"&&h.shell.Navigation().Focus()=="invite-cancel","Join did not open the invitation on Cancel invitation, so this case proves nothing");
-  Check(std::none_of(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return a.discordAction==discord::InviteAction::Cancel;}),
+  Check(std::none_of(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return Is<commands::DiscordInvite>(a,[](const commands::DiscordInvite& d){return d.discordAction==discord::InviteAction::Cancel;});}),
    "A held for the toast's Join also cancelled the invitation");
  }
  // A toast that comes while the menu is not free (a notice is open) never
@@ -367,7 +367,7 @@ void V2AuditJourneys() {
  {
   Harness h;h.view.preferences.autoInputDelay=true;h.Frame();h.Screen("tab-matches/defaults");h.FocusOn("delay");
   const auto before=h.actions.size();h.Press(MenuInput::Select);h.Frame(0,40);
-  Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(before),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences&&!a.preferences.autoInputDelay;}),
+  Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(before),h.actions.end(),[](const ShellAction& a){return Is<commands::SavePreferences>(a,[](const commands::SavePreferences& s){return !s.preferences.autoInputDelay;});}),
    "Select stepped Auto input delay");
  }
 }

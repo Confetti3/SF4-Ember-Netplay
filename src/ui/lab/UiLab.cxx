@@ -456,16 +456,16 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         script.push_back(std::sscanf(key.c_str(), "click:%f:%f", &at.x, &at.y) == 2 ? 0 : KeyBit(key)); clickAt.push_back(at); } }
     const auto submit = [&](ui::ShellAction action) {
         // Saving is instant here: the shell reads what it saved back from the view.
-        if (action.command.kind == netplay::CommandKind::SavePreferences) view.preferences = action.preferences;
-        if (publicLab && action.identity.op != netplay::IdentityOp::None) identityAsked = action.identity.ticket;
-        if (publicLab && action.tournament.op == netplay::tournament::Command::Op::RoomList) listAsked = true;
-        // The walk's room opens at once, and leaving it closes it. HostRoom is also every action's
-        // kind when it sends no command, so only Create's Open room counts.
-        hostAsked |= action.command.kind == netplay::CommandKind::HostRoom && shell.Navigation().Screen() == "create" && shell.Navigation().Focus() == "host" &&
-            action.identity.op == netplay::IdentityOp::None && action.tournament.op == netplay::tournament::Command::Op::None;
-        leaveAsked |= action.command.kind == netplay::CommandKind::LeaveRoom;
+        if (const auto* saved = std::get_if<commands::SavePreferences>(&action)) view.preferences = saved->preferences;
+        const auto* identity = std::get_if<commands::Identity>(&action);
+        const auto* tournament = std::get_if<commands::Tournament>(&action);
+        if (publicLab && identity) identityAsked = identity->identity.ticket;
+        if (publicLab && tournament && tournament->tournament.op == netplay::tournament::Command::Op::RoomList) listAsked = true;
+        // The walk's room opens at once, and leaving it closes it.
+        hostAsked |= std::holds_alternative<commands::HostRoom>(action);
+        leaveAsked |= std::holds_alternative<commands::LeaveRoom>(action);
         // The helper answers each Ember ID request at once.
-        if (action.identity.op != netplay::IdentityOp::None) { view.identityTicket = action.identity.ticket; view.identityRequest = view.identity.requestId = view.identityTicket + 100; view.identity.ok = true; }
+        if (identity) { view.identityTicket = identity->identity.ticket; view.identityRequest = view.identity.requestId = view.identityTicket + 100; view.identity.ok = true; }
         return true;
     };
     int frame = 0, winFrame = -1;

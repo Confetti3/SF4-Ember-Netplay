@@ -11,7 +11,7 @@ using netplay::rankings::BoardEntry;
 
 std::vector<const Command*> Sent(const Journey& j, Op op) {
  std::vector<const Command*> out;
- for (const auto& a : j.h.actions) if (a.tournament.op == op) out.push_back(&a.tournament);
+ for (const auto& a : j.h.actions) if (TournamentIs(a, op)) out.push_back(&As<commands::Tournament>(a)->tournament);
  return out;
 }
 
