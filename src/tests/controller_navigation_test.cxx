@@ -12,11 +12,16 @@
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/PublishCadence.hxx"
 #include "../netplay/Revisioned.hxx"
+#include "../ui/MenuSummons.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "imgui_test_support.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <array>
+#include <initializer_list>
+#include <string>
+#include <utility>
+#include <vector>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -382,6 +387,46 @@ void PreferencesRevisionCounts(){
  const auto due=[&]{if(cadence.Due(false,[&]{return settings.Revision();}))++publications;};
  due();due();settings.Edit().size=3;due();due();
  Check(publications==1,"A preferences edit was not published, or an unchanged revision was");
+}
+// The menu opens by itself for each reason once per event, and an event that
+// is not ready waits for the moment it is.
+void MenuSummonsOncePerEvent(){
+ using namespace sf4e::ui;
+ MenuSummons summons;std::vector<std::string> opened;
+ const auto step=[&](std::initializer_list<std::pair<SummonsReason,SummonsAsk>> given){
+  std::array<SummonsAsk,static_cast<std::size_t>(SummonsReason::Count)> asks;
+  for(const auto&g:given)asks[static_cast<std::size_t>(g.first)]=g.second;
+  summons.Update(asks,[&](const char*why){opened.push_back(why);});
+ };
+ const auto ask=[](const std::string&key,bool ready,bool opens=true){SummonsAsk a;a.key=key;a.ready=ready;a.opens=opens;return a;};
+ const auto only=[&](const char*name){return opened.size()==1&&opened[0]==name;};
+ // A reason with no event asks nothing, and a sequence of 0 is no event.
+ step({});step({{SummonsReason::JoinLink,ask(SummonsSequenceKey(0),true)}});
+ Check(opened.empty(),"The menu opened for an event that had not happened");
+ // An event not ready waits, then opens once when it is, and not again at the same key.
+ step({{SummonsReason::JoinLink,ask(SummonsSequenceKey(1),false)}});
+ Check(opened.empty(),"The menu opened for an event that was not ready");
+ step({{SummonsReason::JoinLink,ask(SummonsSequenceKey(1),true)}});
+ Check(only("a room link"),"A waiting event did not open the menu when it was ready");
+ step({{SummonsReason::JoinLink,ask(SummonsSequenceKey(1),true)}});
+ Check(opened.size()==1,"The same event opened the menu twice");
+ step({{SummonsReason::JoinLink,ask(SummonsSequenceKey(2),true)}});
+ Check(opened.size()==2,"A new event of the same reason did not open the menu");
+ // A link not followed freely is only taken as seen.
+ opened.clear();
+ step({{SummonsReason::PublicRoomLink,ask(SummonsSequenceKey(1),true,false)}});
+ step({{SummonsReason::PublicRoomLink,ask(SummonsSequenceKey(1),true,true)}});
+ Check(opened.empty(),"A link that did not open the menu opened it later");
+ // An event that ends is forgotten, even while not ready, so its return opens the menu again.
+ step({{SummonsReason::DiscordInvite,ask("1",true)}});
+ Check(only("a Discord invite"),"A Discord invite did not open the menu");
+ step({{SummonsReason::DiscordInvite,ask("",false)}});
+ step({{SummonsReason::DiscordInvite,ask("1",true)}});
+ Check(opened.size()==2&&opened[1]=="a Discord invite","A second Discord invite did not open the menu");
+ // Each reason keeps its own memory.
+ opened.clear();
+ step({{SummonsReason::TrainingCall,ask(SummonsSequenceKey(1),true)},{SummonsReason::ReplayLink,ask("replay.sf4r",true)}});
+ Check(opened.size()==2&&opened[0]=="a Training call"&&opened[1]=="a replay link","Two reasons together did not each open the menu");
 }
 // The pad in offline Training: Back tapped resets, held saves, and Start
 // pressed while Back is held opens the controls or closes them. None of the
@@ -979,5 +1024,5 @@ void ProfileRecords(){
 void DialogContract();
 void HintPresses();
 void DialogRepeat();
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();PreferencesRevisionCounts();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();PreferencesRevisionCounts();MenuSummonsOncePerEvent();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
