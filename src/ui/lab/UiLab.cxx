@@ -318,6 +318,7 @@ void Profile(ui::ShellView& view, const std::string& state) {
         l.points = points;
         l.tier = 0;
         while (l.tier + 1 < netplay::levels::TierCount && points >= starts[l.tier + 1]) ++l.tier;
+        l.floor = starts[l.tier];
         l.next = l.tier + 1 < netplay::levels::TierCount ? starts[l.tier + 1] : 0;
         l.games = static_cast<std::uint64_t>(points / 1.5);
         l.wins = points - l.games;

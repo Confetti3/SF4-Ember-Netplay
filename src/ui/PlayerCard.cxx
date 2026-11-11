@@ -21,8 +21,9 @@ std::vector<int> PlayedFighters(const Own& own) {
 }
 
 float Part(const FighterLevel& level) {
-    if (!level.next) return 1.f;
-    return (std::min)(1.f, static_cast<float>(level.points) / static_cast<float>(level.next));
+    if (!level.next || level.next <= level.floor) return 1.f;
+    const std::uint64_t done = (std::max)(level.points, level.floor) - level.floor;
+    return (std::min)(1.f, static_cast<float>(done) / static_cast<float>(level.next - level.floor));
 }
 
 void Fill(PlayerCardView& view, const netplay::Answered<Own>& answer, int main) {

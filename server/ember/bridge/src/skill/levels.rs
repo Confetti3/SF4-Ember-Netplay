@@ -25,6 +25,11 @@ pub fn tier(points: u64) -> u8 {
     TIER_STARTS.iter().rposition(|start| points >= *start).unwrap_or(0) as u8
 }
 
+/// The points where `tier`, a result of `tier()`, begins.
+pub fn floor(tier: u8) -> u64 {
+    TIER_STARTS[usize::from(tier)]
+}
+
 /// The points where the tier after `tier` begins; none at the last tier.
 pub fn next(tier: u8) -> Option<u64> {
     TIER_STARTS.get(usize::from(tier) + 1).copied()
@@ -106,6 +111,7 @@ impl Counted {
             games: self.games,
             wins: self.wins,
             tier,
+            floor: floor(tier),
             next: next(tier),
             since: self.first_at,
         }
@@ -165,6 +171,18 @@ mod tests {
     }
 
     #[test]
+    fn a_tier_floor_is_its_threshold_and_never_above_the_points() {
+        for (tier, start) in [0, 200, 700, 1500, 2500].into_iter().enumerate() {
+            assert_eq!(floor(tier as u8), start);
+        }
+        for points in [0, 1, 199, 200, 699, 700, 1499, 1500, 2499, 2500, 1_000_000] {
+            let tier = tier(points);
+            assert!(floor(tier) <= points, "{points} points");
+            assert!(next(tier).is_none_or(|next| points < next), "{points} points");
+        }
+    }
+
+    #[test]
     fn the_next_tier_is_the_next_threshold_and_the_top_has_none() {
         let thresholds = [200, 700, 1500, 2500];
         for (tier, start) in thresholds.into_iter().enumerate() {
@@ -191,10 +209,10 @@ mod tests {
         }
         // The top tier has no next tier.
         let top = row(2_500, 1_300).own();
-        assert_eq!((top.points, top.tier, top.next), (3_800, 4, None));
+        assert_eq!((top.points, top.tier, top.floor, top.next), (3_800, 4, 2_500, None));
         let first = row(1, 0).own();
-        assert_eq!((first.points, first.tier, first.next), (1, 0, Some(200)));
+        assert_eq!((first.points, first.tier, first.floor, first.next), (1, 0, 0, Some(200)));
         let edge = row(100, 100).own();
-        assert_eq!((edge.points, edge.tier, edge.next), (200, 1, Some(700)));
+        assert_eq!((edge.points, edge.tier, edge.floor, edge.next), (200, 1, 200, Some(700)));
     }
 }

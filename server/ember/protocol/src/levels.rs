@@ -77,6 +77,9 @@ pub struct OwnFighter {
     pub wins: u64,
     /// The frame colour, 0 to `MAX_TIER`.
     pub tier: u8,
+    /// The points where the tier begins, at most `points`; 0 at tier 0. Always
+    /// present, so a client can draw progress from `floor` to `next`.
+    pub floor: u64,
     /// The points where the next tier begins, above `points`; absent exactly
     /// at `MAX_TIER`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -101,6 +104,9 @@ impl OwnFighter {
         }
         if self.tier > MAX_TIER {
             return Err(Error::InvalidField("tier"));
+        }
+        if self.floor > self.points || (self.tier == 0 && self.floor != 0) {
+            return Err(Error::InvalidField("floor"));
         }
         let next_valid = match self.next {
             None => self.tier == MAX_TIER,
@@ -293,13 +299,21 @@ mod tests {
         );
     }
 
-    fn own(fighter: u8, games: u64, wins: u64, tier: u8, next: Option<u64>) -> OwnFighter {
+    fn own(
+        fighter: u8,
+        games: u64,
+        wins: u64,
+        tier: u8,
+        floor: u64,
+        next: Option<u64>,
+    ) -> OwnFighter {
         OwnFighter {
             fighter,
             points: games + wins,
             games,
             wins,
             tier,
+            floor,
             next,
             since: 1_729_468_800,
         }
@@ -313,13 +327,13 @@ mod tests {
 
         let counted = json!({"levels": "counted", "shown": true, "fighters": [
             {"fighter": 3, "points": 1986, "games": 1284, "wins": 702,
-             "tier": 3, "next": 2500, "since": 1729468800}]});
+             "tier": 3, "floor": 1500, "next": 2500, "since": 1729468800}]});
         let levels: OwnLevels = read(&counted);
         assert_eq!(
             levels,
             OwnLevels::Counted {
                 shown: true,
-                fighters: vec![own(3, 1284, 702, 3, Some(2500))],
+                fighters: vec![own(3, 1284, 702, 3, 1500, Some(2500))],
             }
         );
         assert!(levels.check().is_ok());
@@ -328,12 +342,12 @@ mod tests {
         // `shown` is written only when true, and `next` only below the top.
         let hidden = OwnLevels::Counted {
             shown: false,
-            fighters: vec![own(43, 2480, 1237, 4, None)],
+            fighters: vec![own(43, 2480, 1237, 4, 2500, None)],
         };
         assert!(hidden.check().is_ok());
         assert_eq!(
             serde_json::to_string(&hidden).unwrap(),
-            r#"{"levels":"counted","fighters":[{"fighter":43,"points":3717,"games":2480,"wins":1237,"tier":4,"since":1729468800}]}"#
+            r#"{"levels":"counted","fighters":[{"fighter":43,"points":3717,"games":2480,"wins":1237,"tier":4,"floor":2500,"since":1729468800}]}"#
         );
         let nobody = OwnLevels::Counted {
             shown: false,
@@ -351,7 +365,7 @@ mod tests {
         let none = json!({"levels": "no_account"});
         refuses_extra::<OwnLevels>(&none, "");
         let counted = json!({"levels": "counted", "fighters": [
-            {"fighter": 3, "points": 1, "games": 1, "wins": 0, "tier": 0, "next": 200, "since": 1}]});
+            {"fighter": 3, "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 200, "since": 1}]});
         refuses_extra::<OwnLevels>(&counted, "");
         refuses_extra::<OwnLevels>(&counted, "/fighters/0");
         assert!(serde_json::from_value::<OwnLevels>(json!({"levels": "top"})).is_err());
@@ -372,27 +386,30 @@ mod tests {
 
     #[test]
     fn a_fighter_is_checked_against_its_own_counts() {
-        let good = own(3, 1000, 900, 3, Some(2500));
+        let good = own(3, 1000, 900, 3, 1500, Some(2500));
         assert!(good.check().is_ok());
         // The first tier and the last.
-        assert!(own(0, 1, 0, 0, Some(200)).check().is_ok());
-        assert!(own(43, 3000, 1000, 4, None).check().is_ok());
+        assert!(own(0, 1, 0, 0, 0, Some(200)).check().is_ok());
+        assert!(own(43, 3000, 1000, 4, 2500, None).check().is_ok());
         // One point under the next tier.
-        assert!(own(3, 100, 99, 0, Some(200)).check().is_ok());
+        assert!(own(3, 100, 99, 0, 0, Some(200)).check().is_ok());
 
-        let mut wrong_points = own(3, 10, 5, 0, Some(200));
+        let mut wrong_points = own(3, 10, 5, 0, 0, Some(200));
         wrong_points.points = 14;
         let refused = [
-            ("fighter", own(44, 1, 0, 0, Some(200))),
-            ("games", own(3, 0, 0, 0, Some(200))),
-            ("wins", own(3, 4, 5, 0, Some(200))),
+            ("fighter", own(44, 1, 0, 0, 0, Some(200))),
+            ("games", own(3, 0, 0, 0, 0, Some(200))),
+            ("wins", own(3, 4, 5, 0, 0, Some(200))),
             ("points", wrong_points),
-            ("tier", own(3, 1, 0, 5, None)),
-            ("next", own(3, 100, 100, 1, Some(200))),
-            ("next", own(3, 100, 101, 1, Some(100))),
+            ("tier", own(3, 1, 0, 5, 0, None)),
+            ("next", own(3, 100, 100, 1, 200, Some(200))),
+            ("next", own(3, 100, 101, 1, 200, Some(100))),
             // A tier below the top has a next; the top has none.
-            ("next", own(3, 3, 2, 0, None)),
-            ("next", own(3, 3000, 1000, 4, Some(5000))),
+            ("next", own(3, 3, 2, 0, 0, None)),
+            ("next", own(3, 3000, 1000, 4, 2500, Some(5000))),
+            // The tier begins at or below the points, and tier 0 begins at 0.
+            ("floor", own(3, 100, 99, 1, 200, Some(700))),
+            ("floor", own(3, 100, 99, 0, 5, Some(200))),
         ];
         for (field, fighter) in refused {
             assert_eq!(
@@ -403,14 +420,14 @@ mod tests {
         }
         // Counts near the end of the range do not overflow: the sum
         // saturates, so it can only equal `points` at `u64::MAX`.
-        let mut huge = own(3, u64::MAX, u64::MAX, 4, None);
+        let mut huge = own(3, u64::MAX, u64::MAX, 4, 2500, None);
         huge.points = u64::MAX;
         assert!(huge.check().is_ok());
     }
 
     #[test]
     fn own_fighters_are_ascending_unique_and_at_most_44() {
-        let at = |fighter: u8| own(fighter, 1, 0, 0, Some(200));
+        let at = |fighter: u8| own(fighter, 1, 0, 0, 0, Some(200));
         let counted = |ids: &[u8]| OwnLevels::Counted {
             shown: false,
             fighters: ids.iter().copied().map(at).collect(),
