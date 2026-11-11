@@ -282,3 +282,20 @@ To do:
 11. Game: upload from the outbox, Replays › Sets by set, and
     `.emberpack` save and import.
 12. Manual: the tournament mode guide.
+
+## 6. The bridge's organizer desk is frozen
+
+Organizers now run events on the bracket site (`docs/design/BRACKET_SITE.md`,
+`server/bracket-site`): its own organizers, invites and desk, reached from the
+game's desk button, which signs in with a `tournament.act` proof. Everything
+above that lives in the bridge (the `/v1/organizer/*` routes, the sign-in-site
+organizer flow, `/v1/desk/*`, `/v1/public/events/{id}` and the web desk under
+`bridge/desk/`) is frozen: fix only what breaks Stable 1.5.x, add nothing.
+
+It cannot be deleted yet because the released Stable 1.5.x game still calls
+those routes from its in-game desk, and a removed route would break organizers
+who have not updated.
+
+Delete it, with its sign-in-site organizer scopes and desk tables, when no
+supported Stable build calls it (that is, once 1.6.0 Stable has replaced 1.5.x).
+After that the bracket site's organizer tables are the single authority.
