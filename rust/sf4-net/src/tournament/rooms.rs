@@ -138,6 +138,7 @@ fn ticket_request(endpoint_id: &str, build: &str, ranking: bool) -> Result<Ticke
         build_id: build.to_owned(),
         skill_badge: ranking,
         developer_badge: ranking,
+        card: false,
     };
     request.check().map_err(|_| invalid_request())?;
     Ok(request)

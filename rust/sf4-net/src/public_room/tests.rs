@@ -86,6 +86,7 @@ fn mint(
         issued_at,
         expires_at: issued_at + TICKET_SECS,
         badge: None,
+        card: None,
     }
     .sign(&identity(signer), kid)
     .unwrap()
@@ -128,6 +129,7 @@ impl World {
             issued_at: self.now,
             expires_at: 0,
             badge: None,
+            card: None,
         };
         change(&mut ticket);
         ticket.expires_at = ticket.issued_at + TICKET_SECS;
@@ -517,6 +519,7 @@ fn the_two_proofs_are_not_readable_as_each_other() {
         issued_at: 1000,
         expires_at: 1000 + TICKET_SECS,
         badge: None,
+        card: None,
     }
     .sign(&identity(9), "k1")
     .unwrap();
@@ -789,6 +792,7 @@ fn ticket_of(account: &EmberId, endpoint: EndpointId, room: &str, issued_at: u64
         issued_at,
         expires_at: issued_at + TICKET_SECS,
         badge: None,
+        card: None,
     }
 }
 

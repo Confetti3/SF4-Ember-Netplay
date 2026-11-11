@@ -87,6 +87,7 @@ fn admission(own_delay: bool) -> RoomAdmission {
         issued_at: 1000,
         expires_at: 1000 + TICKET_SECS,
         badge: None,
+        card: None,
     };
     RoomAdmission {
         room: summary(own_delay),

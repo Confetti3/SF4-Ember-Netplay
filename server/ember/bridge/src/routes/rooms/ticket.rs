@@ -56,6 +56,7 @@ pub async fn ticket(
         build_id,
         skill_badge,
         developer_badge,
+        card: _,
     } = request;
     let show_badge = skill_badge && classes_shown(&state);
     let developers = developers(&state);
@@ -120,6 +121,7 @@ pub async fn ticket(
             issued_at: now,
             expires_at: now + TICKET_SECS,
             badge,
+            card: None,
         })
         .map_err(|_| ApiFailure::unavailable())?;
     let admission = RoomAdmission {

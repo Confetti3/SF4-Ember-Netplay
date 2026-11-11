@@ -641,6 +641,7 @@ fn the_public_commands_round_trip_and_keep_their_names() {
         issued_at: 1000,
         expires_at: 1000 + TICKET_SECS,
         badge: None,
+        card: None,
     }
     .sign(&identity(9), "k1")
     .unwrap();
