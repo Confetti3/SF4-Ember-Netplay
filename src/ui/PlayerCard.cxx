@@ -127,6 +127,8 @@ float TextAcross(const std::string& text, float size, ImFont* font) { return fon
 struct Sizes {
     bool narrow = false, compact = false;
     float hero = 0, gutter = 0, digits = 0, progress = 0, tileWidth = 0, tileHeight = 0;
+    // The rows of the words column: the title row and the space under it, the name, the about line, a heading, and the space between parts.
+    float titleLine = 0, titleGap = 0, nameRow = 0, aboutRow = 0, heading = 0, space = 0;
 };
 Sizes SizesOf(bool narrow, float height) {
     const float s = Scale();
@@ -139,6 +141,12 @@ Sizes SizesOf(bool narrow, float height) {
     z.progress = (narrow ? 52 : z.compact ? 32 : 40) * s;
     z.tileWidth = (z.compact ? 112 : 150) * s;
     z.tileHeight = (z.compact ? 160 : 202) * s;
+    z.titleLine = (z.compact ? 30 : 34) * s;
+    z.titleGap = (z.compact ? 6 : 10) * s;
+    z.nameRow = (z.compact ? 40 : 44) * s;
+    z.aboutRow = (z.compact ? 20 : 22) * s;
+    z.heading = (z.compact ? 22 : 24) * s;
+    z.space = (z.compact ? 12 : 14) * s;
     return z;
 }
 
@@ -186,9 +194,9 @@ void DrawHero(ImDrawList* d, v2::Box hero, const PlayerCardView& card, FighterAr
 // The title row (the worn title on its plate, the worn icon at the end; left
 // out with neither), the name with the flag before it and the class emblem
 // after, and the line about the player. Returns the y under them.
-float DrawIdentity(ImDrawList* d, float x, float y, float room, const PlayerCardView& card) {
+float DrawIdentity(ImDrawList* d, float x, float y, float room, const PlayerCardView& card, const Sizes& z) {
     const auto& c = v2::Colors();
-    const float s = Scale(), line = 34 * s, nameRow = 44 * s, nameSize = 36 * s;
+    const float s = Scale(), line = z.titleLine, nameRow = z.nameRow, nameSize = 36 * s;
     const auto& tag = card.profile;
     if (!tag.title.empty() || tag.icon >= 0) {
         const float icon = tag.icon >= 0 ? 40 * s : 0;
@@ -200,7 +208,7 @@ float DrawIdentity(ImDrawList* d, float x, float y, float room, const PlayerCard
             d->AddRect(at, ImVec2(at.x + icon, at.y + icon), ink, 4 * s, 0, 2 * s);
             v2::Icon(d, tag.icon, ImVec2(at.x + 6 * s, at.y + 6 * s), icon - 12 * s, ink);
         }
-        y += line + 10 * s;
+        y += line + z.titleGap;
     }
     NameMarks flag;
     flag.country = card.country;
@@ -213,7 +221,7 @@ float DrawIdentity(ImDrawList* d, float x, float y, float room, const PlayerCard
     d->AddText(HeadingFont(), nameSize, ImVec2(x + marks, top), c.text, name.c_str());
     if (emblem > 0) DrawBadge(d, ImVec2(x + marks + TextAcross(name, nameSize, HeadingFont()) + 12 * s, y + (nameRow - side) * .5f), side, ImGui::GetFont(), badge);
     y += nameRow;
-    if (!tag.about.empty()) { v2::Text(d, ImVec2(x, y), room, tag.about, 15 * s, c.muted); y += 22 * s; }
+    if (!tag.about.empty()) { v2::Text(d, ImVec2(x, y), room, tag.about, 15 * s, c.muted); y += z.aboutRow; }
     return y;
 }
 
@@ -224,7 +232,7 @@ float DrawProgress(ImDrawList* d, float x, float y, float room, const std::vecto
     const auto& c = v2::Colors();
     const float s = Scale();
     v2::SectionHeading(d, ImVec2(x, y), loc::T("card.progress"));
-    y += 24 * s;
+    y += z.heading;
     for (const auto& row : rows) {
         if (z.narrow) {
             const float words = (std::min)(TextAcross(row.words, 14 * s, ImGui::GetFont()), room * .5f);
@@ -269,7 +277,7 @@ float DrawStrip(ImDrawList* d, float x, float y, float room, const PlayerCardVie
     for (const auto& fighter : card.fighters) {
         const auto row = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == CardFighterRow(fighter.fighter); });
         if (row == rows.end()) continue;
-        if (!headed) { v2::SectionHeading(d, ImVec2(x, y), loc::T("card.top_fighters")); y += 24 * s; headed = true; }
+        if (!headed) { v2::SectionHeading(d, ImVec2(x, y), loc::T("card.top_fighters")); y += z.heading; headed = true; }
         const float left = x + shown++ * (width + between);
         const v2::Box box{ImVec2(left, y), ImVec2(left + width, y + height)};
         const bool hovered = PressEntry(nav, rows, *row, box, action, changed).hovered;
@@ -310,7 +318,7 @@ float DrawCardTab(const ShellView& v, const PlayerCardView& card, const std::vec
     } else if (!beside) {
         x = origin.x; room = width; y = hero.max.y + 12 * s;
     }
-    y = DrawIdentity(d, x, y, room, card) + 8 * s;
+    y = DrawIdentity(d, x, y, room, card, z) + 8 * s;
     const std::vector<v2::TagView::Fact> facts{{loc::T("card.counted_games"), std::to_string(card.facts.games)}, {loc::T("card.win_rate"), std::to_string(card.facts.winPercent) + "%"},
         {loc::T("card.fighters_played"), loc::Tf("card.of", card.facts.fightersPlayed, selection::FighterCount)}};
     const float lines = v2::LevelLines(d, ImVec2(x, y), z.digits, 8 * s, card.main.points, card.account.points, alpha);
@@ -319,11 +327,11 @@ float DrawCardTab(const ShellView& v, const PlayerCardView& card, const std::vec
         const float left = 260 * s;
         y += (std::max)(lines, v2::FactCells(d, ImVec2(x + left, y), room - left, facts, 3));
     } else y += lines;
-    y += 14 * s;
-    if (z.narrow) y = (std::max)(y, hero.max.y + 14 * s);
-    y = DrawProgress(d, x, y, room, player_card::ProgressRows(card), z) + 14 * s;
-    if (!z.compact) y += v2::FactCells(d, ImVec2(x, y), room, facts, z.narrow ? 2 : 3) + 14 * s;
-    if (const char* why = player_card::NoLevelWords(card)) y += v2::Paragraph(d, ImVec2(x, y), room, loc::T(why), 14 * s, c.muted) + 14 * s;
+    y += z.space;
+    if (z.narrow) y = (std::max)(y, hero.max.y + z.space);
+    y = DrawProgress(d, x, y, room, player_card::ProgressRows(card), z) + z.space;
+    if (!z.compact) y += v2::FactCells(d, ImVec2(x, y), room, facts, z.narrow ? 2 : 3) + z.space;
+    if (const char* why = player_card::NoLevelWords(card)) y += v2::Paragraph(d, ImVec2(x, y), room, loc::T(why), 14 * s, c.muted) + z.space;
     y = DrawStrip(d, x, y, room, card, z, art, alpha, rows, nav, action, changed);
     y = DrawRowButton(DiscordConnectScreen, ImVec2(x, y), (std::min)(room, 360 * s), rows, nav, action, changed);
     if (z.narrow) {
