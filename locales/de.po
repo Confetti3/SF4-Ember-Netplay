@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "Raumanfrage fehlgeschlagen. Raum verlassen und erneut versuchen."
 
 msgid "runtime.build_mismatch"
-msgstr "Builds stimmen nicht überein. Beide Spieler brauchen dasselbe SF4 Ember Netplay-Paket."
+msgstr "Dein Ember und dieser Raum haben verschiedene Versionen. Frag den Host, welche er nutzt, und aktualisiere dann oder wechsle den Update-Kanal unter Hilfe & Info > Auf Updates prüfen, damit ihr übereinstimmt."
+msgid "runtime.build_mismatch_update"
+msgstr "Dein Ember ist veraltet und kann diesem Raum deshalb nicht beitreten. Aktualisiere unter Hilfe & Info > Auf Updates prüfen und tritt dann erneut bei."
 
 msgid "runtime.room_full"
 msgstr "Dieser Raum ist voll."
@@ -3663,7 +3665,7 @@ msgid "runtime.invite_own_room"
 msgstr "Diese Einladung führt zurück zu deinem eigenen Spiel: Sie wurde kopiert, bevor du den Raum verlassen hast. Bitte den Host, die Einladung erneut zu kopieren."
 
 msgid "runtime.invite_other_build"
-msgstr "Der Host nutzt ein anderes SF4-Ember-Netplay-Paket. Beide Spieler brauchen dieselbe Version."
+msgstr "Der Host nutzt eine andere Version von Ember. Frag, welche, und aktualisiere dann oder wechsle den Update-Kanal unter Hilfe & Info > Auf Updates prüfen, damit ihr übereinstimmt."
 
 msgid "runtime.invite_malformed"
 msgstr "Der Einladungstext ist unvollständig. Erneut kopieren und die ganze Einladung einfügen."

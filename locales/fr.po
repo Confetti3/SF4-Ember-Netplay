@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "Échec de la requête au salon. Quittez-le et réessayez."
 
 msgid "runtime.build_mismatch"
-msgstr "Versions incompatibles. Les deux joueurs doivent utiliser le même paquet SF4 Ember Netplay."
+msgstr "Votre Ember et ce salon n'ont pas la même version. Demandez à l'hôte laquelle il utilise, puis mettez à jour ou changez de canal de mise à jour dans Aide et infos > Chercher des mises à jour pour qu'elles correspondent."
+msgid "runtime.build_mismatch_update"
+msgstr "Votre Ember n'est pas à jour et ne peut donc pas rejoindre ce salon. Mettez à jour dans Aide et infos > Chercher des mises à jour, puis rejoignez à nouveau."
 
 msgid "runtime.room_full"
 msgstr "Ce salon est complet."
@@ -3663,7 +3665,7 @@ msgid "runtime.invite_own_room"
 msgstr "Cette invitation renvoie vers votre propre jeu : elle a été copiée avant que vous quittiez le salon. Demandez à l'hôte de copier l'invitation à nouveau."
 
 msgid "runtime.invite_other_build"
-msgstr "L'hôte utilise un autre paquet SF4 Ember Netplay. Les deux joueurs doivent avoir la même version."
+msgstr "L'hôte utilise une autre version d'Ember. Demandez laquelle, puis mettez à jour ou changez de canal de mise à jour dans Aide et infos > Chercher des mises à jour pour qu'elles correspondent."
 
 msgid "runtime.invite_malformed"
 msgstr "Le texte de l'invitation est incomplet. Copiez-la de nouveau et collez l'invitation entière."

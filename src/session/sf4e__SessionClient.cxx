@@ -35,9 +35,9 @@ using sf4e::SessionProtocol::LobbyReady;
 const int sf4e::SESSION_CLIENT_MAX_MESSAGES_PER_POLL = 20;
 bool SessionClient::bVerboseLogging = false;
 
-const char* SessionClient::JoinRejectionKey(ErrorType type) {
+const char* SessionClient::JoinRejectionKey(ErrorType type, bool updateAvailable) {
 	switch (type) {
-	case SCE_JOIN_REJECTED_HASH_INVALID: return "runtime.build_mismatch";
+	case SCE_JOIN_REJECTED_HASH_INVALID: return updateAvailable ? "runtime.build_mismatch_update" : "runtime.build_mismatch";
 	case SCE_JOIN_REJECTED_LOBBY_FULL: return "runtime.room_full";
 	case SCE_JOIN_REJECTED_NAME_TAKEN: return "room.reject.name_taken";
 	default: return "runtime.room_request_failed";
@@ -46,11 +46,11 @@ const char* SessionClient::JoinRejectionKey(ErrorType type) {
 
 // A public room's host locks the room by refusing as full, and removes or
 // turns away a player by an invalid request: both say so in the room's own words.
-const char* SessionClient::PublicJoinRejectionKey(ErrorType type) {
+const char* SessionClient::PublicJoinRejectionKey(ErrorType type, bool updateAvailable) {
 	switch (type) {
 	case SCE_JOIN_REJECTED_LOBBY_FULL: return "public.failure.full_or_locked";
 	case SCE_JOIN_REJECTED_REQUEST_INVALID: return "public.failure.turned_away";
-	default: return JoinRejectionKey(type);
+	default: return JoinRejectionKey(type, updateAvailable);
 	}
 }
 

@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "ルームへの要求に失敗しました。退出して再試行してください。"
 
 msgid "runtime.build_mismatch"
-msgstr "ビルドが一致しません。両プレイヤーは同じSF4 Ember Netplayパッケージを使用してください。"
+msgstr "あなたの Ember とこのルームのバージョンが違います。ホストが使っているバージョンを聞いてから、ヘルプ・情報 > 更新を確認 で更新するか更新チャンネルを変えて、そろえてください。"
+msgid "runtime.build_mismatch_update"
+msgstr "お使いの Ember が古いため、このルームには参加できません。ヘルプ・情報 > 更新を確認 で更新してから、もう一度参加してください。"
 
 msgid "runtime.room_full"
 msgstr "このルームは満員です。"
@@ -3664,7 +3666,7 @@ msgid "runtime.invite_own_room"
 msgstr "この招待はあなた自身のゲームを指しています。ルームを出る前にコピーされたものです。ホストに招待をもう一度コピーしてもらってください。"
 
 msgid "runtime.invite_other_build"
-msgstr "ホストは別の SF4 Ember Netplay パッケージを使っています。両プレイヤーが同じバージョンを使う必要があります。"
+msgstr "ホストは別のバージョンの Ember を使っています。どのバージョンか聞いてから、ヘルプ・情報 > 更新を確認 で更新するか更新チャンネルを変えて、そろえてください。"
 
 msgid "runtime.invite_malformed"
 msgstr "招待のテキストが不完全です。もう一度コピーして、招待全体を貼り付けてください。"

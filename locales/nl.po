@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "Het kamerverzoek is mislukt. Verlaat de kamer en probeer opnieuw."
 
 msgid "runtime.build_mismatch"
-msgstr "Verschillende builds. Beide spelers moeten hetzelfde SF4 Ember Netplay-pakket gebruiken."
+msgstr "Jouw Ember en deze kamer hebben verschillende versies. Vraag de host welke versie die gebruikt en update daarna, of wissel van updatekanaal, via Hulp en info > Zoek naar updates zodat ze gelijk zijn."
+msgid "runtime.build_mismatch_update"
+msgstr "Jouw Ember is verouderd en kan daarom niet in deze kamer komen. Update via Hulp en info > Zoek naar updates en kom daarna opnieuw binnen."
 
 msgid "runtime.room_full"
 msgstr "Deze kamer is vol."
@@ -3663,7 +3665,7 @@ msgid "runtime.invite_own_room"
 msgstr "Deze uitnodiging verwijst naar je eigen spel: hij is gekopieerd voordat je de kamer verliet. Vraag de host de uitnodiging opnieuw te kopiëren."
 
 msgid "runtime.invite_other_build"
-msgstr "De host gebruikt een ander SF4 Ember Netplay-pakket. Beide spelers hebben dezelfde versie nodig."
+msgstr "De host gebruikt een andere versie van Ember. Vraag welke en update daarna, of wissel van updatekanaal, via Hulp en info > Zoek naar updates zodat ze gelijk zijn."
 
 msgid "runtime.invite_malformed"
 msgstr "De uitnodigingstekst is onvolledig. Kopieer hem opnieuw en plak de hele uitnodiging."

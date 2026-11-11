@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "Richiesta alla sala fallita. Esci e riprova."
 
 msgid "runtime.build_mismatch"
-msgstr "Versioni non corrispondenti. Entrambi devono usare lo stesso pacchetto SF4 Ember Netplay."
+msgstr "Il tuo Ember e questa stanza hanno versioni diverse. Chiedi all'host quale usa, poi aggiorna o cambia canale di aggiornamento in Guida e info > Cerca aggiornamenti per farle coincidere."
+msgid "runtime.build_mismatch_update"
+msgstr "Il tuo Ember è obsoleto e non può entrare in questa stanza. Aggiorna in Guida e info > Cerca aggiornamenti, poi entra di nuovo."
 
 msgid "runtime.room_full"
 msgstr "La sala è piena."
@@ -3663,7 +3665,7 @@ msgid "runtime.invite_own_room"
 msgstr "Questo invito rimanda al tuo stesso gioco: è stato copiato prima che lasciassi la sala. Chiedi all'host di copiare di nuovo l'invito."
 
 msgid "runtime.invite_other_build"
-msgstr "L'host usa un altro pacchetto di SF4 Ember Netplay. Entrambi i giocatori devono avere la stessa versione."
+msgstr "L'host usa un'altra versione di Ember. Chiedigli quale, poi aggiorna o cambia canale di aggiornamento in Guida e info > Cerca aggiornamenti per farle coincidere."
 
 msgid "runtime.invite_malformed"
 msgstr "Il testo dell'invito è incompleto. Copialo di nuovo e incolla l'invito intero."

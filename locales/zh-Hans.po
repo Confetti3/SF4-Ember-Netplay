@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "房间请求失败。请离开房间后重试。"
 
 msgid "runtime.build_mismatch"
-msgstr "构建版本不匹配。双方必须使用同一 SF4 Ember Netplay 安装包。"
+msgstr "你的 Ember 与此房间的版本不同。请问房主用的是哪个版本，然后在“帮助与关于 > 检查更新”中更新或更改更新渠道，使版本一致。"
+msgid "runtime.build_mismatch_update"
+msgstr "你的 Ember 版本过旧，无法加入此房间。请在“帮助与关于 > 检查更新”中更新，然后重新加入。"
 
 msgid "runtime.room_full"
 msgstr "房间已满。"
@@ -3664,7 +3666,7 @@ msgid "runtime.invite_own_room"
 msgstr "此邀请指向你自己的游戏：它是在你离开房间之前复制的。请让房主重新复制邀请。"
 
 msgid "runtime.invite_other_build"
-msgstr "房主使用的是另一个 SF4 Ember Netplay 包。双方需要使用相同版本。"
+msgstr "房主使用的是另一个版本的 Ember。请问清是哪个版本，然后在“帮助与关于 > 检查更新”中更新或更改更新渠道，使版本一致。"
 
 msgid "runtime.invite_malformed"
 msgstr "邀请文本不完整。请重新复制并粘贴完整的邀请。"

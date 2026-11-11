@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "방 요청에 실패했습니다. 방을 나가 다시 시도하세요."
 
 msgid "runtime.build_mismatch"
-msgstr "빌드가 다릅니다. 두 플레이어가 같은 SF4 Ember Netplay 패키지를 사용해야 합니다."
+msgstr "내 Ember와 이 방의 버전이 다릅니다. 호스트가 쓰는 버전을 물어본 뒤, 도움말 및 정보 > 업데이트 확인에서 업데이트하거나 업데이트 채널을 바꿔 버전을 맞추세요."
+msgid "runtime.build_mismatch_update"
+msgstr "Ember가 오래되어 이 방에 참가할 수 없습니다. 도움말 및 정보 > 업데이트 확인에서 업데이트한 뒤 다시 참가하세요."
 
 msgid "runtime.room_full"
 msgstr "방이 가득 찼습니다."
@@ -3664,7 +3666,7 @@ msgid "runtime.invite_own_room"
 msgstr "이 초대는 내 게임을 가리키고 있습니다. 방을 나가기 전에 복사된 초대입니다. 방장에게 초대를 다시 복사해 달라고 하세요."
 
 msgid "runtime.invite_other_build"
-msgstr "호스트가 다른 SF4 Ember Netplay 패키지를 사용 중입니다. 두 플레이어 모두 같은 버전이 필요합니다."
+msgstr "호스트가 다른 버전의 Ember를 쓰고 있습니다. 어떤 버전인지 물어본 뒤, 도움말 및 정보 > 업데이트 확인에서 업데이트하거나 업데이트 채널을 바꿔 버전을 맞추세요."
 
 msgid "runtime.invite_malformed"
 msgstr "초대 텍스트가 불완전합니다. 다시 복사해서 초대 전체를 붙여 넣으세요."

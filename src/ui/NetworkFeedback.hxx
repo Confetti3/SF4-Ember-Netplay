@@ -73,8 +73,10 @@ inline std::string DescribeDirectBlock(NatClass local, NatClass peer, const std:
 }
 
 // The sentence for a room that failed while opening. `region` is this PC's
-// home relay, named when the relay was the problem.
-inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage stage, const std::string& region) {
+// home relay, named when the relay was the problem. `updateAvailable` is
+// whether this PC knows of a newer Ember: a join refused for another build
+// cannot tell which build is older, but then this one is.
+inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage stage, const std::string& region, bool updateAvailable = false) {
     switch (stage) {
     case session::FailureStage::RelayUnreachable: {
         const char* name = RelayRegionName(region);
@@ -84,7 +86,7 @@ inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage st
     case session::FailureStage::ControlLost: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.join_control_lost");
     // Only a join reads an invitation; a host never hears about one.
     case session::FailureStage::InviteExpired: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_expired");
-    case session::FailureStage::InviteOtherBuild: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_other_build");
+    case session::FailureStage::InviteOtherBuild: return hosting ? loc::T("runtime.room_host_failed") : loc::T(updateAvailable ? "runtime.build_mismatch_update" : "runtime.invite_other_build");
     case session::FailureStage::InviteMalformed: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_malformed");
     case session::FailureStage::InviteOwnRoom: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_own_room");
     case session::FailureStage::ShortUnavailable: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_short_unavailable");
@@ -95,8 +97,8 @@ inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage st
 
 // The same for a join of a public room: a stage the helper did not name says what
 // that likely means for such a room, and every named one reads as for any join.
-inline std::string DescribePublicOpeningFailure(session::FailureStage stage, const std::string& region) {
-    return stage == session::FailureStage::Unknown ? std::string(loc::T("public.failure.join_failed")) : DescribeOpeningFailure(false, stage, region);
+inline std::string DescribePublicOpeningFailure(session::FailureStage stage, const std::string& region, bool updateAvailable = false) {
+    return stage == session::FailureStage::Unknown ? std::string(loc::T("public.failure.join_failed")) : DescribeOpeningFailure(false, stage, region, updateAvailable);
 }
 
 } }

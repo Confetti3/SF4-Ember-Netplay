@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "Żądanie pokoju nie powiodło się. Opuść pokój i spróbuj ponownie."
 
 msgid "runtime.build_mismatch"
-msgstr "Niezgodne wersje. Obaj gracze muszą używać tego samego pakietu SF4 Ember Netplay."
+msgstr "Twój Ember i ten pokój mają różne wersje. Zapytaj gospodarza, której wersji używa, a potem zaktualizuj grę lub zmień kanał aktualizacji w Pomoc i informacje > Sprawdź aktualizacje, żeby wersje się zgadzały."
+msgid "runtime.build_mismatch_update"
+msgstr "Twój Ember jest nieaktualny, więc nie może dołączyć do tego pokoju. Zaktualizuj w Pomoc i informacje > Sprawdź aktualizacje i dołącz ponownie."
 
 msgid "runtime.room_full"
 msgstr "Pokój jest pełny."
@@ -3663,7 +3665,7 @@ msgid "runtime.invite_own_room"
 msgstr "To zaproszenie prowadzi z powrotem do Twojej gry: zostało skopiowane, zanim opuściłeś pokój. Poproś gospodarza o ponowne skopiowanie zaproszenia."
 
 msgid "runtime.invite_other_build"
-msgstr "Gospodarz używa innego pakietu SF4 Ember Netplay. Obaj gracze potrzebują tej samej wersji."
+msgstr "Gospodarz używa innej wersji Embera. Zapytaj, której, a potem zaktualizuj grę lub zmień kanał aktualizacji w Pomoc i informacje > Sprawdź aktualizacje, żeby wersje się zgadzały."
 
 msgid "runtime.invite_malformed"
 msgstr "Tekst zaproszenia jest niepełny. Skopiuj je ponownie i wklej całe zaproszenie."

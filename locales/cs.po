@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "Požadavek místnosti selhal. Opusťte místnost a zkuste to znovu."
 
 msgid "runtime.build_mismatch"
-msgstr "Neshodují se verze. Oba hráči musí mít stejný balíček SF4 Ember Netplay."
+msgstr "Váš Ember a tato místnost mají různé verze. Zeptejte se hostitele, jakou verzi používá, a pak aktualizujte nebo změňte kanál aktualizací v Nápověda > Hledat aktualizace, aby se shodovaly."
+msgid "runtime.build_mismatch_update"
+msgstr "Váš Ember je zastaralý, a proto se do této místnosti nemůže připojit. Aktualizujte v Nápověda > Hledat aktualizace a pak se připojte znovu."
 
 msgid "runtime.room_full"
 msgstr "Místnost je plná."
@@ -3663,7 +3665,7 @@ msgid "runtime.invite_own_room"
 msgstr "Tato pozvánka vede zpět na vaši vlastní hru: byla zkopírována dřív, než jste místnost opustili. Požádejte hostitele, ať pozvánku zkopíruje znovu."
 
 msgid "runtime.invite_other_build"
-msgstr "Hostitel používá jiný balíček SF4 Ember Netplay. Oba hráči potřebují stejnou verzi."
+msgstr "Hostitel používá jinou verzi Emberu. Zeptejte se, jakou, a pak aktualizujte nebo změňte kanál aktualizací v Nápověda > Hledat aktualizace, aby se shodovaly."
 
 msgid "runtime.invite_malformed"
 msgstr "Text pozvánky je neúplný. Zkopírujte ji znovu a vložte celou pozvánku."

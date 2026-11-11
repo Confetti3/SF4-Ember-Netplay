@@ -92,6 +92,11 @@ int main() try {
         failure(false, FailureStage::ShortUnavailable) == sf4e::loc::T("runtime.invite_short_unavailable") &&
         failure(false, FailureStage::ShortUnknown) == sf4e::loc::T("runtime.invite_short_unknown"),
         "A refused invitation lost its reason");
+    Check(DescribeOpeningFailure(false, FailureStage::InviteOtherBuild, "", true) == sf4e::loc::T("runtime.build_mismatch_update") &&
+        DescribeOpeningFailure(false, FailureStage::InviteExpired, "", true) == sf4e::loc::T("runtime.invite_expired") &&
+        DescribeOpeningFailure(true, FailureStage::InviteOtherBuild, "", true) == sf4e::loc::T("runtime.room_host_failed") &&
+        DescribePublicOpeningFailure(FailureStage::InviteOtherBuild, "", true) == sf4e::loc::T("runtime.build_mismatch_update"),
+        "A refusal for another build did not say the update fixes it");
     Check(failure(true, FailureStage::InviteExpired) == sf4e::loc::T("runtime.room_host_failed") &&
         failure(true, FailureStage::InviteOtherBuild) == sf4e::loc::T("runtime.room_host_failed") &&
         failure(true, FailureStage::InviteMalformed) == sf4e::loc::T("runtime.room_host_failed") &&
