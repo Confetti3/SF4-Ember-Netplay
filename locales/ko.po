@@ -1093,6 +1093,9 @@ msgstr "{0}포인트"
 msgid "level.games"
 msgstr "{0}경기"
 
+msgid "level.game_one"
+msgstr "{0}경기"
+
 msgid "level.points_to"
 msgstr "{1}까지 {0}포인트"
 

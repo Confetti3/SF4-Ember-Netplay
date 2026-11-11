@@ -59,6 +59,8 @@ void Fill(PlayerCardView& view, const netplay::Answered<Own>& answer, int main) 
     view.facts.winPercent = view.facts.games ? static_cast<int>((wins * 100 + view.facts.games / 2) / view.facts.games) : 0;
 }
 
+std::string GamesWords(std::uint64_t games) { return loc::Tf(games == 1 ? "level.game_one" : "level.games", games); }
+
 const char* NoLevelWords(const PlayerCardView& card) {
     switch (card.levels) {
     case CardLevels::Pending: return "level.loading";
@@ -93,7 +95,7 @@ void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int mai
         const auto& lead = card.fighters.front();
         const float width = v2::Level(d, ImVec2(left, foot.min.y + pad), plate, lead.points, lead.tier), x = left + width + pad, text = (std::max)(0.f, room - width - pad);
         v2::Text(d, ImVec2(x, foot.min.y + pad + 4 * s), text, fighter->name, 18 * s, c.text, HeadingFont());
-        v2::Text(d, ImVec2(x, foot.min.y + pad + 30 * s), text, loc::Tf("level.games", lead.games), 14 * s, c.muted);
+        v2::Text(d, ImVec2(x, foot.min.y + pad + 30 * s), text, player_card::GamesWords(lead.games), 14 * s, c.muted);
     } else if (const char* why = player_card::NoLevelWords(card)) {
         v2::Paragraph(d, ImVec2(left, foot.min.y + pad), room, loc::T(why), 14 * s, c.text);
     } else if (fighter) {
@@ -111,7 +113,7 @@ void DrawStripTile(ImDrawList* d, v2::Box box, const CardFighter& fighter, Fight
     v2::LevelBand(d, tile, fighter.points, fighter.tier);
     const float y = tile.max.y + 6 * s;
     v2::Text(d, ImVec2(box.min.x + pad, y), side, selection::FindFighter(fighter.fighter)->name, 14 * s, c.text, HeadingFont());
-    if (fighter.games) v2::Text(d, ImVec2(box.min.x + pad, y + 20 * s), side, loc::Tf("level.games", fighter.games), 12 * s, c.muted);
+    if (fighter.games) v2::Text(d, ImVec2(box.min.x + pad, y + 20 * s), side, player_card::GamesWords(fighter.games), 12 * s, c.muted);
     if (focused) v2::Focus(d, box.min, box.max);
 }
 }

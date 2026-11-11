@@ -1093,6 +1093,9 @@ msgstr "{0} 积分"
 msgid "level.games"
 msgstr "{0} 场"
 
+msgid "level.game_one"
+msgstr "{0} 场"
+
 msgid "level.points_to"
 msgstr "距离{1}还差 {0} 积分"
 

@@ -26,6 +26,8 @@ void Fill(PlayerCardView& view, const netplay::Answered<Own>& levels, int main);
 // The catalog id of the words that say why the card has no points to show, or
 // null when it has (no answer yet, no account, a service without points, nothing played).
 const char* NoLevelWords(const PlayerCardView& view);
+// "1 game" or "N games": the catalogs have no plural forms, so one has its own string.
+std::string GamesWords(std::uint64_t games);
 }
 
 struct ShellView;

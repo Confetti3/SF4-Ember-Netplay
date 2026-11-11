@@ -1093,6 +1093,9 @@ msgstr "Очки: {0}"
 msgid "level.games"
 msgstr "Игр: {0}"
 
+msgid "level.game_one"
+msgstr "Игр: {0}"
+
 msgid "level.points_to"
 msgstr "До {1} осталось очков: {0}"
 

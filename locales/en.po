@@ -1093,6 +1093,9 @@ msgstr "{0} points"
 msgid "level.games"
 msgstr "{0} games"
 
+msgid "level.game_one"
+msgstr "{0} game"
+
 msgid "level.points_to"
 msgstr "{0} points to {1}"
 

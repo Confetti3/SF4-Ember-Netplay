@@ -19,7 +19,7 @@ constexpr const char* UnplayedRow = "fighters-unplayed";
 
 
 std::string FighterDetail(const netplay::levels::FighterLevel& level) {
-    return loc::Tf("level.value", level.points) + " \xC2\xB7 " + loc::Tf("level.games", level.games);
+    return loc::Tf("level.value", level.points) + " \xC2\xB7 " + player_card::GamesWords(level.games);
 }
 
 // A fighter's row on the Fighters board: its picture with the points on it,
@@ -33,7 +33,7 @@ void DrawFighterRow(ImDrawList* d, v2::Box box, int fighter, const netplay::leve
     v2::LevelBand(d, tile, level.points, level.tier);
     const float x = tile.max.x + 12 * s, room = box.max.x - pad - x;
     v2::Text(d, ImVec2(x, box.min.y + 12 * s), room, selection::FindFighter(fighter)->name, 15 * s, enabled ? c.text : c.muted, HeadingFont());
-    v2::Text(d, ImVec2(x, box.min.y + 34 * s), room, loc::Tf("level.games", level.games), 12 * s, c.muted);
+    v2::Text(d, ImVec2(x, box.min.y + 34 * s), room, player_card::GamesWords(level.games), 12 * s, c.muted);
     v2::Meter(d, {ImVec2(x, box.max.y - pad - 8 * s), ImVec2(x + room, box.max.y - pad - 2 * s)}, player_card::Part(level), 0.f);
     if (focused) v2::Focus(d, box.min, box.max);
 }

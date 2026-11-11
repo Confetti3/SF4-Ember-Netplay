@@ -1093,6 +1093,9 @@ msgstr "Body: {0}"
 msgid "level.games"
 msgstr "Zápasů: {0}"
 
+msgid "level.game_one"
+msgstr "Zápasů: {0}"
+
 msgid "level.points_to"
 msgstr "Do {1} zbývá bodů: {0}"
 

@@ -1093,6 +1093,9 @@ msgstr "Punkty: {0}"
 msgid "level.games"
 msgstr "Gier: {0}"
 
+msgid "level.game_one"
+msgstr "Gier: {0}"
+
 msgid "level.points_to"
 msgstr "Do {1} brakuje punktów: {0}"
 
