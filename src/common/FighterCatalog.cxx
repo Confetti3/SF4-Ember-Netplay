@@ -221,8 +221,6 @@ bool Valid(const Pick& pick, bool editionSelect) {
     if ((pick.personalAction != 255 && (pick.personalAction < 0 || pick.personalAction > 9)) ||
         (pick.winQuote != 255 && (pick.winQuote < 0 || pick.winQuote > 10)) ||
         pick.handicap < 0 || pick.handicap > 4) return false;
-    // SF4 has no model size: a pick that carries one is not SF4's.
-    if (pick.size != 0) return false;
     if (!EditionAllowed(pick.fighter, pick.edition, editionSelect) || pick.costume < 0 ||
         (pick.costume >= CostumeCount(pick.fighter) && !IsCustomCostume(pick.costume)) ||
         !ColorInRange(pick.fighter, pick.costume, pick.color)) return false;
