@@ -49,13 +49,27 @@ struct Availability {
 struct InstalledContent;
 typedef std::shared_ptr<const InstalledContent> InstalledContentPtr;
 
+// The wire pick's spare byte (ConfirmedCharaConditions::_unused) carries
+// Pick::size. A native pick without that byte (SF4's saved overlay pick) has
+// no size: it reads as normal and is written without one.
+namespace detail {
+template<class Native> auto ReadSpareSize(const Native& native, int) -> decltype(native._unused, int()) {
+    // 1 is tiny, anything else (SF4's padding) normal.
+    return native._unused == 1 ? 1 : 0;
+}
+template<class Native> int ReadSpareSize(const Native&, long) { return 0; }
+template<class Native> auto WriteSpareSize(Native& native, int size, int) -> decltype(native._unused, void()) {
+    native._unused = static_cast<std::uint8_t>(size);
+}
+template<class Native> void WriteSpareSize(Native&, int, long) {}
+}
+
 template<class Native> Pick FromNative(const Native& native) {
     Pick pick;
     pick.fighter = native.charaID; pick.costume = native.costume;
     pick.color = native.color; pick.ultra = native.ultraCombo; pick.edition = native.unc_edition;
     pick.personalAction = native.personalAction; pick.winQuote = native.winQuote; pick.handicap = native.handicap;
-    // The spare byte: 1 is tiny, anything else (SF4's padding) normal.
-    pick.size = native._unused == 1 ? 1 : 0;
+    pick.size = detail::ReadSpareSize(native, 0);
     return pick;
 }
 template<class Native> void ToNative(const Pick& pick, Native& native) {
@@ -67,7 +81,7 @@ template<class Native> void ToNative(const Pick& pick, Native& native) {
     native.personalAction = static_cast<std::uint8_t>(pick.personalAction);
     native.winQuote = static_cast<std::uint8_t>(pick.winQuote);
     native.handicap = static_cast<std::uint8_t>(pick.handicap);
-    native._unused = static_cast<std::uint8_t>(pick.size);
+    detail::WriteSpareSize(native, pick.size, 0);
 }
 
 } }
