@@ -44,16 +44,16 @@ namespace {
 constexpr std::uint64_t TopPoints = 999999;
 // A plate's number stands this share of its height tall, and the plate keeps
 // this share of its height clear at each side of the number.
-constexpr float PlateCap = .56f, PlateSide = .28f;
+constexpr float PlateCap = .44f, PlateSide = .22f;
 // A band takes this share of its picture's height (20 px at least), and its
 // number this share of the band.
-constexpr float BandShare = .3f, BandCap = .62f;
+constexpr float BandShare = .22f, BandCap = .58f;
 
 // White, as the game draws its points; the gold of its "rank up" digits for a gain.
 constexpr ImU32 White = IM_COL32(255, 255, 255, 255), Gold = IM_COL32(255, 200, 64, 255);
 // The label before a plate's number stands this share of the plate's height, and
 // is set off from the plate by this share of it.
-constexpr float LabelSize = .4f, LabelGap = .2f;
+constexpr float LabelSize = .34f, LabelGap = .16f;
 
 // The art's digits, empty while the game's sheet loads or when it is missing.
 PointDigitSheet DigitArt() {
