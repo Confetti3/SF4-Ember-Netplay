@@ -139,8 +139,10 @@ float DrawAdd(const BoardFrame& f, const MenuEntry& e, ImVec2 at, float width, b
         const std::string words = coded ? e.value.substr(0, e.value.size() - code.size()) : e.value, shown = coded ? code : std::string();
         const float wordsWide = TextWidth(words, 15 * s, ImGui::GetFont()), codeWide = TextWidth(shown, 17 * s, HeadingFont());
         const float right = box.max.x - 18 * s, start = (std::max)(right - wordsWide - codeWide, x + label + 16 * s);
-        v2::Text(f.d, ImVec2(start, mid - 8 * s), wordsWide + 1, words, 15 * s, c.muted);
-        v2::Text(f.d, ImVec2(start + wordsWide, mid - 9 * s), right - start - wordsWide, shown, 17 * s, c.text, HeadingFont());
+        // Only text there is room for: a value with no code of its own, or a narrow row, leaves nothing to draw.
+        const float codeRoom = right - start - wordsWide;
+        if (!words.empty() && right > start) v2::Text(f.d, ImVec2(start, mid - 8 * s), (std::min)(wordsWide + 1, right - start), words, 15 * s, c.muted);
+        if (!shown.empty() && codeRoom > 0) v2::Text(f.d, ImVec2(start + wordsWide, mid - 9 * s), codeRoom, shown, 17 * s, c.text, HeadingFont());
     }
     Finish(f, e, box);
     return box.max.y;
