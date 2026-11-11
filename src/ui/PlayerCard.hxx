@@ -57,8 +57,6 @@ struct ShellView;
 inline std::string CardFighterRow(int fighter) { return "card-fighter:" + std::to_string(fighter); }
 constexpr const char* CardEditRow = "card-edit";
 constexpr const char* ChooseMainRow = "main-character";
-// The row that holds the words when the Fighters tab has no points to show.
-constexpr const char* ProfileStateRow = "profile-state";
 // The row `id` among `rows` as a Primary button `width` wide at `at` (Connect
 // Discord), pressed through PressEntry. Nothing when there is no such row.
 // Returns the bottom of what it drew, `at.y` when nothing.

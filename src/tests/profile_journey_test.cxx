@@ -7,6 +7,8 @@
 #include "public_rooms_journey_support.hxx"
 #include "../ui/PlayerCard.hxx"
 #include "../ui/ProfilePanel.hxx"
+#include "../ui/RowId.hxx"
+#include <algorithm>
 #include <memory>
 namespace {
 using netplay::levels::Own;
@@ -79,28 +81,59 @@ void StripTilesJourney() {
  Check(j.h.shell.Navigation().Screen() == "home", "Back from Fighters opened from the strip did not return to Home");
 }
 
-// Fighters lists the played fighters, most points first, and Select makes one the main.
+// Fighters lists every fighter: the played ones by points, then the rest in roster order; Select makes any of them, played or not, the main.
 void FightersJourney() {
  Journey j;
  j.h.view.preferences.mainFighter = 0;
  Answer(j);
  j.h.Screen("fighters");
- std::vector<std::string> fighters;
- for (const auto& row : j.rows) if (ui::HasPrefix(row.id, "main-")) fighters.push_back(row.id);
- Check(fighters == std::vector<std::string>({"main-0", "main-5", "main-12", "main-7", "main-20"}), "The Fighters tab does not list the played fighters by points");
- Check(j.row("fighters-unplayed") != nullptr, "The Fighters tab has no row for the fighters not played yet");
- j.h.Choose("main-12");
+ std::vector<int> fighters;
+ for (const auto& row : j.rows) if (const auto id = ui::RowKey<int>(row.id, "main-")) fighters.push_back(*id);
+ // The main (Ryu, also the most played) first, the other four played by points, then the rest as the roster shows them.
+ std::vector<int> expected = {0, 5, 12, 7, 20};
+ for (const int id : selection::RosterDisplayOrder) if (std::find(expected.begin(), expected.end(), id) == expected.end()) expected.push_back(id);
+ Check(fighters == expected, "The Fighters tab does not list the played fighters by points, then the rest in roster order");
+ Check(fighters.size() == static_cast<std::size_t>(selection::FighterCount), "The Fighters tab does not list every fighter");
+ // A played fighter becomes the main.
+ j.h.shell.Navigation().Focus("main-12", j.rows);
+ j.h.Press(MenuInput::Select);
  j.h.Frame(0, 40);
  const auto* save = Last<commands::SavePreferences>(j.h.actions);
  Check(save && save->preferences.mainFighter == 12, "Select on a fighter did not save it as the main");
+ // So does one never played: its tile is there at 0 points.
+ const auto* unplayed = j.row("main-3");
+ Check(unplayed && unplayed->enabled, "A fighter not played cannot be chosen");
+ j.h.shell.Navigation().Focus("main-3", j.rows);
+ j.h.Press(MenuInput::Select);
+ j.h.Frame(0, 40);
+ save = Last<commands::SavePreferences>(j.h.actions);
+ Check(save && save->preferences.mainFighter == 3, "Select on a fighter not played did not save it as the main");
  // In a room preferences are locked: the rows are there and cannot change the main.
  j.h.view.canEditPreferences = false; j.h.Frame(0, 2);
  const auto* locked = j.row("main-5");
  Check(locked && !locked->enabled, "A fighter can be made the main while preferences are locked");
+ const auto* lockedUnplayed = j.row("main-3");
+ Check(lockedUnplayed && !lockedUnplayed->enabled, "A fighter not played can be made the main while preferences are locked");
+}
+
+// The main leads its own group: an unplayed main first among the rest, a played one first among the played.
+void FightersMainJourney() {
+ Journey j;
+ j.h.view.preferences.mainFighter = 20;
+ Answer(j);
+ j.h.Screen("fighters");
+ std::vector<int> fighters;
+ for (const auto& row : j.rows) if (const auto id = ui::RowKey<int>(row.id, "main-")) fighters.push_back(*id);
+ Check(fighters.size() > 5 && fighters[0] == 20 && fighters[1] == 0, "A played main does not lead the played fighters");
+ j.h.view.preferences.mainFighter = 42; j.h.Frame(0, 2);
+ j.h.Screen("fighters");
+ fighters.clear();
+ for (const auto& row : j.rows) if (const auto id = ui::RowKey<int>(row.id, "main-")) fighters.push_back(*id);
+ Check(fighters.size() > 5 && fighters[5] == 42 && fighters[0] == 0, "An unplayed main does not lead the fighters not played");
 }
 
 // Every state without levels is still a whole card: the published card names the state, the main is on the strip at 0 points,
-// Edit card is there, and Connect Discord when there is no account. The Fighters tab says why in a row.
+// Edit card is there, and Connect Discord when there is no account. The Fighters tab lists every fighter at 0.
 void StatesJourney() {
  struct State { Own::Kind kind; bool answered; const char* error; ui::CardLevels levels; const char* words; };
  const State states[] = {{Own::Kind::NoAccount, true, "", ui::CardLevels::NoAccount, "level.no_account"},
@@ -119,19 +152,19 @@ void StatesJourney() {
    if (std::string(screen) == "card") {
     // The card is still a card: the main is on its strip, and Edit card is there.
     Check(j.row(ui::CardFighterRow(3)) != nullptr && j.row(ui::CardEditRow) != nullptr, "A card without levels has no strip or no Edit card");
-    Check(!j.row(ui::ProfileStateRow), "The Card tab has a row for the words");
    } else {
-    const auto* words = j.row(ui::ProfileStateRow);
-    Check(words && words->label == loc::T(state.words), "A Fighters tab without levels does not say why");
+    // Every fighter is a tile at 0 points whatever the state; the card says why under the tab's strip.
+    Check(j.row("main-3") && j.row("main-0") && !j.row("main-0")->info, "A Fighters tab without levels does not list every fighter");
    }
    if (state.kind == Own::Kind::NoAccount) Check(j.row("discord-connect") != nullptr, "No account has no way to connect Discord");
   }
  }
- // Counted with nothing played: the words, and no fighters on the Fighters tab.
+ // Counted with nothing played: the words, and every fighter still a tile.
  Journey j;
+ j.h.view.preferences.mainFighter = 0;
  Answer(j);
  j.h.view.levels.value.fighters = {}; ++j.h.view.levels.revision; j.h.Screen("fighters");
- Check(j.row(ui::ProfileStateRow) && !j.row("main-0"), "Nothing played yet lists fighters");
+ Check(std::string(ui::player_card::NoLevelWords(ui::MenuPlayerCard())) == "level.none" && j.row("main-0") && j.row("main-43"), "Nothing played yet does not list every fighter");
 }
 
 // Y and the Edit card row open Edit card, whose rows are the card's, and Back returns to Card; its Title and Icon rows open the awards wall.
@@ -212,7 +245,7 @@ void ReadJourney() {
 
 int main() {
  try {
-  StripJourney(); StripTilesJourney(); FightersJourney(); StatesJourney(); EditCardJourney(); HomeJourney(); ReadJourney();
+  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); HomeJourney(); ReadJourney();
   std::cout << "Profile journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }
