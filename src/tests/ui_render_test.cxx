@@ -375,6 +375,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_public_rooms.hxx"
 #include "ui_render_rankings.hxx"
 #include "ui_render_profile.hxx"
+#include "ui_render_friends.hxx"
 #include "ui_render_match_hud.hxx"
 #include "ui_render_chat.hxx"
 #include "ui_render_latency.hxx"
@@ -1232,6 +1233,8 @@ int main(int argc, char** argv) {
                 ShootRankings(shell,view,draw,page);
                 // Profile: the Card and Fighters tabs in each state of the levels (ui_render_profile.hxx).
                 ShootProfile(shell,view,draw,page);
+                // Friends: the tab in each state, its pages, More and the visit question (ui_render_friends.hxx).
+                ShootFriends(shell,view,draw,page);
                 view.preferences.roomPublic=true;view.preferences.roomName="Open Mic";shell.Navigation().Home();draw(nullptr,0,4);
                 page("create");draw(nullptr,0,8);draw("create-public");
                 view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;
