@@ -264,8 +264,8 @@ int main() {
         // row, is refused as unusable, retried, then reported once.
         const fs::path result = game / L"resource" / L"ui" / L"net_result" / L"CMN" / L"net_result.tex.emz";
         Write(result, Archive("net_vs_number.dds", PlainDds(128)));
-        const auto small = Settle(art, [&] { return art.PointDigits().image; }, 4000);
-        CHECK(small.missing && !small.texture && !art.PointDigits().sheet);
+        const auto undersized = Settle(art, [&] { return art.PointDigits().image; }, 4000);
+        CHECK(undersized.missing && !undersized.texture && !art.PointDigits().sheet);
         CHECK(lines.size() == 2 && lines[1].find("point-digits") != std::string::npos && lines[1].find("not 256x256") != std::string::npos);
         sf4e::point_digits::Sheet measured;
         std::string why;
