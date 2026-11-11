@@ -698,7 +698,7 @@ static void RoomBoardJourneys() {
  h.Screen("home");h.Choose("discord-invitation");
  h.Choose("invite-switch");h.Press(MenuInput::Select);Check(!Is<commands::DiscordInvite>(h.actions.back()),"Switch default not Cancel");
  h.Choose("invite-cancel");Check(Is<commands::DiscordInvite>(h.actions.back(),[](const commands::DiscordInvite& d){return d.discordAction==discord::InviteAction::Cancel&&d.discordRevision==9;}),"Discord cancellation");
- h.view.discordPending=false;h.Frame();h.Screen("home");h.Choose("profile");h.Choose("main-character");h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,40);
+ h.view.discordPending=false;h.Frame();h.Screen("profile");h.Choose("main-character");h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,40);
  Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.mainFighter==sf4e::selection::RosterDisplayOrder[1];}),"Profile main was not saved");
  h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  h.Screen("profile");h.Choose("main-character");count=h.actions.size();

@@ -725,7 +725,10 @@ msgid "home.profile"
 msgstr "Profil"
 
 msgid "home.profile_detail"
-msgstr "Ihr Name, Hauptcharakter und lokal bestätigte Online-Bilanz."
+msgstr "Deine Karte, Kämpfer, Freunde und Auszeichnungen."
+
+msgid "home.profile_requests"
+msgstr "Anfragen: {0}"
 
 msgid "home.settings"
 msgstr "Einstellungen"
@@ -1078,11 +1081,44 @@ msgstr "Karte"
 msgid "profile.tab.fighters"
 msgstr "Kämpfer"
 
+msgid "profile.tab.friends"
+msgstr "Freunde"
+
+msgid "friends.tab_count"
+msgstr "Freunde · {0}"
+
+msgid "friends.coming"
+msgstr "Freunde kommen in dieser Version."
+
 msgid "card.edit"
 msgstr "Karte bearbeiten"
 
-msgid "card.class"
-msgstr "Klasse"
+msgid "card.account"
+msgstr "Konto"
+
+msgid "card.progress"
+msgstr "FORTSCHRITT"
+
+msgid "card.top_fighters"
+msgstr "BESTE KÄMPFER"
+
+msgid "card.choose_main"
+msgstr "Haupt wählen"
+
+msgid "card.edit_detail"
+msgstr "Dein Name, Flagge, Haupt, Titel und Symbol."
+
+msgid "card.title_row"
+msgstr "Titel"
+
+msgid "card.icon_row"
+msgstr "Symbol"
+
+msgid "card.none"
+msgstr "Keine"
+
+msgid "card.award_detail"
+msgstr "Öffnet Auszeichnungen. Wähle dort eine errungene Auszeichnung zum Tragen."
 
 msgid "points.label"
 msgstr "FP"
@@ -1165,6 +1201,12 @@ msgstr "Deine Punkte werden gelesen."
 msgid "level.none"
 msgstr "Spiele ein gewertetes öffentliches Spiel, um Punkte zu sammeln."
 
+msgid "level.not_played"
+msgstr "Noch nicht gespielt"
+
+msgid "level.unreachable"
+msgstr "Der Dienst ist nicht erreichbar. Deine Punkte erscheinen, sobald er antwortet."
+
 msgid "card.counted_games"
 msgstr "Gewertete Spiele"
 
@@ -1176,9 +1218,6 @@ msgstr "Gespielte Kämpfer"
 
 msgid "card.of"
 msgstr "{0} von {1}"
-
-msgid "fighters.unplayed"
-msgstr "{0} Kämpfer noch nicht gespielt. Jeder sammelt mit seinem ersten gewerteten öffentlichen Spiel Punkte."
 
 msgid "fighters.how"
 msgstr "So sammelst du Punkte"
@@ -1194,6 +1233,15 @@ msgstr "Seit"
 
 msgid "fighters.main"
 msgstr "Haupt"
+
+msgid "fighters.played_heading"
+msgstr "GESPIELT · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "NOCH NICHT GESPIELT · {0}"
+
+msgid "fighters.your_main"
+msgstr "Dein Haupt"
 
 msgid "online.title"
 msgstr "ONLINE-SPIEL"
@@ -8256,12 +8304,6 @@ msgstr "Vorheriger Schritt"
 
 msgid "screen.awards"
 msgstr "Auszeichnungen"
-
-msgid "awards.titles"
-msgstr "Titel"
-
-msgid "awards.icons"
-msgstr "Symbole"
 
 msgid "awards.card"
 msgstr "Deine Karte"

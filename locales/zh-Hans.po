@@ -725,7 +725,10 @@ msgid "home.profile"
 msgstr "个人资料"
 
 msgid "home.profile_detail"
-msgstr "您的名称、主角和本地已确认的在线战绩。"
+msgstr "您的名片、角色、好友和奖励。"
+
+msgid "home.profile_requests"
+msgstr "请求: {0}"
 
 msgid "home.settings"
 msgstr "设置"
@@ -1078,11 +1081,44 @@ msgstr "名片"
 msgid "profile.tab.fighters"
 msgstr "角色"
 
+msgid "profile.tab.friends"
+msgstr "好友"
+
+msgid "friends.tab_count"
+msgstr "好友 · {0}"
+
+msgid "friends.coming"
+msgstr "好友功能将在此版本推出。"
+
 msgid "card.edit"
 msgstr "编辑名片"
 
-msgid "card.class"
-msgstr "段位"
+msgid "card.account"
+msgstr "账号"
+
+msgid "card.progress"
+msgstr "进度"
+
+msgid "card.top_fighters"
+msgstr "常用角色"
+
+msgid "card.choose_main"
+msgstr "选择主角"
+
+msgid "card.edit_detail"
+msgstr "名称、国旗、主角、称号和图标。"
+
+msgid "card.title_row"
+msgstr "称号"
+
+msgid "card.icon_row"
+msgstr "图标"
+
+msgid "card.none"
+msgstr "无"
+
+msgid "card.award_detail"
+msgstr "打开奖励。在那里选择已获得的奖励来佩戴。"
 
 msgid "points.label"
 msgstr "FP"
@@ -1165,6 +1201,12 @@ msgstr "正在读取你的积分。"
 msgid "level.none"
 msgstr "进行一场排位公开对战，即可开始获得积分。"
 
+msgid "level.not_played"
+msgstr "尚未使用"
+
+msgid "level.unreachable"
+msgstr "无法连接服务。服务响应后会显示你的积分。"
+
 msgid "card.counted_games"
 msgstr "排位场数"
 
@@ -1176,9 +1218,6 @@ msgstr "已使用角色"
 
 msgid "card.of"
 msgstr "{0} / {1}"
-
-msgid "fighters.unplayed"
-msgstr "还有 {0} 名角色未使用。每名角色在第一场排位公开对战后开始获得积分。"
 
 msgid "fighters.how"
 msgstr "积分如何获得"
@@ -1194,6 +1233,15 @@ msgstr "起始"
 
 msgid "fighters.main"
 msgstr "主角"
+
+msgid "fighters.played_heading"
+msgstr "已使用 · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "尚未使用 · {0}"
+
+msgid "fighters.your_main"
+msgstr "你的主角"
 
 msgid "online.title"
 msgstr "在线对战"
@@ -8257,12 +8305,6 @@ msgstr "上一步"
 
 msgid "screen.awards"
 msgstr "奖励"
-
-msgid "awards.titles"
-msgstr "称号"
-
-msgid "awards.icons"
-msgstr "图标"
 
 msgid "awards.card"
 msgstr "你的名片"

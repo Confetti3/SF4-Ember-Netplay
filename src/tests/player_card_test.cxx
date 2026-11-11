@@ -2,7 +2,9 @@
 // View models): which fighters the strip shows and in what order, the main's
 // progress and the facts, the states without points, and how far the next tier is.
 #include "../ui/PlayerCard.hxx"
+#include "../common/Localization.hxx"
 #include <cstdio>
+#include <memory>
 #include <string>
 
 namespace {
@@ -60,7 +62,7 @@ void Strip() {
     ui::player_card::Fill(view, Counted(own), 9);
     Check(view.fighters.size() == 3 && view.fighters[0].fighter == 9 && view.fighters[0].points == 0 && view.fighters[1].fighter == 1 && view.fighters[2].fighter == 2,
         "an unplayed main is not first at 0 points");
-    Check(view.progress.points == 0, "an unplayed main has progress");
+    Check(view.main.points == 0 && view.mainFighter == 9, "an unplayed main has points or is not the main");
     // The main among the highest is not shown twice.
     ui::player_card::Fill(view, Counted(own), 1);
     Check(view.fighters.size() == 3 && view.fighters[0].fighter == 1 && view.fighters[1].fighter == 2 && view.fighters[2].fighter == 3, "the main was shown twice");
@@ -79,17 +81,17 @@ void ProgressAndFacts() {
     Play(own, 5, 30, 12, 0, 200);
     ui::PlayerCardView view;
     ui::player_card::Fill(view, Counted(own), 0);
-    Check(view.progress.points == 1900 && view.progress.tier == 3 && view.progress.next == 2500, "the main's progress is wrong");
+    Check(view.mainFighter == 0 && view.main.points == 1900 && view.main.tier == 3 && view.main.next == 2500, "the main's counts are wrong");
     Check(view.facts.games == 1330 && view.facts.fightersPlayed == 2, "the counted games or fighters played are wrong");
     // 612 wins in 1330 games rounds to 46 %.
     Check(view.facts.winPercent == 46, "the win rate is wrong");
     // The account's points are carried, 0 until a game is counted.
-    Check(view.account == 0, "an account with no points was not 0");
-    own.account.points = 2331;
+    Check(view.account.points == 0, "an account with no points was not 0");
+    own.account.points = 2331; own.account.tier = 1; own.account.floor = 500; own.account.next = 2000;
     ui::player_card::Fill(view, Counted(own), 0);
-    Check(view.account == 2331, "the account's points were not carried");
+    Check(view.account.points == 2331 && view.account.tier == 1 && view.account.next == 2000, "the account's counts were not carried");
     ui::player_card::Fill(view, Answered<Own>{}, 0);
-    Check(view.account == 0, "an answer not read yet kept the account's points");
+    Check(view.account.points == 0 && view.main.points == 0 && view.mainFighter == 0, "an answer not read yet kept the counts");
 }
 
 // The states without points, and the words that say so.
@@ -108,8 +110,18 @@ void States() {
     Check(view.levels == ui::CardLevels::Pending, "a read in flight is not pending");
     answer.loading = false; answer.error = "bridge_unreachable";
     ui::player_card::Fill(view, answer, 0);
-    Check(view.levels == ui::CardLevels::Unavailable && view.fighters.size() == 1 && view.fighters[0].points == 0,
-        "a read that failed with nothing before it is not unavailable with the main at 0");
+    Check(view.levels == ui::CardLevels::Unreachable && view.fighters.size() == 1 && view.fighters[0].points == 0 && std::string(ui::player_card::NoLevelWords(view)) == "level.unreachable",
+        "a read that failed with nothing before it is not unreachable with the main at 0");
+    // A read in flight or failed after an answer keeps that answer.
+    Own earlier;
+    Play(earlier, 0, 20, 10, 0, 200);
+    auto kept = Counted(earlier);
+    kept.loading = true;
+    ui::player_card::Fill(view, kept, 0);
+    Check(view.levels == ui::CardLevels::Counted && view.main.points == 30, "a read in flight after an answer did not keep the answer");
+    kept.loading = false; kept.error = "bridge_unreachable";
+    ui::player_card::Fill(view, kept, 0);
+    Check(view.levels == ui::CardLevels::Counted && view.main.points == 30, "a failed read after an answer did not keep the answer");
     Own own;
     own.kind = Own::Kind::NoAccount;
     answer = {}; answer.value = own; answer.loaded = true;
@@ -122,7 +134,7 @@ void States() {
     Check(view.levels == ui::CardLevels::Unavailable && std::string(ui::player_card::NoLevelWords(view)) == "level.unavailable", "a service without points is not said");
     // Counted with nothing played says so; with something played it says nothing.
     ui::player_card::Fill(view, Counted(Own{}), 0);
-    Check(std::string(ui::player_card::NoLevelWords(view)) == "level.none" && view.progress.points == 0, "nothing played yet is not said");
+    Check(std::string(ui::player_card::NoLevelWords(view)) == "level.none" && view.main.points == 0, "nothing played yet is not said");
     Check(view.fighters.size() == 1 && view.fighters[0].fighter == 0 && view.fighters[0].points == 0, "a card with nothing played does not show the main at 0");
     Own played;
     Play(played, 0, 2, 1, 0, 200);
@@ -148,9 +160,82 @@ void Distances() {
     Check(Part(level) == 1.f, "points at the next tier's start are not the whole way");
 }
 
+// The Fighters tab's groups: played by points, the rest in roster order, the main first in its own.
+void Groups() {
+    Own own;
+    Play(own, 9, 100, 40, 0, 200);
+    Play(own, 4, 1000, 500, 3, 2500);
+    Play(own, 7, 100, 40, 0, 200);
+    auto groups = ui::player_card::Grouped(own, -1);
+    Check(groups.played == std::vector<int>({4, 7, 9}), "the played group is not by points, then fighter");
+    Check(groups.played.size() + groups.unplayed.size() == own.fighters.size(), "a fighter is in no group or in both");
+    const int first = selection::RosterDisplayOrder[0];
+    Check(groups.unplayed.front() == first, "the unplayed group does not start in roster order");
+    // The main leads its group: a played main ahead of the higher-pointed, an unplayed one ahead of the roster's first.
+    groups = ui::player_card::Grouped(own, 9);
+    Check(groups.played == std::vector<int>({9, 4, 7}) && groups.unplayed.front() == first, "a played main does not lead the played group");
+    const int last = selection::RosterDisplayOrder[selection::FighterCount - 1];
+    groups = ui::player_card::Grouped(own, last);
+    Check(groups.unplayed.front() == last && groups.played.size() == 3, "an unplayed main does not lead the unplayed group");
+    groups = ui::player_card::Grouped(Own{}, 5);
+    Check(groups.played.empty() && groups.unplayed.size() == own.fighters.size() && groups.unplayed.front() == 5, "nothing played is not all unplayed");
+}
+
+// The Card tab's progress rows: a played fighter's frame and the way to the next, the top frame, a fighter not played,
+// and an account that has not started but knows its first frame.
+void Progress() {
+    using ui::player_card::ProgressOf;
+    const std::string dot = " \xC2\xB7 ";
+    Own own;
+    Play(own, 0, 1300, 600, 3, 2500);
+    auto row = ProgressOf("Ryu", own.fighters[0], false);
+    Check(row.label == "Ryu" + dot + ui::v2::TierName(ui::v2::FrameTier(3)) && row.words == loc::Tf("level.points_to", 600, ui::v2::TierName(ui::v2::FrameTier(4))) && row.part > .39f && row.part < .41f,
+        "a played fighter's progress row is wrong");
+    auto top = own.fighters[0];
+    top.tier = 4; top.floor = 2500; top.next = 0;
+    row = ProgressOf("Ryu", top, false);
+    Check(row.label == "Ryu" + dot + ui::v2::TierName(ui::v2::FrameTier(4)) && row.words == loc::T("level.top") && row.part == 1.f, "the top frame's progress row is wrong");
+    // A fighter not played has no frame yet, whatever the bridge sent as next.
+    netplay::levels::Level none;
+    none.next = 200;
+    row = ProgressOf("Ryu", none, false);
+    Check(row.label == "Ryu" && row.words == loc::T("level.not_played") && row.part == 0.f, "a fighter not played has a frame or a way to one");
+    // An account at 0 still says what its first frame needs.
+    none.next = 500;
+    row = ProgressOf(loc::T("card.account"), none, true);
+    Check(row.label == loc::T("card.account") && row.words == loc::Tf("level.points_to", 500, ui::v2::TierName(ui::v2::FrameTier(1))) && row.part == 0.f, "an account at 0 does not say its first frame");
+    row = ProgressOf(loc::T("card.account"), netplay::levels::Level{}, true);
+    Check(row.words == loc::T("level.not_played"), "an account with no next frame is not at its start");
+    // The rows of a card: the main's, then the account's; without a main, the account's alone.
+    ui::PlayerCardView view;
+    own.account.points = 1300; own.account.tier = 1; own.account.floor = 500; own.account.next = 2000;
+    ui::player_card::Fill(view, Counted(own), 0);
+    auto rows = ui::player_card::ProgressRows(view);
+    Check(rows.size() == 2 && rows[0].label.compare(0, 3, "Ryu") == 0 && rows[1].label == loc::T("card.account") + dot + ui::v2::TierName(ui::v2::FrameTier(1)), "the progress rows are not the main's, then the account's");
+    ui::player_card::Fill(view, Counted(own), -1);
+    Check(ui::player_card::ProgressRows(view).size() == 1, "a card without a main has a row for it");
+}
+
+// The requests waiting: none until a state is read, the incoming list once listed.
+void Requests() {
+    netplay::friends::View view;
+    Check(ui::player_card::RequestsWaiting(view) == 0, "a friends view not read has requests");
+    auto state = std::make_shared<netplay::friends::State>();
+    state->incoming.resize(2);
+    view.state.value = state;
+    Check(ui::player_card::RequestsWaiting(view) == 0, "an unlisted state has requests");
+    auto listed = std::make_shared<netplay::friends::State>(*state);
+    listed->kind = netplay::friends::State::Kind::Listed;
+    view.state.value = listed;
+    Check(ui::player_card::RequestsWaiting(view) == 2, "the waiting requests are not counted");
+}
+
 }
 
 int main() {
+    Groups();
+    Progress();
+    Requests();
     PlayedOrder();
     Strip();
     ProgressAndFacts();

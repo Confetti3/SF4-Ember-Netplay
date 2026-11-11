@@ -87,26 +87,27 @@ Number NumberOf(const PointDigitSheet& art, std::uint64_t value, float cap, poin
 ImVec2 Uv(const point_digits::Box& box, int x, int y) { return ImVec2(float(box.x + x) / point_digits::SheetSide, float(box.y + y) / point_digits::SheetSide); }
 // White text in the heading font with a dark outline: the text offset by about a
 // fourteenth of `cap` in the eight directions in near black, then the text on top.
-void OutlinedText(ImDrawList* draw, float size, ImVec2 at, const char* text, ImU32 fill, float cap) {
+// At `alpha` of full strength (a number still being read).
+void OutlinedText(ImDrawList* draw, float size, ImVec2 at, const char* text, ImU32 fill, float cap, float alpha) {
     const float edge = (std::max)(1.f, std::round(cap * OutlineShare));
     for (int dy = -1; dy <= 1; ++dy)
         for (int dx = -1; dx <= 1; ++dx)
-            if (dx || dy) draw->AddText(HeadingFont(), size, ImVec2(at.x + dx * edge, at.y + dy * edge), Outline, text);
-    draw->AddText(HeadingFont(), size, at, fill, text);
+            if (dx || dy) draw->AddText(HeadingFont(), size, ImVec2(at.x + dx * edge, at.y + dy * edge), color::Alpha(Outline, alpha), text);
+    draw->AddText(HeadingFont(), size, at, color::Alpha(fill, alpha), text);
 }
-// The number with its top left at `at`.
-void DrawNumber(ImDrawList* draw, const Number& number, ImVec2 at) {
+// The number with its top left at `at`, at `alpha` of full strength.
+void DrawNumber(ImDrawList* draw, const Number& number, ImVec2 at, float alpha = 1.f) {
     if (!number.art.sheet) {
         const float size = FallbackSize(number.cap);
         OutlinedText(draw, size, ImVec2(at.x, std::round(at.y + (number.cap - size) * .5f)), number.text.c_str(),
-            number.set == point_digits::Gold ? Gold : White, number.cap);
+            number.set == point_digits::Gold ? Gold : White, number.cap, alpha);
         return;
     }
     for (int i = 0; i < number.layout.count; ++i) {
         const auto& placed = number.layout.digits[i];
         const ImVec2 min(at.x + placed.x, at.y + placed.y);
         draw->AddImage(number.art.image.texture, min, ImVec2(min.x + placed.w, min.y + placed.h),
-            Uv(placed.source, 0, 0), Uv(placed.source, placed.source.w, placed.source.h));
+            Uv(placed.source, 0, 0), Uv(placed.source, placed.source.w, placed.source.h), color::Alpha(White, alpha));
     }
 }
 // SF4's line under a player's name: the number, a space, then the two-letter
@@ -126,10 +127,10 @@ Line LineOf(const PointDigitSheet& art, std::uint64_t points, float cap, const c
     return line;
 }
 // The line with its top left at `at`.
-void DrawLine(ImDrawList* draw, const Line& line, ImVec2 at) {
-    DrawNumber(draw, line.number, at);
+void DrawLine(ImDrawList* draw, const Line& line, ImVec2 at, float alpha = 1.f) {
+    DrawNumber(draw, line.number, at, alpha);
     OutlinedText(draw, line.size, ImVec2(at.x + line.number.width + line.space, std::round(at.y + (line.number.cap - line.size) * .5f)),
-        line.label, White, line.number.cap);
+        line.label, White, line.number.cap, alpha);
 }
 }
 
@@ -141,10 +142,17 @@ float LevelWidth(std::uint64_t points, float height, const char* labelId) {
     return LineOf(DigitArt(), points, std::round(height), labelId).width;
 }
 
-float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, const char* labelId) {
+float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, const char* labelId, float alpha) {
     const Line line = LineOf(DigitArt(), points, std::round(height), labelId);
-    DrawLine(draw, line, ImVec2(std::round(at.x), std::round(at.y)));
+    DrawLine(draw, line, ImVec2(std::round(at.x), std::round(at.y)), alpha);
     return line.width;
+}
+
+float LevelLines(ImDrawList* draw, ImVec2 at, float height, float gap, std::uint64_t fighter, std::uint64_t account, float alpha) {
+    const float a = LevelWidth(fighter, height, "points.label"), b = LevelWidth(account, height, "points.account_label"), wide = (std::max)(a, b);
+    Level(draw, ImVec2(at.x + wide - a, at.y), height, fighter, "points.label", alpha);
+    Level(draw, ImVec2(at.x + wide - b, at.y + height + gap), height, account, "points.account_label", alpha);
+    return 2 * height + gap;
 }
 
 float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain) {
@@ -159,7 +167,7 @@ float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain) {
     return plus + number.width;
 }
 
-void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points) {
+void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, float alpha) {
     if (tile.H() <= 0) return;
     const float s = Scale(), band = std::round((std::min)(tile.H(), (std::max)(tile.H() * BandShare, 20 * s)));
     const Box foot{ImVec2(tile.min.x, tile.max.y - band), tile.max};
@@ -173,7 +181,7 @@ void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points) {
         line = LineOf(DigitArt(), points, cap, "points.label");
     }
     draw->PushClipRect(foot.min, foot.max, true);
-    DrawLine(draw, line, ImVec2(std::round(foot.min.x + (foot.W() - line.width) * .5f), std::round(foot.min.y + (foot.H() - cap) * .5f)));
+    DrawLine(draw, line, ImVec2(std::round(foot.min.x + (foot.W() - line.width) * .5f), std::round(foot.min.y + (foot.H() - cap) * .5f)), alpha);
     draw->PopClipRect();
 }
 

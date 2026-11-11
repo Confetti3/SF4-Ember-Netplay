@@ -725,7 +725,10 @@ msgid "home.profile"
 msgstr "プロフィール"
 
 msgid "home.profile_detail"
-msgstr "名前、メインキャラ、ローカルで確定したオンライン対戦記録。"
+msgstr "カード、ファイター、フレンド、アワード。"
+
+msgid "home.profile_requests"
+msgstr "リクエスト: {0}"
 
 msgid "home.settings"
 msgstr "設定"
@@ -1078,11 +1081,44 @@ msgstr "カード"
 msgid "profile.tab.fighters"
 msgstr "ファイター"
 
+msgid "profile.tab.friends"
+msgstr "フレンド"
+
+msgid "friends.tab_count"
+msgstr "フレンド · {0}"
+
+msgid "friends.coming"
+msgstr "フレンド機能はこのビルドで追加されます。"
+
 msgid "card.edit"
 msgstr "カードを編集"
 
-msgid "card.class"
-msgstr "クラス"
+msgid "card.account"
+msgstr "アカウント"
+
+msgid "card.progress"
+msgstr "進行度"
+
+msgid "card.top_fighters"
+msgstr "上位ファイター"
+
+msgid "card.choose_main"
+msgstr "メインを選ぶ"
+
+msgid "card.edit_detail"
+msgstr "名前、国旗、メイン、称号、アイコン。"
+
+msgid "card.title_row"
+msgstr "称号"
+
+msgid "card.icon_row"
+msgstr "アイコン"
+
+msgid "card.none"
+msgstr "なし"
+
+msgid "card.award_detail"
+msgstr "アワードを開きます。そこで獲得したアワードを選ぶと身に着けられます。"
 
 msgid "points.label"
 msgstr "FP"
@@ -1165,6 +1201,12 @@ msgstr "ポイントを読み込み中です。"
 msgid "level.none"
 msgstr "ランクつきの公開試合を遊ぶと、ポイントがたまり始めます。"
 
+msgid "level.not_played"
+msgstr "未プレイ"
+
+msgid "level.unreachable"
+msgstr "サービスに接続できません。応答するとポイントが表示されます。"
+
 msgid "card.counted_games"
 msgstr "ランク試合数"
 
@@ -1176,9 +1218,6 @@ msgstr "使用ファイター"
 
 msgid "card.of"
 msgstr "{0} / {1}"
-
-msgid "fighters.unplayed"
-msgstr "未使用のファイターは{0}人です。ランクつきの公開試合を初めて遊ぶと、ポイントがたまり始めます。"
 
 msgid "fighters.how"
 msgstr "ポイントのためかた"
@@ -1194,6 +1233,15 @@ msgstr "開始日"
 
 msgid "fighters.main"
 msgstr "メイン"
+
+msgid "fighters.played_heading"
+msgstr "プレイ済み · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "未プレイ · {0}"
+
+msgid "fighters.your_main"
+msgstr "あなたのメイン"
 
 msgid "online.title"
 msgstr "オンライン対戦"
@@ -8257,12 +8305,6 @@ msgstr "前のステップ"
 
 msgid "screen.awards"
 msgstr "アワード"
-
-msgid "awards.titles"
-msgstr "称号"
-
-msgid "awards.icons"
-msgstr "アイコン"
 
 msgid "awards.card"
 msgstr "あなたのカード"

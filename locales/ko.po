@@ -725,7 +725,10 @@ msgid "home.profile"
 msgstr "프로필"
 
 msgid "home.profile_detail"
-msgstr "이름, 주 캐릭터, 로컬에 확정된 온라인 전적입니다."
+msgstr "카드, 파이터, 친구, 어워드."
+
+msgid "home.profile_requests"
+msgstr "요청: {0}"
 
 msgid "home.settings"
 msgstr "설정"
@@ -1078,11 +1081,44 @@ msgstr "카드"
 msgid "profile.tab.fighters"
 msgstr "파이터"
 
+msgid "profile.tab.friends"
+msgstr "친구"
+
+msgid "friends.tab_count"
+msgstr "친구 · {0}"
+
+msgid "friends.coming"
+msgstr "친구 기능은 이 빌드에서 추가됩니다."
+
 msgid "card.edit"
 msgstr "카드 편집"
 
-msgid "card.class"
-msgstr "등급"
+msgid "card.account"
+msgstr "계정"
+
+msgid "card.progress"
+msgstr "진행도"
+
+msgid "card.top_fighters"
+msgstr "상위 파이터"
+
+msgid "card.choose_main"
+msgstr "주 캐릭터 선택"
+
+msgid "card.edit_detail"
+msgstr "이름, 국기, 주 캐릭터, 칭호, 아이콘."
+
+msgid "card.title_row"
+msgstr "칭호"
+
+msgid "card.icon_row"
+msgstr "아이콘"
+
+msgid "card.none"
+msgstr "없음"
+
+msgid "card.award_detail"
+msgstr "어워드를 엽니다. 그곳에서 획득한 어워드를 선택해 착용하세요."
 
 msgid "points.label"
 msgstr "FP"
@@ -1165,6 +1201,12 @@ msgstr "포인트를 불러오는 중입니다."
 msgid "level.none"
 msgstr "랭크 공개 경기를 하면 포인트가 쌓이기 시작합니다."
 
+msgid "level.not_played"
+msgstr "아직 플레이 안 함"
+
+msgid "level.unreachable"
+msgstr "서비스에 연결할 수 없습니다. 응답하면 포인트가 표시됩니다."
+
 msgid "card.counted_games"
 msgstr "랭크 경기 수"
 
@@ -1176,9 +1218,6 @@ msgstr "플레이한 파이터"
 
 msgid "card.of"
 msgstr "{0} / {1}"
-
-msgid "fighters.unplayed"
-msgstr "아직 플레이하지 않은 파이터가 {0}명 있습니다. 랭크 공개 경기를 처음 하면 포인트가 쌓이기 시작합니다."
 
 msgid "fighters.how"
 msgstr "포인트를 얻는 방법"
@@ -1194,6 +1233,15 @@ msgstr "시작일"
 
 msgid "fighters.main"
 msgstr "주 캐릭터"
+
+msgid "fighters.played_heading"
+msgstr "플레이함 · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "아직 안 함 · {0}"
+
+msgid "fighters.your_main"
+msgstr "내 주 캐릭터"
 
 msgid "online.title"
 msgstr "온라인 플레이"
@@ -8257,12 +8305,6 @@ msgstr "이전 단계"
 
 msgid "screen.awards"
 msgstr "어워드"
-
-msgid "awards.titles"
-msgstr "칭호"
-
-msgid "awards.icons"
-msgstr "아이콘"
 
 msgid "awards.card"
 msgstr "내 카드"

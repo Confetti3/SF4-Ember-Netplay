@@ -159,8 +159,8 @@ public:
     }
 };
 
-// Profile: the player's Card and Fighters pages, under the strip the awards
-// wall's two pages share.
+// Profile: the player's Card and Fighters pages and the Friends holding page,
+// under the strip the awards wall shares.
 class ApplicationShell::ProfileScreens final : public ScreenPanel {
 public:
     bool Owns(const std::string& screen) const override { return ProfilePanel::Owns(screen); }
@@ -170,24 +170,27 @@ public:
         player_card::Fill(levels, f.view.levels, f.shell.preferences_.mainFighter);
         return f.shell.profile_.Rows(f.view, f.screen, levels, f.view.canEditPreferences, title);
     }
-    // A strip tile opens the Fighters page on that fighter; Connect Discord is the Ember ID panel's.
+    // A strip tile opens the Fighters page on that fighter, Edit card its page; Connect Discord is the Ember ID panel's.
     // A fighter's row on the Fighters page makes it the main, which the shell's own rows do.
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
         auto& nav = f.shell.menu_.navigation;
         if (a.id == DiscordConnectScreen) { f.shell.identity_.Activate(a, f.view, nav); return true; }
+        if (a.id == CardEditRow) { nav.Push(CardEditRow); return true; }
         if (!HasPrefix(a.id, "card-fighter:")) return false;
         nav.Replace(ProfilePanel::FightersScreen);
         nav.Prefer("main-" + a.id.substr(std::strlen("card-fighter:")));
         return true;
     }
-    // Edit card: the Profile page of Settings, Player.
+    // Y on the Card tab is Edit card.
     void Shortcut(const ScreenFrame& f, const MenuAction& a) const override {
-        if (a.delta == MenuInput::Options && f.screen == ProfilePanel::CardScreen) f.shell.menu_.navigation.Push("profile");
+        if (a.delta == MenuInput::Options && f.screen == ProfilePanel::CardScreen) f.shell.menu_.navigation.Push(CardEditRow);
     }
     GameMenu::Body Body(const ScreenFrame& f) const override {
+        // The holding page for Friends is a list of rows.
+        if (f.screen == ProfilePanel::FriendsScreen) return {};
         ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::string* screen = &f.screen;
-        return [shell, view, screen](const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float, const MenuVisualFeedback&) {
-            shell->profile_.Draw(*view, shell->preferences_.mainFighter, *screen, rows, nav, action);
+        return [shell, view, screen](const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback&) {
+            shell->profile_.Draw(*view, shell->preferences_.mainFighter, *screen, rows, nav, action, height);
         };
     }
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {

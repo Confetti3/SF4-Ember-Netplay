@@ -725,7 +725,10 @@ msgid "home.profile"
 msgstr "Profilo"
 
 msgid "home.profile_detail"
-msgstr "Il tuo nome, il personaggio principale e il record online locale confermato."
+msgstr "La tua scheda, combattenti, amici e riconoscimenti."
+
+msgid "home.profile_requests"
+msgstr "Richieste: {0}"
 
 msgid "home.settings"
 msgstr "Impostazioni"
@@ -1078,11 +1081,44 @@ msgstr "Scheda"
 msgid "profile.tab.fighters"
 msgstr "Combattenti"
 
+msgid "profile.tab.friends"
+msgstr "Amici"
+
+msgid "friends.tab_count"
+msgstr "Amici · {0}"
+
+msgid "friends.coming"
+msgstr "Gli amici arrivano in questa versione."
+
 msgid "card.edit"
 msgstr "Modifica scheda"
 
-msgid "card.class"
-msgstr "Classe"
+msgid "card.account"
+msgstr "Account"
+
+msgid "card.progress"
+msgstr "PROGRESSI"
+
+msgid "card.top_fighters"
+msgstr "MIGLIORI COMBATTENTI"
+
+msgid "card.choose_main"
+msgstr "Scegli un principale"
+
+msgid "card.edit_detail"
+msgstr "Il tuo nome, bandiera, principale, titolo e icona."
+
+msgid "card.title_row"
+msgstr "Titolo"
+
+msgid "card.icon_row"
+msgstr "Icona"
+
+msgid "card.none"
+msgstr "Nessuno"
+
+msgid "card.award_detail"
+msgstr "Apre Riconoscimenti. Selezionane uno ottenuto per indossarlo."
 
 msgid "points.label"
 msgstr "FP"
@@ -1165,6 +1201,12 @@ msgstr "Lettura dei tuoi punti."
 msgid "level.none"
 msgstr "Gioca una partita pubblica classificata per iniziare a guadagnare punti."
 
+msgid "level.not_played"
+msgstr "Non ancora giocato"
+
+msgid "level.unreachable"
+msgstr "Impossibile raggiungere il servizio. I tuoi punti compariranno quando risponde."
+
 msgid "card.counted_games"
 msgstr "Partite classificate"
 
@@ -1176,9 +1218,6 @@ msgstr "Combattenti giocati"
 
 msgid "card.of"
 msgstr "{0} su {1}"
-
-msgid "fighters.unplayed"
-msgstr "{0} combattenti non ancora giocati. Ognuno inizia a guadagnare punti con la sua prima partita pubblica classificata."
 
 msgid "fighters.how"
 msgstr "Come si guadagnano i punti"
@@ -1194,6 +1233,15 @@ msgstr "Dal"
 
 msgid "fighters.main"
 msgstr "Principale"
+
+msgid "fighters.played_heading"
+msgstr "GIOCATI · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "NON ANCORA GIOCATI · {0}"
+
+msgid "fighters.your_main"
+msgstr "Il tuo principale"
 
 msgid "online.title"
 msgstr "GIOCO ONLINE"
@@ -8256,12 +8304,6 @@ msgstr "Passo precedente"
 
 msgid "screen.awards"
 msgstr "Riconoscimenti"
-
-msgid "awards.titles"
-msgstr "Titoli"
-
-msgid "awards.icons"
-msgstr "Icone"
 
 msgid "awards.card"
 msgstr "La tua scheda"

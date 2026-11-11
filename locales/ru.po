@@ -725,7 +725,10 @@ msgid "home.profile"
 msgstr "Профиль игрока"
 
 msgid "home.profile_detail"
-msgstr "Ник (псевдоним), основной персонаж, боевая статистика"
+msgstr "Ваша карточка, бойцы, друзья и награды."
+
+msgid "home.profile_requests"
+msgstr "Запросы: {0}"
 
 msgid "home.settings"
 msgstr "Настройки"
@@ -1078,11 +1081,44 @@ msgstr "Карточка"
 msgid "profile.tab.fighters"
 msgstr "Бойцы"
 
+msgid "profile.tab.friends"
+msgstr "Друзья"
+
+msgid "friends.tab_count"
+msgstr "Друзья · {0}"
+
+msgid "friends.coming"
+msgstr "Друзья появятся в этой версии."
+
 msgid "card.edit"
 msgstr "Изменить карточку"
 
-msgid "card.class"
-msgstr "Класс"
+msgid "card.account"
+msgstr "Аккаунт"
+
+msgid "card.progress"
+msgstr "ПРОГРЕСС"
+
+msgid "card.top_fighters"
+msgstr "ЛУЧШИЕ БОЙЦЫ"
+
+msgid "card.choose_main"
+msgstr "Выбрать основного"
+
+msgid "card.edit_detail"
+msgstr "Ваше имя, флаг, основной, титул и значок."
+
+msgid "card.title_row"
+msgstr "Титул"
+
+msgid "card.icon_row"
+msgstr "Значок"
+
+msgid "card.none"
+msgstr "Нет"
+
+msgid "card.award_detail"
+msgstr "Открывает Награды. Выберите там полученную награду, чтобы носить её."
 
 msgid "points.label"
 msgstr "FP"
@@ -1165,6 +1201,12 @@ msgstr "Чтение ваших очков."
 msgid "level.none"
 msgstr "Сыграйте публичную рейтинговую игру, чтобы начать получать очки."
 
+msgid "level.not_played"
+msgstr "Ещё не играли"
+
+msgid "level.unreachable"
+msgstr "Не удалось связаться с сервисом. Ваши очки появятся, когда он ответит."
+
 msgid "card.counted_games"
 msgstr "Рейтинговые игры"
 
@@ -1176,9 +1218,6 @@ msgstr "Сыграно бойцами"
 
 msgid "card.of"
 msgstr "{0} из {1}"
-
-msgid "fighters.unplayed"
-msgstr "Бойцов, за которых ещё не играли: {0}. Каждый начинает получать очки после первой публичной рейтинговой игры."
 
 msgid "fighters.how"
 msgstr "Как начисляются очки"
@@ -1194,6 +1233,15 @@ msgstr "С"
 
 msgid "fighters.main"
 msgstr "Основной"
+
+msgid "fighters.played_heading"
+msgstr "СЫГРАНО · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "ЕЩЁ НЕ ИГРАЛИ · {0}"
+
+msgid "fighters.your_main"
+msgstr "Ваш основной"
 
 msgid "online.title"
 msgstr "ИГРА ПО СЕТИ"
@@ -8256,12 +8304,6 @@ msgstr "Предыдущий шаг"
 
 msgid "screen.awards"
 msgstr "Награды"
-
-msgid "awards.titles"
-msgstr "Титулы"
-
-msgid "awards.icons"
-msgstr "Значки"
 
 msgid "awards.card"
 msgstr "Твоя карточка"
