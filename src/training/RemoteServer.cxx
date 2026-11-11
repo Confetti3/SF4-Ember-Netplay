@@ -7,6 +7,7 @@
 #include "ComboStore.hxx"
 #include "GameFiles.hxx"
 #include "RemoteProtocol.hxx"
+#include "FrameDataTable.hxx"
 #include "TrainingRuntime.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
@@ -109,16 +110,10 @@ void Stream(SOCKET socket) {
     closesocket(socket);
     --s_streams;
 }
-// Ember's frame data, read once from assets/framedata/usf4.json beside Sidecar.dll; null when the file is missing or bad.
+// Ember's frame data (assets/framedata/usf4.json), embedded in this binary (FrameDataTable.hxx), never a package
+// file: an older updater refuses a package file it does not know. Parsed once; null when it is bad.
 const nlohmann::json& FrameData() {
-    static const nlohmann::json data = [] {
-        HMODULE module = nullptr; wchar_t where[MAX_PATH] = {};
-        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(&FrameData), &module);
-        if (!GetModuleFileNameW(module, where, MAX_PATH)) return nlohmann::json();
-        std::vector<std::uint8_t> bytes; std::string error;
-        if (!ReadFile(std::filesystem::path(where).parent_path() / "assets" / "framedata" / "usf4.json", 8u << 20, bytes, error)) return nlohmann::json();
-        return nlohmann::json::parse(bytes.begin(), bytes.end(), nullptr, false);
-    }();
+    static const nlohmann::json data = nlohmann::json::parse(frameDataTable, frameDataTable + sizeof(frameDataTable) - 1, nullptr, false);
     return data;
 }
 std::string UrlDecode(const std::string& text) {

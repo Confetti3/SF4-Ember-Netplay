@@ -24,11 +24,16 @@ and the game fresh without anyone at the PC.
 
 1. In Ember, create the public room once from **Public rooms → Create**, with
    a template if you like. That room is what the host opens.
-2. Ember ships it in its folder under `scripts\stream-host`. Kept elsewhere,
-   it asks for `Launcher.exe` the first time; **Change...** picks another one
-   later.
-3. Close Ember, then start `EmberStreamHost.cmd`. It starts Ember itself; an
-   Ember started another way is watched but does not reopen the room.
+2. Ember carries the control panel inside `Launcher.exe`, not as a file of its
+   folder. Run `Launcher.exe --write-stream-host` (a shortcut to it with that
+   added to the Target does it) and Ember writes the panel to
+   `%APPDATA%\sf4e\stream-host` and shows that folder. The folder survives
+   updates; run the switch again after an update to get the new panel.
+   `EmberFolder.txt` there names the Ember folder it was run from. If that is
+   not where Ember lives now, **Change...** picks another `Launcher.exe`.
+3. Close Ember, then start `EmberStreamHost.cmd` from that folder. It starts
+   Ember itself; an Ember started another way is watched but does not reopen
+   the room.
 4. In OBS, capture the game with **Game Capture** set to the `SSFIV.exe`
    window, so the stream picks the game up again after a restart.
 

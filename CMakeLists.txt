@@ -112,9 +112,6 @@ add_library(sf4e_ui STATIC
     src/ui/V2.cxx src/ui/LineIcons.cxx src/ui/GameMenuDraw.cxx src/ui/MenuWalk.cxx src/ui/WatchedPicture.cxx src/ui/ApplicationShell__Settings.cxx src/ui/ApplicationShell__ShellScreens.cxx src/ui/ApplicationShell__Values.cxx src/ui/ApplicationShell__Accessibility.cxx src/ui/ApplicationShell__Toasts.cxx src/ui/ApplicationShell__FirstRun.cxx src/ui/ApplicationShell__Awards.cxx src/platform/Speech.cxx)
 install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.png")
 install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.png" PATTERN "*.txt")
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/framedata")
-    install(DIRECTORY "assets/framedata" DESTINATION "assets" FILES_MATCHING PATTERN "*.json")
-endif()
 install(DIRECTORY "assets/flags" DESTINATION "assets" FILES_MATCHING PATTERN "flags.png" PATTERN "flags.json" PATTERN "LICENSE" PATTERN "README.md")
 set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
@@ -356,7 +353,8 @@ add_library(sf4e_recovery STATIC src/ui/RecoverySurface.cxx src/ui/RecoveryContr
 target_compile_features(sf4e_recovery PUBLIC cxx_std_17)
 # XInput is loaded at run time; DirectInput 8 is on every supported Windows.
 target_link_libraries(sf4e_recovery PUBLIC sf4e_ui sf4e_app_services sf4e_localization PRIVATE sf4e_settings d3d9 ole32 shell32 dinput8 dxguid)
-add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx)
+add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx src/launcher/StreamHostFiles.cxx)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_stream_host.cmake")
 target_link_libraries(Launcher PRIVATE sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video_encoder)
 # As the video export's encoder (platform/VideoLink.hxx) it holds a second of 4K frames: 4 GB of addresses instead of 2.
 target_link_options(Launcher PRIVATE "/LARGEADDRESSAWARE")
@@ -449,10 +447,9 @@ add_custom_target(SelectionAssets
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/input" "$<TARGET_FILE_DIR:Sidecar>/assets/input"
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/flags" "$<TARGET_FILE_DIR:Sidecar>/assets/flags"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/framedata" "$<TARGET_FILE_DIR:Sidecar>/assets/framedata"
     VERBATIM)
 add_dependencies(Sidecar SelectionAssets)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_frame_data.cmake")
 add_custom_command(TARGET Sidecar POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Sidecar>/notices"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts/OFL.txt"

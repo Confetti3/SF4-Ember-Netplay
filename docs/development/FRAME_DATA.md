@@ -1,7 +1,7 @@
 # Frame data
 
 `assets/framedata/usf4.json` is Ember's own frame data for every fighter: 44 fighters, 2566 moves. The phone remote's Frames tab
-reads it (`src/training/RemoteServer.cxx`, `FramesIndex` and `FramesOf`, from `assets/framedata/` beside `Sidecar.dll`). The
+reads it (`src/training/RemoteServer.cxx`, `FramesIndex` and `FramesOf`, from a copy of the file embedded in `Sidecar.dll` at build time (`cmake/sf4e_frame_data.cmake`); it is no package file, because an older updater refuses a package path it does not know). The
 in-game frame meter and Data panel read the running game, not this file.
 
 The numbers are measured, not copied. A simulator plays every move from the game's own files and counts frames; the numbers it
