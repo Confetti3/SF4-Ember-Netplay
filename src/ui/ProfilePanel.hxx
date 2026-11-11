@@ -10,9 +10,8 @@ namespace sf4e { namespace ui {
 struct ShellView;
 
 // Profile (docs/design/PROFILE.md): the player's own pages under one strip,
-// Card and Fighters here, Friends (a holding page until FriendsPanel) and the
-// awards wall (ApplicationShell__Awards.cxx), LB and RB stepping through
-// them. Home's card opens it on Card.
+// Card and Fighters here, Friends (FriendsPanel) and the awards wall
+// (ApplicationShell__Awards.cxx), LB and RB stepping through them. Home's card opens it on Card.
 //
 // The levels are read from the helper when the player opens any of them, and
 // once at start for the service and Ember ID the interface can use, as
@@ -25,9 +24,9 @@ public:
     static constexpr const char* CardScreen = "card";
     static constexpr const char* FightersScreen = "fighters";
     static constexpr const char* FriendsScreen = "friends";
-    static bool Owns(const std::string& screen) { return screen == CardScreen || screen == FightersScreen || screen == FriendsScreen; }
-    // Every screen under the strip, the awards wall's two included.
-    static bool InStrip(const std::string& screen) { return Owns(screen) || screen == "awards"; }
+    static bool Owns(const std::string& screen) { return screen == CardScreen || screen == FightersScreen; }
+    // Every screen under the strip, Friends and the awards wall included.
+    static bool InStrip(const std::string& screen) { return Owns(screen) || screen == FriendsScreen || screen == "awards"; }
     // The strip over `screen` and the eyebrow "Profile · name". Friends says
     // how many requests wait (the published card's count).
     static void Dress(GameMenu& menu, const std::string& screen, const std::string& name);

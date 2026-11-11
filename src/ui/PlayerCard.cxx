@@ -1,4 +1,5 @@
 #include "PlayerCard.hxx"
+#include "MenuRows.hxx"
 #include "ShellView.hxx"
 #include "SignInSites.hxx"
 #include "Theme.hxx"
@@ -287,6 +288,15 @@ float DrawStrip(ImDrawList* d, float x, float y, float room, const PlayerCardVie
 }
 }
 
+
+// Connect Discord, the way to points and friends a player without an account has.
+MenuEntry ConnectDiscordRow() {
+    auto connect = Row(DiscordConnectScreen, loc::T("screen.connect_discord"), loc::T("rankings.connect_detail"));
+    connect.value = loc::T("identity.discord_none");
+    connect.hint = loc::T("screen.connect_discord");
+    return connect;
+}
+
 float DrawRowButton(const char* id, ImVec2 at, float width, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, bool changed) {
     const float s = Scale();
     const v2::Box box{ImVec2(at.x, at.y + 8 * s), ImVec2(at.x + width, at.y + 8 * s + 48 * s)};
@@ -344,20 +354,17 @@ float DrawCardTab(const ShellView& v, const PlayerCardView& card, const std::vec
     return total;
 }
 
-namespace {
-// The flag, name and class emblem on a line; returns its height.
-float DrawCardName(ImDrawList* d, float x, float y, float room, const OtherCardView& card) {
-    const float s = Scale(), row = 30 * s, size = 22 * s, side = 24 * s;
+float DrawNameLine(ImDrawList* d, float x, float y, float room, float row, float size, const std::string& name, CountryCode country, const SkillBadge& badge) {
+    const float s = Scale(), side = size * 24.f / 22.f;
     NameMarks flag;
-    flag.country = card.country;
+    flag.country = country;
     const float top = y + (row - size) * .5f, marks = DrawNameMarks(d, x, top, size, flag).width;
-    const float emblem = card.badge.HasClass() ? BadgeWidth(card.badge, side, ImGui::GetFont()) : 0;
-    NoteUserText(card.name);
-    const std::string name = v2::Fit(card.name, room - marks - (emblem > 0 ? emblem + 8 * s : 0), size, HeadingFont(), false);
-    d->AddText(HeadingFont(), size, ImVec2(x + marks, top), v2::Colors().text, name.c_str());
-    if (emblem > 0) DrawBadge(d, ImVec2(x + marks + TextAcross(name, size, HeadingFont()) + 8 * s, y + (row - side) * .5f), side, ImGui::GetFont(), card.badge);
+    const float emblem = badge.HasClass() ? BadgeWidth(badge, side, ImGui::GetFont()) : 0;
+    NoteUserText(name);
+    const std::string shown = v2::Fit(name, room - marks - (emblem > 0 ? emblem + 8 * s : 0), size, HeadingFont(), false);
+    d->AddText(HeadingFont(), size, ImVec2(x + marks, top), v2::Colors().text, shown.c_str());
+    if (emblem > 0) DrawBadge(d, ImVec2(x + marks + TextAcross(shown, size, HeadingFont()) + 8 * s, y + (row - side) * .5f), side, ImGui::GetFont(), badge);
     return row;
-}
 }
 
 void DrawOtherCard(ImDrawList* d, v2::Box box, const OtherCardView& card) {
@@ -373,7 +380,7 @@ void DrawOtherCard(ImDrawList* d, v2::Box box, const OtherCardView& card) {
     const float x = tile.max.x + 16 * s, right = box.max.x - pad;
     float y = box.min.y + pad, room = right - x;
     if (!card.chip.empty()) room -= v2::ChipWidth(card.chip) + 12 * s;
-    y += DrawCardName(d, x, y, room, card) + 6 * s;
+    y += DrawNameLine(d, x, y, room, 30 * s, 22 * s, card.name, card.country, card.badge) + 6 * s;
     if (!card.chip.empty()) v2::Chip(d, ImVec2(right - v2::ChipWidth(card.chip), box.min.y + pad), card.chip, card.chipTone);
     if (!card.title.empty()) {
         NoteUserText(card.title);
@@ -382,8 +389,11 @@ void DrawOtherCard(ImDrawList* d, v2::Box box, const OtherCardView& card) {
     }
     if (!card.points) return;
     // The digits of the design (26 / 22 px), shrunk where the card is short.
-    const float digits = (std::min)((ImGui::GetIO().DisplaySize.y / s <= 720 ? 22 : 26) * s, (box.max.y - pad - y - 4 * s) * .5f);
-    if (digits >= 10 * s) v2::LevelLines(d, ImVec2(x, y), digits, 8 * s, card.fighterPoints, card.accountPoints);
+    const float digits = (std::min)((ImGui::GetIO().DisplaySize.y / s <= 720 ? 22 : 26) * s, (box.max.y - pad - y - 4 * s) * (card.accountKnown ? .5f : 1.f));
+    if (digits < 10 * s) return;
+    // A friend's card carries the main's points and no account's: one line.
+    if (card.accountKnown) v2::LevelLines(d, ImVec2(x, y), digits, 8 * s, card.fighterPoints, card.accountPoints);
+    else v2::Level(d, ImVec2(x, y), digits, card.fighterPoints, "points.label");
 }
 
 OtherCardView OwnAsOthers(const PlayerCardView& card) {

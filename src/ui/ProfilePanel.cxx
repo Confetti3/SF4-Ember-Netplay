@@ -20,14 +20,6 @@ std::string FighterDetail(std::uint64_t points, std::uint64_t games) {
     return loc::Tf("level.value", points) + " \xC2\xB7 " + player_card::GamesWords(games);
 }
 
-// Connect Discord, the way to points a player without an account has.
-MenuEntry ConnectDiscordRow() {
-    auto connect = Row(DiscordConnectScreen, loc::T("screen.connect_discord"), loc::T("rankings.connect_detail"));
-    connect.value = loc::T("identity.discord_none");
-    connect.hint = loc::T("screen.connect_discord");
-    return connect;
-}
-
 // What the Fighters tab reads of the answer: the counts while there are some, else a level for each fighter at 0.
 const netplay::levels::Own& OwnOf(const ShellView& v, const PlayerCardView& card) {
     static const netplay::levels::Own none;
@@ -249,11 +241,6 @@ void ProfilePanel::Update(const ShellView& v, const std::string& screen, const s
 void ProfilePanel::Conceal() { visiting_ = want_ = false; }
 
 std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string& screen, const PlayerCardView& card, bool editable, std::string& title) const {
-    // Friends waits for its own panel: a line that says so.
-    if (screen == FriendsScreen) {
-        title = loc::T("profile.tab.friends");
-        return {InfoRow("friends-coming", loc::T("friends.coming"), {}, {})};
-    }
     const bool fighters = screen == FightersScreen;
     title = loc::T(fighters ? "profile.tab.fighters" : "profile.tab.card");
     std::vector<MenuEntry> rows;

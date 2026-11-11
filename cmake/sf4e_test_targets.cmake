@@ -149,7 +149,7 @@ sf4e_add_unit_test(NAME ProblemReport SOURCES "src/tests/problem_report_test.cxx
 
 # The scenario fragments' non-template parts compile on their own; the
 # scenarios still run in the order ui_render_test.cxx calls them.
-add_executable(UiRenderTest "src/tests/ui_render_test.cxx" "src/tests/ui_render_match_hud.cxx" "src/tests/ui_render_overlay.cxx")
+add_executable(UiRenderTest "src/tests/ui_render_test.cxx" "src/tests/ui_render_match_hud.cxx" "src/tests/ui_render_overlay.cxx" "src/ui/lab/UiLabSocial.cxx")
 target_compile_definitions(UiRenderTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
 sf4e_add_unit_test(NAME ControllerNavigation SOURCES src/tests/controller_navigation_test.cxx src/tests/menu_dialog_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME MenuButtons SOURCES src/tests/menu_buttons_test.cxx LIBS sf4e_ui Dimps sf4e_settings STD 17 LABELS ui)
@@ -189,6 +189,8 @@ sf4e_add_unit_test(NAME CountryPicker SOURCES src/tests/country_picker_test.cxx 
 sf4e_add_unit_test(NAME V2Layout SOURCES src/tests/v2_layout_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME LevelMark SOURCES src/tests/level_mark_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME PlayerCard SOURCES src/tests/player_card_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME FriendsPanel SOURCES src/tests/friends_panel_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME FriendsJourney SOURCES src/tests/friends_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME RoomPoints SOURCES src/tests/room_points_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui room)
 sf4e_add_unit_test(NAME AppearanceGrid SOURCES src/tests/appearance_grid_test.cxx TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME MenuSpeech SOURCES src/tests/menu_speech_test.cxx LIBS sf4e_localization STD 17 LABELS ui)
@@ -205,7 +207,7 @@ if(Python3_Interpreter_FOUND)
 endif()
 target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
 # The UI lab (src/ui/lab/UiLab.cxx): the shell in a window of its own, for working on layouts.
-add_executable(UiLab WIN32 "src/ui/lab/UiLab.cxx")
+add_executable(UiLab WIN32 "src/ui/lab/UiLab.cxx" "src/ui/lab/UiLabSocial.cxx")
 target_compile_definitions(UiLab PRIVATE SF4E_LAB_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
 target_link_libraries(UiLab PRIVATE sf4e_ui "d3d9" "xinput" "shell32")
 add_test(NAME UiRender COMMAND UiRenderTest)

@@ -57,6 +57,8 @@ struct ShellView;
 inline std::string CardFighterRow(int fighter) { return "card-fighter:" + std::to_string(fighter); }
 constexpr const char* CardEditRow = "card-edit";
 constexpr const char* ChooseMainRow = "main-character";
+// The row that opens Connect Discord (a Primary button on the tabs that need an account).
+MenuEntry ConnectDiscordRow();
 // The row `id` among `rows` as a Primary button `width` wide at `at` (Connect
 // Discord), pressed through PressEntry. Nothing when there is no such row.
 // Returns the bottom of what it drew, `at.y` when nothing.
@@ -88,11 +90,16 @@ struct OtherCardView {
     int fighterTier = 0;
     // False: a private room shows no points.
     bool points = true;
+    // False: the account's points are not known (a friend's card has the main's only), so one line is drawn.
+    bool accountKnown = true;
     // The relation chip ("Friends", "Request sent"), none when empty.
     std::string chip;
     ImU32 chipTone = 0;
 };
 void DrawOtherCard(ImDrawList* d, v2::Box box, const OtherCardView& card);
+// A player's flag, name and class emblem on a line `row` tall at (x, y), the name at `size` (heading font), cut to `room`.
+// Returns `row`.
+float DrawNameLine(ImDrawList* d, float x, float y, float room, float row, float size, const std::string& name, CountryCode country, const SkillBadge& badge);
 // The player's own card as others see it: the main, its points and the account's.
 OtherCardView OwnAsOthers(const PlayerCardView& card);
 } }

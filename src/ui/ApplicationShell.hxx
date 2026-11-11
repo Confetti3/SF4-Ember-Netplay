@@ -48,6 +48,7 @@
 #include "PublicRoomsPanel.hxx"
 #include "RankingsPanel.hxx"
 #include "ProfilePanel.hxx"
+#include "FriendsPanel.hxx"
 #include "ReplaysPanel.hxx"
 #include "ProblemReportPanel.hxx"
 #include "UpdatePrompt.hxx"
@@ -192,6 +193,7 @@ public:
         publicRooms_.Conceal();
         rankings_.Conceal();
         profile_.Conceal();
+        friends_.Conceal();
         // A link that was going on by itself starts again when Ember reopens,
         // with the services read again (identity_.Conceal dropped that read).
         roomLinkOpening_ = roomLinkOpening_ || publicRooms_.FollowingLink();
@@ -225,13 +227,14 @@ private:
     PublicRoomsPanel publicRooms_;
     RankingsPanel rankings_;
     ProfilePanel profile_;
+    FriendsPanel friends_;
     ReplaysPanel replays_;
     ProblemReportPanel reportPanel_;
     CountryPicker countryPicker_;
     // The panels that own screens (ApplicationShell__Screens.cxx): each takes
     // the parts of a drawn frame that belong to its screens (ScreenPanel).
     // Update, Conceal and IdentityPanel::Hidden stay calls to every panel.
-    class IdentityScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens; class ProfileScreens;
+    class IdentityScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens; class ProfileScreens; class FriendsScreens;
     // The panel that draws `screen`, one of those or of the shell's own below
     // (one table, ApplicationShell__Screens.cxx), else null for Home and the
     // few plain ones BuildRows makes itself.
