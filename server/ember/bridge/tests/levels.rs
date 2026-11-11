@@ -450,7 +450,9 @@ async fn a_card_token_rides_in_a_ticket_that_asks_and_opens_for_seven_days() {
             .is_none()
     );
 
-    // Seven days from issue, and not a second more.
+    // Seven days from issue, and not a second more. The clock stands still,
+    // so the token issued exactly a week ago is still a week old when read.
+    bridge.clock.freeze();
     let now = bridge.state().now();
     let (week_old, older) = (
         sealed(&bridge, 0x01, 200, now - CARD_VALID_SECS),
@@ -689,10 +691,12 @@ async fn migration_057_leaves_behind_a_rated_game_whose_room_is_gone_and_keeps_t
     {
         let connection = database_at_056(&path);
         // Foreign keys are off on this connection, as they were for the bridge
-        // that lost the room: the delete does not cascade.
+        // that lost the room: the delete does not cascade. SQLite here starts
+        // with them on, so they are turned off by name.
         connection
             .execute_batch(
-                "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, created_at)
+                "PRAGMA foreign_keys = OFF;
+                 INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, created_at)
                    VALUES ('room', 'Friendly matches', 8, 'build', 'emb_player1', 1000),
                           ('gone', 'Player 1''s room', 8, 'build', 'emb_player1', 1000);
                  INSERT INTO rated_games (room_id, table_id, generation)
