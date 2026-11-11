@@ -211,6 +211,35 @@ void MoreJourney() {
  Check(j.sent(Kind::Remove).size() == 2 && j.sent(Kind::Remove)[1]->id == "fr_8" && !j.sent(Kind::Remove)[1]->flag, "Delete and yes did not send Remove");
 }
 
+// In a room X, Y and Delete are the Friends tab's, and its pages keep them from the room: More opens on a pad, X is Add a
+// friend, Delete asks to remove, and the room's View still opens its chat from the tab.
+void RoomJourney() {
+ Social j;
+ JoinedRoom(j.h, 10);
+ j.h.view.session.generation.room = 1; j.h.view.session.control = netplay::Health::Healthy;
+ for (room::MemberId id : {1, 2}) { room::Member m; m.id = id; m.name = id == 1 ? "Player 1" : "Player 2"; j.h.view.room.members.push_back(m); }
+ j.open();
+ Check(j.screen() == "friends", "Friends did not open in a room");
+ j.focus("friend:fr_3");
+ j.h.Press(MenuInput::Options);
+ Check(j.choosing() && j.screen() == "friends", "Y in a room opened the room's table options instead of More");
+ j.h.Press(MenuInput::Back);
+ j.h.Press(MenuInput::Fighter);
+ Check(j.screen() == "friends-add", "X in a room did not open Add a friend");
+ // A page over the tab keeps them from the room too.
+ j.h.Press(MenuInput::Options);
+ j.h.Press(MenuInput::Fighter);
+ Check(j.screen() == "friends-add", "X or Y on a page left it for the room's");
+ j.h.Press(MenuInput::Back);
+ j.focus("friend:fr_8");
+ j.h.Press(MenuInput::Leave);
+ Check(j.choosing(), "Delete in a room did not ask to remove the friend");
+ j.h.Press(MenuInput::Back);
+ // The room's View still opens its chat from the tab.
+ j.h.Press(MenuInput::Chat);
+ Check(j.screen() == "room-chat", "View on the Friends tab in a room did not open the chat");
+}
+
 // More on a request: Decline asks again; Decline and block blocks.
 void RequestJourney() {
  Social j;
@@ -402,7 +431,7 @@ void SettingsJourney() {
 
 int main() {
  try {
-  VisitJourney(); RowsJourney(); ActionsJourney(); MoreJourney(); RequestJourney(); AddJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney();
+  VisitJourney(); RowsJourney(); ActionsJourney(); MoreJourney(); RequestJourney(); AddJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
   std::cout << "Friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

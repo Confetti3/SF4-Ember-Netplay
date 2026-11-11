@@ -878,6 +878,8 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
    if(a.id=="replay-export")replays_.ExportFrom(v,preferences_,nav.Focus());
    ShowTab(a.id);
   }
+  // The Friends tab and its pages take X, Y and Delete before the room's own, so More is reachable on a pad in a room.
+  else if(FriendsPanel::OnTab(screen)&&FriendsPanel::Takes(a.delta))friends_.Shortcut(v,a,nav);
   // In a room its shortcuts work from every screen, before any panel's.
   else if(inRoom)RoomShortcut(a,v);
   else if(owner)owner->Shortcut(frame,a);

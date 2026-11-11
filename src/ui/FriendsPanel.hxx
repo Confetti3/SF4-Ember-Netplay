@@ -112,8 +112,12 @@ public:
     static constexpr const char* VisitScreen = "friends-visit";
     // Settings, Online, Friends: the panel of Appear offline, the friend code and Turn off friends.
     static constexpr const char* SettingsScreen = "tab-online/friends";
+    // The tab or a page over it: where X, Y and Delete are the tab's even in a room.
+    static bool OnTab(const std::string& screen) { return screen == Screen || screen == AddScreen || screen == SentScreen || screen == BlockedScreen; }
     // The tab, a page over it or the Settings panel: the screens the friends are kept fresh on.
-    static bool Shown(const std::string& screen) { return screen == Screen || screen == AddScreen || screen == SentScreen || screen == BlockedScreen || screen == SettingsScreen; }
+    static bool Shown(const std::string& screen) { return OnTab(screen) || screen == SettingsScreen; }
+    // The shortcuts the tab takes before a room's own: X (Add a friend), Y (More) and Delete (Remove friend).
+    static bool Takes(unsigned shortcut) { return shortcut == MenuInput::Fighter || shortcut == MenuInput::Options || shortcut == MenuInput::Leave; }
     // The Settings panel's rows, which Activate takes as the tab's own.
     static bool SettingsRow(const std::string& row);
     static bool Owns(const std::string& screen) { return Shown(screen) || screen == VisitScreen; }

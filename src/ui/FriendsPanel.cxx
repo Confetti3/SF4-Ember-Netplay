@@ -566,8 +566,8 @@ void FriendsPanel::Dress(const ShellView& v, const std::string& screen, const st
         if (StateOf(f).appearOffline) menu.headerChips.push_back({loc::T("friends.appearing_offline"), colors.muted});
         if (Stale(f)) menu.headerChips.push_back({loc::T("friends.not_updated"), colors.muted});
     }
-    // In a room X and Y are the room's, as on every screen.
-    if (screen == Screen && v.session.room == netplay::RoomState::Idle && ModeOf(f, service_) == Mode::Listed) {
+    // X and Y are the tab's here, in a room too (ApplicationShell takes them before the room's own).
+    if (screen == Screen && ModeOf(f, service_) == Mode::Listed) {
         const std::string& focus = menu.navigation.Focus();
         std::vector<std::pair<unsigned, std::string>> hints;
         if (HasPrefix(focus, RequestPrefix) || HasPrefix(focus, FriendPrefix)) hints.push_back({MenuInput::Options, loc::T("friends.more")});
