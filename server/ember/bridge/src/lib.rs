@@ -15,6 +15,7 @@ mod db;
 mod delivery;
 mod error;
 mod events;
+mod friends;
 mod http;
 pub mod integrations;
 mod linking;
