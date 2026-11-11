@@ -33,7 +33,7 @@ use std::{net::SocketAddr, sync::Arc};
 use tokio::{net::TcpListener, task::JoinHandle};
 
 pub use config::Config;
-pub use db::Db;
+pub use db::{Db, OpenError};
 pub use routes::blumint::liveness::LEASE_SECS as PRESENCE_LEASE_SECS;
 /// Tournament Mode's invitations, for the operator's commands.
 pub use routes::organizer::invites::{

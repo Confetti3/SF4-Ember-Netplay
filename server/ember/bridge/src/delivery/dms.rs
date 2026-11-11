@@ -8,10 +8,10 @@
 //! kept as `no_discord` for the same reason.
 use std::collections::HashMap;
 
-use rusqlite::{Transaction, params};
+use rusqlite::{ToSql, Transaction, params};
 use serde_json::{Value, json};
 
-use super::{BATCH, Leased, Outcome, Queue, Record, Settled};
+use super::{BATCH, Leased, Outcome, Queue, Record, Table};
 use crate::{AppState, error::Result};
 
 /// Whether the bridge sends private match messages: a Discord app and its
@@ -92,8 +92,10 @@ pub struct Dms;
 impl Queue for Dms {
     type Item = Due;
 
-    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Due>>> {
-        let rows = tx
+    const TABLE: Table = Table::outbox("desk_dms");
+
+    fn due(&self, tx: &Transaction<'_>, now: u64) -> Result<Vec<Leased<Due>>> {
+        Ok(tx
             .prepare(
                 "SELECT id, attempts, first_attempt_at, user_id, body FROM desk_dms
                  WHERE state = 'pending' AND next_attempt_at <= ?1
@@ -110,14 +112,11 @@ impl Queue for Dms {
                     },
                 })
             })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for row in &rows {
-            tx.execute(
-                "UPDATE desk_dms SET next_attempt_at = ?1, attempts = ?2 WHERE id = ?3",
-                params![until, row.attempt, row.item.id],
-            )?;
-        }
-        Ok(rows)
+            .collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    fn key(item: &Due) -> Vec<&dyn ToSql> {
+        vec![&item.id]
     }
 
     async fn attempt(&self, state: &AppState, item: &Due) -> Outcome {
@@ -164,24 +163,7 @@ impl Queue for Dms {
     }
 
     fn record(&self, tx: &Transaction<'_>, leased: &Leased<Due>, record: &Record) -> Result<()> {
-        let (status, next, error) = match &record.settled {
-            Settled::Delivered => ("delivered", record.at, None),
-            Settled::Retry { at, error } => ("pending", *at, Some(error)),
-            Settled::Refused(error) | Settled::Expired(error) => ("dead", record.at, Some(error)),
-        };
-        tx.execute(
-            "UPDATE desk_dms SET state = ?1, next_attempt_at = ?2,
-                first_attempt_at = COALESCE(first_attempt_at, ?3), last_error = ?4
-             WHERE id = ?5 AND state = 'pending' AND attempts = ?6",
-            params![
-                status,
-                next,
-                record.first_attempt_at,
-                error,
-                leased.item.id,
-                leased.attempt
-            ],
-        )?;
+        Self::TABLE.record(tx, &Self::key(&leased.item), leased.attempt, record)?;
         Ok(())
     }
 }

@@ -14,12 +14,12 @@ use ember_protocol::{
     partner::{MatchResult, Outcome as Ended, RESULT_TYPE, ResultParticipant, result_id},
     webhook::{self, Secret},
 };
-use rusqlite::{Transaction, params};
+use rusqlite::{ToSql, Transaction, params};
 use serde_json::json;
 use zeroize::Zeroizing;
 
 use super::{
-    BATCH, Leased, Outcome, Queue, Record, Settled,
+    BATCH, Leased, Outcome, Outcomes, Queue, Record, Table,
     webhooks::{Answer, answer, post_signed},
 };
 use crate::{
@@ -283,9 +283,20 @@ pub struct Due {
 impl Queue for Results {
     type Item = Due;
 
-    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Due>>> {
+    const TABLE: Table = Table {
+        name: "matches",
+        key: &["id"],
+        attempts: "delivery_attempts",
+        next: "delivery_next_at",
+        outcomes: Outcomes::Ledger {
+            state: "delivery_state",
+            first: "delivery_first_at",
+        },
+    };
+
+    fn due(&self, tx: &Transaction<'_>, now: u64) -> Result<Vec<Leased<Due>>> {
         let connections: Vec<&String> = self.destinations.keys().collect();
-        let rows = tx
+        Ok(tx
             .prepare(
                 "SELECT m.id, m.connection_id, m.delivery_attempts, m.delivery_first_at
                  FROM matches m JOIN provider_connections c ON c.id = m.connection_id
@@ -304,15 +315,11 @@ impl Queue for Results {
                     first_attempt_at: row.get(3)?,
                 })
             })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for row in &rows {
-            tx.execute(
-                "UPDATE matches SET delivery_state = 'delivering', delivery_next_at = ?1, delivery_attempts = ?2
-                 WHERE id = ?3",
-                params![until, row.attempt, row.item.match_id],
-            )?;
-        }
-        Ok(rows)
+            .collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    fn key(item: &Due) -> Vec<&dyn ToSql> {
+        vec![&item.match_id]
     }
 
     async fn attempt(&self, state: &AppState, item: &Due) -> Outcome {
@@ -346,26 +353,8 @@ impl Queue for Results {
     }
 
     fn record(&self, tx: &Transaction<'_>, leased: &Leased<Due>, record: &Record) -> Result<()> {
-        let (state, next, error) = match &record.settled {
-            Settled::Delivered => ("delivered", record.at, None),
-            Settled::Retry { at, error } => ("retrying", *at, Some(error.as_str())),
-            Settled::Refused(error) | Settled::Expired(error) => {
-                ("failed", record.at, Some(error.as_str()))
-            }
-        };
-        let changed = tx.execute(
-            "UPDATE matches SET delivery_state = ?1, delivery_next_at = ?2,
-                delivery_first_at = COALESCE(delivery_first_at, ?3)
-             WHERE id = ?4 AND delivery_state = 'delivering' AND delivery_attempts = ?5",
-            params![
-                state,
-                next,
-                record.first_attempt_at,
-                leased.item.match_id,
-                leased.attempt
-            ],
-        )?;
-        if changed == 1 {
+        let recorded = Self::TABLE.record(tx, &Self::key(&leased.item), leased.attempt, record)?;
+        if let Some(state) = recorded {
             let actor = self
                 .destinations
                 .get(&leased.item.connection_id)
@@ -377,7 +366,7 @@ impl Queue for Results {
                 &format!("{actor}.submit"),
                 &leased.item.match_id,
                 state,
-                error,
+                record.settled.error(),
             )?;
         }
         Ok(())
@@ -387,6 +376,7 @@ impl Queue for Results {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::delivery::Settled;
 
     #[tokio::test]
     async fn only_the_latest_lease_records_its_outcome() {

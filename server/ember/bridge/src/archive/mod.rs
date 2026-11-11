@@ -6,7 +6,9 @@
 //! the bucket, tournament games first, and `delivery::packs` each set's
 //! pack; `GET /v1/archive` lists what is stored. Games kept before they were
 //! known by `game` are folded into one by `duplicates`.
+pub mod classes;
 pub mod duplicates;
+pub mod listing;
 pub mod sets;
 
 use ember_protocol::{
@@ -173,7 +175,7 @@ fn refusal(
     let (sent, waiting, kept): (i64, i64, i64) = tx.query_row(
         "SELECT (SELECT COUNT(*) FROM archive_games WHERE sent_by = ?1 AND charged = 1 AND received_at > ?2),
                 (SELECT COALESCE(SUM(size), 0) FROM archive_games WHERE state = 'pending'),
-                (SELECT COALESCE(SUM(size), 0) FROM archive_games)",
+                (SELECT bytes FROM archive_kept)",
         params![sender.as_str(), now.saturating_sub(86_400)],
         |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     )?;

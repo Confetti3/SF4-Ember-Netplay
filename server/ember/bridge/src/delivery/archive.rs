@@ -6,9 +6,9 @@
 //! passed. Sets' packs are stored by `packs`.
 use std::sync::Arc;
 
-use rusqlite::{Transaction, params};
+use rusqlite::{ToSql, Transaction, params};
 
-use super::{BATCH, Leased, Outcome, Queue, Record, Settled};
+use super::{BATCH, Leased, Outcome, Outcomes, Queue, Record, Settled, Table};
 use crate::{AppState, error::Result, s3::Bucket};
 
 pub struct Due {
@@ -19,11 +19,22 @@ pub struct Due {
 /// Games waiting for the archive's bucket.
 pub struct Archive(pub Arc<Bucket>);
 
+/// The archive's games, which both of its game queues lease (`duplicates`).
+pub(super) const GAMES: Table = Table {
+    name: "archive_games",
+    key: &["digest"],
+    attempts: "attempts",
+    next: "next_attempt_at",
+    outcomes: Outcomes::Own,
+};
+
 impl Queue for Archive {
     type Item = Due;
 
-    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Due>>> {
-        let rows = tx
+    const TABLE: Table = GAMES;
+
+    fn due(&self, tx: &Transaction<'_>, now: u64) -> Result<Vec<Leased<Due>>> {
+        Ok(tx
             .prepare(
                 "SELECT digest, attempts, first_attempt_at, replay FROM archive_games
                  WHERE state = 'pending' AND next_attempt_at <= ?1
@@ -39,14 +50,11 @@ impl Queue for Archive {
                     },
                 })
             })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for row in &rows {
-            tx.execute(
-                "UPDATE archive_games SET next_attempt_at = ?1, attempts = ?2 WHERE digest = ?3",
-                params![until, row.attempt, row.item.digest],
-            )?;
-        }
-        Ok(rows)
+            .collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    fn key(item: &Due) -> Vec<&dyn ToSql> {
+        vec![&item.digest]
     }
 
     async fn attempt(&self, state: &AppState, item: &Due) -> Outcome {
