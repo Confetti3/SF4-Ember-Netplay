@@ -81,13 +81,13 @@ const char* NoLevelWords(const PlayerCardView& card) {
 }
 
 namespace {
-// The points plate and the class plate across the hero's foot (PLAYER_CARD.md,
-// Card tab): the main's points with its name and games at the left, the class
-// emblem at the right. A main without points shows 0; why it has none is said
-// under the card's facts.
+// SF4's arrangement across the hero's foot (PLAYER_CARD.md, Card tab): the
+// main's name, under it two lines, the main's points as "<n> FP" and the
+// account's as "<n> BP", and the class emblem at the right. A main without points
+// shows 0; why it has none is said under the card's facts.
 void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int main) {
     const auto& c = v2::Colors();
-    const float s = Scale(), pad = 12 * s, plate = foot.H() - 2 * pad;
+    const float s = Scale(), pad = 12 * s, line = 16 * s;
     float right = foot.max.x - pad;
     const auto& badge = card.profile.marks.badge;
     if (badge.HasClass()) {
@@ -100,14 +100,15 @@ void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int mai
     const float left = foot.min.x + pad, room = right - left;
     const auto* fighter = main >= 0 ? selection::FindFighter(main) : nullptr;
     const bool leads = !card.fighters.empty() && card.fighters.front().fighter == main;
-    const std::uint64_t points = leads ? card.fighters.front().points : 0, games = leads ? card.fighters.front().games : 0;
-    const float width = v2::Level(d, ImVec2(left, foot.min.y + pad), plate, points, "points.label"), x = left + width + pad,
-                text = (std::max)(0.f, room - width - pad);
+    const std::uint64_t points = leads ? card.fighters.front().points : 0;
     if (fighter) {
-        v2::Text(d, ImVec2(x, foot.min.y + pad + 4 * s), text, fighter->name, 18 * s, c.text, HeadingFont());
-        v2::Text(d, ImVec2(x, foot.min.y + pad + 30 * s), text, player_card::GamesWords(games), 14 * s, c.muted);
+        v2::Text(d, ImVec2(left, foot.min.y + 8 * s), room, fighter->name, 17 * s, c.text, HeadingFont());
+        v2::Level(d, ImVec2(left, foot.min.y + 30 * s), line, points, "points.label");
+        v2::Level(d, ImVec2(left, foot.min.y + 52 * s), line, card.account, "points.account_label");
     } else {
-        v2::Paragraph(d, ImVec2(x, foot.min.y + pad), text, loc::T("profile.choose_main_detail"), 14 * s, c.muted);
+        // No main: the account's points stand first, and the words that ask for one under them.
+        v2::Level(d, ImVec2(left, foot.min.y + 8 * s), line, card.account, "points.account_label");
+        v2::Paragraph(d, ImVec2(left, foot.min.y + 32 * s), room, loc::T("profile.choose_main_detail"), 14 * s, c.muted);
     }
 }
 
