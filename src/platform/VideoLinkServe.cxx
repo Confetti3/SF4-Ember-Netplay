@@ -7,6 +7,7 @@
 #include <objbase.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <algorithm>
 #include <cstring>
 
 namespace {
@@ -74,7 +75,9 @@ int Serve(const std::wstring& link) {
 	const HANDLE game = OpenProcess(SYNCHRONIZE, FALSE, shared->game);
 	if (!game) { spdlog::warn("Video: the game is gone ({})", GetLastError()); return 2; }
 	video::Encoder encoder;
-	const bool opened = encoder.Begin(shared->file, shared->width, shared->height, shared->game);
+	// A fast export brings its own sound; the speakers' is not the picture's.
+	const bool fast = shared->fast != 0;
+	const bool opened = encoder.Begin(shared->file, shared->width, shared->height, fast ? 0 : shared->game, fast);
 	strncpy_s(shared->openedAs, encoder.Summary().c_str(), _TRUNCATE);
 	InterlockedExchange(&shared->opened, opened ? 1 : -1);
 	if (!opened) return 3;
@@ -85,7 +88,9 @@ int Serve(const std::wstring& link) {
 		if (GetTickCount64() - noted >= 10000) { noted = GetTickCount64(); spdlog::info("Video: {} pictures taken of {} sent", shared->taken, shared->sent); }
 		for (; shared->taken != shared->sent; InterlockedIncrement(&shared->taken)) {
 			const BYTE* const slot = Slot(shared, shared->taken);
-			encoder.Frame(slot, shared->width, slot + shared->width * shared->height, shared->width, shared->times[shared->taken % kSlots]);
+			const LONG at = shared->taken % kSlots;
+			encoder.Frame(slot, shared->width, slot + shared->width * shared->height, shared->width, shared->times[at]);
+			if (fast) encoder.Sound(shared->sound[at], (std::min)(shared->soundFrames[at], kSoundPerSlot));
 		}
 	}
 	bool closed = encoder.End();
