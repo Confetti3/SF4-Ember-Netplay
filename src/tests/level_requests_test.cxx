@@ -10,10 +10,10 @@
 using namespace sf4e::netplay::levels;
 using sf4e::netplay::Answered;
 
-static Own Counted(std::uint8_t level) {
+static Own Counted(std::uint64_t points) {
 	Own own;
 	own.kind = Own::Kind::Counted;
-	own.fighters[3].level = level;
+	own.fighters[3].points = points;
 	return own;
 }
 
@@ -27,7 +27,7 @@ static void OneAtATime() {
 	requests.Finish("", Counted(42), 500);
 	const auto& answered = requests.Published();
 	EXPECT(requests.MayRead() && !requests.Awaiting(10) && !answered.loading && answered.loaded);
-	EXPECT(answered.value.fighters[3].level == 42 && answered.revision == 1 && answered.finished == 1 && answered.installedMs == 500);
+	EXPECT(answered.value.fighters[3].points == 42 && answered.revision == 1 && answered.finished == 1 && answered.installedMs == 500);
 }
 
 // A failed refresh ends the read but keeps the value and its revision; a bridge
@@ -40,7 +40,7 @@ static void FailedRefresh() {
 	requests.Sent(2, 2000);
 	requests.Finish("bridge_unreachable", std::nullopt, 3000);
 	const auto& answered = requests.Published();
-	EXPECT(answered.value.fighters[3].level == 9 && answered.revision == 1 && answered.finished == 2 && answered.installedMs == 1000);
+	EXPECT(answered.value.fighters[3].points == 9 && answered.revision == 1 && answered.finished == 2 && answered.installedMs == 1000);
 	EXPECT(answered.error == "bridge_unreachable" && !answered.loading);
 	requests.Sent(3, 4000);
 	EXPECT(requests.Published().error.empty() && requests.Published().loading);

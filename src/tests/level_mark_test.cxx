@@ -1,6 +1,6 @@
 // Ember's level digits (FIGHTER_LEVELS.md, The digits atlas): the atlas's
 // layout in src/common/LevelDigits.hxx and how LevelMark.hxx lays a number out
-// from it, for every level 1 to 60 at each rendered size and between them.
+// from it, for numbers of one to six digits at each rendered size and between them.
 #include "../ui/LevelMark.hxx"
 #include <algorithm>
 #include <cmath>
@@ -21,6 +21,13 @@ bool Whole(float value) { return value == std::round(value); }
 bool Inside(const Cell& c) { return c.x >= 0 && c.y >= 0 && c.w > 0 && c.h > 0 && c.x + c.w <= level_digits::AtlasWidth && c.y + c.h <= level_digits::AtlasHeight; }
 bool Apart(const Cell& a, const Cell& b) { return a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y; }
 int Digits(unsigned n) { int count = 1; while (n >= 10) { n /= 10; ++count; } return count; }
+// The points a plate shows: every one-digit number and sample numbers of two to six digits.
+std::vector<unsigned> Numbers() {
+    std::vector<unsigned> numbers;
+    for (unsigned n = 1; n <= 99; ++n) numbers.push_back(n);
+    for (const unsigned n : {100u, 101u, 200u, 412u, 700u, 999u, 1500u, 1986u, 2500u, 9999u, 12840u, 99999u, 100000u, 888888u, 999999u}) numbers.push_back(n);
+    return numbers;
+}
 }
 
 int main() {
@@ -46,13 +53,13 @@ int main() {
     for (std::size_t i = 0; i < cells.size(); ++i)
         for (std::size_t j = i + 1; j < cells.size(); ++j) Check(Apart(cells[i], cells[j]), "sprites do not overlap");
 
-    // Every level at each size: drawn from that size unscaled, its first ink at
+    // Every number at each size: drawn from that size unscaled, its first ink at
     // the origin, its last ink ending at its width, every place a whole pixel.
     for (const int cap : caps) {
         float widest = 0;
-        for (unsigned level = 1; level <= 60; ++level) {
+        for (const unsigned level : Numbers()) {
             const auto layout = LayOut(level, static_cast<float>(cap));
-            const std::string at = "level " + std::to_string(level) + " at " + std::to_string(cap);
+            const std::string at = "number " + std::to_string(level) + " at " + std::to_string(cap);
             Check(layout.size && layout.size->cap == cap && layout.scale == 1, at + ": its own size, unscaled");
             Check(layout.count == Digits(level), at + ": a sprite pair per digit");
             Check(layout.width > 0 && Whole(layout.width), at + ": a whole width");
@@ -68,13 +75,22 @@ int main() {
             }
             widest = (std::max)(widest, layout.width);
         }
-        // Two digits never take more than two and a half caps, so a plate's width is foreseeable.
-        Check(widest <= cap * 2.5f, "60 levels fit in two and a half caps at " + std::to_string(cap));
+        // A digit never takes more than a cap and two fifths, so a plate's width is foreseeable.
+        Check(widest <= cap * 1.4f * 6, "six digits fit in eight and a half caps at " + std::to_string(cap));
+        // The same digit repeated is wider with each one: 1, 11, 111 to 111111.
+        float before = 0;
+        unsigned ones = 0;
+        for (int count = 1; count <= 6; ++count) {
+            ones = ones * 10 + 1;
+            const float width = LayOut(ones, static_cast<float>(cap)).width;
+            Check(width > before, "a number of " + std::to_string(count) + " digits is wider than one of fewer at " + std::to_string(cap));
+            before = width;
+        }
     }
     // The sizes agree: a number twice as tall is twice as wide, to a couple of pixels.
-    for (unsigned level = 1; level <= 60; ++level) {
+    for (const unsigned level : Numbers()) {
         const float w20 = LayOut(level, 20).width, w40 = LayOut(level, 40).width, w80 = LayOut(level, 80).width;
-        Check(std::abs(w40 - 2 * w20) <= 2 && std::abs(w80 - 2 * w40) <= 2, "level " + std::to_string(level) + " scales between sizes");
+        Check(std::abs(w40 - 2 * w20) <= 2 && std::abs(w80 - 2 * w40) <= 2, "number " + std::to_string(level) + " scales between sizes");
     }
     // Between sizes: the smallest size at least as tall, scaled down by at
     // most half from 11 px; above 80 the largest scaled up. Still whole
@@ -82,9 +98,9 @@ int main() {
     for (int tall = 8; tall <= 160; ++tall) {
         const float height = static_cast<float>(tall);
         const int expected = tall <= 20 ? 20 : tall <= 40 ? 40 : 80;
-        for (unsigned level = 1; level <= 60; ++level) {
+        for (const unsigned level : Numbers()) {
             const auto layout = LayOut(level, height);
-            const std::string at = "level " + std::to_string(level) + " at " + std::to_string(tall);
+            const std::string at = "number " + std::to_string(level) + " at " + std::to_string(tall);
             Check(layout.size && layout.size->cap == expected && layout.scale == height / expected, at + ": the size at least as tall");
             Check(tall <= 10 || layout.scale > .5f, at + ": scaled down by at most half");
             const auto& first = layout.digits[0];
@@ -100,6 +116,7 @@ int main() {
     const auto zero = LayOut(0, 20);
     const Cell& zeroUnder = level_digits::Sizes[0].digits[0].under;
     Check(zero.count == 1 && zero.digits[0].digit->under.x == zeroUnder.x && zero.digits[0].digit->under.y == zeroUnder.y, "0 is one digit");
+    Check(LayOut(999999, 40).count == 6, "the most points shown have six digits");
     Check(LayOut(4294967295u, 40).count == 10, "the largest number has ten digits");
     Check(!LayOut(42, 0).size && LayOut(42, 0).count == 0 && LayOut(42, -5).width == 0, "nothing at no height");
     std::printf(failures ? "%d failures\n" : "Level mark: all checks passed\n", failures);

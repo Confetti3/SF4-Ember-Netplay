@@ -1085,31 +1085,31 @@ msgid "card.class"
 msgstr "Class"
 
 msgid "level.value"
-msgstr "Level {0}"
+msgstr "{0} points"
 
 msgid "level.games"
 msgstr "{0} games"
 
-msgid "level.games_away"
-msgstr "Level {0} is about {1} games away"
+msgid "level.points_to"
+msgstr "{0} points to {1}"
 
 msgid "level.top"
-msgstr "Highest level"
+msgstr "Top frame"
 
 msgid "level.hidden"
-msgstr "Others do not see your levels while you do not take part in ranking."
+msgstr "Others do not see your points while you do not take part in ranking."
 
 msgid "level.no_account"
-msgstr "Connect Discord in Settings, Online to earn levels."
+msgstr "Connect Discord in Settings, Online to earn points."
 
 msgid "level.unavailable"
-msgstr "This service does not count levels yet."
+msgstr "This service does not count points yet."
 
 msgid "level.loading"
-msgstr "Reading your levels."
+msgstr "Reading your points."
 
 msgid "level.none"
-msgstr "Play a rated public game to start earning levels."
+msgstr "Play a rated public game to start earning points."
 
 msgid "card.counted_games"
 msgstr "Rated games"
@@ -1124,13 +1124,13 @@ msgid "card.of"
 msgstr "{0} of {1}"
 
 msgid "fighters.unplayed"
-msgstr "{0} fighters not played yet. Each starts at level 1 with its first rated public game."
+msgstr "{0} fighters not played yet. Each starts earning points with its first rated public game."
 
 msgid "fighters.how"
-msgstr "How a level is earned"
+msgstr "How points are earned"
 
 msgid "fighters.how_detail"
-msgstr "Every rated public game with a fighter counts, and a win counts double. It never goes down and has nothing to do with your class. Past eight games against the same player in one sitting, games stop counting."
+msgstr "Every rated public game with a fighter counts: a win adds 2 points and a loss adds 1. Points never go down and have nothing to do with your class. The frame's colour changes as they grow. Past eight games against the same player in one sitting, games stop counting."
 
 msgid "fighters.won"
 msgstr "Won"

@@ -19,10 +19,10 @@ constexpr const char* UnplayedRow = "fighters-unplayed";
 
 
 std::string FighterDetail(const netplay::levels::FighterLevel& level) {
-    return loc::Tf("level.value", static_cast<int>(level.level)) + " \xC2\xB7 " + loc::Tf("level.games", level.games);
+    return loc::Tf("level.value", level.points) + " \xC2\xB7 " + loc::Tf("level.games", level.games);
 }
 
-// A fighter's row on the Fighters board: its picture with the level on it,
+// A fighter's row on the Fighters board: its picture with the points on it,
 // its name and games, and its meter.
 void DrawFighterRow(ImDrawList* d, v2::Box box, int fighter, const netplay::levels::FighterLevel& level, FighterArt art, bool focused, bool hovered, bool enabled) {
     const auto& c = v2::Colors();
@@ -30,7 +30,7 @@ void DrawFighterRow(ImDrawList* d, v2::Box box, int fighter, const netplay::leve
     v2::CardGround(d, box, focused, hovered);
     const v2::Box tile{ImVec2(box.min.x + pad, box.min.y + pad), ImVec2(box.min.x + pad + side, box.max.y - pad)};
     DrawCharacterPortrait(FighterPicture{fighter, art, 0, 0}, tile.min, tile.max, c.frame);
-    v2::LevelBand(d, tile, level.level);
+    v2::LevelBand(d, tile, level.points, level.tier);
     const float x = tile.max.x + 12 * s, room = box.max.x - pad - x;
     v2::Text(d, ImVec2(x, box.min.y + 12 * s), room, selection::FindFighter(fighter)->name, 15 * s, enabled ? c.text : c.muted, HeadingFont());
     v2::Text(d, ImVec2(x, box.min.y + 34 * s), room, loc::Tf("level.games", level.games), 12 * s, c.muted);
@@ -38,8 +38,8 @@ void DrawFighterRow(ImDrawList* d, v2::Box box, int fighter, const netplay::leve
     if (focused) v2::Focus(d, box.min, box.max);
 }
 
-// The focused fighter's panel: a large picture and its level, the way to the
-// next, its games and wins, how a level is earned and the frames.
+// The focused fighter's panel: a large picture and its points, the way to the
+// next tier, its games and wins, how points are earned and the frames.
 // Returns the panel's bottom.
 float DrawFighterPanel(ImDrawList* d, v2::Box box, int fighter, const netplay::levels::Own& own, bool isMain, FighterArt art) {
     const auto& c = v2::Colors();
@@ -53,13 +53,13 @@ float DrawFighterPanel(ImDrawList* d, v2::Box box, int fighter, const netplay::l
     float y = box.min.y + head + pad;
     const v2::Box tile{ImVec2(x, y), ImVec2(x + picture, y + picture)};
     DrawCharacterPortrait(FighterPicture{fighter, art, 0, 0}, tile.min, tile.max, c.frame);
-    v2::LevelBand(d, tile, level.level);
+    v2::LevelBand(d, tile, level.points, level.tier);
     const float tx = tile.max.x + pad, tw = room - picture - pad;
-    v2::Text(d, ImVec2(tx, y), tw, loc::Tf("level.value", static_cast<int>(level.level)), 22 * s, c.text, HeadingFont());
+    v2::Text(d, ImVec2(tx, y), tw, loc::Tf("level.value", level.points), 22 * s, c.text, HeadingFont());
     v2::Meter(d, {ImVec2(tx, y + 38 * s), ImVec2(tx + tw, y + 48 * s)}, player_card::Part(level), 0.f);
-    // The way to the next level wraps rather than shortens, and the facts go under it when it is longer than the picture.
+    // The way to the next tier wraps rather than shortens, and the facts go under it when it is longer than the picture.
     const float away = v2::Paragraph(d, ImVec2(tx, y + 58 * s), tw,
-        level.next ? loc::Tf("level.games_away", static_cast<int>(level.level) + 1, player_card::GamesAway(level)) : std::string(loc::T("level.top")), 14 * s, c.muted);
+        level.next ? loc::Tf("level.points_to", level.next - level.points, v2::TierName(v2::FrameTier(level.tier + 1))) : std::string(loc::T("level.top")), 14 * s, c.muted);
     y += (std::max)(picture, 58 * s + away) + pad;
     const std::vector<v2::TagView::Fact> facts{{loc::T("card.counted_games"), std::to_string(level.games)}, {loc::T("fighters.won"), std::to_string(level.wins)},
         {loc::T("fighters.since"), level.since ? LocalTime(level.since, "%Y-%m-%d") : std::string("-")}};
@@ -67,15 +67,17 @@ float DrawFighterPanel(ImDrawList* d, v2::Box box, int fighter, const netplay::l
     v2::SectionHeading(d, ImVec2(x, y), loc::T("fighters.how"));
     y += 22 * s;
     y += v2::Paragraph(d, ImVec2(x, y), room, loc::T("fighters.how_detail"), 14 * s, c.muted) + 12 * s;
-    // The five frames, each tier's first level, under its tier's name. A place is as wide as its frame or its name
-    // needs, at least 56 px, and the frames go on to a new line when the next does not fit.
+    // The five frames, each tier with a sample number (the thresholds are the bridge's, so they are not drawn), under
+    // its tier's name. A place is as wide as its frame or its name needs, at least 56 px, and the frames go on to a
+    // new line when the next does not fit.
     float fx = x;
-    for (const int first : {1, 13, 25, 37, 49}) {
-        const std::string name = v2::TierName(v2::LevelTier(first));
+    constexpr std::uint64_t Samples[netplay::levels::TierCount] = {7, 86, 412, 1986, 12840};
+    for (int tier = 0; tier < netplay::levels::TierCount; ++tier) {
+        const std::string name = v2::TierName(v2::FrameTier(tier));
         const float named = ImGui::GetFont()->CalcTextSizeA(11 * s, FLT_MAX, 0, name.c_str()).x;
-        const float place = (std::max)({v2::LevelWidth(first, 34 * s), named, 56 * s});
+        const float place = (std::max)({v2::LevelWidth(Samples[tier], 34 * s), named, 56 * s});
         if (fx > x && fx + place > x + room) { fx = x; y += 58 * s; }
-        v2::Level(d, ImVec2(fx, y), 34 * s, first);
+        v2::Level(d, ImVec2(fx, y), 34 * s, Samples[tier], tier);
         v2::Text(d, ImVec2(fx, y + 38 * s), place, name, 11 * s, c.muted);
         fx += place + 8 * s;
     }
@@ -88,7 +90,7 @@ float DrawFighterPanel(ImDrawList* d, v2::Box box, int fighter, const netplay::l
     return box.max.y;
 }
 
-// The Fighters tab: the played fighters in two columns, highest level first,
+// The Fighters tab: the played fighters in two columns, most points first,
 // one info row after them, and the focused fighter's panel beside (under, when narrow).
 float DrawFightersTab(const ShellView& v, int main, const PlayerCardView& card, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, bool changed) {
     const auto& c = v2::Colors();
@@ -129,7 +131,7 @@ float DrawFightersTab(const ShellView& v, int main, const PlayerCardView& card, 
         }
     }
     // The panel follows the focus and holds nothing focusable; with the focus on the words it shows the main, or the first.
-    if (focused < 0) focused = main >= 0 && main < static_cast<int>(own.fighters.size()) && own.fighters[main].level ? main : first;
+    if (focused < 0) focused = main >= 0 && main < static_cast<int>(own.fighters.size()) && own.fighters[main].points ? main : first;
     if (card.levels == CardLevels::Counted && focused >= 0) {
         const v2::Box panel = narrow ? v2::Box{ImVec2(list.min.x, bottom + gap), ImVec2(list.max.x, 0)} : v2::Box{side.min, ImVec2(side.max.x, 0)};
         bottom = (std::max)(bottom, DrawFighterPanel(d, panel, focused, own, focused == main, art));

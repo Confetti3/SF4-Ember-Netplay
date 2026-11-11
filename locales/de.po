@@ -1085,31 +1085,31 @@ msgid "card.class"
 msgstr "Klasse"
 
 msgid "level.value"
-msgstr "Level {0}"
+msgstr "{0} Punkte"
 
 msgid "level.games"
 msgstr "Spiele: {0}"
 
-msgid "level.games_away"
-msgstr "Level {0} ist etwa {1} Spiele entfernt"
+msgid "level.points_to"
+msgstr "{0} Punkte bis {1}"
 
 msgid "level.top"
-msgstr "Höchstes Level"
+msgstr "Höchster Rahmen"
 
 msgid "level.hidden"
-msgstr "Andere sehen deine Level nicht, solange du nicht am Ranking teilnimmst."
+msgstr "Andere sehen deine Punkte nicht, solange du nicht am Ranking teilnimmst."
 
 msgid "level.no_account"
-msgstr "Verbinde Discord unter Einstellungen, Online-Spiel, um Level zu sammeln."
+msgstr "Verbinde Discord unter Einstellungen, Online-Spiel, um Punkte zu sammeln."
 
 msgid "level.unavailable"
-msgstr "Dieser Dienst zählt noch keine Level."
+msgstr "Dieser Dienst zählt noch keine Punkte."
 
 msgid "level.loading"
-msgstr "Deine Level werden gelesen."
+msgstr "Deine Punkte werden gelesen."
 
 msgid "level.none"
-msgstr "Spiele ein gewertetes öffentliches Spiel, um Level zu sammeln."
+msgstr "Spiele ein gewertetes öffentliches Spiel, um Punkte zu sammeln."
 
 msgid "card.counted_games"
 msgstr "Gewertete Spiele"
@@ -1124,13 +1124,13 @@ msgid "card.of"
 msgstr "{0} von {1}"
 
 msgid "fighters.unplayed"
-msgstr "{0} Kämpfer noch nicht gespielt. Jeder beginnt mit seinem ersten gewerteten öffentlichen Spiel bei Level 1."
+msgstr "{0} Kämpfer noch nicht gespielt. Jeder sammelt mit seinem ersten gewerteten öffentlichen Spiel Punkte."
 
 msgid "fighters.how"
-msgstr "So steigt ein Level"
+msgstr "So sammelst du Punkte"
 
 msgid "fighters.how_detail"
-msgstr "Jedes gewertete öffentliche Spiel mit einem Kämpfer zählt, ein Sieg zählt doppelt. Ein Level sinkt nie und hat nichts mit deiner Klasse zu tun. Nach acht Spielen gegen denselben Spieler in einer Sitzung zählen weitere Spiele nicht mehr."
+msgstr "Jedes gewertete öffentliche Spiel mit einem Kämpfer zählt: Ein Sieg bringt 2 Punkte, eine Niederlage 1. Punkte sinken nie und haben nichts mit deiner Klasse zu tun. Die Farbe des Rahmens ändert sich, wenn sie steigen. Nach acht Spielen gegen denselben Spieler in einer Sitzung zählen weitere Spiele nicht mehr."
 
 msgid "fighters.won"
 msgstr "Siege"

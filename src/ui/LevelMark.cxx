@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <string>
 
 namespace sf4e { namespace ui {
@@ -42,7 +43,8 @@ Layout LayOut(unsigned number, float height) {
 
 namespace v2 {
 namespace {
-constexpr int TopLevel = 60;
+// The most points shown: six digits.
+constexpr std::uint64_t TopPoints = 999999;
 // A plate's number stands this share of its height tall, and the plate keeps
 // this share of its height clear at each side of the number.
 constexpr float PlateCap = .56f, PlateSide = .28f;
@@ -50,7 +52,7 @@ constexpr float PlateCap = .56f, PlateSide = .28f;
 // number this share of the band.
 constexpr float BandShare = .3f, BandCap = .62f;
 
-// A level's number `cap` tall: laid out in the digits once their atlas has
+// The points' number `cap` tall: laid out in the digits once their atlas has
 // loaded; while it loads, or when it is missing, the heading font's digits
 // (`text`) in ivory. `width` is what either paints.
 struct Number {
@@ -61,15 +63,16 @@ struct Number {
 };
 // The heading font's size whose digits stand about `cap` tall.
 float FallbackSize(float cap) { return std::round(cap * 1.3f); }
-Number NumberOf(int level, float cap) {
+Number NumberOf(std::uint64_t points, float cap) {
+    points = (std::min)(points, TopPoints);
     Number number;
     number.cap = cap;
     if (auto* art = MenuArt()) number.atlas = art->LevelDigits();
     if (number.atlas.texture) {
-        number.layout = level_mark::LayOut(static_cast<unsigned>(level), cap);
+        number.layout = level_mark::LayOut(static_cast<unsigned>(points), cap);
         number.width = number.layout.width;
     } else {
-        number.text = std::to_string(level);
+        number.text = std::to_string(points);
         number.width = std::round(HeadingFont()->CalcTextSizeA(FallbackSize(cap), FLT_MAX, 0, number.text.c_str()).x);
     }
     return number;
@@ -96,38 +99,49 @@ void DrawCentred(ImDrawList* draw, const Number& number, Box box) {
 }
 // A plate `height` tall: its number, and its width, square at least.
 struct Plate { Number number; float width; };
-Plate PlateOf(int level, float height) {
-    Plate plate{NumberOf(level, std::round(height * PlateCap)), 0};
+Plate PlateOf(std::uint64_t points, float height) {
+    Plate plate{NumberOf(points, std::round(height * PlateCap)), 0};
     plate.width = (std::max)(std::round(height), plate.number.width + 2 * std::round(height * PlateSide));
     return plate;
 }
+// The number in a band `band` tall over `width`: its cap, shrunk until it fits
+// the width less a margin each side, down to 1 px.
+Number BandNumber(std::uint64_t points, float band, float width) {
+    float cap = std::round(band * BandCap);
+    const float room = (std::max)(1.f, width - 2 * std::round(band * PlateSide * .5f));
+    Number number = NumberOf(points, cap);
+    while (number.width > room && cap > 1) {
+        cap = (std::max)(1.f, (std::min)(cap - 1, std::floor(cap * room / number.width)));
+        number = NumberOf(points, cap);
+    }
+    return number;
+}
 }
 
-Tier LevelTier(int level) {
-    if (level <= 0) return Tier::None;
-    return static_cast<Tier>(static_cast<int>(Tier::Ash) + ((std::min)(level, TopLevel) - 1) / 12);
+Tier FrameTier(int tier) {
+    return static_cast<Tier>(static_cast<int>(Tier::Ash) + (std::max)(0, (std::min)(tier, static_cast<int>(Tier::Ember) - static_cast<int>(Tier::Ash))));
 }
 
-float LevelWidth(int level, float height) { return level > 0 ? PlateOf(level, height).width : 0; }
+float LevelWidth(std::uint64_t points, float height) { return points > 0 ? PlateOf(points, height).width : 0; }
 
-float Level(ImDrawList* draw, ImVec2 at, float height, int level) {
-    if (level <= 0) return 0;
-    const Plate plate = PlateOf(level, height);
+float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, int tier) {
+    if (points == 0) return 0;
+    const Plate plate = PlateOf(points, height);
     const float s = Scale(), edge = 2 * s;
     const Box box{ImVec2(std::round(at.x), std::round(at.y)), ImVec2(std::round(at.x) + plate.width, std::round(at.y) + std::round(height))};
     draw->AddRectFilled(box.min, box.max, Colors().ink, 4 * s);
     DrawCentred(draw, plate.number, Inset(box, edge, edge));
-    draw->AddRect(box.min, box.max, TierColor(LevelTier(level)).stripe, 4 * s, 0, edge);
+    draw->AddRect(box.min, box.max, TierColor(FrameTier(tier)).stripe, 4 * s, 0, edge);
     return plate.width;
 }
 
-void LevelBand(ImDrawList* draw, Box tile, int level) {
-    if (level <= 0 || tile.H() <= 0) return;
+void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, int tier) {
+    if (points == 0 || tile.H() <= 0) return;
     const float s = Scale(), band = std::round((std::min)(tile.H(), (std::max)(tile.H() * BandShare, 20 * s)));
     const Box foot{ImVec2(tile.min.x, tile.max.y - band), tile.max};
     draw->AddRectFilled(foot.min, foot.max, color::Alpha(Colors().ink, .88f));
-    DrawCentred(draw, NumberOf(level, std::round(band * BandCap)), foot);
-    draw->AddRect(tile.min, tile.max, TierColor(LevelTier(level)).stripe, 0, 0, 2 * s);
+    DrawCentred(draw, BandNumber(points, band, foot.W()), foot);
+    draw->AddRect(tile.min, tile.max, TierColor(FrameTier(tier)).stripe, 0, 0, 2 * s);
 }
 
 void Meter(ImDrawList* draw, Box box, float part, float fresh) {

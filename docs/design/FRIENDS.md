@@ -178,7 +178,7 @@ offline). Rate limits answer 429.
 ```json
 {"code":"4F2A-91CX",
  "friends":[{"id":"fr_…","name":"Player 3","country":"FR","since":1730073600,
-   "main":{"fighter":5,"level":31},"badge":{"band":7,"settled":true},
+   "main":{"fighter":5,"points":1986,"tier":3},"badge":{"band":7,"settled":true},
    "presence":{"state":"room","status":"fighting","table":0,
      "room":{"room_id":"0f…","name":"Player 1's room","members":7,"capacity":16,"joinable":true}},
    "record":{"won":14,"lost":9,"last_at":1731000000}}],
@@ -194,7 +194,7 @@ offline). Rate limits answer 429.
 | `code` | the caller's friend code, `XXXX-XXXX` in Crockford base32 |
 | `appear_offline` | written only when on |
 | `friends` | at most 200, in no order (the client groups and sorts) |
-| `main` | the friend's main and its level; `level` absent while they do not show levels |
+| `main` | the friend's main and its points and tier; `points` and `tier` absent together while they do not show points |
 | `badge` | `SkillBadge`: their class as last shown (`skill_ratings.band`, settled by the aged deviation), read without remembering anything; the developer mark for a developer; absent when they do not take part, or classes are hidden |
 | `presence.state` | `offline` (with `seen_at` when known), `online` (with `activity`), `room` (with `status`, `table`, and `room` for a public room or `private: true`) |
 | `room.joinable` | open, not locked, not full, and of the caller's build |
@@ -241,10 +241,10 @@ invite box says).
 ## Privacy
 
 - **Friends** see: name and flag (as the friend's game sends them), class as
-  last shown, main and its level (while they show levels), presence, and the
+  last shown, main and its points and tier (while they show points), presence, and the
   record between the two of them.
 - **A non-friend** learns nothing of presence. Holding a card token (being in
-  the same public room) they see the levels and games that player shows and
+  the same public room) they see the points and tier that player shows and
   their own relation to them. Sending a request tells them nothing about the
   answer: a declined, blocked or full-inbox request stays "sent" until it
   lapses. A friend code says only whether it exists.

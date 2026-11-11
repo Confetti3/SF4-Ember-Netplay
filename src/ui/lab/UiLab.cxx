@@ -9,7 +9,7 @@
 // --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --profile played|fresh|sixty|hidden|noaccount|unavailable|loading: the player's levels (--screen card or fighters)
-// --levels: fighter levels 1 to 60 on their plates at the digits' three sizes, bands on pictures and meters
+// --levels: fighter points on their plates at each tier and the digits' three sizes, bands on pictures and meters
 //   (all of it shows in --size 3840x2160)
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
 // --check report.txt (with --shot): appends each line cut short, text taller than its row and cards overlapping on the
@@ -296,9 +296,10 @@ void Rankings(ui::ShellView& view) {
     r.board.value = board; r.board.loaded = true; r.board.revision = r.board.finished = 1;
 }
 // --profile played|fresh|sixty|hidden|noaccount|unavailable|loading: the player's
-// levels as the card and the Fighters tab show them (--screen card or fighters).
-// played: twelve fighters, the main (Ryu) at 42; fresh: counted, none played yet;
-// sixty: the main at the top; hidden: played, and others do not see the levels.
+// points as the card and the Fighters tab show them (--screen card or fighters).
+// played: twelve fighters, the main (Ryu) at 1986 points; fresh: counted, none played yet;
+// sixty: the main in the top tier (the name is kept from the levels); hidden: played,
+// and others do not see the points.
 void Profile(ui::ShellView& view, const std::string& state) {
     auto& answer = view.levels;
     answer.loading = state == "loading";
@@ -309,26 +310,29 @@ void Profile(ui::ShellView& view, const std::string& state) {
     own.kind = state == "noaccount" ? netplay::levels::Own::Kind::NoAccount : state == "unavailable" ? netplay::levels::Own::Kind::Unavailable : netplay::levels::Own::Kind::Counted;
     own.shown = state != "hidden";
     if (own.kind != netplay::levels::Own::Kind::Counted || state == "fresh") return;
-    // A level L begins at (L - 1)(L + 3) points and the next at L(L + 4); a point is a game, and a win another.
-    const auto set = [&](int fighter, int level, double part) {
+    // The lab stands in for the bridge, which decides tiers: Ash from 0, Copper from 200, Silver from 700, Gold
+    // from 1500, Ember from 2500. A point is a game, and a win another.
+    constexpr std::uint64_t starts[netplay::levels::TierCount] = {0, 200, 700, 1500, 2500};
+    const auto set = [&](int fighter, std::uint64_t points) {
         auto& l = own.fighters[fighter];
-        l.level = static_cast<std::uint8_t>(level);
-        l.floor = static_cast<std::uint64_t>((level - 1) * (level + 3));
-        l.next = level == netplay::levels::MaxLevel ? 0 : static_cast<std::uint64_t>(level * (level + 4));
-        const std::uint64_t points = l.floor + (l.next ? static_cast<std::uint64_t>((l.next - l.floor) * part) : 0);
+        l.points = points;
+        l.tier = 0;
+        while (l.tier + 1 < netplay::levels::TierCount && points >= starts[l.tier + 1]) ++l.tier;
+        l.next = l.tier + 1 < netplay::levels::TierCount ? starts[l.tier + 1] : 0;
         l.games = static_cast<std::uint64_t>(points / 1.5);
         l.wins = points - l.games;
         l.since = 1700000000 + static_cast<std::uint64_t>(fighter) * 86400;
     };
-    set(0, state == "sixty" ? 60 : 42, .7);
-    const int levels[][2] = {{5, 25}, {12, 18}, {7, 13}, {20, 9}, {3, 6}, {30, 3}, {40, 2}, {17, 1}, {9, 1}, {26, 1}, {33, 1}};
-    for (const auto& pair : levels) set(pair[0], pair[1], .35);
+    set(0, state == "sixty" ? 12840 : 1986);
+    const std::uint64_t others[][2] = {{5, 3480}, {12, 860}, {7, 412}, {20, 230}, {3, 86}, {30, 41}, {40, 19}, {17, 7}, {9, 3}, {26, 2}, {33, 1}};
+    for (const auto& pair : others) set(static_cast<int>(pair[0]), pair[1]);
 }
-// --levels: every level on its plate (FIGHTER_LEVELS.md, The digits atlas),
-// wrapping across the window, at plates 36, 72 and 143 px tall, whose digits
-// stand at the atlas's own sizes, 20, 40 and 80 px, whatever the interface
-// scale; then a band on a picture at each frame's first level and at 60, each
-// over a meter part way with a fresh end.
+// --levels: points at each tier on their plates (FIGHTER_LEVELS.md, The digits
+// atlas), wrapping across the window, at plates 36, 72 and 143 px tall, whose
+// digits stand at the atlas's own sizes, 20, 40 and 80 px, whatever the
+// interface scale: numbers of one to six digits at every tier; then a band on a
+// picture at each tier (the last with six digits, to see the digits shrink),
+// each over a meter part way with a fresh end.
 void DrawLevels() {
     namespace v2 = ui::v2;
     const auto* vp = ImGui::GetMainViewport();
@@ -340,17 +344,18 @@ void DrawLevels() {
     d->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), c.panel);
     ImVec2 at(left, vp->Pos.y + 16 * s);
     for (const float height : {36.f, 72.f, 143.f}) {
-        for (int level = 1; level <= 60; ++level) {
-            if (at.x + v2::LevelWidth(level, height) > right) at = ImVec2(left, at.y + height + gap);
-            at.x += v2::Level(d, at, height, level) + gap;
-        }
+        for (int tier = 0; tier < netplay::levels::TierCount; ++tier)
+            for (const std::uint64_t points : {7, 86, 412, 1986, 12840, 999999}) {
+                if (at.x + v2::LevelWidth(points, height) > right) at = ImVec2(left, at.y + height + gap);
+                at.x += v2::Level(d, at, height, points, tier) + gap;
+            }
         at = ImVec2(left, at.y + height + 2 * gap);
     }
     const float tile = std::round(96 * s), bar = std::round(8 * s);
     for (int i = 0; i < 6; ++i) {
         const ImVec2 low(left + i * (tile + gap), at.y), high(low.x + tile, low.y + tile);
         ui::DrawCharacterPortrait(i * 7, low, high, c.frame);
-        v2::LevelBand(d, {low, high}, i < 5 ? 1 + 12 * i : 60);
+        v2::LevelBand(d, {low, high}, i < 5 ? std::uint64_t(7) : 999999, i < 5 ? i : 4);
         v2::Meter(d, {ImVec2(low.x, high.y + gap), ImVec2(high.x, high.y + gap + bar)}, .2f * i + .1f, .08f);
     }
     ImGui::End();

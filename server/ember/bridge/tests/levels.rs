@@ -1,5 +1,5 @@
-//! Fighter levels: the games a public room host reports earn each player's
-//! fighter a level beside the rating, every game of a battle counts, the
+//! Fighter points: the games a public room host reports earn each player's
+//! fighter points beside the rating, every game of a battle counts, the
 //! repeat cap holds for every pair, and a room member's card token opens
 //! another player's card for seven days. Migration 057 keeps every rated
 //! game, sitting and rating it finds.
@@ -203,7 +203,7 @@ fn sealed(bridge: &Bridge, purpose: u8, account: u64, issued_at: u64) -> String 
 }
 
 #[tokio::test]
-async fn each_players_fighter_earns_a_level_from_a_won_game() {
+async fn each_players_fighter_earns_points_from_a_game() {
     let (bridge, fake, room_id, first, second) = two_players().await;
     let unlinked = player(&bridge, 3).await;
     assert_eq!(
@@ -225,18 +225,18 @@ async fn each_players_fighter_earns_a_level_from_a_won_game() {
     assert_eq!(
         own(&bridge, &first).await,
         json!({ "levels": "counted", "shown": true, "fighters": [
-            { "fighter": 3, "level": 1, "games": 1, "wins": 1, "floor": 0, "next": 5 }] })
+            { "fighter": 3, "points": 2, "games": 1, "wins": 1, "tier": 0, "next": 200 }] })
     );
     assert_eq!(
         own(&bridge, &second).await,
         json!({ "levels": "counted", "shown": true, "fighters": [
-            { "fighter": 7, "level": 1, "games": 1, "wins": 0, "floor": 0, "next": 5 }] })
+            { "fighter": 7, "points": 1, "games": 1, "wins": 0, "tier": 0, "next": 200 }] })
     );
     // The poll after reports the same game: it counted once.
     ember_bridge::poll_rooms(bridge.state()).await;
     assert_eq!(fighters(&bridge, "100").await, vec![(3, 1, 1)]);
 
-    // A second win on another fighter, then a level: 5 points reach level 2.
+    // A second win on another fighter, then more games on the first: a win is 2 points.
     play(
         &bridge,
         &fake,
@@ -251,8 +251,8 @@ async fn each_players_fighter_earns_a_level_from_a_won_game() {
     assert_eq!(
         own(&bridge, &first).await["fighters"],
         json!([
-            { "fighter": 0, "level": 1, "games": 1, "wins": 1, "floor": 0, "next": 5 },
-            { "fighter": 3, "level": 2, "games": 3, "wins": 3, "floor": 5, "next": 12 }])
+            { "fighter": 0, "points": 2, "games": 1, "wins": 1, "tier": 0, "next": 200 },
+            { "fighter": 3, "points": 6, "games": 3, "wins": 3, "tier": 0, "next": 200 }])
     );
     // A game with a fighter who has no Discord account counts for nobody.
     play(
@@ -295,7 +295,7 @@ async fn every_game_of_a_battle_played_on_in_place_counts() {
 }
 
 #[tokio::test]
-async fn past_eight_games_in_a_sitting_a_game_earns_no_level() {
+async fn past_eight_games_in_a_sitting_a_game_earns_no_points() {
     let (bridge, fake, room_id, first, second) = two_players().await;
     let sitting: Vec<Json_> = (1..=9)
         .map(|generation| game(generation, 0, &first, &second, Some([3, 7])))
@@ -332,7 +332,7 @@ async fn past_eight_games_in_a_sitting_a_game_earns_no_level() {
 }
 
 #[tokio::test]
-async fn a_game_without_fighters_is_rated_and_earns_no_level() {
+async fn a_game_without_fighters_is_rated_and_earns_no_points() {
     let (bridge, fake, room_id, first, second) = two_players().await;
     play(
         &bridge,
@@ -364,7 +364,7 @@ async fn a_game_without_fighters_is_rated_and_earns_no_level() {
 }
 
 #[tokio::test]
-async fn a_player_who_does_not_take_part_earns_levels_and_shows_none() {
+async fn a_player_who_does_not_take_part_earns_points_and_shows_none() {
     let (bridge, fake, room_id, first, second) = two_players().await;
     sql(
         &bridge,
@@ -383,11 +383,11 @@ async fn a_player_who_does_not_take_part_earns_levels_and_shows_none() {
     assert_eq!(
         own(&bridge, &second).await,
         json!({ "levels": "counted", "fighters": [
-            { "fighter": 7, "level": 1, "games": 1, "wins": 0, "floor": 0, "next": 5 }] })
+            { "fighter": 7, "points": 1, "games": 1, "wins": 0, "tier": 0, "next": 200 }] })
     );
 
-    // Others see the levels of a player who takes part, and none of one who
-    // does not: never wins, points or the floor.
+    // Others see the points of a player who takes part, and none of one who
+    // does not: never wins or games.
     let (first_card, second_card) = (
         token(&bridge, &first, &room_id).await,
         token(&bridge, &second, &room_id).await,
@@ -400,7 +400,7 @@ async fn a_player_who_does_not_take_part_earns_levels_and_shows_none() {
         )
         .await,
         json!([
-            { "fighters": [{ "fighter": 3, "level": 1, "games": 1 }], "relation": "none" },
+            { "fighters": [{ "fighter": 3, "points": 2, "tier": 0 }], "relation": "none" },
             { "relation": "none" }])
     );
 }
@@ -429,7 +429,7 @@ async fn a_card_token_rides_in_a_ticket_that_asks_and_opens_for_seven_days() {
     let rejoined = token(&bridge, &second, &room_id).await;
     assert_ne!(joined, rejoined);
     let card =
-        json!({ "fighters": [{ "fighter": 7, "level": 1, "games": 1 }], "relation": "none" });
+        json!({ "fighters": [{ "fighter": 7, "points": 1, "tier": 0 }], "relation": "none" });
     assert_eq!(
         cards(
             &bridge,

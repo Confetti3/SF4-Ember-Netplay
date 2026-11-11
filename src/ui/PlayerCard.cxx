@@ -12,31 +12,17 @@ namespace player_card {
 std::vector<int> PlayedFighters(const Own& own) {
     std::vector<int> played;
     for (int fighter = 0; fighter < static_cast<int>(own.fighters.size()); ++fighter)
-        if (own.fighters[fighter].level) played.push_back(fighter);
+        if (own.fighters[fighter].points) played.push_back(fighter);
     std::sort(played.begin(), played.end(), [&](int a, int b) {
         const auto &x = own.fighters[a], &y = own.fighters[b];
-        if (x.level != y.level) return x.level > y.level;
-        return x.games != y.games ? x.games > y.games : a < b;
+        return x.points != y.points ? x.points > y.points : a < b;
     });
     return played;
 }
 
-std::uint64_t Points(const FighterLevel& level) { return level.games + level.wins; }
-
 float Part(const FighterLevel& level) {
     if (!level.next) return 1.f;
-    const auto points = Points(level);
-    if (points <= level.floor || level.next <= level.floor) return 0.f;
-    return (std::min)(1.f, static_cast<float>(points - level.floor) / static_cast<float>(level.next - level.floor));
-}
-
-std::uint64_t GamesAway(const FighterLevel& level) {
-    const auto points = Points(level);
-    if (!level.next || !level.games || !points) return 0;
-    const auto remaining = level.next > points ? level.next - points : 0;
-    if (!remaining) return 0;
-    // Games are points over this fighter's own points per game, rounded up.
-    return (remaining * level.games + points - 1) / points;
+    return (std::min)(1.f, static_cast<float>(level.points) / static_cast<float>(level.next));
 }
 
 void Fill(PlayerCardView& view, const netplay::Answered<Own>& answer, int main) {
@@ -52,22 +38,22 @@ void Fill(PlayerCardView& view, const netplay::Answered<Own>& answer, int main) 
     view.levels = own.kind == Own::Kind::NoAccount ? CardLevels::NoAccount : own.kind == Own::Kind::Counted ? CardLevels::Counted : CardLevels::Unavailable;
     if (view.levels != CardLevels::Counted) return;
     view.levelsShown = own.shown;
-    const auto add = [&](int fighter) { view.fighters.push_back({fighter, own.fighters[fighter].level, own.fighters[fighter].games}); };
+    const auto add = [&](int fighter) { view.fighters.push_back({fighter, own.fighters[fighter].points, own.fighters[fighter].tier, own.fighters[fighter].games}); };
     const bool hasMain = main >= 0 && main < static_cast<int>(own.fighters.size());
     if (hasMain) add(main);
     for (const int fighter : PlayedFighters(own)) {
         if (view.fighters.size() >= 3) break;
         if (fighter != main) add(fighter);
     }
-    if (hasMain && own.fighters[main].level) {
+    if (hasMain && own.fighters[main].points) {
         const auto& level = own.fighters[main];
-        view.progress = {level.level, Points(level), level.floor, level.next};
+        view.progress = {level.points, level.tier, level.next};
     }
     std::uint64_t wins = 0;
     for (const auto& level : own.fighters) {
         view.facts.games += level.games;
         wins += level.wins;
-        view.facts.fightersPlayed += level.level ? 1 : 0;
+        view.facts.fightersPlayed += level.points ? 1 : 0;
     }
     view.facts.winPercent = view.facts.games ? static_cast<int>((wins * 100 + view.facts.games / 2) / view.facts.games) : 0;
 }
@@ -84,9 +70,9 @@ const char* NoLevelWords(const PlayerCardView& card) {
 }
 
 namespace {
-// The level plate and the class plate across the hero's foot (PLAYER_CARD.md,
-// Card tab): the main's level with its name and games at the left, the class
-// emblem at the right. Without a level the plate's place says why.
+// The points plate and the class plate across the hero's foot (PLAYER_CARD.md,
+// Card tab): the main's points with its name and games at the left, the class
+// emblem at the right. Without points the plate's place says why.
 void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int main) {
     const auto& c = v2::Colors();
     const float s = Scale(), pad = 12 * s, plate = foot.H() - 2 * pad;
@@ -102,9 +88,9 @@ void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int mai
     const float left = foot.min.x + pad, room = right - left;
     const auto* fighter = main >= 0 ? selection::FindFighter(main) : nullptr;
     const bool leads = !card.fighters.empty() && card.fighters.front().fighter == main;
-    if (card.levels == CardLevels::Counted && leads && card.fighters.front().level && fighter) {
+    if (card.levels == CardLevels::Counted && leads && card.fighters.front().points && fighter) {
         const auto& lead = card.fighters.front();
-        const float width = v2::Level(d, ImVec2(left, foot.min.y + pad), plate, lead.level), x = left + width + pad, text = (std::max)(0.f, room - width - pad);
+        const float width = v2::Level(d, ImVec2(left, foot.min.y + pad), plate, lead.points, lead.tier), x = left + width + pad, text = (std::max)(0.f, room - width - pad);
         v2::Text(d, ImVec2(x, foot.min.y + pad + 4 * s), text, fighter->name, 18 * s, c.text, HeadingFont());
         v2::Text(d, ImVec2(x, foot.min.y + pad + 30 * s), text, loc::Tf("level.games", lead.games), 14 * s, c.muted);
     } else if (const char* why = player_card::NoLevelWords(card)) {
@@ -114,14 +100,14 @@ void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int mai
     }
 }
 
-// One fighter of the strip: its picture with its level on it, and under it the name and games.
+// One fighter of the strip: its picture with its points on it, and under it the name and games.
 void DrawStripTile(ImDrawList* d, v2::Box box, const CardFighter& fighter, FighterArt art, bool focused, bool hovered) {
     const auto& c = v2::Colors();
     const float s = Scale(), pad = 8 * s, side = box.W() - 2 * pad;
     v2::CardGround(d, box, focused, hovered);
     const v2::Box tile{ImVec2(box.min.x + pad, box.min.y + pad), ImVec2(box.max.x - pad, box.min.y + pad + side)};
     DrawCharacterPortrait(FighterPicture{fighter.fighter, art, 0, 0}, tile.min, tile.max, c.frame);
-    v2::LevelBand(d, tile, fighter.level);
+    v2::LevelBand(d, tile, fighter.points, fighter.tier);
     const float y = tile.max.y + 6 * s;
     v2::Text(d, ImVec2(box.min.x + pad, y), side, selection::FindFighter(fighter.fighter)->name, 14 * s, c.text, HeadingFont());
     if (fighter.games) v2::Text(d, ImVec2(box.min.x + pad, y + 20 * s), side, loc::Tf("level.games", fighter.games), 12 * s, c.muted);
@@ -160,7 +146,7 @@ float DrawCardTab(const ShellView& v, int main, const PlayerCardView& card, cons
         d->AddRectFilled(foot.min, foot.max, c.frame);
     } else d->AddRectFilled(foot.min, foot.max, v2::color::Alpha(c.ink, .82f));
     DrawPlates(d, foot, card, main);
-    // The words that stand for a level are a row the pad can reach too.
+    // The words that stand for the points are a row the pad can reach too.
     if (const auto state = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == ProfileStateRow; }); state != rows.end()) {
         const bool hovered = PressEntry(nav, rows, *state, foot, action, changed).hovered;
         if (hovered || state->id == nav.Focus()) v2::Focus(d, foot.min, foot.max);
@@ -176,16 +162,16 @@ float DrawCardTab(const ShellView& v, int main, const PlayerCardView& card, cons
     if (!card.profile.about.empty()) { v2::Text(d, ImVec2(x, y), room, card.profile.about, 14 * s, c.muted); y += 24 * s; }
     y += 8 * s;
     const bool counted = card.levels == CardLevels::Counted;
-    // The main's meter: "Level 43" and the games to the next, or the top.
-    if (counted && card.progress.level && main >= 0) {
+    // The main's meter: "1986 points" and the points to the next tier, or the top frame.
+    if (counted && card.progress.points && main >= 0) {
         const auto& own = v.levels.value.fighters[main];
-        v2::Text(d, ImVec2(x, y), room, loc::Tf("level.value", card.progress.level), 20 * s, c.text, HeadingFont());
+        v2::Text(d, ImVec2(x, y), room, loc::Tf("level.value", card.progress.points), 20 * s, c.text, HeadingFont());
         y += 30 * s;
         v2::Meter(d, {ImVec2(x, y), ImVec2(x + room, y + 10 * s)}, player_card::Part(own), 0.f);
         y += 20 * s;
-        y += v2::Paragraph(d, ImVec2(x, y), room, own.next ? loc::Tf("level.games_away", card.progress.level + 1, player_card::GamesAway(own)) : std::string(loc::T("level.top")), 14 * s, c.muted) + 10 * s;
+        y += v2::Paragraph(d, ImVec2(x, y), room, own.next ? loc::Tf("level.points_to", own.next - own.points, v2::TierName(v2::FrameTier(card.progress.tier + 1))) : std::string(loc::T("level.top")), 14 * s, c.muted) + 10 * s;
     }
-    // The facts, and why others see no levels when they do not.
+    // The facts, and why others see no points when they do not.
     if (counted) {
         const std::vector<v2::TagView::Fact> facts{{loc::T("card.counted_games"), std::to_string(card.facts.games)},
             {loc::T("card.win_rate"), std::to_string(card.facts.winPercent) + "%"},

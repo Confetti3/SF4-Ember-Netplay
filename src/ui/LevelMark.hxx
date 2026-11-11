@@ -1,6 +1,7 @@
 #pragma once
-// A number in Ember's level digits (FIGHTER_LEVELS.md, The digits atlas), laid
-// out from the sprites src/common/LevelDigits.hxx places in the atlas. Only the
+// A number in Ember's level digits (FIGHTER_LEVELS.md, The digits atlas): the
+// points, up to 6 digits, laid out
+// from the sprites src/common/LevelDigits.hxx places in the atlas. Only the
 // layout is here, so it can be checked without a device; the parts that draw
 // it are v2::Level and v2::LevelBand (V2.hxx), implemented in LevelMark.cxx.
 #include "../common/LevelDigits.hxx"

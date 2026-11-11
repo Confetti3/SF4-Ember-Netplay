@@ -1085,31 +1085,31 @@ msgid "card.class"
 msgstr "Klasa"
 
 msgid "level.value"
-msgstr "Poziom {0}"
+msgstr "Punkty: {0}"
 
 msgid "level.games"
 msgstr "Gier: {0}"
 
-msgid "level.games_away"
-msgstr "Do poziomu {0} brakuje około gier: {1}"
+msgid "level.points_to"
+msgstr "Do {1} brakuje punktów: {0}"
 
 msgid "level.top"
-msgstr "Najwyższy poziom"
+msgstr "Najwyższa ramka"
 
 msgid "level.hidden"
-msgstr "Inni nie widzą twoich poziomów, dopóki nie bierzesz udziału w rankingu."
+msgstr "Inni nie widzą twoich punktów, dopóki nie bierzesz udziału w rankingu."
 
 msgid "level.no_account"
-msgstr "Połącz Discord w Ustawieniach, Gra online, aby zdobywać poziomy."
+msgstr "Połącz Discord w Ustawieniach, Gra online, aby zdobywać punkty."
 
 msgid "level.unavailable"
-msgstr "Ta usługa jeszcze nie liczy poziomów."
+msgstr "Ta usługa jeszcze nie liczy punktów."
 
 msgid "level.loading"
-msgstr "Wczytywanie twoich poziomów."
+msgstr "Wczytywanie twoich punktów."
 
 msgid "level.none"
-msgstr "Zagraj w publiczną grę rankingową, aby zacząć zdobywać poziomy."
+msgstr "Zagraj w publiczną grę rankingową, aby zacząć zdobywać punkty."
 
 msgid "card.counted_games"
 msgstr "Gry rankingowe"
@@ -1124,13 +1124,13 @@ msgid "card.of"
 msgstr "{0} z {1}"
 
 msgid "fighters.unplayed"
-msgstr "Wojownicy jeszcze niegrani: {0}. Każdy zaczyna od poziomu 1 po pierwszej publicznej grze rankingowej."
+msgstr "Wojownicy jeszcze niegrani: {0}. Każdy zaczyna zdobywać punkty po pierwszej publicznej grze rankingowej."
 
 msgid "fighters.how"
-msgstr "Jak zdobywa się poziom"
+msgstr "Jak zdobywa się punkty"
 
 msgid "fighters.how_detail"
-msgstr "Liczy się każda publiczna gra rankingowa danym wojownikiem, a wygrana liczy się podwójnie. Poziom nigdy nie spada i nie ma związku z twoją klasą. Po ośmiu grach z tym samym graczem w jednej sesji kolejne gry się nie liczą."
+msgstr "Liczy się każda publiczna gra rankingowa danym wojownikiem: wygrana daje 2 punkty, porażka 1 punkt. Punkty nigdy nie spadają i nie mają związku z twoją klasą. Kolor ramki zmienia się wraz z ich wzrostem. Po ośmiu grach z tym samym graczem w jednej sesji kolejne gry się nie liczą."
 
 msgid "fighters.won"
 msgstr "Wygrane"

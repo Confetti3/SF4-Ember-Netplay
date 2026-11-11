@@ -132,7 +132,7 @@ mod tests {
                     .await
                     .unwrap_err()
                     .as_str()
-                    .to_owned()
+                    .into_owned()
             }
         };
         assert_eq!(refused(vec![]).await, "invalid_request");
@@ -176,12 +176,12 @@ mod tests {
     #[test]
     fn what_the_bridge_answers_is_read_strictly() {
         let counted = br#"{"levels":"counted","shown":true,"fighters":[
-            {"fighter":3,"level":42,"games":1000,"wins":900,"floor":1845,"next":1932,"since":1}]}"#;
+            {"fighter":3,"points":1900,"games":1000,"wins":900,"tier":3,"next":2500,"since":1}]}"#;
         assert!(read::<OwnLevels>(counted).unwrap().check().is_ok());
         for bad in [
             &br#"{"levels":"counted","fighters":[],"extra":1}"#[..],
             br#"{"levels":"top"}"#,
-            br#"{"levels":"counted","fighters":[{"fighter":3,"level":42,"games":1,"wins":0,"floor":0,"next":2,"since":1,"extra":1}]}"#,
+            br#"{"levels":"counted","fighters":[{"fighter":3,"points":1,"games":1,"wins":0,"tier":0,"next":200,"since":1,"extra":1}]}"#,
         ] {
             assert_eq!(
                 read::<OwnLevels>(bad).unwrap_err().as_str(),
@@ -190,13 +190,13 @@ mod tests {
         }
         // A fighter whose numbers disagree parses but does not check.
         let wrong = read::<OwnLevels>(
-            br#"{"levels":"counted","fighters":[{"fighter":3,"level":42,"games":5,"wins":9,"floor":0,"next":99,"since":1}]}"#,
+            br#"{"levels":"counted","fighters":[{"fighter":3,"points":14,"games":5,"wins":9,"tier":0,"next":200,"since":1}]}"#,
         )
         .unwrap();
         assert!(wrong.check().is_err());
 
-        // Another player's card holds no wins.
-        let card = br#"{"cards":[{"fighters":[{"fighter":3,"level":31,"games":612,"wins":1}],"relation":"none"}]}"#;
+        // Another player's card holds no wins or games.
+        let card = br#"{"cards":[{"fighters":[{"fighter":3,"points":1986,"tier":3,"wins":1}],"relation":"none"}]}"#;
         assert!(read::<CardAnswers>(card).is_err());
         // An answer with another count of entries than the request is refused.
         let answers = read::<CardAnswers>(br#"{"cards":[{"relation":"friend"},null]}"#).unwrap();

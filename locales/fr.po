@@ -1085,31 +1085,31 @@ msgid "card.class"
 msgstr "Classe"
 
 msgid "level.value"
-msgstr "Niveau {0}"
+msgstr "{0} points"
 
 msgid "level.games"
 msgstr "{0} parties"
 
-msgid "level.games_away"
-msgstr "Le niveau {0} est à environ {1} parties"
+msgid "level.points_to"
+msgstr "{0} points avant {1}"
 
 msgid "level.top"
-msgstr "Niveau maximal"
+msgstr "Cadre maximal"
 
 msgid "level.hidden"
-msgstr "Les autres ne voient pas vos niveaux tant que vous ne participez pas au classement."
+msgstr "Les autres ne voient pas vos points tant que vous ne participez pas au classement."
 
 msgid "level.no_account"
-msgstr "Connectez Discord dans Paramètres, Jeu en ligne pour gagner des niveaux."
+msgstr "Connectez Discord dans Paramètres, Jeu en ligne pour gagner des points."
 
 msgid "level.unavailable"
-msgstr "Ce service ne compte pas encore les niveaux."
+msgstr "Ce service ne compte pas encore les points."
 
 msgid "level.loading"
-msgstr "Lecture de vos niveaux."
+msgstr "Lecture de vos points."
 
 msgid "level.none"
-msgstr "Jouez une partie publique classée pour commencer à gagner des niveaux."
+msgstr "Jouez une partie publique classée pour commencer à gagner des points."
 
 msgid "card.counted_games"
 msgstr "Parties classées"
@@ -1124,13 +1124,13 @@ msgid "card.of"
 msgstr "{0} sur {1}"
 
 msgid "fighters.unplayed"
-msgstr "{0} combattants pas encore joués. Chacun commence au niveau 1 avec sa première partie publique classée."
+msgstr "{0} combattants pas encore joués. Chacun commence à gagner des points avec sa première partie publique classée."
 
 msgid "fighters.how"
-msgstr "Comment un niveau se gagne"
+msgstr "Comment les points se gagnent"
 
 msgid "fighters.how_detail"
-msgstr "Chaque partie publique classée avec un combattant compte, et une victoire compte double. Un niveau ne baisse jamais et n'a rien à voir avec votre classe. Après huit parties contre le même joueur en une session, les parties ne comptent plus."
+msgstr "Chaque partie publique classée avec un combattant compte : une victoire rapporte 2 points et une défaite 1. Les points ne baissent jamais et n'ont rien à voir avec votre classe. La couleur du cadre change à mesure qu'ils montent. Après huit parties contre le même joueur en une session, les parties ne comptent plus."
 
 msgid "fighters.won"
 msgstr "Victoires"

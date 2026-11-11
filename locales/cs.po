@@ -1085,31 +1085,31 @@ msgid "card.class"
 msgstr "Třída"
 
 msgid "level.value"
-msgstr "Úroveň {0}"
+msgstr "Body: {0}"
 
 msgid "level.games"
 msgstr "Zápasů: {0}"
 
-msgid "level.games_away"
-msgstr "Do úrovně {0} zbývá přibližně zápasů: {1}"
+msgid "level.points_to"
+msgstr "Do {1} zbývá bodů: {0}"
 
 msgid "level.top"
-msgstr "Nejvyšší úroveň"
+msgstr "Nejvyšší rám"
 
 msgid "level.hidden"
-msgstr "Ostatní hráči nevidí vaše úrovně, dokud se neúčastníte žebříčku."
+msgstr "Ostatní hráči nevidí vaše body, dokud se neúčastníte žebříčku."
 
 msgid "level.no_account"
-msgstr "Připojte Discord v Nastavení, Hra online, a získávejte úrovně."
+msgstr "Připojte Discord v Nastavení, Hra online, a získávejte body."
 
 msgid "level.unavailable"
-msgstr "Tato služba zatím úrovně nepočítá."
+msgstr "Tato služba zatím body nepočítá."
 
 msgid "level.loading"
-msgstr "Načítání vašich úrovní."
+msgstr "Načítání vašich bodů."
 
 msgid "level.none"
-msgstr "Odehrajte veřejný hodnocený zápas a začněte získávat úrovně."
+msgstr "Odehrajte veřejný hodnocený zápas a začněte získávat body."
 
 msgid "card.counted_games"
 msgstr "Hodnocené zápasy"
@@ -1124,13 +1124,13 @@ msgid "card.of"
 msgstr "{0} z {1}"
 
 msgid "fighters.unplayed"
-msgstr "Bojovníci, kteří ještě nehráli: {0}. Každý začíná na úrovni 1 prvním veřejným hodnoceným zápasem."
+msgstr "Bojovníci, kteří ještě nehráli: {0}. Každý začíná získávat body prvním veřejným hodnoceným zápasem."
 
 msgid "fighters.how"
-msgstr "Jak se úroveň získává"
+msgstr "Jak se body získávají"
 
 msgid "fighters.how_detail"
-msgstr "Počítá se každý veřejný hodnocený zápas s bojovníkem a výhra se počítá dvakrát. Úroveň nikdy neklesá a nesouvisí s vaší třídou. Po osmi zápasech proti stejnému hráči během jedné seance se další zápasy nepočítají."
+msgstr "Počítá se každý veřejný hodnocený zápas s bojovníkem: výhra přidá 2 body, prohra 1 bod. Body nikdy neklesají a nesouvisí s vaší třídou. Barva rámu se mění, jak body rostou. Po osmi zápasech proti stejnému hráči během jedné seance se další zápasy nepočítají."
 
 msgid "fighters.won"
 msgstr "Výhry"
