@@ -9,7 +9,7 @@
 // --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --profile played|fresh|sixty|hidden|noaccount|unavailable|loading: the player's levels (--screen card or fighters)
-// --levels: fighter points on their plates at each tier and the digits' three sizes, bands on pictures and meters
+// --levels: fighter points in the game's digits, bands on pictures and meters
 //   (all of it shows in --size 3840x2160)
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
 // --check report.txt (with --shot): appends each line cut short, text taller than its row and cards overlapping on the
@@ -328,12 +328,11 @@ void Profile(ui::ShellView& view, const std::string& state) {
     const std::uint64_t others[][2] = {{5, 3480}, {12, 860}, {7, 412}, {20, 230}, {3, 86}, {30, 41}, {40, 19}, {17, 7}, {9, 3}, {26, 2}, {33, 1}};
     for (const auto& pair : others) set(static_cast<int>(pair[0]), pair[1]);
 }
-// --levels: points at each tier on their plates (FIGHTER_LEVELS.md, The digits
-// atlas), wrapping across the window, at plates 36, 72 and 143 px tall, whose
-// digits stand at the atlas's own sizes, 20, 40 and 80 px, whatever the
-// interface scale: numbers of one to six digits at every tier; then a band on a
-// picture at each tier (the last with six digits, to see the digits shrink),
-// each over a meter part way with a fresh end.
+// --levels: points as the game draws them (FIGHTER_LEVELS.md, Drawing points), wrapping across the window: the
+// numbers 7, 86, 412, 1986 and 12840 on their plates at 36, 72 and 143 px tall, each with a gain of +16 in the gold
+// digits; the same once more with no art, as when the game's sheet is missing (the heading font's digits); then a
+// band on a picture at each tier (the last with six digits, to see the digits shrink), each over a meter part way
+// with a fresh end. The digits are the game's when the game folder (SF4E_GAME_DIR) has its ranked result archive.
 void DrawLevels() {
     namespace v2 = ui::v2;
     const auto* vp = ImGui::GetMainViewport();
@@ -344,14 +343,24 @@ void DrawLevels() {
     const float s = ui::Scale(), gap = std::round(8 * s), left = vp->Pos.x + 16 * s, right = vp->Pos.x + vp->Size.x - 16 * s;
     d->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), c.panel);
     ImVec2 at(left, vp->Pos.y + 16 * s);
-    for (const float height : {36.f, 72.f, 143.f}) {
-        for (int tier = 0; tier < netplay::levels::TierCount; ++tier)
-            for (const std::uint64_t points : {7, 86, 412, 1986, 12840, 999999}) {
-                if (at.x + v2::LevelWidth(points, height) > right) at = ImVec2(left, at.y + height + gap);
-                at.x += v2::Level(d, at, height, points, tier) + gap;
-            }
+    struct Sample { std::uint64_t points; int tier; };
+    const Sample samples[] = {{7, 0}, {86, 0}, {412, 1}, {1986, 3}, {12840, 4}};
+    const auto row = [&](float height) {
+        for (const auto& sample : samples) {
+            if (at.x + v2::LevelWidth(sample.points, height) > right) at = ImVec2(left, at.y + height + gap);
+            at.x += v2::Level(d, at, height, sample.points, sample.tier) + gap;
+        }
+        const float gain = std::round(height * .56f);
+        if (at.x + 4 * gain > right) at = ImVec2(left, at.y + height + gap);
+        at.x += v2::LevelGain(d, ImVec2(at.x, at.y + (height - gain) * .5f), gain, 16) + gap;
         at = ImVec2(left, at.y + height + 2 * gap);
-    }
+    };
+    for (const float height : {36.f, 72.f, 143.f}) row(height);
+    // The fallback: the menu art taken away for one row.
+    auto* art = ui::MenuArt();
+    ui::SetMenuArt(nullptr);
+    row(72.f);
+    ui::SetMenuArt(art);
     const float tile = std::round(96 * s), bar = std::round(8 * s);
     for (int i = 0; i < 6; ++i) {
         const ImVec2 low(left + i * (tile + gap), at.y), high(low.x + tile, low.y + tile);
