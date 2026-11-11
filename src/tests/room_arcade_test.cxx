@@ -583,8 +583,10 @@ static void TestFullRoomTwoRequestsSwap() {
 // table, a pair carries no wait stamp and a lone fighter does, choices and
 // requests live on a deciding pair only, one table at most asks and only
 // while nobody is free, at most the two who just parted wait alone (a third
-// would have been paired with one of them), the top slot is the longest
-// streak, a free cabinet has no streak, and member rows mirror the tables.
+// would have been paired with one of them), the line waits only beside pairs
+// or a lone fighter none of it may meet (MayMeet), the top slot is the
+// longest streak, a free cabinet has no streak, and member rows mirror the
+// tables.
 static void Sound(const RoomAuthority& authority, const std::string& what) {
 	const auto& r = authority.SnapshotView();
 	const auto sound = [&](bool holds, const char* rule) { CHECK_MSG(holds, "%s, after %s", rule, what.c_str()); };
@@ -612,8 +614,10 @@ static void Sound(const RoomAuthority& authority, const std::string& what) {
 	const bool line = !r.line.empty();
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		const auto& t = r.tables[i];
+		const MemberId lone = ArcadeAlone(t) ? (t.p1 ? t.p1 : t.p2) : 0;
+		const bool meets = lone && std::any_of(r.line.begin(), r.line.end(), [&](MemberId m) { return authority.MayMeet(lone, m); });
 		if (i >= TablesInPlay(r)) sound(ArcadeEmpty(t), "a table out of play is empty");
-		else sound(!line || (!ArcadeAlone(t) && !ArcadeEmpty(t)), "the line waits only while every table in play is a pair");
+		else sound(!line || (!ArcadeEmpty(t) && !meets), "the line waits only beside pairs, or a lone fighter none of it may meet");
 	}
 	for (const auto s : r.streaks) sound(r.topSlot < 0 ? s == 0 : s <= r.streaks[r.topSlot] && r.streaks[r.topSlot] > 0, "top slot");
 	for (const auto& m : r.members) {
@@ -712,6 +716,83 @@ static void TestFullRoomKing() {
 	CHECK(Choose(authority, d, ActionKind::Rematch).accepted && Choose(authority, a, ActionKind::Rematch).accepted);
 	CHECK(Paired(authority, a, d) && !t.deciding && Asking(authority) == 0 && room.streaks[0] == 2);
 	Sound(authority, "the King pair's Rematch");
+}
+
+// The report of 8 November: in a full room both fighters of a pair asked for
+// a new opponent (a King loser asks by itself). A fighter elsewhere stands up:
+// one of the two plays the partner left behind and the other waits alone.
+// That new pair's set ends and the two still do not meet while anyone else at
+// the cabinets can come free; the next set to end elsewhere seats them apart.
+static void TestPartedPairWaitsForSomeoneElse() {
+	for (const RoomType type : {RoomType::Arcade, RoomType::King}) {
+		auto authority = Arcade(type);
+		const auto m = FullRoom(authority);
+		const MemberId a = m[0], b = OpponentOf(authority, a);
+		Beat(authority, a);
+		if (type == RoomType::Arcade) CHECK(Choose(authority, b, ActionKind::NewOpponent).accepted);
+		CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted && Paired(authority, a, b) && Asking(authority) == 2);
+		CHECK(authority.MayMeet(a, b));  // still a pair: nothing is kept until they part
+		MemberId x = 0;
+		for (const auto member : m) if (member != a && member != b) { x = member; break; }
+		const MemberId y = OpponentOf(authority, x);
+		CHECK(Choose(authority, x, ActionKind::Unqueue).accepted);
+		const MemberId first = Paired(authority, a, y) ? a : b, second = first == a ? b : a;
+		CHECK(Paired(authority, first, y) && Waits(authority, second) && !authority.MayMeet(first, second));
+		Beat(authority, first);
+		CHECK(!Paired(authority, first, second));
+		Sound(authority, "a parted pair's next set");
+		// Arcade: the winner's pair stays to choose; King: the loser plays the
+		// one waiting, and the winner waits for someone else.
+		if (type == RoomType::Arcade) CHECK(Paired(authority, first, y) && Waits(authority, second));
+		else CHECK(Waits(authority, first) && Paired(authority, y, second));
+		if (type == RoomType::King) continue;
+		// The new opponent leaves: the two wait apart, and the next set to end
+		// elsewhere takes the one who waited longer, its loser the other.
+		CHECK(Choose(authority, y, ActionKind::Unqueue).accepted);
+		CHECK(Waits(authority, first) && Waits(authority, second));
+		Sound(authority, "a parted pair left alone");
+		MemberId c = 0;
+		for (const auto member : m) if (member != a && member != b && member != x && member != y) { c = member; break; }
+		const MemberId d = OpponentOf(authority, c);
+		Beat(authority, c);
+		CHECK(Paired(authority, c, second) && Paired(authority, d, first));
+	}
+}
+
+// Two tables and a line: the pair that asked parts when a fifth player sits
+// down, one to play them and one to the line, which then lets the winner of
+// their new pair pass rather than play the one they left. With nobody else
+// at the cabinets the two play each other again, and just ready.
+static void TestPartedPairInLineAndAlone() {
+	auto authority = Arcade(RoomType::Arcade, SetFormat::Ft1, 2);
+	const auto& r = authority.SnapshotView();
+	const MemberId a = Join(authority, 0, true), b = Join(authority, 1), c = Join(authority, 2), d = Join(authority, 3), e = Join(authority, 4);
+	Sit(authority, a, 0); Sit(authority, b, 8); Sit(authority, c, 1); Sit(authority, d, 9);
+	CHECK(Paired(authority, a, b) && Paired(authority, c, d));
+	Beat(authority, a);
+	CHECK(Choose(authority, b, ActionKind::NewOpponent).accepted && Choose(authority, a, ActionKind::NewOpponent).accepted && Asking(authority) == 2);
+	Sit(authority, e, 2);
+	CHECK(Paired(authority, a, e) && ArcadeLinePlace(r, b) == 1);
+	Beat(authority, a);
+	CHECK(Paired(authority, a, e) && r.tables[TableOf(authority, a)].deciding && ArcadeLinePlace(r, b) == 1);
+	Sound(authority, "the line passing a parted pair");
+	Beat(authority, c);
+	CHECK(Paired(authority, c, b) && ArcadeLinePlace(r, d) == 1);
+	// Everyone but the parted two leaves: they play each other again.
+	auto fresh = Arcade(RoomType::Arcade, SetFormat::Ft1, 2);
+	const MemberId p = Join(fresh, 0, true), q = Join(fresh, 1), s = Join(fresh, 2), t = Join(fresh, 3);
+	Sit(fresh, p, 0); Sit(fresh, q, 8); Sit(fresh, s, 1); Sit(fresh, t, 9);
+	Beat(fresh, p);
+	CHECK(Choose(fresh, q, ActionKind::NewOpponent).accepted && Choose(fresh, p, ActionKind::NewOpponent).accepted);
+	CHECK(Choose(fresh, s, ActionKind::Unqueue).accepted);
+	CHECK(Paired(fresh, p, t) && Waits(fresh, q));
+	Beat(fresh, p);
+	CHECK(Paired(fresh, p, t) && Waits(fresh, q));
+	CHECK(fresh.Leave(t).accepted);
+	const auto& last = fresh.SnapshotView().tables[TableOf(fresh, p)];
+	CHECK(Paired(fresh, p, q) && !last.deciding && last.phase == TablePhase::Waiting);
+	CHECK(Choose(fresh, p, ActionKind::Ready).accepted && Choose(fresh, q, ActionKind::Ready).accepted);
+	Sound(fresh, "the parted pair alone in the room");
 }
 
 // A random walk through a room: members join, sit anywhere, stand up and
@@ -842,6 +923,8 @@ int main() {
 		TestFullRoomTwoRequestsSwap();
 		TestFullRoomRotates();
 		TestFullRoomKing();
+		TestPartedPairWaitsForSomeoneElse();
+		TestPartedPairInLineAndAlone();
 		TestRandomWalk(RoomType::Arcade);
 		TestRandomWalk(RoomType::King);
 		TestOneTableLine();

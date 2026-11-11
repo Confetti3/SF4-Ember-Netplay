@@ -39,7 +39,12 @@ or King of the hill. Any type can be private or public.
    Both Rematch: they play again. New opponent from either: each plays
    whoever waited longest (not each other), or waits for the next one who
    sits. One who sits down while a pair
-   chooses waits alone until a set ends or the pair parts.
+   chooses waits alone until a set ends or the pair parts. Whoever asked for
+   a new opponent is not seated with the one they left again until they have
+   sat with someone else, nor is the other if both asked, while anyone else
+   at the cabinets can still come free: they wait, alone, in line or in
+   Training, and a winner or the line passes them over. With nobody else at
+   the cabinets they play each other again and just ready.
 5. King of the hill rotates the same way, with streaks: every pair at a
    table in play plays at once. When nobody waits alone the winner still waits for the next one free
    while anyone else sits at a cabinet; with nobody else there the loser
@@ -89,6 +94,11 @@ or King of the hill. Any type can be private or public.
   waits in line; Unqueue stands up, from a table or the line
   (room::Place::Kind::Line). Rematch and NewOpponent
   are table actions. SetRules is refused.
+- Who parted from whom by asking for a new opponent is the authority's own
+  (RoomAuthority::partedFrom_, read through MayMeet by every seating step);
+  it is not in the snapshot or the checkpoint, so no client or wire changes,
+  and a room restored from a checkpoint forgets it. Public rooms take it
+  only with a new room host build.
 - Public: the service opens a Classic room; the creator, alone in it as host,
   sends SetRoomType with the type, the rules of all tables and how many
   play (netplay::CreatedRules). An emptied public room goes back to Classic

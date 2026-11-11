@@ -331,6 +331,11 @@ inline int CabinetOf(const Snapshot& room, MemberId member) {
 	const auto at = std::find(room.cabinets.begin(), room.cabinets.end(), member);
 	return member && at != room.cabinets.end() ? static_cast<int>(at - room.cabinets.begin()) : -1;
 }
+// Whether anyone but `a` and `b` sits at a cabinet: someone either of them
+// could still play once a set ends.
+inline bool OthersAtCabinets(const Snapshot& room, MemberId a, MemberId b) {
+	return std::any_of(room.cabinets.begin(), room.cabinets.end(), [&](MemberId m) { return m && m != a && m != b; });
+}
 // In a room that seats by cabinet, Queue and Unqueue name a cabinet, not the
 // table its pair plays at: table + seat * TableCount, a table out of play too.
 inline bool NamesCabinet(const Snapshot& room, ActionKind kind) {

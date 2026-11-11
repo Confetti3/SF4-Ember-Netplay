@@ -437,6 +437,9 @@ void RoomAuthority::CloseLiveGeneration(Table& table) {
 }
 
 void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
+	// The cabinet goes first, so the room seats those left (ArcadeVacated)
+	// knowing who is still at the cabinets.
+	if (RulesOf(snapshot_).cabinets) StandUp(member);
 	for (auto& table : snapshot_.tables) {
 		bool changed = false;
 		bool queueChanged = false;
@@ -482,7 +485,6 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 		} else if (queueChanged) Touch(table);
 		else if (spectatorsChanged) TouchSpectators(table);
 	}
-	if (RulesOf(snapshot_).cabinets) StandUp(member);
 	NormalizeMemberStatus(member);
 }
 
