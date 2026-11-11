@@ -33,8 +33,12 @@ inline bool ReadGames(const replayslots::Bytes& bytes, std::size_t at, std::vect
 inline bool UnpackSet(const replayslots::Bytes& pack, std::vector<replayslots::Bytes>& games, std::string& header) {
 	using namespace replayslots;
 	if (pack.size() < 12 || pack.size() > kMostPackBytes || std::memcmp(pack.data(), "EMBRPAK1", 8)) return false;
-	const std::size_t headerEnd = 12 + static_cast<std::size_t>(ReadU32(pack.data() + 8));
-	if (headerEnd > pack.size() || !ReadGames(pack, headerEnd, games)) return false;
+	// Held against what is left of the pack before it is added to: this is a
+	// 32-bit program, where 12 plus a length near 4 GB would wrap round.
+	const std::uint32_t headerBytes = ReadU32(pack.data() + 8);
+	if (headerBytes > pack.size() - 12) return false;
+	const std::size_t headerEnd = 12 + static_cast<std::size_t>(headerBytes);
+	if (!ReadGames(pack, headerEnd, games)) return false;
 	header.assign(pack.begin() + 12, pack.begin() + headerEnd);
 	return true;
 }
