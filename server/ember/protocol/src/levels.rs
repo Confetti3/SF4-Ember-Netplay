@@ -334,7 +334,7 @@ mod tests {
     ) -> OwnFighter {
         OwnFighter {
             fighter,
-            points: games + wins,
+            points: games.saturating_add(wins),
             games,
             wins,
             tier,
