@@ -1369,6 +1369,48 @@ msgstr "今はあなたのルームを案内できません。"
 msgid "friends.busy"
 msgstr "前のリクエストが終わるまでお待ちください。"
 
+msgid "friends.accept_member"
+msgstr "リクエストを承認"
+
+msgid "friends.add_member"
+msgstr "フレンドに追加"
+
+msgid "friends.request_sent"
+msgstr "リクエスト送信済み"
+
+msgid "friends.blocked_member"
+msgstr "ブロック中"
+
+msgid "friends.blocked_member_detail"
+msgstr "プロフィール、フレンド、ブロックで解除できます。"
+
+msgid "friends.block"
+msgstr "ブロック"
+
+msgid "friends.block_detail"
+msgstr "相手とのフレンド関係とリクエストをすべて終了します。プロフィール、フレンド、ブロックで元に戻せます。"
+
+msgid "friends.toast_request"
+msgstr "{0} さんがフレンドになりたいそうです"
+
+msgid "friends.toast_invite"
+msgstr "{0} さんがルームに招待しています"
+
+msgid "friends.later"
+msgstr "あとで"
+
+msgid "friends.dismiss"
+msgstr "閉じる"
+
+msgid "friends.turn_off"
+msgstr "フレンドをオフにする"
+
+msgid "friends.turn_off_detail"
+msgstr "フレンド、リクエスト、ブロック、フレンドコードを削除します。"
+
+msgid "room.member_card"
+msgstr "プレイヤーカード"
+
 msgid "level.points_to"
 msgstr "{1}まであと{0}ポイント"
 

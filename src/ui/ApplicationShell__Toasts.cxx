@@ -6,6 +6,7 @@
 #include "V2.hxx"
 #include "GameMenu.hxx"
 #include "MenuGlyphs.hxx"
+#include "../common/Localization.hxx"
 #include <imgui_internal.h>
 #include <algorithm>
 #include <utility>
@@ -19,6 +20,29 @@ constexpr double ToastSeconds=4,ActionToastSeconds=8;
 std::string Ago(double seconds) {
  const int minutes=static_cast<int>(seconds/60);
  return minutes<1?std::string(loc::T("public.updated_now")):loc::Tf("public.updated_minutes",minutes);
+}
+// A toast's words: the first line says it, the rest (a request's "Played you 6 games", an invite's room) sits
+// under it, quieter. Both wrap to `wrap`; the height is what they take, and DrawToastWords draws them.
+struct Words { std::string head, tail; };
+Words WordsOf(const std::string& text) {
+ const auto cut=text.find('\n');
+ return cut==std::string::npos?Words{text,{}}:Words{text.substr(0,cut),text.substr(cut+1)};
+}
+float WordsHeight(ImFont* font,const std::string& text,float wrap,float size,float s) {
+ const auto words=WordsOf(text);
+ float h=font->CalcTextSizeA(size,FLT_MAX,wrap,words.head.c_str()).y;
+ if(!words.tail.empty())h+=4*s+ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,wrap,words.tail.c_str()).y;
+ return h;
+}
+float DrawToastWords(ImDrawList* d,ImFont* font,ImVec2 at,float wrap,const std::string& text,float size,float s,ImU32 ink,ImU32 quiet) {
+ const auto words=WordsOf(text);
+ d->AddText(font,size,at,ink,words.head.c_str(),nullptr,wrap);
+ float h=font->CalcTextSizeA(size,FLT_MAX,wrap,words.head.c_str()).y;
+ if(!words.tail.empty()){
+  d->AddText(ImGui::GetFont(),14*s,{at.x,at.y+h+4*s},quiet,words.tail.c_str(),nullptr,wrap);
+  h+=4*s+ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,wrap,words.tail.c_str()).y;
+ }
+ return h;
 }
 // Each tone has its own shape, so colour is never the only cue (Toasts board):
 // done a disc, waiting a triangle, a refusal a square, the rest a diamond.
@@ -91,7 +115,7 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
   e.timeW=ImGui::GetFont()->CalcTextSizeA(12*s,FLT_MAX,0,e.time.c_str()).x;
   e.wrap=w-2*pad-icon-10*s-e.timeW-10*s;
   // Eyebrow, text and, on the newest only, the buttons row (Toasts board).
-  float h=font->CalcTextSizeA(size,FLT_MAX,e.wrap,t.text.c_str()).y;
+  float h=WordsHeight(font,t.text,e.wrap,size,s);
   if(t.kind!=ToastKind::None)h+=16*s;
   if(shown.empty()&&!t.actions.empty()&&!modal)h+=9*s+button;
   e.h=(std::max)(icon,h)+24*s;
@@ -116,8 +140,7 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
    d->AddText(font,13*s,{left,line},tone,loc::T(kinds[static_cast<int>(t.kind)]));line+=16*s;
   }else line+=(std::max)(0.f,(icon-size)*.5f);
   NoteUserText(t.text);
-  d->AddText(font,size,{left,line},c.text,t.text.c_str(),nullptr,e.wrap);
-  line+=font->CalcTextSizeA(size,FLT_MAX,e.wrap,t.text.c_str()).y+9*s;
+  line+=DrawToastWords(d,font,{left,line},e.wrap,t.text,size,s,c.text,c.muted)+9*s;
   d->AddText(ImGui::GetFont(),12*s,{b.x-pad-e.timeW,a.y+14*s},c.muted,e.time.c_str());
   // The buttons, each with its key: Select the first, Back the last. A small
   // window over the card takes the pointer from the list under it.
@@ -152,14 +175,19 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
 }
 
 // A toast's action, asked for by its buttons, its keys or its row: the toast
-// goes, and the action opens its screen at its row.
-void ApplicationShell::AnswerToast(double now) {
+// goes, its commands are sent, and the action opens its screen at its row.
+void ApplicationShell::AnswerToast(const ShellView& v,double now,const Submit& submit) {
  const auto [id,index]=std::exchange(toastAsked_,{0,0});
  const auto t=std::find_if(toasts_.begin(),toasts_.end(),[&](const Toast& t){return t.id==id;});
  if(!id||t==toasts_.end()||t->actions.empty())return;
  const ToastAction act=t->actions[(std::min)(index,t->actions.size()-1)];
  t->until=(std::min)(t->until,now);
  if(toastFocus_==id)toastFocus_=0;
+ // The friends commands go as they are, without a screen: an invite's Join and then its Dismiss.
+ for(const auto& command:act.friends){
+  commands::Friends request;request.generation=v.session.generation;request.friends=command;
+  if(!submit(std::move(request))){error_=loc::T("error.queue_failed");break;}
+ }
  if(act.screen.empty())return;
  auto& nav=menu_.navigation;
  if(nav.Screen()!=act.screen){
@@ -168,6 +196,37 @@ void ApplicationShell::AnswerToast(double now) {
   nav.Push(act.screen);
  }
  if(!act.row.empty())nav.Prefer(act.row);
+}
+
+// A friend's request or invite is said once, as the state that holds it is read: Accept for the request
+// (Later leaves it in the list), Join for the invite (it takes the invite, then drops it) and Dismiss. What the
+// first state already held is not said (Home's Profile row counts the requests), nor an invite that ran out, nor
+// anything while the Friends screens show it. One a frame: a second waits for the next.
+void ApplicationShell::SayFriends(const ShellView& v,const std::string& screen) {
+ namespace nf=netplay::friends;
+ const auto& state=friends_panel::StateOf(v.friends);
+ if(state.kind!=nf::State::Kind::Listed||v.friends.bridge.empty())return;
+ const bool quiet=!friendsRead_||FriendsPanel::Shown(screen);
+ friendsRead_=true;
+ const std::string& bridge=v.friends.bridge;
+ for(const auto& request:state.incoming){
+  if(!friendsSaid_.insert(request.id).second||quiet)continue;
+  Say(loc::Tf("friends.toast_request",request.name)+"\n"+friends_panel::PlayedLine(request,v.unixNow),Tone::Pending,ActionToastSeconds,ToastKind::None,
+   {{loc::T("friends.accept"),"","",{nf::Command::Accept(bridge,request.id)}},{loc::T("friends.later")}});
+  return;
+ }
+ for(const auto& invite:state.invites){
+  if(!friendsSaid_.insert(invite.id).second||quiet||(invite.expiresAt&&v.unixNow>=invite.expiresAt))continue;
+  const auto* from=state.FindFriend(invite.friendId);
+  if(!from)continue;
+  // A public room is named by the friend who is in it.
+  const auto& at=from->presence;
+  const bool named=invite.room.kind==nf::InviteRoom::Kind::RoomId&&at.hasRoom&&at.room.id==invite.room.value;
+  Say(loc::Tf("friends.toast_invite",from->name)+(named?"\n"+at.room.name:std::string()),Tone::Pending,ActionToastSeconds,ToastKind::None,
+   {{loc::T("toast.join"),"","",{nf::Command::TakeInvite(bridge,invite.id),nf::Command::Dismiss(bridge,invite.id)}},
+    {loc::T("friends.dismiss"),"","",{nf::Command::Dismiss(bridge,invite.id)}}});
+  return;
+ }
 }
 
 // Notifications: the toasts said lately. A toast's action chosen at its row

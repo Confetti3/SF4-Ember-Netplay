@@ -277,4 +277,29 @@ mod tests {
         bad_code["code"] = json!("4F2A91CX");
         assert!(read(&bad_code).unwrap().check().is_err());
     }
+
+    // A friend's account points go to the game as the bridge sent them, and a
+    // friend without them stays without.
+    #[test]
+    fn a_friends_account_points_pass_through_and_may_be_absent() {
+        let state = |friend: Value| {
+            json!({ "code": "4F2A-91CX", "friends": [friend], "incoming": [],
+                "outgoing": [], "invites": [], "blocked": [] })
+        };
+        let friend = json!({ "id": FRIEND, "name": "Player 3", "since": 1,
+            "account": { "points": 2331, "tier": 3 }, "presence": { "state": "offline" } });
+        let read = |value: &Value| -> FriendsState {
+            client::read(200, &serde_json::to_vec(value).unwrap(), &[200], &REFUSALS).unwrap()
+        };
+        let with = read(&state(friend.clone()));
+        assert!(with.check().is_ok());
+        assert_eq!(serde_json::to_value(&with).unwrap()["friends"][0]["account"], friend["account"]);
+        let mut without = friend.clone();
+        without.as_object_mut().unwrap().remove("account");
+        let without = serde_json::to_value(read(&state(without))).unwrap();
+        assert!(without["friends"][0].get("account").is_none());
+        let mut bad = friend;
+        bad["account"]["tier"] = json!(9);
+        assert!(read(&state(bad)).check().is_err());
+    }
 }

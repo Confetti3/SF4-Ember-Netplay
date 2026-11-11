@@ -186,6 +186,12 @@ friends::Friend DecodeFriend(const json& value) {
 		entry.hasMain = true;
 		entry.main = DecodeMain(*main);
 	}
+	if (const auto account = object.find("account"); account != object.end()) {
+		const auto& fields = Object(*account);
+		entry.hasAccount = true;
+		entry.account.points = Unsigned(fields, "points");
+		entry.account.tier = static_cast<std::uint8_t>(Bounded(fields, "tier", netplay::levels::TierCount - 1));
+	}
 	if (const auto badge = object.find("badge"); badge != object.end() && !ParseSkillBadge(*badge, entry.badge)) Bad("badge");
 	const auto presence = object.find("presence");
 	if (presence == object.end()) Bad("presence");

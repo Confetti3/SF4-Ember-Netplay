@@ -27,6 +27,8 @@ struct MemberPoints {
     netplay::levels::CardAccount account;
     // The fighters they have played, most points first (the lower fighter first on a tie).
     std::vector<netplay::levels::CardFighter> fighters;
+    // How the card stands with this player: friends, a request either way, blocked. None for this PC's own member.
+    netplay::levels::Relation relation = netplay::levels::Relation::None;
 
     // The points for `fighter`, or none: not known, or not among the fighters played.
     std::optional<SeatPoints> Of(int fighter) const;

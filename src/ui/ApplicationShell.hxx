@@ -123,8 +123,10 @@ enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable, ReadOnly };
 // What a toast is about, said over it (Toasts board); None says nothing.
 enum class ToastKind { None, Invitation, Room, Update, Match, System };
 // A toast's button: it opens `screen` at its `row`, where the player acts on
-// the notice; one without a screen is Later, which only puts the toast away.
-struct ToastAction { std::string label, screen, row; };
+// the notice, and sends `friends` as they are, in order (an invite's Join takes
+// the invite and then drops it); one with neither is Later, which only puts the
+// toast away.
+struct ToastAction { std::string label, screen, row; std::vector<netplay::friends::Command> friends; };
 // One frame of the room board (RoomPanelBoard.hxx).
 struct RoomBoardFrame;
 
@@ -709,7 +711,12 @@ std::string memberAsk_;
     // Where Ember draws: the screen, inside TV mode's 5% safe area. The shell's
     // window, and the toasts over it.
     v2::Box ShellArea() const;
-    void AnswerToast(double now);
+    void AnswerToast(const ShellView& view,double now,const Submit& submit);
+    // A friend's request or invite said once as it comes, with its buttons (SayFriends):
+    // `friendsSaid_` holds what was said or seen, `friendsRead_` that the first state was.
+    void SayFriends(const ShellView& view,const std::string& screen);
+    std::set<std::string> friendsSaid_;
+    bool friendsRead_=false;
     std::vector<MenuEntry> NotificationRows(double now,std::string& title) const;
     // Copy short link was pressed before the link existed: copy it when it
     // arrives, or the full invitation on a failure or at the deadline.

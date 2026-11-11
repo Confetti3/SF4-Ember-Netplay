@@ -721,6 +721,33 @@ async fn a_friends_public_room_is_joinable_on_the_same_build() {
     assert_eq!(presence(world.sync(&a, menus()).await)["state"], "offline");
 }
 
+/// A friend's account points come with them, read from the table the card
+/// look-up reads: 0 before a counted game, games plus wins after, and the same
+/// answer as the friend's card.
+#[tokio::test]
+async fn a_friend_carries_their_account_points() {
+    let world = World::start().await;
+    let (a, b) = (world.join(1, A, "Player 1").await, world.join(2, B, "Player 2").await);
+    let friend = world.befriend(&a, &b).await;
+    let account = |state: &Json_| state["friends"][0]["account"].clone();
+    assert_eq!(
+        account(&world.sync(&a, menus()).await),
+        json!({ "points": 0, "tier": 0 })
+    );
+    world
+        .sql(format!(
+            "INSERT INTO account_points (discord_user_id, games, wins, first_at, played_at)
+             VALUES ('{B}', 8, 5, 1, 1)"
+        ))
+        .await;
+    let state = world.sync(&a, menus()).await;
+    assert_eq!(account(&state)["points"], 13);
+    let card = world.cards(&a, json!([{ "friend": friend }])).await;
+    assert_eq!(account(&state), card[0]["account"]);
+    // Only the points and the frame, never the games or the wins.
+    assert_eq!(account(&state).as_object().unwrap().len(), 2);
+}
+
 #[tokio::test]
 async fn appearing_offline_freezes_what_friends_see() {
     let world = World::start().await;

@@ -1369,6 +1369,48 @@ msgstr "Je kamer kan nu niet worden aangeboden."
 msgid "friends.busy"
 msgstr "Wacht tot het laatste verzoek klaar is."
 
+msgid "friends.accept_member"
+msgstr "Verzoek accepteren"
+
+msgid "friends.add_member"
+msgstr "Vriend toevoegen"
+
+msgid "friends.request_sent"
+msgstr "Verzoek verstuurd"
+
+msgid "friends.blocked_member"
+msgstr "Geblokkeerd"
+
+msgid "friends.blocked_member_detail"
+msgstr "Deblokkeer via Profiel, Vrienden, Geblokkeerd."
+
+msgid "friends.block"
+msgstr "Blokkeren"
+
+msgid "friends.block_detail"
+msgstr "Beëindigt elke vriendschap of elk verzoek tussen jullie. Ongedaan maken kan via Profiel, Vrienden, Geblokkeerd."
+
+msgid "friends.toast_request"
+msgstr "{0} wil vrienden worden"
+
+msgid "friends.toast_invite"
+msgstr "{0} nodigt je uit in de kamer"
+
+msgid "friends.later"
+msgstr "Later"
+
+msgid "friends.dismiss"
+msgstr "Negeren"
+
+msgid "friends.turn_off"
+msgstr "Vrienden uitschakelen"
+
+msgid "friends.turn_off_detail"
+msgstr "Verwijdert je vrienden, verzoeken, blokkades en vriendcode."
+
+msgid "room.member_card"
+msgstr "Spelerkaart"
+
 msgid "level.points_to"
 msgstr "{0} punten tot {1}"
 

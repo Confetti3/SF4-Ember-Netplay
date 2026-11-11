@@ -1369,6 +1369,48 @@ msgstr "Votre salon ne peut pas être proposé pour le moment."
 msgid "friends.busy"
 msgstr "Attendez la fin de la dernière demande."
 
+msgid "friends.accept_member"
+msgstr "Accepter la demande"
+
+msgid "friends.add_member"
+msgstr "Ajouter en ami"
+
+msgid "friends.request_sent"
+msgstr "Demande envoyée"
+
+msgid "friends.blocked_member"
+msgstr "Bloqué"
+
+msgid "friends.blocked_member_detail"
+msgstr "Débloquez-le dans Profil, Amis, Bloqués."
+
+msgid "friends.block"
+msgstr "Bloquer"
+
+msgid "friends.block_detail"
+msgstr "Met fin à toute amitié ou demande entre vous. Annulable dans Profil, Amis, Bloqués."
+
+msgid "friends.toast_request"
+msgstr "{0} veut devenir ton ami"
+
+msgid "friends.toast_invite"
+msgstr "{0} t’invite dans son salon"
+
+msgid "friends.later"
+msgstr "Plus tard"
+
+msgid "friends.dismiss"
+msgstr "Ignorer"
+
+msgid "friends.turn_off"
+msgstr "Désactiver les amis"
+
+msgid "friends.turn_off_detail"
+msgstr "Supprime tes amis, demandes, blocages et code ami."
+
+msgid "room.member_card"
+msgstr "Carte du joueur"
+
 msgid "level.points_to"
 msgstr "{0} points avant {1}"
 

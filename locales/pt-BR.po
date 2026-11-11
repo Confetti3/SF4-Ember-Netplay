@@ -1369,6 +1369,48 @@ msgstr "Sua sala não pode ser oferecida agora."
 msgid "friends.busy"
 msgstr "Espere o último pedido terminar."
 
+msgid "friends.accept_member"
+msgstr "Aceitar pedido"
+
+msgid "friends.add_member"
+msgstr "Adicionar amigo"
+
+msgid "friends.request_sent"
+msgstr "Pedido enviado"
+
+msgid "friends.blocked_member"
+msgstr "Bloqueado"
+
+msgid "friends.blocked_member_detail"
+msgstr "Desbloqueie em Perfil, Amigos, Bloqueados."
+
+msgid "friends.block"
+msgstr "Bloquear"
+
+msgid "friends.block_detail"
+msgstr "Encerra qualquer amizade ou pedido entre vocês. Desfaça em Perfil, Amigos, Bloqueados."
+
+msgid "friends.toast_request"
+msgstr "{0} quer ser seu amigo"
+
+msgid "friends.toast_invite"
+msgstr "{0} convida você para a sala"
+
+msgid "friends.later"
+msgstr "Depois"
+
+msgid "friends.dismiss"
+msgstr "Dispensar"
+
+msgid "friends.turn_off"
+msgstr "Desativar amigos"
+
+msgid "friends.turn_off_detail"
+msgstr "Apaga seus amigos, pedidos, bloqueios e código de amigo."
+
+msgid "room.member_card"
+msgstr "Cartão do jogador"
+
 msgid "level.points_to"
 msgstr "{0} pontos para {1}"
 

@@ -12,4 +12,7 @@ namespace uilab {
 //   unreachable: the full list, the last sync failed (Not updated)       offline: the full list, appearing offline
 // Returns false for a state it does not know.
 bool Friends(sf4e::ui::ShellView& view, const std::string& state);
+// With --toasts and --friends: the list as first read has nothing waiting, then at frame 6 the requests arrive and at
+// frame 8 an invite, so the real toasts of SayFriends show (Accept, Later; Join, Dismiss).
+void FriendsComing(sf4e::ui::ShellView& view, int frame);
 }

@@ -1,6 +1,9 @@
 #include "RoomCards.hxx"
 #include "V2.hxx"
 #include "GameMenu.hxx"
+#include "PlayerCard.hxx"
+#include "RoomPanelBoard.hxx"
+#include "ShellView.hxx"
 #include "Theme.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
@@ -38,19 +41,20 @@ void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max) {
  DrawCardText(elided,ImVec2(x,max.y-20*s),w,card.record.empty()?card.status:card.status+" \xC2\xB7 "+card.record,14*s,palette::Muted);
  NoteUserText(card.name);
 }
-void DrawMemberPoints(const MemberPoints& points,const std::string& name,const FighterPicture& face) {
- if(!points.known)return;
- const float s=Scale(),side=72*s,gap=12*s,line=16*s,width=ImGui::GetContentRegionAvail().x;
- const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
- const ImVec2 start=ImGui::GetCursorScreenPos(),top(start.x,start.y+12*s);
- DrawCharacterPortrait(face,top,ImVec2(top.x+side,top.y+side),c.frame);
- // SF4's lines under the name: the points of the fighter they are playing, then the account's.
- const float x=top.x+side+gap,room=(std::max)(0.f,width-side-gap);
- NoteUserText(name);
- v2::Text(d,ImVec2(x,top.y),room,name,18*s,c.text,HeadingFont());
- const auto played=points.Of(face.fighter);
- v2::Level(d,ImVec2(x,top.y+28*s),line,played?played->points:0,"points.label");
- v2::Level(d,ImVec2(x,top.y+52*s),line,points.account.points,"points.account_label");
- ImGui::Dummy(ImVec2(width,12*s+side));
+OtherCardView MemberOtherCard(const ShellView& view,const room::Member& member,FighterArt art) {
+ const auto points=PointsOf(view,member);
+ const auto look=SeatLookOf(view,member);
+ const auto& c=v2::Colors();
+ OtherCardView card;
+ card.name=member.name;card.country=member.country;card.badge=member.badge;
+ card.fighter=look.fighter;card.art=art;
+ card.points=view.room.serverOwned;
+ if(const auto played=points.Of(look.fighter)){card.fighterPoints=played->points;card.fighterTier=played->tier;}
+ card.accountPoints=points.account.points;
+ // A friend and a request sent are states to show; a request received is the page's Accept row.
+ using netplay::levels::Relation;
+ if(points.relation==Relation::Friend){card.chip=loc::T("friends.are_friends");card.chipTone=c.ready;}
+ else if(points.relation==Relation::Sent){card.chip=loc::T("friends.request_sent");card.chipTone=c.muted;}
+ return card;
 }
 } }

@@ -211,6 +211,35 @@ void MoreJourney() {
  Check(j.sent(Kind::Remove).size() == 2 && j.sent(Kind::Remove)[1]->id == "fr_8" && !j.sent(Kind::Remove)[1]->flag, "Delete and yes did not send Remove");
 }
 
+// In a room X, Y and Delete are the Friends tab's, and its pages keep them from the room: More opens on a pad, X is Add a
+// friend, Delete asks to remove, and the room's View still opens its chat from the tab.
+void RoomJourney() {
+ Social j;
+ JoinedRoom(j.h, 10);
+ j.h.view.session.generation.room = 1; j.h.view.session.control = netplay::Health::Healthy;
+ for (room::MemberId id : {1, 2}) { room::Member m; m.id = id; m.name = id == 1 ? "Player 1" : "Player 2"; j.h.view.room.members.push_back(m); }
+ j.open();
+ Check(j.screen() == "friends", "Friends did not open in a room");
+ j.focus("friend:fr_3");
+ j.h.Press(MenuInput::Options);
+ Check(j.choosing() && j.screen() == "friends", "Y in a room opened the room's table options instead of More");
+ j.h.Press(MenuInput::Back);
+ j.h.Press(MenuInput::Fighter);
+ Check(j.screen() == "friends-add", "X in a room did not open Add a friend");
+ // A page over the tab keeps them from the room too.
+ j.h.Press(MenuInput::Options);
+ j.h.Press(MenuInput::Fighter);
+ Check(j.screen() == "friends-add", "X or Y on a page left it for the room's");
+ j.h.Press(MenuInput::Back);
+ j.focus("friend:fr_8");
+ j.h.Press(MenuInput::Leave);
+ Check(j.choosing(), "Delete in a room did not ask to remove the friend");
+ j.h.Press(MenuInput::Back);
+ // The room's View still opens its chat from the tab.
+ j.h.Press(MenuInput::Chat);
+ Check(j.screen() == "room-chat", "View on the Friends tab in a room did not open the chat");
+}
+
 // More on a request: Decline asks again; Decline and block blocks.
 void RequestJourney() {
  Social j;
@@ -365,11 +394,44 @@ void VisitQuestionJourney() {
  j.h.Press(MenuInput::Right); j.h.Press(MenuInput::Select);
  Check(j.sent(Kind::AnswerVisit).size() == 2 && j.sent(Kind::AnswerVisit)[1]->flag && j.sent(Kind::AnswerVisit)[1]->revision == 8, "Leave and go did not answer yes for the revision shown");
 }
+
+// Settings, Online, Friends: Appear offline flips, the friend code asks before a new one and Turn off friends asks before it
+// deletes; the tab's cadence runs while the panel shows, and without an account or a service the rows say why they are off.
+void SettingsJourney() {
+ Social j;
+ j.open("tab-online/friends");
+ Check(Ids(j) == std::vector<std::string>({"friends-appear-offline", "friends-new-code", "friends-turn-off"}), "The Friends panel is not Appear offline, the friend code and Turn off friends");
+ Check(j.sent(Kind::Visit).size() == 1, "The Friends panel did not keep the friends fresh");
+ Check(j.row("friends-new-code")->value == "4F2A-91CX" && j.row("friends-appear-offline")->value == loc::T("common.off") &&
+  j.row("friends-turn-off")->detail == loc::T("friends.turn_off_detail"), "The Friends panel does not show the code, the switch and what Turn off deletes");
+ j.select("friends-appear-offline");
+ Check(j.sent(Kind::AppearOffline).size() == 1 && j.sent(Kind::AppearOffline)[0]->flag, "Appear offline did not send on");
+ ++j.view().state.finished; j.h.Frame(0, 3);
+ j.select("friends-new-code");
+ Check(j.h.shell.Navigation().Confirming() && j.sent(Kind::NewCode).empty(), "A new code was made without asking");
+ j.h.Press(MenuInput::Right); j.h.Press(MenuInput::Select);
+ Check(j.sent(Kind::NewCode).size() == 1, "Confirming did not ask for a new code");
+ // The bridge answers: the next action may go.
+ ++j.view().state.finished; j.h.Frame(0, 3);
+ j.select("friends-turn-off");
+ Check(j.h.shell.Navigation().Confirming() && j.sent(Kind::Forget).empty(), "Friends were turned off without asking");
+ j.h.Press(MenuInput::Right); j.h.Press(MenuInput::Select);
+ Check(j.sent(Kind::Forget).size() == 1, "Confirming did not turn friends off");
+ // No Discord account: every row is off and says so.
+ auto none = std::make_shared<nf::State>();
+ none->kind = nf::State::Kind::NoAccount;
+ j.Give(none);
+ Check(!j.row("friends-appear-offline")->enabled && !j.row("friends-new-code")->enabled && !j.row("friends-turn-off")->enabled &&
+  j.row("friends-turn-off")->detail == loc::T("friends.no_account"), "Without a Discord account the Friends panel rows are not off with its words");
+ // A service without friends says that.
+ j.Give(std::make_shared<nf::State>());
+ Check(!j.row("friends-turn-off")->enabled && j.row("friends-turn-off")->detail == loc::T("friends.unavailable"), "A service without friends did not say so");
+}
 }
 
 int main() {
  try {
-  VisitJourney(); RowsJourney(); ActionsJourney(); MoreJourney(); RequestJourney(); AddJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney();
+  VisitJourney(); RowsJourney(); ActionsJourney(); MoreJourney(); RequestJourney(); AddJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
   std::cout << "Friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

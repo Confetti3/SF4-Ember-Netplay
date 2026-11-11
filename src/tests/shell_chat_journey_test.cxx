@@ -245,9 +245,9 @@ void ChatJourneys(){
  // The unread count: others' messages, not our own or a muted member's, on the Chat row and the board.
  say(2,"Anyone here?");say(1,"Yes, me");say(3,"Hello");h.Frame();
  Check(row("room-chat").value=="2"&&row("room-chat").detail.find(loc::Tf("room.chat.unread",2))!=std::string::npos,"The Chat row does not count messages from others");
- h.Screen("room-members");h.Choose("member-3");h.Press(MenuInput::Select);h.Screen("room");h.Frame();
+ h.Screen("room-members");h.Choose("member-3");h.Press(MenuInput::Down);h.Press(MenuInput::Select);h.Screen("room");h.Frame();
  Check(row("room-chat").value=="1","A muted member's message still counts as unread");
- h.Screen("room-members");h.Choose("member-3");h.Press(MenuInput::Select);h.Screen("room");h.Frame();
+ h.Screen("room-members");h.Choose("member-3");h.Press(MenuInput::Down);h.Press(MenuInput::Select);h.Screen("room");h.Frame();
  Check(row("room-chat").value=="2","Unmuting did not bring the count back");
  // Opening Chat clears it; so does reading it where the keyboard opens it.
  h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View did not open chat");
@@ -558,7 +558,7 @@ void ChatJourneys(){
  Check(typing()==loc::Tf("chat.typing.one","Peer")&&box.x==quiet.x&&box.y==quiet.y,"One member typing was not named, or moved the box");
  members[2].typingMs=4000;Check(typing()==loc::Tf("chat.typing.two","Peer","Third"),"Two members typing were not both named");
  members[3].typingMs=4000;Check(typing()==loc::T("chat.typing.many"),"Three members typing were not several people");
- h.Screen("room-members");h.Choose("member-3");h.Press(MenuInput::Select);h.Screen("room-chat");h.Frame();
+ h.Screen("room-members");h.Choose("member-3");h.Press(MenuInput::Down);h.Press(MenuInput::Select);h.Screen("room-chat");h.Frame();
  Check(typing()==loc::Tf("chat.typing.two","Peer","Fourth"),"A muted member was listed as typing");
  for(auto& m:members)m.typingMs=0;
  Check(typing().empty(),"Typing stayed after it ran out");

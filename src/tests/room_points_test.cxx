@@ -2,8 +2,11 @@
 // the room board"): only a public room's, only from a card the bridge looked up
 // by the member's token (a card is public, so whoever has one shows points); the
 // local member's own come from the player's own points when no card was looked up.
+#include "../ui/PlayerCard.hxx"
+#include "../ui/RoomCards.hxx"
 #include "../ui/RoomPoints.hxx"
 #include "../ui/ShellView.hxx"
+#include "../common/Localization.hxx"
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -120,12 +123,54 @@ void OwnSeatFromOwnPoints() {
 }
 }
 
+// The member's page draws their card: the fighter they are playing and its points (not the main's), the account's points,
+// and a chip for a friend or a request sent. A member with no card shows 0 and 0; a private room shows no points lines.
+void MemberCardOfAPublicRoom() {
+    Room room(true, Shown());
+    auto& them = room.view.room.members[1];
+    them.name = "Player 2";
+    them.mainFighter = 9;
+    them.fighter = 4;
+    const auto card = ui::MemberOtherCard(room.view, them, ui::FighterArt::Portrait);
+    Check(card.name == "Player 2" && card.points && card.fighter == 4 && card.fighterPoints == 1000 && card.fighterTier == 3 && card.accountPoints == 2100,
+        "the page did not show the points of the fighter they are playing and of the account");
+    them.fighter = -1;
+    const auto main = ui::MemberOtherCard(room.view, them, ui::FighterArt::Portrait);
+    Check(main.fighter == 9 && main.fighterPoints == 100, "without a pick the page did not show their main and its points");
+    them.fighter = 5;
+    const auto unplayed = ui::MemberOtherCard(room.view, them, ui::FighterArt::Portrait);
+    Check(unplayed.points && unplayed.fighterPoints == 0 && unplayed.accountPoints == 2100, "a fighter they have not played did not show 0 FP");
+    Room noToken(true, Shown(), false);
+    const auto none = ui::MemberOtherCard(noToken.view, noToken.view.room.members[1], ui::FighterArt::Portrait);
+    Check(none.points && none.fighterPoints == 0 && none.accountPoints == 0 && none.chip.empty(), "a member with no card did not show 0 FP and 0 BP");
+    const Room priv(false, Shown());
+    Check(!ui::MemberOtherCard(priv.view, priv.view.room.members[1], ui::FighterArt::Portrait).points, "a private room showed points lines on the page");
+}
+
+void MemberCardChipFollowsTheRelation() {
+    using netplay::levels::Relation;
+    const auto chip = [](Relation relation) {
+        Card card = Shown();
+        card.relation = relation;
+        const Room room(true, card);
+        return ui::MemberOtherCard(room.view, room.view.room.members[1], ui::FighterArt::Portrait).chip;
+    };
+    Check(chip(Relation::Friend) == loc::T("friends.are_friends"), "a friend had no Friends chip");
+    Check(chip(Relation::Sent) == loc::T("friends.request_sent"), "a request sent had no Request sent chip");
+    Check(chip(Relation::None).empty() && chip(Relation::Received).empty() && chip(Relation::Blocked).empty(), "a relation with nothing to say had a chip");
+    Card card = Shown();
+    card.relation = Relation::Blocked;
+    Check(Room(true, card).Them().relation == Relation::Blocked, "the card's relation did not reach the member's points");
+}
+
 int main() {
     PublicRoomShowsTheCard();
     PrivateRoomShowsNothing();
     NoTokenOrNoCard();
     NothingPlayedStillShows();
     OwnSeatFromOwnPoints();
+    MemberCardOfAPublicRoom();
+    MemberCardChipFollowsTheRelation();
     if (failures) std::printf("%d failures\n", failures);
     return failures ? 1 : 0;
 }

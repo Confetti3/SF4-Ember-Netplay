@@ -85,6 +85,22 @@ Groups Arrange(const nf::State& state) {
     return groups;
 }
 
+OtherCardView CardOf(const nf::Friend& entry, FighterArt art) {
+    OtherCardView card;
+    card.name = entry.name;
+    card.country = entry.country;
+    card.badge = entry.badge;
+    card.fighter = entry.hasMain ? entry.main.fighter : -1;
+    card.art = art;
+    const bool main = entry.hasMain && entry.main.showsPoints;
+    card.points = main || entry.hasAccount;
+    card.fighterPoints = main ? entry.main.points : 0;
+    card.fighterTier = main ? entry.main.tier : 0;
+    card.accountKnown = entry.hasAccount;
+    card.accountPoints = entry.account.points;
+    return card;
+}
+
 bool Joinable(const nf::Friend& entry) {
     const auto& presence = entry.presence;
     return presence.kind == nf::Presence::Kind::InRoom && presence.hasRoom && !presence.privateRoom && presence.room.joinable;
@@ -201,6 +217,47 @@ MenuEntry FriendRowOf(const nf::Friend& entry, bool canInvite, std::uint64_t now
 }
 
 std::string DateOf(std::uint64_t at) { return at ? LocalTime(at, "%Y-%m-%d") : std::string("-"); }
+
+// The words that say why the friends cannot be used now, or null when they can: the state's own, or the gate's.
+const char* UnusableWords(Mode mode, Gate gate) {
+    switch (mode) {
+    case Mode::NoAccount: return "friends.no_account";
+    case Mode::Unavailable: return "friends.unavailable";
+    case Mode::Loading: return "friends.loading";
+    case Mode::Unreachable: return "friends.unreachable";
+    case Mode::Listed: break;
+    }
+    return gate.actWhy;
+}
+}
+
+bool FriendsPanel::SettingsRow(const std::string& row) { return row == AppearRow || row == NewCodeRow || row == ForgetRow; }
+
+std::vector<MenuEntry> FriendsPanel::SettingsRows(const ShellView& v) {
+    const auto& f = v.friends;
+    const auto& state = StateOf(f);
+    const Gate gate = GateOf(f, service_, pending_.active);
+    const char* why = UnusableWords(ModeOf(f, service_), gate);
+    const auto detail = [&](const char* words) { return why ? std::string(loc::T(why)) : std::string(loc::T(words)); };
+    auto appear = Row(AppearRow, loc::T("friends.appear_offline"), detail("friends.appear_offline_detail"), !why);
+    appear.value = loc::T(state.appearOffline ? "common.on" : "common.off");
+    auto code = ConfirmRow(NewCodeRow, loc::T("friends.code"), detail("friends.new_code_detail"), !why);
+    code.value = state.code.empty() ? std::string("-") : state.code;
+    auto off = ConfirmRow(ForgetRow, loc::T("friends.turn_off"), detail("friends.turn_off_detail"), !why);
+    for (auto* row : {&appear, &code, &off}) if (pending_.active && pending_.row == row->id) row->value = "...";
+    return {appear, code, off};
+}
+
+void FriendsPanel::RequestMember(const ShellView& v, const std::string& card, const std::string& name, const Submit& submit) {
+    const Gate gate = GateOf(v.friends, service_, pending_.active);
+    if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
+    Send(v, nf::Command::RequestCard(Bridge(v), card, name), submit, {}, loc::Tf("friends.request_sent_to", name));
+}
+
+void FriendsPanel::BlockMember(const ShellView& v, const std::string& card, const std::string& name, const Submit& submit) {
+    const Gate gate = GateOf(v.friends, service_, pending_.active);
+    if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
+    Send(v, nf::Command::BlockCard(Bridge(v), card, name), submit);
 }
 
 const std::string& FriendsPanel::Bridge(const ShellView& view) const { return view.friends.bridge.empty() ? bridge_ : view.friends.bridge; }
@@ -432,6 +489,11 @@ bool FriendsPanel::Activate(const ShellView& v, const MenuAction& a, MenuNavigat
         else Send(v, nf::Command::NewCode(bridge), submit, a.id);
         return true;
     }
+    if (a.id == ForgetRow) {
+        if (!gate.act) refuse(gate.actWhy);
+        else Send(v, nf::Command::Forget(bridge), submit, a.id);
+        return true;
+    }
     if (a.id == SendRow) {
         if (!gate.act) refuse(gate.actWhy);
         else Send(v, nf::Command::RequestCode(bridge, code_), submit, a.id, loc::Tf("friends.request_sent_to", CodeShown(code_)), true);
@@ -520,8 +582,8 @@ void FriendsPanel::Dress(const ShellView& v, const std::string& screen, const st
         if (StateOf(f).appearOffline) menu.headerChips.push_back({loc::T("friends.appearing_offline"), colors.muted});
         if (Stale(f)) menu.headerChips.push_back({loc::T("friends.not_updated"), colors.muted});
     }
-    // In a room X and Y are the room's, as on every screen.
-    if (screen == Screen && v.session.room == netplay::RoomState::Idle && ModeOf(f, service_) == Mode::Listed) {
+    // X and Y are the tab's here, in a room too (ApplicationShell takes them before the room's own).
+    if (screen == Screen && ModeOf(f, service_) == Mode::Listed) {
         const std::string& focus = menu.navigation.Focus();
         std::vector<std::pair<unsigned, std::string>> hints;
         if (HasPrefix(focus, RequestPrefix) || HasPrefix(focus, FriendPrefix)) hints.push_back({MenuInput::Options, loc::T("friends.more")});

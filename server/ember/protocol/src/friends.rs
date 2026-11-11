@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Error, Result,
     encoding::{is_false, is_prefixed_id, is_single_line},
-    levels::{FIGHTERS, MAX_TIER, is_card_token},
+    levels::{CardAccount, FIGHTERS, MAX_TIER, is_card_token},
     play::{check_build, is_hex},
     rooms::{MAX_CAPACITY, MAX_NAME, MIN_CAPACITY, check_room_name, is_country, is_player_name},
     skill::{Listing, SkillBadge},
@@ -512,6 +512,11 @@ pub struct Friend {
     pub since: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub main: Option<MainFighter>,
+    /// Their account's points and frame, as their card shows them to anyone;
+    /// absent when the answer is from a bridge that does not send it, or
+    /// they have no card (no Discord account connected).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<CardAccount>,
     /// Their class as last shown, or the developer mark; absent when they do
     /// not take part in ranking, or classes are hidden.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -527,6 +532,7 @@ impl Friend {
         check_name(&self.name)?;
         check_country(self.country.as_deref())?;
         self.main.as_ref().map_or(Ok(()), MainFighter::check)?;
+        self.account.as_ref().map_or(Ok(()), CardAccount::check)?;
         self.badge.as_ref().map_or(Ok(()), SkillBadge::check)?;
         self.presence.check()?;
         self.record.as_ref().map_or(Ok(()), PairRecord::check)
@@ -723,6 +729,7 @@ mod tests {
             "friends": [{
                 "id": FRIEND, "name": "Player 3", "country": "FR", "since": 1730073600,
                 "main": {"fighter": 5, "points": 1986, "tier": 3},
+                "account": {"points": 2331, "tier": 3},
                 "badge": {"band": 7, "settled": true},
                 "presence": {"state": "room", "status": "fighting", "table": 0,
                     "room": {"room_id": ROOM, "name": "Player 1's room",
@@ -778,6 +785,21 @@ mod tests {
         );
     }
 
+    /// A bridge that sends no `account` is read as no account known, and a state
+    /// without one is written back without the member.
+    #[test]
+    fn a_friend_without_an_account_reads_as_unknown() {
+        let mut wire = state_wire();
+        let with = round_trips::<FriendsState>(&wire, FriendsState::check);
+        assert_eq!(
+            with.friends[0].account,
+            Some(CardAccount { points: 2331, tier: 3 })
+        );
+        wire["friends"][0].as_object_mut().unwrap().remove("account");
+        let without = round_trips::<FriendsState>(&wire, FriendsState::check);
+        assert_eq!(without.friends[0].account, None);
+    }
+
     #[test]
     fn every_state_member_ignores_what_it_does_not_know() {
         let wire = state_wire();
@@ -785,6 +807,7 @@ mod tests {
             "",
             "/friends/0",
             "/friends/0/main",
+            "/friends/0/account",
             "/friends/0/presence",
             "/friends/0/presence/room",
             "/friends/0/record",
@@ -948,6 +971,11 @@ mod tests {
             }))
             .is_ok()
         );
+        assert_eq!(
+            friend(&|f| f.account = Some(CardAccount { points: 5, tier: 5 })),
+            Err(Error::InvalidField("tier"))
+        );
+        assert!(friend(&|f| f.account = Some(CardAccount { points: 0, tier: 0 })).is_ok());
         assert_eq!(
             friend(&|f| f.badge = Some(SkillBadge::class(11, true))),
             Err(Error::InvalidField("badge"))

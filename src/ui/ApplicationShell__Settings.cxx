@@ -103,13 +103,14 @@ public:
             sounds{"sounds", "settings.group.sounds", I::Volume, &Sounds}, speech{"speech", "speech.setting", I::Speakerphone, &Speech},
             text{"text", "settings.group.text", I::Typography, &Text}, help{"help", "settings.group.help", I::Help, &Help},
             discord{"discord", "screen.discord", I::Discord, &Discord}, rankings{"rankings", "screen.rankings", I::ChartBar, &Rankings},
+            friends{"friends", "profile.tab.friends", I::Users, &Friends},
             about{"about", "home.about", I::Info, &About}, reports{"reports", "reports.settings_title", I::Bug, &Reports};
         static const std::vector<Tab> tabs = {
             {"tab-player", "settings.tab.player", {&controls, &country, &profile}},
             {"tab-matches", "settings.tab.matches", {&defaults, &trainingReplays}},
             {"tab-interface", "settings.tab.interface", {&look, &gameThemes, &matchHud, &roomLayout, &sounds}},
             {"tab-access", "settings.tab.accessibility", {&speech, &text, &help}},
-            {"tab-online", "settings.tab.online", {&discord, &rankings}},
+            {"tab-online", "settings.tab.online", {&discord, &rankings, &friends}},
             {"tab-about", "settings.tab.about", {&about, &reports}}};
         return tabs;
     }
@@ -304,6 +305,8 @@ public:
             Row("arrange-reset", loc::T("settings.room_layout_reset"), loc::T("settings.room_layout_reset_detail"), open)};
     }
     static Entries Speech(Shell& s, const ShellView& v) { return s.AccessibilityRows(v); }
+    // Appear offline, the friend code and Turn off friends (FriendsPanel), which the panel itself answers.
+    static Entries Friends(Shell& s, const ShellView& v) { return s.friends_.SettingsRows(v); }
     static Entries Discord(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
         return {OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences),
@@ -459,6 +462,9 @@ public:
     void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override {
         const auto& error = f.shell.languageSaveError_;
         if (!error.empty() && SettingsTabOf(f.screen) == "tab-access") { status = error; tone = Tone::Error; }
+    }
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        return FriendsPanel::SettingsRow(a.id) && f.shell.friends_.Activate(f.view, a, f.shell.menu_.navigation, submit);
     }
     bool ReportsSave(const std::string& screen) const override {
         // About and the sent reports have no Saved line.

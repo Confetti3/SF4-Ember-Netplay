@@ -11,6 +11,7 @@
 // More offers and which of it can be done now. The drawing is FriendsBoard.cxx.
 #include "GameMenu.hxx"
 #include "MenuNavigation.hxx"
+#include "PlayerCard.hxx"
 #include "ShellAction.hxx"
 #include "../netplay/FriendsView.hxx"
 #include <cstdint>
@@ -50,6 +51,9 @@ struct Groups {
 };
 Groups Arrange(const nf::State& state);
 
+// A friend's card, as DrawOtherCard draws it: their main and its points and, when the bridge sent them, the account's
+// as a second line; without those the one line of the main (a friend's state carries nothing more).
+OtherCardView CardOf(const nf::Friend& entry, FighterArt art);
 // A friend's public room can be joined now.
 bool Joinable(const nf::Friend& entry);
 // What A does on a friend's row: Join their room, Invite them to this player's
@@ -68,6 +72,7 @@ constexpr const char* SentRow = "friends-sent";
 constexpr const char* BlockedRow = "friends-blocked";
 constexpr const char* AppearRow = "friends-appear-offline";
 constexpr const char* NewCodeRow = "friends-new-code";
+constexpr const char* ForgetRow = "friends-turn-off";
 constexpr const char* TheirCodeRow = "friends-their-code";
 constexpr const char* SendRow = "friends-send";
 constexpr const char* NoteRow = "friends-note";
@@ -109,8 +114,16 @@ public:
     static constexpr const char* SentScreen = friends_panel::SentRow;
     static constexpr const char* BlockedScreen = friends_panel::BlockedRow;
     static constexpr const char* VisitScreen = "friends-visit";
-    // The tab, or a page over it: the screens the friends are kept fresh on.
-    static bool Shown(const std::string& screen) { return screen == Screen || screen == AddScreen || screen == SentScreen || screen == BlockedScreen; }
+    // Settings, Online, Friends: the panel of Appear offline, the friend code and Turn off friends.
+    static constexpr const char* SettingsScreen = "tab-online/friends";
+    // The tab or a page over it: where X, Y and Delete are the tab's even in a room.
+    static bool OnTab(const std::string& screen) { return screen == Screen || screen == AddScreen || screen == SentScreen || screen == BlockedScreen; }
+    // The tab, a page over it or the Settings panel: the screens the friends are kept fresh on.
+    static bool Shown(const std::string& screen) { return OnTab(screen) || screen == SettingsScreen; }
+    // The shortcuts the tab takes before a room's own: X (Add a friend), Y (More) and Delete (Remove friend).
+    static bool Takes(unsigned shortcut) { return shortcut == MenuInput::Fighter || shortcut == MenuInput::Options || shortcut == MenuInput::Leave; }
+    // The Settings panel's rows, which Activate takes as the tab's own.
+    static bool SettingsRow(const std::string& row);
     static bool Owns(const std::string& screen) { return Shown(screen) || screen == VisitScreen; }
 
     // Every frame: Visit when the tab opens (again when its cadence lapsed) and Leave when it closes; the question
@@ -132,6 +145,13 @@ public:
     void Shortcut(const ShellView& view, const MenuAction& action, MenuNavigation& nav);
     // The header's chips and the hint bar's shortcuts, and the popout asked for opened on its row.
     void Dress(const ShellView& view, const std::string& screen, const std::vector<MenuEntry>& rows, GameMenu& menu);
+    // Settings, Online, Friends: Appear offline, the friend code (Select asks for a new one) and Turn off friends,
+    // each disabled with the state's words while the friends cannot be used.
+    std::vector<MenuEntry> SettingsRows(const ShellView& view);
+    // A room member's Add friend (and Accept request: the bridge accepts a mutual request) and Block, by the
+    // card token their ticket carried and their room name. A refusal or what went through is said as a notice.
+    void RequestMember(const ShellView& view, const std::string& card, const std::string& name, const Submit& submit);
+    void BlockMember(const ShellView& view, const std::string& card, const std::string& name, const Submit& submit);
     // The Friends tab's board at the cursor, in a body `height` tall.
     void Draw(const ShellView& view, GameMenu& menu, const std::vector<MenuEntry>& rows, MenuAction& action, float height);
 

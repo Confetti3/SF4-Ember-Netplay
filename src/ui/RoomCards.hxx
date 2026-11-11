@@ -55,10 +55,12 @@ struct MemberCardView {
 // A member as a list row in `min`-`max`: portrait, player tag, status
 // and link mark. The list draws the row's ground, focus and press.
 void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max);
-// A member's card in a detail pane, from the cursor down (PLAYER_CARD.md, "A room
-// member's card"): `face`, the picture of the fighter they are playing, beside
-// their `name` and, under it, SF4's two lines: that fighter's points as
-// "<n> FP" (0 when not played) and their account's as "<n> BP". Nothing while
-// `points` is not known (a private room, no card yet).
-void DrawMemberPoints(const MemberPoints& points,const std::string& name,const FighterPicture& face);
+struct ShellView;
+struct OtherCardView;
+// A member's card on their page (PROFILE.md, "Another player's card"), for
+// DrawOtherCard: the fighter they are playing on its tier edge, their flag,
+// name and class, SF4's two lines (that fighter's points and their account's,
+// 0 for a member with no card), and how they stand with this player as the
+// chip. A private room shows no points lines.
+OtherCardView MemberOtherCard(const ShellView& view,const room::Member& member,FighterArt art);
 } }

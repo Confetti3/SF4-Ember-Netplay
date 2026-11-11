@@ -19,6 +19,7 @@ use ember_protocol::{
         CARD_EXPIRED, FriendAction, FriendPresence, FriendsState, INVITE_UNAVAILABLE,
         IncomingRequest, MainFighter, Played, ReceivedInvite, UNKNOWN_CODE, parse_friend_code,
     },
+    levels::CardAccount,
     skill::SkillBadge,
 };
 use rusqlite::Transaction;
@@ -152,10 +153,12 @@ pub fn state(
     let mut friends = Vec::with_capacity(rows.len());
     let mut ids = HashMap::with_capacity(rows.len());
     for row in rows {
+        let (main, account) = levels_of(tx, &row)?;
         friends.push(ember_protocol::friends::Friend {
             id: row.id.clone(),
             since: row.since,
-            main: main_of(tx, &row)?,
+            main,
+            account,
             badge: badge_of(tx, &row.account, classes, now)?,
             presence: presence_of(tx, live, &row, build.as_deref(), now)?,
             record: store::record(tx, caller, &row.account)?,
@@ -203,18 +206,26 @@ pub fn state(
     Ok(state)
 }
 
-/// A friend's main fighter, with its points and tier once it has been played.
-fn main_of(tx: &Transaction<'_>, friend: &FriendRow) -> Result<Option<MainFighter>> {
-    let Some(fighter) = friend.shown.main else {
-        return Ok(None);
-    };
-    let played = skill::levels::card(tx, &friend.account)?
-        .and_then(|card| card.fighters.into_iter().find(|played| played.fighter == fighter));
-    Ok(Some(MainFighter {
-        fighter,
-        points: played.map(|played| played.points),
-        tier: played.map(|played| played.tier),
-    }))
+/// A friend's main fighter, with its points and tier once it has been played,
+/// and their account's points and tier: both from their card, which is public.
+/// A friend with no card (their Discord account was disconnected) has no
+/// account points, and their main shows none.
+fn levels_of(
+    tx: &Transaction<'_>,
+    friend: &FriendRow,
+) -> Result<(Option<MainFighter>, Option<CardAccount>)> {
+    let card = skill::levels::card(tx, &friend.account)?;
+    let main = friend.shown.main.map(|fighter| {
+        let played = card
+            .as_ref()
+            .and_then(|card| card.fighters.iter().find(|played| played.fighter == fighter));
+        MainFighter {
+            fighter,
+            points: played.map(|played| played.points),
+            tier: played.map(|played| played.tier),
+        }
+    });
+    Ok((main, card.map(|card| card.account)))
 }
 
 fn badge_of(

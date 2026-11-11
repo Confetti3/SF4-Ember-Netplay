@@ -1369,6 +1369,48 @@ msgstr "Vaši místnost teď nelze nabídnout."
 msgid "friends.busy"
 msgstr "Počkejte, až skončí předchozí požadavek."
 
+msgid "friends.accept_member"
+msgstr "Přijmout žádost"
+
+msgid "friends.add_member"
+msgstr "Přidat přítele"
+
+msgid "friends.request_sent"
+msgstr "Žádost odeslána"
+
+msgid "friends.blocked_member"
+msgstr "Zablokován"
+
+msgid "friends.blocked_member_detail"
+msgstr "Odblokujete ho v Profil, Přátelé, Blokovaní."
+
+msgid "friends.block"
+msgstr "Zablokovat"
+
+msgid "friends.block_detail"
+msgstr "Ukončí jakékoli přátelství nebo žádost mezi vámi. Vrátíte to v Profil, Přátelé, Blokovaní."
+
+msgid "friends.toast_request"
+msgstr "{0} se s tebou chce přátelit"
+
+msgid "friends.toast_invite"
+msgstr "{0} tě zve do své místnosti"
+
+msgid "friends.later"
+msgstr "Později"
+
+msgid "friends.dismiss"
+msgstr "Zavřít"
+
+msgid "friends.turn_off"
+msgstr "Vypnout přátele"
+
+msgid "friends.turn_off_detail"
+msgstr "Smaže tvé přátele, žádosti, blokace a kód přítele."
+
+msgid "room.member_card"
+msgstr "Karta hráče"
+
 msgid "level.points_to"
 msgstr "Do {1} zbývá bodů: {0}"
 

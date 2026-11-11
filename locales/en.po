@@ -1369,6 +1369,48 @@ msgstr "Your room can't be offered right now."
 msgid "friends.busy"
 msgstr "Wait for the last request to finish."
 
+msgid "friends.accept_member"
+msgstr "Accept request"
+
+msgid "friends.add_member"
+msgstr "Add friend"
+
+msgid "friends.request_sent"
+msgstr "Request sent"
+
+msgid "friends.blocked_member"
+msgstr "Blocked"
+
+msgid "friends.blocked_member_detail"
+msgstr "Unblock them in Profile, Friends, Blocked."
+
+msgid "friends.block"
+msgstr "Block"
+
+msgid "friends.block_detail"
+msgstr "Ends any friendship or request between you. Undo it in Profile, Friends, Blocked."
+
+msgid "friends.toast_request"
+msgstr "{0} wants to be friends"
+
+msgid "friends.toast_invite"
+msgstr "{0} invites you to their room"
+
+msgid "friends.later"
+msgstr "Later"
+
+msgid "friends.dismiss"
+msgstr "Dismiss"
+
+msgid "friends.turn_off"
+msgstr "Turn off friends"
+
+msgid "friends.turn_off_detail"
+msgstr "Deletes your friends, requests, blocks and friend code."
+
+msgid "room.member_card"
+msgstr "Player card"
+
 msgid "level.points_to"
 msgstr "{0} points to {1}"
 

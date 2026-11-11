@@ -1369,6 +1369,48 @@ msgstr "Tu sala no se puede ofrecer ahora."
 msgid "friends.busy"
 msgstr "Espera a que termine la última solicitud."
 
+msgid "friends.accept_member"
+msgstr "Aceptar solicitud"
+
+msgid "friends.add_member"
+msgstr "Añadir amigo"
+
+msgid "friends.request_sent"
+msgstr "Solicitud enviada"
+
+msgid "friends.blocked_member"
+msgstr "Bloqueado"
+
+msgid "friends.blocked_member_detail"
+msgstr "Desbloquéalo en Perfil, Amigos, Bloqueados."
+
+msgid "friends.block"
+msgstr "Bloquear"
+
+msgid "friends.block_detail"
+msgstr "Pone fin a cualquier amistad o solicitud entre vosotros. Se deshace en Perfil, Amigos, Bloqueados."
+
+msgid "friends.toast_request"
+msgstr "{0} quiere ser tu amigo"
+
+msgid "friends.toast_invite"
+msgstr "{0} te invita a su sala"
+
+msgid "friends.later"
+msgstr "Más tarde"
+
+msgid "friends.dismiss"
+msgstr "Descartar"
+
+msgid "friends.turn_off"
+msgstr "Desactivar amigos"
+
+msgid "friends.turn_off_detail"
+msgstr "Elimina tus amigos, solicitudes, bloqueos y código de amigo."
+
+msgid "room.member_card"
+msgstr "Tarjeta de jugador"
+
 msgid "level.points_to"
 msgstr "{0} puntos para {1}"
 

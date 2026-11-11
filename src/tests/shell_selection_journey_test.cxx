@@ -29,7 +29,7 @@ void MemberPopout(){
  for(room::MemberId id:{1,2}){room::Member m;m.id=id;m.name=id==1?"Local":"Other";h.view.room.members.push_back(m);}
  h.Screen("room");h.FocusOn("member-2");h.Press(MenuInput::Select);
  Check(h.shell.Navigation().Choosing()&&h.shell.Navigation().Screen()=="room","A member's Select did not open their actions in place");
- for(int i=0;i<2;++i)h.Press(MenuInput::Down);
+ for(int i=0;i<3;++i)h.Press(MenuInput::Down);
  h.Press(MenuInput::Select);h.Frame(0,2);
  Check(h.shell.Navigation().Screen()=="room-member"&&h.shell.Navigation().Confirming(),"Kick from the popout did not ask first");
 }
