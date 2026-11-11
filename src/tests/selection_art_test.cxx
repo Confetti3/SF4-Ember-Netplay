@@ -240,6 +240,9 @@ int main() {
         Write(result, Archive("net_vs_number.dds", DigitSheet()));
         const auto points = Settle(art, [&] { return art.PointDigits().image; }, 2000);
         const auto sheet = art.PointDigits().sheet;
+        if (!(points.texture && !points.missing && sheet))
+            for (const auto& line : logged) std::printf("art said: %s
+", line.c_str());
         CHECK(points.texture && !points.missing && points.width == 256 && points.height == 256 && sheet);
         if (sheet) {
             const auto& seven = sheet->sets[sf4e::point_digits::White][7];
