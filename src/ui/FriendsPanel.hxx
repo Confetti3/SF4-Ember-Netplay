@@ -11,6 +11,7 @@
 // More offers and which of it can be done now. The drawing is FriendsBoard.cxx.
 #include "GameMenu.hxx"
 #include "MenuNavigation.hxx"
+#include "PlayerCard.hxx"
 #include "ShellAction.hxx"
 #include "../netplay/FriendsView.hxx"
 #include <cstdint>
@@ -50,6 +51,9 @@ struct Groups {
 };
 Groups Arrange(const nf::State& state);
 
+// A friend's card, as DrawOtherCard draws it: their main and its points and, when the bridge sent them, the account's
+// as a second line; without those the one line of the main (a friend's state carries nothing more).
+OtherCardView CardOf(const nf::Friend& entry, FighterArt art);
 // A friend's public room can be joined now.
 bool Joinable(const nf::Friend& entry);
 // What A does on a friend's row: Join their room, Invite them to this player's

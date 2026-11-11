@@ -38,7 +38,7 @@ json FullState() {
 		{"appear_offline", true},
 		{"friends", json::array({
 			{{"id", FriendId}, {"name", "Player 3"}, {"country", "FR"}, {"since", 1730073600},
-				{"main", {{"fighter", 5}, {"points", 1986}, {"tier", 3}}}, {"badge", {{"band", 7}, {"settled", true}}},
+				{"main", {{"fighter", 5}, {"points", 1986}, {"tier", 3}}}, {"account", {{"points", 2331}, {"tier", 3}}}, {"badge", {{"band", 7}, {"settled", true}}},
 				{"presence", {{"state", "room"}, {"status", "fighting"}, {"table", 0},
 					{"room", {{"room_id", RoomId}, {"name", "Player 1's room"}, {"members", 7}, {"capacity", 16}, {"joinable", true}}}}},
 				{"record", {{"won", 14}, {"lost", 9}, {"last_at", 1731000000}}}},
@@ -64,13 +64,14 @@ void ReadsAWholeState() {
 	const auto& in_room = state.friends[0];
 	EXPECT(in_room.id == FriendId && in_room.name == "Player 3" && in_room.country.ToString() == "FR" && in_room.since == 1730073600);
 	EXPECT(in_room.hasMain && in_room.main.fighter == 5 && in_room.main.showsPoints && in_room.main.points == 1986 && in_room.main.tier == 3);
+	EXPECT(in_room.hasAccount && in_room.account.points == 2331 && in_room.account.tier == 3);
 	EXPECT(in_room.badge.HasClass() && in_room.badge.band == 7 && in_room.badge.settled);
 	EXPECT(in_room.presence.kind == Presence::Kind::InRoom && in_room.presence.status == netplay::friends::Status::Fighting && in_room.presence.table == 0);
 	EXPECT(in_room.presence.hasRoom && !in_room.presence.privateRoom && in_room.presence.room.id == RoomId && in_room.presence.room.joinable &&
 		in_room.presence.room.members == 7 && in_room.presence.room.capacity == 16 && in_room.presence.room.name == "Player 1's room");
 	EXPECT(in_room.hasRecord && in_room.record.won == 14 && in_room.record.lost == 9 && in_room.record.lastAt == 1731000000);
 	const auto& offline = state.friends[1];
-	EXPECT(!offline.hasMain && !offline.badge.Present() && !offline.hasRecord && !offline.country.Present());
+	EXPECT(!offline.hasAccount && offline.account.points == 0 && !offline.hasMain && !offline.badge.Present() && !offline.hasRecord && !offline.country.Present());
 	EXPECT(offline.presence.kind == Presence::Kind::Offline && offline.presence.seenAt == 99);
 	EXPECT(state.incoming[0].games == 6 && state.incoming[0].lastGameAt == 1731090000 && state.incoming[0].country.ToString() == "DE");
 	EXPECT(state.outgoing[0].label == "Player 4" && state.blocked[0].name == "Player 7");
@@ -103,6 +104,7 @@ void IgnoresUnknownKeys() {
 	data["extra"] = 1;
 	for (auto& friend_ : data["friends"]) { friend_["extra"] = "x"; friend_["presence"]["extra"] = 2; }
 	data["friends"][0]["main"]["extra"] = 3;
+	data["friends"][0]["account"]["extra"] = 8;
 	data["friends"][0]["presence"]["room"]["extra"] = 4;
 	data["friends"][0]["record"]["extra"] = 5;
 	data["incoming"][0]["extra"] = 6;
@@ -156,6 +158,10 @@ void RefusesWhatIsMalformed() {
 	refused("points without a tier", changed([](json& d) { d["friends"][0]["main"].erase("tier"); }));
 	refused("tier past the last", changed([](json& d) { d["friends"][0]["main"]["tier"] = 5; }));
 	refused("zero points", changed([](json& d) { d["friends"][0]["main"]["points"] = 0; }));
+	refused("account tier past the last", changed([](json& d) { d["friends"][0]["account"]["tier"] = 5; }));
+	refused("account without a tier", changed([](json& d) { d["friends"][0]["account"].erase("tier"); }));
+	refused("account points not a number", changed([](json& d) { d["friends"][0]["account"]["points"] = "many"; }));
+	refused("account not an object", changed([](json& d) { d["friends"][0]["account"] = 7; }));
 	refused("badge band past the classes", changed([](json& d) { d["friends"][0]["badge"]["band"] = 11; }));
 	refused("empty record", changed([](json& d) { d["friends"][0]["record"] = {{"won", 0}, {"lost", 0}, {"last_at", 1}}; }));
 	refused("record without a time", changed([](json& d) { d["friends"][0]["record"].erase("last_at"); }));

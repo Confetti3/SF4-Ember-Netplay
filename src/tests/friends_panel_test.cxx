@@ -213,9 +213,32 @@ void Codes() {
     Check(fp::CodeShown("4f2a91cx") == "4F2A-91CX" && fp::CodeShown(" 4f2a-91cx ") == "4F2A-91CX" && fp::CodeShown("4f2a") == "4F2A" && fp::CodeShown("4f2a9") == "4F2A-9", "a typed code is not shown as XXXX-XXXX");
     Check(fp::IdOf("friend:fr_3", fp::FriendPrefix) == "fr_3" && fp::IdOf("request:rq_1", fp::FriendPrefix).empty() && fp::IdOf("sent:sq_9", fp::SentPrefix) == "sq_9", "a row's id is not read after its prefix");
 }
+
+// A friend's card: the main and its points, and the account's as a second line once the bridge sent them (BP on a
+// friend's card); an older bridge's state has the one line, and a friend with no main shows only the account.
+void Cards() {
+    auto entry = Pal("Player 3");
+    entry.country = CountryCode::Parsed("FR");
+    entry.hasMain = true; entry.main.fighter = 5; entry.main.showsPoints = true; entry.main.points = 1986; entry.main.tier = 3;
+    auto card = fp::CardOf(entry, ui::FighterArt::Portrait);
+    Check(card.name == "Player 3" && card.fighter == 5 && card.points && card.fighterPoints == 1986 && card.fighterTier == 3, "a friend's card does not show their main and its points");
+    Check(!card.accountKnown, "a friend the bridge sent no account for shows an account line");
+    entry.hasAccount = true; entry.account = {2331, 2};
+    card = fp::CardOf(entry, ui::FighterArt::Portrait);
+    Check(card.accountKnown && card.accountPoints == 2331 && card.fighterPoints == 1986, "a friend's account points are not on their card beside the main's");
+    // A main not yet played shows 0 FP beside the account's points.
+    entry.main.showsPoints = false; entry.main.points = 0; entry.main.tier = 0;
+    card = fp::CardOf(entry, ui::FighterArt::Portrait);
+    Check(card.points && card.fighterPoints == 0 && card.accountKnown && card.accountPoints == 2331, "an unplayed main hid the account's points");
+    // No main and no account: no points lines at all.
+    entry.hasMain = false; entry.hasAccount = false;
+    card = fp::CardOf(entry, ui::FighterArt::Portrait);
+    Check(card.fighter == -1 && !card.points && !card.accountKnown, "a friend with nothing to show has points lines");
+}
 }
 
 int main() {
+    Cards();
     Grouping();
     Presses();
     MoreOnAFriend();

@@ -13,6 +13,8 @@ nf::Friend Pal(const char* id, const char* name, const char* country, int fighte
     entry.since = Now - 20 * Day;
     entry.hasMain = true; entry.main.fighter = static_cast<std::uint8_t>(fighter);
     entry.main.showsPoints = points > 0; entry.main.points = points; entry.main.tier = tier;
+    // The account's points, which the bridge sends beside the main's: a friend with no points in the lab has no card.
+    entry.hasAccount = points > 0; entry.account = {points + 120, tier};
     if (badge) entry.badge = SkillBadge::OfClass(static_cast<std::uint8_t>(badge), true);
     entry.hasRecord = won + lost > 0; entry.record = {won, lost, Now - 2 * Day};
     return entry;

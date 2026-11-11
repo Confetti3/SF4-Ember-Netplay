@@ -224,13 +224,7 @@ void DrawPersonPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool 
     const float x = box.min.x + pad, room = box.W() - 2 * pad, head = 20 * s + v2::HeadingHeight(name, room, 20 * s);
     float y = box.min.y + head + pad;
     if (entry) {
-        OtherCardView card;
-        card.name = name; card.country = entry->country; card.badge = entry->badge;
-        card.fighter = entry->hasMain ? entry->main.fighter : -1;
-        card.art = f.art;
-        card.points = entry->main.showsPoints && entry->hasMain;
-        card.fighterPoints = entry->main.points; card.fighterTier = entry->main.tier;
-        card.accountKnown = false;
+        const OtherCardView card = CardOf(*entry, f.art);
         const float side = (compact ? 80 : 112) * s;
         DrawOtherCard(f.d, v2::Box{ImVec2(x, y), ImVec2(x + room, y + side + 28 * s)}, card);
         y += side + 28 * s + 14 * s;

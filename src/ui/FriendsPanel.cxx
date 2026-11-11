@@ -85,6 +85,22 @@ Groups Arrange(const nf::State& state) {
     return groups;
 }
 
+OtherCardView CardOf(const nf::Friend& entry, FighterArt art) {
+    OtherCardView card;
+    card.name = entry.name;
+    card.country = entry.country;
+    card.badge = entry.badge;
+    card.fighter = entry.hasMain ? entry.main.fighter : -1;
+    card.art = art;
+    const bool main = entry.hasMain && entry.main.showsPoints;
+    card.points = main || entry.hasAccount;
+    card.fighterPoints = main ? entry.main.points : 0;
+    card.fighterTier = main ? entry.main.tier : 0;
+    card.accountKnown = entry.hasAccount;
+    card.accountPoints = entry.account.points;
+    return card;
+}
+
 bool Joinable(const nf::Friend& entry) {
     const auto& presence = entry.presence;
     return presence.kind == nf::Presence::Kind::InRoom && presence.hasRoom && !presence.privateRoom && presence.room.joinable;

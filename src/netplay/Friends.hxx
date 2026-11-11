@@ -15,6 +15,7 @@
 #include "../common/Country.hxx"
 #include "../common/SkillBadge.hxx"
 #include "Answered.hxx"
+#include "Levels.hxx"
 
 namespace sf4e { namespace netplay { namespace friends {
 
@@ -75,6 +76,10 @@ struct Friend {
 	std::uint64_t since = 0;
 	bool hasMain = false;
 	Main main;
+	// Their account's points and frame as their card shows them; none when the bridge did not send them
+	// (an older bridge, or they have no card).
+	bool hasAccount = false;
+	levels::CardAccount account;
 	// The class as last shown, or the developer mark; none when they do not take part or classes are hidden.
 	SkillBadge badge;
 	Presence presence;
