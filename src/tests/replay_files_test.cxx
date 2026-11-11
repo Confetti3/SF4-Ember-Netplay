@@ -554,6 +554,14 @@ static void TestSetReplays() {
  CHECK(!sets::UnpackSet(Bytes(pack.begin(), pack.end() - 1), games, header) && games.size() == 2);
  Bytes torn = pack; torn.back() ^= 1; CHECK(!sets::UnpackSet(torn, games, header));
  Bytes huge = pack; WriteU32(huge.data() + 8, 0xFFFFFFFFu); CHECK(!sets::UnpackSet(huge, games, header));
+ // Import takes a pack, or one replay as the archive keeps it or as the game wrote it, under one rule.
+ CHECK(sets::UnpackFile(pack, games, header) && games.size() == 2 && header == "{}");
+ CHECK(sets::UnpackFile(one, games, header) && games.size() == 1 && games[0] == one && header.empty());
+ CHECK(sets::UnpackFile(Replay(2, 800), games, header) && games.size() == 1 && games[0] == one && header.empty());
+ Bytes twice = one; twice.insert(twice.end(), two.begin(), two.end());
+ CHECK(!sets::UnpackFile(twice, games, header) && !sets::UnpackFile(Bytes(one.begin(), one.end() - 1), games, header));
+ Bytes tornOne = one; tornOne.back() ^= 1;
+ CHECK(!sets::UnpackFile(tornOne, games, header) && !sets::UnpackFile(Bytes(), games, header) && !sets::UnpackFile(Bytes(64, 7), games, header));
  const auto named = sets::PackNames(R"({"match_id":"emt_b","names":[null,"Bob"]})");
  CHECK(named.set.matchId == "emt_b" && named.players[0].empty() && named.players[1] == "Bob" && named.provenance == Provenance::Spectated);
  CHECK(sets::PackNames("[1]").set.matchId.empty() && sets::PackNames(R"({"names":["A"]})").players[0].empty());

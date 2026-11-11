@@ -971,10 +971,10 @@ msgid "replays.next_video_detail"
 msgstr "이 경기의 동영상을 준비합니다. 자막을 확인한 뒤 동영상 만들기를 선택하세요."
 
 msgid "replays.link_import"
-msgstr "세트 가져오기"
+msgstr "가져오기"
 
 msgid "replays.link_import_detail"
-msgstr "이 세트 팩의 모든 경기를 리플레이에 추가합니다."
+msgstr "리플레이 또는 세트 팩의 모든 경기를 리플레이에 추가합니다."
 
 msgid "replays.set_pack_working"
 msgstr "세트 팩 저장 중..."
@@ -989,10 +989,10 @@ msgid "replays.set_pack_unavailable"
 msgstr "지금은 세트 팩을 저장할 수 없습니다. 세트 서비스에 연결되어야 합니다."
 
 msgid "replays.set_imported"
-msgstr "세트의 {0}경기가 리플레이에 있습니다."
+msgstr "이 파일의 {0}개가 리플레이에 있습니다."
 
 msgid "replays.set_import_failed"
-msgstr "이 파일은 완전한 세트 팩이 아니므로 아무것도 가져오지 않았습니다."
+msgstr "이 파일은 완전한 리플레이나 세트 팩이 아니므로 아무것도 가져오지 않았습니다."
 
 msgid "settings.training_auto_ready"
 msgstr "트레이닝에서 호출되면 자동 준비"

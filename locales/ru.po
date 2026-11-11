@@ -971,10 +971,10 @@ msgid "replays.next_video_detail"
 msgstr "Готовит видео этой игры: проверьте подпись, затем Создать видео."
 
 msgid "replays.link_import"
-msgstr "Импортировать сет"
+msgstr "Импортировать"
 
 msgid "replays.link_import_detail"
-msgstr "Добавляет все игры этого пакета сета в Записи."
+msgstr "Добавляет запись или все игры пакета сета в Записи."
 
 msgid "replays.set_pack_working"
 msgstr "Сохранение пакета сета..."
@@ -989,10 +989,10 @@ msgid "replays.set_pack_unavailable"
 msgstr "Сейчас нельзя сохранить пакет сета. Ember нужно подключение к сервису сета."
 
 msgid "replays.set_imported"
-msgstr "Игр сета в Записях: {0}."
+msgstr "Из этого файла в Записях: {0}."
 
 msgid "replays.set_import_failed"
-msgstr "Этот файл не является полным пакетом сета, поэтому ничего не импортировано."
+msgstr "Этот файл не является полной записью или пакетом сета, поэтому ничего не импортировано."
 
 msgid "settings.training_auto_ready"
 msgstr "Готовность при вызове из тренировки"

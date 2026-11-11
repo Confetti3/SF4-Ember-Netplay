@@ -971,10 +971,10 @@ msgid "replays.next_video_detail"
 msgstr "Prepara el video de esta partida: revisa su texto y luego Generar video."
 
 msgid "replays.link_import"
-msgstr "Importar set"
+msgstr "Importar"
 
 msgid "replays.link_import_detail"
-msgstr "Agrega todas las partidas de este paquete del set a Repeticiones."
+msgstr "Agrega la repetición, o todas las partidas del paquete del set, a Repeticiones."
 
 msgid "replays.set_pack_working"
 msgstr "Guardando el paquete del set..."
@@ -989,10 +989,10 @@ msgid "replays.set_pack_unavailable"
 msgstr "El paquete del set no se puede guardar ahora. Ember necesita conexión con el servicio del set."
 
 msgid "replays.set_imported"
-msgstr "{0} partidas del set están en Repeticiones."
+msgstr "Repeticiones ahora tiene {0} de ese archivo."
 
 msgid "replays.set_import_failed"
-msgstr "Ese archivo no es un paquete de set completo, así que no se importó nada."
+msgstr "Ese archivo no es una repetición ni un paquete de set completo, así que no se importó nada."
 
 msgid "settings.training_auto_ready"
 msgstr "Listo automático desde Entrenamiento"

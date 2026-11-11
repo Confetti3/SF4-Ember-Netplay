@@ -218,12 +218,14 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    if(replay::ExportCancellable(r.exportStage))rows.push_back(ConfirmRow("export-cancel",loc::T("export.cancel"),loc::T("export.cancel_detail")));
   }
   if(!r.link.empty()){
-   // A link names a file and nothing is played on its word: Select asks. A set's pack is imported instead.
+   // A link names a file and nothing is played on its word: Select asks. A set's pack is
+   // imported, not played; any other replay may be either.
    rows.push_back(Row("replay-link",loc::T("replays.link"),loc::Tf("replays.link_detail",r.link)));
    rows.back().detailText=DetailText::Name;NoteUserText(r.link);
    const bool pack=replay_link::IsSetPack(r.link);
-   rows.back().choices={pack?MenuChoice{"link-import",loc::T("replays.link_import"),loc::T("replays.link_import_detail")}:MenuChoice{"link-play",loc::T("replays.link_play"),loc::T("replays.watch_detail"),idle&&r.ready},
-    {"link-dismiss",loc::T("replays.link_dismiss"),loc::T("replays.link_dismiss_detail")}};
+   if(!pack)rows.back().choices.push_back({"link-play",loc::T("replays.link_play"),loc::T("replays.watch_detail"),idle&&r.ready});
+   rows.back().choices.push_back({"link-import",loc::T("replays.link_import"),loc::T("replays.link_import_detail")});
+   rows.back().choices.push_back({"link-dismiss",loc::T("replays.link_dismiss"),loc::T("replays.link_dismiss_detail")});
    rows.back().chosen=pack?"link-import":idle&&r.ready?"link-play":"link-dismiss";
   }
   // Watch set plays a game at a time, and Export set videos sets one up at a
@@ -397,7 +399,7 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
   folderAsked_=false;setAsked_=a.text=="link-import";setNoticeAsked_=v.replays.setNotices;
   ShellAction r;r.command.generation=v.session.generation;
   if(a.text=="link-play")r.replay={replay::Mode::Watch,v.replays.link};
-  else if(a.text=="link-import")r.replay={replay::Mode::ImportPack,v.replays.link};
+  else if(a.text=="link-import")r.replay={replay::Mode::Import,v.replays.link};
   else r.replay.mode=replay::Mode::DismissLink;
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");
   return;

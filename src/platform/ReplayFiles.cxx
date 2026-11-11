@@ -565,13 +565,13 @@ fs::path SetPackPath(const std::string& matchId) {
 	return error ? fs::path() : folders.archive / L"packs" / fs::path(matchId + ".emberpack");
 }
 
-std::size_t ImportSetPack(const fs::path& pack) {
+std::size_t ImportReplayFile(const fs::path& file) {
 	try {
 		const Folders folders = FindFolders();
-		const auto bytes = replayfiles::ReadFile(pack, kMostPackBytes);
+		const auto bytes = replayfiles::ReadFile(file, kMostPackBytes);
 		std::vector<slots::Bytes> games;
 		std::string header;
-		if (folders.archive.empty() || !bytes || !UnpackSet(*bytes, games, header)) return 0;
+		if (folders.archive.empty() || !bytes || !UnpackFile(*bytes, games, header)) return 0;
 		const replayfiles::ReplayNames names = PackNames(header);
 		std::size_t held = 0;
 		for (const auto& game : games) {

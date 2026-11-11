@@ -971,10 +971,10 @@ msgid "replays.next_video_detail"
 msgstr "Sets up this game's video: check its caption, then Generate video."
 
 msgid "replays.link_import"
-msgstr "Import set"
+msgstr "Import"
 
 msgid "replays.link_import_detail"
-msgstr "Puts every game of this set pack into Replays."
+msgstr "Puts the replay, or every game of the set pack, into Replays."
 
 msgid "replays.set_pack_working"
 msgstr "Saving the set pack..."
@@ -989,10 +989,10 @@ msgid "replays.set_pack_unavailable"
 msgstr "The set pack cannot be saved now. Ember needs a connection to the set's service."
 
 msgid "replays.set_imported"
-msgstr "{0} games of the set are in Replays."
+msgstr "Replays now holds {0} from that file."
 
 msgid "replays.set_import_failed"
-msgstr "That file is not a whole set pack, so nothing was imported."
+msgstr "That file is not a whole replay or set pack, so nothing was imported."
 
 msgid "settings.training_auto_ready"
 msgstr "Auto-ready from Training"

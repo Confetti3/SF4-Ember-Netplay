@@ -971,10 +971,10 @@ msgid "replays.next_video_detail"
 msgstr "Zet de video van deze game klaar: controleer het onderschrift en kies dan Video maken."
 
 msgid "replays.link_import"
-msgstr "Set importeren"
+msgstr "Importeren"
 
 msgid "replays.link_import_detail"
-msgstr "Zet elke game van dit setpakket in Replays."
+msgstr "Zet de replay, of elke game van het setpakket, in Replays."
 
 msgid "replays.set_pack_working"
 msgstr "Setpakket bewaren..."
@@ -989,10 +989,10 @@ msgid "replays.set_pack_unavailable"
 msgstr "Het setpakket kan nu niet bewaard worden. Ember heeft een verbinding met de dienst van de set nodig."
 
 msgid "replays.set_imported"
-msgstr "{0} games van de set staan in Replays."
+msgstr "Replays bevat nu {0} uit dat bestand."
 
 msgid "replays.set_import_failed"
-msgstr "Dat bestand is geen volledig setpakket, dus er is niets geïmporteerd."
+msgstr "Dat bestand is geen volledige replay of setpakket, dus er is niets geïmporteerd."
 
 msgid "settings.training_auto_ready"
 msgstr "Maak mij gereed bij oproep uit Training"

@@ -16,9 +16,9 @@ namespace sf4e { namespace replay {
 // OpenLog: open the battle log; no path.
 // DismissLink: the player declined the replay a link asked for; no path.
 // CancelExport: stop the running export and keep no video of it; no path.
-// ImportPack: put every game of the set pack at `path` into Ember's archive.
+// Import: put every game of the set pack, or the replay, at `path` into Ember's archive.
 // Keep: mark the replay at `path` as kept, or no longer kept (keep).
-enum class Mode { None, Add, Watch, Export, OpenLog, DismissLink, CancelExport, ImportPack, Keep };
+enum class Mode { None, Add, Watch, Export, OpenLog, DismissLink, CancelExport, Import, Keep };
 
 // What an export draws over the game while it records, on screen and so in
 // the video: each part on or off, with the text the player left in it.
