@@ -35,21 +35,27 @@ const RECOVERY_HEADER: usize = HEADER + 32 + 8 + 8;
 // Append only: never reorder, remove or reuse an entry. A peer of another
 // build never reads these invitations (the build check refuses them first),
 // so an appended entry needs no new invite version.
-const RELAYS: [(&str, &str); 5] = [
+const RELAYS: [(&str, &str); 6] = [
     ("https://use1-1.relay.n0.iroh.link./", "use1"),
     ("https://usw1-1.relay.n0.iroh.link./", "usw1"),
     ("https://euc1-1.relay.n0.iroh.link./", "euc1"),
     ("https://aps1-1.relay.n0.iroh.link./", "aps1"),
     // Ember's own relay, on the VPS in Kansas: both US regions reach it.
     ("https://relay.embernetplay.link./", "use1"),
+    // Ember's relay for Europe, run by a community host (server/relay). The
+    // name is Ember's, so the relay can move to another host without a new
+    // build.
+    ("https://relay-eu.embernetplay.link./", "euc1"),
 ];
 
 /// The RELAYS entries this build's endpoints use, one per region they cover.
 /// Some US internet providers' router filters (Xfinity, Spectrum, Cox) block
 /// n0's US and Asia relays over HTTPS since 2026-11-08, and iroh picks a home
 /// relay by latency alone, so a US player must not be able to land on one:
-/// Ember's relay replaces both n0 US relays. Europe and Asia stay on n0's.
-const ACTIVE: [usize; 3] = [4, 2, 3];
+/// Ember's relay replaces both n0 US relays. Europe has Ember's relay too, so
+/// a block that spreads to n0's Europe relay cannot cut it off. Asia stays on
+/// n0's.
+const ACTIVE: [usize; 3] = [4, 5, 3];
 
 fn pinned(index: usize) -> RelayUrl {
     RELAYS[index].0.parse().expect("pinned relay URL")
@@ -660,6 +666,7 @@ mod tests {
             ("https://euc1-1.relay.n0.iroh.link./", "euc1"),
             ("https://aps1-1.relay.n0.iroh.link./", "aps1"),
             ("https://relay.embernetplay.link./", "use1"),
+            ("https://relay-eu.embernetplay.link./", "euc1"),
         ];
         assert_eq!(RELAYS, wire);
         let n0 = iroh::defaults::prod::default_relay_map();
@@ -667,10 +674,10 @@ mod tests {
             assert_eq!(RELAYS[index].1, *code);
             assert!(n0.contains(&pinned(index)), "{code}");
         }
-        // Exactly these relays are active; neither of n0's US relays is.
+        // Exactly these relays are active; of n0's, only Asia's is.
         let expected: std::collections::BTreeSet<RelayUrl> = [
             "https://relay.embernetplay.link./",
-            "https://euc1-1.relay.n0.iroh.link./",
+            "https://relay-eu.embernetplay.link./",
             "https://aps1-1.relay.n0.iroh.link./",
         ]
         .iter()
@@ -683,6 +690,7 @@ mod tests {
         for url in [
             "https://use1-1.relay.n0.iroh.link./",
             "https://usw1-1.relay.n0.iroh.link./",
+            "https://euc1-1.relay.n0.iroh.link./",
         ] {
             assert!(!expected.contains(&url.parse().unwrap()), "{url}");
         }
@@ -701,11 +709,12 @@ mod tests {
         }
         // Neither of n0's US relays is active: both are blocked by some US
         // providers' router filters. Ember's relay, coded use1, covers both
-        // US regions, so no relay of this build reports usw1.
+        // US regions, so no relay of this build reports usw1. Europe is on
+        // Ember's relay as well, in place of n0's.
         assert_eq!(relay_for_region("use1"), Some(pinned(4)));
-        assert_eq!(relay_for_region("euc1"), Some(pinned(2)));
+        assert_eq!(relay_for_region("euc1"), Some(pinned(5)));
         assert_eq!(relay_for_region("aps1"), Some(pinned(3)));
-        for index in [0, 1] {
+        for index in [0, 1, 2] {
             assert!(!active.contains(&pinned(index)));
         }
         for code in ["usw1", "other", "", "USE1", "euc2"] {

@@ -1,0 +1,45 @@
+# An Ember relay beside Nginx Proxy Manager, on the same machine. Settings
+# come from .env (copy .env.example). See README.md.
+services:
+  ember-relay:
+    build: .
+    image: ember-relay:1.1.0
+    container_name: ember-relay
+    restart: unless-stopped
+    # The host's own network: QUIC address discovery tells each player the
+    # address their packets arrive from, and a published Docker port can
+    # replace that address with Docker's.
+    network_mode: host
+    environment:
+      RELAY_HOSTNAME: ${RELAY_HOSTNAME:?set RELAY_HOSTNAME in .env}
+      RELAY_CERT_NAME: ${RELAY_CERT_NAME:-}
+      RELAY_HTTP_PORT: ${RELAY_HTTP_PORT:-47895}
+      # Warnings only: at info the relay logs every client it serves.
+      RUST_LOG: warn
+    volumes:
+      - ${NPM_LETSENCRYPT_DIR:?set NPM_LETSENCRYPT_DIR in .env}:/etc/letsencrypt:ro
+    read_only: true
+    tmpfs:
+      - /run/ember-relay
+    # Nothing but reading the proxy's certificate files, whoever owns them.
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_READ_SEARCH
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    pids_limit: 256
+    ulimits:
+      nofile: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/ember-relay", "health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
