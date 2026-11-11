@@ -105,9 +105,12 @@ void StatesJourney() {
   for (const char* screen : {"card", "fighters"}) {
    Journey j;
    if (state.answered) Answer(j, state.kind); else { j.h.view.levels = {}; j.h.view.levels.loading = true; }
+   j.h.view.preferences.mainFighter = 3;
    j.h.Screen(screen);
    const auto* words = j.row(ui::ProfileStateRow);
    Check(words && words->label == loc::T(state.words), "A card without levels does not say why");
+   // The card is still a card: the main is on its strip, at 0 points.
+   if (std::string(screen) == "card") Check(j.row(ui::CardFighterRow(3)) != nullptr, "A card without levels does not show the main");
    if (state.kind == Own::Kind::NoAccount) Check(j.row("discord-connect") != nullptr, "No account has no way to connect Discord");
   }
  }

@@ -95,17 +95,24 @@ void States() {
     Answered<Own> answer;
     ui::player_card::Fill(view, answer, 0);
     Check(view.levels == ui::CardLevels::Pending && std::string(ui::player_card::NoLevelWords(view)) == "level.loading", "no answer yet is not pending");
+    // Every state still shows the main, at 0 points; without a main, nobody.
+    Check(view.fighters.size() == 1 && view.fighters[0].fighter == 0 && view.fighters[0].points == 0 && view.fighters[0].games == 0,
+        "a card waiting for its points does not show the main at 0");
+    ui::player_card::Fill(view, answer, -1);
+    Check(view.fighters.empty(), "a card without a main shows a fighter");
     answer.loading = true;
     ui::player_card::Fill(view, answer, 0);
     Check(view.levels == ui::CardLevels::Pending, "a read in flight is not pending");
     answer.loading = false; answer.error = "bridge_unreachable";
     ui::player_card::Fill(view, answer, 0);
-    Check(view.levels == ui::CardLevels::Unavailable && view.fighters.empty(), "a read that failed with nothing before it is not unavailable");
+    Check(view.levels == ui::CardLevels::Unavailable && view.fighters.size() == 1 && view.fighters[0].points == 0,
+        "a read that failed with nothing before it is not unavailable with the main at 0");
     Own own;
     own.kind = Own::Kind::NoAccount;
     answer = {}; answer.value = own; answer.loaded = true;
     ui::player_card::Fill(view, answer, 0);
     Check(view.levels == ui::CardLevels::NoAccount && std::string(ui::player_card::NoLevelWords(view)) == "level.no_account", "no account is not said");
+    Check(view.fighters.size() == 1 && view.fighters[0].fighter == 0 && view.fighters[0].points == 0, "a card without an account does not show the main at 0");
     own.kind = Own::Kind::Unavailable;
     answer.value = own;
     ui::player_card::Fill(view, answer, 0);
@@ -113,6 +120,7 @@ void States() {
     // Counted with nothing played says so; with something played it says nothing.
     ui::player_card::Fill(view, Counted(Own{}), 0);
     Check(std::string(ui::player_card::NoLevelWords(view)) == "level.none" && view.progress.points == 0, "nothing played yet is not said");
+    Check(view.fighters.size() == 1 && view.fighters[0].fighter == 0 && view.fighters[0].points == 0, "a card with nothing played does not show the main at 0");
     Own played;
     Play(played, 0, 2, 1, 0, 200);
     ui::player_card::Fill(view, Counted(played), 0);
@@ -132,7 +140,7 @@ void Distances() {
     level.next = 0;
     Check(Part(level) == 1.f, "the top tier has a way to go");
     level = {};
-    Check(Part(level) == 1.f, "an unplayed fighter has a way to go");
+    Check(Part(level) == 0.f, "an unplayed fighter's meter is not empty");
     level.points = 700; level.tier = 2; level.floor = 700; level.next = 700;
     Check(Part(level) == 1.f, "points at the next tier's start are not the whole way");
 }

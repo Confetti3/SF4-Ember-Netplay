@@ -188,12 +188,16 @@ std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string&
                 auto row = InfoRow(UnplayedRow, loc::Tf("fighters.unplayed", unplayed), {}, {});
                 rows.push_back(std::move(row));
             }
-        } else {
-            for (const auto& fighter : card.fighters) {
-                auto row = Row(CardFighterRow(fighter.fighter), selection::FindFighter(fighter.fighter)->name, FighterDetail(own.fighters[fighter.fighter]));
-                row.hint = loc::T("profile.tab.fighters");
-                rows.push_back(std::move(row));
-            }
+        }
+    }
+    // The card's strip shows the main in every state, at 0 points when there are none.
+    if (!fighters) {
+        const player_card::FighterLevel none{};
+        for (const auto& fighter : card.fighters) {
+            auto row = Row(CardFighterRow(fighter.fighter), selection::FindFighter(fighter.fighter)->name,
+                FighterDetail(card.levels == CardLevels::Counted ? own.fighters[fighter.fighter] : none));
+            row.hint = loc::T("profile.tab.fighters");
+            rows.push_back(std::move(row));
         }
     }
     if (const char* words = player_card::NoLevelWords(card)) {

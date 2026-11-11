@@ -21,6 +21,8 @@ std::vector<int> PlayedFighters(const Own& own) {
 }
 
 float Part(const FighterLevel& level) {
+    // A fighter with no points has no tier from the bridge yet: an empty meter, not the top.
+    if (!level.points && !level.next) return 0.f;
     if (!level.next || level.next <= level.floor) return 1.f;
     const std::uint64_t done = (std::max)(level.points, level.floor) - level.floor;
     return (std::min)(1.f, static_cast<float>(done) / static_cast<float>(level.next - level.floor));
@@ -30,17 +32,22 @@ void Fill(PlayerCardView& view, const netplay::Answered<Own>& answer, int main) 
     view.fighters.clear();
     view.progress = {};
     view.facts = {};
+    const bool hasMain = main >= 0 && main < static_cast<int>(Own{}.fighters.size());
+    // Whatever the answer, the card shows the main, at 0 points when there are none.
     if (!answer.loaded) {
-        // A read that failed with nothing before it has nothing to show.
+        // A read that failed with nothing before it has no points to show.
         view.levels = answer.loading || answer.error.empty() ? CardLevels::Pending : CardLevels::Unavailable;
+        if (hasMain) view.fighters.push_back({main, 0, 0, 0});
         return;
     }
     const Own& own = answer.value;
     view.levels = own.kind == Own::Kind::NoAccount ? CardLevels::NoAccount : own.kind == Own::Kind::Counted ? CardLevels::Counted : CardLevels::Unavailable;
-    if (view.levels != CardLevels::Counted) return;
+    if (view.levels != CardLevels::Counted) {
+        if (hasMain) view.fighters.push_back({main, 0, 0, 0});
+        return;
+    }
     view.levelsShown = own.shown;
     const auto add = [&](int fighter) { view.fighters.push_back({fighter, own.fighters[fighter].points, own.fighters[fighter].tier, own.fighters[fighter].games}); };
-    const bool hasMain = main >= 0 && main < static_cast<int>(own.fighters.size());
     if (hasMain) add(main);
     for (const int fighter : PlayedFighters(own)) {
         if (view.fighters.size() >= 3) break;
@@ -75,7 +82,8 @@ const char* NoLevelWords(const PlayerCardView& card) {
 namespace {
 // The points plate and the class plate across the hero's foot (PLAYER_CARD.md,
 // Card tab): the main's points with its name and games at the left, the class
-// emblem at the right. Without points the plate's place says why.
+// emblem at the right. A main without points shows 0; why it has none is said
+// under the card's facts.
 void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int main) {
     const auto& c = v2::Colors();
     const float s = Scale(), pad = 12 * s, plate = foot.H() - 2 * pad;
@@ -91,15 +99,14 @@ void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int mai
     const float left = foot.min.x + pad, room = right - left;
     const auto* fighter = main >= 0 ? selection::FindFighter(main) : nullptr;
     const bool leads = !card.fighters.empty() && card.fighters.front().fighter == main;
-    if (card.levels == CardLevels::Counted && leads && card.fighters.front().points && fighter) {
-        const auto& lead = card.fighters.front();
-        const float width = v2::Level(d, ImVec2(left, foot.min.y + pad), plate, lead.points, lead.tier), x = left + width + pad, text = (std::max)(0.f, room - width - pad);
+    const std::uint64_t points = leads ? card.fighters.front().points : 0, games = leads ? card.fighters.front().games : 0;
+    const float width = v2::Level(d, ImVec2(left, foot.min.y + pad), plate, points, leads ? card.fighters.front().tier : 0), x = left + width + pad,
+                text = (std::max)(0.f, room - width - pad);
+    if (fighter) {
         v2::Text(d, ImVec2(x, foot.min.y + pad + 4 * s), text, fighter->name, 18 * s, c.text, HeadingFont());
-        v2::Text(d, ImVec2(x, foot.min.y + pad + 30 * s), text, player_card::GamesWords(lead.games), 14 * s, c.muted);
-    } else if (const char* why = player_card::NoLevelWords(card)) {
-        v2::Paragraph(d, ImVec2(left, foot.min.y + pad), room, loc::T(why), 14 * s, c.text);
-    } else if (fighter) {
-        v2::Text(d, ImVec2(left, foot.min.y + pad + 4 * s), room, fighter->name, 18 * s, c.text, HeadingFont());
+        v2::Text(d, ImVec2(x, foot.min.y + pad + 30 * s), text, player_card::GamesWords(games), 14 * s, c.muted);
+    } else {
+        v2::Paragraph(d, ImVec2(x, foot.min.y + pad), text, loc::T("profile.choose_main_detail"), 14 * s, c.muted);
     }
 }
 
@@ -113,7 +120,7 @@ void DrawStripTile(ImDrawList* d, v2::Box box, const CardFighter& fighter, Fight
     v2::LevelBand(d, tile, fighter.points, fighter.tier);
     const float y = tile.max.y + 6 * s;
     v2::Text(d, ImVec2(box.min.x + pad, y), side, selection::FindFighter(fighter.fighter)->name, 14 * s, c.text, HeadingFont());
-    if (fighter.games) v2::Text(d, ImVec2(box.min.x + pad, y + 20 * s), side, player_card::GamesWords(fighter.games), 12 * s, c.muted);
+    v2::Text(d, ImVec2(box.min.x + pad, y + 20 * s), side, player_card::GamesWords(fighter.games), 12 * s, c.muted);
     if (focused) v2::Focus(d, box.min, box.max);
 }
 }
@@ -165,23 +172,27 @@ float DrawCardTab(const ShellView& v, int main, const PlayerCardView& card, cons
     if (!card.profile.about.empty()) { v2::Text(d, ImVec2(x, y), room, card.profile.about, 14 * s, c.muted); y += 24 * s; }
     y += 8 * s;
     const bool counted = card.levels == CardLevels::Counted;
-    // The main's meter: "1986 points" and the points to the next tier, or the top frame.
-    if (counted && card.progress.points && main >= 0) {
-        const auto& own = v.levels.value.fighters[main];
-        v2::Text(d, ImVec2(x, y), room, loc::Tf("level.value", card.progress.points), 20 * s, c.text, HeadingFont());
+    // The main's meter: "1986 points" and the points to the next tier, or the
+    // top frame. A main without points has an empty meter and 0 points.
+    if (main >= 0) {
+        const player_card::FighterLevel none{};
+        const auto& own = counted ? v.levels.value.fighters[main] : none;
+        v2::Text(d, ImVec2(x, y), room, loc::Tf("level.value", own.points), 20 * s, c.text, HeadingFont());
         y += 30 * s;
         v2::Meter(d, {ImVec2(x, y), ImVec2(x + room, y + 10 * s)}, player_card::Part(own), 0.f);
         y += 20 * s;
-        y += v2::Paragraph(d, ImVec2(x, y), room, own.next ? loc::Tf("level.points_to", own.next - own.points, v2::TierName(v2::FrameTier(card.progress.tier + 1))) : std::string(loc::T("level.top")), 14 * s, c.muted) + 10 * s;
+        if (own.next) y += v2::Paragraph(d, ImVec2(x, y), room, loc::Tf("level.points_to", own.next - own.points, v2::TierName(v2::FrameTier(own.tier + 1))), 14 * s, c.muted) + 10 * s;
+        else if (own.points) y += v2::Paragraph(d, ImVec2(x, y), room, loc::T("level.top"), 14 * s, c.muted) + 10 * s;
+        else y += 4 * s;
     }
-    // The facts, and why others see no points when they do not.
-    if (counted) {
-        const std::vector<v2::TagView::Fact> facts{{loc::T("card.counted_games"), std::to_string(card.facts.games)},
-            {loc::T("card.win_rate"), std::to_string(card.facts.winPercent) + "%"},
-            {loc::T("card.fighters_played"), loc::Tf("card.of", card.facts.fightersPlayed, static_cast<int>(v.levels.value.fighters.size()))}};
-        y += v2::FactCells(d, ImVec2(x, y), room, facts, room < 520 * s ? 2 : 3) + 14 * s;
-        if (!card.levelsShown) y += v2::Paragraph(d, ImVec2(x, y), room, loc::T("level.hidden"), 14 * s, c.muted) + 14 * s;
-    }
+    // The facts, 0 until there are points; why there are none; and why others
+    // see no points when they do not.
+    const std::vector<v2::TagView::Fact> facts{{loc::T("card.counted_games"), std::to_string(card.facts.games)},
+        {loc::T("card.win_rate"), std::to_string(card.facts.winPercent) + "%"},
+        {loc::T("card.fighters_played"), loc::Tf("card.of", card.facts.fightersPlayed, static_cast<int>(v.levels.value.fighters.size()))}};
+    y += v2::FactCells(d, ImVec2(x, y), room, facts, room < 520 * s ? 2 : 3) + 14 * s;
+    if (const char* why = player_card::NoLevelWords(card)) y += v2::Paragraph(d, ImVec2(x, y), room, loc::T(why), 14 * s, c.muted) + 14 * s;
+    if (counted && !card.levelsShown) y += v2::Paragraph(d, ImVec2(x, y), room, loc::T("level.hidden"), 14 * s, c.muted) + 14 * s;
     // The strip: the main and the two highest others, each a row whose Select opens the Fighters tab.
     const float between = 12 * s, tile = (std::min)(150 * s, (room - 2 * between) / 3), tileHeight = tile + 56 * s;
     int shown = 0;
