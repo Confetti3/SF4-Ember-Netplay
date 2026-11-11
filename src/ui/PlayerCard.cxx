@@ -183,8 +183,7 @@ float DrawCardTab(const ShellView& v, int main, const PlayerCardView& card, cons
         y += 30 * s;
         v2::Meter(d, {ImVec2(x, y), ImVec2(x + room, y + 10 * s)}, player_card::Part(own), 0.f);
         y += 20 * s;
-        v2::Text(d, ImVec2(x, y), room, own.next ? loc::Tf("level.games_away", card.progress.level + 1, player_card::GamesAway(own)) : std::string(loc::T("level.top")), 14 * s, c.muted);
-        y += 30 * s;
+        y += v2::Paragraph(d, ImVec2(x, y), room, own.next ? loc::Tf("level.games_away", card.progress.level + 1, player_card::GamesAway(own)) : std::string(loc::T("level.top")), 14 * s, c.muted) + 10 * s;
     }
     // The facts, and why others see no levels when they do not.
     if (counted) {

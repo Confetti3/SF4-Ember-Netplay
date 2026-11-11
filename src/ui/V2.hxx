@@ -264,7 +264,10 @@ struct TagView {
 };
 // Facts as cells across `width`, `across` to a line (at least one), each line
 // 52 px: the key muted over the value, a rule over each line and between
-// cells (the L tag's, the Card tab's). Returns the height it took.
+// cells (the L tag's, the Card tab's). A key too wide for its cell wraps onto
+// a second line (Heading) and every line grows by it. Returns the height it
+// took, which FactCellsHeight gives without drawing.
+float FactCellsHeight(float width, const std::vector<TagView::Fact>& facts, std::size_t across);
 float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across);
 // Draws at `at` within `width`; returns the height it took.
 float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize size);

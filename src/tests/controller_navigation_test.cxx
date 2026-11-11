@@ -385,8 +385,12 @@ void PreferencesRevisionCounts(){
  // The throttle publishes a fight again when the revision moved, and not before.
  sf4e::netplay::PublishCadence cadence;unsigned publications=0;
  const auto due=[&]{if(cadence.Due(false,[&]{return settings.Revision();}))++publications;};
- due();due();settings.Edit().size=3;due();due();
- Check(publications==1,"A preferences edit was not published, or an unchanged revision was");
+ // A cadence starts from revision 0 and these cells are past it, so the first
+ // tick publishes what the edits above made; the ticks after it do not.
+ due();due();
+ Check(publications==1,"The edits made before the first tick were not published once");
+ settings.Edit().size=3;due();due();
+ Check(publications==2,"A preferences edit was not published, or an unchanged revision was");
 }
 // The menu opens by itself for each reason once per event, and an event that
 // is not ready waits for the moment it is.

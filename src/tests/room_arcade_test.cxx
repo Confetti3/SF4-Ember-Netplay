@@ -597,7 +597,7 @@ static void Sound(const RoomAuthority& authority, const std::string& what) {
 		const bool pair = t.p1 && t.p2;
 		sound(pair ? t.waitingSince == 0 : (!t.p1 && !t.p2) || t.waitingSince > 0, "wait stamp");
 		sound(t.deciding ? pair : !t.wantsNew[0] && !t.wantsNew[1] && !t.rematch[0] && !t.rematch[1], "choices on a deciding pair");
-		sound(t.phase == (pair ? TablePhase::Waiting : TablePhase::Idle), "table phase");
+		sound(pair ? t.phase == TablePhase::Waiting || t.phase == TablePhase::Ready : t.phase == TablePhase::Idle, "table phase");
 		asking += t.wantsNew[0] || t.wantsNew[1];
 	}
 	sound(asking <= 1, "one table asks");

@@ -282,7 +282,8 @@ void ReplayJourneys() {
     Check(false,"A replay row's choice was not listed");return MenuChoice{};};
    h.view.replays.link.clear();List(h,{Listed("C:\\r\\c.emberreplay","2026-10-06 21:40")});h.Screen("replays");
    Check(choice("watch").enabled&&choice("watch").detail==loc::T("replays.watch_detail"),"Watch now was not offered at the main menu");
-   h.view.session.room=netplay::RoomState::Joined;h.Frame();
+   // Joining a room takes the menu to the room, so Replays is opened again over it.
+   h.view.session.room=netplay::RoomState::Joined;h.Frame();h.shell.Navigation().Push("replays");h.Frame();
    Check(!choice("watch").enabled&&choice("watch").detail==loc::T("replays.open_log_room"),"Watch now in a room did not say to leave it");
    Check(!choice("export").enabled&&choice("export").detail==loc::T("replays.open_log_room")&&choice("add").enabled&&choice("inputs").enabled,"A room left a choice without its reason, or greyed one that works there");
    h.view.session.room=netplay::RoomState::Idle;h.view.replays.ready=false;h.Frame();

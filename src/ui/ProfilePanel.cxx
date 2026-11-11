@@ -9,6 +9,7 @@
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
+#include <cfloat>
 
 namespace sf4e { namespace ui {
 namespace {
@@ -56,21 +57,27 @@ float DrawFighterPanel(ImDrawList* d, v2::Box box, int fighter, const netplay::l
     const float tx = tile.max.x + pad, tw = room - picture - pad;
     v2::Text(d, ImVec2(tx, y), tw, loc::Tf("level.value", static_cast<int>(level.level)), 22 * s, c.text, HeadingFont());
     v2::Meter(d, {ImVec2(tx, y + 38 * s), ImVec2(tx + tw, y + 48 * s)}, player_card::Part(level), 0.f);
-    v2::Text(d, ImVec2(tx, y + 58 * s), tw,
+    // The way to the next level wraps rather than shortens, and the facts go under it when it is longer than the picture.
+    const float away = v2::Paragraph(d, ImVec2(tx, y + 58 * s), tw,
         level.next ? loc::Tf("level.games_away", static_cast<int>(level.level) + 1, player_card::GamesAway(level)) : std::string(loc::T("level.top")), 14 * s, c.muted);
-    y += picture + pad;
+    y += (std::max)(picture, 58 * s + away) + pad;
     const std::vector<v2::TagView::Fact> facts{{loc::T("card.counted_games"), std::to_string(level.games)}, {loc::T("fighters.won"), std::to_string(level.wins)},
         {loc::T("fighters.since"), level.since ? LocalTime(level.since, "%Y-%m-%d") : std::string("-")}};
     y += v2::FactCells(d, ImVec2(x, y), room, facts, 3) + pad;
     v2::SectionHeading(d, ImVec2(x, y), loc::T("fighters.how"));
     y += 22 * s;
     y += v2::Paragraph(d, ImVec2(x, y), room, loc::T("fighters.how_detail"), 14 * s, c.muted) + 12 * s;
-    // The five frames, each tier's first level.
+    // The five frames, each tier's first level, under its tier's name. A place is as wide as its frame or its name
+    // needs, at least 56 px, and the frames go on to a new line when the next does not fit.
     float fx = x;
     for (const int first : {1, 13, 25, 37, 49}) {
-        const float width = v2::Level(d, ImVec2(fx, y), 34 * s, first);
-        v2::Text(d, ImVec2(fx, y + 38 * s), (std::max)(width, 56 * s), v2::TierName(v2::LevelTier(first)), 11 * s, c.muted);
-        fx += (std::max)(width, 56 * s) + 8 * s;
+        const std::string name = v2::TierName(v2::LevelTier(first));
+        const float named = ImGui::GetFont()->CalcTextSizeA(11 * s, FLT_MAX, 0, name.c_str()).x;
+        const float place = (std::max)({v2::LevelWidth(first, 34 * s), named, 56 * s});
+        if (fx > x && fx + place > x + room) { fx = x; y += 58 * s; }
+        v2::Level(d, ImVec2(fx, y), 34 * s, first);
+        v2::Text(d, ImVec2(fx, y + 38 * s), place, name, 11 * s, c.muted);
+        fx += place + 8 * s;
     }
     y += 58 * s;
     if (!own.shown) y += v2::Paragraph(d, ImVec2(x, y), room, loc::T("level.hidden"), 14 * s, c.muted) + pad;
