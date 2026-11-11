@@ -18,8 +18,16 @@ constexpr const char* FighterRowPrefix = "main-";  // Select on a fighter makes 
 constexpr const char* UnplayedRow = "fighters-unplayed";
 
 
-std::string FighterDetail(const netplay::levels::Level& level) {
-    return loc::Tf("level.value", level.points) + " \xC2\xB7 " + player_card::GamesWords(level.games);
+std::string FighterDetail(std::uint64_t points, std::uint64_t games) {
+    return loc::Tf("level.value", points) + " \xC2\xB7 " + player_card::GamesWords(games);
+}
+
+// Connect Discord, the way to points a player without an account has.
+MenuEntry ConnectDiscordRow() {
+    auto connect = Row(DiscordConnectScreen, loc::T("screen.connect_discord"), loc::T("rankings.connect_detail"));
+    connect.value = loc::T("identity.discord_none");
+    connect.hint = loc::T("screen.connect_discord");
+    return connect;
 }
 
 // A fighter's row on the Fighters board: its picture with the points on it,
@@ -145,11 +153,13 @@ float DrawFightersTab(const ShellView& v, int main, const PlayerCardView& card, 
 
 void ProfilePanel::Dress(GameMenu& menu, const std::string& screen, const std::string& name) {
     menu.eyebrow = name.empty() ? std::string(loc::T("home.profile")) : loc::Tf("profile.eyebrow", name);
-    // Friends (FRIENDS.md) goes between Fighters and Titles once the view offers friends.
+    const int requests = MenuPlayerCard().requests;
     menu.tabs = {{CardScreen, loc::T("profile.tab.card")}, {FightersScreen, loc::T("profile.tab.fighters")},
-        {"awards", loc::T("awards.titles")}, {"awards-icons", loc::T("awards.icons")}};
+        {FriendsScreen, requests ? loc::Tf("friends.tab_count", requests) : std::string(loc::T("profile.tab.friends"))}, {"awards", loc::T("screen.awards")}};
+    // The awards wall's Icons page is the Awards tab too until the two merge.
+    const std::string shown = screen == "awards-icons" ? "awards" : screen;
     for (std::size_t i = 0; i < menu.tabs.size(); ++i)
-        if (menu.tabs[i].first == screen) menu.tab = static_cast<int>(i);
+        if (menu.tabs[i].first == shown) menu.tab = static_cast<int>(i);
 }
 
 void ProfilePanel::Update(const ShellView& v, const std::string& screen, const std::string& bridge, const Submit& submit) {
@@ -170,52 +180,58 @@ void ProfilePanel::Update(const ShellView& v, const std::string& screen, const s
 void ProfilePanel::Conceal() { visiting_ = want_ = false; }
 
 std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string& screen, const PlayerCardView& card, bool editable, std::string& title) const {
+    // Friends waits for its own panel: a line that says so.
+    if (screen == FriendsScreen) {
+        title = loc::T("profile.tab.friends");
+        return {InfoRow("friends-coming", loc::T("friends.coming"), {}, {})};
+    }
     const bool fighters = screen == FightersScreen;
     title = loc::T(fighters ? "profile.tab.fighters" : "profile.tab.card");
     std::vector<MenuEntry> rows;
     const auto& own = v.levels.value;
-    if (card.levels == CardLevels::Counted) {
-        if (fighters) {
+    if (fighters) {
+        if (card.levels == CardLevels::Counted) {
             for (const int fighter : player_card::PlayedFighters(own)) {
                 auto row = Row(FighterRowPrefix + std::to_string(fighter), selection::FindFighter(fighter)->name,
-                    FighterDetail(own.fighters[fighter]) + "\n" + loc::T(editable ? "profile.choose_main_detail" : "profile.leave_room_to_edit"), editable);
+                    FighterDetail(own.fighters[fighter].points, own.fighters[fighter].games) + "\n" + loc::T(editable ? "profile.choose_main_detail" : "profile.leave_room_to_edit"), editable);
                 row.hint = loc::T("menu.hint.save_main");
                 rows.push_back(std::move(row));
             }
             const int unplayed = static_cast<int>(own.fighters.size()) - card.facts.fightersPlayed;
-            if (card.facts.fightersPlayed && unplayed > 0) {
-                auto row = InfoRow(UnplayedRow, loc::Tf("fighters.unplayed", unplayed), {}, {});
-                rows.push_back(std::move(row));
-            }
+            if (card.facts.fightersPlayed && unplayed > 0) rows.push_back(InfoRow(UnplayedRow, loc::Tf("fighters.unplayed", unplayed), {}, {}));
         }
-    }
-    // The card's strip shows the main in every state, at 0 points when there are none.
-    if (!fighters) {
-        const player_card::Level none{};
-        for (const auto& fighter : card.fighters) {
-            auto row = Row(CardFighterRow(fighter.fighter), selection::FindFighter(fighter.fighter)->name,
-                FighterDetail(card.levels == CardLevels::Counted ? own.fighters[fighter.fighter] : none));
-            row.hint = loc::T("profile.tab.fighters");
-            rows.push_back(std::move(row));
+        if (const char* words = player_card::NoLevelWords(card)) {
+            // Without an account the way to one is a row; the other states are only words.
+            if (card.levels == CardLevels::NoAccount) rows.push_back(ConnectDiscordRow());
+            rows.insert(rows.begin(), InfoRow(ProfileStateRow, loc::T(words), {}, {}));
         }
+        return rows;
     }
-    if (const char* words = player_card::NoLevelWords(card)) {
-        // Without an account the way to one is a row; the other states are only words.
-        if (card.levels == CardLevels::NoAccount) {
-            auto connect = Row(DiscordConnectScreen, loc::T("screen.connect_discord"), loc::T("rankings.connect_detail"));
-            connect.value = loc::T("identity.discord_none"); connect.hint = loc::T("screen.connect_discord");
-            rows.push_back(std::move(connect));
-        }
-        rows.insert(rows.begin(), InfoRow(ProfileStateRow, loc::T(words), {}, {}));
+    // The Card tab's rows: the way to choose a main when there is none, the
+    // strip's tiles (the main at 0 points in every state without points),
+    // Edit card, and Connect Discord when there is no account.
+    if (card.mainFighter < 0) {
+        auto choose = Row(ChooseMainRow, loc::T("card.choose_main"), loc::T("profile.choose_main_detail"));
+        choose.hint = loc::T("card.choose_main");
+        rows.push_back(std::move(choose));
     }
+    for (const auto& fighter : card.fighters) {
+        auto row = Row(CardFighterRow(fighter.fighter), selection::FindFighter(fighter.fighter)->name, FighterDetail(fighter.points, fighter.games));
+        row.hint = loc::T("profile.tab.fighters");
+        rows.push_back(std::move(row));
+    }
+    auto edit = Row(CardEditRow, loc::T("card.edit"), loc::T("card.edit_detail"));
+    edit.hint = loc::T("card.edit");
+    rows.push_back(std::move(edit));
+    if (card.levels == CardLevels::NoAccount) rows.push_back(ConnectDiscordRow());
     return rows;
 }
 
-void ProfilePanel::Draw(const ShellView& v, int main, const std::string& screen, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action) {
+void ProfilePanel::Draw(const ShellView& v, int main, const std::string& screen, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height) {
     const bool changed = nav.Focus() != focus_;
     focus_ = nav.Focus();
     const auto& card = MenuPlayerCard();
     if (screen == FightersScreen) DrawFightersTab(v, main, card, rows, nav, action, changed);
-    else DrawCardTab(v, main, card, rows, nav, action, changed);
+    else DrawCardTab(v, card, rows, nav, action, changed, height);
 }
 } }

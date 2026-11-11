@@ -240,6 +240,11 @@ Tier FrameTier(int tier);
 // whole line, for a number still being read.
 float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, const char* labelId, float alpha = 1.f);
 float LevelWidth(std::uint64_t points, float height, const char* labelId);
+// Two lines stacked, `<fighter> FP` over `<account> BP`, each `height` tall
+// with `gap` between, the numbers right-aligned to the wider so the labels
+// line up (how SF4 stacks them under a name). Returns the height, which is
+// 2 * height + gap.
+float LevelLines(ImDrawList* draw, ImVec2 at, float height, float gap, std::uint64_t fighter, std::uint64_t account, float alpha = 1.f);
 // A gain ("+16") `height` tall at `at` on no ground, in the game's gold digits
 // with a plus in the heading font. Returns its width; nothing for 0.
 float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain);
@@ -273,6 +278,8 @@ struct TagView {
     Tier tier = Tier::None;
     int icon = -1;
     std::string about;
+    // L only, the player's own card: the main's points over the account's, under the about line.
+    struct Points { bool shown = false; std::uint64_t fighter = 0, account = 0; } points;
     struct Fact { std::string key, value; };
     std::vector<Fact> facts;
 };

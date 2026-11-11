@@ -148,6 +148,13 @@ float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, con
     return line.width;
 }
 
+float LevelLines(ImDrawList* draw, ImVec2 at, float height, float gap, std::uint64_t fighter, std::uint64_t account, float alpha) {
+    const float a = LevelWidth(fighter, height, "points.label"), b = LevelWidth(account, height, "points.account_label"), wide = (std::max)(a, b);
+    Level(draw, ImVec2(at.x + wide - a, at.y), height, fighter, "points.label", alpha);
+    Level(draw, ImVec2(at.x + wide - b, at.y + height + gap), height, account, "points.account_label", alpha);
+    return 2 * height + gap;
+}
+
 float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain) {
     if (gain == 0) return 0;
     // The sheet has no plus: it is drawn in the heading font, in the digits' gold.

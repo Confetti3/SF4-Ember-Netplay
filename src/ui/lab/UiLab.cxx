@@ -8,7 +8,8 @@
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
-// --profile played|fresh|sixty|noaccount|unavailable|loading: the player's levels (--screen card or fighters)
+// --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's levels (--screen card, fighters,
+//   card-edit or home)
 // --levels: fighter points in the game's digits, bands on pictures and meters
 //   (all of it shows in --size 3840x2160)
 // --points public|private with --room or --arcade: every member's card as the bridge would have it, in a public room
@@ -327,19 +328,32 @@ void Rankings(ui::ShellView& view) {
         board->push_back({{std::get<0>(p), CountryCode::Parsed(std::get<1>(p))}, static_cast<std::uint8_t>(std::get<2>(p)), std::string(std::get<0>(p)) == "FRaccie"});
     r.board.value = board; r.board.loaded = true; r.board.revision = r.board.finished = 1;
 }
-// --profile played|fresh|sixty|noaccount|unavailable|loading: the player's
+// --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's
 // points as the card and the Fighters tab show them (--screen card or fighters).
 // played: twelve fighters, the main (Ryu) at 1986 points; fresh: counted, none played yet;
-// sixty: the main in the top tier (the name is kept from the levels).
+// sixty: the main in the top tier (the name is kept from the levels); loading: the first
+// read in flight; unreachable: the first read failed.
 void Profile(ui::ShellView& view, const std::string& state) {
+    view.preferences.displayName = "Player 1";
     auto& answer = view.levels;
     answer.loading = state == "loading";
-    answer.loaded = !answer.loading;
+    answer.loaded = !answer.loading && state != "unreachable";
+    if (state == "unreachable") answer.error = "bridge_unreachable";
     answer.revision = answer.finished = 1;
     if (!answer.loaded) return;
     auto& own = answer.value;
     own.kind = state == "noaccount" ? netplay::levels::Own::Kind::NoAccount : state == "unavailable" ? netplay::levels::Own::Kind::Unavailable : netplay::levels::Own::Kind::Counted;
-    if (own.kind != netplay::levels::Own::Kind::Counted || state == "fresh") return;
+    if (own.kind != netplay::levels::Own::Kind::Counted) return;
+    // The account's frame from its points, on its own tiers (500, 2000, 5000, 10000).
+    const auto accountFrame = [&] {
+        constexpr std::uint64_t accountStarts[netplay::levels::TierCount] = {0, 500, 2000, 5000, 10000};
+        auto& a = own.account;
+        a.tier = 0;
+        while (a.tier + 1 < netplay::levels::TierCount && a.points >= accountStarts[a.tier + 1]) ++a.tier;
+        a.floor = accountStarts[a.tier];
+        a.next = a.tier + 1 < netplay::levels::TierCount ? accountStarts[a.tier + 1] : 0;
+    };
+    if (state == "fresh") { accountFrame(); return; }
     // The lab stands in for the bridge, which decides tiers: Ash from 0, Copper from 200, Silver from 700, Gold
     // from 1500, Ember from 2500. A point is a game, and a win another.
     constexpr std::uint64_t starts[netplay::levels::TierCount] = {0, 200, 700, 1500, 2500};
@@ -357,13 +371,14 @@ void Profile(ui::ShellView& view, const std::string& state) {
     set(0, state == "sixty" ? 12840 : 1986);
     const std::uint64_t others[][2] = {{5, 3480}, {12, 860}, {7, 412}, {20, 230}, {3, 86}, {30, 41}, {40, 19}, {17, 7}, {9, 3}, {26, 2}, {33, 1}};
     for (const auto& pair : others) set(static_cast<int>(pair[0]), pair[1]);
-    // The account's points are every game of every fighter, on its own tiers (500, 2000, 5000, 10000).
+    // The account's points are every game of every fighter.
     for (const auto& level : own.fighters) {
         own.account.points += level.points;
         own.account.games += level.games;
         own.account.wins += level.wins;
     }
     own.account.since = 1700000000;
+    accountFrame();
 }
 // --levels: points as the game draws them (FIGHTER_LEVELS.md, Drawing points), wrapping across the window: the
 // numbers 0, 7, 86, 412, 1986 and 12840 and 999999 as `<number> FP` and `<number> BP` at 24, 48 and 96 px (the digits'

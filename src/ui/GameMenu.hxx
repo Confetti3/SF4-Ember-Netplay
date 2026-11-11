@@ -9,6 +9,7 @@
 #include "MenuSpeech.hxx"
 #include "FighterArt.hxx"
 #include "../common/Country.hxx"
+#include "../netplay/Levels.hxx"
 #include <functional>
 #include <optional>
 #include <imgui.h>
@@ -37,14 +38,14 @@ enum class CardLevels {
     Pending,
     // No Discord account is connected, or the service does not count points.
     NoAccount, Unavailable,
+    // The read failed and there is nothing from before: the points show when the service answers.
+    Unreachable,
     // Counted: `fighters` and the rest are filled.
     Counted,
 };
 // One fighter of the card's strip: its points (0 for not played), the frame tier
 // the bridge gave them and counted games.
 struct CardFighter { int fighter = -1; std::uint64_t points = 0; int tier = 0; std::uint64_t games = 0; };
-// The main's way to its next tier: points, tier, and the points where the next tier begins; next is 0 at the top.
-struct CardProgress { std::uint64_t points = 0; int tier = 0; std::uint64_t next = 0; };
 struct CardFacts { std::uint64_t games = 0; int winPercent = 0, fightersPlayed = 0; };
 struct PlayerCardView {
     std::string name;
@@ -52,13 +53,17 @@ struct PlayerCardView {
     CountryCode country;
     // The card as the L tag draws it (title, icon, facts).
     v2::TagView profile;
-    // The player's own points: the main, then the two highest others played.
     CardLevels levels = CardLevels::Pending;
-    // The account's points (BP): 0 until a game is counted.
-    std::uint64_t account = 0;
+    // The main (-1 for none) with its counts, and the account's (BP): what the
+    // Card tab's points lines, meters and words read. All 0 until a game is
+    // counted, and in every state but Counted.
+    int mainFighter = -1;
+    netplay::levels::Level main, account;
+    // The strip: the main, then the two highest others played.
     std::vector<CardFighter> fighters;
-    CardProgress progress;
     CardFacts facts;
+    // Friend requests waiting: the Friends tab's count and Home's Profile row.
+    int requests = 0;
 };
 void SetMenuPlayerCard(PlayerCardView view);
 const PlayerCardView& MenuPlayerCard();
