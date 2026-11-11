@@ -78,7 +78,7 @@ fn ordered<'a>(one: &'a str, other: &'a str) -> (&'a str, &'a str) {
 }
 
 /// A new friend code: 40 random bits as eight Crockford symbols.
-fn new_code() -> String {
+fn random_code() -> String {
     let mut bytes = [0u8; 8];
     bytes[..5].copy_from_slice(&random::<5>());
     let bits = u64::from_le_bytes(bytes);
@@ -91,7 +91,7 @@ fn new_code() -> String {
 /// A code no account holds.
 fn free_code(tx: &Transaction<'_>) -> Result<String> {
     loop {
-        let code = new_code();
+        let code = random_code();
         let taken: bool = tx.query_row(
             "SELECT EXISTS (SELECT 1 FROM social_accounts WHERE code = ?1)",
             [&code],
@@ -723,9 +723,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_new_code_is_a_friend_code_and_reads_back_as_itself() {
+    fn a_random_code_is_a_friend_code_and_reads_back_as_itself() {
         for _ in 0..1_000 {
-            let code = new_code();
+            let code = random_code();
             assert!(is_friend_code(&code), "{code}");
             assert_eq!(parse_friend_code(&code.to_lowercase()), Some(code));
         }
