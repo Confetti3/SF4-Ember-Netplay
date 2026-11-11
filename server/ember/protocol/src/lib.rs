@@ -3,7 +3,7 @@
 //! Everything here is pure and platform independent: identifier derivation,
 //! strict JSON and RFC 8785 canonical bytes, signature domains, the signed
 //! challenge and report objects, the generic match objects, tournament play
-//! (claims, room bindings and game permits), public room tickets, CloudEvents and
+//! (claims, room bindings and game permits), public room tickets, fighter levels and friends, CloudEvents and
 //! Standard Webhooks. Key storage, HTTP and databases live in the crates that
 //! use this one.
 pub mod api;
@@ -15,8 +15,10 @@ pub mod encoding;
 mod error;
 pub mod event;
 pub mod facts;
+pub mod friends;
 pub mod id;
 pub mod json;
+pub mod levels;
 pub mod lobby;
 pub mod matches;
 pub mod partner;

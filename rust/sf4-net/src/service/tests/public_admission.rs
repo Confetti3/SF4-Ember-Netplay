@@ -26,6 +26,7 @@ fn ticket_at(
         issued_at,
         expires_at: issued_at + TICKET_SECS,
         badge: None,
+        card: None,
     }
     .sign(&identity(9), "k1")
     .unwrap()

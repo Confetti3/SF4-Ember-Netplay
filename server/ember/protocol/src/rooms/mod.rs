@@ -297,6 +297,12 @@ pub struct TicketRequest {
     /// offers ranking, since an older one refuses the field.
     #[serde(default, skip_serializing_if = "is_false")]
     pub developer_badge: bool,
+    /// The joiner's build shows other players' cards and wants a card token
+    /// in the ticket (`RoomTicket::card`, `docs/design/FIGHTER_LEVELS.md`). A
+    /// build sends it only to a bridge that lists `levels`, since an older
+    /// one refuses the field.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub card: bool,
 }
 
 impl TicketRequest {
@@ -363,6 +369,7 @@ mod tests {
             issued_at: 1000,
             expires_at: 1000 + TICKET_SECS,
             badge: None,
+            card: None,
         }
     }
 
@@ -475,6 +482,7 @@ mod tests {
             build_id: "build".into(),
             skill_badge: false,
             developer_badge: false,
+            card: false,
         };
         assert!(request.check().is_ok());
         let bad = TicketRequest {
@@ -698,6 +706,69 @@ te"
         let mut empty = admission;
         empty.invitation.clear();
         assert!(empty.check().is_err());
+    }
+
+    /// The serialization of a request and a ticket as they were before the
+    /// card token: the literals below are what the base commit wrote.
+    #[test]
+    fn a_request_and_a_ticket_without_a_card_are_what_they_were() {
+        let endpoint = "c".repeat(64);
+        let request = TicketRequest {
+            endpoint_id: endpoint.clone(),
+            build_id: "build".into(),
+            skill_badge: false,
+            developer_badge: false,
+            card: false,
+        };
+        assert_eq!(
+            serde_json::to_string(&request).unwrap(),
+            format!(r#"{{"endpoint_id":"{endpoint}","build_id":"build"}}"#)
+        );
+        let asked = TicketRequest {
+            skill_badge: true,
+            developer_badge: true,
+            ..request.clone()
+        };
+        let asked_text = format!(
+            r#"{{"endpoint_id":"{endpoint}","build_id":"build","skill_badge":true,"developer_badge":true}}"#
+        );
+        assert_eq!(serde_json::to_string(&asked).unwrap(), asked_text);
+        // The card is the last member, and only when asked for.
+        let with_card = TicketRequest {
+            card: true,
+            ..asked
+        };
+        assert_eq!(
+            serde_json::to_string(&with_card).unwrap(),
+            asked_text.replace("}", r#","card":true}"#)
+        );
+        let read: TicketRequest = json::parse_as(asked_text.as_bytes(), 1024).unwrap();
+        assert!(!read.card);
+
+        let id = key(1).ember_id().clone();
+        let ticket_text = format!(
+            r#"{{"version":1,"bridge_id":"{BRIDGE}","room_id":"{ROOM}","ember_id":"{id}","endpoint_id":"{}","issued_at":1000,"expires_at":1060}}"#,
+            "a".repeat(64)
+        );
+        assert_eq!(serde_json::to_string(&ticket(&id)).unwrap(), ticket_text);
+        let read: RoomTicket = json::parse_as(ticket_text.as_bytes(), 1024).unwrap();
+        assert_eq!(read, ticket(&id));
+        // The card follows the badge, and a ticket that carries one reads back.
+        let carded = RoomTicket {
+            badge: Some(crate::skill::SkillBadge::class(4, true)),
+            card: Some("c1.abc_-123".into()),
+            ..ticket(&id)
+        };
+        let carded_text = ticket_text.replace(
+            "}",
+            r#","badge":{"band":4,"settled":true},"card":"c1.abc_-123"}"#,
+        );
+        assert_eq!(serde_json::to_string(&carded).unwrap(), carded_text);
+        assert_eq!(
+            json::parse_as::<RoomTicket>(carded_text.as_bytes(), 1024).unwrap(),
+            carded
+        );
+        assert!(carded.check().is_ok());
     }
 
     #[test]
