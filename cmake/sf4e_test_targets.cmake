@@ -81,6 +81,7 @@ sf4e_add_unit_test(NAME RoomFollow SOURCES "src/tests/room_follow_test.cxx" LIBS
 sf4e_add_unit_test(NAME PublicRoomFilter SOURCES "src/tests/public_room_filter_test.cxx" LIBS sf4e_room_model STD 17 LABELS room)
 sf4e_add_unit_test(NAME RankingRequests SOURCES "src/tests/ranking_requests_test.cxx" STD 17)
 sf4e_add_unit_test(NAME LevelRequests SOURCES "src/tests/level_requests_test.cxx" STD 17)
+sf4e_add_unit_test(NAME CardRequests SOURCES "src/tests/card_requests_test.cxx" STD 17)
 sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300 LABELS room)
 sf4e_add_unit_test(NAME RoomLifecycle SOURCES "src/tests/room_lifecycle_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)

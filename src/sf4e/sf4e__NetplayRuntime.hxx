@@ -42,6 +42,7 @@
 #include "../netplay/WatchPlay.hxx"
 #include "../netplay/OwedAbort.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/CardRequests.hxx"
 #include "../netplay/LevelRequests.hxx"
 #include "../netplay/RankingRequests.hxx"
 #include "../netplay/TournamentStatus.hxx"
@@ -272,6 +273,8 @@ struct Runtime {
     netplay::rankings::Requests rankings;
     // The player's own fighter levels: the read in flight and the last answer.
     netplay::levels::Requests levels;
+    // Other players' cards in a public room: the look-up in flight and the answers.
+    netplay::levels::Cards cards;
     // Match links from the browser (ember://tournament/open), from a later
     // launcher or the start argument, and the last one the interface was given.
     platform::MatchLinkMailbox matchLinks;
@@ -552,6 +555,10 @@ void DispatchLevels(const netplay::tournament::Command& command, bool helperRead
 bool TakeLevelsAnswer(const session::TournamentAnswer& answer);
 // Expires lost reads, notes sets that ended, and starts the reads that are due.
 void TickLevels(bool helperReady, std::uint64_t nowMs);
+// Other players' cards (same file): the public room's members' tokens are
+// looked up when one joins and 8 s after a set in the room ends.
+bool TakeCardsAnswer(const session::TournamentAnswer& answer);
+void TickCards(bool helperReady, std::uint64_t nowMs);
 
 // Controllers (sf4e__NetplayRuntime__Input.cxx).
 std::string DeviceName(const input::Device& device);

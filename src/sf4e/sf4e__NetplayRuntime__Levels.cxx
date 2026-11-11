@@ -5,6 +5,7 @@
 // published status. Reads come when the menu asks (Command::Op::LevelsMe: the
 // profile's own at start and when Profile opens), and twice after a set this PC
 // fought ended, to the service the menu last read from.
+// Other players' cards in a public room are looked up here too (TickCards).
 #include "sf4e__NetplayRuntime.hxx"
 #include "../session/TournamentAnswers.hxx"
 
@@ -73,6 +74,46 @@ void TickLevels(bool helperReady, std::uint64_t nowMs) {
 	command.op = Command::Op::LevelsMe;
 	command.bridgeId = bridge;
 	DispatchLevels(command, helperReady);
+}
+
+bool TakeCardsAnswer(const session::TournamentAnswer& answer) {
+	auto& cards = runtime->cards;
+	if (!cards.Awaiting(answer.requestId)) return false;
+	if (!answer.ok) {
+		cards.Finish(answer.reason.empty() ? std::string("unavailable") : answer.reason, std::nullopt);
+		return true;
+	}
+	auto decoded = session::DecodeCards(answer.data);
+	cards.Finish(decoded ? std::string() : "bridge_invalid_response", std::move(decoded));
+	return true;
+}
+
+// The cards of a public room's members, to the service own levels are read
+// from. A room that is not public shows none: its tokens are not the bridge's.
+void TickCards(bool helperReady, std::uint64_t nowMs) {
+	auto& cards = runtime->cards;
+	cards.Scope(runtime->levels.Bridge());
+	cards.Expire(nowMs);
+	std::uint64_t epoch = 0;
+	std::vector<std::string> tokens;
+	std::vector<std::uint64_t> sets;
+	if (UserApp::netplay && runtime->room && runtime->room->ServerOwned()) {
+		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
+		epoch = snapshot.roomEpoch;
+		if (epoch) {
+			for (const auto& member : snapshot.members)
+				if (member.card.Present()) tokens.push_back(member.card.ToString());
+			for (const auto& table : snapshot.tables) sets.push_back(table.lastSet.generation);
+		}
+	}
+	cards.Observe(epoch, tokens, sets, nowMs);
+	if (!helperReady) return;
+	const auto batch = cards.Take(nowMs);
+	if (batch.empty()) return;
+	json selectors = json::array();
+	for (const auto& token : batch) selectors.push_back({{"card", token}});
+	const json request = {{"op", "cards_lookup"}, {"bridge_id", cards.Bridge()}, {"cards", selectors}};
+	cards.Sent(SendBridgeRequest(request), batch, nowMs);
 }
 } // namespace internal
 } } // namespace sf4e::NetplayFacade

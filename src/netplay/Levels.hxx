@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -56,5 +57,8 @@ struct Card {
 	std::vector<CardFighter> fighters;
 	Relation relation = Relation::None;
 };
+
+// Cards by card token, for the tokens the bridge has a card for.
+using CardMap = std::map<std::string, Card>;
 
 } } }

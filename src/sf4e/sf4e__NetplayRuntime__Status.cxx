@@ -69,12 +69,12 @@ std::string RoomErrorText(const std::string& error) {
 // The room as this player's screen shows it and its member list, built once
 // per change and shared by every snapshot published until the next. The
 // client replaces its room only whole, each time under a new sequence, so the
-// sequence and what decides the class emblems are the whole key.
+// sequence and what decides the class emblems and card tokens are the whole key.
 struct ShownRoom {
 	std::shared_ptr<const room::Snapshot> room;
 	std::shared_ptr<const std::vector<netplay::MemberView>> members;
 	std::uint64_t sequence = 0;
-	bool emblems = false;
+	bool emblems = false, publicRoom = false;
 };
 static ShownRoom shownRoom;
 static const ShownRoom& ShownRoomOf(const SessionClient& client) {
@@ -82,11 +82,15 @@ static const ShownRoom& ShownRoomOf(const SessionClient& client) {
 	// public, which it knows from its own join; a private room's host
 	// writes its own snapshot, so any class in one is dropped here. So are
 	// all of them for a player who hides class emblems on their screen.
-	const bool emblems = runtime->room && runtime->room->ServerOwned() && runtime->preferences.classEmblems;
+	// A card token is the bridge's word on the same terms, but a hidden
+	// emblem does not hide it.
+	const bool publicRoom = runtime->room && runtime->room->ServerOwned();
+	const bool emblems = publicRoom && runtime->preferences.classEmblems;
 	const auto sequence = client.RoomSnapshotSequence();
-	if (shownRoom.room && shownRoom.sequence == sequence && shownRoom.emblems == emblems) return shownRoom;
+	if (shownRoom.room && shownRoom.sequence == sequence && shownRoom.emblems == emblems && shownRoom.publicRoom == publicRoom) return shownRoom;
 	auto built = std::make_shared<room::Snapshot>(client.GetRoomSnapshot());
 	if (!emblems) for (auto& member : built->members) member.badge = SkillBadge();
+	if (!publicRoom) for (auto& member : built->members) member.card = CardToken();
 	shownRoom.members.reset();
 	if (built->roomEpoch) {
 		auto members = std::make_shared<std::vector<netplay::MemberView>>();
@@ -103,6 +107,7 @@ static const ShownRoom& ShownRoomOf(const SessionClient& client) {
 	shownRoom.room = std::move(built);
 	shownRoom.sequence = sequence;
 	shownRoom.emblems = emblems;
+	shownRoom.publicRoom = publicRoom;
 	return shownRoom;
 }
 static void FillRoomView(RuntimeSnapshot& snapshot) {
@@ -585,6 +590,7 @@ PostPublishState Publish() {
     snapshot.publicRooms = runtime->publicRooms;
     snapshot.rankings = runtime->rankings.Published(GetTickCount64());
     snapshot.levels = runtime->levels.Published();
+    snapshot.memberCards = runtime->cards.Published();
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();

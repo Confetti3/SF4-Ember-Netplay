@@ -225,6 +225,8 @@ struct ShellView {
     netplay::rankings::Status rankings;
     // The player's own fighter levels, as last read.
     netplay::Answered<netplay::levels::Own> levels;
+    // The cards of a public room's members by card token; null while there are none.
+    std::shared_ptr<const netplay::levels::CardMap> memberCards;
     // Ember's replay archive, newest first, and what the runtime says of
     // replays (RuntimeSnapshot::Replays, ui/ReplaysView.hxx), as published.
     // A replay link's file waits there until the player answers: the Replays
