@@ -1019,6 +1019,7 @@ impl Actor {
             .and_then(ControlWorker::account)
             .map(ToString::to_string);
         let badge = worker.and_then(ControlWorker::badge);
+        let card = worker.and_then(ControlWorker::card).map(str::to_owned);
         let (latency, latency_relay) = self.latency_route();
         self.emit(Event::Connected {
             epoch,
@@ -1027,6 +1028,7 @@ impl Actor {
             control,
             account,
             badge,
+            card,
             latency,
             latency_relay,
         })?;

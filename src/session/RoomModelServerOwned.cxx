@@ -74,15 +74,23 @@ void RoomAuthority::ForgetAccount(MemberId member) {
 	memberAccounts_.erase(member);
 }
 
-// A game won between two accounts, for the skill rating; draws, cancels and
-// aborts never count. The room host reports the newest on every status and the
-// bridge counts each once, so older ones can go.
-void RoomAuthority::RecordWonGame(std::uint8_t tableId, const Table& table, MatchResult result) {
+// A game won between two accounts, for the skill rating and the fighter levels;
+// draws, cancels and aborts never count. `game` is its place in its battle
+// (Action::game), so each game of a rematch played in place has a key of its
+// own at the bridge. Its fighters are the ones both members last shared
+// (SetMemberChara), when both did. The room host reports the newest on every
+// status and the bridge counts each once, so older ones can go.
+void RoomAuthority::RecordWonGame(std::uint8_t tableId, const Table& table, MatchResult result, std::uint32_t game) {
 	if (!snapshot_.serverOwned || (result != MatchResult::P1Win && result != MatchResult::P2Win)) return;
 	const auto p1 = memberAccounts_.find(table.p1), p2 = memberAccounts_.find(table.p2);
 	if (p1 == memberAccounts_.end() || p2 == memberAccounts_.end()) return;
 	const bool p1Won = result == MatchResult::P1Win;
-	wonGames_.push_back({tableId, table.matchGeneration, (p1Won ? p1 : p2)->second, (p1Won ? p2 : p1)->second});
+	WonGame won{tableId, table.matchGeneration, (p1Won ? p1 : p2)->second, (p1Won ? p2 : p1)->second, game};
+	const Member* winner = Find(p1Won ? table.p1 : table.p2);
+	const Member* loser = Find(p1Won ? table.p2 : table.p1);
+	const auto shared = [](const Member* member) { return member && member->fighter >= 0 && member->fighter < selection::FighterCount; };
+	if (shared(winner) && shared(loser)) { won.fighters[0] = winner->fighter; won.fighters[1] = loser->fighter; }
+	wonGames_.push_back(std::move(won));
 	if (wonGames_.size() > MaximumWonGames) wonGames_.pop_front();
 }
 

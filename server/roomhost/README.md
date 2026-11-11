@@ -142,11 +142,23 @@ when one drifts; the room host's own side is `static_assert`s in
 | A status line, as the supervisor reads it | 128 KiB | `MAX_LINE_BYTES` (protocol.rs), `SupervisorLineBytes` (`RoomHostStatus.hxx`); a longer line is a protocol error and the child is killed |
 | A status line, as the room host writes it | 60 000 bytes | `MaximumStatusLineBytes` (`RoomHostStatus.hxx`); the host ends the room with `status_too_large` rather than write a longer one |
 | The `details` object | 2048 bytes as written | `MAX_DETAILS_BYTES` (protocol.rs), `SupervisorDetailsBytes` (`RoomHostStatus.hxx`), `MAX_DETAILS_REPORT` (`server/ember/bridge/src/routes/rooms/supervisor.rs`); a larger one is dropped and the room stays up |
-| The `games` array | 6144 bytes as written | `MAX_GAMES_BYTES` (protocol.rs), `SupervisorGamesBytes` (`RoomHostStatus.hxx`), `MAX_GAMES_REPORT` (bridge); a larger one is dropped the same way |
+| The `games` array | 8192 bytes as written (6144 before 1.6.0) | `MAX_GAMES_BYTES` (protocol.rs), `SupervisorGamesBytes` (`RoomHostStatus.hxx`), `MAX_GAMES_REPORT` (bridge); a larger one is dropped the same way |
 
 The largest valid line: 512 Ember IDs of 57 bytes (60 with quotes and a comma,
 30 720 bytes), an invitation of at most 4096 bytes (`MAX_INVITATION`), the
-largest details and the largest games (32 games of two Ember IDs and two
-numbers, at most 186 bytes each, about 6 000 bytes), and about 100 bytes for
-the rest: about 43 KB. That is under the host's 60 000 bytes, which is under
-the supervisor's 128 KiB, so a sound host is never killed for its line.
+largest details and the largest games (32 games of two Ember IDs, the table,
+the generation, the game's place in its battle and two fighters, at most 213
+bytes each, 6 849 bytes), and about 100 bytes for the rest: about 44 KB. That
+is under the host's 60 000 bytes, which is under the supervisor's 128 KiB, so a
+sound host is never killed for its line.
+
+### Deploy order for 1.6.0
+
+The 1.6.0 room host writes each won game's place in its battle (`game`) and its
+two fighters (`fighters`, docs/design/FIGHTER_LEVELS.md), so a busy room's
+games can pass the 6144 bytes a supervisor before 1.6.0 passes on. Such a
+supervisor drops the whole array while it is that large, and the bridge never
+sees those games: they are neither rated nor counted for levels. Upgrade the
+supervisor and the bridge first, then stage the 1.6.0 room host. Older room
+hosts keep working under the new limits: their games are smaller and read as
+before.

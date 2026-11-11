@@ -38,9 +38,11 @@
 //!   included, and drops anything else (another type, a larger object, one
 //!   nested deeper than the supervisor allows) without treating the line as
 //!   an error. It must still be well-formed JSON, like the rest of the line.
-//!   `games` is the room's recent won games for the skill rating, oldest
-//!   first: `[{ "table": 0, "generation": 7, "winner": "emb1_...",
-//!   "loser": "emb1_..." }]`. The supervisor treats it like `details`: it
+//!   `games` is the room's recent won games for the skill rating and the
+//!   fighter levels, oldest first: `[{ "table": 0, "generation": 7,
+//!   "winner": "emb1_...", "loser": "emb1_...", "game": 1, "fighters": [3, 12]
+//!   }]` (`game` and `fighters` from 1.6.0 room hosts, and only when there is
+//!   one). The supervisor treats it like `details`: it
 //!   does not read it, passes an array of at most `MAX_GAMES_BYTES` on as it
 //!   is, and drops anything else without treating the line as an error. The
 //!   bridge judges each game.
@@ -80,20 +82,24 @@ pub const MAX_DETAILS_DEPTH: usize = 8;
 
 /// The most a status line's `games` may weigh as compact JSON: the room
 /// host's 32 newest won games (`MaximumWonGames` in `src/common/SkillBadge.hxx`),
-/// each two Ember IDs and two numbers in at most 186 bytes, about 6 000 in
-/// all. The bridge reads up to `MAX_GAMES_BYTES` of games per room; keep them
-/// equal.
-pub const MAX_GAMES_BYTES: usize = 6144;
+/// each two Ember IDs, the table, the generation, its place in its battle (at
+/// most 1000) and two fighters in at most 213 bytes, 6 849 in all. The bridge
+/// reads up to `MAX_GAMES_BYTES` of games per room; keep them equal. It was
+/// 6144 before 1.6.0 room hosts added `game` and `fighters`; a supervisor
+/// with that limit drops a larger array whole, so supervisors and the bridge
+/// are upgraded before the room host.
+pub const MAX_GAMES_BYTES: usize = 8192;
 
 /// The longest status line, not counting the newline. The worst case a valid
 /// `status` can reach is `MAX_ROOM_BANS` Ember IDs (57 bytes each, 60 with
 /// quotes and a comma: 30 720 bytes) plus an invitation of at most 4096 bytes
 /// (`ember_protocol::play::MAX_INVITATION`, 4112 with its key and quotes) and
 /// about 100 bytes of the rest of the object, plus `MAX_DETAILS_BYTES` of
-/// details, plus `MAX_GAMES_BYTES` of games: roughly 43 000 bytes. 128 KiB is
-/// 3 times that. The room host ends the room itself rather than write a line
-/// over 60 000 bytes (`MaximumStatusLineBytes`, under its `SupervisorLineBytes`,
-/// which is this number).
+/// details, plus `MAX_GAMES_BYTES` of games: roughly 45 000 bytes. 128 KiB is
+/// well over twice that. The room host ends the room itself rather than write
+/// a line over 60 000 bytes (`MaximumStatusLineBytes`, under its
+/// `SupervisorLineBytes`, which is this number), so a sound host is never
+/// killed for its line.
 pub const MAX_LINE_BYTES: usize = 128 * 1024;
 
 const MAX_TOKEN_BYTES: usize = 128;
@@ -749,8 +755,8 @@ mod tests {
             "games": games,
         }))
         .unwrap();
-        assert!(line.len() > 42_000, "{}", line.len());
-        assert!(line.len() * 3 < MAX_LINE_BYTES, "{}", line.len());
+        assert!(line.len() > 44_000, "{}", line.len());
+        assert!(line.len() * 2 < MAX_LINE_BYTES, "{}", line.len());
         // And under the room host's own budget (`MaximumStatusLineBytes`).
         assert!(line.len() < 60_000, "{}", line.len());
         let Ok(ChildMessage::Status { banned, games, .. }) = parse_line(line.as_bytes()) else {

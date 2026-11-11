@@ -17,7 +17,7 @@ namespace sf4e { namespace roomhost {
 // room itself well before that, at MaximumStatusLineBytes. A room holds at most
 // room::MaximumKickedAccounts (512) bans, each an Ember ID of 57 bytes, and
 // MaximumWonGames (32) won games of two, so with an invitation of 4096 bytes
-// and the details a full line is about 43 KB.
+// and the details a full line is about 45 KB.
 constexpr std::size_t SupervisorLineBytes = 128 * 1024;
 constexpr std::size_t MaximumStatusLineBytes = 60000;
 static_assert(MaximumStatusLineBytes < SupervisorLineBytes, "the host must end the room before the supervisor kills it");
@@ -25,8 +25,11 @@ static_assert(room::MaximumKickedAccounts == 512, "MAX_ROOM_BANS in ember-rooms,
 static_assert(MaximumWonGames == 32, "MAX_GAMES_BYTES in ember-rooms and the bridge allow for 32 games");
 // The supervisor passes on a details object of at most SupervisorDetailsBytes
 // and a games array of at most SupervisorGamesBytes, as written, and drops a
-// larger one (MAX_DETAILS_BYTES and MAX_GAMES_BYTES in protocol.rs).
-constexpr std::size_t SupervisorDetailsBytes = 2048, SupervisorGamesBytes = 6144;
+// larger one (MAX_DETAILS_BYTES and MAX_GAMES_BYTES in protocol.rs). The
+// largest won game is 213 bytes (two Ember IDs, the largest generation, game
+// and fighters), so 32 of them are under 7 KB. A supervisor from before 1.6.0
+// drops games over 6144 bytes: it is upgraded before this room host is.
+constexpr std::size_t SupervisorDetailsBytes = 2048, SupervisorGamesBytes = 8192;
 
 // What the bridge lists beside a room (the status line's "details" object).
 // Everything is copied from the room model, so a change re-emits the line.
@@ -93,8 +96,9 @@ struct Status {
 //  moderator),"fighters":[n...],"set_format":n,"rotation":n,"room_type":n,"creator_in":b,"own_delay":true (only
 //  for a room whose fighters each play at their own input delay),"wired_only":true (only for a room for
 //  wired players)},
-//  "games":[{"table":n,"generation":n,"winner":s,"loser":s}...] (only once the
-//  room has a won game, oldest first)}
+//  "games":[{"table":n,"generation":n,"winner":s,"loser":s,"game":n,"fighters":[n,n]}...]
+//  (only once the room has a won game, oldest first; "game" and "fighters" as
+//  WonGame's to_json writes them, src/common/SkillBadgeJson.hxx)}
 std::string StatusLine(const Status& status);
 
 } }

@@ -177,7 +177,7 @@ struct MemberProfile {
 	NatClass nat = NatClass::Unknown;
 	// Server-owned rooms only, from the room's ticket (Admission.hxx): the
 	// Ember ID a kick and a duplicate join are keyed on, which is never part of
-	// a snapshot, and the player's class, which is.
+	// a snapshot, and the player's class and card token, which are.
 	Admission admission;
 	// The player's Steam profile, only when they chose to show it to the room;
 	// none otherwise.
@@ -240,6 +240,10 @@ struct Member {
     CountryCode country;
     // The class a public room's ticket vouched for (MemberProfile::admission), or none.
     SkillBadge badge;
+    // The card token in that ticket (FIGHTER_LEVELS.md), which members ask the
+    // bridge for this player's card with; none in a private room and for a
+    // member whose ticket had none.
+    CardToken card;
     // The selected delay belongs to this fighter until Ready captures it.
     // Values are deliberately bounded by Action deserialization
     // (0..InputDelayWireCeiling); the authority records at most MaximumInputDelay.
@@ -483,8 +487,8 @@ struct Action {
 	// lock-in does not. A player's own Stop watching never sets it.
 	bool keepWatching = false;
 	// RecordResult: games of this match played before the reported one in
-	// the same battle, and whether a rematch in place followed it (the match
-	// stays open). Written only when set.
+	// the same battle (at most MaximumGameInBattle), and whether a rematch in
+	// place followed it (the match stays open). Written only when set.
 	std::uint32_t game = 0;
 	bool continued = false;
 	// SetRoomType: the type. Written only when set.

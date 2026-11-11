@@ -73,7 +73,9 @@ public:
 	// 0 when no game is under way there. A binding for another match, or an
 	// older one for this match, is refused.
 	Result BindTournament(const TournamentBinding& binding);
-	Result EndMatch(std::uint8_t table, std::uint64_t generation, MatchResult result);
+	// `game` is the ending game's place in its battle (Action::game of the
+	// agreed result), which a server-owned room's won game keeps.
+	Result EndMatch(std::uint8_t table, std::uint64_t generation, MatchResult result, std::uint32_t game = 0);
 	// True only when AdvanceTime(nowMs) can emit a timer-driven room event.
 	// Pending results which have not reached their deadline, and unresolved
 	// results already paused for host review, are not timer work.
@@ -361,7 +363,7 @@ private:
 	void BanAccount(const std::string& account);
 	bool BanWouldExceedCap(const std::string& account) const;
 	void ForgetAccount(MemberId member);
-	void RecordWonGame(std::uint8_t tableId, const Table& table, MatchResult result);
+	void RecordWonGame(std::uint8_t tableId, const Table& table, MatchResult result, std::uint32_t game);
 	void ReopenEmptyRoom();
 	void SaveServerOwned(nlohmann::json& state) const;
 	bool LoadServerOwned(const nlohmann::json& state);

@@ -4,6 +4,7 @@
 // and its status line reports it only then. The same line the supervisor's own
 // tests build is parsed here.
 #include "../../server/roomhost/RoomHost.hxx"
+#include "../common/FighterCatalog.hxx"
 #include <algorithm>
 #include <cstdint>
 #include <functional>
@@ -281,9 +282,12 @@ std::string EmberId(std::size_t index) {
 void TestTheLargestLineFitsTheSupervisorsLimits() {
 	std::vector<std::string> banned;
 	for (std::size_t i = 0; i < room::MaximumKickedAccounts; ++i) banned.push_back(EmberId(i));
+	// Every game is as long as one can be: the last table, the largest
+	// generations, the latest place in a battle and two-digit fighters.
 	std::vector<WonGame> games;
 	for (std::size_t i = 0; i < MaximumWonGames; ++i)
-		games.push_back({static_cast<std::uint8_t>(room::TableCount - 1), UINT64_MAX - i, EmberId(i), EmberId(i + 1)});
+		games.push_back({static_cast<std::uint8_t>(room::TableCount - 1), UINT64_MAX - i, EmberId(i), EmberId(i + 1),
+			MaximumGameInBattle, {selection::FighterCount - 1, selection::FighterCount - 1}});
 	// Every byte of the names escapes to two, and every seat has a fighter.
 	roomhost::RoomDetails details;
 	details.name = std::string(64, '"');
@@ -296,6 +300,7 @@ void TestTheLargestLineFitsTheSupervisorsLimits() {
 	details.ownDelay = true;
 	details.roomType = static_cast<int>(room::RoomType::King);
 	details.creatorIn = true;
+	details.wiredOnly = true;
 	const std::string invitation = "sf4e3:" + std::string(4090, 'x');
 	const auto line = roomhost::StatusLine({room::MaximumMembers, room::TableCount, invitation, banned, details, games});
 	CHECK(line.size() > 40000 && line.size() < roomhost::MaximumStatusLineBytes);
@@ -303,8 +308,11 @@ void TestTheLargestLineFitsTheSupervisorsLimits() {
 	const auto parsed = json::parse(line);
 	CHECK(parsed.at("banned").size() == 512 && parsed.at("games").size() == 32);
 	CHECK(parsed.at("details").dump().size() <= roomhost::SupervisorDetailsBytes);
+	CHECK(parsed.at("games").front().at("game") == MaximumGameInBattle && parsed.at("games").front().at("fighters") == json({43, 43}));
+	// 32 games of 213 bytes: past the 6144 bytes supervisors before 1.6.0 pass on.
+	CHECK(parsed.at("games").dump().size() == 32 * 213 + 33);
 	CHECK(parsed.at("games").dump().size() <= roomhost::SupervisorGamesBytes);
-	CHECK(roomhost::SupervisorDetailsBytes == 2048 && roomhost::SupervisorGamesBytes == 6144);
+	CHECK(roomhost::SupervisorDetailsBytes == 2048 && roomhost::SupervisorGamesBytes == 8192);
 }
 
 // How long an idle room sleeps: until its next timer, but never less than a

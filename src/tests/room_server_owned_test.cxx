@@ -1,4 +1,5 @@
 #include "room_authority_support.hxx"
+#include "../common/SkillBadgeJson.hxx"
 
 // A server-owned room: no player hosts it, the first joiner moderates, and an
 // Ember ID (the account) is the identity a kick and a duplicate join key on.
@@ -385,8 +386,89 @@ static void TestWonGamesAreKeptByAccount() {
 	EXPECT(privateRoom.WonGames().empty() && !privateRoom.Checkpoint().contains("won_games"));
 }
 
+// A won game names its fighters as both members last shared them, and its
+// place in its battle: the games of a rematch played in place share one
+// generation, so each needs its place to have a key of its own at the bridge.
+// Both are optional in the checkpoint, so one from before them restores.
+static void TestWonGamesNameTheirFightersAndPlace() {
+	auto authority = NewRoom();
+	EXPECT(JoinAs(authority, 1, "ember-host").accepted);
+	const auto p1 = MemberOf(JoinAs(authority, 2, "ember-p1"));
+	const auto p2 = MemberOf(JoinAs(authority, 3, "ember-p2"));
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	EXPECT(authority.SetMemberChara(p1, Chara{3}) && authority.SetMemberChara(p2, Chara{12}));
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
+	// Both fighters report each game; the last closes the battle.
+	const auto report = [&](std::uint32_t game, bool continued, MatchResult result) {
+		for (const auto member : {p1, p2}) {
+			Action action = TableAction(authority, member, 0, ActionKind::RecordResult);
+			action.matchGeneration = generation; action.game = game; action.continued = continued; action.result = result;
+			EXPECT(authority.Apply(member, action).accepted);
+		}
+	};
+	report(0, true, MatchResult::P1Win);
+	report(1, true, MatchResult::P2Win);
+	report(2, false, MatchResult::P1Win);
+	EXPECT(authority.SnapshotView().tables[0].phase != TablePhase::Playing);
+	const std::vector<sf4e::WonGame> won{
+		{0, generation, "ember-p1", "ember-p2", 0, {3, 12}},
+		{0, generation, "ember-p2", "ember-p1", 1, {12, 3}},
+		{0, generation, "ember-p1", "ember-p2", 2, {3, 12}}};
+	EXPECT(authority.WonGames() == won);
+	// The first game of a battle is written as before, with its fighters.
+	const nlohmann::json written = authority.WonGames();
+	EXPECT(!written[0].contains("game") && written[1].at("game") == 1 && written[2].at("game") == 2);
+	EXPECT(written[0].at("fighters") == nlohmann::json::array({3, 12}) && written[1].at("fighters") == nlohmann::json::array({12, 3}));
+
+	const auto checkpoint = authority.Checkpoint();
+	RoomAuthority restored("Other");
+	EXPECT(restored.RestoreCheckpoint(checkpoint) && restored.WonGames() == won);
+	// A checkpoint from before either restores: every game a battle's first,
+	// with no fighters.
+	auto older = checkpoint;
+	for (auto& game : older["won_games"]) { game.erase("game"); game.erase("fighters"); }
+	RoomAuthority upgraded("Other");
+	EXPECT(upgraded.RestoreCheckpoint(older) && upgraded.WonGames().size() == won.size());
+	for (const auto& game : upgraded.WonGames()) EXPECT(game.game == 0 && !game.HasFighters());
+	// A place or fighters that are not what they say are refused, not guessed at.
+	for (const auto& fighters : {nlohmann::json::array({44, 3}), nlohmann::json::array({3}), nlohmann::json::array({3, 12, 1}),
+		nlohmann::json::array({-1, 3}), nlohmann::json("3,12")}) {
+		auto bad = checkpoint;
+		bad["won_games"][0]["fighters"] = fighters;
+		EXPECT(!RoomAuthority("Other").RestoreCheckpoint(bad));
+	}
+	auto far = checkpoint;
+	far["won_games"][1]["game"] = sf4e::MaximumGameInBattle + 1;
+	EXPECT(!RoomAuthority("Other").RestoreCheckpoint(far));
+}
+
 static bool Mentions(const nlohmann::json& value, const char* text) {
 	return value.dump().find(text) != std::string::npos;
+}
+
+// Only a public room's ticket vouches for a card token: a private room drops
+// one a profile carries, and a member without one has no key.
+static void TestCardTokensComeFromPublicTickets() {
+	const auto token = sf4e::CardToken::Parsed("c1." + std::string(76, 'A'));
+	EXPECT(token.Present());
+	auto carded = Profile("ember-a");
+	carded.admission.card = token;
+	auto authority = NewRoom();
+	const auto a = MemberOf(authority.Join("Player1", Peer(1), false, carded));
+	const auto b = MemberOf(JoinAs(authority, 2, "ember-b"));
+	EXPECT(FindMember(authority.SnapshotView(), a)->card == token && !FindMember(authority.SnapshotView(), b)->card.Present());
+	const auto shown = nlohmann::json(authority.SnapshotFor(b));
+	EXPECT(Mentions(shown, token.ToString().c_str()));
+	RoomAuthority restored("Other");
+	EXPECT(restored.RestoreCheckpoint(authority.Checkpoint()) && FindMember(restored.SnapshotView(), a)->card == token);
+
+	RoomAuthority privateRoom("Private", 8, 1);
+	const auto host = Join(privateRoom, 0, true);
+	const auto guest = MemberOf(privateRoom.Join("Player2", Peer(2), false, carded));
+	EXPECT(host && guest && !FindMember(privateRoom.SnapshotView(), guest)->card.Present());
+	EXPECT(!Mentions(nlohmann::json(privateRoom.SnapshotFor(host)), "card"));
 }
 
 static void TestAccountsStayOutOfSnapshots() {
@@ -471,6 +553,8 @@ int main() {
 	TestDelayPolicyIsKept();
 	TestCheckpointRoundTrip();
 	TestWonGamesAreKeptByAccount();
+	TestWonGamesNameTheirFightersAndPlace();
+	TestCardTokensComeFromPublicTickets();
 	TestAccountsStayOutOfSnapshots();
 	TestPrivateRoomsAreUnchanged();
 	TestPublicRulesAndReopen();

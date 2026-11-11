@@ -264,7 +264,8 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.nat = NatClassFromWire(static_cast<long long>(profile.nat));
 	member.steamId = profile.steamId;
 	member.country = profile.country;
-	member.badge = profile.admission.badge;
+	// Only a server-owned room has a ticket to vouch for a class or a card.
+	if (snapshot_.serverOwned) { member.badge = profile.admission.badge; member.card = profile.admission.card; }
 	member.connection = connection;
 	member.host = snapshot_.host == 0 || host;
 	member.joinOrder = nextJoinOrder_++;
@@ -630,7 +631,7 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 	return Accept({Event{Event::Kind::MatchStarted, tableId, table->matchGeneration, 0, MatchResult::Abort}});
 }
 
-Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, MatchResult result) {
+Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, MatchResult result, std::uint32_t game) {
 	Table* table = FindTable(tableId);
 	if (!table) return Reject(RejectReason::UnknownTable);
 	if ((table->phase != TablePhase::Playing && table->phase != TablePhase::Paused) || table->matchGeneration != generation) return Reject(RejectReason::WrongGeneration);
@@ -648,7 +649,7 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	// ledger is backpressure, so a failed EndMatch must leave the live table
 	// untouched and retryable.
 	if (!StoreTerminalReceipt(tableId, *table, result)) return Reject(RejectReason::TerminalLedgerFull);
-	RecordWonGame(tableId, *table, result);
+	RecordWonGame(tableId, *table, result, game);
 	if (result == MatchResult::P1Win) ++table->score[0];
 	else if (result == MatchResult::P2Win) ++table->score[1];
 	const auto generationValue = table->matchGeneration;

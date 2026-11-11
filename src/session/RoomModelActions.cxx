@@ -411,10 +411,10 @@ Result RoomAuthority::ApplyRecordResult(MemberId member, const Action& action, T
 		table->phase = TablePhase::Paused; Touch(*table);
 		return Accept({Event{Event::Kind::ResultDisputed, id, table->matchGeneration, member, action.result}});
 	}
-	if (!action.continued || !pendingContinued_[id]) return EndMatch(id, table->matchGeneration, action.result);
+	if (!action.continued || !pendingContinued_[id]) return EndMatch(id, table->matchGeneration, action.result, action.game);
 	// Both fighters went on to a rematch in the same battle: the game counts,
 	// and the match, its spectators and its stream go on.
-	RecordWonGame(id, *table, action.result);
+	RecordWonGame(id, *table, action.result, action.game);
 	if (action.result == MatchResult::P1Win) ++table->score[0];
 	else if (action.result == MatchResult::P2Win) ++table->score[1];
 	gamesScored_[id] = action.game + 1;
