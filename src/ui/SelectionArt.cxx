@@ -1,5 +1,6 @@
 #include "SelectionArt.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/LevelDigits.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../platform/GameThemes.hxx"
 #include "../platform/Utf8.hxx"
@@ -532,6 +533,13 @@ SelectionImage SelectionArt::DeveloperMark() {
     return impl_->Request("developer-mark", [&] {
         return std::vector<std::wstring>{impl_->assetRoot + L"/../input/mark_developer.png"};
     }, NativeSide, shipped);
+}
+SelectionImage SelectionArt::LevelDigits() {
+    Impl::Policy atlas; atlas.reportAbsence = true;
+    atlas.exactWidth = level_digits::AtlasWidth; atlas.exactHeight = level_digits::AtlasHeight;
+    return impl_->Request("level-digits", [&] {
+        return std::vector<std::wstring>{impl_->assetRoot + L"/../input/level_digits.png"};
+    }, NativeSide, atlas);
 }
 SelectionImage SelectionArt::Stage(int nativeId) {
     // The Random card borrows the game's character-select random tile, read at

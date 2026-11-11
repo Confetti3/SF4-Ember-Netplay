@@ -2,6 +2,7 @@
 // of a file that fails to decode, and which failures are final and logged.
 #include "../ui/SelectionArt.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/LevelDigits.hxx"
 #include "../common/StageCatalog.hxx"
 #include "temp_root.hxx"
 #include "test_support.hxx"
@@ -205,6 +206,16 @@ int main() {
         CHECK(two.texture && !two.missing && two.width == 32);
         CHECK(logged.size() == 5 && logged[4].find("ultra-icons/uc2.dds uses a fallback") != std::string::npos);
         CHECK(!art.UltraIcon(3).texture && !art.UltraIcon(-1).texture);
+
+        // Ember's level digits sit beside the developer mark and load at
+        // exactly the size LevelDigits.hxx lays out, without a log line.
+        std::ifstream digitsFile(fs::path(SF4E_TEST_ASSET_ROOT) / L".." / L"input" / L"level_digits.png", std::ios::binary);
+        const std::string digits((std::istreambuf_iterator<char>(digitsFile)), std::istreambuf_iterator<char>());
+        CHECK(digits.size() > 8);
+        Write(root / L"input" / L"level_digits.png", digits);
+        const auto atlas = Settle(art, [&] { return art.LevelDigits(); }, 2000);
+        CHECK(atlas.texture && !atlas.missing && atlas.width == sf4e::level_digits::AtlasWidth && atlas.height == sf4e::level_digits::AtlasHeight);
+        CHECK(logged.size() == 5);
     }
     {
         // An Ultra mark far larger than the game's 32-pixel icons is refused
@@ -215,6 +226,14 @@ int main() {
         const auto huge = Settle(art, [&] { return art.UltraIcon(0); }, 4000);
         CHECK(huge.missing && !huge.texture);
         CHECK(lines.size() == 1 && lines[0].find("ultra-icons/uc1.dds") != std::string::npos && lines[0].find("96x96") != std::string::npos);
+        // A digits atlas of another size would place every sprite wrong: it is
+        // refused as an unusable file, retried, then reported once, and the
+        // levels are drawn in the heading font.
+        Write(root / L"input" / L"level_digits.png", png);
+        const auto wrong = Settle(art, [&] { return art.LevelDigits(); }, 4000);
+        CHECK(wrong.missing && !wrong.texture);
+        const std::string expected = "not " + std::to_string(sf4e::level_digits::AtlasWidth) + "x" + std::to_string(sf4e::level_digits::AtlasHeight);
+        CHECK(lines.size() == 2 && lines[1].find("level-digits") != std::string::npos && lines[1].find(expected) != std::string::npos);
     }
     device->Release(); d3d->Release(); DestroyWindow(window);
     RemoveTempRoot(root);
