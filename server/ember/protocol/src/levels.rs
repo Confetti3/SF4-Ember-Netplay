@@ -424,7 +424,7 @@ mod tests {
             ("points", wrong_points),
             ("tier", own(3, 1, 0, 5, 0, None)),
             ("next", own(3, 100, 100, 1, 200, Some(200))),
-            ("next", own(3, 100, 101, 1, 200, Some(100))),
+            ("next", own(3, 101, 100, 1, 200, Some(100))),
             // A tier below the top has a next; the top has none.
             ("next", own(3, 3, 2, 0, 0, None)),
             ("next", own(3, 3000, 1000, 4, 2500, Some(5000))),

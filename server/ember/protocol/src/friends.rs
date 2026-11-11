@@ -847,7 +847,6 @@ mod tests {
             json!({"state": "online", "activity": "offline"}),
             json!({"state": "room"}),
             json!({"state": "room", "status": "asleep"}),
-            json!({"state": "offline", "status": "idle"}),
             json!({"status": "idle"}),
         ] {
             assert!(
@@ -855,6 +854,12 @@ mod tests {
                 "{bad}"
             );
         }
+        // An answer reads past a member a later bridge adds: offline with a
+        // status is offline.
+        assert!(matches!(
+            serde_json::from_value::<FriendPresence>(json!({"state": "offline", "status": "idle"})),
+            Ok(FriendPresence::Offline {})
+        ));
         let private_with_room = FriendPresence::Room {
             status: RoomStatus::Idle,
             table: None,

@@ -553,6 +553,9 @@ async fn a_cancelled_match_is_sent_as_a_restart_without_a_winner() {
 #[tokio::test]
 async fn the_platforms_answer_settles_retries_or_refuses_a_result() {
     let f = fixture("night-bot").await;
+    // A first retry is due a second after a failure: the clock waits, so
+    // the test sees it.
+    f.bridge.clock.freeze();
 
     // 409: it already has the result, which settles it.
     f.receiver.answer_with(&[409]);
@@ -601,6 +604,9 @@ async fn the_platforms_answer_settles_retries_or_refuses_a_result() {
 #[tokio::test]
 async fn a_result_once_it_is_being_sent_is_final() {
     let f = fixture("night-bot").await;
+    // A first retry is due a second after a failure: the clock waits, so
+    // the test sees it.
+    f.bridge.clock.freeze();
     f.receiver.answer_with(&[500]);
     let id = f.finished("set-1").await;
     f.until(&id, |(state, attempts)| {

@@ -711,6 +711,8 @@ async fn an_organizers_game_leaves_the_status_pending() {
 async fn a_report_is_settled_as_blumints_answer_to_it_says() {
     let f = fixture().await;
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    // Each retry waits for the clock, so the test sees every attempt.
+    f.bridge.clock.freeze();
     let mut set = 0;
     let mut finished = |answers: Vec<(u16, Option<u64>)>| {
         set += 1;
