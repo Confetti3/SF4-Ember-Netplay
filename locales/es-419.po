@@ -7841,7 +7841,7 @@ msgid "awards.card"
 msgstr "Tu tarjeta"
 
 msgid "awards.card_detail"
-msgstr "Tu tarjeta como la ven los demás. Seleccionar abre tus premios: los títulos e íconos que puedes usar."
+msgstr "Tu tarjeta como la ven los demás. Seleccionar abre Perfil."
 
 msgid "awards.entry_detail"
 msgstr "Los títulos e íconos que ganaste y cómo ganar el resto. Selecciona uno para usarlo en tu tarjeta."
@@ -7866,6 +7866,15 @@ msgstr "Bloqueado"
 
 msgid "awards.wear"
 msgstr "Poner en la tarjeta"
+
+msgid "awards.wear_title"
+msgstr "Usar título"
+
+msgid "awards.wear_icon"
+msgstr "Usar ícono"
+
+msgid "awards.wear_both"
+msgstr "Usar ambos"
 
 msgid "awards.detail_worn"
 msgstr "En tu tarjeta."

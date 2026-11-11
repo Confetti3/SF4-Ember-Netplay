@@ -7841,7 +7841,7 @@ msgid "awards.card"
 msgstr "Seu cartão"
 
 msgid "awards.card_detail"
-msgstr "Seu cartão como os outros o veem. Selecionar abre suas conquistas: os títulos e ícones que você pode usar."
+msgstr "Seu cartão como os outros o veem. Selecionar abre Perfil."
 
 msgid "awards.entry_detail"
 msgstr "Os títulos e ícones que você conquistou e como conquistar o resto. Selecione um para usá-lo no seu cartão."
@@ -7866,6 +7866,15 @@ msgstr "Bloqueado"
 
 msgid "awards.wear"
 msgstr "Usar no cartão"
+
+msgid "awards.wear_title"
+msgstr "Usar título"
+
+msgid "awards.wear_icon"
+msgstr "Usar ícone"
+
+msgid "awards.wear_both"
+msgstr "Usar ambos"
 
 msgid "awards.detail_worn"
 msgstr "No seu cartão."

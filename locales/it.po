@@ -8309,7 +8309,7 @@ msgid "awards.card"
 msgstr "La tua scheda"
 
 msgid "awards.card_detail"
-msgstr "La tua scheda come la vedono gli altri. Seleziona apre i tuoi riconoscimenti: i titoli e le icone che puoi esibire."
+msgstr "La tua scheda come la vedono gli altri. Seleziona apre il Profilo."
 
 msgid "awards.entry_detail"
 msgstr "I titoli e le icone che hai ottenuto, e come ottenere gli altri. Selezionane uno per esibirlo sulla tua scheda."
@@ -8334,6 +8334,15 @@ msgstr "Bloccato"
 
 msgid "awards.wear"
 msgstr "Metti sulla scheda"
+
+msgid "awards.wear_title"
+msgstr "Esibisci titolo"
+
+msgid "awards.wear_icon"
+msgstr "Esibisci icona"
+
+msgid "awards.wear_both"
+msgstr "Esibisci entrambi"
 
 msgid "awards.detail_worn"
 msgstr "Sulla tua scheda."

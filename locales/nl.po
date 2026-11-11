@@ -8309,7 +8309,7 @@ msgid "awards.card"
 msgstr "Jouw kaart"
 
 msgid "awards.card_detail"
-msgstr "Jouw kaart zoals anderen hem zien. Selecteer opent je onderscheidingen: de titels en iconen die je kunt dragen."
+msgstr "Jouw kaart zoals anderen hem zien. Selecteer opent Profiel."
 
 msgid "awards.entry_detail"
 msgstr "De titels en iconen die je hebt verdiend, en hoe je de rest verdient. Selecteer er een om hem op je kaart te dragen."
@@ -8334,6 +8334,15 @@ msgstr "Vergrendeld"
 
 msgid "awards.wear"
 msgstr "Op kaart zetten"
+
+msgid "awards.wear_title"
+msgstr "Titel dragen"
+
+msgid "awards.wear_icon"
+msgstr "Pictogram dragen"
+
+msgid "awards.wear_both"
+msgstr "Beide dragen"
 
 msgid "awards.detail_worn"
 msgstr "Op je kaart."

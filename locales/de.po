@@ -8309,7 +8309,7 @@ msgid "awards.card"
 msgstr "Deine Karte"
 
 msgid "awards.card_detail"
-msgstr "Deine Karte, wie andere sie sehen. Auswählen öffnet deine Auszeichnungen: die Titel und Symbole, die du tragen kannst."
+msgstr "Deine Karte, wie andere sie sehen. Auswählen öffnet das Profil."
 
 msgid "awards.entry_detail"
 msgstr "Die Titel und Symbole, die du verdient hast, und wie du die übrigen bekommst. Wähle eines aus, um es auf deiner Karte zu tragen."
@@ -8334,6 +8334,15 @@ msgstr "Gesperrt"
 
 msgid "awards.wear"
 msgstr "Auf Karte tragen"
+
+msgid "awards.wear_title"
+msgstr "Titel tragen"
+
+msgid "awards.wear_icon"
+msgstr "Symbol tragen"
+
+msgid "awards.wear_both"
+msgstr "Beides tragen"
 
 msgid "awards.detail_worn"
 msgstr "Auf deiner Karte."
