@@ -1069,6 +1069,78 @@ msgstr "Выберите основного персонажа для карто
 msgid "profile.leave_room_to_edit"
 msgstr "Выйдите из лобби, чтобы изменить профиль."
 
+msgid "profile.eyebrow"
+msgstr "Профиль · {0}"
+
+msgid "profile.tab.card"
+msgstr "Карточка"
+
+msgid "profile.tab.fighters"
+msgstr "Бойцы"
+
+msgid "card.edit"
+msgstr "Изменить карточку"
+
+msgid "card.class"
+msgstr "Класс"
+
+msgid "level.value"
+msgstr "Уровень {0}"
+
+msgid "level.games"
+msgstr "Игр: {0}"
+
+msgid "level.games_away"
+msgstr "До уровня {0} примерно игр: {1}"
+
+msgid "level.top"
+msgstr "Максимальный уровень"
+
+msgid "level.hidden"
+msgstr "Другие игроки не видят ваши уровни, пока вы не участвуете в рейтинге."
+
+msgid "level.no_account"
+msgstr "Подключите Discord в разделе Настройки, Игра по сети, чтобы получать уровни."
+
+msgid "level.unavailable"
+msgstr "Этот сервис пока не считает уровни."
+
+msgid "level.loading"
+msgstr "Чтение ваших уровней."
+
+msgid "level.none"
+msgstr "Сыграйте публичную рейтинговую игру, чтобы начать получать уровни."
+
+msgid "card.counted_games"
+msgstr "Рейтинговые игры"
+
+msgid "card.win_rate"
+msgstr "Доля побед"
+
+msgid "card.fighters_played"
+msgstr "Сыграно бойцами"
+
+msgid "card.of"
+msgstr "{0} из {1}"
+
+msgid "fighters.unplayed"
+msgstr "Бойцов, за которых ещё не играли: {0}. Каждый начинает с уровня 1 после первой публичной рейтинговой игры."
+
+msgid "fighters.how"
+msgstr "Как растёт уровень"
+
+msgid "fighters.how_detail"
+msgstr "Засчитывается каждая публичная рейтинговая игра за бойца, а победа считается вдвое. Уровень никогда не падает и не связан с вашим классом. После восьми игр с одним и тем же игроком за один сеанс игры перестают засчитываться."
+
+msgid "fighters.won"
+msgstr "Победы"
+
+msgid "fighters.since"
+msgstr "С"
+
+msgid "fighters.main"
+msgstr "Основной"
+
 msgid "online.title"
 msgstr "ИГРА ПО СЕТИ"
 

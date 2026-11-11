@@ -1069,6 +1069,78 @@ msgstr "Wybierz, aby zapisać główną postać i zaktualizować kartę gracza."
 msgid "profile.leave_room_to_edit"
 msgstr "Opuść pokój, aby edytować profil."
 
+msgid "profile.eyebrow"
+msgstr "Profil · {0}"
+
+msgid "profile.tab.card"
+msgstr "Karta"
+
+msgid "profile.tab.fighters"
+msgstr "Wojownicy"
+
+msgid "card.edit"
+msgstr "Edytuj kartę"
+
+msgid "card.class"
+msgstr "Klasa"
+
+msgid "level.value"
+msgstr "Poziom {0}"
+
+msgid "level.games"
+msgstr "Gier: {0}"
+
+msgid "level.games_away"
+msgstr "Do poziomu {0} brakuje około gier: {1}"
+
+msgid "level.top"
+msgstr "Najwyższy poziom"
+
+msgid "level.hidden"
+msgstr "Inni nie widzą twoich poziomów, dopóki nie bierzesz udziału w rankingu."
+
+msgid "level.no_account"
+msgstr "Połącz Discord w Ustawieniach, Gra online, aby zdobywać poziomy."
+
+msgid "level.unavailable"
+msgstr "Ta usługa jeszcze nie liczy poziomów."
+
+msgid "level.loading"
+msgstr "Wczytywanie twoich poziomów."
+
+msgid "level.none"
+msgstr "Zagraj w publiczną grę rankingową, aby zacząć zdobywać poziomy."
+
+msgid "card.counted_games"
+msgstr "Gry rankingowe"
+
+msgid "card.win_rate"
+msgstr "Odsetek wygranych"
+
+msgid "card.fighters_played"
+msgstr "Użyci wojownicy"
+
+msgid "card.of"
+msgstr "{0} z {1}"
+
+msgid "fighters.unplayed"
+msgstr "Wojownicy jeszcze niegrani: {0}. Każdy zaczyna od poziomu 1 po pierwszej publicznej grze rankingowej."
+
+msgid "fighters.how"
+msgstr "Jak zdobywa się poziom"
+
+msgid "fighters.how_detail"
+msgstr "Liczy się każda publiczna gra rankingowa danym wojownikiem, a wygrana liczy się podwójnie. Poziom nigdy nie spada i nie ma związku z twoją klasą. Po ośmiu grach z tym samym graczem w jednej sesji kolejne gry się nie liczą."
+
+msgid "fighters.won"
+msgstr "Wygrane"
+
+msgid "fighters.since"
+msgstr "Od"
+
+msgid "fighters.main"
+msgstr "Główny"
+
 msgid "online.title"
 msgstr "GRA ONLINE"
 

@@ -1069,6 +1069,78 @@ msgstr "Vybráním uložíte hlavní postavu a upravíte kartu hráče."
 msgid "profile.leave_room_to_edit"
 msgstr "Pro úpravu profilu opusťte místnost."
 
+msgid "profile.eyebrow"
+msgstr "Profil · {0}"
+
+msgid "profile.tab.card"
+msgstr "Karta"
+
+msgid "profile.tab.fighters"
+msgstr "Bojovníci"
+
+msgid "card.edit"
+msgstr "Upravit kartu"
+
+msgid "card.class"
+msgstr "Třída"
+
+msgid "level.value"
+msgstr "Úroveň {0}"
+
+msgid "level.games"
+msgstr "Zápasů: {0}"
+
+msgid "level.games_away"
+msgstr "Do úrovně {0} zbývá přibližně zápasů: {1}"
+
+msgid "level.top"
+msgstr "Nejvyšší úroveň"
+
+msgid "level.hidden"
+msgstr "Ostatní hráči nevidí vaše úrovně, dokud se neúčastníte žebříčku."
+
+msgid "level.no_account"
+msgstr "Připojte Discord v Nastavení, Hra online, a získávejte úrovně."
+
+msgid "level.unavailable"
+msgstr "Tato služba zatím úrovně nepočítá."
+
+msgid "level.loading"
+msgstr "Načítání vašich úrovní."
+
+msgid "level.none"
+msgstr "Odehrajte veřejný hodnocený zápas a začněte získávat úrovně."
+
+msgid "card.counted_games"
+msgstr "Hodnocené zápasy"
+
+msgid "card.win_rate"
+msgstr "Podíl výher"
+
+msgid "card.fighters_played"
+msgstr "Hraní bojovníci"
+
+msgid "card.of"
+msgstr "{0} z {1}"
+
+msgid "fighters.unplayed"
+msgstr "Bojovníci, kteří ještě nehráli: {0}. Každý začíná na úrovni 1 prvním veřejným hodnoceným zápasem."
+
+msgid "fighters.how"
+msgstr "Jak se úroveň získává"
+
+msgid "fighters.how_detail"
+msgstr "Počítá se každý veřejný hodnocený zápas s bojovníkem a výhra se počítá dvakrát. Úroveň nikdy neklesá a nesouvisí s vaší třídou. Po osmi zápasech proti stejnému hráči během jedné seance se další zápasy nepočítají."
+
+msgid "fighters.won"
+msgstr "Výhry"
+
+msgid "fighters.since"
+msgstr "Od"
+
+msgid "fighters.main"
+msgstr "Hlavní"
+
 msgid "online.title"
 msgstr "HRA ONLINE"
 

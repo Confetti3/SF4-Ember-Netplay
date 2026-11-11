@@ -1069,6 +1069,78 @@ msgstr "Wählen: Hauptcharakter speichern und Spielerkarte aktualisieren."
 msgid "profile.leave_room_to_edit"
 msgstr "Raum verlassen, um Profil zu bearbeiten."
 
+msgid "profile.eyebrow"
+msgstr "Profil · {0}"
+
+msgid "profile.tab.card"
+msgstr "Karte"
+
+msgid "profile.tab.fighters"
+msgstr "Kämpfer"
+
+msgid "card.edit"
+msgstr "Karte bearbeiten"
+
+msgid "card.class"
+msgstr "Klasse"
+
+msgid "level.value"
+msgstr "Level {0}"
+
+msgid "level.games"
+msgstr "Spiele: {0}"
+
+msgid "level.games_away"
+msgstr "Level {0} ist etwa {1} Spiele entfernt"
+
+msgid "level.top"
+msgstr "Höchstes Level"
+
+msgid "level.hidden"
+msgstr "Andere sehen deine Level nicht, solange du nicht am Ranking teilnimmst."
+
+msgid "level.no_account"
+msgstr "Verbinde Discord unter Einstellungen, Online-Spiel, um Level zu sammeln."
+
+msgid "level.unavailable"
+msgstr "Dieser Dienst zählt noch keine Level."
+
+msgid "level.loading"
+msgstr "Deine Level werden gelesen."
+
+msgid "level.none"
+msgstr "Spiele ein gewertetes öffentliches Spiel, um Level zu sammeln."
+
+msgid "card.counted_games"
+msgstr "Gewertete Spiele"
+
+msgid "card.win_rate"
+msgstr "Siegquote"
+
+msgid "card.fighters_played"
+msgstr "Gespielte Kämpfer"
+
+msgid "card.of"
+msgstr "{0} von {1}"
+
+msgid "fighters.unplayed"
+msgstr "{0} Kämpfer noch nicht gespielt. Jeder beginnt mit seinem ersten gewerteten öffentlichen Spiel bei Level 1."
+
+msgid "fighters.how"
+msgstr "So steigt ein Level"
+
+msgid "fighters.how_detail"
+msgstr "Jedes gewertete öffentliche Spiel mit einem Kämpfer zählt, ein Sieg zählt doppelt. Ein Level sinkt nie und hat nichts mit deiner Klasse zu tun. Nach acht Spielen gegen denselben Spieler in einer Sitzung zählen weitere Spiele nicht mehr."
+
+msgid "fighters.won"
+msgstr "Siege"
+
+msgid "fighters.since"
+msgstr "Seit"
+
+msgid "fighters.main"
+msgstr "Haupt"
+
 msgid "online.title"
 msgstr "ONLINE-SPIEL"
 

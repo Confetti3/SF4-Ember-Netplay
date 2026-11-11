@@ -1069,6 +1069,78 @@ msgstr "Enregistrez votre perso principal sur votre carte de joueur."
 msgid "profile.leave_room_to_edit"
 msgstr "Quittez le salon pour modifier votre profil."
 
+msgid "profile.eyebrow"
+msgstr "Profil · {0}"
+
+msgid "profile.tab.card"
+msgstr "Carte"
+
+msgid "profile.tab.fighters"
+msgstr "Combattants"
+
+msgid "card.edit"
+msgstr "Modifier la carte"
+
+msgid "card.class"
+msgstr "Classe"
+
+msgid "level.value"
+msgstr "Niveau {0}"
+
+msgid "level.games"
+msgstr "{0} parties"
+
+msgid "level.games_away"
+msgstr "Le niveau {0} est à environ {1} parties"
+
+msgid "level.top"
+msgstr "Niveau maximal"
+
+msgid "level.hidden"
+msgstr "Les autres ne voient pas vos niveaux tant que vous ne participez pas au classement."
+
+msgid "level.no_account"
+msgstr "Connectez Discord dans Paramètres, Jeu en ligne pour gagner des niveaux."
+
+msgid "level.unavailable"
+msgstr "Ce service ne compte pas encore les niveaux."
+
+msgid "level.loading"
+msgstr "Lecture de vos niveaux."
+
+msgid "level.none"
+msgstr "Jouez une partie publique classée pour commencer à gagner des niveaux."
+
+msgid "card.counted_games"
+msgstr "Parties classées"
+
+msgid "card.win_rate"
+msgstr "Taux de victoire"
+
+msgid "card.fighters_played"
+msgstr "Combattants joués"
+
+msgid "card.of"
+msgstr "{0} sur {1}"
+
+msgid "fighters.unplayed"
+msgstr "{0} combattants pas encore joués. Chacun commence au niveau 1 avec sa première partie publique classée."
+
+msgid "fighters.how"
+msgstr "Comment un niveau se gagne"
+
+msgid "fighters.how_detail"
+msgstr "Chaque partie publique classée avec un combattant compte, et une victoire compte double. Un niveau ne baisse jamais et n'a rien à voir avec votre classe. Après huit parties contre le même joueur en une session, les parties ne comptent plus."
+
+msgid "fighters.won"
+msgstr "Victoires"
+
+msgid "fighters.since"
+msgstr "Depuis"
+
+msgid "fighters.main"
+msgstr "Principal"
+
 msgid "online.title"
 msgstr "JEU EN LIGNE"
 

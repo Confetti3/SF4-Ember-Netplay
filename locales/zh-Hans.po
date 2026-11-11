@@ -1069,6 +1069,78 @@ msgstr "选择以保存主角并更新玩家名片。"
 msgid "profile.leave_room_to_edit"
 msgstr "请离开房间后再编辑个人资料。"
 
+msgid "profile.eyebrow"
+msgstr "个人资料 · {0}"
+
+msgid "profile.tab.card"
+msgstr "名片"
+
+msgid "profile.tab.fighters"
+msgstr "角色"
+
+msgid "card.edit"
+msgstr "编辑名片"
+
+msgid "card.class"
+msgstr "段位"
+
+msgid "level.value"
+msgstr "等级 {0}"
+
+msgid "level.games"
+msgstr "{0} 场"
+
+msgid "level.games_away"
+msgstr "距离等级 {0} 约还差 {1} 场"
+
+msgid "level.top"
+msgstr "最高等级"
+
+msgid "level.hidden"
+msgstr "在你不参与排名期间，其他玩家看不到你的等级。"
+
+msgid "level.no_account"
+msgstr "在设置的在线对战中关联 Discord，即可获得等级。"
+
+msgid "level.unavailable"
+msgstr "此服务暂不统计等级。"
+
+msgid "level.loading"
+msgstr "正在读取你的等级。"
+
+msgid "level.none"
+msgstr "进行一场排位公开对战，即可开始获得等级。"
+
+msgid "card.counted_games"
+msgstr "排位场数"
+
+msgid "card.win_rate"
+msgstr "胜率"
+
+msgid "card.fighters_played"
+msgstr "已使用角色"
+
+msgid "card.of"
+msgstr "{0} / {1}"
+
+msgid "fighters.unplayed"
+msgstr "还有 {0} 名角色未使用。每名角色在第一场排位公开对战后从 1 级开始。"
+
+msgid "fighters.how"
+msgstr "等级如何获得"
+
+msgid "fighters.how_detail"
+msgstr "使用角色进行的每场排位公开对战都会计入，胜利计为两倍。等级不会下降，也与你的段位无关。同一次连续游玩中对同一玩家超过八场后，不再计入。"
+
+msgid "fighters.won"
+msgstr "胜场"
+
+msgid "fighters.since"
+msgstr "起始"
+
+msgid "fighters.main"
+msgstr "主角"
+
 msgid "online.title"
 msgstr "在线对战"
 
