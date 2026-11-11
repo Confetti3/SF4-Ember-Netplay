@@ -124,7 +124,8 @@ public:
     static bool Takes(unsigned shortcut) { return shortcut == MenuInput::Fighter || shortcut == MenuInput::Options || shortcut == MenuInput::Leave; }
     // The Settings panel's rows, which Activate takes as the tab's own.
     static bool SettingsRow(const std::string& row);
-    static bool Owns(const std::string& screen) { return Shown(screen) || screen == VisitScreen; }
+    // The Settings panel is Settings' own screen (it only borrows this panel's rows and chips), so it is not owned here.
+    static bool Owns(const std::string& screen) { return OnTab(screen) || screen == VisitScreen; }
 
     // Every frame: Visit when the tab opens (again when its cadence lapsed) and Leave when it closes; the question
     // a Join asks, opened over whatever shows; a refusal's words, and what an action that went through says.
