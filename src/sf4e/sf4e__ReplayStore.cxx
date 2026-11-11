@@ -227,6 +227,24 @@ struct Operation {
 	void Notice(const char* key, bool error) { status.notice = sf4e::loc::T(key); status.noticeError = error; }
 } s_operation;
 
+// The slots the battle log's list shows, first rows first, for the lines that
+// tell a stale list (the slot is not there) from a wrong slot (it is there, and
+// the game plays another).
+std::string ListedSlots(Dimps::Event::EventBase* select) {
+	ReplayBattle::List* const list = ReplayBattle::GetList(select);
+	const int* const rows = list ? ReplayBattle::GetRowsBegin(list) : nullptr;
+	const int* const end = list ? ReplayBattle::GetRowsEnd(list) : nullptr;
+	constexpr int kShown = 8;
+	std::string text;
+	int count = 0;
+	for (const int* r = rows; r && r < end; r = ReplayBattle::NextRow(r), count++)
+		if (count < kShown) text += (count ? " " : "") + std::to_string(*r);
+	return std::to_string(count) + " rows [" + text + (count > kShown ? " ..." : "") + "]";
+}
+
+// The file's own name: a log line shows which replay was asked for, not whose folder it is in.
+std::string LeafName(const std::string& path) { return path.substr(path.find_last_of("\\/") + 1); }
+
 // Plays the slot's row of the battle log's list, as the list's DECIDE does.
 // False while the list has no such row.
 bool PlayRow(Dimps::Event::EventBase* select, int slot) {
@@ -236,9 +254,12 @@ bool PlayRow(Dimps::Event::EventBase* select, int slot) {
 	for (const int* r = rows; r && r < end; r = ReplayBattle::NextRow(r)) {
 		if (*r != slot) continue;
 		const int row = ReplayBattle::RowIndex(rows, r);
+		const int before = *ReplayBattle::GetSelectedRow(list);
+		const std::uint8_t* const entry = EntryOf(slot);
 		*ReplayBattle::GetSelectedRow(list) = row;
 		ReplayBattle::staticMethods.PlayRow(list);
-		spdlog::info("Replay: playing slot {} from row {} of the battle log", slot, row);
+		spdlog::info("Replay: playing slot {} from row {} of the battle log (the list held {}, had row {} selected; the game's table entry for the slot names slot {})",
+			slot, row, ListedSlots(select), before, entry ? static_cast<int>(Table::GetEntrySlot(entry)) : -1);
 		return true;
 	}
 	return false;
@@ -309,6 +330,7 @@ void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, b
 		if (!Ready() || SavesBusy()) { op.Notice("replays.not_ready", true); return; }
 		const std::wstring path = platform::Utf8ToWide(request.path.c_str());
   op.request = request; op.saveRevision = s_saveRevision.load();
+  spdlog::info("Replay: asked for {}", LeafName(request.path));
   const auto queued = platform::replays::WantImport(path);
   if (queued != ImportResult::Done) { op.Notice(platform::replays::ImportNotice(queued), true); return; }
   op.Enter(Step::PreparingImport);
@@ -410,6 +432,7 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
   }
   const auto result = Import(prepared, op.slot, op.request.mode == replay::Mode::Watch);
   if (result != ImportResult::Done) { op.Notice(platform::replays::ImportNotice(result), true); return; }
+  spdlog::info("Replay: {} was put into slot {} for {}", LeafName(op.request.path), op.slot, op.request.mode == replay::Mode::Watch ? "watching" : op.request.mode == replay::Mode::Export ? "export" : "adding");
   op.Notice("replays.added", false);
   FinishRequest(op.request, noRoom);
   return;
@@ -427,7 +450,7 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 		break;
 	case Step::SelectingRow:
 		if (Named(state, "Select") && !SavesBusy() && PlayRow(state, op.slot)) op.Enter(Step::Playing);
-		else if (late) { spdlog::warn("Replay: slot {} could not be played; it is in the battle log's list", op.slot); op.Enter(Step::InLog); }
+		else if (late) { spdlog::warn("Replay: slot {} could not be played; the battle log's list held {}", op.slot, Named(state, "Select") ? ListedSlots(state) : "no list"); op.Enter(Step::InLog); }
 		break;
 	case Step::Playing:
 		if (!log) {

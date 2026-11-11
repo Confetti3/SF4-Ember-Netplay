@@ -784,7 +784,7 @@ and players (by their account on the event's site):
   names (`POST .../matches/{match}/adjudications`).
 - `GET /v1/public/events/{id}`, to anyone, only while the organizer has set
   `"public": true` on the event and has not stopped it: its title, start,
-  links and sets without Ember IDs or match IDs, and `sign_ups_open`.
+  links and sets without Ember IDs, match IDs or the winner's site ID (`status` says a set is decided), and `sign_ups_open`.
 
 `/t/{id}` is that event's public page, a phone viewer of its live sets and
 bracket that also lets a signed-in player sign up while sign-ups are open.

@@ -7,8 +7,9 @@ use super::*;
 /// A set as `GET /v1/public/events/{id}` serves it. A field the connector or
 /// the bridge may leave out is absent when it is absent from the desk's view;
 /// a field present there as null stays null. Add a field here to publish it:
-/// the site's entry IDs, the Ember match and the entrants' Discord accounts
-/// are not fields.
+/// the site's entry IDs (so not the winner's: `status` says a set is
+/// decided), the Ember match and the entrants' Discord accounts are not
+/// fields.
 #[derive(Serialize)]
 pub(super) struct PublicSet {
     id: Value,
@@ -20,8 +21,6 @@ pub(super) struct PublicSet {
     phase: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     status: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    winner: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     held: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -51,7 +50,6 @@ impl PublicSet {
             round_label: field("round_label"),
             phase: field("phase"),
             status: field("status"),
-            winner: field("winner"),
             held: field("held"),
             progress: field("progress"),
             called_at: field("called_at"),
@@ -77,8 +75,7 @@ mod tests {
             "round": 2,
             "round_label": "Round 2",
             "phase": null,
-            "status": "open",
-            "winner": null,
+            "status": "decided",
             "held": false,
             "progress": "live",
             "called_at": 1700000000,
@@ -89,7 +86,8 @@ mod tests {
             "players": ["Player 1", "Player 2"],
             "side": "winners",
             "desk_state": "playing",
-            // Private: the site's and Ember's IDs, and the entrants' Discord.
+            // Private: the site's and Ember's IDs (the winner's among them), and the entrants' Discord.
+            "winner": "p-1",
             "match_id": "emt_1",
             "entries": ["p-1", "p-2"],
             "discord": ["player1#0", null],
@@ -106,8 +104,7 @@ mod tests {
                 "round": 2,
                 "round_label": "Round 2",
                 "phase": null,
-                "status": "open",
-                "winner": null,
+                "status": "decided",
                 "held": false,
                 "progress": "live",
                 "called_at": 1700000000,
