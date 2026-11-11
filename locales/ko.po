@@ -551,7 +551,7 @@ msgid "connection.direct_checking"
 msgstr "네트워크가 직접 연결을 허용하는지 아직 확인 중입니다."
 
 msgid "connection.blocked_local_no_udp"
-msgstr "예상 원인: 내 네트워크가 UDP를 차단합니다."
+msgstr "예상 원인: Windows 방화벽이나 내 네트워크가 UDP를 차단합니다. Windows 보안 > 방화벽 및 네트워크 보호 > 방화벽에서 앱 허용에서 sf4-net.exe를 허용하세요 (개인 및 공용)."
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "예상 원인: {0}님의 네트워크가 UDP를 차단합니다."
@@ -617,7 +617,7 @@ msgid "network.nat_detail_strict"
 msgstr "공유기가 엄격한 NAT를 사용해 직접 연결이 자주 실패하며, 대전이 중계 서버를 거칠 수 있습니다."
 
 msgid "network.nat_detail_no_udp"
-msgstr "네트워크가 UDP를 차단하는 것 같습니다. 직접 연결이 되지 않아 대전이 중계 서버를 거칠 수 있습니다. 방화벽이나 VPN이 원인일 수 있습니다."
+msgstr "네트워크가 UDP를 차단하는 것 같습니다. 직접 연결이 되지 않아 대전이 중계 서버를 거칠 수 있습니다. 처음 실행할 때 나온 확인 창을 넘겼거나 네트워크가 공용으로 설정되어 있다면 대부분 Windows 방화벽 때문입니다. Windows 보안 > 방화벽 및 네트워크 보호 > 방화벽에서 앱 허용에서 sf4-net.exe를 허용하세요 (개인 및 공용). VPN도 UDP를 막을 수 있습니다."
 
 msgid "network.nat_detail_checking"
 msgstr "네트워크를 확인하는 중입니다. 게임 시작 후 몇 초가 걸립니다."
@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "방 요청에 실패했습니다. 방을 나가 다시 시도하세요."
 
 msgid "runtime.build_mismatch"
-msgstr "빌드가 다릅니다. 두 플레이어가 같은 SF4 Ember Netplay 패키지를 사용해야 합니다."
+msgstr "내 Ember와 이 방의 버전이 다릅니다. 호스트가 쓰는 버전을 물어본 뒤, 도움말 및 정보 > 업데이트 확인에서 업데이트하거나 업데이트 채널을 바꿔 버전을 맞추세요."
+msgid "runtime.build_mismatch_update"
+msgstr "Ember가 오래되어 이 방에 참가할 수 없습니다. 도움말 및 정보 > 업데이트 확인에서 업데이트한 뒤 다시 참가하세요."
 
 msgid "runtime.room_full"
 msgstr "방이 가득 찼습니다."
@@ -2506,8 +2508,6 @@ msgstr "이 버전은 제안된 버전이 아닙니다. 업데이트를 다시 �
 
 msgid "update.close_sf4"
 msgstr "업데이트를 설치하기 전에 Ultra Street Fighter IV를 닫으세요."
-msgid "update.elevated"
-msgstr "Ember가 관리자 권한으로 실행 중입니다. 업데이트를 설치하려면 종료한 뒤 일반 방식으로 실행하세요."
 
 msgid "update.install_dir_failed"
 msgstr "설치 폴더를 확인하지 못했습니다."
@@ -3666,7 +3666,7 @@ msgid "runtime.invite_own_room"
 msgstr "이 초대는 내 게임을 가리키고 있습니다. 방을 나가기 전에 복사된 초대입니다. 방장에게 초대를 다시 복사해 달라고 하세요."
 
 msgid "runtime.invite_other_build"
-msgstr "호스트가 다른 SF4 Ember Netplay 패키지를 사용 중입니다. 두 플레이어 모두 같은 버전이 필요합니다."
+msgstr "호스트가 다른 버전의 Ember를 쓰고 있습니다. 어떤 버전인지 물어본 뒤, 도움말 및 정보 > 업데이트 확인에서 업데이트하거나 업데이트 채널을 바꿔 버전을 맞추세요."
 
 msgid "runtime.invite_malformed"
 msgstr "초대 텍스트가 불완전합니다. 다시 복사해서 초대 전체를 붙여 넣으세요."
@@ -3687,7 +3687,7 @@ msgid "runtime.relay_unreachable_region"
 msgstr "중계 서버({0})에 연결하지 못했습니다. 인터넷 연결, 방화벽, VPN을 확인하고 다시 시도하세요."
 
 msgid "runtime.host_unreachable"
-msgstr "방장에게 직접도, 중계 서버를 통해서도 연결하지 못했습니다. 방이 닫혔거나 방화벽이나 VPN이 방해하고 있을 수 있습니다."
+msgstr "방장에게 직접도, 중계 서버를 통해서도 연결하지 못했습니다. 방이 닫혔을 수 있습니다. 열려 있다면 대부분 Windows 방화벽 때문입니다. Windows 보안 > 방화벽 및 네트워크 보호 > 방화벽에서 앱 허용에서 sf4-net.exe를 허용하세요 (개인 및 공용). VPN이 방해하고 있을 수도 있습니다."
 
 msgid "runtime.join_control_lost"
 msgstr "방장에게는 연결했지만 연결이 계속 끊겼습니다. 인터넷 연결을 확인하고 다시 시도하세요."

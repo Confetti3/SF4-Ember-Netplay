@@ -551,7 +551,7 @@ msgid "connection.direct_checking"
 msgstr "Es wird noch geprüft, ob Ihr Netzwerk direkte Verbindungen erlaubt."
 
 msgid "connection.blocked_local_no_udp"
-msgstr "Wahrscheinliche Ursache: Ihr Netzwerk blockiert UDP."
+msgstr "Wahrscheinliche Ursache: Die Windows-Firewall oder Ihr Netzwerk blockiert UDP. Erlauben Sie unter Windows-Sicherheit > Firewall- & Netzwerkschutz > App durch die Firewall zulassen die Datei sf4-net.exe (Privat und Öffentlich)."
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "Wahrscheinliche Ursache: Das Netzwerk von {0} blockiert UDP."
@@ -617,7 +617,7 @@ msgid "network.nat_detail_strict"
 msgstr "Ihr Router nutzt striktes NAT, daher scheitern direkte Verbindungen oft und Spiele laufen möglicherweise über ein Relay."
 
 msgid "network.nat_detail_no_udp"
-msgstr "Ihr Netzwerk scheint UDP zu blockieren, daher scheitern direkte Verbindungen und Spiele laufen möglicherweise über ein Relay. Ursache kann eine Firewall oder ein VPN sein."
+msgstr "Ihr Netzwerk scheint UDP zu blockieren, daher scheitern direkte Verbindungen und Spiele laufen möglicherweise über ein Relay. Meist ist die Windows-Firewall schuld, wenn ihre Abfrage beim ersten Start übersprungen wurde oder das Netzwerk auf Öffentlich steht. Erlauben Sie unter Windows-Sicherheit > Firewall- & Netzwerkschutz > App durch die Firewall zulassen die Datei sf4-net.exe (Privat und Öffentlich). Auch ein VPN kann UDP blockieren."
 
 msgid "network.nat_detail_checking"
 msgstr "Ihr Netzwerk wird geprüft. Das dauert nach dem Spielstart einige Sekunden."
@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "Raumanfrage fehlgeschlagen. Raum verlassen und erneut versuchen."
 
 msgid "runtime.build_mismatch"
-msgstr "Builds stimmen nicht überein. Beide Spieler brauchen dasselbe SF4 Ember Netplay-Paket."
+msgstr "Dein Ember und dieser Raum haben verschiedene Versionen. Frag den Host, welche er nutzt, und aktualisiere dann oder wechsle den Update-Kanal unter Hilfe & Info > Auf Updates prüfen, damit ihr übereinstimmt."
+msgid "runtime.build_mismatch_update"
+msgstr "Dein Ember ist veraltet und kann diesem Raum deshalb nicht beitreten. Aktualisiere unter Hilfe & Info > Auf Updates prüfen und tritt dann erneut bei."
 
 msgid "runtime.room_full"
 msgstr "Dieser Raum ist voll."
@@ -2506,8 +2508,6 @@ msgstr "Diese Version ist nicht die angebotene. Suchen Sie erneut nach Updates."
 
 msgid "update.close_sf4"
 msgstr "Schließen Sie Ultra Street Fighter IV vor der Updateinstallation."
-msgid "update.elevated"
-msgstr "Ember läuft als Administrator. Schließen Sie es und starten Sie es normal, um Updates zu installieren."
 
 msgid "update.install_dir_failed"
 msgstr "Installationsordner unbekannt."
@@ -3665,7 +3665,7 @@ msgid "runtime.invite_own_room"
 msgstr "Diese Einladung führt zurück zu deinem eigenen Spiel: Sie wurde kopiert, bevor du den Raum verlassen hast. Bitte den Host, die Einladung erneut zu kopieren."
 
 msgid "runtime.invite_other_build"
-msgstr "Der Host nutzt ein anderes SF4-Ember-Netplay-Paket. Beide Spieler brauchen dieselbe Version."
+msgstr "Der Host nutzt eine andere Version von Ember. Frag, welche, und aktualisiere dann oder wechsle den Update-Kanal unter Hilfe & Info > Auf Updates prüfen, damit ihr übereinstimmt."
 
 msgid "runtime.invite_malformed"
 msgstr "Der Einladungstext ist unvollständig. Erneut kopieren und die ganze Einladung einfügen."
@@ -3686,7 +3686,7 @@ msgid "runtime.relay_unreachable_region"
 msgstr "Der Relay-Server ({0}) war nicht erreichbar. Prüfen Sie Internetverbindung, Firewall oder VPN und versuchen Sie es erneut."
 
 msgid "runtime.host_unreachable"
-msgstr "Der Host war weder direkt noch über ein Relay erreichbar. Der Raum wurde möglicherweise geschlossen, oder eine Firewall oder ein VPN stört."
+msgstr "Der Host war weder direkt noch über ein Relay erreichbar. Der Raum wurde möglicherweise geschlossen. Ist er offen, liegt es meist an der Windows-Firewall: Erlauben Sie unter Windows-Sicherheit > Firewall- & Netzwerkschutz > App durch die Firewall zulassen die Datei sf4-net.exe (Privat und Öffentlich). Auch ein VPN kann stören."
 
 msgid "runtime.join_control_lost"
 msgstr "Der Host wurde erreicht, aber die Verbindung brach immer wieder ab. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."

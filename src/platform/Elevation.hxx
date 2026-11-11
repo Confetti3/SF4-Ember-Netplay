@@ -2,10 +2,10 @@
 #include <windows.h>
 
 namespace sf4e { namespace platform {
-// Whether a process runs with an administrator token. Updates install as the
-// normal user, so only Normal may stage or run the Updater. Wine reports its
-// user as elevated for every process, so it counts as Normal there; Unknown
-// when Windows cannot say, which is not taken as Normal.
+// Whether a process runs with an administrator token. With UAC off, or on the
+// built-in Administrator account, every process holds one, so Elevated is
+// not something the player did. Wine reports its user as elevated for every
+// process, so it counts as Normal there; Unknown when Windows cannot say.
 enum class Elevation { Normal, Elevated, Unknown };
 inline Elevation ProcessElevation(HANDLE process = GetCurrentProcess()) {
     if (GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "wine_get_version")) return Elevation::Normal;

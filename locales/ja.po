@@ -551,7 +551,7 @@ msgid "connection.direct_checking"
 msgstr "ネットワークが直接接続を許可しているか、まだ確認中です。"
 
 msgid "connection.blocked_local_no_udp"
-msgstr "考えられる原因: お使いのネットワークがUDPをブロックしています。"
+msgstr "考えられる原因: Windows ファイアウォールかネットワークが UDP をブロックしています。Windows セキュリティ > ファイアウォールとネットワーク保護 > ファイアウォールによるアプリケーションの許可 で sf4-net.exe を許可してください (プライベートとパブリック)。"
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "考えられる原因: {0}さんのネットワークがUDPをブロックしています。"
@@ -617,7 +617,7 @@ msgid "network.nat_detail_strict"
 msgstr "ルーターが厳格なNATを使用しているため、直接接続に失敗しやすく、対戦が中継を経由する場合があります。"
 
 msgid "network.nat_detail_no_udp"
-msgstr "ネットワークがUDPをブロックしているようです。直接接続はできず、対戦が中継を経由する場合があります。原因はファイアウォールやVPNかもしれません。"
+msgstr "ネットワークがUDPをブロックしているようです。直接接続はできず、対戦が中継を経由する場合があります。初回起動時の確認を飛ばした場合や、ネットワークがパブリックの場合は、Windows ファイアウォールが原因のことが多いです。Windows セキュリティ > ファイアウォールとネットワーク保護 > ファイアウォールによるアプリケーションの許可 で sf4-net.exe を許可してください (プライベートとパブリック)。VPNがUDPをブロックすることもあります。"
 
 msgid "network.nat_detail_checking"
 msgstr "ネットワークを確認中です。ゲーム起動後、数秒かかります。"
@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "ルームへの要求に失敗しました。退出して再試行してください。"
 
 msgid "runtime.build_mismatch"
-msgstr "ビルドが一致しません。両プレイヤーは同じSF4 Ember Netplayパッケージを使用してください。"
+msgstr "あなたの Ember とこのルームのバージョンが違います。ホストが使っているバージョンを聞いてから、ヘルプ・情報 > 更新を確認 で更新するか更新チャンネルを変えて、そろえてください。"
+msgid "runtime.build_mismatch_update"
+msgstr "お使いの Ember が古いため、このルームには参加できません。ヘルプ・情報 > 更新を確認 で更新してから、もう一度参加してください。"
 
 msgid "runtime.room_full"
 msgstr "このルームは満員です。"
@@ -2506,8 +2508,6 @@ msgstr "このバージョンは提示されたものではありません。も
 
 msgid "update.close_sf4"
 msgstr "更新をインストールする前にUltra Street Fighter IVを閉じてください。"
-msgid "update.elevated"
-msgstr "Ember が管理者として実行されています。アップデートをインストールするには、終了して通常どおり起動してください。"
 
 msgid "update.install_dir_failed"
 msgstr "インストール先を特定できませんでした。"
@@ -3666,7 +3666,7 @@ msgid "runtime.invite_own_room"
 msgstr "この招待はあなた自身のゲームを指しています。ルームを出る前にコピーされたものです。ホストに招待をもう一度コピーしてもらってください。"
 
 msgid "runtime.invite_other_build"
-msgstr "ホストは別の SF4 Ember Netplay パッケージを使っています。両プレイヤーが同じバージョンを使う必要があります。"
+msgstr "ホストは別のバージョンの Ember を使っています。どのバージョンか聞いてから、ヘルプ・情報 > 更新を確認 で更新するか更新チャンネルを変えて、そろえてください。"
 
 msgid "runtime.invite_malformed"
 msgstr "招待のテキストが不完全です。もう一度コピーして、招待全体を貼り付けてください。"
@@ -3687,7 +3687,7 @@ msgid "runtime.relay_unreachable_region"
 msgstr "中継サーバー ({0}) に接続できませんでした。インターネット接続、ファイアウォール、VPNを確認して、もう一度お試しください。"
 
 msgid "runtime.host_unreachable"
-msgstr "ホストに直接も中継経由でも接続できませんでした。ルームが閉じられたか、ファイアウォールやVPNが妨げている可能性があります。"
+msgstr "ホストに直接も中継経由でも接続できませんでした。ルームが閉じられた可能性があります。開いている場合は Windows ファイアウォールが原因のことが多いです。Windows セキュリティ > ファイアウォールとネットワーク保護 > ファイアウォールによるアプリケーションの許可 で sf4-net.exe を許可してください (プライベートとパブリック)。VPNが妨げていることもあります。"
 
 msgid "runtime.join_control_lost"
 msgstr "ホストには接続できましたが、接続が何度も切れました。インターネット接続を確認して、もう一度お試しください。"

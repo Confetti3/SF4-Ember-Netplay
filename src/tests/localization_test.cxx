@@ -260,7 +260,7 @@ int main(int argc, char** argv) {
     }
     // The room's error ids and the session client's stand in the catalogs, so a
     // failure the client reports is a sentence and never an internal code.
-    for (const char* id : {"runtime.room_request_failed", "runtime.build_mismatch", "room.catching_up", "room.control_recovering"})
+    for (const char* id : {"runtime.room_request_failed", "runtime.build_mismatch", "runtime.build_mismatch_update", "room.catching_up", "room.control_recovering"})
         for (std::size_t i = 0; i < count; ++i) CHECK(catalogs[i].count(id));
 
     // Names, room names and chat are drawn by the embedded fonts whatever the

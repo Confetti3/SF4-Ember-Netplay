@@ -551,7 +551,7 @@ msgid "connection.direct_checking"
 msgstr "Nadal sprawdzamy, czy Twoja sieć umożliwia połączenia bezpośrednie."
 
 msgid "connection.blocked_local_no_udp"
-msgstr "Prawdopodobna przyczyna: Twoja sieć blokuje UDP."
+msgstr "Prawdopodobna przyczyna: Zapora systemu Windows lub Twoja sieć blokuje UDP. W Zabezpieczenia systemu Windows > Zapora i ochrona sieci > Zezwalaj aplikacji na dostęp przez zaporę zezwól na sf4-net.exe (Prywatne i Publiczne)."
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "Prawdopodobna przyczyna: sieć gracza {0} blokuje UDP."
@@ -617,7 +617,7 @@ msgid "network.nat_detail_strict"
 msgstr "Twój router używa ścisłego NAT, dlatego połączenia bezpośrednie często się nie udają, a walki mogą iść przez serwer pośredniczący."
 
 msgid "network.nat_detail_no_udp"
-msgstr "Twoja sieć prawdopodobnie blokuje UDP, więc połączenia bezpośrednie nie powiodą się, a walki mogą iść przez serwer pośredniczący. Przyczyną może być zapora lub VPN."
+msgstr "Twoja sieć prawdopodobnie blokuje UDP, więc połączenia bezpośrednie nie powiodą się, a walki mogą iść przez serwer pośredniczący. Najczęściej winna jest Zapora systemu Windows, jeśli pominięto jej pytanie przy pierwszym uruchomieniu albo sieć ma profil publiczny. W Zabezpieczenia systemu Windows > Zapora i ochrona sieci > Zezwalaj aplikacji na dostęp przez zaporę zezwól na sf4-net.exe (Prywatne i Publiczne). UDP może blokować też VPN."
 
 msgid "network.nat_detail_checking"
 msgstr "Sprawdzanie sieci. Po uruchomieniu gry trwa to kilka sekund."
@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "Żądanie pokoju nie powiodło się. Opuść pokój i spróbuj ponownie."
 
 msgid "runtime.build_mismatch"
-msgstr "Niezgodne wersje. Obaj gracze muszą używać tego samego pakietu SF4 Ember Netplay."
+msgstr "Twój Ember i ten pokój mają różne wersje. Zapytaj gospodarza, której wersji używa, a potem zaktualizuj grę lub zmień kanał aktualizacji w Pomoc i informacje > Sprawdź aktualizacje, żeby wersje się zgadzały."
+msgid "runtime.build_mismatch_update"
+msgstr "Twój Ember jest nieaktualny, więc nie może dołączyć do tego pokoju. Zaktualizuj w Pomoc i informacje > Sprawdź aktualizacje i dołącz ponownie."
 
 msgid "runtime.room_full"
 msgstr "Pokój jest pełny."
@@ -2506,8 +2508,6 @@ msgstr "Ta wersja nie jest tą, którą zaproponowano. Sprawdź aktualizacje pon
 
 msgid "update.close_sf4"
 msgstr "Zamknij Ultra Street Fighter IV przed instalacją aktualizacji."
-msgid "update.elevated"
-msgstr "Ember działa jako administrator. Zamknij go i uruchom normalnie, aby instalować aktualizacje."
 
 msgid "update.install_dir_failed"
 msgstr "Nie udało się ustalić folderu instalacji."
@@ -3665,7 +3665,7 @@ msgid "runtime.invite_own_room"
 msgstr "To zaproszenie prowadzi z powrotem do Twojej gry: zostało skopiowane, zanim opuściłeś pokój. Poproś gospodarza o ponowne skopiowanie zaproszenia."
 
 msgid "runtime.invite_other_build"
-msgstr "Gospodarz używa innego pakietu SF4 Ember Netplay. Obaj gracze potrzebują tej samej wersji."
+msgstr "Gospodarz używa innej wersji Embera. Zapytaj, której, a potem zaktualizuj grę lub zmień kanał aktualizacji w Pomoc i informacje > Sprawdź aktualizacje, żeby wersje się zgadzały."
 
 msgid "runtime.invite_malformed"
 msgstr "Tekst zaproszenia jest niepełny. Skopiuj je ponownie i wklej całe zaproszenie."
@@ -3686,7 +3686,7 @@ msgid "runtime.relay_unreachable_region"
 msgstr "Nie udało się połączyć z serwerem pośredniczącym ({0}). Sprawdź internet, zaporę lub VPN i spróbuj ponownie."
 
 msgid "runtime.host_unreachable"
-msgstr "Nie udało się połączyć z hostem ani bezpośrednio, ani przez serwer pośredniczący. Pokój mógł zostać zamknięty albo przeszkadza zapora lub VPN."
+msgstr "Nie udało się połączyć z hostem ani bezpośrednio, ani przez serwer pośredniczący. Pokój mógł zostać zamknięty. Jeśli jest otwarty, najczęściej winna jest Zapora systemu Windows: w Zabezpieczenia systemu Windows > Zapora i ochrona sieci > Zezwalaj aplikacji na dostęp przez zaporę zezwól na sf4-net.exe (Prywatne i Publiczne). Przeszkadzać może też VPN."
 
 msgid "runtime.join_control_lost"
 msgstr "Połączono się z hostem, ale połączenie stale się zrywało. Sprawdź połączenie z internetem i spróbuj ponownie."

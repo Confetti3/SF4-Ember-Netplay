@@ -596,12 +596,15 @@ static void SettleRoomState(bool helperReady) {
 		{
 			// The host's refusal (name taken, room full) says what to fix; the generic text does not.
 			const auto rejection = UserApp::netplay ? UserApp::netplay->client.JoinRejection() : std::nullopt;
+			// A build the room refuses is out of date when this PC's own check found an update.
+			const auto update = runtime->services.Snapshot().update;
+			const bool updateAvailable = update.ok && update.updateAvailable && !update.goesBack;
 			// Without a rejection, the helper's stage says where it failed; hosting has its own wording.
 			// A public room's join is worded for it: the host locking the room or turning the player away, and a failure no stage explains.
 			Apply(netplay::EventKind::RoomFailed, rejection ?
-				std::string(loc::T(runtime->join==JoinKind::Public ? SessionClient::PublicJoinRejectionKey(*rejection) : SessionClient::JoinRejectionKey(*rejection))) :
-				runtime->join==JoinKind::Public ? ui::DescribePublicOpeningFailure(runtime->room->Stage(), runtime->room->Network().relay) :
-				ui::DescribeOpeningFailure(state.isHost, runtime->room->Stage(), runtime->room->Network().relay));
+				std::string(loc::T(runtime->join==JoinKind::Public ? SessionClient::PublicJoinRejectionKey(*rejection, updateAvailable) : SessionClient::JoinRejectionKey(*rejection, updateAvailable))) :
+				runtime->join==JoinKind::Public ? ui::DescribePublicOpeningFailure(runtime->room->Stage(), runtime->room->Network().relay, updateAvailable) :
+				ui::DescribeOpeningFailure(state.isHost, runtime->room->Stage(), runtime->room->Network().relay, updateAvailable));
 		}
 	} else if (state.room == netplay::RoomState::Joined && runtime->room &&
 		(runtime->room->GetState() == session::IrohRoom::State::Failed || runtime->room->GetState() == session::IrohRoom::State::Idle ||

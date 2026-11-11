@@ -551,7 +551,7 @@ msgid "connection.direct_checking"
 msgstr "Stále se kontroluje, zda vaše síť umožňuje přímá spojení."
 
 msgid "connection.blocked_local_no_udp"
-msgstr "Pravděpodobná příčina: vaše síť blokuje UDP."
+msgstr "Pravděpodobná příčina: Windows Firewall nebo vaše síť blokuje UDP. V Zabezpečení Windows > Brána firewall a ochrana sítě > Povolit aplikaci prostřednictvím brány firewall povolte sf4-net.exe (Soukromé i Veřejné)."
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "Pravděpodobná příčina: síť hráče {0} blokuje UDP."
@@ -617,7 +617,7 @@ msgid "network.nat_detail_strict"
 msgstr "Váš router používá striktní NAT, proto přímá spojení často selhávají a zápasy mohou jít přes server."
 
 msgid "network.nat_detail_no_udp"
-msgstr "Vaše síť zřejmě blokuje UDP, proto přímá spojení selžou a zápasy mohou jít přes server. Příčinou může být firewall nebo VPN."
+msgstr "Vaše síť zřejmě blokuje UDP, proto přímá spojení selžou a zápasy mohou jít přes server. Nejčastěji za to může Windows Firewall, když jste při prvním spuštění přeskočili jeho dotaz nebo je síť nastavená jako veřejná. V Zabezpečení Windows > Brána firewall a ochrana sítě > Povolit aplikaci prostřednictvím brány firewall povolte sf4-net.exe (Soukromé i Veřejné). UDP může blokovat i VPN."
 
 msgid "network.nat_detail_checking"
 msgstr "Kontrola vaší sítě. Po spuštění hry to trvá několik sekund."
@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "Požadavek místnosti selhal. Opusťte místnost a zkuste to znovu."
 
 msgid "runtime.build_mismatch"
-msgstr "Neshodují se verze. Oba hráči musí mít stejný balíček SF4 Ember Netplay."
+msgstr "Váš Ember a tato místnost mají různé verze. Zeptejte se hostitele, jakou verzi používá, a pak aktualizujte nebo změňte kanál aktualizací v Nápověda > Hledat aktualizace, aby se shodovaly."
+msgid "runtime.build_mismatch_update"
+msgstr "Váš Ember je zastaralý, a proto se do této místnosti nemůže připojit. Aktualizujte v Nápověda > Hledat aktualizace a pak se připojte znovu."
 
 msgid "runtime.room_full"
 msgstr "Místnost je plná."
@@ -2506,8 +2508,6 @@ msgstr "Tato verze není ta, která byla nabídnuta. Zkontrolujte aktualizace zn
 
 msgid "update.close_sf4"
 msgstr "Před instalací aktualizace zavřete Ultra Street Fighter IV."
-msgid "update.elevated"
-msgstr "Ember běží jako správce. Zavřete ho a spusťte normálně, aby šly instalovat aktualizace."
 
 msgid "update.install_dir_failed"
 msgstr "Nepodařilo se zjistit instalační složku."
@@ -3665,7 +3665,7 @@ msgid "runtime.invite_own_room"
 msgstr "Tato pozvánka vede zpět na vaši vlastní hru: byla zkopírována dřív, než jste místnost opustili. Požádejte hostitele, ať pozvánku zkopíruje znovu."
 
 msgid "runtime.invite_other_build"
-msgstr "Hostitel používá jiný balíček SF4 Ember Netplay. Oba hráči potřebují stejnou verzi."
+msgstr "Hostitel používá jinou verzi Emberu. Zeptejte se, jakou, a pak aktualizujte nebo změňte kanál aktualizací v Nápověda > Hledat aktualizace, aby se shodovaly."
 
 msgid "runtime.invite_malformed"
 msgstr "Text pozvánky je neúplný. Zkopírujte ji znovu a vložte celou pozvánku."
@@ -3686,7 +3686,7 @@ msgid "runtime.relay_unreachable_region"
 msgstr "K zprostředkujícímu serveru ({0}) se nepodařilo připojit. Zkontrolujte internet, firewall nebo VPN a zkuste to znovu."
 
 msgid "runtime.host_unreachable"
-msgstr "Hostitele se nepodařilo zastihnout, ani přímo, ani přes zprostředkující server. Místnost se mohla zavřít, nebo může překážet firewall či VPN."
+msgstr "Hostitele se nepodařilo zastihnout, ani přímo, ani přes zprostředkující server. Místnost se mohla zavřít. Pokud je otevřená, nejčastěji za to může Windows Firewall: v Zabezpečení Windows > Brána firewall a ochrana sítě > Povolit aplikaci prostřednictvím brány firewall povolte sf4-net.exe (Soukromé i Veřejné). Překážet může i VPN."
 
 msgid "runtime.join_control_lost"
 msgstr "K hostiteli se podařilo připojit, ale spojení se neustále přerušovalo. Zkontrolujte připojení k internetu a zkuste to znovu."

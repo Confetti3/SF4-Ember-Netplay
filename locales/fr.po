@@ -551,7 +551,7 @@ msgid "connection.direct_checking"
 msgstr "Vérification en cours de la prise en charge des connexions directes par votre réseau."
 
 msgid "connection.blocked_local_no_udp"
-msgstr "Cause probable : votre réseau bloque l'UDP."
+msgstr "Cause probable : le Pare-feu Windows ou votre réseau bloque l'UDP. Dans Sécurité Windows > Pare-feu et protection du réseau > Autoriser une application via le Pare-feu, autorisez sf4-net.exe (Privé et Public)."
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "Cause probable : le réseau de {0} bloque l'UDP."
@@ -617,7 +617,7 @@ msgid "network.nat_detail_strict"
 msgstr "Votre routeur utilise un NAT strict : les connexions directes échouent souvent et les combats peuvent passer par un relais."
 
 msgid "network.nat_detail_no_udp"
-msgstr "Votre réseau semble bloquer l'UDP : les connexions directes échoueront et les combats peuvent passer par un relais. Un pare-feu ou un VPN peut en être la cause."
+msgstr "Votre réseau semble bloquer l'UDP : les connexions directes échoueront et les combats peuvent passer par un relais. Le plus souvent, c'est le Pare-feu Windows, si sa fenêtre a été ignorée au premier lancement ou si le réseau est en mode Public. Dans Sécurité Windows > Pare-feu et protection du réseau > Autoriser une application via le Pare-feu, autorisez sf4-net.exe (Privé et Public). Un VPN peut aussi bloquer l'UDP."
 
 msgid "network.nat_detail_checking"
 msgstr "Vérification de votre réseau. Cela prend quelques secondes après le lancement du jeu."
@@ -2389,7 +2389,9 @@ msgid "runtime.room_request_failed"
 msgstr "Échec de la requête au salon. Quittez-le et réessayez."
 
 msgid "runtime.build_mismatch"
-msgstr "Versions incompatibles. Les deux joueurs doivent utiliser le même paquet SF4 Ember Netplay."
+msgstr "Votre Ember et ce salon n'ont pas la même version. Demandez à l'hôte laquelle il utilise, puis mettez à jour ou changez de canal de mise à jour dans Aide et infos > Chercher des mises à jour pour qu'elles correspondent."
+msgid "runtime.build_mismatch_update"
+msgstr "Votre Ember n'est pas à jour et ne peut donc pas rejoindre ce salon. Mettez à jour dans Aide et infos > Chercher des mises à jour, puis rejoignez à nouveau."
 
 msgid "runtime.room_full"
 msgstr "Ce salon est complet."
@@ -2506,8 +2508,6 @@ msgstr "Cette version n'est pas celle qui a été proposée. Recherchez à nouve
 
 msgid "update.close_sf4"
 msgstr "Fermez Ultra Street Fighter IV avant d'installer une mise à jour."
-msgid "update.elevated"
-msgstr "Ember est lancé en tant qu'administrateur. Fermez-le et relancez-le normalement pour installer les mises à jour."
 
 msgid "update.install_dir_failed"
 msgstr "Impossible de trouver le dossier d'installation."
@@ -3665,7 +3665,7 @@ msgid "runtime.invite_own_room"
 msgstr "Cette invitation renvoie vers votre propre jeu : elle a été copiée avant que vous quittiez le salon. Demandez à l'hôte de copier l'invitation à nouveau."
 
 msgid "runtime.invite_other_build"
-msgstr "L'hôte utilise un autre paquet SF4 Ember Netplay. Les deux joueurs doivent avoir la même version."
+msgstr "L'hôte utilise une autre version d'Ember. Demandez laquelle, puis mettez à jour ou changez de canal de mise à jour dans Aide et infos > Chercher des mises à jour pour qu'elles correspondent."
 
 msgid "runtime.invite_malformed"
 msgstr "Le texte de l'invitation est incomplet. Copiez-la de nouveau et collez l'invitation entière."
@@ -3686,7 +3686,7 @@ msgid "runtime.relay_unreachable_region"
 msgstr "Impossible de joindre le serveur relais ({0}). Vérifiez votre connexion Internet, votre pare-feu ou votre VPN, puis réessayez."
 
 msgid "runtime.host_unreachable"
-msgstr "L'hôte est injoignable, en direct comme via un relais. Le salon a peut-être été fermé, ou un pare-feu ou un VPN gêne la connexion."
+msgstr "L'hôte est injoignable, en direct comme via un relais. Le salon a peut-être été fermé. S'il est ouvert, c'est le plus souvent le Pare-feu Windows : dans Sécurité Windows > Pare-feu et protection du réseau > Autoriser une application via le Pare-feu, autorisez sf4-net.exe (Privé et Public). Un VPN peut aussi gêner la connexion."
 
 msgid "runtime.join_control_lost"
 msgstr "L'hôte a été joint, mais la connexion n'a cessé de tomber. Vérifiez votre connexion Internet et réessayez."
