@@ -115,7 +115,8 @@ The friendship's record (wins each way, last game) is `pair_records`
 Capability `friends` (`ember_protocol::friends::FRIENDS_FEATURE`), offered
 where public rooms are on and Discord sign-in is offered
 (`sign_in::offered(&state, &Site::Discord)`), and only beside `points`. Every
-type denies unknown fields. A build asks only a bridge that lists `friends`;
+request type denies unknown fields and every answer type ignores them
+(`friends.rs` header). A build asks only a bridge that lists `friends`;
 an older bridge answers 404, worded `friends_unavailable`.
 
 Both routes take the player session (`routes::play::playing`) and answer the
@@ -289,8 +290,8 @@ case, spaces or dash, `O` read as 0 and `I`, `L` as 1.
 ### View models
 
 - `netplay::friends::State` (`src/netplay/Friends.hxx`), the answer decoded
-  strictly (`src/session/SocialAnswers.cxx`, as `TournamentAnswers.cxx`
-  `Strict` does), plus `unavailable` and `no_account`.
+  with its known keys checked and unknown ones ignored (`src/session/SocialAnswers.cxx`,
+  as `TournamentAnswers.cxx` `Object` does), plus `unavailable` and `no_account`.
 - `netplay::friends::Requests` (`FriendRequests.hxx`): the cadence above, one
   sync or action in flight, the last refusal, kept per bridge and Ember ID.
 - `ShellView::friends`, mapped in `sf4e__Overlay.cxx`.

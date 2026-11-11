@@ -261,6 +261,7 @@ static void TestRankings() {
 
 // The player's own points read as one of two shapes, and a card look-up as one
 // card or nothing per player; anything the bridge would not send reads as nothing.
+// A member the bridge adds later is ignored, and a relation it adds reads as none.
 static void TestLevels() {
 	using Kind = netplay::levels::Own::Kind;
 	using netplay::levels::Relation;
@@ -292,17 +293,18 @@ static void TestLevels() {
 	extra["rank"] = 1u;
 	auto second = entry;
 	second["fighter"] = 2u;
-	for (const json& invalid : {json{{"points", "ranked"}}, json{{"points", "no_account"}, {"fighters", json::array()}},
-			json{{"points", "counted"}}, json{{"points", "counted"}, {"fighters", json::array()}, {"rank", 1u}},
+	for (const json& invalid : {json{{"points", "ranked"}}, json{{"points", "counted"}},
 			json{{"points", "counted"}, {"shown", 1u}, {"fighters", json::array()}},
 			changed("fighter", 44u), changed("tier", 5u), changed("points", 1899u), changed("points", 0u), changed("wins", 1001u),
 			changed("next", 1900u), changed("next", 1899u), changed("floor", 1901u), changed("floor", -1),
 			json{{"points", "counted"}, {"fighters", json::array({unfloored})}}, changed("since", -1), changed("games", "1000"),
 			json{{"points", "counted"}, {"fighters", json::array({lacking})}},
-			json{{"points", "counted"}, {"fighters", json::array({extra})}},
 			json{{"points", "counted"}, {"fighters", json::array({entry, entry})}},
 			json{{"points", "counted"}, {"fighters", json::array({entry, second})}}})
 		CHECK(!session::DecodeOwnLevels(invalid));
+	const auto tolerated = session::DecodeOwnLevels({{"points", "counted"}, {"rank", 1u}, {"fighters", json::array({extra})}});
+	CHECK(tolerated && tolerated->fighters[3].points == 1900);
+	CHECK(session::DecodeOwnLevels({{"points", "no_account"}, {"fighters", json::array()}, {"rank", 1u}})->kind == Kind::NoAccount);
 
 	const auto cards = session::DecodeCards({{"cards", json::array({
 		json{{"fighters", json::array({json{{"fighter", 3u}, {"points", 1986u}, {"tier", 3u}}})}, {"relation", "none"}}, nullptr,
@@ -317,16 +319,21 @@ static void TestLevels() {
 	for (std::size_t i = 0; i <= netplay::levels::MaxLookup; ++i) seventeen.push_back(json{{"relation", "none"}});
 	const auto card = [](const json& fighter) { return json{{"cards", json::array({json{{"fighters", json::array({fighter})}, {"relation", "none"}}})}}; };
 	for (const json& invalid : {json{{"cards", json::array()}}, json{{"cards", seventeen}}, json{{"cards", json::array({json::object()})}},
-			json{{"cards", json::array({json{{"relation", "enemy"}}})}}, json{{"cards", json::array({json{{"relation", "none"}, {"name", "Player 1"}}})}},
-			json{{"cards", json::array({nullptr})}, {"total", 1u}},
-			card(json{{"fighter", 3u}, {"points", 1986u}, {"tier", 3u}, {"wins", 300u}}),
-			card(json{{"fighter", 3u}, {"points", 1986u}, {"tier", 3u}, {"games", 612u}}),
+			json{{"cards", json::array({json{{"relation", 1u}}})}}, json{{"cards", json::array({json{{"fighters", json::array()}}})}},
 			card(json{{"fighter", 3u}, {"level", 31u}, {"games", 612u}}),
 			card(json{{"fighter", 44u}, {"points", 1986u}, {"tier", 3u}}), card(json{{"fighter", 3u}, {"points", 0u}, {"tier", 0u}}),
 			card(json{{"fighter", 3u}, {"points", 1986u}, {"tier", 5u}}),
 			json{{"cards", json::array({json{{"fighters", json::array({json{{"fighter", 3u}, {"points", 1u}, {"tier", 0u}},
 				json{{"fighter", 3u}, {"points", 1u}, {"tier", 0u}}})}, {"relation", "none"}}})}}})
 		CHECK(!session::DecodeCards(invalid));
+	// Members the reader does not know are ignored; an unknown relation is none.
+	for (const json& ignored : {json{{"cards", json::array({json{{"relation", "none"}, {"name", "Player 1"}}})}},
+			json{{"cards", json::array({nullptr})}, {"total", 1u}},
+			card(json{{"fighter", 3u}, {"points", 1986u}, {"tier", 3u}, {"wins", 300u}}),
+			card(json{{"fighter", 3u}, {"points", 1986u}, {"tier", 3u}, {"games", 612u}})})
+		CHECK(session::DecodeCards(ignored));
+	const auto enemy = session::DecodeCards({{"cards", json::array({json{{"relation", "enemy"}}})}});
+	CHECK(enemy && (*enemy)[0] && (*enemy)[0]->relation == Relation::None);
 	for (const char* op : {"points_me", "cards_lookup"})
 		CHECK(session::ReadTournamentAnswer({{"op", op}, {"request_id", 7u}, {"ok", true}, {"data", json::object()}}).has_value());
 }
