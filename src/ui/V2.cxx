@@ -278,7 +278,9 @@ float HeadingHeight(const std::string& text, float width, float size, ImFont* fo
 float Heading(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font) {
     if (!font) font = HeadingFont();
     const auto [first, second] = HeadingLines(text, width, size, font);
-    Text(draw, at, width, first, size, color, font);
+    // A heading with no space to break at (Japanese, or one long word) shrinks to its room before it is cut.
+    if (second.empty() && TextWidth(first, size, font) > width) TextShrunk(draw, at, width, first, size, size * .75f, color, font);
+    else Text(draw, at, width, first, size, color, font);
     if (second.empty()) return size;
     Text(draw, ImVec2(at.x, at.y + size * HeadingLine), width, second, size, color, font);
     return size * (1 + HeadingLine);
