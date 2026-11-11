@@ -140,7 +140,7 @@ sudo ufw allow from 172.16.0.0/12 to any port 47895 proto tcp
 ### 5. Check it
 
 From a line outside your own network (a phone hotspot will do), on Linux or
-WSL with OpenSSL 3.2 or later:
+WSL with curl, `ip` (iproute2) and OpenSSL 3.2 or later:
 
 ```bash
 bash check.sh relay-eu.embernetplay.link

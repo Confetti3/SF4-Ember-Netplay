@@ -5,7 +5,7 @@
 #
 #   bash check.sh relay-eu.embernetplay.link
 #
-# It needs curl, and OpenSSL 3.2 or later for the QUIC check. Everything is
+# It needs curl, ip (iproute2), and OpenSSL 3.2 or later for the QUIC check. Everything is
 # checked over IPv4, and again over IPv6 when the name has an IPv6 address
 # and this line has IPv6. A relay that passes still gets one more check from
 # Katie before a build uses it: the helper's own live test
@@ -108,7 +108,11 @@ curl -6 -s --max-time 8 -o /dev/null "https://$HOST/ping" 2>/dev/null
 case $? in
     6) note "IPv6: $HOST has no IPv6 address (fine)" ;;
     *)
-        if ! ip -6 route get 2001:4860:4860::8888 >/dev/null 2>&1; then
+        if ! command -v ip >/dev/null 2>&1; then
+            # Not knowing is not passing: the name advertises IPv6.
+            note "IPv6 not checked: no 'ip' command here (package iproute2) to tell whether this line has IPv6"
+            failed=1
+        elif ! ip -6 route get 2001:4860:4860::8888 >/dev/null 2>&1; then
             note "IPv6: $HOST has an IPv6 address, but this line has no IPv6 to check it with"
         else
             http_checks 6
