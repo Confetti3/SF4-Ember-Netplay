@@ -1,4 +1,5 @@
 #include "../Dimps/Dimps__GameEvents.hxx"
+#include "../common/SelectionPick.hxx"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -32,5 +33,24 @@ int main() {
     // Byte representation bounds are separate from the catalog's gameplay bounds.
     CHECK(sf4e::selection::ReadByte(json(0)) == 0);
     CHECK(sf4e::selection::ReadByte(json(255)) == 255);
+    // A pick's size rides in the wire pick's spare byte and nowhere else: the
+    // struct and its other fields are as they were. 1 is tiny; any other byte
+    // (SF4's padding) reads as normal, and a normal pick writes 0.
+    {
+        static_assert(sizeof(Pick) == 9, "the wire pick keeps its size");
+        sf4e::selection::Pick pick;
+        pick.fighter = 3; pick.costume = 2; pick.size = 1;
+        Pick native{};
+        sf4e::selection::ToNative(pick, native);
+        CHECK(native._unused == 1 && native.charaID == 3 && native.costume == 2);
+        const json wire = native;
+        CHECK(wire.at("_unused") == 1);
+        CHECK(sf4e::selection::FromNative(wire.get<Pick>()).size == 1);
+        native._unused = 7;
+        CHECK(sf4e::selection::FromNative(native).size == 0);
+        pick.size = 0;
+        sf4e::selection::ToNative(pick, native);
+        CHECK(native._unused == 0 && sf4e::selection::FromNative(native).size == 0);
+    }
     std::cout << "Selection JSON rejects malformed values without narrowing or partial writes\n";
 }

@@ -23,6 +23,11 @@ struct Pick {
     int personalAction = 0;
     int winQuote = 0;
     int handicap = 0;
+    // A game's own model size choice: 0 normal, 1 tiny (SFV's Tiny fighters
+    // allowed rooms). The picture only; nothing of the fight changes with it.
+    // SF4 always 0: its catalog never accepts another. It rides in the wire
+    // pick's spare byte (ConfirmedCharaConditions::_unused).
+    int size = 0;
 };
 
 // What the player owns of one fighter, as the game reports it
@@ -49,6 +54,8 @@ template<class Native> Pick FromNative(const Native& native) {
     pick.fighter = native.charaID; pick.costume = native.costume;
     pick.color = native.color; pick.ultra = native.ultraCombo; pick.edition = native.unc_edition;
     pick.personalAction = native.personalAction; pick.winQuote = native.winQuote; pick.handicap = native.handicap;
+    // The spare byte: 1 is tiny, anything else (SF4's padding) normal.
+    pick.size = native._unused == 1 ? 1 : 0;
     return pick;
 }
 template<class Native> void ToNative(const Pick& pick, Native& native) {
@@ -60,6 +67,7 @@ template<class Native> void ToNative(const Pick& pick, Native& native) {
     native.personalAction = static_cast<std::uint8_t>(pick.personalAction);
     native.winQuote = static_cast<std::uint8_t>(pick.winQuote);
     native.handicap = static_cast<std::uint8_t>(pick.handicap);
+    native._unused = static_cast<std::uint8_t>(pick.size);
 }
 
 } }

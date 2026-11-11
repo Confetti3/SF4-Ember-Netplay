@@ -436,6 +436,9 @@ static void TestChangedPickLeavesTheBattle() {
 	}
 	auto next = played; next.color = 5;
 	CHECK(!GoesOnInPlace(played, next));
+	// Another size is another picture: the battle that loaded this one cannot go on.
+	next = played; next.size = 1;
+	CHECK(!GoesOnInPlace(played, next));
 	next = played; next.fighter = 8;
 	CHECK(!GoesOnInPlace(played, next));
 }

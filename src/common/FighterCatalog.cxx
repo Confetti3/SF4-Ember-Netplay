@@ -221,6 +221,8 @@ bool Valid(const Pick& pick, bool editionSelect) {
     if ((pick.personalAction != 255 && (pick.personalAction < 0 || pick.personalAction > 9)) ||
         (pick.winQuote != 255 && (pick.winQuote < 0 || pick.winQuote > 10)) ||
         pick.handicap < 0 || pick.handicap > 4) return false;
+    // SF4 has no model size: a pick that carries one is not SF4's.
+    if (pick.size != 0) return false;
     if (!EditionAllowed(pick.fighter, pick.edition, editionSelect) || pick.costume < 0 ||
         (pick.costume >= CostumeCount(pick.fighter) && !IsCustomCostume(pick.costume)) ||
         !ColorInRange(pick.fighter, pick.costume, pick.color)) return false;
@@ -239,6 +241,7 @@ bool Normalize(Pick& pick, bool editionSelect, const Availability* availability,
     if (pick.personalAction != 255 && (pick.personalAction < 0 || pick.personalAction > 9)) pick.personalAction = 255;
     if (pick.winQuote != 255 && (pick.winQuote < 0 || pick.winQuote > 10)) pick.winQuote = 255;
     if (pick.handicap < 0 || pick.handicap > 4) pick.handicap = 0;
+    pick.size = 0;
     if (!FindFighter(pick.fighter)) pick.fighter = 0;
     pick.edition = NormalizeEdition(pick.fighter, pick.edition, editionSelect);
     if (pick.costume < 0 || (pick.costume >= CostumeCount(pick.fighter) && !IsCustomCostume(pick.costume))) pick.costume = 0;
@@ -262,7 +265,7 @@ bool Normalize(Pick& pick, bool editionSelect, const Availability* availability,
     }
     return before.fighter != pick.fighter || before.costume != pick.costume || before.color != pick.color ||
            before.ultra != pick.ultra || before.edition != pick.edition || before.personalAction != pick.personalAction ||
-           before.winQuote != pick.winQuote || before.handicap != pick.handicap;
+           before.winQuote != pick.winQuote || before.handicap != pick.handicap || before.size != pick.size;
 }
 
 std::vector<int> AllowedPersonalActions(const Availability& availability) {

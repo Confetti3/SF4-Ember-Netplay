@@ -46,7 +46,7 @@ inline unsigned LocalBits(bool due, bool chosen, std::uint64_t dueForMs) {
 inline bool GoesOnInPlace(const selection::Pick& played, const selection::Pick& next) {
     return played.fighter == next.fighter && played.costume == next.costume && played.color == next.color &&
         played.ultra == next.ultra && played.edition == next.edition && played.personalAction == next.personalAction &&
-        played.winQuote == next.winQuote && played.handicap == next.handicap;
+        played.winQuote == next.winQuote && played.handicap == next.handicap && played.size == next.size;
 }
 
 // What the WIN does this frame with both fighters' raw inputs. End: both chose
