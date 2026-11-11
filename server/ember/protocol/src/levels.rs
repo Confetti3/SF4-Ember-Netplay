@@ -1,20 +1,25 @@
-//! Fighter points: a player's own points, and the card look-up that shows
-//! other players' (`docs/design/FIGHTER_LEVELS.md`). Points are a grind value
-//! for one fighter, never skill; the tier thresholds behind the frame colour
-//! live only in the bridge, so these types carry what a client needs to draw
-//! the points and their progress, and nothing of the rating.
+//! Points: a player's own, and the card look-up that shows other players'
+//! (`docs/design/FIGHTER_LEVELS.md`). Every Discord account has account
+//! points (BP) and points for each fighter it played (FP). Both are a grind
+//! value, never skill: games plus wins. The tier thresholds behind the frame
+//! colour live only in the bridge, so these types carry what a client needs to
+//! draw the points and their progress, and nothing of the rating.
+//!
+//! A card is public: it always carries the account's points and the fighters
+//! played (none when nothing is played), and is `null` only for a player
+//! with no Discord account connected or who blocked the caller.
 //!
 //! Requests are strict and answers are tolerant. A request (`CardLookup`,
 //! `CardSelector`) refuses unknown members, so a client's mistake is caught at
-//! the bridge. An answer (`OwnLevels`, `OwnFighter`, `CardAnswers`,
-//! `PlayerCard`, `CardFighter`) ignores members it does not know, so a field a
+//! the bridge. An answer (`OwnLevels`, `OwnAccount`, `OwnFighter`,
+//! `CardAnswers`, `PlayerCard`, `CardAccount`, `CardFighter`) ignores members it does not know, so a field a
 //! later bridge adds does not break a client already out. A build asks only a
 //! bridge that lists [`POINTS_FEATURE`], and an older bridge answers 404.
 use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, Result,
-    encoding::{is_false, is_prefixed_id},
+    encoding::is_prefixed_id,
     wire_enum::wire_enum,
 };
 
@@ -59,12 +64,75 @@ pub enum OwnLevels {
     /// belong to one.
     NoAccount {},
     Counted {
-        /// Others see this account's points. Written only when true.
-        #[serde(default, skip_serializing_if = "is_false")]
-        shown: bool,
+        /// The account's points, always present.
+        account: OwnAccount,
         /// The fighters played, ascending by `fighter`, each once.
         fighters: Vec<OwnFighter>,
     },
+}
+
+/// The tier frame of a points count: the colour, where it begins and where
+/// the next begins. Shared by the account's and each fighter's points.
+fn check_frame(points: u64, tier: u8, floor: u64, next: Option<u64>) -> Result<()> {
+    if tier > MAX_TIER {
+        return Err(Error::InvalidField("tier"));
+    }
+    if floor > points || (tier == 0 && floor != 0) {
+        return Err(Error::InvalidField("floor"));
+    }
+    let next_valid = match next {
+        None => tier == MAX_TIER,
+        Some(next) => tier < MAX_TIER && points < next,
+    };
+    if next_valid {
+        Ok(())
+    } else {
+        Err(Error::InvalidField("next"))
+    }
+}
+
+/// `games + wins`, saturating: a win adds 2, a loss 1.
+fn check_counts(points: u64, games: u64, wins: u64) -> Result<()> {
+    if wins > games {
+        return Err(Error::InvalidField("wins"));
+    }
+    if points != games.saturating_add(wins) {
+        return Err(Error::InvalidField("points"));
+    }
+    Ok(())
+}
+
+/// The caller's account points (BP): every counted game, whether or not it
+/// named fighters, so it can be 0 with no games.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OwnAccount {
+    /// `games + wins`.
+    pub points: u64,
+    /// Counted games.
+    pub games: u64,
+    /// Counted wins, at most `games`.
+    pub wins: u64,
+    /// The frame colour, 0 to `MAX_TIER`, on the account's own thresholds.
+    pub tier: u8,
+    /// As `OwnFighter::floor`.
+    pub floor: u64,
+    /// As `OwnFighter::next`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next: Option<u64>,
+    /// When the first game was counted (unix seconds); absent while `games`
+    /// is 0.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub since: Option<u64>,
+}
+
+impl OwnAccount {
+    pub fn check(&self) -> Result<()> {
+        check_counts(self.points, self.games, self.wins)?;
+        if self.since.is_some() != (self.games > 0) {
+            return Err(Error::InvalidField("since"));
+        }
+        check_frame(self.points, self.tier, self.floor, self.next)
+    }
 }
 
 /// One played fighter's points and what they were counted from.
@@ -99,35 +167,17 @@ impl OwnFighter {
         if self.games == 0 {
             return Err(Error::InvalidField("games"));
         }
-        if self.wins > self.games {
-            return Err(Error::InvalidField("wins"));
-        }
-        if self.points != self.games.saturating_add(self.wins) {
-            return Err(Error::InvalidField("points"));
-        }
-        if self.tier > MAX_TIER {
-            return Err(Error::InvalidField("tier"));
-        }
-        if self.floor > self.points || (self.tier == 0 && self.floor != 0) {
-            return Err(Error::InvalidField("floor"));
-        }
-        let next_valid = match self.next {
-            None => self.tier == MAX_TIER,
-            Some(next) => self.tier < MAX_TIER && self.points < next,
-        };
-        if next_valid {
-            Ok(())
-        } else {
-            Err(Error::InvalidField("next"))
-        }
+        check_counts(self.points, self.games, self.wins)?;
+        check_frame(self.points, self.tier, self.floor, self.next)
     }
 }
 
 impl OwnLevels {
     pub fn check(&self) -> Result<()> {
-        let Self::Counted { fighters, .. } = self else {
+        let Self::Counted { account, fighters } = self else {
             return Ok(());
         };
+        account.check()?;
         if fighters.len() > usize::from(FIGHTERS)
             || !fighters
                 .windows(2)
@@ -232,29 +282,48 @@ impl CardFighter {
     }
 }
 
+/// What a card shows of the account to someone else: the points and the
+/// frame, never wins or games.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CardAccount {
+    /// 0 for an account with no counted game.
+    pub points: u64,
+    /// The frame colour, 0 to `MAX_TIER`.
+    pub tier: u8,
+}
+
+impl CardAccount {
+    pub fn check(&self) -> Result<()> {
+        if self.tier > MAX_TIER {
+            return Err(Error::InvalidField("tier"));
+        }
+        Ok(())
+    }
+}
+
 /// One player's card in a look-up answer.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlayerCard {
-    /// The fighters played, ascending by `fighter`, each once; absent when
-    /// the player does not show points.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fighters: Option<Vec<CardFighter>>,
+    pub account: CardAccount,
+    /// The fighters played, ascending by `fighter`, each once; empty when
+    /// none is played. Always written.
+    #[serde(default)]
+    pub fighters: Vec<CardFighter>,
     pub relation: Relation,
 }
 
 impl PlayerCard {
     pub fn check(&self) -> Result<()> {
-        let Some(fighters) = &self.fighters else {
-            return Ok(());
-        };
-        if fighters.len() > usize::from(FIGHTERS)
-            || !fighters
+        self.account.check()?;
+        if self.fighters.len() > usize::from(FIGHTERS)
+            || !self
+                .fighters
                 .windows(2)
                 .all(|pair| pair[0].fighter < pair[1].fighter)
         {
             return Err(Error::InvalidField("fighters"));
         }
-        fighters.iter().try_for_each(CardFighter::check)
+        self.fighters.iter().try_for_each(CardFighter::check)
     }
 }
 
@@ -346,44 +415,60 @@ mod tests {
         }
     }
 
+    fn account(games: u64, wins: u64, tier: u8, floor: u64, next: Option<u64>) -> OwnAccount {
+        OwnAccount {
+            points: games.saturating_add(wins),
+            games,
+            wins,
+            tier,
+            floor,
+            next,
+            since: (games > 0).then_some(1_729_468_800),
+        }
+    }
+
     #[test]
     fn the_own_points_in_the_design_round_trip() {
         let none = json!({"points": "no_account"});
         assert_eq!(read::<OwnLevels>(&none), OwnLevels::NoAccount {});
         assert_eq!(serde_json::to_value(OwnLevels::NoAccount {}).unwrap(), none);
 
-        let counted = json!({"points": "counted", "shown": true, "fighters": [
+        let counted = json!({"points": "counted",
+            "account": {"points": 13, "games": 9, "wins": 4, "tier": 0, "floor": 0,
+                        "next": 500, "since": 1729468800},
+            "fighters": [
             {"fighter": 3, "points": 1986, "games": 1284, "wins": 702,
              "tier": 3, "floor": 1500, "next": 2500, "since": 1729468800}]});
         let levels: OwnLevels = read(&counted);
         assert_eq!(
             levels,
             OwnLevels::Counted {
-                shown: true,
+                account: account(9, 4, 0, 0, Some(500)),
                 fighters: vec![own(3, 1284, 702, 3, 1500, Some(2500))],
             }
         );
         assert!(levels.check().is_ok());
         assert_eq!(serde_json::to_value(&levels).unwrap(), counted);
 
-        // `shown` is written only when true, and `next` only below the top.
-        let hidden = OwnLevels::Counted {
-            shown: false,
+        // `next` is written only below the top, and `since` only once a game
+        // is counted.
+        let top = OwnLevels::Counted {
+            account: account(9000, 2000, 4, 10_000, None),
             fighters: vec![own(43, 2480, 1237, 4, 2500, None)],
         };
-        assert!(hidden.check().is_ok());
+        assert!(top.check().is_ok());
         assert_eq!(
-            serde_json::to_string(&hidden).unwrap(),
-            r#"{"points":"counted","fighters":[{"fighter":43,"points":3717,"games":2480,"wins":1237,"tier":4,"floor":2500,"since":1729468800}]}"#
+            serde_json::to_string(&top).unwrap(),
+            r#"{"points":"counted","account":{"points":11000,"games":9000,"wins":2000,"tier":4,"floor":10000,"since":1729468800},"fighters":[{"fighter":43,"points":3717,"games":2480,"wins":1237,"tier":4,"floor":2500,"since":1729468800}]}"#
         );
         let nobody = OwnLevels::Counted {
-            shown: false,
+            account: account(0, 0, 0, 0, Some(500)),
             fighters: vec![],
         };
         assert!(nobody.check().is_ok());
         assert_eq!(
             serde_json::to_string(&nobody).unwrap(),
-            r#"{"points":"counted","fighters":[]}"#
+            r#"{"points":"counted","account":{"points":0,"games":0,"wins":0,"tier":0,"floor":0,"next":500},"fighters":[]}"#
         );
     }
 
@@ -391,14 +476,21 @@ mod tests {
     fn own_points_ignore_unknown_members_and_refuse_unknown_states() {
         let none = json!({"points": "no_account"});
         ignores_extra::<OwnLevels>(&none, "");
-        let counted = json!({"points": "counted", "fighters": [
+        let counted = json!({"points": "counted",
+            "account": {"points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 500, "since": 1},
+            "fighters": [
             {"fighter": 3, "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 200, "since": 1}]});
         ignores_extra::<OwnLevels>(&counted, "");
+        ignores_extra::<OwnLevels>(&counted, "/account");
         ignores_extra::<OwnLevels>(&counted, "/fighters/0");
         assert!(serde_json::from_value::<OwnLevels>(json!({"points": "top"})).is_err());
         assert!(serde_json::from_value::<OwnLevels>(json!({"fighters": []})).is_err());
         // A member that is missing is refused, not defaulted.
         assert!(serde_json::from_value::<OwnLevels>(json!({"points": "counted"})).is_err());
+        assert!(
+            serde_json::from_value::<OwnLevels>(json!({"points": "counted", "fighters": []}))
+                .is_err()
+        );
         assert!(
             serde_json::from_value::<OwnFighter>(
                 json!({"fighter": 3, "games": 1, "wins": 0, "since": 1})
@@ -449,10 +541,46 @@ mod tests {
     }
 
     #[test]
+    fn an_account_is_checked_against_its_own_counts_and_frame() {
+        assert!(account(0, 0, 0, 0, Some(500)).check().is_ok());
+        assert!(account(9, 4, 0, 0, Some(500)).check().is_ok());
+        assert!(account(2000, 500, 2, 2000, Some(5000)).check().is_ok());
+        assert!(account(9000, 2000, 4, 10_000, None).check().is_ok());
+
+        let mut wrong_points = account(10, 5, 0, 0, Some(500));
+        wrong_points.points = 14;
+        let mut no_since = account(1, 0, 0, 0, Some(500));
+        no_since.since = None;
+        let mut early_since = account(0, 0, 0, 0, Some(500));
+        early_since.since = Some(1);
+        let refused = [
+            ("wins", account(4, 5, 0, 0, Some(500))),
+            ("points", wrong_points),
+            ("since", no_since),
+            ("since", early_since),
+            ("tier", account(1, 0, 5, 0, None)),
+            ("next", account(100, 100, 1, 200, Some(200))),
+            ("next", account(3, 2, 0, 0, None)),
+            ("next", account(9000, 2000, 4, 10_000, Some(20_000))),
+            ("floor", account(300, 300, 1, 1000, Some(2000))),
+            ("floor", account(100, 99, 0, 5, Some(500))),
+        ];
+        for (field, account) in refused {
+            assert_eq!(account.check(), Err(Error::InvalidField(field)), "{account:?}");
+        }
+        // The account is checked with the answer, and a bad one fails it.
+        let bad = OwnLevels::Counted {
+            account: account(4, 5, 0, 0, Some(500)),
+            fighters: vec![],
+        };
+        assert_eq!(bad.check(), Err(Error::InvalidField("wins")));
+    }
+
+    #[test]
     fn own_fighters_are_ascending_unique_and_at_most_44() {
         let at = |fighter: u8| own(fighter, 1, 0, 0, 0, Some(200));
         let counted = |ids: &[u8]| OwnLevels::Counted {
-            shown: false,
+            account: account(1, 0, 0, 0, Some(500)),
             fighters: ids.iter().copied().map(at).collect(),
         };
         assert!(counted(&[0, 1, 43]).check().is_ok());
@@ -553,7 +681,8 @@ mod tests {
     #[test]
     fn a_look_up_answer_has_one_entry_per_selector() {
         let wire = json!({"cards": [
-            {"fighters": [{"fighter": 3, "points": 1986, "tier": 3}], "relation": "none"},
+            {"account": {"points": 2100, "tier": 2},
+             "fighters": [{"fighter": 3, "points": 1986, "tier": 3}], "relation": "none"},
             null]});
         let answers: CardAnswers = read(&wire);
         assert!(answers.check().is_ok());
@@ -572,25 +701,27 @@ mod tests {
         };
         assert_eq!(answers.check_for(&short), Err(Error::Mismatch("cards")));
 
-        // A player who does not show levels has no `fighters` at all, which
-        // is not the same as showing none.
-        let hidden = PlayerCard {
-            fighters: None,
-            relation: Relation::Blocked,
-        };
-        assert_eq!(
-            serde_json::to_string(&hidden).unwrap(),
-            r#"{"relation":"blocked"}"#
-        );
+        // A card with nothing played still carries its account and an empty
+        // list of fighters.
         let empty = PlayerCard {
-            fighters: Some(vec![]),
+            account: CardAccount { points: 0, tier: 0 },
+            fighters: vec![],
             relation: Relation::Sent,
         };
         assert_eq!(
             serde_json::to_string(&empty).unwrap(),
-            r#"{"fighters":[],"relation":"sent"}"#
+            r#"{"account":{"points":0,"tier":0},"fighters":[],"relation":"sent"}"#
         );
-        assert!(hidden.check().is_ok() && empty.check().is_ok());
+        assert!(empty.check().is_ok());
+        // A reader without `fighters` reads none; one without `account`
+        // refuses the card.
+        let bare: PlayerCard =
+            read(&json!({"account": {"points": 2, "tier": 0}, "relation": "none"}));
+        assert!(bare.fighters.is_empty());
+        assert!(
+            serde_json::from_value::<PlayerCard>(json!({"fighters": [], "relation": "none"}))
+                .is_err()
+        );
 
         let empty_answer = CardAnswers { cards: vec![] };
         assert_eq!(empty_answer.check(), Err(Error::InvalidField("cards")));
@@ -601,6 +732,7 @@ mod tests {
 
         ignores_extra::<CardAnswers>(&wire, "");
         ignores_extra::<CardAnswers>(&wire, "/cards/0");
+        ignores_extra::<CardAnswers>(&wire, "/cards/0/account");
         ignores_extra::<CardAnswers>(&wire, "/cards/0/fighters/0");
         // Wins and games are not on another player's card: the bridge never
         // sends them, and a reader that is sent them keeps none.
@@ -623,7 +755,8 @@ mod tests {
             tier,
         };
         let card = |fighters: Vec<CardFighter>| PlayerCard {
-            fighters: Some(fighters),
+            account: CardAccount { points: 1, tier: 0 },
+            fighters,
             relation: Relation::None,
         };
         assert!(
@@ -635,6 +768,15 @@ mod tests {
             assert!(bad.check().is_err(), "{bad:?}");
             assert!(card(vec![bad]).check().is_err(), "{bad:?}");
         }
+        assert_eq!(
+            PlayerCard {
+                account: CardAccount { points: 1, tier: 5 },
+                fighters: vec![],
+                relation: Relation::None,
+            }
+            .check(),
+            Err(Error::InvalidField("tier"))
+        );
         for unordered in [
             vec![fighter(5, 1, 0), fighter(4, 1, 0)],
             vec![fighter(5, 1, 0), fighter(5, 2, 0)],
