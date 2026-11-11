@@ -3312,6 +3312,15 @@ msgstr "Kleine vechters toegestaan"
 msgid "room.tiny_fighters.detail"
 msgstr "Spelers mogen een kleine versie van hun vechter kiezen. Alleen het uiterlijk verandert."
 
+msgid "selection.size"
+msgstr "Grootte"
+
+msgid "selection.size.normal"
+msgstr "Normaal"
+
+msgid "selection.size.tiny"
+msgstr "Klein"
+
 msgid "room.apply_name"
 msgstr "Kamernaam toepassen"
 

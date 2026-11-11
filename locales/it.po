@@ -3312,6 +3312,15 @@ msgstr "Combattenti minuscoli consentiti"
 msgid "room.tiny_fighters.detail"
 msgstr "I giocatori possono scegliere una versione minuscola del loro combattente. Cambia solo l'aspetto."
 
+msgid "selection.size"
+msgstr "Dimensione"
+
+msgid "selection.size.normal"
+msgstr "Normale"
+
+msgid "selection.size.tiny"
+msgstr "Minuscolo"
+
 msgid "room.apply_name"
 msgstr "Applica nome sala"
 

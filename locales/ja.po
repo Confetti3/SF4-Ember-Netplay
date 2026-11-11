@@ -3313,6 +3313,15 @@ msgstr "ちびキャラを許可"
 msgid "room.tiny_fighters.detail"
 msgstr "プレイヤーはキャラクターのちびサイズを選べます。見た目だけが変わります。"
 
+msgid "selection.size"
+msgstr "サイズ"
+
+msgid "selection.size.normal"
+msgstr "ふつう"
+
+msgid "selection.size.tiny"
+msgstr "ちび"
+
 msgid "room.apply_name"
 msgstr "ルーム名を適用"
 

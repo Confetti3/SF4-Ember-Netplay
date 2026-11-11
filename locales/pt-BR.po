@@ -2947,6 +2947,15 @@ msgstr "Lutadores minúsculos permitidos"
 
 msgid "room.tiny_fighters.detail"
 msgstr "Os jogadores podem escolher uma versão minúscula do seu lutador. Só muda a aparência."
+
+msgid "selection.size"
+msgstr "Tamanho"
+
+msgid "selection.size.normal"
+msgstr "Normal"
+
+msgid "selection.size.tiny"
+msgstr "Minúsculo"
 msgid "room.apply_name"
 msgstr "Aplicar nome da sala"
 msgid "room.apply_name.detail"

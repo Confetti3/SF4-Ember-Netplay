@@ -3312,6 +3312,15 @@ msgstr "Крошечные бойцы разрешены"
 msgid "room.tiny_fighters.detail"
 msgstr "Игроки могут выбрать крошечную версию своего бойца. Меняется только внешний вид."
 
+msgid "selection.size"
+msgstr "Размер"
+
+msgid "selection.size.normal"
+msgstr "Обычный"
+
+msgid "selection.size.tiny"
+msgstr "Крошечный"
+
 msgid "room.apply_name"
 msgstr "Сохранить имя"
 

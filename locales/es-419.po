@@ -2947,6 +2947,15 @@ msgstr "Luchadores diminutos permitidos"
 
 msgid "room.tiny_fighters.detail"
 msgstr "Los jugadores pueden elegir una versión diminuta de su luchador. Solo cambia el aspecto."
+
+msgid "selection.size"
+msgstr "Tamaño"
+
+msgid "selection.size.normal"
+msgstr "Normal"
+
+msgid "selection.size.tiny"
+msgstr "Diminuto"
 msgid "room.apply_name"
 msgstr "Aplicar nombre de sala"
 msgid "room.apply_name.detail"

@@ -3312,6 +3312,15 @@ msgstr "Povolit malé bojovníky"
 msgid "room.tiny_fighters.detail"
 msgstr "Hráči si mohou vybrat malou verzi svého bojovníka. Mění se jen vzhled."
 
+msgid "selection.size"
+msgstr "Velikost"
+
+msgid "selection.size.normal"
+msgstr "Normální"
+
+msgid "selection.size.tiny"
+msgstr "Malý"
+
 msgid "room.apply_name"
 msgstr "Použít název"
 

@@ -3312,6 +3312,15 @@ msgstr "Mali wojownicy dozwoleni"
 msgid "room.tiny_fighters.detail"
 msgstr "Gracze mogą wybrać małą wersję swojego wojownika. Zmienia się tylko wygląd."
 
+msgid "selection.size"
+msgstr "Rozmiar"
+
+msgid "selection.size.normal"
+msgstr "Normalny"
+
+msgid "selection.size.tiny"
+msgstr "Mały"
+
 msgid "room.apply_name"
 msgstr "Zmień nazwę"
 

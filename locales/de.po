@@ -3312,6 +3312,15 @@ msgstr "Winzige Kämpfer erlaubt"
 msgid "room.tiny_fighters.detail"
 msgstr "Spieler dürfen eine winzige Version ihres Kämpfers wählen. Nur das Aussehen ändert sich."
 
+msgid "selection.size"
+msgstr "Größe"
+
+msgid "selection.size.normal"
+msgstr "Normal"
+
+msgid "selection.size.tiny"
+msgstr "Winzig"
+
 msgid "room.apply_name"
 msgstr "Raumnamen übernehmen"
 

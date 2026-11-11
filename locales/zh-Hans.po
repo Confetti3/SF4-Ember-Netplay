@@ -3313,6 +3313,15 @@ msgstr "允许迷你角色"
 msgid "room.tiny_fighters.detail"
 msgstr "玩家可以选择角色的迷你版本。只改变外观。"
 
+msgid "selection.size"
+msgstr "大小"
+
+msgid "selection.size.normal"
+msgstr "正常"
+
+msgid "selection.size.tiny"
+msgstr "迷你"
+
 msgid "room.apply_name"
 msgstr "应用房间名称"
 
