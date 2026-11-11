@@ -219,6 +219,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   // Notifications, what Ember said lately (the toasts).
   rows.push_back(Row("notifications",loc::T("home.notifications"),toasts_.empty()?std::string(loc::T("notifications.none")):toasts_.front().text));
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
+  // The requests waiting to be answered, which the Profile row opens on.
+  if(const int waiting=player_card::RequestsWaiting(v.friends)){auto& profile=*std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="profile";});profile.value=loc::Tf("home.profile_requests",waiting);profile.valueHighlighted=true;}
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
   // Ember ID lives under Online play; tournament matches ready to play are
   // still shown on Home, which leads to them, while no room is joined (a
@@ -372,8 +374,10 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));
  tag.facts={{loc::T("profile.main_badge"),selection::FindFighter(preferences_.mainFighter)->name}};
  if(record.available)tag.facts.push_back({loc::T("profile.record"),RecordValue(record)});
- // The levels the Card tab draws; Home's tag has none.
+ // The levels the Card tab draws, and the two points lines under Home's card.
  player_card::Fill(card,v.levels,preferences_.mainFighter);
+ tag.points={true,card.main.points,card.account.points};
+ card.requests=player_card::RequestsWaiting(v.friends);
  SetMenuPlayerCard(std::move(card));
  std::vector<MenuNewsItem> news;
  for(const auto& n:v.services.update.news)news.push_back({n.title,n.date.empty()?n.tag:n.date+" \xC2\xB7 "+n.tag});
@@ -393,7 +397,10 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="tournament-account")identity_.OpenTournamentAccount(v,nav);
  // The matches screen, by way of Online play and Ember ID so Back goes there.
  else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
- else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
+ else if(a.id=="profile")nav.Push(player_card::RequestsWaiting(v.friends)?ProfilePanel::FriendsScreen:ProfilePanel::CardScreen);
+ else if(a.id=="main-character")nav.Push(a.id);
+ // Edit card's Title and Icon rows go to the award worn there, to change it.
+ else if(a.id=="card-title"||a.id=="card-icon"){const bool title=a.id=="card-title";const std::string& worn=title?preferences_.wornTitle:preferences_.wornIcon;if(!worn.empty())nav.Prefer("award:"+worn);nav.Push(title?"awards":"awards-icons");}
  else if(a.id=="awards")nav.Push("awards");
  else if(a.id=="card")nav.Push(ProfilePanel::CardScreen);
  else if(a.id=="country"){countryPicker_.Open();nav.Push(CountryPicker::Screen);nav.Prefer(CountryPicker::RowId(preferences_.country));}

@@ -12,6 +12,7 @@
 #include "ControllersScreen.hxx"
 #include "LineIcons.hxx"
 #include "MenuRows.hxx"
+#include "PlayerCard.hxx"
 #include "RowId.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
@@ -133,6 +134,7 @@ public:
             {"player", "player.title", &Controls},
             {"controllers", "controllers.title", &ControllerList},
             {"profile", "profile.title", &Profile},
+            {"card-edit", "card.edit", &CardEdit},
             {"main-character", "profile.choose_main_title", &MainCharacters},
             {"sent-reports", "reports.sent_list", &SentReports},
             {"about", "about.title", &About}};
@@ -153,19 +155,45 @@ public:
         row.value = CountryPicker::ChoiceText(s.preferences_.country, v.automaticCountry);
         return {row};
     }
+    // The rows Profile and Edit card share.
+    static MenuEntry NameRow(Shell& s, const ShellView& v) { return TextRow("name", loc::T("profile.player_name"), s.preferences_.displayName, 31, v.canEditPreferences); }
+    static MenuEntry MainRow(Shell& s) {
+        const std::string name = selection::FindFighter(s.preferences_.mainFighter)->name;
+        auto row = Row("main-character", loc::T("profile.main_character"), loc::Tf("profile.main_character_detail", name));
+        row.value = name;
+        return row;
+    }
+    static MenuEntry SteamRow(Shell& s, const ShellView& v) {
+        return OnOffValue(s.preferences_, "share-steam", loc::T("profile.share_steam"), loc::T("profile.share_steam_detail"), v.canEditPreferences);
+    }
     static Entries Profile(Shell& s, const ShellView& v) {
-        const auto& p = s.preferences_;
         const auto& record = v.preferences.record;
-        Entries rows = {TextRow("name", loc::T("profile.player_name"), p.displayName, 31, v.canEditPreferences),
-            Row("main-character", loc::T("profile.main_character"), loc::Tf("profile.main_character_detail", selection::FindFighter(p.mainFighter)->name)),
+        Entries rows = {NameRow(s, v), MainRow(s),
             Row("record", loc::T("profile.record"), record.available ? loc::Tf("profile.record_detail", record.wins, record.losses) : loc::T("profile.record_unavailable"))};
         rows[2].info = true;
-        rows[1].value = selection::FindFighter(p.mainFighter)->name;
         rows[2].value = record.available ? RecordValue(record) : loc::T("common.unavailable");
-        rows.push_back(OnOffValue(p, "share-steam", loc::T("profile.share_steam"), loc::T("profile.share_steam_detail"), v.canEditPreferences));
+        rows.push_back(SteamRow(s, v));
         rows.push_back(Row("awards", loc::T("screen.awards"), loc::T("awards.entry_detail")));
         rows.back().value = EarnedCount(v);
         return rows;
+    }
+    // Edit card (from the Card tab): what the card shows, each row's own page,
+    // keyboard or switch, beside the card as others see it. The title and icon
+    // are worn on the awards wall, which their rows open. In a room none of it
+    // changes.
+    static Entries CardEdit(Shell& s, const ShellView& v) {
+        const auto& p = s.preferences_;
+        const auto award = [&](const char* label, const char* id, const std::string& worn, const char* v2::Award::* name) {
+            auto row = Row(id, loc::T(label), v.canEditPreferences ? loc::T("card.award_detail") : loc::T("profile.leave_room_to_edit"), v.canEditPreferences);
+            const v2::Award* found = WornAward(v, worn);
+            row.value = found ? loc::T(found->*name) : loc::T("card.none");
+            row.hint = loc::T("screen.awards");
+            return row;
+        };
+        auto main = MainRow(s);
+        if (!v.canEditPreferences) { main.enabled = false; main.detail = loc::T("profile.leave_room_to_edit"); }
+        return {NameRow(s, v), Country(s, v).front(), main, award("card.title_row", "card-title", p.wornTitle, &v2::Award::title),
+            award("card.icon_row", "card-icon", p.wornIcon, &v2::Award::name), SteamRow(s, v)};
     }
     static Entries MainCharacters(Shell&, const ShellView& v) {
         Entries rows;
@@ -489,6 +517,17 @@ public:
             return [s, v](const std::string& id) {
                 for (const auto& b : s->settingsPanels_)
                     if (b.panel->picture && std::any_of(b.rows.begin(), b.rows.end(), [&](const MenuEntry& e) { return e.id == id; })) { b.panel->picture(*s, *v); return; }
+            };
+        // Edit card shows the card as others see it, with each change.
+        if (screen == "card-edit")
+            return [v](const std::string&) {
+                const float height = 160 * Scale();
+                auto card = OwnAsOthers(MenuPlayerCard());
+                card.art = v->preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait;
+                const auto p = ImGui::GetCursorScreenPos();
+                const float width = ImGui::GetContentRegionAvail().x;
+                DrawOtherCard(ImGui::GetWindowDrawList(), {p, ImVec2(p.x + width, p.y + height)}, card);
+                ImGui::Dummy(ImVec2(width, height));
             };
         if (screen == "profile" || screen == "main-character")
             return [v, screen](const std::string& id) {

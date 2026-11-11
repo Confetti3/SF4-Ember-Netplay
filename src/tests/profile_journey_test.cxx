@@ -1,11 +1,13 @@
-// Profile (docs/design/PLAYER_CARD.md): Home's card opens it on Card, LB and RB
-// step Card, Fighters, Titles and Icons and wrap, a strip tile opens Fighters
-// on that fighter, Select on a fighter makes it the main, the points are read
-// when Profile opens and once at start, and the states without points have a
-// row the pad can stand on.
+// Profile (docs/design/PROFILE.md): Home's card and Profile row open it on Card
+// (Friends while requests wait), LB and RB step Card, Fighters, Friends and
+// Awards and wrap, a strip tile opens Fighters on that fighter, Y and the Edit
+// card button open Edit card, Select on a fighter makes it the main, the
+// points are read when Profile opens and once at start, and every state
+// without points is still a whole card.
 #include "public_rooms_journey_support.hxx"
 #include "../ui/PlayerCard.hxx"
 #include "../ui/ProfilePanel.hxx"
+#include <memory>
 namespace {
 using netplay::levels::Own;
 
@@ -45,7 +47,7 @@ void StripJourney() {
  Answer(j);
  j.h.Screen("home"); j.h.FocusOn("card"); j.h.Press(MenuInput::Select);
  Check(j.h.shell.Navigation().Screen() == "card", "Home's card did not open Profile on Card");
- const char* order[] = {"card", "fighters", "awards", "awards-icons"};
+ const char* order[] = {"card", "fighters", "friends", "awards"};
  for (int i = 1; i <= 4; ++i) {
   j.h.Press(MenuInput::NextTab);
   Check(j.h.shell.Navigation().Screen() == order[i % 4], "RB did not step to the next Profile tab");
@@ -97,28 +99,84 @@ void FightersJourney() {
  Check(locked && !locked->enabled, "A fighter can be made the main while preferences are locked");
 }
 
-// The states without levels each leave a row to stand on, on both tabs.
+// Every state without levels is still a whole card: the published card names the state, the main is on the strip at 0 points,
+// Edit card is there, and Connect Discord when there is no account. The Fighters tab says why in a row.
 void StatesJourney() {
- struct State { Own::Kind kind; bool answered; const char* words; };
- const State states[] = {{Own::Kind::NoAccount, true, "level.no_account"}, {Own::Kind::Unavailable, true, "level.unavailable"}, {Own::Kind::Counted, false, "level.loading"}};
+ struct State { Own::Kind kind; bool answered; const char* error; ui::CardLevels levels; const char* words; };
+ const State states[] = {{Own::Kind::NoAccount, true, "", ui::CardLevels::NoAccount, "level.no_account"},
+  {Own::Kind::Unavailable, true, "", ui::CardLevels::Unavailable, "level.unavailable"},
+  {Own::Kind::Counted, false, "", ui::CardLevels::Pending, "level.loading"},
+  {Own::Kind::Counted, false, "bridge_unreachable", ui::CardLevels::Unreachable, "level.unreachable"}};
  for (const auto& state : states) {
   for (const char* screen : {"card", "fighters"}) {
    Journey j;
-   if (state.answered) Answer(j, state.kind); else { j.h.view.levels = {}; j.h.view.levels.loading = true; }
+   if (state.answered) Answer(j, state.kind);
+   else { j.h.view.levels = {}; j.h.view.levels.loading = !*state.error; j.h.view.levels.error = state.error; }
    j.h.view.preferences.mainFighter = 3;
    j.h.Screen(screen);
-   const auto* words = j.row(ui::ProfileStateRow);
-   Check(words && words->label == loc::T(state.words), "A card without levels does not say why");
-   // The card is still a card: the main is on its strip, at 0 points.
-   if (std::string(screen) == "card") Check(j.row(ui::CardFighterRow(3)) != nullptr, "A card without levels does not show the main");
+   Check(ui::MenuPlayerCard().levels == state.levels, "The card does not name the state of its points");
+   Check(!ui::MenuPlayerCard().fighters.empty() && ui::MenuPlayerCard().fighters.front().fighter == 3 && ui::MenuPlayerCard().fighters.front().points == 0, "A card without levels does not show the main at 0");
+   if (std::string(screen) == "card") {
+    // The card is still a card: the main is on its strip, and Edit card is there.
+    Check(j.row(ui::CardFighterRow(3)) != nullptr && j.row(ui::CardEditRow) != nullptr, "A card without levels has no strip or no Edit card");
+    Check(!j.row(ui::ProfileStateRow), "The Card tab has a row for the words");
+   } else {
+    const auto* words = j.row(ui::ProfileStateRow);
+    Check(words && words->label == loc::T(state.words), "A Fighters tab without levels does not say why");
+   }
    if (state.kind == Own::Kind::NoAccount) Check(j.row("discord-connect") != nullptr, "No account has no way to connect Discord");
   }
  }
- // Counted with nothing played: the words, and no fighters.
+ // Counted with nothing played: the words, and no fighters on the Fighters tab.
  Journey j;
  Answer(j);
  j.h.view.levels.value.fighters = {}; ++j.h.view.levels.revision; j.h.Screen("fighters");
  Check(j.row(ui::ProfileStateRow) && !j.row("main-0"), "Nothing played yet lists fighters");
+}
+
+// Y and the Edit card row open Edit card, whose rows are the card's, and Back returns to Card; its Title and Icon rows open the awards wall.
+void EditCardJourney() {
+ Journey j;
+ Answer(j);
+ j.h.Screen("card");
+ j.h.Press(MenuInput::Options);
+ Check(j.h.shell.Navigation().Screen() == "card-edit", "Y on Card did not open Edit card");
+ j.h.Frame(0, 2);
+ for (const char* id : {"name", "country", "main-character", "card-title", "card-icon", "share-steam"}) Check(j.row(id) != nullptr, "Edit card is missing one of the card's rows");
+ j.h.Press(MenuInput::Back);
+ Check(j.h.shell.Navigation().Screen() == "card", "Back from Edit card did not return to Card");
+ j.h.shell.Navigation().Focus(ui::CardEditRow, j.rows);
+ j.h.Press(MenuInput::Select);
+ Check(j.h.shell.Navigation().Screen() == "card-edit", "Select on Edit card did not open it");
+ j.h.Frame(0, 2);
+ j.h.shell.Navigation().Focus("card-title", j.rows);
+ j.h.Press(MenuInput::Select);
+ Check(j.h.shell.Navigation().Screen() == "awards", "Edit card's Title row did not open the awards wall");
+ j.h.Press(MenuInput::Back);
+ Check(j.h.shell.Navigation().Screen() == "card-edit", "Back from the awards wall did not return to Edit card");
+ // In a room nothing on the card changes.
+ j.h.view.canEditPreferences = false; j.h.Frame(0, 2);
+ const auto* locked = j.row("card-title");
+ Check(locked && !locked->enabled && j.row("main-character") && !j.row("main-character")->enabled, "Edit card changes in a room");
+}
+
+// Home's Profile row opens Card, or Friends while requests wait, and says so; the Friends tab counts them.
+void HomeJourney() {
+ Journey j;
+ Answer(j);
+ j.h.Screen("home");
+ j.h.Choose("profile");
+ Check(j.h.shell.Navigation().Screen() == "card", "Home's Profile row did not open Card");
+ auto state = std::make_shared<netplay::friends::State>();
+ state->kind = netplay::friends::State::Kind::Listed;
+ state->incoming.resize(2);
+ j.h.view.friends.state.value = state; j.h.view.friends.state.loaded = true;
+ j.h.Screen("home"); j.h.Frame(0, 2);
+ const auto* row = j.row("profile");
+ Check(row && row->value == loc::Tf("home.profile_requests", 2) && row->valueHighlighted, "Home's Profile row does not say how many requests wait");
+ j.h.Choose("profile");
+ Check(j.h.shell.Navigation().Screen() == "friends", "Home's Profile row did not open Friends while requests wait");
+ Check(ui::MenuPlayerCard().requests == 2, "The card does not carry the waiting requests");
 }
 
 // The levels are read when Profile opens, and once at start for the service in use.
@@ -154,7 +212,7 @@ void ReadJourney() {
 
 int main() {
  try {
-  StripJourney(); StripTilesJourney(); FightersJourney(); StatesJourney(); ReadJourney();
+  StripJourney(); StripTilesJourney(); FightersJourney(); StatesJourney(); EditCardJourney(); HomeJourney(); ReadJourney();
   std::cout << "Profile journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }
