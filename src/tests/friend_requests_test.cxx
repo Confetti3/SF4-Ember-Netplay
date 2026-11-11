@@ -113,8 +113,9 @@ void OneAtATime() {
 // An action's answer is the state; a sync follows it shortly, and never inside the gap.
 void ActionAnswers() {
 	auto requests = Synced(1000);
-	requests.SentSync(2, 30000);
-	requests.Finish("", Listed("AAAA-AAAA"), 30100);
+	// The last sync is well before the action, so only the settle decides when the next is due.
+	requests.SentSync(2, 20000);
+	requests.Finish("", Listed("AAAA-AAAA"), 20100);
 	requests.SentAction(3, Kind::NewCode, 31000);
 	requests.Finish("", Listed("BBBB-BBBB"), 31200);
 	EXPECT(requests.Published().value->code == "BBBB-BBBB" && requests.Published().revision == 3 && requests.Refusal().empty());
