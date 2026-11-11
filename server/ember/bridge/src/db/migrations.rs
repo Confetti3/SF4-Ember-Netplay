@@ -127,6 +127,7 @@ pub(super) const MIGRATIONS: &[Migration] = migrations![
     "055_archive_listing.sql",
     "056_room_wired_only.sql",
     "057_fighter_levels.sql",
+    "058_friends.sql",
 ];
 
 /// Checks what the database recorded against `migrations`, then applies each

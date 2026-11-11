@@ -15,6 +15,7 @@ mod db;
 mod delivery;
 mod error;
 mod events;
+mod friends;
 mod http;
 pub mod integrations;
 mod linking;
@@ -54,6 +55,8 @@ pub struct AppState {
     rate: Arc<rate::Limiter>,
     rooms: Arc<routes::rooms::Shared>,
     ranking_board: Arc<routes::ranking::PublicCache>,
+    /// Friends' presence and invites, kept in memory only (`friends`).
+    friends: Arc<friends::presence::Live>,
     /// The client shared by the calls to the bridge's configured services.
     http: util::Outbound,
 }
@@ -75,6 +78,7 @@ impl AppState {
             rate: Arc::new(rate::Limiter::default()),
             rooms: Arc::new(routes::rooms::Shared::default()),
             ranking_board: Arc::new(routes::ranking::PublicCache::default()),
+            friends: Arc::new(friends::presence::Live::default()),
             http: util::Outbound::default(),
         }
     }

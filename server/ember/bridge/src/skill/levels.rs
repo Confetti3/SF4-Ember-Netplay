@@ -62,8 +62,8 @@ pub fn own(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<OwnLevels> {
 
 /// The card of Discord account `account` as another player sees it: its
 /// levels while it takes part in ranking (FIGHTER_LEVELS.md, Privacy), and
-/// None once it has no Discord account connected. Friends are not offered
-/// yet, so the relation is always `none`.
+/// None once it has no Discord account connected. Its relation is `none`;
+/// the card look-up sets the caller's own (`friends::store::relation`).
 pub fn card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
     let connected: bool = tx.query_row(
         "SELECT EXISTS (SELECT 1 FROM discord_accounts WHERE user_id = ?1)",

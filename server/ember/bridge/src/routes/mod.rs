@@ -4,6 +4,7 @@ pub mod desk_pages;
 pub mod discovery;
 pub mod events;
 pub mod expiry;
+pub mod friends;
 pub mod idempotency;
 pub mod ledger;
 pub mod levels;
@@ -137,6 +138,11 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/ranking/board/public", get(ranking::public_board))
         .route(ember_protocol::levels::LEVELS_PATH, get(levels::own))
         .route(ember_protocol::levels::LOOKUP_PATH, post(levels::lookup))
+        // tests/friends.rs scans every answer of these and the level routes
+        // for Discord IDs: a route serving one player's data to another
+        // joins its list.
+        .route(ember_protocol::friends::SYNC_PATH, post(friends::sync))
+        .route(ember_protocol::friends::ACTIONS_PATH, post(friends::act))
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
         .route("/v1/lobbies/{id}/queue", post(lobbies::join))
@@ -283,8 +289,9 @@ pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<
 
 /// Expires link intents, holds games whose reports did not arrive, expires
 /// matches nobody played, observes the fighters whose claims lapsed, brings
-/// the archive's classes towards the rankings board's, and
-/// removes sign-ins no site answered, stale challenges, sessions, replay
+/// the archive's classes towards the rankings board's, lapses friend
+/// requests and forgets stale presences and invites, and removes sign-ins
+/// no site answered, stale challenges, sessions, replay
 /// records, refused BluMint keys and old sets' replays when the bridge prunes
 /// them, once the archive has taken in the sets' games it has not seen.
 /// Durable domain records (links, matches, attempts, reports, events) stay,
@@ -322,9 +329,11 @@ pub async fn maintenance_once(state: &AppState) {
             crate::archive::sets::backfill(tx, &ctx)?;
             crate::archive::duplicates::fold_kept_before(tx)?;
             replays::prune(tx, &ctx)?;
+            crate::friends::store::sweep(tx, now)?;
             Ok(())
         })
         .await;
+    state.friends.prune(now);
     // Its own transaction: the rest of the pass never waits on it or fails
     // with it.
     if let Err(error) = state
