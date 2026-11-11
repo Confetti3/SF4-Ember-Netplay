@@ -591,6 +591,7 @@ PostPublishState Publish() {
     snapshot.rankings = runtime->rankings.Published(GetTickCount64());
     snapshot.levels = runtime->levels.Published();
     snapshot.memberCards = runtime->cards.Published();
+    snapshot.friends = FriendsStatus();
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();

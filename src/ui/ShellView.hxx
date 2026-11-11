@@ -20,6 +20,7 @@
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/Answered.hxx"
+#include "../netplay/FriendsView.hxx"
 #include "../netplay/Levels.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
@@ -227,6 +228,9 @@ struct ShellView {
     netplay::Answered<netplay::levels::Own> levels;
     // The cards of a public room's members by card token; null while there are none.
     std::shared_ptr<const netplay::levels::CardMap> memberCards;
+    // The player's friends, the action in flight and the last refusal's words
+    // (netplay/FriendsView.hxx); commands go as commands::Friends.
+    netplay::friends::View friends;
     // Ember's replay archive, newest first, and what the runtime says of
     // replays (RuntimeSnapshot::Replays, ui/ReplaysView.hxx), as published.
     // A replay link's file waits there until the player answers: the Replays
