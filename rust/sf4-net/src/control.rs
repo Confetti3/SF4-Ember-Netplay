@@ -142,6 +142,12 @@ impl ControlWorker {
         self.ticket.as_ref().and_then(|ticket| ticket.badge)
     }
 
+    /// The card token the bridge put in that ticket (`RoomTicket::card`),
+    /// whose shape the ticket's own check has already accepted.
+    pub fn card(&self) -> Option<&str> {
+        self.ticket.as_ref().and_then(|ticket| ticket.card.as_deref())
+    }
+
     pub fn session(&self) -> Session {
         self.session
     }

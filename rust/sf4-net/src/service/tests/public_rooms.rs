@@ -25,6 +25,7 @@ async fn a_member_with_a_ticket_connects_and_the_event_names_its_account() {
             peer,
             room,
             account,
+            card,
             ..
         } = next(&mut fixture.events, "connected").await
         else {
@@ -33,6 +34,8 @@ async fn a_member_with_a_ticket_connects_and_the_event_names_its_account() {
         assert_eq!(peer, remote.id());
         assert_eq!(room, fixture.invite.room());
         assert_eq!(account.as_deref(), Some(player.ember_id().as_str()));
+        // A ticket without a card token gives none.
+        assert_eq!(card, None);
         fixture.host.close().await;
         remote.close().await;
     })
@@ -54,6 +57,27 @@ async fn the_event_carries_the_skill_badge_the_ticket_was_signed_with() {
             unreachable!()
         };
         assert_eq!(badge, Some(shown));
+        fixture.host.close().await;
+        remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn the_event_carries_the_card_token_the_ticket_was_signed_with() {
+    timeout(Duration::from_secs(30), async {
+        let mut fixture = public_host().await;
+        let (remote, player) = (endpoint().await, identity(1));
+        let mut ticket = ticket_for(&fixture.invite, &player, &remote).ticket;
+        let token = format!("c1.{}", "A".repeat(76));
+        ticket.card = Some(token.clone());
+        let signed = ticket.sign(&identity(9), "k1").unwrap();
+        let _control = fixture.dial(&remote, &signed).await.unwrap();
+        let Event::Connected { card, .. } = next(&mut fixture.events, "connected").await else {
+            unreachable!()
+        };
+        assert_eq!(card, Some(token));
         fixture.host.close().await;
         remote.close().await;
     })
@@ -521,6 +545,7 @@ fn connected_serializes_as_before_without_an_account() {
         control: 9,
         account: None,
         badge: None,
+        card: None,
         latency: None,
         latency_relay: None,
     };
@@ -538,6 +563,7 @@ fn connected_serializes_as_before_without_an_account() {
         control: 9,
         account: Some(account.clone()),
         badge: None,
+        card: None,
         latency: None,
         latency_relay: None,
     };
@@ -554,6 +580,7 @@ fn connected_serializes_as_before_without_an_account() {
         control: 9,
         account: Some(account.clone()),
         badge: Some(SkillBadge::class(5, false)),
+        card: None,
         latency: None,
         latency_relay: None,
     };
@@ -561,6 +588,24 @@ fn connected_serializes_as_before_without_an_account() {
         serde_json::to_string(&event).unwrap(),
         format!(
             r#"{{"type":"connected","epoch":4,"peer":{peer_text},"room":{room},"control":9,"account":"{account}","badge":{{"band":5,"settled":false}}}}"#
+        )
+    );
+    // The card token follows the badge.
+    let event = Event::Connected {
+        epoch: 4,
+        peer,
+        room: [7; 16],
+        control: 9,
+        account: Some(account.clone()),
+        badge: Some(SkillBadge::class(5, false)),
+        card: Some("c1.abc_-123".into()),
+        latency: None,
+        latency_relay: None,
+    };
+    assert_eq!(
+        serde_json::to_string(&event).unwrap(),
+        format!(
+            r#"{{"type":"connected","epoch":4,"peer":{peer_text},"room":{room},"control":9,"account":"{account}","badge":{{"band":5,"settled":false}},"card":"c1.abc_-123"}}"#
         )
     );
 }
