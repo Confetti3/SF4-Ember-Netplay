@@ -38,22 +38,19 @@ void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max) {
  DrawCardText(elided,ImVec2(x,max.y-20*s),w,card.record.empty()?card.status:card.status+" \xC2\xB7 "+card.record,14*s,palette::Muted);
  NoteUserText(card.name);
 }
-void DrawMemberPoints(const MemberPoints& points) {
- const float s=Scale(),line=32*s,gap=8*s,width=ImGui::GetContentRegionAvail().x;
+void DrawMemberPoints(const MemberPoints& points,const std::string& name,const FighterPicture& face) {
+ if(!points.known)return;
+ const float s=Scale(),side=72*s,gap=12*s,line=16*s,width=ImGui::GetContentRegionAvail().x;
  const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
- const ImVec2 start=ImGui::GetCursorScreenPos();
- ImVec2 at(start.x,start.y+12*s);
-  const std::size_t shown=(std::min)(points.fighters.size(),static_cast<std::size_t>(3));
-  // The names stand in one column, after the widest plate.
-  float plates=0;
-  for(std::size_t i=0;i<shown;++i)plates=(std::max)(plates,v2::LevelWidth(points.fighters[i].points,line*.4f,"points.label"));
-  for(std::size_t i=0;i<shown;++i){
-   const auto& played=points.fighters[i];
-   v2::Level(d,at,line*.4f,played.points,"points.label");
-   if(const auto* fighter=selection::FindFighter(played.fighter))
-    v2::Text(d,ImVec2(at.x+plates+12*s,at.y+(line-16*s)*.5f),(std::max)(0.f,width-plates-12*s),fighter->name,16*s,c.text,HeadingFont());
-   at.y+=line+gap;
-  }
- ImGui::Dummy(ImVec2(width,at.y-start.y));
+ const ImVec2 start=ImGui::GetCursorScreenPos(),top(start.x,start.y+12*s);
+ DrawCharacterPortrait(face,top,ImVec2(top.x+side,top.y+side),c.frame);
+ // SF4's lines under the name: the points of the fighter they are playing, then the account's.
+ const float x=top.x+side+gap,room=(std::max)(0.f,width-side-gap);
+ NoteUserText(name);
+ v2::Text(d,ImVec2(x,top.y),room,name,18*s,c.text,HeadingFont());
+ const auto played=points.Of(face.fighter);
+ v2::Level(d,ImVec2(x,top.y+28*s),line,played?played->points:0,"points.label");
+ v2::Level(d,ImVec2(x,top.y+52*s),line,points.account.points,"points.account_label");
+ ImGui::Dummy(ImVec2(width,12*s+side));
 }
 } }
