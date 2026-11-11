@@ -355,9 +355,11 @@ async fn listed(f: &Fixture, query: &str) -> Json {
     serde_json::from_slice(&response.bytes().await.unwrap()).unwrap()
 }
 
-/// Waits until `done` holds of the listing for `query`, and returns it.
+/// Waits until `done` holds of the listing for `query`, and returns it: up
+/// to sixty seconds, as the bridge's other waits, since the whole workspace
+/// may be testing alongside and the archive's worker retries on a schedule.
 async fn listed_when(f: &Fixture, query: &str, done: impl Fn(&Json) -> bool) -> Json {
-    for _ in 0..200 {
+    for _ in 0..1200 {
         let list = listed(f, query).await;
         if done(&list) {
             return list;
