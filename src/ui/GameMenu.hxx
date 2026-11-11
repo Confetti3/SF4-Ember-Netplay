@@ -37,7 +37,7 @@ enum class CardLevels {
     Pending,
     // No Discord account is connected, or the service does not count points.
     NoAccount, Unavailable,
-    // Counted: `fighters` and the rest are filled, shown to others or not.
+    // Counted: `fighters` and the rest are filled.
     Counted,
 };
 // One fighter of the card's strip: its points (0 for not played), the frame tier
@@ -54,8 +54,8 @@ struct PlayerCardView {
     v2::TagView profile;
     // The player's own points: the main, then the two highest others played.
     CardLevels levels = CardLevels::Pending;
-    // Others see these points (the Fighters panel says so when they do not).
-    bool levelsShown = true;
+    // The account's points (BP): 0 until a game is counted.
+    std::uint64_t account = 0;
     std::vector<CardFighter> fighters;
     CardProgress progress;
     CardFacts facts;

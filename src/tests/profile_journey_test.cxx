@@ -25,10 +25,10 @@ void Play(Own& own, int fighter, std::uint64_t games) {
 }
 
 // The points the runtime has: Ryu (0) with the most, and four others.
-void Answer(Journey& j, Own::Kind kind = Own::Kind::Counted, bool shown = true) {
+void Answer(Journey& j, Own::Kind kind = Own::Kind::Counted) {
  auto& answer = j.h.view.levels;
  Own own;
- own.kind = kind; own.shown = shown;
+ own.kind = kind;
  if (kind == Own::Kind::Counted) { Play(own, 0, 600); Play(own, 5, 300); Play(own, 12, 200); Play(own, 7, 90); Play(own, 20, 40); }
  answer.value = own; answer.loaded = true; answer.loading = false; ++answer.revision; ++answer.finished;
  j.h.Frame(0, 2);

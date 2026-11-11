@@ -18,13 +18,13 @@ constexpr const char* FighterRowPrefix = "main-";  // Select on a fighter makes 
 constexpr const char* UnplayedRow = "fighters-unplayed";
 
 
-std::string FighterDetail(const netplay::levels::FighterLevel& level) {
+std::string FighterDetail(const netplay::levels::Level& level) {
     return loc::Tf("level.value", level.points) + " \xC2\xB7 " + player_card::GamesWords(level.games);
 }
 
 // A fighter's row on the Fighters board: its picture with the points on it,
 // its name and games, and its meter.
-void DrawFighterRow(ImDrawList* d, v2::Box box, int fighter, const netplay::levels::FighterLevel& level, FighterArt art, bool focused, bool hovered, bool enabled) {
+void DrawFighterRow(ImDrawList* d, v2::Box box, int fighter, const netplay::levels::Level& level, FighterArt art, bool focused, bool hovered, bool enabled) {
     const auto& c = v2::Colors();
     const float s = Scale(), pad = 8 * s, side = box.H() - 2 * pad;
     v2::CardGround(d, box, focused, hovered);
@@ -83,7 +83,6 @@ float DrawFighterPanel(ImDrawList* d, v2::Box box, int fighter, const netplay::l
         fx += place + 8 * s;
     }
     y += frame + 8 * s;
-    if (!own.shown) y += v2::Paragraph(d, ImVec2(x, y), room, loc::T("level.hidden"), 14 * s, c.muted) + pad;
     box.max.y = y + pad * .5f;
     split.SetCurrentChannel(d, 0);
     v2::Panel(d, box, selection::FindFighter(fighter)->name, isMain ? loc::T("fighters.main") : nullptr);
@@ -192,7 +191,7 @@ std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string&
     }
     // The card's strip shows the main in every state, at 0 points when there are none.
     if (!fighters) {
-        const player_card::FighterLevel none{};
+        const player_card::Level none{};
         for (const auto& fighter : card.fighters) {
             auto row = Row(CardFighterRow(fighter.fighter), selection::FindFighter(fighter.fighter)->name,
                 FighterDetail(card.levels == CardLevels::Counted ? own.fighters[fighter.fighter] : none));

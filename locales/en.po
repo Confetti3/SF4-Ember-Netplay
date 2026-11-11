@@ -1102,12 +1102,6 @@ msgstr "{0} points to {1}"
 msgid "level.top"
 msgstr "Top frame"
 
-msgid "level.hidden"
-msgstr "Others do not see your points while you do not take part in ranking."
-
-msgid "room.member_points_private"
-msgstr "This player keeps their points private."
-
 msgid "level.no_account"
 msgstr "Connect Discord in Settings, Online to earn points."
 

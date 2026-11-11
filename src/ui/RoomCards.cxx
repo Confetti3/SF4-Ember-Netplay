@@ -43,8 +43,6 @@ void DrawMemberPoints(const MemberPoints& points) {
  const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
  const ImVec2 start=ImGui::GetCursorScreenPos();
  ImVec2 at(start.x,start.y+12*s);
- if(points.show==MemberPoints::Show::Private)at.y+=v2::Paragraph(d,at,width,loc::T("room.member_points_private"),14*s,c.muted);
- else{
   const std::size_t shown=(std::min)(points.fighters.size(),static_cast<std::size_t>(3));
   // The names stand in one column, after the widest plate.
   float plates=0;
@@ -56,7 +54,6 @@ void DrawMemberPoints(const MemberPoints& points) {
     v2::Text(d,ImVec2(at.x+plates+12*s,at.y+(line-16*s)*.5f),(std::max)(0.f,width-plates-12*s),fighter->name,16*s,c.text,HeadingFont());
    at.y+=line+gap;
   }
- }
  ImGui::Dummy(ImVec2(width,at.y-start.y));
 }
 } }

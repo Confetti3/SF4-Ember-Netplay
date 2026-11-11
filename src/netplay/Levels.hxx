@@ -15,8 +15,9 @@ constexpr int TierCount = 5;
 // At most this many card look-ups in one request.
 constexpr std::size_t MaxLookup = 16;
 
-// One fighter's points for the player. Points 0: never played.
-struct FighterLevel {
+// One count of points: a fighter's (FP) or the account's (BP). Points 0: nothing
+// counted yet.
+struct Level {
 	// Games + wins: a win is worth 2, a loss 1.
 	std::uint64_t points = 0;
 	std::uint64_t games = 0, wins = 0;
@@ -25,7 +26,7 @@ struct FighterLevel {
 	// begins; next is 0 at the last tier.
 	std::uint8_t tier = 0;
 	std::uint64_t floor = 0, next = 0;
-	// Unix seconds of the first counted game.
+	// Unix seconds of the first counted game; 0 while there is none.
 	std::uint64_t since = 0;
 };
 
@@ -38,13 +39,19 @@ struct Own {
 		// No answer yet, or the service has no points.
 		Unavailable,
 	} kind = Kind::Unavailable;
-	// Counted: whether other players see this player's points.
-	bool shown = false;
+	// Counted: the account's points, on its own tier thresholds. Points 0 while
+	// no game is counted.
+	Level account;
 	// Indexed by fighter id, 0 to selection::FighterCount - 1.
-	std::array<FighterLevel, selection::FighterCount> fighters{};
+	std::array<Level, selection::FighterCount> fighters{};
 };
 
-// What a card shows of one fighter.
+// What a card shows of the account, and of one fighter.
+struct CardAccount {
+	std::uint64_t points = 0;
+	std::uint8_t tier = 0;
+};
+
 struct CardFighter {
 	std::uint8_t fighter = 0;
 	std::uint64_t points = 0;
@@ -53,10 +60,11 @@ struct CardFighter {
 
 enum class Relation : std::uint8_t { None, Friend, Sent, Received, Blocked };
 
-// Another player's card from a look-up.
+// Another player's card from a look-up. A card is public: its points are
+// always drawn.
 struct Card {
-	// False when the player does not show points: draw none.
-	bool levelsShown = false;
+	CardAccount account;
+	// The fighters played, ascending; empty when none is.
 	std::vector<CardFighter> fighters;
 	Relation relation = Relation::None;
 };

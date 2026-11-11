@@ -1102,12 +1102,6 @@ msgstr "Do {1} brakuje punktów: {0}"
 msgid "level.top"
 msgstr "Najwyższa ramka"
 
-msgid "level.hidden"
-msgstr "Inni nie widzą twoich punktów, dopóki nie bierzesz udziału w rankingu."
-
-msgid "room.member_points_private"
-msgstr "Ten gracz ukrywa swoje punkty."
-
 msgid "level.no_account"
 msgstr "Połącz Discord w Ustawieniach, Gra online, aby zdobywać punkty."
 

@@ -23,9 +23,8 @@ void Play(Own& own, int fighter, std::uint64_t games, std::uint64_t wins, int ti
     l.points = games + wins; l.games = games; l.wins = wins; l.tier = static_cast<std::uint8_t>(tier); l.floor = starts[tier]; l.next = next;
 }
 
-Answered<Own> Counted(Own own, bool shown = true) {
+Answered<Own> Counted(Own own) {
     own.kind = Own::Kind::Counted;
-    own.shown = shown;
     Answered<Own> answer;
     answer.value = std::move(own);
     answer.loaded = true;
@@ -84,9 +83,13 @@ void ProgressAndFacts() {
     Check(view.facts.games == 1330 && view.facts.fightersPlayed == 2, "the counted games or fighters played are wrong");
     // 612 wins in 1330 games rounds to 46 %.
     Check(view.facts.winPercent == 46, "the win rate is wrong");
-    Check(view.levelsShown, "points shown to others were not carried");
-    ui::player_card::Fill(view, Counted(own, false), 0);
-    Check(!view.levelsShown, "points hidden from others were not carried");
+    // The account's points are carried, 0 until a game is counted.
+    Check(view.account == 0, "an account with no points was not 0");
+    own.account.points = 2331;
+    ui::player_card::Fill(view, Counted(own), 0);
+    Check(view.account == 2331, "the account's points were not carried");
+    ui::player_card::Fill(view, Answered<Own>{}, 0);
+    Check(view.account == 0, "an answer not read yet kept the account's points");
 }
 
 // The states without points, and the words that say so.
@@ -130,7 +133,7 @@ void States() {
 // How far the points are from their tier's start to the next tier's.
 void Distances() {
     using ui::player_card::Part;
-    netplay::levels::FighterLevel level;
+    netplay::levels::Level level;
     level.points = 300; level.games = 200; level.wins = 100; level.tier = 1; level.floor = 200; level.next = 700;
     // 100 of the 500 from 200 to 700.
     Check(Part(level) > .19f && Part(level) < .21f, "the part of the way to the next tier is wrong");

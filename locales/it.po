@@ -1102,12 +1102,6 @@ msgstr "{0} punti a {1}"
 msgid "level.top"
 msgstr "Cornice massima"
 
-msgid "level.hidden"
-msgstr "Gli altri non vedono i tuoi punti finché non partecipi alla classifica."
-
-msgid "room.member_points_private"
-msgstr "Questo giocatore tiene privati i suoi punti."
-
 msgid "level.no_account"
 msgstr "Collega Discord in Impostazioni, Gioco online per guadagnare punti."
 

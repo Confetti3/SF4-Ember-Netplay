@@ -1102,12 +1102,6 @@ msgstr "{1}까지 {0}포인트"
 msgid "level.top"
 msgstr "최상위 프레임"
 
-msgid "level.hidden"
-msgstr "랭킹에 참여하지 않는 동안에는 다른 플레이어에게 포인트가 보이지 않습니다."
-
-msgid "room.member_points_private"
-msgstr "이 플레이어는 포인트를 공개하지 않습니다."
-
 msgid "level.no_account"
 msgstr "설정의 온라인 플레이에서 Discord를 연결하면 포인트를 얻을 수 있습니다."
 

@@ -1,7 +1,7 @@
 #pragma once
 // The Profile shots of ui_render_test.cxx: the Card and Fighters tabs with
 // points (twelve fighters, the main at 1986), with the main in the top tier, with nothing
-// played yet, with points hidden from others, without a Discord account, on a
+// played yet, without a Discord account, on a
 // service that does not count points yet, and while the points are read.
 // `draw` and `page` are the test's own.
 #include "ui_render_support.hxx"
@@ -21,10 +21,13 @@ inline void ProfilePlay(ProfileOwn& own,int fighter,std::uint64_t points){
     l.games=static_cast<std::uint64_t>(points/1.5);l.wins=points-l.games;l.since=1700000000+static_cast<std::uint64_t>(fighter)*86400;
 }
 inline ProfileOwn ProfilePlayed(std::uint64_t mainPoints){
-    ProfileOwn own;own.kind=ProfileOwn::Kind::Counted;own.shown=true;
+    ProfileOwn own;own.kind=ProfileOwn::Kind::Counted;
     ProfilePlay(own,0,mainPoints);
     const std::uint64_t others[][2]={{5,3480},{12,860},{7,412},{20,230},{3,86},{30,41},{40,19},{17,7},{9,3},{26,2},{33,1}};
     for(const auto& pair:others)ProfilePlay(own,static_cast<int>(pair[0]),pair[1]);
+    // The account's points are every game of every fighter.
+    for(const auto& level:own.fighters){own.account.points+=level.points;own.account.games+=level.games;own.account.wins+=level.wins;}
+    own.account.since=1700000000;own.account.next=own.account.points<500?500:0;
     return own;
 }
 template<class Draw,class Page>
@@ -41,8 +44,7 @@ void ShootProfile(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     };
     shoot("played",ProfilePlayed(1986),true,false);
     shoot("sixty",ProfilePlayed(12840),true,false);
-    ProfileOwn hidden=ProfilePlayed(1986);hidden.shown=false;shoot("hidden",hidden,true,false);
-    ProfileOwn fresh;fresh.kind=ProfileOwn::Kind::Counted;fresh.shown=true;shoot("fresh",fresh,true,false);
+    ProfileOwn fresh;fresh.kind=ProfileOwn::Kind::Counted;shoot("fresh",fresh,true,false);
     ProfileOwn none;none.kind=ProfileOwn::Kind::NoAccount;shoot("no-account",none,true,false);
     none.kind=ProfileOwn::Kind::Unavailable;shoot("unavailable",none,true,false);
     shoot("loading",ProfileOwn{},false,true);

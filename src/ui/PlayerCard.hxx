@@ -1,5 +1,5 @@
 #pragma once
-// The player's card from their fighter points (docs/design/PLAYER_CARD.md): the
+// The player's card from their points (docs/design/PLAYER_CARD.md): the
 // fighters it shows and in what order, how far the next tier is, and the view Home's
 // card and the Card tab draw from. The drawing is in PlayerCard.cxx; the
 // choices are here so they are checked without a frame (player_card_test.cxx).
@@ -12,15 +12,15 @@
 
 namespace sf4e { namespace ui { namespace player_card {
 using Own = netplay::levels::Own;
-using FighterLevel = netplay::levels::FighterLevel;
+using Level = netplay::levels::Level;
 
 // The fighters with points, highest first, then lowest id.
 std::vector<int> PlayedFighters(const Own& own);
 // How far the fighter's points are to the next tier's start, 0 to 1 (the
 // bridge sends no earlier start); 1 at the top.
-float Part(const FighterLevel& level);
+float Part(const Level& level);
 // The card's points from the answer: the main first, then the two highest
-// others played, the main's progress and the facts. `main` is the fighter the
+// others played, the main's progress, the account's points and the facts. `main` is the fighter the
 // player picked as their main (-1 for none).
 void Fill(PlayerCardView& view, const netplay::Answered<Own>& levels, int main);
 // The catalog id of the words that say why the card has no points to show, or

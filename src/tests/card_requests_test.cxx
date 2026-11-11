@@ -14,7 +14,7 @@ using Answers = std::vector<std::optional<Card>>;
 
 static Card Showing(std::uint8_t fighter, std::uint64_t points) {
 	Card card;
-	card.levelsShown = true;
+	card.account = {points, 0};
 	card.fighters.push_back({fighter, points, 0});
 	return card;
 }
