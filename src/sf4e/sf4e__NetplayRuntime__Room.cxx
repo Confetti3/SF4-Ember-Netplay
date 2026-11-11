@@ -840,7 +840,7 @@ void PersistTerminalOutcome() {
 		store.saved = [](std::uint64_t revision) { return OverlayPrefs::PlayerPreferencesSaved(revision); };
 		store.failed = [] { return !OverlayPrefs::PersistenceError().empty(); };
 		using Persistence = netplay::MatchResultOutbox::ProfilePersistence;
-		switch (runtime->resultOutbox.PersistProfile(runtime->preferences.record, store, GetTickCount64())) {
+		switch (runtime->resultOutbox.PersistProfile(runtime->EditPreferences().record, store, GetTickCount64())) {
 		case Persistence::Waiting: return;
 		case Persistence::Saved: spdlog::info("Match result: profile record saved"); break;
 		case Persistence::NotRequired: break;
