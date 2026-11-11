@@ -218,13 +218,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         // A press made to skip the WIN's scenes lands on the prompt as it
         // opens: for Branding::leaveGuardSeconds over the WIN only Rematch
         // counts, so such a press cannot end the pair's rematch in place.
-        // Before the WIN (the game's scenes, GameAdapter's
-        // ResultScenesPlaying) the countdown waits, full, and Back to room
-        // and Character select wait too: a press there is most often one
-        // meant to skip the scenes. The guard's time starts with the WIN.
-        if (v.resultScenes && !p.onResults && !p.starting) { p.until = now + PostMatchSeconds; p.opened = now; }
-        p.leaveGuarded = !p.onResults && Fighting(v.session.match) &&
-            (v.resultScenes || now < p.opened + ember::Product().branding.leaveGuardSeconds);
+        p.leaveGuarded = !p.onResults && Fighting(v.session.match) && now < p.opened + ember::Product().branding.leaveGuardSeconds;
         // Put in front on the results screen once, as the room comes back.
         if (p.onResults && !p.resultsShown && !p.left && open) {
             p.resultsShown = true;

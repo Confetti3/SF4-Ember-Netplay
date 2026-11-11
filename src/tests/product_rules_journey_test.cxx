@@ -216,45 +216,12 @@ void ClassNames() {
  Check(ui::ClassName(0).empty()&&ui::ClassName(SkillBadge::Classes+1).empty(),"A band past the classes was named");
 }
 
-// The prompt open before the WIN (ShellView::resultScenes, the game's scenes
-// after the deciding round): Rematch counts at once, Back to room and
-// Character select wait, and the countdown stands full until the WIN, from
-// which the guard's time and the countdown both start.
-void ScenesBeforeWin() {
- Harness h;SeatedPair(h,24);
- auto& t=h.view.room.tables[0];t.phase=room::TablePhase::Playing;
- h.Screen("room");
- h.view.session.match=netplay::MatchState::Playing;h.view.atMainMenu=false;h.view.foughtGame={0,t.matchGeneration,room::MatchResult::P1Win};
- h.view.resultScenes=true;h.view.matchResult=true;h.Frame();
- Check(h.shell.Navigation().Screen()=="post-match","The prompt did not open at the deciding round");
- h.Wait(15);
- h.Press(MenuInput::Back);h.Press(MenuInput::Fighter);
- Check(h.shell.Navigation().Screen()=="post-match"&&!h.shell.PostMatchLeft(),"Back or X during the scenes declined, or the countdown ran before the WIN");
- // The WIN: the countdown and the guard start now.
- h.view.resultScenes=false;h.Frame();
- const double guard=ember::Product().branding.leaveGuardSeconds;
- if(guard>0){h.Press(MenuInput::Back);Check(!h.shell.PostMatchLeft(),"Back right as the WIN showed declined");}
- const auto sent=h.actions.size();
- h.Choose("again");
- Check(h.actions.size()>sent&&h.actions.back().command.kind==netplay::CommandKind::Rematch,"Rematch over the WIN did not send the room's Ready");
- // A second prompt, answered during the scenes: Rematch counts there.
- Harness g;SeatedPair(g,25);
- auto& u=g.view.room.tables[0];u.phase=room::TablePhase::Playing;
- g.Screen("room");
- g.view.session.match=netplay::MatchState::Playing;g.view.atMainMenu=false;g.view.foughtGame={0,u.matchGeneration,room::MatchResult::P2Win};
- g.view.resultScenes=true;g.view.matchResult=true;g.Frame();
- const auto before=g.actions.size();
- g.Choose("again");
- Check(g.actions.size()>before&&g.actions.back().command.kind==netplay::CommandKind::Rematch,"Rematch during the scenes did not count");
-}
-
 int main() {
  try {
   RoomFaces();
   MainFighter();
   OpponentAnswer();
   ResultsRematch();
-  ScenesBeforeWin();
   ClassNames();
   std::cout<<"Product rules ("<<(ember::Product().branding.roomFacesArePicks?"on":"off")<<") passed.\n";
   return 0;

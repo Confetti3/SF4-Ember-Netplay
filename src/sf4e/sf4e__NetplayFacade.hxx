@@ -167,8 +167,6 @@ namespace sf4e {
             // (bit 1 = P1, 2 = P2; Battle::RematchDeclines); and the games of
             // this battle that went on to one in place.
             unsigned rematchChoices = 0, rematchDeclines = 0, gamesInPlace = 0;
-            // The battle's ResultScenesPlaying: the prompt is open before the WIN.
-            bool resultScenes = false;
             // The room game this PC fights, and the result of the WIN on screen.
             netplay::FoughtGame foughtGame;
             // The game this PC only watches now (MenuContext::WatchedMatch), by

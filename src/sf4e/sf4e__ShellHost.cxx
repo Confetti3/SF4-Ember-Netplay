@@ -19,7 +19,6 @@ void ShellHost::Background(const ShellGame::RuntimeSnapshot& snapshot) {
     // The post-match prompt goes on while Ember is hidden (UpdatePostMatch).
     view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
     view.gamesInPlace = snapshot.gamesInPlace; view.foughtGame = snapshot.foughtGame;
-    view.resultScenes = snapshot.resultScenes;
     view.roomNotices = snapshot.roomNotices;
     view.identity = snapshot.identity;
     view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
@@ -78,7 +77,6 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     view.watchedGame = snapshot.watchedGame;
     view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
     view.rematchChoices = snapshot.rematchChoices; view.rematchDeclines = snapshot.rematchDeclines; view.gamesInPlace = snapshot.gamesInPlace;
-    view.resultScenes = snapshot.resultScenes;
     view.foughtGame = snapshot.foughtGame;
     view.lockInDrops = snapshot.lockInDrops;
     view.canEditPreferences = snapshot.canEditPreferences;

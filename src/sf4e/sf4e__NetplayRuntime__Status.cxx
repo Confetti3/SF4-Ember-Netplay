@@ -370,7 +370,6 @@ std::uint64_t PublishFingerprint() {
     mixString(runtime->padHint);
     mix(AtMainMenu());
     mix(Game().battle.RematchChoices()); mix(Game().battle.RematchDeclines()); mix(Game().battle.GamesPlayedInPlace());
-    mix(Game().battle.ResultScenesPlaying());
     mix(static_cast<std::uint64_t>(Game().battle.GameResult()));
     return h;
 }
@@ -636,7 +635,6 @@ PostPublishState Publish() {
     snapshot.rematchChoices = Game().battle.RematchChoices();
     snapshot.rematchDeclines = Game().battle.RematchDeclines();
     snapshot.gamesInPlace = Game().battle.GamesPlayedInPlace();
-    snapshot.resultScenes = Game().battle.ResultScenesPlaying();
     if (runtime->entry.matchEntered && !LocalIsSpectator())
         snapshot.foughtGame = {runtime->entry.enteredTable, runtime->entry.enteredGeneration, Game().battle.GameResult()};
     snapshot.watchedGame = WatchedGameNow();
