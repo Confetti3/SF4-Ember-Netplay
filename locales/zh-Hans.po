@@ -1099,6 +1099,54 @@ msgstr "{0} 场"
 msgid "level.game_one"
 msgstr "{0} 场"
 
+msgid "friends.unknown_code"
+msgstr "没有玩家使用该好友码。"
+
+msgid "friends.full"
+msgstr "好友列表已满。"
+
+msgid "friends.request_limit"
+msgstr "今天发送的请求已达上限。"
+
+msgid "friends.card_expired"
+msgstr "该名片已过期，请从房间重试。"
+
+msgid "friends.own_card"
+msgstr "这是你自己的名片。"
+
+msgid "friends.code_too_soon"
+msgstr "新好友码每天只能生成一次。"
+
+msgid "friends.invite_unavailable"
+msgstr "现在无法邀请该好友。"
+
+msgid "friends.failed"
+msgstr "无法连接好友服务，请稍后重试。"
+
+msgid "friends.no_account"
+msgstr "好友功能需要 Discord 账号。请在 设置 > 在线 中关联。"
+
+msgid "friends.unavailable"
+msgstr "该服务暂不支持好友。"
+
+msgid "friends.cannot_join"
+msgstr "现在无法加入该房间。"
+
+msgid "friends.cannot_watch"
+msgstr "该好友不在可观战的对局中。"
+
+msgid "friends.private_invite_only"
+msgstr "私人房间只能通过邀请加入。"
+
+msgid "friends.invite_gone"
+msgstr "该邀请已结束。"
+
+msgid "friends.nothing_to_offer"
+msgstr "你的房间目前无法发出邀请。"
+
+msgid "friends.busy"
+msgstr "请等待上一个请求完成。"
+
 msgid "level.points_to"
 msgstr "距离{1}还差 {0} 积分"
 

@@ -1099,6 +1099,54 @@ msgstr "{0}試合"
 msgid "level.game_one"
 msgstr "{0}試合"
 
+msgid "friends.unknown_code"
+msgstr "そのフレンドコードのプレイヤーはいません。"
+
+msgid "friends.full"
+msgstr "フレンドリストがいっぱいです。"
+
+msgid "friends.request_limit"
+msgstr "今日はこれ以上リクエストを送れません。"
+
+msgid "friends.card_expired"
+msgstr "このカードは期限切れです。ルームからやり直してください。"
+
+msgid "friends.own_card"
+msgstr "それはあなた自身のカードです。"
+
+msgid "friends.code_too_soon"
+msgstr "新しいコードは1日1回作れます。"
+
+msgid "friends.invite_unavailable"
+msgstr "今はそのフレンドを招待できません。"
+
+msgid "friends.failed"
+msgstr "フレンドに接続できませんでした。あとでもう一度お試しください。"
+
+msgid "friends.no_account"
+msgstr "フレンド機能にはDiscordアカウントが必要です。設定 > オンラインで連携してください。"
+
+msgid "friends.unavailable"
+msgstr "このサービスはまだフレンドに対応していません。"
+
+msgid "friends.cannot_join"
+msgstr "今はそのルームに参加できません。"
+
+msgid "friends.cannot_watch"
+msgstr "そのフレンドは観戦できる対戦中ではありません。"
+
+msgid "friends.private_invite_only"
+msgstr "プライベートルームには招待でのみ参加できます。"
+
+msgid "friends.invite_gone"
+msgstr "その招待は終了しました。"
+
+msgid "friends.nothing_to_offer"
+msgstr "今はあなたのルームを案内できません。"
+
+msgid "friends.busy"
+msgstr "前のリクエストが終わるまでお待ちください。"
+
 msgid "level.points_to"
 msgstr "{1}まであと{0}ポイント"
 

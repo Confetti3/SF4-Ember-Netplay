@@ -1099,6 +1099,54 @@ msgstr "{0} potjes"
 msgid "level.game_one"
 msgstr "{0} potje"
 
+msgid "friends.unknown_code"
+msgstr "Geen enkele speler heeft die vriendcode."
+
+msgid "friends.full"
+msgstr "Die vriendenlijst is vol."
+
+msgid "friends.request_limit"
+msgstr "Je hebt voor vandaag genoeg verzoeken verstuurd."
+
+msgid "friends.card_expired"
+msgstr "Die kaart is verlopen. Probeer het opnieuw vanuit de kamer."
+
+msgid "friends.own_card"
+msgstr "Dat is je eigen kaart."
+
+msgid "friends.code_too_soon"
+msgstr "Je kunt één keer per dag een nieuwe code maken."
+
+msgid "friends.invite_unavailable"
+msgstr "Die vriend kan nu niet worden uitgenodigd."
+
+msgid "friends.failed"
+msgstr "Vrienden zijn niet bereikbaar. Probeer het later opnieuw."
+
+msgid "friends.no_account"
+msgstr "Vrienden hebben een Discord-account nodig. Koppel het in Instellingen, Online."
+
+msgid "friends.unavailable"
+msgstr "Deze dienst biedt nog geen vrienden aan."
+
+msgid "friends.cannot_join"
+msgstr "Je kunt nu niet in die kamer komen."
+
+msgid "friends.cannot_watch"
+msgstr "Die vriend zit niet in een spel dat je kunt bekijken."
+
+msgid "friends.private_invite_only"
+msgstr "Een privékamer betreed je alleen met een uitnodiging."
+
+msgid "friends.invite_gone"
+msgstr "Die uitnodiging is verlopen."
+
+msgid "friends.nothing_to_offer"
+msgstr "Je kamer kan nu niet worden aangeboden."
+
+msgid "friends.busy"
+msgstr "Wacht tot het laatste verzoek klaar is."
+
 msgid "level.points_to"
 msgstr "{0} punten tot {1}"
 

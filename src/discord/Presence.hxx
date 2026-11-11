@@ -1,6 +1,7 @@
 #pragma once
 #include "../session/RoomModel.hxx"
 #include "../netplay/SessionController.hxx"
+#include <algorithm>
 #include <string>
 #include <cstdint>
 
@@ -20,12 +21,21 @@ struct Presence {
     std::string activity = "Starting Ember", party, secret;
     int size = 0, capacity = 0;
     std::uint64_t expires = 0;
+    // The same description, typed, for what is built from it besides the
+    // companion's text (netplay/FriendPresence.hxx). `status` and `training`
+    // are the local member's, in a room; `offerable` is whether that room
+    // could be offered to friends: not a bound match, healthy, not locked and
+    // not full.
+    enum class Where : std::uint8_t { Starting, Menus, Offline, Room } where = Where::Starting;
+    room::MemberStatus status = room::MemberStatus::Idle;
+    bool training = false, offerable = false;
 };
 inline Presence Describe(const PresenceInput& in) {
     Presence out;
     out.show = in.show;
     if (!in.show) return out;
     out.activity = !in.ready ? "Starting Ember" : in.offline ? "Playing offline" : "In menus";
+    out.where = !in.ready ? Presence::Where::Starting : in.offline ? Presence::Where::Offline : Presence::Where::Menus;
     const room::Member* local = nullptr;
     for (const auto& member : in.room.members)
         if (member.id == in.room.localMember) local = &member;
@@ -36,6 +46,9 @@ inline Presence Describe(const PresenceInput& in) {
         return out;
     }
     out.activity = "In a room";
+    out.where = Presence::Where::Room;
+    out.status = local->status;
+    out.training = local->training;
     switch (local->status) {
     case room::MemberStatus::Queued: out.activity = "Queued"; break;
     case room::MemberStatus::Ready: out.activity = "Ready"; break;
@@ -48,8 +61,9 @@ inline Presence Describe(const PresenceInput& in) {
     out.capacity = in.room.capacity;
     // A bound match's room is never offered, whichever way the player came into it
     // (before it is bound, the runtime passes no secret).
-    if (in.invites && !in.room.tournament.Active() && in.session.control == netplay::Health::Healthy && !in.room.locked &&
-        out.size < out.capacity && !out.party.empty() && in.expires > in.now && in.secret.size() == 127) {
+    out.offerable = !in.room.tournament.Active() && in.session.control == netplay::Health::Healthy && !in.room.locked &&
+        out.size < out.capacity;
+    if (in.invites && out.offerable && !out.party.empty() && in.expires > in.now && in.secret.size() == 127) {
         out.secret = in.secret;
         out.expires = in.expires;
     }
@@ -62,15 +76,18 @@ enum class Next { None, Leave, Join, Expired };
 // silently replace a session. Generation checks also cover delayed UI actions.
 class PendingInvite {
 public:
+    // The companion's invitation: `sequence` is its own count, and an older one is ignored.
     bool Offer(const std::string& secret, const std::string& party, std::uint64_t expires,
                std::uint64_t sequence, std::uint64_t generation, bool busy) {
         if (sequence <= sequence_) return false;
         sequence_ = sequence;
-        if (secret == secret_) return false;
-        revision_ = sequence;
-        secret_ = secret; party_ = party; expires_ = expires; generation_ = generation;
-        confirm_ = busy; switching_ = false;
-        return true;
+        return Accept(secret, party, expires, generation, busy);
+    }
+    // A friend's invitation (netplay/FriendVisits.hxx), which the companion's count does not order.
+    // Its revision follows the last one's, so a command made for an earlier invitation still misses.
+    bool OfferFromFriend(const std::string& secret, const std::string& party, std::uint64_t expires,
+                         std::uint64_t generation, bool busy) {
+        return Accept(secret, party, expires, generation, busy);
     }
     void Cancel() { secret_.clear(); party_.clear(); confirm_ = switching_ = false; }
     bool Matches(std::uint64_t revision) const { return Active() && revision == revision_; }
@@ -98,6 +115,14 @@ public:
     bool NeedsConfirmation() const { return confirm_; }
     const std::string& Secret() const { return secret_; }
 private:
+    bool Accept(const std::string& secret, const std::string& party, std::uint64_t expires,
+                std::uint64_t generation, bool busy) {
+        if (secret == secret_) return false;
+        revision_ = std::max(revision_ + 1, sequence_);
+        secret_ = secret; party_ = party; expires_ = expires; generation_ = generation;
+        confirm_ = busy; switching_ = false;
+        return true;
+    }
     std::string secret_, party_;
     std::uint64_t expires_ = 0, sequence_ = 0, generation_ = 0, revision_ = 0;
     bool confirm_ = false, switching_ = false;

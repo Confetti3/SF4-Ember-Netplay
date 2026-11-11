@@ -1099,6 +1099,54 @@ msgstr "Zápasů: {0}"
 msgid "level.game_one"
 msgstr "Zápasů: {0}"
 
+msgid "friends.unknown_code"
+msgstr "Žádný hráč nemá tento kód přítele."
+
+msgid "friends.full"
+msgstr "Seznam přátel je plný."
+
+msgid "friends.request_limit"
+msgstr "Na dnes jste už odeslali dost žádostí."
+
+msgid "friends.card_expired"
+msgstr "Tato karta vypršela. Zkuste to znovu z místnosti."
+
+msgid "friends.own_card"
+msgstr "To je vaše vlastní karta."
+
+msgid "friends.code_too_soon"
+msgstr "Nový kód můžete vytvořit jednou denně."
+
+msgid "friends.invite_unavailable"
+msgstr "Tohoto přítele teď nelze pozvat."
+
+msgid "friends.failed"
+msgstr "Se službou přátel se nepodařilo spojit. Zkuste to později."
+
+msgid "friends.no_account"
+msgstr "Přátelé vyžadují účet Discord. Připojte jej v Nastavení, Online."
+
+msgid "friends.unavailable"
+msgstr "Tato služba zatím přátele nenabízí."
+
+msgid "friends.cannot_join"
+msgstr "Do této místnosti se teď nelze připojit."
+
+msgid "friends.cannot_watch"
+msgstr "Tento přítel není ve hře, kterou lze sledovat."
+
+msgid "friends.private_invite_only"
+msgstr "Do soukromé místnosti se vstupuje jen pozvánkou."
+
+msgid "friends.invite_gone"
+msgstr "Tato pozvánka už skončila."
+
+msgid "friends.nothing_to_offer"
+msgstr "Vaši místnost teď nelze nabídnout."
+
+msgid "friends.busy"
+msgstr "Počkejte, až skončí předchozí požadavek."
+
 msgid "level.points_to"
 msgstr "Do {1} zbývá bodů: {0}"
 

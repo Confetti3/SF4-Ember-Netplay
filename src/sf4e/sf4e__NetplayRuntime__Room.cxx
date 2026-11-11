@@ -95,6 +95,10 @@ static DispatchOutcome Handle(commands::Identity& command, bool helperReady, Att
 	DispatchIdentity(command.identity, helperReady);
 	return DispatchOutcome::Dropped;
 }
+static DispatchOutcome Handle(commands::Friends& command, bool helperReady, Attempt) {
+	DispatchFriends(command.friends, command.generation, helperReady);
+	return DispatchOutcome::Dropped;
+}
 static DispatchOutcome Handle(commands::Tournament& command, bool helperReady, Attempt) {
 	DispatchTournament(command.tournament, helperReady);
 	return DispatchOutcome::Dropped;

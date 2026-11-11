@@ -1099,6 +1099,54 @@ msgstr "{0} partite"
 msgid "level.game_one"
 msgstr "{0} partita"
 
+msgid "friends.unknown_code"
+msgstr "Nessun giocatore ha quel codice amico."
+
+msgid "friends.full"
+msgstr "Quella lista amici è piena."
+
+msgid "friends.request_limit"
+msgstr "Hai inviato abbastanza richieste per oggi."
+
+msgid "friends.card_expired"
+msgstr "Quella carta è scaduta. Riprova dalla sala."
+
+msgid "friends.own_card"
+msgstr "Quella è la tua carta."
+
+msgid "friends.code_too_soon"
+msgstr "Puoi creare un nuovo codice una volta al giorno."
+
+msgid "friends.invite_unavailable"
+msgstr "Quell'amico non può essere invitato ora."
+
+msgid "friends.failed"
+msgstr "Impossibile raggiungere gli amici. Riprova più tardi."
+
+msgid "friends.no_account"
+msgstr "Gli amici richiedono un account Discord. Collegalo in Impostazioni, Online."
+
+msgid "friends.unavailable"
+msgstr "Questo servizio non offre ancora gli amici."
+
+msgid "friends.cannot_join"
+msgstr "Non puoi entrare in quella sala ora."
+
+msgid "friends.cannot_watch"
+msgstr "Quell'amico non è in una partita che puoi guardare."
+
+msgid "friends.private_invite_only"
+msgstr "In una sala privata si entra solo su invito."
+
+msgid "friends.invite_gone"
+msgstr "Quell'invito è terminato."
+
+msgid "friends.nothing_to_offer"
+msgstr "La tua sala non può essere offerta ora."
+
+msgid "friends.busy"
+msgstr "Aspetta che l'ultima richiesta finisca."
+
 msgid "level.points_to"
 msgstr "{0} punti a {1}"
 

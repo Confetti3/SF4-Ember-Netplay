@@ -27,6 +27,7 @@
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/Answered.hxx"
 #include "../netplay/Levels.hxx"
+#include "../netplay/FriendsView.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
@@ -263,6 +264,8 @@ namespace sf4e {
             netplay::Answered<netplay::levels::Own> levels;
             // The cards of a public room's members by card token (null: none).
             std::shared_ptr<const netplay::levels::CardMap> memberCards;
+            // The player's friends, the action in flight and the last refusal.
+            netplay::friends::View friends;
 		};
 		// Everything the overlay draws from, built on the game thread at the end
 		// of each outer tick and never changed afterwards. It owns its values:

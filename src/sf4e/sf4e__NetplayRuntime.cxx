@@ -410,6 +410,7 @@ void StopHelper() {
     // The archive's lister holds files open while it reads; it is ended and waited for here.
     platform::replays::StopListing();
 	if (!runtime) return;
+    SayFriendsGoodbye();
     if (runtime->discordClient) {
         runtime->discordClient->Send("{\"type\":\"shutdown\"}");
         runtime->discordClient->Stop();
@@ -471,6 +472,7 @@ Footprint PreferencesFootprint(const netplay::PlayerPreferences& preferences) {
 bool CreatedValid(const std::optional<netplay::TableSetup>& rules) { return !rules || rules->Valid(); }
 Footprint FootprintOf(const commands::Identity& command) { return command.identity.Valid() ? Footprint(command.identity.Bytes()) : std::nullopt; }
 Footprint FootprintOf(const commands::Tournament& command) { return command.tournament.Valid() ? Footprint(command.tournament.Bytes()) : std::nullopt; }
+Footprint FootprintOf(const commands::Friends& command) { return command.friends.Valid() ? Footprint(command.friends.Bytes()) : std::nullopt; }
 Footprint FootprintOf(const commands::Replay& command) {
 	const auto& request = command.replay;
 	return request.path.size() + request.caption.name[0].size() + request.caption.name[1].size() + request.caption.text.size();
@@ -871,6 +873,7 @@ void TickRuntime() {
 	TakeJoinLink();
 	TickMemberLatency();
 	PublishAndTickDiscordInvite();
+	TickSocial(helperReady, GetTickCount64());
 }
 
 } } // namespace sf4e::NetplayFacade

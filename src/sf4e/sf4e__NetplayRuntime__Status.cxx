@@ -591,6 +591,7 @@ PostPublishState Publish() {
     snapshot.rankings = runtime->rankings.Published(GetTickCount64());
     snapshot.levels = runtime->levels.Published();
     snapshot.memberCards = runtime->cards.Published();
+    snapshot.friends = FriendsStatus();
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();
@@ -734,6 +735,11 @@ PostPublishState PublishThrottled() {
     return cached;
 }
 
+bool BusyForInvitation(const netplay::Snapshot& state) {
+    return state.room!=netplay::RoomState::Idle || runtime->offlineRequested ||
+        (runtime->eventSystemReady && !AtMainMenu());
+}
+
 void PumpDiscordClient() {
     if (runtime->discordClient) {
         platform::HelperMessage message;
@@ -754,8 +760,7 @@ void PumpDiscordClient() {
                     const auto secret=event.at("secret").get<std::string>();
                     std::string party; std::uint64_t expires=0;
                     if (!discord::TicketMetadata(secret,party,expires)) { runtime->error=loc::T("discord.invitation_invalid"); continue; }
-                    const bool busy=state.room!=netplay::RoomState::Idle || runtime->offlineRequested ||
-                        (runtime->eventSystemReady && !AtMainMenu());
+                    const bool busy=BusyForInvitation(state);
                     const bool offered=runtime->discordInvite.Offer(secret,party,expires,event.at("sequence").get<std::uint64_t>(),
                         state.generation.room,busy);
                     spdlog::info("Discord: invitation {} sequence={} room_state={} busy={}", offered ? "pending" : "ignored",
