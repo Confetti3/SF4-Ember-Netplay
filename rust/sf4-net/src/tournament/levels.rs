@@ -1,6 +1,6 @@
-//! Fighter levels for the native side (docs/design/FIGHTER_LEVELS.md, "Wire
-//! contracts"): the player's own levels and the look-up of other players'
-//! cards. Like the ranking routes these use the player session alone, and
+//! Points for the native side (docs/design/FIGHTER_LEVELS.md, "Wire
+//! contracts"): the player's own account and fighter points and the look-up of
+//! other players' cards. Like the ranking routes these use the player session alone, and
 //! what the bridge answers is checked before the game sees it. A bridge that
 //! does not list `points` is never asked, and is told apart as
 //! `points_unavailable`, as one that answers 404 is.
@@ -33,7 +33,7 @@ async fn offered(shared: &Arc<Shared>, bridge_id: &str) -> Result<(), Failure> {
     }
 }
 
-/// The player's own levels on `bridge_id`.
+/// The player's own points on `bridge_id`.
 pub async fn own(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
     offered(shared, bridge_id).await?;
     let call = BridgeCall::new(Verb::Get, POINTS_PATH, &[200]).refusals(REFUSALS);
@@ -175,7 +175,9 @@ mod tests {
 
     #[test]
     fn what_the_bridge_answers_is_read_leniently_about_members_and_strictly_about_values() {
-        let counted = br#"{"points":"counted","shown":true,"fighters":[
+        let counted = br#"{"points":"counted",
+            "account":{"points":1900,"games":1000,"wins":900,"tier":1,"floor":500,"next":2000,"since":1},
+            "fighters":[
             {"fighter":3,"points":1900,"games":1000,"wins":900,"tier":3,"floor":1500,"next":2500,"since":1}]}"#;
         assert!(read::<OwnLevels>(counted).unwrap().check().is_ok());
         // An unknown state is refused.
@@ -186,23 +188,41 @@ mod tests {
             "bridge_invalid_response"
         );
         // A member a later bridge adds is ignored.
-        let extra = br#"{"points":"counted","extra":1,"fighters":[{"fighter":3,"points":1,"games":1,"wins":0,"tier":0,"floor":0,"next":200,"since":1,"extra":1}]}"#;
+        let extra = br#"{"points":"counted","extra":1,"account":{"points":1,"games":1,"wins":0,"tier":0,"floor":0,"next":500,"since":1,"extra":1},"fighters":[{"fighter":3,"points":1,"games":1,"wins":0,"tier":0,"floor":0,"next":200,"since":1,"extra":1}]}"#;
         assert!(read::<OwnLevels>(extra).unwrap().check().is_ok());
+        // An answer without the account is refused: it is always sent.
+        assert_eq!(
+            read::<OwnLevels>(br#"{"points":"counted","fighters":[]}"#)
+                .unwrap_err()
+                .as_str(),
+            "bridge_invalid_response"
+        );
         // A fighter whose numbers disagree parses but does not check.
         let wrong = read::<OwnLevels>(
-            br#"{"points":"counted","fighters":[{"fighter":3,"points":14,"games":5,"wins":9,"tier":0,"floor":0,"next":200,"since":1}]}"#,
+            br#"{"points":"counted","account":{"points":0,"games":0,"wins":0,"tier":0,"floor":0,"next":500},"fighters":[{"fighter":3,"points":14,"games":5,"wins":9,"tier":0,"floor":0,"next":200,"since":1}]}"#,
         )
         .unwrap();
         assert!(wrong.check().is_err());
+        // So does an account whose numbers disagree.
+        let wrong_account = read::<OwnLevels>(
+            br#"{"points":"counted","account":{"points":14,"games":5,"wins":9,"tier":0,"floor":0,"next":500,"since":1},"fighters":[]}"#,
+        )
+        .unwrap();
+        assert!(wrong_account.check().is_err());
 
         // Another player's card is read without what it does not know, and a
         // relation it does not know is none.
-        let card = br#"{"cards":[{"fighters":[{"fighter":3,"points":1986,"tier":3,"wins":1}],"relation":"none"}]}"#;
+        let card = br#"{"cards":[{"account":{"points":2100,"tier":2},"fighters":[{"fighter":3,"points":1986,"tier":3,"wins":1}],"relation":"none"}]}"#;
         assert!(read::<CardAnswers>(card).is_ok());
-        let later = br#"{"cards":[{"relation":"blocked_by"}]}"#;
+        let later = br#"{"cards":[{"account":{"points":0,"tier":0},"relation":"blocked_by"}]}"#;
         assert!(read::<CardAnswers>(later).is_ok());
+        // A card without its account is refused.
+        assert!(read::<CardAnswers>(br#"{"cards":[{"relation":"none"}]}"#).is_err());
         // An answer with another count of entries than the request is refused.
-        let answers = read::<CardAnswers>(br#"{"cards":[{"relation":"friend"},null]}"#).unwrap();
+        let answers = read::<CardAnswers>(
+            br#"{"cards":[{"account":{"points":0,"tier":0},"relation":"friend"},null]}"#,
+        )
+        .unwrap();
         let one = CardLookup {
             cards: vec![CardSelector::Card(TOKEN.into())],
         };

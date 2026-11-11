@@ -361,7 +361,7 @@ impl FriendAction {
 pub struct MainFighter {
     /// 0 to `FIGHTERS` - 1.
     pub fighter: u8,
-    /// At least 1; absent while the friend does not show points. Present
+    /// At least 1; absent until the friend has played this fighter. Present
     /// exactly when `tier` is.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub points: Option<u64>,
