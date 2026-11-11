@@ -11,6 +11,8 @@ mod builtin;
 mod client;
 mod desk;
 mod discord;
+mod friends;
+mod levels;
 mod play;
 mod ranking;
 mod refusal;
@@ -37,6 +39,8 @@ use ember_protocol::{
     EmberId, encoding::Counter, play::PublishRoom, report::Outcome as GameOutcome,
     skill::RankingChoice,
 };
+use friends::{FriendAction, FriendsSync as FriendsSyncBody};
+use levels::CardSelector;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::sync::{Semaphore, mpsc};
@@ -213,6 +217,25 @@ pub enum Request {
     RankingBoard {
         bridge_id: String,
     },
+    /// The player's own fighter levels.
+    LevelsMe {
+        bridge_id: String,
+    },
+    /// Other players' cards, by card token or by friend.
+    CardsLookup {
+        bridge_id: String,
+        cards: Vec<CardSelector>,
+    },
+    /// Sends the player's presence and reads the friends state.
+    FriendsSync {
+        bridge_id: String,
+        sync: FriendsSyncBody,
+    },
+    /// One friends action, such as a request or a block.
+    FriendsAct {
+        bridge_id: String,
+        act: FriendAction,
+    },
     GamePrepare {
         bridge_id: String,
         match_id: String,
@@ -346,6 +369,10 @@ requests! {
     RankingStanding => "ranking_standing", Bridge;
     RankingChoose => "ranking_choose", Bridge;
     RankingBoard => "ranking_board", Bridge;
+    LevelsMe => "levels_me", Bridge;
+    CardsLookup => "cards_lookup", Bridge;
+    FriendsSync => "friends_sync", Bridge;
+    FriendsAct => "friends_act", Bridge;
     GamePrepare => "game_prepare", Bridge;
     GameReport => "game_report", Bridge;
     MatchLeave => "match_leave", Local;
@@ -391,6 +418,8 @@ pub enum Code {
     OwnDelayUnsupported,
     PermitMismatch,
     PinnedBridgeMismatch,
+    FriendsUnavailable,
+    LevelsUnavailable,
     RankingUnavailable,
     ReplaysUnsupported,
     ReportNotSaved,
@@ -1085,6 +1114,10 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             ranking::choose(shared, &bridge_id, choice).await
         }
         Request::RankingBoard { bridge_id } => ranking::board(shared, &bridge_id).await,
+        Request::LevelsMe { bridge_id } => levels::own(shared, &bridge_id).await,
+        Request::CardsLookup { bridge_id, cards } => levels::lookup(shared, &bridge_id, cards).await,
+        Request::FriendsSync { bridge_id, sync } => friends::sync(shared, &bridge_id, sync).await,
+        Request::FriendsAct { bridge_id, act } => friends::act(shared, &bridge_id, act).await,
         Request::GamePrepare {
             bridge_id,
             match_id,
@@ -1416,6 +1449,8 @@ mod tests {
             (Code::OwnDelayUnsupported, "own_delay_unsupported"),
             (Code::PermitMismatch, "permit_mismatch"),
             (Code::PinnedBridgeMismatch, "pinned_bridge_mismatch"),
+            (Code::FriendsUnavailable, "friends_unavailable"),
+            (Code::LevelsUnavailable, "levels_unavailable"),
             (Code::RankingUnavailable, "ranking_unavailable"),
             (Code::ReplaysUnsupported, "replays_unsupported"),
             (Code::ReportNotSaved, "report_not_saved"),
