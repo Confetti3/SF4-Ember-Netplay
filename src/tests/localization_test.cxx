@@ -294,8 +294,12 @@ int main(int argc, char** argv) {
         if (id == "missing.test.id") continue;
         if (!catalogs[0].count(id)) { std::cerr << "Missing catalog id: " << id << '\n'; std::exit(1); }
     }
+    // Texts only a game's own code shows (SFV's selection screen draws the Tiny
+    // fighters Size row from the library's catalogs, EMBER_LIBRARY.md section 59):
+    // no literal of theirs is in this repository's sources.
+    const std::set<std::string> shownByGames = {"selection.size", "selection.size.normal", "selection.size.tiny"};
     for (const auto& entry : catalogs[0])
-        CHECK(sources.find("\"" + entry.first + "\"") != std::string::npos);
+        CHECK(shownByGames.count(entry.first) || sources.find("\"" + entry.first + "\"") != std::string::npos);
 
     int value = 7;
     const auto args = fmt::make_format_args(value);
