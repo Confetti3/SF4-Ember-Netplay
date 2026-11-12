@@ -8,13 +8,14 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <variant>
 
 #include <nlohmann/json.hpp>
 #include "test_support.hxx"
 
 using namespace sf4e::netplay::friends;
+using namespace sf4e::commands;
 using nlohmann::json;
-using Kind = Command::Kind;
 
 namespace {
 State Listed(const std::string& code) {
@@ -29,9 +30,13 @@ Requests Synced(std::uint64_t at) {
 	Requests requests;
 	requests.Scope("brg_1", "emb1_a");
 	EXPECT(requests.SyncDue(at));
-	requests.SentSync(1, at);
-	requests.Finish("", Listed("AAAA-AAAA"), at);
+	requests.Finish(requests.BeginSync(at), "", Listed("AAAA-AAAA"), at);
 	return requests;
+}
+
+// An answer of a sync sent at `sentAt`, came at `answeredAt`.
+void Sync(Requests& requests, std::uint64_t sentAt, std::uint64_t answeredAt, const std::string& code = "AAAA-AAAA") {
+	requests.Finish(requests.BeginSync(sentAt), "", Listed(code), answeredAt);
 }
 
 // Nothing is asked before a service is named, and then a sync is due at once.
@@ -40,14 +45,17 @@ void FirstSync() {
 	EXPECT(!requests.SyncDue(0) && !requests.MayAct());
 	requests.Scope("brg_1", "emb1_a");
 	EXPECT(requests.SyncDue(0) && requests.MayAct() && !requests.Busy());
-	requests.SentSync(10, 100);
-	EXPECT(!requests.SyncDue(100) && !requests.MayAct() && requests.Awaiting(10) && !requests.Awaiting(11) && !requests.Awaiting(0));
+	const auto flight = requests.BeginSync(100);
+	EXPECT(!requests.SyncDue(100) && !requests.MayAct() && requests.Awaiting(flight) && !requests.Awaiting(flight + 1) && !requests.Awaiting(0));
 	EXPECT(requests.Published().loading && !requests.Published().loaded);
 	// A sync in flight is not an action: nothing is Busy until one is asked.
-	EXPECT(!requests.Busy() && !requests.Acting());
-	requests.Finish("", Listed("AAAA-AAAA"), 300);
+	EXPECT(!requests.Busy());
+	requests.Finish(flight, "", Listed("AAAA-AAAA"), 300);
 	const auto& answered = requests.Published();
 	EXPECT(!answered.loading && answered.loaded && answered.value->code == "AAAA-AAAA" && answered.revision == 1 && answered.finished == 1 && answered.installedMs == 300);
+	// The answer of a flight that ended is nobody's.
+	requests.Finish(flight, "", Listed("BBBB-BBBB"), 400);
+	EXPECT(requests.Published().value->code == "AAAA-AAAA" && requests.Published().finished == 1);
 }
 
 // The game's own cadence is 30 s, the tab's 10 s, and no two syncs are less than 5 s apart.
@@ -57,20 +65,18 @@ void Cadence() {
 	// The tab opening asks at once, but not within the gap.
 	requests.Visit(1000 + 2000);
 	EXPECT(!requests.SyncDue(1000 + Requests::MinGapMs - 1) && requests.SyncDue(1000 + Requests::MinGapMs));
-	requests.SentSync(2, 6000);
-	requests.Finish("", Listed("AAAA-AAAA"), 6100);
+	Sync(requests, 6000, 6100);
 	EXPECT(requests.Visiting() && !requests.SyncDue(6100 + Requests::ShownSyncMs - 1) && requests.SyncDue(6100 + Requests::ShownSyncMs));
 	// Closing the tab goes back to the game's own.
 	requests.Leave();
 	EXPECT(!requests.Visiting());
-	requests.SentSync(3, 20000);
-	requests.Finish("", Listed("AAAA-AAAA"), 20000);
+	Sync(requests, 20000, 20000);
 	EXPECT(!requests.SyncDue(20000 + Requests::IdleSyncMs - 1) && requests.SyncDue(20000 + Requests::IdleSyncMs));
 	// A tab nobody said closed stops being one after a while.
 	requests.Visit(30000);
-	requests.Expire(30000 + Requests::ShownLapseMs - 1);
+	requests.LapseVisit(30000 + Requests::ShownLapseMs - 1);
 	EXPECT(requests.Visiting());
-	requests.Expire(30000 + Requests::ShownLapseMs);
+	requests.LapseVisit(30000 + Requests::ShownLapseMs);
 	EXPECT(!requests.Visiting());
 }
 
@@ -81,13 +87,12 @@ void PresenceChange() {
 	EXPECT(!requests.SyncDue(1000 + Requests::MinGapMs));
 	requests.NotePresence(7);
 	EXPECT(!requests.SyncDue(1000 + Requests::MinGapMs - 1) && requests.SyncDue(1000 + Requests::MinGapMs));
-	requests.SentSync(2, 6000);
+	const auto flight = requests.BeginSync(6000);
 	// A change while the sync is in flight is asked for as soon as it ends.
 	requests.NotePresence(8);
-	requests.Finish("", Listed("AAAA-AAAA"), 6500);
+	requests.Finish(flight, "", Listed("AAAA-AAAA"), 6500);
 	EXPECT(requests.SyncDue(6000 + Requests::MinGapMs));
-	requests.SentSync(3, 11000);
-	requests.Finish("", Listed("AAAA-AAAA"), 11000);
+	Sync(requests, 11000, 11000);
 	requests.NotePresence(8);
 	EXPECT(!requests.SyncDue(11000 + Requests::MinGapMs));
 }
@@ -95,58 +100,54 @@ void PresenceChange() {
 // One request is in flight; one action asked meanwhile is held and goes after it.
 void OneAtATime() {
 	auto requests = Synced(1000);
-	requests.SentSync(2, 40000);
-	const auto accept = Command::Accept("brg_1", "rq_a");
+	const auto flight = requests.BeginSync(40000);
+	const FriendAccept accept{"brg_1", "rq_a"};
 	EXPECT(!requests.MayAct() && requests.Hold(accept) && requests.Busy());
-	EXPECT(!requests.Hold(Command::Decline("brg_1", "rq_b", true)));
+	EXPECT(!requests.Hold(FriendDecline{"brg_1", "rq_b", true}));
 	// Held, no sync is due ahead of it.
 	EXPECT(!requests.SyncDue(1000000) && !requests.TakeHeld());
-	requests.Finish("", Listed("AAAA-AAAA"), 40100);
+	requests.Finish(flight, "", Listed("AAAA-AAAA"), 40100);
 	auto held = requests.TakeHeld();
-	EXPECT(held && held->kind == Kind::Accept && held->id == "rq_a" && !requests.TakeHeld() && !requests.Busy());
+	EXPECT(held && std::holds_alternative<FriendAccept>(*held) && std::get<FriendAccept>(*held).request == "rq_a" && !requests.TakeHeld() && !requests.Busy());
 	EXPECT(requests.MayAct());
-	requests.SentAction(3, Kind::Accept, 40200);
-	EXPECT(requests.Busy() && requests.Acting() && *requests.Acting() == Kind::Accept && !requests.MayAct());
-	EXPECT(requests.Awaiting(3) && !requests.SyncDue(1000000));
+	const auto action = requests.BeginAction();
+	EXPECT(requests.Busy() && !requests.MayAct());
+	EXPECT(requests.Awaiting(action) && !requests.SyncDue(1000000));
 }
 
 // An action's answer is the state; a sync follows it shortly, and never inside the gap.
 void ActionAnswers() {
 	auto requests = Synced(1000);
 	// The last sync is well before the action, so only the settle decides when the next is due.
-	requests.SentSync(2, 20000);
-	requests.Finish("", Listed("AAAA-AAAA"), 20100);
-	requests.SentAction(3, Kind::NewCode, 31000);
-	requests.Finish("", Listed("BBBB-BBBB"), 31200);
+	Sync(requests, 20000, 20100);
+	requests.Finish(requests.BeginAction(), "", Listed("BBBB-BBBB"), 31200);
 	EXPECT(requests.Published().value->code == "BBBB-BBBB" && requests.Published().revision == 3 && requests.Refusal().empty());
-	EXPECT(!requests.Acting() && !requests.SyncDue(31200 + Requests::SettleMs - 1) && requests.SyncDue(31200 + Requests::SettleMs));
+	EXPECT(!requests.Busy() && !requests.SyncDue(31200 + Requests::SettleMs - 1) && requests.SyncDue(31200 + Requests::SettleMs));
 	// The action's own settle never brings a sync inside the gap of the last one.
-	requests.SentSync(4, 40000);
-	requests.Finish("", Listed("BBBB-BBBB"), 40000);
-	requests.SentAction(5, Kind::Accept, 40100);
-	requests.Finish("", Listed("BBBB-BBBB"), 40200);
+	Sync(requests, 40000, 40000, "BBBB-BBBB");
+	requests.Finish(requests.BeginAction(), "", Listed("BBBB-BBBB"), 40200);
 	EXPECT(!requests.SyncDue(40000 + Requests::MinGapMs - 1) && requests.SyncDue(40000 + Requests::MinGapMs));
 }
 
 // A refusal is kept, with the state, until the next action starts.
 void Refusals() {
 	auto requests = Synced(1000);
-	requests.SentAction(2, Kind::Request, 2000);
-	requests.Finish("unknown_code", std::nullopt, 2100);
+	requests.Finish(requests.BeginAction(), "unknown_code", std::nullopt, 2100);
 	EXPECT(requests.Refusal() == "unknown_code" && requests.Refusals() == 1 && !requests.Busy());
 	EXPECT(requests.Published().value->code == "AAAA-AAAA" && requests.Published().revision == 1 && requests.Published().error == "unknown_code");
-	requests.SentAction(3, Kind::Request, 3000);
+	const auto next = requests.BeginAction();
 	EXPECT(requests.Refusal().empty() && requests.Refusals() == 1);
-	requests.Finish("request_limit", std::nullopt, 3100);
+	requests.Finish(next, "request_limit", std::nullopt, 3100);
 	EXPECT(requests.Refusal() == "request_limit" && requests.Refusals() == 2);
-	requests.SentAction(4, Kind::Remove, 4000);
-	requests.Finish("", Listed("AAAA-AAAA"), 4100);
+	requests.Finish(requests.BeginAction(), "", Listed("AAAA-AAAA"), 4100);
 	EXPECT(requests.Refusal().empty() && requests.Refusals() == 2);
 	// A refused sync is not an action's refusal; it only keeps its code.
-	requests.SentSync(5, 50000);
-	requests.Finish("rate_limited", std::nullopt, 50100);
+	requests.Finish(requests.BeginSync(50000), "rate_limited", std::nullopt, 50100);
 	EXPECT(requests.Refusal().empty() && requests.Published().error == "rate_limited" && requests.Published().value->code == "AAAA-AAAA");
 	EXPECT(!requests.SyncDue(50100 + Requests::IdleSyncMs - 1) && requests.SyncDue(50100 + Requests::IdleSyncMs));
+	// An action the runtime could not send is counted like a refusal, without a flight.
+	requests.Refuse("nothing_to_offer");
+	EXPECT(requests.Refusal() == "nothing_to_offer" && requests.Refusals() == 3 && !requests.Busy() && requests.MayAct());
 }
 
 // A service without friends and a player without an account are states, and stop the syncs until the tab opens.
@@ -154,8 +155,7 @@ void NoFriends() {
 	for (const char* code : {Requests::Unavailable, Requests::NoAccount}) {
 		Requests requests;
 		requests.Scope("brg_1", "emb1_a");
-		requests.SentSync(1, 0);
-		requests.Finish(code, std::nullopt, 10);
+		requests.Finish(requests.BeginSync(0), code, std::nullopt, 10);
 		const bool unavailable = std::string(code) == Requests::Unavailable;
 		EXPECT(requests.Published().loaded && requests.Published().revision == 1 &&
 			requests.Published().value->kind == (unavailable ? State::Kind::Unavailable : State::Kind::NoAccount));
@@ -164,84 +164,91 @@ void NoFriends() {
 		EXPECT(!requests.SyncDue(10000000));
 		requests.Visit(20000);
 		EXPECT(requests.SyncDue(20000));
-		requests.SentSync(2, 25000);
-		requests.Finish("", Listed("AAAA-AAAA"), 25100);
+		Sync(requests, 25000, 25100);
 		EXPECT(requests.Published().value->kind == State::Kind::Listed && !requests.SyncDue(25100 + Requests::ShownSyncMs - 1) &&
 			requests.SyncDue(25100 + Requests::ShownSyncMs));
 	}
 	// An action's refusal for the same reason says so too.
 	Requests requests = Synced(0);
-	requests.SentAction(2, Kind::AppearOffline, 100);
-	requests.Finish(Requests::NoAccount, std::nullopt, 200);
+	requests.Finish(requests.BeginAction(), Requests::NoAccount, std::nullopt, 200);
 	EXPECT(requests.Published().value->kind == State::Kind::NoAccount && requests.Refusal() == Requests::NoAccount && !requests.SyncDue(10000000));
 }
 
-// Turning friends off stops the syncs, which would make the account again, until the tab opens.
-void Forgetting() {
+// Friends the bridge says are off are a state, to a sync or to any action: the syncs stop, nothing is refused, and
+// only a state (Turn on's answer) ends it, however the scope is set meanwhile.
+void TurningOff() {
+	// The Turn off's own answer.
 	auto requests = Synced(1000);
-	requests.SentAction(2, Kind::Forget, 2000);
-	requests.Finish("", Listed("CCCC-CCCC"), 2100);
-	EXPECT(!requests.SyncDue(10000000));
+	requests.Finish(requests.BeginAction(), Requests::Off, std::nullopt, 2100);
+	EXPECT(requests.Published().value->kind == State::Kind::Off && requests.Published().error.empty() && requests.Refusal().empty() && requests.Refusals() == 0);
+	EXPECT(!requests.SyncDue(10000000) && !requests.Syncing());
+	// Not the tab opening, nor the presence changing, asks again.
 	requests.Visit(3000000);
-	EXPECT(requests.SyncDue(3000000));
+	requests.NotePresence(9);
+	EXPECT(!requests.SyncDue(3000000) && requests.Published().value->kind == State::Kind::Off);
+	// Nor a change of scope away and back to the same account, as when the room object is gone for a moment.
+	requests.Scope({}, {});
+	EXPECT(requests.Published().value->kind == State::Kind::Unavailable);
+	requests.Scope("brg_1", "emb1_a");
+	EXPECT(requests.Published().value->kind == State::Kind::Off && !requests.SyncDue(20000000));
+	// Another account is its own: it syncs, and may be off or on.
+	requests.Scope("brg_1", "emb1_b");
+	EXPECT(requests.Published().value->kind == State::Kind::Unavailable && requests.SyncDue(0));
+	requests.Scope("brg_1", "emb1_a");
+	EXPECT(requests.Published().value->kind == State::Kind::Off);
+	// Turn on is an action whose answer is a state.
+	EXPECT(requests.MayAct());
+	requests.Finish(requests.BeginAction(), "", Listed("CCCC-CCCC"), 4000000);
+	EXPECT(requests.Published().value->kind == State::Kind::Listed && requests.Published().value->code == "CCCC-CCCC" && requests.Syncing());
+	EXPECT(requests.SyncDue(4000000 + Requests::SettleMs));
+	// And they stay on when the scope is set again.
+	requests.Scope({}, {});
+	requests.Scope("brg_1", "emb1_a");
+	EXPECT(requests.Published().value->kind == State::Kind::Unavailable && requests.SyncDue(0));
+
+	// Any request may find them off: a sync at the next launch, an action made on a list that was current.
+	Requests launch;
+	launch.Scope("brg_1", "emb1_a");
+	launch.Finish(launch.BeginSync(0), Requests::Off, std::nullopt, 10);
+	EXPECT(launch.Published().value->kind == State::Kind::Off && !launch.SyncDue(10000000) && launch.Published().error.empty());
+	auto acting = Synced(0);
+	acting.Finish(acting.BeginAction(), Requests::Off, std::nullopt, 100);
+	EXPECT(acting.Published().value->kind == State::Kind::Off && acting.Refusals() == 0 && !acting.SyncDue(10000000));
 }
 
 // Another service or Ember ID forgets everything of the last one; the counts carry on.
 void ScopeChange() {
 	auto requests = Synced(1000);
-	requests.SentAction(2, Kind::Request, 2000);
-	requests.Finish("own_card", std::nullopt, 2100);
-	requests.SentSync(3, 40000);
-	requests.Hold(Command::Accept("brg_1", "rq_a"));
+	requests.Finish(requests.BeginAction(), "own_card", std::nullopt, 2100);
+	const auto stale = requests.BeginSync(40000);
+	requests.Hold(FriendAccept{"brg_1", "rq_a"});
 	requests.Scope("brg_1", "emb1_a");
-	EXPECT(requests.Awaiting(3) && requests.Published().loaded);
+	EXPECT(requests.Awaiting(stale) && requests.Published().loaded);
 	requests.Scope("brg_1", "emb1_b");
 	const auto& answered = requests.Published();
 	EXPECT(!answered.loaded && !answered.loading && answered.value->kind == State::Kind::Unavailable && answered.revision == 1 && answered.finished == 2);
-	EXPECT(!requests.Awaiting(3) && !requests.Busy() && requests.Refusal().empty() && requests.MayAct() && requests.SyncDue(45000));
-	requests.SentSync(4, 45000);
-	requests.Finish("", Listed("DDDD-DDDD"), 45010);
+	EXPECT(!requests.Awaiting(stale) && !requests.Busy() && requests.Refusal().empty() && requests.MayAct() && requests.SyncDue(45000));
+	Sync(requests, 45000, 45010, "DDDD-DDDD");
 	EXPECT(answered.revision == 2 && answered.finished == 3);
 	// The answer of the retired request is nobody's.
-	EXPECT(!requests.Awaiting(3));
+	requests.Finish(stale, "", Listed("EEEE-EEEE"), 46000);
+	EXPECT(answered.revision == 2 && requests.Published().value->code == "DDDD-DDDD");
 }
 
-// A request the helper lost ends after a minute; one it could not take ends now.
-void LostRequests() {
-	Requests requests;
-	requests.Scope("brg_1", "emb1_a");
-	requests.SentSync(1, 0);
-	requests.Expire(Requests::GiveUpMs - 1);
-	EXPECT(requests.Awaiting(1));
-	requests.Expire(Requests::GiveUpMs);
-	EXPECT(!requests.Awaiting(1) && requests.Published().error == "unavailable" && !requests.Published().loading && requests.MayAct());
-	requests.SentAction(0, Kind::NewCode, 70000);
-	EXPECT(requests.Refusal() == "helper_unavailable" && !requests.Busy() && requests.Published().error == "helper_unavailable");
-	requests.SentSync(0, 80000);
-	EXPECT(requests.Published().error == "helper_unavailable" && requests.MayAct() && !requests.SyncDue(80001));
-}
-
+// What is an action is a property of its type, and the commands state their bounds.
 void Commands() {
-	const auto request = Command::RequestCard("brg_1", "c1.abc", "Player 1's room");
-	EXPECT(request.IsAction() && request.ByCard() && request.Valid() && request.card == "c1.abc" && request.label == "Player 1's room");
-	const auto typed = Command::RequestCode("brg_1", "4f2a 91cx");
-	EXPECT(typed.IsAction() && !typed.ByCard() && typed.code == "4f2a 91cx");
-	for (const auto& action : {Command::Accept("b", "i"), Command::Decline("b", "i", true), Command::Cancel("b", "i"), Command::Remove("b", "i", false),
-			Command::BlockCard("b", "c1.a", "n"), Command::Unblock("b", "i"), Command::NewCode("b"), Command::AppearOffline("b", true), Command::Forget("b"),
-			Command::Invite("b", "i"), Command::Dismiss("b", "i")})
-		EXPECT(action.IsAction());
-	for (const auto& local : {Command::Visit("b"), Command::Leave("b"), Command::Join("b", "i"), Command::Watch("b", "i"), Command::TakeInvite("b", "i"),
-			Command::AnswerVisit("b", 3, true)})
-		EXPECT(!local.IsAction());
-	const auto answer = Command::AnswerVisit("b", 3, true);
-	EXPECT(answer.revision == 3 && answer.flag && Command::Remove("b", "i", true).flag && Command::AppearOffline("b", true).flag);
-	Command big = Command::Accept("b", std::string(65, 'x'));
-	EXPECT(!big.Valid());
-	big = Command::RequestCode("b", std::string(33, 'x'));
-	EXPECT(!big.Valid());
-	big = Command::Visit(std::string(257, 'b'));
-	EXPECT(!big.Valid() && Command::Visit(std::string(256, 'b')).Valid());
-	EXPECT(Command::Visit("brg").Bytes() == 3 && Command::RequestCard("b", "cc", "lll").Bytes() == 6);
+	static_assert(IsFriendAction<FriendRequest> && IsFriendAction<FriendRequestByCode> && IsFriendAction<FriendAccept> && IsFriendAction<FriendDecline> &&
+		IsFriendAction<FriendCancel> && IsFriendAction<FriendRemove> && IsFriendAction<FriendBlock> && IsFriendAction<FriendUnblock> &&
+		IsFriendAction<FriendNewCode> && IsFriendAction<FriendAppearOffline> && IsFriendAction<FriendTurnOff> && IsFriendAction<FriendTurnOn> &&
+		IsFriendAction<FriendInvite> && IsFriendAction<FriendDismiss>, "the bridge's actions");
+	static_assert(!IsFriendAction<FriendsVisit> && !IsFriendAction<FriendsLeave> && !IsFriendAction<FriendJoin> && !IsFriendAction<FriendWatch> &&
+		!IsFriendAction<FriendTakeInvite> && !IsFriendAction<FriendAnswerVisit>, "going to a friend asks the bridge nothing");
+	static_assert(IsFriendVisit<FriendJoin> && IsFriendVisit<FriendsVisit> && !IsFriendVisit<FriendAccept>, "the others");
+	EXPECT(!FriendAccept{"b", std::string(65, 'x')}.Valid());
+	EXPECT(!FriendRequestByCode{"b", std::string(33, 'x')}.Valid());
+	EXPECT(!FriendsVisit{std::string(257, 'b')}.Valid() && FriendsVisit{std::string(256, 'b')}.Valid());
+	EXPECT(FriendsVisit{"brg"}.Bytes() == 3 && FriendRequest{"b", "cc", "lll"}.Bytes() == 6);
+	EXPECT(HasBounds<FriendJoin> && HasBounds<FriendTurnOn> && BridgeOf(FriendAction(FriendNewCode{"brg_1"})) == "brg_1");
 }
 
 const std::string FriendId = "fr_11111111-1111-4111-8111-111111111111";
@@ -252,30 +259,30 @@ const std::string SecretText = "emd1:" + std::string(122, 'A');
 // The bytes the helper is sent are the shapes its own tests read.
 void Wire() {
 	const Offer none;
-	const auto act = [&](const Command& command, const Offer& offer = Offer()) { return ActionRequest(command, offer); };
+	const auto act = [&](const FriendAction& action, const Offer& offer = Offer()) { return ActionRequest(action, offer); };
 	const auto wrapped = [](json action) { return json{{"op", "friends_act"}, {"bridge_id", "brg_1"}, {"act", std::move(action)}}; };
-	EXPECT(act(Command::RequestCard("brg_1", "c1.abc", "Player 1's room")) == wrapped({{"action", "request"}, {"card", "c1.abc"}, {"label", "Player 1's room"}}));
-	EXPECT(act(Command::RequestCode("brg_1", "4F2A-91CX")) == wrapped({{"action", "request"}, {"code", "4F2A-91CX"}}));
-	EXPECT(act(Command::Accept("brg_1", RequestId)) == wrapped({{"action", "accept"}, {"request", RequestId}}));
-	EXPECT(act(Command::Decline("brg_1", RequestId, false)) == wrapped({{"action", "decline"}, {"request", RequestId}}));
-	EXPECT(act(Command::Decline("brg_1", RequestId, true)) == wrapped({{"action", "decline"}, {"request", RequestId}, {"block", true}}));
-	EXPECT(act(Command::Cancel("brg_1", RequestId)) == wrapped({{"action", "cancel"}, {"request", RequestId}}));
-	EXPECT(act(Command::Remove("brg_1", FriendId, false)) == wrapped({{"action", "remove"}, {"friend", FriendId}}));
-	EXPECT(act(Command::Remove("brg_1", FriendId, true)) == wrapped({{"action", "remove"}, {"friend", FriendId}, {"block", true}}));
-	EXPECT(act(Command::BlockCard("brg_1", "c1.abc", "Player 2")) == wrapped({{"action", "block"}, {"card", "c1.abc"}, {"label", "Player 2"}}));
-	EXPECT(act(Command::Unblock("brg_1", "bl_1")) == wrapped({{"action", "unblock"}, {"block", "bl_1"}}));
-	EXPECT(act(Command::NewCode("brg_1")) == wrapped({{"action", "new_code"}}));
-	EXPECT(act(Command::AppearOffline("brg_1", true)) == wrapped({{"action", "appear_offline"}, {"on", true}}));
-	EXPECT(act(Command::AppearOffline("brg_1", false)) == wrapped({{"action", "appear_offline"}, {"on", false}}));
-	EXPECT(act(Command::Forget("brg_1")) == wrapped({{"action", "forget"}}));
-	EXPECT(act(Command::Dismiss("brg_1", "iv_1")) == wrapped({{"action", "dismiss"}, {"invite", "iv_1"}}));
+	EXPECT(act(FriendRequest{"brg_1", "c1.abc", "Player 1's room"}) == wrapped({{"action", "request"}, {"card", "c1.abc"}, {"label", "Player 1's room"}}));
+	EXPECT(act(FriendRequestByCode{"brg_1", "4F2A-91CX"}) == wrapped({{"action", "request"}, {"code", "4F2A-91CX"}}));
+	EXPECT(act(FriendAccept{"brg_1", RequestId}) == wrapped({{"action", "accept"}, {"request", RequestId}}));
+	EXPECT(act(FriendDecline{"brg_1", RequestId, false}) == wrapped({{"action", "decline"}, {"request", RequestId}}));
+	EXPECT(act(FriendDecline{"brg_1", RequestId, true}) == wrapped({{"action", "decline"}, {"request", RequestId}, {"block", true}}));
+	EXPECT(act(FriendCancel{"brg_1", RequestId}) == wrapped({{"action", "cancel"}, {"request", RequestId}}));
+	EXPECT(act(FriendRemove{"brg_1", FriendId, false}) == wrapped({{"action", "remove"}, {"friend", FriendId}}));
+	EXPECT(act(FriendRemove{"brg_1", FriendId, true}) == wrapped({{"action", "remove"}, {"friend", FriendId}, {"block", true}}));
+	EXPECT(act(FriendBlock{"brg_1", "c1.abc", "Player 2"}) == wrapped({{"action", "block"}, {"card", "c1.abc"}, {"label", "Player 2"}}));
+	EXPECT(act(FriendUnblock{"brg_1", "bl_1"}) == wrapped({{"action", "unblock"}, {"block", "bl_1"}}));
+	EXPECT(act(FriendNewCode{"brg_1"}) == wrapped({{"action", "new_code"}}));
+	EXPECT(act(FriendAppearOffline{"brg_1", true}) == wrapped({{"action", "appear_offline"}, {"on", true}}));
+	EXPECT(act(FriendAppearOffline{"brg_1", false}) == wrapped({{"action", "appear_offline"}, {"on", false}}));
+	EXPECT(act(FriendTurnOff{"brg_1"}) == wrapped({{"action", "forget"}}));
+	EXPECT(act(FriendTurnOn{"brg_1"}) == wrapped({{"action", "turn_on"}}));
+	EXPECT(act(FriendDismiss{"brg_1", "iv_1"}) == wrapped({{"action", "dismiss"}, {"invite", "iv_1"}}));
 	Offer publicRoom; publicRoom.kind = Offer::Kind::PublicRoom; publicRoom.value = RoomId;
 	Offer privateRoom; privateRoom.kind = Offer::Kind::PrivateRoom; privateRoom.value = SecretText;
-	EXPECT(act(Command::Invite("brg_1", FriendId), publicRoom) == wrapped({{"action", "invite"}, {"friend", FriendId}, {"room", {{"room_id", RoomId}}}}));
-	EXPECT(act(Command::Invite("brg_1", FriendId), privateRoom) == wrapped({{"action", "invite"}, {"friend", FriendId}, {"room", {{"secret", SecretText}}}}));
-	// Nothing to offer is not sent; a command that is not an action is not a request.
-	EXPECT(act(Command::Invite("brg_1", FriendId), none).is_null() && act(Command::Join("brg_1", FriendId)).is_null() &&
-		act(Command::Visit("brg_1")).is_null() && act(Command::AnswerVisit("brg_1", 1, true)).is_null());
+	EXPECT(act(FriendInvite{"brg_1", FriendId}, publicRoom) == wrapped({{"action", "invite"}, {"friend", FriendId}, {"room", {{"room_id", RoomId}}}}));
+	EXPECT(act(FriendInvite{"brg_1", FriendId}, privateRoom) == wrapped({{"action", "invite"}, {"friend", FriendId}, {"room", {{"secret", SecretText}}}}));
+	// Nothing to offer is not sent.
+	EXPECT(act(FriendInvite{"brg_1", FriendId}, none).is_null());
 
 	Report menus, offline_play, closing, fighting, private_room, training;
 	offline_play.kind = Report::Kind::OfflinePlay;
@@ -308,9 +315,8 @@ int main() {
 	ActionAnswers();
 	Refusals();
 	NoFriends();
-	Forgetting();
 	ScopeChange();
-	LostRequests();
+	TurningOff();
 	Commands();
 	Wire();
 	if (TEST_FAILURES()) std::printf("%d failure(s)\n", TEST_FAILURES());

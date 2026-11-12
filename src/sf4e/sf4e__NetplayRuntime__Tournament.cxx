@@ -324,7 +324,9 @@ bool TakeWatchAnswer(const session::TournamentAnswer& answer, std::uint64_t nowM
 void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 	if (answer.requestId && answer.requestId == runtime->assignmentRequest) { TakeAssignments(answer); return; }
 	if (TakeReplaySent(answer, nowMs) || TakePackSaved(answer)) return;
-	if (TakePublicRoomsAnswer(answer) || TakeRankingsAnswer(answer) || TakeLevelsAnswer(answer) || TakeCardsAnswer(answer) || TakeSocialAnswer(answer) || TakeWatchAnswer(answer, nowMs)) return;
+	// The public rooms' and friends' requests answer to their own handlers.
+	if (runtime->flights.Take(answer)) return;
+	if (TakeRankingsAnswer(answer) || TakeLevelsAnswer(answer) || TakeCardsAnswer(answer) || TakeWatchAnswer(answer, nowMs)) return;
 	const auto found = runtime->tournamentRequests.find(answer.requestId);
 	if (found == runtime->tournamentRequests.end()) return;
 	const auto kind = found->second.kind;
@@ -515,7 +517,7 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 }
 
 void TickTournament(bool helperReady) {
-	ExpirePublicRooms(GetTickCount64());
+	runtime->flights.Expire(GetTickCount64());
 	ExpireRankings(GetTickCount64());
 	TickLevels(helperReady, GetTickCount64());
 	TickCards(helperReady, GetTickCount64());

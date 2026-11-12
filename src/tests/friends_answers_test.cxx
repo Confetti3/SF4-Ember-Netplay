@@ -192,23 +192,21 @@ void KeepsTheBounds() {
 	EXPECT(Decodes(padded("outgoing", netplay::friends::MaxOutgoing)) && !Decodes(padded("outgoing", netplay::friends::MaxOutgoing + 1)));
 }
 
+// The friends answers are read like every other play answer: one reader, one list of ops.
 void ReadsTheAnswerEvent() {
-	session::TournamentAnswer answer;
-	EXPECT(session::IsSocialOp("friends_sync") && session::IsSocialOp("friends_act") && !session::IsSocialOp("points_me"));
-	EXPECT(session::ReadSocialAnswer({{"op", "friends_sync"}, {"request_id", 7u}, {"ok", true}, {"data", FullState()}}, answer));
-	EXPECT(answer.op == "friends_sync" && answer.requestId == 7 && answer.ok && answer.reason.empty() && answer.data.is_object());
-	EXPECT(session::ReadSocialAnswer({{"op", "friends_act"}, {"request_id", 8u}, {"ok", false}, {"reason", "unknown_code"}}, answer));
-	EXPECT(answer.requestId == 8 && !answer.ok && answer.reason == "unknown_code");
-	const session::TournamentAnswer before = answer;
-	EXPECT(!session::ReadSocialAnswer({{"op", "points_me"}, {"request_id", 7u}, {"ok", true}}, answer));
-	EXPECT(!session::ReadSocialAnswer({{"op", "friends_sync"}, {"ok", true}}, answer));
-	EXPECT(!session::ReadSocialAnswer({{"op", "friends_sync"}, {"request_id", "7"}, {"ok", true}}, answer));
-	EXPECT(!session::ReadSocialAnswer({{"op", "friends_sync"}, {"request_id", 7u}, {"ok", "yes"}}, answer));
-	EXPECT(!session::ReadSocialAnswer({{"op", "friends_sync"}, {"request_id", 7u}, {"ok", false}, {"reason", std::string(65, 'r')}}, answer));
-	EXPECT(!session::ReadSocialAnswer(json::array(), answer));
-	EXPECT(answer.requestId == before.requestId && answer.reason == before.reason);
-	// The tournament reader leaves these answers to this one.
-	EXPECT(!session::ReadTournamentAnswer({{"op", "friends_sync"}, {"request_id", 7u}, {"ok", true}}).has_value());
+	EXPECT(session::IsTournamentPlayOp("friends_sync") && session::IsTournamentPlayOp("friends_act"));
+	auto answer = session::ReadTournamentAnswer({{"op", "friends_sync"}, {"request_id", 7u}, {"ok", true}, {"data", FullState()}});
+	EXPECT(answer && answer->op == "friends_sync" && answer->requestId == 7 && answer->ok && answer->reason.empty() && answer->data.is_object());
+	answer = session::ReadTournamentAnswer({{"op", "friends_act"}, {"request_id", 8u}, {"ok", false}, {"reason", "unknown_code"}});
+	EXPECT(answer && answer->requestId == 8 && !answer->ok && answer->reason == "unknown_code");
+	// A reason that is null reads as none, as the bridge may send it.
+	answer = session::ReadTournamentAnswer({{"op", "friends_act"}, {"request_id", 9u}, {"ok", false}, {"reason", nullptr}});
+	EXPECT(answer && answer->reason.empty());
+	EXPECT(!session::ReadTournamentAnswer({{"op", "friends_sync"}, {"ok", true}}));
+	EXPECT(!session::ReadTournamentAnswer({{"op", "friends_sync"}, {"request_id", "7"}, {"ok", true}}));
+	EXPECT(!session::ReadTournamentAnswer({{"op", "friends_sync"}, {"request_id", 7u}, {"ok", "yes"}}));
+	EXPECT(!session::ReadTournamentAnswer({{"op", "friends_sync"}, {"request_id", 7u}, {"ok", false}, {"reason", std::string(65, 'r')}}));
+	EXPECT(!session::ReadTournamentAnswer(json::array()));
 }
 
 // SplitMix64, as the tournament fuzz uses: the same everywhere.

@@ -95,8 +95,16 @@ static DispatchOutcome Handle(commands::Identity& command, bool helperReady, Att
 	DispatchIdentity(command.identity, helperReady);
 	return DispatchOutcome::Dropped;
 }
-static DispatchOutcome Handle(commands::Friends& command, bool helperReady, Attempt) {
-	DispatchFriends(command.friends, command.generation, helperReady);
+// The bridge's actions share one handler: netplay's FriendAction lists them.
+template <typename Action, std::enable_if_t<commands::IsFriendAction<Action>, int> = 0>
+static DispatchOutcome Handle(Action& command, bool helperReady, Attempt) {
+	DispatchFriends(commands::FriendAction(std::move(command)), helperReady);
+	return DispatchOutcome::Dropped;
+}
+// The others each do what they are named for.
+template <typename Command, std::enable_if_t<commands::IsFriendVisit<Command>, int> = 0>
+static DispatchOutcome Handle(Command& command, bool, Attempt) {
+	DispatchFriends(command);
 	return DispatchOutcome::Dropped;
 }
 static DispatchOutcome Handle(commands::Tournament& command, bool helperReady, Attempt) {

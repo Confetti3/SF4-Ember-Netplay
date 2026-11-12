@@ -274,27 +274,6 @@ std::vector<Entry> DecodeList(const json& object, const char* key, std::size_t m
 }
 }
 
-bool IsSocialOp(const std::string& op) { return op == "friends_sync" || op == "friends_act"; }
-
-bool ReadSocialAnswer(const json& event, TournamentAnswer& answer) {
-	try {
-		TournamentAnswer read;
-		read.op = Text(event, "op", 64);
-		if (!IsSocialOp(read.op)) return false;
-		const auto& id = event.at("request_id");
-		const auto& ok = event.at("ok");
-		if (!id.is_number_unsigned() || !ok.is_boolean()) return false;
-		read.requestId = id.get<std::uint64_t>();
-		read.ok = ok.get<bool>();
-		if (const auto reason = event.find("reason"); reason != event.end() && !reason->is_null()) read.reason = Text(event, "reason", 64);
-		if (const auto data = event.find("data"); data != event.end()) read.data = *data;
-		answer = std::move(read);
-		return true;
-	} catch (const std::exception&) {
-		return false;
-	}
-}
-
 bool DecodeFriendsState(const json& data, friends::State& state) {
 	try {
 		const auto& object = Object(data);

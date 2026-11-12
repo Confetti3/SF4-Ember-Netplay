@@ -8,7 +8,6 @@
 #include <memory>
 namespace {
 namespace nf = sf4e::netplay::friends;
-using Kind = nf::Command::Kind;
 using sf4e::netplay::levels::Relation;
 constexpr std::uint64_t Now = 1800000000, Hour = 3600, Day = 24 * Hour;
 
@@ -41,9 +40,9 @@ struct RoomJourney : Journey {
   f.bridge = "brg_1"; f.state.value = std::move(state); f.state.loaded = true; ++f.state.revision; ++f.state.finished; f.canInvite = true;
   h.Frame(0, 2);
  }
- std::vector<const nf::Command*> sent(Kind kind) const {
-  std::vector<const nf::Command*> out;
-  for (const auto& a : h.actions) if (const auto* f = As<commands::Friends>(a)) if (f->friends.kind == kind) out.push_back(&f->friends);
+ template <class Command> std::vector<const Command*> sent() const {
+  std::vector<const Command*> out;
+  for (const auto& a : h.actions) if (const auto* f = As<Command>(a)) out.push_back(f);
   return out;
  }
  std::string screen() { return h.shell.Navigation().Screen(); }
@@ -103,8 +102,8 @@ void PageJourney() {
  for (const auto& r : j.rows) shown.push_back(r.id);
  Check(shown == ids, "The member's page is not the relation row, Mute, Steam profile, Kick, Make host and Block");
  j.h.Choose("friend-request");
- const auto requests = j.sent(Kind::Request);
- Check(requests.size() == 1 && requests[0]->bridgeId == "brg_1" && requests[0]->card == "c1.player_2" && requests[0]->label == "Player 2" && requests[0]->code.empty(), "Add friend did not send a request with the card token and the room name");
+ const auto requests = j.sent<commands::FriendRequest>();
+ Check(requests.size() == 1 && requests[0]->bridge == "brg_1" && requests[0]->card == "c1.player_2" && requests[0]->label == "Player 2", "Add friend did not send a request with the card token and the room name");
  Check(j.screen() == "room-member", "Add friend left the page");
  // What went through is said once.
  auto& f = j.view();
@@ -124,14 +123,14 @@ void RelationRowsJourney() {
   Check(relation && relation->label == loc::T(state.label) && relation->enabled == state.enabled && relation->detail == (state.detail ? loc::T(state.detail) : ""), "The page's relation row does not say the member's relation");
   Check((j.row("friend-block") != nullptr) == (state.relation != Relation::Blocked), "Block is offered to a blocked member, or not to another");
   j.h.Choose("friend-request");
-  Check((j.sent(Kind::Request).size() == 1) == state.enabled, "A relation row that says a state was sent, or Add friend was not");
+  Check((j.sent<commands::FriendRequest>().size() == 1) == state.enabled, "A relation row that says a state was sent, or Add friend was not");
  }
  // A request waiting is accepted by sending the request back.
  // One journey at a time: each harness's interface loads its fonts into its own context.
  {
   RoomJourney received(Relation::Received);
   received.page(); received.h.Choose("friend-request");
-  Check(received.sent(Kind::Request).size() == 1 && received.sent(Kind::Request)[0]->card == "c1.player_2", "Accept request did not send the request to the member");
+  Check(received.sent<commands::FriendRequest>().size() == 1 && received.sent<commands::FriendRequest>()[0]->card == "c1.player_2", "Accept request did not send the request to the member");
  }
  // A member with no card, and a private room, leave the relation and Block out.
  {
@@ -151,10 +150,10 @@ void BlockJourney() {
  RoomJourney j;
  j.page();
  j.h.Choose("friend-block");
- Check(j.h.shell.Navigation().Confirming() && j.sent(Kind::Block).empty(), "Block did not ask first");
+ Check(j.h.shell.Navigation().Confirming() && j.sent<commands::FriendBlock>().empty(), "Block did not ask first");
  j.h.Press(MenuInput::Right); j.h.Press(MenuInput::Select);
- const auto blocks = j.sent(Kind::Block);
- Check(blocks.size() == 1 && blocks[0]->card == "c1.player_2" && blocks[0]->label == "Player 2" && blocks[0]->bridgeId == "brg_1", "Block did not send the card token and the room name");
+ const auto blocks = j.sent<commands::FriendBlock>();
+ Check(blocks.size() == 1 && blocks[0]->card == "c1.player_2" && blocks[0]->label == "Player 2" && blocks[0]->bridge == "brg_1", "Block did not send the card token and the room name");
 }
 
 // A friend's request or invite that comes after the list was read is a toast with buttons; the one already waiting at the
@@ -182,28 +181,31 @@ void ToastJourney() {
   RoomJourney j; j.h.Screen("home");
   j.Give(WithRequest(true, false));
   j.h.Press(MenuInput::Select); j.h.Frame(0, 2);
-  const auto accepts = j.sent(Kind::Accept);
-  Check(accepts.size() == 1 && accepts[0]->id == "rq_1" && accepts[0]->bridgeId == "brg_1", "Accept on the request toast did not send accept for the request");
+  const auto accepts = j.sent<commands::FriendAccept>();
+  Check(accepts.size() == 1 && accepts[0]->request == "rq_1" && accepts[0]->bridge == "brg_1", "Accept on the request toast did not send accept for the request");
   Check(j.screen() == "home", "Accept on the request toast changed the screen");
   j.h.Frame(0, 60);
-  Check(j.sent(Kind::Accept).size() == 1, "The request toast said itself again");
+  Check(j.sent<commands::FriendAccept>().size() == 1, "The request toast said itself again");
   Check(Said(j) == std::string(loc::Tf("friends.toast_request", "Player 9")) + "\n" + loc::Tf("friends.played_you", 6, loc::Tf("friends.days_ago", 1)) + "|", "A new request did not say who wants to be friends and whether they played");
  }
  {
   RoomJourney j; j.h.Screen("home");
   j.Give(WithRequest(true, false));
-  const auto before = j.sent(Kind::Accept).size();
+  const auto before = j.sent<commands::FriendAccept>().size();
   j.h.Press(MenuInput::Back); j.h.Frame(0, 2);
-  Check(j.sent(Kind::Accept).size() == before && j.screen() == "home", "Later on the request toast sent accept or changed the screen");
+  Check(j.sent<commands::FriendAccept>().size() == before && j.screen() == "home", "Later on the request toast sent accept or changed the screen");
  }
  // An invite: Join takes it and then drops it; Dismiss only drops it. Neither opens a screen.
  {
   RoomJourney j; j.h.Screen("home");
   j.Give(WithRequest(false, true));
   j.h.Press(MenuInput::Select); j.h.Frame(0, 2);
-  std::vector<Kind> kinds;
-  for (const auto& a : j.h.actions) if (const auto* f = As<commands::Friends>(a)) if (f->friends.id == "iv_1") kinds.push_back(f->friends.kind);
-  Check(kinds == std::vector<Kind>({Kind::TakeInvite, Kind::Dismiss}), "Join on the invite toast did not take the invite and then drop it");
+  std::vector<std::string> kinds;
+  for (const auto& a : j.h.actions) {
+   if (const auto* take = As<commands::FriendTakeInvite>(a)) { if (take->invite == "iv_1") kinds.push_back("take"); }
+   else if (const auto* dismiss = As<commands::FriendDismiss>(a)) { if (dismiss->invite == "iv_1") kinds.push_back("dismiss"); }
+  }
+  Check(kinds == std::vector<std::string>({"take", "dismiss"}), "Join on the invite toast did not take the invite and then drop it");
   Check(j.screen() == "home", "Join on the invite toast changed the screen");
   Check(Said(j) == std::string(loc::Tf("friends.toast_invite", "Player 3")) + "\nPlayer 3's room|", "A new invite did not say who invites and to which room");
  }
@@ -211,7 +213,7 @@ void ToastJourney() {
   RoomJourney j; j.h.Screen("home");
   j.Give(WithRequest(false, true));
   j.h.Press(MenuInput::Back); j.h.Frame(0, 2);
-  Check(j.sent(Kind::TakeInvite).empty() && j.sent(Kind::Dismiss).size() == 1 && j.sent(Kind::Dismiss)[0]->id == "iv_1", "Dismiss on the invite toast did not only drop the invite");
+  Check(j.sent<commands::FriendTakeInvite>().empty() && j.sent<commands::FriendDismiss>().size() == 1 && j.sent<commands::FriendDismiss>()[0]->invite == "iv_1", "Dismiss on the invite toast did not only drop the invite");
  }
  // An invite that ran out is not said.
  {

@@ -155,12 +155,12 @@ void AFreePlayerJoins() {
 	here.canJoin = false;
 	EXPECT(visit.Tick(here) == Step::None);
 	EXPECT(visit.Tick(Free(1200)) == Step::Ticket);
-	// The ticket is asked for once; its answer is awaited under its own id only.
-	EXPECT(visit.Tick(Free(1300)) == Step::None && !visit.Awaiting(7));
-	visit.Ticketed(7, 1300);
-	EXPECT(visit.Awaiting(7) && !visit.Awaiting(8) && !visit.Awaiting(0) && visit.Tick(Free(1400)) == Step::None);
+	// The ticket is asked for once; its answer is awaited for this visit's revision only.
+	EXPECT(visit.Tick(Free(1300)) == Step::None);
+	const auto revision = visit.Revision();
+	EXPECT(visit.Ticketing(revision) && !visit.Ticketing(revision + 1) && visit.Tick(Free(1400)) == Step::None);
 	visit.Admitted(true, 1500);
-	EXPECT(!visit.Awaiting(7) && visit.Active());
+	EXPECT(!visit.Ticketing(revision) && visit.Active());
 	// Joining until the room shows this PC in it, then done: a Join has nothing after it.
 	EXPECT(visit.Tick(Free(1600)) == Step::None && visit.Active());
 	auto arrived = Free(1700);
@@ -172,7 +172,6 @@ void WatchingOnceIn() {
 	Visit visit;
 	visit.Start("brg_1", PublicRoom(2), 5, false, 0);
 	EXPECT(visit.WatchTable() == 2 && visit.Tick(Free(10)) == Step::Ticket);
-	visit.Ticketed(3, 10);
 	visit.Admitted(true, 20);
 	auto arrived = Free(30);
 	arrived.roomId = RoomId;
@@ -188,7 +187,6 @@ void WatchingOnceIn() {
 	Visit other;
 	other.Start("brg_1", PublicRoom(2), 5, false, 0);
 	other.Tick(Free(10));
-	other.Ticketed(1, 10);
 	other.Admitted(true, 20);
 	auto elsewhere = Free(30);
 	elsewhere.roomId = "ff" + RoomId.substr(2);
@@ -263,26 +261,37 @@ void WhatDoesNotComeEnds() {
 	Visit visit;
 	visit.Start("brg_1", PublicRoom(), 5, false, 0);
 	EXPECT(visit.Tick(Free(10)) == Step::Ticket);
-	visit.Ticketed(0, 10);
+	// A ticket the helper could not take, or the bridge refused, is told as not admitted.
+	visit.Admitted(false, 10);
+	EXPECT(!visit.Active());
+	// An admission that comes when no ticket is awaited is nobody's.
+	visit.Admitted(true, 15);
 	EXPECT(!visit.Active());
 	visit.Start("brg_1", PublicRoom(), 5, false, 0);
 	visit.Tick(Free(10));
-	visit.Ticketed(4, 10);
+	const auto asked = visit.Revision();
 	visit.Admitted(false, 20);
-	EXPECT(!visit.Active() && !visit.Awaiting(4));
+	EXPECT(!visit.Active() && !visit.Ticketing(asked));
 	// A ticket that never comes ends at the deadline, with a word to say.
 	visit.Start("brg_1", PublicRoom(), 5, false, 0);
 	visit.Tick(Free(10));
-	visit.Ticketed(5, 10);
 	EXPECT(visit.Tick(Free(10 + Visit::VisitMs - 1)) == Step::None);
 	EXPECT(visit.Tick(Free(10 + Visit::VisitMs)) == Step::Ended && !visit.Active());
 	// A join the room never shows.
 	visit.Start("brg_1", PublicRoom(), 5, false, 0);
 	visit.Tick(Free(10));
-	visit.Ticketed(6, 10);
 	visit.Admitted(true, 100);
 	EXPECT(visit.Tick(Free(100 + Visit::JoinMs - 1)) == Step::None);
 	EXPECT(visit.Tick(Free(100 + Visit::JoinMs)) == Step::Ended);
+	// A Watch that is in the room but never gets a room that takes an action ends in the room, not as a room not joined.
+	visit.Start("brg_1", PublicRoom(2), 5, false, 0);
+	visit.Tick(Free(10));
+	visit.Admitted(true, 100);
+	auto in = Free(100 + Visit::JoinMs - 1);
+	in.roomId = RoomId;
+	EXPECT(visit.Tick(in) == Step::None && visit.Active());
+	in.nowMs = 100 + Visit::JoinMs;
+	EXPECT(visit.Tick(in) == Step::EndedInRoom && !visit.Active());
 	// A player who never frees up the menu.
 	visit.Start("brg_1", PublicRoom(), 5, false, 0);
 	auto busy = Free(Visit::VisitMs - 1);
@@ -307,9 +316,9 @@ void ANewVisitReplaces() {
 	EXPECT(!visit.Confirm(5, first, 20) && visit.Confirm(5, first + 1, 20));
 	// Ticket answers for a visit that was replaced are not its.
 	visit.Tick(Free(30));
-	visit.Ticketed(9, 30);
+	const auto replaced = visit.Revision();
 	visit.Start("brg_1", PublicRoom(), 5, false, 40);
-	EXPECT(!visit.Awaiting(9));
+	EXPECT(!visit.Ticketing(replaced));
 }
 }
 

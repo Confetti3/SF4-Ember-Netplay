@@ -4,7 +4,7 @@
 // Accept, Join, Watch and Invite, More, Add a friend by code, the Sent and
 // Blocked pages, Appear offline, and the question a Join asks when the player
 // is in a room or a game. The data is ShellView::friends (netplay/FriendsView.hxx)
-// and every ask is a commands::Friends built from netplay/FriendCommands.hxx.
+// and every ask is one of the commands::Friend* of netplay/FriendCommands.hxx.
 //
 // What the screens show is chosen here, without a frame, so friends_panel_test.cxx
 // reads it: how the friends are grouped and ordered, what A does on a row, what
@@ -29,8 +29,8 @@ namespace nf = netplay::friends;
 const nf::State& StateOf(const nf::View& view);
 // What the tab can say of the friends now: Loading (nothing read yet), a player
 // without a Discord account, a service without friends or no service, a read
-// that failed with nothing before it, and the list.
-enum class Mode { Loading, NoAccount, Unavailable, Unreachable, Listed };
+// that failed with nothing before it, friends the player turned off, and the list.
+enum class Mode { Loading, NoAccount, Off, Unavailable, Unreachable, Listed };
 // `service`: the interface has a service it can use.
 Mode ModeOf(const nf::View& view, bool service);
 // The list is on show but the last sync failed (the state it kept is stale), as
@@ -73,6 +73,7 @@ constexpr const char* BlockedRow = "friends-blocked";
 constexpr const char* AppearRow = "friends-appear-offline";
 constexpr const char* NewCodeRow = "friends-new-code";
 constexpr const char* ForgetRow = "friends-turn-off";
+constexpr const char* TurnOnRow = "friends-turn-on";
 constexpr const char* TheirCodeRow = "friends-their-code";
 constexpr const char* SendRow = "friends-send";
 constexpr const char* NoteRow = "friends-note";
@@ -114,7 +115,7 @@ public:
     static constexpr const char* SentScreen = friends_panel::SentRow;
     static constexpr const char* BlockedScreen = friends_panel::BlockedRow;
     static constexpr const char* VisitScreen = "friends-visit";
-    // Settings, Online, Friends: the panel of Appear offline, the friend code and Turn off friends.
+    // Settings, Online, Friends: the panel of Appear offline, the friend code and Turn off friends (Turn on friends, once off).
     static constexpr const char* SettingsScreen = "tab-online/friends";
     // The tab or a page over it: where X, Y and Delete are the tab's even in a room.
     static bool OnTab(const std::string& screen) { return screen == Screen || screen == AddScreen || screen == SentScreen || screen == BlockedScreen; }
@@ -172,7 +173,8 @@ private:
         bool issued = false, seen = false;
         int waits = 0;
     };
-    bool Send(const ShellView& view, netplay::friends::Command command, const Submit& submit, const std::string& row = {}, std::string say = {}, bool back = false);
+    template <class Command>
+    bool Send(const ShellView& view, Command command, const Submit& submit, const std::string& row = {}, std::string say = {}, bool back = false);
     void Say(std::string words, Tone tone);
     const std::string& Bridge(const ShellView& view) const;
     void Attach(std::vector<MenuEntry>& rows, const ShellView& view, bool dialog);

@@ -15,7 +15,9 @@
 //   a Cancel or the room changing ends it. It then leaves, asks the bridge for
 //   the room's ticket, joins with it and (for Watch) watches; each step waits
 //   for the one before, and any of them that does not come in time ends the
-//   visit.
+//   visit. The ticket is asked for as a public room's Join asks it, and its
+//   answer (admitted or refused) comes back through BridgeFlights, which gives
+//   up on a lost one, so the visit keeps no request of its own.
 #include "Friends.hxx"
 
 #include <cstdint>
@@ -115,6 +117,9 @@ public:
 		Watch,
 		// The visit ended: it took too long, or the player was moved elsewhere.
 		Ended,
+		// It took too long with the player already in the room (a Watch that never got a writable room): the
+		// player is there, so the words are not those of a room that could not be joined.
+		EndedInRoom,
 	};
 	static constexpr std::uint64_t AskMs = 60000, VisitMs = 120000, JoinMs = 30000;
 
@@ -152,17 +157,11 @@ public:
 		return true;
 	}
 
-	// The ticket was asked for as request `id`; 0 when it could not be, which ends the visit.
-	void Ticketed(std::uint64_t id, std::uint64_t nowMs) {
-		if (phase_ != Phase::Ticketing) return;
-		if (!id) { Cancel(); return; }
-		ticket_ = id;
-		deadlineMs_ = nowMs + VisitMs;
-	}
-	bool Awaiting(std::uint64_t id) const { return phase_ == Phase::Ticketing && id && id == ticket_; }
-	// The ticket came (`joined`: the join was submitted with it) or was refused.
+	// Whether the ticket asked for under `revision` is still what the visit waits on.
+	bool Ticketing(std::uint64_t revision) const { return phase_ == Phase::Ticketing && revision == revision_; }
+	// The ticket came (`joined`: the join was submitted with it) or was refused or lost.
 	void Admitted(bool joined, std::uint64_t nowMs) {
-		ticket_ = 0;
+		if (phase_ != Phase::Ticketing) return;
 		if (!joined) { Cancel(); return; }
 		phase_ = Phase::Joining;
 		deadlineMs_ = nowMs + JoinMs;
@@ -178,8 +177,8 @@ public:
 			if (here.nowMs >= deadlineMs_ || here.generation != generation_) Cancel();
 			return Step::None;
 		}
-		if (here.nowMs >= deadlineMs_) { Cancel(); return Step::Ended; }
 		const bool inRoom = !roomId_.empty() && here.roomId == roomId_;
+		if (here.nowMs >= deadlineMs_) { Cancel(); return inRoom ? Step::EndedInRoom : Step::Ended; }
 		switch (phase_) {
 		case Phase::Waiting:
 			// Already there, as when a friend's invite is for the room this PC is in.
@@ -189,6 +188,7 @@ public:
 			if (!here.idle) return switching_ ? Step::Leave : Step::None;
 			if (!here.canJoin) return Step::None;
 			phase_ = Phase::Ticketing;
+			deadlineMs_ = here.nowMs + VisitMs;
 			return Step::Ticket;
 		case Phase::Joining:
 			return inRoom ? Arrived() : Step::None;
@@ -216,7 +216,7 @@ private:
 	std::string bridge_, roomId_, name_;
 	int watchTable_ = -1;
 	bool switching_ = false;
-	std::uint64_t generation_ = 0, revision_ = 0, deadlineMs_ = 0, ticket_ = 0;
+	std::uint64_t generation_ = 0, revision_ = 0, deadlineMs_ = 0;
 };
 
 } } }

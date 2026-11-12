@@ -42,6 +42,7 @@
 #include "../netplay/WatchPlay.hxx"
 #include "../netplay/OwedAbort.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/BridgeFlights.hxx"
 #include "../netplay/CardRequests.hxx"
 #include "../netplay/FriendRequests.hxx"
 #include "../netplay/FriendVisits.hxx"
@@ -266,11 +267,14 @@ struct Runtime {
     std::uint64_t packRequest = 0;
     std::filesystem::path packPath;
     struct SetNotice { std::string text; bool error = false; std::uint64_t count = 0; } setNotice;
-    // The public room list and the last create or ticket request: their helper
-    // request ids (0 when none is in flight), when each was sent, and what
-    // the interface sees.
-    std::uint64_t roomListRequest=0, admissionRequest=0;
-    std::uint64_t roomListSentMs=0, admissionSentMs=0;
+    // The bridge requests awaiting an answer, with what each does with it:
+    // the public rooms' and friends' (the other requests above and below keep
+    // their own bookkeeping).
+    netplay::BridgeFlights flights;
+    // The public room list and the last create or ticket request: the flight
+    // of the create or ticket (0 when none), which a new one supersedes, and
+    // what the interface sees.
+    std::uint64_t admissionRequest=0;
     netplay::publicrooms::Status publicRooms;
     // Rankings: the requests in flight and what the interface sees.
     netplay::rankings::Requests rankings;
@@ -543,15 +547,17 @@ netplay::tournament::Status TournamentStatus();
 
 // Public rooms (sf4e__NetplayRuntime__PublicRooms.cxx).
 // Sends one bridge request on the tournament channel; the id the helper will
-// answer under, or 0 when it was not sent. The helper bounds its own bridge
-// requests; BridgeRequestGiveUpMs only ends a wait for one it lost.
-constexpr std::uint64_t BridgeRequestGiveUpMs = 60000;
+// answer under, or 0 when it was not sent.
 std::uint64_t SendBridgeRequest(const nlohmann::json& request);
+// Sends one bridge request and has its answer go to `handler`, through
+// runtime->flights, which also ends it when the helper cannot take it or never
+// answers (netplay/BridgeFlights.hxx). `helperReady` false is "cannot take it".
+std::uint64_t SendFlight(const nlohmann::json& request, bool helperReady, netplay::BridgeFlights::Handler handler);
 void DispatchPublicRooms(const netplay::tournament::Command& command, bool helperReady);
-// True when the answer was to a public room request, which it then took.
-bool TakePublicRoomsAnswer(const session::TournamentAnswer& answer);
-// Gives up on a request the helper never answered.
-void ExpirePublicRooms(std::uint64_t nowMs);
+// Asks for a public room's ticket exactly as its Join does. `done` is told how
+// it ended: the failure (the bridge's code, empty when none) and the admission.
+using AdmissionDone = std::function<void(const std::string& failure, std::optional<netplay::publicrooms::Admission> admission)>;
+void RequestTicket(const std::string& bridgeId, const std::string& roomId, bool helperReady, AdmissionDone done);
 
 // Rankings (sf4e__NetplayRuntime__Rankings.cxx), the same way.
 void DispatchRankings(const netplay::tournament::Command& command, bool helperReady);
@@ -573,8 +579,13 @@ void TickCards(bool helperReady, std::uint64_t nowMs);
 // helper's answers, the presence sent each tick it is due, and what the
 // interface reads. A Join, a Watch or an invitation of a friend's is carried
 // out here too (netplay/FriendVisits.hxx).
-void DispatchFriends(const netplay::friends::Command& command, const netplay::Generation& pressed, bool helperReady);
-bool TakeSocialAnswer(const session::TournamentAnswer& answer);
+void DispatchFriends(const commands::FriendsVisit& command);
+void DispatchFriends(const commands::FriendsLeave& command);
+void DispatchFriends(commands::FriendAction action, bool helperReady);
+void DispatchFriends(const commands::FriendJoin& command);
+void DispatchFriends(const commands::FriendWatch& command);
+void DispatchFriends(const commands::FriendTakeInvite& command);
+void DispatchFriends(const commands::FriendAnswerVisit& command);
 void TickSocial(bool helperReady, std::uint64_t nowMs);
 // Tells the friends' service this player is leaving, best effort, as the game closes.
 void SayFriendsGoodbye();

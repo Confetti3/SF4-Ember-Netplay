@@ -11,7 +11,9 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 #include <utility>
+#include <variant>
 
 #include <nlohmann/json.hpp>
 
@@ -43,54 +45,58 @@ inline nlohmann::json SyncRequest(const std::string& bridgeId, const std::string
 	return request;
 }
 
-namespace detail {
-inline nlohmann::json Act(const char* action) {
-	nlohmann::json act = nlohmann::json::object();
+namespace wire {
+using nlohmann::json;
+inline json Act(const char* action) {
+	json act = json::object();
 	act["action"] = action;
+	return act;
+}
+// The `act` of each action: one overload per type, so a new action is one more.
+inline json ActOf(const commands::FriendRequest& c) { auto act = Act("request"); act["card"] = c.card; act["label"] = c.label; return act; }
+inline json ActOf(const commands::FriendRequestByCode& c) { auto act = Act("request"); act["code"] = c.code; return act; }
+inline json ActOf(const commands::FriendAccept& c) { auto act = Act("accept"); act["request"] = c.request; return act; }
+inline json ActOf(const commands::FriendDecline& c) {
+	auto act = Act("decline"); act["request"] = c.request;
+	if (c.block) act["block"] = true;
+	return act;
+}
+inline json ActOf(const commands::FriendCancel& c) { auto act = Act("cancel"); act["request"] = c.request; return act; }
+inline json ActOf(const commands::FriendRemove& c) {
+	auto act = Act("remove"); act["friend"] = c.friendId;
+	if (c.block) act["block"] = true;
+	return act;
+}
+inline json ActOf(const commands::FriendBlock& c) { auto act = Act("block"); act["card"] = c.card; act["label"] = c.label; return act; }
+inline json ActOf(const commands::FriendUnblock& c) { auto act = Act("unblock"); act["block"] = c.blockId; return act; }
+inline json ActOf(const commands::FriendNewCode&) { return Act("new_code"); }
+inline json ActOf(const commands::FriendAppearOffline& c) { auto act = Act("appear_offline"); act["on"] = c.on; return act; }
+inline json ActOf(const commands::FriendTurnOff&) { return Act("forget"); }
+inline json ActOf(const commands::FriendTurnOn&) { return Act("turn_on"); }
+inline json ActOf(const commands::FriendDismiss& c) { auto act = Act("dismiss"); act["invite"] = c.invite; return act; }
+// An invite names the room offered; without one it is not sent.
+inline json ActOf(const commands::FriendInvite& c, const Offer& offer) {
+	if (!offer.Any()) return nullptr;
+	auto act = Act("invite"); act["friend"] = c.friendId;
+	act["room"] = json::object();
+	act["room"][offer.kind == Offer::Kind::PublicRoom ? "room_id" : "secret"] = offer.value;
 	return act;
 }
 }
 
-// The request for a command that is one of the bridge's actions, or null for
-// any other. An Invite names the room offered; without one it is not sent.
-inline nlohmann::json ActionRequest(const Command& command, const Offer& offer) {
+// The request for a bridge action, or null when it cannot be sent (an Invite
+// with no room to offer).
+inline nlohmann::json ActionRequest(const commands::FriendAction& action, const Offer& offer) {
 	using nlohmann::json;
-	json act;
-	switch (command.kind) {
-	case Command::Kind::Request:
-		act = detail::Act("request");
-		if (command.ByCard()) { act["card"] = command.card; act["label"] = command.label; }
-		else act["code"] = command.code;
-		break;
-	case Command::Kind::Accept: act = detail::Act("accept"); act["request"] = command.id; break;
-	case Command::Kind::Decline:
-		act = detail::Act("decline"); act["request"] = command.id;
-		if (command.flag) act["block"] = true;
-		break;
-	case Command::Kind::Cancel: act = detail::Act("cancel"); act["request"] = command.id; break;
-	case Command::Kind::Remove:
-		act = detail::Act("remove"); act["friend"] = command.id;
-		if (command.flag) act["block"] = true;
-		break;
-	case Command::Kind::Block: act = detail::Act("block"); act["card"] = command.card; act["label"] = command.label; break;
-	case Command::Kind::Unblock: act = detail::Act("unblock"); act["block"] = command.id; break;
-	case Command::Kind::NewCode: act = detail::Act("new_code"); break;
-	case Command::Kind::AppearOffline: act = detail::Act("appear_offline"); act["on"] = command.flag; break;
-	case Command::Kind::Forget: act = detail::Act("forget"); break;
-	case Command::Kind::Dismiss: act = detail::Act("dismiss"); act["invite"] = command.id; break;
-	case Command::Kind::Invite:
-		if (!offer.Any()) return nullptr;
-		act = detail::Act("invite"); act["friend"] = command.id;
-		act["room"] = json::object();
-		act["room"][offer.kind == Offer::Kind::PublicRoom ? "room_id" : "secret"] = offer.value;
-		break;
-	default:
-		return nullptr;
-	}
+	const json act = std::visit([&](const auto& command) -> json {
+		if constexpr (std::is_same_v<std::decay_t<decltype(command)>, commands::FriendInvite>) return wire::ActOf(command, offer);
+		else return wire::ActOf(command);
+	}, action);
+	if (act.is_null()) return nullptr;
 	json request = json::object();
 	request["op"] = "friends_act";
-	request["bridge_id"] = command.bridgeId;
-	request["act"] = std::move(act);
+	request["bridge_id"] = commands::BridgeOf(action);
+	request["act"] = act;
 	return request;
 }
 

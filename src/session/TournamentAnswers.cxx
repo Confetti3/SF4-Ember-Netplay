@@ -207,7 +207,7 @@ bool IsTournamentPlayOp(const std::string& op) {
 		op == "match_leave" || op == "assignment_list" || op == "match_watch" || op == "match_unwatch" ||
 		op == "room_list" || op == "room_create" || op == "room_ticket" ||
 		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" ||
-		op == "points_me" || op == "cards_lookup" ||
+		op == "points_me" || op == "cards_lookup" || op == "friends_sync" || op == "friends_act" ||
 		op == "replay_send" || op == "replay_archive" || op == "replay_pack";
 }
 

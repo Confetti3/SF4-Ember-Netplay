@@ -8,6 +8,8 @@
 #include "../netplay/FriendVisits.hxx"
 #include <algorithm>
 #include <cctype>
+#include <type_traits>
+#include <utility>
 
 namespace sf4e { namespace ui {
 namespace friends_panel {
@@ -42,6 +44,7 @@ MenuChoice Choice(const char* id, const char* label, bool enabled, const std::st
 Mode ModeOf(const nf::View& view, bool service) {
     const auto& state = StateOf(view);
     if (state.kind == nf::State::Kind::NoAccount) return Mode::NoAccount;
+    if (state.kind == nf::State::Kind::Off) return Mode::Off;
     if (state.kind == nf::State::Kind::Listed) return Mode::Listed;
     // Unavailable: the service said it has no friends, there is no service to ask, or nothing has been answered yet.
     if (view.state.loaded || (!service && view.bridge.empty())) return Mode::Unavailable;
@@ -55,11 +58,13 @@ bool Stale(const nf::View& view) {
 
 Gate GateOf(const nf::View& view, bool service, bool pending) {
     Gate gate;
-    const bool listed = ModeOf(view, service) == Mode::Listed;
-    gate.go = listed && !Stale(view);
+    const auto mode = ModeOf(view, service);
+    gate.go = mode == Mode::Listed && !Stale(view);
     gate.act = gate.go && !view.busy && !pending;
-    gate.goWhy = gate.go ? nullptr : "friends.unreachable";
-    gate.actWhy = gate.act ? nullptr : !gate.go ? "friends.unreachable" : "friends.busy";
+    // Friends turned off are not "unreachable": the words say so, and how to go on.
+    const char* unusable = mode == Mode::Off ? "friends.off" : "friends.unreachable";
+    gate.goWhy = gate.go ? nullptr : unusable;
+    gate.actWhy = gate.act ? nullptr : !gate.go ? unusable : "friends.busy";
     return gate;
 }
 
@@ -189,6 +194,11 @@ namespace {
 using namespace friends_panel;
 constexpr double GiveUp = 20;
 
+// A friends command made for the room the player saw carries its generation.
+template <class Command, class = void> struct HasGenerationOf : std::false_type {};
+template <class Command> struct HasGenerationOf<Command, std::void_t<decltype(std::declval<Command&>().generation)>> : std::true_type {};
+template <class Command> constexpr bool HasGeneration = HasGenerationOf<Command>::value;
+
 MenuEntry NoteRowOf(const char* words) {
     auto row = InfoRow(NoteRow, loc::T(words), {}, {});
     row.quiet = true;
@@ -216,12 +226,21 @@ MenuEntry FriendRowOf(const nf::Friend& entry, bool canInvite, std::uint64_t now
     return row;
 }
 
+// Turn on friends, for a player who turned them off: asks for nothing the bridge refuses while another action is in flight.
+MenuEntry TurnOnRowOf(const nf::View& view, bool pending) {
+    const bool free = !view.busy && !pending;
+    auto row = Row(TurnOnRow, loc::T("friends.turn_on"), loc::T(free ? "friends.turn_on_detail" : "friends.busy"), free);
+    row.hint = loc::T("friends.turn_on");
+    return row;
+}
+
 std::string DateOf(std::uint64_t at) { return at ? LocalTime(at, "%Y-%m-%d") : std::string("-"); }
 
 // The words that say why the friends cannot be used now, or null when they can: the state's own, or the gate's.
 const char* UnusableWords(Mode mode, Gate gate) {
     switch (mode) {
     case Mode::NoAccount: return "friends.no_account";
+    case Mode::Off: return "friends.off";
     case Mode::Unavailable: return "friends.unavailable";
     case Mode::Loading: return "friends.loading";
     case Mode::Unreachable: return "friends.unreachable";
@@ -231,7 +250,7 @@ const char* UnusableWords(Mode mode, Gate gate) {
 }
 }
 
-bool FriendsPanel::SettingsRow(const std::string& row) { return row == AppearRow || row == NewCodeRow || row == ForgetRow; }
+bool FriendsPanel::SettingsRow(const std::string& row) { return row == AppearRow || row == NewCodeRow || row == ForgetRow || row == TurnOnRow; }
 
 std::vector<MenuEntry> FriendsPanel::SettingsRows(const ShellView& v) {
     const auto& f = v.friends;
@@ -244,7 +263,9 @@ std::vector<MenuEntry> FriendsPanel::SettingsRows(const ShellView& v) {
     auto code = ConfirmRow(NewCodeRow, loc::T("friends.code"), detail("friends.new_code_detail"), !why);
     code.value = state.code.empty() ? std::string("-") : state.code;
     code.wholeValue = true;
-    auto off = ConfirmRow(ForgetRow, loc::T("friends.turn_off"), detail("friends.turn_off_detail"), !why);
+    // Turned off, the one way on is Turn on: the other rows say why they wait.
+    auto off = ModeOf(f, service_) == Mode::Off ? TurnOnRowOf(f, pending_.active) :
+        ConfirmRow(ForgetRow, loc::T("friends.turn_off"), detail("friends.turn_off_detail"), !why);
     for (auto* row : {&appear, &code, &off}) if (pending_.active && pending_.row == row->id) row->value = "...";
     return {appear, code, off};
 }
@@ -252,13 +273,13 @@ std::vector<MenuEntry> FriendsPanel::SettingsRows(const ShellView& v) {
 void FriendsPanel::RequestMember(const ShellView& v, const std::string& card, const std::string& name, const Submit& submit) {
     const Gate gate = GateOf(v.friends, service_, pending_.active);
     if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
-    Send(v, nf::Command::RequestCard(Bridge(v), card, name), submit, {}, loc::Tf("friends.request_sent_to", name));
+    Send(v, commands::FriendRequest{Bridge(v), card, name}, submit, {}, loc::Tf("friends.request_sent_to", name));
 }
 
 void FriendsPanel::BlockMember(const ShellView& v, const std::string& card, const std::string& name, const Submit& submit) {
     const Gate gate = GateOf(v.friends, service_, pending_.active);
     if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
-    Send(v, nf::Command::BlockCard(Bridge(v), card, name), submit);
+    Send(v, commands::FriendBlock{Bridge(v), card, name}, submit);
 }
 
 const std::string& FriendsPanel::Bridge(const ShellView& view) const { return view.friends.bridge.empty() ? bridge_ : view.friends.bridge; }
@@ -278,16 +299,17 @@ bool FriendsPanel::TakeSaid(std::string& words, Tone& tone) {
     return true;
 }
 
-bool FriendsPanel::Send(const ShellView& view, nf::Command command, const Submit& submit, const std::string& row, std::string say, bool back) {
-    const bool action = command.IsAction();
-    commands::Friends request;
-    request.generation = view.session.generation;
-    request.friends = std::move(command);
-    if (request.friends.bridgeId.empty() || !submit(std::move(request))) {
+template <class Command>
+bool FriendsPanel::Send(const ShellView& view, Command command, const Submit& submit, const std::string& row, std::string say, bool back) {
+    // Going to a friend is made for the room the player saw.
+    if constexpr (HasGeneration<Command>) command.generation = view.session.generation;
+    if (command.bridge.empty() || !submit(std::move(command))) {
         Say(loc::T("error.queue_failed"), Tone::Error);
         return false;
     }
-    if (action) pending_ = Pending{true, row, std::move(say), view.friends.state.finished, view.friends.refusals, now_ + GiveUp, back};
+    // Only the bridge's actions wait on an answer.
+    if constexpr (commands::IsFriendAction<Command>)
+        pending_ = Pending{true, row, std::move(say), view.friends.state.finished, view.friends.refusals, now_ + GiveUp, back};
     return true;
 }
 
@@ -297,26 +319,23 @@ void FriendsPanel::Update(const ShellView& v, MenuNavigation& nav, const std::st
     bridge_ = bridge;
     service_ = !bridge.empty();
     if (!started_) { started_ = true; refusalsSeen_ = f.refusals; visitHandled_ = f.visit.revision; }
-    const auto quiet = [&](nf::Command command) {
-        commands::Friends request;
-        request.generation = v.session.generation;
-        request.friends = std::move(command);
-        return !request.friends.bridgeId.empty() && submit(std::move(request));
-    };
+    const auto quiet = [&](auto command) { return !command.bridge.empty() && submit(std::move(command)); };
     // The cadence: Visit as the tab opens, again when it lapsed while shown; Leave as it closes.
     if (Shown(nav.Screen())) {
         if (!asked_ || (sawVisiting_ && !f.visiting)) {
-            if (quiet(nf::Command::Visit(Bridge(v)))) { asked_ = true; sawVisiting_ = false; }
+            if (quiet(commands::FriendsVisit{Bridge(v)})) { asked_ = true; sawVisiting_ = false; }
         } else if (f.visiting) sawVisiting_ = true;
     } else if (asked_) {
-        if (Bridge(v).empty() || quiet(nf::Command::Leave(Bridge(v)))) { asked_ = false; sawVisiting_ = false; }
+        if (Bridge(v).empty() || quiet(commands::FriendsLeave{Bridge(v)})) { asked_ = false; sawVisiting_ = false; }
     }
     // What was asked went through, or was refused, or was lost.
     if (pending_.active) {
         if (f.refusals > pending_.refusals) pending_.active = false;
         else if (f.state.finished > pending_.finished && !f.busy) {
-            if (!pending_.say.empty()) Say(pending_.say, Tone::Success);
-            if (pending_.back && nav.Screen() == AddScreen) nav.Return();
+            // Friends found off is a state, not what the action was for: only Turn off ends by it, and it says nothing.
+            const bool off = StateOf(f).kind == nf::State::Kind::Off;
+            if (!off && !pending_.say.empty()) Say(pending_.say, Tone::Success);
+            if (!off && pending_.back && nav.Screen() == AddScreen) nav.Return();
             pending_.active = false;
         } else if (now > pending_.deadline) pending_.active = false;
     }
@@ -395,6 +414,7 @@ std::vector<MenuEntry> FriendsPanel::Rows(const ShellView& v, const std::string&
         connect.hint = loc::T("screen.connect_discord");
         return {connect};
     }
+    case Mode::Off: return {NoteRowOf("friends.off"), TurnOnRowOf(f, pending_.active)};
     case Mode::Unavailable: return {NoteRowOf("friends.unavailable")};
     case Mode::Unreachable: return {NoteRowOf("friends.unreachable")};
     case Mode::Loading: {
@@ -479,30 +499,35 @@ bool FriendsPanel::Activate(const ShellView& v, const MenuAction& a, MenuNavigat
     const std::string& bridge = Bridge(v);
     const auto refuse = [&](const char* why) { if (why) Say(loc::T(why), Tone::Error); };
     if (a.id == AddRow || a.id == SentRow || a.id == BlockedRow) { nav.Push(a.id); return true; }
-    if (a.id == StayRow || a.id == GoRow) { Send(v, nf::Command::AnswerVisit(bridge, f.visit.revision, a.id == GoRow), submit); return true; }
+    if (a.id == StayRow || a.id == GoRow) { Send(v, commands::FriendAnswerVisit{{}, bridge, f.visit.revision, a.id == GoRow}, submit); return true; }
     if (a.id == AppearRow) {
         if (!gate.act) refuse(gate.actWhy);
-        else Send(v, nf::Command::AppearOffline(bridge, !state.appearOffline), submit, a.id);
+        else Send(v, commands::FriendAppearOffline{bridge, !state.appearOffline}, submit, a.id);
         return true;
     }
     if (a.id == NewCodeRow) {
         if (!gate.act) refuse(gate.actWhy);
-        else Send(v, nf::Command::NewCode(bridge), submit, a.id);
+        else Send(v, commands::FriendNewCode{bridge}, submit, a.id);
+        return true;
+    }
+    if (a.id == TurnOnRow) {
+        if (f.busy || pending_.active) refuse("friends.busy");
+        else Send(v, commands::FriendTurnOn{bridge}, submit, a.id, loc::T("friends.turned_on"));
         return true;
     }
     if (a.id == ForgetRow) {
         if (!gate.act) refuse(gate.actWhy);
-        else Send(v, nf::Command::Forget(bridge), submit, a.id);
+        else Send(v, commands::FriendTurnOff{bridge}, submit, a.id);
         return true;
     }
     if (a.id == SendRow) {
         if (!gate.act) refuse(gate.actWhy);
-        else Send(v, nf::Command::RequestCode(bridge, code_), submit, a.id, loc::Tf("friends.request_sent_to", CodeShown(code_)), true);
+        else Send(v, commands::FriendRequestByCode{bridge, code_}, submit, a.id, loc::Tf("friends.request_sent_to", CodeShown(code_)), true);
         return true;
     }
     if (HasPrefix(a.id, RequestPrefix)) {
         if (!gate.act) refuse(gate.actWhy);
-        else Send(v, nf::Command::Accept(bridge, IdOf(a.id, RequestPrefix)), submit, a.id);
+        else Send(v, commands::FriendAccept{bridge, IdOf(a.id, RequestPrefix)}, submit, a.id);
         return true;
     }
     if (HasPrefix(a.id, FriendPrefix)) {
@@ -511,11 +536,11 @@ bool FriendsPanel::Activate(const ShellView& v, const MenuAction& a, MenuNavigat
         switch (PressOf(*entry, f.canInvite)) {
         case Press::Join:
             if (!gate.go) refuse(gate.goWhy);
-            else Send(v, nf::Command::Join(bridge, entry->id), submit);
+            else Send(v, commands::FriendJoin{{}, bridge, entry->id}, submit);
             break;
         case Press::Invite:
             if (!gate.act) refuse(gate.actWhy);
-            else Send(v, nf::Command::Invite(bridge, entry->id), submit, a.id, loc::Tf("friends.invite_sent", entry->name));
+            else Send(v, commands::FriendInvite{bridge, entry->id}, submit, a.id, loc::Tf("friends.invite_sent", entry->name));
             break;
         case Press::More: Ask(a.id, {}); break;
         }
@@ -532,8 +557,8 @@ bool FriendsPanel::Choose(const ShellView& v, const MenuAction& a, const Submit&
     // A page's one choice: take the request back, lift the block.
     if (HasPrefix(a.id, SentPrefix) || HasPrefix(a.id, BlockedPrefix)) {
         if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return true; }
-        if (a.text == "cancel") Send(v, nf::Command::Cancel(bridge, IdOf(a.id, SentPrefix)), submit, a.id);
-        else if (a.text == "unblock") Send(v, nf::Command::Unblock(bridge, IdOf(a.id, BlockedPrefix)), submit, a.id);
+        if (a.text == "cancel") Send(v, commands::FriendCancel{bridge, IdOf(a.id, SentPrefix)}, submit, a.id);
+        else if (a.text == "unblock") Send(v, commands::FriendUnblock{bridge, IdOf(a.id, BlockedPrefix)}, submit, a.id);
         return true;
     }
     if (raise_.row != a.id) return true;
@@ -548,17 +573,18 @@ bool FriendsPanel::Choose(const ShellView& v, const MenuAction& a, const Submit&
     if (ask.empty() && (what == "remove" || what == "remove-block" || what == "decline" || what == "decline-block")) { Ask(a.id, what); return true; }
     if (what == "join" || what == "watch") {
         if (!gate.go) Say(loc::T(gate.goWhy), Tone::Error);
-        else Send(v, what == "join" ? nf::Command::Join(bridge, id) : nf::Command::Watch(bridge, id), submit);
+        else if (what == "join") Send(v, commands::FriendJoin{{}, bridge, id}, submit);
+        else Send(v, commands::FriendWatch{{}, bridge, id}, submit);
         return true;
     }
     if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return true; }
-    if (what == "accept") Send(v, nf::Command::Accept(bridge, id), submit, a.id);
+    if (what == "accept") Send(v, commands::FriendAccept{bridge, id}, submit, a.id);
     else if (what == "invite") {
         const auto* entry = state.FindFriend(id);
-        Send(v, nf::Command::Invite(bridge, id), submit, a.id, entry ? loc::Tf("friends.invite_sent", entry->name) : std::string());
+        Send(v, commands::FriendInvite{bridge, id}, submit, a.id, entry ? loc::Tf("friends.invite_sent", entry->name) : std::string());
     }
-    else if (what == "remove" || what == "remove-block") Send(v, nf::Command::Remove(bridge, id, what == "remove-block"), submit, a.id);
-    else if (what == "decline" || what == "decline-block") Send(v, nf::Command::Decline(bridge, id, what == "decline-block"), submit, a.id);
+    else if (what == "remove" || what == "remove-block") Send(v, commands::FriendRemove{bridge, id, what == "remove-block"}, submit, a.id);
+    else if (what == "decline" || what == "decline-block") Send(v, commands::FriendDecline{bridge, id, what == "decline-block"}, submit, a.id);
     return true;
 }
 

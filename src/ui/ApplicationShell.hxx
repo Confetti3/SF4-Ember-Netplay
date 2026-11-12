@@ -123,10 +123,10 @@ enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable, ReadOnly };
 // What a toast is about, said over it (Toasts board); None says nothing.
 enum class ToastKind { None, Invitation, Room, Update, Match, System };
 // A toast's button: it opens `screen` at its `row`, where the player acts on
-// the notice, and sends `friends` as they are, in order (an invite's Join takes
+// the notice, and sends `commands` as they are, in order (an invite's Join takes
 // the invite and then drops it); one with neither is Later, which only puts the
 // toast away.
-struct ToastAction { std::string label, screen, row; std::vector<netplay::friends::Command> friends; };
+struct ToastAction { std::string label, screen, row; std::vector<RuntimeRequest> commands; };
 // One frame of the room board (RoomPanelBoard.hxx).
 struct RoomBoardFrame;
 

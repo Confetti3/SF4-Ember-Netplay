@@ -183,10 +183,9 @@ void ApplicationShell::AnswerToast(const ShellView& v,double now,const Submit& s
  const ToastAction act=t->actions[(std::min)(index,t->actions.size()-1)];
  t->until=(std::min)(t->until,now);
  if(toastFocus_==id)toastFocus_=0;
- // The friends commands go as they are, without a screen: an invite's Join and then its Dismiss.
- for(const auto& command:act.friends){
-  commands::Friends request;request.generation=v.session.generation;request.friends=command;
-  if(!submit(std::move(request))){error_=loc::T("error.queue_failed");break;}
+ // The commands go as they are, in order, whatever the screen: an invite's Join and then its Dismiss.
+ for(const auto& command:act.commands){
+  if(!submit(std::visit([](const auto& typed)->ShellAction{return typed;},command))){error_=loc::T("error.queue_failed");break;}
  }
  if(act.screen.empty())return;
  auto& nav=menu_.navigation;
@@ -212,7 +211,7 @@ void ApplicationShell::SayFriends(const ShellView& v,const std::string& screen) 
  for(const auto& request:state.incoming){
   if(!friendsSaid_.insert(request.id).second||quiet)continue;
   Say(loc::Tf("friends.toast_request",request.name)+"\n"+friends_panel::PlayedLine(request,v.unixNow),Tone::Pending,ActionToastSeconds,ToastKind::None,
-   {{loc::T("friends.accept"),"","",{nf::Command::Accept(bridge,request.id)}},{loc::T("friends.later")}});
+   {{loc::T("friends.accept"),"","",{commands::FriendAccept{bridge,request.id}}},{loc::T("friends.later")}});
   return;
  }
  for(const auto& invite:state.invites){
@@ -223,8 +222,8 @@ void ApplicationShell::SayFriends(const ShellView& v,const std::string& screen) 
   const auto& at=from->presence;
   const bool named=invite.room.kind==nf::InviteRoom::Kind::RoomId&&at.hasRoom&&at.room.id==invite.room.value;
   Say(loc::Tf("friends.toast_invite",from->name)+(named?"\n"+at.room.name:std::string()),Tone::Pending,ActionToastSeconds,ToastKind::None,
-   {{loc::T("toast.join"),"","",{nf::Command::TakeInvite(bridge,invite.id),nf::Command::Dismiss(bridge,invite.id)}},
-    {loc::T("friends.dismiss"),"","",{nf::Command::Dismiss(bridge,invite.id)}}});
+   {{loc::T("toast.join"),"","",{commands::FriendTakeInvite{v.session.generation,bridge,invite.id},commands::FriendDismiss{bridge,invite.id}}},
+    {loc::T("friends.dismiss"),"","",{commands::FriendDismiss{bridge,invite.id}}}});
   return;
  }
 }

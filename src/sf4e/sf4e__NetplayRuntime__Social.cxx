@@ -14,6 +14,7 @@
 #include "../common/HexText.hxx"
 #include "../netplay/FriendWire.hxx"
 #include "../session/SocialAnswers.hxx"
+#include "../ui/PublicRoomsPanel.hxx"
 
 #include <ctime>
 #include <functional>
@@ -21,9 +22,7 @@
 namespace sf4e { namespace NetplayFacade {
 namespace {
 namespace friends = netplay::friends;
-using friends::Command;
 using nlohmann::json;
-using internal::SendBridgeRequest;
 
 std::string CurrentId() { return runtime->room ? runtime->room->Identity().emberId : std::string(); }
 
@@ -95,27 +94,34 @@ const char* DestinationKey(friends::Destination::Refusal refusal, bool invite) {
 	}
 }
 
-void SendAction(const Command& command, bool helperReady) {
-	// The room offered is judged as the invite goes, not as the press was made.
-	const auto request = friends::ActionRequest(command, command.kind == Command::Kind::Invite ? Present().offer : friends::Offer());
-	if (request.is_null()) { runtime->error = loc::T("friends.nothing_to_offer"); return; }
-	runtime->friends.SentAction(helperReady ? SendBridgeRequest(request) : 0, command.kind, GetTickCount64());
+// A sync's or an action's answer, for the flight it began (netplay::friends::Requests::Finish).
+void TakeAnswer(std::uint64_t token, const session::TournamentAnswer& answer) {
+	auto& requests = runtime->friends;
+	const auto now = GetTickCount64();
+	if (!answer.ok) { requests.Finish(token, netplay::BridgeFlights::Reason(answer), std::nullopt, now); return; }
+	friends::State state;
+	if (session::DecodeFriendsState(answer.data, state)) requests.Finish(token, {}, std::move(state), now);
+	else requests.Finish(token, "bridge_invalid_response", std::nullopt, now);
 }
 
-// One of the bridge's actions: sent now, or held for the sync or action in flight.
-void Act(const Command& command, bool helperReady) {
+// Hands `request` to the helper as the sync (`action` false) or the action in flight.
+void Send(const json& request, bool action, bool helperReady, std::uint64_t nowMs) {
 	auto& requests = runtime->friends;
-	if (requests.MayAct()) SendAction(command, helperReady);
-	else if (!requests.Hold(command)) runtime->error = loc::T("friends.busy");
+	const auto token = action ? requests.BeginAction() : requests.BeginSync(nowMs);
+	internal::SendFlight(request, helperReady, [token](const session::TournamentAnswer& answer) { TakeAnswer(token, answer); });
+}
+
+void SendAction(const commands::FriendAction& action, bool helperReady) {
+	// The room offered is judged as the invite goes, not as the press was made.
+	const bool invite = std::holds_alternative<commands::FriendInvite>(action);
+	const auto request = friends::ActionRequest(action, invite ? Present().offer : friends::Offer());
+	// Refused like an answer would be, so it is counted and the panel never reports it done.
+	if (request.is_null()) { runtime->friends.Refuse("nothing_to_offer"); return; }
+	Send(request, true, helperReady, GetTickCount64());
 }
 
 // A Join, a Watch or an invite: a private room's invitation goes the way a Discord one does, a public room's by a visit.
-void GoToFriend(const Command& command, std::uint64_t generation) {
-	const auto& state = *runtime->friends.Published().value;
-	const bool invite = command.kind == Command::Kind::TakeInvite;
-	const auto where = invite ? friends::ToInvite(state, command.id, static_cast<std::uint64_t>(std::time(nullptr))) :
-		friends::ToFriend(state, command.id, command.kind == Command::Kind::Watch);
-	if (!where.Any()) { runtime->error = loc::T(DestinationKey(where.refusal, invite)); return; }
+void GoToFriend(const std::string& bridge, const friends::Destination& where, bool watch, std::uint64_t generation) {
 	const bool busy = BusyForInvitation(runtime->controller.GetSnapshot());
 	if (where.kind == friends::Destination::Kind::PrivateInvite) {
 		runtime->friendVisit.Cancel();
@@ -127,25 +133,33 @@ void GoToFriend(const Command& command, std::uint64_t generation) {
 		return;
 	}
 	runtime->discordInvite.Cancel();
-	runtime->friendVisit.Start(command.bridgeId, where, generation, busy, GetTickCount64());
-	spdlog::info("Friends: {} a public room, {}", command.kind == Command::Kind::Watch ? "watching at" : "joining", busy ? "asking first" : "free to go");
+	runtime->friendVisit.Start(bridge, where, generation, busy, GetTickCount64());
+	spdlog::info("Friends: {} a public room, {}", watch ? "watching at" : "joining", busy ? "asking first" : "free to go");
+}
+
+// Where a Join, a Watch or a taken invite leads, or why nowhere; false when nowhere.
+bool Resolve(const friends::Destination& where, bool invite) {
+	if (where.Any()) return true;
+	runtime->error = loc::T(DestinationKey(where.refusal, invite));
+	return false;
 }
 
 // The player's answer to the question a visit asks, as the Discord one's is taken.
-void AnswerVisit(const Command& command, std::uint64_t generation) {
+void AnswerVisit(const commands::FriendAnswerVisit& command) {
 	auto& visit = runtime->friendVisit;
 	if (!visit.Active() || command.revision != visit.Revision()) return;
-	if (!command.flag) { visit.Cancel(); return; }
+	if (!command.switchRoom) { visit.Cancel(); return; }
 	if (AtMainMenu() && CurrentGates().discordCanSwitch && !Game::Battle::System::ggpo &&
-		visit.Confirm(generation, command.revision, GetTickCount64()))
+		visit.Confirm(command.generation.room, command.revision, GetTickCount64()))
 		runtime->offlineRequested = false;
 }
 
-// The room ticket answered: join with it, or say why not.
-void TakeTicket(const session::TournamentAnswer& answer) {
+// The room ticket answered, for the visit it was asked for: join with it, or say why not. The ticket is asked
+// for, decoded and refused as a public room's Join has it (PublicRooms.cxx), so its words are those.
+void TakeTicket(std::uint64_t revision, const std::string& failure, std::optional<netplay::publicrooms::Admission> admission) {
 	auto& visit = runtime->friendVisit;
+	if (!visit.Ticketing(revision)) return;
 	const auto now = GetTickCount64();
-	const auto admission = answer.ok ? session::DecodeAdmission(answer.data) : std::nullopt;
 	if (admission) {
 		commands::JoinRoom join;
 		join.generation = runtime->controller.GetSnapshot().generation;
@@ -153,8 +167,8 @@ void TakeTicket(const session::TournamentAnswer& answer) {
 		join.publicTicket = admission->ticket;
 		if (SubmitRuntimeCommand(std::move(join))) { visit.Admitted(true, now); return; }
 	}
-	spdlog::info("Friends: room ticket not taken: {}", !answer.ok ? answer.reason : admission ? std::string("queue_failed") : std::string("bridge_invalid_response"));
-	runtime->error = loc::T("friends.cannot_join");
+	spdlog::info("Friends: room ticket not taken: {}", failure.empty() ? std::string("queue_failed") : failure);
+	runtime->error = failure.empty() ? loc::T("error.queue_failed") : ui::PublicRoomsPanel::FailureText(failure);
 	visit.Admitted(false, now);
 }
 
@@ -191,13 +205,12 @@ void TickVisit(bool helperReady, std::uint64_t nowMs) {
 		SubmitRuntimeCommand(commands::LeaveRoom{control.generation, 0});
 		visit.LeaveQueued();
 		break;
-	case friends::Visit::Step::Ticket: {
-		const json request = {{"op", "room_ticket"}, {"bridge_id", visit.Bridge()}, {"room_id", visit.RoomId()}, {"build", sf4e::sidecarHash}};
-		const auto id = helperReady ? SendBridgeRequest(request) : 0;
-		visit.Ticketed(id, nowMs);
-		if (!id) runtime->error = loc::T("friends.cannot_join");
+	case friends::Visit::Step::Ticket:
+		internal::RequestTicket(visit.Bridge(), visit.RoomId(), helperReady,
+			[revision = visit.Revision()](const std::string& failure, std::optional<netplay::publicrooms::Admission> admission) {
+				TakeTicket(revision, failure, std::move(admission));
+			});
 		break;
-	}
 	case friends::Visit::Step::Watch: {
 		const auto table = static_cast<std::size_t>(visit.WatchTable());
 		room::Action action;
@@ -217,6 +230,11 @@ void TickVisit(bool helperReady, std::uint64_t nowMs) {
 		spdlog::info("Friends: visit ended without arriving");
 		runtime->error = loc::T("friends.cannot_join");
 		break;
+	case friends::Visit::Step::EndedInRoom:
+		// In the room already: the words of a room that could not be joined would be untrue.
+		spdlog::info("Friends: visit ended in the room without a seat to watch from");
+		runtime->error = loc::T("friends.visit_in_room");
+		break;
 	case friends::Visit::Step::None:
 		break;
 	}
@@ -224,45 +242,60 @@ void TickVisit(bool helperReady, std::uint64_t nowMs) {
 }
 
 namespace internal {
-void DispatchFriends(const Command& command, const netplay::Generation& pressed, bool helperReady) {
-	if (command.bridgeId.empty() || CurrentId().empty()) return;
-	auto& requests = runtime->friends;
-	requests.Scope(command.bridgeId, CurrentId());
-	switch (command.kind) {
-	case Command::Kind::Visit:
-		requests.Visit(GetTickCount64());
-		return;
-	case Command::Kind::Leave:
-		requests.Leave();
-		return;
-	case Command::Kind::Join:
-	case Command::Kind::Watch:
-	case Command::Kind::TakeInvite:
-	case Command::Kind::AnswerVisit:
-		// Made for the room the player saw: not for the one they are in by now.
-		if (!(runtime->controller.GetSnapshot().generation == pressed)) return;
-		if (command.kind == Command::Kind::AnswerVisit) AnswerVisit(command, pressed.room);
-		else GoToFriend(command, pressed.room);
-		return;
-	default:
-		Act(command, helperReady);
-		return;
-	}
+void DispatchFriends(const commands::FriendsVisit& command) {
+	if (command.bridge.empty() || CurrentId().empty()) return;
+	runtime->friends.Scope(command.bridge, CurrentId());
+	runtime->friends.Visit(GetTickCount64());
 }
 
-bool TakeSocialAnswer(const session::TournamentAnswer& answer) {
+void DispatchFriends(const commands::FriendsLeave& command) {
+	if (command.bridge.empty() || CurrentId().empty()) return;
+	runtime->friends.Scope(command.bridge, CurrentId());
+	runtime->friends.Leave();
+}
+
+// One of the bridge's actions: sent now, or held for the sync or action in flight.
+void DispatchFriends(commands::FriendAction action, bool helperReady) {
+	const auto& bridge = commands::BridgeOf(action);
+	if (bridge.empty()) return;
 	auto& requests = runtime->friends;
-	const auto now = GetTickCount64();
-	if (runtime->friendVisit.Awaiting(answer.requestId)) { TakeTicket(answer); return true; }
-	if (!requests.Awaiting(answer.requestId)) return false;
-	if (!answer.ok) {
-		requests.Finish(answer.reason.empty() ? std::string("unavailable") : answer.reason, std::nullopt, now);
-		return true;
-	}
-	friends::State state;
-	if (session::DecodeFriendsState(answer.data, state)) requests.Finish({}, std::move(state), now);
-	else requests.Finish("bridge_invalid_response", std::nullopt, now);
-	return true;
+	// No Ember ID to act as: refused, as an answer would be, so the panel is told.
+	if (CurrentId().empty()) { requests.Refuse(netplay::BridgeFlights::Unavailable); return; }
+	requests.Scope(bridge, CurrentId());
+	if (requests.MayAct()) SendAction(action, helperReady);
+	else if (!requests.Hold(std::move(action))) runtime->error = loc::T("friends.busy");
+}
+
+namespace {
+// Made for the room the player saw: not for the one they are in by now.
+bool Pressed(const netplay::Generation& pressed) { return runtime->controller.GetSnapshot().generation == pressed; }
+}
+
+void DispatchFriends(const commands::FriendJoin& command) {
+	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
+	runtime->friends.Scope(command.bridge, CurrentId());
+	const auto where = friends::ToFriend(*runtime->friends.Published().value, command.friendId, false);
+	if (Resolve(where, false)) GoToFriend(command.bridge, where, false, command.generation.room);
+}
+
+void DispatchFriends(const commands::FriendWatch& command) {
+	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
+	runtime->friends.Scope(command.bridge, CurrentId());
+	const auto where = friends::ToFriend(*runtime->friends.Published().value, command.friendId, true);
+	if (Resolve(where, false)) GoToFriend(command.bridge, where, true, command.generation.room);
+}
+
+void DispatchFriends(const commands::FriendTakeInvite& command) {
+	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
+	runtime->friends.Scope(command.bridge, CurrentId());
+	const auto where = friends::ToInvite(*runtime->friends.Published().value, command.invite, static_cast<std::uint64_t>(std::time(nullptr)));
+	if (Resolve(where, true)) GoToFriend(command.bridge, where, false, command.generation.room);
+}
+
+void DispatchFriends(const commands::FriendAnswerVisit& command) {
+	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
+	runtime->friends.Scope(command.bridge, CurrentId());
+	AnswerVisit(command);
 }
 
 void TickSocial(bool helperReady, std::uint64_t nowMs) {
@@ -272,13 +305,13 @@ void TickSocial(bool helperReady, std::uint64_t nowMs) {
 	if (!requests.Bridge().empty() && requests.EmberId() != id) requests.Scope({}, {});
 	// The service is the one the interface names with its first command; until then the one levels are read from.
 	if (requests.Bridge().empty() && !id.empty() && !runtime->levels.Bridge().empty()) requests.Scope(runtime->levels.Bridge(), id);
-	requests.Expire(nowMs);
+	requests.LapseVisit(nowMs);
 	const auto presented = Present();
 	runtime->friendsCanInvite = presented.offer.Any();
 	requests.NotePresence(std::hash<std::string>()(presented.report.ToJson().dump()));
 	if (auto held = requests.TakeHeld()) SendAction(*held, helperReady);
 	else if (helperReady && requests.SyncDue(nowMs))
-		requests.SentSync(SendBridgeRequest(friends::SyncRequest(requests.Bridge(), sf4e::sidecarHash, OwnListing(), presented.report)), nowMs);
+		Send(friends::SyncRequest(requests.Bridge(), sf4e::sidecarHash, OwnListing(), presented.report), false, helperReady, nowMs);
 	TickVisit(helperReady, nowMs);
 }
 
@@ -287,7 +320,7 @@ void SayFriendsGoodbye() {
 	if (!requests.Syncing() || requests.Published().value->kind != friends::State::Kind::Listed) return;
 	friends::Report leaving;
 	leaving.kind = friends::Report::Kind::Offline;
-	SendBridgeRequest(friends::SyncRequest(requests.Bridge(), sf4e::sidecarHash, OwnListing(), leaving));
+	internal::SendBridgeRequest(friends::SyncRequest(requests.Bridge(), sf4e::sidecarHash, OwnListing(), leaving));
 }
 
 friends::View FriendsStatus() {
@@ -296,7 +329,6 @@ friends::View FriendsStatus() {
 	view.bridge = requests.Bridge();
 	view.state = requests.Published();
 	view.busy = requests.Busy();
-	view.acting = requests.Acting();
 	view.refusal = requests.Refusal();
 	if (!view.refusal.empty()) view.refusalText = loc::T(RefusalKey(view.refusal));
 	view.refusals = requests.Refusals();

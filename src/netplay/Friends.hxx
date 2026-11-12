@@ -130,6 +130,8 @@ struct State {
 		Unavailable,
 		// No Discord account is connected to the Ember ID: friends belong to one.
 		NoAccount,
+		// The player turned friends off: nothing is listed or synced until they turn them on.
+		Off,
 		// The rest of the state is the bridge's answer.
 		Listed,
 	} kind = Kind::Unavailable;

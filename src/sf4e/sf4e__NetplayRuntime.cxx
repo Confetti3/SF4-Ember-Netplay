@@ -472,7 +472,6 @@ Footprint PreferencesFootprint(const netplay::PlayerPreferences& preferences) {
 bool CreatedValid(const std::optional<netplay::TableSetup>& rules) { return !rules || rules->Valid(); }
 Footprint FootprintOf(const commands::Identity& command) { return command.identity.Valid() ? Footprint(command.identity.Bytes()) : std::nullopt; }
 Footprint FootprintOf(const commands::Tournament& command) { return command.tournament.Valid() ? Footprint(command.tournament.Bytes()) : std::nullopt; }
-Footprint FootprintOf(const commands::Friends& command) { return command.friends.Valid() ? Footprint(command.friends.Bytes()) : std::nullopt; }
 Footprint FootprintOf(const commands::Replay& command) {
 	const auto& request = command.replay;
 	return request.path.size() + request.caption.name[0].size() + request.caption.name[1].size() + request.caption.text.size();
@@ -499,8 +498,11 @@ Footprint FootprintOf(const commands::JoinRoom& command) {
 Footprint FootprintOf(const commands::RoomAction& command) {
 	return command.roomAction.text.size() > room::MaximumChatBytes ? std::nullopt : Footprint(command.roomAction.text.size());
 }
-// Every other command holds nothing beyond itself.
-template <typename Command> Footprint FootprintOf(const Command&) { return std::size_t(0); }
+// A friends command states its own bounds; every other command holds nothing beyond itself.
+template <typename Command> Footprint FootprintOf(const Command& command) {
+	if constexpr (commands::HasBounds<Command>) return command.Valid() ? Footprint(command.Bytes()) : std::nullopt;
+	else return std::size_t(0);
+}
 }
 
 bool SubmitRuntimeCommand(RuntimeRequest command) {
