@@ -271,7 +271,8 @@ fn check_records(tx: &Transaction<'_>, migrations: &[Migration]) -> Result<(), O
             if let Some(shown) = schema_shows(tx, version)? {
                 if !shown.1 {
                     return Err(OpenError::Migration(format!(
-                        "the database recorded migration {version:03} without a file name, but                          its schema lacks {}: that migration did not run as {} does",
+                        "the database recorded migration {version:03} without a file name, but \
+                         its schema lacks {}: that migration did not run as {} does",
                         shown.0, migration.name
                     )));
                 }
@@ -295,10 +296,12 @@ fn check_records(tx: &Transaction<'_>, migrations: &[Migration]) -> Result<(), O
 }
 
 /// What the schema must show of a migration that ran as this bridge's file
-/// does, for the unnamed records of 057 to 059 (the library's files):
+/// does, for the unnamed records of 056 to 059 (056 is this line's own; 057 to 059 are the
+/// library's files):
 /// what is looked for, and whether it is there. `None` for the others.
 fn schema_shows(tx: &Transaction<'_>, version: i64) -> rusqlite::Result<Option<(&'static str, bool)>> {
     Ok(match version {
+        56 => Some(("the column rooms.wired_only", has_column(tx, "rooms", "wired_only")?)),
         57 => Some(("the column rooms.game", has_column(tx, "rooms", "game")?)),
         58 => Some((
             "a key on skill_ratings that includes game",
@@ -348,7 +351,9 @@ fn refuse_other_games(tx: &Transaction<'_>) -> Result<(), OpenError> {
         return Ok(());
     }
     Err(OpenError::Migration(format!(
-        "the database holds rows of another game than usf4 in {}: this bridge is USF4's alone          and would list and rate them as its own. Run clear-sfv-rows.py (the shared library's          server/sfv-bridge) on it first, with this bridge stopped",
+        "the database holds rows of another game than usf4 in {}: this bridge is USF4's alone \
+         and would list and rate them as its own. Run clear-sfv-rows.py (the shared library's \
+         server/sfv-bridge) on it first, with this bridge stopped",
         found.join(", ")
     )))
 }
@@ -380,3 +385,6 @@ fn has_column(tx: &Transaction<'_>, table: &str, column: &str) -> rusqlite::Resu
 #[cfg(test)]
 #[path = "migrations_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "migrations_ledger_tests.rs"]
+mod ledger_tests;
