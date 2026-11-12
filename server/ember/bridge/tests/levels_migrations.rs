@@ -1,0 +1,267 @@
+//! The migrations of the levels: 060 keeps every rated game, sitting and
+//! rating it finds from a database at 056, and leaves behind a rated game
+//! whose room is gone; 062 adds the account points and keeps the fighter
+//! points. Each starts from a database as a bridge before it left it.
+use std::path::Path;
+
+use ember_bridge::{Db, testing::TempDir};
+use rusqlite::OptionalExtension;
+
+/// Applies `migrations/` up to 056 as a bridge from before 060 did, each
+/// recorded by its number only.
+fn database_at_056(path: &Path) -> rusqlite::Connection {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .filter(|name| name.as_str() < "057")
+        .collect();
+    names.sort();
+    assert_eq!(names.len(), 56);
+    let mut connection = rusqlite::Connection::open(path).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)",
+        )
+        .unwrap();
+    for name in names {
+        let version: i64 = name[..3].parse().unwrap();
+        let transaction = connection.transaction().unwrap();
+        transaction
+            .execute_batch(&std::fs::read_to_string(dir.join(&name)).unwrap())
+            .unwrap();
+        transaction
+            .execute(
+                "INSERT INTO schema_migrations (version, applied_at) VALUES (?1, 1000)",
+                [version],
+            )
+            .unwrap();
+        transaction.commit().unwrap();
+    }
+    connection
+}
+
+/// What the bridge holds of the rating: games rated, sittings and ratings.
+fn rating_state(connection: &rusqlite::Connection) -> (Vec<String>, Vec<String>, Vec<String>) {
+    let all = |query: &str| -> Vec<String> {
+        connection
+            .prepare(query)
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap()
+    };
+    (
+        all("SELECT room_id || ':' || table_id || ':' || generation FROM rated_games ORDER BY 1"),
+        all(
+            "SELECT first || ':' || second || ':' || games || ':' || played_at FROM rated_pairs ORDER BY 1",
+        ),
+        all(
+            "SELECT discord_user_id || ':' || rating || ':' || deviation || ':' || band FROM skill_ratings ORDER BY 1",
+        ),
+    )
+}
+
+#[tokio::test]
+async fn migration_060_keeps_rated_games_sittings_and_ratings_and_an_older_bridge_still_works() {
+    let dir = TempDir::new("levels-migration");
+    let path = dir.join("bridge.sqlite3");
+    let before = {
+        let connection = database_at_056(&path);
+        connection
+            .execute_batch(
+                "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, created_at)
+                   VALUES ('room', 'Friendly matches', 8, 'build', 'emb_player1', 1000);
+                 INSERT INTO rated_games (room_id, table_id, generation)
+                   VALUES ('room', 0, 1), ('room', 0, 2), ('room', 7, 9223372036854775807);
+                 INSERT INTO rated_pairs (first, second, games, played_at)
+                   VALUES ('100', '200', 3, 5000), ('100', '300', 9, 6000);
+                 INSERT INTO skill_ratings (discord_user_id, rating, deviation, volatility, band, played_at)
+                   VALUES ('100', 1612.5, 88.25, 0.06, 6, 5000), ('200', 1387.5, 91.0, 0.06, 4, 5000);",
+            )
+            .unwrap();
+        rating_state(&connection)
+    };
+    drop(Db::open(&path).unwrap());
+
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    assert_eq!(rating_state(&connection), before);
+    // Every game rated before is its battle's first.
+    let games: Vec<i64> = connection
+        .prepare("SELECT game FROM rated_games")
+        .unwrap()
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(games, vec![0, 0, 0]);
+    for table in ["fighter_levels", "pair_records"] {
+        let rows: i64 = connection
+            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(rows, 0, "{table}");
+    }
+    // 060 joins the key: the next game of a battle is a game of its own.
+    let inserted = |table: i64, generation: i64, game: i64| {
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO rated_games (room_id, table_id, generation, game)
+                 VALUES ('room', ?1, ?2, ?3)",
+                [table, generation, game],
+            )
+            .unwrap()
+    };
+    assert_eq!(inserted(0, 1, 0), 0);
+    assert_eq!(inserted(0, 1, 1), 1);
+
+    // A bridge rolled back to before 060 (the shared library's, which runs
+    // 057 to 059 and names the game in its keys) writes what it always wrote:
+    // its key is a battle's first game, and the rated games stay rated.
+    let older = |table: i64, generation: i64| {
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO rated_games (room_id, table_id, generation)
+                 SELECT room_id, ?2, ?3 FROM rooms WHERE room_id = ?1",
+                rusqlite::params!["room", table, generation],
+            )
+            .unwrap()
+    };
+    assert_eq!(older(0, 2), 0);
+    assert_eq!(older(0, 4), 1);
+    connection
+        .execute_batch(
+            "DELETE FROM rated_pairs WHERE played_at < 5500;
+             INSERT INTO rated_pairs (first, second, games, played_at) VALUES ('100', '300', 1, 7000)
+               ON CONFLICT (game, first, second) DO UPDATE SET games = games + 1, played_at = 7000;",
+        )
+        .unwrap();
+    drop(connection);
+
+    // Opened again by this bridge, nothing runs twice.
+    drop(Db::open(&path).unwrap());
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let (rated, pairs, ratings) = rating_state(&connection);
+    assert_eq!(rated.len(), 5);
+    assert_eq!(pairs, vec!["100:300:10:7000".to_owned()]);
+    assert_eq!(ratings, before.2);
+}
+
+/// A bridge can hold a rated game whose room was deleted while foreign keys
+/// were off. The rebuilt table checks its key as each row lands, so the copy
+/// leaves that game behind rather than stopping the bridge from starting.
+#[tokio::test]
+async fn migration_060_leaves_behind_a_rated_game_whose_room_is_gone_and_keeps_the_rest() {
+    let dir = TempDir::new("levels-migration-orphan");
+    let path = dir.join("bridge.sqlite3");
+    {
+        let connection = database_at_056(&path);
+        // Foreign keys are off on this connection, as they were for the bridge
+        // that lost the room: the delete does not cascade. SQLite here starts
+        // with them on, so they are turned off by name.
+        connection
+            .execute_batch(
+                "PRAGMA foreign_keys = OFF;
+                 INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, created_at)
+                   VALUES ('room', 'Friendly matches', 8, 'build', 'emb_player1', 1000),
+                          ('gone', 'Player 1''s room', 8, 'build', 'emb_player1', 1000);
+                 INSERT INTO rated_games (room_id, table_id, generation)
+                   VALUES ('room', 0, 1), ('gone', 0, 1), ('room', 7, 2), ('gone', 3, 5);
+                 DELETE FROM rooms WHERE room_id = 'gone';",
+            )
+            .unwrap();
+        let orphans: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM rated_games WHERE room_id = 'gone'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(orphans, 2, "the fixture must hold rows without a room");
+    }
+    drop(Db::open(&path).unwrap());
+
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let kept: Vec<(String, i64, i64, i64)> = connection
+        .prepare("SELECT room_id, table_id, generation, game FROM rated_games ORDER BY table_id")
+        .unwrap()
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(
+        kept,
+        vec![("room".to_owned(), 0, 1, 0), ("room".to_owned(), 7, 2, 0)]
+    );
+}
+
+/// A database as a bridge from before 062 left it: this bridge's own ledger
+/// (060 and 061 are recorded by name, as only this line writes them), without
+/// the account points.
+fn database_at_061(path: &Path) -> rusqlite::Connection {
+    drop(Db::open(path).unwrap());
+    let connection = rusqlite::Connection::open(path).unwrap();
+    connection
+        .execute_batch(
+            "DROP TABLE account_points; DELETE FROM schema_migrations WHERE version = 62;",
+        )
+        .unwrap();
+    connection
+}
+
+#[tokio::test]
+async fn migration_062_adds_account_points_and_keeps_the_fighter_points() {
+    let dir = TempDir::new("account-points-migration");
+    let path = dir.join("bridge.sqlite3");
+    {
+        let connection = database_at_061(&path);
+        connection
+            .execute_batch(
+                "INSERT INTO fighter_levels (discord_user_id, fighter, games, wins, first_at, played_at)
+                   VALUES ('100', 3, 4, 2, 1000, 2000);",
+            )
+            .unwrap();
+    }
+    drop(Db::open(&path).unwrap());
+
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let rows: i64 = connection
+        .query_row("SELECT COUNT(*) FROM account_points", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(rows, 0);
+    let kept: (i64, i64) = connection
+        .query_row(
+            "SELECT games, wins FROM fighter_levels WHERE discord_user_id = '100'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(kept, (4, 2));
+    // One row an account, and never more wins than games.
+    connection
+        .execute(
+            "INSERT INTO account_points (discord_user_id, games, wins, first_at, played_at)
+             VALUES ('100', 4, 2, 1000, 2000)",
+            [],
+        )
+        .unwrap();
+    for statement in [
+        "INSERT INTO account_points VALUES ('100', 1, 0, 1, 1)",
+        "INSERT INTO account_points VALUES ('200', 1, 2, 1, 1)",
+    ] {
+        assert!(connection.execute(statement, []).is_err(), "{statement}");
+    }
+    drop(connection);
+
+    // Opened again by this bridge, nothing runs twice.
+    drop(Db::open(&path).unwrap());
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let rows: i64 = connection
+        .query_row("SELECT COUNT(*) FROM account_points", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(rows, 1);
+}
