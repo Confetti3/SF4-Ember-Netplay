@@ -108,6 +108,27 @@ int main() {
 		EXPECT(PostMatchShown(Member{}, said));
 	}
 	{
+		// The runtime's rule for saying it: at once, each second until the room shows it, never
+		// when it already does, and not once the shell stops wanting one or the game is off.
+		Member member;
+		PostMatchSaid wanted, said;
+		wanted.word = PostMatchWord::Back; wanted.generation = 7; wanted.game = 1;
+		EXPECT(PostMatchDue(wanted, said, 0, 5000, true, &member));            // a new word is said at once
+		said = wanted;
+		EXPECT(!PostMatchDue(wanted, said, 5000, 5400, true, &member));        // just said: not yet
+		EXPECT(!PostMatchDue(wanted, said, 5000, 5999, true, &member));
+		EXPECT(PostMatchDue(wanted, said, 5000, 6000, true, &member));         // again each second
+		EXPECT(PostMatchDue(wanted, said, 6000, 7000, true, &member));         // and again while unshown
+		auto changed = wanted; changed.word = PostMatchWord::Rematch;
+		EXPECT(PostMatchDue(changed, said, 6000, 6100, true, &member));        // a changed word does not wait
+		member.postMatch = PostMatchWord::Back; member.postMatchGeneration = 7; member.postMatchGame = 1;
+		EXPECT(!PostMatchDue(wanted, said, 0, 99999, true, &member));          // the room shows it: stop
+		member.postMatch = PostMatchWord::None;
+		EXPECT(!PostMatchDue(PostMatchSaid{}, said, 0, 99999, true, &member)); // the prompt closed: nothing wanted
+		EXPECT(!PostMatchDue(wanted, said, 0, 99999, false, &member));         // the game is not on
+		EXPECT(!PostMatchDue(wanted, said, 0, 99999, true, nullptr));          // no room member to compare
+	}
+	{
 		// Only a seated fighter of the live match says it, for that match.
 		Room room;
 		const auto generation = room.Generation();

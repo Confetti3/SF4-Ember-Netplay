@@ -821,12 +821,11 @@ static void SayPostMatch() {
 	if (!runtime->attached || !UserApp::netplay) { runtime->postMatchSaid = {}; runtime->postMatchSaidAtMs = 0; return; }
 	const auto wanted = PostMatchWanted();
 	if (!wanted.Active()) { runtime->postMatchSaid = {}; return; }
-	if (!netplay::Fighting(runtime->controller.GetSnapshot().match) || runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return;
+	const bool live = netplay::Fighting(runtime->controller.GetSnapshot().match) && runtime->controller.GetSnapshot().control == netplay::Health::Healthy;
 	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
-	const auto* me = room::FindMember(room, room.localMember);
-	if (!me || !room.roomEpoch || room::PostMatchShown(*me, wanted)) return;
 	const auto now = GetTickCount64();
-	if (wanted == runtime->postMatchSaid && now - runtime->postMatchSaidAtMs < 1000) return;
+	if (!room::PostMatchDue(wanted, runtime->postMatchSaid, runtime->postMatchSaidAtMs, now, live,
+		room.roomEpoch ? room::FindMember(room, room.localMember) : nullptr)) return;
 	room::Action say;
 	say.kind = room::ActionKind::PostMatchAnswer;
 	say.postMatch = wanted.word;

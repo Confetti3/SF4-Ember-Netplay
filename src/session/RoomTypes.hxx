@@ -321,6 +321,17 @@ inline bool PostMatchShown(const Member& member, const PostMatchSaid& said) {
 	return member.postMatch == said.word && member.postMatchGeneration == said.generation && member.postMatchGame == said.game;
 }
 
+// Whether the runtime says `wanted` to the room now (SayPostMatch), as `member` is shown in
+// the room's own snapshot (null with no room): only while the game is on (`live`), never
+// when the room already shows it, at once for a word not said yet, and again each second
+// until the room shows it. Not once the shell stops wanting one (not Active).
+constexpr std::uint64_t PostMatchResendMs = 1000;
+inline bool PostMatchDue(const PostMatchSaid& wanted, const PostMatchSaid& lastSaid, std::uint64_t lastSaidAtMs,
+	std::uint64_t nowMs, bool live, const Member* member) {
+	if (!wanted.Active() || !live || !member || PostMatchShown(*member, wanted)) return false;
+	return wanted != lastSaid || nowMs - lastSaidAtMs >= PostMatchResendMs;
+}
+
 // The set a table finished last: who sat where for its deciding game, and the
 // final score by seat. The score itself resets for the next set.
 struct SetRecord {
