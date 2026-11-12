@@ -1000,6 +1000,12 @@ msgstr "Choose files in the window that opened..."
 msgid "replays.import_some_failed"
 msgstr "{0} of {1} files could not be imported."
 
+msgid "replays.import_done"
+msgstr "Replays now holds {0} game(s) from {1} file(s)."
+
+msgid "replays.import_waiting"
+msgstr "{0} file(s) to import. They go in as soon as Ember's menus are in front."
+
 msgid "replays.set_pack_working"
 msgstr "Saving the set pack..."
 
@@ -1011,9 +1017,6 @@ msgstr "The set pack could not be saved. Its service may not have the games yet;
 
 msgid "replays.set_pack_unavailable"
 msgstr "The set pack cannot be saved now. Ember needs a connection to the set's service."
-
-msgid "replays.set_imported"
-msgstr "Replays now holds {0} from that file."
 
 msgid "replays.set_import_failed"
 msgstr "That file is not a whole replay or set pack, so nothing was imported."

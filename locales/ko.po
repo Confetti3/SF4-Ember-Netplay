@@ -1000,6 +1000,12 @@ msgstr "열린 창에서 파일을 고르세요..."
 msgid "replays.import_some_failed"
 msgstr "파일 {1}개 중 {0}개를 가져오지 못했습니다."
 
+msgid "replays.import_done"
+msgstr "파일 {1}개의 {0}개가 리플레이에 있습니다."
+
+msgid "replays.import_waiting"
+msgstr "가져올 파일 {0}개. Ember 메뉴가 앞에 오면 바로 가져옵니다."
+
 msgid "replays.set_pack_working"
 msgstr "세트 팩 저장 중..."
 
@@ -1011,9 +1017,6 @@ msgstr "세트 팩을 저장하지 못했습니다. 서비스에 아직 경기�
 
 msgid "replays.set_pack_unavailable"
 msgstr "지금은 세트 팩을 저장할 수 없습니다. 세트 서비스에 연결되어야 합니다."
-
-msgid "replays.set_imported"
-msgstr "이 파일의 {0}개가 리플레이에 있습니다."
 
 msgid "replays.set_import_failed"
 msgstr "이 파일은 완전한 리플레이나 세트 팩이 아니므로 아무것도 가져오지 않았습니다."

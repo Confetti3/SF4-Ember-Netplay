@@ -1000,6 +1000,12 @@ msgstr "Kies bestanden in het venster dat openging..."
 msgid "replays.import_some_failed"
 msgstr "{0} van {1} bestanden konden niet worden geïmporteerd."
 
+msgid "replays.import_done"
+msgstr "Replays bevat nu {0} potje(s) uit {1} bestand(en)."
+
+msgid "replays.import_waiting"
+msgstr "{0} bestand(en) te importeren. Ze worden geïmporteerd zodra de menu's van Ember vooraan staan."
+
 msgid "replays.set_pack_working"
 msgstr "Setpakket bewaren..."
 
@@ -1011,9 +1017,6 @@ msgstr "Het setpakket kon niet bewaard worden. Zijn dienst heeft de games missch
 
 msgid "replays.set_pack_unavailable"
 msgstr "Het setpakket kan nu niet bewaard worden. Ember heeft een verbinding met de dienst van de set nodig."
-
-msgid "replays.set_imported"
-msgstr "Replays bevat nu {0} uit dat bestand."
 
 msgid "replays.set_import_failed"
 msgstr "Dat bestand is geen volledige replay of setpakket, dus er is niets geïmporteerd."

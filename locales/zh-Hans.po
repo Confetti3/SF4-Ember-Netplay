@@ -1000,6 +1000,12 @@ msgstr "请在弹出的窗口中选择文件..."
 msgid "replays.import_some_failed"
 msgstr "{1} 个文件中有 {0} 个无法导入。"
 
+msgid "replays.import_done"
+msgstr "{1} 个文件中的 {0} 项已在回放中。"
+
+msgid "replays.import_waiting"
+msgstr "有 {0} 个文件待导入。Ember 菜单出现在前台后将立即导入。"
+
 msgid "replays.set_pack_working"
 msgstr "正在保存对局包..."
 
@@ -1011,9 +1017,6 @@ msgstr "无法保存对局包。其服务可能还没有这些局；请稍后再
 
 msgid "replays.set_pack_unavailable"
 msgstr "现在无法保存对局包。Ember 需要连接到对局的服务。"
-
-msgid "replays.set_imported"
-msgstr "该文件中的 {0} 项已在回放中。"
 
 msgid "replays.set_import_failed"
 msgstr "该文件不是完整的回放或对局包，因此未导入任何内容。"

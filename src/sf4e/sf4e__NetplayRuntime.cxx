@@ -1,3 +1,4 @@
+#include <atomic>
 #include "sf4e__NetplayRuntime.hxx"
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/ControllerMappings.hxx"
@@ -403,6 +404,14 @@ void StartHelper() {
 }
 
 void NotifyRuntimeGameReady() { if (runtime) runtime->ready = true; }
+// The display facts the platform and overlay report at any time, perhaps before the
+// runtime exists; the game thread hands them to the services each tick.
+static std::atomic<void*> gameWindow{nullptr};
+static std::atomic<bool> gameExclusiveFullScreen{false};
+void NoteGameWindow(void* window) { gameWindow = window; }
+void NoteExclusiveFullScreen(bool exclusive) { gameExclusiveFullScreen = exclusive; }
+void HandReplayFiles(const std::vector<std::string>& files) { if (runtime) runtime->replayImports.Add(files); }
+namespace internal { void ApplyGameDisplay() { runtime->services.SetDisplay(gameWindow, gameExclusiveFullScreen); } }
 void NotifyRuntimeEventSystemReady() { if (runtime) runtime->eventSystemReady = true; }
 
 void StopHelper() {

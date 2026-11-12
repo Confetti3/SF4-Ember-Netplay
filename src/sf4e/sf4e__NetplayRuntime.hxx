@@ -31,6 +31,7 @@
 #include "../session/RecoveryProgress.hxx"
 #include "../session/ReadyChime.hxx"
 #include "../session/TrainingCall.hxx"
+#include "../common/ReplayImportQueue.hxx"
 #include "../netplay/AutoDelayCheck.hxx"
 #include "../netplay/CreatedRules.hxx"
 #include "../netplay/BoundedMailbox.hxx"
@@ -319,6 +320,8 @@ struct Runtime {
     // the last one asked for: a question on the Replays screen until the
     // player answers it (RuntimeSnapshot::replays.link).
     platform::ReplayLinkMailbox replayLinks;
+    // The replay files to import, from a link, a drop or the picker alike.
+    replay_import::Queue replayImports;
     std::string replayLinkAsked;
     netplay::tournament::OpenedLink openedConnect;
     // Public room links (ember://room/open) likewise: the service and the room.
@@ -555,6 +558,7 @@ void OpenConnectLink(const std::string& bridge, bool launched = false);
 // replay operation on (sf4e__ReplayStore.hxx).
 void RunReplayRequest(const replay::Request& request);
 void TickReplays();
+void ApplyGameDisplay();
 // What the Replays screen is told of the last set pack saved or imported.
 void SaySet(std::string text, bool error);
 // Hands a public room link to the interface, which asks for the room's ticket

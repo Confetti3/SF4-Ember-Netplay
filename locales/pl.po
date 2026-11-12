@@ -1000,6 +1000,12 @@ msgstr "Wybierz pliki w otwartym oknie..."
 msgid "replays.import_some_failed"
 msgstr "Nie udało się zaimportować {0} z {1} plików."
 
+msgid "replays.import_done"
+msgstr "Powtórek z plików ({1}): {0}."
+
+msgid "replays.import_waiting"
+msgstr "Pliki do zaimportowania: {0}. Zostaną zaimportowane, gdy menu Embera będzie na wierzchu."
+
 msgid "replays.set_pack_working"
 msgstr "Zapisywanie paczki setu..."
 
@@ -1011,9 +1017,6 @@ msgstr "Nie udało się zapisać paczki setu. Jego usługa może jeszcze nie mie
 
 msgid "replays.set_pack_unavailable"
 msgstr "Nie można teraz zapisać paczki setu. Ember potrzebuje połączenia z usługą setu."
-
-msgid "replays.set_imported"
-msgstr "Powtórek z tego pliku: {0}."
 
 msgid "replays.set_import_failed"
 msgstr "Ten plik nie jest pełną powtórką ani paczką setu, więc nic nie zaimportowano."

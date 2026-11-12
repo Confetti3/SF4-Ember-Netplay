@@ -140,16 +140,9 @@ private:
     // the status line has its answer once the notice count passes this one.
     bool setAsked_ = false;
     std::uint64_t setNoticeAsked_ = 0;
-    // Import replay: the file picker is open (pickAsked_), the files it or a drop
-    // handed over still to import, one at a time (the game's notice count says
-    // when the one sent is done), and how many of the batch failed. The picker's
-    // and the drop's last counts are the ones already taken.
-    void BeginImport(const std::vector<std::string>& files);
-    bool pickAsked_ = false, importInFlight_ = false;
-    std::uint64_t pickSeen_ = 0, dropSeen_ = 0, importNoticesAtSend_ = 0;
-    int importWait_ = 0;
-    std::vector<std::string> importQueue_;
-    std::size_t importTotal_ = 0, importFailed_ = 0;
-    std::string batchSummary_;
+    // Import replay: the game imports the files the picker, a drop or a link
+    // hands over, one queue for all three; this is the count of its batches
+    // already taken, so a new one brings its answer to the status line.
+    std::uint64_t importSeen_ = 0;
 };
 } }

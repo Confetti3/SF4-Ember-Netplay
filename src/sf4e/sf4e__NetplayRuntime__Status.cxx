@@ -387,7 +387,8 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); mix(call.serial); }
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
-    mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
+    { const auto services = runtime->services.Snapshot(); mix(services.pending); mix(services.picking); }
+    mix(runtime->replayImports.Waiting()); mix(runtime->replayImports.Batches()); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
     mix(runtime->preferencesStore.Revision());
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
@@ -657,6 +658,7 @@ PostPublishState Publish() {
 	snapshot.replays.detail = platform::replays::LatestDetail();
 	snapshot.replays.setNotice = runtime->setNotice.text; snapshot.replays.setNoticeError = runtime->setNotice.error;
 	snapshot.replays.setNotices = runtime->setNotice.count;
+	snapshot.replays.importWaiting = runtime->replayImports.Waiting(); snapshot.replays.importBatches = runtime->replayImports.Batches();
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->entry.matchEntered && !snapshot.atMainMenu &&
 		runtime->entry.entryDeferredGeneration && runtime->entry.entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;

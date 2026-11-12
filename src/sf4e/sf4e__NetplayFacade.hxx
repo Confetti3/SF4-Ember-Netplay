@@ -288,6 +288,14 @@ namespace sf4e {
 		void ConfigureDiscord(const platform::HelperBootstrap& bootstrap);
         void StartHelper();
 		void NotifyRuntimeGameReady();
+		// The game's window and whether the game owns the whole screen (exclusive
+		// full screen). Any thread, at any time: the file picker is shown over the
+		// window, and refused over a full screen.
+		void NoteGameWindow(void* window);
+		void NoteExclusiveFullScreen(bool exclusive);
+		// Replay files dropped on the game's window (UTF-8 paths): queued with the
+		// picker's and a link's, and imported when Ember's menus are in front.
+		void HandReplayFiles(const std::vector<std::string>& files);
 		// Called on the game thread when the native main menu first ticks.
 		void NotifyRuntimeEventSystemReady();
 		void StopHelper();

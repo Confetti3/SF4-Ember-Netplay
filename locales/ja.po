@@ -1000,6 +1000,12 @@ msgstr "開いたウィンドウでファイルを選んでください..."
 msgid "replays.import_some_failed"
 msgstr "{1}個中{0}個のファイルを読み込めませんでした。"
 
+msgid "replays.import_done"
+msgstr "{1}個のファイルから{0}件がリプレイにあります。"
+
+msgid "replays.import_waiting"
+msgstr "読み込むファイル：{0}個。Emberのメニューが前面に来たら読み込みます。"
+
 msgid "replays.set_pack_working"
 msgstr "セットパックを保存中..."
 
@@ -1011,9 +1017,6 @@ msgstr "セットパックを保存できませんでした。サービスにま
 
 msgid "replays.set_pack_unavailable"
 msgstr "今はセットパックを保存できません。セットのサービスへの接続が必要です。"
-
-msgid "replays.set_imported"
-msgstr "このファイルから{0}件がリプレイにあります。"
 
 msgid "replays.set_import_failed"
 msgstr "このファイルは完全なリプレイでもセットパックでもないため、何も読み込まれませんでした。"

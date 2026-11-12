@@ -1000,6 +1000,12 @@ msgstr "Choisissez des fichiers dans la fenêtre ouverte..."
 msgid "replays.import_some_failed"
 msgstr "{0} fichier(s) sur {1} n'ont pas pu être importés."
 
+msgid "replays.import_done"
+msgstr "Replays contient maintenant {0} partie(s) issue(s) de {1} fichier(s)."
+
+msgid "replays.import_waiting"
+msgstr "{0} fichier(s) à importer. Ils le seront dès que les menus d'Ember seront au premier plan."
+
 msgid "replays.set_pack_working"
 msgstr "Enregistrement du pack du set..."
 
@@ -1011,9 +1017,6 @@ msgstr "Le pack du set n'a pas pu être enregistré. Son service n'a peut-être 
 
 msgid "replays.set_pack_unavailable"
 msgstr "Le pack du set ne peut pas être enregistré maintenant. Ember doit être connecté au service du set."
-
-msgid "replays.set_imported"
-msgstr "Replays contient maintenant {0} de ce fichier."
 
 msgid "replays.set_import_failed"
 msgstr "Ce fichier n'est ni un replay complet ni un pack de set complet, rien n'a donc été importé."

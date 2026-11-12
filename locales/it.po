@@ -1000,6 +1000,12 @@ msgstr "Scegli i file nella finestra aperta..."
 msgid "replays.import_some_failed"
 msgstr "Impossibile importare {0} file su {1}."
 
+msgid "replays.import_done"
+msgstr "Replay ora contiene {0} partita/e da {1} file."
+
+msgid "replays.import_waiting"
+msgstr "{0} file da importare. Verranno importati appena i menu di Ember saranno in primo piano."
+
 msgid "replays.set_pack_working"
 msgstr "Salvataggio del pacchetto del set..."
 
@@ -1011,9 +1017,6 @@ msgstr "Impossibile salvare il pacchetto del set. Il suo servizio potrebbe non a
 
 msgid "replays.set_pack_unavailable"
 msgstr "Il pacchetto del set non può essere salvato ora. Ember deve essere connesso al servizio del set."
-
-msgid "replays.set_imported"
-msgstr "Replay ora contiene {0} da quel file."
 
 msgid "replays.set_import_failed"
 msgstr "Questo file non è un replay né un pacchetto di set completo, quindi non è stato importato nulla."

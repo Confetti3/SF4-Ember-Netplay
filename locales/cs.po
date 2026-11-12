@@ -1000,6 +1000,12 @@ msgstr "Vyberte soubory v okně, které se otevřelo..."
 msgid "replays.import_some_failed"
 msgstr "{0} z {1} souborů se nepodařilo importovat."
 
+msgid "replays.import_done"
+msgstr "Souborů: {1}. V Záznamech je teď her: {0}."
+
+msgid "replays.import_waiting"
+msgstr "Soubory k importu: {0}. Naimportují se, jakmile bude vpředu menu Emberu."
+
 msgid "replays.set_pack_working"
 msgstr "Ukládám balíček setu..."
 
@@ -1011,9 +1017,6 @@ msgstr "Balíček setu se nepodařilo uložit. Služba možná ještě nemá jeh
 
 msgid "replays.set_pack_unavailable"
 msgstr "Balíček setu teď nejde uložit. Ember potřebuje spojení se službou setu."
-
-msgid "replays.set_imported"
-msgstr "V Záznamech je teď {0} ze souboru."
 
 msgid "replays.set_import_failed"
 msgstr "Tento soubor není celý záznam ani balíček setu, nic se neimportovalo."

@@ -1000,6 +1000,12 @@ msgstr "Выберите файлы в открывшемся окне..."
 msgid "replays.import_some_failed"
 msgstr "Не удалось импортировать файлов: {0} из {1}."
 
+msgid "replays.import_done"
+msgstr "Из файлов ({1}) в Записях: {0}."
+
+msgid "replays.import_waiting"
+msgstr "Файлов к импорту: {0}. Они будут импортированы, когда меню Ember окажется на переднем плане."
+
 msgid "replays.set_pack_working"
 msgstr "Сохранение пакета сета..."
 
@@ -1011,9 +1017,6 @@ msgstr "Не удалось сохранить пакет сета. Возмож
 
 msgid "replays.set_pack_unavailable"
 msgstr "Сейчас нельзя сохранить пакет сета. Ember нужно подключение к сервису сета."
-
-msgid "replays.set_imported"
-msgstr "Из этого файла в Записях: {0}."
 
 msgid "replays.set_import_failed"
 msgstr "Этот файл не является полной записью или пакетом сета, поэтому ничего не импортировано."

@@ -206,27 +206,35 @@ void ReplayJourneys() {
    SetMenuStatusProbe({});h.view.services={};}
   // Import replay is always listed, ahead of the list. With the picker unavailable (full screen) it is off and says why.
   Check(!rows[0].enabled&&rows[0].detail==loc::T("replays.import_fullscreen"),"Import replay was offered where the picker cannot open");
-  // Select asks the services for the picker; the files it hands back, and files dropped on the window, are imported
-  // one at a time through the same Import request a link's Import makes, anything that is not a replay or pack left out.
+  // Select asks the services for the picker, and nothing more: the files it returns, files dropped on the
+  // window and a link's Import all go to one queue in the game, which says what they came to. The screen only
+  // shows the picker open, the files waiting for Ember's menus, and the batch's answer.
   {h.view.services.canPickFiles=true;h.Frame();
    Check(rows[0].enabled&&rows[0].detail==loc::T("replays.import_detail"),"Import replay was not offered where the picker can open");
    const auto sent=h.actions.size();h.Choose("replay-import");
    Check(h.actions.size()==sent+1&&Is<commands::Service>(h.actions.back(),[](const commands::Service& s){return s.service==platform::ServiceAction::PickReplays;}),"Import replay did not ask for the picker");
-   const auto imports=[&]{std::vector<std::string> paths;for(const auto& action:h.actions)if(const auto* r=std::get_if<commands::Replay>(&action))if(r->replay.mode==sf4e::replay::Mode::Import)paths.push_back(r->replay.path);return paths;};
-   const auto before=imports().size();
    std::string status;Tone tone=Tone::Neutral;SetMenuStatusProbe([&](const char* text,Tone value){status=text;tone=value;});
-   h.view.services.picked={"C:\\dl\\a.emberreplay","C:\\dl\\notes.txt","C:\\dl\\p.emberpack"};h.view.services.pickSequence=1;h.Frame();
-   Check(imports().size()==before+1&&imports().back()=="C:\\dl\\a.emberreplay","The first picked file was not imported");
-   h.Frame();Check(imports().size()==before+1,"The next file went before the game answered the last");
-   h.view.replays.setNotices=1;h.Frame();
-   Check(imports().size()==before+2&&imports().back()=="C:\\dl\\p.emberpack","The second picked file was not imported, or the text file was");
-   h.view.replays.setNotices=2;h.view.replays.setNoticeError=true;h.Frame();
-   Check(status==loc::Tf("replays.import_some_failed",1,2)&&tone==Tone::Error,"A batch with a failed file did not say so");
-   h.Frame();Check(imports().size()==before+2,"A picked file was imported twice");
-   h.view.replays.setNoticeError=false;
-   h.view.services.dropped={"D:\\x\\d.usf4replay"};h.view.services.dropSequence=1;h.Frame();
-   Check(imports().size()==before+3&&imports().back()=="D:\\x\\d.usf4replay","A file dropped on the window was not imported");
-   SetMenuStatusProbe({});h.view.replays.setNotices=3;h.Frame();h.view.services={};}
+   h.view.services.picking=true;h.Frame();
+   Check(!rows[0].enabled&&status==loc::T("services.picking_replays")&&tone==Tone::Pending,"An open picker did not say so, or could be opened twice");
+   h.view.services.picking=false;h.Frame();
+   Check(rows[0].enabled&&h.actions.size()==sent+1,"The panel sent files to import itself");
+   // Files wait for Ember's menus (in a room or a match): the screen says how many, and never gives up on them.
+   h.view.replays.importWaiting=3;h.Frame();
+   Check(status==loc::Tf("replays.import_waiting",3)&&tone==Tone::Pending,"Files waiting for the menus were not said");
+   for(int frame=0;frame<2000;++frame)h.Frame();
+   Check(status==loc::Tf("replays.import_waiting",3),"Waiting files were given up on after a time");
+   // A batch begins (from any of the three ways in) and finishes: the game's notice is the answer, and a
+   // notice that was already there does not end it.
+   h.view.replays.importWaiting=0;h.view.replays.importBatches=1;h.view.replays.setNotices=7;h.Frame();
+   Check(status==loc::T("replays.set_pack_working"),"A batch that began was not shown as working");
+   h.view.replays.setNotices=8;h.view.replays.setNotice=loc::Tf("replays.import_done",5,2);h.view.replays.setNoticeError=false;h.Frame();
+   Check(status==loc::Tf("replays.import_done",5,2)&&tone==Tone::Success,"A batch that all went in was not reported");
+   SetMenuStatusProbe({});h.view.services={};h.view.replays.setNoticeError=false;}
+  // A batch that begins while the player is elsewhere brings the Replays screen up, though not over a room's menu.
+  h.Screen("home");h.view.replays.importBatches=2;h.Frame();
+  Check(h.shell.Navigation().Screen()=="replays","A batch of dropped files did not open the Replays screen");
+  // The next request from the screen (here the picker again) takes the batch's answer off the status line.
+  h.view.services.canPickFiles=true;h.Frame();h.Choose("replay-import");h.view.services={};h.Frame();
   SetMenuEntriesProbe({});h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
   Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::Watch&&r.replay.path=="C:\\r\\a.emberreplay";}),"Watch now did not ask for the replay's file");
   Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return !r.replay.meter;}),"Watch now unexpectedly requested the frame meter");
@@ -263,6 +271,10 @@ void ReplayJourneys() {
    Check(status=="Not added."&&tone==Tone::Error,"Replays did not show its failed request");
    h.Screen("home");Check(status!="Not added.","The replay notice showed outside Replays");
    SetMenuStatusProbe({});h.view.replays.notice.clear();h.view.replays.noticeError=false;h.Screen("replays");}
+  // A batch that begins while a room's menu is in front does not take it over; its files wait.
+  h.Screen("home");h.view.session.room=netplay::RoomState::Joined;h.view.replays.importBatches=3;h.Frame();
+  Check(h.shell.Navigation().Screen()!="replays","A batch took the room's menu");
+  h.view.session.room=netplay::RoomState::Idle;h.Frame();h.Screen("replays");
   // Export video opens the caption's screen; the set so far is counted from the two matches before, the line is the date and score, and Generate sends all of it.
   {auto third=Listed("C:\\r\\c.emberreplay","2026-10-06 21:40"),second=third,first=third;third.names[0]="A";third.names[1]="B";third.summary=sf4e::replayinputs::Summary{};third.summary->scored=true;third.summary->score[0]=2;third.summary->score[1]=1;third.summary->frames=161*60;third.time=3000;
    second=third;second.path=std::filesystem::u8path("C:\\r\\b.emberreplay");second.time=2500;second.summary->score[0]=0;second.summary->score[1]=2;

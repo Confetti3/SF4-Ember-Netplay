@@ -26,8 +26,11 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     // The first replay is focused, so a narrow window scrolls the list to it.
     page("replays");shell.Navigation().Focus("replay:a",rows);draw("replays-cards");
-    Require(rows.size()==9&&rows[2].id=="replay-filter"&&rows[3].id=="replay-search"&&rows[4].value=="2-1 · "+std::string(loc::T("replays.seen"))+", "+loc::T("replays.video")&&
-        rows[6].value==loc::T("replays.spectated")&&rows[7].value=="2-1 · "+std::string(loc::T("replays.spectated_seen"))&&rows[8].value==loc::T("replays.kept"),"Replay tags changed");
+    // The rows above the list (Import replay, the log, the folder) vary; the list is found from the filter row.
+    const auto rowOf=[&](const char* id){return static_cast<std::size_t>(std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;})-rows.begin());};
+    const auto head=rowOf("replay-filter");
+    Require(rows.size()==head+7&&rows[0].id=="replay-import"&&rows[head+1].id=="replay-search"&&rows[head+2].value=="2-1 · "+std::string(loc::T("replays.seen"))+", "+loc::T("replays.video")&&
+        rows[head+4].value==loc::T("replays.spectated")&&rows[head+5].value=="2-1 · "+std::string(loc::T("replays.spectated_seen"))&&rows[head+6].value==loc::T("replays.kept"),"Replay tags changed");
     // Sort & filter is its own screen: a card per fighter, then Sort, Show, Side, the count and Reset.
     shell.Navigation().Focus("replay-filter",rows);draw(nullptr,MenuInput::Select,1);draw();draw("replay-filter");
     Require(shell.Navigation().Screen()=="replay-filter"&&rows.size()==selection::FighterCount+5&&rows[selection::FighterCount].id=="rf-sort"&&rows[selection::FighterCount+3].id=="rf-count","Sort and filter did not list its fighters and choices");
@@ -35,12 +38,12 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     shell.Navigation().Focus("rf-show",rows);draw(nullptr,MenuInput::Right,1);draw();draw(nullptr,MenuInput::Right,1);draw();
     Require(rows[selection::FighterCount+1].value==loc::T("replays.show.spectated")&&rows[selection::FighterCount+3].value=="2 / 5","Show did not narrow the matches to the spectated ones");
     draw(nullptr,MenuInput::Back,1);draw();draw("replays-spectated");
-    Require(shell.Navigation().Screen()=="replays"&&rows.size()==6&&rows[4].id=="replay:b"&&rows[5].id=="replay:c"&&rows[2].value.find(loc::T("replays.show.spectated"))!=std::string::npos,"Back did not return to the narrowed list");
+    Require(shell.Navigation().Screen()=="replays"&&rows.size()==head+4&&rows[rowOf("replay:b")].id=="replay:b"&&rows[rowOf("replay:c")].id=="replay:c"&&rows[rowOf("replay-filter")].value.find(loc::T("replays.show.spectated"))!=std::string::npos,"Back did not return to the narrowed list");
     // Reset lists every match again.
     shell.Navigation().Focus("replay-filter",rows);draw(nullptr,MenuInput::Select,1);draw();draw();
     shell.Navigation().Focus("rf-reset",rows);draw(nullptr,MenuInput::Select,1);draw();
     draw(nullptr,MenuInput::Back,1);draw();draw();
-    Require(rows.size()==9,"Reset did not list every match again");
+    Require(rows.size()==head+7,"Reset did not list every match again");
     // Alice and Bob's two matches in a row are a set on the Sets tab, 1-1 by who won each; Pick a game lists them oldest first.
     page("replay-sets");draw("replay-sets");
     Require(rows.size()==3&&rows[0].id=="replay-filter"&&rows[1].id=="replay-search"&&rows[2].id=="set:a"&&rows[2].label=="Alice 1-1 Bob","The set of Alice and Bob was not listed");
