@@ -41,6 +41,14 @@ bool ShellOpen(const wchar_t* target) {
 // either would then stall the other. This owner is the dialog's alone: the
 // dialog still shows over the game and is modal against the clicks on it, and
 // the game goes on drawing and taking its messages.
+//
+// The owner must be seen by the mouse and by the taskbar. A layered window of
+// alpha 0 lets every click through to the game below, which is not disabled
+// then, so the game would come to the front and bury the dialog; alpha 1 is
+// as good as invisible and still takes the click, which lands on a disabled
+// owner and brings the dialog forward. It is also an app window (no tool
+// window, no no-activate), named like the dialog, so the taskbar and Alt+Tab
+// have a way back to a dialog that has fallen behind.
 std::vector<std::wstring> ChooseReplayFiles(const std::wstring& title, const std::wstring& kind, void* gameWindow) {
     std::vector<std::wstring> files;
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -60,9 +68,9 @@ std::vector<std::wstring> ChooseReplayFiles(const std::wstring& title, const std
             HWND owner = nullptr;
             RECT place{};
             if (gameWindow && IsWindow(static_cast<HWND>(gameWindow)) && GetWindowRect(static_cast<HWND>(gameWindow), &place)) {
-                owner = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED, L"STATIC", L"", WS_POPUP,
+                owner = CreateWindowExW(WS_EX_APPWINDOW | WS_EX_LAYERED, L"STATIC", title.c_str(), WS_POPUP,
                     place.left, place.top, place.right - place.left, place.bottom - place.top, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
-                if (owner) { SetLayeredWindowAttributes(owner, 0, 0, LWA_ALPHA); ShowWindow(owner, SW_SHOWNA); }
+                if (owner) { SetLayeredWindowAttributes(owner, 0, 1, LWA_ALPHA); ShowWindow(owner, SW_SHOWNA); }
             }
             if (SUCCEEDED(dialog->Show(owner))) {
                 Microsoft::WRL::ComPtr<IShellItemArray> results;
