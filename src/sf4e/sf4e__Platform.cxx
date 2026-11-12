@@ -23,7 +23,6 @@
 #include "BuildIdentity.hxx"
 #include "sf4e__Platform.hxx"
 #include "../training/RemoteServer.hxx"
-#include "../platform/ApplicationServices.hxx"
 #include "sf4e__Borderless.hxx"
 #include "sf4e__StartupLog.hxx"
 #include "sf4e__ReplayCapture.hxx"
@@ -308,7 +307,7 @@ void fD3D::BuildPresentParameters() {
     (this->*rD3D::privateMethods.BuildPresentParameters)();
     D3DPRESENT_PARAMETERS* parameters = rD3D::GetPresentParameters(this);
     // A file picker would stay behind a game that owns the screen.
-    sf4e::platform::SetFullScreenExclusive(!parameters->Windowed);
+    sf4e::NetplayFacade::NoteExclusiveFullScreen(!parameters->Windowed);
     if (parameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE) {
         s_vsyncForcedFrom = parameters->PresentationInterval;
         parameters->PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;

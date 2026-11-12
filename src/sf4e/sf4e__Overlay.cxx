@@ -24,8 +24,7 @@
 #include "../training/RemoteServer.hxx"
 #include "../training/RemoteHud.hxx"
 #include "../platform/ReplayFiles.hxx"
-#include "../platform/ApplicationServices.hxx"
-#include <shellapi.h>
+#include "../platform/DroppedFiles.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "../netplay/SettingsStore.hxx"
@@ -219,10 +218,10 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
     sf4e::ui::SetOverlayCursorOwnership(false);
 	s_overlayWindow = hWnd;
-	// The replay picker is owned by the game's window, which also takes replay
-	// files dropped on it (the Replays screen imports them).
-	sf4e::platform::SetPickerOwner([hWnd]() -> void* { return hWnd; });
-	DragAcceptFiles(hWnd, TRUE);
+	// The replay picker is shown over the game's window, which also takes replay
+	// files dropped on it (platform/DroppedFiles.hxx).
+	sf4e::NetplayFacade::NoteGameWindow(hWnd);
+	sf4e::platform::AcceptDroppedFiles(hWnd, true);
 	ImGui::GetPlatformIO().Platform_SetImeDataFn = nullptr;
 	ImGui_ImplWin32_Init(hWnd);
 	s_inputBridge.RequestClear(); // nothing queued for a context that is gone
@@ -933,6 +932,9 @@ void Overlay::FreeOverlay() {
     s_selectionArt.reset();
     for (auto** texture : {&s_watchedFull, &s_watchedShown}) if (*texture) { (*texture)->Release(); *texture = nullptr; }
     s_watchedFailed = false;
+    // The window no longer takes drops once Ember's hooks are gone.
+    sf4e::platform::AcceptDroppedFiles(s_overlayWindow, false);
+    sf4e::NetplayFacade::NoteGameWindow(nullptr);
     ImGui_ImplDX9_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
 }
 // ImGui's input queue is not thread-safe: the window messages that feed it
@@ -972,18 +974,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
         else s_trainingControls.GainFocus();
     }
     if (message == WM_DROPFILES) {
-        const HDROP drop = reinterpret_cast<HDROP>(w);
-        std::vector<std::wstring> files;
-        const UINT count = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
-        for (UINT i = 0; i < count && i < 64; ++i) {
-            const UINT length = DragQueryFileW(drop, i, nullptr, 0);
-            if (!length || length > 2048) continue;
-            std::wstring name(length + 1, L' ');
-            name.resize(DragQueryFileW(drop, i, &name[0], length + 1));
-            files.push_back(std::move(name));
-        }
-        DragFinish(drop);
-        sf4e::platform::NoteDroppedFiles(std::move(files));
+        sf4e::NetplayFacade::HandReplayFiles(sf4e::platform::ReadDroppedFiles(reinterpret_cast<void*>(w)));
         return 1;
     }
     if (!ImGui::GetCurrentContext()) return 0;
