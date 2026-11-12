@@ -293,7 +293,10 @@ public:
     // It is a column of its own: Up and Down on it keep the focus there, and
     // the list's Up and Down pass over it, so the bottom row goes round to the
     // top rather than across to the card. Left and Right reach it as before.
+    // It is the one rule: Move and ListEnd read it, and so does the menu's
+    // layout (Aside), instead of guessing from how the rows name each other.
     void SetAside(const std::string& id) { states_[Screen()].aside = id; }
+    const std::string& Aside() const { return states_.at(Screen()).aside; }
     const std::string& Focus() const { return states_.at(Screen()).id; }
     // The one open modal, if any; it belongs to the entry named by modalId_.
     // Confirming, Choosing, Editing and Reading each name exactly one mode.
@@ -492,14 +495,14 @@ public:
             const int way=direction&MenuInput::Up?-1:1;
             int to=index+way;
             if(to>=0&&to<count&&entries[to].id==s.aside) to+=way;
-            if(to<0||to>=count) { if(!wrap) return {}; to=ListEnd(entries,way>0); }
+            if(to<0||to>=count) { if(!wrap) return {}; to=ListEnd(entries,way>0,s.aside); }
             index=to;
         }
-        else if(direction&MenuInput::Up) { if(index>=columns)index-=columns; else if(columns==1&&wrap)index=ListEnd(entries,false); }
+        else if(direction&MenuInput::Up) { if(index>=columns)index-=columns; else if(columns==1&&wrap)index=ListEnd(entries,false,s.aside); }
         else if(direction&MenuInput::Down) {
             if(index/columns<(cells-1)/columns)index=(std::min)(cells-1,index+columns);
             else if(cells<count)index=cells;
-            else if(columns==1&&wrap)index=ListEnd(entries,true);
+            else if(columns==1&&wrap)index=ListEnd(entries,true,s.aside);
         }
         else if(columns>1 && delta && index/columns==(index+delta)/columns && index+delta>=0 && index+delta<cells) index+=delta;
         if(index<0) index=0;
@@ -597,21 +600,14 @@ private:
         return entries.size();
     }
     // Where a list wraps to: its first entry (`first`), else its last, passing
-    // over an entry that several others name as their Left or Right neighbour,
-    // which stands beside the list rather than in it (Home's player card, the
-    // Right of every row). One named by a single row is that row's partner on
-    // its line (Frame data's two fighters), still in the list.
-    static int ListEnd(const std::vector<MenuEntry>& entries, bool first) {
-        const auto aside=[&](const std::string& id) {
-            const auto named=[&](std::string MenuEntry::*side) {
-                return std::count_if(entries.begin(),entries.end(),[&](const MenuEntry& e) { return e.id!=id&&e.*side==id; });
-            };
-            return named(&MenuEntry::right)>=2||named(&MenuEntry::left)>=2;
-        };
+    // over the entry the menu draws beside the list (`aside`, SetAside). Nothing
+    // is inferred from how the rows name each other: a partner on a row's line
+    // (Frame data's two fighters) is in the list, and so is a card drawn as a row.
+    static int ListEnd(const std::vector<MenuEntry>& entries, bool first, const std::string& aside) {
         const int count=static_cast<int>(entries.size());
         for(int k=0;k<count;++k) {
             const int i=first?k:count-1-k;
-            if(!aside(entries[i].id)) return i;
+            if(aside.empty()||entries[i].id!=aside) return i;
         }
         return first?0:count-1;
     }

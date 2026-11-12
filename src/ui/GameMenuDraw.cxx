@@ -418,7 +418,7 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
     // one (52), so all of them show without a scroll where they can.
     float homeRow = 64 * s;
     if (home) {
-        const float rows = static_cast<float>(std::count_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return !(split && e.id == "card"); }));
+        const float rows = static_cast<float>(std::count_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return !(split && e.id == navigation.Aside()); }));
         if (rows > 0) homeRow = (std::max)(52 * s, (std::min)(64 * s, (list.H() - 8 * s * (rows - 1)) / rows));
     }
     // A flyout keeps to one line a card past its first page, so more of its settings show at once.

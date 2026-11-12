@@ -977,10 +977,18 @@ void ListWrap(){
  // last row, not to the card.
  for(auto& r:rows)r.right="card";
  rows.push_back(Row("card","Card",""));rows.back().left="a";
+ nav.SetAside("card");
  nav.Focus("a",rows);time+=.016;nav.Update({0,time},rows);hold(MenuInput::Up,.05);
  Check(nav.Focus()=="d","A list's wrap landed on the card beside it");
+ nav.Focus("d",rows);hold(MenuInput::Down,.05);
+ Check(nav.Focus()=="a","Down from the list's last entry did not go round, over the card beside it, to its first");
+ // The narrow window draws the card as the list's last row: the same links, no
+ // aside, so a wrap from the top reaches it and the list's wrap is one rule.
+ nav.SetAside("");
+ nav.Focus("a",rows);time+=.016;nav.Update({0,time},rows);hold(MenuInput::Up,.05);
+ Check(nav.Focus()=="card","Up from the top row skipped the card drawn as the list's last row");
  nav.Focus("card",rows);hold(MenuInput::Down,.05);
- Check(nav.Focus()=="a","Down from the list's last entry did not go round to its first");
+ Check(nav.Focus()=="a","Down from the card drawn as a row did not go round to the top");
 }
 // An entry its menu draws beside the list (Home's card in its pane) is a
 // column of its own: Up and Down keep to it, the list's Up and Down pass over
