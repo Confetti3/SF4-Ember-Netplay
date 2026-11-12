@@ -1,4 +1,5 @@
 #include "HudLayout.hxx"
+#include "../common/Inflate.hxx"
 #include <zlib.h>
 #include <algorithm>
 #include <array>
@@ -315,14 +316,10 @@ bool Unpack(const std::string& emz, std::string& ems) {
     uint32_t size = 0, offset = 0;
     std::memcpy(&size, emz.data() + 8, 4); std::memcpy(&offset, emz.data() + 12, 4);
     if (offset < 16 || offset > emz.size() || size > (64u << 20)) return false;
-    ems.assign(size, '\0');
-    z_stream z{};
-    if (inflateInit2(&z, -MAX_WBITS) != Z_OK) return false;
-    z.next_in = (Bytef*)emz.data() + offset; z.avail_in = (uInt)(emz.size() - offset);
-    z.next_out = (Bytef*)&ems[0]; z.avail_out = size;
-    const int result = inflate(&z, Z_FINISH);
-    inflateEnd(&z);
-    return result == Z_STREAM_END && z.avail_out == 0;
+    std::vector<unsigned char> body;
+    if (!zinflate::InflateBounded(reinterpret_cast<const unsigned char*>(emz.data()) + offset, emz.size() - offset, zinflate::Format::Raw, 64u << 20, body, size)) return false;
+    ems.assign(reinterpret_cast<const char*>(body.data()), body.size());
+    return true;
 }
 
 std::string Pack(const std::string& ems) {

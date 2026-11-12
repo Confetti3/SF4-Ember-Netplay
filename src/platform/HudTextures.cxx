@@ -1,5 +1,6 @@
 #include "HudTextures.hxx"
 #include "HudLayout.hxx"
+#include "../common/Inflate.hxx"
 #include <zlib.h>
 #include <algorithm>
 #include <cstdlib>
@@ -153,9 +154,8 @@ bool DecodePng(const std::string& png, Image& image) {
     }
     if (width <= 0 || height <= 0 || width > 4096 || height > 4096) return false;
     const size_t row = static_cast<size_t>(width) * 4;
-    std::string raw((row + 1) * height, '\0');
-    uLongf size = static_cast<uLongf>(raw.size());
-    if (uncompress(reinterpret_cast<Bytef*>(&raw[0]), &size, reinterpret_cast<const Bytef*>(packed.data()), static_cast<uLong>(packed.size())) != Z_OK || size != raw.size()) return false;
+    std::vector<unsigned char> raw;
+    if (!zinflate::InflateBounded(reinterpret_cast<const unsigned char*>(packed.data()), packed.size(), zinflate::Format::Zlib, (row + 1) * height, raw, (row + 1) * height)) return false;
     image.width = width; image.height = height; image.rgba.assign(row * height, 0);
     for (int y = 0; y < height; ++y) {
         const int filter = static_cast<std::uint8_t>(raw[y * (row + 1)]);
