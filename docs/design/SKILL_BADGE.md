@@ -114,7 +114,21 @@ video's is the class each player has on the board when it is rendered, so
 only a settled, listed class; the HUD's is the one the player's room ticket
 carried when they joined the room, so it can be "?", faint or the Dev mark,
 and a class that settles or moves during a session shows as it was until the
-player joins a room again. The player's own
+player joins a room again.
+
+A replay keeps the classes its match HUD showed when the match started, so
+watching it later shows them as they were then. They are a note of their own
+beside the replay's names note (`EMBRCLS1`, `<crc>-<size>.classes` in the
+archive's `.names` folder, bound to the replay by its SHA-256;
+`src/common/ReplayProvenance.hxx`), so the names note keeps the form older
+builds read, and a replay without one plays as before. Only a class is kept,
+never "?" or the Dev mark, and none is kept while the player hides class
+emblems, since the HUD had none. Watch now draws each side's name and class
+on the export caption's plates while the replay's battle plays, when a side
+has both and the player shows class emblems (`replay::WatchCaption`), under
+nothing of Ember's that is open; a replay with no class draws nothing. An
+export starts from the same classes. A replay from the archive site or a
+set's pack carries no classes yet: neither file has a place for them. The player's own
 profile card (Home, Awards, Profile) shows the class of their standing; the
 standing is read once a session for each service and Ember ID, away from
 Rankings, so the card has it without a visit. That read lists nobody.
