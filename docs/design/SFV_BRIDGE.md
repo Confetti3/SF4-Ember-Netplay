@@ -175,7 +175,8 @@ They name `https://bridge.embernetplay.link` and keep doing so.
   never see: an old-beta player and a new-build player see different room
   lists and boards, and an old beta's rating changes after the import stay
   behind on SF4's bridge.
-- **Once SF4 production runs an SF4-line bridge again** (1.6.0, no `game`):
+- **Once SF4 production runs an SF4-line bridge again** (1.6.0: it keeps the
+  `game` columns but its protocol names no game, and lists no `ranking_games`):
   the room list asks with the SFV build ID, so it comes back empty (a list
   with a room of another game would be refused as an invalid answer);
   creating a room is refused, because SF4's `CreateRoom` refuses the unknown
@@ -218,18 +219,45 @@ lose every write since.
 ## SF4's database (for the SF4 1.6.0 deploy, not done here)
 
 SF4 production's database holds the library's unnamed 057-059 records, the
-`game` columns and game-keyed rating tables they made, and SFV's rows. Before
-1.6.0's bridge can start on it, the SF4 side picks one of:
+`game` columns and game-keyed rating tables they made, and SFV's rows. The
+plan (agreed with the SF4 1.6.0 side, 2026-11-12) keeps that schema: SF4
+1.6.0's bridge carries the library's `057_room_game.sql`, `058_ranking_games.sql`
+and `059_match_games.sql` verbatim as its own 057-059 and adopts their unnamed
+records; 060-062 stay 1.6.0's. The three files are the same blobs on the
+deployed commit (237151932), `feat/ember-library` and `b8/lib-integrate`
+(d517a402, e975322c, c8da82dc); the library line has no migration above 059,
+and its 055 and 056 are SF4's files byte for byte.
 
-- **A. Down-migrate (recommended; keeps SF4's database SF4's alone).** With the
-  bridge stopped and a fresh backup, in one transaction: delete the
-  `game = 'sfv'` rows (after the import above), rebuild `skill_ratings`,
-  `rated_pairs` and `ranking_choices` without `game` (056's shape), drop
-  `rooms.game`, `matches.game`, `lobbies.game` and `tournaments.game`, and
-  delete `schema_migrations` 57-59. Then install 1.6.0's bridge, which applies
-  060-062. A rollback is the backup plus a13ded4c: a13ded4c started on the
-  down-migrated database would re-apply 057-059 over 060-062, which nobody
-  has tried.
-- **B. Adopt.** 1.6.0 names 057-059 as the library's files and takes the
-  library's game-keyed tables into its own code. That is the shared-schema
-  path this split exists to leave.
+**One code change that adoption needs.** 058 keys `skill_ratings` and
+`ranking_choices` by `(game, discord_user_id)` and `rated_pairs` by
+`(game, first, second)`. SF4's writes say `ON CONFLICT (discord_user_id)` and
+`ON CONFLICT (first, second)` (`skill/mod.rs` store and played,
+`skill/ranking.rs`), and SQLite refuses a conflict target that matches no
+primary key or unique index ("ON CONFLICT clause does not match any PRIMARY
+KEY or UNIQUE constraint"), so every rating write would fail. Either the
+targets name `game` too (`ON CONFLICT (game, discord_user_id)`, with `game`
+written as 'usf4'), or an SF4 migration adds unique indexes on
+`skill_ratings (discord_user_id)`, `ranking_choices (discord_user_id)` and
+`rated_pairs (first, second)` after SFV's rows are gone (tried: the unchanged
+statement then works and writes 'usf4' rows). Neither drops a column.
+
+**SFV's rows leave** with `server/sfv-bridge/clear-sfv-rows.py`, run once by
+SF4's side with SF4's bridge stopped, after a backup and after this plan's
+`import`:
+
+- `rooms` where `game = 'sfv'`, with their `room_bans` and `rated_games`
+  (only `rated_games` cascades);
+- `skill_ratings`, `rated_pairs` and `ranking_choices` where `game = 'sfv'`.
+
+It deletes nothing, and says why, when SFV owns a `matches`, `lobbies` or
+`tournaments` row or a room a connection made: those carry child rows with no
+cascade (participants, claims, attempts, reports, replays, watchers, BluMint
+progress, entrants, nodes, events by match) and need a look first. None are
+expected: SFV's organised play never ran on production. Nothing else in the
+schema is SFV's: `archive_games.game` (054) is a replay's own field, and
+Ember IDs, Discord links and friends carry no game. Tried on a database built
+from every library migration, with foreign keys on: it removes exactly the SFV
+rows and stops on a connection-made SFV room.
+
+Old SFV betas keep creating SFV rows on SF4's bridge for as long as it runs a
+bridge that knows `game`, so run it at the 1.6.0 switch, not before.
