@@ -4,7 +4,7 @@
   python3 scripts/framedata/build.py SIM_DIR [--out assets/framedata/usf4.json] [--overrides assets/framedata/overrides.json]
 
 SIM_DIR holds Ember's per-fighter frame data (<CODE>.json, one per fighter) as the simulator writes it
-(docs/guides/FRAME_DATA.md says where it comes from). Overrides are applied last, so a hand correction
+(docs/development/FRAME_DATA.md says where it comes from). Overrides are applied last, so a hand correction
 survives the next rebuild. Run scripts/framedata/validate.py on the result.
 """
 import glob, json, os, re, sys

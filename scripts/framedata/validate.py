@@ -3,7 +3,7 @@
 
   python3 scripts/framedata/validate.py [FILE]        exit 1 and a list of problems, or 0
 
-Cheap on purpose: it finds a broken edit, not a wrong frame. A wrong frame is settled in the game (docs/guides/FRAME_DATA.md).
+Cheap on purpose: it finds a broken edit, not a wrong frame. A wrong frame is settled in the game (docs/development/FRAME_DATA.md).
 """
 import json, os, re, sys
 
