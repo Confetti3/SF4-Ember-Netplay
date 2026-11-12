@@ -2,8 +2,8 @@
 //! points and fighter points beside the rating, every game of a battle
 //! counts, the repeat cap holds for every pair, and a room member's card token
 //! opens another player's card, public whether or not they take part in
-//! ranking, for seven days. Migration 057 keeps every rated game, sitting and
-//! rating it finds; 059 adds the account points.
+//! ranking, for seven days. Migration 060 keeps every rated game, sitting and
+//! rating it finds; 062 adds the account points.
 mod common;
 
 use std::path::Path;
@@ -648,7 +648,7 @@ async fn levels_are_offered_with_public_rooms_and_answer_404_without() {
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
-/// Applies `migrations/` up to 056 as a bridge from before 057 did, each
+/// Applies `migrations/` up to 056 as a bridge from before 060 did, each
 /// recorded by its number only.
 fn database_at_056(path: &Path) -> rusqlite::Connection {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
@@ -705,7 +705,7 @@ fn rating_state(connection: &rusqlite::Connection) -> (Vec<String>, Vec<String>,
 }
 
 #[tokio::test]
-async fn migration_057_keeps_rated_games_sittings_and_ratings_and_an_older_bridge_still_works() {
+async fn migration_060_keeps_rated_games_sittings_and_ratings_and_an_older_bridge_still_works() {
     let dir = TempDir::new("levels-migration");
     let path = dir.join("bridge.sqlite3");
     let before = {
@@ -745,7 +745,7 @@ async fn migration_057_keeps_rated_games_sittings_and_ratings_and_an_older_bridg
             .unwrap();
         assert_eq!(rows, 0, "{table}");
     }
-    // 057 joins the key: the next game of a battle is a game of its own.
+    // 060 joins the key: the next game of a battle is a game of its own.
     let inserted = |table: i64, generation: i64, game: i64| {
         connection
             .execute(
@@ -758,7 +758,7 @@ async fn migration_057_keeps_rated_games_sittings_and_ratings_and_an_older_bridg
     assert_eq!(inserted(0, 1, 0), 0);
     assert_eq!(inserted(0, 1, 1), 1);
 
-    // A bridge rolled back to before 057 writes what it always wrote: its key
+    // A bridge rolled back to before 060 writes what it always wrote: its key
     // is a battle's first game, and the rated games stay rated.
     let older = |table: i64, generation: i64| {
         connection
@@ -793,7 +793,7 @@ async fn migration_057_keeps_rated_games_sittings_and_ratings_and_an_older_bridg
 /// were off. The rebuilt table checks its key as each row lands, so the copy
 /// leaves that game behind rather than stopping the bridge from starting.
 #[tokio::test]
-async fn migration_057_leaves_behind_a_rated_game_whose_room_is_gone_and_keeps_the_rest() {
+async fn migration_060_leaves_behind_a_rated_game_whose_room_is_gone_and_keeps_the_rest() {
     let dir = TempDir::new("levels-migration-orphan");
     let path = dir.join("bridge.sqlite3");
     {
@@ -839,14 +839,14 @@ async fn migration_057_leaves_behind_a_rated_game_whose_room_is_gone_and_keeps_t
     );
 }
 
-/// Applies `migrations/` up to 058 as a bridge from before 059 did, each
+/// Applies `migrations/` up to 061 as a bridge from before 062 did, each
 /// recorded by its number only.
-fn database_at_058(path: &Path) -> rusqlite::Connection {
+fn database_at_061(path: &Path) -> rusqlite::Connection {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
     let mut names: Vec<String> = std::fs::read_dir(&dir)
         .unwrap()
         .map(|entry| entry.unwrap().file_name().into_string().unwrap())
-        .filter(|name| name.as_str() < "059")
+        .filter(|name| name.as_str() < "062")
         .collect();
     names.sort();
     assert_eq!(names.len(), 58);
@@ -874,11 +874,11 @@ fn database_at_058(path: &Path) -> rusqlite::Connection {
 }
 
 #[tokio::test]
-async fn migration_059_adds_account_points_and_keeps_the_fighter_points() {
+async fn migration_062_adds_account_points_and_keeps_the_fighter_points() {
     let dir = TempDir::new("account-points-migration");
     let path = dir.join("bridge.sqlite3");
     {
-        let connection = database_at_058(&path);
+        let connection = database_at_061(&path);
         connection
             .execute_batch(
                 "INSERT INTO fighter_levels (discord_user_id, fighter, games, wins, first_at, played_at)

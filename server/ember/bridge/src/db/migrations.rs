@@ -10,8 +10,10 @@
 //! would skip one or break on one. A number above its newest is a newer
 //! bridge's, which a bridge rolled back to leaves alone.
 //!
-//! Bridges before this recorded only the number. Their records take this
-//! bridge's file for that number, once, when it first opens the database.
+//! Bridges before this recorded only the number. Their records, up to 056,
+//! take this bridge's file for that number, once, when it first opens the
+//! database. 057 to 059 belong to the shared library's bridge, which still
+//! records numbers only: an unnamed record above 056 is refused, not adopted.
 use rusqlite::{Connection, Transaction, TransactionBehavior, params};
 use sha2::{Digest, Sha256};
 
@@ -126,9 +128,9 @@ pub(super) const MIGRATIONS: &[Migration] = migrations![
     "054_archive_games_once.sql",
     "055_archive_listing.sql",
     "056_room_wired_only.sql",
-    "057_fighter_levels.sql",
-    "058_friends.sql",
-    "059_account_points.sql",
+    "060_fighter_levels.sql",
+    "061_friends.sql",
+    "062_account_points.sql",
 ];
 
 /// Checks what the database recorded against `migrations`, then applies each
@@ -212,9 +214,19 @@ fn settle_unnamed_055(tx: &Transaction<'_>) -> Result<(), OpenError> {
     ))
 }
 
-/// Gives each record without a name this bridge's file for its number, then
-/// refuses a record of another file, of another checksum, or of a number
-/// below the newest of `migrations` that they do not have.
+/// The newest number a bridge from before the ledger could have recorded, and
+/// so the newest an unnamed record can be taken for this bridge's own file.
+/// An unnamed record above it was written by a bridge of another line (the
+/// shared library's bridge records numbers only, and uses 057 to 059 for its
+/// own files; this line's start at 060), so naming it here would mark a
+/// migration this bridge never ran as applied. Until the two lines are one
+/// bridge, a database that holds such a record is refused.
+const LAST_UNNAMED_VERSION: i64 = 56;
+
+/// Gives each record without a name this bridge's file for its number (up to
+/// `LAST_UNNAMED_VERSION`), then refuses a record of another file, of another
+/// checksum, of an unnamed number above that, or of a number below the newest
+/// of `migrations` that they do not have.
 fn check_records(tx: &Transaction<'_>, migrations: &[Migration]) -> Result<(), OpenError> {
     let newest = migrations.last().map_or(0, |migration| migration.version);
     let records: Vec<(i64, Option<String>, Option<String>)> = tx
@@ -222,6 +234,13 @@ fn check_records(tx: &Transaction<'_>, migrations: &[Migration]) -> Result<(), O
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
         .collect::<rusqlite::Result<_>>()?;
     for (version, name, checksum) in records {
+        if name.is_none() && version > LAST_UNNAMED_VERSION {
+            return Err(OpenError::Migration(format!(
+                "the database recorded migration {version:03} without a file name, which only a \
+                 bridge of another line writes: this bridge's files above \
+                 {LAST_UNNAMED_VERSION:03} are always recorded by name"
+            )));
+        }
         let Some(migration) = migrations
             .iter()
             .find(|migration| migration.version == version)

@@ -144,9 +144,9 @@ player only ever plays in 1.5.x rooms and never sees any points.
 
 ## Bridge
 
-### Migration 059 (`059_account_points.sql`)
+### Migration 062 (`062_account_points.sql`)
 
-Named in the list in `src/db/migrations.rs` after 058. One new table, shaped
+Named in the list in `src/db/migrations.rs` after 061. One new table, shaped
 and referenced like `fighter_levels`; nothing existing changes, and every
 account starts at 0 account points (no history is backfilled).
 
@@ -164,10 +164,17 @@ Read only by account (its key); a row for good, one per account that ever
 played a counted game. Points and tier are worked out when served, as for
 fighters.
 
-### Migration 057 (`057_fighter_levels.sql`)
+### Migration 060 (`060_fighter_levels.sql`)
 
 The file is also named in the list in `src/db/migrations.rs`, which records
 each migration by file name and checksum.
+
+The three files of this line are 060 to 062, not 057 to 059: those numbers
+belong to the shared library's bridge (`057_room_game`, `058_ranking_games`,
+`059_match_games`), which records numbers only. This bridge names an unnamed
+record only up to 056, the last number a bridge from before the ledger could
+have run, and refuses one above it. A database that has run the library's
+files is therefore refused until the two lines are one bridge with one order.
 
 ```sql
 -- Each fighter's counted games for a Discord account (FIGHTER_LEVELS.md).
@@ -434,7 +441,7 @@ cap).
 |---|---|---|---|---|
 | P0 Contracts | `server/ember/protocol/src/{levels.rs,friends.rs,lib.rs}`, `rooms/mod.rs` (`TicketRequest::card`), `rooms/ticket.rs` (`RoomTicket::card`) | none | shapes, `check`, requests refuse unknown fields and answers ignore them, tickets without `card` byte-identical | none |
 | P1 Room host | `src/common/{SkillBadge.hxx,SkillBadgeJson.hxx}`, `src/session/{RoomAuthority.hxx,RoomModelServerOwned.cxx,RoomModelActions.cxx,RoomModel.cxx,RoomTypes.hxx,RoomModelJson.cxx,Admission.hxx,IrohRoomPeers.cxx}`, `server/roomhost/{RoomHostStatus.hxx,README.md}`, `server/ember-rooms/src/protocol.rs`, `server/ember/bridge/src/routes/rooms/supervisor.rs` (the limit only), `rust/sf4-net/src/{control.rs,service/controls.rs,service/protocol.rs}` | P0 | `room_server_owned_test` (fighters, game index across a rematch in place, old checkpoint restores), `room_host_config_test` (largest line), `session_server_moderation_test` (card admitted, forged card ignored), ember-rooms limits test, helper `connected` with `card` | two 1.6.0 PCs in a public room: a set of three games in place reaches the bridge as three games |
-| P2 Bridge levels | `migrations/057_fighter_levels.sql`, `src/db/migrations.rs` (one line), `src/skill/{mod.rs,levels.rs}`, `src/cards.rs`, `src/routes/{levels.rs,mod.rs,discovery.rs}`, `src/routes/rooms/ticket.rs`, `tests/levels.rs` | P0 | migration from 056 keeps rated games and pairs; three games of one generation count three times; cap at nine; a game without fighters rates and earns account points but no fighter points; opted-out player earns points and shows them; token round trip, 7-day expiry, wrong purpose; 404 shape | none |
+| P2 Bridge levels | `migrations/060_fighter_levels.sql`, `src/db/migrations.rs` (one line), `src/skill/{mod.rs,levels.rs}`, `src/cards.rs`, `src/routes/{levels.rs,mod.rs,discovery.rs}`, `src/routes/rooms/ticket.rs`, `tests/levels.rs` | P0 | migration from 056 keeps rated games and pairs; three games of one generation count three times; cap at nine; a game without fighters rates and earns account points but no fighter points; opted-out player earns points and shows them; token round trip, 7-day expiry, wrong purpose; 404 shape | none |
 | P3 Bridge friends | `FRIENDS.md` | P2 | there | there |
 | P4 Helper and runtime | `rust/sf4-net/src/tournament/{levels.rs,friends.rs,mod.rs,play.rs,rooms.rs}`, `src/netplay/{Levels.hxx,LevelRequests.hxx,Friends.hxx,FriendRequests.hxx,TournamentStatus.hxx}`, `src/session/SocialAnswers.{hxx,cxx}`, `src/sf4e/{sf4e__NetplayRuntime__Social.cxx,sf4e__NetplayRuntime.hxx,sf4e__NetplayRuntime__Status.cxx}` (publishing levels and friends; dropping `card` outside public rooms), the answer hook beside `TakeRankingsAnswer`, the netplay and session library lines of `CMakeLists.txt`, `src/tests/{social_answers_test.cxx,tournament_fuzz_test.cxx}` | P0; P1 for `Member::card` | ops round-trip, `card` asked only with `levels` listed, decoders ignore unknown members and keep known keys exact, request cadence | none |
 | P5 Digits and points parts | `src/common/PointDigits.hxx`, `src/ui/LevelMark.{hxx,cxx}`, `src/ui/V2.hxx` (declarations of `Level`, `LevelWidth`, `FrameTier`, `LevelBand`, `Meter`, `PLAYER_CARD.md`), `src/ui/SelectionArt.{hxx,cxx}`, the `sf4e_ui` source line of `CMakeLists.txt`, the lab case | none | glyph measuring on a synthetic sheet; layout from a synthetic glyph set | the digits against the game's own PP and BP at three sizes |

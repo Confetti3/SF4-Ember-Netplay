@@ -1,4 +1,4 @@
-//! The friends tables (migration 058): a Discord account's settings, its
+//! The friends tables (migration 061): a Discord account's settings, its
 //! friendships, requests and blocks, every change a player makes to them,
 //! and the reads the friends state is made of (docs/design/FRIENDS.md, "Data
 //! model" and "Abuse"). Accounts are Discord user IDs here and nowhere past
@@ -661,7 +661,7 @@ pub fn blocked(tx: &Transaction<'_>, caller: &str) -> Result<Vec<BlockedPlayer>>
 }
 
 /// The record between `caller` and `other` from `caller`'s side
-/// (`pair_records`, migration 057): absent before their first counted game.
+/// (`pair_records`, migration 060): absent before their first counted game.
 pub fn record(tx: &Transaction<'_>, caller: &str, other: &str) -> Result<Option<PairRecord>> {
     let (first, second) = ordered(caller, other);
     let stored: Option<(u64, u64, u64)> = tx
