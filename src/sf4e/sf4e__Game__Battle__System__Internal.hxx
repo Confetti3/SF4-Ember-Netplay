@@ -134,7 +134,7 @@ extern int s_disconnectTimeoutMs;
 struct NetplayWindow {
     uint64_t startMs = 0; // 0 until the first session starts
     uint32_t rollbacks = 0, resimFrames = 0, depth = 0, maxDepth = 0, stallTicks = 0;
-    // Attack presses made and let go inside a prediction stall, which
+    // Attack presses made and let go while GGPO refused the local input, which
     // StallPresses carried to the next accepted frame.
     uint32_t stallPresses = 0;
     // Frames whose local sample the match input read refused (ReadRuntimeMatchInput).

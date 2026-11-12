@@ -366,8 +366,8 @@ void fSystem::BattleUpdate() {
                         else inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
                         inputs.rawOn = sf4e::training::ClearReservedInputBits(inputs.rawOn);
                     }
-                    // A press made inside a prediction stall rides on the next
-                    // accepted frame (StallPresses.hxx).
+                    // A press made while GGPO refuses the local input rides on
+                    // the next accepted frame (StallPresses.hxx).
                     const sf4e::StallPresses::Word sampled{inputs.mappedOn, inputs.rawOn};
                     const sf4e::StallPresses::Word sent = s_stallPresses.Send(sampled);
                     inputs.mappedOn = sent.mapped;
@@ -377,7 +377,8 @@ void fSystem::BattleUpdate() {
                         result = ggpo_add_local_input(ggpo, players[i].handle, &inputs, sizeof(fPadSystem::Inputs));
                     }
                     if (GGPO_SUCCEEDED(result)) s_window.stallPresses += s_stallPresses.Accepted(sampled, sent);
-                    else if (result == GGPO_ERRORCODE_PREDICTION_THRESHOLD) s_stallPresses.Refused(sampled);
+                    // Every refusal drops the sample; a fatal one ends the match.
+                    else if (sf4e::gate::ClassifyGgpoResult((int)result) != sf4e::gate::POLICY_FATAL) s_stallPresses.Refused(sampled);
                     if (diag::Enabled()) {
                         diag::G().RecordGgpoResult(diag::CALL_ADD_LOCAL_INPUT, (int)result);
                     }
