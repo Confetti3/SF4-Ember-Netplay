@@ -3313,6 +3313,12 @@ msgstr "작은 파이터 허용"
 msgid "room.tiny_fighters.detail"
 msgstr "플레이어가 자신의 파이터를 작은 크기로 고를 수 있습니다. 겉모습만 바뀝니다."
 
+msgid "room.skip_scenes"
+msgstr "승자 연출 건너뛰기"
+
+msgid "room.skip_scenes.detail"
+msgstr "마지막 KO 후 승자 연출이 자동으로 끝나 재대전 선택이 더 빨리 나옵니다. 버튼을 누르면 더 일찍 건너뜁니다."
+
 msgid "selection.size"
 msgstr "크기"
 

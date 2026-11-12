@@ -3312,6 +3312,12 @@ msgstr "Combattenti minuscoli consentiti"
 msgid "room.tiny_fighters.detail"
 msgstr "I giocatori possono scegliere una versione minuscola del loro combattente. Cambia solo l'aspetto."
 
+msgid "room.skip_scenes"
+msgstr "Salta le scene del vincitore"
+
+msgid "room.skip_scenes.detail"
+msgstr "Dopo l'ultimo KO le scene del vincitore finiscono da sole e la richiesta di rivincita arriva prima. Premere un pulsante le salta ancora prima."
+
 msgid "selection.size"
 msgstr "Dimensione"
 

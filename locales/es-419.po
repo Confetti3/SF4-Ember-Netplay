@@ -2948,6 +2948,12 @@ msgstr "Luchadores diminutos permitidos"
 msgid "room.tiny_fighters.detail"
 msgstr "Los jugadores pueden elegir una versión diminuta de su luchador. Solo cambia el aspecto."
 
+msgid "room.skip_scenes"
+msgstr "Omitir escenas del ganador"
+
+msgid "room.skip_scenes.detail"
+msgstr "Tras el último KO, las escenas del ganador terminan solas y la propuesta de revancha llega antes. Pulsar un botón las omite aún antes."
+
 msgid "selection.size"
 msgstr "Tamaño"
 

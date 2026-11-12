@@ -3312,6 +3312,12 @@ msgstr "Povolit malé bojovníky"
 msgid "room.tiny_fighters.detail"
 msgstr "Hráči si mohou vybrat malou verzi svého bojovníka. Mění se jen vzhled."
 
+msgid "room.skip_scenes"
+msgstr "Přeskakovat scény vítěze"
+
+msgid "room.skip_scenes.detail"
+msgstr "Po posledním KO se scény vítěze ukončí samy, takže nabídka odvety přijde dříve. Stisk tlačítka je přeskočí ještě dřív."
+
 msgid "selection.size"
 msgstr "Velikost"
 

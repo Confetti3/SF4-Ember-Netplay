@@ -703,6 +703,8 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
   rows.push_back(WiredOnlyRow("room-wired-only",s.wiredOnly,std::string(loc::T("room.wired_only.detail"))+"\n"+loc::T("room.wired_only.settings_detail"),host));
   // A private room's host, in a game that draws tiny fighters; a public room has no such rule.
   if(c.v.offersTinyFighters&&!s.serverOwned)rows.push_back(TinyFightersRow("room-tiny-fighters",s.tinyFighters,loc::T("room.tiny_fighters.detail"),host));
+  // In a game that has winner scenes to skip. Every room has the rule (on in a public one); only a private room's host changes it.
+  if(c.v.offersSkipScenes)rows.push_back(SkipScenesRow("room-skip-scenes",s.skipScenes,loc::T("room.skip_scenes.detail"),host&&!s.serverOwned));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
   if(tables)rows.push_back(Row("apply-tables",loc::T("room.apply_tables"),loc::Tf("room.tables.detail",static_cast<int>(TableCount)),

@@ -146,6 +146,7 @@ struct Room {
     std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
     bool wiredOnly = false;
     bool tinyFighters = false;
+    bool skipScenes = true;
     sf4e::wire::ConfirmedCharaConditions character = {};
     int stage = 0;
     selection::RandomPool randomPool;
@@ -289,6 +290,8 @@ struct Runtime {
     bool wiredOnly=false;
     // The Tiny fighters allowed rule of the room this PC hosts, chosen the same way.
     bool tinyFighters=false;
+    // The Skip winner scenes rule of the room this PC hosts: on, or what the room it replaces had.
+    bool skipScenes=true;
     // The player's Leave of the room. CloseRoom resets it whole.
     struct RoomLeave {
         bool leaveRequested=false, leaveAcknowledged=false;

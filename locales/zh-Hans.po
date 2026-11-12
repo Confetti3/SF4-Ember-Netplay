@@ -3313,6 +3313,12 @@ msgstr "允许迷你角色"
 msgid "room.tiny_fighters.detail"
 msgstr "玩家可以选择角色的迷你版本。只改变外观。"
 
+msgid "room.skip_scenes"
+msgstr "跳过胜者演出"
+
+msgid "room.skip_scenes.detail"
+msgstr "最后一次KO后，胜者演出会自动结束，再战提示更快出现。按下按钮可以更早跳过。"
+
 msgid "selection.size"
 msgstr "大小"
 

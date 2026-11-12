@@ -71,6 +71,11 @@ struct Capabilities {
     // a private room's host is offered the Tiny fighters allowed rule
     // (room::Snapshot::tinyFighters) and a player the game's Size choice. SF4 has no such size.
     bool tinyFighters = false;
+    // The game can end a decided match's winner scenes on a request both copies
+    // make alike: its rooms offer the Skip winner scenes rule
+    // (room::Snapshot::skipScenes, on by default) and its host can change it.
+    // SF4 has no such scenes to skip, so it never offers or reads the rule.
+    bool skipScenes = false;
     // Ember's frame meter over a match: Settings' Match frame meter row,
     // which a game without the meter does not offer.
     bool frameMeter = false;

@@ -3312,6 +3312,12 @@ msgstr "Mali wojownicy dozwoleni"
 msgid "room.tiny_fighters.detail"
 msgstr "Gracze mogą wybrać małą wersję swojego wojownika. Zmienia się tylko wygląd."
 
+msgid "room.skip_scenes"
+msgstr "Pomijaj sceny zwycięzcy"
+
+msgid "room.skip_scenes.detail"
+msgstr "Po ostatnim KO sceny zwycięzcy kończą się same, więc propozycja rewanżu pojawia się wcześniej. Naciśnięcie przycisku pomija je jeszcze szybciej."
+
 msgid "selection.size"
 msgstr "Rozmiar"
 

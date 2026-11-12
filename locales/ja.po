@@ -3313,6 +3313,12 @@ msgstr "ちびキャラを許可"
 msgid "room.tiny_fighters.detail"
 msgstr "プレイヤーはキャラクターのちびサイズを選べます。見た目だけが変わります。"
 
+msgid "room.skip_scenes"
+msgstr "勝者の演出をスキップ"
+
+msgid "room.skip_scenes.detail"
+msgstr "最後のKOのあと、勝者の演出が自動で終わり、再戦の確認が早く出ます。ボタンを押せばさらに早くスキップできます。"
+
 msgid "selection.size"
 msgstr "サイズ"
 
