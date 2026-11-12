@@ -205,7 +205,11 @@ if(Python3_Interpreter_FOUND)
     # The frame data the phone remote shows: its shape and numbers that cannot be right (docs/development/FRAME_DATA.md).
     add_test(NAME FrameData COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/scripts/framedata/validate.py" "${CMAKE_SOURCE_DIR}/assets/framedata/usf4.json")
     add_test(NAME FrameDataScripts COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/framedata_scripts_test.py" "${CMAKE_SOURCE_DIR}/scripts/framedata")
-    sf4e_test_labels(LABELS training TESTS FrameData FrameDataScripts)
+    add_test(NAME RemotePage COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/remote_page_test.py" "${CMAKE_SOURCE_DIR}/src/training/RemotePage.hxx" "${CMAKE_SOURCE_DIR}/assets/framedata/usf4.json")
+    # Needs node; skipped without one.
+    add_test(NAME RemotePageSyntax COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/remote_page_test.py" "${CMAKE_SOURCE_DIR}/src/training/RemotePage.hxx" --syntax)
+    set_tests_properties(RemotePageSyntax PROPERTIES SKIP_RETURN_CODE 77)
+    sf4e_test_labels(LABELS training TESTS FrameData FrameDataScripts RemotePage RemotePageSyntax)
 endif()
 target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
 # The UI lab (src/ui/lab/UiLab.cxx): the shell in a window of its own, for working on layouts.
