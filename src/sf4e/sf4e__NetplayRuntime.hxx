@@ -322,8 +322,6 @@ struct Runtime {
     // the last one asked for: a question on the Replays screen until the
     // player answers it (RuntimeSnapshot::replays.link).
     platform::ReplayLinkMailbox replayLinks;
-    // The replay files to import, from a link, a drop or the picker alike.
-    replay_import::Queue replayImports;
     std::string replayLinkAsked;
     netplay::tournament::OpenedLink openedConnect;
     // Public room links (ember://room/open) likewise: the service and the room.
@@ -560,6 +558,12 @@ void OpenConnectLink(const std::string& bridge, bool launched = false);
 // replay operation on (sf4e__ReplayStore.hxx).
 void RunReplayRequest(const replay::Request& request);
 void TickReplays();
+// The replay files to import, from a link, a drop or the picker alike. It is not the runtime's:
+// a file may be dropped from the window-message thread while the runtime is being deleted, so
+// it lives to the end of the process, and its waiting files are kept across a restart.
+replay_import::Queue& ReplayImports();
+void KeepPendingImports();
+void RestorePendingImports();
 void ApplyGameDisplay();
 // What the Replays screen is told of the last set pack saved or imported.
 void SaySet(std::string text, bool error);

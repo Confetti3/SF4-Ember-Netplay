@@ -6,6 +6,7 @@
 #include "sf4e__GameThemes.hxx"
 #include "sf4e__MenuMusic.hxx"
 #include "../platform/Utf8.hxx"
+#include "../platform/ReplayFiles.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
 #include "../common/NativeMenuLock.hxx"
@@ -238,6 +239,7 @@ void ConfigureDiscord(const platform::HelperBootstrap& bootstrap) { pendingDisco
 void StartHelper() {
 	if (runtime) return;
 	runtime = new Runtime();
+	internal::RestorePendingImports();
 	bridge::OpenCommands(runtime->commands);
     runtime->languagePreference = platform::LoadLanguagePreference();
     runtime->checkUpdatesAtLaunch = platform::LoadUpdatePreferences().checkAtLaunch;
@@ -410,8 +412,27 @@ static std::atomic<void*> gameWindow{nullptr};
 static std::atomic<bool> gameExclusiveFullScreen{false};
 void NoteGameWindow(void* window) { gameWindow = window; }
 void NoteExclusiveFullScreen(bool exclusive) { gameExclusiveFullScreen = exclusive; }
-void HandReplayFiles(const std::vector<std::string>& files) { if (runtime) runtime->replayImports.Add(files); }
-namespace internal { void ApplyGameDisplay() { runtime->services.SetDisplay(gameWindow, gameExclusiveFullScreen); } }
+void HandReplayFiles(const std::vector<std::string>& files) { internal::ReplayImports().Add(files); }
+namespace internal {
+replay_import::Queue& ReplayImports() { static auto* const queue = new replay_import::Queue; return *queue; }
+// Where the files waiting to import are kept across a restart: beside the settings, not in the archive.
+static std::filesystem::path PendingImportsFile() {
+	const auto archive = platform::replays::FindFolders().archive;
+	return archive.empty() ? std::filesystem::path() : archive.parent_path() / "pending-imports.txt";
+}
+void KeepPendingImports() {
+	const auto file = PendingImportsFile();
+	const auto waiting = ReplayImports().Pending();
+	if (file.empty()) return;
+	if (!replay_import::Keep(file, waiting)) spdlog::warn("Replays: {} files waiting to import could not be kept for the next start", waiting.size());
+	else if (!waiting.empty()) spdlog::info("Replays: {} files waiting to import are kept for the next start", waiting.size());
+}
+void RestorePendingImports() {
+	const auto file = PendingImportsFile();
+	if (file.empty()) return;
+	if (const auto taken = replay_import::Restore(file, ReplayImports())) spdlog::info("Replays: {} files kept from the last run wait to import", taken);
+}
+void ApplyGameDisplay() { runtime->services.SetDisplay(gameWindow, gameExclusiveFullScreen); } }
 void NotifyRuntimeEventSystemReady() { if (runtime) runtime->eventSystemReady = true; }
 
 void StopHelper() {
@@ -448,6 +469,8 @@ void StopHelper() {
 		runtime->room.reset();
 		runtime->helper->Stop();
 	}
+	// Drops go to a queue that outlives the runtime; what still waits is kept for the next start.
+	internal::KeepPendingImports();
 	delete runtime;
 	runtime = nullptr;
 	bridge::Reset();

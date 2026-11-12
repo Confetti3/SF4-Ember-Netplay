@@ -215,6 +215,20 @@ int main() {
             for(int i=0;i<100;++i)many.push_back("C:\\dl\\"+std::to_string(i)+".emberreplay");
             CHECK(queue.Add(many)==sf4e::replay_import::kMostWaiting-1&&queue.Waiting()==sf4e::replay_import::kMostWaiting);
         }
+        // Files still waiting when the game closes are kept and come back at the next start; with none waiting
+        // there is no note, and a second start finds nothing.
+        {
+            using sf4e::replay_import::Queue;
+            const auto note=root/"pending-imports.txt";
+            Queue before;
+            before.Add({"C:\dl\a.emberreplay","D:\x\b.usf4replay"});
+            CHECK(sf4e::replay_import::Keep(note,before.Pending())&&std::filesystem::exists(note));
+            Queue after;
+            CHECK(sf4e::replay_import::Restore(note,after)==2&&!std::filesystem::exists(note));
+            CHECK(after.Pending()==before.Pending()&&after.Waiting()==2);
+            CHECK(sf4e::replay_import::Restore(note,after)==0);
+            CHECK(sf4e::replay_import::Keep(note,{})&&!std::filesystem::exists(note));
+        }
         // The runtime's import step (Step), as TickReplays calls it: one file a tick, only on Ember's menus
         // with no room, files waiting otherwise, and the batch reported on the tick its last file is answered.
         {

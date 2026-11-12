@@ -50,7 +50,7 @@ struct ReplaysView {
 	std::string setNotice;
 	bool setNoticeError = false;
 	std::uint64_t setNotices = 0;
-	// The replay files waiting to import (sf4e__NetplayRuntime: replayImports),
+	// The replay files waiting to import (sf4e__NetplayRuntime: ReplayImports),
 	// and how many batches of them have begun.
 	std::size_t importWaiting = 0;
 	std::uint64_t importBatches = 0;

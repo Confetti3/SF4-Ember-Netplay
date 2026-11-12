@@ -19,7 +19,7 @@ void RunReplayRequest(const replay::Request& request) {
     if (request.mode == replay::Mode::Import) {
         // A link's Import joins the drops' and the picker's queue: TickReplays imports it,
         // and only on Ember's menus.
-        runtime->replayImports.Add({request.path});
+        ReplayImports().Add({request.path});
         return;
     }
     if (request.mode == replay::Mode::Keep) { platform::replays::MarkKept(platform::Utf8ToWide(request.path.c_str()), request.keep); platform::replays::WantListing(); return; }
@@ -40,10 +40,10 @@ static void SayImportBatch(const replay_import::Batch& batch) {
 void TickReplays() {
     ApplyGameDisplay();
     // What the picker returned joins what drops and links handed over.
-    runtime->replayImports.Add(runtime->services.TakePicked());
+    ReplayImports().Add(runtime->services.TakePicked());
     // One file a tick, read and written on the game thread (a pack is at most a couple of
     // MB), and only on Ember's menus: in a room or a match the files wait.
-    if (const auto batch = replay_import::Step(runtime->replayImports, AtMainMenu(), NoRoom(), [](const std::string& file) {
+    if (const auto batch = replay_import::Step(ReplayImports(), AtMainMenu(), NoRoom(), [](const std::string& file) {
             return platform::replays::ImportReplayFile(platform::Utf8ToWide(file.c_str()));
         })) SayImportBatch(*batch);
     const std::string link = platform::ResolveReplayFile(runtime->replayLinks.Take());

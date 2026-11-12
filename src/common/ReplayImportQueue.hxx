@@ -9,6 +9,8 @@
 #include "ReplayLink.hxx"
 #include <cstdint>
 #include <deque>
+#include <filesystem>
+#include <fstream>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -50,6 +52,8 @@ public:
 	// How many batches have ended. A batch that begins and ends between two looks at the
 	// queue shows Batches and Finished both moved; Finished >= Batches says the last is over.
 	std::uint64_t Finished() const { std::lock_guard<std::mutex> lock(mutex_); return finished_; }
+	// The files still waiting, in order (to keep them across a restart).
+	std::vector<std::string> Pending() const { std::lock_guard<std::mutex> lock(mutex_); return std::vector<std::string>(waiting_.begin(), waiting_.end()); }
 	// The next file to import, or none.
 	std::optional<std::string> Next() {
 		std::lock_guard<std::mutex> lock(mutex_);
@@ -75,6 +79,33 @@ private:
 	bool open_ = false;
 	std::uint64_t batches_ = 0, finished_ = 0;
 };
+
+// Files still waiting when the game closes are kept in a small text file, one UTF-8 path a
+// line, and taken back at the next start, so a drop made during a match is not lost. The files
+// stay where the player had them; one that is gone by then is reported as a failed import.
+inline bool Keep(const std::filesystem::path& file, const std::vector<std::string>& waiting) {
+	std::error_code ignored;
+	if (waiting.empty()) { std::filesystem::remove(file, ignored); return true; }
+	std::ofstream out(file, std::ios::binary | std::ios::trunc);
+	for (const auto& path : waiting) out << path << '
+';
+	return static_cast<bool>(out.flush());
+}
+// Takes the kept files back into `queue` and deletes the note. Returns how many were taken.
+inline std::size_t Restore(const std::filesystem::path& file, Queue& queue) {
+	std::ifstream in(file, std::ios::binary);
+	if (!in) return 0;
+	std::vector<std::string> paths;
+	std::string line;
+	while (paths.size() < kMostWaiting && std::getline(in, line)) {
+		if (!line.empty() && line.back() == '') line.pop_back();
+		if (!line.empty()) paths.push_back(line);
+	}
+	in.close();
+	std::error_code ignored;
+	std::filesystem::remove(file, ignored);
+	return queue.Add(paths);
+}
 
 // One tick of the import: only on Ember's menus with no room joined, the next file goes to
 // `importFile` (UTF-8 path in, how many games it holds out, 0 when it could not be imported).
