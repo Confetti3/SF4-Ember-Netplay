@@ -105,7 +105,16 @@ HUD beside the name, on the Ember strip between the link glyph and the name,
 and on the split layout's plates between the Ember rule and the name
 (`src/ui/MatchHud.cxx`). They are taken with the name and link when the match
 starts, from the room as the runtime shows it, so a private room's host
-cannot put one there and hiding emblems hides them too. The player's own
+cannot put one there and hiding emblems hides them too. Fighters and
+spectators read the same two sides (`CaptureMatchSides`,
+`src/common/MatchSide.hxx`). A replay export's caption draws the split
+layout's plates, so a video shows each class where a live match does
+(`ExportCaptionPlates`). The two differ in where the class comes from: a
+video's is the class each player has on the board when it is rendered, so
+only a settled, listed class; the HUD's is the one the player's room ticket
+carried when they joined the room, so it can be "?", faint or the Dev mark,
+and a class that settles or moves during a session shows as it was until the
+player joins a room again. The player's own
 profile card (Home, Awards, Profile) shows the class of their standing; the
 standing is read once a session for each service and Ember ID, away from
 Rankings, so the card has it without a visit. That read lists nobody.
