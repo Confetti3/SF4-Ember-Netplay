@@ -213,6 +213,9 @@ struct Operation {
 	sf4e::replaystore::Status status;
 	int waited = 0, slot = -1, splash = 0, versus = 0;
 	bool started = false, awaited = false, meter = false, cancelled = false;
+	// battle: the replay being played is in its Battle state (not the log's
+	// list or the Versus screen), where Watch draws its caption.
+	bool battle = false;
 	// decided: ticks the exported replay's match has been over; -1 once Ember chose to leave.
 	int decided = 0;
 	std::wstring video;
@@ -277,8 +280,10 @@ void FinishRequest(const sf4e::replay::Request& request, bool noRoom) {
 		return;
 	}
 	op.status.logOpens++;
-	op.started = false; op.splash = 0; op.versus = 0; op.decided = 0;
+	op.started = false; op.splash = 0; op.versus = 0; op.decided = 0; op.battle = false;
 	op.clock.Reset(); op.status.exportFrames = op.status.exportTotal = 0;
+	// Watch draws the names and classes the replay noted, when it noted a class (replay::WatchCaption).
+	op.status.caption = request.mode == sf4e::replay::Mode::Watch ? request.caption : sf4e::replay::Caption();
 	if (exporting) {
 		// Ember's encoder writes straight next to the replay.
 		const std::wstring path = sf4e::platform::Utf8ToWide(request.path.c_str());
@@ -413,7 +418,9 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 	// Before its battle an export lives only while the log is on its way to it.
 	const bool reaching = op.status.step == Step::OpeningLog || op.status.step == Step::SelectingRow || op.status.step == Step::Playing;
 	op.status.exportStage = replay::ExportStageOf(!op.video.empty() && (op.awaited || reaching), op.awaited, recording, op.cancelled);
-	op.status.captionShown = op.awaited && op.status.step == Step::Playing && op.status.caption.Any() && recording && !op.cancelled;
+	// An export's caption while its battle records; a watched replay's while its battle plays.
+	const bool watched = op.request.mode == replay::Mode::Watch && op.video.empty() && op.battle;
+	op.status.captionShown = op.status.step == Step::Playing && op.status.caption.Any() && !op.cancelled && ((op.awaited && recording) || watched);
 	// The replay's own clock, as the playback observed the recorder after the
 	// last battle update: it stands still while the replay is paused.
 	const replaytransport::View& playback = replayplayback::GetView();
@@ -453,6 +460,7 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 		else if (late) { spdlog::warn("Replay: slot {} could not be played; the battle log's list held {}", op.slot, Named(state, "Select") ? ListedSlots(state) : "no list"); op.Enter(Step::InLog); }
 		break;
 	case Step::Playing:
+		op.battle = log && Named(state, "Battle");
 		if (!log) {
 			// The player left the log, or the game moved on without it.
 			if (op.waited > kGoneTicks) { replaycapture::End(); op.Enter(Step::InLog); }

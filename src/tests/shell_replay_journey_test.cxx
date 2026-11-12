@@ -232,6 +232,18 @@ void ReplayJourneys() {
   Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return !r.replay.meter;}),"Watch now unexpectedly requested the frame meter");
   h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
   Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::Watch&&r.replay.meter;}),"Watch with frame meter did not request the meter");
+  // A replay with no class noted draws nothing over the game; one with classes
+  // sends its names and classes to be drawn on the plates, while emblems show.
+  Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return !r.replay.caption.Any();}),"Watch drew a caption for a replay with no class");
+  {auto classed=shown;classed.names[0]="Player 1";classed.names[1]="Player 2";
+   classed.classes[0]=SkillBadge::OfClass(7,true);classed.classes[1]=SkillBadge::OfClass(10,true);List(h,{classed});
+   h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
+   Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){const auto& c=r.replay.caption;
+    return r.replay.mode==sf4e::replay::Mode::Watch&&c.names&&c.name[0]=="Player 1"&&c.name[1]=="Player 2"&&c.band[0]==7&&c.band[1]==10&&!c.line&&!c.set&&!c.mark;}),
+    "Watch did not send the replay's names and classes");
+   h.view.preferences.classEmblems=false;h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
+   Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::Watch&&!r.replay.caption.Any();}),"Watch drew classes the player hides");
+   h.view.preferences.classEmblems=true;List(h,{shown});}
   h.Screen("home");h.view.replays.link="D:\\x\\b.usf4replay";h.Frame();
   Check(h.shell.Navigation().Screen()=="replays","A replay link did not open the Replays screen");
   // A replay file may be imported as a set pack is; Not now is last.

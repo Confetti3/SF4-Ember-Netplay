@@ -20,6 +20,12 @@ const platform::replays::ArchivedReplay* Find(const ShellView& v,const std::stri
  if(v.replays.archive)for(const auto& shown:*v.replays.archive)if(PathOf(shown)==path)return &shown;
  return nullptr;
 }
+// What Watch draws over the archived replay at `path`: its noted names and
+// classes (replay::WatchCaption), or nothing for one the archive does not list.
+replay::Caption WatchCaptionOf(const ShellView& v,const std::string& path){
+ const auto* listed=Find(v,path);
+ return listed?replay::WatchCaption(listed->names,listed->classes,v.preferences.classEmblems):replay::Caption();
+}
 using Replay=platform::replays::ArchivedReplay;
 // A side's set wins on an export's caption: Left and Right step them, and
 // Select types them, so a long set goes back to 0 in one go.
@@ -360,6 +366,8 @@ void ReplaysPanel::OpenExport(const ShellView& v,const netplay::PlayerPreference
   caption_.wins[0]=wins.first;caption_.wins[1]=wins.second;break;
  }
  caption_.set=saved.exportSet&&caption_.wins[0]+caption_.wins[1]>0;
+ // The classes the replay noted go on the names' plates, as they do while it is watched.
+ replay::SetCaptionClasses(caption_,replay.classes,saved.classEmblems);
 }
 // The set's next game's caption screen, its set score counted from the
 // games before it (OpenExport); Generate there makes its video.
@@ -372,7 +380,7 @@ void ReplaysPanel::QueueSet(const Set& set,bool exporting) {
  setGames_=setQueue_.size();setExport_=exporting;setStep_=SetStep::Manual;
 }
 void ReplaysPanel::Watch(const ShellView& v,const std::string& path,bool meter,const Submit& submit,std::string& error) {
- commands::Replay r;r.generation=v.session.generation;r.replay={replay::Mode::Watch,path};r.replay.meter=meter;
+ commands::Replay r;r.generation=v.session.generation;r.replay={replay::Mode::Watch,path,WatchCaptionOf(v,path)};r.replay.meter=meter;
  if(!submit(std::move(r)))error=loc::T("error.queue_failed");
 }
 // Sends the export set up: the replay, its caption and the frame meter row.
@@ -441,7 +449,7 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
  if(a.id=="replay-link"){
   folderAsked_=false;setAsked_=a.text=="link-import";setNoticeAsked_=v.replays.setNotices;
   commands::Replay r;r.generation=v.session.generation;
-  if(a.text=="link-play")r.replay={replay::Mode::Watch,v.replays.link};
+  if(a.text=="link-play")r.replay={replay::Mode::Watch,v.replays.link,WatchCaptionOf(v,v.replays.link)};
   else if(a.text=="link-import")r.replay={replay::Mode::Import,v.replays.link};
   else r.replay.mode=replay::Mode::DismissLink;
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");

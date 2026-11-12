@@ -801,7 +801,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (training.available && inRoom) layers.trainingRoom = sf4e::ui::DescribeTrainingRoom(snapshot.Room(), shell.UnreadChat());
     if (called && inRoom) layers.challenger = sf4e::ui::DescribeChallenger(snapshot.Room(), call);
     if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(focused ? sf4e::ui::MenuPromptDevice() : sf4e::input::PadXInput);
-    layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown;
+    layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown &&
+        (exporting || snapshot.preferences.classEmblems); // a watched replay's plates are there for its classes
     layers.padHint = snapshot.padHint;
     if (snapshot.replays.captionShown)
         layers.caption = sf4e::ui::ExportCaptionViewOf(snapshot.replays.caption, snapshot.preferences.matchHudNameOffset);
