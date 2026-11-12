@@ -176,6 +176,20 @@ if(EMBER_PACKAGE_INVENTORY)
     target_compile_definitions(ember_neutral_x64 PUBLIC "EMBER_PACKAGE_INVENTORY=\"${EMBER_PACKAGE_INVENTORY}\"")
 endif()
 
+# Ember's own service (ui/IdentityPanel.hxx SF4E_EMBER_SERVICE): Linked
+# accounts, public rooms and rankings use the bridge at this origin. SFV Ember,
+# the game that builds the library from here, has a bridge and database of its
+# own (docs/design/SFV_BRIDGE.md), apart from SF4 Ember's
+# https://bridge.embernetplay.link, which SF4 Ember's x86 build keeps
+# (sf4e_helper.cmake); that build never reads this folder. PUBLIC, so every
+# unit that includes IdentityPanel.hxx sees the same origin.
+set(EMBER_SERVICE "https://sfv-bridge.embernetplay.link" CACHE STRING
+    "Origin of the product's own Ember bridge (SFV Ember's by default)")
+if(NOT EMBER_SERVICE MATCHES "^https?://[a-z0-9.-]+(:[0-9]+)?$")
+    message(FATAL_ERROR "EMBER_SERVICE must be an origin such as https://<host>, got '${EMBER_SERVICE}'")
+endif()
+target_compile_definitions(ember_neutral_x64 PUBLIC "SF4E_EMBER_SERVICE=\"${EMBER_SERVICE}\"")
+
 # The runtime (sf4e_runtime), compiled as SFV Ember would build it, and the
 # runtime's test under the fake game (RuntimeCapabilitiesTest) linked against
 # it; scripts/probe-x64.ps1 runs the test. It links with nothing of SF4's
