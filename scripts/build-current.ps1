@@ -2,13 +2,15 @@ param([switch]$SkipTests, [switch]$SelfTest, [switch]$CompilerCache, [switch]$Sy
       [string]$DiscordSdkArchive = $env:SF4E_DISCORD_SDK_ARCHIVE,
       [string]$EmberService = '')
 $ErrorActionPreference = 'Stop'
-# -EmberService <origin> points Linked accounts and public-room tickets of THIS build at another bridge (a staging or
-# test bridge, as docs/design/TOURNAMENT_SELFTEST.md needs). Without it every build clears the origin. The receipt records
-# the value, so Assert-BuildReceipt still refuses to package such a build.
-if ($EmberService -and $EmberService -notmatch '^https?://[^\s"]+$') { throw "-EmberService must be an http(s) origin, not '$EmberService'." }
+# Ember's own service (Linked accounts, public rooms, points, friends) is the channel's: build-target.json's
+# channels.<channel>.emberService (Nightly: the staging bridge), production for Stable. -EmberService <origin> points
+# THIS build at another bridge (a test bridge, as docs/design/TOURNAMENT_SELFTEST.md needs; '' for production). The
+# receipt records the value, and Assert-BuildReceipt packages only a build with its channel's own.
 $repo = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
 $target = Get-EmberBuildTarget $repo
+if (!$PSBoundParameters.ContainsKey('EmberService')) { $EmberService = $target.emberService }
+if ($EmberService -and $EmberService -notmatch '^https?://[^\s"]+$') { throw "-EmberService must be an http(s) origin, not '$EmberService'." }
 $tools = Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot
 . (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
 # -Symbols, which only the publish paths pass, writes the release's Breakpad symbols to <build>\symbols after
@@ -56,8 +58,8 @@ $compilerCacheOptions = if ($CompilerCache) {
 if ($LASTEXITCODE) { throw 'Configure failed' }
 Assert-CMakeSource $repo $build
 # SF4E_EMBER_SERVICE (cmake/sf4e_helper.cmake) points Linked accounts and public-room tickets at another bridge. Every
-# build clears it (above) unless -EmberService sets it, so a cache set by hand for a test build never reaches a package; the receipt records what
-# the cache holds, and Assert-BuildReceipt refuses anything but empty.
+# configure sets it (above) to the channel's origin or -EmberService, so a cache set by hand for a test build never reaches a package; the receipt
+# records what the cache holds, and Assert-BuildReceipt refuses anything but the channel's own (empty for Stable).
 $emberService = [string](Get-Content -LiteralPath (Join-Path $build 'CMakeCache.txt') | ForEach-Object { if ($_ -match '^SF4E_EMBER_SERVICE:[A-Z]+=(.*)$') { $Matches[1] } } | Select-Object -First 1)
 if (Get-Content -LiteralPath (Join-Path $build 'CMakeCache.txt') | Where-Object { $_ -match '^([^#/:]+):[^=]+=.*sf4-display-dxvk' }) {
     throw 'Stale dependency cache references a different checkout'

@@ -95,6 +95,10 @@ try {
         $script:fingerprint = $snapshot.fingerprint
         $script:fingerprintCalls = 0
         $script:receiptSkips = @()
+        # build-target.json's channels.nightly.emberService, which the build and both receipt checks must carry.
+        $script:nightlyService = 'https://bridge-staging.embernetplay.link'
+        $script:receiptServices = @()
+        $script:builtService = $null
         $script:failOn = ''
         $script:serverAvailable = $true
         $script:repositoryMode = ''
@@ -110,7 +114,11 @@ try {
         New-Item -ItemType Directory -Path $dist | Out-Null
     }
     function Get-SourceFingerprint([string]$SourceRoot) { $script:fingerprintCalls++; return $script:fingerprint }
-    function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot, [switch]$SkipFingerprint) { $script:receiptSkips += ,[bool]$SkipFingerprint; return $script:receipt }
+    function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot, [switch]$SkipFingerprint, [string]$EmberService = '') {
+        $script:receiptSkips += ,[bool]$SkipFingerprint
+        $script:receiptServices += ,$EmberService
+        return $script:receipt
+    }
     function New-FakeExit([int]$Code, [object[]]$Output) { [pscustomobject]@{PSTypeName='NightlyFakeExit';exitCode=$Code;output=$Output} }
     # The single native boundary: fake failures become a non-zero exit, as a real command's would.
     function Invoke-NightlyNative([string]$Command, [string[]]$Arguments, [string]$InputText) {
@@ -400,13 +408,14 @@ try {
     }
     function Add-Step([string]$Name) { $script:commands.Add([pscustomobject]@{command='op';argv=@($Name);inputText=''}) }
     $operations = @{
-        Target = { param($Root) [pscustomobject]@{channel='nightly';branch='nightly';githubRepo=$repository;buildDirectory='build';installDirectory='build/stage'} }
+        Target = { param($Root) [pscustomobject]@{channel='nightly';branch='nightly';githubRepo=$repository;emberService=$script:nightlyService;buildDirectory='build';installDirectory='build/stage'} }
         GameRunning = { $script:gameRunning }
         Now = { [DateTime]::new(2026, 10, 8, 12, 0, 0, [DateTimeKind]::Utc) }
         ToolPaths = { param($Root, $VisualStudio) Add-Step 'ToolPaths'; [pscustomobject]@{VisualStudioPath='C:\fixture\VS'} }
         Build = {
-            param($VisualStudio, $DiscordSdk)
+            param($VisualStudio, $DiscordSdk, $EmberService)
             Add-Step 'Build'
+            $script:builtService = $EmberService
             New-Item -ItemType Directory -Path (Join-Path $source 'build/stage') -Force | Out-Null
             Set-Content -LiteralPath (Join-Path $source 'build/stage/Sidecar.dll') -Value 'inert sidecar fixture'
         }
@@ -767,6 +776,9 @@ try {
         Check ($script:fingerprintCalls -eq 2) "Fresh run fingerprinted the source $($script:fingerprintCalls) times"
         # The receipt check after the build is complete; the one after packaging leaves out only the fresh fingerprint.
         Check ((@($script:receiptSkips) | ForEach-Object { "$_" }) -join ',' -ceq 'False,True') "Receipt checks skipped the fingerprint as $(@($script:receiptSkips) -join ','), expected False,True"
+        # The build is made for the channel's Ember service, and both receipt checks require that one.
+        Check ($script:builtService -ceq 'https://bridge-staging.embernetplay.link') "Nightly built for the Ember service '$($script:builtService)'"
+        Check ((@($script:receiptServices) -join ',') -ceq 'https://bridge-staging.embernetplay.link,https://bridge-staging.embernetplay.link') "Receipt checks expected the Ember service as '$(@($script:receiptServices) -join ',')'"
         Check (@(Get-CommandLabels | Select-Object -Skip (Find-Command 'ssh *vps* cleanup') | Where-Object { $_ -like 'git *' }).Count -eq 0) 'Fresh run consulted the source between remote operations'
         Pass 'a fresh run syncs, builds, packages, prepares hosts, then stages and publishes in order with one prepare-time source check'
 
@@ -951,6 +963,14 @@ try {
         Invoke-Publish
         Check (!(Test-Ran 'git * fetch *') -and !(Test-Ran 'op *') -and !(Test-Ran 'gh *')) 'A running game did not skip the run'
         Pass 'unchanged source only runs retention, and a running game skips the run'
+        # A build-target.json whose Nightly channel names no Ember service would publish a build on production.
+        foreach ($service in @('', $null)) {
+            Reset-Fake
+            $script:nightlyService = $service
+            Reject { Invoke-Publish } '*channels.nightly.emberService must name the Ember service Nightly builds use*'
+            Check (!(Test-Ran 'git *') -and !(Test-Ran 'op *') -and !(Test-Ran 'gh *')) 'A Nightly channel without an Ember service reached git, gh or a build step'
+        }
+        Pass 'a Nightly channel that names no Ember service is refused before git, gh or a build step'
         # ---- Stable: the same release machine, bound to the Stable repository by its channel.
         $stableNotes = Join-Path $fixture 'RELEASE_NOTES_stable.md'
         Write-Fixture $stableNotes "Stable fixture notes`n"
@@ -1043,6 +1063,7 @@ try {
         Check (!(Test-Ran '*ember-rooms*') -and !(Test-Ran 'gh api --method*') -and !(Test-Ran 'gh release delete*') -and !(Test-Ran 'gh release list*')) 'Stable publication staged hosts or ran retention'
         Check (($script:installedSymbols['stable-1.2.0'] -join ',') -ceq 'GGPO.pdb,Sidecar.pdb' -and (Test-Path -LiteralPath (Get-EmberSymbolArchivePath $dist '1.2.0'))) 'Stable did not archive and install its symbols'
         Check (@($release.assets | Where-Object name -like '*symbols*').Count -eq 0) 'The Stable symbol archive became a release asset'
+        Check ((@($script:receiptServices) -join ',') -ceq '') "Stable's receipt check expected the Ember service as '$(@($script:receiptServices) -join ',')', not production"
         Pass 'Stable archives and uploads its symbols, then publishes through draft, upload, read-back and publish; Latest is set only at publish and retention is not involved'
 
         Initialize-Stable
@@ -1159,7 +1180,7 @@ try {
         New-Item -ItemType Directory -Path $nightlyScripts -Force | Out-Null
         foreach ($name in @('github-release.ps1', 'BuildEnvironment.ps1', 'NightlyOperations.ps1', 'SymbolPublication.ps1', 'Packaging.ps1', 'PackageGuide.ps1', 'PackageFiles.ps1', 'BuildProvenance.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $nightlyScripts }
         @{sourceDirectory='sf4-current';buildDirectory='build/current';installDirectory='build/current/stage';
-          channels=@{nightly=@{sourceDirectory='sf4-nightly';buildDirectory='build/current';installDirectory='build/current/stage';branch='nightly';githubRepo=$repository}}} |
+          channels=@{nightly=@{sourceDirectory='sf4-nightly';buildDirectory='build/current';installDirectory='build/current/stage';branch='nightly';githubRepo=$repository;emberService='https://bridge-staging.embernetplay.link'}}} |
             ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $workspace 'build-target.json')
         $stubs = Join-Path $fixture 'stubs'
         New-Item -ItemType Directory -Path $stubs | Out-Null

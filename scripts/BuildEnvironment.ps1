@@ -24,8 +24,19 @@ function Get-EmberBuildTarget([string]$SourceRoot) {
         throw "Wrong build target: $SourceRoot. Designated source: $($designated -join ', ') ($targetPath)"
     }
     if ($matching.Count -ne 1) { throw "Ambiguous build target: $SourceRoot ($targetPath)" }
+    # emberService is the origin of Ember's own service (Linked accounts, public rooms, points, friends) that a
+    # channel's builds and packages use; build-current.ps1 builds with it and packaging requires it. Stable stays on
+    # production (an empty origin), so only a channel entry may name one.
+    if ($target.PSObject.Properties['emberService']) {
+        throw "The top-level (stable) entry of $targetPath must not name an emberService: Stable uses production."
+    }
     $target = $matching[0].target
+    $service = if ($matching[0].channel -cne 'stable' -and $target.PSObject.Properties['emberService']) { [string]$target.emberService } else { '' }
+    if ($service -and $service -cnotmatch '^https://[a-z0-9.-]+(:[0-9]{1,5})?$') {
+        throw "channels.$($matching[0].channel).emberService in $targetPath must be an https origin, not '$service'."
+    }
     $target | Add-Member -NotePropertyName channel -NotePropertyValue $matching[0].channel -Force
+    $target | Add-Member -NotePropertyName emberService -NotePropertyValue $service -Force
     foreach ($relative in @($target.buildDirectory, $target.installDirectory)) {
         $resolved = [IO.Path]::GetFullPath((Join-Path $SourceRoot $relative))
         if (!$resolved.StartsWith($SourceRoot.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {

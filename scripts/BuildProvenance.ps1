@@ -163,7 +163,9 @@ function Assert-ReceiptSymbols([object]$Receipt) {
 # -SkipFingerprint leaves out only the fresh fingerprint of the tree (about 2-3 s); the receipt's own paths,
 # the self-test flags, the staged binary hashes and the dependency checks all still run. A caller uses it only
 # when it re-establishes freshness itself shortly after (Invoke-NightlyPublish does, with Assert-NightlySource).
-function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot, [switch]$SkipFingerprint) {
+# -EmberService is the origin the channel's builds use (Get-EmberBuildTarget's emberService): empty, production, for
+# Stable and for any caller that names none.
+function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot, [switch]$SkipFingerprint, [string]$EmberService = '') {
     Assert-CMakeSource $SourceRoot $BuildRoot
     $receipt = Get-Content -LiteralPath (Join-Path $BuildRoot 'build-provenance.json') -Raw | ConvertFrom-Json
     if ($receipt.sourceRoot -ne $SourceRoot -or $receipt.buildRoot -ne $BuildRoot -or $receipt.stageRoot -ne $StageRoot) { throw 'Build receipt path mismatch' }
@@ -172,10 +174,13 @@ function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$S
     if ($receipt.selfTest -ne $false -or (Select-String -LiteralPath (Join-Path $BuildRoot 'CMakeCache.txt') -Pattern '^SF4E_SELFTEST:BOOL=ON' -Quiet)) {
         throw 'The build has the in-game self-test; rebuild with scripts/build-current.ps1 without -SelfTest'
     }
-    # SF4E_EMBER_SERVICE moves Linked accounts and public-room tickets to another bridge; a package carries none.
-    # The field must exist (an older receipt predates the check) and be empty, and the cache must not hold a value.
-    if (!$receipt.PSObject.Properties['emberService'] -or [string]$receipt.emberService -ne '' -or (Select-String -LiteralPath (Join-Path $BuildRoot 'CMakeCache.txt') -Pattern '^SF4E_EMBER_SERVICE:[A-Z]+=.+' -Quiet)) {
-        throw 'The build points at another Ember service (SF4E_EMBER_SERVICE); rebuild with scripts/build-current.ps1'
+    # SF4E_EMBER_SERVICE moves Linked accounts and public-room tickets to another bridge; a package carries only its
+    # channel's. The field must exist (an older receipt predates the check) and equal it, and so must the cache.
+    # A cache without the entry reads as empty (an empty pipeline cast to [string] would be $null).
+    $cached = "$(Get-Content -LiteralPath (Join-Path $BuildRoot 'CMakeCache.txt') | ForEach-Object { if ($_ -match '^SF4E_EMBER_SERVICE:[A-Z]+=(.*)$') { $Matches[1] } } | Select-Object -First 1)"
+    if (!$receipt.PSObject.Properties['emberService'] -or [string]$receipt.emberService -cne $EmberService -or $cached -cne $EmberService) {
+        $expected = if ($EmberService) { $EmberService } else { 'production' }
+        throw "The build points at another Ember service than its channel's ($expected) (SF4E_EMBER_SERVICE); rebuild with scripts/build-current.ps1"
     }
     if (!$SkipFingerprint -and $receipt.sourceFingerprint -ne (Get-SourceFingerprint $SourceRoot)) { throw 'Source changed since verified build; rebuild with scripts/build-current.ps1' }
     foreach ($binary in $receipt.binaries) {
