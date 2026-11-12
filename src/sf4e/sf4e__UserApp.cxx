@@ -187,25 +187,14 @@ static RuntimeGgpoStart StartRuntimeGgpo(const char*& failure) {
     if (!sf4e::NetplayFacade::GetRuntimeMatchEndpoints(endpoints)) return RuntimeGgpoStart::NoStream;
     auto& netplay = fUserApp::netplay;
     if (!netplay || endpoints.participantCount < 2 || endpoints.participantCount > sf4e::room::MaxMatchParticipants) return RuntimeGgpoStart::Failed;
-    // Room names are unique, so the name finds the member's link. The class
-    // comes from the room as the runtime shows it, which keeps a class only
-    // in a room this client joined as public and only while the player shows
-    // class emblems (ShownRoomOf); the client's own snapshot keeps whatever a
-    // private room's host wrote.
+    // Each fighter's name, link and class, for fighters and spectators alike
+    // (CaptureMatchSides). The class comes from the room as the runtime shows
+    // it (ShownRoomOf); the client's own snapshot keeps whatever a private
+    // room's host wrote.
     const auto& room = netplay->client.GetRoomSnapshot();
     const auto shown = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
     const sf4e::room::Snapshot* shownRoom = shown ? shown->room.get() : nullptr;
-    for (std::size_t side = 0; side < 2; ++side) {
-        auto& captured = netplay->matchSides[side];
-        captured = {};
-        if (side < netplay->client._lobbyData.members.size()) captured.name = netplay->client._lobbyData.members[side].name;
-        if (captured.name.empty()) continue;
-        for (const auto& member : room.members)
-            if (member.name == captured.name) captured.link = member.link;
-        if (shownRoom)
-            for (const auto& member : shownRoom->members)
-                if (member.name == captured.name) captured.badge = member.badge;
-    }
+    sf4e::CaptureMatchSides(netplay->client._lobbyData.members, room.members, shownRoom ? &shownRoom->members : nullptr, netplay->matchSides);
     netplay->spectating = endpoints.localSlot >= 2;
     netplay->watchedScore[0] = netplay->watchedScore[1] = 0;
     const auto* table = LocalTable(room);

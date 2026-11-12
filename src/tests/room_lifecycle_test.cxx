@@ -312,6 +312,49 @@ static void TestHudScoreFollowsTheWatchedGame() {
 	EXPECT(!sf4e::HudScore(false, true, start, false, none, shown));
 }
 
+// Each fighter's name, link and class reach the HUD as a public room shows
+// them, the opponent's as well as the player's own, and a spectator of the
+// same game reads the same two sides from the same roster. A class comes only
+// from the room as the runtime shows it: a private room (no class kept) or
+// class emblems hidden (none kept) shows none, whatever the client's own room
+// holds. An empty seat or a name the room no longer has leaves its side bare.
+static void TestMatchSidesCarryBothClasses() {
+	struct Seat { std::string name; };
+	const auto member = [](const char* name, sf4e::NetworkLink link, sf4e::SkillBadge badge) {
+		Member m; m.name = name; m.link = link; m.badge = badge; return m;
+	};
+	const auto a = sf4e::SkillBadge::OfClass(7, true), aPlus = sf4e::SkillBadge::OfClass(8, true);
+	// The client's own room: what a private room's host could write there too.
+	const std::vector<Member> room = {member("Player 3", sf4e::NetworkLink::Wired, a),
+		member("Player 1", sf4e::NetworkLink::Wired, a), member("Player 2", sf4e::NetworkLink::Wireless, aPlus)};
+	// The room as the runtime shows it in a public room with emblems on: the
+	// same classes. With emblems hidden, or in a private room, none are kept.
+	const std::vector<Member> shown = room;
+	std::vector<Member> bare = room;
+	for (auto& m : bare) m.badge = sf4e::SkillBadge();
+	const std::vector<Seat> fighters = {{"Player 1"}, {"Player 2"}};
+	const std::vector<Seat> watching = {{"Player 1"}, {"Player 2"}, {"Player 3"}};
+	sf4e::MatchSide fighter[2], spectator[2];
+	sf4e::CaptureMatchSides(fighters, room, &shown, fighter);
+	sf4e::CaptureMatchSides(watching, room, &shown, spectator);
+	EXPECT(fighter[0].name == "Player 1" && fighter[0].link == sf4e::NetworkLink::Wired && fighter[0].badge == a);
+	EXPECT(fighter[1].name == "Player 2" && fighter[1].link == sf4e::NetworkLink::Wireless && fighter[1].badge == aPlus);
+	for (int side = 0; side < 2; ++side)
+		EXPECT(spectator[side].name == fighter[side].name && spectator[side].link == fighter[side].link && spectator[side].badge == fighter[side].badge);
+	// Hidden or private: names and links stay, classes go; the client's own room is never read for one.
+	sf4e::CaptureMatchSides(fighters, room, &bare, fighter);
+	EXPECT(fighter[0].name == "Player 1" && fighter[0].link == sf4e::NetworkLink::Wired && !fighter[0].badge.Present() && !fighter[1].badge.Present());
+	sf4e::CaptureMatchSides(fighters, room, static_cast<const std::vector<Member>*>(nullptr), fighter);
+	EXPECT(fighter[1].name == "Player 2" && fighter[1].link == sf4e::NetworkLink::Wireless && !fighter[0].badge.Present() && !fighter[1].badge.Present());
+	// A previous match's sides are not kept: an empty seat, a name the room
+	// no longer has and a short roster each leave their side bare.
+	sf4e::CaptureMatchSides(std::vector<Seat>{{""}, {"Player 4"}}, room, &shown, fighter);
+	EXPECT(fighter[0].name.empty() && !fighter[0].badge.Present() && fighter[1].name == "Player 4" &&
+		fighter[1].link == sf4e::NetworkLink::Unknown && !fighter[1].badge.Present());
+	sf4e::CaptureMatchSides(std::vector<Seat>{{"Player 2"}}, room, &shown, fighter);
+	EXPECT(fighter[0].name == "Player 2" && fighter[0].badge == aPlus && fighter[1].name.empty() && !fighter[1].badge.Present());
+}
+
 // Both fighters chose Rematch over the WIN, so one stream shows the whole set:
 // the spectator's score counts each game its stream showed ending, and a
 // draw or an unknown winner counts nothing.
@@ -434,6 +477,7 @@ int main() {
 	TestQueuedWatcherLeavesOneGame();
 	TestHudScoreFollowsTheWatchedGame();
 	TestHudScoreCountsInPlaceGames();
+	TestMatchSidesCarryBothClasses();
 	TestHudDelayFollowsTheWatchedGame();
 	TestQueuePlaceCountsFromNext();
 
