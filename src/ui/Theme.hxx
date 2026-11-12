@@ -219,6 +219,10 @@ constexpr const char* ExportCaptionWindow = "Export caption";
 // its class, the line (with the score when no names carry it) and the mark.
 ExportCaptionView ExportCaptionViewOf(const replay::Caption& caption, int nameOffset);
 void DrawExportCaption(const ExportCaptionView& view);
+// The caption's name plates on a screen at screenPos of screenSize, as DrawExportCaption
+// places them: the split match HUD's plates (MatchStripGeometry) for the same names and
+// classes. A name left empty has no plate (valid false).
+std::array<MatchStripBox,2> ExportCaptionPlates(const ExportCaptionView& view,ImVec2 screenPos,ImVec2 screenSize);
 void DrawControllerWarning(const std::string& message);
 struct DiagnosticStripView {
     bool hasRemote = false, networkAvailable = false;

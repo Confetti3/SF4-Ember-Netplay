@@ -408,6 +408,21 @@ ExportCaptionView ExportCaptionViewOf(const replay::Caption& caption, int nameOf
     shown.mark = caption.mark; shown.nameOffset = nameOffset;
     return shown;
 }
+namespace {
+// The caption's plates are the split match HUD's, so a video shows each class where a live match does.
+SplitPlaced PlaceCaptionPlates(const ExportCaptionView& view,const Screen& screen){
+    MatchStripView plates;plates.layout=1;plates.nameOffset=view.nameOffset;
+    plates.names[0]=view.names[0];plates.names[1]=view.names[1];
+    plates.badges[0]=view.badges[0];plates.badges[1]=view.badges[1];
+    return PlaceSplit(plates,screen);
+}
+}
+std::array<MatchStripBox,2> ExportCaptionPlates(const ExportCaptionView& view,ImVec2 screenPos,ImVec2 screenSize){
+    const auto placed=PlaceCaptionPlates(view,{screenPos,screenSize});
+    std::array<MatchStripBox,2> boxes;
+    for(int side=0;side<2;++side){const auto& p=placed.plates[side];if(!p.name.empty())boxes[side]={p.x0,p.y0,p.x1,p.y1,true};}
+    return boxes;
+}
 void DrawExportCaption(const ExportCaptionView& view) {
     const auto screen=MainScreen();
     // The whole screen, transparent: only the plates, the line and the mark show.
@@ -421,10 +436,7 @@ void DrawExportCaption(const ExportCaptionView& view) {
     // The game's 16:9 image inside the window, in its 720p units, as PlaceSplit measures it.
     const float gs=(std::min)(screen.size.y/720.f,screen.size.x/1280.f);
     const float gx0=screen.pos.x+(screen.size.x-1280*gs)*.5f,gy0=screen.pos.y+(screen.size.y-720*gs)*.5f;
-    MatchStripView plates;plates.layout=1;plates.nameOffset=view.nameOffset;
-    plates.names[0]=view.names[0];plates.names[1]=view.names[1];
-    plates.badges[0]=view.badges[0];plates.badges[1]=view.badges[1];
-    const auto placed=PlaceSplit(plates,screen);
+    const auto placed=PlaceCaptionPlates(view,screen);
     for(const auto& plate:placed.plates)if(!plate.name.empty())DrawPlate(draw,plate,false);
     auto* font=DiagnosticFont();
     const auto boxed=[&](const std::string& text,float size,float x,float y,float padX,float height,ImU32 color){

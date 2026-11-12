@@ -165,6 +165,25 @@ void CheckMatchHudBadges(){
         const auto a=MatchStripGeometry(one,ImVec2(0,0),size),b=MatchStripGeometry(marked,ImVec2(0,0),size);
         Require(a.names[0].x0==b.names[0].x0&&a.names[0].x1==b.names[0].x1,"Match HUD class mark on one side changed the other plate");
         Require(b.names[1].x1-b.names[1].x0>a.names[1].x1-a.names[1].x0,"Match HUD name plate kept no room for its class mark");
+        // A live public-room match shows each class where a replay video does: the export caption's
+        // plates are the split HUD's for the same names and marks, and a spectator's are a fighter's.
+        for(const int offset:{0,-20}){
+            MatchStripView live;live.layout=1;live.nameOffset=offset;live.names[0]="Player 1";live.names[1]="Player 2";
+            live.badges[0]=sf4e::SkillBadge::Placing();live.badges[1]=sf4e::SkillBadge::Developer();
+            live.links[0]=sf4e::NetworkLink::Wired;live.links[1]=sf4e::NetworkLink::Wireless;
+            ExportCaptionView video;video.nameOffset=offset;
+            for(int side=0;side<2;++side){video.names[side]=live.names[side];video.badges[side]=live.badges[side];}
+            auto watching=live;watching.spectator=true;watching.behindFrames=12;watching.queuePosition=1;watching.queueLength=2;
+            const auto fight=MatchStripGeometry(live,ImVec2(0,0),size),watched=MatchStripGeometry(watching,ImVec2(0,0),size);
+            const auto plates=ExportCaptionPlates(video,ImVec2(0,0),size);
+            for(int side=0;side<2;++side){
+                const auto same=[&](const MatchStripBox& x,const MatchStripBox& y){return x.valid&&y.valid&&x.x0==y.x0&&x.x1==y.x1&&x.y0==y.y0&&x.y1==y.y1;};
+                Require(same(fight.names[side],plates[side]),"A live match's name plate and class mark are not where a replay video puts them");
+                Require(same(fight.names[side],watched.names[side]),"A spectator's name plates differ from the fighters'");
+            }
+            video.names[1].clear();
+            Require(!ExportCaptionPlates(video,ImVec2(0,0),size)[1].valid,"An export caption drew a plate for an empty name");
+        }
     }
 }
 bool MatchHudShotCaptured(const char* shot,int w,int h,float dpi){
