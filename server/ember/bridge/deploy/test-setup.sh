@@ -664,6 +664,42 @@ check "production files unchanged" unchanged "$P" "$PSITE" production
 check "staging files unchanged" unchanged "$S" "$SSITE" staging
 unset INPUT
 
+echo "SFV Ember's own bridge beside both, from its folder and tenants.sfv.json"
+V=ember-bridge-sfv
+VSITE=sfv-bridge.embernetplay.link
+VUNITS=$R/etc/systemd/system/$V
+VSTATE=$R/var/lib/$V/bridge.json
+stage "$V"
+snapshot "$P" "$PSITE" production
+snapshot "$S" "$SSITE" staging
+run "$OPS/$V/setup.sh"
+check "exits 0" succeeded
+check "account ember-bridge-sfv created" account "$V"
+check "own binary" same "$OPS/$V/bin/ember-bridge" "$R/usr/local/lib/$V/ember-bridge"
+check "state and backups owned by its account" logged "install -d -o $V -g $V -m 0700 $R/var/lib/$V $R/var/backups/$V"
+check "service runs its binary on its config" has_line "$VUNITS.service" "ExecStart=/usr/local/lib/$V/ember-bridge serve /var/lib/$V/bridge.json"
+check "service runs as its account" has_line "$VUNITS.service" "User=$V"
+check "backup writes only its folders" has_line "$VUNITS-backup.service" "ReadWritePaths=/var/lib/$V /var/backups/$V"
+check "timer named sfv" has_line "$VUNITS-backup.timer" "Description=Daily Ember bridge backup (sfv)"
+check "origin" config_is "$VSTATE" origin '"https://sfv-bridge.embernetplay.link"'
+check "listen" config_is "$VSTATE" listen '"127.0.0.1:47822"'
+check "display name" config_is "$VSTATE" display_name '"SFV Ember bridge"'
+check "only the Ember test connection" connections_are "$VSTATE" ember-test
+check "no replay archive" lacks_key "$VSTATE" archive
+check "own site" has_line "$R/etc/nginx/sites-available/$VSITE" "    server_name $VSITE;"
+check "site proxies to 47822" grep -q "proxy_pass http://127.0.0.1:47822;" "$R/etc/nginx/sites-available/$VSITE"
+check "site enabled" links_to "$R/etc/nginx/sites-enabled/$VSITE" "$R/etc/nginx/sites-available/$VSITE"
+check "every zone the site names is defined" zones_defined "$R/etc/nginx/sites-available/$VSITE" "$R/etc/nginx/conf.d/ember-bridge.conf"
+check "BluMint's callback zones are its own" blumint_callbacks_budgeted "$R/etc/nginx/sites-available/$VSITE" ember_bridge_sfv
+VID=$(bridge_id "$VSTATE")
+check "answers on 47822" mentions "service: ok ($VID)"
+check "answers through nginx" mentions "public: ok ($VID)"
+check "its own bridge ID" test "$VID" != "$(bridge_id "$PSTATE")" -a "$VID" != "$(bridge_id "$SSTATE")"
+check "production files unchanged" unchanged "$P" "$PSITE" production
+check "staging files unchanged" unchanged "$S" "$SSITE" staging
+check "production units never touched" production_untouched_by_systemctl
+check "staging units never touched" staging_untouched
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]
