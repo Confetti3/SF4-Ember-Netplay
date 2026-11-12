@@ -30,8 +30,9 @@ namespace sf4e { namespace platform {
 // SkipUpdate records that they skipped it. OpenSteamProfile opens a member's
 // Steam profile page in the browser; only OpenSteamProfilePage starts it, with a SteamId.
 // PickReplays opens the Windows file picker over the game's window, in the
-// Downloads folder, for replay and set pack files; what was picked comes back
-// in ServiceSnapshot::picked (nothing for a cancel).
+// Downloads folder, for replay and set pack files. It runs on a thread of its
+// own, not the worker, so reports, updates and diagnostics go on while it is
+// open; what was picked is taken with TakePicked (nothing for a cancel).
 enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
     PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate, PickReplays };
 // Where the launch check is. Off is a service that makes none (a snapshot
@@ -132,22 +133,9 @@ struct ServiceSnapshot {
     // The file picker can be opened now: not while the game owns the whole
     // screen (exclusive full screen), where a window would stay behind it.
     bool canPickFiles = false;
-    // The files the last PickReplays chose, as UTF-8 paths, and how many
-    // pickers have ended (a cancel counts, with none).
-    std::vector<std::string> picked;
-    std::uint64_t pickSequence = 0;
-    // The files last dropped on the game's window, and how many drops there
-    // have been (NoteDroppedFiles).
-    std::vector<std::string> dropped;
-    std::uint64_t dropSequence = 0;
+    // The picker is open now.
+    bool picking = false;
 };
-// The game's window, which owns the file picker; null asks for none. Set once
-// by the game, read by the worker when the picker opens.
-void SetPickerOwner(std::function<void*()> window);
-// The game's display is exclusive full screen: PickReplays is refused.
-void SetFullScreenExclusive(bool exclusive);
-// Files dropped on the game's window (WM_DROPFILES), as the window handler read them.
-void NoteDroppedFiles(std::vector<std::wstring> files);
 // The home relay and network class, once per export: they rarely change, so
 // the connection history lines leave them out.
 std::string DescribeNetwork(const DiagnosticsView& view);
@@ -161,7 +149,8 @@ struct ServiceHooks {
     std::function<launcher::UpdateCheckResult(launcher::UpdateChannel)> checkForUpdate;
     std::function<std::uint64_t()> clock;
     std::optional<UpdatePolicy::Store> policyStore;
-    // PickReplays: the files the player picks, or none (a test has no dialog to open).
+    // PickReplays: the files the player picks, or none (a test has no dialog to
+    // open). It runs on the picker's own thread.
     std::function<std::vector<std::wstring>()> pickReplays;
 };
 class ApplicationServices {
@@ -190,6 +179,13 @@ public:
     bool ReportCrash(const reports::CrashContext& crash, reports::AutomaticCrash::Consent consent);
     bool SendReport(const reports::Submission& submission);
     ServiceSnapshot Snapshot() const;
+    // The game's display as the game knows it: its window (which the picker
+    // is shown over; null for none) and whether it owns the whole screen
+    // (exclusive full screen), where PickReplays is refused.
+    void SetDisplay(void* window, bool exclusiveFullScreen);
+    // The files the picker returned since the last call, as UTF-8 paths; the
+    // game thread collects them, so a pick never lands anywhere else.
+    std::vector<std::string> TakePicked();
     void Cancel() { cancelled_ = true; }
     void Observe(const DiagnosticsView& diagnostics);
 private:
@@ -198,6 +194,16 @@ private:
     // Starts a report operation through Start; the caller holds mutex_.
     bool QueueReport(ServiceAction action, reports::Operation operation);
     void Run();
+    // PickReplays: the picker's own thread and what it shares with the game
+    // thread. It outlives a destroyed service only as long as its thread does,
+    // so the thread holds it and never this object.
+    struct Picker;
+    bool StartPicker();
+    std::shared_ptr<Picker> CurrentPicker() const;
+    mutable std::mutex pickerMutex_;
+    std::shared_ptr<Picker> picker_;
+    std::atomic<void*> window_{nullptr};
+    std::atomic<bool> exclusiveFullScreen_{false};
     mutable std::mutex mutex_;
     std::condition_variable wake_;
     bool stop_ = false;

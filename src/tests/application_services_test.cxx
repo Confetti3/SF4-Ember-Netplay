@@ -1,7 +1,11 @@
 #include "../platform/ApplicationServices.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../common/sf4e__NetUtil.hxx"
+#include "../common/ReplayImportQueue.hxx"
 #include <windows.h>
+#include <atomic>
+#include <memory>
+#include <optional>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -142,29 +146,74 @@ int main() {
             const auto shown=service.Snapshot();
             CHECK(!shown.pending&&!shown.succeeded&&shown.lastAction==ServiceAction::ShowReplayFile&&!shown.message.empty());
         }
-        // Import replay's picker: what the player picks comes back as UTF-8 paths under a new count, a cancel
-        // as no paths under a new count, and full screen refuses it (no window would show over the game).
+        // Import replay's picker runs on a thread of its own: what the player picks is taken
+        // as UTF-8 paths, a cancel as none, and full screen refuses it.
         {
             ServiceHooks hooks; std::vector<std::wstring> answer{L"C:\\dl\\a.emberreplay",L"C:\\dl\\p.emberpack"};
             hooks.pickReplays=[&]{return answer;};
             ApplicationServices picker(root.wstring(),hooks);
-            CHECK(picker.Snapshot().canPickFiles&&picker.Snapshot().pickSequence==0);
+            CHECK(picker.Snapshot().canPickFiles&&!picker.Snapshot().picking&&picker.TakePicked().empty());
             for(int round=1;round<=2;++round){
                 CHECK(picker.Request(ServiceAction::PickReplays));
                 const auto pickDeadline=GetTickCount64()+5000;
-                while(picker.Snapshot().pending&&GetTickCount64()<pickDeadline)Sleep(1);
-                const auto done=picker.Snapshot();
-                CHECK(!done.pending&&done.pickSequence==static_cast<std::uint64_t>(round)&&done.lastAction==ServiceAction::PickReplays);
-                CHECK(round==1?(done.picked==std::vector<std::string>{"C:\\dl\\a.emberreplay","C:\\dl\\p.emberpack"}&&done.succeeded):(done.picked.empty()&&!done.succeeded));
+                while(picker.Snapshot().picking&&GetTickCount64()<pickDeadline)Sleep(1);
+                CHECK(!picker.Snapshot().picking&&!picker.Snapshot().pending);
+                const auto picked=picker.TakePicked();
+                const std::vector<std::string> both{"C:\\dl\\a.emberreplay","C:\\dl\\p.emberpack"};
+                CHECK(round==1?picked==both:picked.empty());
+                CHECK(picker.TakePicked().empty());
                 answer.clear();
             }
-            SetFullScreenExclusive(true);
-            ApplicationServices refused(root.wstring());
-            CHECK(!refused.Snapshot().canPickFiles&&!refused.Request(ServiceAction::PickReplays));
-            SetFullScreenExclusive(false);
-            NoteDroppedFiles({L"C:\\dl\\notes.txt",L"D:\\x\\d.usf4replay"});
-            const auto dropped=refused.Snapshot();
-            CHECK(dropped.dropSequence==1&&dropped.dropped==std::vector<std::string>{"D:\\x\\d.usf4replay"});
+            picker.SetDisplay(nullptr,true);
+            CHECK(!picker.Snapshot().canPickFiles&&!picker.Request(ServiceAction::PickReplays));
+            picker.SetDisplay(nullptr,false);
+            CHECK(picker.Snapshot().canPickFiles);
+        }
+        // An open picker blocks nothing else: only one is open at a time, but diagnostics (and with
+        // them reports, updates and the rest of the worker) go on, and ending the service does not
+        // wait for the dialog.
+        {
+            auto release=std::make_shared<std::atomic<bool>>(false);
+            ServiceHooks hooks;
+            hooks.pickReplays=[release]{while(!release->load())Sleep(1);return std::vector<std::wstring>{L"C:\\dl\\late.emberreplay"};};
+            const auto started=GetTickCount64();
+            {
+                ApplicationServices picker(root.wstring(),hooks);
+                CHECK(picker.Request(ServiceAction::PickReplays)&&picker.Snapshot().picking);
+                CHECK(!picker.Request(ServiceAction::PickReplays));
+                DiagnosticsView view;
+                CHECK(picker.Request(ServiceAction::ExportDiagnostics,view));
+                const auto openDeadline=GetTickCount64()+5000;
+                while(picker.Snapshot().pending&&GetTickCount64()<openDeadline)Sleep(1);
+                CHECK(!picker.Snapshot().pending&&picker.Snapshot().picking);
+                CHECK(picker.TakePicked().empty());
+            }
+            // The service ended with the dialog open: it was let go after a short wait, not waited for.
+            CHECK(GetTickCount64()-started<4000);
+            release->store(true);
+            Sleep(20);
+        }
+        // The one queue the picker, a drop and a link share: replay and pack files only, in order, no
+        // more than the most; a batch is reported when its last file is answered, however long that
+        // takes, and files added meanwhile are part of it.
+        {
+            using sf4e::replay_import::Queue;
+            Queue queue;
+            CHECK(queue.Add({"C:\\dl\\notes.txt","C:\\dl\\a.emberreplay","relative.emberreplay","C:\\dl\\p.emberpack"})==2);
+            CHECK(queue.Waiting()==2&&queue.Batches()==1);
+            CHECK(queue.Next()==std::optional<std::string>("C:\\dl\\a.emberreplay"));
+            CHECK(!queue.Answered(3));                       // a pack still waits
+            CHECK(queue.Add({"D:\\x\\d.usf4replay"})==1&&queue.Batches()==1);
+            CHECK(queue.Next()==std::optional<std::string>("C:\\dl\\p.emberpack"));
+            CHECK(!queue.Answered(0));                       // not a whole pack
+            CHECK(queue.Next()==std::optional<std::string>("D:\\x\\d.usf4replay"));
+            const auto batch=queue.Answered(2);
+            CHECK(batch&&batch->files==3&&batch->failed==1&&batch->held==5);
+            CHECK(queue.Waiting()==0&&!queue.Next());
+            CHECK(queue.Add({"C:\\dl\\n.emberreplay"})==1&&queue.Batches()==2);
+            std::vector<std::string> many;
+            for(int i=0;i<100;++i)many.push_back("C:\\dl\\"+std::to_string(i)+".emberreplay");
+            CHECK(queue.Add(many)==sf4e::replay_import::kMostWaiting-1&&queue.Waiting()==sf4e::replay_import::kMostWaiting);
         }
     }
     RemoveTempRoot(root);

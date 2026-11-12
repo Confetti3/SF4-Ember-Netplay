@@ -12,6 +12,11 @@
 #include <shlobj.h>
 #include <shobjidl.h>
 #include "../common/ReplayLink.hxx"
+#include "../common/ReplayImportQueue.hxx"
+#include <wrl/client.h>
+#include <atomic>
+#include <system_error>
+#include <utility>
 #include <filesystem>
 #include <fstream>
 #include <cstring>
@@ -26,67 +31,113 @@ bool ShellOpen(const wchar_t* target) {
     if (SUCCEEDED(com)) CoUninitialize();
     return opened;
 }
-// What the replay picker and the drop handler share between the game's
-// threads and the worker.
-std::mutex pickerMutex;
-std::function<void*()> pickerOwner;
-std::atomic<bool> fullScreenExclusive{false};
-std::vector<std::string> droppedFiles;
-std::uint64_t droppedCount = 0;
-// The Windows file picker: in Downloads, for replay and set pack files, any number
-// of them. It blocks until the player closes it, so only the worker runs it; the
-// game window it is owned by goes on drawing.
-std::vector<std::wstring> ChooseReplayFiles() {
+// The Windows file picker: in Downloads, for replay and set pack files, any
+// number of them. It blocks until the player closes it, so it only ever runs
+// on the picker's own thread (ApplicationServices::Picker).
+//
+// Its owner is a window made on this thread, an invisible one laid over the
+// game's window. An owner that belongs to the game's thread would join the two
+// threads' input queues for as long as the dialog is open, and a stall in
+// either would then stall the other. This owner is the dialog's alone: the
+// dialog still shows over the game and is modal against the clicks on it, and
+// the game goes on drawing and taking its messages.
+std::vector<std::wstring> ChooseReplayFiles(const std::wstring& title, const std::wstring& kind, void* gameWindow) {
     std::vector<std::wstring> files;
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-    IFileOpenDialog* dialog = nullptr;
-    if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog)))) { if (SUCCEEDED(com)) CoUninitialize(); return files; }
-    dialog->SetOptions(FOS_ALLOWMULTISELECT | FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST);
-    const std::wstring title = sf4e::platform::Utf8ToWide(sf4e::loc::T("replays.import_title"));
-    const std::wstring kind = sf4e::platform::Utf8ToWide(sf4e::loc::T("replays.import_filter"));
-    dialog->SetTitle(title.c_str());
-    const COMDLG_FILTERSPEC filter[] = {{kind.c_str(), L"*.emberreplay;*.usf4replay;*.emberpack"}};
-    dialog->SetFileTypes(1, filter);
-    PWSTR downloads = nullptr;
-    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Downloads, KF_FLAG_DEFAULT, nullptr, &downloads))) {
-        IShellItem* folder = nullptr;
-        if (SUCCEEDED(SHCreateItemFromParsingName(downloads, nullptr, IID_PPV_ARGS(&folder)))) { dialog->SetFolder(folder); folder->Release(); }
-        CoTaskMemFree(downloads);
-    }
-    HWND owner = nullptr;
-    { std::function<void*()> window; { std::lock_guard<std::mutex> lock(pickerMutex); window = pickerOwner; } if (window) owner = static_cast<HWND>(window()); }
-    if (SUCCEEDED(dialog->Show(owner))) {
-        IShellItemArray* results = nullptr;
-        if (SUCCEEDED(dialog->GetResults(&results))) {
-            DWORD count = 0; results->GetCount(&count);
-            for (DWORD i = 0; i < count && files.size() < 64; ++i) {
-                IShellItem* item = nullptr; PWSTR name = nullptr;
-                if (SUCCEEDED(results->GetItemAt(i, &item))) {
-                    if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &name))) { files.push_back(name); CoTaskMemFree(name); }
-                    item->Release();
+    {
+        Microsoft::WRL::ComPtr<IFileOpenDialog> dialog;
+        if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog)))) {
+            dialog->SetOptions(FOS_ALLOWMULTISELECT | FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST);
+            dialog->SetTitle(title.c_str());
+            const COMDLG_FILTERSPEC filter[] = {{kind.c_str(), L"*.emberreplay;*.usf4replay;*.emberpack"}};
+            dialog->SetFileTypes(1, filter);
+            PWSTR downloads = nullptr;
+            if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Downloads, KF_FLAG_DEFAULT, nullptr, &downloads))) {
+                Microsoft::WRL::ComPtr<IShellItem> folder;
+                if (SUCCEEDED(SHCreateItemFromParsingName(downloads, nullptr, IID_PPV_ARGS(&folder)))) dialog->SetFolder(folder.Get());
+                CoTaskMemFree(downloads);
+            }
+            HWND owner = nullptr;
+            RECT place{};
+            if (gameWindow && IsWindow(static_cast<HWND>(gameWindow)) && GetWindowRect(static_cast<HWND>(gameWindow), &place)) {
+                owner = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED, L"STATIC", L"", WS_POPUP,
+                    place.left, place.top, place.right - place.left, place.bottom - place.top, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+                if (owner) { SetLayeredWindowAttributes(owner, 0, 0, LWA_ALPHA); ShowWindow(owner, SW_SHOWNA); }
+            }
+            if (SUCCEEDED(dialog->Show(owner))) {
+                Microsoft::WRL::ComPtr<IShellItemArray> results;
+                if (SUCCEEDED(dialog->GetResults(&results))) {
+                    DWORD count = 0;
+                    results->GetCount(&count);
+                    for (DWORD i = 0; i < count && files.size() < sf4e::replay_import::kMostWaiting; ++i) {
+                        Microsoft::WRL::ComPtr<IShellItem> item;
+                        PWSTR name = nullptr;
+                        if (SUCCEEDED(results->GetItemAt(i, &item)) && SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &name))) {
+                            files.push_back(name);
+                            CoTaskMemFree(name);
+                        }
+                    }
                 }
             }
-            results->Release();
+            if (owner) DestroyWindow(owner);
         }
     }
-    dialog->Release();
     if (SUCCEEDED(com)) CoUninitialize();
     return files;
 }
 }
 
 namespace sf4e { namespace platform {
-void SetPickerOwner(std::function<void*()> window) { std::lock_guard<std::mutex> lock(pickerMutex); pickerOwner = std::move(window); }
-void SetFullScreenExclusive(bool exclusive) { fullScreenExclusive = exclusive; }
-void NoteDroppedFiles(std::vector<std::wstring> files) {
-    std::vector<std::string> kept;
-    for (const auto& file : files) {
-        const std::string path = WideToUtf8(file);
-        if (replay_link::IsReplayPath(path) && kept.size() < 64) kept.push_back(path);
+// The picker's thread and its answer. The thread owns a share of this and
+// nothing else of the service, so the service may end while a dialog is open.
+struct ApplicationServices::Picker {
+    std::mutex mutex;
+    std::condition_variable ended;
+    bool open = true;
+    std::atomic<bool> cancelled{false};
+    std::atomic<DWORD> threadId{0};
+    std::vector<std::string> taken;
+    std::thread thread;
+};
+bool ApplicationServices::StartPicker() {
+    if (exclusiveFullScreen_.load()) return false;
+    { std::lock_guard<std::mutex> lock(mutex_); if (stop_) return false; }
+    std::lock_guard<std::mutex> pickerLock(pickerMutex_);
+    if (picker_) {
+        { std::lock_guard<std::mutex> lock(picker_->mutex); if (picker_->open) return false; }
+        picker_->thread.join();  // it has ended: its last step is clearing `open`
     }
-    if (kept.empty()) return;
-    std::lock_guard<std::mutex> lock(pickerMutex);
-    droppedFiles = std::move(kept); ++droppedCount;
+    auto picker = std::make_shared<Picker>();
+    auto choose = hooks_.pickReplays;
+    const std::wstring title = Utf8ToWide(loc::T("replays.import_title"));
+    const std::wstring kind = Utf8ToWide(loc::T("replays.import_filter"));
+    void* const window = window_.load();
+    try {
+        picker->thread = std::thread([picker, choose, title, kind, window] {
+            picker->threadId = GetCurrentThreadId();
+            std::vector<std::wstring> files;
+            if (!picker->cancelled) files = choose ? choose() : ChooseReplayFiles(title, kind, window);
+            std::lock_guard<std::mutex> lock(picker->mutex);
+            if (!picker->cancelled) for (const auto& file : files) picker->taken.push_back(WideToUtf8(file));
+            picker->open = false;
+            picker->ended.notify_all();
+        });
+    } catch (const std::system_error&) { return false; }
+    picker_ = std::move(picker);
+    return true;
+}
+std::shared_ptr<ApplicationServices::Picker> ApplicationServices::CurrentPicker() const {
+    std::lock_guard<std::mutex> lock(pickerMutex_);
+    return picker_;
+}
+void ApplicationServices::SetDisplay(void* window, bool exclusiveFullScreen) {
+    window_ = window; exclusiveFullScreen_ = exclusiveFullScreen;
+}
+std::vector<std::string> ApplicationServices::TakePicked() {
+    const auto picker = CurrentPicker();
+    if (!picker) return {};
+    std::lock_guard<std::mutex> lock(picker->mutex);
+    return std::exchange(picker->taken, {});
 }
 std::string DescribeNetwork(const DiagnosticsView& view) {
     // Region code and network class only; never a relay address or an IP.
@@ -148,13 +199,26 @@ ApplicationServices::~ApplicationServices() {
     Cancel();
     { std::lock_guard<std::mutex> lock(mutex_); stop_ = true; }
     wake_.notify_one(); worker_.join();
+    // An open picker is closed, not waited for without end: its window is asked
+    // to close for a moment, and a thread that still has not ended is let go
+    // (it holds only its own state, never this object).
+    if (picker_) {
+        picker_->cancelled = true;
+        std::unique_lock<std::mutex> lock(picker_->mutex);
+        for (int tries = 0; picker_->open && tries < 30; ++tries) {
+            if (const DWORD thread = picker_->threadId) EnumThreadWindows(thread, [](HWND window, LPARAM) -> BOOL { PostMessageW(window, WM_CLOSE, 0, 0); return TRUE; }, 0);
+            picker_->ended.wait_for(lock, std::chrono::milliseconds(50), [&] { return !picker_->open; });
+        }
+        const bool ended = !picker_->open;
+        lock.unlock();
+        if (ended) picker_->thread.join(); else picker_->thread.detach();
+    }
 }
 ServiceSnapshot ApplicationServices::Snapshot() const {
     ServiceSnapshot snapshot;
     { std::lock_guard<std::mutex> lock(mutex_); snapshot = state_; }
-    snapshot.canPickFiles = hooks_.pickReplays || !fullScreenExclusive.load();
-    std::lock_guard<std::mutex> lock(pickerMutex);
-    snapshot.dropped = droppedFiles; snapshot.dropSequence = droppedCount;
+    snapshot.canPickFiles = !exclusiveFullScreen_.load();
+    if (const auto picker = CurrentPicker()) { std::lock_guard<std::mutex> lock(picker->mutex); snapshot.picking = picker->open; }
     return snapshot;
 }
 void ApplicationServices::Observe(const DiagnosticsView& diagnostics) {
@@ -172,7 +236,8 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
     if (action == ServiceAction::LaunchUpdateCheck) return RequestLaunchCheck();
     // These two carry the offer the player saw: UpdateNow and SkipUpdate.
     if (action == ServiceAction::UpdateNow || action == ServiceAction::SkipUpdate) return false;
-    if (action == ServiceAction::PickReplays && !hooks_.pickReplays && fullScreenExclusive.load()) return false;
+    // The picker is not part of the worker's one-at-a-time rule: it waits on the player.
+    if (action == ServiceAction::PickReplays) return StartPicker();
     std::lock_guard<std::mutex> lock(mutex_);
     if (stop_ || state_.pending) return false;
     if (action == ServiceAction::PrepareProblemReport)
@@ -240,7 +305,6 @@ bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& dia
         action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
         action == ServiceAction::OpenSteamProfile ? loc::T("services.opening_steam_profile") :
         action == ServiceAction::OpenReplayFolder || action == ServiceAction::ShowReplayFile ? loc::T("services.opening_replay_folder") :
-        action == ServiceAction::PickReplays ? loc::T("services.picking_replays") :
         action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel || action == ServiceAction::LaunchUpdateCheck ? loc::T("services.checking") :
         action == ServiceAction::SkipUpdate ? std::string() :
         action == ServiceAction::ExportDiagnostics ? loc::T("services.exporting") :
@@ -361,13 +425,6 @@ void ApplicationServices::Run() {
                 const bool opened = ShellOpen(folder.c_str());
                 next.succeeded = opened;
                 next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.wstring())) : loc::T("services.replay_folder_failed");
-            } else if (action == ServiceAction::PickReplays) {
-                const auto files = hooks_.pickReplays ? hooks_.pickReplays() : ChooseReplayFiles();
-                next.picked.clear();
-                for (const auto& file : files) next.picked.push_back(WideToUtf8(file));
-                ++next.pickSequence;
-                next.succeeded = !files.empty();
-                next.message.clear();
             } else if (action == ServiceAction::ShowReplayFile) {
                 // The archive's listing named the file; only the folder handles
                 // reach is opened, and only one of the archive by identity. The
