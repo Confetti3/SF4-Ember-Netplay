@@ -1,5 +1,6 @@
 #include "shell_journey_support.hxx"
 #include "shell_additional_journeys.hxx"
+#include "../ui/PostMatchPrompt.hxx"
 #include "../ui/RoomPanelBoard.hxx"
 #include <algorithm>
 #include <iterator>
@@ -1150,15 +1151,43 @@ void PostMatchLiveAnswerJourney() {
  say(room::PostMatchWord::Back,5,0);
  Check(words["pm-opponent"]==loc::T("postmatch.back"),"A remote Back to room was not shown");
  say(room::PostMatchWord::None,0,0);
- // This PC's own answer is told once, as made: Rematch with the Ready.
- Check(h.said.empty(),"An answer was told before it was made");
+ // This PC's own answer is not sent by the shell, which only states it for the
+ // runtime to tell the room and tell again until the room shows it (the
+ // runtime owns it, NotePostMatchAnswer): none at first, Rematch with the Ready.
+ const auto stated=[&]{return h.shell.PostMatchAnswer();};
+ Check(h.said.empty()&&stated().Active()&&stated().word==room::PostMatchWord::None&&stated().generation==5&&stated().game==0&&stated().table==0,"The answer was stated before it was made, or not for its game");
  h.Choose("again");
- Check(h.said.size()==1&&h.said[0].postMatch==room::PostMatchWord::Rematch&&h.said[0].matchGeneration==5&&h.said[0].game==0&&h.said[0].table==0,"Rematch was not told to the room for its game");
+ Check(stated().word==room::PostMatchWord::Rematch&&stated().generation==5&&stated().game==0&&stated().table==0,"Rematch was not stated for its game");
  h.Frame();h.Frame();
- Check(h.said.size()==1,"The answer was told again with nothing changed");
- // The runtime refusing the Rematch takes it back, told as none.
+ Check(stated().word==room::PostMatchWord::Rematch,"The stated answer changed with nothing changed");
+ // The runtime refusing the Rematch takes it back, stated as none.
  h.view.readyFailure="Assign a controller first.";++h.view.readyFailureSequence;h.Frame();
- Check(h.said.size()==2&&h.said.back().postMatch==room::PostMatchWord::None,"A refused Rematch was left told to the room");
+ Check(stated().word==room::PostMatchWord::None,"A refused Rematch was left stated");
+ // Back to room over the WIN (the refusal's notice answered first) is stated as it is pressed, and stays so.
+ for(int i=0;i<3&&h.shell.NoticeOpen();++i)h.Press(MenuInput::Back);
+ h.Choose("back");h.Frame();
+ Check(stated().word==room::PostMatchWord::Back&&stated().generation==5,"Back to room was not stated");
+ // Nothing was ever sent as an action: no send of the shell's can be lost.
+ Check(h.said.empty(),"The shell sent the answer itself");
+ // The opponent's answer comes from one function, whichever way the room shows it.
+ {
+  room::Table at;room::Member their;sf4e::ui::PostMatchPrompt prompt;prompt.generation=5;prompt.game=1;
+  const auto answer=[&]{return sf4e::ui::TheirAnswer(at,1,false,&their,prompt);};
+  Check(answer()==room::PostMatchWord::None,"An opponent who answered nothing was shown as having");
+  their.postMatch=room::PostMatchWord::FighterSelect;their.postMatchGeneration=5;their.postMatchGame=1;
+  Check(answer()==room::PostMatchWord::FighterSelect,"The word they told for this game was not their answer");
+  their.postMatchGame=0;
+  Check(answer()==room::PostMatchWord::None,"A word told for another game was their answer");
+  their.postMatchGame=1;their.postMatchGeneration=4;
+  Check(answer()==room::PostMatchWord::None,"A word told for another match was their answer");
+  their.postMatchGeneration=5;at.matchGeneration=6;at.ready[1]=true;
+  Check(answer()==room::PostMatchWord::Rematch,"Their Ready was not their Rematch over their word");
+  at.ready[1]=false;prompt.starting=true;
+  Check(answer()==room::PostMatchWord::Rematch,"The next game starting was not their Rematch");
+  prompt.starting=false;at.rematch[1]=true;
+  Check(sf4e::ui::TheirAnswer(at,1,true,&their,prompt)==room::PostMatchWord::Rematch&&answer()==room::PostMatchWord::FighterSelect,"An Arcade pair's Rematch counted outside a deciding pair");
+  Check(sf4e::ui::TheirAnswer(at,-1,true,nullptr,prompt)==room::PostMatchWord::None,"An opponent with no seat or record answered");
+ }
 }
 // The post-match prompt over the WIN screen: Rematch sends the room's Ready
 // and the prompt stays until the next game starts; no answer after a game

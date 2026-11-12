@@ -26,14 +26,15 @@ struct PostMatchPrompt {
     room::MemberId opponent = 0;
     std::uint64_t generation = 0;
     // Its place in the battle (ShellView::gamesInPlace when it opened), which a
-    // rematch in place leaves on the same generation, and the answer the room
-    // was last told (ApplicationShell::TellPostMatch).
+    // rematch in place leaves on the same generation.
     std::uint32_t game = 0;
-    room::PostMatchWord told = room::PostMatchWord::None;
     // The game's result, once the runtime has it (FoughtGame::result).
     room::MatchResult result = room::MatchResult::Abort;
     double until = 0;
     bool chose = false, starting = false;
+    // The room shows this fighter's Ready for the game (or the press just made),
+    // as of the last update: what the answer told to the room is read from.
+    bool readied = false;
     // An Arcade pair's Rematch chosen here (Table::deciding): once both
     // chose it the room asks no more, and the prompt readies the player.
     bool pairRematch = false;
@@ -51,6 +52,13 @@ struct PostMatchPrompt {
     // opponent, not by the set's rotation, so no rotation words apply.
     bool setSeen = false, pairStayed = false;
 };
+
+// What the opponent has answered over this WIN, from the one place each way the
+// room shows it: the next game starting, their Ready, an Arcade pair's Rematch
+// (Rematch), or the word they told for this game (Rematch, Character select or
+// Back to room); None while they are still choosing. `theirs` is their seat, or
+// -1 when they have none.
+room::PostMatchWord TheirAnswer(const room::Table& table, int theirs, bool deciding, const room::Member* opponent, const PostMatchPrompt& prompt);
 
 // The prompt's focused button last frame, where it stood in the panel's
 // content (not scrolled) and the panel's size: a change scrolls the button

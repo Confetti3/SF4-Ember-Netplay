@@ -805,6 +805,16 @@ static netplay::LatencyBoardPulse chatTyping;
 bool ChatTypingShown(std::uint64_t roomGeneration) {
 	return chatTyping.Shown(roomGeneration, GetTickCount64());
 }
+// The post-match answer the shell wants said (NoteNetplayPostMatchAnswer):
+// the latest one, which counts while the shell keeps noting it each frame its
+// prompt is open. The runtime says it (SayPostMatch).
+static std::mutex postMatchMutex;
+static room::PostMatchSaid postMatchWanted;
+static std::uint64_t postMatchNotedMs = 0;
+room::PostMatchSaid PostMatchWanted() {
+	std::lock_guard<std::mutex> lock(postMatchMutex);
+	return GetTickCount64() - postMatchNotedMs < 1500 ? postMatchWanted : room::PostMatchSaid{};
+}
 
 void TickMemberLatency() {
 	if (!runtime->room) return;
@@ -855,6 +865,12 @@ void NoteFighterSelector(std::uint64_t roomGeneration) {
 
 void NoteChatTyping(std::uint64_t roomGeneration) {
 	internal::chatTyping.Note(roomGeneration, GetTickCount64());
+}
+
+void NotePostMatchAnswer(const room::PostMatchSaid& said) {
+	std::lock_guard<std::mutex> lock(internal::postMatchMutex);
+	internal::postMatchWanted = said;
+	internal::postMatchNotedMs = GetTickCount64();
 }
 
 bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,

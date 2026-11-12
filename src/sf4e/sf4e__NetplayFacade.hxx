@@ -321,6 +321,11 @@ namespace sf4e {
 		// Any thread: the player is writing a chat draft in room `roomGeneration`
 		// this frame. The runtime tells the room they are typing (Typing).
 		void NoteChatTyping(std::uint64_t roomGeneration);
+		// Any thread, every frame the post-match prompt is open (and once as
+		// not active when it is not): the answer the player gave over the WIN.
+		// The runtime holds the latest and tells the room until the room
+		// shows it (PostMatchAnswer); a lost word is told again.
+		void NotePostMatchAnswer(const room::PostMatchSaid& said);
 		// Any thread, every frame: whether the player's pick is Random, the pick
 		// as the overlay has it, and the look remembered for each fighter. The
 		// runtime rolls the next game's fighter (RuntimeSnapshot::randomFighter),

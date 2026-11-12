@@ -176,6 +176,10 @@ public:
     bool ChatTyping() const { return chatTyping_; }
     // The line above the chat box: who else is typing, empty when nobody is.
     std::string ChatTypingText(const ShellView& v) const;
+    // The answer the player has given the post-match prompt over the WIN, which the
+    // runtime tells the room and says again until the room shows it; not active
+    // without a prompt (PostMatchPrompt).
+    room::PostMatchSaid PostMatchAnswer() const;
     bool NoticeError() const { return menu_.NoticeError(); }
     // What this client keeps of the room chat (for tests).
     const ChatTranscript& Transcript() const { return transcript_; }
@@ -489,7 +493,7 @@ private:
     PostMatchModel BuildPostMatch(const ShellView& view) const;
     // Opens, times out and ends the prompt; open is null while Ember is hidden.
     void UpdatePostMatch(const ShellView& view, const room::Snapshot& room, double now, const Submit& submit, bool* open);
-    void TellPostMatch(const ShellView& view, room::PostMatchWord word, const Submit& submit);
+
     void ClosePostMatch(const ShellView& view, AfterPostMatch after, bool* open);
     void DrawPostMatch(const ShellView& view, const PostMatchFrame& frame, double now, const Submit& submit, bool* open);
     int lockedInTable_=-1;

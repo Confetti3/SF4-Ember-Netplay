@@ -801,6 +801,35 @@ static void SayTyping() {
 	runtime->typingSaidAtMs = typing ? now : 0;
 	UserApp::netplay->client.SendRoomAction(say);
 }
+// The player's answer to the prompt over the WIN is said as a presence word
+// too: the shell publishes the answer it wants shown (NotePostMatchAnswer), and
+// what the room's own snapshot shows of the player is what it is compared
+// with, so a word that was lost, refused or overtaken is said again, at most
+// each second, until the room shows it or the shell stops publishing it (the
+// prompt closed). A new word is said at once. Only while the game is on: the
+// authority takes the answer for the live match alone.
+static void SayPostMatch() {
+	if (!runtime->attached || !UserApp::netplay) { runtime->postMatchSaid = {}; runtime->postMatchSaidAtMs = 0; return; }
+	const auto wanted = PostMatchWanted();
+	if (!wanted.Active()) { runtime->postMatchSaid = {}; return; }
+	if (!netplay::Fighting(runtime->controller.GetSnapshot().match) || runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return;
+	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	const auto* me = room::FindMember(room, room.localMember);
+	if (!me || !room.roomEpoch || room::PostMatchShown(*me, wanted)) return;
+	const auto now = GetTickCount64();
+	if (wanted == runtime->postMatchSaid && now - runtime->postMatchSaidAtMs < 1000) return;
+	room::Action say;
+	say.kind = room::ActionKind::PostMatchAnswer;
+	say.postMatch = wanted.word;
+	say.table = wanted.table;
+	say.matchGeneration = wanted.generation;
+	say.game = wanted.game;
+	say.roomEpoch = room.roomEpoch;
+	say.revision = room.revision;
+	runtime->postMatchSaidAtMs = now;
+	if (UserApp::netplay->client.SendRoomAction(say) == session::SendResult::Queued) runtime->postMatchSaid = wanted;
+	else spdlog::info("Room: could not tell the room the post-match answer; it is said again");
+}
 void ReconcileTrainingCall() {
 	if (runtime) CallOutOfTraining();
 }
@@ -872,6 +901,7 @@ void TickRuntime() {
 	NoteNativeScreen();
 	SayTraining();
 	SayTyping();
+	SayPostMatch();
 	TakeJoinLink();
 	TickMemberLatency();
 	PublishAndTickDiscordInvite();

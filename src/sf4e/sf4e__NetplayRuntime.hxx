@@ -360,6 +360,9 @@ struct Runtime {
 	std::uint64_t trainingSaidAtMs = 0;
 	// When the room was last told the player is typing; zero once told they stopped.
 	std::uint64_t typingSaidAtMs = 0;
+	// The post-match answer last said to the room, and when (SayPostMatch).
+	room::PostMatchSaid postMatchSaid;
+	std::uint64_t postMatchSaidAtMs = 0;
 	// The newest RoomNoticesKept room events for the chat, numbered from 1 by
 	// roomNoticeSequence. The interface takes each once by its number.
 	static constexpr std::size_t RoomNoticesKept = 16;
@@ -643,6 +646,8 @@ void TickMemberLatency();
 bool FighterSelectorShown(std::uint64_t roomGeneration);
 // Whether the shell noted a chat draft being written lately in room `roomGeneration` (NoteChatTyping).
 bool ChatTypingShown(std::uint64_t roomGeneration);
+// The answer to the post-match prompt the shell is wanting said (NotePostMatchAnswer); not active once the shell stops noting one.
+room::PostMatchSaid PostMatchWanted();
 // The pick is Random (NoteRandomFighter): each game is rolled for, so a
 // rematch leaves the battle instead of replaying its fighters in place.
 bool RandomFighterChosen();

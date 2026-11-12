@@ -33,7 +33,7 @@ void Check(bool ok,const char* message){if(!ok)throw std::runtime_error(message)
 int DisplayedAfter(int fighter){const int* at=std::find(std::begin(sf4e::selection::RosterDisplayOrder),std::end(sf4e::selection::RosterDisplayOrder),fighter);return at[1];}
 struct Harness {
  ApplicationShell shell;ShellView view;std::vector<ShellAction> actions;bool open=true,accept=true;
- // What the prompt over the WIN told the room of the player's answer: kept apart, as it comes with an answer's own action.
+ // What the prompt over the WIN sent of the player's answer: nothing, now the runtime says it (kept to show the shell does not).
  std::vector<sf4e::room::Action> said;
  std::function<void()> selection=[]{},developer;
  HeadlessImGui imgui; // last: created after the shell and destroyed before it
