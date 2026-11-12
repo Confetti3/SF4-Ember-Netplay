@@ -389,6 +389,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_custom_content.hxx"
 #include "ui_render_updates.hxx"
 #include "ui_render_replay_controls.hxx"
+#include "ui_render_camera_panel.hxx"
 #include "ui_render_reports.hxx"
 #include "ui_render_prompts.hxx"
 #include "ui_render_controllers.hxx"
@@ -759,6 +760,7 @@ int main(int argc, char** argv) {
             matchStrip.links[0]=NetworkLink::Wired;matchStrip.links[1]=NetworkLink::Wireless;
             matchStrip.pingMs=68;matchStrip.rollbackFrames=2;matchStrip.appliedDelay=3;
             training::Command trainingCommand;
+            bool cameraAvailable=false;ui::ReplayBar cameraBar;
             bool acceptTraining=false,answerTickets=false,holdIdentity=false,overlayTooltip=false;
             std::uint64_t heldTicket=0;
             GameMenu recoveryMenu;recoveryMenu.navigation=RecoveryNavigation(false);ProblemReportPanel reportPanel;platform::ServiceSnapshot reportState;
@@ -792,6 +794,7 @@ int main(int argc, char** argv) {
                     else if(mode!=0&&mode!=4) {
                         if(mode!=7)overlayLayers=OverlayRenderLayers(mode,matchStrip);
                         (void)DrawOverlayLayers(overlayLayers,training);
+                        DrawCameraPanel(cameraAvailable,true,{},cameraBar);
                         if(mode==9)DrawMatchKeysNotice({"training.match.checkpoint_disabled","training.match.end_hint"});
                         if(mode==10)DrawMatchKeysNotice({"runtime.watching_hint"});
                     }
@@ -1271,6 +1274,7 @@ int main(int argc, char** argv) {
             ShootTraining(training,fighters,trainingCommand,acceptTraining,mode,size,draw,io,[&](float dpi){ApplyTheme(dpi);renderer.Invalidate();});
             CheckOverlayVisibility(training,overlayLayers,overlayTooltip,mode,draw);
             ShootReplayControls(training,overlayLayers,mode,size.h,draw);
+            ShootCameraPanel(cameraAvailable,cameraBar,mode,draw);
             ShootTrainingRoom(training,overlayLayers,mode,size,draw);
             mode=3;draw("match-hud");
             ShootMatchHud(matchStrip,draw,[&]{renderer.Invalidate();});
