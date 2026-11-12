@@ -91,6 +91,19 @@ PostMatchBody LayOutPostMatch(const std::vector<MenuEntry>& entries, std::size_t
     return body;
 }
 
+// Tells the room this fighter's answer to the prompt over the WIN as it is
+// made, so the opponent's prompt shows it at once and not when the game is
+// over. Said once per change, and only while the game is on: a room host that
+// predates it refuses it, and the answer then shows with the game's end.
+void ApplicationShell::TellPostMatch(const ShellView& v, room::PostMatchWord word, const Submit& submit) {
+    if (!postMatch_ || postMatch_->told == word || !netplay::Fighting(v.session.match) || !v.room.roomEpoch || !v.room.localMember) return;
+    room::Action action;
+    action.kind = room::ActionKind::PostMatchAnswer; action.postMatch = word;
+    action.protocolVersion = room::ProtocolVersion; action.roomEpoch = v.room.roomEpoch; action.revision = v.room.revision;
+    action.table = static_cast<std::uint8_t>(postMatch_->table); action.matchGeneration = postMatch_->generation; action.game = postMatch_->game;
+    if (submit(commands::RoomAction{v.session.generation, std::move(action)})) postMatch_->told = word;
+}
+
 void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot& snapshot, double now, const Submit& submit, bool* open) {
     using namespace netplay; auto& nav = menu_.navigation;
     // The battle went on to the rematch both chose: that WIN's prompt is done,
@@ -112,7 +125,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
             const auto& t = snapshot.tables[fought.table];
             PostMatchPrompt prompt;
             prompt.table = fought.table; prompt.generation = fought.generation; prompt.result = fought.result;
-            prompt.until = now + PostMatchSeconds;
+            prompt.until = now + PostMatchSeconds; prompt.game = v.gamesInPlace;
             prompt.failures = v.readyFailureSequence;
             // A set the result has already ended rotated its seats: the opponent is the set's.
             const auto [p1, p2] = room::GameSeats(t, fought.generation);
@@ -150,7 +163,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         // the next game has not begun, with the start it promised taken back.
         if (v.readyFailureSequence != p.failures) {
             p.failures = v.readyFailureSequence;
-            if (t.matchGeneration == p.generation) p.chose = p.starting = false;
+            if (t.matchGeneration == p.generation) { p.chose = p.starting = false; TellPostMatch(v, room::PostMatchWord::None, submit); }
         }
         if (p.left) {
             if (!Fighting(v.session.match) || v.atMainMenu) ClosePostMatch(v, p.after, open);
@@ -232,9 +245,14 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     // they are not offered and do not replace the answer shown. Once the game
     // is over they close the prompt as ever.
     const bool committed = readied && netplay::Fighting(v.session.match);
-    const bool theyChose = p.starting || Readied(t, theirs, p.generation) || (deciding && t.rematch[theirs]);
-    const bool askedNew = deciding && t.wantsNew[mine], theyAskedNew = deciding && t.wantsNew[theirs];
     const auto* opponent = room::FindMember(v.room, p.opponent);
+    // What the opponent has told the room they chose over this WIN, as soon as
+    // they chose it: a Rematch that is the room's Ready only once the game is
+    // over, or the Character select or Back to room that leaves it.
+    const auto theirSaid = opponent && opponent->postMatchGeneration == p.generation && opponent->postMatchGame == p.game ?
+        opponent->postMatch : room::PostMatchWord::None;
+    const bool theyChose = p.starting || Readied(t, theirs, p.generation) || (deciding && t.rematch[theirs]) || theirSaid == room::PostMatchWord::Rematch;
+    const bool askedNew = deciding && t.wantsNew[mine], theyAskedNew = deciding && t.wantsNew[theirs];
     const auto* local = room::FindMember(v.room, v.room.localMember);
     const std::string name = opponent ? opponent->name : loc::T("room.player");
     // Rematch needs both fighters still seated, and after a set nobody waiting for the seat.
@@ -257,7 +275,9 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     };
     // This PC's row: its choice, Back to room or Character select once made.
     std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen || askedNew, mine >= 0, mine);
-    std::string theirWord = state(theyChose || theyAskedNew, theirs >= 0, theirs);
+    std::string theirWord = theirs >= 0 && !theyChose && !theyAskedNew && theirSaid != room::PostMatchWord::None ?
+        std::string(loc::T(theirSaid == room::PostMatchWord::FighterSelect ? "postmatch.character_select" : "postmatch.back")) :
+        state(theyChose || theyAskedNew, theirs >= 0, theirs);
     // Once the room has the set's result and the pair is apart, each fighter's
     // chip says where they are now: playing someone (vs NAME), alone at a table
     // (waits) or off the cabinets (left). The set's rotation parted them only
@@ -465,6 +485,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
         // answer may still end its question, but it readies nobody here.
         postMatch_->pairRematch = false;
         postMatch_->left = true; postMatch_->after = after;
+        TellPostMatch(v, after == AfterPostMatch::FighterSelect ? room::PostMatchWord::FighterSelect : room::PostMatchWord::Back, submit);
     };
     if (a.kind == MenuAction::Back) leave(AfterPostMatch::None);
     else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Fighter) leave(AfterPostMatch::FighterSelect);
@@ -473,7 +494,10 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
         postMatch_->pairRematch = false; RoomAction({MenuAction::Activate, "new-opponent"}, v, submit);
     }
     else if (a.kind == MenuAction::Activate) {
-        if (a.id == "again" && model.again && !model.chosen) { selectedTable_ = p.table; postMatch_->answered |= postMatch_->chose = SendReady(v, true, submit); }
+        if (a.id == "again" && model.again && !model.chosen) {
+            selectedTable_ = p.table; postMatch_->answered |= postMatch_->chose = SendReady(v, true, submit);
+            if (postMatch_->chose) TellPostMatch(v, room::PostMatchWord::Rematch, submit);
+        }
         else if (a.id == "rematch" || a.id == "new-opponent") { postMatch_->pairRematch = a.id == "rematch"; RoomAction(a, v, submit); }
         else if (a.id == "fighter") leave(AfterPostMatch::FighterSelect);
         else if (a.id == "back") leave(AfterPostMatch::None);

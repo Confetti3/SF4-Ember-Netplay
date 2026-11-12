@@ -2,6 +2,7 @@
 void RoomJourneys();
 void FollowJourneys();
 void PostMatchJourneys();
+void PostMatchLiveAnswerJourney();
 void ArcadeJourneys();
 void ButtonPromptJourneys();
 void ControllerJourneys();

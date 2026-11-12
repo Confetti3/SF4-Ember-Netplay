@@ -1120,6 +1120,46 @@ void ArcadeJourneys() {
   SetMenuEntriesProbe({});SetMenuCardTextProbe({});
  }
 }
+// The opponent's answer over the WIN shows as it is made, not when the game is
+// over: their Rematch (told to the room, which the room's Ready follows only
+// after the game), Character select or Back to room, for this game only. And
+// this PC's own answer is told to the room once, for the game it answers.
+void PostMatchLiveAnswerJourney() {
+ using namespace sf4e;
+ Harness h;JoinedRoom(h,12);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;
+ h.view.room.host=1;h.view.room.revision=3;h.view.room.localMember=1;
+ room::Member local;local.id=1;local.name="Player 1";local.table=0;local.seat=0;h.view.room.members.push_back(local);
+ room::Member peer;peer.id=2;peer.name="Player 2";peer.table=0;peer.seat=1;h.view.room.members.push_back(peer);
+ auto& t=h.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
+ h.Screen("room");
+ std::map<std::string,std::string> words;SetMenuCardTextProbe([&](const std::string& id,const std::string& text){words[id]=text;});
+ h.view.session.match=netplay::MatchState::Playing;h.view.atMainMenu=false;h.view.foughtGame={0,t.matchGeneration,room::MatchResult::Abort};h.view.matchResult=true;h.Frame();
+ Check(h.shell.Navigation().Screen()=="post-match"&&words["pm-opponent"]==loc::T("postmatch.state.choosing"),"The opponent was not shown choosing at first");
+ const auto say=[&](room::PostMatchWord word,std::uint64_t generation,std::uint32_t game){
+  auto& m=h.view.room.members[1];m.postMatch=word;m.postMatchGeneration=generation;m.postMatchGame=game;h.Frame();};
+ // Their Rematch shows at once, well before the timer ends, with the room's Ready not in.
+ say(room::PostMatchWord::Rematch,5,0);
+ Check(h.shell.Navigation().Screen()=="post-match"&&words["pm-opponent"]==loc::T("postmatch.state.ready")&&!t.ready[1],"A remote Rematch was not shown before the timer ended");
+ // Another game's or another match's answer is not this one's.
+ say(room::PostMatchWord::Rematch,5,1);
+ Check(words["pm-opponent"]==loc::T("postmatch.state.choosing"),"An answer to another game of the battle was shown");
+ say(room::PostMatchWord::Rematch,4,0);
+ Check(words["pm-opponent"]==loc::T("postmatch.state.choosing"),"An answer to another match was shown");
+ say(room::PostMatchWord::FighterSelect,5,0);
+ Check(words["pm-opponent"]==loc::T("postmatch.character_select"),"A remote Character select was not shown");
+ say(room::PostMatchWord::Back,5,0);
+ Check(words["pm-opponent"]==loc::T("postmatch.back"),"A remote Back to room was not shown");
+ say(room::PostMatchWord::None,0,0);
+ // This PC's own answer is told once, as made: Rematch with the Ready.
+ Check(h.said.empty(),"An answer was told before it was made");
+ h.Choose("again");
+ Check(h.said.size()==1&&h.said[0].postMatch==room::PostMatchWord::Rematch&&h.said[0].matchGeneration==5&&h.said[0].game==0&&h.said[0].table==0,"Rematch was not told to the room for its game");
+ h.Frame();h.Frame();
+ Check(h.said.size()==1,"The answer was told again with nothing changed");
+ // The runtime refusing the Rematch takes it back, told as none.
+ h.view.readyFailure="Assign a controller first.";++h.view.readyFailureSequence;h.Frame();
+ Check(h.said.size()==2&&h.said.back().postMatch==room::PostMatchWord::None,"A refused Rematch was left told to the room");
+}
 // The post-match prompt over the WIN screen: Rematch sends the room's Ready
 // and the prompt stays until the next game starts; no answer after a game
 // with no set length leaves the seat once the game is over; inside a set it

@@ -33,6 +33,8 @@ void Check(bool ok,const char* message){if(!ok)throw std::runtime_error(message)
 int DisplayedAfter(int fighter){const int* at=std::find(std::begin(sf4e::selection::RosterDisplayOrder),std::end(sf4e::selection::RosterDisplayOrder),fighter);return at[1];}
 struct Harness {
  ApplicationShell shell;ShellView view;std::vector<ShellAction> actions;bool open=true,accept=true;
+ // What the prompt over the WIN told the room of the player's answer: kept apart, as it comes with an answer's own action.
+ std::vector<sf4e::room::Action> said;
  std::function<void()> selection=[]{},developer;
  HeadlessImGui imgui; // last: created after the shell and destroyed before it
  Harness(){
@@ -42,7 +44,9 @@ struct Harness {
  }
  void Frame(unsigned buttons=0,int count=1,float seconds=1.f/60){
   for(int i=0;i<count;++i){imgui.Use();auto& io=ImGui::GetIO();io.DeltaTime=seconds;SetMenuInput({buttons,0});ImGui::NewFrame();
-   shell.Draw(view,&open,[&](ShellAction a){actions.push_back(a);return accept;},selection,developer);
+   shell.Draw(view,&open,[&](ShellAction a){
+    if(const auto* r=std::get_if<commands::RoomAction>(&a);r&&r->roomAction.kind==sf4e::room::ActionKind::PostMatchAnswer){said.push_back(r->roomAction);return accept;}
+    actions.push_back(a);return accept;},selection,developer);
    ImGui::Render();}
  }
  // One frame that lets `seconds` of interface time pass (the shell's clock is ImGui's).

@@ -25,6 +25,11 @@ struct PostMatchPrompt {
     int table = -1;
     room::MemberId opponent = 0;
     std::uint64_t generation = 0;
+    // Its place in the battle (ShellView::gamesInPlace when it opened), which a
+    // rematch in place leaves on the same generation, and the answer the room
+    // was last told (ApplicationShell::TellPostMatch).
+    std::uint32_t game = 0;
+    room::PostMatchWord told = room::PostMatchWord::None;
     // The game's result, once the runtime has it (FoughtGame::result).
     room::MatchResult result = room::MatchResult::Abort;
     double until = 0;
