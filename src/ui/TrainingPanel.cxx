@@ -2,6 +2,7 @@
 #include "V2.hxx"
 #include "Theme.hxx"
 #include "GameMenu.hxx"
+#include "HitboxOverlay.hxx"
 #include "MenuRows.hxx"
 #include "MenuGlyphs.hxx"
 #include "RowId.hxx"
@@ -361,35 +362,11 @@ const input::TrainingButtons& TrainingPadButtons() { return padButtons; }
 std::string TrainingPadChord() { const auto names=TrainingPadNames(); return std::string(names.view)+" + "+names.start; }
 void DrawTrainingBoxes(const training::View& view) {
     LoadPractice();
-    if(!lab.meter.hitboxes||!view.boxes.valid) return;
-    // Green where a fighter can be hit, yellow where it can be thrown, red
-    // where an attack hits and blue where it throws; the skeleton in white.
-    static const ImU32 line[]={IM_COL32(60,220,90,230),IM_COL32(240,220,60,230),IM_COL32(255,60,60,230),IM_COL32(70,140,255,230)};
-    static const ImU32 fill[]={IM_COL32(60,220,90,90),IM_COL32(240,220,60,70),IM_COL32(255,60,60,110),IM_COL32(70,140,255,110)};
-    const auto* vp=ImGui::GetMainViewport();
-    auto* draw=ImGui::GetBackgroundDrawList();
-    const auto project=[&](float x,float y,ImVec2& at){
-        const bool seen=training::Project(view.boxes.view,view.boxes.projection,x,y,vp->Size.x,vp->Size.y,at.x,at.y);
-        at.x+=vp->Pos.x; at.y+=vp->Pos.y;
-        return seen;
-    };
-    for(const auto& box:view.boxes.boxes) {
-        if((box.kind==training::BoxKind::Hurt&&!lab.meter.hurtBoxes)||(box.kind==training::BoxKind::Throwable&&!lab.meter.throwBoxes)) continue;
-        ImVec2 at[4];
-        bool seen=true;
-        for(int corner=0;corner<4&&seen;++corner) seen=project(box.x[corner],box.y[corner],at[corner]);
-        if(!seen) continue;
-        const int kind=static_cast<int>(box.kind);
-        draw->AddQuadFilled(at[0],at[1],at[2],at[3],fill[kind]);
-        draw->AddQuad(at[0],at[1],at[2],at[3],line[kind],2);
-    }
-    if(lab.meter.skeleton) for(const auto& bone:view.boxes.bones) {
-        ImVec2 from,to;
-        if(!project(bone.x[0],bone.y[0],from)||!project(bone.x[1],bone.y[1],to)) continue;
-        draw->AddLine(from,to,IM_COL32(255,255,255,220),2);
-        draw->AddCircleFilled(from,3,IM_COL32(255,255,255,220));
-        draw->AddCircleFilled(to,3,IM_COL32(255,255,255,220));
-    }
+    if(!lab.meter.hitboxes) return;
+    // The neutral overlay draws them (HitboxOverlay.hxx), with the parts the
+    // Hitboxes page shows.
+    HitboxParts parts; parts.hurt=lab.meter.hurtBoxes; parts.throwable=lab.meter.throwBoxes; parts.skeleton=lab.meter.skeleton;
+    DrawHitboxOverlay(view.boxes,parts);
 }
 bool TrainingHotkeyBound(int fromF1) { return fromF1>=0&&(lab.keys[ResetKey]==fromF1||lab.keys[SaveKey]==fromF1); }
 std::vector<TrainingKeyHint> TrainingPositionKeys() {

@@ -36,6 +36,11 @@ public:
     // The selection screen the shell shows inside its own page: the dummy's
     // on Training select, else the player's.
     virtual void DrawSelection(bool dummy, const RuntimeSnapshot& snapshot) = 0;
+    // Training select's Hitboxes row (Capabilities::hitboxes): shows the
+    // fighters' boxes over the game's Training, or not, and keeps the choice;
+    // the view's hitboxesShown is the game's to fill (FillView). False when
+    // it was not kept. A game without the viewer is never asked.
+    virtual bool ShowHitboxes(bool) { return false; }
 protected:
     ~ShellGame() = default;
 };

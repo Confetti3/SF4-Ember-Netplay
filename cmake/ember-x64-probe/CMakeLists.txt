@@ -45,7 +45,7 @@ list(APPEND _ember_files
     launcher/RunningGameFocus.hxx launcher/GameLocator.cxx launcher/GameLocator.hxx launcher/LaunchSteps.hxx
     launcher/netplay/netplay_persist.cxx launcher/netplay/netplay_persist.hxx
     discord/BridgeServer.hxx discord/Presence.hxx discord/Ticket.hxx
-    training/FrameMeter.hxx training/MoveInputs.hxx training/PracticeSettings.hxx
+    training/FrameMeter.hxx training/HitBoxes.hxx training/MoveInputs.hxx training/PracticeSettings.hxx
     training/RecordingBank.hxx training/RecordingFile.hxx training/RecordingTypes.hxx
     training/TrainingSession.hxx)
 

@@ -17,6 +17,7 @@
 #include "../sf4e/sf4e__NetplayFacade.hxx"
 #include "../sf4e/sf4e__NetplayRuntime.hxx"
 #include "../sf4e/sf4e__RuntimeSession.hxx"
+#include "../sf4e/sf4e__ShellHost.hxx"
 #include <winsock2.h>
 #include <array>
 #include <iostream>
@@ -463,6 +464,23 @@ void TestJoinRefusalWording(bool publicJoin) {
 	std::cout << "TestJoinRefusalWording public=" << publicJoin << " passed\n";
 }
 
+// Ember's hitbox viewer is the game's own: off until the game sets it
+// (SF4 leaves it off: its Training lab has its own switch), and a game that
+// does not draw it keeps no choice from Training select's row, so the shell
+// host's asking it (ShellGame::ShowHitboxes) changes nothing.
+void TestHitboxesCapability() {
+	CHECK(!ember::game::Capabilities{}.hitboxes);
+	struct Lacking final : ember::ShellGame {
+		void FillView(const RuntimeSnapshot&, ui::ShellView&) override {}
+		bool StepSelection(const ui::ShellAction::SelectionStep&, const RuntimeSnapshot&) override { return false; }
+		void StartTraining(const RuntimeSnapshot&) override {}
+		void AddPick(facade::RuntimeCommand&) override {}
+		void DrawSelection(bool, const RuntimeSnapshot&) override {}
+	} lacking;
+	CHECK(!lacking.ShowHitboxes(true) && !lacking.ShowHitboxes(false));
+	std::cout << "TestHitboxesCapability passed\n";
+}
+
 } // namespace
 
 int main() {
@@ -481,6 +499,7 @@ int main() {
 	TestEntryRefusalWording();
 	TestJoinRefusalWording(false);
 	TestJoinRefusalWording(true);
+	TestHitboxesCapability();
 	std::cout << "Runtime capabilities tests passed\n";
 	return 0;
 }

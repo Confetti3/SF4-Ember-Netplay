@@ -79,6 +79,13 @@ struct Capabilities {
     // Ember's frame meter over a match: Settings' Match frame meter row,
     // which a game without the meter does not offer.
     bool frameMeter = false;
+    // Ember's hitbox viewer over the game's Training, switched from Training
+    // select's Hitboxes row (ShellView::offersHitboxes; the game keeps the
+    // choice, ShellGame::ShowHitboxes) and drawn with ui/HitboxOverlay from
+    // the game's own box view. SF4 leaves it off: its Training lab's Hitboxes
+    // page holds the same switch and its parts (TrainingPanel), and its
+    // Training select stays as it was.
+    bool hitboxes = false;
     // The game features whose Settings rows only some games have
     // (SettingsFeatures.hxx): a game without one is not offered its rows.
     SettingsFeatures settingsFeatures;

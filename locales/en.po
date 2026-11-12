@@ -769,6 +769,9 @@ msgstr "Start Training"
 msgid "training_select.start_detail"
 msgstr "Training loads with these fighters on this stage."
 
+msgid "training_select.hitboxes_detail"
+msgstr "Draws the fighters' boxes over Training: green where a fighter can be hit, red where an attack hits, blue where it throws, and an orange outline where an attack makes the opponent guard."
+
 msgid "home.replays"
 msgstr "Replays"
 

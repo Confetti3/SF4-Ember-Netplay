@@ -258,6 +258,8 @@ constexpr Capabilities Sf4Capabilities() {
     caps.steamProfile = true;
     caps.customContent = true;
     caps.frameMeter = true;
+    // hitboxes stays off: SF4's Training lab has its own Hitboxes page
+    // (TrainingPanel), which draws the same overlay (ui/HitboxOverlay).
     caps.settingsFeatures = ember::SettingsFeatures::All();
     return caps;
 }
