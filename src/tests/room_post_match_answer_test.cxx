@@ -66,10 +66,46 @@ int main() {
 		EXPECT(room.Say(room.p1, PostMatchWord::Back, generation, 2).accepted && room.member(room.p1).postMatch == PostMatchWord::Back);
 		EXPECT(room.Say(room.p1, PostMatchWord::None, generation, 2).accepted);
 		EXPECT(room.member(room.p1).postMatch == PostMatchWord::None && room.member(room.p1).postMatchGeneration == 0 && room.member(room.p1).postMatchGame == 0);
-		// Saying what is already so moves no revision.
+		// Saying what is already so, or anything, moves no revision.
 		EXPECT(room.Say(room.p2, PostMatchWord::FighterSelect, generation).accepted);
 		const auto revision = room.authority.SnapshotView().revision;
 		EXPECT(room.Say(room.p2, PostMatchWord::FighterSelect, generation).accepted && room.authority.SnapshotView().revision == revision);
+	}
+	{
+		// It is presence, like Typing: an answer moves no room revision, so a
+		// host's action made just before it is not stale when it arrives, and
+		// every change of it still goes out in the snapshot that follows.
+		Room room;
+		const auto generation = room.Generation();
+		auto lock = room.Make(ActionKind::Lock);
+		lock.locked = true;
+		const auto revision = room.authority.SnapshotView().revision;
+		EXPECT(room.Say(room.p1, PostMatchWord::Rematch, generation, 1).accepted);
+		EXPECT(room.Say(room.p1, PostMatchWord::Back, generation, 1).accepted && room.Say(room.p1, PostMatchWord::None, generation, 1).accepted);
+		EXPECT(room.authority.SnapshotView().revision == revision);
+		const auto locked = room.authority.Apply(room.host, lock);
+		EXPECT(locked.accepted && room.authority.SnapshotView().locked);
+	}
+	{
+		// A presence word is told by the runtime and compared with what the
+		// room shows; the answer is shown only as said, for its game.
+		EXPECT(IsPresence(ActionKind::SetTraining) && IsPresence(ActionKind::Typing) && IsPresence(ActionKind::PostMatchAnswer));
+		EXPECT(!IsPresence(ActionKind::Ready) && !IsPresence(ActionKind::Lock) && !IsPresence(ActionKind::Chat));
+		Member member;
+		PostMatchSaid said;
+		said.word = PostMatchWord::Rematch; said.table = 0; said.generation = 5; said.game = 2;
+		EXPECT(said.Active() && !PostMatchSaid{}.Active());
+		EXPECT(!PostMatchShown(member, said));
+		member.postMatch = PostMatchWord::Rematch; member.postMatchGeneration = 5; member.postMatchGame = 2;
+		EXPECT(PostMatchShown(member, said));
+		member.postMatchGame = 1;
+		EXPECT(!PostMatchShown(member, said));
+		member.postMatchGame = 2; member.postMatchGeneration = 4;
+		EXPECT(!PostMatchShown(member, said));
+		// None is shown by no answer, and an old game's answer is not none.
+		said.word = PostMatchWord::None;
+		EXPECT(!PostMatchShown(member, said));
+		EXPECT(PostMatchShown(Member{}, said));
 	}
 	{
 		// Only a seated fighter of the live match says it, for that match.

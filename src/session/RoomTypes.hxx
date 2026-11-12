@@ -136,16 +136,38 @@ enum class ActionKind : std::uint8_t {
 	// (Action::postMatch, for the game Action::matchGeneration and
 	// Action::game), told to the room as it is made so the opponent's prompt
 	// shows it at once. It binds nobody: the Ready, the leaving and the seat
-	// are the room's own. Appended so older authorities reject it as an
-	// unknown kind, and the answer then shows only when the game is over.
+	// are the room's own. Only the same build shares a room (the guest's
+	// sidecarHash must equal the host's), so every peer knows the kind.
 	PostMatchAnswer,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
 constexpr ActionKind LastActionKind = ActionKind::PostMatchAnswer;
 
+// A presence word: a member's own state, said by the runtime and compared with
+// what the room's snapshot shows of the member, so a word that was lost or
+// refused is said again. It binds nobody, and the client shows no error for
+// its refusal. The next one is one line here.
+constexpr bool IsPresence(ActionKind kind) {
+	return kind == ActionKind::SetTraining || kind == ActionKind::Typing || kind == ActionKind::PostMatchAnswer;
+}
+
 // What a fighter has answered the post-match prompt of one game.
 enum class PostMatchWord : std::uint8_t { None = 0, Rematch, FighterSelect, Back };
 constexpr PostMatchWord LastPostMatchWord = PostMatchWord::Back;
+
+// A fighter's answer as the shell wants it said (PostMatchAnswer): the word
+// for the game it answers, named by the table, the match's generation and its
+// place in the battle. Not active without a generation. The runtime keeps the
+// latest and says it until the room shows it (PostMatchShown).
+struct PostMatchSaid {
+	PostMatchWord word = PostMatchWord::None;
+	std::uint8_t table = 0;
+	std::uint64_t generation = 0;
+	std::uint32_t game = 0;
+	bool Active() const { return generation != 0; }
+	bool operator==(const PostMatchSaid& o) const { return word == o.word && table == o.table && generation == o.generation && game == o.game; }
+	bool operator!=(const PostMatchSaid& o) const { return !(*this == o); }
+};
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -272,6 +294,7 @@ struct Member {
     // The member's answer to the post-match prompt of one game of one match
     // (PostMatchAnswer): shown while that game's prompt is open, and read as
     // none for any other game. Optional on the wire and written only when set.
+    // Presence, like typing: it moves no room revision (ApplyPostMatchAnswer).
     PostMatchWord postMatch = PostMatchWord::None;
     std::uint64_t postMatchGeneration = 0;
     std::uint32_t postMatchGame = 0;
@@ -290,6 +313,13 @@ struct Member {
     std::uint16_t setsWon = 0;
     std::uint16_t setsLost = 0;
 };
+
+// Whether the room already shows `said` as `member`'s answer. None is shown by
+// no answer at all (the authority keeps none with no game).
+inline bool PostMatchShown(const Member& member, const PostMatchSaid& said) {
+	if (said.word == PostMatchWord::None) return member.postMatch == PostMatchWord::None;
+	return member.postMatch == said.word && member.postMatchGeneration == said.generation && member.postMatchGame == said.game;
+}
 
 // The set a table finished last: who sat where for its deciding game, and the
 // final score by seat. The score itself resets for the next set.

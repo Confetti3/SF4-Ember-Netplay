@@ -149,7 +149,12 @@ Result RoomAuthority::ApplyTyping(MemberId member, const Action& action) {
 // A fighter's answer to the prompt over the WIN of one game, kept for the
 // others to show while that game's prompt is open. It names the game it
 // answers (the match's generation and its place in the battle) and a seated
-// fighter of that match alone may say it. It binds nobody, like SetTraining.
+// fighter of that match alone may say it. It binds nobody, and, like Typing,
+// it moves no room revision: it is presence, shown to the others in the
+// snapshot that follows every accepted action, and it must not make a host's
+// room action (Lock, Kick, capacity, rename) stale. The runtime says it again
+// until the snapshot shows it (SayPostMatch); a word replaces the last, and
+// the member's action watermark refuses an older copy of one.
 Result RoomAuthority::ApplyPostMatchAnswer(MemberId member, const Action& action) {
 	Member* item = Find(member);
 	if (!item) return Reject(RejectReason::UnknownMember);
@@ -158,10 +163,7 @@ Result RoomAuthority::ApplyPostMatchAnswer(MemberId member, const Action& action
 	if (!action.matchGeneration || action.matchGeneration != table->matchGeneration) return Reject(RejectReason::WrongGeneration);
 	const auto game = action.postMatch == PostMatchWord::None ? 0 : action.game;
 	const auto generation = action.postMatch == PostMatchWord::None ? 0 : action.matchGeneration;
-	if (item->postMatch != action.postMatch || item->postMatchGeneration != generation || item->postMatchGame != game) {
-		item->postMatch = action.postMatch; item->postMatchGeneration = generation; item->postMatchGame = game;
-		TouchRoom();
-	}
+	item->postMatch = action.postMatch; item->postMatchGeneration = generation; item->postMatchGame = game;
 	return Accept();
 }
 
