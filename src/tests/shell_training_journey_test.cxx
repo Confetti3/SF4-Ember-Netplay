@@ -94,6 +94,37 @@ void TrainingSettingsAndHome() {
  }
  SetMenuEntriesProbe({});
 }
+// Training select's Hitboxes row is the game's (Capabilities::hitboxes,
+// ShellView::offersHitboxes): SF4's select keeps its four rows, and a game
+// that draws the viewer gets the row before Start. Select turns it over,
+// Left and Right set it, and the choice goes to the game alone (no runtime
+// command, no saved preference); a press that changes nothing sends nothing.
+void TrainingSelectHitboxes() {
+ using namespace sf4e;
+ Harness h;h.Frame();
+ Check(!ShellView{}.offersHitboxes&&!h.view.offersHitboxes,"The hitbox viewer was offered by default");
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ h.shell.ShowTraining();h.Frame();
+ Check(rows.size()==4&&rows[3].id=="training-start","A game without the hitbox viewer was offered its row");
+ h.view.offersHitboxes=true;h.Frame();
+ Check(rows.size()==5&&rows[3].id=="training-hitboxes"&&rows[4].id=="training-start"&&rows[3].label==loc::T("training.hitboxes")&&
+  rows[3].value==loc::T("common.off")&&rows[3].detail==loc::T("training_select.hitboxes_detail"),"Training select's Hitboxes row is missing or out of place");
+ const auto before=h.actions.size();
+ h.Choose("training-hitboxes");
+ Check(h.actions.size()==before+1&&h.actions.back().showHitboxes&&*h.actions.back().showHitboxes&&
+  h.actions.back().command.kind!=netplay::CommandKind::SavePreferences&&!h.actions.back().startTraining,"Select on Hitboxes did not ask the game to show them");
+ h.view.hitboxesShown=true;h.Frame();
+ Check(rows[3].value==loc::T("common.on"),"The Hitboxes row did not show the game's choice");
+ h.Press(MenuInput::Right);
+ Check(h.actions.size()==before+1,"Right on Hitboxes already shown asked again");
+ h.Press(MenuInput::Left);
+ Check(h.actions.size()==before+2&&h.actions.back().showHitboxes&&!*h.actions.back().showHitboxes,"Left on Hitboxes did not ask the game to hide them");
+ // The game's choice, not the menu's: unchanged until the game says so.
+ h.Frame();Check(rows[3].value==loc::T("common.on"),"The Hitboxes row changed before the game kept the choice");
+ h.view.offersHitboxes=false;h.view.hitboxesShown=false;h.Frame();
+ Check(rows.size()==4,"The Hitboxes row stayed for a game without the viewer");
+ SetMenuEntriesProbe({});
+}
 // Training from inside a room: the row sends no room command, and a player
 // called back from Training lands on their table, readied for them only once
 // the runtime allows a Ready.

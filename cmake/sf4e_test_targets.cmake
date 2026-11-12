@@ -111,6 +111,7 @@ sf4e_add_unit_test(NAME FrameRateWindow SOURCES "src/tests/frame_rate_window_tes
 sf4e_add_unit_test(NAME SelectionValue SOURCES "src/tests/selection_value_test.cxx" LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
 sf4e_add_unit_test(NAME MoveNotation SOURCES "src/tests/move_notation_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
 sf4e_add_unit_test(NAME HitBoxes SOURCES "src/tests/hit_boxes_test.cxx" STD 14 TIMEOUT 15)
+sf4e_add_unit_test(NAME HitboxOverlay SOURCES "src/tests/hitbox_overlay_test.cxx" STD 14 TIMEOUT 15)
 sf4e_add_unit_test(NAME BacFile SOURCES "src/tests/bac_file_test.cxx" STD 14 TIMEOUT 15)
 sf4e_add_unit_test(NAME GameFiles SOURCES "src/tests/game_files_test.cxx" STD 17 TIMEOUT 15 LABELS training)
 sf4e_add_unit_test(NAME PracticeSettings SOURCES "src/tests/practice_settings_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)

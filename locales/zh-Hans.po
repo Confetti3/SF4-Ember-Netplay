@@ -769,6 +769,9 @@ msgstr "开始训练"
 msgid "training_select.start_detail"
 msgstr "用这些角色和场地开始训练。"
 
+msgid "training_select.hitboxes_detail"
+msgstr "在训练画面上绘制斗士的判定框：可被击中的范围、攻击命中的范围和投技的范围各用一种颜色，橙色边框标出让对手防御的范围。"
+
 msgid "home.replays"
 msgstr "回放"
 

@@ -16,6 +16,7 @@ void AppearanceGalleries();
 void SelectorSpeech();
 void ChatJourneys();
 void TrainingSettingsAndHome();
+void TrainingSelectHitboxes();
 void TrainingFromRoom();
 void PracticeRoomCreate();
 void DelayPolicyCreate();

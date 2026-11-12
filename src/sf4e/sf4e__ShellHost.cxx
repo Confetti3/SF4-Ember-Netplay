@@ -72,6 +72,7 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     view.offersTraining = game::Game().caps.training; view.offersReplays = game::Game().caps.replays;
     view.offersFrameMeter = game::Game().caps.frameMeter; view.offersSteamProfile = game::Game().caps.steamProfile;
     view.offersTinyFighters = game::Game().caps.tinyFighters;
+    view.offersHitboxes = game::Game().caps.hitboxes;
     view.settingsFeatures = game::Game().caps.settingsFeatures;
     view.replayGameList = game::Game().caps.replayGameList; view.replayVideo = game::Game().caps.replayVideo;
     view.replayMeter = game::Game().caps.replayMeter; view.replayInputs = game::Game().caps.replayInputs;
@@ -151,6 +152,9 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
         // table page's Appearance edit the pick here; nothing is sent.
         if (const auto step = action.selectionStep; step.field != sf4e::ui::ShellAction::SelectionStep::Field::None)
             return game.StepSelection(step, snapshot);
+        // Training select's Hitboxes row: the game keeps the choice; nothing
+        // is sent, and a game without the viewer is never asked.
+        if (action.showHitboxes) return game::Game().caps.hitboxes && game.ShowHitboxes(*action.showHitboxes);
         // Training select's Start: the game enters Training with these once
         // its menu is idle (ShellGame::StartTraining). Not from a room or match, nor
         // in a game without Training.

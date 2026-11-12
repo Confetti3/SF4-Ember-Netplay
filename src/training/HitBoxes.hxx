@@ -9,8 +9,9 @@
 // one box; it knows nothing of the game or the overlay.
 namespace sf4e { namespace training {
 // Hurt: where a strike lands. Throwable: where a throw connects. Hit, Throw:
-// an attack's, on the frames it can touch.
-enum class BoxKind : std::uint8_t { Hurt, Throwable, Hit, Throw };
+// an attack's, on the frames it can touch. Proximity: where an attack makes
+// the opponent guard before it can touch them (SFV's; SF4's view has none).
+enum class BoxKind : std::uint8_t { Hurt, Throwable, Hit, Throw, Proximity };
 // A box in the fight's own units, on its plane (z = 0): its four corners, in
 // order round it. Not always upright: a box on a leaning body leans with it,
 // and the upright rectangle round it reaches further than the box does.

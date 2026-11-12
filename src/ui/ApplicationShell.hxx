@@ -195,6 +195,10 @@ struct ShellView {
     // The game draws tiny fighters (Capabilities::tinyFighters): the shell offers
     // a private room's host the Tiny fighters allowed rule.
     bool offersTinyFighters = false;
+    // The game draws Ember's hitbox viewer over its Training (Capabilities::hitboxes):
+    // Training select offers its Hitboxes row, which shows hitboxesShown, the
+    // game's saved choice.
+    bool offersHitboxes = false, hitboxesShown = false;
     ember::SettingsFeatures settingsFeatures = ember::SettingsFeatures::All();
     // What the Replays screen offers of a replay beyond watching, keeping and
     // showing it (the adapter's replay capabilities): the game's own replay
@@ -315,6 +319,9 @@ struct ShellAction : RuntimeRequest {
         enum class Field { None, Ultra, Color } field = Field::None;
         int delta = 0;
     } selectionStep;
+    // Training select's Hitboxes row: the game shows its boxes over Training,
+    // or not, and keeps the choice (ShellGame::ShowHitboxes); nothing is sent.
+    std::optional<bool> showHitboxes;
 };
 
 // Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and
@@ -587,6 +594,8 @@ private:
     // Training select: both picks and the stage, then Start Training (ApplicationShell__Training.cxx).
     std::vector<MenuEntry> TrainingSelectRows(const ShellView& view,std::string& title) const;
     void TrainingSelectActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
+    // Training select's Hitboxes row: Select turns it over, Left off and Right on.
+    void ShowHitboxes(bool shown,const Submit& submit);
     // The awards wall (ApplicationShell__Awards.cxx): "awards" for titles, "awards-icons" for icons.
     static bool AwardsScreen(const std::string& screen) { return screen == "awards" || screen == "awards-icons"; }
     static const v2::Award* WornAward(const ShellView& v, const std::string& id);

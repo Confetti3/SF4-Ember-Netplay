@@ -488,6 +488,8 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(a.id=="launch-update-check")SetLaunchCheck(a.delta>0);
  else if(a.id=="channel"){if(!v.services.pending)channelPick_.Step(v.services.channel,a.delta);}
  else if(a.id=="country-search")countryPicker_.Search(a.text);
+ // Training select's Hitboxes row is the game's choice, not a preference.
+ else if(screen=="training"&&a.id=="training-hitboxes"){if(v.offersHitboxes&&(a.delta>0)!=v.hitboxesShown)ShowHitboxes(a.delta>0,submit);}
  else if(CreateAdjust(a)){}
  else{
   auto prior=preferences_;
