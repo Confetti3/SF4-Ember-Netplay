@@ -23,9 +23,9 @@ void DiscordAndFirstLink(){
  // With an ID, the address field starts on Ember's own service.
  h.ready();
  h.Screen("linked-accounts");for(int i=0;i<4;++i)h.answer();
- Check(h.row("id-origin")&&h.row("id-origin")->value=="https://bridge.embernetplay.link","The service address does not start on Ember's own service");
+ Check(h.row("id-origin")&&h.row("id-origin")->value==SF4E_EMBER_SERVICE,"The service address does not start on Ember's own service");
  // A service with Discord: its status is asked for, and Connect opens the browser through the helper.
- id.bridges={{"brg_1","https://bridge.embernetplay.link","Ember"}};h.Screen("home");h.Screen("linked-accounts");
+ id.bridges={{"brg_1",SF4E_EMBER_SERVICE,"Ember"}};h.Screen("home");h.Screen("linked-accounts");
  for(int i=0;i<8&&h.sent().back()->op!=IdentityOp::BridgeInspect;++i)h.answer();
  id.inspected=id.bridges[0];id.connections={{"blumint","BluMint"}};id.inspectedDiscord=true;h.answer();
  for(int i=0;i<4&&h.sent().back()->op!=IdentityOp::DiscordStatus;++i)h.answer();
@@ -67,7 +67,7 @@ void DiscordConnectLink(){
  using namespace sf4e;using netplay::IdentityOp;
  Journey h;auto& id=h.view.identity;id.known=true;id.state="disabled";h.Frame();
  h.untilLimit=12;
- const std::string ember="https://bridge.embernetplay.link";
+ const std::string ember=SF4E_EMBER_SERVICE;
  // In a room the link only says it will open later, and then asks first.
  h.view.session.room=netplay::RoomState::Joined;h.Screen("home");
  h.view.tournament.connect.bridge="brg_1";h.view.tournament.connect.sequence=1;h.Frame(0,2);
@@ -129,7 +129,7 @@ void DiscordWaitsForItsService(){
  using namespace sf4e;using netplay::IdentityOp;
  Journey h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connect.confirm=true;
  h.identify();
- const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ const std::string ember=SF4E_EMBER_SERVICE,other="https://tournaments.example";
  id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
  const auto open=[&](const char* bridge,std::uint64_t sequence,const netplay::IdentityBridge& profile){
   h.view.tournament.connect.bridge=bridge;h.view.tournament.connect.sequence=sequence;h.Frame(0,2);
@@ -208,7 +208,7 @@ void DiscordWaitsForItsService(){
 void DiscordConnectKeepsItsService(){
  using namespace sf4e;using netplay::IdentityOp;
  Journey h;auto& id=h.view.identity;id.known=true;id.state="locked";h.Frame();h.view.tournament.connect.confirm=true;
- const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ const std::string ember=SF4E_EMBER_SERVICE,other="https://tournaments.example";
  // A link for a trusted service other than Ember's own, with the ID locked.
  h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=1;h.Frame(0,2);
  for(int i=0;i<4;++i)h.answer();
@@ -241,7 +241,7 @@ void DiscordConnectPastedLink(){
  using namespace sf4e;using netplay::IdentityOp;
  Journey h;auto& id=h.view.identity;id.known=true;id.state="ready";
  h.identify();
- const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ const std::string ember=SF4E_EMBER_SERVICE,other="https://tournaments.example";
  const std::string site="brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12";
  id.bridges={{"brg_1",ember,"Ember"},{site,other,"Other"}};h.Frame();
  auto& clipboard=ImGui::GetPlatformIO();
@@ -272,7 +272,7 @@ void DiscordConnectPastedLink(){
 // wait again.
 void FirstSignInRetires(){
  using namespace sf4e;using netplay::IdentityOp;
- const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ const std::string ember=SF4E_EMBER_SERVICE,other="https://tournaments.example";
  for(int ending=0;ending<3;++ending){
   Journey h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connect.confirm=true;
   h.identify();
@@ -310,7 +310,7 @@ void FirstSignInRetires(){
 // failed read of an account shown connected before.
 void ConnectReadsRecover(){
  using namespace sf4e;using netplay::IdentityOp;
- const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ const std::string ember=SF4E_EMBER_SERVICE,other="https://tournaments.example";
  for(int ending=0;ending<4;++ending){
   Journey h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connect.confirm=true;
   h.identify();
@@ -384,7 +384,7 @@ void ConnectReadsRecover(){
 // journey's requests.
 void RetainedChangesStayTheirs(){
  using namespace sf4e;using netplay::IdentityOp;
- const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ const std::string ember=SF4E_EMBER_SERVICE,other="https://tournaments.example";
  for(int ending=0;ending<2;++ending){
   Journey h;auto& id=h.view.identity;id.known=true;id.state=ending==0?"ready":"locked";h.view.tournament.connect.confirm=true;
   h.identify();
@@ -430,7 +430,7 @@ void EmberIdFromOnline(){
  using namespace sf4e;using netplay::IdentityOp;
  Journey h;auto& id=h.view.identity;id.known=true;id.state="ready";
  h.identify();
- const std::string ember="https://bridge.embernetplay.link";
+ const std::string ember=SF4E_EMBER_SERVICE;
  id.bridges={{"brg_1",ember,"Ember"}};h.Frame();
  h.Screen("home");
  Check(!h.row("identity"),"Home still has its own Ember ID row");
@@ -469,7 +469,7 @@ void EmberIdFromOnline(){
 // Connect Discord.
 void HomeGuides(){
  using namespace sf4e;using netplay::IdentityOp;using netplay::tournament::Command;
- const std::string ember="https://bridge.embernetplay.link";
+ const std::string ember=SF4E_EMBER_SERVICE;
  {
  Journey h;auto& id=h.view.identity;id.known=true;id.state="disabled";
  // The state is not known yet: Home asks for it, and again after a failure.
@@ -540,7 +540,7 @@ void HomeGuides(){
 // forgetting it once its service's list no longer holds it. The store is a real file.
 void StaleMatches(){
  using namespace sf4e;using netplay::tournament::Assignment;
- const std::string ember="https://bridge.embernetplay.link";
+ const std::string ember=SF4E_EMBER_SERVICE;
  const auto root=std::filesystem::temp_directory_path()/("sf4e-stale-matches-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
  std::filesystem::create_directories(root);
  const auto load=[&]{return platform::testing::LoadAnnouncedMatchesFrom(root.wstring());};
@@ -676,7 +676,7 @@ void StaleMatches(){
 // tells nothing again.
 void AnnouncementSaveRetries(){
  using namespace sf4e;using netplay::tournament::Assignment;
- const std::string ember="https://bridge.embernetplay.link";
+ const std::string ember=SF4E_EMBER_SERVICE;
  std::vector<platform::AnnouncedMatch> stored;int refusals=1,writes=0;
  const auto load=[&]{return stored;};
  const auto save=[&](const std::vector<platform::AnnouncedMatch>& told){++writes;if(refusals>0){--refusals;return false;}stored=told;return true;};
@@ -706,7 +706,7 @@ void AnnouncementSaveRetries(){
 // is not trusted by itself.
 void OnboardingGuards(){
  using namespace sf4e;using netplay::IdentityOp;
- const std::string ember="https://bridge.embernetplay.link";
+ const std::string ember=SF4E_EMBER_SERVICE;
  for(int part=0;part<3;++part){
   Journey h;auto& id=h.view.identity;id.known=true;
   id.state=part==0?"ready":"disabled";
@@ -764,7 +764,7 @@ void OnboardingGuards(){
 // hidden while Discord's page is being opened.
 void CancelReachesTheService(){
  using namespace sf4e;using netplay::IdentityOp;
- const std::string ember="https://bridge.embernetplay.link";
+ const std::string ember=SF4E_EMBER_SERVICE;
  for(int ending=0;ending<3;++ending){
   Journey h;auto& id=h.view.identity;id.known=true;h.ready();id.bridges={{"brg_1",ember,"Ember"}};h.Frame();
   h.untilLimit=12;
@@ -801,7 +801,7 @@ void CancelReachesTheService(){
 // of setup. Hiding Ember during setup stops it: reopening sends nothing more.
 void OnboardingSteps(){
  using namespace sf4e;using netplay::IdentityOp;
- const std::string ember="https://bridge.embernetplay.link";
+ const std::string ember=SF4E_EMBER_SERVICE;
  for(int part=0;part<3;++part){
   Journey h;auto& id=h.view.identity;id.known=true;id.state=part==0?"locked":"disabled";h.Frame();
   h.untilLimit=12;
@@ -862,7 +862,7 @@ void OnboardingSteps(){
 // of a service whose sign-in is off offers Try again, not "off".
 void OnboardingRecovers(){
  using namespace sf4e;using netplay::IdentityOp;using netplay::tournament::Command;
- const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ const std::string ember=SF4E_EMBER_SERVICE,other="https://tournaments.example";
  for(int part=0;part<3;++part){
   Journey h;auto& id=h.view.identity;
   h.untilLimit=12;

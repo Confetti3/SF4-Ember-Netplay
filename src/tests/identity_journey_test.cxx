@@ -242,7 +242,7 @@ void PlayRechecks(){
 void RestartWatch(){
  using namespace sf4e;using netplay::tournament::Command;using netplay::tournament::Phase;
  Journey h;auto& id=h.view.identity;id.known=true;h.ready();
- id.bridges={{"brg_1","https://bridge.embernetplay.link","Ember"}};
+ id.bridges={{"brg_1",SF4E_EMBER_SERVICE,"Ember"}};
  h.Screen("home");h.Frame(0,2);h.answer();h.Frame(0,2);
  const auto reads=[&]{const auto all=h.played();return std::count_if(all.begin(),all.end(),[](const Command* c){return c->op==Command::Op::Refresh;});};
  Check(reads()>=1,"Home did not read the matches");
@@ -301,7 +301,7 @@ void TournamentRoom(){
 // opens Connect Discord for that service, and Back returns to Settings > Discord.
 void TournamentAccount(){
  using namespace sf4e;using netplay::IdentityOp;
- const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ const std::string ember=SF4E_EMBER_SERVICE,other="https://tournaments.example";
  Journey h;auto& id=h.view.identity;id.known=true;id.state="disabled";
  const auto account=[&]{return h.row("tournament-account");};
  const auto open=[&]{h.Screen("tab-online/discord");};

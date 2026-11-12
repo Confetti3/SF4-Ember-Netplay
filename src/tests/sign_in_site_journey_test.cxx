@@ -4,7 +4,7 @@
 #include "identity_journey_support.hxx"
 #include <nlohmann/json.hpp>
 namespace {
-const std::string ember="https://bridge.embernetplay.link";
+const std::string ember=SF4E_EMBER_SERVICE;
 
 // A ready Ember ID that trusts Ember's own service.
 void Ready(Journey& h){

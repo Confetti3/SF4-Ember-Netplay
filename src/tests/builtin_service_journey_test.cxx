@@ -3,7 +3,8 @@
 // journey test's main.
 #include "identity_journey_support.hxx"
 namespace {
-const std::string staging="https://bridge-staging.embernetplay.link",staged="brg_00000000-0000-4000-8000-0000000000aa";
+// A built-in service that is never this build's own (a Nightly build's own is the staging bridge).
+const std::string staging="https://ember-bridge.fraccie.be",staged="brg_00000000-0000-4000-8000-0000000000aa";
 // A service built into this version of Ember arrives trusted in the helper's
 // list but dormant: with only it, Online play, Home and the matches look as
 // they do with no service, and nothing is read from it. Its connect link runs
@@ -14,7 +15,7 @@ void BuiltInServiceConnects(){
  {
  // Beside Ember's own, a dormant one is not offered as a service.
  Journey h;auto& id=h.view.identity;id.known=true;h.ready();
- id.bridges={{"brg_1","https://bridge.embernetplay.link","Ember"},{staged,staging,"Ember bridge (staging)",true,false}};
+ id.bridges={{"brg_1",SF4E_EMBER_SERVICE,"Ember"},{staged,staging,"Ember bridge (staging)",true,false}};
  h.Screen("linked-accounts");for(int i=0;i<6;++i)h.answer();
  Check(h.row("id-bridge")&&h.row("id-bridge")->value=="Ember"&&h.row("id-bridge")->choices.size()==1,"A dormant built-in service is offered as one of the player's");
  }

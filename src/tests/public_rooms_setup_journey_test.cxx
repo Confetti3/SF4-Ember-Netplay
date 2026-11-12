@@ -40,7 +40,7 @@ void NoIdentityJourney(){
 // Ember ID, creates it when nothing must be typed, finds Ember's own service and
 // trusts it, then the list is asked for. Each step is the card's line, a failure its
 // text with Try again, and an ID that needs the player goes to its own screen.
-const char* const EmberOrigin="https://bridge.embernetplay.link";
+const char* const EmberOrigin=SF4E_EMBER_SERVICE;
 // The helper refuses the newest request outright.
 void RefuseIdentity(Journey& j,const char* reason){
  auto& h=j.h;h.view.identityTicket=j.identity().back()->ticket;h.view.identityRequest=0;h.view.identityRefusal=reason;h.Frame(0,2);
