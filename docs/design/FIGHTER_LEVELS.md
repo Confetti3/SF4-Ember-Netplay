@@ -174,8 +174,20 @@ belong to the shared library's bridge (`057_room_game`, `058_ranking_games`,
 `059_match_games`), which records numbers only. That bridge ran them on
 production and staging on 2026-11-09, so this bridge carries the three files
 byte for byte as its own 057 to 059 and names their unnamed records, as it
-names every unnamed record up to 059. An unnamed record above 059 is no file
-it knows, and is refused.
+names every unnamed record up to 059, each only when the schema shows its
+migration ran (`rooms.game`; a key of `skill_ratings` that includes `game`;
+`matches.game`), and refuses it otherwise. An unnamed record above 059 is no
+file it knows, and is refused.
+
+The database also holds SFV rows (`game = 'sfv'`) until SFV moves to its own
+bridge. This bridge's reads of rooms, matches, lobbies and tournaments are not
+scoped by game, so it refuses to start on a database with a row of another
+game in any of the seven tables that carry `game`, one `EXISTS` each, in the
+transaction of the ledger checks. The error names the tables and says to run
+`clear-sfv-rows.py` (the library's `server/sfv-bridge`) first, with the bridge
+stopped. Its protocol refuses a request that names a game, so no such row is
+written afterwards. The tests are in `src/db/migrations_tests.rs`, and those
+of 060 and 062 in `tests/levels_migrations.rs`.
 
 058 puts `game` (default `usf4`) at the head of the keys of `skill_ratings`,
 `rated_pairs` and `ranking_choices`. This bridge's writes name it in their
@@ -466,7 +478,7 @@ cap).
 |---|---|---|---|---|
 | P0 Contracts | `server/ember/protocol/src/{levels.rs,friends.rs,lib.rs}`, `rooms/mod.rs` (`TicketRequest::card`), `rooms/ticket.rs` (`RoomTicket::card`) | none | shapes, `check`, requests refuse unknown fields and answers ignore them, tickets without `card` byte-identical | none |
 | P1 Room host | `src/common/{SkillBadge.hxx,SkillBadgeJson.hxx}`, `src/session/{RoomAuthority.hxx,RoomModelServerOwned.cxx,RoomModelActions.cxx,RoomModel.cxx,RoomTypes.hxx,RoomModelJson.cxx,Admission.hxx,IrohRoomPeers.cxx}`, `server/roomhost/{RoomHostStatus.hxx,README.md}`, `server/ember-rooms/src/protocol.rs`, `server/ember/bridge/src/routes/rooms/supervisor.rs` (the limit only), `rust/sf4-net/src/{control.rs,service/controls.rs,service/protocol.rs}` | P0 | `room_server_owned_test` (fighters, game index across a rematch in place, old checkpoint restores), `room_host_config_test` (largest line), `session_server_moderation_test` (card admitted, forged card ignored), ember-rooms limits test, helper `connected` with `card` | two 1.6.0 PCs in a public room: a set of three games in place reaches the bridge as three games |
-| P2 Bridge levels | `migrations/060_fighter_levels.sql`, `src/db/migrations.rs` (one line), `src/skill/{mod.rs,levels.rs}`, `src/cards.rs`, `src/routes/{levels.rs,mod.rs,discovery.rs}`, `src/routes/rooms/ticket.rs`, `tests/levels.rs` | P0 | migration from 056 keeps rated games and pairs; three games of one generation count three times; cap at nine; a game without fighters rates and earns account points but no fighter points; opted-out player earns points and shows them; token round trip, 7-day expiry, wrong purpose; 404 shape | none |
+| P2 Bridge levels | `migrations/060_fighter_levels.sql`, `src/db/migrations.rs` (one line), `src/skill/{mod.rs,levels.rs}`, `src/cards.rs`, `src/routes/{levels.rs,mod.rs,discovery.rs}`, `src/routes/rooms/ticket.rs`, `tests/levels.rs`, `tests/levels_migrations.rs` | P0 | migration from 056 keeps rated games and pairs; three games of one generation count three times; cap at nine; a game without fighters rates and earns account points but no fighter points; opted-out player earns points and shows them; token round trip, 7-day expiry, wrong purpose; 404 shape | none |
 | P3 Bridge friends | `FRIENDS.md` | P2 | there | there |
 | P4 Helper and runtime | `rust/sf4-net/src/tournament/{levels.rs,friends.rs,mod.rs,play.rs,rooms.rs}`, `src/netplay/{Levels.hxx,LevelRequests.hxx,Friends.hxx,FriendRequests.hxx,TournamentStatus.hxx}`, `src/session/SocialAnswers.{hxx,cxx}`, `src/sf4e/{sf4e__NetplayRuntime__Social.cxx,sf4e__NetplayRuntime.hxx,sf4e__NetplayRuntime__Status.cxx}` (publishing levels and friends; dropping `card` outside public rooms), the answer hook beside `TakeRankingsAnswer`, the netplay and session library lines of `CMakeLists.txt`, `src/tests/{social_answers_test.cxx,tournament_fuzz_test.cxx}` | P0; P1 for `Member::card` | ops round-trip, `card` asked only with `levels` listed, decoders ignore unknown members and keep known keys exact, request cadence | none |
 | P5 Digits and points parts | `src/common/PointDigits.hxx`, `src/ui/LevelMark.{hxx,cxx}`, `src/ui/V2.hxx` (declarations of `Level`, `LevelWidth`, `FrameTier`, `LevelBand`, `Meter`, `PLAYER_CARD.md`), `src/ui/SelectionArt.{hxx,cxx}`, the `sf4e_ui` source line of `CMakeLists.txt`, the lab case | none | glyph measuring on a synthetic sheet; layout from a synthetic glyph set | the digits against the game's own PP and BP at three sizes |

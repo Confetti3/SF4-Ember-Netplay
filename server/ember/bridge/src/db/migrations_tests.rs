@@ -985,3 +985,80 @@ fn a_new_database_runs_the_librarys_files_then_the_1_6_files() {
     assert!(has_table(&connection, "social_accounts"));
     assert!(has_table(&connection, "account_points"));
 }
+
+#[test]
+fn an_unnamed_057_to_059_is_adopted_only_when_the_schema_shows_it_ran() {
+    // 057 recorded, its column never added.
+    let mut connection = Connection::open_in_memory().unwrap();
+    let mut older = files_to(56);
+    older.push((57, "SELECT 1;"));
+    as_an_older_bridge(&mut connection, &older);
+    let text = refusal(migrate(&mut connection, MIGRATIONS));
+    assert!(text.contains("057"), "{text}");
+    assert!(text.contains("rooms.game"), "{text}");
+    assert!(!has_table(&connection, "fighter_levels"));
+
+    // 058 recorded over the old keys of the rating tables.
+    let mut connection = Connection::open_in_memory().unwrap();
+    let mut older = files_to(57);
+    older.push((58, "SELECT 1;"));
+    as_an_older_bridge(&mut connection, &older);
+    let text = refusal(migrate(&mut connection, MIGRATIONS));
+    assert!(text.contains("058") && text.contains("skill_ratings"), "{text}");
+
+    // 059 recorded without the column on matches.
+    let mut connection = Connection::open_in_memory().unwrap();
+    let mut older = files_to(58);
+    older.push((59, "SELECT 1;"));
+    as_an_older_bridge(&mut connection, &older);
+    let text = refusal(migrate(&mut connection, MIGRATIONS));
+    assert!(text.contains("059") && text.contains("matches.game"), "{text}");
+
+    // All three with their schema are adopted.
+    let mut connection = Connection::open_in_memory().unwrap();
+    as_an_older_bridge(&mut connection, &files_to(59));
+    migrate(&mut connection, MIGRATIONS).unwrap();
+    assert_every_file_recorded(&connection);
+}
+
+#[test]
+fn a_database_holding_another_games_rows_is_refused_naming_the_tables() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    migrate(&mut connection, MIGRATIONS).unwrap();
+    connection
+        .execute_batch(
+            "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, created_at)
+               VALUES ('room', 'Friendly matches', 8, 'build', 'emb_player1', 1000);
+             INSERT INTO skill_ratings (game, discord_user_id, rating, deviation, volatility, band, played_at)
+               VALUES ('usf4', '100', 1500, 90, 0.06, 5, 1);",
+        )
+        .unwrap();
+    // Only USF4's rows: it opens, again and again.
+    migrate(&mut connection, MIGRATIONS).unwrap();
+
+    connection
+        .execute_batch("UPDATE rooms SET game = 'sfv';")
+        .unwrap();
+    let text = refusal(migrate(&mut connection, MIGRATIONS));
+    assert!(text.contains("rooms"), "{text}");
+    assert!(!text.contains("skill_ratings"), "{text}");
+    assert!(text.contains("clear-sfv-rows.py"), "{text}");
+
+    connection
+        .execute_batch(
+            "INSERT INTO skill_ratings (game, discord_user_id, rating, deviation, volatility, band, played_at)
+               VALUES ('sfv', '100', 1500, 90, 0.06, 5, 1);
+             INSERT INTO ranking_choices (game, discord_user_id, ranked) VALUES ('sfv', '100', 1);",
+        )
+        .unwrap();
+    let text = refusal(migrate(&mut connection, MIGRATIONS));
+    assert!(text.contains("rooms, skill_ratings, ranking_choices"), "{text}");
+}
+
+#[test]
+fn an_older_database_with_no_game_columns_is_not_refused_for_them() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    as_an_older_bridge(&mut connection, &files_to(56));
+    migrate(&mut connection, MIGRATIONS).unwrap();
+    assert_every_file_recorded(&connection);
+}

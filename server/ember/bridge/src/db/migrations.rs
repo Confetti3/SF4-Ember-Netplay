@@ -14,7 +14,13 @@
 //! take this bridge's file for that number, once, when it first opens the
 //! database: 057 to 059 are the shared library's files, which its bridge ran
 //! on production and staging and this bridge carries unchanged. An unnamed
-//! record above 059 is refused, not adopted.
+//! record above 059 is refused, not adopted. A record of 055 to 059 is taken
+//! only when the schema shows its migration ran (`schema_shows`).
+//!
+//! The bridge also refuses a database that holds a row of another game than
+//! `usf4` in a table that carries `game` (`refuse_other_games`): its reads of
+//! rooms, matches, lobbies and tournaments are not scoped by game, so the
+//! shared library's SFV rows have to be cleared first.
 use rusqlite::{Connection, Transaction, TransactionBehavior, params};
 use sha2::{Digest, Sha256};
 
@@ -148,6 +154,7 @@ pub(super) fn migrate(
     record_table(&transaction)?;
     settle_unnamed_055(&transaction)?;
     check_records(&transaction, migrations)?;
+    refuse_other_games(&transaction)?;
     transaction.commit()?;
     for migration in migrations {
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -261,6 +268,14 @@ fn check_records(tx: &Transaction<'_>, migrations: &[Migration]) -> Result<(), O
         };
         let expected = migration.checksum();
         let Some(name) = name else {
+            if let Some(shown) = schema_shows(tx, version)? {
+                if !shown.1 {
+                    return Err(OpenError::Migration(format!(
+                        "the database recorded migration {version:03} without a file name, but                          its schema lacks {}: that migration did not run as {} does",
+                        shown.0, migration.name
+                    )));
+                }
+            }
             tx.execute(
                 "UPDATE schema_migrations SET name = ?2, checksum = ?3 WHERE version = ?1",
                 params![version, migration.name, expected],
@@ -277,6 +292,65 @@ fn check_records(tx: &Transaction<'_>, migrations: &[Migration]) -> Result<(), O
         }
     }
     Ok(())
+}
+
+/// What the schema must show of a migration that ran as this bridge's file
+/// does, for the unnamed records of 057 to 059 (the library's files):
+/// what is looked for, and whether it is there. `None` for the others.
+fn schema_shows(tx: &Transaction<'_>, version: i64) -> rusqlite::Result<Option<(&'static str, bool)>> {
+    Ok(match version {
+        57 => Some(("the column rooms.game", has_column(tx, "rooms", "game")?)),
+        58 => Some((
+            "a key on skill_ratings that includes game",
+            tx.query_row(
+                "SELECT EXISTS (SELECT 1 FROM pragma_table_info('skill_ratings') WHERE name = 'game' AND pk > 0)",
+                [],
+                |row| row.get(0),
+            )?,
+        )),
+        59 => Some(("the column matches.game", has_column(tx, "matches", "game")?)),
+        _ => None,
+    })
+}
+
+/// The tables whose rows carry `game` since 057 to 059.
+const GAME_TABLES: [&str; 7] = [
+    "rooms",
+    "matches",
+    "lobbies",
+    "tournaments",
+    "skill_ratings",
+    "rated_pairs",
+    "ranking_choices",
+];
+
+/// Refuses a database that holds a row of another game than `usf4`. This
+/// bridge's rating tables are scoped to `usf4`, but its reads of rooms,
+/// matches, lobbies and tournaments are not, and it rates every room's games
+/// into USF4's ratings: SFV rows left in them would be listed and rated as
+/// USF4's. Its protocol refuses a request that names a game, so none can be
+/// written afterwards. A table without the column is from before 057 and
+/// holds none.
+fn refuse_other_games(tx: &Transaction<'_>) -> Result<(), OpenError> {
+    let mut found = Vec::new();
+    for table in GAME_TABLES {
+        if has_column(tx, table, "game")?
+            && tx.query_row(
+                &format!("SELECT EXISTS (SELECT 1 FROM {table} WHERE game <> 'usf4')"),
+                [],
+                |row| row.get(0),
+            )?
+        {
+            found.push(table);
+        }
+    }
+    if found.is_empty() {
+        return Ok(());
+    }
+    Err(OpenError::Migration(format!(
+        "the database holds rows of another game than usf4 in {}: this bridge is USF4's alone          and would list and rate them as its own. Run clear-sfv-rows.py (the shared library's          server/sfv-bridge) on it first, with this bridge stopped",
+        found.join(", ")
+    )))
 }
 
 fn recorded(tx: &Transaction<'_>, version: i64) -> rusqlite::Result<bool> {
