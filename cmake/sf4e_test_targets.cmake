@@ -204,7 +204,8 @@ if(Python3_Interpreter_FOUND)
     sf4e_test_labels(LABELS ui TESTS SpeechRelay)
     # The frame data the phone remote shows: its shape and numbers that cannot be right (docs/development/FRAME_DATA.md).
     add_test(NAME FrameData COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/scripts/framedata/validate.py" "${CMAKE_SOURCE_DIR}/assets/framedata/usf4.json")
-    sf4e_test_labels(LABELS training TESTS FrameData)
+    add_test(NAME FrameDataScripts COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/framedata_scripts_test.py" "${CMAKE_SOURCE_DIR}/scripts/framedata")
+    sf4e_test_labels(LABELS training TESTS FrameData FrameDataScripts)
 endif()
 target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
 # The UI lab (src/ui/lab/UiLab.cxx): the shell in a window of its own, for working on layouts.
