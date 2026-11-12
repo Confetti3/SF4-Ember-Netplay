@@ -244,11 +244,14 @@ void Commands() {
 	static_assert(!IsFriendAction<FriendsVisit> && !IsFriendAction<FriendsLeave> && !IsFriendAction<FriendJoin> && !IsFriendAction<FriendWatch> &&
 		!IsFriendAction<FriendTakeInvite> && !IsFriendAction<FriendAnswerVisit>, "going to a friend asks the bridge nothing");
 	static_assert(IsFriendVisit<FriendJoin> && IsFriendVisit<FriendsVisit> && !IsFriendVisit<FriendAccept>, "the others");
-	EXPECT(!FriendAccept{"b", std::string(65, 'x')}.Valid());
-	EXPECT(!FriendRequestByCode{"b", std::string(33, 'x')}.Valid());
-	EXPECT(!FriendsVisit{std::string(257, 'b')}.Valid() && FriendsVisit{std::string(256, 'b')}.Valid());
-	EXPECT(FriendsVisit{"brg"}.Bytes() == 3 && FriendRequest{"b", "cc", "lll"}.Bytes() == 6);
-	EXPECT(HasBounds<FriendJoin> && HasBounds<FriendTurnOn> && BridgeOf(FriendAction(FriendNewCode{"brg_1"})) == "brg_1");
+	FriendAccept longId{"b", std::string(65, 'x')};
+	FriendRequestByCode longCode{"b", std::string(33, 'x')};
+	FriendsVisit longBridge{std::string(257, 'b')}, maxBridge{std::string(256, 'b')};
+	EXPECT(!longId.Valid() && !longCode.Valid() && !longBridge.Valid() && maxBridge.Valid());
+	FriendsVisit short_{"brg"};
+	FriendRequest card{"b", "cc", "lll"};
+	EXPECT(short_.Bytes() == 3 && card.Bytes() == 6);
+	EXPECT(HasBounds<FriendJoin> && HasBounds<FriendTurnOn> && BridgeOf(FriendAction(FriendNewCode{"brg_1"})) == std::string("brg_1"));
 }
 
 const std::string FriendId = "fr_11111111-1111-4111-8111-111111111111";
