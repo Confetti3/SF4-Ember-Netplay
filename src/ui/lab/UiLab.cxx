@@ -455,7 +455,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     int pictureMode = 0;  // --picture 0|1|2: the watched game's picture Small, Big or Off
     std::string hidePanes;  // --hide members|chat|both: the room board's panels hidden
     int hud = -1;
-    bool watching = false, faint = false;  // --hud with --watching: a spectator's HUD; --faint: an unsettled class
+    bool watching = false, faint = false, classes = false;  // --playback with --classes: a replay that noted its players' classes  // --hud with --watching: a spectator's HUD; --faint: an unsettled class
     bool trainingPanel = false, update = false, publicLab = false, rankings = false, playback = false, caption = false, toasts = false, levels = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
     // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
@@ -484,6 +484,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--caption") caption = true;
         else if (args[i] == "--watching") watching = true;
         else if (args[i] == "--faint") faint = true;
+        else if (args[i] == "--classes") classes = true;
         else if (args[i] == "--screen" && more) screen = args[++i];
         else if (args[i] == "--update") update = true;
         else if (args[i] == "--recovery" && more) recovery = args[++i];
@@ -698,6 +699,12 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             for (int side = 0; side < 2; side++) { std::copy(std::begin(rows), std::end(rows), replay.rows[side]); replay.rowCount[side] = 8; }
             ui::DrawReplayStrip(replay);
             ui::DrawReplayLanes(replay);
+            if (classes) {
+                // What Watch draws over a replay that noted its players' classes (replay::WatchCaption).
+                const std::string names[2] = {"Player 1", "Player 2"};
+                const SkillBadge noted[2] = {SkillBadge::OfClass(7, true), SkillBadge::OfClass(8, true)};
+                ui::DrawExportCaption(ui::ExportCaptionViewOf(replay::WatchCaption(names, noted, true), 0));
+            }
             // After the HUD: a window that never comes to the front is put behind those made before it.
             DrawLabBackdrop();
         } else if (caption) {
