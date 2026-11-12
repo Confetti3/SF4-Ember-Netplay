@@ -99,6 +99,25 @@ void ReplaysPanel::Update(const ShellView& v,const netplay::PlayerPreferences& s
  // In a room the menu is the room's: the link waits until it is left.
  const auto& link=v.replays.link;
  if(link!=linkSeen_&&(link.empty()||v.session.room==netplay::RoomState::Idle)){linkSeen_=link;if(!link.empty()&&nav.Screen()!="replays")Show(nav);}
+ // Files the picker returned, or that were dropped on the window: each is imported the way a link's is.
+ if(v.services.pickSequence!=pickSeen_){pickSeen_=v.services.pickSequence;pickAsked_=false;BeginImport(v.services.picked);}
+ if(v.services.dropSequence!=dropSeen_){
+  dropSeen_=v.services.dropSequence;
+  if(v.session.room==netplay::RoomState::Idle){if(nav.Screen()!="replays")Show(nav);BeginImport(v.services.dropped);}
+ }
+ // One file at a time: the next goes once the game has said what became of the last.
+ if(importInFlight_){
+  if(v.replays.setNotices!=importNoticesAtSend_){
+   if(v.replays.setNoticeError)++importFailed_;
+   importInFlight_=false;
+  }else if(++importWait_>900){importQueue_.clear();importInFlight_=false;}
+  if(!importInFlight_&&importQueue_.empty()&&importTotal_>1&&importFailed_>0)batchSummary_=loc::Tf("replays.import_some_failed",importFailed_,importTotal_);
+ }
+ if(!importInFlight_&&!importQueue_.empty()){
+  commands::Replay r;r.generation=v.session.generation;r.replay={replay::Mode::Import,importQueue_.front()};
+  setNoticeAsked_=importNoticesAtSend_=v.replays.setNotices;
+  if(submit(std::move(r))){importQueue_.erase(importQueue_.begin());importInFlight_=true;importWait_=0;}
+ }
  // Export set videos: the saved video of the game sent (the front of the
  // queue) takes it out of the queue, and the next game's export follows with the
  // same caption parts, its set counted so far, once the game is back at its
@@ -112,6 +131,13 @@ void ReplaysPanel::Update(const ShellView& v,const netplay::PlayerPreferences& s
   setStep_=SetStep::Manual;
   if(const auto* shown=Find(v,setQueue_.front())){OpenExport(v,saved,*shown);Generate(v,submit);}
  }
+}
+// Starts importing these files (the picker's or a drop's), replacing any batch still running.
+void ReplaysPanel::BeginImport(const std::vector<std::string>& files) {
+ importQueue_.clear();importInFlight_=false;importFailed_=0;batchSummary_.clear();
+ for(const auto& file:files)if(replay_link::IsReplayPath(file)&&importQueue_.size()<64)importQueue_.push_back(file);
+ importTotal_=importQueue_.size();
+ folderAsked_=false;setAsked_=importTotal_>0;
 }
 // The Sort & filter and Search rows that head the Replays and Sets lists.
 void ReplaysPanel::FilterRows(std::vector<MenuEntry>& rows) const {
@@ -239,6 +265,9 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   // time: the next one is a press away when the last one ends.
   if(!setQueue_.empty())rows.push_back(Row("set-next",loc::Tf(setExport_?"replays.next_video":"replays.next_game",setGames_-setQueue_.size()+1,setGames_),
    loc::T(setExport_?"replays.next_video_detail":"replays.watch_detail"),setExport_?idle:idle&&r.ready));
+  // Import replay is always here: a replay or set pack saved from a site or Discord goes in through the
+  // file picker (or dropped on the game window), whatever is in the list. The picker is mouse and keyboard.
+  rows.push_back(Row("replay-import",loc::T("replays.import"),loc::T(v.services.canPickFiles?"replays.import_detail":"replays.import_fullscreen"),v.services.canPickFiles&&!v.services.pending));
   rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&r.ready));
   rows.push_back(Row("replay-folder",loc::T("replays.open_folder"),v.services.lastAction==platform::ServiceAction::OpenReplayFolder&&!v.services.message.empty()?v.services.message:loc::T("replays.open_folder_detail"),!v.services.pending));
   if(!r.archive||r.archive->empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
@@ -373,6 +402,13 @@ bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,const netplay
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");
   return true;
  }
+ if(a.id=="replay-import"){
+  // The picker opens in its own window; what it returns comes back through Update.
+  folderAsked_=setAsked_=false;importQueue_.clear();importInFlight_=false;batchSummary_.clear();
+  commands::Service r;r.generation=v.session.generation;r.service=platform::ServiceAction::PickReplays;
+  if(submit(std::move(r)))pickAsked_=true;else error=loc::T("error.queue_failed");
+  return true;
+ }
  if(a.id=="replay-filter"){nav.Push("replay-filter");return true;}
  if(a.id=="rf-reset"){fighters_=0;side_=0;show_={};sort_={};return true;}
  if(const auto fighter=FilterFighter(a.id)){fighters_^=std::uint64_t(1)<<*fighter;return true;}
@@ -459,6 +495,12 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
 }
 bool ReplaysPanel::Status(const ShellView& v,const std::string& screen,std::string& status,Tone& tone) const {
  if((screen!="replays"&&screen!="replay-sets")||!status.empty())return false;
+ // The picker is open: its words, until it closes.
+ if(pickAsked_&&v.services.pending&&v.services.lastAction==platform::ServiceAction::PickReplays&&!v.services.message.empty()){
+  status=v.services.message;tone=Tone::Pending;return true;
+ }
+ // A batch of files in which some failed says so once the last is done.
+ if(setAsked_&&!importInFlight_&&importQueue_.empty()&&!batchSummary_.empty()){status=batchSummary_;tone=Tone::Error;return true;}
  // A set pack answers until the next request from these screens.
  if(setAsked_){
   if(v.replays.setNotices==setNoticeAsked_){status=loc::T("replays.set_pack_working");tone=Tone::Pending;}

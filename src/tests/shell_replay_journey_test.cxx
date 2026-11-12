@@ -186,15 +186,15 @@ void ReplayJourneys() {
   Check(!h.shell.ReplayWants().listing&&!h.shell.ReplayWants().detail,"Home asked the replay workers for something");
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shownRows){rows=shownRows;});h.Screen("replays");
   Check(h.shell.ReplayWants().listing&&!h.shell.ReplayWants().detail,"The Replays screen did not ask for a listing");
-  Check(rows.size()==5&&rows[0].id=="replay-log"&&rows[1].id=="replay-folder"&&rows[2].id=="replay-filter"&&rows[3].id=="replay-search","Replays retained settings above the list");
-  Check(rows[4].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay score and status separator wrong");
-  Check(rows[4].id=="replay:C:\\r\\a.emberreplay"&&rows[4].label==ReplayRowLabel(shown.label,shown.names,shown.fighters),"Replay row lost its file or its label");
+  Check(rows.size()==6&&rows[0].id=="replay-import"&&rows[1].id=="replay-log"&&rows[2].id=="replay-folder"&&rows[3].id=="replay-filter"&&rows[4].id=="replay-search","Replays retained settings above the list");
+  Check(rows[5].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay score and status separator wrong");
+  Check(rows[5].id=="replay:C:\\r\\a.emberreplay"&&rows[5].label==ReplayRowLabel(shown.label,shown.names,shown.fighters),"Replay row lost its file or its label");
   // The portraits show the fighters, so the label names the players: a noted name, else the fighter.
-  Check(rows[4].label==shown.label+"  "+loc::Tf("replays.fighters",std::string("Ann"),std::string(loc::T("common.unavailable"))),"Replay row label did not name its players");
-  Check(rows[4].Match()&&rows[4].fighter1==0&&rows[4].fighter2==-1,"Replay row did not carry its fighters for the portraits, or kept an unknown one");
+  Check(rows[5].label==shown.label+"  "+loc::Tf("replays.fighters",std::string("Ann"),std::string(loc::T("common.unavailable"))),"Replay row label did not name its players");
+  Check(rows[5].Match()&&rows[5].fighter1==0&&rows[5].fighter2==-1,"Replay row did not carry its fighters for the portraits, or kept an unknown one");
   Check(rows[0].fighter1==-1&&!rows[0].Match(),"A plain row drew portraits");
-  Check(rows[4].detail.find("LP ")==std::string::npos,"Replay list still duplicates input totals");
-  Check(rows[4].choices.size()==7&&rows[4].choices[0].id=="watch"&&rows[4].choices[1].id=="watch-meter"&&rows[4].choices[2].id=="add"&&rows[4].choices[3].id=="export"&&rows[4].choices[4].id=="inputs"&&rows[4].choices[5].id=="keep"&&rows[4].choices[6].id=="show-folder","Replay choice order wrong");
+  Check(rows[5].detail.find("LP ")==std::string::npos,"Replay list still duplicates input totals");
+  Check(rows[5].choices.size()==7&&rows[5].choices[0].id=="watch"&&rows[5].choices[1].id=="watch-meter"&&rows[5].choices[2].id=="add"&&rows[5].choices[3].id=="export"&&rows[5].choices[4].id=="inputs"&&rows[5].choices[5].id=="keep"&&rows[5].choices[6].id=="show-folder","Replay choice order wrong");
   // Show in folder asks the services for the row's own file, and its answer is the status line.
   {const auto sent=h.actions.size();h.Choose("replay:C:\\r\\a.emberreplay");for(int i=0;i<6;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
    Check(h.actions.size()==sent+1&&Is<commands::Service>(h.actions.back(),[](const commands::Service& s){return s.service==platform::ServiceAction::ShowReplayFile&&s.servicePath=="C:\\r\\a.emberreplay";}),"Show in folder did not ask for the replay's file");
@@ -204,6 +204,29 @@ void ReplayJourneys() {
    h.view.services.succeeded=false;h.view.services.message="Not opened.";h.Frame();
    Check(status=="Not opened."&&tone==Tone::Error,"Show in folder's failure was not an error");
    SetMenuStatusProbe({});h.view.services={};}
+  // Import replay is always listed, ahead of the list. With the picker unavailable (full screen) it is off and says why.
+  Check(!rows[0].enabled&&rows[0].detail==loc::T("replays.import_fullscreen"),"Import replay was offered where the picker cannot open");
+  // Select asks the services for the picker; the files it hands back, and files dropped on the window, are imported
+  // one at a time through the same Import request a link's Import makes, anything that is not a replay or pack left out.
+  {h.view.services.canPickFiles=true;h.Frame();
+   Check(rows[0].enabled&&rows[0].detail==loc::T("replays.import_detail"),"Import replay was not offered where the picker can open");
+   const auto sent=h.actions.size();h.Choose("replay-import");
+   Check(h.actions.size()==sent+1&&Is<commands::Service>(h.actions.back(),[](const commands::Service& s){return s.service==platform::ServiceAction::PickReplays;}),"Import replay did not ask for the picker");
+   const auto imports=[&]{std::vector<std::string> paths;for(const auto& action:h.actions)if(const auto* r=std::get_if<commands::Replay>(&action))if(r->replay.mode==sf4e::replay::Mode::Import)paths.push_back(r->replay.path);return paths;};
+   const auto before=imports().size();
+   std::string status;Tone tone=Tone::Neutral;SetMenuStatusProbe([&](const char* text,Tone value){status=text;tone=value;});
+   h.view.services.picked={"C:\\dl\\a.emberreplay","C:\\dl\\notes.txt","C:\\dl\\p.emberpack"};h.view.services.pickSequence=1;h.Frame();
+   Check(imports().size()==before+1&&imports().back()=="C:\\dl\\a.emberreplay","The first picked file was not imported");
+   h.Frame();Check(imports().size()==before+1,"The next file went before the game answered the last");
+   h.view.replays.setNotices=1;h.Frame();
+   Check(imports().size()==before+2&&imports().back()=="C:\\dl\\p.emberpack","The second picked file was not imported, or the text file was");
+   h.view.replays.setNotices=2;h.view.replays.setNoticeError=true;h.Frame();
+   Check(status==loc::Tf("replays.import_some_failed",1,2)&&tone==Tone::Error,"A batch with a failed file did not say so");
+   h.Frame();Check(imports().size()==before+2,"A picked file was imported twice");
+   h.view.replays.setNoticeError=false;
+   h.view.services.dropped={"D:\\x\\d.usf4replay"};h.view.services.dropSequence=1;h.Frame();
+   Check(imports().size()==before+3&&imports().back()=="D:\\x\\d.usf4replay","A file dropped on the window was not imported");
+   SetMenuStatusProbe({});h.view.replays.setNotices=3;h.Frame();h.view.services={};}
   SetMenuEntriesProbe({});h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
   Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::Watch&&r.replay.path=="C:\\r\\a.emberreplay";}),"Watch now did not ask for the replay's file");
   Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return !r.replay.meter;}),"Watch now unexpectedly requested the frame meter");
