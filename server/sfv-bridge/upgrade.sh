@@ -21,18 +21,25 @@
 #                                                    snapshot of SF4's database into SFV's
 #   sudo bash ~/ember-sfv-bridge/upgrade.sh site     embernetplay.link: /rooms-sfv.json, /rankings-sfv.json
 #                                                    and SFV match links from SFV's bridge
+#   sudo bash ~/ember-sfv-bridge/upgrade.sh rooms    the staged SFV room build (room-build/) added to the
+#                                                    VPS room supervisor: a reload, no room touched;
+#                                                    earlier SFV builds stay for older SFV Ember
 #   sudo bash ~/ember-sfv-bridge/upgrade.sh check    read-only: both bridges, the listings, SF4 untouched
 #
 #   sudo bash ~/ember-sfv-bridge/upgrade.sh rollback-site     the site as it was before the site phase
 #   sudo bash ~/ember-sfv-bridge/upgrade.sh rollback-bridge   SFV's bridge stopped, disabled and its site
 #                                                    removed; its state and backups stay
+#   sudo bash ~/ember-sfv-bridge/upgrade.sh rollback-rooms    the staged SFV room build out of the supervisor
 #
 # Before the bridge phase: a DNS A record sfv-bridge.embernetplay.link ->
 # this VPS (the *.embernetplay.link certificate already covers the name).
 # After it: the Discord application's OAuth2 redirects get
 # https://sfv-bridge.embernetplay.link/v1/discord/callback.
-# Order: bridge, import, site. SFV Ember builds that name the new origin go
-# out after the site phase; until then SFV players keep using SF4's bridge.
+# Order: bridge, import, site, then rooms for each SFV Ember release whose room
+# build is new (its data/pick-space.json "build"). SFV Ember builds that name
+# the new origin go out after that; until then SFV players keep using SF4's
+# bridge. Never run ~/ember-rooms/setup.sh --prune: it stages only SF4's room
+# hosts and would drop every SFV build.
 set -euo pipefail
 [ "$(id -u)" -eq 0 ] || { echo "Run with sudo." >&2; exit 1; }
 OPS=$(getent passwd "${SUDO_USER:?run with sudo from your own account}" | cut -d: -f6)
@@ -53,6 +60,9 @@ SF4_LOCAL=http://127.0.0.1:47820
 ROOMS_SECRET=/etc/ember-rooms/supervisor.secret
 SHORT=$OPS/ember-short
 SHORT_SNIPPET=/etc/nginx/snippets/ember-short.conf
+ROOMS_LIB=/usr/local/lib/ember-rooms
+ROOMS_CONFIG=/etc/ember-rooms/config.json
+PULL_LOCK=/var/lib/ember-build-pull/lock
 
 sha() { sha256sum "$1" | cut -d' ' -f1; }
 staged() { awk -v f="$1" '$2 == f || $2 == "*" f { print $1 }' "$STAGE/SHA256SUMS"; }
@@ -316,6 +326,144 @@ print("rooms-sfv.json:", len(d["rooms"]), "room(s) from the SFV bridge")' "$(cat
     echo "Site done. Rollback: sudo bash $STAGE/upgrade.sh rollback-site"
 }
 
+# The staged room build: room-build/BUILD_ID (SFV Ember's room build, as its
+# data/pick-space.json "build" names it), room-build/sfve-room-host and
+# room-build/sf4-net, from stage.sh. Its folder under the supervisor's builds is
+# named as the earlier SFV builds were: sfv-<the rest, with - for />.
+room_build() {
+    local build
+    [ -f "$STAGE/room-build/BUILD_ID" ] || fail "No room build staged (stage.sh's room-host arguments)."
+    build=$(tr -d '[:space:]' < "$STAGE/room-build/BUILD_ID")
+    [[ "$build" =~ ^sfv-ember/[0-9]+/[0-9]+\.[0-9]+/[0-9a-f]{16}/layout-[0-9a-f]{16}$ ]] ||
+        fail "room-build/BUILD_ID is not an SFV room build id: $build"
+    echo "$build"
+}
+room_dir() { echo "$ROOMS_LIB/builds/sfv-$(echo "${1#sfv-ember/}" | tr / -)"; }
+
+# The VPS supervisor's own API (not the pool), with its secret.
+limits() {
+    local bind
+    bind=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("bind", "127.0.0.1:47830"))' "$ROOMS_CONFIG")
+    printf 'Authorization: Bearer %s\n' "$(tr -d '[:space:]' < "$ROOMS_SECRET")" | curl -fsS --max-time 5 -H @- "http://$bind/limits"
+}
+
+# config.json's builds, changed under the build puller's lock (it writes the
+# same file), written root:ember-rooms 0640 as setup.sh leaves it. $1 is add or
+# remove; the file as it was is kept in NOTES first.
+edit_builds() {
+    local action=$1 build=$2 dir=$3
+    cp -p "$ROOMS_CONFIG" "$NOTES/config.json.before-$action-$(date -u +%Y%m%dT%H%M%SZ)"
+    python3 -c '
+import grp, json, os, sys, tempfile
+path, action, build, folder = sys.argv[1:5]
+with open(path) as file:
+    config = json.load(file)
+builds = config.setdefault("builds", {})
+entry = {"room_host": folder + "/sfve-room-host", "helper": folder + "/sf4-net", "game": "sfv"}
+if action == "add":
+    if builds.get(build) == entry:
+        print("config: the build is there already")
+        sys.exit(0)
+    builds[build] = entry
+elif builds.pop(build, None) is None:
+    print("config: the build is not there")
+    sys.exit(0)
+handle, temporary = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".config.json.")
+with os.fdopen(handle, "w") as file:
+    json.dump(config, file, indent=2)
+    file.write("\n")
+    os.fchmod(file.fileno(), 0o640)
+    os.fchown(file.fileno(), 0, grp.getgrnam("ember-rooms").gr_gid)
+os.replace(temporary, path)
+print("config:", action, build)' "$ROOMS_CONFIG" "$action" "$build" "$dir"
+}
+supervisor_has() {
+    limits 2>/dev/null | python3 -c 'import json, sys; sys.exit(0 if sys.argv[1] in json.load(sys.stdin)["builds"] else 1)' "$1"
+}
+supervisor_summary() {
+    limits | python3 -c '
+import json, sys
+l = json.load(sys.stdin)
+sfv = sorted(b for b, g in (l.get("build_games") or {}).items() if g == "sfv")
+print("supervisor  %s of %s rooms; SFV builds: %s" % (l["rooms"], l["max_rooms"], ", ".join(sfv) or "none"))
+sys.exit(0 if sfv else 3)'
+}
+
+phase_rooms() {
+    check_stage
+    sf4_hold
+    local build dir line out i tmp
+    build=$(room_build)
+    dir=$(room_dir "$build")
+    systemctl is-active --quiet ember-rooms || fail "The room supervisor (ember-rooms) is not running; nothing done."
+    # A supervisor from before games would refuse the entry's "game" at
+    # reload; one that already holds an SFV build knows games.
+    supervisor_summary || fail "The supervisor holds no SFV build, so it may not know games; nothing done."
+
+    echo "== rooms 1. the build's folder $dir"
+    if [ ! -d "$dir" ]; then
+        tmp=$ROOMS_LIB/builds/.sfv-tmp
+        rm -rf "$tmp"
+        install -d -o root -g root -m 0755 "$tmp"
+        install -o root -g root -m 0755 "$STAGE/room-build/sfve-room-host" "$tmp/sfve-room-host"
+        install -o root -g root -m 0755 "$STAGE/room-build/sf4-net" "$tmp/sf4-net"
+        mv -T "$tmp" "$dir"
+    fi
+    [ "$(sha "$dir/sfve-room-host")" = "$(staged room-build/sfve-room-host)" ] &&
+        [ "$(sha "$dir/sf4-net")" = "$(staged room-build/sf4-net)" ] ||
+        fail "$dir holds other binaries than the stage. Nothing else done."
+    # The room host checks its embedded pick space against the build before
+    # anything else: its own build passes and stops at the missing helper,
+    # another is refused.
+    line='{"room_id":"0123456789abcdef0123456789abcdef","name":"check","capacity":2,"build_id":"%s","bridge_id":"brg_check","ticket_key":"key","ticket_kid":"kid","helper":"/nonexistent","game":"sfv"}'
+    out=$(printf "$line\n" "$build" | timeout 10 runuser -u nobody -- "$dir/sfve-room-host" 2>/dev/null | grep -o '"reason":"[a-z_]*"' | head -1 || true)
+    [ "$out" = '"reason":"helper_unavailable"' ] ||
+        fail "The room host on $build answers $out (helper_unavailable expected): it holds another pick space. Not added."
+    out=$(printf "$line\n" "sfv-ember/0/0.0/0000000000000000/layout-0000000000000000" | timeout 10 runuser -u nobody -- "$dir/sfve-room-host" 2>/dev/null | grep -o '"reason":"[a-z_]*"' | head -1 || true)
+    [ "$out" = '"reason":"other_build"' ] || fail "The room host on another build answers $out (other_build expected). Not added."
+    echo "room host: its own build passes the catalog check, another is refused"
+
+    echo "== rooms 2. the supervisor takes it (a reload; running rooms stay)"
+    install -d -o root -g root -m 0711 "$(dirname "$PULL_LOCK")"
+    exec 9>"$PULL_LOCK"
+    flock 9
+    edit_builds add "$build" "$dir"
+    systemctl reload ember-rooms
+    for i in $(seq 1 10); do
+        if supervisor_has "$build"; then
+            exec 9>&-
+            grep -qxF "$build" "$NOTES/room-builds" 2>/dev/null || echo "$build" >> "$NOTES/room-builds"
+            supervisor_summary || :
+            sf4_unchanged
+            echo "Rooms done; no room touched. Rollback: sudo bash $STAGE/upgrade.sh rollback-rooms"
+            return 0
+        fi
+        sleep 1
+    done
+    edit_builds remove "$build" "$dir"
+    systemctl reload ember-rooms || :
+    exec 9>&-
+    fail "The supervisor did not take $build (journalctl -u ember-rooms); its entry is removed again."
+}
+
+rollback_rooms() {
+    sf4_hold
+    local build dir
+    build=$(room_build)
+    dir=$(room_dir "$build")
+    install -d -o root -g root -m 0711 "$(dirname "$PULL_LOCK")"
+    exec 9>"$PULL_LOCK"
+    flock 9
+    edit_builds remove "$build" "$dir"
+    systemctl reload ember-rooms
+    exec 9>&-
+    # A room still running this build keeps its open files.
+    rm -rf "$dir"
+    sed -i "\#^${build}\$#d" "$NOTES/room-builds" 2>/dev/null || :
+    sf4_unchanged
+    echo "Rolled back: $build is out of the supervisor and $dir is gone. Earlier SFV builds stay."
+}
+
 phase_check() {
     echo "SF4 bridge  $(short "$(sha "$SF4_LIB/ember-bridge")") ($(systemctl is-active ember-bridge))"
     if [ -f "$LIB/ember-bridge" ]; then
@@ -330,6 +478,7 @@ phase_check() {
     curl -fsS "$SF4_LOCAL/v1/rooms/public" | python3 -c 'import json, sys; print("SF4 rooms  ", len(json.load(sys.stdin)["rooms"]))' || echo "SF4 rooms   no answer"
     curl -fsS "$SF4_LOCAL/v1/rooms/public?game=sfv" | python3 -c 'import json, sys; print("SFV rooms on SF4 bridge (older SFV builds):", len(json.load(sys.stdin)["rooms"]))' || :
     if grep -q '127.0.0.1:47822' "$SHORT_SNIPPET" 2>/dev/null; then echo "site        SFV feeds from SFV's bridge"; else echo "site        SFV feeds from SF4's bridge"; fi
+    supervisor_summary 2>/dev/null || :
 }
 
 rollback_site() {
@@ -369,5 +518,7 @@ case "${1:-}" in
     check) phase_check ;;
     rollback-site) rollback_site ;;
     rollback-bridge) rollback_bridge ;;
-    *) sed -n '2,33p' "$0"; exit 2 ;;
+    rooms) phase_rooms ;;
+    rollback-rooms) rollback_rooms ;;
+    *) sed -n '2,42p' "$0"; exit 2 ;;
 esac
