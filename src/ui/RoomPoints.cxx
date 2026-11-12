@@ -24,16 +24,24 @@ std::optional<SeatPoints> MemberPoints::Of(int fighter) const {
     return std::nullopt;
 }
 
+namespace {
+bool OwnPoints(const ShellView& view, const room::Member& member) {
+    return member.id == view.room.localMember && view.levels.loaded && view.levels.value.kind == netplay::levels::Own::Kind::Counted;
+}
+// The member's looked-up card, or none.
+const netplay::levels::Card* LookedUp(const ShellView& view, const room::Member& member) {
+    if (!member.card.Present() || !view.memberCards) return nullptr;
+    const auto found = view.memberCards->find(member.card.ToString());
+    return found != view.memberCards->end() ? &found->second : nullptr;
+}
+}
+
 MemberPoints PointsOf(const ShellView& view, const room::Member& member) {
     MemberPoints out;
     if (!view.room.serverOwned) return out;
-    const netplay::levels::Card* card = nullptr;
-    if (member.card.Present() && view.memberCards) {
-        const auto found = view.memberCards->find(member.card.ToString());
-        if (found != view.memberCards->end()) card = &found->second;
-    }
+    const netplay::levels::Card* card = LookedUp(view, member);
     netplay::levels::Card own;
-    if (!card && member.id == view.room.localMember && view.levels.loaded && view.levels.value.kind == netplay::levels::Own::Kind::Counted) {
+    if (!card && OwnPoints(view, member)) {
         own = OwnCard(view.levels.value);
         card = &own;
     }
@@ -47,5 +55,19 @@ MemberPoints PointsOf(const ShellView& view, const room::Member& member) {
         return a.points != b.points ? a.points > b.points : a.fighter < b.fighter;
     });
     return out;
+}
+
+std::optional<SeatPoints> PointsOf(const ShellView& view, const room::Member& member, int fighter) {
+    if (!view.room.serverOwned) return std::nullopt;
+    if (const auto* card = LookedUp(view, member)) {
+        for (const auto& played : card->fighters)
+            if (played.fighter == fighter && played.points) return SeatPoints{played.points, played.tier};
+        return std::nullopt;
+    }
+    const auto& fighters = view.levels.value.fighters;
+    if (!OwnPoints(view, member) || fighter < 0 || static_cast<std::size_t>(fighter) >= fighters.size()) return std::nullopt;
+    const auto& level = fighters[static_cast<std::size_t>(fighter)];
+    if (!level.points) return std::nullopt;
+    return SeatPoints{level.points, level.tier};
 }
 } }

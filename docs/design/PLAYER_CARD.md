@@ -168,7 +168,9 @@ the member's card above its rows, as SF4 draws a player under their name: the
 face of the fighter they are playing (the one they picked, `Member::fighter`,
 else their main: `SeatLookOf`), their name, and under it exactly two lines,
 that fighter's points as "612 FP" (0 when not played) and their account's as
-"2331 BP". There is no list of their best fighters. A private room draws
+"2331 BP". A member with no card read (none, a failed look-up, or one who
+blocked the player) gets no points lines, as their seat. There is no list of
+their best fighters. A private room draws
 nothing. Its rows are today's (mute, Steam profile, kick, make host) plus Add
 friend and Block (`FRIENDS.md`).
 

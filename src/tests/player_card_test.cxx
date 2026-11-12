@@ -79,12 +79,13 @@ void ProgressAndFacts() {
     // 1900 points are in the Gold tier, which ends at 2500.
     Play(own, 0, 1300, 600, 3, 2500);
     Play(own, 5, 30, 12, 0, 200);
+    // The account also counts games that named no fighter: 1400 games, 700 won.
+    own.account.games = 1400; own.account.wins = 700;
     ui::PlayerCardView view;
     ui::player_card::Fill(view, Counted(own), 0);
     Check(view.mainFighter == 0 && view.main.points == 1900 && view.main.tier == 3 && view.main.next == 2500, "the main's counts are wrong");
-    Check(view.facts.games == 1330 && view.facts.fightersPlayed == 2, "the counted games or fighters played are wrong");
-    // 612 wins in 1330 games rounds to 46 %.
-    Check(view.facts.winPercent == 46, "the win rate is wrong");
+    Check(view.facts.games == 1400 && view.facts.fightersPlayed == 2, "the counted games are not the account's, or fighters played are wrong");
+    Check(view.facts.winPercent == 50, "the win rate is not the account's");
     // The account's points are carried, 0 until a game is counted.
     Check(view.account.points == 0, "an account with no points was not 0");
     own.account.points = 2331; own.account.tier = 1; own.account.floor = 500; own.account.next = 2000;

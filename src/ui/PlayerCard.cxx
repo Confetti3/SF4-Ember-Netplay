@@ -69,16 +69,15 @@ void Fill(PlayerCardView& view, const netplay::Answered<Own>& answer, int main) 
         if (view.fighters.size() >= 3) break;
         if (fighter != main) add(fighter);
     }
-    std::uint64_t wins = 0;
-    for (const auto& level : own.fighters) {
-        view.facts.games += level.games;
-        wins += level.wins;
-        view.facts.fightersPlayed += level.points ? 1 : 0;
-    }
+    // The account counts every game, those that named no fighter too, so its
+    // games and wins are the card's, not a sum over the fighter rows.
+    for (const auto& level : own.fighters) view.facts.fightersPlayed += level.points ? 1 : 0;
+    view.facts.games = own.account.games;
+    const std::uint64_t wins = own.account.wins;
     view.facts.winPercent = view.facts.games ? static_cast<int>((wins * 100 + view.facts.games / 2) / view.facts.games) : 0;
 }
 
-std::string GamesWords(std::uint64_t games) { return loc::Tf(games == 1 ? "level.game_one" : "level.games", games); }
+std::string GamesWords(std::uint64_t games) { return loc::Tf(loc::SingularCount(games) ? "level.game_one" : "level.games", games); }
 
 const char* NoLevelWords(const PlayerCardView& card) {
     switch (card.levels) {

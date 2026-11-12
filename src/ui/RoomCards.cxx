@@ -48,7 +48,8 @@ OtherCardView MemberOtherCard(const ShellView& view,const room::Member& member,F
  OtherCardView card;
  card.name=member.name;card.country=member.country;card.badge=member.badge;
  card.fighter=look.fighter;card.art=art;
- card.points=view.room.serverOwned;
+ // As the member's seat, cabinet and row: no card read, no points drawn.
+ card.points=points.known;
  if(const auto played=points.Of(look.fighter)){card.fighterPoints=played->points;card.fighterTier=played->tier;}
  card.accountPoints=points.account.points;
  // A friend and a request sent are states to show; a request received is the page's Accept row.

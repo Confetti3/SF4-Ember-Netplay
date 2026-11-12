@@ -64,6 +64,12 @@ void PublicRoomShowsTheCard() {
     Check(!points.Of(5), "a fighter that was not played had points");
     Check(!points.Of(12), "a fighter at 0 points had points");
     Check(!points.Of(-1), "no fighter had points");
+    // The per-frame lookup agrees with the full answer.
+    for (int fighter = -1; fighter < 44; ++fighter) {
+        const auto one = ui::PointsOf(room.view, room.view.room.members[1], fighter), all = points.Of(fighter);
+        Check(one.has_value() == all.has_value() && (!one || (one->points == all->points && one->tier == all->tier)),
+            "the per-fighter lookup disagreed with the card");
+    }
 }
 
 void PrivateRoomShowsNothing() {
@@ -106,6 +112,11 @@ void OwnSeatFromOwnPoints() {
     const auto ryu = mine.Of(0);
     Check(ryu && ryu->points == 1986 && ryu->tier == 3, "the local member's points for a fighter were wrong");
     Check(!mine.Of(1), "the local member had points for a fighter they have not played");
+    for (int fighter = -1; fighter < 44; ++fighter) {
+        const auto one = ui::PointsOf(room.view, room.view.room.members[0], fighter), all = mine.Of(fighter);
+        Check(one.has_value() == all.has_value() && (!one || (one->points == all->points && one->tier == all->tier)),
+            "the per-fighter lookup disagreed with the player's own points");
+    }
     // Their own points are for a public room only, and wait for a Counted answer.
     room.view.room.serverOwned = false;
     Check(!room.Me().known, "the local member's own points showed in a private room");
@@ -142,7 +153,9 @@ void MemberCardOfAPublicRoom() {
     Check(unplayed.points && unplayed.fighterPoints == 0 && unplayed.accountPoints == 2100, "a fighter they have not played did not show 0 FP");
     Room noToken(true, Shown(), false);
     const auto none = ui::MemberOtherCard(noToken.view, noToken.view.room.members[1], ui::FighterArt::Portrait);
-    Check(none.points && none.fighterPoints == 0 && none.accountPoints == 0 && none.chip.empty(), "a member with no card did not show 0 FP and 0 BP");
+    // No card read (none, a failed look-up, or they blocked this player): no
+    // points lines, as their seat and row draw none, rather than a false 0.
+    Check(!none.points && none.chip.empty(), "a member with no card showed points");
     const Room priv(false, Shown());
     Check(!ui::MemberOtherCard(priv.view, priv.view.room.members[1], ui::FighterArt::Portrait).points, "a private room showed points lines on the page");
 }

@@ -39,4 +39,7 @@ struct MemberPoints {
 // member, while no card was looked up for them, from the player's own points
 // (ShellView::levels).
 MemberPoints PointsOf(const ShellView& view, const room::Member& member);
+// PointsOf(view, member).Of(fighter) without copying and sorting the card:
+// seats, cabinets and plates ask it every frame.
+std::optional<SeatPoints> PointsOf(const ShellView& view, const room::Member& member, int fighter);
 } }
