@@ -42,8 +42,8 @@ std::vector<std::wstring> ChooseReplayFiles() {
     IFileOpenDialog* dialog = nullptr;
     if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog)))) { if (SUCCEEDED(com)) CoUninitialize(); return files; }
     dialog->SetOptions(FOS_ALLOWMULTISELECT | FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST);
-    const std::wstring title = Utf8ToWide(loc::T("replays.import_title"));
-    const std::wstring kind = Utf8ToWide(loc::T("replays.import_filter"));
+    const std::wstring title = sf4e::platform::Utf8ToWide(sf4e::loc::T("replays.import_title"));
+    const std::wstring kind = sf4e::platform::Utf8ToWide(sf4e::loc::T("replays.import_filter"));
     dialog->SetTitle(title.c_str());
     const COMDLG_FILTERSPEC filter[] = {{kind.c_str(), L"*.emberreplay;*.usf4replay;*.emberpack"}};
     dialog->SetFileTypes(1, filter);
