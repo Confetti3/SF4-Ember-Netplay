@@ -54,6 +54,13 @@ static float s_pictureScale = 1.f;
 static float OverlayScale() { return (std::max)(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow), s_pictureScale); }
 static sf4e::ui::ControllerNavigation controllerNavigation;
 static std::unique_ptr<sf4e::ui::SelectionArt> s_selectionArt;
+// The font atlas outlives the overlay's ImGui context. Each Reset (alt-tab out
+// of full screen, a mode change) makes a new context, which then uploads the
+// kept pixels again instead of baking a new atlas: the fullest one is 2048x4096,
+// 32 MB the game's 32-bit address space may no longer have in one piece late in
+// a session, and ImGui writes through the null it gets then (EMBER-70). Never
+// freed, so no static destructor runs after the device is gone.
+static ImFontAtlas& OverlayFontAtlas() { static auto* atlas = IM_NEW(ImFontAtlas)(); return *atlas; }
 // The watched game's picture (ShellView::watchedPicture): the render target
 // copied at its own size, which also resolves a multisampled one, then
 // filtered down. Made at the first size seen and let go with the overlay,
@@ -203,7 +210,9 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	sf4e::OverlayPrefs::StartPersistence();
 	sf4e::ui::SetTrainingRemote({sf4e::training::remote::Start, sf4e::training::remote::Stop, sf4e::training::remote::Url, sf4e::training::remote::Pin, sf4e::training::remote::Link, sf4e::training::remote::Open, sf4e::training::remote::hud::Allowed, sf4e::training::remote::hud::Allow});
 	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
+	// A context torn down mid-frame leaves a shared atlas locked.
+	OverlayFontAtlas().Locked = false;
+	ImGui::CreateContext(&OverlayFontAtlas());
     ImGui::GetIO().IniFilename = nullptr;
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
     sf4e::ui::SetOverlayCursorOwnership(false);

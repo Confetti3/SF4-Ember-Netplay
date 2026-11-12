@@ -49,7 +49,10 @@ std::optional<loc::Locale> CatalogInAtlas(loc::Locale active) {
 // What the current atlas holds, and the script-font ranges it was built from,
 // which ImGui reads by pointer and so must outlive the build.
 std::optional<loc::Locale> atlasCatalog;
+float atlasScale = 0.f;
 float interfaceSize = 1.f;
+// The current context's default font, global scale and style.
+void ThemeContext(float scale);
 ImVector<ImWchar> scriptRanges[ScriptFontCount];
 
 // Characters of player-written text that Inter cannot draw, which every script
@@ -176,8 +179,12 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
     const bool userGlyphsDue = userGlyphsAdded && (!userGlyphBuildSeen || now - lastUserGlyphBuild >= rebuildInterval);
     if (io.Fonts->Fonts.Size == 3 &&
         std::fabs(io.Fonts->Fonts[0]->FontSize * io.Fonts->Fonts[0]->Scale - BodySize) < .01f &&
-        std::fabs(io.FontGlobalScale - scale) < .001f && atlasCatalog == catalog && !userGlyphsDue)
+        std::fabs(atlasScale - scale) < .001f && atlasCatalog == catalog && !userGlyphsDue) {
+        // A context made after a device reset shares the kept atlas but starts
+        // with ImGui's default font, scale and style.
+        if (!io.FontDefault) ThemeContext(scale);
         return false;
+    }
     io.FontDefault = nullptr;
     io.Fonts->Clear();
     BuildScriptRanges(catalog, wantedUserGlyphs);
@@ -252,8 +259,6 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
             io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(source.data), static_cast<int>(source.bytes), mergedSize, &merged);
         }
     }
-    io.FontGlobalScale = scale;
-    io.FontDefault = io.Fonts->Fonts[0];
     const int markIndex = io.Fonts->AddCustomRectRegular(brand::Size, brand::Size);
     IM_ASSERT(markIndex == 0); // Clear above makes this the first custom rectangle.
     const bool built = io.Fonts->Build();
@@ -277,6 +282,16 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
                         brand::Pixels + row * brand::Size * 4, brand::Size * 4);
     ReportAtlasBuild(built && markFits, atlasWidth, atlasHeight, atlasUserGlyphs.size(), userGlyphsAdded);
     io.Fonts->TexPixelsUseColors = true;
+    atlasScale = scale;
+    ThemeContext(scale);
+    return true;
+}
+
+namespace {
+void ThemeContext(float scale) {
+    auto& io = ImGui::GetIO();
+    io.FontGlobalScale = scale;
+    io.FontDefault = io.Fonts->Fonts[0];
     ImGuiStyle style;
     ImGui::StyleColorsDark(&style);
     style.Alpha = 1.f;
@@ -343,7 +358,7 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
     c[ImGuiCol_DragDropTarget] = Color(Ember);
     style.ScaleAllSizes(scale);
     ImGui::GetStyle() = style;
-    return true;
+}
 }
 
 ImVec4 ToneColor(Tone tone) {

@@ -177,6 +177,7 @@ sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journe
 sf4e_add_unit_test(NAME RankingsJourney SOURCES src/tests/rankings_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME ProfileJourney SOURCES src/tests/profile_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME RoomPanelNavigation SOURCES src/tests/room_panel_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
+sf4e_add_unit_test(NAME ThemeAtlasReset SOURCES src/tests/theme_atlas_reset_test.cxx LIBS sf4e_ui TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME TableCardShape SOURCES src/tests/table_card_shape_test.cxx TIMEOUT 15 LABELS ui room)
 sf4e_add_unit_test(NAME WatchedMatchExit SOURCES src/tests/watched_match_exit_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
 sf4e_add_unit_test(NAME LatencyMark SOURCES src/tests/latency_mark_test.cxx LIBS sf4e_ui Dimps TIMEOUT 15 LABELS ui)
