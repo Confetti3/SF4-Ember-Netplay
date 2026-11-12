@@ -366,10 +366,18 @@ void fSystem::BattleUpdate() {
                         else inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
                         inputs.rawOn = sf4e::training::ClearReservedInputBits(inputs.rawOn);
                     }
+                    // A press made inside a prediction stall rides on the next
+                    // accepted frame (StallPresses.hxx).
+                    const sf4e::StallPresses::Word sampled{inputs.mappedOn, inputs.rawOn};
+                    const sf4e::StallPresses::Word sent = s_stallPresses.Send(sampled);
+                    inputs.mappedOn = sent.mapped;
+                    inputs.rawOn = sent.raw;
                     {
                         diag::ScopedTimer _t(diag::OP_ADD_LOCAL_INPUT);
                         result = ggpo_add_local_input(ggpo, players[i].handle, &inputs, sizeof(fPadSystem::Inputs));
                     }
+                    if (GGPO_SUCCEEDED(result)) s_window.stallPresses += s_stallPresses.Accepted(sampled, sent);
+                    else if (result == GGPO_ERRORCODE_PREDICTION_THRESHOLD) s_stallPresses.Refused(sampled);
                     if (diag::Enabled()) {
                         diag::G().RecordGgpoResult(diag::CALL_ADD_LOCAL_INPUT, (int)result);
                     }

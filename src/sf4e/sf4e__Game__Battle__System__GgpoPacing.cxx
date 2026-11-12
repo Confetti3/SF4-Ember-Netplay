@@ -4,6 +4,7 @@
 #include <atomic>
 
 NetplayWindow s_window;
+sf4e::StallPresses s_stallPresses;
 static constexpr uint64_t kNetplayWindowMs = 15000;
 
 void NoteSpectatorBacklog(int backlogFrames, int catchUpFrames) {

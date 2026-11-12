@@ -285,6 +285,7 @@ void fSystem::BeginSession(const char* label, bool spectator) {
     simGate.OnSessionStarted();
     s_streamWatch.Start(GetTickCount64(), spectator);
     ResetPacerForSession();
+    s_stallPresses.Reset();
     s_lastDisconnectFlags = 0;
     s_disconnectTimeoutMs = 0;
     s_abortLatch.Reset();
