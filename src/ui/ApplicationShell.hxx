@@ -4,6 +4,7 @@
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/SelectionPick.hxx"
+#include "../common/StageChoice.hxx"
 #include "../common/SettingsFeatures.hxx"
 #include "../common/TrainingEntry.hxx"
 #include "../common/GameDisplayConfig.hxx"
@@ -198,6 +199,11 @@ struct ShellView {
     // The game ends a decided match's winner scenes on both copies' request
     // (Capabilities::skipScenes): Room settings shows the Skip winner scenes rule.
     bool offersSkipScenes = false;
+    // The game's rooms have a Banned stages rule (Capabilities::bannedStages):
+    // Room settings shows its row and its page, which lists these stages (the
+    // game's BannableStages, in its order).
+    bool offersBannedStages = false;
+    std::vector<StageChoice> bannableStages;
     // The game draws Ember's hitbox viewer over its Training (Capabilities::hitboxes):
     // Training select offers its Hitboxes row, which shows hitboxesShown, the
     // game's saved choice.
@@ -638,6 +644,7 @@ private:
     void RoomMemberRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
     void RoomChatRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
     void RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomBannedStagesRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
     void RoomShortcut(const MenuAction& action, const ShellView& view);
     // The room's shortcut hints (Fighter, Options, Chat), those the device has.

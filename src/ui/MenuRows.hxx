@@ -209,6 +209,18 @@ inline MenuEntry TinyFightersRow(const char* id,bool on,const std::string& detai
 inline MenuEntry SkipScenesRow(const char* id,bool on,const std::string& detail,bool enabled) {
     return Value(id,loc::T("room.skip_scenes"),loc::T(on?"common.on":"common.off"),detail,enabled);
 }
+// The room's Banned stages rule (room::Snapshot::bannedStages): the row in Room
+// settings (id "room-banned-stages") that opens the page of stages, with how
+// many are banned; and one stage's row on that page (id "ban-stage-<id>"),
+// Banned or Allowed, which the host turns with Left/Right or Select.
+inline MenuEntry BannedStagesRow(const char* id,std::size_t count,const std::string& detail) {
+    auto row=Value(id,loc::T("room.banned_stages"),count?loc::Tf("room.banned_stages.count",static_cast<int>(count)):std::string(loc::T("common.none")),detail,true);
+    row.adjustable=false;row.opens=true;
+    return row;
+}
+inline MenuEntry BannedStageRow(std::int64_t id,const std::string& name,bool banned,bool enabled) {
+    return Value("ban-stage-"+std::to_string(id),name,loc::T(banned?"room.banned_stages.tag":"room.banned_stages.allowed"),std::string(),enabled);
+}
 inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.kind!=MenuAction::Adjust) return false;
     if(a.id=="edition") rules.editionSelect=a.delta>0;

@@ -7,12 +7,13 @@ namespace sf4e { namespace room {
 using namespace detail;
 
 
-RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy, RoomType arcade, std::uint8_t tableCount, bool wiredOnly, bool tinyFighters, bool skipScenes) {
+RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy, RoomType arcade, std::uint8_t tableCount, bool wiredOnly, bool tinyFighters, bool skipScenes, std::vector<std::int64_t> bannedStages) {
 	snapshot_.protocolVersion = ProtocolVersion;
 	snapshot_.practice = practice;
 	snapshot_.wiredOnly = wiredOnly;
 	snapshot_.tinyFighters = tinyFighters;
 	snapshot_.skipScenes = skipScenes;
+	snapshot_.bannedStages = BannedStagesFrom(std::move(bannedStages));
 	snapshot_.arcade = arcade;
 	snapshot_.tableCount = InRange<std::uint8_t>(tableCount, 1, static_cast<std::uint8_t>(TableCount))
 		? tableCount : static_cast<std::uint8_t>(ClassicTableCount);
@@ -48,6 +49,7 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member, bool withChat) const {
 		result.wiredOnly = snapshot_.wiredOnly;
 		result.tinyFighters = snapshot_.tinyFighters;
 		result.skipScenes = snapshot_.skipScenes;
+		result.bannedStages = snapshot_.bannedStages;
 		result.arcade = snapshot_.arcade;
 		result.tableCount = snapshot_.tableCount;
 		result.cabinets = snapshot_.cabinets;

@@ -73,6 +73,8 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     view.offersFrameMeter = game::Game().caps.frameMeter; view.offersSteamProfile = game::Game().caps.steamProfile;
     view.offersTinyFighters = game::Game().caps.tinyFighters;
     view.offersSkipScenes = game::Game().caps.skipScenes;
+    view.offersBannedStages = game::Game().caps.bannedStages;
+    if (view.offersBannedStages) view.bannableStages = game::Game().state.BannableStages();
     view.offersHitboxes = game::Game().caps.hitboxes;
     view.settingsFeatures = game::Game().caps.settingsFeatures;
     view.replayGameList = game::Game().caps.replayGameList; view.replayVideo = game::Game().caps.replayVideo;

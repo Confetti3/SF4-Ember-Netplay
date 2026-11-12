@@ -16,10 +16,13 @@ public:
 	// (Snapshot::tinyFighters), which its host can change (SetTinyFighters).
 	// skipScenes is the Skip winner scenes rule (Snapshot::skipScenes, on by
 	// default), which the host of a private room can change (SetSkipScenes).
+	// bannedStages is the Banned stages rule (Snapshot::bannedStages, empty by
+	// default), which the host of a private room can change (SetBannedStages).
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
 		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false,
 		DelayPolicy delayPolicy = DelayPolicy::Shared, RoomType arcade = ClassicRoom,
-		std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount), bool wiredOnly = false, bool tinyFighters = false, bool skipScenes = true);
+		std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount), bool wiredOnly = false, bool tinyFighters = false, bool skipScenes = true,
+		std::vector<std::int64_t> bannedStages = {});
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }
@@ -198,6 +201,7 @@ private:
 	Result ApplySetWiredOnly(MemberId member, const Action& action);
 	Result ApplySetTinyFighters(MemberId member, const Action& action);
 	Result ApplySetSkipScenes(MemberId member, const Action& action);
+	Result ApplySetBannedStages(MemberId member, const Action& action);
 	Result ApplyKick(MemberId member, const Action& action);
 	Result ApplyChat(MemberId member, const Action& action);
 	Result ApplyRename(MemberId member, const Action& action);

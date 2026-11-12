@@ -9,6 +9,7 @@
 // refuses at entry. Where no copy lacks a stage, as for SF4, the set is empty
 // and nothing here refuses anything.
 #include "sf4e__NetplayRuntime.hxx"
+#include "../common/StageBans.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -19,10 +20,27 @@ static std::vector<std::int64_t> UnavailableWith(const std::vector<std::int64_t>
 	return room::UnavailableStagesFor(RuntimeSession::netplay->client.GetRoomSnapshot(), own);
 }
 
+// The room's Banned stages, for a game that offers the rule and a room that
+// has one; none otherwise.
+static std::vector<std::int64_t> BannedStagesNow() {
+	if (!Game().caps.bannedStages || !runtime->attached || !RuntimeSession::netplay) return {};
+	return RuntimeSession::netplay->client.GetRoomSnapshot().bannedStages;
+}
+
 // The catalog's stage for the command's choice, Random rolled with `roll`
-// over the stages `unavailable` leaves.
-static int ResolveChoice(const commands::Room& command, std::uint32_t roll, const std::vector<std::int64_t>& unavailable) {
-	return ember::Catalog().resolveStage(command.stage, roll, command.randomPool, InstalledContent().get(), unavailable);
+// over the stages `unavailable` leaves. With the room's Banned stages rule
+// (`banned`, ascending): a banned choice becomes the game's Training stage,
+// Random rolls only over the stages that are neither unavailable nor banned,
+// and Random with none left becomes the Training stage too. The stage P1's
+// Ready sends decides the game on every copy, so the copies cannot disagree.
+// A fallback the opponent lacks is the existing stage_not_shared refusal.
+static int ResolveChoice(const commands::Room& command, std::uint32_t roll, const std::vector<std::int64_t>& unavailable,
+	const std::vector<std::int64_t>& banned = {}) {
+	const auto& catalog = ember::Catalog();
+	const auto resolve = [&](const std::vector<std::int64_t>& excluded) {
+		return catalog.resolveStage(command.stage, roll, command.randomPool, InstalledContent().get(), excluded);
+	};
+	return StageUnderBans(command.stage, catalog.randomStage, banned.empty() ? -1 : Game().state.TrainingStage(), unavailable, banned, resolve);
 }
 
 std::vector<std::int64_t> UnavailableStagesNow() {
@@ -30,13 +48,18 @@ std::vector<std::int64_t> UnavailableStagesNow() {
 }
 
 int StageToSend(const commands::Room& command, std::uint32_t roll) {
-	return ResolveChoice(command, roll, UnavailableStagesNow());
+	const auto banned = BannedStagesNow();
+	const int sent = ResolveChoice(command, roll, UnavailableStagesNow(), banned);
+	if (!banned.empty() && sent != ResolveChoice(command, roll, UnavailableStagesNow()))
+		spdlog::info("Room: stage: P1 chose {}, banned by the room: sending stage {} ({} banned)",
+			command.stage == ember::Catalog().randomStage ? std::string("Random") : std::to_string(command.stage), sent, banned.size());
+	return sent;
 }
 
 const char* StageReadyRefusal(const commands::Room& command) {
 	const auto own = Game().state.MissingStages();
 	const auto unavailable = UnavailableWith(own);
-	const int sent = ResolveChoice(command, 0, unavailable);
+	const int sent = ResolveChoice(command, 0, unavailable, BannedStagesNow());
 	if (!ember::Catalog().validStage(sent) || std::binary_search(own.begin(), own.end(), sent))
 		return loc::T("runtime.ready.stage_unavailable");
 	if (std::binary_search(unavailable.begin(), unavailable.end(), sent)) return loc::T("runtime.ready.stage_not_shared");

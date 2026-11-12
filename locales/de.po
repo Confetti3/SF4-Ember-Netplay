@@ -3321,6 +3321,27 @@ msgstr "Siegerszenen überspringen"
 msgid "room.skip_scenes.detail"
 msgstr "Nach dem letzten KO enden die Siegerszenen von selbst, sodass die Revanche-Abfrage früher kommt. Ein Tastendruck überspringt sie noch früher."
 
+msgid "room.banned_stages"
+msgstr "Gesperrte Stages"
+
+msgid "room.banned_stages.detail"
+msgstr "Spieler 1 kann nicht auf einer gesperrten Stage spielen. Zufällig überspringt sie, und eine gesperrte Wahl wird zur Trainings-Stage."
+
+msgid "room.banned_stages.count"
+msgstr "{0} gesperrt"
+
+msgid "room.banned_stages.tag"
+msgstr "Gesperrt"
+
+msgid "room.banned_stages.allowed"
+msgstr "Erlaubt"
+
+msgid "room.banned_stages.clear"
+msgstr "Alle aufheben"
+
+msgid "selection.stage_banned"
+msgstr "Diese Stage ist in diesem Raum gesperrt. Wähle eine andere Stage oder Zufällig."
+
 msgid "selection.size"
 msgstr "Größe"
 

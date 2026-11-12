@@ -61,6 +61,9 @@ constexpr std::uint64_t TypingMs = 5000;
 // The most stages a member's missingStages names; a longer list keeps its
 // lowest ids (MissingStagesFrom).
 constexpr std::size_t MaximumMissingStages = 64;
+// The most stages a room's bannedStages names; a longer list keeps its lowest
+// ids (BannedStagesFrom).
+constexpr std::size_t MaximumBannedStages = 64;
 
 enum class MemberStatus : std::uint8_t {
 	Idle = 0,
@@ -141,9 +144,12 @@ enum class ActionKind : std::uint8_t {
 	// The host of a private room turns the room's Skip winner scenes rule on
 	// (the default) or off (Action::skipScenes). Appended last, so no kind moves.
 	SetSkipScenes,
+	// The host of a private room replaces the room's Banned stages rule
+	// (Action::bannedStages; empty bans none). Appended last, so no kind moves.
+	SetBannedStages,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::SetSkipScenes;
+constexpr ActionKind LastActionKind = ActionKind::SetBannedStages;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -217,6 +223,14 @@ std::vector<std::int64_t> MissingStagesFrom(std::vector<std::int64_t> stages);
 // The same from a JSON value: a non-array is none, and an entry that is not
 // an integer is dropped.
 std::vector<std::int64_t> MissingStagesFrom(const nlohmann::json& value);
+// A list of stage ids as a room's bannedStages keeps it: valid stages of the
+// game's catalog, ascending, without repeats, at most MaximumBannedStages;
+// anything else is dropped, so a list that makes no sense bans nothing. Read
+// where a list arrives: SetBannedStages and a snapshot's or checkpoint's JSON.
+// Unlike MissingStagesFrom it does not depend on stagesCanBeMissing: a game
+// that does not offer the rule (Capabilities::bannedStages) never reads it.
+std::vector<std::int64_t> BannedStagesFrom(std::vector<std::int64_t> stages);
+std::vector<std::int64_t> BannedStagesFrom(const nlohmann::json& value);
 
 // The stage a table's game starts on, as the session owner holds it from
 // P1's PreBattleSetStage. Unsent: P1 sent none for this game. Such a game
@@ -448,6 +462,14 @@ struct Snapshot {
 	// never reads it. Serialized only when off, so a room's state without the
 	// key reads as on.
 	bool skipScenes = true;
+	// Banned stages: stages P1's choice of stage may not be. P1's Ready sends a
+	// banned stage as the game's Training stage and rolls Random only over the
+	// others (GameState::TrainingStage). A rule its host sets (SetBannedStages),
+	// in a private room only; empty (nothing banned) by default, and a public
+	// room's always is. Ascending, no repeats (BannedStagesFrom). A game that
+	// does not offer it (Capabilities::bannedStages) never reads it. Serialized
+	// only when not empty.
+	std::vector<std::int64_t> bannedStages;
 	// The room's type (RoomType), fixed for its life. In an Arcade or King of
 	// the hill room a member sits at any free cabinet and plays the player who
 	// has waited longest, at whichever table is free: a table is a pair, not a
@@ -539,6 +561,8 @@ struct Action {
 	bool tinyFighters = false;
 	// SetSkipScenes: the rule on (the default). Written only when off.
 	bool skipScenes = true;
+	// SetBannedStages: the whole new set. Written only when not empty.
+	std::vector<std::int64_t> bannedStages;
 };
 
 struct Event {

@@ -3321,6 +3321,27 @@ msgstr "Winnaarscènes overslaan"
 msgid "room.skip_scenes.detail"
 msgstr "Na de laatste KO eindigen de winnaarscènes vanzelf, zodat de rematchvraag eerder komt. Een druk op een knop slaat ze nog eerder over."
 
+msgid "room.banned_stages"
+msgstr "Verboden levels"
+
+msgid "room.banned_stages.detail"
+msgstr "Speler 1 kan niet op een verboden level spelen. Willekeurig slaat ze over, en een verboden keuze wordt het trainingslevel."
+
+msgid "room.banned_stages.count"
+msgstr "{0} verboden"
+
+msgid "room.banned_stages.tag"
+msgstr "Verboden"
+
+msgid "room.banned_stages.allowed"
+msgstr "Toegestaan"
+
+msgid "room.banned_stages.clear"
+msgstr "Alles wissen"
+
+msgid "selection.stage_banned"
+msgstr "Dit level is verboden in deze kamer. Kies een ander level of Willekeurig."
+
 msgid "selection.size"
 msgstr "Grootte"
 
