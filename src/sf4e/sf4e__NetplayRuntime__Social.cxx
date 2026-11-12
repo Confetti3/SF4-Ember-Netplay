@@ -136,6 +136,7 @@ void SendAction(const commands::FriendAction& action, bool helperReady) {
 	const auto request = friends::ActionRequest(action, invite ? Present().offer : friends::Offer());
 	// Refused like an answer would be, so it is counted and the panel never reports it done.
 	if (request.is_null()) { runtime->friends.Refuse("nothing_to_offer"); return; }
+	if (std::holds_alternative<commands::FriendTurnOn>(action)) runtime->friends.TurningOn();
 	Send(request, true, helperReady, GetTickCount64());
 }
 

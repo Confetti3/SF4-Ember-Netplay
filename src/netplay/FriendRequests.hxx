@@ -136,6 +136,11 @@ public:
 		lastSyncMs_ = nowMs;
 		return Begin(false);
 	}
+	// Turn on is going: the account is no longer kept as off, so a change of
+	// scope that drops its answer cannot park this account in Off again when
+	// the scope comes back to it (the next sync asks the bridge instead).
+	void TurningOn() { offBridge_.clear(); offEmberId_.clear(); }
+
 	std::uint64_t BeginAction() {
 		refusal_.clear();
 		return Begin(true);

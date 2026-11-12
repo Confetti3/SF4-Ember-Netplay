@@ -196,6 +196,16 @@ void TurningOff() {
 	EXPECT(requests.Published().value->kind == State::Kind::Unavailable && requests.SyncDue(0));
 	requests.Scope("brg_1", "emb1_a");
 	EXPECT(requests.Published().value->kind == State::Kind::Off);
+	// A Turn on whose answer a change of scope drops: back on the account, the
+	// bridge is asked again rather than Off shown from memory.
+	{
+		auto dropped = requests;
+		dropped.TurningOn();
+		dropped.BeginAction();
+		dropped.Scope("brg_1", "emb1_b");
+		dropped.Scope("brg_1", "emb1_a");
+		EXPECT(dropped.Published().value->kind == State::Kind::Unavailable && dropped.SyncDue(0));
+	}
 	// Turn on is an action whose answer is a state.
 	EXPECT(requests.MayAct());
 	requests.Finish(requests.BeginAction(), "", Listed("CCCC-CCCC"), 4000000);

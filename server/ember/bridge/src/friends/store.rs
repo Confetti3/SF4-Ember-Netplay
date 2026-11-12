@@ -283,7 +283,9 @@ pub fn ask(
     )?;
     // A request to an account that turned friends off is hidden, so it looks
     // sent as one to a player who blocked the sender does, and the sender
-    // learns nothing of it; it stays hidden when they turn friends on.
+    // learns nothing of it. It is never shown when they turn friends on, but
+    // like any hidden request it still counts as asked: if they then ask the
+    // sender, the two are friends at once, as both asked.
     let off = account(tx, receiver)?.is_some_and(|receiver| receiver.off);
     let hidden = (relation.is_none() || off || inbox as usize >= MAX_INCOMING).then_some(now);
     tx.execute(
