@@ -46,6 +46,15 @@ Layout LayOut(unsigned number, float height, const point_digits::Glyphs& glyphs)
     }
     return layout;
 }
+Lettering LetteringFor(bool gameDigits, const game_lettering::Sheet* letters, const char* text) {
+    return gameDigits && letters && letters->Covers(text) ? Lettering::Game : Lettering::Heading;
+}
+float LettersWidth(const game_lettering::Sheet& letters, const char* text, float cap) {
+    const float k = cap / (letters.capBottom - letters.capTop);
+    float pen = 0;
+    for (const char* c = text; *c; ++c) if (const auto* glyph = letters.Find(*c)) pen += glyph->advance * k;
+    return std::round(pen);
+}
 }
 
 namespace v2 {
@@ -155,11 +164,11 @@ GameLetterSheet LetterArt() {
     return art ? art->GameLetters() : GameLetterSheet{};
 }
 // Text set beside a number (a label, a gain's plus), its capitals as tall as
-// the number's face with their top and baseline level with the face's: in the
-// game's own lettering, as SF4 sets its PP and BP, beside the game's digits
-// when the lettering has every character of the text; otherwise, and beside
-// the heading font's digits, in the heading font. `width` is its advance.
+// the number's face with their top and baseline level with the face's. The
+// lettering is chosen once, in BesideOf (level_mark::LetteringFor): the game's
+// own, as SF4 sets its PP and BP, or the heading font. `width` is its advance.
 struct Beside {
+    level_mark::Lettering lettering = level_mark::Lettering::Heading;
     GameLetterSheet letters;
     FontBeside font;
     const char* text = "";
@@ -169,15 +178,13 @@ Beside BesideOf(const Number& number, const char* text) {
     Beside beside;
     beside.text = text;
     beside.top = number.faceTop; beside.bottom = number.faceBottom;
-    if (number.art.sheet) {
-        const GameLetterSheet letters = LetterArt();
-        if (letters.sheet && letters.sheet->Covers(text)) beside.letters = letters;
-    }
-    if (const auto* sheet = beside.letters.sheet.get()) {
-        const float k = (beside.bottom - beside.top) / (sheet->capBottom - sheet->capTop);
-        float pen = 0;
-        for (const char* c = text; *c; ++c) pen += sheet->Find(*c)->advance * k;
-        beside.width = std::round(pen);
+    // The game's lettering is asked for only beside the game's digits: a
+    // number set in the heading font keeps its label in it.
+    const GameLetterSheet letters = number.art.sheet ? LetterArt() : GameLetterSheet{};
+    beside.lettering = level_mark::LetteringFor(number.art.sheet != nullptr, letters.sheet.get(), text);
+    if (beside.lettering == level_mark::Lettering::Game) {
+        beside.letters = letters;
+        beside.width = level_mark::LettersWidth(*letters.sheet, text, beside.bottom - beside.top);
     } else {
         beside.font = FontBesideOf(number);
         beside.width = std::round(HeadingFont()->CalcTextSizeA(beside.font.size, FLT_MAX, 0, text).x);
@@ -210,10 +217,13 @@ void DrawLetters(ImDrawList* draw, const Beside& beside, float left, float top, 
                 if (dx || dy) pass(dx * edge, dy * edge, Outline);
     pass(0, 0, fill);
 }
-// `beside` with its left at `left` beside a number whose top is at `top`, outlined.
+// `beside` with its left at `left` beside a number whose top is at `top`, on the
+// number's baseline in either lettering. `cap` is the number's height, which
+// the outline's width is a share of; 0 draws no outline.
 void DrawBeside(ImDrawList* draw, const Beside& beside, float left, float top, ImU32 fill, float cap, float alpha) {
-    if (beside.letters.sheet) DrawLetters(draw, beside, left, top, fill, (std::max)(1.f, std::round(cap * OutlineShare)), alpha);
-    else OutlinedText(draw, beside.font.size, ImVec2(left, std::round(top + beside.font.y)), beside.text, fill, cap, alpha);
+    if (beside.lettering == level_mark::Lettering::Game) DrawLetters(draw, beside, left, top, fill, cap > 0 ? (std::max)(1.f, std::round(cap * OutlineShare)) : 0, alpha);
+    else if (cap > 0) OutlinedText(draw, beside.font.size, ImVec2(left, std::round(top + beside.font.y)), beside.text, fill, cap, alpha);
+    else draw->AddText(HeadingFont(), beside.font.size, ImVec2(left, std::round(top + beside.font.y)), color::Alpha(fill, alpha), beside.text);
 }
 // SF4's line under a player's name: the number, a space, then the two-letter
 // label, its capitals as tall as the digits' faces and on their baseline.
@@ -268,18 +278,13 @@ float LevelLines(ImDrawList* draw, ImVec2 at, float height, float gap, std::uint
 
 float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain) {
     if (gain == 0) return 0;
-    // The sheet has no plus: it is the game's lettering's (on the digits'
-    // baseline, as a label is), or the heading font's centred on the digits'
-    // faces, in the digits' gold.
+    // The sheet has no plus: it is set in the lettering a label beside the same
+    // digits is, on their baseline, in the digits' gold and without an outline.
     const Number number = NumberOf(DigitArt(), gain, std::round(height), point_digits::Gold);
     const Beside plus = BesideOf(number, "+");
     const float advance = plus.width + std::round(height * GainGap);
     const ImVec2 origin(std::round(at.x), std::round(at.y));
-    if (plus.letters.sheet) DrawLetters(draw, plus, origin.x, origin.y, Gold, 0, 1.f);
-    else {
-        const Ink ink = InkOf('+', plus.font.size);
-        draw->AddText(HeadingFont(), plus.font.size, ImVec2(origin.x, std::round(origin.y + (number.faceTop + number.faceBottom - ink.top - ink.bottom) * .5f)), Gold, "+");
-    }
+    DrawBeside(draw, plus, origin.x, origin.y, Gold, 0, 1.f);
     DrawNumber(draw, number, ImVec2(origin.x + advance, origin.y));
     return advance + number.width;
 }

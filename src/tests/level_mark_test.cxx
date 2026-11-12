@@ -2,6 +2,7 @@
 // Drawing points): LevelMark.hxx lays a number out from the glyphs of one set,
 // here a synthetic set whose digits differ in width and height as the game's do.
 #include "../ui/LevelMark.hxx"
+#include "game_lettering_support.hxx"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -113,6 +114,30 @@ int main() {
             const auto layout = LayOut(number, height, faced);
             Check(std::abs(layout.faceTop - 2 * scale) < 1e-4f && std::abs(layout.faceBottom - (Tallest - 5) * scale) < 1e-4f,
                 "the set's faces for " + std::to_string(number) + " at " + std::to_string(static_cast<int>(height)));
+        }
+    }
+    // The lettering beside a number is chosen once: the game's when the number
+    // is in the game's digits and the sheet has every character, else the
+    // heading font; the game's width is its advances at the number's face height.
+    {
+        namespace lettering = sf4e::game_lettering;
+        using sf4e::ui::level_mark::Lettering;
+        using sf4e::ui::level_mark::LetteringFor;
+        auto library = lettering_support::Library(lettering::FontName, lettering::Characters);
+        lettering::Sheet sheet;
+        std::vector<unsigned char> bgra;
+        std::string why;
+        Check(lettering::Read(library.data(), library.size(), sheet, bgra, why), "the test font was not read: " + why);
+        Check(LetteringFor(true, &sheet, "FP") == Lettering::Game && LetteringFor(true, &sheet, "+") == Lettering::Game, "the game's lettering was not chosen beside its digits");
+        Check(LetteringFor(false, &sheet, "FP") == Lettering::Heading, "the game's lettering was chosen beside the heading font's digits");
+        Check(LetteringFor(true, nullptr, "FP") == Lettering::Heading, "the game's lettering was chosen while its font is missing");
+        Check(LetteringFor(true, &sheet, "Fp") == Lettering::Heading && LetteringFor(true, &sheet, "") == Lettering::Heading, "a character outside the sheet, or no text, did not fall back");
+        const auto* f = sheet.Find('F');
+        const auto* p = sheet.Find('P');
+        if (f && p) {
+            const float cap = 30, k = cap / (sheet.capBottom - sheet.capTop);
+            Check(sf4e::ui::level_mark::LettersWidth(sheet, "FP", cap) == std::round((f->advance + p->advance) * k), "the width is not the advances' sum at the face height");
+            Check(Whole(sf4e::ui::level_mark::LettersWidth(sheet, "FP", 17.3f)), "the width is not whole pixels");
         }
     }
     std::printf(failures ? "%d failures\n" : "Level mark: all checks passed\n", failures);

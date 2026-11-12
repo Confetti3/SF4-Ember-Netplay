@@ -4,6 +4,7 @@
 // (src/common/PointDigits.hxx). Only the layout is here, so it can be checked
 // without a device; the parts that draw it are v2::Level, v2::LevelGain and
 // v2::LevelBand (V2.hxx), implemented in LevelMark.cxx.
+#include "../common/GameLettering.hxx"
 #include "../common/PointDigits.hxx"
 #include <array>
 
@@ -27,4 +28,13 @@ struct Layout {
 };
 // Nothing for a height of 0 or less.
 Layout LayOut(unsigned number, float height, const point_digits::Glyphs& glyphs);
+// The lettering a text beside a number is set in: the game's own, or the
+// heading font. The one rule: the game's, when the number is in the game's
+// digits (`gameDigits`) and `letters` (null while its font loads or when the
+// game has none) has every character of `text`; otherwise the heading font.
+enum class Lettering { Game, Heading };
+Lettering LetteringFor(bool gameDigits, const game_lettering::Sheet* letters, const char* text);
+// The advance of `text` in the game's lettering with its capitals `cap` tall,
+// in whole pixels. Every character must be in the sheet (LetteringFor).
+float LettersWidth(const game_lettering::Sheet& letters, const char* text, float cap);
 } } }
