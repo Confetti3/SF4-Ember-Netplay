@@ -182,10 +182,21 @@ They name `https://bridge.embernetplay.link` and keep doing so.
   creating a room is refused, because SF4's `CreateRoom` refuses the unknown
   `game` field; Rankings shows "unavailable", because the helper asks for
   another game's ranking only from a bridge that lists `ranking_games`. Ember
-  ID and Discord still work. The one soft spot: the assignment list
-  (`/v1/assignments?game=sfv`) is answered with USF4's matches by a bridge that
-  ignores `game`, which matters only to a player in an organised match on
-  SF4's bridge.
+  ID and Discord still work. The assignment list (`/v1/assignments?game=sfv`)
+  comes back with USF4's matches from a bridge that ignores `game`, but every
+  beta drops a match whose `game` is not its own (absent reads as usf4;
+  `session/TournamentAnswers.cxx`, in the library since before beta.1), and a
+  match link only focuses a row of that list, so no SFV beta claims a USF4
+  match. SFV Ember sends no replay to a bridge's archive (its "archive" is the
+  local replay folder).
+
+  So nothing an old beta sends is taken as USF4's, with no SF4 bridge code for
+  it, as long as SF4's bridge keeps two things: `CreateRoom` and
+  `TicketRequest` refuse unknown fields and have no `game` (every SFV request
+  names `game: "sfv"`), and its capabilities do not list `ranking_games`. If
+  SF4's protocol ever takes the library's `game` fields, it must refuse any
+  game but usf4 at the same time. A version or build gate on SF4's bridge is
+  not needed.
 
 Recommendation: install the SFV bridge (bridge, import, site) before
 publishing beta.8, ship beta.8 with the new origin as a required update (the
@@ -255,18 +266,20 @@ deployed commit (237151932), `feat/ember-library` and `b8/lib-integrate`
 (d517a402, e975322c, c8da82dc); the library line has no migration above 059,
 and its 055 and 056 are SF4's files byte for byte.
 
-**One code change that adoption needs.** 058 keys `skill_ratings` and
+**The code change adoption needed** (done on SF4's
+`fix/160-adopt-library-057`, not yet on nightly). 058 keys `skill_ratings` and
 `ranking_choices` by `(game, discord_user_id)` and `rated_pairs` by
-`(game, first, second)`. SF4's writes say `ON CONFLICT (discord_user_id)` and
-`ON CONFLICT (first, second)` (`skill/mod.rs` store and played,
-`skill/ranking.rs`), and SQLite refuses a conflict target that matches no
-primary key or unique index ("ON CONFLICT clause does not match any PRIMARY
-KEY or UNIQUE constraint"), so every rating write would fail. Either the
-targets name `game` too (`ON CONFLICT (game, discord_user_id)`, with `game`
-written as 'usf4'), or an SF4 migration adds unique indexes on
-`skill_ratings (discord_user_id)`, `ranking_choices (discord_user_id)` and
-`rated_pairs (first, second)` after SFV's rows are gone (tried: the unchanged
-statement then works and writes 'usf4' rows). Neither drops a column.
+`(game, first, second)`, and SQLite refuses a conflict target that matches no
+primary key or unique index, so SF4's old `ON CONFLICT (discord_user_id)` and
+`ON CONFLICT (first, second)` writes would all fail. SF4's bridge now names
+`game` in every conflict target on those three tables and scopes every read,
+update and delete on them to `game = 'usf4'`, so SFV rows left there are never
+read or changed. Its `LAST_UNNAMED_VERSION` is 59: production's unnamed 057-059
+are adopted, an unnamed 060 or above is refused.
+
+`rooms`, `matches`, `lobbies` and `tournaments` reads are not scoped by game:
+SF4's bridge would list an SFV room still in the database. That is why the
+clearing below runs at the same switch as the 1.6.0 bridge install.
 
 **SFV's rows leave** with `server/sfv-bridge/clear-sfv-rows.py`, run once by
 SF4's side with SF4's bridge stopped, after a backup and after this plan's
