@@ -3321,6 +3321,27 @@ msgstr "Ignorer les scènes du vainqueur"
 msgid "room.skip_scenes.detail"
 msgstr "Après le dernier KO, les scènes du vainqueur se terminent d'elles-mêmes et la proposition de revanche arrive plus tôt. Appuyer sur un bouton les ignore encore plus tôt."
 
+msgid "room.banned_stages"
+msgstr "Niveaux bannis"
+
+msgid "room.banned_stages.detail"
+msgstr "Le joueur 1 ne peut pas jouer sur un niveau banni. Aléatoire les ignore, et un choix banni devient le niveau d'entraînement."
+
+msgid "room.banned_stages.count"
+msgstr "{0} bannis"
+
+msgid "room.banned_stages.tag"
+msgstr "Banni"
+
+msgid "room.banned_stages.allowed"
+msgstr "Autorisé"
+
+msgid "room.banned_stages.clear"
+msgstr "Tout effacer"
+
+msgid "selection.stage_banned"
+msgstr "Ce niveau est banni dans ce salon. Choisissez un autre niveau ou Aléatoire."
+
 msgid "selection.size"
 msgstr "Taille"
 

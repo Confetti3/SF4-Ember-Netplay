@@ -73,6 +73,18 @@ Result RoomAuthority::ApplySetSkipScenes(MemberId member, const Action& action) 
 	return Accept();
 }
 
+// The stages P1's Ready may not send. It gates no seat and moves nobody, and a
+// game under way keeps the stage it started on. A private room's rule only: a
+// server-owned (public) room keeps it empty. What is kept is the list as the
+// game's catalog reads it (BannedStagesFrom).
+Result RoomAuthority::ApplySetBannedStages(MemberId member, const Action& action) {
+	if (!IsHost(member)) return Reject(RejectReason::NotHost);
+	if (snapshot_.serverOwned) return Reject(RejectReason::Unauthorized);
+	auto stages = BannedStagesFrom(action.bannedStages);
+	if (snapshot_.bannedStages != stages) { snapshot_.bannedStages = std::move(stages); TouchRoom(); }
+	return Accept();
+}
+
 Result RoomAuthority::ApplyKick(MemberId member, const Action& action) {
 	if (!IsHost(member) || action.target == 0 || action.target == snapshot_.host) return Reject(RejectReason::Unauthorized);
 	const auto* targetMember = Find(action.target);
@@ -505,7 +517,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (snapshot_.closed && action.kind != ActionKind::Leave) return Reject(RejectReason::Closed);
 	if (action.roomEpoch != snapshot_.roomEpoch) return Reject(RejectReason::StaleRoom);
 	const bool roomAction = action.kind == ActionKind::SetCapacity || action.kind == ActionKind::SetTableCount || action.kind == ActionKind::Lock ||
-		action.kind == ActionKind::SetWiredOnly || action.kind == ActionKind::SetTinyFighters || action.kind == ActionKind::SetSkipScenes || action.kind == ActionKind::Kick || action.kind == ActionKind::Close || action.kind == ActionKind::Rename ||
+		action.kind == ActionKind::SetWiredOnly || action.kind == ActionKind::SetTinyFighters || action.kind == ActionKind::SetSkipScenes || action.kind == ActionKind::SetBannedStages || action.kind == ActionKind::Kick || action.kind == ActionKind::Close || action.kind == ActionKind::Rename ||
 		action.kind == ActionKind::TransferHost;
 	if (roomAction && action.revision != snapshot_.revision) return Reject(RejectReason::StaleRoom);
 	const bool generationScopedUnwatch = action.kind == ActionKind::Unwatch && action.matchGeneration != 0;
@@ -543,6 +555,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::SetWiredOnly) return ApplySetWiredOnly(member, action);
 	if (action.kind == ActionKind::SetTinyFighters) return ApplySetTinyFighters(member, action);
 	if (action.kind == ActionKind::SetSkipScenes) return ApplySetSkipScenes(member, action);
+	if (action.kind == ActionKind::SetBannedStages) return ApplySetBannedStages(member, action);
 	// The bound fighters keep their seats; nobody is kicked from a match room.
 	if (action.kind == ActionKind::Kick && snapshot_.tournament.Active()) return Reject(RejectReason::Unauthorized);
 	if (action.kind == ActionKind::Kick) return ApplyKick(member, action);

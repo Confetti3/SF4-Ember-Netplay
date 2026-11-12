@@ -3322,6 +3322,27 @@ msgstr "승자 연출 건너뛰기"
 msgid "room.skip_scenes.detail"
 msgstr "마지막 KO 후 승자 연출이 자동으로 끝나 재대전 선택이 더 빨리 나옵니다. 버튼을 누르면 더 일찍 건너뜁니다."
 
+msgid "room.banned_stages"
+msgstr "금지된 스테이지"
+
+msgid "room.banned_stages.detail"
+msgstr "플레이어 1은 금지된 스테이지에서 플레이할 수 없습니다. 랜덤은 금지된 스테이지를 건너뛰고, 금지된 스테이지를 고르면 트레이닝 스테이지가 됩니다."
+
+msgid "room.banned_stages.count"
+msgstr "{0}개 금지"
+
+msgid "room.banned_stages.tag"
+msgstr "금지"
+
+msgid "room.banned_stages.allowed"
+msgstr "허용"
+
+msgid "room.banned_stages.clear"
+msgstr "모두 해제"
+
+msgid "selection.stage_banned"
+msgstr "이 스테이지는 이 방에서 금지되어 있습니다. 다른 스테이지나 랜덤을 고르세요."
+
 msgid "selection.size"
 msgstr "크기"
 

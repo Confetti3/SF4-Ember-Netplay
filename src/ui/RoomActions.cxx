@@ -247,7 +247,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   return;
  }
  if(const auto member=RowKey(a.id,"member-")){selectedMember_=*member;nav.Push("room-member");return;}
- if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"){nav.Push(a.id);return;}
+ if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"||a.id=="room-banned-stages"){nav.Push(a.id);return;}
  if(a.id=="room-controls"){nav.Push("player");return;}
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;ShowNotice(loc::T("room.invitation_copied"),Tone::Success,ImGui::GetTime()+3);return;}
   if(a.id=="copy-short"){CopyShortInvitation(v,submit);return;}
@@ -349,6 +349,20 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   const bool on=a.kind==MenuAction::Adjust?a.delta>0:!v.room.skipScenes;
   if(on==v.room.skipScenes)return;
   request.kind=ActionKind::SetSkipScenes;request.skipScenes=on;
+ }
+ else if(a.id=="ban-stages-clear"){
+  if(v.room.bannedStages.empty())return;
+  request.kind=ActionKind::SetBannedStages;request.bannedStages.clear();
+ }
+ else if(const auto stage=RowKey<std::int64_t>(a.id,"ban-stage-")){
+  // Left is allowed and Right banned; Select turns it the other way. The whole new set goes to the host.
+  const auto& now=v.room.bannedStages;
+  const bool banned=std::binary_search(now.begin(),now.end(),*stage);
+  const bool want=a.kind==MenuAction::Adjust?a.delta>0:!banned;
+  if(want==banned)return;
+  request.kind=ActionKind::SetBannedStages;request.bannedStages=now;
+  if(want)request.bannedStages.push_back(*stage);
+  else request.bannedStages.erase(std::remove(request.bannedStages.begin(),request.bannedStages.end(),*stage),request.bannedStages.end());
  }
  else if(a.id=="compose"){
   // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.

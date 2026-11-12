@@ -147,6 +147,7 @@ struct Room {
     bool wiredOnly = false;
     bool tinyFighters = false;
     bool skipScenes = true;
+    std::vector<std::int64_t> bannedStages;
     sf4e::wire::ConfirmedCharaConditions character = {};
     int stage = 0;
     selection::RandomPool randomPool;
@@ -292,6 +293,8 @@ struct Runtime {
     bool tinyFighters=false;
     // The Skip winner scenes rule of the room this PC hosts: on, or what the room it replaces had.
     bool skipScenes=true;
+    // The Banned stages rule of the room this PC hosts: none, or what the room it replaces had.
+    std::vector<std::int64_t> bannedStages;
     // The player's Leave of the room. CloseRoom resets it whole.
     struct RoomLeave {
         bool leaveRequested=false, leaveAcknowledged=false;

@@ -3322,6 +3322,27 @@ msgstr "跳过胜者演出"
 msgid "room.skip_scenes.detail"
 msgstr "最后一次KO后，胜者演出会自动结束，再战提示更快出现。按下按钮可以更早跳过。"
 
+msgid "room.banned_stages"
+msgstr "禁用场地"
+
+msgid "room.banned_stages.detail"
+msgstr "玩家1不能在禁用的场地对战。随机会跳过这些场地，选了禁用场地则改用训练场地。"
+
+msgid "room.banned_stages.count"
+msgstr "已禁用 {0} 个"
+
+msgid "room.banned_stages.tag"
+msgstr "已禁用"
+
+msgid "room.banned_stages.allowed"
+msgstr "允许"
+
+msgid "room.banned_stages.clear"
+msgstr "全部清除"
+
+msgid "selection.stage_banned"
+msgstr "此场地在本房间被禁用。请选择其他场地或随机。"
+
 msgid "selection.size"
 msgstr "大小"
 

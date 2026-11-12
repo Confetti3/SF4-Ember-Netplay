@@ -16,6 +16,7 @@
 // until the library moves out (step 9).
 
 #include <cstddef>
+#include "../common/StageChoice.hxx"
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -76,6 +77,11 @@ struct Capabilities {
     // (room::Snapshot::skipScenes, on by default) and its host can change it.
     // SF4 has no such scenes to skip, so it never offers or reads the rule.
     bool skipScenes = false;
+    // The game's rooms offer the Banned stages rule (room::Snapshot::bannedStages):
+    // its host picks stages P1 may not choose, and P1's Ready sends a banned
+    // one as GameState::TrainingStage. The game lists the stages through
+    // GameState::BannableStages. SF4 has no such rule and never offers or reads it.
+    bool bannedStages = false;
     // Ember's frame meter over a match: Settings' Match frame meter row,
     // which a game without the meter does not offer.
     bool frameMeter = false;
@@ -117,6 +123,12 @@ public:
     // stage one of its fighters lacks, and the runtime's unavailableStages
     // starts from them.
     virtual std::vector<std::int64_t> MissingStages() const { return {}; }
+    // For the room's Banned stages rule (Capabilities::bannedStages): the stages
+    // its host may ban, in the order the game lists them, each with the name a
+    // screen shows; and the stage that stands in for a banned choice (and for
+    // Random when every stage is banned), -1 where there is none.
+    virtual std::vector<sf4e::StageChoice> BannableStages() const { return {}; }
+    virtual std::int64_t TrainingStage() const { return -1; }
     // A random number from the game's own generator.
     virtual std::uint32_t Random() = 0;
     // The announcer's challenger call at `volume` of the game's voice volume;

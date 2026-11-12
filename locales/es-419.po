@@ -2957,6 +2957,27 @@ msgstr "Omitir escenas del ganador"
 msgid "room.skip_scenes.detail"
 msgstr "Tras el último KO, las escenas del ganador terminan solas y la propuesta de revancha llega antes. Pulsar un botón las omite aún antes."
 
+msgid "room.banned_stages"
+msgstr "Escenarios prohibidos"
+
+msgid "room.banned_stages.detail"
+msgstr "El jugador 1 no puede jugar en un escenario prohibido. Aleatoria los omite, y una elección prohibida pasa al escenario de entrenamiento."
+
+msgid "room.banned_stages.count"
+msgstr "{0} prohibidos"
+
+msgid "room.banned_stages.tag"
+msgstr "Prohibido"
+
+msgid "room.banned_stages.allowed"
+msgstr "Permitido"
+
+msgid "room.banned_stages.clear"
+msgstr "Quitar todos"
+
+msgid "selection.stage_banned"
+msgstr "Este escenario está prohibido en esta sala. Elige otro escenario o Aleatoria."
+
 msgid "selection.size"
 msgstr "Tamaño"
 

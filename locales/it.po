@@ -3321,6 +3321,27 @@ msgstr "Salta le scene del vincitore"
 msgid "room.skip_scenes.detail"
 msgstr "Dopo l'ultimo KO le scene del vincitore finiscono da sole e la richiesta di rivincita arriva prima. Premere un pulsante le salta ancora prima."
 
+msgid "room.banned_stages"
+msgstr "Livelli vietati"
+
+msgid "room.banned_stages.detail"
+msgstr "Il giocatore 1 non può giocare su un livello vietato. Casuale li salta, e una scelta vietata diventa il livello di allenamento."
+
+msgid "room.banned_stages.count"
+msgstr "{0} vietati"
+
+msgid "room.banned_stages.tag"
+msgstr "Vietato"
+
+msgid "room.banned_stages.allowed"
+msgstr "Consentito"
+
+msgid "room.banned_stages.clear"
+msgstr "Cancella tutto"
+
+msgid "selection.stage_banned"
+msgstr "Questo livello è vietato in questa sala. Scegli un altro livello o Casuale."
+
 msgid "selection.size"
 msgstr "Dimensione"
 

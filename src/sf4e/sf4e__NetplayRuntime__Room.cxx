@@ -448,6 +448,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		runtime->wiredOnly = decision.effect == netplay::Effect::HostRoom && command.wiredOnly;
 		runtime->tinyFighters = decision.effect == netplay::Effect::HostRoom && command.tinyFighters;
 		runtime->skipScenes = decision.effect != netplay::Effect::HostRoom || command.skipScenes;
+		runtime->bannedStages = decision.effect == netplay::Effect::HostRoom ? command.bannedStages : std::vector<std::int64_t>();
 		// A public room's admission carries the bridge's signed ticket, which the
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
@@ -484,6 +485,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
         runtime->wiredOnly=RuntimeSession::netplay && RuntimeSession::netplay->client.GetRoomSnapshot().wiredOnly;
         runtime->tinyFighters=RuntimeSession::netplay && RuntimeSession::netplay->client.GetRoomSnapshot().tinyFighters;
         runtime->skipScenes=!RuntimeSession::netplay || RuntimeSession::netplay->client.GetRoomSnapshot().skipScenes;
+        runtime->bannedStages=RuntimeSession::netplay ? RuntimeSession::netplay->client.GetRoomSnapshot().bannedStages : std::vector<std::int64_t>();
         CancelDeferredGgpoClose();
         Game().battle.Retire("replacement_room");
         if(runtime->match) runtime->match->BeginReplacement();
@@ -637,6 +639,7 @@ TypedCommand Classify(RuntimeCommand command) {
 	roomCommand.wiredOnly = command.wiredOnly;
 	roomCommand.tinyFighters = command.tinyFighters;
 	roomCommand.skipScenes = command.skipScenes;
+	roomCommand.bannedStages = std::move(command.bannedStages);
 	roomCommand.character = command.character;
 	roomCommand.stage = command.stage;
 	roomCommand.randomPool = std::move(command.randomPool);

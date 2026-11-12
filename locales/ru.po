@@ -3321,6 +3321,27 @@ msgstr "Пропускать сцены победителя"
 msgid "room.skip_scenes.detail"
 msgstr "После последнего KO сцены победителя завершаются сами, и предложение реванша появляется раньше. Нажатие кнопки пропускает их ещё раньше."
 
+msgid "room.banned_stages"
+msgstr "Запрещённые арены"
+
+msgid "room.banned_stages.detail"
+msgstr "Игрок 1 не может играть на запрещённой арене. Случайный выбор их пропускает, а запрещённый выбор заменяется ареной для тренировки."
+
+msgid "room.banned_stages.count"
+msgstr "Запрещено: {0}"
+
+msgid "room.banned_stages.tag"
+msgstr "Запрещена"
+
+msgid "room.banned_stages.allowed"
+msgstr "Разрешена"
+
+msgid "room.banned_stages.clear"
+msgstr "Очистить всё"
+
+msgid "selection.stage_banned"
+msgstr "Эта арена запрещена в этом лобби. Выберите другую арену или Случайно."
+
 msgid "selection.size"
 msgstr "Размер"
 

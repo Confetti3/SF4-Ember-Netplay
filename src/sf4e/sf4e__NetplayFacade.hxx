@@ -143,6 +143,9 @@ namespace sf4e {
             // With HostRoom: the room's Skip winner scenes rule (room::Snapshot::skipScenes).
             // On unless a replacement room carries the rule its host turned off.
             bool skipScenes = true;
+            // With HostRoom: the room's Banned stages rule (room::Snapshot::bannedStages);
+            // empty unless a replacement room carries the rule its host set.
+            std::vector<std::int64_t> bannedStages;
             // What the Replays screen asks of the game (sf4e__ReplayStore), or
             // the player's answer to a replay link; mode None for every other command.
             replay::Request replay;

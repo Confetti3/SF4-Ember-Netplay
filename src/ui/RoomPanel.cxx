@@ -346,6 +346,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  else if(screen=="room-member")RoomMemberRows(rows,c);
  else if(screen=="room-chat")RoomChatRows(rows,c);
  else if(screen=="room-admin")RoomAdminRows(rows,c);
+ else if(screen=="room-banned-stages")RoomBannedStagesRows(rows,c);
  // A member's actions open at their row, not on a page of their own. Your own
  // row has none to offer, so it only informs.
  for(auto& row:rows){
@@ -687,6 +688,17 @@ void ApplicationShell::RoomChatRows(std::vector<MenuEntry>& rows,const RoomScree
   rows.back().value=chat_;
   if(draft)rows.back().hint=loc::T("chat.send");else{rows.back().text=true;rows.back().textLimit=room::MaximumChatBytes;}
 }
+// The Banned stages page: each stage the game lists, Banned or Allowed, and
+// Clear all. Only a private room's host changes it (SetBannedStages).
+void ApplicationShell::RoomBannedStagesRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+ const room::Snapshot& s=c.s;
+ const bool can=c.host&&!s.serverOwned;
+ for(const auto& stage:c.v.bannableStages){
+  const bool banned=std::binary_search(s.bannedStages.begin(),s.bannedStages.end(),stage.id);
+  rows.push_back(BannedStageRow(stage.id,stage.name,banned,can));
+ }
+ rows.push_back(Row("ban-stages-clear",loc::T("room.banned_stages.clear"),loc::T("room.banned_stages.detail"),can&&!s.bannedStages.empty()));
+}
 void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
  using namespace room;
  const room::Snapshot& s=c.s;
@@ -705,6 +717,8 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
   if(c.v.offersTinyFighters&&!s.serverOwned)rows.push_back(TinyFightersRow("room-tiny-fighters",s.tinyFighters,loc::T("room.tiny_fighters.detail"),host));
   // In a game that has winner scenes to skip. Every room has the rule (on in a public one); only a private room's host changes it.
   if(c.v.offersSkipScenes)rows.push_back(SkipScenesRow("room-skip-scenes",s.skipScenes,loc::T("room.skip_scenes.detail"),host&&!s.serverOwned));
+  // In a game with stages to ban. Every member can look at the page; only a private room's host changes it.
+  if(c.v.offersBannedStages)rows.push_back(BannedStagesRow("room-banned-stages",s.bannedStages.size(),loc::T("room.banned_stages.detail")));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
   if(tables)rows.push_back(Row("apply-tables",loc::T("room.apply_tables"),loc::Tf("room.tables.detail",static_cast<int>(TableCount)),

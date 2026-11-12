@@ -3321,6 +3321,27 @@ msgstr "Pomijaj sceny zwycięzcy"
 msgid "room.skip_scenes.detail"
 msgstr "Po ostatnim KO sceny zwycięzcy kończą się same, więc propozycja rewanżu pojawia się wcześniej. Naciśnięcie przycisku pomija je jeszcze szybciej."
 
+msgid "room.banned_stages"
+msgstr "Zakazane areny"
+
+msgid "room.banned_stages.detail"
+msgstr "Gracz 1 nie może grać na zakazanej arenie. Losowo je pomija, a zakazany wybór zmienia się w arenę treningową."
+
+msgid "room.banned_stages.count"
+msgstr "Zakazane: {0}"
+
+msgid "room.banned_stages.tag"
+msgstr "Zakazana"
+
+msgid "room.banned_stages.allowed"
+msgstr "Dozwolona"
+
+msgid "room.banned_stages.clear"
+msgstr "Wyczyść wszystko"
+
+msgid "selection.stage_banned"
+msgstr "Ta arena jest zakazana w tym pokoju. Wybierz inną arenę lub Losowo."
+
 msgid "selection.size"
 msgstr "Rozmiar"
 

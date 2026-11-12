@@ -297,7 +297,7 @@ int main(int argc, char** argv) {
     // Texts only a game's own code shows (SFV's selection screen draws the Tiny
     // fighters Size row from the library's catalogs, EMBER_LIBRARY.md section 59):
     // no literal of theirs is in this repository's sources.
-    const std::set<std::string> shownByGames = {"selection.size", "selection.size.normal", "selection.size.tiny"};
+    const std::set<std::string> shownByGames = {"selection.size", "selection.size.normal", "selection.size.tiny", "selection.stage_banned"};
     for (const auto& entry : catalogs[0])
         CHECK(shownByGames.count(entry.first) || sources.find("\"" + entry.first + "\"") != std::string::npos);
 

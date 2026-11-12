@@ -116,12 +116,14 @@ namespace sf4e {
 		// tableCount is how many tables a Classic room opens with (room::Snapshot::tableCount);
 		// wiredOnly is its Wired players only rule (room::Snapshot::wiredOnly);
 		// tinyFighters its Tiny fighters allowed rule (room::Snapshot::tinyFighters),
-		// skipScenes its Skip winner scenes rule (room::Snapshot::skipScenes).
+		// skipScenes its Skip winner scenes rule (room::Snapshot::skipScenes),
+		// bannedStages its Banned stages rule (room::Snapshot::bannedStages).
 		void EnableCustomRooms(const std::string& name = "Private room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
 			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), bool practice = false,
 			room::DelayPolicy delayPolicy = room::DelayPolicy::Shared, room::RoomType arcade = room::ClassicRoom,
-			std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount), bool wiredOnly = false, bool tinyFighters = false, bool skipScenes = true);
+			std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount), bool wiredOnly = false, bool tinyFighters = false, bool skipScenes = true,
+			std::vector<std::int64_t> bannedStages = {});
 		// Server-owned mode, for a room host process with no player host: no
 		// connection is the local host, and every join names an account (the
 		// player's Ember ID) that the embedding process supplied for that

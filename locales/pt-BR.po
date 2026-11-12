@@ -2957,6 +2957,27 @@ msgstr "Pular cenas do vencedor"
 msgid "room.skip_scenes.detail"
 msgstr "Após o último KO, as cenas do vencedor terminam sozinhas e o convite para a revanche aparece mais cedo. Apertar um botão as pula ainda antes."
 
+msgid "room.banned_stages"
+msgstr "Cenários banidos"
+
+msgid "room.banned_stages.detail"
+msgstr "O jogador 1 não pode jogar em um cenário banido. Aleatória os pula, e uma escolha banida vira o cenário de treino."
+
+msgid "room.banned_stages.count"
+msgstr "{0} banidos"
+
+msgid "room.banned_stages.tag"
+msgstr "Banido"
+
+msgid "room.banned_stages.allowed"
+msgstr "Permitido"
+
+msgid "room.banned_stages.clear"
+msgstr "Limpar tudo"
+
+msgid "selection.stage_banned"
+msgstr "Este cenário está banido nesta sala. Escolha outro cenário ou Aleatória."
+
 msgid "selection.size"
 msgstr "Tamanho"
 

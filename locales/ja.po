@@ -3322,6 +3322,27 @@ msgstr "勝者の演出をスキップ"
 msgid "room.skip_scenes.detail"
 msgstr "最後のKOのあと、勝者の演出が自動で終わり、再戦の確認が早く出ます。ボタンを押せばさらに早くスキップできます。"
 
+msgid "room.banned_stages"
+msgstr "禁止ステージ"
+
+msgid "room.banned_stages.detail"
+msgstr "プレイヤー1は禁止ステージでは戦えません。ランダムは禁止ステージを除外し、禁止ステージを選ぶとトレーニングステージになります。"
+
+msgid "room.banned_stages.count"
+msgstr "{0}件を禁止"
+
+msgid "room.banned_stages.tag"
+msgstr "禁止"
+
+msgid "room.banned_stages.allowed"
+msgstr "許可"
+
+msgid "room.banned_stages.clear"
+msgstr "すべて解除"
+
+msgid "selection.stage_banned"
+msgstr "このステージはこのルームで禁止されています。別のステージかランダムを選んでください。"
+
 msgid "selection.size"
 msgstr "サイズ"
 

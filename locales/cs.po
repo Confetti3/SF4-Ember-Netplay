@@ -3321,6 +3321,27 @@ msgstr "Přeskakovat scény vítěze"
 msgid "room.skip_scenes.detail"
 msgstr "Po posledním KO se scény vítěze ukončí samy, takže nabídka odvety přijde dříve. Stisk tlačítka je přeskočí ještě dřív."
 
+msgid "room.banned_stages"
+msgstr "Zakázané scény"
+
+msgid "room.banned_stages.detail"
+msgstr "Hráč 1 nemůže hrát na zakázané scéně. Náhodná scéna je přeskakuje a zakázaná volba se změní na tréninkovou scénu."
+
+msgid "room.banned_stages.count"
+msgstr "Zakázáno: {0}"
+
+msgid "room.banned_stages.tag"
+msgstr "Zakázána"
+
+msgid "room.banned_stages.allowed"
+msgstr "Povolena"
+
+msgid "room.banned_stages.clear"
+msgstr "Zrušit vše"
+
+msgid "selection.stage_banned"
+msgstr "Tato scéna je v této místnosti zakázaná. Vyberte jinou scénu nebo Náhodně."
+
 msgid "selection.size"
 msgstr "Velikost"
 
