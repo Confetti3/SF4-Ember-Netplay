@@ -316,5 +316,11 @@ int main(int argc, char** argv) {
         SetActive(Locale::En);
     }
     CHECK(std::string(Tag(Locale::PtBR)) == "pt-BR" && std::string(NativeName(Locale::Es419)) == "Español (Latinoamérica)");
+    // French and Brazilian Portuguese count 0 in the singular; English does not.
+    CHECK(SingularCount(1) && !SingularCount(0) && !SingularCount(2));
+    SetActive(Locale::Fr); CHECK(SingularCount(0) && SingularCount(1) && !SingularCount(2));
+    SetActive(Locale::PtBR); CHECK(SingularCount(0) && !SingularCount(2));
+    SetActive(Locale::De); CHECK(!SingularCount(0) && SingularCount(1));
+    SetActive(Locale::En);
     std::cout << "Localization resolution, parser, catalogs and formatting passed\n";
 }
