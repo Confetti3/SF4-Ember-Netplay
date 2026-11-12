@@ -294,13 +294,15 @@ void DrawWindow(const camera::Settings& s, const ReplayBar& bar, float scale) {
         if (bar.on) {
             // Over a replay: the video editor (timeline, keys, the replay controls inside) or the plain replay controls.
             const float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
-            if (s_editor) ImGui::PushStyleColor(ImGuiCol_Button, c.accent);
+            // The accent marks the view this frame began on: a click changes s_editor between a push and its pop.
+            const bool editor = s_editor;
+            ImGui::PushStyleColor(ImGuiCol_Button, editor ? c.accent : c.button);
             if (ImGui::Button("Video editor", ImVec2(half, 0))) s_editor = true;
-            if (s_editor) ImGui::PopStyleColor();
+            ImGui::PopStyleColor();
             ImGui::SameLine();
-            if (!s_editor) ImGui::PushStyleColor(ImGuiCol_Button, c.accent);
+            ImGui::PushStyleColor(ImGuiCol_Button, editor ? c.button : c.accent);
             if (ImGui::Button("Replay controls", ImVec2(-1, 0))) s_editor = false;
-            if (!s_editor) ImGui::PopStyleColor();
+            ImGui::PopStyleColor();
             if (s_editor && ImGui::CollapsingHeader("Playback", ImGuiTreeNodeFlags_DefaultOpen)) {
                 // The replay controls, inside the editor: what the strip has, with the same keys.
                 const float third = (ImGui::GetContentRegionAvail().x - 2 * ImGui::GetStyle().ItemSpacing.x) / 3;
