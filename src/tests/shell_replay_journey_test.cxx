@@ -227,11 +227,20 @@ void ReplayJourneys() {
    // notice that was already there does not end it.
    h.view.replays.importWaiting=0;h.view.replays.importBatches=1;h.view.replays.setNotices=7;h.Frame();
    Check(status==loc::T("replays.set_pack_working"),"A batch that began was not shown as working");
-   h.view.replays.setNotices=8;h.view.replays.setNotice=loc::Tf("replays.import_done",5,2);h.view.replays.setNoticeError=false;h.Frame();
+   h.view.replays.importFinished=1;h.view.replays.importNotice=loc::Tf("replays.import_done",5,2);h.view.replays.importNoticeError=false;h.Frame();
    Check(status==loc::Tf("replays.import_done",5,2)&&tone==Tone::Success,"A batch that all went in was not reported");
-   SetMenuStatusProbe({});h.view.services={};h.view.replays.setNoticeError=false;}
+   // A set pack saved meanwhile is not the batch's answer, and does not end its wait.
+   h.view.replays.importBatches=2;h.view.replays.setNotices=8;h.Frame();
+   Check(status==loc::T("replays.set_pack_working"),"A set pack's notice ended an import batch's wait");
+   // The runtime begins and ends a one-file batch in one tick: the one snapshot has both counts moved, and the
+   // answer is shown, not waited for.
+   h.view.replays.importBatches=3;h.view.replays.importFinished=3;h.view.replays.importNotice=loc::T("replays.set_import_failed");h.view.replays.importNoticeError=true;h.Frame();
+   Check(status==loc::T("replays.set_import_failed")&&tone==Tone::Error,"A batch that began and ended in one snapshot was left on Working");
+   h.view.replays.importBatches=4;h.view.replays.importFinished=4;h.view.replays.importNotice=loc::Tf("replays.import_done",1,1);h.view.replays.importNoticeError=false;h.Frame();
+   Check(status==loc::Tf("replays.import_done",1,1)&&tone==Tone::Success,"A second batch that began and ended in one snapshot was not reported");
+   SetMenuStatusProbe({});h.view.services={};h.view.replays.importNoticeError=false;}
   // A batch that begins while the player is elsewhere brings the Replays screen up, though not over a room's menu.
-  h.Screen("home");h.view.replays.importBatches=2;h.Frame();
+  h.Screen("home");h.view.replays.importBatches=5;h.view.replays.importFinished=5;h.Frame();
   Check(h.shell.Navigation().Screen()=="replays","A batch of dropped files did not open the Replays screen");
   // The next request from the screen (here the picker again) takes the batch's answer off the status line.
   h.view.services.canPickFiles=true;h.Frame();h.Choose("replay-import");h.view.services={};h.Frame();
@@ -272,7 +281,7 @@ void ReplayJourneys() {
    h.Screen("home");Check(status!="Not added.","The replay notice showed outside Replays");
    SetMenuStatusProbe({});h.view.replays.notice.clear();h.view.replays.noticeError=false;h.Screen("replays");}
   // A batch that begins while a room's menu is in front does not take it over; its files wait.
-  h.Screen("home");h.view.session.room=netplay::RoomState::Joined;h.view.replays.importBatches=3;h.Frame();
+  h.Screen("home");h.view.session.room=netplay::RoomState::Joined;h.view.replays.importBatches=6;h.view.replays.importFinished=6;h.Frame();
   Check(h.shell.Navigation().Screen()!="replays","A batch took the room's menu");
   h.view.session.room=netplay::RoomState::Idle;h.Frame();h.Screen("replays");
   // Export video opens the caption's screen; the set so far is counted from the two matches before, the line is the date and score, and Generate sends all of it.

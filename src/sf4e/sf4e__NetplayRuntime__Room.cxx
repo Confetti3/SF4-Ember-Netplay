@@ -622,51 +622,6 @@ static void Retry(Intent& intent, bool helperReady) {
 }
 
 namespace internal {
-// No room joined and none being joined: where the battle log may be opened
-// and where Ember's menu may come back to the Replays screen.
-static bool NoRoom() { return runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !UserApp::netplay; }
-
-// A replay link's file is played only on the player's word, so any request
-// for it, or a dismissal, answers the question the link left.
-void RunReplayRequest(const replay::Request& request) {
-    if (request.mode == replay::Mode::DismissLink || request.path == runtime->replayLinkAsked) runtime->replayLinkAsked.clear();
-    if (request.mode == replay::Mode::Import) {
-        // A link's Import joins the drops' and the picker's queue: TickReplays imports it,
-        // and only on Ember's menus.
-        runtime->replayImports.Add({request.path});
-        return;
-    }
-    if (request.mode == replay::Mode::Keep) { platform::replays::MarkKept(platform::Utf8ToWide(request.path.c_str()), request.keep); platform::replays::WantListing(); return; }
-    replaystore::Start(request, AtMainMenu(), NoRoom());
-}
-
-// What a run of imports came to, said once it is over.
-static void SayImportBatch(const replay_import::Batch& batch) {
-    if (!batch.failed) SaySet(loc::Tf("replays.import_done", batch.held, batch.files), false);
-    else if (batch.files == 1) SaySet(loc::T("replays.set_import_failed"), true);
-    else SaySet(loc::Tf("replays.import_some_failed", batch.failed, batch.files), true);
-}
-
-void TickReplays() {
-    ApplyGameDisplay();
-    // What the picker returned joins what drops and links handed over.
-    runtime->replayImports.Add(runtime->services.TakePicked());
-    // One file a tick, read and written on the game thread (a pack is at most a couple of
-    // MB), and only on Ember's menus: in a room or a match the files wait.
-    if (AtMainMenu() && NoRoom()) {
-        if (const auto file = runtime->replayImports.Next()) {
-            const auto held = platform::replays::ImportReplayFile(platform::Utf8ToWide(file->c_str()));
-            if (const auto batch = runtime->replayImports.Answered(held)) SayImportBatch(*batch);
-        }
-    }
-    const std::string link = platform::ResolveReplayFile(runtime->replayLinks.Take());
-    if (!link.empty()) {
-        runtime->replayLinkAsked = link;
-        spdlog::info("Replays: a link asked for a replay; the Replays screen asks the player");
-    }
-    replaystore::Tick(AtMainMenu(), NoRoom());
-}
-
 // A Ready press that cannot be honoured ends its intent and is announced once.
 void FailReady(const char* reason) {
 	runtime->readyIntent.Clear();

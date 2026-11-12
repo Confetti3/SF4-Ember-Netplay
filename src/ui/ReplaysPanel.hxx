@@ -136,10 +136,12 @@ private:
     std::uint64_t exports_ = 0, sentExport_ = 0;
     // The set whose games replay-set lists.
     std::string setShown_;
-    // A set pack was last asked for here (Save set pack, a pack link's Import):
+    // A set pack was last asked for here (Save set pack):
     // the status line has its answer once the notice count passes this one.
     bool setAsked_ = false;
     std::uint64_t setNoticeAsked_ = 0;
+    // The status line has the answer of the last batch of imported files (importSeen_) to give.
+    bool importAsked_ = false;
     // Import replay: the game imports the files the picker, a drop or a link
     // hands over, one queue for all three; this is the count of its batches
     // already taken, so a new one brings its answer to the status line.

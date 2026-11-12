@@ -275,6 +275,8 @@ struct Runtime {
     std::uint64_t packRequest = 0;
     std::filesystem::path packPath;
     struct SetNotice { std::string text; bool error = false; std::uint64_t count = 0; } setNotice;
+    // What the last batch of imported replay files came to (the batch count itself is the queue's).
+    struct ImportNotice { std::string text; bool error = false; } importNotice;
     // The bridge requests awaiting an answer, with what each does with it:
     // the public rooms' and friends' (the other requests above and below keep
     // their own bookkeeping).

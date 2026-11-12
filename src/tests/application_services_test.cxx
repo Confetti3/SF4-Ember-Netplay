@@ -215,6 +215,29 @@ int main() {
             for(int i=0;i<100;++i)many.push_back("C:\\dl\\"+std::to_string(i)+".emberreplay");
             CHECK(queue.Add(many)==sf4e::replay_import::kMostWaiting-1&&queue.Waiting()==sf4e::replay_import::kMostWaiting);
         }
+        // The runtime's import step (Step), as TickReplays calls it: one file a tick, only on Ember's menus
+        // with no room, files waiting otherwise, and the batch reported on the tick its last file is answered.
+        {
+            using sf4e::replay_import::Queue;
+            using sf4e::replay_import::Step;
+            Queue queue;
+            std::vector<std::string> imported;
+            const auto doImport=[&](const std::string& file){imported.push_back(file);return file.find("bad")!=std::string::npos?std::size_t(0):std::size_t(2);};
+            CHECK(!Step(queue,true,true,doImport)&&imported.empty());                  // nothing waits
+            CHECK(queue.Add({"C:\dl\a.emberreplay","C:\dl\bad.emberreplay","C:\dl\c.emberreplay"})==3);
+            CHECK(!Step(queue,false,true,doImport)&&!Step(queue,true,false,doImport)&&!Step(queue,false,false,doImport));
+            CHECK(imported.empty()&&queue.Waiting()==3);                              // in a room or a match they wait
+            CHECK(!Step(queue,true,true,doImport)&&imported.size()==1&&queue.Waiting()==2);   // one file a tick
+            CHECK(!Step(queue,true,true,doImport)&&imported.size()==2);
+            CHECK(!Step(queue,true,false,doImport)&&queue.Waiting()==1);                // a room joined mid-batch holds the rest
+            const auto batch=Step(queue,true,true,doImport);
+            CHECK(batch&&batch->files==3&&batch->failed==1&&batch->held==4&&imported.size()==3&&imported[1]=="C:\dl\bad.emberreplay");
+            CHECK(queue.Waiting()==0&&queue.Batches()==1&&queue.Finished()==1);
+            // A one-file batch begins and ends in one tick: both counts have moved by the time anyone looks.
+            CHECK(queue.Add({"C:\dl\d.emberreplay"})==1&&queue.Batches()==2&&queue.Finished()==1);
+            const auto single=Step(queue,true,true,doImport);
+            CHECK(single&&single->files==1&&single->failed==0&&single->held==2&&queue.Batches()==2&&queue.Finished()==2);
+        }
     }
     RemoveTempRoot(root);
     std::cout<<"Bounded readable diagnostics, unavailable state and worker export passed\n";

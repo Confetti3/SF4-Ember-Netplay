@@ -47,6 +47,9 @@ public:
 	// from the last).
 	std::size_t Waiting() const { std::lock_guard<std::mutex> lock(mutex_); return waiting_.size(); }
 	std::uint64_t Batches() const { std::lock_guard<std::mutex> lock(mutex_); return batches_; }
+	// How many batches have ended. A batch that begins and ends between two looks at the
+	// queue shows Batches and Finished both moved; Finished >= Batches says the last is over.
+	std::uint64_t Finished() const { std::lock_guard<std::mutex> lock(mutex_); return finished_; }
 	// The next file to import, or none.
 	std::optional<std::string> Next() {
 		std::lock_guard<std::mutex> lock(mutex_);
@@ -62,6 +65,7 @@ public:
 		if (!held) ++batch_.failed; else batch_.held += held;
 		if (!waiting_.empty()) return std::nullopt;
 		open_ = false;
+		++finished_;
 		return batch_;
 	}
 private:
@@ -69,7 +73,18 @@ private:
 	std::deque<std::string> waiting_;
 	Batch batch_;
 	bool open_ = false;
-	std::uint64_t batches_ = 0;
+	std::uint64_t batches_ = 0, finished_ = 0;
 };
+
+// One tick of the import: only on Ember's menus with no room joined, the next file goes to
+// `importFile` (UTF-8 path in, how many games it holds out, 0 when it could not be imported).
+// The batch is returned on the tick its last file was answered. Files wait otherwise.
+template <class Import>
+std::optional<Batch> Step(Queue& queue, bool atMenu, bool noRoom, Import&& importFile) {
+	if (!atMenu || !noRoom) return std::nullopt;
+	const auto file = queue.Next();
+	if (!file) return std::nullopt;
+	return queue.Answered(importFile(*file));
+}
 
 } }

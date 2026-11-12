@@ -110,7 +110,7 @@ void ReplaysPanel::Update(const ShellView& v,const netplay::PlayerPreferences& s
  // (not in a room, where the menu is the room's) and its answer to the status line.
  if(v.replays.importBatches!=importSeen_){
   importSeen_=v.replays.importBatches;
-  setAsked_=true;setNoticeAsked_=v.replays.setNotices;folderAsked_=false;
+  importAsked_=true;setAsked_=false;folderAsked_=false;
   if(v.session.room==netplay::RoomState::Idle&&nav.Screen()!="replays")Show(nav);
  }
  // Export set videos: the saved video of the game sent (the front of the
@@ -376,7 +376,7 @@ bool ReplaysPanel::Generate(const ShellView& v,const Submit& submit) {
 }
 bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,const netplay::PlayerPreferences& saved,MenuNavigation& nav,const Submit& submit,std::string& error) {
  // Any other request from these screens takes the status line back from Show in folder.
- if(a.id=="cap-generate"||a.id=="export-cancel"||a.id=="replay-log")folderAsked_=setAsked_=false;
+ if(a.id=="cap-generate"||a.id=="export-cancel"||a.id=="replay-log")folderAsked_=setAsked_=importAsked_=false;
  if(a.id=="set-next"){
   if(setExport_&&!setQueue_.empty()){NextVideo(v,saved,nav);return true;}
   if(!setQueue_.empty()&&v.replays.ready){Watch(v,setQueue_.front(),false,submit,error);setQueue_.erase(setQueue_.begin());}
@@ -394,7 +394,7 @@ bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,const netplay
  }
  if(a.id=="replay-import"){
   // The picker opens in its own window; the files it returns go to the game's import queue.
-  folderAsked_=setAsked_=false;
+  folderAsked_=setAsked_=importAsked_=false;
   commands::Service r;r.generation=v.session.generation;r.service=platform::ServiceAction::PickReplays;
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");
   return true;
@@ -429,7 +429,7 @@ bool netplay::PlayerPreferences::* ReplaysPanel::Accept(const MenuAction& a) {
 }
 void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::PlayerPreferences& saved,MenuNavigation& nav,const Submit& submit,std::string& error) {
  if(a.id=="replay-link"){
-  folderAsked_=false;setAsked_=a.text=="link-import";setNoticeAsked_=v.replays.setNotices;
+  folderAsked_=setAsked_=importAsked_=false;
   commands::Replay r;r.generation=v.session.generation;
   if(a.text=="link-play")r.replay={replay::Mode::Watch,v.replays.link,WatchCaptionOf(v,v.replays.link)};
   else if(a.text=="link-import")r.replay={replay::Mode::Import,v.replays.link};
@@ -443,7 +443,7 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
    const Set& set=*found;
    if(a.text=="set-pick"){setShown_=id;nav.Push("replay-set");}
    else if(a.text=="set-pack"){
-    folderAsked_=false;setAsked_=true;setNoticeAsked_=v.replays.setNotices;
+    folderAsked_=importAsked_=false;setAsked_=true;setNoticeAsked_=v.replays.setNotices;
     commands::Tournament r;
     r.tournament.op=netplay::tournament::Command::Op::SavePack;r.tournament.bridgeId=set.bridgeId;r.tournament.matchId=set.matchId;
     if(!submit(std::move(r))){setAsked_=false;error=loc::T("error.queue_failed");}
@@ -461,7 +461,7 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
  }
  if(a.id.compare(0,7,"replay:")!=0)return;
  const std::string path=a.id.substr(7);
- folderAsked_=a.text=="show-folder";setAsked_=false;
+ folderAsked_=a.text=="show-folder";setAsked_=importAsked_=false;
  // Anything else asked of a replay ends a set being watched.
  setQueue_.clear();setStep_=SetStep::Manual;
  if(a.text=="show-folder"){
@@ -489,6 +489,13 @@ bool ReplaysPanel::Status(const ShellView& v,const std::string& screen,std::stri
  if(v.services.picking){status=loc::T("services.picking_replays");tone=Tone::Pending;return true;}
  // Files that wait for Ember's menus (a room or a match is in front) say so.
  if(v.replays.importWaiting>0){status=loc::Tf("replays.import_waiting",v.replays.importWaiting);tone=Tone::Pending;return true;}
+ // A batch of imported files answers until the next request from these screens: working until
+ // the game has ended that batch or a later one, then its own result.
+ if(importAsked_){
+  if(v.replays.importFinished<importSeen_){status=loc::T("replays.set_pack_working");tone=Tone::Pending;}
+  else{status=v.replays.importNotice;tone=v.replays.importNoticeError?Tone::Error:Tone::Success;}
+  return true;
+ }
  // A set pack answers until the next request from these screens.
  if(setAsked_){
   if(v.replays.setNotices==setNoticeAsked_){status=loc::T("replays.set_pack_working");tone=Tone::Pending;}
