@@ -226,10 +226,19 @@ add_test(NAME UiRender COMMAND UiRenderTest)
 # budgets cover an adapter without hardware transform, where the CPU does
 # it and a sweep takes several minutes.
 set_tests_properties(UiRender PROPERTIES TIMEOUT 600)
-# Each translation at three sizes, in its own run so neither sweep nears
-# its timeout as languages are added.
-add_test(NAME UiRenderLocales COMMAND UiRenderTest)
-set_tests_properties(UiRenderLocales PROPERTIES TIMEOUT 600 ENVIRONMENT "SF4E_UI_RENDER_LOCALES=translations")
+# Each translation at three sizes, in three runs of a third of the languages
+# each. One process rebuilding the atlas texture for every language at every
+# size ran the D3D9 driver out of this 32-bit process's address space (each new
+# texture size leaves a reservation behind), and no run nears its timeout as
+# languages are added.
+set(SF4E_UI_RENDER_LOCALE_SHARDS 3)
+set(SF4E_UI_RENDER_LOCALE_TESTS)
+foreach(shard RANGE 1 ${SF4E_UI_RENDER_LOCALE_SHARDS})
+    add_test(NAME UiRenderLocales${shard} COMMAND UiRenderTest)
+    set_tests_properties(UiRenderLocales${shard} PROPERTIES TIMEOUT 600
+        ENVIRONMENT "SF4E_UI_RENDER_LOCALES=translations:${shard}/${SF4E_UI_RENDER_LOCALE_SHARDS}")
+    list(APPEND SF4E_UI_RENDER_LOCALE_TESTS UiRenderLocales${shard})
+endforeach()
 # The atlas rebuild on its own: every language and scale within the atlas
 # budget, then random player text through many rebuilds.
 add_test(NAME UiRenderAtlas COMMAND UiRenderTest)
@@ -373,7 +382,10 @@ sf4e_test_labels(LABELS unit TESTS Localization Countries AbortNotice Presentati
 sf4e_test_labels(LABELS ggpo TESTS GgpoSpectatorCapacity GgpoSpectatorHandleControl GgpoSpectatorBacklog
     GgpoDelayRollbackZeroZero GgpoDelayRollbackZeroOne GgpoDelayRollbackFiveZero GgpoDelayRollbackCorruptRestore)
 sf4e_test_labels(LABELS room TESTS SessionRecoveryGate)
-sf4e_test_labels(LABELS ui TESTS UiRender UiRenderLocales UiRenderAtlas UiRenderGallery SelectionArt)
+sf4e_test_labels(LABELS ui TESTS UiRender ${SF4E_UI_RENDER_LOCALE_TESTS} UiRenderAtlas UiRenderGallery SelectionArt)
+foreach(test UiRender ${SF4E_UI_RENDER_LOCALE_TESTS} UiRenderAtlas UiRenderGallery)
+    sf4e_test_locks(${test} d3d9_device)
+endforeach()
 sf4e_test_labels(LABELS script TESTS UpdaterDownloadValidation NetworkCompletion UpgradeRecoveryPowerShell)
 
 # The publisher's PowerShell suites. They mock git, gh, ssh, scp and WSL and write only under TEMP, so

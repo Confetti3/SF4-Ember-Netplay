@@ -693,7 +693,19 @@ int main(int argc, char** argv) {
         // UiRenderLocales run sweeps each translation at the tightest, the
         // commonest and a scaled size, which keeps both runs inside their timeouts.
         const char* localeRun = std::getenv("SF4E_UI_RENDER_LOCALES");
-        const bool translations = localeRun && std::string(localeRun) == "translations";
+        // "translations" sweeps every translation; "translations:N/M" only the
+        // Nth of M shares (1-based), so no one process rebuilds the atlas
+        // texture at new sizes more often than the D3D9 driver's address
+        // space allows (each new size leaves a reservation behind; 13
+        // languages x 3 sizes in one 32-bit process ran out).
+        const std::string localeMode = localeRun ? localeRun : "";
+        const bool translations = localeMode.rfind("translations", 0) == 0;
+        int shard = 1, shards = 1;
+        if (translations && localeMode.size() > 12 && localeMode[12] == ':' &&
+            (std::sscanf(localeMode.c_str() + 13, "%d/%d", &shard, &shards) != 2 || shards < 1 || shard < 1 || shard > shards)) {
+            std::fprintf(stderr, "SF4E_UI_RENDER_LOCALES=%s: expected translations or translations:N/M\n", localeMode.c_str());
+            return 2;
+        }
         // SF4E_UI_RENDER_QUICK=1 is for a quick look at a change: English at 1920x1080 only.
         const char* quickRun = std::getenv("SF4E_UI_RENDER_QUICK");
         const std::string quickMode = quickRun ? quickRun : "";
@@ -727,7 +739,7 @@ int main(int argc, char** argv) {
         if(quick)localePasses={{"en",0}};
         else if(!translations)localePasses={{"en",0},{"pseudo",-1}};
         else for(int i=1;i<static_cast<int>(sf4e::loc::Locale::Count);++i)
-            localePasses.push_back({sf4e::loc::Tag(static_cast<sf4e::loc::Locale>(i)),i});
+            if((i-1)%shards==shard-1)localePasses.push_back({sf4e::loc::Tag(static_cast<sf4e::loc::Locale>(i)),i});
         for(const auto& localePass:localePasses) {
           if(localePass.locale<0)sf4e::loc::testing::SetPseudoActive();
           else sf4e::loc::SetActive(static_cast<sf4e::loc::Locale>(localePass.locale));
