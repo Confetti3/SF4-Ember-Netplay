@@ -146,6 +146,25 @@ Result RoomAuthority::ApplyTyping(MemberId member, const Action& action) {
 	return Accept();
 }
 
+// A fighter's answer to the prompt over the WIN of one game, kept for the
+// others to show while that game's prompt is open. It names the game it
+// answers (the match's generation and its place in the battle) and a seated
+// fighter of that match alone may say it. It binds nobody, like SetTraining.
+Result RoomAuthority::ApplyPostMatchAnswer(MemberId member, const Action& action) {
+	Member* item = Find(member);
+	if (!item) return Reject(RejectReason::UnknownMember);
+	const Table* table = FindTable(static_cast<std::uint8_t>(item->table >= 0 ? item->table : TableCount));
+	if (!table || (table->p1 != member && table->p2 != member)) return Reject(RejectReason::NotSeated);
+	if (!action.matchGeneration || action.matchGeneration != table->matchGeneration) return Reject(RejectReason::WrongGeneration);
+	const auto game = action.postMatch == PostMatchWord::None ? 0 : action.game;
+	const auto generation = action.postMatch == PostMatchWord::None ? 0 : action.matchGeneration;
+	if (item->postMatch != action.postMatch || item->postMatchGeneration != generation || item->postMatchGame != game) {
+		item->postMatch = action.postMatch; item->postMatchGeneration = generation; item->postMatchGame = game;
+		TouchRoom();
+	}
+	return Accept();
+}
+
 Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& action) {
 	if (!action.matchGeneration) return Reject(RejectReason::WrongGeneration);
 	for (auto& receipt : terminalReceipts_) {
@@ -538,6 +557,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::Rename) return ApplyRename(member, action);
 	if (action.kind == ActionKind::SetTraining) return ApplySetTraining(member, action);
 	if (action.kind == ActionKind::Typing) return ApplyTyping(member, action);
+	if (action.kind == ActionKind::PostMatchAnswer) return ApplyPostMatchAnswer(member, action);
 	if (action.kind == ActionKind::SetRoomType) return ApplySetRoomType(member, action);
 	// An acknowledgement names its receipt, which outlives the game and can
 	// outlive the table being in play (SetTableCount), so it is matched against

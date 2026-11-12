@@ -553,15 +553,15 @@ bool SessionClient::HandleRoomResult(json& msg) {
 		const bool staleReport = sent != _sentRoomActions.end() &&
 			(sent->kind == room::ActionKind::MatchFinished || sent->kind == room::ActionKind::RecordResult) &&
 			(result.result.reason == room::RejectReason::WrongGeneration || result.result.reason == room::RejectReason::DuplicateResult);
-		// The Training and Typing words are sent by the runtime, not pressed: a
+		// The Training, Typing and post-match words are said, not pressed: a
 		// refusal is retried there or let go, and is nothing for the player to read.
 		const bool presence = sent != _sentRoomActions.end() &&
-			(sent->kind == room::ActionKind::SetTraining || sent->kind == room::ActionKind::Typing);
+			(sent->kind == room::ActionKind::SetTraining || sent->kind == room::ActionKind::Typing || sent->kind == room::ActionKind::PostMatchAnswer);
 		const char* text = RoomRejectText(result.result.reason);
 		if (text[0] && !staleReport && !superseded && !presence) _roomError = text;
 	}
 	// Nor does its acceptance answer an error some other action left.
-	else if (sent == _sentRoomActions.end() || (sent->kind != room::ActionKind::SetTraining && sent->kind != room::ActionKind::Typing)) { _roomError.clear(); }
+	else if (sent == _sentRoomActions.end() || (sent->kind != room::ActionKind::SetTraining && sent->kind != room::ActionKind::Typing && sent->kind != room::ActionKind::PostMatchAnswer)) { _roomError.clear(); }
 	if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
 	return true;
 }

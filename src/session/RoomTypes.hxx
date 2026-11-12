@@ -132,9 +132,20 @@ enum class ActionKind : std::uint8_t {
 	// The host turns the room's Wired players only rule on (Action::wiredOnly)
 	// or off. Appended so older authorities reject it as an unknown kind.
 	SetWiredOnly,
+	// A fighter's answer to the post-match prompt over the WIN
+	// (Action::postMatch, for the game Action::matchGeneration and
+	// Action::game), told to the room as it is made so the opponent's prompt
+	// shows it at once. It binds nobody: the Ready, the leaving and the seat
+	// are the room's own. Appended so older authorities reject it as an
+	// unknown kind, and the answer then shows only when the game is over.
+	PostMatchAnswer,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::SetWiredOnly;
+constexpr ActionKind LastActionKind = ActionKind::PostMatchAnswer;
+
+// What a fighter has answered the post-match prompt of one game.
+enum class PostMatchWord : std::uint8_t { None = 0, Rematch, FighterSelect, Back };
+constexpr PostMatchWord LastPostMatchWord = PostMatchWord::Back;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -258,6 +269,12 @@ struct Member {
     // ends by their word, or when a game of theirs starts. Optional on the
     // wire and written only when set, so a state without it reads as before.
     bool training = false;
+    // The member's answer to the post-match prompt of one game of one match
+    // (PostMatchAnswer): shown while that game's prompt is open, and read as
+    // none for any other game. Optional on the wire and written only when set.
+    PostMatchWord postMatch = PostMatchWord::None;
+    std::uint64_t postMatchGeneration = 0;
+    std::uint32_t postMatchGame = 0;
     // Seconds since the member last did anything in the room (joined, sent a
     // room action, showed a fighter), as of the moment the snapshot was sent;
     // a member in a game counts as active. Stamped per recipient when sent,
@@ -473,6 +490,8 @@ struct Action {
 	bool inTraining = false;
 	// Typing: the member is typing in chat. Travels as "locked" too.
 	bool typing = false;
+	// PostMatchAnswer: the fighter's answer. Written only when set.
+	PostMatchWord postMatch = PostMatchWord::None;
 	MatchResult result = MatchResult::Abort;
 	std::uint64_t matchGeneration = 0;
 	std::uint8_t inputDelay = 2;

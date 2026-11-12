@@ -494,6 +494,14 @@ static DispatchOutcome Handle(commands::Ready& command, bool, Attempt attempt) {
 static DispatchOutcome Handle(commands::RoomAction& command, bool, Attempt attempt) {
 	if (!Current(command.generation)) return DispatchOutcome::Dropped;
 	if (!runtime->attached || !UserApp::netplay || !runtime->match) return DispatchOutcome::Dropped;
+	// The prompt's answer over the WIN is only told, once: it parks nothing and
+	// takes no other action's place, and a refusal (an older host does not know
+	// it) or a lost send leaves the answer to show when the game is over.
+	if (command.roomAction.kind == room::ActionKind::PostMatchAnswer) {
+		if (!Decide(netplay::CommandKind::RoomAction, command.generation).accepted) return DispatchOutcome::Dropped;
+		UserApp::netplay->client.SendRoomAction(command.roomAction);
+		return DispatchOutcome::Dispatched;
+	}
 	// A lock-in the player asks for now is newer than a stream failure, so a
 	// release still waiting for it must not undo it.
 	runtime->spectatorLockRelease.Observe(command.roomAction);

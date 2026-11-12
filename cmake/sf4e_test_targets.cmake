@@ -100,6 +100,7 @@ sf4e_add_unit_test(NAME ReadyChime SOURCES "src/tests/ready_chime_test.cxx" LIBS
 sf4e_add_unit_test(NAME RandomFighter SOURCES "src/tests/random_fighter_test.cxx" LIBS sf4e_room_model sf4e_selection TIMEOUT 15 LABELS room)
 sf4e_add_unit_test(NAME TrainingCall SOURCES "src/tests/training_call_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room training)
 sf4e_add_unit_test(NAME RoomTrainingFlag SOURCES "src/tests/room_training_flag_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+sf4e_add_unit_test(NAME RoomPostMatchAnswer SOURCES "src/tests/room_post_match_answer_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 add_executable(SessionRecoveryGateTest "src/tests/session_recovery_gate_test.cxx")
 target_compile_features(SessionRecoveryGateTest PRIVATE cxx_std_14)
 target_link_libraries(SessionRecoveryGateTest PRIVATE sf4e_room_model)

@@ -204,6 +204,7 @@ private:
 	Result ApplyLockSpectating(MemberId member, const Action& action, Table* table, Member* item);
 	Result ApplySetTraining(MemberId member, const Action& action);
 	Result ApplyTyping(MemberId member, const Action& action);
+	Result ApplyPostMatchAnswer(MemberId member, const Action& action);
 	Result ApplyPermitReady(MemberId member, const Action& action, Table* table);
 	// Table 0 of a room bound to a tournament match.
 	bool BoundTable(const Table& table) const;
