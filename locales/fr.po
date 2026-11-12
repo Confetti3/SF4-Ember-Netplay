@@ -1342,6 +1342,9 @@ msgstr "Vous pouvez créer un nouveau code une fois par jour."
 msgid "friends.invite_unavailable"
 msgstr "Cet ami ne peut pas être invité pour le moment."
 
+msgid "friends.blocks_full"
+msgstr "Votre liste de blocages est pleine."
+
 msgid "friends.failed"
 msgstr "Impossible de joindre le service d'amis. Réessayez plus tard."
 
@@ -1351,11 +1354,17 @@ msgstr "Les amis nécessitent un compte Discord. Connectez-le dans Paramètres, 
 msgid "friends.unavailable"
 msgstr "Ce service ne propose pas encore les amis."
 
+msgid "friends.off"
+msgstr "Les amis sont désactivés."
+
 msgid "friends.cannot_join"
 msgstr "Vous ne pouvez pas rejoindre ce salon pour le moment."
 
 msgid "friends.cannot_watch"
 msgstr "Cet ami n'est pas dans une partie que vous pouvez regarder."
+
+msgid "friends.visit_in_room"
+msgstr "Vous êtes dans le salon, mais n'avez pas pu rejoindre sa table."
 
 msgid "friends.private_invite_only"
 msgstr "On ne rejoint un salon privé que sur invitation."
@@ -1405,8 +1414,17 @@ msgstr "Ignorer"
 msgid "friends.turn_off"
 msgstr "Désactiver les amis"
 
+msgid "friends.turn_on"
+msgstr "Activer les amis"
+
+msgid "friends.turn_on_detail"
+msgstr "Réactive les amis avec un nouveau code ami."
+
+msgid "friends.turned_on"
+msgstr "Les amis sont activés."
+
 msgid "friends.turn_off_detail"
-msgstr "Supprime tes amis, demandes, blocages et code ami."
+msgstr "Supprime tes amis et demandes et annule ton code ami. Tes blocages restent."
 
 msgid "room.member_card"
 msgstr "Carte du joueur"

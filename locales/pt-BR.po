@@ -1342,6 +1342,9 @@ msgstr "Você pode criar um novo código uma vez por dia."
 msgid "friends.invite_unavailable"
 msgstr "Esse amigo não pode ser convidado agora."
 
+msgid "friends.blocks_full"
+msgstr "Sua lista de bloqueios está cheia."
+
 msgid "friends.failed"
 msgstr "Não foi possível acessar os amigos. Tente de novo mais tarde."
 
@@ -1351,11 +1354,17 @@ msgstr "Amigos precisam de uma conta do Discord. Conecte-a em Configurações, O
 msgid "friends.unavailable"
 msgstr "Este serviço ainda não oferece amigos."
 
+msgid "friends.off"
+msgstr "Os amigos estão desativados."
+
 msgid "friends.cannot_join"
 msgstr "Você não pode entrar nessa sala agora."
 
 msgid "friends.cannot_watch"
 msgstr "Esse amigo não está numa partida que você possa assistir."
+
+msgid "friends.visit_in_room"
+msgstr "Você entrou na sala, mas não conseguiu chegar à mesa deles."
 
 msgid "friends.private_invite_only"
 msgstr "Em uma sala privada só se entra por convite."
@@ -1405,8 +1414,17 @@ msgstr "Dispensar"
 msgid "friends.turn_off"
 msgstr "Desativar amigos"
 
+msgid "friends.turn_on"
+msgstr "Ativar amigos"
+
+msgid "friends.turn_on_detail"
+msgstr "Reativa os amigos com um novo código de amigo."
+
+msgid "friends.turned_on"
+msgstr "Os amigos estão ativados."
+
 msgid "friends.turn_off_detail"
-msgstr "Apaga seus amigos, pedidos, bloqueios e código de amigo."
+msgstr "Apaga seus amigos e pedidos e cancela seu código de amigo. Seus bloqueios ficam."
 
 msgid "room.member_card"
 msgstr "Cartão do jogador"

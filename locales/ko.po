@@ -1342,6 +1342,9 @@ msgstr "새 코드는 하루에 한 번 만들 수 있습니다."
 msgid "friends.invite_unavailable"
 msgstr "지금은 그 친구를 초대할 수 없습니다."
 
+msgid "friends.blocks_full"
+msgstr "차단 목록이 가득 찼습니다."
+
 msgid "friends.failed"
 msgstr "친구 서비스에 연결하지 못했습니다. 나중에 다시 시도하세요."
 
@@ -1351,11 +1354,17 @@ msgstr "친구 기능에는 Discord 계정이 필요합니다. 설정 > 온라�
 msgid "friends.unavailable"
 msgstr "이 서비스는 아직 친구를 지원하지 않습니다."
 
+msgid "friends.off"
+msgstr "친구 기능이 꺼져 있습니다."
+
 msgid "friends.cannot_join"
 msgstr "지금은 그 방에 참가할 수 없습니다."
 
 msgid "friends.cannot_watch"
 msgstr "그 친구는 관전할 수 있는 게임 중이 아닙니다."
+
+msgid "friends.visit_in_room"
+msgstr "방에는 들어갔지만 상대의 테이블로 가지 못했습니다."
 
 msgid "friends.private_invite_only"
 msgstr "비공개 방은 초대로만 들어갈 수 있습니다."
@@ -1405,8 +1414,17 @@ msgstr "닫기"
 msgid "friends.turn_off"
 msgstr "친구 기능 끄기"
 
+msgid "friends.turn_on"
+msgstr "친구 기능 켜기"
+
+msgid "friends.turn_on_detail"
+msgstr "새 친구 코드로 친구 기능을 다시 시작합니다."
+
+msgid "friends.turned_on"
+msgstr "친구 기능을 켰습니다."
+
 msgid "friends.turn_off_detail"
-msgstr "친구, 요청, 차단, 친구 코드를 삭제합니다."
+msgstr "친구와 요청을 삭제하고 친구 코드를 폐기합니다. 차단은 유지됩니다."
 
 msgid "room.member_card"
 msgstr "플레이어 카드"

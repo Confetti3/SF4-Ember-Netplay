@@ -357,6 +357,24 @@ void StatesJourney() {
   Check(Ids(j) == std::vector<std::string>({"friends-note"}) && j.rows[0].label == loc::T("friends.unavailable"), "A service without friends is not one card");
  }
  {
+  // Friends the player turned off: a line that says so and the one way on, Turn on, which asks the bridge once.
+  auto off = std::make_shared<nf::State>();
+  off->kind = nf::State::Kind::Off;
+  Social j(off);
+  j.open();
+  Check(Ids(j) == std::vector<std::string>({"friends-note", "friends-turn-on"}) && j.rows[0].label == loc::T("friends.off") &&
+   j.rows[1].label == loc::T("friends.turn_on") && j.rows[1].enabled, "Friends turned off are not a line and Turn on friends");
+  j.select("friends-turn-on");
+  Check(j.sent<commands::FriendTurnOn>().size() == 1 && j.sent<commands::FriendTurnOn>()[0]->bridge == "brg_1", "Turn on friends did not send Turn on");
+  // The answer is in flight: nothing else goes, and the row waits.
+  j.view().busy = true; j.h.Frame(0, 2);
+  Check(!j.row("friends-turn-on")->enabled, "Turn on friends stayed open with a request in flight");
+  j.view().busy = false;
+  // The answer is a state: the tab lists again, with the friend code.
+  j.Give(FullState());
+  Check(j.row("friends-add") != nullptr && j.row("friends-turn-on") == nullptr, "The tab did not list friends once they were on");
+ }
+ {
   Social j(std::make_shared<nf::State>());
   j.Give(std::make_shared<nf::State>(), false);
   j.view().state.loading = true; j.h.Frame(0, 2);
@@ -427,6 +445,14 @@ void SettingsJourney() {
  // A service without friends says that.
  j.Give(std::make_shared<nf::State>());
  Check(!j.row("friends-turn-off")->enabled && j.row("friends-turn-off")->detail == loc::T("friends.unavailable"), "A service without friends did not say so");
+ // Friends turned off: the others wait, and Turn on takes the place of Turn off.
+ auto off = std::make_shared<nf::State>();
+ off->kind = nf::State::Kind::Off;
+ j.Give(off);
+ Check(Ids(j) == std::vector<std::string>({"friends-appear-offline", "friends-new-code", "friends-turn-on"}) && !j.row("friends-appear-offline")->enabled &&
+  j.row("friends-appear-offline")->detail == loc::T("friends.off") && j.row("friends-turn-on")->enabled, "The Friends panel did not offer Turn on friends once they were off");
+ j.select("friends-turn-on");
+ Check(j.sent<commands::FriendTurnOn>().size() == 1, "Turn on friends in Settings did not send Turn on");
 }
 }
 

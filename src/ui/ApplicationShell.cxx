@@ -220,7 +220,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows.push_back(Row("notifications",loc::T("home.notifications"),toasts_.empty()?std::string(loc::T("notifications.none")):toasts_.front().text));
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   // The requests waiting to be answered, which the Profile row opens on.
-  if(const int waiting=player_card::RequestsWaiting(v.friends)){auto& profile=*std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="profile";});profile.value=loc::Tf("home.profile_requests",waiting);profile.valueHighlighted=true;}
+  if(const auto badge=player_card::ProfileBadge(v.friends);!badge.empty()){auto& profile=*std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="profile";});profile.value=badge;profile.valueHighlighted=true;}
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
   // Ember ID lives under Online play; tournament matches ready to play are
   // still shown on Home, which leads to them, while no room is joined (a
@@ -653,7 +653,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  profile_.Update(v,nav.Screen(),identity_.UsableBridge(v),submit);
  friends_.Update(v,nav,identity_.UsableBridge(v),now,submit);
  {std::string said;Tone tone;if(friends_.TakeSaid(said,tone))ShowNotice(said,tone,now+(tone==Tone::Error?6:4));}
- SayFriends(v,nav.Screen());
+ {ToastRequest toast;if(friends_.TakeToast(toast))Say(std::move(toast.text),toast.tone,toast.seconds,toast.kind,std::move(toast.actions));}
  {std::string said;if(rankings_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
  if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();ShowNotice(loc::T("public.setup_done"),Tone::Success,now+4);}
@@ -878,8 +878,8 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
    if(a.id=="replay-export")replays_.ExportFrom(v,preferences_,nav.Focus());
    ShowTab(a.id);
   }
-  // The Friends tab and its pages take X, Y and Delete before the room's own, so More is reachable on a pad in a room.
-  else if(FriendsPanel::OnTab(screen)&&FriendsPanel::Takes(a.delta))friends_.Shortcut(v,a,nav);
+  // A panel that takes a shortcut before the room's own (the Friends tab's More is reachable on a pad in a room).
+  else if(owner&&owner->TakesShortcut(frame,a))owner->Shortcut(frame,a);
   // In a room its shortcuts work from every screen, before any panel's.
   else if(inRoom)RoomShortcut(a,v);
   else if(owner)owner->Shortcut(frame,a);

@@ -1342,6 +1342,9 @@ msgstr "Einen neuen Code kannst du einmal am Tag erstellen."
 msgid "friends.invite_unavailable"
 msgstr "Dieser Freund kann gerade nicht eingeladen werden."
 
+msgid "friends.blocks_full"
+msgstr "Deine Sperrliste ist voll."
+
 msgid "friends.failed"
 msgstr "Freunde konnten nicht erreicht werden. Versuche es später erneut."
 
@@ -1351,11 +1354,17 @@ msgstr "Freunde brauchen ein Discord-Konto. Verbinde es unter Einstellungen, Onl
 msgid "friends.unavailable"
 msgstr "Dieser Dienst bietet noch keine Freunde an."
 
+msgid "friends.off"
+msgstr "Freunde sind ausgeschaltet."
+
 msgid "friends.cannot_join"
 msgstr "Du kannst diesem Raum gerade nicht beitreten."
 
 msgid "friends.cannot_watch"
 msgstr "Dieser Freund ist nicht in einem Spiel, das du ansehen kannst."
+
+msgid "friends.visit_in_room"
+msgstr "Du bist dem Raum beigetreten, konntest aber nicht zu ihrem Tisch gehen."
 
 msgid "friends.private_invite_only"
 msgstr "Einem privaten Raum tritt man nur per Einladung bei."
@@ -1405,8 +1414,17 @@ msgstr "Verwerfen"
 msgid "friends.turn_off"
 msgstr "Freunde ausschalten"
 
+msgid "friends.turn_on"
+msgstr "Freunde einschalten"
+
+msgid "friends.turn_on_detail"
+msgstr "Schaltet Freunde mit einem neuen Freundescode wieder ein."
+
+msgid "friends.turned_on"
+msgstr "Freunde sind eingeschaltet."
+
 msgid "friends.turn_off_detail"
-msgstr "Löscht deine Freunde, Anfragen, Blockierungen und deinen Freundescode."
+msgstr "Entfernt deine Freunde und Anfragen und macht deinen Freundescode ungültig. Deine Blockierungen bleiben."
 
 msgid "room.member_card"
 msgstr "Spielerkarte"

@@ -16,7 +16,7 @@ namespace {
 constexpr std::size_t ToastsKept=20;
 // How long a card stays up: a notice briefly, one with buttons long enough
 // to reach them. Its words stay in Notifications either way.
-constexpr double ToastSeconds=4,ActionToastSeconds=8;
+constexpr double ToastSeconds=4;
 std::string Ago(double seconds) {
  const int minutes=static_cast<int>(seconds/60);
  return minutes<1?std::string(loc::T("public.updated_now")):loc::Tf("public.updated_minutes",minutes);
@@ -195,37 +195,6 @@ void ApplicationShell::AnswerToast(const ShellView& v,double now,const Submit& s
   nav.Push(act.screen);
  }
  if(!act.row.empty())nav.Prefer(act.row);
-}
-
-// A friend's request or invite is said once, as the state that holds it is read: Accept for the request
-// (Later leaves it in the list), Join for the invite (it takes the invite, then drops it) and Dismiss. What the
-// first state already held is not said (Home's Profile row counts the requests), nor an invite that ran out, nor
-// anything while the Friends screens show it. One a frame: a second waits for the next.
-void ApplicationShell::SayFriends(const ShellView& v,const std::string& screen) {
- namespace nf=netplay::friends;
- const auto& state=friends_panel::StateOf(v.friends);
- if(state.kind!=nf::State::Kind::Listed||v.friends.bridge.empty())return;
- const bool quiet=!friendsRead_||FriendsPanel::Shown(screen);
- friendsRead_=true;
- const std::string& bridge=v.friends.bridge;
- for(const auto& request:state.incoming){
-  if(!friendsSaid_.insert(request.id).second||quiet)continue;
-  Say(loc::Tf("friends.toast_request",request.name)+"\n"+friends_panel::PlayedLine(request,v.unixNow),Tone::Pending,ActionToastSeconds,ToastKind::None,
-   {{loc::T("friends.accept"),"","",{commands::FriendAccept{bridge,request.id}}},{loc::T("friends.later")}});
-  return;
- }
- for(const auto& invite:state.invites){
-  if(!friendsSaid_.insert(invite.id).second||quiet||(invite.expiresAt&&v.unixNow>=invite.expiresAt))continue;
-  const auto* from=state.FindFriend(invite.friendId);
-  if(!from)continue;
-  // A public room is named by the friend who is in it.
-  const auto& at=from->presence;
-  const bool named=invite.room.kind==nf::InviteRoom::Kind::RoomId&&at.hasRoom&&at.room.id==invite.room.value;
-  Say(loc::Tf("friends.toast_invite",from->name)+(named?"\n"+at.room.name:std::string()),Tone::Pending,ActionToastSeconds,ToastKind::None,
-   {{loc::T("toast.join"),"","",{commands::FriendTakeInvite{v.session.generation,bridge,invite.id},commands::FriendDismiss{bridge,invite.id}}},
-    {loc::T("friends.dismiss"),"","",{commands::FriendDismiss{bridge,invite.id}}}});
-  return;
- }
 }
 
 // Notifications: the toasts said lately. A toast's action chosen at its row

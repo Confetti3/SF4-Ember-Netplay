@@ -52,6 +52,8 @@ public:
     virtual bool Choose(const ScreenFrame&, const MenuAction&, const Submit&) const { return false; }
     // The Options button or key.
     virtual void Shortcut(const ScreenFrame&, const MenuAction&) const {}
+    // The panel takes this shortcut before the room's own, in a room too.
+    virtual bool TakesShortcut(const ScreenFrame&, const MenuAction&) const { return false; }
     // What paints the screen's rows and its detail pane; empty for plain ones.
     virtual GameMenu::Card Card(const ScreenFrame&, double) const { return {}; }
     virtual GameMenu::Detail Detail(const ScreenFrame&) const { return {}; }

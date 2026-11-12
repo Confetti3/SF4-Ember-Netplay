@@ -13,9 +13,12 @@
 #include "MenuNavigation.hxx"
 #include "PlayerCard.hxx"
 #include "ShellAction.hxx"
+#include "ToastAction.hxx"
 #include "../netplay/FriendsView.hxx"
 #include <cstdint>
 #include <functional>
+#include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -136,6 +139,11 @@ public:
     void Conceal();
     // The words to show as a notice (a refusal, an invite or request sent), once.
     bool TakeSaid(std::string& words, Tone& tone);
+    // A friend's request or invite, said once as the state that holds it is read, with its buttons: Accept for the
+    // request (Later leaves it in the list), Join for the invite (it takes the invite, then drops it) and Dismiss.
+    // What the first state already held is not said (Home's Profile row counts the requests), nor an invite that
+    // ran out, nor anything while the Friends screens show it. One a frame: a second waits for the next.
+    bool TakeToast(ToastRequest& toast);
 
     // The screen's rows. `dialog`: a choice or question is open over them.
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool dialog, std::string& title);
@@ -176,6 +184,7 @@ private:
     template <class Command>
     bool Send(const ShellView& view, Command command, const Submit& submit, const std::string& row = {}, std::string say = {}, bool back = false);
     void Say(std::string words, Tone tone);
+    void Announce(const ShellView& view, const std::string& screen);
     const std::string& Bridge(const ShellView& view) const;
     void Attach(std::vector<MenuEntry>& rows, const ShellView& view, bool dialog);
     void Ask(const std::string& row, const std::string& ask) { raise_ = Raise{row, ask}; }
@@ -187,5 +196,10 @@ private:
     double now_ = 0;
     Pending pending_;
     Raise raise_;
+    // What was said as a toast or seen while the screens showed it, and whether the first state was read; the
+    // toast waiting for the shell.
+    std::set<std::string> told_;
+    bool read_ = false;
+    std::optional<ToastRequest> toast_;
 };
 } }

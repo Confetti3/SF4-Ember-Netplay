@@ -1342,6 +1342,9 @@ msgstr "You can make a new code once a day."
 msgid "friends.invite_unavailable"
 msgstr "That friend can't be invited right now."
 
+msgid "friends.blocks_full"
+msgstr "Your block list is full."
+
 msgid "friends.failed"
 msgstr "Friends could not be reached. Try again later."
 
@@ -1351,11 +1354,17 @@ msgstr "Friends need a Discord account. Connect it in Settings, Online."
 msgid "friends.unavailable"
 msgstr "This service does not offer friends yet."
 
+msgid "friends.off"
+msgstr "Friends are off."
+
 msgid "friends.cannot_join"
 msgstr "You can't join that room right now."
 
 msgid "friends.cannot_watch"
 msgstr "That friend is not in a game you can watch."
+
+msgid "friends.visit_in_room"
+msgstr "You joined the room, but could not get to their table."
 
 msgid "friends.private_invite_only"
 msgstr "A private room is joined by invite only."
@@ -1405,8 +1414,17 @@ msgstr "Dismiss"
 msgid "friends.turn_off"
 msgstr "Turn off friends"
 
+msgid "friends.turn_on"
+msgstr "Turn on friends"
+
+msgid "friends.turn_on_detail"
+msgstr "Starts friends again, with a new friend code."
+
+msgid "friends.turned_on"
+msgstr "Friends are on."
+
 msgid "friends.turn_off_detail"
-msgstr "Deletes your friends, requests, blocks and friend code."
+msgstr "Removes your friends and requests and retires your friend code. Your blocks stay."
 
 msgid "room.member_card"
 msgstr "Player card"

@@ -348,6 +348,55 @@ void FriendsPanel::Update(const ShellView& v, MenuNavigation& nav, const std::st
     const bool asking = f.visit.active && f.visit.confirm;
     if (asking && f.visit.revision != visitHandled_ && nav.Screen() != VisitScreen) { visitHandled_ = f.visit.revision; nav.Push(VisitScreen); }
     else if (!asking && nav.Screen() == VisitScreen) nav.Return();
+    Announce(v, nav.Screen());
+}
+
+bool FriendsPanel::TakeToast(ToastRequest& toast) {
+    if (!toast_) return false;
+    toast = std::move(*toast_);
+    toast_.reset();
+    return true;
+}
+
+void FriendsPanel::Announce(const ShellView& v, const std::string& screen) {
+    const auto& state = StateOf(v.friends);
+    if (state.kind != nf::State::Kind::Listed || v.friends.bridge.empty()) return;
+    // What is no longer in the state is forgotten, so what this remembers stays as small as the lists are.
+    for (auto id = told_.begin(); id != told_.end();) {
+        const bool kept = std::any_of(state.incoming.begin(), state.incoming.end(), [&](const nf::Incoming& r) { return r.id == *id; }) ||
+            std::any_of(state.invites.begin(), state.invites.end(), [&](const nf::Invite& i) { return i.id == *id; });
+        id = kept ? std::next(id) : told_.erase(id);
+    }
+    const bool quiet = !read_ || Shown(screen);
+    read_ = true;
+    const std::string& bridge = v.friends.bridge;
+    const auto say = [&](std::string text, std::vector<ToastAction> actions) {
+        ToastRequest toast;
+        toast.text = std::move(text);
+        toast.tone = Tone::Pending;
+        toast.seconds = ActionToastSeconds;
+        toast.actions = std::move(actions);
+        toast_ = std::move(toast);
+    };
+    for (const auto& request : state.incoming) {
+        // A new one is remembered whether it is said or not; one said is one a frame, so a second waits for the next.
+        if (!told_.insert(request.id).second || quiet) continue;
+        say(loc::Tf("friends.toast_request", request.name) + "\n" + PlayedLine(request, v.unixNow),
+            {{loc::T("friends.accept"), "", "", {commands::FriendAccept{bridge, request.id}}}, {loc::T("friends.later")}});
+        return;
+    }
+    for (const auto& invite : state.invites) {
+        if (!told_.insert(invite.id).second || quiet || (invite.expiresAt && v.unixNow >= invite.expiresAt)) continue;
+        const auto* from = state.FindFriend(invite.friendId);
+        if (!from) continue;
+        // A public room is named by the friend who is in it.
+        const auto& at = from->presence;
+        const bool named = invite.room.kind == nf::InviteRoom::Kind::RoomId && at.hasRoom && at.room.id == invite.room.value;
+        say(loc::Tf("friends.toast_invite", from->name) + (named ? "\n" + at.room.name : std::string()),
+            {{loc::T("toast.join"), "", "", {commands::FriendTakeInvite{v.session.generation, bridge, invite.id}, commands::FriendDismiss{bridge, invite.id}}},
+             {loc::T("friends.dismiss"), "", "", {commands::FriendDismiss{bridge, invite.id}}}});
+        return;
+    }
 }
 
 void FriendsPanel::Conceal() {

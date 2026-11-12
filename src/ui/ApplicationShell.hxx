@@ -49,6 +49,7 @@
 #include "RankingsPanel.hxx"
 #include "ProfilePanel.hxx"
 #include "FriendsPanel.hxx"
+#include "ToastAction.hxx"
 #include "ReplaysPanel.hxx"
 #include "ProblemReportPanel.hxx"
 #include "UpdatePrompt.hxx"
@@ -120,13 +121,6 @@ std::string TrainingReadyText(int seconds);
 // tournament match's watcher: it reads the chat and has no box to write in.
 enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable, ReadOnly };
 
-// What a toast is about, said over it (Toasts board); None says nothing.
-enum class ToastKind { None, Invitation, Room, Update, Match, System };
-// A toast's button: it opens `screen` at its `row`, where the player acts on
-// the notice, and sends `commands` as they are, in order (an invite's Join takes
-// the invite and then drops it); one with neither is Later, which only puts the
-// toast away.
-struct ToastAction { std::string label, screen, row; std::vector<RuntimeRequest> commands; };
 // One frame of the room board (RoomPanelBoard.hxx).
 struct RoomBoardFrame;
 
@@ -236,7 +230,7 @@ private:
     // The panels that own screens (ApplicationShell__Screens.cxx): each takes
     // the parts of a drawn frame that belong to its screens (ScreenPanel).
     // Update, Conceal and IdentityPanel::Hidden stay calls to every panel.
-    class IdentityScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens; class ProfileScreens; class FriendsScreens;
+    class IdentityScreens; class RoomMemberScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens; class ProfileScreens; class FriendsScreens;
     // The panel that draws `screen`, one of those or of the shell's own below
     // (one table, ApplicationShell__Screens.cxx), else null for Home and the
     // few plain ones BuildRows makes itself.
@@ -247,6 +241,7 @@ private:
     // the awards wall (__Awards.cxx) and Notifications (__Toasts.cxx).
     class OnlineScreens; class WelcomeScreens; class RoomScreens; class NewsScreens; class AwardsScreens; class NotificationScreens;
     static const ScreenPanel& RoomOwner();
+    static const ScreenPanel& RoomMemberOwner();
     static const ScreenPanel& OnlineOwner();
     static const ScreenPanel& WelcomeOwner();
     static const ScreenPanel& NewsOwner();
@@ -712,11 +707,6 @@ std::string memberAsk_;
     // window, and the toasts over it.
     v2::Box ShellArea() const;
     void AnswerToast(const ShellView& view,double now,const Submit& submit);
-    // A friend's request or invite said once as it comes, with its buttons (SayFriends):
-    // `friendsSaid_` holds what was said or seen, `friendsRead_` that the first state was.
-    void SayFriends(const ShellView& view,const std::string& screen);
-    std::set<std::string> friendsSaid_;
-    bool friendsRead_=false;
     std::vector<MenuEntry> NotificationRows(double now,std::string& title) const;
     // Copy short link was pressed before the link existed: copy it when it
     // arrives, or the full invitation on a failure or at the deadline.

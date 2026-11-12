@@ -229,7 +229,7 @@ struct ShellView {
     // The cards of a public room's members by card token; null while there are none.
     std::shared_ptr<const netplay::levels::CardMap> memberCards;
     // The player's friends, the action in flight and the last refusal's words
-    // (netplay/FriendsView.hxx); commands go as commands::Friends.
+    // (netplay/FriendsView.hxx); commands go as the commands::Friend* types.
     netplay::friends::View friends;
     // Ember's replay archive, newest first, and what the runtime says of
     // replays (RuntimeSnapshot::Replays, ui/ReplaysView.hxx), as published.

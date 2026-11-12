@@ -1342,6 +1342,9 @@ msgstr "Je kunt één keer per dag een nieuwe code maken."
 msgid "friends.invite_unavailable"
 msgstr "Die vriend kan nu niet worden uitgenodigd."
 
+msgid "friends.blocks_full"
+msgstr "Je blokkeerlijst is vol."
+
 msgid "friends.failed"
 msgstr "Vrienden zijn niet bereikbaar. Probeer het later opnieuw."
 
@@ -1351,11 +1354,17 @@ msgstr "Vrienden hebben een Discord-account nodig. Koppel het in Instellingen, O
 msgid "friends.unavailable"
 msgstr "Deze dienst biedt nog geen vrienden aan."
 
+msgid "friends.off"
+msgstr "Vrienden staan uit."
+
 msgid "friends.cannot_join"
 msgstr "Je kunt nu niet in die kamer komen."
 
 msgid "friends.cannot_watch"
 msgstr "Die vriend zit niet in een spel dat je kunt bekijken."
+
+msgid "friends.visit_in_room"
+msgstr "Je bent in de kamer, maar kon niet naar hun tafel."
 
 msgid "friends.private_invite_only"
 msgstr "Een privékamer betreed je alleen met een uitnodiging."
@@ -1405,8 +1414,17 @@ msgstr "Negeren"
 msgid "friends.turn_off"
 msgstr "Vrienden uitschakelen"
 
+msgid "friends.turn_on"
+msgstr "Vrienden inschakelen"
+
+msgid "friends.turn_on_detail"
+msgstr "Zet vrienden weer aan met een nieuwe vriendcode."
+
+msgid "friends.turned_on"
+msgstr "Vrienden staan aan."
+
 msgid "friends.turn_off_detail"
-msgstr "Verwijdert je vrienden, verzoeken, blokkades en vriendcode."
+msgstr "Verwijdert je vrienden en verzoeken en trekt je vriendcode in. Je blokkades blijven."
 
 msgid "room.member_card"
 msgstr "Spelerkaart"

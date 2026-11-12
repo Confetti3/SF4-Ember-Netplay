@@ -216,6 +216,8 @@ public:
     bool Adjust(const ScreenFrame& f, const MenuAction& a) const override { return f.shell.friends_.Adjust(a); }
     bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override { return f.shell.friends_.Choose(f.view, a, submit); }
     void Shortcut(const ScreenFrame& f, const MenuAction& a) const override { f.shell.friends_.Shortcut(f.view, a, f.shell.menu_.navigation); }
+    // The tab and its pages take X, Y and Delete before the room's own, so More is reachable on a pad in a room.
+    bool TakesShortcut(const ScreenFrame& f, const MenuAction& a) const override { return FriendsPanel::OnTab(f.screen) && FriendsPanel::Takes(a.delta); }
     GameMenu::Body Body(const ScreenFrame& f) const override {
         if (f.screen != FriendsPanel::Screen) return {};
         ApplicationShell* shell = &f.shell; const ShellView* view = &f.view;
@@ -305,7 +307,8 @@ private:
 };
 
 const ScreenPanel* ApplicationShell::ScreenOf(const std::string& screen) {
-    // No two panels own a screen, so the order they are asked in decides nothing.
+    // No two panels own a screen, so the order they are asked in decides nothing, except that a member's page is asked
+    // before the room's panel, which owns every screen whose name begins with "room".
     static const PublicRoomsScreens publicRooms{};
     static const RankingsScreens rankings{};
     static const ProfileScreens profile{};
@@ -313,7 +316,7 @@ const ScreenPanel* ApplicationShell::ScreenOf(const std::string& screen) {
     static const ReplaysScreens replays{};
     static const IdentityScreens identity{};
     static const ScreenPanel* const owners[] = {&publicRooms, &rankings, &profile, &friends, &replays, &identity, &SettingsOwner(), &OnlineOwner(),
-        &WelcomeOwner(), &NewsOwner(), &AwardsOwner(), &NotificationsOwner(), &RoomOwner()};
+        &WelcomeOwner(), &NewsOwner(), &AwardsOwner(), &NotificationsOwner(), &RoomMemberOwner(), &RoomOwner()};
     for (const ScreenPanel* owner : owners)
         if (owner->Owns(screen)) return owner;
     return nullptr;

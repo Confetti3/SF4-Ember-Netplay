@@ -130,7 +130,6 @@ void RefusesWhatIsMalformed() {
 	refused("not an object", json::array());
 	refused("no code", changed([](json& d) { d.erase("code"); }));
 	refused("code without its dash", changed([](json& d) { d["code"] = "4F2A91CXY"; }));
-	refused("code with a letter outside the alphabet", changed([](json& d) { d["code"] = "4F2U-91CX"; }));
 	refused("lower-case code", changed([](json& d) { d["code"] = "4f2a-91cx"; }));
 	refused("appear_offline not a bool", changed([](json& d) { d["appear_offline"] = 1; }));
 	refused("no friends list", changed([](json& d) { d.erase("friends"); }));
@@ -145,15 +144,12 @@ void RefusesWhatIsMalformed() {
 	refused("long country", changed([](json& d) { d["friends"][0]["country"] = "FRA"; }));
 	refused("negative since", changed([](json& d) { d["friends"][0]["since"] = -1; }));
 	refused("no presence", changed([](json& d) { d["friends"][0].erase("presence"); }));
-	refused("unknown presence state", changed([](json& d) { d["friends"][0]["presence"]["state"] = "away"; }));
-	refused("unknown status", changed([](json& d) { d["friends"][0]["presence"]["status"] = "dancing"; }));
 	refused("table past the last", changed([](json& d) { d["friends"][0]["presence"]["table"] = 8; }));
 	refused("a room and private", changed([](json& d) { d["friends"][0]["presence"]["private"] = true; }));
 	refused("room id not hex", changed([](json& d) { d["friends"][0]["presence"]["room"]["room_id"] = std::string(32, 'z'); }));
 	refused("room fuller than its capacity", changed([](json& d) { d["friends"][0]["presence"]["room"]["members"] = 17; }));
 	refused("room of one", changed([](json& d) { d["friends"][0]["presence"]["room"]["capacity"] = 1; d["friends"][0]["presence"]["room"]["members"] = 0; }));
-	refused("unknown activity", changed([](json& d) {
-		d["friends"][1]["presence"] = {{"state", "online"}, {"activity", "sleeping"}}; }));
+	refused("online with no activity", changed([](json& d) { d["friends"][1]["presence"] = {{"state", "online"}}; }));
 	refused("fighter past the roster", changed([](json& d) { d["friends"][0]["main"]["fighter"] = 44; }));
 	refused("points without a tier", changed([](json& d) { d["friends"][0]["main"].erase("tier"); }));
 	refused("tier past the last", changed([](json& d) { d["friends"][0]["main"]["tier"] = 5; }));
@@ -162,18 +158,63 @@ void RefusesWhatIsMalformed() {
 	refused("account without a tier", changed([](json& d) { d["friends"][0]["account"].erase("tier"); }));
 	refused("account points not a number", changed([](json& d) { d["friends"][0]["account"]["points"] = "many"; }));
 	refused("account not an object", changed([](json& d) { d["friends"][0]["account"] = 7; }));
-	refused("badge band past the classes", changed([](json& d) { d["friends"][0]["badge"]["band"] = 11; }));
 	refused("empty record", changed([](json& d) { d["friends"][0]["record"] = {{"won", 0}, {"lost", 0}, {"last_at", 1}}; }));
 	refused("record without a time", changed([](json& d) { d["friends"][0]["record"].erase("last_at"); }));
 	refused("request id of a friend", changed([](json& d) { d["incoming"][0]["id"] = FriendId; }));
 	refused("played nothing", changed([](json& d) { d["incoming"][0]["played"]["games"] = 0; }));
 	refused("long label", changed([](json& d) { d["outgoing"][0]["label"] = std::string(65, 'l'); }));
 	refused("invite room of both kinds", changed([](json& d) { d["invites"][0]["room"]["secret"] = Secret; }));
-	refused("invite room of neither", changed([](json& d) { d["invites"][0]["room"] = json::object(); }));
 	refused("invite secret too short", changed([](json& d) { d["invites"][1]["room"]["secret"] = "emd1:AAAA"; }));
 	refused("invite secret of another kind", changed([](json& d) { d["invites"][1]["room"]["secret"] = "emx9:" + std::string(122, 'A'); }));
 	refused("invite from a request id", changed([](json& d) { d["invites"][0]["friend"] = RequestId; }));
 	refused("block id of a friend", changed([](json& d) { d["blocked"][0]["id"] = FriendId; }));
+}
+
+// What a later bridge adds that this build cannot name is read as the nearest thing it can, never as a reason to refuse
+// the whole list (G3): a status is the neutral one in a room, a state is Online, an activity the menus, an invite of an
+// unknown kind is left out, and a badge it cannot read is none.
+void ToleratesWhatItDoesNotKnow() {
+	State state;
+	// An unknown status.
+	json data = FullState();
+	data["friends"][0]["presence"]["status"] = "queueing_arcade";
+	EXPECT(Decode(data, state) && state.friends.size() == 2);
+	EXPECT(state.friends[0].presence.kind == Presence::Kind::InRoom && state.friends[0].presence.status == netplay::friends::Status::Idle &&
+		state.friends[0].presence.hasRoom && state.friends[0].presence.table == 0);
+	// An unknown presence state: online, with no room, whatever else it carried.
+	data = FullState();
+	data["friends"][0]["presence"] = {{"state", "streaming"}, {"room", {{"room_id", RoomId}}}};
+	EXPECT(Decode(data, state));
+	EXPECT(state.friends[0].presence.kind == Presence::Kind::Online && state.friends[0].presence.activity == netplay::friends::Activity::Menus &&
+		!state.friends[0].presence.hasRoom && state.friends[0].presence.table == -1);
+	// An unknown activity: the menus.
+	data = FullState();
+	data["friends"][1]["presence"] = {{"state", "online"}, {"activity", "sleeping"}};
+	EXPECT(Decode(data, state) && state.friends[1].presence.kind == Presence::Kind::Online &&
+		state.friends[1].presence.activity == netplay::friends::Activity::Menus);
+	// An invite of a kind it does not know goes, the others stay.
+	data = FullState();
+	data["invites"][0]["room"] = {{"arcade_queue", "x"}};
+	EXPECT(Decode(data, state) && state.invites.size() == 1 && state.invites[0].room.kind == netplay::friends::InviteRoom::Kind::Secret);
+	data["invites"][1]["room"] = json::object();
+	EXPECT(Decode(data, state) && state.invites.empty() && state.friends.size() == 2);
+	// A badge it cannot read is none; the friend and the rest of the list are read.
+	data = FullState();
+	data["friends"][0]["badge"]["band"] = 11;
+	EXPECT(Decode(data, state) && state.friends.size() == 2 && !state.friends[0].badge.Present());
+	data["friends"][0]["badge"] = "gold";
+	EXPECT(Decode(data, state) && !state.friends[0].badge.Present() && state.friends[0].name == "Player 3");
+	// Still malformed where it is wrong, not new: both kinds of room in one invite, a known kind that is damaged.
+	data = FullState();
+	data["invites"][0]["room"]["secret"] = Secret;
+	EXPECT(!Decode(data, state));
+	data = FullState();
+	data["invites"][0]["room"] = {{"room_id", "zz"}};
+	EXPECT(!Decode(data, state));
+	// The code's alphabet is the bridge's; the game reads its shape (it needs no more to show it).
+	data = FullState();
+	data["code"] = "4F2U-91CX";
+	EXPECT(Decode(data, state) && state.code == "4F2U-91CX");
 }
 
 // The bridge's bounds are the game's: one past each is refused, the bound itself read.
@@ -272,6 +313,7 @@ int main() {
 	ReadsTheSmallestState();
 	IgnoresUnknownKeys();
 	RefusesWhatIsMalformed();
+	ToleratesWhatItDoesNotKnow();
 	KeepsTheBounds();
 	ReadsTheAnswerEvent();
 	SurvivesDamage();

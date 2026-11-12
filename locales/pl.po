@@ -1342,6 +1342,9 @@ msgstr "Nowy kod możesz utworzyć raz dziennie."
 msgid "friends.invite_unavailable"
 msgstr "Tego znajomego nie można teraz zaprosić."
 
+msgid "friends.blocks_full"
+msgstr "Twoja lista blokad jest pełna."
+
 msgid "friends.failed"
 msgstr "Nie udało się połączyć ze znajomymi. Spróbuj później."
 
@@ -1351,11 +1354,17 @@ msgstr "Znajomi wymagają konta Discord. Połącz je w Ustawieniach, Online."
 msgid "friends.unavailable"
 msgstr "Ta usługa nie oferuje jeszcze znajomych."
 
+msgid "friends.off"
+msgstr "Znajomi są wyłączeni."
+
 msgid "friends.cannot_join"
 msgstr "Nie możesz teraz dołączyć do tego pokoju."
 
 msgid "friends.cannot_watch"
 msgstr "Ten znajomy nie jest w grze, którą możesz oglądać."
+
+msgid "friends.visit_in_room"
+msgstr "Jesteś w pokoju, ale nie udało się dotrzeć do ich stołu."
 
 msgid "friends.private_invite_only"
 msgstr "Do pokoju prywatnego wchodzi się tylko z zaproszeniem."
@@ -1405,8 +1414,17 @@ msgstr "Odrzuć"
 msgid "friends.turn_off"
 msgstr "Wyłącz znajomych"
 
+msgid "friends.turn_on"
+msgstr "Włącz znajomych"
+
+msgid "friends.turn_on_detail"
+msgstr "Ponownie włącza znajomych z nowym kodem znajomego."
+
+msgid "friends.turned_on"
+msgstr "Znajomi są włączeni."
+
 msgid "friends.turn_off_detail"
-msgstr "Usuwa twoich znajomych, zaproszenia, blokady i kod znajomego."
+msgstr "Usuwa twoich znajomych i zaproszenia oraz unieważnia kod znajomego. Twoje blokady zostają."
 
 msgid "room.member_card"
 msgstr "Karta gracza"

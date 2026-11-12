@@ -1342,6 +1342,9 @@ msgstr "新しいコードは1日1回作れます。"
 msgid "friends.invite_unavailable"
 msgstr "今はそのフレンドを招待できません。"
 
+msgid "friends.blocks_full"
+msgstr "ブロックリストがいっぱいです。"
+
 msgid "friends.failed"
 msgstr "フレンドに接続できませんでした。あとでもう一度お試しください。"
 
@@ -1351,11 +1354,17 @@ msgstr "フレンド機能にはDiscordアカウントが必要です。設定 >
 msgid "friends.unavailable"
 msgstr "このサービスはまだフレンドに対応していません。"
 
+msgid "friends.off"
+msgstr "フレンドはオフです。"
+
 msgid "friends.cannot_join"
 msgstr "今はそのルームに参加できません。"
 
 msgid "friends.cannot_watch"
 msgstr "そのフレンドは観戦できる対戦中ではありません。"
+
+msgid "friends.visit_in_room"
+msgstr "ルームには入りましたが、対戦席に移れませんでした。"
 
 msgid "friends.private_invite_only"
 msgstr "プライベートルームには招待でのみ参加できます。"
@@ -1405,8 +1414,17 @@ msgstr "閉じる"
 msgid "friends.turn_off"
 msgstr "フレンドをオフにする"
 
+msgid "friends.turn_on"
+msgstr "フレンドをオンにする"
+
+msgid "friends.turn_on_detail"
+msgstr "新しいフレンドコードでフレンドを再開します。"
+
+msgid "friends.turned_on"
+msgstr "フレンドをオンにしました。"
+
 msgid "friends.turn_off_detail"
-msgstr "フレンド、リクエスト、ブロック、フレンドコードを削除します。"
+msgstr "フレンドとリクエストを削除し、フレンドコードを無効にします。ブロックは残ります。"
 
 msgid "room.member_card"
 msgstr "プレイヤーカード"

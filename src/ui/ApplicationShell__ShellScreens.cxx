@@ -126,7 +126,8 @@ public:
 class ApplicationShell::RoomScreens final : public ScreenPanel {
 public:
     bool Owns(const std::string& screen) const override { return screen.compare(0, 4, "room") == 0; }
-    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override {
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return RoomRows(f, title); }
+    static std::vector<MenuEntry> RoomRows(const ScreenFrame& f, std::string& title) {
         const ShellView& v = f.view;
         title = v.room.name.empty() ? loc::T("screen.room") : v.room.name;
         NoteUserText(v.room.name);
@@ -145,8 +146,7 @@ public:
         // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.
         const bool keys = KeyboardPrompts();
         menu.typesText = f.screen == "room-chat" && ChatTypable(v);
-        // A member's page offers its rows and Back alone (PROFILE.md, "Hint bar"): the room's shortcuts still work there.
-        menu.shortcutHints = (menu.typesText && keys) || f.screen == "room-member" ? std::vector<LegendHint>{} : RoomShortcutHints();
+        menu.shortcutHints = menu.typesText && keys ? std::vector<LegendHint>{} : RoomShortcutHints();
         // On a wide board LB and RB step its areas, named once for the pair; a
         // narrow board's tab strip already shows them at its ends.
         if (f.screen == "room" && !f.shell.roomBoardNarrow_) {
@@ -159,19 +159,6 @@ public:
         if (!*placeExit) return;
         if (auto leave = ShortcutHint(MenuInput::Leave, placeExit)) menu.shortcutHints.insert(menu.shortcutHints.begin(), std::move(*leave));
         if (!keys) menu.backHint = placeExit;
-    }
-    // A member's page: their card (the fighter they are playing, their points and the account's) above the words of the row in focus.
-    GameMenu::Detail Detail(const ScreenFrame& f) const override {
-        if (f.screen != "room-member") return {};
-        ApplicationShell* s = &f.shell; const ShellView* v = &f.view;
-        return [s, v](const std::string&) {
-            const auto* member = room::FindMember(v->room, s->selectedMember_);
-            if (!member) return;
-            const float height = 160 * Scale(), width = ImGui::GetContentRegionAvail().x;
-            const auto p = ImGui::GetCursorScreenPos();
-            DrawOtherCard(ImGui::GetWindowDrawList(), {p, ImVec2(p.x + width, p.y + height)}, MemberOtherCard(*v, *member, RoomFighterArt(s->preferences_)));
-            ImGui::Dummy(ImVec2(width, height));
-        };
     }
     // The Members list as player tags.
     GameMenu::Card Card(const ScreenFrame& f, double) const override {
@@ -196,9 +183,37 @@ public:
     }
 };
 
+// A room member's page: the room's rows, with their card (the fighter they are playing, their points and the account's)
+// above the words of the row in focus. It offers its rows and Back alone (PROFILE.md, "Hint bar"): the room's shortcuts
+// still work there. Asked before the room's own panel, which owns every other screen of the room.
+class ApplicationShell::RoomMemberScreens final : public ScreenPanel {
+public:
+    static constexpr const char* Screen = "room-member";
+    bool Owns(const std::string& screen) const override { return screen == Screen; }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return RoomScreens::RoomRows(f, title); }
+    void Dress(const ScreenFrame& f, GameMenu& menu) const override {
+        if (f.view.room.roomEpoch) menu.shortcutHints.clear();
+    }
+    GameMenu::Detail Detail(const ScreenFrame& f) const override {
+        ApplicationShell* s = &f.shell; const ShellView* v = &f.view;
+        return [s, v](const std::string&) {
+            const auto* member = room::FindMember(v->room, s->selectedMember_);
+            if (!member) return;
+            const float height = 160 * Scale(), width = ImGui::GetContentRegionAvail().x;
+            const auto p = ImGui::GetCursorScreenPos();
+            DrawOtherCard(ImGui::GetWindowDrawList(), {p, ImVec2(p.x + width, p.y + height)}, MemberOtherCard(*v, *member, RoomFighterArt(s->preferences_)));
+            ImGui::Dummy(ImVec2(width, height));
+        };
+    }
+};
+
 std::vector<LegendHint> ApplicationShell::RoomShortcutHints() {
     // Only the shortcuts the device has (a stick has none of these).
     return ShortcutHints({{MenuInput::Fighter, loc::T("room.legend_fighter")}, {MenuInput::Options, loc::T("room.legend_options")}, {MenuInput::Chat, loc::T("room.chat")}});
+}
+const ScreenPanel& ApplicationShell::RoomMemberOwner() {
+    static const RoomMemberScreens member{};
+    return member;
 }
 const ScreenPanel& ApplicationShell::RoomOwner() {
     static const RoomScreens room{};

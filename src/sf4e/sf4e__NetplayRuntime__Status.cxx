@@ -57,6 +57,57 @@ bool StickyRuntimeError(const std::string& error) {
 }
 } // namespace internal
 
+namespace internal {
+// Discord's presence and friends' presence are described from the same inputs, so the rules they share are written
+// once: when the player counts as offline, whose room's invitation goes along, and when a match's room is held back.
+// Only `shown` differs: Discord's follows the player's settings, friends' is always on. `atMainMenu` is the caller's
+// one reading of AtMainMenu() for this tick.
+namespace {
+bool PresenceOffline(const netplay::Snapshot& session, bool atMainMenu) {
+    return runtime->offlineRequested || (runtime->eventSystemReady && !atMainMenu && session.room == netplay::RoomState::Idle);
+}
+// A public room admits by ticket, so its invitation alone would admit nobody.
+bool OffersInvitation(const room::Snapshot& current) { return runtime->room && !current.serverOwned; }
+// A tournament match's room, played or watched, is never offered to friends. Keyed to what this game is doing, not
+// the room's binding: it also covers the window where the match's room is open but not bound yet.
+bool HoldsMatchRoom(const room::Snapshot& current) {
+    return OffersInvitation(current) && netplay::tournament::HoldsMatchRoom(runtime->tournament.GetPhase(), runtime->watch.GetPhase());
+}
+}
+
+PresenceKey PresenceKeyOf(const netplay::Snapshot& session, const room::Snapshot& current, bool atMainMenu, PresenceShown shown) {
+    // The invitation changes on a helper renewal without a room revision, so it is keyed by content.
+    std::uint64_t invitationHash = 1469598103934665603ULL;
+    if (OffersInvitation(current))
+        for (unsigned char c : runtime->room->DiscordInvitation()) { invitationHash ^= c; invitationHash *= 1099511628211ULL; }
+    // Every input the description is built from, except the clock: a secret that expires under an unchanged key is
+    // cleared by the companion itself.
+    return {{runtime->eventSystemReady, PresenceOffline(session, atMainMenu),
+        static_cast<std::uint64_t>(shown.presence) | (static_cast<std::uint64_t>(shown.invites) << 1),
+        session.generation.room, current.revision,
+        static_cast<std::uint64_t>(session.room) | (static_cast<std::uint64_t>(session.match) << 8) | (static_cast<std::uint64_t>(session.control) << 16),
+        current.localMember, static_cast<std::uint64_t>(atMainMenu),
+        current.roomEpoch, invitationHash,
+        static_cast<std::uint64_t>(OffersInvitation(current)) | (static_cast<std::uint64_t>(HoldsMatchRoom(current)) << 1) |
+            (static_cast<std::uint64_t>(current.serverOwned) << 2)}};
+}
+
+discord::PresenceInput PresenceInputOf(const netplay::Snapshot& session, const room::Snapshot& current, bool atMainMenu, PresenceShown shown) {
+    discord::PresenceInput input(session, current);
+    input.ready = runtime->eventSystemReady;
+    input.offline = PresenceOffline(session, atMainMenu);
+    input.show = shown.presence;
+    input.invites = shown.invites;
+    input.now = static_cast<std::uint64_t>(std::time(nullptr));
+    if (OffersInvitation(current)) {
+        input.secret = runtime->room->DiscordInvitation();
+        if (!discord::TicketMetadata(input.secret, input.party, input.expires)) input.secret.clear();
+        if (HoldsMatchRoom(current)) input.secret.clear();
+    }
+    return input;
+}
+} // namespace internal
+
 namespace {
 // The session client reports catalog ids; anything else is an internal code
 // that must not reach the status line.
@@ -195,31 +246,9 @@ static void FillLockReasons(RuntimeSnapshot& snapshot) {
 static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
     if (runtime->discordClient && runtime->discordClient->State() == platform::HelperState::Connected) {
         const auto nowTick=GetTickCount64();
-        // A public room admits by ticket, so its invitation alone would admit nobody.
         const room::Snapshot& current = snapshot.Room();
-        const bool offersInvitation = runtime->room && !current.serverOwned;
-        // A tournament match's room, played or watched, is never offered to friends. Keyed to
-        // what this game is doing, not the room's binding: it also covers the window where the
-        // match's room is open but not bound yet.
-        const bool holdsMatchRoom = offersInvitation &&
-            netplay::tournament::HoldsMatchRoom(runtime->tournament.GetPhase(), runtime->watch.GetPhase());
-        // The invitation changes on a helper renewal without a room revision, so it is keyed
-        // by content.
-        std::uint64_t invitationHash = 1469598103934665603ULL;
-        if (offersInvitation)
-            for (unsigned char c : runtime->room->DiscordInvitation()) { invitationHash ^= c; invitationHash *= 1099511628211ULL; }
-        // Every input the message below is built from, except the clock: a secret that
-        // expires under an unchanged key is cleared by the companion itself.
-        const std::array<std::uint64_t,11> key{{runtime->eventSystemReady,
-            runtime->offlineRequested || (runtime->eventSystemReady && !snapshot.atMainMenu && snapshot.session.room==netplay::RoomState::Idle),
-            static_cast<std::uint64_t>(runtime->preferences.discordPresence) | (static_cast<std::uint64_t>(runtime->preferences.discordInvites)<<1),
-            snapshot.session.generation.room,current.revision,
-            static_cast<std::uint64_t>(snapshot.session.room) | (static_cast<std::uint64_t>(snapshot.session.match)<<8) |
-                (static_cast<std::uint64_t>(snapshot.session.control)<<16),
-            current.localMember,static_cast<std::uint64_t>(snapshot.atMainMenu),
-            current.roomEpoch,invitationHash,
-            static_cast<std::uint64_t>(offersInvitation) | (static_cast<std::uint64_t>(holdsMatchRoom)<<1) |
-                (static_cast<std::uint64_t>(current.serverOwned)<<2)}};
+        const internal::PresenceShown shown{runtime->preferences.discordPresence, runtime->preferences.discordInvites};
+        const auto key = internal::PresenceKeyOf(snapshot.session, current, snapshot.atMainMenu, shown);
         const bool publishDue=nowTick-runtime->discordLastPublish>=1000;
         if (runtime->discordPresenceKeyValid && key==runtime->discordPresenceKey) {
             // Nothing changed. The companion exits after 15 s without a message, so the
@@ -227,17 +256,7 @@ static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
             if (publishDue && runtime->discordClient->Send(runtime->discordPublished)) runtime->discordLastPublish=nowTick;
             return;
         }
-        discord::PresenceInput input(snapshot.session, current);
-        input.ready = runtime->eventSystemReady;
-        input.offline = runtime->offlineRequested || (input.ready && !snapshot.atMainMenu &&
-            snapshot.session.room == netplay::RoomState::Idle);
-        input.show = runtime->preferences.discordPresence; input.invites = runtime->preferences.discordInvites;
-        input.now = static_cast<std::uint64_t>(std::time(nullptr));
-        if (offersInvitation) {
-            input.secret = runtime->room->DiscordInvitation();
-            if (!discord::TicketMetadata(input.secret,input.party,input.expires)) input.secret.clear();
-            if (holdsMatchRoom) input.secret.clear();
-        }
+        const auto input = internal::PresenceInputOf(snapshot.session, current, snapshot.atMainMenu, shown);
         const auto value = discord::Describe(input);
         const auto message = nlohmann::json{{"type","presence"},{"epoch",snapshot.session.generation.room},
             {"show",value.show},{"activity",value.activity},{"party",value.party},{"size",value.size},

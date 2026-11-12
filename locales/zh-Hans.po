@@ -1342,6 +1342,9 @@ msgstr "新好友码每天只能生成一次。"
 msgid "friends.invite_unavailable"
 msgstr "现在无法邀请该好友。"
 
+msgid "friends.blocks_full"
+msgstr "黑名单已满。"
+
 msgid "friends.failed"
 msgstr "无法连接好友服务，请稍后重试。"
 
@@ -1351,11 +1354,17 @@ msgstr "好友功能需要 Discord 账号。请在 设置 > 在线 中关联。"
 msgid "friends.unavailable"
 msgstr "该服务暂不支持好友。"
 
+msgid "friends.off"
+msgstr "好友功能已关闭。"
+
 msgid "friends.cannot_join"
 msgstr "现在无法加入该房间。"
 
 msgid "friends.cannot_watch"
 msgstr "该好友不在可观战的对局中。"
+
+msgid "friends.visit_in_room"
+msgstr "你已进入房间，但没能前往对战席。"
 
 msgid "friends.private_invite_only"
 msgstr "私人房间只能通过邀请加入。"
@@ -1405,8 +1414,17 @@ msgstr "关闭"
 msgid "friends.turn_off"
 msgstr "关闭好友功能"
 
+msgid "friends.turn_on"
+msgstr "开启好友功能"
+
+msgid "friends.turn_on_detail"
+msgstr "用新的好友码重新开启好友功能。"
+
+msgid "friends.turned_on"
+msgstr "好友功能已开启。"
+
 msgid "friends.turn_off_detail"
-msgstr "删除你的好友、请求、黑名单和好友码。"
+msgstr "删除你的好友和请求，并作废你的好友码。黑名单会保留。"
 
 msgid "room.member_card"
 msgstr "玩家名片"

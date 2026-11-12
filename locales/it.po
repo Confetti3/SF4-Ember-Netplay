@@ -1342,6 +1342,9 @@ msgstr "Puoi creare un nuovo codice una volta al giorno."
 msgid "friends.invite_unavailable"
 msgstr "Quell'amico non può essere invitato ora."
 
+msgid "friends.blocks_full"
+msgstr "La tua lista dei bloccati è piena."
+
 msgid "friends.failed"
 msgstr "Impossibile raggiungere gli amici. Riprova più tardi."
 
@@ -1351,11 +1354,17 @@ msgstr "Gli amici richiedono un account Discord. Collegalo in Impostazioni, Onli
 msgid "friends.unavailable"
 msgstr "Questo servizio non offre ancora gli amici."
 
+msgid "friends.off"
+msgstr "Gli amici sono disattivati."
+
 msgid "friends.cannot_join"
 msgstr "Non puoi entrare in quella sala ora."
 
 msgid "friends.cannot_watch"
 msgstr "Quell'amico non è in una partita che puoi guardare."
+
+msgid "friends.visit_in_room"
+msgstr "Sei entrato nella sala, ma non sei riuscito ad arrivare al suo tavolo."
 
 msgid "friends.private_invite_only"
 msgstr "In una sala privata si entra solo su invito."
@@ -1405,8 +1414,17 @@ msgstr "Ignora"
 msgid "friends.turn_off"
 msgstr "Disattiva gli amici"
 
+msgid "friends.turn_on"
+msgstr "Attiva gli amici"
+
+msgid "friends.turn_on_detail"
+msgstr "Riattiva gli amici con un nuovo codice amico."
+
+msgid "friends.turned_on"
+msgstr "Gli amici sono attivati."
+
 msgid "friends.turn_off_detail"
-msgstr "Elimina amici, richieste, blocchi e codice amico."
+msgstr "Elimina amici e richieste e annulla il codice amico. I blocchi restano."
 
 msgid "room.member_card"
 msgstr "Scheda giocatore"

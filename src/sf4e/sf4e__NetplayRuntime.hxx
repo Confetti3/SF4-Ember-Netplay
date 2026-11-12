@@ -44,6 +44,7 @@
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/BridgeFlights.hxx"
 #include "../netplay/CardRequests.hxx"
+#include "../netplay/FriendPresence.hxx"
 #include "../netplay/FriendRequests.hxx"
 #include "../netplay/FriendVisits.hxx"
 #include "../netplay/FriendsView.hxx"
@@ -127,6 +128,12 @@ inline Dimps::GameEvents::VsMode::ConfirmedCharaConditions NativePick(const sele
 // raised and again when the language changes.
 enum class StickyError { None, StartFailed, HelperUnavailable };
 
+// What the player is doing, as Discord's presence and friends' presence are both described from it
+// (sf4e__NetplayRuntime__Status.cxx): the key moves when anything the description is made from does. `shown`: whether the
+// presence and its invitation are given out (Discord's follow the player's settings, friends' are always on).
+using PresenceKey = std::array<std::uint64_t, 11>;
+struct PresenceShown { bool presence = true, invites = true; };
+
 struct Runtime {
     StickyError stickyError = StickyError::None;
     std::uint32_t stickyCode = 0;
@@ -142,7 +149,7 @@ struct Runtime {
     const char* discordStatusId = "discord.unavailable_gameplay_ok";
     std::string discordPublished;
     ULONGLONG discordLastPublish = 0;
-    std::array<std::uint64_t,11> discordPresenceKey{};
+    PresenceKey discordPresenceKey{};
     bool discordPresenceKeyValid=false;
 
     input::Assignment input;
@@ -288,6 +295,15 @@ struct Runtime {
     netplay::friends::Requests friends;
     netplay::friends::Visit friendVisit;
     bool friendsCanInvite = false;
+    // What friends are told, described again only when the key of what it is made from moves (or the invitation
+    // offered runs out, at `refreshAt`, unix seconds); `revision` moves when the report itself changes.
+    struct FriendsPresence {
+        bool valid = false;
+        PresenceKey key{};
+        netplay::friends::Report report;
+        netplay::friends::Offer offer;
+        std::uint64_t refreshAt = 0, revision = 0;
+    } friendsPresence;
     // Match links from the browser (ember://tournament/open), from a later
     // launcher or the start argument, and the last one the interface was given.
     platform::MatchLinkMailbox matchLinks;
@@ -587,6 +603,10 @@ void DispatchFriends(const commands::FriendWatch& command);
 void DispatchFriends(const commands::FriendTakeInvite& command);
 void DispatchFriends(const commands::FriendAnswerVisit& command);
 void TickSocial(bool helperReady, std::uint64_t nowMs);
+// The key of what the player's presence is made from, and the Discord input it is described from (Status.cxx): the one
+// rule for Discord's and friends'. `atMainMenu` is the caller's one reading of AtMainMenu() for the tick.
+PresenceKey PresenceKeyOf(const netplay::Snapshot& session, const room::Snapshot& current, bool atMainMenu, PresenceShown shown);
+discord::PresenceInput PresenceInputOf(const netplay::Snapshot& session, const room::Snapshot& current, bool atMainMenu, PresenceShown shown);
 // Tells the friends' service this player is leaving, best effort, as the game closes.
 void SayFriendsGoodbye();
 netplay::friends::View FriendsStatus();

@@ -1342,6 +1342,9 @@ msgstr "Nový kód můžete vytvořit jednou denně."
 msgid "friends.invite_unavailable"
 msgstr "Tohoto přítele teď nelze pozvat."
 
+msgid "friends.blocks_full"
+msgstr "Váš seznam blokovaných je plný."
+
 msgid "friends.failed"
 msgstr "Se službou přátel se nepodařilo spojit. Zkuste to později."
 
@@ -1351,11 +1354,17 @@ msgstr "Přátelé vyžadují účet Discord. Připojte jej v Nastavení, Online
 msgid "friends.unavailable"
 msgstr "Tato služba zatím přátele nenabízí."
 
+msgid "friends.off"
+msgstr "Přátelé jsou vypnuti."
+
 msgid "friends.cannot_join"
 msgstr "Do této místnosti se teď nelze připojit."
 
 msgid "friends.cannot_watch"
 msgstr "Tento přítel není ve hře, kterou lze sledovat."
+
+msgid "friends.visit_in_room"
+msgstr "Vstoupili jste do místnosti, ale nedostali jste se k jejich stolu."
 
 msgid "friends.private_invite_only"
 msgstr "Do soukromé místnosti se vstupuje jen pozvánkou."
@@ -1405,8 +1414,17 @@ msgstr "Zavřít"
 msgid "friends.turn_off"
 msgstr "Vypnout přátele"
 
+msgid "friends.turn_on"
+msgstr "Zapnout přátele"
+
+msgid "friends.turn_on_detail"
+msgstr "Znovu zapne přátele s novým kódem přítele."
+
+msgid "friends.turned_on"
+msgstr "Přátelé jsou zapnuti."
+
 msgid "friends.turn_off_detail"
-msgstr "Smaže tvé přátele, žádosti, blokace a kód přítele."
+msgstr "Odstraní tvé přátele a žádosti a zruší tvůj kód přítele. Tvé blokace zůstanou."
 
 msgid "room.member_card"
 msgstr "Karta hráče"

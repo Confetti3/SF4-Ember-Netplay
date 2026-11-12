@@ -32,33 +32,49 @@ const room::Snapshot& CurrentRoom() {
 }
 
 // What the player is doing now as friends are told, and the room that can be
-// offered them. The description is discord::Describe's, made with friends'
-// own inputs: shown whatever the Discord setting says, and with the room's
-// invitation whatever the Discord setting for invitations says. A public
-// room's invitation would admit nobody, and a match's room is never offered.
+// offered them. The description is discord::Describe's, made from the inputs
+// Discord's presence has (internal::PresenceInputOf), with friends' own
+// `shown`: whatever the Discord settings say, and with the room's invitation.
+// A public room's invitation would admit nobody, and a match's room is never
+// offered.
 struct Presented {
 	friends::Report report;
 	friends::Offer offer;
+	// When the invitation offered runs out (unix seconds), 0 when none is.
+	std::uint64_t expires = 0;
 };
 
-Presented Present() {
-	const auto control = runtime->controller.GetSnapshot();
+constexpr PresenceShown FriendsShown{true, true};
+
+Presented Present(const netplay::Snapshot& control, bool atMainMenu) {
 	const auto& current = CurrentRoom();
-	discord::PresenceInput input(control, current);
-	input.ready = runtime->eventSystemReady;
-	input.offline = runtime->offlineRequested || (input.ready && !AtMainMenu() && control.room == netplay::RoomState::Idle);
-	input.show = true;
-	input.invites = true;
-	input.now = static_cast<std::uint64_t>(std::time(nullptr));
+	const auto input = internal::PresenceInputOf(control, current, atMainMenu, FriendsShown);
 	friends::RoomIdentity identity;
 	identity.isPublic = runtime->room && current.serverOwned;
 	if (identity.isPublic) identity.publicId = HexLower(runtime->room->RoomId());
-	else if (runtime->room && !netplay::tournament::HoldsMatchRoom(runtime->tournament.GetPhase(), runtime->watch.GetPhase())) {
-		input.secret = runtime->room->DiscordInvitation();
-		if (!discord::TicketMetadata(input.secret, input.party, input.expires)) input.secret.clear();
-	}
 	const auto described = discord::Describe(input);
-	return {friends::ReportOf(described, current, identity), friends::OfferOf(described, identity)};
+	Presented presented{friends::ReportOf(described, current, identity), friends::OfferOf(described, identity), 0};
+	if (presented.offer.kind == friends::Offer::Kind::PrivateRoom) presented.expires = input.expires;
+	return presented;
+}
+
+Presented Present() { return Present(runtime->controller.GetSnapshot(), AtMainMenu()); }
+
+// Friends' presence for this tick: described again only when what it is made from moved (the key Discord's presence
+// keeps), so an idle tick costs the key and nothing else. Its revision moves only when what friends are told does.
+void ReadPresence(std::uint64_t nowSeconds) {
+	const auto control = runtime->controller.GetSnapshot();
+	const bool atMainMenu = AtMainMenu();
+	auto& cached = runtime->friendsPresence;
+	const auto key = internal::PresenceKeyOf(control, CurrentRoom(), atMainMenu, FriendsShown);
+	if (cached.valid && key == cached.key && !(cached.refreshAt && nowSeconds >= cached.refreshAt)) return;
+	const auto presented = Present(control, atMainMenu);
+	if (!cached.valid || presented.report != cached.report) ++cached.revision;
+	cached.valid = true;
+	cached.key = key;
+	cached.report = presented.report;
+	cached.offer = presented.offer;
+	cached.refreshAt = presented.expires;
 }
 
 // What friends see of the player: the name and flag the board lists, and the main fighter.
@@ -71,13 +87,16 @@ friends::Listing OwnListing() {
 	return listing;
 }
 
-// The words for a code the helper or the bridge refused with, in the player's language.
+// The words for a code the helper or the bridge refused with, in the player's language. Also the codes this runtime
+// refuses an action with itself (nothing_to_offer); the bridge's own are those of its `refuse`.
 const char* RefusalKey(const std::string& code) {
 	static const std::pair<const char*, const char*> table[] = {
-		{"unknown_code", "friends.unknown_code"}, {"friends_full", "friends.full"}, {"request_limit", "friends.request_limit"},
-		{"card_expired", "friends.card_expired"}, {"own_card", "friends.own_card"}, {"code_too_soon", "friends.code_too_soon"},
-		{"invite_unavailable", "friends.invite_unavailable"}, {"no_discord_account", "friends.no_account"},
-		{"friends_unavailable", "friends.unavailable"},
+		{"unknown_code", "friends.unknown_code"}, {"friends_full", "friends.full"}, {"blocks_full", "friends.blocks_full"},
+		{"request_limit", "friends.request_limit"}, {"card_expired", "friends.card_expired"}, {"own_card", "friends.own_card"},
+		{"code_too_soon", "friends.code_too_soon"}, {"invite_unavailable", "friends.invite_unavailable"},
+		{"no_discord_account", "friends.no_account"}, {"friends_unavailable", "friends.unavailable"},
+		// A state, not an error (Requests::Off), but a refusal that reaches the words says so.
+		{"friends_off", "friends.off"}, {"nothing_to_offer", "friends.nothing_to_offer"},
 	};
 	for (const auto& entry : table) if (code == entry.first) return entry.second;
 	return "friends.failed";
@@ -306,9 +325,10 @@ void TickSocial(bool helperReady, std::uint64_t nowMs) {
 	// The service is the one the interface names with its first command; until then the one levels are read from.
 	if (requests.Bridge().empty() && !id.empty() && !runtime->levels.Bridge().empty()) requests.Scope(runtime->levels.Bridge(), id);
 	requests.LapseVisit(nowMs);
-	const auto presented = Present();
+	ReadPresence(static_cast<std::uint64_t>(std::time(nullptr)));
+	const auto& presented = runtime->friendsPresence;
 	runtime->friendsCanInvite = presented.offer.Any();
-	requests.NotePresence(std::hash<std::string>()(presented.report.ToJson().dump()));
+	requests.NotePresence(presented.revision);
 	if (auto held = requests.TakeHeld()) SendAction(*held, helperReady);
 	else if (helperReady && requests.SyncDue(nowMs))
 		Send(friends::SyncRequest(requests.Bridge(), sf4e::sidecarHash, OwnListing(), presented.report), false, helperReady, nowMs);

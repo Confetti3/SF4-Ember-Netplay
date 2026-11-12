@@ -1,7 +1,9 @@
 #include "SocialAnswers.hxx"
 
 #include <algorithm>
+#include <optional>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 
 #include "../common/SkillBadgeJson.hxx"
@@ -94,24 +96,24 @@ CountryCode Country(const json& object) {
 	return CountryCode::Parsed(text);
 }
 
-// XXXX-XXXX in Crockford base32.
+// XXXX-XXXX: the shape of the code the bridge shows the player. Which symbols it draws them from is the bridge's
+// alphabet, which it alone checks (a code typed here goes to it as typed, and is refused there if unknown).
 bool IsFriendCode(const std::string& code) {
-	static const std::string symbols = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 	if (code.size() != 9 || code[4] != '-') return false;
 	for (std::size_t i = 0; i < code.size(); ++i)
-		if (i != 4 && symbols.find(code[i]) == std::string::npos) return false;
+		if (i != 4 && !((code[i] >= '0' && code[i] <= '9') || (code[i] >= 'A' && code[i] <= 'Z'))) return false;
 	return true;
 }
 
+// A status a later bridge adds reads as the neutral one in a room, so the friend is still listed where they are.
 friends::Status ReadStatus(const json& object) {
 	const auto status = Text(object, "status", 16);
-	if (status == "idle") return friends::Status::Idle;
 	if (status == "queued") return friends::Status::Queued;
 	if (status == "ready") return friends::Status::Ready;
 	if (status == "fighting") return friends::Status::Fighting;
 	if (status == "watching") return friends::Status::Watching;
 	if (status == "training") return friends::Status::Training;
-	Bad("status");
+	return friends::Status::Idle;
 }
 
 int ReadTable(const json& object) {
@@ -138,12 +140,6 @@ friends::Presence DecodePresence(const json& value) {
 	if (state == "offline") {
 		presence.kind = friends::Presence::Kind::Offline;
 		presence.seenAt = OptionalUnsigned(object, "seen_at");
-	} else if (state == "online") {
-		presence.kind = friends::Presence::Kind::Online;
-		const auto activity = Text(object, "activity", 16);
-		if (activity == "menus") presence.activity = friends::Activity::Menus;
-		else if (activity == "offline_play") presence.activity = friends::Activity::OfflinePlay;
-		else Bad("activity");
 	} else if (state == "room") {
 		presence.kind = friends::Presence::Kind::InRoom;
 		presence.status = ReadStatus(object);
@@ -155,7 +151,10 @@ friends::Presence DecodePresence(const json& value) {
 			presence.room = DecodeRoom(*room);
 		}
 	} else {
-		Bad("state");
+		// Online, as a state a later bridge adds is: the friend is there, and a state this build cannot name says no more.
+		// An activity it does not know is the menus.
+		presence.kind = friends::Presence::Kind::Online;
+		if (state == "online" && Text(object, "activity", 16) == "offline_play") presence.activity = friends::Activity::OfflinePlay;
 	}
 	return presence;
 }
@@ -192,7 +191,8 @@ friends::Friend DecodeFriend(const json& value) {
 		entry.account.points = Unsigned(fields, "points");
 		entry.account.tier = static_cast<std::uint8_t>(Bounded(fields, "tier", netplay::levels::TierCount - 1));
 	}
-	if (const auto badge = object.find("badge"); badge != object.end() && !ParseSkillBadge(*badge, entry.badge)) Bad("badge");
+	// A badge this build cannot read is no badge, not a list that cannot be read.
+	entry.badge = ReadSkillBadge(object);
 	const auto presence = object.find("presence");
 	if (presence == object.end()) Bad("presence");
 	entry.presence = DecodePresence(*presence);
@@ -232,16 +232,18 @@ friends::Outgoing DecodeOutgoing(const json& value) {
 	return entry;
 }
 
-friends::Invite DecodeInvite(const json& value) {
+// The invite, or nothing for one whose room is of a kind a later bridge adds: that invite is dropped and the rest are kept.
+std::optional<friends::Invite> DecodeInvite(const json& value) {
 	const auto& object = Object(value);
 	friends::Invite entry;
 	entry.id = Id(object, "id", "iv_");
 	entry.friendId = Id(object, "friend", "fr_");
 	entry.expiresAt = Unsigned(object, "expires_at");
 	const auto& room = Object(object.at("room"));
-	// Exactly one of the two, as the bridge sends them.
 	const bool id = room.find("room_id") != room.end(), secret = room.find("secret") != room.end();
-	if (id == secret) Bad("room");
+	// Both is malformed; neither is a kind this build does not know.
+	if (id && secret) Bad("room");
+	if (!id && !secret) return std::nullopt;
 	if (id) {
 		entry.room.kind = friends::InviteRoom::Kind::RoomId;
 		entry.room.value = Text(room, "room_id", 32);
@@ -264,12 +266,17 @@ friends::Blocked DecodeBlocked(const json& value) {
 	return entry;
 }
 
+// `decode` returns the entry, or an optional that is empty for a row to leave out.
 template <class Entry, class Decode>
 std::vector<Entry> DecodeList(const json& object, const char* key, std::size_t maximum, Decode decode) {
 	std::vector<Entry> entries;
 	const auto& rows = Array(object, key, maximum);
 	entries.reserve(rows.size());
-	for (const auto& row : rows) entries.push_back(decode(row));
+	for (const auto& row : rows) {
+		auto decoded = decode(row);
+		if constexpr (std::is_same_v<decltype(decoded), std::optional<Entry>>) { if (decoded) entries.push_back(std::move(*decoded)); }
+		else entries.push_back(std::move(decoded));
+	}
 	return entries;
 }
 }
