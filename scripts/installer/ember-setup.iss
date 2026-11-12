@@ -56,11 +56,11 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\Launcher.exe"; WorkingDir: "{
 ; administrator rights. Declining leaves Launcher.exe to report the old runtime.
 Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing the Microsoft Visual C++ runtime. This can take a minute..."; BeforeInstall: RuntimeBar(True); AfterInstall: RuntimeBar(False); Check: RuntimeOutdated
 ; The firewall rules need administrator rights too, so this is asked for only when the task is chosen.
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{localappdata}\{#AppName} Setup\ember-firewall.ps1"" -Folder ""{app}"""; Verb: runas; Flags: runhidden waituntilterminated; StatusMsg: "Allowing Ember in Windows Firewall..."; Tasks: firewall
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{localappdata}\{#AppName} Setup\ember-firewall.ps1"" -Folder ""{app}"""; Verb: runas; Flags: shellexec runhidden waituntilterminated; StatusMsg: "Allowing Ember in Windows Firewall..."; Tasks: firewall
 Filename: "{app}\Launcher.exe"; Description: "{cm:LaunchProgram,{#AppName}}"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{localappdata}\{#AppName} Setup\ember-firewall.ps1"" -Remove"; Verb: runas; Flags: runhidden waituntilterminated; RunOnceId: "EmberFirewall"; Check: FirewallRulesExist
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{localappdata}\{#AppName} Setup\ember-firewall.ps1"" -Remove"; Verb: runas; Flags: shellexec runhidden waituntilterminated; RunOnceId: "EmberFirewall"; Check: FirewallRulesExist
 
 [Code]
 // Only a setup that added the rules asks for administrator rights again to remove them.
