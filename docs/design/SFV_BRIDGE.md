@@ -196,25 +196,52 @@ by then the old betas fail as above, with no wrong data.
 
 ## Rollout and rollback
 
-1. `bash server/sfv-bridge/stage.sh <linux ember-bridge> <folder>` locally,
-   then copy the folder to `vps:ember-sfv-bridge` (a deploy step; ask first).
-2. DNS record (Kate).
-3. `sudo bash ~/ember-sfv-bridge/upgrade.sh bridge`; add the Discord redirect.
-4. `… import` (once, close to the beta.8 publish).
-5. `… site`.
-6. Publish SFV beta.8 built with this library change.
-7. `… check` at any time (read-only).
+1. Build the Linux binaries in WSL (on the laptop, one heavy build at a time):
+   - the bridge: `cargo build --release --locked -p ember-bridge` in
+     `server/ember`, or reuse a13ded4c (`vps:~/ember-sfv-rooms/ember-bridge`);
+   - beta.8's room build: `sf4-net` with
+     `cargo build --profile server --locked` in the library's `rust/sf4-net`
+     at `b8/lib-integrate`, and `sfve-room-host` with sfv-ember's
+     `scripts/build-room-host-linux.sh <library root> sfve-room-host` at
+     `b8/integrate` (it embeds that tree's `data/pick-space.json`; it needs
+     xxhash.h, as `laptop-setup/sfv-rooms-linux.sh` arranges). Both come
+     from the commits beta.8 ships, as the earlier room builds did.
+2. `bash server/sfv-bridge/stage.sh <ember-bridge> <folder> <sfve-room-host>
+   <sf4-net> <sfv-ember>/data/pick-space.json` locally, then copy the folder
+   to `vps:ember-sfv-bridge` (a deploy step; ask first). The room build ID is
+   the pick space's `build`, for beta.8
+   `sfv-ember/13173604/0.6/55c1d32e7a18ea97/layout-72200b5db368767a`.
+3. DNS record (Kate).
+4. `sudo bash ~/ember-sfv-bridge/upgrade.sh bridge`; add the Discord redirect.
+5. `… import` (once, close to the beta.8 publish).
+6. `… site`.
+7. `… rooms`: beta.8's room build goes into the VPS supervisor beside the
+   0.5 builds that beta.1-7 use. It checks the room host against its own
+   build (and refuses another) before adding it, then reloads the supervisor
+   (SIGHUP: no room is touched) under the build puller's lock, and takes the
+   entry out again if the supervisor does not list it. Only the VPS backend
+   gets it; the pool sends SFV creates only to a backend with the build, and
+   server1 stays SF4's. A later SFV release with a new pick-space `build`
+   stages its own room build and runs this phase again;
+   `rollback-rooms` takes the staged one out.
+8. Publish SFV beta.8 built with this library change.
+9. `… check` at any time (read-only).
+
+Never run `~/ember-rooms/setup.sh --prune`: it stages only SF4's room hosts
+and would remove every SFV build.
 
 Every phase prints at its end that SF4's bridge binary, `bridge.json`,
 secrets, `integrations.json`, nginx site and running process (main PID) are
 unchanged, and fails otherwise. `rollback-site` restores the site tarball
 (SFV's feeds back on SF4's bridge); `rollback-bridge` (after `rollback-site`)
 stops and disables `ember-bridge-sfv` and removes its nginx site, keeping its
-state and backups. None of them touch SF4's bridge.
+state and backups; `rollback-rooms` removes the staged room build from the
+supervisor and its folder. None of them touch SF4's bridge or database.
 
 The old `~/ember-sfv-rooms/upgrade.sh` is done and must not be run again: its
 `rollback-bridge` would restore SF4's database to the 2026-11-09 backup and
-lose every write since.
+lose every write since. Its rooms phase is replaced by the `rooms` phase above,
+which is the same install without anything of SF4's bridge.
 
 ## SF4's database (for the SF4 1.6.0 deploy, not done here)
 
