@@ -5,7 +5,11 @@
 -- A Discord account's friends settings and how friends see it: the name,
 -- flag and main fighter its game last sent (as the ranking listing is sent),
 -- its friend code, whether it appears offline, and when it was last seen.
--- Made at its first sync; gone when the player turns friends off.
+-- Made at its first sync. When the player turns friends off, the friendships,
+-- requests and presence are deleted, the code is replaced and `off` is set;
+-- the row stays, with the player's blocks, so that a sync cannot turn
+-- friends on again and the player's blocks keep protecting them. Only
+-- turning friends on clears `off`.
 CREATE TABLE social_accounts (
     discord_user_id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -14,7 +18,8 @@ CREATE TABLE social_accounts (
     code TEXT NOT NULL UNIQUE,
     code_at INTEGER NOT NULL,
     appear_offline INTEGER NOT NULL DEFAULT 0,
-    seen_at INTEGER NOT NULL
+    seen_at INTEGER NOT NULL,
+    off INTEGER NOT NULL DEFAULT 0 CHECK (off IN (0, 1))
 ) WITHOUT ROWID;
 
 -- Two accounts who are friends; `first` sorts before `second`. `id` is the

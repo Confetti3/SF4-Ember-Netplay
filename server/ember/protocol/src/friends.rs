@@ -7,11 +7,14 @@
 //! Requests are strict and answers are tolerant. A request (`FriendsSync` and
 //! its parts, `FriendAction`) refuses unknown members, so a client's mistake
 //! is caught at the bridge. An answer (`FriendsState` and its parts) ignores
-//! members it does not know, so a field a later bridge adds does not break a
-//! client already out; the exceptions are `SkillBadge` and `InviteRoom`, which
-//! other answers share. A build asks only a bridge that lists
-//! [`FRIENDS_FEATURE`], and an older bridge answers 404.
-use serde::{Deserialize, Serialize};
+//! members it does not know, and reads a value it does not know of a closed
+//! set (a status, an activity, a presence state) as a neutral one, or drops
+//! the invite or the badge, so what a later bridge adds does not break a
+//! client already out. Those types are shared with requests, which stay
+//! strict, so the tolerance is on the answer's fields (`lenient`). A build
+//! asks only a bridge that lists [`FRIENDS_FEATURE`], and an older bridge
+//! answers 404.
+use serde::{Deserialize, Deserializer, Serialize, de::DeserializeOwned};
 
 use crate::{
     Error, Result,
@@ -47,19 +50,34 @@ pub const MAX_TYPED_CODE: usize = 32;
 /// Discord join secret carries.
 pub const SECRET_LEN: usize = 127;
 
-/// Refusal reasons of the friends routes (`details.reason`). A request for a
-/// caller without a Discord account is `skill::NO_ACCOUNT`.
-pub const UNKNOWN_CODE: &str = "unknown_code";
-pub const CARD_EXPIRED: &str = "card_expired";
-pub const OWN_CARD: &str = "own_card";
-pub const FRIENDS_FULL: &str = "friends_full";
-pub const REQUEST_LIMIT: &str = "request_limit";
-pub const CODE_TOO_SOON: &str = "code_too_soon";
-/// Not a friend, or the friend is offline or appears offline.
-pub const INVITE_UNAVAILABLE: &str = "invite_unavailable";
+wire_enum! {
+    serde
+    /// Why a friends route refused (`details.reason` of the error): the one
+    /// list the bridge writes, the helper passes on and the game words. A
+    /// refusal of a client's own mistake has no reason here.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub enum FriendRefusal {
+        /// The caller has no Discord account (`skill::NO_ACCOUNT`).
+        NoDiscordAccount = "no_discord_account",
+        /// Friends are turned off for the caller. Any friends route answers
+        /// it until `FriendAction::TurnOn`; the game shows it as a state, not
+        /// as a failure.
+        FriendsOff = "friends_off",
+        UnknownCode = "unknown_code",
+        CardExpired = "card_expired",
+        OwnCard = "own_card",
+        FriendsFull = "friends_full",
+        BlocksFull = "blocks_full",
+        RequestLimit = "request_limit",
+        CodeTooSoon = "code_too_soon",
+        /// Not a friend, or the friend is offline or appears offline.
+        InviteUnavailable = "invite_unavailable",
+    }
+}
 
-/// Crockford base32: the digits and the letters but I, L, O and U.
-const CODE_SYMBOLS: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+/// Crockford base32: the digits and the letters but I, L, O and U. The
+/// alphabet of a friend code, for the bridge to write one from.
+pub const CODE_SYMBOLS: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 /// Whether `text` is a friend code as the bridge writes it: `XXXX-XXXX` in
 /// upper-case Crockford base32.
@@ -151,6 +169,60 @@ fn check_card_and_label(card: &str, label: &str) -> Result<()> {
         return Err(Error::InvalidField("card"));
     }
     check_label(label)
+}
+
+/// Reads a `T`, or `None` for a value `T` does not know. What a later bridge
+/// adds to a closed set must not fail the whole answer a client reads, so the
+/// fields of an answer that hold one read through this and choose what an
+/// unknown value is (`Relation` does the same for its type). The answer is
+/// JSON, as every wire type here is.
+fn lenient<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: DeserializeOwned,
+{
+    Ok(T::deserialize(serde_json::Value::deserialize(deserializer)?).ok())
+}
+
+/// A room status this build does not know reads as `Idle`: in the room, and
+/// nothing a client would show differently from sitting there (the others
+/// say queued, ready, fighting, watching or training).
+fn status_or_idle<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<RoomStatus, D::Error> {
+    Ok(lenient(deserializer)?.unwrap_or(RoomStatus::Idle))
+}
+
+/// An activity this build does not know reads as `Menus`, the plain "online".
+fn activity_or_menus<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Activity, D::Error> {
+    Ok(lenient(deserializer)?.unwrap_or(Activity::Menus))
+}
+
+/// A presence this build cannot read (a state it does not know) reads as
+/// online and doing the plain thing, with no room: the friend is shown as
+/// there, which is true of anyone with a presence at all.
+fn presence_or_online<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<FriendPresence, D::Error> {
+    Ok(lenient(deserializer)?.unwrap_or(FriendPresence::Online {
+        activity: Activity::Menus,
+    }))
+}
+
+/// A list of which the entries this build cannot read are left out, so one
+/// invite of a kind it does not know does not take the others with it.
+fn readable_only<'de, D, T>(deserializer: D) -> std::result::Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: DeserializeOwned,
+{
+    let entries = Vec::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(entries
+        .into_iter()
+        .filter_map(|entry| T::deserialize(entry).ok())
+        .collect())
 }
 
 wire_enum! {
@@ -324,9 +396,17 @@ pub enum FriendAction {
     AppearOffline { on: bool },
     /// A new friend code, at most once a day; the old one stops working.
     NewCode {},
-    /// Turns friends off: the caller's settings, code, friendships, requests
-    /// both ways and blocks are deleted.
+    /// Turns friends off: the caller's friendships and requests both ways
+    /// and presence are deleted, their code is replaced (the old one stops
+    /// working) and the account is stored as off. Their own blocks stay.
+    /// Every friends route then refuses with `FriendRefusal::FriendsOff`,
+    /// this one included, until `TurnOn`; other players meet the account as
+    /// one without friends.
     Forget {},
+    /// Turns friends on again after `Forget`: the account is as it was left,
+    /// with its new code, no friends and its blocks. The only action an off
+    /// account is allowed.
+    TurnOn {},
 }
 
 impl FriendAction {
@@ -351,7 +431,7 @@ impl FriendAction {
                 room.check()
             }
             Self::Dismiss { invite } => check_id(invite, "iv", "invite"),
-            Self::AppearOffline { .. } | Self::NewCode {} | Self::Forget {} => Ok(()),
+            Self::AppearOffline { .. } | Self::NewCode {} | Self::Forget {} | Self::TurnOn {} => Ok(()),
         }
     }
 }
@@ -426,11 +506,13 @@ pub enum FriendPresence {
         seen_at: Option<u64>,
     },
     Online {
+        #[serde(deserialize_with = "activity_or_menus")]
         activity: Activity,
     },
     /// In a room: a public one by `room`, a private one by `private`, or, for
     /// a public room that is no longer open and listed, neither.
     Room {
+        #[serde(deserialize_with = "status_or_idle")]
         status: RoomStatus,
         /// 0 to `MAX_TABLE`, when seated or watching.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -518,9 +600,11 @@ pub struct Friend {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<CardAccount>,
     /// Their class as last shown, or the developer mark; absent when they do
-    /// not take part in ranking, or classes are hidden.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// not take part in ranking, or classes are hidden; also absent when it
+    /// is one this build cannot read.
+    #[serde(default, deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
     pub badge: Option<SkillBadge>,
+    #[serde(deserialize_with = "presence_or_online")]
     pub presence: FriendPresence,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub record: Option<PairRecord>,
@@ -631,6 +715,7 @@ pub struct FriendsState {
     pub incoming: Vec<IncomingRequest>,
     pub outgoing: Vec<OutgoingRequest>,
     /// Received and live: at most `MAX_INVITES`.
+    #[serde(deserialize_with = "readable_only")]
     pub invites: Vec<ReceivedInvite>,
     /// At most `MAX_BLOCKS`.
     pub blocked: Vec<BlockedPlayer>,
@@ -819,11 +904,8 @@ mod tests {
         ] {
             ignores_extra::<FriendsState>(&wire, pointer);
         }
-        // The badge and the invited room are types other answers share, and
-        // they keep refusing what they do not know.
-        for pointer in ["/friends/0/badge", "/invites/0/room"] {
-            refuses_extra::<FriendsState>(&wire, pointer);
-        }
+        // Types other answers and the requests share, and the closed sets of
+        // the answer, are read past in `ignores_unknown_value`.
         // A member of the state may not be left out, though.
         for member in [
             "code", "friends", "incoming", "outgoing", "invites", "blocked",
@@ -836,6 +918,94 @@ mod tests {
             );
         }
     }
+    /// Replaces the value at `pointer` of the sample state with `unknown`
+    /// and hands the state it reads to `check`.
+    fn reads_unknown_value_as(pointer: &str, unknown: Value, check: impl Fn(&FriendsState)) {
+        let mut wire = state_wire();
+        *wire.pointer_mut(pointer).unwrap() = unknown;
+        check(&read::<FriendsState>(&wire));
+    }
+
+    #[test]
+    fn ignores_unknown_value() {
+        // A room status a later bridge adds is "in the room" and no more.
+        reads_unknown_value_as("/friends/0/presence/status", json!("arcade_queue"), |state| {
+            assert!(matches!(
+                state.friends[0].presence,
+                FriendPresence::Room { status: RoomStatus::Idle, table: Some(0), room: Some(_), .. }
+            ));
+            assert!(state.check().is_ok());
+        });
+        // An activity reads as the plain "online".
+        let mut wire = state_wire();
+        wire["friends"][0]["presence"] = json!({"state": "online", "activity": "streaming"});
+        assert_eq!(
+            read::<FriendsState>(&wire).friends[0].presence,
+            FriendPresence::Online { activity: Activity::Menus }
+        );
+        // A presence state it does not know reads as online, whatever else it
+        // carries, and the rest of the friend is kept.
+        wire["friends"][0]["presence"] = json!({"state": "spectating", "room": {"id": 1}});
+        let state = read::<FriendsState>(&wire);
+        assert_eq!(
+            state.friends[0].presence,
+            FriendPresence::Online { activity: Activity::Menus }
+        );
+        assert_eq!(state.friends[0].name, "Player 3");
+        // An invite of a kind it does not know is dropped; the others stay.
+        let mut wire = state_wire();
+        let known = wire["invites"][0].clone();
+        wire["invites"] = json!([
+            {"id": INVITE, "friend": FRIEND, "room": {"lobby": "x"}, "expires_at": 1731100600},
+            known,
+            {"id": INVITE, "friend": FRIEND, "room": {"room_id": ROOM}},
+        ]);
+        let state = read::<FriendsState>(&wire);
+        assert_eq!(state.invites.len(), 1);
+        assert_eq!(state.invites[0].room, InviteRoom::RoomId(ROOM.into()));
+        // A badge it cannot read shows none, as one a bridge never sent does.
+        for badge in [json!({"band": 7, "settled": true, "extra": 1}), json!(5), json!(null)] {
+            let mut wire = state_wire();
+            wire["friends"][0]["badge"] = badge;
+            assert_eq!(read::<FriendsState>(&wire).friends[0].badge, None);
+        }
+        // What it does read is written back as it was.
+        let wire = state_wire();
+        assert_eq!(serde_json::to_value(read::<FriendsState>(&wire)).unwrap(), wire);
+        // The requests share these types and stay strict.
+        assert!(serde_json::from_value::<RoomReport>(json!({"status": "arcade_queue", "private": true})).is_err());
+        assert!(serde_json::from_value::<SkillBadge>(json!({"band": 7, "settled": true, "extra": 1})).is_err());
+        assert!(serde_json::from_value::<InviteRoom>(json!({"lobby": "x"})).is_err());
+    }
+
+    /// The reasons are written as the game and the helper spell them; a
+    /// rename changes a wire name and must fail here.
+    #[test]
+    fn refusal_reasons_keep_their_spelling() {
+        let names: Vec<&str> = FriendRefusal::ALL.iter().map(|r| r.as_str()).collect();
+        assert_eq!(
+            names,
+            [
+                "no_discord_account",
+                "friends_off",
+                "unknown_code",
+                "card_expired",
+                "own_card",
+                "friends_full",
+                "blocks_full",
+                "request_limit",
+                "code_too_soon",
+                "invite_unavailable",
+            ]
+        );
+        assert_eq!(FriendRefusal::NAMES.as_slice(), names.as_slice());
+        assert_eq!(FriendRefusal::NoDiscordAccount.as_str(), crate::skill::NO_ACCOUNT);
+        for reason in FriendRefusal::ALL {
+            assert_eq!(serde_json::to_value(reason).unwrap(), reason.as_str());
+            assert_eq!(FriendRefusal::parse(reason.as_str()), Some(reason));
+        }
+    }
+
 
     #[test]
     fn a_friends_presence_is_one_of_three_states() {
@@ -866,10 +1036,7 @@ mod tests {
         for bad in [
             json!({"state": "away"}),
             json!({"state": "online"}),
-            json!({"state": "online", "activity": "room"}),
-            json!({"state": "online", "activity": "offline"}),
             json!({"state": "room"}),
-            json!({"state": "room", "status": "asleep"}),
             json!({"status": "idle"}),
         ] {
             assert!(
@@ -1213,6 +1380,7 @@ mod tests {
             json!({"action": "appear_offline", "on": false}),
             json!({"action": "new_code"}),
             json!({"action": "forget"}),
+            json!({"action": "turn_on"}),
         ];
         for wire in &cases {
             round_trips::<FriendAction>(wire, FriendAction::check);

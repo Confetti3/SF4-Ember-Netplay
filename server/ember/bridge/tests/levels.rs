@@ -839,37 +839,17 @@ async fn migration_060_leaves_behind_a_rated_game_whose_room_is_gone_and_keeps_t
     );
 }
 
-/// Applies `migrations/` up to 061 as a bridge from before 062 did, each
-/// recorded by its number only.
+/// A database as a bridge from before 062 left it: this bridge's own ledger
+/// (060 and 061 are recorded by name, as only this line writes them), without
+/// the account points.
 fn database_at_061(path: &Path) -> rusqlite::Connection {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
-    let mut names: Vec<String> = std::fs::read_dir(&dir)
-        .unwrap()
-        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
-        .filter(|name| name.as_str() < "062")
-        .collect();
-    names.sort();
-    assert_eq!(names.len(), 58);
-    let mut connection = rusqlite::Connection::open(path).unwrap();
+    drop(Db::open(path).unwrap());
+    let connection = rusqlite::Connection::open(path).unwrap();
     connection
         .execute_batch(
-            "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)",
+            "DROP TABLE account_points; DELETE FROM schema_migrations WHERE version = 62;",
         )
         .unwrap();
-    for name in names {
-        let version: i64 = name[..3].parse().unwrap();
-        let transaction = connection.transaction().unwrap();
-        transaction
-            .execute_batch(&std::fs::read_to_string(dir.join(&name)).unwrap())
-            .unwrap();
-        transaction
-            .execute(
-                "INSERT INTO schema_migrations (version, applied_at) VALUES (?1, 1000)",
-                [version],
-            )
-            .unwrap();
-        transaction.commit().unwrap();
-    }
     connection
 }
 

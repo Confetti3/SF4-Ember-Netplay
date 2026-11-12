@@ -36,6 +36,9 @@ macro_rules! wire_enum {
             /// Every variant, in declaration order.
             pub const ALL: [$name; [$($text),+].len()] = [$( $name::$variant ),+];
 
+            /// Every wire name, in declaration order.
+            pub const NAMES: [&'static str; [$($text),+].len()] = [$($text),+];
+
             /// The variant's wire name.
             pub fn as_str(self) -> &'static str {
                 match self {
@@ -66,6 +69,7 @@ mod tests {
         api::ErrorCode,
         challenge::{Action, Method},
         event::Kind,
+        friends::FriendRefusal,
         lobby::Rotation,
         matches::{DeliveryState, MatchState},
         tournament::{Format, Side, Status},
@@ -107,6 +111,11 @@ mod tests {
         names_agree(&ErrorCode::ALL, ErrorCode::as_str, ErrorCode::parse);
         names_agree(&Action::ALL, Action::as_str, Action::parse);
         names_agree(&Method::ALL, Method::as_str, Method::parse);
+        names_agree(
+            &FriendRefusal::ALL,
+            FriendRefusal::as_str,
+            FriendRefusal::parse,
+        );
     }
 
     #[test]

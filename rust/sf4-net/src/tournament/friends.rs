@@ -11,28 +11,15 @@ use super::{
     client::{self, Body, BridgeCall, Refusals, Verb},
     play::{self, Need},
 };
-use ember_protocol::{
-    friends::{
-        ACTIONS_PATH, CARD_EXPIRED, CODE_TOO_SOON, FRIENDS_FULL, FriendAction, FriendsState,
-        FriendsSync, INVITE_UNAVAILABLE, OWN_CARD, REQUEST_LIMIT, SYNC_PATH, UNKNOWN_CODE,
-    },
-    skill::NO_ACCOUNT,
+use ember_protocol::friends::{
+    ACTIONS_PATH, FriendAction, FriendRefusal, FriendsState, FriendsSync, SYNC_PATH,
 };
 
-/// Refusals of the friends routes that the game words apart.
-const REASONS: [&str; 8] = [
-    NO_ACCOUNT,
-    UNKNOWN_CODE,
-    CARD_EXPIRED,
-    OWN_CARD,
-    FRIENDS_FULL,
-    REQUEST_LIMIT,
-    CODE_TOO_SOON,
-    INVITE_UNAVAILABLE,
-];
-/// A 404 naming none of them is a bridge without the routes.
+/// Refusals of the friends routes that the game words apart: every reason the
+/// bridge writes (`FriendRefusal`). A 404 naming none of them is a bridge
+/// without the routes.
 const REFUSALS: Refusals<'static> = Refusals {
-    reasons: &REASONS,
+    reasons: &FriendRefusal::NAMES,
     missing: Some(Code::FriendsUnavailable),
 };
 
@@ -127,6 +114,7 @@ mod tests {
             json!({ "action": "appear_offline", "on": true }),
             json!({ "action": "new_code" }),
             json!({ "action": "forget" }),
+            json!({ "action": "turn_on" }),
         ];
         let mut requests = vec![(sync_request(), "friends_sync")];
         requests.extend(actions.into_iter().map(|action| {
@@ -234,7 +222,7 @@ mod tests {
             reply(404, &body).unwrap_err().as_str(),
             "friends_unavailable"
         );
-        for reason in REASONS {
+        for reason in FriendRefusal::NAMES {
             let body = refusal("forbidden", Some(reason));
             assert_eq!(reply(409, &body).unwrap_err().as_str(), reason);
             // A route that names a reason is never mistaken for a missing one.
@@ -262,10 +250,10 @@ mod tests {
         in_friend["friends"] = json!([{ "id": FRIEND, "name": "Player 3", "since": 1,
             "presence": { "state": "offline" }, "extra": 1 }]);
         assert!(read(&in_friend).unwrap().check().is_ok());
-        let mut unknown_state = state.clone();
-        unknown_state["friends"] = json!([{ "id": FRIEND, "name": "Player 3", "since": 1,
-            "presence": { "state": "away" } }]);
-        for bad in [without_code, unknown_state] {
+        // A friend left without its presence is not a state of any bridge.
+        let mut without_presence = state.clone();
+        without_presence["friends"] = json!([{ "id": FRIEND, "name": "Player 3", "since": 1 }]);
+        for bad in [without_code, without_presence] {
             assert_eq!(
                 read(&bad).unwrap_err().as_str(),
                 "bridge_invalid_response",
@@ -278,6 +266,48 @@ mod tests {
         assert!(read(&bad_code).unwrap().check().is_err());
     }
 
+    // A later bridge's status, activity, invite or badge is read as a neutral
+    // one, or left out, and the rest of the list stays: the helper must not
+    // refuse the whole state for one value it does not know.
+    #[test]
+    fn the_state_survives_one_value_it_does_not_know() {
+        let room = "0f".repeat(16);
+        let state = json!({ "code": "4F2A-91CX",
+            "friends": [
+                { "id": FRIEND, "name": "Player 3", "since": 1, "badge": { "band": 7, "settled": true, "later": 1 },
+                  "presence": { "state": "room", "status": "arcade_queue" } },
+                { "id": FRIEND, "name": "Player 4", "since": 1,
+                  "presence": { "state": "online", "activity": "streaming" } },
+                { "id": FRIEND, "name": "Player 5", "since": 1,
+                  "presence": { "state": "spectating" } },
+            ],
+            "incoming": [], "outgoing": [],
+            "invites": [
+                { "id": "iv_11111111-1111-4111-8111-111111111111", "friend": FRIEND,
+                  "room": { "lobby": "x" }, "expires_at": 9 },
+                { "id": "iv_22222222-2222-4222-8222-222222222222", "friend": FRIEND,
+                  "room": { "room_id": room }, "expires_at": 9 },
+            ],
+            "blocked": [] });
+        let read: FriendsState =
+            client::read(200, &serde_json::to_vec(&state).unwrap(), &[200], &REFUSALS).unwrap();
+        assert!(read.check().is_ok());
+        let wire = serde_json::to_value(&read).unwrap();
+        assert_eq!(wire["friends"][0]["presence"], json!({ "state": "room", "status": "idle" }));
+        assert!(wire["friends"][0].get("badge").is_none());
+        assert_eq!(wire["friends"][1]["presence"], json!({ "state": "online", "activity": "menus" }));
+        assert_eq!(wire["friends"][2]["presence"], json!({ "state": "online", "activity": "menus" }));
+        assert_eq!(wire["invites"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn every_reason_the_bridge_writes_is_passed_on() {
+        for reason in ["blocks_full", "friends_off", "no_discord_account"] {
+            assert!(FriendRefusal::NAMES.contains(&reason), "{reason}");
+            let body = refusal("stale_revision", Some(reason));
+            assert_eq!(reply(409, &body).unwrap_err().as_str(), reason);
+        }
+    }
     // A friend's account points go to the game as the bridge sent them, and a
     // friend without them stays without.
     #[test]

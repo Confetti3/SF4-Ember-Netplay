@@ -8,11 +8,7 @@
 //! that serves one player's data to another, for the Discord IDs it seeded.
 //! A new route of that kind joins its list.
 use axum::{extract::State, http::HeaderMap, response::Response};
-use ember_protocol::{
-    api::ErrorCode,
-    friends::{FriendAction, FriendsSync, PresenceReport},
-    skill::NO_ACCOUNT,
-};
+use ember_protocol::friends::{FriendAction, FriendRefusal, FriendsSync, PresenceReport};
 
 use crate::{
     AppState,
@@ -138,13 +134,7 @@ async fn admit(state: &AppState, headers: &HeaderMap, bucket: &Bucket) -> Result
         .db
         .read(move |tx| skill::account(tx, &ember_id))
         .await?
-        .ok_or_else(|| {
-            ApiFailure::new(
-                ErrorCode::Forbidden,
-                "Connect a Discord account to have friends.",
-            )
-            .detail("reason", NO_ACCOUNT)
-        })?;
+        .ok_or_else(|| store::refuse(FriendRefusal::NoDiscordAccount))?;
     let caller = Caller {
         account,
         now: state.now(),

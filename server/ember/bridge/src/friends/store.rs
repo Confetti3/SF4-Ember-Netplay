@@ -6,9 +6,8 @@
 use ember_protocol::{
     api::ErrorCode,
     friends::{
-        BlockedPlayer, CARD_EXPIRED, CODE_TOO_SOON, FRIENDS_FULL, FriendRoom, INVITE_UNAVAILABLE,
-        MAX_BLOCKS, MAX_FRIENDS, MAX_INCOMING, OWN_CARD, OutgoingRequest, PairRecord,
-        REQUEST_LIMIT, UNKNOWN_CODE,
+        BlockedPlayer, CODE_SYMBOLS, FriendRefusal, FriendRoom, MAX_BLOCKS, MAX_FRIENDS,
+        MAX_INCOMING, OutgoingRequest, PairRecord,
     },
     levels::Relation,
     rooms::is_player_name,
@@ -31,41 +30,42 @@ const PENDING: u32 = 30;
 /// `seen_at` is written once it is this old, so an online player costs at
 /// most one write per this long.
 const SEEN_SECS: u64 = 5 * 60;
-/// The refusal for a block list at `MAX_BLOCKS`. The design names no reason
-/// for it; see the P3 report.
-pub const BLOCKS_FULL: &str = "blocks_full";
-/// Crockford base32, as `ember_protocol::friends::is_friend_code` reads it.
-const CODE_SYMBOLS: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-
 /// A refusal with its reason, which the client words.
-pub fn refuse(reason: &'static str) -> ApiFailure {
+pub fn refuse(reason: FriendRefusal) -> ApiFailure {
     let (code, message) = match reason {
-        FRIENDS_FULL => (ErrorCode::StaleRevision, "That friend list is full."),
-        REQUEST_LIMIT => (
+        FriendRefusal::FriendsFull => (ErrorCode::StaleRevision, "That friend list is full."),
+        FriendRefusal::RequestLimit => (
             ErrorCode::StaleRevision,
             "You have sent enough requests for now.",
         ),
-        CODE_TOO_SOON => (
+        FriendRefusal::CodeTooSoon => (
             ErrorCode::StaleRevision,
             "Your friend code changes at most once a day.",
         ),
-        BLOCKS_FULL => (
+        FriendRefusal::BlocksFull => (
             ErrorCode::StaleRevision,
             "You have blocked as many players as you can.",
         ),
-        OWN_CARD => (ErrorCode::InvalidRequest, "That is you."),
-        UNKNOWN_CODE => (ErrorCode::InvalidRequest, "No player has that friend code."),
-        CARD_EXPIRED => (
+        FriendRefusal::FriendsOff => (ErrorCode::StaleRevision, "Friends are off."),
+        FriendRefusal::OwnCard => (ErrorCode::InvalidRequest, "That is you."),
+        FriendRefusal::UnknownCode => {
+            (ErrorCode::InvalidRequest, "No player has that friend code.")
+        }
+        FriendRefusal::CardExpired => (
             ErrorCode::InvalidRequest,
             "That player's card has expired. Meet them in a room again.",
         ),
-        INVITE_UNAVAILABLE => (
+        FriendRefusal::InviteUnavailable => (
             ErrorCode::StaleRevision,
             "That friend cannot be invited now.",
         ),
-        _ => (ErrorCode::InvalidRequest, "That cannot be done."),
+        // Written where the account is looked up (`routes::friends::admit`).
+        FriendRefusal::NoDiscordAccount => (
+            ErrorCode::Forbidden,
+            "Connect a Discord account to have friends.",
+        ),
     };
-    ApiFailure::new(code, message).detail("reason", reason)
+    ApiFailure::new(code, message).detail("reason", reason.as_str())
 }
 
 /// Two accounts in a pair's stored order: `first` sorts before `second`.
@@ -106,7 +106,9 @@ fn free_code(tx: &Transaction<'_>) -> Result<String> {
 /// What the caller's game sent in a sync. The account is made at its first
 /// sync, with a new code; after that only what changed is written, and
 /// `seen_at` moves once it is `SEEN_SECS` old or as the game closes
-/// (`leaving`), never while the account appears offline.
+/// (`leaving`), never while the account appears offline. A sync never
+/// touches an account that is off, which only `turn_on` brings back: the
+/// game syncs by itself, so anything else would turn friends on again.
 pub fn sync(
     tx: &Transaction<'_>,
     account: &str,
@@ -115,12 +117,17 @@ pub fn sync(
     leaving: bool,
     now: u64,
 ) -> Result<()> {
-    let exists: bool = tx.query_row(
-        "SELECT EXISTS (SELECT 1 FROM social_accounts WHERE discord_user_id = ?1)",
-        [account],
-        |row| row.get(0),
-    )?;
-    if !exists {
+    let off: Option<bool> = tx
+        .query_row(
+            "SELECT off FROM social_accounts WHERE discord_user_id = ?1",
+            [account],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if off == Some(true) {
+        return Err(refuse(FriendRefusal::FriendsOff));
+    }
+    if off.is_none() {
         tx.execute(
             "INSERT INTO social_accounts (discord_user_id, name, country, main_fighter, code, code_at, seen_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
@@ -155,13 +162,15 @@ pub struct Account {
     pub code: String,
     pub appear_offline: bool,
     pub seen_at: u64,
+    /// The player turned friends off (`forget`); only `turn_on` ends it.
+    pub off: bool,
 }
 
 /// `account`'s settings, once it has synced.
 pub fn account(tx: &Transaction<'_>, account: &str) -> Result<Option<Account>> {
     Ok(tx
         .query_row(
-            "SELECT name, country, main_fighter, code, appear_offline, seen_at
+            "SELECT name, country, main_fighter, code, appear_offline, seen_at, off
              FROM social_accounts WHERE discord_user_id = ?1",
             [account],
             |row| {
@@ -172,17 +181,19 @@ pub fn account(tx: &Transaction<'_>, account: &str) -> Result<Option<Account>> {
                     code: row.get(3)?,
                     appear_offline: row.get(4)?,
                     seen_at: row.get(5)?,
+                    off: row.get(6)?,
                 })
             },
         )
         .optional()?)
 }
 
-/// The account whose code is `code` (as `parse_friend_code` writes it).
+/// The account whose code is `code` (as `parse_friend_code` writes it). An
+/// account that is off has none: it reads as one nobody holds.
 pub fn account_of_code(tx: &Transaction<'_>, code: &str) -> Result<Option<String>> {
     Ok(tx
         .query_row(
-            "SELECT discord_user_id FROM social_accounts WHERE code = ?1",
+            "SELECT discord_user_id FROM social_accounts WHERE code = ?1 AND off = 0",
             [code],
             |row| row.get(0),
         )
@@ -234,7 +245,7 @@ pub fn ask(
     now: u64,
 ) -> Result<()> {
     if sender == receiver {
-        return Err(refuse(OWN_CARD));
+        return Err(refuse(FriendRefusal::OwnCard));
     }
     let relation = relation(tx, sender, receiver)?;
     if matches!(
@@ -263,14 +274,18 @@ pub fn ask(
         [sender],
     )?;
     if today >= REQUESTS_A_DAY || pending >= PENDING {
-        return Err(refuse(REQUEST_LIMIT));
+        return Err(refuse(FriendRefusal::RequestLimit));
     }
     let inbox = count(
         tx,
         "SELECT COUNT(*) FROM friend_requests WHERE receiver = ?1 AND hidden_at IS NULL",
         [receiver],
     )?;
-    let hidden = (relation.is_none() || inbox as usize >= MAX_INCOMING).then_some(now);
+    // A request to an account that turned friends off is hidden, so it looks
+    // sent as one to a player who blocked the sender does, and the sender
+    // learns nothing of it; it stays hidden when they turn friends on.
+    let off = account(tx, receiver)?.is_some_and(|receiver| receiver.off);
+    let hidden = (relation.is_none() || off || inbox as usize >= MAX_INCOMING).then_some(now);
     tx.execute(
         "INSERT INTO friend_requests (id, sender, receiver, label, sent_at, hidden_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -293,7 +308,7 @@ fn befriend(tx: &Transaction<'_>, one: &str, other: &str, now: u64) -> Result<()
             [account],
         )?;
         if friends as usize >= MAX_FRIENDS {
-            return Err(refuse(FRIENDS_FULL));
+            return Err(refuse(FriendRefusal::FriendsFull));
         }
     }
     tx.execute(
@@ -444,7 +459,7 @@ pub fn block(
     now: u64,
 ) -> Result<()> {
     if blocker == blocked {
-        return Err(refuse(OWN_CARD));
+        return Err(refuse(FriendRefusal::OwnCard));
     }
     let already: bool = tx.query_row(
         "SELECT EXISTS (SELECT 1 FROM friend_blocks WHERE blocker = ?1 AND blocked = ?2)",
@@ -460,7 +475,7 @@ pub fn block(
         [blocker],
     )?;
     if blocks as usize >= MAX_BLOCKS {
-        return Err(refuse(BLOCKS_FULL));
+        return Err(refuse(FriendRefusal::BlocksFull));
     }
     unfriend(tx, blocker, blocked)?;
     tx.execute(
@@ -510,7 +525,7 @@ pub fn new_code(tx: &Transaction<'_>, caller: &str, now: u64) -> Result<()> {
     )?;
     let wait = (code_at + DAY_SECS).saturating_sub(now);
     if wait > 0 {
-        return Err(refuse(CODE_TOO_SOON).detail("change_in", wait));
+        return Err(refuse(FriendRefusal::CodeTooSoon).detail("change_in", wait));
     }
     tx.execute(
         "UPDATE social_accounts SET code = ?2, code_at = ?3 WHERE discord_user_id = ?1",
@@ -519,30 +534,37 @@ pub fn new_code(tx: &Transaction<'_>, caller: &str, now: u64) -> Result<()> {
     Ok(())
 }
 
-/// Turns `caller`'s friends off: their settings, code, friendships, requests
-/// both ways and blocks are deleted. Blocks others placed on them are those
-/// players' own and stay. The account is then made again as a first sync
-/// makes it, from the name, flag and main its game last sent, since every
-/// answer is a state with a code (see the P3 report).
+/// Turns `caller`'s friends off: their friendships and requests both ways
+/// are deleted and their code is replaced, so the old one stops working, and
+/// the account is stored as off (`Account::off`) until `turn_on`. Their own
+/// blocks stay, since they protect the player and are not friends' data;
+/// blocks others placed on them are those players' own. The row, with the
+/// name, flag and main its game last sent, stays too, so turning friends on
+/// needs nothing from the game but the action.
 pub fn forget(tx: &Transaction<'_>, caller: &str, now: u64) -> Result<()> {
-    let Some(kept) = account(tx, caller)? else {
-        return Ok(());
-    };
     for statement in [
         "DELETE FROM friendships WHERE first = ?1",
         "DELETE FROM friendships WHERE second = ?1",
         "DELETE FROM friend_requests WHERE sender = ?1",
         "DELETE FROM friend_requests WHERE receiver = ?1",
-        "DELETE FROM friend_blocks WHERE blocker = ?1",
-        "DELETE FROM social_accounts WHERE discord_user_id = ?1",
     ] {
         tx.execute(statement, [caller])?;
     }
-    let listing = Listing {
-        name: kept.name,
-        country: kept.country,
-    };
-    sync(tx, caller, &listing, kept.main, false, now)
+    tx.execute(
+        "UPDATE social_accounts SET off = 1, code = ?2, code_at = ?3 WHERE discord_user_id = ?1",
+        params![caller, free_code(tx)?, now],
+    )?;
+    Ok(())
+}
+
+/// Turns `caller`'s friends on again after `forget`: no friends or requests,
+/// the new code, and the blocks they kept. Nothing for an account that is on.
+pub fn turn_on(tx: &Transaction<'_>, caller: &str, now: u64) -> Result<()> {
+    tx.execute(
+        "UPDATE social_accounts SET off = 0, seen_at = ?2 WHERE discord_user_id = ?1 AND off = 1",
+        params![caller, now],
+    )?;
+    Ok(())
 }
 
 /// Requests lapse `REQUEST_SECS` after they were sent, hidden or not.
@@ -566,7 +588,7 @@ pub struct FriendRow {
 pub fn friends(tx: &Transaction<'_>, caller: &str) -> Result<Vec<FriendRow>> {
     let mut statement = tx.prepare(
         "SELECT f.id, f.since, f.other, s.name, s.country, s.main_fighter, s.code,
-                s.appear_offline, s.seen_at
+                s.appear_offline, s.seen_at, s.off
          FROM (SELECT id, since, second AS other FROM friendships WHERE first = ?1
                UNION ALL
                SELECT id, since, first FROM friendships WHERE second = ?1) f
@@ -586,6 +608,7 @@ pub fn friends(tx: &Transaction<'_>, caller: &str) -> Result<Vec<FriendRow>> {
                     code: row.get(6)?,
                     appear_offline: row.get(7)?,
                     seen_at: row.get(8)?,
+                    off: row.get(9)?,
                 },
             })
         })?

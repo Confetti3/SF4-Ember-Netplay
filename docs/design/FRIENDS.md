@@ -34,7 +34,11 @@ After 060 (`FIGHTER_LEVELS.md`).
 -- A Discord account's friends settings and how friends see it: the name,
 -- flag and main fighter its game last sent (as the ranking listing is sent),
 -- its friend code, whether it appears offline, and when it was last seen.
--- Made at its first sync; gone when the player turns friends off.
+-- Made at its first sync. When the player turns friends off, the friendships,
+-- requests and presence are deleted, the code is replaced and `off` is set;
+-- the row stays, with the player's blocks, so that a sync cannot turn
+-- friends on again and the player's blocks keep protecting them. Only
+-- turning friends on clears `off`.
 CREATE TABLE social_accounts (
     discord_user_id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -43,7 +47,8 @@ CREATE TABLE social_accounts (
     code TEXT NOT NULL UNIQUE,
     code_at INTEGER NOT NULL,
     appear_offline INTEGER NOT NULL DEFAULT 0,
-    seen_at INTEGER NOT NULL
+    seen_at INTEGER NOT NULL,
+    off INTEGER NOT NULL DEFAULT 0 CHECK (off IN (0, 1))
 ) WITHOUT ROWID;
 
 -- Two accounts who are friends; `first` sorts before `second`. `id` is the
@@ -89,8 +94,8 @@ CREATE INDEX friend_blocks_blocked ON friend_blocks(blocked, blocker);
 
 | Table | Read by | Lifetime |
 |---|---|---|
-| `social_accounts` | key; `code` (unique) for a request by code | until the player turns friends off (`forget`) |
-| `friendships` | `first` (key prefix) and `second` (index) | until removed, blocked or forgotten |
+| `social_accounts` | key; `code` (unique) for a request by code | for good; `off` from turning friends off (`forget`) until they turn them on (`turn_on`) |
+| `friendships` | `first` (key prefix) and `second` (index) | until removed, blocked or forgotten (turned off) |
 | `friend_requests` | sender (unique prefix, also the daily count), receiver, `sent_at` (sweep) | until answered or cancelled; any row 30 days after `sent_at` (the sweep in `routes/expiry.rs`) |
 | `friend_blocks` | blocker (key), blocked (index, on every request) | until unblocked or forgotten |
 
@@ -168,17 +173,23 @@ One action in, the state after it out. Bucket `friends-act:{account}`, 30 per
 | `dismiss` | `invite` | drops an invite the caller received |
 | `appear_offline` | `on` | friends see the caller as offline |
 | `new_code` | none | a new friend code, at most once a day; the old one stops working |
-| `forget` | none | turns friends off: the caller's settings, code, friendships, requests both ways and blocks are deleted |
+| `forget` | none | turns friends off: the caller's friendships, requests both ways and presence are deleted, the code is replaced and the account is stored as off; their own blocks stay. Answered with the `friends_off` refusal |
+| `turn_on` | none | turns friends on again: the account as it was left, with its new code, no friends and its blocks; the only action an off account is allowed |
 
 `secret` is the room's own invitation, the 127-character `emd1:`/`emd2:`
 token the Discord join secret carries (`src/discord/Ticket.hxx`,
 `IrohRoom::DiscordInvitation`); the bridge keeps it in memory only and
 checks only its shape.
 
-Refusals (`details.reason`): `no_discord_account`, `unknown_code`,
-`card_expired`, `own_card`, `friends_full`, `request_limit`, `code_too_soon`,
-`invite_unavailable` (not a friend, or the friend is offline or appears
-offline). Rate limits answer 429.
+Refusals (`details.reason`, the one `FriendRefusal` list in the protocol
+crate, which the bridge writes and the helper passes on): `no_discord_account`,
+`friends_off`, `unknown_code`, `card_expired`, `own_card`, `friends_full`,
+`blocks_full`, `request_limit`, `code_too_soon`, `invite_unavailable` (not a
+friend, or the friend is offline or appears offline). Rate limits answer 429.
+
+`friends_off` (error code `stale_revision`, "Friends are off.") answers the
+sync and every action but `turn_on` while the caller's account is off. A game
+shows it as the state "friends are off", not as a failure.
 
 ### `FriendsState`
 
@@ -263,8 +274,16 @@ invite box says).
 - **Removing** a friend is silent: they stop seeing presence at their next
   sync; the record stays in `pair_records` and shows again only if they become
   friends again.
-- **Turning friends off** (`forget`) deletes everything the player keeps;
-  blocks others placed on them are those players' own and stay.
+- **Turning friends off** (`forget`) is a stored state, not a reset. The
+  friendships, requests both ways and presence are deleted, the code is
+  replaced (the old one stops working) and the account is marked `off`. The
+  player's own blocks stay, since they protect the player; blocks others
+  placed on them are those players' own and stay as well. While it is off the
+  sync and every action but `turn_on` are refused as `friends_off`, so the
+  game's own 30-second sync cannot turn friends on again. A request by code
+  is refused as an unknown code, one by card looks sent and is never shown
+  (also after they turn friends on), and an invite finds no friend. Only
+  `turn_on` ends it.
 - The Discord account moving to another Ember ID keeps its friends; a
   different Discord account on the same Ember ID starts with none.
 
@@ -374,7 +393,7 @@ Join, Dismiss). No toast when a friend comes online.
 
 A Friends panel beside Discord and Rankings (`ApplicationShell__Settings.cxx`,
 `tab-online`): Appear offline, Friend code (Select: New code, after asking),
-Turn off friends (after asking: says what is deleted).
+Turn off friends (after asking: says what is deleted; blocks are kept). While they are off the panel says so and offers Turn on.
 
 ## Strings
 
@@ -426,7 +445,7 @@ Added to all fourteen catalogs, as for `PLAYER_CARD.md`:
 | `friends.appearing_offline` | Appearing offline |
 | `friends.invite_reveals` | Your invite shows this friend where you are. |
 | `friends.turn_off` | Turn off friends |
-| `friends.turn_off_detail` | Deletes your friends, requests, blocks and friend code. |
+| `friends.turn_off_detail` | Deletes your friends, requests and friend code. Your blocks stay. |
 | `friends.no_account` | Friends need a Discord account. Connect it in Settings, Online. |
 | `friends.unavailable` | This service does not offer friends yet. |
 | `friends.toast_request` | {0} wants to be friends |

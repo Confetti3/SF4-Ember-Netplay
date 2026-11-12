@@ -16,8 +16,8 @@ use std::collections::HashMap;
 use ember_protocol::{
     Error,
     friends::{
-        CARD_EXPIRED, FriendAction, FriendPresence, FriendsState, INVITE_UNAVAILABLE,
-        IncomingRequest, MainFighter, Played, ReceivedInvite, UNKNOWN_CODE, parse_friend_code,
+        FriendAction, FriendPresence, FriendRefusal, FriendsState, IncomingRequest, MainFighter,
+        Played, ReceivedInvite, parse_friend_code,
     },
     levels::CardAccount,
     skill::SkillBadge,
@@ -64,6 +64,11 @@ fn resync() -> ApiFailure {
 /// Carries out `action` for Discord account `caller`, in `tx` and in memory.
 /// An action naming a request, friendship, block or invite that is not the
 /// caller's changes nothing: the state answered shows how things stand.
+///
+/// An account that turned friends off refuses everything but `TurnOn` as
+/// `friends_off`. `TurnOn` needs the account's row, which only a sync makes:
+/// the game that saw `friends_off` has synced before, so this never asks it
+/// for a listing the action does not carry.
 pub fn act(
     tx: &Transaction<'_>,
     live: &Live,
@@ -72,7 +77,10 @@ pub fn act(
     action: FriendAction,
     now: u64,
 ) -> Result<()> {
-    store::account(tx, caller)?.ok_or_else(resync)?;
+    let own = store::account(tx, caller)?.ok_or_else(resync)?;
+    if own.off && !matches!(action, FriendAction::TurnOn {}) {
+        return Err(refuse(FriendRefusal::FriendsOff));
+    }
     match action {
         FriendAction::Request { card, label, code } => {
             let (target, label) = match (card, label, code) {
@@ -80,7 +88,7 @@ pub fn act(
                 (None, None, Some(typed)) => {
                     let code = parse_friend_code(&typed).ok_or(Error::InvalidField("code"))?;
                     let target = store::account_of_code(tx, &code)?
-                        .ok_or_else(|| refuse(UNKNOWN_CODE))?;
+                        .ok_or_else(|| refuse(FriendRefusal::UnknownCode))?;
                     (target, code)
                 }
                 _ => return Err(Error::InvalidField("request").into()),
@@ -115,7 +123,7 @@ pub fn act(
                 }
                 None => None,
             };
-            let invitee = reachable.ok_or_else(|| refuse(INVITE_UNAVAILABLE))?;
+            let invitee = reachable.ok_or_else(|| refuse(FriendRefusal::InviteUnavailable))?;
             live.invite(caller, &invitee, room, now);
             Ok(())
         }
@@ -130,12 +138,13 @@ pub fn act(
             live.forget(caller);
             Ok(())
         }
+        FriendAction::TurnOn {} => store::turn_on(tx, caller, now),
     }
 }
 
 /// The account a card token names, or `card_expired`.
 fn opened(keys: &Keys, card: &str, now: u64) -> Result<String> {
-    cards::open(keys, card, now).ok_or_else(|| refuse(CARD_EXPIRED))
+    cards::open(keys, card, now).ok_or_else(|| refuse(FriendRefusal::CardExpired))
 }
 
 /// Everything `caller` sees of their friends now. The caller's build, for
@@ -148,7 +157,11 @@ pub fn state(
     now: u64,
 ) -> Result<FriendsState> {
     let own = store::account(tx, caller)?.ok_or_else(resync)?;
-    let build = live.seen(caller).map(|seen| seen.build_id);
+    // Also what answers the `Forget` that just turned friends off.
+    if own.off {
+        return Err(refuse(FriendRefusal::FriendsOff));
+    }
+    let build =live.seen(caller).map(|seen| seen.build_id);
     let rows = store::friends(tx, caller)?;
     let mut friends = Vec::with_capacity(rows.len());
     let mut ids = HashMap::with_capacity(rows.len());
