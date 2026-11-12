@@ -87,8 +87,7 @@ inline bool Keep(const std::filesystem::path& file, const std::vector<std::strin
 	std::error_code ignored;
 	if (waiting.empty()) { std::filesystem::remove(file, ignored); return true; }
 	std::ofstream out(file, std::ios::binary | std::ios::trunc);
-	for (const auto& path : waiting) out << path << '
-';
+	for (const auto& path : waiting) out << path << '\n';
 	return static_cast<bool>(out.flush());
 }
 // Takes the kept files back into `queue` and deletes the note. Returns how many were taken.
@@ -98,7 +97,7 @@ inline std::size_t Restore(const std::filesystem::path& file, Queue& queue) {
 	std::vector<std::string> paths;
 	std::string line;
 	while (paths.size() < kMostWaiting && std::getline(in, line)) {
-		if (!line.empty() && line.back() == '') line.pop_back();
+		if (!line.empty() && line.back() == '\r') line.pop_back();
 		if (!line.empty()) paths.push_back(line);
 	}
 	in.close();
