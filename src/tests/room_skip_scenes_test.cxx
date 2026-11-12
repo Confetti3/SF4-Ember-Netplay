@@ -94,8 +94,11 @@ int main() {
 		EXPECT(authority.SnapshotView().skipScenes);
 		MemberProfile profile;
 		profile.link = NetworkLink::Wired;
-		const auto joined = authority.Join("Member", ConnectionRef{"host", "1"}, true, profile);
-		EXPECT(joined.accepted);
+		// A public room admits an account; its first member is not the host (SetServerOwned).
+		profile.admission.account = "emb1-member";
+		const auto joined = authority.Join("Member", ConnectionRef{"host", "1"}, false, profile);
+		EXPECT(joined.accepted && !joined.snapshot.members.empty());
+		if (!joined.accepted || joined.snapshot.members.empty()) return TEST_FAILURES() ? 1 : 0;
 		Action action;
 		action.kind = ActionKind::SetSkipScenes;
 		action.roomEpoch = authority.SnapshotView().roomEpoch;
