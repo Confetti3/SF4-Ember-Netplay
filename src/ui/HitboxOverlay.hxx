@@ -16,7 +16,7 @@ namespace sf4e { namespace ui {
 // The parts of the boxes the player may hide (SF4's Hitboxes page: its
 // hurt, throwable and skeleton rows). An attack's boxes, its throw boxes and
 // its proximity boxes are always drawn.
-struct HitboxParts { bool hurt = true, throwable = true, skeleton = true; };
+struct HitboxOverlayParts { bool hurt = true, throwable = true, skeleton = true; };
 
 // A colour as ImGui packs IM_COL32 (red in the low byte); HitboxOverlay.cxx
 // checks the packing against ImGui's own.
@@ -59,7 +59,7 @@ struct HitboxShapes { std::vector<HitboxQuad> quads; std::vector<HitboxBone> bon
 // What a view becomes on a screen whose top left is (left, top): every box
 // the parts show whose corners are all in front of the camera, in the
 // view's order, then the skeleton's bones. Empty when the view is not valid.
-inline HitboxShapes HitboxShapesOf(const training::BoxView& view, const HitboxParts& parts, float left, float top, float width, float height) {
+inline HitboxShapes HitboxShapesOf(const training::BoxView& view, const HitboxOverlayParts& parts, float left, float top, float width, float height) {
     HitboxShapes shapes;
     if (!view.valid) return shapes;
     const auto project = [&](float x, float y, float& screenX, float& screenY) {
@@ -86,5 +86,5 @@ inline HitboxShapes HitboxShapesOf(const training::BoxView& view, const HitboxPa
 
 // Draws a view's boxes over the main viewport, behind every window (ImGui's
 // background list); nothing when the view is not valid.
-void DrawHitboxOverlay(const training::BoxView& view, const HitboxParts& parts);
+void DrawHitboxOverlay(const training::BoxView& view, const HitboxOverlayParts& parts);
 } }

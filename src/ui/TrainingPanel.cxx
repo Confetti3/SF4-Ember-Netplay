@@ -365,7 +365,7 @@ void DrawTrainingBoxes(const training::View& view) {
     if(!lab.meter.hitboxes) return;
     // The neutral overlay draws them (HitboxOverlay.hxx), with the parts the
     // Hitboxes page shows.
-    HitboxParts parts; parts.hurt=lab.meter.hurtBoxes; parts.throwable=lab.meter.throwBoxes; parts.skeleton=lab.meter.skeleton;
+    HitboxOverlayParts parts; parts.hurt=lab.meter.hurtBoxes; parts.throwable=lab.meter.throwBoxes; parts.skeleton=lab.meter.skeleton;
     DrawHitboxOverlay(view.boxes,parts);
 }
 bool TrainingHotkeyBound(int fromF1) { return fromF1>=0&&(lab.keys[ResetKey]==fromF1||lab.keys[SaveKey]==fromF1); }

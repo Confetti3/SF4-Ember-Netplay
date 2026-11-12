@@ -10,7 +10,7 @@
 // overlay must give the same calls for every view and every set of the
 // Hitboxes page's parts: SF4 draws exactly what it drew before.
 using namespace sf4e::training;
-using sf4e::ui::HitboxParts;
+using sf4e::ui::HitboxOverlayParts;
 
 namespace {
 // ImGui's IM_COL32 packing (red in the low byte), as SF4's drawing used it.
@@ -58,7 +58,7 @@ std::vector<Call> Sf4Before(const BoxView& view, bool hurtBoxes, bool throwBoxes
 }
 
 // The neutral overlay's calls (DrawHitboxOverlay over HitboxShapesOf).
-std::vector<Call> Overlay(const BoxView& view, const HitboxParts& parts, float left, float top, float width, float height) {
+std::vector<Call> Overlay(const BoxView& view, const HitboxOverlayParts& parts, float left, float top, float width, float height) {
     std::vector<Call> calls;
     if (!view.valid) return calls;
     const auto shapes = sf4e::ui::HitboxShapesOf(view, parts, left, top, width, height);
@@ -109,25 +109,25 @@ int main() {
     // Every set of the Hitboxes page's parts, on viewports with and without
     // an offset: the same calls as SF4 made.
     for (int mask = 0; mask < 8; ++mask) {
-        HitboxParts parts;
+        HitboxOverlayParts parts;
         parts.hurt = (mask & 1) != 0; parts.throwable = (mask & 2) != 0; parts.skeleton = (mask & 4) != 0;
         CHECK(Overlay(view, parts, 0, 0, 1920, 1080) == Sf4Before(view, parts.hurt, parts.throwable, parts.skeleton, 0, 0, 1920, 1080));
         CHECK(Overlay(view, parts, 12, 34, 1280, 720) == Sf4Before(view, parts.hurt, parts.throwable, parts.skeleton, 12, 34, 1280, 720));
     }
     // The box and the bone behind the camera are left out, as SF4 left them.
-    const auto all = sf4e::ui::HitboxShapesOf(view, HitboxParts{}, 0, 0, 1920, 1080);
+    const auto all = sf4e::ui::HitboxShapesOf(view, HitboxOverlayParts{}, 0, 0, 1920, 1080);
     CHECK(all.quads.size() == 10 && all.bones.size() == 4);
     // A view that was not read draws nothing.
     BoxView unread = view;
     unread.valid = false;
-    CHECK(Overlay(unread, HitboxParts{}, 0, 0, 1920, 1080).empty());
+    CHECK(Overlay(unread, HitboxOverlayParts{}, 0, 0, 1920, 1080).empty());
 
     // SFV's proximity box (a kind SF4's view never has): an orange outline
     // with no fill, drawn whatever the parts hide.
     BoxView proximity = view;
     proximity.boxes = {Upright(-1.2f, 0, .8f, .6f, BoxKind::Proximity, 0)};
     proximity.bones.clear();
-    HitboxParts none; none.hurt = none.throwable = none.skeleton = false;
+    HitboxOverlayParts none; none.hurt = none.throwable = none.skeleton = false;
     const auto calls = Overlay(proximity, none, 0, 0, 1920, 1080);
     CHECK(calls.size() == 1 && calls[0].draw == Draw::Quad && calls[0].color == Col32(255, 150, 40, 230));
     CHECK(sf4e::ui::HitboxFill(BoxKind::Proximity) == 0);

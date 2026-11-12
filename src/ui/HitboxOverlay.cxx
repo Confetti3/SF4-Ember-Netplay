@@ -4,7 +4,7 @@
 namespace sf4e { namespace ui {
 static_assert(HitboxRgba(1, 2, 3, 4) == IM_COL32(1, 2, 3, 4), "HitboxRgba packs a colour as IM_COL32 does");
 
-void DrawHitboxOverlay(const training::BoxView& view, const HitboxParts& parts) {
+void DrawHitboxOverlay(const training::BoxView& view, const HitboxOverlayParts& parts) {
     if (!view.valid) return;
     const auto* vp = ImGui::GetMainViewport();
     auto* draw = ImGui::GetBackgroundDrawList();
