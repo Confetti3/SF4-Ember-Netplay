@@ -455,6 +455,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     int pictureMode = 0;  // --picture 0|1|2: the watched game's picture Small, Big or Off
     std::string hidePanes;  // --hide members|chat|both: the room board's panels hidden
     int hud = -1;
+    bool watching = false, faint = false;  // --hud with --watching: a spectator's HUD; --faint: an unsettled class
     bool trainingPanel = false, update = false, publicLab = false, rankings = false, playback = false, caption = false, toasts = false, levels = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
     // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
@@ -481,6 +482,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--points" && more) points = args[++i];
         else if (args[i] == "--playback") playback = true;
         else if (args[i] == "--caption") caption = true;
+        else if (args[i] == "--watching") watching = true;
+        else if (args[i] == "--faint") faint = true;
         else if (args[i] == "--screen" && more) screen = args[++i];
         else if (args[i] == "--update") update = true;
         else if (args[i] == "--recovery" && more) recovery = args[++i];
@@ -700,8 +703,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         } else if (caption) {
             // An export's caption, as a replay video carries it.
             ui::ExportCaptionView shown;
-            shown.names[0] = "FRaccie"; shown.names[1] = "Akira"; shown.line = "Ultra Street Fighter IV - Ember Netplay";
-            shown.badges[0] = SkillBadge::OfClass(7, true); shown.badges[1] = SkillBadge::OfClass(7, true); shown.mark = true;
+            shown.names[0] = "Player 1"; shown.names[1] = "Player 2"; shown.line = "Ultra Street Fighter IV - Ember Netplay";
+            shown.badges[0] = SkillBadge::OfClass(7, true); shown.badges[1] = SkillBadge::OfClass(8, true); shown.mark = true;
             ui::DrawExportCaption(shown);
             // After the caption: a window that never comes to the front is put behind those made before it.
             DrawLabBackdrop();
@@ -711,11 +714,14 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             // A fight's HUD: the art stands in for the game behind it.
             DrawLabBackdrop();
             ui::MatchStripView strip;
-            strip.names[0] = "FRaccie"; strip.names[1] = "Akira";
+            strip.names[0] = "Player 1"; strip.names[1] = "Player 2";
             strip.links[0] = NetworkLink::Wired; strip.links[1] = NetworkLink::Wireless;
-            // Their classes as a public room shows them: B+, and Master not played lately (faint).
-            strip.badges[0] = SkillBadge::OfClass(6, true); strip.badges[1] = SkillBadge::OfClass(9, false);
+            // Their classes as a public room shows them, A and A+ as --caption draws them; --faint: the
+            // second Master, not played lately.
+            strip.badges[0] = SkillBadge::OfClass(7, true); strip.badges[1] = faint ? SkillBadge::OfClass(9, false) : SkillBadge::OfClass(8, true);
             strip.pingMs = 96; strip.rollbackFrames = 2; strip.appliedDelay = 2; strip.layout = hud; strip.spectators = 3; strip.score = "2 - 1";
+            // --watching: the same game as a spectator sees it, behind the stream and next in the queue.
+            if (watching) { strip.spectator = true; strip.behindFrames = 12; strip.queuePosition = 1; strip.queueLength = 2; }
             ui::DrawMatchStrip(strip);
             if (toasts) shell.Background(view, view.room, submit);
         } else {
