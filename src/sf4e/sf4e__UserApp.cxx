@@ -260,9 +260,11 @@ static RuntimeGgpoStart StartRuntimeGgpo(const char*& failure) {
         if (!netplay->spectating && table && table->id == sf4e::room::TournamentTable && room.tournament.Active() &&
             published->tournament.matchId == room.tournament.matchId)
             set = {published->tournament.bridgeId, room.tournament.matchId, room.tournament.bindingRevision};
+        // The classes the HUD shows go with the names, so the replay shows them too.
+        const sf4e::SkillBadge classes[2] = {netplay->matchSides[0].badge, netplay->matchSides[1].badge};
         sf4e::platform::replays::NoteMatchStart(netplay->matchSides[0].name, netplay->matchSides[1].name, netplay->spectating,
             netplay->client._matchData.chara[0].charaID, netplay->client._matchData.chara[1].charaID,
-            recordingEnabled, set);
+            recordingEnabled, set, classes);
     }
     sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
     sf4e::NetplayFacade::ResetGgpoBattleWatch();

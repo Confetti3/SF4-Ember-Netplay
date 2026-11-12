@@ -3,6 +3,7 @@
 #include "ReplayFileSafety.hxx"
 #include "Sha256.hxx"
 #include "LocalTime.hxx"
+#include "SkillBadge.hxx"
 #include <algorithm>
 #include <cstdio>
 #include <ctime>
@@ -20,7 +21,11 @@ struct SetTag {
 // says. Unknown is every replay without one: none written yet, unreadable, or
 // a game put back and saved again. Only a Played game is ever shared.
 enum class Provenance { Unknown, Played, Spectated };
-struct ReplayNames { std::string players[2]; Provenance provenance = Provenance::Unknown; SetTag set; };
+// classes: each side's public room class as the HUD showed it when the match
+// started (none outside a public room, with class emblems hidden, or for a
+// mark that is not a class). Kept in a note of its own beside the names note
+// (BindClasses), which builds before it never read.
+struct ReplayNames { std::string players[2]; Provenance provenance = Provenance::Unknown; SetTag set; SkillBadge classes[2]; };
 struct RecordedSlot { replayslots::Bytes body, checksum; };
 
 // Native metadata has no verified Ember session/player identity. At the
@@ -89,11 +94,61 @@ inline std::filesystem::path NamesPath(const std::filesystem::path& archive, con
  std::snprintf(key, sizeof key, "%08x-%u.names", replayslots::Crc32(body.data(), body.size()), static_cast<unsigned>(body.size()));
  return archive / ".names" / key;
 }
+// EMBRCLS1: magic, body size, the body's SHA-256 (64 lowercase hex
+// characters), then each side's band (0 for none, 1 to SkillBadge::Classes)
+// and settled (0 or 1; 0 for no band): 80 bytes. Bound to one body as a names
+// note is, by its digest, so a replay's classes cost a few bytes. A file of
+// its own beside the names note, which keeps the form every older build
+// reads. A note with no class is never written.
+constexpr std::size_t kClassesBytes = 80;
+inline bool AnyClass(const SkillBadge (&classes)[2]) { return classes[0].HasClass() || classes[1].HasClass(); }
+inline std::string BodyDigest(const replayslots::Bytes& body) {
+ return Sha256Portable(std::string(reinterpret_cast<const char*>(body.data()), body.size()));
+}
+inline replayslots::Bytes BindClasses(const replayslots::Bytes& body, const SkillBadge (&classes)[2]) {
+ if (body.size() > replayslots::kLargestReplay || !AnyClass(classes)) return {};
+ for (const auto& badge : classes) if (badge.Present() && (!badge.HasClass() || !badge.Valid())) return {};
+ const auto digest = BodyDigest(body);
+ if (digest.size() != 64) return {};
+ replayslots::Bytes out{'E','M','B','R','C','L','S','1'};
+ out.resize(kClassesBytes);
+ replayslots::WriteU32(out.data()+8, static_cast<std::uint32_t>(body.size()));
+ std::memcpy(out.data()+12, digest.data(), 64);
+ for (int side = 0; side < 2; ++side) { out[76+side*2] = classes[side].band; out[77+side*2] = classes[side].settled ? 1 : 0; }
+ return out;
+}
+// The classes a note binds to `body`; false, with `out` left alone, for any
+// other note, another body, a band that is not a class or no class at all.
+inline bool ClassesForBody(const replayslots::Bytes& note, const replayslots::Bytes& body, SkillBadge (&out)[2]) {
+ if (note.size() != kClassesBytes || std::memcmp(note.data(), "EMBRCLS1", 8) || replayslots::ReadU32(note.data()+8) != body.size() ||
+  body.size() > replayslots::kLargestReplay) return false;
+ SkillBadge read[2];
+ for (int side = 0; side < 2; ++side) {
+  const std::uint8_t band = note[76+side*2], settled = note[77+side*2];
+  if (band > SkillBadge::Classes || settled > 1 || (!band && settled)) return false;
+  if (band) read[side] = SkillBadge::OfClass(band, settled != 0);
+ }
+ if (!AnyClass(read) || BodyDigest(body) != std::string(reinterpret_cast<const char*>(note.data()+12), 64)) return false;
+ out[0] = read[0]; out[1] = read[1];
+ return true;
+}
+inline std::filesystem::path ClassesPath(const std::filesystem::path& archive, const replayslots::Bytes& body) {
+ auto path = NamesPath(archive, body);
+ path.replace_extension(L".classes");
+ return path;
+}
+// Fills `names.classes` from the body's classes note, when it has a good one.
+inline void ReadBodyClasses(const std::filesystem::path& archive, const replayslots::Bytes& body, ReplayNames& names) {
+ if (archive.empty()) return;
+ auto note = ReadFile(ClassesPath(archive, body), kClassesBytes);
+ if (note) ClassesForBody(*note, body, names.classes);
+}
 inline ReplayNames ReadBodyNames(const std::filesystem::path& archive, const replayslots::Bytes& body) {
  ReplayNames names;
  if (archive.empty()) return names;
  auto note = ReadFile(NamesPath(archive, body), kMostNamesBytes);
  if (note) NamesForBody(*note, body, names);
+ ReadBodyClasses(archive, body, names);
  return names;
 }
 // A replay's name among Ember's files that stand for it (the outbox's): the

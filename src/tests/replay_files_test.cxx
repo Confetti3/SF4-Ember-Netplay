@@ -1,6 +1,7 @@
 #include "replay_slots_support.hxx"
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplayProvenance.hxx"
+#include "../common/ReplayRequest.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/ReplaySetPack.hxx"
 #include "../platform/ReplayNotes.hxx"
@@ -218,6 +219,69 @@ static void TestBodyBoundProvenance() {
  for (char c : std::string("AnnBob")) v1.push_back(static_cast<std::uint8_t>(c));
  CHECK(files::NamesForBody(v1, body, read) && read.players[0] == "Ann" && read.players[1] == "Bob" && read.provenance == files::Provenance::Spectated && !read.set.Tagged() && read.set.revision == 0);
  v1[7] = '3'; CHECK(!files::NamesForBody(v1, body, read));
+}
+// A replay's classes (the HUD's when its match started) are a note of their
+// own, bound to the body by its digest, so the names note stays the form older
+// builds read and a replay without one plays as before. Watch draws them on the
+// names' plates only when a side has both a name and a class to show.
+static void TestReplayClassesNote() {
+ namespace fs = std::filesystem;
+ namespace files = sf4e::replayfiles;
+ using sf4e::SkillBadge;
+ const Bytes body = Replay(2, 800), other = SameCrcDifferentBody(body);
+ files::ReplayNames names{{"Player 1", "Player 2"}, files::Provenance::Played};
+ const Bytes plain = files::BindNames(body, names);
+ names.classes[0] = SkillBadge::OfClass(7, true); names.classes[1] = SkillBadge::OfClass(8, false);
+ CHECK(files::BindNames(body, names) == plain);
+ const Bytes note = files::BindClasses(body, names.classes);
+ CHECK(note.size() == files::kClassesBytes && !std::memcmp(note.data(), "EMBRCLS1", 8));
+ SkillBadge read[2];
+ CHECK(files::ClassesForBody(note, body, read) && read[0] == SkillBadge::OfClass(7, true) && read[1] == SkillBadge::OfClass(8, false));
+ // Another body (even one with the same CRC and size), a cut or bent note: none.
+ SkillBadge kept[2] = {SkillBadge::OfClass(1, true), SkillBadge()};
+ CHECK(!files::ClassesForBody(note, other, kept) && kept[0] == SkillBadge::OfClass(1, true));
+ CHECK(!files::ClassesForBody(Bytes(note.begin(), note.end() - 1), body, kept));
+ const std::pair<std::size_t, std::uint8_t> bents[] = {{7, '2'}, {76, 11}, {79, 2}};
+ for (const auto& bent : bents) {
+  Bytes damaged = note; damaged[bent.first] = bent.second;
+  CHECK(!files::ClassesForBody(damaged, body, kept));
+ }
+ Bytes noBand = note; noBand[76] = 0; CHECK(!files::ClassesForBody(noBand, body, kept)); // settled without a band
+ noBand[77] = 0; CHECK(files::ClassesForBody(noBand, body, read) && !read[0].Present() && read[1].band == 8);
+ // Only classes are kept: none, "?" and the developer mark write nothing.
+ const SkillBadge none[2] = {}, marks[2] = {SkillBadge::Placing(), SkillBadge::Developer()};
+ CHECK(files::BindClasses(body, none).empty() && files::BindClasses(body, marks).empty());
+ // On disk: the names and the classes notes read together; a replay with no classes note has none.
+ const auto archive = fs::temp_directory_path() / ("ember-classes-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+ CHECK(fs::create_directories(archive / ".names"));
+ const auto save = [](const fs::path& path, const Bytes& bytes) { std::ofstream file(path, std::ios::binary); file.write(reinterpret_cast<const char*>(bytes.data()), bytes.size()); CHECK(file.good()); };
+ save(files::NamesPath(archive, body), plain);
+ auto listed = files::ReadBodyNames(archive, body);
+ CHECK(listed.players[0] == "Player 1" && !listed.classes[0].Present() && !listed.classes[1].Present());
+ CHECK(files::ClassesPath(archive, body).parent_path() == files::NamesPath(archive, body).parent_path() &&
+  files::ClassesPath(archive, body).extension() == L".classes");
+ save(files::ClassesPath(archive, body), files::BindClasses(other, names.classes));
+ listed = files::ReadBodyNames(archive, body);
+ CHECK(listed.players[1] == "Player 2" && !listed.classes[0].Present());
+ save(files::ClassesPath(archive, body), note);
+ listed = files::ReadBodyNames(archive, body);
+ CHECK(listed.players[1] == "Player 2" && listed.classes[0].band == 7 && listed.classes[1].band == 8 && !listed.classes[1].settled);
+ fs::remove_all(archive);
+ // What Watch draws: both names with the classes noted, while class emblems show.
+ const std::string named[2] = {"Player 1", "Player 2"}, oneName[2] = {"", "Player 2"};
+ auto caption = sf4e::replay::WatchCaption(named, names.classes, true);
+ CHECK(caption.names && caption.name[0] == "Player 1" && caption.name[1] == "Player 2" && caption.band[0] == 7 && caption.band[1] == 8 &&
+  !caption.line && !caption.set && !caption.mark);
+ CHECK(!sf4e::replay::WatchCaption(named, names.classes, false).Any());
+ CHECK(!sf4e::replay::WatchCaption(named, none, true).Any() && !sf4e::replay::WatchCaption(named, marks, true).Any());
+ const SkillBadge firstOnly[2] = {SkillBadge::OfClass(7, true), SkillBadge()};
+ CHECK(!sf4e::replay::WatchCaption(oneName, firstOnly, true).Any());
+ caption = sf4e::replay::WatchCaption(named, firstOnly, true);
+ CHECK(caption.names && caption.band[0] == 7 && caption.band[1] == 0);
+ // An export starts from them too, and drops them with class emblems hidden.
+ sf4e::replay::Caption exported; exported.names = true;
+ sf4e::replay::SetCaptionClasses(exported, names.classes, true); CHECK(exported.band[0] == 7 && exported.band[1] == 8);
+ sf4e::replay::SetCaptionClasses(exported, names.classes, false); CHECK(exported.band[0] == 0 && exported.band[1] == 0 && exported.names);
 }
 static void TestNamesPublicationRefusesExistingTargets() {
  namespace fs = std::filesystem;
@@ -839,6 +903,7 @@ int main() {
  TestPruningCoversSubfolders();
  TestNameTakenOut();
  TestNamesPublicationRefusesExistingTargets();
+ TestReplayClassesNote();
  TestImportWriteRecovery();
  TestVerifiedArchiveAndSnapshots();
  TestBodyBoundProvenance();

@@ -65,7 +65,7 @@ slots::Bytes LoadFile(const fs::path& path, std::size_t most = replayfiles::kMos
 void ReadNames(const fs::path& archive, const slots::Bytes& body, ArchivedReplay& replay) {
  const auto names = replayfiles::ReadBodyNames(archive, body);
  replay.names[0] = names.players[0]; replay.names[1] = names.players[1]; replay.provenance = names.provenance;
- replay.set = names.set;
+ replay.set = names.set; replay.classes[0] = names.classes[0]; replay.classes[1] = names.classes[1];
 }
 std::atomic<replayfiles::RecordingWorker*> provenanceWorker{nullptr};
 std::atomic<replayfiles::ArchiveWorker*> archiveWorker{nullptr};
@@ -96,13 +96,24 @@ replayfiles::RecordingSnapshot RecordingSlots() {
  }
  return snapshot;
 }
+// The names note, then the classes note when the match had a class: written
+// once the names are bound to the body, create-only, and never retried, since
+// a replay without its classes still plays with its names.
 replayfiles::NamePublication PublishNames(const fs::path& archive, const slots::Bytes& body, const replayfiles::ReplayNames& names) {
  const auto path = replayfiles::NamesPath(archive, body);
- return replayfiles::PublishBodyNames(path, body, names, [&](const slots::Bytes& bytes) {
+ const auto published = replayfiles::PublishBodyNames(path, body, names, [&](const slots::Bytes& bytes) {
   std::error_code error;
   fs::create_directories(path.parent_path(), error);
   return !error && PublishFile(path, bytes);
  });
+ if (published == replayfiles::NamePublication::Published && replayfiles::AnyClass(names.classes)) {
+  const auto note = replayfiles::BindClasses(body, names.classes);
+  std::error_code exists;
+  const auto classes = replayfiles::ClassesPath(archive, body);
+  if (!note.empty() && !fs::exists(classes, exists) && !exists && !PublishFile(classes, note))
+   spdlog::warn("Replays: a replay's classes were not kept");
+ }
+ return published;
 }
 replayfiles::RecordingWorker& Provenance() {
  // Explicit shutdown joins this owner outside the loader lock, as it does
@@ -485,7 +496,7 @@ void PostStart(replayfiles::RecordingBoundary event) {
 }
 }
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
- const replayfiles::SetTag& set) {
+ const replayfiles::SetTag& set, const SkillBadge (&classes)[2]) {
  try { Archiver().Want(); } catch (...) {}
  try {
   BattleStart().reset();
@@ -494,6 +505,7 @@ void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectatin
   event.kind = replayfiles::RecordingBoundary::Kind::Start;
   event.recordingEnabled = recordingEnabled;
   event.names = {{p1, p2}, spectating ? replayfiles::Provenance::Spectated : replayfiles::Provenance::Played, set}; event.fighters[0] = fighter1; event.fighters[1] = fighter2;
+  for (int side = 0; side < 2; ++side) if (classes[side].HasClass() && classes[side].Valid()) event.names.classes[side] = classes[side];
   BattleStart() = event;
   PostStart(std::move(event));
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }

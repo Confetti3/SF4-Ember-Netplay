@@ -113,8 +113,12 @@ ImportResult CommitImport(const ImportTransaction& prepared, const Writer& write
 // A battle the game does not save (the opponent left) passes the replay the
 // recorder holds, or nothing: the next archive pass puts it in the archive,
 // and the names bind to it.
+// No class for either side.
+inline const SkillBadge NoClasses[2] = {};
+// `classes` are the sides' classes as the match HUD shows them (MatchSide::badge);
+// only a class is kept, never "?" or the developer mark.
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
-	const replayfiles::SetTag& set = {});
+	const replayfiles::SetTag& set = {}, const SkillBadge (&classes)[2] = NoClasses);
 void NoteMatchEnd(bool confirmed, replayslots::Bytes unsaved);
 // An in-place rematch: the game before it ended with a confirmed result, and
 // the next starts in the same battle with the same players, fighters and set.
@@ -159,6 +163,9 @@ struct ArchivedReplay {
 	std::uint64_t time = 0;
 	int fighters[2] = {-1, -1};
 	std::string names[2];
+	// Each side's public room class when the match was played, as this PC's
+	// HUD showed it (ReplayNames::classes); none when it noted none.
+	SkillBadge classes[2];
 	replayfiles::Provenance provenance = replayfiles::Provenance::Unknown;
 	bool watched = false, sent = false, setClosed = false, kept = false;
 	// The tournament set it was a game of, or none.
