@@ -295,8 +295,9 @@
     document.getElementById('title').textContent = found.title;
     // A match's bridge names its game, which decides which Ember Open starts:
     // until it answers, or the wait ends, the page offers nothing to open.
-    if (found.match && askable(found)) lookUp(found, path);
+    if (found.match && askable(found)) lookUp(found, path, '/link/' + found.bridge + '/' + found.match);
     else if (found.room && window.fetch && found.bridge === PRODUCTION_BRIDGE) roomLookUp(found, path);
+    else if ((found.match || found.room) && window.fetch && found.bridge !== STAGING_BRIDGE) sfvBridgeLookUp(found, path);
     else draw(found, path)();
   }
 
@@ -358,7 +359,8 @@
     };
   }
 
-  // Only Ember's own two bridges are asked: nginx on this site reaches no other.
+  // Only SF4 Ember's two bridges are asked here (SFV Ember's through
+  // sfvBridgeLookUp): nginx on this site reaches no other.
   function askable(found) {
     return !!window.fetch && (found.bridge === PRODUCTION_BRIDGE || found.bridge === STAGING_BRIDGE);
   }
@@ -390,7 +392,31 @@
       }, function () { settle(false); });
   }
 
-  function lookUp(found, path) {
+  // A room or match on another bridge than SF4 Ember's two: SFV Ember's own
+  // bridge (docs/design/SFV_BRIDGE.md) has every room and match on it SFV's.
+  // Its ID is not built into this page; /rooms-sfv.json, the site's cached
+  // proxy of that bridge's listing, names it (bridge_id). A match on it then
+  // asks /link-sfv/MATCH whether it is over. Any other bridge, no answer within
+  // OVER_WAIT_MS, or any failure draws the page as before, for SF4 Ember.
+  function sfvBridgeLookUp(found, path) {
+    var drawn = false;
+    function settle(sfv) {
+      if (drawn || current !== found) return;
+      drawn = true;
+      clearTimeout(timer);
+      if (!sfv) draw(found, path)();
+      else if (found.room) { asSfvRoom(found); draw(found, path)(); }
+      else { asSfv(found); lookUp(found, path, '/link-sfv/' + found.match); }
+    }
+    var timer = setTimeout(function () { settle(false); }, OVER_WAIT_MS);
+    fetch('/rooms-sfv.json', { cache: 'no-store', credentials: 'omit' })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (body) {
+        settle(!!body && typeof body.bridge_id === 'string' && body.bridge_id === found.bridge);
+      }, function () { settle(false); });
+  }
+
+  function lookUp(found, path, url) {
     var drawn = false;
     function settle(body) {
       if (drawn || current !== found) return;
@@ -402,7 +428,7 @@
       else proceed();
     }
     var timer = setTimeout(function () { settle(null); }, OVER_WAIT_MS);
-    fetch('/link/' + found.bridge + '/' + found.match, { cache: 'no-store', credentials: 'omit' })
+    fetch(url, { cache: 'no-store', credentials: 'omit' })
       .then(function (response) { return response.ok ? response.json() : null; })
       .then(function (body) {
         if (current !== found) return;

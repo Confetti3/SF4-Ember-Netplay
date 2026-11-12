@@ -39,7 +39,8 @@ public:
     // Ember's own tournament service, the one most players trust.
     // Ember's own service, whose sign-in sites Linked accounts shows. A test
     // build may name another (CMake SF4E_EMBER_SERVICE), such as the
-    // tournament desk's nightly bridge.
+    // tournament desk's nightly bridge; SFV Ember's build names its own
+    // bridge (cmake/ember-x64-probe EMBER_SERVICE).
     static constexpr const char* EmberService = SF4E_EMBER_SERVICE;
     static bool Owns(const std::string& screen);
     // Why a tournament match stopped, from its stable code, in words.

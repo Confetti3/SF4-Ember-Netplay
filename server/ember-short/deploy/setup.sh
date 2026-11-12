@@ -22,7 +22,9 @@
 #                                               rooms, rankings and 404 pages, the /rooms.json and
 #                                               /rankings.json proxies to the Ember bridge
 #                                               (127.0.0.1:47820), the /link/ proxies to it and
-#                                               to the staging bridge (127.0.0.1:47821) and
+#                                               to the staging bridge (127.0.0.1:47821), the
+#                                               /rooms-sfv.json, /rankings-sfv.json and /link-sfv/
+#                                               proxies to SFV Ember's bridge (127.0.0.1:47822) and
 #                                               /assets/, without access logs
 #   /etc/nginx/snippets/ember-short-headers.conf  HSTS, nosniff and no-referrer, which the server
 #                                               and each of those locations include
@@ -159,7 +161,7 @@ for attempt in 1 2 3 4 5; do
 done
 echo "service: $(curl -fsS http://127.0.0.1:47810/s/health || echo 'no answer')"
 echo "public:  $(curl -fsS --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/s/health || echo 'no answer')"
-for page in '' rooms rooms.json rooms.html rankings rankings.json rankings-sfv.json rankings.html assets/rankings.js assets/og.jpg j j/K7QM-4XRT-9PZD v v/K7QM-4XRT-9PZD m r start open.html assets/site.css assets/fonts/inter-latin-400.woff2 \
+for page in '' rooms rooms.json rooms-sfv.json rooms.html rankings rankings.json rankings-sfv.json rankings.html assets/rankings.js assets/og.jpg j j/K7QM-4XRT-9PZD v v/K7QM-4XRT-9PZD m r start open.html assets/site.css assets/fonts/inter-latin-400.woff2 \
     assets/ember-background.webp no-such-page; do
     echo "/$page:  $(curl -sS -o /dev/null -w '%{http_code} %{content_type}' --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/$page)"
 done

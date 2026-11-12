@@ -5,6 +5,9 @@
 #       production, https://bridge.embernetplay.link (tenants.json)
 #   sudo bash ~/ember-bridge-staging/setup.sh
 #       staging, https://bridge-staging.embernetplay.link (tenants.staging.json)
+#   sudo bash ~/ember-bridge-sfv/setup.sh
+#       SFV Ember's own, https://sfv-bridge.embernetplay.link (tenants.sfv.json;
+#       server/sfv-bridge/upgrade.sh stages and installs it)
 #
 # Expects, next to this script: bin/ember-bridge, the unit and site templates
 # (*.in), instance.sh, backup.sh, restore.sh, the instance's tenants file and
