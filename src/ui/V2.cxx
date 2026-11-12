@@ -604,11 +604,12 @@ namespace {
 float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) {
     const auto& c = Colors();
     const float s = Scale(), pad = 20 * s, tile = 96 * s, line = 34 * s, nameSize = 26 * s;
-    // The points lines (22 px digits, 20 at 720p) stand under the about line, which the band grows to hold.
-    const float digits = (ImGui::GetIO().DisplaySize.y / s <= 720 ? 20 : 22) * s, pointsGap = 4 * s;
-    const float lines = tag.points.shown ? 6 * s + 2 * digits + pointsGap : 0;
-    const float aboutBottom = 18 * s + line + 8 * s + (tag.title.empty() ? 0 : line + 8 * s) + 20 * s;
-    const float band = (std::max)(tile + 36 * s, aboutBottom + lines + 18 * s);
+    // The points lines (22 px digits, 20 at 720p) stand under the about line,
+    // or under the name and title when there is none, and the band grows to hold them.
+    const float digits = (ImGui::GetIO().DisplaySize.y / s <= 720 ? 20 : 22) * s, pointsGap = 4 * s, aboutRow = tag.about.empty() ? 0 : 26 * s;
+    const float lines = tag.points.shown ? 2 * digits + pointsGap : 0;
+    const float textBottom = 18 * s + line + 8 * s + (tag.title.empty() ? 0 : line + 8 * s) + aboutRow;
+    const float band = (std::max)(tile + 36 * s, textBottom + lines + 18 * s);
     const std::size_t count = tag.facts.size(), across = width < 640 * s && count > 2 ? (count + 1) / 2 : count;
     const float height = band + FactCellsHeight(width, tag.facts, across);
     draw->AddRectFilled(at, ImVec2(at.x + width, at.y + height), color::Alpha(c.panel, .94f), 4 * s);
@@ -635,8 +636,8 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
         TitlePlate(draw, ImVec2(x, y), room, line, tag.title, tag.tier);
         y += line + 8 * s;
     }
-    draw->AddText(ImGui::GetFont(), 14 * s, ImVec2(x, y), c.muted, Fit(tag.about, room, 14 * s).c_str());
-    if (tag.points.shown) LevelLines(draw, ImVec2(x, y + 26 * s), digits, pointsGap, tag.points.fighter, tag.points.account);
+    if (!tag.about.empty()) draw->AddText(ImGui::GetFont(), 14 * s, ImVec2(x, y), c.muted, Fit(tag.about, room, 14 * s).c_str());
+    if (tag.points.shown) LevelLines(draw, ImVec2(x, y + aboutRow), digits, pointsGap, tag.points.fighter, tag.points.account);
     FactCells(draw, ImVec2(at.x, at.y + band), width, tag.facts, across);
     draw->AddRect(at, ImVec2(at.x + width, at.y + height), c.border, 4 * s, 0, s);
     return height;
