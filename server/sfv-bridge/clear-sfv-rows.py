@@ -2,16 +2,21 @@
 # SFV Ember's rows out of SF4 Ember's production database, for the SF4 1.6.0
 # deploy (docs/design/SFV_BRIDGE.md, "SF4's database"). Not part of
 # upgrade.sh: SF4's side runs it, once, with SF4's bridge stopped, after a
-# backup and after SFV's bridge imported its ratings (upgrade.sh import):
+# backup and after SFV's bridge imported its ratings, right before SF4 1.6.0's
+# bridge goes in (that bridge refuses to start while any row of another game
+# than usf4 is left):
 #
-#   sudo systemctl start ember-bridge-backup.service
+#   sudo bash ~/ember-sfv-bridge/upgrade.sh import
 #   sudo systemctl stop ember-bridge
+#   sudo systemctl start ember-bridge-backup.service
 #   sudo -u ember-bridge python3 -I clear-sfv-rows.py /var/lib/ember-bridge/bridge.sqlite3
+#   (install SF4 1.6.0's bridge and start it)
 #
 # The schema stays (057-059 included). It deletes SFV's public rooms with their
 # bans and rated games, and SFV's ratings, sittings and ranking choices, in one
 # transaction, and commits only when no row of another game than usf4 is left
-# in those tables and the foreign keys check clean. It deletes nothing when SFV
+# in rooms, matches, lobbies, tournaments and the three rating tables, and the
+# foreign keys check clean. It deletes nothing when SFV
 # owns an organised match, lobby or tournament, or a room a connection made:
 # those have child rows without a cascade and need a look first.
 import sqlite3, sys
@@ -36,7 +41,9 @@ for sql in (
     "DELETE FROM ranking_choices WHERE game = 'sfv'",
 ):
     print(f"{db.execute(sql).rowcount:6} {sql}")
-left = db.execute("SELECT (SELECT COUNT(*) FROM rooms WHERE game <> 'usf4') + (SELECT COUNT(*) FROM skill_ratings WHERE game <> 'usf4') + (SELECT COUNT(*) FROM rated_pairs WHERE game <> 'usf4') + (SELECT COUNT(*) FROM ranking_choices WHERE game <> 'usf4')").fetchone()[0]
+# The same tables SF4 1.6.0's bridge checks before it starts.
+left = sum(db.execute(f"SELECT COUNT(*) FROM {t} WHERE game <> 'usf4'").fetchone()[0] for t in (
+    "rooms", "matches", "lobbies", "tournaments", "skill_ratings", "rated_pairs", "ranking_choices"))
 keys = db.execute("PRAGMA foreign_key_check").fetchall()
 if left or keys:
     db.execute("ROLLBACK")

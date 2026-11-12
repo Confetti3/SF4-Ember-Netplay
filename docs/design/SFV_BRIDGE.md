@@ -281,9 +281,35 @@ are adopted, an unnamed 060 or above is refused.
 SF4's bridge would list an SFV room still in the database. That is why the
 clearing below runs at the same switch as the 1.6.0 bridge install.
 
-**SFV's rows leave** with `server/sfv-bridge/clear-sfv-rows.py`, run once by
-SF4's side with SF4's bridge stopped, after a backup and after this plan's
-`import`:
+SF4 1.6.0's bridge (nightly 7aedc8b6a) refuses to start on a database that
+still holds a row with `game <> 'usf4'` in `rooms`, `matches`, `lobbies`,
+`tournaments`, `skill_ratings`, `rated_pairs` or `ranking_choices`; the error
+names the tables and says to run `clear-sfv-rows.py` first. It adopts the
+unnamed 057-059 records only when the schema shows them (`rooms.game`, `game`
+in `skill_ratings`' primary key, `matches.game`).
+
+**The switch, in this order** (production; staging runs steps 2-5 the same
+way with `ember-bridge-staging`, `ember-bridge-staging-backup.service` and
+`/var/lib/ember-bridge-staging/bridge.sqlite3`; step 1 imports from production
+only, and staging's SFV test rows are not kept):
+
+1. `sudo bash ~/ember-sfv-bridge/upgrade.sh import`: SFV's ratings into SFV's
+   bridge (it reads SF4's database through a read-only snapshot). It must come
+   first: after step 4 there is nothing left to import.
+2. `sudo systemctl stop ember-bridge`.
+3. `sudo systemctl start ember-bridge-backup.service`: a backup taken with the
+   bridge stopped, so it holds every last write (`backup.sh` reads the file
+   read-only and needs no running bridge).
+4. `sudo -u ember-bridge python3 -I clear-sfv-rows.py
+   /var/lib/ember-bridge/bridge.sqlite3`. If it stops ("nothing deleted"),
+   do not go on: start the old bridge again and look at what it names.
+5. Install SF4 1.6.0's bridge and start it.
+
+Undo before step 5: restore step 3's backup and start the old bridge. Old SFV
+betas that played between steps 1 and 2 lose those ranked games on both sides;
+keep the gap short.
+
+**SFV's rows leave** with `server/sfv-bridge/clear-sfv-rows.py` (step 4):
 
 - `rooms` where `game = 'sfv'`, with their `room_bans` and `rated_games`
   (only `rated_games` cascades);
