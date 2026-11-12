@@ -493,7 +493,6 @@ private:
     PostMatchModel BuildPostMatch(const ShellView& view) const;
     // Opens, times out and ends the prompt; open is null while Ember is hidden.
     void UpdatePostMatch(const ShellView& view, const room::Snapshot& room, double now, const Submit& submit, bool* open);
-
     void ClosePostMatch(const ShellView& view, AfterPostMatch after, bool* open);
     void DrawPostMatch(const ShellView& view, const PostMatchFrame& frame, double now, const Submit& submit, bool* open);
     int lockedInTable_=-1;

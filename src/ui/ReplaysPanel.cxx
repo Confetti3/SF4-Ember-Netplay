@@ -9,6 +9,7 @@
 #include "V2.hxx"
 #include "../platform/Utf8.hxx"
 #include "../common/ReplayLink.hxx"
+#include "../common/WatchCaption.hxx"
 #include <algorithm>
 #include <optional>
 

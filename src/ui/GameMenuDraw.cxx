@@ -467,8 +467,8 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
         // the first there, where a new line would take it back to the left column.
         if (i == half && halves) { ImGui::SetCursorScreenPos(top); ImGui::Indent(full + gap); }
         const auto& e = entries[i];
-        // Home's "card" row is the player's card in the pane.
-        if (home && split && e.id == "card") continue;
+        // Home's aside row (the player's card) is drawn in the pane.
+        if (home && split && e.id == navigation.Aside()) continue;
         const bool focused = e.id == navigation.Focus(), enabled = feedback_.Enabled(e), cell = i < cells;
         if (cell && i % f.columns) ImGui::SameLine(0, gap);
         // A group's heading over its first card.

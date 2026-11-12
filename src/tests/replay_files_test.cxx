@@ -2,6 +2,7 @@
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplayProvenance.hxx"
 #include "../common/ReplayRequest.hxx"
+#include "../common/WatchCaption.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/ReplaySetPack.hxx"
 #include "../platform/ReplayNotes.hxx"

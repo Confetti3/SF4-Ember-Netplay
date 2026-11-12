@@ -317,7 +317,7 @@ bool Unpack(const std::string& emz, std::string& ems) {
     std::memcpy(&size, emz.data() + 8, 4); std::memcpy(&offset, emz.data() + 12, 4);
     if (offset < 16 || offset > emz.size() || size > (64u << 20)) return false;
     std::vector<unsigned char> body;
-    if (!zinflate::InflateBounded(reinterpret_cast<const unsigned char*>(emz.data()) + offset, emz.size() - offset, zinflate::Format::Raw, 64u << 20, body, size)) return false;
+    if (!zinflate::InflateBounded(reinterpret_cast<const unsigned char*>(emz.data()) + offset, emz.size() - offset, zinflate::Format::Raw, size, body, size)) return false;
     ems.assign(reinterpret_cast<const char*>(body.data()), body.size());
     return true;
 }

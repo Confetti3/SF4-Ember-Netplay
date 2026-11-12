@@ -102,7 +102,7 @@ std::vector<unsigned char> ReadImage(const std::wstring& path, bool& opened, con
         // The archive kept goes before another is expanded in its place.
         if (named) archive = {};
         std::vector<unsigned char> expanded;
-        if (!zinflate::InflateBounded(bytes.data() + start, bytes.size() - start, zinflate::Format::Raw, MaximumFileBytes, expanded, size)) return {};
+        if (!zinflate::InflateBounded(bytes.data() + start, bytes.size() - start, zinflate::Format::Raw, size, expanded, size)) return {};
         // Asymmetric fighters also have sel_chara_rev.dds for the other side.
         if (!named) return EmbImage(expanded, entry);
         archive.path = path; archive.emb = std::move(expanded);
