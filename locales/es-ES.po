@@ -979,6 +979,27 @@ msgstr "Importar"
 msgid "replays.link_import_detail"
 msgstr "Añade la repetición, o todas las partidas del paquete del set, a Repeticiones."
 
+msgid "replays.import"
+msgstr "Importar repetición"
+
+msgid "replays.import_detail"
+msgstr "Elige repeticiones guardadas o paquetes de set, por ejemplo de Descargas. El selector necesita ratón o teclado. También puedes soltar archivos en la ventana del juego."
+
+msgid "replays.import_fullscreen"
+msgstr "El selector de archivos no se puede abrir en pantalla completa. Pasa el juego a ventana o Borderless e inténtalo de nuevo."
+
+msgid "replays.import_title"
+msgstr "Importar repeticiones"
+
+msgid "replays.import_filter"
+msgstr "Repeticiones y paquetes de set"
+
+msgid "services.picking_replays"
+msgstr "Elige archivos en la ventana que se ha abierto..."
+
+msgid "replays.import_some_failed"
+msgstr "No se han podido importar {0} de {1} archivos."
+
 msgid "replays.set_pack_working"
 msgstr "Guardando el paquete del set..."
 

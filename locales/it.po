@@ -979,6 +979,27 @@ msgstr "Importa"
 msgid "replays.link_import_detail"
 msgstr "Aggiunge il replay, o tutte le partite del pacchetto del set, a Replay."
 
+msgid "replays.import"
+msgstr "Importa replay"
+
+msgid "replays.import_detail"
+msgstr "Scegli replay o pacchetti di set salvati, ad esempio da Download. Il selettore richiede mouse o tastiera. Puoi anche trascinare i file sulla finestra del gioco."
+
+msgid "replays.import_fullscreen"
+msgstr "Il selettore di file non si apre a schermo intero. Passa il gioco a finestra o Borderless e riprova."
+
+msgid "replays.import_title"
+msgstr "Importa replay"
+
+msgid "replays.import_filter"
+msgstr "Replay e pacchetti di set"
+
+msgid "services.picking_replays"
+msgstr "Scegli i file nella finestra aperta..."
+
+msgid "replays.import_some_failed"
+msgstr "Impossibile importare {0} file su {1}."
+
 msgid "replays.set_pack_working"
 msgstr "Salvataggio del pacchetto del set..."
 

@@ -979,6 +979,27 @@ msgstr "导入"
 msgid "replays.link_import_detail"
 msgstr "将此回放，或对局包的所有局，加入回放。"
 
+msgid "replays.import"
+msgstr "导入回放"
+
+msgid "replays.import_detail"
+msgstr "选择已保存的回放或对局包,例如下载文件夹里的。选择文件需要鼠标或键盘。也可以把文件拖到游戏窗口上。"
+
+msgid "replays.import_fullscreen"
+msgstr "全屏时无法打开文件选择窗口。请把游戏切换为窗口或无边框模式后再试。"
+
+msgid "replays.import_title"
+msgstr "导入回放"
+
+msgid "replays.import_filter"
+msgstr "回放和对局包"
+
+msgid "services.picking_replays"
+msgstr "请在弹出的窗口中选择文件..."
+
+msgid "replays.import_some_failed"
+msgstr "{1} 个文件中有 {0} 个无法导入。"
+
 msgid "replays.set_pack_working"
 msgstr "正在保存对局包..."
 

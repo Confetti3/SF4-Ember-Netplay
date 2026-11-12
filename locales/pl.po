@@ -979,6 +979,27 @@ msgstr "Importuj"
 msgid "replays.link_import_detail"
 msgstr "Dodaje powtórkę lub wszystkie gry z paczki setu do Powtórek."
 
+msgid "replays.import"
+msgstr "Importuj powtórkę"
+
+msgid "replays.import_detail"
+msgstr "Wybierz zapisane powtórki lub paczki setów, na przykład z Pobranych. Wybieranie plików wymaga myszy lub klawiatury. Pliki możesz też upuścić na okno gry."
+
+msgid "replays.import_fullscreen"
+msgstr "Okna wyboru plików nie da się otworzyć na pełnym ekranie. Przełącz grę na okno lub Borderless i spróbuj ponownie."
+
+msgid "replays.import_title"
+msgstr "Importuj powtórki"
+
+msgid "replays.import_filter"
+msgstr "Powtórki i paczki setów"
+
+msgid "services.picking_replays"
+msgstr "Wybierz pliki w otwartym oknie..."
+
+msgid "replays.import_some_failed"
+msgstr "Nie udało się zaimportować {0} z {1} plików."
+
 msgid "replays.set_pack_working"
 msgstr "Zapisywanie paczki setu..."
 

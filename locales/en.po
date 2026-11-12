@@ -979,6 +979,27 @@ msgstr "Import"
 msgid "replays.link_import_detail"
 msgstr "Puts the replay, or every game of the set pack, into Replays."
 
+msgid "replays.import"
+msgstr "Import replay"
+
+msgid "replays.import_detail"
+msgstr "Choose saved replays or set packs, such as from Downloads. The picker needs a mouse or keyboard. You can also drop files on the game window."
+
+msgid "replays.import_fullscreen"
+msgstr "The file picker cannot open over full screen. Switch the game to a window or Borderless, then try again."
+
+msgid "replays.import_title"
+msgstr "Import replays"
+
+msgid "replays.import_filter"
+msgstr "Replays and set packs"
+
+msgid "services.picking_replays"
+msgstr "Choose files in the window that opened..."
+
+msgid "replays.import_some_failed"
+msgstr "{0} of {1} files could not be imported."
+
 msgid "replays.set_pack_working"
 msgstr "Saving the set pack..."
 

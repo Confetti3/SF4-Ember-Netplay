@@ -979,6 +979,27 @@ msgstr "Импортировать"
 msgid "replays.link_import_detail"
 msgstr "Добавляет запись или все игры пакета сета в Записи."
 
+msgid "replays.import"
+msgstr "Импорт записи"
+
+msgid "replays.import_detail"
+msgstr "Выберите сохранённые записи или пакеты сетов, например из Загрузок. Для выбора файлов нужна мышь или клавиатура. Файлы можно и перетащить в окно игры."
+
+msgid "replays.import_fullscreen"
+msgstr "В полноэкранном режиме окно выбора файлов не открыть. Переключите игру на оконный режим или Borderless и попробуйте снова."
+
+msgid "replays.import_title"
+msgstr "Импорт записей"
+
+msgid "replays.import_filter"
+msgstr "Записи и пакеты сетов"
+
+msgid "services.picking_replays"
+msgstr "Выберите файлы в открывшемся окне..."
+
+msgid "replays.import_some_failed"
+msgstr "Не удалось импортировать файлов: {0} из {1}."
+
 msgid "replays.set_pack_working"
 msgstr "Сохранение пакета сета..."
 

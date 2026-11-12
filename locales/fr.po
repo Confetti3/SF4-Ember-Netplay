@@ -979,6 +979,27 @@ msgstr "Importer"
 msgid "replays.link_import_detail"
 msgstr "Ajoute le replay, ou toutes les manches du pack de set, à Replays."
 
+msgid "replays.import"
+msgstr "Importer un replay"
+
+msgid "replays.import_detail"
+msgstr "Choisissez des replays ou des packs de set enregistrés, par exemple dans Téléchargements. Le sélecteur demande une souris ou un clavier. Vous pouvez aussi déposer des fichiers sur la fenêtre du jeu."
+
+msgid "replays.import_fullscreen"
+msgstr "Le sélecteur de fichiers ne peut pas s'ouvrir en plein écran. Passez le jeu en fenêtré ou en Borderless, puis réessayez."
+
+msgid "replays.import_title"
+msgstr "Importer des replays"
+
+msgid "replays.import_filter"
+msgstr "Replays et packs de set"
+
+msgid "services.picking_replays"
+msgstr "Choisissez des fichiers dans la fenêtre ouverte..."
+
+msgid "replays.import_some_failed"
+msgstr "{0} fichier(s) sur {1} n'ont pas pu être importés."
+
 msgid "replays.set_pack_working"
 msgstr "Enregistrement du pack du set..."
 

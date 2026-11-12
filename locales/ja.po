@@ -979,6 +979,27 @@ msgstr "読み込む"
 msgid "replays.link_import_detail"
 msgstr "リプレイ、またはセットパックの全試合をリプレイに追加します。"
 
+msgid "replays.import"
+msgstr "リプレイを読み込む"
+
+msgid "replays.import_detail"
+msgstr "保存したリプレイやセットパックを選びます(ダウンロードなど)。ファイル選択はマウスかキーボードで操作します。ゲームのウィンドウにファイルをドロップしても読み込めます。"
+
+msgid "replays.import_fullscreen"
+msgstr "フルスクリーンではファイル選択を開けません。ゲームをウィンドウかボーダーレスに切り替えてからもう一度お試しください。"
+
+msgid "replays.import_title"
+msgstr "リプレイを読み込む"
+
+msgid "replays.import_filter"
+msgstr "リプレイとセットパック"
+
+msgid "services.picking_replays"
+msgstr "開いたウィンドウでファイルを選んでください..."
+
+msgid "replays.import_some_failed"
+msgstr "{1}個中{0}個のファイルを読み込めませんでした。"
+
 msgid "replays.set_pack_working"
 msgstr "セットパックを保存中..."
 

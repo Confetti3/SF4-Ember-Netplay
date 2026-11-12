@@ -979,6 +979,27 @@ msgstr "Importovat"
 msgid "replays.link_import_detail"
 msgstr "Přidá do Záznamů záznam nebo všechny hry z balíčku setu."
 
+msgid "replays.import"
+msgstr "Importovat záznam"
+
+msgid "replays.import_detail"
+msgstr "Vyberte uložené záznamy nebo balíčky setů, třeba ze Stažených souborů. Výběr souborů vyžaduje myš nebo klávesnici. Soubory můžete také přetáhnout do okna hry."
+
+msgid "replays.import_fullscreen"
+msgstr "Výběr souborů nelze otevřít přes celou obrazovku. Přepněte hru do okna nebo na Borderless a zkuste to znovu."
+
+msgid "replays.import_title"
+msgstr "Importovat záznamy"
+
+msgid "replays.import_filter"
+msgstr "Záznamy a balíčky setů"
+
+msgid "services.picking_replays"
+msgstr "Vyberte soubory v okně, které se otevřelo..."
+
+msgid "replays.import_some_failed"
+msgstr "{0} z {1} souborů se nepodařilo importovat."
+
 msgid "replays.set_pack_working"
 msgstr "Ukládám balíček setu..."
 

@@ -979,6 +979,27 @@ msgstr "Importeren"
 msgid "replays.link_import_detail"
 msgstr "Zet de replay, of elke game van het setpakket, in Replays."
 
+msgid "replays.import"
+msgstr "Replay importeren"
+
+msgid "replays.import_detail"
+msgstr "Kies opgeslagen replays of setpakketten, bijvoorbeeld uit Downloads. De bestandskiezer heeft muis of toetsenbord nodig. Je kunt bestanden ook op het spelvenster slepen."
+
+msgid "replays.import_fullscreen"
+msgstr "De bestandskiezer kan niet openen in volledig scherm. Zet het spel in een venster of Borderless en probeer het opnieuw."
+
+msgid "replays.import_title"
+msgstr "Replays importeren"
+
+msgid "replays.import_filter"
+msgstr "Replays en setpakketten"
+
+msgid "services.picking_replays"
+msgstr "Kies bestanden in het venster dat openging..."
+
+msgid "replays.import_some_failed"
+msgstr "{0} van {1} bestanden konden niet worden geïmporteerd."
+
 msgid "replays.set_pack_working"
 msgstr "Setpakket bewaren..."
 
