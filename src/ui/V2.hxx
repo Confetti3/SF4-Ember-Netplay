@@ -245,9 +245,10 @@ Tier FrameTier(int tier);
 float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, const char* labelId, float alpha = 1.f);
 float LevelWidth(std::uint64_t points, float height, const char* labelId);
 // Two lines stacked, `<fighter> FP` over `<account> BP`, each `height` tall
-// with `gap` between, the numbers right-aligned to the wider so the labels
-// line up (how SF4 stacks them under a name). Returns the height, which is
-// 2 * height + gap.
+// with `gap` between: the numbers right-aligned in one column and the labels
+// starting at one x after it (how SF4 stacks them under a name). On every
+// line the label's capitals are as tall as the digits' light faces and stand
+// on their baseline. Returns the height, which is 2 * height + gap.
 float LevelLines(ImDrawList* draw, ImVec2 at, float height, float gap, std::uint64_t fighter, std::uint64_t account, float alpha = 1.f);
 // A gain ("+16") `height` tall at `at` on no ground, in the game's gold digits
 // with a plus in the heading font. Returns its width; nothing for 0.

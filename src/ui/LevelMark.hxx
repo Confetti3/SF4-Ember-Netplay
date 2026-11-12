@@ -16,9 +16,12 @@ constexpr int Gap = 2;
 struct Placed { point_digits::Box source; float x = 0, y = 0, w = 0, h = 0; };
 // A number whose tallest digit is `height` tall, its digits left to right on
 // one baseline (the bottom of their ink). `width`, in whole pixels, runs from
-// the first digit's ink to the last's.
+// the first digit's ink to the last's. `faceTop` and `faceBottom` are where the
+// set's light faces start and end below the origin, over all ten digits so
+// that every number of the set has the same ones: the height a label beside
+// the number matches (the whole ink box for a set without measured faces).
 struct Layout {
-    float scale = 0, width = 0;
+    float scale = 0, width = 0, faceTop = 0, faceBottom = 0;
     int count = 0;
     std::array<Placed, 10> digits{};
 };

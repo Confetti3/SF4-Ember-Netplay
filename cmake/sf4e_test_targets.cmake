@@ -190,6 +190,7 @@ sf4e_add_unit_test(NAME Win32Cursor SOURCES src/tests/win32_cursor_test.cxx LIBS
 sf4e_add_unit_test(NAME CountryPicker SOURCES src/tests/country_picker_test.cxx LIBS sf4e_ui TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME V2Layout SOURCES src/tests/v2_layout_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME LevelMark SOURCES src/tests/level_mark_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME GameLettering SOURCES src/tests/game_lettering_test.cxx TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME PlayerCard SOURCES src/tests/player_card_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME FriendsPanel SOURCES src/tests/friends_panel_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME FriendsJourney SOURCES src/tests/friends_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
@@ -239,7 +240,7 @@ add_test(NAME UiRenderGallery COMMAND UiRenderTest - "${CMAKE_BINARY_DIR}/no-gam
 set_tests_properties(UiRenderGallery PROPERTIES TIMEOUT 600 ENVIRONMENT "SF4E_UI_RENDER_GALLERY=1;SF4E_UI_RENDER_QUICK=1")
 add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
 target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
-target_link_libraries(SelectionArtTest PRIVATE sf4e_ui "d3d9")
+target_link_libraries(SelectionArtTest PRIVATE sf4e_ui ZLIB::ZLIB "d3d9")
 add_test(NAME SelectionArt COMMAND SelectionArtTest)
 set_tests_properties(SelectionArt PROPERTIES TIMEOUT 60)
 

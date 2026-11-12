@@ -98,6 +98,23 @@ int main() {
     Check(Lay(4294967295u, 40).count == 10, "the largest number has ten digits");
     Check(Lay(42, 0).count == 0 && Lay(42, -5).width == 0, "nothing at no height");
     Check(LayOut(42, 20, point_digits::Glyphs{}).count == 0, "nothing without glyphs");
+    // The faces: without any measured, the whole height; with them, the set's
+    // highest face top and lowest face bottom as the glyphs stand on the
+    // baseline, the same for every number. Here each face starts 2 rows into
+    // its glyph and stops 5 short of its foot, so the 7 (the tallest) starts
+    // highest and every face ends 5 rows over the baseline.
+    for (const float height : {12.f, 24.f, 48.f}) {
+        const auto plain = Lay(1986, height);
+        Check(plain.faceTop == 0 && plain.faceBottom == height, "no faces: the whole height at " + std::to_string(static_cast<int>(height)));
+        auto faced = Glyphs();
+        for (auto& glyph : faced) { glyph.faceY = glyph.y + 2; glyph.faceH = glyph.h - 7; }
+        const float scale = height / Tallest;
+        for (const unsigned number : {1u, 7u, 1986u, 100000u}) {
+            const auto layout = LayOut(number, height, faced);
+            Check(std::abs(layout.faceTop - 2 * scale) < 1e-4f && std::abs(layout.faceBottom - (Tallest - 5) * scale) < 1e-4f,
+                "the set's faces for " + std::to_string(number) + " at " + std::to_string(static_cast<int>(height)));
+        }
+    }
     std::printf(failures ? "%d failures\n" : "Level mark: all checks passed\n", failures);
     return failures != 0;
 }

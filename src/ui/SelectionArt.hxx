@@ -1,5 +1,6 @@
 #pragma once
 #include "../common/Country.hxx"
+#include "../common/GameLettering.hxx"
 #include "../common/PointDigits.hxx"
 #include <imgui.h>
 #include <functional>
@@ -21,6 +22,13 @@ struct SelectionImage {
 struct PointDigitSheet {
     SelectionImage image;
     std::shared_ptr<const point_digits::Sheet> sheet;
+};
+// The game's lettering for the points' labels (GameLettering.hxx): the sheet
+// drawn from its font, and where each glyph is in it. `sheet` is set once the
+// font has been read and drawn.
+struct GameLetterSheet {
+    SelectionImage image;
+    std::shared_ptr<const game_lettering::Sheet> sheet;
 };
 
 // File reads, decompression, and WIC decoding run on a worker. Only Pump touches
@@ -69,6 +77,7 @@ public:
     // read from the game at runtime and never repackaged. Missing, with a log
     // line, when the game lacks the sheet or it is not as measured.
     PointDigitSheet PointDigits();
+    GameLetterSheet GameLetters();
     SelectionImage MenuBackdrop();
     SelectionImage InputPrompt(const std::string& name);
     // A country's flag: its cell of the flag atlas (assets/flags/flags.png),

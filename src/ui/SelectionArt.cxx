@@ -147,6 +147,8 @@ struct Pixels {
     // The first existing candidate that was unusable. With Decoded, a later
     // candidate stood in for it.
     std::string failure;
+    // The game's lettering, with the sheet drawn from it (Letters).
+    std::shared_ptr<const game_lettering::Sheet> letters;
     void Fail(const std::wstring& path, const std::string& reason) {
         outcome = Outcome::Failed;
         if (failure.empty()) failure = WideToUtf8(path) + ": " + reason;
@@ -213,17 +215,64 @@ Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::ve
     }
     return pixels;
 }
+// The game's lettering drawn from the font library at the first candidate that
+// reads (GameLettering.hxx). The library is a Scaleform file: "GFX" (or SWF's
+// "FWS") and its tags, or "CFX" ("CWS") and the tags deflated with zlib. The
+// length its header gives is not the inflated tags' (the game's ENG library
+// says 58589 and inflates to 61448), so the tags are inflated to their end,
+// up to the largest file read.
+Pixels Letters(const std::string& key, const std::vector<std::wstring>& paths) {
+    Pixels pixels; pixels.key = key;
+    for (const auto& path : paths) {
+        std::ifstream file(path, std::ios::binary | std::ios::ate);
+        if (!file) continue;
+        const auto length = file.tellg();
+        std::vector<unsigned char> bytes(length > 0 && length <= static_cast<std::streamoff>(MaximumFileBytes) ? static_cast<std::size_t>(length) : 0);
+        if (!bytes.empty()) { file.seekg(0); file.read(reinterpret_cast<char*>(bytes.data()), length); }
+        if (bytes.size() < 8 || !file) { pixels.Fail(path, "unreadable font library"); continue; }
+        const bool deflated = std::memcmp(bytes.data(), "CFX", 3) == 0 || std::memcmp(bytes.data(), "CWS", 3) == 0;
+        const bool plain = std::memcmp(bytes.data(), "GFX", 3) == 0 || std::memcmp(bytes.data(), "FWS", 3) == 0;
+        if (!deflated && !plain) { pixels.Fail(path, "not a font library"); continue; }
+        std::vector<unsigned char> tags;
+        if (deflated) {
+            z_stream stream{};
+            stream.next_in = bytes.data() + 8; stream.avail_in = static_cast<uInt>(bytes.size() - 8);
+            int result = inflateInit(&stream);
+            tags.resize((std::min)(MaximumFileBytes, bytes.size() * 4));
+            while (result == Z_OK) {
+                if (stream.total_out == tags.size()) {
+                    if (tags.size() >= MaximumFileBytes) break;
+                    tags.resize((std::min)(MaximumFileBytes, tags.size() * 2));
+                }
+                stream.next_out = tags.data() + stream.total_out; stream.avail_out = static_cast<uInt>(tags.size() - stream.total_out);
+                result = inflate(&stream, Z_NO_FLUSH);
+            }
+            tags.resize(stream.total_out);
+            inflateEnd(&stream);
+            if (result != Z_STREAM_END) { pixels.Fail(path, "font library does not inflate"); continue; }
+        } else tags.assign(bytes.begin() + 8, bytes.end());
+        auto sheet = std::make_shared<game_lettering::Sheet>();
+        std::string why;
+        if (!game_lettering::Read(tags.data(), tags.size(), *sheet, pixels.bgra, why)) { pixels.bgra.clear(); pixels.Fail(path, why); continue; }
+        pixels.width = game_lettering::SheetWidth; pixels.height = game_lettering::SheetHeight;
+        pixels.letters = std::move(sheet);
+        pixels.outcome = Outcome::Decoded;
+        return pixels;
+    }
+    return pixels;
+}
 }
 
 struct SelectionArt::Impl {
     // `entry` names the image inside an archive candidate; empty takes its first.
-    struct Job { std::string key; std::vector<std::wstring> paths; UINT side; std::string entry; UINT maxSide; };
+    struct Job { std::string key; std::vector<std::wstring> paths; UINT side; std::string entry; UINT maxSide; bool letters; };
     // Portraits fit their painted content rather than the transparent canvas,
     // and every fighter should have one, so an absent portrait is reported.
     // An atlas must decode to exactly its layout's size (exactWidth by exactHeight).
     // An image whose longer side is over maxSide (0: any) fails before it is
     // decoded, so a hostile file cannot make it decode a huge image.
-    struct Policy { bool cropToContent = false, reportAbsence = false; UINT exactWidth = 0, exactHeight = 0, maxSide = 0; bool pointDigits = false; };
+    // gameLetters: the candidates are font libraries, drawn as the game's lettering (Letters).
+    struct Policy { bool cropToContent = false, reportAbsence = false; UINT exactWidth = 0, exactHeight = 0, maxSide = 0; bool pointDigits = false, gameLetters = false; };
     // Queued: a decode is in flight. Waiting: the last attempt failed and a
     // retry is due at retryFrame. Ready and Missing are final.
     enum class State { Queued, Waiting, Ready, Missing };
@@ -238,6 +287,8 @@ struct SelectionArt::Impl {
         std::uint64_t lastUse = 0;
         // The measured glyphs of the point digits' sheet.
         std::shared_ptr<const point_digits::Sheet> sheet;
+        // Where the game's lettering is in its sheet.
+        std::shared_ptr<const game_lettering::Sheet> letters;
     };
     ComPtr<IDirect3DDevice9> device;
     std::wstring gameRoot, assetRoot;
@@ -284,7 +335,8 @@ struct SelectionArt::Impl {
                   job = std::move(jobs.front()); jobs.pop_front(); }
                 Pixels pixels; pixels.key = job.key;
                 try {
-                    if (haveFactory) pixels = Decode(factory.Get(), job.key, job.paths, job.side, job.entry, job.maxSide, archive);
+                    if (job.letters) pixels = Letters(job.key, job.paths);
+                    else if (haveFactory) pixels = Decode(factory.Get(), job.key, job.paths, job.side, job.entry, job.maxSide, archive);
                     else { pixels.outcome = Outcome::Failed; pixels.failure = "image decoder unavailable"; }
                 } catch (const std::exception& error) {
                     pixels.bgra.clear(); pixels.outcome = Outcome::Failed;
@@ -311,7 +363,7 @@ struct SelectionArt::Impl {
             if (jobs.size() >= 128) return {};
             if (found == entries.end()) { found = entries.emplace(key, Entry{}).first; found->second.policy = policy; }
             found->second.state = State::Queued;
-            jobs.push_back({key, std::move(candidates), side, archiveEntry, found->second.policy.maxSide}); wake.notify_one();
+            jobs.push_back({key, std::move(candidates), side, archiveEntry, found->second.policy.maxSide, found->second.policy.gameLetters}); wake.notify_one();
         }
         auto& entry = found->second; entry.lastUse = frame;
         SelectionImage result;
@@ -405,6 +457,10 @@ void SelectionArt::Pump() {
                 continue;
             }
             entry.sheet = std::move(sheet);
+        }
+        if (entry.policy.gameLetters) {
+            if (!pixels.letters) { state.Failed(entry, pixels.key, Outcome::Failed, "no lettering"); continue; }
+            entry.letters = std::move(pixels.letters);
         }
         ComPtr<IDirect3DTexture9> texture;
         HRESULT hr = state.device->CreateTexture(pixels.width, pixels.height, 1, 0, D3DFMT_A8R8G8B8,
@@ -553,6 +609,16 @@ PointDigitSheet SelectionArt::PointDigits() {
         return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/net_result/CMN/net_result.tex.emz"};
     }, NativeSide, digits, "net_vs_number.dds");
     if (result.image.texture) result.sheet = impl_->entries["point-digits"].sheet;
+    return result;
+}
+GameLetterSheet SelectionArt::GameLetters() {
+    // The font the game sets its PP and BP in; its Latin capitals are the same in every language's library.
+    Impl::Policy letters; letters.reportAbsence = letters.gameLetters = true;
+    GameLetterSheet result;
+    result.image = impl_->Request("game-letters", [&] {
+        return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/fonts/ENG/fonts.gfx"};
+    }, NativeSide, letters);
+    if (result.image.texture) result.sheet = impl_->entries["game-letters"].letters;
     return result;
 }
 SelectionImage SelectionArt::Stage(int nativeId) {

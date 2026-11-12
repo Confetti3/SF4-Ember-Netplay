@@ -15,8 +15,10 @@
 namespace sf4e { namespace point_digits {
 constexpr int SheetSide = 256;
 enum Set { White, Gold, Blue, SetCount };
-// A glyph's ink in the sheet's pixels.
-struct Box { int x = 0, y = 0, w = 0, h = 0; };
+// A glyph's ink in the sheet's pixels, and the rows of its face: the light
+// fill inside the dark outline and shadow, which is what reads as the digit's
+// height (faceH 0 when the glyph has no light fill, as a test sheet has not).
+struct Box { int x = 0, y = 0, w = 0, h = 0, faceY = 0, faceH = 0; };
 using Glyphs = std::array<Box, 10>;
 struct Sheet { std::array<Glyphs, SetCount> sets; };
 
@@ -35,6 +37,9 @@ constexpr Band kBands[] = {
 constexpr int Slack = 2;
 // Alpha below this is not ink.
 constexpr unsigned char MinimumAlpha = 16;
+// A face pixel: this opaque, and its brightest channel at least this light
+// (the white and gold sets' fills; the outline and shadow are near black).
+constexpr unsigned char FaceAlpha = 128, FaceLight = 128;
 constexpr int MinimumWidth = 3, MinimumHeight = 10;
 }
 
@@ -65,7 +70,19 @@ inline bool Measure(const unsigned char* bgra, int width, int height, Sheet& she
         for (int i = 0; i < band.count; ++i) {
             const Box& glyph = runs[band.skip + i];
             if (glyph.w < detail::MinimumWidth || glyph.h < detail::MinimumHeight) { why = "a glyph of row " + std::to_string(band.top) + " is too small"; return false; }
-            sheet.sets[band.set][band.first + i] = glyph;
+            Box& placed = sheet.sets[band.set][band.first + i];
+            placed = glyph;
+            // The face's rows inside the ink box.
+            int faceTop = -1, faceBottom = -1;
+            for (int y = glyph.y; y < glyph.y + glyph.h; ++y)
+                for (int x = glyph.x; x < glyph.x + glyph.w; ++x) {
+                    const unsigned char* p = bgra + (y * width + x) * 4;
+                    if (p[3] < detail::FaceAlpha || (std::max)({p[0], p[1], p[2]}) < detail::FaceLight) continue;
+                    if (faceTop < 0) faceTop = y;
+                    faceBottom = y;
+                    break;
+                }
+            if (faceTop >= 0) { placed.faceY = faceTop; placed.faceH = faceBottom - faceTop + 1; }
         }
     }
     return true;

@@ -4,11 +4,13 @@
 #include "../common/FighterCatalog.hxx"
 #include "../common/PointDigits.hxx"
 #include "../common/StageCatalog.hxx"
+#include "game_lettering_support.hxx"
 #include "temp_root.hxx"
 #include "test_support.hxx"
 
 #include <windows.h>
 #include <d3d9.h>
+#include <zlib.h>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -256,6 +258,20 @@ int main() {
             CHECK(gold[9].x == 145 && gold[9].y == 37 && gold[9].h == 25);
             CHECK(sheet->sets[sf4e::point_digits::Blue][5].y == 105 && sheet->sets[sf4e::point_digits::Blue][4].x == 145);
         }
+        // The game's lettering comes from its font library, a Scaleform "CFX"
+        // file whose tags are deflated. Its header's length is not the
+        // inflated tags' (the game's own is not), so it is not trusted.
+        {
+            const auto tags = lettering_support::Library(sf4e::game_lettering::FontName, sf4e::game_lettering::Characters);
+            std::string deflated(compressBound(static_cast<uLong>(tags.size())), '\0');
+            uLongf size = static_cast<uLongf>(deflated.size());
+            CHECK(compress(reinterpret_cast<Bytef*>(&deflated[0]), &size, tags.data(), static_cast<uLong>(tags.size())) == Z_OK);
+            deflated.resize(size);
+            Write(game / L"resource" / L"ui" / L"fonts" / L"ENG" / L"fonts.gfx", std::string("CFX\x09\x10\x00\x00\x00", 8) + deflated);
+            const auto letters = Settle(art, [&] { return art.GameLetters().image; }, 2000);
+            const auto lettering = art.GameLetters().sheet;
+            CHECK(letters.texture && !letters.missing && letters.width == sf4e::game_lettering::SheetWidth && lettering && lettering->Covers("FP") && lettering->Covers("BP"));
+        }
         CHECK(logged.size() == 5);
     }
     {
@@ -284,6 +300,15 @@ int main() {
         const std::string tall = DigitSheet(0, 2);
         CHECK(sf4e::point_digits::Measure(bytes(tall), 256, 256, measured, why) && measured.sets[sf4e::point_digits::White][0].h == 33);
         CHECK(!sf4e::point_digits::Measure(nullptr, 256, 256, measured, why));
+        // The light fill inside a glyph's outline is its face: here rows 186 to
+        // 208 of the white 7 (columns 50 to 71, rows 183 to 213). A glyph with
+        // no light fill, as every other here, has none.
+        std::string lit = DigitSheet();
+        for (int y = 186; y <= 208; ++y)
+            for (int x = 52; x <= 69; ++x) { char* p = &lit[128 + (y * 256 + x) * 4]; p[0] = p[1] = p[2] = static_cast<char>(0xff); }
+        CHECK(sf4e::point_digits::Measure(bytes(lit), 256, 256, measured, why));
+        const auto& face = measured.sets[sf4e::point_digits::White];
+        CHECK(face[7].faceY == 186 && face[7].faceH == 23 && face[7].y == 183 && face[7].h == 31 && face[6].faceH == 0);
     }
     device->Release(); d3d->Release(); DestroyWindow(window);
     RemoveTempRoot(root);

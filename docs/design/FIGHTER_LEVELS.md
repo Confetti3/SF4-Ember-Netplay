@@ -382,7 +382,9 @@ and its generator are gone).
 - **Measuring.** `src/common/PointDigits.hxx` finds each glyph's ink box from the
   sheet's alpha: it scans the columns inside each row's known band (`kBands`, a
   couple of rows of slack) and takes every run of columns with ink (alpha 16 or
-  more) as one glyph. A sheet that is not 256 by 256, or a row that does not hold
+  more) as one glyph. Inside each box it also finds the face, the rows of light
+  fill (opaque, brightest channel 128 or more) inside the dark outline and
+  shadow; the face is what reads as the digit's height. A sheet that is not 256 by 256, or a row that does not hold
   the glyphs expected, is refused as an unusable file (retried, then logged
   once), so a changed game file never draws wrong digits. The result is a table
   of boxes, never numbers written in code.
@@ -395,15 +397,29 @@ and its generator are gone).
   code lays out any count. A band over a small picture shrinks the digits until
   the number fits the picture's width.
 - **The label.** After the number and a space (about a third of the digits'
-  height) comes a two-letter label in the kit's bold heading font: white with a
-  dark outline (the text drawn offset by about a fourteenth of the digits' height
-  in the eight directions in near black, then white on top), sized so its
-  capitals stand as tall as the digits. It is `points.label` (English "FP",
-  a fighter's points) or `points.account_label` ("BP", the account's), Latin
-  letters in every catalog, as the game keeps "PP" and "BP" in every language.
+  height) comes a two-letter label in the game's own lettering: FOT-RodinNTLG
+  Pro B, the font the game sets its PP and BP in. Its outlines are a Scaleform
+  font library in the player's game, `resource/ui/fonts/ENG/fonts.gfx` (zlib
+  deflated SWF tags; the font is a DefineFont3), read at runtime and never
+  shipped. `src/common/GameLettering.hxx` reads the capitals, digits and plus
+  and draws them white into a 512 by 512 sheet at capital heights of 16, 32 and
+  64 px; `SelectionArt::GameLetters()` uploads it, and a label is drawn from the
+  smallest size at least as tall as it. The label is white with a dark outline
+  (drawn offset by about a fourteenth of the digits' height in the eight
+  directions in near black, then white on top). Its capitals (measured on the
+  F) stand exactly as tall as the digits' faces, their top and baseline level
+  with the faces', on every line. Stacked lines (`v2::LevelLines`) put the
+  numbers right-aligned in one column and start every label at one x. A library
+  without that font, a glyph missing or an outline that does not read is
+  refused (retried, then logged once), and the label is set in the kit's bold
+  heading font by the same rule, its capitals measured from the font's F glyph.
+  It is `points.label` (English "FP", a fighter's points) or
+  `points.account_label` ("BP", the account's), Latin letters in every catalog,
+  as the game keeps "PP" and "BP" in every language; a label with a character
+  the lettering lacks is set in the heading font.
 - **A gain.** `v2::LevelGain(d, at, height, gain)` draws "+16" with the gold set
-  on no ground. The sheet has no plus, so the plus is the heading font's, in the
-  same gold.
+  on no ground. The sheet has no plus, so the plus is the game lettering's (the
+  heading font's without it, centred on the digits' faces), in the same gold.
 - **The line.** The owner's reference is SF4's own versus screen: under a
   player's name two plain lines, `2331 PP / [trophy] 6555` and
   `1606 BP / [trophy] 189`, the number first, then the label, both white with a
@@ -413,7 +429,8 @@ and its generator are gone).
   where a caller already draws one.
 - **Fallback.** While the sheet has not loaded, or the game has none or it does
   not match, the number is drawn in the heading font's digits, white (gold for a
-  gain), outlined the same way.
+  gain), outlined the same way, and its label in the heading font too, the
+  digits and the capitals one size on one baseline.
 - **Kit.** `V2.hxx` declares `v2::Level(d, at, height, points, labelId)` (the
   line, the digits `height` tall, returning its width), `v2::LevelWidth(points,
   height, labelId)`, `v2::LevelGain` and `v2::FrameTier(tier)` (the award tier a

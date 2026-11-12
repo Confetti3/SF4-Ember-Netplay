@@ -18,6 +18,16 @@ Layout LayOut(unsigned number, float height, const point_digits::Glyphs& glyphs)
     for (const auto& glyph : glyphs) tallest = (std::max)(tallest, glyph.h);
     if (!(height > 0) || tallest <= 0) return layout;
     layout.scale = height / tallest;
+    // The faces, each glyph standing on the baseline as it is drawn below.
+    float faceTop = FLT_MAX, faceBottom = -FLT_MAX;
+    for (const auto& glyph : glyphs) {
+        if (glyph.faceH <= 0) continue;
+        const int above = tallest - glyph.h + glyph.faceY - glyph.y;
+        faceTop = (std::min)(faceTop, above * layout.scale);
+        faceBottom = (std::max)(faceBottom, (above + glyph.faceH) * layout.scale);
+    }
+    layout.faceTop = faceTop <= faceBottom ? faceTop : 0;
+    layout.faceBottom = faceTop <= faceBottom ? faceBottom : height;
     // The digits, the most significant last.
     int values[10], count = 0;
     do { values[count++] = static_cast<int>(number % 10); number /= 10; } while (number);
@@ -59,18 +69,44 @@ PointDigitSheet DigitArt() {
     auto* art = MenuArt();
     return art ? art->PointDigits() : PointDigitSheet{};
 }
+// Where a heading-font character's ink stands at `size`: its top and bottom
+// below the top of the line the text is drawn on (the glyph's Y0 and Y1).
+struct Ink { float top = 0, bottom = 0; };
+Ink InkOf(ImWchar c, float size) {
+    ImFont* font = HeadingFont();
+    const ImFontGlyph* glyph = font->FindGlyph(c);
+    if (!glyph || !(glyph->Y1 > glyph->Y0) || !(font->FontSize > 0)) return {size * .2f, size * .9f};
+    const float k = size / font->FontSize;
+    return {glyph->Y0 * k, glyph->Y1 * k};
+}
+// The heading font's size whose capitals stand `height` tall, measured on the
+// F (flat at its top and on its baseline).
+float CapitalSize(float height) {
+    const Ink unit = InkOf('F', HeadingFont()->FontSize);
+    return unit.bottom > unit.top ? height * HeadingFont()->FontSize / (unit.bottom - unit.top) : std::round(height * 1.3f);
+}
 // A number `cap` tall in one set of the game's digits, or, without the sheet,
 // the heading font's digits (`text`) in the set's colour. `width` is what
-// either paints.
+// either paints. The face is where the digits' light fill starts and ends
+// below the number's top: the art's measured faces, or, for the font's
+// digits, the whole `cap`, which their capitals' height fills from the top.
 struct Number {
     PointDigitSheet art;
     point_digits::Set set = point_digits::White;
     level_mark::Layout layout;
     std::string text;
-    float cap = 0, width = 0;
+    float cap = 0, width = 0, faceTop = 0, faceBottom = 0;
 };
-// The heading font's size whose digits stand about `cap` tall.
-float FallbackSize(float cap) { return std::round(cap * 1.3f); }
+// The heading font set beside a number: its size, whose capitals are as tall
+// as the number's face, and how far below the number's top its line starts so
+// that the capitals' top and baseline are level with the face's.
+struct FontBeside { float size = 0, y = 0; };
+FontBeside FontBesideOf(const Number& number) {
+    FontBeside beside;
+    beside.size = CapitalSize(number.faceBottom - number.faceTop);
+    beside.y = number.faceTop - InkOf('F', beside.size).top;
+    return beside;
+}
 Number NumberOf(const PointDigitSheet& art, std::uint64_t value, float cap, point_digits::Set set) {
     value = (std::min)(value, TopPoints);
     Number number;
@@ -78,9 +114,12 @@ Number NumberOf(const PointDigitSheet& art, std::uint64_t value, float cap, poin
     if (art.sheet) {
         number.layout = level_mark::LayOut(static_cast<unsigned>(value), cap, art.sheet->sets[set]);
         number.width = number.layout.width;
+        number.faceTop = number.layout.faceTop;
+        number.faceBottom = number.layout.faceBottom;
     } else {
         number.text = std::to_string(value);
-        number.width = std::round(HeadingFont()->CalcTextSizeA(FallbackSize(cap), FLT_MAX, 0, number.text.c_str()).x);
+        number.faceBottom = cap;
+        number.width = std::round(HeadingFont()->CalcTextSizeA(FontBesideOf(number).size, FLT_MAX, 0, number.text.c_str()).x);
     }
     return number;
 }
@@ -98,8 +137,8 @@ void OutlinedText(ImDrawList* draw, float size, ImVec2 at, const char* text, ImU
 // The number with its top left at `at`, at `alpha` of full strength.
 void DrawNumber(ImDrawList* draw, const Number& number, ImVec2 at, float alpha = 1.f) {
     if (!number.art.sheet) {
-        const float size = FallbackSize(number.cap);
-        OutlinedText(draw, size, ImVec2(at.x, std::round(at.y + (number.cap - size) * .5f)), number.text.c_str(),
+        const FontBeside text = FontBesideOf(number);
+        OutlinedText(draw, text.size, ImVec2(at.x, std::round(at.y + text.y)), number.text.c_str(),
             number.set == point_digits::Gold ? Gold : White, number.cap, alpha);
         return;
     }
@@ -110,27 +149,94 @@ void DrawNumber(ImDrawList* draw, const Number& number, ImVec2 at, float alpha =
             Uv(placed.source, 0, 0), Uv(placed.source, placed.source.w, placed.source.h), color::Alpha(White, alpha));
     }
 }
+// The game's lettering, empty while its font is read or when it is missing.
+GameLetterSheet LetterArt() {
+    auto* art = MenuArt();
+    return art ? art->GameLetters() : GameLetterSheet{};
+}
+// Text set beside a number (a label, a gain's plus), its capitals as tall as
+// the number's face with their top and baseline level with the face's: in the
+// game's own lettering, as SF4 sets its PP and BP, beside the game's digits
+// when the lettering has every character of the text; otherwise, and beside
+// the heading font's digits, in the heading font. `width` is its advance.
+struct Beside {
+    GameLetterSheet letters;
+    FontBeside font;
+    const char* text = "";
+    float top = 0, bottom = 0, width = 0;
+};
+Beside BesideOf(const Number& number, const char* text) {
+    Beside beside;
+    beside.text = text;
+    beside.top = number.faceTop; beside.bottom = number.faceBottom;
+    if (number.art.sheet) {
+        const GameLetterSheet letters = LetterArt();
+        if (letters.sheet && letters.sheet->Covers(text)) beside.letters = letters;
+    }
+    if (const auto* sheet = beside.letters.sheet.get()) {
+        const float k = (beside.bottom - beside.top) / (sheet->capBottom - sheet->capTop);
+        float pen = 0;
+        for (const char* c = text; *c; ++c) pen += sheet->Find(*c)->advance * k;
+        beside.width = std::round(pen);
+    } else {
+        beside.font = FontBesideOf(number);
+        beside.width = std::round(HeadingFont()->CalcTextSizeA(beside.font.size, FLT_MAX, 0, text).x);
+    }
+    return beside;
+}
+// The game's lettering of `beside` with its pen at `left` and the number's top
+// at `top`, in `fill`, each glyph from the sheet's nearest size at least as
+// tall; outlined as OutlinedText outlines, with an `edge` of 0 for none.
+void DrawLetters(ImDrawList* draw, const Beside& beside, float left, float top, ImU32 fill, float edge, float alpha) {
+    const auto& sheet = *beside.letters.sheet;
+    const float cap = beside.bottom - beside.top, k = cap / (sheet.capBottom - sheet.capTop);
+    const int size = game_lettering::Sheet::SizeFor(cap);
+    const float ratio = k / sheet.scale[size], baseline = std::round(top + beside.bottom);
+    const auto pass = [&](float dx, float dy, ImU32 color) {
+        float pen = std::round(left);
+        for (const char* c = beside.text; *c; ++c) {
+            const auto& glyph = *sheet.Find(*c);
+            const auto& box = glyph.box[size];
+            const ImVec2 min(pen + glyph.left[size] * ratio + dx, baseline + glyph.top[size] * ratio + dy);
+            draw->AddImage(beside.letters.image.texture, min, ImVec2(min.x + box.w * ratio, min.y + box.h * ratio),
+                ImVec2(float(box.x) / game_lettering::SheetWidth, float(box.y) / game_lettering::SheetHeight),
+                ImVec2(float(box.x + box.w) / game_lettering::SheetWidth, float(box.y + box.h) / game_lettering::SheetHeight), color::Alpha(color, alpha));
+            pen += glyph.advance * k;
+        }
+    };
+    if (edge > 0)
+        for (int dy = -1; dy <= 1; ++dy)
+            for (int dx = -1; dx <= 1; ++dx)
+                if (dx || dy) pass(dx * edge, dy * edge, Outline);
+    pass(0, 0, fill);
+}
+// `beside` with its left at `left` beside a number whose top is at `top`, outlined.
+void DrawBeside(ImDrawList* draw, const Beside& beside, float left, float top, ImU32 fill, float cap, float alpha) {
+    if (beside.letters.sheet) DrawLetters(draw, beside, left, top, fill, (std::max)(1.f, std::round(cap * OutlineShare)), alpha);
+    else OutlinedText(draw, beside.font.size, ImVec2(left, std::round(top + beside.font.y)), beside.text, fill, cap, alpha);
+}
 // SF4's line under a player's name: the number, a space, then the two-letter
-// label, the digits `cap` tall and the label's capitals as tall as they are.
+// label, its capitals as tall as the digits' faces and on their baseline.
 struct Line {
     Number number;
-    const char* label = "";
-    float size = 0, space = 0, width = 0;
+    Beside label;
+    float space = 0, width = 0;
 };
 Line LineOf(const PointDigitSheet& art, std::uint64_t points, float cap, const char* labelId) {
     Line line;
     line.number = NumberOf(art, points, cap, point_digits::White);
-    line.label = loc::T(labelId);
-    line.size = FallbackSize(cap);
+    line.label = BesideOf(line.number, loc::T(labelId));
     line.space = std::round(cap * Space);
-    line.width = line.number.width + line.space + std::round(HeadingFont()->CalcTextSizeA(line.size, FLT_MAX, 0, line.label).x);
+    line.width = line.number.width + line.space + line.label.width;
     return line;
 }
-// The line with its top left at `at`.
-void DrawLine(ImDrawList* draw, const Line& line, ImVec2 at, float alpha = 1.f) {
-    DrawNumber(draw, line.number, at, alpha);
-    OutlinedText(draw, line.size, ImVec2(at.x + line.number.width + line.space, std::round(at.y + (line.number.cap - line.size) * .5f)),
-        line.label, White, line.number.cap, alpha);
+// The line with its top left at `at`. With a `column` wider than the number,
+// the number is right-aligned in it and the label starts after it, so lines
+// stacked with one column share their numbers' right edge and labels' left.
+void DrawLine(ImDrawList* draw, const Line& line, ImVec2 at, float alpha = 1.f, float column = 0) {
+    column = (std::max)(column, line.number.width);
+    DrawNumber(draw, line.number, ImVec2(at.x + column - line.number.width, at.y), alpha);
+    DrawBeside(draw, line.label, at.x + column + line.space, at.y, White, line.number.cap, alpha);
 }
 }
 
@@ -149,22 +255,33 @@ float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, con
 }
 
 float LevelLines(ImDrawList* draw, ImVec2 at, float height, float gap, std::uint64_t fighter, std::uint64_t account, float alpha) {
-    const float a = LevelWidth(fighter, height, "points.label"), b = LevelWidth(account, height, "points.account_label"), wide = (std::max)(a, b);
-    Level(draw, ImVec2(at.x + wide - a, at.y), height, fighter, "points.label", alpha);
-    Level(draw, ImVec2(at.x + wide - b, at.y + height + gap), height, account, "points.account_label", alpha);
+    const PointDigitSheet art = DigitArt();
+    const float cap = std::round(height);
+    const Line top = LineOf(art, fighter, cap, "points.label"), bottom = LineOf(art, account, cap, "points.account_label");
+    // One column of numbers, right-aligned, and the labels after it at one x.
+    const float column = (std::max)(top.number.width, bottom.number.width);
+    const ImVec2 origin(std::round(at.x), std::round(at.y));
+    DrawLine(draw, top, origin, alpha, column);
+    DrawLine(draw, bottom, ImVec2(origin.x, std::round(origin.y + height + gap)), alpha, column);
     return 2 * height + gap;
 }
 
 float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain) {
     if (gain == 0) return 0;
-    // The sheet has no plus: it is drawn in the heading font, in the digits' gold.
-    const float size = std::round(height * 1.3f);
-    const float plus = std::round(HeadingFont()->CalcTextSizeA(size, FLT_MAX, 0, "+").x) + std::round(height * GainGap);
+    // The sheet has no plus: it is the game's lettering's (on the digits'
+    // baseline, as a label is), or the heading font's centred on the digits'
+    // faces, in the digits' gold.
     const Number number = NumberOf(DigitArt(), gain, std::round(height), point_digits::Gold);
+    const Beside plus = BesideOf(number, "+");
+    const float advance = plus.width + std::round(height * GainGap);
     const ImVec2 origin(std::round(at.x), std::round(at.y));
-    draw->AddText(HeadingFont(), size, ImVec2(origin.x, std::round(origin.y + (height - size) * .5f)), Gold, "+");
-    DrawNumber(draw, number, ImVec2(origin.x + plus, origin.y));
-    return plus + number.width;
+    if (plus.letters.sheet) DrawLetters(draw, plus, origin.x, origin.y, Gold, 0, 1.f);
+    else {
+        const Ink ink = InkOf('+', plus.font.size);
+        draw->AddText(HeadingFont(), plus.font.size, ImVec2(origin.x, std::round(origin.y + (number.faceTop + number.faceBottom - ink.top - ink.bottom) * .5f)), Gold, "+");
+    }
+    DrawNumber(draw, number, ImVec2(origin.x + advance, origin.y));
+    return advance + number.width;
 }
 
 void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, float alpha) {
