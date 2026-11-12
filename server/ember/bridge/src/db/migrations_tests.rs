@@ -948,31 +948,39 @@ fn a_number_this_bridge_lacks_is_refused_below_its_newest_and_left_alone_above()
 }
 
 #[test]
-fn an_unnamed_record_is_adopted_up_to_056_and_refused_above() {
-    // 056 is the last number a bridge from before the ledger could have run.
+fn an_unnamed_record_is_adopted_up_to_059_and_refused_above() {
+    // A bridge from before the ledger, at 056.
     let mut connection = Connection::open_in_memory().unwrap();
     as_an_older_bridge(&mut connection, &files_to(56));
     migrate(&mut connection, MIGRATIONS).unwrap();
     assert_every_file_recorded(&connection);
 
-    // An unnamed 057 is another line's file (the library's 057_room_game).
+    // Production and staging: the shared library's bridge ran its 057 to 059,
+    // which this bridge carries byte for byte, and recorded numbers only.
     let mut connection = Connection::open_in_memory().unwrap();
-    let mut older = files_to(56);
-    older.push((57, "SELECT 1;"));
+    as_an_older_bridge(&mut connection, &files_to(59));
+    migrate(&mut connection, MIGRATIONS).unwrap();
+    assert_every_file_recorded(&connection);
+    assert!(has_table(&connection, "fighter_levels"));
+
+    // An unnamed 060 is no file this bridge knows: its own are named.
+    let mut connection = Connection::open_in_memory().unwrap();
+    let mut older = files_to(59);
+    older.push((60, "SELECT 1;"));
     as_an_older_bridge(&mut connection, &older);
     let text = refusal(migrate(&mut connection, MIGRATIONS));
-    assert!(text.contains("057"), "{text}");
+    assert!(text.contains("060"), "{text}");
     assert!(text.contains("another line"), "{text}");
     // Nothing of this bridge's was applied on top of it.
     assert!(!has_table(&connection, "fighter_levels"));
 }
 
 #[test]
-fn a_new_database_runs_the_1_6_files_after_the_librarys_numbers() {
+fn a_new_database_runs_the_librarys_files_then_the_1_6_files() {
     let mut connection = Connection::open_in_memory().unwrap();
     migrate(&mut connection, MIGRATIONS).unwrap();
     let versions: Vec<i64> = records(&connection).iter().map(|r| r.0).collect();
-    assert_eq!(&versions[55..], &[56, 60, 61, 62]);
+    assert_eq!(&versions[55..], &[56, 57, 58, 59, 60, 61, 62]);
     assert!(has_table(&connection, "fighter_levels"));
     assert!(has_table(&connection, "social_accounts"));
     assert!(has_table(&connection, "account_points"));

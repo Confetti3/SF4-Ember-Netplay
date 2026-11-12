@@ -225,10 +225,13 @@ fn played(tx: &Transaction<'_>, winner: &str, loser: &str, now: u64) -> Result<u
         ],
     )?;
     let ended = now.saturating_sub(SITTING_SECS);
-    tx.execute("DELETE FROM rated_pairs WHERE played_at < ?1", [ended])?;
+    tx.execute(
+        "DELETE FROM rated_pairs WHERE game = 'usf4' AND played_at < ?1",
+        [ended],
+    )?;
     Ok(tx.query_row(
         "INSERT INTO rated_pairs (first, second, games, played_at) VALUES (?1, ?2, 1, ?3)
-         ON CONFLICT (first, second) DO UPDATE SET games = games + 1, played_at = ?3
+         ON CONFLICT (game, first, second) DO UPDATE SET games = games + 1, played_at = ?3
          RETURNING games",
         params![first, second, now],
         |row| row.get(0),
@@ -307,7 +310,7 @@ fn badge_of(tx: &Transaction<'_>, account: &str, now: u64) -> Result<SkillBadge>
     };
     if band != shown {
         tx.execute(
-            "UPDATE skill_ratings SET band = ?2 WHERE discord_user_id = ?1",
+            "UPDATE skill_ratings SET band = ?2 WHERE game = 'usf4' AND discord_user_id = ?1",
             params![account, band],
         )?;
     }
@@ -329,7 +332,7 @@ pub fn account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String
 /// choice stored, it does (`ranking`).
 fn takes_part(tx: &Transaction<'_>, account: &str) -> Result<bool> {
     Ok(tx.query_row(
-        "SELECT COALESCE((SELECT ranked FROM ranking_choices WHERE discord_user_id = ?1), 1)",
+        "SELECT COALESCE((SELECT ranked FROM ranking_choices WHERE game = 'usf4' AND discord_user_id = ?1), 1)",
         [account],
         |row| row.get(0),
     )?)
@@ -341,7 +344,7 @@ fn load(tx: &Transaction<'_>, account: &str, now: u64) -> Result<(Rating, u8)> {
     let stored = tx
         .query_row(
             "SELECT rating, deviation, volatility, band, played_at
-             FROM skill_ratings WHERE discord_user_id = ?1",
+             FROM skill_ratings WHERE game = 'usf4' AND discord_user_id = ?1",
             [account],
             |row| {
                 let rating = Rating {
@@ -370,7 +373,7 @@ fn store(tx: &Transaction<'_>, account: &str, rating: Rating, now: u64) -> Resul
         "INSERT INTO skill_ratings
              (discord_user_id, rating, deviation, volatility, band, played_at)
          VALUES (?1, ?2, ?3, ?4, 0, ?5)
-         ON CONFLICT (discord_user_id) DO UPDATE SET rating = ?2, deviation = ?3,
+         ON CONFLICT (game, discord_user_id) DO UPDATE SET rating = ?2, deviation = ?3,
              volatility = ?4, played_at = ?5",
         params![
             account,

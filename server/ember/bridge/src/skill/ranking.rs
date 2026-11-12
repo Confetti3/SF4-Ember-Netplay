@@ -36,7 +36,7 @@ impl Choice {
         let stored = tx
             .query_row(
                 "SELECT ranked, changed_at, name, country FROM ranking_choices
-                 WHERE discord_user_id = ?1",
+                 WHERE game = 'usf4' AND discord_user_id = ?1",
                 [account],
                 |row| {
                     let (name, country): (Option<String>, _) = (row.get(2)?, row.get(3)?);
@@ -138,7 +138,7 @@ pub fn choose(
     tx.execute(
         "INSERT INTO ranking_choices (discord_user_id, ranked, changed_at, name, country)
          VALUES (?1, ?2, ?3, ?4, ?5)
-         ON CONFLICT (discord_user_id) DO UPDATE SET ranked = ?2, changed_at = ?3,
+         ON CONFLICT (game, discord_user_id) DO UPDATE SET ranked = ?2, changed_at = ?3,
              name = ?4, country = ?5",
         params![account, chosen.ranked, changed_at, name, country],
     )?;
@@ -162,9 +162,9 @@ pub fn board(
         "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, c.name, c.country,
                 COALESCE(d.ember_id = ?1, 0), r.discord_user_id
          FROM skill_ratings r
-         JOIN ranking_choices c ON c.discord_user_id = r.discord_user_id
+         JOIN ranking_choices c ON c.game = r.game AND c.discord_user_id = r.discord_user_id
          JOIN discord_accounts d ON d.user_id = r.discord_user_id
-         WHERE c.ranked AND c.name IS NOT NULL",
+         WHERE r.game = 'usf4' AND c.ranked AND c.name IS NOT NULL",
     )?;
     let mut rows = statement.query([ember_id.map(EmberId::as_str)])?;
     let mut listed = Vec::new();
@@ -219,9 +219,9 @@ pub fn public_classes(
     let mut statement = tx.prepare(
         "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, d.ember_id, r.discord_user_id
          FROM skill_ratings r
-         JOIN ranking_choices c ON c.discord_user_id = r.discord_user_id
+         JOIN ranking_choices c ON c.game = r.game AND c.discord_user_id = r.discord_user_id
          JOIN discord_accounts d ON d.user_id = r.discord_user_id
-         WHERE c.ranked AND c.name IS NOT NULL",
+         WHERE r.game = 'usf4' AND c.ranked AND c.name IS NOT NULL",
     )?;
     let mut rows = statement.query([])?;
     while let Some(row) = rows.next()? {

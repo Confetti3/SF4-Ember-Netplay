@@ -10,10 +10,11 @@
 //! would skip one or break on one. A number above its newest is a newer
 //! bridge's, which a bridge rolled back to leaves alone.
 //!
-//! Bridges before this recorded only the number. Their records, up to 056,
+//! Bridges before this recorded only the number. Their records, up to 059,
 //! take this bridge's file for that number, once, when it first opens the
-//! database. 057 to 059 belong to the shared library's bridge, which still
-//! records numbers only: an unnamed record above 056 is refused, not adopted.
+//! database: 057 to 059 are the shared library's files, which its bridge ran
+//! on production and staging and this bridge carries unchanged. An unnamed
+//! record above 059 is refused, not adopted.
 use rusqlite::{Connection, Transaction, TransactionBehavior, params};
 use sha2::{Digest, Sha256};
 
@@ -128,6 +129,10 @@ pub(super) const MIGRATIONS: &[Migration] = migrations![
     "054_archive_games_once.sql",
     "055_archive_listing.sql",
     "056_room_wired_only.sql",
+    // The shared library's files, as it deployed them (LAST_UNNAMED_VERSION).
+    "057_room_game.sql",
+    "058_ranking_games.sql",
+    "059_match_games.sql",
     "060_fighter_levels.sql",
     "061_friends.sql",
     "062_account_points.sql",
@@ -216,12 +221,14 @@ fn settle_unnamed_055(tx: &Transaction<'_>) -> Result<(), OpenError> {
 
 /// The newest number a bridge from before the ledger could have recorded, and
 /// so the newest an unnamed record can be taken for this bridge's own file.
-/// An unnamed record above it was written by a bridge of another line (the
-/// shared library's bridge records numbers only, and uses 057 to 059 for its
-/// own files; this line's start at 060), so naming it here would mark a
-/// migration this bridge never ran as applied. Until the two lines are one
-/// bridge, a database that holds such a record is refused.
-const LAST_UNNAMED_VERSION: i64 = 56;
+/// The shared library's bridge records numbers only. Its 057 to 059 ran on
+/// production and staging on 2026-11-09, and this bridge carries those three
+/// files byte for byte (057_room_game, 058_ranking_games, 059_match_games),
+/// so their unnamed records are this bridge's too. This line's own files
+/// start at 060 and are always recorded by name, so an unnamed record above
+/// 059 was written by a bridge this one does not know, and naming it would
+/// mark a migration it never ran as applied: such a database is refused.
+const LAST_UNNAMED_VERSION: i64 = 59;
 
 /// Gives each record without a name this bridge's file for its number (up to
 /// `LAST_UNNAMED_VERSION`), then refuses a record of another file, of another

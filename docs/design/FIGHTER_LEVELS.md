@@ -171,10 +171,18 @@ each migration by file name and checksum.
 
 The three files of this line are 060 to 062, not 057 to 059: those numbers
 belong to the shared library's bridge (`057_room_game`, `058_ranking_games`,
-`059_match_games`), which records numbers only. This bridge names an unnamed
-record only up to 056, the last number a bridge from before the ledger could
-have run, and refuses one above it. A database that has run the library's
-files is therefore refused until the two lines are one bridge with one order.
+`059_match_games`), which records numbers only. That bridge ran them on
+production and staging on 2026-11-09, so this bridge carries the three files
+byte for byte as its own 057 to 059 and names their unnamed records, as it
+names every unnamed record up to 059. An unnamed record above 059 is no file
+it knows, and is refused.
+
+058 puts `game` (default `usf4`) at the head of the keys of `skill_ratings`,
+`rated_pairs` and `ranking_choices`. This bridge's writes name it in their
+conflict targets (`ON CONFLICT (game, discord_user_id)`, `(game, first,
+second)`) and its reads take `game = 'usf4'` only, so SFV rows left in the
+database (until SFV moves to its own bridge, `SFV_BRIDGE.md` in the library)
+are never read or changed.
 
 ```sql
 -- Each fighter's counted games for a Discord account (FIGHTER_LEVELS.md).

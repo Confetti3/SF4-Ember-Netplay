@@ -427,6 +427,28 @@ mod tests {
         assert!(check_room_name("\u{3000}ideographic").is_err());
     }
 
+    /// SFV Ember's builds name their game in a room's create and ticket
+    /// requests (the shared library's `game`). This line has no such field, so
+    /// it refuses them rather than take an SFV room or join as USF4's. Should
+    /// these types ever take `game`, they must refuse every game but `usf4` in
+    /// the same change (the library's `docs/design/SFV_BRIDGE.md`).
+    #[test]
+    fn a_request_naming_a_game_is_refused() {
+        let create = r#"{"name":"Room","capacity":8,"build_id":"build","game":"sfv"}"#;
+        assert!(serde_json::from_str::<CreateRoom>(create).is_err());
+        let ticket = r#"{"endpoint_id":"endpoint","build_id":"build","game":"sfv"}"#;
+        assert!(serde_json::from_str::<TicketRequest>(ticket).is_err());
+        // Without it both read.
+        assert!(
+            serde_json::from_str::<CreateRoom>(r#"{"name":"Room","capacity":8,"build_id":"build"}"#)
+                .is_ok()
+        );
+        assert!(
+            serde_json::from_str::<TicketRequest>(r#"{"endpoint_id":"endpoint","build_id":"build"}"#)
+                .is_ok()
+        );
+    }
+
     #[test]
     fn requests_and_summaries_are_bounded() {
         let create = CreateRoom {

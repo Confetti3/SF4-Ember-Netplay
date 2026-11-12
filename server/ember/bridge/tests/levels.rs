@@ -413,6 +413,90 @@ async fn a_game_without_fighters_is_rated_and_earns_account_points_only() {
     assert_eq!(account_points(&bridge, "100").await, Some((1, 1)));
 }
 
+/// Production and staging since 2026-11-09 hold the shared library's 057 to
+/// 059, which put `game` at the head of the rating tables' keys, and SFV rows
+/// beside USF4's. This bridge rates and reads USF4's alone and never touches
+/// SFV's: a second game updates the same rows (the conflict targets name the
+/// game), and the SFV rows keep what they held.
+#[tokio::test]
+async fn usf4_games_are_rated_beside_sfv_rows_and_leave_them_alone() {
+    let (bridge, fake, room_id, first, second) = two_players().await;
+    sql(
+        &bridge,
+        "INSERT INTO skill_ratings (game, discord_user_id, rating, deviation, volatility, band, played_at)
+           VALUES ('sfv', '100', 1900.0, 60.0, 0.06, 8, 5000), ('sfv', '200', 1100.0, 60.0, 0.06, 2, 5000);
+         INSERT INTO ranking_choices (game, discord_user_id, ranked, changed_at, name, country)
+           VALUES ('sfv', '100', 0, 5000, 'Player 1', NULL);
+         INSERT INTO rated_pairs (game, first, second, games, played_at)
+           VALUES ('sfv', '100', '200', 4, 5000);",
+    )
+    .await;
+    let sfv = |bridge: &Bridge| {
+        let state = bridge.state().clone();
+        async move {
+            state
+                .db
+                .read(|tx| {
+                    let mut statement = tx.prepare(
+                        "SELECT discord_user_id || ':' || rating || ':' || band FROM skill_ratings
+                         WHERE game = 'sfv'
+                         UNION ALL SELECT first || ':' || second || ':' || games FROM rated_pairs
+                         WHERE game = 'sfv'
+                         UNION ALL SELECT discord_user_id || ':' || ranked FROM ranking_choices
+                         WHERE game = 'sfv' ORDER BY 1",
+                    )?;
+                    let rows = statement
+                        .query_map([], |row| row.get::<_, String>(0))?
+                        .collect::<rusqlite::Result<Vec<_>>>()?;
+                    Ok(rows)
+                })
+                .await
+                .unwrap()
+        }
+    };
+    let before = sfv(&bridge).await;
+    assert_eq!(before.len(), 4);
+
+    play(
+        &bridge,
+        &fake,
+        &room_id,
+        vec![game(1, 0, &first, &second, Some([3, 7]))],
+    )
+    .await;
+    play(
+        &bridge,
+        &fake,
+        &room_id,
+        vec![
+            game(1, 0, &first, &second, Some([3, 7])),
+            game(2, 0, &second, &first, Some([7, 3])),
+        ],
+    )
+    .await;
+    // Two games: each USF4 rating written once and updated once, the sitting counted twice.
+    let usf4: (i64, i64) = {
+        let state = bridge.state().clone();
+        state
+            .db
+            .read(|tx| {
+                Ok(tx.query_row(
+                    "SELECT (SELECT COUNT(*) FROM skill_ratings WHERE game = 'usf4'),
+                            (SELECT games FROM rated_pairs WHERE game = 'usf4' AND first = '100' AND second = '200')",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?)
+            })
+            .await
+            .unwrap()
+    };
+    assert_eq!(usf4, (2, 2));
+    assert_eq!(account_points(&bridge, "100").await, Some((2, 1)));
+    // A USF4 player's own points and class read USF4's rating, not SFV's.
+    assert_eq!(own(&bridge, &first).await["points"], json!("counted"));
+    assert_eq!(sfv(&bridge).await, before);
+}
+
 #[tokio::test]
 async fn a_player_who_does_not_take_part_earns_points_and_shows_them() {
     let (bridge, fake, room_id, first, second) = two_players().await;
@@ -626,6 +710,26 @@ async fn offers_levels(bridge: &Bridge) -> bool {
         .contains(&json!("points"))
 }
 
+/// SFV Ember's builds call another game's ranking routes only on a bridge
+/// that lists `ranking_games`. This line rates USF4 alone, so it never lists
+/// it, and an SFV build on this bridge writes no SFV ratings as USF4's
+/// (the library's `docs/design/SFV_BRIDGE.md`).
+#[tokio::test]
+async fn ranking_by_game_is_never_offered() {
+    let (bridge, _fake) = start().await;
+    let response = bridge
+        .client
+        .get(bridge.url("/v1/capabilities"))
+        .send()
+        .await
+        .unwrap();
+    let (status, body) = common::read(response).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let features = body["features"].as_array().unwrap();
+    assert!(features.contains(&json!("ranking")), "{body}");
+    assert!(!features.contains(&json!("ranking_games")), "{body}");
+}
+
 #[tokio::test]
 async fn levels_are_offered_with_public_rooms_and_answer_404_without() {
     let (rooms, _fake) = start().await;
@@ -758,8 +862,9 @@ async fn migration_060_keeps_rated_games_sittings_and_ratings_and_an_older_bridg
     assert_eq!(inserted(0, 1, 0), 0);
     assert_eq!(inserted(0, 1, 1), 1);
 
-    // A bridge rolled back to before 060 writes what it always wrote: its key
-    // is a battle's first game, and the rated games stay rated.
+    // A bridge rolled back to before 060 (the shared library's, which runs
+    // 057 to 059 and names the game in its keys) writes what it always wrote:
+    // its key is a battle's first game, and the rated games stay rated.
     let older = |table: i64, generation: i64| {
         connection
             .execute(
@@ -775,7 +880,7 @@ async fn migration_060_keeps_rated_games_sittings_and_ratings_and_an_older_bridg
         .execute_batch(
             "DELETE FROM rated_pairs WHERE played_at < 5500;
              INSERT INTO rated_pairs (first, second, games, played_at) VALUES ('100', '300', 1, 7000)
-               ON CONFLICT (first, second) DO UPDATE SET games = games + 1, played_at = 7000;",
+               ON CONFLICT (game, first, second) DO UPDATE SET games = games + 1, played_at = 7000;",
         )
         .unwrap();
     drop(connection);
