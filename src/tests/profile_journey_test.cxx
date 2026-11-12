@@ -236,6 +236,50 @@ void AwardsJourney() {
  Check(j.row("award:launch-night") && !j.row("award:launch-night")->enabled, "Awards change in a room");
 }
 
+// Where one press from `from` leaves the focus.
+std::string Moved(Journey& j, const std::string& from, unsigned direction) {
+ j.h.shell.Navigation().Prefer(from); j.h.Frame(0, 2);
+ j.h.Press(direction);
+ return j.h.shell.Navigation().Focus();
+}
+
+// What is drawn in two dimensions moves in two: Left and Right along a line of
+// tiles, Up and Down to the tile above or below, at 1280x960 and at 1280x720,
+// where the card is compact. The facts drawn beside the points take no focus.
+void SpatialJourney() {
+ for (const float height : {960.f, 720.f}) {
+  Journey j;
+  j.h.imgui.io.DisplaySize = ImVec2(1280, height);
+  j.h.view.preferences.mainFighter = 0;
+  j.h.view.earnedAwards = {"entrant", "launch-night"};
+  Answer(j);
+  // Card: Edit card under the hero, the strip's three tiles in a line beside it.
+  j.h.Screen("card"); j.h.Frame(0, 2);
+  const std::string ryu = ui::CardFighterRow(0), ken = ui::CardFighterRow(5), third = ui::CardFighterRow(12);
+  Check(j.rows.size() == 4, "The card takes the focus somewhere other than its strip and Edit card");
+  Check(Moved(j, ui::CardEditRow, MenuInput::Right) == ryu && Moved(j, ryu, MenuInput::Left) == ui::CardEditRow, "Left and Right do not go between Edit card and the strip");
+  Check(Moved(j, ryu, MenuInput::Right) == ken && Moved(j, ken, MenuInput::Right) == third && Moved(j, third, MenuInput::Left) == ken, "Left and Right do not step along the strip");
+  Check(Moved(j, ken, MenuInput::Down) == ken && Moved(j, ken, MenuInput::Up) == ken, "Up or Down steps along the strip as a list");
+  // Fighters: the played tiles on a line, the rest in lines under them.
+  j.h.Screen("fighters"); j.h.Frame(0, 2);
+  const auto fighter = [&](std::size_t i) { return j.rows.at(i).id; };
+  Check(Moved(j, fighter(0), MenuInput::Right) == fighter(1) && Moved(j, fighter(1), MenuInput::Left) == fighter(0), "Left and Right do not step along the fighters");
+  Check(Moved(j, fighter(1), MenuInput::Down) == fighter(6) && Moved(j, fighter(6), MenuInput::Up) == fighter(1), "Down from a played fighter is not the tile under it");
+  Check(Moved(j, fighter(6), MenuInput::Right) == fighter(7), "Right does not step along the fighters not played");
+  // Awards: four across.
+  j.h.Screen("awards"); j.h.Frame(0, 2);
+  const auto award = [&](std::size_t i) { return j.rows.at(i).id; };
+  Check(Moved(j, award(0), MenuInput::Right) == award(1) && Moved(j, award(1), MenuInput::Down) == award(5) && Moved(j, award(5), MenuInput::Up) == award(1), "The awards wall does not move as a grid");
+  // Home: the card beside the list is a column of its own.
+  j.h.Screen("home"); j.h.Frame(0, 2);
+  std::vector<std::string> list;
+  for (const auto& row : j.rows) if (row.id != "card") list.push_back(row.id);
+  Check(Moved(j, list[1], MenuInput::Right) == "card" && Moved(j, "card", MenuInput::Left) == list.front(), "Left and Right do not go between Home's list and its card");
+  Check(Moved(j, "card", MenuInput::Up) == "card" && Moved(j, "card", MenuInput::Down) == "card", "Up or Down on Home's card steps into the list");
+  Check(Moved(j, list.back(), MenuInput::Down) == list.front() && Moved(j, list.front(), MenuInput::Up) == list.back(), "Home's list does not go round past the card beside it");
+ }
+}
+
 // Home's Profile row opens Card, or Friends while requests wait, and says so; the Friends tab counts them.
 void HomeJourney() {
  Journey j;
@@ -286,9 +330,10 @@ void ReadJourney() {
 }
 }
 
+
 int main() {
  try {
-  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); AwardsJourney(); HomeJourney(); ReadJourney();
+  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); AwardsJourney(); HomeJourney(); ReadJourney(); SpatialJourney();
   std::cout << "Profile journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

@@ -401,6 +401,8 @@ void GameMenu::DrawCards(Frame& f, v2::Box content, bool narrow) {
         pane = paneLeft ? v2::CutLeft(list, w, 24 * s) : v2::CutRight(list, w, 24 * s);
     }
     if (f.home && split) list.max.x = list.min.x + (std::min)(600 * s, list.W());
+    // Home's card in the pane stands beside the list; narrow, it is the list's last card.
+    if (f.home) navigation.SetAside(split ? "card" : "");
     const v2::Box focusCard = DrawCardList(f, list, split);
     if (split && f.home) DrawHomePane(f, pane);
     else if (split && FocusedIn(f.entries, navigation.Focus())) DrawDetailPane(f, pane);

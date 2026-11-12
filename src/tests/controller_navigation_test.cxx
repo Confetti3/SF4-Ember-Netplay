@@ -982,6 +982,27 @@ void ListWrap(){
  nav.Focus("card",rows);hold(MenuInput::Down,.05);
  Check(nav.Focus()=="a","Down from the list's last entry did not go round to its first");
 }
+// An entry its menu draws beside the list (Home's card in its pane) is a
+// column of its own: Up and Down keep to it, the list's Up and Down pass over
+// it and go round on a fresh press only, and Left and Right still reach it.
+void AsideEntry(){
+ std::vector<MenuEntry> rows={Row("a","A",""),Row("b","B",""),Row("card","Card",""),Row("d","D","")};
+ for(auto& r:rows)if(r.id=="card")r.left="a";else r.right="card";
+ MenuNavigation nav;double time=0;
+ const auto hold=[&](unsigned held,double seconds){for(double end=time+seconds;time<end;){time+=.016;nav.Update({held,time},rows);}time+=.016;nav.Update({0,time},rows);};
+ time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({0,time},rows);
+ nav.SetAside("card");
+ nav.Focus("b",rows);hold(MenuInput::Down,.05);Check(nav.Focus()=="d","Down in the list stopped on the entry beside it");
+ hold(MenuInput::Up,.05);Check(nav.Focus()=="b","Up in the list stopped on the entry beside it");
+ nav.Focus("d",rows);hold(MenuInput::Down,.05);Check(nav.Focus()=="a","A fresh Down at the list's foot did not go round to its top");
+ nav.Focus("a",rows);hold(MenuInput::Down,3);Check(nav.Focus()=="d","A held Down went round the list or onto the entry beside it");
+ nav.Focus("card",rows);hold(MenuInput::Down,.05);Check(nav.Focus()=="card","Down on the entry beside the list stepped into the list");
+ hold(MenuInput::Up,.05);Check(nav.Focus()=="card","Up on the entry beside the list stepped into the list");
+ hold(MenuInput::Left,.05);Check(nav.Focus()=="a","Left from the entry beside the list did not go back to it");
+ hold(MenuInput::Right,.05);Check(nav.Focus()=="card","Right from the list did not reach the entry beside it");
+ // Drawn in the list (narrow), it is one of its entries again.
+ nav.SetAside("");nav.Focus("b",rows);hold(MenuInput::Down,.05);Check(nav.Focus()=="card","Down did not reach the card drawn in the list");
+}
 // Tabs wrap at both ends, from no tab too, and only an LB or RB Shortcut is a step.
 void TabStepping(){
  Check(StepTab(5,1,6)==0&&StepTab(0,-1,6)==5&&StepTab(2,1,6)==3&&StepTab(2,-1,6)==1,"Tabs do not wrap");
@@ -1028,5 +1049,5 @@ void ProfileRecords(){
 void DialogContract();
 void HintPresses();
 void DialogRepeat();
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();PreferencesRevisionCounts();MenuSummonsOncePerEvent();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();PreferencesRevisionCounts();MenuSummonsOncePerEvent();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();AsideEntry();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

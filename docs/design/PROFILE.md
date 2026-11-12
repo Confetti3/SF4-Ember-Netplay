@@ -326,7 +326,8 @@ award is info: its detail says how to earn it. Header chip "Earned 6 of 11".
 | Part | Change |
 |---|---|
 | Profile row (`profile`) | opens `card` (today it opens Settings' Profile page); detail "Your card, fighters, friends and awards."; value "Requests: 2" in the accent while requests wait, and then Select opens `friends` |
-| The card in the pane (`card` row, L tag) | gains the two points lines under the about line (`TagView::points`, own card only); Select opens `card` as today |
+| The card in the pane (`card` row, L tag) | gains the two points lines under the about line, or under the name when there is none (`TagView::points`, own card only); Select opens `card` as today |
+| Navigation | the card beside the list is a column of its own (`MenuNavigation::SetAside`): Right from any row reaches it, Left goes back to the list's top, Up and Down on it keep it; the list's Up and Down pass over it, so Down from the last row goes round to the first (a fresh press) instead of across to the card. Narrow, where the card is the list's last card, it is one of the list's rows |
 
 ## Toasts
 
