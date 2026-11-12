@@ -445,7 +445,7 @@ Added to all fourteen catalogs, as for `PLAYER_CARD.md`:
 | `friends.appearing_offline` | Appearing offline |
 | `friends.invite_reveals` | Your invite shows this friend where you are. |
 | `friends.turn_off` | Turn off friends |
-| `friends.turn_off_detail` | Deletes your friends, requests and friend code. Your blocks stay. |
+| `friends.turn_off_detail` | Removes your friends and requests and retires your friend code. Your blocks stay. |
 | `friends.no_account` | Friends need a Discord account. Connect it in Settings, Online. |
 | `friends.unavailable` | This service does not offer friends yet. |
 | `friends.toast_request` | {0} wants to be friends |
