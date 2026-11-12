@@ -138,9 +138,12 @@ enum class ActionKind : std::uint8_t {
 	// The host turns the room's Tiny fighters allowed rule on (Action::tinyFighters)
 	// or off. A look-only rule that gates no seat. Appended last, so no kind moves.
 	SetTinyFighters,
+	// The host of a private room turns the room's Skip winner scenes rule on
+	// (the default) or off (Action::skipScenes). Appended last, so no kind moves.
+	SetSkipScenes,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::SetTinyFighters;
+constexpr ActionKind LastActionKind = ActionKind::SetSkipScenes;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -436,6 +439,15 @@ struct Snapshot {
 	// (SetTinyFighters), in a private room only; it gates no seat, and turning it
 	// off touches no pick already readied. Serialized only when true.
 	bool tinyFighters = false;
+	// Skip winner scenes: after a match's deciding KO each copy asks for the
+	// game's winner scenes to be skipped on its own, so the rematch prompt
+	// comes in seconds instead of after the whole presentation; a player's
+	// button press still skips them too. On by default, in every room, public
+	// ones included; the host of a private room can turn it off
+	// (SetSkipScenes). A game that does not offer it (Capabilities::skipScenes)
+	// never reads it. Serialized only when off, so a room's state without the
+	// key reads as on.
+	bool skipScenes = true;
 	// The room's type (RoomType), fixed for its life. In an Arcade or King of
 	// the hill room a member sits at any free cabinet and plays the player who
 	// has waited longest, at whichever table is free: a table is a pair, not a
@@ -525,6 +537,8 @@ struct Action {
 	bool wiredOnly = false;
 	// SetTinyFighters: the rule on. Written only when set.
 	bool tinyFighters = false;
+	// SetSkipScenes: the rule on (the default). Written only when off.
+	bool skipScenes = true;
 };
 
 struct Event {

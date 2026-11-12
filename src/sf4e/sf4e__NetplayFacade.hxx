@@ -140,6 +140,9 @@ namespace sf4e {
             bool wiredOnly = false;
             // With HostRoom: the room's Tiny fighters allowed rule (room::Snapshot::tinyFighters).
             bool tinyFighters = false;
+            // With HostRoom: the room's Skip winner scenes rule (room::Snapshot::skipScenes).
+            // On unless a replacement room carries the rule its host turned off.
+            bool skipScenes = true;
             // What the Replays screen asks of the game (sf4e__ReplayStore), or
             // the player's answer to a replay link; mode None for every other command.
             replay::Request replay;

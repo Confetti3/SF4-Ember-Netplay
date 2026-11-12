@@ -2948,6 +2948,12 @@ msgstr "Lutadores minúsculos permitidos"
 msgid "room.tiny_fighters.detail"
 msgstr "Os jogadores podem escolher uma versão minúscula do seu lutador. Só muda a aparência."
 
+msgid "room.skip_scenes"
+msgstr "Pular cenas do vencedor"
+
+msgid "room.skip_scenes.detail"
+msgstr "Após o último KO, as cenas do vencedor terminam sozinhas e o convite para a revanche aparece mais cedo. Apertar um botão as pula ainda antes."
+
 msgid "selection.size"
 msgstr "Tamanho"
 

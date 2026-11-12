@@ -3312,6 +3312,12 @@ msgstr "Winzige Kämpfer erlaubt"
 msgid "room.tiny_fighters.detail"
 msgstr "Spieler dürfen eine winzige Version ihres Kämpfers wählen. Nur das Aussehen ändert sich."
 
+msgid "room.skip_scenes"
+msgstr "Siegerszenen überspringen"
+
+msgid "room.skip_scenes.detail"
+msgstr "Nach dem letzten KO enden die Siegerszenen von selbst, sodass die Revanche-Abfrage früher kommt. Ein Tastendruck überspringt sie noch früher."
+
 msgid "selection.size"
 msgstr "Größe"
 

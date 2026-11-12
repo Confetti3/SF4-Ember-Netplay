@@ -195,6 +195,9 @@ struct ShellView {
     // The game draws tiny fighters (Capabilities::tinyFighters): the shell offers
     // a private room's host the Tiny fighters allowed rule.
     bool offersTinyFighters = false;
+    // The game ends a decided match's winner scenes on both copies' request
+    // (Capabilities::skipScenes): Room settings shows the Skip winner scenes rule.
+    bool offersSkipScenes = false;
     ember::SettingsFeatures settingsFeatures = ember::SettingsFeatures::All();
     // What the Replays screen offers of a replay beyond watching, keeping and
     // showing it (the adapter's replay capabilities): the game's own replay

@@ -3312,6 +3312,12 @@ msgstr "Kleine vechters toegestaan"
 msgid "room.tiny_fighters.detail"
 msgstr "Spelers mogen een kleine versie van hun vechter kiezen. Alleen het uiterlijk verandert."
 
+msgid "room.skip_scenes"
+msgstr "Winnaarscènes overslaan"
+
+msgid "room.skip_scenes.detail"
+msgstr "Na de laatste KO eindigen de winnaarscènes vanzelf, zodat de rematchvraag eerder komt. Een druk op een knop slaat ze nog eerder over."
+
 msgid "selection.size"
 msgstr "Grootte"
 

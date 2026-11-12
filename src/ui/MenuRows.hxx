@@ -204,6 +204,11 @@ inline MenuEntry WiredOnlyRow(const char* id,bool on,const std::string& detail,b
 inline MenuEntry TinyFightersRow(const char* id,bool on,const std::string& detail,bool enabled) {
     return Value(id,loc::T("room.tiny_fighters"),loc::T(on?"common.on":"common.off"),detail,enabled);
 }
+// The room's Skip winner scenes rule (room::Snapshot::skipScenes): the host's
+// in Room settings (id "room-skip-scenes"); every member sees it.
+inline MenuEntry SkipScenesRow(const char* id,bool on,const std::string& detail,bool enabled) {
+    return Value(id,loc::T("room.skip_scenes"),loc::T(on?"common.on":"common.off"),detail,enabled);
+}
 inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.kind!=MenuAction::Adjust) return false;
     if(a.id=="edition") rules.editionSelect=a.delta>0;
