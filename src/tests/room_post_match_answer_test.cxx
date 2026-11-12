@@ -135,9 +135,7 @@ int main() {
 		const auto& members = room.authority.SnapshotView().members;
 		EXPECT(std::none_of(members.begin(), members.end(), [&](const Member& m) { return m.id == room.p1; }));
 	}
-	if (TEST_FAILURES()) { std::printf("%d failures
-", TEST_FAILURES()); return 1; }
-	std::printf("Room post-match answer rules passed.
-");
+	if (TEST_FAILURES()) { std::printf("%d failures\n", TEST_FAILURES()); return 1; }
+	std::printf("Room post-match answer rules passed.\n");
 	return 0;
 }
