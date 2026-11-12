@@ -24,6 +24,8 @@
 #include "../training/RemoteServer.hxx"
 #include "../training/RemoteHud.hxx"
 #include "../platform/ReplayFiles.hxx"
+#include "../platform/ApplicationServices.hxx"
+#include <shellapi.h>
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "../netplay/SettingsStore.hxx"
@@ -217,6 +219,10 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
     sf4e::ui::SetOverlayCursorOwnership(false);
 	s_overlayWindow = hWnd;
+	// The replay picker is owned by the game's window, which also takes replay
+	// files dropped on it (the Replays screen imports them).
+	sf4e::platform::SetPickerOwner([hWnd]() -> void* { return hWnd; });
+	DragAcceptFiles(hWnd, TRUE);
 	ImGui::GetPlatformIO().Platform_SetImeDataFn = nullptr;
 	ImGui_ImplWin32_Init(hWnd);
 	s_inputBridge.RequestClear(); // nothing queued for a context that is gone
@@ -962,6 +968,21 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
             s_trainingControls.LoseFocus(); s_goNowKey.Reset();
         }
         else s_trainingControls.GainFocus();
+    }
+    if (message == WM_DROPFILES) {
+        const HDROP drop = reinterpret_cast<HDROP>(w);
+        std::vector<std::wstring> files;
+        const UINT count = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
+        for (UINT i = 0; i < count && i < 64; ++i) {
+            const UINT length = DragQueryFileW(drop, i, nullptr, 0);
+            if (!length || length > 2048) continue;
+            std::wstring name(length + 1, L' ');
+            name.resize(DragQueryFileW(drop, i, &name[0], length + 1));
+            files.push_back(std::move(name));
+        }
+        DragFinish(drop);
+        sf4e::platform::NoteDroppedFiles(std::move(files));
+        return 1;
     }
     if (!ImGui::GetCurrentContext()) return 0;
     if (activationClick.Swallow(message, l)) return 0;

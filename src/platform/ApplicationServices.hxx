@@ -5,7 +5,9 @@
 #include "../common/SteamId.hxx"
 #include "ReportWorkflow.hxx"
 #include "UpdatePolicy.hxx"
+#include <functional>
 #include <memory>
+#include <string>
 #include <chrono>
 #include <condition_variable>
 #include <array>
@@ -27,8 +29,11 @@ namespace sf4e { namespace platform {
 // the Launcher's Updates window with the offer the player accepted, and
 // SkipUpdate records that they skipped it. OpenSteamProfile opens a member's
 // Steam profile page in the browser; only OpenSteamProfilePage starts it, with a SteamId.
+// PickReplays opens the Windows file picker over the game's window, in the
+// Downloads folder, for replay and set pack files; what was picked comes back
+// in ServiceSnapshot::picked (nothing for a cancel).
 enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
-    PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate };
+    PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate, PickReplays };
 // Where the launch check is. Off is a service that makes none (a snapshot
 // nobody started one for); Waiting is a launch check not yet asked for.
 enum class LaunchCheck { Off, Waiting, Running, Settled };
@@ -124,7 +129,25 @@ struct ServiceSnapshot {
     // report operation. Unreadable, it stops every automatic send.
     std::vector<reports::Record> sentReports;
     bool sentReadable = true;
+    // The file picker can be opened now: not while the game owns the whole
+    // screen (exclusive full screen), where a window would stay behind it.
+    bool canPickFiles = false;
+    // The files the last PickReplays chose, as UTF-8 paths, and how many
+    // pickers have ended (a cancel counts, with none).
+    std::vector<std::string> picked;
+    std::uint64_t pickSequence = 0;
+    // The files last dropped on the game's window, and how many drops there
+    // have been (NoteDroppedFiles).
+    std::vector<std::string> dropped;
+    std::uint64_t dropSequence = 0;
 };
+// The game's window, which owns the file picker; null asks for none. Set once
+// by the game, read by the worker when the picker opens.
+void SetPickerOwner(std::function<void*()> window);
+// The game's display is exclusive full screen: PickReplays is refused.
+void SetFullScreenExclusive(bool exclusive);
+// Files dropped on the game's window (WM_DROPFILES), as the window handler read them.
+void NoteDroppedFiles(std::vector<std::wstring> files);
 // The home relay and network class, once per export: they rarely change, so
 // the connection history lines leave them out.
 std::string DescribeNetwork(const DiagnosticsView& view);
@@ -138,6 +161,8 @@ struct ServiceHooks {
     std::function<launcher::UpdateCheckResult(launcher::UpdateChannel)> checkForUpdate;
     std::function<std::uint64_t()> clock;
     std::optional<UpdatePolicy::Store> policyStore;
+    // PickReplays: the files the player picks, or none (a test has no dialog to open).
+    std::function<std::vector<std::wstring>()> pickReplays;
 };
 class ApplicationServices {
 public:

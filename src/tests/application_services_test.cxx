@@ -142,6 +142,30 @@ int main() {
             const auto shown=service.Snapshot();
             CHECK(!shown.pending&&!shown.succeeded&&shown.lastAction==ServiceAction::ShowReplayFile&&!shown.message.empty());
         }
+        // Import replay's picker: what the player picks comes back as UTF-8 paths under a new count, a cancel
+        // as no paths under a new count, and full screen refuses it (no window would show over the game).
+        {
+            ServiceHooks hooks; std::vector<std::wstring> answer{L"C:\\dl\\a.emberreplay",L"C:\\dl\\p.emberpack"};
+            hooks.pickReplays=[&]{return answer;};
+            ApplicationServices picker(root.wstring(),hooks);
+            CHECK(picker.Snapshot().canPickFiles&&picker.Snapshot().pickSequence==0);
+            for(int round=1;round<=2;++round){
+                CHECK(picker.Request(ServiceAction::PickReplays));
+                const auto pickDeadline=GetTickCount64()+5000;
+                while(picker.Snapshot().pending&&GetTickCount64()<pickDeadline)Sleep(1);
+                const auto done=picker.Snapshot();
+                CHECK(!done.pending&&done.pickSequence==static_cast<std::uint64_t>(round)&&done.lastAction==ServiceAction::PickReplays);
+                CHECK(round==1?(done.picked==std::vector<std::string>{"C:\\dl\\a.emberreplay","C:\\dl\\p.emberpack"}&&done.succeeded):(done.picked.empty()&&!done.succeeded));
+                answer.clear();
+            }
+            SetFullScreenExclusive(true);
+            ApplicationServices refused(root.wstring());
+            CHECK(!refused.Snapshot().canPickFiles&&!refused.Request(ServiceAction::PickReplays));
+            SetFullScreenExclusive(false);
+            NoteDroppedFiles({L"C:\\dl\\notes.txt",L"D:\\x\\d.usf4replay"});
+            const auto dropped=refused.Snapshot();
+            CHECK(dropped.dropSequence==1&&dropped.dropped==std::vector<std::string>{"D:\\x\\d.usf4replay"});
+        }
     }
     RemoveTempRoot(root);
     std::cout<<"Bounded readable diagnostics, unavailable state and worker export passed\n";

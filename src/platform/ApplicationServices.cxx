@@ -9,6 +9,9 @@
 #include <windows.h>
 #include <objbase.h>
 #include <shellapi.h>
+#include <shlobj.h>
+#include <shobjidl.h>
+#include "../common/ReplayLink.hxx"
 #include <filesystem>
 #include <fstream>
 #include <cstring>
@@ -23,9 +26,68 @@ bool ShellOpen(const wchar_t* target) {
     if (SUCCEEDED(com)) CoUninitialize();
     return opened;
 }
+// What the replay picker and the drop handler share between the game's
+// threads and the worker.
+std::mutex pickerMutex;
+std::function<void*()> pickerOwner;
+std::atomic<bool> fullScreenExclusive{false};
+std::vector<std::string> droppedFiles;
+std::uint64_t droppedCount = 0;
+// The Windows file picker: in Downloads, for replay and set pack files, any number
+// of them. It blocks until the player closes it, so only the worker runs it; the
+// game window it is owned by goes on drawing.
+std::vector<std::wstring> ChooseReplayFiles() {
+    std::vector<std::wstring> files;
+    const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    IFileOpenDialog* dialog = nullptr;
+    if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog)))) { if (SUCCEEDED(com)) CoUninitialize(); return files; }
+    dialog->SetOptions(FOS_ALLOWMULTISELECT | FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST);
+    const std::wstring title = Utf8ToWide(loc::T("replays.import_title"));
+    const std::wstring kind = Utf8ToWide(loc::T("replays.import_filter"));
+    dialog->SetTitle(title.c_str());
+    const COMDLG_FILTERSPEC filter[] = {{kind.c_str(), L"*.emberreplay;*.usf4replay;*.emberpack"}};
+    dialog->SetFileTypes(1, filter);
+    PWSTR downloads = nullptr;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Downloads, KF_FLAG_DEFAULT, nullptr, &downloads))) {
+        IShellItem* folder = nullptr;
+        if (SUCCEEDED(SHCreateItemFromParsingName(downloads, nullptr, IID_PPV_ARGS(&folder)))) { dialog->SetFolder(folder); folder->Release(); }
+        CoTaskMemFree(downloads);
+    }
+    HWND owner = nullptr;
+    { std::function<void*()> window; { std::lock_guard<std::mutex> lock(pickerMutex); window = pickerOwner; } if (window) owner = static_cast<HWND>(window()); }
+    if (SUCCEEDED(dialog->Show(owner))) {
+        IShellItemArray* results = nullptr;
+        if (SUCCEEDED(dialog->GetResults(&results))) {
+            DWORD count = 0; results->GetCount(&count);
+            for (DWORD i = 0; i < count && files.size() < 64; ++i) {
+                IShellItem* item = nullptr; PWSTR name = nullptr;
+                if (SUCCEEDED(results->GetItemAt(i, &item))) {
+                    if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &name))) { files.push_back(name); CoTaskMemFree(name); }
+                    item->Release();
+                }
+            }
+            results->Release();
+        }
+    }
+    dialog->Release();
+    if (SUCCEEDED(com)) CoUninitialize();
+    return files;
+}
 }
 
 namespace sf4e { namespace platform {
+void SetPickerOwner(std::function<void*()> window) { std::lock_guard<std::mutex> lock(pickerMutex); pickerOwner = std::move(window); }
+void SetFullScreenExclusive(bool exclusive) { fullScreenExclusive = exclusive; }
+void NoteDroppedFiles(std::vector<std::wstring> files) {
+    std::vector<std::string> kept;
+    for (const auto& file : files) {
+        const std::string path = WideToUtf8(file);
+        if (replay_link::IsReplayPath(path) && kept.size() < 64) kept.push_back(path);
+    }
+    if (kept.empty()) return;
+    std::lock_guard<std::mutex> lock(pickerMutex);
+    droppedFiles = std::move(kept); ++droppedCount;
+}
 std::string DescribeNetwork(const DiagnosticsView& view) {
     // Region code and network class only; never a relay address or an IP.
     const auto& net = view.netReport;
@@ -87,7 +149,14 @@ ApplicationServices::~ApplicationServices() {
     { std::lock_guard<std::mutex> lock(mutex_); stop_ = true; }
     wake_.notify_one(); worker_.join();
 }
-ServiceSnapshot ApplicationServices::Snapshot() const { std::lock_guard<std::mutex> lock(mutex_); return state_; }
+ServiceSnapshot ApplicationServices::Snapshot() const {
+    ServiceSnapshot snapshot;
+    { std::lock_guard<std::mutex> lock(mutex_); snapshot = state_; }
+    snapshot.canPickFiles = hooks_.pickReplays || !fullScreenExclusive.load();
+    std::lock_guard<std::mutex> lock(pickerMutex);
+    snapshot.dropped = droppedFiles; snapshot.dropSequence = droppedCount;
+    return snapshot;
+}
 void ApplicationServices::Observe(const DiagnosticsView& diagnostics) {
     const auto description = DescribeDiagnostics(diagnostics);
     std::lock_guard<std::mutex> lock(mutex_);
@@ -103,6 +172,7 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
     if (action == ServiceAction::LaunchUpdateCheck) return RequestLaunchCheck();
     // These two carry the offer the player saw: UpdateNow and SkipUpdate.
     if (action == ServiceAction::UpdateNow || action == ServiceAction::SkipUpdate) return false;
+    if (action == ServiceAction::PickReplays && !hooks_.pickReplays && fullScreenExclusive.load()) return false;
     std::lock_guard<std::mutex> lock(mutex_);
     if (stop_ || state_.pending) return false;
     if (action == ServiceAction::PrepareProblemReport)
@@ -170,6 +240,7 @@ bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& dia
         action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
         action == ServiceAction::OpenSteamProfile ? loc::T("services.opening_steam_profile") :
         action == ServiceAction::OpenReplayFolder || action == ServiceAction::ShowReplayFile ? loc::T("services.opening_replay_folder") :
+        action == ServiceAction::PickReplays ? loc::T("services.picking_replays") :
         action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel || action == ServiceAction::LaunchUpdateCheck ? loc::T("services.checking") :
         action == ServiceAction::SkipUpdate ? std::string() :
         action == ServiceAction::ExportDiagnostics ? loc::T("services.exporting") :
@@ -290,6 +361,13 @@ void ApplicationServices::Run() {
                 const bool opened = ShellOpen(folder.c_str());
                 next.succeeded = opened;
                 next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.wstring())) : loc::T("services.replay_folder_failed");
+            } else if (action == ServiceAction::PickReplays) {
+                const auto files = hooks_.pickReplays ? hooks_.pickReplays() : ChooseReplayFiles();
+                next.picked.clear();
+                for (const auto& file : files) next.picked.push_back(WideToUtf8(file));
+                ++next.pickSequence;
+                next.succeeded = !files.empty();
+                next.message.clear();
             } else if (action == ServiceAction::ShowReplayFile) {
                 // The archive's listing named the file; only the folder handles
                 // reach is opened, and only one of the archive by identity. The
