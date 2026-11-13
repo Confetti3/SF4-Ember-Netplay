@@ -462,6 +462,11 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.archiveBrowse = snapshot.archive;
     view.levels = snapshot.levels;
     view.memberCards = snapshot.memberCards;
+    view.profile = snapshot.profile;
+    view.playerSearch = snapshot.playerSearch;
+    view.recentOpponents = snapshot.recentOpponents;
+    view.profileSets = snapshot.profileSets;
+    view.profilesService = snapshot.profilesService;
     view.friends = snapshot.friends;
     // The archive is listed, and an entry's inputs read, off this thread (the
     // runtime's workers). The screen on show says what to ask for; the last

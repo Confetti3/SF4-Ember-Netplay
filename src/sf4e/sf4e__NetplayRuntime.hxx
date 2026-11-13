@@ -50,6 +50,9 @@
 #include "../netplay/FriendVisits.hxx"
 #include "../netplay/FriendsView.hxx"
 #include "../netplay/ArchiveRequests.hxx"
+#include "../netplay/CardBundle.hxx"
+#include "../netplay/ProfileRequests.hxx"
+#include "../netplay/ProfileWire.hxx"
 #include "../netplay/LevelRequests.hxx"
 #include "../netplay/RankingRequests.hxx"
 #include "../netplay/TournamentStatus.hxx"
@@ -61,6 +64,7 @@
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/SpeechPreferenceJson.hxx"
+#include "../netplay/CardPreferenceJson.hxx"
 #include "../netplay/PublicRoomFilterJson.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../common/SpectatorPolicy.hxx"
@@ -291,6 +295,23 @@ struct Runtime {
     netplay::rankings::Requests rankings;
     // The public replay archive's browser: the page in flight and the listing so far.
     netplay::archive::Requests archive;
+    // The second slot of the archive browser: the sets of the profile open. Never the Archive tab's listing.
+    netplay::archive::Requests profileSets;
+    // Other players' profiles: the one open and the Find a player search, with their requests in flight
+    // (sf4e__NetplayRuntime__Levels.cxx).
+    netplay::profiles::Requests profiles;
+    // The player's own card as the bridge keeps it, and what the save measures: the connection (read at most once
+    // a minute) and the relay region last known (sf4e__NetplayRuntime__Levels.cxx).
+    netplay::profiles::Saver cardSaver;
+    struct CardSignals {
+        NetworkLink link = NetworkLink::Unknown;
+        bool linkRead = false;
+        std::uint64_t linkMs = 0;
+        std::string region;
+    } cardSignals;
+    // The players this PC fought in public rooms lately, kept beside the preferences and never sent
+    // (sf4e__NetplayRuntime__Social.cxx).
+    netplay::profiles::RecentList recentOpponents;
     // The player's own fighter levels: the read in flight and the last answer.
     netplay::levels::Requests levels;
     // Other players' cards in a public room: the look-up in flight and the answers.
@@ -610,6 +631,16 @@ void TickLevels(bool helperReady, std::uint64_t nowMs);
 // looked up when one joins and 8 s after a set in the room ends.
 bool TakeCardsAnswer(const session::TournamentAnswer& answer);
 void TickCards(bool helperReady, std::uint64_t nowMs);
+// Other players' profiles and the player's own card (same file). The interface's commands; the profile and
+// search the helper answers through flights; and the tick that sends what is due: the look-ups of the profile
+// open, the search, and the player's card when it changed (netplay/ProfileRequests.hxx, netplay/CardBundle.hxx).
+void DispatchProfile(const commands::ProfileOpen& command);
+void DispatchProfile(const commands::ProfileClose& command);
+void DispatchProfile(const commands::PlayerSearch& command);
+void TickProfiles(bool helperReady, std::uint64_t nowMs);
+// A friends action went through: the profile open is looked up again, and the card the action named shows what
+// it made of the player (the member cards' Refresh and Relate).
+void NoteProfileAction(const std::string& token, netplay::levels::Relation relation);
 
 // Friends (sf4e__NetplayRuntime__Social.cxx): the interface's commands, the
 // helper's answers, the presence sent each tick it is due, and what the
@@ -623,6 +654,11 @@ void DispatchFriends(const commands::FriendWatch& command);
 void DispatchFriends(const commands::FriendTakeInvite& command);
 void DispatchFriends(const commands::FriendAnswerVisit& command);
 void TickSocial(bool helperReady, std::uint64_t nowMs);
+// A game this PC fought in a public room ended: its opponent joins the recent opponents (kept 7 days, saved
+// beside the preferences). Nothing for a private room or an opponent without a card token.
+void NoteOpponent(const room::Snapshot& snapshot, int table, int seat);
+// Reads the saved recent opponents at start.
+void LoadRecentOpponents();
 // The key of what the player's presence is made from, and the Discord input it is described from (Status.cxx): the one
 // rule for Discord's and friends'. `atMainMenu` is the caller's one reading of AtMainMenu() for the tick.
 PresenceKey PresenceKeyOf(const netplay::Snapshot& session, const room::Snapshot& current, bool atMainMenu, PresenceShown shown);

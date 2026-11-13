@@ -28,6 +28,7 @@
 #include "../netplay/Answered.hxx"
 #include "../netplay/Archive.hxx"
 #include "../netplay/Levels.hxx"
+#include "../netplay/ProfileRequests.hxx"
 #include "../netplay/FriendsView.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
@@ -263,6 +264,13 @@ namespace sf4e {
             netplay::rankings::Status rankings;
             // The public replay archive's listing so far, and the download of a game to watch.
             netplay::archive::Status archive;
+            // The profile open, the Find a player search, the players fought lately, the sets of the profile open
+            // (the archive browser's second slot) and whether the service offers profiles (ShellView's fields of the same names).
+            netplay::profiles::Profile profile;
+            netplay::profiles::SearchView playerSearch;
+            std::vector<netplay::profiles::Recent> recentOpponents;
+            netplay::archive::Status profileSets;
+            netplay::profiles::Service profilesService = netplay::profiles::Service::Unknown;
             // The player's own fighter levels, as last read.
             netplay::Answered<netplay::levels::Own> levels;
             // The cards of a public room's members by card token (null: none).
