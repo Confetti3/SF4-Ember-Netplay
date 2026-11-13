@@ -5672,6 +5672,15 @@ msgstr "Límite"
 msgid "training.data.no_charge"
 msgstr "Sin golpes de carga"
 
+msgid "training.data.oil"
+msgstr "Aceite"
+
+msgid "training.data.oil_full"
+msgstr "Aceite siempre lleno"
+
+msgid "training.data.oil_full.detail"
+msgstr "Hakan mantiene el máximo de aceite, como si acabara de usar Oil Shower. Solo en Entrenamiento."
+
 msgid "training.color_key"
 msgstr "Clave de colores"
 

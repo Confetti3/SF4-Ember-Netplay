@@ -5672,6 +5672,15 @@ msgstr "한계"
 msgid "training.data.no_charge"
 msgstr "모으기 기술 없음"
 
+msgid "training.data.oil"
+msgstr "오일"
+
+msgid "training.data.oil_full"
+msgstr "오일 항상 가득"
+
+msgid "training.data.oil_full.detail"
+msgstr "하칸의 오일이 항상 최대로 유지됩니다. 오일 샤워를 막 쓴 것처럼. 트레이닝 전용."
+
 msgid "training.color_key"
 msgstr "색상 설명"
 

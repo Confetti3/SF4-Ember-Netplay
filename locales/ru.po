@@ -5671,6 +5671,15 @@ msgstr "Предел"
 msgid "training.data.no_charge"
 msgstr "Нет приёмов с зарядом"
 
+msgid "training.data.oil"
+msgstr "Масло"
+
+msgid "training.data.oil_full"
+msgstr "Масло всегда полное"
+
+msgid "training.data.oil_full.detail"
+msgstr "У Хакана всегда максимум масла, как будто он только что сделал Oil Shower. Только в тренировке."
+
 msgid "training.color_key"
 msgstr "Обозначения цветов"
 

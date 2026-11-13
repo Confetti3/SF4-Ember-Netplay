@@ -5672,6 +5672,15 @@ msgstr "上限"
 msgid "training.data.no_charge"
 msgstr "溜め技なし"
 
+msgid "training.data.oil"
+msgstr "オイル"
+
+msgid "training.data.oil_full"
+msgstr "オイル常に満タン"
+
+msgid "training.data.oil_full.detail"
+msgstr "ハカンのオイルを常に最大に保ちます（オイルシャワー直後と同じ）。トレーニングのみ。"
+
 msgid "training.color_key"
 msgstr "色の凡例"
 

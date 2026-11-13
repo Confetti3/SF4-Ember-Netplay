@@ -842,6 +842,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows.push_back(Value("data-fighters",loc::T("training.data.fighters"),loc::T(DataFighterChoices[static_cast<int>(lab.meter.dataFighters)].label),loc::T("training.data.fighters.detail")));
   rows.push_back(Value("data-opacity",loc::T("training.data.opacity"),std::to_string(lab.meter.dataOpacity)+"%",loc::T("training.data.opacity.detail")));
   for(const auto& part:DataParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.data.part.detail")));
+  rows.push_back(Value("oil-full",loc::T("training.data.oil_full"),loc::T(lab.meter.oilFull?"common.on":"common.off"),loc::T("training.data.oil_full.detail")));
  }else if(screen=="hitboxes"){
   LoadPractice();
   rows.push_back(Value("hitboxes-shown",loc::T("training.hitboxes"),loc::T(lab.meter.hitboxes?"common.on":"common.off"),loc::T("training.hitboxes.detail")));
@@ -938,6 +939,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-inputs"){Step(lab.meter.inputs,{0,1,2,3},a.delta);SavePractice();return;}
  if(screen=="hitboxes"&&a.kind==MenuAction::Adjust&&a.id=="hitboxes-shown"){lab.meter.hitboxes=a.delta>0;SavePractice();return;}
  if(screen=="data"&&a.kind==MenuAction::Adjust&&a.id=="data-shown"){lab.meter.data=a.delta>0;SavePractice();return;}
+ if(screen=="data"&&a.kind==MenuAction::Adjust&&a.id=="oil-full"){lab.meter.oilFull=a.delta>0;SavePractice();return;}
  if(screen=="data"&&a.kind==MenuAction::Adjust&&a.id=="data-fighters"){Step(lab.meter.dataFighters,{0,1,2},a.delta);SavePractice();return;}
  if(screen=="data"&&a.kind==MenuAction::Adjust&&a.id=="data-opacity"){Step(lab.meter.dataOpacity,{std::begin(DataOpacities),std::end(DataOpacities)},a.delta);SavePractice();return;}
  const auto turn=[&](const auto& parts){for(const auto& part:parts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return true;}return false;};

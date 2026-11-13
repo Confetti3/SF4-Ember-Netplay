@@ -99,6 +99,8 @@ std::atomic<bool> meterContinuous{false};
 std::atomic<bool> hitBoxesShown{false};
 // Whether the Data panel is shown (ShowData): its readings are taken only then.
 std::atomic<bool> dataShown{false};
+// Hakan's oil kept at its most (the Data page's Oil always full).
+std::atomic<bool> oilFull{false};
 // Training and the match meter both feed the one meter, so each applies the player's choice before it observes.
 void ApplyMeterSettings() {
     meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
@@ -349,6 +351,7 @@ bool ReadOverride(int side, Input& result) {
 std::array<FighterSample, 2> ReadFighters(Native* system, bool files);
 int BattleFighter(Native* system, int side);
 void KeepDummyCharged(Native* system);
+void FillOil(Native* system);
 void EndCheck();
 void EndRecording();
 static bool Dispatch(Native* system, const Command& command) {
@@ -523,9 +526,24 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         output = session.Prepare(physical);
         commitInput = true;
         if (session.Holding()) KeepDummyCharged(system);
+        if (oilFull) FillOil(system);
     }
     overriding = plan.override;
     FollowDummy(system, plan.suppliesDummy);
+}
+// Chara::Actor +0x6ed0, Hakan's oil: frames left in 16.16, added to by the Oil Shower scripts (ETC 25: frames, then
+// the cap, MaxOil) and counted down each frame; found in the game's code. Null for any other fighter.
+int* OilOf(Native* system, int side) {
+    using Unit = Dimps::Game::Battle::Chara::Unit;
+    const auto* who = selection::FindFighter(BattleFighter(system, side));
+    Unit* unit = who && std::strcmp(who->code, "HKN") == 0 ? (system->*Native::publicMethods.GetCharaUnit)() : nullptr;
+    auto* actor = unit ? (unit->*Unit::publicMethods.GetActorByIndex)(side) : nullptr;
+    return actor ? reinterpret_cast<int*>(reinterpret_cast<char*>(actor) + 0x6ed0) : nullptr;
+}
+// Hakan's oil at its most before the game counts this frame, whichever side he is on.
+void FillOil(Native* system) {
+    for (int side = 0; side < 2; ++side)
+        if (int* oil = OilOf(system, side)) *oil = MaxOil << 16;
 }
 // A side's charges as the game counts them; null, count 0, when it has none.
 Dimps::Game::Battle::Command::CommandImpl::ChargeState* ChargeStates(Native* system, int side, int& count) {
@@ -701,6 +719,7 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
         fighter.valid = true;
         fighter.status = sample.status; fighter.script = sample.action; fighter.scriptFrame = sample.actionFrame;
         fighter.scripts = FighterScripts(system, side); fighter.chargeNames = ChargeNames(system, side);
+        if (const int* oil = OilOf(system, static_cast<int>(side))) fighter.oil = (*oil + 0xffff) >> 16;
         const float* root = (actor->*Actor::publicMethods.GetCurrentRootPosition)();
         fighter.x = root[0]; fighter.y = root[1];
         fighter.stance = fighter.status == ActorStatus::Down || fighter.status == ActorStatus::Rise ? Stance::Down :
@@ -906,6 +925,7 @@ void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
 void ShowHitBoxes(bool shown) { hitBoxesShown = shown; }
 void ShowData(bool shown) { dataShown = shown; }
+void KeepOilFull(bool on) { oilFull = on; }
 bool Fast() { return comboRunner.Fast() && session.GetView().available && session.GetView().ready; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
     if (!watching) {

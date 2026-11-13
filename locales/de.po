@@ -5671,6 +5671,15 @@ msgstr "Grenze"
 msgid "training.data.no_charge"
 msgstr "Keine Aufladeangriffe"
 
+msgid "training.data.oil"
+msgstr "Öl"
+
+msgid "training.data.oil_full"
+msgstr "Öl immer voll"
+
+msgid "training.data.oil_full.detail"
+msgstr "Hakan behält die größte Menge Öl, als hätte er gerade Oil Shower benutzt. Nur im Training."
+
 msgid "training.color_key"
 msgstr "Farblegende"
 
