@@ -302,6 +302,9 @@ void Record() {
         "the own record cells are wrong");
     Check(theirs[1].key == loc::T("card.wins") && theirs[1].value == "1164", "another's record has a win rate");
     Check(pc::RecordLine(counters) == loc::Tf("card.record_line", 2840, 1164, 12), "the Panel's record line is wrong");
+    // Counts not read yet are dashes, never a 0 or a 0 % that reads as a record.
+    const auto unread = pc::RecordCells(counters, true, false);
+    Check(unread.size() == 4 && unread[0].value == "-" && unread[1].value == "-" && unread[2].value == "-" && unread[3].value == "-", "the record cells of a card not read show counts");
     netplay::levels::Level level;
     Check(pc::MeterLine(level, false).words == loc::T("level.not_played"), "a fighter at 0 has tier words");
     level.points = 1986; level.tier = 3; level.floor = 1500; level.next = 2500;
@@ -374,6 +377,8 @@ void FullCard() {
     const auto empty = pc::FullOf(pc::OwnSubject(in), pc::Size::Wide);
     Check(empty.levels == ui::CardLevels::Pending && !empty.points.shown && empty.levelWords && empty.record.size() == 4 && empty.hero == 0 && empty.awards.total > 0,
         "the card is not whole before its points are read");
+    Check(empty.record[0].value == "-" && empty.record[1].value == "-", "a card not read yet draws 0 and 0 % as counts");
+    Check(std::string(empty.levelWords) == "level.loading", "the own card does not say your points while reading");
 }
 
 // The rows the card's own parts are: the sets rows by size, All sets only where the service keeps sets.

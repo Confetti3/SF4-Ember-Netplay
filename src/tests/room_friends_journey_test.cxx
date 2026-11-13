@@ -473,8 +473,8 @@ void NotificationsJourney() {
   j.Give(WithRequest(true, false));
   j.h.Screen("notifications"); j.h.Frame(0, 2);
   const auto* row = j.row("request:rq_1");
-  Check(row && row->label == "Player 9" && row->hint == loc::T("friends.accept") && row->detail == loc::Tf("friends.played_you", 6, loc::Tf("friends.days_ago", 1)),
-   "A request waiting at the first read is not listed in Notifications with its name and games");
+  Check(row && row->label == loc::Tf("friends.toast_request", "Player 9") && row->hint == loc::T("friends.accept") && row->detail == loc::Tf("friends.played_you", 6, loc::Tf("friends.days_ago", 1)),
+   "A request waiting at the first read is not listed in Notifications as it asks, with its games");
   Check(ToastRows(j) == 0, "A request no toast said was listed as a toast too");
   Check(!j.sent<commands::FriendsVisit>().empty(), "Notifications did not keep the friends fresh");
   j.h.Choose("request:rq_1");
@@ -510,7 +510,7 @@ void NotificationsJourney() {
   j.Give(WithRequest(false, true));
   j.h.Screen("notifications"); j.h.Frame(0, 2);
   const auto* row = j.row("invite:iv_1");
-  Check(row && row->label == "Player 3" && row->hint == loc::T("toast.join"), "An invite waiting is not listed in Notifications with Join");
+  Check(row && row->label == loc::Tf("friends.toast_invite", "Player 3") && row->hint == loc::T("toast.join"), "An invite waiting is not listed in Notifications with Join");
   j.h.Choose("invite:iv_1");
   Check(j.sent<commands::FriendTakeInvite>().size() == 1 && j.sent<commands::FriendTakeInvite>()[0]->invite == "iv_1" &&
    j.sent<commands::FriendDismiss>().size() == 1 && j.sent<commands::FriendDismiss>()[0]->invite == "iv_1", "Join on an invite's row did not take the invite and then drop it");

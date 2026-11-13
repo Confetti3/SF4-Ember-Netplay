@@ -162,7 +162,8 @@ void DrawFamilyTile(ImDrawList* d, v2::Box box, const player_card::FamilyTile& t
     // A line wider than the tile (one long word) is set smaller, to no less than the card's floor, and only then cut short.
     const auto line = [&](const std::string& words, float top) {
         const float wide = across(words), used = wide > inner && wide > 0 ? (std::max)((std::min)(size, least), size * inner / wide) : size;
-        v2::Text(d, ImVec2(box.min.x + 6 * s, top + (size - used) * .5f), inner, words, used, c.text, font, true);
+        // A title that does not fit even at the floor is cut with an ellipsis (the row's detail says it whole), which the probe allows.
+        v2::Text(d, ImVec2(box.min.x + 6 * s, top + (size - used) * .5f), inner, words, used, c.text, font, true, false);
     };
     line(first, y);
     if (!second.empty()) line(second, y + size * 1.25f);

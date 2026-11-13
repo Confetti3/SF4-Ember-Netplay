@@ -165,13 +165,14 @@ ui::ShellView FakeView() {
     view.controllerReady = view.canChangeController = view.canEditPreferences = view.canEditSelection = view.canChangeUltra = view.canOpenRoom = view.helperReady = true;
     view.controller = "Xbox pad";
     view.preferences.displayName = "FRaccie";
+    // This PC's own confirmed online games: fewer than the account's rated games, which the bridge counts from every PC.
+    view.preferences.record.wins = 2210; view.preferences.record.losses = 1530;
     view.automaticCountry = CountryCode::Parsed("BE");
     view.selectionSummary = "Ryu / Original / Color 01 / Ultra I";
     // The pick the room's Ultra button and Table options' Ultra row step and open.
     view.fighterName = "Ryu"; view.ultraName = "Ultra I: Metsu Hadoken"; view.ultraSteps = view.colorSteps = true;
     view.selectedPick.fighter = 0; view.selectedPick.ultra = 0;
-    // The card's title and icon, and Home's news, as the backend and the release check give them.
-    view.playerTitle = "TOURNAMENT ORGANIZER"; view.playerTier = ui::v2::Tier::Gold; view.playerIcon = 7;
+    // The card's title and icon are the awards worn (the shell shows a worn award only once it is earned), and Home's news is the release check's.
     // The awards come from the points (--profile played reaches levels in most families), the Wins family worn (--screen awards).
     view.preferences.wornTitle = view.preferences.wornIcon = "wins";
     // The installed build, which Home's corner and Help and about name with its kind (VersionLine).

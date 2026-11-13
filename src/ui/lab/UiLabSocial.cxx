@@ -5,7 +5,8 @@ namespace uilab {
 namespace {
 using namespace sf4e;
 namespace nf = netplay::friends;
-constexpr std::uint64_t Now = 1800000000, Hour = 3600, Day = 24 * Hour;
+// A clock before today (2026-10-26), so no friend is dated in the future.
+constexpr std::uint64_t Now = 1793000000, Hour = 3600, Day = 24 * Hour;
 
 nf::Friend Pal(const char* id, const char* name, const char* country, int fighter, std::uint64_t points, std::uint8_t tier, int badge, std::uint64_t won, std::uint64_t lost) {
     nf::Friend entry;
