@@ -1774,16 +1774,16 @@ msgid "discord.account"
 msgstr "Discord account"
 
 msgid "discord.account_none"
-msgstr "Not linked"
+msgstr "Not connected"
 
 msgid "discord.account_linked"
-msgstr "Linked · {0}"
+msgstr "Connected · {0}"
 
 msgid "discord.account_detail"
-msgstr "Link the Discord account your Ember ID uses. Ranked games, points, friends, shared replays and tournament sites such as BluMint all use it. It can differ from the one in the Discord app. Select to link it."
+msgstr "Connect the Discord account your Ember ID uses. Ranked games, points, friends, shared replays and tournament sites such as BluMint all use it. It can differ from the one in the Discord app. Select to connect it."
 
 msgid "discord.account_linked_detail"
-msgstr "The Discord account linked to your Ember ID. Ranked games, points, friends, shared replays and tournament sites such as BluMint use it. It can differ from the one in the Discord app. Select to switch account or unlink it."
+msgstr "The Discord account connected to your Ember ID. Ranked games, points, friends, shared replays and tournament sites such as BluMint use it. It can differ from the one in the Discord app. Select to switch account or disconnect it."
 
 msgid "discord.server"
 msgstr "Ember Discord server"
@@ -4805,10 +4805,10 @@ msgid "public.create_needs_id"
 msgstr "Public rooms need an Ember ID and a trusted service. Set them up under Public rooms."
 
 msgid "public.ranked_needs_discord"
-msgstr "Link Discord to play ranked"
+msgstr "Connect Discord to play ranked"
 
 msgid "public.ranked_needs_discord_detail"
-msgstr "Games count for your rank and points only with a Discord account linked. You can still play without one."
+msgstr "Games count for your rank and points only with a Discord account connected. You can still play without one."
 
 msgid "public.loading"
 msgstr "Loading rooms..."
