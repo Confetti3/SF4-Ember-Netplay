@@ -94,6 +94,9 @@ public:
     // Everything `source` has waiting now, in its order. `quiet`: the player is looking at a screen that lists them,
     // or this is the source's first read, so nothing new becomes a card and nothing is owed a showing.
     void Publish(const std::string& source, std::vector<Item> items, double now, bool quiet) {
+        // The keys it publishes, taken before the items are moved into the list.
+        std::vector<std::string> published;
+        for (const auto& next : items) published.push_back(next.key);
         for (std::size_t rank = 0; rank < items.size(); ++rank) {
             auto& next = items[rank];
             auto* known = Keyed(next.key);
@@ -119,7 +122,7 @@ public:
         }
         for (auto& item : items_) {
             if (item.source != source || item.state == State::Gone) continue;
-            if (std::none_of(items.begin(), items.end(), [&](const Item& next) { return next.key == item.key; })) {
+            if (std::find(published.begin(), published.end(), item.key) == published.end()) {
                 item.state = State::Gone;
                 item.until = (std::min)(item.until, now);
                 item.unseen = false;

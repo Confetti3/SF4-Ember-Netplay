@@ -144,7 +144,7 @@ static void TestLevels() {
 		{"awards", {{"games", 100u}, {"wins", 50u}, {"best_streak", 5u}, {"peak_class", 6u}, {"rival", 10u}, {"opponents", 50u}, {"later", 1u}}}}})}});
 	CHECK(marked && (*marked)[0] && (*marked)[0]->awards.games == 100 && (*marked)[0]->awards.wins == 50 && (*marked)[0]->awards.bestStreak == 5 &&
 		(*marked)[0]->awards.peakClass == 6 && (*marked)[0]->awards.rival == 10 && (*marked)[0]->awards.opponents == 50);
-	for (const json& badMarks : {json{{"class", 11u}}, json{{"games", -1}}, json{{"wins", "5"}}, json(1u)})
+	for (const json& badMarks : {json{{"peak_class", 11u}}, json{{"games", -1}}, json{{"wins", "5"}}, json(1u)})
 	{
 		const auto unread = session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"awards", badMarks}}})}});
 		CHECK(unread && unread->size() == 1 && !(*unread)[0]);

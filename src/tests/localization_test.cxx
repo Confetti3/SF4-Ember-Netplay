@@ -1,5 +1,6 @@
 #include "../common/Localization.hxx"
 #include "../launcher/update/UpdaterArguments.hxx"
+#include "../netplay/Awards.hxx"
 #include "../ui/Theme.hxx"
 #include "EmbeddedFonts.hxx"
 
@@ -286,6 +287,14 @@ int main(int argc, char** argv) {
         const auto extension = item.path().extension().string();
         if (extension == ".cxx" || extension == ".hxx" || extension == ".cpp" || extension == ".h")
             sources += Read(item.path());
+    }
+    // The award ids are joined from pieces by the table's macros and looked up by family (AwardIconName), so no source holds
+    // them whole: the table's own are what the code reads.
+    for (const auto& family : sf4e::netplay::awards::Catalog) {
+        const auto note = [&](const std::string& id) { sources += "\"" + id + "\""; };
+        note(family.name);
+        note(std::string("award.") + family.id + ".icon");
+        for (std::size_t i = 0; i < family.count; ++i) { note(family.levels[i].title); note(family.levels[i].how); }
     }
     const std::regex lookup("\\b(?:T|Tf)\\(\\s*\"([^\"]+)\"");
     for (std::sregex_iterator it(sources.begin(), sources.end(), lookup), end; it != end; ++it) {
