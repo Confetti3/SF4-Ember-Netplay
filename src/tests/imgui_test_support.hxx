@@ -10,7 +10,8 @@
 struct HeadlessImGui {
     ImGuiContext* const context;
     ImGuiIO& io;
-    HeadlessImGui() : context(ImGui::CreateContext()), io(ImGui::GetIO()) {
+    // CreateContext leaves the current context alone when there is one, so this one is made current before its IO is read.
+    HeadlessImGui() : context(ImGui::CreateContext()), io((ImGui::SetCurrentContext(context), ImGui::GetIO())) {
         io.IniFilename = nullptr; io.DisplaySize = ImVec2(1280, 960);
         sf4e::ui::ApplyTheme(1);
     }

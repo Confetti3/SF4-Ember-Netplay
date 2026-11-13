@@ -463,13 +463,12 @@ async fn a_card_token_rides_in_a_ticket_that_asks_and_opens_for_seven_days() {
     let other_purpose = sealed(&bridge, 0x02, 200, now);
     let other_bridge = start().await.0;
     let foreign = sealed(&other_bridge, 0x01, 200, now);
-    assert_eq!(
-        cards(&bridge, &first, json!([
-            { "card": week_old }, { "card": older }, { "card": other_purpose }, { "card": foreign }
-        ]))
-        .await,
-        json!([card, null, null, null])
-    );
+    let mut seen = cards(&bridge, &first, json!([
+        { "card": week_old }, { "card": older }, { "card": other_purpose }, { "card": foreign }
+    ]))
+    .await;
+    assert_eq!(take_versus(&mut seen), vec![Some((1, 0)), None, None, None]);
+    assert_eq!(seen, json!([card, null, null, null]));
 
     // The account no longer connected: its token names nobody.
     sql(
