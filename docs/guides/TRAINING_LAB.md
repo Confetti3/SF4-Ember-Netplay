@@ -227,7 +227,7 @@ Directions are written for a dummy facing right; the dummy turns them for the si
 | Forward dash | `66` |
 | Jump back, up, forward | `7`, `8`, `9` |
 | Fireball | `236P` or `qcf P` |
-| EX fireball | `236PP` |
+| EX fireball (needs a quarter of the Super gauge, or the game plays the plain move) | `236PP` |
 | Super | `236236P` |
 | Ultra | `236236PPP` |
 | Spinning piledriver | `360P` |
