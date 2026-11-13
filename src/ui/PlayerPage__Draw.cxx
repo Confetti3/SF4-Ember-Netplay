@@ -75,7 +75,7 @@ void PlayerPage::Draw(const ShellView& v, const std::string& screen, const std::
     const Shown shown = ShownNow(v);
     const auto standing = StandingNow(v, shown, PlainLinks(v, shown));
     if (screen == CardScreen) {
-        const auto view = player_card::FullOf(SubjectNow(v, shown, standing), player_card::CardSize());
+        const auto view = player_card::FullOf(SubjectNow(v, shown, standing), CardSize());
         DrawFullCard(view, art, rows, nav, action, changed, height);
     } else if (screen == FightersScreen) {
         const auto own = shown.card ? fighters_tab::LevelsOfCard(*shown.card) : netplay::levels::Own();

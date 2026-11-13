@@ -23,7 +23,7 @@ std::string LevelLines(const aw::Counters& counters, const aw::Family& family, b
         if (static_cast<int>(i) < level) state = loc::T("awards.earned");
         else if (static_cast<int>(i) == level && counted && aw::Counts(family)) state = loc::Tf("awards.progress", next.have, next.need);
         if (!lines.empty()) lines += "\n";
-        lines += v2::TierName(v2::FrameTier(one.tier)) + " \xC2\xB7 " + player_card::LevelTitle(one) + " \xC2\xB7 " + LevelHow(one) + (state.empty() ? "" : " \xC2\xB7 " + state);
+        lines += std::string(v2::TierName(v2::FrameTier(one.tier))) + " \xC2\xB7 " + player_card::LevelTitle(one) + " \xC2\xB7 " + LevelHow(one) + (state.empty() ? "" : " \xC2\xB7 " + state);
     }
     return lines;
 }

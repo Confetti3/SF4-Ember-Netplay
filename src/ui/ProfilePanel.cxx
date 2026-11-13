@@ -82,7 +82,7 @@ std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const netplay::Pla
     // The Card tab's rows: the way to choose a main when there is none, then the card's own parts (the strip's tiles, the
     // award tiles, Most played, the recent sets and All sets: player_card::CardRows, the parts drawn), Edit card, Fighter
     // select, and Connect Discord when there is no account.
-    const auto view = player_card::FullOf(SubjectOf(v, prefs), player_card::CardSize());
+    const auto view = player_card::FullOf(SubjectOf(v, prefs), CardSize());
     if (view.hero < 0) {
         auto choose = Row(ChooseMainRow, loc::T("card.choose_main"), loc::T("profile.choose_main_detail"));
         choose.hint = loc::T("card.choose_main");
@@ -177,7 +177,7 @@ void ProfilePanel::Draw(const ShellView& v, const netplay::PlayerPreferences& pr
         fighters_tab::Draw(shown, rows, nav, action, changed);
         return;
     }
-    const auto view = player_card::FullOf(SubjectOf(v, prefs), player_card::CardSize());
+    const auto view = player_card::FullOf(SubjectOf(v, prefs), CardSize());
     DrawFullCard(view, v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait, rows, nav, action, changed, height);
 }
 } }

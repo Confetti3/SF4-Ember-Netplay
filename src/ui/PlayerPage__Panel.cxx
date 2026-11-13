@@ -165,7 +165,7 @@ std::vector<MenuEntry> PlayerPage::Rows(const ShellView& v, const std::string& s
         } else if (++raise_.waits > 8) { ask_.clear(); raise_ = Raise(); }
     }
     const auto standing = StandingNow(v, shown, LinksOf(v, friends, shown));
-    const auto view = player_card::FullOf(SubjectNow(v, shown, standing), player_card::CardSize());
+    const auto view = player_card::FullOf(SubjectNow(v, shown, standing), CardSize());
     return CardRows(view, PrimaryOf(standing), standing, ask_, shown.name);
 }
 
