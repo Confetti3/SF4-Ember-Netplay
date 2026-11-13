@@ -75,6 +75,10 @@ void SetMenuNews(std::vector<MenuNewsItem> news);
 // chevron, Select opening every choice in a popup. DrawMenuValue draws one
 // right-aligned in `box`.
 bool MenuValueIsToggle(const MenuEntry& e);
+// What the hint bar says for Left and Right on a focused row: empty when it
+// names nothing (a row that does not step, a disabled one, a switch, which
+// Select flips), else the row's adjustHint or "Adjust".
+std::string MenuAdjustHint(const MenuEntry& e);
 void DrawMenuValue(ImDrawList* draw, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text);
 // A board row at `at`, `width` wide, laid out (MenuRowLayout) as FitMenuRow
 // shares it: 48 px, its words 14 px in from both ends and 8 px between label

@@ -25,6 +25,7 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"room",loc::T("screen.room")},{"room-table",loc::T("screen.table")},
         {"room-members",loc::T("screen.members")},{"room-member",loc::T("screen.member")},{"room-chat",loc::T("screen.chat")},
         {"room-admin",loc::T("screen.room_settings")},
+        {"card-pins",loc::T("card.pins_row")},{"card-looking",loc::T("card.looking_row")},
         {"stage",loc::T("selection.stage")},{"options",loc::T("selection.additional_options")},
         {"frame-data",loc::T("training.frame_data")},{"hud",loc::T("training.hud")},{"meter-settings",loc::T("training.meter.settings")},{"meter-classic",loc::T("training.meter.classic")},{"hitboxes",loc::T("training.hitboxes")},{"data",loc::T("training.data")},{"dummy",loc::T("training.dummy")},
         {"reply",loc::T("training.reply")},{"tools",loc::T("training.position")},

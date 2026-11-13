@@ -427,6 +427,9 @@ msgstr "Paste"
 msgid "menu.adjust"
 msgstr "Adjust"
 
+msgid "menu.change"
+msgstr "Change"
+
 msgid "speech.position"
 msgstr "{0} of {1}"
 
@@ -1382,7 +1385,7 @@ msgid "card.choose_main"
 msgstr "Choose a main"
 
 msgid "card.edit_detail"
-msgstr "Your name, flag, main, title and icon."
+msgstr "Your name, flag, main, title, awards and how you play."
 
 msgid "card.title_row"
 msgstr "Title"
@@ -1395,6 +1398,72 @@ msgstr "None"
 
 msgid "card.award_detail"
 msgstr "Opens Awards. Select an earned award there to wear it."
+
+msgid "card.how_heading"
+msgstr "HOW YOU PLAY"
+
+msgid "card.pins_row"
+msgstr "Awards on card"
+
+msgid "card.pins_auto"
+msgstr "Your highest"
+
+msgid "card.pins_chosen"
+msgstr "{0} chosen"
+
+msgid "card.pins_detail"
+msgstr "Up to four award families on your card, each at the level you reach. Your highest shows the hardest ones."
+
+msgid "card.pins_auto_row"
+msgstr "Show my highest"
+
+msgid "card.pins_auto_detail"
+msgstr "The card shows the awards you reached at the highest levels. Turn this off to choose up to four yourself."
+
+msgid "card.pins_full"
+msgstr "Four at most. Take one off first."
+
+msgid "card.pins_nothing"
+msgstr "Awards you reach show here to choose from. You have none yet."
+
+msgid "card.automatic"
+msgstr "Automatic"
+
+msgid "card.device_row"
+msgstr "Device"
+
+msgid "card.device_auto"
+msgstr "{0} · automatic"
+
+msgid "card.device_detail"
+msgstr "What you play on, shown on your card. Automatic follows the controller you use."
+
+msgid "card.link_row"
+msgstr "Connection"
+
+msgid "card.link_detail"
+msgstr "Wired or Wi-Fi, as Ember measures it. You can hide it."
+
+msgid "card.region_row"
+msgstr "Region"
+
+msgid "card.region_detail"
+msgstr "Your region, from the relay Ember picked. You can hide it."
+
+msgid "card.shown"
+msgstr "{0} · shown"
+
+msgid "card.unknown_shown"
+msgstr "Not known yet · shown"
+
+msgid "card.hidden"
+msgstr "Hidden"
+
+msgid "card.looking_detail"
+msgstr "Up to two, shown on your card."
+
+msgid "card.looking_full"
+msgstr "Two at most. Turn one off first."
 
 msgid "points.label"
 msgstr "FP"

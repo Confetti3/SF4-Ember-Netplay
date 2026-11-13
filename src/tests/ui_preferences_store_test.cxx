@@ -203,20 +203,20 @@ int main() {
     CHECK(LoadLanguagePreferenceFrom(root.wstring()) == "pt-BR" && HideGameSettingsCardIn(root.wstring(), error));
     CHECK(LoadRecentOpponentsFrom(root.wstring()).size() == 2 && GameSettingsCardHiddenIn(root.wstring()));
     // Saving writes at most 20, and never an entry the list could not hold.
-    std::vector<Recent> many;
-    for (int i = 0; i < 30; ++i) { Recent entry = met; entry.name = "Player " + std::to_string(i); many.push_back(entry); }
+    std::vector<Recent> manyRecent;
+    for (int i = 0; i < 30; ++i) { Recent entry = met; entry.name = "Player " + std::to_string(i); manyRecent.push_back(entry); }
     Recent bad = met;
     bad.card = "not a token";
-    many.insert(many.begin(), bad);
-    CHECK(SaveRecentOpponentsTo(root.wstring(), many, error));
+    manyRecent.insert(manyRecent.begin(), bad);
+    CHECK(SaveRecentOpponentsTo(root.wstring(), manyRecent, error));
     const auto bounded = LoadRecentOpponentsFrom(root.wstring());
     CHECK(bounded.size() == sf4e::netplay::profiles::MaxRecent && bounded[0].name == "Player 0");
     // An entry that is malformed is dropped on its own; a list of another type is no list.
     const auto tolerant = root / L"tolerant-recent"; CHECK(std::filesystem::create_directory(tolerant));
     Write(tolerant / L"ui-preferences.json", "{\"schemaVersion\":1,\"language\":\"auto\",\"recentOpponents\":[3,{\"card\":\"c1.AbCdEf_-0123\",\"name\":\"Player 4\",\"at\":1730000000,\"fighter\":99,\"country\":\"zz\"},"
         "{\"card\":\"c1.AbCdEf_-0123\",\"name\":7,\"at\":1730000000},{\"card\":\"c1.AbCdEf_-0123\",\"name\":\"Player 5\"},{\"card\":\"c1.AbCdEf_-0123\",\"name\":\"Player 6\",\"at\":1730000001,\"fighter\":2}]}");
-    const auto kept = LoadRecentOpponentsFrom(tolerant.wstring());
-    CHECK(kept.size() == 2 && kept[0].name == "Player 4" && kept[0].fighter == -1 && !kept[0].country.Present() && kept[1].name == "Player 6" && kept[1].fighter == 2);
+    const auto keptRecent = LoadRecentOpponentsFrom(tolerant.wstring());
+    CHECK(keptRecent.size() == 2 && keptRecent[0].name == "Player 4" && keptRecent[0].fighter == -1 && !keptRecent[0].country.Present() && keptRecent[1].name == "Player 6" && keptRecent[1].fighter == 2);
     Write(tolerant / L"ui-preferences.json", "{\"schemaVersion\":1,\"language\":\"auto\",\"recentOpponents\":\"Player 4\"}");
     CHECK(LoadRecentOpponentsFrom(tolerant.wstring()).empty());
     const auto brokenRecent = root / L"broken-recent"; CHECK(std::filesystem::create_directory(brokenRecent));

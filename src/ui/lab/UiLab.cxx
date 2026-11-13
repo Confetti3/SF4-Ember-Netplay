@@ -12,7 +12,7 @@
 // --archive full|more|loading|failed|unsupported|empty|nobridge: Replays' Archive tab with the public archive's listing in
 //   that state (--screen replay-archive, replay-archive-filter or replay-archive-fighter)
 // --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's levels (--screen card, fighters,
-//   card-edit, awards or home; awards without it reads played)
+//   card-edit, card-looking, card-pins, awards or home; awards without it reads played)
 // --friends full|requests|notifications|empty|noaccount|unavailable|loading|unreachable|offline: the player's friends in
 //   that state (--screen friends, friends-add, friends-sent or friends-blocked; UiLabSocial.hxx); with --toasts the
 //   requests and an invite arrive as toasts (--friends full --toasts); --screen tab-online/friends is the Settings panel;

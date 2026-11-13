@@ -72,6 +72,9 @@ struct MenuEntry {
     bool reading = false;
     // What Select does, when the generic word says too little ("Ready up").
     std::string hint;
+    // What the hint bar calls Left and Right on a stepped value, when "Adjust"
+    // says too little ("Change").
+    std::string adjustHint;
     std::size_t textLimit = 256;
     // Explicit pane transitions; empty preserves ordinary list/grid movement.
     std::string left, right, up, down;
