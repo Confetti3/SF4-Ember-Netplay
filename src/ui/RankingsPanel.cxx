@@ -111,6 +111,7 @@ void RankingsPanel::Update(const ShellView& v, const std::string& screen, const 
     // still answered, and said, wherever the player is.
     else if (!aside) { wantStanding_ = wantBoard_ = false; if (pending_ && !pending_->sent) pending_.reset(); }
     TakeAnswers(v, owned);
+    if (aside) return;
     if (!owned) { ReadForProfile(v, bridge, submit); return; }
     if (bridge_.empty()) return;
     commands::Tournament action;
