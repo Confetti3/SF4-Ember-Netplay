@@ -17,6 +17,7 @@
 #include "../netplay/FriendsView.hxx"
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
@@ -105,6 +106,28 @@ constexpr std::size_t CodeLength = 8;
 std::vector<MenuChoice> FriendChoices(const nf::State& state, const nf::Friend& entry, bool canInvite, Gate gate);
 std::vector<MenuChoice> RequestChoices(Gate gate);
 std::vector<MenuChoice> AskChoices(const std::string& ask, const std::string& name);
+
+// How an action the panel sent stands in the view, from `finished` and `refusals` as the view had them when it was
+// sent: still waiting, refused (the refusal's own words say why), gone through, gone through to find friends off, or
+// no answer by `deadline`. The answer is read before the deadline, so one that came while Ember was hidden is said.
+enum class Outcome { Waiting, Refused, Done, Off, GivenUp };
+Outcome OutcomeOf(const nf::View& view, std::uint64_t finished, std::uint64_t refusals, double deadline, double now);
+// How long the panel waits on an action before it says there was no answer: past the runtime's own limit for a lost
+// request (netplay::BridgeFlights::GiveUpMs, 60 s), which ends it with a refusal first. The interface's clock, seconds.
+constexpr double GiveUpSeconds = 75;
+// What a request accepted says: "You and Player 2 are now friends.", by the name the request carries; empty when the
+// state holds no such request.
+std::string AcceptedWords(const nf::State& state, const std::string& request);
+
+// Words or a toast Ember said, and whether the player had the time to see them: Ember hid at `now` (the last frame
+// it showed) before their card's `seconds` were up, or a toast came over the post-match prompt, whose keys answer
+// the prompt and not the toast. Unseen, they are said once more on the next free menu.
+struct Told {
+    double at = 0, seconds = 0;
+    bool unseen = false;
+    void Hidden(double now) { if (now - at < seconds) unseen = true; }
+    bool Lapsed(double now) const { return !unseen && now - at >= seconds; }
+};
 }
 
 // The panel: the state the tab keeps between frames (what it asked and is
@@ -118,6 +141,9 @@ public:
     static constexpr const char* SentScreen = friends_panel::SentRow;
     static constexpr const char* BlockedScreen = friends_panel::BlockedRow;
     static constexpr const char* VisitScreen = "friends-visit";
+    // The prompt over a room game's WIN (ApplicationShell__PostMatch.cxx): its keys are its own, so a toast over it
+    // shows without them, and what was said over it unseen is said again on the next free menu.
+    static constexpr const char* PromptScreen = "post-match";
     // Settings, Online, Friends: the panel of Appear offline, the friend code and Turn off friends (Turn on friends, once off).
     static constexpr const char* SettingsScreen = "tab-online/friends";
     // The tab or a page over it: where X, Y and Delete are the tab's even in a room.
@@ -132,18 +158,26 @@ public:
     static bool Owns(const std::string& screen) { return OnTab(screen) || screen == VisitScreen; }
 
     // Every frame: Visit when the tab opens (again when its cadence lapsed) and Leave when it closes; the question
-    // a Join asks, opened over whatever shows; a refusal's words, and what an action that went through says.
-    // `bridge` is the usable service, empty without one.
+    // a Join asks, opened over whatever shows; a refusal's words, and what an action that went through says, or that
+    // it had no answer. `bridge` is the usable service, empty without one.
     void Update(const ShellView& view, MenuNavigation& nav, const std::string& bridge, double now, const Submit& submit);
-    // The shell is hidden: the cadence is told again when it shows.
+    // The shell is hidden: the cadence is told again when it shows, and words or a toast it hid before their time
+    // are said once more on the next free menu.
     void Conceal();
-    // The words to show as a notice (a refusal, an invite or request sent), once.
+    // The words to show as a notice (a refusal, an invite or request sent), once (once more if hidden unseen).
     bool TakeSaid(std::string& words, Tone& tone);
     // A friend's request or invite, said once as the state that holds it is read, with its buttons: Accept for the
     // request (Later leaves it in the list), Join for the invite (it takes the invite, then drops it) and Dismiss.
     // What the first state already held is not said (Home's Profile row counts the requests), nor an invite that
-    // ran out, nor anything while the Friends screens show it. One a frame: a second waits for the next.
+    // ran out, nor anything while the Friends screens show it. One a frame: a second waits for the next. One said
+    // over the post-match prompt, or hidden before its time, is said once more on the next free menu while it stands.
     bool TakeToast(ToastRequest& toast);
+    // A toast's command, sent as the panel sends its own when it is one the panel waits on (a request's Accept), so
+    // its answer is said; false for any other, which the shell sends as it is.
+    bool AnswerToast(const ShellView& view, const RuntimeRequest& command, const Submit& submit);
+    // The toast with these words was answered (any of its buttons, by key, click or its Notifications row): it is
+    // not said again.
+    void ToastAnswered(const std::string& text);
 
     // The screen's rows. `dialog`: a choice or question is open over them.
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool dialog, std::string& title);
@@ -158,9 +192,9 @@ public:
     // Settings, Online, Friends: Appear offline, the friend code (Select asks for a new one) and Turn off friends,
     // each disabled with the state's words while the friends cannot be used.
     std::vector<MenuEntry> SettingsRows(const ShellView& view);
-    // A room member's Add friend (and Accept request: the bridge accepts a mutual request) and Block, by the
-    // card token their ticket carried and their room name. A refusal or what went through is said as a notice.
-    void RequestMember(const ShellView& view, const std::string& card, const std::string& name, const Submit& submit);
+    // A room member's Add friend (and Accept request, `accepts`: the bridge accepts a mutual request) and Block, by
+    // the card token their ticket carried and their room name. A refusal or what went through is said as a notice.
+    void RequestMember(const ShellView& view, const std::string& card, const std::string& name, bool accepts, const Submit& submit);
     void BlockMember(const ShellView& view, const std::string& card, const std::string& name, const Submit& submit);
     // The Friends tab's board at the cursor, in a body `height` tall.
     void Draw(const ShellView& view, GameMenu& menu, const std::vector<MenuEntry>& rows, MenuAction& action, float height);
@@ -184,7 +218,8 @@ private:
     template <class Command>
     bool Send(const ShellView& view, Command command, const Submit& submit, const std::string& row = {}, std::string say = {}, bool back = false);
     void Say(std::string words, Tone tone);
-    void Announce(const ShellView& view, const std::string& screen);
+    // `free`: the shell shows a menu nothing is open over, not the post-match prompt.
+    void Announce(const ShellView& view, const std::string& screen, bool free);
     const std::string& Bridge(const ShellView& view) const;
     void Attach(std::vector<MenuEntry>& rows, const ShellView& view, bool dialog);
     void Ask(const std::string& row, const std::string& ask) { raise_ = Raise{row, ask}; }
@@ -201,5 +236,12 @@ private:
     std::set<std::string> told_;
     bool read_ = false;
     std::optional<ToastRequest> toast_;
+    // The requests and invites said as a toast, by id, with the toast's words, until they were seen (friends_panel::Told).
+    struct Toasted { friends_panel::Told told; std::string text; };
+    std::map<std::string, Toasted> toasted_;
+    // The last words taken, until they were seen; `again` once they are being said a second time, which is the last.
+    struct Spoken { std::string words; Tone tone{}; friends_panel::Told told; };
+    std::optional<Spoken> spoken_;
+    bool again_ = false;
 };
 } }

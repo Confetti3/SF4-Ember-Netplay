@@ -4,6 +4,7 @@
 #include "MenuRows.hxx"
 #include "RoomControls.hxx"
 #include "RoomFeedback.hxx"
+#include "RoomPoints.hxx"
 #include "RowId.hxx"
 #include "../common/Localization.hxx"
 #include <imgui.h>
@@ -291,7 +292,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.id=="friend-request"||a.id=="friend-block"){
   const auto* m=room::FindMember(v.room,selectedMember_);
   if(!m||!m->card.Present()){error_=loc::T("room.member_left.detail");return;}
-  if(a.id=="friend-request")friends_.RequestMember(v,m->card.ToString(),m->name,submit);
+  // A member who asked first is accepted by the same request, which then says they are friends.
+  if(a.id=="friend-request")friends_.RequestMember(v,m->card.ToString(),m->name,PointsOf(v,*m).relation==netplay::levels::Relation::Received,submit);
   else friends_.BlockMember(v,m->card.ToString(),m->name,submit);
   return;
  }
