@@ -161,10 +161,12 @@ float DrawUltraMark(ImDrawList* d,ImVec2 topRight,float height,int ultra);
 // GameMenu::Draw takes it.
 struct RosterGrid { int columns; float cardHeight; };
 RosterGrid LayOutRosterGrid(float windowWidth);
+// Where a picture stands in a box taller than it: hung from the top, or on the foot as a figure in a tall box stands.
+enum class PictureAnchor { Top, Foot };
 // `backing` fills the tile behind the art, which is transparent around the
 // fighter. A picture is the game's portrait or the fighter's whole figure.
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255));
-void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255));
+void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255),PictureAnchor anchor=PictureAnchor::Top);
 // The picture's image at the size it is drawn, for a place that lays it out
 // itself; a figure the art lacks is the portrait. Empty before the art loads.
 SelectionImage FighterImage(const FighterPicture& picture,float drawnHeight);

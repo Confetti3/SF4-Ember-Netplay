@@ -120,14 +120,14 @@ SelectionImage FighterImage(const FighterPicture& picture,float drawnHeight){
     return menuArt->PortraitFor(fighter,drawnHeight);
 }
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing){DrawCharacterPortrait(FighterPicture{fighter},min,max,backing);}
-void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing){
+void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing,PictureAnchor anchor){
     ReportFighterPicture(picture,min,max);
     auto* d=ImGui::GetWindowDrawList();
     d->AddRectFilled(min,max,backing);
     if(const auto art=FighterImage(picture,max.y-min.y);art.texture){
         const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y)/art.height);
-        const float w=art.width*factor,h=art.height*factor;
-        d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);return;
+        const float w=art.width*factor,h=art.height*factor,top=anchor==PictureAnchor::Foot?max.y-h:min.y;
+        d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,top),ImVec2(min.x+(max.x-min.x+w)*.5f,top+h),art.uvMin,art.uvMax);return;
     }
     const auto size=ImGui::CalcTextSize("?");
     d->AddText(ImVec2((min.x+max.x-size.x)*.5f,(min.y+max.y-size.y)*.5f),palette::Muted,"?");

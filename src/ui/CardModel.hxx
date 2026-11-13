@@ -25,15 +25,24 @@ namespace sf4e { namespace ui { namespace player_card {
 // The smallest text on any card, in px at Interface size 1.00x.
 constexpr float TextFloor = 13.f;
 
-// Full (1920x1080), compact (a body under 620 logical px tall: 1280x720, or content under 1840 wide) and
-// narrow (under 900 logical px wide: one scrolling column).
-enum class Size : std::uint8_t { Wide, Compact, Narrow };
-// The Wide card is as wide as its three columns and their gutters (440 + 32 + 840 + 32 + 496): in less room, which a window
-// that is tall but not wide is, the Compact card is the one that fits.
-constexpr float WideContentWidth = 1840.f;
-inline Size SizeOf(bool narrow, float logicalBodyHeight, float logicalContentWidth = WideContentWidth) {
-    return narrow ? Size::Narrow : logicalBodyHeight < 620.f || logicalContentWidth < WideContentWidth ? Size::Compact : Size::Wide;
-}
+// The room a Full card has, in logical px: its content's width and its body's height. Two rooms have a drawn card, Compact
+// (1280x720: columns of 260 + 24 + 524 + 24 + 400) and Wide (1920x1080: 440 + 32 + 840 + 32 + 496). Any other room has
+// the same three columns with every measure between the two cards' (MetricsOf), and a room too small for the columns is
+// narrow: the one column, which scrolls.
+struct Size {
+    float contentWidth = 0.f, bodyHeight = 0.f;
+    static const Size Compact, Wide;
+    bool Narrow() const;
+};
+inline constexpr Size Size::Compact{1232.f, 510.f}, Size::Wide{1840.f, 838.f};
+// The least room the columns are drawn in: a little under the Compact card's across, since its words were set for its
+// widths and not narrower ones (a recent set's line is the first cut short), and down, its right column (486 tall with
+// its three recent sets), which would pass a shorter body's foot.
+constexpr float ColumnsContentWidth = 1200.f, ColumnsBodyHeight = 486.f;
+inline bool Size::Narrow() const { return contentWidth < ColumnsContentWidth || bodyHeight < ColumnsBodyHeight; }
+// The recent sets a card in this room shows: as many as its right column has room for, from three (the Compact card's,
+// and the one column's) to five (the Wide card's).
+int SetRowsOf(Size size);
 
 // Every measure of the Full card and its parts for one size, in logical px
 // (the drawing multiplies by Scale()). The text sizes are named `...Text`;
@@ -46,15 +55,14 @@ struct Metrics {
     float digits, meter, wordsText, pointsGap;
     float recordKeyText, recordValueText;
     float heading, tileWidth, tileGap, tileNameText, tileGamesText;
-    float familyWidth, familyHeight, familyGap, plate, icon, pip, pipGap, familyTitleText;
+    float familyHeight, familyGap, plate, icon, pip, pipGap, familyTitleText;
     float rowHeight, rowGap, rowPicture, rowNameText, rowLineText, linkRow;
     float button, buttonGap, buttonGapNext;
     float heroWordText, heroNameText, noteText;
-    int setRows;
     // The smallest text the card draws at this size.
     float SmallestText() const;
 };
-const Metrics& MetricsOf(Size size);
+Metrics MetricsOf(Size size);
 
 // ---- Chips ----------------------------------------------------------------
 
@@ -232,7 +240,6 @@ struct Subject {
 };
 
 struct FullCardView {
-    Size size = Size::Wide;
     CardLevels levels = CardLevels::Counted;
     std::string name;
     CountryCode country;
@@ -257,10 +264,12 @@ struct FullCardView {
     const char* levelWords = nullptr;
     // The subject's own words, which stand in place of levelWords when there are any.
     std::vector<std::string> notes;
-    // How many set rows the size shows.
+    // How many recent sets the card shows.
     int setRows = 5;
 };
-FullCardView FullOf(const Subject& subject, Size size);
+// The card of `subject` in `room` (PlayerCard.hxx, CardSize), which decides only how many recent sets it has: the drawing
+// takes every measure from the room it is given.
+FullCardView FullOf(const Subject& subject, Size room);
 
 // The player's own subject from the points answer and what the card carries.
 struct OwnInputs {

@@ -61,9 +61,11 @@ namespace v2 {
 namespace {
 // The most points shown: six digits.
 constexpr std::uint64_t TopPoints = 999999;
-// A band takes this share of its picture's height (20 px at least), its number
-// this share of the band, and keeps this share of the band clear at each side.
-constexpr float BandShare = .22f, BandCap = .58f, BandMargin = .11f;
+// A band takes this share of its picture's shorter side, from 20 px to 52: a
+// tall picture's band is no taller than a square one's as wide, and a large
+// picture's number (30 px) no larger than the Full card's largest points. Its number
+// takes this share of the band, which keeps this share of itself clear at each side.
+constexpr float BandShare = .22f, BandLeast = 20, BandMost = 52, BandCap = .58f, BandMargin = .11f;
 
 // White, as the game draws its points; the gold of its "rank up" digits for a gain.
 constexpr ImU32 White = IM_COL32(255, 255, 255, 255), Gold = IM_COL32(255, 200, 64, 255);
@@ -289,9 +291,9 @@ float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain) {
     return advance + number.width;
 }
 
-void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, float alpha) {
-    if (tile.H() <= 0) return;
-    const float s = Scale(), band = std::round((std::min)(tile.H(), (std::max)(tile.H() * BandShare, 20 * s)));
+float LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, float alpha) {
+    if (tile.H() <= 0) return 0;
+    const float s = Scale(), band = std::round((std::min)({tile.H(), BandMost * s, (std::max)((std::min)(tile.W(), tile.H()) * BandShare, BandLeast * s)}));
     const Box foot{ImVec2(tile.min.x, tile.max.y - band), tile.max};
     // The line shrinks until it fits the picture's width less a margin each side, down to the text floor (13 px).
     const float room = (std::max)(1.f, foot.W() - 2 * std::round(band * BandMargin));
@@ -303,11 +305,12 @@ void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, float alpha) {
         line = LineOf(DigitArt(), points, cap, "points.label");
     }
     // Under the floor it cannot be read: the band is left out.
-    if (line.width > room || cap < floorCap) return;
+    if (line.width > room || cap < floorCap) return 0;
     draw->AddRectFilled(foot.min, foot.max, color::Alpha(Colors().ink, .88f));
     draw->PushClipRect(foot.min, foot.max, true);
     DrawLine(draw, line, ImVec2(std::round(foot.min.x + (foot.W() - line.width) * .5f), std::round(foot.min.y + (foot.H() - cap) * .5f)), alpha);
     draw->PopClipRect();
+    return band;
 }
 
 void Meter(ImDrawList* draw, Box box, float part, float fresh) {

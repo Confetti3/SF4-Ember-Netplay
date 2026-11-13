@@ -32,47 +32,58 @@ std::string MonthOf(std::uint64_t seconds) {
     return text;
 }
 
-constexpr Metrics kWide = {
-    440, 32, 840, 496,
-    34, 10, 44, 36, 22, 15, 32,
-    30, 13, 24,
-    30, 320, 13, 8,
-    13, 17,
-    24, 264, 12, 15, 13,
-    112, 160, 16, 64, 44, 7, 3, 13,
-    72, 8, 48, 16, 14, 48,
-    48, 16, 8,
-    13, 18, 14,
-    5};
-constexpr Metrics kCompact = {
-    260, 24, 524, 400,
-    30, 6, 40, 30, 20, 14, 28,
-    28, 13, 24,
-    24, 150, 13, 8,
-    13, 16,
-    22, 160, 12, 14, 13,
-    88, 120, 16, 48, 32, 6, 3, 13,
-    52, 6, 40, 14, 13, 40,
-    44, 12, 8,
-    13, 18, 14,
-    3};
-constexpr Metrics kNarrow = {
-    200, 16, 0, 0,
-    30, 6, 40, 30, 20, 14, 28,
-    28, 13, 24,
-    22, 0, 13, 8,
-    13, 16,
-    22, 0, 12, 14, 13,
-    0, 128, 12, 48, 32, 6, 3, 13,
-    56, 6, 40, 14, 13, 44,
-    48, 12, 8,
-    13, 18, 14,
-    3};
+// How far a room's columns are from the Compact card's (0) to the Wide card's (1). `across` goes by the content's width and
+// may pass either card, so the columns are always as wide as the content. `overall` is the lesser of that and how far the
+// body's height is, kept between the two cards, so nothing outgrows the room.
+struct Shares { float across, overall; };
+Shares SharesOf(Size size) {
+    const float across = (size.contentWidth - Size::Compact.contentWidth) / (Size::Wide.contentWidth - Size::Compact.contentWidth);
+    const float down = (size.bodyHeight - Size::Compact.bodyHeight) / (Size::Wide.bodyHeight - Size::Compact.bodyHeight);
+    return {across, (std::max)(0.f, (std::min)({across, down, 1.f}))};
+}
 }
 
 std::string MonthWords(std::uint64_t seconds) { return MonthOf(seconds); }
 
-const Metrics& MetricsOf(Size size) { return size == Size::Wide ? kWide : size == Size::Compact ? kCompact : kNarrow; }
+Metrics MetricsOf(Size size) {
+    const bool narrow = size.Narrow();
+    const Shares share = SharesOf(size);
+    // Each measure as the one column's, the Compact card's and the Wide card's: `w` for those that share out the content's
+    // width, `o` for the rest. A measure all three agree on is a plain number.
+    const auto w = [&](float column, float compact, float wide) { return narrow ? column : compact + (wide - compact) * share.across; };
+    const auto o = [&](float column, float compact, float wide) { return narrow ? column : compact + (wide - compact) * share.overall; };
+    Metrics m{};
+    m.hero = w(200, 260, 440); m.gutter = w(16, 24, 32); m.middle = w(0, 524, 840); m.right = w(0, 400, 496);
+    m.titleLine = o(30, 30, 34); m.titleGap = o(6, 6, 10); m.nameRow = o(40, 40, 44); m.nameText = o(30, 30, 36);
+    m.aboutRow = o(20, 20, 22); m.aboutText = o(14, 14, 15); m.emblem = o(28, 28, 32);
+    m.chipRow = o(28, 28, 30); m.groupText = 13; m.groupGap = 24;
+    m.digits = o(22, 24, 30); m.meter = w(0, 150, 320); m.wordsText = 13; m.pointsGap = 8;
+    m.recordKeyText = 13; m.recordValueText = o(16, 16, 17);
+    m.heading = o(22, 22, 24); m.tileWidth = w(0, 160, 264); m.tileGap = 12; m.tileNameText = o(14, 14, 15); m.tileGamesText = 13;
+    m.familyHeight = o(128, 120, 160); m.familyGap = o(12, 16, 16); m.plate = o(48, 48, 64); m.icon = o(32, 32, 44);
+    m.pip = o(6, 6, 7); m.pipGap = 3; m.familyTitleText = 13;
+    m.rowHeight = o(56, 52, 72); m.rowGap = o(6, 6, 8); m.rowPicture = o(40, 40, 48); m.rowNameText = o(14, 14, 16);
+    m.rowLineText = o(13, 13, 14); m.linkRow = o(44, 40, 48);
+    m.button = o(48, 44, 48); m.buttonGap = o(12, 12, 16); m.buttonGapNext = 8;
+    m.heroWordText = 13; m.heroNameText = 18; m.noteText = 14;
+    return m;
+}
+
+namespace {
+// The tallest right column, the player's own card's with every part there, holding `sets` recent sets, as DrawColumns
+// (PlayerCard.cxx) stacks it: AWARDS over its tiles, MOST PLAYED over its row, RECENT SETS over its rows, and All sets.
+// Every other state of the column is shorter.
+float RightColumn(const Metrics& m, int sets) {
+    return 4 * m.heading + m.familyHeight + m.rowHeight + m.buttonGap + sets * (m.rowHeight + m.rowGap) + m.linkRow;
+}
+}
+
+int SetRowsOf(Size size) {
+    const Metrics m = MetricsOf(size);
+    int sets = 3;
+    while (!size.Narrow() && sets < 5 && RightColumn(m, sets + 1) <= size.bodyHeight) ++sets;
+    return sets;
+}
 
 float Metrics::SmallestText() const {
     return (std::min)({nameText, aboutText, groupText, wordsText, recordKeyText, recordValueText, tileNameText, tileGamesText, familyTitleText,
@@ -259,10 +270,8 @@ std::string RelationWords(const Subject& s) {
 }
 }
 
-FullCardView FullOf(const Subject& s, Size size) {
-    const Metrics& m = MetricsOf(size);
+FullCardView FullOf(const Subject& s, Size room) {
     FullCardView v;
-    v.size = size;
     v.levels = s.levels;
     v.name = s.name;
     v.country = s.country;
@@ -270,7 +279,7 @@ FullCardView FullOf(const Subject& s, Size size) {
     v.about = About(s);
     v.presenceMark = s.presenceMark;
     v.presence = s.presence;
-    v.setRows = m.setRows;
+    v.setRows = SetRowsOf(room);
     v.sets = s.sets;
     v.buttons = s.buttons;
     v.hero = s.fighter >= 0 ? s.fighter : s.main;

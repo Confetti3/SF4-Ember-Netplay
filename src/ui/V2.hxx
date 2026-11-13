@@ -28,11 +28,14 @@ constexpr ImU32 Alpha(ImU32 color, float alpha) { return (color & ~IM_COL32_A_MA
 // 16 under 900 logical pixels of width, 24 under 1700, 40 above; content is
 // capped at 2000 and centred, so a 21:9 or 32:9 screen grows margins, not rows.
 constexpr float ContentCap = 2000;
+// A window under NarrowWidth logical pixels is narrow; NarrowContent is the widest content such a window has, which is
+// the most a layout drawn for narrow windows is asked to fill.
+constexpr float NarrowWidth = 900, NarrowPad = 16, NarrowContent = NarrowWidth - 2 * NarrowPad;
 inline float Pad(float width, float scale) {
     const float logical = width / scale;
-    return (logical < 900 ? 16 : logical < 1700 ? 24 : 40) * scale;
+    return (logical < NarrowWidth ? NarrowPad : logical < 1700 ? 24 : 40) * scale;
 }
-inline bool Narrow(float width, float scale) { return width / scale < 900; }
+inline bool Narrow(float width, float scale) { return width / scale < NarrowWidth; }
 inline float SideMargin(float width, float scale) { return (std::max)(Pad(width, scale), (width - ContentCap * scale) * .5f); }
 
 // A screen is laid out by cutting boxes off a box, as the design boards stack
@@ -250,8 +253,9 @@ float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain);
 // Over a fighter's picture `tile`: the line `<number> FP` centred on a short
 // dark shade across its foot, shrunk to fit the picture's width. The shade is
 // only there to read over art: no frame is drawn round the picture. `alpha`
-// dims the line as Level does.
-void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, float alpha = 1.f);
+// dims the line as Level does. Returns the band's height, 0 when it is left out
+// (a picture too small for a number that reads).
+float LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, float alpha = 1.f);
 // A progress bar on the frame's ground: `part` of it (0 to 1) in the accent,
 // and the last `fresh` of that part (the same measure) in the light accent.
 void Meter(ImDrawList* draw, Box box, float part, float fresh);

@@ -70,18 +70,20 @@ float DrawRowButton(const char* id, ImVec2 at, float width, const std::vector<Me
 // accent frame is focus and nothing else.
 void DrawFighterEdge(ImDrawList* d, v2::Box box, std::uint64_t points, int tier);
 
-// The Full card at the cursor, as wide as the window and, wide or compact, as
-// tall as the body (`bodyHeight`): the hero the body's height with its buttons
-// at its foot, then the middle column and the right column, each to the foot,
-// nothing scrolling; narrow, one column that scrolls. The parts are placed
+// The Full card at the cursor, measured for the room it is given (the window's
+// content width and `bodyHeight`): in columns, as wide as the content and as
+// tall as the body, the hero the body's height with its buttons at its foot,
+// then the middle column and the right column, each to the foot, nothing
+// scrolling; narrow, one column that scrolls. The parts are placed
 // rows (PressEntry): the strip's tiles, the award tiles, Most played, the set
 // rows, All sets (player_card::CardRows), the hero's buttons and Choose a main
 // among `rows`. `changed` scrolls a newly focused row into view. Returns the
 // height taken.
 float DrawFullCard(const player_card::FullCardView& card, FighterArt art, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action,
     bool changed, float bodyHeight);
-// The size class the card is drawn at in this window (a body is about 242 logical px shorter than the window at 1080, 202 at
-// 720): what FullOf takes. Rows and drawing both ask it, so the rows are the parts drawn.
+// The room the card was last drawn in, which is what FullOf takes for the recent sets the card has: the rows are counted
+// for the room the drawing measures, so they are the parts drawn, and a resize is caught up with a frame later. Before any
+// card is drawn it is the window less the shell's usual chrome.
 player_card::Size CardSize();
 
 // Another player's card as the Panel draws it (a room member, a friend, the

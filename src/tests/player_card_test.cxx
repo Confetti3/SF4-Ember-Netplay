@@ -224,14 +224,42 @@ namespace pc = ui::player_card;
 namespace aw = netplay::awards;
 using pc::Chip;
 
-// No text on any size is under 13 px at 1.00x, and the sizes are the design's.
+// No text on any size is under 13 px at 1.00x, and the drawn cards are the design's.
 void Metrics() {
-    for (const auto size : {pc::Size::Wide, pc::Size::Compact, pc::Size::Narrow})
+    const pc::Size column{800, 600};
+    for (const auto size : {pc::Size::Wide, pc::Size::Compact, column})
         Check(pc::MetricsOf(size).SmallestText() >= pc::TextFloor, "a card size has text under the floor");
     Check(pc::TextFloor == 13.f, "the text floor is not 13 px");
-    Check(pc::MetricsOf(pc::Size::Wide).setRows == 5 && pc::MetricsOf(pc::Size::Compact).setRows == 3 && pc::MetricsOf(pc::Size::Narrow).setRows == 3, "the set rows are not five, three, three");
-    Check(pc::MetricsOf(pc::Size::Wide).hero == 440 && pc::MetricsOf(pc::Size::Wide).pip == 7, "the wide card's hero or pips are not the design's");
-    Check(pc::SizeOf(false, 838) == pc::Size::Wide && pc::SizeOf(false, 510) == pc::Size::Compact && pc::SizeOf(true, 900) == pc::Size::Narrow, "the size class is wrong");
+    Check(pc::SetRowsOf(pc::Size::Wide) == 5 && pc::SetRowsOf(pc::Size::Compact) == 3 && pc::SetRowsOf(column) == 3, "the set rows are not five, three, three");
+    const auto wide = pc::MetricsOf(pc::Size::Wide), compact = pc::MetricsOf(pc::Size::Compact);
+    Check(wide.hero == 440 && wide.pip == 7 && wide.nameText == 36 && compact.hero == 260 && compact.pip == 6 && compact.nameText == 30, "a drawn card's measures are not the design's");
+    Check(pc::MetricsOf(column).hero == 200 && pc::MetricsOf(column).rowHeight == 56, "the one column's measures are not the design's");
+}
+
+// A room that is neither drawn card's has columns exactly as wide as its content, with nothing further along than its
+// body is tall and no text past either card's; too little room for the columns is the one column.
+void Sizes() {
+    const auto columns = [](pc::Size size) { const auto m = pc::MetricsOf(size); return m.hero + m.middle + m.right + 2 * m.gutter; };
+    const auto about = [](float a, float b) { return a > b - .01f && a < b + .01f; };
+    // Halfway between the two cards: every measure halfway, and room for four recent sets.
+    const pc::Size halfway{1536, 674};
+    const auto half = pc::MetricsOf(halfway);
+    Check(about(half.hero, 350) && about(half.nameText, 33) && about(half.rowHeight, 62) && pc::SetRowsOf(halfway) == 4, "a room halfway between the drawn cards is not halfway between their measures");
+    for (const float width : {pc::ColumnsContentWidth, 1300.f, 1627.f, 1824.f, 2000.f})
+        Check(about(columns({width, 700}), width), "the columns are not as wide as the content");
+    // Wide but short keeps the Compact card's heights and text in the Wide card's columns; tall but not wide is the Compact card.
+    const auto shortWide = pc::MetricsOf({pc::Size::Wide.contentWidth, pc::Size::Compact.bodyHeight}), tall = pc::MetricsOf({pc::Size::Compact.contentWidth, pc::Size::Wide.bodyHeight});
+    Check(shortWide.hero == 440 && shortWide.nameText == 30 && shortWide.rowHeight == 52 && tall.hero == 260 && tall.nameText == 30, "a measure outgrows the room's shorter way");
+    Check(pc::MetricsOf({2000, 1200}).nameText == 36 && pc::MetricsOf({1210, 700}).nameText == 30, "text passes a drawn card's");
+    for (const float width : {pc::ColumnsContentWidth, 1536.f, 2000.f})
+        Check(pc::MetricsOf({width, 700}).SmallestText() >= pc::TextFloor, "a room between the drawn cards has text under the floor");
+    Check(pc::Size{pc::ColumnsContentWidth - 1, 838}.Narrow() && pc::Size{1840, pc::ColumnsBodyHeight - 1}.Narrow() && !pc::Size{pc::ColumnsContentWidth, pc::ColumnsBodyHeight}.Narrow(),
+        "the columns' least room is not where the one column takes over");
+    // 1280x720's body is taken as 478 before its card is first drawn and is about 510 when drawn: three recent sets either way.
+    Check(pc::SetRowsOf({1232, 478}) == 3 && pc::SetRowsOf({1232, 510}) == 3, "a room taken smaller than it is drawn counts sets the drawn card has no room for");
+    // The Compact card's right column is the columns' least body with its three sets, and each more needs a row and its gap (58).
+    Check(pc::SetRowsOf({1232, pc::ColumnsBodyHeight + 57}) == 3 && pc::SetRowsOf({1232, pc::ColumnsBodyHeight + 58}) == 4 && pc::SetRowsOf({1840, 780}) == 5,
+        "the recent sets are not as many as the right column has room for");
 }
 
 // Plays and Looking for are two groups of chips; the Panel gives Region way first, then Connection, never the device or Looking for.
@@ -452,6 +480,7 @@ void Sets() {
 
 int main() {
     Metrics();
+    Sizes();
     Chips();
     Families();
     Record();

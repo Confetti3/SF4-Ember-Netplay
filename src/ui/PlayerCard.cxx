@@ -7,6 +7,7 @@
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
+#include <optional>
 #include <string>
 
 namespace sf4e { namespace ui {
@@ -111,10 +112,17 @@ void DrawFighterEdge(ImDrawList* d, v2::Box box, std::uint64_t points, int tier)
     d->AddRect(ImVec2(box.min.x + inset, box.min.y + inset), ImVec2(box.max.x - inset, box.max.y - inset), v2::TierColor(v2::FrameTier(tier)).stripe, 0, 0, Hairline());
 }
 
+namespace {
+// The room the Full card was last drawn in. Its rows are counted for that room, so they are the parts the next frame draws
+// whatever the shell takes from the window round the body (TV mode's margins, a footer). Empty until a card is drawn.
+std::optional<player_card::Size> drawnRoom;
+}
+
 player_card::Size CardSize() {
-    const float s = Scale();
-    const float width = ImGui::GetIO().DisplaySize.x;
-    return player_card::SizeOf(v2::Narrow(width, s), ImGui::GetIO().DisplaySize.y / s - 242.f, (width - 2 * v2::SideMargin(width, s)) / s);
+    if (drawnRoom) return *drawnRoom;
+    // No card drawn yet: the window less the shell's usual chrome, 242 logical px at 1080.
+    const float s = Scale(), width = ImGui::GetIO().DisplaySize.x;
+    return {(width - 2 * v2::SideMargin(width, s)) / s, ImGui::GetIO().DisplaySize.y / s - 242.f};
 }
 
 namespace {
@@ -208,8 +216,11 @@ void DrawHero(const Ctx& c, v2::Box hero) {
         ButtonRow(c, v2::Box{ImVec2(left, top), ImVec2(left + w, top + h)}, ChooseMainRow, v2::ButtonKind::Primary, nullptr);
         return;
     }
-    DrawCharacterPortrait(FighterPicture{c.v.hero, c.art, 0, 0}, hero.min, hero.max, colors.frame);
+    // The fighter stands on the shade, the ground over its head: never hung from the top of a hero taller than its art.
+    // The art's box stops at the shade, so the ground under both is the hero's own and the picture brings none.
     const v2::Box foot{ImVec2(hero.min.x, hero.max.y - 56 * s), hero.max};
+    c.d->AddRectFilled(hero.min, hero.max, colors.frame);
+    DrawCharacterPortrait(FighterPicture{c.v.hero, c.art, 0, 0}, hero.min, ImVec2(hero.max.x, foot.min.y), IM_COL32(0, 0, 0, 0), PictureAnchor::Foot);
     c.d->AddRectFilled(foot.min, foot.max, v2::color::Alpha(colors.ink, .82f));
     v2::Text(c.d, ImVec2(foot.min.x + 14 * s, foot.min.y + 8 * s), foot.W() - 28 * s, c.v.heroWord, c.m.heroWordText * s, colors.muted, HeadingFont());
     v2::Text(c.d, ImVec2(foot.min.x + 14 * s, foot.min.y + 26 * s), foot.W() - 28 * s, c.v.heroName, c.m.heroNameText * s, colors.text, HeadingFont());
@@ -293,16 +304,18 @@ float DrawWords(const Ctx& c, float x, float y, float room) {
     return after > y ? after + 8 * c.s : y;
 }
 
-// One fighter of the strip: the picture with the tier line, its points on it and "Main" on the main's, and under it the
-// name and, on the player's own card, the games.
+// One fighter of the strip: the picture with the tier line, the fighter standing on its points' band as the hero stands on
+// its shade, "Main" on the main's, and under it the name and, on the player's own card, the games.
 void DrawStripTile(const Ctx& c, v2::Box box, const player_card::StripTile& tile, float textBlock, bool focused, bool hovered) {
     const auto& colors = v2::Colors();
     const float s = c.s, pad = 8 * s, side = box.W() - 2 * pad;
     v2::CardGround(c.d, box, focused, hovered);
     const v2::Box picture{ImVec2(box.min.x + pad, box.min.y + pad), ImVec2(box.max.x - pad, box.max.y - pad - textBlock)};
-    DrawCharacterPortrait(FighterPicture{tile.fighter, c.art, 0, 0}, picture.min, picture.max, colors.frame);
+    c.d->AddRectFilled(picture.min, picture.max, colors.frame);
     // Points not read yet (or not reachable) are not drawn as "0 FP".
-    if (c.v.levels != CardLevels::Pending && c.v.levels != CardLevels::Unreachable) v2::LevelBand(c.d, picture, tile.points, c.alpha);
+    const bool counted = c.v.levels != CardLevels::Pending && c.v.levels != CardLevels::Unreachable;
+    const float band = counted ? v2::LevelBand(c.d, picture, tile.points, c.alpha) : 0.f;
+    DrawCharacterPortrait(FighterPicture{tile.fighter, c.art, 0, 0}, picture.min, ImVec2(picture.max.x, picture.max.y - band), IM_COL32(0, 0, 0, 0), PictureAnchor::Foot);
     DrawFighterEdge(c.d, picture, tile.points, tile.tier);
     if (tile.isMain) v2::Chip(c.d, ImVec2(picture.min.x + 6 * s, picture.min.y + 6 * s), loc::T("fighters.main"), colors.accentLight);
     // The words under the picture start as far in as the picture does, clear of the focus frame's 2 px edge.
@@ -335,9 +348,9 @@ float DrawStrip(const Ctx& c, float x, float y, float room, float limit, bool na
     return y + height;
 }
 
-// "AWARDS" with "28 of 40" at its right, and up to four families: wide at their own size, narrow sharing the width. With none, the
-// points state's words or the words for no award yet. Left out for a card without profiles.
-float DrawAwards(const Ctx& c, float x, float y, float room, bool narrow) {
+// "AWARDS" with "28 of 40" at its right, and up to four families sharing the width. With none, the points state's words or
+// the words for no award yet. Left out for a card without profiles.
+float DrawAwards(const Ctx& c, float x, float y, float room) {
     const auto& colors = v2::Colors();
     const auto& awards = c.v.awards;
     if (awards.total == 0) return y;
@@ -353,7 +366,7 @@ float DrawAwards(const Ctx& c, float x, float y, float room, bool narrow) {
         const char* words = c.v.levelWords && c.v.levels != CardLevels::Counted ? c.v.levelWords : "card.no_awards";
         return y + v2::Paragraph(c.d, ImVec2(x, y), room, loc::T(words), c.m.noteText * s, colors.muted);
     }
-    const float gap = c.m.familyGap * s, width = narrow ? (room - 3 * gap) / 4 : c.m.familyWidth * s, height = c.m.familyHeight * s;
+    const float gap = c.m.familyGap * s, width = (room - 3 * gap) / 4, height = c.m.familyHeight * s;
     int shown = 0;
     for (const auto& tile : awards.tiles) {
         const float left = x + shown++ * (width + gap);
@@ -423,10 +436,10 @@ float DrawRecord(const Ctx& c, float x, float y, float room, std::size_t across)
     return y + v2::FactCells(c.d, ImVec2(x, y), room, c.v.record, across, c.m.recordValueText);
 }
 
-// Wide and compact: the hero with its buttons at its foot, the middle column and the right column, each to the body's foot.
-float DrawColumns(const Ctx& c, ImVec2 origin, float width, float height) {
+// In columns: the hero with its buttons at its foot, the middle column and the right column, each to the body's foot.
+float DrawColumns(const Ctx& c, ImVec2 origin, float height) {
     const float s = c.s, bottom = origin.y + height - s, gutter = c.m.gutter * s, gap = c.m.buttonGap * s;
-    const float hero = c.m.hero * s, right = c.m.right * s, middle = (std::max)(0.f, (std::min)(c.m.middle * s, width - hero - right - 2 * gutter));
+    const float hero = c.m.hero * s, right = c.m.right * s, middle = c.m.middle * s;
     const v2::Box heroBox{origin, ImVec2(origin.x + hero, bottom - ButtonsHeight(c))};
     DrawHero(c, heroBox);
     DrawButtons(c, origin.x, heroBox.max.y, hero);
@@ -439,10 +452,11 @@ float DrawColumns(const Ctx& c, ImVec2 origin, float width, float height) {
     y = DrawWords(c, x, y, middle);
     DrawStrip(c, x, y, middle, bottom, false);
 
+    // The right column. player_card::SetRowsOf counts the recent sets by this stack (RightColumn, CardModel.cxx).
     x += middle + gutter;
     y = origin.y;
     const float section = c.m.heading * s;
-    const float afterAwards = DrawAwards(c, x, y, right, false);
+    const float afterAwards = DrawAwards(c, x, y, right);
     y = afterAwards > y ? afterAwards + section : y;
     const float afterRival = DrawRival(c, x, y, right);
     y = afterRival > y ? afterRival + gap : y;
@@ -471,7 +485,7 @@ float DrawNarrow(const Ctx& c, ImVec2 origin, float width) {
     y = afterRival > y ? afterRival + gap : y;
     const float afterStrip = DrawStrip(c, origin.x, y, width, 0, true);
     y = afterStrip > y ? afterStrip + gap : y;
-    const float afterAwards = DrawAwards(c, origin.x, y, width, true);
+    const float afterAwards = DrawAwards(c, origin.x, y, width);
     y = afterAwards > y ? afterAwards + gap : y;
     y = DrawSets(c, origin.x, y, width) + gap * .5f;
     if (!buttonsFirst) y = DrawButtons(c, origin.x, y - c.m.buttonGap * s, width) + gap;
@@ -482,10 +496,15 @@ float DrawNarrow(const Ctx& c, ImVec2 origin, float width) {
 float DrawFullCard(const player_card::FullCardView& card, FighterArt art, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action,
     bool changed, float bodyHeight) {
     const float s = Scale(), width = ImGui::GetContentRegionAvail().x;
-    const auto size = card.size;
-    const Ctx c{ImGui::GetWindowDrawList(), card, player_card::MetricsOf(size), art, card.levels == CardLevels::Pending ? .4f : 1.f, s, rows, nav, action, changed};
+    // Measured for the room it is given, which the next frame's rows are counted for.
+    const player_card::Size size{width / s, bodyHeight / s};
+    drawnRoom = size;
+    const player_card::Metrics metrics = player_card::MetricsOf(size);
+    const Ctx c{ImGui::GetWindowDrawList(), card, metrics, art, card.levels == CardLevels::Pending ? .4f : 1.f, s, rows, nav, action, changed};
     const ImVec2 origin = ImGui::GetCursorScreenPos();
-    const float total = size == player_card::Size::Narrow ? DrawNarrow(c, origin, width) : DrawColumns(c, origin, width, bodyHeight);
+    // The one column is no wider than a narrow window's content, and stands in the middle of a wider body.
+    const float column = (std::min)(width, v2::NarrowContent * s);
+    const float total = size.Narrow() ? DrawNarrow(c, ImVec2(origin.x + (width - column) * .5f, origin.y), column) : DrawColumns(c, origin, bodyHeight);
     ImGui::SetCursorScreenPos(origin);
     ImGui::Dummy(ImVec2(width, total));
     return total;

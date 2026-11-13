@@ -74,7 +74,7 @@ Player 1
 | Full card, own or another's | FP of the main (another player in a room: the fighter they play now), BP; own card adds each line's meter and words | 30 / 24 |
 | Panel card | the same two lines, no meters, under the title plate | 26 / 22 |
 | Home's card (L tag) | unchanged | 22 / 20 |
-| A fighter picture's foot (`v2::LevelBand`) | unchanged; shrinks to fit, never under 13 px: below that the band is left out | fits the picture |
+| A fighter picture's foot (`v2::LevelBand`) | the band is a share of the picture's shorter side, from 20 px to 52, so a tall picture's number is no larger than a square one's as wide and a large picture's no larger than the card's largest points; shrinks to fit, never under 13 px: below that the band is left out | fits the picture |
 
 The meter beside a line: `v2::Meter`, 10 tall, starting 24 px after the
 label, 320 wide (1080) or 150 (720); its words 13 px muted after it,
@@ -188,7 +188,7 @@ B 840, gap 32, C 496.
 | Plays, Looking for | B, 30, 16 under | the two chip groups (Rules), 24 apart on one line; Looking for takes a line of its own when they do not fit (the part grows to 68) |
 | Points | B, 2 x 30 + 8, 16 under | FP of the main and BP, each with its meter and words (Points) |
 | Record | B, `v2::FactCells` 4 across, 52, 18 under | Rated games · Win rate · Best streak · Fighters played ("12 of 44"); keys 13 px, values 17 px |
-| Top fighters | B, heading 24, then three tiles 264 wide, 12 apart, as tall as the column has left (about 490) | "TOP FIGHTERS": the main, marked with the "Main" chip at its picture's top left (as the Fighters tab marks it), then the two highest others by FP. A tile: the picture 248 wide (art anchored to its foot, `LevelBand`, tier line), name 15 px, games 13 px muted |
+| Top fighters | B, heading 24, then three tiles 264 wide, 12 apart, as tall as the column has left (about 490) | "TOP FIGHTERS": the main, marked with the "Main" chip at its picture's top left (as the Fighters tab marks it), then the two highest others by FP. A tile: the picture 248 wide (the art standing on the `LevelBand` as the hero's stands on its shade, tier line), name 15 px, games 13 px muted |
 | Awards | C, heading 24 + four tiles 112 x 160, 16 apart; 24 under | "AWARDS", and "28 of 40" (`card.of`: levels reached of all levels) muted at the heading's right. A tile is one family on the plain card ground: a 64 px square of the level's tier plate fill with the family's icon (44) in the tier's stripe colour; under it the level pips, one 7 px square per level 3 apart, the reached ones in the stripe colour and the rest `c.border`; under them the level's title, 13 px heading font, centred, two lines at most ("World Warrior", "Class A+"). A family with no level reached is not shown. None reached: one line "No awards yet. The first comes with your first rated game." |
 | Most played | C, heading 24 + one row 496 x 72; 24 under | "MOST PLAYED" (addition after W1/W2): the opponent's flag, name (16 px) and class; under it 14 px muted "41 – 33 · 74 games" (`card.most_played_line`, wins from this player's side). A opens their profile by the token the answer carries |
 | Recent sets | C, heading 24 + five rows 496 x 72, 8 apart | "RECENT SETS". A row: this player's fighter and the opponent's, 48 px each, side by side; "vs" + the opponent's flag, name and class (16 px); under it 14 px muted "3 – 1 · Online · 2 d ago" or "3 – 1 · Weekly 12 · Top 8 · 2026-11-10". The score is from this player's side; the fighters are the set's last game's |
@@ -199,8 +199,7 @@ Column heights: A 838, B 838 (the tiles take what is left), C 800 (own) and
 
 ### 1280x720 (content 1232 wide, body about 510 tall)
 
-Columns A 260, gap 24, B 524, gap 24, C 400. When the body is under 620
-logical px tall, these sizes (1.6.0's rule):
+Columns A 260, gap 24, B 524, gap 24, C 400, and these sizes:
 
 | Part | Change |
 |---|---|
@@ -215,10 +214,46 @@ logical px tall, these sizes (1.6.0's rule):
 | Recent sets | heading 22; three rows 400 x 52 (pictures 40, lines 14 and 13 px), 6 apart; All sets 40 |
 
 Column B is about 296 before the tiles, which take the rest (about 210, or
-180 when the chips need two lines); C is about 476 (own) and 454
+180 when the chips need two lines); C is 486 (own) and about 454
 (another's). The card fits the body without scrolling.
 
-### Narrow (`v2::Narrow`, under 900 logical px)
+### Every other window
+
+The two layouts above are the card drawn for two rooms: 1232 logical px of
+content over a 510 body, and 1840 over 838. Any other room gets the same
+three columns with each measure placed between the two cards'
+(`player_card::Size`, `MetricsOf`), by two shares of the way from the first
+to the second:
+
+| Share | From | Places |
+|---|---|---|
+| across | the content's width between 1232 (0) and 1840 (1); it may pass either | the three columns, their gutters, the top fighter tiles and the meter. The columns are always exactly as wide as the content, and the four family tiles share the right column |
+| overall | the lesser of across and the body's height between 510 (0) and 838 (1), kept from 0 to 1 | every height, picture and text size |
+
+So 2560x1440 at 150 % (1627 logical px of content) is neither card: its
+columns are about 377, 729 and 462 wide under a name of about 34 px. A room
+wide for its height (1840 of content over a 510 body) keeps the 1280x720
+heights and text in the wide columns. A room tall for its width gives the
+extra height to the hero and the top fighter tiles, whose art stands on their
+foot with the ground above it. Text never passes the 1920x1080 sizes and
+never goes under the 1280x720 ones.
+
+Recent sets: as many as the right column has room for, from three to five
+(`SetRowsOf`). The rows are counted for the room the card was last drawn in
+(`CardSize`; before any card is drawn, the window less 242), so TV mode's
+margins or a footer row never leave a set past the body's foot, and a resize
+is caught up with a frame later. Every measure is taken from the body as
+drawn.
+
+The columns need 1200 logical px of content and a body of 486
+(`player_card::Size::Narrow`). Across, that is a little under the 1280x720
+card: its words were set for its widths, and in narrower columns a recent
+set's line is the first cut short. Down, it is that card's right column (486
+tall with its three sets), which would pass a shorter body's foot. Below
+either, the card is the one column of Narrow, which scrolls: at most 868 wide
+(a narrow window's content) and in the middle of a wider body.
+
+### Narrow (`player_card::Size::Narrow`: under 1200 logical px of content or a body under 486)
 
 One column that scrolls, the focused row scrolled into view:
 
