@@ -273,3 +273,31 @@ void DialogRepeat(){
  Check(typed.size()==1&&typed!="q"&&typed!="w","Holding Right on the on-screen keyboard stepped once");
  press(MenuInput::Back);Check(!menu.navigation.Editing(),"Back did not close the editor");
 }
+// A game's own backdrop (SetMenuBackdropDrawer): a full-window menu asks it
+// over the whole screen, into the menu's window, and one it draws stands
+// alone; one it does not draw leaves the menu's art as before, as does no
+// drawer (SF4's), and a flyout asks nothing.
+void BackdropDrawer(){
+ HeadlessImGui imgui;GameMenu menu;SetMenuGlyphs(3,0x40000,0x20000);
+ std::vector<MenuEntry> rows={Row("one","One","")};
+ int asked=0;bool draws=true;ImVec2 seenMin(-1,-1),seenMax(-1,-1);ImDrawList* seenList=nullptr;ImDrawList* windowList=nullptr;
+ SetMenuBackdropDrawer([&](ImDrawList* d,ImVec2 min,ImVec2 max){++asked;seenList=d;seenMin=min;seenMax=max;return draws;});
+ auto frame=[&](bool flyout=false){imgui.io.DeltaTime=1.f/60;SetMenuInput({0,0});ImGui::NewFrame();
+  ImGui::SetNextWindowPos(ImVec2(0,0));ImGui::SetNextWindowSize(imgui.io.DisplaySize);ImGui::Begin("Backdrop test",nullptr,ImGuiWindowFlags_NoDecoration);
+  windowList=ImGui::GetWindowDrawList();menu.Draw("TEST",rows,"",{},1,{},{},flyout);ImGui::End();ImGui::Render();};
+ frame();
+ Check(asked==1&&seenList==windowList,"The menu did not ask the game's drawer once, into its window");
+ Check(seenMin.x==0&&seenMin.y==0&&seenMax.x==imgui.io.DisplaySize.x&&seenMax.y==imgui.io.DisplaySize.y,"The game's drawer was not given the whole screen");
+ // With no menu art set, the drawer's answer is DrawMenuBackdrop's.
+ ImGui::NewFrame();ImGui::Begin("Backdrop answer",nullptr,ImGuiWindowFlags_NoDecoration);
+ const bool drawn=DrawMenuBackdrop();draws=false;const bool notDrawn=DrawMenuBackdrop();ImGui::End();ImGui::Render();
+ Check(drawn&&!notDrawn,"DrawMenuBackdrop did not follow the game's drawer");
+ asked=0;menu.backdrop=false;frame();
+ Check(asked==0,"A menu without its backdrop asked the game's drawer");
+ menu.backdrop=true;frame(true);
+ Check(asked==0,"A flyout asked the game's drawer");
+ SetMenuBackdropDrawer({});
+ ImGui::NewFrame();ImGui::Begin("Backdrop cleared",nullptr,ImGuiWindowFlags_NoDecoration);
+ const bool cleared=DrawMenuBackdrop();ImGui::End();ImGui::Render();
+ Check(!cleared&&asked==0,"A cleared drawer was still asked, or drew without art");
+}

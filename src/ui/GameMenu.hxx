@@ -115,7 +115,16 @@ std::optional<LegendHint> ShortcutHint(unsigned press, std::string label);
 // ShortcutHint for each of these presses, those the device has.
 std::vector<LegendHint> ShortcutHints(const std::vector<std::pair<unsigned, std::string>>& shortcuts);
 // The menu art behind a full-window menu, under a tint; false without art.
+// A game's own backdrop (SetMenuBackdropDrawer) is drawn instead where it
+// draws one.
 bool DrawMenuBackdrop();
+// A game's own backdrop, drawn by DrawMenuBackdrop into `draw` over the whole
+// screen (`min` to `max`, the main viewport) before the menu's art: true when
+// it drew one, which then stands alone; false leaves the menu art and its
+// tint, as without a drawer. Render thread. Unset (the default, and SF4's),
+// DrawMenuBackdrop is as it always was. Empty clears it.
+using MenuBackdropDrawer=std::function<bool(ImDrawList* draw,ImVec2 min,ImVec2 max)>;
+void SetMenuBackdropDrawer(MenuBackdropDrawer drawer);
 // A card's corner marker (SAVED, MAIN), fitted to the card's width. `at` is its
 // top-left corner, or its top-right when rightAligned. Returns the badge's drawn width.
 float DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe,bool rightAligned=false);

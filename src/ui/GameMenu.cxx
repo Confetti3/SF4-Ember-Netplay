@@ -32,7 +32,9 @@ MenuStatusProbe statusProbe;
 MenuEntriesProbe entriesProbe;
 MenuSpeechProbe speechProbe;
 PortraitProbe portraitProbe;
+MenuBackdropDrawer backdropDrawer;
 }
+void SetMenuBackdropDrawer(MenuBackdropDrawer drawer){backdropDrawer=std::move(drawer);}
 void SetMenuPlayerCard(PlayerCardView view){playerCard=std::move(view);}
 void SetMenuNews(std::vector<MenuNewsItem> items){news=std::move(items);}
 const std::vector<MenuNewsItem>& MenuNews(){return news;}
@@ -40,6 +42,12 @@ const PlayerCardView& MenuPlayerCard(){return playerCard;}
 const char* MenuSelectGlyph(){return selectGlyph;}
 const char* MenuBackGlyph(){return backGlyph;}
 bool DrawMenuBackdrop(){
+    // A game's own backdrop first (SetMenuBackdropDrawer), over the whole screen as the art below.
+    if(backdropDrawer){
+        const auto* vp=ImGui::GetMainViewport();const ImVec2 end(vp->Pos.x+vp->Size.x,vp->Pos.y+vp->Size.y);auto* d=ImGui::GetWindowDrawList();
+        d->PushClipRect(vp->Pos,end);const bool drawn=backdropDrawer(d,vp->Pos,end);d->PopClipRect();
+        if(drawn)return true;
+    }
     const SelectionImage art=menuArt?menuArt->MenuBackdrop():SelectionImage{};
     if(!art.texture)return false;
     // The whole screen, also around a window kept inside TV mode's safe area.
