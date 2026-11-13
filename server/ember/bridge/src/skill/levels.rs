@@ -43,6 +43,8 @@ const ACCOUNT_TIER_STARTS: [u64; MAX_TIER as usize + 1] = [0, 500, 2000, 5000, 1
 const GAME_MARKS: [u64; 6] = [1, 10, 100, 500, 1000, 5000];
 const WIN_MARKS: [u64; 5] = [1, 50, 250, 1000, 2500];
 const STREAK_MARKS: [u64; 4] = [3, 5, 10, 20];
+const RIVAL_MARKS: [u64; 4] = [10, 50, 100, 250];
+const OPPONENT_MARKS: [u64; 4] = [10, 50, 200, 500];
 
 /// The largest of `marks` (ascending) that `count` has reached; 0 for none.
 fn mark(marks: &[u64], count: u64) -> u64 {
@@ -120,6 +122,8 @@ impl Counted {
             since: self.first_at,
             best_streak: 0,
             peak_class: 0,
+            rival: 0,
+            opponents: 0,
         }
     }
 
@@ -248,12 +252,29 @@ fn award_counts(tx: &Transaction<'_>, account: &str) -> Result<(u32, u8)> {
     Ok((best_streak, peak.max(shown)))
 }
 
-/// The marks of `account`'s card: its milestones in games, wins, win runs and
-/// class. A player who does not take part in ranking shows no class.
-fn marks(tx: &Transaction<'_>, account: &str) -> Result<AwardMarks> {
+/// The most games `account` played against one opponent, and how many
+/// different opponents it has played, from the pair records (kept from
+/// migration 060 on).
+fn rivals(tx: &Transaction<'_>, account: &str) -> Result<(u32, u32)> {
+    Ok(tx.query_row(
+        "SELECT COALESCE(MAX(first_wins + second_wins), 0), COUNT(*) FROM pair_records
+         WHERE first = ?1 OR second = ?1",
+        [account],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?)
+}
+
+/// The marks of `account`'s card: its milestones in games, wins, win runs,
+/// class, games against one opponent and opponents faced. A player who does
+/// not take part in ranking shows no class. Looked up with a card, never with
+/// a friends list.
+pub fn card_marks(tx: &Transaction<'_>, account: &str) -> Result<AwardMarks> {
     let counted = account_count(tx, account)?;
     let (best_streak, peak) = award_counts(tx, account)?;
+    let (rival, opponents) = rivals(tx, account)?;
     Ok(AwardMarks {
+        rival: mark(&RIVAL_MARKS, u64::from(rival)) as u32,
+        opponents: mark(&OPPONENT_MARKS, u64::from(opponents)) as u32,
         games: mark(&GAME_MARKS, counted.games),
         wins: mark(&WIN_MARKS, counted.wins),
         streak: mark(&STREAK_MARKS, u64::from(best_streak)) as u32,
@@ -268,10 +289,13 @@ pub fn own(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<OwnLevels> {
         return Ok(OwnLevels::NoAccount {});
     };
     let (best_streak, peak_class) = award_counts(tx, &account)?;
+    let (rival, opponents) = rivals(tx, &account)?;
     Ok(OwnLevels::Counted {
         account: OwnAccount {
             best_streak,
             peak_class,
+            rival,
+            opponents,
             ..account_count(tx, &account)?.own_account()
         },
         fighters: fighter_counts(tx, &account)?
@@ -301,7 +325,7 @@ pub fn card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
             .map(|(fighter, count)| count.card_fighter(*fighter))
             .collect(),
         relation: Relation::None,
-        marks: marks(tx, account)?,
+        marks: AwardMarks::default(),
     }))
 }
 
@@ -444,8 +468,18 @@ mod tests {
             assert_eq!(mark(&GAME_MARKS, count), games, "{count} games");
             assert_eq!(mark(&WIN_MARKS, count), wins, "{count} wins");
             assert_eq!(mark(&STREAK_MARKS, count), streak, "{count} in a row");
+            let _ = (mark(&RIVAL_MARKS, count), mark(&OPPONENT_MARKS, count));
         }
-        for marks in [&GAME_MARKS[..], &WIN_MARKS[..], &STREAK_MARKS[..]] {
+        assert_eq!(mark(&RIVAL_MARKS, 9), 0);
+        assert_eq!(mark(&RIVAL_MARKS, 100), 100);
+        assert_eq!(mark(&OPPONENT_MARKS, 499), 200);
+        for marks in [
+            &GAME_MARKS[..],
+            &WIN_MARKS[..],
+            &STREAK_MARKS[..],
+            &RIVAL_MARKS[..],
+            &OPPONENT_MARKS[..],
+        ] {
             assert!(marks.windows(2).all(|pair| pair[0] < pair[1]));
         }
     }

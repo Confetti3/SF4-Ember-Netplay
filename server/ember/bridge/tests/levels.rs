@@ -869,3 +869,28 @@ async fn a_class_the_counters_missed_is_still_the_peak() {
     .await;
     assert_eq!(awards(&bridge, &first).await.1, 6);
 }
+
+#[tokio::test]
+async fn the_rival_and_opponent_counts_come_from_the_pair_records() {
+    let (bridge, fake, room_id, first, second) = two_players().await;
+    let games = (1..=3).map(|n| game(n, 0, &first, &second, None)).collect();
+    play(&bridge, &fake, &room_id, games).await;
+    let (status, levels) = send(
+        &bridge,
+        Method::GET,
+        first.token(),
+        "198.51.100.7",
+        POINTS_PATH,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{levels}");
+    // Three games against one opponent: a rival of 3, one opponent.
+    assert_eq!(levels["account"]["rival"], json!(3));
+    assert_eq!(levels["account"]["opponents"], json!(1));
+    // A card shows milestones only, and 3 games against one player is not one yet.
+    let card = token(&bridge, &first, &room_id).await;
+    let seen = cards(&bridge, &second, json!([{ "card": card }])).await;
+    assert!(seen[0]["marks"].get("rival").is_none());
+    assert!(seen[0]["marks"].get("opponents").is_none());
+}

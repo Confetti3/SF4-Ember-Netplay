@@ -9,7 +9,7 @@
 // --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's levels (--screen card, fighters,
-//   card-edit or home)
+//   card-edit, awards or home; awards without it reads played)
 // --friends full|requests|empty|noaccount|unavailable|loading|unreachable|offline: the player's friends in that state
 //   (--screen friends, friends-add, friends-sent or friends-blocked; UiLabSocial.hxx); with --toasts the requests and an
 //   invite arrive as toasts (--friends full --toasts); --screen tab-online/friends is the Settings panel
@@ -161,9 +161,8 @@ ui::ShellView FakeView() {
     view.selectedPick.fighter = 0; view.selectedPick.ultra = 0;
     // The card's title and icon, and Home's news, as the backend and the release check give them.
     view.playerTitle = "TOURNAMENT ORGANIZER"; view.playerTier = ui::v2::Tier::Gold; view.playerIcon = 7;
-    // The awards earned (six of eleven), the Weekly top 8 worn (--screen awards).
-    view.earnedAwards = {"entrant", "launch-night", "weekly-top16", "rollback-regular", "weekly-top8", "organizer"};
-    view.preferences.wornTitle = view.preferences.wornIcon = "weekly-top8";
+    // The awards come from the points (--profile played earns twelve of 32), 1000 wins worn (--screen awards).
+    view.preferences.wornTitle = view.preferences.wornIcon = "wins-1000";
     // The installed build, which Home's corner and Help and about name with its kind (VersionLine).
     view.services.installedVersion = "1.5.0";
     view.services.update.news = {{"v1.3.0", "Ember 1.3.0", "2026-10-21", "New menus: categories, panels and choices.\n- Spectators keep watching through Alt+Enter.", ""},
@@ -280,6 +279,7 @@ void RoomPoints(ui::ShellView& view, bool listed) {
             account += one.second;
         }
         card.account = {account, 0};
+        card.marks = {m.id % 2 ? 100u : 10u, 50, 5, static_cast<std::uint8_t>(3 + m.id % 6)};
         using netplay::levels::Relation;
         static const Relation relations[] = {Relation::None, Relation::Friend, Relation::Sent, Relation::Received, Relation::Blocked};
         card.relation = relations[m.id % 5];
@@ -387,6 +387,9 @@ void Profile(ui::ShellView& view, const std::string& state) {
         own.account.wins += level.wins;
     }
     own.account.since = 1700000000;
+    // The best run of wins and the highest class ever shown, which the awards read.
+    own.bestStreak = state == "sixty" ? 22 : 7;
+    own.peakClass = 6;
     accountFrame();
 }
 // --levels: points as the game draws them (FIGHTER_LEVELS.md, Drawing points), wrapping across the window: the
@@ -559,6 +562,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (!walkFrom.empty() && !walk.StartAt(walkFrom)) { if (walkLog.is_open()) walkLog << "FAIL walk-from: no step named " << walkFrom << std::endl; return 3; }
     if (rankings) Rankings(view);
     if (!profile.empty()) Profile(view, profile);
+    else if (screen == "awards") Profile(view, "played");
     if (!friendsState.empty() && !uilab::Friends(view, friendsState)) return 4;
     if (!points.empty()) {
         if (profile.empty()) Profile(view, "played");

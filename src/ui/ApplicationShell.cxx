@@ -190,6 +190,7 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
  SyncLayoutPaths(v);
  if(!v.settingsError.empty()&&!retrySave_&&!saveQueued_)saveFailed_=true;
  if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&MaySave(v,preferences_)&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
+  DropStaleAwards(v);
   if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
  }
 }
@@ -367,7 +368,7 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  tag.name=card.name;tag.marks.country=card.country;tag.fighter=preferences_.mainFighter;
  tag.title=v.playerTitle;tag.tier=v.playerTier;tag.icon=v.playerIcon;
  // What the player picked on the awards wall, while it is earned.
- if(const auto* a=WornAward(v,preferences_.wornTitle)){tag.title=loc::T(a->title);tag.tier=a->tier;}
+ if(const auto* a=WornAward(v,preferences_.wornTitle)){tag.title=AwardTitle(*a);tag.tier=v2::FrameTier(a->tier);}
  if(const auto* a=WornAward(v,preferences_.wornIcon))tag.icon=a->icon;
  if(standing.loaded&&standing.value.kind==netplay::rankings::Standing::Kind::Ranked&&standing.value.classesShown)tag.marks.badge=standing.value.badge;
  if(card.country.Present())tag.about=CountryName(card.country);
@@ -651,6 +652,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
  profile_.Update(v,nav.Screen(),identity_.UsableBridge(v),submit);
+ UpdateAwardNotices(v);
  friends_.Update(v,nav,identity_.UsableBridge(v),now,submit);
  {std::string said;Tone tone;if(friends_.TakeSaid(said,tone))ShowNotice(said,tone,now+(tone==Tone::Error?6:4));}
  {ToastRequest toast;if(friends_.TakeToast(toast))Say(std::move(toast.text),toast.tone,toast.seconds,toast.kind,std::move(toast.actions));}

@@ -24,3 +24,7 @@ INSERT INTO award_counters (discord_user_id, streak, best_streak, peak_band)
 INSERT OR IGNORE INTO award_counters (discord_user_id, streak, best_streak, peak_band)
     SELECT discord_user_id, 0, 0, band FROM skill_ratings
     WHERE game = 'usf4' AND band > 0;
+
+-- The pair records are read for the awards by either side of a pair: the
+-- opponents an account has faced and its most played rival.
+CREATE INDEX pair_records_second ON pair_records(second);

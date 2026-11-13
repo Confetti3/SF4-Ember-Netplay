@@ -134,6 +134,13 @@ pub struct OwnAccount {
     /// class yet) and from a bridge that does not keep it.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub peak_class: u8,
+    /// The most counted games the account played against one opponent, from
+    /// the pair records; absent while 0 and from a bridge that does not send it.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub rival: u32,
+    /// How many different opponents the account has played; absent while 0.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub opponents: u32,
 }
 
 fn is_zero<T: Default + PartialEq>(value: &T) -> bool {
@@ -343,6 +350,12 @@ pub struct AwardMarks {
     /// does not take part in ranking, who shows no class.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub class: u8,
+    /// The largest of 10, 50, 100 and 250 games against one opponent.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub rival: u32,
+    /// The largest of 10, 50, 200 and 500 different opponents.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub opponents: u32,
 }
 
 impl AwardMarks {
@@ -488,6 +501,8 @@ mod tests {
             since: (games > 0).then_some(1_729_468_800),
             best_streak: 0,
             peak_class: 0,
+            rival: 0,
+            opponents: 0,
         }
     }
 
@@ -917,7 +932,7 @@ mod tests {
         let card: PlayerCard = read(&marked);
         assert_eq!(
             card.marks,
-            AwardMarks { games: 100, wins: 50, streak: 5, class: 6 }
+            AwardMarks { games: 100, wins: 50, streak: 5, class: 6, ..AwardMarks::default() }
         );
         assert!(card.check().is_ok());
         assert_eq!(serde_json::to_value(&card).unwrap(), marked);

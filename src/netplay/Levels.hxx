@@ -48,6 +48,9 @@ struct Own {
 	// send them, and while there is none.
 	std::uint32_t bestStreak = 0;
 	std::uint8_t peakClass = 0;
+	// The most counted games against one opponent, and how many opponents the
+	// account has played; 0 from a bridge that does not send them.
+	std::uint32_t rival = 0, opponents = 0;
 	// Indexed by fighter id, 0 to selection::FighterCount - 1.
 	std::array<Level, selection::FighterCount> fighters{};
 };
@@ -72,6 +75,7 @@ struct CardMarks {
 	std::uint64_t games = 0, wins = 0;
 	std::uint32_t streak = 0;
 	std::uint8_t peakClass = 0;
+	std::uint32_t rival = 0, opponents = 0;
 };
 
 enum class Relation : std::uint8_t { None, Friend, Sent, Received, Blocked };

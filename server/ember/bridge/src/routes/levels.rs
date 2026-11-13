@@ -90,7 +90,12 @@ fn card_for(
         return Ok(None);
     };
     let card = levels::card(tx, target)?;
+    let marks = match card {
+        Some(_) => levels::card_marks(tx, target)?,
+        None => Default::default(),
+    };
     Ok(card.map(|card| PlayerCard {
+        marks,
         relation: if friends_offered {
             relation
         } else {

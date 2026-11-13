@@ -337,9 +337,12 @@ static void TestLevels() {
 	auto counters = account;
 	counters["best_streak"] = 3u;
 	counters["peak_class"] = 6u;
+	counters["rival"] = 12u;
+	counters["opponents"] = 30u;
 	const auto withCounters = session::DecodeOwnLevels({{"points", "counted"}, {"account", counters}, {"fighters", json::array()}});
-	CHECK(withCounters && withCounters->bestStreak == 3 && withCounters->peakClass == 6);
-	for (const auto& bad : {json{{"best_streak", 10u}}, json{{"best_streak", -1}}, json{{"peak_class", 11u}}, json{{"peak_class", "6"}}}) {
+	CHECK(withCounters && withCounters->bestStreak == 3 && withCounters->peakClass == 6 &&
+		withCounters->rival == 12 && withCounters->opponents == 30);
+	for (const auto& bad : {json{{"best_streak", 10u}}, json{{"best_streak", -1}}, json{{"peak_class", 11u}}, json{{"peak_class", "6"}}, json{{"rival", -1}}, json{{"opponents", "3"}}}) {
 		auto row = account;
 		row.update(bad);
 		CHECK(!session::DecodeOwnLevels({{"points", "counted"}, {"account", row}, {"fighters", json::array()}}));
@@ -358,9 +361,9 @@ static void TestLevels() {
 	// Marks are absent from an older bridge (0), and are read as sent when there.
 	CHECK((*cards)[0]->marks.games == 0 && (*cards)[0]->marks.wins == 0 && (*cards)[0]->marks.streak == 0 && (*cards)[0]->marks.peakClass == 0);
 	const auto marked = session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"},
-		{"marks", {{"games", 100u}, {"wins", 50u}, {"streak", 5u}, {"class", 6u}, {"later", 1u}}}}})}});
+		{"marks", {{"games", 100u}, {"wins", 50u}, {"streak", 5u}, {"class", 6u}, {"rival", 10u}, {"opponents", 50u}, {"later", 1u}}}}})}});
 	CHECK(marked && (*marked)[0] && (*marked)[0]->marks.games == 100 && (*marked)[0]->marks.wins == 50 && (*marked)[0]->marks.streak == 5 &&
-		(*marked)[0]->marks.peakClass == 6);
+		(*marked)[0]->marks.peakClass == 6 && (*marked)[0]->marks.rival == 10 && (*marked)[0]->marks.opponents == 50);
 	for (const json& badMarks : {json{{"class", 11u}}, json{{"games", -1}}, json{{"wins", "5"}}, json(1u)})
 		CHECK(!session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"marks", badMarks}}})}}));
 	for (const char* relation : {"sent", "received"}) CHECK(session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", relation}}})}}));

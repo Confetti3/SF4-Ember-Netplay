@@ -19,6 +19,7 @@
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/Answered.hxx"
 #include "../netplay/Levels.hxx"
+#include "../netplay/Awards.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
@@ -400,8 +401,20 @@ private:
     std::vector<MenuEntry> TrainingSelectRows(const ShellView& view,std::string& title) const;
     void TrainingSelectActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
     // The awards wall, Profile's last tab (ApplicationShell__Awards.cxx).
-    static const v2::Award* WornAward(const ShellView& v, const std::string& id);
+    // The player's counters from the points answer and the friends list (the
+    // one source the wall, the card and the notices read), the award a saved
+    // id names while they earn it, and an award's words and icon's name.
+    static netplay::awards::Counters AwardCounters(const ShellView& v);
+    static const netplay::awards::Award* WornAward(const ShellView& v, const std::string& id);
+    static std::string AwardTitle(const netplay::awards::Award& award);
+    static std::string AwardHow(const netplay::awards::Award& award);
+    static std::string AwardIconName(const netplay::awards::Award& award);
     static std::string EarnedCount(const ShellView& v);
+    // Says each award a new points answer earned, once (the first answer of a
+    // run only notes what is earned), and drops a worn award that is gone or no
+    // longer earned from the preferences about to be saved.
+    void UpdateAwardNotices(const ShellView& v);
+    void DropStaleAwards(const ShellView& v);
     static int AwardColumns();
     std::vector<MenuEntry> AwardRows(const ShellView& v, std::string& title) const;
     void DrawAwardsBoard(const ShellView& v, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback& feedback);
@@ -550,6 +563,8 @@ private:
     RoomTablesShape roomTablesShape_;
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_, awardsFocus_;
+    netplay::awards::Watch awardWatch_;
+    std::uint64_t awardRevision_ = 0;
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.

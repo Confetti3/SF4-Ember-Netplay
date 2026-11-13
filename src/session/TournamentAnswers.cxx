@@ -546,6 +546,8 @@ netplay::levels::Card DecodeCard(const json& value) {
 		card.marks.wins = OptionalCount(*marks, "wins", UINT64_MAX);
 		card.marks.streak = static_cast<std::uint32_t>(OptionalCount(*marks, "streak", UINT32_MAX));
 		card.marks.peakClass = static_cast<std::uint8_t>(OptionalCount(*marks, "class", SkillBadge::Classes));
+		card.marks.rival = static_cast<std::uint32_t>(OptionalCount(*marks, "rival", UINT32_MAX));
+		card.marks.opponents = static_cast<std::uint32_t>(OptionalCount(*marks, "opponents", UINT32_MAX));
 	}
 	// A card with no `fighters` is of a player who has played none.
 	if (const auto fighters = object.find("fighters"); fighters != object.end()) {
@@ -579,6 +581,8 @@ std::optional<netplay::levels::Own> DecodeOwnLevels(const json& data) {
 		const auto& account = data.at("account");
 		own.bestStreak = static_cast<std::uint32_t>(OptionalCount(account, "best_streak", UINT32_MAX));
 		own.peakClass = static_cast<std::uint8_t>(OptionalCount(account, "peak_class", SkillBadge::Classes));
+		own.rival = static_cast<std::uint32_t>(OptionalCount(account, "rival", UINT32_MAX));
+		own.opponents = static_cast<std::uint32_t>(OptionalCount(account, "opponents", UINT32_MAX));
 		// A run of wins cannot be longer than the games played.
 		if (own.bestStreak > own.account.games) return std::nullopt;
 		const auto& rows = data.at("fighters");

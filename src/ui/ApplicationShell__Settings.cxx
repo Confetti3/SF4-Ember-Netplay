@@ -184,17 +184,17 @@ public:
     // changes.
     static Entries CardEdit(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
-        const auto award = [&](const char* label, const char* id, const std::string& worn, const char* v2::Award::* name) {
+        const auto award = [&](const char* label, const char* id, const std::string& worn, bool title) {
             auto row = Row(id, loc::T(label), v.canEditPreferences ? loc::T("card.award_detail") : loc::T("profile.leave_room_to_edit"), v.canEditPreferences);
-            const v2::Award* found = WornAward(v, worn);
-            row.value = found ? loc::T(found->*name) : loc::T("card.none");
+            const auto* found = WornAward(v, worn);
+            row.value = found ? (title ? AwardTitle(*found) : AwardIconName(*found)) : std::string(loc::T("card.none"));
             row.hint = loc::T("screen.awards");
             return row;
         };
         auto main = MainRow(s);
         if (!v.canEditPreferences) { main.enabled = false; main.detail = loc::T("profile.leave_room_to_edit"); }
-        return {NameRow(s, v), Country(s, v).front(), main, award("card.title_row", "card-title", p.wornTitle, &v2::Award::title),
-            award("card.icon_row", "card-icon", p.wornIcon, &v2::Award::name), SteamRow(s, v)};
+        return {NameRow(s, v), Country(s, v).front(), main, award("card.title_row", "card-title", p.wornTitle, true),
+            award("card.icon_row", "card-icon", p.wornIcon, false), SteamRow(s, v)};
     }
     static Entries MainCharacters(Shell&, const ShellView& v) {
         Entries rows;
