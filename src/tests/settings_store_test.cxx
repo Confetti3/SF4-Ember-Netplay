@@ -18,6 +18,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <limits>
 #include <algorithm>
 #include <functional>
 #include <iterator>
@@ -374,6 +375,23 @@ static void RoomFilterRoundTrips(const Path& root) {
     invalid.roomFilter.region="use1"; CHECK(invalid.Valid());
 }
 
+// The Interface size runs from 0.70x to 1.50x in steps of 0.05; a saved value outside that range loads as 1.00x,
+// and one inside it survives a restart.
+static void InterfaceScaleRange(const Path& root) {
+    using namespace sf4e::netplay;
+    PlayerPreferences preferences;
+    CHECK(preferences.interfaceScale == 1.f && preferences.Valid());
+    for (const float scale : {MinInterfaceScale, .95f, 1.f, MaxInterfaceScale}) { preferences.interfaceScale = scale; CHECK(preferences.Valid()); }
+    for (const float scale : {.65f, 0.f, -1.f, 1.55f, std::numeric_limits<float>::quiet_NaN()}) { preferences.interfaceScale = scale; CHECK(!preferences.Valid()); }
+    CHECK(InterfaceScaleOrDefault(.7f) == .7f && InterfaceScaleOrDefault(.95f) == .95f && InterfaceScaleOrDefault(1.5f) == 1.5f);
+    CHECK(InterfaceScaleOrDefault(.65f) == 1.f && InterfaceScaleOrDefault(1.6f) == 1.f && InterfaceScaleOrDefault(0.f) == 1.f);
+    // The least size is kept as saved: the value written reads back as itself.
+    SettingsStore store((root / L"interface-scale").wstring());
+    std::string error; Json saved;
+    CHECK(store.SaveLauncher({{"interfaceScale", MinInterfaceScale}}, error));
+    CHECK(store.LoadLauncher(saved, error));
+    CHECK(InterfaceScaleOrDefault(saved.value("interfaceScale", 1.f)) == MinInterfaceScale);
+}
 static void ControllerLayerRoundTrip(const Path& root) {
     SettingsStore store((root / L"controller-layer").wstring());
     std::string error; Json saved;
@@ -866,6 +884,7 @@ int main() {
     CountryRoundTrips(root);
     SpeechRoundTrips(root);
     RoomFilterRoundTrips(root);
+    InterfaceScaleRange(root);
     ControllerLayerRoundTrip(root);
     ShareReplaysConsent(root);
     RemoveTempRoot(root);

@@ -197,6 +197,28 @@ void SaveWhileHidden() {
  Check(std::none_of(h.actions.begin() + static_cast<std::ptrdiff_t>(after), h.actions.end(), [](const ShellAction& a) { return Is<commands::SavePreferences>(a); }),
   "The save went out again once Ember showed");
 }
+
+// Interface size steps below 1.00x with Left (pad or keys) down to 0.70x, where it stops; every step shows as
+// its value, and the size saved is the one the preferences accept.
+void InterfaceSizeBelowOne() {
+ using namespace sf4e;
+ Harness h; h.Frame();
+ Drawn drawn;
+ h.Screen("tab-access/text"); h.FocusOn("scale");
+ Check(drawn.Value("scale") == "1.00x", "Interface size does not start at 1.00x");
+ h.Press(MenuInput::Left);
+ Check(drawn.Value("scale") == "0.95x", "Left from 1.00x did not step to 0.95x");
+ for (int i = 0; i < 8; ++i) h.Press(MenuInput::Left);
+ Check(drawn.Value("scale") == "0.70x", "Interface size did not stop at 0.70x");
+ h.Frame(0, 45);
+ Check(Is<commands::SavePreferences>(h.actions.back(), [](const commands::SavePreferences& s) { return s.preferences.interfaceScale == netplay::MinInterfaceScale && s.preferences.Valid(); }),
+  "The least Interface size was not saved as a valid preference");
+ // Right steps it back up.
+ h.view.preferences = std::get<commands::SavePreferences>(h.actions.back()).preferences; h.Frame();
+ h.Press(MenuInput::Right);
+ Check(drawn.Value("scale") == "0.75x", "Right from 0.70x did not step to 0.75x");
+ Check(drawn.Row("scale") && drawn.Row("scale")->detail.find(loc::T("settings.interface_size_detail")) != std::string::npos, "Interface size does not say that below 1.00x fits more");
+}
 }
 // Each journey owns a Harness and with it the ImGui context, so they run one after another.
 void SettingsJourneys() {
@@ -204,4 +226,5 @@ void SettingsJourneys() {
  RetrySaveOnPanelScreens();
  PanelFromRailFocusesHead();
  SaveWhileHidden();
+ InterfaceSizeBelowOne();
 }

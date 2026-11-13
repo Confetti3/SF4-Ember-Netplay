@@ -27,6 +27,7 @@
 #include <imgui.h>
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <cstdio>
 #include <ctime>
 
@@ -283,7 +284,7 @@ public:
     static Entries Text(Shell& s, const ShellView& v) {
         char size[32];
         std::snprintf(size, sizeof(size), "%.2fx", s.preferences_.interfaceScale);
-        return {Value("scale", loc::T("settings.interface_size"), size, Reason(v), v.canEditPreferences), Tv(s, v), s.LanguageRow()};
+        return {Value("scale", loc::T("settings.interface_size"), size, std::string(loc::T("settings.interface_size_detail")) + "\n" + Reason(v), v.canEditPreferences), Tv(s, v), s.LanguageRow()};
     }
     // The room board's layout, which its grips also drag (RoomGrips). Its parts:
     // hiding one gives its place to the other, or both to the tables. With the
@@ -309,10 +310,13 @@ public:
     static Entries Friends(Shell& s, const ShellView& v) { return s.friends_.SettingsRows(v); }
     static Entries Discord(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
-        return {OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences),
+        // The account linked to the Ember ID leads: ranked games, points, friends, shared replays and tournaments need it, and
+        // it may not be the one in the Discord app. The community server is the last row, as About opens it.
+        const bool opening = v.services.lastAction == platform::ServiceAction::OpenCommunity && !v.services.message.empty();
+        return {s.identity_.DiscordAccountRow(v),
+            OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences),
             OnOffValue(p, "invites", loc::T("discord.allow_invitations"), p.discordPresence ? loc::T("discord.invitation_detail") : loc::T("discord.enable_first"), v.canEditPreferences && p.discordPresence),
-            // The account tournaments use, which may not be the one in the Discord app.
-            s.identity_.TournamentAccountRow(v)};
+            ConfirmRow("community", loc::T("discord.server"), opening ? v.services.message : loc::Tf("about.discord_detail", platform::CommunityInvite), !v.services.pending)};
     }
     // The setting's pane says what a report holds; Select reads it in full.
     static Entries Reports(Shell& s, const ShellView& v) {
@@ -624,7 +628,8 @@ bool ApplicationShell::AdjustSetting(netplay::PlayerPreferences& p, const MenuAc
     else if (id == "picture-size") p.pictureSpot = p.pictureSpot % 4 + 4 * clamp(p.pictureSpot / 4 + a.delta, 0, 2);
     else if (id == "watched-picture" || id == "arrange-picture") p.pictureMode = clamp(p.pictureMode + a.delta, PictureSmall, PictureOff);
     else if (id == "ready-volume") p.readySoundVolume = clamp(p.readySoundVolume + 10 * a.delta, 10, 100);
-    else if (id == "scale") p.interfaceScale = (std::max)(1.f, (std::min)(1.5f, p.interfaceScale + .05f * a.delta));
+    // Stepped on the 0.05 grid, so a value reached by stepping down is exactly the one the range and the save check.
+    else if (id == "scale") p.interfaceScale = (std::max)(MinInterfaceScale, (std::min)(MaxInterfaceScale, std::round((p.interfaceScale + InterfaceScaleStep * a.delta) / InterfaceScaleStep) * InterfaceScaleStep));
     else return false;
     return true;
 }

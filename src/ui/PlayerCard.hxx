@@ -59,6 +59,8 @@ struct ShellView;
 inline std::string CardFighterRow(int fighter) { return "card-fighter:" + std::to_string(fighter); }
 constexpr const char* CardEditRow = "card-edit";
 constexpr const char* ChooseMainRow = "main-character";
+// The row that opens Fighter select from the Card tab (the id of its screen).
+constexpr const char* FighterSelectRow = "selection";
 // The row that opens Connect Discord (a Primary button on the tabs that need an account).
 MenuEntry ConnectDiscordRow();
 // The row `id` among `rows` as a Primary button `width` wide at `at` (Connect

@@ -295,24 +295,24 @@ void TournamentRoom(){
   const auto offers=[&](const char* id){return member&&std::any_of(member->choices.begin(),member->choices.end(),[&](const MenuChoice& c){return c.id==id;});};
   Check(offers("mute")&&!offers("kick"),"A tournament room offers Kick");}
 }
-// Settings > Discord names the Discord account tournaments use: the one on the
-// selected service, read again each time the screen opens, or Not connected
-// without an Ember ID or a service. Left and Right leave it alone; Select
+// Settings > Discord leads with the Discord account linked to the Ember ID: the one on
+// the selected service, read again each time the screen opens ("Linked · name"), or Not
+// linked without an Ember ID or a service; the community server is its last row. Left and Right leave it alone; Select
 // opens Connect Discord for that service, and Back returns to Settings > Discord.
-void TournamentAccount(){
+void DiscordAccount(){
  using namespace sf4e;using netplay::IdentityOp;
  const std::string ember=SF4E_EMBER_SERVICE,other="https://tournaments.example";
  Journey h;auto& id=h.view.identity;id.known=true;id.state="disabled";
- const auto account=[&]{return h.row("tournament-account");};
+ const auto account=[&]{return h.row("discord-account");};
  const auto open=[&]{h.Screen("tab-online/discord");};
  open();
- Check(account()&&h.index("tournament-account")==h.index("invites")+1,"Settings > Discord has no Tournament account row after its settings");
- Check(account()->value==loc::T("identity.discord_none")&&!account()->adjustable&&!account()->info,"Without an Ember ID the Tournament account is not Not connected");
+ Check(account()&&h.index("discord-account")<h.index("presence")&&h.index("community")==h.index("invites")+1,"Settings > Discord has no Discord account row before its settings, or no server row after them");
+ Check(account()->value==loc::T("discord.account_none")&&!account()->adjustable&&!account()->info,"Without an Ember ID the Discord account is not Not linked");
  const auto before=h.actions.size();
- h.FocusOn("tournament-account");h.Press(MenuInput::Right);h.Press(MenuInput::Left);
- Check(h.actions.size()==before&&account()->value==loc::T("identity.discord_none"),"Left or Right changed the Tournament account");
+ h.FocusOn("discord-account");h.Press(MenuInput::Right);h.Press(MenuInput::Left);
+ Check(h.actions.size()==before&&account()->value==loc::T("discord.account_none"),"Left or Right changed the Discord account");
  h.Press(MenuInput::Select);
- Check(h.trail()=="home>tab-online/discord>discord-connect"&&h.row("dc-go"),"The Tournament account did not open Connect Discord");
+ Check(h.trail()=="home>tab-online/discord>discord-connect"&&h.row("dc-go"),"The Discord account did not open Connect Discord");
  h.Press(MenuInput::Back);
  Check(h.shell.Navigation().Screen()=="tab-online/discord","Back from Connect Discord did not return to Settings > Discord");
  // With an ID and Ember's service: the account on it.
@@ -322,14 +322,14 @@ void TournamentAccount(){
  id.inspected=id.bridges[0];id.inspectedDiscord=true;h.answer();
  Check(h.until(IdentityOp::DiscordStatus)&&h.sent().back()->bridge=="brg_1","Settings > Discord did not read the Discord account");
  id.discordUser="274220342558756145";id.discordName="kate";h.answer();
- Check(account()->value=="kate"&&account()->userText,"The Tournament account does not name the connected account");
- h.Choose("tournament-account");h.until(IdentityOp::DiscordStatus);h.answer();
+ Check(account()->value==loc::Tf("discord.account_linked","kate")&&account()->userText&&account()->detail==loc::T("discord.account_linked_detail"),"The Discord account does not name the linked account");
+ h.Choose("discord-account");h.until(IdentityOp::DiscordStatus);h.answer();
  Check(h.row("dc-connected")&&h.row("dc-connected")->value=="kate","Connect Discord does not show the same account");
  // Each visit reads it again.
  h.Press(MenuInput::Back);id.discordUser.clear();id.discordName.clear();
  Check(h.until(IdentityOp::DiscordStatus),"Settings > Discord did not read the account again");
  h.answer();
- Check(account()->value==loc::T("identity.discord_none")&&!account()->userText,"A disconnected account is still named");
+ Check(account()->value==loc::T("discord.account_none")&&!account()->userText&&account()->detail==loc::T("discord.account_detail"),"An unlinked account is still named");
  // Another selected service: its own account, and Connect Discord for it.
  h.Screen("linked-accounts");for(int i=0;i<8;++i)h.answer();
  h.FocusOn("id-bridge");h.Press(MenuInput::Select);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
@@ -338,13 +338,13 @@ void TournamentAccount(){
  open();
  Check(h.until(IdentityOp::DiscordStatus)&&h.sent().back()->bridge=="brg_2","Settings > Discord did not read the other selected service");
  h.answer();
- Check(account()->value=="sam","The Tournament account does not show the selected service's account");
- h.Choose("tournament-account");h.until(IdentityOp::DiscordStatus);h.answer();
+ Check(account()->value==loc::Tf("discord.account_linked","sam"),"The Discord account does not show the selected service's account");
+ h.Choose("discord-account");h.until(IdentityOp::DiscordStatus);h.answer();
  Check(h.row("dc-service")&&h.row("dc-service")->value=="Other"&&h.row("dc-connected")&&h.row("dc-connected")->value=="sam",
   "Connect Discord did not open for the selected service");
  // No service: nothing is linked.
  id.bridges.clear();open();for(int i=0;i<4;++i)h.answer();
- Check(account()->value==loc::T("identity.discord_none"),"Without a service the Tournament account is not Not connected");
+ Check(account()->value==loc::T("discord.account_none"),"Without a service the Discord account is not Not linked");
 }
 // Copy short link copies the link once the helper has one, and the full
 // invitation when it reports a failure. A room link from the browser joins
@@ -414,5 +414,5 @@ void RoomLinks(){
  h.view.pendingJoinDirect=false;h.shell.Navigation().Home();h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="join"&&h.actions.size()==before,"A stale room link did not just fill the Join screen");
 }
-int main(){try{IdentityJourneys();PlayRechecks();RestartWatch();TournamentRoom();TournamentAccount();RoomLinks();RunDiscordConnectJourneys();RunBuiltInServiceJourneys();RunSignInSiteJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+int main(){try{IdentityJourneys();PlayRechecks();RestartWatch();TournamentRoom();DiscordAccount();RoomLinks();RunDiscordConnectJourneys();RunBuiltInServiceJourneys();RunSignInSiteJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

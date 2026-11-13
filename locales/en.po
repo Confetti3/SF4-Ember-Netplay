@@ -1755,6 +1755,9 @@ msgstr "Shows F10 or Start for a few seconds when Ember's menu closes, so you kn
 msgid "settings.interface_size"
 msgstr "Interface size"
 
+msgid "settings.interface_size_detail"
+msgstr "Below 1.00x fits more on a large monitor."
+
 msgid "discord.show_activity"
 msgstr "Show activity"
 
@@ -1767,11 +1770,23 @@ msgstr "Invitations share access to your room."
 msgid "discord.enable_first"
 msgstr "Enable Discord activity first."
 
-msgid "discord.tournament_account"
-msgstr "Tournament account"
+msgid "discord.account"
+msgstr "Discord account"
 
-msgid "discord.tournament_account_detail"
-msgstr "The Discord account your tournament site knows, such as BluMint. It can differ from the one in the Discord app. Select to connect or change it."
+msgid "discord.account_none"
+msgstr "Not connected"
+
+msgid "discord.account_linked"
+msgstr "Connected · {0}"
+
+msgid "discord.account_detail"
+msgstr "Connect the Discord account your Ember ID uses. Ranked games, points, friends, shared replays and tournament sites such as BluMint all use it. It can differ from the one in the Discord app. Select to connect it."
+
+msgid "discord.account_linked_detail"
+msgstr "The Discord account connected to your Ember ID. Ranked games, points, friends, shared replays and tournament sites such as BluMint use it. It can differ from the one in the Discord app. Select to switch account or disconnect it."
+
+msgid "discord.server"
+msgstr "Ember Discord server"
 
 msgid "discord.invitation_title"
 msgstr "DISCORD INVITATION"
@@ -4788,6 +4803,12 @@ msgstr "Opens a public room on the Ember ID service, joins it and sets these tab
 
 msgid "public.create_needs_id"
 msgstr "Public rooms need an Ember ID and a trusted service. Set them up under Public rooms."
+
+msgid "public.ranked_needs_discord"
+msgstr "Connect Discord to play ranked"
+
+msgid "public.ranked_needs_discord_detail"
+msgstr "Games count for your rank and points only with a Discord account connected. You can still play without one."
 
 msgid "public.loading"
 msgstr "Loading rooms..."

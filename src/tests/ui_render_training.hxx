@@ -32,8 +32,8 @@ void CheckHomeRendering(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& v
             const auto* list=FindWindow("List");
             KnownV2Gap(list->ScrollMax.y==0,"Home requires scrolling at 1080p");
             const std::vector<std::string> expected=controllerReady
-                ?std::vector<std::string>{"online","selection","profile","settings","training","offline","replays","notifications","card"}
-                :std::vector<std::string>{"player","online","selection","profile","settings","training","offline","replays","notifications","card"};
+                ?std::vector<std::string>{"online","profile","settings","training","offline","replays","news","card"}
+                :std::vector<std::string>{"player","online","profile","settings","training","offline","replays","news","card"};
             Require(homeRows.size()==expected.size(),"Home row count wrong");
             for(std::size_t i=0;i<expected.size();++i)Require(homeRows[i].id==expected[i],"Home row order wrong");
             for(const auto& row:homeRows) {

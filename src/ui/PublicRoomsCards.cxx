@@ -277,6 +277,15 @@ void DrawMessage(const MenuEntry& e, ImVec2 min, ImVec2 max, ImU32 color, bool f
     DrawFrame(min, max, focused);
 }
 
+// A quiet notice: its line over what it means, nothing else on the card.
+void DrawNotice(const MenuEntry& e, ImVec2 min, ImVec2 max, bool focused) {
+    const float s = Scale(), pad = 12 * s, head = 22 * s, width = max.x - min.x - 2 * pad;
+    DrawCardLine(ImVec2(min.x + pad, min.y + 12 * s), 16 * s, palette::Ivory, e.label, width, e.id.c_str(), head);
+    const float top = min.y + 12 * s + head + 4 * s;
+    DrawCardParagraph(ImVec2(min.x + pad, top), 14 * s, palette::Muted, e.detail, width, max.y - 10 * s - top, (e.id + "-detail").c_str());
+    DrawFrame(min, max, focused);
+}
+
 // The first look: the question, and bars where its answer will be.
 void DrawChecking(const MenuEntry& e, ImVec2 min, ImVec2 max, bool focused, double now) {
     const float s = Scale(), pad = 12 * s, width = max.x - min.x - 2 * pad, rounding = 5 * s;
@@ -399,6 +408,7 @@ bool DrawPublicCard(const ShellView& v, const PublicRoomsPanel& panel, const Pub
         return true;
     }
     if (id == "pr-none" || id == "pr-clear-filters") { DrawMessage(e, min, max, palette::Ivory, focused); return true; }
+    if (id == PublicRoomsPanel::RankedNoticeRow) { DrawNotice(e, min, max, focused); return true; }
     if (id == "pr-error") { DrawMessage(e, min, max, ErrorColor(), focused); return true; }
     if (id == "pr-checking") { DrawChecking(e, min, max, focused, now); return true; }
     if (id == "pr-loading") { DrawLoading(e, min, max, focused, now); return true; }

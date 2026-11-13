@@ -257,3 +257,54 @@ void UpdateLaunchJourneys() {
   SetMenuEntriesProbe({});
  }
 }
+
+// News and Notifications are one Home row and one strip: the row says what is newest, opens on
+// Notifications while an action waits there (else on All), and LB and RB step Notifications, All
+// and the kinds the list has.
+void NewsAndNotifications() {
+ using namespace sf4e;
+ const auto homeRow = [](Harness& h) {
+  std::vector<MenuEntry> rows; SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r) { rows = r; });
+  h.Screen("home"); h.Frame(0, 2); SetMenuEntriesProbe({});
+  Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "notifications"; }), "Home still has a Notifications row");
+  const auto row = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "news"; });
+  Check(row != rows.end(), "Home has no News row");
+  return row->detail;
+ };
+ launcher::ReleaseNews release; release.tag = "v1.0.0"; release.title = "Release one"; release.stable = true;
+ // Nothing yet says so; a notification is the newest thing once there is no release.
+ {
+  Harness h;
+  Check(homeRow(h) == loc::T("notifications.none"), "Home's News row did not say there is nothing yet");
+  h.shell.Say("Link copied", Tone::Success, 2); h.Frame();
+  Check(homeRow(h) == "Link copied", "Home's News row did not say the newest notification");
+ }
+ // A release comes before a notification with no action, and a notification waiting for an answer before both.
+ {
+  Harness h; h.view.services.update.news = {release};
+  h.shell.Say("Link copied", Tone::Success, 2); h.Frame();
+  Check(homeRow(h) == "Release one", "A notification with no action came before the newest release");
+  h.shell.Say("Room invitation", Tone::Neutral, 2, ToastKind::Invitation, {{"Join", "home", ""}, {"Later", "", ""}}); h.Frame();
+  h.Wait(9); h.Frame();
+  Check(homeRow(h) == "Room invitation", "A notification waiting for an answer did not lead Home's News row");
+  h.Choose("news");
+  Check(h.shell.Navigation().Screen() == "notifications", "Home's News row did not open on Notifications while an action waits");
+  // The strip: Notifications, All, Updates (the list has no change log entry), and round again.
+  h.Press(MenuInput::NextTab); Check(h.shell.Navigation().Screen() == "news", "RB from Notifications did not reach All");
+  h.Press(MenuInput::NextTab); Check(h.shell.Navigation().Screen() == "news-updates", "RB from All did not reach Updates");
+  h.Press(MenuInput::NextTab); Check(h.shell.Navigation().Screen() == "notifications", "RB from the last tab did not wrap to Notifications");
+  h.Press(MenuInput::PrevTab); Check(h.shell.Navigation().Screen() == "news-updates", "LB from Notifications did not wrap to the last tab");
+  h.Press(MenuInput::Back); Check(h.shell.Navigation().Screen() == "home", "Back from a News tab did not return to Home");
+  h.Choose("news");
+  Check(h.shell.Navigation().Screen() == "notifications", "The row did not open on Notifications again");
+ }
+ // Once its action is taken the notification no longer waits, and the row opens on All.
+ {
+  Harness h; h.view.services.update.news = {release};
+  h.shell.Say("Room invitation", Tone::Neutral, 2, ToastKind::Invitation, {{"Join", "home", ""}}); h.Frame(0, 2);
+  h.Press(MenuInput::Select);
+  Check(homeRow(h) == "Release one", "An answered notification still led Home's News row");
+  h.Choose("news");
+  Check(h.shell.Navigation().Screen() == "news", "Home's News row did not open on All once nothing waits");
+ }
+}

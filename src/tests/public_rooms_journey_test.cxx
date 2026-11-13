@@ -866,5 +866,40 @@ void RoomLostJourney(){
  Check(!j.row("replace-room")&&j.row("leave"),"A public room offered to replace its room");
 }
 }
-int main(){try{ListJourney();JoinJourney();CreateJourney();TemplateJourney();OwnDelayJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();HostedRoomJourney();HostedLastRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
+// Games count for rank and points only with a Discord account linked: without one the list leads with a notice
+// that opens Connect Discord and gets in the way of nothing, and Create on Public says it in one line.
+void RankedNoticeJourney(){
+ Journey j;auto& h=j.h;j.OpenList();
+ j.List({MakeRoom("a","Friday Night",3,8)});
+ Check(!j.row("pr-ranked")&&!j.row("ranked-note"),"The notice shows before anything says there is no Discord account");
+ auto& standing=h.view.rankings;standing.bridge="brg_1";standing.emberId=h.view.identity.emberId;
+ standing.standing.loaded=true;standing.standing.value.kind=netplay::rankings::Standing::Kind::NoAccount;h.Frame(0,2);
+ std::vector<std::string> order;for(const auto& r:j.rows)order.push_back(r.id);
+ Check(order==std::vector<std::string>({"pr-quick","pr-create","pr-paste","pr-filters","pr-ranked","pr-room:a"}),"The notice is not above the rooms, under the toolbar and filters");
+ const auto* notice=j.row("pr-ranked");
+ Check(notice->label==loc::T("public.ranked_needs_discord")&&notice->detail==loc::T("public.ranked_needs_discord_detail")&&notice->wide&&notice->enabled&&!notice->info,
+  "The notice does not say what ranked needs, or cannot be reached");
+ Check(j.row("pr-quick")->enabled&&j.row("pr-create")->enabled&&j.row("pr-room:a")->enabled,"The notice blocked joining or creating");
+ // An empty list keeps the notice above its own card.
+ j.List({});
+ order.clear();for(const auto& r:j.rows)order.push_back(r.id);
+ Check(order==std::vector<std::string>({"pr-quick","pr-create","pr-paste","pr-filters","pr-ranked","pr-none"}),"An empty list lost the notice");
+ // Select opens Connect Discord, and Back returns to the list.
+ h.Choose("pr-ranked");
+ Check(h.shell.Navigation().Screen()==DiscordConnectScreen,"The notice did not open Connect Discord");
+ h.Press(MenuInput::Back);
+ Check(h.shell.Navigation().Screen()=="public-rooms","Back from Connect Discord did not return to the list");
+ // Create on Public says it as one info row.
+ h.Choose("pr-create");
+ Check(h.shell.Navigation().Screen()=="create"&&j.row("ranked-note")&&j.row("ranked-note")->info&&j.row("ranked-note")->label==loc::T("public.ranked_needs_discord"),
+  "Create on Public did not say that ranked needs Discord");
+ Check(j.row("host")&&j.row("host")->enabled,"The Create line blocked creating");
+ // Once an account is linked the notice is gone from both.
+ h.Press(MenuInput::Back);
+ standing.standing.value.kind=netplay::rankings::Standing::Kind::Ranked;h.Frame(0,2);
+ Check(!j.row("pr-ranked"),"The notice stayed once a Discord account was linked");
+ h.Choose("pr-create");
+ Check(!j.row("ranked-note"),"Create kept the line once a Discord account was linked");
+}
+int main(){try{ListJourney();RankedNoticeJourney();JoinJourney();CreateJourney();TemplateJourney();OwnDelayJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();HostedRoomJourney();HostedLastRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

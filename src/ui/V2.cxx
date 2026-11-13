@@ -51,7 +51,7 @@ void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar) {
 void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act) {
     const float s = Scale();
     draw->AddRectFilled(card.min, card.max, focused ? Colors().header : hovered ? Colors().hover : color::Alpha(Colors().frame, .92f), 4 * s);
-    draw->AddRect(card.min, card.max, color::Alpha(Colors().border, .6f), 4 * s, 0, s);
+    draw->AddRect(card.min, card.max, color::Alpha(Colors().border, .6f), 4 * s, 0, Hairline());
     if (act) draw->AddRectFilled(card.min, ImVec2(card.min.x + 3 * s, card.max.y), Colors().accent, 4 * s, ImDrawFlags_RoundCornersLeft);
 }
 
@@ -77,7 +77,7 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
     auto* d = ImGui::GetWindowDrawList();
     const float side = SideMargin(ImGui::GetWindowWidth(), s);
     d->AddRectFilled(bar.min, bar.max, color::Alpha(Colors().ink, .92f));
-    d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), Colors().border, s);
+    d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), Colors().border, Hairline());
     int pressed = -1;
     float x = bar.min.x + side;
     const float right = bar.max.x - side, size = 15 * s, icon = bell ? 30 * s : 0;
@@ -134,7 +134,7 @@ int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec
     ImGui::InvisibleButton(id, ImVec2(w, h));
     const bool held = ImGui::IsItemActive(), hovered = ImGui::IsItemHovered();
     d->AddRectFilled(p, ImVec2(p.x + w, p.y + h), Colors().frame, 4 * s);
-    d->AddRect(p, ImVec2(p.x + w, p.y + h), hovered || held ? Colors().accent : Colors().border, 4 * s, 0, s);
+    d->AddRect(p, ImVec2(p.x + w, p.y + h), hovered || held ? Colors().accent : Colors().border, 4 * s, 0, Hairline());
     const ImVec2 size(block.x * w, block.y * h);
     const auto at = [&](ImVec2 centre) { return ImVec2(p.x + centre.x * w - size.x * .5f, p.y + centre.y * h - size.y * .5f); };
     const auto mouse = ImGui::GetMousePos();
@@ -147,7 +147,7 @@ int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec
     }
     for (int i = 0; i < static_cast<int>(spots.size()); ++i) {
         const auto q = at(spots[i]);
-        d->AddRect(q, ImVec2(q.x + size.x, q.y + size.y), held && i == nearest ? Colors().accent : color::Alpha(Colors().muted, .5f), 2 * s, 0, s);
+        d->AddRect(q, ImVec2(q.x + size.x, q.y + size.y), held && i == nearest ? Colors().accent : color::Alpha(Colors().muted, .5f), 2 * s, 0, Hairline());
     }
     const ImVec2 q = held ? ImVec2(mouse.x - size.x * .5f, mouse.y - size.y * .5f) : at(spots[(std::max)(0, (std::min)(static_cast<int>(spots.size()) - 1, current))]);
     d->AddRectFilled(q, ImVec2(q.x + size.x, q.y + size.y), Colors().accent, 2 * s);
@@ -233,8 +233,8 @@ Box Panel(ImDrawList* draw, Box b, const char* title, const char* trailing, bool
     draw->AddRectFilled(b.min, b.max, PanelGround(), 4 * s);
     const Box head = CutTop(b, 20 * s + HeadingHeight(title, titleRoom, size));
     if (open) draw->AddRectFilled(head.min, head.max, c.header, 4 * s, ImDrawFlags_RoundCornersTop);
-    draw->AddLine(ImVec2(head.min.x, head.max.y), head.max, c.border, s);
-    draw->AddRect(head.min, b.max, open ? c.accentLight : c.border, 4 * s, 0, s);
+    draw->AddLine(ImVec2(head.min.x, head.max.y), head.max, c.border, Hairline());
+    draw->AddRect(head.min, b.max, open ? c.accentLight : c.border, 4 * s, 0, Hairline());
     if (tw > 0) draw->AddText(ImVec2(head.max.x - 16 * s - tw, head.min.y + (head.H() - ImGui::GetFontSize()) * .5f), c.muted, trailing);
     Heading(draw, ImVec2(head.min.x + 16 * s, head.min.y + 10 * s), titleRoom, title, size, c.text);
     return b;
@@ -298,7 +298,7 @@ void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, 
     if (!enabled) { fill = c.frame; edge = c.border; ink = c.muted; }
     else if (primary) { fill = focused || hovered ? c.accentLight : c.accent; edge = c.accent; ink = c.ink; }
     draw->AddRectFilled(b.min, b.max, fill, 4 * s);
-    draw->AddRect(b.min, b.max, edge, 4 * s, 0, s);
+    draw->AddRect(b.min, b.max, edge, 4 * s, 0, Hairline());
     if (!label.empty()) Text(draw, ImVec2(b.min.x + 12 * s, b.min.y + (b.H() - size) * .5f), b.W() - 24 * s, label, size, ink, HeadingFont(), true);
     if (focused && primary && enabled) draw->AddRect(b.min, b.max, c.text, 4 * s, 0, 3 * s);
     else if (focused) Focus(draw, b.min, b.max);
@@ -348,7 +348,7 @@ void Words(ImDrawList* draw, Box b, const std::string& label, const std::string&
     const float s = Scale(), x = b.min.x + 16 * s, w = b.W() - 32 * s;
     const auto& c = Colors();
     draw->AddRectFilled(b.min, b.max, c.frame, 4 * s);
-    draw->AddRect(b.min, b.max, c.border, 4 * s, 0, s);
+    draw->AddRect(b.min, b.max, c.border, 4 * s, 0, Hairline());
     Text(draw, ImVec2(x, b.min.y + 6 * s), w, label, 16 * s, c.text, HeadingFont());
     if (wrap) Paragraph(draw, ImVec2(x, b.min.y + 28 * s), w, detail, 15 * s, c.muted);
     else Text(draw, ImVec2(x, b.min.y + 28 * s), w, detail.substr(0, detail.find('\n')), 15 * s, c.muted);
@@ -368,7 +368,7 @@ void Fact(const std::string& key, const std::string& value) {
     const auto p = ImGui::GetCursorScreenPos();
     auto* d = ImGui::GetWindowDrawList();
     d->AddRectFilled(p, ImVec2(p.x + w, p.y + h), Colors().frame, 4 * s);
-    d->AddRect(p, ImVec2(p.x + w, p.y + h), Colors().border, 4 * s, 0, s);
+    d->AddRect(p, ImVec2(p.x + w, p.y + h), Colors().border, 4 * s, 0, Hairline());
     const std::string shown = Fit(value, share.value, font);
     const float vw = TextWidth(shown, font);
     Text(d, ImVec2(p.x + 12 * s, p.y + 10 * s), share.under ? room : room - vw - 16 * s, key, font, Colors().muted);
@@ -446,7 +446,7 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
     }
     // A title may be a player's own words (a room's name), so the probe leaves it out.
     draw->AddText(HeadingFont(), titleSize, ImVec2(x, y), Colors().text, Fit(title, room, titleSize, HeadingFont(), false).c_str());
-    draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), Colors().border, s);
+    draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), Colors().border, Hairline());
     draw->AddRectFilled(ImVec2(x, p.y + height - s), ImVec2(x + 72 * s, p.y + height + 2 * s), Colors().accent);
     ImGui::Dummy(ImVec2(width, measures.height));
     return pressed;
@@ -504,7 +504,7 @@ int Tabs(const std::vector<std::string>& labels, int current) {
         x += w;
     }
     draw->PopClipRect();
-    draw->AddLine(ImVec2(origin.x, start.y + height), ImVec2(origin.x + full, start.y + height), Colors().border, s);
+    draw->AddLine(ImVec2(origin.x, start.y + height), ImVec2(origin.x + full, start.y + height), Colors().border, Hairline());
     ImGui::SetCursorScreenPos(origin);
     ImGui::Dummy(ImVec2(full, height + 8 * s));
     return pressed;
@@ -591,8 +591,8 @@ float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagV
     const float cell = width / across, extra = FactKeyExtra(width, facts, across), height = 52 * s + extra;
     for (std::size_t i = 0; i < facts.size(); ++i) {
         const ImVec2 p(at.x + cell * (i % across), at.y + height * (i / across));
-        if (i % across == 0) draw->AddLine(p, ImVec2(at.x + width, p.y), c.border, s);
-        else draw->AddLine(p, ImVec2(p.x, p.y + height), c.border, s);
+        if (i % across == 0) draw->AddLine(p, ImVec2(at.x + width, p.y), c.border, Hairline());
+        else draw->AddLine(p, ImVec2(p.x, p.y + height), c.border, Hairline());
         Heading(draw, ImVec2(p.x + 14 * s, p.y + 10 * s), cell - 28 * s, facts[i].key, 12 * s, c.muted);
         draw->AddText(HeadingFont(), 15 * s, ImVec2(p.x + 14 * s, p.y + 26 * s + extra), c.text, Fit(facts[i].value, cell - 28 * s, 15 * s, HeadingFont()).c_str());
     }
@@ -639,7 +639,7 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
     if (!tag.about.empty()) draw->AddText(ImGui::GetFont(), 14 * s, ImVec2(x, y), c.muted, Fit(tag.about, room, 14 * s).c_str());
     if (tag.points.shown) LevelLines(draw, ImVec2(x, y + aboutRow), digits, pointsGap, tag.points.fighter, tag.points.account);
     FactCells(draw, ImVec2(at.x, at.y + band), width, tag.facts, across);
-    draw->AddRect(at, ImVec2(at.x + width, at.y + height), c.border, 4 * s, 0, s);
+    draw->AddRect(at, ImVec2(at.x + width, at.y + height), c.border, 4 * s, 0, Hairline());
     return height;
 }
 }

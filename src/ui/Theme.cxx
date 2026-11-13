@@ -132,6 +132,7 @@ float Scale() {
     return ImGui::GetIO().FontGlobalScale;
 }
 float InterfaceScale() { return interfaceSize; }
+float Hairline() { return (std::max)(1.f, Scale()); }
 ImFont* HeadingFont() {
     const auto& fonts = ImGui::GetIO().Fonts->Fonts;
     return fonts.Size == 3 ? fonts[1] : ImGui::GetFont();
@@ -167,7 +168,7 @@ void NoteUserText(const std::string& utf8, UserTextRole role) {
 void SetAtlasBuildLog(std::function<void(const char*)> log) { atlasBuildLog = std::move(log); }
 bool ApplyTheme(float displayScale, float interfaceScale) {
     interfaceSize = interfaceScale;
-    const float scale = (std::max)(1.f, (std::min)(displayScale * interfaceScale, 3.f));
+    const float scale = (std::max)(MinThemeScale, (std::min)(displayScale * interfaceScale, 3.f));
     auto& io = ImGui::GetIO();
     const auto catalog = CatalogInAtlas(loc::Active());
     // Font configuration survives device resets; texture ownership stays with DX9.

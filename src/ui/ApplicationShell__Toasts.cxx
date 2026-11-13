@@ -70,7 +70,7 @@ unsigned ApplicationShell::TakeNotices(double now) {
   const bool extra=noticeExtra_.text==text&&&seen==&noticeSeen_;
   auto actions=extra?noticeExtra_.actions:std::vector<ToastAction>{};
   const double shown=now+(actions.empty()?ToastSeconds:ActionToastSeconds);
-  toasts_.push_front({++toastCount_,text,tone,now,shown,extra?noticeExtra_.kind:kind,std::move(actions)});
+  toasts_.push_front({++toastCount_,text,tone,now,shown,extra?noticeExtra_.kind:kind,std::move(actions),false});
   if(!toasts_.front().actions.empty())fresh=toastCount_;
   if(toasts_.size()>ToastsKept)toasts_.pop_back();
   // Speech reads a toast once, as it appears.
@@ -182,6 +182,7 @@ void ApplicationShell::AnswerToast(const ShellView& v,double now,const Submit& s
  if(!id||t==toasts_.end()||t->actions.empty())return;
  const ToastAction act=t->actions[(std::min)(index,t->actions.size()-1)];
  t->until=(std::min)(t->until,now);
+ t->answered=true;
  if(toastFocus_==id)toastFocus_=0;
  // The commands go as they are, in order, whatever the screen: an invite's Join and then its Dismiss.
  for(const auto& command:act.commands){
@@ -192,7 +193,8 @@ void ApplicationShell::AnswerToast(const ShellView& v,double now,const Submit& s
  if(nav.Screen()!=act.screen){
   // Tournament matches sits under Online play and Ember ID, so Back goes there.
   if(act.screen=="tournament-matches"){nav.Push("online");nav.Push("identity");}
-  nav.Push(act.screen);
+  if(NewsFamily(nav.Screen())&&NewsFamily(act.screen))nav.Replace(act.screen);
+  else nav.Push(act.screen);
  }
  if(!act.row.empty())nav.Prefer(act.row);
 }
@@ -211,7 +213,8 @@ public:
         f.shell.toastAsked_ = {*toast, *action};
         return true;
     }
-    void Dress(const ScreenFrame&, GameMenu& menu) const override { menu.statusLeads.clear(); }
+    // Notifications is the first tab of the News strip, so it has no bell.
+    void Dress(const ScreenFrame& f, GameMenu& menu) const override { f.shell.NewsTabs(f.view, f.screen); menu.statusLeads.clear(); }
 };
 const ScreenPanel& ApplicationShell::NotificationsOwner() {
     static const NotificationScreens notifications{};
@@ -227,7 +230,8 @@ std::vector<MenuEntry> ApplicationShell::NotificationRows(double now,std::string
   static const char* const kinds[]={"notice.title","toast.kind.invitation","toast.kind.room","toast.kind.update","toast.kind.match","toast.kind.system"};
   auto row=InfoRow("toast-"+std::to_string(t.id),loc::T(kinds[static_cast<int>(t.kind)]),Ago(now-t.at),{});
   row.detail=t.text;
-  for(std::size_t i=0;i<t.actions.size();++i)row.choices.push_back({std::to_string(i),t.actions[i].label});
+  // An action once taken is not offered again.
+  if(!t.answered)for(std::size_t i=0;i<t.actions.size();++i)row.choices.push_back({std::to_string(i),t.actions[i].label});
   if(!row.choices.empty()){row.info=false;row.popout=true;}
   rows.push_back(std::move(row));
  }

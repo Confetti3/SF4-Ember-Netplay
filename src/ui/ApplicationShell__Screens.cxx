@@ -63,8 +63,9 @@ public:
             return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::KnownRegion(f.view), f.view.canEditPreferences);
         }
         title = loc::T("screen.public_rooms");
-        return shell.publicRooms_.Rows(f.view, shell.identity_.UsableBridge(f.view), shell.identity_.Waiting(), shell.identity_.PublicSetup(), PublicListWidth(),
-            shell.preferences_.roomFilter);
+        const std::string bridge = shell.identity_.UsableBridge(f.view);
+        return shell.publicRooms_.Rows(f.view, bridge, shell.identity_.Waiting(), shell.identity_.PublicSetup(), PublicListWidth(),
+            shell.preferences_.roomFilter, PublicRoomsPanel::UnrankedPlay(f.view, bridge, shell.identity_.DiscordLinked(f.view)));
     }
     // Also asked on Create (UpdateStatus), with that screen.
     void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override {
@@ -76,6 +77,8 @@ public:
         if (a.id == "pr-quick") { shell.QuickJoin(f.view); return true; }
         // The confirmed setup runs in the Ember ID panel; a locked ID is unlocked on its own screen first.
         if (a.id == "pr-setup") { shell.identity_.SetUpPublicRooms(f.view); shell.error_.clear(); return true; }
+        // Link Discord, as Settings > Discord's account row does; Back returns here.
+        if (a.id == PublicRoomsPanel::RankedNoticeRow) { shell.identity_.OpenDiscordAccount(f.view, nav); return true; }
         if (a.id == "pr-setup-id") { shell.identity_.ClearPublicSetup(); nav.Push("identity"); return true; }
         return ChangeFilter(f, a) || shell.publicRooms_.Activate(a, nav);
     }
@@ -182,9 +185,15 @@ public:
         nav.Prefer("main-" + a.id.substr(std::strlen("card-fighter:")));
         return true;
     }
-    // Y on the Card tab is Edit card.
+    // Y on the Card tab is Edit card, X Fighter select (the room's own X while one is joined).
     void Shortcut(const ScreenFrame& f, const MenuAction& a) const override {
-        if (a.delta == MenuInput::Options && f.screen == ProfilePanel::CardScreen) f.shell.menu_.navigation.Push(CardEditRow);
+        if (f.screen != ProfilePanel::CardScreen) return;
+        auto& shell = f.shell;
+        if (a.delta == MenuInput::Options) shell.menu_.navigation.Push(CardEditRow);
+        else if (a.delta == MenuInput::Fighter && shell.selectionAvailable_) {
+            shell.selectionFresh_ = true; shell.selectionOpenOn_ = SelectionStart::Board;
+            shell.menu_.navigation.Push(FighterSelectRow);
+        }
     }
     GameMenu::Body Body(const ScreenFrame& f) const override {
         ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::string* screen = &f.screen;
@@ -195,7 +204,7 @@ public:
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
         ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName);
         // In a room X is the room's own shortcut on every screen (RoomShortcut).
-        if (f.screen == ProfilePanel::CardScreen && f.view.session.room == netplay::RoomState::Idle) menu.shortcutHints = ShortcutHints({{MenuInput::Options, loc::T("card.edit")}});
+        if (f.screen == ProfilePanel::CardScreen && f.view.session.room == netplay::RoomState::Idle) menu.shortcutHints = ShortcutHints({{MenuInput::Fighter, loc::T("home.fighter_select")}, {MenuInput::Options, loc::T("card.edit")}});
     }
 };
 

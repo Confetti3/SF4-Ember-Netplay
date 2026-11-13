@@ -302,7 +302,7 @@ void StartHelper() {
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
             preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);
-            preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
+            preferences.interfaceScale = netplay::InterfaceScaleOrDefault(scale);
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
     {

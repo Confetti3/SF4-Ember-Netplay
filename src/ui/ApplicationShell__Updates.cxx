@@ -38,11 +38,11 @@ std::vector<MenuEntry> ApplicationShell::NewsRows(const ShellView& v,const std::
  if(rows.empty())rows.push_back(Row("news-none",loc::T("news.none"),loc::T("news.none_detail"),false));
  return rows;
 }
-// All, then a tab for each kind of release the list has.
+// Notifications, All, then a tab for each kind of release the list has.
 void ApplicationShell::NewsTabs(const ShellView& v,const std::string& screen) {
  const auto& news=v.services.update.news;
  const auto any=[&](bool stable){return std::any_of(news.begin(),news.end(),[&](const launcher::ReleaseNews& n){return n.stable==stable;});};
- menu_.tabs={{"news",loc::T("news.tab.all")}};
+ menu_.tabs={{"notifications",loc::T("home.notifications")},{"news",loc::T("news.tab.all")}};
  if(any(true))menu_.tabs.push_back({"news-updates",loc::T("news.tab.updates")});
  if(any(false))menu_.tabs.push_back({"news-changelog",loc::T("news.tab.changelog")});
  for(int i=0;i<static_cast<int>(menu_.tabs.size());++i)if(menu_.tabs[i].first==screen){menu_.tab=i;menu_.eyebrow=std::string(loc::T("home.news"))+" \xC2\xB7 "+menu_.tabs[i].second;}
@@ -62,6 +62,7 @@ public:
     }
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
         f.shell.NewsTabs(f.view, f.screen);
+        menu.statusLeads.clear();
         const std::string& focus = menu.navigation.Focus();
         menu.customDetail = focus.compare(0, 5, "news-") == 0 && focus != "news-update-now" && focus != "news-none";
         menu.listWidth = 420;
@@ -131,6 +132,16 @@ void ApplicationShell::DrawNewsDetail(const ShellView& v,const std::string& id,c
  if(ImGui::Button(loc::T("updates.launch_now"),ImVec2(0,button))){menu_.navigation.Focus("news-update-now",rows);menu_.navigation.Choose(rows);}
  ImGui::PopFont();
  ImGui::PopStyleColor(3);
+}
+// Home's News row says what is newest across the family, and opens on Notifications while an action waits there.
+bool ApplicationShell::NotificationsWaiting() const {
+ return std::any_of(toasts_.begin(),toasts_.end(),[](const Toast& t){return !t.actions.empty()&&!t.answered;});
+}
+std::string ApplicationShell::NewsDetail(const ShellView& v) const {
+ const auto waiting=std::find_if(toasts_.begin(),toasts_.end(),[](const Toast& t){return !t.actions.empty()&&!t.answered;});
+ if(waiting!=toasts_.end())return waiting->text;
+ if(!v.services.update.news.empty())return v.services.update.news.front().title;
+ return toasts_.empty()?std::string(loc::T("notifications.none")):toasts_.front().text;
 }
 // The first Home asks the service for the launch check; the service's policy
 // decides whether one is due, and the question is put up only once its offer

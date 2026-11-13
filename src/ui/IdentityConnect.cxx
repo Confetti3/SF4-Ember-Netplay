@@ -1,5 +1,5 @@
 // Connect Discord: the steps that take a player from a tournament site's
-// link, the Discord row, or Settings > Discord's Tournament account row, to a
+// link, the Discord row, or Settings > Discord's Discord account row, to a
 // connected Discord account. The sign-in itself, which the listed sign-in
 // sites share, is in IdentitySignIn.cxx.
 #include "IdentityPanel.hxx"
@@ -28,17 +28,22 @@ void IdentityPanel::OpenDiscord(const std::string& bridge, bool automatic) {
     lastScreen_.clear();
 }
 
-MenuEntry IdentityPanel::TournamentAccountRow(const ShellView& v) const {
-    auto row = Row("tournament-account", loc::T("discord.tournament_account"), loc::T("discord.tournament_account_detail"));
+MenuEntry IdentityPanel::DiscordAccountRow(const ShellView& v) const {
+    auto row = Row("discord-account", loc::T("discord.account"), loc::T("discord.account_detail"));
     const auto& id = v.identity;
     const std::string bridge = UsableBridge(v);
     if (!bridge.empty()) ShowAccount(row, SignInTarget::Discord(), bridge);
     // Without a ready Ember ID, or with one and no service, no account is linked.
     else if (id.known && (id.state != "ready" || servicesKnown_)) row.value = loc::T("identity.discord_none");
+    // A named account is linked; any other value read is none.
+    if (row.userText) {
+        row.value = loc::Tf("discord.account_linked", row.value);
+        row.detail = loc::T("discord.account_linked_detail");
+    } else if (!row.value.empty()) row.value = loc::T("discord.account_none");
     return row;
 }
 
-void IdentityPanel::OpenTournamentAccount(const ShellView& v, MenuNavigation& navigation) {
+void IdentityPanel::OpenDiscordAccount(const ShellView& v, MenuNavigation& navigation) {
     OpenDiscord(UsableBridge(v));
     navigation.Push(DiscordConnectScreen);
 }

@@ -196,6 +196,7 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
 std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title) {
  using namespace netplay; auto& nav=menu_.navigation;
  std::vector<MenuEntry> rows;
+ selectionAvailable_=bool(selection);
  if(v.inputCapture!=input::Capture::Idle){
   title=loc::T("controller.assign_title");
   rows={Row("capture-cancel",loc::T("controller.cancel_assignment"),std::string(v.inputCapture==input::Capture::Press?loc::T("controller.press_button"):loc::T("controller.release_buttons"))+"\n"+loc::T("controller.keep_current"))};
@@ -204,20 +205,18 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(const ScreenPanel* owner=ScreenOf(screen)){
   // The panels' screens build their own rows (ScreenOf).
   rows=owner->Rows(ScreenFrame{*this,v,screen},idle,title);
+  // Profile's Fighter select opens only where there is a selector to show.
+  for(auto& r:rows)if(r.id==FighterSelectRow)r.enabled=r.enabled&&selectionAvailable_;
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
-   Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
-    v.selectionLockReason.empty()?loc::T("home.selection_locked"):v.selectionLockReason,bool(selection)),
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle),
    Row("replays",loc::T("home.replays"),loc::T("home.replays_detail"))};
   // Training straight from Home, before Play offline.
   rows.insert(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="offline";}),Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle));
-  // News, the channel's newest releases (the panel under the player card shows the first three).
-  if(!v.services.update.news.empty())rows.push_back(Row("news",loc::T("home.news"),v.services.update.news.front().title));
-  // Notifications, what Ember said lately (the toasts).
-  rows.push_back(Row("notifications",loc::T("home.notifications"),toasts_.empty()?std::string(loc::T("notifications.none")):toasts_.front().text));
+  // News, with the notifications beside the channel's releases (the panel under the player card shows the first three).
+  rows.push_back(Row("news",loc::T("home.news"),NewsDetail(v)));
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   // The requests waiting to be answered, which the Profile row opens on.
   if(const auto badge=player_card::ProfileBadge(v.friends);!badge.empty()){auto& profile=*std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="profile";});profile.value=badge;profile.valueHighlighted=true;}
@@ -394,7 +393,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
- else if(a.id=="tournament-account")identity_.OpenTournamentAccount(v,nav);
+ else if(a.id=="discord-account")identity_.OpenDiscordAccount(v,nav);
  // The matches screen, by way of Online play and Ember ID so Back goes there.
  else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
  else if(a.id=="profile")nav.Push(player_card::RequestsWaiting(v.friends)?ProfilePanel::FriendsScreen:ProfilePanel::CardScreen);
@@ -411,7 +410,8 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(const auto main=RowKey<int>(a.id,"main-");main&&v.canEditPreferences){preferences_.mainFighter=*main;preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(screen=="training"&&a.id.compare(0,9,"training-")==0)TrainingSelectActivate(a,v,submit);
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?RoomSelectionStart(v.room):SelectionStart::Board;nav.Push(a.id);}
- else if(a.id=="replays"||a.id=="controllers"||a.id=="news"||a.id=="notifications")nav.Push(a.id);
+ else if(a.id=="news")nav.Push(NotificationsWaiting()?"notifications":"news");
+ else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  // News' Update now, confirmed on its row: the launch check's offer, as its question's Update now sends it.
  else if(a.id=="news-update-now"&&v.services.launchOffer){
   commands::Service r;r.generation=v.session.generation;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*v.services.launchOffer;
@@ -869,8 +869,8 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
   // behind it is locked there, so Ember stays up (F10 can still hide it).
   if(open&&input::HomeBackHidesShell(v.session.room))*open=false;
  }else if(a.kind==MenuAction::Shortcut){
-  // The hint bar's bell opens Notifications over the screen shown.
-  if(a.id=="notifications")nav.Push(a.id);
+  // The hint bar's bell opens Notifications over the screen shown; on News, Notifications is a tab and replaces it.
+  if(a.id=="notifications"&&!NewsFamily(nav.Screen()))nav.Push(a.id);
   // A tab names the page it shows, and replaces the screen it is on, whatever
   // is open on it (a reader, a choice); a Settings panel's head on the rail
   // names the panel (ShowTab).

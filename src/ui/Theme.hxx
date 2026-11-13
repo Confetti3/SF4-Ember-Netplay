@@ -47,7 +47,7 @@ inline float WatchedPictureShareFor(int spot) { const float shares[] = {WatchedP
 constexpr float WatchedPictureTaken = .62f;
 
 // Call between frames. A true result requires backend font texture recreation.
-// Text is drawn at `displayScale` times the player's Interface size (Scale()):
+// Text is drawn at `displayScale` times the player's Interface size (Scale(), from MinThemeScale to 3):
 // over the game the larger of Windows' DPI scale and the picture's height over
 // 1080 lines, in the recovery window Windows' DPI scale alone. A size passed
 // with a font is its em, as on the design boards.
@@ -80,6 +80,11 @@ void SetAtlasBuildLog(std::function<void(const char*)> log);
 // to retire text.
 void SetUserGlyphRetention(std::chrono::milliseconds retention);
 float Scale();
+// The width of a one-pixel line at Scale(): never under one pixel, which a smaller Interface size would otherwise
+// draw faint. Lines and borders take it as their thickness.
+float Hairline();
+// The smallest Scale() the theme sets: the Interface size at its least (netplay::MinInterfaceScale) on a display at 100%.
+constexpr float MinThemeScale = .6f;
 // The player's Interface size alone, for what is laid out in the game's
 // pixels and so leaves the display scale out (the training HUD).
 float InterfaceScale();
