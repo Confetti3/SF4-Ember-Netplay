@@ -154,12 +154,28 @@ std::string IdentityPanel::UsableBridge(const ShellView& v) const {
     return v.identity.state == "ready" && FindBridge(v, bridge_) ? bridge_ : std::string();
 }
 
-std::optional<bool> IdentityPanel::DiscordLinked(const ShellView& v) const {
+netplay::DiscordLink IdentityPanel::Discord(const ShellView& v) const {
+    const auto& id = v.identity;
     const std::string bridge = UsableBridge(v);
-    if (bridge.empty()) return std::nullopt;
-    const auto* account = FindAccount(SignInTarget::Discord(), bridge);
-    if (!account || !account->read || account->failed) return std::nullopt;
-    return !account->user.empty();
+    netplay::DiscordLinkReads reads;
+    reads.noEmberId = id.known && id.state != "ready";
+    if (bridge.empty()) {
+        // An Ember ID with no service it trusts has none linked anywhere it plays.
+        if (id.known && servicesKnown_ && !FirstService(v)) reads.account = std::string();
+    } else if (const auto* account = FindAccount(SignInTarget::Discord(), bridge); account && account->read && !account->failed) {
+        reads.account = account->user.empty() ? std::string() : account->name.empty() ? account->user : account->name;
+    }
+    const auto& standing = v.rankings.standing;
+    if (!bridge.empty() && v.rankings.bridge == bridge && v.rankings.emberId == id.emberId && standing.loaded)
+        reads.standing = standing.value.kind != netplay::rankings::Standing::Kind::NoAccount;
+    if (v.levels.loaded && v.levels.value.kind == netplay::levels::Own::Kind::Counted) reads.points = true;
+    if (v.levels.loaded && v.levels.value.kind == netplay::levels::Own::Kind::NoAccount) reads.points = false;
+    if (const auto& friends = v.friends.state.value) {
+        using Kind = netplay::friends::State::Kind;
+        if (friends->kind == Kind::Listed || friends->kind == Kind::Off) reads.friends = true;
+        else if (friends->kind == Kind::NoAccount) reads.friends = false;
+    }
+    return netplay::LinkOf(reads);
 }
 
 void IdentityPanel::Probe() {

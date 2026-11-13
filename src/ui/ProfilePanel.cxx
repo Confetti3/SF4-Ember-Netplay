@@ -164,7 +164,8 @@ float DrawFightersTab(const ShellView& v, int main, const PlayerCardView& card, 
     }
     // Why there are no points, and the way to them without an account.
     if (const char* why = player_card::NoLevelWords(card); why && card.levels != CardLevels::Pending) y += v2::Paragraph(d, ImVec2(list.min.x, y), list.W(), loc::T(why), 14 * s, c.muted) + gap;
-    y = DrawRowButton(DiscordConnectScreen, ImVec2(list.min.x, y), (std::min)(list.W(), 360 * s), rows, nav, action, changed) + (card.levels == CardLevels::NoAccount ? gap : 0);
+    const float below = DrawRowButton(DiscordConnectScreen, ImVec2(list.min.x, y), (std::min)(list.W(), 360 * s), rows, nav, action, changed);
+    y = below + (below != y ? gap : 0);
 
     const int played = static_cast<int>(std::count_if(rows.begin(), rows.end(), [&](const MenuEntry& e) {
         const auto fighter = RowKey<int>(e.id, FighterRowPrefix);
@@ -240,7 +241,7 @@ void ProfilePanel::Update(const ShellView& v, const std::string& screen, const s
 
 void ProfilePanel::Conceal() { visiting_ = want_ = false; }
 
-std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string& screen, const PlayerCardView& card, bool editable, std::string& title) const {
+std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string& screen, const PlayerCardView& card, bool editable, bool connect, std::string& title) const {
     const bool fighters = screen == FightersScreen;
     title = loc::T(fighters ? "profile.tab.fighters" : "profile.tab.card");
     std::vector<MenuEntry> rows;
@@ -257,7 +258,7 @@ std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string&
                 rows.push_back(std::move(row));
             }
         }
-        if (card.levels == CardLevels::NoAccount) rows.push_back(ConnectDiscordRow());
+        if (connect) rows.push_back(ConnectDiscordRow());
         return rows;
     }
     // The Card tab's rows: the way to choose a main when there is none, the
@@ -281,7 +282,7 @@ std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string&
         v.canEditSelection ? v.selectionSummary : v.selectionLockReason.empty() ? std::string(loc::T("home.selection_locked")) : v.selectionLockReason);
     select.hint = loc::T("home.fighter_select");
     rows.push_back(std::move(select));
-    if (card.levels == CardLevels::NoAccount) rows.push_back(ConnectDiscordRow());
+    if (connect) rows.push_back(ConnectDiscordRow());
     return rows;
 }
 

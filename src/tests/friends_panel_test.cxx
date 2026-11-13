@@ -237,29 +237,23 @@ void Cards() {
 }
 }
 
-// How an action the panel sent ends, every way with words: a refusal says its own, one that went through (or found
-// friends off) is read before the deadline, so an answer that came while Ember was hidden still counts, and only no
-// answer at all is given up, after the runtime's own limit for a lost request.
+// How an action the panel sent ends, every way with words: a refusal says its own, one that went through says what
+// it did, one that found friends off says so. The runtime answers or refuses every action, so nothing else ends one.
 void Outcomes() {
     using fp::Outcome;
     auto view = ListedView({});
     view.state.finished = 4; view.refusals = 2;
-    Check(fp::OutcomeOf(view, 4, 2, 100, 50) == Outcome::Waiting, "an action with no answer yet did not wait");
+    Check(fp::OutcomeOf(view, 4, 2) == Outcome::Waiting, "an action with no answer yet did not wait");
     view.busy = true; view.state.finished = 5;
-    Check(fp::OutcomeOf(view, 4, 2, 100, 50) == Outcome::Waiting, "a sync's answer while the action is held or in flight ended it");
+    Check(fp::OutcomeOf(view, 4, 2) == Outcome::Waiting, "a sync's answer while the action is held or in flight ended it");
     view.busy = false;
-    Check(fp::OutcomeOf(view, 4, 2, 100, 50) == Outcome::Done, "an answer with nothing in flight did not end it as done");
-    Check(fp::OutcomeOf(view, 4, 2, 100, 500) == Outcome::Done, "an answer read after the deadline was given up");
+    Check(fp::OutcomeOf(view, 4, 2) == Outcome::Done, "an answer with nothing in flight did not end it as done");
     view.refusals = 3;
-    Check(fp::OutcomeOf(view, 4, 2, 100, 500) == Outcome::Refused, "a refusal did not end it as refused");
-    view.refusals = 2;
+    Check(fp::OutcomeOf(view, 4, 2) == Outcome::Refused, "a refusal did not end it as refused");
     auto off = ListedView({});
     off.state.value = std::make_shared<const nf::State>([] { nf::State s; s.kind = nf::State::Kind::Off; return s; }());
     off.state.finished = 5;
-    Check(fp::OutcomeOf(off, 4, 2, 100, 50) == Outcome::Off, "friends found off did not say so");
-    view.state.finished = 4;
-    Check(fp::OutcomeOf(view, 4, 2, 100, 100) == Outcome::Waiting && fp::OutcomeOf(view, 4, 2, 100, 100.5) == Outcome::GivenUp, "no answer by the deadline was not given up");
-    Check(fp::GiveUpSeconds > 60, "the panel gives up before the runtime ends a lost request");
+    Check(fp::OutcomeOf(off, 4, 2) == Outcome::Off, "friends found off did not say so");
 }
 
 // A room member's Add friend and Block name them by card: a list the last sync failed on does not hold them, an action
@@ -295,19 +289,6 @@ void AcceptWords() {
     Check(fp::AcceptedWords(state, "rq_1") == loc::Tf("friends.now_friends", "Player 9") && fp::AcceptedWords(state, "rq_2").empty(), "Accept does not say who is now a friend");
 }
 
-// Words or a toast Ember hid before their card's time, or that came over the post-match prompt, were not seen.
-void Seen() {
-    fp::Told told{10, 4, false};
-    Check(!told.Lapsed(13.9) && told.Lapsed(14), "words are let go before their card's time, or kept after it");
-    told.Hidden(12);
-    Check(told.unseen && !told.Lapsed(100), "words Ember hid before their time were taken as seen");
-    fp::Told read{10, 4, false};
-    read.Hidden(14);
-    Check(!read.unseen && read.Lapsed(14), "words shown their whole time were taken as unseen");
-    fp::Told prompt{10, 8, true};
-    Check(!prompt.Lapsed(1000), "a toast over the post-match prompt was taken as seen");
-}
-
 // What waits in Notifications: every request, newest first, then the invites still good, for as long as the list holds
 // them; nothing at all while the friends are off, without an account, unavailable or not read.
 void WaitingInNotifications() {
@@ -318,7 +299,7 @@ void WaitingInNotifications() {
     state.incoming = {old, fresh};
     state.friends = {InRoom("Player 3", true)};
     nf::Invite good, late, stranger;
-    good.id = "iv_1"; good.friendId = "fr_Player 3"; good.expiresAt = Now + Hour;
+    good.id = "iv_1"; good.friendId = "fr_Player 3"; good.expiresAt = Now + Hour; good.room.value = std::string(32, 'a');
     late.id = "iv_2"; late.friendId = "fr_Player 3"; late.expiresAt = Now - 1;
     stranger.id = "iv_3"; stranger.friendId = "fr_nobody"; stranger.expiresAt = Now + Hour;
     state.invites = {good, late, stranger};
@@ -327,10 +308,17 @@ void WaitingInNotifications() {
     Check(waiting.requests.size() == 2 && waiting.requests[0]->id == "rq_2" && waiting.requests[1]->id == "rq_1", "requests waiting are not every request, newest first");
     Check(waiting.invites.size() == 1 && waiting.invites[0]->id == "iv_1" && waiting.Count() == 3, "an invite run out, or from no friend in the list, waits");
     Check(waiting.Holds("rq_1") && waiting.Holds("iv_1") && !waiting.Holds("iv_2") && !waiting.Holds("rq_9"), "Holds does not say what waits");
-    Check(fp::WaitingWords(view, Now) == loc::Tf("friends.toast_request", "Player 2"), "the words of what waits are not the newest request's toast");
-    auto invitesOnly = state;
-    invitesOnly.incoming.clear();
-    Check(fp::WaitingWords(ListedView(invitesOnly), Now) == loc::Tf("friends.toast_invite", "Player 3"), "an invite alone waiting does not say who invites");
+    // As Notifications' items: keyed by their rows' ids, in the same order, with the toast's words and buttons, and
+    // asking to be seen.
+    const auto notices = fp::NoticesOf(view, Now);
+    Check(notices.size() == 3 && notices[0].key == "request:rq_2" && notices[1].key == "request:rq_1" && notices[2].key == "invite:iv_1",
+        "what waits is not told into Notifications by its rows' ids, in order");
+    Check(notices[0].Head() == loc::Tf("friends.toast_request", "Player 2") && notices[0].text == notices[0].Head() + "\n" + loc::T("friends.not_played") &&
+        notices[0].actions.size() == 2 && notices[0].actions[0].label == loc::T("friends.accept") && notices[0].actions[1].label == loc::T("friends.later") && notices[0].again,
+        "a request's item does not say who asks, whether they played, Accept and Later");
+    Check(notices[2].text == loc::Tf("friends.toast_invite", "Player 3") + "\nPlayer 5's room" && notices[2].actions[0].label == loc::T("toast.join") &&
+        notices[2].actions[1].label == loc::T("friends.dismiss"), "an invite's item does not say who invites, to which room, Join and Dismiss");
+    Check(notices[0].actions[0].commands.empty(), "a request's Accept goes around the panel");
     // A stale list still holds what waits; no list holds nothing, and says nothing there.
     auto stale = view;
     stale.state.error = "bridge_unreachable";
@@ -339,7 +327,7 @@ void WaitingInNotifications() {
         auto other = view;
         auto copy = state; copy.kind = kind;
         other.state.value = std::make_shared<const nf::State>(copy);
-        Check(fp::WaitingOf(other, Now).Count() == 0 && fp::WaitingWords(other, Now).empty(), "friends off, without an account or unavailable list something waiting");
+        Check(fp::WaitingOf(other, Now).Count() == 0 && fp::NoticesOf(other, Now).empty(), "friends off, without an account or unavailable list something waiting");
     }
     Check(fp::WaitingOf(nf::View{}, Now).Count() == 0, "a list not read yet has something waiting");
     Check(fp::NotificationRow("request:rq_1") && fp::NotificationRow("invite:iv_1") && !fp::NotificationRow("friend:fr_3") && !fp::NotificationRow("toast-4"), "the rows Notifications hands the panel are wrong");
@@ -354,7 +342,6 @@ int main() {
     Outcomes();
     MemberGate();
     AcceptWords();
-    Seen();
     Cards();
     Grouping();
     Presses();

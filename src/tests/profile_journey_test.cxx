@@ -343,7 +343,8 @@ void SpatialJourney() {
  }
 }
 
-// Home's Profile row opens Card, or Friends while requests wait, and says so; the Friends tab counts them.
+// Home's Profile row opens Card; requests waiting are counted once on Home, on the News row that opens Notifications
+// where they are answered, and the Friends tab counts them.
 void HomeJourney() {
  Journey j;
  Answer(j);
@@ -351,15 +352,19 @@ void HomeJourney() {
  j.h.Choose("profile");
  Check(j.h.shell.Navigation().Screen() == "card", "Home's Profile row did not open Card");
  auto state = std::make_shared<netplay::friends::State>();
- state->kind = netplay::friends::State::Kind::Listed;
+ state->kind = netplay::friends::State::Kind::Listed; state->code = "4F2A-91CX";
  state->incoming.resize(2);
- j.h.view.friends.state.value = state; j.h.view.friends.state.loaded = true;
+ state->incoming[0].id = "rq_1"; state->incoming[0].name = "Player 2";
+ state->incoming[1].id = "rq_2"; state->incoming[1].name = "Player 3";
+ j.h.view.friends.bridge = "brg_1"; j.h.view.friends.state.value = state; j.h.view.friends.state.loaded = true;
  j.h.Screen("home"); j.h.Frame(0, 2);
- const auto* row = j.row("profile");
- Check(row && row->value == loc::Tf("home.profile_requests", 2) && row->valueHighlighted, "Home's Profile row does not say how many requests wait");
+ const auto* profile = j.row("profile");
+ const auto* news = j.row("news");
+ Check(profile && profile->value.empty(), "Home's Profile row counts the requests the News row counts");
+ Check(news && news->value == loc::Tf("notifications.waiting", 2) && news->valueHighlighted, "Home's News row does not say how many requests wait");
  j.h.Choose("profile");
- Check(j.h.shell.Navigation().Screen() == "friends", "Home's Profile row did not open Friends while requests wait");
- Check(ui::MenuPlayerCard().requests == 2, "The card does not carry the waiting requests");
+ Check(j.h.shell.Navigation().Screen() == "card", "Home's Profile row did not open Card while requests wait");
+ Check(ui::MenuPlayerCard().requests == 2, "The card does not carry the waiting requests for the Friends tab");
 }
 
 // The levels are read when Profile opens, and once at start for the service in use.

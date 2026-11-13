@@ -37,7 +37,8 @@ public:
     void Conceal();
     // The screen's rows, from the card the shell published (`card`), the
     // fighter read for `main` and whether the player can change it now.
-    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, const PlayerCardView& card, bool editable, std::string& title) const;
+    // `connect`: no Discord account is linked (IdentityPanel::Discord), so the way to one ends the rows.
+    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, const PlayerCardView& card, bool editable, bool connect, std::string& title) const;
     // The screen's board at the cursor, in a body `height` tall: the Card tab
     // (PlayerCard.cxx) or the Fighters tab.
     void Draw(const ShellView& view, int main, const std::string& screen, const std::vector<MenuEntry>& rows, MenuNavigation& navigation, MenuAction& action, float height);

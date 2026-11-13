@@ -65,7 +65,7 @@ public:
         title = loc::T("screen.public_rooms");
         const std::string bridge = shell.identity_.UsableBridge(f.view);
         return shell.publicRooms_.Rows(f.view, bridge, shell.identity_.Waiting(), shell.identity_.PublicSetup(), PublicListWidth(),
-            shell.preferences_.roomFilter, PublicRoomsPanel::UnrankedPlay(f.view, bridge, shell.identity_.DiscordLinked(f.view)));
+            shell.preferences_.roomFilter, shell.identity_.Discord(f.view).state == netplay::DiscordLink::State::None);
     }
     // Also asked on Create (UpdateStatus), with that screen.
     void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override {
@@ -172,7 +172,8 @@ public:
         // The levels part of the card, as of this frame (the published card is last frame's).
         PlayerCardView levels;
         player_card::Fill(levels, f.view.levels, f.shell.preferences_.mainFighter);
-        return f.shell.profile_.Rows(f.view, f.screen, levels, f.view.canEditPreferences, title);
+        const bool connect = f.shell.identity_.Discord(f.view).state == netplay::DiscordLink::State::None;
+        return f.shell.profile_.Rows(f.view, f.screen, levels, f.view.canEditPreferences, connect, title);
     }
     // A strip tile opens the Fighters page on that fighter, Edit card its page; Connect Discord is the Ember ID panel's.
     // A fighter's row on the Fighters page makes it the main, which the shell's own rows do.
