@@ -1729,7 +1729,7 @@ msgid "card.plays"
 msgstr "使用機器"
 
 msgid "card.playing"
-msgstr "使用機器"
+msgstr "使用中"
 
 msgid "card.looking_row"
 msgstr "希望"
@@ -1768,7 +1768,7 @@ msgid "style.new"
 msgstr "初心者"
 
 msgid "style.teach"
-msgstr "喜んで教えます"
+msgstr "教えるのも歓迎"
 
 msgid "fighters.how"
 msgstr "ポイントのためかた"

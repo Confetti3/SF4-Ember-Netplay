@@ -1729,7 +1729,7 @@ msgid "card.plays"
 msgstr "Играет на"
 
 msgid "card.playing"
-msgstr "ИГРАЕТ НА"
+msgstr "СЕЙЧАС"
 
 msgid "card.looking_row"
 msgstr "Ищет"
@@ -1759,7 +1759,7 @@ msgid "style.long_sets"
 msgstr "Длинные сеты"
 
 msgid "style.ranked"
-msgstr "Рейтинг"
+msgstr "Рейтинговые игры"
 
 msgid "style.practice"
 msgstr "Турнирная практика"
@@ -1768,7 +1768,7 @@ msgid "style.new"
 msgstr "Новичок в игре"
 
 msgid "style.teach"
-msgstr "Готов научить"
+msgstr "Обучение новичков"
 
 msgid "fighters.how"
 msgstr "Как начисляются очки"

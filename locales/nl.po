@@ -1729,7 +1729,7 @@ msgid "card.plays"
 msgstr "Speelt op"
 
 msgid "card.playing"
-msgstr "SPEELT OP"
+msgstr "SPEELT NU"
 
 msgid "card.looking_row"
 msgstr "Zoekt"
@@ -1759,7 +1759,7 @@ msgid "style.long_sets"
 msgstr "Lange sets"
 
 msgid "style.ranked"
-msgstr "Ranglijst"
+msgstr "Potjes met ranglijst"
 
 msgid "style.practice"
 msgstr "Toernooitraining"
@@ -1768,7 +1768,7 @@ msgid "style.new"
 msgstr "Nieuw in het spel"
 
 msgid "style.teach"
-msgstr "Leert graag les"
+msgstr "Lesgeven welkom"
 
 msgid "fighters.how"
 msgstr "Zo verdien je punten"

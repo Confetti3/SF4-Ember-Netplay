@@ -1729,7 +1729,7 @@ msgid "card.plays"
 msgstr "Spielt auf"
 
 msgid "card.playing"
-msgstr "SPIELT AUF"
+msgstr "SPIELT GERADE"
 
 msgid "card.looking_row"
 msgstr "Sucht"
@@ -1759,16 +1759,16 @@ msgid "style.long_sets"
 msgstr "Lange Sets"
 
 msgid "style.ranked"
-msgstr "Gewertet"
+msgstr "Gewertete Spiele"
 
 msgid "style.practice"
 msgstr "Turnier-Training"
 
 msgid "style.new"
-msgstr "Neu im Spiel"
+msgstr "Neueinsteiger"
 
 msgid "style.teach"
-msgstr "Bringt es gern bei"
+msgstr "Lernhilfe"
 
 msgid "fighters.how"
 msgstr "So sammelst du Punkte"

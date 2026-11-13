@@ -1729,7 +1729,7 @@ msgid "card.plays"
 msgstr "Joue sur"
 
 msgid "card.playing"
-msgstr "JOUE SUR"
+msgstr "EN JEU"
 
 msgid "card.looking_row"
 msgstr "Cherche"
@@ -1753,22 +1753,22 @@ msgid "style.wifi"
 msgstr "Wi-Fi"
 
 msgid "style.casuals"
-msgstr "Décontracté"
+msgstr "Parties décontractées"
 
 msgid "style.long_sets"
 msgstr "Longs sets"
 
 msgid "style.ranked"
-msgstr "Classé"
+msgstr "Parties classées"
 
 msgid "style.practice"
 msgstr "Entraînement tournoi"
 
 msgid "style.new"
-msgstr "Nouveau dans le jeu"
+msgstr "Débutant"
 
 msgid "style.teach"
-msgstr "Prêt à enseigner"
+msgstr "Plaisir d'enseigner"
 
 msgid "fighters.how"
 msgstr "Comment les points se gagnent"

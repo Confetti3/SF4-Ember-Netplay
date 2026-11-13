@@ -1729,7 +1729,7 @@ msgid "card.plays"
 msgstr "사용 장치"
 
 msgid "card.playing"
-msgstr "사용 장치"
+msgstr "사용 중"
 
 msgid "card.looking_row"
 msgstr "찾는 상대"
@@ -1768,7 +1768,7 @@ msgid "style.new"
 msgstr "초보"
 
 msgid "style.teach"
-msgstr "기꺼이 가르쳐 드림"
+msgstr "가르치기 환영"
 
 msgid "fighters.how"
 msgstr "포인트를 얻는 방법"

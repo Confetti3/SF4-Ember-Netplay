@@ -1729,7 +1729,7 @@ msgid "card.plays"
 msgstr "Hraje na"
 
 msgid "card.playing"
-msgstr "HRAJE NA"
+msgstr "HRAJE"
 
 msgid "card.looking_row"
 msgstr "Hledá"
@@ -1759,16 +1759,16 @@ msgid "style.long_sets"
 msgstr "Dlouhé sety"
 
 msgid "style.ranked"
-msgstr "Hodnocené"
+msgstr "Hodnocené zápasy"
 
 msgid "style.practice"
 msgstr "Turnajový trénink"
 
 msgid "style.new"
-msgstr "Nový ve hře"
+msgstr "Nováček"
 
 msgid "style.teach"
-msgstr "Rád učí"
+msgstr "Ochota učit"
 
 msgid "fighters.how"
 msgstr "Jak se body získávají"

@@ -1729,7 +1729,7 @@ msgid "card.plays"
 msgstr "使用设备"
 
 msgid "card.playing"
-msgstr "使用设备"
+msgstr "当前使用"
 
 msgid "card.looking_row"
 msgstr "想找"
@@ -1759,7 +1759,7 @@ msgid "style.long_sets"
 msgstr "长系列赛"
 
 msgid "style.ranked"
-msgstr "排位"
+msgstr "排位对战"
 
 msgid "style.practice"
 msgstr "赛前练习"
