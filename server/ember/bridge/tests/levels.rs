@@ -546,5 +546,3 @@ async fn levels_are_offered_with_public_rooms_and_answer_404_without() {
     let (status, _) = lookup(&bridge, &caller, json!([{ "friend": FRIEND }])).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
-
-/// `GET /v1/points/me`'s raw account: its best run of wins and highest class.
