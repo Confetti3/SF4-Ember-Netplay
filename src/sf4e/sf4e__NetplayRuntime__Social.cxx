@@ -16,8 +16,11 @@
 #include "../session/SocialAnswers.hxx"
 #include "../ui/PublicRoomsPanel.hxx"
 
+#include <algorithm>
 #include <ctime>
 #include <functional>
+#include <optional>
+#include <variant>
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
@@ -99,7 +102,52 @@ const char* RefusalKey(const std::string& code) {
 		{"friends_off", "friends.off"}, {"nothing_to_offer", "friends.nothing_to_offer"},
 	};
 	for (const auto& entry : table) if (code == entry.first) return entry.second;
+	// This runtime's own: another action already waits, or the one asked was dropped (friends::Requests).
+	if (code == friends::Requests::Busy) return "friends.busy";
 	return "friends.failed";
+}
+
+// An action as the log names it: what kind it is, never whom or which row (the log goes with reports).
+const char* ActionName(const commands::FriendAction& action) {
+	static const char* const names[] = {"request by card", "request by code", "accept", "decline", "cancel", "remove", "block",
+		"unblock", "new code", "appear offline", "turn off", "turn on", "invite", "dismiss"};
+	static_assert(std::variant_size_v<commands::FriendAction> == sizeof(names) / sizeof(names[0]), "a name for each of the bridge's actions");
+	return names[action.index()];
+}
+
+// What an action that went through made of the room member it named, by the card token their ticket carried: Add
+// friend is a request sent, or a friendship when they had asked first (the bridge accepts a mutual request), and
+// Block a block. Empty for an action that names no member.
+struct MemberChange {
+	std::string card;
+	netplay::levels::Relation relation = netplay::levels::Relation::None;
+};
+MemberChange ChangeOf(const commands::FriendAction& action) {
+	using netplay::levels::Relation;
+	if (const auto* request = std::get_if<commands::FriendRequest>(&action)) {
+		const auto& shown = *runtime->cards.Published();
+		const auto card = shown.find(request->card);
+		const bool asked = card != shown.end() && card->second.relation == Relation::Received;
+		return {request->card, asked ? Relation::Friend : Relation::Sent};
+	}
+	if (const auto* block = std::get_if<commands::FriendBlock>(&action)) return {block->card, Relation::Blocked};
+	return {};
+}
+
+// Requests and invites a state holds that the one before it did not, said once each in the log, by count: as
+// arrived, or as waiting when the state before it was no list (the first read).
+void NoteArrivals(const friends::State& before, const friends::State& after) {
+	if (after.kind != friends::State::Kind::Listed) return;
+	const bool listed = before.kind == friends::State::Kind::Listed;
+	const auto fresh = [&](const auto& was, const auto& now) {
+		std::size_t count = 0;
+		for (const auto& item : now)
+			if (!listed || std::none_of(was.begin(), was.end(), [&](const auto& old) { return old.id == item.id; })) ++count;
+		return count;
+	};
+	const char* how = listed ? "arrived" : "waiting";
+	if (const auto requests = fresh(before.incoming, after.incoming)) spdlog::info("Friends: {} friend request(s) {}", requests, how);
+	if (const auto invites = fresh(before.invites, after.invites)) spdlog::info("Friends: {} invite(s) {}", invites, how);
 }
 
 // Why a Join, a Watch or an invite leads nowhere.
@@ -113,21 +161,48 @@ const char* DestinationKey(friends::Destination::Refusal refusal, bool invite) {
 	}
 }
 
-// A sync's or an action's answer, for the flight it began (netplay::friends::Requests::Finish).
-void TakeAnswer(std::uint64_t token, const session::TournamentAnswer& answer) {
+// What a flight is, for its answer: a sync, or an action of the kind named, with what it made of a room member.
+struct Flight {
+	const char* action = nullptr;
+	MemberChange change;
+};
+
+// A sync's or an action's answer, for the flight it began (netplay::friends::Requests::Finish). An action's outcome
+// is logged, and one that went through has every room member's card looked up again (the one it named shows what it
+// made of them at once).
+void TakeAnswer(std::uint64_t token, const Flight& flight, const session::TournamentAnswer& answer) {
 	auto& requests = runtime->friends;
 	const auto now = GetTickCount64();
-	if (!answer.ok) { requests.Finish(token, netplay::BridgeFlights::Reason(answer), std::nullopt, now); return; }
-	friends::State state;
-	if (session::DecodeFriendsState(answer.data, state)) requests.Finish(token, {}, std::move(state), now);
-	else requests.Finish(token, "bridge_invalid_response", std::nullopt, now);
+	// Only the flight in flight is answered: one a change of service or Ember ID retired was refused as it was dropped.
+	if (!requests.Awaiting(token)) return;
+	std::string failure;
+	std::optional<friends::State> state;
+	if (!answer.ok) failure = netplay::BridgeFlights::Reason(answer);
+	else if (friends::State decoded; session::DecodeFriendsState(answer.data, decoded)) state = std::move(decoded);
+	else failure = "bridge_invalid_response";
+	if (flight.action) {
+		// A refusal of the runtime's own, with no request id: never handed to the helper, or no answer in time.
+		if (failure.empty()) spdlog::info("Friends: {} answered ok", flight.action);
+		else if (!answer.requestId && failure == netplay::BridgeFlights::HelperUnavailable) spdlog::info("Friends: {} not sent: the helper could not take it", flight.action);
+		else if (!answer.requestId && failure == netplay::BridgeFlights::Unavailable) spdlog::info("Friends: {} given up: no answer in {} s", flight.action, netplay::BridgeFlights::GiveUpMs / 1000);
+		else spdlog::info("Friends: {} refused code={}", flight.action, failure);
+		if (failure.empty() || failure == friends::Requests::Off) {
+			runtime->cards.Refresh();
+			if (failure.empty() && !flight.change.card.empty()) runtime->cards.Relate(flight.change.card, flight.change.relation);
+		}
+	} else if (!failure.empty()) {
+		spdlog::info("Friends: sync refused code={}", failure);
+	}
+	const auto before = requests.Published().value;
+	requests.Finish(token, failure, state, now);
+	if (state && before) NoteArrivals(*before, *state);
 }
 
-// Hands `request` to the helper as the sync (`action` false) or the action in flight.
-void Send(const json& request, bool action, bool helperReady, std::uint64_t nowMs) {
+// Hands `request` to the helper as the sync (`flight.action` null) or the action in flight.
+void Send(const json& request, Flight flight, bool helperReady, std::uint64_t nowMs) {
 	auto& requests = runtime->friends;
-	const auto token = action ? requests.BeginAction() : requests.BeginSync(nowMs);
-	internal::SendFlight(request, helperReady, [token](const session::TournamentAnswer& answer) { TakeAnswer(token, answer); });
+	const auto token = flight.action ? requests.BeginAction() : requests.BeginSync(nowMs);
+	internal::SendFlight(request, helperReady, [token, flight = std::move(flight)](const session::TournamentAnswer& answer) { TakeAnswer(token, flight, answer); });
 }
 
 void SendAction(const commands::FriendAction& action, bool helperReady) {
@@ -135,9 +210,19 @@ void SendAction(const commands::FriendAction& action, bool helperReady) {
 	const bool invite = std::holds_alternative<commands::FriendInvite>(action);
 	const auto request = friends::ActionRequest(action, invite ? Present().offer : friends::Offer());
 	// Refused like an answer would be, so it is counted and the panel never reports it done.
-	if (request.is_null()) { runtime->friends.Refuse("nothing_to_offer"); return; }
+	if (request.is_null()) {
+		spdlog::info("Friends: {} refused before sending code=nothing_to_offer", ActionName(action));
+		runtime->friends.Refuse("nothing_to_offer");
+		return;
+	}
 	if (std::holds_alternative<commands::FriendTurnOn>(action)) runtime->friends.TurningOn();
-	Send(request, true, helperReady, GetTickCount64());
+	spdlog::info("Friends: {} sent{}", ActionName(action), helperReady ? "" : " while the helper is not ready");
+	Send(request, Flight{ActionName(action), ChangeOf(action)}, helperReady, GetTickCount64());
+}
+
+// A change of service or Ember ID dropped the action in flight or held (refused as Requests::Dropped).
+void NoteScope(bool dropped) {
+	if (dropped) spdlog::info("Friends: an action dropped: scope changed");
 }
 
 // A Join, a Watch or an invite: a private room's invitation goes the way a Discord one does, a public room's by a visit.
@@ -264,26 +349,41 @@ void TickVisit(bool helperReady, std::uint64_t nowMs) {
 namespace internal {
 void DispatchFriends(const commands::FriendsVisit& command) {
 	if (command.bridge.empty() || CurrentId().empty()) return;
-	runtime->friends.Scope(command.bridge, CurrentId());
+	NoteScope(runtime->friends.Scope(command.bridge, CurrentId()));
 	runtime->friends.Visit(GetTickCount64());
 }
 
 void DispatchFriends(const commands::FriendsLeave& command) {
 	if (command.bridge.empty() || CurrentId().empty()) return;
-	runtime->friends.Scope(command.bridge, CurrentId());
+	NoteScope(runtime->friends.Scope(command.bridge, CurrentId()));
 	runtime->friends.Leave();
 }
 
-// One of the bridge's actions: sent now, or held for the sync or action in flight.
+// One of the bridge's actions: sent now, or held for the sync or action in flight. Every way it ends is counted as
+// an answer or a refusal, so the interface that asked always hears of it.
 void DispatchFriends(commands::FriendAction action, bool helperReady) {
 	const auto& bridge = commands::BridgeOf(action);
-	if (bridge.empty()) return;
+	const char* name = ActionName(action);
 	auto& requests = runtime->friends;
+	if (bridge.empty()) {
+		spdlog::info("Friends: {} refused before sending code=no_service", name);
+		requests.Refuse(netplay::BridgeFlights::Unavailable);
+		return;
+	}
 	// No Ember ID to act as: refused, as an answer would be, so the panel is told.
-	if (CurrentId().empty()) { requests.Refuse(netplay::BridgeFlights::Unavailable); return; }
-	requests.Scope(bridge, CurrentId());
+	if (CurrentId().empty()) {
+		spdlog::info("Friends: {} refused before sending code=no_ember_id", name);
+		requests.Refuse(netplay::BridgeFlights::Unavailable);
+		return;
+	}
+	NoteScope(requests.Scope(bridge, CurrentId()));
 	if (requests.MayAct()) SendAction(action, helperReady);
-	else if (!requests.Hold(std::move(action))) runtime->error = loc::T("friends.busy");
+	else if (requests.Hold(std::move(action))) spdlog::info("Friends: {} held behind the request in flight", name);
+	else {
+		// Another action already waits: this one is refused, not lost.
+		spdlog::info("Friends: {} refused before sending code={}", name, friends::Requests::Busy);
+		requests.Refuse(friends::Requests::Busy);
+	}
 }
 
 namespace {
@@ -293,28 +393,28 @@ bool Pressed(const netplay::Generation& pressed) { return runtime->controller.Ge
 
 void DispatchFriends(const commands::FriendJoin& command) {
 	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
-	runtime->friends.Scope(command.bridge, CurrentId());
+	NoteScope(runtime->friends.Scope(command.bridge, CurrentId()));
 	const auto where = friends::ToFriend(*runtime->friends.Published().value, command.friendId, false);
 	if (Resolve(where, false)) GoToFriend(command.bridge, where, false, command.generation.room);
 }
 
 void DispatchFriends(const commands::FriendWatch& command) {
 	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
-	runtime->friends.Scope(command.bridge, CurrentId());
+	NoteScope(runtime->friends.Scope(command.bridge, CurrentId()));
 	const auto where = friends::ToFriend(*runtime->friends.Published().value, command.friendId, true);
 	if (Resolve(where, false)) GoToFriend(command.bridge, where, true, command.generation.room);
 }
 
 void DispatchFriends(const commands::FriendTakeInvite& command) {
 	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
-	runtime->friends.Scope(command.bridge, CurrentId());
+	NoteScope(runtime->friends.Scope(command.bridge, CurrentId()));
 	const auto where = friends::ToInvite(*runtime->friends.Published().value, command.invite, static_cast<std::uint64_t>(std::time(nullptr)));
 	if (Resolve(where, true)) GoToFriend(command.bridge, where, false, command.generation.room);
 }
 
 void DispatchFriends(const commands::FriendAnswerVisit& command) {
 	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
-	runtime->friends.Scope(command.bridge, CurrentId());
+	NoteScope(runtime->friends.Scope(command.bridge, CurrentId()));
 	AnswerVisit(command);
 }
 
@@ -322,9 +422,9 @@ void TickSocial(bool helperReady, std::uint64_t nowMs) {
 	auto& requests = runtime->friends;
 	const auto id = CurrentId();
 	// Another Ember ID's friends are not shown.
-	if (!requests.Bridge().empty() && requests.EmberId() != id) requests.Scope({}, {});
+	if (!requests.Bridge().empty() && requests.EmberId() != id) NoteScope(requests.Scope({}, {}));
 	// The service is the one the interface names with its first command; until then the one levels are read from.
-	if (requests.Bridge().empty() && !id.empty() && !runtime->levels.Bridge().empty()) requests.Scope(runtime->levels.Bridge(), id);
+	if (requests.Bridge().empty() && !id.empty() && !runtime->levels.Bridge().empty()) NoteScope(requests.Scope(runtime->levels.Bridge(), id));
 	requests.LapseVisit(nowMs);
 	ReadPresence(static_cast<std::uint64_t>(std::time(nullptr)));
 	const auto& presented = runtime->friendsPresence;
@@ -332,7 +432,7 @@ void TickSocial(bool helperReady, std::uint64_t nowMs) {
 	requests.NotePresence(presented.revision);
 	if (auto held = requests.TakeHeld()) SendAction(*held, helperReady);
 	else if (helperReady && requests.SyncDue(nowMs))
-		Send(friends::SyncRequest(requests.Bridge(), sf4e::sidecarHash, OwnListing(), presented.report), false, helperReady, nowMs);
+		Send(friends::SyncRequest(requests.Bridge(), sf4e::sidecarHash, OwnListing(), presented.report), Flight{}, helperReady, nowMs);
 	TickVisit(helperReady, nowMs);
 }
 

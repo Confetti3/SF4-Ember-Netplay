@@ -10,6 +10,10 @@
 //   tokens, at most one in flight, and at most one every MinGapMs.
 // - A token the bridge answers null for has "no card" until the next trigger.
 //   An old card stays on show while its refresh is awaited.
+// - A friends action that went through changes how cards stand with the
+//   player: every card is looked up again at the next look-up (Refresh), and
+//   the card the action named shows what it made of the member at once
+//   (Relate), until that look-up says how it really stands.
 // - A token no member of the room carries is dropped. A new room (another
 //   epoch), another service, or no public room forgets everything, and so
 //   ends a stop for an answer of `Unavailable`.
@@ -19,6 +23,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -109,19 +114,41 @@ public:
 	// unanswered are asked again after the gap.
 	void Finish(const std::string& failure, std::optional<std::vector<std::optional<Card>>> answers) {
 		const auto batch = std::move(batch_);
+		const auto overtaken = std::move(overtaken_);
 		batch_.clear();
+		overtaken_.clear();
 		flight_ = {};
 		error_ = failure;
 		if (failure == Unavailable) unavailable_ = true;
 		if (!answers || answers->size() != batch.size()) return;
-		for (std::size_t i = 0; i < batch.size(); ++i)
-			if (Wanted(batch[i])) entries_[batch[i]] = {std::move((*answers)[i]), false};
+		for (std::size_t i = 0; i < batch.size(); ++i) {
+			if (!Wanted(batch[i])) continue;
+			// An answer asked before a friends action went through is older than what the card shows: kept, and asked again.
+			if (overtaken.count(batch[i]) && entries_.count(batch[i])) { entries_[batch[i]].stale = true; continue; }
+			entries_[batch[i]] = {std::move((*answers)[i]), overtaken.count(batch[i]) != 0};
+		}
 		Publish();
 	}
 
 	// Ends the look-up the helper never answered.
 	void Expire(std::uint64_t nowMs) {
 		if (flight_.id && nowMs - flight_.sentMs >= GiveUpMs) Finish("unavailable", std::nullopt);
+	}
+
+	// A friends action went through: every card is looked up again at the next look-up, and a look-up in flight,
+	// asked before the action, does not stand for the cards it names.
+	void Refresh() {
+		for (auto& entry : entries_) entry.second.stale = true;
+		overtaken_.insert(batch_.begin(), batch_.end());
+	}
+	// The action named the member carrying `token` (Add friend, Accept, Block): their card shows `relation` until
+	// the look-up Refresh asked for answers. Nothing for a token without a card.
+	void Relate(const std::string& token, Relation relation) {
+		const auto entry = entries_.find(token);
+		if (entry == entries_.end() || !entry->second.card) return;
+		entry->second.card->relation = relation;
+		entry->second.stale = true;
+		Publish();
 	}
 
 private:
@@ -148,6 +175,7 @@ private:
 		entries_.clear();
 		sets_.clear();
 		batch_.clear();
+		overtaken_.clear();
 		flight_ = {};
 		error_.clear();
 		unavailable_ = false;
@@ -161,6 +189,8 @@ private:
 	std::map<std::string, Entry> entries_;
 	std::vector<std::uint64_t> sets_;
 	std::vector<std::string> batch_;
+	// The tokens of the look-up in flight that a friends action overtook (Refresh).
+	std::set<std::string> overtaken_;
 	InFlight flight_;
 	bool sent_ = false, unavailable_ = false;
 	std::uint64_t lastSentMs_ = 0, refreshAtMs_ = 0;

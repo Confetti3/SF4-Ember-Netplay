@@ -17,6 +17,9 @@
 //   MinGapMs (the bridge allows 12 a minute).
 // - Answers belong to one service and one Ember ID. A change of either
 //   forgets the state, the refusal and anything held; the counts carry on.
+//   An action it drops (in flight or held) is refused as `Dropped`, and one
+//   asked while another is already held as `Busy`, so whatever asked for it
+//   is told it ended: no action ends without an answer or a refusal.
 // - A failed request keeps the state it had. A service without friends, or a
 //   player without a Discord account, installs that state and stops the
 //   automatic syncs; opening the tab asks again. Friends turned off (the
@@ -49,6 +52,9 @@ public:
 	static constexpr const char* NoAccount = "no_discord_account";
 	// The bridge's code for a player who turned friends off.
 	static constexpr const char* Off = "friends_off";
+	// This runtime's codes: an action dropped by a change of service or Ember ID, and one asked while another waits.
+	static constexpr const char* Dropped = "friends_dropped";
+	static constexpr const char* Busy = "friends_busy";
 
 	Requests() { answered_.value = Empty(); }
 
@@ -66,9 +72,11 @@ public:
 	std::uint64_t Refusals() const { return refusals_; }
 
 	// The service and Ember ID the next request is for. Starts a sync at once, as a new service has none yet,
-	// unless the player turned friends off for this very account: that stays until Turn on.
-	void Scope(const std::string& bridge, const std::string& emberId) {
-		if (bridge == bridge_ && emberId == emberId_) return;
+	// unless the player turned friends off for this very account: that stays until Turn on. True when it dropped
+	// an action in flight or held, which it refuses as `Dropped`.
+	bool Scope(const std::string& bridge, const std::string& emberId) {
+		if (bridge == bridge_ && emberId == emberId_) return false;
+		const bool dropped = actionInFlight() || held_.has_value();
 		bridge_ = bridge;
 		emberId_ = emberId;
 		Answer fresh;
@@ -84,6 +92,8 @@ public:
 		wanted_ = true;
 		nextSyncMs_ = 0;
 		if (!bridge_.empty() && bridge_ == offBridge_ && emberId_ == offEmberId_) Park(State::Kind::Off, offMs_);
+		if (dropped) Refuse(Dropped);
+		return dropped;
 	}
 
 	// The Friends tab opened (or Settings asks): sync at once, keep the tab's
