@@ -116,8 +116,8 @@ static void TestLevels() {
 	plain["extra"] = true;
 	const auto bare = withRival(plain);
 	CHECK(bare && bare->hasMostPlayed && !bare->mostPlayed.country.Present() && !bare->mostPlayed.badge.HasClass());
-	const auto changed = [&](const char* key, const json& value) { auto row = rival; row[key] = value; return row; };
-	for (const auto& bad : {changed("card", "nope"), changed("card", 4), changed("name", ""), changed("won", -1), changed("lost", "3"),
+	const auto changedRival = [&](const char* key, const json& value) { auto row = rival; row[key] = value; return row; };
+	for (const auto& bad : {changedRival("card", "nope"), changedRival("card", 4), changedRival("name", ""), changedRival("won", -1), changedRival("lost", "3"),
 			json{{"card", "c1.abc"}, {"name", "Player 7"}, {"won", 0u}, {"lost", 0u}}, json{{"card", "c1.abc"}, {"name", "Player 7"}, {"won", 5u}}, json::array(), json("x"), json()}) {
 		const auto dropped = withRival(bad);
 		CHECK(dropped && dropped->kind == Kind::Counted && !dropped->hasMostPlayed && dropped->account.points == 13);

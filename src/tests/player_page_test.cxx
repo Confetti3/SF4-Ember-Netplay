@@ -439,7 +439,7 @@ void Subject() {
     // A service without profiles: points and fighters, no chips, record or awards.
     shown.profiled = false;
     view = player_card::FullOf(pp::SubjectOf(shown, standing, around, sets), player_card::Size::Wide);
-    Check(view.points.shown && view.record.empty() && view.awards.total == 0 && view.plays.empty() && view.about == CountryName(CountryCode::Parsed("GB")), "a card without profiles has more than points and fighters");
+    Check(view.points.shown && view.record.empty() && view.awards.total == 0 && view.plays.empty() && view.about == ui::CountryName(CountryCode::Parsed("GB")), "a card without profiles has more than points and fighters");
     // A blocked player has no recent sets.
     pp::Shown blocked;
     blocked.page = Page::Blocked;

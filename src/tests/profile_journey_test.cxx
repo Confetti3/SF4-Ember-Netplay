@@ -44,6 +44,7 @@ void Answer(Journey& j, Own::Kind kind = Own::Kind::Counted) {
 }
 
 // The service the interface can use, as a first visit to Home leaves it.
+void Counters(Journey& j, std::uint64_t games, std::uint64_t wins, std::uint32_t streak = 0, std::uint8_t peak = 0);
 void Usable(Journey& j) {
  j.h.Screen("home"); j.h.Frame(0, 2); j.answerIdentityUntilIdle();
 }
@@ -307,7 +308,7 @@ void EditCardChoicesJourney() {
 }
 
 // The account's counters and the two the bridge adds, as a newer points answer sets them.
-void Counters(Journey& j, std::uint64_t games, std::uint64_t wins, std::uint32_t streak = 0, std::uint8_t peak = 0) {
+void Counters(Journey& j, std::uint64_t games, std::uint64_t wins, std::uint32_t streak, std::uint8_t peak) {
  auto& answer = j.h.view.levels;
  answer.value.account.games = games; answer.value.account.wins = wins;
  answer.value.awards.games = games; answer.value.awards.wins = wins; answer.value.awards.bestStreak = streak; answer.value.awards.peakClass = peak;

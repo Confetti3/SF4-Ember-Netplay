@@ -207,7 +207,7 @@ sf4e_add_unit_test(NAME CardEdit SOURCES src/tests/card_edit_test.cxx LIBS sf4e_
 sf4e_add_unit_test(NAME FriendsPanel SOURCES src/tests/friends_panel_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME PlayerPage SOURCES src/tests/player_page_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME Notifications SOURCES src/tests/notifications_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
-sf4e_add_unit_test(NAME DiscordLink SOURCES src/tests/discord_link_test.cxx TIMEOUT 15)
+sf4e_add_unit_test(NAME DiscordLink SOURCES src/tests/discord_link_test.cxx STD 17 TIMEOUT 15)
 sf4e_add_unit_test(NAME FriendsJourney SOURCES src/tests/friends_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME RoomFriendsJourney SOURCES src/tests/room_friends_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
 sf4e_add_unit_test(NAME RoomPoints SOURCES src/tests/room_points_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui room)
