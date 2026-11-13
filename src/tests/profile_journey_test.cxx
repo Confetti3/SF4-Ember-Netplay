@@ -286,14 +286,17 @@ void AwardNoticesJourney() {
  Journey j;
  Answer(j);
  const std::string said = loc::Tf("awards.notice", "").substr(0, 5);
- j.h.Screen("home"); j.h.Frame(0, 2);
- Check(!j.row("notifications") || j.row("notifications")->detail.find(said) == std::string::npos, "The first answer of a run announced an award");
+ // Notifications lists what was said, newest first.
+ const auto told = [&](const std::string& words, bool whole) {
+  j.h.Screen("notifications"); j.h.Frame(0, 2);
+  return std::any_of(j.rows.begin(), j.rows.end(), [&](const MenuEntry& r) { return r.id.compare(0, 6, "toast-") == 0 && (whole ? r.detail == words : r.detail.find(words) != std::string::npos); });
+ };
+ Check(!told(said, false), "The first answer of a run announced an award");
  Counters(j, 120, 3);
- j.h.Screen("home"); j.h.Frame(0, 2);
  const std::string dot = " \xC2\xB7 ";
  const std::string titles = std::string(loc::T("award.matches.1.title")) + dot + loc::T("tier.ash") + ", " + loc::T("award.matches.100.title") + dot + loc::T("tier.copper") +
   ", " + loc::T("award.wins.1.title") + dot + loc::T("tier.ash");
- Check(j.row("notifications") && j.row("notifications")->detail == loc::Tf("awards.notice", titles), "A new answer did not announce the levels it reached");
+ Check(told(loc::Tf("awards.notice", titles), true), "A new answer did not announce the levels it reached");
 }
 
 // Where one press from `from` leaves the focus.
