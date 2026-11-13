@@ -12,15 +12,16 @@
 //! anyone with the player's card token, whether or not the player takes part
 //! in ranking.
 //!
-//! The milestone awards (`src/netplay/Awards.hxx`) read the same counts. What
-//! they need beyond them, the best run of wins and the highest class ever
-//! shown, is kept in `award_counters` and only goes up. Another player's card
-//! shows the games, wins and best run exactly (its record cells do), the
-//! class peak, and a milestone mark for the rival and opponent counts.
+//! The milestone awards (`src/netplay/Awards.hxx`) read the same counts, as
+//! one `AwardCounts`. What they need beyond them, the best run of wins and the
+//! highest class ever shown, is kept in `award_counters` and only goes up; the
+//! rival and opponent counts are read from the pair records. A player's own
+//! answer carries all of them exactly, and their card as `AwardCounts::shown`
+//! has them.
 use ember_protocol::{
     EmberId,
     levels::{
-        AwardMarks, CardAccount, CardFighter, MAX_TIER, OwnAccount, OwnFighter, OwnLevels,
+        AwardCounts, CardAccount, CardFighter, MAX_TIER, OwnAccount, OwnFighter, OwnLevels,
         PlayerCard, Relation,
     },
 };
@@ -35,24 +36,6 @@ const TIER_STARTS: [u64; MAX_TIER as usize + 1] = [0, 200, 700, 1500, 2500];
 
 /// The account's own thresholds, for the points of every counted game.
 const ACCOUNT_TIER_STARTS: [u64; MAX_TIER as usize + 1] = [0, 500, 2000, 5000, 10000];
-
-/// The counts a card shows only as the largest mark reached: games against
-/// one opponent and different opponents faced. They are the awards' own
-/// thresholds (`src/netplay/Awards.hxx`): a count between two marks shows the
-/// lower, so a card gives away no more than the milestone. The games, wins
-/// and best run are shown as they are.
-const RIVAL_MARKS: [u64; 4] = [10, 50, 100, 250];
-const OPPONENT_MARKS: [u64; 4] = [10, 50, 200, 500];
-
-/// The largest of `marks` (ascending) that `count` has reached; 0 for none.
-fn mark(marks: &[u64], count: u64) -> u64 {
-    marks
-        .iter()
-        .rev()
-        .copied()
-        .find(|mark| count >= *mark)
-        .unwrap_or(0)
-}
 
 /// Where the tiers of one kind of points begin.
 struct Tiers([u64; MAX_TIER as usize + 1]);
@@ -107,26 +90,23 @@ impl Counted {
         self.games.saturating_add(self.wins)
     }
 
-    fn own_account(&self) -> OwnAccount {
+    /// The account's own answer: its points and frame, with `awards`, which
+    /// hold the games and wins these points sum.
+    fn own_account(&self, awards: AwardCounts) -> OwnAccount {
         let points = self.points();
         let tier = ACCOUNT_TIERS.tier(points);
         OwnAccount {
             points,
-            games: self.games,
-            wins: self.wins,
+            awards,
             tier,
             floor: ACCOUNT_TIERS.floor(tier),
             next: ACCOUNT_TIERS.next(tier),
             since: self.first_at,
-            best_streak: 0,
-            peak_class: 0,
-            rival: 0,
-            opponents: 0,
         }
     }
 
-    /// The points and the frame; the games and wins behind them are the card's
-    /// `AwardMarks`.
+    /// The points and the frame; the games and wins behind them are in the
+    /// card's `awards`.
     fn card_account(&self) -> CardAccount {
         let points = self.points();
         CardAccount {
@@ -228,10 +208,13 @@ pub(super) fn note_class(tx: &Transaction<'_>, account: &str, band: u8) -> Resul
     Ok(())
 }
 
-/// `account`'s best run of wins and highest class ever shown (0 for none).
-/// The class now is read too, so a peak the counters missed (a bridge from
-/// before them showed it) is not lower than the class itself.
-fn award_counts(tx: &Transaction<'_>, account: &str) -> Result<(u32, u8)> {
+/// Every award counter of `account`, exactly, with the games and wins of
+/// `counted`: its best run of wins, its highest class ever shown, the most
+/// games against one opponent and the opponents faced (from the pair records,
+/// kept from migration 060 on). The class now is read too, so a peak the
+/// counters missed (a bridge from before them showed it) is not lower than the
+/// class itself.
+fn award_counts(tx: &Transaction<'_>, account: &str, counted: &Counted) -> Result<AwardCounts> {
     let (best_streak, peak): (u32, u8) = tx
         .query_row(
             "SELECT best_streak, peak_band FROM award_counters WHERE discord_user_id = ?1",
@@ -248,36 +231,19 @@ fn award_counts(tx: &Transaction<'_>, account: &str) -> Result<(u32, u8)> {
         )
         .optional()?
         .unwrap_or(0);
-    Ok((best_streak, peak.max(shown)))
-}
-
-/// The most games `account` played against one opponent, and how many
-/// different opponents it has played, from the pair records (kept from
-/// migration 060 on).
-fn rivals(tx: &Transaction<'_>, account: &str) -> Result<(u32, u32)> {
-    Ok(tx.query_row(
+    let (rival, opponents) = tx.query_row(
         "SELECT COALESCE(MAX(first_wins + second_wins), 0), COUNT(*) FROM pair_records
          WHERE first = ?1 OR second = ?1",
         [account],
         |row| Ok((row.get(0)?, row.get(1)?)),
-    )?)
-}
-
-/// The counts of `account`'s card behind the awards: its games, wins and best
-/// win run, its peak class, and the milestones in games against one opponent
-/// and opponents faced. A player who does not take part in ranking shows no
-/// class. Looked up with a card, never with a friends list.
-pub fn card_marks(tx: &Transaction<'_>, account: &str) -> Result<AwardMarks> {
-    let counted = account_count(tx, account)?;
-    let (best_streak, peak) = award_counts(tx, account)?;
-    let (rival, opponents) = rivals(tx, account)?;
-    Ok(AwardMarks {
-        rival: mark(&RIVAL_MARKS, u64::from(rival)) as u32,
-        opponents: mark(&OPPONENT_MARKS, u64::from(opponents)) as u32,
+    )?;
+    Ok(AwardCounts {
         games: counted.games,
         wins: counted.wins,
-        streak: best_streak,
-        class: if super::takes_part(tx, account)? { peak } else { 0 },
+        best_streak,
+        peak_class: peak.max(shown),
+        rival,
+        opponents,
     })
 }
 
@@ -287,16 +253,9 @@ pub fn own(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<OwnLevels> {
     let Some(account) = account(tx, ember_id)? else {
         return Ok(OwnLevels::NoAccount {});
     };
-    let (best_streak, peak_class) = award_counts(tx, &account)?;
-    let (rival, opponents) = rivals(tx, &account)?;
+    let counted = account_count(tx, &account)?;
     Ok(OwnLevels::Counted {
-        account: OwnAccount {
-            best_streak,
-            peak_class,
-            rival,
-            opponents,
-            ..account_count(tx, &account)?.own_account()
-        },
+        account: counted.own_account(award_counts(tx, &account, &counted)?),
         fighters: fighter_counts(tx, &account)?
             .iter()
             .map(|(fighter, count)| count.own_fighter(*fighter))
@@ -351,8 +310,19 @@ pub fn pairs_by_games(tx: &Transaction<'_>, account: &str, limit: usize) -> Resu
 /// The card of Discord account `account` as another player sees it: its
 /// points, always (FIGHTER_LEVELS.md, "Cards are public"), and None once it
 /// has no Discord account connected. Its relation is `none`; the card look-up
-/// sets the caller's own (`friends::store::relation`).
+/// sets the caller's own (`cards::card_for`). A friends state, which wants the
+/// points and fighters alone, reads this one.
 pub fn card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
+    card_with(tx, account, false)
+}
+
+/// `card` with the award counters a card shows (`AwardCounts::shown`): the
+/// class only while the player takes part in ranking.
+pub fn awarded_card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
+    card_with(tx, account, true)
+}
+
+fn card_with(tx: &Transaction<'_>, account: &str, awards: bool) -> Result<Option<PlayerCard>> {
     let connected: bool = tx.query_row(
         "SELECT EXISTS (SELECT 1 FROM discord_accounts WHERE user_id = ?1)",
         [account],
@@ -361,12 +331,19 @@ pub fn card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
     if !connected {
         return Ok(None);
     }
+    let counted = account_count(tx, account)?;
+    let awards = if awards {
+        award_counts(tx, account, &counted)?.shown(super::takes_part(tx, account)?)
+    } else {
+        AwardCounts::default()
+    };
     Ok(Some(PlayerCard {
         fighters: fighter_counts(tx, account)?
             .iter()
             .map(|(fighter, count)| count.card_fighter(*fighter))
             .collect(),
-        ..PlayerCard::bare(account_count(tx, account)?.card_account(), Relation::None)
+        awards,
+        ..PlayerCard::bare(counted.card_account(), Relation::None)
     }))
 }
 
@@ -489,29 +466,12 @@ mod tests {
         }
     }
 
-    #[test]
-    fn a_mark_is_the_largest_milestone_a_count_has_reached() {
-        for (count, rival, opponents) in [
-            (0, 0, 0),
-            (9, 0, 0),
-            (10, 10, 10),
-            (49, 10, 10),
-            (50, 50, 50),
-            (99, 50, 50),
-            (100, 100, 50),
-            (199, 100, 50),
-            (200, 100, 200),
-            (249, 100, 200),
-            (250, 250, 200),
-            (499, 250, 200),
-            (500, 250, 500),
-            (u64::MAX, 250, 500),
-        ] {
-            assert_eq!(mark(&RIVAL_MARKS, count), rival, "{count} games against one");
-            assert_eq!(mark(&OPPONENT_MARKS, count), opponents, "{count} opponents");
-        }
-        for marks in [&RIVAL_MARKS[..], &OPPONENT_MARKS[..]] {
-            assert!(marks.windows(2).all(|pair| pair[0] < pair[1]));
+    /// The games and wins of `counted` as an account's award counts.
+    fn awards_of(counted: &Counted) -> AwardCounts {
+        AwardCounts {
+            games: counted.games,
+            wins: counted.wins,
+            ..AwardCounts::default()
         }
     }
 
@@ -528,7 +488,7 @@ mod tests {
                 let own = counted.own_fighter(7);
                 assert!(own.check().is_ok(), "{own:?}");
                 assert!(counted.card_fighter(7).check().is_ok());
-                let account = counted.own_account();
+                let account = counted.own_account(awards_of(&counted));
                 assert!(account.check().is_ok(), "{account:?}");
                 assert!(counted.card_account().check().is_ok());
             }
@@ -546,13 +506,14 @@ mod tests {
             wins: 0,
             first_at: None,
         };
-        let account = none.own_account();
+        let account = none.own_account(awards_of(&none));
         assert!(account.check().is_ok(), "{account:?}");
         assert_eq!(
             (account.points, account.tier, account.floor, account.next, account.since),
             (0, 0, 0, Some(500), None)
         );
-        let account_top = row(8_000, 3_000).own_account();
+        let top_row = row(8_000, 3_000);
+        let account_top = top_row.own_account(awards_of(&top_row));
         assert!(account_top.check().is_ok());
         assert_eq!(
             (account_top.tier, account_top.floor, account_top.next),

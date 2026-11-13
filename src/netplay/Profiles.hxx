@@ -29,7 +29,7 @@ namespace sf4e { namespace netplay { namespace profiles {
 // capabilities lack `profiles`, or it answers 404).
 constexpr const char* Unavailable = "profiles_unavailable";
 
-// The bridge's limits (ember_protocol::levels). A card shows at most MaxPins
+// The bridge's limits (ember_protocol::cards and ::awards). A card shows at most MaxPins
 // award families; a search lists at most MaxSearch players.
 constexpr std::size_t MaxPins = 4, MaxSearch = 20, MaxFamilyId = 32, MaxNameBytes = 32, MaxRegionBytes = 8, MaxRoomBytes = 64;
 // A player is looking for at most this many things at once.
@@ -120,8 +120,11 @@ struct Versus {
 	std::uint64_t won = 0, lost = 0, lastAt = 0;
 };
 
-// A family id's shape: 1 to MaxFamilyId of a to z, 0 to 9 and hyphens. The
-// bridge checks the shape only; the catalog says which are awards.
+// A family id's shape: 1 to MaxFamilyId of a to z, 0 to 9 and hyphens. The one
+// statement of the rule in the game (the saved preferences, the card the game
+// saves and the card it reads all ask it), and ember_protocol::awards::is_family_id
+// states it for the bridge, with the same limit. The shape only: the catalog
+// (awards::Find) says which ids are awards.
 inline bool FamilyIdShaped(const std::string& id) {
 	return !id.empty() && id.size() <= MaxFamilyId && std::all_of(id.begin(), id.end(),
 		[](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'; });

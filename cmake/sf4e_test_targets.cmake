@@ -95,6 +95,8 @@ sf4e_add_unit_test(NAME FriendsAnswers SOURCES "src/tests/friends_answers_test.c
 sf4e_add_unit_test(NAME ProfileAnswers SOURCES "src/tests/profile_answers_test.cxx" "src/session/TournamentAnswers.cxx"
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS room)
 sf4e_add_unit_test(NAME Profiles SOURCES "src/tests/profiles_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17 LABELS room)
+sf4e_add_unit_test(NAME LevelsAnswers SOURCES "src/tests/levels_answers_test.cxx" "src/session/TournamentAnswers.cxx"
+    LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json LABELS room)
 sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300 LABELS room)
 sf4e_add_unit_test(NAME RoomLifecycle SOURCES "src/tests/room_lifecycle_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)

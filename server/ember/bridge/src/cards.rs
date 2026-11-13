@@ -15,12 +15,17 @@
 //! anyone else.
 use ember_protocol::{
     encoding::{b64u, decode_b64u},
-    levels::{CARD_PREFIX, CARD_VALID_SECS, CardSave, PlayerCard, Style, Worn},
+    levels::{CARD_PREFIX, CARD_VALID_SECS, CardSave, PlayerCard, Relation, Style, Worn},
     skill::{Listing, SkillBadge},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 
-use crate::{error::Result, friends::Classes, secrets::Keys, skill};
+use crate::{
+    error::Result,
+    friends::{Classes, store},
+    secrets::Keys,
+    skill::{self, levels},
+};
 
 /// Marks the sealed bytes as a card, so nothing else sealed under the same
 /// key (room invitations, organizer grants) opens as one.
@@ -171,6 +176,52 @@ pub fn describe(card: PlayerCard, stored: Stored) -> PlayerCard {
         style: stored.style,
         ..card
     }
+}
+
+/// `target`'s card as `caller` sees it: none when `target` blocked them or has
+/// no Discord account connected; otherwise their points, the counters behind
+/// their awards, what they chose to show, their class while classes are shown
+/// and, for a caller who is not themselves, their record against the caller.
+/// Their relation, and the id of the friendship when it is one, come once
+/// friends are offered. The one place a card is assembled.
+pub fn card_for(
+    tx: &Transaction<'_>,
+    caller: Option<&str>,
+    target: &str,
+    friends_offered: bool,
+    classes: &Classes,
+    now: u64,
+) -> Result<Option<PlayerCard>> {
+    let relation = match caller {
+        Some(caller) => store::relation(tx, caller, target)?,
+        None => Some(Relation::None),
+    };
+    let Some(relation) = relation else {
+        return Ok(None);
+    };
+    let Some(card) = levels::awarded_card(tx, target)? else {
+        return Ok(None);
+    };
+    let relation = if friends_offered {
+        relation
+    } else {
+        Relation::None
+    };
+    let mut card = PlayerCard {
+        relation,
+        badge: badge(tx, target, classes, now)?,
+        ..card
+    };
+    if let Some(stored) = stored(tx, target)? {
+        card = describe(card, stored);
+    }
+    if let Some(caller) = caller.filter(|caller| *caller != target) {
+        card.versus = store::record(tx, caller, target)?;
+        if relation == Relation::Friend {
+            card.friend = store::friendship_id(tx, caller, target)?;
+        }
+    }
+    Ok(Some(card))
 }
 
 /// The class `account` shows now, as a friends state shows it: none while

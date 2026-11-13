@@ -33,7 +33,7 @@ json Base(const char* relation = "none") {
 json FullCard() {
 	json card = Base("friend");
 	card["fighters"] = json::array({{{"fighter", 3}, {"points", 1986}, {"tier", 3}}});
-	card["marks"] = {{"games", 2840}, {"wins", 1164}, {"streak", 12}, {"class", 7}, {"rival", 40}, {"opponents", 210}};
+	card["awards"] = {{"games", 2840}, {"wins", 1164}, {"best_streak", 12}, {"peak_class", 7}, {"rival", 40}, {"opponents", 210}};
 	card["name"] = "Player 2";
 	card["country"] = "FR";
 	card["main"] = 5;
@@ -57,7 +57,7 @@ void ReadsAFullCard() {
 	const auto card = One(FullCard());
 	CHECK(card);
 	EXPECT(card->relation == Relation::Friend && card->account.points == 2100 && card->fighters.size() == 1);
-	EXPECT(card->marks.games == 2840 && card->marks.wins == 1164 && card->marks.streak == 12 && card->marks.peakClass == 7);
+	EXPECT(card->awards.games == 2840 && card->awards.wins == 1164 && card->awards.bestStreak == 12 && card->awards.peakClass == 7);
 	EXPECT(card->name == "Player 2" && card->country.ToString() == "FR" && card->hasMain && card->main == 5);
 	EXPECT(card->badge.HasClass() && card->badge.band == 7 && card->badge.settled);
 	EXPECT(card->hasSince && card->since == 1748736000);

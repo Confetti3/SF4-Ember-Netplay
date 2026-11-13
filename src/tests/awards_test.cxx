@@ -27,7 +27,7 @@ static void CatalogShape() {
 	std::set<std::string> ids;
 	std::set<int> icons;
 	for (const auto& family : Catalog) {
-		EXPECT(ids.insert(family.id).second && IdShaped(family.id));
+		EXPECT(ids.insert(family.id).second && sf4e::netplay::profiles::FamilyIdShaped(family.id));
 		EXPECT(icons.insert(family.icon).second);
 		EXPECT(family.icon >= 0 && family.icon < 12 && family.name && *family.name);
 		EXPECT(family.count >= 1);
@@ -120,12 +120,10 @@ static Own Counted() {
 // The player's own counters from the answer.
 static void OwnCounters() {
 	auto own = Counted();
-	own.account.games = 120;
-	own.account.wins = 70;
-	own.bestStreak = 6;
-	own.peakClass = 5;
-	own.rival = 12;
-	own.opponents = 20;
+	own.awards = {120, 70, 6};
+	own.awards.peakClass = 5;
+	own.awards.rival = 12;
+	own.awards.opponents = 20;
 	own.fighters[3].games = 80;
 	own.fighters[3].tier = 2;
 	own.fighters[7].games = 5;
@@ -143,26 +141,26 @@ static void OwnCounters() {
 	EXPECT(CountersOf(Own{}, 0).games == 0);
 	// An older bridge sends no streak, class or rivals: those families are locked, the rest are reached.
 	auto older = Counted();
-	older.account.games = 1000;
-	older.account.wins = 600;
+	older.awards.games = 1000;
+	older.awards.wins = 600;
 	const auto o = CountersOf(older, 0);
 	EXPECT(LevelOf(o, Get("matches")) == 4 && LevelOf(o, Get("wins")) == 3 && LevelOf(o, Get("streak")) == 0 && LevelOf(o, Get("rank")) == 0 && LevelOf(o, Get("rival")) == 0);
 }
 
-// Another player's counters from their card's marks and fighters.
+// Another player's counters from their card's counters and fighters.
 static void CardCounters() {
 	Card card;
-	card.marks.games = 100;
-	card.marks.wins = 50;
-	card.marks.streak = 5;
-	card.marks.peakClass = 6;
-	card.marks.rival = 10;
+	card.awards.games = 100;
+	card.awards.wins = 50;
+	card.awards.bestStreak = 5;
+	card.awards.peakClass = 6;
+	card.awards.rival = 10;
 	card.fighters.push_back(CardFighter{3, 900, 2});
 	card.fighters.push_back(CardFighter{7, 2600, 4});
 	const auto c = CountersOf(card);
 	EXPECT(c.games == 100 && c.wins == 50 && c.bestStreak == 5 && c.peakClass == 6 && c.fightersPlayed == 2 && c.topFighterTier == 4 && c.friends == 0 && c.rival == 10);
 	EXPECT(LevelOf(c, Get("matches")) == 2 && LevelOf(c, Get("mastery")) == 4 && LevelOf(c, Get("friends")) == 0 && LevelOf(c, Get("rival")) == 1);
-	// A card from a bridge without marks reaches only what its fighters show.
+	// A card from a bridge without counters reaches only what its fighters show.
 	Card bare;
 	bare.fighters.push_back(CardFighter{3, 900, 2});
 	const auto b = CountersOf(bare);
@@ -182,12 +180,11 @@ static void WornClaims() {
 	EXPECT(!WornOf(c, "wins"));
 	for (const char* id : {"", "entrant", "launch-night", "games-10", "MATCHES", "matches ", "../matches", "rank;", "a-very-long-made-up-award-id-that-no-catalog-has"})
 		EXPECT(!WornOf(c, id));
-	// On another player's card the claim is held to their card's marks: a made-up one never shows.
+	// On another player's card the claim is held to their card's counters: a made-up one never shows.
 	Card card;
-	card.marks.games = 100;
+	card.awards.games = 100;
 	EXPECT(WornOnCard(card, "matches") && WornOnCard(card, "matches").level == 2);
 	EXPECT(!WornOnCard(card, "wins") && !WornOnCard(card, "friends") && !WornOnCard(Card{}, "matches"));
-	EXPECT(!IdShaped("") && !IdShaped("Matches") && !IdShaped("a b") && IdShaped("opponents") && !IdShaped(std::string(25, 'a')));
 }
 
 // Levels reached since the answer before are listed once, low to high; the first

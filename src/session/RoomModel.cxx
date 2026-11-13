@@ -264,8 +264,6 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.nat = NatClassFromWire(static_cast<long long>(profile.nat));
 	member.steamId = profile.steamId;
 	member.country = profile.country;
-	member.wornTitle = profile.wornTitle;
-	member.wornIcon = profile.wornIcon;
 	// Only a server-owned room has a ticket to vouch for a class or a card.
 	if (snapshot_.serverOwned) { member.badge = profile.admission.badge; member.card = profile.admission.card; }
 	member.connection = connection;
