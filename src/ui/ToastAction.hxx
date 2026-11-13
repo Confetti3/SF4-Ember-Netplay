@@ -26,6 +26,9 @@ struct ToastRequest {
     double seconds = 0;
     ToastKind kind = ToastKind::None;
     std::vector<ToastAction> actions;
+    // What it is about when something else lists that too (a friend's request or invite id, which Notifications lists
+    // while it waits): its row there stands for the toast. Empty for any other.
+    std::string key;
 };
 
 } }

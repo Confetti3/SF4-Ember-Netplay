@@ -307,4 +307,30 @@ void NewsAndNotifications() {
   h.Choose("news");
   Check(h.shell.Navigation().Screen() == "news", "Home's News row did not open on All once nothing waits");
  }
+ // A friend's request waiting (one the first read held, which no toast said) leads the row in its toast's words,
+ // is counted on it, and opens Notifications on its own row, for as long as it waits.
+ {
+  namespace nf = netplay::friends;
+  Harness h; h.view.services.update.news = {release}; h.view.unixNow = 1800000000;
+  const auto listed = [](bool request) {
+   auto state = std::make_shared<nf::State>(); state->kind = nf::State::Kind::Listed; state->code = "4F2A-91CX";
+   if (request) { nf::Incoming in; in.id = "rq_1"; in.name = "Player 2"; in.sentAt = 1800000000 - 3600; state->incoming = {in}; }
+   return state;
+  };
+  auto& f = h.view.friends; f.bridge = "brg_1"; f.state.value = listed(true); f.state.loaded = true; f.state.revision = f.state.finished = 1;
+  std::vector<MenuEntry> rows; SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r) { rows = r; });
+  h.Screen("home"); h.Frame(0, 2);
+  const auto news = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "news"; });
+  Check(news != rows.end() && news->detail == loc::Tf("friends.toast_request", "Player 2") && news->value == loc::Tf("notifications.waiting", 1) && news->valueHighlighted,
+   "Home's News row did not lead with a friend's request waiting, or did not count it");
+  h.Choose("news");
+  Check(h.shell.Navigation().Screen() == "notifications" && std::any_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "request:rq_1"; }),
+   "Home's News row did not open Notifications on the request waiting");
+  SetMenuEntriesProbe({});
+  // Answered elsewhere: nothing waits, and the row says the newest release again and opens on All.
+  f.state.value = listed(false); ++f.state.revision; ++f.state.finished;
+  Check(homeRow(h) == "Release one", "A request no longer waiting still led Home's News row");
+  h.Choose("news");
+  Check(h.shell.Navigation().Screen() == "news", "Home's News row opened on Notifications with nothing waiting");
+ }
 }

@@ -206,6 +206,35 @@ std::vector<MenuChoice> RequestChoices(Gate gate) {
         Choice("decline-block", "friends.decline_block", gate.act, why)};
 }
 
+std::vector<MenuChoice> InviteChoices(Gate gate) {
+    const auto reason = [](const char* key) { return key ? std::string(loc::T(key)) : std::string(); };
+    return {Choice("join", "toast.join", gate.go, reason(gate.goWhy)), Choice("dismiss", "friends.dismiss", gate.act, reason(gate.actWhy))};
+}
+
+bool Waiting::Holds(const std::string& id) const {
+    return std::any_of(requests.begin(), requests.end(), [&](const nf::Incoming* r) { return r->id == id; }) ||
+        std::any_of(invites.begin(), invites.end(), [&](const nf::Invite* i) { return i->id == id; });
+}
+
+Waiting WaitingOf(const nf::View& view, std::uint64_t now) {
+    Waiting waiting;
+    const auto& state = StateOf(view);
+    if (state.kind != nf::State::Kind::Listed) return waiting;
+    waiting.requests = Arrange(state).requests;
+    for (const auto& invite : state.invites)
+        if (!(invite.expiresAt && now >= invite.expiresAt) && state.FindFriend(invite.friendId)) waiting.invites.push_back(&invite);
+    return waiting;
+}
+
+std::string WaitingWords(const nf::View& view, std::uint64_t now) {
+    const auto waiting = WaitingOf(view, now);
+    if (!waiting.requests.empty()) return loc::Tf("friends.toast_request", waiting.requests.front()->name);
+    if (!waiting.invites.empty()) return loc::Tf("friends.toast_invite", StateOf(view).FindFriend(waiting.invites.front()->friendId)->name);
+    return {};
+}
+
+bool NotificationRow(const std::string& row) { return HasPrefix(row, RequestPrefix) || HasPrefix(row, InvitePrefix); }
+
 std::vector<MenuChoice> AskChoices(const std::string& ask, const std::string& name) {
     const char* label = ask == "remove" ? "friends.remove" : ask == "remove-block" ? "friends.remove_block" : ask == "decline" ? "friends.decline" : "friends.decline_block";
     return {Choice("yes", label, true, name)};
@@ -243,6 +272,18 @@ MenuEntry RequestRowOf(const nf::Incoming& request, std::uint64_t now) {
     row.value = loc::T("friends.accept");
     row.valueHighlighted = true;
     row.hint = loc::T("friends.accept");
+    return row;
+}
+
+// An invite waiting in Notifications: the friend, the words of its toast and the room it names, and Join on A.
+MenuEntry InviteRowOf(const nf::Invite& invite, const nf::Friend& from) {
+    const auto& at = from.presence;
+    const bool named = invite.room.kind == nf::InviteRoom::Kind::RoomId && at.hasRoom && at.room.id == invite.room.value;
+    auto row = Row(InvitePrefix + invite.id, from.name, loc::Tf("friends.toast_invite", from.name) + (named ? " \xC2\xB7 " + at.room.name : std::string()));
+    row.userText = true;
+    row.detailText = DetailText::Name;
+    row.value = row.hint = loc::T("toast.join");
+    row.valueHighlighted = true;
     return row;
 }
 
@@ -360,7 +401,7 @@ void FriendsPanel::Update(const ShellView& v, MenuNavigation& nav, const std::st
     if (!started_) { started_ = true; refusalsSeen_ = f.refusals; visitHandled_ = f.visit.revision; }
     const auto quiet = [&](auto command) { return !command.bridge.empty() && submit(std::move(command)); };
     // The cadence: Visit as the tab opens, again when it lapsed while shown; Leave as it closes.
-    if (Shown(nav.Screen())) {
+    if (Lists(nav.Screen())) {
         if (!asked_ || (sawVisiting_ && !f.visiting)) {
             if (quiet(commands::FriendsVisit{Bridge(v)})) { asked_ = true; sawVisiting_ = false; }
         } else if (f.visiting) sawVisiting_ = true;
@@ -423,18 +464,21 @@ void FriendsPanel::Announce(const ShellView& v, const std::string& screen, bool 
             std::any_of(state.invites.begin(), state.invites.end(), [&](const nf::Invite& i) { return i.id == *id; });
         id = kept ? std::next(id) : told_.erase(id);
     }
-    // A toast is followed until it was seen to its end, it is gone from the state, or the Friends screens list it.
-    const bool shown = Shown(screen);
+    // A toast is followed until it was seen to its end, it is gone from the state, or a screen lists it (the Friends
+    // screens, Notifications).
+    const bool shown = Lists(screen);
     for (auto toasted = toasted_.begin(); toasted != toasted_.end();)
         toasted = !told_.count(toasted->first) || toasted->second.told.Lapsed(now_) || shown ? toasted_.erase(toasted) : std::next(toasted);
     const bool quiet = !read_ || shown;
     read_ = true;
     const std::string& bridge = v.friends.bridge;
-    // The toast of the request or invite `id` while it stands, with its buttons.
+    // The toast of the request or invite `id` while it stands, with its buttons; keyed by the id, so Notifications'
+    // row for it stands for the toast while it waits.
     const auto toastOf = [&](const std::string& id) -> std::optional<ToastRequest> {
         ToastRequest toast;
         toast.tone = Tone::Pending;
         toast.seconds = ActionToastSeconds;
+        toast.key = id;
         for (const auto& request : state.incoming) {
             if (request.id != id) continue;
             toast.text = loc::Tf("friends.toast_request", request.name) + "\n" + PlayedLine(request, v.unixNow);
@@ -482,6 +526,41 @@ void FriendsPanel::Announce(const ShellView& v, const std::string& screen, bool 
 void FriendsPanel::ToastAnswered(const std::string& text) {
     for (auto toasted = toasted_.begin(); toasted != toasted_.end();)
         toasted = toasted->second.text == text ? toasted_.erase(toasted) : std::next(toasted);
+}
+
+std::vector<MenuEntry> FriendsPanel::NotificationRows(const ShellView& v, bool dialog) {
+    const auto& f = v.friends;
+    const auto& state = StateOf(f);
+    const auto waiting = WaitingOf(f, v.unixNow);
+    std::vector<MenuEntry> rows;
+    // A popout waits on a row there: with no list, it is gone.
+    if (state.kind != nf::State::Kind::Listed) { if (NotificationRow(raise_.row)) raise_ = Raise{}; return rows; }
+    for (const auto* request : waiting.requests) rows.push_back(RequestRowOf(*request, v.unixNow));
+    for (const auto* invite : waiting.invites) rows.push_back(InviteRowOf(*invite, *state.FindFriend(invite->friendId)));
+    for (auto& row : rows) if (pending_.active && pending_.row == row.id) row.value = "...";
+    if (NotificationRow(raise_.row)) Attach(rows, v, dialog);
+    return rows;
+}
+
+bool FriendsPanel::TakesOnNotifications(const std::string& focus, unsigned shortcut) {
+    return shortcut == MenuInput::Options && NotificationRow(focus);
+}
+
+void FriendsPanel::NotificationShortcut(const MenuAction& a, MenuNavigation& nav) {
+    if (TakesOnNotifications(nav.Focus(), a.delta)) Ask(nav.Focus(), {});
+}
+
+void FriendsPanel::DressNotifications(const std::vector<MenuEntry>& rows, GameMenu& menu) {
+    if (NotificationRow(menu.navigation.Focus())) menu.shortcutHints = ShortcutHints({{MenuInput::Options, loc::T("friends.more")}});
+    if (NotificationRow(raise_.row) && !raise_.issued && menu.navigation.Ask(raise_.row, rows)) { raise_.issued = true; raise_.seen = false; raise_.waits = 0; }
+}
+
+void FriendsPanel::TakeInvite(const ShellView& v, const std::string& invite, const Submit& submit) {
+    const Gate gate = GateOf(v.friends, service_, pending_.active);
+    if (!gate.go) { Say(loc::T(gate.goWhy), Tone::Error); return; }
+    if (!Send(v, commands::FriendTakeInvite{{}, Bridge(v), invite}, submit)) return;
+    // Dropped once taken, as its toast's Join does; with another action in flight it stays until it runs out.
+    if (gate.act) Send(v, commands::FriendDismiss{Bridge(v), invite}, submit, InvitePrefix + invite);
 }
 
 void FriendsPanel::Conceal() {
@@ -628,6 +707,9 @@ void FriendsPanel::Attach(std::vector<MenuEntry>& rows, const ShellView& v, bool
         const auto request = std::find_if(state.incoming.begin(), state.incoming.end(), [&](const nf::Incoming& r) { return r.id == id; });
         if (request == state.incoming.end()) { raise_ = Raise{}; return; }
         row->choices = raise_.ask.empty() ? RequestChoices(gate) : AskChoices(raise_.ask, request->name);
+    } else if (HasPrefix(row->id, InvitePrefix)) {
+        if (!WaitingOf(f, v.unixNow).Holds(IdOf(row->id, InvitePrefix))) { raise_ = Raise{}; return; }
+        row->choices = InviteChoices(gate);
     } else { raise_ = Raise{}; return; }
     row->popout = true;
 }
@@ -671,6 +753,7 @@ bool FriendsPanel::Activate(const ShellView& v, const MenuAction& a, MenuNavigat
         else Send(v, commands::FriendAccept{bridge, id}, submit, a.id, AcceptedWords(state, id));
         return true;
     }
+    if (HasPrefix(a.id, InvitePrefix)) { TakeInvite(v, IdOf(a.id, InvitePrefix), submit); return true; }
     if (HasPrefix(a.id, FriendPrefix)) {
         const auto* entry = state.FindFriend(IdOf(a.id, FriendPrefix));
         if (!entry) return true;
@@ -705,6 +788,16 @@ bool FriendsPanel::Choose(const ShellView& v, const MenuAction& a, const Submit&
     if (raise_.row != a.id) return true;
     const std::string ask = raise_.ask;
     raise_ = Raise{};
+    // An invite's More (Notifications): Join, or Dismiss.
+    if (HasPrefix(a.id, InvitePrefix)) {
+        const std::string invite = IdOf(a.id, InvitePrefix);
+        if (a.text == "join") TakeInvite(v, invite, submit);
+        else if (a.text == "dismiss") {
+            if (!gate.act) Say(loc::T(gate.actWhy), Tone::Error);
+            else Send(v, commands::FriendDismiss{bridge, invite}, submit, a.id);
+        }
+        return true;
+    }
     const bool request = HasPrefix(a.id, RequestPrefix);
     const std::string id = IdOf(a.id, request ? RequestPrefix : FriendPrefix);
     // The question answered: now do what it asked about.

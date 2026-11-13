@@ -7944,6 +7944,12 @@ msgstr "Notifications"
 msgid "notifications.none"
 msgstr "Nothing yet."
 
+msgid "notifications.tab_count"
+msgstr "Notifications · {0}"
+
+msgid "notifications.waiting"
+msgstr "Waiting: {0}"
+
 msgid "notifications.none_detail"
 msgstr "What Ember says, such as a link copied or a room left, is kept here for this session."
 

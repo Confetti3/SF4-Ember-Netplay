@@ -60,6 +60,14 @@ bool Friends(ui::ShellView& view, const std::string& which) {
         state = Full();
         state->friends.resize(1);
         state->outgoing.clear(); state->blocked.clear();
+    } else if (which == "notifications") {
+        // What waits in Notifications: Player 2's request, then Player 3's invite to the room they fight in.
+        state = Full();
+        nf::Incoming request; request.id = "rq_3"; request.name = "Player 2"; request.country = CountryCode::Parsed("GB");
+        request.sentAt = Now - Hour / 2; request.games = 3; request.lastGameAt = Now - Hour;
+        state->incoming = {request};
+        nf::Invite invite; invite.id = "iv_1"; invite.friendId = "fr_3"; invite.room.value = std::string(32, 'a'); invite.expiresAt = Now + Hour;
+        state->invites = {invite};
     } else if (which == "empty") {
         state = std::make_shared<nf::State>();
         state->kind = nf::State::Kind::Listed; state->code = "4F2A-91CX";

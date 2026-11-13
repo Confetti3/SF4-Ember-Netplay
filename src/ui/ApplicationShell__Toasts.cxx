@@ -69,7 +69,7 @@ unsigned ApplicationShell::TakeNotices(double now) {
   const bool extra=noticeExtra_.text==text&&&seen==&noticeSeen_;
   auto actions=extra?noticeExtra_.actions:std::vector<ToastAction>{};
   const double shown=now+(actions.empty()?ToastSeconds:ActionToastSeconds);
-  toasts_.push_front({++toastCount_,text,tone,now,shown,extra?noticeExtra_.kind:kind,std::move(actions),false});
+  toasts_.push_front({++toastCount_,text,tone,now,shown,extra?noticeExtra_.kind:kind,std::move(actions),false,extra?noticeExtra_.key:std::string()});
   if(!toasts_.front().actions.empty())fresh=toastCount_;
   if(toasts_.size()>ToastsKept)toasts_.pop_back();
   // Speech reads a toast once, as it appears.
@@ -205,39 +205,58 @@ void ApplicationShell::AnswerToast(const ShellView& v,double now,const Submit& s
  if(!act.row.empty())nav.Prefer(act.row);
 }
 
-// Notifications: the toasts said lately. A toast's action chosen at its row
-// is done as its toast's button would (AnswerToast); the bell that leads here
-// is not shown on it.
+// Notifications: the friends' requests and invites waiting, then the toasts
+// said lately. A request's or invite's row is the Friends panel's own (A, More
+// and its questions, answered as on the Friends tab); a toast's action chosen
+// at its row is done as its toast's button would (AnswerToast). The bell that
+// leads here is not shown on it.
 class ApplicationShell::NotificationScreens final : public ScreenPanel {
 public:
-    bool Owns(const std::string& screen) const override { return screen == "notifications"; }
-    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.NotificationRows(ImGui::GetTime(), title); }
-    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
+    bool Owns(const std::string& screen) const override { return screen == FriendsPanel::NotificationsScreen; }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.NotificationRows(f.view, ImGui::GetTime(), title); }
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        return friends_panel::NotificationRow(a.id) && f.shell.friends_.Activate(f.view, a, f.shell.menu_.navigation, submit);
+    }
+    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        if (friends_panel::NotificationRow(a.id)) return f.shell.friends_.Choose(f.view, a, submit);
         const auto toast = RowKey<unsigned>(a.id, "toast-");
         const auto action = RowKey<std::size_t>(a.text, "");
         if (!toast || !action) return false;
         f.shell.toastAsked_ = {*toast, *action};
         return true;
     }
+    // Y opens More on a request's or invite's row, before a room's own Y; X and Delete stay the room's.
+    bool TakesShortcut(const ScreenFrame& f, const MenuAction& a) const override {
+        return FriendsPanel::TakesOnNotifications(f.shell.menu_.navigation.Focus(), a.delta);
+    }
+    void Shortcut(const ScreenFrame& f, const MenuAction& a) const override { f.shell.friends_.NotificationShortcut(a, f.shell.menu_.navigation); }
     // Notifications is the first tab of the News strip, so it has no bell.
-    void Dress(const ScreenFrame& f, GameMenu& menu) const override { f.shell.NewsTabs(f.view, f.screen); menu.statusLeads.clear(); }
+    void Dress(const ScreenFrame& f, GameMenu& menu) const override {
+        f.shell.NewsTabs(f.view, f.screen);
+        menu.statusLeads.clear();
+        if (f.rows) f.shell.friends_.DressNotifications(*f.rows, menu);
+    }
 };
 const ScreenPanel& ApplicationShell::NotificationsOwner() {
     static const NotificationScreens notifications{};
     return notifications;
 }
 
-// Each said toast, newest first; one with actions offers them at its row.
-std::vector<MenuEntry> ApplicationShell::NotificationRows(double now,std::string& title) const {
+// The friends' requests and invites waiting first, then each said toast, newest
+// first; one with actions offers them at its row.
+std::vector<MenuEntry> ApplicationShell::NotificationRows(const ShellView& v,double now,std::string& title) {
  title=loc::T("home.notifications");
- std::vector<MenuEntry> rows;
+ std::vector<MenuEntry> rows=friends_.NotificationRows(v,menu_.navigation.Choosing());
+ const auto waiting=friends_panel::WaitingOf(v.friends,v.unixNow);
  for(const auto& t:toasts_){
+  // A toast about a request or invite that still waits is that one's row above.
+  if(!t.key.empty()&&waiting.Holds(t.key))continue;
   // Its kind over the words, so a long notice reads whole in its detail.
   static const char* const kinds[]={"notice.title","toast.kind.invitation","toast.kind.room","toast.kind.update","toast.kind.match","toast.kind.system"};
   auto row=InfoRow("toast-"+std::to_string(t.id),loc::T(kinds[static_cast<int>(t.kind)]),Ago(now-t.at),{});
   row.detail=t.text;
-  // An action once taken is not offered again.
-  if(!t.answered)for(std::size_t i=0;i<t.actions.size();++i)row.choices.push_back({std::to_string(i),t.actions[i].label});
+  // An action once taken is not offered again. A friend's request or invite answered, or gone, keeps its words.
+  if(!t.answered&&t.key.empty())for(std::size_t i=0;i<t.actions.size();++i)row.choices.push_back({std::to_string(i),t.actions[i].label});
   if(!row.choices.empty()){row.info=false;row.popout=true;}
   rows.push_back(std::move(row));
  }
