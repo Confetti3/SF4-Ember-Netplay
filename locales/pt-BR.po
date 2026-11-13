@@ -1780,7 +1780,7 @@ msgid "fighters.how"
 msgstr "Como os pontos são ganhos"
 
 msgid "fighters.how_detail"
-msgstr "Toda partida pública ranqueada com um lutador conta: uma vitória vale 2 pontos e uma derrota vale 1. Os pontos nunca diminuem e não têm relação com a sua classe. A cor da moldura muda conforme eles sobem. Depois de oito partidas contra o mesmo jogador em uma sessão, as partidas deixam de contar."
+msgstr "Toda partida pública ranqueada com um lutador vale 1 ponto, ganhando ou perdendo. Uma vitória vale 1 ponto a mais quando a classe do seu oponente é igual à sua ou maior, ou quando um dos dois ainda não tem classe. Os pontos nunca diminuem. A cor da moldura muda conforme eles sobem. Depois de oito partidas contra o mesmo jogador em uma sessão, as partidas deixam de contar."
 
 msgid "fighters.won"
 msgstr "Vitórias"

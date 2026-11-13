@@ -1780,7 +1780,7 @@ msgid "fighters.how"
 msgstr "So sammelst du Punkte"
 
 msgid "fighters.how_detail"
-msgstr "Jedes gewertete öffentliche Spiel mit einem Kämpfer zählt: Ein Sieg bringt 2 Punkte, eine Niederlage 1. Punkte sinken nie und haben nichts mit deiner Klasse zu tun. Die Farbe des Rahmens ändert sich, wenn sie steigen. Nach acht Spielen gegen denselben Spieler in einer Sitzung zählen weitere Spiele nicht mehr."
+msgstr "Jedes gewertete öffentliche Spiel mit einem Kämpfer bringt 1 Punkt, ob Sieg oder Niederlage. Ein Sieg bringt 1 weiteren Punkt, wenn die Klasse deines Gegners gleich deiner oder höher ist oder wenn einer von euch noch keine Klasse hat. Punkte sinken nie. Die Farbe des Rahmens ändert sich, wenn sie steigen. Nach acht Spielen gegen denselben Spieler in einer Sitzung zählen weitere Spiele nicht mehr."
 
 msgid "fighters.won"
 msgstr "Siege"

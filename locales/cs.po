@@ -1780,7 +1780,7 @@ msgid "fighters.how"
 msgstr "Jak se body získávají"
 
 msgid "fighters.how_detail"
-msgstr "Počítá se každý veřejný hodnocený zápas s bojovníkem: výhra přidá 2 body, prohra 1 bod. Body nikdy neklesají a nesouvisí s vaší třídou. Barva rámu se mění, jak body rostou. Po osmi zápasech proti stejnému hráči během jedné seance se další zápasy nepočítají."
+msgstr "Každý veřejný hodnocený zápas s bojovníkem přidá 1 bod, ať výhra, nebo prohra. Výhra přidá další 1 bod, když je třída vašeho soupeře stejná jako vaše nebo vyšší, nebo když jeden z vás ještě nemá třídu. Body nikdy neklesají. Barva rámu se mění, jak body rostou. Po osmi zápasech proti stejnému hráči během jedné seance se další zápasy nepočítají."
 
 msgid "fighters.won"
 msgstr "Výhry"

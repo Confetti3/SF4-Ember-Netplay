@@ -1780,7 +1780,7 @@ msgid "fighters.how"
 msgstr "Comment les points se gagnent"
 
 msgid "fighters.how_detail"
-msgstr "Chaque partie publique classée avec un combattant compte : une victoire rapporte 2 points et une défaite 1. Les points ne baissent jamais et n'ont rien à voir avec votre classe. La couleur du cadre change à mesure qu'ils montent. Après huit parties contre le même joueur en une session, les parties ne comptent plus."
+msgstr "Chaque partie publique classée avec un combattant rapporte 1 point, qu'on gagne ou qu'on perde. Une victoire en rapporte 1 de plus quand la classe de votre adversaire est identique à la vôtre ou supérieure, ou quand l'un de vous deux n'a pas encore de classe. Les points ne baissent jamais. La couleur du cadre change à mesure qu'ils montent. Après huit parties contre le même joueur en une session, les parties ne comptent plus."
 
 msgid "fighters.won"
 msgstr "Victoires"

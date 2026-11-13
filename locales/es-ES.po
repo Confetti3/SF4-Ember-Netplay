@@ -1780,7 +1780,7 @@ msgid "fighters.how"
 msgstr "Cómo se ganan los puntos"
 
 msgid "fighters.how_detail"
-msgstr "Cada partida pública con ranking con un luchador cuenta: una victoria suma 2 puntos y una derrota suma 1. Los puntos nunca bajan y no tienen nada que ver con tu clase. El color del marco cambia a medida que suben. Pasadas ocho partidas contra el mismo jugador en una sesión, las partidas dejan de contar."
+msgstr "Cada partida pública con ranking con un luchador suma 1 punto, ganes o pierdas. Una victoria suma 1 más cuando la clase de tu oponente es igual a la tuya o mayor, o cuando alguno de los dos aún no tiene clase. Los puntos nunca bajan. El color del marco cambia a medida que suben. Pasadas ocho partidas contra el mismo jugador en una sesión, las partidas dejan de contar."
 
 msgid "fighters.won"
 msgstr "Victorias"

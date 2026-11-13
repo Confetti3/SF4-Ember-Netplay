@@ -1780,7 +1780,7 @@ msgid "fighters.how"
 msgstr "Jak zdobywa się punkty"
 
 msgid "fighters.how_detail"
-msgstr "Liczy się każda publiczna gra rankingowa danym wojownikiem: wygrana daje 2 punkty, porażka 1 punkt. Punkty nigdy nie spadają i nie mają związku z twoją klasą. Kolor ramki zmienia się wraz z ich wzrostem. Po ośmiu grach z tym samym graczem w jednej sesji kolejne gry się nie liczą."
+msgstr "Każda publiczna gra rankingowa danym wojownikiem daje 1 punkt, niezależnie od wyniku. Wygrana daje 1 punkt więcej, gdy klasa przeciwnika jest taka sama jak twoja lub wyższa albo gdy któreś z was nie ma jeszcze klasy. Punkty nigdy nie spadają. Kolor ramki zmienia się wraz z ich wzrostem. Po ośmiu grach z tym samym graczem w jednej sesji kolejne gry się nie liczą."
 
 msgid "fighters.won"
 msgstr "Wygrane"

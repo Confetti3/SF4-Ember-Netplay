@@ -1780,7 +1780,7 @@ msgid "fighters.how"
 msgstr "Come si guadagnano i punti"
 
 msgid "fighters.how_detail"
-msgstr "Ogni partita pubblica classificata con un combattente conta: una vittoria vale 2 punti e una sconfitta 1. I punti non scendono mai e non hanno a che fare con la tua classe. Il colore della cornice cambia man mano che salgono. Dopo otto partite contro lo stesso giocatore in una sessione, le partite non contano più."
+msgstr "Ogni partita pubblica classificata con un combattente vale 1 punto, che tu vinca o perda. Una vittoria ne vale 1 in più quando la classe del tuo avversario è uguale alla tua o superiore, oppure quando uno dei due non ha ancora una classe. I punti non scendono mai. Il colore della cornice cambia man mano che salgono. Dopo otto partite contro lo stesso giocatore in una sessione, le partite non contano più."
 
 msgid "fighters.won"
 msgstr "Vinte"

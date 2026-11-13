@@ -1780,7 +1780,7 @@ msgid "fighters.how"
 msgstr "Zo verdien je punten"
 
 msgid "fighters.how_detail"
-msgstr "Elk openbaar potje met ranglijst met een vechter telt: een winst levert 2 punten op, een verlies 1. Punten gaan nooit omlaag en hebben niets met je klasse te maken. De kleur van het kader verandert naarmate ze groeien. Na acht potjes tegen dezelfde speler in één sessie tellen potjes niet meer mee."
+msgstr "Elk openbaar potje met ranglijst met een vechter levert 1 punt op, winst of verlies. Een winst levert 1 punt extra op als de klasse van je tegenstander gelijk is aan de jouwe of hoger, of als een van jullie nog geen klasse heeft. Punten gaan nooit omlaag. De kleur van het kader verandert naarmate ze groeien. Na acht potjes tegen dezelfde speler in één sessie tellen potjes niet meer mee."
 
 msgid "fighters.won"
 msgstr "Gewonnen"
