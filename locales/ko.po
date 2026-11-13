@@ -2178,6 +2178,9 @@ msgstr "이 슬롯의 기술을 제거합니다."
 msgid "training.reply.every_fighter"
 msgstr "모든 파이터"
 
+msgid "training.reply.charge"
+msgstr "차지"
+
 msgid "training.key.reset"
 msgstr "위치 복원 키"
 

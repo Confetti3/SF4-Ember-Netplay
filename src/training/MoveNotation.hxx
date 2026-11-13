@@ -248,6 +248,21 @@ inline std::string Canonical(const Step& step) {
     return out + buttons + mash + timing;
 }
 
+// A charge move's ways to hold its charge, the move itself first: a back
+// charge also from down-back, and from down-back into down-forward; a down
+// charge from down-back into up, up-back and up-forward. A longer motion after
+// the charge ("[4]646") takes down-back only. None for a charge from down-back
+// already, or a move that is no charge.
+inline std::vector<Step> ChargeHolds(const Step& step) {
+    if (!step.charge || step.motion.size() < 2 || (step.motion[0] != '4' && step.motion[0] != '2')) return {};
+    std::vector<std::string> motions{step.motion, "1" + step.motion.substr(1)};
+    if (step.motion == "46") motions.push_back("13");
+    else if (step.motion == "28") { motions.push_back("17"); motions.push_back("19"); }
+    std::vector<Step> holds;
+    for (const auto& motion : motions) { holds.push_back(step); holds.back().motion = motion; }
+    return holds;
+}
+
 // Splits a line into its moves: by ">" or ",", and before a lone "xx" or "~",
 // which stays on the move it makes a cancel or a follow-up ("2MK xx 236P" ->
 // "2MK", "xx 236P"; "236P ~ LP" -> "236P", "~ LP").

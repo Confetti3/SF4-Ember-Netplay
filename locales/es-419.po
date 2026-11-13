@@ -2488,6 +2488,9 @@ msgstr "Quita el golpe de este espacio."
 msgid "training.reply.every_fighter"
 msgstr "Todos los peleadores"
 
+msgid "training.reply.charge"
+msgstr "Carga"
+
 msgid "training.key.reset"
 msgstr "Tecla Restablecer"
 

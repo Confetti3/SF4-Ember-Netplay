@@ -209,7 +209,7 @@ The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge
 
    ![Dummy reply](../images/guides/training_lab/reply.webp)
 
-3. Press Select on a **Reply slot** to give it a move: pick one from the list, the moves every fighter has first, then the dummy's own from its command list, with its strengths as buttons on the row that Left and Right move between, or press Select on **Reply moves** to type your own. Left and Right on a slot turn it on or off; **Empty this slot** removes its move.
+3. Press Select on a **Reply slot** to give it a move: pick one from the list, the moves every fighter has first, then the dummy's own from its command list, with its strengths as buttons on the row that Left and Right move between (a charge move has a **Charge** row under it with the ways to hold it: `[4]6`, `[1]6` or `[1]3` for a back charge, `[2]8`, `[1]8`, `[1]7` or `[1]9` for a down charge), or press Select on **Reply moves** to type your own. Left and Right on a slot turn it on or off; **Empty this slot** removes its move.
 4. With more than one slot on, **Reply order** says how the dummy picks: at random, each slot as often as its **Weight** says, or in order, one after the other. With no slot on, the dummy replies with the recordings that are on.
 5. Close the controls and knock the dummy down, or hit it, as the reply needs.
 

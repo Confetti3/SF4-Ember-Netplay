@@ -2178,6 +2178,9 @@ msgstr "Quita el golpe de esta ranura."
 msgid "training.reply.every_fighter"
 msgstr "Todos los luchadores"
 
+msgid "training.reply.charge"
+msgstr "Carga"
+
 msgid "training.key.reset"
 msgstr "Tecla Restablecer"
 

@@ -2488,6 +2488,9 @@ msgstr "Remove o golpe deste espaço."
 msgid "training.reply.every_fighter"
 msgstr "Todos os lutadores"
 
+msgid "training.reply.charge"
+msgstr "Carga"
+
 msgid "training.key.reset"
 msgstr "Tecla Restaurar"
 

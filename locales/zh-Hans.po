@@ -2178,6 +2178,9 @@ msgstr "移除此槽位的招式。"
 msgid "training.reply.every_fighter"
 msgstr "所有角色"
 
+msgid "training.reply.charge"
+msgstr "蓄力"
+
 msgid "training.key.reset"
 msgstr "重置键"
 

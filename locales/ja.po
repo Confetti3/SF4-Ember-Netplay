@@ -2178,6 +2178,9 @@ msgstr "このスロットの技を削除します。"
 msgid "training.reply.every_fighter"
 msgstr "全ファイター共通"
 
+msgid "training.reply.charge"
+msgstr "溜め"
+
 msgid "training.key.reset"
 msgstr "位置を戻すキー"
 

@@ -2178,6 +2178,9 @@ msgstr "Odebere úder této pozice."
 msgid "training.reply.every_fighter"
 msgstr "Každý bojovník"
 
+msgid "training.reply.charge"
+msgstr "Nabití"
+
 msgid "training.key.reset"
 msgstr "Klávesa obnovení"
 

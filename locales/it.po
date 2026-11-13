@@ -2178,6 +2178,9 @@ msgstr "Rimuove la mossa di questo slot."
 msgid "training.reply.every_fighter"
 msgstr "Ogni lottatore"
 
+msgid "training.reply.charge"
+msgstr "Carica"
+
 msgid "training.key.reset"
 msgstr "Tasto Ripristina"
 

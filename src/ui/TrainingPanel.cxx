@@ -50,8 +50,9 @@ struct Lab {
     // position as offsets from F1 (-1 unbound): the player's, kept in training.json.
     training::DummyPlan plan;
     // The reply's slots; slotAt is the one the move list is open for, and
-    // pickAt the strength each of its rows has lit (Pickables), the first until stepped.
-    training::ReplySlots slots; int slotAt=0; std::vector<int> pickAt;
+    // lit, for each of its rows (Pickables), the chip lit: [0] the strength, [1]
+    // the way the charge row under a charge move holds it; the first until stepped.
+    training::ReplySlots slots; int slotAt=0; std::vector<std::array<int,2>> lit;
     // How the frame meter is drawn (the Frame data page's two options).
     training::MeterOptions meter;
     std::array<int,2> keys{{1,10}};
@@ -234,10 +235,21 @@ std::vector<Pickable> Pickables(const training::View& view) {
     for(const auto* move:training::MovesOf(fighter?fighter->code:nullptr)) AddPick(list,move->name,move->moves,FighterName(view.check.dummy));
     return list;
 }
-// The strength a pick row has lit, kept while the move list is open.
-std::size_t PickAt(std::size_t row,std::size_t count) {
-    if(lab.pickAt.size()<=row) lab.pickAt.resize(row+1,0);
-    return static_cast<std::size_t>(lab.pickAt[row])%count;
+// The chip a pick row (which 0) or its charge row (1) has lit, kept while the move list is open.
+std::size_t LitAt(std::size_t row,int which,std::size_t count) {
+    if(lab.lit.size()<=row) lab.lit.resize(row+1,{{0,0}});
+    return static_cast<std::size_t>(lab.lit[row][which])%count;
+}
+// A pick's ways to hold its charge (combo::ChargeHolds); none when it is no single charge move.
+std::vector<combo::Step> ChargeHolds(const std::string& moves) {
+    combo::Step step; std::string error;
+    return combo::ParseStep(moves,step,error)?combo::ChargeHolds(step):std::vector<combo::Step>{};
+}
+// A pick row's moves as its chips have them: the lit strength, held the lit way.
+std::string PickedMoves(const Pickable& pick,std::size_t row) {
+    const std::string& moves=pick.strengths[LitAt(row,0,pick.strengths.size())].second;
+    const auto holds=ChargeHolds(moves);
+    return holds.empty()?moves:combo::Canonical(holds[LitAt(row,1,holds.size())]);
 }
 // Combo check's start and stance, in the order Left and Right step through them.
 const char* const StartNames[]={"training.combo_check.start_from.recorded","training.combo_check.start_from.middle","training.combo_check.start_from.corner"};
@@ -309,11 +321,18 @@ std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& sc
         // Select puts it in the slot. A move with one strength shows its input.
         const auto picks=Pickables(view);
         for(std::size_t i=0;i<picks.size();++i) {
-            const auto& pick=picks[i]; const auto& lit=pick.strengths[PickAt(i,pick.strengths.size())];
-            auto e=Row("pick-"+std::to_string(i),pick.name,pick.group+": "+pick.name+", "+(lit.first.empty()?"":lit.first+", ")+lit.second);
-            if(pick.strengths.size()==1) e.value=lit.second;
+            const auto& pick=picks[i]; const auto& lit=pick.strengths[LitAt(i,0,pick.strengths.size())];
+            const auto moves=PickedMoves(pick,i);
+            auto e=Row("pick-"+std::to_string(i),pick.name,pick.group+": "+pick.name+", "+(lit.first.empty()?"":lit.first+", ")+moves);
+            if(pick.strengths.size()==1) e.value=moves;
             else { e.value=lit.first; e.adjustable=e.opens=true; for(const auto& strength:pick.strengths) e.segments.push_back(strength.first); }
             rows.push_back(e);
+            // Its charge's ways to hold, as chips the same way.
+            const auto holds=ChargeHolds(lit.second);
+            if(holds.empty()) continue;
+            auto c=Row("charge-"+std::to_string(i),loc::T("training.reply.charge"),pick.name+", "+loc::T("training.reply.charge")+", "+moves);
+            c.value=moves; c.adjustable=c.opens=true; for(const auto& hold:holds) c.segments.push_back(combo::Canonical(hold));
+            rows.push_back(c);
         }
         return rows;
     }
@@ -344,10 +363,14 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
         }
         else if(a.id=="slot-on") { auto& slot=lab.slots[lab.slotAt]; slot.on=a.delta>0&&!slot.moves.empty(); SavePractice(); SendPlan(view,submit); }
         else if(a.id=="slot-weight") { auto& slot=lab.slots[lab.slotAt]; slot.weight=(std::max)(1,(std::min)(training::MaxReplyWeight,slot.weight+a.delta)); SavePractice(); SendPlan(view,submit); }
-        else if(a.id.compare(0,5,"pick-")==0) {
-            const auto picks=Pickables(view); const auto at=static_cast<std::size_t>(std::atoi(a.id.c_str()+5));
-            // A click on a chip lights that chip: the whole distance, not one step.
-            if(at<picks.size()) { const int n=static_cast<int>(picks[at].strengths.size()); lab.pickAt[at]=((static_cast<int>(PickAt(at,n))+a.delta)%n+n)%n; }
+        else if(a.id.compare(0,5,"pick-")==0||a.id.compare(0,7,"charge-")==0) {
+            const int which=a.id[0]=='c'; const auto picks=Pickables(view); const auto at=static_cast<std::size_t>(std::atoi(a.id.c_str()+a.id.find('-')+1));
+            if(at<picks.size()) {
+                const auto& strengths=picks[at].strengths;
+                const int n=static_cast<int>(which?ChargeHolds(strengths[LitAt(at,0,strengths.size())].second).size():strengths.size());
+                // A click on a chip lights that chip: the whole distance, not one step.
+                if(n) lab.lit[at][which]=((static_cast<int>(LitAt(at,which,n))+a.delta)%n+n)%n;
+            }
         }
         else if(a.id=="key-0"||a.id=="key-1") {
             // One key does one thing, so the other row's key is passed over.
@@ -383,12 +406,12 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
         return;
     }
     if(a.kind!=MenuAction::Activate) return;
-    if(a.id.compare(0,11,"reply-slot-")==0) { lab.slotAt=std::atoi(a.id.c_str()+11); lab.pickAt.clear(); TrainingNavigation().Push("reply-slot"); }
+    if(a.id.compare(0,11,"reply-slot-")==0) { lab.slotAt=std::atoi(a.id.c_str()+11); lab.lit.clear(); TrainingNavigation().Push("reply-slot"); }
     else if(a.id=="slot-clear") { lab.slots[lab.slotAt]={}; SavePractice(); SendPlan(view,submit); TrainingNavigation().Replace("reply"); }
-    else if(a.id.compare(0,5,"pick-")==0) {
-        const auto picks=Pickables(view); const auto at=static_cast<std::size_t>(std::atoi(a.id.c_str()+5));
+    else if(a.id.compare(0,5,"pick-")==0||a.id.compare(0,7,"charge-")==0) {
+        const auto picks=Pickables(view); const auto at=static_cast<std::size_t>(std::atoi(a.id.c_str()+a.id.find('-')+1));
         if(at>=picks.size()) return;
-        auto& slot=lab.slots[lab.slotAt]; slot.moves=picks[at].strengths[PickAt(at,picks[at].strengths.size())].second; slot.on=true;
+        auto& slot=lab.slots[lab.slotAt]; slot.moves=PickedMoves(picks[at],at); slot.on=true;
         SavePractice(); SendPlan(view,submit); TrainingNavigation().Replace("reply");
     }
     else if(a.id=="save-pos") SavePosition(view,submit);

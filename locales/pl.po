@@ -2178,6 +2178,9 @@ msgstr "Usuwa cios z tego slotu."
 msgid "training.reply.every_fighter"
 msgstr "Każdy wojownik"
 
+msgid "training.reply.charge"
+msgstr "Ładowanie"
+
 msgid "training.key.reset"
 msgstr "Klawisz przywracania"
 

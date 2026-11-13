@@ -2178,6 +2178,9 @@ msgstr "Убирает приём этого слота."
 msgid "training.reply.every_fighter"
 msgstr "Любой боец"
 
+msgid "training.reply.charge"
+msgstr "Заряд"
+
 msgid "training.key.reset"
 msgstr "Клавиша позиции"
 

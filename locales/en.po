@@ -2178,6 +2178,9 @@ msgstr "Removes this slot's move."
 msgid "training.reply.every_fighter"
 msgstr "Every fighter"
 
+msgid "training.reply.charge"
+msgstr "Charge"
+
 msgid "training.key.reset"
 msgstr "Reset key"
 

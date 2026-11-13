@@ -160,6 +160,19 @@ int main() {
     CHECK(ParseStep("[2]8LP(mash)", step, error) && step.mash && step.charge && step.buttons == LP);
     CHECK(!ParseStep("236(mash)", step, error) && !ParseStep("FADC(mash)", step, error));
 
+    // A charge move's ways to hold: the move's own first; none for other moves.
+    {
+        const auto holds = [](const char* move) {
+            Step step; std::string error; CHECK(ParseStep(move, step, error));
+            std::vector<std::string> out;
+            for (const auto& hold : ChargeHolds(step)) { Step again; CHECK(ParseStep(Canonical(hold), again, error) && again.charge); out.push_back(Canonical(hold)); }
+            return out;
+        };
+        CHECK(holds("[4]6MK") == std::vector<std::string>({"[4]6MK", "[1]6MK", "[1]3MK"}));
+        CHECK(holds("[2]8HP") == std::vector<std::string>({"[2]8HP", "[1]8HP", "[1]7HP", "[1]9HP"}));
+        CHECK(holds("[4]646P") == std::vector<std::string>({"[4]646P", "[1]646P"}) && holds("[1]6P").empty() && holds("236P").empty());
+    }
+
     // Typed steps become pad input, timed by the fight: a cancelled move does
     // its motion at once but the last direction, which it presses with the
     // button on the hit; a linked move holds its first direction through the

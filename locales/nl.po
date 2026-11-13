@@ -2178,6 +2178,9 @@ msgstr "Verwijdert de move van dit slot."
 msgid "training.reply.every_fighter"
 msgstr "Elke vechter"
 
+msgid "training.reply.charge"
+msgstr "Laden"
+
 msgid "training.key.reset"
 msgstr "Toets herstellen"
 

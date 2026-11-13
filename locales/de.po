@@ -2178,6 +2178,9 @@ msgstr "Entfernt den Zug dieses Slots."
 msgid "training.reply.every_fighter"
 msgstr "Jeder Kämpfer"
 
+msgid "training.reply.charge"
+msgstr "Aufladen"
+
 msgid "training.key.reset"
 msgstr "Taste Zurücksetzen"
 

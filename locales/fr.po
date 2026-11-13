@@ -2178,6 +2178,9 @@ msgstr "Retire le coup de cet emplacement."
 msgid "training.reply.every_fighter"
 msgstr "Tous les combattants"
 
+msgid "training.reply.charge"
+msgstr "Charge"
+
 msgid "training.key.reset"
 msgstr "Touche Rétablir"
 
