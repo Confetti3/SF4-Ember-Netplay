@@ -271,6 +271,23 @@ inline const Member* FindMember(const Snapshot& snapshot, MemberId id) {
 	return found == snapshot.members.end() ? nullptr : &*found;
 }
 
+// Whether the room takes a post-match answer from `member` now, as RoomAuthority::ApplyPostMatchAnswer judges it:
+// they are a fighter of the answer's table, and that table still plays the answer's match. A set's rotation that
+// unseated them, or a table gone on to another match, takes no answer.
+inline bool PostMatchTakes(const Snapshot& room, const Member& member, const PostMatchSaid& said) {
+	if (member.table < 0 || static_cast<std::size_t>(member.table) >= room.tables.size() || static_cast<std::uint8_t>(member.table) != said.table) return false;
+	const auto& table = room.tables[static_cast<std::size_t>(member.table)];
+	return (table.p1 == member.id || table.p2 == member.id) && table.matchGeneration == said.generation;
+}
+
+// PostMatchDue for this PC's own member of `room`: none is due once the room no longer takes the answer
+// (PostMatchTakes), so a fighter the set's rotation unseated stops telling it.
+inline bool PostMatchDue(const PostMatchSaid& wanted, const PostMatchSaid& lastSaid, std::uint64_t lastSaidAtMs,
+	std::uint64_t nowMs, bool live, const Snapshot& room) {
+	const auto* member = room.roomEpoch ? FindMember(room, room.localMember) : nullptr;
+	return member && PostMatchTakes(room, *member, wanted) && PostMatchDue(wanted, lastSaid, lastSaidAtMs, nowMs, live, member);
+}
+
 // A member the room's tournament binding names as a watcher: it only watches,
 // with no table action, host power or chat.
 inline bool IsWatcher(const Snapshot& snapshot, MemberId id) {

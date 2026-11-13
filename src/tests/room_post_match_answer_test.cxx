@@ -129,6 +129,51 @@ int main() {
 		EXPECT(!PostMatchDue(wanted, said, 0, 99999, true, nullptr));          // no room member to compare
 	}
 	{
+		// The room's own snapshot decides whether it is due at all: only while the room shows this PC a fighter of
+		// the answer's table at its match. A set's rotation that unseats the player, or a table gone on to its next
+		// match, takes no answer (the authority refuses it as NotSeated or WrongGeneration), so none is said.
+		Room room;
+		Snapshot view = room.authority.SnapshotView();
+		view.localMember = room.p1;
+		EXPECT(view.roomEpoch != 0);
+		PostMatchSaid wanted;
+		wanted.word = PostMatchWord::Rematch; wanted.table = 0; wanted.generation = room.Generation(); wanted.game = 3;
+		const PostMatchSaid never;
+		const auto* me = FindMember(view, room.p1);
+		EXPECT(me && PostMatchTakes(view, *me, wanted));
+		EXPECT(PostMatchDue(wanted, never, 0, 5000, true, view));              // seated at the match: said
+		EXPECT(room.Say(room.p1, wanted.word, wanted.generation, wanted.game).accepted); // as the authority agrees
+		// The rotation unseated them: the seat is another's, though the member still names the table.
+		Snapshot rotated = view;
+		rotated.tables[0].p1 = room.host;
+		EXPECT(!PostMatchTakes(rotated, *FindMember(rotated, room.p1), wanted));
+		EXPECT(!PostMatchDue(wanted, never, 0, 5000, true, rotated));
+		EXPECT(!PostMatchDue(wanted, wanted, 0, 99999, true, rotated));       // nor again each second
+		// Moved to another table, or no table.
+		Snapshot moved = view;
+		for (auto& member : moved.members) if (member.id == room.p1) member.table = 1;
+		EXPECT(!PostMatchDue(wanted, never, 0, 5000, true, moved));
+		for (auto& member : moved.members) if (member.id == room.p1) member.table = -1;
+		EXPECT(!PostMatchDue(wanted, never, 0, 5000, true, moved));
+		// The table went on to its next match.
+		Snapshot next = view;
+		++next.tables[0].matchGeneration;
+		EXPECT(!PostMatchDue(wanted, never, 0, 5000, true, next));
+		// Not in a room, or not a member of it.
+		Snapshot none = view;
+		none.roomEpoch = 0;
+		EXPECT(!PostMatchDue(wanted, never, 0, 5000, true, none));
+		Snapshot stranger = view;
+		stranger.localMember = 9999;
+		EXPECT(!PostMatchDue(wanted, never, 0, 5000, true, stranger));
+		// The rest of the rule stands: not while the game is off, nor once the room shows it.
+		EXPECT(!PostMatchDue(wanted, never, 0, 5000, false, view));
+		const Snapshot shown = room.authority.SnapshotView();
+		Snapshot told = shown;
+		told.localMember = room.p1;
+		EXPECT(!PostMatchDue(wanted, never, 0, 5000, true, told));
+	}
+	{
 		// Only a seated fighter of the live match says it, for that match.
 		Room room;
 		const auto generation = room.Generation();
