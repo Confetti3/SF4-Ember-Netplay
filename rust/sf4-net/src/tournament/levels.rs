@@ -228,4 +228,32 @@ mod tests {
         };
         assert!(answers.check_for(&one).is_err());
     }
+    // The award counters ride through to the game as the bridge sent them, and
+    // an answer without them is no worse for it.
+    #[test]
+    fn award_counters_pass_through_and_are_optional() {
+        let with = br#"{"points":"counted",
+            "account":{"points":13,"games":9,"wins":4,"tier":0,"floor":0,"next":500,"since":1,"best_streak":3,"peak_class":6},
+            "fighters":[]}"#;
+        let levels = read::<OwnLevels>(with).unwrap();
+        assert!(levels.check().is_ok());
+        let value = to_json(&levels).unwrap().unwrap();
+        assert_eq!(value["account"]["best_streak"], 3);
+        assert_eq!(value["account"]["peak_class"], 6);
+        let without = br#"{"points":"counted",
+            "account":{"points":13,"games":9,"wins":4,"tier":0,"floor":0,"next":500,"since":1},
+            "fighters":[]}"#;
+        let value = to_json(&read::<OwnLevels>(without).unwrap()).unwrap().unwrap();
+        assert!(value["account"].get("best_streak").is_none());
+
+        let card = br#"{"cards":[{"account":{"points":2,"tier":0},"fighters":[],"relation":"none",
+            "marks":{"games":100,"wins":50,"streak":5,"class":6}}]}"#;
+        let answers = read::<CardAnswers>(card).unwrap();
+        let value = to_json(&answers).unwrap().unwrap();
+        assert_eq!(value["cards"][0]["marks"]["games"], 100);
+        assert_eq!(value["cards"][0]["marks"]["class"], 6);
+        // A class past the top fails the answer's check.
+        let high = br#"{"cards":[{"account":{"points":2,"tier":0},"relation":"none","marks":{"class":11}}]}"#;
+        assert!(read::<CardAnswers>(high).unwrap().check().is_err());
+    }
 }
