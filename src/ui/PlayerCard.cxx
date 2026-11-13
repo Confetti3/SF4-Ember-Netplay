@@ -334,6 +334,8 @@ float DrawCardTab(const ShellView& v, const PlayerCardView& card, const std::vec
         const v2::Box edit{ImVec2(hero.min.x, hero.max.y + gap), ImVec2(hero.max.x, hero.max.y + gap + 48 * s)};
         ButtonRow(d, edit, CardEditRow, rows, nav, action, changed, v2::ButtonKind::Secondary, "Y");
         bottom = edit.max.y;
+        const v2::Box select{ImVec2(edit.min.x, edit.max.y + 8 * s), ImVec2(edit.max.x, edit.max.y + 8 * s + 48 * s)};
+        if (ButtonRow(d, select, FighterSelectRow, rows, nav, action, changed, v2::ButtonKind::Secondary, "X")) bottom = select.max.y;
     } else if (!beside) {
         x = origin.x; room = width; y = hero.max.y + 12 * s;
     }
@@ -356,6 +358,8 @@ float DrawCardTab(const ShellView& v, const PlayerCardView& card, const std::vec
     if (z.narrow) {
         const v2::Box edit{ImVec2(origin.x, y + gap), ImVec2(origin.x + width, y + gap + 48 * s)};
         if (ButtonRow(d, edit, CardEditRow, rows, nav, action, changed, v2::ButtonKind::Secondary, "Y")) y = edit.max.y;
+        const v2::Box select{ImVec2(origin.x, y + 8 * s), ImVec2(origin.x + width, y + 8 * s + 48 * s)};
+        if (ButtonRow(d, select, FighterSelectRow, rows, nav, action, changed, v2::ButtonKind::Secondary, "X")) y = select.max.y;
     }
     const float total = (std::max)(y, bottom) + gap - origin.y;
     ImGui::SetCursorScreenPos(origin);

@@ -196,6 +196,7 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
 std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title) {
  using namespace netplay; auto& nav=menu_.navigation;
  std::vector<MenuEntry> rows;
+ selectionAvailable_=bool(selection);
  if(v.inputCapture!=input::Capture::Idle){
   title=loc::T("controller.assign_title");
   rows={Row("capture-cancel",loc::T("controller.cancel_assignment"),std::string(v.inputCapture==input::Capture::Press?loc::T("controller.press_button"):loc::T("controller.release_buttons"))+"\n"+loc::T("controller.keep_current"))};
@@ -204,10 +205,10 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(const ScreenPanel* owner=ScreenOf(screen)){
   // The panels' screens build their own rows (ScreenOf).
   rows=owner->Rows(ScreenFrame{*this,v,screen},idle,title);
+  // Profile's Fighter select opens only where there is a selector to show.
+  for(auto& r:rows)if(r.id==FighterSelectRow)r.enabled=r.enabled&&selectionAvailable_;
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
-   Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
-    v.selectionLockReason.empty()?loc::T("home.selection_locked"):v.selectionLockReason,bool(selection)),
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle),

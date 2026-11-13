@@ -368,6 +368,8 @@ private:
     // Whether the selector the shell is about to show was opened just now, not
     // reshown after a match or an overlay, so it starts on its first page.
     bool selectionFresh_=false;
+    // Whether this frame has a selector to open (Profile's Fighter select row and shortcut).
+    bool selectionAvailable_=false;
     // The page fighter select opens on (EmbeddedReturn::openOn).
     SelectionStart selectionOpenOn_ = SelectionStart::Board;
     // Training select opened fighter select on its Dummy row (SelectingDummy).

@@ -76,6 +76,7 @@ same preferences as `card-edit`.
 |---|---|---|
 | Hero | left, 420 x 420 | the main large (`SelectionArt` portrait or figure, as Settings, Room layout, Pictures); 2 px edge in the main's tier; a 56 px shade across the foot with "MAIN" (eyebrow, muted) and the fighter's name (18 px). No number on the hero. |
 | Edit card | under the hero, 420 x 48, 16 gap | `v2::Button` Secondary, Y glyph and "Edit card" |
+| Fighter select | under Edit card, 420 x 48, 8 gap | `v2::Button` Secondary, X glyph and "Fighter select"; opens the `selection` screen (Back returns to Card); X / F opens it too |
 | Title row | right column (x +452, at most 960 wide so the meters stay near their words), 34 tall | worn title on `v2::TitlePlate`; worn icon (40 px, tier stroke) at the row's right end. No title worn: the row is left out. |
 | Name | 44 tall | flag, name (36 px heading), class emblem (`DrawBadge`, 32 px) after the name |
 | About | 22 tall | "{country} · class {x}" (today's `tag.about`), 15 px muted |
@@ -120,7 +121,7 @@ change.
 
 ### Navigation
 
-Rows in order: the three strip tiles, Edit card, Connect Discord (when shown).
+Rows in order: the three strip tiles, Edit card, Fighter select, Connect Discord (when shown).
 The D-pad moves by geometry (placed rows, `PressEntry`).
 
 | Input (pad / keys) | On a strip tile | On Edit card | On Connect Discord |
@@ -130,7 +131,7 @@ The D-pad moves by geometry (placed rows, `PressEntry`).
 | Y / T | opens `card-edit` | same | same |
 | LB RB / PgUp PgDn | tabs | tabs | tabs |
 
-Hint bar: `A Fighters` (or `A Edit card`), `B Back`, `Y Edit card`, `LB RB Pages`.
+Hint bar: `A Fighters` (or `A Edit card`, `A Fighter select`), `B Back`, `X Fighter select`, `Y Edit card`, `LB RB Pages`.
 
 ### Edit card (`card-edit`)
 

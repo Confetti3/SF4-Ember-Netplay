@@ -276,6 +276,11 @@ std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string&
     auto edit = Row(CardEditRow, loc::T("card.edit"), loc::T("card.edit_detail"));
     edit.hint = loc::T("card.edit");
     rows.push_back(std::move(edit));
+    // Fighter select, with what Home used to say of it: the pick, or why it cannot change now.
+    auto select = Row(FighterSelectRow, loc::T("home.fighter_select"),
+        v.canEditSelection ? v.selectionSummary : v.selectionLockReason.empty() ? std::string(loc::T("home.selection_locked")) : v.selectionLockReason);
+    select.hint = loc::T("home.fighter_select");
+    rows.push_back(std::move(select));
     if (card.levels == CardLevels::NoAccount) rows.push_back(ConnectDiscordRow());
     return rows;
 }

@@ -32,7 +32,7 @@ void SessionReports();
 void RecoveryWindow();
 void ProblemReportJourneys();
 void SelectorPages();
-void SelectorFromHome();
+void SelectorFromProfile();
 void DeveloperSelectors();
 void SelectorRandomTile();
 void V2AuditJourneys();

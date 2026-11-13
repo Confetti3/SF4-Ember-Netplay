@@ -182,9 +182,15 @@ public:
         nav.Prefer("main-" + a.id.substr(std::strlen("card-fighter:")));
         return true;
     }
-    // Y on the Card tab is Edit card.
+    // Y on the Card tab is Edit card, X Fighter select (the room's own X while one is joined).
     void Shortcut(const ScreenFrame& f, const MenuAction& a) const override {
-        if (a.delta == MenuInput::Options && f.screen == ProfilePanel::CardScreen) f.shell.menu_.navigation.Push(CardEditRow);
+        if (f.screen != ProfilePanel::CardScreen) return;
+        auto& shell = f.shell;
+        if (a.delta == MenuInput::Options) shell.menu_.navigation.Push(CardEditRow);
+        else if (a.delta == MenuInput::Fighter && shell.selectionAvailable_) {
+            shell.selectionFresh_ = true; shell.selectionOpenOn_ = SelectionStart::Board;
+            shell.menu_.navigation.Push(FighterSelectRow);
+        }
     }
     GameMenu::Body Body(const ScreenFrame& f) const override {
         ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::string* screen = &f.screen;
@@ -195,7 +201,7 @@ public:
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
         ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName);
         // In a room X is the room's own shortcut on every screen (RoomShortcut).
-        if (f.screen == ProfilePanel::CardScreen && f.view.session.room == netplay::RoomState::Idle) menu.shortcutHints = ShortcutHints({{MenuInput::Options, loc::T("card.edit")}});
+        if (f.screen == ProfilePanel::CardScreen && f.view.session.room == netplay::RoomState::Idle) menu.shortcutHints = ShortcutHints({{MenuInput::Fighter, loc::T("home.fighter_select")}, {MenuInput::Options, loc::T("card.edit")}});
     }
 };
 

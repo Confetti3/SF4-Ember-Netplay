@@ -16,7 +16,7 @@ Press F10, or Start at the game's main menu.
 
 ![Home](v2/home.png)
 
-Home lists Online play, Fighter select, Profile, Settings, Training, Play
+Home lists Online play, Profile, Settings, Training, Play
 offline, Replays, News and Notifications. On the right are your player card
 and the newest News.
 
