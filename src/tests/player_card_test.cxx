@@ -217,26 +217,11 @@ void Progress() {
     Check(ui::player_card::ProgressRows(view).size() == 1, "a card without a main has a row for it");
 }
 
-// The requests waiting: none until a state is read, the incoming list once listed.
-void Requests() {
-    netplay::friends::View view;
-    Check(ui::player_card::RequestsWaiting(view) == 0, "a friends view not read has requests");
-    auto state = std::make_shared<netplay::friends::State>();
-    state->incoming.resize(2);
-    view.state.value = state;
-    Check(ui::player_card::RequestsWaiting(view) == 0, "an unlisted state has requests");
-    auto listed = std::make_shared<netplay::friends::State>(*state);
-    listed->kind = netplay::friends::State::Kind::Listed;
-    view.state.value = listed;
-    Check(ui::player_card::RequestsWaiting(view) == 2, "the waiting requests are not counted");
-}
-
 }
 
 int main() {
     Groups();
     Progress();
-    Requests();
     PlayedOrder();
     Strip();
     ProgressAndFacts();

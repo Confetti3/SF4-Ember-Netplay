@@ -13,13 +13,11 @@
 #include "MenuNavigation.hxx"
 #include "PlayerCard.hxx"
 #include "ShellAction.hxx"
-#include "ToastAction.hxx"
+#include "Notifications.hxx"
 #include "../netplay/FriendsView.hxx"
 #include <cstdint>
 #include <functional>
-#include <map>
 #include <optional>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -127,32 +125,20 @@ struct Waiting {
     bool Holds(const std::string& id) const;
 };
 Waiting WaitingOf(const nf::View& view, std::uint64_t now);
-// The words of the newest of them, as its toast says it ("Player 2 wants to be friends"); empty with none.
-std::string WaitingWords(const nf::View& view, std::uint64_t now);
+// What waits, as Notifications' items keyed by their rows' ids (the toast's words: "Player 2 wants to be friends",
+// and the games played or the room; its buttons: Accept and Later, Join and Dismiss), in WaitingOf's order.
+std::vector<Notifications::Item> NoticesOf(const nf::View& view, std::uint64_t now);
 // A Notifications row the panel answers: a request's or an invite's.
 bool NotificationRow(const std::string& row);
 
 // How an action the panel sent stands in the view, from `finished` and `refusals` as the view had them when it was
-// sent: still waiting, refused (the refusal's own words say why), gone through, gone through to find friends off, or
-// no answer by `deadline`. The answer is read before the deadline, so one that came while Ember was hidden is said.
-enum class Outcome { Waiting, Refused, Done, Off, GivenUp };
-Outcome OutcomeOf(const nf::View& view, std::uint64_t finished, std::uint64_t refusals, double deadline, double now);
-// How long the panel waits on an action before it says there was no answer: past the runtime's own limit for a lost
-// request (netplay::BridgeFlights::GiveUpMs, 60 s), which ends it with a refusal first. The interface's clock, seconds.
-constexpr double GiveUpSeconds = 75;
+// sent: still waiting, refused (the refusal's own words say why), gone through, or gone through to find friends off.
+// The runtime ends every action with an answer or a refusal (netplay::friends::Requests), so nothing else ends it.
+enum class Outcome { Waiting, Refused, Done, Off };
+Outcome OutcomeOf(const nf::View& view, std::uint64_t finished, std::uint64_t refusals);
 // What a request accepted says: "You and Player 2 are now friends.", by the name the request carries; empty when the
 // state holds no such request.
 std::string AcceptedWords(const nf::State& state, const std::string& request);
-
-// Words or a toast Ember said, and whether the player had the time to see them: Ember hid at `now` (the last frame
-// it showed) before their card's `seconds` were up, or a toast came over the post-match prompt, whose keys answer
-// the prompt and not the toast. Unseen, they are said once more on the next free menu.
-struct Told {
-    double at = 0, seconds = 0;
-    bool unseen = false;
-    void Hidden(double now) { if (now - at < seconds) unseen = true; }
-    bool Lapsed(double now) const { return !unseen && now - at >= seconds; }
-};
 }
 
 // The panel: the state the tab keeps between frames (what it asked and is
@@ -166,9 +152,8 @@ public:
     static constexpr const char* SentScreen = friends_panel::SentRow;
     static constexpr const char* BlockedScreen = friends_panel::BlockedRow;
     static constexpr const char* VisitScreen = "friends-visit";
-    // The prompt over a room game's WIN (ApplicationShell__PostMatch.cxx): its keys are its own, so a toast over it
-    // shows without them, and what was said over it unseen is said again on the next free menu.
-    static constexpr const char* PromptScreen = "post-match";
+    // The panel as a source of Notifications: what it publishes there is keyed by its rows' ids.
+    static constexpr const char* Source = "friends";
     // Settings, Online, Friends: the panel of Appear offline, the friend code and Turn off friends (Turn on friends, once off).
     static constexpr const char* SettingsScreen = "tab-online/friends";
     // The tab or a page over it: where X, Y and Delete are the tab's even in a room.
@@ -188,31 +173,26 @@ public:
     static bool Owns(const std::string& screen) { return OnTab(screen) || screen == VisitScreen; }
 
     // Every frame: Visit when the tab opens (again when its cadence lapsed) and Leave when it closes; the question
-    // a Join asks, opened over whatever shows; a refusal's words, and what an action that went through says, or that
-    // it had no answer. `bridge` is the usable service, empty without one.
-    void Update(const ShellView& view, MenuNavigation& nav, const std::string& bridge, double now, const Submit& submit);
-    // The shell is hidden: the cadence is told again when it shows, and words or a toast it hid before their time
-    // are said once more on the next free menu.
+    // a Join asks, opened over whatever shows; a refusal's words, and what an action that went through says.
+    // `bridge` is the usable service, empty without one.
+    void Update(const ShellView& view, MenuNavigation& nav, const std::string& bridge, const Submit& submit);
+    // The shell is hidden: the cadence is told again when it shows.
     void Conceal();
-    // The words to show as a notice (a refusal, an invite or request sent), once (once more if hidden unseen).
+    // The words to show as a notice (a refusal, an invite or request sent), once.
     bool TakeSaid(std::string& words, Tone& tone);
-    // A friend's request or invite, said once as the state that holds it is read, with its buttons: Accept for the
-    // request (Later leaves it in the list), Join for the invite (it takes the invite, then drops it) and Dismiss.
-    // What the first state already held is not said (Home's Profile row counts the requests), nor an invite that
-    // ran out, nor anything while the Friends screens show it. One a frame: a second waits for the next. One said
-    // over the post-match prompt, or hidden before its time, is said once more on the next free menu while it stands.
-    bool TakeToast(ToastRequest& toast);
-    // A toast's command, sent as the panel sends its own when it is one the panel waits on (a request's Accept), so
-    // its answer is said; false for any other, which the shell sends as it is.
-    bool AnswerToast(const ShellView& view, const RuntimeRequest& command, const Submit& submit);
-    // The toast with these words was answered (any of its buttons, by key, click or its Notifications row): it is
-    // not said again.
-    void ToastAnswered(const std::string& text);
 
-    // Notifications: a row for each request and invite waiting (friends_panel::WaitingOf), A as on the Friends tab
-    // (Accept; Join), and More (Y) with the tab's choices and questions; Activate and Choose answer them as the tab's
-    // own. `dialog`: a choice or question is open over the rows.
-    std::vector<MenuEntry> NotificationRows(const ShellView& view, bool dialog);
+    // Every frame the shell shows: what waits from friends (NoticesOf), published into Notifications at `now`. With
+    // no list (friends off, no account, nothing read) nothing waits, and the next list read counts as a first one:
+    // what a first list holds, or what a screen that lists them shows, becomes no card.
+    void Publish(const ShellView& view, const std::string& screen, Notifications& notices, double now);
+    // An item published here was answered on its card: its `action` (Accept or Later; Join or Dismiss), done as its
+    // row would do it, so it is gated and said in words alike.
+    void AnswerNotice(const ShellView& view, const std::string& key, std::size_t action, const Submit& submit);
+    // Notifications' row of the request or invite `key`, A as on the Friends tab (Accept; Join); More (Y) opens on
+    // it by AttachNotifications with the tab's choices and questions, and Activate and Choose answer it as the tab's
+    // own. None for a key no longer waiting. `dialog`: a choice or question is open over the rows.
+    std::optional<MenuEntry> RowOf(const ShellView& view, const std::string& key) const;
+    void AttachNotifications(std::vector<MenuEntry>& rows, const ShellView& view, bool dialog);
     // Y on a request's or an invite's row there opens its More; the hint bar names it, and the popout asked for opens.
     static bool TakesOnNotifications(const std::string& focus, unsigned shortcut);
     void NotificationShortcut(const MenuAction& action, MenuNavigation& nav);
@@ -242,9 +222,8 @@ private:
     struct Pending {
         bool active = false;
         std::string row, say;
-        // `finished` and `refusals` as the view had them when it was sent, and when to give up waiting.
+        // `finished` and `refusals` as the view had them when it was sent.
         std::uint64_t finished = 0, refusals = 0;
-        double deadline = 0;
         // The page that goes back once it went through (Add a friend).
         bool back = false;
     };
@@ -257,32 +236,22 @@ private:
     template <class Command>
     bool Send(const ShellView& view, Command command, const Submit& submit, const std::string& row = {}, std::string say = {}, bool back = false);
     void Say(std::string words, Tone tone);
-    // `free`: the shell shows a menu nothing is open over, not the post-match prompt.
-    void Announce(const ShellView& view, const std::string& screen, bool free);
     const std::string& Bridge(const ShellView& view) const;
     void Attach(std::vector<MenuEntry>& rows, const ShellView& view, bool dialog);
     void Ask(const std::string& row, const std::string& ask) { raise_ = Raise{row, ask}; }
-    // An invite's Join: go where it says, then drop it, as its toast's Join does.
+    // A request's Accept, from `row` (said, once through, as who is now a friend); an invite's Join (go where it
+    // says, then drop it) and its Dismiss.
+    void Accept(const ShellView& view, const std::string& request, const std::string& row, const Submit& submit);
     void TakeInvite(const ShellView& view, const std::string& invite, const Submit& submit);
+    void Dismiss(const ShellView& view, const std::string& invite, const Submit& submit);
 
     std::string bridge_, code_, said_, focus_;
     Tone saidTone_{};
     bool service_ = false, started_ = false, asked_ = false, sawVisiting_ = false, hasSaid_ = false;
     std::uint64_t refusalsSeen_ = 0, visitHandled_ = 0;
-    double now_ = 0;
     Pending pending_;
     Raise raise_;
-    // What was said as a toast or seen while the screens showed it, and whether the first state was read; the
-    // toast waiting for the shell.
-    std::set<std::string> told_;
+    // Whether a list was published yet (what the first one held is no news).
     bool read_ = false;
-    std::optional<ToastRequest> toast_;
-    // The requests and invites said as a toast, by id, with the toast's words, until they were seen (friends_panel::Told).
-    struct Toasted { friends_panel::Told told; std::string text; };
-    std::map<std::string, Toasted> toasted_;
-    // The last words taken, until they were seen; `again` once they are being said a second time, which is the last.
-    struct Spoken { std::string words; Tone tone{}; friends_panel::Told told; };
-    std::optional<Spoken> spoken_;
-    bool again_ = false;
 };
 } }

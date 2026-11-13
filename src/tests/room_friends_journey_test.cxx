@@ -270,14 +270,20 @@ void AnsweredWhileHiddenJourney() {
  r.Plays();
  r.Hidden(2);
  f.busy = true; r.Hidden(2);
- // Answered well past the time the interface waits while it shows: the answer still wins over the deadline.
+ // Answered long before Ember shows again: said as it shows.
  f.busy = false; ++f.state.finished; ++f.state.revision; r.Hidden(120);
  r.Win();
  Check(j.screen() == "post-match", "The WIN did not open the prompt");
+ const auto up = [&] {
+  for (const auto* card : j.h.shell.Notices().Cards(ImGui::GetTime())) if (card->text == words) return true;
+  return false;
+ };
+ Check(up(), "A request answered while Ember was hidden was not said as the prompt showed");
  r.OnInPlace(); r.Hidden(60);
  r.Over(); j.h.Frame(0, 3);
  Check(j.screen() == "room-member", "The room did not show again on the member's page after the set");
- Check(Said(j) == words + "|" + words + "|", "A request answered while Ember was hidden was not said at the prompt, and again in the room after Ember hid it at once");
+ Check(up(), "Words Ember hid at once were not shown again in the room");
+ Check(Said(j) == words + "|", "Words shown again were listed twice");
 }
 
 // A request that arrives while the prompt over a WIN shows: its toast shows there without taking the prompt's keys
@@ -304,8 +310,8 @@ void RequestOverPromptJourney() {
  auto after = WithRequest(false, false);
  f.state.value = after; ++f.state.finished; ++f.state.revision; j.h.Frame(0, 2);
  const std::string request = loc::Tf("friends.toast_request", "Player 9") + "\n" + loc::Tf("friends.played_you", 6, loc::Tf("friends.days_ago", 1));
- Check(Said(j) == std::string(loc::Tf("friends.now_friends", "Player 9")) + "|" + request + "|" + request + "|",
-  "Accept on the request's toast did not say who is now a friend, or the toast was not said twice");
+ Check(Said(j) == std::string(loc::Tf("friends.now_friends", "Player 9")) + "|" + request + "|",
+  "Accept on the request's toast did not say who is now a friend, or the toast shown again was listed twice");
 }
 
 // What a toast is followed by: Later is an answer, and nothing said over a free menu is said again.
