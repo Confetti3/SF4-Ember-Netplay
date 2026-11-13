@@ -276,7 +276,6 @@ msgstr "Update verfügbar: {0}"
 msgid "services.go_back_available"
 msgstr "Sie können zu {0} zurückkehren"
 
-
 msgid "services.up_to_date"
 msgstr "Alles aktuell."
 
@@ -727,9 +726,6 @@ msgstr "Profil"
 msgid "home.profile_detail"
 msgstr "Deine Karte, Kämpfer, Freunde und Auszeichnungen."
 
-msgid "home.profile_requests"
-msgstr "Anfragen: {0}"
-
 msgid "home.settings"
 msgstr "Einstellungen"
 
@@ -933,9 +929,6 @@ msgstr "Verlässt Embers Menü und öffnet den Battle Log des Spiels zur Replay-
 
 msgid "replays.open_log_room"
 msgstr "Verlasse zuerst den Raum."
-
-
-
 
 msgid "replays.set_value"
 msgstr "{0} Replays · {1} Räume"
@@ -1278,6 +1271,12 @@ msgstr "Füge Freunde aus einem öffentlichen Raum hinzu: Öffne die Spielerkart
 
 msgid "friends.request_sent_to"
 msgstr "Anfrage an {0} gesendet."
+
+msgid "friends.now_friends"
+msgstr "Du und {0} seid jetzt befreundet."
+
+msgid "friends.blocked_name"
+msgstr "{0} ist blockiert."
 
 msgid "friends.invite_sent"
 msgstr "Einladung an {0} gesendet."
@@ -1639,8 +1638,6 @@ msgstr "Randlos"
 msgid "player.borderless_detail"
 msgstr "Das Spiel füllt den Bildschirm in einem Fenster ohne Rahmen, gerendert in der eigenen Auflösung des Bildschirms im Format 16:9, mit schwarzen Balken auf breiteren oder höheren Bildschirmen. Solange es an ist, bewirken Alt+Enter und die spieleigenen Optionen für Auflösung und Vollbild nichts; das Spiel behält deine Wahl dort für die Zeit, in der es aus ist. Betrifft nur diesen PC. Änderungen gelten ab dem nächsten Spielstart."
 
-
-
 msgid "size.small"
 msgstr "Klein"
 
@@ -1755,6 +1752,9 @@ msgstr "Zeigt einige Sekunden lang F10 oder Start, wenn sich Embers Menü schlie
 msgid "settings.interface_size"
 msgstr "Oberflächengröße"
 
+msgid "settings.interface_size_detail"
+msgstr "Unter 1.00x passt mehr auf einen großen Monitor."
+
 msgid "discord.show_activity"
 msgstr "Aktivität zeigen"
 
@@ -1767,11 +1767,23 @@ msgstr "Einladungen gewähren Zugriff auf Ihren Raum."
 msgid "discord.enable_first"
 msgstr "Erst Discord-Aktivität aktivieren."
 
-msgid "discord.tournament_account"
-msgstr "Turnierkonto"
+msgid "discord.account"
+msgstr "Discord-Konto"
 
-msgid "discord.tournament_account_detail"
-msgstr "Das Discord-Konto, das Ihre Turnierseite kennt, etwa BluMint. Es kann ein anderes sein als in der Discord-App. Auswählen, um es zu verbinden oder zu ändern."
+msgid "discord.account_none"
+msgstr "Nicht verbunden"
+
+msgid "discord.account_linked"
+msgstr "Verbunden · {0}"
+
+msgid "discord.account_detail"
+msgstr "Verbinden Sie das Discord-Konto, das Ihre Ember ID verwendet. Gewertete Spiele, Punkte, Freunde, geteilte Replays und Turnierseiten wie BluMint nutzen es alle. Es kann sich von dem in der Discord-App unterscheiden. Auswählen, um es zu verbinden."
+
+msgid "discord.account_linked_detail"
+msgstr "Das mit Ihrer Ember ID verbundene Discord-Konto. Gewertete Spiele, Punkte, Freunde, geteilte Replays und Turnierseiten wie BluMint nutzen es. Es kann sich von dem in der Discord-App unterscheiden. Auswählen, um das Konto zu wechseln oder zu trennen."
+
+msgid "discord.server"
+msgstr "Ember-Discord-Server"
 
 msgid "discord.invitation_title"
 msgstr "DISCORD-EINLADUNG"
@@ -2834,6 +2846,7 @@ msgstr "Raumanfrage fehlgeschlagen. Raum verlassen und erneut versuchen."
 
 msgid "runtime.build_mismatch"
 msgstr "Dein Ember und dieser Raum haben verschiedene Versionen. Frag den Host, welche er nutzt, und aktualisiere dann oder wechsle den Update-Kanal unter Hilfe & Info > Auf Updates prüfen, damit ihr übereinstimmt."
+
 msgid "runtime.build_mismatch_update"
 msgstr "Dein Ember ist veraltet und kann diesem Raum deshalb nicht beitreten. Aktualisiere unter Hilfe & Info > Auf Updates prüfen und tritt dann erneut bei."
 
@@ -2851,6 +2864,7 @@ msgstr "Auswahl nach diesen Regeln nicht verfügbar. Wählen Sie unter Charakter
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay  /  F10 oder Start"
+
 msgid "runtime.return_menu_to_join"
 msgstr "Kehren Sie zum Hauptmenü zurück, um dem Match beizutreten."
 
@@ -3156,6 +3170,7 @@ msgstr "{0} / HOST"
 
 msgid "room.member_status"
 msgstr "{0}"
+
 msgid "room.member.watcher"
 msgstr "Zuschauer"
 
@@ -3206,12 +3221,16 @@ msgstr "{0} hat ein Spiel an Tisch {1} gewonnen ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} hat den Satz an Tisch {1} gewonnen ({2})"
+
 msgid "chat.event.set_won_against"
 msgstr "{0} hat den Satz gegen {1} gewonnen ({2})"
+
 msgid "chat.typing.one"
 msgstr "{0} schreibt..."
+
 msgid "chat.typing.two"
 msgstr "{0} und {1} schreiben..."
+
 msgid "chat.typing.many"
 msgstr "Mehrere Leute schreiben..."
 
@@ -3271,39 +3290,6 @@ msgstr "Der vorige Kampf wird noch geschlossen. Danach kann der Raum ersetzt wer
 
 msgid "room.updating"
 msgstr "Raum-Update..."
-
-msgid "room.table_name"
-msgstr "Tischname"
-
-msgid "room.table_name.detail"
-msgstr "Steht auf der Tischkarte nach der Nummer, etwa Anfänger. Leer zeigt nur die Nummer."
-
-msgid "room.template"
-msgstr "Vorlage"
-
-msgid "room.template.none"
-msgstr "Keine"
-
-msgid "room.template.detail"
-msgstr "Ein gespeicherter Raum. Er setzt die Zeilen unten und, sobald der Raum offen ist, Regeln und Namen jedes Tisches. Links und Rechts wählen."
-
-msgid "room.template.delete"
-msgstr "Vorlage löschen"
-
-msgid "room.template.delete.detail"
-msgstr "Löscht die Vorlage {0} von diesem PC."
-
-msgid "room.template.full"
-msgstr "Du hast {0} Vorlagen. Lösche zuerst eine unter Raum erstellen."
-
-msgid "room.template.saved"
-msgstr "Als Vorlage {0} gespeichert."
-
-msgid "room.save_template"
-msgstr "Als Vorlage speichern"
-
-msgid "room.save_template.detail"
-msgstr "Speichert die Einstellungen dieses Raums sowie Regeln und Namen jedes Tisches auf diesem PC für Raum erstellen > Vorlage. Derselbe Name überschreibt sie."
 
 msgid "room.fighter_not_shared"
 msgstr "Figur noch nicht gezeigt"
@@ -3379,6 +3365,39 @@ msgstr "Ersatzraum wird geöffnet. Wählen Sie Einladung kopieren und senden Sie
 
 msgid "room.action_rejected"
 msgstr "Raum geändert oder Aktion abgelehnt. Prüfen Sie den aktuellen Zustand und versuchen Sie es erneut."
+
+msgid "room.table_name"
+msgstr "Tischname"
+
+msgid "room.table_name.detail"
+msgstr "Steht auf der Tischkarte nach der Nummer, etwa Anfänger. Leer zeigt nur die Nummer."
+
+msgid "room.template"
+msgstr "Vorlage"
+
+msgid "room.template.none"
+msgstr "Keine"
+
+msgid "room.template.detail"
+msgstr "Ein gespeicherter Raum. Er setzt die Zeilen unten und, sobald der Raum offen ist, Regeln und Namen jedes Tisches. Links und Rechts wählen."
+
+msgid "room.template.delete"
+msgstr "Vorlage löschen"
+
+msgid "room.template.delete.detail"
+msgstr "Löscht die Vorlage {0} von diesem PC."
+
+msgid "room.template.full"
+msgstr "Du hast {0} Vorlagen. Lösche zuerst eine unter Raum erstellen."
+
+msgid "room.template.saved"
+msgstr "Als Vorlage {0} gespeichert."
+
+msgid "room.save_template"
+msgstr "Als Vorlage speichern"
+
+msgid "room.save_template.detail"
+msgstr "Speichert die Einstellungen dieses Raums sowie Regeln und Namen jedes Tisches auf diesem PC für Raum erstellen > Vorlage. Derselbe Name überschreibt sie."
 
 msgid "room.leave_current_table"
 msgstr "Erst aktuellen Tisch verlassen."
@@ -3487,6 +3506,7 @@ msgstr "Die gewählte Verzögerung ist für diesen Kampf gesperrt."
 
 msgid "room.match_delay.at_least"
 msgstr "Mindestens {0} Frames"
+
 msgid "room.match_delay.at_least_one"
 msgstr "Mindestens {0} Frame"
 
@@ -3528,6 +3548,7 @@ msgstr "Warten, bis die Kampf- oder Auswahlaktualisierung endet."
 
 msgid "room.change_fighter.detail"
 msgstr "Wählen Sie einen Charakter, dann sein Ultra. Kehren Sie zurück und wählen Sie Bereit."
+
 msgid "room.appearance.detail"
 msgstr "Links und Rechts wechseln hier die Farbe. Auswählen wählt eine Kleidung, dann ihre Farbe."
 
@@ -3584,9 +3605,6 @@ msgstr "In Warteschlange"
 
 msgid "room.stop_watching"
 msgstr "Zuschauen beenden"
-
-
-
 
 msgid "room.stop_watching.detail"
 msgstr "Beendet das Zuschauen an diesem Tisch und bringt Sie zurück in den Raum. Die Spieler spielen weiter."
@@ -3699,9 +3717,6 @@ msgstr "Änderungen gelten erst nach Übernehmen."
 msgid "room.rules.host_only"
 msgstr "Nur der Host kann Tischregeln ändern."
 
-msgid "room.rules.tournament"
-msgstr "Das Turnier legt die Regeln an diesem Tisch fest."
-
 msgid "room.apply_rules"
 msgstr "Regeln übernehmen"
 
@@ -3785,14 +3800,19 @@ msgstr "Kapazität übernehmen"
 
 msgid "room.apply_capacity.detail"
 msgstr "Diese Kapazität übernehmen."
+
 msgid "room.tables"
 msgstr "Tische"
+
 msgid "room.tables_detail"
 msgstr "Wie viele Tische der Raum hat, von 1 bis {0}. Der Host kann das später in Raumeinstellungen ändern."
+
 msgid "room.tables_arcade_detail"
 msgstr "Wie viele Paare gleichzeitig spielen, von 1 bis {0}. Alle anderen warten in der Schlange. Bei 1 bleibt der Sieger, und der Verlierer stellt sich hinten an."
+
 msgid "room.tables.detail"
 msgstr "Bis zu {0} Tische hinzufügen. Ein Tisch lässt sich nur entfernen, solange dort niemand spielt, wartet oder zuschaut."
+
 msgid "room.apply_tables"
 msgstr "Tische übernehmen"
 
@@ -4104,6 +4124,9 @@ msgstr "Netzwerk nicht verfügbar. Offline-Spiel ist verfügbar."
 
 msgid "runtime.room_join_failed"
 msgstr "Raumbeitritt fehlgeschlagen. Prüfen Sie die Einladung und ob beide Spieler dasselbe SF4 Ember Netplay-Paket nutzen."
+
+msgid "room.rules.tournament"
+msgstr "Das Turnier legt die Regeln an diesem Tisch fest."
 
 msgid "runtime.invite_expired"
 msgstr "Diese Einladung ist abgelaufen. Bitte den Host, eine neue zu kopieren."
@@ -4456,10 +4479,6 @@ msgstr "Anderes Discord-Konto verwenden"
 msgid "connect.change_detail"
 msgstr "Öffnet Discord in Ihrem Browser, um stattdessen ein anderes Konto zu verbinden. Ihre Turnierseite muss dann dieses Konto verwenden."
 
-
-
-
-
 msgid "screen.tournament_desk"
 msgstr "Turnierorganisation"
 
@@ -4591,11 +4610,6 @@ msgstr "Im Browser öffnen"
 
 msgid "desk.open_browser_detail"
 msgstr "Öffnet die Bracket-Seite im Browser dieses PCs. Melde dich dort mit Discord an."
-
-
-
-
-
 
 msgid "desk.opened"
 msgstr "Die Bracket-Seite wurde in deinem Browser geöffnet."
@@ -5166,6 +5180,12 @@ msgstr "Eröffnet einen öffentlichen Raum beim Ember-ID-Dienst, tritt ihm bei u
 
 msgid "public.create_needs_id"
 msgstr "Öffentliche Räume brauchen eine Ember ID und einen vertrauten Dienst. Richten Sie beides unter Öffentliche Räume ein."
+
+msgid "public.ranked_needs_discord"
+msgstr "Discord verbinden, um gewertet zu spielen"
+
+msgid "public.ranked_needs_discord_detail"
+msgstr "Spiele zählen für Ihre Klasse und Ihre Punkte nur mit verbundenem Discord-Konto. Ohne Konto können Sie trotzdem spielen."
 
 msgid "public.loading"
 msgstr "Räume werden geladen..."
@@ -6388,7 +6408,6 @@ msgstr "Die Tastenbilder, die Ember zeigt. Automatisch passt sie an den Controll
 msgid "player.prompts_auto"
 msgstr "Automatisch"
 
-
 msgid "controller.brand.stick"
 msgstr "Kampftasten"
 
@@ -6430,8 +6449,6 @@ msgstr "{0} verbunden"
 
 msgid "player.controllers_detail"
 msgstr "Du spielst mit {0}. Sieh alle verbundenen Controller, teste ihre Tasten und richte die ein, die Ember noch nicht kennt."
-
-
 
 msgid "player.game_reads"
 msgstr "Controller vom Spiel lesen lassen"
@@ -8123,7 +8140,6 @@ msgstr "Bereich öffnen"
 msgid "settings.panel.close_action"
 msgstr "Bereich schließen"
 
-
 msgid "class.developer"
 msgstr "Dev"
 
@@ -8294,6 +8310,12 @@ msgstr "Benachrichtigungen"
 
 msgid "notifications.none"
 msgstr "Noch nichts."
+
+msgid "notifications.tab_count"
+msgstr "Benachrichtigungen · {0}"
+
+msgid "notifications.waiting"
+msgstr "Offen: {0}"
 
 msgid "notifications.none_detail"
 msgstr "Was Ember meldet, etwa ein kopierter Link oder ein verlassener Raum, bleibt hier für diese Sitzung."
@@ -8481,9 +8503,11 @@ msgstr "Matches"
 msgid "replays.tab.sets"
 msgstr "Sets"
 
+msgid "replays.tab.archive"
+msgstr "Archiv"
+
 msgid "replays.set_matches"
 msgstr "{0} Matches"
-
 
 msgid "replays.fact.fighters"
 msgstr "Kämpfer"
@@ -8493,6 +8517,213 @@ msgstr "Gespielt"
 
 msgid "replays.fact.length"
 msgstr "Dauer"
+
+msgid "archive.filters"
+msgstr "Filter"
+
+msgid "archive.filters_detail"
+msgstr "Die Sets nach Spieler, Event, Kämpfer, Klasse, Land oder Runde eingrenzen und ihre Reihenfolge wählen."
+
+msgid "archive.filter_none"
+msgstr "Alles, neueste zuerst"
+
+msgid "archive.filter_class"
+msgstr "Klasse {0}"
+
+msgid "archive.online"
+msgstr "Online-Spiele"
+
+msgid "archive.sort_newest"
+msgstr "Neueste zuerst"
+
+msgid "archive.sort_class"
+msgstr "Höchste Klasse zuerst"
+
+msgid "archive.round.top8"
+msgstr "Top 8"
+
+msgid "archive.round.pools"
+msgstr "Pools"
+
+msgid "archive.round.winners"
+msgstr "Winners"
+
+msgid "archive.round.losers"
+msgstr "Losers"
+
+msgid "archive.round.grand"
+msgstr "Grand Final"
+
+msgid "archive.any_class"
+msgstr "Jede Klasse"
+
+msgid "archive.any_country"
+msgstr "Jedes Land"
+
+msgid "archive.any_event"
+msgstr "Jedes Event"
+
+msgid "archive.any_round"
+msgstr "Jede Runde"
+
+msgid "archive.any_fighter"
+msgstr "Jeder Kämpfer"
+
+msgid "archive.any_fighter_detail"
+msgstr "Listet die Sets unabhängig vom Kämpfer."
+
+msgid "archive.f_text"
+msgstr "Spieler oder Event"
+
+msgid "archive.f_text_detail"
+msgstr "Listet die Sets, in denen der Name eines Spielers oder der Titel eines Events diese Buchstaben enthält."
+
+msgid "archive.f_fighter"
+msgstr "Kämpfer"
+
+msgid "archive.f_fighter_detail"
+msgstr "Listet die Sets, in denen einer der beiden Spieler diesen Kämpfer benutzt hat."
+
+msgid "archive.f_class"
+msgstr "Klasse"
+
+msgid "archive.f_class_detail"
+msgstr "Listet die Sets, in denen einer der beiden Spieler heute diese Klasse in der Rangliste hat."
+
+msgid "archive.f_country"
+msgstr "Land"
+
+msgid "archive.f_country_detail"
+msgstr "Listet die Sets mit einem Spieler aus diesem Land."
+
+msgid "archive.f_event"
+msgstr "Event"
+
+msgid "archive.f_event_detail"
+msgstr "Listet die Sets eines Turnier-Events oder nur die Online-Spiele."
+
+msgid "archive.f_round"
+msgstr "Runde"
+
+msgid "archive.f_round_detail"
+msgstr "Listet die Turnier-Sets einer Runde."
+
+msgid "archive.f_sort"
+msgstr "Sortieren"
+
+msgid "archive.f_sort_detail"
+msgstr "Neueste zuerst oder die Sets mit der höchsten Klasse zuerst."
+
+msgid "archive.games_shown"
+msgstr "Angezeigte Spiele"
+
+msgid "archive.games_of"
+msgstr "{0} von {1}"
+
+msgid "archive.clear"
+msgstr "Filter löschen"
+
+msgid "archive.clear_detail"
+msgstr "Zeigt wieder jedes Set."
+
+msgid "archive.no_service"
+msgstr "Ember ID einrichten"
+
+msgid "archive.no_service_detail"
+msgstr "Das Archiv wird vom Ember-Dienst gelesen. Ember ID öffnen, um es einzurichten."
+
+msgid "archive.loading"
+msgstr "Sets werden geladen"
+
+msgid "archive.loading_detail"
+msgstr "Das Archiv wird nach seinen neuesten Sets gefragt."
+
+msgid "archive.loading_more"
+msgstr "Mehr wird geladen"
+
+msgid "archive.loading_more_detail"
+msgstr "Das Archiv wird nach älteren Sets gefragt."
+
+msgid "archive.unsupported"
+msgstr "Hier gibt es kein Replay-Archiv"
+
+msgid "archive.unsupported_detail"
+msgstr "Dieser Dienst bietet kein öffentliches Replay-Archiv an."
+
+msgid "archive.failed"
+msgstr "Archiv nicht erreichbar"
+
+msgid "archive.failed_detail"
+msgstr "{0} Auswählen, um es erneut zu versuchen."
+
+msgid "archive.none"
+msgstr "Keine Sets passen zu diesen Filtern"
+
+msgid "archive.none_detail"
+msgstr "Die Filter löschen, um jedes Set zu sehen."
+
+msgid "archive.empty"
+msgstr "Noch keine Replays im Archiv"
+
+msgid "archive.empty_detail"
+msgstr "Spiele, die Spieler aus Ember teilen, erscheinen hier."
+
+msgid "archive.more_failed"
+msgstr "Mehr konnte nicht geladen werden"
+
+msgid "archive.more_failed_detail"
+msgstr "Auswählen, um es erneut zu versuchen."
+
+msgid "archive.retry"
+msgstr "Erneut versuchen"
+
+msgid "archive.downloading"
+msgstr "Spiel wird heruntergeladen"
+
+msgid "archive.download_failed"
+msgstr "Das Spiel konnte nicht heruntergeladen werden. {0}"
+
+msgid "archive.vs"
+msgstr "vs"
+
+msgid "archive.watch_hint"
+msgstr "Ansehen"
+
+msgid "archive.find"
+msgstr "Sets von {0} suchen"
+
+msgid "archive.find_detail"
+msgstr "Listet die Sets, die {0} im öffentlichen Archiv gespielt hat."
+
+msgid "archive.game_one"
+msgstr "1 Spiel"
+
+msgid "archive.games"
+msgstr "{0} Spiele"
+
+msgid "archive.met"
+msgstr "Gegen {0}"
+
+msgid "archive.session_label"
+msgstr "{0}: {1} Spiele"
+
+msgid "archive.fact.event"
+msgstr "Event"
+
+msgid "archive.fact.round"
+msgstr "Runde"
+
+msgid "archive.fact.games"
+msgstr "Spiele"
+
+msgid "archive.fact.size"
+msgstr "Größe"
+
+msgid "archive.size_kb"
+msgstr "{0} KB"
+
+msgid "archive.game_n"
+msgstr "Spiel {0}"
 
 msgid "keyboard.recent"
 msgstr "Zuletzt:"
@@ -8620,8 +8851,20 @@ msgstr "Auf deiner Karte."
 msgid "awards.detail_earned"
 msgstr "Verdient. Auswählen trägt es auf deiner Karte."
 
-msgid "awards.detail_locked"
-msgstr "Gesperrt. {0}."
+msgid "awards.progress"
+msgstr "{0} von {1}"
+
+msgid "awards.next"
+msgstr "Als Nächstes: {0}"
+
+msgid "awards.top_level"
+msgstr "Höchste Stufe"
+
+msgid "awards.notice"
+msgstr "Auszeichnung verdient: {0}"
+
+msgid "awards.link_discord"
+msgstr "Verbinde Discord, um Auszeichnungen zu verdienen."
 
 msgid "tier.ash"
 msgstr "Asche"
@@ -8638,104 +8881,266 @@ msgstr "Gold"
 msgid "tier.ember"
 msgstr "Ember"
 
-msgid "award.entrant.title"
-msgstr "EMBER-TEILNEHMER"
+msgid "award.matches.name"
+msgstr "Matches"
 
-msgid "award.entrant.icon"
-msgstr "Funke"
-
-msgid "award.entrant.how"
-msgstr "Spiele einen Satz in einem Ember-Bracket"
-
-msgid "award.launch-night.title"
-msgstr "STARTNACHT"
-
-msgid "award.launch-night.icon"
-msgstr "Zurückspulen"
-
-msgid "award.launch-night.how"
-msgstr "Spiele während des Ember-Startevents"
-
-msgid "award.weekly-top16.title"
-msgstr "TOP 16 DER WEEKLY"
-
-msgid "award.weekly-top16.icon"
-msgstr "Lorbeer"
-
-msgid "award.weekly-top16.how"
-msgstr "Erreiche die Top 16 bei einem Ember Weekly"
-
-msgid "award.rollback-regular.title"
-msgstr "ROLLBACK-STAMMGAST"
-
-msgid "award.rollback-regular.icon"
-msgstr "Kalender"
-
-msgid "award.rollback-regular.how"
-msgstr "Nimm in einer Saison an 10 Ember Weeklies teil"
-
-msgid "award.weekly-top8.title"
-msgstr "TOP 8 DER WEEKLY"
-
-msgid "award.weekly-top8.icon"
-msgstr "Achteck 8"
-
-msgid "award.weekly-top8.how"
-msgstr "Erreiche die Top 8 bei einem Ember Weekly"
-
-msgid "award.by-ear.title"
-msgstr "NACH GEHÖR"
-
-msgid "award.by-ear.icon"
-msgstr "Schallwelle"
-
-msgid "award.by-ear.how"
-msgstr "Gewinne einen Satz im Nur-Audio-Bracket"
-
-msgid "award.monthly-finalist.title"
-msgstr "MONATSFINALIST"
-
-msgid "award.monthly-finalist.icon"
-msgstr "Medaille"
-
-msgid "award.monthly-finalist.how"
-msgstr "Erreiche das Grand Final eines Ember Monthly"
-
-msgid "award.organizer.title"
-msgstr "TURNIERVERANSTALTER"
-
-msgid "award.organizer.icon"
+msgid "award.matches.icon"
 msgstr "Flagge"
 
-msgid "award.organizer.how"
-msgstr "Vom Ember-Team an Veranstalter vergeben"
+msgid "award.matches.1.title"
+msgstr "Neuer Herausforderer"
 
-msgid "award.commentary.title"
-msgstr "KOMMENTATOR"
+msgid "award.matches.1.how"
+msgstr "Spiele dein erstes gewertetes Spiel in einem öffentlichen Raum"
 
-msgid "award.commentary.icon"
-msgstr "Mikrofon"
+msgid "award.matches.100.title"
+msgstr "Stammspieler"
 
-msgid "award.commentary.how"
-msgstr "An Stream-Kommentatoren vergeben"
+msgid "award.matches.100.how"
+msgstr "Spiele 100 gewertete Spiele in öffentlichen Räumen"
 
-msgid "award.season1-veteran.title"
-msgstr "SAISON-1-VETERAN"
+msgid "award.matches.500.title"
+msgstr "Veteran"
 
-msgid "award.season1-veteran.icon"
-msgstr "Wappen"
+msgid "award.matches.500.how"
+msgstr "Spiele 500 gewertete Spiele in öffentlichen Räumen"
 
-msgid "award.season1-veteran.how"
-msgstr "Erreiche die Top 32 in jedem Monthly der Saison 1"
+msgid "award.matches.1000.title"
+msgstr "World Warrior"
 
-msgid "award.cup-champion.title"
-msgstr "EMBER-CUP-CHAMPION"
+msgid "award.matches.1000.how"
+msgstr "Spiele 1000 gewertete Spiele in öffentlichen Räumen"
 
-msgid "award.cup-champion.icon"
-msgstr "Krone"
+msgid "award.matches.5000.title"
+msgstr "Urgestein"
 
-msgid "award.cup-champion.how"
-msgstr "Gewinne den Ember Cup zum Saisonende"
+msgid "award.matches.5000.how"
+msgstr "Spiele 5000 gewertete Spiele in öffentlichen Räumen"
+
+msgid "award.wins.name"
+msgstr "Siege"
+
+msgid "award.wins.icon"
+msgstr "Lorbeer"
+
+msgid "award.wins.1.title"
+msgstr "Erster Sieg"
+
+msgid "award.wins.1.how"
+msgstr "Gewinne dein erstes gewertetes Spiel in einem öffentlichen Raum"
+
+msgid "award.wins.50.title"
+msgstr "Anwärter"
+
+msgid "award.wins.50.how"
+msgstr "Gewinne 50 gewertete Spiele in öffentlichen Räumen"
+
+msgid "award.wins.250.title"
+msgstr "Preiskämpfer"
+
+msgid "award.wins.250.how"
+msgstr "Gewinne 250 gewertete Spiele in öffentlichen Räumen"
+
+msgid "award.wins.1000.title"
+msgstr "Champion"
+
+msgid "award.wins.1000.how"
+msgstr "Gewinne 1000 gewertete Spiele in öffentlichen Räumen"
+
+msgid "award.wins.2500.title"
+msgstr "Legende"
+
+msgid "award.wins.2500.how"
+msgstr "Gewinne 2500 gewertete Spiele in öffentlichen Räumen"
+
+msgid "award.streak.name"
+msgstr "Siegesserie"
+
+msgid "award.streak.icon"
+msgstr "Flamme"
+
+msgid "award.streak.3.title"
+msgstr "In Fahrt"
+
+msgid "award.streak.3.how"
+msgstr "Gewinne 3 gewertete Spiele in Folge"
+
+msgid "award.streak.5.title"
+msgstr "Heiße Serie"
+
+msgid "award.streak.5.how"
+msgstr "Gewinne 5 gewertete Spiele in Folge"
+
+msgid "award.streak.10.title"
+msgstr "Unantastbar"
+
+msgid "award.streak.10.how"
+msgstr "Gewinne 10 gewertete Spiele in Folge"
+
+msgid "award.streak.15.title"
+msgstr "Unschlagbar"
+
+msgid "award.streak.15.how"
+msgstr "Gewinne 15 gewertete Spiele in Folge"
+
+msgid "award.streak.20.title"
+msgstr "Unaufhaltsam"
+
+msgid "award.streak.20.how"
+msgstr "Gewinne 20 gewertete Spiele in Folge"
+
+msgid "award.rank.name"
+msgstr "Höchste Klasse"
+
+msgid "award.rank.icon"
+msgstr "Schild"
+
+msgid "award.mastery.name"
+msgstr "Kämpfer-Meisterschaft"
+
+msgid "award.mastery.icon"
+msgstr "Medaille"
+
+msgid "award.mastery.1.title"
+msgstr "Lehrling"
+
+msgid "award.mastery.1.how"
+msgstr "Bringe einen Kämpfer auf den Kupferrahmen"
+
+msgid "award.mastery.2.title"
+msgstr "Adept"
+
+msgid "award.mastery.2.how"
+msgstr "Bringe einen Kämpfer auf den Silberrahmen"
+
+msgid "award.mastery.3.title"
+msgstr "Spezialist"
+
+msgid "award.mastery.3.how"
+msgstr "Bringe einen Kämpfer auf den Goldrahmen"
+
+msgid "award.mastery.4.title"
+msgstr "Meister"
+
+msgid "award.mastery.4.how"
+msgstr "Bringe einen Kämpfer auf den Ember-Rahmen"
+
+msgid "award.cast.name"
+msgstr "Roster"
+
+msgid "award.cast.icon"
+msgstr "Bracket"
+
+msgid "award.cast.5.title"
+msgstr "Kleine Auswahl"
+
+msgid "award.cast.5.how"
+msgstr "Spiele in gewerteten Spielen 5 verschiedene Kämpfer"
+
+msgid "award.cast.15.title"
+msgstr "Vielseitig"
+
+msgid "award.cast.15.how"
+msgstr "Spiele in gewerteten Spielen 15 verschiedene Kämpfer"
+
+msgid "award.cast.30.title"
+msgstr "Geselle"
+
+msgid "award.cast.30.how"
+msgstr "Spiele in gewerteten Spielen 30 verschiedene Kämpfer"
+
+msgid "award.cast.all.title"
+msgstr "Ganzes Roster"
+
+msgid "award.cast.all.how"
+msgstr "Spiele in gewerteten Spielen jeden Kämpfer"
+
+msgid "award.friends.name"
+msgstr "Freunde"
+
+msgid "award.friends.icon"
+msgstr "Paar"
+
+msgid "award.friends.1.title"
+msgstr "Sparringspartner"
+
+msgid "award.friends.1.how"
+msgstr "Füge einen Freund hinzu"
+
+msgid "award.friends.5.title"
+msgstr "Gute Gesellschaft"
+
+msgid "award.friends.5.how"
+msgstr "Habe 5 Freunde"
+
+msgid "award.friends.15.title"
+msgstr "Stammtisch"
+
+msgid "award.friends.15.how"
+msgstr "Habe 15 Freunde"
+
+msgid "award.rival.name"
+msgstr "Rivale"
+
+msgid "award.rival.icon"
+msgstr "Verlauf"
+
+msgid "award.rival.10.title"
+msgstr "Bekanntes Gesicht"
+
+msgid "award.rival.10.how"
+msgstr "Spiele 10 gewertete Spiele gegen einen Gegner"
+
+msgid "award.rival.50.title"
+msgstr "Rivale"
+
+msgid "award.rival.50.how"
+msgstr "Spiele 50 gewertete Spiele gegen einen Gegner"
+
+msgid "award.rival.100.title"
+msgstr "Nemesis"
+
+msgid "award.rival.100.how"
+msgstr "Spiele 100 gewertete Spiele gegen einen Gegner"
+
+msgid "award.rival.250.title"
+msgstr "Ewiger Rivale"
+
+msgid "award.rival.250.how"
+msgstr "Spiele 250 gewertete Spiele gegen einen Gegner"
+
+msgid "award.opponents.name"
+msgstr "Gegner"
+
+msgid "award.opponents.icon"
+msgstr "Welle"
+
+msgid "award.opponents.10.title"
+msgstr "Offene Herausforderung"
+
+msgid "award.opponents.10.how"
+msgstr "Tritt in gewerteten Spielen gegen 10 verschiedene Gegner an"
+
+msgid "award.opponents.50.title"
+msgstr "Weiter Kreis"
+
+msgid "award.opponents.50.how"
+msgstr "Tritt in gewerteten Spielen gegen 50 verschiedene Gegner an"
+
+msgid "award.opponents.200.title"
+msgstr "Straßenlegende"
+
+msgid "award.opponents.200.how"
+msgstr "Tritt in gewerteten Spielen gegen 200 verschiedene Gegner an"
+
+msgid "award.opponents.500.title"
+msgstr "Rivale aller"
+
+msgid "award.opponents.500.how"
+msgstr "Tritt in gewerteten Spielen gegen 500 verschiedene Gegner an"
+
+msgid "award.rank.how"
+msgstr "Erreiche Klasse {0} in öffentlichen Räumen"
 
 msgid "toast.kind.invitation"
 msgstr "EINLADUNG"

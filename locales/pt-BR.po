@@ -276,7 +276,6 @@ msgstr "Há uma atualização disponível: {0}"
 msgid "services.go_back_available"
 msgstr "Você pode voltar para {0}"
 
-
 msgid "services.up_to_date"
 msgstr "Você está usando a versão mais recente."
 
@@ -727,9 +726,6 @@ msgstr "Perfil"
 msgid "home.profile_detail"
 msgstr "Seu cartão, lutadores, amigos e conquistas."
 
-msgid "home.profile_requests"
-msgstr "Solicitações: {0}"
-
 msgid "home.settings"
 msgstr "Configurações"
 
@@ -933,9 +929,6 @@ msgstr "Sai do menu do Ember e abre o Battle Log do jogo, onde os replays são r
 
 msgid "replays.open_log_room"
 msgstr "Saia da sala primeiro."
-
-
-
 
 msgid "replays.set_value"
 msgstr "{0} replays · {1} salas"
@@ -1278,6 +1271,12 @@ msgstr "Adicione amigos a partir de uma sala pública: abra o cartão do jogador
 
 msgid "friends.request_sent_to"
 msgstr "Pedido enviado para {0}."
+
+msgid "friends.now_friends"
+msgstr "Você e {0} agora são amigos."
+
+msgid "friends.blocked_name"
+msgstr "{0} está bloqueado."
 
 msgid "friends.invite_sent"
 msgstr "Convite enviado para {0}."
@@ -1639,8 +1638,6 @@ msgstr "Sem bordas"
 msgid "player.borderless_detail"
 msgstr "O jogo preenche a tela em uma janela sem moldura, desenhado na resolução própria da tela em 16:9, com faixas pretas em telas mais largas ou mais altas. Enquanto estiver ativado, Alt+Enter e as opções de resolução e tela cheia do próprio jogo não fazem nada; o jogo guarda sua escolha ali para quando estiver desativado. Afeta só este PC. As mudanças valem na próxima vez que o jogo iniciar."
 
-
-
 msgid "size.small"
 msgstr "Pequeno"
 
@@ -1755,6 +1752,9 @@ msgstr "Mostra F10 ou Start por alguns segundos quando o menu do Ember fecha, pa
 msgid "settings.interface_size"
 msgstr "Tamanho da interface"
 
+msgid "settings.interface_size_detail"
+msgstr "Abaixo de 1.00x cabe mais coisa em um monitor grande."
+
 msgid "discord.show_activity"
 msgstr "Mostrar atividade"
 
@@ -1767,11 +1767,23 @@ msgstr "Os convites dão acesso à sua sala."
 msgid "discord.enable_first"
 msgstr "Ative primeiro a atividade do Discord."
 
-msgid "discord.tournament_account"
-msgstr "Conta de torneio"
+msgid "discord.account"
+msgstr "Conta do Discord"
 
-msgid "discord.tournament_account_detail"
-msgstr "A conta do Discord que seu site de torneio conhece, como o BluMint. Pode ser diferente da conta do aplicativo do Discord. Selecione para conectar ou trocar."
+msgid "discord.account_none"
+msgstr "Não conectada"
+
+msgid "discord.account_linked"
+msgstr "Conectada · {0}"
+
+msgid "discord.account_detail"
+msgstr "Conecte a conta do Discord que o seu Ember ID usa. Partidas ranqueadas, pontos, amigos, replays compartilhados e sites de torneio como o BluMint usam essa conta. Ela pode ser diferente da que está no app do Discord. Selecione para conectá-la."
+
+msgid "discord.account_linked_detail"
+msgstr "A conta do Discord conectada ao seu Ember ID. Partidas ranqueadas, pontos, amigos, replays compartilhados e sites de torneio como o BluMint usam essa conta. Ela pode ser diferente da que está no app do Discord. Selecione para trocar de conta ou desconectá-la."
+
+msgid "discord.server"
+msgstr "Servidor do Discord do Ember"
 
 msgid "discord.invitation_title"
 msgstr "CONVITE DO DISCORD"
@@ -2012,6 +2024,7 @@ msgstr "Voltar para {0}"
 
 msgid "training.controls"
 msgstr "Controles de treino"
+
 msgid "training.hide_hint"
 msgstr "Ocultar HUD"
 
@@ -2020,335 +2033,12 @@ msgstr "Controles"
 
 msgid "training.pad_hint"
 msgstr "Toque: restaurar, segure: salvar"
+
 msgid "training.hint.reset"
 msgstr "Restaurar"
+
 msgid "training.hint.save"
 msgstr "Salvar"
-msgid "training.dummy_recording"
-msgstr "Gravação do boneco"
-msgid "training.dummy_recording.detail"
-msgstr "Grave os controles do P1 no P2 e depois reproduza. Nenhuma configuração do jogo é necessária: o Ember passa o boneco para a entrada do P2 enquanto grava ou reproduz."
-msgid "training.input_history"
-msgstr "Histórico de comandos"
-msgid "training.input_history.detail"
-msgstr "Veja os comandos mantidos por cada jogador."
-msgid "training.close_controls"
-msgstr "Fechar controles de treino"
-msgid "training.close_controls.detail"
-msgstr "Feche o Ember e depois o menu de pausa do SF4 para continuar, se estiver aberto."
-msgid "training.slot"
-msgstr "Espaço {0}"
-msgid "training.slot_selected"
-msgstr "Espaço {0} / SELECIONADO"
-msgid "training.slot.detail"
-msgstr "{0} frames gravados. Selecionar liga ou desliga o espaço: Reproduzir e a resposta do boneco usam os espaços ligados. Os espaços ficam com este lutador do boneco até o jogo fechar."
-
-msgid "training.slot.empty"
-msgstr "Vazio"
-
-msgid "training.slot.empty_detail"
-msgstr "Nada gravado. Selecionar escolhe este espaço para Gravar."
-msgid "training.record"
-msgstr "Gravar"
-msgid "training.record.overwrite"
-msgstr "Sobrescreva este espaço ocupado e volte ao treino."
-
-msgid "training.record.choose"
-msgstr "Esquerda e Direita escolhem o espaço onde gravar; as linhas abaixo também o usam."
-msgid "training.record.standby_detail"
-msgstr "Em espera: P1 controla o boneco e o treino continua. {0} ou {1} começa a gravar, e o mesmo de novo para."
-msgid "training.play"
-msgstr "Reproduzir"
-msgid "training.play.on_detail"
-msgstr "Reproduz um espaço ligado, escolhido na ordem de reprodução, e volta ao treino. As gravações seguem o lado para onde o boneco olha. Esquerda e Direita escolhem se repete; cada repetição escolhe de novo."
-
-msgid "training.order"
-msgstr "Ordem de reprodução"
-
-msgid "training.order.random"
-msgstr "Aleatória"
-
-msgid "training.order.in_order"
-msgstr "Em ordem"
-
-msgid "training.order.detail"
-msgstr "Como Reproduzir e a resposta do boneco escolhem entre os espaços ligados."
-msgid "training.play.once"
-msgstr "Uma vez"
-msgid "training.no_recordings_on"
-msgstr "Nenhuma gravação está ligada"
-msgid "training.stop"
-msgstr "Parar"
-msgid "training.loop"
-msgstr "Repetir reprodução"
-msgid "training.clear_recording"
-msgstr "Apagar gravação selecionada"
-msgid "training.clear_recording.detail"
-msgstr "Apague permanentemente este espaço na batalha atual."
-msgid "training.player_one"
-msgstr "Jogador 1"
-msgid "training.player_two"
-msgstr "Jogador 2"
-msgid "training.history.detail"
-msgstr "Comandos mais novos primeiro. A contagem mede comandos mantidos, não a inicialização do golpe."
-msgid "training.clear_history"
-msgstr "Limpar histórico de comandos"
-msgid "training.clear_history.detail"
-msgstr "Limpe o medidor e os dois históricos de comandos."
-msgid "training.practice_ready"
-msgstr "Treino pronto"
-
-msgid "training.standby_status"
-msgstr "Em espera: P1 controla o boneco. {0} ou {1} começa a gravar."
-
-msgid "training.standby"
-msgstr "Em espera"
-msgid "training.recording_suspended"
-msgstr "Gravação suspensa enquanto os controles estão abertos"
-msgid "training.playback_suspended"
-msgstr "Reprodução em andamento"
-msgid "training.applying"
-msgstr "Aplicando comando..."
-msgid "training.waiting_battle"
-msgstr "Aguardando a batalha ficar pronta..."
-msgid "training.title"
-msgstr "LABORATÓRIO DE TREINO"
-msgid "training.command_rejected"
-msgstr "O comando de treino não foi aceito. Revise o estado e tente novamente."
-msgid "training.startup"
-msgstr "Inicialização"
-msgid "training.neutral"
-msgstr "Neutro"
-msgid "training.unavailable"
-msgstr "{0}: {1}"
-msgid "training.unavailable.waiting_attack"
-msgstr "aguardando o início do ataque"
-msgid "training.unavailable.no_attack"
-msgstr "sem início de ataque"
-msgid "training.unavailable.no_contact"
-msgstr "sem contato"
-msgid "training.unavailable.measuring_recovery"
-msgstr "medindo recuperação"
-msgid "training.unavailable.interrupted"
-msgstr "interrompido"
-msgid "training.unavailable.invalid"
-msgstr "amostra inválida"
-msgid "training.frame_advantage"
-msgstr "VANTAGEM DE QUADROS | {0}"
-msgid "training.measuring"
-msgstr "medindo"
-msgid "training.wakeup"
-msgstr "levantando"
-msgid "training.held"
-msgstr "pausado"
-msgid "training.live"
-msgstr "ao vivo"
-msgid "training.advantage"
-msgstr "Vantagem"
-
-msgid "training.last_advantage"
-msgstr "Última vantagem"
-
-msgid "training.last_focus_forward"
-msgstr "Último cancelamento com Focus, dash para frente"
-
-msgid "training.last_focus_back"
-msgstr "Último cancelamento com Focus, dash para trás"
-
-msgid "training.meter.active"
-msgstr "Ativo"
-
-msgid "training.meter.recovery"
-msgstr "Recuperação"
-
-msgid "training.meter.total"
-msgstr "Total"
-
-msgid "training.meter.hit"
-msgstr "Acerto"
-
-msgid "training.meter.block"
-msgstr "Defesa"
-
-msgid "training.meter.focus_forward"
-msgstr "Cancelamento com Focus, dash para frente"
-
-msgid "training.meter.focus_back"
-msgstr "Cancelamento com Focus, dash para trás"
-
-msgid "training.meter.cancelled"
-msgstr "Cancelada"
-
-msgid "training.meter.whiff"
-msgstr "No vazio"
-
-msgid "training.meter.knockdown"
-msgstr "Queda"
-
-msgid "training.meter.meaty"
-msgstr "Meaty"
-
-msgid "training.meter.hitstop"
-msgstr "Hitstop"
-
-msgid "training.meter.throw"
-msgstr "Agarrão / cinemática"
-
-msgid "training.meter.attack"
-msgstr "Ataque"
-
-msgid "training.meter.move"
-msgstr "Movimento"
-
-msgid "training.meter.attack_unsplit"
-msgstr "Ataque não dividido"
-
-msgid "training.meter.style"
-msgstr "Estilo do medidor"
-
-msgid "training.meter.style.detail"
-msgstr "Inclinado colore um ataque por inicialização, ativo e recuperação e escreve a duração de cada trecho. Plano desenha o ataque inteiro em uma só cor."
-
-msgid "training.meter.style.angled"
-msgstr "Inclinado"
-
-msgid "training.meter.style.flat"
-msgstr "Plano"
-
-msgid "training.meter.style.classic"
-msgstr "Clássico"
-
-msgid "training.meter.frames_shown"
-msgstr "Quadros mostrados"
-
-msgid "training.meter.frames_shown.detail"
-msgstr "Quantos quadros as barras mostram na mesma largura. Menos deixa cada quadro mais largo e fácil de contar. Uma troca mais longa continua a partir da borda esquerda. Com o medidor parado, a roda do mouse sobre as barras volta uma página por vez."
-
-msgid "training.meter.history"
-msgstr "Histórico do medidor"
-
-msgid "training.meter.history_seconds"
-msgstr "{0} s"
-
-msgid "training.meter.history.detail"
-msgstr "Por quanto tempo o medidor guarda o que aconteceu. Com o medidor congelado, a roda do mouse sobre as barras volta uma página por vez; um histórico maior alcança o início de um combo longo."
-
-msgid "training.meter.after_pause"
-msgstr "Após uma pausa"
-
-msgid "training.meter.after_pause.start_over"
-msgstr "Recomeçar"
-
-msgid "training.meter.after_pause.continue"
-msgstr "Continuar"
-
-msgid "training.meter.after_pause.detail"
-msgstr "O que o medidor faz quando algo se move de novo depois que os dois lutadores ficaram parados. Recomeçar limpa as barras para a nova troca, como no Street Fighter 6. Continuar segue após a anterior, para o histórico voltar por várias."
-
-msgid "training.meter.scroll"
-msgstr "Rolagem do medidor"
-
-msgid "training.meter.scroll.pages"
-msgstr "Páginas"
-
-msgid "training.meter.scroll.smooth"
-msgstr "Suave"
-
-msgid "training.meter.scroll.detail"
-msgstr "Como as barras avançam. Páginas vira uma página inteira e recomeça à esquerda. Suave mantém o quadro mais recente na borda direita e desliza; a roda sobre um medidor congelado volta dez quadros por clique."
-
-msgid "training.meter.hud_recovery"
-msgstr "Recuperação no HUD"
-
-msgid "training.meter.hud_recovery.detail"
-msgstr "Mostra a recuperação do último golpe de cada lutador ao lado do início no medidor."
-
-msgid "training.meter.hud_numbers"
-msgstr "Números no HUD"
-
-msgid "training.meter.hud_bars"
-msgstr "Barras no HUD"
-
-msgid "training.meter.hud_state"
-msgstr "Estado no HUD"
-
-msgid "training.meter.hud_shortcuts"
-msgstr "Atalhos no HUD"
-
-msgid "training.meter.hud_status"
-msgstr "Gravação no HUD"
-
-msgid "training.meter.hud_inputs"
-msgstr "Entradas no HUD"
-
-msgid "training.meter.inputs_stick"
-msgstr "Alavanca"
-
-msgid "training.meter.inputs_arrows"
-msgstr "Setas"
-
-msgid "training.meter.inputs_both"
-msgstr "Híbrido"
-
-msgid "training.meter.classic_data"
-msgstr "Linha de dados no HUD"
-
-msgid "training.meter.classic_inputs"
-msgstr "Faixas de entrada"
-
-msgid "training.meter.classic_colors"
-msgstr "Cores do SF6 e meaty"
-
-msgid "training.meter.classic_extras"
-msgstr "Legenda, marcadores e borda"
-
-msgid "training.meter.classic_slant"
-msgstr "Células inclinadas"
-
-msgid "training.meter.classic_p2"
-msgstr "Mostrar números do P2"
-
-msgid "training.meter.hud_part.detail"
-msgstr "Mostra esta parte do HUD de treino durante a luta. F5 oculta todo o HUD."
-
-msgid "training.meter.hud_size"
-msgstr "Tamanho do HUD"
-
-msgid "training.meter.hud_size.detail"
-msgstr "Define o tamanho do texto e das barras do HUD de treino. O tamanho da interface também o aumenta."
-
-msgid "training.meter.settings"
-msgstr "Configurações do medidor"
-
-msgid "training.meter.settings.detail"
-msgstr "Onde o medidor fica, quanto guarda para trás e o que faz após uma pausa."
-
-msgid "training.meter.classic"
-msgstr "Medidor clássico"
-
-msgid "training.meter.classic.detail"
-msgstr "A altura das barras do medidor clássico e suas partes."
-
-msgid "training.meter.position"
-msgstr "Posição do medidor"
-
-msgid "training.meter.position.detail"
-msgstr "Quão abaixo na tela fica o medidor, medido pela borda inferior. 82% o mantém logo acima das barras de super; números menores o sobem."
-
-msgid "training.meter.bar_height"
-msgstr "Altura das barras"
-
-msgid "training.meter.bar_height.detail"
-msgstr "A altura das barras do medidor clássico."
-
-msgid "training.recovery_frames"
-msgstr "Rec. {0} q"
-
-msgid "training.recovery_unknown"
-msgstr "Rec. --"
-
-msgid "training.recovery_cancelled"
-msgstr "Rec. cancelada"
 
 msgid "training.save_recording"
 msgstr "Salvar gravação como"
@@ -2376,6 +2066,18 @@ msgstr "Gravação {0} carregada no slot {1}."
 
 msgid "training.recording_none"
 msgstr "Nenhuma gravação salva."
+
+msgid "training.dummy_recording"
+msgstr "Gravação do boneco"
+
+msgid "training.dummy_recording.detail"
+msgstr "Grave os controles do P1 no P2 e depois reproduza. Nenhuma configuração do jogo é necessária: o Ember passa o boneco para a entrada do P2 enquanto grava ou reproduz."
+
+msgid "training.input_history"
+msgstr "Histórico de comandos"
+
+msgid "training.input_history.detail"
+msgstr "Veja os comandos mantidos por cada jogador."
 
 msgid "training.match.checkpoint_disabled"
 msgstr "O salvamento e a restauração compartilhados da posição não estão disponíveis em partidas com rollback."
@@ -2596,93 +2298,485 @@ msgstr "Infinita"
 msgid "training.dummy.gauge_refill"
 msgstr "Recarga"
 
+msgid "training.close_controls"
+msgstr "Fechar controles de treino"
+
+msgid "training.close_controls.detail"
+msgstr "Feche o Ember e depois o menu de pausa do SF4 para continuar, se estiver aberto."
+
+msgid "training.slot"
+msgstr "Espaço {0}"
+
+msgid "training.slot_selected"
+msgstr "Espaço {0} / SELECIONADO"
+
+msgid "training.slot.detail"
+msgstr "{0} frames gravados. Selecionar liga ou desliga o espaço: Reproduzir e a resposta do boneco usam os espaços ligados. Os espaços ficam com este lutador do boneco até o jogo fechar."
+
+msgid "training.slot.empty"
+msgstr "Vazio"
+
+msgid "training.slot.empty_detail"
+msgstr "Nada gravado. Selecionar escolhe este espaço para Gravar."
+
+msgid "training.record"
+msgstr "Gravar"
+
+msgid "training.record.overwrite"
+msgstr "Sobrescreva este espaço ocupado e volte ao treino."
+
+msgid "training.record.choose"
+msgstr "Esquerda e Direita escolhem o espaço onde gravar; as linhas abaixo também o usam."
+
+msgid "training.record.standby_detail"
+msgstr "Em espera: P1 controla o boneco e o treino continua. {0} ou {1} começa a gravar, e o mesmo de novo para."
+
+msgid "training.play"
+msgstr "Reproduzir"
+
+msgid "training.play.on_detail"
+msgstr "Reproduz um espaço ligado, escolhido na ordem de reprodução, e volta ao treino. As gravações seguem o lado para onde o boneco olha. Esquerda e Direita escolhem se repete; cada repetição escolhe de novo."
+
+msgid "training.order"
+msgstr "Ordem de reprodução"
+
+msgid "training.order.random"
+msgstr "Aleatória"
+
+msgid "training.order.in_order"
+msgstr "Em ordem"
+
+msgid "training.order.detail"
+msgstr "Como Reproduzir e a resposta do boneco escolhem entre os espaços ligados."
+
+msgid "training.play.once"
+msgstr "Uma vez"
+
+msgid "training.no_recordings_on"
+msgstr "Nenhuma gravação está ligada"
+
+msgid "training.stop"
+msgstr "Parar"
+
+msgid "training.loop"
+msgstr "Repetir reprodução"
+
+msgid "training.clear_recording"
+msgstr "Apagar gravação selecionada"
+
+msgid "training.clear_recording.detail"
+msgstr "Apague permanentemente este espaço na batalha atual."
+
+msgid "training.player_one"
+msgstr "Jogador 1"
+
+msgid "training.player_two"
+msgstr "Jogador 2"
+
+msgid "training.history.detail"
+msgstr "Comandos mais novos primeiro. A contagem mede comandos mantidos, não a inicialização do golpe."
+
+msgid "training.clear_history"
+msgstr "Limpar histórico de comandos"
+
+msgid "training.clear_history.detail"
+msgstr "Limpe o medidor e os dois históricos de comandos."
+
+msgid "training.practice_ready"
+msgstr "Treino pronto"
+
+msgid "training.standby_status"
+msgstr "Em espera: P1 controla o boneco. {0} ou {1} começa a gravar."
+
+msgid "training.standby"
+msgstr "Em espera"
+
+msgid "training.recording_suspended"
+msgstr "Gravação suspensa enquanto os controles estão abertos"
+
+msgid "training.playback_suspended"
+msgstr "Reprodução em andamento"
+
+msgid "training.applying"
+msgstr "Aplicando comando..."
+
+msgid "training.waiting_battle"
+msgstr "Aguardando a batalha ficar pronta..."
+
+msgid "training.title"
+msgstr "LABORATÓRIO DE TREINO"
+
+msgid "training.command_rejected"
+msgstr "O comando de treino não foi aceito. Revise o estado e tente novamente."
+
+msgid "training.startup"
+msgstr "Inicialização"
+
+msgid "training.meter.active"
+msgstr "Ativo"
+
+msgid "training.meter.recovery"
+msgstr "Recuperação"
+
+msgid "training.meter.total"
+msgstr "Total"
+
+msgid "training.meter.hit"
+msgstr "Acerto"
+
+msgid "training.meter.block"
+msgstr "Defesa"
+
+msgid "training.meter.focus_forward"
+msgstr "Cancelamento com Focus, dash para frente"
+
+msgid "training.meter.focus_back"
+msgstr "Cancelamento com Focus, dash para trás"
+
+msgid "training.meter.cancelled"
+msgstr "Cancelada"
+
+msgid "training.meter.whiff"
+msgstr "No vazio"
+
+msgid "training.meter.knockdown"
+msgstr "Queda"
+
+msgid "training.meter.meaty"
+msgstr "Meaty"
+
+msgid "training.meter.hitstop"
+msgstr "Hitstop"
+
+msgid "training.meter.throw"
+msgstr "Agarrão / cinemática"
+
+msgid "training.meter.attack"
+msgstr "Ataque"
+
+msgid "training.meter.move"
+msgstr "Movimento"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Ataque não dividido"
+
+msgid "training.meter.style"
+msgstr "Estilo do medidor"
+
+msgid "training.meter.style.detail"
+msgstr "Inclinado colore um ataque por inicialização, ativo e recuperação e escreve a duração de cada trecho. Plano desenha o ataque inteiro em uma só cor."
+
+msgid "training.meter.style.angled"
+msgstr "Inclinado"
+
+msgid "training.meter.style.flat"
+msgstr "Plano"
+
+msgid "training.meter.style.classic"
+msgstr "Clássico"
+
+msgid "training.meter.frames_shown"
+msgstr "Quadros mostrados"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Quantos quadros as barras mostram na mesma largura. Menos deixa cada quadro mais largo e fácil de contar. Uma troca mais longa continua a partir da borda esquerda. Com o medidor parado, a roda do mouse sobre as barras volta uma página por vez."
+
+msgid "training.meter.history"
+msgstr "Histórico do medidor"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "Por quanto tempo o medidor guarda o que aconteceu. Com o medidor congelado, a roda do mouse sobre as barras volta uma página por vez; um histórico maior alcança o início de um combo longo."
+
+msgid "training.meter.after_pause"
+msgstr "Após uma pausa"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Recomeçar"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Continuar"
+
+msgid "training.meter.after_pause.detail"
+msgstr "O que o medidor faz quando algo se move de novo depois que os dois lutadores ficaram parados. Recomeçar limpa as barras para a nova troca, como no Street Fighter 6. Continuar segue após a anterior, para o histórico voltar por várias."
+
+msgid "training.meter.scroll"
+msgstr "Rolagem do medidor"
+
+msgid "training.meter.scroll.pages"
+msgstr "Páginas"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Suave"
+
+msgid "training.meter.scroll.detail"
+msgstr "Como as barras avançam. Páginas vira uma página inteira e recomeça à esquerda. Suave mantém o quadro mais recente na borda direita e desliza; a roda sobre um medidor congelado volta dez quadros por clique."
+
+msgid "training.meter.hud_recovery"
+msgstr "Recuperação no HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Mostra a recuperação do último golpe de cada lutador ao lado do início no medidor."
+
+msgid "training.meter.hud_numbers"
+msgstr "Números no HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Barras no HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Estado no HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Atalhos no HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Gravação no HUD"
+
+msgid "training.meter.hud_inputs"
+msgstr "Entradas no HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Alavanca"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Setas"
+
+msgid "training.meter.inputs_both"
+msgstr "Híbrido"
+
+msgid "training.meter.classic_data"
+msgstr "Linha de dados no HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Faixas de entrada"
+
+msgid "training.meter.classic_colors"
+msgstr "Cores do SF6 e meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Legenda, marcadores e borda"
+
+msgid "training.meter.classic_slant"
+msgstr "Células inclinadas"
+
+msgid "training.meter.classic_p2"
+msgstr "Mostrar números do P2"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Mostra esta parte do HUD de treino durante a luta. F5 oculta todo o HUD."
+
+msgid "training.meter.hud_size"
+msgstr "Tamanho do HUD"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Define o tamanho do texto e das barras do HUD de treino. O tamanho da interface também o aumenta."
+
+msgid "training.meter.settings"
+msgstr "Configurações do medidor"
+
+msgid "training.meter.settings.detail"
+msgstr "Onde o medidor fica, quanto guarda para trás e o que faz após uma pausa."
+
+msgid "training.meter.classic"
+msgstr "Medidor clássico"
+
+msgid "training.meter.classic.detail"
+msgstr "A altura das barras do medidor clássico e suas partes."
+
+msgid "training.meter.position"
+msgstr "Posição do medidor"
+
+msgid "training.meter.position.detail"
+msgstr "Quão abaixo na tela fica o medidor, medido pela borda inferior. 82% o mantém logo acima das barras de super; números menores o sobem."
+
+msgid "training.meter.bar_height"
+msgstr "Altura das barras"
+
+msgid "training.meter.bar_height.detail"
+msgstr "A altura das barras do medidor clássico."
+
+msgid "training.recovery_frames"
+msgstr "Rec. {0} q"
+
+msgid "training.recovery_unknown"
+msgstr "Rec. --"
+
+msgid "training.recovery_cancelled"
+msgstr "Rec. cancelada"
+
+msgid "training.neutral"
+msgstr "Neutro"
+
+msgid "training.unavailable"
+msgstr "{0}: {1}"
+
+msgid "training.unavailable.waiting_attack"
+msgstr "aguardando o início do ataque"
+
+msgid "training.unavailable.no_attack"
+msgstr "sem início de ataque"
+
+msgid "training.unavailable.no_contact"
+msgstr "sem contato"
+
+msgid "training.unavailable.measuring_recovery"
+msgstr "medindo recuperação"
+
+msgid "training.unavailable.interrupted"
+msgstr "interrompido"
+
+msgid "training.unavailable.invalid"
+msgstr "amostra inválida"
+
+msgid "training.frame_advantage"
+msgstr "VANTAGEM DE QUADROS | {0}"
+
+msgid "training.measuring"
+msgstr "medindo"
+
+msgid "training.wakeup"
+msgstr "levantando"
+
+msgid "training.held"
+msgstr "pausado"
+
+msgid "training.live"
+msgstr "ao vivo"
+
+msgid "training.advantage"
+msgstr "Vantagem"
+
+msgid "training.last_advantage"
+msgstr "Última vantagem"
+
+msgid "training.last_focus_forward"
+msgstr "Último cancelamento com Focus, dash para frente"
+
+msgid "training.last_focus_back"
+msgstr "Último cancelamento com Focus, dash para trás"
+
 msgid "selection.preview_unavailable"
 msgstr "Prévia\nindisponível"
+
 msgid "selection.preview_loading"
 msgstr "Carregando\nprévia..."
+
 msgid "selection.handicap_normal"
 msgstr "Normal (100%)"
+
 msgid "selection.handicap_one_hit"
 msgstr "Um golpe"
+
 msgid "selection.handicap_25"
 msgstr "25%"
+
 msgid "selection.handicap_50"
 msgstr "50%"
+
 msgid "selection.handicap_75"
 msgstr "75%"
+
 msgid "selection.original"
 msgstr "Original"
+
 msgid "selection.alternate_pack"
 msgstr "Alternativo {0} / {1}"
+
 msgid "selection.custom"
 msgstr "Personalizado {0}"
+
 msgid "selection.stage_count"
 msgstr "{0} CENÁRIOS / USFIV"
+
 msgid "selection.choose_battlefield"
 msgstr "Escolha o campo de batalha."
+
 msgid "selection.select_saves"
 msgstr "Selecionar salva esta escolha. Voltar retorna sem alterar a prévia destacada."
+
 msgid "selection.adjust_saves"
 msgstr "Esquerda e Direita alteram isto e salvam na hora."
+
 msgid "selection.locked_detail"
 msgstr "A seleção está bloqueada. Volte à mesa para ver o estado atual."
-msgid "selection.title"
-msgstr "SELEÇÃO DE LUTADOR"
-msgid "selection.fighter"
-msgstr "Lutador"
-msgid "selection.appearance"
-msgstr "Aparência"
-msgid "selection.appearance_value"
-msgstr "{0} / Cor {1}"
-msgid "selection.ultra_combo"
-msgstr "Ultra Combo"
-msgid "selection.ultra_row.detail"
-msgstr "Esquerda e Direita trocam o Ultra aqui. Selecionar mostra cada Ultra com seu comando."
 
 msgid "selection.winner_keeps_fighter"
 msgstr "Você venceu o último set, então mantém este lutador. Ainda pode mudar o Ultra Combo, o traje e a cor."
 
+msgid "selection.title"
+msgstr "SELEÇÃO DE LUTADOR"
+
+msgid "selection.fighter"
+msgstr "Lutador"
+
+msgid "selection.appearance"
+msgstr "Aparência"
+
+msgid "selection.appearance_value"
+msgstr "{0} / Cor {1}"
+
+msgid "selection.ultra_combo"
+msgstr "Ultra Combo"
+
+msgid "selection.ultra_row.detail"
+msgstr "Esquerda e Direita trocam o Ultra aqui. Selecionar mostra cada Ultra com seu comando."
+
 msgid "selection.ultra_double"
 msgstr "Ultra Duplo"
+
 msgid "selection.ultra_one"
 msgstr "Ultra I"
+
 msgid "selection.ultra_two"
 msgstr "Ultra II"
+
 msgid "selection.stage"
 msgstr "Cenário"
+
 msgid "selection.p1_stage"
 msgstr "P1 escolhe o cenário."
+
 msgid "selection.additional_options"
 msgstr "Opções adicionais"
+
 msgid "selection.additional_options.detail"
 msgstr "Edição, ação pessoal, frase de vitória e vantagem."
+
 msgid "selection.not_owned"
 msgstr "Você não possui na Steam."
 
 msgid "selection.saved"
 msgstr "SALVO"
+
 msgid "selection.stage_title"
 msgstr "CENÁRIO"
+
 msgid "selection.only_p1_stage"
 msgstr "Somente P1 pode alterar o cenário."
+
 msgid "selection.options_title"
 msgstr "OPÇÕES DO LUTADOR"
+
 msgid "selection.edition"
 msgstr "Edição"
+
 msgid "selection.usfiv_rules"
 msgstr "A sala usa as regras do USFIV."
+
 msgid "selection.personal_action"
 msgstr "Ação pessoal"
+
 msgid "common.none"
 msgstr "Nenhum"
+
 msgid "selection.win_quote"
 msgstr "Frase de vitória"
+
 msgid "selection.random"
 msgstr "Aleatória"
-msgid "selection.random_stage"
-msgstr "Aleatório"
-msgid "selection.random_stage.detail"
-msgstr "Um cenário diferente a cada partida."
 
 msgid "selection.random_card"
 msgstr "Aleatório"
@@ -2692,6 +2786,12 @@ msgstr "Um lutador novo a cada partida, sorteado entre os que você tem."
 
 msgid "selection.random_fighter"
 msgstr "Aleatório · {0}"
+
+msgid "selection.random_stage"
+msgstr "Aleatório"
+
+msgid "selection.random_stage.detail"
+msgstr "Um cenário diferente a cada partida."
 
 msgid "selection.random_pool"
 msgstr "Cenários aleatórios"
@@ -2713,147 +2813,214 @@ msgstr "O aleatório precisa de pelo menos um cenário."
 
 msgid "selection.random_pool_skipped"
 msgstr "IGNORADO"
+
 msgid "selection.handicap"
 msgstr "Vantagem"
+
 msgid "selection.saved_full"
 msgstr "Salvo: {0} / {1} / Cor {2}"
+
 msgid "selection.status_editable"
 msgstr "Selecionar salva / Voltar sobe um nível."
+
 msgid "selection.status_browse"
 msgstr "Selecionar abre / Voltar sobe um nível."
+
 msgid "selection.status_adjust"
 msgstr "Esquerda/Direita salva / Voltar sobe um nível."
+
 msgid "selection.status_locked"
 msgstr "Seleção bloqueada: volte à mesa para ver o estado."
 
 msgid "runtime.room_recovering"
 msgstr "O controle da sala está se recuperando. A conexão da partida foi mantida."
+
 msgid "runtime.room_lost_fight_continues"
 msgstr "Conexão da sala perdida. A luta continua, mas revanche e resultados estão desativados."
+
 msgid "runtime.returned_room_lost"
 msgstr "Retorno ao menu: a conexão da sala foi perdida durante a partida."
+
 msgid "runtime.room_request_failed"
 msgstr "A solicitação da sala falhou. Saia da sala e tente novamente."
+
 msgid "runtime.build_mismatch"
 msgstr "Seu Ember e esta sala estão em versões diferentes. Pergunte ao anfitrião qual versão ele usa e depois atualize ou troque o canal de atualização em Ajuda e informações > Buscar atualizações para ficarem iguais."
+
 msgid "runtime.build_mismatch_update"
 msgstr "Seu Ember está desatualizado e por isso não pode entrar nesta sala. Atualize em Ajuda e informações > Buscar atualizações e entre de novo."
+
 msgid "runtime.room_full"
 msgstr "Esta sala está cheia."
+
 msgid "runtime.selection_combination_unavailable"
 msgstr "Esta combinação não está disponível pelas regras da sala. Escolha outro lutador, traje, cor ou edição."
+
 msgid "runtime.selection_summary"
 msgstr "{0} / {1} / Cor {2} / {3}"
+
 msgid "runtime.selection_unavailable"
 msgstr "Seleção indisponível por estas regras. Abra Seleção de lutador e escolha uma opção disponível."
+
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay  /  F10 ou Start"
+
 msgid "runtime.return_menu_to_join"
 msgstr "Volte ao menu principal para entrar na partida."
+
 msgid "runtime.waiting_opponent_join"
 msgstr "Aguardando o oponente entrar no lobby..."
+
 msgid "runtime.authorized_connection_unavailable"
 msgstr "A conexão autorizada da partida está indisponível."
+
 msgid "runtime.input_lag_unavailable"
 msgstr "Este PC não conseguiu ajustar o tempo de entrada do jogo como esta partida exige (Menos atraso de entrada), então a partida foi interrompida. Reiniciar o jogo deve resolver."
+
 msgid "runtime.waiting_opponent_start"
 msgstr "Aguardando o oponente no lobby para iniciar a partida."
+
 msgid "runtime.unsupported_stage"
 msgstr "A sala forneceu um cenário incompatível. Redefina o lobby antes de tentar novamente."
+
 msgid "runtime.unsupported_match"
 msgstr "A sala forneceu lutadores ou configurações de partida incompatíveis. Redefina o lobby antes de tentar novamente."
+
 msgid "runtime.netplay_input_failed"
 msgstr "Falha na entrada do netplay. A partida terminou."
+
 msgid "runtime.netplay_sync_failed"
 msgstr "Falha na sincronização do netplay. A partida terminou."
+
 msgid "runtime.invalid_roster"
 msgstr "Lista de jogadores inválida. Volte à sala e tente novamente."
+
 msgid "runtime.ggpo_start_failed"
 msgstr "O GGPO não pôde iniciar. Volte ao lobby e marque Pronto novamente."
+
 msgid "runtime.ggpo_add_players_failed"
 msgstr "O GGPO não pôde adicionar jogadores. Volte ao lobby e marque Pronto novamente."
+
 msgid "runtime.rollback_buffer_full"
 msgstr "Buffer de rollback cheio. A partida terminou."
+
 msgid "runtime.connection_unstable_prediction"
 msgstr "Conexão instável. Jogando com previsão."
+
 msgid "runtime.connection_restored"
 msgstr "Conexão restaurada."
+
 msgid "runtime.spectator_stream_lost"
 msgstr "A transmissão de espectador foi interrompida. Você assistirá ao próximo jogo desta mesa."
+
 msgid "runtime.match_connection_lost"
 msgstr "A conexão da partida foi perdida."
+
 msgid "runtime.opponent_disconnected"
 msgstr "Oponente desconectado. A partida terminou."
+
 msgid "runtime.leaving_spectator"
 msgstr "Saindo da visualização de espectador."
+
 msgid "runtime.spectator_sat_out"
 msgstr "O jogo começou enquanto você estava fora do menu principal. Você assistirá ao próximo."
+
 msgid "runtime.watching_hint"
 msgstr "Start ou F10 abre o Ember, onde Parar de assistir leva você de volta à sala."
+
 msgid "runtime.returning_room"
 msgstr "Voltando à sala."
+
 msgid "runtime.table_game_cancelled"
 msgstr "O jogo desta mesa foi cancelado. Volte à sala e marque Pronto novamente."
+
 msgid "runtime.match_start_timeout"
 msgstr "O jogo não começou em um minuto, então foi cancelado para os dois jogadores. Marque Pronto novamente na sala."
+
 msgid "runtime.practice_ended"
 msgstr "Prática encerrada. Volte à sala e marque Pronto novamente."
+
 msgid "runtime.result_not_recorded"
 msgstr "O resultado não pôde ser registrado: a mesa mudou antes da confirmação."
+
 msgid "runtime.participant_left"
 msgstr "Um participante saiu da sala. O jogo será encerrado."
 
 msgid "update.github_unreachable"
 msgstr "Não foi possível acessar o GitHub. Verifique a conexão e tente novamente."
+
 msgid "update.rate_limited"
 msgstr "O GitHub está limitando a busca por atualizações no momento. Aguarde alguns minutos e tente novamente."
+
 msgid "update.no_zip_asset"
 msgstr "A versão mais recente não tem um ZIP do SF4 Ember Netplay."
+
 msgid "update.parse_failed"
 msgstr "Não foi possível interpretar a resposta de versão do GitHub."
+
 msgid "update.missing_url"
 msgstr "URL de download ausente."
+
 msgid "update.missing_version"
 msgstr "Etiqueta de versão ausente."
 
 msgid "update.not_offered"
 msgstr "Esta versão não é a que foi oferecida. Verifique as atualizações novamente."
+
 msgid "update.close_sf4"
 msgstr "Feche o Ultra Street Fighter IV antes de instalar uma atualização."
+
 msgid "update.install_dir_failed"
 msgstr "Não foi possível determinar a pasta de instalação."
+
 msgid "update.temp_path_failed"
 msgstr "Não foi possível criar o caminho temporário da atualização ({0})."
+
 msgid "update.temp_folder_failed"
 msgstr "Não foi possível criar a pasta temporária da atualização ({0})."
+
 msgid "update.temp_access_failed"
 msgstr "Não foi possível acessar a pasta temporária."
+
 msgid "update.zip_path_failed"
 msgstr "Não foi possível criar o caminho do ZIP da atualização."
+
 msgid "update.extract_folder_failed"
 msgstr "Não foi possível criar a pasta de extração ({0})."
+
 msgid "update.download_failed"
 msgstr "Falha no download ({0}). Download manual: {1} (detalhes em %TEMP%\\sf4-netplay-update.log)"
+
 msgid "update.verify_failed"
 msgstr "Não foi possível verificar o download. Tente novamente."
+
 msgid "update.integrity_failed"
 msgstr "O download falhou na verificação de integridade e não foi instalado. Tente novamente ou baixe manualmente do GitHub."
+
 msgid "update.no_digest"
 msgstr "A versão não tem resumo SHA-256 publicado. A instalação automática está indisponível."
+
 msgid "update.extract_failed"
 msgstr "Não foi possível extrair o pacote de atualização."
+
 msgid "update.invalid_paths"
 msgstr "O pacote baixado contém caminhos inválidos."
+
 msgid "update.missing_binaries"
 msgstr "O pacote baixado não contém Launcher.exe ou Sidecar.dll."
+
 msgid "update.staging_path_failed"
 msgstr "Não foi possível ler o caminho de preparação."
+
 msgid "update.validation_detail"
 msgstr "Falha na validação: {0}\nOs arquivos instalados não foram substituídos."
+
 msgid "update.cancelled"
 msgstr "Atualização cancelada antes da instalação."
+
 msgid "update.close_game"
 msgstr "Feche o jogo antes de instalar a atualização."
+
 msgid "update.updater_start_failed"
 msgstr "Não foi possível iniciar Updater.exe. Reinstale usando um ZIP novo."
 
@@ -2892,28 +3059,40 @@ msgstr "Concluindo uma atualização interrompida..."
 
 msgid "room.member_left"
 msgstr "Membro saiu"
+
 msgid "room.open_seat"
 msgstr "Lugar vago"
+
 msgid "room.status.queued"
 msgstr "Na fila"
+
 msgid "room.status.seated"
 msgstr "Sentado"
+
 msgid "room.status.ready"
 msgstr "Pronto"
+
 msgid "class.master"
 msgstr "Mestre"
+
 msgid "class.grand_master"
 msgstr "Grão-Mestre"
+
 msgid "class.tip"
 msgstr "Classe {0}"
+
 msgid "class.unsettled"
 msgstr "Sem partidas recentes, então pode ter mudado."
+
 msgid "room.status.playing"
 msgstr "Jogando"
+
 msgid "room.status.watching"
 msgstr "Assistindo"
+
 msgid "room.status.watching_next"
 msgstr "Assistirá ao próximo jogo"
+
 msgid "room.status.idle"
 msgstr "Ocioso"
 
@@ -2925,179 +3104,265 @@ msgstr "Inativo há {0} h {1} min"
 
 msgid "room.in_training"
 msgstr "Em treino"
+
 msgid "room.phase.waiting"
 msgstr "Aguardando lutadores"
+
 msgid "room.phase.preparing"
 msgstr "Preparando jogo"
+
 msgid "room.phase.holding"
 msgstr "Aguardando espectadores"
+
 msgid "room.phase.in_game"
 msgstr "Em jogo"
+
 msgid "room.phase.unresolved"
 msgstr "Resultado não resolvido"
+
 msgid "room.phase.closed"
 msgstr "Fechada"
+
 msgid "room.phase.open"
 msgstr "Aberta"
+
 msgid "room.terminal_pending"
 msgstr "Aguardando todos os jogadores e espectadores voltarem da partida anterior."
+
 msgid "room.leave.detail"
 msgstr "Desconecte desta sala e volte ao Início. Ocultar o Ember mantém você na sala."
+
 msgid "room.leave.unresolved"
 msgstr " O jogo não resolvido não será registrado."
+
 msgid "room.leave.active"
 msgstr " O jogo atual termina sem resultado e seu lugar é liberado."
+
 msgid "room.leave.seat"
 msgstr " Seu lugar é liberado."
+
 msgid "room.leave.queue"
 msgstr " Você perde sua posição na fila."
+
 msgid "room.leave.watching"
 msgstr " Sua visualização de espectador termina."
+
 msgid "room.leave.host"
 msgstr " Outro membro se torna anfitrião."
+
 msgid "room.table_detail"
 msgstr "{0} vs {1}\n{2}\nFila: {3} / Assistindo: {4}\nVocê: {5}"
+
 msgid "room.connecting"
 msgstr "Conectando"
+
 msgid "room.table_occupancy"
 msgstr "Mesa {0}   {1}/2"
+
 msgid "room.member_you"
 msgstr "{0} / VOCÊ"
+
 msgid "room.member"
 msgstr "{0}"
+
 msgid "room.member_status_host"
 msgstr "{0} / ANFITRIÃO"
+
 msgid "room.member_status"
 msgstr "{0}"
+
 msgid "room.member.watcher"
 msgstr "Espectador"
+
 msgid "room.members"
 msgstr "Membros"
+
 msgid "room.member_count"
 msgstr "{0} / {1} membros."
+
 msgid "room.chat"
 msgstr "Bate-papo"
+
 msgid "room.chat.detail"
 msgstr "Leia e envie mensagens. Para digitar, é preciso um teclado."
+
 msgid "room.chat.unread"
 msgstr "{0} não lidas."
+
 msgid "chat.detail"
 msgstr "Para digitar, é preciso um teclado. Enter envia; as setas para cima e para baixo rolam o bate-papo."
+
 msgid "chat.hint"
 msgstr "Escreva uma mensagem"
+
 msgid "chat.send"
 msgstr "Enviar"
+
 msgid "chat.sending"
 msgstr "Enviando..."
+
 msgid "chat.remaining"
 msgstr "Restam {0}"
+
 msgid "chat.empty"
 msgstr "Ainda não há mensagens. Digite abaixo para começar."
+
 msgid "chat.event.joined"
 msgstr "{0} entrou na sala"
+
 msgid "chat.event.left"
 msgstr "{0} saiu da sala"
+
 msgid "chat.event.host"
 msgstr "{0} agora é o anfitrião"
+
 msgid "chat.event.game_won"
 msgstr "{0} venceu uma partida na mesa {1} ({2})"
+
 msgid "chat.event.set_won"
 msgstr "{0} venceu o set na mesa {1} ({2})"
+
 msgid "chat.event.set_won_against"
 msgstr "{0} venceu o set contra {1} ({2})"
+
 msgid "chat.typing.one"
 msgstr "{0} está digitando..."
+
 msgid "chat.typing.two"
 msgstr "{0} e {1} estão digitando..."
+
 msgid "chat.typing.many"
 msgstr "Várias pessoas estão digitando..."
+
 msgid "room.fighter_options"
 msgstr "Opções do lutador"
 
 msgid "room.fighter_options.value"
 msgstr "Ação {0}, Frase {1}"
+
 msgid "room.settings"
 msgstr "Configurações da sala"
+
 msgid "room.settings.detail"
 msgstr "Nome, capacidade e entrada da sala."
+
 msgid "room.settings.host_only"
 msgstr "Somente o anfitrião pode administrar a sala."
+
 msgid "room.connection_status"
 msgstr "Estado da conexão"
+
 msgid "room.opening"
 msgstr "Abrindo sala..."
+
 msgid "room.opening_stalled"
 msgstr "A sala ainda não terminou de abrir. Verifique sua conexão, ou pare e tente de novo."
+
 msgid "room.waiting_state"
 msgstr "Aguardando o estado da sala."
+
 msgid "room.copy_invitation"
 msgstr "Copiar convite"
+
 msgid "room.copy_invitation.detail"
 msgstr "Compartilhe o convite privado com amigos."
+
 msgid "room.copy_short_invitation"
 msgstr "Copiar link curto"
+
 msgid "room.copy_short_invitation.detail"
 msgstr "Um link curto para o chat, guardado pelo serviço de links do Ember enquanto a sala estiver aberta."
+
 msgid "room.leaving"
 msgstr "Saindo da sala..."
+
 msgid "room.leave"
 msgstr "Sair da sala"
+
 msgid "room.replace"
 msgstr "Substituir sala"
+
 msgid "room.replace.detail"
 msgstr "Feche a sala travada e abra outra. Todos devem entrar novamente, e o convite atual deixa de funcionar. O estado não resolvido será descartado."
+
 msgid "room.replace.waiting"
 msgstr "A partida anterior ainda está encerrando. A substituição ficará disponível quando terminar."
+
 msgid "room.updating"
 msgstr "Atualizando sala..."
+
 msgid "room.fighter_not_shared"
 msgstr "Personagem não revelado"
+
 msgid "room.suffix_you"
 msgstr " / VOCÊ"
+
 msgid "room.suffix_locked_in"
 msgstr " / CONFIRMADO"
+
 msgid "room.link_wired"
 msgstr "Conexão cabeada"
+
 msgid "room.link_wireless"
 msgstr "Conexão Wi-Fi"
+
 msgid "room.link_unknown"
 msgstr "Conexão desconhecida"
+
 msgid "room.table_footer"
 msgstr "{0} rounds / {1} s     Fila {2}     Assistindo {3}"
+
 msgid "room.board_status_host_slot"
 msgstr "ANFITRIÃO / {0} / Espaço {1}"
+
 msgid "room.board_status_slot"
 msgstr "{0} / Espaço {1}"
+
 msgid "room.board_status_host_cabinet"
 msgstr "ANFITRIÃO / {0} / Fliperama {1}"
+
 msgid "room.board_status_cabinet"
 msgstr "{0} / Fliperama {1}"
+
 msgid "room.board_status_host"
 msgstr "ANFITRIÃO / {0}"
+
 msgid "room.board_status"
 msgstr "{0}"
+
 msgid "room.members_heading"
 msgstr "MEMBROS  {0} / {1}"
+
 msgid "room.chat_heading"
 msgstr "BATE-PAPO"
+
 msgid "room.no_messages"
 msgstr "Ainda não há mensagens. Selecione Bate-papo para escrever."
+
 msgid "room.invitation_copied"
 msgstr "Convite copiado."
+
 msgid "room.short_invitation_copied"
 msgstr "Link curto copiado."
+
 msgid "room.short_invitation_pending"
 msgstr "Criando o link curto..."
+
 msgid "room.short_invitation_unavailable"
 msgstr "O serviço de links não respondeu, então o convite completo foi copiado."
+
 msgid "room.link_joining"
 msgstr "Entrando na sala do link."
+
 msgid "room.link_opened"
 msgstr "Aberto a partir de um link de sala. Confira e escolha Entrar na sala."
+
 msgid "room.link_waiting"
 msgstr "Um link de sala foi aberto. Ele estará na tela de entrada assim que você sair desta sala."
+
 msgid "room.replacement_opening"
 msgstr "Abrindo sala substituta. Copie o convite e envie o novo link. O antigo não funciona mais."
+
 msgid "room.action_rejected"
 msgstr "A sala mudou ou rejeitou esta ação. Revise o estado atual e tente novamente."
 
@@ -3136,27 +3401,37 @@ msgstr "Guarda as configurações desta sala, e as regras e o nome de cada mesa,
 
 msgid "room.leave_current_table"
 msgstr "Saia da mesa atual primeiro."
+
 msgid "room.choose_action"
 msgstr "Escolha uma ação para esta mesa."
+
 msgid "room.result_unresolved.detail"
 msgstr "O resultado anterior não foi resolvido. Escolha Abandonar jogo não resolvido ou peça ao anfitrião para cancelá-lo; nenhuma vitória será concedida."
+
 msgid "room.awaiting_result"
 msgstr "Aguardando os dois lutadores informarem o resultado. Pronto será redefinido após a confirmação."
+
 msgid "room.match_active"
 msgstr "A partida atual está sendo preparada ou está em andamento. Aguarde o fim."
+
 msgid "room.waiting_other_seat"
 msgstr "Aguardando um oponente ocupar o outro lugar. Você pode trocar de lutador enquanto espera."
+
 msgid "room.controller_required"
 msgstr "Atribua ou reconecte seu controle em Configurações > Jogador e controle."
+
 msgid "room.ready.cancel_detail"
 msgstr "Você está PRONTO. Selecione para cancelar e depois escolha Trocar lutador."
+
 msgid "room.ready.locking"
 msgstr "Confirmando seu lutador. A partida começa quando os dois jogadores estiverem prontos."
+
 msgid "room.ready.lock_detail"
 msgstr "Selecione para confirmar seu lutador. A partida começa quando os dois estiverem prontos."
 
 msgid "room.opponent_changed_fighter"
 msgstr "O oponente trocou para {0}. Confira seu Ultra antes de marcar Pronto."
+
 msgid "room.ready.with"
 msgstr "Pronto com {0}, {1}."
 
@@ -3171,56 +3446,82 @@ msgstr "Este lutador tem um só Ultra nesta edição."
 
 msgid "room.both_ready"
 msgstr "Os dois lutadores estão prontos. A partida está começando."
+
 msgid "room.waiting_spectators"
 msgstr "Aguardando o retorno dos espectadores confirmados. Começa em até {0} s."
+
 msgid "room.hold.waiting_for"
 msgstr "Aguardando o retorno de {0}. Começa em {1} s."
+
 msgid "room.hold.waiting_some"
 msgstr "Aguardando o retorno dos espectadores confirmados. Começa em {0} s."
+
 msgid "room.hold.waiting_you"
 msgstr "A partida espera você: {0} s"
+
 msgid "room.ready_timeout.you"
 msgstr "Fique pronto em {0} s ou você deixará o assento"
+
 msgid "room.ready_timeout.other"
 msgstr "{1} tem mais {0} s para ficar pronto"
+
 msgid "chat.event.ready_timeout"
 msgstr "{0} saiu da mesa {1}: não ficou pronto a tempo"
+
 msgid "room.hold.status"
 msgstr "Aguardando espectadores: {0} s"
+
 msgid "room.hold.cancel_detail"
 msgstr "Cancelar o início retira seu Pronto, então esta partida não começa."
+
 msgid "room.match_in_progress.detail"
 msgstr "A partida atual está em andamento. Aguarde o fim."
+
 msgid "room.unready"
 msgstr "Cancelar Pronto / liberar lutador"
+
 msgid "room.unready.short"
 msgstr "Cancelar Pronto"
+
 msgid "room.cancel_start"
 msgstr "Cancelar o início"
+
 msgid "room.readying"
 msgstr "Marcando Pronto..."
+
 msgid "room.preparing_match"
 msgstr "Preparando partida"
+
 msgid "room.ready_rematch"
 msgstr "Pronto para revanche"
+
 msgid "room.ready_up"
 msgstr "Marcar Pronto"
+
 msgid "room.selected_delay.detail"
 msgstr "Ajuste de {0} a {1} quadros, ou desça abaixo de 0 para Auto. 0 não adiciona atraso e exige um ping baixo e estável."
+
 msgid "room.selected_delay.locked"
 msgstr "O atraso selecionado está bloqueado nesta partida."
+
 msgid "room.match_delay.at_least"
 msgstr "Pelo menos {0} quadros"
+
 msgid "room.match_delay.at_least_one"
 msgstr "Pelo menos {0} quadro"
+
 msgid "room.check_connection.two_players"
 msgstr "Os dois lugares precisam de um jogador para verificar a conexão."
+
 msgid "room.check_connection.unready"
 msgstr "Cancele Pronto para verificar a conexão antes da próxima partida."
+
 msgid "room.check_connection.finish_match"
 msgstr "Termine a partida atual antes de verificar a conexão."
+
 msgid "room.apply_recommendation"
 msgstr "Aplicar recomendação"
+
 msgid "room.input_delay"
 msgstr "Atraso de entrada"
 
@@ -3238,165 +3539,244 @@ msgstr "Auto usa a verificação da conexão e fica entre {0} e {1} quadros."
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Execute Verificar conexão antes de aplicar uma recomendação."
+
 msgid "room.change_fighter.unready"
 msgstr "Cancele Pronto acima para liberar lutador e aparência."
+
 msgid "room.change_fighter.waiting"
 msgstr "Aguardando a atualização da partida ou seleção terminar."
+
 msgid "room.change_fighter.detail"
 msgstr "Escolha um lutador e depois o Ultra. Volte e marque Pronto."
+
 msgid "room.appearance.detail"
 msgstr "Esquerda e Direita trocam a cor aqui. Selecionar escolhe um traje e depois a cor."
+
 msgid "room.leave_seat"
 msgstr "Sair do lugar"
+
 msgid "room.leave_seat.abandon_first"
 msgstr "Abandone primeiro o jogo não resolvido."
+
 msgid "room.leave_seat.finish_first"
 msgstr "Termine ou resolva o jogo atual primeiro."
+
 msgid "room.leave_seat.release"
 msgstr "Libere seu lugar."
+
 msgid "room.leave_seat.next_player"
 msgstr "Libere seu lugar. O próximo jogador da fila irá ocupá-lo."
+
 msgid "room.leave_seat.unready_first"
 msgstr "Cancele Pronto primeiro e depois saia do lugar."
+
 msgid "room.leave_seat.keep"
 msgstr "Manter o lugar."
+
 msgid "room.leave_seat.costs_score"
 msgstr "Ao sair, sua série termina e o placar é zerado ({0})."
+
 msgid "room.leave_seat.hands_over"
 msgstr "O próximo jogador da fila ocupará seu lugar."
+
 msgid "room.cancel_stuck.in_progress"
 msgstr "Há um jogo em andamento. Libera após {0} minutos sem resultado."
+
 msgid "room.abandon_result"
 msgstr "Abandonar jogo não resolvido"
+
 msgid "room.abandon_result.detail"
 msgstr "Nenhum resultado será registrado. Os dois lutadores permanecem sentados e podem marcar Pronto novamente."
+
 msgid "room.end_practice"
 msgstr "Encerrar prática"
+
 msgid "room.end_practice.detail"
 msgstr "Encerra esta partida de prática agora para os dois lutadores. Nenhum resultado será registrado. Os dois lutadores permanecem sentados e podem marcar Pronto novamente."
+
 msgid "room.leave_queue"
 msgstr "Sair da fila"
+
 msgid "room.leave_queue.watching"
 msgstr " Você continua assistindo a este jogo até o fim."
+
 msgid "room.join_queue"
 msgstr "Entrar na fila"
+
 msgid "room.stop_watching"
 msgstr "Parar de assistir"
+
 msgid "room.stop_watching.detail"
 msgstr "Para de assistir a esta mesa e leva você de volta à sala. Os lutadores continuam jogando."
+
 msgid "room.stop_watching.finished"
 msgstr "A sala já terminou este jogo. Para de assistir ao restante e leva você de volta à sala."
+
 msgid "room.leave_game"
 msgstr "Sair deste jogo"
+
 msgid "room.leave_game.detail"
 msgstr "Para de assistir a este jogo e leva você de volta à sala. Você mantém sua posição na fila e os lutadores continuam jogando."
+
 msgid "room.watching_ends"
 msgstr " Sua visualização de espectador termina; os lutadores continuam jogando."
+
 msgid "room.watch_next"
 msgstr "Assistir ao próximo jogo"
+
 msgid "room.take_p1_seat"
 msgstr "Jogar como P1"
+
 msgid "room.take_p2_seat"
 msgstr "Jogar como P2"
+
 msgid "room.lock_spectating"
 msgstr "Confirmar para assistir"
+
 msgid "room.lock_spectating.detail"
 msgstr "Se você ainda estiver voltando da última partida quando os dois lutadores estiverem prontos, a próxima partida espera até {0} segundos por você."
+
 msgid "room.unlock_spectating"
 msgstr "Cancelar confirmação"
+
 msgid "room.unlock_spectating.detail"
 msgstr "Você está confirmado: a próxima partida espera até {0} segundos pelo seu retorno. Parar de assistir ou mudar de mesa cancela a confirmação."
+
 msgid "room.follow"
 msgstr "Seguir a sala"
+
 msgid "room.follow.detail"
 msgstr "Assista à mesa onde se joga: quando a sua para, você passa para o próximo jogo da sala."
+
 msgid "room.follow.stop"
 msgstr "Parar de seguir"
+
 msgid "room.follow.stop_detail"
 msgstr "Você segue a sala · Mesa {0}. Pare para ficar na mesa que assiste."
+
 msgid "room.follow.following"
 msgstr "Seguindo a sala · Mesa {0}"
+
 msgid "room.follow.locked_in"
 msgstr "Primeiro cancele a confirmação: seguir a sala move você entre mesas."
+
 msgid "room.lock_in_ended.stopped"
 msgstr "Confirmação cancelada: você parou de assistir."
+
 msgid "room.lock_in_ended.moved"
 msgstr "Confirmação cancelada: você está assistindo outra mesa."
+
 msgid "room.lock_in_ended.playing"
 msgstr "Confirmação cancelada: você pegou um lugar ou entrou na fila."
+
 msgid "room.lock_in_ended.dropped"
 msgstr "Confirmação cancelada: sua visão de espectador caiu. Confirme de novo para a próxima partida esperar por você."
+
 msgid "room.table_rules"
 msgstr "Regras da mesa"
+
 msgid "room.rules_summary"
 msgstr "{0} rounds, {1} s, seleção de edição {2}"
 
 msgid "room.table_options"
 msgstr "Opções da mesa"
+
 msgid "room.table_options.detail"
 msgstr "Mesa {0}: Atraso, teste de conexão, regras, fila e espectadores desta mesa."
+
 msgid "room.legend_fighter"
 msgstr "Lutador"
+
 msgid "room.legend_options"
 msgstr "Opções"
+
 msgid "room.choice.watch"
 msgstr "Assistir"
+
 msgid "room.choice.unwatch"
 msgstr "Não assistir"
+
 msgid "room.cancel_unresolved"
 msgstr "Cancelar jogo não resolvido"
+
 msgid "room.cancel_unresolved.detail"
 msgstr "Somente anfitrião. Nenhum resultado será registrado."
+
 msgid "room.cancel_stuck"
 msgstr "Cancelar jogo travado"
+
 msgid "room.cancel_stuck.detail"
 msgstr "Somente anfitrião. Use quando um jogo encerrado não informar o resultado. Nenhum resultado será registrado."
+
 msgid "room.rules.finish_game"
 msgstr "Termine o jogo ativo antes de alterar as regras."
+
 msgid "room.rules.apply_note"
 msgstr "As alterações só valem após Aplicar."
+
 msgid "room.rules.host_only"
 msgstr "Somente o anfitrião pode alterar as regras da mesa."
+
 msgid "room.apply_rules"
 msgstr "Aplicar regras"
+
 msgid "room.apply_rules.detail"
 msgstr "Envie o rascunho completo das regras desta mesa."
+
 msgid "room.member_status_host_muted"
 msgstr "{0} / ANFITRIÃO / Silenciado localmente"
+
 msgid "room.member_status_muted"
 msgstr "{0} / Silenciado localmente"
+
 msgid "room.unmute_member"
 msgstr "Reativar membro"
+
 msgid "room.mute_member"
 msgstr "Silenciar membro"
+
 msgid "room.mute_member.detail"
 msgstr "Oculte somente o bate-papo deste membro."
+
 msgid "room.member_left.detail"
 msgstr "Este membro saiu."
+
 msgid "room.kick_member"
 msgstr "Expulsar membro"
+
 msgid "room.kick_member.detail"
 msgstr "Remova {0} da sala."
+
 msgid "room.transfer_host"
 msgstr "Transferir anfitrião"
+
 msgid "room.transfer_host.detail"
 msgstr "Torne {0} o anfitrião da sala."
+
 msgid "room.steam_profile"
 msgstr "Perfil da Steam"
+
 msgid "room.steam_profile.detail"
 msgstr "Abra o perfil da Steam deste membro."
+
 msgid "room.steam_profile.none"
 msgstr "Este membro não compartilhou um perfil da Steam."
+
 msgid "room.compose_message"
 msgstr "Escrever mensagem"
+
 msgid "room.capacity.detail"
 msgstr "Não pode ser menor que o número atual de membros."
+
 msgid "room.admission"
 msgstr "Entrada"
+
 msgid "room.locked"
 msgstr "Bloqueada"
+
 msgid "room.open"
 msgstr "Aberta"
+
 msgid "room.admission.detail"
 msgstr "Bloquear impede a entrada de novos membros."
 
@@ -3408,230 +3788,340 @@ msgstr "Jogadores no Wi-Fi podem entrar, assistir e conversar, mas não podem oc
 
 msgid "room.wired_only.settings_detail"
 msgstr "Vale a partir do próximo lugar ocupado. Quem já está sentado mantém o lugar."
+
 msgid "room.apply_name"
 msgstr "Aplicar nome da sala"
+
 msgid "room.apply_name.detail"
 msgstr "Envie este nome de sala."
+
 msgid "room.apply_capacity"
 msgstr "Aplicar capacidade"
+
 msgid "room.apply_capacity.detail"
 msgstr "Envie esta capacidade."
+
 msgid "room.tables"
 msgstr "Mesas"
+
 msgid "room.tables_detail"
 msgstr "Quantas mesas a sala tem, de 1 a {0}. O anfitrião pode mudar isso depois em Configurações da sala."
+
 msgid "room.tables_arcade_detail"
 msgstr "Quantos pares jogam ao mesmo tempo, de 1 a {0}. Os demais esperam na fila. Com 1, quem vence fica e quem perde vai para o fim da fila."
+
 msgid "room.tables.detail"
 msgstr "Adicione mesas até {0}. Uma mesa só pode ser removida quando ninguém joga, espera ou assiste nela."
+
 msgid "room.apply_tables"
 msgstr "Aplicar mesas"
+
 msgid "profile.main_badge"
 msgstr "PRINCIPAL"
+
 msgid "common.not_set"
 msgstr "Não definido"
+
 msgid "notice.title"
 msgstr "Aviso"
+
 msgid "notice.error_title"
 msgstr "Algo deu errado"
+
 msgid "game_settings.title"
 msgstr "Configurações de jogo recomendadas"
+
 msgid "game_settings.intro"
 msgstr "O jogo online funciona melhor com as configurações abaixo. Escolha Jogar offline e altere-as no menu Opções do jogo."
+
 msgid "game_settings.frame_rate"
 msgstr "FRAMERATE: defina como FIXA (agora {0}). Obrigatório. Outros modos quebram o rollback."
+
 msgid "game_settings.anti_aliasing"
 msgstr "SUAVIZAÇÃO: defina como NONE (agora {0}). Isso reduz a carga da GPU e a latência."
+
 msgid "game_settings.hide"
 msgstr "Não mostrar novamente"
+
 msgid "common.ok"
 msgstr "OK"
+
 msgid "edit.title"
 msgstr "Editar texto"
+
 msgid "edit.instructions"
 msgstr "Digite ou cole com o teclado. Enter ou Selecionar no controle aceita; Escape ou Voltar cancela."
+
 msgid "edit.instructions_multiline"
 msgstr "Digite ou cole com o teclado. Enter ou Enter do teclado numérico insere uma nova linha. Ctrl+Enter, Ctrl+Enter do teclado numérico, o botão Aceitar ou Selecionar no controle aceita; Escape ou Voltar no controle cancela."
 
 msgid "edit.updating"
 msgstr "Atualizando sala. Seu rascunho foi mantido; continue digitando ou cancele."
+
 msgid "common.accept"
 msgstr "Aceitar"
+
 msgid "edit.cancel"
 msgstr "Cancelar edição"
+
 msgid "edit.bytes"
 msgstr "{0} / {1} bytes"
+
 msgid "runtime.record_invalid"
 msgstr "O registro local de partidas é inválido e foi preservado. O acompanhamento está indisponível."
+
 msgid "runtime.interface_preferences_failed"
 msgstr "As preferências da interface não puderam ser lidas; os padrões estão em uso."
+
 msgid "runtime.room_defaults_invalid"
 msgstr "Os padrões salvos da sala são inválidos. As configurações originais foram preservadas."
+
 msgid "runtime.network_start_failed"
 msgstr "A rede não pôde iniciar. O modo offline está disponível."
+
 msgid "runtime.network_helper_unavailable"
 msgstr "O auxiliar de rede está indisponível (erro {0}). O modo offline está disponível."
+
 msgid "runtime.network_helper_missing"
 msgstr "Não foi possível iniciar a rede: sf4-net.exe está faltando na pasta do Ember. Um software de segurança pode tê-lo removido. Reinstale o Ember e permita a pasta dele no antivírus. O modo offline está disponível."
+
 msgid "runtime.network_helper_blocked"
 msgstr "Não foi possível iniciar a rede: um software de segurança bloqueou o sf4-net.exe. Permita a pasta do Ember no antivírus e reinicie o Ember. O modo offline está disponível."
+
 msgid "discord.connecting"
 msgstr "Conectando ao Discord..."
+
 msgid "discord.unavailable_gameplay_ok"
 msgstr "Discord indisponível. O jogo não foi afetado."
+
 msgid "runtime.gameplay_device_disconnected"
 msgstr "Controle de jogo desconectado. Reconecte-o antes da próxima partida."
+
 msgid "runtime.match_input_blocked"
 msgstr "{0} desconectado. Seu lutador não recebe entradas até você reconectá-lo."
+
 msgid "runtime.controller_assignment_unverified"
 msgstr "Não foi possível verificar a atribuição do controle na partida. Atribua-o novamente."
+
 msgid "runtime.recovery_state_failed"
 msgstr "O estado de recuperação da sala não pôde ser aplicado. A recuperação continua pausada."
+
 msgid "runtime.room_control_recovering"
 msgstr "O controle da sala está se recuperando."
+
 msgid "discord.connected"
 msgstr "Discord conectado"
+
 msgid "discord.registration_failed"
 msgstr "Discord conectado; falha ao registrar a inicialização."
+
 msgid "discord.open_desktop"
 msgstr "Discord indisponível. Abra o aplicativo do Discord para compartilhar atividade."
+
 msgid "discord.invitation_invalid"
 msgstr "Convite do Discord inválido."
+
 msgid "discord.invalid_event"
 msgstr "O Discord enviou um evento local inválido."
+
 msgid "discord.companion_stopped"
 msgstr "O auxiliar do Discord parou. O jogo não foi afetado."
+
 msgid "runtime.room_connection_failed"
 msgstr "A conexão da sala falhou. A sala está fechando; resultados não confirmados não serão registrados."
+
 msgid "runtime.operation_busy"
 msgstr "A operação está ocupada. Tente novamente."
+
 msgid "runtime.steam_profile_failed"
 msgstr "Não foi possível abrir o perfil da Steam."
+
 msgid "discord.invitation_expired"
 msgstr "O convite do Discord expirou. Peça um novo convite."
+
 msgid "runtime.spectator_action_retrying"
 msgstr "A ação de espectador não pôde ser enviada; tentando novamente."
+
 msgid "runtime.return_main_menu"
 msgstr "Volte ao menu principal do jogo antes de abrir uma sala."
+
 msgid "runtime.in_tournament_match"
 msgstr "Você está jogando ou assistindo a uma partida do torneio. Termine-a ou pare-a em Partidas do torneio antes de abrir ou entrar em outra sala."
+
 msgid "runtime.watch_leave_room"
 msgstr "Saia da sua sala antes de assistir a uma partida do torneio."
+
 msgid "runtime.tournament_result_saving"
 msgstr "Salvando o resultado da última partida. Tente novamente em alguns segundos."
+
 msgid "runtime.room_action_failed"
 msgstr "A ação da sala não pôde ser enviada. Tente novamente."
+
 msgid "runtime.preferences_queue_failed"
 msgstr "As preferências não puderam entrar na fila para salvar. Tente novamente."
+
 msgid "runtime.lobby_settings_send_failed"
 msgstr "As configurações do lobby não puderam ser enviadas."
+
 msgid "runtime.room_defaults_save_failed"
 msgstr "Os padrões da sala não puderam ser salvos."
+
 msgid "runtime.connection_check_unavailable"
 msgstr "A verificação da conexão está indisponível. Você ainda pode escolher um atraso e marcar Pronto."
+
 msgid "runtime.delay_save_failed"
 msgstr "O atraso de entrada não pôde ser salvo."
+
 msgid "runtime.teardown_report_failed"
 msgstr "O encerramento da partida não pôde ser informado; a sala foi fechada."
+
 msgid "runtime.lobby_defaults_save_failed"
 msgstr "As configurações do lobby foram aplicadas, mas os padrões não puderam ser salvos."
+
 msgid "runtime.lobby_settings_rejected"
 msgstr "As configurações do lobby não foram aceitas. Verifique o estado de Pronto e tente novamente."
+
 msgid "runtime.teardown_timeout"
 msgstr "O encerramento da partida expirou; a sala foi fechada."
+
 msgid "runtime.room_catchup_timeout"
 msgstr "A sala não se atualizou a tempo. Sua última ação não foi aplicada; tente novamente."
+
 msgid "runtime.previous_match_close_timeout"
 msgstr "A partida anterior não terminou de fechar a tempo. Aplique as configurações da mesa novamente."
+
 msgid "runtime.spectator_close_timeout"
 msgstr "A partida não terminou de fechar a tempo. A visualização de espectador foi encerrada."
+
 msgid "runtime.room_closed"
 msgstr "A sala foi fechada."
+
 msgid "runtime.removed_from_room"
 msgstr "Você foi removido da sala."
+
 msgid "room.reject.closed"
 msgstr "A sala foi fechada."
+
 msgid "room.reject.full"
 msgstr "A sala está cheia."
+
 msgid "room.reject.admission_locked"
 msgstr "A sala não está aceitando novos membros."
+
 msgid "room.reject.name_taken"
 msgstr "Esse nome de jogador já está na sala. Altere-o em Configurações."
+
 msgid "room.reject.stale_room"
 msgstr "A sala mudou antes de a sua ação chegar. Tente novamente."
+
 msgid "room.reject.stale_table"
 msgstr "A mesa mudou antes de a sua ação chegar. Tente novamente."
+
 msgid "room.reject.wrong_phase"
 msgstr "A mesa não está pronta para essa ação."
+
 msgid "room.reject.wrong_generation"
 msgstr "Essa partida já terminou."
+
 msgid "room.reject.unauthorized"
 msgstr "Somente o anfitrião pode fazer isso."
+
 msgid "room.reject.not_seated"
 msgstr "Você não está sentado nesta mesa."
+
 msgid "room.reject.already_seated"
 msgstr "Você já está sentado."
+
 msgid "room.reject.already_queued"
 msgstr "Você já está na fila."
+
 msgid "room.reject.not_queued"
 msgstr "Você não está na fila."
+
 msgid "room.reject.not_watching"
 msgstr "Você não está assistindo a esta mesa."
+
 msgid "room.reject.seat_taken"
 msgstr "Esse lugar acabou de ser ocupado. Escolha de novo."
+
 msgid "room.reject.invalid_rules"
 msgstr "Essas regras de mesa não são válidas."
+
 msgid "room.reject.invalid_capacity"
 msgstr "Essa capacidade não é válida."
+
 msgid "room.reject.invalid_chat"
 msgstr "Não foi possível enviar essa mensagem."
+
 msgid "room.reject.ledger_full"
 msgstr "Aguardando todos terminarem de voltar da partida anterior."
 
 msgid "room.reject.wired_only"
 msgstr "Esta sala é para jogadores com cabo. Seu PC está no Wi-Fi."
+
 msgid "room.reject.other"
 msgstr "A sala recusou essa ação."
+
 msgid "runtime.lock.return_to_menu_fighter"
 msgstr "Volte ao menu principal nativo para trocar de lutador."
+
 msgid "runtime.lock.previous_game_closing"
 msgstr "Aguardando o jogo anterior fechar."
+
 msgid "runtime.lock.teardown"
 msgstr "Aguardando os jogadores e espectadores da partida anterior terminarem de sair."
+
 msgid "runtime.lock.room_recovering"
 msgstr "Aguardando a conexão da sala se recuperar."
+
 msgid "runtime.lock.ready_pending"
 msgstr "Aguardando o seu pedido de Pronto terminar."
+
 msgid "runtime.lock.selection_update"
 msgstr "Aguardando a atualização atual da partida ou da seleção terminar."
+
 msgid "runtime.ready.control_changed"
 msgstr "O controle da sala mudou antes de o seu Pronto ser aplicado. Pressione Pronto novamente."
+
 msgid "runtime.ready.assign_controller"
 msgstr "Atribua ou reconecte seu controle antes de marcar Pronto."
+
 msgid "runtime.ready.stage_unavailable"
 msgstr "O cenário selecionado não está disponível. Escolha outro cenário na Seleção de lutador."
+
 msgid "runtime.ready.fighter_unavailable"
 msgstr "O lutador selecionado não está disponível. Escolha outro lutador na Seleção de lutador."
+
 msgid "runtime.ready.selection_unavailable"
 msgstr "Esta seleção de lutador não está disponível. Escolha um traje, cor, edição e Ultra disponíveis."
+
 msgid "runtime.ready.take_seat"
 msgstr "Sente-se em uma mesa antes de marcar Pronto."
+
 msgid "runtime.ready.refused"
 msgstr "A sala recusou o seu Pronto. Pressione Pronto novamente."
+
 msgid "runtime.ready.previous_match_timeout"
 msgstr "O seu Pronto não foi aceito. A sala não terminou a partida anterior a tempo. Pressione Pronto novamente."
+
 msgid "runtime.room_open_failed"
 msgstr "Não foi possível abrir a sala. Tente novamente."
+
 msgid "runtime.match_settings_send_failed"
 msgstr "Não foi possível enviar as configurações da partida."
+
 msgid "runtime.match_record_not_saved"
 msgstr "Não foi possível salvar o registro da partida. A próxima partida pode começar; o salvamento continuará tentando."
+
 msgid "runtime.rollback_unsupported_state"
 msgstr "O netplay não conseguiu salvar um estado de jogo não suportado. A partida terminou."
+
 msgid "runtime.participant_left_room"
 msgstr "Um participante da partida saiu da sala."
+
 msgid "runtime.networking_unavailable"
 msgstr "A rede não está disponível. O modo offline está disponível."
+
 msgid "runtime.room_join_failed"
 msgstr "Não foi possível entrar na sala. Verifique o convite e se os dois jogadores usam o mesmo pacote do SF4 Ember Netplay."
 
@@ -3670,6 +4160,7 @@ msgstr "Não foi possível alcançar o anfitrião, nem direto nem por retransmis
 
 msgid "runtime.join_control_lost"
 msgstr "O anfitrião foi alcançado, mas a conexão continuava caindo. Verifique sua conexão com a internet e tente novamente."
+
 msgid "runtime.room_connection_lost"
 msgstr "Conexão com a sala perdida."
 
@@ -3988,10 +4479,6 @@ msgstr "Usar outra conta do Discord"
 msgid "connect.change_detail"
 msgstr "Abre o Discord no navegador para conectar outra conta. Seu site de torneio precisará usar essa conta."
 
-
-
-
-
 msgid "screen.tournament_desk"
 msgstr "Organização de torneios"
 
@@ -4123,11 +4610,6 @@ msgstr "Abrir no navegador"
 
 msgid "desk.open_browser_detail"
 msgstr "Abre o site de bracket no navegador deste PC. Entre lá com o Discord."
-
-
-
-
-
 
 msgid "desk.opened"
 msgstr "O site de bracket abriu no seu navegador."
@@ -4698,6 +5180,12 @@ msgstr "Abre uma sala pública no serviço do Ember ID, entra nela e aplica esta
 
 msgid "public.create_needs_id"
 msgstr "As salas públicas exigem um Ember ID e um serviço confiável. Configure-os em Salas públicas."
+
+msgid "public.ranked_needs_discord"
+msgstr "Conecte o Discord para jogar ranqueado"
+
+msgid "public.ranked_needs_discord_detail"
+msgstr "As partidas só contam para a sua classe e os seus pontos com uma conta do Discord conectada. Você ainda pode jogar sem uma."
 
 msgid "public.loading"
 msgstr "Carregando salas..."
@@ -5920,7 +6408,6 @@ msgstr "As imagens dos botões que o Ember mostra. Automático usa as do control
 msgid "player.prompts_auto"
 msgstr "Automático"
 
-
 msgid "controller.brand.stick"
 msgstr "Botões de luta"
 
@@ -5962,8 +6449,6 @@ msgstr "{0} conectados"
 
 msgid "player.controllers_detail"
 msgstr "Você joga com {0}. Veja todos os controles conectados, teste seus botões e configure os que o Ember ainda não conhece."
-
-
 
 msgid "player.game_reads"
 msgstr "Deixar o jogo ler os controles"
@@ -7655,7 +8140,6 @@ msgstr "Abrir painel"
 msgid "settings.panel.close_action"
 msgstr "Fechar painel"
 
-
 msgid "class.developer"
 msgstr "Dev"
 
@@ -7826,6 +8310,12 @@ msgstr "Notificações"
 
 msgid "notifications.none"
 msgstr "Nada ainda."
+
+msgid "notifications.tab_count"
+msgstr "Notificações · {0}"
+
+msgid "notifications.waiting"
+msgstr "Pendentes: {0}"
 
 msgid "notifications.none_detail"
 msgstr "O que o Ember avisa, como um link copiado ou uma sala deixada, fica aqui durante esta sessão."
@@ -8013,9 +8503,11 @@ msgstr "Partidas"
 msgid "replays.tab.sets"
 msgstr "Sets"
 
+msgid "replays.tab.archive"
+msgstr "Arquivo"
+
 msgid "replays.set_matches"
 msgstr "{0} partidas"
-
 
 msgid "replays.fact.fighters"
 msgstr "Lutadores"
@@ -8025,6 +8517,213 @@ msgstr "Jogada"
 
 msgid "replays.fact.length"
 msgstr "Duração"
+
+msgid "archive.filters"
+msgstr "Filtros"
+
+msgid "archive.filters_detail"
+msgstr "Restrinja os sets por jogador, evento, lutador, classe, país ou rodada e escolha a ordem deles."
+
+msgid "archive.filter_none"
+msgstr "Tudo, mais recentes primeiro"
+
+msgid "archive.filter_class"
+msgstr "Classe {0}"
+
+msgid "archive.online"
+msgstr "Partidas online"
+
+msgid "archive.sort_newest"
+msgstr "Mais recentes primeiro"
+
+msgid "archive.sort_class"
+msgstr "Maior classe primeiro"
+
+msgid "archive.round.top8"
+msgstr "Top 8"
+
+msgid "archive.round.pools"
+msgstr "Pools"
+
+msgid "archive.round.winners"
+msgstr "Winners"
+
+msgid "archive.round.losers"
+msgstr "Losers"
+
+msgid "archive.round.grand"
+msgstr "Grande final"
+
+msgid "archive.any_class"
+msgstr "Qualquer classe"
+
+msgid "archive.any_country"
+msgstr "Qualquer país"
+
+msgid "archive.any_event"
+msgstr "Qualquer evento"
+
+msgid "archive.any_round"
+msgstr "Qualquer rodada"
+
+msgid "archive.any_fighter"
+msgstr "Qualquer lutador"
+
+msgid "archive.any_fighter_detail"
+msgstr "Lista os sets seja qual for o lutador."
+
+msgid "archive.f_text"
+msgstr "Jogador ou evento"
+
+msgid "archive.f_text_detail"
+msgstr "Lista os sets em que o nome de um jogador ou o título de um evento contém essas letras."
+
+msgid "archive.f_fighter"
+msgstr "Lutador"
+
+msgid "archive.f_fighter_detail"
+msgstr "Lista os sets em que um dos dois jogadores usou este lutador."
+
+msgid "archive.f_class"
+msgstr "Classe"
+
+msgid "archive.f_class_detail"
+msgstr "Lista os sets em que um dos dois jogadores tem hoje esta classe no ranking."
+
+msgid "archive.f_country"
+msgstr "País"
+
+msgid "archive.f_country_detail"
+msgstr "Lista os sets com um jogador deste país."
+
+msgid "archive.f_event"
+msgstr "Evento"
+
+msgid "archive.f_event_detail"
+msgstr "Lista os sets de um evento de torneio ou só as partidas online."
+
+msgid "archive.f_round"
+msgstr "Rodada"
+
+msgid "archive.f_round_detail"
+msgstr "Lista os sets de torneio de uma rodada."
+
+msgid "archive.f_sort"
+msgstr "Ordem"
+
+msgid "archive.f_sort_detail"
+msgstr "Mais recentes primeiro, ou os sets com a maior classe primeiro."
+
+msgid "archive.games_shown"
+msgstr "Partidas exibidas"
+
+msgid "archive.games_of"
+msgstr "{0} de {1}"
+
+msgid "archive.clear"
+msgstr "Limpar filtros"
+
+msgid "archive.clear_detail"
+msgstr "Mostra todos os sets de novo."
+
+msgid "archive.no_service"
+msgstr "Configure seu Ember ID"
+
+msgid "archive.no_service_detail"
+msgstr "O arquivo é lido do serviço do Ember. Abra Ember ID para configurá-lo."
+
+msgid "archive.loading"
+msgstr "Carregando sets"
+
+msgid "archive.loading_detail"
+msgstr "Pedindo ao arquivo os sets mais recentes."
+
+msgid "archive.loading_more"
+msgstr "Carregando mais"
+
+msgid "archive.loading_more_detail"
+msgstr "Pedindo ao arquivo sets mais antigos."
+
+msgid "archive.unsupported"
+msgstr "Aqui não há arquivo de replays"
+
+msgid "archive.unsupported_detail"
+msgstr "Este serviço não oferece um arquivo público de replays."
+
+msgid "archive.failed"
+msgstr "Não foi possível acessar o arquivo"
+
+msgid "archive.failed_detail"
+msgstr "{0} Selecione para tentar de novo."
+
+msgid "archive.none"
+msgstr "Nenhum set corresponde a esses filtros"
+
+msgid "archive.none_detail"
+msgstr "Limpe os filtros para ver todos os sets."
+
+msgid "archive.empty"
+msgstr "Ainda não há replays no arquivo"
+
+msgid "archive.empty_detail"
+msgstr "As partidas que os jogadores compartilham pelo Ember aparecem aqui."
+
+msgid "archive.more_failed"
+msgstr "Não foi possível carregar mais"
+
+msgid "archive.more_failed_detail"
+msgstr "Selecione para tentar de novo."
+
+msgid "archive.retry"
+msgstr "Tentar de novo"
+
+msgid "archive.downloading"
+msgstr "Baixando a partida"
+
+msgid "archive.download_failed"
+msgstr "Não foi possível baixar a partida. {0}"
+
+msgid "archive.vs"
+msgstr "vs"
+
+msgid "archive.watch_hint"
+msgstr "Assistir"
+
+msgid "archive.find"
+msgstr "Sets de {0}"
+
+msgid "archive.find_detail"
+msgstr "Lista os sets que {0} jogou no arquivo público."
+
+msgid "archive.game_one"
+msgstr "1 partida"
+
+msgid "archive.games"
+msgstr "{0} partidas"
+
+msgid "archive.met"
+msgstr "Enfrentou {0}"
+
+msgid "archive.session_label"
+msgstr "{0}: {1} partidas"
+
+msgid "archive.fact.event"
+msgstr "Evento"
+
+msgid "archive.fact.round"
+msgstr "Rodada"
+
+msgid "archive.fact.games"
+msgstr "Partidas"
+
+msgid "archive.fact.size"
+msgstr "Tamanho"
+
+msgid "archive.size_kb"
+msgstr "{0} KB"
+
+msgid "archive.game_n"
+msgstr "Partida {0}"
 
 msgid "keyboard.recent"
 msgstr "Recentes:"
@@ -8152,8 +8851,20 @@ msgstr "No seu cartão."
 msgid "awards.detail_earned"
 msgstr "Conquistado. Selecionar coloca no seu cartão."
 
-msgid "awards.detail_locked"
-msgstr "Bloqueado. {0}."
+msgid "awards.progress"
+msgstr "{0} de {1}"
+
+msgid "awards.next"
+msgstr "Próxima: {0}"
+
+msgid "awards.top_level"
+msgstr "Nível máximo"
+
+msgid "awards.notice"
+msgstr "Conquista obtida: {0}"
+
+msgid "awards.link_discord"
+msgstr "Conecte o Discord para ganhar conquistas."
 
 msgid "tier.ash"
 msgstr "Cinza"
@@ -8170,104 +8881,266 @@ msgstr "Ouro"
 msgid "tier.ember"
 msgstr "Ember"
 
-msgid "award.entrant.title"
-msgstr "PARTICIPANTE EMBER"
+msgid "award.matches.name"
+msgstr "Partidas"
 
-msgid "award.entrant.icon"
-msgstr "Faísca"
-
-msgid "award.entrant.how"
-msgstr "Jogue um set em qualquer chave do Ember"
-
-msgid "award.launch-night.title"
-msgstr "NOITE DE LANÇAMENTO"
-
-msgid "award.launch-night.icon"
-msgstr "Retroceder"
-
-msgid "award.launch-night.how"
-msgstr "Jogue durante o evento de lançamento do Ember"
-
-msgid "award.weekly-top16.title"
-msgstr "TOP 16 SEMANAL"
-
-msgid "award.weekly-top16.icon"
-msgstr "Louro"
-
-msgid "award.weekly-top16.how"
-msgstr "Termine no top 16 de um Ember Weekly"
-
-msgid "award.rollback-regular.title"
-msgstr "FREQUENTADOR DO ROLLBACK"
-
-msgid "award.rollback-regular.icon"
-msgstr "Calendário"
-
-msgid "award.rollback-regular.how"
-msgstr "Participe de 10 Ember Weekly em uma temporada"
-
-msgid "award.weekly-top8.title"
-msgstr "TOP 8 SEMANAL"
-
-msgid "award.weekly-top8.icon"
-msgstr "Octógono 8"
-
-msgid "award.weekly-top8.how"
-msgstr "Termine no top 8 de um Ember Weekly"
-
-msgid "award.by-ear.title"
-msgstr "DE OUVIDO"
-
-msgid "award.by-ear.icon"
-msgstr "Onda sonora"
-
-msgid "award.by-ear.how"
-msgstr "Vença um set na chave só de áudio"
-
-msgid "award.monthly-finalist.title"
-msgstr "FINALISTA MENSAL"
-
-msgid "award.monthly-finalist.icon"
-msgstr "Medalha"
-
-msgid "award.monthly-finalist.how"
-msgstr "Chegue à grande final de um Ember Monthly"
-
-msgid "award.organizer.title"
-msgstr "ORGANIZADOR DE TORNEIOS"
-
-msgid "award.organizer.icon"
+msgid "award.matches.icon"
 msgstr "Bandeira"
 
-msgid "award.organizer.how"
-msgstr "Concedido pela equipe do Ember a quem organiza eventos"
+msgid "award.matches.1.title"
+msgstr "Novo desafiante"
 
-msgid "award.commentary.title"
-msgstr "NOS COMENTÁRIOS"
+msgid "award.matches.1.how"
+msgstr "Jogue sua primeira partida ranqueada em uma sala pública"
 
-msgid "award.commentary.icon"
-msgstr "Microfone"
+msgid "award.matches.100.title"
+msgstr "Frequentador"
 
-msgid "award.commentary.how"
-msgstr "Concedido a quem comenta nas transmissões"
+msgid "award.matches.100.how"
+msgstr "Jogue 100 partidas ranqueadas em salas públicas"
 
-msgid "award.season1-veteran.title"
-msgstr "VETERANO DA TEMPORADA 1"
+msgid "award.matches.500.title"
+msgstr "Veterano"
 
-msgid "award.season1-veteran.icon"
-msgstr "Brasão"
+msgid "award.matches.500.how"
+msgstr "Jogue 500 partidas ranqueadas em salas públicas"
 
-msgid "award.season1-veteran.how"
-msgstr "Termine no top 32 em todo Monthly da temporada 1"
+msgid "award.matches.1000.title"
+msgstr "World Warrior"
 
-msgid "award.cup-champion.title"
-msgstr "CAMPEÃO DA EMBER CUP"
+msgid "award.matches.1000.how"
+msgstr "Jogue 1000 partidas ranqueadas em salas públicas"
 
-msgid "award.cup-champion.icon"
-msgstr "Coroa"
+msgid "award.matches.5000.title"
+msgstr "Vitalício"
 
-msgid "award.cup-champion.how"
-msgstr "Vença a Ember Cup de fim de temporada"
+msgid "award.matches.5000.how"
+msgstr "Jogue 5000 partidas ranqueadas em salas públicas"
+
+msgid "award.wins.name"
+msgstr "Vitórias"
+
+msgid "award.wins.icon"
+msgstr "Louro"
+
+msgid "award.wins.1.title"
+msgstr "Primeira vitória"
+
+msgid "award.wins.1.how"
+msgstr "Vença sua primeira partida ranqueada em uma sala pública"
+
+msgid "award.wins.50.title"
+msgstr "Aspirante"
+
+msgid "award.wins.50.how"
+msgstr "Vença 50 partidas ranqueadas em salas públicas"
+
+msgid "award.wins.250.title"
+msgstr "Pugilista"
+
+msgid "award.wins.250.how"
+msgstr "Vença 250 partidas ranqueadas em salas públicas"
+
+msgid "award.wins.1000.title"
+msgstr "Campeão"
+
+msgid "award.wins.1000.how"
+msgstr "Vença 1000 partidas ranqueadas em salas públicas"
+
+msgid "award.wins.2500.title"
+msgstr "Lenda"
+
+msgid "award.wins.2500.how"
+msgstr "Vença 2500 partidas ranqueadas em salas públicas"
+
+msgid "award.streak.name"
+msgstr "Sequência de vitórias"
+
+msgid "award.streak.icon"
+msgstr "Chama"
+
+msgid "award.streak.3.title"
+msgstr "Embalado"
+
+msgid "award.streak.3.how"
+msgstr "Vença 3 partidas ranqueadas seguidas"
+
+msgid "award.streak.5.title"
+msgstr "Sequência quente"
+
+msgid "award.streak.5.how"
+msgstr "Vença 5 partidas ranqueadas seguidas"
+
+msgid "award.streak.10.title"
+msgstr "Intocável"
+
+msgid "award.streak.10.how"
+msgstr "Vença 10 partidas ranqueadas seguidas"
+
+msgid "award.streak.15.title"
+msgstr "Imbatível"
+
+msgid "award.streak.15.how"
+msgstr "Vença 15 partidas ranqueadas seguidas"
+
+msgid "award.streak.20.title"
+msgstr "Imparável"
+
+msgid "award.streak.20.how"
+msgstr "Vença 20 partidas ranqueadas seguidas"
+
+msgid "award.rank.name"
+msgstr "Maior classe"
+
+msgid "award.rank.icon"
+msgstr "Escudo"
+
+msgid "award.mastery.name"
+msgstr "Maestria de lutadores"
+
+msgid "award.mastery.icon"
+msgstr "Medalha"
+
+msgid "award.mastery.1.title"
+msgstr "Aprendiz"
+
+msgid "award.mastery.1.how"
+msgstr "Leve um lutador à moldura de Cobre"
+
+msgid "award.mastery.2.title"
+msgstr "Adepto"
+
+msgid "award.mastery.2.how"
+msgstr "Leve um lutador à moldura de Prata"
+
+msgid "award.mastery.3.title"
+msgstr "Especialista"
+
+msgid "award.mastery.3.how"
+msgstr "Leve um lutador à moldura de Ouro"
+
+msgid "award.mastery.4.title"
+msgstr "Mestre"
+
+msgid "award.mastery.4.how"
+msgstr "Leve um lutador à moldura de Ember"
+
+msgid "award.cast.name"
+msgstr "Elenco"
+
+msgid "award.cast.icon"
+msgstr "Chave"
+
+msgid "award.cast.5.title"
+msgstr "Plano B"
+
+msgid "award.cast.5.how"
+msgstr "Jogue com 5 lutadores diferentes em partidas ranqueadas"
+
+msgid "award.cast.15.title"
+msgstr "Versátil"
+
+msgid "award.cast.15.how"
+msgstr "Jogue com 15 lutadores diferentes em partidas ranqueadas"
+
+msgid "award.cast.30.title"
+msgstr "Calejado"
+
+msgid "award.cast.30.how"
+msgstr "Jogue com 30 lutadores diferentes em partidas ranqueadas"
+
+msgid "award.cast.all.title"
+msgstr "Elenco completo"
+
+msgid "award.cast.all.how"
+msgstr "Jogue com todos os lutadores em partidas ranqueadas"
+
+msgid "award.friends.name"
+msgstr "Amigos"
+
+msgid "award.friends.icon"
+msgstr "Dupla"
+
+msgid "award.friends.1.title"
+msgstr "Parceiro de treino"
+
+msgid "award.friends.1.how"
+msgstr "Adicione um amigo"
+
+msgid "award.friends.5.title"
+msgstr "Boa companhia"
+
+msgid "award.friends.5.how"
+msgstr "Tenha 5 amigos"
+
+msgid "award.friends.15.title"
+msgstr "Os de sempre"
+
+msgid "award.friends.15.how"
+msgstr "Tenha 15 amigos"
+
+msgid "award.rival.name"
+msgstr "Rival"
+
+msgid "award.rival.icon"
+msgstr "Histórico"
+
+msgid "award.rival.10.title"
+msgstr "Rosto conhecido"
+
+msgid "award.rival.10.how"
+msgstr "Jogue 10 partidas ranqueadas contra o mesmo oponente"
+
+msgid "award.rival.50.title"
+msgstr "Rival"
+
+msgid "award.rival.50.how"
+msgstr "Jogue 50 partidas ranqueadas contra o mesmo oponente"
+
+msgid "award.rival.100.title"
+msgstr "Nêmesis"
+
+msgid "award.rival.100.how"
+msgstr "Jogue 100 partidas ranqueadas contra o mesmo oponente"
+
+msgid "award.rival.250.title"
+msgstr "Rival eterno"
+
+msgid "award.rival.250.how"
+msgstr "Jogue 250 partidas ranqueadas contra o mesmo oponente"
+
+msgid "award.opponents.name"
+msgstr "Oponentes"
+
+msgid "award.opponents.icon"
+msgstr "Onda"
+
+msgid "award.opponents.10.title"
+msgstr "Desafio aberto"
+
+msgid "award.opponents.10.how"
+msgstr "Enfrente 10 oponentes diferentes em partidas ranqueadas"
+
+msgid "award.opponents.50.title"
+msgstr "Círculo amplo"
+
+msgid "award.opponents.50.how"
+msgstr "Enfrente 50 oponentes diferentes em partidas ranqueadas"
+
+msgid "award.opponents.200.title"
+msgstr "Lenda das ruas"
+
+msgid "award.opponents.200.how"
+msgstr "Enfrente 200 oponentes diferentes em partidas ranqueadas"
+
+msgid "award.opponents.500.title"
+msgstr "Rival de todos"
+
+msgid "award.opponents.500.how"
+msgstr "Enfrente 500 oponentes diferentes em partidas ranqueadas"
+
+msgid "award.rank.how"
+msgstr "Alcance a classe {0} em salas públicas"
 
 msgid "toast.kind.invitation"
 msgstr "CONVITE"
