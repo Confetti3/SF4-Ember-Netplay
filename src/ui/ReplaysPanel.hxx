@@ -2,6 +2,7 @@
 #include "ShellAction.hxx"
 #include "WatchQueue.hxx"
 #include "MenuNavigation.hxx"
+#include "PlayerOpening.hxx"
 #include "ReplaysView.hxx"
 #include "../platform/ReplaySets.hxx"
 #include "../common/ReplayRequest.hxx"
@@ -81,6 +82,8 @@ public:
     void DrawDetail(const ShellView& view, const std::string& screen, const std::string& id, MenuNavigation& navigation, const std::vector<MenuEntry>& rows) const;
     // The player a chosen Find this player's sets stands for, when `action` is one on a replay's row.
     std::optional<std::string> PlayerToFind(const ShellView& view, const MenuAction& action) const;
+    // The player a chosen Player card stands for, when `action` is one on a replay's row: by name, with the class the match was played in.
+    std::optional<player_opening::Opening> PlayerToOpen(const ShellView& view, const MenuAction& action) const;
     // The set being watched, a game at a time (the Next game row): a set on this PC, or one a panel of
     // the public archive filled, whose games are downloaded as they start.
     WatchQueue& Queue() { return queue_; }

@@ -10,6 +10,10 @@
 //   tokens, at most one in flight, and at most one every MinGapMs.
 // - A token the bridge answers null for has "no card" until the next trigger.
 //   An old card stays on show while its refresh is awaited.
+// - The friend the Friends tab has focused is wanted too (WantFriend), by their friend id ("fr_...", which the bridge's
+//   look-up takes as a selector): it rides in the same look-up as the members' tokens, newest wanted first, and the last
+//   MaxFriends are kept. A look-up of friends alone may come FriendGapMs after the last, so a card shows soon after the
+//   focus lands; one that includes a member's token, or follows a failure (a refusal for too many), waits MinGapMs.
 // - A friends action that went through changes how cards stand with the
 //   player: every card is looked up again at the next look-up (Refresh), and
 //   the card the action named shows what it made of the member at once
@@ -38,10 +42,16 @@ public:
 	static constexpr std::uint64_t GiveUpMs = 60000;
 	// The least time between look-ups, and the wait after a set ends.
 	static constexpr std::uint64_t MinGapMs = 10000, SetEndedMs = 8000;
+	// The least time before a look-up of friends' cards alone, and how many friends are kept wanted.
+	static constexpr std::uint64_t FriendGapMs = 3000;
+	static constexpr std::size_t MaxFriends = 16;
 	// The helper's code for a bridge that has no levels.
 	static constexpr const char* Unavailable = "points_unavailable";
 
 	Cards() : published_(std::make_shared<const Map>()) {}
+
+	// Whether a look-up key is a friend id (the bridge's "fr_..."), not a member's card token ("c1.").
+	static bool IsFriendKey(const std::string& key) { return key.compare(0, 3, "fr_") == 0; }
 
 	// The cards on show: never null, and replaced (never changed) when they change.
 	const std::shared_ptr<const Map>& Published() const { return published_; }
@@ -51,8 +61,20 @@ public:
 	// The service the look-ups go to; another one forgets everything.
 	void Scope(const std::string& bridge) {
 		if (bridge == bridge_) return;
+		// Friend ids belong to the service they were asked of; one asked for before any service was set stays.
+		if (!bridge_.empty()) friends_.clear();
 		bridge_ = bridge;
 		Forget();
+	}
+
+	// The Friends tab has the friend `id` focused: their card is looked up with the others, and kept while they are among
+	// the last MaxFriends wanted. A friend wanted again moves to the front, so a look-up asks for the newest first.
+	void WantFriend(const std::string& id) {
+		if (!IsFriendKey(id)) return;
+		const auto at = std::find(friends_.begin(), friends_.end(), id);
+		if (at != friends_.end()) friends_.erase(at);
+		friends_.insert(friends_.begin(), id);
+		if (friends_.size() > MaxFriends) friends_.resize(MaxFriends);
 	}
 
 	// The room as it is now: its epoch (0 when none, or not a public room),
@@ -90,13 +112,25 @@ public:
 	// `Unavailable`, or within MinGapMs of the last one.
 	std::vector<std::string> Take(std::uint64_t nowMs) const {
 		std::vector<std::string> batch;
-		if (flight_.id || unavailable_ || bridge_.empty() || (sent_ && nowMs - lastSentMs_ < MinGapMs)) return batch;
+		if (flight_.id || unavailable_ || bridge_.empty()) return batch;
+		const auto asked = [&](const std::string& key) {
+			const auto entry = entries_.find(key);
+			return entry == entries_.end() || entry->second.stale;
+		};
 		for (const auto& token : tokens_) {
-			const auto entry = entries_.find(token);
-			if (entry != entries_.end() && !entry->second.stale) continue;
+			if (!asked(token)) continue;
 			batch.push_back(token);
 			if (batch.size() == MaxLookup) break;
 		}
+		// Members first: the room's cards are the ones the board waits on. Friends fill what is left of the look-up.
+		const bool members = !batch.empty();
+		for (const auto& id : friends_) {
+			if (batch.size() == MaxLookup) break;
+			if (asked(id)) batch.push_back(id);
+		}
+		// Friends alone wait the shorter gap, unless the last look-up failed (the budget the bridge keeps may be spent).
+		const std::uint64_t gap = members || !error_.empty() ? MinGapMs : FriendGapMs;
+		if (sent_ && nowMs - lastSentMs_ < gap) batch.clear();
 		return batch;
 	}
 
@@ -159,7 +193,9 @@ private:
 	};
 	struct InFlight { std::uint64_t id = 0, sentMs = 0; };
 
-	bool Wanted(const std::string& token) const { return std::find(tokens_.begin(), tokens_.end(), token) != tokens_.end(); }
+	bool Wanted(const std::string& key) const {
+		return std::find(tokens_.begin(), tokens_.end(), key) != tokens_.end() || std::find(friends_.begin(), friends_.end(), key) != friends_.end();
+	}
 
 	void Publish() {
 		auto cards = std::make_shared<Map>();
@@ -186,6 +222,8 @@ private:
 	std::string bridge_, error_;
 	std::uint64_t epoch_ = 0;
 	std::vector<std::string> tokens_;
+	// The friends the Friends tab focused lately, newest first (WantFriend).
+	std::vector<std::string> friends_;
 	std::map<std::string, Entry> entries_;
 	std::vector<std::uint64_t> sets_;
 	std::vector<std::string> batch_;

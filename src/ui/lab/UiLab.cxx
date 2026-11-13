@@ -20,6 +20,10 @@
 // --player friend|room|stranger|asked|sent|blocked|nocard|nobody|several|reading|unreachable|unsupported: another player's
 //   profile page in that state (--screen player-card, player-fighters, player-sets, player-awards or player-pick;
 //   UiLabSocial.hxx); --screen sets is the player's own Sets tab
+// --find recent|empty with --friends: Find a player's page (--screen friends-add) listing the players met lately, or none
+//   (UiLabSocial.hxx); --friends full also reads each friend's card, which the Friends tab's panel draws
+// --relation none|friend|sent|received|blocked with --points: every member of the room stands that way with the player, which the
+//   post-match prompt's Add friend box says (--postmatch choose --points public --relation none)
 // --levels: fighter points in the game's digits, bands on pictures and meters
 //   (all of it shows in --size 3840x2160)
 // --points public|private with --room or --arcade: every member's card as the bridge would have it, in a public room
@@ -33,7 +37,7 @@
 //   and writes each step there; exits when it is done, 3 when a step failed
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
 // --seats watch|none with --room: FRaccie watches table 2's game, or has no place in the Classic room
-// UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--points public|private] [--rankings] [--profile state] [--friends state] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--points public|private] [--rankings] [--profile state] [--friends state] [--find state] [--relation word] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 // --trace trace.txt (with --shot): writes the screen and the focused row before the first key and after each one,
 //   so a walk's presses can be counted without reading the pictures
@@ -265,11 +269,12 @@ void ArcadeRoom(ui::ShellView& view, room::RoomType type, const std::string& sea
 }
 // --points: the cards of the room's members, by token (Member::card). The others' points are made up from their
 // fighter and main; the local member has no token, so the board reads their own points (--profile) as it would.
-void RoomPoints(ui::ShellView& view, bool listed) {
+void RoomPoints(ui::ShellView& view, bool listed, const std::string& relationState) {
     view.room.serverOwned = listed;
     constexpr std::uint64_t starts[netplay::levels::TierCount] = {0, 200, 700, 1500, 2500};
     const std::uint64_t spread[] = {3480, 1986, 860, 412, 230, 86, 19};
-    auto cards = std::make_shared<netplay::levels::CardMap>();
+    // The friends' cards (--friends) stay beside the members'.
+    auto cards = view.memberCards ? std::make_shared<netplay::levels::CardMap>(*view.memberCards) : std::make_shared<netplay::levels::CardMap>();
     for (auto& m : view.room.members) {
         if (m.id == view.room.localMember) continue;
         m.card = CardToken::Parsed("c1.lab" + std::to_string(m.id));
@@ -290,6 +295,10 @@ void RoomPoints(ui::ShellView& view, bool listed) {
         using netplay::levels::Relation;
         static const Relation relations[] = {Relation::None, Relation::Friend, Relation::Sent, Relation::Received, Relation::Blocked};
         card.relation = relations[m.id % 5];
+        // --relation none|friend|sent|received|blocked: every member stands that way with the player (the post-match prompt's Add friend).
+        static const char* const words[] = {"none", "friend", "sent", "received", "blocked"};
+        for (std::size_t kind = 0; kind < 5; ++kind)
+            if (relationState == words[kind]) card.relation = relations[kind];
         // What a bridge offering profiles adds: the name, how they play, what they wear and the record with the viewer. Riley wears a
         // family nobody reached (drawn at no level), and Akira shows no chips.
         card.name = m.name;
@@ -585,7 +594,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string points;  // --points public|private
-    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState, setsState, playerState;
+    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState, setsState, playerState, findState, relationState;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
@@ -620,6 +629,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--profile" && more) profile = args[++i];
         else if (args[i] == "--friends" && more) friendsState = args[++i];
         else if (args[i] == "--player" && more) playerState = args[++i];
+        else if (args[i] == "--find" && more) findState = args[++i];
+        else if (args[i] == "--relation" && more) relationState = args[++i];
         else if (args[i] == "--archive" && more) archiveState = args[++i];
         else if (args[i] == "--sets" && more) setsState = args[++i];
         else if (args[i] == "--points" && more) points = args[++i];
@@ -704,6 +715,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (!profile.empty() || screen == "awards" || screen == "card" || screen == "sets") ProfileSets(view, setsState.empty() ? "full" : setsState);
     if (!friendsState.empty() && !uilab::Friends(view, friendsState)) return 4;
     if (!playerState.empty() && !uilab::Player(view, playerState)) return 4;
+    if (!findState.empty() && !uilab::Find(view, findState)) return 4;
     // Another player's Sets tab lists the archive's sets under their name (Player 2, or Player 6 and Player 3 for friends).
     if (!playerState.empty()) {
         const std::string name = playerState == "room" ? "Player 3" : playerState == "friend" ? "Player 6" : playerState == "blocked" ? "Player 16" : "Player 2";
@@ -711,7 +723,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     }
     if (!points.empty()) {
         if (profile.empty()) Profile(view, "played");
-        RoomPoints(view, points != "private");
+        RoomPoints(view, points != "private", relationState);
     }
     // Fighter select (--screen selection) with every fighter, costume and colour there.
     ui::FighterSelector selector;

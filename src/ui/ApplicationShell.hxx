@@ -170,6 +170,11 @@ public:
     void OpenPlayer(const netplay::profiles::Key& key, const netplay::profiles::Known& known) {
         player_.Open(key, known, menu_.navigation);
     }
+    // A press the friends panel answered by asking for a profile (a friend's A or More's Player card, a request's More, the
+    // pointer on the Panel's card, a result or a recent opponent of Find a player) opens it, once.
+    void OpenFriendsPlayer() {
+        if (const auto opening = friends_.TakeOpening()) OpenPlayer(opening->key, opening->known);
+    }
     void ShowPublicRooms() { auto& nav = menu_.navigation; nav.Cancel(); nav.Home(); nav.Push("online"); nav.Push("public-rooms"); }
     // Public rooms, where the panel judges a room link it was given, with the
     // trusted services probed afresh first.
@@ -537,6 +542,8 @@ private:
     void UpdatePostMatch(const ShellView& view, const room::Snapshot& room, double now, const Submit& submit, bool* open);
     void ClosePostMatch(const ShellView& view, AfterPostMatch after, bool* open);
     void DrawPostMatch(const ShellView& view, const PostMatchFrame& frame, double now, const Submit& submit, bool* open);
+    // View or A on the opponent's Add friend box (ApplicationShell__PostMatch.cxx).
+    void AddPostMatchFriend(const ShellView& view, const PostMatchModel& model, const Submit& submit);
     int lockedInTable_=-1;
     std::uint64_t lockInEpoch_=0, lockInDropsSeen_=0;
     bool GameIsStale(std::size_t table) const;

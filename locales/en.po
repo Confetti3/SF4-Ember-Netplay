@@ -1264,9 +1264,6 @@ msgstr "Unblock"
 msgid "friends.cancel_request"
 msgstr "Cancel request"
 
-msgid "friends.add"
-msgstr "Add a friend"
-
 msgid "friends.are_friends"
 msgstr "Friends"
 
@@ -1294,9 +1291,6 @@ msgstr "Friend code"
 msgid "friends.code_detail"
 msgstr "Give this code to a player so they can add you."
 
-msgid "friends.their_code"
-msgstr "Their friend code"
-
 msgid "friends.new_code"
 msgstr "New code"
 
@@ -1308,6 +1302,42 @@ msgstr "Send request"
 
 msgid "friends.send_detail"
 msgstr "Sends a friend request to that code."
+
+msgid "find.title"
+msgstr "Find a player"
+
+msgid "find.text_row"
+msgstr "Name or friend code"
+
+msgid "find.text_detail"
+msgstr "Part of a name, two letters at least, or a friend code."
+
+msgid "find.search"
+msgstr "Search"
+
+msgid "find.players"
+msgstr "PLAYERS · {0}"
+
+msgid "find.searching"
+msgstr "Looking."
+
+msgid "find.none"
+msgstr "No player goes by that name."
+
+msgid "find.more"
+msgstr "More players match. Type more of the name."
+
+msgid "find.recent"
+msgstr "RECENT OPPONENTS"
+
+msgid "find.recent_line"
+msgstr "Played {0} · {1}"
+
+msgid "find.recent_when"
+msgstr "Played {0}"
+
+msgid "find.recent_empty"
+msgstr "Players you meet in public rooms show here for a week."
 
 msgid "friends.sent"
 msgstr "Sent ({0})"
@@ -5007,6 +5037,12 @@ msgstr "Left and Right change your Ultra for the next game. With a new Ultra, th
 
 msgid "postmatch.ultra.set"
 msgstr "Your Ultra for the next game is set."
+
+msgid "postmatch.add_friend.detail"
+msgstr "Sends {0} a friend request. Your answer to the rematch stays as it is."
+
+msgid "postmatch.accept_friend.detail"
+msgstr "Accepts {0}'s friend request. Your answer to the rematch stays as it is."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"

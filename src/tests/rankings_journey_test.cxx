@@ -228,6 +228,16 @@ void BoardJourney() {
  Check(j.row("rkb-class:7")->value == "2" && j.row("rkb-p:1")->valueHighlighted, "Counts or your own row are wrong");
  Check(j.row("rkb-p:0")->left == "rkb-class:7" && j.row("rkb-p:0")->right == "rkb-class:3" && j.row("rkb-class:7")->left == "rkb-you",
   "Left and Right do not move between classes");
+ // A on a player opens their profile by the name and flag the board lists them under, shown in their class; Back returns to the board.
+ Check(!j.row("rkb-p:0")->info && j.row("rkb-p:0")->hint == loc::T("room.member_card") && j.row("rkb-you")->info, "A board's player is not a row that opens a card");
+ j.h.Choose("rkb-p:0");
+ Check(j.h.shell.Navigation().Screen() == "player-card", "A on a ranked player did not open their profile");
+ j.h.Frame(0, 2);
+ const commands::ProfileOpen* opened = nullptr;
+ for (const auto& a : j.h.actions) if (const auto* open = As<commands::ProfileOpen>(a)) opened = open;
+ Check(opened && opened->key == netplay::profiles::Key::OfName("Player 2", CountryCode::Parsed("JP")) && opened->known.badge == SkillBadge::OfClass(7, true), "A ranked player was not asked for by name and flag with their class");
+ j.h.Press(MenuInput::Back);
+ Check(j.h.shell.Navigation().Screen() == "rankings-board", "Back from a ranked player's profile did not return to the board");
  // Back on Rankings, nothing is read again; Options on the board reads the board.
  j.h.Press(MenuInput::Options);
  Check(Sent(j, Op::RankingBoard).size() == 2, "Options did not read the board again");

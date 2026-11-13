@@ -632,6 +632,8 @@ void TickLevels(bool helperReady, std::uint64_t nowMs);
 // looked up when one joins and 8 s after a set in the room ends.
 bool TakeCardsAnswer(const session::TournamentAnswer& answer);
 void TickCards(bool helperReady, std::uint64_t nowMs);
+// The friend the Friends tab has focused: their card is looked up with the members' (Cards::WantFriend).
+void DispatchCards(const commands::FriendCardWanted& command);
 // Other players' profiles and the player's own card (same file). The interface's commands; the profile and
 // search the helper answers through flights; and the tick that sends what is due: the look-ups of the profile
 // open, the search, and the player's card when it changed (netplay/ProfileRequests.hxx, netplay/CardBundle.hxx).

@@ -2,6 +2,7 @@
 #include "AwardsWall.hxx"
 #include "CardParts.hxx"
 #include "FightersTab.hxx"
+#include "FindPlayer.hxx"
 #include "RowId.hxx"
 #include "ShellView.hxx"
 #include "Theme.hxx"
@@ -98,17 +99,11 @@ bool PlayerPage::DrawCard(const ShellView& v, const std::string& screen, const M
     if (!index || *index >= v.profile.hits.size()) return false;
     // One player of the pick list: their main, flag, class and name, and since when they have been on Ember.
     const auto& hit = v.profile.hits[*index];
-    const auto& c = v2::Colors();
-    const float s = Scale(), side = max.y - min.y - 16 * s;
-    auto* d = ImGui::GetWindowDrawList();
-    const v2::Box picture{ImVec2(min.x + 12 * s, min.y + 8 * s), ImVec2(min.x + 12 * s + side, min.y + 8 * s + side)};
-    if (hit.hasMain && selection::FindFighter(hit.main))
-        DrawCharacterPortrait(FighterPicture{hit.main, v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait, 0, 0}, picture.min, picture.max, c.frame);
-    else d->AddRectFilled(picture.min, picture.max, c.frame);
-    const float x = picture.max.x + 14 * s, room = max.x - x - 12 * s, size = 18 * s;
-    NoteUserText(hit.name);
-    card_parts::DrawPlayerLine(d, x, min.y + 10 * s, room, size, size * 24.f / 22.f, std::string(), hit.name, hit.country, hit.badge);
-    if (!e.detail.empty()) v2::Text(d, ImVec2(x, min.y + 10 * s + size + 8 * s), room, e.detail, 14 * s, c.muted);
+    find_player::Pick pick;
+    pick.name = hit.name; pick.country = hit.country; pick.badge = hit.badge; pick.fighter = hit.hasMain ? hit.main : -1;
+    pick.detail = e.detail;
+    pick.characterArt = v.preferences.roomCharacterPictures;
+    find_player::DrawPick(ImGui::GetWindowDrawList(), pick, min, max);
     return true;
 }
 

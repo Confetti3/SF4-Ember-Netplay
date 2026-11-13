@@ -100,13 +100,13 @@ void ListingJourney() {
  const auto& tournament=*j.row("archive:emt_a");
  Check(tournament.label=="Player 1 2-1 Player 2"&&tournament.userText&&tournament.Match()&&tournament.fighter1==0&&tournament.fighter2==1,"A tournament set's row does not name its players, score and fighters");
  Check(tournament.hint==loc::T("archive.watch_hint")&&tournament.chosen=="archive-watch","A set's row does not say that A watches it");
- Check(Choices(tournament)==std::vector<std::string>({"archive-watch","find-1","find-2"})&&ChoiceOf(tournament,"archive-watch")->enabled&&
-  ChoiceOf(tournament,"archive-watch")->label==loc::T("replays.watch_set")&&ChoiceOf(tournament,"find-2")->label==loc::Tf("archive.find","Player 2"),"A set's row does not offer to watch it and to find each player's sets");
+ Check(Choices(tournament)==std::vector<std::string>({"archive-watch","find-1","find-2","card-1","card-2"})&&ChoiceOf(tournament,"archive-watch")->enabled&&
+  ChoiceOf(tournament,"archive-watch")->label==loc::T("replays.watch_set")&&ChoiceOf(tournament,"find-2")->label==loc::Tf("archive.find","Player 2"),"A set's row does not offer to watch it, to find each player's sets and to open each player's card");
  Check(tournament.value.size()>0&&tournament.detail.find("Player 1's Cup")!=std::string::npos&&tournament.detail.find("Top 8")!=std::string::npos,"A tournament set's row does not say its event and round");
  const auto& pair=*j.row("archive:"+pair2.digest);
  Check(pair.label==loc::Tf("replays.fighters",std::string("Player 4"),std::string("Player 3"))&&pair.fighter1==3&&pair.fighter2==2,"Two players' online games are not a row of their names without a score");
  const auto& session=*j.row("archive:"+s3.digest);
- Check(session.label==loc::Tf("archive.session_label",std::string("Player 5"),2)&&Choices(session)==std::vector<std::string>({"archive-watch","find-1"})&&session.fighter1==9&&session.fighter2==11,
+ Check(session.label==loc::Tf("archive.session_label",std::string("Player 5"),2)&&Choices(session)==std::vector<std::string>({"archive-watch","find-1","card-1"})&&session.fighter1==9&&session.fighter2==11,
   "One player's games are not a session row of that player alone");
  Check(ChoiceOf(session,"find-1")->label==loc::Tf("archive.find","Player 5"),"A session did not offer to find its player's sets");
  // The want goes again with each listing (the runtime decides what that asks for), and never by itself between.
@@ -190,13 +190,59 @@ void FindJourney() {
  m.h.view.replays.archive=std::make_shared<const std::vector<Archived>>(std::vector<Archived>{replay,lone});
  m.h.Screen("replays");
  const auto& both=*m.row("replay:C:\\r\\m.emberreplay");
- Check(both.choices.size()==9&&both.choices[7].id=="find-1"&&both.choices[8].id=="find-2"&&both.choices[7].label==loc::Tf("archive.find","Player 1"),"A match's row does not offer each player's sets");
- Check(Choices(*m.row("replay:C:\\r\\n.emberreplay")).back()=="find-1"&&m.row("replay:C:\\r\\n.emberreplay")->choices.size()==8,"A match with one named player does not offer that player's sets alone");
+ Check(both.choices.size()==11&&both.choices[7].id=="find-1"&&both.choices[8].id=="find-2"&&both.choices[9].id=="card-1"&&both.choices[10].id=="card-2"&&both.choices[7].label==loc::Tf("archive.find","Player 1")&&both.choices[9].label==loc::Tf("profile.card_of","Player 1"),"A match's row does not offer each player's sets and card");
+ Check(Choices(*m.row("replay:C:\\r\\n.emberreplay")).back()=="card-1"&&m.row("replay:C:\\r\\n.emberreplay")->choices.size()==9,"A match with one named player does not offer that player's sets and card alone");
  PickChoice(m,"replay:C:\\r\\m.emberreplay",8);
  Check(m.h.shell.Navigation().Screen()=="replay-archive","Find this player's sets on a match did not open the Archive tab");
  m.answerIdentityUntilIdle();m.h.Frame(0,2);
  const auto found=Lists(m);
  Check(!found.empty()&&found.back()->filter==NamedFilter("Player 2"),"Find this player's sets on a match did not ask for that player's name alone");
+}
+
+// Player card on a row of Matches or of the Archive's sets opens that player's profile by their exact name, shown with the
+// class and fighter the row knew; Back returns to the list.
+void PlayerCardJourney() {
+ namespace pr=sf4e::netplay::profiles;
+ {
+  Journey m;m.h.view.replays.ready=true;
+  m.h.Screen("home");m.h.Frame(0,2);m.answerIdentityUntilIdle();
+  Archived replay;replay.path=std::filesystem::u8path("C:\\r\\m.emberreplay");replay.label="2026-11-01 18:50";replay.names[0]="Player 1";replay.names[1]="Player 2";
+  replay.classes[1]=SkillBadge::OfClass(5,true);replay.fighters[0]=3;replay.fighters[1]=7;
+  m.h.view.replays.archive=std::make_shared<const std::vector<Archived>>(std::vector<Archived>{replay});
+  m.h.Screen("replays");
+  PickChoice(m,"replay:C:\\r\\m.emberreplay",10);
+  m.h.Frame(0,2);
+  Check(m.h.shell.Navigation().Screen()=="player-card","Player card on a match did not open that player's profile");
+  const auto* open=Last<commands::ProfileOpen>(m.h.actions);
+  Check(open&&open->key==pr::Key::OfName("Player 2")&&open->known.name=="Player 2"&&open->known.badge==SkillBadge::OfClass(5,true)&&open->known.fighter==7,
+   "A match's player was not asked for by their name, shown with their class and fighter");
+  m.h.Press(MenuInput::Back);
+  Check(m.h.shell.Navigation().Screen()=="replays","Back from a match's player did not return to Matches");
+ }
+ {
+  Journey j;OpenArchive(j);
+  const auto pair2=MakeGame(1800000200,"Player 3","Player 4",2,3),pair1=MakeGame(1800000150,"Player 4","Player 3",3,2);
+  Hear(j,{},ListedGames({pair2,pair1}));
+  PickChoice(j,"archive:"+pair2.digest,3);
+  j.h.Frame(0,2);
+  Check(j.h.shell.Navigation().Screen()=="player-card","Player card on an archived set did not open that player's profile");
+  const auto* open=Last<commands::ProfileOpen>(j.h.actions);
+  Check(open&&open->key==pr::Key::OfName("Player 4")&&open->known.fighter==3,"An archived set's player was not asked for by their name and fighter, as the set's first game named them");
+  j.h.Press(MenuInput::Back);
+  Check(j.h.shell.Navigation().Screen()=="replay-archive","Back from an archived set's player did not return to the Archive tab");
+ }
+}
+
+// The Replays strip is whole whichever tab is opened first: the Archive tab asks for the local listing too, which the strip's Sets and
+// Export video tabs come from.
+void StripJourney() {
+ sf4e::ui::ReplaysPanel panel;
+ Check(panel.Wanted("replays").listing&&panel.Wanted("replay-sets").listing&&panel.Wanted("replay-archive").listing&&panel.Wanted("replay-archive-filter").listing&&
+  panel.Wanted("replay-archive-fighter").listing,"A Replays tab, the Archive's included, does not ask for the local listing");
+ Check(!panel.Wanted("home").listing&&!panel.Wanted("player-sets").listing&&!panel.Wanted("replay-inputs").listing,"A screen that is no Replays tab asks for the local listing");
+ Journey j;
+ j.h.Screen("replay-archive");j.h.Frame(0,2);
+ Check(j.h.shell.ReplayWants().listing,"The shell does not ask for the listing on the Archive tab");
 }
 
 // The Filters row opens one page of rows; stepping them asks for nothing, and Back asks once for the first page of what is chosen.
@@ -343,6 +389,8 @@ void TabsJourney() {
 }
 void ArchiveJourneys() {
  TabsJourney();
+ StripJourney();
+ PlayerCardJourney();
  ListingJourney();
  WatchJourney();
  FindJourney();
