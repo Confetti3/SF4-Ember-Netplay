@@ -2065,10 +2065,10 @@ msgid "discord.account_linked"
 msgstr "Connected · {0}"
 
 msgid "discord.account_detail"
-msgstr "Connect the Discord account your Ember ID uses. Ranked games, points, friends, shared replays and tournament sites such as BluMint all use it. It can differ from the one in the Discord app. Select to connect it."
+msgstr "Connect the Discord account your Ember ID uses. Rated games, points, friends, shared replays and tournament sites such as BluMint all use it. It can differ from the one in the Discord app. Select to connect it."
 
 msgid "discord.account_linked_detail"
-msgstr "The Discord account connected to your Ember ID. Ranked games, points, friends, shared replays and tournament sites such as BluMint use it. It can differ from the one in the Discord app. Select to switch account or disconnect it."
+msgstr "The Discord account connected to your Ember ID. Rated games, points, friends, shared replays and tournament sites such as BluMint use it. It can differ from the one in the Discord app. Select to switch account or disconnect it."
 
 msgid "discord.server"
 msgstr "Ember Discord server"
@@ -5099,7 +5099,7 @@ msgid "public.ranked_needs_discord"
 msgstr "Connect Discord to play ranked"
 
 msgid "public.ranked_needs_discord_detail"
-msgstr "Games count for your rank and points only with a Discord account connected. You can still play without one."
+msgstr "Games count for your class and points only with a Discord account connected. You can still play without one."
 
 msgid "public.loading"
 msgstr "Loading rooms..."
@@ -8233,7 +8233,7 @@ msgid "notifications.tab_count"
 msgstr "Notifications · {0}"
 
 msgid "notifications.waiting"
-msgstr "Waiting: {0}"
+msgstr "To answer: {0}"
 
 msgid "notifications.none_detail"
 msgstr "What Ember says, such as a link copied or a room left, is kept here for this session."
@@ -8507,7 +8507,7 @@ msgid "archive.f_class"
 msgstr "Class"
 
 msgid "archive.f_class_detail"
-msgstr "Lists the sets in which either player has this class on the rankings today."
+msgstr "Lists the sets in which either player holds this class today."
 
 msgid "archive.f_country"
 msgstr "Country"
@@ -8621,7 +8621,7 @@ msgid "archive.games"
 msgstr "{0} games"
 
 msgid "archive.met"
-msgstr "Met {0}"
+msgstr "Played {0}"
 
 msgid "archive.session_label"
 msgstr "{0}: {1} games"
@@ -8804,7 +8804,7 @@ msgid "tier.ember"
 msgstr "Ember"
 
 msgid "award.matches.name"
-msgstr "Matches"
+msgstr "Games played"
 
 msgid "award.matches.icon"
 msgstr "Flag"
@@ -8948,7 +8948,7 @@ msgid "award.mastery.4.how"
 msgstr "Take a fighter to the Ember frame"
 
 msgid "award.cast.name"
-msgstr "Cast"
+msgstr "Fighters played"
 
 msgid "award.cast.icon"
 msgstr "Bracket"
