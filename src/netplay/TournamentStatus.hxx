@@ -81,6 +81,9 @@ struct Command {
 	std::uint64_t request = 0;
 	archive::Filter archiveFilter;
 	bool archiveNext = false, archiveAgain = false;
+	// ArchiveList and ArchiveWatch for the second slot of the browser: the sets of the profile open
+	// (ShellView::profileSets), which never replace the Archive tab's listing. The first slot otherwise.
+	bool archiveProfile = false;
 	std::string archiveUrl, archiveDigest;
 	replay::Request archiveWatch;
 	static constexpr std::size_t MaxField = 256;
@@ -89,13 +92,13 @@ struct Command {
 		return bridgeId.size() <= MaxField && matchId.size() <= MaxField && roomId.size() <= MaxField &&
 			roomName.size() <= 64 && capacity >= 0 && capacity <= 16 && listingName.size() <= 32 &&
 			listingCountry.size() <= 2 && archiveFilter.text.size() <= MaxArchiveText && archiveFilter.event.size() <= MaxArchiveText &&
-			archiveFilter.country.size() <= 2 && archiveFilter.round.size() <= 16 && archiveFilter.band >= 0 && archiveFilter.band <= 10 &&
+			archiveFilter.name.size() <= MaxArchiveText && archiveFilter.country.size() <= 2 && archiveFilter.round.size() <= 16 && archiveFilter.band >= 0 && archiveFilter.band <= 10 &&
 			archiveUrl.size() <= 512 && archiveDigest.size() <= 64 && archiveWatch.path.empty() && archiveWatch.caption.name[0].size() <= MaxArchiveText &&
 			archiveWatch.caption.name[1].size() <= MaxArchiveText && archiveWatch.caption.text.size() <= MaxArchiveText;
 	}
 	std::size_t Bytes() const {
 		return bridgeId.size() + matchId.size() + roomName.size() + roomId.size() + listingName.size() + listingCountry.size() +
-			archiveFilter.text.size() + archiveFilter.event.size() + archiveFilter.country.size() + archiveFilter.round.size() +
+			archiveFilter.text.size() + archiveFilter.name.size() + archiveFilter.event.size() + archiveFilter.country.size() + archiveFilter.round.size() +
 			archiveUrl.size() + archiveDigest.size() + archiveWatch.caption.name[0].size() + archiveWatch.caption.name[1].size() + archiveWatch.caption.text.size();
 	}
 };

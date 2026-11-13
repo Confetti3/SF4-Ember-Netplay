@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <map>
@@ -44,12 +45,20 @@ struct Filter {
 	// One of Rounds.
 	std::string round;
 	Order order = Order::Newest;
+	// A side's exact name: the sets of one player, as a profile lists them
+	// (docs/design/PROFILE.md, "Sets by name"). Sent as `name` with `text`
+	// beside it (or the name itself as `text` when none is typed), and the
+	// games kept are those with a side of this name (KeepNamed), so a bridge
+	// that ignores `name` lists the same sets.
+	std::string name;
 
 	// Whether anything but the order narrows the listing.
-	bool Active() const { return !text.empty() || fighter >= 0 || band != 0 || !country.empty() || !event.empty() || !round.empty(); }
+	bool Active() const { return ActiveBeyondName() || !name.empty(); }
+	// The same, not counting `name`: whether a profile's list has anything to clear.
+	bool ActiveBeyondName() const { return !text.empty() || fighter >= 0 || band != 0 || !country.empty() || !event.empty() || !round.empty(); }
 	bool operator==(const Filter& other) const {
 		return text == other.text && fighter == other.fighter && band == other.band && country == other.country && event == other.event &&
-			round == other.round && order == other.order;
+			round == other.round && order == other.order && name == other.name;
 	}
 	bool operator!=(const Filter& other) const { return !(*this == other); }
 	// The same narrowing in the other order.
@@ -87,6 +96,22 @@ struct Listing {
 	// Where the next page starts; empty when this is the last.
 	std::string next;
 };
+
+// Keeps the games of `page` in which a side's name is exactly `name`, in their
+// order, and returns how many it dropped. A bridge that lists by name sends
+// only such games and drops none; one that ignores `name` (an older one) sends
+// the games of the other filters, and the rest go here. When any went, the
+// page's count of matching games was the bridge's for a wider filter, so it is
+// not kept. An empty `name` keeps everything.
+inline std::size_t KeepNamed(Listing& page, const std::string& name) {
+	if (name.empty()) return 0;
+	const auto before = page.games.size();
+	page.games.erase(std::remove_if(page.games.begin(), page.games.end(),
+		[&](const Game& game) { return game.names[0] != name && game.names[1] != name; }), page.games.end());
+	const auto dropped = before - page.games.size();
+	if (dropped) page.matching.reset();
+	return dropped;
+}
 
 // What the tab reads: where the listing of `filter` on `bridge` stands.
 // Idle until a first page is asked for. Unsupported: the service offers no

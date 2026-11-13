@@ -1,7 +1,7 @@
 // The archive browser's requests (netplay/ArchiveRequests.hxx): a first page, the next pages added to it, a
 // filter changed while a page is on its way (the stale answer is dropped), failures, and the game download;
 // when the Archive tab asks for a page (ui/ArchivePaging.hxx); and how the helper's archive_list answer is
-// read (session::DecodeArchivePage).
+// read (session::DecodeArchivePage); and the second browser of a profile's sets, with the exact-name filter (KeepNamed).
 #include "../netplay/ArchiveRequests.hxx"
 #include "../session/TournamentAnswers.hxx"
 #include "../ui/ArchivePaging.hxx"
@@ -293,6 +293,102 @@ static void ReadingTheAnswer() {
 		EXPECT(session::ReadTournamentAnswer({{"op", op}, {"request_id", 7u}, {"ok", true}, {"data", json::object()}}).has_value());
 }
 
+// Two browsers, each its own Requests: the Archive tab's and the sets of the profile open. A page, a next page, a
+// filter and a download of one never touch the other's listing.
+static void TwoSlotsAreIndependent() {
+	ar::Requests tab, profile;
+	const auto first = tab.Begin("brg_1", Named("Player 1"));
+	EXPECT(tab.Finish(first, "", Page(0, 3, "10.ab")));
+	ar::Filter sets;
+	sets.name = "Player 2";
+	const auto theirs = profile.Begin("brg_1", sets);
+	EXPECT(profile.Published().state == State::Loading && tab.Published().state == State::Listed);
+	EXPECT(profile.Finish(theirs, "", Page(100, 2, "")));
+	EXPECT(tab.Published().listing->games.size() == 3 && tab.Published().filter == Named("Player 1") && tab.Published().listing->games[0].digest == Digest(0));
+	EXPECT(profile.Published().listing->games.size() == 2 && profile.Published().filter.name == "Player 2" && profile.Published().listing->games[0].digest == Digest(100));
+	// The next page of one is on its way without the other's being so, and its answer is its own.
+	const auto next = tab.BeginNext();
+	EXPECT(next && tab.Published().loadingMore && !profile.Published().loadingMore && profile.Cursor().empty());
+	EXPECT(profile.Begin("brg_1", sets) && tab.Published().loadingMore);
+	EXPECT(tab.Finish(next, "", Page(3, 2, "")) && tab.Published().listing->games.size() == 5 && profile.Published().state == State::Loading);
+	// A failure of one leaves the other's listing as it was.
+	const auto again = profile.Begin("brg_1", sets);
+	EXPECT(profile.Finish(again, "http_502", std::nullopt) && profile.Published().state == State::Failed && tab.Published().state == State::Listed);
+	// A download is counted by the slot that asked for it.
+	EXPECT(tab.BeginFetch(Digest(1)) && tab.Published().fetching == Digest(1) && profile.Published().fetching.empty());
+	tab.FinishFetch("");
+	EXPECT(tab.Published().fetched == 1 && profile.Published().fetched == 0);
+	// Each keeps its own revision, so a reader of one regroups only for its own pages.
+	const auto revision = tab.Published().revision;
+	const auto third = profile.Begin("brg_1", sets);
+	profile.Finish(third, "", Page(100, 1, ""));
+	EXPECT(tab.Published().revision == revision);
+}
+
+// A filter with a name: it narrows the listing, and says whether anything beyond the name does.
+static void ANameIsAFilter() {
+	ar::Filter filter;
+	EXPECT(!filter.Active() && !filter.ActiveBeyondName());
+	filter.name = "Player 2";
+	EXPECT(filter.Active() && !filter.ActiveBeyondName() && filter != ar::Filter() && filter == filter);
+	EXPECT(filter.Ordered(ar::Order::Class).name == "Player 2" && filter.Ordered(ar::Order::Class) != filter);
+	ar::Filter typed = filter;
+	typed.text = "Player 3";
+	EXPECT(typed.Active() && typed.ActiveBeyondName() && typed != filter);
+	ar::Filter other = filter;
+	other.name = "Player 4";
+	EXPECT(other != filter);
+	// A request of the same filter and the same name is the same listing: the runtime asks again, and the answer of the first is dropped.
+	ar::Requests requests;
+	const auto first = requests.Begin("brg_1", filter);
+	const auto second = requests.Begin("brg_1", filter);
+	EXPECT(!requests.Finish(first, "", Page(0, 1, "")) && requests.Finish(second, "", Page(0, 1, "")));
+}
+
+// A player's sets are the games in which a side's name is exactly the name, whatever the bridge did with `name`: the
+// games of other players go, in the order the rest were sent, and the bridge's count of matching games goes with them.
+static void ANamesSetsAreOnlyTheirs() {
+	auto page = Page(0, 5, "10.ab");
+	page.games[1].names = {{"Player 3", "Player 4"}};
+	page.games[2].names = {{"Player 2", "Player 4"}};
+	page.games[3].names = {{"player 2", "Player 5"}};
+	page.games[4].names = {{"Player 8", "Player 9"}};
+	EXPECT(ar::KeepNamed(page, "Player 2") == 3);
+	CHECK(page.games.size() == 2);
+	EXPECT(page.games[0].digest == Digest(0) && page.games[1].digest == Digest(2) && page.games[1].names[0] == "Player 2" && page.games[0].names[1] == "Player 2");
+	EXPECT(!page.matching && page.total && *page.total == 900 && page.next == "10.ab");
+	// Nothing to drop: the bridge listed by name, and its count stands.
+	auto whole = Page(0, 2, "");
+	EXPECT(ar::KeepNamed(whole, "Player 2") == 0 && whole.games.size() == 2 && whole.matching && *whole.matching == 800);
+	// No name keeps everything, and a name nobody has keeps nothing.
+	auto everything = Page(0, 3, "");
+	EXPECT(ar::KeepNamed(everything, "") == 0 && everything.games.size() == 3 && everything.matching);
+	EXPECT(ar::KeepNamed(everything, "Nobody") == 3 && everything.games.empty());
+	// The sets the page names stay as sent; the browser groups the games it keeps.
+	auto sets = Page(0, 2, "");
+	sets.games[0].set = "set_1";
+	sets.games[1].set = "set_2";
+	sets.games[1].names = {{"Player 6", "Player 7"}};
+	sets.sets["set_1"] = {{{2, 1}}, ""};
+	sets.sets["set_2"] = {{{3, 0}}, ""};
+	EXPECT(ar::KeepNamed(sets, "Player 1") == 1 && sets.games.size() == 1 && sets.games[0].set == "set_1" && sets.sets.size() == 2);
+	// A page kept to nothing is an empty page to the browser: it goes on only as far as the browser's own bound.
+	ar::Requests requests;
+	ar::Filter filter;
+	filter.name = "Player 9";
+	auto ticket = requests.Begin("brg_1", filter);
+	auto empty = Page(0, 3, "10.ab");
+	ar::KeepNamed(empty, filter.name);
+	EXPECT(requests.Finish(ticket, "", std::move(empty)) && requests.Published().listing->games.empty() && requests.Cursor() == "10.ab");
+	for (unsigned i = 1; i < ar::Requests::MostEmptyPages; ++i) {
+		ticket = requests.BeginNext();
+		auto more = Page(0, 3, "10.ab");
+		ar::KeepNamed(more, filter.name);
+		EXPECT(ticket && requests.Finish(ticket, "", std::move(more)));
+	}
+	EXPECT(requests.Cursor().empty() && !requests.Cursor(true).empty());
+}
+
 int main() {
 	FirstThenNextPages();
 	StaleAnswersAreDropped();
@@ -301,6 +397,9 @@ int main() {
 	GameDownloads();
 	WhenThePagesAreAsked();
 	ReadingTheAnswer();
+	TwoSlotsAreIndependent();
+	ANameIsAFilter();
+	ANamesSetsAreOnlyTheirs();
 	if (TEST_FAILURES()) { std::printf("%d failed\n", TEST_FAILURES()); return 1; }
 	std::printf("ok\n");
 	return 0;
