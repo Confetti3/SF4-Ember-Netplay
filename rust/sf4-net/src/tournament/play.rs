@@ -17,7 +17,7 @@ use ember_protocol::{
         WATCH_FEATURE,
     },
     friends::FRIENDS_FEATURE,
-    levels::{POINTS_FEATURE, PROFILES_FEATURE},
+    levels::{CLASS_BONUS_FEATURE, POINTS_FEATURE, PROFILES_FEATURE},
     report::Outcome as GameOutcome,
     skill::RANKING_FEATURE,
 };
@@ -66,6 +66,9 @@ pub(super) struct Features {
     pub ranking: bool,
     /// It serves the level routes and reads a ticket request's `card`.
     pub levels: bool,
+    /// Its points follow the class bonus, and it answers them as earned to
+    /// the class bonus query (`CLASS_BONUS_POINTS_PATH`).
+    pub class_bonus: bool,
     /// It serves the friends routes.
     pub friends: bool,
     /// It serves the card save and search routes, reads the look-up's
@@ -86,6 +89,7 @@ impl Features {
             watch: lists(WATCH_FEATURE),
             ranking: lists(RANKING_FEATURE),
             levels: lists(POINTS_FEATURE),
+            class_bonus: lists(CLASS_BONUS_FEATURE),
             friends: lists(FRIENDS_FEATURE),
             profiles: lists(PROFILES_FEATURE),
             unchanged: lists(CLAIM_UNCHANGED_FEATURE),

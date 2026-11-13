@@ -19,8 +19,8 @@ use super::{
 };
 use ember_protocol::{
     levels::{
-        CARDS_ME_PATH, CardAnswers, CardLookup, CardSave, CardSearch, CardSelector, LOOKUP_PATH,
-        OwnLevels, POINTS_PATH, SEARCH_PATH, SearchAnswer,
+        CARDS_ME_PATH, CLASS_BONUS_POINTS_PATH, CardAnswers, CardLookup, CardSave, CardSearch,
+        CardSelector, LOOKUP_PATH, OwnLevels, POINTS_PATH, SEARCH_PATH, SearchAnswer,
     },
     skill::NO_ACCOUNT,
 };
@@ -46,13 +46,27 @@ const SAVED: &[u16] = &[204, 200];
 
 /// The bridge's capabilities list `points`, or this is `points_unavailable`
 /// and nothing is asked of it. One that lacks the feature is read again on
-/// the next request, so a bridge upgraded meanwhile is heard.
-async fn offered(shared: &Arc<Shared>, bridge_id: &str) -> Result<(), Failure> {
+/// the next request, so a bridge upgraded meanwhile is heard. Answers what
+/// the bridge offers.
+async fn offered(shared: &Arc<Shared>, bridge_id: &str) -> Result<play::Features, Failure> {
     let bridge = client::approved(shared, bridge_id)?;
-    if play::features(shared, &bridge, Need::Levels).await?.levels {
-        Ok(())
+    let features = play::features(shared, &bridge, Need::Levels).await?;
+    if features.levels {
+        Ok(features)
     } else {
         Err(Failure::new(Code::LevelsUnavailable))
+    }
+}
+
+/// Where the player's own points are asked. A bridge that lists the class
+/// bonus answers the points as they are earned only when asked with its
+/// query: asked plainly it answers games plus wins, for the builds that
+/// refuse anything else. A bridge from before the bonus is asked plainly.
+fn points_path(offered: &play::Features) -> &'static str {
+    if offered.class_bonus {
+        CLASS_BONUS_POINTS_PATH
+    } else {
+        POINTS_PATH
     }
 }
 
@@ -71,8 +85,8 @@ async fn profiles_offered(shared: &Arc<Shared>, bridge_id: &str) -> Result<(), F
 
 /// The player's own points on `bridge_id`.
 pub async fn own(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
-    offered(shared, bridge_id).await?;
-    let call = BridgeCall::new(Verb::Get, POINTS_PATH, &[200]).refusals(REFUSALS);
+    let path = points_path(&offered(shared, bridge_id).await?);
+    let call = BridgeCall::new(Verb::Get, path, &[200]).refusals(REFUSALS);
     let levels: OwnLevels = client::request_as(shared, bridge_id, &call).await?;
     levels.check().map_err(|_| invalid_response())?;
     to_json(&levels)
@@ -250,6 +264,20 @@ mod tests {
     }
 
     #[test]
+    fn class_bonus_points_are_asked_only_of_a_bridge_that_lists_them() {
+        let plain = play::Features {
+            levels: true,
+            ..play::Features::default()
+        };
+        assert_eq!(points_path(&plain), POINTS_PATH);
+        let bonus = play::Features {
+            class_bonus: true,
+            ..plain
+        };
+        assert_eq!(points_path(&bonus), CLASS_BONUS_POINTS_PATH);
+    }
+
+    #[test]
     fn a_bridge_without_levels_is_told_apart() {
         assert_eq!(reply(404, b"").unwrap_err().as_str(), "points_unavailable");
         let not_found = serde_json::to_vec(&json!({ "error": {
@@ -294,6 +322,16 @@ mod tests {
                 .as_str(),
             "bridge_invalid_response"
         );
+        // Points between the games and the games plus the wins check: a win
+        // earns its second point only with the class bonus.
+        let bonus = br#"{"points":"counted",
+            "account":{"points":1400,"games":1000,"wins":900,"tier":1,"floor":500,"next":2000,"since":1},
+            "fighters":[
+            {"fighter":3,"points":1000,"games":1000,"wins":900,"tier":2,"floor":700,"next":1500,"since":1}]}"#;
+        assert!(read::<OwnLevels>(bonus).unwrap().check().is_ok());
+        // Fewer points than games do not.
+        let short = br#"{"points":"counted","account":{"points":999,"games":1000,"wins":900,"tier":1,"floor":500,"next":2000,"since":1},"fighters":[]}"#;
+        assert!(read::<OwnLevels>(short).unwrap().check().is_err());
         // A fighter whose numbers disagree parses but does not check.
         let wrong = read::<OwnLevels>(
             br#"{"points":"counted","account":{"points":0,"games":0,"wins":0,"tier":0,"floor":0,"next":500},"fighters":[{"fighter":3,"points":14,"games":5,"wins":9,"tier":0,"floor":0,"next":200,"since":1}]}"#,
