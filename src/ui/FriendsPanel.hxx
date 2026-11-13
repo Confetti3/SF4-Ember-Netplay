@@ -45,6 +45,12 @@ bool Stale(const nf::View& view);
 // `actWhy` and `goWhy` are the catalog ids of the words that say why not, null when they may.
 struct Gate { bool act = false, go = false; const char *actWhy = nullptr, *goWhy = nullptr; };
 Gate GateOf(const nf::View& view, bool service, bool pending);
+// The words of a mode that is not the list (loading, no account, off, a service without friends, unreachable), null
+// for the list.
+const char* ModeWords(Mode mode);
+// A room member's Add friend, Accept request or Block: they name the member by their card, not a row of the list, so a
+// list the last sync failed on does not hold them (the answer brings a fresh one); no list says why in its own words.
+Gate MemberGateOf(const nf::View& view, bool service, bool pending);
 
 // The requests newest first and the friends in the three groups, each in the
 // order the tab shows them: in a room the joinable first and then by name,

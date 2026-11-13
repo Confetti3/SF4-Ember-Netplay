@@ -262,6 +262,30 @@ void Outcomes() {
     Check(fp::GiveUpSeconds > 60, "the panel gives up before the runtime ends a lost request");
 }
 
+// A room member's Add friend and Block name them by card: a list the last sync failed on does not hold them, an action
+// in flight does, and no list says why in its own words (not "could not reach" for a player without a Discord account).
+void MemberGate() {
+    auto listed = ListedView({});
+    listed.state.error = "rate_limited";
+    Check(fp::Stale(listed) && !fp::GateOf(listed, true, false).act, "the test's list is not stale");
+    auto gate = fp::MemberGateOf(listed, true, false);
+    Check(gate.act && gate.actWhy == nullptr, "a stale list held a member's Add friend");
+    gate = fp::MemberGateOf(listed, true, true);
+    Check(!gate.act && std::string(gate.actWhy) == "friends.busy", "an action just sent did not hold a member's Add friend");
+    listed.busy = true;
+    Check(!fp::MemberGateOf(listed, true, false).act, "an action in flight did not hold a member's Add friend");
+    nf::View loading;
+    loading.bridge = "brg_1";
+    Check(std::string(fp::MemberGateOf(loading, true, false).actWhy) == "friends.loading", "a list not read yet does not say so");
+    auto none = ListedView({});
+    none.state.value = std::make_shared<const nf::State>([] { nf::State s; s.kind = nf::State::Kind::NoAccount; return s; }());
+    Check(std::string(fp::MemberGateOf(none, true, false).actWhy) == "friends.no_account", "a player without a Discord account is told the service could not be reached");
+    auto off = ListedView({});
+    off.state.value = std::make_shared<const nf::State>([] { nf::State s; s.kind = nf::State::Kind::Off; return s; }());
+    Check(std::string(fp::MemberGateOf(off, true, false).actWhy) == "friends.off", "friends turned off do not say so");
+    Check(fp::ModeWords(fp::Mode::Listed) == nullptr && std::string(fp::ModeWords(fp::Mode::Unavailable)) == "friends.unavailable", "a mode's words are wrong");
+}
+
 // What Accept says: who is a friend now, by the request's name; nothing for a request no longer there.
 void AcceptWords() {
     nf::State state;
@@ -286,6 +310,7 @@ void Seen() {
 
 int main() {
     Outcomes();
+    MemberGate();
     AcceptWords();
     Seen();
     Cards();

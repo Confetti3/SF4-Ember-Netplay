@@ -68,6 +68,28 @@ Gate GateOf(const nf::View& view, bool service, bool pending) {
     return gate;
 }
 
+const char* ModeWords(Mode mode) {
+    switch (mode) {
+    case Mode::NoAccount: return "friends.no_account";
+    case Mode::Off: return "friends.off";
+    case Mode::Unavailable: return "friends.unavailable";
+    case Mode::Loading: return "friends.loading";
+    case Mode::Unreachable: return "friends.unreachable";
+    case Mode::Listed: break;
+    }
+    return nullptr;
+}
+
+Gate MemberGateOf(const nf::View& view, bool service, bool pending) {
+    Gate gate;
+    const auto mode = ModeOf(view, service);
+    gate.go = mode == Mode::Listed;
+    gate.act = gate.go && !view.busy && !pending;
+    gate.goWhy = ModeWords(mode);
+    gate.actWhy = gate.act ? nullptr : !gate.go ? gate.goWhy : "friends.busy";
+    return gate;
+}
+
 Groups Arrange(const nf::State& state) {
     Groups groups;
     for (const auto& request : state.incoming) groups.requests.push_back(&request);
@@ -248,15 +270,8 @@ std::string DateOf(std::uint64_t at) { return at ? LocalTime(at, "%Y-%m-%d") : s
 
 // The words that say why the friends cannot be used now, or null when they can: the state's own, or the gate's.
 const char* UnusableWords(Mode mode, Gate gate) {
-    switch (mode) {
-    case Mode::NoAccount: return "friends.no_account";
-    case Mode::Off: return "friends.off";
-    case Mode::Unavailable: return "friends.unavailable";
-    case Mode::Loading: return "friends.loading";
-    case Mode::Unreachable: return "friends.unreachable";
-    case Mode::Listed: break;
-    }
-    return gate.actWhy;
+    const char* words = ModeWords(mode);
+    return words ? words : gate.actWhy;
 }
 }
 
@@ -281,13 +296,13 @@ std::vector<MenuEntry> FriendsPanel::SettingsRows(const ShellView& v) {
 }
 
 void FriendsPanel::RequestMember(const ShellView& v, const std::string& card, const std::string& name, bool accepts, const Submit& submit) {
-    const Gate gate = GateOf(v.friends, service_, pending_.active);
+    const Gate gate = MemberGateOf(v.friends, service_, pending_.active);
     if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
     Send(v, commands::FriendRequest{Bridge(v), card, name}, submit, {}, loc::Tf(accepts ? "friends.now_friends" : "friends.request_sent_to", name));
 }
 
 void FriendsPanel::BlockMember(const ShellView& v, const std::string& card, const std::string& name, const Submit& submit) {
-    const Gate gate = GateOf(v.friends, service_, pending_.active);
+    const Gate gate = MemberGateOf(v.friends, service_, pending_.active);
     if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
     Send(v, commands::FriendBlock{Bridge(v), card, name}, submit, {}, loc::Tf("friends.blocked_name", name));
 }
