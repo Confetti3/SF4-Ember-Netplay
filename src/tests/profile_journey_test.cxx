@@ -8,6 +8,7 @@
 #include "public_rooms_journey_support.hxx"
 #include "../ui/PlayerCard.hxx"
 #include "../ui/NameMarks.hxx"
+#include "../ui/CardEditRows.hxx"
 #include "../ui/ProfilePanel.hxx"
 #include "../ui/RowId.hxx"
 #include "../netplay/Awards.hxx"
@@ -180,7 +181,7 @@ void EditCardJourney() {
  j.h.Press(MenuInput::Options);
  Check(j.h.shell.Navigation().Screen() == "card-edit", "Y on Card did not open Edit card");
  j.h.Frame(0, 2);
- for (const char* id : {"name", "country", "main-character", "card-title", "card-icon", "share-steam"}) Check(j.row(id) != nullptr, "Edit card is missing one of the card's rows");
+ for (const char* id : {"name", "country", "main-character", "card-title", "card-icon", "card-pins", "card-device", "card-link", "card-region", "card-looking", "share-steam"}) Check(j.row(id) != nullptr, "Edit card is missing one of the card's rows");
  j.h.Press(MenuInput::Back);
  Check(j.h.shell.Navigation().Screen() == "card", "Back from Edit card did not return to Card");
  j.h.shell.Navigation().Focus(ui::CardEditRow, j.rows);
@@ -196,6 +197,112 @@ void EditCardJourney() {
  j.h.view.canEditPreferences = false; j.h.Frame(0, 2);
  const auto* locked = j.row("card-title");
  Check(locked && !locked->enabled && j.row("main-character") && !j.row("main-character")->enabled, "Edit card changes in a room");
+}
+
+// The saves the shell has sent.
+std::size_t Saves(const Journey& j) {
+ return static_cast<std::size_t>(std::count_if(j.h.actions.begin(), j.h.actions.end(), [](const ShellAction& a) { return Is<commands::SavePreferences>(a); }));
+}
+
+// Edit card's choices through the shell: Device steps through its six values, each saved, Connection and Region are shown or hidden,
+// Looking for is a page that refuses a third choice with words, the pins page lists the families with a level, refuses a fifth and
+// Automatic disables the list, the hint bar names each kind of row once, and in a room every row is disabled.
+void EditCardChoicesJourney() {
+ Journey j;
+ j.h.view.ownLink = NetworkLink::Wired;
+ j.h.view.netReport.reported = true; j.h.view.netReport.relay = "euc1";
+ Answer(j);
+ // Five families reached: matches, wins, streak, rank and (from the five fighters played) cast.
+ Counters(j, 120, 3, 3, 5);
+ j.h.Screen("card-edit");
+ j.h.Frame(0, 2);
+ // What a press saved: the preferences it sent, which the runtime then applies. Null when it sent none.
+ const auto change = [&](const char* id, unsigned press) {
+  j.h.shell.Navigation().Focus(id, j.rows);
+  const auto before = Saves(j);
+  j.h.Press(press);
+  j.h.Frame(0, 40);
+  const auto* sent = Saves(j) > before ? Last<commands::SavePreferences>(j.h.actions) : nullptr;
+  const auto save = sent ? std::make_shared<commands::SavePreferences>(*sent) : nullptr;
+  if (save) { j.h.view.preferences = save->preferences; j.h.Frame(0, 2); }
+  return save;
+ };
+
+ // Device: Automatic, Pad, Stick, Leverless, Keyboard, Hidden, each step saved, and no step past the end.
+ const auto automatic = netplay::profiles::AutomaticDevice(j.h.view.inputDevice.type, j.h.view.inputDevice.connected, j.h.view.gameplayBrand);
+ const auto values = ui::card_edit::DeviceValues(automatic);
+ Check(j.row("card-device") && j.row("card-device")->value == values[0], "Device does not start on Automatic");
+ for (int step = 1; step < 6; ++step) {
+  const auto save = change("card-device", MenuInput::Right);
+  Check(save && save->preferences.cardDevice == step, "Right did not save the next Device value");
+  Check(j.row("card-device") && j.row("card-device")->value == values[step], "Device does not read the value it stepped to");
+ }
+ Check(!change("card-device", MenuInput::Right), "Device stepped past Hidden");
+
+ // The hint bar: only the arrows' Change on a stepped row, only Choose on a row that opens something, only Change on the switch.
+ const auto* device = j.row("card-device");
+ Check(device && !ui::MenuPrimaryHint(device) && ui::MenuAdjustHint(*device) == loc::T("menu.change"), "A stepped row's hints are not only the arrows' Change");
+ for (const char* id : {"card-pins", "card-looking", "name", "country", "main-character", "card-title", "card-icon"}) {
+  const auto* opens = j.row(id);
+  Check(opens && opens->hint == loc::T("menu.choose") && ui::MenuAdjustHint(*opens).empty(), "A row that opens something does not say only Choose");
+ }
+ const auto* steam = j.row("share-steam");
+ Check(steam && steam->hint == loc::T("menu.change") && ui::MenuAdjustHint(*steam).empty(), "The switch does not say only Change");
+
+ // Connection and Region are shown or hidden, over what the game measures.
+ auto save = change("card-link", MenuInput::Left);
+ Check(save && !save->preferences.cardShowLink && j.row("card-link")->value == loc::T("card.hidden"), "Left did not hide the connection");
+ save = change("card-link", MenuInput::Right);
+ Check(save && save->preferences.cardShowLink && j.row("card-link")->value == loc::Tf("card.shown", loc::T("style.wired")), "Right did not show the connection");
+ Check(j.row("card-region") && j.row("card-region")->value == loc::Tf("card.shown", loc::T("network.region_euc1")), "Region does not read the relay region Ember picked");
+ save = change("card-region", MenuInput::Left);
+ Check(save && !save->preferences.cardShowRegion && j.row("card-region")->value == loc::T("card.hidden"), "Left did not hide the region");
+
+ // Looking for opens a page of six; a third choice is refused with words and saves nothing.
+ j.h.shell.Navigation().Focus("card-looking", j.rows);
+ j.h.Press(MenuInput::Select);
+ Check(j.h.shell.Navigation().Screen() == "card-looking" && j.rows.size() == 6, "Looking for did not open its six choices");
+ Check(change("looking:0", MenuInput::Select) && change("looking:3", MenuInput::Select), "Two looking-for choices did not save");
+ const auto saved = Saves(j);
+ j.h.shell.Navigation().Focus("looking:5", j.rows);
+ j.h.Press(MenuInput::Select);
+ Check(j.status == loc::T("card.looking_full"), "A third looking-for choice was not refused with words");
+ j.h.Frame(0, 40);
+ Check(Saves(j) == saved, "A refused third choice was saved");
+ j.h.Press(MenuInput::Back);
+ Check(j.h.shell.Navigation().Screen() == "card-edit" && j.row("card-looking")->value == std::string(loc::T("style.casuals")) + ", " + loc::T("style.practice"),
+  "Back from Looking for does not show the choices on the row");
+
+ // Awards on card: Automatic on lists the families disabled; off it starts from four and refuses a fifth.
+ j.h.shell.Navigation().Focus("card-pins", j.rows);
+ j.h.Press(MenuInput::Select);
+ Check(j.h.shell.Navigation().Screen() == "card-pins", "Awards on card did not open its page");
+ Check(j.rows.size() == 6 && j.rows[0].id == "pins-auto" && j.rows[0].enabled && j.rows[0].value == loc::T("common.on"), "The pins page is not Automatic and the five families with a level");
+ Check(j.row("pin:matches") && !j.row("pin:matches")->enabled && j.row("pin:cast") && !j.row("pin:mastery"), "Automatic does not disable the list, or a family with no level is listed");
+ save = change("pins-auto", MenuInput::Select);
+ Check(save && save->preferences.cardPins.size() == netplay::profiles::MaxPins, "Automatic off did not choose the four shown");
+ Check(j.row("pin:matches") && j.row("pin:matches")->enabled, "The list is disabled with Automatic off");
+ std::string fifth;
+ for (const auto& row : j.rows) if (row.id.compare(0, 4, "pin:") == 0 && row.value == loc::T("common.off")) fifth = row.id;
+ const auto pinned = Saves(j);
+ j.h.shell.Navigation().Focus(fifth, j.rows);
+ j.h.Press(MenuInput::Select);
+ Check(!fifth.empty() && j.status == loc::T("card.pins_full"), "A fifth family was not refused with words");
+ j.h.Frame(0, 40);
+ Check(Saves(j) == pinned, "A refused fifth family was saved");
+ save = change("pins-auto", MenuInput::Select);
+ Check(save && save->preferences.cardPins.empty() && !j.row("pin:matches")->enabled, "Automatic on did not clear the choice and disable the list");
+
+ // In a room none of it changes: every row of the pins page, then of Edit card, is disabled with the reason.
+ j.h.view.canEditPreferences = false;
+ j.h.Frame(0, 2);
+ for (const auto& row : j.rows) Check(!row.enabled, "A pins row changes in a room");
+ j.h.Press(MenuInput::Back);
+ j.h.Frame(0, 2);
+ for (const char* id : {"card-pins", "card-looking", "card-device", "card-link", "card-region", "share-steam", "name", "country", "main-character", "card-title", "card-icon"})
+  Check(j.row(id) && !j.row(id)->enabled, "An Edit card row changes in a room");
+ for (const char* id : {"card-pins", "card-looking", "card-device", "card-link", "card-region"})
+  Check(j.row(id)->detail == loc::T("profile.leave_room_to_edit"), "An Edit card row does not say to leave the room");
 }
 
 // The account's counters and the two the bridge adds, as a newer points answer sets them.
@@ -402,7 +509,7 @@ void ReadJourney() {
 
 int main() {
  try {
-  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); AwardsJourney(); WornClaimsJourney(); AwardsStatesJourney(); AwardNoticesJourney(); HomeJourney(); ReadJourney(); SpatialJourney();
+  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); EditCardChoicesJourney(); AwardsJourney(); WornClaimsJourney(); AwardsStatesJourney(); AwardNoticesJourney(); HomeJourney(); ReadJourney(); SpatialJourney();
   std::cout << "Profile journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

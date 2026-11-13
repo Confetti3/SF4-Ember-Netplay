@@ -82,6 +82,14 @@ void ShootProfile(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     // Edit card with the player's card as others see it, and Home's card with its points lines.
     page("card-edit");draw(nullptr,0,6);draw("card-edit-played");
     Require(shell.Navigation().Screen()=="card-edit","Edit card did not open");
+    // Edit card's two pages: the six Looking for choices, and the awards the card shows (two families chosen, then Automatic).
+    page("card-looking");draw(nullptr,0,6);draw("card-looking-played");
+    Require(shell.Navigation().Screen()=="card-looking","Looking for did not open");
+    view.preferences.cardPins={"rank","wins"};
+    page("card-pins");draw(nullptr,0,6);draw("card-pins-chosen");
+    Require(shell.Navigation().Screen()=="card-pins","Awards on card did not open");
+    view.preferences.cardPins.clear();
+    page("card-pins");draw(nullptr,0,6);draw("card-pins-automatic");
     page("home");draw(nullptr,0,6);draw("home-profile-played");
     shoot("sixty",ProfilePlayed(12840),true,false);
     ProfileOwn fresh;fresh.kind=ProfileOwn::Kind::Counted;ProfileAccount(fresh);shoot("fresh",fresh,true,false);
