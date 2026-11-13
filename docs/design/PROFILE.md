@@ -15,34 +15,41 @@ streak, through the awards stream's counters) and "Privacy" in `FRIENDS.md`
 two paragraphs. The static mockup is
 `Desktop/sf4/mockups/profile-161/index.html` (outside the repository).
 
-Built elsewhere and taken as given:
+Built elsewhere and taken as given (all merged into local `nightly` at
+767d8d404):
 
 | Data | From | Holds |
 |---|---|---|
-| `ShellView::levels` | `netplay::levels::Own` (1.6.0) | own points: account and 44 fighters, `{points, games, wins, tier, floor, next, since}` |
-| `ShellView::memberCards` | `netplay::levels::Card` (1.6.0) | a room member's card by token: account and fighters' points and tiers, `relation` |
-| `ShellView::friends` | `netplay::friends::State` (1.6.0) | friends with presence and record, requests, invites, blocks, code |
-| award counters and catalog | awards stream (`wip/n1113-awards`, migration 063) | per account, own and on a looked-up card: rated games, wins, best win streak, fighters played, top fighter frame, peak class; own friends count. `netplay::awards`: about 7 to 10 **families** (Matches, Wins, Win streak, Highest rank, Fighter mastery, Cast, Friends, perhaps more), each with **levels** at rising thresholds; each level has its own title and a tier (Ash, Copper, Silver, Gold, Ember) that means the same difficulty in every family. One icon per family, drawn in the tier of the highest level reached. The viewer computes a family's level from the counters; wearing a family wears its current level's title and its icon in that level's colour, both moving up by themselves |
-| archive browse | archive stream (`wip/n1113-archive`) | the helper's `archive_list` op, sets grouped from games, Replays > Archive and its filter page, download-then-watch, `ReplaysPanel::OpenArchiveFor(name, nav)` |
-| Fighter select on Card | menu stream (`wip/n1113-menu`) | Home loses Fighter select; Card has it under Edit card, X / F |
+| `ShellView::levels` | `netplay::levels::Own` | own points: account and 44 fighters, `{points, games, wins, tier, floor, next, since}`; the award counters `bestStreak`, `peakClass`, `rival` (most games against one opponent) and `opponents` (different opponents) |
+| `ShellView::memberCards` | `netplay::levels::Card` | a card by token: account and fighters' points and tiers, `marks`, `relation`, and the fields W1 added (Data and wire) |
+| `ShellView::friends` | `netplay::friends::State` | friends with presence and record, requests, invites, blocks, code. Waiting requests and live invites are also listed in the Notifications tab (the News screen family) for as long as they wait, and answered there as on the Friends tab; the Friends tab itself is unchanged |
+| awards | `src/netplay/Awards.hxx` (awards stream) | nine **families**, in catalog order: Matches (5 levels), Wins (5), Win streak (5), Highest rank (6), Fighter mastery (4), Cast (4), Friends (3), Rival (4), Opponents (4): 40 levels in all, 37 without Friends, whose count is never on someone else's card. Highest rank begins at B, the class every rated player starts in: B Ash, B+ Copper, A Silver, A+ and Master Gold, Grand Master Ember; the classes under B have no level. A level's tier (Ash, Copper, Silver, Gold, Ember) is the same difficulty in every family. One icon per family. `LevelOf`, `Next`, `WornOf`, `LevelsEarned`, `CountersOf(own)`, `CountersOf(card)` |
+| a card's marks | `levels::CardMarks` | `games`, `wins`, `streak` are exact counts; `rival`, `opponents` and `peakClass` are milestone marks, enough to place a level and never more |
+| archive | archive stream | the helper's `archive_list` op, sets grouped from games, Replays > Archive and its filter page, download-then-watch; the entry point `ApplicationShell::OpenArchiveFor(name)` (`ReplaysPanel::OpenArchiveFor(name, nav)`). A watched archive game is also kept in the player's Matches list |
+| Fighter select on Card | menu stream | Home loses Fighter select; Card has it under Edit card, X / F |
+| profile data | W1, implemented from Data and wire below | `player_cards` (064), `PUT /v1/cards/me`, `POST /v1/cards/search`, the look-up's `request` and `code` selectors and new fields, the archive's `name` |
 
 New here: the fuller card, another player's profile, finding a player, the
 opponent's card on the post-match prompt, and the data behind them (Data and
-wire, migration 064).
+wire, migration 064, and one addition after it: the most played opponent).
 
 ## Decisions
 
 | Decision | Why |
 |---|---|
 | One card in three sizes: **Full** (a Card tab, own or another's), **Panel** (beside a list: Friends, a room's Members, Edit card's preview, Awards' preview) and **Row** (a list row). Each smaller size is the larger one with parts dropped, never a different arrangement. | A player learns one card. The Panel is what 1.6.0 drew as the "other card", now no longer a mostly empty box. |
-| The Full card uses the width: the hero, then the player's words and numbers, then a right column of awards, recent sets and (for another player) the record between the two of you. | At 1920x1080 the 1.6.0 card ended its words column at 960 px and left 450 px and the lower third empty. SF4's own player data screen is one dense sheet, not a page of air. |
-| Progress meters join the points lines (own card only): `1986 FP`, its meter, "Gold · 514 points to Ember". The PROGRESS heading goes. | The meter belongs to the number it measures. Another player's card is then the same shape with the meters left out. It also pays for the new rows at 1280x720. |
-| Record is four cells: Rated games, Win rate (own) or Wins (another's), Best streak, Fighters played. No current streak. | The awards stream makes games, wins and best streak public; a percentage on someone else's card reads as a skill score, which the class already is (see Open questions). A current streak is about the last hour; the room board already shows sets won in the room. |
-| "How they play" is preset chips, never free text: Device, Connection, Region, and up to two "Looking for". | Free text needs moderation Ember has no path for (`PLAYER_CARD.md`). Chips are short, translate, and filter nothing out. |
-| The awards showcase is up to four award **families**, each its one icon in the tier colour of the level reached, with level pips; the level's title shows for the focused or hovered one. The worn title and icon and the shown families travel as family ids; the card carries the counters and the viewer works out each level. | The owner's model: one icon per family whose colour is how hard the level was. Levels move up by themselves, so nothing a player stores can go stale, and a made-up claim never shows: a family with no level reached by the counters is not drawn. |
+| The Full card fills the body, width and height: the hero runs the whole height with its two buttons at its foot; the middle column ends with top fighters as tall as the column leaves; the right column holds awards, the most played opponent (own) or the record between you (another's), five recent sets and All sets. | The owner's first complaint was the empty card. At 1920x1080 the 1.6.0 card, and this document's first draft, ended every column about two thirds down. SF4's own player data screen is one full sheet. |
+| Progress meters join the points lines (own card only): `1986 FP`, its meter, "Gold · 514 points to Ember". The PROGRESS heading goes. | The meter belongs to the number it measures. Another player's card is then the same shape with the meters left out. |
+| Record is four cells: Rated games, Win rate (own) or Wins (another's), Best streak, Fighters played. No current streak. | Games, wins and best streak are public through the card's marks; a percentage on someone else's card reads as a skill score, which the class already is (see Open questions). A current streak is about the last hour; the room board already shows sets won in the room. |
+| How a player plays is preset chips in two labelled groups, never free text: **Plays** (device, connection, region: facts, mostly measured) and **Looking for** (up to two choices: intent), the second outlined in the accent. On the Panel, Looking for is never hidden: Region gives way first, then Connection. | Free text needs moderation Ember has no path for (`PLAYER_CARD.md`). Intent is what a player reads a card for before inviting; it must stand apart from the facts. |
+| The awards showcase is up to four **families**, each its icon on the plate of the level's tier, its level pips and the level's title under it. Worn and shown families travel as family ids; the card carries the counters and the viewer works out each level. | The owner's model: one icon per family whose colour is how hard the level was. Levels move up by themselves, so nothing stored goes stale, and a family no counter reaches is not drawn. |
+| The thick accent frame means focus and nothing else. A tier shows as a plate's fill and an icon's own colour, or on a fighter picture as a 1 px inner line and the `LevelBand`; never as a frame. | Copper, Gold and Ember sit next to the accent; three tier frames on one screen read as three focuses (design critique). |
+| 13 px is the smallest text on any card size, at 1.00x. | Interface size now goes down to 0.70x; the social words were the smallest on the card. |
+| Top fighters: the main first, always marked with the "Main" chip; then the two highest others by FP. | The main is the player's chosen identity and leads as it does on the Fighters tab; the chip says why it is first when it is not the highest, and costs nothing when it is. |
+| The own card names the most played opponent (an addition after W1/W2). Another player's card holds the record between you and them in that place; no third party is ever named on someone else's card. | It is the rivalry a fighting-game player wants to show and the player most worth adding; on someone else's card it would name a person who did not choose to be shown there. |
 | Another player's profile is a page of its own (`player`) with tabs Card, Fighters, Sets, Awards; the room popout's "Player card" opens it. | "Select a user's profile" from anywhere: one page whatever opened it. |
 | Sets are found by the exact name the archive stores, and the page says so. | The archive's listing is by name (`n:` keys). Doing it by account needs a stored column and a backfill (Sets by name, below); the page works now and does not pretend otherwise. |
-| Adding the opponent after a set is a button on their own line of the post-match prompt, on View / C, never on A, B, X or Y, and never moves the focus or the countdown. | A, B, X and Y are Rematch, Back to room, Character select and New opponent there; mashing through the WIN must never send a request, and sending one must never answer the rematch. |
+| Adding the opponent after a set is a button at the right edge of their line on the post-match prompt, on View / C, never on A, B, X or Y, and never moves the focus or the countdown. | A, B, X and Y are Rematch, Back to room, Character select and New opponent there; mashing through the WIN must never send a request, and sending one must never answer the rematch. |
 | Players met in public rooms stay findable for a week (Recent opponents, on this PC only). | Kate's report: the moment around a rematch is short. The card token already lives 7 days. |
 | Own profile gains a Sets tab too (Card, Fighters, Sets, Friends, Awards). | "All sets" on the own card needs somewhere to go; the same list on both pages. |
 
@@ -52,8 +59,9 @@ Unchanged from 1.6.0: the number, a space, the two-letter label, white with a
 dark outline, the label's capitals as tall as the digits, no plate, box,
 ground or coloured frame (`v2::Level`, `v2::LevelLines`). FP is a fighter's
 points, BP the account's. They are a grind count, never a rank; the class
-emblem is the rank. Two lines stack under the name, numbers right-aligned to
-the wider one so the labels line up.
+emblem is the rank. Two lines stack under the name, left-aligned with it,
+numbers right-aligned to the wider one so the labels line up, on every card
+size (the Panel's lines are not pushed to its right edge).
 
 ```
 Player 1
@@ -64,33 +72,69 @@ Player 1
 | Where | Lines | Digit height (1080 / 720) |
 |---|---|---|
 | Full card, own or another's | FP of the main (another player in a room: the fighter they play now), BP; own card adds each line's meter and words | 30 / 24 |
-| Panel card | the same two lines, no meters | 26 / 22 |
+| Panel card | the same two lines, no meters, under the title plate | 26 / 22 |
 | Home's card (L tag) | unchanged | 22 / 20 |
-| A fighter picture's foot (`v2::LevelBand`) | unchanged | fits the picture |
+| A fighter picture's foot (`v2::LevelBand`) | unchanged; shrinks to fit, never under 13 px: below that the band is left out | fits the picture |
 
 The meter beside a line: `v2::Meter`, 10 tall, starting 24 px after the
-label, 320 wide (1080) or 180 (720); its words 13 px muted after it,
+label, 320 wide (1080) or 150 (720); its words 13 px muted after it,
 "{tier} · {n} points to {next tier}", "{tier} · Top frame", or "Not played
-yet" for a main at 0. The tier still never colours a number; it shows as a
-picture's 2 px edge and in these words (1.6.0's rule).
+yet" for a main at 0. The tier never colours a number.
+
+## Rules for every card size
+
+These hold for the Full card, the Panel, the Row, the Fighters tabs and the
+Awards walls, own and another's.
+
+**Text floor.** No text is smaller than 13 px at Interface size 1.00x:
+record and fact keys, chips and their group labels, set details, captions,
+games under a tile, the hero's "MAIN", award titles, the Panel's lines. A
+layout that runs out of room drops a part (the three sizes' table says which)
+or wraps; it never shrinks text under the floor.
+
+**Focus and tier.** The thick accent frame (`v2::Focus`: the 2 px accent edge
+inside the box and the 4 px bar) means focus and nothing else. A tier is
+never drawn as a frame. It shows as:
+
+| Where | How the tier shows |
+|---|---|
+| A family's icon (showcase tiles, the worn icon, the Panel's icons, the walls) | the icon on a square of the tier's plate fill (`v2::TierColor(...).plate`), drawn in the tier's stripe colour (`.stripe`); the tile itself has the plain card ground |
+| A fighter picture (hero, strip tiles, Fighters tiles, Panel and Row pictures) | a 1 px inner line in the stripe colour, inset 3 px, and the `LevelBand` number where the picture has one. 1.6.0's 2 px edge (`DrawFighterEdge`) becomes this line |
+| Words | "Gold · 514 points to Ember", the Fighters panel's tier word, a family's title |
+
+A Looking for chip's 1 px accent outline is not a frame in this sense: it is
+thin, rounded, carries words, and never has the focus bar.
+
+**Chips.** Two groups, each led by its label (13 px muted) and left out with
+its label when it has nothing:
+
+| Group | Chips | Look |
+|---|---|---|
+| Plays | device, connection, region | `v2::Chip` in the muted tone (ground at 18 %) |
+| Looking for | up to two of Casuals, Long sets, Ranked, Tournament practice, New to the game, Happy to teach | the same chip with no ground, a 1 px accent outline and text in `c.text` |
+
+On the Full card both groups share a line, 24 px apart, and the second wraps
+to its own line when they do not fit. On the Panel each group has its own
+line; when Plays does not fit, Region is dropped first, then Connection;
+Looking for is never shortened.
 
 ## Three sizes
 
 | Part | Full (Card tab) | Panel (beside a list) | Row (a list row) |
 |---|---|---|---|
-| Fighter picture, tier edge | hero 440 / 260 | 112 / 80 | 48, where the row has a picture |
+| Fighter picture, tier line | hero 440 wide, the body's height less its buttons / 260 | 112 / 80 | 48, where the row has a picture |
 | Flag, name, class emblem | 36 px name | 22 px name | 16 px name |
-| Worn title on its plate, worn icon | title row | title plate under the name; no icon | dropped |
+| Worn title on its plate, worn icon beside it | title row | the plate and the icon (28) under the name | dropped |
 | About: country, "On Ember since 2026-03" | yes | dropped | dropped |
 | Presence (friends only) | a line under the about line | the line above the facts (Friends tab) | the row's status line (as 1.6.0) |
-| How they play (chips) | all, one line, wraps once | one line, the rest as "+2" | dropped |
-| FP and BP lines | 30 / 24, own with meters | 26 / 22 | dropped |
-| Record | four cells | one muted line: "2840 rated games · 1164 wins · best streak 12" | dropped |
-| Top fighters | three tiles | dropped (the picture is the one fighter) | dropped |
-| Awards | four family tiles: icon in its level's tier, level pips, the focused one's title on a line under them; "14 of 34" | four family icons 32 / 28 in their tier, "14 of 34" | dropped |
-| Recent sets | three rows and All sets | dropped | dropped |
-| You and them (another's) | three cells in the right column | Friends tab: its facts (1.6.0); a room: the relation chip | dropped |
-| Actions (another's) | Primary and More under the hero | the panel's own buttons (Friends tab) or the room's rows | the row's value word (1.6.0) |
+| Plays, Looking for | both groups, one line, wraps | a line each; Region, then Connection give way | dropped |
+| FP and BP lines | 30 / 24, own with meters | 26 / 22, left-aligned under the title | dropped |
+| Record | four cells | one 14 px line: "2840 rated games · 1164 wins · best streak 12" | dropped |
+| Top fighters | three tiles, the main marked | dropped (the picture is the one fighter) | dropped |
+| Awards | four family tiles: icon on its tier plate, pips, title; "28 of 40" | four family icons 32 / 28 on their tier plates, "28 of 40" | dropped |
+| Most played (own) / You and them (another's) | a row / three cells in the right column | Friends tab: its facts (1.6.0); a room: the relation chip | dropped |
+| Recent sets | five rows and All sets (three at 720) | dropped | dropped |
+| Actions (another's) | Primary and More at the hero's foot | the panel's own buttons (Friends tab) or the room's rows | the row's value word (1.6.0) |
 
 The Panel is `DrawOtherCard` grown (`PlayerCard.cxx`), its height its
 content's, not a fixed 160. The Row is `v2::Tag` S with the picture, as the
@@ -107,7 +151,7 @@ both pages.
 | `fighters` | own tab 2 | Fighters | `ProfilePanel` | a strip tile, LB / RB |
 | `sets` | own tab 3 (new) | Sets | `PlayerPage` (the archive list, own name) | All sets, a recent set's row's Y, LB / RB |
 | `friends` | own tab 4 | Friends · {requests} | `FriendsPanel` | LB / RB, Home's Profile row when requests wait, a request toast |
-| `awards` | own tab 5 | Awards | `ApplicationShell__Awards.cxx` | an award tile, LB / RB |
+| `awards` | own tab 5 | Awards | `ApplicationShell__Awards.cxx` | a family tile, LB / RB |
 | `card-edit` | page over Card | Edit card | Settings `PageOf` (`CardEdit`) | Y on Card, the Edit card button |
 | `card-pins` | page over Edit card (new) | Awards on card | Settings `PageOf` | Edit card's Awards on card row |
 | `card-looking` | page over Edit card (new) | Looking for | Settings `PageOf` | Edit card's Looking for row |
@@ -117,7 +161,7 @@ both pages.
 | `player` | another's tab 1 (new) | Card | `PlayerPage` (new) | every place in "Where it opens from" |
 | `player-fighters` | another's tab 2 | Fighters | `PlayerPage` | a strip tile, LB / RB |
 | `player-sets` | another's tab 3 | Sets | `PlayerPage` | All sets, View sets, LB / RB |
-| `player-awards` | another's tab 4 | Awards | `PlayerPage` (the wall, read only) | an award tile, LB / RB |
+| `player-awards` | another's tab 4 | Awards | `PlayerPage` (the wall, read only) | a family tile, LB / RB |
 | `player-pick` | page | Players named {name} | `PlayerPage` | a name that more than one card carries |
 | `room-member` | room page (exists) | the member's name | `RoomPanel` | Kick or Make host asking (1.6.0); its card is the Panel |
 
@@ -128,59 +172,67 @@ opponent, a result of Find a player opened from there) replaces it
 
 ## Card tab (own)
 
-### Layout, 1920x1080 (content 1840 wide, body about 838 tall)
+### Layout, 1920x1080 (content 1840 wide, body 838 tall)
 
-Three columns, top aligned: A 440, gap 32, B 840, gap 32, C 496.
+Three columns, top aligned, each running to the body's foot: A 440, gap 32,
+B 840, gap 32, C 496.
 
 | Part | Box | Contents |
 |---|---|---|
-| Hero | A, 440 x 440 | the main large (`SelectionArt` portrait or figure, Settings, Room layout, Pictures); 2 px edge in the main's tier; 56 px shade at the foot with "MAIN" (12 px muted) and the fighter's name (18 px). No number on the hero. No main: `c.frame` ground with Choose a main (Primary) inside. |
-| Edit card | A, under the hero, 440 x 48, 16 gap | `v2::Button` Secondary, Y glyph, "Edit card" |
-| Fighter select | A, under Edit card, 440 x 48, 8 gap | Secondary, X glyph, "Fighter select" (menu stream) |
-| Title row | B, 34 tall, 10 under | worn title on `v2::TitlePlate`; worn icon 40 px on its tier stroke at the row's right end; no title worn: the row is left out |
+| Hero | A, 440 x 718 (the body less the two buttons and their gaps) | the main (`SelectionArt` portrait or figure, Settings, Room layout, Pictures), filling the width and anchored to the foot: a figure stands on the shade, a portrait sits just above it; `c.frame` ground above the art. The tier as the 1 px inner line (Rules). A 56 px shade at the foot with "MAIN" (13 px muted) and the fighter's name (18 px). No number on the hero. No main: `c.frame` ground with Choose a main (Primary) inside. |
+| Edit card | A, 440 x 48, 16 under the hero | `v2::Button` Secondary, Y glyph, "Edit card" |
+| Fighter select | A, 440 x 48, 8 under Edit card; its foot is the body's foot | Secondary, X glyph, "Fighter select" (menu stream) |
+| Title row | B, 34 tall, 10 under | the worn title on `v2::TitlePlate`, and 12 px after it the worn icon: a 34 px square of its tier's plate fill with the family's icon in the tier's stripe colour, no frame. Only an icon worn: it stands at the row's start. Neither: the row is left out |
 | Name | B, 44 | flag, name (36 px heading), class emblem (`DrawBadge`, 32 px) |
 | About | B, 22, 12 under | "Germany · On Ember since 2026-03" (`card.about`), 15 px muted. The class is the emblem; speech reads "class A+" from the row's words |
-| How you play | B, 30, 16 under | `v2::Chip` each, muted tone, 8 apart: device, connection, region, then up to two Looking for. None chosen or known: the row is left out. Wraps to a second line rather than cut |
+| Plays, Looking for | B, 30, 16 under | the two chip groups (Rules), 24 apart on one line; Looking for takes a line of its own when they do not fit (the part grows to 68) |
 | Points | B, 2 x 30 + 8, 16 under | FP of the main and BP, each with its meter and words (Points) |
-| Record | B, `v2::FactCells` 4 across, 52, 18 under | Rated games · Win rate · Best streak · Fighters played ("12 of 44") |
-| Top fighters | B, heading 24 + tiles 184 x 248, 12 apart | "TOP FIGHTERS": the main, then the two highest others by FP; picture 168 with `LevelBand` and tier edge, name 15 px, games 12 px muted |
-| Awards | C, heading 24 + four tiles 112 x 112, 16 apart, then a title line 22; 24 under | "AWARDS" with "14 of 34" (`card.of`: levels reached of all levels) muted at the heading's right. A tile is one family: `c.frame` ground with a 2 px edge in the tier of the level reached, the family's icon 56 drawn in that tier's stroke colour (`v2::TierColor(...).stripe`), and under it the level pips: one 6 px square per level, the reached ones filled in the same colour, the rest `c.border`. The title line under the four tiles names the focused or hovered tile: "World Warrior · Matches, level 4 of 5" (`card.award_line`), the title in the heading font; nothing focused there, it names the first tile. A family with no level reached is not shown. None reached: one line "No awards yet. The first comes with your first rated game." |
-| Recent sets | C, heading 24 + three rows 496 x 72, 8 apart | "RECENT SETS". A row: this player's fighter and the opponent's, 48 px each, side by side; "vs" + the opponent's flag, name and class (16 px); under it 14 px muted "3 – 1 · Online · 2 d ago" or "3 – 1 · Weekly 12 · Top 8 · 2026-11-10". The score is from this player's side; the fighters are the set's last game's |
+| Record | B, `v2::FactCells` 4 across, 52, 18 under | Rated games · Win rate · Best streak · Fighters played ("12 of 44"); keys 13 px, values 17 px |
+| Top fighters | B, heading 24, then three tiles 264 wide, 12 apart, as tall as the column has left (about 490) | "TOP FIGHTERS": the main, marked with the "Main" chip at its picture's top left (as the Fighters tab marks it), then the two highest others by FP. A tile: the picture 248 wide (art anchored to its foot, `LevelBand`, tier line), name 15 px, games 13 px muted |
+| Awards | C, heading 24 + four tiles 112 x 160, 16 apart; 24 under | "AWARDS", and "28 of 40" (`card.of`: levels reached of all levels) muted at the heading's right. A tile is one family on the plain card ground: a 64 px square of the level's tier plate fill with the family's icon (44) in the tier's stripe colour; under it the level pips, one 7 px square per level 3 apart, the reached ones in the stripe colour and the rest `c.border`; under them the level's title, 13 px heading font, centred, two lines at most ("World Warrior", "Class A+"). A family with no level reached is not shown. None reached: one line "No awards yet. The first comes with your first rated game." |
+| Most played | C, heading 24 + one row 496 x 72; 24 under | "MOST PLAYED" (addition after W1/W2): the opponent's flag, name (16 px) and class; under it 14 px muted "41 – 33 · 74 games" (`card.most_played_line`, wins from this player's side). A opens their profile by the token the answer carries |
+| Recent sets | C, heading 24 + five rows 496 x 72, 8 apart | "RECENT SETS". A row: this player's fighter and the opponent's, 48 px each, side by side; "vs" + the opponent's flag, name and class (16 px); under it 14 px muted "3 – 1 · Online · 2 d ago" or "3 – 1 · Weekly 12 · Top 8 · 2026-11-10". The score is from this player's side; the fighters are the set's last game's |
 | All sets | C, under the rows, 496 x 48, 8 gap | a link row: "All sets" and a chevron; opens the Sets tab |
 
-Column heights: A 560, B about 594, C about 500. The body's lower part is
-air, as SF4's sheet has a margin; nothing on the card scrolls.
+Column heights: A 838, B 838 (the tiles take what is left), C 800 (own) and
+756 (another's). Nothing on the card scrolls.
 
-### 1280x720 (content 1232 wide, body about 500 tall)
+### 1280x720 (content 1232 wide, body about 510 tall)
 
 Columns A 260, gap 24, B 524, gap 24, C 400. When the body is under 620
 logical px tall, these sizes (1.6.0's rule):
 
 | Part | Change |
 |---|---|
-| Hero | 260 x 260; Edit card and Fighter select 260 x 44, 12 and 8 gaps (368 in all) |
-| Title, name, about | 30, 40 (name 30 px), 20 |
-| Chips | 28 |
-| Points | digits 24; meter 180 wide from 150 px after the line's start; words 13 px |
-| Record | 4 cells, 52 |
-| Top fighters | heading 22, tiles 112 x 160 |
-| Awards | heading 22, four tiles 88 x 88 (icon 44, pips 5 px), title line 20 |
-| Recent sets | heading 22, rows 400 x 56 (pictures 40), 6 apart; All sets 40 |
+| Hero | 260 wide, the body's height less the buttons (about 400); Edit card and Fighter select 260 x 44 at the foot, 12 and 8 gaps |
+| Title, name, about | 30 (+6), 40 (name 30 px), 20 (+8) |
+| Plays, Looking for | 28 (+10), chips 13 px; Looking for on its own line when they do not fit (+34) |
+| Points | digits 24; meter 150 wide; words 13 px |
+| Record | 4 cells, 52 (+12); keys 13 px, values 16 px |
+| Top fighters | heading 22; three tiles 160 wide, as tall as the column has left (about 210: picture 160 x 150, name 14 px, games 13 px) |
+| Awards | heading 22; four tiles 88 x 120 (plate 48 with the icon 32, pips 6 px, title 13 px, two lines) |
+| Most played / You and them | heading 22 + a row 400 x 52 (name 14 px, line 13 px) / three cells, 52 |
+| Recent sets | heading 22; three rows 400 x 52 (pictures 40, lines 14 and 13 px), 6 apart; All sets 40 |
 
-Column B is about 458 tall; C about 380 (own) and 442 (another's).
+Column B is about 296 before the tiles, which take the rest (about 210, or
+180 when the chips need two lines); C is about 476 (own) and 454
+(another's). The card fits the body without scrolling.
 
 ### Narrow (`v2::Narrow`, under 900 logical px)
 
 One column that scrolls, the focused row scrolled into view:
 
-1. A band 200 tall: the hero 200 x 200; on its right, when the width allows
-   560, the title, name, about; else they go under the hero.
-2. Chips, then the points lines (meters under each line, full width).
-3. Record, 2 across.
-4. Top fighters, three tiles across the width.
-5. Awards, four tiles across the width.
-6. Recent sets rows, then All sets.
-7. Edit card, then Fighter select, full width.
+1. A band 260 tall: the hero 200 x 260; on its right, when the width allows
+   560, the title row, name and about; else they go under the hero.
+2. Another's card: Primary and More, full width, right under the band.
+3. Plays and Looking for, each group on its own line.
+4. The points lines (meters under each line, full width).
+5. Record, 2 across.
+6. Most played (own) or You and them (another's).
+7. Top fighters, three tiles across the width, square pictures.
+8. Awards, four tiles across the width, titles under them.
+9. Three recent sets, then All sets.
+10. Own card: Edit card, then Fighter select, full width.
 
 ### Awards shown
 
@@ -201,30 +253,33 @@ change. The points states are 1.6.0's (`level.*` words under the record). New:
 
 | Part | State | Shows |
 |---|---|---|
-| Awards | counters not read yet / no account / service without points | the tiles' place holds the points state's line; "0 of 34" |
-| Recent sets | reading | three empty rows' grounds, "Reading sets." in the first |
+| Awards | counters not read yet / no account / service without points | the tiles' place holds the points state's line; "0 of 40" |
+| Most played | nothing counted yet | "Your most played opponent shows here after your first rated game." (`card.most_played_none`) |
+| Most played | a bridge that does not send it (before W1b) | the part is left out and Recent sets moves up |
+| Recent sets | reading | five empty rows' grounds, "Reading sets." in the first |
 | Recent sets | none under this name | "No archived sets under this name yet." (`card.sets_none`); All sets stays |
 | Recent sets | the service keeps no archive | "This service does not keep sets." and All sets is left out |
 | Recent sets | unreachable | "Could not reach the archive. Sets show when it answers." |
-| Chips | nothing chosen and nothing known | the row is left out |
+| Recent sets | fewer than five | the rows there are; All sets right under them |
+| Plays, Looking for | a group with nothing | that group and its label are left out; both: the part is left out |
 
 ### Navigation
 
 Rows, placed (`PressEntry`), the D-pad moving by geometry: the three strip
-tiles, the four family tiles, the three set rows, All sets, Edit card, Fighter
-select, Connect Discord (when shown).
+tiles, the four family tiles, Most played, the five set rows, All sets, Edit
+card, Fighter select, Connect Discord (when shown).
 
-| Input (pad / keys) | On a strip tile | On an award tile | On a set row | On All sets | On Edit card / Fighter select |
-|---|---|---|---|---|---|
-| A / Enter | Fighters, on that fighter | Awards, on that family | Watch (the archive's download-then-watch) | Sets tab | opens it |
-| X / F | Fighter select | same | same | same | same |
-| Y / T | Edit card | same | same | same | same |
-| B / Esc | Home | Home | Home | Home | Home |
-| LB RB | tabs | tabs | tabs | tabs | tabs |
+| Input (pad / keys) | On a strip tile | On a family tile | On Most played | On a set row | On All sets | On Edit card / Fighter select |
+|---|---|---|---|---|---|---|
+| A / Enter | Fighters, on that fighter | Awards, on that family | their Player card | Watch (the archive's download-then-watch) | Sets tab | opens it |
+| X / F | Fighter select | same | same | same | same | same |
+| Y / T | Edit card | same | same | same | same | same |
+| B / Esc | Home | Home | Home | Home | Home | Home |
+| LB RB | tabs | tabs | tabs | tabs | tabs | tabs |
 
-Hint bar: `A Fighters` / `A Awards` / `A Watch` / `A All sets` / `A Edit card`
-/ `A Fighter select`, `X Fighter select`, `Y Edit card`, `B Back`, `LB RB
-Pages`.
+Hint bar: `A Fighters` / `A Awards` / `A Player card` / `A Watch` / `A All
+sets` / `A Edit card` / `A Fighter select`, `X Fighter select`, `Y Edit card`,
+`B Back`, `LB RB Pages`.
 
 ### Edit card (`card-edit`)
 
@@ -237,17 +292,20 @@ it, with the player's values, so a change shows at once.
 | - | Flag | country or Automatic | country picker | player (Automatic: Windows' region) |
 | - | Main | fighter | `main-character` | player |
 | AWARDS | Title | the worn family's current title ("World Warrior") or None | Awards tab, the worn family focused | player chooses the family; the level moves up by itself |
-| AWARDS | Icon | the worn family's name ("Matches") or None | the same | the same; the icon's colour is the level's tier |
+| AWARDS | Icon | the worn family's name ("Matches") with its icon on its tier plate, or None | the same | the same |
 | AWARDS | Awards on card | "Your highest" or "3 chosen" | opens `card-pins` | player; Automatic by default |
-| HOW YOU PLAY | Device | "Automatic (Stick)", Pad, Stick, Leverless, Keyboard, Not shown | Left / Right step; Select steps | the game by default, the player may override |
-| HOW YOU PLAY | Connection | "Shown (Wired)" or Not shown | Left / Right or Select flips | the game; the player only shows or hides it |
-| HOW YOU PLAY | Region | "Shown (Europe)" or Not shown | Left / Right or Select flips | the game; the player only shows or hides it |
+| HOW YOU PLAY | Device | "Stick · automatic", Pad, Stick, Leverless, Keyboard, Hidden | Left / Right step | the game by default, the player may override |
+| HOW YOU PLAY | Connection | "Wired · shown" or Hidden | Left / Right flip | the game; the player only shows or hides it |
+| HOW YOU PLAY | Region | "Europe · shown" or Hidden | Left / Right flip | the game; the player only shows or hides it |
 | HOW YOU PLAY | Looking for | "Long sets, Happy to teach" or None | opens `card-looking` | player only |
 | - | Show my Steam profile | switch | flips | player |
 
+A shown value the game does not know yet reads "Not known yet · shown"
+(`card.unknown_shown`): the chip appears once the game knows it.
+
 What the game fills by itself:
 
-- **Device, Automatic**: the controller this PC plays with now, as
+- **Device, automatic**: the controller this PC plays with now, as
   `ShellView::inputDevice` and the pad's brand say: the keyboard is Keyboard;
   a pad that only Ember's pad setup made usable (`GamepadBrand`
   `Brand::Stick`) is Stick; any other pad is Pad. Leverless cannot be told
@@ -261,8 +319,8 @@ What the game fills by itself:
 
 `card-pins`: a first row "Show my highest" (switch, on by default; on, the
 rest are disabled with its detail); then each family with a level reached, as
-a row with its icon in its tier, its current title as the detail and a check
-value, at most four on. A fifth says "Four at most. Take one off
+a row with its icon on its tier plate, its current title as the detail and a
+check value, at most four on. A fifth says "Four at most. Take one off
 first." (`card.pins_full`).
 
 `card-looking`: six switches (Casuals, Long sets, Ranked, Tournament
@@ -270,7 +328,14 @@ practice, New to the game, Happy to teach), at most two on; a third says "Two
 at most. Turn one off first." (`card.looking_full`).
 
 In a room every row is disabled with `profile.leave_room_to_edit`, as 1.6.0.
-Hint bar: `A` (the row's word), `‹ › Change` on a stepping row, `B Back`.
+
+Hint bar, by the focused row:
+
+| Row | Hint bar |
+|---|---|
+| A row that opens something (Name, Flag, Main, Title, Icon, Awards on card, Looking for) | `A Choose` (`menu.choose`), `B Back` |
+| A stepped row (Device, Connection, Region) | `‹ › Change`, `B Back` (A steps too, unnamed) |
+| A switch (Show my Steam profile) | `A Change`, `B Back` |
 
 ## Another player's profile
 
@@ -280,15 +345,16 @@ The Full card, the same boxes as the own card, with these differences:
 
 | Part | Another's card |
 |---|---|
-| Hero | their fighter: in a room the one they picked (`Member::fighter`), else their main |
-| Under the hero | **Primary** (no glyph, as the menu stream's fix for Primary panel buttons), then **More** (Secondary, Y glyph), the same boxes as Edit card and Fighter select |
+| Hero | their fighter: in a room the one they picked (`Member::fighter`), else their main; the full height, its shade saying "PLAYING" in a room, else "MAIN" |
+| At the hero's foot | **Primary** (no glyph, as the menu stream's fix for Primary panel buttons), then **More** (Secondary, Y glyph), in the boxes of Edit card and Fighter select |
 | About | "France · On Ember since 2026-06" |
 | Presence | friends only, under the about line: the friend's mark and words as the Friends tab has them ("Playing at table 1 · Player 5's room"); a member of the room this player is in: "In this room"; anyone else: no line |
 | Points | FP of the hero's fighter, BP; no meters |
 | Record | Rated games · Wins · Best streak · Fighters played |
-| Right column, first | three `FactCells`: "You and Player 2" "3 – 5" (or "-"), "Last played" "2 h ago" (or "-"), and "Friend since" "2026-11-12", or "Friends" with "Not yet", "Request sent", "They asked you" or "Blocked"; then 24 under, Awards |
-| Awards | their shown four families, each at the level your catalog works out from their counters; "14 of 31" counts without the Friends family, whose counter is not served for others |
-| Recent sets | their last three under their name |
+| Top fighters | the main first with its "Main" chip, then their two highest others by FP; no games under a tile |
+| Awards | their shown four families at the levels your catalog works out from their marks; "19 of 37" (levels reached of all but Friends, whose count is not served for others) |
+| You and them | in Most played's place, three `FactCells`: "You and Player 2" "3 – 5" (or "-"), "Last played" "2 h ago" (or "-"), and "Friends" with "Since 2026-11-12", "Not friends", "Request sent", "They asked you" or "Blocked" |
+| Recent sets | their last five under their name (three at 720) |
 
 ### The Primary action and More
 
@@ -329,9 +395,10 @@ Room moderation (Mute, Kick, Make host) stays in the room's own popout.
 The own Fighters tab's grid (PLAYED first by FP, NOT PLAYED YET in roster
 order at 50 % alpha) from their card's fighters; no games under a tile
 (others' games per fighter are never served). The panel: their fighter's
-picture 112 on its tier edge, the FP line (26), the tier in words ("Gold"),
-the five frames with theirs outlined, "Main" chip on their main. A on a tile
-does nothing (`info` rows); the hint bar names no A.
+picture 112 with its tier line, the FP line (26), the tier in words ("Gold"),
+the five tiers as words on their plate fills (theirs at full strength, the
+others at 40 %; Rules: no tier frames), "Main" chip on their main. A on a
+tile does nothing (`info` rows); the hint bar names no A.
 
 ### Their Sets tab (`player-sets`), and the own Sets tab (`sets`)
 
@@ -347,16 +414,23 @@ The archive stream's Replays > Archive list, with one filter fixed: the name.
 
 Navigation is the Archive tab's: A Watch, X Filters, Y Retry when failed, B
 Back, LB RB tabs. On a row its popout adds "Player card: {opponent}"
-(`profile.card_of`), which replaces this profile with the opponent's.
+(`profile.card_of`), which replaces this profile with the opponent's. A set
+watched from here, as from Replays > Archive, is also kept in the player's
+Matches list (the archive stream's rule). "Open in Replays" is not needed:
+the tab is the same list, and `ApplicationShell::OpenArchiveFor(name)` stays
+the way other screens reach it.
 
 ### Their Awards tab (`player-awards`)
 
-The awards stream's wall, read only: one tile per family, its icon in the
-tier of the level their counters reach (a family with none reached drawn
-muted, `c.border`), the level pips under it, the current title, and progress
-to the next level ("37 of 100"). No Wear popout; the
-Friends family is left out (their friends count is never served). Header chip
-"Levels 14 of 31" (the awards stream's own words for the count).
+The awards stream's wall, read only: one tile per family on the plain card
+ground, its icon on a square of the tier plate of the level their marks reach
+and drawn in that tier's stripe colour (a family with none reached: the icon
+in `c.border` on `c.frame`, its title "Not reached yet"), the level pips
+under it (7 px), the current title, and the way to the next level: "712 of
+1000" for an exact count (games, wins, streak), the next level's name alone
+for a milestone mark (rival, opponents) or a step (class, frame). No Wear
+popout, no tier frames (Rules). The Friends family is left out (their friends
+count is never served). Header chip "Earned 19 of 37" (`awards.earned_count`).
 
 ### States
 
@@ -461,11 +535,23 @@ Hint bar: `A {row}`, `B Back`.
 | First row | "Find a player" (was "Add a friend"); X / F hint "Find a player" |
 | A on a friend | Join / Invite as 1.6.0; on a friend with neither, **Player card** (was More) |
 | More on a friend or a request | "Player card" first |
-| The panel | the Panel card (picture 112 / 80, name, title plate, FP and BP, the record line, chips, the four family icons in their tiers), then presence, the three facts, and the buttons (1.6.0); the pointer on the card part opens their profile |
+| The panel | the Panel card, then presence, the three facts, and the buttons (1.6.0); the pointer on the card part opens their profile |
+| Requests | listed here as 1.6.0, and also in the Notifications tab while they wait (the friends' notifications merge); nothing on this tab changes for that |
 
-Panel height at 1080: head 44, card 112 + 12 + record 20 + 10 + chips 28 +
-10 + icons 32 (about 230), presence 22, facts 52, buttons 48, gaps: about
-470 of the 838 body.
+The Panel card at 1080 (520 wide panel, 488 inside), top to bottom:
+
+| Part | Box | Contents |
+|---|---|---|
+| Picture | 112 x 112, left | their main (a room: the fighter they play), tier line |
+| Beside it, 16 to the right | name line 30; 8 under it the title plate 28 and 8 after it the worn icon 28; 8 under them the FP and BP lines (26), left-aligned under the plate | as the Full card, smaller |
+| Record line | 14 px, 12 under the taller of the two | "2210 rated games · 1124 wins · best streak 14" |
+| Plays | 28, 10 under | "Plays" label and its chips; Region gives way first, then Connection |
+| Looking for | 28, 8 under | "Looking for" label and its outlined chips, never shortened |
+| Awards | 32, 10 under | four family icons on their tier plates, 8 apart, then "24 of 37" muted |
+
+At 720 (400 wide): picture 80, digits 22, the same parts. About 280 tall in
+all; with presence, facts and buttons the friend panel is about 520 of the
+838 body at 1080.
 
 ### A room's Members
 
@@ -492,19 +578,25 @@ and the four family icons.
 
 1.6.0's prompt (`ApplicationShell__PostMatch.cxx`, 720 wide over the WIN,
 10 s ring) with the two players' rows grown from 52 to 64 px to carry each
-fighter's picture, and the opponent's row carrying Add friend.
+fighter's picture, and the opponent's row carrying Add friend at its right
+edge.
 
-| Row | Contents |
+| Row | Contents, left to right |
 |---|---|
-| Mine | the fighter I played 48 (tier edge), S tag (flag, class, name), my answer chip |
-| Theirs | the fighter they played 48, S tag, then **Add friend** (Secondary, 40 tall, View glyph), then their answer chip |
+| Mine | the fighter I played 48 (tier line), flag, class, name (16 px), then my answer chip ("Choosing", "Ready") right after the name |
+| Theirs | the fighter they played 48, flag, class, name, their answer chip right after the name; then, at the row's right edge, **Add friend**: a Secondary button the row's full height (64) and 176 wide, the View glyph at full size (26) and the word (17 px) |
 
-| Their relation | Their row shows |
+The answer chips stand beside the names they describe, so the button at the
+edge is never read as a state. The ring stays where 1.6.0 has it, right of the
+rows.
+
+| Their relation | The right edge shows |
 |---|---|
-| none (a card) | Add friend |
-| received | Accept request |
-| sent, after pressing | "Request sent", muted words where the button was |
-| friend, blocked, no card (a private room, no Discord account) | nothing |
+| none (a card) | Add friend (enabled, View glyph) |
+| received | Accept request (enabled, View glyph) |
+| sent, also right after pressing | Request sent: the same box, flat and muted, no glyph, not focusable |
+| friend | Friends: the same box, flat and muted, no glyph, not focusable |
+| blocked, no card (a private room, no Discord account) | nothing; the row ends at the chip |
 
 Rules:
 
@@ -516,28 +608,36 @@ Rules:
   meanings. Sending a request does not answer the prompt, does not change the
   answer shown, and does not touch the ring.
 - What it sends: `FriendRequest` with the opponent's card token and their
-  name as the label. The word turns to "Request sent" as soon as the request
-  is in flight; a refusal comes back as the usual notice.
+  name as the label. The box turns to "Request sent" as soon as the request
+  is in flight; a refusal comes back as the usual notice and the button
+  returns.
 - Its detail when focused: "Sends Player 2 a friend request. Your answer to
   the rematch stays as it is." (`postmatch.add_friend.detail`)
-- Hint bar gains `View Add friend` while the button shows.
+- Hint bar gains `View Add friend` (or `View Accept request`) while the
+  button is live.
 - The prompt closes as 1.6.0. The opponent stays in Recent opponents for a
   week, and in the room's Members while they are there.
 
 ## Fighters tab (own)
 
-Unchanged from 1.6.0.
+1.6.0's tab under the Rules: a tile's tier is its 1 px picture line and its
+`LevelBand`, not the 2 px edge; the panel's five tier frames become the five
+tier words on their plate fills, the focused fighter's at full strength and
+the others at 40 %; games under a tile at 13 px (was 12).
 
 ## Friends tab
 
 1.6.0's layout, states, pages and navigation stand, with the changes under
-"The Panel card in its places". Hint bar: `A {row hint}`, `Y More`, `X Find a
-player`, `B Back`, `LB RB Pages`.
+"The Panel card in its places". Waiting requests and invites are also listed
+in Notifications (the friends' notifications merge); the tab does not change
+for it. Hint bar: `A {row hint}`, `Y More`, `X Find a player`, `B Back`, `LB
+RB Pages`.
 
 ## Awards tab (own)
 
-The awards stream's wall (families, progress, Wear popout). The Panel preview
-on its left (above).
+The awards stream's wall (families, progress, Wear popout) under the Rules:
+no tier frames, each family's icon on its tier plate. The Panel preview on its
+left (above).
 
 ## Home, Toasts, Settings
 
@@ -549,7 +649,8 @@ moves to the Card tab.
 | Screen | A | B | X | Y | View | LB RB |
 |---|---|---|---|---|---|---|
 | Card | the row's word | Back | Fighter select | Edit card | - | Pages |
-| Edit card, `card-pins`, `card-looking` | the row's word | Back | - | - | - | - |
+| Edit card | Choose (a row that opens something), Change (the switch); a stepped row shows only `‹ › Change` | Back | - | - | - | - |
+| `card-pins`, `card-looking` | Change | Back | - | - | - | - |
 | Fighters | Save main | Back | - | - | - | Pages |
 | Sets (own or theirs) | Watch | Back | Filters | Retry (failed) | - | Pages |
 | Friends | Accept / Join / Invite / Player card / More / Open / Change | Back | Find a player | More | - | Pages |
@@ -558,7 +659,7 @@ moves to the Card tab.
 | Their Card | the row's word | Back | - | More | - | Pages |
 | Their Fighters, Awards | - | Back | - | - | - | Pages |
 | `player-pick` | Player card | Back | - | - | - | - |
-| Post-match prompt | Rematch (the focused button) | Back to room | Character select | New opponent (Arcade) | Add friend | - |
+| Post-match prompt | Rematch (the focused button) | Back to room | Character select | New opponent (Arcade) | Add friend / Accept request (while live) | - |
 
 Keys: A Enter, B Esc, X F, Y T, View C, LB RB PgUp PgDn, Delete. The mouse
 presses every row, button and hint.
@@ -589,6 +690,7 @@ presses every row, button and hint.
 | a card from a name or code | openers by name, search | - | `POST /v1/cards/search` |
 | a card from a request | request openers | - | `CardSelector::Request` |
 | recent opponents | Find a player | - | client only |
+| most played opponent | own Full | - | **Addition after W1/W2**: `rival` object in the points answer (below) |
 
 ### Migration 064 (`064_player_cards.sql`)
 
@@ -756,6 +858,37 @@ list.
 | `ShellView::profileSets` | the same | a second slot of the archive stream's browse state, so a profile's sets never replace the Archive tab's |
 | preferences | `src/netplay/PlayerPreferences.hxx` | `cardDevice` (0 Automatic, 1-4, 5 Not shown), `cardShowLink`, `cardShowRegion`, `cardLooking` (bits), `cardPins` (ids, empty Automatic); validated on load, unknown values dropped |
 
+### Addition after W1/W2: the most played opponent
+
+Packages W1b and W2b. Nothing W1 or W2 built changes shape; this only adds.
+
+`GET /v1/points/me`: the counted answer gains an optional `rival` object beside
+`account` and `fighters`. It is not `account.rival`, the count of games
+against that player, which the answer already sends for the awards.
+
+```json
+{"points":"counted","account":{"points":4012,"games":2840,"rival":74},"fighters":[],
+ "rival":{"card":"c1.…","name":"Player 7","country":"US","badge":{"band":8,"settled":true},"won":41,"lost":33}}
+```
+
+| Field | Rule |
+|---|---|
+| `rival` | the caller's own answer only, never on a card; absent before any counted game, from a bridge before W1b, and when no candidate can be shown |
+| which pair | the caller's `pair_records` row with the most games (`first_wins + second_wins`), ties to the latest `played_at`; a pair where either side blocked the other, or whose other account has no `player_cards` row (no name to show), is passed over for the next; at most the first five are looked at (`pair_records` is read by `first` through its key and by `second` through `pair_records_second`, migration 063, so no migration) |
+| `card` | a fresh card token for that account (`c1.`, 7 days): the profile's selector |
+| `name`, `country` | from `player_cards`; `country` absent when none |
+| `badge` | `SkillBadge`, as the look-up's |
+| `won`, `lost` | the pair's wins from the caller's side; `won + lost` is the games count (pair records count won games only) |
+
+| Piece | Where | Holds or does |
+|---|---|---|
+| protocol | `server/ember/protocol/src/levels.rs` | `RivalCard {card, name, country, badge, won, lost}`; `OwnLevels::Counted::rival: Option<RivalCard>`, skipped when absent; `check`: a card token, a listing name, `won + lost` at least 1 |
+| bridge | `src/skill/levels.rs` (the pair query beside `rivals`), `src/routes/levels.rs` (the answer), `src/cards.rs` (the token) | read only |
+| helper | `rust/sf4-net/src/tournament/levels.rs` | nothing new: `points_me` decodes `OwnLevels` and passes it on, so the field rides once the protocol type has it; a test that it does |
+| decode | `src/session/TournamentAnswers.cxx` (the points answer) | `levels::Own::mostPlayed` (`levels::MostPlayed {card, name, country, badge, won, lost}`, `hasMostPlayed`); a bad object is dropped alone, never failing the answer |
+| view | `ShellView::levels` | carries it with `Own`; the Card tab reads `levels.value.mostPlayed` |
+| open | `commands::ProfileOpen` with the card token as the key, the name, flag and class as what the opener knew |
+
 ### Privacy
 
 | Who | Sees |
@@ -784,7 +917,11 @@ opt-out of search (see Open questions).
 Each new id goes into `locales/en.po` only, next to its area's ids; the
 translation pass does the other catalogs after the merge. Reused ids are
 named where they are used above (`friends.*`, `room.*`, `network.region_*`,
-`replays.watch`, `card.of`).
+`replays.watch`, `card.of`, `menu.choose`, `profile.main_badge` "MAIN",
+`fighters.main` "Main", `awards.earned_count`). Wording follows the rest of
+Ember: a stepped value reads "{value} · shown" or "Hidden", never "Shown
+(...)"; Discord is "connected", never "linked"; the relation cell reads
+"Friends" over "Not friends", never "Not yet".
 
 | Key | English |
 |---|---|
@@ -795,7 +932,6 @@ named where they are used above (`friends.*`, `room.*`, `network.region_*`,
 | `card.tier_to` | {0} · {1} points to {2} |
 | `card.tier_top` | {0} · Top frame |
 | `card.awards` | AWARDS |
-| `card.award_line` | {0} · {1}, level {2} of {3} |
 | `card.no_awards` | No awards yet. The first comes with your first rated game. |
 | `card.recent_sets` | RECENT SETS |
 | `card.all_sets` | All sets |
@@ -807,10 +943,15 @@ named where they are used above (`friends.*`, `room.*`, `network.region_*`,
 | `card.sets_unreachable` | Could not reach the archive. Sets show when it answers. |
 | `card.record_line` | {0} rated games · {1} wins · best streak {2} |
 | `card.relation` | Friends |
-| `card.not_yet` | Not yet |
+| `card.since_date` | Since {0} |
+| `card.not_friends` | Not friends |
 | `card.they_asked` | They asked you |
 | `card.how_heading` | HOW YOU PLAY |
-| `card.awards_heading` | AWARDS |
+| `card.plays` | Plays |
+| `card.playing` | PLAYING |
+| `card.most_played` | MOST PLAYED |
+| `card.most_played_line` | {0} – {1} · {2} games |
+| `card.most_played_none` | Your most played opponent shows here after your first rated game. |
 | `card.pins_row` | Awards on card |
 | `card.pins_auto` | Your highest |
 | `card.pins_chosen` | {0} chosen |
@@ -818,14 +959,15 @@ named where they are used above (`friends.*`, `room.*`, `network.region_*`,
 | `card.pins_auto_row` | Show my highest |
 | `card.pins_full` | Four at most. Take one off first. |
 | `card.device_row` | Device |
-| `card.device_auto` | Automatic ({0}) |
+| `card.device_auto` | {0} · automatic |
 | `card.device_detail` | What you play on, shown on your card. Automatic follows the controller you use. |
 | `card.link_row` | Connection |
 | `card.link_detail` | Wired or Wi-Fi, as Ember measures it. You can hide it. |
 | `card.region_row` | Region |
 | `card.region_detail` | Your region, from the relay Ember picked. You can hide it. |
-| `card.shown` | Shown ({0}) |
-| `card.not_shown` | Not shown |
+| `card.shown` | {0} · shown |
+| `card.unknown_shown` | Not known yet · shown |
+| `card.hidden` | Hidden |
 | `card.looking_row` | Looking for |
 | `card.looking_detail` | Up to two, shown on your card. |
 | `card.looking_full` | Two at most. Turn one off first. |
@@ -869,28 +1011,34 @@ named where they are used above (`friends.*`, `room.*`, `network.region_*`,
 | `postmatch.add_friend.detail` | Sends {0} a friend request. Your answer to the rematch stays as it is. |
 
 Changed English: `card.edit_detail` "Your name, flag, main, title, awards and
-how you play." The Friends tab's first row label moves from `friends.add` to
+how you play." Dropped from the first draft before any package used them:
+`card.award_line` (the title now stands under each icon), `card.not_yet`,
+`card.not_shown`, `card.awards_heading` (Edit card's group uses
+`card.awards`). The Friends tab's first row label moves from `friends.add` to
 `find.title`; `friends.add` stays for the Settings and toast uses that still
 name it, and is removed by W5 if none is left.
 
 ## Work packages
 
-Merge order: the awards and archive streams first (063, counters, catalog,
-`archive_list`, the Archive list and its filter page, `OpenArchiveFor`), and
-the menu stream (Fighter select on Card). Then W1; W2; W3 and W6 side by side;
-W4; W5. Each package is one branch, small commits, no file past 1,000 lines,
+Merge order: the awards, archive, friends and menu streams are in `nightly`
+(767d8d404), and so is W1. W2 is being written. Then W1b and W2b (the most
+played opponent, an addition that disturbs neither); W3 and W6 side by side;
+W4; W5. W3 can land before W2b: the Most played part is drawn only when the
+view carries it. Each package is one branch, small commits, no file past 1,000 lines,
 nothing built on Kate's PC. Lab shots use `--size 1920x1080`, `--size
 1280x720` and `--size 1280x800 --scale 1.5` (narrow), each `--check
 report.txt` clean.
 
 | Package | Owns | Needs from the streams | Tests |
 |---|---|---|---|
-| **W1 Bridge, protocol, helper** | `server/ember/bridge/migrations/064_player_cards.sql`, `src/db/migrations.rs` (one line), `src/routes/profiles.rs` (new: `cards/me`, `cards/search`), `src/cards.rs` (selectors `request`, `code`; the new card fields), `src/routes/levels.rs`, `src/routes/{mod.rs,discovery.rs}` (routes, `profiles`), `src/routes/friends.rs` (sync writes `player_cards`), `src/routes/archive.rs` + `src/archive/listing.rs` (`name`), `tests/profiles.rs` (new), `tests/levels_migrations.rs` (064); `server/ember/protocol/src/levels.rs`; `rust/sf4-net/src/tournament/{levels.rs,mod.rs}` (`card_save`, `cards_search`, selectors); `docs/design/FIGHTER_LEVELS.md` and `FRIENDS.md` (the two privacy paragraphs) | awards: 063 and the counters in `PlayerCard` (W1 adds its fields beside them); archive: none (the listing is the bridge's) | migration from 063 backfills from `social_accounts` and `ranking_choices`; save checks (five pins, three looking bits, bad region, bad id refused); search: exact before leading, case, 20 and `more`, a blocker hidden, the caller left out, code finds one; look-up by request only for its receiver, by code; `versus` from the caller's side; `since` served as the month; no Discord ID in any answer (scan, as `tests/friends.rs`); `name` lists only that name; older bridge 404 worded `profiles_unavailable`; helper ops round trip, unknown members ignored |
-| **W2 Runtime and view** | `src/netplay/Profiles.hxx` (new), `src/netplay/Levels.hxx` (`Card` fields), `src/session/SocialAnswers.{hxx,cxx}` (decode card fields, search), `src/netplay/RuntimeCommands.hxx` (`ProfileOpen`, `ProfileClose`, `PlayerSearch`), `src/sf4e/sf4e__NetplayRuntime__Levels.cxx` (look-up of one profile, search, card save cadence), `src/sf4e/sf4e__NetplayRuntime__Social.cxx` (recent opponents), `src/netplay/PlayerPreferences.hxx` + `src/sf4e/sf4e__OverlayPrefs.cxx` (card preferences), `src/ui/ShellView.hxx`, `src/sf4e/sf4e__Overlay.cxx` (mapping), the netplay and session library lines of `CMakeLists.txt` | archive: the browse state type and its second slot | `social_answers_test.cxx`: card fields, unknown enum values as none, search hits; `card_requests_test.cxx`: one profile at a time, a newer search drops the older, a name with one hit looks it up; new `profiles_test.cxx`: recent opponents (20, 7 days, one per name and visit), card save only on change and at most once a minute; preferences round trip with bad values dropped |
-| **W3 The card in three sizes** | `src/ui/PlayerCard.{hxx,cxx}` (Full layout, three sizes, meters on the lines, record cells own and another's, `OtherCardView` to the Panel), `src/ui/CardParts.{hxx,cxx}` (new, so `PlayerCard.cxx` stays under 1,000: chips, award tiles and icons, set rows), `src/ui/ProfilePanel.{hxx,cxx}` (Card rows, the Sets tab's place in the strip), `src/ui/FriendsBoard.cxx` (the Panel in the friend panel), `src/ui/ApplicationShell__ShellScreens.cxx` (Members detail and `room-member` draw the Panel), `src/ui/ApplicationShell__Awards.cxx` (the preview only), `src/ui/lab/UiLabSocial.cxx`, the `sf4e_ui` source line, `locales/en.po` | awards: the family catalog, the level a family's counters reach, the family icons in their tiers; archive: set grouping and the watch path | `player_card_test.cxx`: chips from style and preferences (Automatic device by controller), shown families (Automatic order by tier then progress, a pinned family with no level reached skipped and filled, a viewer's level from the counters, never stored), record cells own and another's, meter words at 0, mid and top, the Panel's chip overflow; `ui_render_profile.hxx`: Full card at three sizes in every points state, the Panel in friends, members and awards |
-| **W4 Another player's profile** | `src/ui/PlayerPage.{hxx,cxx}` (new `ScreenPanel`: `player`, `player-fighters`, `player-sets`, `player-awards`, `player-pick`, and the own `sets` tab), `src/ui/ApplicationShell__Screens.cxx` (routing), `src/ui/MenuPresentation.hxx` (titles), `src/ui/lab/UiLabSocial.cxx` (`--player` cases), `cmake/sf4e_test_targets.cmake`, `locales/en.po` | awards: the family wall drawn read only, the Friends family left out; archive: the list and filter page with a locked Player row | new `player_page_test.cxx`: the Primary by relation and presence (the table above), More's entries and their enabled states, the states' words and which tabs show, focus on open; `profile_journey_test.cxx`: open from a member popout, LB RB through four tabs, A Add friend sends `FriendRequest` with the token, Back returns to the room, a profile from a profile replaces it; `ui_render_player.hxx` (new) shots |
-| **W5 Entry points and the prompt** | `src/ui/RoomPanel.cxx` + `RoomActions.cxx` (Player card opens `player`), `src/ui/FriendsPanel.{hxx,cxx}` (A on a friend with no live action, More's Player card, Find a player page with search and recent opponents), `src/ui/RankingsPanel.cxx` (A on a row), `src/ui/ReplaysPanel.cxx` (per-side Player card in the row popouts), `src/ui/ApplicationShell__PostMatch.cxx` + `PostMatchPrompt.hxx` (64 px rows, pictures, Add friend, View / C), `locales/en.po` | archive: the row popouts of Archive and Matches; the friends stream owns the prompt this round: W5 lands after it, on its file | `friends_panel_test.cxx`: an offline friend's A is Player card, More lists it first, a whole code shows Send request; `rankings_journey_test.cxx`: A opens by name; `room_post_match_answer_test.cxx`: View sends `FriendRequest`, the focus stays on Rematch, the answer and the ring are unchanged, the button by relation, nothing for a private room; a replay row's popout opens by name |
-| **W6 Edit card** | `src/ui/ApplicationShell__Settings.cxx` (`CardEdit` rows, `card-pins`, `card-looking`, the Panel preview), `locales/en.po` | awards: families with a level reached, their current titles and tiers | settings journey: device steps through six values, Looking for refuses a third, pins list families only and refuse a fifth, Automatic disables the list, every row disabled in a room; `ui_render_profile.hxx` Edit card shot |
+| **W1 Bridge, protocol, helper** (done, 767d8d404) | `server/ember/bridge/migrations/064_player_cards.sql`, `src/db/migrations.rs` (one line), `src/routes/profiles.rs` (new: `cards/me`, `cards/search`), `src/cards.rs` (selectors `request`, `code`; the new card fields), `src/routes/levels.rs`, `src/routes/{mod.rs,discovery.rs}` (routes, `profiles`), `src/routes/friends.rs` (sync writes `player_cards`), `src/routes/archive.rs` + `src/archive/listing.rs` (`name`), `tests/profiles.rs` (new), `tests/levels_migrations.rs` (064); `server/ember/protocol/src/levels.rs`; `rust/sf4-net/src/tournament/{levels.rs,mod.rs}` (`card_save`, `cards_search`, selectors); `docs/design/FIGHTER_LEVELS.md` and `FRIENDS.md` (the two privacy paragraphs) | awards: 063 and the counters in `PlayerCard` (W1 adds its fields beside them); archive: none (the listing is the bridge's) | migration from 063 backfills from `social_accounts` and `ranking_choices`; save checks (five pins, three looking bits, bad region, bad id refused); search: exact before leading, case, 20 and `more`, a blocker hidden, the caller left out, code finds one; look-up by request only for its receiver, by code; `versus` from the caller's side; `since` served as the month; no Discord ID in any answer (scan, as `tests/friends.rs`); `name` lists only that name; older bridge 404 worded `profiles_unavailable`; helper ops round trip, unknown members ignored |
+| **W2 Runtime and view** (in progress) | `src/netplay/Profiles.hxx` (new), `src/netplay/Levels.hxx` (`Card` fields), `src/session/SocialAnswers.{hxx,cxx}` (decode card fields, search), `src/netplay/RuntimeCommands.hxx` (`ProfileOpen`, `ProfileClose`, `PlayerSearch`), `src/sf4e/sf4e__NetplayRuntime__Levels.cxx` (look-up of one profile, search, card save cadence), `src/sf4e/sf4e__NetplayRuntime__Social.cxx` (recent opponents), `src/netplay/PlayerPreferences.hxx` + `src/sf4e/sf4e__OverlayPrefs.cxx` (card preferences), `src/ui/ShellView.hxx`, `src/sf4e/sf4e__Overlay.cxx` (mapping), the netplay and session library lines of `CMakeLists.txt` | archive: the browse state type and its second slot | `social_answers_test.cxx`: card fields, unknown enum values as none, search hits; `card_requests_test.cxx`: one profile at a time, a newer search drops the older, a name with one hit looks it up; new `profiles_test.cxx`: recent opponents (20, 7 days, one per name and visit), card save only on change and at most once a minute; preferences round trip with bad values dropped |
+| **W1b Most played: bridge and helper** (addition) | `server/ember/protocol/src/levels.rs` (`RivalCard`, `OwnLevels::Counted::rival`), `server/ember/bridge/src/skill/levels.rs` (the pair query beside `rivals`), `src/routes/levels.rs` (the answer), `src/cards.rs` (the token), `tests/levels.rs`; `rust/sf4-net/src/tournament/levels.rs` (a pass-through test) | W1 | the most played pair chosen, ties to the latest; a blocked pair either way and an account with no card row passed over; absent before any counted game; `won` and `lost` from the caller's side whichever column the caller is in; the token opens to that account; an older game ignores the field; the helper's `points_me` carries it |
+| **W2b Most played: runtime and view** (addition) | `src/netplay/Levels.hxx` (`MostPlayed`, `Own::mostPlayed`, `hasMostPlayed`), `src/session/TournamentAnswers.cxx` (decode, a bad object dropped alone) | W1b, W2 | `tournament_fuzz_test.cxx`: the object decoded, absent, malformed (dropped, the answer kept), unknown members ignored |
+| **W3 The card in three sizes** | `src/ui/PlayerCard.{hxx,cxx}` (Full layout at three sizes: the hero the body's full height with its buttons at its foot, columns to the foot, top fighters taking the column's rest with the Main chip, five recent sets at 1080 and three at 720, the Most played part when the view has it and You and them in its place on another's card, meters on the lines, record cells own and another's; `OtherCardView` to the Panel with FP and BP left-aligned under the plate), `src/ui/CardParts.{hxx,cxx}` (new, so `PlayerCard.cxx` stays under 1,000: the two chip groups with the Looking for outline and the Panel's give-way order, family tiles with the tier plate, 7 px pips and the title under the icon, the worn icon beside the plate, set rows), `DrawFighterEdge` to the 1 px inset tier line everywhere it is called (`PlayerCard.cxx`, `ProfilePanel.cxx`, `FriendsBoard.cxx`, room seats and member rows), the Fighters panel's tier words on plates (`ProfilePanel.cxx`), `src/ui/ProfilePanel.{hxx,cxx}` (Card rows: family tiles, Most played, five set rows; the Sets tab's place in the strip), `src/ui/FriendsBoard.cxx` (the Panel in the friend panel), `src/ui/ApplicationShell__ShellScreens.cxx` (Members detail and `room-member` draw the Panel), `src/ui/ApplicationShell__Awards.cxx` (the preview, and the wall's tiles without tier frames), `src/ui/lab/UiLabSocial.cxx`, the `sf4e_ui` source line, `locales/en.po` | awards: the family catalog, `LevelOf`, the family icons; archive: set grouping and the watch path; W2 (W2b for Most played) | `player_card_test.cxx`: chips from style and preferences (Automatic device by controller), the Panel's give-way order (Region, then Connection, never Looking for), shown families (Automatic order by tier then progress, a pinned family with no level reached skipped and filled, a viewer's level from the counters, never stored), record cells own and another's, meter words at 0, mid and top, the text floor (every size's smallest text at least 13 px at scale 1, checked from the layout's sizes), five or three set rows by size, Most played absent, none yet and present; `ui_render_profile.hxx`: Full card at three sizes in every points state, own and another's, with and without Most played, the lab's `--check` reporting no overlap and nothing cut at 1280x720 with no scroll; the Panel in friends, members and awards |
+| **W4 Another player's profile** | `src/ui/PlayerPage.{hxx,cxx}` (new `ScreenPanel`: `player`, `player-fighters`, `player-sets`, `player-awards`, `player-pick`, and the own `sets` tab; Primary and More at the hero's foot; the relation cell's words; their Fighters panel's tier words on plates; their wall without tier frames, "Earned {n} of 37"), `src/ui/ApplicationShell__Screens.cxx` (routing), `src/ui/MenuPresentation.hxx` (titles), `src/ui/lab/UiLabSocial.cxx` (`--player` cases), `cmake/sf4e_test_targets.cmake`, `locales/en.po` | awards: the family wall drawn read only, the Friends family left out; archive: the list and filter page with a locked Player row, `OpenArchiveFor`; W3's card parts | new `player_page_test.cxx`: the Primary by relation and presence (the table above), More's entries and their enabled states, the states' words and which tabs show, focus on open, the relation cell ("Not friends", "Since ..."); `profile_journey_test.cxx`: open from a member popout, LB RB through four tabs, A Add friend sends `FriendRequest` with the token, Back returns to the room, a profile from a profile replaces it, A on the own card's Most played opens that profile; `ui_render_player.hxx` (new) shots |
+| **W5 Entry points and the prompt** | `src/ui/RoomPanel.cxx` + `RoomActions.cxx` (Player card opens `player`), `src/ui/FriendsPanel.{hxx,cxx}` (A on a friend with no live action, More's Player card, Find a player page with search and recent opponents), `src/ui/RankingsPanel.cxx` (A on a row), `src/ui/ReplaysPanel.cxx` (per-side Player card in the row popouts), `src/ui/ApplicationShell__PostMatch.cxx` + `PostMatchPrompt.hxx` (64 px rows with pictures; each answer chip right after its name; Add friend at the opponent row's right edge, the row's full height, a full-size View glyph; its states Add friend, Accept request, Request sent, Friends; View / C), `locales/en.po` | archive: the row popouts of Archive and Matches; the friends stream's prompt (merged) | `friends_panel_test.cxx`: an offline friend's A is Player card, More lists it first, a whole code shows Send request; `rankings_journey_test.cxx`: A opens by name; `room_post_match_answer_test.cxx`: View sends `FriendRequest`, the focus stays on Rematch, the answer and the ring are unchanged, the right edge by relation (four states, and nothing for a private room or a block), Request sent and Friends not focusable; a replay row's popout opens by name; a render shot of the prompt in each state |
+| **W6 Edit card** | `src/ui/ApplicationShell__Settings.cxx` (`CardEdit` rows with the values "Stick · automatic", "Wired · shown", "Hidden", "Not known yet · shown"; the hint bar by row: `A Choose` on a row that opens something, only `‹ › Change` on a stepped row, `A Change` on the switch; `card-pins`, `card-looking`; the Panel preview), `locales/en.po` | awards: families with a level reached, their current titles and tiers | settings journey: device steps through six values, Looking for refuses a third, pins list families only and refuse a fifth, Automatic disables the list, every row disabled in a room; the hint bar's words per row kind (never "Change" twice); `ui_render_profile.hxx` Edit card shot |
 
 **In the game, after the merged build** (two PCs): open Profile and step five
 tabs on a pad and a stick at 1920x1080 and 1280x720; set Device, Looking for
