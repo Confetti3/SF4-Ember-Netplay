@@ -130,8 +130,8 @@ public:
         Trim();
     }
 
-    // The player took action `index` of item `id` (Later is an action): its card closes and it is answered. The item,
-    // or null when it cannot be answered (no such item, no actions, answered or gone already).
+    // The player took one of item `id`'s actions (Later is one): its card closes and it is answered. The item, whose
+    // actions the caller carries out, or null when it cannot be answered (no such item, no actions, answered or gone).
     const Item* Answer(unsigned id, double now) {
         auto* item = At(id);
         if (!item || !item->Answerable()) return nullptr;

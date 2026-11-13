@@ -359,7 +359,7 @@ std::vector<MenuEntry> FriendsPanel::SettingsRows(const ShellView& v) {
 void FriendsPanel::RequestMember(const ShellView& v, const std::string& card, const std::string& name, bool accepts, const Submit& submit) {
     const Gate gate = MemberGateOf(v.friends, service_, pending_.active);
     if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
-    Send(v, commands::FriendRequest{Bridge(v), card, name}, submit, {}, loc::Tf(accepts ? "friends.now_friends" : "friends.request_sent_to", name));
+    Send(v, commands::FriendRequest{Bridge(v), card, name, accepts}, submit, {}, loc::Tf(accepts ? "friends.now_friends" : "friends.request_sent_to", name));
 }
 
 void FriendsPanel::BlockMember(const ShellView& v, const std::string& card, const std::string& name, const Submit& submit) {

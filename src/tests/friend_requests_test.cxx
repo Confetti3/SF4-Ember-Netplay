@@ -271,7 +271,10 @@ void Commands() {
 	EXPECT(!longId.Valid() && !longCode.Valid() && !longBridge.Valid() && maxBridge.Valid());
 	FriendsVisit short_{"brg"};
 	FriendRequest card{"b", "cc", "lll"};
-	EXPECT(short_.Bytes() == 3 && card.Bytes() == 6);
+	EXPECT(short_.Bytes() == 3 && card.Bytes() == 6 && !card.mutual);
+	// Each action names itself for the log by its kind alone.
+	EXPECT(std::string(FriendRequest::LogName) == "request by card" && std::string(FriendDismiss::LogName) == "dismiss" &&
+		std::string(FriendTurnOff::LogName) == "turn off");
 	EXPECT(HasBounds<FriendJoin> && HasBounds<FriendTurnOn> && BridgeOf(FriendAction(FriendNewCode{"brg_1"})) == std::string("brg_1"));
 }
 
