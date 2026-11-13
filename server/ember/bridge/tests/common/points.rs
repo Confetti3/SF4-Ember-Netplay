@@ -10,7 +10,10 @@ use super::{
 use rusqlite::OptionalExtension;
 use ember_protocol::{
     encoding::b64u,
-    levels::{CARD_PREFIX, CARD_VALID_SECS, LOOKUP_PATH, POINTS_PATH, is_card_token},
+    levels::{
+        CARD_PREFIX, CARD_VALID_SECS, CLASS_BONUS_POINTS_PATH, LOOKUP_PATH, POINTS_PATH,
+        is_card_token,
+    },
 };
 use reqwest::{Method, StatusCode};
 use serde_json::{Value as Json_, json};
@@ -140,16 +143,53 @@ pub async fn account_points(bridge: &Bridge, account: &'static str) -> Option<(u
         .unwrap()
 }
 
-/// `GET /v1/points/me` for `player`, with the account's and each fighter's
-/// `since` checked and left out, and the account's award counters left out
-/// (`awards`).
+/// Discord account `account`'s stored wins that earned no bonus: the
+/// account's own, and each fighter's as (fighter, wins without a bonus).
+pub async fn lower_wins(bridge: &Bridge, account: &'static str) -> (u64, Vec<(u8, u64)>) {
+    bridge
+        .state()
+        .db
+        .read(move |tx| {
+            let own = tx
+                .query_row(
+                    "SELECT lower_wins FROM account_points WHERE discord_user_id = ?1",
+                    [account],
+                    |row| row.get(0),
+                )
+                .optional()?
+                .unwrap_or(0);
+            let mut statement = tx.prepare(
+                "SELECT fighter, lower_wins FROM fighter_levels
+                 WHERE discord_user_id = ?1 ORDER BY fighter",
+            )?;
+            let fighters = statement
+                .query_map([account], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok((own, fighters))
+        })
+        .await
+        .unwrap()
+}
+
+/// `GET /v1/points/me` for `player` as a build that reads class bonus points
+/// asks it, with the account's and each fighter's `since` checked and left
+/// out, and the account's award counters left out (`awards`).
 pub async fn own(bridge: &Bridge, player: &Player) -> Json_ {
+    own_at(bridge, player, CLASS_BONUS_POINTS_PATH).await
+}
+
+/// `own` as a build from before the class bonus asks it: with no query.
+pub async fn own_before_the_bonus(bridge: &Bridge, player: &Player) -> Json_ {
+    own_at(bridge, player, POINTS_PATH).await
+}
+
+async fn own_at(bridge: &Bridge, player: &Player, path: &str) -> Json_ {
     let (status, mut levels) = send(
         bridge,
         Method::GET,
         player.token(),
         "198.51.100.7",
-        POINTS_PATH,
+        path,
         None,
     )
     .await;

@@ -10,7 +10,10 @@
 //! A game with a fighter whose account does not take part (`ranking`) still
 //! counts toward the pair's sitting and record and earns points; it moves no
 //! rating. Only the class (`SkillBadge`) ever leaves the bridge: inside room
-//! tickets, on the player's own standing and on the ranking board.
+//! tickets, on the player's own standing and on the ranking board. The points
+//! read the two classes of a game and nothing else of the rating: a win earns
+//! its bonus point only against the same class or a higher one
+//! (`levels::class_bonus`).
 mod glicko;
 pub mod levels;
 pub mod ranking;
@@ -121,7 +124,8 @@ impl TryFrom<[u8; 2]> for Fighters {
 /// its recent games on every poll; each counts the first time only, in this
 /// order: the pair's sitting and record, the points (within the sitting's
 /// full games: each account's, and each fighter's when the game named them),
-/// then the ratings (both accounts taking part). The points never read the
+/// then the ratings (both accounts taking part). The points read the two
+/// classes as they stand before the game moves a rating, and none of the
 /// ratings' rules.
 pub fn record_games(
     tx: &Transaction<'_>,
@@ -151,13 +155,18 @@ pub fn record_games(
         }
         let full = played(tx, &winner, &loser, now)? <= FULL_REPEATS;
         if full {
-            levels::count_account(tx, &winner, true, now)?;
-            levels::count_account(tx, &loser, false, now)?;
+            // One answer for the account's points and the fighter's, so the
+            // two never disagree about a game.
+            let won = levels::Played::Won {
+                bonus: levels::class_bonus(tx, &winner, &loser)?,
+            };
+            levels::count_account(tx, &winner, won, now)?;
+            levels::count_account(tx, &loser, levels::Played::Lost, now)?;
             levels::count_streak(tx, &winner, true)?;
             levels::count_streak(tx, &loser, false)?;
             if let Some(fighters) = game.fighters {
-                levels::count(tx, &winner, fighters.winner, true, now)?;
-                levels::count(tx, &loser, fighters.loser, false, now)?;
+                levels::count(tx, &winner, fighters.winner, won, now)?;
+                levels::count(tx, &loser, fighters.loser, levels::Played::Lost, now)?;
             }
         }
         if game.moves_ratings() && takes_part(tx, &winner)? && takes_part(tx, &loser)? {
