@@ -211,7 +211,7 @@ Panel (`v2::Panel`, titled with the name), for the focused row:
 
 | Focused | Panel |
 |---|---|
-| A friend | the other-card part (main's picture 112, name, flag, class, title when served, `FP` of the main and `BP` from the card look-up by friend id); the presence line with its mark; facts: "You and Player 3" 14 - 9, Last played, Friend since; buttons: Primary (A glyph) the row's action, Secondary (Y glyph) "More". The buttons take the pointer; the pad uses A and Y from the row. |
+| A friend | the other-card part (main's picture 112, name, flag, class, title when served, `FP` of the main and `BP` from the card look-up by friend id); the presence line with its mark; facts: "You and Player 3" 14 - 9, Last played, Friend since; buttons: Primary (no glyph; the hint bar names A) the row's action, Secondary (Y glyph) "More". The buttons take the pointer; the pad uses A and Y from the row. |
 | A request | name, flag, the played line; Primary "Accept", Secondary "More". No points: a receiver sees nothing else until they accept (`FRIENDS.md`, Privacy). |
 | Add a friend, Sent, Blocked, Appear offline | the row's detail (`v2::Words`) |
 

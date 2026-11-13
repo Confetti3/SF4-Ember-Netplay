@@ -202,7 +202,8 @@ float DrawNote(const BoardFrame& f, const MenuEntry& e, ImVec2 at, float width) 
     return box.max.y;
 }
 
-// A panel button: the pad button's glyph and the word, pressed with the pointer (the pad uses A and Y on the row).
+// A panel button: the word, after the pad button's glyph when given, pressed with the pointer (the pad uses A and Y on the row).
+// The Primary button carries no glyph, which would clash with its ground; the hint bar names A.
 bool PanelButton(const BoardFrame& f, const char* id, v2::Box box, const std::string& label, const char* glyph, v2::ButtonKind kind, bool enabled) {
     const auto& c = v2::Colors();
     const float s = f.s;
@@ -212,9 +213,9 @@ bool PanelButton(const BoardFrame& f, const char* id, v2::Box box, const std::st
     const bool hovered = ImGui::IsItemHovered();
     ImGui::PopID();
     v2::Button(f.d, box, std::string(), kind, false, hovered, enabled);
-    const float side = 26 * s, font = 17 * s, whole = side + 10 * s + TextWidth(label, font, HeadingFont()), left = box.min.x + (box.W() - whole) * .5f;
-    DrawPromptGlyph(f.d, glyph, ImVec2(left, box.min.y + (box.H() - side) * .5f), side, MenuArt(), s);
-    f.d->AddText(HeadingFont(), font, ImVec2(left + side + 10 * s, box.min.y + (box.H() - font) * .5f), enabled ? c.text : c.muted, label.c_str());
+    const float side = glyph ? 26 * s : 0, gap = glyph ? 10 * s : 0, font = 17 * s, whole = side + gap + TextWidth(label, font, HeadingFont()), left = box.min.x + (box.W() - whole) * .5f;
+    if (glyph) DrawPromptGlyph(f.d, glyph, ImVec2(left, box.min.y + (box.H() - side) * .5f), side, MenuArt(), s);
+    f.d->AddText(HeadingFont(), font, ImVec2(left + side + gap, box.min.y + (box.H() - font) * .5f), enabled ? c.text : c.muted, label.c_str());
     return pressed && enabled;
 }
 
@@ -264,7 +265,7 @@ void DrawPersonPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool 
     const float high = 48 * s;
     v2::Box row{ImVec2(x, y + 4 * s), ImVec2(x + room, y + 4 * s + high)};
     const v2::Box primary = more ? row : v2::CutLeft(row, room - 150 * s - 10 * s, 10 * s);
-    if (PanelButton(f, "panel-primary", primary, word, "A", v2::ButtonKind::Primary, !gated)) f.action = MenuAction{MenuAction::Activate, e.id};
+    if (PanelButton(f, "panel-primary", primary, word, nullptr, v2::ButtonKind::Primary, !gated)) f.action = MenuAction{MenuAction::Activate, e.id};
     if (!more && PanelButton(f, "panel-more", row, loc::T("friends.more"), "Y", v2::ButtonKind::Secondary, true)) f.more(e.id);
     y += high + 4 * s;
     box.max.y = y + pad;
