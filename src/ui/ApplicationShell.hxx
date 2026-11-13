@@ -155,7 +155,7 @@ public:
     }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
     void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
-    // The public archive's sets of one player, on Replays' Archive tab (ReplaysPanel::OpenArchiveFor);
+    // The public archive's sets of one player, on Replays' Archive tab (ArchiveTab::OpenFor);
     // Back returns to the screen shown now.
     void OpenArchiveFor(const std::string& playerName) { archive_.OpenFor(playerName, menu_.navigation); }
     void ShowPublicRooms() { auto& nav = menu_.navigation; nav.Cancel(); nav.Home(); nav.Push("online"); nav.Push("public-rooms"); }

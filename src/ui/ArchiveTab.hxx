@@ -3,12 +3,12 @@
 // (docs/design/REPLAY_ARCHIVE.md). Rows are sets, grouped as the archive page
 // groups them (ArchiveSets.hxx), newest first; a Filters row opens one page of
 // filter rows (player or event, fighter, class, country, event, round, sort);
-// the end of the list asks for the next page (ArchivePaging.hxx). Select on a
+// the end of the list asks for the next page (netplay/ArchiveRequests.hxx: Requests::Ask). Select on a
 // set offers Watch now, which has the game downloaded and played as a replay
 // link's file is, and Find this player's sets for each named player. The
 // listing is read from ShellView::archiveBrowse, which the runtime fills
-// (netplay/ArchiveRequests.hxx); ReplaysPanel owns the tab and routes its
-// screens here.
+// (netplay/ArchiveRequests.hxx). ApplicationShell holds it and ArchiveScreens, a ScreenPanel,
+// routes its screens here; the tab sits in Replays' strip (ReplaysPanel::Tabs).
 #include "ArchiveSets.hxx"
 #include "GameMenu.hxx"
 #include "ShellAction.hxx"

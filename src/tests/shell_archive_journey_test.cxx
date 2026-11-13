@@ -82,7 +82,7 @@ void ListingJourney() {
  Journey j;OpenArchive(j);
  Check(j.h.shell.Navigation().Screen()=="replay-archive","The Archive tab did not open");
  const auto first=Lists(j);
- Check(first.size()==1&&first[0]->bridge=="brg_1"&&!first[0]->next&&!first[0]->filter.Active()&&first[0]->filter.order==ar::Order::Newest,
+ Check(first.size()==1&&first[0]->bridge=="brg_1"&&!first[0]->retry&&!first[0]->profile&&!first[0]->filter.Active()&&first[0]->filter.order==ar::Order::Newest,
   "The first page was not asked for once on the service, with nothing narrowed");
  j.h.Frame(0,5);
  Check(Lists(j).size()==1,"The first page was asked for again before it was answered");
@@ -109,9 +109,10 @@ void ListingJourney() {
  Check(session.label==loc::Tf("archive.session_label",std::string("Player 5"),2)&&Choices(session)==std::vector<std::string>({"archive-watch","find-1"})&&session.fighter1==9&&session.fighter2==11,
   "One player's games are not a session row of that player alone");
  Check(ChoiceOf(session,"find-1")->label==loc::Tf("archive.find","Player 5"),"A session did not offer to find its player's sets");
- // Nothing is asked for again, and the end of a short list asks for no page it does not have.
+ // The want goes again with each listing (the runtime decides what that asks for), and never by itself between.
+ const auto sent=Lists(j).size();
  j.h.Frame(0,5);
- Check(Lists(j).size()==1,"A page that was heard was asked for again");
+ Check(Lists(j).size()==sent,"The same want was sent again with nothing changed");
 
  // Cards and the pane draw for the focused row (the harness draws them with no art).
  j.h.FocusOn(("archive:"+s3.digest).c_str());j.h.Frame(0,2);
@@ -171,14 +172,14 @@ void FindJourney() {
  Check(j.h.shell.Navigation().Screen()=="replay-archive","Find this player's sets left the Archive tab");
  j.h.Frame(0,2);
  const auto asks=Lists(j);
- Check(asks.size()==2&&!asks[1]->next&&asks[1]->filter==NamedFilter("Player 3"),"Find this player's sets did not ask for the first page of that name alone");
+ Check(!asks.back()->retry&&asks.back()->filter==NamedFilter("Player 3"),"Find this player's sets did not ask for the first page of that name alone");
  Check(j.row("archive-filters")->value=="Player 3"&&j.row("archive-clear")&&j.row("archive-loading"),"The Filters row does not say the name, or the old sets stay while the new page loads");
  // The same from anywhere else: the card stream calls it, and Back returns to where it was called.
  Journey k;k.h.view.replays.ready=true;k.h.Frame();
  k.h.shell.OpenArchiveFor("Player 9");k.h.Frame(0,2);
  k.answerIdentityUntilIdle();k.h.Frame(0,2);
  const auto from=Lists(k);
- Check(k.h.shell.Navigation().Screen()=="replay-archive"&&from.size()==1&&from[0]->filter==NamedFilter("Player 9"),"OpenArchiveFor did not open the Archive tab on that name alone");
+ Check(k.h.shell.Navigation().Screen()=="replay-archive"&&!from.empty()&&from.back()->filter==NamedFilter("Player 9")&&from.back()->filter.text.empty(),"OpenArchiveFor did not open the Archive tab on that name alone");
  k.h.Press(MenuInput::Back);
  Check(k.h.shell.Navigation().Screen()=="home","Back from the Archive tab did not return to where it was opened from");
 
@@ -195,7 +196,7 @@ void FindJourney() {
  Check(m.h.shell.Navigation().Screen()=="replay-archive","Find this player's sets on a match did not open the Archive tab");
  m.answerIdentityUntilIdle();m.h.Frame(0,2);
  const auto found=Lists(m);
- Check(found.size()==1&&found[0]->filter==NamedFilter("Player 2"),"Find this player's sets on a match did not ask for that player's name alone");
+ Check(!found.empty()&&found.back()->filter==NamedFilter("Player 2"),"Find this player's sets on a match did not ask for that player's name alone");
 }
 
 // The Filters row opens one page of rows; stepping them asks for nothing, and Back asks once for the first page of what is chosen.
@@ -203,6 +204,7 @@ void FiltersJourney() {
  Journey j;OpenArchive(j);
  const auto game=InSet(1800000300,"emt_a");
  Hear(j,{},ListedGames({game}));
+ const auto wanted=Lists(j).size();
  j.h.Choose("archive-filters");
  Check(j.h.shell.Navigation().Screen()=="replay-archive-filter","The Filters row did not open the filters");
  for(const char* id:{"af-text","af-fighter","af-class","af-country","af-event","af-round","af-sort","af-count","af-clear"})Check(j.row(id)!=nullptr,(std::string("Missing filter row ")+id).c_str());
@@ -227,24 +229,25 @@ void FiltersJourney() {
  Check(j.h.shell.Navigation().Screen()=="replay-archive-fighter"&&j.row("af-0")&&j.row("af-any"),"The Fighter row did not open the fighters");
  j.h.Choose("af-0");
  Check(j.h.shell.Navigation().Screen()=="replay-archive-filter"&&j.row("af-fighter")->value==std::string(sf4e::selection::FindFighter(0)->name),"Picking a fighter did not return to the filters with it chosen");
- Check(Lists(j).size()==1,"A page was asked for while the filters were being stepped");
+ Check(Lists(j).size()==wanted,"A page was asked for while the filters were being stepped");
  // Back to the list: one first page of everything chosen.
  j.h.Press(MenuInput::Back);
  Check(j.h.shell.Navigation().Screen()=="replay-archive","Back from the filters did not return to the list");
  const auto asks=Lists(j);
- Check(asks.size()==2&&!asks[1]->next,"Back from the filters did not ask for the first page");
- const ar::Filter chosen=asks[1]->filter;
+ Check(asks.size()>wanted&&!asks.back()->retry,"Back from the filters did not ask for the first page");
+ const ar::Filter chosen=asks.back()->filter;
  Check(chosen.band==2&&chosen.country=="GB"&&chosen.event=="Player 1's Cup"&&chosen.round=="top8"&&chosen.order==ar::Order::Class&&chosen.fighter==0&&chosen.text.empty(),"The page asked for is not what the filters chose");
+ const auto now=Lists(j).size();
  j.h.Frame(0,5);
- Check(Lists(j).size()==2,"The first page of the new filter was asked for twice");
+ Check(Lists(j).size()==now,"The first page of the new filter was asked for twice");
  // The Filters row and the header say what is chosen, and Clear filters narrows nothing but keeps the order.
  const std::string summary=ui::ArchiveTab::FilterSummary(chosen);
  Check(j.row("archive-filters")->value==summary&&summary.find("Player 1's Cup")!=std::string::npos&&summary.find(std::string(sf4e::selection::FindFighter(0)->name))!=std::string::npos&&j.row("archive-clear"),"The Filters row does not say what is chosen");
  j.h.Choose("archive-clear");
  j.h.Frame(0,2);
  const auto cleared=Lists(j);
- Check(cleared.size()==3&&!cleared[2]->filter.Active()&&cleared[2]->filter.order==ar::Order::Class,"Clear filters did not ask again for everything in the order chosen");
- Check(ui::ArchiveTab::FilterSummary(cleared[2]->filter)==loc::T("archive.sort_class"),"The summary of a filter that only orders is not its order");
+ Check(cleared.size()>now&&!cleared.back()->filter.Active()&&cleared.back()->filter.order==ar::Order::Class,"Clear filters did not ask again for everything in the order chosen");
+ Check(ui::ArchiveTab::FilterSummary(cleared.back()->filter)==loc::T("archive.sort_class"),"The summary of a filter that only orders is not its order");
 
  // Typing a name: Select on the first row opens the editor; accepted text is the filter.
  j.h.Press(MenuInput::Fighter);
@@ -253,39 +256,29 @@ void FiltersJourney() {
  Check(j.h.shell.Navigation().Editing(),"Select on Player or event did not open the editor");
 }
 
-// The next page is asked for once when the end of the list is near, and never while one is on its way.
+// The want says the end of the list is near, so the runtime asks the next page; Y and A say retry; a changed filter is another want.
 void PagingJourney() {
  Journey j;OpenArchive(j);
  const auto g1=MakeGame(1800000300,"Player 1","Player 2"),g2=MakeGame(1800000200,"Player 3","Player 4");
  Hear(j,{},ListedGames({g1,g2},"9.ab"));
- auto asks=Lists(j);
- Check(asks.size()==2&&asks[1]->next&&!asks[1]->again&&asks[1]->bridge=="brg_1","The next page was not asked for at the end of the list");
- j.h.Frame(0,5);
- Check(Lists(j).size()==2,"The next page was asked for twice");
+ Check(Lists(j).back()->nearEnd&&!Lists(j).back()->retry&&Lists(j).back()->bridge=="brg_1","The end of a short list was not said to be near");
  Hear(j,{},ListedGames({g1,g2},"9.ab"),true);
- Check(j.row("archive-more")&&j.row("archive-more")->label==loc::T("archive.loading_more")&&Lists(j).size()==2,"A page loading did not say Loading more or was asked for again");
- // The page came: the cursor moved on, and the list is asked from there.
- Hear(j,{},ListedGames({g1,g2,MakeGame(1800000100,"Player 5","Player 6")},"7.cd"));
- asks=Lists(j);
- Check(asks.size()==3&&asks[2]->next,"The page after that was not asked for");
- // The last page: nothing more is asked for.
+ Check(j.row("archive-more")&&j.row("archive-more")->label==loc::T("archive.loading_more"),"A page loading did not say Loading more");
  Hear(j,{},ListedGames({g1,g2,MakeGame(1800000100,"Player 5","Player 6")}));
- j.h.Frame(0,5);
- Check(Lists(j).size()==3&&!j.row("archive-more"),"A last page asked for another");
- // A next page that failed keeps the sets and says so; Y and A ask again.
+ Check(!j.row("archive-more"),"A last page said it was loading more");
+ // A next page that failed keeps the sets and says so; Y and A say retry.
  Hear(j,{},ListedGames({g1,g2},"5.ef"),false,true);
- Check(Lists(j).size()==3&&j.row("archive-more-retry")&&j.row("archive:"+g1.digest),"A next page that failed was asked for again by itself, or lost the sets");
+ Check(!Lists(j).back()->retry&&j.row("archive-more-retry")&&j.row("archive:"+g1.digest),"A next page that failed was retried by itself, or lost the sets");
  j.h.Press(MenuInput::Options);
- asks=Lists(j);
- Check(asks.size()==4&&asks[3]->next&&asks[3]->again,"Y did not ask again for the page that failed");
+ Check(Lists(j).back()->retry,"Y did not say retry for the page that failed");
+ const auto sent=Lists(j).size();
  j.h.Choose("archive-more-retry");
- Check(Lists(j).size()==5,"Select on Could not load more did not ask again");
- // A filter changed while a page is on its way asks for the first page of the new one.
+ Check(Lists(j).size()>sent&&Lists(j).back()->retry,"Select on Could not load more did not say retry");
+ // A filter changed while a page is on its way is another want.
  Hear(j,{},ListedGames({g1,g2},"3.aa"),true);
  j.h.Press(MenuInput::Fighter);
  j.h.FocusOn("af-class");j.h.Press(MenuInput::Right);j.h.Press(MenuInput::Back);
- asks=Lists(j);
- Check(asks.back()->filter.band==1&&!asks.back()->next,"A filter changed while a page loaded did not ask for its first page");
+ Check(Lists(j).back()->filter.band==1&&!Lists(j).back()->retry,"A filter changed while a page loaded was not a new want");
 }
 
 // A page that failed, a service without an archive, nothing that matches, and no service at all, each in its own words.
@@ -295,12 +288,13 @@ void StatesJourney() {
  const auto* retry=j.row("archive-retry");
  Check(retry&&retry->label==loc::T("archive.failed")&&retry->detail==loc::Tf("archive.failed_detail",sf4e::ui::PublicRoomsPanel::FailureText("bridge_unreachable"))&&!j.row("archive-loading"),
   "A page that failed did not say so with its reason");
- Check(Lists(j).size()==1,"A failed page was asked for again by itself");
+ Check(!Lists(j).back()->retry,"A failed page was retried by itself");
  j.h.Press(MenuInput::Options);
- Check(Lists(j).size()==2&&!Lists(j)[1]->next,"Y did not try the first page again");
+ Check(Lists(j).back()->retry,"Y did not say retry for a failed page");
  HearFailure(j,{},ar::Status::State::Failed,"bridge_unreachable");
+ const auto sent=Lists(j).size();
  j.h.Choose("archive-retry");
- Check(Lists(j).size()==3,"Select on the failure did not try again");
+ Check(Lists(j).size()>sent&&Lists(j).back()->retry,"Select on the failure did not say retry");
  HearFailure(j,{},ar::Status::State::Unsupported,ar::Unsupported);
  Check(j.row("archive-unsupported")&&j.row("archive-unsupported")->label==loc::T("archive.unsupported")&&!j.row("archive-retry"),"A service without an archive did not say so");
  // Nothing matches the filters: the Filters row, Clear filters and the words for it.

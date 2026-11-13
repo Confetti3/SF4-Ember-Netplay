@@ -165,8 +165,6 @@ void ArchiveTab::Browse(Filter filter) {
 
 bool ArchiveTab::Heard(const ShellView& v) const { return v.archiveBrowse.Answers(bridge_, filter_); }
 
-bool ArchiveTab::Fetching(const ShellView& v) const { return !v.archiveBrowse.fetching.empty(); }
-
 void ArchiveTab::Regroup(const ShellView& v) {
     const auto& listing = v.archiveBrowse.listing;
     if (listing == held_) return;
@@ -185,7 +183,7 @@ void ArchiveTab::Update(const ShellView& v, const std::string& screen, const std
     bridge_ = bridge;
     Regroup(v);
     // A page is asked for only while the list is on show: the filter's own pages ask for nothing until the player is back.
-    if (screen != Screen) return;
+    if (screen != Screen || bridge.empty()) return;
     int at = -1;
     for (std::size_t i = 0; i < entries_.size(); ++i)
         if (std::string(RowPrefix) + entries_[i].id == focus) { at = static_cast<int>(i); break; }
