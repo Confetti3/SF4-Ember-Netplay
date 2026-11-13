@@ -525,6 +525,7 @@ void TickTournament(bool helperReady) {
 	ExpireRankings(GetTickCount64());
 	TickLevels(helperReady, GetTickCount64());
 	TickCards(helperReady, GetTickCount64());
+	TickProfiles(helperReady, GetTickCount64());
 	if (!runtime->room) return;
 	OpenMatchLink(runtime->matchLinks.Take());
 	OpenConnectLink(runtime->connectLinks.Take());

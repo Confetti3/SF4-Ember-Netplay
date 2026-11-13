@@ -23,6 +23,7 @@
 #include "InputAssignment.hxx"
 #include "MatchEndRules.hxx"
 #include "PlayerPreferences.hxx"
+#include "Profiles.hxx"
 #include "SessionController.hxx"
 #include "TableSetup.hxx"
 #include "TournamentStatus.hxx"
@@ -45,6 +46,41 @@ struct Tournament { netplay::tournament::Command tournament; };
 // What the friends screens ask is one type per request (netplay/FriendCommands.hxx,
 // Friend*). Join, Watch, TakeInvite and AnswerVisit carry the generation the
 // press saw and are dropped once it has moved on; the rest need none.
+
+
+// What the profile screens ask (docs/design/PROFILE.md, "Runtime and view"); like the friends commands each names
+// the service (`bridge`, the one the menu reads levels from) and states its own bounds, and none is tied to a room
+// generation: they are bridge reads.
+//
+//   ProfileOpen    Look up one player's card by how the page was opened (`key`), knowing what the opener knew
+//                  (`known`). It replaces the profile open. A name is searched and the one player found is looked
+//                  up. The runtime keeps the card fresh while the profile is open (8 s after a set in the room ends,
+//                  and after a friends action), and the answer reaches ShellView::profile.
+//   ProfileClose   The profile page was left: its late answers are dropped.
+//   PlayerSearch   Find a player: one search for `text`, a name (2 to 32 bytes) or, with `code`, a friend code. A
+//                  newer text drops the older answer, and an empty text clears it. The answer reaches
+//                  ShellView::playerSearch.
+namespace profile_limits {
+constexpr std::size_t Bridge = 256, Value = 128, Text = 32;
+}
+struct ProfileOpen {
+    std::string bridge;
+    netplay::profiles::Key key;
+    netplay::profiles::Known known;
+    bool Valid() const {
+        return bridge.size() <= profile_limits::Bridge && key.Present() && key.value.size() <= profile_limits::Value &&
+            known.name.size() <= netplay::profiles::MaxNameBytes && known.fighter >= -1 &&
+            known.fighter < selection::FighterCount;
+    }
+    std::size_t Bytes() const { return bridge.size() + key.value.size() + known.name.size(); }
+};
+struct ProfileClose {};
+struct PlayerSearch {
+    std::string bridge, text;
+    bool code = false;
+    bool Valid() const { return bridge.size() <= profile_limits::Bridge && text.size() <= profile_limits::Text; }
+    std::size_t Bytes() const { return bridge.size() + text.size(); }
+};
 
 // Every command below is made for the controller generation the press saw
 // (netplay::Snapshot::generation), and is dropped once that has moved on.
@@ -162,6 +198,7 @@ using RuntimeRequestWith = std::variant<commands::Identity, commands::Tournament
     commands::FriendDecline, commands::FriendCancel, commands::FriendRemove, commands::FriendBlock, commands::FriendUnblock,
     commands::FriendNewCode, commands::FriendAppearOffline, commands::FriendTurnOff, commands::FriendTurnOn, commands::FriendInvite,
     commands::FriendDismiss, commands::FriendJoin, commands::FriendWatch, commands::FriendTakeInvite, commands::FriendAnswerVisit,
+    commands::ProfileOpen, commands::ProfileClose, commands::PlayerSearch,
     commands::Training, commands::LeaveWatchedGame,
     commands::DiscordInvite, commands::PreviewSound, commands::Replay, commands::ShortInvitation, commands::Pad,
     commands::RoomSettings, commands::Input, commands::Service,

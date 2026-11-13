@@ -6,7 +6,10 @@
 #include <string>
 #include <vector>
 
+#include "../common/Country.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/SkillBadge.hxx"
+#include "Profiles.hxx"
 
 namespace sf4e { namespace netplay { namespace levels {
 
@@ -67,10 +70,13 @@ struct CardFighter {
 	std::uint8_t tier = 0;
 };
 
-// What a card says of the milestones behind another player's awards: for each
-// count, the largest mark the bridge offers that it has reached, never the
-// count itself. 0 where the bridge sends none (an older bridge, or a player
-// who does not take part in ranking, for the class).
+// What a card says of the counters behind another player's awards. From a
+// bridge that offers `profiles` the games, wins and best streak are the exact
+// counts; from an older one each is the largest mark it offers that the player
+// has reached. awards::CountersOf reads them as they are. The class, the most
+// games against one rival and the opponents faced are as the bridge sends
+// them. 0 where the bridge sends none (an older bridge, or a player who does
+// not take part in ranking, for the class).
 struct CardMarks {
 	std::uint64_t games = 0, wins = 0;
 	std::uint32_t streak = 0;
@@ -81,13 +87,38 @@ struct CardMarks {
 enum class Relation : std::uint8_t { None, Friend, Sent, Received, Blocked };
 
 // Another player's card from a look-up. A card is public: its points are
-// always drawn.
+// always drawn. The members after `relation` are what a bridge offering
+// `profiles` adds (docs/design/PROFILE.md): each is empty, none, 0 or false when
+// the bridge did not say, so a card from an older bridge shows its points,
+// fighters and relation alone and a screen draws only what is there.
 struct Card {
 	CardAccount account;
 	// The fighters played, ascending; empty when none is.
 	std::vector<CardFighter> fighters;
 	CardMarks marks;
 	Relation relation = Relation::None;
+	// The name, flag and class they show, for a page opened by something that
+	// did not know them (a search, a request, a name).
+	std::string name;
+	CountryCode country;
+	SkillBadge badge;
+	// Their main fighter, 0 to FighterCount - 1, when hasMain.
+	bool hasMain = false;
+	std::uint8_t main = 0;
+	// When they came to Ember: unix seconds, the first of that month; when hasSince.
+	bool hasSince = false;
+	std::uint64_t since = 0;
+	// The award families they wear, and the (at most four) they show; no pins is Automatic.
+	profiles::Worn worn;
+	std::vector<std::string> pins;
+	// How they play, when the bridge sent it (hasStyle); no chips otherwise.
+	bool hasStyle = false;
+	profiles::Style style;
+	// Their record with the viewer, from the viewer's side; hasVersus only after a first counted game.
+	bool hasVersus = false;
+	profiles::Versus versus;
+	// The friendship's id ("fr_") when `relation` is Friend and the bridge said it; empty otherwise.
+	std::string friendId;
 };
 
 // Cards by card token, for the tokens the bridge has a card for.

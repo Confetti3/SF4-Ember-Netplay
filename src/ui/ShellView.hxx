@@ -23,6 +23,8 @@
 #include "../netplay/Archive.hxx"
 #include "../netplay/FriendsView.hxx"
 #include "../netplay/Levels.hxx"
+#include "../netplay/ProfileRequests.hxx"
+#include "../netplay/Profiles.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
@@ -225,6 +227,24 @@ struct ShellView {
     // The public replay archive's listing as the Replays screen's Archive tab asked for it, and the
     // download of a game to watch.
     netplay::archive::Status archiveBrowse;
+    // The profile page's data (docs/design/PROFILE.md). Commands: commands::ProfileOpen, ProfileClose and PlayerSearch.
+    // The profile open: how it was opened, what the opener knew, and the card as it arrives. `state` Closed when none
+    // is open; see netplay::profiles::Profile for each state's meaning and what each holds.
+    netplay::profiles::Profile profile;
+    // Find a player's search as the player last typed it, and its answer. Empty `text` when there is none.
+    netplay::profiles::SearchView playerSearch;
+    // The players this PC fought in public rooms lately, newest first, none past 7 days (at most
+    // netplay::profiles::MaxRecent); empty when there are none. Kept on this PC, never sent.
+    std::vector<netplay::profiles::Recent> recentOpponents;
+    // The sets of the profile open: a second slot of the Archive tab's browse state, so a profile's sets never replace
+    // the Archive tab's. Asked for through the same Command ops as the archive's, with `archiveProfile` set and the
+    // filter's `name` the player's; the service's `matching` count is not kept when it listed other players' sets
+    // (netplay::archive::KeepNamed). Idle until a first page is asked for.
+    netplay::archive::Status profileSets;
+    // Whether the service offers profiles, as far as answers have said: Unknown until one does. Missing: no search by
+    // name, no name, request or code openers (Find a player is by code, as 1.6.0); cards open by token and friend id
+    // with 1.6.0's fields.
+    netplay::profiles::Service profilesService = netplay::profiles::Service::Unknown;
     // The player's own fighter levels, as last read.
     netplay::Answered<netplay::levels::Own> levels;
     // The cards of a public room's members by card token; null while there are none.

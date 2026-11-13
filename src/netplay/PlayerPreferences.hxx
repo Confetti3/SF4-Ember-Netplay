@@ -10,6 +10,7 @@
 #include "../common/InputDelay.hxx"
 #include "../common/RoomRules.hxx"
 #include "ProfileRecord.hxx"
+#include "Profiles.hxx"
 #include "PublicRoomFilter.hxx"
 #include "TableSetup.hxx"
 
@@ -140,6 +141,15 @@ struct PlayerPreferences {
     // The award family (netplay/Awards.hxx id) whose title, and whose icon, the player wears;
     // empty for the identity's own. Kept here until the backend stores it.
     std::string wornTitle, wornIcon;
+    // What the card shows of how this player plays (Edit card, docs/design/PROFILE.md). cardDevice: 0 Automatic
+    // (the controller in use, profiles::AutomaticDevice), 1 to 4 a chosen device (profiles::Device), 5 Not shown.
+    // The connection and the region are the game's own measures, which the player only shows or hides.
+    // cardLooking is the bits of profiles::LookingBit, at most two. cardPins are the award families the card shows,
+    // at most four; none is Automatic, the highest families.
+    int cardDevice = 0;
+    bool cardShowLink = true, cardShowRegion = true;
+    std::uint8_t cardLooking = 0;
+    std::vector<std::string> cardPins;
     // The room board's column and the members' share of it (MinRoomColumn).
     int roomColumn = DefaultRoomColumn, roomSplit = DefaultRoomSplit;
     // 0 the Ember strip (one panel), 1 split: names over the game's PLAYER labels and a small telemetry panel.
@@ -295,6 +305,10 @@ struct PlayerPreferences {
             roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount) || publicRoomType > room::RoomType::King || publicArcadeTables < 1 || publicArcadeTables > static_cast<int>(room::TableCount) || publicRoomTemplate.size() > 32) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
+        if (cardDevice < 0 || cardDevice > 5 || (cardLooking & ~profiles::LookingBitsAll) != 0 || profiles::LookingCount(cardLooking) > profiles::MaxLooking ||
+            cardPins.size() > profiles::MaxPins) return false;
+        for (std::size_t i = 0; i < cardPins.size(); ++i)
+            if (!profiles::FamilyIdShaped(cardPins[i]) || std::find(cardPins.begin(), cardPins.begin() + i, cardPins[i]) != cardPins.begin() + i) return false;
         return country.Valid() && speech.Valid() && roomFilter.Valid() && tableRules.Valid() && publicTableRules.Valid();
     }
 };
