@@ -285,6 +285,9 @@ inline std::string CardAwardRow(const std::string& family) { return AwardRowPref
 std::vector<MenuEntry> CardRows(const FullCardView& view);
 
 
+// The month a player came to Ember as a card says it, "2026-03", from the first second of that month in UTC.
+std::string MonthWords(std::uint64_t seconds);
+
 // ---- Small words ----------------------------------------------------------
 
 // "2 h ago", "1 d ago", or the date once it is older than three days; empty for 0.

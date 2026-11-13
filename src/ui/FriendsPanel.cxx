@@ -427,7 +427,7 @@ void FriendsPanel::Update(const ShellView& v, MenuNavigation& nav, const std::st
     if (!started_) { started_ = true; refusalsSeen_ = f.refusals; visitHandled_ = f.visit.revision; }
     const auto quiet = [&](auto command) { return !command.bridge.empty() && submit(std::move(command)); };
     // The cadence: Visit as the tab opens, again when it lapsed while shown; Leave as it closes.
-    if (Lists(nav.Screen())) {
+    if (Syncs(nav.Screen())) {
         if (!asked_ || (sawVisiting_ && !f.visiting)) {
             if (quiet(commands::FriendsVisit{Bridge(v)})) { asked_ = true; sawVisiting_ = false; }
         } else if (f.visiting) sawVisiting_ = true;

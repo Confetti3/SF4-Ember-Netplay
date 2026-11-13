@@ -1111,6 +1111,69 @@ msgstr "Friends"
 msgid "friends.tab_count"
 msgstr "Friends · {0}"
 
+msgid "profile.view_sets"
+msgstr "View sets"
+
+msgid "profile.card_of"
+msgstr "Player card: {0}"
+
+msgid "profile.this_player"
+msgstr "this player"
+
+msgid "profile.reading"
+msgstr "Reading {0}'s card."
+
+msgid "profile.reading_button"
+msgstr "Reading"
+
+msgid "profile.no_card"
+msgstr "{0} has no card to show."
+
+msgid "profile.sets_by_name"
+msgstr "Their sets are still listed by name."
+
+msgid "profile.blocked"
+msgstr "You blocked {0}. Unblock them to see their card."
+
+msgid "profile.nobody"
+msgstr "No player on Ember goes by {0} now."
+
+msgid "profile.unreachable"
+msgstr "Could not reach the service. The card shows when it answers."
+
+msgid "profile.unsupported"
+msgstr "This service does not offer profiles."
+
+msgid "profile.try_again"
+msgstr "Try again"
+
+msgid "profile.pick_title"
+msgstr "Players named {0}"
+
+msgid "profile.pick_screen"
+msgstr "Players"
+
+msgid "profile.in_this_room"
+msgstr "In this room"
+
+msgid "profile.request_sent_detail"
+msgstr "Cancel it in Friends, Sent."
+
+msgid "profile.sets_note"
+msgstr "Sets found by the name {0}. Someone else who used this name shows here too, and sets played under an earlier name do not."
+
+msgid "profile.sets_player"
+msgstr "Player"
+
+msgid "profile.sets_player_detail"
+msgstr "The sets are of this name. It stays while you narrow the list."
+
+msgid "profile.sets_opponent"
+msgstr "Opponent"
+
+msgid "profile.sets_opponent_detail"
+msgstr "Lists the sets against a player whose name holds these letters."
+
 msgid "friends.requests_heading"
 msgstr "REQUESTS · {0}"
 
@@ -8568,6 +8631,9 @@ msgstr "The titles and icons you have earned, and how to earn the rest. Select o
 
 msgid "awards.earned_count"
 msgstr "Earned {0} of {1}"
+
+msgid "awards.not_reached"
+msgstr "Not reached yet"
 
 msgid "awards.card_heading"
 msgstr "YOUR CARD · AS OTHERS SEE IT"

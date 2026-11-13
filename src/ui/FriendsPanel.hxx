@@ -165,6 +165,9 @@ public:
     // The screens that list the friends, or what waits from them: the friends are kept fresh there (the tab's
     // cadence), and nothing they list is also said as a toast.
     static bool Lists(const std::string& screen) { return Shown(screen) || screen == NotificationsScreen; }
+    // The screens where the friends are kept fresh: those that list them, and another player's profile (PlayerPage, whose
+    // screens all begin "player-"), which reads their presence and the relation from the same list.
+    static bool Syncs(const std::string& screen) { return Lists(screen) || screen.compare(0, 7, "player-") == 0; }
     // The shortcuts the tab takes before a room's own: X (Add a friend), Y (More) and Delete (Remove friend).
     static bool Takes(unsigned shortcut) { return shortcut == MenuInput::Fighter || shortcut == MenuInput::Options || shortcut == MenuInput::Leave; }
     // The Settings panel's rows, which Activate takes as the tab's own.

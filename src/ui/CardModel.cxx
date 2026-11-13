@@ -70,6 +70,8 @@ constexpr Metrics kNarrow = {
     3};
 }
 
+std::string MonthWords(std::uint64_t seconds) { return MonthOf(seconds); }
+
 const Metrics& MetricsOf(Size size) { return size == Size::Wide ? kWide : size == Size::Compact ? kCompact : kNarrow; }
 
 float Metrics::SmallestText() const {
