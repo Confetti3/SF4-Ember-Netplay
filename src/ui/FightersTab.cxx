@@ -29,7 +29,7 @@ void DrawTile(ImDrawList* d, v2::Box box, int fighter, const Level& level, const
     if (isMain) v2::Chip(d, ImVec2(tile.min.x + 6 * s, tile.min.y + 6 * s), loc::T("fighters.main"), c.accentLight);
     const float x = box.min.x + 6 * s, room = box.W() - 12 * s, y = tile.max.y + 6 * s;
     v2::Text(d, ImVec2(x, y), room, selection::FindFighter(fighter)->name, 14 * s, enabled ? c.text : c.muted, HeadingFont());
-    if (!shown.others) v2::Text(d, ImVec2(x, y + 20 * s), room, player_card::GamesWords(level.games), player_card::TextFloor * s, c.muted);
+    if (!shown.others) v2::TextShrunk(d, ImVec2(x, y + 20 * s), room, player_card::GamesWords(level.games), player_card::TextFloor * s, 10 * s, c.muted);
     if (focused) v2::Focus(d, box.min, box.max, false);
 }
 

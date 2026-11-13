@@ -547,7 +547,9 @@ float TitlePlate(ImDrawList* draw, ImVec2 at, float room, float line, const std:
     const auto colors = TierColor(tier);
     draw->AddConvexPolyFilled(plate, 4, colors.plate);
     draw->AddConvexPolyFilled(mark, 4, colors.stripe);
-    const float size = need > w ? 13 * s : 15 * s;
+    // Longer than the plate, it steps down to 13 and then smaller still, to no less than 10, before it is cut.
+    const float room13 = w - stripe - 10 * s - cut, wide13 = TextWidth(title, 13 * s, HeadingFont());
+    const float size = need <= w ? 15 * s : wide13 > room13 && wide13 > 0 ? (std::max)(10 * s, 13 * s * room13 / wide13) : 13 * s;
     draw->AddText(HeadingFont(), size, ImVec2(x + stripe + 10 * s, y + (line - size) * .5f), Colors().text, Fit(title, w - stripe - 10 * s - cut, size, HeadingFont()).c_str());
     return w;
 }
@@ -578,7 +580,10 @@ float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagV
         if (i % across == 0) draw->AddLine(p, ImVec2(at.x + width, p.y), c.border, Hairline());
         else draw->AddLine(p, ImVec2(p.x, p.y + height), c.border, Hairline());
         Heading(draw, ImVec2(p.x + 14 * s, p.y + 9 * s), cell - 28 * s, facts[i].key, 13 * s, c.muted);
-        draw->AddText(HeadingFont(), valueSize * s, ImVec2(p.x + 14 * s, p.y + 26 * s + extra), c.text, Fit(facts[i].value, cell - 28 * s, valueSize * s, HeadingFont()).c_str());
+        // A value a little too wide for its cell is set smaller, down to the card's text floor, before it is cut.
+        const float room = cell - 28 * s, whole = HeadingFont()->CalcTextSizeA(valueSize * s, FLT_MAX, 0, facts[i].value.c_str()).x;
+        const float size = whole > room && whole > 0 ? (std::max)(13 * s, valueSize * s * room / whole) : valueSize * s;
+        draw->AddText(HeadingFont(), size, ImVec2(p.x + 14 * s, p.y + 26 * s + extra + (valueSize * s - size) * .5f), c.text, Fit(facts[i].value, room, size, HeadingFont()).c_str());
     }
     return FactCellsHeight(width, facts, across);
 }

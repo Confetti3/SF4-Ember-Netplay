@@ -101,7 +101,12 @@ std::vector<MenuEntry> ResultRows(const Page& page) {
     const auto& recent = page.recent ? *page.recent : none;
     const std::string group = loc::T("find.recent");
     for (std::size_t i = 0; i < recent.size(); ++i) rows.push_back(PlayerRow(RecentPrefix + std::to_string(i), recent[i].name, RecentWords(recent[i], page.now), group, i));
-    if (recent.empty() && rows.empty()) note("find.recent_empty");
+    // The words are long, so they are the row's detail under the group's name, which wraps.
+    if (recent.empty() && rows.empty()) {
+        auto row = InfoRow(FindNoteRow, loc::T("find.recent"), {}, loc::T("find.recent_empty"));
+        row.quiet = true;
+        rows.push_back(std::move(row));
+    }
     return rows;
 }
 

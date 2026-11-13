@@ -143,8 +143,13 @@ void DrawFamilyTile(ImDrawList* d, v2::Box box, const player_card::FamilyTile& t
     const char* cut = font->CalcTextSizeA(size, FLT_MAX, 0, text, stop).x > inner ? font->CalcWordWrapPositionA(size / font->FontSize, text, stop, inner) : stop;
     const std::string first(text, cut);
     while (cut < stop && *cut == ' ') ++cut;
-    v2::Text(d, ImVec2(box.min.x + 6 * s, y), inner, first, size, c.text, font, true);
-    if (cut < stop) v2::Text(d, ImVec2(box.min.x + 6 * s, y + size * 1.25f), inner, std::string(cut, stop), size, c.text, font, true);
+    // A line wider than the tile (one long word) is set smaller, to no less than 9, before it is cut.
+    const auto line = [&](const std::string& words, float top) {
+        const float wide = font->CalcTextSizeA(size, FLT_MAX, 0, words.c_str()).x, used = wide > inner && wide > 0 ? (std::max)(9 * s, size * inner / wide) : size;
+        v2::Text(d, ImVec2(box.min.x + 6 * s, top + (size - used) * .5f), inner, words, used, c.text, font, true);
+    };
+    line(first, y);
+    if (cut < stop) line(std::string(cut, stop), y + size * 1.25f);
     if (focused) v2::Focus(d, box.min, box.max);
 }
 
