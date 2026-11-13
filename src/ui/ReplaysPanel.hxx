@@ -1,4 +1,5 @@
 #pragma once
+#include "ArchiveTab.hxx"
 #include "ShellAction.hxx"
 #include "MenuNavigation.hxx"
 #include "ReplaysView.hxx"
@@ -31,7 +32,7 @@ enum class Tone;
 class ReplaysPanel {
 public:
     using Submit = std::function<bool(ShellAction)>;
-    static bool Owns(const std::string& screen) { return screen == "replays" || screen == "replay-filter" || screen == "replay-inputs" || screen == "replay-export" || screen == "replay-sets" || screen == "replay-set"; }
+    static bool Owns(const std::string& screen) { return screen == "replays" || screen == "replay-filter" || screen == "replay-inputs" || screen == "replay-export" || screen == "replay-sets" || screen == "replay-set" || ArchiveTab::Owns(screen); }
     // Home, then the Replays screen: a replay link's question, and the way
     // back once the game's battle log returns to the main menu.
     static void Show(MenuNavigation& navigation) { navigation.Home(); navigation.Push("replays"); }
@@ -53,6 +54,23 @@ public:
     // Sets (replay-sets) lists the sets the archive holds, and a set's own
     // screen (replay-set) its games (platform/ReplaySets.hxx).
     void Update(const ShellView& view, const netplay::PlayerPreferences& saved, MenuNavigation& navigation, const Submit& submit);
+    // The Archive tab's part of every frame: the service the public archive is read from (empty when
+    // none is set up) and the focused row, from which it asks for the listing's pages (ArchiveTab::Update).
+    void UpdateArchive(const ShellView& view, const std::string& screen, const std::string& bridge, const std::string& focus, const Submit& submit) {
+        archive_.Update(view, screen, bridge, focus, submit);
+    }
+    // The public archive's sets of one player: the archive's filter becomes that name and nothing else, and
+    // Replays opens on its Archive tab, which asks for the first page. For a player's profile and for a row's
+    // Find this player's sets; Back returns to the screen it was called from.
+    void OpenArchiveFor(const std::string& playerName, MenuNavigation& navigation) {
+        netplay::archive::Filter filter;
+        filter.text = playerName;
+        archive_.Browse(std::move(filter));
+        navigation.Push(ArchiveTab::Screen);
+    }
+    const ArchiveTab& Archive() const { return archive_; }
+    // The Archive tab's shortcuts (Filters, and Retry or Refresh).
+    void Shortcut(const MenuAction& action, const ShellView& view, const std::string& screen, MenuNavigation& navigation) { archive_.Shortcut(action, view, screen, navigation); }
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, const std::string& parent, bool idle, std::string& title) const;
     // True when the row was the panel's own. `error` is what the shell shows
     // when a request could not be queued.
@@ -68,7 +86,7 @@ public:
     // the game's), once nothing else has anything to say: only an empty
     // `status` takes it.
     bool Status(const ShellView& view, const std::string& screen, std::string& status, Tone& tone) const;
-    // The tabs over Replays (Matches, Sets when there are any, Export video
+    // The tabs over Replays (Matches, Sets when there are any, the public Archive, Export video
     // with a replay to export), and the Export video tab's caption, of the
     // focused row's replay, else the newest unless one is set up already.
     std::vector<std::pair<std::string, std::string>> Tabs(const ShellView& view) const;
@@ -116,6 +134,8 @@ private:
     // listing. The listing is held beside them, as the sets' games point into it.
     std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> setsFrom_;
     std::vector<platform::replays::ArchivedSet> sets_;
+    // The public replay archive's sets (ArchiveTab.hxx), browsed beside the ones on this PC.
+    ArchiveTab archive_;
     // Show in folder was the last thing asked here: the status line has its answer.
     bool folderAsked_ = false;
     // The replay link last seen, so its question opens the Replays screen once.

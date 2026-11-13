@@ -264,6 +264,16 @@ public:
     // The match and set cards and the focused one's pane, and Export video's
     // preview, on the tabbed screens (Inputs and a set's page are plain lists).
     GameMenu::Card Card(const ScreenFrame& f, double) const override {
+        // The archive's fighter page is the same grid, its one chosen fighter lit and marked.
+        if (f.screen == ArchiveTab::FighterScreen)
+            return [shell = &f.shell](const MenuEntry& e, ImVec2 min, ImVec2 max) {
+                const int fighter = ArchiveTab::FighterOf(e.id);
+                if (fighter < 0) return false;
+                const bool on = shell->replays_.Archive().Ticked(fighter);
+                DrawMainPortrait(fighter, on, min, max);
+                if (on) ImGui::GetWindowDrawList()->AddText(ImVec2(max.x - 18 * Scale(), min.y + 3 * Scale()), palette::Ember, "\xE2\x9C\x93");
+                return true;
+            };
         // The filter's fighters are fighter select's grid, a ticked one lit and marked.
         if (f.screen == "replay-filter")
             return [shell = &f.shell](const MenuEntry& e, ImVec2 min, ImVec2 max) {
@@ -284,7 +294,7 @@ public:
         return [shell, view, screen, rows](const std::string& id) { shell->replays_.DrawDetail(*view, *screen, id, shell->menu_.navigation, *rows); };
     }
     ScreenGrid Grid(const ScreenFrame& f) const override {
-        if (f.screen != "replay-filter") return {};
+        if (f.screen != "replay-filter" && f.screen != ArchiveTab::FighterScreen) return {};
         // Smaller cards than fighter select's, so Sort, Show and Side stay on screen under them.
         const RosterGrid roster = LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
         return {roster.columns + 3, roster.cardHeight * .66f};
@@ -294,16 +304,25 @@ public:
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
         if (!Tabbed(f.screen)) return;
         const std::string& focus = menu.navigation.Focus();
-        menu.customDetail = f.screen == "replay-export" || focus.compare(0, 7, "replay:") == 0 || focus.compare(0, 4, "set:") == 0;
+        menu.customDetail = f.screen == "replay-export" || focus.compare(0, 7, "replay:") == 0 || focus.compare(0, 4, "set:") == 0 || ArchiveTab::IsRow(focus);
         if (f.screen != "replay-export") menu.paneWidth = 380;
         menu.tabs = f.shell.replays_.Tabs(f.view);
         for (int i = 0; i < static_cast<int>(menu.tabs.size()); ++i)
             if (menu.tabs[i].first == f.screen) { menu.tab = i; menu.eyebrow = std::string(loc::T("replays.title")) + " \xC2\xB7 " + menu.tabs[i].second; }
         const bool watched = f.shell.preferences_.recordWatched;
         menu.headerChips.push_back({std::string(loc::T("replays.save_watched")) + " \xC2\xB7 " + loc::T(watched ? "common.on" : "common.off"), watched ? palette::Ready : v2::Colors().muted});
+        // The archive's filter is summarised in the header, and its shortcuts are the hint bar's.
+        if (f.screen == ArchiveTab::Screen) {
+            for (const auto& chip : f.shell.replays_.Archive().Chips(f.view)) menu.headerChips.push_back({chip, v2::Colors().muted});
+            menu.shortcutHints = f.shell.replays_.Archive().Hints(f.view, f.screen);
+        }
+    }
+    // The Archive tab's Filters and Retry or Refresh.
+    void Shortcut(const ScreenFrame& f, const MenuAction& a) const override {
+        f.shell.replays_.Shortcut(a, f.view, f.screen, f.shell.menu_.navigation);
     }
 private:
-    static bool Tabbed(const std::string& screen) { return screen == "replays" || screen == "replay-sets" || screen == "replay-export"; }
+    static bool Tabbed(const std::string& screen) { return screen == "replays" || screen == "replay-sets" || screen == "replay-export" || screen == ArchiveTab::Screen; }
 };
 
 const ScreenPanel* ApplicationShell::ScreenOf(const std::string& screen) {
