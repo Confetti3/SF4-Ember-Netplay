@@ -18,11 +18,13 @@
 //   one that can fall, as the friends themselves can.
 // - The player's own counters come from their points answer, and from the
 //   friends list for the friends count. Another player's come from their card,
-//   which carries the milestones the bridge offers (levels::CardMarks): a
-//   family they wear shows at the level their card earns, and not at all at 0.
+//   which carries their counters (levels::Card::awards): a family they wear
+//   shows at the level their card earns, and not at all at 0. What they wear
+//   is the card's too (levels::Card::worn), so one attested place says both.
 // - A counter a bridge does not send reads as 0, so its family stays locked: an
 //   older bridge with a newer game, and a newer bridge with an older game,
 //   both keep working.
+#include "AwardCounters.hxx"
 #include "Levels.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/SkillBadge.hxx"
@@ -51,11 +53,6 @@ enum class Counter : std::uint8_t {
 	Friends,
 	// The most games against one opponent, and how many different opponents.
 	Rival, Opponents,
-};
-
-struct Counters {
-	std::uint64_t games = 0, wins = 0;
-	std::uint32_t bestStreak = 0, topFighterTier = 0, fightersPlayed = 0, peakClass = 0, friends = 0, rival = 0, opponents = 0;
 };
 
 // One step of a family: reached while the counter is at `need`. `tier` is a
@@ -136,13 +133,6 @@ inline const Family* Find(const std::string& id) {
 	return nullptr;
 }
 
-// The ids that may appear in a saved preference or on a card: short, lower case
-// letters, digits and hyphens. The catalog says which of them are awards.
-inline bool IdShaped(const std::string& id) {
-	if (id.empty() || id.size() > 24) return false;
-	return std::all_of(id.begin(), id.end(), [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'; });
-}
-
 inline std::uint64_t Have(const Counters& counters, Counter counter) {
 	switch (counter) {
 	case Counter::Games: return counters.games;
@@ -207,41 +197,30 @@ inline int LevelsEarned(const Counters& counters) {
 	return earned;
 }
 
-// The player's own counters from their points answer (all 0 unless it is
-// counted) and their friends count.
+// A fighter with a counted game, at `tier`, in the cast and the frames.
+inline void NotePlayed(Counters& counters, unsigned tier) {
+	++counters.fightersPlayed;
+	counters.topFighterTier = (std::max<std::uint32_t>)(counters.topFighterTier, tier);
+}
+
+// The player's own counters: the answer's (all 0 unless it is counted), the
+// fighters with a game and their highest frame, and the friends count.
 inline Counters CountersOf(const levels::Own& own, std::uint32_t friends) {
 	Counters counters;
-	counters.friends = friends;
-	if (own.kind != levels::Own::Kind::Counted) return counters;
-	counters.games = own.account.games;
-	counters.wins = own.account.wins;
-	counters.bestStreak = own.bestStreak;
-	counters.peakClass = own.peakClass;
-	counters.rival = own.rival;
-	counters.opponents = own.opponents;
-	for (const auto& fighter : own.fighters) {
-		if (fighter.games == 0) continue;
-		++counters.fightersPlayed;
-		counters.topFighterTier = (std::max<std::uint32_t>)(counters.topFighterTier, fighter.tier);
+	if (own.kind == levels::Own::Kind::Counted) {
+		counters = own.awards;
+		for (const auto& fighter : own.fighters) if (fighter.games > 0) NotePlayed(counters, fighter.tier);
 	}
+	counters.friends = friends;
 	return counters;
 }
 
-// Another player's counters from their card: the milestones it carries for
-// games, wins, the best run, the class and rivals, the fighters it lists for
-// the cast and the frames. Their friends are not on a card, so that family
-// reads as locked there.
+// Another player's counters: the card's, and the fighters it lists for the cast
+// and the frames. Their friends are not on a card, so that family reads as
+// locked there.
 inline Counters CountersOf(const levels::Card& card) {
-	Counters counters;
-	counters.games = card.marks.games;
-	counters.wins = card.marks.wins;
-	counters.bestStreak = card.marks.streak;
-	counters.peakClass = card.marks.peakClass;
-	counters.rival = card.marks.rival;
-	counters.opponents = card.marks.opponents;
-	counters.fightersPlayed = static_cast<std::uint32_t>(card.fighters.size());
-	for (const auto& fighter : card.fighters)
-		counters.topFighterTier = (std::max<std::uint32_t>)(counters.topFighterTier, fighter.tier);
+	Counters counters = card.awards;
+	for (const auto& fighter : card.fighters) NotePlayed(counters, fighter.tier);
 	return counters;
 }
 
@@ -256,18 +235,18 @@ struct Worn {
 // The family a saved or received id names, at the level `counters` reach: none
 // for an id that is no award (one that was removed, or made up), or a family at
 // level 0. This is the check that keeps a claim nobody earned from showing, on
-// the player's own card and on anyone else's.
+// the player's own card and on anyone else's; the catalog is the only place an
+// id's meaning is decided (its shape is profiles::FamilyIdShaped's).
 inline Worn WornOf(const Counters& counters, const std::string& id) {
-	if (!IdShaped(id)) return {};
 	const Family* family = Find(id);
 	if (!family) return {};
 	const int level = LevelOf(counters, *family);
 	return level > 0 ? Worn{family, level} : Worn{};
 }
 
-// What another player's member profile claims to wear (Member::wornTitle,
-// Member::wornIcon), at the level their card earns: the one check the room
-// draws a worn title or icon by.
+// What another player's card says they wear (levels::Card::worn.title and
+// .icon), at the level their card's counters earn: the one check a card, in a
+// room or a search or a friend's page, draws a worn title or icon by.
 inline Worn WornOnCard(const levels::Card& card, const std::string& id) { return WornOf(CountersOf(card), id); }
 
 // One level a counters answer newly reached.

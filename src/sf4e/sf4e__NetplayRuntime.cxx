@@ -2,7 +2,6 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/ControllerMappings.hxx"
-#include "../netplay/Awards.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__GameThemes.hxx"
 #include "sf4e__MenuMusic.hxx"
@@ -221,9 +220,6 @@ void AttachRoom() {
 	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);
 	UserApp::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return steam::LocalSteamId(); }));
 	UserApp::netplay->client.SetProfileCountry(ShownCountry(runtime->preferences.country, runtime->automaticCountry));
-	// The awards worn, as claims the room's viewers check against this player's card; one the catalog lacks is not sent.
-	UserApp::netplay->client.SetProfileAwards(netplay::awards::Find(runtime->preferences.wornTitle) ? runtime->preferences.wornTitle : std::string(),
-		netplay::awards::Find(runtime->preferences.wornIcon) ? runtime->preferences.wornIcon : std::string());
 	UserApp::netplay->client.SetProfileObserver(runtime->join==JoinKind::Observer);
     runtime->selectedDelay=runtime->preferences.inputDelay;
     UserApp::netplay->client.SetSelectedDelay(ReadyDelay());

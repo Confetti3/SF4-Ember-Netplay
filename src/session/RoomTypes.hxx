@@ -217,10 +217,6 @@ struct MemberProfile {
 	SteamId steamId;
 	// The country the player shows, or none when it is Hidden or unknown.
 	CountryCode country;
-	// The award families (netplay/Awards.hxx ids) whose title and whose icon the
-	// player wears; empty for none. A claim only: a viewer shows one at the level
-	// the wearer's card earns, and none for an id that is no award.
-	std::string wornTitle, wornIcon;
 	// The joiner asks to watch a bound tournament match: a room that does not
 	// name its endpoint as a watcher refuses it. A courtesy of a cooperating
 	// game, never part of a snapshot.
@@ -275,9 +271,6 @@ struct Member {
     SteamId steamId;
     // The country this member showed when it joined, or none.
     CountryCode country;
-    // The award families this member wears as title and as icon (MemberProfile::wornTitle), each a
-    // catalog id or empty. A claim: the viewer checks it against the member's card.
-    std::string wornTitle, wornIcon;
     // The class a public room's ticket vouched for (MemberProfile::admission), or none.
     SkillBadge badge;
     // The card token in that ticket (FIGHTER_LEVELS.md), which members ask the

@@ -255,7 +255,7 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
         const int level = aw::LevelOf(counters, *family);
         const aw::Step next = aw::Next(counters, *family);
         v2::CardGround(d, tile, focused, hovered);
-        if (on && !focused) d->AddRect(tile.min, tile.max, v2::color::Alpha(c.accent, .5f), 4 * s, 0, s);
+        if (on && !focused) d->AddRect(tile.min, tile.max, v2::color::Alpha(c.accent, .5f), 4 * s, 0, Hairline());
         // The name on two lines when it needs them; the icon, name, pips and progress centred as a stack.
         auto* font = HeadingFont();
         const float size = 14 * s, inner = tile.W() - 16 * s;
@@ -286,7 +286,7 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
             const bool reached = static_cast<int>(i) < level;
             const ImVec2 p0(px, py), p1(px + pip, py + pip);
             if (reached) d->AddRectFilled(p0, p1, v2::TierColor(v2::FrameTier(family->levels[i].tier)).stripe);
-            else { d->AddRectFilled(p0, p1, c.frame); d->AddRect(p0, p1, c.border, 0, 0, s); }
+            else { d->AddRectFilled(p0, p1, c.frame); d->AddRect(p0, p1, c.border, 0, 0, Hairline()); }
         }
         py += pip + 6 * s;
         if (meter) {

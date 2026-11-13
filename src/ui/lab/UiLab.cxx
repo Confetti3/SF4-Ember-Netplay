@@ -283,7 +283,7 @@ void RoomPoints(ui::ShellView& view, bool listed) {
             account += one.second;
         }
         card.account = {account, 0};
-        card.marks = {m.id % 2 ? 100u : 10u, 50, 5, static_cast<std::uint8_t>(3 + m.id % 6)};
+        card.awards.games = m.id % 2 ? 100u : 10u; card.awards.wins = 50; card.awards.bestStreak = 5; card.awards.peakClass = 3 + m.id % 6;
         using netplay::levels::Relation;
         static const Relation relations[] = {Relation::None, Relation::Friend, Relation::Sent, Relation::Received, Relation::Blocked};
         card.relation = relations[m.id % 5];
@@ -442,10 +442,10 @@ void Profile(ui::ShellView& view, const std::string& state) {
     }
     own.account.since = 1700000000;
     // The best run of wins and the highest class ever shown, which the awards read.
-    own.bestStreak = state == "sixty" ? 22 : 7;
-    own.peakClass = 6;
-    own.rival = 40;
-    own.opponents = 60;
+    own.awards = {own.account.games, own.account.wins, state == "sixty" ? 22u : 7u};
+    own.awards.peakClass = 6;
+    own.awards.rival = 40;
+    own.awards.opponents = 60;
     accountFrame();
 }
 // --levels: points as the game draws them (FIGHTER_LEVELS.md, Drawing points), wrapping across the window: the

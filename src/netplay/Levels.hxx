@@ -9,6 +9,7 @@
 #include "../common/Country.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/SkillBadge.hxx"
+#include "AwardCounters.hxx"
 #include "Profiles.hxx"
 
 namespace sf4e { namespace netplay { namespace levels {
@@ -56,15 +57,12 @@ struct Own {
 	// Counted: the account's points, on its own tier thresholds. Points 0 while
 	// no game is counted.
 	Level account;
-	// What the milestone awards need beyond the counts (Awards.hxx): the most
-	// counted games the account won in a row, and the highest class it ever
-	// showed, 1 to SkillBadge::Classes. Both 0 from a bridge that does not
-	// send them, and while there is none.
-	std::uint32_t bestStreak = 0;
-	std::uint8_t peakClass = 0;
-	// The most counted games against one opponent, and how many opponents the
-	// account has played; 0 from a bridge that does not send them.
-	std::uint32_t rival = 0, opponents = 0;
+	// The counters the milestone awards are reached from (Awards.hxx), exact:
+	// the account's games and wins again, the best run of wins, the highest
+	// class ever shown, the most games against one opponent and the opponents
+	// played. Each is 0 from a bridge that does not send it, and while there is
+	// none.
+	awards::Counters awards;
 	// The opponent played most, when the bridge names one (hasMostPlayed): absent
 	// before any counted game, from a bridge that does not send it, and when none
 	// can be shown.
@@ -86,20 +84,6 @@ struct CardFighter {
 	std::uint8_t tier = 0;
 };
 
-// What a card says of the counters behind another player's awards. From a
-// bridge that offers `profiles` the games, wins and best streak are the exact
-// counts; from an older one each is the largest mark it offers that the player
-// has reached. awards::CountersOf reads them as they are. The class, the most
-// games against one rival and the opponents faced are as the bridge sends
-// them. 0 where the bridge sends none (an older bridge, or a player who does
-// not take part in ranking, for the class).
-struct CardMarks {
-	std::uint64_t games = 0, wins = 0;
-	std::uint32_t streak = 0;
-	std::uint8_t peakClass = 0;
-	std::uint32_t rival = 0, opponents = 0;
-};
-
 enum class Relation : std::uint8_t { None, Friend, Sent, Received, Blocked };
 
 // Another player's card from a look-up. A card is public: its points are
@@ -111,7 +95,11 @@ struct Card {
 	CardAccount account;
 	// The fighters played, ascending; empty when none is.
 	std::vector<CardFighter> fighters;
-	CardMarks marks;
+	// The counters behind their awards: games, wins, best run and class exactly (a
+	// card's record shows them; the class is 0 for a player not in ranking), the
+	// most games against a rival and the opponents faced as the milestone they
+	// reached. 0 from a bridge that does not send them.
+	awards::Counters awards;
 	Relation relation = Relation::None;
 	// The name, flag and class they show, for a page opened by something that
 	// did not know them (a search, a request, a name).

@@ -8,6 +8,8 @@
 //! use this one.
 pub mod api;
 pub mod archive;
+pub mod awards;
+pub mod cards;
 pub mod challenge;
 #[cfg(feature = "client")]
 pub mod client;

@@ -519,6 +519,22 @@ std::uint64_t OptionalCount(const json& object, const char* key, std::uint64_t m
 	return Small(object, key, maximum);
 }
 
+// The counters behind the awards, as the wire says them (ember_protocol::awards::AwardCounts) in an own
+// answer's account and in a card's `awards`: each absent from a bridge that does not send it, so 0, and
+// checked as strictly as the counts beside it when it is there. A run of wins longer than the games
+// played is no answer.
+netplay::awards::Counters DecodeAwardCounts(const json& object) {
+	netplay::awards::Counters counts;
+	counts.games = OptionalCount(object, "games", UINT64_MAX);
+	counts.wins = OptionalCount(object, "wins", UINT64_MAX);
+	counts.bestStreak = static_cast<std::uint32_t>(OptionalCount(object, "best_streak", UINT32_MAX));
+	counts.peakClass = static_cast<std::uint32_t>(OptionalCount(object, "peak_class", SkillBadge::Classes));
+	counts.rival = static_cast<std::uint32_t>(OptionalCount(object, "rival", UINT32_MAX));
+	counts.opponents = static_cast<std::uint32_t>(OptionalCount(object, "opponents", UINT32_MAX));
+	if (counts.bestStreak > counts.games) throw std::invalid_argument("best_streak");
+	return counts;
+}
+
 netplay::levels::Relation DecodeRelation(const json& card) {
 	using netplay::levels::Relation;
 	const auto relation = Text(card, "relation", 16);
@@ -628,17 +644,8 @@ netplay::levels::Card DecodeCard(const json& value) {
 	const auto& account = Object(object.at("account"));
 	card.account.points = Unsigned(account, "points");
 	card.account.tier = ReadTier(account);
-	// The milestones behind the awards a player wears: marks, never counts, all
-	// absent from an older bridge.
-	if (const auto marks = object.find("marks"); marks != object.end()) {
-		Object(*marks);
-		card.marks.games = OptionalCount(*marks, "games", UINT64_MAX);
-		card.marks.wins = OptionalCount(*marks, "wins", UINT64_MAX);
-		card.marks.streak = static_cast<std::uint32_t>(OptionalCount(*marks, "streak", UINT32_MAX));
-		card.marks.peakClass = static_cast<std::uint8_t>(OptionalCount(*marks, "class", SkillBadge::Classes));
-		card.marks.rival = static_cast<std::uint32_t>(OptionalCount(*marks, "rival", UINT32_MAX));
-		card.marks.opponents = static_cast<std::uint32_t>(OptionalCount(*marks, "opponents", UINT32_MAX));
-	}
+	// The counters behind their awards, all absent from an older bridge.
+	if (const auto awards = object.find("awards"); awards != object.end()) card.awards = DecodeAwardCounts(Object(*awards));
 	// A card with no `fighters` is of a player who has played none.
 	if (const auto fighters = object.find("fighters"); fighters != object.end()) {
 		if (!fighters->is_array() || fighters->size() > static_cast<std::size_t>(selection::FighterCount)) throw std::invalid_argument("fighters");
@@ -669,14 +676,8 @@ std::optional<netplay::levels::Own> DecodeOwnLevels(const json& data) {
 		if (tag != "counted") return std::nullopt;
 		own.kind = netplay::levels::Own::Kind::Counted;
 		own.account = DecodeLevel(data.at("account"), false);
-		const auto& account = data.at("account");
-		own.bestStreak = static_cast<std::uint32_t>(OptionalCount(account, "best_streak", UINT32_MAX));
-		own.peakClass = static_cast<std::uint8_t>(OptionalCount(account, "peak_class", SkillBadge::Classes));
-		own.rival = static_cast<std::uint32_t>(OptionalCount(account, "rival", UINT32_MAX));
-		own.opponents = static_cast<std::uint32_t>(OptionalCount(account, "opponents", UINT32_MAX));
+		own.awards = DecodeAwardCounts(data.at("account"));
 		own.hasMostPlayed = DecodeMostPlayed(data, own.mostPlayed);
-		// A run of wins cannot be longer than the games played.
-		if (own.bestStreak > own.account.games) return std::nullopt;
 		const auto& rows = data.at("fighters");
 		if (!rows.is_array() || rows.size() > static_cast<std::size_t>(selection::FighterCount)) return std::nullopt;
 		int previous = -1;
