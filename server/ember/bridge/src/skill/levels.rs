@@ -301,7 +301,51 @@ pub fn own(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<OwnLevels> {
             .iter()
             .map(|(fighter, count)| count.own_fighter(*fighter))
             .collect(),
+        // The route that knows the keys and the classes fills it in.
+        rival: None,
     })
+}
+
+/// How many of `account`'s pairs the most played opponent is picked from.
+pub const RIVAL_CANDIDATES: usize = 5;
+
+/// One pair `account` is in, from its own side.
+pub struct Pair {
+    /// The other Discord account.
+    pub other: String,
+    /// The games `account` won against it.
+    pub won: u64,
+    /// The games it won against `account`.
+    pub lost: u64,
+}
+
+/// Up to `limit` of `account`'s pairs that played a counted game, the most
+/// games first and, among as many, the latest played first. A pair row keeps
+/// `account` as its first or its second, so the two are read through their own
+/// keys (the primary key, and `pair_records_second` from migration 063) and
+/// turned to `account`'s side.
+pub fn pairs_by_games(tx: &Transaction<'_>, account: &str, limit: usize) -> Result<Vec<Pair>> {
+    let mut statement = tx.prepare(
+        "SELECT other, won, lost FROM (
+             SELECT second AS other, first_wins AS won, second_wins AS lost, played_at
+             FROM pair_records WHERE first = ?1
+             UNION ALL
+             SELECT first, second_wins, first_wins, played_at
+             FROM pair_records WHERE second = ?1)
+         WHERE won + lost > 0 AND other <> ?1
+         ORDER BY won + lost DESC, played_at DESC, other
+         LIMIT ?2",
+    )?;
+    let rows = statement
+        .query_map(params![account, limit as i64], |row| {
+            Ok(Pair {
+                other: row.get(0)?,
+                won: row.get(1)?,
+                lost: row.get(2)?,
+            })
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(rows)
 }
 
 /// The card of Discord account `account` as another player sees it: its

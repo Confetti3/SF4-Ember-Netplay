@@ -354,6 +354,53 @@ mod tests {
         assert!(read::<CardAnswers>(high).unwrap().check().is_err());
     }
 
+    // The most played opponent rides through to the game typed, as the bridge
+    // sent it, and an answer without one is no worse for it.
+    #[test]
+    fn the_most_played_opponent_passes_through_and_is_optional() {
+        let with = br#"{"points":"counted",
+            "account":{"points":13,"games":9,"wins":4,"tier":0,"floor":0,"next":500,"since":1,"rival":74},
+            "fighters":[],
+            "rival":{"card":"c1.AbCdEf_-0123","name":"Player 7","country":"US","badge":{"band":8,"settled":true},"won":41,"lost":33,"extra":1}}"#;
+        let levels = read::<OwnLevels>(with).unwrap();
+        assert!(levels.check().is_ok());
+        let value = to_json(&levels).unwrap().unwrap();
+        // The count of games against that player is the account's own member.
+        assert_eq!(value["account"]["rival"], 74);
+        assert_eq!(
+            value["rival"],
+            json!({"card": "c1.AbCdEf_-0123", "name": "Player 7", "country": "US",
+                   "badge": {"band": 8, "settled": true}, "won": 41, "lost": 33})
+        );
+        // One without a flag or a class carries neither.
+        let bare = br#"{"points":"counted",
+            "account":{"points":2,"games":1,"wins":0,"tier":0,"floor":0,"next":500,"since":1},
+            "fighters":[],
+            "rival":{"card":"c1.AbCdEf_-0123","name":"Player 7","won":0,"lost":1}}"#;
+        let value = to_json(&read::<OwnLevels>(bare).unwrap()).unwrap().unwrap();
+        assert_eq!(
+            value["rival"],
+            json!({"card": "c1.AbCdEf_-0123", "name": "Player 7", "won": 0, "lost": 1})
+        );
+        // A bridge before it sends none, and none is written.
+        let without = br#"{"points":"counted",
+            "account":{"points":13,"games":9,"wins":4,"tier":0,"floor":0,"next":500,"since":1},
+            "fighters":[]}"#;
+        let value = to_json(&read::<OwnLevels>(without).unwrap()).unwrap().unwrap();
+        assert!(value.get("rival").is_none());
+        // An opponent that is not a card token, or with no games, fails the answer.
+        for wrong in [
+            br#"{"card":"x","name":"Player 7","won":1,"lost":1}"#.as_slice(),
+            br#"{"card":"c1.AbCdEf_-0123","name":"Player 7","won":0,"lost":0}"#.as_slice(),
+        ] {
+            let body = format!(
+                r#"{{"points":"counted","account":{{"points":13,"games":9,"wins":4,"tier":0,"floor":0,"next":500,"since":1}},"fighters":[],"rival":{}}}"#,
+                std::str::from_utf8(wrong).unwrap()
+            );
+            assert!(read::<OwnLevels>(body.as_bytes()).unwrap().check().is_err(), "{body}");
+        }
+    }
+
     fn profile_reply(status: u16, body: &[u8]) -> Result<Value, Failure> {
         client::answer(status, body, &[200], &PROFILE_REFUSALS)
     }
