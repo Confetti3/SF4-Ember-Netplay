@@ -99,6 +99,8 @@ std::atomic<bool> meterContinuous{false};
 std::atomic<bool> hitBoxesShown{false};
 // Whether the Data panel is shown (ShowData): its readings are taken only then.
 std::atomic<bool> dataShown{false};
+// Hakan's oil kept at its most (the Data page's Oil always full).
+std::atomic<bool> oilFull{false};
 // Training and the match meter both feed the one meter, so each applies the player's choice before it observes.
 void ApplyMeterSettings() {
     meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
@@ -348,6 +350,8 @@ bool ReadOverride(int side, Input& result) {
 // apply now; only then is the game touched.
 std::array<FighterSample, 2> ReadFighters(Native* system, bool files);
 int BattleFighter(Native* system, int side);
+void KeepDummyCharged(Native* system);
+void FillOil(Native* system);
 void EndCheck();
 void EndRecording();
 static bool Dispatch(Native* system, const Command& command) {
@@ -521,9 +525,42 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         if (!menu && !sf4e::input::SideAssigned(1)) physical[1] = Input{};
         output = session.Prepare(physical);
         commitInput = true;
+        if (session.Holding()) KeepDummyCharged(system);
+        if (oilFull) FillOil(system);
     }
     overriding = plan.override;
     FollowDummy(system, plan.suppliesDummy);
+}
+// Chara::Actor +0x6ed0, Hakan's oil: frames left in 16.16, added to by the Oil Shower scripts (ETC 25: frames, then
+// the cap, MaxOil) and counted down each frame; found in the game's code. Null for any other fighter.
+int* OilOf(Native* system, int side) {
+    using Unit = Dimps::Game::Battle::Chara::Unit;
+    const auto* who = selection::FindFighter(BattleFighter(system, side));
+    Unit* unit = who && std::strcmp(who->code, "HKN") == 0 ? (system->*Native::publicMethods.GetCharaUnit)() : nullptr;
+    auto* actor = unit ? (unit->*Unit::publicMethods.GetActorByIndex)(side) : nullptr;
+    return actor ? reinterpret_cast<int*>(reinterpret_cast<char*>(actor) + 0x6ed0) : nullptr;
+}
+// Hakan's oil at its most before the game counts this frame, whichever side he is on.
+void FillOil(Native* system) {
+    for (int side = 0; side < 2; ++side)
+        if (int* oil = OilOf(system, side)) *oil = MaxOil << 16;
+}
+// A side's charges as the game counts them; null, count 0, when it has none.
+Dimps::Game::Battle::Command::CommandImpl::ChargeState* ChargeStates(Native* system, int side, int& count) {
+    namespace Command = Dimps::Game::Battle::Command;
+    auto* commands = (Command::Unit*)(system->*Native::publicMethods.GetUnitByIndex)(Native::U_COMMAND);
+    auto* impl = commands ? (commands->*Command::Unit::publicMethods.GetCommandImplForEntry)(side) : nullptr;
+    count = 0;
+    return impl ? Command::CommandImpl::GetChargeStates(impl, count) : nullptr;
+}
+// A charge as good as held: each of the dummy's charges reads full before
+// the game counts this frame, so a reply's charge move comes out the frame the
+// dummy is free, however short its stun (Session::Holding).
+void KeepDummyCharged(Native* system) {
+    int count = 0;
+    auto* states = ChargeStates(system, 1, count);
+    for (int i = 0; states && i < count; ++i)
+        if (states[i].record) { states[i].held = (std::max)(states[i].held, static_cast<int>(states[i].record[3])); states[i].released = 0; }
 }
 // The fighter a player brought into this battle; -1 when the request holds
 // no fighter the catalog knows.
@@ -668,7 +705,6 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
     DataView data;
     Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
     if (!unit) return data;
-    auto* commands = (Command::Unit*)(system->*Native::publicMethods.GetUnitByIndex)(Native::U_COMMAND);
     data.frame = Native::GetNumFramesSimulated_FixedPoint(system)->integral;
     const auto amount = [](Actor* actor, void (Actor::*method)(Dimps::Math::FixedPoint*)) {
         Dimps::Math::FixedPoint value{};
@@ -683,6 +719,7 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
         fighter.valid = true;
         fighter.status = sample.status; fighter.script = sample.action; fighter.scriptFrame = sample.actionFrame;
         fighter.scripts = FighterScripts(system, side); fighter.chargeNames = ChargeNames(system, side);
+        if (const int* oil = OilOf(system, static_cast<int>(side))) fighter.oil = (*oil + 0xffff) >> 16;
         const float* root = (actor->*Actor::publicMethods.GetCurrentRootPosition)();
         fighter.x = root[0]; fighter.y = root[1];
         fighter.stance = fighter.status == ActorStatus::Down || fighter.status == ActorStatus::Rise ? Stance::Down :
@@ -706,9 +743,8 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
                 const unsigned short rule = Command::GetMoveRange(move, fighter.range);
                 fighter.rangeRule = rule <= static_cast<unsigned short>(RangeRule::HeightWithin) ? static_cast<RangeRule>(rule) : RangeRule::None;
             }
-        auto* impl = commands ? (commands->*Command::Unit::publicMethods.GetCommandImplForEntry)(side) : nullptr;
         int count = 0;
-        const auto* states = impl ? Command::CommandImpl::GetChargeStates(impl, count) : nullptr;
+        const auto* states = ChargeStates(system, static_cast<int>(side), count);
         // Juri's three charges only count a held button; her fireball stock is three bits of the fighter.
         if (HasFuhajinStock(fighter.chargeNames.get())) fighter.stock = *reinterpret_cast<const unsigned*>(reinterpret_cast<const char*>(actor) + FuhajinStockOffset) & 7u;
         else
@@ -791,14 +827,17 @@ void AfterUpdate(Native* system) {
                 return now.valid && ((ClassifyStatus(now.status) == Phase::Hit && ClassifyStatus(was.status) != Phase::Hit) ||
                     now.comboDamage > was.comboDamage);
             };
-            const bool hit = hitOn(other, before);
+            // A cancel out of a dash (oiled Hakan's into a normal) waits for the dash's cancel window.
+            const auto& scripts = FighterScripts(system, static_cast<unsigned>(side))->scripts;
+            const bool cancelOpen = own.valid && own.action >= 0 && own.action < static_cast<int>(scripts.size()) &&
+                bac::CancelOpen(scripts[own.action], own.actionFrame);
             // How soon the script says the fighter is free again, so a link's
             // press can land on that frame: its interruptible frame, else its end.
             const int boundary = MoveRecoveryEnd(own);
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
             // A reply's leading hold gives way as its first move is due.
-            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until,
-                session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen));
+            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hitOn(other, before), until,
+                session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen), cancelOpen);
             // Combo check: a hit on the dummy, and Player 1's combo as it is done.
             const auto& dummy = fighters[1];
             const auto free = [](const FighterSample& fighter) { return fighter.valid && ClassifyStatus(fighter.status) == Phase::Neutral; };
@@ -889,6 +928,7 @@ void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
 void ShowHitBoxes(bool shown) { hitBoxesShown = shown; }
 void ShowData(bool shown) { dataShown = shown; }
+void KeepOilFull(bool on) { oilFull = on; }
 bool Fast() { return comboRunner.Fast() && session.GetView().available && session.GetView().ready; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
     if (!watching) {

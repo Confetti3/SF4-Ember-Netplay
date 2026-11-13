@@ -17,6 +17,7 @@ struct ScriptRow {
     std::vector<bac::Speed> speeds;        // list 4, written in place of the skipped list
     int interruptible = 0;                 // the header's
     Ids reflects;                          // hitboxes of type 4, which meet only fireballs
+    std::vector<std::array<int, 3>> cancels; // list 6 {condition, from, to}, in place of the skipped list
 };
 static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int, ScriptRow>& effects) {
     const std::size_t counts[] = {scripts.empty() ? 0 : static_cast<std::size_t>(scripts.rbegin()->first) + 1,
@@ -64,6 +65,13 @@ static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int
                 for (const auto& speed : row.speeds) { Put16(data, speed.from); Put16(data, speed.from + 1); }
                 Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
                 for (const auto& speed : row.speeds) { std::uint32_t bits; std::memcpy(&bits, &speed.speed, 4); Put32(data, bits); }
+            } else if (!row.cancels.empty()) {
+                const std::size_t record = lists.size();
+                Put16(lists, 6); Put16(lists, static_cast<std::uint32_t>(row.cancels.size()));
+                Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
+                for (const auto& cancel : row.cancels) { Put16(data, cancel[1]); Put16(data, cancel[2]); }
+                Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
+                for (const auto& cancel : row.cancels) { Put32(data, cancel[0]); Put32(data, 16); }
             } else list(9, 3); // A list the reader skips.
             const std::size_t at = out.size();
             out.resize(at + 0x18);
@@ -96,6 +104,15 @@ int main() {
         const Bytes reflecting = Scripts({{0, reflect}}, {});
         bac::File read;
         CHECK(ReadExact(reflecting, reflecting.size(), read, error) && read.scripts[0].hits.empty() && !read.scripts[0].canHit);
+    }
+    {
+        // Cancels: only condition 1, the window the cancel starts in, is kept.
+        ScriptRow dash = Script({});
+        dash.cancels = {{0, 0, 20}, {1, 1, 14}};
+        const Bytes dashing = Scripts({{0, dash}}, {});
+        bac::File read;
+        CHECK(ReadExact(dashing, dashing.size(), read, error) && read.scripts[0].cancels.size() == 1 &&
+            read.scripts[0].cancels[0][0] == 1 && read.scripts[0].cancels[0][1] == 14);
     }
     // Of its two jumps only kind 0 is kept, with its first frame.
     CHECK(model.scripts[6].flows.size() == 1 && model.scripts[6].flows[0].at == 0 && model.scripts[6].flows[0].script == 3);
@@ -309,6 +326,12 @@ int main() {
     CHECK(ReadExact(bad, bad.size(), untimed, error));
     first = last = -1;
     CHECK(!bac::ProjectileBoundary(untimed, 0, first, last, &delay));
+    {
+        // A dash's cancel window, frames 1 to 14.
+        bac::Script dash;
+        dash.cancels = {{1, 14}};
+        CHECK(!bac::CancelOpen(dash, 0.5f) && bac::CancelOpen(dash, 1.f) && bac::CancelOpen(dash, 13.9f) && !bac::CancelOpen(dash, 14.f));
+    }
     {
         // Ken's close MK (Omega): boxes 8 to 10 and 14 to 17, read after each update.
         bac::Script mk;

@@ -267,7 +267,10 @@ void ChargeRows(Rows& rows, const FighterData& fighter) {
         rows.y += height + 3 * rows.s;
         return;
     }
-    if (!fighter.chargeCount) rows.Pair(loc::T("training.data.no_charge"), std::string());
+    // Hakan: his oil, the frames left of it out of the most the showers can give.
+    if (fighter.oil >= 0) rows.Bar(loc::T("training.data.oil"), static_cast<float>(fighter.oil) / training::MaxOil, 1,
+        fighter.oil ? Full : Track, std::to_string(fighter.oil) + " f");
+    else if (!fighter.chargeCount) rows.Pair(loc::T("training.data.no_charge"), std::string());
     // Each counter by its name in the command file after an arrow for the
     // directions it holds (back, down or down-back, as on a P1 stick), its
     // levels in one bar, green once reached.

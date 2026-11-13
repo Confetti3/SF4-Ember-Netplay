@@ -87,6 +87,7 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     for (const auto& part : ClassicParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
     for (const auto& part : HitboxParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
     for (const auto& part : DataParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
+    options.oilFull = meter.value("oil_full", nlohmann::json(false)) == true;
     const auto size = meter.value("hud_size", nlohmann::json());
     for (int choice = 0; choice < HudSizes; ++choice) if (size.is_number_integer() && size == choice) options.size = choice;
     return options;
@@ -100,6 +101,7 @@ inline nlohmann::json MeterOptionsJson(const MeterOptions& options) {
     for (const auto& part : ClassicParts) meter[part.key] = options.*part.shown;
     for (const auto& part : HitboxParts) meter[part.key] = options.*part.shown;
     for (const auto& part : DataParts) meter[part.key] = options.*part.shown;
+    meter["oil_full"] = options.oilFull;
     return meter;
 }
 // Old replies accepted these shared names without a fighter database.

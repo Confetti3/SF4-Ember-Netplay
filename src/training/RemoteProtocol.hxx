@@ -112,7 +112,7 @@ inline nlohmann::json DataJson(const View& view) {
         sides.push_back({{"valid", f.valid}, {"life", {f.life, f.lifeMax, f.recoverable}}, {"stun", {f.stun, f.stunMax}}, {"super", {f.super, f.superMax}},
             {"revenge", {f.revenge, f.revengeMax}}, {"x", f.x}, {"y", f.y}, {"stance", static_cast<int>(f.stance)}, {"status", f.status}, {"juggled", f.juggled},
             {"juggle", {f.juggle.start, f.juggle.add, f.juggle.limit}}, {"script", script}, {"range", {static_cast<int>(f.rangeRule), f.range}},
-            {"advantage", advantage.valid ? nlohmann::json(advantage.frames[side]) : nlohmann::json()}, {"charges", charges}, {"stock", f.stock}});
+            {"advantage", advantage.valid ? nlohmann::json(advantage.frames[side]) : nlohmann::json()}, {"charges", charges}, {"stock", f.stock}, {"oil", {f.oil, MaxOil}}});
         ++side;
     }
     return {{"distance", data.distance}, {"frame", data.frame}, {"sides", sides}};

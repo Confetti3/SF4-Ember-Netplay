@@ -469,6 +469,7 @@ function dataCard(d,f,s,on){
  if(on("data_juggle")){const c=v=>v<0?"-":v;h+=sec("Juggle")+'<div class="jg"><div><small>Juggled</small>'+(f.juggled<0?"none":f.juggled)+"</div><div><small>Start</small>"+c(f.juggle[0])+"</div><div><small>Add</small>"+c(f.juggle[1])+"</div><div><small>Limit</small>"+c(f.juggle[2])+"</div></div>"}
  if(on("data_charge")){h+=sec("Charge");
   if(f.stock>=0)h+='<div class="jg" style="grid-template-columns:repeat(3,1fr)">'+["L","M","H"].map((k,i)=>'<div'+(f.stock>>i&1?' class="on"':"")+">"+k+"</div>").join("")+"</div>";
+  else if(f.oil[0]>=0)h+=bar("Oil",f.oil[0],f.oil[1],"#3cc46e",f.oil[0]+" f");
   else if(!f.charges.length)h+=kv("No charge moves","");
   for(const c of f.charges){const top=c.r[c.r.length-1]||0,full=top>0&&c.h>=top,next=c.r.find(r=>c.h<r)||top,arrow=c.b&&c.d?"↙":c.b?"←":c.d?"↓":"",label=c.n||(c.b&&c.d?"Down + Back":c.b?"Back":"Down");
    let from=0,seg="";
