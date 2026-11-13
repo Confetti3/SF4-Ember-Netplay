@@ -14,6 +14,7 @@
 #include "ShellAction.hxx"
 #include "WatchQueue.hxx"
 #include "MenuNavigation.hxx"
+#include "PlayerOpening.hxx"
 #include "../netplay/Archive.hxx"
 #include "../netplay/Profiles.hxx"
 #include <algorithm>
@@ -65,9 +66,10 @@ public:
     bool IsList(const std::string& screen) const { return std::find(place_.lists.begin(), place_.lists.end(), screen) != place_.lists.end(); }
     // A profile's tab: the sets of `name`, from the first page, when it is not the name already browsed.
     void BrowseName(const std::string& name) { if (filter_.name != name) Browse(netplay::archive::Filter::Named(name)); }
-    // The player a set row's "Player card" choice names, as the set's games knew them: their name, flag, class and
-    // fighter. None for any other action.
-    std::optional<netplay::profiles::Known> PlayerOf(const MenuAction& action) const;
+    // The player a set row's "Player card" choice names (Replays' Archive tab offers one for each side, a profile's Sets
+    // tab for the opponents), as the set's games knew them: by their name and flag, with their class and fighter. None
+    // for any other action.
+    std::optional<player_opening::Opening> PlayerOf(const MenuAction& action) const;
 
     // Every frame, before the rows: the service the archive is read from (empty when
     // none is set up), the focused row, and the page to ask for, if any.

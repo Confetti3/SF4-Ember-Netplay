@@ -1,8 +1,8 @@
 #pragma once
 // The Friends tab of Profile and the pages over it (docs/design/PROFILE.md,
 // "Friends tab"): the friends the bridge lists in four groups, a request's
-// Accept, Join, Watch and Invite, More, Add a friend by code, the Sent and
-// Blocked pages, Appear offline, and the question a Join asks when the player
+// Accept, Join, Watch and Invite, Player card, More, Find a player (a name or a friend code, the players met lately), the
+// Sent and Blocked pages, Appear offline, and the question a Join asks when the player
 // is in a room or a game. The data is ShellView::friends (netplay/FriendsView.hxx)
 // and every ask is one of the commands::Friend* of netplay/FriendCommands.hxx.
 //
@@ -12,6 +12,7 @@
 #include "GameMenu.hxx"
 #include "MenuNavigation.hxx"
 #include "PlayerCard.hxx"
+#include "PlayerOpening.hxx"
 #include "ShellAction.hxx"
 #include "Notifications.hxx"
 #include "../netplay/FriendsView.hxx"
@@ -65,8 +66,8 @@ OtherCardView CardOf(const nf::Friend& entry, FighterArt art);
 // A friend's public room can be joined now.
 bool Joinable(const nf::Friend& entry);
 // What A does on a friend's row: Join their room, Invite them to this player's
-// room, or open More. Offline friends have only More.
-enum class Press { More, Join, Invite };
+// room, or open their Player card. Offline friends, and friends with nothing to offer, have only the card.
+enum class Press { Card, Join, Invite };
 Press PressOf(const nf::Friend& entry, bool canInvite);
 
 // Row ids: a request, a friend (named by the id their state row carries), a
@@ -75,6 +76,8 @@ constexpr const char* RequestPrefix = "request:";
 constexpr const char* FriendPrefix = "friend:";
 constexpr const char* SentPrefix = "sent:";
 constexpr const char* BlockedPrefix = "blocked:";
+// The pointer on the focused row's Panel card opens that player: the row's id after this prefix.
+constexpr const char* CardPrefix = "friend-card:";
 constexpr const char* AddRow = "friends-add";
 constexpr const char* SentRow = "friends-sent";
 constexpr const char* BlockedRow = "friends-blocked";
@@ -104,10 +107,10 @@ std::size_t CodeSymbols(const std::string& typed);
 std::string CodeShown(const std::string& typed);
 constexpr std::size_t CodeLength = 8;
 
-// The choices More offers on a friend or a request, each listed with the
+// The choices More offers on a friend or a request, Player card first and then each listed with the
 // reason in its detail when it cannot be done now, and the one question that
 // asks again before the choice `ask` ("remove", "remove-block", "decline",
-// "decline-block") goes ahead.
+// "decline-block") goes ahead. "card" opens their profile and needs nothing of the list.
 std::vector<MenuChoice> FriendChoices(const nf::State& state, const nf::Friend& entry, bool canInvite, Gate gate);
 std::vector<MenuChoice> RequestChoices(Gate gate);
 // More on an invite in Notifications: Join (takes the invite, then drops it, as its toast's Join does) and Dismiss.
@@ -167,8 +170,10 @@ public:
     static bool Lists(const std::string& screen) { return Shown(screen) || screen == NotificationsScreen; }
     // The screens where the friends are kept fresh: those that list them, and another player's profile (PlayerPage, whose
     // screens all begin "player-"), which reads their presence and the relation from the same list.
-    static bool Syncs(const std::string& screen) { return Lists(screen) || screen.compare(0, 7, "player-") == 0; }
-    // The shortcuts the tab takes before a room's own: X (Add a friend), Y (More) and Delete (Remove friend).
+    static bool Syncs(const std::string& screen) { return Lists(screen) || OnPlayerPage(screen); }
+    // Another player's profile page, whose screens all begin "player-".
+    static bool OnPlayerPage(const std::string& screen) { return screen.compare(0, 7, "player-") == 0; }
+    // The shortcuts the tab takes before a room's own: X (Find a player), Y (More) and Delete (Remove friend).
     static bool Takes(unsigned shortcut) { return shortcut == MenuInput::Fighter || shortcut == MenuInput::Options || shortcut == MenuInput::Leave; }
     // The Settings panel's rows, which Activate takes as the tab's own.
     static bool SettingsRow(const std::string& row);
@@ -203,12 +208,18 @@ public:
 
     // The screen's rows. `dialog`: a choice or question is open over them.
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool dialog, std::string& title);
-    // Select on a row, an option chosen from one and the code typed on Add a friend; false when the row is not the
+    // Select on a row, an option chosen from one and the text typed on Find a player; false when the row is not the
     // panel's. `Shortcut` is X, Y and Delete.
     bool Activate(const ShellView& view, const MenuAction& action, MenuNavigation& nav, const Submit& submit);
     bool Choose(const ShellView& view, const MenuAction& action, const Submit& submit);
     bool Adjust(const MenuAction& action);
     void Shortcut(const ShellView& view, const MenuAction& action, MenuNavigation& nav);
+    // The player a press asked to see (a friend's A or More's Player card, the pointer on the Panel's card, a result or a
+    // recent opponent of Find a player), once; none when the last call asked for no one. The shell opens it
+    // (ApplicationShell::OpenFriendsPlayer), so every friends row opens a profile by the same call.
+    std::optional<player_opening::Opening> TakeOpening() { auto opening = std::move(opening_); opening_.reset(); return opening; }
+    // Find a player's rows' drawing: a result's or a recent opponent's picture, flag, class and name. False for any other row.
+    bool DrawFind(const ShellView& view, const MenuEntry& row, ImVec2 min, ImVec2 max) const;
     // The header's chips and the hint bar's shortcuts, and the popout asked for opened on its row.
     void Dress(const ShellView& view, const std::string& screen, const std::vector<MenuEntry>& rows, GameMenu& menu);
     // Settings, Online, Friends: Appear offline, the friend code (Select asks for a new one) and Turn off friends,
@@ -216,7 +227,8 @@ public:
     std::vector<MenuEntry> SettingsRows(const ShellView& view);
     // A room member's Add friend (and Accept request, `accepts`: the bridge accepts a mutual request) and Block, by
     // the card token their ticket carried and their room name. A refusal or what went through is said as a notice.
-    void RequestMember(const ShellView& view, const std::string& card, const std::string& name, bool accepts, const Submit& submit);
+    // True when the request was sent (it is then in flight); false when it was held (said as a notice) or could not be queued.
+    bool RequestMember(const ShellView& view, const std::string& card, const std::string& name, bool accepts, const Submit& submit);
     void BlockMember(const ShellView& view, const std::string& card, const std::string& name, const Submit& submit);
     // What another player's profile page (PlayerPage) asks of the same paths the tab's rows take. `ActOnFriend` does a
     // choice FriendChoices lists ("join", "watch", "invite", "remove", "remove-block") on a friend by their id, "accept"
@@ -258,7 +270,14 @@ private:
     void TakeInvite(const ShellView& view, const std::string& invite, const Submit& submit);
     void Dismiss(const ShellView& view, const std::string& invite, const Submit& submit);
 
-    std::string bridge_, code_, said_, focus_;
+    // The text typed on Find a player: a name, or a friend code.
+    std::string bridge_, typed_, said_, focus_;
+    // Whom a press asked to see (TakeOpening); the friend whose card the runtime was last asked to keep (FriendCardWanted).
+    std::optional<player_opening::Opening> opening_;
+    std::string wantedCard_;
+    // The search's finished count as last handled, so each refusal is said once; whether a search is open to clear when the page is left.
+    std::uint64_t searchSeen_ = 0;
+    bool searched_ = false;
     Tone saidTone_{};
     bool service_ = false, started_ = false, asked_ = false, sawVisiting_ = false, hasSaid_ = false;
     std::uint64_t refusalsSeen_ = 0, visitHandled_ = 0;

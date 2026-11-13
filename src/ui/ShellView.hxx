@@ -250,7 +250,8 @@ struct ShellView {
     NetworkLink ownLink = NetworkLink::Unknown;
     // The player's own fighter levels, as last read.
     netplay::Answered<netplay::levels::Own> levels;
-    // The cards of a public room's members by card token; null while there are none.
+    // The cards of a public room's members by card token, and of the friends the Friends tab focused lately by friend id
+    // ("fr_..."; commands::FriendCardWanted); null while there are none.
     std::shared_ptr<const netplay::levels::CardMap> memberCards;
     // The player's friends, the action in flight and the last refusal's words
     // (netplay/FriendsView.hxx); commands go as the commands::Friend* types.

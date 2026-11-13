@@ -5,6 +5,7 @@
 #include "NameMarks.hxx"
 #include "CountryFlag.hxx"
 #include "PublicRoomsPanel.hxx"
+#include "RowId.hxx"
 #include "SignInSites.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
@@ -301,7 +302,9 @@ std::vector<MenuEntry> RankingsPanel::BoardRows(const ShellView& v) const {
         const auto& entry = (*board)[i];
         std::string detail = loc::Tf("class.tip", ClassName(entry.band));
         if (entry.listing.country.Present()) detail += "\n" + CountryName(entry.listing.country);
-        auto player = InfoRow("rkb-p:" + std::to_string(i), entry.listing.name, {}, std::move(detail));
+        // A board's player opens their profile.
+        auto player = Row("rkb-p:" + std::to_string(i), entry.listing.name, std::move(detail));
+        player.hint = loc::T("room.member_card");
         player.userText = true; player.detailText = DetailText::Name; player.height = PlayerHeight; player.valueHighlighted = entry.own;
         player.left = rows[headers.back()].id; player.key = i;
         rows.push_back(std::move(player));
@@ -330,6 +333,13 @@ bool RankingsPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
         return true;
     }
     return false;
+}
+
+std::optional<player_opening::Opening> RankingsPanel::PlayerOf(const ShellView& v, const MenuAction& a) const {
+    const auto at = RowKey<std::size_t>(a.id, "rkb-p:");
+    const auto* board = v.rankings.bridge == bridge_ && v.rankings.board.loaded ? v.rankings.board.value.get() : nullptr;
+    if (!at || !board || *at >= board->size()) return std::nullopt;
+    return player_opening::OpeningOf((*board)[*at]);
 }
 
 bool RankingsPanel::Shortcut(const MenuAction& a) {

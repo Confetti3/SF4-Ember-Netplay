@@ -14,6 +14,9 @@ namespace uilab {
 //   unreachable: the full list, the last sync failed (Not updated)       offline: the full list, appearing offline
 // Returns false for a state it does not know.
 bool Friends(sf4e::ui::ShellView& view, const std::string& state);
+// --find recent|empty (with --friends and --screen friends-add): Find a player's page on a service that offers profiles, listing
+// the three players met lately (Player 2, Player 5 and Player 9), or none. Returns false for a state it does not know.
+bool Find(sf4e::ui::ShellView& view, const std::string& state);
 // --player friend|room|stranger|asked|sent|blocked|nocard|nobody|several|reading|unreachable|unsupported: another player's profile
 // page open in that state, over the full friends list on a service the player trusts (--screen player-card, player-fighters,
 // player-sets, player-awards or player-pick; the Sets tab needs --sets). friend: Player 6, online and your friend; room:

@@ -4,6 +4,7 @@
 // that frame is laid out in before it is drawn. The shell keeps one prompt
 // (ApplicationShell::postMatch_) and draws it on its own screen, "post-match".
 #include "MenuNavigation.hxx"
+#include "PostMatchFriend.hxx"
 #include "../session/RoomModel.hxx"
 #include <imgui.h>
 #include <cstddef>
@@ -51,6 +52,10 @@ struct PostMatchPrompt {
     // on). A pair that stayed and was parted later was parted by a New
     // opponent, not by the set's rotation, so no rotation words apply.
     bool setSeen = false, pairStayed = false;
+    // Add friend (or Accept request) was pressed here and went out: its box says Request sent (or Friends) from then on,
+    // unless the friends' refusals moved on from `friendRefusals`, the count when it was pressed (the button comes back).
+    bool friendAsked = false;
+    std::uint64_t friendRefusals = 0;
 };
 
 // What the opponent has answered over this WIN, from the one place each way the
@@ -82,6 +87,8 @@ struct PostMatchModel {
     bool committed = false;
     const room::Member* local = nullptr;
     const room::Member* opponent = nullptr;
+    // The box at the opponent's right edge (PostMatchFriend.hxx); its row is among `rows` only while it can be pressed.
+    post_match_friend::State addFriend;
     std::string title, eyebrow, mineWord, theirWord;
     std::vector<MenuEntry> rows;
     std::size_t buttons = 0;

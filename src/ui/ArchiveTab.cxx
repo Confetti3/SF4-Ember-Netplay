@@ -106,10 +106,12 @@ MenuEntry EntryRow(const ShellView& v, const Entry& entry, bool idle, const std:
     const std::string names[2] = {NameOf(entry, 0), NameOf(entry, 1)};
     if (profile) {
         // The players of the set other than the one listed: their cards replace the profile (PlayerPage).
-        for (int side = 0; side < 2; ++side)
-            if (!names[side].empty() && names[side] != listed) row.choices.push_back({"card-" + std::to_string(side + 1), loc::Tf("profile.card_of", names[side]), std::string()});
+        const std::string others[2] = {names[0] != listed ? names[0] : std::string(), names[1] != listed ? names[1] : std::string()};
+        for (auto& card : CardChoices(others)) row.choices.push_back(std::move(card));
     } else {
+        // Their sets in the archive, and their profiles.
         for (auto& find : FindChoices(names)) row.choices.push_back(std::move(find));
+        for (auto& card : CardChoices(names)) row.choices.push_back(std::move(card));
     }
     row.chosen = row.choices.front().enabled || row.choices.size() == 1 ? row.choices.front().id : row.choices[1].id;
     return row;
@@ -430,20 +432,20 @@ bool ArchiveTab::Choose(const MenuAction& a, const ShellView& v, const Submit& s
     return true;
 }
 
-std::optional<netplay::profiles::Known> ArchiveTab::PlayerOf(const MenuAction& a) const {
-    if (!place_.profile || !IsRow(a.id) || (a.text != "card-1" && a.text != "card-2")) return std::nullopt;
+std::optional<player_opening::Opening> ArchiveTab::PlayerOf(const MenuAction& a) const {
+    const auto chosen = IsRow(a.id) ? CardSide(a.text) : std::nullopt;
+    if (!chosen) return std::nullopt;
     const Entry* entry = Find(a.id.substr(std::string(RowPrefix).size()));
     if (!entry) return std::nullopt;
-    const int side = a.text == "card-2" ? 1 : 0;
-    // The sides are the first game's, as the row's choices name them; a session names only the one player.
+    // The sides are the first game's, as the row's choices name them; a session names only the one player, on whichever side
+    // they played in that game.
     const Game& first = entry->First();
-    if (entry->kind == Entry::Kind::Session || first.names[side].empty()) return std::nullopt;
-    netplay::profiles::Known known;
-    known.name = first.names[side];
-    known.country = CountryCode::Parsed(first.countries[side]);
-    known.badge = BadgeOf(first.classes[side]);
-    known.fighter = selection::FindFighter(first.fighters[side]) ? first.fighters[side] : -1;
-    return known;
+    const bool session = entry->kind == Entry::Kind::Session;
+    if (session && *chosen != 0) return std::nullopt;
+    const int side = session ? archivesets::SideOf(first, entry->player) : *chosen;
+    const std::string& name = session ? entry->player : first.names[side];
+    if (name.empty()) return std::nullopt;
+    return player_opening::OpeningOfSide(name, CountryCode::Parsed(first.countries[side]), BadgeOf(first.classes[side]), first.fighters[side]);
 }
 
 bool ArchiveTab::Status(const ShellView& v, const std::string& screen, std::string& status, Tone& tone) const {

@@ -2,6 +2,7 @@
 // them (RoomPanel.cxx), this sends them on.
 #include "ApplicationShell.hxx"
 #include "MenuRows.hxx"
+#include "PlayerOpening.hxx"
 #include "RoomControls.hxx"
 #include "RoomFeedback.hxx"
 #include "RoomPoints.hxx"
@@ -287,7 +288,14 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(!v.canTrain||!submit(commands::Training{v.session.generation,TrainingEntry::Room}))error_=loc::T("room.training.unavailable");
   return;
  }
- if(a.id=="player-card"){nav.Push("room-member");return;}
+ // Their profile (a page of its own); Kick and Make host still ask on the member's page.
+ if(a.id=="player-card"){
+  const auto* m=room::FindMember(v.room,selectedMember_);
+  if(!m){error_=loc::T("room.member_left.detail");return;}
+  const auto opening=player_opening::OpeningOf(*m);
+  OpenPlayer(opening.key,opening.known);
+  return;
+ }
  // Add friend, Accept request and Block name the member by the token their ticket carried and their room name.
  if(a.id=="friend-request"||a.id=="friend-block"){
   const auto* m=room::FindMember(v.room,selectedMember_);

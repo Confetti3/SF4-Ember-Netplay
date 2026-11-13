@@ -2,7 +2,12 @@
 // state, how friends are grouped and ordered, what A does on a row from where the friend is and whether the room can be
 // joined, what More offers with each choice's reason when it cannot be done, the lines under a name, and the code
 // typed on Add a friend.
+#include "../ui/FindPlayer.hxx"
 #include "../ui/FriendsPanel.hxx"
+#include "../ui/PlayerOpening.hxx"
+#include "../ui/PostMatchFriend.hxx"
+#include "../ui/ShellView.hxx"
+#include "../netplay/Rankings.hxx"
 #include "../common/Localization.hxx"
 #include <cstdio>
 #include <memory>
@@ -12,6 +17,7 @@ namespace {
 using namespace sf4e;
 namespace fp = ui::friends_panel;
 namespace nf = netplay::friends;
+namespace pr = netplay::profiles;
 int failures = 0;
 void Check(bool ok, const char* what) {
     if (ok) return;
@@ -72,20 +78,20 @@ void Grouping() {
     Check(fp::Arrange(nf::State{}).requests.empty() && fp::Arrange(nf::State{}).offline.empty(), "an empty state has groups");
 }
 
-// A on a row: Join where the room can be joined, else Invite when this player has a room to offer, else More; an
-// offline friend has only More, and a private room or one that is no longer listed cannot be joined.
+// A on a row: Join where the room can be joined, else Invite when this player has a room to offer, else Player card; an
+// offline friend has only the card, and a private room or one that is no longer listed cannot be joined.
 void Presses() {
     using fp::Press;
     Check(fp::PressOf(InRoom("A", true), false) == Press::Join && fp::PressOf(InRoom("A", true), true) == Press::Join, "a joinable room is not Join");
-    Check(fp::PressOf(InRoom("A", false), true) == Press::Invite && fp::PressOf(InRoom("A", false), false) == Press::More, "a room that cannot be joined is not Invite, else More");
+    Check(fp::PressOf(InRoom("A", false), true) == Press::Invite && fp::PressOf(InRoom("A", false), false) == Press::Card, "a room that cannot be joined is not Invite, else the card");
     auto privateRoom = InRoom("A", true);
     privateRoom.presence.privateRoom = true;
-    Check(!fp::Joinable(privateRoom) && fp::PressOf(privateRoom, false) == Press::More, "a private room can be joined");
+    Check(!fp::Joinable(privateRoom) && fp::PressOf(privateRoom, false) == Press::Card, "a private room can be joined");
     auto unlisted = InRoom("A", true);
     unlisted.presence.hasRoom = false;
     Check(!fp::Joinable(unlisted), "a room no longer listed can be joined");
-    Check(fp::PressOf(Online("A"), true) == Press::Invite && fp::PressOf(Online("A"), false) == Press::More, "an online friend is not Invite, else More");
-    Check(fp::PressOf(Offline("A", 1), true) == Press::More, "an offline friend can be invited");
+    Check(fp::PressOf(Online("A"), true) == Press::Invite && fp::PressOf(Online("A"), false) == Press::Card, "an online friend is not Invite, else the card");
+    Check(fp::PressOf(Offline("A", 1), true) == Press::Card, "an offline friend does not open their card");
 }
 
 // More's choices on a friend: each is listed, with the reason in its detail when it cannot be done now.
@@ -95,7 +101,7 @@ void MoreOnAFriend() {
     state.kind = nf::State::Kind::Listed;
     const fp::Gate open{true, true, nullptr, nullptr};
     const auto fighter = fp::FriendChoices(state, state.friends[0], true, open);
-    Check(fighter.size() == 5 && fighter[0].id == "join" && fighter[1].id == "watch" && fighter[2].id == "invite" && fighter[3].id == "remove" && fighter[4].id == "remove-block", "More on a friend is not Join, Watch, Invite, Remove, Remove and block");
+    Check(fighter.size() == 6 && fighter[0].id == "card" && fighter[0].enabled && fighter[1].id == "join" && fighter[2].id == "watch" && fighter[3].id == "invite" && fighter[4].id == "remove" && fighter[5].id == "remove-block", "More on a friend is not Player card, Join, Watch, Invite, Remove, Remove and block");
     Check(Pick(fighter, "join")->enabled && Pick(fighter, "watch")->enabled && Pick(fighter, "invite")->enabled && Pick(fighter, "remove")->enabled, "a friend fighting in a room cannot be joined, watched or invited");
     // Waiting in a room: not a game to watch, with the reason.
     const auto waiting = fp::FriendChoices(state, state.friends[1], true, open);
@@ -131,10 +137,10 @@ void MoreOnAFriend() {
 // More on a request, and the question that asks again.
 void MoreOnARequest() {
     const auto choices = fp::RequestChoices(fp::Gate{true, true, nullptr, nullptr});
-    Check(choices.size() == 3 && choices[0].id == "accept" && choices[1].id == "decline" && choices[2].id == "decline-block", "More on a request is not Accept, Decline, Decline and block");
-    Check(choices[0].enabled && choices[1].enabled && choices[2].enabled, "a request cannot be answered with nothing in flight");
+    Check(choices.size() == 4 && choices[0].id == "card" && choices[1].id == "accept" && choices[2].id == "decline" && choices[3].id == "decline-block", "More on a request is not Player card, Accept, Decline, Decline and block");
+    Check(choices[0].enabled && choices[1].enabled && choices[2].enabled && choices[3].enabled, "a request cannot be answered with nothing in flight");
     const auto busy = fp::RequestChoices(fp::Gate{false, true, "friends.busy", nullptr});
-    Check(!busy[0].enabled && !busy[1].enabled && busy[0].detail == loc::T("friends.busy"), "a request can be answered while an action is in flight");
+    Check(busy[0].enabled && !busy[1].enabled && !busy[2].enabled && busy[1].detail == loc::T("friends.busy"), "a request can be answered while an action is in flight, or its card cannot be opened");
     const auto ask = fp::AskChoices("remove-block", "Player 3");
     Check(ask.size() == 1 && ask[0].id == "yes" && ask[0].label == loc::T("friends.remove_block") && ask[0].detail == "Player 3", "the question that asks again does not name the choice and the player");
     Check(fp::AskChoices("decline", "x")[0].label == loc::T("friends.decline") && fp::AskChoices("decline-block", "x")[0].label == loc::T("friends.decline_block") &&
@@ -337,6 +343,185 @@ void WaitingInNotifications() {
     Check(busy[0].enabled && !busy[1].enabled && busy[1].detail == loc::T("friends.busy"), "an action in flight holds an invite's Join, or not its Dismiss");
 }
 
+// Find a player: a whole friend code is eight letters and numbers with dashes and spaces among them and nothing else; Search
+// asks for a name from two characters, or the code, and on a service without profiles only the code.
+void FindAsks() {
+    namespace fnd = ui::find_player;
+    Check(fnd::WholeCode("4f2a-91cx") && fnd::WholeCode(" 4F2A 91CX ") && fnd::WholeCode("4f2a91cx"), "a code typed in any form is not a whole code");
+    Check(!fnd::WholeCode("4f2a91c") && !fnd::WholeCode("4f2a-91cx9") && !fnd::WholeCode("4f2a.91cx") && !fnd::WholeCode("Player 9") && !fnd::WholeCode(""), "a name or a short code is a whole code");
+    Check(fnd::Trimmed("  Pl \t") == "Pl" && fnd::Trimmed("   ").empty(), "the text is not trimmed");
+
+    auto name = fnd::AskOf("  Pl ", pr::Service::Offered);
+    Check(name.ok && !name.code && name.text == "Pl" && name.why == nullptr, "two characters are not a name to search");
+    auto one = fnd::AskOf("P", pr::Service::Offered);
+    Check(!one.ok && std::string(one.why) == "find.text_detail" && !fnd::AskOf("", pr::Service::Unknown).ok, "one character is a name to search");
+    auto code = fnd::AskOf(" 4f2a-91cx ", pr::Service::Offered);
+    Check(code.ok && code.code && code.text == "4f2a-91cx", "a whole code is not searched as a code");
+    // A service without profiles has no search by name, and still finds a code.
+    auto missing = fnd::AskOf("Player", pr::Service::Missing);
+    Check(!missing.ok && std::string(missing.why) == "profile.unsupported" && fnd::AskOf("4f2a91cx", pr::Service::Missing).ok, "a service without profiles is searched by name");
+
+    fnd::Page page;
+    page.typed = "P";
+    page.offering = pr::Service::Offered;
+    const auto search = fnd::SearchEntry(page);
+    Check(search.id == fnd::SearchRow && !search.enabled && search.detail == loc::T("find.text_detail"), "Search is open before two characters");
+    page.typed = "Pl";
+    Check(fnd::SearchEntry(page).enabled && fnd::SearchEntry(page).hint == loc::T("find.search"), "Search is not open at two characters");
+}
+
+pr::Hit HitOf(const char* token, const char* name, std::uint64_t since) {
+    pr::Hit hit;
+    hit.card = token; hit.name = name; hit.country = CountryCode::Parsed("GB"); hit.hasMain = true; hit.main = 5; hit.badge = SkillBadge::OfClass(4, true); hit.since = since;
+    return hit;
+}
+
+// What Find a player lists under Search: how the search stands, the players it found for the text typed (and not for other
+// text), then the players met lately; and whom each row opens.
+void FindRows() {
+    namespace fnd = ui::find_player;
+    pr::SearchView search;
+    std::vector<pr::Recent> recent;
+    fnd::Page page;
+    page.typed = "Player"; page.offering = pr::Service::Offered; page.search = &search; page.recent = &recent; page.now = Now;
+    // Nothing searched and nobody met: the line that says what shows here.
+    auto rows = fnd::ResultRows(page);
+    Check(rows.size() == 1 && rows[0].id == fnd::FindNoteRow && rows[0].label == loc::T("find.recent_empty") && rows[0].info, "an empty page does not say who shows here");
+    // In flight.
+    search.text = "Player"; search.answer.loading = true;
+    rows = fnd::ResultRows(page);
+    Check(rows.size() == 1 && rows[0].label == loc::T("find.searching") && fnd::AnswerOf(page) == nullptr, "a search in flight does not say so");
+    // Answered: a row for each player, under their count, then the note when more match.
+    search.answer.loading = false; search.answer.loaded = true;
+    search.answer.value.players = {HitOf("c1.a", "Player 2", Now - 400 * Day), HitOf("c1.b", "Player 3", 0)};
+    rows = fnd::ResultRows(page);
+    Check(rows.size() == 2 && rows[0].id == "find-player:0" && rows[1].id == "find-player:1" && rows[0].label == "Player 2" && rows[0].group == loc::Tf("find.players", 2) && rows[1].group == rows[0].group,
+        "a search's players are not a row each under their count");
+    Check(rows[0].height == 64 && rows[0].hint == loc::T("room.member_card") && rows[0].userText && !rows[0].info && rows[1].detail.empty() && !rows[0].detail.empty(), "a result is not a row of 64 that opens a card, with since when");
+    search.answer.value.more = true;
+    rows = fnd::ResultRows(page);
+    Check(rows.size() == 3 && rows[2].id == fnd::FindNoteRow && rows[2].label == loc::T("find.more"), "more players than the search lists do not say so");
+    search.answer.value.players.clear(); search.answer.value.more = false;
+    rows = fnd::ResultRows(page);
+    Check(rows.size() == 1 && rows[0].label == loc::T("find.none"), "a search that found nobody does not say so");
+    // An answer for other text, or asked the other way, is not shown under this.
+    search.answer.value.players = {HitOf("c1.a", "Player 2", 0)};
+    page.typed = "Other";
+    Check(fnd::AnswerOf(page) == nullptr && fnd::ResultRows(page).size() == 1 && fnd::ResultRows(page)[0].label == loc::T("find.recent_empty"), "an answer for other text is shown");
+    page.typed = "4f2a-91cx";
+    search.text = "4f2a-91cx"; search.byCode = false;
+    Check(fnd::AnswerOf(page) == nullptr, "a name search's answer is shown for a code");
+    search.byCode = true;
+    Check(fnd::AnswerOf(page) != nullptr, "a code search's answer is not shown for the code");
+    page.typed = "Player"; search.text = "Player"; search.byCode = false;
+    // The players met lately follow, newest first, with when and where.
+    pr::Recent first;
+    first.card = "c1.r0"; first.name = "Player 5"; first.country = CountryCode::Parsed("DE"); first.fighter = 12; first.room = "Player 5's room"; first.at = Now - 2 * Hour;
+    pr::Recent second = first;
+    second.card = "c1.r1"; second.name = "Player 6"; second.fighter = -1; second.room.clear(); second.at = Now - 30 * Hour;
+    recent = {first, second};
+    search.answer.value.players = {HitOf("c1.a", "Player 2", 0), HitOf("c1.b", "Player 3", 0)};
+    rows = fnd::ResultRows(page);
+    Check(rows.size() == 4 && rows[2].id == "find-recent:0" && rows[3].id == "find-recent:1" && rows[2].group == loc::T("find.recent") && rows[3].group == rows[2].group, "the players met lately are not listed under their heading");
+    Check(rows[2].detail == loc::Tf("find.recent_line", loc::Tf("friends.hours_ago", 2), "Player 5's room") && rows[3].detail == loc::Tf("find.recent_when", loc::Tf("friends.days_ago", 1)),
+        "a recent opponent's row does not say when and where");
+    // Whom a row opens: by the token the search or the visit kept, shown with what the row knew.
+    const auto hit = fnd::OpeningOfRow(page, "find-player:1");
+    Check(hit && hit->key == pr::Key::OfCard("c1.b") && hit->known.name == "Player 3" && hit->known.fighter == 5 && hit->known.badge == SkillBadge::OfClass(4, true), "a result does not open by its card token");
+    const auto met = fnd::OpeningOfRow(page, "find-recent:0");
+    Check(met && met->key == pr::Key::OfCard("c1.r0") && met->known.name == "Player 5" && met->known.fighter == 12 && met->known.country == CountryCode::Parsed("DE"), "a recent opponent does not open by their token");
+    Check(!fnd::OpeningOfRow(page, "find-player:2") && !fnd::OpeningOfRow(page, "find-recent:2") && !fnd::OpeningOfRow(page, "friend:fr_1") && !fnd::OpeningOfRow(page, "find-player:x"), "a row that lists nobody opens someone");
+    const auto pick = fnd::PickOfRow(page, "find-recent:1", true);
+    Check(pick && pick->name == "Player 6" && pick->fighter == -1 && pick->characterArt && !fnd::PickOfRow(page, "friends-search", false), "a row is not drawn from the player it lists");
+}
+
+// One opening for each kind of row, so no screen builds its own: by the key the list holds them by, with what the row knows.
+void Openings() {
+    namespace po = ui::player_opening;
+    const auto badge = SkillBadge::OfClass(5, true);
+    room::Member member;
+    member.id = 2; member.name = "Player 2"; member.country = CountryCode::Parsed("GB"); member.badge = badge; member.fighter = 12; member.card = CardToken::Parsed("c1.abc");
+    auto opening = po::OpeningOf(member);
+    Check(opening.key == pr::Key::OfCard("c1.abc") && opening.known.name == "Player 2" && opening.known.country == CountryCode::Parsed("GB") && opening.known.badge == badge && opening.known.fighter == 12,
+        "a room member does not open by their token with the fighter they picked");
+    // A private room has no token: their name and flag.
+    member.card = CardToken();
+    Check(po::OpeningOf(member).key == pr::Key::OfName("Player 2", CountryCode::Parsed("GB")), "a member with no token does not open by name and flag");
+    member.fighter = 9999;
+    Check(po::OpeningOf(member).known.fighter == -1, "a fighter the game does not know is shown");
+
+    auto entry = Pal("Player 3");
+    entry.country = CountryCode::Parsed("FR"); entry.badge = badge; entry.hasMain = true; entry.main.fighter = 5;
+    opening = po::OpeningOf(entry);
+    Check(opening.key == pr::Key::OfFriend("fr_Player 3") && opening.known.name == "Player 3" && opening.known.fighter == 5 && opening.known.badge == badge && opening.known.country == CountryCode::Parsed("FR"),
+        "a friend does not open by their friend id with their main");
+    entry.hasMain = false;
+    Check(po::OpeningOf(entry).known.fighter == -1, "a friend with no main shows a fighter");
+
+    nf::Incoming request;
+    request.id = "rq_1"; request.name = "Player 9"; request.country = CountryCode::Parsed("IT");
+    opening = po::OpeningOf(request);
+    Check(opening.key == pr::Key::OfRequest("rq_1") && opening.known.name == "Player 9" && opening.known.country == CountryCode::Parsed("IT") && opening.known.fighter == -1, "a request does not open by its id");
+
+    netplay::rankings::BoardEntry ranked;
+    ranked.listing = {"Player 4", CountryCode::Parsed("SE")}; ranked.band = 6;
+    opening = po::OpeningOf(ranked);
+    Check(opening.key == pr::Key::OfName("Player 4", CountryCode::Parsed("SE")) && opening.known.badge == SkillBadge::OfClass(6, true) && opening.known.name == "Player 4", "a ranking row does not open by name and flag with its class");
+
+    opening = po::OpeningOfSide("Player 7", CountryCode(), badge, 5);
+    Check(opening.key == pr::Key::OfName("Player 7") && opening.known.badge == badge && opening.known.fighter == 5 && !opening.known.country.Present(), "a side of a game does not open by name");
+    Check(po::OpeningOfSide("Player 7", CountryCode(), badge, -1).known.fighter == -1, "a side with no fighter shows one");
+}
+
+// The post-match prompt's Add friend: the box by how the opponent stands with the player, live (a row, the View glyph) only
+// for Add friend and Accept request, a flat box for Request sent and Friends, nothing without a card or for a block; a press
+// made here is as good as answered before the card says so.
+void PostMatchFriendStates() {
+    namespace pm = ui::post_match_friend;
+    using Kind = pm::State::Kind;
+    using Relation = netplay::levels::Relation;
+    pm::Inputs in;
+    Check(pm::StateOf(in).kind == Kind::None && !pm::StateOf(in).Shown(), "an opponent with no card has a box");
+    in.card = true;
+    const auto of = [&](Relation relation, bool asked) { in.relation = relation; in.asked = asked; return pm::StateOf(in); };
+    Check(of(Relation::None, false).kind == Kind::Add && of(Relation::None, false).Live(), "a stranger is not Add friend");
+    Check(of(Relation::Received, false).kind == Kind::Accept && of(Relation::Received, false).Live(), "a request received is not Accept request");
+    Check(of(Relation::Sent, false).kind == Kind::Sent && !of(Relation::Sent, false).Live() && of(Relation::Sent, false).Shown(), "a request sent is not a flat Request sent");
+    Check(of(Relation::Friend, false).kind == Kind::Friends && !of(Relation::Friend, false).Live(), "a friend is not a flat Friends");
+    Check(of(Relation::Blocked, false).kind == Kind::None && of(Relation::Blocked, true).kind == Kind::None, "a block has a box");
+    Check(of(Relation::None, true).kind == Kind::Sent && of(Relation::Received, true).kind == Kind::Friends && of(Relation::Sent, true).kind == Kind::Sent && of(Relation::Friend, true).kind == Kind::Friends,
+        "a request just pressed does not turn the box to Request sent or Friends");
+    Check(std::string(pm::LabelOf(Kind::Add)) == "friends.add_member" && std::string(pm::LabelOf(Kind::Accept)) == "friends.accept_member" &&
+        std::string(pm::LabelOf(Kind::Sent)) == "friends.request_sent" && std::string(pm::LabelOf(Kind::Friends)) == "friends.are_friends" && pm::LabelOf(Kind::None) == nullptr, "the box's words are wrong");
+    // Only a live button is a row: wide (a footer, not a button of the bar), with the detail that names the opponent.
+    pm::State add;
+    add.kind = Kind::Add;
+    const auto row = pm::RowOf(add, "Player 2");
+    Check(row && row->id == pm::RowId && row->wide && row->enabled && row->label == loc::T("friends.add_member") && row->hint == row->label &&
+        row->detail == loc::Tf("postmatch.add_friend.detail", "Player 2"), "Add friend is not a wide row with its detail");
+    add.kind = Kind::Accept;
+    Check(pm::RowOf(add, "Player 2")->detail == loc::Tf("postmatch.accept_friend.detail", "Player 2"), "Accept request does not say what it does");
+    add.kind = Kind::Sent;
+    Check(!pm::RowOf(add, "Player 2") && !pm::RowOf(pm::State{}, "Player 2"), "a box that cannot be pressed is a row");
+    // The inputs: a card token and a card read; never this PC's own member.
+    ui::ShellView view;
+    view.room.localMember = 1;
+    room::Member them;
+    them.id = 2; them.name = "Player 2"; them.card = CardToken::Parsed("c1.abc");
+    Check(!pm::InputsOf(view, &them, false).card && !pm::InputsOf(view, nullptr, false).card, "a card not read, or no opponent, has a box");
+    auto cards = std::make_shared<netplay::levels::CardMap>();
+    netplay::levels::Card card;
+    card.relation = Relation::Received;
+    (*cards)["c1.abc"] = card;
+    view.memberCards = cards;
+    auto read = pm::InputsOf(view, &them, true);
+    Check(read.card && read.relation == Relation::Received && read.asked, "an opponent's card is not read from the room's cards");
+    them.card = CardToken();
+    Check(!pm::InputsOf(view, &them, false).card, "an opponent in a private room has a box");
+    them.card = CardToken::Parsed("c1.abc"); them.id = 1;
+    Check(!pm::InputsOf(view, &them, false).card, "this PC's own member has a box");
+}
+
 int main() {
     WaitingInNotifications();
     Outcomes();
@@ -350,6 +535,10 @@ int main() {
     Modes();
     Lines();
     Codes();
+    FindAsks();
+    FindRows();
+    Openings();
+    PostMatchFriendStates();
     if (failures) { std::printf("%d failure(s)\n", failures); return 1; }
     std::printf("friends panel tests passed\n");
     return 0;

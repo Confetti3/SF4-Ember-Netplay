@@ -149,6 +149,8 @@ public:
         auto& shell = f.shell; auto& nav = shell.menu_.navigation;
         // Connect Discord is the Ember ID panel's.
         if (a.id == DiscordConnectScreen) { shell.identity_.Activate(a, f.view, nav); return true; }
+        // A player of the board opens their profile.
+        if (const auto opening = shell.rankings_.PlayerOf(f.view, a)) { shell.OpenPlayer(opening->key, opening->known); return true; }
         return shell.rankings_.Activate(a, f.view, nav);
     }
     void Shortcut(const ScreenFrame& f, const MenuAction& a) const override { f.shell.rankings_.Shortcut(a); }
@@ -225,10 +227,22 @@ public:
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
         auto& nav = f.shell.menu_.navigation;
         if (a.id == DiscordConnectScreen) { f.shell.identity_.Activate(a, f.view, nav); return true; }
-        return f.shell.friends_.Activate(f.view, a, nav, submit);
+        const bool taken = f.shell.friends_.Activate(f.view, a, nav, submit);
+        f.shell.OpenFriendsPlayer();
+        return taken;
     }
     bool Adjust(const ScreenFrame& f, const MenuAction& a) const override { return f.shell.friends_.Adjust(a); }
-    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override { return f.shell.friends_.Choose(f.view, a, submit); }
+    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        const bool taken = f.shell.friends_.Choose(f.view, a, submit);
+        f.shell.OpenFriendsPlayer();
+        return taken;
+    }
+    // Find a player's results and recent opponents draw their picture, flag, class and name.
+    GameMenu::Card Card(const ScreenFrame& f, double) const override {
+        if (f.screen != FriendsPanel::AddScreen) return {};
+        const ApplicationShell* shell = &f.shell; const ShellView* view = &f.view;
+        return [shell, view](const MenuEntry& e, ImVec2 min, ImVec2 max) { return shell->friends_.DrawFind(*view, e, min, max); };
+    }
     void Shortcut(const ScreenFrame& f, const MenuAction& a) const override { f.shell.friends_.Shortcut(f.view, a, f.shell.menu_.navigation); }
     // The tab and its pages take X, Y and Delete before the room's own, so More is reachable on a pad in a room.
     bool TakesShortcut(const ScreenFrame& f, const MenuAction& a) const override { return FriendsPanel::OnTab(f.screen) && FriendsPanel::Takes(a.delta); }
@@ -357,8 +371,10 @@ public:
         return true;
     }
     bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
-        // Find this player's sets on a match opens the archive's tab, which is its own panel's.
-        if (const auto name = f.shell.replays_.PlayerToFind(f.view, a)) f.shell.archive_.OpenFor(*name, f.shell.menu_.navigation);
+        // Player card on a match opens that player's profile; Find this player's sets opens the archive's tab, which is its
+        // own panel's.
+        if (const auto opening = f.shell.replays_.PlayerToOpen(f.view, a)) f.shell.OpenPlayer(opening->key, opening->known);
+        else if (const auto name = f.shell.replays_.PlayerToFind(f.view, a)) f.shell.archive_.OpenFor(*name, f.shell.menu_.navigation);
         else f.shell.replays_.Choose(a, f.view, f.shell.preferences_, f.shell.menu_.navigation, submit, f.shell.error_);
         return true;
     }
@@ -409,6 +425,8 @@ public:
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override { return f.shell.archive_.Activate(a, f.shell.menu_.navigation); }
     bool Adjust(const ScreenFrame& f, const MenuAction& a) const override { return f.shell.archive_.Adjust(a); }
     bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        // Player card on a set opens that player's profile.
+        if (const auto opening = f.shell.archive_.PlayerOf(a)) { f.shell.OpenPlayer(opening->key, opening->known); return true; }
         return f.shell.archive_.Choose(a, f.view, submit, f.shell.menu_.navigation, f.shell.replays_.Queue(), f.shell.error_);
     }
     void Shortcut(const ScreenFrame& f, const MenuAction& a) const override { f.shell.archive_.Shortcut(a, f.view, f.screen, f.shell.menu_.navigation); }
