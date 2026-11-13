@@ -264,6 +264,11 @@ inline Worn WornOf(const Counters& counters, const std::string& id) {
 	return level > 0 ? Worn{family, level} : Worn{};
 }
 
+// What another player's member profile claims to wear (Member::wornTitle,
+// Member::wornIcon), at the level their card earns: the one check the room
+// draws a worn title or icon by.
+inline Worn WornOnCard(const levels::Card& card, const std::string& id) { return WornOf(CountersOf(card), id); }
+
 // One level a counters answer newly reached.
 struct Gained {
 	const Family* family;

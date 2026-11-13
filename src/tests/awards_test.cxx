@@ -182,6 +182,11 @@ static void WornClaims() {
 	EXPECT(!WornOf(c, "wins"));
 	for (const char* id : {"", "entrant", "launch-night", "games-10", "MATCHES", "matches ", "../matches", "rank;", "a-very-long-made-up-award-id-that-no-catalog-has"})
 		EXPECT(!WornOf(c, id));
+	// On another player's card the claim is held to their card's marks: a made-up one never shows.
+	Card card;
+	card.marks.games = 100;
+	EXPECT(WornOnCard(card, "matches") && WornOnCard(card, "matches").level == 2);
+	EXPECT(!WornOnCard(card, "wins") && !WornOnCard(card, "friends") && !WornOnCard(Card{}, "matches"));
 	EXPECT(!IdShaped("") && !IdShaped("Matches") && !IdShaped("a b") && IdShaped("opponents") && !IdShaped(std::string(25, 'a')));
 }
 
