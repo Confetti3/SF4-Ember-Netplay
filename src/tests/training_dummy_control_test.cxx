@@ -251,6 +251,8 @@ int main() {
                     if (began && !replying && run.ended < 0) run.ended = frame;
                     const auto step = control.Follow(PlanInput(session.GetView(), false).suppliesDummy, 0);
                     const Frame output = session.Prepare(Frame{});
+                    // The runtime keeps the dummy's charges full while the reply is on its leading hold (KeepDummyCharged).
+                    if (session.Holding()) game.chargedAt = frame;
                     if (game.Update(frame, step == DummyControl::Step::Begin || step == DummyControl::Step::Keep, output[1].raw, free, buttons, charge) &&
                         run.move < 0)
                         run.move = frame;
@@ -498,8 +500,9 @@ int main() {
                     Require(run.ended > run.free + 120 + MaxWaitFrames && run.ended < run.free + 120 + MaxWaitFrames + 12,
                         "A later hold in a reply kept the dummy on the pad past its wait");
                 }
-                // The hold is the charge only when the stun is long enough to
-                // charge in: after a short blockstun "[1] > 6P" comes out uncharged.
+                // The runtime keeps the charge full while the reply is on its
+                // leading hold, so the hold is the charge after any stun: "[1] > 6P"
+                // comes out as a long blockstun ends, and as a short one does.
                 const auto charge = Plan({"[1]", "6P"});
                 Dummy longDummy;
                 const auto longBlock = statuses(ActorStatus::DamageGuard, 80, 0u, 0);
@@ -508,7 +511,7 @@ int main() {
                 Dummy shortDummy;
                 const auto shortBlock = statuses(ActorStatus::DamageGuard, 18, 0u, 0);
                 play(shortDummy, charge, 0, shortBlock, Left);
-                Require(play(shortDummy, charge, 0, shortBlock, Left).move < 0, "A short blockstun charged a hold");
+                Require(play(shortDummy, charge, 0, shortBlock, Left).move == 23, "A charge kept full did not come out as a short blockstun ended");
             }
             // "[1]7K" charges down and back, and keeps back through the release.
             for (const char* move : {"[4]6P", "[2]8K", "[1]7K"}) {
@@ -546,14 +549,15 @@ int main() {
                         Require(timing < 0 || timed.move == timed.button + 1, "A charge held through the stun did not come out on its button");
                     }
                     // Blockstun too short to charge in, then guard stance standing or crouching:
-                    // the reply begins on the stun's first frame, is not dropped, and comes out charged.
+                    // the charge is kept full, so the reply is not dropped and its button lands
+                    // on the free frame, plus timing, as after a long stun.
                     for (const unsigned guard : {static_cast<unsigned>(ActorStatus::GuardStand), static_cast<unsigned>(ActorStatus::GuardCrouch)}) {
                         Dummy blockDummy;
                         const auto block = statuses(ActorStatus::DamageGuard, 18, guard, 80);
                         play(blockDummy, reply, timing, block, back);
                         const Run blocked = play(blockDummy, reply, timing, block, back);
-                        Require(blocked.free == 23 && blocked.button == 5 + 1 + ChargeFrames + 3 && blocked.move == blocked.button + 1 && !blocked.dropped,
-                            "A charge reply over a short blockstun was dropped in guard stance, started late or came out uncharged");
+                        Require(blocked.free == 23 && blocked.button + 1 == blocked.free + timing && (timing < 0 || blocked.move == blocked.button + 1) && !blocked.dropped,
+                            "A charge reply over a short blockstun was dropped in guard stance, missed the free frame plus timing or came out uncharged");
                     }
                 }
             }

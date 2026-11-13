@@ -96,7 +96,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         if(std::string(screen)=="tools")Require(trainingRows.size()==5,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==7&&trainingRows[6].id=="meter-settings","Frame data page lost one of its own rows or the Meter settings link");
         if(std::string(screen)=="hud")Require(trainingRows.size()==9&&trainingRows[0].id=="hud-size"&&trainingRows[7].id=="hitboxes"&&trainingRows[8].id=="data","HUD page lost its size, one of its parts, Hitboxes or the Data panel");
-        if(std::string(screen)=="data")Require(trainingRows.size()==9&&trainingRows[0].id=="data-shown"&&trainingRows[1].id=="data-fighters"&&trainingRows[2].id=="data-opacity","Data panel page lost its switch, fighters, background or one of its parts");
+        if(std::string(screen)=="data")Require(trainingRows.size()==10&&trainingRows[0].id=="data-shown"&&trainingRows[1].id=="data-fighters"&&trainingRows[2].id=="data-opacity"&&trainingRows[9].id=="oil-full","Data panel page lost its switch, fighters, background, one of its parts or the oil switch");
         // The reply plays the slots that are on, so its page has no slot of its own.
         if(std::string(screen)=="reply")for(const auto& row:trainingRows)Require(row.id!="reply-slot","The reply page kept a slot of its own");
         // Each slot says whether it is on, or that it is empty, with its frames in the detail.
