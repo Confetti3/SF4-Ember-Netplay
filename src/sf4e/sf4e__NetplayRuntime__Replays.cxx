@@ -39,9 +39,6 @@ static void SayImportBatch(const replay_import::Batch& batch) {
 
 void TickReplays() {
     ApplyGameDisplay();
-    // Games downloaded from the public archive to watch last only as long as this run.
-    static bool cleared = false;
-    if (!cleared) { cleared = true; platform::replays::ClearArchiveWatching(); }
     // What the picker returned joins what drops and links handed over.
     ReplayImports().Add(runtime->services.TakePicked());
     // One file a tick, read and written on the game thread (a pack is at most a couple of

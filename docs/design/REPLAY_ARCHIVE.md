@@ -275,35 +275,50 @@ Online games are grouped by day; games between the same two players within
 
 ## In the game
 
-Replays has an Archive tab (`src/ui/ArchiveTab.*`) that lists the same sets as
-the page, grouped the same way (`src/ui/ArchiveSets.hxx`; the in-game list
-splits online sets only by the 30 minute gap, not by day), with the page's
-filters: player or event, fighter, class, country, event, round and the
-order. It is read through the helper's `archive_list` op, which asks for one
-page of `GET /v1/archive` and answers the games, the sets' scores, the
-filter's choices and the cursor of the next page; the tab asks for the next
-page when the player reaches the end of the list. A filter that changes asks
-for the first page again, and the answer to a page that was asked for before is
-dropped (`src/netplay/ArchiveRequests.hxx`).
+Replays has an Archive tab (`src/ui/ArchiveTab.*`, routed by its own
+`ScreenPanel`, `ArchiveScreens`; its tab sits in Replays' strip) that lists the
+same sets as the page, grouped the same way (`src/ui/ArchiveSets.hxx`; the
+in-game list splits online sets only by the 30 minute gap, not by day), with
+the page's filters: player or event, fighter, class, country, event, round and
+the order. Find this player's sets (on a match, on an archive set, from a
+profile: `ApplicationShell::OpenArchiveFor(name)`) is an exact-name search,
+`Filter::name`: the game asks the bridge for `name` with `q` beside it, and
+keeps only the sets with a side of that name (`archive::KeepNamed`) whatever a
+bridge that does not know `name` listed. The Filters page's text row stays the
+substring search.
 
-The listing is open, so the op opens no session. It reads it where the
-approved bridge's archive is served from, in this order: under `/archive/` on
-the bridge's own host (staging, where `/v1/archive` itself is 404), the
-bridge's own route, and the `archive.` host beside a `bridge.` host
-(production). A 404 moves on to the next place; the place that answered is
-tried first afterwards.
+The listing's types are the protocol's (`ember_protocol::archive`: `Query`,
+`Page`, `Game`, `Set`, and the limits and round names): the bridge serializes a
+`Page` (`routes/archive.rs`), the helper reads one back (`archive_list`; a game
+that is not whole is dropped, not the page) and the game decodes the helper's
+answer once (`session::DecodeArchivePage`). The wire JSON is the page's, which
+a protocol test pins. The tab sends one `commands::ArchiveList` for each want
+(service, filter, whether the end of the list is near, retry) and each listing
+heard; the runtime's `netplay::archive::Requests::Ask` decides which page that
+asks for, and the answer to a page asked for before a filter changed is dropped.
+A profile's sets are a second slot of the same requests (`profile` on the
+commands, `ShellView::profileSets`).
 
-Watch now downloads a game with the `archive_fetch` op into
+The listing is open, so the op opens no session. The bridge says where its
+archive lists its games in its capabilities (`archive`, the host `public_base`
+is on, then `/v1/archive`; the host may be another than the bridge's own). A
+bridge that says nothing (the deployments before it did) is read at one
+fallback: `https://archive.<rest>/v1/archive` for a host `bridge.<rest>`, else
+`<origin>/archive/v1/archive`. Games are fetched only from the host the listing
+is on.
+
+Watch now fills the one set queue (`src/ui/WatchQueue.hxx`) that Replays' Next
+game row plays from, as a set on this PC does, and starts its first game:
+`commands::ArchiveWatch` has the game downloaded (`archive_fetch`) into
 `watching\<digest>.emberreplay` in Ember's replay folder and then asks for it
-to be watched as a replay link's file is. The op takes only the address a
-listing gave, on the origin of one of the places above and under the
-archive's own file names, and writes the file only once it is whole and is the
-game its address names. Only the game asked for last is kept in that folder;
-it is emptied when the game starts. The listing of the player's own matches
-does not read that folder. Watching puts the game into the game's own replay
-list, as it does for any replay link's file, and Ember's archive pass then
-keeps a copy of it among the player's matches, as it would for a link's file
-that is not in the archive already.
+to be watched as a replay link's file is. The op takes only an address on the
+listing's host under the archive's own file names, and writes the file only once
+it is whole and is the game its address names. Only the game asked for last is
+kept in that folder, which is emptied when the helper starts. The listing of the
+player's own matches does not read that folder. Watching puts the game into the
+game's own replay list, as it does for any replay link's file, and Ember's
+archive pass then keeps a copy of it among the player's matches, as it would for
+a link's file that is not in the archive already.
 
 ## Bridge configuration
 

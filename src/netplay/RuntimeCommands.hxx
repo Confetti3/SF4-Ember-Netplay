@@ -7,6 +7,7 @@
 // or the game's: the overlay, which holds the native pick, fills a Ready's
 // pick, stage and Random stage pool as it hands the command on.
 #include "../common/ControllerRequest.hxx"
+#include "ArchiveCommands.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/StageCatalog.hxx"
@@ -194,6 +195,7 @@ struct ApplyDelay { netplay::Generation generation; int selectedDelay = -1; };
 // (ui::ShellAction adds the overlay's own steps).
 template <class... Extra>
 using RuntimeRequestWith = std::variant<commands::Identity, commands::Tournament,
+    commands::ArchiveList, commands::ArchiveWatch,
     commands::FriendsVisit, commands::FriendsLeave, commands::FriendRequest, commands::FriendRequestByCode, commands::FriendAccept,
     commands::FriendDecline, commands::FriendCancel, commands::FriendRemove, commands::FriendBlock, commands::FriendUnblock,
     commands::FriendNewCode, commands::FriendAppearOffline, commands::FriendTurnOff, commands::FriendTurnOn, commands::FriendInvite,

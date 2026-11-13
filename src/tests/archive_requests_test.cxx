@@ -1,10 +1,9 @@
 // The archive browser's requests (netplay/ArchiveRequests.hxx): a first page, the next pages added to it, a
 // filter changed while a page is on its way (the stale answer is dropped), failures, and the game download;
-// when the Archive tab asks for a page (ui/ArchivePaging.hxx); and how the helper's archive_list answer is
+// when the Archive tab's want asks for a page (Requests::Ask); and how the helper's archive_list answer is
 // read (session::DecodeArchivePage); and the second browser of a profile's sets, with the exact-name filter (KeepNamed).
 #include "../netplay/ArchiveRequests.hxx"
 #include "../session/TournamentAnswers.hxx"
-#include "../ui/ArchivePaging.hxx"
 
 #include <cstdio>
 #include <cstdlib>
@@ -12,7 +11,6 @@
 
 using namespace sf4e;
 namespace ar = netplay::archive;
-using ui::archivepaging::Ask;
 using nlohmann::json;
 using State = ar::Status::State;
 
@@ -175,55 +173,56 @@ static void GameDownloads() {
 	EXPECT(requests.BeginFetch(Digest(4)) && requests.Published().fetchError.empty());
 }
 
-// The tab asks for the first page of its filter on its service once; for the next page once its end is near;
-// for the first page again when the filter changes, or on Retry; and never while nothing is set up.
+// What the tab wants is asked of the runtime as it stands: the first page of its filter once, the next page once
+// its end is near, the first page again when the filter changes (a page on its way is retired) or on Retry, the
+// page that failed again on Retry, and nothing while no service is set up.
 static void WhenThePagesAreAsked() {
 	ar::Requests requests;
-	ui::archivepaging::Memory memory;
 	const auto filter = Named("Player 1");
 	const auto ask = [&](const ar::Filter& wanted, bool nearEnd, bool retry = false, const std::string& bridge = "brg_1") {
-		return ui::archivepaging::NextAsk(requests.Published(), bridge, wanted, nearEnd, retry, memory);
+		return requests.Ask(bridge, wanted, nearEnd, retry);
 	};
-	// The runtime takes the command a frame later: until its status shows the filter, it is not asked again.
-	EXPECT(ask(filter, false, false, "") == Ask::None);
-	EXPECT(ask(filter, false) == Ask::First && ask(filter, false) == Ask::None && ask(filter, true) == Ask::None);
-	auto ticket = requests.Begin("brg_1", filter);
-	EXPECT(ask(filter, true) == Ask::None);
-	requests.Finish(ticket, "", Page(0, 5, "5.ab"));
+	EXPECT(!ask(filter, true, false, "").ticket);
+	// The first ask begins the listing, so the same want is then the one held and asks for nothing more.
+	auto asked = ask(filter, false);
+	EXPECT(asked.ticket && asked.cursor.empty() && requests.Published().state == State::Loading);
+	EXPECT(!ask(filter, false).ticket && !ask(filter, true).ticket);
+	requests.Finish(asked.ticket, "", Page(0, 5, "5.ab"));
 	// The next page waits for the end of the list, and is asked for once.
-	EXPECT(ask(filter, false) == Ask::None);
-	EXPECT(ask(filter, true) == Ask::Next && ask(filter, true) == Ask::None);
-	ticket = requests.BeginNext();
-	EXPECT(ask(filter, true) == Ask::None);
-	requests.Finish(ticket, "", Page(5, 5, "10.ab"));
-	EXPECT(ask(filter, true) == Ask::Next);
-	// A filter changed while the page is on its way asks for the first page of the new one at once.
-	ticket = requests.BeginNext();
+	EXPECT(!ask(filter, false).ticket);
+	asked = ask(filter, true);
+	EXPECT(asked.ticket && asked.cursor == "5.ab" && requests.Published().loadingMore);
+	EXPECT(!ask(filter, true).ticket);
+	requests.Finish(asked.ticket, "", Page(5, 5, "10.ab"));
+	asked = ask(filter, true);
+	EXPECT(asked.ticket && asked.cursor == "10.ab");
+	// A filter changed while the page is on its way asks for the first page of the new one, and retires it.
 	const auto changed = Named("Player 2");
-	EXPECT(ask(changed, true) == Ask::First);
-	const auto first = requests.Begin("brg_1", changed);
-	EXPECT(!requests.Finish(ticket, "", Page(10, 5, "")) && requests.Published().filter == changed);
-	EXPECT(ask(changed, true) == Ask::None);
-	requests.Finish(first, "", Page(100, 2, ""));
-	EXPECT(ask(changed, true) == Ask::None && ask(changed, true, true) == Ask::First);
-	// A failed page: Retry asks again; nothing does without it.
-	ticket = requests.Begin("brg_1", changed);
-	requests.Finish(ticket, "unavailable", std::nullopt);
-	EXPECT(ask(changed, true) == Ask::None && ask(changed, true, true) == Ask::First);
-	ticket = requests.Begin("brg_1", changed);
-	requests.Finish(ticket, "", Page(0, 5, "5.ab"));
-	ticket = requests.BeginNext();
-	requests.Finish(ticket, "unavailable", std::nullopt);
-	EXPECT(ask(changed, true) == Ask::None && ask(changed, true, true) == Ask::NextAgain);
+	const auto first = ask(changed, true);
+	EXPECT(first.ticket && first.cursor.empty() && requests.Published().filter == changed);
+	EXPECT(!requests.Finish(asked.ticket, "", Page(10, 5, "")));
+	EXPECT(!ask(changed, true).ticket);
+	requests.Finish(first.ticket, "", Page(100, 2, ""));
+	// Nothing more to ask for; Retry on a listing that is heard refreshes it from the first page.
+	EXPECT(!ask(changed, true).ticket);
+	asked = ask(changed, true, true);
+	EXPECT(asked.ticket && asked.cursor.empty());
+	// A failed first page: Retry asks again; nothing does without it.
+	requests.Finish(asked.ticket, "unavailable", std::nullopt);
+	EXPECT(!ask(changed, true).ticket);
+	asked = ask(changed, true, true);
+	EXPECT(asked.ticket && asked.cursor.empty());
+	// A next page that failed: not asked again by itself, asked again from the same cursor on Retry.
+	requests.Finish(asked.ticket, "", Page(0, 5, "5.ef"));
+	asked = ask(changed, true);
+	requests.Finish(asked.ticket, "unavailable", std::nullopt);
+	EXPECT(!ask(changed, true).ticket);
+	asked = ask(changed, true, true);
+	EXPECT(asked.ticket && asked.cursor == "5.ef" && requests.Published().loadingMore);
+	// A retry while a page is on its way asks for nothing more.
+	EXPECT(!ask(changed, true, true).ticket);
 	// A service the player did not have before is another listing.
-	EXPECT(ask(changed, false, false, "brg_2") == Ask::First);
-	// A queue that refused the command is asked again: the tab forgets what it asked.
-	memory = ui::archivepaging::Memory();
-	EXPECT(ask(Named("Player 5"), false) == Ask::First);
-
-	// The end of the list is near for the last few rows, or any of a short list.
-	using ui::archivepaging::NearEnd;
-	EXPECT(NearEnd(0, 3) && NearEnd(-1, 6) && !NearEnd(-1, 40) && !NearEnd(10, 40) && NearEnd(34, 40) && NearEnd(39, 40));
+	EXPECT(ask(changed, false, false, "brg_2").ticket && requests.Published().bridge == "brg_2");
 }
 
 static json GameJson(const std::string& digest) {
@@ -234,7 +233,7 @@ static json GameJson(const std::string& digest) {
 static void ReadingTheAnswer() {
 	// Everything the page carries.
 	json full = {{"games", json::array({GameJson(Digest(1)), GameJson(Digest(2))})}, {"sets", {{"emt_a", {{"score", {2, 1}}, {"pack", "https://archive.example/sets/emt_a.emberpack"}}}}},
-		{"events", {"Player 1's Cup"}}, {"countries", {"BE", "GB"}}, {"total", 120u}, {"matching", 2u}, {"order", "class"}, {"more", true}, {"next", "9.1700000000.ab"}};
+		{"events", {"Player 1's Cup"}}, {"countries", {"BE", "GB"}}, {"total", 120u}, {"matching", 2u}, {"sort", "class"}, {"more", true}, {"next", "9.1700000000.ab"}};
 	full["games"][0]["set"] = "emt_a";
 	full["games"][0]["event"] = "Player 1's Cup";
 	full["games"][0]["round"] = "Top 8";
@@ -260,7 +259,7 @@ static void ReadingTheAnswer() {
 	// Members this build does not know are ignored, and values it does not know are none.
 	json odd = full;
 	odd["banner"] = "hello";
-	odd["order"] = "sideways";
+	odd["sort"] = "sideways";
 	odd["next"] = "not a cursor";
 	odd["games"][0]["tags"] = {"a"};
 	odd["games"][0]["classes"] = {11, 3};

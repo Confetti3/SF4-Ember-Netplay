@@ -70,7 +70,7 @@ pub struct Limits {
 }
 
 pub const LIMITS: Limits = Limits {
-    listed: 400,
+    listed: ember_protocol::archive::MAX_GAMES,
     looked: 10_000,
     gathered: 20_000,
     counted: 100_000,
@@ -614,7 +614,10 @@ pub fn counts(
 /// What the listing's events and countries filters can choose from.
 pub fn choices(tx: &Transaction<'_>) -> Result<(Vec<String>, Vec<String>)> {
     let events = tx
-        .prepare("SELECT title FROM archive_events ORDER BY last_saved_at DESC LIMIT 100")?
+        .prepare(&format!(
+            "SELECT title FROM archive_events ORDER BY last_saved_at DESC LIMIT {}",
+            ember_protocol::archive::MAX_EVENTS
+        ))?
         .query_map([], |row| row.get::<_, String>(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let countries = tx

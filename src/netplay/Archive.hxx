@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 // The public replay archive as the game's own browser reads it
@@ -29,6 +30,10 @@ constexpr std::size_t RoundCount = 5;
 constexpr const char* const Rounds[RoundCount] = {"top8", "pools", "winners", "losers", "grand"};
 // The event a filter names to list games of no tournament set.
 constexpr const char* OnlineEvent = "online";
+// The longest text a filter or a command holds (ember_protocol::archive::MAX_QUERY, MAX_URL), and a service's id.
+constexpr std::size_t MaxText = 128, MaxUrl = 512, MaxBridge = 256;
+// What a page holds at most, as ember_protocol::archive limits it, and the longest name or title the game keeps of one.
+constexpr std::size_t MaxGames = 400, MaxEvents = 100, MaxCountries = 300, MaxCursor = 200, MaxShown = 96;
 
 // What the browser asks the listing for: each field one value, all of them
 // together. An empty text, no fighter (-1) and class 0 are no narrowing.
@@ -61,6 +66,13 @@ struct Filter {
 			round == other.round && order == other.order && name == other.name;
 	}
 	bool operator!=(const Filter& other) const { return !(*this == other); }
+	// The sets of one player, by their exact name.
+	static Filter Named(std::string player) { Filter filter; filter.name = std::move(player); return filter; }
+	// The bounds a command carrying it keeps.
+	bool Valid() const {
+		return text.size() <= MaxText && name.size() <= MaxText && event.size() <= MaxText && country.size() <= 2 && round.size() <= 16 && band >= 0 && band <= 10;
+	}
+	std::size_t Bytes() const { return text.size() + name.size() + event.size() + country.size() + round.size(); }
 	// The same narrowing in the other order.
 	Filter Ordered(Order next) const { Filter copy = *this; copy.order = next; return copy; }
 };
@@ -132,6 +144,8 @@ struct Status {
 	std::string fetching, fetchError;
 	std::uint64_t fetched = 0;
 	bool Loaded() const { return state == State::Listed && listing; }
+	// Whether this is the listing of `filter` on `bridge`, heard or on its way.
+	bool Answers(const std::string& wanted, const Filter& asked) const { return state != State::Idle && bridge == wanted && filter == asked; }
 };
 
 } } }

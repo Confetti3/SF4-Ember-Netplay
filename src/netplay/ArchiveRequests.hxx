@@ -72,6 +72,22 @@ public:
 		return ++ticket_;
 	}
 
+	// What the interface wants listed: `filter` on `bridge`, the next page too once the player is at
+	// the end of the list (`nearEnd`), and `retry` for a page that failed or a refresh. It names the
+	// page to ask the helper for, if any: the first page of a filter that is not the one held, the
+	// page after the last one heard, never twice and never while one is on its way, or nothing.
+	struct Asked { Ticket ticket = 0; std::string cursor; };
+	Asked Ask(const std::string& bridge, const Filter& filter, bool nearEnd, bool retry) {
+		if (bridge.empty()) return {};
+		const bool held = status_.Answers(bridge, filter);
+		if (!held) return {Begin(bridge, filter), {}};
+		if (retry && status_.state != Status::State::Loading && !status_.loadingMore && !(status_.Loaded() && status_.moreFailed)) return {Begin(bridge, filter), {}};
+		if (!(retry || nearEnd)) return {};
+		std::string cursor = Cursor(retry);
+		const Ticket ticket = BeginNext(retry);
+		return ticket ? Asked{ticket, std::move(cursor)} : Asked{};
+	}
+
 	// The answer to request `ticket`: the page, or why there is none (the helper's code, or
 	// "bridge_invalid_response"). False when it was retired, which changes nothing.
 	bool Finish(Ticket ticket, const std::string& failure, std::optional<Listing> page) {

@@ -124,6 +124,14 @@ static DispatchOutcome Handle(commands::Tournament& command, bool helperReady, A
 	DispatchTournament(command.tournament, helperReady);
 	return DispatchOutcome::Dropped;
 }
+static DispatchOutcome Handle(commands::ArchiveList& command, bool helperReady, Attempt) {
+	DispatchArchive(command, helperReady);
+	return DispatchOutcome::Dropped;
+}
+static DispatchOutcome Handle(commands::ArchiveWatch& command, bool helperReady, Attempt) {
+	DispatchArchive(command, helperReady);
+	return DispatchOutcome::Dropped;
+}
 static DispatchOutcome Handle(commands::Training& command, bool, Attempt) {
 	if (!Current(command.generation)) return DispatchOutcome::Dropped;
 	// Training from a room or Home sends no room command: the game alone moves, and
