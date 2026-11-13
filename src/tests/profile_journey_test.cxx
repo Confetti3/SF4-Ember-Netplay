@@ -289,7 +289,7 @@ void AwardNoticesJourney() {
  // Notifications lists what was said, newest first.
  const auto told = [&](const std::string& words, bool whole) {
   j.h.Screen("notifications"); j.h.Frame(0, 2);
-  return std::any_of(j.rows.begin(), j.rows.end(), [&](const MenuEntry& r) { return r.id.compare(0, 6, "toast-") == 0 && (whole ? r.detail == words : r.detail.find(words) != std::string::npos); });
+  return std::any_of(j.rows.begin(), j.rows.end(), [&](const auto& r) { return r.id.compare(0, 6, "toast-") == 0 && (whole ? r.detail == words : r.detail.find(words) != std::string::npos); });
  };
  Check(!told(said, false), "The first answer of a run announced an award");
  Counters(j, 120, 3);
