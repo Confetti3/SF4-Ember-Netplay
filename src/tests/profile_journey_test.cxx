@@ -201,7 +201,8 @@ void EditCardJourney() {
 // The account's counters and the two the bridge adds, as a newer points answer sets them.
 void Counters(Journey& j, std::uint64_t games, std::uint64_t wins, std::uint32_t streak = 0, std::uint8_t peak = 0) {
  auto& answer = j.h.view.levels;
- answer.value.account.games = games; answer.value.account.wins = wins; answer.value.bestStreak = streak; answer.value.peakClass = peak;
+ answer.value.account.games = games; answer.value.account.wins = wins;
+ answer.value.awards.games = games; answer.value.awards.wins = wins; answer.value.awards.bestStreak = streak; answer.value.awards.peakClass = peak;
  ++answer.revision; ++answer.finished;
  j.h.Frame(0, 2);
 }

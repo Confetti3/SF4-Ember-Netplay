@@ -114,8 +114,6 @@ namespace sf4e {
 		void SetProfileSteam(const SteamId& id) { _profile.steamId = id; }
 		// None sends no country.
 		void SetProfileCountry(const CountryCode& country) { _profile.country = country; }
-		// The award families worn as title and as icon (netplay/Awards.hxx ids); empty for none.
-		void SetProfileAwards(const std::string& title, const std::string& icon) { _profile.wornTitle = title; _profile.wornIcon = icon; }
 		// The join watches a tournament match, which admits only its named watchers.
 		void SetProfileObserver(bool observer) { _profile.observer = observer; }
 		bool IsCustomRoom() const { return _customRoomsSeen; }

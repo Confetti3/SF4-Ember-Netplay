@@ -4,7 +4,6 @@
 #include "../common/FighterCatalog.hxx"
 #include "../common/JsonDump.hxx"
 #include "../common/SkillBadgeJson.hxx"
-#include "../netplay/Awards.hxx"
 
 namespace sf4e { namespace room {
 using namespace detail;
@@ -379,9 +378,6 @@ void to_json(nlohmann::json& json, const Member& value) { json = nlohmann::json{
     // Only a member who showed the room a profile has the key; older readers skip it.
     if (value.steamId.Present()) json["steam_id"] = value.steamId.ToString();
     if (value.country.Present()) json["country"] = value.country.ToString();
-    // The awards a member claims to wear: only a key for one that is worn.
-    if (!value.wornTitle.empty()) json["worn_title"] = value.wornTitle;
-    if (!value.wornIcon.empty()) json["worn_icon"] = value.wornIcon;
     if (value.badge.Present()) json["badge"] = SkillBadgeJson(value.badge);
     if (value.card.Present()) json["card"] = value.card.ToString(); }
 void from_json(const nlohmann::json& json, Member& value) {
@@ -420,9 +416,6 @@ void from_json(const nlohmann::json& json, Member& value) {
     // Text that is not a SteamId reads as none, as an unknown link does.
     value.steamId = json.contains("steam_id") && json.at("steam_id").is_string() ? SteamId::Parsed(json.at("steam_id").get<std::string>()) : SteamId();
     value.country = json.contains("country") && json.at("country").is_string() ? CountryCode::Parsed(json.at("country").get<std::string>()) : CountryCode();
-    // An id that is no award in the catalog reads as none, as an unknown country does.
-    value.wornTitle = json.contains("worn_title") && json.at("worn_title").is_string() && netplay::awards::Find(json.at("worn_title").get<std::string>()) ? json.at("worn_title").get<std::string>() : std::string();
-    value.wornIcon = json.contains("worn_icon") && json.at("worn_icon").is_string() && netplay::awards::Find(json.at("worn_icon").get<std::string>()) ? json.at("worn_icon").get<std::string>() : std::string();
     value.badge = ReadSkillBadge(json);
     // A card that is not shaped like a token reads as none, as a badge does.
     value.card = ReadCardToken(json);

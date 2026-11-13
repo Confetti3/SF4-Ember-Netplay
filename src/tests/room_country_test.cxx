@@ -46,35 +46,7 @@ static void TestJoinRequestCountry() {
     }
 }
 
-// The awards a member claims to wear travel with the join and the snapshot, and an id the catalog lacks reads as none.
-static void TestMemberAwards() {
-    namespace protocol=sf4e::SessionProtocol;
-    RoomAuthority authority("Awards",16,72);
-    MemberProfile wears;wears.wornTitle="matches";wears.wornIcon="rank";
-    EXPECT(authority.Join("Wears",Peer(0),true,wears).accepted);
-    EXPECT(authority.Join("Bare",Peer(1)).accepted);
-    const auto snapshot=authority.SnapshotView();
-    EXPECT(snapshot.members[0].wornTitle=="matches"&&snapshot.members[0].wornIcon=="rank"&&snapshot.members[1].wornTitle.empty());
-    const auto first=nlohmann::json(snapshot.members[0]),second=nlohmann::json(snapshot.members[1]);
-    EXPECT(first.at("worn_title").get<std::string>()=="matches"&&!second.contains("worn_title")&&!second.contains("worn_icon"));
-    EXPECT(nlohmann::json::parse(nlohmann::json(snapshot).dump()).get<Snapshot>().members[0].wornIcon=="rank");
-    // An older peer sends none; an id the catalog lacks, or no text, is no claim.
-    auto member=first;member.erase("worn_title");EXPECT(member.get<Member>().wornTitle.empty());
-    for(const nlohmann::json invalid:{nlohmann::json("entrant"),nlohmann::json("MATCHES"),nlohmann::json(""),nlohmann::json(7),nlohmann::json(nullptr)}){
-        member["worn_title"]=invalid;EXPECT(member.get<Member>().wornTitle.empty());
-    }
-    // The join request carries the same two ids, and reads a forged one as none.
-    protocol::SessionJoinRequest request;request.SetProfile(wears);
-    const nlohmann::json sent=request;
-    EXPECT(sent.at("wornTitle").get<std::string>()=="matches"&&sent.get<protocol::SessionJoinRequest>().Profile().wornIcon=="rank");
-    EXPECT(!nlohmann::json(protocol::SessionJoinRequest{}).contains("wornTitle"));
-    auto forged=sent;forged["wornTitle"]="organizer";forged["wornIcon"]=12;
-    const auto read=forged.get<protocol::SessionJoinRequest>().Profile();
-    EXPECT(read.wornTitle.empty()&&read.wornIcon.empty());
-}
-
 int main() {
-    TestMemberAwards();
     TestMemberCountry();
     TestJoinRequestCountry();
     if(TEST_FAILURES())return 1;
