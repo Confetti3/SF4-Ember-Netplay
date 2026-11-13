@@ -8263,8 +8263,20 @@ msgstr "On your card."
 msgid "awards.detail_earned"
 msgstr "Earned. Select puts it on your card."
 
-msgid "awards.detail_locked"
-msgstr "Locked. {0}."
+msgid "awards.progress"
+msgstr "{0} of {1}"
+
+msgid "awards.next"
+msgstr "Next: {0}"
+
+msgid "awards.top_level"
+msgstr "Top level"
+
+msgid "awards.notice"
+msgstr "Award earned: {0}"
+
+msgid "awards.link_discord"
+msgstr "Connect Discord to earn awards."
 
 msgid "tier.ash"
 msgstr "Ash"
@@ -8281,104 +8293,266 @@ msgstr "Gold"
 msgid "tier.ember"
 msgstr "Ember"
 
-msgid "award.entrant.title"
-msgstr "EMBER ENTRANT"
+msgid "award.matches.name"
+msgstr "Matches"
 
-msgid "award.entrant.icon"
-msgstr "Spark"
-
-msgid "award.entrant.how"
-msgstr "Play one set in any Ember bracket"
-
-msgid "award.launch-night.title"
-msgstr "LAUNCH NIGHT"
-
-msgid "award.launch-night.icon"
-msgstr "Rewind"
-
-msgid "award.launch-night.how"
-msgstr "Play during the Ember launch event"
-
-msgid "award.weekly-top16.title"
-msgstr "WEEKLY TOP 16"
-
-msgid "award.weekly-top16.icon"
-msgstr "Laurel"
-
-msgid "award.weekly-top16.how"
-msgstr "Finish top 16 at an Ember Weekly"
-
-msgid "award.rollback-regular.title"
-msgstr "ROLLBACK REGULAR"
-
-msgid "award.rollback-regular.icon"
-msgstr "Calendar"
-
-msgid "award.rollback-regular.how"
-msgstr "Enter 10 Ember Weeklies in one season"
-
-msgid "award.weekly-top8.title"
-msgstr "WEEKLY TOP 8"
-
-msgid "award.weekly-top8.icon"
-msgstr "Octagon 8"
-
-msgid "award.weekly-top8.how"
-msgstr "Finish top 8 at an Ember Weekly"
-
-msgid "award.by-ear.title"
-msgstr "BY EAR"
-
-msgid "award.by-ear.icon"
-msgstr "Soundwave"
-
-msgid "award.by-ear.how"
-msgstr "Win a set in the audio-only bracket"
-
-msgid "award.monthly-finalist.title"
-msgstr "MONTHLY FINALIST"
-
-msgid "award.monthly-finalist.icon"
-msgstr "Medal"
-
-msgid "award.monthly-finalist.how"
-msgstr "Reach grand finals at an Ember Monthly"
-
-msgid "award.organizer.title"
-msgstr "TOURNAMENT ORGANIZER"
-
-msgid "award.organizer.icon"
+msgid "award.matches.icon"
 msgstr "Flag"
 
-msgid "award.organizer.how"
-msgstr "Granted by Ember staff to event hosts"
+msgid "award.matches.1.title"
+msgstr "New Challenger"
 
-msgid "award.commentary.title"
-msgstr "ON COMMENTARY"
+msgid "award.matches.1.how"
+msgstr "Play your first rated game in a public room"
 
-msgid "award.commentary.icon"
-msgstr "Mic"
+msgid "award.matches.100.title"
+msgstr "Regular"
 
-msgid "award.commentary.how"
-msgstr "Granted to stream commentators"
+msgid "award.matches.100.how"
+msgstr "Play 100 rated games in public rooms"
 
-msgid "award.season1-veteran.title"
-msgstr "SEASON 1 VETERAN"
+msgid "award.matches.500.title"
+msgstr "Veteran"
 
-msgid "award.season1-veteran.icon"
-msgstr "Crest"
+msgid "award.matches.500.how"
+msgstr "Play 500 rated games in public rooms"
 
-msgid "award.season1-veteran.how"
-msgstr "Place top 32 in every Season 1 Monthly"
+msgid "award.matches.1000.title"
+msgstr "World Warrior"
 
-msgid "award.cup-champion.title"
-msgstr "EMBER CUP CHAMPION"
+msgid "award.matches.1000.how"
+msgstr "Play 1000 rated games in public rooms"
 
-msgid "award.cup-champion.icon"
-msgstr "Crown"
+msgid "award.matches.5000.title"
+msgstr "Lifer"
 
-msgid "award.cup-champion.how"
-msgstr "Win the season-ending Ember Cup"
+msgid "award.matches.5000.how"
+msgstr "Play 5000 rated games in public rooms"
+
+msgid "award.wins.name"
+msgstr "Wins"
+
+msgid "award.wins.icon"
+msgstr "Laurel"
+
+msgid "award.wins.1.title"
+msgstr "First Win"
+
+msgid "award.wins.1.how"
+msgstr "Win your first rated game in a public room"
+
+msgid "award.wins.50.title"
+msgstr "Contender"
+
+msgid "award.wins.50.how"
+msgstr "Win 50 rated games in public rooms"
+
+msgid "award.wins.250.title"
+msgstr "Prize Fighter"
+
+msgid "award.wins.250.how"
+msgstr "Win 250 rated games in public rooms"
+
+msgid "award.wins.1000.title"
+msgstr "Champion"
+
+msgid "award.wins.1000.how"
+msgstr "Win 1000 rated games in public rooms"
+
+msgid "award.wins.2500.title"
+msgstr "Legend"
+
+msgid "award.wins.2500.how"
+msgstr "Win 2500 rated games in public rooms"
+
+msgid "award.streak.name"
+msgstr "Win streak"
+
+msgid "award.streak.icon"
+msgstr "Flame"
+
+msgid "award.streak.3.title"
+msgstr "On a Roll"
+
+msgid "award.streak.3.how"
+msgstr "Win 3 rated games in a row"
+
+msgid "award.streak.5.title"
+msgstr "Hot Streak"
+
+msgid "award.streak.5.how"
+msgstr "Win 5 rated games in a row"
+
+msgid "award.streak.10.title"
+msgstr "Untouchable"
+
+msgid "award.streak.10.how"
+msgstr "Win 10 rated games in a row"
+
+msgid "award.streak.15.title"
+msgstr "Unbeatable"
+
+msgid "award.streak.15.how"
+msgstr "Win 15 rated games in a row"
+
+msgid "award.streak.20.title"
+msgstr "Unstoppable"
+
+msgid "award.streak.20.how"
+msgstr "Win 20 rated games in a row"
+
+msgid "award.rank.name"
+msgstr "Highest rank"
+
+msgid "award.rank.icon"
+msgstr "Shield"
+
+msgid "award.mastery.name"
+msgstr "Fighter mastery"
+
+msgid "award.mastery.icon"
+msgstr "Medal"
+
+msgid "award.mastery.1.title"
+msgstr "Apprentice"
+
+msgid "award.mastery.1.how"
+msgstr "Take a fighter to the Copper frame"
+
+msgid "award.mastery.2.title"
+msgstr "Adept"
+
+msgid "award.mastery.2.how"
+msgstr "Take a fighter to the Silver frame"
+
+msgid "award.mastery.3.title"
+msgstr "Specialist"
+
+msgid "award.mastery.3.how"
+msgstr "Take a fighter to the Gold frame"
+
+msgid "award.mastery.4.title"
+msgstr "Master"
+
+msgid "award.mastery.4.how"
+msgstr "Take a fighter to the Ember frame"
+
+msgid "award.cast.name"
+msgstr "Cast"
+
+msgid "award.cast.icon"
+msgstr "Bracket"
+
+msgid "award.cast.5.title"
+msgstr "Pocket Picks"
+
+msgid "award.cast.5.how"
+msgstr "Play 5 different fighters in rated games"
+
+msgid "award.cast.15.title"
+msgstr "Well Rounded"
+
+msgid "award.cast.15.how"
+msgstr "Play 15 different fighters in rated games"
+
+msgid "award.cast.30.title"
+msgstr "Journeyman"
+
+msgid "award.cast.30.how"
+msgstr "Play 30 different fighters in rated games"
+
+msgid "award.cast.all.title"
+msgstr "Whole Cast"
+
+msgid "award.cast.all.how"
+msgstr "Play every fighter in rated games"
+
+msgid "award.friends.name"
+msgstr "Friends"
+
+msgid "award.friends.icon"
+msgstr "Pair"
+
+msgid "award.friends.1.title"
+msgstr "Sparring Partner"
+
+msgid "award.friends.1.how"
+msgstr "Add a friend"
+
+msgid "award.friends.5.title"
+msgstr "Good Company"
+
+msgid "award.friends.5.how"
+msgstr "Have 5 friends"
+
+msgid "award.friends.15.title"
+msgstr "Regulars"
+
+msgid "award.friends.15.how"
+msgstr "Have 15 friends"
+
+msgid "award.rival.name"
+msgstr "Rival"
+
+msgid "award.rival.icon"
+msgstr "History"
+
+msgid "award.rival.10.title"
+msgstr "Familiar Face"
+
+msgid "award.rival.10.how"
+msgstr "Play 10 rated games against one opponent"
+
+msgid "award.rival.50.title"
+msgstr "Rival"
+
+msgid "award.rival.50.how"
+msgstr "Play 50 rated games against one opponent"
+
+msgid "award.rival.100.title"
+msgstr "Nemesis"
+
+msgid "award.rival.100.how"
+msgstr "Play 100 rated games against one opponent"
+
+msgid "award.rival.250.title"
+msgstr "Eternal Rival"
+
+msgid "award.rival.250.how"
+msgstr "Play 250 rated games against one opponent"
+
+msgid "award.opponents.name"
+msgstr "Opponents"
+
+msgid "award.opponents.icon"
+msgstr "Wave"
+
+msgid "award.opponents.10.title"
+msgstr "Open Challenge"
+
+msgid "award.opponents.10.how"
+msgstr "Face 10 different opponents in rated games"
+
+msgid "award.opponents.50.title"
+msgstr "Wide Circle"
+
+msgid "award.opponents.50.how"
+msgstr "Face 50 different opponents in rated games"
+
+msgid "award.opponents.200.title"
+msgstr "Street Legend"
+
+msgid "award.opponents.200.how"
+msgstr "Face 200 different opponents in rated games"
+
+msgid "award.opponents.500.title"
+msgstr "Everyone's Rival"
+
+msgid "award.opponents.500.how"
+msgstr "Face 500 different opponents in rated games"
+
+msgid "award.rank.how"
+msgstr "Reach Class {0} in public rooms"
 
 msgid "toast.kind.invitation"
 msgstr "INVITATION"

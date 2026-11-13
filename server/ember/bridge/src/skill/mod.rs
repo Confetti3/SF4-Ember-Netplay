@@ -153,6 +153,8 @@ pub fn record_games(
         if full {
             levels::count_account(tx, &winner, true, now)?;
             levels::count_account(tx, &loser, false, now)?;
+            levels::count_streak(tx, &winner, true)?;
+            levels::count_streak(tx, &loser, false)?;
             if let Some(fighters) = game.fighters {
                 levels::count(tx, &winner, fighters.winner, true, now)?;
                 levels::count(tx, &loser, fighters.loser, false, now)?;
@@ -313,6 +315,7 @@ fn badge_of(tx: &Transaction<'_>, account: &str, now: u64) -> Result<SkillBadge>
             "UPDATE skill_ratings SET band = ?2 WHERE game = 'usf4' AND discord_user_id = ?1",
             params![account, band],
         )?;
+        levels::note_class(tx, account, band)?;
     }
     Ok(SkillBadge::class(band, band != 0 && settled))
 }

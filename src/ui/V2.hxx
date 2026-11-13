@@ -211,12 +211,6 @@ TierColors TierColor(Tier tier);
 // scaled to `size`; -1 draws nothing.
 constexpr int IconCount = 12;
 void Icon(ImDrawList* draw, int icon, ImVec2 at, float size, ImU32 ink);
-// The awards (the Awards board): a title on its tier's plate and the icon that
-// goes with it, lowest tier first. The ids are the identity backend's; the
-// rest are the catalog ids of its title, its icon's name and how to earn it.
-struct Award { const char* id; int icon; Tier tier; const char *title, *name, *how; };
-extern const Award Awards[11];
-const Award* FindAward(const std::string& id);
 const char* TierName(Tier tier);
 // A title on its tier's plate (the profile card's, the Card tab's): a slanted
 // bar `line` tall at `at` with the tier's stripe at its start, as wide as the
@@ -281,6 +275,8 @@ struct TagView {
     int fighter = -1;
     // The title's tier colours its plate; the icon (-1 none) sits on the card's right.
     Tier tier = Tier::None;
+    // The icon's own tier colours it (an award worn as the icon is not the title's); none takes the title's.
+    Tier iconTier = Tier::None;
     int icon = -1;
     std::string about;
     // L only, the player's own card: the main's points over the account's, under the about line.

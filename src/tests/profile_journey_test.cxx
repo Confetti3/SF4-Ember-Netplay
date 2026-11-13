@@ -7,8 +7,10 @@
 // without points is still a whole card.
 #include "public_rooms_journey_support.hxx"
 #include "../ui/PlayerCard.hxx"
+#include "../ui/NameMarks.hxx"
 #include "../ui/ProfilePanel.hxx"
 #include "../ui/RowId.hxx"
+#include "../netplay/Awards.hxx"
 #include <algorithm>
 #include <memory>
 namespace {
@@ -196,16 +198,30 @@ void EditCardJourney() {
  Check(locked && !locked->enabled && j.row("main-character") && !j.row("main-character")->enabled, "Edit card changes in a room");
 }
 
-// One Awards tab for titles and icons: Select on an earned award opens Wear title, Wear icon and Wear both, each saved on the card; the one worn is off; a locked award only says how to earn it.
+// The account's counters and the two the bridge adds, as a newer points answer sets them.
+void Counters(Journey& j, std::uint64_t games, std::uint64_t wins, std::uint32_t streak = 0, std::uint8_t peak = 0) {
+ auto& answer = j.h.view.levels;
+ answer.value.account.games = games; answer.value.account.wins = wins; answer.value.bestStreak = streak; answer.value.peakClass = peak;
+ ++answer.revision; ++answer.finished;
+ j.h.Frame(0, 2);
+}
+
+// One Awards tab for titles and icons: a tile for each family; Select on an earned one opens Wear title, Wear icon and Wear both, each saved on the card; the one worn is off; a locked one only says how to earn it and how far along it is.
 void AwardsJourney() {
  Journey j;
  Answer(j);
- j.h.view.earnedAwards = {"entrant", "launch-night"};
+ Counters(j, 120, 3);
  j.h.Screen("awards");
- const auto* earned = j.row("award:entrant");
+ // One row for each family, and the families reached are the counters' alone.
+ Check(j.rows.size() == netplay::awards::CatalogSize, "The wall is not one row for each family");
+ const auto* earned = j.row("award:matches");
  Check(earned && earned->choices.size() == 3 && earned->choices[0].id == "title" && earned->choices[1].id == "icon" && earned->choices[2].id == "both", "An earned award does not offer title, icon and both");
- const auto* locked = j.row("award:organizer");
- Check(locked && locked->info && locked->choices.empty() && !locked->enabled, "A locked award can be worn");
+ Check(earned && earned->label == loc::T("award.matches.100.title"), "An earned family is not named by its level");
+ Check(earned && earned->detail.find(loc::Tf("awards.progress", 120, 500)) != std::string::npos, "An earned family does not say how far the next level is");
+ Check(j.row("award:wins") && !j.row("award:wins")->info && j.row("award:cast") && !j.row("award:cast")->info, "A family the counters reach is locked");
+ const auto* locked = j.row("award:rank");
+ Check(locked && locked->info && locked->choices.empty() && !locked->enabled && locked->label == loc::T("award.rank.name"), "A locked family can be worn or is not named");
+ Check(j.row("award:streak") && j.row("award:streak")->info && j.row("award:mastery")->info && j.row("award:friends")->info && j.row("award:rival")->info, "A family the counters do not reach is earned");
  const auto pick = [&](const char* id, int right) {
   j.h.shell.Navigation().Focus(id, j.rows);
   j.h.Press(MenuInput::Select);
@@ -219,21 +235,65 @@ void AwardsJourney() {
   if (save) { j.h.view.preferences = save->preferences; j.h.Frame(0, 2); }
   return save;
  };
- auto save = pick("award:entrant", 0);
- Check(save && save->preferences.wornTitle == "entrant" && save->preferences.wornIcon != "entrant", "Wear title did not wear only the title");
- save = pick("award:launch-night", 1);
- Check(save && save->preferences.wornTitle == "entrant" && save->preferences.wornIcon == "launch-night", "Wear icon did not wear only the icon");
+ auto save = pick("award:matches", 0);
+ Check(save && save->preferences.wornTitle == "matches" && save->preferences.wornIcon != "matches", "Wear title did not wear only the title");
+ save = pick("award:wins", 1);
+ Check(save && save->preferences.wornTitle == "matches" && save->preferences.wornIcon == "wins", "Wear icon did not wear only the icon");
  j.h.Frame(0, 2);
- earned = j.row("award:entrant");
+ earned = j.row("award:matches");
  Check(earned && !earned->choices[0].enabled && earned->choices[0].detail == loc::T("awards.detail_worn") && earned->choices[1].enabled && earned->choices[2].enabled, "The title already worn is not off in the popout");
- save = pick("award:entrant", 2);
- Check(save && save->preferences.wornTitle == "entrant" && save->preferences.wornIcon == "entrant", "Wear both did not wear the title and the icon");
+ save = pick("award:matches", 2);
+ Check(save && save->preferences.wornTitle == "matches" && save->preferences.wornIcon == "matches", "Wear both did not wear the title and the icon");
  j.h.Frame(0, 2);
- earned = j.row("award:entrant");
+ earned = j.row("award:matches");
  Check(earned && !earned->choices[0].enabled && !earned->choices[1].enabled && !earned->choices[2].enabled && earned->valueHighlighted, "An award worn as title and icon still offers to be worn");
  // In a room nothing on the card changes.
  j.h.view.canEditPreferences = false; j.h.Frame(0, 2);
- Check(j.row("award:launch-night") && !j.row("award:launch-night")->enabled, "Awards change in a room");
+ Check(j.row("award:wins") && !j.row("award:wins")->enabled, "Awards change in a room");
+}
+
+// A saved award that is gone from the catalog, or that the counters do not reach, is ignored: Edit card says None.
+// One the counters reach shows by its current level's title, and moves up with it.
+void WornClaimsJourney() {
+ Journey j;
+ j.h.view.preferences.wornTitle = "organizer";
+ j.h.view.preferences.wornIcon = "rank";
+ Answer(j);
+ Counters(j, 120, 3);
+ j.h.Screen("card-edit");
+ Check(j.row("card-title") && j.row("card-title")->value == loc::T("card.none") && j.row("card-icon") && j.row("card-icon")->value == loc::T("card.none"), "A saved award nobody earned is worn");
+ j.h.view.preferences.wornTitle = "matches";
+ j.h.Frame(0, 2);
+ Check(j.row("card-title") && j.row("card-title")->value == loc::T("award.matches.100.title"), "An earned saved award is not worn at its level");
+ Counters(j, 600, 3);
+ Check(j.row("card-title") && j.row("card-title")->value == loc::T("award.matches.500.title"), "A worn award did not move up with the player");
+}
+
+// No Discord account: the wall still lists every family, locked, with the line that says why and the Connect row of the Card tab.
+void AwardsStatesJourney() {
+ Journey j;
+ Answer(j, Own::Kind::NoAccount);
+ j.h.Screen("awards");
+ Check(j.rows.size() == netplay::awards::CatalogSize + 1, "Without an account the wall is not every family and the way to one");
+ Check(j.row("discord-connect") && j.row("award:matches") && j.row("award:matches")->info && j.row("award:matches")->value == loc::T("awards.locked"), "Without an account an award is earned");
+ // A service without points lists them locked with no Connect row.
+ Answer(j, Own::Kind::Unavailable);
+ Check(j.rows.size() == netplay::awards::CatalogSize && !j.row("discord-connect") && j.row("award:matches") && j.row("award:matches")->info, "A service without points does not list the awards locked");
+}
+
+// A new answer that reaches levels says each once with its tier; the first answer of a run says nothing.
+void AwardNoticesJourney() {
+ Journey j;
+ Answer(j);
+ const std::string said = loc::Tf("awards.notice", "").substr(0, 5);
+ j.h.Screen("home"); j.h.Frame(0, 2);
+ Check(!j.row("notifications") || j.row("notifications")->detail.find(said) == std::string::npos, "The first answer of a run announced an award");
+ Counters(j, 120, 3);
+ j.h.Screen("home"); j.h.Frame(0, 2);
+ const std::string dot = " \xC2\xB7 ";
+ const std::string titles = std::string(loc::T("award.matches.1.title")) + dot + loc::T("tier.ash") + ", " + loc::T("award.matches.100.title") + dot + loc::T("tier.copper") +
+  ", " + loc::T("award.wins.1.title") + dot + loc::T("tier.ash");
+ Check(j.row("notifications") && j.row("notifications")->detail == loc::Tf("awards.notice", titles), "A new answer did not announce the levels it reached");
 }
 
 // Where one press from `from` leaves the focus.
@@ -251,8 +311,7 @@ void SpatialJourney() {
   Journey j;
   j.h.imgui.io.DisplaySize = ImVec2(1280, height);
   j.h.view.preferences.mainFighter = 0;
-  j.h.view.earnedAwards = {"entrant", "launch-night"};
-  Answer(j);
+   Answer(j);
   // Card: Edit card under the hero, the strip's three tiles in a line beside it.
   j.h.Screen("card"); j.h.Frame(0, 2);
   const std::string ryu = ui::CardFighterRow(0), ken = ui::CardFighterRow(5), third = ui::CardFighterRow(12);
@@ -334,7 +393,7 @@ void ReadJourney() {
 
 int main() {
  try {
-  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); AwardsJourney(); HomeJourney(); ReadJourney(); SpatialJourney();
+  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); AwardsJourney(); WornClaimsJourney(); AwardsStatesJourney(); AwardNoticesJourney(); HomeJourney(); ReadJourney(); SpatialJourney();
   std::cout << "Profile journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Error, Result,
     encoding::is_prefixed_id,
+    skill::SKILL_BANDS,
     wire_enum::wire_enum,
 };
 
@@ -123,11 +124,38 @@ pub struct OwnAccount {
     /// is 0.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub since: Option<u64>,
+    /// The most counted games the account ever won in a row (milestone
+    /// awards, `src/netplay/Awards.hxx`); absent while 0, and from a bridge
+    /// that does not count it.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub best_streak: u32,
+    /// The highest class the account has ever shown, 1 to `SKILL_BANDS`; a
+    /// peak, so it never goes down when the class does. Absent while 0 (no
+    /// class yet) and from a bridge that does not keep it.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub peak_class: u8,
+    /// The most counted games the account played against one opponent, from
+    /// the pair records; absent while 0 and from a bridge that does not send it.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub rival: u32,
+    /// How many different opponents the account has played; absent while 0.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub opponents: u32,
+}
+
+fn is_zero<T: Default + PartialEq>(value: &T) -> bool {
+    *value == T::default()
 }
 
 impl OwnAccount {
     pub fn check(&self) -> Result<()> {
         check_counts(self.points, self.games, self.wins)?;
+        if u64::from(self.best_streak) > self.games {
+            return Err(Error::InvalidField("best_streak"));
+        }
+        if self.peak_class > SKILL_BANDS {
+            return Err(Error::InvalidField("peak_class"));
+        }
         if self.since.is_some() != (self.games > 0) {
             return Err(Error::InvalidField("since"));
         }
@@ -301,6 +329,48 @@ impl CardAccount {
     }
 }
 
+/// What a card says of the milestones behind another player's awards: for
+/// each count, the largest of the bridge's own marks it has reached, never the
+/// count itself, so wins, games and the win rate stay private (the points
+/// already hide them). A viewer checks a worn award against these; a mark the
+/// bridge does not offer reads as 0 and the award as locked. Every member is
+/// absent while 0.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AwardMarks {
+    /// The largest of 1, 10, 100, 500, 1000 and 5000 the counted games reach.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub games: u64,
+    /// The largest of 1, 50, 250, 1000 and 2500 the counted wins reach.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub wins: u64,
+    /// The largest of 3, 5, 10 and 20 the best win streak reaches.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub streak: u32,
+    /// The highest class ever shown, 1 to `SKILL_BANDS`; 0 for a player who
+    /// does not take part in ranking, who shows no class.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub class: u8,
+    /// The largest of 10, 50, 100 and 250 games against one opponent.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub rival: u32,
+    /// The largest of 10, 50, 200 and 500 different opponents.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub opponents: u32,
+}
+
+impl AwardMarks {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+
+    pub fn check(&self) -> Result<()> {
+        if self.class > SKILL_BANDS {
+            return Err(Error::InvalidField("class"));
+        }
+        Ok(())
+    }
+}
+
 /// One player's card in a look-up answer.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlayerCard {
@@ -310,11 +380,16 @@ pub struct PlayerCard {
     #[serde(default)]
     pub fighters: Vec<CardFighter>,
     pub relation: Relation,
+    /// The milestones for the awards the player wears; absent from a bridge
+    /// that does not send them, and then every award reads as locked.
+    #[serde(default, skip_serializing_if = "AwardMarks::is_empty")]
+    pub marks: AwardMarks,
 }
 
 impl PlayerCard {
     pub fn check(&self) -> Result<()> {
         self.account.check()?;
+        self.marks.check()?;
         if self.fighters.len() > usize::from(FIGHTERS)
             || !self
                 .fighters
@@ -424,6 +499,10 @@ mod tests {
             floor,
             next,
             since: (games > 0).then_some(1_729_468_800),
+            best_streak: 0,
+            peak_class: 0,
+            rival: 0,
+            opponents: 0,
         }
     }
 
@@ -707,6 +786,7 @@ mod tests {
             account: CardAccount { points: 0, tier: 0 },
             fighters: vec![],
             relation: Relation::Sent,
+            marks: AwardMarks::default(),
         };
         assert_eq!(
             serde_json::to_string(&empty).unwrap(),
@@ -758,6 +838,7 @@ mod tests {
             account: CardAccount { points: 1, tier: 0 },
             fighters,
             relation: Relation::None,
+            marks: AwardMarks::default(),
         };
         assert!(
             card(vec![fighter(0, 1, 0), fighter(43, 90_000, 4)])
@@ -773,6 +854,7 @@ mod tests {
                 account: CardAccount { points: 1, tier: 5 },
                 fighters: vec![],
                 relation: Relation::None,
+                marks: AwardMarks::default(),
             }
             .check(),
             Err(Error::InvalidField("tier"))
@@ -807,5 +889,66 @@ mod tests {
             serde_json::from_value::<Relation>(json!("blocked_by")).unwrap(),
             Relation::None
         );
+    }
+    #[test]
+    fn the_award_counters_are_optional_on_every_answer() {
+        // An answer from a bridge before them has none, and reads as 0.
+        let old = json!({"points": "counted",
+            "account": {"points": 13, "games": 9, "wins": 4, "tier": 0, "floor": 0,
+                        "next": 500, "since": 1729468800},
+            "fighters": []});
+        let OwnLevels::Counted { account, .. } = read::<OwnLevels>(&old) else {
+            panic!("counted");
+        };
+        assert_eq!((account.best_streak, account.peak_class), (0, 0));
+        assert_eq!(serde_json::to_value(&account).unwrap().get("best_streak"), None);
+
+        // A bridge with them writes them only while they are not 0.
+        let mut with = account.clone();
+        with.best_streak = 7;
+        with.peak_class = 6;
+        assert!(with.check().is_ok());
+        let wire = serde_json::to_value(&with).unwrap();
+        assert_eq!((wire["best_streak"].clone(), wire["peak_class"].clone()), (json!(7), json!(6)));
+        assert_eq!(read::<OwnAccount>(&wire), with);
+        // A streak longer than the games played, or a class past the top, is no answer.
+        let mut long = with.clone();
+        long.best_streak = 10;
+        assert_eq!(long.check(), Err(Error::InvalidField("best_streak")));
+        let mut high = with;
+        high.peak_class = SKILL_BANDS + 1;
+        assert_eq!(high.check(), Err(Error::InvalidField("peak_class")));
+    }
+
+    #[test]
+    fn a_card_carries_marks_never_counts() {
+        let bare = json!({"account": {"points": 2, "tier": 0}, "fighters": [], "relation": "none"});
+        let card: PlayerCard = read(&bare);
+        assert!(card.marks.is_empty());
+        assert_eq!(serde_json::to_value(&card).unwrap(), bare);
+
+        let marked = json!({"account": {"points": 2, "tier": 0}, "fighters": [], "relation": "none",
+            "marks": {"games": 100, "wins": 50, "streak": 5, "class": 6}});
+        let card: PlayerCard = read(&marked);
+        assert_eq!(
+            card.marks,
+            AwardMarks { games: 100, wins: 50, streak: 5, class: 6, ..AwardMarks::default() }
+        );
+        assert!(card.check().is_ok());
+        assert_eq!(serde_json::to_value(&card).unwrap(), marked);
+        // A mark of 0 is not written; a member a later bridge adds is ignored.
+        let sparse = PlayerCard {
+            marks: AwardMarks { games: 1, ..AwardMarks::default() },
+            ..card.clone()
+        };
+        assert_eq!(
+            serde_json::to_value(&sparse).unwrap()["marks"],
+            json!({"games": 1})
+        );
+        ignores_extra::<PlayerCard>(&marked, "/marks");
+        // A class past the top fails the card.
+        let mut bad = card;
+        bad.marks.class = SKILL_BANDS + 1;
+        assert_eq!(bad.check(), Err(Error::InvalidField("class")));
     }
 }

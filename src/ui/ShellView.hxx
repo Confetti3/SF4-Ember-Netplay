@@ -72,9 +72,6 @@ struct ShellView {
     std::string playerTitle;
     v2::Tier playerTier = v2::Tier::None;
     int playerIcon = -1;
-    // The awards earned (v2::Awards' ids), which the Awards wall lets the
-    // player wear; empty until the backend fills it, so all locked.
-    std::vector<std::string> earnedAwards;
     netplay::LobbySettings lobbySettings;
     bool helperReady = false, canOpenRoom = false, canReady = false;
     bool canReplaceRoom = false;
