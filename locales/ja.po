@@ -426,6 +426,9 @@ msgstr "貼り付け"
 msgid "menu.adjust"
 msgstr "調整"
 
+msgid "menu.change"
+msgstr "変更"
+
 msgid "speech.position"
 msgstr "{1}件中{0}件目"
 
@@ -1098,11 +1101,77 @@ msgstr "カード"
 msgid "profile.tab.fighters"
 msgstr "ファイター"
 
+msgid "profile.tab.sets"
+msgstr "セット"
+
 msgid "profile.tab.friends"
 msgstr "フレンド"
 
 msgid "friends.tab_count"
 msgstr "フレンド · {0}"
+
+msgid "profile.view_sets"
+msgstr "セットを見る"
+
+msgid "profile.card_of"
+msgstr "プレイヤーカード: {0}"
+
+msgid "profile.this_player"
+msgstr "このプレイヤー"
+
+msgid "profile.reading"
+msgstr "{0} さんのカードを読み込み中。"
+
+msgid "profile.reading_button"
+msgstr "読み込み中"
+
+msgid "profile.no_card"
+msgstr "{0} さんには表示できるカードがありません。"
+
+msgid "profile.sets_by_name"
+msgstr "セットは引き続き名前で一覧表示されます。"
+
+msgid "profile.blocked"
+msgstr "{0} さんをブロックしています。カードを見るにはブロックを解除してください。"
+
+msgid "profile.nobody"
+msgstr "現在、{0} という名前のプレイヤーはEmberにいません。"
+
+msgid "profile.unreachable"
+msgstr "サービスに接続できません。応答があるとカードが表示されます。"
+
+msgid "profile.unsupported"
+msgstr "このサービスはプロフィールに対応していません。"
+
+msgid "profile.try_again"
+msgstr "もう一度試す"
+
+msgid "profile.pick_title"
+msgstr "{0} という名前のプレイヤー"
+
+msgid "profile.pick_screen"
+msgstr "プレイヤー"
+
+msgid "profile.in_this_room"
+msgstr "このルーム"
+
+msgid "profile.request_sent_detail"
+msgstr "フレンドの「送信済み」で取り消せます。"
+
+msgid "profile.sets_note"
+msgstr "名前 {0} で見つかったセットです。この名前を使っていた別の人のセットも表示され、以前の名前でプレイしたセットは表示されません。"
+
+msgid "profile.sets_player"
+msgstr "プレイヤー"
+
+msgid "profile.sets_player_detail"
+msgstr "この名前のセットです。リストを絞り込んでも変わりません。"
+
+msgid "profile.sets_opponent"
+msgstr "対戦相手"
+
+msgid "profile.sets_opponent_detail"
+msgstr "名前にこの文字を含むプレイヤーとのセットを一覧表示します。"
 
 msgid "friends.requests_heading"
 msgstr "リクエスト · {0}"
@@ -1191,9 +1260,6 @@ msgstr "ブロック解除"
 msgid "friends.cancel_request"
 msgstr "リクエストを取り消す"
 
-msgid "friends.add"
-msgstr "フレンドを追加"
-
 msgid "friends.are_friends"
 msgstr "フレンド"
 
@@ -1221,9 +1287,6 @@ msgstr "フレンドコード"
 msgid "friends.code_detail"
 msgstr "このコードを相手に伝えると、あなたをフレンドに追加できます。"
 
-msgid "friends.their_code"
-msgstr "相手のフレンドコード"
-
 msgid "friends.new_code"
 msgstr "新しいコード"
 
@@ -1235,6 +1298,42 @@ msgstr "リクエストを送信"
 
 msgid "friends.send_detail"
 msgstr "このコードにフレンドリクエストを送ります。"
+
+msgid "find.title"
+msgstr "プレイヤーを探す"
+
+msgid "find.text_row"
+msgstr "名前またはフレンドコード"
+
+msgid "find.text_detail"
+msgstr "名前の一部（2文字以上）またはフレンドコード。"
+
+msgid "find.search"
+msgstr "検索"
+
+msgid "find.players"
+msgstr "プレイヤー · {0}"
+
+msgid "find.searching"
+msgstr "検索中。"
+
+msgid "find.none"
+msgstr "その名前のプレイヤーはいません。"
+
+msgid "find.more"
+msgstr "ほかにも該当するプレイヤーがいます。名前をもっと入力してください。"
+
+msgid "find.recent"
+msgstr "最近の対戦相手"
+
+msgid "find.recent_line"
+msgstr "対戦: {0} · {1}"
+
+msgid "find.recent_when"
+msgstr "対戦: {0}"
+
+msgid "find.recent_empty"
+msgstr "公開ルームで対戦した相手は、1週間ここに表示されます。"
 
 msgid "friends.sent"
 msgstr "送信済み ({0})"
@@ -1305,9 +1404,6 @@ msgstr "カードを編集"
 msgid "card.account"
 msgstr "アカウント"
 
-msgid "card.progress"
-msgstr "進行度"
-
 msgid "card.top_fighters"
 msgstr "上位ファイター"
 
@@ -1315,7 +1411,7 @@ msgid "card.choose_main"
 msgstr "メインを選ぶ"
 
 msgid "card.edit_detail"
-msgstr "名前、国旗、メイン、称号、アイコン。"
+msgstr "名前、国旗、メイン、称号、アワード、プレイスタイル。"
 
 msgid "card.title_row"
 msgstr "称号"
@@ -1328,6 +1424,72 @@ msgstr "なし"
 
 msgid "card.award_detail"
 msgstr "アワードを開きます。そこで獲得したアワードを選ぶと身に着けられます。"
+
+msgid "card.how_heading"
+msgstr "プレイスタイル"
+
+msgid "card.pins_row"
+msgstr "カードに付けるアワード"
+
+msgid "card.pins_auto"
+msgstr "最高のもの"
+
+msgid "card.pins_chosen"
+msgstr "{0}件選択中"
+
+msgid "card.pins_detail"
+msgstr "カードに付けるアワードのファミリーを最大4つまで。それぞれ到達したレベルで表示されます。「最高のもの」は最も難しいものを表示します。"
+
+msgid "card.pins_auto_row"
+msgstr "最高のものを表示"
+
+msgid "card.pins_auto_detail"
+msgstr "カードには最高レベルで達成したアワードが表示されます。オフにすると最大4つを自分で選べます。"
+
+msgid "card.pins_full"
+msgstr "最大4つです。先に1つ外してください。"
+
+msgid "card.pins_nothing"
+msgstr "達成したアワードはここに表示され、選べます。まだありません。"
+
+msgid "card.automatic"
+msgstr "自動"
+
+msgid "card.device_row"
+msgstr "デバイス"
+
+msgid "card.device_auto"
+msgstr "{0} · 自動"
+
+msgid "card.device_detail"
+msgstr "使っている機器をカードに表示します。自動にするとコントローラーに合わせます。"
+
+msgid "card.link_row"
+msgstr "接続"
+
+msgid "card.link_detail"
+msgstr "有線かWi-Fiか、Emberの測定結果です。非表示にできます。"
+
+msgid "card.region_row"
+msgstr "地域"
+
+msgid "card.region_detail"
+msgstr "Emberが選んだリレーによる地域です。非表示にできます。"
+
+msgid "card.shown"
+msgstr "{0} · 表示中"
+
+msgid "card.unknown_shown"
+msgstr "未確認 · 表示中"
+
+msgid "card.hidden"
+msgstr "非表示"
+
+msgid "card.looking_detail"
+msgstr "最大2つまで、カードに表示されます。"
+
+msgid "card.looking_full"
+msgstr "最大2つです。先に1つオフにしてください。"
 
 msgid "points.label"
 msgstr "FP"
@@ -1487,6 +1649,126 @@ msgstr "使用ファイター"
 
 msgid "card.of"
 msgstr "{0} / {1}"
+
+msgid "card.about"
+msgstr "{0} · {1}からEmberを利用"
+
+msgid "card.since"
+msgstr "{0}からEmberを利用"
+
+msgid "card.wins"
+msgstr "勝利数"
+
+msgid "card.best_streak"
+msgstr "最高連勝"
+
+msgid "card.record_line"
+msgstr "ランク試合{0}回 · {1}勝 · 最高{2}連勝"
+
+msgid "card.tier_to"
+msgstr "{0} · {2}まであと{1}ポイント"
+
+msgid "card.tier_top"
+msgstr "{0} · 最上位のフレーム"
+
+msgid "card.awards"
+msgstr "アワード"
+
+msgid "card.no_awards"
+msgstr "アワードはまだありません。最初のアワードは初めてのランク試合で手に入ります。"
+
+msgid "card.most_played"
+msgstr "最多対戦"
+
+msgid "card.most_played_line"
+msgstr "{0}勝{1}敗 · {2}試合"
+
+msgid "card.most_played_none"
+msgstr "最も多く対戦した相手は、最初のランク試合の後にここに表示されます。"
+
+msgid "card.recent_sets"
+msgstr "最近のセット"
+
+msgid "card.all_sets"
+msgstr "すべてのセット"
+
+msgid "card.set_vs"
+msgstr "vs {0}"
+
+msgid "card.set_online"
+msgstr "オンライン"
+
+msgid "card.sets_loading"
+msgstr "セットを読み込み中。"
+
+msgid "card.sets_none"
+msgstr "この名前のアーカイブ済みセットはまだありません。"
+
+msgid "card.sets_unavailable"
+msgstr "このサービスはセットを保存していません。"
+
+msgid "card.sets_unreachable"
+msgstr "アーカイブに接続できません。応答があるとセットが表示されます。"
+
+msgid "card.you_and"
+msgstr "あなたと{0}"
+
+msgid "card.relation"
+msgstr "フレンド"
+
+msgid "card.since_date"
+msgstr "{0}から"
+
+msgid "card.not_friends"
+msgstr "フレンドではありません"
+
+msgid "card.they_asked"
+msgstr "リクエストを受信"
+
+msgid "card.plays"
+msgstr "使用機器"
+
+msgid "card.playing"
+msgstr "使用機器"
+
+msgid "card.looking_row"
+msgstr "希望"
+
+msgid "style.pad"
+msgstr "パッド"
+
+msgid "style.stick"
+msgstr "アケコン"
+
+msgid "style.leverless"
+msgstr "レバーレス"
+
+msgid "style.keyboard"
+msgstr "キーボード"
+
+msgid "style.wired"
+msgstr "有線"
+
+msgid "style.wifi"
+msgstr "Wi-Fi"
+
+msgid "style.casuals"
+msgstr "気軽に対戦"
+
+msgid "style.long_sets"
+msgstr "長いセット"
+
+msgid "style.ranked"
+msgstr "ランク戦"
+
+msgid "style.practice"
+msgstr "大会の練習"
+
+msgid "style.new"
+msgstr "初心者"
+
+msgid "style.teach"
+msgstr "喜んで教えます"
 
 msgid "fighters.how"
 msgstr "ポイントのためかた"
@@ -5130,6 +5412,12 @@ msgstr "左右で次の試合のウルトラコンボを変更します。新し
 msgid "postmatch.ultra.set"
 msgstr "次の試合のウルトラコンボは決まりました。"
 
+msgid "postmatch.add_friend.detail"
+msgstr "{0} さんにフレンドリクエストを送ります。再戦への返答はそのままです。"
+
+msgid "postmatch.accept_friend.detail"
+msgstr "{0} さんのフレンドリクエストを承認します。再戦への返答はそのままです。"
+
 msgid "rules.set_summary"
 msgstr "{0}、{1}"
 
@@ -8315,7 +8603,7 @@ msgid "notifications.tab_count"
 msgstr "通知 · {0}"
 
 msgid "notifications.waiting"
-msgstr "保留中: {0}"
+msgstr "対応待ち: {0}"
 
 msgid "notifications.none_detail"
 msgstr "リンクのコピーやルームからの退出など、Ember からのお知らせはこのセッション中ここに残ります。"
@@ -8588,7 +8876,7 @@ msgid "archive.f_class"
 msgstr "クラス"
 
 msgid "archive.f_class_detail"
-msgstr "どちらかのプレイヤーが現在ランキングでこのクラスにいるセットを一覧表示します。"
+msgstr "どちらかのプレイヤーが現在このクラスにいるセットを一覧表示します。"
 
 msgid "archive.f_country"
 msgstr "国・地域"
@@ -8702,7 +8990,7 @@ msgid "archive.games"
 msgstr "{0}試合"
 
 msgid "archive.met"
-msgstr "対戦相手: {0}"
+msgstr "対戦した相手: {0}"
 
 msgid "archive.session_label"
 msgstr "{0}: {1}試合"
@@ -8818,6 +9106,9 @@ msgstr "獲得した称号とアイコン、そして残りの獲得方法。選
 msgid "awards.earned_count"
 msgstr "{1}個中{0}個獲得"
 
+msgid "awards.not_reached"
+msgstr "未達成"
+
 msgid "awards.card_heading"
 msgstr "あなたのカード · 他の人からの見え方"
 
@@ -8882,7 +9173,7 @@ msgid "tier.ember"
 msgstr "エンバー"
 
 msgid "award.matches.name"
-msgstr "対戦数"
+msgstr "プレイ試合数"
 
 msgid "award.matches.icon"
 msgstr "旗"
@@ -9026,7 +9317,7 @@ msgid "award.mastery.4.how"
 msgstr "ファイター1人をエンバーのフレームまで育てる"
 
 msgid "award.cast.name"
-msgstr "キャラクター"
+msgstr "使用ファイター"
 
 msgid "award.cast.icon"
 msgstr "トーナメント表"

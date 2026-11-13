@@ -426,6 +426,9 @@ msgstr "Vložit"
 msgid "menu.adjust"
 msgstr "Upravit"
 
+msgid "menu.change"
+msgstr "Změnit"
+
 msgid "speech.position"
 msgstr "{0} z {1}"
 
@@ -1098,11 +1101,77 @@ msgstr "Karta"
 msgid "profile.tab.fighters"
 msgstr "Bojovníci"
 
+msgid "profile.tab.sets"
+msgstr "Sety"
+
 msgid "profile.tab.friends"
 msgstr "Přátelé"
 
 msgid "friends.tab_count"
 msgstr "Přátelé · {0}"
+
+msgid "profile.view_sets"
+msgstr "Zobrazit sety"
+
+msgid "profile.card_of"
+msgstr "Karta hráče: {0}"
+
+msgid "profile.this_player"
+msgstr "tohoto hráče"
+
+msgid "profile.reading"
+msgstr "Načítání karty hráče {0}."
+
+msgid "profile.reading_button"
+msgstr "Načítání"
+
+msgid "profile.no_card"
+msgstr "Hráč {0} nemá kartu, kterou by šlo ukázat."
+
+msgid "profile.sets_by_name"
+msgstr "Sety se dál vypisují podle jména."
+
+msgid "profile.blocked"
+msgstr "Zablokovali jste hráče {0}. Odblokujte ho, abyste viděli jeho kartu."
+
+msgid "profile.nobody"
+msgstr "Žádný hráč na Emberu se teď nejmenuje {0}."
+
+msgid "profile.unreachable"
+msgstr "Službu se nepodařilo kontaktovat. Karta se zobrazí, až odpoví."
+
+msgid "profile.unsupported"
+msgstr "Tato služba nenabízí profily."
+
+msgid "profile.try_again"
+msgstr "Zkusit znovu"
+
+msgid "profile.pick_title"
+msgstr "Hráči se jménem {0}"
+
+msgid "profile.pick_screen"
+msgstr "Hráči"
+
+msgid "profile.in_this_room"
+msgstr "V této místnosti"
+
+msgid "profile.request_sent_detail"
+msgstr "Zrušíte ji v Přátelé, Odeslané."
+
+msgid "profile.sets_note"
+msgstr "Sety nalezené pod jménem {0}. Zobrazí se tu i někdo jiný, kdo toto jméno používal, ale sety odehrané pod dřívějším jménem ne."
+
+msgid "profile.sets_player"
+msgstr "Hráč"
+
+msgid "profile.sets_player_detail"
+msgstr "Sety patří k tomuto jménu. Zůstává, i když seznam zužujete."
+
+msgid "profile.sets_opponent"
+msgstr "Soupeř"
+
+msgid "profile.sets_opponent_detail"
+msgstr "Vypíše sety proti hráči, jehož jméno obsahuje tato písmena."
 
 msgid "friends.requests_heading"
 msgstr "ŽÁDOSTI · {0}"
@@ -1191,9 +1260,6 @@ msgstr "Odblokovat"
 msgid "friends.cancel_request"
 msgstr "Zrušit žádost"
 
-msgid "friends.add"
-msgstr "Přidat přítele"
-
 msgid "friends.are_friends"
 msgstr "Přátelé"
 
@@ -1221,9 +1287,6 @@ msgstr "Kód přítele"
 msgid "friends.code_detail"
 msgstr "Dejte tento kód hráči, aby si vás mohl přidat."
 
-msgid "friends.their_code"
-msgstr "Jeho kód přítele"
-
 msgid "friends.new_code"
 msgstr "Nový kód"
 
@@ -1235,6 +1298,42 @@ msgstr "Odeslat žádost"
 
 msgid "friends.send_detail"
 msgstr "Odešle žádost o přátelství na tento kód."
+
+msgid "find.title"
+msgstr "Najít hráče"
+
+msgid "find.text_row"
+msgstr "Jméno nebo kód přítele"
+
+msgid "find.text_detail"
+msgstr "Část jména, aspoň dvě písmena, nebo kód přítele."
+
+msgid "find.search"
+msgstr "Hledat"
+
+msgid "find.players"
+msgstr "HRÁČI · {0}"
+
+msgid "find.searching"
+msgstr "Hledání."
+
+msgid "find.none"
+msgstr "Žádný hráč se tak nejmenuje."
+
+msgid "find.more"
+msgstr "Vyhovuje víc hráčů. Zadejte víc z jména."
+
+msgid "find.recent"
+msgstr "NEDÁVNÍ SOUPEŘI"
+
+msgid "find.recent_line"
+msgstr "Hráno {0} · {1}"
+
+msgid "find.recent_when"
+msgstr "Hráno {0}"
+
+msgid "find.recent_empty"
+msgstr "Hráči, které potkáte ve veřejných místnostech, se tu zobrazují týden."
 
 msgid "friends.sent"
 msgstr "Odeslané ({0})"
@@ -1305,9 +1404,6 @@ msgstr "Upravit kartu"
 msgid "card.account"
 msgstr "Účet"
 
-msgid "card.progress"
-msgstr "POSTUP"
-
 msgid "card.top_fighters"
 msgstr "NEJLEPŠÍ BOJOVNÍCI"
 
@@ -1315,7 +1411,7 @@ msgid "card.choose_main"
 msgstr "Vybrat hlavního"
 
 msgid "card.edit_detail"
-msgstr "Vaše jméno, vlajka, hlavní, titul a ikona."
+msgstr "Vaše jméno, vlajka, hlavní, titul, ocenění a styl hry."
 
 msgid "card.title_row"
 msgstr "Titul"
@@ -1328,6 +1424,72 @@ msgstr "Žádný"
 
 msgid "card.award_detail"
 msgstr "Otevře Ocenění. Vyberte tam získané ocenění, abyste ho nosili."
+
+msgid "card.how_heading"
+msgstr "JAK HRAJETE"
+
+msgid "card.pins_row"
+msgstr "Ocenění na kartě"
+
+msgid "card.pins_auto"
+msgstr "Vaše nejvyšší"
+
+msgid "card.pins_chosen"
+msgstr "Vybráno: {0}"
+
+msgid "card.pins_detail"
+msgstr "Až čtyři rodiny ocenění na vaší kartě, každá na úrovni, kterou jste dosáhli. Možnost Vaše nejvyšší ukáže ta nejtěžší."
+
+msgid "card.pins_auto_row"
+msgstr "Ukázat moje nejvyšší"
+
+msgid "card.pins_auto_detail"
+msgstr "Karta ukazuje ocenění získaná na nejvyšších úrovních. Vypněte, abyste si až čtyři vybrali sami."
+
+msgid "card.pins_full"
+msgstr "Nejvýš čtyři. Nejdřív jedno sundejte."
+
+msgid "card.pins_nothing"
+msgstr "Dosažená ocenění se tu objeví k výběru. Zatím žádná nemáte."
+
+msgid "card.automatic"
+msgstr "Automaticky"
+
+msgid "card.device_row"
+msgstr "Zařízení"
+
+msgid "card.device_auto"
+msgstr "{0} · automaticky"
+
+msgid "card.device_detail"
+msgstr "Na čem hrajete, zobrazeno na kartě. Automaticky se řídí používaným ovladačem."
+
+msgid "card.link_row"
+msgstr "Připojení"
+
+msgid "card.link_detail"
+msgstr "Kabelové nebo Wi-Fi, jak ho měří Ember. Můžete ho skrýt."
+
+msgid "card.region_row"
+msgstr "Region"
+
+msgid "card.region_detail"
+msgstr "Váš region podle relay, který Ember vybral. Můžete ho skrýt."
+
+msgid "card.shown"
+msgstr "{0} · zobrazeno"
+
+msgid "card.unknown_shown"
+msgstr "Zatím neznámé · zobrazeno"
+
+msgid "card.hidden"
+msgstr "Skryto"
+
+msgid "card.looking_detail"
+msgstr "Až dvě, zobrazená na kartě."
+
+msgid "card.looking_full"
+msgstr "Nejvýš dvě. Nejdřív jedno vypněte."
 
 msgid "points.label"
 msgstr "FP"
@@ -1487,6 +1649,126 @@ msgstr "Hraní bojovníci"
 
 msgid "card.of"
 msgstr "{0} z {1}"
+
+msgid "card.about"
+msgstr "{0} · Na Emberu od {1}"
+
+msgid "card.since"
+msgstr "Na Emberu od {0}"
+
+msgid "card.wins"
+msgstr "Výhry"
+
+msgid "card.best_streak"
+msgstr "Nejlepší série"
+
+msgid "card.record_line"
+msgstr "Hodnocené zápasy: {0} · výhry: {1} · nejlepší série: {2}"
+
+msgid "card.tier_to"
+msgstr "{0} · do {2} zbývá bodů: {1}"
+
+msgid "card.tier_top"
+msgstr "{0} · Nejvyšší rám"
+
+msgid "card.awards"
+msgstr "OCENĚNÍ"
+
+msgid "card.no_awards"
+msgstr "Zatím žádná ocenění. První přijde s prvním hodnoceným zápasem."
+
+msgid "card.most_played"
+msgstr "NEJČASTĚJI HRÁNO"
+
+msgid "card.most_played_line"
+msgstr "{0} – {1} · her: {2}"
+
+msgid "card.most_played_none"
+msgstr "Nejčastější soupeř se tu objeví po prvním hodnoceném zápase."
+
+msgid "card.recent_sets"
+msgstr "POSLEDNÍ SETY"
+
+msgid "card.all_sets"
+msgstr "Všechny sety"
+
+msgid "card.set_vs"
+msgstr "vs {0}"
+
+msgid "card.set_online"
+msgstr "Online"
+
+msgid "card.sets_loading"
+msgstr "Načítání setů."
+
+msgid "card.sets_none"
+msgstr "Pod tímto jménem zatím nejsou archivované sety."
+
+msgid "card.sets_unavailable"
+msgstr "Tato služba sety neuchovává."
+
+msgid "card.sets_unreachable"
+msgstr "Archiv není dostupný. Sety se zobrazí, až odpoví."
+
+msgid "card.you_and"
+msgstr "Vy a {0}"
+
+msgid "card.relation"
+msgstr "Přátelé"
+
+msgid "card.since_date"
+msgstr "Od {0}"
+
+msgid "card.not_friends"
+msgstr "Nejste přátelé"
+
+msgid "card.they_asked"
+msgstr "Poslal vám žádost"
+
+msgid "card.plays"
+msgstr "Hraje na"
+
+msgid "card.playing"
+msgstr "HRAJE NA"
+
+msgid "card.looking_row"
+msgstr "Hledá"
+
+msgid "style.pad"
+msgstr "Gamepad"
+
+msgid "style.stick"
+msgstr "Stick"
+
+msgid "style.leverless"
+msgstr "Leverless"
+
+msgid "style.keyboard"
+msgstr "Klávesnice"
+
+msgid "style.wired"
+msgstr "Kabel"
+
+msgid "style.wifi"
+msgstr "Wi-Fi"
+
+msgid "style.casuals"
+msgstr "Pohodové hry"
+
+msgid "style.long_sets"
+msgstr "Dlouhé sety"
+
+msgid "style.ranked"
+msgstr "Hodnocené"
+
+msgid "style.practice"
+msgstr "Turnajový trénink"
+
+msgid "style.new"
+msgstr "Nový ve hře"
+
+msgid "style.teach"
+msgstr "Rád učí"
 
 msgid "fighters.how"
 msgstr "Jak se body získávají"
@@ -5130,6 +5412,12 @@ msgstr "Šipky vlevo a vpravo mění vaši Ultru pro další hru. S novou Ultrou
 msgid "postmatch.ultra.set"
 msgstr "Vaše Ultra pro další hru je nastavena."
 
+msgid "postmatch.add_friend.detail"
+msgstr "Pošle hráči {0} žádost o přátelství. Vaše odpověď na odvetu zůstane, jaká je."
+
+msgid "postmatch.accept_friend.detail"
+msgstr "Přijme žádost o přátelství od hráče {0}. Vaše odpověď na odvetu zůstane, jaká je."
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
@@ -8315,7 +8603,7 @@ msgid "notifications.tab_count"
 msgstr "Oznámení · {0}"
 
 msgid "notifications.waiting"
-msgstr "Čeká: {0}"
+msgstr "K odpovědi: {0}"
 
 msgid "notifications.none_detail"
 msgstr "Co Ember oznámí, třeba zkopírovaný odkaz nebo opuštěnou místnost, tu zůstane po tuto relaci."
@@ -8588,7 +8876,7 @@ msgid "archive.f_class"
 msgstr "Třída"
 
 msgid "archive.f_class_detail"
-msgstr "Vypíše sety, v nichž má některý z hráčů dnes tuto třídu v žebříčku."
+msgstr "Vypíše sety, v nichž má některý z hráčů dnes tuto třídu."
 
 msgid "archive.f_country"
 msgstr "Země"
@@ -8702,7 +8990,7 @@ msgid "archive.games"
 msgstr "Her: {0}"
 
 msgid "archive.met"
-msgstr "Soupeři: {0}"
+msgstr "Hrál proti: {0}"
 
 msgid "archive.session_label"
 msgstr "{0}, her: {1}"
@@ -8818,6 +9106,9 @@ msgstr "Tituly a ikony, které jsi získal, a jak získat ostatní. Vyber jeden 
 msgid "awards.earned_count"
 msgstr "Získáno {0} z {1}"
 
+msgid "awards.not_reached"
+msgstr "Zatím nedosaženo"
+
 msgid "awards.card_heading"
 msgstr "TVOJE KARTA · JAK JI VIDÍ OSTATNÍ"
 
@@ -8882,7 +9173,7 @@ msgid "tier.ember"
 msgstr "Ember"
 
 msgid "award.matches.name"
-msgstr "Zápasy"
+msgstr "Odehrané zápasy"
 
 msgid "award.matches.icon"
 msgstr "Vlajka"
@@ -9026,7 +9317,7 @@ msgid "award.mastery.4.how"
 msgstr "Přiveď bojovníka k rámu Ember"
 
 msgid "award.cast.name"
-msgstr "Sestava"
+msgstr "Použití bojovníci"
 
 msgid "award.cast.icon"
 msgstr "Pavouk"

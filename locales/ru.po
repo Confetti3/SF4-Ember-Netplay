@@ -426,6 +426,9 @@ msgstr "Вставить"
 msgid "menu.adjust"
 msgstr "Настроить"
 
+msgid "menu.change"
+msgstr "Изменить"
+
 msgid "speech.position"
 msgstr "{0} из {1}"
 
@@ -1098,11 +1101,77 @@ msgstr "Карточка"
 msgid "profile.tab.fighters"
 msgstr "Бойцы"
 
+msgid "profile.tab.sets"
+msgstr "Сеты"
+
 msgid "profile.tab.friends"
 msgstr "Друзья"
 
 msgid "friends.tab_count"
 msgstr "Друзья · {0}"
+
+msgid "profile.view_sets"
+msgstr "Смотреть сеты"
+
+msgid "profile.card_of"
+msgstr "Карточка игрока: {0}"
+
+msgid "profile.this_player"
+msgstr "этого игрока"
+
+msgid "profile.reading"
+msgstr "Загрузка карточки игрока {0}."
+
+msgid "profile.reading_button"
+msgstr "Загрузка"
+
+msgid "profile.no_card"
+msgstr "У игрока {0} нет карточки для показа."
+
+msgid "profile.sets_by_name"
+msgstr "Сеты по-прежнему перечисляются по имени."
+
+msgid "profile.blocked"
+msgstr "Вы заблокировали игрока {0}. Разблокируйте его, чтобы увидеть карточку."
+
+msgid "profile.nobody"
+msgstr "Сейчас в Ember нет игрока с именем {0}."
+
+msgid "profile.unreachable"
+msgstr "Не удалось связаться с сервисом. Карточка появится, когда он ответит."
+
+msgid "profile.unsupported"
+msgstr "Этот сервис не поддерживает профили."
+
+msgid "profile.try_again"
+msgstr "Повторить"
+
+msgid "profile.pick_title"
+msgstr "Игроки с именем {0}"
+
+msgid "profile.pick_screen"
+msgstr "Игроки"
+
+msgid "profile.in_this_room"
+msgstr "В этом лобби"
+
+msgid "profile.request_sent_detail"
+msgstr "Отмените его в разделе «Друзья», вкладка «Отправленные»."
+
+msgid "profile.sets_note"
+msgstr "Сеты, найденные по имени {0}. Здесь также появится другой игрок, который использовал это имя, а сеты под прежним именем не появятся."
+
+msgid "profile.sets_player"
+msgstr "Игрок"
+
+msgid "profile.sets_player_detail"
+msgstr "Сеты относятся к этому имени. Оно остаётся, пока вы сужаете список."
+
+msgid "profile.sets_opponent"
+msgstr "Соперник"
+
+msgid "profile.sets_opponent_detail"
+msgstr "Показывает сеты против игрока, в имени которого есть эти буквы."
 
 msgid "friends.requests_heading"
 msgstr "ЗАПРОСЫ · {0}"
@@ -1191,9 +1260,6 @@ msgstr "Разблокировать"
 msgid "friends.cancel_request"
 msgstr "Отменить запрос"
 
-msgid "friends.add"
-msgstr "Добавить в друзья"
-
 msgid "friends.are_friends"
 msgstr "Друзья"
 
@@ -1221,9 +1287,6 @@ msgstr "Код друга"
 msgid "friends.code_detail"
 msgstr "Передайте этот код игроку, чтобы он мог добавить вас."
 
-msgid "friends.their_code"
-msgstr "Код друга игрока"
-
 msgid "friends.new_code"
 msgstr "Новый код"
 
@@ -1235,6 +1298,42 @@ msgstr "Отправить запрос"
 
 msgid "friends.send_detail"
 msgstr "Отправляет запрос в друзья на этот код."
+
+msgid "find.title"
+msgstr "Найти игрока"
+
+msgid "find.text_row"
+msgstr "Имя или код друга"
+
+msgid "find.text_detail"
+msgstr "Часть имени, не меньше двух букв, или код друга."
+
+msgid "find.search"
+msgstr "Поиск"
+
+msgid "find.players"
+msgstr "ИГРОКИ · {0}"
+
+msgid "find.searching"
+msgstr "Поиск."
+
+msgid "find.none"
+msgstr "Игрока с таким именем нет."
+
+msgid "find.more"
+msgstr "Подходят и другие игроки. Введите больше букв имени."
+
+msgid "find.recent"
+msgstr "НЕДАВНИЕ СОПЕРНИКИ"
+
+msgid "find.recent_line"
+msgstr "Игра: {0} · {1}"
+
+msgid "find.recent_when"
+msgstr "Игра: {0}"
+
+msgid "find.recent_empty"
+msgstr "Игроки, с которыми вы сталкиваетесь в открытых лобби, остаются здесь на неделю."
 
 msgid "friends.sent"
 msgstr "Отправленные ({0})"
@@ -1305,9 +1404,6 @@ msgstr "Изменить карточку"
 msgid "card.account"
 msgstr "Аккаунт"
 
-msgid "card.progress"
-msgstr "ПРОГРЕСС"
-
 msgid "card.top_fighters"
 msgstr "ЛУЧШИЕ БОЙЦЫ"
 
@@ -1315,7 +1411,7 @@ msgid "card.choose_main"
 msgstr "Выбрать основного"
 
 msgid "card.edit_detail"
-msgstr "Ваше имя, флаг, основной, титул и значок."
+msgstr "Ваше имя, флаг, основной, титул, награды и стиль игры."
 
 msgid "card.title_row"
 msgstr "Титул"
@@ -1328,6 +1424,72 @@ msgstr "Нет"
 
 msgid "card.award_detail"
 msgstr "Открывает Награды. Выберите там полученную награду, чтобы носить её."
+
+msgid "card.how_heading"
+msgstr "КАК ВЫ ИГРАЕТЕ"
+
+msgid "card.pins_row"
+msgstr "Награды на карточке"
+
+msgid "card.pins_auto"
+msgstr "Ваши высшие"
+
+msgid "card.pins_chosen"
+msgstr "Выбрано: {0}"
+
+msgid "card.pins_detail"
+msgstr "До четырёх семейств наград на вашей карточке, каждое на достигнутом уровне. «Ваши высшие» показывает самые трудные."
+
+msgid "card.pins_auto_row"
+msgstr "Показывать мои высшие"
+
+msgid "card.pins_auto_detail"
+msgstr "Карточка показывает награды, полученные на самых высоких уровнях. Отключите, чтобы выбрать до четырёх самому."
+
+msgid "card.pins_full"
+msgstr "Не больше четырёх. Сначала уберите одну."
+
+msgid "card.pins_nothing"
+msgstr "Полученные награды появятся здесь для выбора. Пока у вас их нет."
+
+msgid "card.automatic"
+msgstr "Автоматически"
+
+msgid "card.device_row"
+msgstr "Устройство"
+
+msgid "card.device_auto"
+msgstr "{0} · автоматически"
+
+msgid "card.device_detail"
+msgstr "На чём вы играете, показано на карточке. Автоматически следует за контроллером, которым вы пользуетесь."
+
+msgid "card.link_row"
+msgstr "Подключение"
+
+msgid "card.link_detail"
+msgstr "Проводное или Wi-Fi, как его измеряет Ember. Его можно скрыть."
+
+msgid "card.region_row"
+msgstr "Регион"
+
+msgid "card.region_detail"
+msgstr "Ваш регион по ретранслятору, выбранному Ember. Его можно скрыть."
+
+msgid "card.shown"
+msgstr "{0} · показано"
+
+msgid "card.unknown_shown"
+msgstr "Пока неизвестно · показано"
+
+msgid "card.hidden"
+msgstr "Скрыто"
+
+msgid "card.looking_detail"
+msgstr "До двух, показываются на карточке."
+
+msgid "card.looking_full"
+msgstr "Не больше двух. Сначала отключите одно."
 
 msgid "points.label"
 msgstr "FP"
@@ -1487,6 +1649,126 @@ msgstr "Сыграно бойцами"
 
 msgid "card.of"
 msgstr "{0} из {1}"
+
+msgid "card.about"
+msgstr "{0} · В Ember с {1}"
+
+msgid "card.since"
+msgstr "В Ember с {0}"
+
+msgid "card.wins"
+msgstr "Победы"
+
+msgid "card.best_streak"
+msgstr "Лучшая серия"
+
+msgid "card.record_line"
+msgstr "Рейтинговых игр: {0} · побед: {1} · лучшая серия: {2}"
+
+msgid "card.tier_to"
+msgstr "{0} · до {2} осталось очков: {1}"
+
+msgid "card.tier_top"
+msgstr "{0} · Высшая рамка"
+
+msgid "card.awards"
+msgstr "НАГРАДЫ"
+
+msgid "card.no_awards"
+msgstr "Наград пока нет. Первая придёт с первой рейтинговой игрой."
+
+msgid "card.most_played"
+msgstr "ЧАЩЕ ВСЕГО ИГРАЛИ"
+
+msgid "card.most_played_line"
+msgstr "{0} – {1} · игр: {2}"
+
+msgid "card.most_played_none"
+msgstr "Соперник, с которым вы играли чаще всего, появится здесь после первой рейтинговой игры."
+
+msgid "card.recent_sets"
+msgstr "ПОСЛЕДНИЕ СЕТЫ"
+
+msgid "card.all_sets"
+msgstr "Все сеты"
+
+msgid "card.set_vs"
+msgstr "vs {0}"
+
+msgid "card.set_online"
+msgstr "Онлайн"
+
+msgid "card.sets_loading"
+msgstr "Загрузка сетов."
+
+msgid "card.sets_none"
+msgstr "Сетов в архиве под этим именем пока нет."
+
+msgid "card.sets_unavailable"
+msgstr "Этот сервис не хранит сеты."
+
+msgid "card.sets_unreachable"
+msgstr "Не удалось связаться с архивом. Сеты появятся, когда он ответит."
+
+msgid "card.you_and"
+msgstr "Вы и {0}"
+
+msgid "card.relation"
+msgstr "Друзья"
+
+msgid "card.since_date"
+msgstr "С {0}"
+
+msgid "card.not_friends"
+msgstr "Не друзья"
+
+msgid "card.they_asked"
+msgstr "Прислан запрос"
+
+msgid "card.plays"
+msgstr "Играет на"
+
+msgid "card.playing"
+msgstr "ИГРАЕТ НА"
+
+msgid "card.looking_row"
+msgstr "Ищет"
+
+msgid "style.pad"
+msgstr "Геймпад"
+
+msgid "style.stick"
+msgstr "Аркадный стик"
+
+msgid "style.leverless"
+msgstr "Leverless"
+
+msgid "style.keyboard"
+msgstr "Клавиатура"
+
+msgid "style.wired"
+msgstr "Провод"
+
+msgid "style.wifi"
+msgstr "Wi-Fi"
+
+msgid "style.casuals"
+msgstr "Казуальные игры"
+
+msgid "style.long_sets"
+msgstr "Длинные сеты"
+
+msgid "style.ranked"
+msgstr "Рейтинг"
+
+msgid "style.practice"
+msgstr "Турнирная практика"
+
+msgid "style.new"
+msgstr "Новичок в игре"
+
+msgid "style.teach"
+msgstr "Готов научить"
 
 msgid "fighters.how"
 msgstr "Как начисляются очки"
@@ -5130,6 +5412,12 @@ msgstr "Влево и вправо меняют Ультра для следую
 msgid "postmatch.ultra.set"
 msgstr "Ультра для следующей игры выбрано."
 
+msgid "postmatch.add_friend.detail"
+msgstr "Отправляет игроку {0} запрос в друзья. Ваш ответ на реванш не меняется."
+
+msgid "postmatch.accept_friend.detail"
+msgstr "Принимает запрос в друзья от игрока {0}. Ваш ответ на реванш не меняется."
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
@@ -8315,7 +8603,7 @@ msgid "notifications.tab_count"
 msgstr "Уведомления · {0}"
 
 msgid "notifications.waiting"
-msgstr "Ожидают: {0}"
+msgstr "Ждут ответа: {0}"
 
 msgid "notifications.none_detail"
 msgstr "То, что сообщает Ember, например скопированная ссылка или покинутая комната, хранится здесь до конца сеанса."
@@ -8588,7 +8876,7 @@ msgid "archive.f_class"
 msgstr "Класс"
 
 msgid "archive.f_class_detail"
-msgstr "Показывает сеты, где у одного из игроков сегодня этот класс в рейтинге."
+msgstr "Показывает сеты, где у одного из игроков сегодня этот класс."
 
 msgid "archive.f_country"
 msgstr "Страна"
@@ -8702,7 +8990,7 @@ msgid "archive.games"
 msgstr "Игр: {0}"
 
 msgid "archive.met"
-msgstr "Соперники: {0}"
+msgstr "Играл против: {0}"
 
 msgid "archive.session_label"
 msgstr "{0}, игр: {1}"
@@ -8818,6 +9106,9 @@ msgstr "Титулы и значки, которые ты получил, и к�
 msgid "awards.earned_count"
 msgstr "Получено {0} из {1}"
 
+msgid "awards.not_reached"
+msgstr "Ещё не достигнуто"
+
 msgid "awards.card_heading"
 msgstr "ТВОЯ КАРТОЧКА · КАК ЕЁ ВИДЯТ ДРУГИЕ"
 
@@ -8882,7 +9173,7 @@ msgid "tier.ember"
 msgstr "Ember"
 
 msgid "award.matches.name"
-msgstr "Игры"
+msgstr "Сыграно игр"
 
 msgid "award.matches.icon"
 msgstr "Флаг"
@@ -9026,7 +9317,7 @@ msgid "award.mastery.4.how"
 msgstr "Доведи бойца до рамки «Ember»"
 
 msgid "award.cast.name"
-msgstr "Состав"
+msgstr "Сыграно бойцами"
 
 msgid "award.cast.icon"
 msgstr "Сетка"

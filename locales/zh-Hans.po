@@ -426,6 +426,9 @@ msgstr "粘贴"
 msgid "menu.adjust"
 msgstr "调整"
 
+msgid "menu.change"
+msgstr "更改"
+
 msgid "speech.position"
 msgstr "第{0}项，共{1}项"
 
@@ -1098,11 +1101,77 @@ msgstr "名片"
 msgid "profile.tab.fighters"
 msgstr "角色"
 
+msgid "profile.tab.sets"
+msgstr "系列赛"
+
 msgid "profile.tab.friends"
 msgstr "好友"
 
 msgid "friends.tab_count"
 msgstr "好友 · {0}"
+
+msgid "profile.view_sets"
+msgstr "查看系列赛"
+
+msgid "profile.card_of"
+msgstr "玩家名片：{0}"
+
+msgid "profile.this_player"
+msgstr "该玩家"
+
+msgid "profile.reading"
+msgstr "正在读取 {0} 的名片。"
+
+msgid "profile.reading_button"
+msgstr "读取中"
+
+msgid "profile.no_card"
+msgstr "{0} 没有可显示的名片。"
+
+msgid "profile.sets_by_name"
+msgstr "系列赛仍按名称列出。"
+
+msgid "profile.blocked"
+msgstr "你已拉黑 {0}。解除拉黑后才能查看其名片。"
+
+msgid "profile.nobody"
+msgstr "Ember 上现在没有名为 {0} 的玩家。"
+
+msgid "profile.unreachable"
+msgstr "无法连接服务。服务响应后会显示名片。"
+
+msgid "profile.unsupported"
+msgstr "此服务不提供个人资料。"
+
+msgid "profile.try_again"
+msgstr "重试"
+
+msgid "profile.pick_title"
+msgstr "名为 {0} 的玩家"
+
+msgid "profile.pick_screen"
+msgstr "玩家"
+
+msgid "profile.in_this_room"
+msgstr "在此房间中"
+
+msgid "profile.request_sent_detail"
+msgstr "可在“好友”的“已发送”中取消。"
+
+msgid "profile.sets_note"
+msgstr "以名称 {0} 找到的系列赛。其他用过此名称的人也会显示在这里，而以之前名称打的系列赛不会。"
+
+msgid "profile.sets_player"
+msgstr "玩家"
+
+msgid "profile.sets_player_detail"
+msgstr "这些系列赛属于此名称。缩小列表范围时它会保持不变。"
+
+msgid "profile.sets_opponent"
+msgstr "对手"
+
+msgid "profile.sets_opponent_detail"
+msgstr "列出与名称包含这些字符的玩家的系列赛。"
 
 msgid "friends.requests_heading"
 msgstr "请求 · {0}"
@@ -1191,9 +1260,6 @@ msgstr "解除拉黑"
 msgid "friends.cancel_request"
 msgstr "取消请求"
 
-msgid "friends.add"
-msgstr "添加好友"
-
 msgid "friends.are_friends"
 msgstr "好友"
 
@@ -1221,9 +1287,6 @@ msgstr "好友码"
 msgid "friends.code_detail"
 msgstr "把此好友码给其他玩家，对方即可添加你。"
 
-msgid "friends.their_code"
-msgstr "对方的好友码"
-
 msgid "friends.new_code"
 msgstr "新好友码"
 
@@ -1235,6 +1298,42 @@ msgstr "发送请求"
 
 msgid "friends.send_detail"
 msgstr "向该好友码发送好友请求。"
+
+msgid "find.title"
+msgstr "查找玩家"
+
+msgid "find.text_row"
+msgstr "名称或好友码"
+
+msgid "find.text_detail"
+msgstr "名称的一部分（至少两个字符）或好友码。"
+
+msgid "find.search"
+msgstr "搜索"
+
+msgid "find.players"
+msgstr "玩家 · {0}"
+
+msgid "find.searching"
+msgstr "正在搜索。"
+
+msgid "find.none"
+msgstr "没有叫这个名字的玩家。"
+
+msgid "find.more"
+msgstr "还有更多玩家匹配。请多输入一些名称。"
+
+msgid "find.recent"
+msgstr "最近的对手"
+
+msgid "find.recent_line"
+msgstr "对战：{0} · {1}"
+
+msgid "find.recent_when"
+msgstr "对战：{0}"
+
+msgid "find.recent_empty"
+msgstr "你在公开房间遇到的玩家会在这里保留一周。"
 
 msgid "friends.sent"
 msgstr "已发送 ({0})"
@@ -1305,9 +1404,6 @@ msgstr "编辑名片"
 msgid "card.account"
 msgstr "账号"
 
-msgid "card.progress"
-msgstr "进度"
-
 msgid "card.top_fighters"
 msgstr "常用角色"
 
@@ -1315,7 +1411,7 @@ msgid "card.choose_main"
 msgstr "选择主角"
 
 msgid "card.edit_detail"
-msgstr "名称、国旗、主角、称号和图标。"
+msgstr "名称、国旗、主角、称号、奖励和玩法。"
 
 msgid "card.title_row"
 msgstr "称号"
@@ -1328,6 +1424,72 @@ msgstr "无"
 
 msgid "card.award_detail"
 msgstr "打开奖励。在那里选择已获得的奖励来佩戴。"
+
+msgid "card.how_heading"
+msgstr "玩法"
+
+msgid "card.pins_row"
+msgstr "名片上的奖励"
+
+msgid "card.pins_auto"
+msgstr "你的最高奖励"
+
+msgid "card.pins_chosen"
+msgstr "已选 {0} 个"
+
+msgid "card.pins_detail"
+msgstr "名片上最多显示四个奖励系列，每个按你已达到的等级显示。“你的最高奖励”会显示最难的那些。"
+
+msgid "card.pins_auto_row"
+msgstr "显示我的最高奖励"
+
+msgid "card.pins_auto_detail"
+msgstr "名片显示你在最高等级达成的奖励。关闭后可自行选择最多四个。"
+
+msgid "card.pins_full"
+msgstr "最多四个。请先取下一个。"
+
+msgid "card.pins_nothing"
+msgstr "你达成的奖励会显示在这里供选择。你还没有任何奖励。"
+
+msgid "card.automatic"
+msgstr "自动"
+
+msgid "card.device_row"
+msgstr "设备"
+
+msgid "card.device_auto"
+msgstr "{0} · 自动"
+
+msgid "card.device_detail"
+msgstr "你使用的设备，显示在名片上。自动会跟随你使用的手柄。"
+
+msgid "card.link_row"
+msgstr "连接"
+
+msgid "card.link_detail"
+msgstr "有线或 Wi-Fi，由 Ember 测得。你可以隐藏它。"
+
+msgid "card.region_row"
+msgstr "地区"
+
+msgid "card.region_detail"
+msgstr "根据 Ember 选择的中继得出的你的地区。你可以隐藏它。"
+
+msgid "card.shown"
+msgstr "{0} · 已显示"
+
+msgid "card.unknown_shown"
+msgstr "暂不清楚 · 已显示"
+
+msgid "card.hidden"
+msgstr "已隐藏"
+
+msgid "card.looking_detail"
+msgstr "最多两个，显示在名片上。"
+
+msgid "card.looking_full"
+msgstr "最多两个。请先关闭一个。"
 
 msgid "points.label"
 msgstr "FP"
@@ -1487,6 +1649,126 @@ msgstr "已使用角色"
 
 msgid "card.of"
 msgstr "{0} / {1}"
+
+msgid "card.about"
+msgstr "{0} · {1}加入 Ember"
+
+msgid "card.since"
+msgstr "{0}加入 Ember"
+
+msgid "card.wins"
+msgstr "胜场"
+
+msgid "card.best_streak"
+msgstr "最高连胜"
+
+msgid "card.record_line"
+msgstr "{0} 场排位对战 · {1} 胜 · 最高 {2} 连胜"
+
+msgid "card.tier_to"
+msgstr "{0} · 距离{2}还差 {1} 积分"
+
+msgid "card.tier_top"
+msgstr "{0} · 最高边框"
+
+msgid "card.awards"
+msgstr "奖励"
+
+msgid "card.no_awards"
+msgstr "还没有奖励。第一个奖励会随你的第一场排位对战而来。"
+
+msgid "card.most_played"
+msgstr "对战最多"
+
+msgid "card.most_played_line"
+msgstr "{0} 胜 {1} 负 · {2} 场"
+
+msgid "card.most_played_none"
+msgstr "你对战最多的对手会在第一场排位对战后显示在这里。"
+
+msgid "card.recent_sets"
+msgstr "最近的系列赛"
+
+msgid "card.all_sets"
+msgstr "全部系列赛"
+
+msgid "card.set_vs"
+msgstr "vs {0}"
+
+msgid "card.set_online"
+msgstr "在线"
+
+msgid "card.sets_loading"
+msgstr "正在读取系列赛。"
+
+msgid "card.sets_none"
+msgstr "此名称下还没有存档的系列赛。"
+
+msgid "card.sets_unavailable"
+msgstr "此服务不保存系列赛。"
+
+msgid "card.sets_unreachable"
+msgstr "无法连接存档。存档响应后会显示系列赛。"
+
+msgid "card.you_and"
+msgstr "你和 {0}"
+
+msgid "card.relation"
+msgstr "好友"
+
+msgid "card.since_date"
+msgstr "自 {0}"
+
+msgid "card.not_friends"
+msgstr "还不是好友"
+
+msgid "card.they_asked"
+msgstr "对方向你发送了请求"
+
+msgid "card.plays"
+msgstr "使用设备"
+
+msgid "card.playing"
+msgstr "使用设备"
+
+msgid "card.looking_row"
+msgstr "想找"
+
+msgid "style.pad"
+msgstr "手柄"
+
+msgid "style.stick"
+msgstr "街机摇杆"
+
+msgid "style.leverless"
+msgstr "无拉杆"
+
+msgid "style.keyboard"
+msgstr "键盘"
+
+msgid "style.wired"
+msgstr "有线"
+
+msgid "style.wifi"
+msgstr "Wi-Fi"
+
+msgid "style.casuals"
+msgstr "休闲对战"
+
+msgid "style.long_sets"
+msgstr "长系列赛"
+
+msgid "style.ranked"
+msgstr "排位"
+
+msgid "style.practice"
+msgstr "赛前练习"
+
+msgid "style.new"
+msgstr "新手"
+
+msgid "style.teach"
+msgstr "乐于指导"
 
 msgid "fighters.how"
 msgstr "积分如何获得"
@@ -5130,6 +5412,12 @@ msgstr "左右键切换下一局的终极组合。换了新的终极组合，下
 msgid "postmatch.ultra.set"
 msgstr "下一局的终极组合已选定。"
 
+msgid "postmatch.add_friend.detail"
+msgstr "向 {0} 发送好友请求。你对再战的回应保持不变。"
+
+msgid "postmatch.accept_friend.detail"
+msgstr "接受 {0} 的好友请求。你对再战的回应保持不变。"
+
 msgid "rules.set_summary"
 msgstr "{0}，{1}"
 
@@ -8315,7 +8603,7 @@ msgid "notifications.tab_count"
 msgstr "通知 · {0}"
 
 msgid "notifications.waiting"
-msgstr "待处理：{0}"
+msgstr "待回复：{0}"
 
 msgid "notifications.none_detail"
 msgstr "Ember 的提示（例如已复制链接或已离开房间）会在本次会话中保留在这里。"
@@ -8588,7 +8876,7 @@ msgid "archive.f_class"
 msgstr "等级"
 
 msgid "archive.f_class_detail"
-msgstr "列出任一玩家当前在排行榜上为该等级的系列赛。"
+msgstr "列出任一玩家当前为该等级的系列赛。"
 
 msgid "archive.f_country"
 msgstr "国家/地区"
@@ -8702,7 +8990,7 @@ msgid "archive.games"
 msgstr "{0} 局"
 
 msgid "archive.met"
-msgstr "对手：{0}"
+msgstr "对战过：{0}"
 
 msgid "archive.session_label"
 msgstr "{0}：{1} 局"
@@ -8817,6 +9105,9 @@ msgstr "你已获得的称号和图标，以及其余的获取方式。选择一
 
 msgid "awards.earned_count"
 msgstr "已获得 {0}/{1}"
+
+msgid "awards.not_reached"
+msgstr "尚未达成"
 
 msgid "awards.card_heading"
 msgstr "你的名片 · 别人看到的样子"
@@ -9026,7 +9317,7 @@ msgid "award.mastery.4.how"
 msgstr "让一名角色达到余烬边框"
 
 msgid "award.cast.name"
-msgstr "角色阵容"
+msgstr "使用过的角色"
 
 msgid "award.cast.icon"
 msgstr "对阵表"
