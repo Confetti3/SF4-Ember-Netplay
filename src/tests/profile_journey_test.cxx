@@ -428,7 +428,9 @@ void SpatialJourney() {
   // Card: Edit card under the hero, the strip's three tiles in a line beside it.
   j.h.Screen("card"); j.h.Frame(0, 2);
   const std::string ryu = ui::CardFighterRow(0), ken = ui::CardFighterRow(5), third = ui::CardFighterRow(12);
-  Check(j.rows.size() == 5, "The card takes the focus somewhere other than its strip, Edit card and Fighter select");
+  // Five fighters played earn the Cast tile; All sets is the card's foot.
+  Check(j.rows.size() == 7 && j.rows[3].id == ui::player_card::CardAwardRow("cast") && j.rows[4].id == ui::player_card::AllSetsRow,
+   "The card takes the focus somewhere other than its strip, the award tile, All sets, Edit card and Fighter select");
   Check(Moved(j, ui::CardEditRow, MenuInput::Down) == ui::FighterSelectRow && Moved(j, ui::FighterSelectRow, MenuInput::Up) == ui::CardEditRow, "Up and Down do not go between Edit card and Fighter select");
   Check(Moved(j, ui::CardEditRow, MenuInput::Right) == ryu && Moved(j, ryu, MenuInput::Left) == ui::CardEditRow, "Left and Right do not go between Edit card and the strip");
   Check(Moved(j, ryu, MenuInput::Right) == ken && Moved(j, ken, MenuInput::Right) == third && Moved(j, third, MenuInput::Left) == ken, "Left and Right do not step along the strip");

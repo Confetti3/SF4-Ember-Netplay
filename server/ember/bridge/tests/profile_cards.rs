@@ -206,7 +206,9 @@ async fn a_friends_sync_keeps_the_card_current_and_leaves_what_was_saved() {
     assert_eq!(world.stored(&a.discord).await, before);
 
     // An account that turned friends off is not written by its game's syncs.
-    world.act(&a, json!({ "action": "forget" })).await;
+    // Forgetting answers as friends are off, the state it leaves.
+    let (forgot, _) = world.call(Method::POST, &a, ACTIONS_PATH, Some(json!({ "action": "forget" }))).await;
+    assert_eq!(forgot, StatusCode::CONFLICT);
     let (status, _) = world
         .call(
             Method::POST,

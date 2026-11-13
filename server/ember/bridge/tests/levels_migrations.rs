@@ -367,6 +367,7 @@ async fn migration_064_starts_the_player_cards_from_what_friends_and_rankings_kn
                    (discord_user_id, name, country, main_fighter, code, code_at, seen_at, off)
                    VALUES ('100', 'Player 1', 'DE', 3, 'AAAA-0001', 1, 5000, 0),
                           ('200', 'Player 2', NULL, NULL, 'AAAA-0002', 1, 6000, 1);
+                 INSERT INTO identities (ember_id, public_key, created_at) VALUES ('emb_one', 'one-key', 1);
                  INSERT INTO discord_accounts (user_id, ember_id, username, connected_at)
                    VALUES ('100', 'emb_one', 'discord_one', 1500);
                  INSERT INTO ranking_choices (game, discord_user_id, ranked, changed_at, name, country)

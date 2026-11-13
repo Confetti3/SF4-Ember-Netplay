@@ -320,21 +320,39 @@ async fn a_player_who_does_not_take_part_earns_points_and_shows_them() {
         token(&bridge, &first, &room_id).await,
         token(&bridge, &second, &room_id).await,
     );
+    let mut seen = cards(
+        &bridge,
+        &second,
+        json!([{ "card": first_card }, { "card": second_card }]),
+    )
+    .await;
+    // The caller's record against the other player, and none against themselves.
+    assert_eq!(take_versus(&mut seen), vec![Some((0, 1)), None]);
     assert_eq!(
-        cards(
-            &bridge,
-            &second,
-            json!([{ "card": first_card }, { "card": second_card }])
-        )
-        .await,
+        seen,
         json!([
             { "account": { "points": 2, "tier": 0 },
               "fighters": [{ "fighter": 3, "points": 2, "tier": 0 }], "relation": "none",
-              "awards": { "games": 1, "wins": 1 } },
+              "awards": { "games": 1, "wins": 1, "best_streak": 1 } },
             { "account": { "points": 1, "tier": 0 },
               "fighters": [{ "fighter": 7, "points": 1, "tier": 0 }], "relation": "none",
               "awards": { "games": 1, "wins": 0 } }])
     );
+}
+
+/// Takes the caller's record against each player out of `seen` (the cards of
+/// a look-up) and returns them as (won, lost), None for a card without one:
+/// when they last played is the bridge's clock, so it is only checked to be set.
+fn take_versus(seen: &mut Json_) -> Vec<Option<(u64, u64)>> {
+    seen.as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .map(|card| {
+            let record = card.as_object_mut()?.remove("versus")?;
+            assert!(record["last_at"].as_u64().unwrap() > 0, "{record}");
+            Some((record["won"].as_u64().unwrap(), record["lost"].as_u64().unwrap()))
+        })
+        .collect()
 }
 
 /// Sets Discord account `account`'s account points directly.
@@ -414,15 +432,14 @@ async fn a_card_token_rides_in_a_ticket_that_asks_and_opens_for_seven_days() {
     let card = json!({ "account": { "points": 1, "tier": 0 },
         "fighters": [{ "fighter": 7, "points": 1, "tier": 0 }], "relation": "none",
         "awards": { "games": 1, "wins": 0 } });
-    assert_eq!(
-        cards(
-            &bridge,
-            &first,
-            json!([{ "card": joined }, { "card": rejoined }, { "friend": FRIEND }])
-        )
-        .await,
-        json!([card, card, null])
-    );
+    let mut seen = cards(
+        &bridge,
+        &first,
+        json!([{ "card": joined }, { "card": rejoined }, { "friend": FRIEND }]),
+    )
+    .await;
+    assert_eq!(take_versus(&mut seen), vec![Some((1, 0)), Some((1, 0)), None]);
+    assert_eq!(seen, json!([card, card, null]));
     // A joiner without a Discord account gets no token.
     let unlinked = player(&bridge, 3).await;
     report(&fake, &room_id, 3, 1, &[]);
