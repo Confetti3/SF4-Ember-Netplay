@@ -208,7 +208,7 @@ float DrawIdentity(ImDrawList* d, float x, float y, float room, const PlayerCard
         if (!tag.title.empty()) { NoteUserText(tag.title); v2::TitlePlate(d, ImVec2(x, y), room - (icon > 0 ? icon + 12 * s : 0), line, tag.title, tag.tier); }
         if (icon > 0) {
             const ImVec2 at(x + room - icon, y + (line - icon) * .5f);
-            const ImU32 ink = v2::TierColor(tag.tier).stripe;
+            const ImU32 ink = v2::TierColor(tag.iconTier != v2::Tier::None ? tag.iconTier : tag.tier).stripe;
             d->AddRectFilled(at, ImVec2(at.x + icon, at.y + icon), c.frame, 4 * s);
             d->AddRect(at, ImVec2(at.x + icon, at.y + icon), ink, 4 * s, 0, 2 * s);
             v2::Icon(d, tag.icon, ImVec2(at.x + 6 * s, at.y + 6 * s), icon - 12 * s, ink);

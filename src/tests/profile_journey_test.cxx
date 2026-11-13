@@ -206,23 +206,22 @@ void Counters(Journey& j, std::uint64_t games, std::uint64_t wins, std::uint32_t
  j.h.Frame(0, 2);
 }
 
-// One Awards tab for titles and icons: Select on an earned award opens Wear title, Wear icon and Wear both, each saved on the card; the one worn is off; a locked award only says how to earn it and how far along it is.
+// One Awards tab for titles and icons: a tile for each family; Select on an earned one opens Wear title, Wear icon and Wear both, each saved on the card; the one worn is off; a locked one only says how to earn it and how far along it is.
 void AwardsJourney() {
  Journey j;
  Answer(j);
  Counters(j, 120, 3);
  j.h.Screen("awards");
- // Every award is a row, in the catalog's order, and the earned ones are the counters' alone.
- Check(j.rows.size() == netplay::awards::CatalogSize, "The wall is not one row for each award");
- const auto* earned = j.row("award:games-1");
+ // One row for each family, and the families reached are the counters' alone.
+ Check(j.rows.size() == netplay::awards::CatalogSize, "The wall is not one row for each family");
+ const auto* earned = j.row("award:matches");
  Check(earned && earned->choices.size() == 3 && earned->choices[0].id == "title" && earned->choices[1].id == "icon" && earned->choices[2].id == "both", "An earned award does not offer title, icon and both");
- Check(j.row("award:games-10") && !j.row("award:games-10")->info && j.row("award:wins-1") && !j.row("award:wins-1")->info && j.row("award:cast-5") && !j.row("award:cast-5")->info, "An award the counters earn is locked");
- const auto* locked = j.row("award:games-500");
- Check(locked && locked->info && locked->choices.empty() && !locked->enabled, "A locked award can be worn");
- Check(locked && locked->value == loc::Tf("awards.progress", 120, 500), "A locked award does not say how far along it is");
- Check(j.row("award:class-4") && j.row("award:class-4")->info && j.row("award:streak-3") && j.row("award:streak-3")->info && j.row("award:fighter-copper") && j.row("award:fighter-copper")->info, "An award the counters do not earn is earned");
- // A class award is the class's own name, and a locked one that counts nothing only says it is locked.
- Check(j.row("award:class-4") && j.row("award:class-4")->label == loc::Tf("class.tip", ui::ClassName(4)) && j.row("award:class-4")->value == loc::T("awards.locked"), "A class award is not named by its class");
+ Check(earned && earned->label == loc::T("award.matches.100.title"), "An earned family is not named by its level");
+ Check(earned && earned->detail.find(loc::Tf("awards.progress", 120, 500)) != std::string::npos, "An earned family does not say how far the next level is");
+ Check(j.row("award:wins") && !j.row("award:wins")->info && j.row("award:cast") && !j.row("award:cast")->info, "A family the counters reach is locked");
+ const auto* locked = j.row("award:rank");
+ Check(locked && locked->info && locked->choices.empty() && !locked->enabled && locked->label == loc::T("award.rank.name"), "A locked family can be worn or is not named");
+ Check(j.row("award:streak") && j.row("award:streak")->info && j.row("award:mastery")->info && j.row("award:friends")->info && j.row("award:rival")->info, "A family the counters do not reach is earned");
  const auto pick = [&](const char* id, int right) {
   j.h.shell.Navigation().Focus(id, j.rows);
   j.h.Press(MenuInput::Select);
@@ -236,51 +235,53 @@ void AwardsJourney() {
   if (save) { j.h.view.preferences = save->preferences; j.h.Frame(0, 2); }
   return save;
  };
- auto save = pick("award:games-1", 0);
- Check(save && save->preferences.wornTitle == "games-1" && save->preferences.wornIcon != "games-1", "Wear title did not wear only the title");
- save = pick("award:games-10", 1);
- Check(save && save->preferences.wornTitle == "games-1" && save->preferences.wornIcon == "games-10", "Wear icon did not wear only the icon");
+ auto save = pick("award:matches", 0);
+ Check(save && save->preferences.wornTitle == "matches" && save->preferences.wornIcon != "matches", "Wear title did not wear only the title");
+ save = pick("award:wins", 1);
+ Check(save && save->preferences.wornTitle == "matches" && save->preferences.wornIcon == "wins", "Wear icon did not wear only the icon");
  j.h.Frame(0, 2);
- earned = j.row("award:games-1");
+ earned = j.row("award:matches");
  Check(earned && !earned->choices[0].enabled && earned->choices[0].detail == loc::T("awards.detail_worn") && earned->choices[1].enabled && earned->choices[2].enabled, "The title already worn is not off in the popout");
- save = pick("award:games-1", 2);
- Check(save && save->preferences.wornTitle == "games-1" && save->preferences.wornIcon == "games-1", "Wear both did not wear the title and the icon");
+ save = pick("award:matches", 2);
+ Check(save && save->preferences.wornTitle == "matches" && save->preferences.wornIcon == "matches", "Wear both did not wear the title and the icon");
  j.h.Frame(0, 2);
- earned = j.row("award:games-1");
+ earned = j.row("award:matches");
  Check(earned && !earned->choices[0].enabled && !earned->choices[1].enabled && !earned->choices[2].enabled && earned->valueHighlighted, "An award worn as title and icon still offers to be worn");
  // In a room nothing on the card changes.
  j.h.view.canEditPreferences = false; j.h.Frame(0, 2);
- Check(j.row("award:games-10") && !j.row("award:games-10")->enabled, "Awards change in a room");
+ Check(j.row("award:wins") && !j.row("award:wins")->enabled, "Awards change in a room");
 }
 
-// A saved award that is gone from the catalog, or that the counters do not earn, is ignored: Edit card says None.
-// One the counters earn shows by its title.
+// A saved award that is gone from the catalog, or that the counters do not reach, is ignored: Edit card says None.
+// One the counters reach shows by its current level's title, and moves up with it.
 void WornClaimsJourney() {
  Journey j;
  j.h.view.preferences.wornTitle = "organizer";
- j.h.view.preferences.wornIcon = "class-6";
+ j.h.view.preferences.wornIcon = "rank";
  Answer(j);
  Counters(j, 120, 3);
  j.h.Screen("card-edit");
  Check(j.row("card-title") && j.row("card-title")->value == loc::T("card.none") && j.row("card-icon") && j.row("card-icon")->value == loc::T("card.none"), "A saved award nobody earned is worn");
- j.h.view.preferences.wornTitle = "games-100";
+ j.h.view.preferences.wornTitle = "matches";
  j.h.Frame(0, 2);
- Check(j.row("card-title") && j.row("card-title")->value == loc::T("award.games-100.title"), "An earned saved award is not worn");
+ Check(j.row("card-title") && j.row("card-title")->value == loc::T("award.matches.100.title"), "An earned saved award is not worn at its level");
+ Counters(j, 600, 3);
+ Check(j.row("card-title") && j.row("card-title")->value == loc::T("award.matches.500.title"), "A worn award did not move up with the player");
 }
 
-// No Discord account: the wall still lists every award, locked and with no progress, with the line that says why and the Connect row of the Card tab.
+// No Discord account: the wall still lists every family, locked, with the line that says why and the Connect row of the Card tab.
 void AwardsStatesJourney() {
  Journey j;
  Answer(j, Own::Kind::NoAccount);
  j.h.Screen("awards");
- Check(j.rows.size() == netplay::awards::CatalogSize + 1, "Without an account the wall is not every award and the way to one");
- Check(j.row("discord-connect") && j.row("award:games-1") && j.row("award:games-1")->info && j.row("award:games-1")->value == loc::T("awards.locked"), "Without an account an award is earned or counts");
+ Check(j.rows.size() == netplay::awards::CatalogSize + 1, "Without an account the wall is not every family and the way to one");
+ Check(j.row("discord-connect") && j.row("award:matches") && j.row("award:matches")->info && j.row("award:matches")->value == loc::T("awards.locked"), "Without an account an award is earned");
  // A service without points lists them locked with no Connect row.
  Answer(j, Own::Kind::Unavailable);
- Check(j.rows.size() == netplay::awards::CatalogSize && !j.row("discord-connect") && j.row("award:games-1") && j.row("award:games-1")->info, "A service without points does not list the awards locked");
+ Check(j.rows.size() == netplay::awards::CatalogSize && !j.row("discord-connect") && j.row("award:matches") && j.row("award:matches")->info, "A service without points does not list the awards locked");
 }
 
-// A new answer that earns awards says them once; the first answer of a run says nothing.
+// A new answer that reaches levels says each once with its tier; the first answer of a run says nothing.
 void AwardNoticesJourney() {
  Journey j;
  Answer(j);
@@ -289,8 +290,10 @@ void AwardNoticesJourney() {
  Check(!j.row("notifications") || j.row("notifications")->detail.find(said) == std::string::npos, "The first answer of a run announced an award");
  Counters(j, 120, 3);
  j.h.Screen("home"); j.h.Frame(0, 2);
- const std::string titles = std::string(loc::T("award.games-1.title")) + ", " + loc::T("award.games-10.title") + ", " + loc::T("award.games-100.title") + ", " + loc::T("award.wins-1.title");
- Check(j.row("notifications") && j.row("notifications")->detail == loc::Tf("awards.notice", titles), "A new answer did not announce the awards it earned");
+ const std::string dot = " \xC2\xB7 ";
+ const std::string titles = std::string(loc::T("award.matches.1.title")) + dot + loc::T("tier.ash") + ", " + loc::T("award.matches.100.title") + dot + loc::T("tier.copper") +
+  ", " + loc::T("award.wins.1.title") + dot + loc::T("tier.ash");
+ Check(j.row("notifications") && j.row("notifications")->detail == loc::Tf("awards.notice", titles), "A new answer did not announce the levels it reached");
 }
 
 // Where one press from `from` leaves the focus.

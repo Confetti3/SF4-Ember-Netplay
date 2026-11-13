@@ -368,8 +368,8 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  tag.name=card.name;tag.marks.country=card.country;tag.fighter=preferences_.mainFighter;
  tag.title=v.playerTitle;tag.tier=v.playerTier;tag.icon=v.playerIcon;
  // What the player picked on the awards wall, while it is earned.
- if(const auto* a=WornAward(v,preferences_.wornTitle)){tag.title=AwardTitle(*a);tag.tier=v2::FrameTier(a->tier);}
- if(const auto* a=WornAward(v,preferences_.wornIcon))tag.icon=a->icon;
+ if(const auto a=WornAward(v,preferences_.wornTitle)){tag.title=AwardTitle(a);tag.tier=v2::FrameTier(a.Current().tier);}
+ if(const auto a=WornAward(v,preferences_.wornIcon)){tag.icon=a.family->icon;tag.iconTier=v2::FrameTier(a.Current().tier);}
  if(standing.loaded&&standing.value.kind==netplay::rankings::Standing::Kind::Ranked&&standing.value.classesShown)tag.marks.badge=standing.value.badge;
  if(card.country.Present())tag.about=CountryName(card.country);
  if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));

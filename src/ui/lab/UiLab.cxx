@@ -161,8 +161,8 @@ ui::ShellView FakeView() {
     view.selectedPick.fighter = 0; view.selectedPick.ultra = 0;
     // The card's title and icon, and Home's news, as the backend and the release check give them.
     view.playerTitle = "TOURNAMENT ORGANIZER"; view.playerTier = ui::v2::Tier::Gold; view.playerIcon = 7;
-    // The awards come from the points (--profile played earns twelve of 32), 1000 wins worn (--screen awards).
-    view.preferences.wornTitle = view.preferences.wornIcon = "wins-1000";
+    // The awards come from the points (--profile played reaches levels in most families), the Wins family worn (--screen awards).
+    view.preferences.wornTitle = view.preferences.wornIcon = "wins";
     // The installed build, which Home's corner and Help and about name with its kind (VersionLine).
     view.services.installedVersion = "1.5.0";
     view.services.update.news = {{"v1.3.0", "Ember 1.3.0", "2026-10-21", "New menus: categories, panels and choices.\n- Spectators keep watching through Alt+Enter.", ""},
@@ -390,6 +390,8 @@ void Profile(ui::ShellView& view, const std::string& state) {
     // The best run of wins and the highest class ever shown, which the awards read.
     own.bestStreak = state == "sixty" ? 22 : 7;
     own.peakClass = 6;
+    own.rival = 40;
+    own.opponents = 60;
     accountFrame();
 }
 // --levels: points as the game draws them (FIGHTER_LEVELS.md, Drawing points), wrapping across the window: the

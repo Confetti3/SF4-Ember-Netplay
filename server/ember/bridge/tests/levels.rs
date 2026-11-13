@@ -160,6 +160,8 @@ async fn own(bridge: &Bridge, player: &Player) -> Json_ {
         let counters = account.as_object_mut().unwrap();
         counters.remove("best_streak");
         counters.remove("peak_class");
+        counters.remove("rival");
+        counters.remove("opponents");
     }
     let fighters = levels
         .get_mut("fighters")

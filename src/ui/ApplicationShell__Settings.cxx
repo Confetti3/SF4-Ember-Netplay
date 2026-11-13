@@ -186,8 +186,8 @@ public:
         const auto& p = s.preferences_;
         const auto award = [&](const char* label, const char* id, const std::string& worn, bool title) {
             auto row = Row(id, loc::T(label), v.canEditPreferences ? loc::T("card.award_detail") : loc::T("profile.leave_room_to_edit"), v.canEditPreferences);
-            const auto* found = WornAward(v, worn);
-            row.value = found ? (title ? AwardTitle(*found) : AwardIconName(*found)) : std::string(loc::T("card.none"));
+            const auto found = WornAward(v, worn);
+            row.value = found ? (title ? AwardTitle(found) : AwardIconName(*found.family)) : std::string(loc::T("card.none"));
             row.hint = loc::T("screen.awards");
             return row;
         };

@@ -405,10 +405,13 @@ private:
     // one source the wall, the card and the notices read), the award a saved
     // id names while they earn it, and an award's words and icon's name.
     static netplay::awards::Counters AwardCounters(const ShellView& v);
-    static const netplay::awards::Award* WornAward(const ShellView& v, const std::string& id);
-    static std::string AwardTitle(const netplay::awards::Award& award);
-    static std::string AwardHow(const netplay::awards::Award& award);
-    static std::string AwardIconName(const netplay::awards::Award& award);
+    static netplay::awards::Worn WornAward(const ShellView& v, const std::string& id);
+    // A level's title (a class level is "Class" and the class's name) and its requirement; a worn family's title at its level.
+    static std::string LevelTitle(const netplay::awards::Level& level);
+    static std::string LevelHow(const netplay::awards::Level& level);
+    static std::string AwardTitle(const netplay::awards::Worn& worn);
+    static std::string AwardLevelLines(const netplay::awards::Counters& counters, const netplay::awards::Family& family, bool counted);
+    static std::string AwardIconName(const netplay::awards::Family& family);
     static std::string EarnedCount(const ShellView& v);
     // Says each award a new points answer earned, once (the first answer of a
     // run only notes what is earned), and drops a worn award that is gone or no

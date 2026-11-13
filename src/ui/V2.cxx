@@ -605,7 +605,7 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
     const float iconTile = tag.icon >= 0 ? 56 * s : 0;
     if (iconTile > 0) {
         const ImVec2 it(at.x + width - pad - iconTile, t.y);
-        const auto ink = TierColor(tag.tier).stripe;
+        const auto ink = TierColor(tag.iconTier != Tier::None ? tag.iconTier : tag.tier).stripe;
         draw->AddRectFilled(it, ImVec2(it.x + iconTile, it.y + iconTile), c.frame, 4 * s);
         draw->AddRect(it, ImVec2(it.x + iconTile, it.y + iconTile), ink, 4 * s, 0, 2 * s);
         Icon(draw, tag.icon, ImVec2(it.x + 8 * s, it.y + 8 * s), iconTile - 16 * s, ink);

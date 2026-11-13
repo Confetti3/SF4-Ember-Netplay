@@ -275,6 +275,8 @@ struct TagView {
     int fighter = -1;
     // The title's tier colours its plate; the icon (-1 none) sits on the card's right.
     Tier tier = Tier::None;
+    // The icon's own tier colours it (an award worn as the icon is not the title's); none takes the title's.
+    Tier iconTier = Tier::None;
     int icon = -1;
     std::string about;
     // L only, the player's own card: the main's points over the account's, under the about line.
