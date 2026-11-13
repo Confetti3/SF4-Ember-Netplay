@@ -357,7 +357,10 @@ void FindJourney() {
  pr::Recent met;
  met.card = "c1.recent"; met.name = "Player 5"; met.country = CountryCode::Parsed("DE"); met.fighter = 12; met.room = "Player 5's room"; met.at = Now - 2 * Hour;
  j.h.view.recentOpponents = {met};
- j.open("friends-add");
+ // Opened from the Friends tab, as a player does, so Back from the page leaves to the tab.
+ j.open("friends");
+ j.h.shell.Navigation().Push("friends-add");
+ j.h.Frame(0, 3);
  Check(j.row("find-recent:0") && j.row("find-recent:0")->label == "Player 5" && j.row("find-recent:0")->group == loc::T("find.recent"), "Find a player does not list the players met lately before a search");
  // Search is shut under two characters, and says why.
  Check(j.row("friends-search") && !j.row("friends-search")->enabled && j.sent<commands::PlayerSearch>().empty(), "Search is open with nothing typed");
