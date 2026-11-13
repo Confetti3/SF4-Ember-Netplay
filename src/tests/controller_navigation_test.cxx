@@ -1011,5 +1011,7 @@ void DialogRepeat();
 void ListWrap();
 void AsideEntry();
 void ProfileRecords();
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();PreferencesRevisionCounts();MenuSummonsOncePerEvent();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();AsideEntry();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+// A game's own backdrop (menu_dialog_test.cxx).
+void BackdropDrawer();
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();PreferencesRevisionCounts();MenuSummonsOncePerEvent();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();BackdropDrawer();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();AsideEntry();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
