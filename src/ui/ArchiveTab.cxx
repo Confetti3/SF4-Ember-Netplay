@@ -8,11 +8,13 @@
 #include "PublicRoomsPanel.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
+#include "ArchiveFind.hxx"
+#include "ReplaySummaryText.hxx"
+#include "../common/LocalTime.hxx"
 #include "../common/Localization.hxx"
 #include "../common/WatchCaption.hxx"
 #include <algorithm>
 #include <cstdio>
-#include <ctime>
 #include <iterator>
 
 namespace sf4e { namespace ui {
@@ -20,17 +22,12 @@ namespace {
 using Entry = archivesets::Entry;
 using Game = netplay::archive::Game;
 using netplay::archive::Filter;
-using Command = netplay::tournament::Command;
 // A set's card: two lines under the players, and the context line.
 constexpr int kCardHeight = 88;
 const char* const kRoundKeys[] = {"archive.round.top8", "archive.round.pools", "archive.round.winners", "archive.round.losers", "archive.round.grand"};
 static_assert(std::size(kRoundKeys) == netplay::archive::RoundCount, "every round the listing filters by has its words");
 const std::string kDot = " \xC2\xB7 ";
 
-std::string FighterName(int id) {
-    const auto* fighter = selection::FindFighter(id);
-    return fighter ? std::string(fighter->name) : std::string(loc::T("common.unavailable"));
-}
 // A side's name, or its fighter when nobody named it (its player did not share the game).
 std::string SideName(const Game& game, int side) { return game.names[side].empty() ? FighterName(game.fighters[side]) : game.names[side]; }
 SkillBadge BadgeOf(int band) {
@@ -41,14 +38,6 @@ NameMarks MarksOf(const Game& game, int side) {
     marks.country = CountryCode::Parsed(game.countries[side]);
     marks.badge = BadgeOf(game.classes[side]);
     return marks;
-}
-// When a game was saved, in this PC's time, as the Matches list writes it.
-std::string When(std::uint64_t seconds) {
-    const std::time_t at = static_cast<std::time_t>(seconds);
-    std::tm local{};
-    if (localtime_s(&local, &at) != 0) return {};
-    char text[32];
-    return std::strftime(text, sizeof(text), "%Y-%m-%d %H:%M", &local) ? std::string(text) : std::string();
 }
 std::string GamesText(std::size_t count) { return count == 1 ? std::string(loc::T("archive.game_one")) : loc::Tf("archive.games", count); }
 std::string Joined(const std::vector<std::string>& parts, const std::string& between) {
@@ -77,11 +66,6 @@ std::string FightersLine(const Entry& entry) {
     for (const int fighter : archivesets::FightersMet(entry)) { if (met.size() == 6) break; met.push_back(FighterName(fighter)); }
     return loc::Tf("archive.met", Joined(met, ", "));
 }
-// The choices a set's row opens: the games to watch, and each named player's sets.
-MenuChoice NeedsMenu(std::string id, std::string label, std::string detail, bool idle, bool menu) {
-    const bool open = idle && menu;
-    return {std::move(id), std::move(label), open ? std::move(detail) : std::string(loc::T(idle ? "replays.not_ready" : "replays.open_log_room")), open};
-}
 // The name side `side` of a set's row stands for: a session's player, else the first game's side.
 std::string NameOf(const Entry& entry, int side) {
     if (entry.kind == Entry::Kind::Session) return side == 0 ? entry.player : std::string();
@@ -96,7 +80,7 @@ MenuEntry EntryRow(const ShellView& v, const Entry& entry, bool idle) {
     else if (score) label = SideName(first, 0) + " " + std::to_string((*score)[0]) + "-" + std::to_string((*score)[1]) + " " + SideName(first, 1);
     else label = loc::Tf("replays.fighters", SideName(first, 0), SideName(first, 1));
     const std::string context = ContextText(entry);
-    MenuEntry row = Row(std::string(ArchiveTab::RowPrefix) + entry.id, label, Joined({context, When(entry.newest)}, kDot));
+    MenuEntry row = Row(std::string(ArchiveTab::RowPrefix) + entry.id, label, Joined({context, LocalTime(entry.newest)}, kDot));
     row.userText = true;
     row.detailText = DetailText::Name;
     for (const auto& name : first.names) NoteUserText(name);
@@ -105,16 +89,14 @@ MenuEntry EntryRow(const ShellView& v, const Entry& entry, bool idle) {
     const auto known = [&](int side) { return selection::FindFighter(first.fighters[side]) ? first.fighters[side] : -1; };
     row.fighter1 = known(left);
     row.fighter2 = known(1 - left);
-    row.value = When(entry.newest);
+    row.value = LocalTime(entry.newest);
     row.height = kCardHeight;
     row.hint = loc::T("archive.watch_hint");
     const bool several = entry.games.size() > 1;
     row.choices.push_back(NeedsMenu("archive-watch", loc::T(several ? "replays.watch_set" : "replays.watch"), loc::T(several ? "replays.watch_set_detail" : "replays.watch_detail"),
         idle, v.replays.ready && v.archiveBrowse.fetching.empty()));
-    for (int side = 0; side < 2; ++side) {
-        const std::string name = NameOf(entry, side);
-        if (!name.empty()) row.choices.push_back({"find-" + std::to_string(side + 1), loc::Tf("archive.find", name), loc::Tf("archive.find_detail", name)});
-    }
+    const std::string names[2] = {NameOf(entry, 0), NameOf(entry, 1)};
+    for (auto& find : FindChoices(names)) row.choices.push_back(std::move(find));
     row.chosen = row.choices.front().enabled || row.choices.size() == 1 ? row.choices.front().id : row.choices[1].id;
     return row;
 }
@@ -136,7 +118,9 @@ std::string Trimmed(const std::string& text) {
 // The words of a filter, one for each thing it narrows by.
 std::vector<std::string> Parts(const Filter& filter) {
     std::vector<std::string> parts;
-    if (!filter.text.empty()) { NoteUserText(filter.text); parts.push_back(filter.text); }
+    // An exact name is the player the sets are of; typed text beside it is the search.
+    if (!filter.name.empty()) { NoteUserText(filter.name); parts.push_back(filter.name); }
+    if (!filter.text.empty() && filter.text != filter.name) { NoteUserText(filter.text); parts.push_back(filter.text); }
     if (filter.fighter >= 0) parts.push_back(FighterName(filter.fighter));
     if (filter.band > 0) parts.push_back(loc::Tf("archive.filter_class", ClassName(static_cast<std::uint8_t>(filter.band))));
     if (!filter.country.empty()) {
@@ -153,6 +137,13 @@ std::vector<std::string> Parts(const Filter& filter) {
 }
 }
 
+// Whether the end of a list of `rows` sets is near the focused one at `at` (-1: focus is not on a set):
+// the last few, or any of a short list.
+bool ArchiveTab::NearEnd(int at, std::size_t rows) {
+    constexpr std::size_t kAhead = 6;
+    return rows <= kAhead || (at >= 0 && static_cast<std::size_t>(at) + kAhead >= rows);
+}
+
 int ArchiveTab::FighterOf(const std::string& id) {
     if (id.size() < 4 || id.compare(0, 3, "af-") != 0 || id[3] < '0' || id[3] > '9') return -1;
     const int fighter = std::stoi(id.substr(3));
@@ -164,16 +155,15 @@ std::string ArchiveTab::FilterSummary(const Filter& filter) {
     return parts.empty() ? std::string(loc::T("archive.filter_none")) : Joined(parts, kDot);
 }
 
-std::vector<std::string> ArchiveTab::Chips(const ShellView&) const { return Parts(filter_); }
+std::vector<std::string> ArchiveTab::Chips() const { return Parts(filter_); }
 
 void ArchiveTab::Browse(Filter filter) {
     filter_ = std::move(filter);
-    memory_ = archivepaging::Memory();
+    last_ = commands::ArchiveList();
     retry_ = false;
-    watchAsked_ = false;
 }
 
-bool ArchiveTab::Heard(const ShellView& v) const { return archivepaging::Heard(v.archiveBrowse, bridge_, filter_); }
+bool ArchiveTab::Heard(const ShellView& v) const { return v.archiveBrowse.Answers(bridge_, filter_); }
 
 bool ArchiveTab::Fetching(const ShellView& v) const { return !v.archiveBrowse.fetching.empty(); }
 
@@ -199,19 +189,18 @@ void ArchiveTab::Update(const ShellView& v, const std::string& screen, const std
     int at = -1;
     for (std::size_t i = 0; i < entries_.size(); ++i)
         if (std::string(RowPrefix) + entries_[i].id == focus) { at = static_cast<int>(i); break; }
-    const bool retry = retry_;
+    commands::ArchiveList want;
+    want.bridge = bridge;
+    want.filter = filter_;
+    want.nearEnd = NearEnd(at, entries_.size());
+    want.retry = retry_;
+    // Sent once for each want and each listing it is a want of; the runtime decides which page that asks for.
+    if (!want.retry && want == last_ && v.archiveBrowse.revision == revision_) return;
     retry_ = false;
-    const auto ask = archivepaging::NextAsk(v.archiveBrowse, bridge, filter_, archivepaging::NearEnd(at, entries_.size()), retry, memory_);
-    if (ask == archivepaging::Ask::None) return;
-    watchAsked_ = false;
-    commands::Tournament action;
-    action.tournament.op = Command::Op::ArchiveList;
-    action.tournament.bridgeId = bridge;
-    action.tournament.archiveFilter = filter_;
-    action.tournament.archiveNext = ask == archivepaging::Ask::Next || ask == archivepaging::Ask::NextAgain;
-    action.tournament.archiveAgain = ask == archivepaging::Ask::NextAgain;
-    // A command the queue refused is asked again next frame.
-    if (!submit(std::move(action))) memory_ = archivepaging::Memory();
+    if (!submit(want)) return;
+    last_ = std::move(want);
+    last_.retry = false;
+    revision_ = v.archiveBrowse.revision;
 }
 
 std::vector<std::string> ArchiveTab::EventValues() const {
@@ -230,8 +219,9 @@ std::vector<std::string> ArchiveTab::CountryValues() const {
 
 void ArchiveTab::FilterRows(const ShellView& v, std::vector<MenuEntry>& rows) const {
     // Player or event is typed; the rest are words stepped through, which Select lists in full.
-    NoteUserText(filter_.text);
-    rows.push_back(TextRow("af-text", loc::T("archive.f_text"), filter_.text, 40));
+    const std::string& typed = filter_.name.empty() ? filter_.text : filter_.name;
+    NoteUserText(typed);
+    rows.push_back(TextRow("af-text", loc::T("archive.f_text"), typed, 40));
     rows.back().detail = loc::T("archive.f_text_detail");
     rows.back().userText = true;
     rows.push_back(Row("af-fighter", loc::T("archive.f_fighter"), loc::T("archive.f_fighter_detail")));
@@ -321,7 +311,7 @@ bool ArchiveTab::Activate(const MenuAction& a, MenuNavigation& nav) {
     if (a.id == "archive-filters") { nav.Push(FilterScreen); return true; }
     if (a.id == "archive-identity") { nav.Push("identity"); return true; }
     if (a.id == "archive-retry" || a.id == "archive-more-retry") { retry_ = true; return true; }
-    if (a.id == "archive-clear" || a.id == "af-clear") { filter_ = Filter().Ordered(filter_.order); watchAsked_ = false; return true; }
+    if (a.id == "archive-clear" || a.id == "af-clear") { filter_ = Filter().Ordered(filter_.order); return true; }
     if (a.id == "af-fighter") { nav.Push(FighterScreen); return true; }
     if (a.id == "af-any") { filter_.fighter = -1; nav.Return(); return true; }
     if (const int fighter = FighterOf(a.id); fighter >= 0) { filter_.fighter = fighter; nav.Return(); return true; }
@@ -333,7 +323,8 @@ bool ArchiveTab::Adjust(const MenuAction& a) {
         const int at = static_cast<int>(IndexOf(values, current)) + a.delta;
         current = values[static_cast<std::size_t>((std::max)(0, (std::min)(static_cast<int>(values.size()) - 1, at)))];
     };
-    if (a.id == "af-text") { if (a.kind == MenuAction::TextAccepted) filter_.text = Trimmed(a.text); return true; }
+    // Typing replaces the search, which is then a substring one: an exact name is dropped.
+    if (a.id == "af-text") { if (a.kind == MenuAction::TextAccepted) { filter_.text = Trimmed(a.text); filter_.name.clear(); } return true; }
     if (a.id == "af-class") { filter_.band = (std::max)(0, (std::min)(static_cast<int>(SkillBadge::Classes), filter_.band + a.delta)); return true; }
     if (a.id == "af-country") { step(CountryValues(), filter_.country); return true; }
     if (a.id == "af-event") { step(EventValues(), filter_.event); return true; }
@@ -364,64 +355,44 @@ std::vector<LegendHint> ArchiveTab::Hints(const ShellView& v, const std::string&
     return ShortcutHints({{MenuInput::Fighter, loc::T("archive.filters")}, {MenuInput::Options, loc::T(failed ? "archive.retry" : "legend.refresh")}});
 }
 
-bool ArchiveTab::Download(const Game& game, const ShellView& v, const Submit& submit, std::string& error) {
-    commands::Tournament action;
-    action.tournament.op = Command::Op::ArchiveWatch;
-    action.tournament.bridgeId = v.archiveBrowse.bridge.empty() ? bridge_ : v.archiveBrowse.bridge;
-    action.tournament.archiveUrl = game.url;
-    action.tournament.archiveDigest = game.digest;
-    // The names and classes the game was shared with are drawn over it as a replay's own are (replay::WatchCaption).
-    const std::string names[2] = {game.names[0], game.names[1]};
-    const SkillBadge classes[2] = {BadgeOf(game.classes[0]), BadgeOf(game.classes[1])};
-    action.tournament.archiveWatch.mode = replay::Mode::Watch;
-    action.tournament.archiveWatch.caption = replay::WatchCaption(names, classes, v.preferences.classEmblems);
-    if (!submit(std::move(action))) { error = loc::T("error.queue_failed"); return false; }
-    watchAsked_ = true;
-    fetchedAsked_ = v.archiveBrowse.fetched;
+// The set's games as a queue of downloads, each with the names and classes the game was shared with, which
+// are drawn over it as a replay's own are (replay::WatchCaption).
+std::vector<QueuedGame> ArchiveTab::Games(const Entry& entry, const ShellView& v) const {
+    std::vector<QueuedGame> games;
+    for (const auto* game : entry.games) {
+        QueuedGame queued;
+        queued.bridge = v.archiveBrowse.bridge.empty() ? bridge_ : v.archiveBrowse.bridge;
+        queued.url = game->url;
+        queued.digest = game->digest;
+        const std::string names[2] = {game->names[0], game->names[1]};
+        const SkillBadge classes[2] = {BadgeOf(game->classes[0]), BadgeOf(game->classes[1])};
+        queued.caption = replay::WatchCaption(names, classes, v.preferences.classEmblems);
+        games.push_back(std::move(queued));
+    }
+    return games;
+}
+
+bool ArchiveTab::Choose(const MenuAction& a, const ShellView& v, const Submit& submit, MenuNavigation& nav, WatchQueue& queue, std::string& error) {
+    const Entry* entry = IsRow(a.id) ? Find(a.id.substr(std::string(RowPrefix).size())) : nullptr;
+    if (!entry) return false;
+    const std::string names[2] = {NameOf(*entry, 0), NameOf(*entry, 1)};
+    if (const auto name = FoundName(a.text, names)) {
+        OpenFor(*name, nav);
+    } else if (a.text == "archive-watch" && v.replays.ready && v.archiveBrowse.fetching.empty()) {
+        // The first game now; each next one from the Next game row on Replays, where the log comes back to.
+        queue.Fill(Games(*entry, v));
+        if (!submit(queue.Start(v))) error = loc::T("error.queue_failed");
+    }
     return true;
 }
 
-void ArchiveTab::Next(const ShellView& v, const Submit& submit, std::string& error) {
-    if (queue_.empty() || !v.replays.ready || Fetching(v)) return;
-    if (Download(queue_.front(), v, submit, error)) queue_.erase(queue_.begin());
-}
-
-void ArchiveTab::StartWatch(const Entry& entry, const ShellView& v, const Submit& submit, std::string& error) {
-    // The first game now; each next one from the Next game row on Replays, where the log comes back to.
-    queue_.clear();
-    for (const auto* game : entry.games) queue_.push_back(*game);
-    games_ = queue_.size();
-    Next(v, submit, error);
-}
-
-bool ArchiveTab::Choose(const MenuAction& a, const ShellView& v, const Submit& submit, MenuNavigation& nav, std::string& error) {
-    if (!IsRow(a.id)) return false;
-    const Entry* entry = Find(a.id.substr(std::string(RowPrefix).size()));
-    if (!entry) return false;
-    if (a.text == "find-1" || a.text == "find-2") {
-        const std::string name = NameOf(*entry, a.text == "find-2" ? 1 : 0);
-        if (!name.empty()) {
-            Filter filter;
-            filter.text = name;
-            Browse(std::move(filter));
-            nav.Push(Screen);
-        }
-        return false;
-    }
-    if (a.text == "archive-watch" && v.replays.ready && !Fetching(v)) { StartWatch(*entry, v, submit, error); return true; }
-    return false;
-}
-
 bool ArchiveTab::Status(const ShellView& v, const std::string& screen, std::string& status, Tone& tone) const {
-    if (!Owns(screen) || !status.empty() || !watchAsked_) return false;
+    if (!Owns(screen) || !status.empty()) return false;
     const auto& answer = v.archiveBrowse;
-    // Asked, and not answered yet: the game is on its way.
-    if (!answer.fetching.empty() || answer.fetched == fetchedAsked_) { status = loc::T("archive.downloading"); tone = Tone::Pending; return true; }
-    if (!answer.fetchError.empty()) { status = loc::Tf("archive.download_failed", PublicRoomsPanel::FailureText(answer.fetchError)); tone = Tone::Error; return true; }
-    // The game is on disk and played as any replay is: what that said, if it refused.
-    if (v.replays.notice.empty()) return false;
-    status = v.replays.notice;
-    tone = v.replays.noticeError ? Tone::Error : Tone::Success;
+    if (!answer.fetching.empty()) { status = loc::T("archive.downloading"); tone = Tone::Pending; return true; }
+    if (answer.fetchError.empty()) return false;
+    status = loc::Tf("archive.download_failed", PublicRoomsPanel::FailureText(answer.fetchError));
+    tone = Tone::Error;
     return true;
 }
 
@@ -436,7 +407,7 @@ bool ArchiveTab::DrawCard(const ShellView&, const MenuEntry& e, ImVec2 min, ImVe
     const bool session = entry->kind == Entry::Kind::Session;
     // The right end: when the set was played.
     float right = max.x - 16 * s;
-    const std::string when = When(entry->newest);
+    const std::string when = LocalTime(entry->newest);
     const float whenWidth = ImGui::CalcTextSize(when.c_str()).x;
     d->AddText(ImVec2(right - whenWidth, min.y + (max.y - min.y - ImGui::GetFontSize()) * .5f), c.muted, when.c_str());
     right -= whenWidth + 14 * s;
@@ -503,7 +474,7 @@ void ArchiveTab::DrawDetail(const ShellView&, const std::string& id, MenuNavigat
     ImGui::Dummy(ImVec2(0, 6 * s));
     if (entry->Tournament() && !first.event.empty()) { NoteUserText(first.event); v2::Fact(loc::T("archive.fact.event"), first.event); }
     if (entry->Tournament() && !RoundOf(first).empty()) v2::Fact(loc::T("archive.fact.round"), RoundOf(first));
-    v2::Fact(loc::T("replays.fact.played"), When(entry->newest));
+    v2::Fact(loc::T("replays.fact.played"), LocalTime(entry->newest));
     v2::Fact(loc::T("archive.fact.games"), std::to_string(entry->games.size()));
     std::uint64_t bytes = 0;
     for (const auto* game : entry->games) bytes += game->size;

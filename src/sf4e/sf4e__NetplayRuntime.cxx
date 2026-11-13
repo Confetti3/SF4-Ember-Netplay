@@ -244,6 +244,8 @@ void StartHelper() {
 	if (runtime) return;
 	runtime = new Runtime();
 	internal::RestorePendingImports();
+	// Games downloaded from the public archive to watch last only as long as a run.
+	platform::replays::ClearArchiveWatching();
 	bridge::OpenCommands(runtime->commands);
     runtime->languagePreference = platform::LoadLanguagePreference();
     runtime->checkUpdatesAtLaunch = platform::LoadUpdatePreferences().checkAtLaunch;

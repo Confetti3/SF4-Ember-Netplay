@@ -619,7 +619,8 @@ void ExpireRankings(std::uint64_t nowMs);
 
 // The public replay archive (sf4e__NetplayRuntime__Archive.cxx): a page of its
 // listing, and a listed game downloaded and then watched.
-void DispatchArchive(const netplay::tournament::Command& command, bool helperReady);
+void DispatchArchive(const commands::ArchiveList& command, bool helperReady);
+void DispatchArchive(const commands::ArchiveWatch& command, bool helperReady);
 
 // Fighter levels (sf4e__NetplayRuntime__Levels.cxx): the player's own, read on
 // the menu's ask, once at start and after a set this PC fought.

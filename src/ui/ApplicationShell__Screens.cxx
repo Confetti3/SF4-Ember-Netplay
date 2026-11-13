@@ -241,6 +241,28 @@ public:
     }
 };
 
+// A fighter page's card: fighter select's art, the one the page ticks lit and marked. `fighterOf` reads a
+// row's id (-1 when it names no fighter).
+static GameMenu::Card FighterCard(std::function<int(const std::string&)> fighterOf, std::function<bool(int)> ticked) {
+    return [fighterOf, ticked](const MenuEntry& e, ImVec2 min, ImVec2 max) {
+        const int fighter = fighterOf(e.id);
+        if (fighter < 0) return false;
+        const bool on = ticked(fighter);
+        DrawMainPortrait(fighter, on, min, max);
+        if (on) ImGui::GetWindowDrawList()->AddText(ImVec2(max.x - 18 * Scale(), min.y + 3 * Scale()), palette::Ember, "\xE2\x9C\x93");
+        return true;
+    };
+}
+
+// The Replays tab strip over a screen, and whether matches watched are saved too.
+static void DressReplayTabs(const ScreenFrame& f, GameMenu& menu) {
+    menu.tabs = f.shell.replays_.Tabs(f.view);
+    for (int i = 0; i < static_cast<int>(menu.tabs.size()); ++i)
+        if (menu.tabs[i].first == f.screen) { menu.tab = i; menu.eyebrow = std::string(loc::T("replays.title")) + " \xC2\xB7 " + menu.tabs[i].second; }
+    const bool watched = f.shell.preferences_.recordWatched;
+    menu.headerChips.push_back({std::string(loc::T("replays.save_watched")) + " \xC2\xB7 " + loc::T(watched ? "common.on" : "common.off"), watched ? palette::Ready : v2::Colors().muted});
+}
+
 // Replays: the list, Inputs and stats, and an export's caption page.
 class ApplicationShell::ReplaysScreens final : public ScreenPanel {
 public:
@@ -267,32 +289,18 @@ public:
         return true;
     }
     bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
-        f.shell.replays_.Choose(a, f.view, f.shell.preferences_, f.shell.menu_.navigation, submit, f.shell.error_);
+        // Find this player's sets on a match opens the archive's tab, which is its own panel's.
+        if (const auto name = f.shell.replays_.PlayerToFind(f.view, a)) f.shell.archive_.OpenFor(*name, f.shell.menu_.navigation);
+        else f.shell.replays_.Choose(a, f.view, f.shell.preferences_, f.shell.menu_.navigation, submit, f.shell.error_);
         return true;
     }
     // The match and set cards and the focused one's pane, and Export video's
     // preview, on the tabbed screens (Inputs and a set's page are plain lists).
     GameMenu::Card Card(const ScreenFrame& f, double) const override {
-        // The archive's fighter page is the same grid, its one chosen fighter lit and marked.
-        if (f.screen == ArchiveTab::FighterScreen)
-            return [shell = &f.shell](const MenuEntry& e, ImVec2 min, ImVec2 max) {
-                const int fighter = ArchiveTab::FighterOf(e.id);
-                if (fighter < 0) return false;
-                const bool on = shell->replays_.Archive().Ticked(fighter);
-                DrawMainPortrait(fighter, on, min, max);
-                if (on) ImGui::GetWindowDrawList()->AddText(ImVec2(max.x - 18 * Scale(), min.y + 3 * Scale()), palette::Ember, "\xE2\x9C\x93");
-                return true;
-            };
         // The filter's fighters are fighter select's grid, a ticked one lit and marked.
         if (f.screen == "replay-filter")
-            return [shell = &f.shell](const MenuEntry& e, ImVec2 min, ImVec2 max) {
-                const auto fighter = ReplaysPanel::FilterFighter(e.id);
-                if (!fighter) return false;
-                const bool on = shell->replays_.Ticked(*fighter);
-                DrawMainPortrait(*fighter, on, min, max);
-                if (on) ImGui::GetWindowDrawList()->AddText(ImVec2(max.x - 18 * Scale(), min.y + 3 * Scale()), palette::Ember, "\xE2\x9C\x93");
-                return true;
-            };
+            return FighterCard([](const std::string& id) { const auto fighter = ReplaysPanel::FilterFighter(id); return fighter ? *fighter : -1; },
+                [shell = &f.shell](int fighter) { return shell->replays_.Ticked(fighter); });
         if (!Tabbed(f.screen)) return {};
         const ApplicationShell* shell = &f.shell; const ShellView* view = &f.view;
         return [shell, view](const MenuEntry& e, ImVec2 min, ImVec2 max) { return shell->replays_.DrawCard(*view, e, min, max); };
@@ -303,7 +311,7 @@ public:
         return [shell, view, screen, rows](const std::string& id) { shell->replays_.DrawDetail(*view, *screen, id, shell->menu_.navigation, *rows); };
     }
     ScreenGrid Grid(const ScreenFrame& f) const override {
-        if (f.screen != "replay-filter" && f.screen != ArchiveTab::FighterScreen) return {};
+        if (f.screen != "replay-filter") return {};
         // Smaller cards than fighter select's, so Sort, Show and Side stay on screen under them.
         const RosterGrid roster = LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
         return {roster.columns + 3, roster.cardHeight * .66f};
@@ -313,25 +321,54 @@ public:
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
         if (!Tabbed(f.screen)) return;
         const std::string& focus = menu.navigation.Focus();
-        menu.customDetail = f.screen == "replay-export" || focus.compare(0, 7, "replay:") == 0 || focus.compare(0, 4, "set:") == 0 || ArchiveTab::IsRow(focus);
+        menu.customDetail = f.screen == "replay-export" || focus.compare(0, 7, "replay:") == 0 || focus.compare(0, 4, "set:") == 0;
         if (f.screen != "replay-export") menu.paneWidth = 380;
-        menu.tabs = f.shell.replays_.Tabs(f.view);
-        for (int i = 0; i < static_cast<int>(menu.tabs.size()); ++i)
-            if (menu.tabs[i].first == f.screen) { menu.tab = i; menu.eyebrow = std::string(loc::T("replays.title")) + " \xC2\xB7 " + menu.tabs[i].second; }
-        const bool watched = f.shell.preferences_.recordWatched;
-        menu.headerChips.push_back({std::string(loc::T("replays.save_watched")) + " \xC2\xB7 " + loc::T(watched ? "common.on" : "common.off"), watched ? palette::Ready : v2::Colors().muted});
-        // The archive's filter is summarised in the header, and its shortcuts are the hint bar's.
-        if (f.screen == ArchiveTab::Screen) {
-            for (const auto& chip : f.shell.replays_.Archive().Chips(f.view)) menu.headerChips.push_back({chip, v2::Colors().muted});
-            menu.shortcutHints = f.shell.replays_.Archive().Hints(f.view, f.screen);
-        }
-    }
-    // The Archive tab's Filters and Retry or Refresh.
-    void Shortcut(const ScreenFrame& f, const MenuAction& a) const override {
-        f.shell.replays_.Shortcut(a, f.view, f.screen, f.shell.menu_.navigation);
+        DressReplayTabs(f, menu);
     }
 private:
-    static bool Tabbed(const std::string& screen) { return screen == "replays" || screen == "replay-sets" || screen == "replay-export" || screen == ArchiveTab::Screen; }
+    static bool Tabbed(const std::string& screen) { return screen == "replays" || screen == "replay-sets" || screen == "replay-export"; }
+};
+
+// The public replay archive: its sets, the filters and the fighter page. Its tab sits in Replays' strip
+// (ReplaysPanel::Tabs lists it), and Watch now fills the one set queue Replays' Next game row plays from.
+class ApplicationShell::ArchiveScreens final : public ScreenPanel {
+public:
+    bool Owns(const std::string& screen) const override { return ArchiveTab::Owns(screen); }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool idle, std::string& title) const override {
+        return f.shell.archive_.Rows(f.view, f.screen, idle, title);
+    }
+    void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override { f.shell.archive_.Status(f.view, f.screen, status, tone); }
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override { return f.shell.archive_.Activate(a, f.shell.menu_.navigation); }
+    bool Adjust(const ScreenFrame& f, const MenuAction& a) const override { return f.shell.archive_.Adjust(a); }
+    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        return f.shell.archive_.Choose(a, f.view, submit, f.shell.menu_.navigation, f.shell.replays_.Queue(), f.shell.error_);
+    }
+    void Shortcut(const ScreenFrame& f, const MenuAction& a) const override { f.shell.archive_.Shortcut(a, f.view, f.screen, f.shell.menu_.navigation); }
+    GameMenu::Card Card(const ScreenFrame& f, double) const override {
+        const ApplicationShell* shell = &f.shell; const ShellView* view = &f.view;
+        if (f.screen == ArchiveTab::FighterScreen)
+            return FighterCard([](const std::string& id) { return ArchiveTab::FighterOf(id); }, [shell](int fighter) { return shell->archive_.Ticked(fighter); });
+        return [shell, view](const MenuEntry& e, ImVec2 min, ImVec2 max) { return shell->archive_.DrawCard(*view, e, min, max); };
+    }
+    GameMenu::Detail Detail(const ScreenFrame& f) const override {
+        if (f.screen != ArchiveTab::Screen || !f.rows) return {};
+        ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::vector<MenuEntry>* rows = f.rows;
+        return [shell, view, rows](const std::string& id) { shell->archive_.DrawDetail(*view, id, shell->menu_.navigation, *rows); };
+    }
+    ScreenGrid Grid(const ScreenFrame& f) const override {
+        if (f.screen != ArchiveTab::FighterScreen) return {};
+        const RosterGrid roster = LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
+        return {roster.columns + 3, roster.cardHeight * .66f};
+    }
+    // On the list: the tabs, the pane, the filter as header chips, and the hint bar's shortcuts.
+    void Dress(const ScreenFrame& f, GameMenu& menu) const override {
+        if (f.screen != ArchiveTab::Screen) return;
+        menu.customDetail = ArchiveTab::IsRow(menu.navigation.Focus());
+        menu.paneWidth = 380;
+        DressReplayTabs(f, menu);
+        for (const auto& chip : f.shell.archive_.Chips()) menu.headerChips.push_back({chip, v2::Colors().muted});
+        menu.shortcutHints = f.shell.archive_.Hints(f.view, f.screen);
+    }
 };
 
 const ScreenPanel* ApplicationShell::ScreenOf(const std::string& screen) {
@@ -342,8 +379,9 @@ const ScreenPanel* ApplicationShell::ScreenOf(const std::string& screen) {
     static const ProfileScreens profile{};
     static const FriendsScreens friends{};
     static const ReplaysScreens replays{};
+    static const ArchiveScreens archive{};
     static const IdentityScreens identity{};
-    static const ScreenPanel* const owners[] = {&publicRooms, &rankings, &profile, &friends, &replays, &identity, &SettingsOwner(), &OnlineOwner(),
+    static const ScreenPanel* const owners[] = {&publicRooms, &rankings, &profile, &friends, &replays, &archive, &identity, &SettingsOwner(), &OnlineOwner(),
         &WelcomeOwner(), &NewsOwner(), &AwardsOwner(), &NotificationsOwner(), &RoomMemberOwner(), &RoomOwner()};
     for (const ScreenPanel* owner : owners)
         if (owner->Owns(screen)) return owner;

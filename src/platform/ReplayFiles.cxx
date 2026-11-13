@@ -585,13 +585,15 @@ fs::path ArchiveWatchPath(const std::string& digest) {
 	std::error_code error;
 	fs::create_directories(folder, error);
 	if (error) return {};
-	const fs::path file = folder / fs::path(digest + ".emberreplay");
-	// Only the game asked for last stays: the others were watched or given up on.
-	for (fs::directory_iterator at(folder, error), end; !error && at != end; at.increment(error)) {
+	return folder / fs::path(digest + ".emberreplay");
+}
+
+void PruneArchiveWatching(const fs::path& keep) {
+	std::error_code error;
+	for (fs::directory_iterator at(keep.parent_path(), error), end; !error && at != end; at.increment(error)) {
 		std::error_code ignored;
-		if (at->path() != file && at->is_regular_file(ignored)) fs::remove(at->path(), ignored);
+		if (at->path() != keep && at->is_regular_file(ignored)) fs::remove(at->path(), ignored);
 	}
-	return file;
 }
 
 void ClearArchiveWatching() {

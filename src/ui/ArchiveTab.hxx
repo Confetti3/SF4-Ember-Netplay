@@ -9,10 +9,10 @@
 // listing is read from ShellView::archiveBrowse, which the runtime fills
 // (netplay/ArchiveRequests.hxx); ReplaysPanel owns the tab and routes its
 // screens here.
-#include "ArchivePaging.hxx"
 #include "ArchiveSets.hxx"
 #include "GameMenu.hxx"
 #include "ShellAction.hxx"
+#include "WatchQueue.hxx"
 #include "MenuNavigation.hxx"
 #include "../netplay/Archive.hxx"
 #include <functional>
@@ -41,6 +41,9 @@ public:
 
     // The filter the player is browsing by.
     const netplay::archive::Filter& Wanted() const { return filter_; }
+    // The public archive's sets of one player (an exact name), on this tab: for a profile's Find sets and a
+    // row's Find this player's sets. Back returns to the screen it was called from.
+    void OpenFor(const std::string& playerName, MenuNavigation& navigation) { Browse(netplay::archive::Filter::Named(playerName)); navigation.Push(Screen); }
     // Browse by `filter` from the first page (Find this player's sets sets only a name).
     void Browse(netplay::archive::Filter filter);
 
@@ -52,16 +55,17 @@ public:
     bool Activate(const MenuAction& action, MenuNavigation& navigation);
     // Left or Right, a pick of a value's words (the steps to it) or typed text on a filter row.
     bool Adjust(const MenuAction& action);
-    // An option chosen on a set's row. `error` is what the shell shows when a request could not be queued.
-    // Returns true when a set's games were queued to watch, which ends any local set being watched.
-    bool Choose(const MenuAction& action, const ShellView& view, const Submit& submit, MenuNavigation& navigation, std::string& error);
+    // An option chosen on a set's row: Watch now fills `queue` with the set's games and starts the first, and
+    // Find this player's sets browses by that name. `error` is what the shell shows when a request could not be
+    // queued. False when the row is not a set's.
+    bool Choose(const MenuAction& action, const ShellView& view, const Submit& submit, MenuNavigation& navigation, WatchQueue& queue, std::string& error);
     // The Filters shortcut and the Retry or Refresh shortcut (the hint bar's two).
     void Shortcut(const MenuAction& action, const ShellView& view, const std::string& screen, MenuNavigation& navigation);
     std::vector<LegendHint> Hints(const ShellView& view, const std::string& screen) const;
     // The last download's progress or failure, once the player asked for a game to watch.
     bool Status(const ShellView& view, const std::string& screen, std::string& status, Tone& tone) const;
     // The filter as header chips, and as the Filters row's value.
-    std::vector<std::string> Chips(const ShellView& view) const;
+    std::vector<std::string> Chips() const;
     static std::string FilterSummary(const netplay::archive::Filter& filter);
     // A card (the players, score and fighters) and the pane (the games and Watch now) of a set's row.
     bool DrawCard(const ShellView& view, const MenuEntry& row, ImVec2 min, ImVec2 max) const;
@@ -69,22 +73,13 @@ public:
     // Whether the fighter page's card is ticked.
     bool Ticked(int fighter) const { return filter_.fighter == fighter; }
 
-    // The set being watched, a game at a time (the Next game row of Replays): how many of its games are
-    // left to start, which one the next is, and how many it has. Starting the next sends the download.
-    bool Queued() const { return !queue_.empty(); }
-    std::size_t QueuePosition() const { return games_ - queue_.size() + 1; }
-    std::size_t QueueGames() const { return games_; }
-    bool Fetching(const ShellView& view) const;
-    void ClearQueue() { queue_.clear(); }
-    void Next(const ShellView& view, const Submit& submit, std::string& error);
-
 private:
     // The grouping of the listing the runtime holds, remade only for a new one.
     void Regroup(const ShellView& view);
     const archivesets::Entry* Find(const std::string& id) const;
     bool Heard(const ShellView& view) const;
-    void StartWatch(const archivesets::Entry& entry, const ShellView& view, const Submit& submit, std::string& error);
-    bool Download(const netplay::archive::Game& game, const ShellView& view, const Submit& submit, std::string& error);
+    static bool NearEnd(int at, std::size_t rows);
+    std::vector<QueuedGame> Games(const archivesets::Entry& entry, const ShellView& view) const;
     void FilterRows(const ShellView& view, std::vector<MenuEntry>& rows) const;
     // What an event or country value steps through: nothing, then the archive's choices (and the one
     // chosen, should the archive no longer list it).
@@ -93,19 +88,14 @@ private:
 
     netplay::archive::Filter filter_;
     std::string bridge_;
-    archivepaging::Memory memory_;
+    // What was last sent, and the listing it was sent for.
+    commands::ArchiveList last_;
+    std::uint64_t revision_ = 0;
     bool retry_ = false;
     // The listing the entries are of, which they point into.
     std::shared_ptr<const netplay::archive::Listing> held_;
     std::vector<archivesets::Entry> entries_;
     // The events and countries the archive offers to filter by, as last heard.
     std::vector<std::string> events_, countries_;
-    // The set being watched: its games still to start, and how many it has.
-    std::vector<netplay::archive::Game> queue_;
-    std::size_t games_ = 0;
-    // A game was asked for, so the status line has its answer to give once
-    // the download count passes this one.
-    bool watchAsked_ = false;
-    std::uint64_t fetchedAsked_ = 0;
 };
 } }

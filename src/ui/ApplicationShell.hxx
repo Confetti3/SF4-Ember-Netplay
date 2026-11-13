@@ -51,6 +51,7 @@
 #include "ProfilePanel.hxx"
 #include "FriendsPanel.hxx"
 #include "ToastAction.hxx"
+#include "ArchiveTab.hxx"
 #include "ReplaysPanel.hxx"
 #include "ProblemReportPanel.hxx"
 #include "UpdatePrompt.hxx"
@@ -156,7 +157,7 @@ public:
     void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
     // The public archive's sets of one player, on Replays' Archive tab (ReplaysPanel::OpenArchiveFor);
     // Back returns to the screen shown now.
-    void OpenArchiveFor(const std::string& playerName) { replays_.OpenArchiveFor(playerName, menu_.navigation); }
+    void OpenArchiveFor(const std::string& playerName) { archive_.OpenFor(playerName, menu_.navigation); }
     void ShowPublicRooms() { auto& nav = menu_.navigation; nav.Cancel(); nav.Home(); nav.Push("online"); nav.Push("public-rooms"); }
     // Public rooms, where the panel judges a room link it was given, with the
     // trusted services probed afresh first.
@@ -233,12 +234,13 @@ private:
     ProfilePanel profile_;
     FriendsPanel friends_;
     ReplaysPanel replays_;
+    ArchiveTab archive_;
     ProblemReportPanel reportPanel_;
     CountryPicker countryPicker_;
     // The panels that own screens (ApplicationShell__Screens.cxx): each takes
     // the parts of a drawn frame that belong to its screens (ScreenPanel).
     // Update, Conceal and IdentityPanel::Hidden stay calls to every panel.
-    class IdentityScreens; class RoomMemberScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens; class ProfileScreens; class FriendsScreens;
+    class IdentityScreens; class RoomMemberScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens; class ArchiveScreens; class ProfileScreens; class FriendsScreens;
     // The panel that draws `screen`, one of those or of the shell's own below
     // (one table, ApplicationShell__Screens.cxx), else null for Home and the
     // few plain ones BuildRows makes itself.

@@ -646,7 +646,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  // A replay link takes the menu to its question only with no room: in a room the menu is the room's, and the link waits until it is left.
  replays_.Update(v,preferences_,nav,submit);
- replays_.UpdateArchive(v,nav.Screen(),identity_.UsableBridge(v),nav.Focus(),submit);
+ archive_.Update(v,nav.Screen(),identity_.UsableBridge(v),nav.Focus(),submit);
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);

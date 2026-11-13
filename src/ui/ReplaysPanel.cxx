@@ -10,6 +10,7 @@
 #include "../platform/Utf8.hxx"
 #include "../common/ReplayLink.hxx"
 #include "../common/WatchCaption.hxx"
+#include "ArchiveFind.hxx"
 #include <algorithm>
 #include <optional>
 
@@ -33,13 +34,6 @@ using Replay=platform::replays::ArchivedReplay;
 constexpr int MaxWins=99;
 // A Replays card: two lines under the players.
 constexpr int kCardHeight=88;
-// A choice that needs the main menu (`menu`, no match running) and no room open
-// (`idle`): when it is not available its detail says which, as every
-// unavailable choice does, rather than the greyed choice saying nothing.
-MenuChoice NeedsMenu(std::string id,std::string label,std::string detail,bool idle,bool menu){
- const bool open=idle&&menu;
- return {std::move(id),std::move(label),open?std::move(detail):std::string(loc::T(idle?"replays.not_ready":"replays.open_log_room")),open};
-}
 MenuEntry WinsRow(std::string id,std::string label,int wins,bool enabled){
  auto e=Value(std::move(id),std::move(label),std::to_string(wins),loc::T("export.set_detail"),enabled);
  e.text=true;e.textLimit=2;return e;
@@ -77,7 +71,7 @@ std::string SetLabel(const Set& set){
  return ReplayPlayerName(last.names,0)+" "+std::to_string(wins.first)+"-"+std::to_string(wins.second)+" "+ReplayPlayerName(last.names,1);
 }
 // A fighter's name, or that it is not one Ember knows.
-std::string FighterName(const Replay& r,int side){const auto* f=selection::FindFighter(r.fighters[side]);return f?f->name:loc::T("common.unavailable");}
+std::string FighterName(const Replay& r,int side){return ui::FighterName(r.fighters[side]);}
 // The fighters' names, "Ryu vs Ken".
 std::string FightersText(const Replay& r){return loc::Tf("replays.fighters",FighterName(r,0),FighterName(r,1));}
 // The same with each one's Ultra: a card has room for them, the facts do not.
@@ -94,7 +88,7 @@ const Replay* RowReplay(const ShellView& v,const std::vector<Set>& sets,const st
 }
 }
 ReplaysPanel::Wants ReplaysPanel::Wanted(const std::string& screen) const {
- Wants wants;wants.listing=screen=="replays"||screen=="replay-filter"||screen=="replay-sets"||screen=="replay-set"||ArchiveTab::Owns(screen);
+ Wants wants;wants.listing=screen=="replays"||screen=="replay-filter"||screen=="replay-sets"||screen=="replay-set";
  // Each entry owns a revision. WantDetail coalesces frames of that entry;
  // the worker rereads the bounded file before considering its content cache.
  if(screen=="replay-inputs"){wants.detail=true;wants.detailFile=inputsFile_;wants.detailRevision=inputsRevision_;}
@@ -120,12 +114,12 @@ void ReplaysPanel::Update(const ShellView& v,const netplay::PlayerPreferences& s
  // menu. A game whose export was refused or whose video was not made stays at
  // the front for the Next video row to go on from.
  if(setStep_==SetStep::Sent&&v.replays.exportEnded==sentExport_){
-  if(v.replays.exportSaved&&!setQueue_.empty()){setQueue_.erase(setQueue_.begin());setStep_=SetStep::Advance;}
+  if(v.replays.exportSaved&&queue_.Exporting()){queue_.Pop();setStep_=SetStep::Advance;}
   else setStep_=SetStep::Manual;
  }
- if(setStep_==SetStep::Advance&&!setQueue_.empty()&&v.replays.ready&&v.session.room==netplay::RoomState::Idle){
+ if(setStep_==SetStep::Advance&&queue_.Exporting()&&v.replays.ready&&v.session.room==netplay::RoomState::Idle){
   setStep_=SetStep::Manual;
-  if(const auto* shown=Find(v,setQueue_.front())){OpenExport(v,saved,*shown);Generate(v,submit);}
+  if(const auto* shown=Find(v,queue_.Front().path)){OpenExport(v,saved,*shown);Generate(v,submit);}
  }
 }
 // The Sort & filter and Search rows that head the Replays and Sets lists.
@@ -171,7 +165,6 @@ std::optional<int> ReplaysPanel::FilterFighter(const std::string& id) {
 }
 std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& screen,const std::string& parent,bool idle,std::string& title) const {
  const auto& r=v.replays;std::vector<MenuEntry> rows;
- if(ArchiveTab::Owns(screen))return archive_.Rows(v,screen,idle,title);
  if(screen=="replay-inputs"){title=loc::T("replays.inputs");InputsRows(v,rows);
  }else if(screen=="replay-filter"){
   // The fighters as a grid of cards that Select ticks, then the choices under it, as a grid's footer.
@@ -253,11 +246,8 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   }
   // Watch set plays a game at a time, and Export set videos sets one up at a
   // time: the next one is a press away when the last one ends.
-  if(!setQueue_.empty())rows.push_back(Row("set-next",loc::Tf(setExport_?"replays.next_video":"replays.next_game",setGames_-setQueue_.size()+1,setGames_),
-   loc::T(setExport_?"replays.next_video_detail":"replays.watch_detail"),setExport_?idle:idle&&r.ready));
-  // The same for a set of the public archive, whose games are downloaded as they are started.
-  else if(archive_.Queued())rows.push_back(Row("set-next",loc::Tf("replays.next_game",archive_.QueuePosition(),archive_.QueueGames()),
-   loc::T("replays.watch_detail"),idle&&r.ready&&!archive_.Fetching(v)));
+  if(!queue_.Empty())rows.push_back(Row("set-next",loc::Tf(queue_.Exporting()?"replays.next_video":"replays.next_game",queue_.Position(),queue_.Total()),
+   loc::T(queue_.Exporting()?"replays.next_video_detail":"replays.watch_detail"),queue_.Exporting()?idle:idle&&queue_.Ready(v)));
   // Import replay is always here: a replay or set pack saved from a site or Discord goes in through the
   // file picker (or dropped on the game window), whatever is in the list. The picker is mouse and keyboard.
   rows.push_back(Row("replay-import",loc::T("replays.import"),loc::T(v.services.canPickFiles?"replays.import_detail":"replays.import_fullscreen"),v.services.canPickFiles&&!v.services.picking));
@@ -297,8 +287,7 @@ MenuEntry ReplaysPanel::ReplayRow(const ShellView& v,const platform::replays::Ar
  row.choices={NeedsMenu("watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle,r.ready),NeedsMenu("watch-meter",loc::T("replays.watch_meter"),loc::T("replays.watch_meter_detail"),idle,r.ready),NeedsMenu("add",loc::T("replays.add"),loc::T("replays.add_detail"),true,r.ready),NeedsMenu("export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle,r.ready),{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")},
   {"keep",loc::T(replay.kept?"replays.unkeep":"replays.keep"),loc::T(replay.kept?"replays.unkeep_detail":"replays.keep_detail")},
   {"show-folder",loc::T("replays.show_folder"),loc::T("replays.show_folder_detail"),!v.services.pending}};
- // Each named player's sets in the public archive.
- for(int side=0;side<2;side++)if(!replay.names[side].empty())row.choices.push_back({"find-"+std::to_string(side+1),loc::Tf("archive.find",replay.names[side]),loc::Tf("archive.find_detail",replay.names[side])});
+ for(auto& find:FindChoices(replay.names))row.choices.push_back(std::move(find));
  row.chosen=!r.ready?"inputs":idle?"watch":"add";
  return row;
 }
@@ -361,13 +350,17 @@ void ReplaysPanel::OpenExport(const ShellView& v,const netplay::PlayerPreference
 // The set's next game's caption screen, its set score counted from the
 // games before it (OpenExport); Generate there makes its video.
 void ReplaysPanel::NextVideo(const ShellView& v,const netplay::PlayerPreferences& saved,MenuNavigation& nav) {
- if(const auto* shown=Find(v,setQueue_.front())){OpenExport(v,saved,*shown);nav.Push("replay-export");}
+ if(const auto* shown=Find(v,queue_.Front().path)){OpenExport(v,saved,*shown);nav.Push("replay-export");}
 }
 // A set's games queued to watch or, with `exporting`, to make videos of.
-void ReplaysPanel::QueueSet(const Set& set,bool exporting) {
- archive_.ClearQueue();
- setQueue_.clear();for(const auto* game:set.games)setQueue_.push_back(PathOf(*game));
- setGames_=setQueue_.size();setExport_=exporting;setStep_=SetStep::Manual;
+void ReplaysPanel::QueueSet(const ShellView& v,const Set& set,bool exporting) {
+ std::vector<QueuedGame> games;
+ for(const auto* game:set.games){QueuedGame queued;queued.path=PathOf(*game);queued.caption=WatchCaptionOf(v,queued.path);games.push_back(std::move(queued));}
+ queue_.Fill(std::move(games),exporting);setStep_=SetStep::Manual;
+}
+// The front game of the queue starts, once the game takes a replay.
+void ReplaysPanel::StartNext(const ShellView& v,const Submit& submit,std::string& error) {
+ if(queue_.Ready(v)&&!submit(queue_.Start(v)))error=loc::T("error.queue_failed");
 }
 void ReplaysPanel::Watch(const ShellView& v,const std::string& path,bool meter,const Submit& submit,std::string& error) {
  commands::Replay r;r.generation=v.session.generation;r.replay={replay::Mode::Watch,path,WatchCaptionOf(v,path)};r.replay.meter=meter;
@@ -379,17 +372,15 @@ bool ReplaysPanel::Generate(const ShellView& v,const Submit& submit) {
  if(!submit(std::move(r)))return false;
  ++exports_;
  // The queue's front, sent: the end of this export is what takes it out of the queue.
- if(setExport_&&!setQueue_.empty()&&exportPath_==setQueue_.front()){setStep_=SetStep::Sent;sentExport_=exports_;}
+ if(queue_.Exporting()&&exportPath_==queue_.Front().path){setStep_=SetStep::Sent;sentExport_=exports_;}
  return true;
 }
 bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,const netplay::PlayerPreferences& saved,MenuNavigation& nav,const Submit& submit,std::string& error) {
- if(archive_.Activate(a,nav)){folderAsked_=setAsked_=importAsked_=false;return true;}
  // Any other request from these screens takes the status line back from Show in folder.
  if(a.id=="cap-generate"||a.id=="export-cancel"||a.id=="replay-log")folderAsked_=setAsked_=importAsked_=false;
  if(a.id=="set-next"){
-  if(setQueue_.empty()&&archive_.Queued()){archive_.Next(v,submit,error);return true;}
-  if(setExport_&&!setQueue_.empty()){NextVideo(v,saved,nav);return true;}
-  if(!setQueue_.empty()&&v.replays.ready){Watch(v,setQueue_.front(),false,submit,error);setQueue_.erase(setQueue_.begin());}
+  if(queue_.Exporting())NextVideo(v,saved,nav);
+  else StartNext(v,submit,error);
   return true;
  }
  if(a.id=="cap-generate"){
@@ -417,7 +408,6 @@ bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,const netplay
 }
 bool netplay::PlayerPreferences::* ReplaysPanel::Accept(const MenuAction& a) {
  using P=netplay::PlayerPreferences;
- if(archive_.Adjust(a))return nullptr;
  // Each on/off row and the saved choice it leaves for the next export.
  const struct{const char* id;bool* part;bool P::* saved;} toggles[]={
   {"cap-names",&caption_.names,&P::exportNames},{"cap-line",&caption_.line,&P::exportLine},{"cap-set",&caption_.set,&P::exportSet},
@@ -439,11 +429,6 @@ bool netplay::PlayerPreferences::* ReplaysPanel::Accept(const MenuAction& a) {
  return nullptr;
 }
 void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::PlayerPreferences& saved,MenuNavigation& nav,const Submit& submit,std::string& error) {
- if(ArchiveTab::IsRow(a.id)){
-  // A public archive game's set, to watch from the first game, or one of its players' sets to find.
-  if(archive_.Choose(a,v,submit,nav,error)){setQueue_.clear();setStep_=SetStep::Manual;folderAsked_=setAsked_=importAsked_=false;}
-  return;
- }
  if(a.id=="replay-link"){
   folderAsked_=setAsked_=importAsked_=false;
   commands::Replay r;r.generation=v.session.generation;
@@ -465,26 +450,21 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
     if(!submit(std::move(r))){setAsked_=false;error=loc::T("error.queue_failed");}
    }else if(a.text=="set-export"){
     // The first game's caption now; each next one from the Next video row on Replays.
-    QueueSet(set,true);
+    QueueSet(v,set,true);
     NextVideo(v,saved,nav);
    }else if(a.text=="set-watch"&&v.replays.ready){
     // The first game now; each next one from the Next game row on Replays, where the log comes back to.
-    QueueSet(set,false);
-    Watch(v,setQueue_.front(),false,submit,error);setQueue_.erase(setQueue_.begin());
+    QueueSet(v,set,false);
+    StartNext(v,submit,error);
    }
   }
   return;
  }
  if(a.id.compare(0,7,"replay:")!=0)return;
  const std::string path=a.id.substr(7);
- if(a.text=="find-1"||a.text=="find-2"){
-  // The sets of the player on that side in the public archive.
-  if(const auto* shown=Find(v,path)){const std::string& name=shown->names[a.text=="find-2"?1:0];if(!name.empty())OpenArchiveFor(name,nav);}
-  return;
- }
  folderAsked_=a.text=="show-folder";setAsked_=importAsked_=false;
  // Anything else asked of a replay ends a set being watched.
- setQueue_.clear();archive_.ClearQueue();setStep_=SetStep::Manual;
+ queue_.Clear();setStep_=SetStep::Manual;
  if(a.text=="show-folder"){
   // Explorer opens on the replay's own folder: the archive, or a usf4-replay-saver folder in it.
   commands::Service r;r.generation=v.session.generation;r.service=platform::ServiceAction::ShowReplayFile;r.servicePath=path;
@@ -504,8 +484,11 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");
  }
 }
+std::optional<std::string> ReplaysPanel::PlayerToFind(const ShellView& v,const MenuAction& a) const {
+ const auto* shown=a.id.compare(0,7,"replay:")==0?Find(v,a.id.substr(7)):nullptr;
+ return shown?FoundName(a.text,shown->names):std::nullopt;
+}
 bool ReplaysPanel::Status(const ShellView& v,const std::string& screen,std::string& status,Tone& tone) const {
- if(ArchiveTab::Owns(screen))return archive_.Status(v,screen,status,tone);
  if((screen!="replays"&&screen!="replay-sets")||!status.empty())return false;
  // The picker is open: its words, until it closes.
  if(v.services.picking){status=loc::T("services.picking_replays");tone=Tone::Pending;return true;}
@@ -536,7 +519,7 @@ bool ReplaysPanel::Status(const ShellView& v,const std::string& screen,std::stri
 std::vector<std::pair<std::string,std::string>> ReplaysPanel::Tabs(const ShellView& v) const {
  std::vector<std::pair<std::string,std::string>> tabs{{"replays",loc::T("replays.tab.matches")}};
  if(!sets_.empty())tabs.push_back({"replay-sets",loc::T("replays.tab.sets")});
- tabs.push_back({ArchiveTab::Screen,loc::T("replays.tab.archive")});
+ tabs.push_back({"replay-archive",loc::T("replays.tab.archive")});
  if(!exportPath_.empty()||(v.replays.archive&&!v.replays.archive->empty()))tabs.push_back({"replay-export",loc::T("export.title")});
  return tabs;
 }
@@ -546,7 +529,6 @@ void ReplaysPanel::ExportFrom(const ShellView& v,const netplay::PlayerPreference
  if(r)OpenExport(v,saved,*r);
 }
 bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImVec2 max) const {
- if(ArchiveTab::IsRow(e.id))return archive_.DrawCard(v,e,min,max);
  const Replay* r=RowReplay(v,sets_,e.id);
  if(!r)return false;
  auto* d=ImGui::GetWindowDrawList();const float s=Scale();const auto& c=v2::Colors();
@@ -589,7 +571,6 @@ bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImV
  return true;
 }
 void ReplaysPanel::DrawDetail(const ShellView& v,const std::string& screen,const std::string& id,MenuNavigation& nav,const std::vector<MenuEntry>& rows) const {
- if(ArchiveTab::IsRow(id)){archive_.DrawDetail(v,id,nav,rows);return;}
  auto* d=ImGui::GetWindowDrawList();const float s=Scale();const auto& c=v2::Colors();
  if(screen=="replay-export"){
   // What the video will show, over a small screen: the names, the line, the set's score, Ember's mark and the frame meter.
