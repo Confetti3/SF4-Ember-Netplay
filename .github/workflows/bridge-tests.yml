@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   bridge:
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-emberbuilds
     timeout-minutes: 30
     defaults:
       run:
@@ -73,7 +73,7 @@ jobs:
         working-directory: rust/sf4-net
         run: cargo test --locked --lib tournament
   room:
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-emberbuilds
     timeout-minutes: 15
     defaults:
       run:
