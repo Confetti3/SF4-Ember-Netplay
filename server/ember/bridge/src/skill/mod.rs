@@ -59,6 +59,15 @@ const FULL_WEIGHT_GAP: f64 = 150.0;
 const MIN_WEIGHT_GAP: f64 = 450.0;
 const MIN_WEIGHT: f64 = 0.1;
 const UPSET_WEIGHT: f64 = 0.5;
+// An unsure rating takes its games in full, and by Glicko alone one loss to
+// a much lower-rated player then costs it hundreds of points. So the loser of
+// an upset is spared the same way while unsure, once the gap is clear: what
+// is left of it with each rating moved CLEAR_DEVIATIONS of its own deviation
+// toward the other (`clear_gap_weight`). Two deviations is about the range a
+// rating is 95% sure of, so ratings that are still finding their place are
+// never spared a loss that tells something, and nobody is rated higher for
+// it.
+const CLEAR_DEVIATIONS: f64 = 2.0;
 // Long sets between two friends: past FULL_REPEATS games against each other in
 // one sitting, a game counts at REPEAT_WEIGHT for the rating and earns no
 // level. A sitting ends after SITTING_SECS without a game between them.
@@ -193,11 +202,15 @@ fn rate(tx: &Transaction<'_>, winner: &str, loser: &str, sitting: f64, now: u64)
 
 /// How much a game counts for its winner and for its loser, by their ratings:
 /// the gap's weight for both, except that an upset counts at least
-/// `UPSET_WEIGHT` for the winner.
+/// `UPSET_WEIGHT` for the winner, and no more for its loser than the clear
+/// part of the gap allows, however unsure either rating is.
 fn weights(winner: Rating, loser: Rating) -> (f64, f64) {
     let gap = gap_weight(winner, loser);
     let upset = winner.rating < loser.rating;
-    (if upset { gap.max(UPSET_WEIGHT) } else { gap }, gap)
+    (
+        if upset { gap.max(UPSET_WEIGHT) } else { gap },
+        gap.min(clear_gap_weight(winner, loser)),
+    )
 }
 
 /// How much a game between `one` and `other` counts for their rating gap.
@@ -207,9 +220,25 @@ fn gap_weight(one: Rating, other: Rating) -> f64 {
     if one.deviation > UNSURE_DEVIATION || other.deviation > UNSURE_DEVIATION {
         return 1.0;
     }
-    let gap = (one.rating - other.rating).abs();
+    lopsided_weight((one.rating - other.rating).abs())
+}
+
+/// How much a game counts across a gap of `gap` rating points: in full up to
+/// `FULL_WEIGHT_GAP`, then less, down to `MIN_WEIGHT` from `MIN_WEIGHT_GAP`.
+fn lopsided_weight(gap: f64) -> f64 {
     let past = ((gap - FULL_WEIGHT_GAP) / (MIN_WEIGHT_GAP - FULL_WEIGHT_GAP)).clamp(0.0, 1.0);
     1.0 - past * (1.0 - MIN_WEIGHT)
+}
+
+/// How much a lost game counts for `loser` by the part of its lead over
+/// `winner` that is clear of both deviations: the loser's rating lowered and
+/// the winner's raised by `CLEAR_DEVIATIONS` of its own. Between settled
+/// ratings that is never less than the gap's own weight; for an unsure one
+/// it is what keeps a loss to a far lower-rated player light.
+fn clear_gap_weight(winner: Rating, loser: Rating) -> f64 {
+    let lowest = loser.rating - CLEAR_DEVIATIONS * loser.deviation;
+    let highest = winner.rating + CLEAR_DEVIATIONS * winner.deviation;
+    lopsided_weight(lowest - highest)
 }
 
 /// Counts a game `winner` won against `loser` in the pair's record and in
@@ -517,6 +546,53 @@ mod tests {
         // Between near peers an upset is an ordinary game.
         let (winner, loser) = weights(settled(1500.0), settled(1600.0));
         assert!(close(winner, 1.0) && close(loser, 1.0), "{winner} {loser}");
+    }
+
+    #[test]
+    fn an_unsure_ratings_loss_to_a_far_lower_player_is_light() {
+        let unsure = |rating: f64, deviation: f64| Rating {
+            rating,
+            deviation,
+            volatility: 0.06,
+        };
+        let newer = settled(1150.0);
+        // A Grand Master back after some months, or in their first games:
+        // the rating is unsure and by Glicko alone one loss to a D player
+        // costs a class or two. (deviation, the loss alone, at most now)
+        for (deviation, alone, most) in [(111.0, 60.0, 8.0), (150.0, 120.0, 15.0), (200.0, 215.0, 65.0)] {
+            let master = unsure(2100.0, deviation);
+            let by_glicko = master.rating - master.after(newer, 0.0, 1.0).rating;
+            assert!(by_glicko > alone, "{deviation}: {by_glicko}");
+            let (winner, loser) = weights(newer, master);
+            // The D player's win counts in full.
+            assert_eq!(winner, 1.0, "{deviation}");
+            let cost = master.rating - master.after(newer, 0.0, loser).rating;
+            assert!(cost > 0.0 && cost < most, "{deviation}: {cost}");
+        }
+        // The clear part of the lead is what counts: 2100 less two deviations
+        // of 200 against 1150 plus two of 80 is 390 points clear.
+        let (_, loser) = weights(newer, unsure(2100.0, 200.0));
+        assert!(close(loser, lopsided_weight(390.0)), "{loser}");
+        assert!(close(weights(newer, unsure(2100.0, 150.0)).1, MIN_WEIGHT));
+
+        // A rating still finding its place is spared nothing: a new player's
+        // loss to anyone, a loss to another unsure rating, and a loss that
+        // two deviations could explain all count in full.
+        for (winner, loser) in [
+            (settled(1000.0), Rating::NEW),
+            (unsure(1400.0, 250.0), unsure(1800.0, 250.0)),
+            (Rating::NEW, settled(2100.0)),
+            (settled(1500.0), unsure(1900.0, 200.0)),
+            (settled(1150.0), unsure(2100.0, 350.0)),
+        ] {
+            assert_eq!(weights(winner, loser), (1.0, 1.0), "{winner:?} {loser:?}");
+        }
+        // Between settled ratings nothing changes: the gap's own weight.
+        for gap in [0.0, 100.0, 150.0, 200.0, 300.0, 450.0, 950.0] {
+            let (winner, loser) = (settled(1150.0), settled(1150.0 + gap));
+            assert_eq!(weights(winner, loser).1, gap_weight(winner, loser), "{gap}");
+            assert_eq!(weights(loser, winner).1, gap_weight(winner, loser), "{gap}");
+        }
     }
 
     #[test]
