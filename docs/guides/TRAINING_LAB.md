@@ -263,7 +263,7 @@ Any case works, and spaces are optional.
 | `cl.` `far.` | Close or far standing normal | `cl.HP` |
 | `j.` | A straight-up jump with the attack in the air | `j.HK` |
 | `>` or `,` | Then the next move, once the dummy can act again (a link) | `2LK > 2LP` |
-| `xx` | Cancel into the next move when the hit lands | `2MK xx 236HP` |
+| `xx` | Cancel into the next move when the hit lands, or after a dash as soon as the dash can be cancelled | `2MK xx 236HP`, `66 > xx 5MP` |
 | `~` | Follow-up pressed about ten frames into the move before | `236P ~ LP` |
 | `[4]6` | Charge back, then forward | `[4]6P` |
 | `[1]` | Hold a direction until the next move | `[1] > 2HK` |

@@ -827,14 +827,17 @@ void AfterUpdate(Native* system) {
                 return now.valid && ((ClassifyStatus(now.status) == Phase::Hit && ClassifyStatus(was.status) != Phase::Hit) ||
                     now.comboDamage > was.comboDamage);
             };
-            const bool hit = hitOn(other, before);
+            // A cancel out of a dash (oiled Hakan's into a normal) waits for the dash's cancel window.
+            const auto& scripts = FighterScripts(system, static_cast<unsigned>(side))->scripts;
+            const bool cancelOpen = own.valid && own.action >= 0 && own.action < static_cast<int>(scripts.size()) &&
+                bac::CancelOpen(scripts[own.action], own.actionFrame);
             // How soon the script says the fighter is free again, so a link's
             // press can land on that frame: its interruptible frame, else its end.
             const int boundary = MoveRecoveryEnd(own);
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
             // A reply's leading hold gives way as its first move is due.
-            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until,
-                session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen));
+            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hitOn(other, before), until,
+                session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen), cancelOpen);
             // Combo check: a hit on the dummy, and Player 1's combo as it is done.
             const auto& dummy = fighters[1];
             const auto free = [](const FighterSample& fighter) { return fighter.valid && ClassifyStatus(fighter.status) == Phase::Neutral; };

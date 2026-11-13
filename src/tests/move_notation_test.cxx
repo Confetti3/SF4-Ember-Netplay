@@ -198,6 +198,13 @@ int main() {
         // Facing left mirrors forward and back.
         const auto mirrored = Synth(Steps("236HP > 5LP"), false);
         CHECK(mirrored[3].raw == (Down | Left) && mirrored[9].raw == (Left | HP) && mirrored[11].wait == sf4e::training::WaitActionable && mirrored[12].raw == LP);
+        // A linked dash waits in neutral, or its first tap is too long for the game.
+        const auto dash = Synth(Steps("5LP > 66"), true);
+        const auto link = std::find_if(dash.begin(), dash.end(), [](const auto& frame) { return frame.wait == sf4e::training::WaitActionable; });
+        CHECK(link != dash.end() && link->raw == 0 && (link + 1)->raw == Right);
+        // A cancel out of a dash waits on the dash's cancel window; out of a move, on the hit.
+        const auto waits = [](const char* line) { std::vector<int> seen; for (const auto& frame : Synth(Steps(line), true)) if (frame.wait) seen.push_back(frame.wait); return seen; };
+        CHECK(waits("66 > xx 5MP") == std::vector<int>{sf4e::training::WaitCancel} && waits("2LP xx 5MP") == std::vector<int>{sf4e::training::WaitHit});
         {
             Compiled compiled; compiled.frames = {{1, 1, 0, 0}};
             CHECK(Synth({}, true).empty() && !Synthesize({"nonsense"}, true, compiled, error) && compiled.frames.empty() && !error.empty());

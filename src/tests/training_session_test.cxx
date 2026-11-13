@@ -88,6 +88,16 @@ int main() {
             session.Observe(true, false, 7); session.Commit(session.Prepare(physical));
             Require(session.GetView().cursor == 4, "Seen free frame did not release an early press");
             apply(Action::Stop);
+            // A cancel out of a dash waits for the dash's cancel window, not a hit.
+            Command dash; dash.action = Action::Load; dash.generation = generation; dash.side = 0;
+            dash.frames = {Input{4, 4, 0}, Input{0, 0, WaitCancel, 0}, Input{0x20, 0x20, 0}};
+            Require(session.Apply(dash) && apply(Action::Play), "Dash load refused");
+            session.Observe(false, false); session.Commit(session.Prepare(physical));
+            for (int i = 0; i < 3; ++i) { session.Observe(false, true); session.Commit(session.Prepare(physical)); }
+            Require(session.GetView().cursor == 1, "A hit stood in for the dash's cancel window");
+            session.Observe(false, false, -1, false, true); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 2, "The open cancel window was not taken");
+            apply(Action::Stop);
             // A hit landing while the motion before a cancel's wait is still
             // going is kept for that wait; the press that started the move clears it.
             Command kept; kept.action = Action::Load; kept.generation = generation; kept.side = 0;

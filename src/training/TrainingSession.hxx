@@ -17,7 +17,9 @@
 
 namespace sf4e { namespace training {
 constexpr int HistoryRows = 12;
-constexpr unsigned char WaitActionable = 1, WaitHit = 2, WaitReply = 3;
+// WaitCancel: a cancel out of a move that cannot hit (a dash), on the
+// move's own cancel window.
+constexpr unsigned char WaitActionable = 1, WaitHit = 2, WaitReply = 3, WaitCancel = 4;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
 // for its hit before the motion goes stale. A reply's leading hold has no
@@ -544,8 +546,8 @@ public:
     // whether the fighter is free now, and whether a hit landed on the other one.
     // untilActionable: frames until the fighter's script says it can act again, -1 when unknown.
     // replyDue: a reply's leading hold gives way (ReplyFirstMoveDue on Schedule).
-    void Observe(bool actionable, bool hit, int untilActionable = -1, bool replyDue = false) {
-        actionable_ = actionable; hit_ = hit_ || hit; untilActionable_ = untilActionable; replyDue_ = replyDue;
+    void Observe(bool actionable, bool hit, int untilActionable = -1, bool replyDue = false, bool cancelOpen = false) {
+        actionable_ = actionable; hit_ = hit_ || hit; untilActionable_ = untilActionable; replyDue_ = replyDue; cancelOpen_ = cancelOpen;
     }
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
     // The fighters face each other, by where they stood after the last
@@ -702,7 +704,7 @@ public:
                 if (view_.replying && !replyDue_) return;
             } else {
                 // The cue, then the offset's frames more.
-                const bool cued = frame.wait == WaitActionable ? actionable_ : frame.wait == WaitHit ? hit_ : true;
+                const bool cued = frame.wait == WaitActionable ? actionable_ : frame.wait == WaitHit ? hit_ : frame.wait == WaitCancel ? cancelOpen_ : true;
                 // A free frame is pressed on as predicted, plus the offset; seen,
                 // it releases the press the frame after, so a prediction is never late.
                 const bool predicted = frame.wait == WaitActionable && untilActionable_ >= 0 && untilActionable_ <= 1 - frame.offset;
@@ -731,7 +733,7 @@ private:
     // The recording under way, and the frames that play.
     std::vector<Input> scratch_, playing_;
     SlotPicker playPicker_{1}, replyPicker_{2};
-    bool actionable_ = false, hit_ = false, replyDue_ = false;
+    bool actionable_ = false, hit_ = false, replyDue_ = false, cancelOpen_ = false;
     int untilActionable_ = -1;
     int waited_ = 0, waitedPast_ = 0;
     unsigned lastRaw_ = 0;
