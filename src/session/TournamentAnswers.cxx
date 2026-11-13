@@ -600,6 +600,27 @@ void DecodeProfileFields(const json& object, netplay::levels::Card& card) {
 		if (const auto id = ReadText(object, "friend", 39); IsFriendId(id)) card.friendId = id;
 }
 
+// The most played opponent of the own points answer. An object that is not a whole one (no card token, no name, no
+// games between the two) is left out on its own: the answer's points stand.
+bool DecodeMostPlayed(const json& data, netplay::levels::MostPlayed& out) {
+	const auto found = data.find("rival");
+	if (found == data.end() || !found->is_object()) return false;
+	namespace profiles = netplay::profiles;
+	netplay::levels::MostPlayed rival;
+	rival.card = ReadText(*found, "card", 128);
+	rival.name = ReadText(*found, "name", profiles::MaxNameBytes);
+	if (!CardToken::Parsed(rival.card).Present() || !profiles::NameShaped(rival.name)) return false;
+	const auto won = found->find("won"), lost = found->find("lost");
+	if (won == found->end() || lost == found->end() || !won->is_number_unsigned() || !lost->is_number_unsigned()) return false;
+	rival.won = won->get<std::uint64_t>();
+	rival.lost = lost->get<std::uint64_t>();
+	if (rival.won > UINT64_MAX - rival.lost || rival.won + rival.lost == 0) return false;
+	rival.country = ReadCountry(*found);
+	rival.badge = ReadSkillBadge(*found);
+	out = std::move(rival);
+	return true;
+}
+
 netplay::levels::Card DecodeCard(const json& value) {
 	netplay::levels::Card card;
 	const auto& object = Object(value);
@@ -653,6 +674,7 @@ std::optional<netplay::levels::Own> DecodeOwnLevels(const json& data) {
 		own.peakClass = static_cast<std::uint8_t>(OptionalCount(account, "peak_class", SkillBadge::Classes));
 		own.rival = static_cast<std::uint32_t>(OptionalCount(account, "rival", UINT32_MAX));
 		own.opponents = static_cast<std::uint32_t>(OptionalCount(account, "opponents", UINT32_MAX));
+		own.hasMostPlayed = DecodeMostPlayed(data, own.mostPlayed);
 		// A run of wins cannot be longer than the games played.
 		if (own.bestStreak > own.account.games) return std::nullopt;
 		const auto& rows = data.at("fighters");
