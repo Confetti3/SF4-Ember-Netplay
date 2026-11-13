@@ -256,6 +256,7 @@ std::string RelationWords(const Subject& s) {
 FullCardView FullOf(const Subject& s, Size size) {
     const Metrics& m = MetricsOf(size);
     FullCardView v;
+    v.size = size;
     v.levels = s.levels;
     v.name = s.name;
     v.country = s.country;

@@ -222,6 +222,7 @@ struct Subject {
 };
 
 struct FullCardView {
+    Size size = Size::Wide;
     CardLevels levels = CardLevels::Counted;
     std::string name;
     CountryCode country;

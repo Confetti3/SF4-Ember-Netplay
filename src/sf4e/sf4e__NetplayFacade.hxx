@@ -271,6 +271,8 @@ namespace sf4e {
             std::vector<netplay::profiles::Recent> recentOpponents;
             netplay::archive::Status profileSets;
             netplay::profiles::Service profilesService = netplay::profiles::Service::Unknown;
+            // The connection the card save last measured (ShellView::ownLink).
+            NetworkLink ownLink = NetworkLink::Unknown;
             // The player's own fighter levels, as last read.
             netplay::Answered<netplay::levels::Own> levels;
             // The cards of a public room's members by card token (null: none).
