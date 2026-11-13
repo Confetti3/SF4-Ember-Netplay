@@ -235,7 +235,7 @@ string commits did (`716a08d25` touched every `locales/*.po`):
 | `fighters.played` | {0} of {1} fighters played in rated public games |
 | `fighters.unplayed` | {0} fighters not played yet. Each starts earning points with its first rated public game. |
 | `fighters.how` | How points are earned |
-| `fighters.how_detail` | Every rated public game with a fighter counts: a win adds 2 points and a loss adds 1. Points never go down and have nothing to do with your class. The frame's colour changes as they grow. Past eight games against the same player in one sitting, games stop counting. |
+| `fighters.how_detail` | Every rated public game with a fighter adds 1 point, win or lose. A win adds 1 more when your opponent's class is the same as yours or higher, or when either of you has no class yet. Points never go down. The frame's colour changes as they grow. Past eight games against the same player in one sitting, games stop counting. |
 | `fighters.won` | Won |
 | `fighters.since` | Since |
 | `fighters.main` | Main |

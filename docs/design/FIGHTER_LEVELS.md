@@ -2,9 +2,11 @@
 
 A points total, a 3- to 5-digit number, for each fighter a player has used in
 rated public room games, in the spirit of USF4's own PP and BP numbers. It is a
-grind value to show off, not skill: it only goes up, has no cap, nothing in a
-rating is read to make it, and nothing in a rating is moved by it (ranked play
-is untouched). The one skill mark stays the account's class
+grind value to show off, not skill: it only goes up, has no cap, and nothing in
+a rating is moved by it (ranked play is untouched). All it reads of the rating
+is the two players' classes, to decide a win's bonus point (Rules), so that
+beating weaker players is worth no more than playing them. The one skill mark
+stays the account's class
 (`SKILL_BADGE.md`); there are no per-fighter ranks and no rating points are
 shown. This replaces `MASTERY.md` (pull request 183): its points stay, its ten
 named tiers and 30 emblems become a number in the game's own digits on a frame
@@ -25,18 +27,33 @@ Where points show and how the card is laid out is `PLAYER_CARD.md`.
   rating today, `RoomAuthority::RecordWonGame`), both fighters' Discord
   accounts are known and differ, and the host reported both fighters.
 - The winner's fighter gains a game and a win, the loser's fighter a game.
-  Points are `games + wins`, so a loss is 1 and a win 2, as `MASTERY.md` had.
+  Every counted game is 1 point for each player, winner and loser alike.
+- **The class bonus.** The winner earns 1 more point only when the loser's
+  class is the winner's own or a higher one. The classes are the ones the
+  bridge keeps as last shown (`skill_ratings.band` of game `usf4`,
+  `SKILL_BADGE.md`), compared when the game is counted. A player with no
+  class (no rating yet, or one still placing, band 0) is nobody's lower: when
+  either player has none, the bonus is earned. So a win is 2 points against
+  an equal, a stronger or an unplaced opponent and 1 against a lower class,
+  and picking on weaker players earns no more than losing to them would.
+  Until 2026-11-13 every win was 2 (`games + wins`, as `MASTERY.md` had).
+- A loss is always 1 point, whatever the classes: nothing is ever taken, so
+  a strong player risks no points by playing a weaker one.
 - Past eight games between the same two accounts in one sitting (a sitting
   ends after three hours without a game between them) a game counts for
-  nothing, for both. This is the repeat cap of `SKILL_BADGE.md`, now counted
-  for every pair of accounts, not only pairs that both take part in ranking
-  (Bridge, `record_games`).
-- Nothing else weighs a game: no opponent strength, no lopsided-game or
-  unsure-rating weight.
-- Account points (BP): the same counted games count for both accounts, a win
-  adding 2 and a loss 1, whether or not the host reported fighters. They count
-  inside the same sitting rule as fighter points (the repeat cap above), and
-  never go down.
+  nothing, for both: neither the point nor the bonus. This is the repeat cap
+  of `SKILL_BADGE.md`, now counted for every pair of accounts, not only pairs
+  that both take part in ranking (Bridge, `record_games`).
+- Nothing else weighs a game: no rating gap, no lopsided-game or
+  unsure-rating weight. The class is read as stored: whether a player takes
+  part in ranking does not change it. A class is stored when a ticket or the
+  player's standing first shows it, so a developer shown Ember's mark in its
+  place may have none, and a bridge that shows no classes
+  (`rooms.skill_badges` off) stores none: there every win earns the bonus.
+- Account points (BP): the same counted games count for both accounts by the
+  same rule, with the same answer to the bonus as the fighters' points get,
+  whether or not the host reported fighters. They count inside the same
+  sitting rule as fighter points (the repeat cap above), and never go down.
 - Taking part in ranking does not change what counts, nor who sees it. A
   player who stopped taking part still earns points (USF4 keeps every
   player's per-character record the same way) and their card shows them.
@@ -46,8 +63,10 @@ Where points show and how the card is laid out is `PLAYER_CARD.md`.
 
 ### Points and tiers
 
-A fighter's **points** for a Discord account are `games + wins` of its counted
-games: a win adds 2, a loss 1. They never go down and have no cap. A fighter
+A fighter's **points** for a Discord account are its counted games plus its
+wins that earned the class bonus: a game adds 1, and a win against the same
+class, a higher one or a player without a class 1 more. They are at least
+`games` and at most `games + wins`, never go down and have no cap. A fighter
 with no counted game has no points and is not listed.
 
 The **tier** is the frame's colour, from the five award tiers (`v2::Tier`,
@@ -72,14 +91,20 @@ The account's points have their own thresholds, on the same five tiers:
 | 3 | 5,000 |
 | 4 | 10,000 |
 
+The thresholds are unchanged by the class bonus: an even record against one's
+own class still averages 1.5 points a game, which is what the table's last
+column assumes. A player who mostly beats lower classes climbs at 1 point a
+game, as slowly as one who loses every game.
+
 The thresholds live only in the bridge, two constant tables
 (`skill/levels.rs`, `TIER_STARTS` for a fighter and `ACCOUNT_TIER_STARTS` for
 the account, both checked at compile time to have one start per tier, begin
 at 0 and only go up): a client is sent each count's points, its tier and the
 points where that tier and the next one begin, so the thresholds can be
-retuned after real play without a client update or a data change (games and
-wins are stored, never points or tiers). A client never computes a tier.
-Points show up to 999,999 (six digits).
+retuned after real play without a client update or a data change (games, wins
+and the wins without a bonus are stored, never points or tiers). A client
+never computes a tier, nor which wins earned the bonus. Points show up to
+999,999 (six digits).
 
 ## Room host: what it must report
 
@@ -143,6 +168,27 @@ before (game 0) and earn account points but no fighter points. Players are match
 player only ever plays in 1.5.x rooms and never sees any points.
 
 ## Bridge
+
+### Migration 065 (`065_points_class_bonus.sql`)
+
+Named in the list in `src/db/migrations.rs` after 064. The awards read exact
+games and wins, so those stay as they are, and what is stored beside them is
+the wins that earned no bonus:
+
+```sql
+ALTER TABLE fighter_levels
+    ADD COLUMN lower_wins INTEGER NOT NULL DEFAULT 0 CHECK (lower_wins BETWEEN 0 AND wins);
+ALTER TABLE account_points
+    ADD COLUMN lower_wins INTEGER NOT NULL DEFAULT 0 CHECK (lower_wins BETWEEN 0 AND wins);
+```
+
+Points are `games + wins - lower_wins`. Every row starts at 0, so nobody's
+points change: every win counted before the migration keeps its bonus. A
+bridge from before 065, put back after it, adds games and wins and leaves
+the column alone, so the wins it counts keep the bonus it served them with
+and no points go down when the newer bridge returns. The test is
+`migration_065_keeps_every_accounts_points_and_an_older_bridge_still_counts`
+(`tests/levels_migrations.rs`).
 
 ### Migration 062 (`062_account_points.sql`)
 
@@ -244,7 +290,8 @@ as before. The sitting now covers every pair of Discord accounts.
 ### `record_games` (`server/ember/bridge/src/skill/mod.rs`)
 
 One pass per new game, in this order, so the rating keeps its own rules and
-points never read them:
+points read only the two classes, as they stand before the game moves a
+rating:
 
 1. Key `(room, table, generation, game)` into `rated_games`; seen before:
    skip.
@@ -253,9 +300,11 @@ points never read them:
 3. The pair's sitting (`rated_pairs`, as before: a row older than three hours
    is deleted, then `games` adds 1) and its record (`pair_records`): the
    winner's side of `first_wins`/`second_wins` adds 1; `played_at` is now.
-4. With a sitting count of at most `FULL_REPEATS`: upsert both accounts' rows
-   of `account_points`, and, when the game has `fighters`, both rows of
-   `fighter_levels` (`skill/levels.rs`).
+4. With a sitting count of at most `FULL_REPEATS`: whether the win earns the
+   class bonus (`levels::class_bonus`, read once for the game), then upsert
+   both accounts' rows of `account_points`, and, when the game has
+   `fighters`, both rows of `fighter_levels` (`skill/levels.rs`). A win
+   without the bonus adds 1 to the winner's `lower_wins` in each.
 5. Both accounts take part in ranking (`ranking_choices`): rate as today,
    with the sitting weight from step 3.
 
@@ -268,7 +317,9 @@ ratings is one constant, `RATE_GAMES_AFTER_THE_FIRST`.
 ## Wire contracts
 
 Capability `points` (`ember_protocol::levels::POINTS_FEATURE`), offered
-wherever public rooms are on (`routes/discovery.rs`, beside `ranking`).
+wherever public rooms are on (`routes/discovery.rs`, beside `ranking`), and
+beside it `points_class_bonus` (`CLASS_BONUS_FEATURE`) from a bridge that
+counts the class bonus (Builds from before the class bonus, below).
 Requests refuse unknown members and answers ignore them, so a field a later
 bridge adds does not break a build already out (`levels.rs` header). A build
 asks only a bridge that lists `points`, and an older bridge answers 404, which the helper words as
@@ -293,8 +344,8 @@ Player session (`routes::play::playing`), bucket `points:{ember_id}` 60 per
 | `account` | the account's points (BP), always present in `counted`: `points`, `games`, `wins`, `tier`, `floor`, `next` as for a fighter but on the account's thresholds, `points` 0 and `games` 0 while no game is counted; `since` (first counted game) is omitted exactly while `games` is 0 |
 | `fighters` | played fighters only, ascending by `fighter`, unique, at most 44 |
 | `fighter` | 0 to 43 |
-| `points` | `games + wins`, at least 1 |
-| `games`, `wins` | counted games; `wins <= games` |
+| `points` | at least `games` and at most `games + wins` (a game is 1, a win with the class bonus 1 more), so at least 1 for a fighter; which wins earned the bonus is not sent |
+| `games`, `wins` | counted games, exact whatever the points; `wins <= games` |
 | `tier` | 0 to 4, the frame's colour (Points and tiers) |
 | `floor` | the points where `tier` begins, at most `points`; 0 at tier 0; always present (the meter runs from `floor` to `next`) |
 | `next` | the points where the next tier begins; absent exactly when `tier` is 4; otherwise `points < next` |
@@ -302,6 +353,32 @@ Player session (`routes::play::playing`), bucket `points:{ember_id}` 60 per
 
 Read only: nothing is remembered as shown. There is no `shown` member:
 cards are public.
+
+#### Builds from before the class bonus
+
+The Nightly builds published before the class bonus
+(`v1.6.0-nightly20261112.2` and earlier) refuse their own points unless
+`points == games + wins`, in three places: `OwnAccount::check` and
+`OwnFighter::check` as their helper carries them, and the game's own decoder
+(`DecodeLevel`, `src/session/TournamentAnswers.cxx`). Answered the points as
+they are earned, such a build would show no points at all from the first win
+against a lower class. So the route answers by who asks:
+
+- `GET /v1/points/me?class_bonus=1` (`CLASS_BONUS_POINTS_PATH`): the points
+  as they are earned. A build sends the query only to a bridge that lists
+  `points_class_bonus`.
+- `GET /v1/points/me` with no query, or any other: `points` is
+  `games + wins` for the account and every fighter, with the tier, `floor`
+  and `next` of that sum, which those builds accept. It is the same number
+  as the earned one until a win earns no bonus.
+
+Cards (`POST /v1/cards/lookup`) carry the earned points to every build: no
+build ever checked a card's points against games and wins. So a build from
+before the bonus may show its player a higher number on their own page than
+others see on their card, until it is updated. The plain answer can be
+removed once no such build is in use; the checks of newer builds
+(`games <= points <= games + wins`) take either answer, so they also read a
+bridge from before the bonus, which is asked with no query.
 
 ### The card token in the room ticket
 
@@ -507,7 +584,8 @@ without changing anything that slice stored.
 |---|---|---|
 | Do a player's games count while they do not take part in ranking? Do others see their points? | Count always, and show always: a card is how players find each other to add friends, so it is public (decided for 1.6.0, replacing the earlier "only while they take part"). | Hiding again is a read filter: one line. Not counting could never be undone, which is why counting is the default. |
 | Rate rematch-in-place games too (the `game` key)? | Yes: today games 2 and 3 of a set played in place are silently not rated. | Ignoring `game` again is one line; ratings moved meanwhile stay moved. |
-| Are the tier thresholds right? | Ship 0, 200, 700, 1,500 and 2,500 points; read real `games` and `wins` after four weeks and retune. | None: only the bridge knows them, stored data is games and wins. |
+| Are the tier thresholds right? | Ship 0, 200, 700, 1,500 and 2,500 points; read real `games` and `wins` after four weeks and retune. The class bonus (2026-11-13) left them as they were: an even match against the same class still averages 1.5 points. | None: only the bridge knows them, stored data is games, wins and the wins without a bonus. |
+| Should a player who does not take part in ranking count as without a class for the bonus? | No: the stored class is read as it is. Counting them as without a class would give a strong player the bonus on every win just for stepping out of ranking. A new account has no class for its first games either way. | One condition in `levels::class_bonus`; points already counted stay. |
 | Points in the match HUD? | No for 1.6.0: the HUD has no room, and the class is the skill mark there. | A HUD layout change and a settings row. |
 | Points in private rooms? | No: no authority vouches for anything there. | Would need a private host attestation, a new trust path. |
 | Points on embernetplay.link? | Not in 1.6.0. | A public read route and page; the data is there. |
