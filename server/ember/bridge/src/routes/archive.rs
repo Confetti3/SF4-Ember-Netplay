@@ -10,12 +10,13 @@ use axum::{
 use ember_protocol::{
     EmberId,
     api::ErrorCode,
+    archive::{Game as ListedGame, Page as ListingPage, Query as ListingQuery, Set as ListedSet},
     replays::{self, Replay, Sides},
     rooms::MAX_HOST_NAME as MAX_NAME,
 };
 use rusqlite::{OptionalExtension, Transaction};
-use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::json;
+use std::collections::BTreeMap;
 
 use crate::{
     AppState,
@@ -96,32 +97,6 @@ fn signed_in_with_discord(tx: &Transaction<'_>, player: &EmberId) -> Result<()> 
     .detail("reason", "discord_required"))
 }
 
-/// `GET /v1/archive`'s query: a filter (`archive::listing::Filter`), the
-/// order (`sort=class`, else newest first) and where to go on from.
-#[derive(Deserialize, Default)]
-pub struct Listing {
-    #[serde(default)]
-    event: Option<String>,
-    #[serde(default)]
-    fighter: Option<u8>,
-    #[serde(default)]
-    country: Option<String>,
-    #[serde(default)]
-    round: Option<String>,
-    #[serde(default)]
-    q: Option<String>,
-    /// A side's exact name, 1 to 32 bytes (`archive::listing::Filter::name`).
-    #[serde(default)]
-    name: Option<String>,
-    #[serde(default)]
-    class: Option<u8>,
-    #[serde(default)]
-    sort: Option<String>,
-    /// A listing's `next`, to go on from where it stopped.
-    #[serde(default)]
-    cursor: Option<String>,
-}
-
 /// `GET /v1/archive`: the stored games the filter keeps, newest first or by
 /// class, with no credential, as the archive page shows them: each game's
 /// file in the bucket and each side's class, and each tournament set's score
@@ -135,7 +110,7 @@ pub struct Listing {
 /// class order is then the newest. `name` keeps only the games a side's exact
 /// name is on, which a player's profile lists their sets by; it combines with
 /// every other filter.
-pub async fn list(State(state): State<AppState>, Query(query): Query<Listing>) -> Result<Response> {
+pub async fn list(State(state): State<AppState>, Query(query): Query<ListingQuery>) -> Result<Response> {
     let Some(archive) = state.config.archive.clone() else {
         return Err(ApiFailure::not_found());
     };
@@ -171,33 +146,42 @@ pub async fn list(State(state): State<AppState>, Query(query): Query<Listing>) -
         .read(move |tx| {
             let Page { games, next } = listing::page(tx, &filter, shown, order, &cursor, LIMITS)?;
             let (total, matching) = listing::counts(tx, &filter, shown, LIMITS)?;
-            let mut sets = serde_json::Map::new();
+            let mut sets = BTreeMap::new();
             for id in games.iter().filter_map(|game| game.set.as_ref()) {
                 if !sets.contains_key(id) {
                     sets.insert(id.clone(), set_listed(tx, &base, id)?);
                 }
             }
-            let games: Vec<Value> = games
+            let games = games
                 .into_iter()
-                .map(|game| {
-                    let classes = game.classes.map(|band| band.filter(|_| shown));
-                    json!({
-                        "digest": game.digest, "crc": game.crc,
-                        "url": format!("{base}/games/{}.emberreplay", game.digest),
-                        "saved_at": game.saved_at, "size": game.size, "fighters": game.fighters,
-                        "names": game.names, "countries": game.countries,
-                        "set": game.set, "event": game.event, "round": game.round, "phase": game.phase,
-                        "classes": classes,
-                    })
+                .map(|game| ListedGame {
+                    url: format!("{base}/games/{}.emberreplay", game.digest),
+                    classes: game.classes.map(|band| band.filter(|_| shown)),
+                    digest: game.digest,
+                    crc: game.crc,
+                    saved_at: game.saved_at,
+                    size: game.size,
+                    fighters: game.fighters,
+                    names: game.names,
+                    countries: game.countries,
+                    set: game.set,
+                    event: game.event,
+                    round: game.round,
+                    phase: game.phase,
                 })
                 .collect();
             let (events, countries) = listing::choices(tx)?;
-            Ok(json!({
-                "games": games, "sets": sets, "events": events, "countries": countries,
-                "total": total, "matching": matching,
-                "sort": if order == Order::Class { "class" } else { "newest" },
-                "more": next.is_some(), "next": next.map(|next| next.text(order)),
-            }))
+            Ok(ListingPage {
+                games,
+                sets,
+                events,
+                countries,
+                total: Some(total),
+                matching,
+                sort: if order == Order::Class { "class" } else { "newest" }.to_owned(),
+                more: next.is_some(),
+                next: next.map(|next| next.text(order)),
+            })
         })
         .await?;
     Ok(respond(StatusCode::OK, &listed))
@@ -205,8 +189,8 @@ pub async fn list(State(state): State<AppState>, Query(query): Query<Listing>) -
 
 /// What the listing says of set `id`: its score, and its pack's address
 /// once the bucket holds one.
-fn set_listed(tx: &Transaction<'_>, base: &str, id: &str) -> Result<Value> {
-    let score = scores(tx, id).map(|(wins, _)| wins).unwrap_or([0, 0]);
+fn set_listed(tx: &Transaction<'_>, base: &str, id: &str) -> Result<ListedSet> {
+    let [one, two] = scores(tx, id).map(|(wins, _)| wins).unwrap_or([0, 0]);
     let packed: bool = tx
         .query_row(
             "SELECT uploaded_version > 0 FROM archive_sets WHERE match_id = ?1",
@@ -215,6 +199,8 @@ fn set_listed(tx: &Transaction<'_>, base: &str, id: &str) -> Result<Value> {
         )
         .optional()?
         .unwrap_or(false);
-    let pack = packed.then(|| format!("{base}/sets/{id}.emberpack"));
-    Ok(json!({ "score": score, "pack": pack }))
+    Ok(ListedSet {
+        score: [u32::from(one), u32::from(two)],
+        pack: packed.then(|| format!("{base}/sets/{id}.emberpack")),
+    })
 }

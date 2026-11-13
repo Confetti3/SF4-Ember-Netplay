@@ -43,6 +43,13 @@ inline bool OnlyRoomSettingsChanged(const netplay::PlayerPreferences& a, const n
 inline MenuEntry Row(std::string id,std::string label,std::string detail,bool enabled=true) {
     return {std::move(id),std::move(label),std::move(detail),{},enabled};
 }
+// A choice that needs the main menu (`menu`, no match running) and no room open
+// (`idle`): when it is not available its detail says which, as every
+// unavailable choice does, rather than the greyed choice saying nothing.
+inline MenuChoice NeedsMenu(std::string id,std::string label,std::string detail,bool idle,bool menu) {
+    const bool open=idle&&menu;
+    return {std::move(id),std::move(label),open?std::move(detail):std::string(loc::T(idle?"replays.not_ready":"replays.open_log_room")),open};
+}
 inline MenuEntry Value(std::string id,std::string label,std::string value,std::string detail,bool enabled=true) {
     auto e=Row(std::move(id),std::move(label),std::move(detail),enabled); e.value=std::move(value); e.adjustable=true; return e;
 }

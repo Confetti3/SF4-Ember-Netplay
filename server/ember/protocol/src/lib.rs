@@ -7,6 +7,7 @@
 //! Standard Webhooks. Key storage, HTTP and databases live in the crates that
 //! use this one.
 pub mod api;
+pub mod archive;
 pub mod challenge;
 #[cfg(feature = "client")]
 pub mod client;

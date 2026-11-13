@@ -55,7 +55,7 @@ struct Held {
 
 /// The optional features of a bridge that a claim, a watch request or a room
 /// ticket depends on, from its capabilities.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct Features {
     /// It reads a claim's `ready`.
     pub ready: bool,
@@ -73,6 +73,9 @@ pub(super) struct Features {
     pub profiles: bool,
     /// It reads a claim's `held_binding` and may answer it `Unchanged`.
     pub unchanged: bool,
+    /// Where its public replay archive lists its games, when it says
+    /// (`Capabilities::archive`).
+    pub archive: Option<String>,
 }
 
 impl Features {
@@ -86,6 +89,7 @@ impl Features {
             friends: lists(FRIENDS_FEATURE),
             profiles: lists(PROFILES_FEATURE),
             unchanged: lists(CLAIM_UNCHANGED_FEATURE),
+            archive: capabilities.archive.clone(),
         }
     }
 }
@@ -108,7 +112,7 @@ pub(super) enum Need {
 }
 
 impl Need {
-    fn met_by(self, offered: Features) -> bool {
+    fn met_by(self, offered: &Features) -> bool {
         match self {
             Self::Nothing => true,
             Self::Ready => offered.ready,
@@ -132,14 +136,14 @@ pub(super) async fn features(
     bridge: &Approved,
     need: Need,
 ) -> Result<Features, Failure> {
-    let known = play_state(shared)?.features.get(&bridge.bridge_id).copied();
-    if let Some(known) = known.filter(|known| need.met_by(*known)) {
+    let known = play_state(shared)?.features.get(&bridge.bridge_id).cloned();
+    if let Some(known) = known.filter(|known| need.met_by(known)) {
         return Ok(known);
     }
     let read = Features::of(&shared.client.capabilities(&bridge.origin).await?);
     play_state(shared)?
         .features
-        .insert(bridge.bridge_id.clone(), read);
+        .insert(bridge.bridge_id.clone(), read.clone());
     Ok(read)
 }
 

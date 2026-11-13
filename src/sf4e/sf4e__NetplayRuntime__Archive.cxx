@@ -10,7 +10,7 @@
 // tab's (runtime->archive, ShellView::archiveBrowse) and the sets of the
 // profile open (runtime->profileSets, ShellView::profileSets), so a profile's
 // sets never replace the Archive tab's listing. A command names its slot
-// (Command::archiveProfile) and its answers return to that slot.
+// (`profile` on its commands) and its answers return to that slot.
 #include "sf4e__NetplayRuntime.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
@@ -19,7 +19,6 @@
 namespace sf4e { namespace NetplayFacade {
 namespace {
 using netplay::BridgeFlights;
-using netplay::tournament::Command;
 using nlohmann::json;
 
 netplay::archive::Requests& Slot(bool profile) { return profile ? runtime->profileSets : runtime->archive; }
@@ -52,23 +51,14 @@ void TakePage(bool profile, std::uint64_t ticket, const std::string& name, const
 	Slot(profile).Finish(ticket, failure, std::move(page));
 }
 
-void DispatchPage(const Command& command, bool helperReady) {
-	auto& requests = Slot(command.archiveProfile);
-	std::string cursor;
-	netplay::archive::Requests::Ticket ticket = 0;
-	if (command.archiveNext) {
-		// The next page is of the listing the runtime holds, not of what the interface believes it holds.
-		cursor = requests.Cursor(command.archiveAgain);
-		ticket = requests.BeginNext(command.archiveAgain);
-		if (!ticket) return;
-	} else {
-		if (command.bridgeId.empty()) return;
-		ticket = requests.Begin(command.bridgeId, command.archiveFilter);
-	}
+void DispatchPage(const commands::ArchiveList& command, bool helperReady) {
+	auto& requests = Slot(command.profile);
+	const auto asked = requests.Ask(command.bridge, command.filter, command.nearEnd, command.retry);
+	if (!asked.ticket) return;
 	const auto& filter = requests.Published().filter;
-	const json request = {{"op", "archive_list"}, {"bridge_id", requests.Published().bridge}, {"query", QueryOf(filter, cursor)}};
+	const json request = {{"op", "archive_list"}, {"bridge_id", requests.Published().bridge}, {"query", QueryOf(filter, asked.cursor)}};
 	// A request the helper cannot take ends at once, through the same handler.
-	internal::SendFlight(request, helperReady, [profile = command.archiveProfile, ticket, name = filter.name](const session::TournamentAnswer& answer) {
+	internal::SendFlight(request, helperReady, [profile = command.profile, ticket = asked.ticket, name = filter.name](const session::TournamentAnswer& answer) {
 		TakePage(profile, ticket, name, answer);
 	});
 }
@@ -83,24 +73,23 @@ void TakeGame(bool profile, replay::Request watch, const std::string& path, cons
 	internal::RunReplayRequest(watch);
 }
 
-void DispatchWatch(const Command& command, bool helperReady) {
-	auto& requests = Slot(command.archiveProfile);
-	const auto path = platform::replays::ArchiveWatchPath(command.archiveDigest);
+void DispatchWatch(const commands::ArchiveWatch& command, bool helperReady) {
+	auto& requests = Slot(command.profile);
+	const auto path = platform::replays::ArchiveWatchPath(command.digest);
 	// One download at a time across both browsers: they write the same files.
-	if (!Slot(!command.archiveProfile).Published().fetching.empty()) return;
-	if (command.bridgeId.empty() || command.archiveUrl.empty() || path.empty() || !requests.BeginFetch(command.archiveDigest)) return;
+	if (!Slot(!command.profile).Published().fetching.empty()) return;
+	if (command.bridge.empty() || command.url.empty() || path.empty() || !requests.BeginFetch(command.digest)) return;
+	platform::replays::PruneArchiveWatching(path);
 	const std::string utf8 = platform::WideToUtf8(path.wstring());
-	const json request = {{"op", "archive_fetch"}, {"bridge_id", command.bridgeId}, {"url", command.archiveUrl}, {"path", utf8}};
-	replay::Request watch = command.archiveWatch;
+	const json request = {{"op", "archive_fetch"}, {"bridge_id", command.bridge}, {"url", command.url}, {"path", utf8}};
+	replay::Request watch = command.watch;
 	spdlog::info("Archive: downloading a game to watch");
-	internal::SendFlight(request, helperReady, [profile = command.archiveProfile, watch = std::move(watch), utf8](const session::TournamentAnswer& answer) { TakeGame(profile, watch, utf8, answer); });
+	internal::SendFlight(request, helperReady, [profile = command.profile, watch = std::move(watch), utf8](const session::TournamentAnswer& answer) { TakeGame(profile, watch, utf8, answer); });
 }
 }
 
 namespace internal {
-void DispatchArchive(const Command& command, bool helperReady) {
-	if (command.op == Command::Op::ArchiveList) DispatchPage(command, helperReady);
-	else DispatchWatch(command, helperReady);
-}
+void DispatchArchive(const commands::ArchiveList& command, bool helperReady) { DispatchPage(command, helperReady); }
+void DispatchArchive(const commands::ArchiveWatch& command, bool helperReady) { DispatchWatch(command, helperReady); }
 } // namespace internal
 } } // namespace sf4e::NetplayFacade

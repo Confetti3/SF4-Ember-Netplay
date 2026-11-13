@@ -27,6 +27,11 @@ inline std::string ReplayLabel(const std::string& date,const std::string names[2
  };
  return date+"  "+loc::Tf("replays.fighters",player(0),player(1));
 }
+// A fighter's name, or that it is not one Ember knows.
+inline std::string FighterName(int id) {
+ const auto* fighter=selection::FindFighter(id);
+ return fighter?std::string(fighter->name):std::string(loc::T("common.unavailable"));
+}
 // A replay's row on the Replays list, whose portraits show the fighters: the
 // date and the players' names, or a fighter's name where no player name was noted.
 inline std::string ReplayRowLabel(const std::string& date,const std::string names[2],const int fighters[2]) {

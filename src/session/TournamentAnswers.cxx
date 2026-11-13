@@ -735,7 +735,8 @@ std::optional<netplay::publicrooms::Admission> DecodeAdmission(const nlohmann::j
 }
 
 namespace {
-constexpr std::size_t MaxArchiveGames = 400, MaxArchiveEvents = 100, MaxArchiveCountries = 300, MaxArchiveText = 96, MaxArchiveUrl = 512, MaxArchiveCursor = 200;
+namespace limits = netplay::archive;
+constexpr std::size_t MaxArchiveText = limits::MaxShown;
 
 // A text of the archive's, one line and cut short rather than refused; empty for a member that is missing or not text.
 std::string ArchiveText(const json& object, const char* key, std::size_t most = MaxArchiveText) {
@@ -767,7 +768,7 @@ netplay::archive::Game DecodeArchiveGame(const json& entry) {
 	netplay::archive::Game game;
 	game.digest = Text(entry, "digest", 64);
 	if (!IsHex(game.digest, 64)) throw std::invalid_argument("digest");
-	game.url = Text(entry, "url", MaxArchiveUrl);
+	game.url = Text(entry, "url", limits::MaxUrl);
 	if (game.url.empty()) throw std::invalid_argument("url");
 	game.crc = ArchiveText(entry, "crc", 8);
 	game.savedAt = OptionalSeconds(entry, "saved_at");
@@ -808,27 +809,27 @@ std::optional<netplay::archive::Listing> DecodeArchivePage(const json& data) {
 		if (!games.is_array()) return std::nullopt;
 		// A game that cannot be fetched is left out; the page goes on without it.
 		for (const auto& entry : games) {
-			if (page.games.size() == MaxArchiveGames) break;
+			if (page.games.size() == limits::MaxGames) break;
 			try { page.games.push_back(DecodeArchiveGame(entry)); } catch (const std::exception&) {}
 		}
 		if (const auto sets = data.find("sets"); sets != data.end() && sets->is_object()) {
-			for (auto it = sets->begin(); it != sets->end() && page.sets.size() < MaxArchiveGames; ++it) {
+			for (auto it = sets->begin(); it != sets->end() && page.sets.size() < limits::MaxGames; ++it) {
 				if (it.key().size() > MaxArchiveText || !it.value().is_object()) continue;
 				netplay::archive::SetInfo info;
 				Pair(it.value(), "score", [&](int side, const json& value) { info.score[side] = static_cast<unsigned>(Whole(value, 0, 1000000, 0)); });
-				info.pack = ArchiveText(it.value(), "pack", MaxArchiveUrl);
+				info.pack = ArchiveText(it.value(), "pack", limits::MaxUrl);
 				page.sets[it.key()] = std::move(info);
 			}
 		}
-		page.events = ArchiveTexts(data, "events", MaxArchiveEvents);
-		page.countries = ArchiveTexts(data, "countries", MaxArchiveCountries, 2);
+		page.events = ArchiveTexts(data, "events", limits::MaxEvents);
+		page.countries = ArchiveTexts(data, "countries", limits::MaxCountries, 2);
 		if (const auto found = data.find("total"); found != data.end() && found->is_number_unsigned()) page.total = found->get<std::uint64_t>();
 		if (const auto found = data.find("matching"); found != data.end() && found->is_number_unsigned()) page.matching = found->get<std::uint64_t>();
 		// An order this build does not know is the newest, which every bridge lists.
-		const auto order = data.find("order");
+		const auto order = data.find("sort");
 		page.order = order != data.end() && order->is_string() && order->get<std::string>() == "class" ? netplay::archive::Order::Class : netplay::archive::Order::Newest;
 		// Only a cursor in the shape the bridge hands out is a way to go on.
-		page.next = ArchiveText(data, "next", MaxArchiveCursor);
+		page.next = ArchiveText(data, "next", limits::MaxCursor);
 		for (const char c : page.next)
 			if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == '.')) { page.next.clear(); break; }
 		return page;

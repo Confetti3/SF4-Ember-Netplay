@@ -232,6 +232,14 @@ fn a_bridge_offers_what_its_capabilities_list() {
     assert!(profiles.levels && profiles.profiles && !profiles.friends);
     assert!(!Features::of(&capabilities(&[POINTS_FEATURE])).profiles);
     assert!(Features::of(&capabilities(&[CLAIM_UNCHANGED_FEATURE])).unchanged);
+    // Where the archive lists its games is a member of its own, not a feature.
+    let mut named = capabilities(&["matches.play"]);
+    named.archive = Some("https://archive.example/v1/archive".into());
+    assert_eq!(
+        Features::of(&named).archive.as_deref(),
+        Some("https://archive.example/v1/archive")
+    );
+    assert_eq!(Features::of(&capabilities(&["matches.play"])).archive, None);
     assert_eq!(
         Features::of(&capabilities(&["matches.play"])),
         Features::default()

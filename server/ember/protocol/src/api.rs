@@ -170,6 +170,11 @@ pub struct Capabilities {
     /// talks to with `tournament.act` proofs. Absent on a bridge without one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tournaments: Option<String>,
+    /// The URL the bridge's public replay archive lists its games at
+    /// (`archive::PATH` on the host that serves the archive), which is not
+    /// always the bridge's own origin. Absent on a bridge without an archive.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive: Option<String>,
     pub limits: Limits,
 }
 

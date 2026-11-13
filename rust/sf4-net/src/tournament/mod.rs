@@ -300,7 +300,7 @@ pub enum Request {
     ArchiveList {
         bridge_id: String,
         #[serde(default)]
-        query: archive::Query,
+        query: ember_protocol::archive::Query,
     },
     /// A game of that listing, written to `path` for the game to play.
     ArchiveFetch {
