@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "../common/ReplayRequest.hxx"
+#include "Archive.hxx"
 #include "SessionController.hxx"
 #include "TournamentPlay.hxx"
 #include "WatchPlay.hxx"
@@ -55,9 +57,12 @@ struct Assignment {
 // whichever of playing or watching is under way.
 struct Command {
 	// SavePack: the set matchId's pack from its bridge, into the archive's packs folder.
+	// ArchiveList: the first page of archiveFilter on the service bridgeId, or with archiveNext (Retry
+	// with archiveAgain) the next page of the listing the runtime holds. ArchiveWatch: the game at
+	// archiveUrl (its digest archiveDigest) is downloaded, and then watched as archiveWatch says.
 	enum class Op : std::uint8_t {
 		None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket, Watch,
-		RankingStanding, RankingChoose, RankingBoard, SavePack, LevelsMe,
+		RankingStanding, RankingChoose, RankingBoard, SavePack, LevelsMe, ArchiveList, ArchiveWatch,
 	} op = Op::None;
 	std::string bridgeId, matchId;
 	// RoomCreate names and sizes the new room; RoomTicket names the room to join.
@@ -74,14 +79,24 @@ struct Command {
 	// increasing, chosen by its panel. The runtime carries it to the request's
 	// answer, and a newer one supersedes a create, ticket or choice in flight.
 	std::uint64_t request = 0;
+	archive::Filter archiveFilter;
+	bool archiveNext = false, archiveAgain = false;
+	std::string archiveUrl, archiveDigest;
+	replay::Request archiveWatch;
 	static constexpr std::size_t MaxField = 256;
+	static constexpr std::size_t MaxArchiveText = 128;
 	bool Valid() const {
 		return bridgeId.size() <= MaxField && matchId.size() <= MaxField && roomId.size() <= MaxField &&
 			roomName.size() <= 64 && capacity >= 0 && capacity <= 16 && listingName.size() <= 32 &&
-			listingCountry.size() <= 2;
+			listingCountry.size() <= 2 && archiveFilter.text.size() <= MaxArchiveText && archiveFilter.event.size() <= MaxArchiveText &&
+			archiveFilter.country.size() <= 2 && archiveFilter.round.size() <= 16 && archiveFilter.band >= 0 && archiveFilter.band <= 10 &&
+			archiveUrl.size() <= 512 && archiveDigest.size() <= 64 && archiveWatch.path.empty() && archiveWatch.caption.name[0].size() <= MaxArchiveText &&
+			archiveWatch.caption.name[1].size() <= MaxArchiveText && archiveWatch.caption.text.size() <= MaxArchiveText;
 	}
 	std::size_t Bytes() const {
-		return bridgeId.size() + matchId.size() + roomName.size() + roomId.size() + listingName.size() + listingCountry.size();
+		return bridgeId.size() + matchId.size() + roomName.size() + roomId.size() + listingName.size() + listingCountry.size() +
+			archiveFilter.text.size() + archiveFilter.event.size() + archiveFilter.country.size() + archiveFilter.round.size() +
+			archiveUrl.size() + archiveDigest.size() + archiveWatch.caption.name[0].size() + archiveWatch.caption.name[1].size() + archiveWatch.caption.text.size();
 	}
 };
 

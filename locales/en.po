@@ -8136,6 +8136,9 @@ msgstr "Matches"
 msgid "replays.tab.sets"
 msgstr "Sets"
 
+msgid "replays.tab.archive"
+msgstr "Archive"
+
 msgid "replays.set_matches"
 msgstr "{0} matches"
 
@@ -8148,6 +8151,213 @@ msgstr "Played"
 
 msgid "replays.fact.length"
 msgstr "Length"
+
+msgid "archive.filters"
+msgstr "Filters"
+
+msgid "archive.filters_detail"
+msgstr "Narrow the sets by player, event, fighter, class, country or round, and choose their order."
+
+msgid "archive.filter_none"
+msgstr "Everything, newest first"
+
+msgid "archive.filter_class"
+msgstr "Class {0}"
+
+msgid "archive.online"
+msgstr "Online games"
+
+msgid "archive.sort_newest"
+msgstr "Newest first"
+
+msgid "archive.sort_class"
+msgstr "Highest class first"
+
+msgid "archive.round.top8"
+msgstr "Top 8"
+
+msgid "archive.round.pools"
+msgstr "Pools"
+
+msgid "archive.round.winners"
+msgstr "Winners"
+
+msgid "archive.round.losers"
+msgstr "Losers"
+
+msgid "archive.round.grand"
+msgstr "Grand final"
+
+msgid "archive.any_class"
+msgstr "Any class"
+
+msgid "archive.any_country"
+msgstr "Any country"
+
+msgid "archive.any_event"
+msgstr "Any event"
+
+msgid "archive.any_round"
+msgstr "Any round"
+
+msgid "archive.any_fighter"
+msgstr "Any fighter"
+
+msgid "archive.any_fighter_detail"
+msgstr "Lists the sets whatever the fighter."
+
+msgid "archive.f_text"
+msgstr "Player or event"
+
+msgid "archive.f_text_detail"
+msgstr "Lists the sets with a player's name or an event's title that holds these letters."
+
+msgid "archive.f_fighter"
+msgstr "Fighter"
+
+msgid "archive.f_fighter_detail"
+msgstr "Lists the sets in which either player used this fighter."
+
+msgid "archive.f_class"
+msgstr "Class"
+
+msgid "archive.f_class_detail"
+msgstr "Lists the sets in which either player has this class on the rankings today."
+
+msgid "archive.f_country"
+msgstr "Country"
+
+msgid "archive.f_country_detail"
+msgstr "Lists the sets with a player from this country."
+
+msgid "archive.f_event"
+msgstr "Event"
+
+msgid "archive.f_event_detail"
+msgstr "Lists the sets of one tournament event, or only the online games."
+
+msgid "archive.f_round"
+msgstr "Round"
+
+msgid "archive.f_round_detail"
+msgstr "Lists the tournament sets of one round."
+
+msgid "archive.f_sort"
+msgstr "Sort"
+
+msgid "archive.f_sort_detail"
+msgstr "Newest first, or the sets with the highest class first."
+
+msgid "archive.games_shown"
+msgstr "Games shown"
+
+msgid "archive.games_of"
+msgstr "{0} of {1}"
+
+msgid "archive.clear"
+msgstr "Clear filters"
+
+msgid "archive.clear_detail"
+msgstr "Shows every set again."
+
+msgid "archive.no_service"
+msgstr "Set up your Ember ID"
+
+msgid "archive.no_service_detail"
+msgstr "The archive is read from Ember's service. Open Ember ID to set it up."
+
+msgid "archive.loading"
+msgstr "Loading sets"
+
+msgid "archive.loading_detail"
+msgstr "Asking the archive for its newest sets."
+
+msgid "archive.loading_more"
+msgstr "Loading more"
+
+msgid "archive.loading_more_detail"
+msgstr "Asking the archive for older sets."
+
+msgid "archive.unsupported"
+msgstr "No replay archive here"
+
+msgid "archive.unsupported_detail"
+msgstr "This service does not offer a public replay archive."
+
+msgid "archive.failed"
+msgstr "Could not reach the archive"
+
+msgid "archive.failed_detail"
+msgstr "{0} Select to try again."
+
+msgid "archive.none"
+msgstr "No sets match these filters"
+
+msgid "archive.none_detail"
+msgstr "Clear the filters to see every set."
+
+msgid "archive.empty"
+msgstr "No replays in the archive yet"
+
+msgid "archive.empty_detail"
+msgstr "Games that players share from Ember show up here."
+
+msgid "archive.more_failed"
+msgstr "Could not load more"
+
+msgid "archive.more_failed_detail"
+msgstr "Select to try again."
+
+msgid "archive.retry"
+msgstr "Retry"
+
+msgid "archive.downloading"
+msgstr "Downloading the game"
+
+msgid "archive.download_failed"
+msgstr "The game could not be downloaded. {0}"
+
+msgid "archive.vs"
+msgstr "vs"
+
+msgid "archive.watch_hint"
+msgstr "Watch"
+
+msgid "archive.find"
+msgstr "Find {0}'s sets"
+
+msgid "archive.find_detail"
+msgstr "Lists the sets {0} played in the public archive."
+
+msgid "archive.game_one"
+msgstr "1 game"
+
+msgid "archive.games"
+msgstr "{0} games"
+
+msgid "archive.met"
+msgstr "Met {0}"
+
+msgid "archive.session_label"
+msgstr "{0}: {1} games"
+
+msgid "archive.fact.event"
+msgstr "Event"
+
+msgid "archive.fact.round"
+msgstr "Round"
+
+msgid "archive.fact.games"
+msgstr "Games"
+
+msgid "archive.fact.size"
+msgstr "Size"
+
+msgid "archive.size_kb"
+msgstr "{0} KB"
+
+msgid "archive.game_n"
+msgstr "Game {0}"
 
 msgid "keyboard.recent"
 msgstr "Recent:"

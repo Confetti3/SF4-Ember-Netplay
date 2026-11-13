@@ -27,7 +27,7 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"frame-data",loc::T("training.frame_data")},{"hud",loc::T("training.hud")},{"meter-settings",loc::T("training.meter.settings")},{"meter-classic",loc::T("training.meter.classic")},{"hitboxes",loc::T("training.hitboxes")},{"data",loc::T("training.data")},{"dummy",loc::T("training.dummy")},
         {"reply",loc::T("training.reply")},{"tools",loc::T("training.position")},
         {"recording",loc::T("screen.dummy_recording")},{"history",loc::T("screen.input_history")},{"developer","Developer"},
-        {"recovery",loc::T("screen.recovery")},{"updates",loc::T("screen.updates")},{"replays",loc::T("replays.title")},{"news",loc::T("home.news")},{"notifications",loc::T("home.notifications")},{"news-updates",loc::T("home.news")},{"news-changelog",loc::T("home.news")},{"replay-sets",loc::T("replays.title")},{"replay-filter",loc::T("replays.filter")},{"replay-inputs",loc::T("replays.inputs")},{"replay-export",loc::T("export.title")},
+        {"recovery",loc::T("screen.recovery")},{"updates",loc::T("screen.updates")},{"replays",loc::T("replays.title")},{"news",loc::T("home.news")},{"notifications",loc::T("home.notifications")},{"news-updates",loc::T("home.news")},{"news-changelog",loc::T("home.news")},{"replay-sets",loc::T("replays.title")},{"replay-archive",loc::T("replays.title")},{"replay-archive-filter",loc::T("archive.filters")},{"replay-archive-fighter",loc::T("archive.f_fighter")},{"replay-filter",loc::T("replays.filter")},{"replay-inputs",loc::T("replays.inputs")},{"replay-export",loc::T("export.title")},
         {"report",loc::T("reports.title")}};
     for(const auto& name:names)if(screen==name.first)return name.second;
     return nullptr;

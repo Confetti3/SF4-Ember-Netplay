@@ -141,6 +141,16 @@ void MarkSetClosed(const std::filesystem::path& file);
 // Where a set's pack is saved: packs\<matchId>.emberpack in the archive, the
 // folder made. Empty when there is no archive or the ID is not a plain one.
 std::filesystem::path SetPackPath(const std::string& matchId);
+// Where a game downloaded from the public replay archive to be watched is
+// saved: watching\<digest>.emberreplay in the archive folder, the folder made.
+// Only the game asked for last is kept there: asking for a path removes every
+// other file in the folder, and the folder is not part of the archive's listing
+// (Ember's own files are listed from the archive's root), so a game watched
+// this way is not a match of the player's own. Empty when there is no archive
+// or the digest is not 64 lowercase hex digits.
+std::filesystem::path ArchiveWatchPath(const std::string& digest);
+// Removes the games downloaded to watch (ArchiveWatchPath): at the start, when none is waited for.
+void ClearArchiveWatching();
 // Puts every game of a set's pack, or the one replay of a replay file
 // (platform/ReplaySetPack.hxx: UnpackFile), into the archive, as games this PC
 // watched, those of a set under their set. A game the archive already holds is

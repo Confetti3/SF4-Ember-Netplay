@@ -20,6 +20,7 @@
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/Answered.hxx"
+#include "../netplay/Archive.hxx"
 #include "../netplay/FriendsView.hxx"
 #include "../netplay/Levels.hxx"
 #include "../netplay/Rankings.hxx"
@@ -221,6 +222,9 @@ struct ShellView {
     // The bridge's public rooms and the answer to the last create or ticket request.
     netplay::publicrooms::Status publicRooms;
     netplay::rankings::Status rankings;
+    // The public replay archive's listing as the Replays screen's Archive tab asked for it, and the
+    // download of a game to watch.
+    netplay::archive::Status archiveBrowse;
     // The player's own fighter levels, as last read.
     netplay::Answered<netplay::levels::Own> levels;
     // The cards of a public room's members by card token; null while there are none.

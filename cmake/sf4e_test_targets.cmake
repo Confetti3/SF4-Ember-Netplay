@@ -83,6 +83,9 @@ sf4e_add_unit_test(NAME RankingRequests SOURCES "src/tests/ranking_requests_test
 sf4e_add_unit_test(NAME LevelRequests SOURCES "src/tests/level_requests_test.cxx" STD 17)
 sf4e_add_unit_test(NAME Awards SOURCES "src/tests/awards_test.cxx" STD 17)
 sf4e_add_unit_test(NAME CardRequests SOURCES "src/tests/card_requests_test.cxx" STD 17)
+sf4e_add_unit_test(NAME ArchiveRequests SOURCES "src/tests/archive_requests_test.cxx" "src/session/TournamentAnswers.cxx"
+    LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS replay)
+sf4e_add_unit_test(NAME ArchiveSets SOURCES "src/tests/archive_sets_test.cxx" STD 17 LABELS ui replay)
 sf4e_add_unit_test(NAME BridgeFlights SOURCES "src/tests/bridge_flights_test.cxx" LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17)
 sf4e_add_unit_test(NAME FriendRequests SOURCES "src/tests/friend_requests_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17)
 sf4e_add_unit_test(NAME FriendVisits SOURCES "src/tests/friend_visits_test.cxx" STD 17)
@@ -169,7 +172,7 @@ sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx sr
     src/tests/shell_room_journey_test.cxx src/tests/shell_follow_journey_test.cxx src/tests/shell_selection_journey_test.cxx
     src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx src/tests/shell_button_layout_journey_test.cxx
     src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx src/tests/shell_update_journey_test.cxx src/tests/shell_settings_journey_test.cxx
-    src/tests/shell_wired_only_journey_test.cxx
+    src/tests/shell_wired_only_journey_test.cxx src/tests/shell_archive_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME IdentityJourney SOURCES src/tests/identity_journey_test.cxx src/tests/discord_connect_journey_test.cxx
     src/tests/builtin_service_journey_test.cxx src/tests/sign_in_site_journey_test.cxx

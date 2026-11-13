@@ -194,7 +194,7 @@ void ReplayJourneys() {
   Check(rows[5].Match()&&rows[5].fighter1==0&&rows[5].fighter2==-1,"Replay row did not carry its fighters for the portraits, or kept an unknown one");
   Check(rows[0].fighter1==-1&&!rows[0].Match(),"A plain row drew portraits");
   Check(rows[5].detail.find("LP ")==std::string::npos,"Replay list still duplicates input totals");
-  Check(rows[5].choices.size()==7&&rows[5].choices[0].id=="watch"&&rows[5].choices[1].id=="watch-meter"&&rows[5].choices[2].id=="add"&&rows[5].choices[3].id=="export"&&rows[5].choices[4].id=="inputs"&&rows[5].choices[5].id=="keep"&&rows[5].choices[6].id=="show-folder","Replay choice order wrong");
+  Check(rows[5].choices.size()==8&&rows[5].choices[0].id=="watch"&&rows[5].choices[1].id=="watch-meter"&&rows[5].choices[2].id=="add"&&rows[5].choices[3].id=="export"&&rows[5].choices[4].id=="inputs"&&rows[5].choices[5].id=="keep"&&rows[5].choices[6].id=="show-folder"&&rows[5].choices[7].id=="find-1","Replay choice order wrong");
   // Show in folder asks the services for the row's own file, and its answer is the status line.
   {const auto sent=h.actions.size();h.Choose("replay:C:\\r\\a.emberreplay");for(int i=0;i<6;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
    Check(h.actions.size()==sent+1&&Is<commands::Service>(h.actions.back(),[](const commands::Service& s){return s.service==platform::ServiceAction::ShowReplayFile&&s.servicePath=="C:\\r\\a.emberreplay";}),"Show in folder did not ask for the replay's file");

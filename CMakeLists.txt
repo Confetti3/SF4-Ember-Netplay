@@ -103,7 +103,7 @@ target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_loc
 add_library(sf4e_game_lettering STATIC src/common/GameLettering.cxx)
 target_compile_features(sf4e_game_lettering PUBLIC cxx_std_17)
 add_library(sf4e_ui STATIC
-    src/ui/ApplicationShell.cxx src/ui/PlayerCard.cxx src/ui/ProfilePanel.cxx src/ui/ControllersScreen.cxx src/ui/ReplaysPanel.cxx src/ui/RoomPanel.cxx src/ui/RoomPanelArcade.cxx src/ui/RoomPanelTables.cxx src/ui/RoomPanelColumn.cxx src/ui/RoomActions.cxx src/ui/RoomControls.cxx
+    src/ui/ApplicationShell.cxx src/ui/PlayerCard.cxx src/ui/ProfilePanel.cxx src/ui/ControllersScreen.cxx src/ui/ReplaysPanel.cxx src/ui/ArchiveTab.cxx src/ui/RoomPanel.cxx src/ui/RoomPanelArcade.cxx src/ui/RoomPanelTables.cxx src/ui/RoomPanelColumn.cxx src/ui/RoomActions.cxx src/ui/RoomControls.cxx
     src/ui/Theme.cxx src/ui/MatchHud.cxx src/ui/SelectionArt.cxx src/ui/FighterSelector.cxx src/ui/AppearanceGallery.cxx
     src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx
     src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatFilter.cxx src/ui/ChatPanel.cxx
@@ -285,6 +285,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayRuntime__PublicRooms.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Rankings.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Levels.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Archive.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Social.cxx"
     "src/sf4e/sf4e__NetplayRuntime__RandomFighter.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
