@@ -344,13 +344,13 @@ mod tests {
         assert!(value["account"].get("best_streak").is_none());
 
         let card = br#"{"cards":[{"account":{"points":2,"tier":0},"fighters":[],"relation":"none",
-            "marks":{"games":100,"wins":50,"streak":5,"class":6}}]}"#;
+            "awards":{"games":100,"wins":50,"best_streak":5,"peak_class":6}}]}"#;
         let answers = read::<CardAnswers>(card).unwrap();
         let value = to_json(&answers).unwrap().unwrap();
-        assert_eq!(value["cards"][0]["marks"]["games"], 100);
-        assert_eq!(value["cards"][0]["marks"]["class"], 6);
+        assert_eq!(value["cards"][0]["awards"]["games"], 100);
+        assert_eq!(value["cards"][0]["awards"]["peak_class"], 6);
         // A class past the top fails the answer's check.
-        let high = br#"{"cards":[{"account":{"points":2,"tier":0},"relation":"none","marks":{"class":11}}]}"#;
+        let high = br#"{"cards":[{"account":{"points":2,"tier":0},"relation":"none","awards":{"peak_class":11}}]}"#;
         assert!(read::<CardAnswers>(high).unwrap().check().is_err());
     }
 
@@ -625,7 +625,7 @@ mod tests {
     #[test]
     fn the_profile_fields_of_a_card_pass_through_to_the_game() {
         let card = br#"{"cards":[{"account":{"points":2100,"tier":2},"fighters":[],"relation":"friend",
-            "marks":{"games":1200,"wins":700,"streak":9,"class":7},
+            "awards":{"games":1200,"wins":700,"best_streak":9,"peak_class":7},
             "name":"Player 2","country":"FR","main":5,"badge":{"band":7,"settled":true},
             "since":1748736000,"worn":{"title":"matches","icon":"streak","extra":1},
             "pins":["rank","wins"],
@@ -636,8 +636,8 @@ mod tests {
         assert!(answers.check().is_ok());
         let value = to_json(&answers).unwrap().unwrap();
         let card = &value["cards"][0];
-        assert_eq!(card["marks"]["games"], 1200);
-        assert_eq!(card["marks"]["wins"], 700);
+        assert_eq!(card["awards"]["games"], 1200);
+        assert_eq!(card["awards"]["wins"], 700);
         assert_eq!(card["name"], "Player 2");
         assert_eq!(card["since"], 1_748_736_000u64);
         assert_eq!(card["worn"], json!({ "title": "matches", "icon": "streak" }));

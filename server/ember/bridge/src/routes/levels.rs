@@ -10,7 +10,7 @@ use axum::{extract::State, http::HeaderMap, response::Response};
 use ember_protocol::{
     friends::parse_friend_code,
     levels::{
-        CardAnswers, CardLookup, CardSelector, OwnLevels, PlayerCard, Relation, RivalCard, Versus,
+        CardAnswers, CardLookup, CardSelector, OwnLevels, Relation, RivalCard,
     },
 };
 use rusqlite::Transaction;
@@ -24,7 +24,7 @@ use crate::{
     http::{Body, GENERAL_BODY, ok},
     routes::{
         play::playing,
-        rooms::{self, classes_shown, developers},
+        rooms,
     },
     secrets::Keys,
     skill::{self, levels},
@@ -38,10 +38,7 @@ const WINDOW_SECS: u64 = 10 * 60;
 pub async fn own(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
     let (player, now) = admit(&state, &headers).await?;
     let keys = state.keys.clone();
-    let classes = Classes {
-        shown: classes_shown(&state),
-        developers: developers(&state),
-    };
+    let classes = Classes::of(&state);
     let levels = state
         .db
         .read(move |tx| {
@@ -113,10 +110,7 @@ pub async fn lookup(
     lookup.check()?;
     let keys = state.keys.clone();
     let friends_offered = friends::offered(&state);
-    let classes = Classes {
-        shown: classes_shown(&state),
-        developers: developers(&state),
-    };
+    let classes = Classes::of(&state);
     let answers = state
         .db
         .read(move |tx| {
@@ -128,7 +122,7 @@ pub async fn lookup(
                     let target =
                         target_of(tx, &keys, caller.as_deref(), friends_offered, selector, now)?;
                     match target {
-                        Some(target) => card_for(
+                        Some(target) => cards::card_for(
                             tx,
                             caller.as_deref(),
                             &target,
@@ -173,55 +167,6 @@ fn target_of(
             .flatten()
             .filter(|target| target != caller)),
     }
-}
-
-/// `target`'s card as `caller` sees it: none when `target` blocked them, with
-/// the points, what the player chose to show, their class while classes are
-/// shown and their record against the caller. Their relation, and the id of
-/// the friendship when it is one, come once friends are offered.
-fn card_for(
-    tx: &Transaction<'_>,
-    caller: Option<&str>,
-    target: &str,
-    friends_offered: bool,
-    classes: &Classes,
-    now: u64,
-) -> Result<Option<PlayerCard>> {
-    let relation = match caller {
-        Some(caller) => store::relation(tx, caller, target)?,
-        None => Some(Relation::None),
-    };
-    let Some(relation) = relation else {
-        return Ok(None);
-    };
-    let Some(card) = levels::card(tx, target)? else {
-        return Ok(None);
-    };
-    let relation = if friends_offered {
-        relation
-    } else {
-        Relation::None
-    };
-    let mut card = PlayerCard {
-        marks: levels::card_marks(tx, target)?,
-        relation,
-        badge: cards::badge(tx, target, classes, now)?,
-        ..card
-    };
-    if let Some(stored) = cards::stored(tx, target)? {
-        card = cards::describe(card, stored);
-    }
-    if let Some(caller) = caller.filter(|caller| *caller != target) {
-        card.versus = store::record(tx, caller, target)?.map(|record| Versus {
-            won: record.won,
-            lost: record.lost,
-            last_at: record.last_at,
-        });
-        if relation == Relation::Friend {
-            card.friend = store::friendship_id(tx, caller, target)?;
-        }
-    }
-    Ok(Some(card))
 }
 
 /// The calling player, within their request budget, and the time.

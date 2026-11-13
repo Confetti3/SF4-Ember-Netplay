@@ -53,6 +53,17 @@ pub struct Classes {
     pub developers: Vec<String>,
 }
 
+impl Classes {
+    /// The bridge's own settings, which every route that shows a class reads
+    /// the same way.
+    pub fn of(state: &AppState) -> Self {
+        Self {
+            shown: rooms::classes_shown(state),
+            developers: rooms::developers(state),
+        }
+    }
+}
+
 /// An action before the caller ever synced: there is no state to answer yet.
 fn resync() -> ApiFailure {
     ApiFailure::new(

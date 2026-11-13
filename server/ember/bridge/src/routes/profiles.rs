@@ -27,7 +27,7 @@ use crate::{
     http::{Body, GENERAL_BODY, ok},
     routes::{
         play::playing,
-        rooms::{self, classes_shown, developers},
+        rooms,
     },
     secrets::Keys,
     skill,
@@ -90,10 +90,7 @@ pub async fn search(
     search.check()?;
     let keys = state.keys.clone();
     let friends_offered = friends::offered(&state);
-    let classes = Classes {
-        shown: classes_shown(&state),
-        developers: developers(&state),
-    };
+    let classes = Classes::of(&state);
     let answer = state
         .db
         .read(move |tx| find(tx, &keys, &classes, friends_offered, &caller, &search))

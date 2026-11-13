@@ -17,7 +17,6 @@ use crate::{
     http::{Body, GENERAL_BODY, ok},
     routes::{
         play::playing,
-        rooms::{classes_shown, developers},
     },
     skill,
 };
@@ -113,10 +112,7 @@ pub async fn act(
 /// The state `caller` sees after their sync or action.
 async fn answer(state: &AppState, caller: Caller) -> Result<Response> {
     let live = state.friends.clone();
-    let classes = Classes {
-        shown: classes_shown(state),
-        developers: developers(state),
-    };
+    let classes = Classes::of(state);
     let answer = state
         .db
         .read(move |tx| friends::state(tx, &live, &caller.account, &classes, caller.now))
