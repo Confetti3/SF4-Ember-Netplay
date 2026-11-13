@@ -279,7 +279,9 @@ float DrawPoints(const Ctx& c, float x, float y, float room, bool narrow) {
 
 // The words for a points state with nothing to show, and the way to Discord when there is no account. Returns the y under them.
 float DrawWords(const Ctx& c, float x, float y, float room) {
-    if (c.v.levelWords) y += v2::Paragraph(c.d, ImVec2(x, y), room, loc::T(c.v.levelWords), c.m.noteText * c.s, v2::Colors().muted);
+    if (!c.v.notes.empty()) {
+        for (const auto& note : c.v.notes) y += v2::Paragraph(c.d, ImVec2(x, y), room, note, c.m.noteText * c.s, v2::Colors().muted) + 6 * c.s;
+    } else if (c.v.levelWords) y += v2::Paragraph(c.d, ImVec2(x, y), room, loc::T(c.v.levelWords), c.m.noteText * c.s, v2::Colors().muted);
     const float after = DrawRowButton(DiscordConnectScreen, ImVec2(x, y), (std::min)(room, 360 * c.s), c.rows, c.nav, c.action, c.changed);
     return after > y ? after + 8 * c.s : y;
 }
@@ -372,6 +374,7 @@ float DrawRival(const Ctx& c, float x, float y, float room) {
 float DrawSets(const Ctx& c, float x, float y, float room) {
     using State = player_card::SetsView::State;
     const auto& sets = c.v.sets;
+    if (!sets.shown) return y;
     const float s = c.s, rowHeight = c.m.rowHeight * s, rowGap = c.m.rowGap * s;
     v2::SectionHeading(c.d, ImVec2(x, y), loc::T("card.recent_sets"));
     y += c.m.heading * s;

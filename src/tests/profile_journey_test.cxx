@@ -8,6 +8,7 @@
 #include "public_rooms_journey_support.hxx"
 #include "../ui/PlayerCard.hxx"
 #include "../ui/NameMarks.hxx"
+#include "../ui/PlayerPage.hxx"
 #include "../ui/CardEditRows.hxx"
 #include "../ui/ProfilePanel.hxx"
 #include "../ui/RowId.hxx"
@@ -47,18 +48,18 @@ void Usable(Journey& j) {
  j.h.Screen("home"); j.h.Frame(0, 2); j.answerIdentityUntilIdle();
 }
 
-// Home's card opens Profile on Card; LB and RB step the strip, wrapping at both ends; Back is Home.
+// Home's card opens Profile on Card; LB and RB step the strip (Card, Fighters, Sets, Friends, Awards), wrapping at both ends; Back is Home.
 void StripJourney() {
  Journey j;
  Answer(j);
  j.h.Screen("home"); j.h.FocusOn("card"); j.h.Press(MenuInput::Select);
  Check(j.h.shell.Navigation().Screen() == "card", "Home's card did not open Profile on Card");
- const char* order[] = {"card", "fighters", "friends", "awards"};
- for (int i = 1; i <= 4; ++i) {
+ const char* order[] = {"card", "fighters", "sets", "friends", "awards"};
+ for (int i = 1; i <= 5; ++i) {
   j.h.Press(MenuInput::NextTab);
-  Check(j.h.shell.Navigation().Screen() == order[i % 4], "RB did not step to the next Profile tab");
+  Check(j.h.shell.Navigation().Screen() == order[i % 5], "RB did not step to the next Profile tab");
  }
- for (int i = 3; i >= 0; --i) {
+ for (int i = 4; i >= 0; --i) {
   j.h.Press(MenuInput::PrevTab);
   Check(j.h.shell.Navigation().Screen() == order[i], "LB did not step to the previous Profile tab");
  }
@@ -451,6 +452,170 @@ void SpatialJourney() {
  }
 }
 
+namespace pr = sf4e::netplay::profiles;
+using Relation = sf4e::netplay::levels::Relation;
+
+// The friends the page reads relations from, listed on the service the journey trusts.
+void Friends(Journey& j) {
+ auto state = std::make_shared<netplay::friends::State>();
+ state->kind = netplay::friends::State::Kind::Listed; state->code = "4F2A-91CX";
+ j.h.view.friends.bridge = "brg_1"; j.h.view.friends.state.value = state; j.h.view.friends.state.loaded = true;
+ ++j.h.view.friends.state.revision; ++j.h.view.friends.state.finished;
+}
+
+// The runtime's answer to the profile open: a card for the token, with this relation.
+void Card(Journey& j, const char* token, Relation relation, const char* name = "Player 2") {
+ auto& p = j.h.view.profile;
+ p = pr::Profile();
+ p.opened = 1; p.key = pr::Key::OfCard(token); p.token = token; p.known.name = name;
+ p.state = pr::Profile::State::Card; p.card.loaded = true;
+ auto& card = p.card.value;
+ card.name = name; card.relation = relation; card.hasMain = true; card.main = 12; card.fighters = {{12, 300, 1}};
+ ++p.card.revision; ++p.card.finished;
+ j.h.view.profilesService = pr::Service::Offered;
+ j.h.Frame(0, 2);
+}
+
+std::size_t Opens(const Journey& j) {
+ return static_cast<std::size_t>(std::count_if(j.h.actions.begin(), j.h.actions.end(), [](const ShellAction& a) { return Is<commands::ProfileOpen>(a); }));
+}
+std::size_t Closes(const Journey& j) {
+ return static_cast<std::size_t>(std::count_if(j.h.actions.begin(), j.h.actions.end(), [](const ShellAction& a) { return Is<commands::ProfileClose>(a); }));
+}
+
+// Another player's profile (docs/design/PROFILE.md): opening it asks the runtime once and shows it at once with what the opener
+// knew; the card arrives and the page opens on the Primary; LB and RB step its four tabs; A on the Primary sends a friend request
+// with their token; Back goes where it was opened from and tells the runtime it was left.
+void PlayerJourney() {
+ Journey j;
+ Usable(j);
+ Friends(j);
+ pr::Known known;
+ known.name = "Player 2"; known.country = CountryCode::Parsed("GB");
+ j.h.shell.OpenPlayer(pr::Key::OfCard("c1.player2"), known);
+ j.h.Frame(0, 2);
+ Check(j.h.shell.Navigation().Screen() == "player-card", "Opening a player did not open their Card tab");
+ Check(Opens(j) == 1, "Opening a player did not ask the runtime once");
+ const auto* open = Last<commands::ProfileOpen>(j.h.actions);
+ Check(open && open->bridge == "brg_1" && open->key == pr::Key::OfCard("c1.player2") && open->known.name == "Player 2", "The open does not name the service, the token and what the opener knew");
+ j.h.Frame(0, 30);
+ Check(Opens(j) == 1, "The open was asked again without a reason");
+ // Reading: the Primary is there and cannot be pressed.
+ const auto* reading = j.row(ui::player_page::PrimaryRow);
+ Check(reading && !reading->enabled && reading->label == loc::T("profile.reading_button"), "A profile being read does not have a disabled Reading Primary");
+ // The card arrives: Add friend, and the page opens on it.
+ Card(j, "c1.player2", Relation::None);
+ const auto* add = j.row(ui::player_page::PrimaryRow);
+ Check(add && add->enabled && add->label == loc::T("friends.add_member"), "A stranger's card does not have Add friend as its Primary");
+ Check(j.h.shell.Navigation().Focus() == ui::player_page::PrimaryRow, "The page did not open with the focus on the Primary");
+ // LB and RB step the four tabs and wrap.
+ const char* order[] = {"player-card", "player-fighters", "player-sets", "player-awards"};
+ for (int i = 1; i <= 4; ++i) {
+  j.h.Press(MenuInput::NextTab);
+  Check(j.h.shell.Navigation().Screen() == order[i % 4], "RB did not step to the next tab of their profile");
+ }
+ j.h.Press(MenuInput::PrevTab);
+ Check(j.h.shell.Navigation().Screen() == "player-awards", "LB did not step back through their profile's tabs");
+ j.h.Press(MenuInput::NextTab);
+ // A on Add friend asks the bridge by their token, naming them as their label.
+ j.h.FocusOn(ui::player_page::PrimaryRow);
+ j.h.Press(MenuInput::Select);
+ const auto* request = Last<commands::FriendRequest>(j.h.actions);
+ Check(request && request->card == "c1.player2" && request->label == "Player 2" && !request->mutual && request->bridge == "brg_1", "A on Add friend did not send their token with their name");
+ // Back returns to Home and leaves the profile.
+ Check(Closes(j) == 0, "The profile was closed while it was on show");
+ j.h.Press(MenuInput::Back);
+ j.h.Frame(0, 2);
+ Check(j.h.shell.Navigation().Screen() == "home", "Back from their profile did not return to where it was opened from");
+ Check(Closes(j) == 1, "Leaving their profile did not tell the runtime");
+}
+
+// They asked first: the Primary is Accept request, and it sends the same request, marked mutual.
+void PlayerAcceptJourney() {
+ Journey j;
+ Usable(j);
+ Friends(j);
+ pr::Known known;
+ known.name = "Player 2";
+ j.h.shell.OpenPlayer(pr::Key::OfCard("c1.player2"), known);
+ Card(j, "c1.player2", Relation::Received);
+ const auto* accept = j.row(ui::player_page::PrimaryRow);
+ Check(accept && accept->enabled && accept->label == loc::T("friends.accept_member"), "A request received does not make Accept request the Primary");
+ j.h.Press(MenuInput::Select);
+ const auto* request = Last<commands::FriendRequest>(j.h.actions);
+ Check(request && request->card == "c1.player2" && request->mutual, "A on Accept request did not send a mutual request with their token");
+}
+
+// A profile opened from a profile replaces it: Back goes to where the first came from. A name several players go by opens the
+// pick list, and A on one opens that player; the player's own name opens their own Profile.
+void PlayerReplaceJourney() {
+ Journey j;
+ Usable(j);
+ Friends(j);
+ j.h.view.preferences.displayName = "Player 1";
+ pr::Known known;
+ known.name = "Player 2";
+ j.h.shell.OpenPlayer(pr::Key::OfCard("c1.player2"), known);
+ Card(j, "c1.player2", Relation::None);
+ known.name = "Player 5";
+ j.h.shell.OpenPlayer(pr::Key::OfCard("c1.player5"), known);
+ j.h.Frame(0, 2);
+ Check(j.h.shell.Navigation().Screen() == "player-card" && Opens(j) == 2, "A profile opened from a profile did not ask for the new one");
+ j.h.Press(MenuInput::Back);
+ Check(j.h.shell.Navigation().Screen() == "home", "Back from a profile that replaced another did not return to where the first came from");
+ // A name with several players behind it: the pick list, newest first as the search gave them.
+ j.h.shell.OpenPlayer(pr::Key::OfName("Player 7"), pr::Known());
+ j.h.Frame(0, 2);
+ auto& p = j.h.view.profile;
+ p = pr::Profile();
+ p.opened = 2; p.key = pr::Key::OfName("Player 7"); p.state = pr::Profile::State::Several;
+ for (int i = 0; i < 2; ++i) {
+  pr::Hit hit;
+  hit.card = std::string("c1.hit") + std::to_string(i); hit.name = "Player 7"; hit.country = CountryCode::Parsed(i ? "FR" : "GB");
+  p.hits.push_back(hit);
+ }
+ j.h.Frame(0, 3);
+ Check(j.h.shell.Navigation().Screen() == "player-pick", "Several players with one name did not open the pick list");
+ Check(j.row("player-hit:0") && j.row("player-hit:1"), "The pick list is not a row for each player");
+ j.h.Choose("player-hit:1");
+ Check(j.h.shell.Navigation().Screen() == "player-card", "A on a player in the pick list did not open their profile");
+ const auto* open = Last<commands::ProfileOpen>(j.h.actions);
+ Check(open && open->key == pr::Key::OfCard("c1.hit1"), "A on a player in the pick list did not ask for that player's card");
+ j.h.Press(MenuInput::Back);
+ Check(j.h.shell.Navigation().Screen() == "home", "Back from a profile chosen from the pick list did not return to where the list was opened from");
+ // The player's own name is their own Profile.
+ j.h.shell.OpenPlayer(pr::Key::OfName("player 1"), pr::Known());
+ j.h.Frame(0, 2);
+ Check(j.h.shell.Navigation().Screen() == "card", "The player's own name did not open their own Profile on Card");
+}
+
+// A on the own card's Most played opens that player's profile by the token the points answer carries, and All sets opens the own Sets
+// tab, which lists the archive's sets under the player's own name from the profile's slot.
+void MostPlayedAndSetsJourney() {
+ Journey j;
+ Answer(j);
+ j.h.view.preferences.displayName = "Player 1";
+ auto& rival = j.h.view.levels.value;
+ rival.hasMostPlayed = true;
+ rival.mostPlayed.card = "c1.rival"; rival.mostPlayed.name = "Player 9"; rival.mostPlayed.won = 41; rival.mostPlayed.lost = 33;
+ Usable(j);
+ j.h.Screen("card"); j.h.Frame(0, 2);
+ j.h.Choose(ui::player_card::MostPlayedRow);
+ Check(j.h.shell.Navigation().Screen() == "player-card", "Most played did not open that player's profile");
+ const auto* open = Last<commands::ProfileOpen>(j.h.actions);
+ Check(open && open->key == pr::Key::OfCard("c1.rival") && open->known.name == "Player 9", "Most played did not ask for that player by their token");
+ j.h.Press(MenuInput::Back);
+ Check(j.h.shell.Navigation().Screen() == "card", "Back from the most played opponent's profile did not return to the card");
+ // All sets: the own Sets tab, with its list asked for by the player's own name from the profile's slot.
+ j.h.Choose(ui::player_card::AllSetsRow);
+ j.h.Frame(0, 2);
+ Check(j.h.shell.Navigation().Screen() == "sets", "All sets did not open the Sets tab");
+ const auto* list = Last<commands::ArchiveList>(j.h.actions);
+ Check(list && list->profile && list->filter.name == "Player 1", "The own Sets tab did not ask for the player's own sets from the profile's slot");
+ Check(j.row("archive-filters") && j.row("archive-note"), "The own Sets tab has not its Filters row and the note about the name");
+ Check(!j.row("card-edit"), "The own Sets tab shows the card's own rows");
+}
+
 // Home's Profile row opens Card; requests waiting are counted once on Home, on the News row that opens Notifications
 // where they are answered, and the Friends tab counts them.
 void HomeJourney() {
@@ -509,7 +674,7 @@ void ReadJourney() {
 
 int main() {
  try {
-  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); EditCardChoicesJourney(); AwardsJourney(); WornClaimsJourney(); AwardsStatesJourney(); AwardNoticesJourney(); HomeJourney(); ReadJourney(); SpatialJourney();
+  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); EditCardChoicesJourney(); AwardsJourney(); WornClaimsJourney(); AwardsStatesJourney(); AwardNoticesJourney(); HomeJourney(); ReadJourney(); SpatialJourney(); PlayerJourney(); PlayerAcceptJourney(); PlayerReplaceJourney(); MostPlayedAndSetsJourney();
   std::cout << "Profile journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

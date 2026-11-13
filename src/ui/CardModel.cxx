@@ -70,6 +70,8 @@ constexpr Metrics kNarrow = {
     3};
 }
 
+std::string MonthWords(std::uint64_t seconds) { return MonthOf(seconds); }
+
 const Metrics& MetricsOf(Size size) { return size == Size::Wide ? kWide : size == Size::Compact ? kCompact : kNarrow; }
 
 float Metrics::SmallestText() const {
@@ -312,6 +314,7 @@ FullCardView FullOf(const Subject& s, Size size) {
             {loc::T("card.relation"), RelationWords(s)}};
     }
     v.levelWords = LevelWordsOf(s.levels, !s.played.empty(), s.detailed);
+    v.notes = s.notes;
     return v;
 }
 
@@ -406,7 +409,7 @@ std::vector<MenuEntry> CardRows(const FullCardView& v) {
             rows.push_back(std::move(row));
         }
     }
-    if (v.sets.allSets) {
+    if (v.sets.allSets && v.sets.shown) {
         auto row = Row(AllSetsRow, loc::T("card.all_sets"), std::string());
         row.hint = loc::T("card.all_sets");
         rows.push_back(std::move(row));

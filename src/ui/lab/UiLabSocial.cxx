@@ -91,6 +91,61 @@ bool Friends(ui::ShellView& view, const std::string& which) {
     return true;
 }
 
+bool Player(ui::ShellView& view, const std::string& which) {
+    using netplay::levels::Relation;
+    namespace pr = netplay::profiles;
+    const bool friendly = which == "friend" || which == "room", blocked = which == "blocked", inRoom = which == "room";
+    if (!friendly && !blocked && which != "stranger" && which != "asked" && which != "sent" && which != "nocard" && which != "nobody" && which != "several" &&
+        which != "reading" && which != "unreachable" && which != "unsupported") return false;
+    // The friends the page reads presence and relations from, on a service the player trusts.
+    if (!Friends(view, "full")) return false;
+    view.profilesService = which == "unsupported" ? pr::Service::Missing : pr::Service::Offered;
+    // Player 3 fights in a joinable public room, Player 6 is online; both are in the friends list.
+    const char* name = inRoom ? "Player 3" : friendly ? "Player 6" : blocked ? "Player 16" : "Player 2";
+    const char* country = inRoom ? "FR" : friendly ? "ES" : blocked ? "NL" : "GB";
+    const int main = inRoom ? 16 : friendly ? 7 : 12;
+    auto& p = view.profile;
+    p = pr::Profile();
+    p.opened = 1;
+    p.key = pr::Key::OfCard(friendly ? "c1.lab_friend" : "c1.lab_player2");
+    p.token = p.key.value;
+    p.known.name = name; p.known.country = CountryCode::Parsed(country); p.known.badge = SkillBadge::OfClass(7, true); p.known.fighter = main;
+    p.card.revision = p.card.finished = 1;
+    if (which == "reading") { p.state = pr::Profile::State::Reading; p.card.loading = true; return true; }
+    if (which == "unreachable") { p.state = pr::Profile::State::Unreachable; p.error = "bridge_unreachable"; return true; }
+    if (which == "unsupported") { p.state = pr::Profile::State::Unsupported; p.error = pr::Unavailable; return true; }
+    if (which == "nobody") { p.state = pr::Profile::State::Nobody; p.key = pr::Key::OfName("Player 2"); p.token.clear(); return true; }
+    if (which == "nocard") { p.state = pr::Profile::State::NoCard; return true; }
+    if (which == "several") {
+        p.state = pr::Profile::State::Several;
+        p.key = pr::Key::OfName("Player 2"); p.token.clear();
+        const char* const countries[] = {"GB", "FR", "BR"};
+        for (int i = 0; i < 3; ++i) {
+            pr::Hit hit;
+            hit.card = std::string("c1.lab_hit") + std::to_string(i); hit.name = "Player 2"; hit.country = CountryCode::Parsed(countries[i]);
+            hit.hasMain = true; hit.main = static_cast<std::uint8_t>(5 + 7 * i); hit.badge = SkillBadge::OfClass(static_cast<std::uint8_t>(4 + i), true);
+            hit.since = Now - (400 + 90 * i) * Day;
+            p.hits.push_back(hit);
+        }
+        return true;
+    }
+    auto& card = p.card.value;
+    p.card.loaded = true;
+    p.state = pr::Profile::State::Card;
+    card.name = name; card.country = CountryCode::Parsed(country); card.badge = SkillBadge::OfClass(7, true);
+    card.hasMain = true; card.main = static_cast<std::uint8_t>(main);
+    card.hasSince = true; card.since = Now - 120 * Day;
+    card.worn.title = "streak"; card.worn.icon = "rival";
+    card.hasStyle = true; card.style.device = pr::Device::Pad; card.style.link = pr::Link::Wired; card.style.region = "euc1"; card.style.looking = pr::LookingRanked | pr::LookingTeach;
+    card.awards.games = 2840; card.awards.wins = 1164; card.awards.bestStreak = 12; card.awards.peakClass = 8; card.awards.rival = 50; card.awards.opponents = 50;
+    card.account = {4012, 2};
+    card.fighters = {{static_cast<std::uint8_t>(main), 1986, 3}, {5, 860, 2}, {9, 412, 1}, {3, 120, 0}};
+    card.hasVersus = true; card.versus = {3, 5, Now - 2 * Hour};
+    card.relation = friendly ? Relation::Friend : which == "asked" ? Relation::Received : which == "sent" ? Relation::Sent : blocked ? Relation::Blocked : Relation::None;
+    if (friendly) card.friendId = inRoom ? "fr_3" : "fr_6";
+    return true;
+}
+
 void FriendsComing(ui::ShellView& view, int frame) {
     static std::shared_ptr<const nf::State> full;
     auto& f = view.friends;

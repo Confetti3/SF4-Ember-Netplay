@@ -8,6 +8,7 @@
 // and a screen reader walk the wall as a list. The levels come from the counters in
 // the view alone: the points answer and the friends list.
 #include "ApplicationShell.hxx"
+#include "AwardsWall.hxx"
 #include "MenuRows.hxx"
 #include "NameMarks.hxx"
 #include "PlayerCard.hxx"
@@ -51,9 +52,7 @@ aw::Counters ApplicationShell::AwardCounters(const ShellView& v) {
 }
 aw::Worn ApplicationShell::WornAward(const ShellView& v, const std::string& id) { return aw::WornOf(AwardCounters(v), id); }
 std::string ApplicationShell::LevelTitle(const aw::Level& level) { return player_card::LevelTitle(level); }
-std::string ApplicationShell::LevelHow(const aw::Level& level) {
-    return level.band ? loc::Tf("award.rank.how", ClassName(static_cast<std::uint8_t>(level.band))) : std::string(loc::T(level.how));
-}
+std::string ApplicationShell::LevelHow(const aw::Level& level) { return awards_wall::LevelHow(level); }
 std::string ApplicationShell::AwardTitle(const aw::Worn& worn) { return LevelTitle(worn.Current()); }
 std::string ApplicationShell::AwardIconName(const aw::Family& family) { return loc::T((std::string("award.") + family.id + ".icon").c_str()); }
 std::string ApplicationShell::EarnedCount(const ShellView& v) {
@@ -92,20 +91,7 @@ void ApplicationShell::DropStaleAwards(const ShellView& v) {
 
 // The focused family's words: each level with its tier, title and requirement,
 // Earned on the ones reached and how far along the next one is.
-std::string ApplicationShell::AwardLevelLines(const aw::Counters& counters, const aw::Family& family, bool counted) {
-    const int level = aw::LevelOf(counters, family);
-    const auto next = aw::Next(counters, family);
-    std::string lines;
-    for (std::size_t i = 0; i < family.count; ++i) {
-        const auto& one = family.levels[i];
-        std::string state;
-        if (static_cast<int>(i) < level) state = loc::T("awards.earned");
-        else if (static_cast<int>(i) == level && counted && aw::Counts(family)) state = loc::Tf("awards.progress", next.have, next.need);
-        if (!lines.empty()) lines += "\n";
-        lines += TierOf(one) + " \xC2\xB7 " + ApplicationShell::LevelTitle(one) + " \xC2\xB7 " + ApplicationShell::LevelHow(one) + (state.empty() ? "" : " \xC2\xB7 " + state);
-    }
-    return lines;
-}
+std::string ApplicationShell::AwardLevelLines(const aw::Counters& counters, const aw::Family& family, bool counted) { return awards_wall::LevelLines(counters, family, counted); }
 
 // Wear's options as a row offers them: each is off while that part of the
 // card already wears the family.
@@ -238,7 +224,7 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
     // The wall: a tile for each family, its icon on the colours of the level reached.
     const int columns = AwardColumns();
     const bool counted = player.levels == CardLevels::Counted;
-    const float tileWidth = (area.W() - gap * (columns - 1)) / columns, tileHeight = 156 * s, icon = 52 * s, pip = 8 * s, pipGap = 3 * s;
+    const float tileWidth = (area.W() - gap * (columns - 1)) / columns, tileHeight = 156 * s;
     int column = 0;
     float bottom = y;
     for (const auto& e : rows) {
@@ -249,57 +235,15 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
         bottom = tile.max.y;
         if (++column == columns) { column = 0; y += tileHeight + gap; }
         const bool hovered = PressEntry(nav, rows, e, tile, action, changed).hovered;
-        const bool focused = e.id == focus, earned = !e.info, on = e.valueHighlighted;
-        const int level = aw::LevelOf(counters, *family);
-        const aw::Step next = aw::Next(counters, *family);
-        v2::CardGround(d, tile, focused, hovered);
-        if (on && !focused) d->AddRect(tile.min, tile.max, v2::color::Alpha(c.accent, .5f), 4 * s, 0, Hairline());
-        // The name on two lines when it needs them; the icon, name, pips and progress centred as a stack.
-        auto* font = HeadingFont();
-        const float size = 14 * s, inner = tile.W() - 16 * s;
-        const char *text = e.label.c_str(), *stop = text + e.label.size();
-        const char* cut = font->CalcTextSizeA(size, FLT_MAX, 0, text, stop).x > inner ? font->CalcWordWrapPositionA(size / font->FontSize, text, stop, inner) : stop;
-        const float lines = cut < stop ? 2.f : 1.f;
-        const auto tier = v2::TierColor(earned ? v2::FrameTier(aw::LevelAt(*family, level)->tier) : v2::Tier::None);
-        // How far the next level is: a thin meter over "37 of 100" for a count, the next level's name for a class or a frame, or the top.
-        const bool meter = counted && !next.top && aw::Counts(*family);
-        const float stack = icon + 6 * s + lines * (size + 2 * s) + 6 * s + pip + 6 * s + (meter ? 9 * s : 0) + 14 * s;
-        const ImVec2 box(tile.min.x + (tile.W() - icon) * .5f, tile.min.y + (std::max)(6 * s, (tile.H() - stack) * .5f));
-        // The tier is the plate under the icon and the icon's colour, never a frame.
-        d->AddRectFilled(box, ImVec2(box.x + icon, box.y + icon), earned ? tier.plate : c.frame, 4 * s);
-        v2::Icon(d, family->icon, ImVec2(box.x + 10 * s, box.y + 10 * s), icon - 20 * s, earned ? tier.stripe : v2::color::Alpha(c.muted, .5f));
-        const auto line = [&](const char* from, const char* to, float top) {
-            const float w = font->CalcTextSizeA(size, FLT_MAX, 0, from, to).x;
-            d->AddText(font, size, ImVec2(tile.min.x + (tile.W() - w) * .5f, top), earned && feedback.Enabled(e) ? c.text : c.muted, from, to);
-        };
-        d->PushClipRect(tile.min, tile.max, true);
-        line(text, cut, box.y + icon + 6 * s);
-        while (cut < stop && *cut == ' ') ++cut;
-        if (cut < stop) line(cut, stop, box.y + icon + 8 * s + size);
-        // A pip for each level, in its own tier's colour up to the level reached.
-        float py = box.y + icon + 10 * s + lines * (size + 2 * s);
-        const float pips = family->count * pip + (family->count - 1) * pipGap;
-        for (std::size_t i = 0; i < family->count; ++i) {
-            const float px = tile.min.x + (tile.W() - pips) * .5f + i * (pip + pipGap);
-            const bool reached = static_cast<int>(i) < level;
-            const ImVec2 p0(px, py), p1(px + pip, py + pip);
-            if (reached) d->AddRectFilled(p0, p1, v2::TierColor(v2::FrameTier(family->levels[i].tier)).stripe);
-            else { d->AddRectFilled(p0, p1, c.frame); d->AddRect(p0, p1, c.border, 0, 0, Hairline()); }
-        }
-        py += pip + 6 * s;
-        if (meter) {
-            v2::Meter(d, {ImVec2(tile.min.x + 12 * s, py), ImVec2(tile.max.x - 12 * s, py + 5 * s)}, next.Part(), 0.f);
-            py += 9 * s;
-        }
-        std::string state;
-        if (next.top) state = loc::T("awards.top_level");
-        else if (!counted) state = loc::T("awards.locked");
-        else if (aw::Counts(*family)) state = loc::Tf("awards.progress", next.have, next.need);
-        else state = loc::Tf("awards.next", ApplicationShell::LevelTitle(family->levels[level]));
-        const float sw = ImGui::GetFont()->CalcTextSizeA(player_card::TextFloor * s, FLT_MAX, 0, state.c_str()).x;
-        d->AddText(ImGui::GetFont(), player_card::TextFloor * s, ImVec2(tile.min.x + (std::max)(4 * s, (tile.W() - sw) * .5f), py), on ? c.accent : c.muted, state.c_str());
-        d->PopClipRect();
-        if (focused) v2::Focus(d, tile.min, tile.max, false);
+        awards_wall::Tile shown;
+        shown.family = family;
+        shown.level = aw::LevelOf(counters, *family);
+        shown.next = aw::Next(counters, *family);
+        shown.name = e.label;
+        shown.counted = counted;
+        shown.worn = e.valueHighlighted;
+        shown.live = feedback.Enabled(e);
+        awards_wall::DrawTile(d, tile, shown, e.id == focus, hovered);
     }
     ImGui::SetCursorScreenPos(origin);
     ImGui::Dummy(ImVec2(width, (std::max)(bottom - origin.y, sideHeight) + gap));

@@ -17,6 +17,9 @@
 //   that state (--screen friends, friends-add, friends-sent or friends-blocked; UiLabSocial.hxx); with --toasts the
 //   requests and an invite arrive as toasts (--friends full --toasts); --screen tab-online/friends is the Settings panel;
 //   --friends notifications --screen notifications lists Player 2's request and an invite waiting
+// --player friend|room|stranger|asked|sent|blocked|nocard|nobody|several|reading|unreachable|unsupported: another player's
+//   profile page in that state (--screen player-card, player-fighters, player-sets, player-awards or player-pick;
+//   UiLabSocial.hxx); --screen sets is the player's own Sets tab
 // --levels: fighter points in the game's digits, bands on pictures and meters
 //   (all of it shows in --size 3840x2160)
 // --points public|private with --room or --arcade: every member's card as the bridge would have it, in a public room
@@ -387,7 +390,7 @@ void Archive(ui::ShellView& view, const std::string& state) {
 // profile's second slot, by the name Player 1), on a trusted service. full: six sets, a tournament set among online ones;
 // few: two; none: the archive holds none under the name; loading: the first page on its way; failed: unreachable;
 // unsupported: the service keeps no archive. Without it --profile reads full.
-void ProfileSets(ui::ShellView& view, const std::string& state) {
+void ProfileSets(ui::ShellView& view, const std::string& state, const std::string& player = "Player 1") {
     namespace ar = netplay::archive;
     view.replays.ready = true;
     view.preferences.classEmblems = true;
@@ -397,7 +400,7 @@ void ProfileSets(ui::ShellView& view, const std::string& state) {
     id.bridges = {{"brg_1", "https://bridge.example", "Example"}};
     auto& status = view.profileSets;
     status.bridge = "brg_1";
-    status.filter = ar::Filter::Named("Player 1");
+    status.filter = ar::Filter::Named(player);
     status.state = state == "loading" ? ar::Status::State::Loading : state == "failed" ? ar::Status::State::Failed :
         state == "unsupported" ? ar::Status::State::Unsupported : ar::Status::State::Listed;
     if (state == "failed") status.error = "bridge_unreachable";
@@ -417,18 +420,18 @@ void ProfileSets(ui::ShellView& view, const std::string& state) {
     const std::uint64_t now = view.unixNow;
     if (state != "none") {
         // Online sets: games of the same two players within half an hour are one set.
-        for (const std::uint64_t at : {now - 7200, now - 6900, now - 6600}) listing->games.push_back(game(at, "Player 1", "Player 7", 0, 20, "DE", "US", 8, 8));
-        listing->games.push_back(game(now - 90000, "Player 4", "Player 1", 12, 0, "SE", "DE", 6, 8));
+        for (const std::uint64_t at : {now - 7200, now - 6900, now - 6600}) listing->games.push_back(game(at, player.c_str(), "Player 7", 0, 20, "DE", "US", 8, 8));
+        listing->games.push_back(game(now - 90000, "Player 4", player.c_str(), 12, 0, "SE", "DE", 6, 8));
         if (state != "few") {
-            for (const std::uint64_t at : {now - 200000, now - 199500}) listing->games.push_back(game(at, "Player 1", "Player 9", 0, 3, "DE", "JP", 8, 0));
+            for (const std::uint64_t at : {now - 200000, now - 199500}) listing->games.push_back(game(at, player.c_str(), "Player 9", 0, 3, "DE", "JP", 8, 0));
             for (const std::uint64_t at : {now - 400000, now - 399000}) {
-                auto g = game(at, "Player 2", "Player 1", 5, 0, "FR", "DE", 6, 8);
+                auto g = game(at, "Player 8", player.c_str(), 5, 0, "FR", "DE", 6, 8);
                 g.set = "emt_a"; g.event = "Weekly 12"; g.round = "Top 8"; g.phase = "Winners";
                 listing->games.push_back(g);
             }
             listing->sets["emt_a"].score = {{1, 2}};
-            listing->games.push_back(game(now - 500000, "Player 1", "Player 5", 0, 7, "DE", "GB", 8, 7));
-            listing->games.push_back(game(now - 600000, "Player 6", "Player 1", 21, 0, "ES", "DE", 5, 8));
+            listing->games.push_back(game(now - 500000, player.c_str(), "Player 5", 0, 7, "DE", "GB", 8, 7));
+            listing->games.push_back(game(now - 600000, "Player 6", player.c_str(), 21, 0, "ES", "DE", 5, 8));
         }
     }
     std::sort(listing->games.begin(), listing->games.end(), [](const ar::Game& a, const ar::Game& b) { return a.savedAt > b.savedAt; });
@@ -582,7 +585,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string points;  // --points public|private
-    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState, setsState;
+    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState, setsState, playerState;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
@@ -616,6 +619,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--levels") levels = true;
         else if (args[i] == "--profile" && more) profile = args[++i];
         else if (args[i] == "--friends" && more) friendsState = args[++i];
+        else if (args[i] == "--player" && more) playerState = args[++i];
         else if (args[i] == "--archive" && more) archiveState = args[++i];
         else if (args[i] == "--sets" && more) setsState = args[++i];
         else if (args[i] == "--points" && more) points = args[++i];
@@ -696,9 +700,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (rankings) Rankings(view);
     if (!archiveState.empty()) Archive(view, archiveState);
     if (!profile.empty()) Profile(view, profile);
-    else if (screen == "awards") Profile(view, "played");
-    if (!profile.empty() || screen == "awards" || screen == "card") ProfileSets(view, setsState.empty() ? "full" : setsState);
+    else if (screen == "awards" || screen == "sets") Profile(view, "played");
+    if (!profile.empty() || screen == "awards" || screen == "card" || screen == "sets") ProfileSets(view, setsState.empty() ? "full" : setsState);
     if (!friendsState.empty() && !uilab::Friends(view, friendsState)) return 4;
+    if (!playerState.empty() && !uilab::Player(view, playerState)) return 4;
+    // Another player's Sets tab lists the archive's sets under their name (Player 2, or Player 6 and Player 3 for friends).
+    if (!playerState.empty()) {
+        const std::string name = playerState == "room" ? "Player 3" : playerState == "friend" ? "Player 6" : playerState == "blocked" ? "Player 16" : "Player 2";
+        ProfileSets(view, setsState.empty() ? "full" : setsState, name);
+    }
     if (!points.empty()) {
         if (profile.empty()) Profile(view, "played");
         RoomPoints(view, points != "private");

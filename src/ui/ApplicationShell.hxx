@@ -50,6 +50,7 @@
 #include "RankingsPanel.hxx"
 #include "ProfilePanel.hxx"
 #include "FriendsPanel.hxx"
+#include "PlayerPage.hxx"
 #include "Notifications.hxx"
 #include "ArchiveTab.hxx"
 #include "ReplaysPanel.hxx"
@@ -160,6 +161,15 @@ public:
     // The public archive's sets of one player, on Replays' Archive tab (ArchiveTab::OpenFor);
     // Back returns to the screen shown now.
     void OpenArchiveFor(const std::string& playerName) { archive_.OpenFor(playerName, menu_.navigation); }
+    // Another player's profile page (docs/design/PROFILE.md, PlayerPage.hxx): the one call every place that names a player
+    // makes. `key` is how the caller holds them (a card token, a friend id, a request id, a friend code, or an exact name
+    // with the country to choose by when several players go by it) and `known` what the caller already knows of them (name,
+    // flag, class, the fighter shown with them, a Steam profile they share), so the page draws at once and fills in as the
+    // card arrives. Called from a profile it replaces that one, so Back returns to where the first was opened from; the
+    // player's own name opens their own Profile on Card instead. The page sends ProfileOpen itself.
+    void OpenPlayer(const netplay::profiles::Key& key, const netplay::profiles::Known& known) {
+        player_.Open(key, known, menu_.navigation);
+    }
     void ShowPublicRooms() { auto& nav = menu_.navigation; nav.Cancel(); nav.Home(); nav.Push("online"); nav.Push("public-rooms"); }
     // Public rooms, where the panel judges a room link it was given, with the
     // trusted services probed afresh first.
@@ -200,6 +210,7 @@ public:
         publicRooms_.Conceal();
         rankings_.Conceal();
         profile_.Conceal();
+        player_.Conceal();
         friends_.Conceal();
         // A link that was going on by itself starts again when Ember reopens,
         // with the services read again (identity_.Conceal dropped that read).
@@ -235,6 +246,7 @@ private:
     RankingsPanel rankings_;
     ProfilePanel profile_;
     FriendsPanel friends_;
+    PlayerPage player_;
     ReplaysPanel replays_;
     ArchiveTab archive_;
     ProblemReportPanel reportPanel_;
@@ -242,7 +254,7 @@ private:
     // The panels that own screens (ApplicationShell__Screens.cxx): each takes
     // the parts of a drawn frame that belong to its screens (ScreenPanel).
     // Update, Conceal and IdentityPanel::Hidden stay calls to every panel.
-    class IdentityScreens; class RoomMemberScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens; class ArchiveScreens; class ProfileScreens; class FriendsScreens;
+    class IdentityScreens; class RoomMemberScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens; class ArchiveScreens; class ProfileScreens; class FriendsScreens; class PlayerScreens;
     // The panel that draws `screen`, one of those or of the shell's own below
     // (one table, ApplicationShell__Screens.cxx), else null for Home and the
     // few plain ones BuildRows makes itself.

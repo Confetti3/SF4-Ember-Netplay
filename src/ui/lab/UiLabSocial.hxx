@@ -14,6 +14,15 @@ namespace uilab {
 //   unreachable: the full list, the last sync failed (Not updated)       offline: the full list, appearing offline
 // Returns false for a state it does not know.
 bool Friends(sf4e::ui::ShellView& view, const std::string& state);
+// --player friend|room|stranger|asked|sent|blocked|nocard|nobody|several|reading|unreachable|unsupported: another player's profile
+// page open in that state, over the full friends list on a service the player trusts (--screen player-card, player-fighters,
+// player-sets, player-awards or player-pick; the Sets tab needs --sets). friend: Player 6, online and your friend; room:
+// Player 3, your friend, fighting in a joinable public room; blocked: Player 16, whom you blocked; the rest are Player 2.
+//   stranger: a card, no relation   asked: they asked you   sent: you asked them   blocked: the card of a player you blocked
+//   nocard: the service has none for them   nobody: no player goes by the name   several: three players go by it (--screen
+//   player-pick)   reading: the look-up in flight   unreachable: the service could not be reached   unsupported: no profiles
+// Returns false for a state it does not know.
+bool Player(sf4e::ui::ShellView& view, const std::string& state);
 // With --toasts and --friends: the list as first read has nothing waiting, then at frame 6 the requests arrive and at
 // frame 8 an invite, so the real toasts FriendsPanel::Publish tells into Notifications show (Accept, Later; Join, Dismiss).
 void FriendsComing(sf4e::ui::ShellView& view, int frame);

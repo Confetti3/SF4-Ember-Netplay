@@ -1,6 +1,7 @@
 #include "ApplicationShell.hxx"
 #include "MenuPresentation.hxx"
 #include "PlayerCard.hxx"
+#include "PlayerPage.hxx"
 #include "NetworkFeedback.hxx"
 #include "FriendsPanel.hxx"
 #include "PublicRoomsCards.hxx"
@@ -180,6 +181,13 @@ public:
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
         auto& nav = f.shell.menu_.navigation;
         if (a.id == DiscordConnectScreen) { f.shell.identity_.Activate(a, f.view, nav); return true; }
+        // Most played opens that player's profile, as every place that names a player does.
+        if (a.id == player_card::MostPlayedRow) {
+            netplay::profiles::Key key;
+            netplay::profiles::Known known;
+            if (ProfilePanel::MostPlayedOf(f.view, key, known)) f.shell.OpenPlayer(key, known);
+            return true;
+        }
         return f.shell.profile_.Activate(f.view, a, nav, submit, f.shell.replays_.Queue(), f.shell.error_);
     }
     // Y on the Card tab is Edit card, X Fighter select (the room's own X while one is joined).
@@ -238,6 +246,55 @@ public:
     }
 };
 
+// Another player's profile (Card, Fighters, Sets, Awards, and the pick list of players that go by one name) and the
+// player's own Sets tab, which is the same list for their own name. PlayerPage holds the state and decides what shows;
+// this hands it the shell's friends paths, queue and navigation.
+class ApplicationShell::PlayerScreens final : public ScreenPanel {
+public:
+    bool Owns(const std::string& screen) const override { return PlayerPage::Owns(screen); }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool idle, std::string& title) const override {
+        return f.shell.player_.Rows(f.view, f.screen, f.shell.friends_, idle, f.shell.menu_.navigation.Choosing(), title);
+    }
+    void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override { f.shell.player_.Status(f.view, f.screen, status, tone); }
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        auto& shell = f.shell;
+        return shell.player_.Activate(f.view, a, HandsOf(f, submit));
+    }
+    bool Adjust(const ScreenFrame& f, const MenuAction& a) const override { return f.shell.player_.Adjust(a); }
+    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        return f.shell.player_.Choose(f.view, a, HandsOf(f, submit));
+    }
+    void Shortcut(const ScreenFrame& f, const MenuAction& a) const override {
+        if (f.rows) f.shell.player_.Shortcut(f.view, a, f.screen, *f.rows, f.shell.menu_.navigation);
+    }
+    // More (Y) on the Card tab is reachable in a room too.
+    bool TakesShortcut(const ScreenFrame& f, const MenuAction& a) const override { return f.shell.player_.TakesShortcut(f.screen, a); }
+    GameMenu::Card Card(const ScreenFrame& f, double) const override;
+    GameMenu::Detail Detail(const ScreenFrame& f) const override {
+        if (!f.rows || !f.shell.player_.Sets().IsList(f.screen)) return {};
+        ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::vector<MenuEntry>* rows = f.rows;
+        return [shell, view, rows](const std::string& id) { shell->player_.DrawDetail(*view, id, shell->menu_.navigation, *rows); };
+    }
+    // The tabs with a board of their own draw it; the Sets lists and the pick list are rows.
+    GameMenu::Body Body(const ScreenFrame& f) const override {
+        if (f.screen != player_page::CardScreen && f.screen != player_page::FightersScreen && f.screen != player_page::AwardsScreen) return {};
+        ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::string* screen = &f.screen;
+        return [shell, view, screen](const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback&) {
+            shell->player_.Draw(*view, *screen, rows, nav, action, height);
+        };
+    }
+    ScreenGrid Grid(const ScreenFrame& f) const override;
+    void Dress(const ScreenFrame& f, GameMenu& menu) const override {
+        static const std::vector<MenuEntry> none;
+        f.shell.player_.Dress(f.view, f.screen, f.shell.preferences_.displayName, f.rows ? *f.rows : none, menu);
+    }
+private:
+    static PlayerPage::Hands HandsOf(const ScreenFrame& f, const Submit& submit) {
+        auto& shell = f.shell;
+        return PlayerPage::Hands{shell.menu_.navigation, shell.friends_, shell.replays_.Queue(), submit, shell.error_};
+    }
+};
+
 // A fighter page's card: fighter select's art, the one the page ticks lit and marked. `fighterOf` reads a
 // row's id (-1 when it names no fighter).
 static GameMenu::Card FighterCard(std::function<int(const std::string&)> fighterOf, std::function<bool(int)> ticked) {
@@ -249,6 +306,20 @@ static GameMenu::Card FighterCard(std::function<int(const std::string&)> fighter
         if (on) ImGui::GetWindowDrawList()->AddText(ImVec2(max.x - 18 * Scale(), min.y + 3 * Scale()), palette::Ember, "\xE2\x9C\x93");
         return true;
     };
+}
+
+// The pick list's rows are drawn by the page, and the Sets lists' set cards by the archive tab's drawing; the filter's fighters
+// are fighter select's grid, as the archive's own.
+GameMenu::Card ApplicationShell::PlayerScreens::Card(const ScreenFrame& f, double) const {
+    const ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::string* screen = &f.screen;
+    if (f.screen == player_page::SetsFighterScreen)
+        return FighterCard([](const std::string& id) { return ArchiveTab::FighterOf(id); }, [shell](int fighter) { return shell->player_.Sets().Ticked(fighter); });
+    return [shell, view, screen](const MenuEntry& e, ImVec2 min, ImVec2 max) { return shell->player_.DrawCard(*view, *screen, e, min, max); };
+}
+ScreenGrid ApplicationShell::PlayerScreens::Grid(const ScreenFrame& f) const {
+    if (f.screen != player_page::SetsFighterScreen) return {};
+    const RosterGrid roster = LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
+    return {roster.columns + 3, roster.cardHeight * .66f};
 }
 
 // The Replays tab strip over a screen, and whether matches watched are saved too.
@@ -377,8 +448,9 @@ const ScreenPanel* ApplicationShell::ScreenOf(const std::string& screen) {
     static const FriendsScreens friends{};
     static const ReplaysScreens replays{};
     static const ArchiveScreens archive{};
+    static const PlayerScreens player{};
     static const IdentityScreens identity{};
-    static const ScreenPanel* const owners[] = {&publicRooms, &rankings, &profile, &friends, &replays, &archive, &identity, &SettingsOwner(), &OnlineOwner(),
+    static const ScreenPanel* const owners[] = {&publicRooms, &rankings, &profile, &friends, &replays, &archive, &player, &identity, &SettingsOwner(), &OnlineOwner(),
         &WelcomeOwner(), &NewsOwner(), &AwardsOwner(), &NotificationsOwner(), &RoomMemberOwner(), &RoomOwner()};
     for (const ScreenPanel* owner : owners)
         if (owner->Owns(screen)) return owner;

@@ -655,6 +655,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
  profile_.Update(v,nav.Screen(),identity_.UsableBridge(v),submit);
+ player_.Update(v,nav.Screen(),nav,identity_.UsableBridge(v),preferences_.displayName,ShownCountry(preferences_.country,v.automaticCountry),submit);
  UpdateAwardNotices(v);
  friends_.Update(v,nav,identity_.UsableBridge(v),submit);
  friends_.Publish(v,nav.Screen(),notices_,now);
