@@ -17,8 +17,8 @@ Press F10, or Start at the game's main menu.
 ![Home](v2/home.png)
 
 Home lists Online play, Profile, Settings, Training, Play
-offline, Replays, News and Notifications. On the right are your player card
-and the newest News.
+offline, Replays and News. On the right are your player card
+and the newest News. Fighter select is on your Profile card.
 
 - **Training** goes straight into the game's Training mode, without the Fight
   Request question. It is there only outside a room and a match, at the
@@ -28,9 +28,11 @@ and the newest News.
   and icons you have earned, and how to earn the rest. Titles and Icons are
   two tabs. Select an earned one to wear it on your card. Profile has an
   Awards row too.
-- **News** lists Ember's releases on your update channel. Home shows the
-  first three; the News row opens all of them, each with its notes.
-- **Notifications** lists what Ember told you lately (see Toasts below).
+- **News** holds Ember's notifications and its releases under one strip of
+  tabs: Notifications, All, Updates and Change log (the last two when the list
+  has that kind). Home shows the first three releases; the News row says what
+  is newest and opens on Notifications while one waits for your answer, else
+  on All. Notifications lists what Ember told you lately (see Toasts below).
 
 Back at Home hides Ember and returns to the game.
 
@@ -58,7 +60,7 @@ controller has. Each hint is also a button you can click. The bell on its
 right opens Notifications.
 
 In a list, such as Home or Online play, a fresh Up on the first row goes
-round to the last and a fresh Down on the last to the first: Notifications is
+round to the last and a fresh Down on the last to the first: News is
 one Up from Online play. Holding the direction stops at the end.
 
 On a board, such as the room's tables and members, the D-pad moves to the
@@ -210,7 +212,7 @@ triangle while waiting, a square for a refusal, a diamond for the rest.
 - Over a match, toasts only show; they never take a game button.
 - On a narrow screen only the newest one shows.
 
-Notifications (on Home, or the bell in the hint bar) keeps every recent
+Notifications (the first tab of News, or the bell in the hint bar) keeps every recent
 notice as a row, with the same buttons. Select one to act on it.
 
 ## First run

@@ -328,6 +328,12 @@ private:
     // tabs for each kind there is (news-updates, news-changelog), and Update
     // now under the release the launch check offers (ApplicationShell__Updates.cxx).
     static bool NewsScreen(const std::string& screen) { return screen=="news"||screen=="news-updates"||screen=="news-changelog"; }
+    // News and Notifications are one family under one strip: Notifications, All, Updates, Change log.
+    static bool NewsFamily(const std::string& screen) { return NewsScreen(screen)||screen=="notifications"; }
+    // Whether a notification still waits for an answer to its action; Home's News row then opens on Notifications.
+    bool NotificationsWaiting() const;
+    // The words of Home's News row: the newest notification waiting for an answer, else the newest release, else the newest notification.
+    std::string NewsDetail(const ShellView& view) const;
     std::vector<MenuEntry> NewsRows(const ShellView& view,const std::string& screen,std::string& title) const;
     void NewsTabs(const ShellView& view,const std::string& screen);
     // A release's card (its kind, New, date and title), and its pane: the
@@ -690,7 +696,7 @@ std::string memberAsk_;
     double noticeUntil_=0;
     // The notices and refusals said lately, newest first: the toasts while
     // they last and the Notifications screen's rows (ApplicationShell__Toasts.cxx).
-    struct Toast { unsigned id; std::string text; Tone tone; double at, until; ToastKind kind; std::vector<ToastAction> actions; };
+    struct Toast { unsigned id; std::string text; Tone tone; double at, until; ToastKind kind; std::vector<ToastAction> actions; bool answered; };
     std::deque<Toast> toasts_;
     std::string noticeSeen_, errorSeen_;
     unsigned toastCount_=0;

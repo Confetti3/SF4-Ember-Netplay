@@ -28,6 +28,7 @@ void TrainingJourneys();
 void NoticeOverDialogs();
 void LanguageSaveFailure();
 void UpdateLaunchJourneys();
+void NewsAndNotifications();
 void SessionReports();
 void RecoveryWindow();
 void ProblemReportJourneys();

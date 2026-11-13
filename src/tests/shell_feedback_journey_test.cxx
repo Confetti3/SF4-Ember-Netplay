@@ -237,7 +237,7 @@ void V2AuditJourneys() {
   h.view.discordPending=true;h.view.discordRevision=3;h.Frame();
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
   h.shell.Navigation().Home();h.Frame();SetMenuEntriesProbe({});
-  const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="notifications";});
+  const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="news";});
   Check(row!=rows.end()&&row->detail==loc::T("discord.invitation_notice"),"A toast said over fighter select waited for another screen");
   h.Press(MenuInput::Back);
   Check(!h.open,"A toast said over fighter select took the focus from it");
@@ -275,7 +275,7 @@ void V2AuditJourneys() {
   // Home lists it from the frame Ember shows again.
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
   h.Frame(0,2);SetMenuEntriesProbe({});
-  const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="notifications";});
+  const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="news";});
   Check(row!=rows.end()&&row->detail==loc::T("discord.invitation_notice"),"A toast said while Ember was hidden is not in Notifications");
  }
  // A card with buttons stays 8 s over the menus, however briefly the status
