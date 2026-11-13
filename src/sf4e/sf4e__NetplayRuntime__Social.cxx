@@ -14,6 +14,7 @@
 #include "../common/HexText.hxx"
 #include "../netplay/FriendWire.hxx"
 #include "../session/SocialAnswers.hxx"
+#include "../platform/UiPreferencesStore.hxx"
 #include "../ui/PublicRoomsPanel.hxx"
 
 #include <algorithm>
@@ -189,6 +190,8 @@ void TakeAnswer(std::uint64_t token, const Flight& flight, const session::Tourna
 		if (failure.empty() || failure == friends::Requests::Off) {
 			runtime->cards.Refresh();
 			if (failure.empty() && !flight.change.card.empty()) runtime->cards.Relate(flight.change.card, flight.change.relation);
+			// The profile open, if any, stands with the player the same way.
+			internal::NoteProfileAction(failure.empty() ? flight.change.card : std::string(), flight.change.relation);
 		}
 	} else if (!failure.empty()) {
 		spdlog::info("Friends: sync refused code={}", failure);
@@ -416,6 +419,33 @@ void DispatchFriends(const commands::FriendAnswerVisit& command) {
 	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
 	NoteScope(runtime->friends.Scope(command.bridge, CurrentId()));
 	AnswerVisit(command);
+}
+
+
+// A game this PC fought in a public room ended: the player it fought is remembered for a week (Find a player's
+// Recent opponents), kept on this PC and never sent. One entry per name and visit to the room; a private room's
+// players have no card token and are not kept.
+void NoteOpponent(const room::Snapshot& snapshot, int table, int seat) {
+	if (!runtime->room || !runtime->room->ServerOwned() || table < 0 || table >= static_cast<int>(room::TableCount) || (seat != 0 && seat != 1)) return;
+	const auto& at = snapshot.tables[static_cast<std::size_t>(table)];
+	const auto* opponent = room::FindMember(snapshot, seat == 0 ? at.p2 : at.p1);
+	if (!opponent || !opponent->card.Present()) return;
+	netplay::profiles::Recent entry;
+	entry.card = opponent->card.ToString();
+	entry.name = opponent->name;
+	entry.country = opponent->country;
+	entry.fighter = opponent->fighter >= 0 ? opponent->fighter : opponent->mainFighter;
+	if (entry.fighter >= selection::FighterCount) entry.fighter = -1;
+	entry.room = snapshot.name;
+	entry.at = static_cast<std::uint64_t>(std::time(nullptr));
+	entry.visit = snapshot.roomEpoch;
+	if (!runtime->recentOpponents.Note(entry, entry.at)) return;
+	std::string error;
+	if (!platform::SaveRecentOpponents(runtime->recentOpponents.Entries(), error)) spdlog::warn("Recent opponents could not be saved: {}", error);
+}
+
+void LoadRecentOpponents() {
+	runtime->recentOpponents.Load(platform::LoadRecentOpponents(), static_cast<std::uint64_t>(std::time(nullptr)));
 }
 
 void TickSocial(bool helperReady, std::uint64_t nowMs) {

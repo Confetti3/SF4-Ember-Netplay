@@ -267,6 +267,8 @@ void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFra
 		[&](const room::Member& item) { return item.id == snapshot.localMember; });
 	if (member == snapshot.members.end() || member->table < 0 || member->table >= room::TableCount) return;
 	const auto generation = runtime->match->Generation();
+	// The player fought is remembered for Find a player's Recent opponents (a public room only).
+	internal::NoteOpponent(snapshot, member->table, member->seat);
 	netplay::MatchResultCapture capture;
 	capture.roomId = runtime->room->RoomId();
 	capture.roomEpoch = snapshot.roomEpoch;
