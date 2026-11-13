@@ -2,6 +2,7 @@ use serde_json::{Value, json};
 
 use super::*;
 use crate::levels::tests::{ignores_extra, read, refuses_extra};
+use crate::awards::MAX_FAMILY_ID;
 
 const FRIEND: &str = "fr_11111111-1111-4111-8111-111111111111";
 const REQUEST: &str = "rq_11111111-1111-4111-8111-111111111111";

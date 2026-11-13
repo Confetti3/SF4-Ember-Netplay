@@ -18,7 +18,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, Result,
-    cards::is_card_token,
     rooms::{is_country, is_player_name},
     skill::SkillBadge,
 };
