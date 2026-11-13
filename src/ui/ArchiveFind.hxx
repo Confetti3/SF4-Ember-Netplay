@@ -1,6 +1,6 @@
 #pragma once
-// "Find this player's sets": the choice a row offers for each player it names
-// (a match on this PC, a set in the public archive), and the name a pick of it
+// "Find this player's sets" and "Player card": the choices a row offers for each player it names
+// (a match on this PC, a set in the public archive), and the name or side a pick of one
 // stands for. Both panels use it, so neither knows the other's rows.
 #include "MenuNavigation.hxx"
 #include "../common/Localization.hxx"
@@ -16,6 +16,19 @@ inline std::vector<MenuChoice> FindChoices(const std::string (&names)[2]) {
     for (int side = 0; side < 2; ++side)
         if (!names[side].empty()) choices.push_back({"find-" + std::to_string(side + 1), loc::Tf("archive.find", names[side]), loc::Tf("archive.find_detail", names[side])});
     return choices;
+}
+// "Player card: NAME" for the players of sides 0 and 1 that have a name: the choice that opens their profile.
+inline std::vector<MenuChoice> CardChoices(const std::string (&names)[2]) {
+    std::vector<MenuChoice> choices;
+    for (int side = 0; side < 2; ++side)
+        if (!names[side].empty()) choices.push_back({"card-" + std::to_string(side + 1), loc::Tf("profile.card_of", names[side]), std::string()});
+    return choices;
+}
+// The side a chosen option opens the card of, if it is a Player card choice.
+inline std::optional<int> CardSide(const std::string& choice) {
+    if (choice == "card-1") return 0;
+    if (choice == "card-2") return 1;
+    return std::nullopt;
 }
 // The name a chosen option asks the archive for, if it is a Find of a named side.
 inline std::optional<std::string> FoundName(const std::string& choice, const std::string (&names)[2]) {

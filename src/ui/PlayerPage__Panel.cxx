@@ -256,7 +256,7 @@ bool PlayerPage::Choose(const ShellView& v, const MenuAction& a, const Hands& h)
     }
     // A set's row offers the cards of the players in it: they replace this profile.
     if (const auto player = sets_.PlayerOf(a)) {
-        Begin(netplay::profiles::Key::OfName(player->name, player->country), *player, h.navigation);
+        Open(player->key, player->known, h.navigation);
         return true;
     }
     return sets_.Choose(a, v, h.submit, h.navigation, h.queue, h.error);

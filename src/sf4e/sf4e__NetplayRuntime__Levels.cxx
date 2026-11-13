@@ -114,10 +114,15 @@ void TickCards(bool helperReady, std::uint64_t nowMs) {
 	if (!helperReady) return;
 	const auto batch = cards.Take(nowMs);
 	if (batch.empty()) return;
+	// A card token names a room member; a friend id the friend the Friends tab has focused.
 	json selectors = json::array();
-	for (const auto& token : batch) selectors.push_back({{"card", token}});
+	for (const auto& key : batch) selectors.push_back({{netplay::levels::Cards::IsFriendKey(key) ? "friend" : "card", key}});
 	const json request = {{"op", "cards_lookup"}, {"bridge_id", cards.Bridge()}, {"cards", selectors}};
 	cards.Sent(SendBridgeRequest(request), batch, nowMs);
+}
+
+void DispatchCards(const commands::FriendCardWanted& command) {
+	runtime->cards.WantFriend(command.id);
 }
 } // namespace internal
 

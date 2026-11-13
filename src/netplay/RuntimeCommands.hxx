@@ -61,6 +61,9 @@ struct Tournament { netplay::tournament::Command tournament; };
 //   PlayerSearch   Find a player: one search for `text`, a name (2 to 32 bytes) or, with `code`, a friend code. A
 //                  newer text drops the older answer, and an empty text clears it. The answer reaches
 //                  ShellView::playerSearch.
+//   FriendCardWanted  The Friends tab has this friend (`id`, "fr_...") focused: their card is looked up with the room
+//                  members' cards, in one look-up with whatever else waits, and the last few friends focused are kept
+//                  (netplay::levels::Cards::WantFriend). The answer reaches ShellView::memberCards under the friend id.
 namespace profile_limits {
 constexpr std::size_t Bridge = 256, Value = 128, Text = 32;
 }
@@ -81,6 +84,11 @@ struct PlayerSearch {
     bool code = false;
     bool Valid() const { return bridge.size() <= profile_limits::Bridge && text.size() <= profile_limits::Text; }
     std::size_t Bytes() const { return bridge.size() + text.size(); }
+};
+struct FriendCardWanted {
+    std::string id;
+    bool Valid() const { return !id.empty() && id.size() <= profile_limits::Value; }
+    std::size_t Bytes() const { return id.size(); }
 };
 
 // Every command below is made for the controller generation the press saw
@@ -200,7 +208,7 @@ using RuntimeRequestWith = std::variant<commands::Identity, commands::Tournament
     commands::FriendDecline, commands::FriendCancel, commands::FriendRemove, commands::FriendBlock, commands::FriendUnblock,
     commands::FriendNewCode, commands::FriendAppearOffline, commands::FriendTurnOff, commands::FriendTurnOn, commands::FriendInvite,
     commands::FriendDismiss, commands::FriendJoin, commands::FriendWatch, commands::FriendTakeInvite, commands::FriendAnswerVisit,
-    commands::ProfileOpen, commands::ProfileClose, commands::PlayerSearch,
+    commands::ProfileOpen, commands::ProfileClose, commands::PlayerSearch, commands::FriendCardWanted,
     commands::Training, commands::LeaveWatchedGame,
     commands::DiscordInvite, commands::PreviewSound, commands::Replay, commands::ShortInvitation, commands::Pad,
     commands::RoomSettings, commands::Input, commands::Service,

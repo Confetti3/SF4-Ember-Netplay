@@ -88,7 +88,10 @@ const Replay* RowReplay(const ShellView& v,const std::vector<Set>& sets,const st
 }
 }
 ReplaysPanel::Wants ReplaysPanel::Wanted(const std::string& screen) const {
- Wants wants;wants.listing=screen=="replays"||screen=="replay-filter"||screen=="replay-sets"||screen=="replay-set";
+ Wants wants;
+ // The Archive tab sits in Replays' strip, whose Sets and Export video tabs come from this listing: it is read on the tab
+ // too, so the strip is whole whichever tab was opened first (from a profile's Find this player's sets, say).
+ wants.listing=screen=="replays"||screen=="replay-filter"||screen=="replay-sets"||screen=="replay-set"||ArchiveTab::Owns(screen);
  // Each entry owns a revision. WantDetail coalesces frames of that entry;
  // the worker rereads the bounded file before considering its content cache.
  if(screen=="replay-inputs"){wants.detail=true;wants.detailFile=inputsFile_;wants.detailRevision=inputsRevision_;}
@@ -288,6 +291,7 @@ MenuEntry ReplaysPanel::ReplayRow(const ShellView& v,const platform::replays::Ar
   {"keep",loc::T(replay.kept?"replays.unkeep":"replays.keep"),loc::T(replay.kept?"replays.unkeep_detail":"replays.keep_detail")},
   {"show-folder",loc::T("replays.show_folder"),loc::T("replays.show_folder_detail"),!v.services.pending}};
  for(auto& find:FindChoices(replay.names))row.choices.push_back(std::move(find));
+ for(auto& card:CardChoices(replay.names))row.choices.push_back(std::move(card));
  row.chosen=!r.ready?"inputs":idle?"watch":"add";
  return row;
 }
@@ -487,6 +491,13 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
 std::optional<std::string> ReplaysPanel::PlayerToFind(const ShellView& v,const MenuAction& a) const {
  const auto* shown=a.id.compare(0,7,"replay:")==0?Find(v,a.id.substr(7)):nullptr;
  return shown?FoundName(a.text,shown->names):std::nullopt;
+}
+std::optional<player_opening::Opening> ReplaysPanel::PlayerToOpen(const ShellView& v,const MenuAction& a) const {
+ const auto side=CardSide(a.text);
+ const auto* shown=side&&a.id.compare(0,7,"replay:")==0?Find(v,a.id.substr(7)):nullptr;
+ if(!shown||shown->names[*side].empty())return std::nullopt;
+ // A match on this PC knows its players by name and class; its flags were never kept.
+ return player_opening::OpeningOfSide(shown->names[*side],CountryCode(),shown->classes[*side],shown->fighters[*side]);
 }
 bool ReplaysPanel::Status(const ShellView& v,const std::string& screen,std::string& status,Tone& tone) const {
  if((screen!="replays"&&screen!="replay-sets")||!status.empty())return false;

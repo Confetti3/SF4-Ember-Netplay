@@ -218,7 +218,11 @@ public:
         return friends_panel::NotificationRow(a.id) && f.shell.friends_.Activate(f.view, a, f.shell.menu_.navigation, submit);
     }
     bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
-        if (friends_panel::NotificationRow(a.id)) return f.shell.friends_.Choose(f.view, a, submit);
+        if (friends_panel::NotificationRow(a.id)) {
+            const bool taken = f.shell.friends_.Choose(f.view, a, submit);
+            f.shell.OpenFriendsPlayer();
+            return taken;
+        }
         const auto toast = RowKey<unsigned>(a.id, "toast-");
         const auto action = RowKey<std::size_t>(a.text, "");
         if (!toast || !action) return false;

@@ -1,6 +1,6 @@
 // The Friends tab (docs/design/PROFILE.md, "Friends tab"): it keeps the friends fresh while it shows (Visit as it opens,
 // Leave as it closes), lists requests and the friends by where they are, A does the row's word (Accept, Join, Invite,
-// More), Y opens More and Remove or Decline ask again, X opens Add a friend where a typed code sends a request,
+// More), Y opens More and Remove or Decline ask again, X opens Find a player where a typed code sends a request,
 // Appear offline, Sent and Blocked take back a request and lift a block, each state without a list is one card, and a
 // Join that asks first opens its question.
 #include "public_rooms_journey_support.hxx"
@@ -121,16 +121,16 @@ void RowsJourney() {
   j.row("friend:fr_6")->group == loc::Tf("friends.online", 1) && j.row("friend:fr_8")->group == loc::Tf("friends.offline", 1), "The friends' groups are not named with their counts");
  Check(j.row("request:rq_1")->value == loc::T("friends.accept") && j.row("request:rq_1")->detail == loc::Tf("friends.played_you", 6, loc::Tf("friends.days_ago", 1)) &&
   j.row("request:rq_2")->detail == loc::T("friends.not_played"), "A request does not say Accept and whether they played");
- // With a room to offer: Join where it can be joined, else Invite; the offline friend has only More.
+ // With a room to offer: Join where it can be joined, else Invite; the offline friend has only their card.
  Check(j.row("friend:fr_3")->hint == loc::T("friends.join") && j.row("friend:fr_5")->hint == loc::T("friends.invite") && j.row("friend:fr_6")->hint == loc::T("friends.invite") &&
-  j.row("friend:fr_8")->hint == loc::T("friends.more") && j.row("friend:fr_8")->value.empty(), "A friend's row does not say Join, Invite or More");
+  j.row("friend:fr_8")->hint == loc::T("room.member_card") && j.row("friend:fr_8")->value.empty(), "A friend's row does not say Join, Invite or Player card");
  Check(j.row("friend:fr_3")->detail == loc::Tf("friends.playing_table", 1, "Player 5's room") && j.row("friend:fr_6")->detail == loc::T("friends.menus") &&
   j.row("friend:fr_8")->detail == loc::Tf("friends.last_online", loc::Tf("friends.hours_ago", 3)), "A friend's row does not say where they are");
  Check(j.row("friends-sent")->label == loc::Tf("friends.sent", 1) && j.row("friends-blocked")->label == loc::Tf("friends.blocked", 1) &&
   j.row("friends-appear-offline")->value == loc::T("common.off"), "Sent, Blocked and Appear offline are not listed with their counts and state");
- // Nothing to offer: the same rows say More where they said Invite.
+ // Nothing to offer: the same rows say Player card where they said Invite.
  j.view().canInvite = false; j.h.Frame(0, 2);
- Check(j.row("friend:fr_5")->hint == loc::T("friends.more") && j.row("friend:fr_3")->hint == loc::T("friends.join"), "Without a room to offer a friend's row still says Invite");
+ Check(j.row("friend:fr_5")->hint == loc::T("room.member_card") && j.row("friend:fr_3")->hint == loc::T("friends.join"), "Without a room to offer a friend's row still says Invite");
  // The tab's label counts the requests.
  Check(ui::MenuPlayerCard().requests == 2, "The Friends tab does not count the requests");
 }
@@ -160,10 +160,53 @@ void ActionsJourney() {
  j.select("friend:fr_3");
  j.select("request:rq_1");
  Check(j.sent<commands::FriendJoin>().size() == 2 && j.sent<commands::FriendAccept>().size() == 1, "An action went out on a list that is not current");
- // A friend who cannot be joined or invited opens More on A.
+ // A friend who cannot be joined or invited opens their Player card on A, by their friend id, shown with what the row knew;
+ // Back returns to the tab.
  j.view().state.error.clear(); j.view().canInvite = false; j.h.Frame(0, 3);
  j.select("friend:fr_5");
- Check(j.choosing() && j.sent<commands::FriendInvite>().size() == 1, "A on a friend with nothing to do did not open More");
+ Check(!j.choosing() && j.screen() == "player-card" && j.sent<commands::FriendInvite>().size() == 1, "A on a friend with nothing to do did not open their Player card");
+ const auto opens = j.sent<commands::ProfileOpen>();
+ Check(opens.size() == 1 && opens[0]->key == netplay::profiles::Key::OfFriend("fr_5") && opens[0]->known.name == "Player 5", "A friend's card was not asked for by their friend id with their name");
+ j.h.Press(MenuInput::Back);
+ Check(j.screen() == "friends", "Back from a friend's card did not return to the tab");
+}
+
+// More's Player card, first on a friend and on a request, opens their profile by their friend id or request id.
+void CardJourney() {
+ Social j;
+ j.open();
+ j.focus("friend:fr_3");
+ j.h.Press(MenuInput::Options);
+ j.pick(0);
+ Check(!j.choosing() && j.screen() == "player-card" && j.sent<commands::FriendJoin>().empty(), "Player card in More did not open their profile");
+ Check(!j.sent<commands::ProfileOpen>().empty() && j.sent<commands::ProfileOpen>().back()->key == netplay::profiles::Key::OfFriend("fr_3"), "Player card on a friend did not ask by their friend id");
+ j.h.Press(MenuInput::Back);
+ j.focus("request:rq_1");
+ j.h.Press(MenuInput::Options);
+ j.pick(0);
+ Check(j.screen() == "player-card" && j.sent<commands::FriendAccept>().empty(), "Player card on a request did not open their profile");
+ const auto* open = j.sent<commands::ProfileOpen>().back();
+ Check(open->key == netplay::profiles::Key::OfRequest("rq_1") && open->known.name == "Player 9", "Player card on a request did not ask by its id");
+}
+
+// The friend the tab has focused has their card asked for, once as the focus lands and not again while it stays; each friend
+// the focus visits is asked for, and nothing is asked on another tab.
+void CardWantedJourney() {
+ Social j;
+ j.open();
+ j.focus("friend:fr_6");
+ j.h.Frame(0, 20);
+ auto wanted = j.sent<commands::FriendCardWanted>();
+ Check(wanted.size() == 1 && wanted[0]->id == "fr_6", "The focused friend's card was not asked for once");
+ j.focus("friend:fr_3");
+ j.focus("friend:fr_6");
+ wanted = j.sent<commands::FriendCardWanted>();
+ Check(wanted.size() == 3 && wanted[1]->id == "fr_3" && wanted[2]->id == "fr_6", "Each friend the focus visited was not asked for");
+ // A request or a row of another kind asks for nothing, and a page over the tab asks for no more.
+ j.focus("request:rq_1");
+ j.focus("friends-add");
+ j.h.Frame(0, 5);
+ Check(j.sent<commands::FriendCardWanted>().size() == 3, "A row that is no friend asked for a card");
 }
 
 // Y opens More on a friend; its choices are listed with their reasons; Watch is sent; Remove asks again.
@@ -174,23 +217,23 @@ void MoreJourney() {
  j.h.Press(MenuInput::Options);
  Check(j.choosing(), "Y did not open More on a friend");
  const auto* row = j.row("friend:fr_3");
- Check(row && row->popout && row->choices.size() == 5 && row->choices[0].id == "join" && row->choices[1].id == "watch" && row->choices[2].id == "invite" &&
-  row->choices[3].id == "remove" && row->choices[4].id == "remove-block", "More on a friend is not Join, Watch, Invite, Remove, Remove and block");
- Check(row->choices[0].enabled && row->choices[1].enabled && row->choices[2].enabled && row->choices[3].enabled, "More on a friend fighting in a room cannot do each choice");
- j.pick(1);
+ Check(row && row->popout && row->choices.size() == 6 && row->choices[0].id == "card" && row->choices[1].id == "join" && row->choices[2].id == "watch" && row->choices[3].id == "invite" &&
+  row->choices[4].id == "remove" && row->choices[5].id == "remove-block", "More on a friend is not Player card, Join, Watch, Invite, Remove, Remove and block");
+ Check(row->choices[0].enabled && row->choices[1].enabled && row->choices[2].enabled && row->choices[3].enabled && row->choices[4].enabled, "More on a friend fighting in a room cannot do each choice");
+ j.pick(2);
  Check(!j.choosing() && j.sent<commands::FriendWatch>().size() == 1 && j.sent<commands::FriendWatch>()[0]->friendId == "fr_3", "Watch in More did not send Watch");
  // The friend in a room that cannot be joined: Join and Watch are listed with their reasons.
  j.focus("friend:fr_5");
  j.h.Press(MenuInput::Options);
  row = j.row("friend:fr_5");
- Check(j.choosing() && row && !row->choices[0].enabled && row->choices[0].detail == loc::T("friends.cannot_join") && !row->choices[1].enabled &&
-  row->choices[1].detail == loc::T("friends.cannot_watch"), "More does not say why a room cannot be joined or watched");
+ Check(j.choosing() && row && !row->choices[1].enabled && row->choices[1].detail == loc::T("friends.cannot_join") && !row->choices[2].enabled &&
+  row->choices[2].detail == loc::T("friends.cannot_watch"), "More does not say why a room cannot be joined or watched");
  j.h.Press(MenuInput::Back);
  Check(!j.choosing() && j.sent<commands::FriendJoin>().empty(), "Back from More sent something");
  // Remove friend asks again; Back declines, Select goes ahead.
  j.focus("friend:fr_6");
  j.h.Press(MenuInput::Options);
- j.pick(3);
+ j.pick(4);
  Check(j.choosing() && j.sent<commands::FriendRemove>().empty(), "Remove friend did not ask again");
  row = j.row("friend:fr_6");
  Check(row && row->choices.size() == 1 && row->choices[0].id == "yes" && row->choices[0].label == loc::T("friends.remove") && row->choices[0].detail == "Player 6", "The question does not name Remove friend and the player");
@@ -198,7 +241,7 @@ void MoreJourney() {
  Check(!j.choosing() && j.sent<commands::FriendRemove>().empty(), "Back from the question removed the friend");
  j.focus("friend:fr_6");
  j.h.Press(MenuInput::Options);
- j.pick(4);
+ j.pick(5);
  j.pick(0);
  Check(!j.choosing() && j.sent<commands::FriendRemove>().size() == 1 && j.sent<commands::FriendRemove>()[0]->friendId == "fr_6" && j.sent<commands::FriendRemove>()[0]->block, "Remove and block did not send Remove with block");
  // Delete asks to remove the friend at once (a key the pad has no button for).
@@ -248,20 +291,20 @@ void RequestJourney() {
  j.focus("request:rq_1");
  j.h.Press(MenuInput::Options);
  const auto* row = j.row("request:rq_1");
- Check(j.choosing() && row && row->choices.size() == 3 && row->choices[0].id == "accept" && row->choices[1].id == "decline" && row->choices[2].id == "decline-block", "More on a request is not Accept, Decline, Decline and block");
- j.pick(1);
+ Check(j.choosing() && row && row->choices.size() == 4 && row->choices[0].id == "card" && row->choices[1].id == "accept" && row->choices[2].id == "decline" && row->choices[3].id == "decline-block", "More on a request is not Player card, Accept, Decline, Decline and block");
+ j.pick(2);
  Check(j.choosing() && j.sent<commands::FriendDecline>().empty(), "Decline did not ask again");
  j.pick(0);
  Check(j.sent<commands::FriendDecline>().size() == 1 && j.sent<commands::FriendDecline>()[0]->request == "rq_1" && !j.sent<commands::FriendDecline>()[0]->block, "Decline and yes did not send Decline");
  j.view().busy = false; ++j.view().state.finished; j.h.Frame(0, 3);
  j.focus("request:rq_2");
  j.h.Press(MenuInput::Options);
- j.pick(2);
+ j.pick(3);
  j.pick(0);
  Check(j.sent<commands::FriendDecline>().size() == 2 && j.sent<commands::FriendDecline>()[1]->request == "rq_2" && j.sent<commands::FriendDecline>()[1]->block, "Decline and block did not send Decline with block");
 }
 
-// X opens Add a friend; the code is typed as it is, Send request waits for eight symbols and sends it; the page goes back
+// X opens Find a player; the text is typed as it is, Send request shows for a whole code (eight symbols) and sends it; the page goes back
 // once it went through, and stays with a refusal.
 void AddJourney() {
  Social j;
@@ -270,17 +313,17 @@ void AddJourney() {
  j.h.Press(MenuInput::Fighter);
  Check(j.screen() == "friends-add", "X did not open Add a friend");
  Check(j.row("friends-code") && j.row("friends-code")->value == "4F2A-91CX", "Add a friend does not show the player's code");
- Check(j.row("friends-send") && !j.row("friends-send")->enabled, "Send request is open with no code");
+ Check(!j.row("friends-send") && j.row("friends-search") && !j.row("friends-search")->enabled, "Send request shows with no code, or Search is open with no text");
  j.select("friends-their-code");
  j.type("4f2a91c");
- Check(j.row("friends-their-code")->value == "4f2a91c" && !j.row("friends-send")->enabled, "Send request is open with a code of seven symbols");
+ Check(j.row("friends-their-code")->value == "4f2a91c" && !j.row("friends-send") && j.row("friends-search")->enabled, "Send request shows with a code of seven symbols, or Search is shut at two characters");
  // The page is left and opened again: no code is kept.
  j.h.Press(MenuInput::Back); j.h.shell.Navigation().Push("friends-add"); j.h.Frame(0, 3);
  Check(j.row("friends-their-code")->value.empty(), "Add a friend kept the last code");
  j.select("friends-their-code");
  j.type("4f2a-91cx");
  const auto typed = j.row("friends-their-code")->value;
- Check(typed == "4f2a-91cx" && j.row("friends-send")->enabled, "Send request is not open with a code of eight symbols");
+ Check(typed == "4f2a-91cx" && j.row("friends-send") && j.row("friends-send")->enabled, "Send request is not open with a code of eight symbols");
  j.select("friends-send");
  const auto requests = j.sent<commands::FriendRequestByCode>();
  Check(requests.size() == 1 && requests[0]->code == typed && requests[0]->bridge == "brg_1" && j.sent<commands::FriendRequest>().empty(), "Send request did not send the code as typed");
@@ -302,6 +345,61 @@ void AddJourney() {
  // A new code asks first.
  j.select("friends-new-code");
  Check(j.h.shell.Navigation().Confirming() && j.sent<commands::FriendNewCode>().empty(), "New code did not ask first");
+}
+
+// Find a player: Search sends one search for the name typed (from two characters), a whole code is searched as a code; what it
+// found is a row each, A opens a result by its card token and a recent opponent by theirs, Back finds the text and the answer
+// where they were, and leaving the page clears the search.
+void FindJourney() {
+ namespace pr = netplay::profiles;
+ Social j;
+ j.h.view.profilesService = pr::Service::Offered;
+ pr::Recent met;
+ met.card = "c1.recent"; met.name = "Player 5"; met.country = CountryCode::Parsed("DE"); met.fighter = 12; met.room = "Player 5's room"; met.at = Now - 2 * Hour;
+ j.h.view.recentOpponents = {met};
+ j.open("friends-add");
+ Check(j.row("find-recent:0") && j.row("find-recent:0")->label == "Player 5" && j.row("find-recent:0")->group == loc::T("find.recent"), "Find a player does not list the players met lately before a search");
+ // Search is shut under two characters, and says why.
+ Check(j.row("friends-search") && !j.row("friends-search")->enabled && j.sent<commands::PlayerSearch>().empty(), "Search is open with nothing typed");
+ j.select("friends-their-code");
+ j.type("Player");
+ j.select("friends-search");
+ auto searches = j.sent<commands::PlayerSearch>();
+ Check(searches.size() == 1 && searches[0]->bridge == "brg_1" && searches[0]->text == "Player" && !searches[0]->code, "Search did not send the name typed");
+ // The answer: two players, listed for the text typed.
+ auto& search = j.h.view.playerSearch;
+ search.text = "Player"; search.byCode = false; search.answer.loaded = true; search.answer.loading = false;
+ pr::Hit first, second;
+ first.card = "c1.hit0"; first.name = "Player 2"; first.country = CountryCode::Parsed("GB"); first.hasMain = true; first.main = 5;
+ second.card = "c1.hit1"; second.name = "Player 3"; second.country = CountryCode::Parsed("FR");
+ search.answer.value.players = {first, second};
+ ++search.answer.revision; ++search.answer.finished;
+ j.h.Frame(0, 3);
+ Check(j.row("find-player:0") && j.row("find-player:1") && j.row("find-player:1")->label == "Player 3" && j.row("find-recent:0"), "The players a search found are not listed beside those met lately");
+ j.select("find-player:1");
+ Check(j.screen() == "player-card", "A on a result did not open their profile");
+ const auto opens = j.sent<commands::ProfileOpen>();
+ Check(opens.size() == 1 && opens[0]->key == pr::Key::OfCard("c1.hit1") && opens[0]->known.name == "Player 3", "A result was not asked for by its card token");
+ // Back: the text and the answer are where they were.
+ j.h.Press(MenuInput::Back);
+ Check(j.screen() == "friends-add" && j.row("friends-their-code")->value == "Player" && j.row("find-player:1"), "Back from a result lost the text or the answer");
+ j.select("find-recent:0");
+ Check(j.screen() == "player-card" && j.sent<commands::ProfileOpen>().size() == 2 && j.sent<commands::ProfileOpen>()[1]->key == pr::Key::OfCard("c1.recent") &&
+  j.sent<commands::ProfileOpen>()[1]->known.fighter == 12, "A on a recent opponent did not open their profile by the token kept");
+ j.h.Press(MenuInput::Back);
+ // Leaving the page empties the text and clears the search.
+ j.h.Press(MenuInput::Back);
+ j.h.Frame(0, 3);
+ searches = j.sent<commands::PlayerSearch>();
+ Check(j.screen() == "friends" && searches.size() == 2 && searches[1]->text.empty(), "Leaving Find a player did not clear the search");
+ // A whole code is searched as a code.
+ j.h.Press(MenuInput::Fighter);
+ Check(j.screen() == "friends-add" && j.row("friends-their-code")->value.empty(), "X did not open Find a player with no text");
+ j.select("friends-their-code");
+ j.type("4f2a-91cx");
+ j.select("friends-search");
+ searches = j.sent<commands::PlayerSearch>();
+ Check(searches.size() == 3 && searches[2]->code && searches[2]->text == "4f2a-91cx", "Search did not send a whole code as a code");
 }
 
 // Appear offline is a switch Select flips; it sends the opposite of what the state says.
@@ -458,7 +556,7 @@ void SettingsJourney() {
 
 int main() {
  try {
-  VisitJourney(); RowsJourney(); ActionsJourney(); MoreJourney(); RequestJourney(); AddJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
+  VisitJourney(); RowsJourney(); ActionsJourney(); CardJourney(); CardWantedJourney(); MoreJourney(); RequestJourney(); AddJourney(); FindJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
   std::cout << "Friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

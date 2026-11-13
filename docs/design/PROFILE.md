@@ -1000,23 +1000,25 @@ Ember: a stepped value reads "{value} · shown" or "Hidden", never "Shown
 | `find.text_row` | Name or friend code |
 | `find.text_detail` | Part of a name, two letters at least, or a friend code. |
 | `find.search` | Search |
-| `find.send_detail` | Sends a friend request to that code. |
+| `find.send_detail` | Sends a friend request to that code. (Not added: the existing `friends.send_detail` says it.) |
 | `find.players` | PLAYERS · {0} |
 | `find.searching` | Looking. |
 | `find.none` | No player goes by that name. |
 | `find.more` | More players match. Type more of the name. |
 | `find.recent` | RECENT OPPONENTS |
 | `find.recent_line` | Played {0} · {1} |
+| `find.recent_when` | Played {0} (a recent opponent whose room has no name) |
 | `find.recent_empty` | Players you meet in public rooms show here for a week. |
 | `postmatch.add_friend.detail` | Sends {0} a friend request. Your answer to the rematch stays as it is. |
+| `postmatch.accept_friend.detail` | Accepts {0}'s friend request. Your answer to the rematch stays as it is. |
 
 Changed English: `card.edit_detail` "Your name, flag, main, title, awards and
 how you play." Dropped from the first draft before any package used them:
 `card.award_line` (the title now stands under each icon), `card.not_yet`,
 `card.not_shown`, `card.awards_heading` (Edit card's group uses
 `card.awards`). The Friends tab's first row label moves from `friends.add` to
-`find.title`; `friends.add` stays for the Settings and toast uses that still
-name it, and is removed by W5 if none is left.
+`find.title`; `friends.add` had no use left and is gone, with `friends.their_code`
+(the text row is `find.text_row`).
 
 ## Work packages
 

@@ -37,8 +37,9 @@ struct BoardFrame {
     // The list's column, whose width a popout's choices lay out in.
     v2::Box column;
     float s;
-    // The profile open (ShellView::profile): a friend's card read for it gives their Panel its chips, record and families.
-    const netplay::profiles::Profile& profile;
+    // The cards the runtime looked up (ShellView::memberCards): a friend's, by their friend id, gives their Panel its chips,
+    // record and families (FriendCardWanted). Null while there are none.
+    const netplay::levels::CardMap* cards;
     MenuNavigation& nav() const { return menu.navigation; }
 };
 
@@ -233,15 +234,19 @@ void DrawPersonPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool 
     float y = box.min.y + head + pad;
     if (entry) {
         OtherCardView card = CardOf(*entry, f.art);
-        const auto& open = f.profile;
-        if (open.state == netplay::profiles::Profile::State::Card && open.card.loaded && open.key.kind == netplay::profiles::Key::Kind::Friend && open.key.value == entry->id) {
-            netplay::profiles::Known known;
-            known.name = entry->name; known.country = entry->country; known.badge = entry->badge;
-            known.fighter = entry->hasMain ? entry->main.fighter : -1;
-            card = PanelOf(player_card::CardSubject(open.card.value, known, -1, false, true), f.art);
-        }
+        // Their card, once the runtime has read it: the list's own words stand until then.
+        if (f.cards)
+            if (const auto read = f.cards->find(entry->id); read != f.cards->end())
+                card = PanelOf(player_card::CardSubject(read->second, player_opening::OpeningOf(*entry).known, -1, false, true), f.art);
         // The Panel stands on this panel's own ground; its height is its content's.
-        y += DrawOtherCard(f.d, v2::Box{ImVec2(x, y), ImVec2(x + room, y)}, card, false) + 14 * s;
+        const float cardHeight = DrawOtherCard(f.d, v2::Box{ImVec2(x, y), ImVec2(x + room, y)}, card, false);
+        // The pointer on the card opens their profile; the pad does it with A, or from More.
+        ImGui::SetCursorScreenPos(ImVec2(x, y));
+        ImGui::PushID("panel-card");
+        const bool opened = ImGui::InvisibleButton("##card", ImVec2(room, cardHeight)) && !f.nav().Choosing() && !f.nav().Asking();
+        ImGui::PopID();
+        if (opened) f.action = MenuAction{MenuAction::Activate, CardPrefix + e.id};
+        y += cardHeight + 14 * s;
         // Where they are, with the room's count.
         DrawPresenceMark(f.d, ImVec2(x + 6 * s, y + 10 * s), 6 * s, entry->presence.kind);
         std::string where = e.detail;
@@ -257,15 +262,15 @@ void DrawPersonPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool 
         y += v2::Paragraph(f.d, ImVec2(x, y), room, e.detail, 15 * s, c.muted) + 12 * s;
     }
     // The row's action and More beside it; where More is the action it stands alone.
-    const Press press = entry ? PressOf(*entry, f.view.canInvite) : Press::More;
-    const bool more = entry && press == Press::More;
-    const std::string word = request ? loc::T("friends.accept") : more ? loc::T("friends.more") : loc::T(press == Press::Join ? "friends.join_room" : "friends.invite_room");
-    const bool gated = more ? false : request || press != Press::Join ? !f.gate.act : !f.gate.go;
+    const Press press = entry ? PressOf(*entry, f.view.canInvite) : Press::Join;
+    const bool card = entry && press == Press::Card;
+    const std::string word = request ? loc::T("friends.accept") : card ? loc::T("room.member_card") : loc::T(press == Press::Join ? "friends.join_room" : "friends.invite_room");
+    const bool gated = card ? false : request || press != Press::Join ? !f.gate.act : !f.gate.go;
     const float high = 48 * s;
     v2::Box row{ImVec2(x, y + 4 * s), ImVec2(x + room, y + 4 * s + high)};
-    const v2::Box primary = more ? row : v2::CutLeft(row, room - 150 * s - 10 * s, 10 * s);
+    const v2::Box primary = v2::CutLeft(row, room - 150 * s - 10 * s, 10 * s);
     if (PanelButton(f, "panel-primary", primary, word, nullptr, v2::ButtonKind::Primary, !gated)) f.action = MenuAction{MenuAction::Activate, e.id};
-    if (!more && PanelButton(f, "panel-more", row, loc::T("friends.more"), "Y", v2::ButtonKind::Secondary, true)) f.more(e.id);
+    if (PanelButton(f, "panel-more", row, loc::T("friends.more"), "Y", v2::ButtonKind::Secondary, true)) f.more(e.id);
     y += high + 4 * s;
     box.max.y = y + pad;
     split.SetCurrentChannel(f.d, 0);
@@ -312,7 +317,7 @@ void FriendsPanel::Draw(const ShellView& v, GameMenu& menu, const std::vector<Me
     const v2::Box side = narrow || mode != Mode::Listed ? v2::Box{} : v2::CutRight(list, (compact ? 400 : 520) * s, 24 * s);
     const BoardFrame f{d, menu, [this](const std::string& row) { Ask(row, {}); }, rows, action, v.friends, StateOf(v.friends), GateOf(v.friends, service_, pending_.active),
         v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait, v.unixNow, changed,
-        v2::Box{origin, ImVec2(list.max.x, origin.y + height)}, s, v.profile};
+        v2::Box{origin, ImVec2(list.max.x, origin.y + height)}, s, v.memberCards.get()};
     float y = origin.y;
     // Without an account the words, and the way on.
     if (mode == Mode::NoAccount) {

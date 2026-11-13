@@ -5,6 +5,8 @@
 // commands without opening a screen.
 #include "public_rooms_journey_support.hxx"
 #include "../ui/FriendsPanel.hxx"
+#include "../ui/PostMatchFriend.hxx"
+#include <map>
 #include <memory>
 namespace {
 namespace nf = sf4e::netplay::friends;
@@ -48,8 +50,15 @@ struct RoomJourney : Journey {
  std::string screen() { return h.shell.Navigation().Screen(); }
  // Player 2's popout open on the Members list.
  const MenuEntry* popout(const char* member = "member-2") { h.Screen("room-members"); h.Choose(member); return row(member); }
- // Player 2's page, by Player card.
- void page() { popout(); h.Press(MenuInput::Select); h.Frame(0, 2); }
+ // The member's page, which Player card no longer opens (it opens their profile): Kick asks on it first, and Back puts that question away.
+ void page(const char* member = "member-2") {
+  const auto* entry = popout(member);
+  std::size_t kick = 0;
+  while (entry && kick < entry->choices.size() && entry->choices[kick].id != "kick") ++kick;
+  for (std::size_t i = 0; i < kick; ++i) h.Press(MenuInput::Down);
+  h.Press(MenuInput::Select); h.Frame(0, 2);
+  h.Press(MenuInput::Back);
+ }
  static bool offers(const MenuEntry* entry, const char* id) {
   return entry && std::any_of(entry->choices.begin(), entry->choices.end(), [&](const MenuChoice& c) { return c.id == id; });
  }
@@ -91,12 +100,12 @@ void PopoutJourney() {
  Check(!RoomJourney::offers(priv.popout(), "friend-request"), "A private room offered Add friend");
 }
 
-// Player card opens the page: the relation row, Mute, Steam profile, Kick, Make host, Block. Each relation says its state;
+// The member's page (Kick and Make host ask on it): the relation row, Mute, Steam profile, Kick, Make host, Block. Each relation says its state;
 // Add friend and Accept request send the same request; the other states cannot be pressed.
 void PageJourney() {
  RoomJourney j;
  j.page();
- Check(j.screen() == "room-member", "Player card did not open the member's page");
+ Check(j.screen() == "room-member", "Kick did not open the member's page");
  const std::vector<std::string> ids = {"friend-request", "mute", "steam-profile", "kick", "transfer-host", "friend-block"};
  std::vector<std::string> shown;
  for (const auto& r : j.rows) shown.push_back(r.id);
@@ -135,7 +144,7 @@ void RelationRowsJourney() {
  // A member with no card, and a private room, leave the relation and Block out.
  {
   RoomJourney none;
-  none.h.Screen("room-members"); none.h.Choose("member-3"); none.h.Press(MenuInput::Select); none.h.Frame(0, 2);
+  none.page("member-3");
   Check(none.screen() == "room-member" && !none.row("friend-request") && !none.row("friend-block"), "A member with no card has a friend row or Block");
  }
  {
@@ -314,6 +323,128 @@ void RequestOverPromptJourney() {
   "Accept on the request's toast did not say who is now a friend, or the toast shown again was listed twice");
 }
 
+// Player card in a member's popout opens their profile page: by the card token their ticket carried, shown with their name,
+// and by their name and flag in a room with no tokens; Back returns to the Members list. It asks the runtime once.
+void PlayerCardJourney() {
+ namespace pr = netplay::profiles;
+ {
+  RoomJourney j;
+  j.popout();
+  j.h.Press(MenuInput::Select);
+  j.h.Frame(0, 2);
+  Check(j.screen() == "player-card", "Player card did not open their profile");
+  const auto opens = j.sent<commands::ProfileOpen>();
+  Check(opens.size() == 1 && opens[0]->bridge == "brg_1" && opens[0]->key == pr::Key::OfCard("c1.player_2") && opens[0]->known.name == "Player 2", "A member's profile was not asked for by their card token and name");
+  j.h.Press(MenuInput::Back);
+  Check(j.screen() == "room-members", "Back from a member's profile did not return to the Members list");
+ }
+ {
+  // No token (a private room, a member with no card): by name.
+  RoomJourney j;
+  j.popout("member-3");
+  j.h.Press(MenuInput::Select);
+  j.h.Frame(0, 2);
+  const auto opens = j.sent<commands::ProfileOpen>();
+  Check(j.screen() == "player-card" && opens.size() == 1 && opens[0]->key == pr::Key::OfName("Player 3") && opens[0]->known.name == "Player 3", "A member with no token was not asked for by name");
+ }
+}
+
+// After a set the opponent's row ends in Add friend: View sends the member's request (card token, room name) from anywhere in
+// the prompt and the box turns to Request sent at once; the focus stays on Rematch, nothing is answered (no Ready) and the prompt
+// stays; a refusal brings the button back; A on it presses it, as the D-pad reaches it. Accept request, Request sent, Friends,
+// a block and a room with no card each say what they are, and only the first two are buttons.
+void PostMatchFriendJourney() {
+ const std::string row = ui::post_match_friend::RowId;
+ std::map<std::string, std::string> words;
+ {
+  RoomJourney j(Relation::None);
+  Rematches r(j);
+  SetMenuCardTextProbe([&](const std::string& id, const std::string& text) { words[id] = text; });
+  j.h.Screen("room");
+  r.Plays(); r.Hidden(30);
+  r.Win();
+  Check(j.screen() == "post-match" && j.h.shell.Navigation().Focus() == "again", "The WIN did not open the prompt on Rematch");
+  const auto* add = j.row(row);
+  Check(add && add->wide && add->enabled && add->label == loc::T("friends.add_member") && add->detail == loc::Tf("postmatch.add_friend.detail", "Player 2"), "The prompt has no Add friend for a stranger from a public room");
+  Check(j.rows.front().id == "again" && j.rows.back().id == row, "Add friend is not the footer after the prompt's buttons");
+  // View sends it from the prompt, which stays as it was.
+  j.h.Press(MenuInput::Chat);
+  const auto requests = j.sent<commands::FriendRequest>();
+  Check(requests.size() == 1 && requests[0]->bridge == "brg_1" && requests[0]->card == "c1.player_2" && requests[0]->label == "Player 2" && !requests[0]->mutual, "View did not send a request with the card token and the room name");
+  Check(j.screen() == "post-match" && j.h.shell.Navigation().Focus() == "again", "View moved the focus or left the prompt");
+  Check(j.h.shell.PostMatchAnswer().word == room::PostMatchWord::None && j.sent<commands::Ready>().empty(), "Add friend answered the rematch");
+  // The box is the same box, flat: Request sent, and not a row.
+  Check(!j.row(row) && words[row] == loc::T("friends.request_sent"), "The box did not turn to Request sent as the request went out");
+  j.h.Press(MenuInput::Chat);
+  Check(j.sent<commands::FriendRequest>().size() == 1, "A second View sent another request");
+  // A refusal comes back as the usual words and the button returns; A on it presses it, and the focus goes back to Rematch.
+  auto& f = j.view();
+  f.busy = true; j.h.Frame(0, 2);
+  f.busy = false; ++f.state.finished; ++f.refusals; f.refusal = "request_limit"; f.refusalText = "Wait a while before asking again."; j.h.Frame(0, 3);
+  Check(j.row(row) != nullptr, "A refusal did not bring Add friend back");
+  f.refusal.clear();
+  j.h.shell.Navigation().Focus(row, j.rows); j.h.Frame();
+  j.h.Press(MenuInput::Select);
+  Check(j.sent<commands::FriendRequest>().size() == 2, "A on Add friend did not send the request");
+  Check(j.h.shell.Navigation().Focus() == "again" && j.screen() == "post-match" && j.h.shell.PostMatchAnswer().word == room::PostMatchWord::None, "Add friend pressed with A left the focus on its row or answered the rematch");
+  SetMenuCardTextProbe({});
+ }
+ // They asked first: Accept request sends the same request, which the bridge makes friendship of.
+ {
+  RoomJourney j(Relation::Received);
+  Rematches r(j);
+  j.h.Screen("room");
+  r.Plays(); r.Hidden(30);
+  r.Win();
+  const auto* accept = j.row(row);
+  Check(accept && accept->label == loc::T("friends.accept_member") && accept->detail == loc::Tf("postmatch.accept_friend.detail", "Player 2"), "A request waiting is not Accept request");
+  j.h.Press(MenuInput::Chat);
+  const auto requests = j.sent<commands::FriendRequest>();
+  Check(requests.size() == 1 && requests[0]->mutual && j.h.shell.Navigation().Focus() == "again", "View on Accept request did not send a mutual request, or moved the focus");
+ }
+ // The states that are no button: a flat box with its word, nothing to press, and View sends nothing.
+ const struct { Relation relation; const char* label; } flat[] = {{Relation::Sent, "friends.request_sent"}, {Relation::Friend, "friends.are_friends"}};
+ for (const auto& state : flat) {
+  RoomJourney j(state.relation);
+  Rematches r(j);
+  words.clear();
+  SetMenuCardTextProbe([&](const std::string& id, const std::string& text) { words[id] = text; });
+  j.h.Screen("room");
+  r.Plays(); r.Hidden(30);
+  r.Win();
+  Check(!j.row(row) && words[row] == loc::T(state.label), "A relation that is no button is a row, or the box does not say it");
+  j.h.Press(MenuInput::Chat);
+  Check(j.sent<commands::FriendRequest>().empty() && j.h.shell.Navigation().Focus() == "again", "View sent a request to a friend or a player already asked");
+  SetMenuCardTextProbe({});
+ }
+ // Nothing for a player who blocked, or a room with no card token (a private room).
+ {
+  RoomJourney blocked(Relation::Blocked);
+  Rematches r(blocked);
+  words.clear();
+  SetMenuCardTextProbe([&](const std::string& id, const std::string& text) { words[id] = text; });
+  blocked.h.Screen("room");
+  r.Plays(); r.Hidden(30);
+  r.Win();
+  Check(!blocked.row(row) && words.count(row) == 0, "A blocked player has an Add friend box");
+  SetMenuCardTextProbe({});
+ }
+ {
+  RoomJourney priv(Relation::None, false);
+  priv.h.view.room.members[1].card = CardToken();
+  Rematches r(priv);
+  words.clear();
+  SetMenuCardTextProbe([&](const std::string& id, const std::string& text) { words[id] = text; });
+  priv.h.Screen("room");
+  r.Plays(); r.Hidden(30);
+  r.Win();
+  Check(priv.screen() == "post-match" && !priv.row(row) && words.count(row) == 0, "A room with no card tokens has an Add friend box");
+  priv.h.Press(MenuInput::Chat);
+  Check(priv.sent<commands::FriendRequest>().empty(), "View sent a request in a room with no card tokens");
+  SetMenuCardTextProbe({});
+ }
+}
+
 // What a toast is followed by: Later is an answer, and nothing said over a free menu is said again.
 void ToastAnsweredJourney() {
  RoomJourney j; j.h.Screen("home");
@@ -397,8 +528,8 @@ void NotificationsJourney() {
 
 int main() {
  try {
-  PopoutJourney(); PageJourney(); RelationRowsJourney(); BlockJourney(); ToastJourney();
-  AnsweredWhileHiddenJourney(); RequestOverPromptJourney(); ToastAnsweredJourney(); NotificationsJourney();
+  PopoutJourney(); PlayerCardJourney(); PageJourney(); RelationRowsJourney(); BlockJourney(); ToastJourney();
+  AnsweredWhileHiddenJourney(); RequestOverPromptJourney(); PostMatchFriendJourney(); ToastAnsweredJourney(); NotificationsJourney();
   std::cout << "Room friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

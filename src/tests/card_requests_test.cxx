@@ -603,6 +603,78 @@ static void TheSlotsAreSeparate() {
 	EXPECT(requests.SearchPublished().text == "Playe");
 }
 
+// The friend the Friends tab focuses is looked up with the members' cards, by friend id: alone it waits the short gap, a
+// look-up with a member's token the long one, newest friend first, the last MaxFriends are kept, and a failure puts the long
+// gap back (the bridge counts every look-up against one budget).
+static void FriendCards() {
+	EXPECT(Cards::IsFriendKey("fr_1") && !Cards::IsFriendKey("c1.abc") && !Cards::IsFriendKey("rq_1"));
+	{
+		Cards cards;
+		Scope(cards);
+		cards.Observe(0, {}, {}, 0);
+		cards.WantFriend("c1.abc");
+		EXPECT(cards.Take(0).empty());
+		cards.WantFriend("fr_1");
+		EXPECT((cards.Take(0) == Batch{"fr_1"}));
+		cards.Sent(1, {"fr_1"}, 0);
+		cards.Finish("", Answers{Showing(3, 31)});
+		EXPECT(cards.Published()->size() == 1 && cards.Published()->at("fr_1").fighters[0].points == 31 && cards.Take(1000000).empty());
+		cards.WantFriend("fr_2");
+		cards.WantFriend("fr_3");
+		EXPECT(cards.Take(Cards::FriendGapMs - 1).empty());
+		EXPECT((cards.Take(Cards::FriendGapMs) == Batch{"fr_3", "fr_2"}));
+		// Asked for again, a friend moves to the front, and their answered card is not asked for twice.
+		cards.WantFriend("fr_1");
+		EXPECT((cards.Take(Cards::FriendGapMs) == Batch{"fr_3", "fr_2"}));
+		// Another room forgets the answers and keeps the wishes.
+		cards.Observe(2, {}, {}, 5000);
+		EXPECT(cards.Published()->empty() && (cards.Take(Cards::FriendGapMs) == Batch{"fr_1", "fr_3", "fr_2"}));
+	}
+	{
+		// A member's token goes first and makes the look-up wait the long gap; friends alone may come sooner after.
+		Cards cards;
+		Scope(cards);
+		cards.WantFriend("fr_1");
+		cards.Observe(1, {"c1.a"}, {0}, 0);
+		EXPECT((cards.Take(0) == Batch{"c1.a", "fr_1"}));
+		cards.Sent(1, cards.Take(0), 0);
+		cards.Finish("", Answers{Showing(1, 1), std::nullopt});
+		EXPECT(cards.Published()->size() == 1 && cards.Take(1000000).empty());
+		cards.Observe(1, {"c1.a", "c1.b"}, {0}, 100);
+		EXPECT(cards.Take(Cards::FriendGapMs).empty() && (cards.Take(Cards::MinGapMs) == Batch{"c1.b"}));
+		cards.Sent(2, {"c1.b"}, Cards::MinGapMs);
+		cards.Finish("", Answers{Showing(2, 2)});
+		cards.WantFriend("fr_2");
+		EXPECT((cards.Take(Cards::MinGapMs + Cards::FriendGapMs) == Batch{"fr_2"}));
+	}
+	{
+		// A look-up that failed is asked again no sooner than the room's gap.
+		Cards cards;
+		Scope(cards);
+		cards.WantFriend("fr_1");
+		cards.Sent(1, cards.Take(0), 0);
+		cards.Finish("rate_limited", std::nullopt);
+		EXPECT(cards.Take(Cards::FriendGapMs).empty() && cards.Take(Cards::MinGapMs).size() == 1);
+	}
+	{
+		// The last MaxFriends are kept, newest first; one at most MaxLookup to a look-up.
+		Cards cards;
+		Scope(cards);
+		for (int i = 0; i < 20; ++i) cards.WantFriend("fr_" + std::to_string(i));
+		const Batch batch = cards.Take(0);
+		EXPECT(batch.size() == Cards::MaxFriends && batch.front() == "fr_19" && batch.back() == "fr_4");
+	}
+	{
+		// A wish made before any service was set stays; another service drops them, as it does the answers.
+		Cards cards;
+		cards.WantFriend("fr_1");
+		cards.Scope("brg_1");
+		EXPECT((cards.Take(0) == Batch{"fr_1"}));
+		cards.Scope("brg_2");
+		EXPECT(cards.Take(0).empty());
+	}
+}
+
 // A new service or Ember ID forgets everything; the counts carry on, so a reader can tell a newer answer.
 static void AnotherServiceForgets() {
 	profiles::Requests requests;
@@ -641,6 +713,7 @@ int main() {
 	ASearchThatFails();
 	TheSlotsAreSeparate();
 	AnotherServiceForgets();
+	FriendCards();
 	if (TEST_FAILURES()) std::printf("%d failure(s)\n", TEST_FAILURES());
 	else std::printf("card request tests passed\n");
 	return TEST_EXIT_CODE();

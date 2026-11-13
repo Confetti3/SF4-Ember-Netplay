@@ -7,6 +7,7 @@
 #include "V2.hxx"
 #include "MenuProbes.hxx"
 #include "PostMatchPrompt.hxx"
+#include "PostMatchRows.hxx"
 #include "../common/Localization.hxx"
 #include "../session/RoomQueries.hxx"
 #include <algorithm>
@@ -62,6 +63,7 @@ bool KeeperKnown(const room::Table& t, std::uint64_t generation) {
 const char* ButtonGlyph(const std::string& id) {
     if (id == "fighter") return MenuShortcutGlyph(MenuInput::Fighter);
     if (id == "new-opponent") return MenuShortcutGlyph(MenuInput::Options);
+    if (id == post_match_friend::RowId) return MenuShortcutGlyph(MenuInput::Chat);
     return id == "back" ? MenuBackGlyph() : MenuSelectGlyph();
 }
 // A seat's Ready for the next game. The room clears the Readies that started
@@ -77,8 +79,10 @@ PostMatchBody LayOutPostMatch(const std::vector<MenuEntry>& entries, std::size_t
     const float s = Scale(), rowHeight = 52 * s, glyph = 26 * s, font = 17 * s, gap = 12 * s;
     PostMatchBody body;
     body.width = width;
-    float y = 2 * (rowHeight + 8 * s);
-    for (std::size_t i = buttons; i < entries.size(); ++i) y = LayOutBoardRow(entries[i], ImVec2(0, y), width).row.y1 + 8 * s;
+    float y = 2 * (post_match_rows::RowHeight * s + 8 * s);
+    // Add friend is a button at the opponent's right edge, not a row of the board.
+    for (std::size_t i = buttons; i < entries.size(); ++i)
+        if (entries[i].id != post_match_friend::RowId) y = LayOutBoardRow(entries[i], ImVec2(0, y), width).row.y1 + 8 * s;
     for (const auto& e : entries) body.words = (std::max)(body.words, v2::Paragraph(nullptr, ImVec2(), width, e.detail, 17 * s, v2::Colors().muted));
     y += body.words + 24 * s;
     for (std::size_t i = 0; i < buttons; ++i)
@@ -333,6 +337,9 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     rows.push_back(Row("fighter", loc::T("postmatch.character_select"),
         rotation + loc::T(keeps ? "selection.winner_keeps_fighter" : "postmatch.character_select.detail"), !p.left && !committed));
     rows.push_back(Row("back", loc::T("postmatch.back"), rotation + loc::T(room::KeepsSeatAfterGame(v.room, t, p.generation, p.result, v.room.localMember) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left && !committed));
+    // Add friend, at the opponent's right edge: a row of its own only while it can be pressed (PostMatchFriend.hxx).
+    const auto addFriend = post_match_friend::StateOf(post_match_friend::InputsOf(v, opponent, p.friendAsked && v.friends.refusals == p.friendRefusals));
+    if (auto row = post_match_friend::RowOf(addFriend, name)) rows.push_back(std::move(*row));
     // The Ultra is the one row after the buttons, so Left and Right step it
     // (a footer row, MenuGridCells) and the bar's own walk stays as it was.
     // It shows while it can change, and once Rematch has set it; where it
@@ -347,7 +354,7 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     model.mine = mine; model.theirs = theirs;
     model.chosen = chosen; model.committed = committed; model.theyChose = theyChose; model.again = again;
     model.ultraOpen = ultraOpen; model.newOpponentOpen = newOpponentOpen;
-    model.local = local; model.opponent = opponent;
+    model.local = local; model.opponent = opponent; model.addFriend = addFriend;
     model.title = std::move(title); model.mineWord = std::move(mineWord); model.theirWord = std::move(theirWord);
     // The set's score counts the game just played, whether the room has it yet or not.
     model.eyebrow = t.rules.format == room::SetFormat::Unlimited ? std::string() : SetLengthText(t.rules.format) + " \xC2\xB7 " + SetScoreText(standing.score);
@@ -373,6 +380,18 @@ PostMatchPanel PostMatchPanelFor(const PostMatchModel& model) {
     return panel;
 }
 
+// Add friend (View, or A on its box): the same request a room member's popout sends, through the friends panel, so it is gated,
+// logged and answered in words as that one is. The answer to the rematch, the countdown and the focus stay as they were; the
+// box turns to Request sent at once, and a refusal brings the button back (BuildPostMatch reads both from the prompt).
+void ApplicationShell::AddPostMatchFriend(const ShellView& v, const PostMatchModel& model, const Submit& submit) {
+    if (!postMatch_ || !model.addFriend.Live() || !model.opponent) return;
+    const bool accepts = model.addFriend.kind == post_match_friend::State::Kind::Accept;
+    if (!friends_.RequestMember(v, model.opponent->card.ToString(), model.opponent->name, accepts, submit)) return;
+    postMatch_->friendAsked = true; postMatch_->friendRefusals = v.friends.refusals;
+    // The button's row goes with its state: a focus left on it would land on whatever follows, so it goes back to the first button.
+    if (menu_.navigation.Focus() == post_match_friend::RowId) menu_.navigation.Focus(model.rows.front().id, model.rows);
+}
+
 void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& frame, double now, const Submit& submit, bool* open) {
     const auto& model = frame.model;
     if (!model.open || !postMatch_) { menu_.navigation.Return(); return; }
@@ -381,6 +400,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
     std::vector<std::pair<unsigned, std::string>> shortcuts;
     if (!model.committed) shortcuts.push_back({MenuInput::Fighter, loc::T("postmatch.character_select")});
     if (model.newOpponentOpen) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
+    if (model.addFriend.Live()) shortcuts.push_back({MenuInput::Chat, loc::T(post_match_friend::LabelOf(model.addFriend.kind))});
     menu_.shortcutHints = ShortcutHints(shortcuts);
     menu_.backHint = loc::T("postmatch.back"); menu_.exitName.clear(); menu_.ownsBack = true;
     // The two fighters with their answers beside the countdown ring, the
@@ -396,13 +416,13 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
     // so its scroll is right from the prompt's first frame (GameMenu::bodyContent).
     menu_.bodyContent = frame.panel.fits ? frame.panel.body.height : 0;
     board = [&](const std::vector<MenuEntry>& entries, MenuNavigation& nav, MenuAction& action, float, const MenuVisualFeedback& feedback) {
-        const float s = Scale(), rowHeight = 52 * s;
+        const float s = Scale(), rowHeight = 52 * s, playerHeight = post_match_rows::RowHeight * s;
         const auto& c = v2::Colors(); auto* d = ImGui::GetWindowDrawList();
         const ImVec2 at = ImGui::GetCursorScreenPos(); const float width = ImGui::GetContentRegionAvail().x;
         // The countdown beside the two rows: a ring that empties over the ten
         // seconds, red for the last three.
         const float ring = 64 * s;
-        const ImVec2 centre(at.x + width - ring * .5f, at.y + rowHeight + 4 * s);
+        const ImVec2 centre(at.x + width - ring * .5f, at.y + playerHeight + 4 * s);
         d->AddCircle(centre, 26 * s, c.button, 48, 5 * s);
         if (!p.starting && !p.left && seconds > 0) {
             const float left = static_cast<float>((std::min)(1.0, (std::max)(0.0, (p.until - now) / PostMatchSeconds)));
@@ -413,30 +433,21 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
             d->AddText(HeadingFont(), 24 * s, ImVec2(centre.x - size.x * .5f, centre.y - size.y * .5f), c.text, number.c_str());
         }
         // The two fighters' answers are pictures of the state, not rows: the title says them too.
-        const struct { const char* id; const room::Member* m; bool ready, seated; std::string word; } players[] = {
-            {"pm-you", model.local, model.chosen, model.mine >= 0, model.mineWord},
-            {"pm-opponent", model.opponent, model.theyChose, model.theirs >= 0, model.theirWord}};
-        // A tag's line, as v2::Tag sets it, to centre the tag in its row.
-        const float line = (std::max)(ImGui::GetFontSize(), v2::ChipFont() + 8 * s);
+        // The opponent's row ends in the Add friend box (PostMatchRows.hxx); a live one is pressed below, with the buttons.
+        const post_match_rows::Player players[] = {
+            {"pm-you", model.local, model.chosen, model.mine >= 0, p.left, model.mineWord},
+            {"pm-opponent", model.opponent, model.theyChose, model.theirs >= 0, false, model.theirWord}};
         float y = at.y;
+        std::optional<v2::Box> addFriend;
         for (const auto& player : players) {
-            const v2::Box r{ImVec2(at.x, y), ImVec2(at.x + width - ring - 16 * s, y + rowHeight)};
-            d->AddRectFilled(r.min, r.max, c.ink, 4 * s); d->AddRect(r.min, r.max, c.border, 4 * s, 0, s);
-            const std::string& word = player.word;
-            const ImU32 tone = !player.seated ? c.danger : &player == players && p.left ? c.muted :
-                player.ready ? c.ready : ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
-            const float chip = v2::ChipWidth(word);
-            if (player.m) {
-                const auto tag = MemberTag(v.memberLatency, *player.m, v.room.localMember);
-                v2::Tag(d, ImVec2(r.min.x + 12 * s, r.min.y + (rowHeight - line) * .5f), r.W() - chip - 36 * s, tag, v2::TagSize::S);
-            }
-            v2::Chip(d, ImVec2(r.max.x - 12 * s - chip, r.min.y + (rowHeight - line) * .5f), word, tone);
-            ReportMenuCardText(player.id, word);
-            y += rowHeight + 8 * s;
+            const v2::Box r{ImVec2(at.x, y), ImVec2(at.x + width - ring - 16 * s, y + playerHeight)};
+            if (const auto live = post_match_rows::DrawPlayer(v, d, r, player, &player == players ? post_match_friend::State{} : model.addFriend)) addFriend = live;
+            y += playerHeight + 8 * s;
         }
         // The Ultra for the next game, under the players' answers.
         for (std::size_t i = model.buttons; i < entries.size(); ++i)
-            y = menu_.DrawBoardRow(entries, entries[i], ImVec2(at.x, y), width, action, {{}, feedback.Enabled(entries[i]), false, true, true}).box.max.y + 8 * s;
+            if (entries[i].id != post_match_friend::RowId)
+                y = menu_.DrawBoardRow(entries, entries[i], ImVec2(at.x, y), width, action, {{}, feedback.Enabled(entries[i]), false, true, true}).box.max.y + 8 * s;
         // What the focused button does, in the room the longest one takes, so
         // the buttons stay put while the focus moves. The panel laid the body
         // out at its whole width; a capped panel's scroll bar takes some of
@@ -467,9 +478,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
         }
         const bool reveal = !(shown == postMatchBarShown_);
         postMatchBarShown_ = shown;
-        for (std::size_t i = 0; i < model.buttons; ++i) {
-            const auto& e = entries[i];
-            const v2::Box& b = places[i];
+        // A button, a bar's or the opponent's Add friend: its glyph and word in the box, pressed through PressEntry.
+        const auto button = [&](const MenuEntry& e, const v2::Box& b) {
             ReportMenuCard(e.id.c_str(), b.min, b.max);
             const bool hovered = PressEntry(nav, entries, e, b, action, reveal).hovered, enabled = feedback.Enabled(e);
             v2::Button(d, b, "", v2::ButtonKind::Secondary, e.id == nav.Focus(), hovered, enabled);
@@ -477,9 +487,13 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
             const float mark = press ? glyph + 10 * s : 0, room = b.W() - mark - 24 * s;
             const float text = (std::min)(room, ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, e.label.c_str()).x);
             const float x = b.min.x + (b.W() - mark - text) * .5f;
-            if (press) DrawPromptGlyph(d, press, ImVec2(x, b.min.y + (rowHeight - glyph) * .5f), glyph, MenuArt(), s);
-            v2::Text(d, ImVec2(x + mark, b.min.y + (rowHeight - font) * .5f), room, e.label, font, enabled ? c.text : c.muted);
-        }
+            if (press) DrawPromptGlyph(d, press, ImVec2(x, b.min.y + (b.H() - glyph) * .5f), glyph, MenuArt(), s);
+            v2::Text(d, ImVec2(x + mark, b.min.y + (b.H() - font) * .5f), room, e.label, font, enabled ? c.text : c.muted);
+        };
+        for (std::size_t i = 0; i < model.buttons; ++i) button(entries[i], places[i]);
+        if (addFriend)
+            for (const auto& e : entries)
+                if (e.id == post_match_friend::RowId) button(e, *addFriend);
         // The focus frame reaches 4 px past a button: the scroll keeps room for it under the last line.
         ImGui::SetCursorScreenPos(ImVec2(at.x, y + barHeight)); ImGui::Dummy(ImVec2(width, 6 * s));
     };
@@ -501,6 +515,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
     else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Options && model.newOpponentOpen) {
         postMatch_->pairRematch = false; RoomAction({MenuAction::Activate, "new-opponent"}, v, submit);
     }
+    // View asks the opponent to be friends from anywhere in the prompt, as pressing the box does.
+    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Chat) AddPostMatchFriend(v, model, submit);
     else if (a.kind == MenuAction::Activate) {
         if (a.id == "again" && model.again && !model.chosen) {
             selectedTable_ = p.table; postMatch_->answered |= postMatch_->chose = SendReady(v, true, submit);
@@ -508,6 +524,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
         else if (a.id == "rematch" || a.id == "new-opponent") { postMatch_->pairRematch = a.id == "rematch"; RoomAction(a, v, submit); }
         else if (a.id == "fighter") leave(AfterPostMatch::FighterSelect);
         else if (a.id == "back") leave(AfterPostMatch::None);
+        else if (a.id == post_match_friend::RowId) AddPostMatchFriend(v, model, submit);
     }
     // The Ultra steps the pick the next game's Ready carries, as the room's rows do.
     else if (a.kind == MenuAction::Adjust && a.id == "ultra" && model.ultraOpen)

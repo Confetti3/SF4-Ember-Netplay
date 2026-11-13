@@ -51,6 +51,46 @@ std::shared_ptr<nf::State> Full() {
     state->blocked = {{"bl_1", "Player 16", Now - 9 * Day}};
     return state;
 }
+
+// The cards the runtime would have read for the friends the tab focuses (FriendCardWanted), by friend id: one for each friend with
+// points, with how they play, what they wear and their record, which the friend panel's Panel card draws.
+std::shared_ptr<const netplay::levels::CardMap> FriendCards(const nf::State& state) {
+    namespace pr = netplay::profiles;
+    auto cards = std::make_shared<netplay::levels::CardMap>();
+    for (const auto& entry : state.friends) {
+        if (!entry.hasAccount || !entry.hasMain) continue;
+        netplay::levels::Card card;
+        card.name = entry.name; card.country = entry.country; card.badge = entry.badge;
+        card.hasMain = true; card.main = entry.main.fighter;
+        card.hasSince = true; card.since = entry.since;
+        card.worn.title = "streak"; card.worn.icon = "rival";
+        card.hasStyle = true; card.style.device = pr::Device::Stick; card.style.link = pr::Link::Wired; card.style.region = "euc1"; card.style.looking = pr::LookingRanked;
+        card.awards.games = 2210; card.awards.wins = 1124; card.awards.bestStreak = 14; card.awards.peakClass = 6; card.awards.rival = 20; card.awards.opponents = 30;
+        card.account = entry.account;
+        card.fighters = {{entry.main.fighter, entry.main.points, entry.main.tier}};
+        card.relation = netplay::levels::Relation::Friend; card.friendId = entry.id;
+        (*cards)[entry.id] = card;
+    }
+    return cards;
+}
+}
+
+bool Find(ui::ShellView& view, const std::string& which) {
+    namespace pr = netplay::profiles;
+    if (which != "recent" && which != "empty") return false;
+    view.profilesService = pr::Service::Offered;
+    if (which == "empty") return true;
+    // The players met lately, newest first: public rooms, hours ago.
+    const char* const names[] = {"Player 2", "Player 5", "Player 9"};
+    const char* const countries[] = {"GB", "DE", "IT"};
+    const int fighters[] = {12, 5, 16};
+    for (int i = 0; i < 3; ++i) {
+        pr::Recent recent;
+        recent.card = std::string("c1.lab_recent") + std::to_string(i); recent.name = names[i]; recent.country = CountryCode::Parsed(countries[i]);
+        recent.fighter = fighters[i]; recent.room = i == 1 ? "Late night casuals" : "Player 5's room"; recent.at = Now - (2 + 9 * i) * Hour;
+        view.recentOpponents.push_back(recent);
+    }
+    return true;
 }
 
 bool Friends(ui::ShellView& view, const std::string& which) {
@@ -84,6 +124,7 @@ bool Friends(ui::ShellView& view, const std::string& which) {
     if (which == "offline") state->appearOffline = true;
     f.canInvite = which != "requests";
     f.state.value = state;
+    if (!state->friends.empty()) view.memberCards = FriendCards(*state);
     f.state.loaded = which != "loading";
     f.state.loading = which == "loading";
     if (which == "unreachable") f.state.error = "bridge_unreachable";
