@@ -1,4 +1,4 @@
--- Counters behind the milestone awards (docs/design/AWARDS.md) that the games
+-- Counters behind the milestone awards (`src/netplay/Awards.hxx`) that the games
 -- and points alone cannot tell: each Discord account's current and best run
 -- of counted wins, and the highest class its rating has ever shown. Both only
 -- ever go up in the awards' eyes (`best_streak`, `peak_band`), so an award is

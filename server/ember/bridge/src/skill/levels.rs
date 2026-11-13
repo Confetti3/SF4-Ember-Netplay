@@ -12,7 +12,7 @@
 //! anyone with the player's card token, whether or not the player takes part
 //! in ranking.
 //!
-//! The milestone awards (docs/design/AWARDS.md) read the same counts. What
+//! The milestone awards (`src/netplay/Awards.hxx`) read the same counts. What
 //! they need beyond them, the best run of wins and the highest class ever
 //! shown, is kept in `award_counters` and only goes up. Another player's card
 //! says how far those milestones are, by the marks below, never the counts.

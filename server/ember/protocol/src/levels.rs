@@ -125,7 +125,7 @@ pub struct OwnAccount {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub since: Option<u64>,
     /// The most counted games the account ever won in a row (milestone
-    /// awards, `docs/design/AWARDS.md`); absent while 0, and from a bridge
+    /// awards, `src/netplay/Awards.hxx`); absent while 0, and from a bridge
     /// that does not count it.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub best_streak: u32,
