@@ -15,6 +15,7 @@ pub mod matches;
 pub mod organizer;
 pub mod play;
 pub mod policy;
+pub mod profiles;
 pub mod ranking;
 pub mod records;
 pub mod replays;
@@ -138,9 +139,11 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/ranking/board/public", get(ranking::public_board))
         .route(ember_protocol::levels::POINTS_PATH, get(levels::own))
         .route(ember_protocol::levels::LOOKUP_PATH, post(levels::lookup))
+        .route(ember_protocol::levels::CARDS_ME_PATH, put(profiles::save))
+        .route(ember_protocol::levels::SEARCH_PATH, post(profiles::search))
         // tests/friends.rs scans every answer of these and the level routes
-        // for Discord IDs: a route serving one player's data to another
-        // joins its list.
+        // for Discord IDs, and tests/profiles.rs those of the profile
+        // routes: a route serving one player's data to another joins its list.
         .route(ember_protocol::friends::SYNC_PATH, post(friends::sync))
         .route(ember_protocol::friends::ACTIONS_PATH, post(friends::act))
         .route("/v1/lobbies", post(lobbies::create))

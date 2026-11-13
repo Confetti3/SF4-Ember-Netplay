@@ -1,7 +1,8 @@
 //! The migrations of the levels: 060 keeps every rated game, sitting and
 //! rating it finds from a database at 056, and leaves behind a rated game
 //! whose room is gone; 062 adds the account points and keeps the fighter
-//! points; 063 adds the award counters and starts them from what is kept.
+//! points; 063 adds the award counters and starts them from what is kept; 064 adds
+//! the player cards and starts them from what friends and rankings know.
 //! Each starts from a database as a bridge before it left it.
 use std::path::Path;
 
@@ -273,7 +274,12 @@ fn database_at_062(path: &Path) -> rusqlite::Connection {
     drop(Db::open(path).unwrap());
     let connection = rusqlite::Connection::open(path).unwrap();
     connection
-        .execute_batch("DROP TABLE award_counters; DELETE FROM schema_migrations WHERE version = 63;")
+        .execute_batch(
+            "DROP TABLE player_cards;
+             DROP TABLE award_counters;
+             DROP INDEX IF EXISTS pair_records_second;
+             DELETE FROM schema_migrations WHERE version IN (63, 64);",
+        )
         .unwrap();
     connection
 }
@@ -334,6 +340,96 @@ async fn migration_063_starts_the_award_counters_from_what_is_kept() {
     let connection = rusqlite::Connection::open(&path).unwrap();
     let rows: i64 = connection
         .query_row("SELECT COUNT(*) FROM award_counters", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(rows, 3);
+}
+
+/// A database as a bridge from before 064 left it: this bridge's own ledger
+/// without the player cards.
+fn database_at_063(path: &Path) -> rusqlite::Connection {
+    drop(Db::open(path).unwrap());
+    let connection = rusqlite::Connection::open(path).unwrap();
+    connection
+        .execute_batch("DROP TABLE player_cards; DELETE FROM schema_migrations WHERE version = 64;")
+        .unwrap();
+    connection
+}
+
+#[tokio::test]
+async fn migration_064_starts_the_player_cards_from_what_friends_and_rankings_know() {
+    let dir = TempDir::new("player-cards-migration");
+    let path = dir.join("bridge.sqlite3");
+    {
+        let connection = database_at_063(&path);
+        connection
+            .execute_batch(
+                "INSERT INTO social_accounts
+                   (discord_user_id, name, country, main_fighter, code, code_at, seen_at, off)
+                   VALUES ('100', 'Player 1', 'DE', 3, 'AAAA-0001', 1, 5000, 0),
+                          ('200', 'Player 2', NULL, NULL, 'AAAA-0002', 1, 6000, 1);
+                 INSERT INTO discord_accounts (user_id, ember_id, username, connected_at)
+                   VALUES ('100', 'emb_one', 'discord_one', 1500);
+                 INSERT INTO ranking_choices (game, discord_user_id, ranked, changed_at, name, country)
+                   VALUES ('usf4', '200', 1, 7000, 'Ranked Two', 'FR'),
+                          ('usf4', '300', 1, 7000, 'Player 3', 'JP'),
+                          ('usf4', '400', 0, NULL, NULL, NULL);",
+            )
+            .unwrap();
+    }
+    drop(Db::open(&path).unwrap());
+
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    type Card = (String, String, Option<String>, Option<i64>, i64, i64);
+    let cards: Vec<Card> = connection
+        .prepare(
+            "SELECT discord_user_id, name, country, main_fighter, since, updated_at
+             FROM player_cards ORDER BY discord_user_id",
+        )
+        .unwrap()
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?))
+        })
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    // An account friends know keeps what it sent last, from its Discord
+    // connection when it has one and else from when it was last seen; one only
+    // rankings know has no main and came now; one with no name has no card.
+    assert_eq!(cards.len(), 3, "{cards:?}");
+    assert_eq!(
+        cards[0],
+        ("100".into(), "Player 1".into(), Some("DE".into()), Some(3), 1500, 5000)
+    );
+    assert_eq!(cards[1], ("200".into(), "Player 2".into(), None, None, 6000, 6000));
+    assert_eq!((&cards[2].0[..], &cards[2].1[..], cards[2].2.as_deref()), ("300", "Player 3", Some("JP")));
+    assert_eq!((cards[2].3, cards[2].5), (None, 7000));
+    assert!(cards[2].4 > 1_000_000_000, "{}", cards[2].4);
+
+    // A name is found in any case, and the small numbers stay in range.
+    let found: String = connection
+        .query_row(
+            "SELECT discord_user_id FROM player_cards WHERE name = 'player 1'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(found, "100");
+    for statement in [
+        "UPDATE player_cards SET device = 5 WHERE discord_user_id = '100'",
+        "UPDATE player_cards SET link = 3 WHERE discord_user_id = '100'",
+        "UPDATE player_cards SET looking = 64 WHERE discord_user_id = '100'",
+        "UPDATE player_cards SET main_fighter = 44 WHERE discord_user_id = '100'",
+        "INSERT INTO player_cards (discord_user_id, name, since, updated_at) VALUES ('100', 'Again', 1, 1)",
+    ] {
+        assert!(connection.execute(statement, []).is_err(), "{statement}");
+    }
+    drop(connection);
+
+    // Opened again by this bridge, nothing runs twice.
+    drop(Db::open(&path).unwrap());
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let rows: i64 = connection
+        .query_row("SELECT COUNT(*) FROM player_cards", [], |row| row.get(0))
         .unwrap();
     assert_eq!(rows, 3);
 }

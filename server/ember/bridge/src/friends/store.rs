@@ -16,6 +16,7 @@ use ember_protocol::{
 use rusqlite::{OptionalExtension, Row, Transaction, params};
 
 use crate::{
+    cards,
     error::{ApiFailure, Result},
     util::{new_id, random},
 };
@@ -108,7 +109,10 @@ fn free_code(tx: &Transaction<'_>) -> Result<String> {
 /// `seen_at` moves once it is `SEEN_SECS` old or as the game closes
 /// (`leaving`), never while the account appears offline. A sync never
 /// touches an account that is off, which only `turn_on` brings back: the
-/// game syncs by itself, so anything else would turn friends on again.
+/// game syncs by itself, so anything else would turn friends on again. The
+/// listing's name, flag and main also go to the account's card
+/// (`cards::note_listing`), so a game from before cards keeps its card
+/// current.
 pub fn sync(
     tx: &Transaction<'_>,
     account: &str,
@@ -127,6 +131,7 @@ pub fn sync(
     if off == Some(true) {
         return Err(refuse(FriendRefusal::FriendsOff));
     }
+    cards::note_listing(tx, account, listing, main, now)?;
     if off.is_none() {
         tx.execute(
             "INSERT INTO social_accounts (discord_user_id, name, country, main_fighter, code, code_at, seen_at)
@@ -323,6 +328,25 @@ fn befriend(tx: &Transaction<'_>, one: &str, other: &str, now: u64) -> Result<()
         params![first, second, new_id("fr"), now],
     )?;
     Ok(())
+}
+
+/// The account that sent `receiver` the request `id`, when `receiver` can see
+/// it: the one a card look-up by request opens.
+pub fn received_from(tx: &Transaction<'_>, receiver: &str, id: &str) -> Result<Option<String>> {
+    sender_of(tx, receiver, id, true)
+}
+
+/// The id both friends call their friendship by, when `one` and `other` are
+/// friends.
+pub fn friendship_id(tx: &Transaction<'_>, one: &str, other: &str) -> Result<Option<String>> {
+    let (first, second) = ordered(one, other);
+    Ok(tx
+        .query_row(
+            "SELECT id FROM friendships WHERE first = ?1 AND second = ?2",
+            params![first, second],
+            |row| row.get(0),
+        )
+        .optional()?)
 }
 
 /// The sender of request `id`, which `receiver` received; `visible` alone

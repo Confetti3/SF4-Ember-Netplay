@@ -15,7 +15,8 @@
 //! The milestone awards (`src/netplay/Awards.hxx`) read the same counts. What
 //! they need beyond them, the best run of wins and the highest class ever
 //! shown, is kept in `award_counters` and only goes up. Another player's card
-//! says how far those milestones are, by the marks below, never the counts.
+//! shows the games, wins and best run exactly (its record cells do), the
+//! class peak, and a milestone mark for the rival and opponent counts.
 use ember_protocol::{
     EmberId,
     levels::{
@@ -35,14 +36,11 @@ const TIER_STARTS: [u64; MAX_TIER as usize + 1] = [0, 200, 700, 1500, 2500];
 /// The account's own thresholds, for the points of every counted game.
 const ACCOUNT_TIER_STARTS: [u64; MAX_TIER as usize + 1] = [0, 500, 2000, 5000, 10000];
 
-/// The counts a card shows for the awards, each the largest of its marks the
-/// count has reached. They are the awards' own thresholds (`src/netplay/
-/// Awards.hxx`): a count between two marks shows the lower, so a card never
-/// gives away more than the milestone, and an award the card's viewer has
-/// that is not one of these reads as locked.
-const GAME_MARKS: [u64; 6] = [1, 10, 100, 500, 1000, 5000];
-const WIN_MARKS: [u64; 5] = [1, 50, 250, 1000, 2500];
-const STREAK_MARKS: [u64; 5] = [3, 5, 10, 15, 20];
+/// The counts a card shows only as the largest mark reached: games against
+/// one opponent and different opponents faced. They are the awards' own
+/// thresholds (`src/netplay/Awards.hxx`): a count between two marks shows the
+/// lower, so a card gives away no more than the milestone. The games, wins
+/// and best run are shown as they are.
 const RIVAL_MARKS: [u64; 4] = [10, 50, 100, 250];
 const OPPONENT_MARKS: [u64; 4] = [10, 50, 200, 500];
 
@@ -127,7 +125,8 @@ impl Counted {
         }
     }
 
-    /// Never the wins or the games, which the points only sum.
+    /// The points and the frame; the games and wins behind them are the card's
+    /// `AwardMarks`.
     fn card_account(&self) -> CardAccount {
         let points = self.points();
         CardAccount {
@@ -264,10 +263,10 @@ fn rivals(tx: &Transaction<'_>, account: &str) -> Result<(u32, u32)> {
     )?)
 }
 
-/// The marks of `account`'s card: its milestones in games, wins, win runs,
-/// class, games against one opponent and opponents faced. A player who does
-/// not take part in ranking shows no class. Looked up with a card, never with
-/// a friends list.
+/// The counts of `account`'s card behind the awards: its games, wins and best
+/// win run, its peak class, and the milestones in games against one opponent
+/// and opponents faced. A player who does not take part in ranking shows no
+/// class. Looked up with a card, never with a friends list.
 pub fn card_marks(tx: &Transaction<'_>, account: &str) -> Result<AwardMarks> {
     let counted = account_count(tx, account)?;
     let (best_streak, peak) = award_counts(tx, account)?;
@@ -275,9 +274,9 @@ pub fn card_marks(tx: &Transaction<'_>, account: &str) -> Result<AwardMarks> {
     Ok(AwardMarks {
         rival: mark(&RIVAL_MARKS, u64::from(rival)) as u32,
         opponents: mark(&OPPONENT_MARKS, u64::from(opponents)) as u32,
-        games: mark(&GAME_MARKS, counted.games),
-        wins: mark(&WIN_MARKS, counted.wins),
-        streak: mark(&STREAK_MARKS, u64::from(best_streak)) as u32,
+        games: counted.games,
+        wins: counted.wins,
+        streak: best_streak,
         class: if super::takes_part(tx, account)? { peak } else { 0 },
     })
 }
@@ -319,13 +318,11 @@ pub fn card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
         return Ok(None);
     }
     Ok(Some(PlayerCard {
-        account: account_count(tx, account)?.card_account(),
         fighters: fighter_counts(tx, account)?
             .iter()
             .map(|(fighter, count)| count.card_fighter(*fighter))
             .collect(),
-        relation: Relation::None,
-        marks: AwardMarks::default(),
+        ..PlayerCard::bare(account_count(tx, account)?.card_account(), Relation::None)
     }))
 }
 
@@ -450,37 +447,26 @@ mod tests {
 
     #[test]
     fn a_mark_is_the_largest_milestone_a_count_has_reached() {
-        for (count, games, wins, streak) in [
-            (0, 0, 0, 0),
-            (1, 1, 1, 0),
-            (2, 1, 1, 0),
-            (3, 1, 1, 3),
-            (9, 1, 1, 5),
-            (10, 10, 1, 10),
-            (15, 10, 1, 15),
-            (49, 10, 1, 20),
-            (50, 10, 50, 20),
-            (99, 10, 50, 20),
-            (100, 100, 50, 20),
-            (4_999, 1000, 2500, 20),
-            (5_000, 5000, 2500, 20),
-            (u64::MAX, 5000, 2500, 20),
+        for (count, rival, opponents) in [
+            (0, 0, 0),
+            (9, 0, 0),
+            (10, 10, 10),
+            (49, 10, 10),
+            (50, 50, 50),
+            (99, 50, 50),
+            (100, 100, 50),
+            (199, 100, 50),
+            (200, 100, 200),
+            (249, 100, 200),
+            (250, 250, 200),
+            (499, 250, 200),
+            (500, 250, 500),
+            (u64::MAX, 250, 500),
         ] {
-            assert_eq!(mark(&GAME_MARKS, count), games, "{count} games");
-            assert_eq!(mark(&WIN_MARKS, count), wins, "{count} wins");
-            assert_eq!(mark(&STREAK_MARKS, count), streak, "{count} in a row");
-            let _ = (mark(&RIVAL_MARKS, count), mark(&OPPONENT_MARKS, count));
+            assert_eq!(mark(&RIVAL_MARKS, count), rival, "{count} games against one");
+            assert_eq!(mark(&OPPONENT_MARKS, count), opponents, "{count} opponents");
         }
-        assert_eq!(mark(&RIVAL_MARKS, 9), 0);
-        assert_eq!(mark(&RIVAL_MARKS, 100), 100);
-        assert_eq!(mark(&OPPONENT_MARKS, 499), 200);
-        for marks in [
-            &GAME_MARKS[..],
-            &WIN_MARKS[..],
-            &STREAK_MARKS[..],
-            &RIVAL_MARKS[..],
-            &OPPONENT_MARKS[..],
-        ] {
+        for marks in [&RIVAL_MARKS[..], &OPPONENT_MARKS[..]] {
             assert!(marks.windows(2).all(|pair| pair[0] < pair[1]));
         }
     }

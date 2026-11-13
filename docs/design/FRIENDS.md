@@ -227,6 +227,11 @@ shows it as the state "friends are off", not as a failure.
 `POST /v1/cards/lookup` (`FIGHTER_LEVELS.md`) also takes `{"friend":"fr_…"}`
 for a friend's whole card, and answers `relation` for each card once
 `friends` is offered: what the room's member page needs to offer Add friend.
+A card of a friend also names the friendship (`friend`, the id the two call it
+by), and a card of anyone carries the caller's record against them (`versus`),
+as `PROFILE.md` says. A `request` selector opens the card of whoever sent the
+caller a request they can see, and a `code` selector the card of the account a
+friend code names; neither names anyone while friends are off.
 
 ### Older builds and bridges
 
@@ -262,10 +267,14 @@ invite box says).
   last shown, main and its points and tier (once played), presence, and the
   record between the two of them.
 - **A non-friend** learns nothing of presence. Holding a card token (being in
-  the same public room) they see the points and tier that player shows and
-  their own relation to them. Sending a request tells them nothing about the
-  answer: a declined, blocked or full-inbox request stays "sent" until it
-  lapses. A friend code says only whether it exists.
+  the same public room), a received request, a friend code or a search result
+  they see what a card shows anyone (`PROFILE.md`, Privacy): the points and
+  tier, the name, flag, class and main, the month the player came to Ember, the
+  award families they wear and show and the counts behind them, how they play,
+  and their own relation and record with that player. Sending a request tells
+  them nothing about the answer: a declined, blocked or full-inbox request
+  stays "sent" until it lapses. A friend code says only whether it exists, and
+  who holds it is the card it opens.
 - **Request receivers** see the sender's name and flag and whether they have
   played each other (games and when); nothing else until they accept.
 - **Never served**: a Discord user ID or name, an Ember ID, a rating, or
