@@ -107,7 +107,49 @@ pub enum OwnLevels {
         account: OwnAccount,
         /// The fighters played, ascending by `fighter`, each once.
         fighters: Vec<OwnFighter>,
+        /// The opponent the caller played the most (docs/design/PROFILE.md,
+        /// "the most played opponent"); absent before a counted game, when
+        /// no opponent can be shown, and from a bridge that does not send it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        rival: Option<RivalCard>,
     },
+}
+
+/// The caller's most played opponent: enough to list them and to open their
+/// card, and the caller's record against them. Only in the caller's own
+/// answer, never on a card, so no card names a third party.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RivalCard {
+    /// A fresh card token (`CARD_PREFIX`), valid `CARD_VALID_SECS`.
+    pub card: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub badge: Option<SkillBadge>,
+    /// Counted games the caller won against them.
+    pub won: u64,
+    /// Counted games they won against the caller. `won + lost` is the games
+    /// the two played, at least 1.
+    pub lost: u64,
+}
+
+impl RivalCard {
+    pub fn check(&self) -> Result<()> {
+        if !is_card_token(&self.card) {
+            return Err(Error::InvalidField("card"));
+        }
+        if !is_player_name(&self.name) {
+            return Err(Error::InvalidField("name"));
+        }
+        if self.country.as_deref().is_some_and(|country| !is_country(country)) {
+            return Err(Error::InvalidField("country"));
+        }
+        if self.won.saturating_add(self.lost) == 0 {
+            return Err(Error::InvalidField("won"));
+        }
+        self.badge.as_ref().map_or(Ok(()), SkillBadge::check)
+    }
 }
 
 /// The tier frame of a points count: the colour, where it begins and where
@@ -240,10 +282,16 @@ impl OwnFighter {
 
 impl OwnLevels {
     pub fn check(&self) -> Result<()> {
-        let Self::Counted { account, fighters } = self else {
+        let Self::Counted {
+            account,
+            fighters,
+            rival,
+        } = self
+        else {
             return Ok(());
         };
         account.check()?;
+        rival.as_ref().map_or(Ok(()), RivalCard::check)?;
         if fighters.len() > usize::from(FIGHTERS)
             || !fighters
                 .windows(2)
@@ -905,6 +953,7 @@ mod tests {
             OwnLevels::Counted {
                 account: account(9, 4, 0, 0, Some(500)),
                 fighters: vec![own(3, 1284, 702, 3, 1500, Some(2500))],
+                rival: None,
             }
         );
         assert!(levels.check().is_ok());
@@ -915,6 +964,7 @@ mod tests {
         let top = OwnLevels::Counted {
             account: account(9000, 2000, 4, 10_000, None),
             fighters: vec![own(43, 2480, 1237, 4, 2500, None)],
+            rival: None,
         };
         assert!(top.check().is_ok());
         assert_eq!(
@@ -924,6 +974,7 @@ mod tests {
         let nobody = OwnLevels::Counted {
             account: account(0, 0, 0, 0, Some(500)),
             fighters: vec![],
+            rival: None,
         };
         assert!(nobody.check().is_ok());
         assert_eq!(
@@ -1032,6 +1083,7 @@ mod tests {
         let bad = OwnLevels::Counted {
             account: account(4, 5, 0, 0, Some(500)),
             fighters: vec![],
+            rival: None,
         };
         assert_eq!(bad.check(), Err(Error::InvalidField("wins")));
     }
@@ -1042,6 +1094,7 @@ mod tests {
         let counted = |ids: &[u8]| OwnLevels::Counted {
             account: account(1, 0, 0, 0, Some(500)),
             fighters: ids.iter().copied().map(at).collect(),
+            rival: None,
         };
         assert!(counted(&[0, 1, 43]).check().is_ok());
         let all: Vec<u8> = (0..FIGHTERS).collect();
@@ -1281,6 +1334,106 @@ mod tests {
             Relation::None
         );
     }
+    fn rival_json() -> Value {
+        json!({"card": "c1.aZ09-_", "name": "Player 7", "country": "US",
+               "badge": {"band": 8, "settled": true}, "won": 41, "lost": 33})
+    }
+
+    #[test]
+    fn the_most_played_opponent_rides_beside_the_account_and_is_optional() {
+        let rival = RivalCard {
+            card: "c1.aZ09-_".into(),
+            name: "Player 7".into(),
+            country: Some("US".into()),
+            badge: Some(SkillBadge::class(8, true)),
+            won: 41,
+            lost: 33,
+        };
+        let counted = |rival: Option<RivalCard>| OwnLevels::Counted {
+            account: account(9, 4, 0, 0, Some(500)),
+            fighters: vec![],
+            rival,
+        };
+        let with = counted(Some(rival.clone()));
+        assert!(with.check().is_ok());
+        let wire = serde_json::to_value(&with).unwrap();
+        assert_eq!(wire["rival"], rival_json());
+        assert_eq!(read::<OwnLevels>(&wire), with);
+        // Absent is not written, and reads as none.
+        let without = serde_json::to_value(counted(None)).unwrap();
+        assert!(without.get("rival").is_none());
+        assert_eq!(read::<OwnLevels>(&without), counted(None));
+        // Nothing but the card token names the opponent: no Discord ID or
+        // Ember ID member exists to carry one.
+        let mut members: Vec<String> = wire["rival"].as_object().unwrap().keys().cloned().collect();
+        members.sort();
+        assert_eq!(members, ["badge", "card", "country", "lost", "name", "won"]);
+        // A country and a badge are optional.
+        let bare: RivalCard = read(&json!({"card": "c1.a", "name": "Player 7", "won": 1, "lost": 0}));
+        assert_eq!((bare.country.clone(), bare.badge.clone()), (None, None));
+        assert!(bare.check().is_ok());
+        let wire = serde_json::to_value(&bare).unwrap();
+        assert!(wire.get("country").is_none() && wire.get("badge").is_none());
+    }
+
+    #[test]
+    fn an_older_reader_ignores_the_most_played_opponent() {
+        // The answer a bridge with the member writes, read by a type from
+        // before it: the member is one more unknown one.
+        #[derive(Debug, PartialEq, Deserialize)]
+        #[serde(tag = "points", rename_all = "snake_case")]
+        enum Before {
+            Counted {
+                account: OwnAccount,
+                fighters: Vec<OwnFighter>,
+            },
+        }
+        let mut wire = json!({"points": "counted",
+            "account": {"points": 13, "games": 9, "wins": 4, "tier": 0, "floor": 0,
+                        "next": 500, "since": 1729468800},
+            "fighters": []});
+        let before: Before = read(&wire);
+        wire["rival"] = rival_json();
+        assert_eq!(read::<Before>(&wire), before);
+        // Members this type does not know, on the answer and on the rival.
+        ignores_extra::<OwnLevels>(&wire, "");
+        ignores_extra::<OwnLevels>(&wire, "/rival");
+        let OwnLevels::Counted { rival, .. } = read::<OwnLevels>(&wire) else {
+            panic!("counted");
+        };
+        assert_eq!(rival.unwrap().won, 41);
+    }
+
+    #[test]
+    fn a_most_played_opponent_is_checked() {
+        let good: RivalCard = read(&rival_json());
+        let counted = |rival: RivalCard| OwnLevels::Counted {
+            account: account(9, 4, 0, 0, Some(500)),
+            fighters: vec![],
+            rival: Some(rival),
+        };
+        assert!(counted(good.clone()).check().is_ok());
+        let refused = [
+            ("card", RivalCard { card: "c2.abc".into(), ..good.clone() }),
+            ("card", RivalCard { card: "c1.".into(), ..good.clone() }),
+            ("name", RivalCard { name: String::new(), ..good.clone() }),
+            ("name", RivalCard { name: "Player\n7".into(), ..good.clone() }),
+            ("country", RivalCard { country: Some("usa".into()), ..good.clone() }),
+            ("won", RivalCard { won: 0, lost: 0, ..good.clone() }),
+            ("badge", RivalCard { badge: Some(SkillBadge::class(0, true)), ..good.clone() }),
+        ];
+        for (field, rival) in refused {
+            assert_eq!(
+                counted(rival.clone()).check(),
+                Err(Error::InvalidField(field)),
+                "{rival:?}"
+            );
+        }
+        // Lost games alone, or won games alone, are a record.
+        assert!(RivalCard { won: 0, lost: 5, ..good.clone() }.check().is_ok());
+        assert!(RivalCard { won: 5, lost: 0, ..good }.check().is_ok());
+    }
+
     #[test]
     fn the_award_counters_are_optional_on_every_answer() {
         // An answer from a bridge before them has none, and reads as 0.

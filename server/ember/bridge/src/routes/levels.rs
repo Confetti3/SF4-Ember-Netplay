@@ -9,7 +9,9 @@
 use axum::{extract::State, http::HeaderMap, response::Response};
 use ember_protocol::{
     friends::parse_friend_code,
-    levels::{CardAnswers, CardLookup, CardSelector, PlayerCard, Relation, Versus},
+    levels::{
+        CardAnswers, CardLookup, CardSelector, OwnLevels, PlayerCard, Relation, RivalCard, Versus,
+    },
 };
 use rusqlite::Transaction;
 
@@ -34,12 +36,66 @@ const WINDOW_SECS: u64 = 10 * 60;
 
 /// `GET /v1/points/me`. Read only: nothing is remembered as shown.
 pub async fn own(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
-    let (player, _) = admit(&state, &headers).await?;
+    let (player, now) = admit(&state, &headers).await?;
+    let keys = state.keys.clone();
+    let classes = Classes {
+        shown: classes_shown(&state),
+        developers: developers(&state),
+    };
     let levels = state
         .db
-        .read(move |tx| levels::own(tx, &player.ember_id))
+        .read(move |tx| {
+            let mut own = levels::own(tx, &player.ember_id)?;
+            if let OwnLevels::Counted { rival, .. } = &mut own {
+                if let Some(caller) = skill::account(tx, &player.ember_id)? {
+                    *rival = most_played(tx, &keys, &classes, &caller, now)?;
+                }
+            }
+            Ok(own)
+        })
         .await?;
     Ok(ok(&levels))
+}
+
+/// The opponent `caller` played the most, as the caller's own answer names
+/// them: the first of their `levels::RIVAL_CANDIDATES` most played pairs that
+/// neither side blocked, whose player has a card to show a name from, and
+/// whose card is well formed. None when no pair can be shown. The opponent
+/// comes as a fresh card token, never as an account.
+fn most_played(
+    tx: &Transaction<'_>,
+    keys: &Keys,
+    classes: &Classes,
+    caller: &str,
+    now: u64,
+) -> Result<Option<RivalCard>> {
+    for pair in levels::pairs_by_games(tx, caller, levels::RIVAL_CANDIDATES)? {
+        // A block either way passes the pair over: `relation` is none when
+        // they blocked the caller and `Blocked` when the caller blocked them.
+        if store::relation(tx, caller, &pair.other)?
+            .is_none_or(|relation| relation == Relation::Blocked)
+        {
+            continue;
+        }
+        let Some(found) = cards::found(tx, &pair.other)? else {
+            continue;
+        };
+        let Some(card) = cards::issue(keys, &pair.other, now) else {
+            continue;
+        };
+        let rival = RivalCard {
+            card,
+            name: found.name,
+            country: found.country,
+            badge: cards::badge(tx, &pair.other, classes, now)?,
+            won: pair.won,
+            lost: pair.lost,
+        };
+        if rival.check().is_ok() {
+            return Ok(Some(rival));
+        }
+    }
+    Ok(None)
 }
 
 /// `POST /v1/cards/lookup`: one card, or null, per selector, in order. A
