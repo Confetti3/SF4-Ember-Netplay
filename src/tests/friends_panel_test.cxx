@@ -386,7 +386,7 @@ void FindRows() {
     page.typed = "Player"; page.offering = pr::Service::Offered; page.search = &search; page.recent = &recent; page.now = Now;
     // Nothing searched and nobody met: the line that says what shows here.
     auto rows = fnd::ResultRows(page);
-    Check(rows.size() == 1 && rows[0].id == fnd::FindNoteRow && rows[0].label == loc::T("find.recent_empty") && rows[0].info, "an empty page does not say who shows here");
+    Check(rows.size() == 1 && rows[0].id == fnd::FindNoteRow && rows[0].label == loc::T("find.recent") && rows[0].detail == loc::T("find.recent_empty") && rows[0].info, "an empty page does not say who shows here");
     // In flight.
     search.text = "Player"; search.answer.loading = true;
     rows = fnd::ResultRows(page);
@@ -407,7 +407,7 @@ void FindRows() {
     // An answer for other text, or asked the other way, is not shown under this.
     search.answer.value.players = {HitOf("c1.a", "Player 2", 0)};
     page.typed = "Other";
-    Check(fnd::AnswerOf(page) == nullptr && fnd::ResultRows(page).size() == 1 && fnd::ResultRows(page)[0].label == loc::T("find.recent_empty"), "an answer for other text is shown");
+    Check(fnd::AnswerOf(page) == nullptr && fnd::ResultRows(page).size() == 1 && fnd::ResultRows(page)[0].detail == loc::T("find.recent_empty"), "an answer for other text is shown");
     page.typed = "4f2a-91cx";
     search.text = "4f2a-91cx"; search.byCode = false;
     Check(fnd::AnswerOf(page) == nullptr, "a name search's answer is shown for a code");
@@ -506,6 +506,8 @@ void PostMatchFriendStates() {
     // The inputs: a card token and a card read; never this PC's own member.
     ui::ShellView view;
     view.room.localMember = 1;
+    // Public rooms have cards; a private room has none (PointsOf), so the prompt offers nothing there.
+    view.room.serverOwned = true;
     room::Member them;
     them.id = 2; them.name = "Player 2"; them.card = CardToken::Parsed("c1.abc");
     Check(!pm::InputsOf(view, &them, false).card && !pm::InputsOf(view, nullptr, false).card, "a card not read, or no opponent, has a box");
