@@ -166,6 +166,8 @@ struct SetsView {
     std::vector<SetRow> rows;
     // False: the part holds no way to the Sets tab (the service keeps no archive).
     bool allSets = true;
+    // False: the card has no recent sets part at all (a player the viewer blocked).
+    bool shown = true;
 };
 
 // A button at the hero's foot: the row it presses, the pad button's glyph (null
@@ -219,6 +221,9 @@ struct Subject {
     std::uint64_t friendSince = 0, now = 0;
     SetsView sets;
     std::vector<HeroButton> buttons;
+    // Plain words in the place of the points lines and the record, for a card there is nothing to draw of (reading, no card,
+    // a blocked player, unreachable): one paragraph each, as given.
+    std::vector<std::string> notes;
 };
 
 struct FullCardView {
@@ -245,6 +250,8 @@ struct FullCardView {
     std::vector<HeroButton> buttons;
     // The words for a points state with nothing to show, or null.
     const char* levelWords = nullptr;
+    // The subject's own words, which stand in place of levelWords when there are any.
+    std::vector<std::string> notes;
     // How many set rows the size shows.
     int setRows = 5;
 };

@@ -15,7 +15,10 @@
 #include "WatchQueue.hxx"
 #include "MenuNavigation.hxx"
 #include "../netplay/Archive.hxx"
+#include "../netplay/Profiles.hxx"
+#include <algorithm>
 #include <functional>
+#include <optional>
 #include <imgui.h>
 #include <memory>
 #include <string>
@@ -26,9 +29,21 @@ namespace sf4e { namespace ui {
 struct ShellView;
 enum class Tone;
 
+// Where an archive tab reads its listing and what its screens are called. The default is Replays' Archive tab. A profile's
+// Sets tab (PlayerPage) is the same list for one player: it reads the browse state's second slot (ShellView::profileSets),
+// so the two never replace each other's listing; the name it lists by is fixed (Filters cannot change or clear it, and a
+// set shows this player's side first); and a row offers that set's opponents' cards in place of their sets. `lists` are
+// the screens the list is on, `filter` and `fighter` its two pages.
+struct ArchivePlace {
+    bool profile = false;
+    std::vector<std::string> lists{"replay-archive"};
+    std::string filter = "replay-archive-filter", fighter = "replay-archive-fighter";
+};
+
 class ArchiveTab {
 public:
     using Submit = std::function<bool(ShellAction)>;
+    explicit ArchiveTab(ArchivePlace place = ArchivePlace()) : place_(std::move(place)) {}
     static constexpr const char* Screen = "replay-archive";
     static constexpr const char* FilterScreen = "replay-archive-filter";
     static constexpr const char* FighterScreen = "replay-archive-fighter";
@@ -46,6 +61,13 @@ public:
     void OpenFor(const std::string& playerName, MenuNavigation& navigation) { Browse(netplay::archive::Filter::Named(playerName)); navigation.Push(Screen); }
     // Browse by `filter` from the first page (Find this player's sets sets only a name).
     void Browse(netplay::archive::Filter filter);
+    // Whether `screen` is the list this tab shows its sets on.
+    bool IsList(const std::string& screen) const { return std::find(place_.lists.begin(), place_.lists.end(), screen) != place_.lists.end(); }
+    // A profile's tab: the sets of `name`, from the first page, when it is not the name already browsed.
+    void BrowseName(const std::string& name) { if (filter_.name != name) Browse(netplay::archive::Filter::Named(name)); }
+    // The player a set row's "Player card" choice names, as the set's games knew them: their name, flag, class and
+    // fighter. None for any other action.
+    std::optional<netplay::profiles::Known> PlayerOf(const MenuAction& action) const;
 
     // Every frame, before the rows: the service the archive is read from (empty when
     // none is set up), the focused row, and the page to ask for, if any.
@@ -78,6 +100,10 @@ private:
     void Regroup(const ShellView& view);
     const archivesets::Entry* Find(const std::string& id) const;
     bool Heard(const ShellView& view) const;
+    // Whether the filter narrows the list beyond what the tab fixes: a profile's list always has its name.
+    bool Narrowed() const { return place_.profile ? filter_.ActiveBeyondName() : filter_.Active(); }
+    // The browse state this tab reads.
+    const netplay::archive::Status& Slot(const ShellView& view) const;
     static bool NearEnd(int at, std::size_t rows);
     std::vector<QueuedGame> Games(const archivesets::Entry& entry, const ShellView& view) const;
     void FilterRows(const ShellView& view, std::vector<MenuEntry>& rows) const;
@@ -86,6 +112,7 @@ private:
     std::vector<std::string> EventValues() const;
     std::vector<std::string> CountryValues() const;
 
+    ArchivePlace place_;
     netplay::archive::Filter filter_;
     std::string bridge_;
     // What was last sent, and the listing it was sent for.

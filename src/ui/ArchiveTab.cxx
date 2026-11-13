@@ -71,21 +71,29 @@ std::string NameOf(const Entry& entry, int side) {
     if (entry.kind == Entry::Kind::Session) return side == 0 ? entry.player : std::string();
     return entry.First().names[side];
 }
-MenuEntry EntryRow(const ShellView& v, const Entry& entry, bool idle) {
+// The side a set's row leads with: a session's player, else, on a profile's list, the side the listed player played in the
+// first game, so their name and score come first.
+int LeadOf(const Entry& entry, const std::string& listed) {
+    if (entry.kind == Entry::Kind::Session) return archivesets::SideOf(entry.First(), entry.player);
+    const Game& first = entry.First();
+    return !listed.empty() && first.names[0] != listed && first.names[1] == listed ? 1 : 0;
+}
+MenuEntry EntryRow(const ShellView& v, const Entry& entry, bool idle, const std::string& listed, bool profile) {
     const Game& first = entry.First();
     const bool session = entry.kind == Entry::Kind::Session;
     const auto score = archivesets::Score(entry);
+    const int lead = LeadOf(entry, listed);
     std::string label;
     if (session) label = loc::Tf("archive.session_label", entry.player, entry.games.size());
-    else if (score) label = SideName(first, 0) + " " + std::to_string((*score)[0]) + "-" + std::to_string((*score)[1]) + " " + SideName(first, 1);
-    else label = loc::Tf("replays.fighters", SideName(first, 0), SideName(first, 1));
+    else if (score) label = SideName(first, lead) + " " + std::to_string((*score)[lead]) + "-" + std::to_string((*score)[1 - lead]) + " " + SideName(first, 1 - lead);
+    else label = loc::Tf("replays.fighters", SideName(first, lead), SideName(first, 1 - lead));
     const std::string context = ContextText(entry);
     MenuEntry row = Row(std::string(ArchiveTab::RowPrefix) + entry.id, label, Joined({context, LocalTime(entry.newest)}, kDot));
     row.userText = true;
     row.detailText = DetailText::Name;
     for (const auto& name : first.names) NoteUserText(name);
     NoteUserText(entry.player);
-    const int left = session ? archivesets::SideOf(first, entry.player) : 0;
+    const int left = lead;
     const auto known = [&](int side) { return selection::FindFighter(first.fighters[side]) ? first.fighters[side] : -1; };
     row.fighter1 = known(left);
     row.fighter2 = known(1 - left);
@@ -96,7 +104,13 @@ MenuEntry EntryRow(const ShellView& v, const Entry& entry, bool idle) {
     row.choices.push_back(NeedsMenu("archive-watch", loc::T(several ? "replays.watch_set" : "replays.watch"), loc::T(several ? "replays.watch_set_detail" : "replays.watch_detail"),
         idle, v.replays.ready && v.archiveBrowse.fetching.empty()));
     const std::string names[2] = {NameOf(entry, 0), NameOf(entry, 1)};
-    for (auto& find : FindChoices(names)) row.choices.push_back(std::move(find));
+    if (profile) {
+        // The players of the set other than the one listed: their cards replace the profile (PlayerPage).
+        for (int side = 0; side < 2; ++side)
+            if (!names[side].empty() && names[side] != listed) row.choices.push_back({"card-" + std::to_string(side + 1), loc::Tf("profile.card_of", names[side]), std::string()});
+    } else {
+        for (auto& find : FindChoices(names)) row.choices.push_back(std::move(find));
+    }
     row.chosen = row.choices.front().enabled || row.choices.size() == 1 ? row.choices.front().id : row.choices[1].id;
     return row;
 }
@@ -163,15 +177,17 @@ void ArchiveTab::Browse(Filter filter) {
     retry_ = false;
 }
 
-bool ArchiveTab::Heard(const ShellView& v) const { return v.archiveBrowse.Answers(bridge_, filter_); }
+const netplay::archive::Status& ArchiveTab::Slot(const ShellView& v) const { return place_.profile ? v.profileSets : v.archiveBrowse; }
+
+bool ArchiveTab::Heard(const ShellView& v) const { return Slot(v).Answers(bridge_, filter_); }
 
 void ArchiveTab::Regroup(const ShellView& v) {
-    const auto& listing = v.archiveBrowse.listing;
+    const auto& listing = Slot(v).listing;
     if (listing == held_) return;
     held_ = listing;
     entries_ = listing ? archivesets::Group(*listing) : std::vector<Entry>{};
     // The filter's choices are the archive's, whatever the filter is: they stay while another filter's first page loads.
-    if (listing && v.archiveBrowse.bridge == bridge_) { events_ = listing->events; countries_ = listing->countries; }
+    if (listing && Slot(v).bridge == bridge_) { events_ = listing->events; countries_ = listing->countries; }
 }
 
 const Entry* ArchiveTab::Find(const std::string& id) const {
@@ -183,7 +199,7 @@ void ArchiveTab::Update(const ShellView& v, const std::string& screen, const std
     bridge_ = bridge;
     Regroup(v);
     // A page is asked for only while the list is on show: the filter's own pages ask for nothing until the player is back.
-    if (screen != Screen || bridge.empty()) return;
+    if (!IsList(screen) || bridge.empty() || (place_.profile && filter_.name.empty())) return;
     int at = -1;
     for (std::size_t i = 0; i < entries_.size(); ++i)
         if (std::string(RowPrefix) + entries_[i].id == focus) { at = static_cast<int>(i); break; }
@@ -192,13 +208,14 @@ void ArchiveTab::Update(const ShellView& v, const std::string& screen, const std
     want.filter = filter_;
     want.nearEnd = NearEnd(at, entries_.size());
     want.retry = retry_;
+    want.profile = place_.profile;
     // Sent once for each want and each listing it is a want of; the runtime decides which page that asks for.
-    if (!want.retry && want == last_ && v.archiveBrowse.revision == revision_) return;
+    if (!want.retry && want == last_ && Slot(v).revision == revision_) return;
     retry_ = false;
     if (!submit(want)) return;
     last_ = std::move(want);
     last_.retry = false;
-    revision_ = v.archiveBrowse.revision;
+    revision_ = Slot(v).revision;
 }
 
 std::vector<std::string> ArchiveTab::EventValues() const {
@@ -217,11 +234,22 @@ std::vector<std::string> ArchiveTab::CountryValues() const {
 
 void ArchiveTab::FilterRows(const ShellView& v, std::vector<MenuEntry>& rows) const {
     // Player or event is typed; the rest are words stepped through, which Select lists in full.
-    const std::string& typed = filter_.name.empty() ? filter_.text : filter_.name;
-    NoteUserText(typed);
-    rows.push_back(TextRow("af-text", loc::T("archive.f_text"), typed, 40));
-    rows.back().detail = loc::T("archive.f_text_detail");
-    rows.back().userText = true;
+    if (place_.profile) {
+        // The player is the name the sets are of and stays; the opponent is typed.
+        NoteUserText(filter_.name);
+        rows.push_back(InfoRow("af-player", loc::T("profile.sets_player"), filter_.name, loc::T("profile.sets_player_detail")));
+        rows.back().userText = true;
+        NoteUserText(filter_.text);
+        rows.push_back(TextRow("af-text", loc::T("profile.sets_opponent"), filter_.text, 40));
+        rows.back().detail = loc::T("profile.sets_opponent_detail");
+        rows.back().userText = true;
+    } else {
+        const std::string& typed = filter_.name.empty() ? filter_.text : filter_.name;
+        NoteUserText(typed);
+        rows.push_back(TextRow("af-text", loc::T("archive.f_text"), typed, 40));
+        rows.back().detail = loc::T("archive.f_text_detail");
+        rows.back().userText = true;
+    }
     rows.push_back(Row("af-fighter", loc::T("archive.f_fighter"), loc::T("archive.f_fighter_detail")));
     rows.back().value = filter_.fighter >= 0 ? FighterName(filter_.fighter) : std::string(loc::T("archive.any_fighter"));
     std::vector<std::string> classes{loc::T("archive.any_class")};
@@ -250,22 +278,22 @@ void ArchiveTab::FilterRows(const ShellView& v, std::vector<MenuEntry>& rows) co
     const std::vector<std::string> sorts{loc::T("archive.sort_newest"), loc::T("archive.sort_class")};
     rows.push_back(PickRow("af-sort", "archive.f_sort", "archive.f_sort_detail", sorts, filter_.order == netplay::archive::Order::Class ? 1 : 0));
     // How many games the filter keeps, once the listing says.
-    if (Heard(v) && v.archiveBrowse.listing && v.archiveBrowse.listing->matching) {
-        const auto& listing = *v.archiveBrowse.listing;
+    if (Heard(v) && Slot(v).listing && Slot(v).listing->matching) {
+        const auto& listing = *Slot(v).listing;
         rows.push_back(InfoRow("af-count", loc::T("archive.games_shown"),
             listing.total ? loc::Tf("archive.games_of", *listing.matching, *listing.total) : std::to_string(*listing.matching), ""));
     }
-    rows.push_back(Row("af-clear", loc::T("archive.clear"), loc::T("archive.clear_detail"), filter_.Active()));
+    rows.push_back(Row("af-clear", loc::T("archive.clear"), loc::T("archive.clear_detail"), Narrowed()));
 }
 
 std::vector<MenuEntry> ArchiveTab::Rows(const ShellView& v, const std::string& screen, bool idle, std::string& title) const {
     std::vector<MenuEntry> rows;
-    if (screen == FilterScreen) {
+    if (screen == place_.filter) {
         title = loc::T("archive.filters");
         FilterRows(v, rows);
         return rows;
     }
-    if (screen == FighterScreen) {
+    if (screen == place_.fighter) {
         // The fighters as a grid of cards, as the Matches filter lists them; one is chosen, or any.
         title = loc::T("archive.f_fighter");
         for (const int id : selection::RosterDisplayOrder) {
@@ -281,11 +309,21 @@ std::vector<MenuEntry> ArchiveTab::Rows(const ShellView& v, const std::string& s
         rows.push_back(Row("archive-identity", loc::T("archive.no_service"), loc::T("archive.no_service_detail")));
         return rows;
     }
+    // A profile's list with no name to list by has no sets to find.
+    if (place_.profile && filter_.name.empty()) {
+        rows.push_back(InfoRow("archive-none", loc::T("archive.empty"), "", loc::T("archive.empty_detail")));
+        return rows;
+    }
     rows.push_back(Row("archive-filters", loc::T("archive.filters"), loc::T("archive.filters_detail")));
     rows.back().value = FilterSummary(filter_);
     rows.back().userText = true;
-    if (filter_.Active()) rows.push_back(Row("archive-clear", loc::T("archive.clear"), loc::T("archive.clear_detail")));
-    const auto& status = v.archiveBrowse;
+    // A profile's list says what its sets are found by: the exact name.
+    if (place_.profile) {
+        rows.push_back(InfoRow("archive-note", loc::Tf("profile.sets_note", filter_.name), "", ""));
+        rows.back().userText = true;
+    }
+    if (Narrowed()) rows.push_back(Row("archive-clear", loc::T("archive.clear"), loc::T("archive.clear_detail")));
+    const auto& status = Slot(v);
     using State = netplay::archive::Status::State;
     if (!Heard(v) || status.state == State::Loading) {
         rows.push_back(InfoRow("archive-loading", loc::T("archive.loading"), "", loc::T("archive.loading_detail")));
@@ -294,11 +332,11 @@ std::vector<MenuEntry> ArchiveTab::Rows(const ShellView& v, const std::string& s
     } else if (status.state == State::Failed) {
         rows.push_back(Row("archive-retry", loc::T("archive.failed"), loc::Tf("archive.failed_detail", PublicRoomsPanel::FailureText(status.error))));
     } else if (status.Loaded()) {
-        for (const auto& entry : entries_) rows.push_back(EntryRow(v, entry, idle));
+        for (const auto& entry : entries_) rows.push_back(EntryRow(v, entry, idle, place_.profile ? filter_.name : std::string(), place_.profile));
         if (entries_.empty() && (status.loadingMore || !status.listing->next.empty()))
             rows.push_back(InfoRow("archive-loading", loc::T("archive.loading"), "", loc::T("archive.loading_detail")));
         else if (entries_.empty())
-            rows.push_back(InfoRow("archive-none", loc::T(filter_.Active() ? "archive.none" : "archive.empty"), "", loc::T(filter_.Active() ? "archive.none_detail" : "archive.empty_detail")));
+            rows.push_back(InfoRow("archive-none", loc::T(Narrowed() ? "archive.none" : "archive.empty"), "", loc::T(Narrowed() ? "archive.none_detail" : "archive.empty_detail")));
         if (status.loadingMore) rows.push_back(InfoRow("archive-more", loc::T("archive.loading_more"), "", loc::T("archive.loading_more_detail")));
         else if (status.moreFailed) rows.push_back(Row("archive-more-retry", loc::T("archive.more_failed"), loc::T("archive.more_failed_detail")));
     }
@@ -306,11 +344,16 @@ std::vector<MenuEntry> ArchiveTab::Rows(const ShellView& v, const std::string& s
 }
 
 bool ArchiveTab::Activate(const MenuAction& a, MenuNavigation& nav) {
-    if (a.id == "archive-filters") { nav.Push(FilterScreen); return true; }
+    if (a.id == "archive-filters") { nav.Push(place_.filter); return true; }
     if (a.id == "archive-identity") { nav.Push("identity"); return true; }
     if (a.id == "archive-retry" || a.id == "archive-more-retry") { retry_ = true; return true; }
-    if (a.id == "archive-clear" || a.id == "af-clear") { filter_ = Filter().Ordered(filter_.order); return true; }
-    if (a.id == "af-fighter") { nav.Push(FighterScreen); return true; }
+    if (a.id == "archive-clear" || a.id == "af-clear") {
+        const std::string kept = place_.profile ? filter_.name : std::string();
+        filter_ = Filter().Ordered(filter_.order);
+        filter_.name = kept;
+        return true;
+    }
+    if (a.id == "af-fighter") { nav.Push(place_.fighter); return true; }
     if (a.id == "af-any") { filter_.fighter = -1; nav.Return(); return true; }
     if (const int fighter = FighterOf(a.id); fighter >= 0) { filter_.fighter = fighter; nav.Return(); return true; }
     return false;
@@ -322,7 +365,10 @@ bool ArchiveTab::Adjust(const MenuAction& a) {
         current = values[static_cast<std::size_t>((std::max)(0, (std::min)(static_cast<int>(values.size()) - 1, at)))];
     };
     // Typing replaces the search, which is then a substring one: an exact name is dropped.
-    if (a.id == "af-text") { if (a.kind == MenuAction::TextAccepted) { filter_.text = Trimmed(a.text); filter_.name.clear(); } return true; }
+    if (a.id == "af-text") {
+        if (a.kind == MenuAction::TextAccepted) { filter_.text = Trimmed(a.text); if (!place_.profile) filter_.name.clear(); }
+        return true;
+    }
     if (a.id == "af-class") { filter_.band = (std::max)(0, (std::min)(static_cast<int>(SkillBadge::Classes), filter_.band + a.delta)); return true; }
     if (a.id == "af-country") { step(CountryValues(), filter_.country); return true; }
     if (a.id == "af-event") { step(EventValues(), filter_.event); return true; }
@@ -340,15 +386,15 @@ bool ArchiveTab::Adjust(const MenuAction& a) {
 }
 
 void ArchiveTab::Shortcut(const MenuAction& a, const ShellView&, const std::string& screen, MenuNavigation& nav) {
-    if (screen != Screen || bridge_.empty()) return;
-    if (a.delta == MenuInput::Fighter) nav.Push(FilterScreen);
+    if (!IsList(screen) || bridge_.empty()) return;
+    if (a.delta == MenuInput::Fighter) nav.Push(place_.filter);
     else if (a.delta == MenuInput::Options) retry_ = true;
 }
 
 std::vector<LegendHint> ArchiveTab::Hints(const ShellView& v, const std::string& screen) const {
-    if (screen != Screen || bridge_.empty()) return {};
+    if (!IsList(screen) || bridge_.empty()) return {};
     using State = netplay::archive::Status::State;
-    const auto& status = v.archiveBrowse;
+    const auto& status = Slot(v);
     const bool failed = Heard(v) && (status.state == State::Failed || status.state == State::Unsupported || status.moreFailed);
     return ShortcutHints({{MenuInput::Fighter, loc::T("archive.filters")}, {MenuInput::Options, loc::T(failed ? "archive.retry" : "legend.refresh")}});
 }
@@ -359,7 +405,7 @@ std::vector<QueuedGame> ArchiveTab::Games(const Entry& entry, const ShellView& v
     std::vector<QueuedGame> games;
     for (const auto* game : entry.games) {
         QueuedGame queued;
-        queued.bridge = v.archiveBrowse.bridge.empty() ? bridge_ : v.archiveBrowse.bridge;
+        queued.bridge = Slot(v).bridge.empty() ? bridge_ : Slot(v).bridge;
         queued.url = game->url;
         queued.digest = game->digest;
         const std::string names[2] = {game->names[0], game->names[1]};
@@ -384,8 +430,24 @@ bool ArchiveTab::Choose(const MenuAction& a, const ShellView& v, const Submit& s
     return true;
 }
 
+std::optional<netplay::profiles::Known> ArchiveTab::PlayerOf(const MenuAction& a) const {
+    if (!place_.profile || !IsRow(a.id) || (a.text != "card-1" && a.text != "card-2")) return std::nullopt;
+    const Entry* entry = Find(a.id.substr(std::string(RowPrefix).size()));
+    if (!entry) return std::nullopt;
+    const int side = a.text == "card-2" ? 1 : 0;
+    // The sides are the first game's, as the row's choices name them; a session names only the one player.
+    const Game& first = entry->First();
+    if (entry->kind == Entry::Kind::Session || first.names[side].empty()) return std::nullopt;
+    netplay::profiles::Known known;
+    known.name = first.names[side];
+    known.country = CountryCode::Parsed(first.countries[side]);
+    known.badge = BadgeOf(first.classes[side]);
+    known.fighter = selection::FindFighter(first.fighters[side]) ? first.fighters[side] : -1;
+    return known;
+}
+
 bool ArchiveTab::Status(const ShellView& v, const std::string& screen, std::string& status, Tone& tone) const {
-    if (!Owns(screen) || !status.empty()) return false;
+    if (!(Owns(screen) || IsList(screen) || screen == place_.filter || screen == place_.fighter) || !status.empty()) return false;
     const auto& answer = v.archiveBrowse;
     if (!answer.fetching.empty()) { status = loc::T("archive.downloading"); tone = Tone::Pending; return true; }
     if (answer.fetchError.empty()) return false;
@@ -409,8 +471,8 @@ bool ArchiveTab::DrawCard(const ShellView&, const MenuEntry& e, ImVec2 min, ImVe
     const float whenWidth = ImGui::CalcTextSize(when.c_str()).x;
     d->AddText(ImVec2(right - whenWidth, min.y + (max.y - min.y - ImGui::GetFontSize()) * .5f), c.muted, when.c_str());
     right -= whenWidth + 14 * s;
-    // The fighters' faces, a session's player first.
-    const int left = session ? archivesets::SideOf(first, entry->player) : 0;
+    // The fighters' faces, a session's player first (and a profile's player).
+    const int left = LeadOf(*entry, place_.profile ? filter_.name : std::string());
     const float face = max.y - min.y - 16 * s;
     float x = min.x + 16 * s;
     for (int i = 0; i < 2; ++i) {
@@ -436,10 +498,10 @@ bool ArchiveTab::DrawCard(const ShellView&, const MenuEntry& e, ImVec2 min, ImVe
         d->AddText(ImVec2(at, top), c.accent, GamesText(entry->games.size()).c_str());
     } else {
         const auto score = archivesets::Score(*entry);
-        const std::string mid = score ? std::to_string((*score)[0]) + "-" + std::to_string((*score)[1]) : std::string(loc::T("archive.vs"));
-        const NameMarks marksA = MarksOf(first, 0), marksB = MarksOf(first, 1);
+        const std::string mid = score ? std::to_string((*score)[left]) + "-" + std::to_string((*score)[1 - left]) : std::string(loc::T("archive.vs"));
+        const NameMarks marksA = MarksOf(first, left), marksB = MarksOf(first, 1 - left);
         const float room = (right - x - ImGui::CalcTextSize(mid.c_str()).x - 24 * s) * .5f;
-        const std::string a = FitLabel(SideName(first, 0), room - NameMarksWidth(marksA, size)), b = FitLabel(SideName(first, 1), room - NameMarksWidth(marksB, size));
+        const std::string a = FitLabel(SideName(first, left), room - NameMarksWidth(marksA, size)), b = FitLabel(SideName(first, 1 - left), room - NameMarksWidth(marksB, size));
         float at = x + DrawNameMarks(d, x, top, size, marksA).width;
         d->AddText(ImVec2(at, top), c.text, a.c_str());
         at += ImGui::CalcTextSize(a.c_str()).x + 12 * s;

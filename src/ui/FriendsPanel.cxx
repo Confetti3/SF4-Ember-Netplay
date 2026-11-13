@@ -706,7 +706,6 @@ bool FriendsPanel::Activate(const ShellView& v, const MenuAction& a, MenuNavigat
 
 bool FriendsPanel::Choose(const ShellView& v, const MenuAction& a, const Submit& submit) {
     const auto& f = v.friends;
-    const auto& state = StateOf(f);
     const Gate gate = GateOf(f, service_, pending_.active);
     const std::string& bridge = Bridge(v);
     // A page's one choice: take the request back, lift the block.
@@ -733,21 +732,40 @@ bool FriendsPanel::Choose(const ShellView& v, const MenuAction& a, const Submit&
     if (!ask.empty() && a.text != "yes") return true;
     // More's choices that ask first go on to the question.
     if (ask.empty() && (what == "remove" || what == "remove-block" || what == "decline" || what == "decline-block")) { Ask(a.id, what); return true; }
+    Perform(v, what, id, a.id, submit);
+    return true;
+}
+
+// What a choice on a friend, a request or a block does once it is gone through (the question asked, if it asks): gated,
+// sent and answered in words as the rows' own are. `row` is the row that waits on the answer, none from a profile page.
+void FriendsPanel::Perform(const ShellView& v, const std::string& what, const std::string& id, const std::string& row, const Submit& submit) {
+    const auto& f = v.friends;
+    const Gate gate = GateOf(f, service_, pending_.active);
+    const std::string& bridge = Bridge(v);
     if (what == "join" || what == "watch") {
         if (!gate.go) Say(loc::T(gate.goWhy), Tone::Error);
         else if (what == "join") Send(v, commands::FriendJoin{{}, bridge, id}, submit);
         else Send(v, commands::FriendWatch{{}, bridge, id}, submit);
-        return true;
+        return;
     }
-    if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return true; }
-    if (what == "accept") Accept(v, id, a.id, submit);
+    if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
+    if (what == "accept") Accept(v, id, row, submit);
     else if (what == "invite") {
-        const auto* entry = state.FindFriend(id);
-        Send(v, commands::FriendInvite{bridge, id}, submit, a.id, entry ? loc::Tf("friends.invite_sent", entry->name) : std::string());
+        const auto* entry = StateOf(f).FindFriend(id);
+        Send(v, commands::FriendInvite{bridge, id}, submit, row, entry ? loc::Tf("friends.invite_sent", entry->name) : std::string());
     }
-    else if (what == "remove" || what == "remove-block") Send(v, commands::FriendRemove{bridge, id, what == "remove-block"}, submit, a.id);
-    else if (what == "decline" || what == "decline-block") Send(v, commands::FriendDecline{bridge, id, what == "decline-block"}, submit, a.id);
-    return true;
+    else if (what == "remove" || what == "remove-block") Send(v, commands::FriendRemove{bridge, id, what == "remove-block"}, submit, row);
+    else if (what == "decline" || what == "decline-block") Send(v, commands::FriendDecline{bridge, id, what == "decline-block"}, submit, row);
+    else if (what == "unblock") Send(v, commands::FriendUnblock{bridge, id}, submit, row);
+}
+
+friends_panel::Gate FriendsPanel::Gates(const ShellView& v) const { return GateOf(v.friends, service_, pending_.active); }
+friends_panel::Gate FriendsPanel::MemberGates(const ShellView& v) const { return MemberGateOf(v.friends, service_, pending_.active); }
+
+void FriendsPanel::RequestByCode(const ShellView& v, const std::string& code, const std::string& name, const Submit& submit) {
+    const Gate gate = MemberGateOf(v.friends, service_, pending_.active);
+    if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
+    Send(v, commands::FriendRequestByCode{Bridge(v), code}, submit, {}, loc::Tf("friends.request_sent_to", name));
 }
 
 bool FriendsPanel::Adjust(const MenuAction& a) {

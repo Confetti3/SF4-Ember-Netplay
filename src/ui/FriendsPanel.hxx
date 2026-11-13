@@ -215,6 +215,15 @@ public:
     // the card token their ticket carried and their room name. A refusal or what went through is said as a notice.
     void RequestMember(const ShellView& view, const std::string& card, const std::string& name, bool accepts, const Submit& submit);
     void BlockMember(const ShellView& view, const std::string& card, const std::string& name, const Submit& submit);
+    // What another player's profile page (PlayerPage) asks of the same paths the tab's rows take. `ActOnFriend` does a
+    // choice FriendChoices lists ("join", "watch", "invite", "remove", "remove-block") on a friend by their id, "accept"
+    // on a request by its id, "decline", "decline-block", and "unblock" on a block by its id; each is gated, sent and
+    // said in words as the rows' own are. `RequestByCode` asks the player with this friend code, named `name` in the
+    // words that follow. `Gates` and `MemberGates` are what the tab and a member's request are held to now.
+    void ActOnFriend(const ShellView& view, const std::string& what, const std::string& id, const Submit& submit) { Perform(view, what, id, {}, submit); }
+    void RequestByCode(const ShellView& view, const std::string& code, const std::string& name, const Submit& submit);
+    friends_panel::Gate Gates(const ShellView& view) const;
+    friends_panel::Gate MemberGates(const ShellView& view) const;
     // The Friends tab's board at the cursor, in a body `height` tall.
     void Draw(const ShellView& view, GameMenu& menu, const std::vector<MenuEntry>& rows, MenuAction& action, float height);
 
@@ -233,6 +242,7 @@ private:
         bool issued = false, seen = false;
         int waits = 0;
     };
+    void Perform(const ShellView& view, const std::string& what, const std::string& id, const std::string& row, const Submit& submit);
     template <class Command>
     bool Send(const ShellView& view, Command command, const Submit& submit, const std::string& row = {}, std::string say = {}, bool back = false);
     void Say(std::string words, Tone tone);
