@@ -437,6 +437,18 @@ int main() {
             Require(session.GetView().mode == Mode::Idle && session.GetView().playbackSide == 1, "It plays once, then the dummy's side is back");
             Require(session.Slot(0).size() == 1, "The slots are left alone");
         }
+        {
+            // "[4]6MK": its charge as frames to hold back, then its hold.
+            std::vector<Input> charge(5, Input{8, 8, 0, 0});
+            charge[3].wait = WaitReply; charge.push_back({4, 4, 0, 0}); charge.push_back({0x24, 0x24, 0, 0});
+            ReplySchedule schedule; schedule.start = 0; schedule.hold = 3; schedule.anchor = 5;
+            Session session; session.Enter(); session.SetReady(true);
+            // The runtime keeps the charges full: the reply starts on its hold.
+            Require(session.Reply(charge, schedule) && session.GetView().cursor == 3 && session.Holding(), "A kept charge was played");
+            session.StopReply(); session.Commit(Frame{});
+            std::vector<Input> lead = charge; lead[0].raw = lead[0].mapped = 2;
+            Require(session.Reply(lead, schedule) && session.GetView().cursor == 0, "A lead of other inputs was skipped");
+        }
         std::puts("Training session checks passed.");
         return 0;
     } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }

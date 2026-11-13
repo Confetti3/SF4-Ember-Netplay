@@ -651,10 +651,17 @@ public:
         resumeSide_ = view_.playbackSide; view_.playbackSide = 1;
         Play(slot, std::move(frames));
         view_.replying = true; view_.cursor = first; ++replies_; schedule_ = schedule;
+        // The runtime keeps the dummy's charges full while it holds: a charge
+        // has nothing to wait for, so the reply goes straight to its hold.
+        if (schedule.hold >= 0 && schedule.hold < static_cast<int>(playing_.size()) &&
+            std::all_of(playing_.begin() + view_.cursor, playing_.begin() + schedule.hold, [&](const Input& frame) { return frame.raw == playing_[schedule.hold].raw; }))
+            view_.cursor = (std::max)(view_.cursor, schedule.hold);
         if (slot < SlotCount) replyPicker_.Commit(slot);
         return true;
     }
     bool Replying() const { return view_.replying; }
+    // A reply on its leading hold, or before it: where the runtime keeps the charges full.
+    bool Holding() const { return view_.replying && schedule_.hold >= 0 && view_.cursor <= schedule_.hold; }
     // The schedule of the reply playing, as it began.
     const ReplySchedule& Schedule() const { return schedule_; }
     // Replies started so far, never reset: each new reply changes it.

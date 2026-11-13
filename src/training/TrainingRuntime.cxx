@@ -348,6 +348,7 @@ bool ReadOverride(int side, Input& result) {
 // apply now; only then is the game touched.
 std::array<FighterSample, 2> ReadFighters(Native* system, bool files);
 int BattleFighter(Native* system, int side);
+void KeepDummyCharged(Native* system);
 void EndCheck();
 void EndRecording();
 static bool Dispatch(Native* system, const Command& command) {
@@ -521,9 +522,27 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         if (!menu && !sf4e::input::SideAssigned(1)) physical[1] = Input{};
         output = session.Prepare(physical);
         commitInput = true;
+        if (session.Holding()) KeepDummyCharged(system);
     }
     overriding = plan.override;
     FollowDummy(system, plan.suppliesDummy);
+}
+// A side's charges as the game counts them; null, count 0, when it has none.
+Dimps::Game::Battle::Command::CommandImpl::ChargeState* ChargeStates(Native* system, int side, int& count) {
+    namespace Command = Dimps::Game::Battle::Command;
+    auto* commands = (Command::Unit*)(system->*Native::publicMethods.GetUnitByIndex)(Native::U_COMMAND);
+    auto* impl = commands ? (commands->*Command::Unit::publicMethods.GetCommandImplForEntry)(side) : nullptr;
+    count = 0;
+    return impl ? Command::CommandImpl::GetChargeStates(impl, count) : nullptr;
+}
+// A charge as good as held: each of the dummy's charges reads full before
+// the game counts this frame, so a reply's charge move comes out the frame the
+// dummy is free, however short its stun (Session::Holding).
+void KeepDummyCharged(Native* system) {
+    int count = 0;
+    auto* states = ChargeStates(system, 1, count);
+    for (int i = 0; states && i < count; ++i)
+        if (states[i].record) { states[i].held = (std::max)(states[i].held, static_cast<int>(states[i].record[3])); states[i].released = 0; }
 }
 // The fighter a player brought into this battle; -1 when the request holds
 // no fighter the catalog knows.
@@ -668,7 +687,6 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
     DataView data;
     Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
     if (!unit) return data;
-    auto* commands = (Command::Unit*)(system->*Native::publicMethods.GetUnitByIndex)(Native::U_COMMAND);
     data.frame = Native::GetNumFramesSimulated_FixedPoint(system)->integral;
     const auto amount = [](Actor* actor, void (Actor::*method)(Dimps::Math::FixedPoint*)) {
         Dimps::Math::FixedPoint value{};
@@ -706,9 +724,8 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
                 const unsigned short rule = Command::GetMoveRange(move, fighter.range);
                 fighter.rangeRule = rule <= static_cast<unsigned short>(RangeRule::HeightWithin) ? static_cast<RangeRule>(rule) : RangeRule::None;
             }
-        auto* impl = commands ? (commands->*Command::Unit::publicMethods.GetCommandImplForEntry)(side) : nullptr;
         int count = 0;
-        const auto* states = impl ? Command::CommandImpl::GetChargeStates(impl, count) : nullptr;
+        const auto* states = ChargeStates(system, static_cast<int>(side), count);
         // Juri's three charges only count a held button; her fireball stock is three bits of the fighter.
         if (HasFuhajinStock(fighter.chargeNames.get())) fighter.stock = *reinterpret_cast<const unsigned*>(reinterpret_cast<const char*>(actor) + FuhajinStockOffset) & 7u;
         else

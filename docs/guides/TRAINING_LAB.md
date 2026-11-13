@@ -242,9 +242,9 @@ Directions are written for a dummy facing right; the dummy turns them for the si
 
 #### Charge moves
 
-Start the reply with a held direction, then type the charge move **without** its charge: `[1] > 8HK` for a Flash Kick, `[1] > 6HP` for a Sonic Boom, `[1] > 6P` for a Psycho Crusher. `[1]` is down-back, so it charges both back and down. The dummy holds it from the moment it is knocked down or stunned and lets go just in time to press the move on its first free frame.
+Pick the charge move from the list, or type it: `[4]6P` for a Psycho Crusher, `[2]8HK` for a Flash Kick. You can also start the reply with a held direction and type the move **without** its charge: `[1] > 8HK`, `[1] > 6HP`. `[1]` is down-back, so it charges both back and down. The dummy holds the charge from the moment it is hit, blocks or is knocked down, and lets go just in time to press the move on its first free frame.
 
-A charge built this way is only as long as the stun. A knockdown is long enough, so charge moves work **On Wake-Up**. Every charge in the game is longer than a normal blockstun, so after blocking the move comes out uncharged unless the blockstun is long.
+While the dummy holds, Ember keeps its charges full, so the move comes out charged however short the stun, after a single jab as after a knockdown.
 
 Don't write the charge twice: `[1] > [4]6P` holds back for a whole new charge after the dummy gets up. `[4]6P` on its own is right only when nothing comes before it to hold the charge through.
 
