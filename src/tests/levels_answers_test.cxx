@@ -59,8 +59,8 @@ static void TestLevels() {
 		const auto bonus = session::DecodeOwnLevels(changed("points", points));
 		CHECK(bonus && bonus->fighters[3].points == points && bonus->fighters[3].games == 1000 && bonus->fighters[3].wins == 900);
 	}
-	const auto plain = session::DecodeOwnLevels(accountChanged("points", 9u));
-	CHECK(plain && plain->account.points == 9 && plain->account.games == 9 && plain->account.wins == 4);
+	const auto gamesOnly = session::DecodeOwnLevels(accountChanged("points", 9u));
+	CHECK(gamesOnly && gamesOnly->account.points == 9 && gamesOnly->account.games == 9 && gamesOnly->account.wins == 4);
 	CHECK(!session::DecodeOwnLevels(accountChanged("points", 8u)));
 	auto lacking = entry;
 	lacking.erase("next");
