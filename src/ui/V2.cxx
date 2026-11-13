@@ -558,7 +558,7 @@ namespace {
 float FactKeyExtra(float width, const std::vector<TagView::Fact>& facts, std::size_t across) {
     const float s = Scale(), room = width / across - 28 * s;
     for (const auto& fact : facts)
-        if (HeadingHeight(fact.key, room, 12 * s) > 12 * s) return 12 * s * HeadingLine;
+        if (HeadingHeight(fact.key, room, 13 * s) > 13 * s) return 13 * s * HeadingLine;
     return 0;
 }
 std::size_t FactAcross(const std::vector<TagView::Fact>& facts, std::size_t across) { return (std::max<std::size_t>)(1, (std::min)(across, facts.size())); }
@@ -568,7 +568,7 @@ float FactCellsHeight(float width, const std::vector<TagView::Fact>& facts, std:
     across = FactAcross(facts, across);
     return (52 * Scale() + FactKeyExtra(width, facts, across)) * ((facts.size() + across - 1) / across);
 }
-float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across) {
+float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across, float valueSize) {
     const auto& c = Colors();
     const float s = Scale();
     across = FactAcross(facts, across);
@@ -577,8 +577,8 @@ float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagV
         const ImVec2 p(at.x + cell * (i % across), at.y + height * (i / across));
         if (i % across == 0) draw->AddLine(p, ImVec2(at.x + width, p.y), c.border, Hairline());
         else draw->AddLine(p, ImVec2(p.x, p.y + height), c.border, Hairline());
-        Heading(draw, ImVec2(p.x + 14 * s, p.y + 10 * s), cell - 28 * s, facts[i].key, 12 * s, c.muted);
-        draw->AddText(HeadingFont(), 15 * s, ImVec2(p.x + 14 * s, p.y + 26 * s + extra), c.text, Fit(facts[i].value, cell - 28 * s, 15 * s, HeadingFont()).c_str());
+        Heading(draw, ImVec2(p.x + 14 * s, p.y + 9 * s), cell - 28 * s, facts[i].key, 13 * s, c.muted);
+        draw->AddText(HeadingFont(), valueSize * s, ImVec2(p.x + 14 * s, p.y + 26 * s + extra), c.text, Fit(facts[i].value, cell - 28 * s, valueSize * s, HeadingFont()).c_str());
     }
     return FactCellsHeight(width, facts, across);
 }

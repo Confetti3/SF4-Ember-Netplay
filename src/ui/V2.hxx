@@ -290,7 +290,7 @@ struct TagView {
 // a second line (Heading) and every line grows by it. Returns the height it
 // took, which FactCellsHeight gives without drawing.
 float FactCellsHeight(float width, const std::vector<TagView::Fact>& facts, std::size_t across);
-float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across);
+float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across, float valueSize = 17);
 // Draws at `at` within `width`; returns the height it took.
 float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize size);
 // The width an XS or S tag needs on its one line for nothing in it to give
