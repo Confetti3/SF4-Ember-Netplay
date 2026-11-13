@@ -113,7 +113,7 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
   const auto& t=*card;
   if(shown.size()==most)break;
   Shown e{card,Ago(now-t.at)};
-  e.timeW=ImGui::GetFont()->CalcTextSizeA(12*s,FLT_MAX,0,e.time.c_str()).x;
+  e.timeW=ImGui::GetFont()->CalcTextSizeA(13*s,FLT_MAX,0,e.time.c_str()).x;
   e.wrap=w-2*pad-icon-10*s-e.timeW-10*s;
   // Eyebrow, text and, on the newest only, the buttons row (Toasts board).
   float h=WordsHeight(font,t.text,e.wrap,size,s);
@@ -142,7 +142,7 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
   }else line+=(std::max)(0.f,(icon-size)*.5f);
   NoteUserText(t.text);
   line+=DrawToastWords(d,font,{left,line},e.wrap,t.text,size,s,c.text,c.muted)+9*s;
-  d->AddText(ImGui::GetFont(),12*s,{b.x-pad-e.timeW,a.y+14*s},c.muted,e.time.c_str());
+  d->AddText(ImGui::GetFont(),13*s,{b.x-pad-e.timeW,a.y+14*s},c.muted,e.time.c_str());
   // The buttons. A small window over the card takes the pointer from the list
   // under it. Each carries its key (Select the first, Back the last) only
   // while the toast holds focus and so takes those keys: over the post-match

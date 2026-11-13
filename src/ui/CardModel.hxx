@@ -124,8 +124,8 @@ struct PointsView {
 // Ember", "Gold · Top frame", or "Not played yet" for a fighter at 0.
 PointsLine MeterLine(const netplay::levels::Level& level, bool account);
 // The four record cells: Rated games, Win rate (`winRate`) or Wins, Best
-// streak, Fighters played ("12 of 44").
-std::vector<v2::TagView::Fact> RecordCells(const netplay::awards::Counters& counters, bool winRate);
+// streak, Fighters played ("12 of 44"); with `known` false (not read yet, or not reachable) each is a dash, not a 0.
+std::vector<v2::TagView::Fact> RecordCells(const netplay::awards::Counters& counters, bool winRate, bool known = true);
 // "2840 rated games · 1164 wins · best streak 12".
 std::string RecordLine(const netplay::awards::Counters& counters);
 

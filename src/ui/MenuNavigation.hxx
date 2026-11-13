@@ -50,6 +50,9 @@ struct MenuEntry {
     std::string chosen;
     // Focusable information with nothing to do: no Select in the legend.
     bool info = false;
+    // The detail's first line is drawn under the label on a card wherever the row stands, for a state the page must explain
+    // without the focus being on it (the archive could not be reached, a list with nothing in it).
+    bool showDetail = false;
     // A value row whose Select still opens its page: Left/Right change the
     // value in place, Select shows the choices in full.
     bool opens = false;

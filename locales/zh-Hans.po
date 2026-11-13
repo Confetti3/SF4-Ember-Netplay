@@ -1120,7 +1120,7 @@ msgid "profile.this_player"
 msgstr "该玩家"
 
 msgid "profile.reading"
-msgstr "正在读取 {0} 的名片。"
+msgstr "正在加载 {0} 的名片…"
 
 msgid "profile.reading_button"
 msgstr "读取中"
@@ -1138,7 +1138,7 @@ msgid "profile.nobody"
 msgstr "Ember 上现在没有名为 {0} 的玩家。"
 
 msgid "profile.unreachable"
-msgstr "无法连接服务。服务响应后会显示名片。"
+msgstr "无法连接 Ember。请稍后再试。"
 
 msgid "profile.unsupported"
 msgstr "此服务不提供个人资料。"
@@ -1159,7 +1159,7 @@ msgid "profile.request_sent_detail"
 msgstr "可在“好友”的“已发送”中取消。"
 
 msgid "profile.sets_note"
-msgstr "以名称 {0} 找到的系列赛。其他用过此名称的人也会显示在这里，而以之前名称打的系列赛不会。"
+msgstr "系列赛按名称 {0} 查找：其他用过此名称的人也会显示在这里，之前的名称则不会。"
 
 msgid "profile.sets_player"
 msgstr "玩家"
@@ -1219,7 +1219,7 @@ msgid "friends.join"
 msgstr "加入"
 
 msgid "friends.join_room"
-msgstr "加入其房间"
+msgstr "加入房间"
 
 msgid "friends.watch"
 msgstr "观战"
@@ -1264,7 +1264,7 @@ msgid "friends.are_friends"
 msgstr "好友"
 
 msgid "friends.played_you"
-msgstr "与你对战 {0} 场，最近一次 {1}"
+msgstr "一起对战 {0} 场，最近一次 {1}"
 
 msgid "friends.not_played"
 msgstr "你们还没有对战过。"
@@ -1306,7 +1306,7 @@ msgid "find.text_row"
 msgstr "名称或好友码"
 
 msgid "find.text_detail"
-msgstr "名称的一部分（至少两个字符）或好友码。"
+msgstr "名称的至少两个字符，或好友码。"
 
 msgid "find.search"
 msgstr "搜索"
@@ -1315,7 +1315,7 @@ msgid "find.players"
 msgstr "玩家 · {0}"
 
 msgid "find.searching"
-msgstr "正在搜索。"
+msgstr "正在搜索…"
 
 msgid "find.none"
 msgstr "没有叫这个名字的玩家。"
@@ -1336,13 +1336,13 @@ msgid "find.recent_empty"
 msgstr "你在公开房间遇到的玩家会在这里保留一周。"
 
 msgid "friends.sent"
-msgstr "已发送 ({0})"
+msgstr "已发送 · {0}"
 
 msgid "friends.sent_ago"
 msgstr "发送于 {0}"
 
 msgid "friends.blocked"
-msgstr "已拉黑 ({0})"
+msgstr "已拉黑 · {0}"
 
 msgid "friends.appear_offline"
 msgstr "显示为离线"
@@ -1432,13 +1432,13 @@ msgid "card.pins_row"
 msgstr "名片上的奖励"
 
 msgid "card.pins_auto"
-msgstr "你的最高奖励"
+msgstr "最高奖励"
 
 msgid "card.pins_chosen"
 msgstr "已选 {0} 个"
 
 msgid "card.pins_detail"
-msgstr "名片上最多显示四个奖励系列，每个按你已达到的等级显示。“你的最高奖励”会显示最难的那些。"
+msgstr "名片上最多显示四个奖励，每个按你已达到的等级显示。“显示我的最高奖励”会选出最难的那些。"
 
 msgid "card.pins_auto_row"
 msgstr "显示我的最高奖励"
@@ -1474,7 +1474,7 @@ msgid "card.region_row"
 msgstr "地区"
 
 msgid "card.region_detail"
-msgstr "根据 Ember 选择的中继得出的你的地区。你可以隐藏它。"
+msgstr "根据你的网络连接得出的你的地区。你可以隐藏它。"
 
 msgid "card.shown"
 msgstr "{0} · 已显示"
@@ -1534,7 +1534,7 @@ msgid "friends.failed"
 msgstr "无法连接好友服务，请稍后重试。"
 
 msgid "friends.no_account"
-msgstr "好友功能需要 Discord 账号。请在 设置 > 在线 中关联。"
+msgstr "好友功能需要 Discord 账号。"
 
 msgid "friends.unavailable"
 msgstr "该服务暂不支持好友。"
@@ -1588,7 +1588,7 @@ msgid "friends.toast_request"
 msgstr "{0} 想和你成为好友"
 
 msgid "friends.toast_invite"
-msgstr "{0} 邀请你加入其房间"
+msgstr "{0} 邀请你加入房间"
 
 msgid "friends.later"
 msgstr "稍后"
@@ -1621,13 +1621,16 @@ msgid "level.top"
 msgstr "最高边框"
 
 msgid "level.no_account"
-msgstr "在设置的在线对战中关联 Discord，即可获得积分。"
+msgstr "关联 Discord，即可获得积分。"
 
 msgid "level.unavailable"
 msgstr "此服务暂不统计积分。"
 
 msgid "level.loading"
 msgstr "正在读取你的积分。"
+
+msgid "level.loading_other"
+msgstr "正在读取对方的积分。"
 
 msgid "level.none"
 msgstr "进行一场排位公开对战，即可开始获得积分。"
@@ -1637,6 +1640,9 @@ msgstr "尚未使用"
 
 msgid "level.unreachable"
 msgstr "无法连接服务。服务响应后会显示你的积分。"
+
+msgid "level.unreachable_other"
+msgstr "无法连接 Ember。恢复后会显示对方的积分。"
 
 msgid "card.counted_games"
 msgstr "排位场数"
@@ -1699,7 +1705,7 @@ msgid "card.set_online"
 msgstr "在线"
 
 msgid "card.sets_loading"
-msgstr "正在读取系列赛。"
+msgstr "正在加载系列赛…"
 
 msgid "card.sets_none"
 msgstr "此名称下还没有存档的系列赛。"
@@ -1711,7 +1717,7 @@ msgid "card.sets_unreachable"
 msgstr "无法连接存档。存档响应后会显示系列赛。"
 
 msgid "card.you_and"
-msgstr "你和 {0}"
+msgstr "交手记录"
 
 msgid "card.relation"
 msgstr "好友"
@@ -2035,7 +2041,7 @@ msgid "settings.interface_size"
 msgstr "界面大小"
 
 msgid "settings.interface_size_detail"
-msgstr "低于 1.00x 时，大显示器上能容纳更多内容。"
+msgstr "高于 1.00x 时，在电视上更易阅读。低于 1.00x 时，显示器上能容纳更多内容，但文字更小。"
 
 msgid "discord.show_activity"
 msgstr "显示动态"
@@ -2059,7 +2065,7 @@ msgid "discord.account_linked"
 msgstr "已关联 · {0}"
 
 msgid "discord.account_detail"
-msgstr "关联你的 Ember ID 所使用的 Discord 账号。排位对战、积分、好友、共享回放，以及 BluMint 等赛事网站都会使用它。它可能与 Discord 应用中的账号不同。选择即可关联。"
+msgstr "关联一个 Discord 账号，用于排位对战、积分、好友和共享回放。BluMint 等赛事网站也会使用它。它可以与 Discord 应用中的账号不同。"
 
 msgid "discord.account_linked_detail"
 msgstr "已关联到你的 Ember ID 的 Discord 账号。排位对战、积分、好友、共享回放，以及 BluMint 等赛事网站都会使用它。它可能与 Discord 应用中的账号不同。选择即可切换账号或解除关联。"
@@ -8597,7 +8603,7 @@ msgid "home.notifications"
 msgstr "通知"
 
 msgid "notifications.none"
-msgstr "暂无内容。"
+msgstr "暂无通知"
 
 msgid "notifications.tab_count"
 msgstr "通知 · {0}"
@@ -8606,7 +8612,7 @@ msgid "notifications.waiting"
 msgstr "待回复：{0}"
 
 msgid "notifications.none_detail"
-msgstr "Ember 的提示（例如已复制链接或已离开房间）会在本次会话中保留在这里。"
+msgstr "好友请求、邀请和 Ember 的提示会显示在这里。"
 
 msgid "home.news"
 msgstr "新闻"
@@ -8864,7 +8870,7 @@ msgid "archive.f_text"
 msgstr "玩家或赛事"
 
 msgid "archive.f_text_detail"
-msgstr "列出玩家名称或赛事标题包含这些字符的系列赛。"
+msgstr "玩家或赛事名称包含这些字符的系列赛。"
 
 msgid "archive.f_fighter"
 msgstr "角色"
@@ -8918,10 +8924,10 @@ msgid "archive.no_service"
 msgstr "设置你的 Ember ID"
 
 msgid "archive.no_service_detail"
-msgstr "存档从 Ember 的服务读取。打开 Ember ID 进行设置。"
+msgstr "存档需要 Ember ID。打开 Ember ID 进行设置。"
 
 msgid "archive.loading"
-msgstr "正在加载系列赛"
+msgstr "正在加载系列赛…"
 
 msgid "archive.loading_detail"
 msgstr "正在向存档请求最新的系列赛。"
@@ -8990,7 +8996,7 @@ msgid "archive.games"
 msgstr "{0} 局"
 
 msgid "archive.met"
-msgstr "对战过：{0}"
+msgstr "vs {0}"
 
 msgid "archive.session_label"
 msgstr "{0}：{1} 局"

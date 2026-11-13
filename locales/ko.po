@@ -1057,7 +1057,7 @@ msgid "profile.player_name"
 msgstr "플레이어 이름"
 
 msgid "profile.main_character"
-msgstr "주 캐릭터"
+msgstr "주 파이터"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. 대전 선택과 별도로 플레이어 카드에 표시됩니다."
@@ -1120,7 +1120,7 @@ msgid "profile.this_player"
 msgstr "이 플레이어"
 
 msgid "profile.reading"
-msgstr "{0}님의 카드를 불러오는 중."
+msgstr "{0}님의 카드를 불러오는 중…"
 
 msgid "profile.reading_button"
 msgstr "불러오는 중"
@@ -1138,7 +1138,7 @@ msgid "profile.nobody"
 msgstr "지금 Ember에는 {0}(이)라는 이름의 플레이어가 없습니다."
 
 msgid "profile.unreachable"
-msgstr "서비스에 연결할 수 없습니다. 응답하면 카드가 표시됩니다."
+msgstr "Ember에 연결할 수 없습니다. 잠시 후 다시 시도하세요."
 
 msgid "profile.unsupported"
 msgstr "이 서비스는 프로필을 지원하지 않습니다."
@@ -1159,7 +1159,7 @@ msgid "profile.request_sent_detail"
 msgstr "친구의 보낸 요청에서 취소할 수 있습니다."
 
 msgid "profile.sets_note"
-msgstr "{0}(이)라는 이름으로 찾은 세트입니다. 이 이름을 쓴 다른 사람의 세트도 함께 표시되며, 이전 이름으로 플레이한 세트는 표시되지 않습니다."
+msgstr "세트는 {0}(이)라는 이름으로 찾습니다. 같은 이름을 쓴 다른 사람의 세트도 함께 표시되고, 이전 이름의 세트는 표시되지 않습니다."
 
 msgid "profile.sets_player"
 msgstr "플레이어"
@@ -1219,7 +1219,7 @@ msgid "friends.join"
 msgstr "참가"
 
 msgid "friends.join_room"
-msgstr "상대 방에 참가"
+msgstr "방에 참가"
 
 msgid "friends.watch"
 msgstr "관전"
@@ -1264,7 +1264,7 @@ msgid "friends.are_friends"
 msgstr "친구"
 
 msgid "friends.played_you"
-msgstr "나와 {0}번 플레이, 마지막은 {1}"
+msgstr "{0}번 함께 플레이, 마지막은 {1}"
 
 msgid "friends.not_played"
 msgstr "아직 서로 플레이한 적이 없습니다."
@@ -1306,7 +1306,7 @@ msgid "find.text_row"
 msgstr "이름 또는 친구 코드"
 
 msgid "find.text_detail"
-msgstr "이름의 일부(두 글자 이상) 또는 친구 코드."
+msgstr "이름의 두 글자 이상, 또는 친구 코드."
 
 msgid "find.search"
 msgstr "검색"
@@ -1315,7 +1315,7 @@ msgid "find.players"
 msgstr "플레이어 · {0}"
 
 msgid "find.searching"
-msgstr "검색 중."
+msgstr "검색 중…"
 
 msgid "find.none"
 msgstr "그 이름의 플레이어가 없습니다."
@@ -1336,13 +1336,13 @@ msgid "find.recent_empty"
 msgstr "공개 방에서 만난 플레이어가 일주일 동안 여기에 표시됩니다."
 
 msgid "friends.sent"
-msgstr "전송됨 ({0})"
+msgstr "전송됨 · {0}"
 
 msgid "friends.sent_ago"
 msgstr "전송 {0}"
 
 msgid "friends.blocked"
-msgstr "차단됨 ({0})"
+msgstr "차단됨 · {0}"
 
 msgid "friends.appear_offline"
 msgstr "오프라인으로 표시"
@@ -1438,7 +1438,7 @@ msgid "card.pins_chosen"
 msgstr "{0}개 선택"
 
 msgid "card.pins_detail"
-msgstr "카드에 최대 네 가지 어워드 계열을, 각각 도달한 단계로 표시합니다. 가장 높은 것은 가장 어려운 어워드를 보여 줍니다."
+msgstr "카드에 최대 네 가지 어워드를, 각각 도달한 단계로 표시합니다. 가장 높은 것 표시는 가장 어려운 어워드를 고릅니다."
 
 msgid "card.pins_auto_row"
 msgstr "가장 높은 것 표시"
@@ -1474,7 +1474,7 @@ msgid "card.region_row"
 msgstr "지역"
 
 msgid "card.region_detail"
-msgstr "Ember가 고른 릴레이로 알아낸 지역입니다. 숨길 수 있습니다."
+msgstr "연결을 바탕으로 알아낸 지역입니다. 숨길 수 있습니다."
 
 msgid "card.shown"
 msgstr "{0} · 표시 중"
@@ -1534,7 +1534,7 @@ msgid "friends.failed"
 msgstr "친구 서비스에 연결하지 못했습니다. 나중에 다시 시도하세요."
 
 msgid "friends.no_account"
-msgstr "친구 기능에는 Discord 계정이 필요합니다. 설정 > 온라인에서 연결하세요."
+msgstr "친구 기능에는 Discord 계정이 필요합니다."
 
 msgid "friends.unavailable"
 msgstr "이 서비스는 아직 친구를 지원하지 않습니다."
@@ -1621,13 +1621,16 @@ msgid "level.top"
 msgstr "최상위 프레임"
 
 msgid "level.no_account"
-msgstr "설정의 온라인 플레이에서 Discord를 연결하면 포인트를 얻을 수 있습니다."
+msgstr "Discord를 연결하면 포인트를 얻을 수 있습니다."
 
 msgid "level.unavailable"
 msgstr "이 서비스는 아직 포인트를 집계하지 않습니다."
 
 msgid "level.loading"
 msgstr "포인트를 불러오는 중입니다."
+
+msgid "level.loading_other"
+msgstr "상대의 포인트를 불러오는 중입니다."
 
 msgid "level.none"
 msgstr "랭크 공개 경기를 하면 포인트가 쌓이기 시작합니다."
@@ -1637,6 +1640,9 @@ msgstr "아직 플레이 안 함"
 
 msgid "level.unreachable"
 msgstr "서비스에 연결할 수 없습니다. 응답하면 포인트가 표시됩니다."
+
+msgid "level.unreachable_other"
+msgstr "Ember에 연결할 수 없습니다. 복구되면 상대의 포인트가 표시됩니다."
 
 msgid "card.counted_games"
 msgstr "랭크 경기 수"
@@ -1699,7 +1705,7 @@ msgid "card.set_online"
 msgstr "온라인"
 
 msgid "card.sets_loading"
-msgstr "세트를 불러오는 중."
+msgstr "세트를 불러오는 중…"
 
 msgid "card.sets_none"
 msgstr "이 이름으로 보관된 세트가 아직 없습니다."
@@ -1711,7 +1717,7 @@ msgid "card.sets_unreachable"
 msgstr "아카이브에 연결할 수 없습니다. 응답하면 세트가 표시됩니다."
 
 msgid "card.you_and"
-msgstr "나와 {0}"
+msgstr "상대 전적"
 
 msgid "card.relation"
 msgstr "친구"
@@ -2035,7 +2041,7 @@ msgid "settings.interface_size"
 msgstr "화면 크기"
 
 msgid "settings.interface_size_detail"
-msgstr "1.00x 미만이면 큰 모니터에 더 많이 표시됩니다."
+msgstr "1.00x보다 크면 TV에서 읽기 쉽습니다. 1.00x 미만이면 모니터에 더 많이 표시되지만 글자가 작아집니다."
 
 msgid "discord.show_activity"
 msgstr "활동 표시"
@@ -2059,7 +2065,7 @@ msgid "discord.account_linked"
 msgstr "연결됨 · {0}"
 
 msgid "discord.account_detail"
-msgstr "Ember ID가 사용하는 Discord 계정을 연결하세요. 랭크 경기, 포인트, 친구, 공유한 리플레이, BluMint 같은 대회 사이트가 모두 이 계정을 사용합니다. Discord 앱의 계정과 다를 수 있습니다. 선택하면 연결합니다."
+msgstr "Discord 계정을 연결하면 랭크 경기, 포인트, 친구, 공유 리플레이를 이용할 수 있습니다. BluMint 같은 대회 사이트도 이 계정을 사용합니다. Discord 앱의 계정과 달라도 됩니다."
 
 msgid "discord.account_linked_detail"
 msgstr "Ember ID에 연결된 Discord 계정입니다. 랭크 경기, 포인트, 친구, 공유한 리플레이, BluMint 같은 대회 사이트가 이 계정을 사용합니다. Discord 앱의 계정과 다를 수 있습니다. 선택하면 계정을 바꾸거나 연결을 끊을 수 있습니다."
@@ -8597,7 +8603,7 @@ msgid "home.notifications"
 msgstr "알림"
 
 msgid "notifications.none"
-msgstr "아직 없습니다."
+msgstr "알림 없음"
 
 msgid "notifications.tab_count"
 msgstr "알림 · {0}"
@@ -8606,7 +8612,7 @@ msgid "notifications.waiting"
 msgstr "답변 대기: {0}"
 
 msgid "notifications.none_detail"
-msgstr "링크 복사나 방 나가기처럼 Ember가 알린 내용은 이번 세션 동안 여기에 남습니다."
+msgstr "친구 요청, 초대, Ember의 알림이 여기에 표시됩니다."
 
 msgid "home.news"
 msgstr "소식"
@@ -8864,7 +8870,7 @@ msgid "archive.f_text"
 msgstr "플레이어 또는 이벤트"
 
 msgid "archive.f_text_detail"
-msgstr "플레이어 이름이나 이벤트 제목에 이 글자가 들어간 세트를 보여 줍니다."
+msgstr "플레이어나 이벤트 이름에 이 글자가 들어간 세트."
 
 msgid "archive.f_fighter"
 msgstr "파이터"
@@ -8918,10 +8924,10 @@ msgid "archive.no_service"
 msgstr "Ember ID 설정"
 
 msgid "archive.no_service_detail"
-msgstr "아카이브는 Ember 서비스에서 불러옵니다. Ember ID를 열어 설정하세요."
+msgstr "아카이브에는 Ember ID가 필요합니다. Ember ID를 열어 설정하세요."
 
 msgid "archive.loading"
-msgstr "세트를 불러오는 중"
+msgstr "세트를 불러오는 중…"
 
 msgid "archive.loading_detail"
 msgstr "아카이브에 최신 세트를 요청하고 있습니다."
@@ -8990,7 +8996,7 @@ msgid "archive.games"
 msgstr "{0}경기"
 
 msgid "archive.met"
-msgstr "대전한 상대: {0}"
+msgstr "vs {0}"
 
 msgid "archive.session_label"
 msgstr "{0}: {1}경기"

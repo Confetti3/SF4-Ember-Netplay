@@ -106,7 +106,7 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, const MenuRow
     const float labelRoom = label.W() - (!at.under && box.W() <= 0 && chevron ? 18 * s : 0);
     ImFont* labelFont = home ? HeadingFont() : ImGui::GetFont();
     const float labelSize = home ? 20 * s : ImGui::GetFontSize(), detailSize = 15 * s;
-    const bool second = twoLines && !e.detail.empty();
+    const bool second = (twoLines || e.showDetail) && !e.detail.empty();
     const float labelY = second ? c.min.y + 10 * s : label.min.y + (label.H() - RowLabelHeight(at.labelLines, labelSize)) * .5f;
     const float labelHeight = DrawRowLabel(d, e, at.labelLines, ImVec2(label.min.x, labelY), labelRoom, labelSize, labelFont, text);
     if (second) {
@@ -153,7 +153,9 @@ void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled,
         const bool on = e.value == loc::T("common.on");
         const float tw = 36 * s, th = 20 * s, ty = box.min.y + (h - th) * .5f, tx = box.max.x - tw;
         d->AddRectFilled(ImVec2(tx, ty), ImVec2(tx + tw, ty + th), on ? col.accent : col.button, th * .5f);
-        d->AddRect(ImVec2(tx, ty), ImVec2(tx + tw, ty + th), on ? col.accent : col.border, th * .5f, 0, Hairline());
+        // An off track needs an outline that reads against any row: muted, 2 px.
+        if (on) d->AddRect(ImVec2(tx, ty), ImVec2(tx + tw, ty + th), col.accent, th * .5f, 0, Hairline());
+        else d->AddRect(ImVec2(tx, ty), ImVec2(tx + tw, ty + th), col.muted, th * .5f, 0, 2 * s);
         d->AddCircleFilled(ImVec2(on ? tx + tw - th * .5f : tx + th * .5f, ty + th * .5f), 7 * s, enabled ? col.text : col.muted);
         return;
     }
@@ -434,7 +436,7 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
     // the list's own height grows by a line for a value under its label, and
     // by another for a label wider than its whole line (CardLayout).
     const auto lineOf = [&](const MenuEntry& e, bool cell) {
-        return cell ? f.cardHeight * s : e.height > 0 ? e.height * s : home ? homeRow : (twoLines && !e.detail.empty() ? listWidth > 0 ? 68 : 64 : 52) * s;
+        return cell ? f.cardHeight * s : e.height > 0 ? e.height * s : home ? homeRow : ((twoLines || e.showDetail) && !e.detail.empty() ? listWidth > 0 ? 68 : 64 : 52) * s;
     };
     const auto layoutOf = [&](const MenuEntry& e, bool cell, ImVec2 at, float width) {
         const float line = lineOf(e, cell);

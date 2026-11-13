@@ -206,6 +206,7 @@ bool PanelButton(const BoardFrame& f, const char* id, v2::Box box, const std::st
     const bool pressed = ImGui::InvisibleButton("##panel", ImVec2(box.W(), box.H())) && f.nav().Choosing() == false && !f.nav().Asking();
     const bool hovered = ImGui::IsItemHovered();
     ImGui::PopID();
+    glyph = card_parts::DeviceGlyph(glyph);
     v2::Button(f.d, box, std::string(), kind, false, hovered, enabled);
     const float side = glyph ? 26 * s : 0, gap = glyph ? 10 * s : 0, font = 17 * s, whole = side + gap + TextWidth(label, font, HeadingFont()), left = box.min.x + (box.W() - whole) * .5f;
     if (glyph) DrawPromptGlyph(f.d, glyph, ImVec2(left, box.min.y + (box.H() - side) * .5f), side, MenuArt(), s);
@@ -247,16 +248,22 @@ void DrawPersonPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool 
         ImGui::PopID();
         if (opened) f.action = MenuAction{MenuAction::Activate, CardPrefix + e.id};
         y += cardHeight + 14 * s;
-        // Where they are, with the room's count.
-        DrawPresenceMark(f.d, ImVec2(x + 6 * s, y + 10 * s), 6 * s, entry->presence.kind);
+        // Where they are, with the room's count: the row says it too, so it goes first when the panel is taller than the body, which
+        // would hide the buttons under it.
         std::string where = e.detail;
         if (entry->presence.kind == nf::Presence::Kind::InRoom && entry->presence.hasRoom && entry->presence.room.capacity)
             where += " \xC2\xB7 " + loc::Tf("card.of", static_cast<int>(entry->presence.room.members), static_cast<int>(entry->presence.room.capacity));
-        NoteUserText(where);
-        y += v2::Paragraph(f.d, ImVec2(x + 22 * s, y), room - 22 * s, where, 15 * s, c.text) + 14 * s;
         const auto ago = Ago(f.now, entry->record.lastAt);
-        y += v2::FactCells(f.d, ImVec2(x, y), room, {{loc::Tf("friends.record", name), RecordOf(*entry)}, {loc::T("friends.last_played"), ago.empty() ? std::string("-") : ago},
-            {loc::T("friends.since"), entry->since ? LocalTime(entry->since, "%Y-%m-%d") : std::string("-")}}, 3) + 8 * s;
+        const std::vector<v2::TagView::Fact> facts{{loc::Tf("friends.record", name), RecordOf(*entry)}, {loc::T("friends.last_played"), ago.empty() ? std::string("-") : ago},
+            {loc::T("friends.since"), entry->since ? LocalTime(entry->since, "%Y-%m-%d") : std::string("-")}};
+        const float whereHeight = ImGui::GetFont()->CalcTextSizeA(15 * s, FLT_MAX, room - 22 * s, where.c_str()).y + 14 * s;
+        const float rest = v2::FactCellsHeight(room, facts, 3) + 8 * s + 4 * s + 48 * s + pad;
+        if (y + whereHeight + rest <= f.d->GetClipRectMax().y) {
+            DrawPresenceMark(f.d, ImVec2(x + 6 * s, y + 10 * s), 6 * s, entry->presence.kind);
+            NoteUserText(where);
+            y += v2::Paragraph(f.d, ImVec2(x + 22 * s, y), room - 22 * s, where, 15 * s, c.text) + 14 * s;
+        }
+        y += v2::FactCells(f.d, ImVec2(x, y), room, facts, 3) + 8 * s;
     } else {
         y += DrawNameLine(f.d, x, y, room, 30 * s, 22 * s, name, request->country, SkillBadge{}) + 6 * s;
         y += v2::Paragraph(f.d, ImVec2(x, y), room, e.detail, 15 * s, c.muted) + 12 * s;

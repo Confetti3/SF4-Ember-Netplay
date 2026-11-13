@@ -1057,7 +1057,7 @@ msgid "profile.player_name"
 msgstr "Имя игрока"
 
 msgid "profile.main_character"
-msgstr "Основной персонаж"
+msgstr "Основной боец"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Показывается в карточке игрока независимо от выбора для матча."
@@ -1120,7 +1120,7 @@ msgid "profile.this_player"
 msgstr "этого игрока"
 
 msgid "profile.reading"
-msgstr "Загрузка карточки игрока {0}."
+msgstr "Загрузка карточки игрока {0}…"
 
 msgid "profile.reading_button"
 msgstr "Загрузка"
@@ -1138,7 +1138,7 @@ msgid "profile.nobody"
 msgstr "Сейчас в Ember нет игрока с именем {0}."
 
 msgid "profile.unreachable"
-msgstr "Не удалось связаться с сервисом. Карточка появится, когда он ответит."
+msgstr "Не удалось связаться с Ember. Повторите попытку через минуту."
 
 msgid "profile.unsupported"
 msgstr "Этот сервис не поддерживает профили."
@@ -1159,7 +1159,7 @@ msgid "profile.request_sent_detail"
 msgstr "Отмените его в разделе «Друзья», вкладка «Отправленные»."
 
 msgid "profile.sets_note"
-msgstr "Сеты, найденные по имени {0}. Здесь также появится другой игрок, который использовал это имя, а сеты под прежним именем не появятся."
+msgstr "Сеты ищутся по имени {0}: здесь появится и любой другой, кто его использовал, а прежние имена — нет."
 
 msgid "profile.sets_player"
 msgstr "Игрок"
@@ -1219,7 +1219,7 @@ msgid "friends.join"
 msgstr "Войти"
 
 msgid "friends.join_room"
-msgstr "Войти в его лобби"
+msgstr "Войти в лобби"
 
 msgid "friends.watch"
 msgstr "Смотреть"
@@ -1264,7 +1264,7 @@ msgid "friends.are_friends"
 msgstr "Друзья"
 
 msgid "friends.played_you"
-msgstr "Поединков с вами: {0}, последний {1}"
+msgstr "Поединков вместе: {0}, последний {1}"
 
 msgid "friends.not_played"
 msgstr "Вы ещё не играли друг с другом."
@@ -1306,7 +1306,7 @@ msgid "find.text_row"
 msgstr "Имя или код друга"
 
 msgid "find.text_detail"
-msgstr "Часть имени, не меньше двух букв, или код друга."
+msgstr "Не меньше двух букв имени или код друга."
 
 msgid "find.search"
 msgstr "Поиск"
@@ -1315,7 +1315,7 @@ msgid "find.players"
 msgstr "ИГРОКИ · {0}"
 
 msgid "find.searching"
-msgstr "Поиск."
+msgstr "Поиск…"
 
 msgid "find.none"
 msgstr "Игрока с таким именем нет."
@@ -1336,13 +1336,13 @@ msgid "find.recent_empty"
 msgstr "Игроки, с которыми вы сталкиваетесь в открытых лобби, остаются здесь на неделю."
 
 msgid "friends.sent"
-msgstr "Отправленные ({0})"
+msgstr "Отправленные · {0}"
 
 msgid "friends.sent_ago"
 msgstr "Отправлен {0}"
 
 msgid "friends.blocked"
-msgstr "Заблокированные ({0})"
+msgstr "Заблокированные · {0}"
 
 msgid "friends.appear_offline"
 msgstr "Показываться не в сети"
@@ -1432,13 +1432,13 @@ msgid "card.pins_row"
 msgstr "Награды на карточке"
 
 msgid "card.pins_auto"
-msgstr "Ваши высшие"
+msgstr "Высшие"
 
 msgid "card.pins_chosen"
 msgstr "Выбрано: {0}"
 
 msgid "card.pins_detail"
-msgstr "До четырёх семейств наград на вашей карточке, каждое на достигнутом уровне. «Ваши высшие» показывает самые трудные."
+msgstr "До четырёх наград на вашей карточке, каждая на достигнутом уровне. «Показывать мои высшие» выбирает самые трудные."
 
 msgid "card.pins_auto_row"
 msgstr "Показывать мои высшие"
@@ -1474,7 +1474,7 @@ msgid "card.region_row"
 msgstr "Регион"
 
 msgid "card.region_detail"
-msgstr "Ваш регион по ретранслятору, выбранному Ember. Его можно скрыть."
+msgstr "Ваш регион, определённый по вашему соединению. Его можно скрыть."
 
 msgid "card.shown"
 msgstr "{0} · показано"
@@ -1534,7 +1534,7 @@ msgid "friends.failed"
 msgstr "Не удалось связаться со службой друзей. Повторите позже."
 
 msgid "friends.no_account"
-msgstr "Для друзей нужен аккаунт Discord. Подключите его в Настройках, Онлайн."
+msgstr "Для друзей нужен аккаунт Discord."
 
 msgid "friends.unavailable"
 msgstr "Эта служба пока не поддерживает друзей."
@@ -1588,7 +1588,7 @@ msgid "friends.toast_request"
 msgstr "{0} хочет подружиться"
 
 msgid "friends.toast_invite"
-msgstr "{0} приглашает вас в своё лобби"
+msgstr "{0} приглашает вас в лобби"
 
 msgid "friends.later"
 msgstr "Позже"
@@ -1621,13 +1621,16 @@ msgid "level.top"
 msgstr "Высшая рамка"
 
 msgid "level.no_account"
-msgstr "Подключите Discord в разделе Настройки, Игра по сети, чтобы получать очки."
+msgstr "Подключите Discord, чтобы получать очки."
 
 msgid "level.unavailable"
 msgstr "Этот сервис пока не считает очки."
 
 msgid "level.loading"
 msgstr "Чтение ваших очков."
+
+msgid "level.loading_other"
+msgstr "Чтение очков игрока."
 
 msgid "level.none"
 msgstr "Сыграйте публичную рейтинговую игру, чтобы начать получать очки."
@@ -1637,6 +1640,9 @@ msgstr "Ещё не играли"
 
 msgid "level.unreachable"
 msgstr "Не удалось связаться с сервисом. Ваши очки появятся, когда он ответит."
+
+msgid "level.unreachable_other"
+msgstr "Не удалось связаться с Ember. Очки игрока появятся, когда он снова заработает."
 
 msgid "card.counted_games"
 msgstr "Рейтинговые игры"
@@ -1699,7 +1705,7 @@ msgid "card.set_online"
 msgstr "Онлайн"
 
 msgid "card.sets_loading"
-msgstr "Загрузка сетов."
+msgstr "Загрузка сетов…"
 
 msgid "card.sets_none"
 msgstr "Сетов в архиве под этим именем пока нет."
@@ -1711,7 +1717,7 @@ msgid "card.sets_unreachable"
 msgstr "Не удалось связаться с архивом. Сеты появятся, когда он ответит."
 
 msgid "card.you_and"
-msgstr "Вы и {0}"
+msgstr "Личные встречи"
 
 msgid "card.relation"
 msgstr "Друзья"
@@ -2035,7 +2041,7 @@ msgid "settings.interface_size"
 msgstr "Размер интерфейса"
 
 msgid "settings.interface_size_detail"
-msgstr "При значении ниже 1.00x на большом мониторе помещается больше."
+msgstr "При значении выше 1.00x на телевизоре легче читать. При значении ниже 1.00x на мониторе помещается больше, но текст мельче."
 
 msgid "discord.show_activity"
 msgstr "Показывать статус"
@@ -2059,7 +2065,7 @@ msgid "discord.account_linked"
 msgstr "Подключён · {0}"
 
 msgid "discord.account_detail"
-msgstr "Подключите аккаунт Discord, который использует ваш Ember ID. Его используют рейтинговые игры, очки, друзья, общие реплеи и турнирные сайты вроде BluMint. Он может отличаться от аккаунта в приложении Discord. Выбор подключает его."
+msgstr "Подключите аккаунт Discord для рейтинговых игр, очков, друзей и общих реплеев. Им пользуются и турнирные сайты вроде BluMint. Это может быть другой аккаунт, не тот, что в приложении Discord."
 
 msgid "discord.account_linked_detail"
 msgstr "Аккаунт Discord, подключённый к вашему Ember ID. Его используют рейтинговые игры, очки, друзья, общие реплеи и турнирные сайты вроде BluMint. Он может отличаться от аккаунта в приложении Discord. Выбор позволяет сменить аккаунт или отключить его."
@@ -5470,7 +5476,7 @@ msgid "public.create_needs_id"
 msgstr "Для открытых лобби нужны Ember ID и доверенный сервис. Настройте их в разделе Открытые лобби."
 
 msgid "public.ranked_needs_discord"
-msgstr "Подключите Discord, чтобы играть в рейтинге"
+msgstr "Подключите Discord для рейтинговых игр"
 
 msgid "public.ranked_needs_discord_detail"
 msgstr "Игры идут в зачёт вашего класса и очков, только если подключён аккаунт Discord. Играть без него всё равно можно."
@@ -8597,16 +8603,16 @@ msgid "home.notifications"
 msgstr "Уведомления"
 
 msgid "notifications.none"
-msgstr "Пока ничего."
+msgstr "Нет уведомлений"
 
 msgid "notifications.tab_count"
 msgstr "Уведомления · {0}"
 
 msgid "notifications.waiting"
-msgstr "Ждут ответа: {0}"
+msgstr "Ждут: {0}"
 
 msgid "notifications.none_detail"
-msgstr "То, что сообщает Ember, например скопированная ссылка или покинутая комната, хранится здесь до конца сеанса."
+msgstr "Здесь появляются запросы в друзья, приглашения и уведомления Ember."
 
 msgid "home.news"
 msgstr "Новости"
@@ -8864,7 +8870,7 @@ msgid "archive.f_text"
 msgstr "Игрок или событие"
 
 msgid "archive.f_text_detail"
-msgstr "Показывает сеты, где в имени игрока или названии события есть эти буквы."
+msgstr "Сеты с этими буквами в имени игрока или названии события."
 
 msgid "archive.f_fighter"
 msgstr "Боец"
@@ -8918,10 +8924,10 @@ msgid "archive.no_service"
 msgstr "Настройте Ember ID"
 
 msgid "archive.no_service_detail"
-msgstr "Архив читается с сервиса Ember. Откройте «Учётная запись Ember», чтобы его настроить."
+msgstr "Для архива нужна учётная запись Ember. Откройте «Учётная запись Ember», чтобы её настроить."
 
 msgid "archive.loading"
-msgstr "Загрузка сетов"
+msgstr "Загрузка сетов…"
 
 msgid "archive.loading_detail"
 msgstr "Запрашиваем у архива самые новые сеты."
@@ -8990,7 +8996,7 @@ msgid "archive.games"
 msgstr "Игр: {0}"
 
 msgid "archive.met"
-msgstr "Играл против: {0}"
+msgstr "vs {0}"
 
 msgid "archive.session_label"
 msgstr "{0}, игр: {1}"

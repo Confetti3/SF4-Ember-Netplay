@@ -52,11 +52,12 @@ std::string RoundLabel(const std::string& round) {
 }
 // A tournament set's round as its games name it: "Top 8 · Winners".
 std::string RoundOf(const Game& game) { return Joined({game.round, game.phase}, kDot); }
-// What a row adds to its players: a tournament set's event and round, and its games' count when there are several.
+// What a row adds to its players: a tournament set's event and round, and its games' count when there are several (a session's
+// heading already says its count).
 std::string ContextText(const Entry& entry) {
     std::vector<std::string> parts;
     if (entry.Tournament()) { parts.push_back(entry.First().event); parts.push_back(RoundOf(entry.First())); }
-    if (entry.games.size() > 1 && !entry.Tournament()) parts.push_back(GamesText(entry.games.size()));
+    if (entry.games.size() > 1 && !entry.Tournament() && entry.kind != Entry::Kind::Session) parts.push_back(GamesText(entry.games.size()));
     return Joined(parts, kDot);
 }
 std::string FightersLine(const Entry& entry) {
@@ -309,11 +310,13 @@ std::vector<MenuEntry> ArchiveTab::Rows(const ShellView& v, const std::string& s
     title = loc::T("replays.title");
     if (bridge_.empty()) {
         rows.push_back(Row("archive-identity", loc::T("archive.no_service"), loc::T("archive.no_service_detail")));
+        rows.back().showDetail = true;
         return rows;
     }
     // A profile's list with no name to list by has no sets to find.
     if (place_.profile && filter_.name.empty()) {
         rows.push_back(InfoRow("archive-none", loc::T("archive.empty"), "", loc::T("archive.empty_detail")));
+        rows.back().showDetail = true;
         return rows;
     }
     rows.push_back(Row("archive-filters", loc::T("archive.filters"), loc::T("archive.filters_detail")));
@@ -331,16 +334,23 @@ std::vector<MenuEntry> ArchiveTab::Rows(const ShellView& v, const std::string& s
         rows.push_back(InfoRow("archive-loading", loc::T("archive.loading"), "", loc::T("archive.loading_detail")));
     } else if (status.state == State::Unsupported) {
         rows.push_back(InfoRow("archive-unsupported", loc::T("archive.unsupported"), "", loc::T("archive.unsupported_detail")));
+        rows.back().showDetail = true;
     } else if (status.state == State::Failed) {
         rows.push_back(Row("archive-retry", loc::T("archive.failed"), loc::Tf("archive.failed_detail", PublicRoomsPanel::FailureText(status.error))));
+        rows.back().showDetail = true;
     } else if (status.Loaded()) {
         for (const auto& entry : entries_) rows.push_back(EntryRow(v, entry, idle, place_.profile ? filter_.name : std::string(), place_.profile));
         if (entries_.empty() && (status.loadingMore || !status.listing->next.empty()))
             rows.push_back(InfoRow("archive-loading", loc::T("archive.loading"), "", loc::T("archive.loading_detail")));
-        else if (entries_.empty())
+        else if (entries_.empty()) {
             rows.push_back(InfoRow("archive-none", loc::T(Narrowed() ? "archive.none" : "archive.empty"), "", loc::T(Narrowed() ? "archive.none_detail" : "archive.empty_detail")));
+            rows.back().showDetail = true;
+        }
         if (status.loadingMore) rows.push_back(InfoRow("archive-more", loc::T("archive.loading_more"), "", loc::T("archive.loading_more_detail")));
-        else if (status.moreFailed) rows.push_back(Row("archive-more-retry", loc::T("archive.more_failed"), loc::T("archive.more_failed_detail")));
+        else if (status.moreFailed) {
+            rows.push_back(Row("archive-more-retry", loc::T("archive.more_failed"), loc::T("archive.more_failed_detail")));
+            rows.back().showDetail = true;
+        }
     }
     return rows;
 }

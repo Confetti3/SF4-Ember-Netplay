@@ -460,7 +460,10 @@ public:
             int values = 0;
             for (const auto& row : b.rows) {
                 names += (names.empty() ? "" : " \xC2\xB7 ") + row.label;
-                if (!row.info && !row.value.empty() && values++ < 3) summary += (summary.empty() ? "" : " \xC2\xB7 ") + row.value;
+                // A value that is not set ("-": no friend code yet) is left out, and a switch says what it switches: "Show activity: On".
+                if (row.info || row.value.empty() || row.value == "-" || values >= 3) continue;
+                ++values;
+                summary += (summary.empty() ? "" : " \xC2\xB7 ") + (MenuValueIsToggle(row) ? row.label + ": " + row.value : row.value);
             }
             heads.push_back(Row(screen + "/" + b.panel->id, loc::T(b.panel->heading), names));
             heads.back().value = summary;

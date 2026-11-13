@@ -41,6 +41,9 @@ void DrawIconPlate(ImDrawList* d, ImVec2 at, float side, float icon, int family,
 float DrawPips(ImDrawList* d, float centre, float y, int count, int level, float pip, float gap, v2::Tier tier);
 // One family of the showcase in `box`: the icon on its plate, the pips, the title under them (two lines at most).
 void DrawFamilyTile(ImDrawList* d, v2::Box box, const player_card::FamilyTile& tile, const player_card::Metrics& m, bool focused, bool hovered);
+// The glyph to draw for a button the card names by its pad button ("X", "Y"): the one the hint bar shows for the device in use (a
+// key on the keyboard), null where the device has no such button. Other names come back as they are.
+const char* DeviceGlyph(const char* padButton);
 // Presence as a mark that differs in shape: a disc in a room, a ring online, a dashed ring offline.
 void DrawPresence(ImDrawList* d, ImVec2 centre, float radius, player_card::PresenceMark mark);
 // The player's flag, "vs" or nothing before it, name and class on a line of `size` at (x, y), cut to `room`.

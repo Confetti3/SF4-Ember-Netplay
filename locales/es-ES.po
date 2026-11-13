@@ -1057,7 +1057,7 @@ msgid "profile.player_name"
 msgstr "Nombre"
 
 msgid "profile.main_character"
-msgstr "Personaje principal"
+msgstr "Luchador principal"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Aparece en tu tarjeta de jugador, al margen de la selección de partida."
@@ -1120,7 +1120,7 @@ msgid "profile.this_player"
 msgstr "este jugador"
 
 msgid "profile.reading"
-msgstr "Leyendo la tarjeta de {0}."
+msgstr "Cargando la tarjeta de {0}…"
 
 msgid "profile.reading_button"
 msgstr "Leyendo"
@@ -1138,7 +1138,7 @@ msgid "profile.nobody"
 msgstr "Ningún jugador de Ember se llama ahora {0}."
 
 msgid "profile.unreachable"
-msgstr "No se pudo acceder al servicio. La tarjeta aparecerá cuando responda."
+msgstr "No se pudo acceder a Ember. Inténtalo de nuevo en un momento."
 
 msgid "profile.unsupported"
 msgstr "Este servicio no ofrece perfiles."
@@ -1159,7 +1159,7 @@ msgid "profile.request_sent_detail"
 msgstr "Cancélala en Amigos, Enviadas."
 
 msgid "profile.sets_note"
-msgstr "Sets encontrados con el nombre {0}. También aparece aquí otra persona que haya usado este nombre, pero no los sets jugados con un nombre anterior."
+msgstr "Los sets se encuentran por el nombre {0}: también aparece aquí quien más lo haya usado, y los nombres anteriores no."
 
 msgid "profile.sets_player"
 msgstr "Jugador"
@@ -1219,7 +1219,7 @@ msgid "friends.join"
 msgstr "Unirse"
 
 msgid "friends.join_room"
-msgstr "Unirse a su sala"
+msgstr "Unirse a la sala"
 
 msgid "friends.watch"
 msgstr "Ver"
@@ -1264,7 +1264,7 @@ msgid "friends.are_friends"
 msgstr "Amigos"
 
 msgid "friends.played_you"
-msgstr "Ha jugado {0} partidas contigo, la última {1}"
+msgstr "{0} partidas juntos, la última {1}"
 
 msgid "friends.not_played"
 msgstr "Aún no habéis jugado entre vosotros."
@@ -1306,7 +1306,7 @@ msgid "find.text_row"
 msgstr "Nombre o código de amigo"
 
 msgid "find.text_detail"
-msgstr "Parte de un nombre, de al menos dos letras, o un código de amigo."
+msgstr "Al menos dos letras de un nombre, o un código de amigo."
 
 msgid "find.search"
 msgstr "Buscar"
@@ -1315,7 +1315,7 @@ msgid "find.players"
 msgstr "JUGADORES · {0}"
 
 msgid "find.searching"
-msgstr "Buscando."
+msgstr "Buscando…"
 
 msgid "find.none"
 msgstr "Ningún jugador se llama así."
@@ -1336,13 +1336,13 @@ msgid "find.recent_empty"
 msgstr "Los jugadores que te encuentres en salas públicas aparecen aquí durante una semana."
 
 msgid "friends.sent"
-msgstr "Enviadas ({0})"
+msgstr "Enviadas · {0}"
 
 msgid "friends.sent_ago"
 msgstr "Enviada {0}"
 
 msgid "friends.blocked"
-msgstr "Bloqueados ({0})"
+msgstr "Bloqueados · {0}"
 
 msgid "friends.appear_offline"
 msgstr "Aparecer sin conexión"
@@ -1432,13 +1432,13 @@ msgid "card.pins_row"
 msgstr "Galardones en la tarjeta"
 
 msgid "card.pins_auto"
-msgstr "Tus más altos"
+msgstr "Más altos"
 
 msgid "card.pins_chosen"
 msgstr "{0} elegidos"
 
 msgid "card.pins_detail"
-msgstr "Hasta cuatro familias de galardones en tu tarjeta, cada una en el nivel que alcances. Tus más altos muestra los más difíciles."
+msgstr "Hasta cuatro galardones en tu tarjeta, cada uno en el nivel que has alcanzado. Mostrar mis más altos elige los más difíciles."
 
 msgid "card.pins_auto_row"
 msgstr "Mostrar mis más altos"
@@ -1474,7 +1474,7 @@ msgid "card.region_row"
 msgstr "Región"
 
 msgid "card.region_detail"
-msgstr "Tu región, según el relé que eligió Ember. Puedes ocultarla."
+msgstr "Tu región, según tu conexión. Puedes ocultarla."
 
 msgid "card.shown"
 msgstr "{0} · visible"
@@ -1534,7 +1534,7 @@ msgid "friends.failed"
 msgstr "No se pudo contactar con Amigos. Inténtalo más tarde."
 
 msgid "friends.no_account"
-msgstr "Los amigos necesitan una cuenta de Discord. Conéctala en Ajustes, En línea."
+msgstr "Los amigos necesitan una cuenta de Discord."
 
 msgid "friends.unavailable"
 msgstr "Este servicio aún no ofrece amigos."
@@ -1588,7 +1588,7 @@ msgid "friends.toast_request"
 msgstr "{0} quiere ser tu amigo"
 
 msgid "friends.toast_invite"
-msgstr "{0} te invita a su sala"
+msgstr "{0} te invita a una sala"
 
 msgid "friends.later"
 msgstr "Más tarde"
@@ -1621,13 +1621,16 @@ msgid "level.top"
 msgstr "Marco máximo"
 
 msgid "level.no_account"
-msgstr "Conecta Discord en Ajustes, Juego online para ganar puntos."
+msgstr "Conecta Discord para ganar puntos."
 
 msgid "level.unavailable"
 msgstr "Este servicio aún no cuenta puntos."
 
 msgid "level.loading"
 msgstr "Leyendo tus puntos."
+
+msgid "level.loading_other"
+msgstr "Leyendo sus puntos."
 
 msgid "level.none"
 msgstr "Juega una partida pública con ranking para empezar a ganar puntos."
@@ -1637,6 +1640,9 @@ msgstr "Aún no jugado"
 
 msgid "level.unreachable"
 msgstr "No se pudo contactar con el servicio. Tus puntos aparecerán cuando responda."
+
+msgid "level.unreachable_other"
+msgstr "No se pudo contactar con Ember. Sus puntos aparecerán cuando vuelva."
 
 msgid "card.counted_games"
 msgstr "Partidas con ranking"
@@ -1699,7 +1705,7 @@ msgid "card.set_online"
 msgstr "Online"
 
 msgid "card.sets_loading"
-msgstr "Leyendo sets."
+msgstr "Cargando sets…"
 
 msgid "card.sets_none"
 msgstr "Aún no hay sets archivados con este nombre."
@@ -1711,7 +1717,7 @@ msgid "card.sets_unreachable"
 msgstr "No se pudo acceder al archivo. Los sets aparecerán cuando responda."
 
 msgid "card.you_and"
-msgstr "Tú y {0}"
+msgstr "Cara a cara"
 
 msgid "card.relation"
 msgstr "Amigos"
@@ -2035,7 +2041,7 @@ msgid "settings.interface_size"
 msgstr "Tamaño interfaz"
 
 msgid "settings.interface_size_detail"
-msgstr "Por debajo de 1.00x cabe más en un monitor grande."
+msgstr "Por encima de 1.00x se lee mejor en un televisor. Por debajo de 1.00x cabe más en un monitor, con texto más pequeño."
 
 msgid "discord.show_activity"
 msgstr "Mostrar actividad"
@@ -2059,7 +2065,7 @@ msgid "discord.account_linked"
 msgstr "Conectada · {0}"
 
 msgid "discord.account_detail"
-msgstr "Conecta la cuenta de Discord que usa tu Ember ID. Las partidas con ranking, los puntos, los amigos, las repeticiones compartidas y los sitios de torneos como BluMint la usan. Puede ser distinta de la de la aplicación de Discord. Selecciona para conectarla."
+msgstr "Conecta una cuenta de Discord para partidas con ranking, puntos, amigos y repeticiones compartidas. Los sitios de torneos como BluMint también la usan. Puede ser distinta de la de la aplicación de Discord."
 
 msgid "discord.account_linked_detail"
 msgstr "La cuenta de Discord conectada a tu Ember ID. Las partidas con ranking, los puntos, los amigos, las repeticiones compartidas y los sitios de torneos como BluMint la usan. Puede ser distinta de la de la aplicación de Discord. Selecciona para cambiar de cuenta o desconectarla."
@@ -5470,7 +5476,7 @@ msgid "public.create_needs_id"
 msgstr "Las salas públicas necesitan un Ember ID y un servicio de confianza. Configúralos en Salas públicas."
 
 msgid "public.ranked_needs_discord"
-msgstr "Conecta Discord para jugar con ranking"
+msgstr "Conecta Discord para partidas con ranking"
 
 msgid "public.ranked_needs_discord_detail"
 msgstr "Las partidas cuentan para tu clase y tus puntos solo con una cuenta de Discord conectada. Aun así, puedes jugar sin ella."
@@ -8597,16 +8603,16 @@ msgid "home.notifications"
 msgstr "Notificaciones"
 
 msgid "notifications.none"
-msgstr "Nada todavía."
+msgstr "Sin notificaciones"
 
 msgid "notifications.tab_count"
 msgstr "Notificaciones · {0}"
 
 msgid "notifications.waiting"
-msgstr "Por responder: {0}"
+msgstr "{0} pendientes"
 
 msgid "notifications.none_detail"
-msgstr "Lo que Ember avisa, como un enlace copiado o una sala abandonada, se guarda aquí durante esta sesión."
+msgstr "Aquí aparecen las solicitudes de amistad, las invitaciones y los avisos de Ember."
 
 msgid "home.news"
 msgstr "Noticias"
@@ -8864,7 +8870,7 @@ msgid "archive.f_text"
 msgstr "Jugador o evento"
 
 msgid "archive.f_text_detail"
-msgstr "Muestra los sets cuyo jugador o título de evento contiene estas letras."
+msgstr "Sets cuyo nombre de jugador o de evento contiene estas letras."
 
 msgid "archive.f_fighter"
 msgstr "Luchador"
@@ -8918,10 +8924,10 @@ msgid "archive.no_service"
 msgstr "Configura tu Ember ID"
 
 msgid "archive.no_service_detail"
-msgstr "El archivo se lee del servicio de Ember. Abre Ember ID para configurarlo."
+msgstr "El archivo necesita un Ember ID. Abre Ember ID para configurarlo."
 
 msgid "archive.loading"
-msgstr "Cargando sets"
+msgstr "Cargando sets…"
 
 msgid "archive.loading_detail"
 msgstr "Pidiendo al archivo sus sets más recientes."
@@ -8990,7 +8996,7 @@ msgid "archive.games"
 msgstr "{0} partidas"
 
 msgid "archive.met"
-msgstr "Jugó contra {0}"
+msgstr "vs {0}"
 
 msgid "archive.session_label"
 msgstr "{0}: {1} partidas"

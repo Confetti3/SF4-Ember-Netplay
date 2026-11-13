@@ -195,12 +195,14 @@ PointsLine MeterLine(const netplay::levels::Level& level, bool account) {
     return line;
 }
 
-std::vector<v2::TagView::Fact> RecordCells(const aw::Counters& c, bool winRate) {
+std::vector<v2::TagView::Fact> RecordCells(const aw::Counters& c, bool winRate, bool known) {
     const std::uint64_t percent = c.games ? (c.wins * 100 + c.games / 2) / c.games : 0;
-    return {{loc::T("card.counted_games"), std::to_string(c.games)},
-        winRate ? v2::TagView::Fact{loc::T("card.win_rate"), std::to_string(percent) + "%"} : v2::TagView::Fact{loc::T("card.wins"), std::to_string(c.wins)},
-        {loc::T("card.best_streak"), std::to_string(c.bestStreak)},
-        {loc::T("card.fighters_played"), loc::Tf("card.of", c.fightersPlayed, selection::FighterCount)}};
+    // Counts not read yet (or not reachable) are a dash, never a 0 that reads as a record.
+    const std::string dash = "-";
+    return {{loc::T("card.counted_games"), known ? std::to_string(c.games) : dash},
+        winRate ? v2::TagView::Fact{loc::T("card.win_rate"), known ? std::to_string(percent) + "%" : dash} : v2::TagView::Fact{loc::T("card.wins"), known ? std::to_string(c.wins) : dash},
+        {loc::T("card.best_streak"), known ? std::to_string(c.bestStreak) : dash},
+        {loc::T("card.fighters_played"), known ? loc::Tf("card.of", c.fightersPlayed, selection::FighterCount) : dash}};
 }
 
 std::string RecordLine(const aw::Counters& c) { return loc::Tf("card.record_line", c.games, c.wins, c.bestStreak); }
@@ -226,10 +228,11 @@ std::string WhenWords(std::uint64_t now, std::uint64_t at) {
 namespace {
 const char* LevelWordsOf(CardLevels levels, bool played, bool detailed) {
     switch (levels) {
-    case CardLevels::Pending: return "level.loading";
+    // The player's own card says "your points"; another's says "their points".
+    case CardLevels::Pending: return detailed ? "level.loading" : "level.loading_other";
     case CardLevels::NoAccount: return "level.no_account";
     case CardLevels::Unavailable: return "level.unavailable";
-    case CardLevels::Unreachable: return "level.unreachable";
+    case CardLevels::Unreachable: return detailed ? "level.unreachable" : "level.unreachable_other";
     case CardLevels::Counted: return played || !detailed ? nullptr : "level.none";
     }
     return nullptr;
@@ -280,7 +283,7 @@ FullCardView FullOf(const Subject& s, Size size) {
         v.worn = WornOnCard(s.counters, s.worn);
         v.plays = PlaysChips(s.style);
         v.looking = LookingChips(s.style);
-        v.record = RecordCells(s.counters, s.detailed);
+        v.record = RecordCells(s.counters, s.detailed, s.levels != CardLevels::Pending && s.levels != CardLevels::Unreachable);
         v.awards = AwardsOf(s.counters, s.pins, s.friendsCounted);
     }
     const bool counted = s.levels == CardLevels::Counted;
@@ -309,7 +312,7 @@ FullCardView FullOf(const Subject& s, Size size) {
         } else if (counted && s.counters.games == 0) v.rival.kind = Rival::Kind::MostPlayedNone;
     } else if (s.versus && s.profiled) {
         v.rival.kind = Rival::Kind::Versus;
-        v.rival.cells = {{loc::Tf("card.you_and", s.name), s.hasRecord ? std::to_string(s.record.won) + kEnDash + std::to_string(s.record.lost) : std::string("-")},
+        v.rival.cells = {{loc::T("card.you_and"), s.hasRecord ? std::to_string(s.record.won) + kEnDash + std::to_string(s.record.lost) : std::string("-")},
             {loc::T("friends.last_played"), s.hasRecord && s.record.lastAt ? WhenWords(s.now, s.record.lastAt) : std::string("-")},
             {loc::T("card.relation"), RelationWords(s)}};
     }

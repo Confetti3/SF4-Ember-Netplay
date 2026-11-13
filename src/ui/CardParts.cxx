@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cstring>
 
 namespace sf4e { namespace ui { namespace card_parts {
 using player_card::Chip;
@@ -121,7 +122,9 @@ float DrawPips(ImDrawList* d, float centre, float y, int count, int level, float
     const float x = centre - total * .5f;
     for (int i = 0; i < count; ++i) {
         const ImVec2 at(x + i * (pip + gap), y);
-        d->AddRectFilled(at, ImVec2(at.x + pip, at.y + pip), i < level ? v2::TierColor(tier).stripe : v2::Colors().border);
+        // A level reached is filled; one not reached is a muted outline (3:1 and more against the plate), not a faint fill.
+        if (i < level) d->AddRectFilled(at, ImVec2(at.x + pip, at.y + pip), v2::TierColor(tier).stripe);
+        else d->AddRect(at, ImVec2(at.x + pip, at.y + pip), v2::Colors().muted, 0, 0, Hairline());
     }
     return total;
 }
@@ -136,21 +139,41 @@ void DrawFamilyTile(ImDrawList* d, v2::Box box, const player_card::FamilyTile& t
     float y = top + plate + 10 * s;
     DrawPips(d, centre, y, static_cast<int>(tile.family->count), tile.level, m.pip * s, m.pipGap * s, tile.tier);
     y += m.pip * s + 8 * s;
-    // The title in its heading font, on two lines when it needs them.
+    // The title in its heading font, on two lines when it needs them, broken at a space and never inside a word.
     auto* font = HeadingFont();
-    const float size = m.familyTitleText * s, inner = box.W() - 12 * s;
-    const char *text = tile.title.c_str(), *stop = text + tile.title.size();
-    const char* cut = font->CalcTextSizeA(size, FLT_MAX, 0, text, stop).x > inner ? font->CalcWordWrapPositionA(size / font->FontSize, text, stop, inner) : stop;
-    const std::string first(text, cut);
-    while (cut < stop && *cut == ' ') ++cut;
-    // A line wider than the tile (one long word) is set smaller, to no less than 9, before it is cut.
+    const float size = m.familyTitleText * s, inner = box.W() - 12 * s, least = player_card::TextFloor * s;
+    const auto across = [&](const std::string& words) { return font->CalcTextSizeA(size, FLT_MAX, 0, words.c_str()).x; };
+    std::string first = tile.title, second;
+    if (across(first) > inner) {
+        const std::size_t space = first.find(' ');
+        if (space != std::string::npos) {
+            // The most whole words that fit the first line (the first word at least).
+            std::size_t cut = space;
+            for (std::size_t next = first.find(' ', cut + 1); next != std::string::npos && across(first.substr(0, next)) <= inner; next = first.find(' ', next + 1)) cut = next;
+            const std::size_t rest = first.find_first_not_of(' ', cut);
+            if (rest != std::string::npos) { second = first.substr(rest); first.resize(cut); }
+        } else if (!first.empty() && static_cast<unsigned char>(first[0]) >= 0xE1) {
+            // Japanese, Korean and Chinese have no spaces and may break between characters.
+            const char* text = first.c_str();
+            const char* cut = font->CalcWordWrapPositionA(size / font->FontSize, text, text + first.size(), inner);
+            if (cut > text && cut < text + first.size()) { second = std::string(cut); first.resize(cut - text); }
+        }
+    }
+    // A line wider than the tile (one long word) is set smaller, to no less than the card's floor, and only then cut short.
     const auto line = [&](const std::string& words, float top) {
-        const float wide = font->CalcTextSizeA(size, FLT_MAX, 0, words.c_str()).x, used = wide > inner && wide > 0 ? (std::max)(9 * s, size * inner / wide) : size;
+        const float wide = across(words), used = wide > inner && wide > 0 ? (std::max)((std::min)(size, least), size * inner / wide) : size;
         v2::Text(d, ImVec2(box.min.x + 6 * s, top + (size - used) * .5f), inner, words, used, c.text, font, true);
     };
     line(first, y);
-    if (cut < stop) line(std::string(cut, stop), y + size * 1.25f);
+    if (!second.empty()) line(second, y + size * 1.25f);
     if (focused) v2::Focus(d, box.min, box.max);
+}
+
+const char* DeviceGlyph(const char* padButton) {
+    if (!padButton) return nullptr;
+    if (!std::strcmp(padButton, "X")) return MenuShortcutGlyph(MenuInput::Fighter);
+    if (!std::strcmp(padButton, "Y")) return MenuShortcutGlyph(MenuInput::Options);
+    return padButton;
 }
 
 void DrawPresence(ImDrawList* d, ImVec2 at, float radius, player_card::PresenceMark mark) {

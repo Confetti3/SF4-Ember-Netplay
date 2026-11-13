@@ -1057,7 +1057,7 @@ msgid "profile.player_name"
 msgstr "プレイヤー名"
 
 msgid "profile.main_character"
-msgstr "メインキャラ"
+msgstr "メインファイター"
 
 msgid "profile.main_character_detail"
 msgstr "{0}。対戦時の選択とは別に、プレイヤーカードに表示されます。"
@@ -1120,7 +1120,7 @@ msgid "profile.this_player"
 msgstr "このプレイヤー"
 
 msgid "profile.reading"
-msgstr "{0} さんのカードを読み込み中。"
+msgstr "{0} さんのカードを読み込み中…"
 
 msgid "profile.reading_button"
 msgstr "読み込み中"
@@ -1138,7 +1138,7 @@ msgid "profile.nobody"
 msgstr "現在、{0} という名前のプレイヤーはEmberにいません。"
 
 msgid "profile.unreachable"
-msgstr "サービスに接続できません。応答があるとカードが表示されます。"
+msgstr "Emberに接続できません。しばらくしてからもう一度お試しください。"
 
 msgid "profile.unsupported"
 msgstr "このサービスはプロフィールに対応していません。"
@@ -1159,7 +1159,7 @@ msgid "profile.request_sent_detail"
 msgstr "フレンドの「送信済み」で取り消せます。"
 
 msgid "profile.sets_note"
-msgstr "名前 {0} で見つかったセットです。この名前を使っていた別の人のセットも表示され、以前の名前でプレイしたセットは表示されません。"
+msgstr "セットは名前 {0} で検索されます。同じ名前を使った別の人のセットも表示され、以前の名前のセットは表示されません。"
 
 msgid "profile.sets_player"
 msgstr "プレイヤー"
@@ -1264,7 +1264,7 @@ msgid "friends.are_friends"
 msgstr "フレンド"
 
 msgid "friends.played_you"
-msgstr "あなたと{0}回対戦、最後は{1}"
+msgstr "{0}回対戦、最後は{1}"
 
 msgid "friends.not_played"
 msgstr "まだお互いに対戦していません。"
@@ -1306,7 +1306,7 @@ msgid "find.text_row"
 msgstr "名前またはフレンドコード"
 
 msgid "find.text_detail"
-msgstr "名前の一部（2文字以上）またはフレンドコード。"
+msgstr "名前の2文字以上、またはフレンドコード。"
 
 msgid "find.search"
 msgstr "検索"
@@ -1315,7 +1315,7 @@ msgid "find.players"
 msgstr "プレイヤー · {0}"
 
 msgid "find.searching"
-msgstr "検索中。"
+msgstr "検索中…"
 
 msgid "find.none"
 msgstr "その名前のプレイヤーはいません。"
@@ -1336,13 +1336,13 @@ msgid "find.recent_empty"
 msgstr "公開ルームで対戦した相手は、1週間ここに表示されます。"
 
 msgid "friends.sent"
-msgstr "送信済み ({0})"
+msgstr "送信済み · {0}"
 
 msgid "friends.sent_ago"
 msgstr "送信 {0}"
 
 msgid "friends.blocked"
-msgstr "ブロック中 ({0})"
+msgstr "ブロック中 · {0}"
 
 msgid "friends.appear_offline"
 msgstr "オフライン表示"
@@ -1438,7 +1438,7 @@ msgid "card.pins_chosen"
 msgstr "{0}件選択中"
 
 msgid "card.pins_detail"
-msgstr "カードに付けるアワードのファミリーを最大4つまで。それぞれ到達したレベルで表示されます。「最高のもの」は最も難しいものを表示します。"
+msgstr "カードに付けるアワードを最大4つまで。それぞれ到達したレベルで表示されます。「最高のものを表示」は最も難しいものを選びます。"
 
 msgid "card.pins_auto_row"
 msgstr "最高のものを表示"
@@ -1474,7 +1474,7 @@ msgid "card.region_row"
 msgstr "地域"
 
 msgid "card.region_detail"
-msgstr "Emberが選んだリレーによる地域です。非表示にできます。"
+msgstr "接続から判定した地域です。非表示にできます。"
 
 msgid "card.shown"
 msgstr "{0} · 表示中"
@@ -1534,7 +1534,7 @@ msgid "friends.failed"
 msgstr "フレンドに接続できませんでした。あとでもう一度お試しください。"
 
 msgid "friends.no_account"
-msgstr "フレンド機能にはDiscordアカウントが必要です。設定 > オンラインで連携してください。"
+msgstr "フレンド機能にはDiscordアカウントが必要です。"
 
 msgid "friends.unavailable"
 msgstr "このサービスはまだフレンドに対応していません。"
@@ -1621,13 +1621,16 @@ msgid "level.top"
 msgstr "最上位のフレーム"
 
 msgid "level.no_account"
-msgstr "設定のオンライン対戦でDiscordを連携すると、ポイントがたまります。"
+msgstr "Discordを連携すると、ポイントがたまります。"
 
 msgid "level.unavailable"
 msgstr "このサービスはまだポイントを集計していません。"
 
 msgid "level.loading"
 msgstr "ポイントを読み込み中です。"
+
+msgid "level.loading_other"
+msgstr "相手のポイントを読み込み中です。"
 
 msgid "level.none"
 msgstr "ランクつきの公開試合を遊ぶと、ポイントがたまり始めます。"
@@ -1637,6 +1640,9 @@ msgstr "未プレイ"
 
 msgid "level.unreachable"
 msgstr "サービスに接続できません。応答するとポイントが表示されます。"
+
+msgid "level.unreachable_other"
+msgstr "Emberに接続できません。復旧すると相手のポイントが表示されます。"
 
 msgid "card.counted_games"
 msgstr "ランク試合数"
@@ -1699,7 +1705,7 @@ msgid "card.set_online"
 msgstr "オンライン"
 
 msgid "card.sets_loading"
-msgstr "セットを読み込み中。"
+msgstr "セットを読み込み中…"
 
 msgid "card.sets_none"
 msgstr "この名前のアーカイブ済みセットはまだありません。"
@@ -1711,7 +1717,7 @@ msgid "card.sets_unreachable"
 msgstr "アーカイブに接続できません。応答があるとセットが表示されます。"
 
 msgid "card.you_and"
-msgstr "あなたと{0}"
+msgstr "対戦成績"
 
 msgid "card.relation"
 msgstr "フレンド"
@@ -2035,7 +2041,7 @@ msgid "settings.interface_size"
 msgstr "画面サイズ"
 
 msgid "settings.interface_size_detail"
-msgstr "1.00x未満にすると、大きなモニターでより多くを表示できます。"
+msgstr "1.00x超にするとテレビで読みやすくなります。1.00x未満にするとモニターでより多くを表示できますが、文字は小さくなります。"
 
 msgid "discord.show_activity"
 msgstr "アクティビティを表示"
@@ -2059,7 +2065,7 @@ msgid "discord.account_linked"
 msgstr "連携済み · {0}"
 
 msgid "discord.account_detail"
-msgstr "Ember IDが使うDiscordアカウントを連携します。ランク試合、ポイント、フレンド、共有リプレイ、BluMintなどの大会サイトは、すべてこのアカウントを使います。Discordアプリのアカウントと異なる場合があります。選択すると連携します。"
+msgstr "ランク試合、ポイント、フレンド、共有リプレイのためにDiscordアカウントを連携します。BluMintなどの大会サイトも使います。Discordアプリのアカウントと異なっていてもかまいません。"
 
 msgid "discord.account_linked_detail"
 msgstr "Ember IDに連携しているDiscordアカウントです。ランク試合、ポイント、フレンド、共有リプレイ、BluMintなどの大会サイトがこのアカウントを使います。Discordアプリのアカウントと異なる場合があります。選択するとアカウントの切り替えや連携解除ができます。"
@@ -8597,7 +8603,7 @@ msgid "home.notifications"
 msgstr "通知"
 
 msgid "notifications.none"
-msgstr "まだありません。"
+msgstr "通知はありません"
 
 msgid "notifications.tab_count"
 msgstr "通知 · {0}"
@@ -8606,7 +8612,7 @@ msgid "notifications.waiting"
 msgstr "対応待ち: {0}"
 
 msgid "notifications.none_detail"
-msgstr "リンクのコピーやルームからの退出など、Ember からのお知らせはこのセッション中ここに残ります。"
+msgstr "フレンドリクエスト、招待、Ember からのお知らせがここに表示されます。"
 
 msgid "home.news"
 msgstr "ニュース"
@@ -8864,7 +8870,7 @@ msgid "archive.f_text"
 msgstr "プレイヤーまたはイベント"
 
 msgid "archive.f_text_detail"
-msgstr "プレイヤー名またはイベント名にこの文字を含むセットを一覧表示します。"
+msgstr "プレイヤー名またはイベント名にこの文字を含むセット。"
 
 msgid "archive.f_fighter"
 msgstr "ファイター"
@@ -8918,10 +8924,10 @@ msgid "archive.no_service"
 msgstr "Ember IDを設定"
 
 msgid "archive.no_service_detail"
-msgstr "アーカイブはEmberのサービスから読み込みます。Ember IDを開いて設定してください。"
+msgstr "アーカイブにはEmber IDが必要です。Ember IDを開いて設定してください。"
 
 msgid "archive.loading"
-msgstr "セットを読み込み中"
+msgstr "セットを読み込み中…"
 
 msgid "archive.loading_detail"
 msgstr "アーカイブに最新のセットを問い合わせています。"
@@ -8990,7 +8996,7 @@ msgid "archive.games"
 msgstr "{0}試合"
 
 msgid "archive.met"
-msgstr "対戦した相手: {0}"
+msgstr "vs {0}"
 
 msgid "archive.session_label"
 msgstr "{0}: {1}試合"

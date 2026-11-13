@@ -161,6 +161,12 @@ bool ButtonRow(const Ctx& c, v2::Box box, const std::string& id, v2::ButtonKind 
         v2::Button(c.d, box, row->label, kind, focused, hovered, row->enabled);
         return true;
     }
+    // The glyph of the key or pad button this device presses, as the hint bar draws it; none where the device has no such button.
+    glyph = card_parts::DeviceGlyph(glyph);
+    if (!glyph) {
+        v2::Button(c.d, box, row->label, kind, focused, hovered, row->enabled);
+        return true;
+    }
     v2::Button(c.d, box, std::string(), kind, focused, hovered, row->enabled);
     const float side = 26 * s, font = 17 * s, whole = side + 10 * s + card_parts::Across(row->label, font, HeadingFont()), left = box.min.x + (box.W() - whole) * .5f;
     DrawPromptGlyph(c.d, glyph, ImVec2(left, box.min.y + (box.H() - side) * .5f), side, MenuArt(), s);
@@ -261,7 +267,7 @@ float DrawPoints(const Ctx& c, float x, float y, float room, bool narrow) {
             y += digits + 8 * s;
             v2::Meter(c.d, {ImVec2(x, y), ImVec2(x + room, y + 10 * s)}, one.line->part, 0.f);
             y += 10 * s + 6 * s;
-            v2::TextShrunk(c.d, ImVec2(x, y), room, one.line->words, words, 11 * s, colors.muted);
+            v2::TextShrunk(c.d, ImVec2(x, y), room, one.line->words, words, player_card::TextFloor * s, colors.muted);
             y += words + 14 * s;
         }
         return y;
@@ -273,7 +279,7 @@ float DrawPoints(const Ctx& c, float x, float y, float room, bool narrow) {
     for (int i = 0; i < 2; ++i) {
         const float top = y + i * (digits + gap), mid = top + (digits - 10 * s) * .5f, wordsX = meterX + meterWidth + 16 * s;
         v2::Meter(c.d, {ImVec2(meterX, mid), ImVec2(meterX + meterWidth, mid + 10 * s)}, lines[i].line->part, 0.f);
-        v2::TextShrunk(c.d, ImVec2(wordsX, top + (digits - words) * .5f), x + room - wordsX, lines[i].line->words, words, 11 * s, colors.muted);
+        v2::TextShrunk(c.d, ImVec2(wordsX, top + (digits - words) * .5f), x + room - wordsX, lines[i].line->words, words, player_card::TextFloor * s, colors.muted);
     }
     return y + 2 * digits + gap;
 }
@@ -298,11 +304,11 @@ void DrawStripTile(const Ctx& c, v2::Box box, const player_card::StripTile& tile
     v2::LevelBand(c.d, picture, tile.points, c.alpha);
     DrawFighterEdge(c.d, picture, tile.points, tile.tier);
     if (tile.isMain) v2::Chip(c.d, ImVec2(picture.min.x + 6 * s, picture.min.y + 6 * s), loc::T("fighters.main"), colors.accentLight);
-    // The words under the picture start nearer the tile's edge than the picture does, which a narrow tile's games line needs.
-    const float edge = 4 * s, wordsWidth = box.W() - 2 * edge;
+    // The words under the picture start as far in as the picture does, clear of the focus frame's 2 px edge.
+    const float edge = pad, wordsWidth = box.W() - 2 * edge;
     const float y = picture.max.y + 8 * s;
     v2::Text(c.d, ImVec2(box.min.x + edge, y), wordsWidth, selection::FindFighter(tile.fighter)->name, c.m.tileNameText * s, colors.text, HeadingFont());
-    if (!tile.games.empty()) v2::TextShrunk(c.d, ImVec2(box.min.x + edge, y + c.m.tileNameText * s + 5 * s), wordsWidth, tile.games, c.m.tileGamesText * s, 10 * s, colors.muted);
+    if (!tile.games.empty()) v2::TextShrunk(c.d, ImVec2(box.min.x + edge, y + c.m.tileNameText * s + 5 * s), wordsWidth, tile.games, c.m.tileGamesText * s, player_card::TextFloor * s, colors.muted);
     if (focused) v2::Focus(c.d, box.min, box.max);
 }
 
@@ -550,7 +556,7 @@ float LayoutPanel(ImDrawList* d, ImVec2 origin, float width, const OtherCardView
     y = (std::max)(y, origin.y + side);
     if (!card.record.empty()) {
         y += 12 * s;
-        if (d) v2::TextShrunk(d, ImVec2(origin.x, y), width, card.record, 14 * s, 11 * s, c.muted);
+        if (d) v2::TextShrunk(d, ImVec2(origin.x, y), width, card.record, 14 * s, player_card::TextFloor * s, c.muted);
         y += 20 * s;
     }
     if (!card.plays.empty() || !card.looking.empty()) {

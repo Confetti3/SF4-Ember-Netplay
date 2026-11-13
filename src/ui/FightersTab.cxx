@@ -29,7 +29,7 @@ void DrawTile(ImDrawList* d, v2::Box box, int fighter, const Level& level, const
     if (isMain) v2::Chip(d, ImVec2(tile.min.x + 6 * s, tile.min.y + 6 * s), loc::T("fighters.main"), c.accentLight);
     const float x = box.min.x + 6 * s, room = box.W() - 12 * s, y = tile.max.y + 6 * s;
     v2::Text(d, ImVec2(x, y), room, selection::FindFighter(fighter)->name, 14 * s, enabled ? c.text : c.muted, HeadingFont());
-    if (!shown.others) v2::TextShrunk(d, ImVec2(x, y + 20 * s), room, player_card::GamesWords(level.games), player_card::TextFloor * s, 10 * s, c.muted);
+    if (!shown.others) v2::TextShrunk(d, ImVec2(x, y + 20 * s), room, player_card::GamesWords(level.games), player_card::TextFloor * s, player_card::TextFloor * s, c.muted);
     if (focused) v2::Focus(d, box.min, box.max, false);
 }
 
@@ -80,10 +80,11 @@ float DrawEarning(ImDrawList* d, float x, float y, float room, int active) {
         const std::string name = v2::TierName(award);
         const float place = (std::max)(ImGui::GetFont()->CalcTextSizeA(player_card::TextFloor * s, FLT_MAX, 0, name.c_str()).x + 16 * s, 56 * s);
         if (fx > x && fx + place > x + room) { fx = x; y += frame + 8 * s; }
-        // The tier is the plate and its word, the focused fighter's at full strength: never a frame.
+        // The tier is the plate and its word, the focused fighter's plate at full strength: never a frame. The word is always at full
+        // strength, as it is the only legend of the colours; only the plate is dimmed.
         const float strength = tier == active ? 1.f : .4f;
         d->AddRectFilled(ImVec2(fx, y), ImVec2(fx + place, y + frame), v2::color::Alpha(v2::TierColor(award).plate, strength), 4 * s);
-        v2::Text(d, ImVec2(fx, y + (frame - player_card::TextFloor * s) * .5f), place, name, player_card::TextFloor * s, v2::color::Alpha(c.text, strength), nullptr, true);
+        v2::Text(d, ImVec2(fx, y + (frame - player_card::TextFloor * s) * .5f), place, name, player_card::TextFloor * s, c.text, nullptr, true);
         fx += place + 8 * s;
     }
     return y + frame + 8 * s;

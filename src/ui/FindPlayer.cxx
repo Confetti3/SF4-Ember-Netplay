@@ -105,6 +105,7 @@ std::vector<MenuEntry> ResultRows(const Page& page) {
     if (recent.empty() && rows.empty()) {
         auto row = InfoRow(FindNoteRow, loc::T("find.recent"), {}, loc::T("find.recent_empty"));
         row.quiet = true;
+        row.showDetail = true;
         rows.push_back(std::move(row));
     }
     return rows;

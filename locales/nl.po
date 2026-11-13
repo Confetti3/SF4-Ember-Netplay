@@ -1057,7 +1057,7 @@ msgid "profile.player_name"
 msgstr "Spelersnaam"
 
 msgid "profile.main_character"
-msgstr "Hoofdpersonage"
+msgstr "Hoofdvechter"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Wordt gebruikt voor je spelerskaart, los van je keuze voor de match."
@@ -1120,7 +1120,7 @@ msgid "profile.this_player"
 msgstr "deze speler"
 
 msgid "profile.reading"
-msgstr "Kaart van {0} wordt gelezen."
+msgstr "Kaart van {0} wordt geladen…"
 
 msgid "profile.reading_button"
 msgstr "Lezen"
@@ -1138,7 +1138,7 @@ msgid "profile.nobody"
 msgstr "Geen speler op Ember heet nu {0}."
 
 msgid "profile.unreachable"
-msgstr "De dienst is niet bereikbaar. De kaart verschijnt zodra hij antwoordt."
+msgstr "Ember is niet bereikbaar. Probeer het zo meteen opnieuw."
 
 msgid "profile.unsupported"
 msgstr "Deze dienst biedt geen profielen aan."
@@ -1159,7 +1159,7 @@ msgid "profile.request_sent_detail"
 msgstr "Annuleer het onder Vrienden, Verstuurd."
 
 msgid "profile.sets_note"
-msgstr "Sets gevonden onder de naam {0}. Iemand anders die deze naam heeft gebruikt verschijnt hier ook, sets onder een eerdere naam niet."
+msgstr "Sets worden gevonden via de naam {0}: iedereen die hem ook gebruikte staat hier ook, eerdere namen niet."
 
 msgid "profile.sets_player"
 msgstr "Speler"
@@ -1219,7 +1219,7 @@ msgid "friends.join"
 msgstr "Betreden"
 
 msgid "friends.join_room"
-msgstr "Hun kamer betreden"
+msgstr "Kamer betreden"
 
 msgid "friends.watch"
 msgstr "Kijken"
@@ -1264,7 +1264,7 @@ msgid "friends.are_friends"
 msgstr "Vrienden"
 
 msgid "friends.played_you"
-msgstr "Speelde {0} potjes tegen je, laatst {1}"
+msgstr "{0} potjes samen, laatst {1}"
 
 msgid "friends.not_played"
 msgstr "Jullie hebben nog niet tegen elkaar gespeeld."
@@ -1306,7 +1306,7 @@ msgid "find.text_row"
 msgstr "Naam of vriendcode"
 
 msgid "find.text_detail"
-msgstr "Een deel van een naam, minstens twee letters, of een vriendcode."
+msgstr "Minstens twee letters van een naam, of een vriendcode."
 
 msgid "find.search"
 msgstr "Zoeken"
@@ -1315,7 +1315,7 @@ msgid "find.players"
 msgstr "SPELERS · {0}"
 
 msgid "find.searching"
-msgstr "Zoeken."
+msgstr "Zoeken…"
 
 msgid "find.none"
 msgstr "Geen speler heet zo."
@@ -1336,13 +1336,13 @@ msgid "find.recent_empty"
 msgstr "Spelers die je in openbare kamers tegenkomt, staan hier een week lang."
 
 msgid "friends.sent"
-msgstr "Verstuurd ({0})"
+msgstr "Verstuurd · {0}"
 
 msgid "friends.sent_ago"
 msgstr "Verstuurd {0}"
 
 msgid "friends.blocked"
-msgstr "Geblokkeerd ({0})"
+msgstr "Geblokkeerd · {0}"
 
 msgid "friends.appear_offline"
 msgstr "Offline verschijnen"
@@ -1432,13 +1432,13 @@ msgid "card.pins_row"
 msgstr "Onderscheidingen op kaart"
 
 msgid "card.pins_auto"
-msgstr "Je hoogste"
+msgstr "Hoogste"
 
 msgid "card.pins_chosen"
 msgstr "{0} gekozen"
 
 msgid "card.pins_detail"
-msgstr "Tot vier onderscheidingsfamilies op je kaart, elk op het niveau dat je bereikt. Je hoogste toont de moeilijkste."
+msgstr "Tot vier onderscheidingen op je kaart, elk op het niveau dat je hebt bereikt. Mijn hoogste tonen kiest de moeilijkste."
 
 msgid "card.pins_auto_row"
 msgstr "Mijn hoogste tonen"
@@ -1474,7 +1474,7 @@ msgid "card.region_row"
 msgstr "Regio"
 
 msgid "card.region_detail"
-msgstr "Je regio, van de relay die Ember koos. Je kunt het verbergen."
+msgstr "Je regio, afgeleid van je verbinding. Je kunt het verbergen."
 
 msgid "card.shown"
 msgstr "{0} · getoond"
@@ -1534,7 +1534,7 @@ msgid "friends.failed"
 msgstr "Vrienden zijn niet bereikbaar. Probeer het later opnieuw."
 
 msgid "friends.no_account"
-msgstr "Vrienden hebben een Discord-account nodig. Koppel het in Instellingen, Online."
+msgstr "Vrienden hebben een Discord-account nodig."
 
 msgid "friends.unavailable"
 msgstr "Deze dienst biedt nog geen vrienden aan."
@@ -1588,7 +1588,7 @@ msgid "friends.toast_request"
 msgstr "{0} wil vrienden worden"
 
 msgid "friends.toast_invite"
-msgstr "{0} nodigt je uit in de kamer"
+msgstr "{0} nodigt je uit in een kamer"
 
 msgid "friends.later"
 msgstr "Later"
@@ -1621,13 +1621,16 @@ msgid "level.top"
 msgstr "Hoogste kader"
 
 msgid "level.no_account"
-msgstr "Koppel Discord onder Instellingen, Online spelen om punten te verdienen."
+msgstr "Koppel Discord om punten te verdienen."
 
 msgid "level.unavailable"
 msgstr "Deze dienst telt nog geen punten."
 
 msgid "level.loading"
 msgstr "Je punten worden gelezen."
+
+msgid "level.loading_other"
+msgstr "Hun punten worden gelezen."
 
 msgid "level.none"
 msgstr "Speel een openbaar potje met ranglijst om punten te verdienen."
@@ -1637,6 +1640,9 @@ msgstr "Nog niet gespeeld"
 
 msgid "level.unreachable"
 msgstr "De dienst is niet bereikbaar. Je punten verschijnen zodra hij antwoordt."
+
+msgid "level.unreachable_other"
+msgstr "Ember is niet bereikbaar. Hun punten verschijnen zodra het weer werkt."
 
 msgid "card.counted_games"
 msgstr "Potjes met ranglijst"
@@ -1699,7 +1705,7 @@ msgid "card.set_online"
 msgstr "Online"
 
 msgid "card.sets_loading"
-msgstr "Sets worden gelezen."
+msgstr "Sets laden…"
 
 msgid "card.sets_none"
 msgstr "Nog geen gearchiveerde sets onder deze naam."
@@ -1711,7 +1717,7 @@ msgid "card.sets_unreachable"
 msgstr "Archief niet bereikbaar. Sets verschijnen zodra het antwoordt."
 
 msgid "card.you_and"
-msgstr "Jij en {0}"
+msgstr "Onderling"
 
 msgid "card.relation"
 msgstr "Vrienden"
@@ -2035,7 +2041,7 @@ msgid "settings.interface_size"
 msgstr "Interfacegrootte"
 
 msgid "settings.interface_size_detail"
-msgstr "Onder 1.00x past er meer op een groot scherm."
+msgstr "Boven 1.00x leest het makkelijker op een tv. Onder 1.00x past er meer op een scherm, met kleinere tekst."
 
 msgid "discord.show_activity"
 msgstr "Activiteit tonen"
@@ -2059,7 +2065,7 @@ msgid "discord.account_linked"
 msgstr "Gekoppeld · {0}"
 
 msgid "discord.account_detail"
-msgstr "Koppel het Discord-account dat je Ember ID gebruikt. Potjes met ranglijst, punten, vrienden, gedeelde replays en toernooisites zoals BluMint gebruiken het allemaal. Het kan verschillen van het account in de Discord-app. Selecteer om het te koppelen."
+msgstr "Koppel een Discord-account voor potjes met ranglijst, punten, vrienden en gedeelde replays. Toernooisites zoals BluMint gebruiken het ook. Het kan een ander account zijn dan dat in de Discord-app."
 
 msgid "discord.account_linked_detail"
 msgstr "Het Discord-account dat aan je Ember ID is gekoppeld. Potjes met ranglijst, punten, vrienden, gedeelde replays en toernooisites zoals BluMint gebruiken het. Het kan verschillen van het account in de Discord-app. Selecteer om van account te wisselen of het te ontkoppelen."
@@ -5470,7 +5476,7 @@ msgid "public.create_needs_id"
 msgstr "Openbare kamers hebben een Ember ID en een vertrouwde dienst nodig. Richt ze in via Openbare kamers."
 
 msgid "public.ranked_needs_discord"
-msgstr "Koppel Discord om met ranglijst te spelen"
+msgstr "Koppel Discord voor potjes met ranglijst"
 
 msgid "public.ranked_needs_discord_detail"
 msgstr "Potjes tellen alleen mee voor je klasse en punten met een gekoppeld Discord-account. Je kunt ook zonder account spelen."
@@ -8597,16 +8603,16 @@ msgid "home.notifications"
 msgstr "Meldingen"
 
 msgid "notifications.none"
-msgstr "Nog niets."
+msgstr "Geen meldingen"
 
 msgid "notifications.tab_count"
 msgstr "Meldingen · {0}"
 
 msgid "notifications.waiting"
-msgstr "Te beantwoorden: {0}"
+msgstr "{0} wachten"
 
 msgid "notifications.none_detail"
-msgstr "Wat Ember meldt, zoals een gekopieerde link of een verlaten kamer, blijft hier staan voor deze sessie."
+msgstr "Vriendschapsverzoeken, uitnodigingen en meldingen van Ember staan hier."
 
 msgid "home.news"
 msgstr "Nieuws"
@@ -8864,7 +8870,7 @@ msgid "archive.f_text"
 msgstr "Speler of evenement"
 
 msgid "archive.f_text_detail"
-msgstr "Toont de sets waarin de naam van een speler of de titel van een evenement deze letters bevat."
+msgstr "Sets waarvan de naam van de speler of het evenement deze letters bevat."
 
 msgid "archive.f_fighter"
 msgstr "Vechter"
@@ -8918,10 +8924,10 @@ msgid "archive.no_service"
 msgstr "Stel je Ember ID in"
 
 msgid "archive.no_service_detail"
-msgstr "Het archief wordt gelezen van de Ember-dienst. Open Ember ID om het in te stellen."
+msgstr "Het archief heeft een Ember ID nodig. Open Ember ID om er een in te stellen."
 
 msgid "archive.loading"
-msgstr "Sets laden"
+msgstr "Sets laden…"
 
 msgid "archive.loading_detail"
 msgstr "Het archief wordt om de nieuwste sets gevraagd."
@@ -8990,7 +8996,7 @@ msgid "archive.games"
 msgstr "{0} games"
 
 msgid "archive.met"
-msgstr "Speelde tegen {0}"
+msgstr "vs {0}"
 
 msgid "archive.session_label"
 msgstr "{0}: {1} games"

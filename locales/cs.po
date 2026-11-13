@@ -1057,7 +1057,7 @@ msgid "profile.player_name"
 msgstr "Jméno hráče"
 
 msgid "profile.main_character"
-msgstr "Hlavní postava"
+msgstr "Hlavní bojovník"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Zobrazuje se na kartě hráče bez ohledu na výběr pro zápas."
@@ -1120,7 +1120,7 @@ msgid "profile.this_player"
 msgstr "tohoto hráče"
 
 msgid "profile.reading"
-msgstr "Načítání karty hráče {0}."
+msgstr "Načítání karty hráče {0}…"
 
 msgid "profile.reading_button"
 msgstr "Načítání"
@@ -1138,7 +1138,7 @@ msgid "profile.nobody"
 msgstr "Žádný hráč na Emberu se teď nejmenuje {0}."
 
 msgid "profile.unreachable"
-msgstr "Službu se nepodařilo kontaktovat. Karta se zobrazí, až odpoví."
+msgstr "Ember se nepodařilo kontaktovat. Zkuste to za chvíli znovu."
 
 msgid "profile.unsupported"
 msgstr "Tato služba nenabízí profily."
@@ -1159,7 +1159,7 @@ msgid "profile.request_sent_detail"
 msgstr "Zrušíte ji v Přátelé, Odeslané."
 
 msgid "profile.sets_note"
-msgstr "Sety nalezené pod jménem {0}. Zobrazí se tu i někdo jiný, kdo toto jméno používal, ale sety odehrané pod dřívějším jménem ne."
+msgstr "Sety se hledají podle jména {0}: zobrazí se tu i každý, kdo ho používal, a dřívější jména ne."
 
 msgid "profile.sets_player"
 msgstr "Hráč"
@@ -1219,7 +1219,7 @@ msgid "friends.join"
 msgstr "Připojit se"
 
 msgid "friends.join_room"
-msgstr "Připojit se k jeho místnosti"
+msgstr "Připojit se k místnosti"
 
 msgid "friends.watch"
 msgstr "Sledovat"
@@ -1264,7 +1264,7 @@ msgid "friends.are_friends"
 msgstr "Přátelé"
 
 msgid "friends.played_you"
-msgstr "Her s vámi: {0}, naposledy {1}"
+msgstr "Společně {0} her, naposledy {1}"
 
 msgid "friends.not_played"
 msgstr "Ještě jste spolu nehráli."
@@ -1306,7 +1306,7 @@ msgid "find.text_row"
 msgstr "Jméno nebo kód přítele"
 
 msgid "find.text_detail"
-msgstr "Část jména, aspoň dvě písmena, nebo kód přítele."
+msgstr "Alespoň dvě písmena jména, nebo kód přítele."
 
 msgid "find.search"
 msgstr "Hledat"
@@ -1315,7 +1315,7 @@ msgid "find.players"
 msgstr "HRÁČI · {0}"
 
 msgid "find.searching"
-msgstr "Hledání."
+msgstr "Hledání…"
 
 msgid "find.none"
 msgstr "Žádný hráč se tak nejmenuje."
@@ -1336,13 +1336,13 @@ msgid "find.recent_empty"
 msgstr "Hráči, které potkáte ve veřejných místnostech, se tu zobrazují týden."
 
 msgid "friends.sent"
-msgstr "Odeslané ({0})"
+msgstr "Odeslané · {0}"
 
 msgid "friends.sent_ago"
 msgstr "Odesláno {0}"
 
 msgid "friends.blocked"
-msgstr "Blokovaní ({0})"
+msgstr "Blokovaní · {0}"
 
 msgid "friends.appear_offline"
 msgstr "Zobrazovat se offline"
@@ -1432,13 +1432,13 @@ msgid "card.pins_row"
 msgstr "Ocenění na kartě"
 
 msgid "card.pins_auto"
-msgstr "Vaše nejvyšší"
+msgstr "Nejvyšší"
 
 msgid "card.pins_chosen"
 msgstr "Vybráno: {0}"
 
 msgid "card.pins_detail"
-msgstr "Až čtyři rodiny ocenění na vaší kartě, každá na úrovni, kterou jste dosáhli. Možnost Vaše nejvyšší ukáže ta nejtěžší."
+msgstr "Až čtyři ocenění na vaší kartě, každé na úrovni, kterou jste dosáhli. Možnost Ukázat moje nejvyšší vybere ta nejtěžší."
 
 msgid "card.pins_auto_row"
 msgstr "Ukázat moje nejvyšší"
@@ -1474,7 +1474,7 @@ msgid "card.region_row"
 msgstr "Region"
 
 msgid "card.region_detail"
-msgstr "Váš region podle relay, který Ember vybral. Můžete ho skrýt."
+msgstr "Váš region podle vašeho připojení. Můžete ho skrýt."
 
 msgid "card.shown"
 msgstr "{0} · zobrazeno"
@@ -1534,7 +1534,7 @@ msgid "friends.failed"
 msgstr "Se službou přátel se nepodařilo spojit. Zkuste to později."
 
 msgid "friends.no_account"
-msgstr "Přátelé vyžadují účet Discord. Připojte jej v Nastavení, Online."
+msgstr "Přátelé vyžadují účet Discord."
 
 msgid "friends.unavailable"
 msgstr "Tato služba zatím přátele nenabízí."
@@ -1588,7 +1588,7 @@ msgid "friends.toast_request"
 msgstr "{0} se s tebou chce přátelit"
 
 msgid "friends.toast_invite"
-msgstr "{0} tě zve do své místnosti"
+msgstr "{0} tě zve do místnosti"
 
 msgid "friends.later"
 msgstr "Později"
@@ -1621,13 +1621,16 @@ msgid "level.top"
 msgstr "Nejvyšší rám"
 
 msgid "level.no_account"
-msgstr "Připojte Discord v Nastavení, Hra online, a získávejte body."
+msgstr "Připojte Discord a získávejte body."
 
 msgid "level.unavailable"
 msgstr "Tato služba zatím body nepočítá."
 
 msgid "level.loading"
 msgstr "Načítání vašich bodů."
+
+msgid "level.loading_other"
+msgstr "Načítání bodů tohoto hráče."
 
 msgid "level.none"
 msgstr "Odehrajte veřejný hodnocený zápas a začněte získávat body."
@@ -1637,6 +1640,9 @@ msgstr "Zatím nehráno"
 
 msgid "level.unreachable"
 msgstr "Službu se nepodařilo zastihnout. Vaše body se zobrazí, až odpoví."
+
+msgid "level.unreachable_other"
+msgstr "Ember se nepodařilo zastihnout. Body hráče se zobrazí, až bude zpět."
 
 msgid "card.counted_games"
 msgstr "Hodnocené zápasy"
@@ -1699,7 +1705,7 @@ msgid "card.set_online"
 msgstr "Online"
 
 msgid "card.sets_loading"
-msgstr "Načítání setů."
+msgstr "Načítání setů…"
 
 msgid "card.sets_none"
 msgstr "Pod tímto jménem zatím nejsou archivované sety."
@@ -1711,7 +1717,7 @@ msgid "card.sets_unreachable"
 msgstr "Archiv není dostupný. Sety se zobrazí, až odpoví."
 
 msgid "card.you_and"
-msgstr "Vy a {0}"
+msgstr "Vzájemné zápasy"
 
 msgid "card.relation"
 msgstr "Přátelé"
@@ -2035,7 +2041,7 @@ msgid "settings.interface_size"
 msgstr "Velikost rozhraní"
 
 msgid "settings.interface_size_detail"
-msgstr "Pod 1.00x se na velký monitor vejde víc."
+msgstr "Nad 1.00x se text lépe čte na televizi. Pod 1.00x se na monitor vejde víc, ale s menším textem."
 
 msgid "discord.show_activity"
 msgstr "Zobrazit aktivitu"
@@ -2059,7 +2065,7 @@ msgid "discord.account_linked"
 msgstr "Připojeno · {0}"
 
 msgid "discord.account_detail"
-msgstr "Připojte účet Discord, který používá vaše Ember ID. Využívají ho hodnocené zápasy, body, přátelé, sdílené záznamy a turnajové weby jako BluMint. Může se lišit od účtu v aplikaci Discord. Výběrem ho připojíte."
+msgstr "Připojte účet Discord pro hodnocené zápasy, body, přátele a sdílené záznamy. Používají ho i turnajové weby jako BluMint. Může to být jiný účet než v aplikaci Discord."
 
 msgid "discord.account_linked_detail"
 msgstr "Účet Discord připojený k vašemu Ember ID. Využívají ho hodnocené zápasy, body, přátelé, sdílené záznamy a turnajové weby jako BluMint. Může se lišit od účtu v aplikaci Discord. Výběrem účet změníte nebo odpojíte."
@@ -5470,7 +5476,7 @@ msgid "public.create_needs_id"
 msgstr "Veřejné místnosti vyžadují Ember ID a důvěryhodnou službu. Nastavíte je v části Veřejné místnosti."
 
 msgid "public.ranked_needs_discord"
-msgstr "Pro hodnocené hraní připojte Discord"
+msgstr "Pro hodnocené zápasy připojte Discord"
 
 msgid "public.ranked_needs_discord_detail"
 msgstr "Zápasy se počítají do vaší třídy a bodů jen s připojeným účtem Discord. Hrát můžete i bez něj."
@@ -8597,16 +8603,16 @@ msgid "home.notifications"
 msgstr "Oznámení"
 
 msgid "notifications.none"
-msgstr "Zatím nic."
+msgstr "Žádná oznámení"
 
 msgid "notifications.tab_count"
 msgstr "Oznámení · {0}"
 
 msgid "notifications.waiting"
-msgstr "K odpovědi: {0}"
+msgstr "Čeká: {0}"
 
 msgid "notifications.none_detail"
-msgstr "Co Ember oznámí, třeba zkopírovaný odkaz nebo opuštěnou místnost, tu zůstane po tuto relaci."
+msgstr "Žádosti o přátelství, pozvánky a oznámení Emberu se zobrazí tady."
 
 msgid "home.news"
 msgstr "Novinky"
@@ -8864,7 +8870,7 @@ msgid "archive.f_text"
 msgstr "Hráč nebo událost"
 
 msgid "archive.f_text_detail"
-msgstr "Vypíše sety, v nichž jméno hráče nebo název události obsahuje tato písmena."
+msgstr "Sety, v nichž jméno hráče nebo události obsahuje tato písmena."
 
 msgid "archive.f_fighter"
 msgstr "Bojovník"
@@ -8918,10 +8924,10 @@ msgid "archive.no_service"
 msgstr "Nastavte své Ember ID"
 
 msgid "archive.no_service_detail"
-msgstr "Archiv se čte ze služby Emberu. Otevřete Ember ID a nastavte ho."
+msgstr "Archiv potřebuje Ember ID. Otevřete Ember ID a nastavte si ho."
 
 msgid "archive.loading"
-msgstr "Načítání setů"
+msgstr "Načítání setů…"
 
 msgid "archive.loading_detail"
 msgstr "Žádám archiv o nejnovější sety."
@@ -8990,7 +8996,7 @@ msgid "archive.games"
 msgstr "Her: {0}"
 
 msgid "archive.met"
-msgstr "Hrál proti: {0}"
+msgstr "vs {0}"
 
 msgid "archive.session_label"
 msgstr "{0}, her: {1}"

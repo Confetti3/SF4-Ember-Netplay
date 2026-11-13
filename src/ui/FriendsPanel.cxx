@@ -241,7 +241,8 @@ std::vector<Notifications::Item> NoticesOf(const nf::View& view, std::uint64_t n
         Notifications::Item notice;
         notice.key = std::move(key);
         notice.text = std::move(text);
-        notice.tone = Tone::Pending;
+        // The diamond the Friends tab marks a request with, not the triangle that reads as a warning.
+        notice.tone = Tone::Neutral;
         notice.actions = {{loc::T(first)}, {loc::T(second)}};
         notice.again = true;
         items.push_back(std::move(notice));
@@ -289,8 +290,10 @@ MenuEntry NoteRowOf(const char* words) {
     return row;
 }
 
-MenuEntry RequestRowOf(const nf::Incoming& request, std::uint64_t now) {
-    auto row = Row(RequestPrefix + request.id, request.name, PlayedLine(request, now));
+// A request's row: on the tab under its group's heading the name is enough; in Notifications, where nothing else says what it
+// is, the row says it as its toast does.
+MenuEntry RequestRowOf(const nf::Incoming& request, std::uint64_t now, bool notification = false) {
+    auto row = Row(RequestPrefix + request.id, notification ? loc::Tf("friends.toast_request", request.name) : request.name, PlayedLine(request, now));
     row.userText = true;
     row.value = loc::T("friends.accept");
     row.valueHighlighted = true;
@@ -298,10 +301,9 @@ MenuEntry RequestRowOf(const nf::Incoming& request, std::uint64_t now) {
     return row;
 }
 
-// An invite waiting in Notifications: the friend, the words of its toast and the room it names, and Join on A.
+// An invite waiting in Notifications: the words of its toast over the room it names, and Join on A.
 MenuEntry InviteRowOf(const nf::Invite& invite, const nf::Friend& from) {
-    const std::string room = InvitedRoom(invite, from);
-    auto row = Row(InvitePrefix + invite.id, from.name, loc::Tf("friends.toast_invite", from.name) + (room.empty() ? std::string() : " \xC2\xB7 " + room));
+    auto row = Row(InvitePrefix + invite.id, loc::Tf("friends.toast_invite", from.name), InvitedRoom(invite, from));
     row.userText = true;
     row.detailText = DetailText::Name;
     row.value = row.hint = loc::T("toast.join");
@@ -517,7 +519,7 @@ std::optional<MenuEntry> FriendsPanel::RowOf(const ShellView& v, const std::stri
     const auto& state = StateOf(v.friends);
     const auto waiting = WaitingOf(v.friends, v.unixNow);
     std::optional<MenuEntry> row;
-    for (const auto* request : waiting.requests) if (RequestPrefix + request->id == key) row = RequestRowOf(*request, v.unixNow);
+    for (const auto* request : waiting.requests) if (RequestPrefix + request->id == key) row = RequestRowOf(*request, v.unixNow, true);
     for (const auto* invite : waiting.invites) if (InvitePrefix + invite->id == key) row = InviteRowOf(*invite, *state.FindFriend(invite->friendId));
     if (row && pending_.active && pending_.row == row->id) row->value = "...";
     return row;

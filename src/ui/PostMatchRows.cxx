@@ -9,6 +9,7 @@
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 
 namespace sf4e { namespace ui { namespace post_match_rows {
 namespace {
@@ -27,7 +28,14 @@ void DrawPicture(const ShellView& v, ImDrawList* d, v2::Box tile, const room::Me
 }
 
 v2::Box ButtonBox(v2::Box row) {
-    const float width = (std::min)(ButtonWidth * Scale(), row.W() * .34f);
+    // As wide as the widest of its four words in this language needs (the button's 17 px words and 12 px each side), so no state
+    // cuts its label; at most half the row.
+    const float s = Scale();
+    float widest = ButtonWidth * s;
+    for (const auto kind : {post_match_friend::State::Kind::Add, post_match_friend::State::Kind::Accept, post_match_friend::State::Kind::Sent,
+             post_match_friend::State::Kind::Friends})
+        widest = (std::max)(widest, std::ceil(HeadingFont()->CalcTextSizeA(17 * s, FLT_MAX, 0, loc::T(post_match_friend::LabelOf(kind))).x) + 24 * s);
+    const float width = (std::min)(widest, row.W() * .5f);
     return {ImVec2(row.max.x - width, row.min.y), row.max};
 }
 
@@ -47,9 +55,10 @@ std::optional<v2::Box> DrawPlayer(const ShellView& v, ImDrawList* d, v2::Box row
     float after = x;
     if (player.member) {
         const auto tag = MemberTag(v.memberLatency, *player.member, v.room.localMember);
-        const float room = (std::max)(right - x - chip - 12 * s, 60 * s);
+        // The tag is given only the width it needs: Tag puts its ping at the far end of what it is given, and the chip follows that end.
+        const float room = (std::min)((std::max)(right - x - chip - 12 * s, 60 * s), v2::TagWidth(tag, v2::TagSize::S));
         v2::Tag(d, ImVec2(x, top), room, tag, v2::TagSize::S);
-        after = x + (std::min)(v2::TagWidth(tag, v2::TagSize::S), room) + 12 * s;
+        after = x + room + 12 * s;
     }
     const ImU32 tone = !player.seated ? c.danger : player.left ? c.muted : player.ready ? c.ready : ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
     v2::Chip(d, ImVec2(after, top), player.word, tone);

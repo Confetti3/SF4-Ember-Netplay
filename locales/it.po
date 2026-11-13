@@ -1120,7 +1120,7 @@ msgid "profile.this_player"
 msgstr "questo giocatore"
 
 msgid "profile.reading"
-msgstr "Lettura della scheda di {0}."
+msgstr "Caricamento della scheda di {0}…"
 
 msgid "profile.reading_button"
 msgstr "Lettura"
@@ -1138,7 +1138,7 @@ msgid "profile.nobody"
 msgstr "Nessun giocatore di Ember si chiama {0} ora."
 
 msgid "profile.unreachable"
-msgstr "Servizio non raggiungibile. La scheda comparirà quando risponde."
+msgstr "Ember non raggiungibile. Riprova tra un momento."
 
 msgid "profile.unsupported"
 msgstr "Questo servizio non offre profili."
@@ -1159,7 +1159,7 @@ msgid "profile.request_sent_detail"
 msgstr "Annullala in Amici, Inviate."
 
 msgid "profile.sets_note"
-msgstr "Set trovati con il nome {0}. Compare anche chi altro ha usato questo nome, mentre i set giocati con un nome precedente no."
+msgstr "I set si trovano per il nome {0}: compare anche chi altro lo ha usato, mentre i nomi precedenti no."
 
 msgid "profile.sets_player"
 msgstr "Giocatore"
@@ -1219,7 +1219,7 @@ msgid "friends.join"
 msgstr "Entra"
 
 msgid "friends.join_room"
-msgstr "Entra nella sua sala"
+msgstr "Entra nella sala"
 
 msgid "friends.watch"
 msgstr "Guarda"
@@ -1264,7 +1264,7 @@ msgid "friends.are_friends"
 msgstr "Amici"
 
 msgid "friends.played_you"
-msgstr "Ha giocato {0} partite contro di te, l'ultima {1}"
+msgstr "{0} partite insieme, l'ultima {1}"
 
 msgid "friends.not_played"
 msgstr "Non avete ancora giocato l'uno contro l'altro."
@@ -1306,7 +1306,7 @@ msgid "find.text_row"
 msgstr "Nome o codice amico"
 
 msgid "find.text_detail"
-msgstr "Parte di un nome, di almeno due lettere, o un codice amico."
+msgstr "Almeno due lettere di un nome, o un codice amico."
 
 msgid "find.search"
 msgstr "Cerca"
@@ -1315,7 +1315,7 @@ msgid "find.players"
 msgstr "GIOCATORI · {0}"
 
 msgid "find.searching"
-msgstr "Ricerca in corso."
+msgstr "Ricerca in corso…"
 
 msgid "find.none"
 msgstr "Nessun giocatore si chiama così."
@@ -1336,13 +1336,13 @@ msgid "find.recent_empty"
 msgstr "I giocatori che incontri nelle sale pubbliche compaiono qui per una settimana."
 
 msgid "friends.sent"
-msgstr "Inviate ({0})"
+msgstr "Inviate · {0}"
 
 msgid "friends.sent_ago"
 msgstr "Inviata {0}"
 
 msgid "friends.blocked"
-msgstr "Bloccati ({0})"
+msgstr "Bloccati · {0}"
 
 msgid "friends.appear_offline"
 msgstr "Mostrati offline"
@@ -1432,13 +1432,13 @@ msgid "card.pins_row"
 msgstr "Riconoscimenti sulla scheda"
 
 msgid "card.pins_auto"
-msgstr "I tuoi più alti"
+msgstr "Più alti"
 
 msgid "card.pins_chosen"
 msgstr "{0} scelti"
 
 msgid "card.pins_detail"
-msgstr "Fino a quattro famiglie di riconoscimenti sulla tua scheda, ognuna al livello raggiunto. I tuoi più alti mostra i più difficili."
+msgstr "Fino a quattro riconoscimenti sulla tua scheda, ognuno al livello raggiunto. Mostra i miei più alti sceglie i più difficili."
 
 msgid "card.pins_auto_row"
 msgstr "Mostra i miei più alti"
@@ -1474,7 +1474,7 @@ msgid "card.region_row"
 msgstr "Regione"
 
 msgid "card.region_detail"
-msgstr "La tua regione, dal relay scelto da Ember. Puoi nasconderla."
+msgstr "La tua regione, in base alla tua connessione. Puoi nasconderla."
 
 msgid "card.shown"
 msgstr "{0} · visibile"
@@ -1534,7 +1534,7 @@ msgid "friends.failed"
 msgstr "Impossibile raggiungere gli amici. Riprova più tardi."
 
 msgid "friends.no_account"
-msgstr "Gli amici richiedono un account Discord. Collegalo in Impostazioni, Online."
+msgstr "Gli amici richiedono un account Discord."
 
 msgid "friends.unavailable"
 msgstr "Questo servizio non offre ancora gli amici."
@@ -1588,7 +1588,7 @@ msgid "friends.toast_request"
 msgstr "{0} vuole essere tuo amico"
 
 msgid "friends.toast_invite"
-msgstr "{0} ti invita nella sua sala"
+msgstr "{0} ti invita in una sala"
 
 msgid "friends.later"
 msgstr "Più tardi"
@@ -1621,13 +1621,16 @@ msgid "level.top"
 msgstr "Cornice massima"
 
 msgid "level.no_account"
-msgstr "Collega Discord in Impostazioni, Gioco online per guadagnare punti."
+msgstr "Collega Discord per guadagnare punti."
 
 msgid "level.unavailable"
 msgstr "Questo servizio non conta ancora i punti."
 
 msgid "level.loading"
 msgstr "Lettura dei tuoi punti."
+
+msgid "level.loading_other"
+msgstr "Lettura dei suoi punti."
 
 msgid "level.none"
 msgstr "Gioca una partita pubblica classificata per iniziare a guadagnare punti."
@@ -1637,6 +1640,9 @@ msgstr "Non ancora giocato"
 
 msgid "level.unreachable"
 msgstr "Impossibile raggiungere il servizio. I tuoi punti compariranno quando risponde."
+
+msgid "level.unreachable_other"
+msgstr "Impossibile raggiungere Ember. I suoi punti compariranno quando tornerà disponibile."
 
 msgid "card.counted_games"
 msgstr "Partite classificate"
@@ -1699,7 +1705,7 @@ msgid "card.set_online"
 msgstr "Online"
 
 msgid "card.sets_loading"
-msgstr "Lettura dei set."
+msgstr "Caricamento dei set…"
 
 msgid "card.sets_none"
 msgstr "Ancora nessun set archiviato con questo nome."
@@ -1711,7 +1717,7 @@ msgid "card.sets_unreachable"
 msgstr "Archivio non raggiungibile. I set compariranno quando risponde."
 
 msgid "card.you_and"
-msgstr "Tu e {0}"
+msgstr "Testa a testa"
 
 msgid "card.relation"
 msgstr "Amici"
@@ -2035,7 +2041,7 @@ msgid "settings.interface_size"
 msgstr "Dim. interfaccia"
 
 msgid "settings.interface_size_detail"
-msgstr "Sotto 1.00x su un monitor grande ci sta di più."
+msgstr "Sopra 1.00x si legge meglio su una TV. Sotto 1.00x su un monitor ci sta di più, con testo più piccolo."
 
 msgid "discord.show_activity"
 msgstr "Mostra attività"
@@ -2059,7 +2065,7 @@ msgid "discord.account_linked"
 msgstr "Collegato · {0}"
 
 msgid "discord.account_detail"
-msgstr "Collega l'account Discord che usa il tuo Ember ID. Partite classificate, punti, amici, replay condivisi e siti di tornei come BluMint lo usano tutti. Può essere diverso da quello dell'app Discord. Seleziona per collegarlo."
+msgstr "Collega un account Discord per partite classificate, punti, amici e replay condivisi. Lo usano anche i siti di tornei come BluMint. Può essere diverso da quello dell'app Discord."
 
 msgid "discord.account_linked_detail"
 msgstr "L'account Discord collegato al tuo Ember ID. Partite classificate, punti, amici, replay condivisi e siti di tornei come BluMint lo usano. Può essere diverso da quello dell'app Discord. Seleziona per cambiare account o scollegarlo."
@@ -5470,7 +5476,7 @@ msgid "public.create_needs_id"
 msgstr "Le sale pubbliche richiedono un Ember ID e un servizio attendibile. Configurali in Sale pubbliche."
 
 msgid "public.ranked_needs_discord"
-msgstr "Collega Discord per giocare in classificata"
+msgstr "Collega Discord per le partite classificate"
 
 msgid "public.ranked_needs_discord_detail"
 msgstr "Le partite contano per la tua classe e i tuoi punti solo con un account Discord collegato. Puoi comunque giocare senza."
@@ -8597,16 +8603,16 @@ msgid "home.notifications"
 msgstr "Notifiche"
 
 msgid "notifications.none"
-msgstr "Ancora niente."
+msgstr "Nessuna notifica"
 
 msgid "notifications.tab_count"
 msgstr "Notifiche · {0}"
 
 msgid "notifications.waiting"
-msgstr "Da rispondere: {0}"
+msgstr "{0} in attesa"
 
 msgid "notifications.none_detail"
-msgstr "Quello che Ember segnala, come un link copiato o una stanza lasciata, resta qui per questa sessione."
+msgstr "Richieste di amicizia, inviti e avvisi di Ember compaiono qui."
 
 msgid "home.news"
 msgstr "Notizie"
@@ -8864,7 +8870,7 @@ msgid "archive.f_text"
 msgstr "Giocatore o evento"
 
 msgid "archive.f_text_detail"
-msgstr "Elenca i set in cui il nome di un giocatore o il titolo di un evento contiene queste lettere."
+msgstr "Set il cui nome di giocatore o di evento contiene queste lettere."
 
 msgid "archive.f_fighter"
 msgstr "Combattente"
@@ -8918,10 +8924,10 @@ msgid "archive.no_service"
 msgstr "Configura il tuo Ember ID"
 
 msgid "archive.no_service_detail"
-msgstr "L'archivio viene letto dal servizio di Ember. Apri Ember ID per configurarlo."
+msgstr "L'archivio richiede un Ember ID. Apri Ember ID per configurarlo."
 
 msgid "archive.loading"
-msgstr "Caricamento dei set"
+msgstr "Caricamento dei set…"
 
 msgid "archive.loading_detail"
 msgstr "Richiesta all'archivio dei set più recenti."
@@ -8990,7 +8996,7 @@ msgid "archive.games"
 msgstr "{0} partite"
 
 msgid "archive.met"
-msgstr "Ha affrontato {0}"
+msgstr "vs {0}"
 
 msgid "archive.session_label"
 msgstr "{0}: {1} partite"
