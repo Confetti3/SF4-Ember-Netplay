@@ -179,10 +179,9 @@ bool ArchiveTab::Fetching(const ShellView& v) const { return !v.archiveBrowse.fe
 
 void ArchiveTab::Regroup(const ShellView& v) {
     const auto& listing = v.archiveBrowse.listing;
-    if (listing != held_) {
-        held_ = listing;
-        entries_ = listing ? archivesets::Group(*listing) : std::vector<Entry>{};
-    }
+    if (listing == held_) return;
+    held_ = listing;
+    entries_ = listing ? archivesets::Group(*listing) : std::vector<Entry>{};
     // The filter's choices are the archive's, whatever the filter is: they stay while another filter's first page loads.
     if (listing && v.archiveBrowse.bridge == bridge_) { events_ = listing->events; countries_ = listing->countries; }
 }

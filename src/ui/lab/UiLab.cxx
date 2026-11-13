@@ -8,6 +8,8 @@
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
+// --archive full|more|loading|failed|unsupported|empty|nobridge: Replays' Archive tab with the public archive's listing in
+//   that state (--screen replay-archive, replay-archive-filter or replay-archive-fighter)
 // --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's levels (--screen card, fighters,
 //   card-edit or home)
 // --friends full|requests|empty|noaccount|unavailable|loading|unreachable|offline: the player's friends in that state
@@ -317,6 +319,56 @@ void PublicRooms(ui::ShellView& view) {
     // Each type of room on the board: Arcade cabinets and a King of the hill among the Classic tables.
     list.rooms[0].type = room::RoomType::Arcade; list.rooms[4].type = room::RoomType::King;
 }
+// --archive full|more|loading|failed|unsupported|empty|nobridge: the public replay archive on a trusted service, as
+// Replays' Archive tab reads it (--screen replay-archive): a tournament set with the bridge's score, online matches of
+// two players (one with each side's flag and class) and one player's session, newest first. more: a next page is loading;
+// nobridge: no service is set up, so the tab says to set up the Ember ID.
+void Archive(ui::ShellView& view, const std::string& state) {
+    namespace ar = netplay::archive;
+    view.replays.ready = true;
+    view.preferences.classEmblems = true;
+    if (state == "nobridge") return;
+    auto& id = view.identity;
+    id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.fingerprint = "lab";
+    id.bridges = {{"brg_1", "https://bridge.example", "Example"}};
+    auto& status = view.archiveBrowse;
+    status.bridge = "brg_1";
+    status.state = state == "loading" ? ar::Status::State::Loading : state == "failed" ? ar::Status::State::Failed :
+        state == "unsupported" ? ar::Status::State::Unsupported : ar::Status::State::Listed;
+    if (state == "failed") status.error = "bridge_unreachable";
+    if (state == "unsupported") status.error = ar::Unsupported;
+    ++status.revision;
+    if (status.state != ar::Status::State::Listed) return;
+    unsigned counter = 0;
+    const auto game = [&](std::uint64_t at, const char* a, const char* b, int fighterA, int fighterB, const char* countryA, const char* countryB, int classA, int classB) {
+        ar::Game g;
+        char digest[80]; std::snprintf(digest, sizeof(digest), "%064x", ++counter);
+        g.digest = digest; g.url = std::string("https://archive.example/games/") + digest + ".emberreplay";
+        g.savedAt = at; g.size = 90000;
+        g.names = {{a, b}}; g.fighters = {{fighterA, fighterB}}; g.countries = {{countryA, countryB}}; g.classes = {{classA, classB}};
+        return g;
+    };
+    auto listing = std::make_shared<ar::Listing>();
+    const std::uint64_t now = 1700000000;
+    for (const std::uint64_t at : {now - 5400, now - 4800, now - 4200}) {
+        auto g = game(at, "Player 1", "Player 2", at % 3 ? 17 : 0, 12, "BE", "GB", 8, 0);
+        g.set = "emt_a"; g.event = "Sample Cup"; g.round = "Top 8"; g.phase = "Winners";
+        listing->games.push_back(g);
+    }
+    listing->sets["emt_a"].score = {{2, 1}};
+    listing->games.push_back(game(now - 3000, "Player 3", "Player 4", 2, 5, "JP", "NL", 10, 6));
+    listing->games.push_back(game(now - 2700, "Player 4", "Player 3", 5, 2, "NL", "JP", 6, 10));
+    for (const std::uint64_t at : {now - 9000, now - 8000, now - 7000})
+        listing->games.push_back(game(at, "Player 5", "", 9 + static_cast<int>(at % 4), 20, "GB", "", 4, 0));
+    listing->games.push_back(game(now - 20000, "Player 6", "Player 7", 33, 21, "GB", "GB", 0, 0));
+    std::sort(listing->games.begin(), listing->games.end(), [](const ar::Game& a, const ar::Game& b) { return a.savedAt > b.savedAt; });
+    listing->events = {"Sample Cup"}; listing->countries = {"BE", "GB", "JP", "NL"};
+    listing->total = 5200; listing->matching = state == "empty" ? 0 : 5200;
+    if (state == "empty") listing->games.clear();
+    if (state == "more") listing->next = "1700000000.0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    status.loadingMore = state == "more";
+    status.listing = listing;
+}
 // An Ember ID on a trusted service (lab --rankings), and Rankings' answers from
 // it: FRaccie at B+ and listed, and a board of sixteen by class, as the design board.
 void Rankings(ui::ShellView& view) {
@@ -448,7 +500,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string points;  // --points public|private
-    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState;
+    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
@@ -482,6 +534,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--levels") levels = true;
         else if (args[i] == "--profile" && more) profile = args[++i];
         else if (args[i] == "--friends" && more) friendsState = args[++i];
+        else if (args[i] == "--archive" && more) archiveState = args[++i];
         else if (args[i] == "--points" && more) points = args[++i];
         else if (args[i] == "--playback") playback = true;
         else if (args[i] == "--caption") caption = true;
@@ -558,6 +611,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (!walkFile.empty()) walkLog.open(walkFile, std::ios::trunc);
     if (!walkFrom.empty() && !walk.StartAt(walkFrom)) { if (walkLog.is_open()) walkLog << "FAIL walk-from: no step named " << walkFrom << std::endl; return 3; }
     if (rankings) Rankings(view);
+    if (!archiveState.empty()) Archive(view, archiveState);
     if (!profile.empty()) Profile(view, profile);
     if (!friendsState.empty() && !uilab::Friends(view, friendsState)) return 4;
     if (!points.empty()) {
