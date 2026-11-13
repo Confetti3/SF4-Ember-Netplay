@@ -158,13 +158,21 @@ fn a_fighter_is_checked_against_its_own_counts() {
     // One point under the next tier.
     assert!(own(3, 100, 99, 0, 0, Some(200)).check().is_ok());
 
-    let mut wrong_points = own(3, 10, 5, 0, 0, Some(200));
-    wrong_points.points = 14;
+    // A game is a point and a win at most one more (the class bonus): ten
+    // games with five wins are 10 to 15 points, and nothing else.
+    let with_points = |points: u64| OwnFighter {
+        points,
+        ..own(3, 10, 5, 0, 0, Some(200))
+    };
+    for points in 10..=15 {
+        assert!(with_points(points).check().is_ok(), "{points}");
+    }
     let refused = [
         ("fighter", own(44, 1, 0, 0, 0, Some(200))),
         ("games", own(3, 0, 0, 0, 0, Some(200))),
         ("wins", own(3, 4, 5, 0, 0, Some(200))),
-        ("points", wrong_points),
+        ("points", with_points(9)),
+        ("points", with_points(16)),
         ("tier", own(3, 1, 0, 5, 0, None)),
         ("next", own(3, 100, 100, 1, 200, Some(200))),
         ("next", own(3, 101, 100, 1, 200, Some(100))),
@@ -182,8 +190,8 @@ fn a_fighter_is_checked_against_its_own_counts() {
             "{fighter:?}"
         );
     }
-    // Counts near the end of the range do not overflow: the sum
-    // saturates, so it can only equal `points` at `u64::MAX`.
+    // Counts near the end of the range do not overflow: the sum saturates
+    // at `u64::MAX`, which the points then cannot pass.
     let mut huge = own(3, u64::MAX, u64::MAX, 4, 2500, None);
     huge.points = u64::MAX;
     assert!(huge.check().is_ok());
@@ -196,15 +204,22 @@ fn an_account_is_checked_against_its_own_counts_and_frame() {
     assert!(account(2000, 500, 2, 2000, Some(5000)).check().is_ok());
     assert!(account(9000, 2000, 4, 10_000, None).check().is_ok());
 
-    let mut wrong_points = account(10, 5, 0, 0, Some(500));
-    wrong_points.points = 14;
+    // Ten games with five wins are 10 to 15 points, as for a fighter.
+    let with_points = |points: u64| OwnAccount {
+        points,
+        ..account(10, 5, 0, 0, Some(500))
+    };
+    for points in 10..=15 {
+        assert!(with_points(points).check().is_ok(), "{points}");
+    }
     let mut no_since = account(1, 0, 0, 0, Some(500));
     no_since.since = None;
     let mut early_since = account(0, 0, 0, 0, Some(500));
     early_since.since = Some(1);
     let refused = [
         ("wins", account(4, 5, 0, 0, Some(500))),
-        ("points", wrong_points),
+        ("points", with_points(9)),
+        ("points", with_points(16)),
         ("since", no_since),
         ("since", early_since),
         ("tier", account(1, 0, 5, 0, None)),
@@ -347,4 +362,13 @@ fn a_most_played_opponent_is_checked() {
     // Lost games alone, or won games alone, are a record.
     assert!(RivalCard { won: 0, lost: 5, ..good.clone() }.check().is_ok());
     assert!(RivalCard { won: 5, lost: 0, ..good }.check().is_ok());
+}
+
+#[test]
+fn class_bonus_points_are_asked_at_the_points_path_with_its_query() {
+    assert_eq!(
+        CLASS_BONUS_POINTS_PATH,
+        format!("{POINTS_PATH}?{CLASS_BONUS_QUERY}")
+    );
+    assert_ne!(CLASS_BONUS_FEATURE, POINTS_FEATURE);
 }

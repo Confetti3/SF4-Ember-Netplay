@@ -6,11 +6,15 @@
 //! with what a card says of its player (docs/design/PROFILE.md). Only where
 //! public rooms are on, since only their games count; a bridge without them
 //! answers 404, as one from before them does.
-use axum::{extract::State, http::HeaderMap, response::Response};
+use axum::{
+    extract::{RawQuery, State},
+    http::HeaderMap,
+    response::Response,
+};
 use ember_protocol::{
     friends::parse_friend_code,
     levels::{
-        CardAnswers, CardLookup, CardSelector, OwnLevels, Relation, RivalCard,
+        CLASS_BONUS_QUERY, CardAnswers, CardLookup, CardSelector, OwnLevels, Relation, RivalCard,
     },
 };
 use rusqlite::Transaction;
@@ -34,15 +38,27 @@ use crate::{
 const REQUESTS_PER_WINDOW: usize = 60;
 const WINDOW_SECS: u64 = 10 * 60;
 
-/// `GET /v1/points/me`. Read only: nothing is remembered as shown.
-pub async fn own(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
+/// `GET /v1/points/me`. Read only: nothing is remembered as shown. A build
+/// that reads class bonus points says so in the query and is answered the
+/// points as they are earned; any other is one from before the bonus, which
+/// refuses points that are not games plus wins, and is answered that sum.
+pub async fn own(
+    State(state): State<AppState>,
+    RawQuery(query): RawQuery,
+    headers: HeaderMap,
+) -> Result<Response> {
     let (player, now) = admit(&state, &headers).await?;
     let keys = state.keys.clone();
     let classes = Classes::of(&state);
+    let sum = if query.as_deref() == Some(CLASS_BONUS_QUERY) {
+        levels::Sum::Earned
+    } else {
+        levels::Sum::GamesAndWins
+    };
     let levels = state
         .db
         .read(move |tx| {
-            let mut own = levels::own(tx, &player.ember_id)?;
+            let mut own = levels::own(tx, &player.ember_id, sum)?;
             if let OwnLevels::Counted { rival, .. } = &mut own {
                 if let Some(caller) = skill::account(tx, &player.ember_id)? {
                     *rival = most_played(tx, &keys, &classes, &caller, now)?;

@@ -144,6 +144,7 @@ pub(super) const MIGRATIONS: &[Migration] = migrations![
     "062_account_points.sql",
     "063_award_counters.sql",
     "064_player_cards.sql",
+    "065_points_class_bonus.sql",
 ];
 
 /// Checks what the database recorded against `migrations`, then applies each

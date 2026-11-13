@@ -2,7 +2,8 @@
 //! rating it finds from a database at 056, and leaves behind a rated game
 //! whose room is gone; 062 adds the account points and keeps the fighter
 //! points; 063 adds the award counters and starts them from what is kept; 064 adds
-//! the player cards and starts them from what friends and rankings know.
+//! the player cards and starts them from what friends and rankings know; 065
+//! adds the wins without a class bonus and keeps everybody's points.
 //! Each starts from a database as a bridge before it left it.
 use std::path::Path;
 
@@ -203,13 +204,16 @@ async fn migration_060_leaves_behind_a_rated_game_whose_room_is_gone_and_keeps_t
 
 /// A database as a bridge from before 062 left it: this bridge's own ledger
 /// (060 and 061 are recorded by name, as only this line writes them), without
-/// the account points.
+/// the account points, and without what 065 adds to them and to the fighter
+/// points.
 fn database_at_061(path: &Path) -> rusqlite::Connection {
     drop(Db::open(path).unwrap());
     let connection = rusqlite::Connection::open(path).unwrap();
     connection
         .execute_batch(
-            "DROP TABLE account_points; DELETE FROM schema_migrations WHERE version = 62;",
+            "DROP TABLE account_points;
+             ALTER TABLE fighter_levels DROP COLUMN lower_wins;
+             DELETE FROM schema_migrations WHERE version IN (62, 65);",
         )
         .unwrap();
     connection
@@ -252,8 +256,10 @@ async fn migration_062_adds_account_points_and_keeps_the_fighter_points() {
         )
         .unwrap();
     for statement in [
-        "INSERT INTO account_points VALUES ('100', 1, 0, 1, 1)",
-        "INSERT INTO account_points VALUES ('200', 1, 2, 1, 1)",
+        "INSERT INTO account_points (discord_user_id, games, wins, first_at, played_at)
+         VALUES ('100', 1, 0, 1, 1)",
+        "INSERT INTO account_points (discord_user_id, games, wins, first_at, played_at)
+         VALUES ('200', 1, 2, 1, 1)",
     ] {
         assert!(connection.execute(statement, []).is_err(), "{statement}");
     }
@@ -433,4 +439,115 @@ async fn migration_064_starts_the_player_cards_from_what_friends_and_rankings_kn
         .query_row("SELECT COUNT(*) FROM player_cards", [], |row| row.get(0))
         .unwrap();
     assert_eq!(rows, 3);
+}
+
+/// A database as a bridge from before 065 left it: this bridge's own ledger
+/// without the wins that earned no class bonus.
+fn database_at_064(path: &Path) -> rusqlite::Connection {
+    drop(Db::open(path).unwrap());
+    let connection = rusqlite::Connection::open(path).unwrap();
+    connection
+        .execute_batch(
+            "ALTER TABLE fighter_levels DROP COLUMN lower_wins;
+             ALTER TABLE account_points DROP COLUMN lower_wins;
+             DELETE FROM schema_migrations WHERE version = 65;",
+        )
+        .unwrap();
+    connection
+}
+
+/// Every count of points as `points` works them out: the accounts' rows, then
+/// the fighters', each as `account:fighter:games:wins:points`.
+fn points_state(connection: &rusqlite::Connection, points: &str) -> Vec<String> {
+    connection
+        .prepare(&format!(
+            "SELECT discord_user_id || '::' || games || ':' || wins || ':' || ({points})
+             FROM account_points
+             UNION ALL
+             SELECT discord_user_id || ':' || fighter || ':' || games || ':' || wins || ':' || ({points})
+             FROM fighter_levels ORDER BY 1"
+        ))
+        .unwrap()
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap()
+}
+
+#[tokio::test]
+async fn migration_065_keeps_every_accounts_points_and_an_older_bridge_still_counts() {
+    let dir = TempDir::new("class-bonus-migration");
+    let path = dir.join("bridge.sqlite3");
+    // What a bridge from before 065 served: games plus wins.
+    let before = {
+        let connection = database_at_064(&path);
+        connection
+            .execute_batch(
+                "INSERT INTO account_points (discord_user_id, games, wins, first_at, played_at)
+                   VALUES ('100', 40, 25, 1000, 2000), ('200', 7, 0, 1000, 2000),
+                          ('300', 3, 3, 1000, 2000);
+                 INSERT INTO fighter_levels (discord_user_id, fighter, games, wins, first_at, played_at)
+                   VALUES ('100', 3, 30, 20, 1000, 2000), ('100', 7, 10, 5, 1000, 2000),
+                          ('200', 12, 7, 0, 1000, 2000), ('300', 43, 3, 3, 1000, 2000);",
+            )
+            .unwrap();
+        points_state(&connection, "games + wins")
+    };
+    assert_eq!(before.len(), 7);
+    assert!(before.contains(&"100::40:25:65".to_owned()), "{before:?}");
+    drop(Db::open(&path).unwrap());
+
+    // The same games, wins and points for every account and fighter: no win
+    // so far loses its bonus.
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    assert_eq!(points_state(&connection, "games + wins - lower_wins"), before);
+    assert_eq!(points_state(&connection, "games + wins"), before);
+
+    // A bridge from before 065, put back, counts a won game as it always
+    // did: an old row and a new one, and neither win is without its bonus.
+    connection
+        .execute_batch(
+            "INSERT INTO fighter_levels (discord_user_id, fighter, games, wins, first_at, played_at)
+               VALUES ('100', 3, 1, 1, 3000, 3000)
+               ON CONFLICT (discord_user_id, fighter) DO UPDATE SET games = games + 1,
+                   wins = wins + 1, played_at = 3000;
+             INSERT INTO account_points (discord_user_id, games, wins, first_at, played_at)
+               VALUES ('400', 1, 1, 3000, 3000)
+               ON CONFLICT (discord_user_id) DO UPDATE SET games = games + 1,
+                   wins = wins + 1, played_at = 3000;",
+        )
+        .unwrap();
+    let after = points_state(&connection, "games + wins - lower_wins");
+    assert!(after.contains(&"100:3:31:21:52".to_owned()), "{after:?}");
+    assert!(after.contains(&"400::1:1:2".to_owned()), "{after:?}");
+
+    // The wins without a bonus are some of the wins, never more and never
+    // fewer than none.
+    connection
+        .execute(
+            "UPDATE account_points SET lower_wins = 25 WHERE discord_user_id = '100'",
+            [],
+        )
+        .unwrap();
+    for statement in [
+        "UPDATE account_points SET lower_wins = 26 WHERE discord_user_id = '100'",
+        "UPDATE account_points SET lower_wins = -1 WHERE discord_user_id = '100'",
+        "UPDATE fighter_levels SET lower_wins = 1 WHERE discord_user_id = '200'",
+        "UPDATE fighter_levels SET lower_wins = -1 WHERE discord_user_id = '200'",
+    ] {
+        assert!(connection.execute(statement, []).is_err(), "{statement}");
+    }
+    drop(connection);
+
+    // Opened again by this bridge, nothing runs twice: what was counted since stays.
+    drop(Db::open(&path).unwrap());
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let kept: i64 = connection
+        .query_row(
+            "SELECT lower_wins FROM account_points WHERE discord_user_id = '100'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(kept, 25);
 }
