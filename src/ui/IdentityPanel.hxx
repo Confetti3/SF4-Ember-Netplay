@@ -66,6 +66,9 @@ public:
     // The service the Ember ID screens have selected, when the ID is ready and
     // the service is one the player trusts; empty otherwise. Public rooms use it.
     std::string UsableBridge(const ShellView& view) const;
+    // Whether a Discord account is linked to the Ember ID on the usable service, as the last read of it says;
+    // nothing while there is no service, no read yet or the read failed.
+    std::optional<bool> DiscordLinked(const ShellView& view) const;
     // Asks for the ID's status and the trusted services, for a screen outside
     // these that needs to know them.
     void Probe();

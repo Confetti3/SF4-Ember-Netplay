@@ -43,6 +43,8 @@ public:
     // The filters page, which Select on the list's Filters row opens: it is part of
     // browsing, so leaving the list for it asks for nothing again.
     static constexpr const char* FiltersScreen = "public-filters";
+    // The notice above the rooms that ranked play needs a Discord account; Select opens Connect Discord.
+    static constexpr const char* RankedNoticeRow = "pr-ranked";
     static bool Owns(const std::string& screen) { return screen == "public-rooms" || screen == FiltersScreen; }
     // The filters page's rows: the four values that Left and Right step, then Clear
     // filters. `home` is KnownRegion; `enabled` is whether the filter can be changed.
@@ -68,12 +70,19 @@ public:
     // free when it arrived, so it asks for the room by itself once on this
     // screen; otherwise it waits as a row until the player chooses it.
     void OpenLink(const std::string& bridge, const std::string& room, bool direct);
+    // Whether this player's public games would not count for rank and points. They count only between two Ember IDs
+    // that each have a Discord account linked (the bridge counts a game for no one else), so this is true with no
+    // ready Ember ID or no Discord account. `bridge` is the usable service, `linked` what the Ember ID panel last read
+    // of the account on it; without that read the standing or the points read say it, and where none does it is not
+    // known and nothing is claimed.
+    static bool UnrankedPlay(const ShellView& view, const std::string& bridge, std::optional<bool> linked);
     // `bridge` and `identityPending` as for Update; `setup` is where the Ember ID
     // panel's one-press setup stands, which the setup card shows; `listWidth` is
     // the width of the list in pixels, which decides how tall a room's card is;
-    // `filter` is which rooms are listed.
+    // `filter` is which rooms are listed. `unranked` (UnrankedPlay) puts the notice that ranked play needs Discord above the
+    // rooms, where Select opens Connect Discord.
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& bridge, bool identityPending, const PublicSetupView& setup,
-                                float listWidth, const netplay::publicrooms::RoomFilter& filter) const;
+                                float listWidth, const netplay::publicrooms::RoomFilter& filter, bool unranked = false) const;
     // True when the row was the panel's own.
     bool Activate(const MenuAction& action, MenuNavigation& navigation);
     // Left or Right on one of the filter rows changes `filter` (a bool row takes

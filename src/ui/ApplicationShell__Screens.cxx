@@ -63,8 +63,9 @@ public:
             return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::KnownRegion(f.view), f.view.canEditPreferences);
         }
         title = loc::T("screen.public_rooms");
-        return shell.publicRooms_.Rows(f.view, shell.identity_.UsableBridge(f.view), shell.identity_.Waiting(), shell.identity_.PublicSetup(), PublicListWidth(),
-            shell.preferences_.roomFilter);
+        const std::string bridge = shell.identity_.UsableBridge(f.view);
+        return shell.publicRooms_.Rows(f.view, bridge, shell.identity_.Waiting(), shell.identity_.PublicSetup(), PublicListWidth(),
+            shell.preferences_.roomFilter, PublicRoomsPanel::UnrankedPlay(f.view, bridge, shell.identity_.DiscordLinked(f.view)));
     }
     // Also asked on Create (UpdateStatus), with that screen.
     void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override {
@@ -76,6 +77,8 @@ public:
         if (a.id == "pr-quick") { shell.QuickJoin(f.view); return true; }
         // The confirmed setup runs in the Ember ID panel; a locked ID is unlocked on its own screen first.
         if (a.id == "pr-setup") { shell.identity_.SetUpPublicRooms(f.view); shell.error_.clear(); return true; }
+        // Link Discord, as Settings > Discord's account row does; Back returns here.
+        if (a.id == PublicRoomsPanel::RankedNoticeRow) { shell.identity_.OpenDiscordAccount(f.view, nav); return true; }
         if (a.id == "pr-setup-id") { shell.identity_.ClearPublicSetup(); nav.Push("identity"); return true; }
         return ChangeFilter(f, a) || shell.publicRooms_.Activate(a, nav);
     }

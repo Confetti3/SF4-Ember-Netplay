@@ -154,6 +154,14 @@ std::string IdentityPanel::UsableBridge(const ShellView& v) const {
     return v.identity.state == "ready" && FindBridge(v, bridge_) ? bridge_ : std::string();
 }
 
+std::optional<bool> IdentityPanel::DiscordLinked(const ShellView& v) const {
+    const std::string bridge = UsableBridge(v);
+    if (bridge.empty()) return std::nullopt;
+    const auto* account = FindAccount(SignInTarget::Discord(), bridge);
+    if (!account || !account->read || account->failed) return std::nullopt;
+    return !account->user.empty();
+}
+
 void IdentityPanel::Probe() {
     IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status));
     IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));

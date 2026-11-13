@@ -4801,6 +4801,12 @@ msgstr "Opens a public room on the Ember ID service, joins it and sets these tab
 msgid "public.create_needs_id"
 msgstr "Public rooms need an Ember ID and a trusted service. Set them up under Public rooms."
 
+msgid "public.ranked_needs_discord"
+msgstr "Link Discord to play ranked"
+
+msgid "public.ranked_needs_discord_detail"
+msgstr "Games count for your rank and points only with a Discord account linked. You can still play without one."
+
 msgid "public.loading"
 msgstr "Loading rooms..."
 

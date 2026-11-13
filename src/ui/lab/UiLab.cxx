@@ -4,7 +4,8 @@
 // work as in the game.
 //
 // F1 lab bar · F2 next size · F4 text size · F5 in a room · F6 picture · F12 screenshot
-// --public: an Ember ID, a relay in Europe and five public rooms (Online play, Public rooms).
+// --public: an Ember ID, a relay in Europe and five public rooms (Online play, Public rooms); with --profile noaccount the
+//   list leads with the notice that ranked play needs Discord (--screen public-rooms, or create for its one line).
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)

@@ -413,8 +413,23 @@ std::optional<std::string> PublicRoomsPanel::QuickPick(const ShellView& v, const
     return std::nullopt;
 }
 
+bool PublicRoomsPanel::UnrankedPlay(const ShellView& v, const std::string& bridge, std::optional<bool> linked) {
+    const auto& id = v.identity;
+    // No Ember ID to play under yet.
+    if (id.known && id.state != "ready") return true;
+    if (linked) return !*linked;
+    const auto& standing = v.rankings.standing;
+    const bool standingRead = !bridge.empty() && v.rankings.bridge == bridge && v.rankings.emberId == id.emberId && standing.loaded;
+    const bool pointsRead = v.levels.loaded;
+    // Any read that finds an account wins over one that found none: the others go stale when the player links one.
+    if ((standingRead && standing.value.kind != netplay::rankings::Standing::Kind::NoAccount) ||
+        (pointsRead && v.levels.value.kind == netplay::levels::Own::Kind::Counted)) return false;
+    return (standingRead && standing.value.kind == netplay::rankings::Standing::Kind::NoAccount) ||
+        (pointsRead && v.levels.value.kind == netplay::levels::Own::Kind::NoAccount);
+}
+
 std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::string& bridge, bool identityPending, const PublicSetupView& setup,
-    float listWidth, const RoomFilter& filter) const {
+    float listWidth, const RoomFilter& filter, bool unranked) const {
     std::vector<MenuEntry> rows;
     const float cardHeight = listWidth < 480 * Scale() ? NarrowCardHeight : CardHeight;
     // A room being joined or created keeps its Stop row until it is open.
@@ -473,6 +488,12 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     // The filter is one row; its page has the values.
     rows.push_back(Wide(Row(FiltersRow, loc::T("public.filters"), loc::T("public.filters_detail"), free), FiltersRowHeight));
     rows.back().value = FilterSummary(filter);
+    // Above the rooms, and when there are none: games count for rank only with a Discord account linked.
+    if (unranked) {
+        auto notice = Row(RankedNoticeRow, loc::T("public.ranked_needs_discord"), loc::T("public.ranked_needs_discord_detail"));
+        notice.hint = loc::T("screen.connect_discord");
+        rows.push_back(Wide(std::move(notice), listWidth < 480 * Scale() ? 120 : 96));
+    }
     if (!listed) {
         rows.push_back(Wide(InfoRow("pr-loading", loc::T("public.loading_card"), {}, {}), 3 * CardHeight + 16));
         return rows;

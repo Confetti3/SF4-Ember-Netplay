@@ -39,6 +39,8 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  if(screen=="defaults"&&preferences_.autoInputDelay)
   rows.push_back(Value("auto-style",loc::T("settings.auto_delay_style"),AutoDelayStyleName(preferences_.autoDelayStyle),loc::T("settings.auto_delay_style.detail"),can));
  if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
+ // Rank and points need a Discord account linked (Public rooms has the row that opens its connect flow).
+ if(publicRoom&&PublicRoomsPanel::UnrankedPlay(v,bridge,identity_.DiscordLinked(v)))rows.push_back(InfoRow("ranked-note",loc::T("public.ranked_needs_discord"),{},loc::T("public.ranked_needs_discord_detail")));
  rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
  rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
  // Any new room has a type; only a private one can be a Practice room, which
