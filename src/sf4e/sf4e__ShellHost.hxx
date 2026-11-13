@@ -41,6 +41,11 @@ public:
     // the view's hitboxesShown is the game's to fill (FillView). False when
     // it was not kept. A game without the viewer is never asked.
     virtual bool ShowHitboxes(bool) { return false; }
+    // Settings' Background artwork row (ShellView::offersMenuArtwork, which the
+    // game fills with menuArtworkShown in FillView): shows the game's artwork
+    // behind the menu, or not, and keeps the choice. False when it was not
+    // kept. A game that does not offer the row is never asked.
+    virtual bool ShowMenuArtwork(bool) { return false; }
 protected:
     ~ShellGame() = default;
 };

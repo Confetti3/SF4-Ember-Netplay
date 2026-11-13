@@ -7725,6 +7725,12 @@ msgstr "Mode TV"
 msgid "settings.tv_mode_detail"
 msgstr "Pour une TV à l'autre bout de la pièce : tout est un quart plus grand, à l'intérieur d'une marge de sécurité de 5 %."
 
+msgid "settings.menu_artwork"
+msgstr "Illustrations en fond"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Affiche les illustrations du jeu derrière le menu d'Ember, une nouvelle environ toutes les trente secondes. Désactivé, le fond reste sombre et uni."
+
 msgid "menu.pages"
 msgstr "Pages"
 

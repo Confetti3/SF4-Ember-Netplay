@@ -7725,6 +7725,12 @@ msgstr "Tv-modus"
 msgid "settings.tv_mode_detail"
 msgstr "Voor een tv aan de andere kant van de kamer: alles een kwart groter, binnen een veilige rand van 5%."
 
+msgid "settings.menu_artwork"
+msgstr "Achtergrondafbeeldingen"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Toont de eigen illustraties van de game achter het menu van Ember, ongeveer elke halve minuut een nieuwe. Uit houdt de effen donkere achtergrond."
+
 msgid "menu.pages"
 msgstr "Pagina's"
 

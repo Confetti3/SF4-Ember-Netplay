@@ -7726,6 +7726,12 @@ msgstr "电视模式"
 msgid "settings.tv_mode_detail"
 msgstr "适合房间另一头的电视：所有内容放大四分之一，并保持在边缘 5% 的安全区域内。"
 
+msgid "settings.menu_artwork"
+msgstr "背景插画"
+
+msgid "settings.menu_artwork_detail"
+msgstr "在 Ember 菜单后方显示游戏自带的插画，约每半分钟更换一张。关闭后保持纯色深色背景。"
+
 msgid "menu.pages"
 msgstr "页面"
 

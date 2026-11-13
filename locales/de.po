@@ -7725,6 +7725,12 @@ msgstr "TV-Modus"
 msgid "settings.tv_mode_detail"
 msgstr "Für einen Fernseher quer durch den Raum: alles ein Viertel größer, innerhalb eines sicheren Rands von 5 %."
 
+msgid "settings.menu_artwork"
+msgstr "Hintergrundbilder"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Zeigt die eigenen Bilder des Spiels hinter Embers Menü, etwa jede halbe Minute ein neues. Aus behält den schlichten dunklen Hintergrund."
+
 msgid "menu.pages"
 msgstr "Seiten"
 

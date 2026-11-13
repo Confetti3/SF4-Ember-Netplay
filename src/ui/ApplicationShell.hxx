@@ -208,6 +208,11 @@ struct ShellView {
     // Training select offers its Hitboxes row, which shows hitboxesShown, the
     // game's saved choice.
     bool offersHitboxes = false, hitboxesShown = false;
+    // The game draws its own artwork behind the menu (ui::SetMenuBackdropDrawer):
+    // Settings > Interface > Look offers its Background artwork row, which shows
+    // menuArtworkShown, the game's saved choice. The game fills both (FillView);
+    // SF4 Ember leaves the row out.
+    bool offersMenuArtwork = false, menuArtworkShown = false;
     ember::SettingsFeatures settingsFeatures = ember::SettingsFeatures::All();
     // What the Replays screen offers of a replay beyond watching, keeping and
     // showing it (the adapter's replay capabilities): the game's own replay
@@ -331,6 +336,10 @@ struct ShellAction : RuntimeRequest {
     // Training select's Hitboxes row: the game shows its boxes over Training,
     // or not, and keeps the choice (ShellGame::ShowHitboxes); nothing is sent.
     std::optional<bool> showHitboxes;
+    // Settings' Background artwork row: the game shows its artwork behind the
+    // menu, or not, and keeps the choice (ShellGame::ShowMenuArtwork); nothing
+    // is sent.
+    std::optional<bool> showMenuArtwork;
 };
 
 // Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and

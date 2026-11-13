@@ -7331,6 +7331,12 @@ msgstr "TV mode"
 msgid "settings.tv_mode_detail"
 msgstr "For a TV across the room: everything a quarter larger, kept inside a 5% safe area at the edges."
 
+msgid "settings.menu_artwork"
+msgstr "Background artwork"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Shows the game's own artwork behind Ember's menu, a new picture about every half minute. Off keeps the plain dark background."
+
 msgid "menu.pages"
 msgstr "Pages"
 

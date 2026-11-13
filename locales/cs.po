@@ -7725,6 +7725,12 @@ msgstr "Režim TV"
 msgid "settings.tv_mode_detail"
 msgstr "Pro televizi na druhé straně místnosti: vše o čtvrtinu větší, uvnitř bezpečného okraje 5 %."
 
+msgid "settings.menu_artwork"
+msgstr "Obrázky na pozadí"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Zobrazuje za menu Emberu vlastní obrázky ze hry, přibližně každou půlminutu nový. Vypnutí ponechá prosté tmavé pozadí."
+
 msgid "menu.pages"
 msgstr "Stránky"
 

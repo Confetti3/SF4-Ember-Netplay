@@ -158,6 +158,9 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
         // Training select's Hitboxes row: the game keeps the choice; nothing
         // is sent, and a game without the viewer is never asked.
         if (action.showHitboxes) return game::Game().caps.hitboxes && game.ShowHitboxes(*action.showHitboxes);
+        // Settings' Background artwork row: the game keeps the choice; nothing
+        // is sent, and a game that does not offer the row is never asked.
+        if (action.showMenuArtwork) return view.offersMenuArtwork && game.ShowMenuArtwork(*action.showMenuArtwork);
         // Training select's Start: the game enters Training with these once
         // its menu is idle (ShellGame::StartTraining). Not from a room or match, nor
         // in a game without Training.

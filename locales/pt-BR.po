@@ -7254,6 +7254,12 @@ msgstr "Modo TV"
 msgid "settings.tv_mode_detail"
 msgstr "Para uma TV do outro lado da sala: tudo um quarto maior, dentro de uma margem segura de 5%."
 
+msgid "settings.menu_artwork"
+msgstr "Ilustrações de fundo"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Mostra as ilustrações do próprio jogo atrás do menu do Ember, uma nova a cada meio minuto, mais ou menos. Desligado mantém o fundo escuro liso."
+
 msgid "menu.pages"
 msgstr "Páginas"
 

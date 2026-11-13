@@ -239,7 +239,15 @@ public:
     static MenuEntry Tv(Shell& s, const ShellView& v) {
         return Value("tv", loc::T("settings.tv_mode"), s.preferences_.tvMode ? loc::T("common.on") : loc::T("common.off"), loc::T("settings.tv_mode_detail"), v.canEditPreferences);
     }
-    static Entries Look(Shell& s, const ShellView& v) { return {Tv(s, v)}; }
+    // TV mode, and the game's Background artwork where it draws its own
+    // (ShellView::offersMenuArtwork): the game's choice, not a preference.
+    static Entries Look(Shell& s, const ShellView& v) {
+        Entries rows = {Tv(s, v)};
+        if (v.offersMenuArtwork)
+            rows.push_back(Value("menu-artwork", loc::T("settings.menu_artwork"), loc::T(v.menuArtworkShown ? "common.on" : "common.off"),
+                loc::T("settings.menu_artwork_detail")));
+        return rows;
+    }
     static Entries MatchHud(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
         const char* sizes[] = {loc::T("size.small"), loc::T("size.standard"), loc::T("size.large")};

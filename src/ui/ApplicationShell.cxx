@@ -490,6 +490,10 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(a.id=="country-search")countryPicker_.Search(a.text);
  // Training select's Hitboxes row is the game's choice, not a preference.
  else if(screen=="training"&&a.id=="training-hitboxes"){if(v.offersHitboxes&&(a.delta>0)!=v.hitboxesShown)ShowHitboxes(a.delta>0,submit);}
+ // Settings' Background artwork row, likewise the game's choice.
+ else if(a.id=="menu-artwork"){
+  if(v.offersMenuArtwork&&(a.delta>0)!=v.menuArtworkShown){ShellAction art;art.showMenuArtwork=a.delta>0;if(!submit(std::move(art)))error_=loc::T("error.queue_failed");}
+ }
  else if(CreateAdjust(a)){}
  else{
   auto prior=preferences_;

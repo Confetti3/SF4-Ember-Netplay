@@ -7725,6 +7725,12 @@ msgstr "Режим ТВ"
 msgid "settings.tv_mode_detail"
 msgstr "Для телевизора в другом конце комнаты: всё на четверть крупнее, внутри безопасной зоны 5% по краям."
 
+msgid "settings.menu_artwork"
+msgstr "Иллюстрации на фоне"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Показывает иллюстрации самой игры за меню Ember, новую примерно каждые полминуты. Если выключено, остаётся простой тёмный фон."
+
 msgid "menu.pages"
 msgstr "Страницы"
 

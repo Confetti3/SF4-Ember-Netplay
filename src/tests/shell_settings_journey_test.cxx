@@ -257,6 +257,39 @@ void RowsFollowTheGame() {
  offer(h, true);
  Check(steamChoice(), "With Steam profiles, a member's Steam profile was not offered");
 }
+// Look's Background artwork row is the game's (ShellView::offersMenuArtwork):
+// SF4's Look keeps TV mode alone, and a game that draws its own artwork gets
+// the row after it, showing the game's choice. Left and Right ask the game
+// (no runtime command, no saved preference); a press that changes nothing
+// sends nothing, and the row shows what the game says, not the press.
+void MenuArtworkRow() {
+ using namespace sf4e;
+ Harness h; h.Frame();
+ Check(!ShellView{}.offersMenuArtwork && !h.view.offersMenuArtwork, "Background artwork was offered by default");
+ Drawn drawn;
+ h.Screen("tab-interface/look");
+ Check(drawn.rows.size() == 1 && drawn.rows[0].id == "tv", "A game without its own artwork was offered the row");
+ h.view.offersMenuArtwork = true; h.Frame();
+ const auto* row = drawn.Row("menu-artwork");
+ Check(drawn.rows.size() == 2 && drawn.rows[1].id == "menu-artwork" && row && row->label == loc::T("settings.menu_artwork") &&
+  row->value == loc::T("common.off") && row->detail == loc::T("settings.menu_artwork_detail"), "Look's Background artwork row is missing or out of place");
+ h.view.menuArtworkShown = true; h.Frame();
+ Check(drawn.Value("menu-artwork") == loc::T("common.on"), "The Background artwork row did not show the game's choice");
+ const auto before = h.actions.size();
+ h.FocusOn("menu-artwork");
+ h.Press(MenuInput::Right);
+ Check(h.actions.size() == before, "Right on Background artwork already shown asked again");
+ h.Press(MenuInput::Left);
+ Check(h.actions.size() == before + 1 && h.actions.back().showMenuArtwork && !*h.actions.back().showMenuArtwork &&
+  h.actions.back().command.kind != netplay::CommandKind::SavePreferences, "Left on Background artwork did not ask the game to hide it");
+ h.Frame();
+ Check(drawn.Value("menu-artwork") == loc::T("common.on"), "The Background artwork row changed before the game kept the choice");
+ h.view.menuArtworkShown = false; h.Frame();
+ h.Press(MenuInput::Right);
+ Check(h.actions.size() == before + 2 && h.actions.back().showMenuArtwork && *h.actions.back().showMenuArtwork, "Right on Background artwork did not ask the game to show it");
+ h.view.offersMenuArtwork = false; h.Frame();
+ Check(!drawn.Row("menu-artwork"), "The Background artwork row stayed for a game that does not draw its own");
+}
 }
 // Each journey owns a Harness and with it the ImGui context, so they run one after another.
 void SettingsJourneys() {
@@ -265,4 +298,5 @@ void SettingsJourneys() {
  PanelFromRailFocusesHead();
  SaveWhileHidden();
  RowsFollowTheGame();
+ MenuArtworkRow();
 }
