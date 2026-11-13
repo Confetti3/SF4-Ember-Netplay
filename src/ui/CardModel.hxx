@@ -25,10 +25,15 @@ namespace sf4e { namespace ui { namespace player_card {
 // The smallest text on any card, in px at Interface size 1.00x.
 constexpr float TextFloor = 13.f;
 
-// Full (1920x1080), compact (a body under 620 logical px tall: 1280x720) and
+// Full (1920x1080), compact (a body under 620 logical px tall: 1280x720, or content under 1840 wide) and
 // narrow (under 900 logical px wide: one scrolling column).
 enum class Size : std::uint8_t { Wide, Compact, Narrow };
-inline Size SizeOf(bool narrow, float logicalBodyHeight) { return narrow ? Size::Narrow : logicalBodyHeight < 620.f ? Size::Compact : Size::Wide; }
+// The Wide card is as wide as its three columns and their gutters (440 + 32 + 840 + 32 + 496): in less room, which a window
+// that is tall but not wide is, the Compact card is the one that fits.
+constexpr float WideContentWidth = 1840.f;
+inline Size SizeOf(bool narrow, float logicalBodyHeight, float logicalContentWidth = WideContentWidth) {
+    return narrow ? Size::Narrow : logicalBodyHeight < 620.f || logicalContentWidth < WideContentWidth ? Size::Compact : Size::Wide;
+}
 
 // Every measure of the Full card and its parts for one size, in logical px
 // (the drawing multiplies by Scale()). The text sizes are named `...Text`;

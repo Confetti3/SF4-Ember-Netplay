@@ -113,7 +113,8 @@ void DrawFighterEdge(ImDrawList* d, v2::Box box, std::uint64_t points, int tier)
 
 player_card::Size CardSize() {
     const float s = Scale();
-    return player_card::SizeOf(v2::Narrow(ImGui::GetIO().DisplaySize.x, s), ImGui::GetIO().DisplaySize.y / s - 242.f);
+    const float width = ImGui::GetIO().DisplaySize.x;
+    return player_card::SizeOf(v2::Narrow(width, s), ImGui::GetIO().DisplaySize.y / s - 242.f, (width - 2 * v2::SideMargin(width, s)) / s);
 }
 
 namespace {
