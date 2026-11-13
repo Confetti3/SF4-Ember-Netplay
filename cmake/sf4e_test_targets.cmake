@@ -81,6 +81,7 @@ sf4e_add_unit_test(NAME RoomFollow SOURCES "src/tests/room_follow_test.cxx" LIBS
 sf4e_add_unit_test(NAME PublicRoomFilter SOURCES "src/tests/public_room_filter_test.cxx" LIBS sf4e_room_model STD 17 LABELS room)
 sf4e_add_unit_test(NAME RankingRequests SOURCES "src/tests/ranking_requests_test.cxx" STD 17)
 sf4e_add_unit_test(NAME LevelRequests SOURCES "src/tests/level_requests_test.cxx" STD 17)
+sf4e_add_unit_test(NAME Awards SOURCES "src/tests/awards_test.cxx" STD 17)
 sf4e_add_unit_test(NAME CardRequests SOURCES "src/tests/card_requests_test.cxx" STD 17)
 sf4e_add_unit_test(NAME BridgeFlights SOURCES "src/tests/bridge_flights_test.cxx" LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17)
 sf4e_add_unit_test(NAME FriendRequests SOURCES "src/tests/friend_requests_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17)
