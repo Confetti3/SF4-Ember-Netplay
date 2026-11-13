@@ -78,7 +78,7 @@ struct Shown {
     std::string name;
 };
 // The page's reading of `profile` for the open the page asked (`key`, `known`: what the opener held; a null key means the
-// view's profile as it stands). `service`: there is a service to ask. `offering`: whether it offers profiles. `blocks`:
+// view's profile as it stands). `service`: there is a service to ask. `offering`: whether it offers profiles. `friends`:
 // who the viewer blocked, which tells a blocked player's missing card from any other.
 Shown ShownOf(const profiles::Profile& profile, const profiles::Key& key, const profiles::Known& known, bool service, profiles::Service offering,
     const nf::State& friends);
@@ -181,7 +181,7 @@ public:
 
     // Opens `key` on the page: the profile replaces the one open when this is called from a profile (so Back returns to
     // where the first was opened from), else is pushed. The player themselves open Profile on Card instead.
-    void Open(const profiles::Key& key, const profiles::Known& known, MenuNavigation& navigation);
+    void Open(const netplay::profiles::Key& key, const netplay::profiles::Known& known, MenuNavigation& navigation);
     // Every frame: ProfileOpen once there is a service (again for Try again), ProfileClose when the page is left, the sets'
     // listing while a Sets tab is on show, the pick list or a tab the state does not have, and the focus on the first
     // settled card. `bridge` is the usable service, empty without one; `ownName` and `ownCountry` are the player's own as
@@ -236,14 +236,14 @@ private:
     player_page::Around AroundOf(const ShellView& view, const player_page::Shown& shown, const player_page::Standing& standing) const;
     // The links as the page reads them with no friends panel at hand (nothing pending): what the focus and the subject need.
     player_page::Links PlainLinks(const ShellView& view, const player_page::Shown& shown) const;
-    void Begin(const profiles::Key& key, const profiles::Known& known, MenuNavigation& navigation);
+    void Begin(const netplay::profiles::Key& key, const netplay::profiles::Known& known, MenuNavigation& navigation);
     player_card::Subject SubjectNow(const ShellView& view, const player_page::Shown& shown, const player_page::Standing& standing) const;
     player_page::Standing StandingNow(const ShellView& view, const player_page::Shown& shown, const player_page::Links& links) const;
     void Ask(const std::string& choice) { ask_ = choice; raise_ = Raise(); }
 
     // What the page was asked to open, and whether the ProfileOpen for it went out.
-    profiles::Key key_;
-    profiles::Known known_;
+    netplay::profiles::Key key_;
+    netplay::profiles::Known known_;
     bool asked_ = true, onProfile_ = false;
     std::string bridge_, focus_, ask_, ownName_;
     CountryCode ownCountry_;

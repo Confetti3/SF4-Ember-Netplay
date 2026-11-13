@@ -5,6 +5,7 @@
 #include "RowId.hxx"
 #include "ShellView.hxx"
 #include "Theme.hxx"
+#include "V2.hxx"
 #include "../common/Localization.hxx"
 #include "../netplay/RuntimeCommands.hxx"
 #include <algorithm>
@@ -32,7 +33,7 @@ bool PlayerPage::Owns(const std::string& screen) { return OnProfile(screen) || s
 
 PlayerPage::PlayerPage() : sets_(SetsPlace()) {}
 
-void PlayerPage::Begin(const profiles::Key& key, const profiles::Known& known, MenuNavigation& nav) {
+void PlayerPage::Begin(const netplay::profiles::Key& key, const netplay::profiles::Known& known, MenuNavigation& nav) {
     key_ = key;
     known_ = known;
     asked_ = false;
@@ -44,7 +45,7 @@ void PlayerPage::Begin(const profiles::Key& key, const profiles::Known& known, M
     else nav.Push(CardScreen);
 }
 
-void PlayerPage::Open(const profiles::Key& key, const profiles::Known& known, MenuNavigation& nav) {
+void PlayerPage::Open(const netplay::profiles::Key& key, const netplay::profiles::Known& known, MenuNavigation& nav) {
     if (!key.Present()) return;
     // The player themselves are not another's page: their own Profile opens on Card.
     if (OpensOwn(key, known, ownName_, ownCountry_)) {
@@ -106,12 +107,11 @@ void PlayerPage::Update(const ShellView& v, const std::string& screen, MenuNavig
     ownName_ = ownName;
     ownCountry_ = ownCountry;
     const bool on = OnProfile(screen);
-    // Leaving the page closes the profile: its late answers are dropped.
+    // Leaving the page closes the profile: its late answers are dropped. What it was asked to open is kept, so coming back
+    // (from Notifications, opened over it) asks for it again.
     if (onProfile_ && !on && submit(commands::ProfileClose{})) {
         onProfile_ = false;
-        key_ = profiles::Key();
-        known_ = profiles::Known();
-        asked_ = true;
+        asked_ = false;
         ask_.clear();
     }
     if (on) onProfile_ = true;
@@ -227,12 +227,12 @@ bool PlayerPage::Activate(const ShellView& v, const MenuAction& a, const Hands& 
         const Shown shown = ShownNow(v);
         if (*hit < shown.hits.size()) {
             const auto& one = shown.hits[*hit];
-            profiles::Known known;
+            netplay::profiles::Known known;
             known.name = one.name;
             known.country = one.country;
             known.badge = one.badge;
             known.fighter = one.hasMain ? one.main : -1;
-            Begin(profiles::Key::OfCard(one.card), known, nav);
+            Begin(netplay::profiles::Key::OfCard(one.card), known, nav);
         }
         return true;
     }
@@ -256,7 +256,7 @@ bool PlayerPage::Choose(const ShellView& v, const MenuAction& a, const Hands& h)
     }
     // A set's row offers the cards of the players in it: they replace this profile.
     if (const auto player = sets_.PlayerOf(a)) {
-        Begin(profiles::Key::OfName(player->name, player->country), *player, h.navigation);
+        Begin(netplay::profiles::Key::OfName(player->name, player->country), *player, h.navigation);
         return true;
     }
     return sets_.Choose(a, v, h.submit, h.navigation, h.queue, h.error);
