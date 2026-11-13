@@ -87,6 +87,7 @@ constexpr const char* TurnOnRow = "friends-turn-on";
 constexpr const char* TheirCodeRow = "friends-their-code";
 constexpr const char* SendRow = "friends-send";
 constexpr const char* NoteRow = "friends-note";
+constexpr const char* InvitePrefix = "invite:";
 constexpr const char* StayRow = "friends-visit-stay";
 constexpr const char* GoRow = "friends-visit-go";
 // The id after `prefix`, empty when `row` has another prefix.
@@ -111,7 +112,25 @@ constexpr std::size_t CodeLength = 8;
 // "decline-block") goes ahead.
 std::vector<MenuChoice> FriendChoices(const nf::State& state, const nf::Friend& entry, bool canInvite, Gate gate);
 std::vector<MenuChoice> RequestChoices(Gate gate);
+// More on an invite in Notifications: Join (takes the invite, then drops it, as its toast's Join does) and Dismiss.
+std::vector<MenuChoice> InviteChoices(Gate gate);
 std::vector<MenuChoice> AskChoices(const std::string& ask, const std::string& name);
+
+// What waits on the player in Notifications while the friends are listed (none in any other state): every request,
+// newest first, then every invite still good (not run out, from a friend the list holds), in the list's order. A
+// request or invite is there for as long as the state holds it, whether a toast was said for it or not.
+struct Waiting {
+    std::vector<const nf::Incoming*> requests;
+    std::vector<const nf::Invite*> invites;
+    std::size_t Count() const { return requests.size() + invites.size(); }
+    // Whether the request or invite `id` is among them.
+    bool Holds(const std::string& id) const;
+};
+Waiting WaitingOf(const nf::View& view, std::uint64_t now);
+// The words of the newest of them, as its toast says it ("Player 2 wants to be friends"); empty with none.
+std::string WaitingWords(const nf::View& view, std::uint64_t now);
+// A Notifications row the panel answers: a request's or an invite's.
+bool NotificationRow(const std::string& row);
 
 // How an action the panel sent stands in the view, from `finished` and `refusals` as the view had them when it was
 // sent: still waiting, refused (the refusal's own words say why), gone through, gone through to find friends off, or
@@ -154,8 +173,13 @@ public:
     static constexpr const char* SettingsScreen = "tab-online/friends";
     // The tab or a page over it: where X, Y and Delete are the tab's even in a room.
     static bool OnTab(const std::string& screen) { return screen == Screen || screen == AddScreen || screen == SentScreen || screen == BlockedScreen; }
-    // The tab, a page over it or the Settings panel: the screens the friends are kept fresh on.
+    // The tab, a page over it or the Settings panel: where the friends' own chips show.
     static bool Shown(const std::string& screen) { return OnTab(screen) || screen == SettingsScreen; }
+    // News' Notifications tab, which lists the requests and invites waiting (NotificationRows).
+    static constexpr const char* NotificationsScreen = "notifications";
+    // The screens that list the friends, or what waits from them: the friends are kept fresh there (the tab's
+    // cadence), and nothing they list is also said as a toast.
+    static bool Lists(const std::string& screen) { return Shown(screen) || screen == NotificationsScreen; }
     // The shortcuts the tab takes before a room's own: X (Add a friend), Y (More) and Delete (Remove friend).
     static bool Takes(unsigned shortcut) { return shortcut == MenuInput::Fighter || shortcut == MenuInput::Options || shortcut == MenuInput::Leave; }
     // The Settings panel's rows, which Activate takes as the tab's own.
@@ -184,6 +208,15 @@ public:
     // The toast with these words was answered (any of its buttons, by key, click or its Notifications row): it is
     // not said again.
     void ToastAnswered(const std::string& text);
+
+    // Notifications: a row for each request and invite waiting (friends_panel::WaitingOf), A as on the Friends tab
+    // (Accept; Join), and More (Y) with the tab's choices and questions; Activate and Choose answer them as the tab's
+    // own. `dialog`: a choice or question is open over the rows.
+    std::vector<MenuEntry> NotificationRows(const ShellView& view, bool dialog);
+    // Y on a request's or an invite's row there opens its More; the hint bar names it, and the popout asked for opens.
+    static bool TakesOnNotifications(const std::string& focus, unsigned shortcut);
+    void NotificationShortcut(const MenuAction& action, MenuNavigation& nav);
+    void DressNotifications(const std::vector<MenuEntry>& rows, GameMenu& menu);
 
     // The screen's rows. `dialog`: a choice or question is open over them.
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool dialog, std::string& title);
@@ -229,6 +262,8 @@ private:
     const std::string& Bridge(const ShellView& view) const;
     void Attach(std::vector<MenuEntry>& rows, const ShellView& view, bool dialog);
     void Ask(const std::string& row, const std::string& ask) { raise_ = Raise{row, ask}; }
+    // An invite's Join: go where it says, then drop it, as its toast's Join does.
+    void TakeInvite(const ShellView& view, const std::string& invite, const Submit& submit);
 
     std::string bridge_, code_, said_, focus_;
     Tone saidTone_{};

@@ -148,9 +148,9 @@ public:
     bool TextEntryOpen() const { return menu_.navigation.Editing() || (menu_.navigation.Screen() == "report" && reportPanel_.Navigation().Editing()); }
     // A notice from outside the shell (the lab's toasts): the status line's
     // for `seconds`, and a toast.
-    // A kind and up to two actions go on its toast.
-    void Say(std::string text, Tone tone, double seconds, ToastKind kind = ToastKind::None, std::vector<ToastAction> actions = {}) {
-        noticeExtra_ = {text, kind, std::move(actions)}; notice_ = std::move(text); noticeTone_ = tone; noticeUntil_ = ImGui::GetTime() + seconds;
+    // A kind and up to two actions go on its toast, and the key of what it is about (ToastRequest::key).
+    void Say(std::string text, Tone tone, double seconds, ToastKind kind = ToastKind::None, std::vector<ToastAction> actions = {}, std::string key = {}) {
+        noticeExtra_ = {text, kind, std::move(actions), std::move(key)}; notice_ = std::move(text); noticeTone_ = tone; noticeUntil_ = ImGui::GetTime() + seconds;
     }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
     void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
@@ -331,9 +331,11 @@ private:
     static bool NewsScreen(const std::string& screen) { return screen=="news"||screen=="news-updates"||screen=="news-changelog"; }
     // News and Notifications are one family under one strip: Notifications, All, Updates, Change log.
     static bool NewsFamily(const std::string& screen) { return NewsScreen(screen)||screen=="notifications"; }
-    // Whether a notification still waits for an answer to its action; Home's News row then opens on Notifications.
-    bool NotificationsWaiting() const;
-    // The words of Home's News row: the newest notification waiting for an answer, else the newest release, else the newest notification.
+    // How many things wait for an answer in Notifications: a friend's request or invite (FriendsPanel's rows) and a
+    // notification whose action was not taken. While any does, Home's News row counts them and opens on Notifications.
+    int NotificationsWaiting(const ShellView& view) const;
+    // The words of Home's News row: the newest friend's request waiting (or invite), else the newest notification
+    // waiting for an answer, else the newest release, else the newest notification.
     std::string NewsDetail(const ShellView& view) const;
     std::vector<MenuEntry> NewsRows(const ShellView& view,const std::string& screen,std::string& title) const;
     void NewsTabs(const ShellView& view,const std::string& screen);
@@ -714,12 +716,13 @@ std::string memberAsk_;
     double noticeUntil_=0;
     // The notices and refusals said lately, newest first: the toasts while
     // they last and the Notifications screen's rows (ApplicationShell__Toasts.cxx).
-    struct Toast { unsigned id; std::string text; Tone tone; double at, until; ToastKind kind; std::vector<ToastAction> actions; bool answered; };
+    // `key`: what it is about when Notifications lists that too (ToastRequest::key).
+    struct Toast { unsigned id; std::string text; Tone tone; double at, until; ToastKind kind; std::vector<ToastAction> actions; bool answered; std::string key; };
     std::deque<Toast> toasts_;
     std::string noticeSeen_, errorSeen_;
     unsigned toastCount_=0;
     // The kind and actions Say gave notice_, while it still says that text.
-    struct NoticeExtra { std::string text; ToastKind kind=ToastKind::None; std::vector<ToastAction> actions; } noticeExtra_;
+    struct NoticeExtra { std::string text; ToastKind kind=ToastKind::None; std::vector<ToastAction> actions; std::string key; } noticeExtra_;
     // The action toast that holds focus over the open menu (0 for none), and
     // an action its buttons or rows asked for: the toast's id and the action's index.
     unsigned toastFocus_=0;
@@ -737,7 +740,9 @@ std::string memberAsk_;
     // window, and the toasts over it.
     v2::Box ShellArea() const;
     void AnswerToast(const ShellView& view,double now,const Submit& submit);
-    std::vector<MenuEntry> NotificationRows(double now,std::string& title) const;
+    // Notifications' rows: the friends' requests and invites waiting (FriendsPanel::NotificationRows), then each toast
+    // said, newest first; a toast about one of those waiting is its row there, not a second one.
+    std::vector<MenuEntry> NotificationRows(const ShellView& view,double now,std::string& title);
     // Copy short link was pressed before the link existed: copy it when it
     // arrives, or the full invitation on a failure or at the deadline.
     bool shortCopyPending_=false;

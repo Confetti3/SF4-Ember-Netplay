@@ -308,7 +308,49 @@ void Seen() {
     Check(!prompt.Lapsed(1000), "a toast over the post-match prompt was taken as seen");
 }
 
+// What waits in Notifications: every request, newest first, then the invites still good, for as long as the list holds
+// them; nothing at all while the friends are off, without an account, unavailable or not read.
+void WaitingInNotifications() {
+    nf::State state;
+    nf::Incoming old, fresh;
+    old.id = "rq_1"; old.name = "Player 9"; old.sentAt = Now - Day;
+    fresh.id = "rq_2"; fresh.name = "Player 2"; fresh.sentAt = Now - Hour;
+    state.incoming = {old, fresh};
+    state.friends = {InRoom("Player 3", true)};
+    nf::Invite good, late, stranger;
+    good.id = "iv_1"; good.friendId = "fr_Player 3"; good.expiresAt = Now + Hour;
+    late.id = "iv_2"; late.friendId = "fr_Player 3"; late.expiresAt = Now - 1;
+    stranger.id = "iv_3"; stranger.friendId = "fr_nobody"; stranger.expiresAt = Now + Hour;
+    state.invites = {good, late, stranger};
+    const auto view = ListedView(state);
+    const auto waiting = fp::WaitingOf(view, Now);
+    Check(waiting.requests.size() == 2 && waiting.requests[0]->id == "rq_2" && waiting.requests[1]->id == "rq_1", "requests waiting are not every request, newest first");
+    Check(waiting.invites.size() == 1 && waiting.invites[0]->id == "iv_1" && waiting.Count() == 3, "an invite run out, or from no friend in the list, waits");
+    Check(waiting.Holds("rq_1") && waiting.Holds("iv_1") && !waiting.Holds("iv_2") && !waiting.Holds("rq_9"), "Holds does not say what waits");
+    Check(fp::WaitingWords(view, Now) == loc::Tf("friends.toast_request", "Player 2"), "the words of what waits are not the newest request's toast");
+    auto invitesOnly = state;
+    invitesOnly.incoming.clear();
+    Check(fp::WaitingWords(ListedView(invitesOnly), Now) == loc::Tf("friends.toast_invite", "Player 3"), "an invite alone waiting does not say who invites");
+    // A stale list still holds what waits; no list holds nothing, and says nothing there.
+    auto stale = view;
+    stale.state.error = "bridge_unreachable";
+    Check(fp::WaitingOf(stale, Now).Count() == 3, "a list a sync failed on dropped what waits");
+    for (const auto kind : {nf::State::Kind::Off, nf::State::Kind::NoAccount, nf::State::Kind::Unavailable}) {
+        auto other = view;
+        auto copy = state; copy.kind = kind;
+        other.state.value = std::make_shared<const nf::State>(copy);
+        Check(fp::WaitingOf(other, Now).Count() == 0 && fp::WaitingWords(other, Now).empty(), "friends off, without an account or unavailable list something waiting");
+    }
+    Check(fp::WaitingOf(nf::View{}, Now).Count() == 0, "a list not read yet has something waiting");
+    Check(fp::NotificationRow("request:rq_1") && fp::NotificationRow("invite:iv_1") && !fp::NotificationRow("friend:fr_3") && !fp::NotificationRow("toast-4"), "the rows Notifications hands the panel are wrong");
+    const auto choices = fp::InviteChoices(fp::Gate{true, true, nullptr, nullptr});
+    Check(choices.size() == 2 && choices[0].id == "join" && choices[1].id == "dismiss" && choices[0].enabled && choices[1].enabled, "More on an invite is not Join and Dismiss");
+    const auto busy = fp::InviteChoices(fp::Gate{false, true, "friends.busy", nullptr});
+    Check(busy[0].enabled && !busy[1].enabled && busy[1].detail == loc::T("friends.busy"), "an action in flight holds an invite's Join, or not its Dismiss");
+}
+
 int main() {
+    WaitingInNotifications();
     Outcomes();
     MemberGate();
     AcceptWords();

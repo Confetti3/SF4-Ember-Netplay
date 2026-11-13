@@ -218,6 +218,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows.insert(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="offline";}),Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle));
   // News, with the notifications beside the channel's releases (the panel under the player card shows the first three).
   rows.push_back(Row("news",loc::T("home.news"),NewsDetail(v)));
+  // What waits there for an answer, counted as the Profile row counts its requests.
+  if(const int waiting=NotificationsWaiting(v)){rows.back().value=loc::Tf("notifications.waiting",waiting);rows.back().valueHighlighted=true;}
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   // The requests waiting to be answered, which the Profile row opens on.
   if(const auto badge=player_card::ProfileBadge(v.friends);!badge.empty()){auto& profile=*std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="profile";});profile.value=badge;profile.valueHighlighted=true;}
@@ -411,7 +413,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(const auto main=RowKey<int>(a.id,"main-");main&&v.canEditPreferences){preferences_.mainFighter=*main;preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(screen=="training"&&a.id.compare(0,9,"training-")==0)TrainingSelectActivate(a,v,submit);
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?RoomSelectionStart(v.room):SelectionStart::Board;nav.Push(a.id);}
- else if(a.id=="news")nav.Push(NotificationsWaiting()?"notifications":"news");
+ else if(a.id=="news")nav.Push(NotificationsWaiting(v)?"notifications":"news");
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  // News' Update now, confirmed on its row: the launch check's offer, as its question's Update now sends it.
  else if(a.id=="news-update-now"&&v.services.launchOffer){
@@ -657,7 +659,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Friends' words and toasts are each new, even in the words of one said before (the panel says one again that
  // Ember hid before it could be read), so the notice taken last does not stand for them.
  {std::string said;Tone tone;if(friends_.TakeSaid(said,tone)){noticeSeen_.clear();ShowNotice(said,tone,now+(tone==Tone::Error?6:4));}}
- {ToastRequest toast;if(friends_.TakeToast(toast)){noticeSeen_.clear();Say(std::move(toast.text),toast.tone,toast.seconds,toast.kind,std::move(toast.actions));}}
+ {ToastRequest toast;if(friends_.TakeToast(toast)){noticeSeen_.clear();Say(std::move(toast.text),toast.tone,toast.seconds,toast.kind,std::move(toast.actions),std::move(toast.key));}}
+ // A friend's request or invite answered anywhere (its Notifications row, the Friends tab, its toast) or gone from
+ // the list ends its toast: the card goes and its buttons are not offered again.
+ {const auto waiting=friends_panel::WaitingOf(v.friends,v.unixNow);
+  for(auto& t:toasts_)if(!t.key.empty()&&!t.answered&&!waiting.Holds(t.key)){t.answered=true;t.until=(std::min)(t.until,now);if(toastFocus_==t.id)toastFocus_=0;}}
  {std::string said;if(rankings_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
  if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();ShowNotice(loc::T("public.setup_done"),Tone::Success,now+4);}

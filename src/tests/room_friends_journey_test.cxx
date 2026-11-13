@@ -186,7 +186,13 @@ void ToastJourney() {
   Check(j.screen() == "home", "Accept on the request toast changed the screen");
   j.h.Frame(0, 60);
   Check(j.sent<commands::FriendAccept>().size() == 1, "The request toast said itself again");
-  Check(Said(j) == std::string(loc::Tf("friends.toast_request", "Player 9")) + "\n" + loc::Tf("friends.played_you", 6, loc::Tf("friends.days_ago", 1)) + "|", "A new request did not say who wants to be friends and whether they played");
+  // While the request waits its Notifications row stands for the toast; answered, the toast's words stay there.
+  j.h.Screen("notifications"); j.h.Frame(0, 2);
+  Check(j.row("request:rq_1") && Said(j).empty(), "A request waiting was listed as its toast too");
+  auto& f = j.view();
+  f.state.value = WithRequest(false, false); ++f.state.finished; ++f.state.revision; j.h.Frame(0, 2);
+  Check(Said(j) == std::string(loc::Tf("friends.now_friends", "Player 9")) + "|" + loc::Tf("friends.toast_request", "Player 9") + "\n" + loc::Tf("friends.played_you", 6, loc::Tf("friends.days_ago", 1)) + "|",
+   "A new request did not say who wants to be friends and whether they played, or its Accept did not say it went through");
  }
  {
   RoomJourney j; j.h.Screen("home");
@@ -207,6 +213,9 @@ void ToastJourney() {
   }
   Check(kinds == std::vector<std::string>({"take", "dismiss"}), "Join on the invite toast did not take the invite and then drop it");
   Check(j.screen() == "home", "Join on the invite toast changed the screen");
+  // Dropped, the invite leaves the list, and its toast's words stay in Notifications.
+  auto& f = j.view();
+  f.state.value = WithRequest(false, false); ++f.state.finished; ++f.state.revision; j.h.Frame(0, 2);
   Check(Said(j) == std::string(loc::Tf("friends.toast_invite", "Player 3")) + "\nPlayer 3's room|", "A new invite did not say who invites and to which room");
  }
  {
@@ -307,15 +316,83 @@ void ToastAnsweredJourney() {
  j.h.Press(MenuInput::Back);
  r.Plays(); r.Hidden(30);
  r.Over(); j.h.Frame(0, 3);
+ // Answered on another PC meanwhile: gone from the list, its toast's words stay in Notifications, said once.
+ auto& f = j.view();
+ f.state.value = WithRequest(false, false); ++f.state.finished; ++f.state.revision; j.h.Frame(0, 2);
  const std::string request = loc::Tf("friends.toast_request", "Player 9") + "\n" + loc::Tf("friends.played_you", 6, loc::Tf("friends.days_ago", 1));
  Check(Said(j) == request + "|", "A request's toast answered Later was said again");
 }
 }
 
+// Notifications lists what waits from friends for as long as it waits: a request the first read already held (which no
+// toast said), each once even when its toast was said, an invite still good and no other; A answers as the Friends tab
+// does, and the row goes with the request.
+std::size_t ToastRows(const RoomJourney& j) {
+ return static_cast<std::size_t>(std::count_if(j.rows.begin(), j.rows.end(), [](const MenuEntry& r) { return r.id.compare(0, 6, "toast-") == 0; }));
+}
+void NotificationsJourney() {
+ {
+  RoomJourney j(Relation::None, true, false); j.h.Screen("home");
+  j.Give(WithRequest(true, false));
+  j.h.Screen("notifications"); j.h.Frame(0, 2);
+  const auto* row = j.row("request:rq_1");
+  Check(row && row->label == "Player 9" && row->hint == loc::T("friends.accept") && row->detail == loc::Tf("friends.played_you", 6, loc::Tf("friends.days_ago", 1)),
+   "A request waiting at the first read is not listed in Notifications with its name and games");
+  Check(ToastRows(j) == 0, "A request no toast said was listed as a toast too");
+  Check(!j.sent<commands::FriendsVisit>().empty(), "Notifications did not keep the friends fresh");
+  j.h.Choose("request:rq_1");
+  const auto accepts = j.sent<commands::FriendAccept>();
+  Check(accepts.size() == 1 && accepts[0]->request == "rq_1" && accepts[0]->bridge == "brg_1", "A on a request's row in Notifications did not send the Friends tab's Accept");
+  auto& f = j.view();
+  f.state.value = WithRequest(false, false); ++f.state.finished; ++f.state.revision; j.h.Frame(0, 3);
+  Check(!j.row("request:rq_1"), "An accepted request stayed in Notifications");
+  bool said = false;
+  for (const auto& r : j.rows) said = said || r.detail == loc::Tf("friends.now_friends", "Player 9");
+  Check(said, "Accept from Notifications did not say who is now a friend");
+ }
+ {
+  // Toasted on Home, then listed once: the request's row stands for its toast, which keeps no buttons once answered.
+  RoomJourney j; j.h.Screen("home");
+  j.Give(WithRequest(true, false));
+  j.h.Screen("notifications"); j.h.Frame(0, 2);
+  Check(j.row("request:rq_1") && ToastRows(j) == 0, "A request that was toasted is listed twice, or not at all");
+  auto& f = j.view();
+  f.state.value = WithRequest(false, false); ++f.state.finished; ++f.state.revision; j.h.Frame(0, 3);
+  Check(!j.row("request:rq_1") && ToastRows(j) == 1, "A request gone did not leave its toast's words in Notifications");
+  const auto toast = std::find_if(j.rows.begin(), j.rows.end(), [](const MenuEntry& r) { return r.id.compare(0, 6, "toast-") == 0; });
+  Check(toast != j.rows.end() && toast->choices.empty(), "A request gone still offers its toast's Accept");
+ }
+ {
+  // An invite still good is listed with Join, which takes it and then drops it; one run out is not listed.
+  RoomJourney j; j.h.Screen("home");
+  auto late = WithRequest(false, true);
+  late->invites[0].expiresAt = Now - 1;
+  j.Give(late);
+  j.h.Screen("notifications"); j.h.Frame(0, 2);
+  Check(!j.row("invite:iv_1"), "An invite that ran out was listed in Notifications");
+  j.Give(WithRequest(false, true));
+  j.h.Screen("notifications"); j.h.Frame(0, 2);
+  const auto* row = j.row("invite:iv_1");
+  Check(row && row->label == "Player 3" && row->hint == loc::T("toast.join"), "An invite waiting is not listed in Notifications with Join");
+  j.h.Choose("invite:iv_1");
+  Check(j.sent<commands::FriendTakeInvite>().size() == 1 && j.sent<commands::FriendTakeInvite>()[0]->invite == "iv_1" &&
+   j.sent<commands::FriendDismiss>().size() == 1 && j.sent<commands::FriendDismiss>()[0]->invite == "iv_1", "Join on an invite's row did not take the invite and then drop it");
+ }
+ {
+  // Friends off: nothing listed there, and no words about it; the empty list says so as ever.
+  RoomJourney j(Relation::None, true, false); j.h.Screen("home");
+  auto off = WithRequest(true, true);
+  off->kind = nf::State::Kind::Off;
+  j.Give(off);
+  j.h.Screen("notifications"); j.h.Frame(0, 2);
+  Check(j.rows.size() == 1 && j.rows[0].id == "toasts-none", "Notifications listed something, or an error, with friends off");
+ }
+}
+
 int main() {
  try {
   PopoutJourney(); PageJourney(); RelationRowsJourney(); BlockJourney(); ToastJourney();
-  AnsweredWhileHiddenJourney(); RequestOverPromptJourney(); ToastAnsweredJourney();
+  AnsweredWhileHiddenJourney(); RequestOverPromptJourney(); ToastAnsweredJourney(); NotificationsJourney();
   std::cout << "Room friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

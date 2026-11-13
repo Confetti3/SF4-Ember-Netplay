@@ -11,9 +11,10 @@
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's levels (--screen card, fighters,
 //   card-edit, awards or home; awards without it reads played)
-// --friends full|requests|empty|noaccount|unavailable|loading|unreachable|offline: the player's friends in that state
-//   (--screen friends, friends-add, friends-sent or friends-blocked; UiLabSocial.hxx); with --toasts the requests and an
-//   invite arrive as toasts (--friends full --toasts); --screen tab-online/friends is the Settings panel
+// --friends full|requests|notifications|empty|noaccount|unavailable|loading|unreachable|offline: the player's friends in
+//   that state (--screen friends, friends-add, friends-sent or friends-blocked; UiLabSocial.hxx); with --toasts the
+//   requests and an invite arrive as toasts (--friends full --toasts); --screen tab-online/friends is the Settings panel;
+//   --friends notifications --screen notifications lists Player 2's request and an invite waiting
 // --levels: fighter points in the game's digits, bands on pictures and meters
 //   (all of it shows in --size 3840x2160)
 // --points public|private with --room or --arcade: every member's card as the bridge would have it, in a public room
