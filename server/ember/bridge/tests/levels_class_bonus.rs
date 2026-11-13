@@ -212,7 +212,9 @@ async fn past_eight_games_in_a_sitting_neither_the_point_nor_the_bonus_is_counte
     assert_eq!(counts(&bridge, &first, 3).await, [(8, 8, 8); 2]);
     assert_eq!(counts(&bridge, &second, 7).await, [(8, 8, 0); 2]);
 
-    // A new sitting counts again, by the same rule.
+    // A new sitting counts again, by the same rule: the lower class's win
+    // with its bonus, the higher class's loss as a game. The players'
+    // sessions have ended by then, so the stored counts are read.
     bridge.clock.advance(3 * 60 * 60 + 1);
     play(
         &bridge,
@@ -221,8 +223,12 @@ async fn past_eight_games_in_a_sitting_neither_the_point_nor_the_bonus_is_counte
         vec![game(11, 0, &second, &first, Some([7, 3]))],
     )
     .await;
-    assert_eq!(counts(&bridge, &second, 7).await, [(10, 9, 1); 2]);
-    assert_eq!(counts(&bridge, &first, 3).await, [(9, 9, 8); 2]);
+    assert_eq!(account_points(&bridge, "200").await, Some((9, 1)));
+    assert_eq!(fighters(&bridge, "200").await, vec![(7, 9, 1)]);
+    assert_eq!(lower_wins(&bridge, "200").await, (0, vec![(7, 0)]));
+    assert_eq!(account_points(&bridge, "100").await, Some((9, 8)));
+    assert_eq!(fighters(&bridge, "100").await, vec![(3, 9, 8)]);
+    assert_eq!(lower_wins(&bridge, "100").await, (8, vec![(3, 8)]));
 }
 
 /// Gives Discord account `account` a settled rating of `rating`, with no
