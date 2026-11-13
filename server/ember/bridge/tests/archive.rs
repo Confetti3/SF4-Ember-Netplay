@@ -598,6 +598,57 @@ async fn an_opponent_is_named_only_by_their_own_copy() {
     assert_eq!((&none["total"], &none["matching"]), (&json!(4), &json!(0)));
 }
 
+/// A profile lists a player's sets by the name their games wrote: exactly
+/// that name, in that case, beside every other filter.
+#[tokio::test]
+async fn a_name_lists_only_the_games_it_is_exactly_on() {
+    let f = fixture().await;
+    let first = game(21, [1, 2]);
+    let annie = game(22, [3, 4]);
+    let theirs = game(23, [5, 6]);
+    assert_eq!(
+        send(&f, &f.a, &first, "a=Ann&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send(&f, &f.a, &annie, "a=Annie&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send(&f, &f.b, &theirs, "a=&b=Ann&side=1").await,
+        StatusCode::CREATED
+    );
+    listed_when(&f, "", |list| games(list).len() == 3).await;
+
+    // The name is the whole name: not Annie, and not another case.
+    let list = listed(&f, "name=Ann").await;
+    assert_eq!(games(&list).len(), 2);
+    listed_game(&list, &first);
+    listed_game(&list, &theirs);
+    assert_eq!((&list["total"], &list["matching"]), (&json!(3), &json!(2)));
+    assert_eq!(games(&listed(&f, "name=ann").await).len(), 0);
+    assert_eq!(games(&listed(&f, "name=Anni").await).len(), 0);
+    assert_eq!(games(&listed(&f, "name=Annie").await).len(), 1);
+    // A search by part of the name still finds all three.
+    assert_eq!(games(&listed(&f, "q=Ann").await).len(), 3);
+    // It combines with the other filters.
+    let list = listed(&f, "name=Ann&fighter=5").await;
+    assert_eq!(games(&list).len(), 1);
+    listed_game(&list, &theirs);
+    assert_eq!(games(&listed(&f, "name=Ann&fighter=3").await).len(), 0);
+    // A name is 1 to 32 bytes.
+    for query in ["name=", &format!("name={}", "a".repeat(33))] {
+        let response = f
+            .bridge
+            .client
+            .get(f.bridge.url(&format!("/v1/archive?{query}")))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{query}");
+    }
+}
+
 /// A later copy names an empty side only from another account than the
 /// game's first sender, never the side the first sender said was theirs, and
 /// one account names one side. The word stays attributable.

@@ -187,6 +187,7 @@ fn keeps(filter: &Filter, game: &Game) -> bool {
                     .flatten()
                     .any(|text| ascii_has(text, q))
             })
+        && filter.name.as_deref().is_none_or(|name| either(&game.names, name))
         && filter
             .class
             .is_none_or(|class| game.classes.contains(&Some(class)))
@@ -332,6 +333,10 @@ fn any_filter(dice: &mut Dice) -> Filter {
             .maybe(10, &["top8", "pools", "winners", "losers", "grand", "nope"])
             .map(str::to_owned),
         q,
+        // A name exactly: some in another case or no game's at all.
+        name: dice
+            .maybe(20, &["Ann", "ann", "Bob", "Eve", "Dee_J", "Nobody"])
+            .map(str::to_owned),
         class: dice.maybe(25, &[1u8, 5, 7, 10, 2]),
     }
 }

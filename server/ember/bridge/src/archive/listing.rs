@@ -37,6 +37,11 @@ pub struct Filter {
     pub round: Option<String>,
     /// Part of a player's name or an event's title.
     pub q: Option<String>,
+    /// A side's name, exactly as the game wrote it (`n:{name}`): a player's
+    /// profile lists the sets that carry it. Two players who use one name
+    /// share a list, and a player who changed their name has their earlier
+    /// games under the earlier one.
+    pub name: Option<String>,
     /// A class (band 1 to 10) either side has.
     pub class: Option<u8>,
 }
@@ -227,6 +232,9 @@ fn plan(tx: &Transaction<'_>, filter: &Filter, classes_shown: bool) -> Result<Op
         }
         keys.push(format!("k:{class}"));
     }
+    if let Some(name) = &filter.name {
+        keys.push(format!("n:{name}"));
+    }
     let mut clauses = Vec::new();
     for key in keys {
         let games = games_with(tx, &key)?;
@@ -285,6 +293,7 @@ const KEEPS: &str = "g.state = 'stored'
     AND (:like IS NULL OR g.name_a LIKE :like ESCAPE '\\' OR g.name_b LIKE :like ESCAPE '\\'
          OR g.event_title LIKE :like ESCAPE '\\')
     AND (:class IS NULL OR g.class_a = :class OR g.class_b = :class)
+    AND (:name IS NULL OR g.name_a = :name OR g.name_b = :name)
     AND (:top IS NULL OR MAX(COALESCE(g.class_a, 0), COALESCE(g.class_b, 0)) = :top)";
 
 const COLUMNS: &str = "g.digest, g.crc, g.saved_at, g.size, g.fighter_a, g.fighter_b, g.name_a, g.name_b,
@@ -320,6 +329,7 @@ fn keeps<'a>(
         (":round", &filter.round),
         (":like", like),
         (":class", &filter.class),
+        (":name", &filter.name),
         (":top", top),
     ]
 }

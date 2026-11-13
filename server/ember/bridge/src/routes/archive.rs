@@ -11,6 +11,7 @@ use ember_protocol::{
     EmberId,
     api::ErrorCode,
     replays::{self, Replay, Sides},
+    rooms::MAX_HOST_NAME as MAX_NAME,
 };
 use rusqlite::{OptionalExtension, Transaction};
 use serde::Deserialize;
@@ -109,6 +110,9 @@ pub struct Listing {
     round: Option<String>,
     #[serde(default)]
     q: Option<String>,
+    /// A side's exact name, 1 to 32 bytes (`archive::listing::Filter::name`).
+    #[serde(default)]
+    name: Option<String>,
     #[serde(default)]
     class: Option<u8>,
     #[serde(default)]
@@ -128,7 +132,9 @@ pub struct Listing {
 /// would take reading too many games), all of them, not only this page's.
 /// Classes are the public rankings board's, as the archive's games carry
 /// them (`archive::classes`): none while the bridge hides classes, and the
-/// class order is then the newest.
+/// class order is then the newest. `name` keeps only the games a side's exact
+/// name is on, which a player's profile lists their sets by; it combines with
+/// every other filter.
 pub async fn list(State(state): State<AppState>, Query(query): Query<Listing>) -> Result<Response> {
     let Some(archive) = state.config.archive.clone() else {
         return Err(ApiFailure::not_found());
@@ -143,12 +149,20 @@ pub async fn list(State(state): State<AppState>, Query(query): Query<Listing>) -
         Some(text) => Cursor::parse(order, text)
             .ok_or_else(|| ApiFailure::invalid("That is not a cursor of this listing."))?,
     };
+    if query
+        .name
+        .as_deref()
+        .is_some_and(|name| name.is_empty() || name.len() > MAX_NAME)
+    {
+        return Err(ApiFailure::invalid("A name is 1 to 32 bytes."));
+    }
     let filter = Filter {
         event: query.event,
         fighter: query.fighter,
         country: query.country,
         round: query.round,
         q: query.q,
+        name: query.name,
         class: query.class,
     };
     let base = archive.public_base;
