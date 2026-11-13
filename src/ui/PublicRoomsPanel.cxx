@@ -413,21 +413,6 @@ std::optional<std::string> PublicRoomsPanel::QuickPick(const ShellView& v, const
     return std::nullopt;
 }
 
-bool PublicRoomsPanel::UnrankedPlay(const ShellView& v, const std::string& bridge, std::optional<bool> linked) {
-    const auto& id = v.identity;
-    // No Ember ID to play under yet.
-    if (id.known && id.state != "ready") return true;
-    if (linked) return !*linked;
-    const auto& standing = v.rankings.standing;
-    const bool standingRead = !bridge.empty() && v.rankings.bridge == bridge && v.rankings.emberId == id.emberId && standing.loaded;
-    const bool pointsRead = v.levels.loaded;
-    // Any read that finds an account wins over one that found none: the others go stale when the player links one.
-    if ((standingRead && standing.value.kind != netplay::rankings::Standing::Kind::NoAccount) ||
-        (pointsRead && v.levels.value.kind == netplay::levels::Own::Kind::Counted)) return false;
-    return (standingRead && standing.value.kind == netplay::rankings::Standing::Kind::NoAccount) ||
-        (pointsRead && v.levels.value.kind == netplay::levels::Own::Kind::NoAccount);
-}
-
 std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::string& bridge, bool identityPending, const PublicSetupView& setup,
     float listWidth, const RoomFilter& filter, bool unranked) const {
     std::vector<MenuEntry> rows;

@@ -28,18 +28,15 @@ void IdentityPanel::OpenDiscord(const std::string& bridge, bool automatic) {
     lastScreen_.clear();
 }
 
-MenuEntry IdentityPanel::DiscordAccountRow(const ShellView& v) const {
+MenuEntry IdentityPanel::DiscordAccountRow(const netplay::DiscordLink& link) const {
     auto row = Row("discord-account", loc::T("discord.account"), loc::T("discord.account_detail"));
-    const auto& id = v.identity;
-    const std::string bridge = UsableBridge(v);
-    if (!bridge.empty()) ShowAccount(row, SignInTarget::Discord(), bridge);
-    // Without a ready Ember ID, or with one and no service, no account is linked.
-    else if (id.known && (id.state != "ready" || servicesKnown_)) row.value = loc::T("identity.discord_none");
-    // A named account is linked; any other value read is none.
-    if (row.userText) {
-        row.value = loc::Tf("discord.account_linked", row.value);
+    using State = netplay::DiscordLink::State;
+    // An account read by name is shown linked by it; none says Not linked; one only known of, or unknown, says nothing.
+    if (link.state == State::Linked && !link.name.empty()) {
+        row.value = loc::Tf("discord.account_linked", link.name);
+        row.userText = true;
         row.detail = loc::T("discord.account_linked_detail");
-    } else if (!row.value.empty()) row.value = loc::T("discord.account_none");
+    } else if (link.state == State::None) row.value = loc::T("discord.account_none");
     return row;
 }
 

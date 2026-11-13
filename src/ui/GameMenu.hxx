@@ -62,7 +62,7 @@ struct PlayerCardView {
     // The strip: the main, then the two highest others played.
     std::vector<CardFighter> fighters;
     CardFacts facts;
-    // Friend requests waiting: the Friends tab's count and Home's Profile row.
+    // Friend requests waiting: the Friends tab's count.
     int requests = 0;
 };
 void SetMenuPlayerCard(PlayerCardView view);

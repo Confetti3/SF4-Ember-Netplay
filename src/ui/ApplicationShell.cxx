@@ -218,11 +218,9 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows.insert(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="offline";}),Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle));
   // News, with the notifications beside the channel's releases (the panel under the player card shows the first three).
   rows.push_back(Row("news",loc::T("home.news"),NewsDetail(v)));
-  // What waits there for an answer, counted as the Profile row counts its requests.
-  if(const int waiting=NotificationsWaiting(v)){rows.back().value=loc::Tf("notifications.waiting",waiting);rows.back().valueHighlighted=true;}
+  // What waits there for an answer (friends' requests among it), counted here alone on Home.
+  if(const int waiting=notices_.Waiting()){rows.back().value=loc::Tf("notifications.waiting",waiting);rows.back().valueHighlighted=true;}
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
-  // The requests waiting to be answered, which the Profile row opens on.
-  if(const auto badge=player_card::ProfileBadge(v.friends);!badge.empty()){auto& profile=*std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="profile";});profile.value=badge;profile.valueHighlighted=true;}
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
   // Ember ID lives under Online play; tournament matches ready to play are
   // still shown on Home, which leads to them, while no room is joined (a
@@ -379,7 +377,7 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  // The levels the Card tab draws, and the two points lines under Home's card.
  player_card::Fill(card,v.levels,preferences_.mainFighter);
  tag.points={true,card.main.points,card.account.points};
- card.requests=player_card::RequestsWaiting(v.friends);
+ card.requests=static_cast<int>(friends_panel::WaitingOf(v.friends,v.unixNow).requests.size());
  SetMenuPlayerCard(std::move(card));
  std::vector<MenuNewsItem> news;
  for(const auto& n:v.services.update.news)news.push_back({n.title,n.date.empty()?n.tag:n.date+" \xC2\xB7 "+n.tag});
@@ -399,7 +397,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="discord-account")identity_.OpenDiscordAccount(v,nav);
  // The matches screen, by way of Online play and Ember ID so Back goes there.
  else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
- else if(a.id=="profile")nav.Push(player_card::RequestsWaiting(v.friends)?ProfilePanel::FriendsScreen:ProfilePanel::CardScreen);
+ else if(a.id=="profile")nav.Push(ProfilePanel::CardScreen);
  else if(a.id=="main-character")nav.Push(a.id);
  // Edit card's Title and Icon rows go to the award worn there, to change it.
  else if(a.id=="card-title"||a.id=="card-icon"){const bool title=a.id=="card-title";const std::string& worn=title?preferences_.wornTitle:preferences_.wornIcon;if(!worn.empty())nav.Prefer("award:"+worn);nav.Push("awards");}
@@ -413,7 +411,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(const auto main=RowKey<int>(a.id,"main-");main&&v.canEditPreferences){preferences_.mainFighter=*main;preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(screen=="training"&&a.id.compare(0,9,"training-")==0)TrainingSelectActivate(a,v,submit);
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?RoomSelectionStart(v.room):SelectionStart::Board;nav.Push(a.id);}
- else if(a.id=="news")nav.Push(NotificationsWaiting(v)?"notifications":"news");
+ else if(a.id=="news")nav.Push(notices_.Waiting()?"notifications":"news");
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  // News' Update now, confirmed on its row: the launch check's offer, as its question's Update now sends it.
  else if(a.id=="news-update-now"&&v.services.launchOffer){
@@ -562,8 +560,10 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
- // The game is on screen: notices go into Notifications without a card over it.
+ // The game is on screen: notices go into Notifications without a card over
+ // it, and a card the game covered before its time is owed a showing.
  TakeNotices(ImGui::GetTime());
+ notices_.Conceal(ImGui::GetTime());
 }
 
 v2::Box ApplicationShell::ShellArea() const {
@@ -599,7 +599,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
   if(postMatch_)postMatch_->until = RebaseUiTimestamp(postMatch_->until, lastUiTime_, now);
   roomUpdateStarted_ = -1;
-  for(auto& t:toasts_){t.at=RebaseUiTimestamp(t.at,lastUiTime_,now);t.until=RebaseUiTimestamp(t.until,lastUiTime_,now);}
+  notices_.Rebase([&](double t){return RebaseUiTimestamp(t,lastUiTime_,now);});
  }
  lastUiTime_ = now;
  // Player-written text can need glyphs the atlas has not baked yet. The
@@ -656,15 +656,12 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
  profile_.Update(v,nav.Screen(),identity_.UsableBridge(v),submit);
  UpdateAwardNotices(v);
- friends_.Update(v,nav,identity_.UsableBridge(v),now,submit);
- // Friends' words and toasts are each new, even in the words of one said before (the panel says one again that
- // Ember hid before it could be read), so the notice taken last does not stand for them.
- {std::string said;Tone tone;if(friends_.TakeSaid(said,tone)){noticeSeen_.clear();ShowNotice(said,tone,now+(tone==Tone::Error?6:4));}}
- {ToastRequest toast;if(friends_.TakeToast(toast)){noticeSeen_.clear();Say(std::move(toast.text),toast.tone,toast.seconds,toast.kind,std::move(toast.actions),std::move(toast.key));}}
- // A friend's request or invite answered anywhere (its Notifications row, the Friends tab, its toast) or gone from
- // the list ends its toast: the card goes and its buttons are not offered again.
- {const auto waiting=friends_panel::WaitingOf(v.friends,v.unixNow);
-  for(auto& t:toasts_)if(!t.key.empty()&&!t.answered&&!waiting.Holds(t.key)){t.answered=true;t.until=(std::min)(t.until,now);if(toastFocus_==t.id)toastFocus_=0;}}
+ friends_.Update(v,nav,identity_.UsableBridge(v),submit);
+ friends_.Publish(v,nav.Screen(),notices_,now);
+ // What an action from a room or the Friends tab came to: said again if Ember hides it before it is read.
+ {Notifications::Item said;if(friends_.TakeSaid(said.text,said.tone)){const double seconds=said.tone==Tone::Error?6:4;said.again=true;Tell(std::move(said),seconds);}}
+ // Over the post-match prompt a card's keys are the prompt's; on a free screen what was not seen is shown again.
+ {const bool prompt=nav.Screen()=="post-match";notices_.Show(now,prompt,!prompt&&nav.Mode()==MenuNavigation::Modal::None);}
  {std::string said;if(rankings_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
  if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();ShowNotice(loc::T("public.setup_done"),Tone::Success,now+4);}

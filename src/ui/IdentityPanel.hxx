@@ -7,6 +7,7 @@
 #include "MatchAnnouncements.hxx"
 #include "PublicRoomsSetup.hxx"
 #include "SignInSites.hxx"
+#include "../netplay/DiscordLink.hxx"
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/TournamentStatus.hxx"
@@ -66,9 +67,10 @@ public:
     // The service the Ember ID screens have selected, when the ID is ready and
     // the service is one the player trusts; empty otherwise. Public rooms use it.
     std::string UsableBridge(const ShellView& view) const;
-    // Whether a Discord account is linked to the Ember ID on the usable service, as the last read of it says;
-    // nothing while there is no service, no read yet or the read failed.
-    std::optional<bool> DiscordLinked(const ShellView& view) const;
+    // Whether a Discord account is linked to the Ember ID on the usable service: this panel's read of the account,
+    // else the ranking standing, the player's points and the friends, by netplay::LinkOf's one rule. Every screen
+    // that needs it asks here.
+    netplay::DiscordLink Discord(const ShellView& view) const;
     // Asks for the ID's status and the trusted services, for a screen outside
     // these that needs to know them.
     void Probe();
@@ -93,7 +95,7 @@ public:
     // opens ("Linked · name"), or Not linked without a ready Ember ID or a
     // service. It opens Connect Discord for that service, or for Ember's own
     // without one, which switches the account or unlinks it.
-    MenuEntry DiscordAccountRow(const ShellView& view) const;
+    MenuEntry DiscordAccountRow(const netplay::DiscordLink& link) const;
     void OpenDiscordAccount(const ShellView& view, MenuNavigation& navigation);
     // Tournament matches ready to play on the service the matches are read
     // from; 0 without a ready ID and a service. Home shows a row while any are.

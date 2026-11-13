@@ -106,16 +106,6 @@ std::vector<Progress> ProgressRows(const PlayerCardView& view) {
     rows.push_back(ProgressOf(loc::T("card.account"), view.account, true));
     return rows;
 }
-
-int RequestsWaiting(const netplay::friends::View& view) {
-    const auto& state = view.state.value;
-    return state && state->kind == netplay::friends::State::Kind::Listed ? static_cast<int>(state->incoming.size()) : 0;
-}
-
-std::string ProfileBadge(const netplay::friends::View& view) {
-    const int waiting = RequestsWaiting(view);
-    return waiting ? loc::Tf("home.profile_requests", waiting) : std::string();
-}
 }
 
 void DrawFighterEdge(ImDrawList* d, v2::Box box, std::uint64_t points, int tier) {

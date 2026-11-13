@@ -727,9 +727,6 @@ msgstr "Profile"
 msgid "home.profile_detail"
 msgstr "Your card, fighters, friends and awards."
 
-msgid "home.profile_requests"
-msgstr "Requests: {0}"
-
 msgid "home.settings"
 msgstr "Settings"
 

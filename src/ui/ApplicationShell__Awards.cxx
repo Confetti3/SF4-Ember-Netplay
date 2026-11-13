@@ -139,7 +139,7 @@ std::vector<MenuEntry> ApplicationShell::AwardRows(const ShellView& v, std::stri
         rows.push_back(std::move(row));
     }
     // Without a Discord account there is nothing to earn from: the way to one, as the Card tab has it.
-    if (card.levels == CardLevels::NoAccount) rows.push_back(ConnectDiscordRow());
+    if (identity_.Discord(v).state == netplay::DiscordLink::State::None) rows.push_back(ConnectDiscordRow());
     return rows;
 }
 

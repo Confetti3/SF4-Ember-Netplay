@@ -46,10 +46,6 @@ Progress ProgressOf(const std::string& name, const Level& level, bool account);
 std::vector<Progress> ProgressRows(const PlayerCardView& view);
 // "1 game" or "N games": the catalogs have no plural forms, so one has its own string.
 std::string GamesWords(std::uint64_t games);
-// The requests waiting in a friends state, 0 until one is read.
-int RequestsWaiting(const netplay::friends::View& friends);
-// The value of Home's Profile row: what waits in Friends ("2 requests"), empty when nothing does.
-std::string ProfileBadge(const netplay::friends::View& friends);
 }
 
 struct ShellView;

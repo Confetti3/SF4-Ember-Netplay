@@ -74,75 +74,92 @@ struct FriendsLeave {
 	std::size_t Bytes() const { return bridge.size(); }
 };
 
+// Each of the bridge's actions names itself for the log (LogName): its kind, never whom or which row.
 struct FriendRequest {
+	static constexpr const char* LogName = "request by card";
 	std::string bridge, card, label;
+	// The member asked first (the interface showed Accept request): the bridge's answer makes them friends.
+	bool mutual = false;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge && card.size() <= friend_limits::Card && label.size() <= friend_limits::Label; }
 	std::size_t Bytes() const { return bridge.size() + card.size() + label.size(); }
 };
 struct FriendRequestByCode {
+	static constexpr const char* LogName = "request by code";
 	std::string bridge, code;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge && code.size() <= friend_limits::Code; }
 	std::size_t Bytes() const { return bridge.size() + code.size(); }
 };
 struct FriendAccept {
+	static constexpr const char* LogName = "accept";
 	std::string bridge, request;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge && request.size() <= friend_limits::Id; }
 	std::size_t Bytes() const { return bridge.size() + request.size(); }
 };
 struct FriendDecline {
+	static constexpr const char* LogName = "decline";
 	std::string bridge, request;
 	bool block = false;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge && request.size() <= friend_limits::Id; }
 	std::size_t Bytes() const { return bridge.size() + request.size(); }
 };
 struct FriendCancel {
+	static constexpr const char* LogName = "cancel";
 	std::string bridge, request;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge && request.size() <= friend_limits::Id; }
 	std::size_t Bytes() const { return bridge.size() + request.size(); }
 };
 struct FriendRemove {
+	static constexpr const char* LogName = "remove";
 	std::string bridge, friendId;
 	bool block = false;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge && friendId.size() <= friend_limits::Id; }
 	std::size_t Bytes() const { return bridge.size() + friendId.size(); }
 };
 struct FriendBlock {
+	static constexpr const char* LogName = "block";
 	std::string bridge, card, label;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge && card.size() <= friend_limits::Card && label.size() <= friend_limits::Label; }
 	std::size_t Bytes() const { return bridge.size() + card.size() + label.size(); }
 };
 struct FriendUnblock {
+	static constexpr const char* LogName = "unblock";
 	std::string bridge, blockId;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge && blockId.size() <= friend_limits::Id; }
 	std::size_t Bytes() const { return bridge.size() + blockId.size(); }
 };
 struct FriendNewCode {
+	static constexpr const char* LogName = "new code";
 	std::string bridge;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge; }
 	std::size_t Bytes() const { return bridge.size(); }
 };
 struct FriendAppearOffline {
+	static constexpr const char* LogName = "appear offline";
 	std::string bridge;
 	bool on = false;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge; }
 	std::size_t Bytes() const { return bridge.size(); }
 };
 struct FriendTurnOff {
+	static constexpr const char* LogName = "turn off";
 	std::string bridge;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge; }
 	std::size_t Bytes() const { return bridge.size(); }
 };
 struct FriendTurnOn {
+	static constexpr const char* LogName = "turn on";
 	std::string bridge;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge; }
 	std::size_t Bytes() const { return bridge.size(); }
 };
 struct FriendInvite {
+	static constexpr const char* LogName = "invite";
 	std::string bridge, friendId;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge && friendId.size() <= friend_limits::Id; }
 	std::size_t Bytes() const { return bridge.size() + friendId.size(); }
 };
 struct FriendDismiss {
+	static constexpr const char* LogName = "dismiss";
 	std::string bridge, invite;
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge && invite.size() <= friend_limits::Id; }
 	std::size_t Bytes() const { return bridge.size() + invite.size(); }

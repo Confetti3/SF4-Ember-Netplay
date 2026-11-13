@@ -42,7 +42,7 @@ std::vector<MenuEntry> ApplicationShell::NewsRows(const ShellView& v,const std::
 void ApplicationShell::NewsTabs(const ShellView& v,const std::string& screen) {
  const auto& news=v.services.update.news;
  const auto any=[&](bool stable){return std::any_of(news.begin(),news.end(),[&](const launcher::ReleaseNews& n){return n.stable==stable;});};
- const int waiting=NotificationsWaiting(v);
+ const int waiting=notices_.Waiting();
  menu_.tabs={{"notifications",waiting?loc::Tf("notifications.tab_count",waiting):std::string(loc::T("home.notifications"))},{"news",loc::T("news.tab.all")}};
  if(any(true))menu_.tabs.push_back({"news-updates",loc::T("news.tab.updates")});
  if(any(false))menu_.tabs.push_back({"news-changelog",loc::T("news.tab.changelog")});
@@ -134,18 +134,12 @@ void ApplicationShell::DrawNewsDetail(const ShellView& v,const std::string& id,c
  ImGui::PopFont();
  ImGui::PopStyleColor(3);
 }
-// Home's News row says what is newest across the family, and opens on Notifications while an action waits there.
-// A toast about a friend's request or invite is counted as that one's row, never twice.
-int ApplicationShell::NotificationsWaiting(const ShellView& v) const {
- const auto toasts=std::count_if(toasts_.begin(),toasts_.end(),[](const Toast& t){return !t.actions.empty()&&!t.answered&&t.key.empty();});
- return static_cast<int>(friends_panel::WaitingOf(v.friends,v.unixNow).Count())+static_cast<int>(toasts);
-}
+// Home's News row says what is newest across the family: what waits first.
 std::string ApplicationShell::NewsDetail(const ShellView& v) const {
- if(auto words=friends_panel::WaitingWords(v.friends,v.unixNow);!words.empty())return words;
- const auto waiting=std::find_if(toasts_.begin(),toasts_.end(),[](const Toast& t){return !t.actions.empty()&&!t.answered&&t.key.empty();});
- if(waiting!=toasts_.end())return waiting->text;
+ if(const auto* waiting=notices_.FirstWaiting())return waiting->Head();
  if(!v.services.update.news.empty())return v.services.update.news.front().title;
- return toasts_.empty()?std::string(loc::T("notifications.none")):toasts_.front().text;
+ const auto* newest=notices_.Newest();
+ return newest?newest->text:std::string(loc::T("notifications.none"));
 }
 // The first Home asks the service for the launch check; the service's policy
 // decides whether one is due, and the question is put up only once its offer
