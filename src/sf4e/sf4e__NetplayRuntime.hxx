@@ -49,6 +49,7 @@
 #include "../netplay/FriendRequests.hxx"
 #include "../netplay/FriendVisits.hxx"
 #include "../netplay/FriendsView.hxx"
+#include "../netplay/ArchiveRequests.hxx"
 #include "../netplay/LevelRequests.hxx"
 #include "../netplay/RankingRequests.hxx"
 #include "../netplay/TournamentStatus.hxx"
@@ -288,6 +289,8 @@ struct Runtime {
     netplay::publicrooms::Status publicRooms;
     // Rankings: the requests in flight and what the interface sees.
     netplay::rankings::Requests rankings;
+    // The public replay archive's browser: the page in flight and the listing so far.
+    netplay::archive::Requests archive;
     // The player's own fighter levels: the read in flight and the last answer.
     netplay::levels::Requests levels;
     // Other players' cards in a public room: the look-up in flight and the answers.
@@ -592,6 +595,10 @@ void RequestTicket(const std::string& bridgeId, const std::string& roomId, bool 
 void DispatchRankings(const netplay::tournament::Command& command, bool helperReady);
 bool TakeRankingsAnswer(const session::TournamentAnswer& answer);
 void ExpireRankings(std::uint64_t nowMs);
+
+// The public replay archive (sf4e__NetplayRuntime__Archive.cxx): a page of its
+// listing, and a listed game downloaded and then watched.
+void DispatchArchive(const netplay::tournament::Command& command, bool helperReady);
 
 // Fighter levels (sf4e__NetplayRuntime__Levels.cxx): the player's own, read on
 // the menu's ask, once at start and after a set this PC fought.

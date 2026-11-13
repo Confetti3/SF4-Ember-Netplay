@@ -26,6 +26,7 @@
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/Answered.hxx"
+#include "../netplay/Archive.hxx"
 #include "../netplay/Levels.hxx"
 #include "../netplay/FriendsView.hxx"
 #include "../netplay/Rankings.hxx"
@@ -260,6 +261,8 @@ namespace sf4e {
             netplay::publicrooms::Status publicRooms;
             // The player's ranking standing, the board and the last choice's answer.
             netplay::rankings::Status rankings;
+            // The public replay archive's listing so far, and the download of a game to watch.
+            netplay::archive::Status archive;
             // The player's own fighter levels, as last read.
             netplay::Answered<netplay::levels::Own> levels;
             // The cards of a public room's members by card token (null: none).

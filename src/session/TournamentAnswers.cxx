@@ -208,7 +208,7 @@ bool IsTournamentPlayOp(const std::string& op) {
 		op == "room_list" || op == "room_create" || op == "room_ticket" ||
 		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" ||
 		op == "points_me" || op == "cards_lookup" || op == "friends_sync" || op == "friends_act" ||
-		op == "replay_send" || op == "replay_archive" || op == "replay_pack";
+		op == "replay_send" || op == "replay_archive" || op == "replay_pack" || op == "archive_list" || op == "archive_fetch";
 }
 
 std::optional<TournamentAnswer> ReadTournamentAnswer(const nlohmann::json& event) {
@@ -598,6 +598,97 @@ std::optional<netplay::publicrooms::Admission> DecodeAdmission(const nlohmann::j
 		admission.ticket = ticket.dump();
 		if (admission.invitation.empty() || admission.ticket.size() > netplay::publicrooms::MaxTicketBytes) return std::nullopt;
 		return admission;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+namespace {
+constexpr std::size_t MaxArchiveGames = 400, MaxArchiveEvents = 100, MaxArchiveCountries = 300, MaxArchiveText = 96, MaxArchiveUrl = 512, MaxArchiveCursor = 200;
+
+// The two members of an array of exactly two, each read by `one`.
+template <class One>
+void Pair(const json& object, const char* key, One one) {
+	const auto& items = object.at(key);
+	if (!items.is_array() || items.size() != 2) throw std::invalid_argument(key);
+	one(0, items[0]);
+	one(1, items[1]);
+}
+
+// A bounded whole number the helper wrote, or an exception.
+int Whole(const json& value, int least, int most) {
+	if (!value.is_number_integer()) throw std::invalid_argument("number");
+	const auto number = value.get<std::int64_t>();
+	if (number < least || number > most) throw std::invalid_argument("number");
+	return static_cast<int>(number);
+}
+
+std::string ArchiveText(const json& value) {
+	if (!value.is_string()) throw std::invalid_argument("text");
+	auto text = value.get<std::string>();
+	if (text.size() > MaxArchiveText) throw std::invalid_argument("text");
+	return SingleLine(std::move(text));
+}
+
+netplay::archive::Game DecodeArchiveGame(const json& entry) {
+	netplay::archive::Game game;
+	game.digest = Text(entry, "digest", 64);
+	if (!IsHex(game.digest, 64)) throw std::invalid_argument("digest");
+	game.url = Text(entry, "url", MaxArchiveUrl);
+	if (game.url.empty()) throw std::invalid_argument("url");
+	game.crc = OptionalText(entry, "crc", 8);
+	game.savedAt = OptionalSeconds(entry, "saved_at");
+	game.size = OptionalSeconds(entry, "size");
+	Pair(entry, "fighters", [&](int side, const json& value) { game.fighters[side] = Whole(value, -1, 255); });
+	Pair(entry, "names", [&](int side, const json& value) { game.names[side] = ArchiveText(value); });
+	Pair(entry, "countries", [&](int side, const json& value) {
+		auto code = ArchiveText(value);
+		if (!code.empty() && (code.size() != 2 || !std::all_of(code.begin(), code.end(), [](char c) { return c >= 'A' && c <= 'Z'; }))) throw std::invalid_argument("country");
+		game.countries[side] = std::move(code);
+	});
+	Pair(entry, "classes", [&](int side, const json& value) { game.classes[side] = Whole(value, 0, SkillBadge::Classes); });
+	game.set = SingleLine(OptionalText(entry, "set", MaxArchiveText));
+	game.event = SingleLine(OptionalText(entry, "event", MaxArchiveText));
+	game.round = SingleLine(OptionalText(entry, "round", MaxArchiveText));
+	game.phase = SingleLine(OptionalText(entry, "phase", MaxArchiveText));
+	return game;
+}
+
+std::vector<std::string> ArchiveTexts(const json& data, const char* key, std::size_t most) {
+	const auto& items = data.at(key);
+	if (!items.is_array() || items.size() > most) throw std::invalid_argument(key);
+	std::vector<std::string> texts;
+	for (const auto& item : items) texts.push_back(ArchiveText(item));
+	return texts;
+}
+}
+
+std::optional<netplay::archive::Listing> DecodeArchivePage(const json& data) {
+	try {
+		netplay::archive::Listing page;
+		const auto& games = data.at("games");
+		if (!games.is_array() || games.size() > MaxArchiveGames) return std::nullopt;
+		for (const auto& entry : games) page.games.push_back(DecodeArchiveGame(entry));
+		const auto& sets = data.at("sets");
+		if (!sets.is_object() || sets.size() > MaxArchiveGames) return std::nullopt;
+		for (auto it = sets.begin(); it != sets.end(); ++it) {
+			if (it.key().size() > MaxArchiveText || !it.value().is_object()) return std::nullopt;
+			netplay::archive::SetInfo info;
+			Pair(it.value(), "score", [&](int side, const json& value) { info.score[side] = static_cast<unsigned>(Whole(value, 0, 1000000)); });
+			info.pack = OptionalText(it.value(), "pack", MaxArchiveUrl);
+			page.sets[it.key()] = std::move(info);
+		}
+		page.events = ArchiveTexts(data, "events", MaxArchiveEvents);
+		page.countries = ArchiveTexts(data, "countries", MaxArchiveCountries);
+		for (const auto& code : page.countries)
+			if (code.size() != 2) return std::nullopt;
+		if (const auto found = data.find("total"); found != data.end() && found->is_number_unsigned()) page.total = found->get<std::uint64_t>();
+		if (const auto found = data.find("matching"); found != data.end() && found->is_number_unsigned()) page.matching = found->get<std::uint64_t>();
+		page.order = Text(data, "order", 8) == "class" ? netplay::archive::Order::Class : netplay::archive::Order::Newest;
+		page.next = OptionalText(data, "next", MaxArchiveCursor);
+		for (const char c : page.next)
+			if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == '.')) return std::nullopt;
+		return page;
 	} catch (const std::exception&) {
 		return std::nullopt;
 	}

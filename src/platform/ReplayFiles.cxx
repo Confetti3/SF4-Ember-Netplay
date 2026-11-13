@@ -577,6 +577,30 @@ fs::path SetPackPath(const std::string& matchId) {
 	return error ? fs::path() : folders.archive / L"packs" / fs::path(matchId + ".emberpack");
 }
 
+fs::path ArchiveWatchPath(const std::string& digest) {
+	if (digest.size() != 64 || !std::all_of(digest.begin(), digest.end(), [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); })) return {};
+	const Folders folders = FindFolders();
+	if (folders.archive.empty()) return {};
+	const fs::path folder = folders.archive / L"watching";
+	std::error_code error;
+	fs::create_directories(folder, error);
+	if (error) return {};
+	const fs::path file = folder / fs::path(digest + ".emberreplay");
+	// Only the game asked for last stays: the others were watched or given up on.
+	for (fs::directory_iterator at(folder, error), end; !error && at != end; at.increment(error)) {
+		std::error_code ignored;
+		if (at->path() != file && at->is_regular_file(ignored)) fs::remove(at->path(), ignored);
+	}
+	return file;
+}
+
+void ClearArchiveWatching() {
+	const Folders folders = FindFolders();
+	if (folders.archive.empty()) return;
+	std::error_code error;
+	fs::remove_all(folders.archive / L"watching", error);
+}
+
 std::size_t ImportReplayFile(const fs::path& file) {
 	try {
 		const Folders folders = FindFolders();

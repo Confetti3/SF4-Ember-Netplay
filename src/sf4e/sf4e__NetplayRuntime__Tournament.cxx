@@ -511,6 +511,10 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 	case Op::LevelsMe:
 		DispatchLevels(command, helperReady);
 		return;
+	case Op::ArchiveList:
+	case Op::ArchiveWatch:
+		DispatchArchive(command, helperReady);
+		return;
 	default:
 		return;
 	}
