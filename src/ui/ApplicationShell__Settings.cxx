@@ -313,7 +313,7 @@ public:
         // The account linked to the Ember ID leads: ranked games, points, friends, shared replays and tournaments need it, and
         // it may not be the one in the Discord app. The community server is the last row, as About opens it.
         const bool opening = v.services.lastAction == platform::ServiceAction::OpenCommunity && !v.services.message.empty();
-        return {s.identity_.DiscordAccountRow(v),
+        return {s.identity_.DiscordAccountRow(s.identity_.Discord(v)),
             OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences),
             OnOffValue(p, "invites", loc::T("discord.allow_invitations"), p.discordPresence ? loc::T("discord.invitation_detail") : loc::T("discord.enable_first"), v.canEditPreferences && p.discordPresence),
             ConfirmRow("community", loc::T("discord.server"), opening ? v.services.message : loc::Tf("about.discord_detail", platform::CommunityInvite), !v.services.pending)};
