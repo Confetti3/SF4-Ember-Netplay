@@ -525,7 +525,7 @@ async fn a_player_who_does_not_take_part_earns_points_and_shows_them() {
     );
 
     // A card is public: others see the points of a player who does not take
-    // part as of one who does, never wins or games.
+    // part as of one who does, and the games and wins behind them.
     let (first_card, second_card) = (
         token(&bridge, &first, &room_id).await,
         token(&bridge, &second, &room_id).await,
@@ -797,13 +797,13 @@ async fn the_best_run_of_wins_only_rises_and_a_loss_ends_a_run() {
     ember_bridge::poll_rooms(bridge.state()).await;
     assert_eq!(awards(&bridge, &first).await.0, 3);
 
-    // The card shows the milestone the run reached, not the run: 3 is a mark,
-    // and the games and wins stay between the marks.
+    // The card shows the counts themselves: six games, five wins and the best
+    // run of three.
     let card = token(&bridge, &first, &room_id).await;
     let seen = cards(&bridge, &second, json!([{ "card": card }])).await;
     assert_eq!(
         seen[0]["marks"],
-        json!({ "games": 1, "wins": 1, "streak": 3 })
+        json!({ "games": 6, "wins": 5, "streak": 3 })
     );
 }
 
@@ -890,7 +890,8 @@ async fn the_rival_and_opponent_counts_come_from_the_pair_records() {
     // Three games against one opponent: a rival of 3, one opponent.
     assert_eq!(levels["account"]["rival"], json!(3));
     assert_eq!(levels["account"]["opponents"], json!(1));
-    // A card shows milestones only, and 3 games against one player is not one yet.
+    // A card shows the rival and opponent counts as milestones only, and 3
+    // games against one player is not one yet.
     let card = token(&bridge, &first, &room_id).await;
     let seen = cards(&bridge, &second, json!([{ "card": card }])).await;
     assert!(seen[0]["marks"].get("rival").is_none());
