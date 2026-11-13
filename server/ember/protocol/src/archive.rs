@@ -21,6 +21,8 @@ pub const MAX_URL: usize = 512;
 pub const MAX_CURSOR: usize = 200;
 /// The longest text a listing's query holds (a search, an event's title).
 pub const MAX_QUERY: usize = 128;
+/// The longest exact name a listing is asked for (a room name's limit).
+pub const MAX_NAME: usize = 32;
 /// The rounds a listing filters by.
 pub const ROUNDS: [&str; 5] = ["top8", "pools", "winners", "losers", "grand"];
 
@@ -78,7 +80,7 @@ impl Query {
         let text = |field: &Option<String>| field.as_deref().is_none_or(plain);
         text(&self.event)
             && text(&self.q)
-            && self.name.as_deref().is_none_or(|name| !name.is_empty() && plain(name))
+            && self.name.as_deref().is_none_or(|name| !name.is_empty() && name.len() <= MAX_NAME && plain(name))
             && self
                 .country
                 .as_deref()
@@ -363,6 +365,7 @@ mod tests {
             json!({ "cursor": "zz.1" }),
             json!({ "q": "a\nb" }),
             json!({ "name": "" }),
+            json!({ "name": "n".repeat(MAX_NAME + 1) }),
             json!({ "q": "x".repeat(MAX_QUERY + 1) }),
         ] {
             assert!(!query(bad.clone()).check(), "{bad}");

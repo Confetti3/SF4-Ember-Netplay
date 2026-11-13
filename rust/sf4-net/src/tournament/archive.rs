@@ -92,6 +92,16 @@ fn target(path: &str, pairs: &[(&str, String)]) -> Result<String, Failure> {
     })
 }
 
+/// What a bridge is asked: `name` only when it lists the profile routes, which
+/// is where it reads it; the substring `q` the game sends beside it is all an
+/// older bridge reads.
+fn asked(query: &Query, profiles: bool) -> Query {
+    Query {
+        name: query.name.clone().filter(|_| profiles),
+        ..query.clone()
+    }
+}
+
 /// A page of the archive on `bridge_id`. A bridge that does not list the
 /// profile routes does not know `name`, so only the substring `q` beside it
 /// is asked.
@@ -101,11 +111,7 @@ pub async fn list(shared: &Arc<Shared>, bridge_id: &str, query: &Query) -> Outco
     }
     let bridge = client::approved(shared, bridge_id)?;
     let archive = archive_of(shared, &bridge).await?;
-    let mut asked = query.clone();
-    if !archive.profiles {
-        asked.name = None;
-    }
-    let path = target(&archive.path, &asked.pairs())?;
+    let path = target(&archive.path, &asked(query, archive.profiles).pairs())?;
     let call = BridgeCall::new(Verb::Get, &path, &[200])
         .refusals(REFUSALS)
         .limit(MAX_LISTING)
@@ -276,6 +282,19 @@ mod tests {
         ] {
             assert!(at(&bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn an_exact_name_goes_only_to_a_bridge_that_lists_profiles_with_q_beside_it() {
+        let query: Query = serde_json::from_value(json!({ "name": "Ann", "q": "Ann" })).unwrap();
+        assert!(query.check());
+        assert_eq!(
+            asked(&query, true).pairs(),
+            vec![("name", "Ann".to_owned()), ("q", "Ann".to_owned())]
+        );
+        assert_eq!(asked(&query, false).pairs(), vec![("q", "Ann".to_owned())]);
+        let long: Query = serde_json::from_value(json!({ "name": "n".repeat(33) })).unwrap();
+        assert!(!long.check());
     }
 
     #[test]
