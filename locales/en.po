@@ -1755,6 +1755,9 @@ msgstr "Shows F10 or Start for a few seconds when Ember's menu closes, so you kn
 msgid "settings.interface_size"
 msgstr "Interface size"
 
+msgid "settings.interface_size_detail"
+msgstr "Below 1.00x fits more on a large monitor."
+
 msgid "discord.show_activity"
 msgstr "Show activity"
 

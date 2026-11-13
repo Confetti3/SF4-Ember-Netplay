@@ -149,7 +149,7 @@ void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled,
         const bool on = e.value == loc::T("common.on");
         const float tw = 36 * s, th = 20 * s, ty = box.min.y + (h - th) * .5f, tx = box.max.x - tw;
         d->AddRectFilled(ImVec2(tx, ty), ImVec2(tx + tw, ty + th), on ? col.accent : col.button, th * .5f);
-        d->AddRect(ImVec2(tx, ty), ImVec2(tx + tw, ty + th), on ? col.accent : col.border, th * .5f, 0, s);
+        d->AddRect(ImVec2(tx, ty), ImVec2(tx + tw, ty + th), on ? col.accent : col.border, th * .5f, 0, Hairline());
         d->AddCircleFilled(ImVec2(on ? tx + tw - th * .5f : tx + th * .5f, ty + th * .5f), 7 * s, enabled ? col.text : col.muted);
         return;
     }
@@ -536,16 +536,16 @@ void GameMenu::DrawHomePane(Frame& f, v2::Box pane) {
     const v2::Box box = v2::CutBottom(pane, head + shown * item + 36 * s);
     d->AddRectFilled(box.min, box.max, v2::PanelGround(), 4 * s);
     d->AddText(HeadingFont(), 13 * s, ImVec2(box.min.x + 16 * s, box.min.y + 14 * s), c.muted, loc::T("news.heading"));
-    d->AddLine(ImVec2(box.min.x, box.min.y + head), ImVec2(box.max.x, box.min.y + head), c.border, s);
+    d->AddLine(ImVec2(box.min.x, box.min.y + head), ImVec2(box.max.x, box.min.y + head), c.border, Hairline());
     for (std::size_t i = 0; i < shown; ++i) {
         const float y = box.min.y + head + i * item;
         NoteUserText(news[i].title);
         d->AddText(HeadingFont(), 16 * s, ImVec2(box.min.x + 16 * s, y + 10 * s), c.text, Fit(news[i].title, box.W() - 32 * s, 16 * s, HeadingFont(), false).c_str());
         d->AddText(ImGui::GetFont(), 13 * s, ImVec2(box.min.x + 16 * s, y + 32 * s), c.muted, news[i].meta.c_str());
-        d->AddLine(ImVec2(box.min.x, y + item), ImVec2(box.max.x, y + item), v2::color::Alpha(c.border, .6f), s);
+        d->AddLine(ImVec2(box.min.x, y + item), ImVec2(box.max.x, y + item), v2::color::Alpha(c.border, .6f), Hairline());
     }
     d->AddText(ImGui::GetFont(), 14 * s, ImVec2(box.min.x + 16 * s, box.max.y - 26 * s), c.muted, loc::T("news.more"));
-    d->AddRect(box.min, box.max, c.border, 4 * s, 0, s);
+    d->AddRect(box.min, box.max, c.border, 4 * s, 0, Hairline());
 }
 
 void GameMenu::DrawDetailPane(Frame& f, v2::Box pane) {
@@ -640,7 +640,7 @@ bool GameMenu::DrawValuePanel(Frame& f, v2::Box focusCard, v2::Box list) {
         const float under = share.under ? v2::UnderLine * s : 0;
         v2::Text(pd, ImVec2(at.x + 4 * s, at.y), avail - 8 * s - (share.under ? 0 : countWidth + 16 * s), e.label, 18 * s, col.text, HeadingFont());
         pd->AddText(ImVec2(at.x + avail - countWidth - 4 * s, at.y + 2 * s + under), col.muted, counted.c_str());
-        pd->AddLine(ImVec2(at.x, at.y + 28 * s + under), ImVec2(at.x + avail, at.y + 28 * s + under), col.border, s);
+        pd->AddLine(ImVec2(at.x, at.y + 28 * s + under), ImVec2(at.x + avail, at.y + 28 * s + under), col.border, Hairline());
         ImGui::Dummy(ImVec2(0, 30 * s + under));
     }
     const float cw = (ImGui::GetContentRegionAvail().x - inner * (across - 1)) / across;

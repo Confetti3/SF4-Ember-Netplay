@@ -243,8 +243,8 @@ opens under the field.
 In Settings, Accessibility, Text and language (TV mode is also under
 Interface, Look):
 
-- **Interface size** makes all of Ember larger, from 1.00x to 1.50x in steps
-  of 0.05. Left and Right change it.
+- **Interface size** sizes all of Ember, from 0.70x to 1.50x in steps of 0.05;
+  below 1.00x fits more on a large monitor. Left and Right change it.
 - **TV mode** is for a TV across the room: everything a quarter larger, kept
   inside a 5% safe area at the screen's edges.
 
