@@ -22,7 +22,8 @@ constexpr std::size_t MaxLookup = 16;
 // One count of points: a fighter's (FP) or the account's (BP). Points 0: nothing
 // counted yet.
 struct Level {
-	// Games + wins: a win is worth 2, a loss 1.
+	// A game is worth 1 and a win against the same class or a higher one 1 more,
+	// as the bridge counts it: games to games + wins.
 	std::uint64_t points = 0;
 	std::uint64_t games = 0, wins = 0;
 	// The frame colour, 0 to TierCount - 1, as the bridge decides it, the points

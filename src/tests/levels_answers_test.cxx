@@ -53,6 +53,15 @@ static void TestLevels() {
 		row[key] = value;
 		return json{{"points", "counted"}, {"account", row}, {"fighters", json::array()}};
 	};
+	// A game is a point and a win at most one more (the class bonus): 1000 games with 900 wins are 1000 to 1900 points,
+	// and 9 games with 4 wins are 9 to 13.
+	for (const std::uint64_t points : {1500u, 1899u}) {
+		const auto bonus = session::DecodeOwnLevels(changed("points", points));
+		CHECK(bonus && bonus->fighters[3].points == points && bonus->fighters[3].games == 1000 && bonus->fighters[3].wins == 900);
+	}
+	const auto plain = session::DecodeOwnLevels(accountChanged("points", 9u));
+	CHECK(plain && plain->account.points == 9 && plain->account.games == 9 && plain->account.wins == 4);
+	CHECK(!session::DecodeOwnLevels(accountChanged("points", 8u)));
 	auto lacking = entry;
 	lacking.erase("next");
 	auto unfloored = entry;
@@ -71,7 +80,7 @@ static void TestLevels() {
 			json{{"points", "counted"}, {"fighters", json::array()}},
 			json{{"points", "counted"}, {"account", account}},
 			json{{"points", "counted"}, {"account", 1u}, {"fighters", json::array()}},
-			changed("fighter", 44u), changed("tier", 5u), changed("points", 1899u), changed("points", 0u), changed("wins", 1001u),
+			changed("fighter", 44u), changed("tier", 5u), changed("points", 1901u), changed("points", 999u), changed("points", 0u), changed("wins", 1001u),
 			changed("next", 1900u), changed("next", 1899u), changed("floor", 1901u), changed("floor", -1),
 			counted(json::array({unfloored})), changed("since", -1), changed("games", "1000"),
 			counted(json::array({lacking})),

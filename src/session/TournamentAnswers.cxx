@@ -493,9 +493,9 @@ netplay::levels::Level DecodeLevel(const json& entry, bool listedFighter) {
 	level.tier = ReadTier(entry);
 	level.floor = Unsigned(entry, "floor");
 	if (level.wins > level.games || level.games > UINT64_MAX - level.wins) throw std::invalid_argument("wins");
-	// The points are the games and wins.
+	// A game is a point and a win at most one more (the class bonus, which only the bridge knows).
 	if (listedFighter && level.games == 0) throw std::invalid_argument("games");
-	if (level.points != level.games + level.wins) throw std::invalid_argument("points");
+	if (level.points < level.games || level.points > level.games + level.wins) throw std::invalid_argument("points");
 	// The first counted game is told exactly when there is one.
 	if ((entry.find("since") != entry.end()) != (level.games > 0)) throw std::invalid_argument("since");
 	if (level.games > 0) level.since = Unsigned(entry, "since");
