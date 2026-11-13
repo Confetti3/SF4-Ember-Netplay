@@ -223,7 +223,7 @@ player_card::Subject SubjectOf(const Shown& shown, const Standing& standing, con
     const bool reading = shown.page == Page::Reading || shown.page == Page::Unreachable;
     // Reading and Unreachable draw the whole card at zero (the words say why); a state with no card draws the name and the words.
     const bool profiled = shown.page == Page::Card ? shown.profiled : reading;
-    auto subject = player_card::CardSubject(card, shown.known, around.roomFighter, around.inRoom && around.roomFighter >= 0, profiled);
+    auto subject = player_card::CardSubject(card, shown.known, around.inRoom ? around.roomFighter : -1, around.inRoom && around.roomFighter >= 0, profiled);
     if (subject.name.empty()) subject.name = shown.name;
     subject.levels = shown.page == Page::Card ? CardLevels::Counted : shown.page == Page::Reading ? CardLevels::Pending :
         shown.page == Page::Unreachable ? CardLevels::Unreachable : CardLevels::Unavailable;
