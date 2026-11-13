@@ -207,7 +207,7 @@ bool IsTournamentPlayOp(const std::string& op) {
 		op == "match_leave" || op == "assignment_list" || op == "match_watch" || op == "match_unwatch" ||
 		op == "room_list" || op == "room_create" || op == "room_ticket" ||
 		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" ||
-		op == "points_me" || op == "cards_lookup" || op == "friends_sync" || op == "friends_act" ||
+		op == "points_me" || op == "cards_lookup" || op == "cards_search" || op == "card_save" || op == "friends_sync" || op == "friends_act" ||
 		op == "replay_send" || op == "replay_archive" || op == "replay_pack" || op == "archive_list" || op == "archive_fetch";
 }
 
@@ -531,6 +531,75 @@ netplay::levels::Relation DecodeRelation(const json& card) {
 	return Relation::None;
 }
 
+// What a bridge offering `profiles` adds to a card (docs/design/PROFILE.md, "Wire contracts"). Each member stands
+// alone: one that is missing, of the wrong type or out of range is left as the card's default, and a number of an
+// enum this build does not know reads as "not shown", so a later bridge never costs a player the card.
+std::string ReadText(const json& object, const char* key, std::size_t maximum) {
+	const auto found = object.find(key);
+	if (found == object.end() || !found->is_string()) return {};
+	auto text = SingleLine(found->get<std::string>());
+	return text.size() <= maximum ? text : std::string();
+}
+
+std::uint64_t ReadNumber(const json& object, const char* key) {
+	const auto found = object.find(key);
+	return found != object.end() && found->is_number_unsigned() ? found->get<std::uint64_t>() : 0;
+}
+
+// "fr_" and the uuid, as friends ids are.
+bool IsFriendId(const std::string& id) { return id.size() == 39 && id.compare(0, 3, "fr_") == 0; }
+
+CountryCode ReadCountry(const json& object) {
+	const auto found = object.find("country");
+	return found != object.end() && found->is_string() ? CountryCode::Parsed(found->get<std::string>()) : CountryCode();
+}
+
+void DecodeProfileFields(const json& object, netplay::levels::Card& card) {
+	namespace profiles = netplay::profiles;
+	if (const auto name = ReadText(object, "name", profiles::MaxNameBytes); profiles::NameShaped(name)) card.name = name;
+	card.country = ReadCountry(object);
+	card.badge = ReadSkillBadge(object);
+	if (const auto fighter = object.find("main"); fighter != object.end() && fighter->is_number_unsigned() &&
+		fighter->get<std::uint64_t>() < static_cast<std::uint64_t>(selection::FighterCount)) {
+		card.hasMain = true;
+		card.main = static_cast<std::uint8_t>(fighter->get<std::uint64_t>());
+	}
+	if (const auto since = ReadNumber(object, "since")) { card.hasSince = true; card.since = since; }
+	if (const auto worn = object.find("worn"); worn != object.end() && worn->is_object()) {
+		for (const char* key : {"title", "icon"}) {
+			const auto id = ReadText(*worn, key, profiles::MaxFamilyId);
+			if (profiles::FamilyIdShaped(id)) (key[0] == 't' ? card.worn.title : card.worn.icon) = id;
+		}
+	}
+	if (const auto pins = object.find("pins"); pins != object.end() && pins->is_array()) {
+		for (const auto& pin : *pins) {
+			if (card.pins.size() == profiles::MaxPins) break;
+			if (!pin.is_string()) continue;
+			const auto id = pin.get<std::string>();
+			if (profiles::FamilyIdShaped(id) && std::find(card.pins.begin(), card.pins.end(), id) == card.pins.end()) card.pins.push_back(id);
+		}
+	}
+	if (const auto style = object.find("style"); style != object.end() && style->is_object()) {
+		card.hasStyle = true;
+		card.style.device = profiles::DeviceFromWire(ReadNumber(*style, "device"));
+		card.style.link = profiles::LinkFromWire(ReadNumber(*style, "link"));
+		const auto region = ReadText(*style, "region", profiles::MaxRegionBytes);
+		if (profiles::RegionShaped(region)) card.style.region = region;
+		card.style.looking = profiles::LookingFromWire(ReadNumber(*style, "looking"));
+	}
+	if (const auto versus = object.find("versus"); versus != object.end() && versus->is_object()) {
+		const auto won = ReadNumber(*versus, "won"), lost = ReadNumber(*versus, "lost");
+		if (won || lost) {
+			card.hasVersus = true;
+			card.versus.won = won;
+			card.versus.lost = lost;
+			card.versus.lastAt = ReadNumber(*versus, "last_at");
+		}
+	}
+	if (card.relation == netplay::levels::Relation::Friend)
+		if (const auto id = ReadText(object, "friend", 39); IsFriendId(id)) card.friendId = id;
+}
+
 netplay::levels::Card DecodeCard(const json& value) {
 	netplay::levels::Card card;
 	const auto& object = Object(value);
@@ -563,6 +632,7 @@ netplay::levels::Card DecodeCard(const json& value) {
 			card.fighters.push_back(fighter);
 		}
 	}
+	DecodeProfileFields(object, card);
 	return card;
 }
 }
@@ -605,10 +675,45 @@ std::optional<std::vector<std::optional<netplay::levels::Card>>> DecodeCards(con
 		std::vector<std::optional<netplay::levels::Card>> cards;
 		cards.reserve(rows.size());
 		for (const auto& row : rows) {
-			if (row.is_null()) cards.emplace_back();
-			else cards.emplace_back(DecodeCard(row));
+			// One card that cannot be read is no card (its player shows as having none), never a failed answer.
+			if (row.is_null()) { cards.emplace_back(); continue; }
+			try {
+				cards.emplace_back(DecodeCard(row));
+			} catch (const std::exception&) {
+				cards.emplace_back();
+			}
 		}
 		return cards;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+std::optional<netplay::profiles::SearchAnswer> DecodeSearch(const json& data) {
+	try {
+		namespace profiles = netplay::profiles;
+		const auto& rows = Object(data).at("players");
+		if (!rows.is_array() || rows.size() > profiles::MaxSearch) return std::nullopt;
+		profiles::SearchAnswer answer;
+		for (const auto& row : rows) {
+			// A hit that cannot be read is left out, never a failed answer.
+			if (!row.is_object()) continue;
+			profiles::Hit hit;
+			hit.card = ReadText(row, "card", 128);
+			hit.name = ReadText(row, "name", profiles::MaxNameBytes);
+			if (!CardToken::Parsed(hit.card).Present() || !profiles::NameShaped(hit.name)) continue;
+			hit.country = ReadCountry(row);
+			hit.badge = ReadSkillBadge(row);
+			if (const auto fighter = row.find("main"); fighter != row.end() && fighter->is_number_unsigned() &&
+				fighter->get<std::uint64_t>() < static_cast<std::uint64_t>(selection::FighterCount)) {
+				hit.hasMain = true;
+				hit.main = static_cast<std::uint8_t>(fighter->get<std::uint64_t>());
+			}
+			hit.since = ReadNumber(row, "since");
+			answer.players.push_back(std::move(hit));
+		}
+		if (const auto more = data.find("more"); more != data.end() && more->is_boolean()) answer.more = more->get<bool>();
+		return answer;
 	} catch (const std::exception&) {
 		return std::nullopt;
 	}

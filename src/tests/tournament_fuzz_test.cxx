@@ -365,12 +365,19 @@ static void TestLevels() {
 	CHECK(marked && (*marked)[0] && (*marked)[0]->marks.games == 100 && (*marked)[0]->marks.wins == 50 && (*marked)[0]->marks.streak == 5 &&
 		(*marked)[0]->marks.peakClass == 6 && (*marked)[0]->marks.rival == 10 && (*marked)[0]->marks.opponents == 50);
 	for (const json& badMarks : {json{{"class", 11u}}, json{{"games", -1}}, json{{"wins", "5"}}, json(1u)})
-		CHECK(!session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"marks", badMarks}}})}}));
+	{
+		const auto unread = session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"marks", badMarks}}})}});
+		CHECK(unread && unread->size() == 1 && !(*unread)[0]);
+	}
 	for (const char* relation : {"sent", "received"}) CHECK(session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", relation}}})}}));
 	json seventeen = json::array();
 	for (std::size_t i = 0; i <= netplay::levels::MaxLookup; ++i) seventeen.push_back(json{{"account", cardAccount}, {"relation", "none"}});
 	const auto card = [&](const json& fighter) { return json{{"cards", json::array({json{{"account", cardAccount}, {"fighters", json::array({fighter})}, {"relation", "none"}}})}}; };
-	for (const json& invalid : {json{{"cards", json::array()}}, json{{"cards", seventeen}}, json{{"cards", json::array({json::object()})}},
+	// An answer with no card, or too many, is no answer.
+	for (const json& invalid : {json{{"cards", json::array()}}, json{{"cards", seventeen}}})
+		CHECK(!session::DecodeCards(invalid));
+	// One card that cannot be read is no card, and the answer stands.
+	for (const json& invalid : {json{{"cards", json::array({json::object()})}},
 			json{{"cards", json::array({json{{"account", cardAccount}, {"relation", 1u}}})}},
 			json{{"cards", json::array({json{{"account", cardAccount}, {"fighters", json::array()}}})}},
 			// A card always has its account, with a count and a tier in range.
@@ -384,7 +391,10 @@ static void TestLevels() {
 			card(json{{"fighter", 3u}, {"points", 1986u}, {"tier", 5u}}),
 			json{{"cards", json::array({json{{"account", cardAccount}, {"fighters", json::array({json{{"fighter", 3u}, {"points", 1u}, {"tier", 0u}},
 				json{{"fighter", 3u}, {"points", 1u}, {"tier", 0u}}})}, {"relation", "none"}}})}}})
-		CHECK(!session::DecodeCards(invalid));
+	{
+		const auto unread = session::DecodeCards(invalid);
+		CHECK(unread && unread->size() == 1 && !(*unread)[0]);
+	}
 	// Members the reader does not know are ignored; an unknown relation is none.
 	for (const json& ignored : {json{{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"name", "Player 1"}}})}},
 			json{{"cards", json::array({nullptr})}, {"total", 1u}},
@@ -605,7 +615,12 @@ static void FuzzAnswers(Random& random) {
 		}
 		if (const auto own = session::DecodeOwnLevels(data))
 			for (const auto& fighter : own->fighters) CHECK(fighter.tier < netplay::levels::TierCount && fighter.wins <= fighter.games && fighter.points == fighter.games + fighter.wins);
-		if (const auto cards = session::DecodeCards(data)) CHECK(!cards->empty() && cards->size() <= netplay::levels::MaxLookup);
+		if (const auto cards = session::DecodeCards(data)) {
+			CHECK(!cards->empty() && cards->size() <= netplay::levels::MaxLookup);
+			for (const auto& card : *cards)
+				if (card) CHECK(card->pins.size() <= netplay::profiles::MaxPins && card->name.size() <= netplay::profiles::MaxNameBytes &&
+					netplay::profiles::LookingCount(card->style.looking) <= netplay::profiles::MaxLooking && (!card->hasMain || card->main < selection::FighterCount));
+		}
 		if (const auto list = session::DecodeAssignments(data)) {
 			CHECK(list->size() <= 50);
 			for (const auto& item : *list) CHECK((item.slot == 0 || item.slot == 1) && item.gamesToWin <= room::MaxSetLength &&

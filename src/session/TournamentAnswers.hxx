@@ -59,8 +59,16 @@ std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const nloh
 std::optional<netplay::archive::Listing> DecodeArchivePage(const nlohmann::json& data);
 
 // A points_me answer's levels, and a cards_lookup answer's cards (one per
-// selector, in order; nullopt inside for a selector that found no card).
+// selector, in order; nullopt inside for a selector that found no card, or
+// whose card could not be read: one bad card never fails the answer). A card's
+// profile members (name, flag, class, main, since, worn, pins, style, versus,
+// friend) are each read on their own, and one that is missing or not
+// understood is left at the card's default.
 std::optional<netplay::levels::Own> DecodeOwnLevels(const nlohmann::json& data);
 std::optional<std::vector<std::optional<netplay::levels::Card>>> DecodeCards(const nlohmann::json& data);
+// A cards_search answer: the players found (at most MaxSearch; a hit that cannot
+// be read is left out) and whether more matched. Nothing for an answer that has
+// no list. A card_save answer carries nothing to decode: its ok is the whole answer.
+std::optional<netplay::profiles::SearchAnswer> DecodeSearch(const nlohmann::json& data);
 
 } }

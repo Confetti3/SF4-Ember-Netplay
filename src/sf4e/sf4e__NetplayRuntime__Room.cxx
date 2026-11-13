@@ -107,6 +107,19 @@ static DispatchOutcome Handle(Command& command, bool, Attempt) {
 	DispatchFriends(command);
 	return DispatchOutcome::Dropped;
 }
+// Profiles and the Find a player search are bridge reads: no room generation applies.
+static DispatchOutcome Handle(commands::ProfileOpen& command, bool, Attempt) {
+	DispatchProfile(command);
+	return DispatchOutcome::Dropped;
+}
+static DispatchOutcome Handle(commands::ProfileClose& command, bool, Attempt) {
+	DispatchProfile(command);
+	return DispatchOutcome::Dropped;
+}
+static DispatchOutcome Handle(commands::PlayerSearch& command, bool, Attempt) {
+	DispatchProfile(command);
+	return DispatchOutcome::Dropped;
+}
 static DispatchOutcome Handle(commands::Tournament& command, bool helperReady, Attempt) {
 	DispatchTournament(command.tournament, helperReady);
 	return DispatchOutcome::Dropped;

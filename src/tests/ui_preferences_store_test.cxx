@@ -178,6 +178,53 @@ int main() {
     CHECK(SaveAnnouncedMatchesTo(broken.wstring(), told, error) && Read(broken / L"ui-preferences.json.malformed.bak") == "{" &&
         LoadAnnouncedMatchesFrom(broken.wstring()).size() == 2);
 
+    // The players this PC fought lately are kept beside the preferences, in the same file, and read back as far as they are good.
+    using sf4e::netplay::profiles::Recent;
+    CHECK(LoadRecentOpponentsFrom(root.wstring()).empty());
+    CHECK(SaveLanguagePreferenceTo(root.wstring(), "pt-BR", error));
+    Recent met;
+    met.card = "c1.AbCdEf_-0123";
+    met.name = "Player 2";
+    met.country = sf4e::CountryCode::Parsed("FR");
+    met.fighter = 5;
+    met.room = "Player 1's room";
+    met.at = 1730000000;
+    Recent nobody = met;
+    nobody.name = "Player 3";
+    nobody.country = sf4e::CountryCode();
+    nobody.fighter = -1;
+    nobody.at = 1729990000;
+    CHECK(SaveRecentOpponentsTo(root.wstring(), {met, nobody}, error));
+    const auto recent = LoadRecentOpponentsFrom(root.wstring());
+    CHECK(recent.size() == 2 && recent[0].card == met.card && recent[0].name == "Player 2" && recent[0].country.ToString() == "FR" &&
+        recent[0].fighter == 5 && recent[0].room == "Player 1's room" && recent[0].at == 1730000000 && recent[0].visit == 0);
+    CHECK(recent[1].name == "Player 3" && !recent[1].country.Present() && recent[1].fighter == -1 && recent[1].at == 1729990000);
+    // The language and the rest of the file stay as they were, both ways round.
+    CHECK(LoadLanguagePreferenceFrom(root.wstring()) == "pt-BR" && HideGameSettingsCardIn(root.wstring(), error));
+    CHECK(LoadRecentOpponentsFrom(root.wstring()).size() == 2 && GameSettingsCardHiddenIn(root.wstring()));
+    // Saving writes at most 20, and never an entry the list could not hold.
+    std::vector<Recent> many;
+    for (int i = 0; i < 30; ++i) { Recent entry = met; entry.name = "Player " + std::to_string(i); many.push_back(entry); }
+    Recent bad = met;
+    bad.card = "not a token";
+    many.insert(many.begin(), bad);
+    CHECK(SaveRecentOpponentsTo(root.wstring(), many, error));
+    const auto bounded = LoadRecentOpponentsFrom(root.wstring());
+    CHECK(bounded.size() == sf4e::netplay::profiles::MaxRecent && bounded[0].name == "Player 0");
+    // An entry that is malformed is dropped on its own; a list of another type is no list.
+    const auto tolerant = root / L"tolerant-recent"; CHECK(std::filesystem::create_directory(tolerant));
+    Write(tolerant / L"ui-preferences.json", "{\"schemaVersion\":1,\"language\":\"auto\",\"recentOpponents\":[3,{\"card\":\"c1.AbCdEf_-0123\",\"name\":\"Player 4\",\"at\":1730000000,\"fighter\":99,\"country\":\"zz\"},"
+        "{\"card\":\"c1.AbCdEf_-0123\",\"name\":7,\"at\":1730000000},{\"card\":\"c1.AbCdEf_-0123\",\"name\":\"Player 5\"},{\"card\":\"c1.AbCdEf_-0123\",\"name\":\"Player 6\",\"at\":1730000001,\"fighter\":2}]}");
+    const auto kept = LoadRecentOpponentsFrom(tolerant.wstring());
+    CHECK(kept.size() == 2 && kept[0].name == "Player 4" && kept[0].fighter == -1 && !kept[0].country.Present() && kept[1].name == "Player 6" && kept[1].fighter == 2);
+    Write(tolerant / L"ui-preferences.json", "{\"schemaVersion\":1,\"language\":\"auto\",\"recentOpponents\":\"Player 4\"}");
+    CHECK(LoadRecentOpponentsFrom(tolerant.wstring()).empty());
+    const auto brokenRecent = root / L"broken-recent"; CHECK(std::filesystem::create_directory(brokenRecent));
+    Write(brokenRecent / L"ui-preferences.json", "{");
+    CHECK(LoadRecentOpponentsFrom(brokenRecent.wstring()).empty());
+    CHECK(SaveRecentOpponentsTo(brokenRecent.wstring(), {met}, error) && Read(brokenRecent / L"ui-preferences.json.malformed.bak") == "{" &&
+        LoadRecentOpponentsFrom(brokenRecent.wstring()).size() == 1);
+
     const std::string invalid[] = {"{", "{\"schemaVersion\":2,\"language\":\"en\"}",
         "{\"schemaVersion\":1,\"language\":\"xx\"}", std::string(256 * 1024 + 1, 'x')};
     for (int i = 0; i < 4; ++i) {

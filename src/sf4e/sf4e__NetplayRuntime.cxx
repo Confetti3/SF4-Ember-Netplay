@@ -247,6 +247,7 @@ void StartHelper() {
 	bridge::OpenCommands(runtime->commands);
     runtime->languagePreference = platform::LoadLanguagePreference();
     runtime->checkUpdatesAtLaunch = platform::LoadUpdatePreferences().checkAtLaunch;
+    internal::LoadRecentOpponents();
     runtime->automaticCountry = platform::WindowsCountry();
     spdlog::info("Windows region country {}", runtime->automaticCountry.Present() ? runtime->automaticCountry.ToString() : std::string("none"));
     wchar_t gamePath[MAX_PATH] = {};
@@ -300,6 +301,7 @@ void StartHelper() {
             const auto since = saved.find("shareReplaysSince");
             preferences.shareReplaysSince = since != saved.end() && since->is_number_unsigned() ? since->get<std::uint64_t>() : 0;
             preferences.speech = netplay::ReadSpeechPreferences(saved);
+            netplay::ReadCardPreferences(saved, preferences);
             preferences.roomFilter = netplay::ReadRoomFilter(saved);
             const int volume = saved.value("readySoundVolume", 100);
             preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
