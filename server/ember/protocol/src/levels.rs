@@ -7,20 +7,32 @@
 //!
 //! A card is public: it always carries the account's points and the fighters
 //! played (none when nothing is played), and is `null` only for a player
-//! with no Discord account connected or who blocked the caller.
+//! with no Discord account connected or who blocked the caller. Beyond the
+//! points it says what its player chose to show and what the bridge knows of
+//! them (docs/design/PROFILE.md): the name, flag, main fighter, when they
+//! came to Ember, the award families they wear and show, how they play, and
+//! the caller's own record and friendship with them. It never carries a
+//! Discord account, an Ember ID or a rating.
 //!
 //! Requests are strict and answers are tolerant. A request (`CardLookup`,
-//! `CardSelector`) refuses unknown members, so a client's mistake is caught at
-//! the bridge. An answer (`OwnLevels`, `OwnAccount`, `OwnFighter`,
-//! `CardAnswers`, `PlayerCard`, `CardAccount`, `CardFighter`) ignores members it does not know, so a field a
-//! later bridge adds does not break a client already out. A build asks only a
-//! bridge that lists [`POINTS_FEATURE`], and an older bridge answers 404.
+//! `CardSelector`, `CardSave`, `CardSearch`) refuses unknown members, so a
+//! client's mistake is caught at the bridge. An answer (`OwnLevels`,
+//! `OwnAccount`, `OwnFighter`, `CardAnswers`, `PlayerCard`, `CardAccount`,
+//! `CardFighter`, `SearchAnswer`) ignores members it does not know, so a
+//! field a later bridge adds does not break a client already out; a closed
+//! enumeration travels as a small integer, and a value a client does not know
+//! reads as not shown. A build asks only a bridge that lists
+//! [`POINTS_FEATURE`] (and, for the routes and selectors of the profile,
+//! [`PROFILES_FEATURE`]); an older bridge answers 404.
 use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, Result,
-    encoding::is_prefixed_id,
-    skill::SKILL_BANDS,
+    encoding::{is_prefixed_id, is_single_line},
+    friends::parse_friend_code,
+    relay::is_region,
+    rooms::{MAX_HOST_NAME, is_country, is_player_name},
+    skill::{Listing, SKILL_BANDS, SkillBadge},
     wire_enum::wire_enum,
 };
 
@@ -30,6 +42,32 @@ pub const POINTS_FEATURE: &str = "points";
 pub const POINTS_PATH: &str = "/v1/points/me";
 /// `POST` a `CardLookup`, answered with `CardAnswers`.
 pub const LOOKUP_PATH: &str = "/v1/cards/lookup";
+/// The capability a bridge with the profile routes offers, beside
+/// [`POINTS_FEATURE`]: `PUT` [`CARDS_ME_PATH`], `POST` [`SEARCH_PATH`], the
+/// selectors `request` and `code`, and the archive's `name`.
+pub const PROFILES_FEATURE: &str = "profiles";
+/// `PUT` a `CardSave`, answered with 204.
+pub const CARDS_ME_PATH: &str = "/v1/cards/me";
+/// `POST` a `CardSearch`, answered with `SearchAnswer`.
+pub const SEARCH_PATH: &str = "/v1/cards/search";
+/// The most award families a card shows.
+pub const MAX_PINS: usize = 4;
+/// The most players one search answers.
+pub const MAX_SEARCH: usize = 20;
+/// The longest family id, in bytes.
+pub const MAX_FAMILY_ID: usize = 32;
+/// The shortest name a search takes, in bytes.
+pub const MIN_SEARCH_NAME: usize = 2;
+/// The highest `Style::device`: 1 Pad, 2 Stick, 3 Leverless, 4 Keyboard; 0 is
+/// not shown.
+pub const MAX_DEVICE: u8 = 4;
+/// The highest `Style::link`: 1 Wired, 2 Wi-Fi; 0 is not shown.
+pub const MAX_LINK: u8 = 2;
+/// The bits a `Style::looking` may set: Casuals, Long sets, Ranked, Tournament
+/// practice, New to the game, Happy to teach.
+pub const LOOKING_BITS: u32 = 0b11_1111;
+/// The most bits of `Style::looking` a player sets.
+pub const MAX_LOOKING: u32 = 2;
 /// Fighters a player can have points for: 0 to 43, USF4's roster.
 pub const FIGHTERS: u8 = 44;
 /// The highest tier: tiers are 0 to `MAX_TIER`, Ash to Ember.
@@ -225,6 +263,12 @@ pub enum CardSelector {
     Card(String),
     /// A friend id (`fr_`, `docs/design/FRIENDS.md`).
     Friend(String),
+    /// A friend request the caller received (`rq_`). Only for a bridge that
+    /// lists [`PROFILES_FEATURE`].
+    Request(String),
+    /// A friend code, as a player types one (`parse_friend_code`). Only for a
+    /// bridge that lists [`PROFILES_FEATURE`].
+    Code(String),
 }
 
 impl CardSelector {
@@ -232,8 +276,12 @@ impl CardSelector {
         match self {
             Self::Card(token) if is_card_token(token) => Ok(()),
             Self::Friend(id) if is_prefixed_id(id, "fr") => Ok(()),
+            Self::Request(id) if is_prefixed_id(id, "rq") => Ok(()),
+            Self::Code(code) if parse_friend_code(code).is_some() => Ok(()),
             Self::Card(_) => Err(Error::InvalidField("card")),
             Self::Friend(_) => Err(Error::InvalidField("friend")),
+            Self::Request(_) => Err(Error::InvalidField("request")),
+            Self::Code(_) => Err(Error::InvalidField("code")),
         }
     }
 }
@@ -310,8 +358,8 @@ impl CardFighter {
     }
 }
 
-/// What a card shows of the account to someone else: the points and the
-/// frame, never wins or games.
+/// What a card shows of the account's points to someone else: the points and
+/// the frame. The games and wins behind them are `AwardMarks`'.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CardAccount {
     /// 0 for an account with no counted game.
@@ -329,21 +377,22 @@ impl CardAccount {
     }
 }
 
-/// What a card says of the milestones behind another player's awards: for
-/// each count, the largest of the bridge's own marks it has reached, never the
-/// count itself, so wins, games and the win rate stay private (the points
-/// already hide them). A viewer checks a worn award against these; a mark the
-/// bridge does not offer reads as 0 and the award as locked. Every member is
-/// absent while 0.
+/// The counts behind another player's awards, which a card shows anyone: the
+/// rated games, wins and best win streak exactly (the card's record cells
+/// show them), the highest class ever shown, and, for the rival and opponent
+/// awards, the largest milestone reached rather than the count. A viewer's
+/// catalog works out each award family's level from these; a mark the bridge
+/// does not offer reads as 0 and the award as locked. Every member is absent
+/// while 0.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AwardMarks {
-    /// The largest of 1, 10, 100, 500, 1000 and 5000 the counted games reach.
+    /// The counted games.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub games: u64,
-    /// The largest of 1, 50, 250, 1000 and 2500 the counted wins reach.
+    /// The counted wins, at most `games`.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub wins: u64,
-    /// The largest of 3, 5, 10 and 20 the best win streak reaches.
+    /// The most counted games the player won in a row.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub streak: u32,
     /// The highest class ever shown, 1 to `SKILL_BANDS`; 0 for a player who
@@ -371,7 +420,132 @@ impl AwardMarks {
     }
 }
 
-/// One player's card in a look-up answer.
+/// Whether `text` is shaped like an award family's id: 1 to `MAX_FAMILY_ID`
+/// bytes of `a-z`, `0-9` and `-`. The bridge checks the shape only, so a
+/// family a later catalog adds needs no bridge change.
+pub fn is_family_id(text: &str) -> bool {
+    !text.is_empty()
+        && text.len() <= MAX_FAMILY_ID
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+}
+
+fn check_family(id: &Option<String>) -> Result<()> {
+    match id {
+        Some(id) if !is_family_id(id) => Err(Error::InvalidField("family")),
+        _ => Ok(()),
+    }
+}
+
+/// The award families a player wears beside their name: the title's and the
+/// icon's, as family ids. The viewer draws each family's current level (its
+/// title, its icon in that level's tier), so a family the player has reached
+/// no level of is not drawn.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Worn {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+}
+
+impl Worn {
+    pub fn is_empty(&self) -> bool {
+        self.title.is_none() && self.icon.is_none()
+    }
+
+    pub fn check(&self) -> Result<()> {
+        check_family(&self.title)?;
+        check_family(&self.icon)
+    }
+}
+
+/// How a player plays, as small numbers the viewer words: the device, the
+/// connection, the relay region and what they are looking for. Every member
+/// is absent at 0, and a value a reader does not know reads as not shown.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Style {
+    /// 1 Pad, 2 Stick, 3 Leverless, 4 Keyboard; absent for not shown.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub device: u8,
+    /// 1 Wired, 2 Wi-Fi; absent for not shown.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub link: u8,
+    /// A relay region's code (`relay::REGIONS`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
+    /// Bits of `LOOKING_BITS`: 1 Casuals, 2 Long sets, 4 Ranked, 8 Tournament
+    /// practice, 16 New to the game, 32 Happy to teach.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub looking: u32,
+}
+
+/// The longest region code an answer carries.
+const MAX_REGION_CODE: usize = 8;
+
+impl Style {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+
+    /// What a bridge accepts to store: each number in its range, a region it
+    /// knows, and at most `MAX_LOOKING` bits of what the player looks for.
+    pub fn check_save(&self) -> Result<()> {
+        if self.device > MAX_DEVICE {
+            return Err(Error::InvalidField("device"));
+        }
+        if self.link > MAX_LINK {
+            return Err(Error::InvalidField("link"));
+        }
+        if self.region.as_deref().is_some_and(|region| !is_region(region)) {
+            return Err(Error::InvalidField("region"));
+        }
+        if self.looking & !LOOKING_BITS != 0 || self.looking.count_ones() > MAX_LOOKING {
+            return Err(Error::InvalidField("looking"));
+        }
+        Ok(())
+    }
+
+    /// What a client accepts in an answer: a later bridge's device, link,
+    /// region or bit is not refused, and reads as not shown.
+    pub fn check(&self) -> Result<()> {
+        let shaped = self.region.as_deref().is_none_or(|region| {
+            !region.is_empty()
+                && region.len() <= MAX_REGION_CODE
+                && region
+                    .bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+        });
+        if shaped {
+            Ok(())
+        } else {
+            Err(Error::InvalidField("region"))
+        }
+    }
+}
+
+/// The caller's games against the player a card is of, from the caller's
+/// side: absent before their first counted game.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Versus {
+    pub won: u64,
+    pub lost: u64,
+    /// Unix seconds of their last counted game.
+    pub last_at: u64,
+}
+
+impl Versus {
+    pub fn check(&self) -> Result<()> {
+        if self.won.saturating_add(self.lost) == 0 {
+            return Err(Error::InvalidField("versus"));
+        }
+        Ok(())
+    }
+}
+
+/// One player's card in a look-up answer. Each member after `marks` is
+/// written only when there is something to say.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlayerCard {
     pub account: CardAccount,
@@ -380,13 +554,64 @@ pub struct PlayerCard {
     #[serde(default)]
     pub fighters: Vec<CardFighter>,
     pub relation: Relation,
-    /// The milestones for the awards the player wears; absent from a bridge
-    /// that does not send them, and then every award reads as locked.
+    /// The counts behind the awards: games, wins and best streak exactly, the
+    /// highest class, and the rival and opponent milestones. Absent from a
+    /// bridge that does not send them, and then every award reads as locked.
     #[serde(default, skip_serializing_if = "AwardMarks::is_empty")]
     pub marks: AwardMarks,
+    /// The name their game last sent (`Listing`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    /// Their main fighter, 0 to `FIGHTERS` - 1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub main: Option<u8>,
+    /// Their class, as a friends state shows one: absent while the bridge
+    /// hides classes and for a player who does not take part in ranking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub badge: Option<SkillBadge>,
+    /// When they came to Ember, in unix seconds: the first second of that month.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub since: Option<u64>,
+    /// The award families they wear.
+    #[serde(default, skip_serializing_if = "Worn::is_empty")]
+    pub worn: Worn,
+    /// The award families they show, 0 to `MAX_PINS`; empty is Automatic.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pins: Vec<String>,
+    /// How they play.
+    #[serde(default, skip_serializing_if = "Style::is_empty")]
+    pub style: Style,
+    /// The caller's record against them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub versus: Option<Versus>,
+    /// The friendship's id (`fr_`), when `relation` is `friend`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub friend: Option<String>,
 }
 
 impl PlayerCard {
+    /// A card with the points of `account`, no fighters and nothing else.
+    pub fn bare(account: CardAccount, relation: Relation) -> Self {
+        Self {
+            account,
+            fighters: Vec::new(),
+            relation,
+            marks: AwardMarks::default(),
+            name: None,
+            country: None,
+            main: None,
+            badge: None,
+            since: None,
+            worn: Worn::default(),
+            pins: Vec::new(),
+            style: Style::default(),
+            versus: None,
+            friend: None,
+        }
+    }
+
     pub fn check(&self) -> Result<()> {
         self.account.check()?;
         self.marks.check()?;
@@ -398,7 +623,31 @@ impl PlayerCard {
         {
             return Err(Error::InvalidField("fighters"));
         }
-        self.fighters.iter().try_for_each(CardFighter::check)
+        self.fighters.iter().try_for_each(CardFighter::check)?;
+        if self.name.as_deref().is_some_and(|name| !is_player_name(name)) {
+            return Err(Error::InvalidField("name"));
+        }
+        if self.country.as_deref().is_some_and(|country| !is_country(country)) {
+            return Err(Error::InvalidField("country"));
+        }
+        if self.main.is_some_and(|main| main >= FIGHTERS) {
+            return Err(Error::InvalidField("main"));
+        }
+        if let Some(badge) = &self.badge {
+            badge.check()?;
+        }
+        self.worn.check()?;
+        if self.pins.len() > MAX_PINS || !self.pins.iter().all(|pin| is_family_id(pin)) {
+            return Err(Error::InvalidField("pins"));
+        }
+        self.style.check()?;
+        if let Some(versus) = &self.versus {
+            versus.check()?;
+        }
+        if self.friend.as_deref().is_some_and(|id| !is_prefixed_id(id, "fr")) {
+            return Err(Error::InvalidField("friend"));
+        }
+        Ok(())
     }
 }
 
@@ -426,6 +675,137 @@ impl CardAnswers {
     }
 }
 
+/// `PUT /v1/cards/me`: what the caller's card shows, replacing the whole of
+/// it. Answered with 204. The listing is the one the rankings take, and a
+/// card saved without `main`, `worn`, `pins` or `style` says none of them.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CardSave {
+    pub listing: Listing,
+    /// 0 to `FIGHTERS` - 1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub main: Option<u8>,
+    #[serde(default, skip_serializing_if = "Worn::is_empty")]
+    pub worn: Worn,
+    /// 0 to `MAX_PINS` distinct family ids; empty is Automatic.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pins: Vec<String>,
+    #[serde(default, skip_serializing_if = "Style::is_empty")]
+    pub style: Style,
+}
+
+impl CardSave {
+    pub fn check(&self) -> Result<()> {
+        self.listing.check()?;
+        if self.main.is_some_and(|main| main >= FIGHTERS) {
+            return Err(Error::InvalidField("main"));
+        }
+        self.worn.check()?;
+        let distinct = self
+            .pins
+            .iter()
+            .enumerate()
+            .all(|(at, pin)| !self.pins[..at].contains(pin));
+        if self.pins.len() > MAX_PINS || !distinct || !self.pins.iter().all(|pin| is_family_id(pin))
+        {
+            return Err(Error::InvalidField("pins"));
+        }
+        self.style.check_save()
+    }
+}
+
+/// `POST /v1/cards/search`: players by name or by friend code. Exactly one
+/// of the two.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CardSearch {
+    /// 2 to 32 bytes after trimming, on one line.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// A friend code as a player types one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+}
+
+impl CardSearch {
+    /// `name`, trimmed, as a search reads it.
+    pub fn trimmed_name(&self) -> Option<&str> {
+        self.name.as_deref().map(str::trim)
+    }
+
+    pub fn check(&self) -> Result<()> {
+        match (&self.name, &self.code) {
+            (Some(_), None) => {
+                let name = self.trimmed_name().unwrap_or_default();
+                if name.len() >= MIN_SEARCH_NAME
+                    && name.len() <= MAX_HOST_NAME
+                    && is_single_line(name, MAX_HOST_NAME)
+                {
+                    Ok(())
+                } else {
+                    Err(Error::InvalidField("name"))
+                }
+            }
+            (None, Some(code)) if parse_friend_code(code).is_some() => Ok(()),
+            (None, Some(_)) => Err(Error::InvalidField("code")),
+            _ => Err(Error::InvalidField("search")),
+        }
+    }
+}
+
+/// One player a search found: enough to list them and to open their card.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchHit {
+    /// A fresh card token (`CARD_PREFIX`), valid `CARD_VALID_SECS`.
+    pub card: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub main: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub badge: Option<SkillBadge>,
+    /// The first second of the month they came to Ember.
+    pub since: u64,
+}
+
+impl SearchHit {
+    pub fn check(&self) -> Result<()> {
+        if !is_card_token(&self.card) {
+            return Err(Error::InvalidField("card"));
+        }
+        if !is_player_name(&self.name) {
+            return Err(Error::InvalidField("name"));
+        }
+        if self.country.as_deref().is_some_and(|country| !is_country(country)) {
+            return Err(Error::InvalidField("country"));
+        }
+        if self.main.is_some_and(|main| main >= FIGHTERS) {
+            return Err(Error::InvalidField("main"));
+        }
+        self.badge.as_ref().map_or(Ok(()), SkillBadge::check)
+    }
+}
+
+/// The answer to a `CardSearch`: at most `MAX_SEARCH` players, and whether
+/// more matched. A name's exact matches (any case) come first, then names
+/// that begin with it, each most recently updated first.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchAnswer {
+    pub players: Vec<SearchHit>,
+    #[serde(default)]
+    pub more: bool,
+}
+
+impl SearchAnswer {
+    pub fn check(&self) -> Result<()> {
+        if self.players.len() > MAX_SEARCH {
+            return Err(Error::InvalidField("players"));
+        }
+        self.players.iter().try_for_each(SearchHit::check)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use serde::de::DeserializeOwned;
@@ -434,6 +814,7 @@ mod tests {
     use super::*;
 
     const FRIEND: &str = "fr_11111111-1111-4111-8111-111111111111";
+    const REQUEST: &str = "rq_11111111-1111-4111-8111-111111111111";
 
     fn read<T: DeserializeOwned>(value: &Value) -> T {
         serde_json::from_value(value.clone()).unwrap()
@@ -741,12 +1122,35 @@ mod tests {
             );
         }
 
+        // A request the caller received and a friend code name a player too.
+        let more = json!({"cards": [{"request": REQUEST}, {"code": "4f2a 91cx"}]});
+        let lookup: CardLookup = read(&more);
+        assert_eq!(
+            lookup.cards,
+            vec![
+                CardSelector::Request(REQUEST.into()),
+                CardSelector::Code("4f2a 91cx".into())
+            ]
+        );
+        assert!(lookup.check().is_ok());
+        assert_eq!(serde_json::to_value(&lookup).unwrap(), more);
+        for (selector, field) in [
+            (CardSelector::Request(FRIEND.into()), "request"),
+            (CardSelector::Request("rq_x".into()), "request"),
+            (CardSelector::Code("4F2A-91C".into()), "code"),
+            (CardSelector::Code("4F2A-91CXX".into()), "code"),
+            (CardSelector::Code("4F2A-91C!".into()), "code"),
+            (CardSelector::Code(String::new()), "code"),
+        ] {
+            assert_eq!(selector.check(), Err(Error::InvalidField(field)), "{selector:?}");
+        }
+
         // A selector names one thing, and nothing it does not know.
         refuses_extra::<CardLookup>(&wire, "");
         for bad in [
             json!({"cards": [{"card": "c1.abc", "friend": FRIEND}]}),
             json!({"cards": [{"card": "c1.abc", "extra": 1}]}),
-            json!({"cards": [{"code": "c1.abc"}]}),
+            json!({"cards": [{"name": "c1.abc"}]}),
             json!({"cards": [{}]}),
             json!({"cards": [{"card": 1}]}),
         ] {
@@ -782,12 +1186,7 @@ mod tests {
 
         // A card with nothing played still carries its account and an empty
         // list of fighters.
-        let empty = PlayerCard {
-            account: CardAccount { points: 0, tier: 0 },
-            fighters: vec![],
-            relation: Relation::Sent,
-            marks: AwardMarks::default(),
-        };
+        let empty = PlayerCard::bare(CardAccount { points: 0, tier: 0 }, Relation::Sent);
         assert_eq!(
             serde_json::to_string(&empty).unwrap(),
             r#"{"account":{"points":0,"tier":0},"fighters":[],"relation":"sent"}"#
@@ -835,10 +1234,8 @@ mod tests {
             tier,
         };
         let card = |fighters: Vec<CardFighter>| PlayerCard {
-            account: CardAccount { points: 1, tier: 0 },
             fighters,
-            relation: Relation::None,
-            marks: AwardMarks::default(),
+            ..PlayerCard::bare(CardAccount { points: 1, tier: 0 }, Relation::None)
         };
         assert!(
             card(vec![fighter(0, 1, 0), fighter(43, 90_000, 4)])
@@ -850,13 +1247,7 @@ mod tests {
             assert!(card(vec![bad]).check().is_err(), "{bad:?}");
         }
         assert_eq!(
-            PlayerCard {
-                account: CardAccount { points: 1, tier: 5 },
-                fighters: vec![],
-                relation: Relation::None,
-                marks: AwardMarks::default(),
-            }
-            .check(),
+            PlayerCard::bare(CardAccount { points: 1, tier: 5 }, Relation::None).check(),
             Err(Error::InvalidField("tier"))
         );
         for unordered in [
@@ -921,22 +1312,24 @@ mod tests {
     }
 
     #[test]
-    fn a_card_carries_marks_never_counts() {
+    fn a_card_carries_the_counts_behind_the_awards() {
         let bare = json!({"account": {"points": 2, "tier": 0}, "fighters": [], "relation": "none"});
         let card: PlayerCard = read(&bare);
         assert!(card.marks.is_empty());
         assert_eq!(serde_json::to_value(&card).unwrap(), bare);
 
+        // Games, wins and the best streak are the counts themselves, so a
+        // card's record cells show what the player has done.
         let marked = json!({"account": {"points": 2, "tier": 0}, "fighters": [], "relation": "none",
-            "marks": {"games": 100, "wins": 50, "streak": 5, "class": 6}});
+            "marks": {"games": 137, "wins": 61, "streak": 7, "class": 6, "rival": 50}});
         let card: PlayerCard = read(&marked);
         assert_eq!(
             card.marks,
-            AwardMarks { games: 100, wins: 50, streak: 5, class: 6, ..AwardMarks::default() }
+            AwardMarks { games: 137, wins: 61, streak: 7, class: 6, rival: 50, opponents: 0 }
         );
         assert!(card.check().is_ok());
         assert_eq!(serde_json::to_value(&card).unwrap(), marked);
-        // A mark of 0 is not written; a member a later bridge adds is ignored.
+        // A count of 0 is not written; a member a later bridge adds is ignored.
         let sparse = PlayerCard {
             marks: AwardMarks { games: 1, ..AwardMarks::default() },
             ..card.clone()
@@ -950,5 +1343,272 @@ mod tests {
         let mut bad = card;
         bad.marks.class = SKILL_BANDS + 1;
         assert_eq!(bad.check(), Err(Error::InvalidField("class")));
+    }
+
+    fn full_card() -> Value {
+        json!({"account": {"points": 2100, "tier": 2},
+            "fighters": [{"fighter": 3, "points": 1986, "tier": 3}], "relation": "friend",
+            "marks": {"games": 1200, "wins": 700, "streak": 9, "class": 7},
+            "name": "Player 2", "country": "FR", "main": 5,
+            "badge": {"band": 7, "settled": true}, "since": 1748736000,
+            "worn": {"title": "matches", "icon": "streak"}, "pins": ["rank", "wins"],
+            "style": {"device": 2, "link": 1, "region": "euc1", "looking": 34},
+            "versus": {"won": 4, "lost": 3, "last_at": 1731000000}, "friend": FRIEND})
+    }
+
+    #[test]
+    fn a_card_says_what_its_player_shows_and_only_what_there_is() {
+        let wire = full_card();
+        let card: PlayerCard = read(&wire);
+        assert!(card.check().is_ok());
+        assert_eq!(card.name.as_deref(), Some("Player 2"));
+        assert_eq!(card.main, Some(5));
+        assert_eq!(card.since, Some(1_748_736_000));
+        assert_eq!(card.worn.title.as_deref(), Some("matches"));
+        assert_eq!(card.pins, ["rank", "wins"]);
+        assert_eq!(card.style.device, 2);
+        assert_eq!(card.versus, Some(Versus { won: 4, lost: 3, last_at: 1_731_000_000 }));
+        assert_eq!(card.friend.as_deref(), Some(FRIEND));
+        assert_eq!(serde_json::to_value(&card).unwrap(), wire);
+        ignores_extra::<PlayerCard>(&wire, "");
+        ignores_extra::<PlayerCard>(&wire, "/style");
+        ignores_extra::<PlayerCard>(&wire, "/worn");
+        ignores_extra::<PlayerCard>(&wire, "/versus");
+
+        // Nothing to say, nothing written: not a name, a main, an empty
+        // worn, no pins, a style of zeros, a record before a first game.
+        let plain = PlayerCard::bare(CardAccount { points: 0, tier: 0 }, Relation::None);
+        assert_eq!(
+            serde_json::to_string(&plain).unwrap(),
+            r#"{"account":{"points":0,"tier":0},"fighters":[],"relation":"none"}"#
+        );
+        let zeros = PlayerCard {
+            style: Style { device: 0, link: 0, region: None, looking: 0 },
+            worn: Worn { title: None, icon: None },
+            ..plain.clone()
+        };
+        assert_eq!(zeros, plain);
+        // A style with only a region says only that, and a worn title alone.
+        let some = PlayerCard {
+            style: Style { region: Some("use1".into()), ..Style::default() },
+            worn: Worn { title: Some("rank".into()), icon: None },
+            ..plain
+        };
+        let wire = serde_json::to_value(&some).unwrap();
+        assert_eq!(wire["style"], json!({"region": "use1"}));
+        assert_eq!(wire["worn"], json!({"title": "rank"}));
+    }
+
+    #[test]
+    fn a_card_with_a_value_it_cannot_hold_is_refused() {
+        let good: PlayerCard = read(&full_card());
+        let broken = [
+            ("name", PlayerCard { name: Some(String::new()), ..good.clone() }),
+            ("name", PlayerCard { name: Some("a\nb".into()), ..good.clone() }),
+            ("country", PlayerCard { country: Some("fr".into()), ..good.clone() }),
+            ("main", PlayerCard { main: Some(FIGHTERS), ..good.clone() }),
+            ("family", PlayerCard {
+                worn: Worn { title: Some("Rank".into()), icon: None },
+                ..good.clone()
+            }),
+            ("pins", PlayerCard {
+                pins: ["a", "b", "c", "d", "e"].map(String::from).to_vec(),
+                ..good.clone()
+            }),
+            ("pins", PlayerCard { pins: vec!["x y".into()], ..good.clone() }),
+            ("region", PlayerCard {
+                style: Style { region: Some("EUC1".into()), ..Style::default() },
+                ..good.clone()
+            }),
+            ("versus", PlayerCard {
+                versus: Some(Versus { won: 0, lost: 0, last_at: 1 }),
+                ..good.clone()
+            }),
+            ("friend", PlayerCard { friend: Some("rq_x".into()), ..good.clone() }),
+            ("badge", PlayerCard {
+                badge: Some(SkillBadge::class(11, true)),
+                ..good.clone()
+            }),
+        ];
+        for (field, card) in broken {
+            assert_eq!(card.check(), Err(Error::InvalidField(field)), "{card:?}");
+        }
+        // A device, link or bit a later bridge adds is read, as not shown.
+        let later = PlayerCard {
+            style: Style { device: 9, link: 7, region: Some("sae1".into()), looking: 255 },
+            ..good
+        };
+        assert!(later.check().is_ok());
+        let wire = serde_json::to_value(&later).unwrap();
+        assert_eq!(read::<PlayerCard>(&wire), later);
+    }
+
+    fn save() -> CardSave {
+        read(&json!({"listing": {"name": "Player 1", "country": "DE"}, "main": 3,
+            "worn": {"title": "matches", "icon": "streak"}, "pins": ["rank", "wins"],
+            "style": {"device": 2, "link": 1, "region": "euc1", "looking": 34}}))
+    }
+
+    #[test]
+    fn a_card_save_is_checked_before_it_is_sent_or_stored() {
+        let good = save();
+        assert!(good.check().is_ok());
+        assert_eq!(
+            serde_json::to_value(&good).unwrap(),
+            json!({"listing": {"name": "Player 1", "country": "DE"}, "main": 3,
+                "worn": {"title": "matches", "icon": "streak"}, "pins": ["rank", "wins"],
+                "style": {"device": 2, "link": 1, "region": "euc1", "looking": 34}})
+        );
+        // Only the listing is needed; the rest says nothing.
+        let bare: CardSave = read(&json!({"listing": {"name": "Player 1"}}));
+        assert!(bare.check().is_ok());
+        assert_eq!(
+            serde_json::to_value(&bare).unwrap(),
+            json!({"listing": {"name": "Player 1"}})
+        );
+        // Four pins, two bits, the last device and link, every known region.
+        for region in crate::relay::REGIONS {
+            let mut each = good.clone();
+            each.style.region = Some(region.into());
+            assert!(each.check().is_ok(), "{region}");
+        }
+        let mut edge = good.clone();
+        edge.pins = ["a", "b", "c", "d"].map(String::from).to_vec();
+        edge.style = Style { device: 4, link: 2, region: None, looking: 0b10_0001 };
+        edge.main = Some(FIGHTERS - 1);
+        assert!(edge.check().is_ok());
+
+        let with = |change: &dyn Fn(&mut CardSave)| {
+            let mut card = good.clone();
+            change(&mut card);
+            card.check()
+        };
+        assert_eq!(
+            with(&|card| card.pins = ["a", "b", "c", "d", "e"].map(String::from).to_vec()),
+            Err(Error::InvalidField("pins"))
+        );
+        assert_eq!(
+            with(&|card| card.pins = vec!["rank".into(), "rank".into()]),
+            Err(Error::InvalidField("pins"))
+        );
+        assert_eq!(
+            with(&|card| card.pins = vec!["Rank".into()]),
+            Err(Error::InvalidField("pins"))
+        );
+        assert_eq!(
+            with(&|card| card.pins = vec![String::new()]),
+            Err(Error::InvalidField("pins"))
+        );
+        assert_eq!(
+            with(&|card| card.pins = vec!["a".repeat(MAX_FAMILY_ID + 1)]),
+            Err(Error::InvalidField("pins"))
+        );
+        assert!(with(&|card| card.pins = vec!["a".repeat(MAX_FAMILY_ID)]).is_ok());
+        assert_eq!(
+            with(&|card| card.worn.icon = Some("no_underscore".into())),
+            Err(Error::InvalidField("family"))
+        );
+        assert_eq!(
+            with(&|card| card.style.looking = 0b111),
+            Err(Error::InvalidField("looking"))
+        );
+        assert_eq!(
+            with(&|card| card.style.looking = 64),
+            Err(Error::InvalidField("looking"))
+        );
+        assert_eq!(
+            with(&|card| card.style.device = 5),
+            Err(Error::InvalidField("device"))
+        );
+        assert_eq!(
+            with(&|card| card.style.link = 3),
+            Err(Error::InvalidField("link"))
+        );
+        assert_eq!(
+            with(&|card| card.style.region = Some("mars".into())),
+            Err(Error::InvalidField("region"))
+        );
+        assert_eq!(
+            with(&|card| card.main = Some(FIGHTERS)),
+            Err(Error::InvalidField("main"))
+        );
+        assert_eq!(
+            with(&|card| card.listing.name = String::new()),
+            Err(Error::InvalidField("name"))
+        );
+        assert_eq!(
+            with(&|card| card.listing.country = Some("de".into())),
+            Err(Error::InvalidField("country"))
+        );
+        // A save names nothing it does not know.
+        let wire = serde_json::to_value(&good).unwrap();
+        refuses_extra::<CardSave>(&wire, "");
+        refuses_extra::<CardSave>(&wire, "/listing");
+    }
+
+    #[test]
+    fn a_search_asks_for_a_name_or_a_code_and_not_both() {
+        let name = |text: &str| CardSearch { name: Some(text.into()), code: None };
+        let code = |text: &str| CardSearch { name: None, code: Some(text.into()) };
+        for good in [name("Pl"), name("  Play  "), name(&"a".repeat(32)), code("4F2A-91CX"), code("4f2a 91cx")] {
+            assert!(good.check().is_ok(), "{good:?}");
+        }
+        assert_eq!(name("  Play ").trimmed_name(), Some("Play"));
+        for (bad, field) in [
+            (name("a"), "name"),
+            (name("  a  "), "name"),
+            (name(""), "name"),
+            (name(&"a".repeat(33)), "name"),
+            (name("two\nlines"), "name"),
+            (code("4F2A"), "code"),
+            (code(""), "code"),
+            (CardSearch::default(), "search"),
+            (
+                CardSearch { name: Some("Play".into()), code: Some("4F2A-91CX".into()) },
+                "search",
+            ),
+        ] {
+            assert_eq!(bad.check(), Err(Error::InvalidField(field)), "{bad:?}");
+        }
+        assert_eq!(serde_json::to_value(name("Play")).unwrap(), json!({"name": "Play"}));
+        assert_eq!(serde_json::to_value(code("4F2A-91CX")).unwrap(), json!({"code": "4F2A-91CX"}));
+        let wire = json!({"name": "Play"});
+        refuses_extra::<CardSearch>(&wire, "");
+    }
+
+    #[test]
+    fn a_search_answer_lists_at_most_twenty_players() {
+        let wire = json!({"players": [
+            {"card": "c1.abc", "name": "Player 2", "country": "FR", "main": 5,
+             "badge": {"band": 7, "settled": true}, "since": 1748736000},
+            {"card": "c1.abd", "name": "Player 3", "since": 1748736000}], "more": true});
+        let answer: SearchAnswer = read(&wire);
+        assert!(answer.check().is_ok());
+        assert_eq!(serde_json::to_value(&answer).unwrap(), wire);
+        assert!(answer.more);
+        ignores_extra::<SearchAnswer>(&wire, "");
+        ignores_extra::<SearchAnswer>(&wire, "/players/0");
+        // `more` is false when a bridge does not say.
+        let short: SearchAnswer = read(&json!({"players": []}));
+        assert!(!short.more && short.check().is_ok());
+
+        let hit = answer.players[1].clone();
+        let many = |count: usize| SearchAnswer { players: vec![hit.clone(); count], more: false };
+        assert!(many(MAX_SEARCH).check().is_ok());
+        assert_eq!(many(MAX_SEARCH + 1).check(), Err(Error::InvalidField("players")));
+        for (field, bad) in [
+            ("card", SearchHit { card: "fr_x".into(), ..hit.clone() }),
+            ("name", SearchHit { name: String::new(), ..hit.clone() }),
+            ("country", SearchHit { country: Some("x".into()), ..hit.clone() }),
+            ("main", SearchHit { main: Some(FIGHTERS), ..hit.clone() }),
+            ("badge", SearchHit { badge: Some(SkillBadge::class(11, true)), ..hit.clone() }),
+        ] {
+            assert_eq!(bad.check(), Err(Error::InvalidField(field)), "{bad:?}");
+        }
+        // A hit without its card or name is no answer.
+        assert!(serde_json::from_value::<SearchAnswer>(
+            json!({"players": [{"name": "Player 3", "since": 1}]})
+        )
+        .is_err());
     }
 }
