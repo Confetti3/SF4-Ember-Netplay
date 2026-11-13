@@ -473,10 +473,9 @@ int main() try {
             const auto beforeShortcut = selectionDraws; press(MenuInput::Fighter);
             Check(shell.Navigation().Screen() == "selection" && selectionDraws > beforeShortcut,
                 "X/F did not open selection for an unseated member");
-            // Home no longer lists Fighter select (it moved to Profile's card, 1ac4ed146): in a room the pick is the table's.
-            shell.Navigation().Home(); frame();
-            Check(shell.Navigation().Screen() == "room" && std::none_of(rows.begin(), rows.end(), [](const MenuEntry& entry) { return entry.id == "selection"; }),
-                "Home inside a room offers Fighter select or leaves the room");
+            // Fighter select moved from Home to Profile's card (1ac4ed146), which opens selection for an unseated member.
+            shell.Navigation().Home(); shell.Navigation().Push("card"); frame(); focus("selection"); press(MenuInput::Select);
+            Check(shell.Navigation().Screen() == "selection", "The Profile card did not open unseated selection");
             shell.Navigation().Home(); shell.Navigation().Push("room-table");
             view.canEditSelection = false; view.selectionLockReason = lockReason; frame();
             for (const auto* id : {"selection", "ultra", "appearance", "fighter-options"}) {
@@ -489,9 +488,9 @@ int main() try {
             }
             press(MenuInput::Fighter);
             Check(shell.Navigation().Screen() == "room-table", "Blocked unseated X/F opened selection");
-            // Home still lets a blocked member inspect the pick, a live watcher included.
-            shell.Navigation().Home(); frame(); focus("selection"); press(MenuInput::Select);
-            Check(shell.Navigation().Screen() == "selection", "A blocked unseated member could not inspect selection from Home");
+            // The Profile card still lets a blocked member inspect the pick, a live watcher included.
+            shell.Navigation().Home(); shell.Navigation().Push("card"); frame(); focus("selection"); press(MenuInput::Select);
+            Check(shell.Navigation().Screen() == "selection", "A blocked unseated member could not inspect selection from the Profile card");
             view.canEditSelection = true; view.selectionLockReason.clear();
         }
         view = seatedView;
