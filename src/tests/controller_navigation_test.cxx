@@ -1028,7 +1028,7 @@ void TakenPress(){
  Check(nav.Update({0,time+=.016},rows).kind==MenuAction::None&&nav.Update({MenuInput::Back,time+=.016},rows).kind==MenuAction::Close,"The next press did not go back");
 }
 void ScreenNames(){
- for(const char* screen:{"home","online","create","join","profile","main-character","selection","player","controllers","button-layout","button-layout-button","sent-reports","developer","discord-invitation","public-rooms","rankings","rankings-board","identity","identity-backup","linked-accounts","tournament-matches","tournament-desk","desk-event","desk-set","desk-draft","discord-connect","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report","awards","card","card-edit","fighters","friends","welcome"})
+ for(const char* screen:{"home","online","create","join","profile","main-character","selection","player","controllers","button-layout","button-layout-button","sent-reports","developer","discord-invitation","public-rooms","rankings","rankings-board","identity","identity-backup","linked-accounts","tournament-matches","tournament-desk","desk-event","desk-set","desk-draft","discord-connect","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report","awards","card","card-edit","card-pins","card-looking","fighters","friends","welcome"})
   if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);
 }
 void ProfileRecords(){

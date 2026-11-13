@@ -9,6 +9,7 @@
 // one builder a panel may share, so every row keeps its id and the shell's
 // handlers serve both.
 #include "ApplicationShell.hxx"
+#include "CardEditRows.hxx"
 #include "ControllersScreen.hxx"
 #include "LineIcons.hxx"
 #include "MenuRows.hxx"
@@ -137,6 +138,8 @@ public:
             {"controllers", "controllers.title", &ControllerList},
             {"profile", "profile.title", &Profile},
             {"card-edit", "card.edit", &CardEdit},
+            {card_edit::PinsScreen, "card.pins_row", &CardPins},
+            {card_edit::LookingScreen, "card.looking_row", &CardLooking},
             {"main-character", "profile.choose_main_title", &MainCharacters},
             {"sent-reports", "reports.sent_list", &SentReports},
             {"about", "about.title", &About}};
@@ -181,21 +184,45 @@ public:
     }
     // Edit card (from the Card tab): what the card shows, each row's own page,
     // keyboard or switch, beside the card as others see it. The title and icon
-    // are worn on the awards wall, which their rows open. In a room none of it
-    // changes.
+    // are worn on the awards wall, which their rows open. How the player plays
+    // and which awards show are CardEditRows. In a room none of it changes.
     static Entries CardEdit(Shell& s, const ShellView& v) {
+        const auto measured = CardMeasured(v);
+        const card_edit::Context card{s.preferences_, measured, v.canEditPreferences};
         const auto& p = s.preferences_;
         const auto award = [&](const char* label, const char* id, const std::string& worn, bool title) {
             auto row = Row(id, loc::T(label), v.canEditPreferences ? loc::T("card.award_detail") : loc::T("profile.leave_room_to_edit"), v.canEditPreferences);
             const auto found = WornAward(v, worn);
             row.value = found ? (title ? AwardTitle(found) : AwardIconName(*found.family)) : std::string(loc::T("card.none"));
-            row.hint = loc::T("screen.awards");
+            row.group = loc::T("card.awards");
             return row;
         };
-        auto main = MainRow(s);
+        auto name = NameRow(s, v), flag = Country(s, v).front(), main = MainRow(s);
         if (!v.canEditPreferences) { main.enabled = false; main.detail = loc::T("profile.leave_room_to_edit"); }
-        return {NameRow(s, v), Country(s, v).front(), main, award("card.title_row", "card-title", p.wornTitle, true),
-            award("card.icon_row", "card-icon", p.wornIcon, false), SteamRow(s, v)};
+        Entries rows = {name, flag, main, award("card.title_row", "card-title", p.wornTitle, true), award("card.icon_row", "card-icon", p.wornIcon, false), card_edit::PinsEntry(card)};
+        rows.back().group = loc::T("card.awards");
+        for (auto& row : card_edit::PlayEntries(card)) { row.group = loc::T("card.how_heading"); rows.push_back(std::move(row)); }
+        rows.push_back(card_edit::SteamEntry(card));
+        // A row that opens something says Choose, and a stepped one says nothing for Select (card_edit::PlayEntries).
+        for (auto& row : rows) if (row.hint.empty() && !row.adjustable) row.hint = loc::T("menu.choose");
+        return rows;
+    }
+    static Entries CardPins(Shell& s, const ShellView& v) {
+        const auto measured = CardMeasured(v);
+        return card_edit::PinEntries({s.preferences_, measured, v.canEditPreferences});
+    }
+    static Entries CardLooking(Shell& s, const ShellView& v) {
+        const auto measured = CardMeasured(v);
+        return card_edit::LookingEntries({s.preferences_, measured, v.canEditPreferences});
+    }
+    // What the game measures for the card: the controller, the connection, the relay region and the counters.
+    static card_edit::Measured CardMeasured(const ShellView& v) { return card_edit::MeasuredOf(v, AwardCounters(v)); }
+    // A card row's press, saved like any setting. One that passes a limit changes nothing and says why.
+    static void CardChanged(Shell& s, const card_edit::Change& change, const netplay::PlayerPreferences& prior) {
+        if (change.refusal) { s.Refuse(loc::T(change.refusal)); return; }
+        if (!change.changed) return;
+        if (!s.preferences_.Valid()) { s.preferences_ = prior; s.error_ = loc::T("error.invalid_value"); return; }
+        s.preferencesDirty_ = true; s.saveAt_ = ImGui::GetTime() + .45; s.error_.clear();
     }
     static Entries MainCharacters(Shell&, const ShellView& v) {
         Entries rows;
@@ -468,7 +495,27 @@ public:
         if (!error.empty() && SettingsTabOf(f.screen) == "tab-access") { status = error; tone = Tone::Error; }
     }
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
-        return FriendsPanel::SettingsRow(a.id) && f.shell.friends_.Activate(f.view, a, f.shell.menu_.navigation, submit);
+        if (FriendsPanel::SettingsRow(a.id) && f.shell.friends_.Activate(f.view, a, f.shell.menu_.navigation, submit)) return true;
+        return CardActivate(f, a);
+    }
+    // Left or Right on the card's rows (CardEditRows), while the preferences can change.
+    bool Adjust(const ScreenFrame& f, const MenuAction& a) const override {
+        if (!card_edit::OnCardScreen(f.screen) || !card_edit::Owns(a.id)) return false;
+        if (!f.view.canEditPreferences) return true;
+        auto& s = f.shell;
+        const auto prior = s.preferences_;
+        CardChanged(s, card_edit::Adjust(s.preferences_, CardMeasured(f.view), a.id, a.delta), prior);
+        return true;
+    }
+    // Select on the card's rows: the two that open a page, and the switches, which it flips.
+    static bool CardActivate(const ScreenFrame& f, const MenuAction& a) {
+        if (!card_edit::OnCardScreen(f.screen) || !card_edit::Owns(a.id)) return false;
+        auto& s = f.shell;
+        if (a.id == card_edit::PinsRow || a.id == card_edit::LookingRow) { s.menu_.navigation.Push(a.id); return true; }
+        if (!f.view.canEditPreferences) return true;
+        const auto prior = s.preferences_;
+        CardChanged(s, card_edit::Press(s.preferences_, CardMeasured(f.view), a.id), prior);
+        return true;
     }
     bool ReportsSave(const std::string& screen) const override {
         // About and the sent reports have no Saved line.
@@ -506,6 +553,9 @@ public:
         Shell* s = &f.shell; const ShellView* v = &f.view;
         if (f.screen == CountryPicker::Screen)
             return [s, v](const MenuEntry& e, ImVec2 min, ImVec2 max) { return s->countryPicker_.DrawRow(e, v->automaticCountry, min, max); };
+        // Each family on the pins page stands on its tier's plate.
+        if (f.screen == card_edit::PinsScreen)
+            return [v](const MenuEntry& e, ImVec2 min, ImVec2 max) { return card_edit::DrawPinRow(e, AwardCounters(*v), min, max); };
         // The main-character grid is fighter select's.
         if (f.screen == "main-character")
             return [v](const MenuEntry& e, ImVec2 min, ImVec2 max) {
@@ -530,15 +580,13 @@ public:
                 for (const auto& b : s->settingsPanels_)
                     if (b.panel->picture && std::any_of(b.rows.begin(), b.rows.end(), [&](const MenuEntry& e) { return e.id == id; })) { b.panel->picture(*s, *v); return; }
             };
-        // Edit card shows the card as others see it, with each change.
-        if (screen == "card-edit")
-            return [v](const std::string&) {
-                const float height = 160 * Scale();
-                auto card = OwnAsOthers(MenuPlayerCard());
-                card.art = v->preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait;
+        // Edit card and its pages show the card as others see it, with each change before it is saved.
+        if (card_edit::OnCardScreen(screen))
+            return [s, v](const std::string&) {
+                const auto card = ProfilePanel::OwnPanel(*v, s->preferences_);
                 const auto p = ImGui::GetCursorScreenPos();
                 const float width = ImGui::GetContentRegionAvail().x;
-                DrawOtherCard(ImGui::GetWindowDrawList(), {p, ImVec2(p.x + width, p.y + height)}, card);
+                const float height = DrawOtherCard(ImGui::GetWindowDrawList(), {p, ImVec2(p.x + width, p.y)}, card);
                 ImGui::Dummy(ImVec2(width, height));
             };
         if (screen == "profile" || screen == "main-character")
