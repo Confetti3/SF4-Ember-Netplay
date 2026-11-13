@@ -41,16 +41,16 @@ static void CatalogShape() {
 	EXPECT(CatalogSize == 9);
 	std::size_t total = 0;
 	for (const auto& family : Catalog) total += family.count;
-	EXPECT(total == LevelTotal() && total == 5 + 5 + 5 + 9 + 4 + 4 + 3 + 4 + 4);
+	EXPECT(total == LevelTotal() && total == 5 + 5 + 5 + 6 + 4 + 4 + 3 + 4 + 4);
 }
 
-// The rank family has a level for each class above the first, named by its
-// band, the top alone Ember and the lowest Ash.
+// The rank family has a level for each class from the one every player starts
+// in, named by its band, the top alone Ember and the lowest Ash.
 static void RankLevelsAreClasses() {
 	const auto& rank = Get("rank");
-	EXPECT(rank.count == static_cast<std::size_t>(sf4e::SkillBadge::Classes - 1));
+	EXPECT(rank.count == static_cast<std::size_t>(sf4e::SkillBadge::Classes - FirstRankBand + 1));
 	for (std::size_t i = 0; i < rank.count; ++i) {
-		EXPECT(rank.levels[i].band == static_cast<int>(i) + 2 && rank.levels[i].need == static_cast<std::uint64_t>(rank.levels[i].band));
+		EXPECT(rank.levels[i].band == static_cast<int>(i) + FirstRankBand && rank.levels[i].need == static_cast<std::uint64_t>(rank.levels[i].band));
 		EXPECT(std::string(rank.levels[i].title).empty() && std::string(rank.levels[i].how) == "award.rank.how");
 	}
 	EXPECT(rank.levels[0].tier == 0 && rank.levels[rank.count - 1].tier == 4 && rank.levels[rank.count - 2].tier == 3 && rank.levels[rank.count - 3].tier == 3);
@@ -68,7 +68,7 @@ static void Levels() {
 	EXPECT(needs("cast") == std::vector<std::uint64_t>({5, 15, 30, static_cast<std::uint64_t>(sf4e::selection::FighterCount)}) && tiers("cast") == "0123");
 	EXPECT(needs("friends") == std::vector<std::uint64_t>({1, 5, 15}) && tiers("friends") == "012");
 	EXPECT(needs("rival") == std::vector<std::uint64_t>({10, 50, 100, 250}) && needs("opponents") == std::vector<std::uint64_t>({10, 50, 200, 500}));
-	EXPECT(tiers("rank") == "000012334");
+	EXPECT(tiers("rank") == "012334");
 }
 
 // A level is reached from its need up and never below it; the top has no next level.
@@ -98,16 +98,16 @@ static void LevelOfAndNext() {
 	c = {};
 	c.wins = 50; c.bestStreak = 15; c.peakClass = 6; c.topFighterTier = 3; c.fightersPlayed = sf4e::selection::FighterCount;
 	c.friends = 5; c.rival = 100; c.opponents = 49;
-	EXPECT(LevelOf(c, Get("wins")) == 2 && LevelOf(c, Get("streak")) == 4 && LevelOf(c, Get("rank")) == 5 && LevelOf(c, Get("mastery")) == 3);
+	EXPECT(LevelOf(c, Get("wins")) == 2 && LevelOf(c, Get("streak")) == 4 && LevelOf(c, Get("rank")) == 2 && LevelOf(c, Get("mastery")) == 3);
 	EXPECT(LevelOf(c, Get("cast")) == 4 && LevelOf(c, Get("friends")) == 2 && LevelOf(c, Get("rival")) == 3 && LevelOf(c, Get("opponents")) == 1);
-	EXPECT(LevelOf(c, Get("matches")) == 0 && LevelsEarned(c) == 2 + 4 + 5 + 3 + 4 + 2 + 3 + 1);
+	EXPECT(LevelOf(c, Get("matches")) == 0 && LevelsEarned(c) == 2 + 4 + 2 + 3 + 4 + 2 + 3 + 1);
 	EXPECT(Counts(Get("wins")) && Counts(Get("friends")) && !Counts(Get("rank")) && !Counts(Get("mastery")));
-	// The starting class earns an award below B; the top class the last level.
+	// A class under the one players start in is no level; the top class is the last.
 	c = {};
-	c.peakClass = 1;
+	c.peakClass = FirstRankBand - 1;
 	EXPECT(LevelOf(c, Get("rank")) == 0);
 	c.peakClass = 10;
-	EXPECT(LevelOf(c, Get("rank")) == 9 && LevelAt(Get("rank"), 9)->tier == 4);
+	EXPECT(LevelOf(c, Get("rank")) == 6 && LevelAt(Get("rank"), 6)->tier == 4);
 	EXPECT(LevelsEarned({}) == 0);
 }
 

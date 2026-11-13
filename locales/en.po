@@ -8255,7 +8255,7 @@ msgid "awards.notice"
 msgstr "Award earned: {0}"
 
 msgid "awards.link_discord"
-msgstr "Link Discord to earn awards."
+msgstr "Connect Discord to earn awards."
 
 msgid "tier.ash"
 msgstr "Ash"

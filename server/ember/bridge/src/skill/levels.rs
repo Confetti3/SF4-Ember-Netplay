@@ -42,7 +42,7 @@ const ACCOUNT_TIER_STARTS: [u64; MAX_TIER as usize + 1] = [0, 500, 2000, 5000, 1
 /// that is not one of these reads as locked.
 const GAME_MARKS: [u64; 6] = [1, 10, 100, 500, 1000, 5000];
 const WIN_MARKS: [u64; 5] = [1, 50, 250, 1000, 2500];
-const STREAK_MARKS: [u64; 4] = [3, 5, 10, 20];
+const STREAK_MARKS: [u64; 5] = [3, 5, 10, 15, 20];
 const RIVAL_MARKS: [u64; 4] = [10, 50, 100, 250];
 const OPPONENT_MARKS: [u64; 4] = [10, 50, 200, 500];
 
@@ -457,7 +457,8 @@ mod tests {
             (3, 1, 1, 3),
             (9, 1, 1, 5),
             (10, 10, 1, 10),
-            (49, 10, 1, 10),
+            (15, 10, 1, 15),
+            (49, 10, 1, 20),
             (50, 10, 50, 20),
             (99, 10, 50, 20),
             (100, 100, 50, 20),

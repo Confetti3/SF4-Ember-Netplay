@@ -91,13 +91,14 @@ inline constexpr Level WinLevels[] = {SF4E_LEVEL("wins", 1, 0), SF4E_LEVEL("wins
 	SF4E_LEVEL("wins", 1000, 3), SF4E_LEVEL("wins", 2500, 4)};
 inline constexpr Level StreakLevels[] = {SF4E_LEVEL("streak", 3, 0), SF4E_LEVEL("streak", 5, 1), SF4E_LEVEL("streak", 10, 2),
 	SF4E_LEVEL("streak", 15, 3), SF4E_LEVEL("streak", 20, 4)};
-// USF4's own online classes from the second (D+) to the top: nobody needs an
-// award for the class they begin below. Ratings start at the floor of B (class
-// 5), and the classes are fixed rating ranges, so the colours follow the climb
-// above it: B and below Ash, B+ Copper, A Silver, A+ and Master Gold, and the
-// top class alone Ember.
-inline constexpr Level RankLevels[] = {SF4E_RANK(2, 0), SF4E_RANK(3, 0), SF4E_RANK(4, 0), SF4E_RANK(5, 0), SF4E_RANK(6, 1),
-	SF4E_RANK(7, 2), SF4E_RANK(8, 3), SF4E_RANK(9, 3), SF4E_RANK(10, 4)};
+// USF4's own online classes from B to the top. Ratings start at the floor of B
+// (class 5), so every rated player has held B: the classes under it are where
+// a player falls to, not something reached, and have no level. The classes are
+// fixed rating ranges, so the colours follow the climb: B Ash, B+ Copper, A
+// Silver, A+ and Master Gold, and the top class alone Ember.
+constexpr int FirstRankBand = 5;
+inline constexpr Level RankLevels[] = {SF4E_RANK(5, 0), SF4E_RANK(6, 1), SF4E_RANK(7, 2), SF4E_RANK(8, 3), SF4E_RANK(9, 3),
+	SF4E_RANK(10, 4)};
 // The frame tiers are the difficulty already: a level for each above Ash.
 inline constexpr Level MasteryLevels[] = {SF4E_LEVEL("mastery", 1, 1), SF4E_LEVEL("mastery", 2, 2), SF4E_LEVEL("mastery", 3, 3),
 	SF4E_LEVEL("mastery", 4, 4)};
