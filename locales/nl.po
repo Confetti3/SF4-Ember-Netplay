@@ -7731,6 +7731,18 @@ msgstr "Achtergrondafbeeldingen"
 msgid "settings.menu_artwork_detail"
 msgstr "Toont de eigen illustraties van de game achter het menu van Ember, ongeveer elke halve minuut een nieuwe. Uit houdt de effen donkere achtergrond."
 
+msgid "settings.screen_mode"
+msgstr "Schermmodus"
+
+msgid "settings.screen_mode_detail"
+msgstr "Hoe het spel wordt getoond bij de volgende start. Instelling van het spel volgt de eigen schermmodus-optie van het spel; Venster is een gewoon venster; Randloos is een venster zonder rand dat het scherm vult zonder de resolutie te wijzigen."
+
+msgid "settings.screen_mode_game"
+msgstr "Instelling van het spel"
+
+msgid "settings.screen_mode_window"
+msgstr "Venster"
+
 msgid "menu.pages"
 msgstr "Pagina's"
 

@@ -7731,6 +7731,18 @@ msgstr "Grafiki w tle"
 msgid "settings.menu_artwork_detail"
 msgstr "Pokazuje własne grafiki gry za menu Ember, nową mniej więcej co pół minuty. Wyłączenie zostawia jednolite ciemne tło."
 
+msgid "settings.screen_mode"
+msgstr "Tryb ekranu"
+
+msgid "settings.screen_mode_detail"
+msgstr "Jak gra jest wyświetlana przy następnym uruchomieniu. Ustawienie gry korzysta z własnej opcji trybu ekranu w grze; Okno to zwykłe okno; Bez ramki to okno bez ramki, które wypełnia ekran bez zmiany jego rozdzielczości."
+
+msgid "settings.screen_mode_game"
+msgstr "Ustawienie gry"
+
+msgid "settings.screen_mode_window"
+msgstr "Okno"
+
 msgid "menu.pages"
 msgstr "Strony"
 

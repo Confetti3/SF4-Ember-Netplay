@@ -7337,6 +7337,18 @@ msgstr "Background artwork"
 msgid "settings.menu_artwork_detail"
 msgstr "Shows the game's own artwork behind Ember's menu, a new picture about every half minute. Off keeps the plain dark background."
 
+msgid "settings.screen_mode"
+msgstr "Screen mode"
+
+msgid "settings.screen_mode_detail"
+msgstr "How the game's screen is shown the next time it starts. Game's setting follows the Screen Mode option in the game itself; Window is a plain window; Borderless is a window without a frame that fills the screen without changing its resolution."
+
+msgid "settings.screen_mode_game"
+msgstr "Game's setting"
+
+msgid "settings.screen_mode_window"
+msgstr "Window"
+
 msgid "menu.pages"
 msgstr "Pages"
 

@@ -56,6 +56,10 @@
 
 namespace sf4e { namespace ui {
 
+// The choices of a game's Screen mode row (ShellView::screenMode): 0 Game's
+// setting, 1 Window, 2 Borderless.
+inline constexpr int kScreenModes = 3;
+
 // The shared shell has no game, transport, filesystem or bootstrap dependency.
 // Its caller supplies a copied view and translates actions on the owning thread.
 struct ShellView {
@@ -213,6 +217,13 @@ struct ShellView {
     // menuArtworkShown, the game's saved choice. The game fills both (FillView);
     // SF4 Ember leaves the row out.
     bool offersMenuArtwork = false, menuArtworkShown = false;
+    // The game keeps a screen mode of its own that Ember can choose for the
+    // next start: Settings > Interface > Look offers its Screen mode row,
+    // which shows screenMode, the game's saved choice (kScreenModes). The
+    // game fills both (FillView); SF4 Ember leaves the row out, its
+    // Borderless being a Player-page preference.
+    bool offersScreenMode = false;
+    int screenMode = 0;
     ember::SettingsFeatures settingsFeatures = ember::SettingsFeatures::All();
     // What the Replays screen offers of a replay beyond watching, keeping and
     // showing it (the adapter's replay capabilities): the game's own replay
@@ -340,6 +351,10 @@ struct ShellAction : RuntimeRequest {
     // menu, or not, and keeps the choice (ShellGame::ShowMenuArtwork); nothing
     // is sent.
     std::optional<bool> showMenuArtwork;
+    // Settings' Screen mode row: the game keeps the choice, 0 to
+    // kScreenModes - 1, for its next start (ShellGame::SetScreenMode);
+    // nothing is sent.
+    std::optional<int> setScreenMode;
 };
 
 // Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and

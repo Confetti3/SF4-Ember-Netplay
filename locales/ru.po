@@ -7731,6 +7731,18 @@ msgstr "Иллюстрации на фоне"
 msgid "settings.menu_artwork_detail"
 msgstr "Показывает иллюстрации самой игры за меню Ember, новую примерно каждые полминуты. Если выключено, остаётся простой тёмный фон."
 
+msgid "settings.screen_mode"
+msgstr "Режим экрана"
+
+msgid "settings.screen_mode_detail"
+msgstr "Как игра отображается при следующем запуске. «Настройка игры» следует собственному параметру режима экрана в игре; «Окно» — обычное окно; «Без рамки» — окно без рамки, которое заполняет экран, не меняя его разрешения."
+
+msgid "settings.screen_mode_game"
+msgstr "Настройка игры"
+
+msgid "settings.screen_mode_window"
+msgstr "Окно"
+
 msgid "menu.pages"
 msgstr "Страницы"
 

@@ -7732,6 +7732,18 @@ msgstr "背景イラスト"
 msgid "settings.menu_artwork_detail"
 msgstr "Emberのメニューの背景にゲーム本編のイラストを表示し、約30秒ごとに切り替えます。オフにすると無地の暗い背景のままになります。"
 
+msgid "settings.screen_mode"
+msgstr "画面モード"
+
+msgid "settings.screen_mode_detail"
+msgstr "次回ゲーム起動時の画面の表示方法です。「ゲームの設定」はゲーム本体の画面モードの設定に従い、「ウィンドウ」は通常のウィンドウ、「ボーダーレス」は枠のないウィンドウで、解像度を変えずに画面全体を覆います。"
+
+msgid "settings.screen_mode_game"
+msgstr "ゲームの設定"
+
+msgid "settings.screen_mode_window"
+msgstr "ウィンドウ"
+
 msgid "menu.pages"
 msgstr "ページ"
 

@@ -246,6 +246,12 @@ public:
         if (v.offersMenuArtwork)
             rows.push_back(Value("menu-artwork", loc::T("settings.menu_artwork"), loc::T(v.menuArtworkShown ? "common.on" : "common.off"),
                 loc::T("settings.menu_artwork_detail")));
+        // A game's own Screen mode for its next start (ShellView::offersScreenMode).
+        if (v.offersScreenMode) {
+            const char* const names[kScreenModes] = {"settings.screen_mode_game", "settings.screen_mode_window", "player.borderless"};
+            rows.push_back(Value("screen-mode", loc::T("settings.screen_mode"), loc::T(names[(std::max)(0, (std::min)(kScreenModes - 1, v.screenMode))]),
+                loc::T("settings.screen_mode_detail")));
+        }
         return rows;
     }
     static Entries MatchHud(Shell& s, const ShellView& v) {

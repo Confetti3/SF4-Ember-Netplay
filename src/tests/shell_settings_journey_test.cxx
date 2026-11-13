@@ -290,6 +290,46 @@ void MenuArtworkRow() {
  h.view.offersMenuArtwork = false; h.Frame();
  Check(!drawn.Row("menu-artwork"), "The Background artwork row stayed for a game that does not draw its own");
 }
+// Look's Screen mode row is the game's (ShellView::offersScreenMode), after
+// Background artwork where that is offered: SF4's Look has neither. The row
+// shows the game's saved choice (Game's setting, Window, Borderless); Left and
+// Right step through the three and stop at the ends, ask the game with the
+// new number (no runtime command, no saved preference), and a press that
+// changes nothing sends nothing.
+void ScreenModeRow() {
+ using namespace sf4e;
+ Harness h; h.Frame();
+ Check(!ShellView{}.offersScreenMode && !h.view.offersScreenMode && ShellView{}.screenMode == 0, "Screen mode was offered by default");
+ Drawn drawn;
+ h.Screen("tab-interface/look");
+ Check(drawn.rows.size() == 1 && !drawn.Row("screen-mode"), "A game without a screen mode of its own was offered the row");
+ h.view.offersScreenMode = true; h.Frame();
+ const auto* row = drawn.Row("screen-mode");
+ Check(drawn.rows.size() == 2 && drawn.rows[1].id == "screen-mode" && row && row->label == loc::T("settings.screen_mode") &&
+  row->value == loc::T("settings.screen_mode_game") && row->detail == loc::T("settings.screen_mode_detail"), "Look's Screen mode row is missing or out of place");
+ h.view.offersMenuArtwork = true; h.Frame();
+ Check(drawn.rows.size() == 3 && drawn.rows[1].id == "menu-artwork" && drawn.rows[2].id == "screen-mode", "Screen mode did not follow Background artwork");
+ h.view.screenMode = 1; h.Frame();
+ Check(drawn.Value("screen-mode") == loc::T("settings.screen_mode_window"), "The Screen mode row did not show Window");
+ h.view.screenMode = 2; h.Frame();
+ Check(drawn.Value("screen-mode") == loc::T("player.borderless"), "The Screen mode row did not show Borderless");
+ const auto before = h.actions.size();
+ h.FocusOn("screen-mode");
+ h.Press(MenuInput::Right);
+ Check(h.actions.size() == before, "Right on Screen mode at Borderless asked again");
+ h.Press(MenuInput::Left);
+ Check(h.actions.size() == before + 1 && h.actions.back().setScreenMode && *h.actions.back().setScreenMode == 1 &&
+  h.actions.back().command.kind != netplay::CommandKind::SavePreferences, "Left on Screen mode did not ask the game for Window");
+ h.Frame();
+ Check(drawn.Value("screen-mode") == loc::T("player.borderless"), "The Screen mode row changed before the game kept the choice");
+ h.view.screenMode = 0; h.Frame();
+ h.Press(MenuInput::Left);
+ Check(h.actions.size() == before + 1, "Left on Screen mode at Game's setting asked again");
+ h.Press(MenuInput::Right);
+ Check(h.actions.size() == before + 2 && h.actions.back().setScreenMode && *h.actions.back().setScreenMode == 1, "Right on Screen mode did not ask the game for Window");
+ h.view.offersScreenMode = false; h.Frame();
+ Check(!drawn.Row("screen-mode"), "The Screen mode row stayed for a game that does not offer it");
+}
 }
 // Each journey owns a Harness and with it the ImGui context, so they run one after another.
 void SettingsJourneys() {
@@ -299,4 +339,5 @@ void SettingsJourneys() {
  SaveWhileHidden();
  RowsFollowTheGame();
  MenuArtworkRow();
+ ScreenModeRow();
 }

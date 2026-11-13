@@ -494,6 +494,12 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(a.id=="menu-artwork"){
   if(v.offersMenuArtwork&&(a.delta>0)!=v.menuArtworkShown){ShellAction art;art.showMenuArtwork=a.delta>0;if(!submit(std::move(art)))error_=loc::T("error.queue_failed");}
  }
+ // Settings' Screen mode row, likewise: Left and Right step through the
+ // choices and stop at the ends.
+ else if(a.id=="screen-mode"){
+  const int next=(std::max)(0,(std::min)(kScreenModes-1,v.screenMode+(a.delta>0?1:-1)));
+  if(v.offersScreenMode&&next!=v.screenMode){ShellAction mode;mode.setScreenMode=next;if(!submit(std::move(mode)))error_=loc::T("error.queue_failed");}
+ }
  else if(CreateAdjust(a)){}
  else{
   auto prior=preferences_;

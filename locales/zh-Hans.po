@@ -7732,6 +7732,18 @@ msgstr "背景插画"
 msgid "settings.menu_artwork_detail"
 msgstr "在 Ember 菜单后方显示游戏自带的插画，约每半分钟更换一张。关闭后保持纯色深色背景。"
 
+msgid "settings.screen_mode"
+msgstr "屏幕模式"
+
+msgid "settings.screen_mode_detail"
+msgstr "下次启动游戏时画面的显示方式。“游戏设置”沿用游戏自带的屏幕模式选项；“窗口”是普通窗口；“无边框”是不带边框、铺满屏幕的窗口，不会改变屏幕分辨率。"
+
+msgid "settings.screen_mode_game"
+msgstr "游戏设置"
+
+msgid "settings.screen_mode_window"
+msgstr "窗口"
+
 msgid "menu.pages"
 msgstr "页面"
 

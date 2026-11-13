@@ -161,6 +161,9 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
         // Settings' Background artwork row: the game keeps the choice; nothing
         // is sent, and a game that does not offer the row is never asked.
         if (action.showMenuArtwork) return view.offersMenuArtwork && game.ShowMenuArtwork(*action.showMenuArtwork);
+        // Settings' Screen mode row: the game keeps the choice for its next
+        // start; a game that does not offer the row is never asked.
+        if (action.setScreenMode) return view.offersScreenMode && game.SetScreenMode(*action.setScreenMode);
         // Training select's Start: the game enters Training with these once
         // its menu is idle (ShellGame::StartTraining). Not from a room or match, nor
         // in a game without Training.

@@ -7732,6 +7732,18 @@ msgstr "Ilustraciones de fondo"
 msgid "settings.menu_artwork_detail"
 msgstr "Muestra las ilustraciones del propio juego detrás del menú de Ember, una nueva cada medio minuto aproximadamente. Desactivado deja el fondo oscuro liso."
 
+msgid "settings.screen_mode"
+msgstr "Modo de pantalla"
+
+msgid "settings.screen_mode_detail"
+msgstr "Cómo se muestra el juego la próxima vez que se inicie. Ajuste del juego sigue la opción de modo de pantalla del propio juego; Ventana es una ventana normal; Sin bordes es una ventana sin marco que llena la pantalla sin cambiar su resolución."
+
+msgid "settings.screen_mode_game"
+msgstr "Ajuste del juego"
+
+msgid "settings.screen_mode_window"
+msgstr "Ventana"
+
 msgid "menu.pages"
 msgstr "Páginas"
 

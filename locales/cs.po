@@ -7731,6 +7731,18 @@ msgstr "Obrázky na pozadí"
 msgid "settings.menu_artwork_detail"
 msgstr "Zobrazuje za menu Emberu vlastní obrázky ze hry, přibližně každou půlminutu nový. Vypnutí ponechá prosté tmavé pozadí."
 
+msgid "settings.screen_mode"
+msgstr "Režim obrazovky"
+
+msgid "settings.screen_mode_detail"
+msgstr "Jak se hra zobrazí při příštím spuštění. Nastavení hry se řídí vlastní volbou režimu obrazovky ve hře; Okno je běžné okno; Bez okraje je okno bez rámečku, které vyplní obrazovku a nezmění její rozlišení."
+
+msgid "settings.screen_mode_game"
+msgstr "Nastavení hry"
+
+msgid "settings.screen_mode_window"
+msgstr "Okno"
+
 msgid "menu.pages"
 msgstr "Stránky"
 

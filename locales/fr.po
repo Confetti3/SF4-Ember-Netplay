@@ -7731,6 +7731,18 @@ msgstr "Illustrations en fond"
 msgid "settings.menu_artwork_detail"
 msgstr "Affiche les illustrations du jeu derrière le menu d'Ember, une nouvelle environ toutes les trente secondes. Désactivé, le fond reste sombre et uni."
 
+msgid "settings.screen_mode"
+msgstr "Mode d'affichage"
+
+msgid "settings.screen_mode_detail"
+msgstr "La façon dont le jeu s'affiche au prochain lancement. Réglage du jeu suit l'option de mode d'écran du jeu ; Fenêtre est une fenêtre ordinaire ; Sans bordure est une fenêtre sans cadre qui remplit l'écran sans changer sa résolution."
+
+msgid "settings.screen_mode_game"
+msgstr "Réglage du jeu"
+
+msgid "settings.screen_mode_window"
+msgstr "Fenêtre"
+
 msgid "menu.pages"
 msgstr "Pages"
 

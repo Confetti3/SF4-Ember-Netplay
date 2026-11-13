@@ -46,6 +46,11 @@ public:
     // behind the menu, or not, and keeps the choice. False when it was not
     // kept. A game that does not offer the row is never asked.
     virtual bool ShowMenuArtwork(bool) { return false; }
+    // Settings' Screen mode row (ShellView::offersScreenMode, which the game
+    // fills with screenMode in FillView): keeps the choice, 0 Game's setting,
+    // 1 Window, 2 Borderless, for the game's next start. False when it was
+    // not kept. A game that does not offer the row is never asked.
+    virtual bool SetScreenMode(int) { return false; }
 protected:
     ~ShellGame() = default;
 };

@@ -7731,6 +7731,18 @@ msgstr "Hintergrundbilder"
 msgid "settings.menu_artwork_detail"
 msgstr "Zeigt die eigenen Bilder des Spiels hinter Embers Menü, etwa jede halbe Minute ein neues. Aus behält den schlichten dunklen Hintergrund."
 
+msgid "settings.screen_mode"
+msgstr "Bildschirmmodus"
+
+msgid "settings.screen_mode_detail"
+msgstr "Wie das Spiel beim nächsten Start angezeigt wird. Einstellung des Spiels folgt der eigenen Bildschirmmodus-Option des Spiels; Fenster ist ein normales Fenster; Randlos ist ein Fenster ohne Rahmen, das den Bildschirm füllt, ohne seine Auflösung zu ändern."
+
+msgid "settings.screen_mode_game"
+msgstr "Einstellung des Spiels"
+
+msgid "settings.screen_mode_window"
+msgstr "Fenster"
+
 msgid "menu.pages"
 msgstr "Seiten"
 
