@@ -11,6 +11,7 @@
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/SpeechPreferenceJson.hxx"
+#include "../netplay/CardPreferenceJson.hxx"
 #include "../netplay/PublicRoomFilterJson.hxx"
 #define NOMINMAX
 #include <windows.h>
@@ -339,6 +340,29 @@ static void SpeechRoundTrips(const Path& root) {
     const auto odd=netplay::ReadSpeechPreferences({{"speech",{{"enabled",1},{"rate",11},{"volume",55},{"details",false}}}});
     CHECK(!odd.enabled&&odd.rate==0&&odd.volume==100&&!odd.details&&!odd.hints&&!odd.position&&odd.chime&&odd.chimeVolume==60&&!odd.introHeard&&odd.tick&&odd.describeUsed==0&&odd.Reminds());
     netplay::PlayerPreferences invalid; invalid.speech.volume=0; CHECK(!invalid.Valid());
+}
+
+// What Edit card keeps (the device, whether the connection and region show, what the player is looking for and the
+// award families the card shows) is read from the netplay section the way it was written; a profile from before the
+// card has none and loads as the defaults, and a value out of range loads as its default alone.
+static void CardPreferencesRoundTrip(const Path& root) {
+    using namespace sf4e;
+    const auto folder=root/L"card";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring()); std::string error;
+    netplay::PlayerPreferences prefs; prefs.cardDevice=3; prefs.cardShowLink=false; prefs.cardLooking=netplay::profiles::LookingRanked|netplay::profiles::LookingTeach; prefs.cardPins={"wins","cast"};
+    CHECK(prefs.Valid());
+    Json saved; netplay::WriteCardPreferences(prefs,saved);
+    CHECK(store.SaveLauncher(saved,error));
+    const auto document=Json::parse(Read(folder/L"settings.json"));
+    CHECK(document["netplay"]["cardDevice"]==3&&document["netplay"]["cardLooking"]==36&&document["netplay"]["cardPins"]==Json::array({"wins","cast"})&&!document["legacyLauncher"].contains("cardPins"));
+    Json loaded; CHECK(store.LoadLauncher(loaded,error));
+    netplay::PlayerPreferences back; netplay::ReadCardPreferences(loaded,back);
+    CHECK(back.cardDevice==3&&!back.cardShowLink&&back.cardShowRegion&&back.cardLooking==36&&back.cardPins==prefs.cardPins&&back.Valid());
+    netplay::PlayerPreferences fresh; netplay::ReadCardPreferences(Json::object(),fresh);
+    CHECK(fresh.cardDevice==0&&fresh.cardShowLink&&fresh.cardShowRegion&&fresh.cardLooking==0&&fresh.cardPins.empty());
+    netplay::PlayerPreferences odd; netplay::ReadCardPreferences({{"cardDevice",8},{"cardShowRegion",false},{"cardLooking",63},{"cardPins",{"wins","Bad","wins","rival"}}},odd);
+    CHECK(odd.cardDevice==0&&odd.cardShowLink&&!odd.cardShowRegion&&odd.cardLooking==3&&odd.cardPins==std::vector<std::string>({"wins","rival"})&&odd.Valid());
 }
 
 // The public rooms filter is one object in the netplay section. An older profile
@@ -883,6 +907,7 @@ int main() {
     ButtonPromptRoundTrips(root);
     CountryRoundTrips(root);
     SpeechRoundTrips(root);
+    CardPreferencesRoundTrip(root);
     RoomFilterRoundTrips(root);
     InterfaceScaleRange(root);
     ControllerLayerRoundTrip(root);
