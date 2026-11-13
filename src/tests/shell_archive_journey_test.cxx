@@ -318,7 +318,7 @@ void StatesJourney() {
 void TabsJourney() {
  using namespace sf4e;
  ui::ReplaysPanel panel;
- const ShellView plain;
+ ShellView plain;
  Check(panel.Tabs(plain).size()==2&&panel.Tabs(plain)[1].first==ui::ArchiveTab::Screen,"The Archive is not the tab after Matches when nothing else is");
  Archived a,b;a.path=std::filesystem::u8path("C:\\r\\a.emberreplay");b.path=std::filesystem::u8path("C:\\r\\b.emberreplay");
  a.names[0]=b.names[0]="Player 1";a.names[1]=b.names[1]="Player 2";a.time=5000;b.time=4800;

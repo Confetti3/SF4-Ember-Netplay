@@ -273,6 +273,38 @@ listing at `/v1/archive`. Tournament games are grouped by event and set.
 Online games are grouped by day; games between the same two players within
 30 minutes count as one set.
 
+## In the game
+
+Replays has an Archive tab (`src/ui/ArchiveTab.*`) that lists the same sets as
+the page, grouped the same way (`src/ui/ArchiveSets.hxx`; the in-game list
+splits online sets only by the 30 minute gap, not by day), with the page's
+filters: player or event, fighter, class, country, event, round and the
+order. It is read through the helper's `archive_list` op, which asks for one
+page of `GET /v1/archive` and answers the games, the sets' scores, the
+filter's choices and the cursor of the next page; the tab asks for the next
+page when the player reaches the end of the list. A filter that changes asks
+for the first page again, and the answer to a page that was asked for before is
+dropped (`src/netplay/ArchiveRequests.hxx`).
+
+The listing is open, so the op opens no session. It reads it where the
+approved bridge's archive is served from, in this order: under `/archive/` on
+the bridge's own host (staging, where `/v1/archive` itself is 404), the
+bridge's own route, and the `archive.` host beside a `bridge.` host
+(production). A 404 moves on to the next place; the place that answered is
+tried first afterwards.
+
+Watch now downloads a game with the `archive_fetch` op into
+`watching\<digest>.emberreplay` in Ember's replay folder and then asks for it
+to be watched as a replay link's file is. The op takes only the address a
+listing gave, on the origin of one of the places above and under the
+archive's own file names, and writes the file only once it is whole and is the
+game its address names. Only the game asked for last is kept in that folder;
+it is emptied when the game starts. The listing of the player's own matches
+does not read that folder. Watching puts the game into the game's own replay
+list, as it does for any replay link's file, and Ember's archive pass then
+keeps a copy of it among the player's matches, as it would for a link's file
+that is not in the archive already.
+
 ## Bridge configuration
 
 ```json
