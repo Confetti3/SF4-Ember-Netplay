@@ -91,7 +91,7 @@ async fn settle_rating(bridge: &Bridge, rating: f64) {
 
 #[tokio::test]
 async fn the_peak_class_never_drops_and_a_card_shows_it_only_while_taking_part() {
-    let (bridge, _fake, room_id, first, second) = two_players().await;
+    let (bridge, _fake, room_id, first, second) = two_players_showing_classes().await;
     // Each ticket shows the class the rating has reached (B+, then Grand
     // Master, then B+ again): the peak is the highest of them.
     for (rating, peak) in [(1650.0, 6), (2100.0, 10), (1650.0, 10)] {

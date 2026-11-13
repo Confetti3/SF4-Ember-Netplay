@@ -3,7 +3,7 @@
 //! share (`levels.rs`, `award_counters.rs`, `rival_card.rs`).
 use super::{
     Bridge, Player,
-    public_rooms::{open_room, player, send, start},
+    public_rooms::{open_room, player, send, start, start_showing_classes},
     sites::connect_discord,
     supervisor::{BUILD, ENDPOINT, Supervisor, report},
 };
@@ -20,7 +20,15 @@ pub const FRIEND: &str = "fr_11111111-1111-4111-8111-111111111111";
 /// A bridge with public rooms, two players with Discord accounts 100 and 200,
 /// and an open room both can join.
 pub async fn two_players() -> (Bridge, Supervisor, String, Player, Player) {
-    let (bridge, fake) = start().await;
+    two_players_on(start().await).await
+}
+
+/// `two_players` on a bridge that shows classes in tickets, as the ones that remember a class need.
+pub async fn two_players_showing_classes() -> (Bridge, Supervisor, String, Player, Player) {
+    two_players_on(start_showing_classes().await).await
+}
+
+async fn two_players_on((bridge, fake): (Bridge, Supervisor)) -> (Bridge, Supervisor, String, Player, Player) {
     let (first, second) = (player(&bridge, 1).await, player(&bridge, 2).await);
     connect_discord(&bridge, "100", &first).await;
     connect_discord(&bridge, "200", &second).await;
@@ -199,7 +207,8 @@ pub async fn cards(bridge: &Bridge, player: &Player, selectors: Json_) -> Json_ 
 
 /// `player`'s ticket for `room_id`, asking for a card token or not.
 pub async fn ticket(bridge: &Bridge, player: &Player, room_id: &str, card: bool) -> Json_ {
-    let mut body = json!({ "endpoint_id": ENDPOINT, "build_id": BUILD });
+    // A build that shows classes asks for the class (`skill_badge`); a bridge that does not show them ignores it.
+    let mut body = json!({ "endpoint_id": ENDPOINT, "build_id": BUILD, "skill_badge": true });
     if card {
         body["card"] = json!(true);
     }

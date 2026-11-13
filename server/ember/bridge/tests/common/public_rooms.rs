@@ -16,6 +16,20 @@ pub async fn start() -> (Bridge, Supervisor) {
     (bridge, fake)
 }
 
+/// `start`, with the bridge showing classes in room tickets (`rooms.skill_badges`).
+pub async fn start_showing_classes() -> (Bridge, Supervisor) {
+    let (fake, url) = fake_supervisor().await;
+    let bridge = Bridge::start_with(
+        |config| {
+            enable(config, url);
+            config.rooms.as_mut().unwrap().skill_badges = true;
+        },
+        secrets(),
+    )
+    .await;
+    (bridge, fake)
+}
+
 pub async fn player(bridge: &Bridge, byte: u8) -> Player {
     let mut player = bridge.player(byte);
     bridge.open_session(&mut player).await;
