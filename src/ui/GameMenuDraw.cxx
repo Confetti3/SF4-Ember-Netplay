@@ -131,6 +131,10 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, const MenuRow
 }
 
 bool MenuValueIsToggle(const MenuEntry& e) { return e.adjustable && (e.value == loc::T("common.on") || e.value == loc::T("common.off")); }
+std::string MenuAdjustHint(const MenuEntry& e) {
+    if (!e.adjustable || !e.enabled || MenuValueIsToggle(e)) return {};
+    return e.adjustHint.empty() ? std::string(loc::T("menu.adjust")) : e.adjustHint;
+}
 void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text) {
     const float s = Scale(), h = box.H(), y = box.min.y + (h - ImGui::GetFontSize()) * .5f;
     const auto& col = v2::Colors();
@@ -710,7 +714,7 @@ void GameMenu::DrawHintBar(Frame& f, v2::Box bar) {
         if (focused) { shown = *focused; shown.enabled = feedback_.Enabled(*focused); }
         if (const char* primary = MenuPrimaryHint(focused ? &shown : nullptr)) hint(MenuSelectGlyph(), primary, MenuInput::Select);
         if (!backInert) hint(MenuBackGlyph(), backHint.empty() ? loc::T("common.back") : backHint, MenuInput::Back);
-        if (shown.adjustable && !MenuValueIsToggle(shown) && shown.enabled) hint(KeyboardPrompts() ? "keys-horizontal" : "horizontal", loc::T("menu.adjust"), MenuInput::Right);
+        if (const std::string adjust = MenuAdjustHint(shown); !adjust.empty()) hint(KeyboardPrompts() ? "keys-horizontal" : "horizontal", adjust, MenuInput::Right);
     }
     if (!dialog) {
         for (const auto& h : shortcutHints) hint(h.glyph, h.label, h.press);
