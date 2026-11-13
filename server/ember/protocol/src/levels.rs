@@ -1,9 +1,11 @@
 //! Points: a player's own (`docs/design/FIGHTER_LEVELS.md`). Every Discord
 //! account has account points (BP) and points for each fighter it played (FP).
-//! Both are a grind value, never skill: games plus wins. The tier thresholds
-//! behind the frame colour live only in the bridge, so these types carry what
-//! a client needs to draw the points and their progress, and nothing of the
-//! rating.
+//! Both are a grind value, never skill: a counted game is 1 point, and a win
+//! against the same class or a higher one 1 more, so the points are between
+//! the games and the games plus the wins. The tier thresholds behind the
+//! frame colour and the bonus rule live only in the bridge, so these types
+//! carry what a client needs to draw the points and their progress, and
+//! nothing of the rating.
 //!
 //! Another player's card, the look-up that finds it and the profile routes
 //! are in `cards`, the counters behind the awards in `awards`; their types are
@@ -29,6 +31,18 @@ pub use crate::cards::*;
 pub const POINTS_FEATURE: &str = "points";
 /// `GET` the caller's `OwnLevels`.
 pub const POINTS_PATH: &str = "/v1/points/me";
+/// The capability of a bridge whose points follow the class bonus: a win
+/// earns its second point only against the same class or a higher one, so
+/// points can be fewer than games plus wins. Builds from before it refuse
+/// such points (they check `points == games + wins`), so the bridge answers
+/// `POINTS_PATH` with games plus wins, and the points as they are earned only
+/// to a build that asks `CLASS_BONUS_POINTS_PATH`, which a build does only of
+/// a bridge that lists this.
+pub const CLASS_BONUS_FEATURE: &str = "points_class_bonus";
+/// The query a build that reads class bonus points puts on `POINTS_PATH`.
+pub const CLASS_BONUS_QUERY: &str = "class_bonus=1";
+/// `POINTS_PATH` with `CLASS_BONUS_QUERY`.
+pub const CLASS_BONUS_POINTS_PATH: &str = "/v1/points/me?class_bonus=1";
 /// Fighters a player can have points for: 0 to 43, USF4's roster.
 pub const FIGHTERS: u8 = 44;
 /// The highest tier: tiers are 0 to `MAX_TIER`, Ash to Ember.
@@ -111,12 +125,14 @@ fn check_frame(points: u64, tier: u8, floor: u64, next: Option<u64>) -> Result<(
     }
 }
 
-/// `games + wins`, saturating: a win adds 2, a loss 1.
+/// A game is 1 point and a win at most 1 more (the class bonus), so the
+/// points are at least `games` and at most `games + wins`, saturating. Which
+/// wins earned the bonus only the bridge knows.
 fn check_counts(points: u64, games: u64, wins: u64) -> Result<()> {
     if wins > games {
         return Err(Error::InvalidField("wins"));
     }
-    if points != games.saturating_add(wins) {
+    if points < games || points > games.saturating_add(wins) {
         return Err(Error::InvalidField("points"));
     }
     Ok(())
@@ -126,7 +142,7 @@ fn check_counts(points: u64, games: u64, wins: u64) -> Result<()> {
 /// named fighters, so it can be 0 with no games.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OwnAccount {
-    /// `games + wins`.
+    /// `games` to `games + wins`: a win adds 1 with the class bonus.
     pub points: u64,
     /// The counted games and wins, and the counters beside them that the
     /// awards are reached from (`AwardCounts`). Flattened: on the wire they
@@ -167,7 +183,8 @@ impl OwnAccount {
 pub struct OwnFighter {
     /// 0 to `FIGHTERS` - 1.
     pub fighter: u8,
-    /// `games + wins`: a win adds 2, a loss 1.
+    /// `games` to `games + wins`: a game is 1 and a win with the class bonus
+    /// 1 more.
     pub points: u64,
     /// Counted games, at least 1.
     pub games: u64,
