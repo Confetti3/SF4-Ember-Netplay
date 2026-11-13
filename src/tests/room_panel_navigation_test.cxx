@@ -473,8 +473,10 @@ int main() try {
             const auto beforeShortcut = selectionDraws; press(MenuInput::Fighter);
             Check(shell.Navigation().Screen() == "selection" && selectionDraws > beforeShortcut,
                 "X/F did not open selection for an unseated member");
-            shell.Navigation().Home(); frame(); focus("selection"); press(MenuInput::Select);
-            Check(shell.Navigation().Screen() == "selection", "Home did not open unseated selection");
+            // Home no longer lists Fighter select (it moved to Profile's card, 1ac4ed146): in a room the pick is the table's.
+            shell.Navigation().Home(); frame();
+            Check(shell.Navigation().Screen() == "room" && std::none_of(rows.begin(), rows.end(), [](const MenuEntry& entry) { return entry.id == "selection"; }),
+                "Home inside a room offers Fighter select or leaves the room");
             shell.Navigation().Home(); shell.Navigation().Push("room-table");
             view.canEditSelection = false; view.selectionLockReason = lockReason; frame();
             for (const auto* id : {"selection", "ultra", "appearance", "fighter-options"}) {
