@@ -5,6 +5,7 @@
 //! bridge HTTP on its own bounded task set, then answers with a `tournament`
 //! event. A failure here is reported and never ends the helper, and nothing
 //! here waits on, or is waited on by, room or gameplay work (spec 18.3).
+mod archive;
 mod bridges;
 mod browser;
 mod builtin;
@@ -280,6 +281,20 @@ pub enum Request {
         match_id: String,
         path: String,
     },
+    /// A page of the public replay archive's listing, for the game's browser:
+    /// the filter and order in `query`, and the cursor of the page to go on
+    /// from.
+    ArchiveList {
+        bridge_id: String,
+        #[serde(default)]
+        query: archive::Query,
+    },
+    /// A game of that listing, written to `path` for the game to play.
+    ArchiveFetch {
+        bridge_id: String,
+        url: String,
+        path: String,
+    },
     /// Asks to watch a match this player does not play in: the room and its
     /// invitation, or why to wait (docs/design/MATCH_WATCH.md 5.3).
     MatchWatch {
@@ -382,6 +397,8 @@ requests! {
     ReplaySend => "replay_send", Bridge;
     ReplayArchive => "replay_archive", Bridge;
     ReplayPack => "replay_pack", Bridge;
+    ArchiveList => "archive_list", Bridge;
+    ArchiveFetch => "archive_fetch", Bridge;
     MatchWatch => "match_watch", Bridge;
     MatchUnwatch => "match_unwatch", Bridge;
 }
@@ -1160,6 +1177,14 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             match_id,
             path,
         } => replays::pack(shared, &bridge_id, &match_id, &path).await,
+        Request::ArchiveList { bridge_id, query } => {
+            archive::list(shared, &bridge_id, &query).await
+        }
+        Request::ArchiveFetch {
+            bridge_id,
+            url,
+            path,
+        } => archive::fetch(shared, &bridge_id, &url, &path).await,
         Request::MatchWatch {
             bridge_id,
             match_id,
@@ -1201,7 +1226,7 @@ mod tests {
                 ),
             }
         }
-        assert_eq!(seen.len(), 45);
+        assert_eq!(seen.len(), 47);
         let local: Vec<_> = REQUESTS
             .iter()
             .filter(|(_, lane)| *lane == Lane::Local)
