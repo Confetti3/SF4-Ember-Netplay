@@ -333,11 +333,12 @@ fn a_new_database_runs_the_librarys_files_then_the_1_6_files() {
     let mut connection = Connection::open_in_memory().unwrap();
     migrate(&mut connection, MIGRATIONS).unwrap();
     let versions: Vec<i64> = records(&connection).iter().map(|r| r.0).collect();
-    assert_eq!(&versions[55..], &[56, 57, 58, 59, 60, 61, 62, 63]);
+    assert_eq!(&versions[55..], &[56, 57, 58, 59, 60, 61, 62, 63, 64]);
     assert!(has_table(&connection, "fighter_levels"));
     assert!(has_table(&connection, "social_accounts"));
     assert!(has_table(&connection, "account_points"));
     assert!(has_table(&connection, "award_counters"));
+    assert!(has_table(&connection, "player_cards"));
 }
 
 #[test]
