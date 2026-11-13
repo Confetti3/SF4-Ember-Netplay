@@ -1,7 +1,8 @@
 //! The migrations of the levels: 060 keeps every rated game, sitting and
 //! rating it finds from a database at 056, and leaves behind a rated game
 //! whose room is gone; 062 adds the account points and keeps the fighter
-//! points. Each starts from a database as a bridge before it left it.
+//! points; 063 adds the award counters and starts them from what is kept.
+//! Each starts from a database as a bridge before it left it.
 use std::path::Path;
 
 use ember_bridge::{Db, testing::TempDir};
@@ -264,4 +265,75 @@ async fn migration_062_adds_account_points_and_keeps_the_fighter_points() {
         .query_row("SELECT COUNT(*) FROM account_points", [], |row| row.get(0))
         .unwrap();
     assert_eq!(rows, 1);
+}
+
+/// A database as a bridge from before 063 left it: this bridge's own ledger
+/// without the award counters.
+fn database_at_062(path: &Path) -> rusqlite::Connection {
+    drop(Db::open(path).unwrap());
+    let connection = rusqlite::Connection::open(path).unwrap();
+    connection
+        .execute_batch("DROP TABLE award_counters; DELETE FROM schema_migrations WHERE version = 63;")
+        .unwrap();
+    connection
+}
+
+#[tokio::test]
+async fn migration_063_starts_the_award_counters_from_what_is_kept() {
+    let dir = TempDir::new("award-counters-migration");
+    let path = dir.join("bridge.sqlite3");
+    {
+        let connection = database_at_062(&path);
+        connection
+            .execute_batch(
+                "INSERT INTO account_points (discord_user_id, games, wins, first_at, played_at)
+                   VALUES ('100', 4, 2, 1000, 2000), ('200', 3, 0, 1000, 2000);
+                 INSERT INTO skill_ratings
+                   (game, discord_user_id, rating, deviation, volatility, band, played_at)
+                   VALUES ('usf4', '100', 1650, 80, 0.06, 6, 2000),
+                          ('usf4', '300', 1500, 80, 0.06, 5, 2000),
+                          ('usf4', '400', 1500, 80, 0.06, 0, 2000);",
+            )
+            .unwrap();
+    }
+    drop(Db::open(&path).unwrap());
+
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let counters: Vec<(String, i64, i64, i64)> = connection
+        .prepare(
+            "SELECT discord_user_id, streak, best_streak, peak_band FROM award_counters
+             ORDER BY discord_user_id",
+        )
+        .unwrap()
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    // A win is a run of one and a class is the peak so far; an account that
+    // never won starts at 0, one with a class but no game keeps the class,
+    // and one still placing has no row.
+    assert_eq!(
+        counters,
+        vec![
+            ("100".to_owned(), 0, 1, 6),
+            ("200".to_owned(), 0, 0, 0),
+            ("300".to_owned(), 0, 0, 5),
+        ]
+    );
+    // A run never passes the best one, and a peak is a class.
+    for statement in [
+        "INSERT INTO award_counters VALUES ('500', 2, 1, 0)",
+        "INSERT INTO award_counters VALUES ('500', 0, 0, 11)",
+    ] {
+        assert!(connection.execute(statement, []).is_err(), "{statement}");
+    }
+    drop(connection);
+
+    // Opened again by this bridge, nothing runs twice.
+    drop(Db::open(&path).unwrap());
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let rows: i64 = connection
+        .query_row("SELECT COUNT(*) FROM award_counters", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(rows, 3);
 }

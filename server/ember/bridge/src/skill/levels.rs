@@ -11,11 +11,16 @@
 //! change or a client update. A card is public: it shows these points to
 //! anyone with the player's card token, whether or not the player takes part
 //! in ranking.
+//!
+//! The milestone awards (docs/design/AWARDS.md) read the same counts. What
+//! they need beyond them, the best run of wins and the highest class ever
+//! shown, is kept in `award_counters` and only goes up. Another player's card
+//! says how far those milestones are, by the marks below, never the counts.
 use ember_protocol::{
     EmberId,
     levels::{
-        CardAccount, CardFighter, MAX_TIER, OwnAccount, OwnFighter, OwnLevels, PlayerCard,
-        Relation,
+        AwardMarks, CardAccount, CardFighter, MAX_TIER, OwnAccount, OwnFighter, OwnLevels,
+        PlayerCard, Relation,
     },
 };
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -29,6 +34,25 @@ const TIER_STARTS: [u64; MAX_TIER as usize + 1] = [0, 200, 700, 1500, 2500];
 
 /// The account's own thresholds, for the points of every counted game.
 const ACCOUNT_TIER_STARTS: [u64; MAX_TIER as usize + 1] = [0, 500, 2000, 5000, 10000];
+
+/// The counts a card shows for the awards, each the largest of its marks the
+/// count has reached. They are the awards' own thresholds (`src/netplay/
+/// Awards.hxx`): a count between two marks shows the lower, so a card never
+/// gives away more than the milestone, and an award the card's viewer has
+/// that is not one of these reads as locked.
+const GAME_MARKS: [u64; 6] = [1, 10, 100, 500, 1000, 5000];
+const WIN_MARKS: [u64; 5] = [1, 50, 250, 1000, 2500];
+const STREAK_MARKS: [u64; 4] = [3, 5, 10, 20];
+
+/// The largest of `marks` (ascending) that `count` has reached; 0 for none.
+fn mark(marks: &[u64], count: u64) -> u64 {
+    marks
+        .iter()
+        .rev()
+        .copied()
+        .find(|mark| count >= *mark)
+        .unwrap_or(0)
+}
 
 /// Where the tiers of one kind of points begin.
 struct Tiers([u64; MAX_TIER as usize + 1]);
@@ -94,6 +118,8 @@ impl Counted {
             floor: ACCOUNT_TIERS.floor(tier),
             next: ACCOUNT_TIERS.next(tier),
             since: self.first_at,
+            best_streak: 0,
+            peak_class: 0,
         }
     }
 
@@ -167,14 +193,87 @@ pub(super) fn count_account(
     Ok(())
 }
 
+/// Counts the result of a game in `account`'s run of wins: a win goes on with
+/// it, a loss ends it, and the best run so far only ever rises.
+pub(super) fn count_streak(
+    tx: &Transaction<'_>,
+    account: &str,
+    won: bool,
+) -> Result<()> {
+    tx.execute(
+        "INSERT INTO award_counters (discord_user_id, streak, best_streak)
+         VALUES (?1, ?2, ?2)
+         ON CONFLICT (discord_user_id) DO UPDATE SET
+             streak = CASE WHEN ?2 = 1 THEN streak + 1 ELSE 0 END,
+             best_streak = MAX(best_streak, CASE WHEN ?2 = 1 THEN streak + 1 ELSE 0 END)",
+        params![account, u32::from(won)],
+    )?;
+    Ok(())
+}
+
+/// Remembers that `account` showed class `band` (1 to the top): its peak only
+/// rises, so an award for a class is not taken away when the class drops.
+pub(super) fn note_class(tx: &Transaction<'_>, account: &str, band: u8) -> Result<()> {
+    if band == 0 {
+        return Ok(());
+    }
+    tx.execute(
+        "INSERT INTO award_counters (discord_user_id, peak_band) VALUES (?1, ?2)
+         ON CONFLICT (discord_user_id) DO UPDATE SET peak_band = MAX(peak_band, ?2)",
+        params![account, band],
+    )?;
+    Ok(())
+}
+
+/// `account`'s best run of wins and highest class ever shown (0 for none).
+/// The class now is read too, so a peak the counters missed (a bridge from
+/// before them showed it) is not lower than the class itself.
+fn award_counts(tx: &Transaction<'_>, account: &str) -> Result<(u32, u8)> {
+    let (best_streak, peak): (u32, u8) = tx
+        .query_row(
+            "SELECT best_streak, peak_band FROM award_counters WHERE discord_user_id = ?1",
+            [account],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?
+        .unwrap_or((0, 0));
+    let shown: u8 = tx
+        .query_row(
+            "SELECT band FROM skill_ratings WHERE game = 'usf4' AND discord_user_id = ?1",
+            [account],
+            |row| row.get(0),
+        )
+        .optional()?
+        .unwrap_or(0);
+    Ok((best_streak, peak.max(shown)))
+}
+
+/// The marks of `account`'s card: its milestones in games, wins, win runs and
+/// class. A player who does not take part in ranking shows no class.
+fn marks(tx: &Transaction<'_>, account: &str) -> Result<AwardMarks> {
+    let counted = account_count(tx, account)?;
+    let (best_streak, peak) = award_counts(tx, account)?;
+    Ok(AwardMarks {
+        games: mark(&GAME_MARKS, counted.games),
+        wins: mark(&WIN_MARKS, counted.wins),
+        streak: mark(&STREAK_MARKS, u64::from(best_streak)) as u32,
+        class: if super::takes_part(tx, account)? { peak } else { 0 },
+    })
+}
+
 /// The points of the player as `ember_id`, for themselves: the account's and
 /// every fighter's.
 pub fn own(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<OwnLevels> {
     let Some(account) = account(tx, ember_id)? else {
         return Ok(OwnLevels::NoAccount {});
     };
+    let (best_streak, peak_class) = award_counts(tx, &account)?;
     Ok(OwnLevels::Counted {
-        account: account_count(tx, &account)?.own_account(),
+        account: OwnAccount {
+            best_streak,
+            peak_class,
+            ..account_count(tx, &account)?.own_account()
+        },
         fighters: fighter_counts(tx, &account)?
             .iter()
             .map(|(fighter, count)| count.own_fighter(*fighter))
@@ -202,6 +301,7 @@ pub fn card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
             .map(|(fighter, count)| count.card_fighter(*fighter))
             .collect(),
         relation: Relation::None,
+        marks: marks(tx, account)?,
     }))
 }
 
@@ -321,6 +421,32 @@ mod tests {
                 assert_eq!(tiers.next(tier as u8), Some(start));
             }
             assert_eq!(tiers.next(4), None);
+        }
+    }
+
+    #[test]
+    fn a_mark_is_the_largest_milestone_a_count_has_reached() {
+        for (count, games, wins, streak) in [
+            (0, 0, 0, 0),
+            (1, 1, 1, 0),
+            (2, 1, 1, 0),
+            (3, 1, 1, 3),
+            (9, 1, 1, 5),
+            (10, 10, 1, 10),
+            (49, 10, 1, 10),
+            (50, 10, 50, 20),
+            (99, 10, 50, 20),
+            (100, 100, 50, 20),
+            (4_999, 1000, 2500, 20),
+            (5_000, 5000, 2500, 20),
+            (u64::MAX, 5000, 2500, 20),
+        ] {
+            assert_eq!(mark(&GAME_MARKS, count), games, "{count} games");
+            assert_eq!(mark(&WIN_MARKS, count), wins, "{count} wins");
+            assert_eq!(mark(&STREAK_MARKS, count), streak, "{count} in a row");
+        }
+        for marks in [&GAME_MARKS[..], &WIN_MARKS[..], &STREAK_MARKS[..]] {
+            assert!(marks.windows(2).all(|pair| pair[0] < pair[1]));
         }
     }
 

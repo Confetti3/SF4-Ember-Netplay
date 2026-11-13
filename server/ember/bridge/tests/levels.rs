@@ -137,7 +137,8 @@ async fn account_points(bridge: &Bridge, account: &'static str) -> Option<(u64, 
 }
 
 /// `GET /v1/points/me` for `player`, with the account's and each fighter's
-/// `since` checked and left out.
+/// `since` checked and left out, and the account's award counters left out
+/// (`awards`).
 async fn own(bridge: &Bridge, player: &Player) -> Json_ {
     let (status, mut levels) = send(
         bridge,
@@ -156,6 +157,9 @@ async fn own(bridge: &Bridge, player: &Player) -> Json_ {
         let since = account.as_object_mut().unwrap().remove("since");
         assert_eq!(since.is_some(), games > 0, "{account}");
         assert!(since.is_none_or(|since| since.as_u64().unwrap() > 0));
+        let counters = account.as_object_mut().unwrap();
+        counters.remove("best_streak");
+        counters.remove("peak_class");
     }
     let fighters = levels
         .get_mut("fighters")
@@ -533,9 +537,11 @@ async fn a_player_who_does_not_take_part_earns_points_and_shows_them() {
         .await,
         json!([
             { "account": { "points": 2, "tier": 0 },
-              "fighters": [{ "fighter": 3, "points": 2, "tier": 0 }], "relation": "none" },
+              "fighters": [{ "fighter": 3, "points": 2, "tier": 0 }], "relation": "none",
+              "marks": { "games": 1, "wins": 1 } },
             { "account": { "points": 1, "tier": 0 },
-              "fighters": [{ "fighter": 7, "points": 1, "tier": 0 }], "relation": "none" }])
+              "fighters": [{ "fighter": 7, "points": 1, "tier": 0 }], "relation": "none",
+              "marks": { "games": 1 } }])
     );
 }
 
@@ -614,7 +620,8 @@ async fn a_card_token_rides_in_a_ticket_that_asks_and_opens_for_seven_days() {
     let rejoined = token(&bridge, &second, &room_id).await;
     assert_ne!(joined, rejoined);
     let card = json!({ "account": { "points": 1, "tier": 0 },
-        "fighters": [{ "fighter": 7, "points": 1, "tier": 0 }], "relation": "none" });
+        "fighters": [{ "fighter": 7, "points": 1, "tier": 0 }], "relation": "none",
+        "marks": { "games": 1 } });
     assert_eq!(
         cards(
             &bridge,
@@ -746,4 +753,119 @@ async fn levels_are_offered_with_public_rooms_and_answer_404_without() {
     assert_eq!(status, StatusCode::NOT_FOUND);
     let (status, _) = lookup(&bridge, &caller, json!([{ "friend": FRIEND }])).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+/// `GET /v1/points/me`'s raw account: its best run of wins and highest class.
+async fn awards(bridge: &Bridge, player: &Player) -> (u64, u64) {
+    let (status, levels) = send(
+        bridge,
+        Method::GET,
+        player.token(),
+        "198.51.100.7",
+        POINTS_PATH,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{levels}");
+    let account = &levels["account"];
+    (
+        account["best_streak"].as_u64().unwrap_or(0),
+        account["peak_class"].as_u64().unwrap_or(0),
+    )
+}
+
+#[tokio::test]
+async fn the_best_run_of_wins_only_rises_and_a_loss_ends_a_run() {
+    let (bridge, fake, room_id, first, second) = two_players().await;
+    assert_eq!(awards(&bridge, &first).await, (0, 0));
+    // Three wins in a row, then a loss, then two wins: the best is still 3.
+    let games = vec![
+        game(1, 0, &first, &second, None),
+        game(2, 0, &first, &second, None),
+        game(3, 0, &first, &second, None),
+        game(4, 0, &second, &first, None),
+        game(5, 0, &first, &second, None),
+        game(6, 0, &first, &second, None),
+    ];
+    play(&bridge, &fake, &room_id, games).await;
+    assert_eq!(awards(&bridge, &first).await.0, 3);
+    // The other player's best run is the one win between.
+    assert_eq!(awards(&bridge, &second).await.0, 1);
+    // The poll after reports the same games: nothing counts twice.
+    ember_bridge::poll_rooms(bridge.state()).await;
+    assert_eq!(awards(&bridge, &first).await.0, 3);
+
+    // The card shows the milestone the run reached, not the run: 3 is a mark,
+    // and the games and wins stay between the marks.
+    let card = token(&bridge, &first, &room_id).await;
+    let seen = cards(&bridge, &second, json!([{ "card": card }])).await;
+    assert_eq!(
+        seen[0]["marks"],
+        json!({ "games": 1, "wins": 1, "streak": 3 })
+    );
+}
+
+/// Gives Discord account 100 a settled rating of `rating` as of now, as the
+/// ratings of games would leave it.
+async fn settle_rating(bridge: &Bridge, rating: f64) {
+    let now = bridge.state().now();
+    bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO skill_ratings
+                   (game, discord_user_id, rating, deviation, volatility, band, played_at)
+                 VALUES ('usf4', '100', ?1, 80, 0.06, 0, ?2)
+                 ON CONFLICT (game, discord_user_id) DO UPDATE SET rating = ?1, played_at = ?2",
+                rusqlite::params![rating, now],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn the_peak_class_never_drops_and_a_card_shows_it_only_while_taking_part() {
+    let (bridge, _fake, room_id, first, second) = two_players().await;
+    // Each ticket shows the class the rating has reached (B+, then Grand
+    // Master, then B+ again): the peak is the highest of them.
+    for (rating, peak) in [(1650.0, 6), (2100.0, 10), (1650.0, 10)] {
+        settle_rating(&bridge, rating).await;
+        ticket(&bridge, &first, &room_id, true).await;
+        assert_eq!(awards(&bridge, &first).await.1, peak, "{rating}");
+    }
+    let card = token(&bridge, &first, &room_id).await;
+    let class = |seen: &Json_| seen[0]["marks"]["class"].as_u64();
+    assert_eq!(
+        class(&cards(&bridge, &second, json!([{ "card": card }])).await),
+        Some(10)
+    );
+    // Not taking part in ranking shows no class on the card, and the player's
+    // own answer keeps it.
+    sql(
+        &bridge,
+        "INSERT INTO ranking_choices (discord_user_id, ranked) VALUES ('100', 0)",
+    )
+    .await;
+    assert_eq!(
+        class(&cards(&bridge, &second, json!([{ "card": card }])).await),
+        None
+    );
+    assert_eq!(awards(&bridge, &first).await.1, 10);
+}
+
+#[tokio::test]
+async fn a_class_the_counters_missed_is_still_the_peak() {
+    // A class shown by a bridge from before the counters has no row; the
+    // class itself is the least the peak can be.
+    let (bridge, _fake, _room_id, first, _second) = two_players().await;
+    sql(
+        &bridge,
+        "INSERT INTO skill_ratings (game, discord_user_id, rating, deviation, volatility, band, played_at)
+         VALUES ('usf4', '100', 1650, 80, 0.06, 6, 1)",
+    )
+    .await;
+    assert_eq!(awards(&bridge, &first).await.1, 6);
 }
