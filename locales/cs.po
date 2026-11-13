@@ -8615,7 +8615,7 @@ msgid "notifications.none_detail"
 msgstr "Žádosti o přátelství, pozvánky a oznámení Emberu se zobrazí tady."
 
 msgid "home.news"
-msgstr "Novinky"
+msgstr "Novinky/Oznámení"
 
 msgid "news.heading"
 msgstr "NOVINKY"

@@ -8245,7 +8245,7 @@ msgid "notifications.none_detail"
 msgstr "Friend requests, invites and Ember's notices show here."
 
 msgid "home.news"
-msgstr "News"
+msgstr "News/Notifications"
 
 msgid "news.heading"
 msgstr "NEWS"

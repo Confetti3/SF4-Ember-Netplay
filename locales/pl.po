@@ -8615,7 +8615,7 @@ msgid "notifications.none_detail"
 msgstr "Zaproszenia do znajomych, zaproszenia do pokoju i powiadomienia Embera pojawiają się tutaj."
 
 msgid "home.news"
-msgstr "Aktualności"
+msgstr "Aktualności/Powiadomienia"
 
 msgid "news.heading"
 msgstr "AKTUALNOŚCI"

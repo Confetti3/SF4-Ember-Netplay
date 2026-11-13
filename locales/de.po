@@ -8615,7 +8615,7 @@ msgid "notifications.none_detail"
 msgstr "Freundschaftsanfragen, Einladungen und Hinweise von Ember erscheinen hier."
 
 msgid "home.news"
-msgstr "Neuigkeiten"
+msgstr "Neuigkeiten/Benachrichtigungen"
 
 msgid "news.heading"
 msgstr "NEUIGKEITEN"

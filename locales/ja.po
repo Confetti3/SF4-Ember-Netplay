@@ -8615,7 +8615,7 @@ msgid "notifications.none_detail"
 msgstr "フレンドリクエスト、招待、Ember からのお知らせがここに表示されます。"
 
 msgid "home.news"
-msgstr "ニュース"
+msgstr "ニュース/通知"
 
 msgid "news.heading"
 msgstr "ニュース"

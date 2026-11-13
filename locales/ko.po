@@ -8615,7 +8615,7 @@ msgid "notifications.none_detail"
 msgstr "친구 요청, 초대, Ember의 알림이 여기에 표시됩니다."
 
 msgid "home.news"
-msgstr "소식"
+msgstr "소식/알림"
 
 msgid "news.heading"
 msgstr "소식"

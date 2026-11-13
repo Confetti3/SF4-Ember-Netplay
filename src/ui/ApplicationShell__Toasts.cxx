@@ -249,7 +249,7 @@ const ScreenPanel& ApplicationShell::NotificationsOwner() {
 // What waits first, each as its source's own row, then each toast said, newest
 // first; one whose actions nobody took offers them at its row.
 std::vector<MenuEntry> ApplicationShell::NotificationRows(const ShellView& v,double now,std::string& title) {
- title=loc::T("home.notifications");
+ title=loc::T("home.news");
  std::vector<MenuEntry> rows;
  for(const auto* t:notices_.Listed()){
   if(t->Sourced()){if(auto row=friends_.RowOf(v,t->key))rows.push_back(std::move(*row));continue;}

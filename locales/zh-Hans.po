@@ -8615,7 +8615,7 @@ msgid "notifications.none_detail"
 msgstr "好友请求、邀请和 Ember 的提示会显示在这里。"
 
 msgid "home.news"
-msgstr "新闻"
+msgstr "新闻/通知"
 
 msgid "news.heading"
 msgstr "新闻"

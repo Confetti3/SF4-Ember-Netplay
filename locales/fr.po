@@ -8615,7 +8615,7 @@ msgid "notifications.none_detail"
 msgstr "Les demandes d’ami, les invitations et les avis d’Ember s’affichent ici."
 
 msgid "home.news"
-msgstr "Actualités"
+msgstr "Actualités/Notifications"
 
 msgid "news.heading"
 msgstr "ACTUALITÉS"

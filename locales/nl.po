@@ -8615,7 +8615,7 @@ msgid "notifications.none_detail"
 msgstr "Vriendschapsverzoeken, uitnodigingen en meldingen van Ember staan hier."
 
 msgid "home.news"
-msgstr "Nieuws"
+msgstr "Nieuws/Meldingen"
 
 msgid "news.heading"
 msgstr "NIEUWS"
