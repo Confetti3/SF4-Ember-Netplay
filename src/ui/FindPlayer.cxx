@@ -109,8 +109,8 @@ std::optional<player_opening::Opening> OpeningOfRow(const Page& page, const std:
     if (const auto at = RowKey<std::size_t>(row, HitPrefix)) {
         const auto* answer = AnswerOf(page);
         if (answer && *at < answer->players.size()) return player_opening::OpeningOf(answer->players[*at]);
-    } else if (const auto at = RowKey<std::size_t>(row, RecentPrefix)) {
-        if (page.recent && *at < page.recent->size()) return player_opening::OpeningOf((*page.recent)[*at]);
+    } else if (const auto place = RowKey<std::size_t>(row, RecentPrefix)) {
+        if (page.recent && *place < page.recent->size()) return player_opening::OpeningOf((*page.recent)[*place]);
     }
     return std::nullopt;
 }
