@@ -1,6 +1,7 @@
 // The player's card from their fighter points (docs/design/PLAYER_CARD.md,
 // View models): which fighters the strip shows and in what order, the main's
 // progress and the facts, the states without points, and how far the next tier is.
+#include "../ui/CardSets.hxx"
 #include "../ui/PlayerCard.hxx"
 #include "../common/Localization.hxx"
 #include <cstdio>
@@ -217,9 +218,241 @@ void Progress() {
     Check(ui::player_card::ProgressRows(view).size() == 1, "a card without a main has a row for it");
 }
 
+// ---- The card's view models (CardModel.hxx, CardSets.hxx) ----
+
+namespace pc = ui::player_card;
+namespace aw = netplay::awards;
+using pc::Chip;
+
+// No text on any size is under 13 px at 1.00x, and the sizes are the design's.
+void Metrics() {
+    for (const auto size : {pc::Size::Wide, pc::Size::Compact, pc::Size::Narrow})
+        Check(pc::MetricsOf(size).SmallestText() >= pc::TextFloor, "a card size has text under the floor");
+    Check(pc::TextFloor == 13.f, "the text floor is not 13 px");
+    Check(pc::MetricsOf(pc::Size::Wide).setRows == 5 && pc::MetricsOf(pc::Size::Compact).setRows == 3 && pc::MetricsOf(pc::Size::Narrow).setRows == 3, "the set rows are not five, three, three");
+    Check(pc::MetricsOf(pc::Size::Wide).hero == 440 && pc::MetricsOf(pc::Size::Wide).pip == 7, "the wide card's hero or pips are not the design's");
+    Check(pc::SizeOf(false, 838) == pc::Size::Wide && pc::SizeOf(false, 510) == pc::Size::Compact && pc::SizeOf(true, 900) == pc::Size::Narrow, "the size class is wrong");
+}
+
+// Plays and Looking for are two groups of chips; the Panel gives Region way first, then Connection, never the device or Looking for.
+void Chips() {
+    netplay::profiles::Style style;
+    style.device = netplay::profiles::Device::Stick;
+    style.link = netplay::profiles::Link::Wired;
+    style.region = "euc1";
+    style.looking = netplay::profiles::LookingLongSets | netplay::profiles::LookingTeach;
+    const auto plays = pc::PlaysChips(style);
+    Check(plays.size() == 3 && plays[0].kind == Chip::Kind::Device && plays[1].kind == Chip::Kind::Link && plays[2].kind == Chip::Kind::Region, "the Plays chips are not device, connection, region");
+    const auto looking = pc::LookingChips(style);
+    Check(looking.size() == 2 && looking[0].text == loc::T("style.long_sets") && looking[1].text == loc::T("style.teach"), "the Looking for chips are wrong");
+    Check(pc::PlaysChips({}).empty() && pc::LookingChips({}).empty(), "a style with nothing has chips");
+    const auto room = [](std::size_t most) { return [most](const std::vector<Chip>& chips) { return chips.size() <= most; }; };
+    Check(pc::GiveWay(plays, room(3)).size() == 3, "chips that fit gave way");
+    const auto two = pc::GiveWay(plays, room(2));
+    Check(two.size() == 2 && two[0].kind == Chip::Kind::Device && two[1].kind == Chip::Kind::Link, "Region did not give way first");
+    const auto one = pc::GiveWay(plays, room(1));
+    Check(one.size() == 1 && one[0].kind == Chip::Kind::Device, "Connection did not give way second");
+    Check(pc::GiveWay(plays, room(0)).size() == 1, "the device gave way");
+}
+
+aw::Counters Reached(std::uint64_t games, std::uint64_t wins, std::uint32_t streak, std::uint32_t peakClass) {
+    aw::Counters counters;
+    counters.games = games; counters.wins = wins; counters.bestStreak = streak; counters.peakClass = peakClass;
+    return counters;
+}
+
+// The shown families: the ones chosen that have a level, filled by tier, then progress, then the catalog; never one with no level.
+void Families() {
+    auto counters = Reached(1000, 250, 10, 8);
+    counters.fightersPlayed = 5; counters.topFighterTier = 3;
+    const auto automatic = pc::ShownFamilies(counters, {});
+    Check(automatic.size() == 4, "the showcase is not four families");
+    for (std::size_t i = 1; i < automatic.size(); ++i) Check(automatic[i - 1].tier >= automatic[i].tier, "the automatic families are not by tier, highest first");
+    for (const auto& tile : automatic) Check(tile.level > 0 && tile.family && !tile.title.empty(), "a family with no level is shown");
+    // A chosen family with a level goes first; one with none is skipped and the gap filled in the automatic order.
+    const auto chosen = pc::ShownFamilies(counters, {"cast", "friends", "streak"});
+    Check(chosen.size() == 4 && chosen[0].family->id == std::string("cast") && chosen[1].family->id == std::string("streak"), "the chosen families did not lead");
+    for (const auto& tile : chosen) Check(tile.family->id != std::string("friends"), "a pinned family with no level was shown");
+    // A card that has earned nothing shows nothing; the level is the counters', whatever is claimed.
+    Check(pc::ShownFamilies(aw::Counters{}, {"wins", "matches"}).empty(), "a family nobody reached is shown");
+    const auto few = pc::ShownFamilies(Reached(1, 0, 0, 0), {"wins"});
+    Check(few.size() == 1 && few[0].family->id == std::string("matches") && few[0].level == 1, "the level shown is not the counters'");
+    // A worn title or icon is drawn at the level the counters earn, and not at all at level 0.
+    netplay::profiles::Worn worn;
+    worn.title = "matches"; worn.icon = "rank";
+    const auto drawn = pc::WornOnCard(Reached(1000, 0, 0, 0), worn);
+    Check(drawn.title == pc::LevelTitle(aw::MatchLevels[3]) && drawn.titleTier == ui::v2::FrameTier(aw::MatchLevels[3].tier) && drawn.icon < 0, "a worn family is not drawn at the level the counters earn");
+    netplay::profiles::Worn nonsense;
+    nonsense.title = "nonsense"; nonsense.icon = "x";
+    Check(!pc::WornOnCard(aw::Counters{}, worn).Any() && !pc::WornOnCard(counters, nonsense).Any(), "a claim nobody earned is drawn");
+    // The totals: the friends family counts on the player's own card only.
+    const auto own = pc::AwardsOf(counters, {}, true), theirs = pc::AwardsOf(counters, {}, false);
+    const int friends = static_cast<int>(aw::Find("friends")->count);
+    Check(own.total == static_cast<int>(aw::LevelTotal()) && theirs.total == own.total - friends, "the awards' total is wrong for another's card");
+    counters.friends = 15;
+    Check(pc::AwardsOf(counters, {}, true).earned == pc::AwardsOf(counters, {}, false).earned + 3, "a friends count was counted on another's card");
+}
+
+// The record cells, own and another's, and the meter words at 0, mid and the top.
+void Record() {
+    auto counters = Reached(2840, 1164, 12, 7);
+    counters.fightersPlayed = 12;
+    const auto own = pc::RecordCells(counters, true), theirs = pc::RecordCells(counters, false);
+    Check(own.size() == 4 && own[0].value == "2840" && own[1].key == loc::T("card.win_rate") && own[1].value == "41%" && own[2].value == "12" && own[3].value == loc::Tf("card.of", 12, selection::FighterCount),
+        "the own record cells are wrong");
+    Check(theirs[1].key == loc::T("card.wins") && theirs[1].value == "1164", "another's record has a win rate");
+    Check(pc::RecordLine(counters) == loc::Tf("card.record_line", 2840, 1164, 12), "the Panel's record line is wrong");
+    netplay::levels::Level level;
+    Check(pc::MeterLine(level, false).words == loc::T("level.not_played"), "a fighter at 0 has tier words");
+    level.points = 1986; level.tier = 3; level.floor = 1500; level.next = 2500;
+    const auto mid = pc::MeterLine(level, false);
+    Check(mid.words == loc::Tf("card.tier_to", ui::v2::TierName(ui::v2::FrameTier(3)), 514, ui::v2::TierName(ui::v2::FrameTier(4))) && mid.meter && mid.part > .48f && mid.part < .49f,
+        "the meter words at mid are wrong");
+    level.tier = 4; level.floor = 2500; level.next = 0;
+    Check(pc::MeterLine(level, false).words == loc::Tf("card.tier_top", ui::v2::TierName(ui::v2::FrameTier(4))), "the meter words at the top are wrong");
+}
+
+netplay::levels::Card Another() {
+    netplay::levels::Card card;
+    card.name = "Player 2";
+    card.hasMain = true; card.main = 16;
+    card.account = {3120, 2};
+    card.fighters = {{3, 310, 1}, {16, 1640, 3}, {20, 720, 2}, {30, 90, 0}};
+    card.awards = Reached(1712, 941, 9, 6);
+    card.hasVersus = true; card.versus.won = 3; card.versus.lost = 5; card.versus.lastAt = 100;
+    card.hasStyle = true; card.style.looking = netplay::profiles::LookingRanked;
+    card.worn.title = "wins"; card.worn.icon = "streak";
+    return card;
+}
+
+// The Full card from a subject: the strip, Most played or You and them, and what differs by data.
+void FullCard() {
+    Check(pc::TopFighters({4, 7, 9}, 9) == std::vector<int>({9, 4, 7}) && pc::TopFighters({4, 7, 9, 2}, -1) == std::vector<int>({4, 7, 9}) && pc::TopFighters({}, 5) == std::vector<int>({5}),
+        "the top fighters are wrong");
+    // Another's card: the fighter they play now is the hero, the strip leads with the main marked, no games, You and them.
+    netplay::profiles::Known known;
+    const auto them = pc::CardSubject(Another(), known, 20, true, true);
+    const auto view = pc::FullOf(them, pc::Size::Wide);
+    Check(view.hero == 20 && view.heroWord == loc::T("card.playing") && view.heroPoints == 720, "another's hero is not the fighter they play now");
+    Check(view.strip.size() == 3 && view.strip[0].fighter == 16 && view.strip[0].isMain && view.strip[1].fighter == 20 && view.strip[1].games.empty(),
+        "another's strip is not their main, then the highest others, without games");
+    Check(view.points.shown && !view.points.hero.meter && !view.points.account.meter, "another's points have meters");
+    Check(view.record[1].key == loc::T("card.wins") && view.rival.kind == pc::Rival::Kind::Versus && view.rival.cells.size() == 3 && view.rival.cells[0].value.compare(0, 1, "3") == 0 &&
+        view.rival.cells[2].value == loc::T("card.not_friends"), "the record between you is wrong");
+    Check(view.awards.total == static_cast<int>(aw::LevelTotal()) - static_cast<int>(aw::Find("friends")->count) && view.worn.title == pc::LevelTitle(aw::WinLevels[2]) && view.worn.icon >= 0,
+        "another's awards or worn title are wrong");
+    Check(view.looking.size() == 1 && view.plays.empty(), "another's chips are wrong");
+    // A card from a service without profiles has no chips, record or awards.
+    const auto old = pc::FullOf(pc::CardSubject(Another(), known, -1, false, false), pc::Size::Wide);
+    Check(old.record.empty() && old.awards.total == 0 && old.plays.empty() && old.looking.empty() && old.rival.kind == pc::Rival::Kind::None && old.heroWord == loc::T("profile.main_badge"),
+        "a card without profiles shows more than its points");
+
+    // The own card: meters, games under a tile, a win rate, the most played opponent in its three states.
+    Own own;
+    Play(own, 0, 1300, 600, 3, 2500);
+    Play(own, 5, 30, 12, 0, 200);
+    own.account.points = 1300; own.account.games = 1400; own.account.wins = 700; own.account.tier = 1; own.account.floor = 500; own.account.next = 2000;
+    own.awards = Reached(1400, 700, 12, 7);
+    auto answer = Counted(own);
+    pc::OwnInputs in;
+    in.levels = &answer; in.name = "Player 1"; in.main = 0; in.friends = 2;
+    auto mine = pc::FullOf(pc::OwnSubject(in), pc::Size::Wide);
+    Check(mine.points.hero.meter && mine.points.account.meter && !mine.strip.empty() && mine.strip[0].games == ui::player_card::GamesWords(1300) && mine.record[1].key == loc::T("card.win_rate"),
+        "the own card has no meters, games or win rate");
+    Check(mine.rival.kind == pc::Rival::Kind::None, "the most played part shows with no most played opponent while games are counted");
+    answer = Counted(Own{});
+    Check(pc::FullOf(pc::OwnSubject(in), pc::Size::Wide).rival.kind == pc::Rival::Kind::MostPlayedNone, "nothing counted yet is not said");
+    own.hasMostPlayed = true;
+    own.mostPlayed.card = "c1.x"; own.mostPlayed.name = "Player 7"; own.mostPlayed.won = 41; own.mostPlayed.lost = 33;
+    answer = Counted(own);
+    mine = pc::FullOf(pc::OwnSubject(in), pc::Size::Wide);
+    Check(mine.rival.kind == pc::Rival::Kind::MostPlayed && mine.rival.player.name == "Player 7" && mine.rival.line == loc::Tf("card.most_played_line", 41, 33, 74), "the most played opponent is not shown");
+    Check(mine.awards.total == static_cast<int>(aw::LevelTotal()), "the own card's awards leave out the friends family");
+    // The card is whole in every state: only the words change.
+    const Answered<Own> unread{};
+    in.levels = &unread;
+    const auto empty = pc::FullOf(pc::OwnSubject(in), pc::Size::Wide);
+    Check(empty.levels == ui::CardLevels::Pending && !empty.points.shown && empty.levelWords && empty.record.size() == 4 && empty.hero == 0 && empty.awards.total > 0,
+        "the card is not whole before its points are read");
+}
+
+// The rows the card's own parts are: the sets rows by size, All sets only where the service keeps sets.
+void CardRows() {
+    pc::FullCardView view;
+    view.setRows = 5;
+    view.sets.state = pc::SetsView::State::Rows;
+    for (int i = 0; i < 6; ++i) { pc::SetRow row; row.row = "card-set:" + std::to_string(i); row.opponent = "Player 2"; view.sets.rows.push_back(row); }
+    const auto count = [](const std::vector<ui::MenuEntry>& rows) { int sets = 0; for (const auto& row : rows) sets += row.id.compare(0, 9, "card-set:") == 0; return sets; };
+    Check(count(pc::CardRows(view)) == 5, "five set rows are not shown at 1080");
+    view.setRows = 3;
+    Check(count(pc::CardRows(view)) == 3, "three set rows are not shown at 720");
+    Check(pc::CardRows(view).back().id == pc::AllSetsRow, "All sets does not end the rows");
+    view.sets.allSets = false;
+    Check(pc::CardRows(view).back().id != pc::AllSetsRow, "All sets is offered by a service that keeps no sets");
+}
+
+netplay::archive::Game GameOf(std::uint64_t at, const char* a, const char* b, int fighterA, int fighterB, const char* set = "") {
+    netplay::archive::Game game;
+    game.digest = std::string(64, static_cast<char>(0x61 + (at / 100) % 20)); game.url = "https://archive.example/g"; game.savedAt = at;
+    game.names = {{a, b}}; game.fighters = {{fighterA, fighterB}}; game.countries = {{"DE", "FR"}}; game.classes = {{8, 7}};
+    game.set = set;
+    return game;
+}
+
+// A set as the card's row says it, from the player's side; the card's part by the listing's state.
+void Sets() {
+    namespace ar = netplay::archive;
+    ar::Listing listing;
+    const std::uint64_t now = 1800000000;
+    listing.games = {GameOf(now - 7200, "Player 1", "Player 2", 0, 5), GameOf(now - 7000, "Player 2", "Player 1", 5, 0)};
+    const auto online = ui::archivesets::Group(listing);
+    Check(online.size() == 1 && online[0].games.size() == 2, "two games of the same two players are not one set");
+    auto row = ui::card_sets::RowOf(online[0], "Player 1", now);
+    Check(row.mine == 0 && row.theirs == 5 && row.opponent == "Player 2" && row.badge.HasClass() && row.badge.band == 8, "the row's fighters or opponent are wrong");
+    Check(row.line == loc::Tf("archive.games", 2) + " \xC2\xB7 " + loc::T("card.set_online") + " \xC2\xB7 " + loc::Tf("friends.hours_ago", 1), "an online set's line is wrong");
+    // A tournament set's score is from this player's side: Player 1 is the second named in the first game.
+    ar::Listing event;
+    auto first = GameOf(now - 90000, "Player 2", "Player 1", 5, 0, "emt_a");
+    first.event = "Sample Cup"; first.round = "Top 8";
+    event.games = {first};
+    event.sets["emt_a"].score = {{2, 1}};
+    const auto tournament = ui::archivesets::Group(event);
+    row = ui::card_sets::RowOf(tournament[0], "Player 1", now);
+    Check(row.line.compare(0, 7, "1 \xE2\x80\x93 2") == 0 && row.line.find("Sample Cup") != std::string::npos && row.mine == 0 && row.opponent == "Player 2", "a tournament set is not scored from this player's side");
+
+    // The card's part: reading until the listing of this name is heard, then rows, none, unreachable, or no archive.
+    ar::Status status;
+    using State = ar::Status::State;
+    using Part = pc::SetsView::State;
+    Check(ui::card_sets::ViewOf(status, false, {}, "Player 1", now).state == Part::Reading, "sets not asked for are not reading");
+    status.state = State::Loading;
+    Check(ui::card_sets::ViewOf(status, true, {}, "Player 1", now).state == Part::Reading, "a first page on its way is not reading");
+    status.state = State::Listed;
+    status.listing = std::make_shared<const ar::Listing>(listing);
+    const auto shown = ui::card_sets::ViewOf(status, true, online, "Player 1", now);
+    Check(shown.state == Part::Rows && shown.rows.size() == 1 && shown.allSets, "the sets are not rows");
+    Check(ui::card_sets::ViewOf(status, true, {}, "Player 1", now).state == Part::None, "no sets under the name is not none");
+    auto more = listing;
+    more.next = "cursor";
+    status.listing = std::make_shared<const ar::Listing>(more);
+    Check(ui::card_sets::ViewOf(status, true, {}, "Player 1", now).state == Part::Reading, "an empty first page with more to come is not reading");
+    status.state = State::Failed; status.listing.reset();
+    Check(ui::card_sets::ViewOf(status, true, {}, "Player 1", now).state == Part::Unreachable, "a failed listing is not unreachable");
+    status.state = State::Unsupported;
+    const auto none = ui::card_sets::ViewOf(status, true, {}, "Player 1", now);
+    Check(none.state == Part::Unavailable && !none.allSets, "a service without an archive offers sets");
+}
+
 }
 
 int main() {
+    Metrics();
+    Chips();
+    Families();
+    Record();
+    FullCard();
+    CardRows();
+    Sets();
     Groups();
     Progress();
     PlayedOrder();

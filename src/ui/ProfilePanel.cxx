@@ -2,6 +2,8 @@
 #include "ShellView.hxx"
 #include "MenuRows.hxx"
 #include "PlayerCard.hxx"
+#include "PublicRoomsPanel.hxx"
+#include "../netplay/CardBundle.hxx"
 #include "RowId.hxx"
 #include "SignInSites.hxx"
 #include "Theme.hxx"
@@ -41,7 +43,7 @@ void DrawFighterTile(ImDrawList* d, v2::Box box, int fighter, const Level& level
     if (isMain) v2::Chip(d, ImVec2(tile.min.x + 6 * s, tile.min.y + 6 * s), loc::T("fighters.main"), c.accentLight);
     const float x = box.min.x + 6 * s, room = box.W() - 12 * s, y = tile.max.y + 6 * s;
     v2::Text(d, ImVec2(x, y), room, selection::FindFighter(fighter)->name, 14 * s, enabled ? c.text : c.muted, HeadingFont());
-    v2::TextShrunk(d, ImVec2(x, y + 20 * s), room, player_card::GamesWords(level.games), 12 * s, 9 * s, c.muted);
+    v2::Text(d, ImVec2(x, y + 20 * s), room, player_card::GamesWords(level.games), player_card::TextFloor * s, c.muted);
     if (focused) v2::Focus(d, box.min, box.max, false);
 }
 
@@ -74,7 +76,7 @@ float DrawFighterHead(ImDrawList* d, ImVec2 at, float width, float side, float d
 // How points are earned and the five frames, each an empty frame in its tier's colour with the tier's name in it (the
 // thresholds are the bridge's, so they are not drawn). A frame is as wide as its name needs, at least 56 px, and the frames
 // go on to a new line when the next does not fit. Returns the bottom.
-float DrawEarning(ImDrawList* d, float x, float y, float room) {
+float DrawEarning(ImDrawList* d, float x, float y, float room, int active) {
     const auto& c = v2::Colors();
     const float s = Scale(), frame = 28 * s;
     v2::SectionHeading(d, ImVec2(x, y), loc::T("fighters.how"));
@@ -84,11 +86,12 @@ float DrawEarning(ImDrawList* d, float x, float y, float room) {
     for (int tier = 0; tier < netplay::levels::TierCount; ++tier) {
         const v2::Tier award = v2::FrameTier(tier);
         const std::string name = v2::TierName(award);
-        const float place = (std::max)(ImGui::GetFont()->CalcTextSizeA(12 * s, FLT_MAX, 0, name.c_str()).x + 16 * s, 56 * s);
+        const float place = (std::max)(ImGui::GetFont()->CalcTextSizeA(player_card::TextFloor * s, FLT_MAX, 0, name.c_str()).x + 16 * s, 56 * s);
         if (fx > x && fx + place > x + room) { fx = x; y += frame + 8 * s; }
-        d->AddRectFilled(ImVec2(fx, y), ImVec2(fx + place, y + frame), c.ink, 4 * s);
-        v2::Text(d, ImVec2(fx, y + (frame - 12 * s) * .5f), place, name, 12 * s, c.text, nullptr, true);
-        d->AddRect(ImVec2(fx, y), ImVec2(fx + place, y + frame), v2::TierColor(award).stripe, 4 * s, 0, 2 * s);
+        // The tier is the plate and its word, the focused fighter's at full strength: never a frame.
+        const float strength = tier == active ? 1.f : .4f;
+        d->AddRectFilled(ImVec2(fx, y), ImVec2(fx + place, y + frame), v2::color::Alpha(v2::TierColor(award).plate, strength), 4 * s);
+        v2::Text(d, ImVec2(fx, y + (frame - player_card::TextFloor * s) * .5f), place, name, player_card::TextFloor * s, v2::color::Alpha(c.text, strength), nullptr, true);
         fx += place + 8 * s;
     }
     return y + frame + 8 * s;
@@ -126,7 +129,7 @@ void DrawFighterPanel(ImDrawList* d, v2::Box box, int fighter, const Level& leve
     const float x = box.min.x + pad, room = box.W() - 2 * pad;
     float y = DrawFighterHead(d, ImVec2(x, box.min.y + head + pad), room, 112 * s, 26 * s, fighter, level, art, isMain, false, alpha) + pad;
     y += DrawRecord(d, ImVec2(x, y), room, level) + pad;
-    y = DrawEarning(d, x, y, room);
+    y = DrawEarning(d, x, y, room, level.points ? level.tier : -1);
     y += DrawSaveLine(d, ImVec2(x, y + 4 * s), room, isMain, editable) + 4 * s;
     box.max.y = y + pad * .5f;
     split.SetCurrentChannel(d, 0);
@@ -205,7 +208,7 @@ float DrawFightersTab(const ShellView& v, int main, const PlayerCardView& card, 
     if (narrow && shown >= 0 && shown < static_cast<int>(own.fighters.size())) {
         bottom += gap;
         bottom += DrawRecord(d, ImVec2(list.min.x, bottom), list.W(), own.fighters[shown]) + gap;
-        bottom = DrawEarning(d, list.min.x, bottom, list.W());
+        bottom = DrawEarning(d, list.min.x, bottom, list.W(), own.fighters[shown].points ? own.fighters[shown].tier : -1);
         bottom += DrawSaveLine(d, ImVec2(list.min.x, bottom), list.W(), shown == main, editable);
     }
     const float total = bottom + gap - origin.y;
@@ -218,13 +221,17 @@ float DrawFightersTab(const ShellView& v, int main, const PlayerCardView& card, 
 void ProfilePanel::Dress(GameMenu& menu, const std::string& screen, const std::string& name) {
     menu.eyebrow = name.empty() ? std::string(loc::T("home.profile")) : loc::Tf("profile.eyebrow", name);
     const int requests = MenuPlayerCard().requests;
-    menu.tabs = {{CardScreen, loc::T("profile.tab.card")}, {FightersScreen, loc::T("profile.tab.fighters")},
+    menu.tabs = {{CardScreen, loc::T("profile.tab.card")}, {FightersScreen, loc::T("profile.tab.fighters")}, {SetsScreen, loc::T("profile.tab.sets")},
         {FriendsScreen, requests ? loc::Tf("friends.tab_count", requests) : std::string(loc::T("profile.tab.friends"))}, {"awards", loc::T("screen.awards")}};
     for (std::size_t i = 0; i < menu.tabs.size(); ++i)
         if (menu.tabs[i].first == screen) menu.tab = static_cast<int>(i);
 }
 
 void ProfilePanel::Update(const ShellView& v, const std::string& screen, const std::string& bridge, const Submit& submit) {
+    bridge_ = bridge;
+    // The recent sets are asked for while the Card tab is on show: once when it comes on show and when the name or service
+    // changes, never every frame and never while another page shows.
+    sets_.Update(v, bridge, v.preferences.displayName, screen == CardScreen, submit);
     const bool visiting = InStrip(screen);
     if (visiting && !visiting_) want_ = true;
     visiting_ = visiting;
@@ -241,7 +248,7 @@ void ProfilePanel::Update(const ShellView& v, const std::string& screen, const s
 
 void ProfilePanel::Conceal() { visiting_ = want_ = false; }
 
-std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string& screen, const PlayerCardView& card, bool editable, bool connect, std::string& title) const {
+std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const netplay::PlayerPreferences& prefs, const std::string& screen, const PlayerCardView& card, bool editable, bool connect, std::string& title) const {
     const bool fighters = screen == FightersScreen;
     title = loc::T(fighters ? "profile.tab.fighters" : "profile.tab.card");
     std::vector<MenuEntry> rows;
@@ -261,19 +268,16 @@ std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string&
         if (connect) rows.push_back(ConnectDiscordRow());
         return rows;
     }
-    // The Card tab's rows: the way to choose a main when there is none, the
-    // strip's tiles (the main at 0 points in every state without points),
-    // Edit card, and Connect Discord when there is no account.
-    if (card.mainFighter < 0) {
+    // The Card tab's rows: the way to choose a main when there is none, then the card's own parts (the strip's tiles, the
+    // award tiles, Most played, the recent sets and All sets: player_card::CardRows, the parts drawn), Edit card, Fighter
+    // select, and Connect Discord when there is no account.
+    const auto view = player_card::FullOf(SubjectOf(v, prefs), player_card::CardSize());
+    if (view.hero < 0) {
         auto choose = Row(ChooseMainRow, loc::T("card.choose_main"), loc::T("profile.choose_main_detail"));
         choose.hint = loc::T("card.choose_main");
         rows.push_back(std::move(choose));
     }
-    for (const auto& fighter : card.fighters) {
-        auto row = Row(CardFighterRow(fighter.fighter), selection::FindFighter(fighter.fighter)->name, FighterDetail(fighter.points, fighter.games));
-        row.hint = loc::T("profile.tab.fighters");
-        rows.push_back(std::move(row));
-    }
+    for (auto& row : player_card::CardRows(view)) rows.push_back(std::move(row));
     auto edit = Row(CardEditRow, loc::T("card.edit"), loc::T("card.edit_detail"));
     edit.hint = loc::T("card.edit");
     rows.push_back(std::move(edit));
@@ -286,11 +290,75 @@ std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const std::string&
     return rows;
 }
 
-void ProfilePanel::Draw(const ShellView& v, int main, const std::string& screen, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height) {
+player_card::Subject ProfilePanel::OwnSubjectOf(const ShellView& v, const netplay::PlayerPreferences& prefs) {
+    player_card::OwnInputs in;
+    in.levels = &v.levels;
+    in.name = prefs.displayName;
+    in.country = ShownCountry(prefs.country, v.automaticCountry);
+    const auto& standing = v.rankings.standing;
+    if (standing.loaded && standing.value.kind == netplay::rankings::Standing::Kind::Ranked && standing.value.classesShown) in.badge = standing.value.badge;
+    in.main = prefs.mainFighter;
+    in.worn.title = prefs.wornTitle;
+    in.worn.icon = prefs.wornIcon;
+    in.pins = prefs.cardPins;
+    // How the card says the player plays: their choices and what the game measures now (the card save's own rule).
+    in.style = netplay::profiles::OwnStyle(prefs, netplay::profiles::AutomaticDevice(v.inputDevice.type, v.inputDevice.connected, v.gameplayBrand), v.ownLink,
+        PublicRoomsPanel::KnownRegion(v));
+    const auto* friends = v.friends.state.value.get();
+    in.friends = friends && friends->kind == netplay::friends::State::Kind::Listed ? static_cast<std::uint32_t>(friends->friends.size()) : 0;
+    return player_card::OwnSubject(in);
+}
+
+player_card::Subject ProfilePanel::SubjectOf(const ShellView& v, const netplay::PlayerPreferences& prefs) const {
+    auto subject = OwnSubjectOf(v, prefs);
+    subject.sets = sets_.View(v);
+    subject.now = v.unixNow;
+    subject.buttons = {{CardEditRow, "Y", v2::ButtonKind::Secondary}, {FighterSelectRow, "X", v2::ButtonKind::Secondary}};
+    return subject;
+}
+
+OtherCardView ProfilePanel::OwnPanel(const ShellView& v, const netplay::PlayerPreferences& prefs) {
+    return PanelOf(OwnSubjectOf(v, prefs), v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait);
+}
+
+bool ProfilePanel::Activate(const ShellView& v, const MenuAction& a, MenuNavigation& nav, const Submit& submit, WatchQueue& queue, std::string& error) {
+    if (a.id == CardEditRow) { nav.Push(CardEditRow); return true; }
+    // A strip tile opens the Fighters page on that fighter.
+    if (a.id.compare(0, 13, "card-fighter:") == 0) {
+        nav.Replace(FightersScreen);
+        nav.Prefer("main-" + a.id.substr(13));
+        return true;
+    }
+    // An award tile opens the wall on that family, and All sets the Sets tab.
+    if (a.id.compare(0, std::string(player_card::AwardRowPrefix).size(), player_card::AwardRowPrefix) == 0) {
+        nav.Replace("awards");
+        nav.Prefer("award:" + a.id.substr(std::string(player_card::AwardRowPrefix).size()));
+        return true;
+    }
+    if (a.id == player_card::AllSetsRow) { nav.Replace(SetsScreen); return true; }
+    // Most played opens that player's profile by the token the points answer carries.
+    if (a.id == player_card::MostPlayedRow) {
+        if (!v.levels.value.hasMostPlayed || bridge_.empty()) return true;
+        const auto& rival = v.levels.value.mostPlayed;
+        commands::ProfileOpen open;
+        open.bridge = bridge_;
+        open.key = netplay::profiles::Key::OfCard(rival.card);
+        open.known.name = rival.name;
+        open.known.country = rival.country;
+        open.known.badge = rival.badge;
+        if (submit(std::move(open))) nav.Push(PlayerScreen);
+        return true;
+    }
+    return sets_.Activate(a.id, v, submit, queue, error);
+}
+
+void ProfilePanel::Draw(const ShellView& v, const netplay::PlayerPreferences& prefs, const std::string& screen, const std::vector<MenuEntry>& rows, MenuNavigation& nav,
+    MenuAction& action, float height) {
     const bool changed = nav.Focus() != focus_;
     focus_ = nav.Focus();
     const auto& card = MenuPlayerCard();
-    if (screen == FightersScreen) DrawFightersTab(v, main, card, rows, nav, action, changed);
-    else DrawCardTab(v, card, rows, nav, action, changed, height);
+    if (screen == FightersScreen) { DrawFightersTab(v, prefs.mainFighter, card, rows, nav, action, changed); return; }
+    const auto view = player_card::FullOf(SubjectOf(v, prefs), player_card::CardSize());
+    DrawFullCard(view, v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait, rows, nav, action, changed, height);
 }
 } }

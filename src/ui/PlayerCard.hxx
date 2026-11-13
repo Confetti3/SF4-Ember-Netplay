@@ -80,8 +80,9 @@ void DrawFighterEdge(ImDrawList* d, v2::Box box, std::uint64_t points, int tier)
 // height taken.
 float DrawFullCard(const player_card::FullCardView& card, FighterArt art, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action,
     bool changed, float bodyHeight);
-// The size class of a body `bodyHeight` tall (physical px) at the current window and scale: what FullOf takes.
-player_card::Size CardSize(float bodyHeight);
+// The size class the card is drawn at in this window (a body is about 242 logical px shorter than the window at 1080, 202 at
+// 720): what FullOf takes. Rows and drawing both ask it, so the rows are the parts drawn.
+player_card::Size CardSize();
 
 // Another player's card as the Panel draws it (a room member, a friend, the
 // player's own as others see it): the picture of their fighter on its tier

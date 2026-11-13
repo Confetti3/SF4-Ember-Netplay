@@ -2,6 +2,7 @@
 #include "V2.hxx"
 #include "GameMenu.hxx"
 #include "PlayerCard.hxx"
+#include "ProfilePanel.hxx"
 #include "RoomPanelBoard.hxx"
 #include "ShellView.hxx"
 #include "Theme.hxx"
@@ -46,12 +47,23 @@ OtherCardView MemberOtherCard(const ShellView& view,const room::Member& member,F
  const auto look=SeatLookOf(view,member);
  const auto& c=v2::Colors();
  OtherCardView card;
+ if(const auto* looked=CardOf(view,member)){
+  // Their card: the chips, record, worn title and icon and families at the level its counters earn, the fighter they play now.
+  netplay::profiles::Known known;known.name=member.name;known.country=member.country;known.badge=member.badge;known.fighter=look.fighter;
+  card=PanelOf(player_card::CardSubject(*looked,known,look.fighter,true,view.profilesService!=netplay::profiles::Service::Missing),art);
+ }else if(member.id==view.room.localMember&&view.room.serverOwned){
+  card=ProfilePanel::OwnPanel(view,view.preferences);
+  card.fighterPoints=0;card.fighterTier=0;
+  if(const auto played=points.Of(look.fighter)){card.fighterPoints=played->points;card.fighterTier=played->tier;}
+ }
+ else{
+  // As the member's seat, cabinet and row: no card read, no points drawn.
+  card.points=points.known;
+  if(const auto played=points.Of(look.fighter)){card.fighterPoints=played->points;card.fighterTier=played->tier;}
+  card.accountPoints=points.account.points;
+ }
  card.name=member.name;card.country=member.country;card.badge=member.badge;
  card.fighter=look.fighter;card.art=art;
- // As the member's seat, cabinet and row: no card read, no points drawn.
- card.points=points.known;
- if(const auto played=points.Of(look.fighter)){card.fighterPoints=played->points;card.fighterTier=played->tier;}
- card.accountPoints=points.account.points;
  // A friend and a request sent are states to show; a request received is the page's Accept row.
  using netplay::levels::Relation;
  if(points.relation==Relation::Friend){card.chip=loc::T("friends.are_friends");card.chipTone=c.ready;}

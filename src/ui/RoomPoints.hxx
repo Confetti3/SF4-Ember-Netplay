@@ -38,6 +38,9 @@ struct MemberPoints {
 // card (ShellView::memberCards, by the token in Member::card); this PC's own
 // member, while no card was looked up for them, from the player's own points
 // (ShellView::levels).
+// The member's looked-up card (ShellView::memberCards by the token in Member::card), or null: what the Panel reads their chips,
+// record, worn title and families from. Not the player's own member, whose card is their own points.
+const netplay::levels::Card* CardOf(const ShellView& view, const room::Member& member);
 MemberPoints PointsOf(const ShellView& view, const room::Member& member);
 // PointsOf(view, member).Of(fighter) without copying and sorting the card:
 // seats, cabinets and plates ask it every frame.

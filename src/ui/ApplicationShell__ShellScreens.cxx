@@ -8,6 +8,7 @@
 #include "PlayerCard.hxx"
 #include "RoomFeedback.hxx"
 #include "RoomPanelBoard.hxx"
+#include "RowId.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "../common/Localization.hxx"
@@ -160,6 +161,23 @@ public:
         if (auto leave = ShortcutHint(MenuInput::Leave, placeExit)) menu.shortcutHints.insert(menu.shortcutHints.begin(), std::move(*leave));
         if (!keys) menu.backHint = placeExit;
     }
+    // The focused member's Panel in a public room, once their card is read: their chips, record, worn title and icon and families.
+    // A private room has no card to draw.
+    GameMenu::Detail Detail(const ScreenFrame& f) const override {
+        if (f.screen != "room-members" || !f.view.room.serverOwned) return {};
+        const ApplicationShell* s = &f.shell; const ShellView* v = &f.view;
+        return [s, v](const std::string& id) {
+            const auto key = RowKey(id, "member-");
+            const auto* member = key ? room::FindMember(v->room, *key) : nullptr;
+            if (!member) return;
+            const float width = ImGui::GetContentRegionAvail().x;
+            const auto p = ImGui::GetCursorScreenPos();
+            ImGui::Dummy(ImVec2(0, 8 * Scale()));
+            const auto at = ImVec2(p.x, p.y + 8 * Scale());
+            const float height = DrawOtherCard(ImGui::GetWindowDrawList(), {at, ImVec2(at.x + width, at.y)}, MemberOtherCard(*v, *member, RoomFighterArt(s->preferences_)));
+            ImGui::Dummy(ImVec2(width, height));
+        };
+    }
     // The Members list as player tags.
     GameMenu::Card Card(const ScreenFrame& f, double) const override {
         if (f.screen != "room-members") return {};
@@ -199,9 +217,10 @@ public:
         return [s, v](const std::string&) {
             const auto* member = room::FindMember(v->room, s->selectedMember_);
             if (!member) return;
-            const float height = 160 * Scale(), width = ImGui::GetContentRegionAvail().x;
+            const float width = ImGui::GetContentRegionAvail().x;
             const auto p = ImGui::GetCursorScreenPos();
-            DrawOtherCard(ImGui::GetWindowDrawList(), {p, ImVec2(p.x + width, p.y + height)}, MemberOtherCard(*v, *member, RoomFighterArt(s->preferences_)));
+            // The Panel: its height is its content's.
+            const float height = DrawOtherCard(ImGui::GetWindowDrawList(), {p, ImVec2(p.x + width, p.y)}, MemberOtherCard(*v, *member, RoomFighterArt(s->preferences_)));
             ImGui::Dummy(ImVec2(width, height));
         };
     }

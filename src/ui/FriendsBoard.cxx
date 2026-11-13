@@ -1,6 +1,7 @@
 // The Friends tab's board (docs/design/PROFILE.md, "Friends tab"): the list on the left, a row each placed through
 // PressEntry so the pad moves over them by where they are drawn, and the focused row's panel on the right (under the
 // list on a narrow window, as words). What each row means is FriendsPanel.cxx's.
+#include "CardParts.hxx"
 #include "FriendsPanel.hxx"
 #include "MenuGlyphs.hxx"
 #include "PlayerCard.hxx"
@@ -18,7 +19,6 @@
 namespace sf4e { namespace ui {
 namespace {
 using namespace friends_panel;
-constexpr float Pi = 3.14159265f;
 
 // What a row's board knows of the frame: the window, the sizes, and where a popout opens.
 struct BoardFrame {
@@ -37,6 +37,8 @@ struct BoardFrame {
     // The list's column, whose width a popout's choices lay out in.
     v2::Box column;
     float s;
+    // The profile open (ShellView::profile): a friend's card read for it gives their Panel its chips, record and families.
+    const netplay::profiles::Profile& profile;
     MenuNavigation& nav() const { return menu.navigation; }
 };
 
@@ -50,17 +52,8 @@ float TextWidth(const std::string& text, float size, ImFont* font) { return font
 
 // A friend's presence as a mark that differs in shape: a filled disc in a room, a ring online, a dashed ring offline.
 void DrawPresenceMark(ImDrawList* d, ImVec2 at, float radius, nf::Presence::Kind kind) {
-    const auto& c = v2::Colors();
-    const float s = Scale();
-    if (kind == nf::Presence::Kind::InRoom) d->AddCircleFilled(at, radius, c.ready, 20);
-    else if (kind == nf::Presence::Kind::Online) d->AddCircle(at, radius - s, c.ready, 20, 2 * s);
-    else {
-        // Eight short arcs round the ring.
-        for (int i = 0; i < 8; ++i) {
-            d->PathArcTo(at, radius - s, Pi / 4 * i, Pi / 4 * i + Pi / 6, 4);
-            d->PathStroke(c.muted, 0, 2 * s);
-        }
-    }
+    using player_card::PresenceMark;
+    card_parts::DrawPresence(d, at, radius, kind == nf::Presence::Kind::InRoom ? PresenceMark::InRoom : kind == nf::Presence::Kind::Online ? PresenceMark::Online : PresenceMark::Offline);
 }
 // A request's mark: a diamond in the light accent.
 void DrawRequestMark(ImDrawList* d, ImVec2 at, float radius) {
@@ -144,14 +137,14 @@ float DrawAdd(const BoardFrame& f, const MenuEntry& e, ImVec2 at, float width, b
         if (room > 0) {
             if (shown.empty()) {
                 const float w = (std::min)(wordsWide + 1, room);
-                v2::TextShrunk(f.d, ImVec2(right - w, mid - 8 * s), w, words, 15 * s, 11 * s, c.muted);
+                v2::TextShrunk(f.d, ImVec2(right - w, mid - 8 * s), w, words, 15 * s, player_card::TextFloor * s, c.muted);
             } else if (wordsWide + codeWide <= room) {
                 if (!words.empty()) v2::Text(f.d, ImVec2(right - codeWide - wordsWide, mid - 8 * s), wordsWide + 1, words, 15 * s, c.muted);
                 v2::Text(f.d, ImVec2(right - codeWide, mid - 9 * s), codeWide + 1, shown, 17 * s, c.text, HeadingFont());
             } else if (codeWide <= room) {
                 v2::Text(f.d, ImVec2(right - codeWide, mid - 9 * s), codeWide + 1, shown, 17 * s, c.text, HeadingFont());
             } else {
-                v2::TextShrunk(f.d, ImVec2(left, mid - 9 * s), room, shown, 17 * s, 12 * s, c.text, HeadingFont());
+                v2::TextShrunk(f.d, ImVec2(left, mid - 9 * s), room, shown, 17 * s, player_card::TextFloor * s, c.text, HeadingFont());
             }
         }
     }
@@ -239,10 +232,16 @@ void DrawPersonPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool 
     const float x = box.min.x + pad, room = box.W() - 2 * pad, head = 20 * s + v2::HeadingHeight(name, room, 20 * s);
     float y = box.min.y + head + pad;
     if (entry) {
-        const OtherCardView card = CardOf(*entry, f.art);
-        const float side = (compact ? 80 : 112) * s;
-        DrawOtherCard(f.d, v2::Box{ImVec2(x, y), ImVec2(x + room, y + side + 28 * s)}, card);
-        y += side + 28 * s + 14 * s;
+        OtherCardView card = CardOf(*entry, f.art);
+        const auto& open = f.profile;
+        if (open.state == netplay::profiles::Profile::State::Card && open.card.loaded && open.key.kind == netplay::profiles::Key::Kind::Friend && open.key.value == entry->id) {
+            netplay::profiles::Known known;
+            known.name = entry->name; known.country = entry->country; known.badge = entry->badge;
+            known.fighter = entry->hasMain ? entry->main.fighter : -1;
+            card = PanelOf(player_card::CardSubject(open.card.value, known, -1, false, true), f.art);
+        }
+        // The Panel stands on this panel's own ground; its height is its content's.
+        y += DrawOtherCard(f.d, v2::Box{ImVec2(x, y), ImVec2(x + room, y)}, card, false) + 14 * s;
         // Where they are, with the room's count.
         DrawPresenceMark(f.d, ImVec2(x + 6 * s, y + 10 * s), 6 * s, entry->presence.kind);
         std::string where = e.detail;
@@ -313,7 +312,7 @@ void FriendsPanel::Draw(const ShellView& v, GameMenu& menu, const std::vector<Me
     const v2::Box side = narrow || mode != Mode::Listed ? v2::Box{} : v2::CutRight(list, (compact ? 400 : 520) * s, 24 * s);
     const BoardFrame f{d, menu, [this](const std::string& row) { Ask(row, {}); }, rows, action, v.friends, StateOf(v.friends), GateOf(v.friends, service_, pending_.active),
         v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait, v.unixNow, changed,
-        v2::Box{origin, ImVec2(list.max.x, origin.y + height)}, s};
+        v2::Box{origin, ImVec2(list.max.x, origin.y + height)}, s, v.profile};
     float y = origin.y;
     // Without an account the words, and the way on.
     if (mode == Mode::NoAccount) {

@@ -111,9 +111,9 @@ void DrawFighterEdge(ImDrawList* d, v2::Box box, std::uint64_t points, int tier)
     d->AddRect(ImVec2(box.min.x + inset, box.min.y + inset), ImVec2(box.max.x - inset, box.max.y - inset), v2::TierColor(v2::FrameTier(tier)).stripe, 0, 0, Hairline());
 }
 
-player_card::Size CardSize(float bodyHeight) {
+player_card::Size CardSize() {
     const float s = Scale();
-    return player_card::SizeOf(v2::Narrow(ImGui::GetIO().DisplaySize.x, s), bodyHeight / s);
+    return player_card::SizeOf(v2::Narrow(ImGui::GetIO().DisplaySize.x, s), ImGui::GetIO().DisplaySize.y / s - 242.f);
 }
 
 namespace {
@@ -467,7 +467,7 @@ float DrawNarrow(const Ctx& c, ImVec2 origin, float width) {
 float DrawFullCard(const player_card::FullCardView& card, FighterArt art, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action,
     bool changed, float bodyHeight) {
     const float s = Scale(), width = ImGui::GetContentRegionAvail().x;
-    const auto size = CardSize(bodyHeight);
+    const auto size = card.size;
     const Ctx c{ImGui::GetWindowDrawList(), card, player_card::MetricsOf(size), art, card.levels == CardLevels::Pending ? .4f : 1.f, s, rows, nav, action, changed};
     const ImVec2 origin = ImGui::GetCursorScreenPos();
     const float total = size == player_card::Size::Narrow ? DrawNarrow(c, origin, width) : DrawColumns(c, origin, width, bodyHeight);

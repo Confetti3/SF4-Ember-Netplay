@@ -6,6 +6,7 @@
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cstddef>
+#include <cstdio>
 
 namespace sf4e { namespace ui { namespace player_card {
 namespace aw = netplay::awards;
@@ -326,7 +327,7 @@ Subject OwnSubject(const OwnInputs& in) {
     s.pins = in.pins;
     s.style = in.style;
     s.friendsCounted = true;
-    static const netplay::levels::Own none;
+    static const netplay::levels::Own none{};
     const auto* answer = in.levels;
     if (!answer || !answer->loaded) {
         s.levels = answer && !answer->loading && !answer->error.empty() ? CardLevels::Unreachable : CardLevels::Pending;

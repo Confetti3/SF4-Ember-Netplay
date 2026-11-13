@@ -36,6 +36,8 @@ const netplay::levels::Card* LookedUp(const ShellView& view, const room::Member&
 }
 }
 
+const netplay::levels::Card* CardOf(const ShellView& view, const room::Member& member) { return LookedUp(view, member); }
+
 MemberPoints PointsOf(const ShellView& view, const room::Member& member) {
     MemberPoints out;
     if (!view.room.serverOwned) return out;
