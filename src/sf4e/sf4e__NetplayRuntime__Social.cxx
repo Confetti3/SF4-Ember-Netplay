@@ -103,7 +103,7 @@ const char* RefusalKey(const std::string& code) {
 	};
 	for (const auto& entry : table) if (code == entry.first) return entry.second;
 	// This runtime's own: another action already waits, or the one asked was dropped (friends::Requests).
-	if (code == friends::Requests::Busy) return "friends.busy";
+	if (code == friends::Requests::BusyCode) return "friends.busy";
 	return "friends.failed";
 }
 
@@ -381,8 +381,8 @@ void DispatchFriends(commands::FriendAction action, bool helperReady) {
 	else if (requests.Hold(std::move(action))) spdlog::info("Friends: {} held behind the request in flight", name);
 	else {
 		// Another action already waits: this one is refused, not lost.
-		spdlog::info("Friends: {} refused before sending code={}", name, friends::Requests::Busy);
-		requests.Refuse(friends::Requests::Busy);
+		spdlog::info("Friends: {} refused before sending code={}", name, friends::Requests::BusyCode);
+		requests.Refuse(friends::Requests::BusyCode);
 	}
 }
 

@@ -18,7 +18,7 @@
 // - Answers belong to one service and one Ember ID. A change of either
 //   forgets the state, the refusal and anything held; the counts carry on.
 //   An action it drops (in flight or held) is refused as `Dropped`, and one
-//   asked while another is already held as `Busy`, so whatever asked for it
+//   asked while another is already held as `BusyCode`, so whatever asked for it
 //   is told it ended: no action ends without an answer or a refusal.
 // - A failed request keeps the state it had. A service without friends, or a
 //   player without a Discord account, installs that state and stops the
@@ -54,7 +54,7 @@ public:
 	static constexpr const char* Off = "friends_off";
 	// This runtime's codes: an action dropped by a change of service or Ember ID, and one asked while another waits.
 	static constexpr const char* Dropped = "friends_dropped";
-	static constexpr const char* Busy = "friends_busy";
+	static constexpr const char* BusyCode = "friends_busy";
 
 	Requests() { answered_.value = Empty(); }
 
