@@ -276,7 +276,6 @@ msgstr "Update beschikbaar: {0}"
 msgid "services.go_back_available"
 msgstr "Je kunt teruggaan naar {0}"
 
-
 msgid "services.up_to_date"
 msgstr "Je bent up-to-date."
 
@@ -727,9 +726,6 @@ msgstr "Profiel"
 msgid "home.profile_detail"
 msgstr "Je kaart, vechters, vrienden en onderscheidingen."
 
-msgid "home.profile_requests"
-msgstr "Verzoeken: {0}"
-
 msgid "home.settings"
 msgstr "Instellingen"
 
@@ -933,9 +929,6 @@ msgstr "Verlaat Embers menu en opent het Battle Log van het spel, waar replays w
 
 msgid "replays.open_log_room"
 msgstr "Verlaat eerst de kamer."
-
-
-
 
 msgid "replays.set_value"
 msgstr "{0} replays · {1} kamers"
@@ -1278,6 +1271,12 @@ msgstr "Voeg vrienden toe vanuit een openbare kamer: open de spelerkaart van een
 
 msgid "friends.request_sent_to"
 msgstr "Verzoek verstuurd naar {0}."
+
+msgid "friends.now_friends"
+msgstr "Jij en {0} zijn nu vrienden."
+
+msgid "friends.blocked_name"
+msgstr "{0} is geblokkeerd."
 
 msgid "friends.invite_sent"
 msgstr "Uitnodiging verstuurd naar {0}."
@@ -1639,8 +1638,6 @@ msgstr "Randloos"
 msgid "player.borderless_detail"
 msgstr "Het spel vult het scherm in een venster zonder rand, getekend op de eigen resolutie van het scherm in 16:9, met zwarte balken op een breder of hoger scherm. Zolang dit aan staat, doen Alt+Enter en de eigen resolutie- en volledig-schermopties van het spel niets; het spel bewaart je keuze daar voor wanneer dit uit staat. Het geldt alleen voor deze pc. Wijzigingen gelden vanaf de volgende keer dat het spel start."
 
-
-
 msgid "size.small"
 msgstr "Klein"
 
@@ -1755,6 +1752,9 @@ msgstr "Toont een paar seconden F10 of Start als het menu van Ember sluit, zodat
 msgid "settings.interface_size"
 msgstr "Interfacegrootte"
 
+msgid "settings.interface_size_detail"
+msgstr "Onder 1.00x past er meer op een groot scherm."
+
 msgid "discord.show_activity"
 msgstr "Activiteit tonen"
 
@@ -1767,11 +1767,23 @@ msgstr "Uitnodigingen geven toegang tot je kamer."
 msgid "discord.enable_first"
 msgstr "Schakel eerst Discord-activiteit in."
 
-msgid "discord.tournament_account"
-msgstr "Toernooiaccount"
+msgid "discord.account"
+msgstr "Discord-account"
 
-msgid "discord.tournament_account_detail"
-msgstr "Het Discord-account dat je toernooisite kent, zoals BluMint. Het kan een ander zijn dan in de Discord-app. Selecteer om het te koppelen of te wijzigen."
+msgid "discord.account_none"
+msgstr "Niet gekoppeld"
+
+msgid "discord.account_linked"
+msgstr "Gekoppeld · {0}"
+
+msgid "discord.account_detail"
+msgstr "Koppel het Discord-account dat je Ember ID gebruikt. Potjes met ranglijst, punten, vrienden, gedeelde replays en toernooisites zoals BluMint gebruiken het allemaal. Het kan verschillen van het account in de Discord-app. Selecteer om het te koppelen."
+
+msgid "discord.account_linked_detail"
+msgstr "Het Discord-account dat aan je Ember ID is gekoppeld. Potjes met ranglijst, punten, vrienden, gedeelde replays en toernooisites zoals BluMint gebruiken het. Het kan verschillen van het account in de Discord-app. Selecteer om van account te wisselen of het te ontkoppelen."
+
+msgid "discord.server"
+msgstr "Ember Discord-server"
 
 msgid "discord.invitation_title"
 msgstr "DISCORD-UITNODIGING"
@@ -2834,6 +2846,7 @@ msgstr "Het kamerverzoek is mislukt. Verlaat de kamer en probeer opnieuw."
 
 msgid "runtime.build_mismatch"
 msgstr "Jouw Ember en deze kamer hebben verschillende versies. Vraag de host welke versie die gebruikt en update daarna, of wissel van updatekanaal, via Hulp en info > Zoek naar updates zodat ze gelijk zijn."
+
 msgid "runtime.build_mismatch_update"
 msgstr "Jouw Ember is verouderd en kan daarom niet in deze kamer komen. Update via Hulp en info > Zoek naar updates en kom daarna opnieuw binnen."
 
@@ -2851,6 +2864,7 @@ msgstr "Keuze niet beschikbaar met deze regels. Open Personage kiezen voor een b
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay  /  F10 of Start"
+
 msgid "runtime.return_menu_to_join"
 msgstr "Ga terug naar het hoofdmenu om mee te doen met de wedstrijd."
 
@@ -3156,6 +3170,7 @@ msgstr "{0} / HOST"
 
 msgid "room.member_status"
 msgstr "{0}"
+
 msgid "room.member.watcher"
 msgstr "Kijker"
 
@@ -3206,12 +3221,16 @@ msgstr "{0} heeft een partij gewonnen aan tafel {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} heeft de set gewonnen aan tafel {1} ({2})"
+
 msgid "chat.event.set_won_against"
 msgstr "{0} heeft de set gewonnen tegen {1} ({2})"
+
 msgid "chat.typing.one"
 msgstr "{0} typt..."
+
 msgid "chat.typing.two"
 msgstr "{0} en {1} typen..."
+
 msgid "chat.typing.many"
 msgstr "Meerdere mensen typen..."
 
@@ -3271,39 +3290,6 @@ msgstr "De vorige match wordt nog afgesloten. Daarna kun je de kamer vervangen."
 
 msgid "room.updating"
 msgstr "Kamer bijwerken..."
-
-msgid "room.table_name"
-msgstr "Tafelnaam"
-
-msgid "room.table_name.detail"
-msgstr "Staat op de kaart van de tafel na het nummer, bijvoorbeeld Beginners. Leeg toont alleen het nummer."
-
-msgid "room.template"
-msgstr "Sjabloon"
-
-msgid "room.template.none"
-msgstr "Geen"
-
-msgid "room.template.detail"
-msgstr "Een kamer die je hebt opgeslagen. Het vult de rijen hieronder, en de regels en naam van elke tafel zodra de kamer open is. Links en Rechts kiezen."
-
-msgid "room.template.delete"
-msgstr "Sjabloon verwijderen"
-
-msgid "room.template.delete.detail"
-msgstr "Verwijdert het sjabloon {0} van deze pc."
-
-msgid "room.template.full"
-msgstr "Je hebt {0} sjablonen. Verwijder er eerst een bij Kamer maken."
-
-msgid "room.template.saved"
-msgstr "Opgeslagen als het sjabloon {0}."
-
-msgid "room.save_template"
-msgstr "Opslaan als sjabloon"
-
-msgid "room.save_template.detail"
-msgstr "Bewaart de instellingen van deze kamer, en de regels en naam van elke tafel, op deze pc voor Kamer maken > Sjabloon. Dezelfde naam overschrijft het."
 
 msgid "room.fighter_not_shared"
 msgstr "Personage nog onbekend"
@@ -3379,6 +3365,39 @@ msgstr "Nieuwe kamer wordt geopend. Kopieer de uitnodiging en stuur de nieuwe li
 
 msgid "room.action_rejected"
 msgstr "De kamer is veranderd of heeft deze actie geweigerd. Bekijk de huidige status en probeer opnieuw."
+
+msgid "room.table_name"
+msgstr "Tafelnaam"
+
+msgid "room.table_name.detail"
+msgstr "Staat op de kaart van de tafel na het nummer, bijvoorbeeld Beginners. Leeg toont alleen het nummer."
+
+msgid "room.template"
+msgstr "Sjabloon"
+
+msgid "room.template.none"
+msgstr "Geen"
+
+msgid "room.template.detail"
+msgstr "Een kamer die je hebt opgeslagen. Het vult de rijen hieronder, en de regels en naam van elke tafel zodra de kamer open is. Links en Rechts kiezen."
+
+msgid "room.template.delete"
+msgstr "Sjabloon verwijderen"
+
+msgid "room.template.delete.detail"
+msgstr "Verwijdert het sjabloon {0} van deze pc."
+
+msgid "room.template.full"
+msgstr "Je hebt {0} sjablonen. Verwijder er eerst een bij Kamer maken."
+
+msgid "room.template.saved"
+msgstr "Opgeslagen als het sjabloon {0}."
+
+msgid "room.save_template"
+msgstr "Opslaan als sjabloon"
+
+msgid "room.save_template.detail"
+msgstr "Bewaart de instellingen van deze kamer, en de regels en naam van elke tafel, op deze pc voor Kamer maken > Sjabloon. Dezelfde naam overschrijft het."
 
 msgid "room.leave_current_table"
 msgstr "Verlaat eerst je huidige tafel."
@@ -3487,6 +3506,7 @@ msgstr "De gekozen vertraging staat vast voor deze match."
 
 msgid "room.match_delay.at_least"
 msgstr "Minstens {0} frames"
+
 msgid "room.match_delay.at_least_one"
 msgstr "Minstens {0} frame"
 
@@ -3528,6 +3548,7 @@ msgstr "Wachten tot de huidige match of keuze-update klaar is."
 
 msgid "room.change_fighter.detail"
 msgstr "Kies een personage en daarna zijn Ultra. Kom hier terug en kies Klaar melden."
+
 msgid "room.appearance.detail"
 msgstr "Links en Rechts wisselen hier de kleur. Selecteren kiest een outfit en daarna de kleur."
 
@@ -3584,9 +3605,6 @@ msgstr "In wachtrij"
 
 msgid "room.stop_watching"
 msgstr "Stoppen met kijken"
-
-
-
 
 msgid "room.stop_watching.detail"
 msgstr "Stopt met kijken naar deze tafel en brengt je terug naar de kamer. De spelers blijven spelen."
@@ -3699,9 +3717,6 @@ msgstr "Wijzigingen gelden pas na Toepassen."
 msgid "room.rules.host_only"
 msgstr "Alleen de host kan tafelregels wijzigen."
 
-msgid "room.rules.tournament"
-msgstr "Het toernooi bepaalt de regels aan deze tafel."
-
 msgid "room.apply_rules"
 msgstr "Regels toepassen"
 
@@ -3785,14 +3800,19 @@ msgstr "Capaciteit toepassen"
 
 msgid "room.apply_capacity.detail"
 msgstr "Verstuur deze capaciteit."
+
 msgid "room.tables"
 msgstr "Tafels"
+
 msgid "room.tables_detail"
 msgstr "Hoeveel tafels de kamer heeft, van 1 tot {0}. De host kan dit later wijzigen in Kamerinstellingen."
+
 msgid "room.tables_arcade_detail"
 msgstr "Hoeveel paren tegelijk spelen, van 1 tot {0}. De rest wacht in de rij. Bij 1 blijft de winnaar zitten en sluit de verliezer achteraan aan."
+
 msgid "room.tables.detail"
 msgstr "Voeg tafels toe tot {0}. Een tafel kan alleen weg als niemand er speelt, wacht of kijkt."
+
 msgid "room.apply_tables"
 msgstr "Tafels toepassen"
 
@@ -4104,6 +4124,9 @@ msgstr "Netwerk niet beschikbaar. Offline spelen kan nog wel."
 
 msgid "runtime.room_join_failed"
 msgstr "Kon de kamer niet betreden. Controleer de uitnodiging en of beide spelers hetzelfde SF4 Ember Netplay-pakket gebruiken."
+
+msgid "room.rules.tournament"
+msgstr "Het toernooi bepaalt de regels aan deze tafel."
 
 msgid "runtime.invite_expired"
 msgstr "Deze uitnodiging is verlopen. Vraag de host een nieuwe te kopiëren."
@@ -4456,10 +4479,6 @@ msgstr "Een ander Discord-account gebruiken"
 msgid "connect.change_detail"
 msgstr "Opent Discord in je browser om in plaats daarvan een ander account te koppelen. Je toernooisite moet dan dat account gebruiken."
 
-
-
-
-
 msgid "screen.tournament_desk"
 msgstr "Toernooiorganisatie"
 
@@ -4591,11 +4610,6 @@ msgstr "Openen in browser"
 
 msgid "desk.open_browser_detail"
 msgstr "Opent de bracketsite in de browser van deze pc. Log daar in met Discord."
-
-
-
-
-
 
 msgid "desk.opened"
 msgstr "De bracketsite is geopend in je browser."
@@ -5166,6 +5180,12 @@ msgstr "Opent een openbare kamer bij de Ember ID-dienst, gaat erin en zet deze r
 
 msgid "public.create_needs_id"
 msgstr "Openbare kamers hebben een Ember ID en een vertrouwde dienst nodig. Richt ze in via Openbare kamers."
+
+msgid "public.ranked_needs_discord"
+msgstr "Koppel Discord om met ranglijst te spelen"
+
+msgid "public.ranked_needs_discord_detail"
+msgstr "Potjes tellen alleen mee voor je klasse en punten met een gekoppeld Discord-account. Je kunt ook zonder account spelen."
 
 msgid "public.loading"
 msgstr "Kamers laden..."
@@ -6388,7 +6408,6 @@ msgstr "De knopafbeeldingen die Ember toont. Automatisch past ze aan de controll
 msgid "player.prompts_auto"
 msgstr "Automatisch"
 
-
 msgid "controller.brand.stick"
 msgstr "Gevechtsknoppen"
 
@@ -6430,8 +6449,6 @@ msgstr "{0} verbonden"
 
 msgid "player.controllers_detail"
 msgstr "Je speelt met {0}. Bekijk alle verbonden controllers, test hun knoppen en stel de controllers in die Ember nog niet kent."
-
-
 
 msgid "player.game_reads"
 msgstr "Laat het spel controllers lezen"
@@ -8123,7 +8140,6 @@ msgstr "Paneel openen"
 msgid "settings.panel.close_action"
 msgstr "Paneel sluiten"
 
-
 msgid "class.developer"
 msgstr "Dev"
 
@@ -8294,6 +8310,12 @@ msgstr "Meldingen"
 
 msgid "notifications.none"
 msgstr "Nog niets."
+
+msgid "notifications.tab_count"
+msgstr "Meldingen · {0}"
+
+msgid "notifications.waiting"
+msgstr "In afwachting: {0}"
 
 msgid "notifications.none_detail"
 msgstr "Wat Ember meldt, zoals een gekopieerde link of een verlaten kamer, blijft hier staan voor deze sessie."
@@ -8481,9 +8503,11 @@ msgstr "Wedstrijden"
 msgid "replays.tab.sets"
 msgstr "Sets"
 
+msgid "replays.tab.archive"
+msgstr "Archief"
+
 msgid "replays.set_matches"
 msgstr "{0} wedstrijden"
-
 
 msgid "replays.fact.fighters"
 msgstr "Vechters"
@@ -8493,6 +8517,213 @@ msgstr "Gespeeld"
 
 msgid "replays.fact.length"
 msgstr "Duur"
+
+msgid "archive.filters"
+msgstr "Filters"
+
+msgid "archive.filters_detail"
+msgstr "Beperk de sets op speler, evenement, vechter, klasse, land of ronde en kies hun volgorde."
+
+msgid "archive.filter_none"
+msgstr "Alles, nieuwste eerst"
+
+msgid "archive.filter_class"
+msgstr "Klasse {0}"
+
+msgid "archive.online"
+msgstr "Online games"
+
+msgid "archive.sort_newest"
+msgstr "Nieuwste eerst"
+
+msgid "archive.sort_class"
+msgstr "Hoogste klasse eerst"
+
+msgid "archive.round.top8"
+msgstr "Top 8"
+
+msgid "archive.round.pools"
+msgstr "Poules"
+
+msgid "archive.round.winners"
+msgstr "Winners"
+
+msgid "archive.round.losers"
+msgstr "Losers"
+
+msgid "archive.round.grand"
+msgstr "Grote finale"
+
+msgid "archive.any_class"
+msgstr "Elke klasse"
+
+msgid "archive.any_country"
+msgstr "Elk land"
+
+msgid "archive.any_event"
+msgstr "Elk evenement"
+
+msgid "archive.any_round"
+msgstr "Elke ronde"
+
+msgid "archive.any_fighter"
+msgstr "Elke vechter"
+
+msgid "archive.any_fighter_detail"
+msgstr "Toont de sets ongeacht de vechter."
+
+msgid "archive.f_text"
+msgstr "Speler of evenement"
+
+msgid "archive.f_text_detail"
+msgstr "Toont de sets waarin de naam van een speler of de titel van een evenement deze letters bevat."
+
+msgid "archive.f_fighter"
+msgstr "Vechter"
+
+msgid "archive.f_fighter_detail"
+msgstr "Toont de sets waarin een van beide spelers deze vechter heeft gebruikt."
+
+msgid "archive.f_class"
+msgstr "Klasse"
+
+msgid "archive.f_class_detail"
+msgstr "Toont de sets waarin een van beide spelers vandaag deze klasse heeft op de ranglijst."
+
+msgid "archive.f_country"
+msgstr "Land"
+
+msgid "archive.f_country_detail"
+msgstr "Toont de sets met een speler uit dit land."
+
+msgid "archive.f_event"
+msgstr "Evenement"
+
+msgid "archive.f_event_detail"
+msgstr "Toont de sets van één toernooievenement, of alleen de online games."
+
+msgid "archive.f_round"
+msgstr "Ronde"
+
+msgid "archive.f_round_detail"
+msgstr "Toont de toernooisets van één ronde."
+
+msgid "archive.f_sort"
+msgstr "Sorteren"
+
+msgid "archive.f_sort_detail"
+msgstr "Nieuwste eerst, of de sets met de hoogste klasse eerst."
+
+msgid "archive.games_shown"
+msgstr "Getoonde games"
+
+msgid "archive.games_of"
+msgstr "{0} van {1}"
+
+msgid "archive.clear"
+msgstr "Filters wissen"
+
+msgid "archive.clear_detail"
+msgstr "Toont weer elke set."
+
+msgid "archive.no_service"
+msgstr "Stel je Ember ID in"
+
+msgid "archive.no_service_detail"
+msgstr "Het archief wordt gelezen van de Ember-dienst. Open Ember ID om het in te stellen."
+
+msgid "archive.loading"
+msgstr "Sets laden"
+
+msgid "archive.loading_detail"
+msgstr "Het archief wordt om de nieuwste sets gevraagd."
+
+msgid "archive.loading_more"
+msgstr "Meer laden"
+
+msgid "archive.loading_more_detail"
+msgstr "Het archief wordt om oudere sets gevraagd."
+
+msgid "archive.unsupported"
+msgstr "Hier is geen replayarchief"
+
+msgid "archive.unsupported_detail"
+msgstr "Deze dienst biedt geen openbaar replayarchief aan."
+
+msgid "archive.failed"
+msgstr "Archief niet bereikbaar"
+
+msgid "archive.failed_detail"
+msgstr "{0} Selecteer om het opnieuw te proberen."
+
+msgid "archive.none"
+msgstr "Geen sets voldoen aan deze filters"
+
+msgid "archive.none_detail"
+msgstr "Wis de filters om elke set te zien."
+
+msgid "archive.empty"
+msgstr "Nog geen replays in het archief"
+
+msgid "archive.empty_detail"
+msgstr "Games die spelers vanuit Ember delen, verschijnen hier."
+
+msgid "archive.more_failed"
+msgstr "Meer laden is mislukt"
+
+msgid "archive.more_failed_detail"
+msgstr "Selecteer om het opnieuw te proberen."
+
+msgid "archive.retry"
+msgstr "Opnieuw proberen"
+
+msgid "archive.downloading"
+msgstr "Game downloaden"
+
+msgid "archive.download_failed"
+msgstr "De game kon niet worden gedownload. {0}"
+
+msgid "archive.vs"
+msgstr "vs"
+
+msgid "archive.watch_hint"
+msgstr "Bekijken"
+
+msgid "archive.find"
+msgstr "Sets van {0}"
+
+msgid "archive.find_detail"
+msgstr "Toont de sets die {0} heeft gespeeld in het openbare archief."
+
+msgid "archive.game_one"
+msgstr "1 game"
+
+msgid "archive.games"
+msgstr "{0} games"
+
+msgid "archive.met"
+msgstr "Tegen {0}"
+
+msgid "archive.session_label"
+msgstr "{0}: {1} games"
+
+msgid "archive.fact.event"
+msgstr "Evenement"
+
+msgid "archive.fact.round"
+msgstr "Ronde"
+
+msgid "archive.fact.games"
+msgstr "Games"
+
+msgid "archive.fact.size"
+msgstr "Grootte"
+
+msgid "archive.size_kb"
+msgstr "{0} KB"
+
+msgid "archive.game_n"
+msgstr "Game {0}"
 
 msgid "keyboard.recent"
 msgstr "Recent:"
@@ -8620,8 +8851,20 @@ msgstr "Op je kaart."
 msgid "awards.detail_earned"
 msgstr "Verdiend. Selecteer zet hem op je kaart."
 
-msgid "awards.detail_locked"
-msgstr "Vergrendeld. {0}."
+msgid "awards.progress"
+msgstr "{0} van {1}"
+
+msgid "awards.next"
+msgstr "Volgende: {0}"
+
+msgid "awards.top_level"
+msgstr "Hoogste niveau"
+
+msgid "awards.notice"
+msgstr "Onderscheiding behaald: {0}"
+
+msgid "awards.link_discord"
+msgstr "Koppel Discord om onderscheidingen te verdienen."
 
 msgid "tier.ash"
 msgstr "As"
@@ -8638,104 +8881,266 @@ msgstr "Goud"
 msgid "tier.ember"
 msgstr "Ember"
 
-msgid "award.entrant.title"
-msgstr "EMBER-DEELNEMER"
+msgid "award.matches.name"
+msgstr "Potjes"
 
-msgid "award.entrant.icon"
-msgstr "Vonk"
-
-msgid "award.entrant.how"
-msgstr "Speel één set in een Ember-bracket"
-
-msgid "award.launch-night.title"
-msgstr "LANCEERAVOND"
-
-msgid "award.launch-night.icon"
-msgstr "Terugspoelen"
-
-msgid "award.launch-night.how"
-msgstr "Speel tijdens het lanceringsevenement van Ember"
-
-msgid "award.weekly-top16.title"
-msgstr "TOP 16 VAN DE WEEKLY"
-
-msgid "award.weekly-top16.icon"
-msgstr "Lauwerkrans"
-
-msgid "award.weekly-top16.how"
-msgstr "Eindig in de top 16 van een Ember Weekly"
-
-msgid "award.rollback-regular.title"
-msgstr "ROLLBACK-VASTE KLANT"
-
-msgid "award.rollback-regular.icon"
-msgstr "Kalender"
-
-msgid "award.rollback-regular.how"
-msgstr "Doe mee aan 10 Ember Weeklies in één seizoen"
-
-msgid "award.weekly-top8.title"
-msgstr "TOP 8 VAN DE WEEKLY"
-
-msgid "award.weekly-top8.icon"
-msgstr "Achthoek 8"
-
-msgid "award.weekly-top8.how"
-msgstr "Eindig in de top 8 van een Ember Weekly"
-
-msgid "award.by-ear.title"
-msgstr "OP HET GEHOOR"
-
-msgid "award.by-ear.icon"
-msgstr "Geluidsgolf"
-
-msgid "award.by-ear.how"
-msgstr "Win een set in de bracket met alleen geluid"
-
-msgid "award.monthly-finalist.title"
-msgstr "MAANDFINALIST"
-
-msgid "award.monthly-finalist.icon"
-msgstr "Medaille"
-
-msgid "award.monthly-finalist.how"
-msgstr "Haal de grote finale van een Ember Monthly"
-
-msgid "award.organizer.title"
-msgstr "TOERNOOIORGANISATOR"
-
-msgid "award.organizer.icon"
+msgid "award.matches.icon"
 msgstr "Vlag"
 
-msgid "award.organizer.how"
-msgstr "Door het Ember-team toegekend aan organisatoren"
+msgid "award.matches.1.title"
+msgstr "Nieuwe uitdager"
 
-msgid "award.commentary.title"
-msgstr "COMMENTATOR"
+msgid "award.matches.1.how"
+msgstr "Speel je eerste potje met ranglijst in een openbare kamer"
 
-msgid "award.commentary.icon"
-msgstr "Microfoon"
+msgid "award.matches.100.title"
+msgstr "Stamgast"
 
-msgid "award.commentary.how"
-msgstr "Toegekend aan stream-commentatoren"
+msgid "award.matches.100.how"
+msgstr "Speel 100 potjes met ranglijst in openbare kamers"
 
-msgid "award.season1-veteran.title"
-msgstr "SEIZOEN 1-VETERAAN"
+msgid "award.matches.500.title"
+msgstr "Veteraan"
 
-msgid "award.season1-veteran.icon"
-msgstr "Wapen"
+msgid "award.matches.500.how"
+msgstr "Speel 500 potjes met ranglijst in openbare kamers"
 
-msgid "award.season1-veteran.how"
-msgstr "Eindig in de top 32 van elke Monthly van seizoen 1"
+msgid "award.matches.1000.title"
+msgstr "World Warrior"
 
-msgid "award.cup-champion.title"
-msgstr "EMBER CUP-KAMPIOEN"
+msgid "award.matches.1000.how"
+msgstr "Speel 1000 potjes met ranglijst in openbare kamers"
 
-msgid "award.cup-champion.icon"
-msgstr "Kroon"
+msgid "award.matches.5000.title"
+msgstr "Levenslang"
 
-msgid "award.cup-champion.how"
-msgstr "Win de Ember Cup aan het eind van het seizoen"
+msgid "award.matches.5000.how"
+msgstr "Speel 5000 potjes met ranglijst in openbare kamers"
+
+msgid "award.wins.name"
+msgstr "Winst"
+
+msgid "award.wins.icon"
+msgstr "Lauwer"
+
+msgid "award.wins.1.title"
+msgstr "Eerste winst"
+
+msgid "award.wins.1.how"
+msgstr "Win je eerste potje met ranglijst in een openbare kamer"
+
+msgid "award.wins.50.title"
+msgstr "Kanshebber"
+
+msgid "award.wins.50.how"
+msgstr "Win 50 potjes met ranglijst in openbare kamers"
+
+msgid "award.wins.250.title"
+msgstr "Prijsvechter"
+
+msgid "award.wins.250.how"
+msgstr "Win 250 potjes met ranglijst in openbare kamers"
+
+msgid "award.wins.1000.title"
+msgstr "Kampioen"
+
+msgid "award.wins.1000.how"
+msgstr "Win 1000 potjes met ranglijst in openbare kamers"
+
+msgid "award.wins.2500.title"
+msgstr "Legende"
+
+msgid "award.wins.2500.how"
+msgstr "Win 2500 potjes met ranglijst in openbare kamers"
+
+msgid "award.streak.name"
+msgstr "Winstreeks"
+
+msgid "award.streak.icon"
+msgstr "Vlam"
+
+msgid "award.streak.3.title"
+msgstr "Lekker bezig"
+
+msgid "award.streak.3.how"
+msgstr "Win 3 potjes met ranglijst op rij"
+
+msgid "award.streak.5.title"
+msgstr "Hete reeks"
+
+msgid "award.streak.5.how"
+msgstr "Win 5 potjes met ranglijst op rij"
+
+msgid "award.streak.10.title"
+msgstr "Onaantastbaar"
+
+msgid "award.streak.10.how"
+msgstr "Win 10 potjes met ranglijst op rij"
+
+msgid "award.streak.15.title"
+msgstr "Onverslaanbaar"
+
+msgid "award.streak.15.how"
+msgstr "Win 15 potjes met ranglijst op rij"
+
+msgid "award.streak.20.title"
+msgstr "Niet te stoppen"
+
+msgid "award.streak.20.how"
+msgstr "Win 20 potjes met ranglijst op rij"
+
+msgid "award.rank.name"
+msgstr "Hoogste klasse"
+
+msgid "award.rank.icon"
+msgstr "Schild"
+
+msgid "award.mastery.name"
+msgstr "Vechtersmeesterschap"
+
+msgid "award.mastery.icon"
+msgstr "Medaille"
+
+msgid "award.mastery.1.title"
+msgstr "Leerling"
+
+msgid "award.mastery.1.how"
+msgstr "Breng een vechter naar het kader Koper"
+
+msgid "award.mastery.2.title"
+msgstr "Adept"
+
+msgid "award.mastery.2.how"
+msgstr "Breng een vechter naar het kader Zilver"
+
+msgid "award.mastery.3.title"
+msgstr "Specialist"
+
+msgid "award.mastery.3.how"
+msgstr "Breng een vechter naar het kader Goud"
+
+msgid "award.mastery.4.title"
+msgstr "Meester"
+
+msgid "award.mastery.4.how"
+msgstr "Breng een vechter naar het kader Ember"
+
+msgid "award.cast.name"
+msgstr "Selectie"
+
+msgid "award.cast.icon"
+msgstr "Schema"
+
+msgid "award.cast.5.title"
+msgstr "Reservekeuze"
+
+msgid "award.cast.5.how"
+msgstr "Speel 5 verschillende vechters in potjes met ranglijst"
+
+msgid "award.cast.15.title"
+msgstr "Veelzijdig"
+
+msgid "award.cast.15.how"
+msgstr "Speel 15 verschillende vechters in potjes met ranglijst"
+
+msgid "award.cast.30.title"
+msgstr "Gezel"
+
+msgid "award.cast.30.how"
+msgstr "Speel 30 verschillende vechters in potjes met ranglijst"
+
+msgid "award.cast.all.title"
+msgstr "Alle vechters"
+
+msgid "award.cast.all.how"
+msgstr "Speel elke vechter in potjes met ranglijst"
+
+msgid "award.friends.name"
+msgstr "Vrienden"
+
+msgid "award.friends.icon"
+msgstr "Duo"
+
+msgid "award.friends.1.title"
+msgstr "Sparringpartner"
+
+msgid "award.friends.1.how"
+msgstr "Voeg een vriend toe"
+
+msgid "award.friends.5.title"
+msgstr "Goed gezelschap"
+
+msgid "award.friends.5.how"
+msgstr "Heb 5 vrienden"
+
+msgid "award.friends.15.title"
+msgstr "De vaste kern"
+
+msgid "award.friends.15.how"
+msgstr "Heb 15 vrienden"
+
+msgid "award.rival.name"
+msgstr "Rivaal"
+
+msgid "award.rival.icon"
+msgstr "Geschiedenis"
+
+msgid "award.rival.10.title"
+msgstr "Bekend gezicht"
+
+msgid "award.rival.10.how"
+msgstr "Speel 10 potjes met ranglijst tegen één tegenstander"
+
+msgid "award.rival.50.title"
+msgstr "Rivaal"
+
+msgid "award.rival.50.how"
+msgstr "Speel 50 potjes met ranglijst tegen één tegenstander"
+
+msgid "award.rival.100.title"
+msgstr "Nemesis"
+
+msgid "award.rival.100.how"
+msgstr "Speel 100 potjes met ranglijst tegen één tegenstander"
+
+msgid "award.rival.250.title"
+msgstr "Eeuwige rivaal"
+
+msgid "award.rival.250.how"
+msgstr "Speel 250 potjes met ranglijst tegen één tegenstander"
+
+msgid "award.opponents.name"
+msgstr "Tegenstanders"
+
+msgid "award.opponents.icon"
+msgstr "Golf"
+
+msgid "award.opponents.10.title"
+msgstr "Open uitdaging"
+
+msgid "award.opponents.10.how"
+msgstr "Neem het op tegen 10 verschillende tegenstanders in potjes met ranglijst"
+
+msgid "award.opponents.50.title"
+msgstr "Brede kring"
+
+msgid "award.opponents.50.how"
+msgstr "Neem het op tegen 50 verschillende tegenstanders in potjes met ranglijst"
+
+msgid "award.opponents.200.title"
+msgstr "Straatlegende"
+
+msgid "award.opponents.200.how"
+msgstr "Neem het op tegen 200 verschillende tegenstanders in potjes met ranglijst"
+
+msgid "award.opponents.500.title"
+msgstr "Rivaal van iedereen"
+
+msgid "award.opponents.500.how"
+msgstr "Neem het op tegen 500 verschillende tegenstanders in potjes met ranglijst"
+
+msgid "award.rank.how"
+msgstr "Bereik klasse {0} in openbare kamers"
 
 msgid "toast.kind.invitation"
 msgstr "UITNODIGING"

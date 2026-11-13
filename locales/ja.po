@@ -276,7 +276,6 @@ msgstr "アップデートがあります：{0}"
 msgid "services.go_back_available"
 msgstr "{0} に戻すことができます"
 
-
 msgid "services.up_to_date"
 msgstr "最新版です。"
 
@@ -727,9 +726,6 @@ msgstr "プロフィール"
 msgid "home.profile_detail"
 msgstr "カード、ファイター、フレンド、アワード。"
 
-msgid "home.profile_requests"
-msgstr "リクエスト: {0}"
-
 msgid "home.settings"
 msgstr "設定"
 
@@ -933,9 +929,6 @@ msgstr "Emberのメニューを離れ、リプレイを再生するゲームのB
 
 msgid "replays.open_log_room"
 msgstr "先にルームから退出してください。"
-
-
-
 
 msgid "replays.set_value"
 msgstr "リプレイ{0}件 · ルーム{1}件"
@@ -1278,6 +1271,12 @@ msgstr "公開ルームでフレンドを追加します。メンバーのプレ
 
 msgid "friends.request_sent_to"
 msgstr "{0} さんにリクエストを送信しました。"
+
+msgid "friends.now_friends"
+msgstr "{0} さんとフレンドになりました。"
+
+msgid "friends.blocked_name"
+msgstr "{0} さんはブロックしています。"
 
 msgid "friends.invite_sent"
 msgstr "{0} さんに招待を送信しました。"
@@ -1639,8 +1638,6 @@ msgstr "ボーダーレス"
 msgid "player.borderless_detail"
 msgstr "ゲームが枠のないウィンドウで画面を埋め、画面本来の解像度の16:9で描画されます。横長や縦長の画面では黒帯が表示されます。オンの間は、Alt+Enterとゲーム本体の解像度・フルスクリーン設定は効きません。そこでの選択はオフにしたときのために保存されます。このPCだけに影響します。変更は次回ゲーム起動時に反映されます。"
 
-
-
 msgid "size.small"
 msgstr "小"
 
@@ -1755,6 +1752,9 @@ msgstr "Emberのメニューを閉じたとき、F10またはStartを数秒間�
 msgid "settings.interface_size"
 msgstr "画面サイズ"
 
+msgid "settings.interface_size_detail"
+msgstr "1.00x未満にすると、大きなモニターでより多くを表示できます。"
+
 msgid "discord.show_activity"
 msgstr "アクティビティを表示"
 
@@ -1767,11 +1767,23 @@ msgstr "招待を送ると、あなたのルームへの参加手段が共有さ
 msgid "discord.enable_first"
 msgstr "先にDiscordのアクティビティを有効にしてください。"
 
-msgid "discord.tournament_account"
-msgstr "大会用アカウント"
+msgid "discord.account"
+msgstr "Discordアカウント"
 
-msgid "discord.tournament_account_detail"
-msgstr "BluMintなど、大会サイトが把握しているDiscordアカウントです。Discordアプリのアカウントとは異なる場合があります。選択すると連携または変更できます。"
+msgid "discord.account_none"
+msgstr "未連携"
+
+msgid "discord.account_linked"
+msgstr "連携済み · {0}"
+
+msgid "discord.account_detail"
+msgstr "Ember IDが使うDiscordアカウントを連携します。ランク試合、ポイント、フレンド、共有リプレイ、BluMintなどの大会サイトは、すべてこのアカウントを使います。Discordアプリのアカウントと異なる場合があります。選択すると連携します。"
+
+msgid "discord.account_linked_detail"
+msgstr "Ember IDに連携しているDiscordアカウントです。ランク試合、ポイント、フレンド、共有リプレイ、BluMintなどの大会サイトがこのアカウントを使います。Discordアプリのアカウントと異なる場合があります。選択するとアカウントの切り替えや連携解除ができます。"
+
+msgid "discord.server"
+msgstr "Ember Discordサーバー"
 
 msgid "discord.invitation_title"
 msgstr "Discordの招待"
@@ -2834,6 +2846,7 @@ msgstr "ルームへの要求に失敗しました。退出して再試行して
 
 msgid "runtime.build_mismatch"
 msgstr "あなたの Ember とこのルームのバージョンが違います。ホストが使っているバージョンを聞いてから、ヘルプ・情報 > 更新を確認 で更新するか更新チャンネルを変えて、そろえてください。"
+
 msgid "runtime.build_mismatch_update"
 msgstr "お使いの Ember が古いため、このルームには参加できません。ヘルプ・情報 > 更新を確認 で更新してから、もう一度参加してください。"
 
@@ -2851,6 +2864,7 @@ msgstr "このルールでは選択できません。キャラクター選択で
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay / F10またはStart"
+
 msgid "runtime.return_menu_to_join"
 msgstr "メインメニューに戻って試合に参加してください。"
 
@@ -3207,12 +3221,16 @@ msgstr "{0}が対戦席{1}で1戦勝利しました ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}が対戦席{1}でセットを獲得しました ({2})"
+
 msgid "chat.event.set_won_against"
 msgstr "{0}が{1}とのセットを獲得しました ({2})"
+
 msgid "chat.typing.one"
 msgstr "{0}が入力中..."
+
 msgid "chat.typing.two"
 msgstr "{0}と{1}が入力中..."
+
 msgid "chat.typing.many"
 msgstr "複数の人が入力中..."
 
@@ -3272,39 +3290,6 @@ msgstr "前の対戦を終了中です。完了するとルームを作り直せ
 
 msgid "room.updating"
 msgstr "ルームを更新中..."
-
-msgid "room.table_name"
-msgstr "テーブル名"
-
-msgid "room.table_name.detail"
-msgstr "テーブルのカードで番号の後に表示されます（例：初心者）。空欄なら番号だけです。"
-
-msgid "room.template"
-msgstr "テンプレート"
-
-msgid "room.template.none"
-msgstr "なし"
-
-msgid "room.template.detail"
-msgstr "保存したルームです。下の項目を設定し、ルームが開いたら各テーブルのルールと名前も設定します。左右で選びます。"
-
-msgid "room.template.delete"
-msgstr "テンプレートを削除"
-
-msgid "room.template.delete.detail"
-msgstr "テンプレート{0}をこのPCから削除します。"
-
-msgid "room.template.full"
-msgstr "テンプレートは{0}個までです。先にルーム作成で1つ削除してください。"
-
-msgid "room.template.saved"
-msgstr "テンプレート{0}として保存しました。"
-
-msgid "room.save_template"
-msgstr "テンプレートとして保存"
-
-msgid "room.save_template.detail"
-msgstr "このルームの設定と各テーブルのルール・名前を、ルーム作成 > テンプレート用にこのPCに保存します。同じ名前なら上書きします。"
 
 msgid "room.fighter_not_shared"
 msgstr "キャラは非公開"
@@ -3380,6 +3365,39 @@ msgstr "代わりのルームを開設中です。「招待をコピー」で新
 
 msgid "room.action_rejected"
 msgstr "ルームの状態が変わったか、操作が拒否されました。現在の状態を確認して再試行してください。"
+
+msgid "room.table_name"
+msgstr "テーブル名"
+
+msgid "room.table_name.detail"
+msgstr "テーブルのカードで番号の後に表示されます（例：初心者）。空欄なら番号だけです。"
+
+msgid "room.template"
+msgstr "テンプレート"
+
+msgid "room.template.none"
+msgstr "なし"
+
+msgid "room.template.detail"
+msgstr "保存したルームです。下の項目を設定し、ルームが開いたら各テーブルのルールと名前も設定します。左右で選びます。"
+
+msgid "room.template.delete"
+msgstr "テンプレートを削除"
+
+msgid "room.template.delete.detail"
+msgstr "テンプレート{0}をこのPCから削除します。"
+
+msgid "room.template.full"
+msgstr "テンプレートは{0}個までです。先にルーム作成で1つ削除してください。"
+
+msgid "room.template.saved"
+msgstr "テンプレート{0}として保存しました。"
+
+msgid "room.save_template"
+msgstr "テンプレートとして保存"
+
+msgid "room.save_template.detail"
+msgstr "このルームの設定と各テーブルのルール・名前を、ルーム作成 > テンプレート用にこのPCに保存します。同じ名前なら上書きします。"
 
 msgid "room.leave_current_table"
 msgstr "先に現在の対戦席から離れてください。"
@@ -3488,6 +3506,7 @@ msgstr "この対戦中、選択した遅延は固定されます。"
 
 msgid "room.match_delay.at_least"
 msgstr "{0}F以上"
+
 msgid "room.match_delay.at_least_one"
 msgstr "{0}F以上"
 
@@ -3529,6 +3548,7 @@ msgstr "現在の対戦または選択の更新が終わるのを待っていま
 
 msgid "room.change_fighter.detail"
 msgstr "キャラを選び、次にウルトラコンボを選びます。戻って準備完了にしてください。"
+
 msgid "room.appearance.detail"
 msgstr "左右でここのカラーを変更します。決定でコスチュームを選び、次にカラーを選びます。"
 
@@ -3585,9 +3605,6 @@ msgstr "順番待ちに入る"
 
 msgid "room.stop_watching"
 msgstr "観戦をやめる"
-
-
-
 
 msgid "room.stop_watching.detail"
 msgstr "この対戦席の観戦をやめてルームに戻ります。対戦は続きます。"
@@ -3700,9 +3717,6 @@ msgstr "変更は「適用」後に反映されます。"
 msgid "room.rules.host_only"
 msgstr "対戦席のルールを変更できるのはホストだけです。"
 
-msgid "room.rules.tournament"
-msgstr "このテーブルのルールは大会が決めます。"
-
 msgid "room.apply_rules"
 msgstr "ルールを適用"
 
@@ -3786,14 +3800,19 @@ msgstr "定員を適用"
 
 msgid "room.apply_capacity.detail"
 msgstr "この定員を送信します。"
+
 msgid "room.tables"
 msgstr "対戦席の数"
+
 msgid "room.tables_detail"
 msgstr "ルームの対戦席の数です（1～{0}）。ホストはあとでルーム設定から変更できます。"
+
 msgid "room.tables_arcade_detail"
 msgstr "同時に対戦するペアの数（1～{0}）。ほかの人は列に並んで待ちます。1にすると勝者が残り、敗者は列の最後に並びます。"
+
 msgid "room.tables.detail"
 msgstr "対戦席は{0}まで追加できます。対戦席を減らせるのは、そこに誰もいないときだけです。"
+
 msgid "room.apply_tables"
 msgstr "対戦席の数を適用"
 
@@ -4105,6 +4124,9 @@ msgstr "通信を利用できません。オフラインでは遊べます。"
 
 msgid "runtime.room_join_failed"
 msgstr "ルームに参加できませんでした。招待と、両者が同じSF4 Ember Netplayパッケージを使用しているか確認してください。"
+
+msgid "room.rules.tournament"
+msgstr "このテーブルのルールは大会が決めます。"
 
 msgid "runtime.invite_expired"
 msgstr "この招待は期限切れです。ホストに新しい招待をコピーしてもらってください。"
@@ -4457,10 +4479,6 @@ msgstr "別のDiscordアカウントを使う"
 msgid "connect.change_detail"
 msgstr "ブラウザーでDiscordを開き、代わりに別のアカウントを連携します。その後は、大会サイトでもそのアカウントを使う必要があります。"
 
-
-
-
-
 msgid "screen.tournament_desk"
 msgstr "大会運営"
 
@@ -4592,11 +4610,6 @@ msgstr "ブラウザーで開く"
 
 msgid "desk.open_browser_detail"
 msgstr "このPCのブラウザでブラケットのサイトを開きます。そこでDiscordでサインインしてください。"
-
-
-
-
-
 
 msgid "desk.opened"
 msgstr "ブラウザでブラケットのサイトが開きました。"
@@ -5167,6 +5180,12 @@ msgstr "EmberのIDサービスに公開ルームを作成して入室し、す�
 
 msgid "public.create_needs_id"
 msgstr "公開ルームにはEmber IDと信頼済みのサービスが必要です。公開ルームの画面で設定してください。"
+
+msgid "public.ranked_needs_discord"
+msgstr "ランク試合にはDiscordの連携が必要です"
+
+msgid "public.ranked_needs_discord_detail"
+msgstr "Discordアカウントを連携している場合のみ、試合がクラスとポイントに反映されます。連携しなくても遊べます。"
 
 msgid "public.loading"
 msgstr "ルームを読み込み中..."
@@ -6389,7 +6408,6 @@ msgstr "Emberに表示するボタンの画像です。自動は、プレイに�
 msgid "player.prompts_auto"
 msgstr "自動"
 
-
 msgid "controller.brand.stick"
 msgstr "対戦用ボタン"
 
@@ -6431,8 +6449,6 @@ msgstr "接続中: {0} 台"
 
 msgid "player.controllers_detail"
 msgstr "{0} でプレイしています。接続中のコントローラーを確認し、ボタンをテストして、Emberがまだ認識していないものを設定できます。"
-
-
 
 msgid "player.game_reads"
 msgstr "ゲームにコントローラーを読ませる"
@@ -8124,7 +8140,6 @@ msgstr "パネルを開く"
 msgid "settings.panel.close_action"
 msgstr "パネルを閉じる"
 
-
 msgid "class.developer"
 msgstr "開発"
 
@@ -8295,6 +8310,12 @@ msgstr "通知"
 
 msgid "notifications.none"
 msgstr "まだありません。"
+
+msgid "notifications.tab_count"
+msgstr "通知 · {0}"
+
+msgid "notifications.waiting"
+msgstr "保留中: {0}"
 
 msgid "notifications.none_detail"
 msgstr "リンクのコピーやルームからの退出など、Ember からのお知らせはこのセッション中ここに残ります。"
@@ -8482,9 +8503,11 @@ msgstr "対戦"
 msgid "replays.tab.sets"
 msgstr "セット"
 
+msgid "replays.tab.archive"
+msgstr "アーカイブ"
+
 msgid "replays.set_matches"
 msgstr "{0} 試合"
-
 
 msgid "replays.fact.fighters"
 msgstr "ファイター"
@@ -8494,6 +8517,213 @@ msgstr "対戦日時"
 
 msgid "replays.fact.length"
 msgstr "長さ"
+
+msgid "archive.filters"
+msgstr "フィルター"
+
+msgid "archive.filters_detail"
+msgstr "プレイヤー、イベント、ファイター、クラス、国・地域、ラウンドでセットを絞り込み、並び順を選びます。"
+
+msgid "archive.filter_none"
+msgstr "すべて、新しい順"
+
+msgid "archive.filter_class"
+msgstr "クラス {0}"
+
+msgid "archive.online"
+msgstr "オンライン対戦"
+
+msgid "archive.sort_newest"
+msgstr "新しい順"
+
+msgid "archive.sort_class"
+msgstr "高クラス順"
+
+msgid "archive.round.top8"
+msgstr "Top 8"
+
+msgid "archive.round.pools"
+msgstr "プール"
+
+msgid "archive.round.winners"
+msgstr "ウィナーズ"
+
+msgid "archive.round.losers"
+msgstr "ルーザーズ"
+
+msgid "archive.round.grand"
+msgstr "グランドファイナル"
+
+msgid "archive.any_class"
+msgstr "すべてのクラス"
+
+msgid "archive.any_country"
+msgstr "すべての国・地域"
+
+msgid "archive.any_event"
+msgstr "すべてのイベント"
+
+msgid "archive.any_round"
+msgstr "すべてのラウンド"
+
+msgid "archive.any_fighter"
+msgstr "すべてのファイター"
+
+msgid "archive.any_fighter_detail"
+msgstr "ファイターを問わずセットを一覧表示します。"
+
+msgid "archive.f_text"
+msgstr "プレイヤーまたはイベント"
+
+msgid "archive.f_text_detail"
+msgstr "プレイヤー名またはイベント名にこの文字を含むセットを一覧表示します。"
+
+msgid "archive.f_fighter"
+msgstr "ファイター"
+
+msgid "archive.f_fighter_detail"
+msgstr "どちらかのプレイヤーがこのファイターを使ったセットを一覧表示します。"
+
+msgid "archive.f_class"
+msgstr "クラス"
+
+msgid "archive.f_class_detail"
+msgstr "どちらかのプレイヤーが現在ランキングでこのクラスにいるセットを一覧表示します。"
+
+msgid "archive.f_country"
+msgstr "国・地域"
+
+msgid "archive.f_country_detail"
+msgstr "この国・地域のプレイヤーが出場したセットを一覧表示します。"
+
+msgid "archive.f_event"
+msgstr "イベント"
+
+msgid "archive.f_event_detail"
+msgstr "大会イベント1つ、またはオンライン対戦だけのセットを一覧表示します。"
+
+msgid "archive.f_round"
+msgstr "ラウンド"
+
+msgid "archive.f_round_detail"
+msgstr "1つのラウンドの大会セットを一覧表示します。"
+
+msgid "archive.f_sort"
+msgstr "並べ替え"
+
+msgid "archive.f_sort_detail"
+msgstr "新しい順、または高クラスのセットを先に表示します。"
+
+msgid "archive.games_shown"
+msgstr "表示中の試合"
+
+msgid "archive.games_of"
+msgstr "{0} / {1}"
+
+msgid "archive.clear"
+msgstr "フィルターを解除"
+
+msgid "archive.clear_detail"
+msgstr "すべてのセットを再表示します。"
+
+msgid "archive.no_service"
+msgstr "Ember IDを設定"
+
+msgid "archive.no_service_detail"
+msgstr "アーカイブはEmberのサービスから読み込みます。Ember IDを開いて設定してください。"
+
+msgid "archive.loading"
+msgstr "セットを読み込み中"
+
+msgid "archive.loading_detail"
+msgstr "アーカイブに最新のセットを問い合わせています。"
+
+msgid "archive.loading_more"
+msgstr "さらに読み込み中"
+
+msgid "archive.loading_more_detail"
+msgstr "アーカイブに古いセットを問い合わせています。"
+
+msgid "archive.unsupported"
+msgstr "リプレイアーカイブはありません"
+
+msgid "archive.unsupported_detail"
+msgstr "このサービスは公開リプレイアーカイブを提供していません。"
+
+msgid "archive.failed"
+msgstr "アーカイブに接続できません"
+
+msgid "archive.failed_detail"
+msgstr "{0} 選択すると再試行します。"
+
+msgid "archive.none"
+msgstr "条件に合うセットがありません"
+
+msgid "archive.none_detail"
+msgstr "フィルターを解除すると、すべてのセットが表示されます。"
+
+msgid "archive.empty"
+msgstr "アーカイブにリプレイはまだありません"
+
+msgid "archive.empty_detail"
+msgstr "Emberから共有された試合がここに表示されます。"
+
+msgid "archive.more_failed"
+msgstr "続きを読み込めませんでした"
+
+msgid "archive.more_failed_detail"
+msgstr "選択すると再試行します。"
+
+msgid "archive.retry"
+msgstr "再試行"
+
+msgid "archive.downloading"
+msgstr "試合をダウンロード中"
+
+msgid "archive.download_failed"
+msgstr "試合をダウンロードできませんでした。{0}"
+
+msgid "archive.vs"
+msgstr "vs"
+
+msgid "archive.watch_hint"
+msgstr "見る"
+
+msgid "archive.find"
+msgstr "{0} さんのセット"
+
+msgid "archive.find_detail"
+msgstr "{0} さんが公開アーカイブでプレイしたセットを一覧表示します。"
+
+msgid "archive.game_one"
+msgstr "1試合"
+
+msgid "archive.games"
+msgstr "{0}試合"
+
+msgid "archive.met"
+msgstr "対戦相手: {0}"
+
+msgid "archive.session_label"
+msgstr "{0}: {1}試合"
+
+msgid "archive.fact.event"
+msgstr "イベント"
+
+msgid "archive.fact.round"
+msgstr "ラウンド"
+
+msgid "archive.fact.games"
+msgstr "試合"
+
+msgid "archive.fact.size"
+msgstr "サイズ"
+
+msgid "archive.size_kb"
+msgstr "{0} KB"
+
+msgid "archive.game_n"
+msgstr "第{0}試合"
 
 msgid "keyboard.recent"
 msgstr "最近:"
@@ -8621,8 +8851,20 @@ msgstr "カードに装着中。"
 msgid "awards.detail_earned"
 msgstr "獲得済み。選択するとカードに付けます。"
 
-msgid "awards.detail_locked"
-msgstr "未獲得。{0}。"
+msgid "awards.progress"
+msgstr "{0} / {1}"
+
+msgid "awards.next"
+msgstr "次: {0}"
+
+msgid "awards.top_level"
+msgstr "最高レベル"
+
+msgid "awards.notice"
+msgstr "アワードを獲得しました: {0}"
+
+msgid "awards.link_discord"
+msgstr "Discordを連携するとアワードを獲得できます。"
 
 msgid "tier.ash"
 msgstr "アッシュ"
@@ -8639,104 +8881,266 @@ msgstr "ゴールド"
 msgid "tier.ember"
 msgstr "エンバー"
 
-msgid "award.entrant.title"
-msgstr "EMBER参加者"
+msgid "award.matches.name"
+msgstr "対戦数"
 
-msgid "award.entrant.icon"
-msgstr "スパーク"
-
-msgid "award.entrant.how"
-msgstr "Emberのトーナメントで1セット対戦する"
-
-msgid "award.launch-night.title"
-msgstr "ローンチナイト"
-
-msgid "award.launch-night.icon"
-msgstr "リワインド"
-
-msgid "award.launch-night.how"
-msgstr "Emberのローンチイベント中にプレイする"
-
-msgid "award.weekly-top16.title"
-msgstr "ウィークリー TOP16"
-
-msgid "award.weekly-top16.icon"
-msgstr "月桂冠"
-
-msgid "award.weekly-top16.how"
-msgstr "Ember Weeklyで16位以内に入る"
-
-msgid "award.rollback-regular.title"
-msgstr "ロールバック常連"
-
-msgid "award.rollback-regular.icon"
-msgstr "カレンダー"
-
-msgid "award.rollback-regular.how"
-msgstr "1シーズンでEmber Weeklyに10回参加する"
-
-msgid "award.weekly-top8.title"
-msgstr "ウィークリー TOP8"
-
-msgid "award.weekly-top8.icon"
-msgstr "八角形8"
-
-msgid "award.weekly-top8.how"
-msgstr "Ember Weeklyで8位以内に入る"
-
-msgid "award.by-ear.title"
-msgstr "耳で勝つ"
-
-msgid "award.by-ear.icon"
-msgstr "音波"
-
-msgid "award.by-ear.how"
-msgstr "音声のみのトーナメントで1セット勝つ"
-
-msgid "award.monthly-finalist.title"
-msgstr "マンスリー決勝進出"
-
-msgid "award.monthly-finalist.icon"
-msgstr "メダル"
-
-msgid "award.monthly-finalist.how"
-msgstr "Ember Monthlyでグランドファイナルに進出する"
-
-msgid "award.organizer.title"
-msgstr "大会主催者"
-
-msgid "award.organizer.icon"
+msgid "award.matches.icon"
 msgstr "旗"
 
-msgid "award.organizer.how"
-msgstr "Emberスタッフがイベント主催者に授与"
+msgid "award.matches.1.title"
+msgstr "新たな挑戦者"
 
-msgid "award.commentary.title"
-msgstr "実況担当"
+msgid "award.matches.1.how"
+msgstr "公開ルームで初めてのランク試合をプレイする"
 
-msgid "award.commentary.icon"
-msgstr "マイク"
+msgid "award.matches.100.title"
+msgstr "常連"
 
-msgid "award.commentary.how"
-msgstr "配信の実況者に授与"
+msgid "award.matches.100.how"
+msgstr "公開ルームでランク試合を100試合プレイする"
 
-msgid "award.season1-veteran.title"
-msgstr "シーズン1ベテラン"
+msgid "award.matches.500.title"
+msgstr "ベテラン"
 
-msgid "award.season1-veteran.icon"
-msgstr "紋章"
+msgid "award.matches.500.how"
+msgstr "公開ルームでランク試合を500試合プレイする"
 
-msgid "award.season1-veteran.how"
-msgstr "シーズン1の全マンスリーで32位以内に入る"
+msgid "award.matches.1000.title"
+msgstr "ワールドウォリアー"
 
-msgid "award.cup-champion.title"
-msgstr "EMBER CUP王者"
+msgid "award.matches.1000.how"
+msgstr "公開ルームでランク試合を1000試合プレイする"
 
-msgid "award.cup-champion.icon"
-msgstr "王冠"
+msgid "award.matches.5000.title"
+msgstr "生涯現役"
 
-msgid "award.cup-champion.how"
-msgstr "シーズン最後のEmber Cupで優勝する"
+msgid "award.matches.5000.how"
+msgstr "公開ルームでランク試合を5000試合プレイする"
+
+msgid "award.wins.name"
+msgstr "勝利数"
+
+msgid "award.wins.icon"
+msgstr "月桂樹"
+
+msgid "award.wins.1.title"
+msgstr "初勝利"
+
+msgid "award.wins.1.how"
+msgstr "公開ルームで初めてのランク試合に勝つ"
+
+msgid "award.wins.50.title"
+msgstr "有力候補"
+
+msgid "award.wins.50.how"
+msgstr "公開ルームでランク試合に50勝する"
+
+msgid "award.wins.250.title"
+msgstr "賞金ファイター"
+
+msgid "award.wins.250.how"
+msgstr "公開ルームでランク試合に250勝する"
+
+msgid "award.wins.1000.title"
+msgstr "チャンピオン"
+
+msgid "award.wins.1000.how"
+msgstr "公開ルームでランク試合に1000勝する"
+
+msgid "award.wins.2500.title"
+msgstr "レジェンド"
+
+msgid "award.wins.2500.how"
+msgstr "公開ルームでランク試合に2500勝する"
+
+msgid "award.streak.name"
+msgstr "連勝"
+
+msgid "award.streak.icon"
+msgstr "炎"
+
+msgid "award.streak.3.title"
+msgstr "絶好調"
+
+msgid "award.streak.3.how"
+msgstr "ランク試合で3連勝する"
+
+msgid "award.streak.5.title"
+msgstr "快進撃"
+
+msgid "award.streak.5.how"
+msgstr "ランク試合で5連勝する"
+
+msgid "award.streak.10.title"
+msgstr "鉄壁"
+
+msgid "award.streak.10.how"
+msgstr "ランク試合で10連勝する"
+
+msgid "award.streak.15.title"
+msgstr "無敗"
+
+msgid "award.streak.15.how"
+msgstr "ランク試合で15連勝する"
+
+msgid "award.streak.20.title"
+msgstr "誰も止められない"
+
+msgid "award.streak.20.how"
+msgstr "ランク試合で20連勝する"
+
+msgid "award.rank.name"
+msgstr "最高クラス"
+
+msgid "award.rank.icon"
+msgstr "盾"
+
+msgid "award.mastery.name"
+msgstr "ファイターマスタリー"
+
+msgid "award.mastery.icon"
+msgstr "メダル"
+
+msgid "award.mastery.1.title"
+msgstr "見習い"
+
+msgid "award.mastery.1.how"
+msgstr "ファイター1人をカッパーのフレームまで育てる"
+
+msgid "award.mastery.2.title"
+msgstr "熟練"
+
+msgid "award.mastery.2.how"
+msgstr "ファイター1人をシルバーのフレームまで育てる"
+
+msgid "award.mastery.3.title"
+msgstr "スペシャリスト"
+
+msgid "award.mastery.3.how"
+msgstr "ファイター1人をゴールドのフレームまで育てる"
+
+msgid "award.mastery.4.title"
+msgstr "マスター"
+
+msgid "award.mastery.4.how"
+msgstr "ファイター1人をエンバーのフレームまで育てる"
+
+msgid "award.cast.name"
+msgstr "キャラクター"
+
+msgid "award.cast.icon"
+msgstr "トーナメント表"
+
+msgid "award.cast.5.title"
+msgstr "サブキャラ"
+
+msgid "award.cast.5.how"
+msgstr "ランク試合で5人の異なるファイターを使う"
+
+msgid "award.cast.15.title"
+msgstr "オールラウンダー"
+
+msgid "award.cast.15.how"
+msgstr "ランク試合で15人の異なるファイターを使う"
+
+msgid "award.cast.30.title"
+msgstr "叩き上げ"
+
+msgid "award.cast.30.how"
+msgstr "ランク試合で30人の異なるファイターを使う"
+
+msgid "award.cast.all.title"
+msgstr "全員使い"
+
+msgid "award.cast.all.how"
+msgstr "ランク試合ですべてのファイターを使う"
+
+msgid "award.friends.name"
+msgstr "フレンド"
+
+msgid "award.friends.icon"
+msgstr "ペア"
+
+msgid "award.friends.1.title"
+msgstr "スパーリング相手"
+
+msgid "award.friends.1.how"
+msgstr "フレンドを1人追加する"
+
+msgid "award.friends.5.title"
+msgstr "良き仲間"
+
+msgid "award.friends.5.how"
+msgstr "フレンドが5人になる"
+
+msgid "award.friends.15.title"
+msgstr "おなじみの面々"
+
+msgid "award.friends.15.how"
+msgstr "フレンドが15人になる"
+
+msgid "award.rival.name"
+msgstr "ライバル"
+
+msgid "award.rival.icon"
+msgstr "履歴"
+
+msgid "award.rival.10.title"
+msgstr "顔なじみ"
+
+msgid "award.rival.10.how"
+msgstr "同じ相手とランク試合を10試合プレイする"
+
+msgid "award.rival.50.title"
+msgstr "ライバル"
+
+msgid "award.rival.50.how"
+msgstr "同じ相手とランク試合を50試合プレイする"
+
+msgid "award.rival.100.title"
+msgstr "宿敵"
+
+msgid "award.rival.100.how"
+msgstr "同じ相手とランク試合を100試合プレイする"
+
+msgid "award.rival.250.title"
+msgstr "永遠のライバル"
+
+msgid "award.rival.250.how"
+msgstr "同じ相手とランク試合を250試合プレイする"
+
+msgid "award.opponents.name"
+msgstr "対戦相手"
+
+msgid "award.opponents.icon"
+msgstr "波"
+
+msgid "award.opponents.10.title"
+msgstr "挑戦受付中"
+
+msgid "award.opponents.10.how"
+msgstr "ランク試合で10人の異なる相手と対戦する"
+
+msgid "award.opponents.50.title"
+msgstr "顔が広い"
+
+msgid "award.opponents.50.how"
+msgstr "ランク試合で50人の異なる相手と対戦する"
+
+msgid "award.opponents.200.title"
+msgstr "ストリートの伝説"
+
+msgid "award.opponents.200.how"
+msgstr "ランク試合で200人の異なる相手と対戦する"
+
+msgid "award.opponents.500.title"
+msgstr "みんなのライバル"
+
+msgid "award.opponents.500.how"
+msgstr "ランク試合で500人の異なる相手と対戦する"
+
+msgid "award.rank.how"
+msgstr "公開ルームでクラス {0} に到達する"
 
 msgid "toast.kind.invitation"
 msgstr "招待"

@@ -276,7 +276,6 @@ msgstr "Доступно обновление: {0}"
 msgid "services.go_back_available"
 msgstr "Можно вернуться к версии {0}"
 
-
 msgid "services.up_to_date"
 msgstr "У вас последняя версия."
 
@@ -727,9 +726,6 @@ msgstr "Профиль игрока"
 msgid "home.profile_detail"
 msgstr "Ваша карточка, бойцы, друзья и награды."
 
-msgid "home.profile_requests"
-msgstr "Запросы: {0}"
-
 msgid "home.settings"
 msgstr "Настройки"
 
@@ -933,9 +929,6 @@ msgstr "Выходит из меню Ember в Battle Log игры, где вос
 
 msgid "replays.open_log_room"
 msgstr "Сначала выйдите из лобби."
-
-
-
 
 msgid "replays.set_value"
 msgstr "Записей: {0} · комнат: {1}"
@@ -1278,6 +1271,12 @@ msgstr "Добавляйте друзей из открытого лобби: о
 
 msgid "friends.request_sent_to"
 msgstr "Запрос отправлен: {0}."
+
+msgid "friends.now_friends"
+msgstr "Теперь вы с {0} друзья."
+
+msgid "friends.blocked_name"
+msgstr "Игрок {0} заблокирован."
 
 msgid "friends.invite_sent"
 msgstr "Приглашение отправлено: {0}."
@@ -1639,8 +1638,6 @@ msgstr "Без рамки"
 msgid "player.borderless_detail"
 msgstr "Игра заполняет экран в окне без рамки и рисуется в собственном разрешении экрана в формате 16:9, с чёрными полосами на более широком или высоком экране. Пока это включено, Alt+Enter и собственные настройки разрешения и полноэкранного режима в игре ничего не делают; игра сохраняет ваш выбор там на случай, когда это будет выключено. Влияет только на этот ПК. Изменения вступят в силу при следующем запуске игры."
 
-
-
 msgid "size.small"
 msgstr "Малый"
 
@@ -1755,6 +1752,9 @@ msgstr "Когда меню Ember закрывается, на нескольк�
 msgid "settings.interface_size"
 msgstr "Размер интерфейса"
 
+msgid "settings.interface_size_detail"
+msgstr "При значении ниже 1.00x на большом мониторе помещается больше."
+
 msgid "discord.show_activity"
 msgstr "Показывать статус"
 
@@ -1767,11 +1767,23 @@ msgstr "Приглашения открывают доступ к вашему �
 msgid "discord.enable_first"
 msgstr "Сначала включите статус Discord."
 
-msgid "discord.tournament_account"
-msgstr "Турнирный аккаунт"
+msgid "discord.account"
+msgstr "Аккаунт Discord"
 
-msgid "discord.tournament_account_detail"
-msgstr "Аккаунт Discord, который знает ваш турнирный сайт, например BluMint. Он может отличаться от аккаунта в приложении Discord. Выберите, чтобы подключить или сменить его."
+msgid "discord.account_none"
+msgstr "Не подключён"
+
+msgid "discord.account_linked"
+msgstr "Подключён · {0}"
+
+msgid "discord.account_detail"
+msgstr "Подключите аккаунт Discord, который использует ваш Ember ID. Его используют рейтинговые игры, очки, друзья, общие реплеи и турнирные сайты вроде BluMint. Он может отличаться от аккаунта в приложении Discord. Выбор подключает его."
+
+msgid "discord.account_linked_detail"
+msgstr "Аккаунт Discord, подключённый к вашему Ember ID. Его используют рейтинговые игры, очки, друзья, общие реплеи и турнирные сайты вроде BluMint. Он может отличаться от аккаунта в приложении Discord. Выбор позволяет сменить аккаунт или отключить его."
+
+msgid "discord.server"
+msgstr "Сервер Discord Ember"
 
 msgid "discord.invitation_title"
 msgstr "ПРИГЛАШЕНИЕ DISCORD"
@@ -2834,6 +2846,7 @@ msgstr "Не удалось отправить запрос лобби. Выйд
 
 msgid "runtime.build_mismatch"
 msgstr "Ваш Ember и эта комната на разных версиях. Узнайте у хоста, какую версию он использует, затем обновитесь или смените канал обновлений в разделе Справка и сведения > Проверить обновления, чтобы версии совпали."
+
 msgid "runtime.build_mismatch_update"
 msgstr "Ваш Ember устарел, поэтому не может войти в эту комнату. Обновитесь в разделе Справка и сведения > Проверить обновления и войдите снова."
 
@@ -2851,6 +2864,7 @@ msgstr "Выбор не допускается этими правилами. О
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay / F10 или Start"
+
 msgid "runtime.return_menu_to_join"
 msgstr "Вернитесь в главное меню, чтобы присоединиться к матчу."
 
@@ -3156,6 +3170,7 @@ msgstr "{0} / ВЕДУЩИЙ"
 
 msgid "room.member_status"
 msgstr "{0}"
+
 msgid "room.member.watcher"
 msgstr "Зритель"
 
@@ -3206,12 +3221,16 @@ msgstr "{0}: победа в бою в ячейке {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}: победа в поединке в ячейке {1} ({2})"
+
 msgid "chat.event.set_won_against"
 msgstr "{0}: победа в поединке против {1} ({2})"
+
 msgid "chat.typing.one"
 msgstr "{0} печатает..."
+
 msgid "chat.typing.two"
 msgstr "{0} и {1} печатают..."
+
 msgid "chat.typing.many"
 msgstr "Несколько человек печатают..."
 
@@ -3271,39 +3290,6 @@ msgstr "Прошлый матч ещё закрывается. Замена ст
 
 msgid "room.updating"
 msgstr "Обновление лобби..."
-
-msgid "room.table_name"
-msgstr "Название стола"
-
-msgid "room.table_name.detail"
-msgstr "Показывается на карточке стола после номера, например «Новички». Пусто — только номер."
-
-msgid "room.template"
-msgstr "Шаблон"
-
-msgid "room.template.none"
-msgstr "Нет"
-
-msgid "room.template.detail"
-msgstr "Сохранённая комната. Задаёт строки ниже, а после открытия комнаты — правила и название каждого стола. Влево и вправо — выбор."
-
-msgid "room.template.delete"
-msgstr "Удалить шаблон"
-
-msgid "room.template.delete.detail"
-msgstr "Удаляет шаблон {0} с этого ПК."
-
-msgid "room.template.full"
-msgstr "У вас {0} шаблонов. Сначала удалите один в «Создать комнату»."
-
-msgid "room.template.saved"
-msgstr "Сохранено как шаблон {0}."
-
-msgid "room.save_template"
-msgstr "Сохранить как шаблон"
-
-msgid "room.save_template.detail"
-msgstr "Сохраняет настройки этой комнаты, а также правила и название каждого стола, на этом ПК для «Создать комнату > Шаблон». То же имя перезаписывает его."
 
 msgid "room.fighter_not_shared"
 msgstr "Боец не показан"
@@ -3379,6 +3365,39 @@ msgstr "Открывается новое лобби. Выберите «Коп�
 
 msgid "room.action_rejected"
 msgstr "Лобби изменилось или отклонило действие. Проверьте текущее состояние и попробуйте снова."
+
+msgid "room.table_name"
+msgstr "Название стола"
+
+msgid "room.table_name.detail"
+msgstr "Показывается на карточке стола после номера, например «Новички». Пусто — только номер."
+
+msgid "room.template"
+msgstr "Шаблон"
+
+msgid "room.template.none"
+msgstr "Нет"
+
+msgid "room.template.detail"
+msgstr "Сохранённая комната. Задаёт строки ниже, а после открытия комнаты — правила и название каждого стола. Влево и вправо — выбор."
+
+msgid "room.template.delete"
+msgstr "Удалить шаблон"
+
+msgid "room.template.delete.detail"
+msgstr "Удаляет шаблон {0} с этого ПК."
+
+msgid "room.template.full"
+msgstr "У вас {0} шаблонов. Сначала удалите один в «Создать комнату»."
+
+msgid "room.template.saved"
+msgstr "Сохранено как шаблон {0}."
+
+msgid "room.save_template"
+msgstr "Сохранить как шаблон"
+
+msgid "room.save_template.detail"
+msgstr "Сохраняет настройки этой комнаты, а также правила и название каждого стола, на этом ПК для «Создать комнату > Шаблон». То же имя перезаписывает его."
 
 msgid "room.leave_current_table"
 msgstr "Сначала покиньте текущую ячейку."
@@ -3487,6 +3506,7 @@ msgstr "Выбранная задержка закреплена на этот �
 
 msgid "room.match_delay.at_least"
 msgstr "Не менее {0} к."
+
 msgid "room.match_delay.at_least_one"
 msgstr "Не менее {0} к."
 
@@ -3528,6 +3548,7 @@ msgstr "Ожидание завершения текущего матча или
 
 msgid "room.change_fighter.detail"
 msgstr "Выберите бойца, затем его Ультра Комбо. Вернитесь сюда и нажмите «Готов»."
+
 msgid "room.appearance.detail"
 msgstr "Влево и вправо меняют цвет здесь. Выбор открывает костюмы, затем цвета выбранного костюма."
 
@@ -3584,9 +3605,6 @@ msgstr "В очередь"
 
 msgid "room.stop_watching"
 msgstr "Не смотреть"
-
-
-
 
 msgid "room.stop_watching.detail"
 msgstr "Прекращает просмотр этой ячейки и возвращает в лобби. Бойцы продолжают играть."
@@ -3699,9 +3717,6 @@ msgstr "Изменения ещё не применены."
 msgid "room.rules.host_only"
 msgstr "Правила ячейки может менять только ведущий."
 
-msgid "room.rules.tournament"
-msgstr "Правила в этой ячейке задаёт турнир."
-
 msgid "room.apply_rules"
 msgstr "Применить"
 
@@ -3785,14 +3800,19 @@ msgstr "Применить лимит"
 
 msgid "room.apply_capacity.detail"
 msgstr "Задать лимит лобби."
+
 msgid "room.tables"
 msgstr "Ячейки"
+
 msgid "room.tables_detail"
 msgstr "Сколько ячеек в лобби, от 1 до {0}. Ведущий может изменить это позже в настройках лобби."
+
 msgid "room.tables_arcade_detail"
 msgstr "Сколько пар играет одновременно, от 1 до {0}. Остальные ждут в очереди. При 1 победитель остаётся, а проигравший уходит в конец очереди."
+
 msgid "room.tables.detail"
 msgstr "Можно добавить до {0} ячеек. Ячейку можно убрать, только если в ней никто не играет, не ждёт и не смотрит."
+
 msgid "room.apply_tables"
 msgstr "Применить ячейки"
 
@@ -4104,6 +4124,9 @@ msgstr "Сеть недоступна. Игра без сети доступна
 
 msgid "runtime.room_join_failed"
 msgstr "Не удалось войти в лобби. Проверьте приглашение и убедитесь, что у обоих игроков одинаковый пакет SF4 Ember Netplay."
+
+msgid "room.rules.tournament"
+msgstr "Правила в этой ячейке задаёт турнир."
 
 msgid "runtime.invite_expired"
 msgstr "Срок действия приглашения истёк. Попросите хоста скопировать новое."
@@ -4456,10 +4479,6 @@ msgstr "Использовать другой аккаунт Discord"
 msgid "connect.change_detail"
 msgstr "Открывает Discord в браузере, чтобы вместо этого подключить другой аккаунт. Тогда ваш турнирный сайт должен использовать этот аккаунт."
 
-
-
-
-
 msgid "screen.tournament_desk"
 msgstr "Организация турниров"
 
@@ -4591,11 +4610,6 @@ msgstr "Открыть в браузере"
 
 msgid "desk.open_browser_detail"
 msgstr "Открывает сайт сеток в браузере этого ПК. Войди там через Discord."
-
-
-
-
-
 
 msgid "desk.opened"
 msgstr "Сайт сеток открылся в браузере."
@@ -5166,6 +5180,12 @@ msgstr "Создаёт открытое лобби в сервисе Ember ID, �
 
 msgid "public.create_needs_id"
 msgstr "Для открытых лобби нужны Ember ID и доверенный сервис. Настройте их в разделе Открытые лобби."
+
+msgid "public.ranked_needs_discord"
+msgstr "Подключите Discord, чтобы играть в рейтинге"
+
+msgid "public.ranked_needs_discord_detail"
+msgstr "Игры идут в зачёт вашего класса и очков, только если подключён аккаунт Discord. Играть без него всё равно можно."
 
 msgid "public.loading"
 msgstr "Загрузка лобби..."
@@ -6388,7 +6408,6 @@ msgstr "Изображения кнопок, которые показывает
 msgid "player.prompts_auto"
 msgstr "Автоматически"
 
-
 msgid "controller.brand.stick"
 msgstr "Боевые кнопки"
 
@@ -6430,8 +6449,6 @@ msgstr "Подключено: {0}"
 
 msgid "player.controllers_detail"
 msgstr "Вы играете с {0}. Посмотрите все подключённые контроллеры, проверьте их кнопки и настройте те, которые Ember ещё не знает."
-
-
 
 msgid "player.game_reads"
 msgstr "Разрешить игре читать контроллеры"
@@ -8123,7 +8140,6 @@ msgstr "Открыть панель"
 msgid "settings.panel.close_action"
 msgstr "Закрыть панель"
 
-
 msgid "class.developer"
 msgstr "Dev"
 
@@ -8294,6 +8310,12 @@ msgstr "Уведомления"
 
 msgid "notifications.none"
 msgstr "Пока ничего."
+
+msgid "notifications.tab_count"
+msgstr "Уведомления · {0}"
+
+msgid "notifications.waiting"
+msgstr "Ожидают: {0}"
 
 msgid "notifications.none_detail"
 msgstr "То, что сообщает Ember, например скопированная ссылка или покинутая комната, хранится здесь до конца сеанса."
@@ -8481,9 +8503,11 @@ msgstr "Матчи"
 msgid "replays.tab.sets"
 msgstr "Сеты"
 
+msgid "replays.tab.archive"
+msgstr "Архив"
+
 msgid "replays.set_matches"
 msgstr "Матчей: {0}"
-
 
 msgid "replays.fact.fighters"
 msgstr "Бойцы"
@@ -8493,6 +8517,213 @@ msgstr "Сыгран"
 
 msgid "replays.fact.length"
 msgstr "Длительность"
+
+msgid "archive.filters"
+msgstr "Фильтры"
+
+msgid "archive.filters_detail"
+msgstr "Сузьте список сетов по игроку, событию, бойцу, классу, стране или раунду и выберите их порядок."
+
+msgid "archive.filter_none"
+msgstr "Всё, сначала новые"
+
+msgid "archive.filter_class"
+msgstr "Класс {0}"
+
+msgid "archive.online"
+msgstr "Онлайн-игры"
+
+msgid "archive.sort_newest"
+msgstr "Сначала новые"
+
+msgid "archive.sort_class"
+msgstr "Сначала высший класс"
+
+msgid "archive.round.top8"
+msgstr "Топ-8"
+
+msgid "archive.round.pools"
+msgstr "Группы"
+
+msgid "archive.round.winners"
+msgstr "Верхняя сетка"
+
+msgid "archive.round.losers"
+msgstr "Нижняя сетка"
+
+msgid "archive.round.grand"
+msgstr "Гранд-финал"
+
+msgid "archive.any_class"
+msgstr "Любой класс"
+
+msgid "archive.any_country"
+msgstr "Любая страна"
+
+msgid "archive.any_event"
+msgstr "Любое событие"
+
+msgid "archive.any_round"
+msgstr "Любой раунд"
+
+msgid "archive.any_fighter"
+msgstr "Любой боец"
+
+msgid "archive.any_fighter_detail"
+msgstr "Показывает сеты с любым бойцом."
+
+msgid "archive.f_text"
+msgstr "Игрок или событие"
+
+msgid "archive.f_text_detail"
+msgstr "Показывает сеты, где в имени игрока или названии события есть эти буквы."
+
+msgid "archive.f_fighter"
+msgstr "Боец"
+
+msgid "archive.f_fighter_detail"
+msgstr "Показывает сеты, где один из игроков играл этим бойцом."
+
+msgid "archive.f_class"
+msgstr "Класс"
+
+msgid "archive.f_class_detail"
+msgstr "Показывает сеты, где у одного из игроков сегодня этот класс в рейтинге."
+
+msgid "archive.f_country"
+msgstr "Страна"
+
+msgid "archive.f_country_detail"
+msgstr "Показывает сеты с игроком из этой страны."
+
+msgid "archive.f_event"
+msgstr "Событие"
+
+msgid "archive.f_event_detail"
+msgstr "Показывает сеты одного турнирного события или только онлайн-игры."
+
+msgid "archive.f_round"
+msgstr "Раунд"
+
+msgid "archive.f_round_detail"
+msgstr "Показывает турнирные сеты одного раунда."
+
+msgid "archive.f_sort"
+msgstr "Сортировка"
+
+msgid "archive.f_sort_detail"
+msgstr "Сначала новые или сначала сеты с высшим классом."
+
+msgid "archive.games_shown"
+msgstr "Показано игр"
+
+msgid "archive.games_of"
+msgstr "{0} из {1}"
+
+msgid "archive.clear"
+msgstr "Сбросить фильтры"
+
+msgid "archive.clear_detail"
+msgstr "Снова показывает все сеты."
+
+msgid "archive.no_service"
+msgstr "Настройте Ember ID"
+
+msgid "archive.no_service_detail"
+msgstr "Архив читается с сервиса Ember. Откройте «Учётная запись Ember», чтобы его настроить."
+
+msgid "archive.loading"
+msgstr "Загрузка сетов"
+
+msgid "archive.loading_detail"
+msgstr "Запрашиваем у архива самые новые сеты."
+
+msgid "archive.loading_more"
+msgstr "Загрузка ещё"
+
+msgid "archive.loading_more_detail"
+msgstr "Запрашиваем у архива более старые сеты."
+
+msgid "archive.unsupported"
+msgstr "Здесь нет архива реплеев"
+
+msgid "archive.unsupported_detail"
+msgstr "Этот сервис не предоставляет публичный архив реплеев."
+
+msgid "archive.failed"
+msgstr "Не удалось связаться с архивом"
+
+msgid "archive.failed_detail"
+msgstr "{0} Выбор повторяет попытку."
+
+msgid "archive.none"
+msgstr "Нет сетов под эти фильтры"
+
+msgid "archive.none_detail"
+msgstr "Сбросьте фильтры, чтобы увидеть все сеты."
+
+msgid "archive.empty"
+msgstr "В архиве пока нет реплеев"
+
+msgid "archive.empty_detail"
+msgstr "Сюда попадают игры, которыми игроки делятся из Ember."
+
+msgid "archive.more_failed"
+msgstr "Не удалось загрузить ещё"
+
+msgid "archive.more_failed_detail"
+msgstr "Выбор повторяет попытку."
+
+msgid "archive.retry"
+msgstr "Повторить"
+
+msgid "archive.downloading"
+msgstr "Загрузка игры"
+
+msgid "archive.download_failed"
+msgstr "Не удалось загрузить игру. {0}"
+
+msgid "archive.vs"
+msgstr "vs"
+
+msgid "archive.watch_hint"
+msgstr "Смотреть"
+
+msgid "archive.find"
+msgstr "Сеты игрока {0}"
+
+msgid "archive.find_detail"
+msgstr "Показывает сеты, которые {0} сыграл в публичном архиве."
+
+msgid "archive.game_one"
+msgstr "1 игра"
+
+msgid "archive.games"
+msgstr "Игр: {0}"
+
+msgid "archive.met"
+msgstr "Соперники: {0}"
+
+msgid "archive.session_label"
+msgstr "{0}, игр: {1}"
+
+msgid "archive.fact.event"
+msgstr "Событие"
+
+msgid "archive.fact.round"
+msgstr "Раунд"
+
+msgid "archive.fact.games"
+msgstr "Игры"
+
+msgid "archive.fact.size"
+msgstr "Размер"
+
+msgid "archive.size_kb"
+msgstr "{0} КБ"
+
+msgid "archive.game_n"
+msgstr "Игра {0}"
 
 msgid "keyboard.recent"
 msgstr "Недавние:"
@@ -8620,8 +8851,20 @@ msgstr "На твоей карточке."
 msgid "awards.detail_earned"
 msgstr "Получено. Выбор надевает на карточку."
 
-msgid "awards.detail_locked"
-msgstr "Закрыто. {0}."
+msgid "awards.progress"
+msgstr "{0} из {1}"
+
+msgid "awards.next"
+msgstr "Дальше: {0}"
+
+msgid "awards.top_level"
+msgstr "Высший уровень"
+
+msgid "awards.notice"
+msgstr "Получена награда: {0}"
+
+msgid "awards.link_discord"
+msgstr "Подключи Discord, чтобы получать награды."
 
 msgid "tier.ash"
 msgstr "Пепел"
@@ -8638,104 +8881,266 @@ msgstr "Золото"
 msgid "tier.ember"
 msgstr "Ember"
 
-msgid "award.entrant.title"
-msgstr "УЧАСТНИК EMBER"
+msgid "award.matches.name"
+msgstr "Игры"
 
-msgid "award.entrant.icon"
-msgstr "Искра"
-
-msgid "award.entrant.how"
-msgstr "Сыграй один сет в любой сетке Ember"
-
-msgid "award.launch-night.title"
-msgstr "НОЧЬ ЗАПУСКА"
-
-msgid "award.launch-night.icon"
-msgstr "Перемотка"
-
-msgid "award.launch-night.how"
-msgstr "Сыграй во время события запуска Ember"
-
-msgid "award.weekly-top16.title"
-msgstr "ТОП-16 НЕДЕЛИ"
-
-msgid "award.weekly-top16.icon"
-msgstr "Лавр"
-
-msgid "award.weekly-top16.how"
-msgstr "Войди в топ-16 на Ember Weekly"
-
-msgid "award.rollback-regular.title"
-msgstr "ЗАВСЕГДАТАЙ ROLLBACK"
-
-msgid "award.rollback-regular.icon"
-msgstr "Календарь"
-
-msgid "award.rollback-regular.how"
-msgstr "Сыграй в 10 Ember Weekly за сезон"
-
-msgid "award.weekly-top8.title"
-msgstr "ТОП-8 НЕДЕЛИ"
-
-msgid "award.weekly-top8.icon"
-msgstr "Восьмиугольник 8"
-
-msgid "award.weekly-top8.how"
-msgstr "Войди в топ-8 на Ember Weekly"
-
-msgid "award.by-ear.title"
-msgstr "НА СЛУХ"
-
-msgid "award.by-ear.icon"
-msgstr "Звуковая волна"
-
-msgid "award.by-ear.how"
-msgstr "Выиграй сет в сетке только со звуком"
-
-msgid "award.monthly-finalist.title"
-msgstr "ФИНАЛИСТ МЕСЯЦА"
-
-msgid "award.monthly-finalist.icon"
-msgstr "Медаль"
-
-msgid "award.monthly-finalist.how"
-msgstr "Дойди до гранд-финала Ember Monthly"
-
-msgid "award.organizer.title"
-msgstr "ОРГАНИЗАТОР ТУРНИРОВ"
-
-msgid "award.organizer.icon"
+msgid "award.matches.icon"
 msgstr "Флаг"
 
-msgid "award.organizer.how"
-msgstr "Выдаётся командой Ember организаторам"
+msgid "award.matches.1.title"
+msgstr "Новый боец"
 
-msgid "award.commentary.title"
-msgstr "КОММЕНТАТОР"
+msgid "award.matches.1.how"
+msgstr "Сыграй первую рейтинговую игру в открытом лобби"
 
-msgid "award.commentary.icon"
-msgstr "Микрофон"
+msgid "award.matches.100.title"
+msgstr "Завсегдатай"
 
-msgid "award.commentary.how"
-msgstr "Выдаётся комментаторам трансляций"
+msgid "award.matches.100.how"
+msgstr "Сыграй 100 рейтинговых игр в открытых лобби"
 
-msgid "award.season1-veteran.title"
-msgstr "ВЕТЕРАН 1-ГО СЕЗОНА"
+msgid "award.matches.500.title"
+msgstr "Ветеран"
 
-msgid "award.season1-veteran.icon"
-msgstr "Герб"
+msgid "award.matches.500.how"
+msgstr "Сыграй 500 рейтинговых игр в открытых лобби"
 
-msgid "award.season1-veteran.how"
-msgstr "Войди в топ-32 на каждом Monthly 1-го сезона"
+msgid "award.matches.1000.title"
+msgstr "World Warrior"
 
-msgid "award.cup-champion.title"
-msgstr "ЧЕМПИОН EMBER CUP"
+msgid "award.matches.1000.how"
+msgstr "Сыграй 1000 рейтинговых игр в открытых лобби"
 
-msgid "award.cup-champion.icon"
-msgstr "Корона"
+msgid "award.matches.5000.title"
+msgstr "Бессменный"
 
-msgid "award.cup-champion.how"
-msgstr "Выиграй Ember Cup в конце сезона"
+msgid "award.matches.5000.how"
+msgstr "Сыграй 5000 рейтинговых игр в открытых лобби"
+
+msgid "award.wins.name"
+msgstr "Победы"
+
+msgid "award.wins.icon"
+msgstr "Лавр"
+
+msgid "award.wins.1.title"
+msgstr "Первая победа"
+
+msgid "award.wins.1.how"
+msgstr "Выиграй первую рейтинговую игру в открытом лобби"
+
+msgid "award.wins.50.title"
+msgstr "Претендент"
+
+msgid "award.wins.50.how"
+msgstr "Выиграй 50 рейтинговых игр в открытых лобби"
+
+msgid "award.wins.250.title"
+msgstr "Призовой боец"
+
+msgid "award.wins.250.how"
+msgstr "Выиграй 250 рейтинговых игр в открытых лобби"
+
+msgid "award.wins.1000.title"
+msgstr "Чемпион"
+
+msgid "award.wins.1000.how"
+msgstr "Выиграй 1000 рейтинговых игр в открытых лобби"
+
+msgid "award.wins.2500.title"
+msgstr "Легенда"
+
+msgid "award.wins.2500.how"
+msgstr "Выиграй 2500 рейтинговых игр в открытых лобби"
+
+msgid "award.streak.name"
+msgstr "Серия побед"
+
+msgid "award.streak.icon"
+msgstr "Пламя"
+
+msgid "award.streak.3.title"
+msgstr "В ударе"
+
+msgid "award.streak.3.how"
+msgstr "Выиграй 3 рейтинговые игры подряд"
+
+msgid "award.streak.5.title"
+msgstr "Горячая серия"
+
+msgid "award.streak.5.how"
+msgstr "Выиграй 5 рейтинговых игр подряд"
+
+msgid "award.streak.10.title"
+msgstr "Неприкасаемый"
+
+msgid "award.streak.10.how"
+msgstr "Выиграй 10 рейтинговых игр подряд"
+
+msgid "award.streak.15.title"
+msgstr "Непобедимый"
+
+msgid "award.streak.15.how"
+msgstr "Выиграй 15 рейтинговых игр подряд"
+
+msgid "award.streak.20.title"
+msgstr "Неудержимый"
+
+msgid "award.streak.20.how"
+msgstr "Выиграй 20 рейтинговых игр подряд"
+
+msgid "award.rank.name"
+msgstr "Высший класс"
+
+msgid "award.rank.icon"
+msgstr "Щит"
+
+msgid "award.mastery.name"
+msgstr "Мастерство бойцов"
+
+msgid "award.mastery.icon"
+msgstr "Медаль"
+
+msgid "award.mastery.1.title"
+msgstr "Ученик"
+
+msgid "award.mastery.1.how"
+msgstr "Доведи бойца до рамки «Медь»"
+
+msgid "award.mastery.2.title"
+msgstr "Адепт"
+
+msgid "award.mastery.2.how"
+msgstr "Доведи бойца до рамки «Серебро»"
+
+msgid "award.mastery.3.title"
+msgstr "Специалист"
+
+msgid "award.mastery.3.how"
+msgstr "Доведи бойца до рамки «Золото»"
+
+msgid "award.mastery.4.title"
+msgstr "Мастер"
+
+msgid "award.mastery.4.how"
+msgstr "Доведи бойца до рамки «Ember»"
+
+msgid "award.cast.name"
+msgstr "Состав"
+
+msgid "award.cast.icon"
+msgstr "Сетка"
+
+msgid "award.cast.5.title"
+msgstr "Запасной вариант"
+
+msgid "award.cast.5.how"
+msgstr "Сыграй за 5 разных бойцов в рейтинговых играх"
+
+msgid "award.cast.15.title"
+msgstr "Универсал"
+
+msgid "award.cast.15.how"
+msgstr "Сыграй за 15 разных бойцов в рейтинговых играх"
+
+msgid "award.cast.30.title"
+msgstr "Бывалый"
+
+msgid "award.cast.30.how"
+msgstr "Сыграй за 30 разных бойцов в рейтинговых играх"
+
+msgid "award.cast.all.title"
+msgstr "Все бойцы"
+
+msgid "award.cast.all.how"
+msgstr "Сыграй за каждого бойца в рейтинговых играх"
+
+msgid "award.friends.name"
+msgstr "Друзья"
+
+msgid "award.friends.icon"
+msgstr "Пара"
+
+msgid "award.friends.1.title"
+msgstr "Спарринг-партнёр"
+
+msgid "award.friends.1.how"
+msgstr "Добавь друга"
+
+msgid "award.friends.5.title"
+msgstr "Хорошая компания"
+
+msgid "award.friends.5.how"
+msgstr "Заведи 5 друзей"
+
+msgid "award.friends.15.title"
+msgstr "Постоянная команда"
+
+msgid "award.friends.15.how"
+msgstr "Заведи 15 друзей"
+
+msgid "award.rival.name"
+msgstr "Соперник"
+
+msgid "award.rival.icon"
+msgstr "История"
+
+msgid "award.rival.10.title"
+msgstr "Знакомое лицо"
+
+msgid "award.rival.10.how"
+msgstr "Сыграй 10 рейтинговых игр против одного соперника"
+
+msgid "award.rival.50.title"
+msgstr "Соперник"
+
+msgid "award.rival.50.how"
+msgstr "Сыграй 50 рейтинговых игр против одного соперника"
+
+msgid "award.rival.100.title"
+msgstr "Немезида"
+
+msgid "award.rival.100.how"
+msgstr "Сыграй 100 рейтинговых игр против одного соперника"
+
+msgid "award.rival.250.title"
+msgstr "Вечный соперник"
+
+msgid "award.rival.250.how"
+msgstr "Сыграй 250 рейтинговых игр против одного соперника"
+
+msgid "award.opponents.name"
+msgstr "Соперники"
+
+msgid "award.opponents.icon"
+msgstr "Волна"
+
+msgid "award.opponents.10.title"
+msgstr "Открытый вызов"
+
+msgid "award.opponents.10.how"
+msgstr "Сразись с 10 разными соперниками в рейтинговых играх"
+
+msgid "award.opponents.50.title"
+msgstr "Широкий круг"
+
+msgid "award.opponents.50.how"
+msgstr "Сразись с 50 разными соперниками в рейтинговых играх"
+
+msgid "award.opponents.200.title"
+msgstr "Легенда улиц"
+
+msgid "award.opponents.200.how"
+msgstr "Сразись с 200 разными соперниками в рейтинговых играх"
+
+msgid "award.opponents.500.title"
+msgstr "Соперник для всех"
+
+msgid "award.opponents.500.how"
+msgstr "Сразись с 500 разными соперниками в рейтинговых играх"
+
+msgid "award.rank.how"
+msgstr "Достигни класса {0} в открытых лобби"
 
 msgid "toast.kind.invitation"
 msgstr "ПРИГЛАШЕНИЕ"
