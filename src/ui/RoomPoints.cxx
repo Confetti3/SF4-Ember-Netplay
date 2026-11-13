@@ -36,7 +36,8 @@ const netplay::levels::Card* LookedUp(const ShellView& view, const room::Member&
 }
 }
 
-const netplay::levels::Card* CardOf(const ShellView& view, const room::Member& member) { return LookedUp(view, member); }
+// As PointsOf: a private room has no cards, whatever was looked up.
+const netplay::levels::Card* CardOf(const ShellView& view, const room::Member& member) { return view.room.serverOwned ? LookedUp(view, member) : nullptr; }
 
 MemberPoints PointsOf(const ShellView& view, const room::Member& member) {
     MemberPoints out;
