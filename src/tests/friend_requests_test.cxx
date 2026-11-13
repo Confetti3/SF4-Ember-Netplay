@@ -232,17 +232,28 @@ void ScopeChange() {
 	requests.Finish(requests.BeginAction(), "own_card", std::nullopt, 2100);
 	const auto stale = requests.BeginSync(40000);
 	requests.Hold(FriendAccept{"brg_1", "rq_a"});
-	requests.Scope("brg_1", "emb1_a");
-	EXPECT(requests.Awaiting(stale) && requests.Published().loaded);
-	requests.Scope("brg_1", "emb1_b");
+	EXPECT(!requests.Scope("brg_1", "emb1_a"));
+	EXPECT(requests.Awaiting(stale) && requests.Published().loaded && requests.Busy());
+	// The action held is dropped with the scope, and refused so that whoever asked is told.
+	EXPECT(requests.Scope("brg_1", "emb1_b"));
 	const auto& answered = requests.Published();
 	EXPECT(!answered.loaded && !answered.loading && answered.value->kind == State::Kind::Unavailable && answered.revision == 1 && answered.finished == 2);
-	EXPECT(!requests.Awaiting(stale) && !requests.Busy() && requests.Refusal().empty() && requests.MayAct() && requests.SyncDue(45000));
+	EXPECT(!requests.Awaiting(stale) && !requests.Busy() && requests.MayAct() && requests.SyncDue(45000));
+	EXPECT(requests.Refusal() == Requests::Dropped && requests.Refusals() == 2);
 	Sync(requests, 45000, 45010, "DDDD-DDDD");
 	EXPECT(answered.revision == 2 && answered.finished == 3);
 	// The answer of the retired request is nobody's.
 	requests.Finish(stale, "", Listed("EEEE-EEEE"), 46000);
 	EXPECT(answered.revision == 2 && requests.Published().value->code == "DDDD-DDDD");
+	// An action in flight is dropped and refused alike; a change with nothing asked refuses nothing.
+	const auto lost = requests.BeginAction();
+	EXPECT(requests.Scope("brg_2", "emb1_b") && !requests.Awaiting(lost) && !requests.Busy());
+	EXPECT(requests.Refusal() == Requests::Dropped && requests.Refusals() == 3);
+	requests.Finish(lost, "", Listed("FFFF-FFFF"), 47000);
+	EXPECT(requests.Refusals() == 3 && requests.Published().value->kind == State::Kind::Unavailable);
+	const auto syncing = requests.BeginSync(50000);
+	EXPECT(!requests.Scope("brg_1", "emb1_b") && !requests.Awaiting(syncing));
+	EXPECT(requests.Refusal().empty() && requests.Refusals() == 3);
 }
 
 // What is an action is a property of its type, and the commands state their bounds.

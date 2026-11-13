@@ -150,12 +150,57 @@ static void Unavailable() {
 	EXPECT(cards.Published()->empty() && cards.Take(1000100 + Cards::MinGapMs).size() == 1);
 }
 
+static Card Related(Relation relation) {
+	Card card = Showing(2, 10);
+	card.relation = relation;
+	return card;
+}
+
+// A friends action that went through: the member it named shows what it made of them at once, every card is asked
+// again at the next look-up, and a look-up asked before the action does not undo what it shows.
+static void ActionRefreshes() {
+	Cards cards;
+	Scope(cards);
+	const Batch both = {"c1.a", "c1.b"};
+	cards.Observe(1, both, {0}, 0);
+	Look(cards, 1, 0, Answers{Related(Relation::None), std::nullopt});
+	EXPECT(cards.Take(1000000).empty());
+	// Add friend went through: Request sent at once, on a new map; a token without a card is left alone.
+	const auto before = cards.Published();
+	cards.Refresh();
+	cards.Relate("c1.a", Relation::Sent);
+	cards.Relate("c1.b", Relation::Sent);
+	cards.Relate("c1.z", Relation::Sent);
+	EXPECT(cards.Published() != before && before->at("c1.a").relation == Relation::None);
+	EXPECT(cards.Published()->at("c1.a").relation == Relation::Sent && cards.Published()->size() == 1);
+	// Both are asked again after the gap, and the answer says how it really stands.
+	EXPECT(cards.Take(Cards::MinGapMs - 1).empty() && cards.Take(Cards::MinGapMs) == both);
+	Look(cards, 2, Cards::MinGapMs, Answers{Related(Relation::Friend), std::nullopt});
+	EXPECT(cards.Published()->at("c1.a").relation == Relation::Friend && cards.Take(1000000).empty());
+	// A look-up in flight as an action goes through answers with the card as it stood before: not shown, asked again.
+	Cards flying;
+	Scope(flying);
+	flying.Observe(1, both, {0}, 0);
+	Look(flying, 1, 0, Answers{Related(Relation::None), Related(Relation::Received)});
+	flying.Observe(1, both, {9}, 1000);
+	flying.Observe(1, both, {9}, 1000 + Cards::SetEndedMs);
+	flying.Sent(2, flying.Take(Cards::MinGapMs), Cards::MinGapMs);
+	flying.Refresh();
+	flying.Relate("c1.b", Relation::Friend);
+	flying.Finish("", Answers{Related(Relation::None), Related(Relation::Received)});
+	EXPECT(flying.Published()->at("c1.b").relation == Relation::Friend && flying.Published()->at("c1.a").relation == Relation::None);
+	EXPECT(flying.Take(2 * Cards::MinGapMs) == both);
+	Look(flying, 3, 2 * Cards::MinGapMs, Answers{Related(Relation::None), Related(Relation::Friend)});
+	EXPECT(flying.Published()->at("c1.b").relation == Relation::Friend && flying.Take(1000000).empty());
+}
+
 int main() {
 	JoinAsks();
 	Limits();
 	SetEndAsks();
 	Pruning();
 	Unavailable();
+	ActionRefreshes();
 	if (TEST_FAILURES()) std::printf("%d failure(s)\n", TEST_FAILURES());
 	else std::printf("card request tests passed\n");
 	return TEST_EXIT_CODE();

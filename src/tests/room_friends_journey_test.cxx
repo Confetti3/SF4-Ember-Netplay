@@ -224,11 +224,98 @@ void ToastJourney() {
   Check(Said(j).empty(), "An invite that had run out was said as a toast");
  }
 }
+
+// This player (1) and Player 2 seated at table 1 for match 5; the frames while a game plays, with Ember hidden; the
+// WIN of that game, which opens the prompt over it; and the game played on in place, which ends that prompt.
+struct Rematches {
+ RoomJourney& j;
+ room::Table& t;
+ explicit Rematches(RoomJourney& journey) : j(journey), t(journey.h.view.room.tables[0]) {
+  for (auto& m : j.h.view.room.members) if (m.id == 1 || m.id == 2) { m.table = 0; m.seat = static_cast<std::int8_t>(m.id - 1); }
+  t.p1 = 1; t.p2 = 2; t.matchGeneration = 5; t.phase = room::TablePhase::Waiting;
+ }
+ void Hidden(int frames, float seconds = 1.f) {
+  for (int i = 0; i < frames; ++i) {
+   j.h.imgui.Use(); ImGui::GetIO().DeltaTime = seconds; ImGui::NewFrame();
+   j.h.shell.Background(j.h.view, j.h.view.room, [&](ShellAction a) { j.h.actions.push_back(a); return true; });
+   ImGui::Render();
+  }
+ }
+ void Plays() { j.h.view.session.match = netplay::MatchState::Playing; j.h.view.atMainMenu = false; t.phase = room::TablePhase::Playing; j.h.view.matchResult = false; }
+ void Win() { j.h.view.foughtGame = {0, t.matchGeneration, room::MatchResult::P1Win}; j.h.view.matchResult = true; j.h.open = true; j.h.Frame(); }
+ void OnInPlace() { j.h.view.matchResult = false; ++j.h.view.gamesInPlace; }
+ void Over() { j.h.view.matchResult = false; j.h.view.session.match = netplay::MatchState::PostMatch; j.h.view.atMainMenu = true; t.phase = room::TablePhase::Waiting; j.h.open = true; }
+};
+
+// Add friend pressed in the room just before the next game: the answer comes while the game plays and Ember is hidden,
+// and the words are said as the prompt over its WIN shows. Ember hid them again at once (both chose Rematch, the battle
+// went on), so they are said once more on the room's own screen.
+void AnsweredWhileHiddenJourney() {
+ RoomJourney j;
+ Rematches r(j);
+ j.page();
+ j.h.Choose("friend-request");
+ Check(j.sent<commands::FriendRequest>().size() == 1, "Add friend sent no request");
+ auto& f = j.view();
+ const std::string words = loc::Tf("friends.request_sent_to", "Player 2");
+ r.Plays();
+ r.Hidden(2);
+ f.busy = true; r.Hidden(2);
+ // Answered well past the time the interface waits while it shows: the answer still wins over the deadline.
+ f.busy = false; ++f.state.finished; ++f.state.revision; r.Hidden(120);
+ r.Win();
+ Check(j.screen() == "post-match", "The WIN did not open the prompt");
+ r.OnInPlace(); r.Hidden(60);
+ r.Over(); j.h.Frame(0, 3);
+ Check(j.screen() == "room-member", "The room did not show again on the member's page after the set");
+ Check(Said(j) == words + "|" + words + "|", "A request answered while Ember was hidden was not said at the prompt, and again in the room after Ember hid it at once");
+}
+
+// A request that arrives while the prompt over a WIN shows: its toast shows there without taking the prompt's keys
+// (Select answers Rematch), and is said once more, with its keys, when the room shows; Accept then says who is a friend.
+void RequestOverPromptJourney() {
+ RoomJourney j;
+ Rematches r(j);
+ j.h.Screen("room");
+ r.Plays(); r.Hidden(30);
+ r.Win();
+ Check(j.screen() == "post-match", "The WIN did not open the prompt");
+ j.Give(WithRequest(true, false));
+ const auto pressed = j.h.actions.size();
+ j.h.Press(MenuInput::Select);
+ const bool rematch = std::any_of(j.h.actions.begin() + static_cast<std::ptrdiff_t>(pressed), j.h.actions.end(), [](const ShellAction& a) { return ReadyIs(a, true); });
+ Check(j.sent<commands::FriendAccept>().empty() && rematch, "Select over the prompt answered the request's toast and not Rematch");
+ r.OnInPlace(); r.Hidden(60);
+ r.Over(); j.h.Screen("room-members"); j.h.Frame(0, 2);
+ Check(j.screen() == "room-members", "The prompt stayed after the set");
+ j.h.Press(MenuInput::Select);
+ const auto accepts = j.sent<commands::FriendAccept>();
+ Check(accepts.size() == 1 && accepts[0]->request == "rq_1", "The request's toast was not said again with its keys once the room showed");
+ auto& f = j.view();
+ auto after = WithRequest(false, false);
+ f.state.value = after; ++f.state.finished; ++f.state.revision; j.h.Frame(0, 2);
+ const std::string request = loc::Tf("friends.toast_request", "Player 9") + "\n" + loc::Tf("friends.played_you", 6, loc::Tf("friends.days_ago", 1));
+ Check(Said(j) == std::string(loc::Tf("friends.now_friends", "Player 9")) + "|" + request + "|" + request + "|",
+  "Accept on the request's toast did not say who is now a friend, or the toast was not said twice");
+}
+
+// What a toast is followed by: Later is an answer, and nothing said over a free menu is said again.
+void ToastAnsweredJourney() {
+ RoomJourney j; j.h.Screen("home");
+ Rematches r(j);
+ j.Give(WithRequest(true, false));
+ j.h.Press(MenuInput::Back);
+ r.Plays(); r.Hidden(30);
+ r.Over(); j.h.Frame(0, 3);
+ const std::string request = loc::Tf("friends.toast_request", "Player 9") + "\n" + loc::Tf("friends.played_you", 6, loc::Tf("friends.days_ago", 1));
+ Check(Said(j) == request + "|", "A request's toast answered Later was said again");
+}
 }
 
 int main() {
  try {
   PopoutJourney(); PageJourney(); RelationRowsJourney(); BlockJourney(); ToastJourney();
+  AnsweredWhileHiddenJourney(); RequestOverPromptJourney(); ToastAnsweredJourney();
   std::cout << "Room friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

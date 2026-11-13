@@ -842,8 +842,10 @@ static void SayTyping() {
 // what the room's own snapshot shows of the player is what it is compared
 // with, so a word that was lost, refused or overtaken is said again, at most
 // each second, until the room shows it or the shell stops publishing it (the
-// prompt closed). A new word is said at once. Only while the game is on: the
-// authority takes the answer for the live match alone.
+// prompt closed). A new word is said at once. Only while the game is on, and
+// only while the room shows the player a fighter of the answer's match: the
+// authority takes the answer from them alone (room::PostMatchTakes), so a set's
+// rotation that unseated them ends it.
 static void SayPostMatch() {
 	if (!runtime->attached || !UserApp::netplay) { runtime->postMatchSaid = {}; runtime->postMatchSaidAtMs = 0; return; }
 	const auto wanted = PostMatchWanted();
@@ -851,8 +853,7 @@ static void SayPostMatch() {
 	const bool live = netplay::Fighting(runtime->controller.GetSnapshot().match) && runtime->controller.GetSnapshot().control == netplay::Health::Healthy;
 	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
 	const auto now = GetTickCount64();
-	if (!room::PostMatchDue(wanted, runtime->postMatchSaid, runtime->postMatchSaidAtMs, now, live,
-		room.roomEpoch ? room::FindMember(room, room.localMember) : nullptr)) return;
+	if (!room::PostMatchDue(wanted, runtime->postMatchSaid, runtime->postMatchSaidAtMs, now, live, room)) return;
 	room::Action say;
 	say.kind = room::ActionKind::PostMatchAnswer;
 	say.postMatch = wanted.word;

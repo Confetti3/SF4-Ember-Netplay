@@ -14,9 +14,8 @@
 namespace sf4e { namespace ui {
 namespace {
 constexpr std::size_t ToastsKept=20;
-// How long a card stays up: a notice briefly, one with buttons long enough
-// to reach them. Its words stay in Notifications either way.
-constexpr double ToastSeconds=4;
+// A card stays up ToastSeconds, or ActionToastSeconds with buttons
+// (ToastAction.hxx). Its words stay in Notifications either way.
 std::string Ago(double seconds) {
  const int minutes=static_cast<int>(seconds/60);
  return minutes<1?std::string(loc::T("public.updated_now")):loc::Tf("public.updated_minutes",minutes);
@@ -142,28 +141,32 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
   NoteUserText(t.text);
   line+=DrawToastWords(d,font,{left,line},e.wrap,t.text,size,s,c.text,c.muted)+9*s;
   d->AddText(ImGui::GetFont(),12*s,{b.x-pad-e.timeW,a.y+14*s},c.muted,e.time.c_str());
-  // The buttons, each with its key: Select the first, Back the last. A small
-  // window over the card takes the pointer from the list under it.
+  // The buttons. A small window over the card takes the pointer from the list
+  // under it. Each carries its key (Select the first, Back the last) only
+  // while the toast holds focus and so takes those keys: over the post-match
+  // prompt or a dialog they answer what is under it, and the card is clicked.
   if(&e==&shown[0]&&!t.actions.empty()&&!modal){
    ImGui::SetNextWindowPos(a);ImGui::SetNextWindowSize({w,e.h});
    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{0,0});
    ImGui::Begin("##toast",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoBackground|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoNav|ImGuiWindowFlags_NoFocusOnAppearing);
    ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
    float bx=left;
+   const bool keyed=t.id==toastFocus_;
    for(std::size_t i=0;i<t.actions.size();++i){
     const bool first=i==0;
     // The key's prompt glyph, as the hint bar and the post-match buttons draw it.
-    const char* key=first?MenuSelectGlyph():MenuBackGlyph();
+    const char* key=!keyed?nullptr:first?MenuSelectGlyph():MenuBackGlyph();
     const float labelW=font->CalcTextSizeA(labelSize,FLT_MAX,0,t.actions[i].label.c_str()).x;
-    const ImVec2 p(bx,line),q(bx+12*s+keySize+8*s+labelW+12*s,line+button);
+    const float mark=key?keySize+8*s:0;
+    const ImVec2 p(bx,line),q(bx+12*s+mark+labelW+12*s,line+button);
     ImGui::SetCursorScreenPos(p);ImGui::PushID(static_cast<int>(i));
     if(ImGui::InvisibleButton("##act",{q.x-p.x,button}))toastAsked_={t.id,i};
     const bool hovered=ImGui::IsItemHovered();ImGui::PopID();
     d->AddRectFilled(p,q,hovered?c.hover:first?c.button:v2::color::Alpha(c.button,0),4*s);
     d->AddRect(p,q,first?c.hover:c.border,4*s,0,s);
     const ImVec2 k(p.x+12*s,p.y+(button-keySize)*.5f);
-    DrawPromptGlyph(d,key,k,keySize,MenuArt(),s);
-    d->AddText(font,labelSize,{k.x+keySize+8*s,p.y+(button-labelSize)*.5f},first?c.text:c.muted,t.actions[i].label.c_str());
+    if(key)DrawPromptGlyph(d,key,k,keySize,MenuArt(),s);
+    d->AddText(font,labelSize,{k.x+mark,p.y+(button-labelSize)*.5f},first?c.text:c.muted,t.actions[i].label.c_str());
     bx=q.x+8*s;
    }
    ImGui::End();ImGui::PopStyleVar();
@@ -184,8 +187,11 @@ void ApplicationShell::AnswerToast(const ShellView& v,double now,const Submit& s
  t->until=(std::min)(t->until,now);
  t->answered=true;
  if(toastFocus_==id)toastFocus_=0;
- // The commands go as they are, in order, whatever the screen: an invite's Join and then its Dismiss.
+ friends_.ToastAnswered(t->text);
+ // The commands go as they are, in order, whatever the screen: an invite's Join and then its Dismiss. A request's
+ // Accept goes as the Friends panel sends its own, which says what came of it.
  for(const auto& command:act.commands){
+  if(friends_.AnswerToast(v,command,submit))continue;
   if(!submit(std::visit([](const auto& typed)->ShellAction{return typed;},command))){error_=loc::T("error.queue_failed");break;}
  }
  if(act.screen.empty())return;

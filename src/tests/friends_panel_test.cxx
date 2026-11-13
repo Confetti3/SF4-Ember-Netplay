@@ -237,7 +237,82 @@ void Cards() {
 }
 }
 
+// How an action the panel sent ends, every way with words: a refusal says its own, one that went through (or found
+// friends off) is read before the deadline, so an answer that came while Ember was hidden still counts, and only no
+// answer at all is given up, after the runtime's own limit for a lost request.
+void Outcomes() {
+    using fp::Outcome;
+    auto view = ListedView({});
+    view.state.finished = 4; view.refusals = 2;
+    Check(fp::OutcomeOf(view, 4, 2, 100, 50) == Outcome::Waiting, "an action with no answer yet did not wait");
+    view.busy = true; view.state.finished = 5;
+    Check(fp::OutcomeOf(view, 4, 2, 100, 50) == Outcome::Waiting, "a sync's answer while the action is held or in flight ended it");
+    view.busy = false;
+    Check(fp::OutcomeOf(view, 4, 2, 100, 50) == Outcome::Done, "an answer with nothing in flight did not end it as done");
+    Check(fp::OutcomeOf(view, 4, 2, 100, 500) == Outcome::Done, "an answer read after the deadline was given up");
+    view.refusals = 3;
+    Check(fp::OutcomeOf(view, 4, 2, 100, 500) == Outcome::Refused, "a refusal did not end it as refused");
+    view.refusals = 2;
+    auto off = ListedView({});
+    off.state.value = std::make_shared<const nf::State>([] { nf::State s; s.kind = nf::State::Kind::Off; return s; }());
+    off.state.finished = 5;
+    Check(fp::OutcomeOf(off, 4, 2, 100, 50) == Outcome::Off, "friends found off did not say so");
+    view.state.finished = 4;
+    Check(fp::OutcomeOf(view, 4, 2, 100, 100) == Outcome::Waiting && fp::OutcomeOf(view, 4, 2, 100, 100.5) == Outcome::GivenUp, "no answer by the deadline was not given up");
+    Check(fp::GiveUpSeconds > 60, "the panel gives up before the runtime ends a lost request");
+}
+
+// A room member's Add friend and Block name them by card: a list the last sync failed on does not hold them, an action
+// in flight does, and no list says why in its own words (not "could not reach" for a player without a Discord account).
+void MemberGate() {
+    auto listed = ListedView({});
+    listed.state.error = "rate_limited";
+    Check(fp::Stale(listed) && !fp::GateOf(listed, true, false).act, "the test's list is not stale");
+    auto gate = fp::MemberGateOf(listed, true, false);
+    Check(gate.act && gate.actWhy == nullptr, "a stale list held a member's Add friend");
+    gate = fp::MemberGateOf(listed, true, true);
+    Check(!gate.act && std::string(gate.actWhy) == "friends.busy", "an action just sent did not hold a member's Add friend");
+    listed.busy = true;
+    Check(!fp::MemberGateOf(listed, true, false).act, "an action in flight did not hold a member's Add friend");
+    nf::View loading;
+    loading.bridge = "brg_1";
+    Check(std::string(fp::MemberGateOf(loading, true, false).actWhy) == "friends.loading", "a list not read yet does not say so");
+    auto none = ListedView({});
+    none.state.value = std::make_shared<const nf::State>([] { nf::State s; s.kind = nf::State::Kind::NoAccount; return s; }());
+    Check(std::string(fp::MemberGateOf(none, true, false).actWhy) == "friends.no_account", "a player without a Discord account is told the service could not be reached");
+    auto off = ListedView({});
+    off.state.value = std::make_shared<const nf::State>([] { nf::State s; s.kind = nf::State::Kind::Off; return s; }());
+    Check(std::string(fp::MemberGateOf(off, true, false).actWhy) == "friends.off", "friends turned off do not say so");
+    Check(fp::ModeWords(fp::Mode::Listed) == nullptr && std::string(fp::ModeWords(fp::Mode::Unavailable)) == "friends.unavailable", "a mode's words are wrong");
+}
+
+// What Accept says: who is a friend now, by the request's name; nothing for a request no longer there.
+void AcceptWords() {
+    nf::State state;
+    nf::Incoming request;
+    request.id = "rq_1"; request.name = "Player 9";
+    state.incoming = {request};
+    Check(fp::AcceptedWords(state, "rq_1") == loc::Tf("friends.now_friends", "Player 9") && fp::AcceptedWords(state, "rq_2").empty(), "Accept does not say who is now a friend");
+}
+
+// Words or a toast Ember hid before their card's time, or that came over the post-match prompt, were not seen.
+void Seen() {
+    fp::Told told{10, 4, false};
+    Check(!told.Lapsed(13.9) && told.Lapsed(14), "words are let go before their card's time, or kept after it");
+    told.Hidden(12);
+    Check(told.unseen && !told.Lapsed(100), "words Ember hid before their time were taken as seen");
+    fp::Told read{10, 4, false};
+    read.Hidden(14);
+    Check(!read.unseen && read.Lapsed(14), "words shown their whole time were taken as unseen");
+    fp::Told prompt{10, 8, true};
+    Check(!prompt.Lapsed(1000), "a toast over the post-match prompt was taken as seen");
+}
+
 int main() {
+    Outcomes();
+    MemberGate();
+    AcceptWords();
+    Seen();
     Cards();
     Grouping();
     Presses();

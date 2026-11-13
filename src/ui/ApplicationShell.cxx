@@ -654,8 +654,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  profile_.Update(v,nav.Screen(),identity_.UsableBridge(v),submit);
  UpdateAwardNotices(v);
  friends_.Update(v,nav,identity_.UsableBridge(v),now,submit);
- {std::string said;Tone tone;if(friends_.TakeSaid(said,tone))ShowNotice(said,tone,now+(tone==Tone::Error?6:4));}
- {ToastRequest toast;if(friends_.TakeToast(toast))Say(std::move(toast.text),toast.tone,toast.seconds,toast.kind,std::move(toast.actions));}
+ // Friends' words and toasts are each new, even in the words of one said before (the panel says one again that
+ // Ember hid before it could be read), so the notice taken last does not stand for them.
+ {std::string said;Tone tone;if(friends_.TakeSaid(said,tone)){noticeSeen_.clear();ShowNotice(said,tone,now+(tone==Tone::Error?6:4));}}
+ {ToastRequest toast;if(friends_.TakeToast(toast)){noticeSeen_.clear();Say(std::move(toast.text),toast.tone,toast.seconds,toast.kind,std::move(toast.actions));}}
  {std::string said;if(rankings_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
  if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();ShowNotice(loc::T("public.setup_done"),Tone::Success,now+4);}

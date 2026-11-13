@@ -1279,6 +1279,12 @@ msgstr "Add friends from a public room: open a member's Player card. Or send the
 msgid "friends.request_sent_to"
 msgstr "Request sent to {0}."
 
+msgid "friends.now_friends"
+msgstr "You and {0} are now friends."
+
+msgid "friends.blocked_name"
+msgstr "{0} is blocked."
+
 msgid "friends.invite_sent"
 msgstr "Invite sent to {0}."
 
