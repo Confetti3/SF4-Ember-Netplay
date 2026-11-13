@@ -1767,11 +1767,23 @@ msgstr "Invitations share access to your room."
 msgid "discord.enable_first"
 msgstr "Enable Discord activity first."
 
-msgid "discord.tournament_account"
-msgstr "Tournament account"
+msgid "discord.account"
+msgstr "Discord account"
 
-msgid "discord.tournament_account_detail"
-msgstr "The Discord account your tournament site knows, such as BluMint. It can differ from the one in the Discord app. Select to connect or change it."
+msgid "discord.account_none"
+msgstr "Not linked"
+
+msgid "discord.account_linked"
+msgstr "Linked · {0}"
+
+msgid "discord.account_detail"
+msgstr "Link the Discord account your Ember ID uses. Ranked games, points, friends, shared replays and tournament sites such as BluMint all use it. It can differ from the one in the Discord app. Select to link it."
+
+msgid "discord.account_linked_detail"
+msgstr "The Discord account linked to your Ember ID. Ranked games, points, friends, shared replays and tournament sites such as BluMint use it. It can differ from the one in the Discord app. Select to switch account or unlink it."
+
+msgid "discord.server"
+msgstr "Ember Discord server"
 
 msgid "discord.invitation_title"
 msgstr "DISCORD INVITATION"

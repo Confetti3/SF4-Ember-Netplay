@@ -393,7 +393,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
- else if(a.id=="tournament-account")identity_.OpenTournamentAccount(v,nav);
+ else if(a.id=="discord-account")identity_.OpenDiscordAccount(v,nav);
  // The matches screen, by way of Online play and Ember ID so Back goes there.
  else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
  else if(a.id=="profile")nav.Push(player_card::RequestsWaiting(v.friends)?ProfilePanel::FriendsScreen:ProfilePanel::CardScreen);

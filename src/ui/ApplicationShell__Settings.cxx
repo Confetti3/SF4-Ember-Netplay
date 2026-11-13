@@ -309,10 +309,13 @@ public:
     static Entries Friends(Shell& s, const ShellView& v) { return s.friends_.SettingsRows(v); }
     static Entries Discord(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
-        return {OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences),
+        // The account linked to the Ember ID leads: ranked games, points, friends, shared replays and tournaments need it, and
+        // it may not be the one in the Discord app. The community server is the last row, as About opens it.
+        const bool opening = v.services.lastAction == platform::ServiceAction::OpenCommunity && !v.services.message.empty();
+        return {s.identity_.DiscordAccountRow(v),
+            OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences),
             OnOffValue(p, "invites", loc::T("discord.allow_invitations"), p.discordPresence ? loc::T("discord.invitation_detail") : loc::T("discord.enable_first"), v.canEditPreferences && p.discordPresence),
-            // The account tournaments use, which may not be the one in the Discord app.
-            s.identity_.TournamentAccountRow(v)};
+            ConfirmRow("community", loc::T("discord.server"), opening ? v.services.message : loc::Tf("about.discord_detail", platform::CommunityInvite), !v.services.pending)};
     }
     // The setting's pane says what a report holds; Select reads it in full.
     static Entries Reports(Shell& s, const ShellView& v) {

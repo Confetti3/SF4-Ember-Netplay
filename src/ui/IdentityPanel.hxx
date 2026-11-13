@@ -85,12 +85,13 @@ public:
     // The Ember ID row's line (on Online play): where to start, how many
     // matches are ready to play, or what the screens hold.
     std::string EntryDetail(const ShellView& view) const;
-    // Settings > Discord's Tournament account row: the Discord account on the
-    // selected service, read again each time that screen opens, or Not
-    // connected without a ready Ember ID or a service. It opens Connect
-    // Discord for that service, or for Ember's own without one.
-    MenuEntry TournamentAccountRow(const ShellView& view) const;
-    void OpenTournamentAccount(const ShellView& view, MenuNavigation& navigation);
+    // Settings > Discord's Discord account row: the account linked to the
+    // Ember ID on the selected service, read again each time that screen
+    // opens ("Linked · name"), or Not linked without a ready Ember ID or a
+    // service. It opens Connect Discord for that service, or for Ember's own
+    // without one, which switches the account or unlinks it.
+    MenuEntry DiscordAccountRow(const ShellView& view) const;
+    void OpenDiscordAccount(const ShellView& view, MenuNavigation& navigation);
     // Tournament matches ready to play on the service the matches are read
     // from; 0 without a ready ID and a service. Home shows a row while any are.
     int ReadyMatches(const ShellView& view) const;

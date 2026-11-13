@@ -18,7 +18,7 @@ constexpr double AnswerSeconds = 120;
 // A failed background read of the state or services is tried again after this.
 constexpr double BackgroundRetrySeconds = 30;
 // Settings' Online tab (its Discord panel, ApplicationShell::SettingsScreens)
-// is none of these screens, but its Tournament account row reads the account
+// is none of these screens, but its Discord account row reads the account
 // on the selected service each time it opens, as they do.
 bool AccountScreen(const std::string& screen) { return screen.compare(0, 10, "tab-online") == 0; }
 // Requests waiting to be sent: room for the screens' usual few.
