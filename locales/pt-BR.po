@@ -426,6 +426,9 @@ msgstr "Colar"
 msgid "menu.adjust"
 msgstr "Ajustar"
 
+msgid "menu.change"
+msgstr "Alterar"
+
 msgid "speech.position"
 msgstr "{0} de {1}"
 
@@ -1098,11 +1101,77 @@ msgstr "Cartão"
 msgid "profile.tab.fighters"
 msgstr "Lutadores"
 
+msgid "profile.tab.sets"
+msgstr "Sets"
+
 msgid "profile.tab.friends"
 msgstr "Amigos"
 
 msgid "friends.tab_count"
 msgstr "Amigos · {0}"
+
+msgid "profile.view_sets"
+msgstr "Ver sets"
+
+msgid "profile.card_of"
+msgstr "Cartão do jogador: {0}"
+
+msgid "profile.this_player"
+msgstr "este jogador"
+
+msgid "profile.reading"
+msgstr "Lendo o cartão de {0}."
+
+msgid "profile.reading_button"
+msgstr "Lendo"
+
+msgid "profile.no_card"
+msgstr "{0} não tem cartão para mostrar."
+
+msgid "profile.sets_by_name"
+msgstr "Os sets dele continuam listados pelo nome."
+
+msgid "profile.blocked"
+msgstr "Você bloqueou {0}. Desbloqueie para ver o cartão."
+
+msgid "profile.nobody"
+msgstr "Nenhum jogador do Ember se chama {0} agora."
+
+msgid "profile.unreachable"
+msgstr "Não foi possível acessar o serviço. O cartão aparece quando ele responder."
+
+msgid "profile.unsupported"
+msgstr "Este serviço não oferece perfis."
+
+msgid "profile.try_again"
+msgstr "Tentar de novo"
+
+msgid "profile.pick_title"
+msgstr "Jogadores chamados {0}"
+
+msgid "profile.pick_screen"
+msgstr "Jogadores"
+
+msgid "profile.in_this_room"
+msgstr "Nesta sala"
+
+msgid "profile.request_sent_detail"
+msgstr "Cancele em Amigos, Enviados."
+
+msgid "profile.sets_note"
+msgstr "Sets encontrados pelo nome {0}. Outra pessoa que usou este nome também aparece aqui, mas os sets jogados com um nome anterior não."
+
+msgid "profile.sets_player"
+msgstr "Jogador"
+
+msgid "profile.sets_player_detail"
+msgstr "Os sets são deste nome. Ele continua enquanto você restringe a lista."
+
+msgid "profile.sets_opponent"
+msgstr "Oponente"
+
+msgid "profile.sets_opponent_detail"
+msgstr "Lista os sets contra um jogador cujo nome contém estas letras."
 
 msgid "friends.requests_heading"
 msgstr "PEDIDOS · {0}"
@@ -1191,9 +1260,6 @@ msgstr "Desbloquear"
 msgid "friends.cancel_request"
 msgstr "Cancelar pedido"
 
-msgid "friends.add"
-msgstr "Adicionar amigo"
-
 msgid "friends.are_friends"
 msgstr "Amigos"
 
@@ -1221,9 +1287,6 @@ msgstr "Código de amigo"
 msgid "friends.code_detail"
 msgstr "Dê este código a um jogador para que ele possa adicionar você."
 
-msgid "friends.their_code"
-msgstr "Código de amigo dele"
-
 msgid "friends.new_code"
 msgstr "Novo código"
 
@@ -1235,6 +1298,42 @@ msgstr "Enviar pedido"
 
 msgid "friends.send_detail"
 msgstr "Envia um pedido de amizade para esse código."
+
+msgid "find.title"
+msgstr "Encontrar um jogador"
+
+msgid "find.text_row"
+msgstr "Nome ou código de amigo"
+
+msgid "find.text_detail"
+msgstr "Parte de um nome, com pelo menos duas letras, ou um código de amigo."
+
+msgid "find.search"
+msgstr "Buscar"
+
+msgid "find.players"
+msgstr "JOGADORES · {0}"
+
+msgid "find.searching"
+msgstr "Procurando."
+
+msgid "find.none"
+msgstr "Nenhum jogador tem esse nome."
+
+msgid "find.more"
+msgstr "Mais jogadores correspondem. Digite mais do nome."
+
+msgid "find.recent"
+msgstr "OPONENTES RECENTES"
+
+msgid "find.recent_line"
+msgstr "Jogou {0} · {1}"
+
+msgid "find.recent_when"
+msgstr "Jogou {0}"
+
+msgid "find.recent_empty"
+msgstr "Os jogadores que você encontra em salas públicas aparecem aqui por uma semana."
 
 msgid "friends.sent"
 msgstr "Enviados ({0})"
@@ -1305,9 +1404,6 @@ msgstr "Editar cartão"
 msgid "card.account"
 msgstr "Conta"
 
-msgid "card.progress"
-msgstr "PROGRESSO"
-
 msgid "card.top_fighters"
 msgstr "MELHORES LUTADORES"
 
@@ -1315,7 +1411,7 @@ msgid "card.choose_main"
 msgstr "Escolher um principal"
 
 msgid "card.edit_detail"
-msgstr "Seu nome, bandeira, principal, título e ícone."
+msgstr "Seu nome, bandeira, principal, título, conquistas e como você joga."
 
 msgid "card.title_row"
 msgstr "Título"
@@ -1328,6 +1424,72 @@ msgstr "Nenhum"
 
 msgid "card.award_detail"
 msgstr "Abre Conquistas. Selecione lá uma conquista obtida para usá-la."
+
+msgid "card.how_heading"
+msgstr "COMO VOCÊ JOGA"
+
+msgid "card.pins_row"
+msgstr "Conquistas no cartão"
+
+msgid "card.pins_auto"
+msgstr "As suas mais altas"
+
+msgid "card.pins_chosen"
+msgstr "{0} escolhidas"
+
+msgid "card.pins_detail"
+msgstr "Até quatro famílias de conquistas no seu cartão, cada uma no nível que você alcançar. As suas mais altas mostra as mais difíceis."
+
+msgid "card.pins_auto_row"
+msgstr "Mostrar as minhas mais altas"
+
+msgid "card.pins_auto_detail"
+msgstr "O cartão mostra as conquistas que você alcançou nos níveis mais altos. Desative para escolher até quatro você mesmo."
+
+msgid "card.pins_full"
+msgstr "No máximo quatro. Remova uma antes."
+
+msgid "card.pins_nothing"
+msgstr "As conquistas que você alcançar aparecem aqui para escolher. Você ainda não tem nenhuma."
+
+msgid "card.automatic"
+msgstr "Automático"
+
+msgid "card.device_row"
+msgstr "Dispositivo"
+
+msgid "card.device_auto"
+msgstr "{0} · automático"
+
+msgid "card.device_detail"
+msgstr "Em que você joga, mostrado no seu cartão. Automático segue o controle que você usa."
+
+msgid "card.link_row"
+msgstr "Conexão"
+
+msgid "card.link_detail"
+msgstr "Cabo ou Wi-Fi, como o Ember mede. Você pode ocultar."
+
+msgid "card.region_row"
+msgstr "Região"
+
+msgid "card.region_detail"
+msgstr "Sua região, pelo relay que o Ember escolheu. Você pode ocultar."
+
+msgid "card.shown"
+msgstr "{0} · visível"
+
+msgid "card.unknown_shown"
+msgstr "Ainda desconhecido · visível"
+
+msgid "card.hidden"
+msgstr "Oculto"
+
+msgid "card.looking_detail"
+msgstr "Até duas, mostradas no seu cartão."
+
+msgid "card.looking_full"
+msgstr "No máximo duas. Desative uma antes."
 
 msgid "points.label"
 msgstr "FP"
@@ -1487,6 +1649,126 @@ msgstr "Lutadores jogados"
 
 msgid "card.of"
 msgstr "{0} de {1}"
+
+msgid "card.about"
+msgstr "{0} · No Ember desde {1}"
+
+msgid "card.since"
+msgstr "No Ember desde {0}"
+
+msgid "card.wins"
+msgstr "Vitórias"
+
+msgid "card.best_streak"
+msgstr "Melhor sequência"
+
+msgid "card.record_line"
+msgstr "{0} partidas ranqueadas · {1} vitórias · melhor sequência {2}"
+
+msgid "card.tier_to"
+msgstr "{0} · {1} pontos para {2}"
+
+msgid "card.tier_top"
+msgstr "{0} · Moldura máxima"
+
+msgid "card.awards"
+msgstr "CONQUISTAS"
+
+msgid "card.no_awards"
+msgstr "Ainda não há conquistas. A primeira vem com a sua primeira partida ranqueada."
+
+msgid "card.most_played"
+msgstr "MAIS JOGADO"
+
+msgid "card.most_played_line"
+msgstr "{0} – {1} · {2} partidas"
+
+msgid "card.most_played_none"
+msgstr "O oponente que você mais enfrentou aparece aqui depois da sua primeira partida ranqueada."
+
+msgid "card.recent_sets"
+msgstr "SETS RECENTES"
+
+msgid "card.all_sets"
+msgstr "Todos os sets"
+
+msgid "card.set_vs"
+msgstr "vs {0}"
+
+msgid "card.set_online"
+msgstr "Online"
+
+msgid "card.sets_loading"
+msgstr "Lendo sets."
+
+msgid "card.sets_none"
+msgstr "Ainda não há sets arquivados com este nome."
+
+msgid "card.sets_unavailable"
+msgstr "Este serviço não guarda sets."
+
+msgid "card.sets_unreachable"
+msgstr "Não foi possível acessar o arquivo. Os sets aparecem quando ele responder."
+
+msgid "card.you_and"
+msgstr "Você e {0}"
+
+msgid "card.relation"
+msgstr "Amigos"
+
+msgid "card.since_date"
+msgstr "Desde {0}"
+
+msgid "card.not_friends"
+msgstr "Não são amigos"
+
+msgid "card.they_asked"
+msgstr "Enviou pedido a você"
+
+msgid "card.plays"
+msgstr "Joga em"
+
+msgid "card.playing"
+msgstr "JOGANDO"
+
+msgid "card.looking_row"
+msgstr "Procura"
+
+msgid "style.pad"
+msgstr "Controle"
+
+msgid "style.stick"
+msgstr "Stick"
+
+msgid "style.leverless"
+msgstr "Leverless"
+
+msgid "style.keyboard"
+msgstr "Teclado"
+
+msgid "style.wired"
+msgstr "Cabo"
+
+msgid "style.wifi"
+msgstr "Wi-Fi"
+
+msgid "style.casuals"
+msgstr "Casuais"
+
+msgid "style.long_sets"
+msgstr "Sets longos"
+
+msgid "style.ranked"
+msgstr "Partidas ranqueadas"
+
+msgid "style.practice"
+msgstr "Treino de torneio"
+
+msgid "style.new"
+msgstr "Novo no jogo"
+
+msgid "style.teach"
+msgstr "Ensinar é bem-vindo"
 
 msgid "fighters.how"
 msgstr "Como os pontos são ganhos"
@@ -5130,6 +5412,12 @@ msgstr "Esquerda e Direita trocam seu Ultra para a próxima partida. Com um Ultr
 msgid "postmatch.ultra.set"
 msgstr "Seu Ultra para a próxima partida está definido."
 
+msgid "postmatch.add_friend.detail"
+msgstr "Envia um pedido de amizade para {0}. Sua resposta à revanche continua como está."
+
+msgid "postmatch.accept_friend.detail"
+msgstr "Aceita o pedido de amizade de {0}. Sua resposta à revanche continua como está."
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
@@ -8315,7 +8603,7 @@ msgid "notifications.tab_count"
 msgstr "Notificações · {0}"
 
 msgid "notifications.waiting"
-msgstr "Pendentes: {0}"
+msgstr "Para responder: {0}"
 
 msgid "notifications.none_detail"
 msgstr "O que o Ember avisa, como um link copiado ou uma sala deixada, fica aqui durante esta sessão."
@@ -8588,7 +8876,7 @@ msgid "archive.f_class"
 msgstr "Classe"
 
 msgid "archive.f_class_detail"
-msgstr "Lista os sets em que um dos dois jogadores tem hoje esta classe no ranking."
+msgstr "Lista os sets em que um dos dois jogadores tem hoje esta classe."
 
 msgid "archive.f_country"
 msgstr "País"
@@ -8702,7 +8990,7 @@ msgid "archive.games"
 msgstr "{0} partidas"
 
 msgid "archive.met"
-msgstr "Enfrentou {0}"
+msgstr "Jogou contra {0}"
 
 msgid "archive.session_label"
 msgstr "{0}: {1} partidas"
@@ -8818,6 +9106,9 @@ msgstr "Os títulos e ícones que você conquistou e como conquistar o resto. Se
 msgid "awards.earned_count"
 msgstr "{0} de {1} conquistados"
 
+msgid "awards.not_reached"
+msgstr "Ainda não alcançada"
+
 msgid "awards.card_heading"
 msgstr "SEU CARTÃO · COMO OS OUTROS VEEM"
 
@@ -8882,7 +9173,7 @@ msgid "tier.ember"
 msgstr "Ember"
 
 msgid "award.matches.name"
-msgstr "Partidas"
+msgstr "Partidas jogadas"
 
 msgid "award.matches.icon"
 msgstr "Bandeira"
@@ -9026,7 +9317,7 @@ msgid "award.mastery.4.how"
 msgstr "Leve um lutador à moldura de Ember"
 
 msgid "award.cast.name"
-msgstr "Elenco"
+msgstr "Lutadores jogados"
 
 msgid "award.cast.icon"
 msgstr "Chave"

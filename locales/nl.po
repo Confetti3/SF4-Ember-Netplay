@@ -426,6 +426,9 @@ msgstr "Plakken"
 msgid "menu.adjust"
 msgstr "Aanpassen"
 
+msgid "menu.change"
+msgstr "Wijzigen"
+
 msgid "speech.position"
 msgstr "{0} van {1}"
 
@@ -1098,11 +1101,77 @@ msgstr "Kaart"
 msgid "profile.tab.fighters"
 msgstr "Vechters"
 
+msgid "profile.tab.sets"
+msgstr "Sets"
+
 msgid "profile.tab.friends"
 msgstr "Vrienden"
 
 msgid "friends.tab_count"
 msgstr "Vrienden · {0}"
+
+msgid "profile.view_sets"
+msgstr "Sets bekijken"
+
+msgid "profile.card_of"
+msgstr "Spelerkaart: {0}"
+
+msgid "profile.this_player"
+msgstr "deze speler"
+
+msgid "profile.reading"
+msgstr "Kaart van {0} wordt gelezen."
+
+msgid "profile.reading_button"
+msgstr "Lezen"
+
+msgid "profile.no_card"
+msgstr "{0} heeft geen kaart om te tonen."
+
+msgid "profile.sets_by_name"
+msgstr "Zijn of haar sets staan nog steeds op naam in de lijst."
+
+msgid "profile.blocked"
+msgstr "Je hebt {0} geblokkeerd. Deblokkeer om de kaart te zien."
+
+msgid "profile.nobody"
+msgstr "Geen speler op Ember heet nu {0}."
+
+msgid "profile.unreachable"
+msgstr "De dienst is niet bereikbaar. De kaart verschijnt zodra hij antwoordt."
+
+msgid "profile.unsupported"
+msgstr "Deze dienst biedt geen profielen aan."
+
+msgid "profile.try_again"
+msgstr "Opnieuw proberen"
+
+msgid "profile.pick_title"
+msgstr "Spelers genaamd {0}"
+
+msgid "profile.pick_screen"
+msgstr "Spelers"
+
+msgid "profile.in_this_room"
+msgstr "In deze kamer"
+
+msgid "profile.request_sent_detail"
+msgstr "Annuleer het onder Vrienden, Verstuurd."
+
+msgid "profile.sets_note"
+msgstr "Sets gevonden onder de naam {0}. Iemand anders die deze naam heeft gebruikt verschijnt hier ook, sets onder een eerdere naam niet."
+
+msgid "profile.sets_player"
+msgstr "Speler"
+
+msgid "profile.sets_player_detail"
+msgstr "De sets zijn van deze naam. Hij blijft staan als je de lijst beperkt."
+
+msgid "profile.sets_opponent"
+msgstr "Tegenstander"
+
+msgid "profile.sets_opponent_detail"
+msgstr "Toont de sets tegen een speler wiens naam deze letters bevat."
 
 msgid "friends.requests_heading"
 msgstr "VERZOEKEN · {0}"
@@ -1191,9 +1260,6 @@ msgstr "Deblokkeren"
 msgid "friends.cancel_request"
 msgstr "Verzoek annuleren"
 
-msgid "friends.add"
-msgstr "Vriend toevoegen"
-
 msgid "friends.are_friends"
 msgstr "Vrienden"
 
@@ -1221,9 +1287,6 @@ msgstr "Vriendcode"
 msgid "friends.code_detail"
 msgstr "Geef deze code aan een speler zodat die je kan toevoegen."
 
-msgid "friends.their_code"
-msgstr "Hun vriendcode"
-
 msgid "friends.new_code"
 msgstr "Nieuwe code"
 
@@ -1235,6 +1298,42 @@ msgstr "Verzoek versturen"
 
 msgid "friends.send_detail"
 msgstr "Verstuurt een vriendschapsverzoek naar die code."
+
+msgid "find.title"
+msgstr "Speler zoeken"
+
+msgid "find.text_row"
+msgstr "Naam of vriendcode"
+
+msgid "find.text_detail"
+msgstr "Een deel van een naam, minstens twee letters, of een vriendcode."
+
+msgid "find.search"
+msgstr "Zoeken"
+
+msgid "find.players"
+msgstr "SPELERS · {0}"
+
+msgid "find.searching"
+msgstr "Zoeken."
+
+msgid "find.none"
+msgstr "Geen speler heet zo."
+
+msgid "find.more"
+msgstr "Meer spelers komen overeen. Typ meer van de naam."
+
+msgid "find.recent"
+msgstr "RECENTE TEGENSTANDERS"
+
+msgid "find.recent_line"
+msgstr "Gespeeld {0} · {1}"
+
+msgid "find.recent_when"
+msgstr "Gespeeld {0}"
+
+msgid "find.recent_empty"
+msgstr "Spelers die je in openbare kamers tegenkomt, staan hier een week lang."
 
 msgid "friends.sent"
 msgstr "Verstuurd ({0})"
@@ -1305,9 +1404,6 @@ msgstr "Kaart bewerken"
 msgid "card.account"
 msgstr "Account"
 
-msgid "card.progress"
-msgstr "VOORTGANG"
-
 msgid "card.top_fighters"
 msgstr "BESTE VECHTERS"
 
@@ -1315,7 +1411,7 @@ msgid "card.choose_main"
 msgstr "Kies een hoofd"
 
 msgid "card.edit_detail"
-msgstr "Je naam, vlag, hoofd, titel en pictogram."
+msgstr "Je naam, vlag, hoofd, titel, onderscheidingen en hoe je speelt."
 
 msgid "card.title_row"
 msgstr "Titel"
@@ -1328,6 +1424,72 @@ msgstr "Geen"
 
 msgid "card.award_detail"
 msgstr "Opent Onderscheidingen. Kies daar een behaalde onderscheiding om hem te dragen."
+
+msgid "card.how_heading"
+msgstr "ZO SPEEL JE"
+
+msgid "card.pins_row"
+msgstr "Onderscheidingen op kaart"
+
+msgid "card.pins_auto"
+msgstr "Je hoogste"
+
+msgid "card.pins_chosen"
+msgstr "{0} gekozen"
+
+msgid "card.pins_detail"
+msgstr "Tot vier onderscheidingsfamilies op je kaart, elk op het niveau dat je bereikt. Je hoogste toont de moeilijkste."
+
+msgid "card.pins_auto_row"
+msgstr "Mijn hoogste tonen"
+
+msgid "card.pins_auto_detail"
+msgstr "De kaart toont de onderscheidingen die je op de hoogste niveaus hebt bereikt. Zet dit uit om zelf tot vier te kiezen."
+
+msgid "card.pins_full"
+msgstr "Maximaal vier. Haal eerst een weg."
+
+msgid "card.pins_nothing"
+msgstr "Onderscheidingen die je bereikt, staan hier om uit te kiezen. Je hebt er nog geen."
+
+msgid "card.automatic"
+msgstr "Automatisch"
+
+msgid "card.device_row"
+msgstr "Apparaat"
+
+msgid "card.device_auto"
+msgstr "{0} · automatisch"
+
+msgid "card.device_detail"
+msgstr "Waarop je speelt, getoond op je kaart. Automatisch volgt de controller die je gebruikt."
+
+msgid "card.link_row"
+msgstr "Verbinding"
+
+msgid "card.link_detail"
+msgstr "Bekabeld of wifi, zoals Ember het meet. Je kunt het verbergen."
+
+msgid "card.region_row"
+msgstr "Regio"
+
+msgid "card.region_detail"
+msgstr "Je regio, van de relay die Ember koos. Je kunt het verbergen."
+
+msgid "card.shown"
+msgstr "{0} · getoond"
+
+msgid "card.unknown_shown"
+msgstr "Nog niet bekend · getoond"
+
+msgid "card.hidden"
+msgstr "Verborgen"
+
+msgid "card.looking_detail"
+msgstr "Maximaal twee, getoond op je kaart."
+
+msgid "card.looking_full"
+msgstr "Maximaal twee. Zet eerst een uit."
 
 msgid "points.label"
 msgstr "FP"
@@ -1487,6 +1649,126 @@ msgstr "Gespeelde vechters"
 
 msgid "card.of"
 msgstr "{0} van {1}"
+
+msgid "card.about"
+msgstr "{0} · Op Ember sinds {1}"
+
+msgid "card.since"
+msgstr "Op Ember sinds {0}"
+
+msgid "card.wins"
+msgstr "Winst"
+
+msgid "card.best_streak"
+msgstr "Beste reeks"
+
+msgid "card.record_line"
+msgstr "{0} potjes met ranglijst · {1} gewonnen · beste reeks {2}"
+
+msgid "card.tier_to"
+msgstr "{0} · {1} punten tot {2}"
+
+msgid "card.tier_top"
+msgstr "{0} · Hoogste kader"
+
+msgid "card.awards"
+msgstr "ONDERSCHEIDINGEN"
+
+msgid "card.no_awards"
+msgstr "Nog geen onderscheidingen. De eerste komt met je eerste potje met ranglijst."
+
+msgid "card.most_played"
+msgstr "MEEST GESPEELD"
+
+msgid "card.most_played_line"
+msgstr "{0} – {1} · {2} potjes"
+
+msgid "card.most_played_none"
+msgstr "Je meest gespeelde tegenstander verschijnt hier na je eerste potje met ranglijst."
+
+msgid "card.recent_sets"
+msgstr "RECENTE SETS"
+
+msgid "card.all_sets"
+msgstr "Alle sets"
+
+msgid "card.set_vs"
+msgstr "vs {0}"
+
+msgid "card.set_online"
+msgstr "Online"
+
+msgid "card.sets_loading"
+msgstr "Sets worden gelezen."
+
+msgid "card.sets_none"
+msgstr "Nog geen gearchiveerde sets onder deze naam."
+
+msgid "card.sets_unavailable"
+msgstr "Deze dienst bewaart geen sets."
+
+msgid "card.sets_unreachable"
+msgstr "Archief niet bereikbaar. Sets verschijnen zodra het antwoordt."
+
+msgid "card.you_and"
+msgstr "Jij en {0}"
+
+msgid "card.relation"
+msgstr "Vrienden"
+
+msgid "card.since_date"
+msgstr "Sinds {0}"
+
+msgid "card.not_friends"
+msgstr "Geen vrienden"
+
+msgid "card.they_asked"
+msgstr "Heeft jou gevraagd"
+
+msgid "card.plays"
+msgstr "Speelt op"
+
+msgid "card.playing"
+msgstr "SPEELT NU"
+
+msgid "card.looking_row"
+msgstr "Zoekt"
+
+msgid "style.pad"
+msgstr "Pad"
+
+msgid "style.stick"
+msgstr "Stick"
+
+msgid "style.leverless"
+msgstr "Leverless"
+
+msgid "style.keyboard"
+msgstr "Toetsenbord"
+
+msgid "style.wired"
+msgstr "Bekabeld"
+
+msgid "style.wifi"
+msgstr "Wifi"
+
+msgid "style.casuals"
+msgstr "Casuals"
+
+msgid "style.long_sets"
+msgstr "Lange sets"
+
+msgid "style.ranked"
+msgstr "Potjes met ranglijst"
+
+msgid "style.practice"
+msgstr "Toernooitraining"
+
+msgid "style.new"
+msgstr "Nieuw in het spel"
+
+msgid "style.teach"
+msgstr "Lesgeven welkom"
 
 msgid "fighters.how"
 msgstr "Zo verdien je punten"
@@ -5130,6 +5412,12 @@ msgstr "Links en Rechts wisselen je Ultra voor het volgende potje. Met een nieuw
 msgid "postmatch.ultra.set"
 msgstr "Je Ultra voor het volgende potje staat vast."
 
+msgid "postmatch.add_friend.detail"
+msgstr "Stuurt {0} een vriendschapsverzoek. Je antwoord op de rematch blijft zoals het is."
+
+msgid "postmatch.accept_friend.detail"
+msgstr "Accepteert het vriendschapsverzoek van {0}. Je antwoord op de rematch blijft zoals het is."
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
@@ -8315,7 +8603,7 @@ msgid "notifications.tab_count"
 msgstr "Meldingen · {0}"
 
 msgid "notifications.waiting"
-msgstr "In afwachting: {0}"
+msgstr "Te beantwoorden: {0}"
 
 msgid "notifications.none_detail"
 msgstr "Wat Ember meldt, zoals een gekopieerde link of een verlaten kamer, blijft hier staan voor deze sessie."
@@ -8588,7 +8876,7 @@ msgid "archive.f_class"
 msgstr "Klasse"
 
 msgid "archive.f_class_detail"
-msgstr "Toont de sets waarin een van beide spelers vandaag deze klasse heeft op de ranglijst."
+msgstr "Toont de sets waarin een van beide spelers vandaag deze klasse heeft."
 
 msgid "archive.f_country"
 msgstr "Land"
@@ -8702,7 +8990,7 @@ msgid "archive.games"
 msgstr "{0} games"
 
 msgid "archive.met"
-msgstr "Tegen {0}"
+msgstr "Speelde tegen {0}"
 
 msgid "archive.session_label"
 msgstr "{0}: {1} games"
@@ -8818,6 +9106,9 @@ msgstr "De titels en iconen die je hebt verdiend, en hoe je de rest verdient. Se
 msgid "awards.earned_count"
 msgstr "{0} van {1} verdiend"
 
+msgid "awards.not_reached"
+msgstr "Nog niet bereikt"
+
 msgid "awards.card_heading"
 msgstr "JOUW KAART · ZOALS ANDEREN HEM ZIEN"
 
@@ -8882,7 +9173,7 @@ msgid "tier.ember"
 msgstr "Ember"
 
 msgid "award.matches.name"
-msgstr "Potjes"
+msgstr "Gespeelde potjes"
 
 msgid "award.matches.icon"
 msgstr "Vlag"
@@ -9026,7 +9317,7 @@ msgid "award.mastery.4.how"
 msgstr "Breng een vechter naar het kader Ember"
 
 msgid "award.cast.name"
-msgstr "Selectie"
+msgstr "Gespeelde vechters"
 
 msgid "award.cast.icon"
 msgstr "Schema"

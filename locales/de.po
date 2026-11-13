@@ -426,6 +426,9 @@ msgstr "Einfügen"
 msgid "menu.adjust"
 msgstr "Anpassen"
 
+msgid "menu.change"
+msgstr "Ändern"
+
 msgid "speech.position"
 msgstr "{0} von {1}"
 
@@ -1098,11 +1101,77 @@ msgstr "Karte"
 msgid "profile.tab.fighters"
 msgstr "Kämpfer"
 
+msgid "profile.tab.sets"
+msgstr "Sets"
+
 msgid "profile.tab.friends"
 msgstr "Freunde"
 
 msgid "friends.tab_count"
 msgstr "Freunde · {0}"
+
+msgid "profile.view_sets"
+msgstr "Sets ansehen"
+
+msgid "profile.card_of"
+msgstr "Spielerkarte: {0}"
+
+msgid "profile.this_player"
+msgstr "diesen Spieler"
+
+msgid "profile.reading"
+msgstr "Karte von {0} wird gelesen."
+
+msgid "profile.reading_button"
+msgstr "Wird gelesen"
+
+msgid "profile.no_card"
+msgstr "{0} hat keine Karte, die sich zeigen ließe."
+
+msgid "profile.sets_by_name"
+msgstr "Die Sets werden weiterhin nach Namen aufgelistet."
+
+msgid "profile.blocked"
+msgstr "Du hast {0} blockiert. Hebe die Blockierung auf, um die Karte zu sehen."
+
+msgid "profile.nobody"
+msgstr "Kein Spieler bei Ember heißt jetzt {0}."
+
+msgid "profile.unreachable"
+msgstr "Dienst nicht erreichbar. Die Karte erscheint, sobald er antwortet."
+
+msgid "profile.unsupported"
+msgstr "Dieser Dienst bietet keine Profile an."
+
+msgid "profile.try_again"
+msgstr "Erneut versuchen"
+
+msgid "profile.pick_title"
+msgstr "Spieler namens {0}"
+
+msgid "profile.pick_screen"
+msgstr "Spieler"
+
+msgid "profile.in_this_room"
+msgstr "In diesem Raum"
+
+msgid "profile.request_sent_detail"
+msgstr "Unter Freunde, Gesendet zurückziehen."
+
+msgid "profile.sets_note"
+msgstr "Sets, die unter dem Namen {0} gefunden wurden. Auch jemand anderes, der diesen Namen benutzt hat, erscheint hier, Sets unter einem früheren Namen dagegen nicht."
+
+msgid "profile.sets_player"
+msgstr "Spieler"
+
+msgid "profile.sets_player_detail"
+msgstr "Die Sets gehören zu diesem Namen. Er bleibt, wenn du die Liste eingrenzt."
+
+msgid "profile.sets_opponent"
+msgstr "Gegner"
+
+msgid "profile.sets_opponent_detail"
+msgstr "Listet die Sets gegen einen Spieler, dessen Name diese Buchstaben enthält."
 
 msgid "friends.requests_heading"
 msgstr "ANFRAGEN · {0}"
@@ -1191,9 +1260,6 @@ msgstr "Entsperren"
 msgid "friends.cancel_request"
 msgstr "Anfrage zurückziehen"
 
-msgid "friends.add"
-msgstr "Freund hinzufügen"
-
 msgid "friends.are_friends"
 msgstr "Freunde"
 
@@ -1221,9 +1287,6 @@ msgstr "Freundescode"
 msgid "friends.code_detail"
 msgstr "Gib diesen Code einem Spieler, damit er dich hinzufügen kann."
 
-msgid "friends.their_code"
-msgstr "Freundescode des Spielers"
-
 msgid "friends.new_code"
 msgstr "Neuer Code"
 
@@ -1235,6 +1298,42 @@ msgstr "Anfrage senden"
 
 msgid "friends.send_detail"
 msgstr "Sendet eine Freundschaftsanfrage an diesen Code."
+
+msgid "find.title"
+msgstr "Spieler suchen"
+
+msgid "find.text_row"
+msgstr "Name oder Freundescode"
+
+msgid "find.text_detail"
+msgstr "Ein Teil eines Namens, mindestens zwei Buchstaben, oder ein Freundescode."
+
+msgid "find.search"
+msgstr "Suchen"
+
+msgid "find.players"
+msgstr "SPIELER · {0}"
+
+msgid "find.searching"
+msgstr "Suche läuft."
+
+msgid "find.none"
+msgstr "Kein Spieler heißt so."
+
+msgid "find.more"
+msgstr "Weitere Spieler passen. Gib mehr vom Namen ein."
+
+msgid "find.recent"
+msgstr "LETZTE GEGNER"
+
+msgid "find.recent_line"
+msgstr "Gespielt {0} · {1}"
+
+msgid "find.recent_when"
+msgstr "Gespielt {0}"
+
+msgid "find.recent_empty"
+msgstr "Spieler, denen du in öffentlichen Räumen begegnest, erscheinen hier eine Woche lang."
 
 msgid "friends.sent"
 msgstr "Gesendet ({0})"
@@ -1305,9 +1404,6 @@ msgstr "Karte bearbeiten"
 msgid "card.account"
 msgstr "Konto"
 
-msgid "card.progress"
-msgstr "FORTSCHRITT"
-
 msgid "card.top_fighters"
 msgstr "BESTE KÄMPFER"
 
@@ -1315,7 +1411,7 @@ msgid "card.choose_main"
 msgstr "Haupt wählen"
 
 msgid "card.edit_detail"
-msgstr "Dein Name, Flagge, Haupt, Titel und Symbol."
+msgstr "Dein Name, Flagge, Haupt, Titel, Auszeichnungen und Spielweise."
 
 msgid "card.title_row"
 msgstr "Titel"
@@ -1328,6 +1424,72 @@ msgstr "Keine"
 
 msgid "card.award_detail"
 msgstr "Öffnet Auszeichnungen. Wähle dort eine errungene Auszeichnung zum Tragen."
+
+msgid "card.how_heading"
+msgstr "SO SPIELST DU"
+
+msgid "card.pins_row"
+msgstr "Auszeichnungen auf der Karte"
+
+msgid "card.pins_auto"
+msgstr "Deine höchsten"
+
+msgid "card.pins_chosen"
+msgstr "{0} gewählt"
+
+msgid "card.pins_detail"
+msgstr "Bis zu vier Auszeichnungsfamilien auf deiner Karte, jeweils auf der Stufe, die du erreicht hast. Deine höchsten zeigt die schwersten."
+
+msgid "card.pins_auto_row"
+msgstr "Meine höchsten zeigen"
+
+msgid "card.pins_auto_detail"
+msgstr "Die Karte zeigt die Auszeichnungen, die du auf den höchsten Stufen erreicht hast. Schalte dies aus, um bis zu vier selbst zu wählen."
+
+msgid "card.pins_full"
+msgstr "Höchstens vier. Nimm zuerst eine ab."
+
+msgid "card.pins_nothing"
+msgstr "Erreichte Auszeichnungen erscheinen hier zur Auswahl. Du hast noch keine."
+
+msgid "card.automatic"
+msgstr "Automatisch"
+
+msgid "card.device_row"
+msgstr "Gerät"
+
+msgid "card.device_auto"
+msgstr "{0} · automatisch"
+
+msgid "card.device_detail"
+msgstr "Womit du spielst, auf deiner Karte angezeigt. Automatisch folgt dem Controller, den du benutzt."
+
+msgid "card.link_row"
+msgstr "Verbindung"
+
+msgid "card.link_detail"
+msgstr "Kabel oder WLAN, wie Ember es misst. Du kannst es ausblenden."
+
+msgid "card.region_row"
+msgstr "Region"
+
+msgid "card.region_detail"
+msgstr "Deine Region, vom Relay, das Ember gewählt hat. Du kannst sie ausblenden."
+
+msgid "card.shown"
+msgstr "{0} · angezeigt"
+
+msgid "card.unknown_shown"
+msgstr "Noch unbekannt · angezeigt"
+
+msgid "card.hidden"
+msgstr "Ausgeblendet"
+
+msgid "card.looking_detail"
+msgstr "Bis zu zwei, auf deiner Karte angezeigt."
+
+msgid "card.looking_full"
+msgstr "Höchstens zwei. Schalte zuerst eines aus."
 
 msgid "points.label"
 msgstr "FP"
@@ -1487,6 +1649,126 @@ msgstr "Gespielte Kämpfer"
 
 msgid "card.of"
 msgstr "{0} von {1}"
+
+msgid "card.about"
+msgstr "{0} · Bei Ember seit {1}"
+
+msgid "card.since"
+msgstr "Bei Ember seit {0}"
+
+msgid "card.wins"
+msgstr "Siege"
+
+msgid "card.best_streak"
+msgstr "Beste Serie"
+
+msgid "card.record_line"
+msgstr "{0} gewertete Spiele · {1} Siege · beste Serie {2}"
+
+msgid "card.tier_to"
+msgstr "{0} · {1} Punkte bis {2}"
+
+msgid "card.tier_top"
+msgstr "{0} · Höchster Rahmen"
+
+msgid "card.awards"
+msgstr "AUSZEICHNUNGEN"
+
+msgid "card.no_awards"
+msgstr "Noch keine Auszeichnungen. Die erste kommt mit deinem ersten gewerteten Spiel."
+
+msgid "card.most_played"
+msgstr "AM HÄUFIGSTEN GESPIELT"
+
+msgid "card.most_played_line"
+msgstr "{0} – {1} · {2} Spiele"
+
+msgid "card.most_played_none"
+msgstr "Dein häufigster Gegner erscheint hier nach deinem ersten gewerteten Spiel."
+
+msgid "card.recent_sets"
+msgstr "LETZTE SETS"
+
+msgid "card.all_sets"
+msgstr "Alle Sets"
+
+msgid "card.set_vs"
+msgstr "gegen {0}"
+
+msgid "card.set_online"
+msgstr "Online"
+
+msgid "card.sets_loading"
+msgstr "Sets werden gelesen."
+
+msgid "card.sets_none"
+msgstr "Noch keine archivierten Sets unter diesem Namen."
+
+msgid "card.sets_unavailable"
+msgstr "Dieser Dienst speichert keine Sets."
+
+msgid "card.sets_unreachable"
+msgstr "Archiv nicht erreichbar. Sets erscheinen, sobald es antwortet."
+
+msgid "card.you_and"
+msgstr "Du und {0}"
+
+msgid "card.relation"
+msgstr "Freunde"
+
+msgid "card.since_date"
+msgstr "Seit {0}"
+
+msgid "card.not_friends"
+msgstr "Nicht befreundet"
+
+msgid "card.they_asked"
+msgstr "Hat dich angefragt"
+
+msgid "card.plays"
+msgstr "Spielt auf"
+
+msgid "card.playing"
+msgstr "SPIELT GERADE"
+
+msgid "card.looking_row"
+msgstr "Sucht"
+
+msgid "style.pad"
+msgstr "Pad"
+
+msgid "style.stick"
+msgstr "Stick"
+
+msgid "style.leverless"
+msgstr "Leverless"
+
+msgid "style.keyboard"
+msgstr "Tastatur"
+
+msgid "style.wired"
+msgstr "Kabel"
+
+msgid "style.wifi"
+msgstr "WLAN"
+
+msgid "style.casuals"
+msgstr "Casuals"
+
+msgid "style.long_sets"
+msgstr "Lange Sets"
+
+msgid "style.ranked"
+msgstr "Gewertete Spiele"
+
+msgid "style.practice"
+msgstr "Turnier-Training"
+
+msgid "style.new"
+msgstr "Neueinsteiger"
+
+msgid "style.teach"
+msgstr "Lernhilfe"
 
 msgid "fighters.how"
 msgstr "So sammelst du Punkte"
@@ -5130,6 +5412,12 @@ msgstr "Links und Rechts wechseln Ihr Ultra für das nächste Spiel. Mit einem n
 msgid "postmatch.ultra.set"
 msgstr "Ihr Ultra für das nächste Spiel steht fest."
 
+msgid "postmatch.add_friend.detail"
+msgstr "Sendet {0} eine Freundschaftsanfrage. Deine Antwort auf die Revanche bleibt, wie sie ist."
+
+msgid "postmatch.accept_friend.detail"
+msgstr "Nimmt die Freundschaftsanfrage von {0} an. Deine Antwort auf die Revanche bleibt, wie sie ist."
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
@@ -8315,7 +8603,7 @@ msgid "notifications.tab_count"
 msgstr "Benachrichtigungen · {0}"
 
 msgid "notifications.waiting"
-msgstr "Offen: {0}"
+msgstr "Zu beantworten: {0}"
 
 msgid "notifications.none_detail"
 msgstr "Was Ember meldet, etwa ein kopierter Link oder ein verlassener Raum, bleibt hier für diese Sitzung."
@@ -8588,7 +8876,7 @@ msgid "archive.f_class"
 msgstr "Klasse"
 
 msgid "archive.f_class_detail"
-msgstr "Listet die Sets, in denen einer der beiden Spieler heute diese Klasse in der Rangliste hat."
+msgstr "Listet die Sets, in denen einer der beiden Spieler heute diese Klasse hat."
 
 msgid "archive.f_country"
 msgstr "Land"
@@ -8702,7 +8990,7 @@ msgid "archive.games"
 msgstr "{0} Spiele"
 
 msgid "archive.met"
-msgstr "Gegen {0}"
+msgstr "Gespielt gegen {0}"
 
 msgid "archive.session_label"
 msgstr "{0}: {1} Spiele"
@@ -8818,6 +9106,9 @@ msgstr "Die Titel und Symbole, die du verdient hast, und wie du die übrigen bek
 msgid "awards.earned_count"
 msgstr "{0} von {1} verdient"
 
+msgid "awards.not_reached"
+msgstr "Noch nicht erreicht"
+
 msgid "awards.card_heading"
 msgstr "DEINE KARTE · WIE ANDERE SIE SEHEN"
 
@@ -8882,7 +9173,7 @@ msgid "tier.ember"
 msgstr "Ember"
 
 msgid "award.matches.name"
-msgstr "Matches"
+msgstr "Gespielte Spiele"
 
 msgid "award.matches.icon"
 msgstr "Flagge"
@@ -9026,7 +9317,7 @@ msgid "award.mastery.4.how"
 msgstr "Bringe einen Kämpfer auf den Ember-Rahmen"
 
 msgid "award.cast.name"
-msgstr "Roster"
+msgstr "Gespielte Kämpfer"
 
 msgid "award.cast.icon"
 msgstr "Bracket"
