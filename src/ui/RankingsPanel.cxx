@@ -5,6 +5,7 @@
 #include "NameMarks.hxx"
 #include "CountryFlag.hxx"
 #include "PublicRoomsPanel.hxx"
+#include "PlayerPage.hxx"
 #include "RowId.hxx"
 #include "SignInSites.hxx"
 #include "Theme.hxx"
@@ -102,11 +103,13 @@ void RankingsPanel::Update(const ShellView& v, const std::string& screen, const 
     // Rankings and its board are one visit: coming back from the board reads nothing again.
     if (owned && !Owns(lastScreen_)) { wantStanding_ = true; listingSent_ = false; }
     if (screen == BoardScreen && lastScreen_ != BoardScreen) wantBoard_ = true;
-    lastScreen_ = screen;
+    // A profile opened from a row is a step aside, not leaving: Back is the visit again, which reads nothing.
+    const bool aside = Owns(lastScreen_) && PlayerPage::Owns(screen);
+    if (!aside) lastScreen_ = screen;
     if (owned) { bridge_ = bridge; own_ = own; }
     // Leaving drops what was not asked yet; a choice already on its way is
     // still answered, and said, wherever the player is.
-    else { wantStanding_ = wantBoard_ = false; if (pending_ && !pending_->sent) pending_.reset(); }
+    else if (!aside) { wantStanding_ = wantBoard_ = false; if (pending_ && !pending_->sent) pending_.reset(); }
     TakeAnswers(v, owned);
     if (!owned) { ReadForProfile(v, bridge, submit); return; }
     if (bridge_.empty()) return;
