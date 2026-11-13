@@ -139,6 +139,16 @@ pub struct Archive {
     pub public_base: String,
 }
 
+impl Archive {
+    /// The URL the archive lists its games at: the host `public_base` is on,
+    /// before the bucket's name, and `archive::PATH`. None when the base does
+    /// not end in the bucket, which the bridge then cannot place.
+    pub fn listing_url(&self) -> Option<String> {
+        let host = self.public_base.strip_suffix(&format!("/{}", self.bucket))?;
+        Some(format!("{host}{}", ember_protocol::archive::PATH))
+    }
+}
+
 fn default_region() -> String {
     "us-east-1".into()
 }
@@ -680,6 +690,30 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    /// The capabilities name the archive's listing: beside the bucket on the
+    /// host that serves it, whatever that host is.
+    #[test]
+    fn the_archive_names_where_it_lists_its_games() {
+        let archive = |bucket: &str, public_base: &str| Archive {
+            endpoint: "http://127.0.0.1:9400".into(),
+            bucket: bucket.into(),
+            region: default_region(),
+            access_key: "key".into(),
+            public_base: public_base.into(),
+        };
+        let staging = archive("replays", "https://bridge-staging.example/archive/replays");
+        assert_eq!(
+            staging.listing_url().as_deref(),
+            Some("https://bridge-staging.example/archive/v1/archive")
+        );
+        let own_site = archive("replays-live", "https://archive.example/replays-live");
+        assert_eq!(
+            own_site.listing_url().as_deref(),
+            Some("https://archive.example/v1/archive")
+        );
+        assert_eq!(archive("other", "https://s3.example/replays").listing_url(), None);
+    }
 
     /// Whether a configuration with one connection of `kind` and these extra
     /// settings is accepted.

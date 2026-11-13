@@ -128,6 +128,11 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
             .tournaments
             .as_ref()
             .map(|tournaments| tournaments.origin.clone()),
+        archive: state
+            .config
+            .archive
+            .as_ref()
+            .and_then(crate::config::Archive::listing_url),
         limits: Limits {
             max_body_bytes: json::MAX_BODY,
             max_proof_body_bytes: challenge::MAX_PROOF_BODY,
