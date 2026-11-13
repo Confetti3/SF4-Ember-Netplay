@@ -209,7 +209,7 @@ The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge
 
    ![Dummy reply](../images/guides/training_lab/reply.webp)
 
-3. Press Select on a **Reply slot** to give it a move: pick one from the list, the moves every fighter has first, then the dummy's own from its command list, with its strengths as buttons on the row that Left and Right move between, or press Select on **Reply moves** to type your own. Left and Right on a slot turn it on or off; **Empty this slot** removes its move.
+3. Press Select on a **Reply slot** to give it a move: pick one from the list, the moves every fighter has first, then the dummy's own from its command list, with its strengths as buttons on the row that Left and Right move between (a charge move has a **Charge** row under it with the ways to hold it: `[4]6`, `[1]6` or `[1]3` for a back charge, `[2]8`, `[1]8`, `[1]7` or `[1]9` for a down charge), or press Select on **Reply moves** to type your own. Left and Right on a slot turn it on or off; **Empty this slot** removes its move.
 4. With more than one slot on, **Reply order** says how the dummy picks: at random, each slot as often as its **Weight** says, or in order, one after the other. With no slot on, the dummy replies with the recordings that are on.
 5. Close the controls and knock the dummy down, or hit it, as the reply needs.
 
@@ -227,7 +227,7 @@ Directions are written for a dummy facing right; the dummy turns them for the si
 | Forward dash | `66` |
 | Jump back, up, forward | `7`, `8`, `9` |
 | Fireball | `236P` or `qcf P` |
-| EX fireball | `236PP` |
+| EX fireball (needs a quarter of the Super gauge, or the game plays the plain move) | `236PP` |
 | Super | `236236P` |
 | Ultra | `236236PPP` |
 | Spinning piledriver | `360P` |
@@ -242,9 +242,9 @@ Directions are written for a dummy facing right; the dummy turns them for the si
 
 #### Charge moves
 
-Start the reply with a held direction, then type the charge move **without** its charge: `[1] > 8HK` for a Flash Kick, `[1] > 6HP` for a Sonic Boom, `[1] > 6P` for a Psycho Crusher. `[1]` is down-back, so it charges both back and down. The dummy holds it from the moment it is knocked down or stunned and lets go just in time to press the move on its first free frame.
+Pick the charge move from the list, or type it: `[4]6P` for a Psycho Crusher, `[2]8HK` for a Flash Kick. You can also start the reply with a held direction and type the move **without** its charge: `[1] > 8HK`, `[1] > 6HP`. `[1]` is down-back, so it charges both back and down. The dummy holds the charge from the moment it is hit, blocks or is knocked down, and lets go just in time to press the move on its first free frame.
 
-A charge built this way is only as long as the stun. A knockdown is long enough, so charge moves work **On Wake-Up**. Every charge in the game is longer than a normal blockstun, so after blocking the move comes out uncharged unless the blockstun is long.
+While the dummy holds, Ember keeps its charges full, so the move comes out charged however short the stun, after a single jab as after a knockdown.
 
 Don't write the charge twice: `[1] > [4]6P` holds back for a whole new charge after the dummy gets up. `[4]6P` on its own is right only when nothing comes before it to hold the charge through.
 
@@ -263,7 +263,7 @@ Any case works, and spaces are optional.
 | `cl.` `far.` | Close or far standing normal | `cl.HP` |
 | `j.` | A straight-up jump with the attack in the air | `j.HK` |
 | `>` or `,` | Then the next move, once the dummy can act again (a link) | `2LK > 2LP` |
-| `xx` | Cancel into the next move when the hit lands | `2MK xx 236HP` |
+| `xx` | Cancel into the next move when the hit lands, or after a dash as soon as the dash can be cancelled | `2MK xx 236HP`, `66 > xx 5MP` |
 | `~` | Follow-up pressed about ten frames into the move before | `236P ~ LP` |
 | `[4]6` | Charge back, then forward | `[4]6P` |
 | `[1]` | Hold a direction until the next move | `[1] > 2HK` |

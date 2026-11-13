@@ -88,10 +88,11 @@ int main() {
             const int held[3] = {130, 37, 185}, need[3] = {60, 120, 180};
             for (std::size_t i = 0; i < names.size(); ++i) ric.charges[i] = {i, ChargeBack, i < 9 ? need[i / 3] : 210, i < 9 ? (std::min)(held[i % 3], need[i / 3]) : 0};
             ric.chargeCount = names.size();
-            auto& juri = view.data.fighters[1]; juri.valid = true; juri.stock = 5;
+            auto& juri = view.data.fighters[1]; juri.valid = true; juri.stock = 5; juri.oil = 240;
             const auto sent = DataJson(view)["sides"];
             Require(sent[0]["charges"].size() == 6 && sent[0]["charges"][0]["n"] == "QUESA_tameL" && sent[0]["charges"][0]["h"] == 130 && sent[0]["charges"][0]["r"] == json::array({60, 120, 180}) &&
                 sent[0]["stock"] == -1 && sent[1]["stock"] == 5, "Charges were not sent as one counter with its levels");
+            Require(sent[0]["oil"][0] == -1 && sent[1]["oil"] == nlohmann::json({240, sf4e::training::MaxOil}), "Hakan's oil was not sent with its most");
         }
         // What the phone queued reaches the overlay thread, and no more than fits.
         Mailbox box;

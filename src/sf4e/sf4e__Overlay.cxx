@@ -708,6 +708,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     sf4e::training::ShowHitBoxes(meterOptions.hitboxes && trainingHud);
     // And the Data panel's readings while it shows.
     sf4e::training::ShowData(meterOptions.data && trainingHud);
+    sf4e::training::KeepOilFull(meterOptions.oilFull);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     sf4e::ui::ServeTrainingPhone(training, sf4e::training::Submit);

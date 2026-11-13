@@ -2478,6 +2478,9 @@ msgstr "Rimuove la mossa di questo slot."
 msgid "training.reply.every_fighter"
 msgstr "Ogni lottatore"
 
+msgid "training.reply.charge"
+msgstr "Carica"
+
 msgid "training.key.reset"
 msgstr "Tasto Ripristina"
 
@@ -5981,6 +5984,15 @@ msgstr "Limite"
 
 msgid "training.data.no_charge"
 msgstr "Nessuna mossa a carica"
+
+msgid "training.data.oil"
+msgstr "Olio"
+
+msgid "training.data.oil_full"
+msgstr "Olio sempre pieno"
+
+msgid "training.data.oil_full.detail"
+msgstr "Hakan mantiene il massimo dell'olio, come se avesse appena usato Oil Shower. Solo in Allenamento."
 
 msgid "training.color_key"
 msgstr "Legenda colori"

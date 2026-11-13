@@ -190,6 +190,10 @@ int main() {
             const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(off).dump()));
             for (const auto& other : DataParts) CHECK(read.*other.shown == (&other != &part));
         }
+        // Hakan's oil is left alone unless it is saved as a literal true.
+        MeterOptions oil; oil.oilFull = true;
+        CHECK(!ReadMeterOptions(json::object()).oilFull && !ReadMeterOptions(json{{"oil_full", "yes"}}).oilFull &&
+            ReadMeterOptions(json::parse(MeterOptionsJson(oil).dump())).oilFull);
     }
     // No input display unless one is saved by name, and a round trip keeps each.
     for (const json& inputs : {json(), json("Stick"), json(1), json(true)}) CHECK(ReadMeterOptions(json{{"hud_inputs", inputs}}).inputs == InputDisplay::Off);
