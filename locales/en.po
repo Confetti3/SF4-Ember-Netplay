@@ -1102,6 +1102,9 @@ msgstr "Card"
 msgid "profile.tab.fighters"
 msgstr "Fighters"
 
+msgid "profile.tab.sets"
+msgstr "Sets"
+
 msgid "profile.tab.friends"
 msgstr "Friends"
 
@@ -1309,9 +1312,6 @@ msgstr "Edit card"
 msgid "card.account"
 msgstr "Account"
 
-msgid "card.progress"
-msgstr "PROGRESS"
-
 msgid "card.top_fighters"
 msgstr "TOP FIGHTERS"
 
@@ -1491,6 +1491,126 @@ msgstr "Fighters played"
 
 msgid "card.of"
 msgstr "{0} of {1}"
+
+msgid "card.about"
+msgstr "{0} · On Ember since {1}"
+
+msgid "card.since"
+msgstr "On Ember since {0}"
+
+msgid "card.wins"
+msgstr "Wins"
+
+msgid "card.best_streak"
+msgstr "Best streak"
+
+msgid "card.record_line"
+msgstr "{0} rated games · {1} wins · best streak {2}"
+
+msgid "card.tier_to"
+msgstr "{0} · {1} points to {2}"
+
+msgid "card.tier_top"
+msgstr "{0} · Top frame"
+
+msgid "card.awards"
+msgstr "AWARDS"
+
+msgid "card.no_awards"
+msgstr "No awards yet. The first comes with your first rated game."
+
+msgid "card.most_played"
+msgstr "MOST PLAYED"
+
+msgid "card.most_played_line"
+msgstr "{0} – {1} · {2} games"
+
+msgid "card.most_played_none"
+msgstr "Your most played opponent shows here after your first rated game."
+
+msgid "card.recent_sets"
+msgstr "RECENT SETS"
+
+msgid "card.all_sets"
+msgstr "All sets"
+
+msgid "card.set_vs"
+msgstr "vs {0}"
+
+msgid "card.set_online"
+msgstr "Online"
+
+msgid "card.sets_loading"
+msgstr "Reading sets."
+
+msgid "card.sets_none"
+msgstr "No archived sets under this name yet."
+
+msgid "card.sets_unavailable"
+msgstr "This service does not keep sets."
+
+msgid "card.sets_unreachable"
+msgstr "Could not reach the archive. Sets show when it answers."
+
+msgid "card.you_and"
+msgstr "You and {0}"
+
+msgid "card.relation"
+msgstr "Friends"
+
+msgid "card.since_date"
+msgstr "Since {0}"
+
+msgid "card.not_friends"
+msgstr "Not friends"
+
+msgid "card.they_asked"
+msgstr "They asked you"
+
+msgid "card.plays"
+msgstr "Plays"
+
+msgid "card.playing"
+msgstr "PLAYING"
+
+msgid "card.looking_row"
+msgstr "Looking for"
+
+msgid "style.pad"
+msgstr "Pad"
+
+msgid "style.stick"
+msgstr "Stick"
+
+msgid "style.leverless"
+msgstr "Leverless"
+
+msgid "style.keyboard"
+msgstr "Keyboard"
+
+msgid "style.wired"
+msgstr "Wired"
+
+msgid "style.wifi"
+msgstr "Wi-Fi"
+
+msgid "style.casuals"
+msgstr "Casuals"
+
+msgid "style.long_sets"
+msgstr "Long sets"
+
+msgid "style.ranked"
+msgstr "Ranked"
+
+msgid "style.practice"
+msgstr "Tournament practice"
+
+msgid "style.new"
+msgstr "New to the game"
+
+msgid "style.teach"
+msgstr "Happy to teach"
 
 msgid "fighters.how"
 msgstr "How points are earned"

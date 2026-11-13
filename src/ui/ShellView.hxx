@@ -245,6 +245,9 @@ struct ShellView {
     // name, no name, request or code openers (Find a player is by code, as 1.6.0); cards open by token and friend id
     // with 1.6.0's fields.
     netplay::profiles::Service profilesService = netplay::profiles::Service::Unknown;
+    // How this PC reaches the internet as the card save last measured it (read at most once a minute, with a service and an
+    // Ember ID in use); Unknown until then. The own card's Connection chip.
+    NetworkLink ownLink = NetworkLink::Unknown;
     // The player's own fighter levels, as last read.
     netplay::Answered<netplay::levels::Own> levels;
     // The cards of a public room's members by card token; null while there are none.

@@ -617,6 +617,7 @@ PostPublishState Publish() {
     snapshot.recentOpponents = runtime->recentOpponents.Fresh(static_cast<std::uint64_t>(std::time(nullptr)));
     snapshot.profileSets = runtime->profileSets.Published();
     snapshot.profilesService = runtime->profiles.Offering();
+    snapshot.ownLink = runtime->cardSignals.link;
     snapshot.friends = FriendsStatus();
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();

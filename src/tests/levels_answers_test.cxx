@@ -99,6 +99,29 @@ static void TestLevels() {
 	const auto withCounters = session::DecodeOwnLevels({{"points", "counted"}, {"account", counters}, {"fighters", json::array()}});
 	CHECK(withCounters && withCounters->awards.bestStreak == 3 && withCounters->awards.peakClass == 6 &&
 		withCounters->awards.rival == 12 && withCounters->awards.opponents == 30);
+	// The most played opponent: absent from an older bridge, read when whole, left out alone when it is not,
+	// and unknown members are ignored.
+	CHECK(!own->hasMostPlayed);
+	const json rival = {{"card", "c1.abc_DEF-123"}, {"name", "Player 7"}, {"country", "US"}, {"badge", {{"band", 8u}, {"settled", true}}}, {"won", 41u}, {"lost", 33u}};
+	const auto withRival = [&](const json& rivalObject) {
+		return session::DecodeOwnLevels({{"points", "counted"}, {"account", account}, {"fighters", json::array()}, {"rival", rivalObject}});
+	};
+	const auto named = withRival(rival);
+	CHECK(named && named->hasMostPlayed && named->mostPlayed.card == "c1.abc_DEF-123" && named->mostPlayed.name == "Player 7" &&
+		named->mostPlayed.country.Present() && named->mostPlayed.badge.HasClass() && named->mostPlayed.badge.band == 8 &&
+		named->mostPlayed.won == 41 && named->mostPlayed.lost == 33);
+	auto plain = rival;
+	plain.erase("country");
+	plain.erase("badge");
+	plain["extra"] = true;
+	const auto bare = withRival(plain);
+	CHECK(bare && bare->hasMostPlayed && !bare->mostPlayed.country.Present() && !bare->mostPlayed.badge.HasClass());
+	const auto changed = [&](const char* key, const json& value) { auto row = rival; row[key] = value; return row; };
+	for (const auto& bad : {changed("card", "nope"), changed("card", 4), changed("name", ""), changed("won", -1), changed("lost", "3"),
+			json{{"card", "c1.abc"}, {"name", "Player 7"}, {"won", 0u}, {"lost", 0u}}, json{{"card", "c1.abc"}, {"name", "Player 7"}, {"won", 5u}}, json::array(), json("x"), json()}) {
+		const auto dropped = withRival(bad);
+		CHECK(dropped && dropped->kind == Kind::Counted && !dropped->hasMostPlayed && dropped->account.points == 13);
+	}
 	for (const auto& bad : {json{{"best_streak", 10u}}, json{{"best_streak", -1}}, json{{"peak_class", 11u}}, json{{"peak_class", "6"}}, json{{"rival", -1}}, json{{"opponents", "3"}}}) {
 		auto row = account;
 		row.update(bad);

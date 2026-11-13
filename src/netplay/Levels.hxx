@@ -34,6 +34,17 @@ struct Level {
 	std::uint64_t since = 0;
 };
 
+// The opponent the account has played the most, as the points answer names
+// them: a card token to open their profile by, what the card shows of them, and
+// the games between the two from this account's side (won + lost is the games
+// count, at least 1).
+struct MostPlayed {
+	std::string card, name;
+	CountryCode country;
+	SkillBadge badge;
+	std::uint64_t won = 0, lost = 0;
+};
+
 // The player's own points, as GET /v1/points/me answers them.
 struct Own {
 	enum class Kind : std::uint8_t {
@@ -52,6 +63,11 @@ struct Own {
 	// played. Each is 0 from a bridge that does not send it, and while there is
 	// none.
 	awards::Counters awards;
+	// The opponent played most, when the bridge names one (hasMostPlayed): absent
+	// before any counted game, from a bridge that does not send it, and when none
+	// can be shown.
+	bool hasMostPlayed = false;
+	MostPlayed mostPlayed;
 	// Indexed by fighter id, 0 to selection::FighterCount - 1.
 	std::array<Level, selection::FighterCount> fighters{};
 };

@@ -173,18 +173,14 @@ public:
         PlayerCardView levels;
         player_card::Fill(levels, f.view.levels, f.shell.preferences_.mainFighter);
         const bool connect = f.shell.identity_.Discord(f.view).state == netplay::DiscordLink::State::None;
-        return f.shell.profile_.Rows(f.view, f.screen, levels, f.view.canEditPreferences, connect, title);
+        return f.shell.profile_.Rows(f.view, f.shell.preferences_, f.screen, levels, f.view.canEditPreferences, connect, title);
     }
     // A strip tile opens the Fighters page on that fighter, Edit card its page; Connect Discord is the Ember ID panel's.
     // A fighter's row on the Fighters page makes it the main, which the shell's own rows do.
-    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
         auto& nav = f.shell.menu_.navigation;
         if (a.id == DiscordConnectScreen) { f.shell.identity_.Activate(a, f.view, nav); return true; }
-        if (a.id == CardEditRow) { nav.Push(CardEditRow); return true; }
-        if (!HasPrefix(a.id, "card-fighter:")) return false;
-        nav.Replace(ProfilePanel::FightersScreen);
-        nav.Prefer("main-" + a.id.substr(std::strlen("card-fighter:")));
-        return true;
+        return f.shell.profile_.Activate(f.view, a, nav, submit, f.shell.replays_.Queue(), f.shell.error_);
     }
     // Y on the Card tab is Edit card, X Fighter select (the room's own X while one is joined).
     void Shortcut(const ScreenFrame& f, const MenuAction& a) const override {
@@ -199,7 +195,7 @@ public:
     GameMenu::Body Body(const ScreenFrame& f) const override {
         ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::string* screen = &f.screen;
         return [shell, view, screen](const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback&) {
-            shell->profile_.Draw(*view, shell->preferences_.mainFighter, *screen, rows, nav, action, height);
+            shell->profile_.Draw(*view, shell->preferences_, *screen, rows, nav, action, height);
         };
     }
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {

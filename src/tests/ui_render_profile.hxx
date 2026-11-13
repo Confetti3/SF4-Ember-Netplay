@@ -37,13 +37,23 @@ inline ProfileOwn ProfilePlayed(std::uint64_t mainPoints){
     for(const auto& pair:others)ProfilePlay(own,static_cast<int>(pair[0]),pair[1]);
     // The account's points are every game of every fighter, on its own tiers (500, 2000, 5000, 10000).
     for(const auto& level:own.fighters){own.account.points+=level.points;own.account.games+=level.games;own.account.wins+=level.wins;}
-    ProfileAccount(own);
+    // The award counters and the opponent played most, which the awards and the Most played part read.
+    own.awards.games=own.account.games;own.awards.wins=own.account.wins;own.awards.bestStreak=7;own.awards.peakClass=6;own.awards.rival=40;own.awards.opponents=60;
+    own.hasMostPlayed=true;
+    own.mostPlayed.card="c1.lab_rival";own.mostPlayed.name="Player 7";own.mostPlayed.country=sf4e::CountryCode::Parsed("US");
+    own.mostPlayed.badge=sf4e::SkillBadge::OfClass(8,true);own.mostPlayed.won=41;own.mostPlayed.lost=33;
     return own;
 }
 template<class Draw,class Page>
 void ShootProfile(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const Draw& draw,const Page& page){
     using namespace sf4e;using namespace sf4e::ui;
     view.preferences.mainFighter=0;
+    // A trusted service and the card's data: the sets are asked of it by the player's name, how the player plays is shown.
+    view.identity.known=true;view.identity.state="ready";view.identity.emberId="emb1_lab";view.identity.bridges={{"brg_1","https://bridge.example","Example"}};
+    view.preferences.displayName="Player 1";view.preferences.cardDevice=2;view.preferences.cardLooking=netplay::profiles::LookingLongSets|netplay::profiles::LookingTeach;
+    view.preferences.wornTitle="wins";view.preferences.wornIcon="matches";view.ownLink=NetworkLink::Wired;view.replays.ready=true;
+    view.profileSets.bridge="brg_1";view.profileSets.filter=netplay::archive::Filter::Named("Player 1");
+    view.profileSets.state=netplay::archive::Status::State::Loading;
     const auto shoot=[&](const char* name,const ProfileOwn& own,bool loaded,bool loading){
         view.levels=netplay::Answered<ProfileOwn>{};view.levels.value=own;view.levels.loaded=loaded;view.levels.loading=loading;
         // Not loaded and not loading is a read that failed with nothing before it.
@@ -55,6 +65,20 @@ void ShootProfile(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
         }
     };
     shoot("played",ProfilePlayed(1986),true,false);
+    // Without a most played opponent, and the recent sets in each state the part has (the rows themselves are the lab's --sets full).
+    auto noMost=ProfilePlayed(1986);noMost.hasMostPlayed=false;shoot("no-most",noMost,true,false);
+    {
+        namespace ar=netplay::archive;
+        for(const auto state:{ar::Status::State::Failed,ar::Status::State::Unsupported,ar::Status::State::Listed}){
+            view.profileSets.state=state;++view.profileSets.revision;
+            if(state==ar::Status::State::Listed)view.profileSets.listing=std::make_shared<const ar::Listing>();
+            shoot(state==ar::Status::State::Failed?"sets-failed":state==ar::Status::State::Unsupported?"sets-unsupported":"sets-none",ProfilePlayed(1986),true,false);
+        }
+        view.profileSets.state=ar::Status::State::Loading;view.profileSets.listing.reset();
+    }
+    // The Panel in the awards tab's preview, and the Full card at the lab's other sizes come from the same code.
+    page("awards");draw(nullptr,0,6);draw("awards-played");
+    Require(shell.Navigation().Screen()=="awards","Awards did not open");
     // Edit card with the player's card as others see it, and Home's card with its points lines.
     page("card-edit");draw(nullptr,0,6);draw("card-edit-played");
     Require(shell.Navigation().Screen()=="card-edit","Edit card did not open");

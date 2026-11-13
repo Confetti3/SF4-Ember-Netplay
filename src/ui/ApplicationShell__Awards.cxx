@@ -50,9 +50,7 @@ aw::Counters ApplicationShell::AwardCounters(const ShellView& v) {
     return aw::CountersOf(v.levels.value, count);
 }
 aw::Worn ApplicationShell::WornAward(const ShellView& v, const std::string& id) { return aw::WornOf(AwardCounters(v), id); }
-std::string ApplicationShell::LevelTitle(const aw::Level& level) {
-    return level.band ? loc::Tf("class.tip", ClassName(static_cast<std::uint8_t>(level.band))) : std::string(loc::T(level.title));
-}
+std::string ApplicationShell::LevelTitle(const aw::Level& level) { return player_card::LevelTitle(level); }
 std::string ApplicationShell::LevelHow(const aw::Level& level) {
     return level.band ? loc::Tf("award.rank.how", ClassName(static_cast<std::uint8_t>(level.band))) : std::string(loc::T(level.how));
 }
@@ -210,9 +208,9 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
     };
     const auto& profile = player.profile;
     heading(loc::T("awards.card_heading"));
-    auto card = OwnAsOthers(player);
-    card.art = v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait;
-    DrawOtherCard(d, v2::CutTop(side, 160 * s, 16 * s), card);
+    // The Panel as others see it, with the player's own chips, record and families.
+    const auto card = ProfilePanel::OwnPanel(v, preferences_);
+    DrawOtherCard(d, v2::CutTop(side, OtherCardHeight(card, side.W()), 16 * s), card);
     // The focused family's words: its name, then every level and where the player stands.
     const auto shown = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == focus && FamilyOfRow(e); });
     if (shown != rows.end()) {
@@ -267,8 +265,8 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
         const bool meter = counted && !next.top && aw::Counts(*family);
         const float stack = icon + 6 * s + lines * (size + 2 * s) + 6 * s + pip + 6 * s + (meter ? 9 * s : 0) + 14 * s;
         const ImVec2 box(tile.min.x + (tile.W() - icon) * .5f, tile.min.y + (std::max)(6 * s, (tile.H() - stack) * .5f));
-        d->AddRectFilled(box, ImVec2(box.x + icon, box.y + icon), earned ? v2::color::Alpha(tier.plate, .5f) : c.frame);
-        d->AddRect(box, ImVec2(box.x + icon, box.y + icon), earned ? tier.stripe : c.border, 0, 0, 2 * s);
+        // The tier is the plate under the icon and the icon's colour, never a frame.
+        d->AddRectFilled(box, ImVec2(box.x + icon, box.y + icon), earned ? tier.plate : c.frame, 4 * s);
         v2::Icon(d, family->icon, ImVec2(box.x + 10 * s, box.y + 10 * s), icon - 20 * s, earned ? tier.stripe : v2::color::Alpha(c.muted, .5f));
         const auto line = [&](const char* from, const char* to, float top) {
             const float w = font->CalcTextSizeA(size, FLT_MAX, 0, from, to).x;
@@ -298,8 +296,8 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
         else if (!counted) state = loc::T("awards.locked");
         else if (aw::Counts(*family)) state = loc::Tf("awards.progress", next.have, next.need);
         else state = loc::Tf("awards.next", ApplicationShell::LevelTitle(family->levels[level]));
-        const float sw = ImGui::GetFont()->CalcTextSizeA(12 * s, FLT_MAX, 0, state.c_str()).x;
-        d->AddText(ImGui::GetFont(), 12 * s, ImVec2(tile.min.x + (std::max)(4 * s, (tile.W() - sw) * .5f), py), on ? c.accent : c.muted, state.c_str());
+        const float sw = ImGui::GetFont()->CalcTextSizeA(player_card::TextFloor * s, FLT_MAX, 0, state.c_str()).x;
+        d->AddText(ImGui::GetFont(), player_card::TextFloor * s, ImVec2(tile.min.x + (std::max)(4 * s, (tile.W() - sw) * .5f), py), on ? c.accent : c.muted, state.c_str());
         d->PopClipRect();
         if (focused) v2::Focus(d, tile.min, tile.max, false);
     }

@@ -287,6 +287,18 @@ void RoomPoints(ui::ShellView& view, bool listed) {
         using netplay::levels::Relation;
         static const Relation relations[] = {Relation::None, Relation::Friend, Relation::Sent, Relation::Received, Relation::Blocked};
         card.relation = relations[m.id % 5];
+        // What a bridge offering profiles adds: the name, how they play, what they wear and the record with the viewer. Riley wears a
+        // family nobody reached (drawn at no level), and Akira shows no chips.
+        card.name = m.name;
+        card.hasStyle = m.name != "Akira";
+        card.style.device = static_cast<netplay::profiles::Device>(1 + m.id % 4);
+        card.style.link = m.id % 2 ? netplay::profiles::Link::Wired : netplay::profiles::Link::WiFi;
+        card.style.region = "euc1";
+        card.style.looking = static_cast<std::uint8_t>(m.id % 2 ? netplay::profiles::LookingLongSets | netplay::profiles::LookingTeach : netplay::profiles::LookingRanked);
+        card.worn.title = "wins"; card.worn.icon = m.id % 3 ? "streak" : "friends";
+        card.awards.rival = 12; card.awards.opponents = 30;
+        card.hasSince = true; card.since = 1740787200;
+        card.hasVersus = m.id % 2 == 0; card.versus.won = 3; card.versus.lost = 5; card.versus.lastAt = 1700000000 - 7200;
         (*cards)[m.card.ToString()] = card;
     }
     view.memberCards = cards;
@@ -371,6 +383,57 @@ void Archive(ui::ShellView& view, const std::string& state) {
     status.loadingMore = state == "more";
     status.listing = listing;
 }
+// --sets full|few|none|loading|failed|unsupported: the player's recent sets as the Card tab asks the archive for them (the
+// profile's second slot, by the name Player 1), on a trusted service. full: six sets, a tournament set among online ones;
+// few: two; none: the archive holds none under the name; loading: the first page on its way; failed: unreachable;
+// unsupported: the service keeps no archive. Without it --profile reads full.
+void ProfileSets(ui::ShellView& view, const std::string& state) {
+    namespace ar = netplay::archive;
+    view.replays.ready = true;
+    view.preferences.classEmblems = true;
+    view.unixNow = 1700100000;
+    auto& id = view.identity;
+    id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.fingerprint = "lab";
+    id.bridges = {{"brg_1", "https://bridge.example", "Example"}};
+    auto& status = view.profileSets;
+    status.bridge = "brg_1";
+    status.filter = ar::Filter::Named("Player 1");
+    status.state = state == "loading" ? ar::Status::State::Loading : state == "failed" ? ar::Status::State::Failed :
+        state == "unsupported" ? ar::Status::State::Unsupported : ar::Status::State::Listed;
+    if (state == "failed") status.error = "bridge_unreachable";
+    if (state == "unsupported") status.error = ar::Unsupported;
+    ++status.revision;
+    if (status.state != ar::Status::State::Listed) return;
+    unsigned counter = 0;
+    const auto game = [&](std::uint64_t at, const char* a, const char* b, int fighterA, int fighterB, const char* countryA, const char* countryB, int classA, int classB) {
+        ar::Game g;
+        char digest[80]; std::snprintf(digest, sizeof(digest), "%064x", ++counter);
+        g.digest = digest; g.url = std::string("https://archive.example/games/") + digest + ".emberreplay";
+        g.savedAt = at; g.size = 90000;
+        g.names = {{a, b}}; g.fighters = {{fighterA, fighterB}}; g.countries = {{countryA, countryB}}; g.classes = {{classA, classB}};
+        return g;
+    };
+    auto listing = std::make_shared<ar::Listing>();
+    const std::uint64_t now = view.unixNow;
+    if (state != "none") {
+        // Online sets: games of the same two players within half an hour are one set.
+        for (const std::uint64_t at : {now - 7200, now - 6900, now - 6600}) listing->games.push_back(game(at, "Player 1", "Player 7", 0, 20, "DE", "US", 8, 8));
+        listing->games.push_back(game(now - 90000, "Player 4", "Player 1", 12, 0, "SE", "DE", 6, 8));
+        if (state != "few") {
+            for (const std::uint64_t at : {now - 200000, now - 199500}) listing->games.push_back(game(at, "Player 1", "Player 9", 0, 3, "DE", "JP", 8, 0));
+            for (const std::uint64_t at : {now - 400000, now - 399000}) {
+                auto g = game(at, "Player 2", "Player 1", 5, 0, "FR", "DE", 6, 8);
+                g.set = "emt_a"; g.event = "Weekly 12"; g.round = "Top 8"; g.phase = "Winners";
+                listing->games.push_back(g);
+            }
+            listing->sets["emt_a"].score = {{1, 2}};
+            listing->games.push_back(game(now - 500000, "Player 1", "Player 5", 0, 7, "DE", "GB", 8, 7));
+            listing->games.push_back(game(now - 600000, "Player 6", "Player 1", 21, 0, "ES", "DE", 5, 8));
+        }
+    }
+    std::sort(listing->games.begin(), listing->games.end(), [](const ar::Game& a, const ar::Game& b) { return a.savedAt > b.savedAt; });
+    status.listing = listing;
+}
 // An Ember ID on a trusted service (lab --rankings), and Rankings' answers from
 // it: FRaccie at B+ and listed, and a board of sixteen by class, as the design board.
 void Rankings(ui::ShellView& view) {
@@ -398,6 +461,14 @@ void Rankings(ui::ShellView& view) {
 // read in flight; unreachable: the first read failed.
 void Profile(ui::ShellView& view, const std::string& state) {
     view.preferences.displayName = "Player 1";
+    // How the card says the player plays (Edit card's choices and what the game measures) and what it shows: Stick, wired in
+    // Europe, looking for long sets and a teacher, the Wins family worn as title and Matches as icon, two families chosen.
+    view.preferences.cardDevice = 2; view.preferences.cardLooking = netplay::profiles::LookingLongSets | netplay::profiles::LookingTeach;
+    view.preferences.wornTitle = "wins"; view.preferences.wornIcon = "matches"; view.preferences.cardPins = {"rank", "wins"};
+    view.ownLink = NetworkLink::Wired;
+    view.netReport.reported = true; view.netReport.relay = "euc1";
+    view.preferences.country = CountryPreference();
+    view.automaticCountry = CountryCode::Parsed("DE");
     auto& answer = view.levels;
     answer.loading = state == "loading";
     answer.loaded = !answer.loading && state != "unreachable";
@@ -446,6 +517,10 @@ void Profile(ui::ShellView& view, const std::string& state) {
     own.awards.peakClass = 6;
     own.awards.rival = 40;
     own.awards.opponents = 60;
+    // The opponent played most (every counted state but fresh).
+    own.hasMostPlayed = true;
+    own.mostPlayed.card = "c1.lab_rival"; own.mostPlayed.name = "Player 7"; own.mostPlayed.country = CountryCode::Parsed("US");
+    own.mostPlayed.badge = SkillBadge::OfClass(8, true); own.mostPlayed.won = 41; own.mostPlayed.lost = 33;
     accountFrame();
 }
 // --levels: points as the game draws them (FIGHTER_LEVELS.md, Drawing points), wrapping across the window: the
@@ -507,7 +582,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string points;  // --points public|private
-    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState;
+    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState, setsState;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
@@ -542,6 +617,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--profile" && more) profile = args[++i];
         else if (args[i] == "--friends" && more) friendsState = args[++i];
         else if (args[i] == "--archive" && more) archiveState = args[++i];
+        else if (args[i] == "--sets" && more) setsState = args[++i];
         else if (args[i] == "--points" && more) points = args[++i];
         else if (args[i] == "--playback") playback = true;
         else if (args[i] == "--caption") caption = true;
@@ -621,6 +697,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (!archiveState.empty()) Archive(view, archiveState);
     if (!profile.empty()) Profile(view, profile);
     else if (screen == "awards") Profile(view, "played");
+    if (!profile.empty() || screen == "awards" || screen == "card") ProfileSets(view, setsState.empty() ? "full" : setsState);
     if (!friendsState.empty() && !uilab::Friends(view, friendsState)) return 4;
     if (!points.empty()) {
         if (profile.empty()) Profile(view, "played");

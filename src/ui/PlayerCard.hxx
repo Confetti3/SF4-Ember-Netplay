@@ -1,9 +1,11 @@
 #pragma once
-// The player's card from their points (docs/design/PROFILE.md): the fighters
-// it shows and in what order, how far the next tier is, the view Home's card
-// and the Card tab draw from, and the part that draws another player's card.
-// The drawing is in PlayerCard.cxx; the choices are here so they are checked
-// without a frame (player_card_test.cxx).
+// The player's card in three sizes (docs/design/PROFILE.md): Full (a Card tab,
+// the player's own or another's), the Panel (beside a list) and the Row. What
+// each shows and in what order is CardModel.hxx, checked without a frame
+// (player_card_test.cxx); the parts are CardParts.hxx. This file holds the
+// points helpers Home's card and the Fighters tab read, and the drawing of the
+// Full card and the Panel, which only draw what the view models say.
+#include "CardModel.hxx"
 #include "GameMenu.hxx"
 #include "../netplay/Answered.hxx"
 #include "../netplay/FriendsView.hxx"
@@ -35,7 +37,7 @@ void Fill(PlayerCardView& view, const netplay::Answered<Own>& levels, int main);
 // null when it has (no answer yet, no account, a service without points, one
 // that could not be reached, nothing played).
 const char* NoLevelWords(const PlayerCardView& view);
-// One of the Card tab's progress rows: "Ryu · Gold" or "Account · Copper",
+// One of the Fighters tab's progress lines: "Ryu · Gold" or "Account · Copper",
 // how far to the next tier (0 to 1), and the words at its right ("514 points
 // to Ember", "Top frame", "Not played yet"). A level with no points is only
 // named: it has no frame yet, and an account at 0 still says what its first
@@ -63,27 +65,42 @@ MenuEntry ConnectDiscordRow();
 // Discord), pressed through PressEntry. Nothing when there is no such row.
 // Returns the bottom of what it drew, `at.y` when nothing.
 float DrawRowButton(const char* id, ImVec2 at, float width, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, bool changed);
-// A fighter's picture edge: 2 px inside `box`, in the frame colour of `tier`
-// once the fighter has points, plain otherwise.
+// A fighter's picture line: the tier as a 1 px line in its stripe colour, 3 px
+// inside `box`, once the fighter has points; nothing otherwise. The thick
+// accent frame is focus and nothing else.
 void DrawFighterEdge(ImDrawList* d, v2::Box box, std::uint64_t points, int tier);
-// The Card tab's board at the cursor, `width` wide in a body `height` tall:
-// the hero, the player's words and points, progress, facts and strip, whose
-// tiles are the `rows` (CardFighterRow), pressed through PressEntry. `changed`
-// scrolls a newly focused row into view. Returns the height taken.
-float DrawCardTab(const ShellView& view, const PlayerCardView& card, const std::vector<MenuEntry>& rows, MenuNavigation& nav,
-    MenuAction& action, bool changed, float height);
 
-// Another player's card (a room member, a friend, the player's own as others
-// see it): the picture of their fighter on its tier edge, their flag, name and
-// class, the title they wear, `<n> FP` of that fighter and `<n> BP` of the
-// account, and a chip for how they stand with the viewer. Nothing else.
+// The Full card at the cursor, as wide as the window and, wide or compact, as
+// tall as the body (`bodyHeight`): the hero the body's height with its buttons
+// at its foot, then the middle column and the right column, each to the foot,
+// nothing scrolling; narrow, one column that scrolls. The parts are placed
+// rows (PressEntry): the strip's tiles, the award tiles, Most played, the set
+// rows, All sets (player_card::CardRows), the hero's buttons and Choose a main
+// among `rows`. `changed` scrolls a newly focused row into view. Returns the
+// height taken.
+float DrawFullCard(const player_card::FullCardView& card, FighterArt art, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action,
+    bool changed, float bodyHeight);
+// The size class the card is drawn at in this window (a body is about 242 logical px shorter than the window at 1080, 202 at
+// 720): what FullOf takes. Rows and drawing both ask it, so the rows are the parts drawn.
+player_card::Size CardSize();
+
+// Another player's card as the Panel draws it (a room member, a friend, the
+// player's own as others see it): the picture of their fighter on its tier
+// line, their flag, name and class, the worn title on its plate and the worn
+// icon beside it, `<n> FP` of that fighter and `<n> BP` of the account under
+// the plate, the record line, Plays and Looking for on lines of their own, the
+// award families' icons on their tier plates, and a chip for how they stand
+// with the viewer. A part the data does not have is left out.
 struct OtherCardView {
     std::string name;
     CountryCode country;
     SkillBadge badge;
-    // The worn title on its tier's plate; none when empty (titles are not served for others yet).
+    // The worn title on its tier's plate and the worn icon beside it, each at the level the card's counters earn;
+    // none when empty or -1.
     std::string title;
     v2::Tier titleTier = v2::Tier::None;
+    int icon = -1;
+    v2::Tier iconTier = v2::Tier::None;
     int fighter = -1;
     FighterArt art = FighterArt::Portrait;
     std::uint64_t fighterPoints = 0, accountPoints = 0;
@@ -95,11 +112,23 @@ struct OtherCardView {
     // The relation chip ("Friends", "Request sent"), none when empty.
     std::string chip;
     ImU32 chipTone = 0;
+    // "2210 rated games · 1124 wins · best streak 14"; empty for none.
+    std::string record;
+    std::vector<player_card::Chip> plays, looking;
+    // The shown families and "24 of 37"; left out when `awards.total` is 0.
+    player_card::AwardsView awards;
 };
-void DrawOtherCard(ImDrawList* d, v2::Box box, const OtherCardView& card);
+// Draws the Panel with its top left at `box.min` across `box.W()`; its height is its content's (`box.max.y` is not
+// read): OtherCardHeight gives it for a width, for a caller that sizes what is around it first. With `ground` (the
+// default) it stands on a panel ground of its own; without, it is drawn straight onto the panel it is in.
+float DrawOtherCard(ImDrawList* d, v2::Box box, const OtherCardView& card, bool ground = true);
+float OtherCardHeight(const OtherCardView& card, float width, bool ground = true);
 // A player's flag, name and class emblem on a line `row` tall at (x, y), the name at `size` (heading font), cut to `room`.
 // Returns `row`.
 float DrawNameLine(ImDrawList* d, float x, float y, float room, float row, float size, const std::string& name, CountryCode country, const SkillBadge& badge);
-// The player's own card as others see it: the main, its points and the account's.
+// The player's own card as others see it, from Home's card: the main, its points, the account's and the worn title.
+// Without the chips, awards and record: OwnPanel (ProfilePanel.hxx) has them.
 OtherCardView OwnAsOthers(const PlayerCardView& card);
+// The Panel of a Subject (CardModel.hxx): another player's, or the player's own as others see it.
+OtherCardView PanelOf(const player_card::Subject& subject, FighterArt art);
 } }

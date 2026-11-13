@@ -293,15 +293,18 @@ void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, float alpha) {
     if (tile.H() <= 0) return;
     const float s = Scale(), band = std::round((std::min)(tile.H(), (std::max)(tile.H() * BandShare, 20 * s)));
     const Box foot{ImVec2(tile.min.x, tile.max.y - band), tile.max};
-    draw->AddRectFilled(foot.min, foot.max, color::Alpha(Colors().ink, .88f));
-    // The line shrinks until it fits the picture's width less a margin each side, down to 1 px.
+    // The line shrinks until it fits the picture's width less a margin each side, down to the text floor (13 px).
     const float room = (std::max)(1.f, foot.W() - 2 * std::round(band * BandMargin));
+    const float floorCap = std::ceil(13 * s);
     float cap = std::round(band * BandCap);
     Line line = LineOf(DigitArt(), points, cap, "points.label");
-    while (line.width > room && cap > 1) {
-        cap = (std::max)(1.f, (std::min)(cap - 1, std::floor(cap * room / line.width)));
+    while (line.width > room && cap > floorCap) {
+        cap = (std::max)(floorCap, (std::min)(cap - 1, std::floor(cap * room / line.width)));
         line = LineOf(DigitArt(), points, cap, "points.label");
     }
+    // Under the floor it cannot be read: the band is left out.
+    if (line.width > room || cap < floorCap) return;
+    draw->AddRectFilled(foot.min, foot.max, color::Alpha(Colors().ink, .88f));
     draw->PushClipRect(foot.min, foot.max, true);
     DrawLine(draw, line, ImVec2(std::round(foot.min.x + (foot.W() - line.width) * .5f), std::round(foot.min.y + (foot.H() - cap) * .5f)), alpha);
     draw->PopClipRect();
