@@ -2484,9 +2484,6 @@ msgstr "Removes this slot's move."
 msgid "training.reply.every_fighter"
 msgstr "Every fighter"
 
-msgid "training.reply.charge"
-msgstr "Charge"
-
 msgid "training.key.reset"
 msgstr "Reset key"
 
@@ -5610,15 +5607,6 @@ msgstr "Limit"
 
 msgid "training.data.no_charge"
 msgstr "No charge moves"
-
-msgid "training.data.oil"
-msgstr "Oil"
-
-msgid "training.data.oil_full"
-msgstr "Oil always full"
-
-msgid "training.data.oil_full.detail"
-msgstr "Hakan keeps the most oil he can carry, as if he had just used Oil Shower. Training only."
 
 msgid "training.color_key"
 msgstr "Color key"

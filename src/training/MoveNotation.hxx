@@ -69,8 +69,6 @@ struct Step {
     int offset = 0, at = -1;
     bool hold = false; int frames = 0;
 };
-// Whether a motion is a dash, forward or back: two taps.
-inline bool Dash(const std::string& motion) { return motion == "66" || motion == "44"; }
 constexpr int MaxAtFrame = 7200;
 
 // Strict notation, any case:
@@ -164,7 +162,7 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
     const bool red = starts("RFADC");
     if (red || starts("FADC")) {
         const auto dash = s.substr(i);
-        if (step.mash || (!dash.empty() && !Dash(dash))) return fail();
+        if (step.mash || (!dash.empty() && dash != "66" && dash != "44")) return fail();
         step.motion = dash.empty() ? "66" : dash; step.buttons = red ? LP | MP | MK : MP | MK; step.need = red ? 3 : 2;
         return true;
     }
@@ -232,7 +230,7 @@ inline std::string Canonical(const Step& step) {
     const std::string timing = (step.at >= 0 ? "#" + std::to_string(step.at) : "") +
         (step.offset ? (step.offset > 0 ? "@+" : "@") + std::to_string(step.offset) : "");
     const bool focus = step.buttons == (MP | MK) && step.need == 2, red = step.buttons == (LP | MP | MK) && step.need == 3;
-    if (!step.air && !step.charge && Dash(step.motion) && (focus || red) && step.edge == Edge::Press && !step.mash)
+    if (!step.air && !step.charge && (step.motion == "66" || step.motion == "44") && (focus || red) && step.edge == Edge::Press && !step.mash)
         return out + (red ? "RFADC" : "FADC") + (step.motion == "66" ? "" : "44") + timing;
     if (step.air) out += step.jump == '9' ? "fj." : step.jump == '7' ? "bj." : "j.";
     if (step.range != Range::Any) out += step.range == Range::Close ? "cl." : "far.";
@@ -248,21 +246,6 @@ inline std::string Canonical(const Step& step) {
         mash += ")";
     }
     return out + buttons + mash + timing;
-}
-
-// A charge move's ways to hold its charge, the move itself first: a back
-// charge also from down-back, and from down-back into down-forward; a down
-// charge from down-back into up, up-back and up-forward. A longer motion after
-// the charge ("[4]646") takes down-back only. None for a charge from down-back
-// already, or a move that is no charge.
-inline std::vector<Step> ChargeHolds(const Step& step) {
-    if (!step.charge || step.motion.size() < 2 || (step.motion[0] != '4' && step.motion[0] != '2')) return {};
-    std::vector<std::string> motions{step.motion, "1" + step.motion.substr(1)};
-    if (step.motion == "46") motions.push_back("13");
-    else if (step.motion == "28") { motions.push_back("17"); motions.push_back("19"); }
-    std::vector<Step> holds;
-    for (const auto& motion : motions) { holds.push_back(step); holds.back().motion = motion; }
-    return holds;
 }
 
 // Splits a line into its moves: by ">" or ",", and before a lone "xx" or "~",

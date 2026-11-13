@@ -238,8 +238,6 @@ struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = fal
     // its ground is (DataOpacities, percent) and which of its parts show.
     bool data = false; DataFighter dataFighters = DataFighter::Both; int dataOpacity = 80;
     bool dataMove = true, dataPosition = true, dataState = true, dataGauges = true, dataJuggle = true, dataCharge = true;
-    // Hakan's oil kept at its most (TrainingRuntime), set on the Data page.
-    bool oilFull = false;
     // The bars slide a frame at a time, and a held meter steps back MeterSlideStep
     // frames a notch, instead of a page at a time.
     bool smooth = false;

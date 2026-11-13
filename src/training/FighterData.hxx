@@ -54,8 +54,6 @@ struct FighterData {
     std::array<Charge, MaxCharges> charges; std::size_t chargeCount = 0;
     // Juri's Fuhajin stock, bit 0 light, 1 medium, 2 heavy, in place of her button counters; -1 for everyone else.
     int stock = -1;
-    // Hakan's oil: frames of it left (0 dry); each Oil Shower adds its own, up to MaxOil. -1 for everyone else.
-    int oil = -1;
     // The script in the files, null when they do not have it.
     const bac::Script* Script() const { return scripts && script >= 0 && script < static_cast<int>(scripts->scripts.size()) ? &scripts->scripts[script] : nullptr; }
     // A charge's name in the command file, empty when it has none.
@@ -174,8 +172,6 @@ inline std::string ChargeGroupName(const FighterData& fighter, const std::vector
     return name;
 }
 
-// The most oil Hakan can carry, in frames: the Oil Shower scripts' cap.
-constexpr int MaxOil = 3000;
 // Juri's command file names three charges (CHARGE_L, CHARGE_M, CHARGE_H) that only count
 // a button held, motion or not. Her Fuhajin stock is not one of them: the game keeps it in
 // three bits of the fighter (kick light, medium, heavy), set by the motion.

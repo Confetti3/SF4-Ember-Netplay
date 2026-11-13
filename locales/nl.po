@@ -2478,9 +2478,6 @@ msgstr "Verwijdert de move van dit slot."
 msgid "training.reply.every_fighter"
 msgstr "Elke vechter"
 
-msgid "training.reply.charge"
-msgstr "Laden"
-
 msgid "training.key.reset"
 msgstr "Toets herstellen"
 
@@ -5984,15 +5981,6 @@ msgstr "Grens"
 
 msgid "training.data.no_charge"
 msgstr "Geen laadaanvallen"
-
-msgid "training.data.oil"
-msgstr "Olie"
-
-msgid "training.data.oil_full"
-msgstr "Olie altijd vol"
-
-msgid "training.data.oil_full.detail"
-msgstr "Hakan houdt de meeste olie die hij kan dragen, alsof hij net Oil Shower deed. Alleen in Training."
 
 msgid "training.color_key"
 msgstr "Kleurenlegenda"

@@ -65,8 +65,6 @@ void SetMeterHistory(int frames, bool continuous);
 void ShowHitBoxes(bool shown);
 // Whether the Training Data panel is shown: its readings are taken only then.
 void ShowData(bool shown);
-// Keeps Hakan's oil at its most in Training while on.
-void KeepOilFull(bool on);
 void CloseBattle();
 void StopCapture();
 // Combo check's Fast: while a check runs with it and the fight is on, the

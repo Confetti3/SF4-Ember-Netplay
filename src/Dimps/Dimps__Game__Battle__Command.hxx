@@ -87,7 +87,7 @@ namespace Dimps {
 					static_assert(sizeof(void*) != 4 || sizeof(ChargeState) == 16, "16 bytes in the game");
 					// One state per charge of the command file, in its order
 					// (+0x1594, its count at +0x1598).
-					static ChargeState* GetChargeStates(CommandImpl* impl, int& count);
+					static const ChargeState* GetChargeStates(const CommandImpl* impl, int& count);
 
 					static void Locate(HMODULE peRoot);
 					static __publicMethods publicMethods;

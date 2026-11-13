@@ -2478,9 +2478,6 @@ msgstr "移除此槽位的招式。"
 msgid "training.reply.every_fighter"
 msgstr "所有角色"
 
-msgid "training.reply.charge"
-msgstr "蓄力"
-
 msgid "training.key.reset"
 msgstr "重置键"
 
@@ -5984,15 +5981,6 @@ msgstr "上限"
 
 msgid "training.data.no_charge"
 msgstr "无蓄力招式"
-
-msgid "training.data.oil"
-msgstr "油"
-
-msgid "training.data.oil_full"
-msgstr "油始终满"
-
-msgid "training.data.oil_full.detail"
-msgstr "哈坎的油始终保持最多，如同刚用过 Oil Shower。仅限训练模式。"
 
 msgid "training.color_key"
 msgstr "颜色图例"

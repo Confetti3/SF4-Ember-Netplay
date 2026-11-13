@@ -2478,9 +2478,6 @@ msgstr "Odebere úder této pozice."
 msgid "training.reply.every_fighter"
 msgstr "Každý bojovník"
 
-msgid "training.reply.charge"
-msgstr "Nabití"
-
 msgid "training.key.reset"
 msgstr "Klávesa obnovení"
 
@@ -5984,15 +5981,6 @@ msgstr "Limit"
 
 msgid "training.data.no_charge"
 msgstr "Žádné nabíjecí útoky"
-
-msgid "training.data.oil"
-msgstr "Olej"
-
-msgid "training.data.oil_full"
-msgstr "Olej vždy plný"
-
-msgid "training.data.oil_full.detail"
-msgstr "Hakan má stále nejvíc oleje, jako by právě použil Oil Shower. Jen v Tréninku."
 
 msgid "training.color_key"
 msgstr "Význam barev"

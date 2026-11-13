@@ -2478,9 +2478,6 @@ msgstr "Remove o golpe deste espaço."
 msgid "training.reply.every_fighter"
 msgstr "Todos os lutadores"
 
-msgid "training.reply.charge"
-msgstr "Carga"
-
 msgid "training.key.reset"
 msgstr "Tecla Restaurar"
 
@@ -5984,15 +5981,6 @@ msgstr "Limite"
 
 msgid "training.data.no_charge"
 msgstr "Sem golpes de carga"
-
-msgid "training.data.oil"
-msgstr "Óleo"
-
-msgid "training.data.oil_full"
-msgstr "Óleo sempre cheio"
-
-msgid "training.data.oil_full.detail"
-msgstr "Hakan mantém o máximo de óleo, como se tivesse acabado de usar Oil Shower. Só no Treino."
 
 msgid "training.color_key"
 msgstr "Legenda de cores"

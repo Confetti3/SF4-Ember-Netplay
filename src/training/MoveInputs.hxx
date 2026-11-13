@@ -84,8 +84,6 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
     // with a count before the first move are input leading into it, not a
     // move to recover from: the first move plays straight after them.
     bool follows = false;
-    // Whether the move before was a dash, which a cancel leaves on its cancel window, not a hit.
-    bool afterDash = false;
     const auto fail = [&](std::string why) { compiled = {}; error = std::move(why); return false; };
     for (const auto& text : steps) {
         Step step;
@@ -122,8 +120,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         const unsigned buttons = ChosenButtons(step);
         const bool red = step.buttons == (LP | MP | MK) && step.need == 3;
         const bool fadc = (step.buttons == (MP | MK) && step.need == 2) || red;
-        const bool tapDash = Dash(step.motion);
-        const bool focusDash = fadc && tapDash && !step.charge && !step.air;
+        const bool focusDash = fadc && (step.motion == "66" || step.motion == "44") && !step.charge && !step.air;
         const bool link = after && !step.cancel && !timed;
         // The directions, as a player does them: a linked move holds its
         // first direction through the recovery before it and presses on the
@@ -140,9 +137,8 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         // from about its sixth frame, measured in play at this delay; "@"
         // moves it); a move on a frame waits for none.
         // A link's wait holds what comes before its input: a hold, or the
-        // motion's first direction. A dash waits in neutral: the game takes
-        // a dash only from two short taps, so a held first one drops it.
-        const unsigned linkHeld = idle ? idle : motion.empty() || tapDash ? 0 : DirectionBits(motion[0], facingRight);
+        // motion's first direction.
+        const unsigned linkHeld = idle ? idle : motion.empty() ? 0 : DirectionBits(motion[0], facingRight);
         if (step.follow && after && !timed) gap((std::max)(0, FollowDelay + timing));
         if (focusDash) { if (after && !timed) wait(training::WaitHit, idle, timing); }
         else if (link) wait(training::WaitActionable, linkHeld, timing);
@@ -172,7 +168,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
             // jump) is the move itself: after its wait it is held as long as
             // a first move's, or the game takes no jump.
             const bool lone = motion.size() == 1 && buttons;
-            const bool firstHeld = (link && !idle && !tapDash && (buttons || motion.size() > 1)) || ((link || afterLead) && lone);
+            const bool firstHeld = (link && !idle && (buttons || motion.size() > 1)) || ((link || afterLead) && lone);
             const bool finish = step.cancel && !step.follow && after && !timed && buttons && !motion.empty();
             int lastAt = static_cast<int>(own.size());
             for (std::size_t i = 0; i + (finish ? 1 : 0) < motion.size(); ++i) {
@@ -188,7 +184,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
             // with a button, on it.
             if (!buttons) { if (!step.air) anchor = lastAt; }
             else {
-                if (step.cancel && !step.follow && after && !timed) own.push_back({last, last, afterDash ? training::WaitCancel : training::WaitHit, clamp(timing)});
+                if (step.cancel && !step.follow && after && !timed) own.push_back({last, last, training::WaitHit, clamp(timing)});
                 if (finish) last = DirectionBits(motion.back(), facingRight);
                 if (!step.air) mark();
                 if (step.edge == Edge::Hold) put(last | buttons, 30);
@@ -237,7 +233,6 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         const unsigned takes = letGo ? 1u : anchor < 0 ? 0u : anchor < static_cast<int>(own.size()) ? own[anchor].raw : 0u;
         if (!takes) return fail("\"" + text + "\" presses nothing: a move needs a direction or a button");
         follows = true;
-        afterDash = tapDash && !buttons;
         // On a frame, the move's anchor lands there ("@N" from it, but on the
         // first move, whose "@N" is the reply's own), the frames before it
         // held as a move's frames before its own input hold.

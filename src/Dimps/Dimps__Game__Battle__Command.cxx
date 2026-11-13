@@ -15,10 +15,10 @@ void Command::Locate(HMODULE peRoot) {
 	Unit::Locate(peRoot);
 }
 
-CommandImpl::ChargeState* CommandImpl::GetChargeStates(CommandImpl* impl, int& count) {
-	auto* base = (unsigned char*)impl;
+const CommandImpl::ChargeState* CommandImpl::GetChargeStates(const CommandImpl* impl, int& count) {
+	const auto* base = (const unsigned char*)impl;
 	count = *(const int*)(base + 0x1598);
-	return *(ChargeState**)(base + 0x1594);
+	return *(const ChargeState* const*)(base + 0x1594);
 }
 
 unsigned short Command::GetMoveRange(const unsigned char* move, float& distance) {

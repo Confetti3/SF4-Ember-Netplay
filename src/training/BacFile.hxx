@@ -41,10 +41,6 @@ struct Script {
     bool canHit = false; std::vector<std::int32_t> effects; std::vector<std::array<int, 2>> spawns;
     std::vector<Speed> speeds; int last = 0, interruptible = 0, total = 0;
     std::string name; std::vector<Hit> hits; std::vector<Flow> flows;
-    // Script frames [first, last) where a move of a cancel list can start
-    // (list 6 records whose condition is 1: processCommandCancel starts a
-    // pending move only while one is open). Oiled Hakan's dash: from frame 1.
-    std::vector<std::array<int, 2>> cancels;
 };
 // scripts: indexed by action id. An empty slot is an empty Script.
 // juggleStart: by hit-data row, the juggle count a launch on a standing foe
@@ -53,8 +49,8 @@ struct File { std::vector<Script> scripts, effects; std::vector<int> juggleStart
 
 namespace detail {
 constexpr std::size_t HeaderSize = 0x28, ScriptHeader = 0x18, ListSize = 12, FlowSize = 8, HitboxSize = 44, EtcSize = 32;
-constexpr std::size_t SpeedSize = 4, CancelSize = 8;
-constexpr unsigned Flow = 0, Speeds = 4, Cancels = 6, Hitbox = 7, Etc = 10;
+constexpr std::size_t SpeedSize = 4;
+constexpr unsigned Flow = 0, Speeds = 4, Hitbox = 7, Etc = 10;
 
 // One table of scripts. used: bytes read so far. The records of a real file
 // never share bytes, so together they fit in the file; this keeps offsets
@@ -77,7 +73,7 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
         for (std::size_t j = 0; j < lists; ++j) {
             const std::uint64_t list = base + j * ListSize;
             const unsigned type = in.U16(list);
-            const std::size_t size = type == Flow ? FlowSize : type == Speeds ? SpeedSize : type == Cancels ? CancelSize : type == Hitbox ? HitboxSize : type == Etc ? EtcSize : 0;
+            const std::size_t size = type == Flow ? FlowSize : type == Speeds ? SpeedSize : type == Hitbox ? HitboxSize : type == Etc ? EtcSize : 0;
             if (!size) continue;
             const std::size_t commands = in.U16(list + 2);
             // The data offset counts from the list's own record.
@@ -103,8 +99,6 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
                         out[i].hits.push_back({timed ? in.U16(frames + k * 4) : -1, timed ? in.U16(frames + k * 4 + 2) : -1,
                             static_cast<std::int8_t>(in.data[record + 33]), static_cast<std::int8_t>(in.data[record + 34]), id});
                     }
-                } else if (type == Cancels) {
-                    if (in.U32(record) == 1 && frames && in.Has(frames + k * 4, 4)) out[i].cancels.push_back({in.U16(frames + k * 4), in.U16(frames + k * 4 + 2)});
                 } else if (type == Speeds) {
                     float speed;
                     std::memcpy(&speed, in.data + record, sizeof speed);
@@ -211,12 +205,6 @@ inline HitPhase PhaseAt(const Script& script, float frame) {
         after = after && at >= hit.last;
     }
     return before ? HitPhase::Before : after ? HitPhase::Done : HitPhase::Between;
-}
-// Whether the script can be cancelled at script frame `frame`: what a cancel
-// out of a dash waits for (training::WaitCancel), a dash having no hit to wait on.
-inline bool CancelOpen(const Script& script, float frame) {
-    const int at = static_cast<int>(frame);
-    return std::any_of(script.cancels.begin(), script.cancels.end(), [at](const std::array<int, 2>& w) { return w[0] <= at && at < w[1]; });
 }
 // Whether every hitbox of the script is timed and there is at least one.
 inline bool HasTimedHits(const Script& script) {

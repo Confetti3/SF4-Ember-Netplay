@@ -160,19 +160,6 @@ int main() {
     CHECK(ParseStep("[2]8LP(mash)", step, error) && step.mash && step.charge && step.buttons == LP);
     CHECK(!ParseStep("236(mash)", step, error) && !ParseStep("FADC(mash)", step, error));
 
-    // A charge move's ways to hold: the move's own first; none for other moves.
-    {
-        const auto holds = [](const char* move) {
-            Step step; std::string error; CHECK(ParseStep(move, step, error));
-            std::vector<std::string> out;
-            for (const auto& hold : ChargeHolds(step)) { Step again; CHECK(ParseStep(Canonical(hold), again, error) && again.charge); out.push_back(Canonical(hold)); }
-            return out;
-        };
-        CHECK(holds("[4]6MK") == std::vector<std::string>({"[4]6MK", "[1]6MK", "[1]3MK"}));
-        CHECK(holds("[2]8HP") == std::vector<std::string>({"[2]8HP", "[1]8HP", "[1]7HP", "[1]9HP"}));
-        CHECK(holds("[4]646P") == std::vector<std::string>({"[4]646P", "[1]646P"}) && holds("[1]6P").empty() && holds("236P").empty());
-    }
-
     // Typed steps become pad input, timed by the fight: a cancelled move does
     // its motion at once but the last direction, which it presses with the
     // button on the hit; a linked move holds its first direction through the
@@ -198,13 +185,6 @@ int main() {
         // Facing left mirrors forward and back.
         const auto mirrored = Synth(Steps("236HP > 5LP"), false);
         CHECK(mirrored[3].raw == (Down | Left) && mirrored[9].raw == (Left | HP) && mirrored[11].wait == sf4e::training::WaitActionable && mirrored[12].raw == LP);
-        // A linked dash waits in neutral, or its first tap is too long for the game.
-        const auto dash = Synth(Steps("5LP > 66"), true);
-        const auto link = std::find_if(dash.begin(), dash.end(), [](const auto& frame) { return frame.wait == sf4e::training::WaitActionable; });
-        CHECK(link != dash.end() && link->raw == 0 && (link + 1)->raw == Right);
-        // A cancel out of a dash waits on the dash's cancel window; out of a move, on the hit.
-        const auto waits = [](const char* line) { std::vector<int> seen; for (const auto& frame : Synth(Steps(line), true)) if (frame.wait) seen.push_back(frame.wait); return seen; };
-        CHECK(waits("66 > xx 5MP") == std::vector<int>{sf4e::training::WaitCancel} && waits("2LP xx 5MP") == std::vector<int>{sf4e::training::WaitHit});
         {
             Compiled compiled; compiled.frames = {{1, 1, 0, 0}};
             CHECK(Synth({}, true).empty() && !Synthesize({"nonsense"}, true, compiled, error) && compiled.frames.empty() && !error.empty());

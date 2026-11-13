@@ -2478,9 +2478,6 @@ msgstr "Usuwa cios z tego slotu."
 msgid "training.reply.every_fighter"
 msgstr "Każdy wojownik"
 
-msgid "training.reply.charge"
-msgstr "Ładowanie"
-
 msgid "training.key.reset"
 msgstr "Klawisz przywracania"
 
@@ -5984,15 +5981,6 @@ msgstr "Limit"
 
 msgid "training.data.no_charge"
 msgstr "Brak ruchów z ładowaniem"
-
-msgid "training.data.oil"
-msgstr "Olej"
-
-msgid "training.data.oil_full"
-msgstr "Olej zawsze pełny"
-
-msgid "training.data.oil_full.detail"
-msgstr "Hakan ma zawsze najwięcej oleju, jakby właśnie użył Oil Shower. Tylko w Treningu."
 
 msgid "training.color_key"
 msgstr "Legenda kolorów"

@@ -88,16 +88,6 @@ int main() {
             session.Observe(true, false, 7); session.Commit(session.Prepare(physical));
             Require(session.GetView().cursor == 4, "Seen free frame did not release an early press");
             apply(Action::Stop);
-            // A cancel out of a dash waits for the dash's cancel window, not a hit.
-            Command dash; dash.action = Action::Load; dash.generation = generation; dash.side = 0;
-            dash.frames = {Input{4, 4, 0}, Input{0, 0, WaitCancel, 0}, Input{0x20, 0x20, 0}};
-            Require(session.Apply(dash) && apply(Action::Play), "Dash load refused");
-            session.Observe(false, false); session.Commit(session.Prepare(physical));
-            for (int i = 0; i < 3; ++i) { session.Observe(false, true); session.Commit(session.Prepare(physical)); }
-            Require(session.GetView().cursor == 1, "A hit stood in for the dash's cancel window");
-            session.Observe(false, false, -1, false, true); session.Commit(session.Prepare(physical));
-            Require(session.GetView().cursor == 2, "The open cancel window was not taken");
-            apply(Action::Stop);
             // A hit landing while the motion before a cancel's wait is still
             // going is kept for that wait; the press that started the move clears it.
             Command kept; kept.action = Action::Load; kept.generation = generation; kept.side = 0;
@@ -446,18 +436,6 @@ int main() {
             out = session.Prepare(none); Require(out[0].raw == 0x40, "and then its second"); session.Commit(out);
             Require(session.GetView().mode == Mode::Idle && session.GetView().playbackSide == 1, "It plays once, then the dummy's side is back");
             Require(session.Slot(0).size() == 1, "The slots are left alone");
-        }
-        {
-            // "[4]6MK": its charge as frames to hold back, then its hold.
-            std::vector<Input> charge(5, Input{8, 8, 0, 0});
-            charge[3].wait = WaitReply; charge.push_back({4, 4, 0, 0}); charge.push_back({0x24, 0x24, 0, 0});
-            ReplySchedule schedule; schedule.start = 0; schedule.hold = 3; schedule.anchor = 5;
-            Session session; session.Enter(); session.SetReady(true);
-            // The runtime keeps the charges full: the reply starts on its hold.
-            Require(session.Reply(charge, schedule) && session.GetView().cursor == 3 && session.Holding(), "A kept charge was played");
-            session.StopReply(); session.Commit(Frame{});
-            std::vector<Input> lead = charge; lead[0].raw = lead[0].mapped = 2;
-            Require(session.Reply(lead, schedule) && session.GetView().cursor == 0, "A lead of other inputs was skipped");
         }
         std::puts("Training session checks passed.");
         return 0;
