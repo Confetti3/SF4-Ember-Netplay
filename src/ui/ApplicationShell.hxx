@@ -126,6 +126,7 @@ enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable, ReadOnly };
 
 // One frame of the room board (RoomPanelBoard.hxx).
 struct RoomBoardFrame;
+struct ScreenFrame;
 
 class ApplicationShell {
 public:
@@ -255,6 +256,8 @@ private:
     // the parts of a drawn frame that belong to its screens (ScreenPanel).
     // Update, Conceal and IdentityPanel::Hidden stay calls to every panel.
     class IdentityScreens; class RoomMemberScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens; class ArchiveScreens; class ProfileScreens; class FriendsScreens; class PlayerScreens;
+    // The Replays tab strip over a screen (the Replays and Archive screens both dress theirs).
+    static void DressReplayTabs(const ScreenFrame& f, GameMenu& menu);
     // The panel that draws `screen`, one of those or of the shell's own below
     // (one table, ApplicationShell__Screens.cxx), else null for Home and the
     // few plain ones BuildRows makes itself.

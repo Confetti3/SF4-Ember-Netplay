@@ -323,7 +323,7 @@ ScreenGrid ApplicationShell::PlayerScreens::Grid(const ScreenFrame& f) const {
 }
 
 // The Replays tab strip over a screen, and whether matches watched are saved too.
-static void DressReplayTabs(const ScreenFrame& f, GameMenu& menu) {
+void ApplicationShell::DressReplayTabs(const ScreenFrame& f, GameMenu& menu) {
     menu.tabs = f.shell.replays_.Tabs(f.view);
     for (int i = 0; i < static_cast<int>(menu.tabs.size()); ++i)
         if (menu.tabs[i].first == f.screen) { menu.tab = i; menu.eyebrow = std::string(loc::T("replays.title")) + " \xC2\xB7 " + menu.tabs[i].second; }
