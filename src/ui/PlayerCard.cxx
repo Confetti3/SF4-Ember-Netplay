@@ -301,7 +301,8 @@ void DrawStripTile(const Ctx& c, v2::Box box, const player_card::StripTile& tile
     v2::CardGround(c.d, box, focused, hovered);
     const v2::Box picture{ImVec2(box.min.x + pad, box.min.y + pad), ImVec2(box.max.x - pad, box.max.y - pad - textBlock)};
     DrawCharacterPortrait(FighterPicture{tile.fighter, c.art, 0, 0}, picture.min, picture.max, colors.frame);
-    v2::LevelBand(c.d, picture, tile.points, c.alpha);
+    // Points not read yet (or not reachable) are not drawn as "0 FP".
+    if (c.v.levels != CardLevels::Pending && c.v.levels != CardLevels::Unreachable) v2::LevelBand(c.d, picture, tile.points, c.alpha);
     DrawFighterEdge(c.d, picture, tile.points, tile.tier);
     if (tile.isMain) v2::Chip(c.d, ImVec2(picture.min.x + 6 * s, picture.min.y + 6 * s), loc::T("fighters.main"), colors.accentLight);
     // The words under the picture start as far in as the picture does, clear of the focus frame's 2 px edge.
@@ -342,7 +343,9 @@ float DrawAwards(const Ctx& c, float x, float y, float room, bool narrow) {
     if (awards.total == 0) return y;
     const float s = c.s;
     v2::SectionHeading(c.d, ImVec2(x, y), loc::T("card.awards"));
-    const std::string count = loc::Tf("card.of", awards.earned, awards.total);
+    // Awards not counted yet (the points are being read, or cannot be reached) are a dash, not "0 of 40".
+    const bool unread = c.v.levels == CardLevels::Pending || c.v.levels == CardLevels::Unreachable;
+    const std::string count = unread ? std::string("-") : loc::Tf("card.of", awards.earned, awards.total);
     const float countWidth = card_parts::Across(count, 14 * s);
     v2::Text(c.d, ImVec2(x + room - countWidth, y), countWidth + 1, count, 14 * s, colors.muted);
     y += c.m.heading * s;
@@ -574,7 +577,7 @@ float LayoutPanel(ImDrawList* d, ImVec2 origin, float width, const OtherCardView
             at += icon + 8 * s;
         }
         if (d) {
-            const std::string count = loc::Tf("card.of", card.awards.earned, card.awards.total);
+            const std::string count = card.points ? loc::Tf("card.of", card.awards.earned, card.awards.total) : std::string("-");
             v2::Text(d, ImVec2(at + (card.awards.tiles.empty() ? 0 : -2 * s), y + (icon - 14 * s) * .5f), right - at, count, 14 * s, c.muted);
         }
         y += icon;

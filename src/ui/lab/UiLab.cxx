@@ -166,7 +166,7 @@ ui::ShellView FakeView() {
     view.controller = "Xbox pad";
     view.preferences.displayName = "FRaccie";
     // This PC's own confirmed online games: fewer than the account's rated games, which the bridge counts from every PC.
-    view.preferences.record.wins = 2210; view.preferences.record.losses = 1530;
+    view.preferences.record.wins = 312; view.preferences.record.losses = 198;
     view.automaticCountry = CountryCode::Parsed("BE");
     view.selectionSummary = "Ryu / Original / Color 01 / Ultra I";
     // The pick the room's Ultra button and Table options' Ultra row step and open.

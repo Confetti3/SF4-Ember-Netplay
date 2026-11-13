@@ -301,7 +301,8 @@ FullCardView FullOf(const Subject& s, Size size) {
         tile.row = CardFighterRow(fighter);
         for (const auto& played : s.played)
             if (played.fighter == fighter) { tile.points = played.points; tile.tier = played.tier; if (s.detailed) tile.games = GamesWords(played.games); }
-        if (s.detailed && tile.games.empty()) tile.games = GamesWords(0);
+        // A game count not read yet is no count: the tile says none, rather than "0 games".
+        if (s.detailed && tile.games.empty() && s.levels != CardLevels::Pending && s.levels != CardLevels::Unreachable) tile.games = GamesWords(0);
         v.strip.push_back(std::move(tile));
     }
     if (s.detailed) {
