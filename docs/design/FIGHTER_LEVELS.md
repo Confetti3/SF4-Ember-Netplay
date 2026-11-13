@@ -345,12 +345,20 @@ ask the bridge for that player's card later, as often as it needs, fresh.
 |---|---|
 | request `cards` | 1 to 16 selectors: `card` (a token) or `friend` (a friend id, `FRIENDS.md`) |
 | answer `cards` | one entry per selector, in order; `null` for a token that does not open, is over 7 days old, or names an account without a Discord account now, and for a friend id that is not the caller's friend |
-| `account` | always present: the account's `points` and `tier` only |
+| `account` | always present: the account's `points` and `tier` only (its games and wins are in `marks`) |
 | `fighters` | as in `points/me` but `fighter`, `points`, `tier` only; always present, an empty array when nothing is played |
 | `relation` | the caller's relation to that player: `none`, `friend`, `sent`, `received`, `blocked` (the caller blocked them); `none` for a player who blocked the caller |
 
 The bridge serves `relation` once `friends` is offered; before that it is
 always `none`.
+
+`PROFILE.md` (Wire contracts) adds the selectors `request` (a friend request
+the caller received) and `code` (a friend code), and a card's `marks` (the
+counted `games`, `wins` and best `streak` exactly, the peak `class`, and the
+`rival` and `opponents` milestones), `name`, `country`, `main`, `badge`,
+`since`, `worn`, `pins`, `style`, `versus` and `friend`. Each is written only
+when there is something to say, and a bridge that does not list `profiles`
+writes none of the selectors' answers or those fields.
 
 ## Who sees what
 
@@ -361,9 +369,11 @@ always `none`.
   (`ranking_choices.ranked` is not read). A card is `null` only for an account
   with no Discord account connected, and for a player who blocked the caller
   (`FRIENDS.md`).
-- Others see the account's and each fighter's points and tier, never wins,
-  games or win rate. Points minus games would be wins, which is why the card
-  carries the points only.
+- Others see the account's and each fighter's points and tier. A card also
+  carries the counts behind the awards (`marks`, `PROFILE.md`, Privacy): the
+  account's counted games, wins and best win run as they are, its peak class,
+  and a milestone for rivals and opponents. A fighter's own games and wins are
+  never served, and no win rate is sent or shown to others.
 - No private room shows points: its host writes its own snapshot, so a token
   there is dropped like a class.
 - A card token says nothing by itself; it is unreadable without the bridge's
