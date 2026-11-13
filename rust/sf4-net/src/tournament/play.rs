@@ -17,7 +17,7 @@ use ember_protocol::{
         WATCH_FEATURE,
     },
     friends::FRIENDS_FEATURE,
-    levels::POINTS_FEATURE,
+    levels::{POINTS_FEATURE, PROFILES_FEATURE},
     report::Outcome as GameOutcome,
     skill::RANKING_FEATURE,
 };
@@ -68,6 +68,9 @@ pub(super) struct Features {
     pub levels: bool,
     /// It serves the friends routes.
     pub friends: bool,
+    /// It serves the card save and search routes, reads the look-up's
+    /// `request` and `code` selectors and the archive's `name`.
+    pub profiles: bool,
     /// It reads a claim's `held_binding` and may answer it `Unchanged`.
     pub unchanged: bool,
 }
@@ -81,6 +84,7 @@ impl Features {
             ranking: lists(RANKING_FEATURE),
             levels: lists(POINTS_FEATURE),
             friends: lists(FRIENDS_FEATURE),
+            profiles: lists(PROFILES_FEATURE),
             unchanged: lists(CLAIM_UNCHANGED_FEATURE),
         }
     }
@@ -99,6 +103,8 @@ pub(super) enum Need {
     Levels,
     /// The friends routes.
     Friends,
+    /// The profile routes and selectors.
+    Profiles,
 }
 
 impl Need {
@@ -109,6 +115,7 @@ impl Need {
             Self::Watch => offered.watch,
             Self::Levels => offered.levels,
             Self::Friends => offered.friends,
+            Self::Profiles => offered.profiles,
         }
     }
 }

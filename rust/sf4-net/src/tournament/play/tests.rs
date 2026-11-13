@@ -227,6 +227,10 @@ fn a_bridge_offers_what_its_capabilities_list() {
     assert!(social.levels && social.friends && !social.ranking);
     assert!(Features::of(&capabilities(&[POINTS_FEATURE])).levels);
     assert!(!Features::of(&capabilities(&[POINTS_FEATURE])).friends);
+    // Profiles are their own feature, listed beside points but not implied by it.
+    let profiles = Features::of(&capabilities(&[POINTS_FEATURE, PROFILES_FEATURE]));
+    assert!(profiles.levels && profiles.profiles && !profiles.friends);
+    assert!(!Features::of(&capabilities(&[POINTS_FEATURE])).profiles);
     assert!(Features::of(&capabilities(&[CLAIM_UNCHANGED_FEATURE])).unchanged);
     assert_eq!(
         Features::of(&capabilities(&["matches.play"])),

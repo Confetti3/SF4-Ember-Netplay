@@ -39,7 +39,7 @@ use ember_protocol::{
     EmberId,
     encoding::Counter,
     friends::{FriendAction, FriendsSync as FriendsSyncBody},
-    levels::CardSelector,
+    levels::{CardSave, CardSelector},
     play::PublishRoom,
     report::Outcome as GameOutcome,
     skill::RankingChoice,
@@ -229,6 +229,19 @@ pub enum Request {
         bridge_id: String,
         cards: Vec<CardSelector>,
     },
+    /// Saves what the player's card shows, replacing the whole of it.
+    CardSave {
+        bridge_id: String,
+        card: CardSave,
+    },
+    /// Players by name or by friend code: exactly one of `name` and `code`.
+    CardsSearch {
+        bridge_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        code: Option<String>,
+    },
     /// Sends the player's presence and reads the friends state.
     FriendsSync {
         bridge_id: String,
@@ -374,6 +387,8 @@ requests! {
     RankingBoard => "ranking_board", Bridge;
     PointsMe => "points_me", Bridge;
     CardsLookup => "cards_lookup", Bridge;
+    CardSave => "card_save", Bridge;
+    CardsSearch => "cards_search", Bridge;
     FriendsSync => "friends_sync", Bridge;
     FriendsAct => "friends_act", Bridge;
     GamePrepare => "game_prepare", Bridge;
@@ -423,6 +438,7 @@ pub enum Code {
     OwnDelayUnsupported,
     PermitMismatch,
     PinnedBridgeMismatch,
+    ProfilesUnavailable,
     RankingUnavailable,
     ReplaysUnsupported,
     ReportNotSaved,
@@ -474,6 +490,7 @@ impl Code {
             Self::OwnDelayUnsupported => "own_delay_unsupported",
             Self::PermitMismatch => "permit_mismatch",
             Self::PinnedBridgeMismatch => "pinned_bridge_mismatch",
+            Self::ProfilesUnavailable => "profiles_unavailable",
             Self::RankingUnavailable => "ranking_unavailable",
             Self::ReplaysUnsupported => "replays_unsupported",
             Self::ReportNotSaved => "report_not_saved",
@@ -1121,6 +1138,12 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
         Request::RankingBoard { bridge_id } => ranking::board(shared, &bridge_id).await,
         Request::PointsMe { bridge_id } => levels::own(shared, &bridge_id).await,
         Request::CardsLookup { bridge_id, cards } => levels::lookup(shared, &bridge_id, cards).await,
+        Request::CardSave { bridge_id, card } => levels::save(shared, &bridge_id, card).await,
+        Request::CardsSearch {
+            bridge_id,
+            name,
+            code,
+        } => levels::search(shared, &bridge_id, name, code).await,
         Request::FriendsSync { bridge_id, sync } => friends::sync(shared, &bridge_id, sync).await,
         Request::FriendsAct { bridge_id, act } => friends::act(shared, &bridge_id, act).await,
         Request::GamePrepare {
@@ -1201,7 +1224,7 @@ mod tests {
                 ),
             }
         }
-        assert_eq!(seen.len(), 45);
+        assert_eq!(seen.len(), 47);
         let local: Vec<_> = REQUESTS
             .iter()
             .filter(|(_, lane)| *lane == Lane::Local)
@@ -1456,6 +1479,7 @@ mod tests {
             (Code::OwnDelayUnsupported, "own_delay_unsupported"),
             (Code::PermitMismatch, "permit_mismatch"),
             (Code::PinnedBridgeMismatch, "pinned_bridge_mismatch"),
+            (Code::ProfilesUnavailable, "profiles_unavailable"),
             (Code::RankingUnavailable, "ranking_unavailable"),
             (Code::ReplaysUnsupported, "replays_unsupported"),
             (Code::ReportNotSaved, "report_not_saved"),
