@@ -83,7 +83,7 @@ sf4e_add_unit_test(NAME RankingRequests SOURCES "src/tests/ranking_requests_test
 sf4e_add_unit_test(NAME LevelRequests SOURCES "src/tests/level_requests_test.cxx" STD 17)
 sf4e_add_unit_test(NAME Awards SOURCES "src/tests/awards_test.cxx" STD 17)
 sf4e_add_unit_test(NAME CardRequests SOURCES "src/tests/card_requests_test.cxx" STD 17)
-sf4e_add_unit_test(NAME ArchiveRequests SOURCES "src/tests/archive_requests_test.cxx" "src/session/TournamentAnswers.cxx"
+sf4e_add_unit_test(NAME ArchiveRequests SOURCES "src/tests/archive_requests_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/ArchiveAnswers.cxx"
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS replay)
 sf4e_add_unit_test(NAME ArchiveSets SOURCES "src/tests/archive_sets_test.cxx" STD 17 LABELS ui replay)
 sf4e_add_unit_test(NAME BridgeFlights SOURCES "src/tests/bridge_flights_test.cxx" LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17)
@@ -92,12 +92,12 @@ sf4e_add_unit_test(NAME FriendVisits SOURCES "src/tests/friend_visits_test.cxx" 
 sf4e_add_unit_test(NAME FriendPresence SOURCES "src/tests/friend_presence_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17 LABELS room)
 sf4e_add_unit_test(NAME FriendsAnswers SOURCES "src/tests/friends_answers_test.cxx" "src/session/SocialAnswers.cxx" "src/session/TournamentAnswers.cxx"
     LIBS sf4e_room_model sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS room)
-sf4e_add_unit_test(NAME ProfileAnswers SOURCES "src/tests/profile_answers_test.cxx" "src/session/TournamentAnswers.cxx"
+sf4e_add_unit_test(NAME ProfileAnswers SOURCES "src/tests/profile_answers_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/LevelsAnswers.cxx"
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS room)
 sf4e_add_unit_test(NAME Profiles SOURCES "src/tests/profiles_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17 LABELS room)
-sf4e_add_unit_test(NAME LevelsAnswers SOURCES "src/tests/levels_answers_test.cxx" "src/session/TournamentAnswers.cxx"
+sf4e_add_unit_test(NAME LevelsAnswers SOURCES "src/tests/levels_answers_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/LevelsAnswers.cxx"
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json LABELS room)
-sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
+sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/LevelsAnswers.cxx"
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300 LABELS room)
 sf4e_add_unit_test(NAME RoomLifecycle SOURCES "src/tests/room_lifecycle_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomServerOwned SOURCES "src/tests/room_server_owned_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
