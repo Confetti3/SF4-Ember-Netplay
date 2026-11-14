@@ -2823,6 +2823,12 @@ msgstr "Atterramento"
 msgid "training.meter.meaty"
 msgstr "Meaty"
 
+msgid "training.meter.projectile_invincible"
+msgstr "Invincibile ai proiettili"
+
+msgid "training.meter.invincible"
+msgstr "Totalmente invincibile"
+
 msgid "training.meter.hitstop"
 msgstr "Hitstop"
 

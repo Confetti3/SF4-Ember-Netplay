@@ -460,6 +460,20 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         runs.advantage.valid=true;runs.advantage.frames={{3,-3}};runs.advantage.attacker=0;
         training.meter=runs;SetTrainingMeterOptions({training::MeterStyle::Angled,true,60});draw("training-hud-markers");
         SetTrainingMeterOptions({training::MeterStyle::Angled,true,120});draw("training-hud-runs");
+        // Classic bars with invincible frames: an attack nothing hits on its first 2 frames, fireballs only up to
+        // its 16th, striped on its startup and the recovery frames inside them, its active frames solid.
+        {
+            training::MeterView invincible;
+            for(int f=0;f<60;++f) {
+                std::array<training::FighterSample,2> s;
+                for(auto& fighter:s){fighter.valid=true;fighter.status=0;fighter.action=0;}
+                if(f>=10&&f<50){s[0]=attack(203,f-9,4,12);s[0].invincibility=f-9<=2?training::Invincibility::Full:f-9<=16?training::Invincibility::Projectile:training::Invincibility::None;}
+                training::AppendMeterFrame(invincible.frames,s,f);
+            }
+            training.meter=invincible;
+            training::MeterOptions options;options.style=training::MeterStyle::Classic;options.shown=60;
+            SetTrainingMeterOptions(options);draw("training-hud-classic-invincible");
+        }
         // The next exchange is being measured: the last reading stays, dimmed,
         // and Frame data still gives it.
         runs.lastAdvantage=runs.advantage;runs.advantage=training::FrameAdvantage{};runs.advantage.pending=true;runs.advantage.attacker=1;

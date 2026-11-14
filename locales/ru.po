@@ -2823,6 +2823,12 @@ msgstr "Нокдаун"
 msgid "training.meter.meaty"
 msgstr "Мити"
 
+msgid "training.meter.projectile_invincible"
+msgstr "Неуязвим к снарядам"
+
+msgid "training.meter.invincible"
+msgstr "Полностью неуязвим"
+
 msgid "training.meter.hitstop"
 msgstr "Хитстоп"
 

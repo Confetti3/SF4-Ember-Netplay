@@ -2823,6 +2823,12 @@ msgstr "ダウン"
 msgid "training.meter.meaty"
 msgstr "重ね"
 
+msgid "training.meter.projectile_invincible"
+msgstr "飛び道具無敵"
+
+msgid "training.meter.invincible"
+msgstr "完全無敵"
+
 msgid "training.meter.hitstop"
 msgstr "ヒットストップ"
 

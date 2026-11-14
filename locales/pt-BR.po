@@ -2823,6 +2823,12 @@ msgstr "Queda"
 msgid "training.meter.meaty"
 msgstr "Meaty"
 
+msgid "training.meter.projectile_invincible"
+msgstr "Invencível a projéteis"
+
+msgid "training.meter.invincible"
+msgstr "Invencível total"
+
 msgid "training.meter.hitstop"
 msgstr "Hitstop"
 

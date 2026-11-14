@@ -83,6 +83,9 @@ inline const char* PhaseName(Phase phase) {
     default: return "Unknown";
     }
 }
+// What the fighter cannot be hit by this frame, its whole body: nothing
+// (Full), fireballs only while a strike still lands (Projectile), or None.
+enum class Invincibility : std::uint8_t { None, Projectile, Full };
 struct FighterSample {
     unsigned status = ~0u;
     int action = -1;
@@ -125,6 +128,8 @@ struct FighterSample {
     bool hitStop = false;
     // Game frames a fireball takes from coming out to its hit (bac::ProjectileBoundary).
     int projectileDelay = 0;
+    // From the game's strike and projectile body masks (0 while no part can be hit).
+    Invincibility invincibility = Invincibility::None;
 };
 // The frame a move's recovery ends on: where the script says the fighter is
 // free again, its interruptible frame, else its end; -1 when neither is known.
@@ -367,6 +372,8 @@ struct MeterCell {
     int hitAdvantage = NoHitAdvantage;
     // Frames left out of the bars (hitstop, a super's freeze) came just before this one.
     bool afterStop = false;
+    // The sample's on a startup, recovery or movement frame, None on any other: active frames keep their colour.
+    Invincibility invincibility = Invincibility::None;
 };
 // What the game counts until a fighter it cannot time (knocked down) can act.
 constexpr int UntimedFrames = 1000;
@@ -405,6 +412,8 @@ inline MeterCell ResolveMeterCell(const FighterSample& sample, const FighterSamp
     if (guarding(sample)) cell.guardFrom = previous && guarding(*previous) ? before.guardFrom : previous && previous->valid ? previous->status : sample.status;
     if (cell.kind == MeterKind::Guard && sample.status != S::DamageGuard &&
         (sample.posture > 1 || cell.guardFrom == S::Jump || cell.guardFrom == S::StandToJump)) cell.kind = MeterKind::Neutral;
+    // Only the fighter's own frames: a knocked-down or thrown fighter is out of reach anyway.
+    if (cell.kind == MeterKind::Startup || cell.kind == MeterKind::Recovery || cell.kind == MeterKind::Movement) cell.invincibility = sample.invincibility;
     if (!previous) return cell;
     // An attack played again is a new action too; a reaction started over by the next hit is the hit's (struck).
     cell.newAction = sample.valid && sample.action >= 0 &&

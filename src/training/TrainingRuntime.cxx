@@ -696,6 +696,8 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
         sample.health = Dimps::Math::FixedToFloat(&value);
         sample.untilActionable = (actor->*Actor::publicMethods.GetFramesUntilActionable)();
         sample.hitStop = (actor->*Actor::publicMethods.IsInHitStop)() != 0;
+        if (!Actor::GetProjectileMask(actor))
+            sample.invincibility = Actor::GetBodyMask(actor, Actor::BodyList::Strike) ? Invincibility::Projectile : Invincibility::Full;
         sample.valid = true;
     }
     return fighters;

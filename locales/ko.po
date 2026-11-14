@@ -2823,6 +2823,12 @@ msgstr "다운"
 msgid "training.meter.meaty"
 msgstr "깔아두기"
 
+msgid "training.meter.projectile_invincible"
+msgstr "장풍 무적"
+
+msgid "training.meter.invincible"
+msgstr "완전 무적"
+
 msgid "training.meter.hitstop"
 msgstr "히트스톱"
 
