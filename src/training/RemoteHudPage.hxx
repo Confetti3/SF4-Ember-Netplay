@@ -44,14 +44,14 @@ R"HTML(<section id="t-layout" hidden>
 <label class="bar" title="A change to a P1 item does the mirrored change to its P2 twin, and back"><input type="checkbox" id="lyMir" checked> Mirror P1/P2</label>
 <label class="bar"><input type="checkbox" id="lyAuto"> Auto-apply</label>
 <input id="lySaveName" placeholder="New theme name" maxlength="60" aria-label="Name for a copy of the theme"><button class="act" id="lySave">Save as new theme</button>
-<button class="act primary" id="lyApply">Apply theme</button><button class="act" id="lyRestart" title="Names, characters and portraits load when the game starts">Restart game</button><span class="chip" id="lyChip">Applied</span></div>
+<button class="act primary" id="lyApply">Apply theme</button><button class="act" id="lyRestart" title="Names, characters and portraits load when the game starts">Restart game</button><span class="chip" id="lyChip">Applied</span><span id="lyRestartNote" class="note" hidden></span></div>
 <div class="ed"><div class="card" id="lyList" role="listbox" aria-label="HUD elements"></div>
 <div id="lyStage" class="card"><canvas id="lyCanvas" tabindex="0" aria-label="HUD layout, 1280 by 720"></canvas></div>
 <div class="card" id="lyInsp"><b id="lyName">Nothing selected</b>
 <div class="two"><label>X<input type="number" id="lyX" step="1"></label><label>Y<input type="number" id="lyY" step="1"></label></div>
 <div class="two"><label>Rotation<input type="number" id="lyRot" step="1"></label><label>Scale<input type="number" id="lyS" step="0.01" min="0.05"></label></div>
 <label class="bar"><input type="checkbox" id="lyHide"> Hidden</label>
-<p class="note">Drag to move. Arrows nudge 1 px, Shift 10 px. Wheel zooms, drag empty space pans. Ctrl+Z undoes. Names and portraits show after a game restart.</p>
+<p class="note">Drag to move. Arrows nudge 1 px, Shift 10 px. Wheel zooms, drag empty space pans. Ctrl+Z undoes.</p><p class="note" id="lyLate" hidden>Shown after the game restarts.</p>
 <b>Images</b><div id="lyImgs"></div><input type="file" id="lyFile" accept="image/*" hidden>
 <span id="lyMsg"></span></div></div></section>
 )HTML";
@@ -152,7 +152,7 @@ function fit(){V={z:1,ox:0,oy:0};draw()}
 function list(){
  const l=g("lyList");l.innerHTML="";
  for(const e of els){const b=document.createElement("button");b.className=(e.id==sel?"on ":"")+(e.parent?"kid":"");b.role="option";
-  b.innerHTML="";const t=document.createElement("span");t.textContent=e.label;const i=document.createElement("i");i.textContent=lay[e.id]?"edited":"";b.append(t,i);
+  b.innerHTML="";const t=document.createElement("span");t.textContent=e.label;const i=document.createElement("i");i.textContent=lay[e.id]?(e.atStart?"edited, after restart":"edited"):"";b.append(t,i);
   b.onclick=()=>{sel=e.id;paint()};l.append(b)}}
 function stem(sp){return sp.f+(sp.f=="chara"||sp.f=="uc"?"."+fighter:"")+"-"+sp.t+"-"+sp.uv.join("-")}
 function images(){
@@ -182,9 +182,12 @@ async function restoreImage(sp){
 function inspector(){
  const e=byId[sel];g("lyName").textContent=e?e.label:"Nothing selected";
  for(const id of ["lyX","lyY","lyRot","lyS","lyHide"])g(id).disabled=!e;
+ g("lyLate").hidden=!(e&&e.atStart&&lay[sel]);
  if(!e)return;const v=lay[sel]||{x:e.cx,y:e.cy,rot:0,s:1,hide:false};
  g("lyX").value=+v.x.toFixed(1);g("lyY").value=+v.y.toFixed(1);g("lyRot").value=+v.rot.toFixed(1);g("lyS").value=+v.s.toFixed(3);g("lyHide").checked=!!v.hide}
+function late(){return els.some(e=>e.atStart&&lay[e.id])}
 function bar(){
+ g("lyRestartNote").hidden=!late();g("lyRestartNote").textContent="Edits to names, portraits and labels show after the game restarts. Restart game is refused during a match.";
  g("lyAuto").checked=auto;g("lyApply").disabled=auto;g("lyApply").textContent=pending?"Apply "+pending+" change"+(pending==1?"":"s"):"Apply theme";
  g("lyChip").textContent=auto?"Applied live":pending?pending+" pending":"Up to date";g("lyChip").className="chip"+(!auto&&pending?" off":"")}
 function paint(){list();inspector();images();bar();draw()}
@@ -199,7 +202,7 @@ function changed(){
 async function flush(){
  const r=await call("/api/hud/layout",{theme,layout:lay});if(r&&auto)apply()}
 async function apply(){
- clearTimeout(saveT);const r=await call("/api/hud/apply",{theme,layout:lay});if(r){pending=0;say(Object.keys(lay).some(k=>/_(face|name)$/.test(k))?"Applied. Portraits and names load when the game starts: press Restart game.":"Applied.")}bar()}
+ clearTimeout(saveT);const r=await call("/api/hud/apply",{theme,layout:lay});if(r){pending=0;say(late()?"Applied. Names, portraits and labels load when the game starts: press Restart game, outside a match.":"Applied.")}bar()}
 function restore(from,to){if(!from.length)return;to.push(JSON.stringify(lay));lay=JSON.parse(from.pop());changed()}
 async function open(){
  const r=await call("/api/hud/themes");if(!r)return;
