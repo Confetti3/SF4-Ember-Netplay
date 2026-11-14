@@ -8,6 +8,7 @@
 //   list leads with the notice that ranked play needs Discord (--screen public-rooms, or create for its one line).
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
+// --news stress: News (--screen news) also lists a release with a very long title and tag and a notes line that is one long word
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --archive full|more|loading|failed|unsupported|empty|nobridge: Replays' Archive tab with the public archive's listing in
 //   that state (--screen replay-archive, replay-archive-filter or replay-archive-fighter)
@@ -41,6 +42,7 @@
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 // --trace trace.txt (with --shot): writes the screen and the focused row before the first key and after each one,
 //   so a walk's presses can be counted without reading the pictures
+#include "UiLabNews.hxx"
 #include "UiLabSocial.hxx"
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
@@ -177,10 +179,8 @@ ui::ShellView FakeView() {
     view.preferences.wornTitle = view.preferences.wornIcon = "wins";
     // The installed build, which Home's corner and Help and about name with its kind (VersionLine).
     view.services.installedVersion = "1.5.0";
-    view.services.update.news = {{"v1.3.0", "Ember 1.3.0", "2026-10-21", "New menus: categories, panels and choices.\n- Spectators keep watching through Alt+Enter.", ""},
-        {"v1.2.1", "Ember 1.2.1", "2026-10-17", "Fixes for rollback saves.", ""}, {"v1.2.0", "Ember 1.2.0", "2026-10-14", "Borderless window setting.", ""}};
-    view.services.update.news.insert(view.services.update.news.begin() + 1, {"v1.3.0-nightly.12", "Nightly 1.3.0.12", "2026-10-19", "Room board fits Steam Deck.\n- Speech for menus.", ""});
-    for (auto& n : view.services.update.news) { n.stable = n.tag.find('-') == std::string::npos; n.newer = n.tag > "v1.2.0"; }
+    // Five releases as the update check lists them (UiLabNews.hxx); --news stress puts a very long one in front.
+    view.services.update.news = uilab::NewsReleases();
     // Replays: matches played and watched, the first three a set (newest first).
     auto archive = std::make_shared<std::vector<platform::replays::ArchivedReplay>>();
     const auto replay = [&](const char* file, const char* date, std::uint64_t time, const char* a, const char* b, int fa, int fb, int sa, int sb, bool spectated, bool seen) {
@@ -593,6 +593,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     int width = 1280, height = 800;
     float textSize = 1;
     bool tv = false;  // --tv: TV mode
+    bool newsStress = false;  // --news stress: News also lists a release with a very long title, tag and notes
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string points;  // --points public|private
     std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState, setsState, playerState, findState, relationState;
@@ -642,6 +643,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--classes") classes = true;
         else if (args[i] == "--screen" && more) screen = args[++i];
         else if (args[i] == "--update") update = true;
+        else if (args[i] == "--news" && more) newsStress = args[++i] == "stress";
         else if (args[i] == "--recovery" && more) recovery = args[++i];
         else if (args[i] == "--toasts") toasts = true;
         else if (args[i] == "--welcome") welcome = true;
@@ -700,7 +702,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         t.ready[0] = postMatch == "you"; t.ready[1] = postMatch == "they";
         view.session.match = netplay::MatchState::Playing; view.atMainMenu = false;
     }
-    if (update) { view.services.launchOffer = launcher::InstallOffer{updates::UpdateChannel::Nightly, "v1.3.0", "lab"}; view.services.installedVersion = "v1.2.0"; }
+    if (update) { view.services.launchOffer = launcher::InstallOffer{updates::UpdateChannel::Nightly, "v1.6.0-nightly.3", "lab"}; view.services.installedVersion = "v1.5.0"; }
+    if (newsStress) uilab::AddNewsStress(view.services.update.news);
     if (publicLab) PublicLab(view);
     // The helper's side for --public: each Ember ID request answered, the room list on asking.
     std::uint64_t identityAsked = 0;

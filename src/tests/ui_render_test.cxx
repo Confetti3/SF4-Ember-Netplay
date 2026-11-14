@@ -389,6 +389,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_replays.hxx"
 #include "ui_render_custom_content.hxx"
 #include "ui_render_updates.hxx"
+#include "ui_render_news.hxx"
 #include "ui_render_replay_controls.hxx"
 #include "ui_render_camera_panel.hxx"
 #include "ui_render_reports.hxx"
@@ -865,6 +866,8 @@ int main(int argc, char** argv) {
             ShootPadSetup(shell,view,draw,page);
             ShootReplays(shell,view,draw,page,exportsStarted,refuseExports);
             ShootVersionAndChannel(shell,view,draw,page);
+            // News: the hub with five release bodies at the update check's cap and with a very long title, at three Interface sizes on the two common screens (ui_render_news.hxx).
+            ShootNews(shell,view,draw,page,[&](float interfaceSize){if(ApplyTheme(size.dpi,interfaceSize))renderer.Invalidate();},size.dpi==1.f&&(size.w==1280||size.w==1920),size.w,size.h,size.dpi);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
             view.preferences.autoInputDelay=true;page("tab-matches/defaults");view.preferences.autoInputDelay=false;
             page("home");
