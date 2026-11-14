@@ -56,8 +56,11 @@ struct Archive {
     profiles: bool,
 }
 
+/// The archive needs no feature: what the bridge was last read to offer will
+/// do, so a bridge without the profile routes (production before them) is not
+/// read again on every page.
 async fn archive_of(shared: &Arc<Shared>, bridge: &Approved) -> Result<Archive, Failure> {
-    let offered = play::features(shared, bridge, Need::Profiles).await?;
+    let offered = play::features(shared, bridge, Need::Nothing).await?;
     let listing = offered
         .archive
         .unwrap_or_else(|| fallback_listing(&bridge.origin));

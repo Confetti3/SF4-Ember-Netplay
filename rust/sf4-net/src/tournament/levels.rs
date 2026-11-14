@@ -44,20 +44,6 @@ const PROFILE_REFUSALS: Refusals<'static> = Refusals {
 /// The statuses a bridge saves a card with.
 const SAVED: &[u16] = &[204, 200];
 
-/// The bridge's capabilities list `points`, or this is `points_unavailable`
-/// and nothing is asked of it. One that lacks the feature is read again on
-/// the next request, so a bridge upgraded meanwhile is heard. Answers what
-/// the bridge offers.
-async fn offered(shared: &Arc<Shared>, bridge_id: &str) -> Result<play::Features, Failure> {
-    let bridge = client::approved(shared, bridge_id)?;
-    let features = play::features(shared, &bridge, Need::Levels).await?;
-    if features.levels {
-        Ok(features)
-    } else {
-        Err(Failure::new(Code::LevelsUnavailable))
-    }
-}
-
 /// Where the player's own points are asked. A bridge that lists the class
 /// bonus answers the points as they are earned only when asked with its
 /// query: asked plainly it answers games plus wins, for the builds that
@@ -70,22 +56,9 @@ fn points_path(offered: &play::Features) -> &'static str {
     }
 }
 
-/// The bridge's capabilities list `profiles`, or this is
-/// `profiles_unavailable` and nothing is asked of it. One that lacks the
-/// feature is read again on the next request, so a bridge upgraded meanwhile
-/// is heard.
-async fn profiles_offered(shared: &Arc<Shared>, bridge_id: &str) -> Result<(), Failure> {
-    let bridge = client::approved(shared, bridge_id)?;
-    if play::features(shared, &bridge, Need::Profiles).await?.profiles {
-        Ok(())
-    } else {
-        Err(Failure::new(Code::ProfilesUnavailable))
-    }
-}
-
 /// The player's own points on `bridge_id`.
 pub async fn own(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
-    let path = points_path(&offered(shared, bridge_id).await?);
+    let path = points_path(&play::require(shared, bridge_id, Need::Levels).await?);
     let call = BridgeCall::new(Verb::Get, path, &[200]).refusals(REFUSALS);
     let levels: OwnLevels = client::request_as(shared, bridge_id, &call).await?;
     levels.check().map_err(|_| invalid_response())?;
@@ -98,12 +71,13 @@ pub async fn lookup(shared: &Arc<Shared>, bridge_id: &str, cards: Vec<CardSelect
     lookup
         .check()
         .map_err(|_| Failure::new(Code::InvalidRequest))?;
-    offered(shared, bridge_id).await?;
+    let offered = play::require(shared, bridge_id, Need::Levels).await?;
     let profile_selector = |selector: &CardSelector| {
         matches!(selector, CardSelector::Request(_) | CardSelector::Code(_))
     };
-    if lookup.cards.iter().any(profile_selector) {
-        profiles_offered(shared, bridge_id).await?;
+    // What was just read answers for the profile selectors too, unless it lacks them.
+    if lookup.cards.iter().any(profile_selector) && !offered.profiles {
+        play::require(shared, bridge_id, Need::Profiles).await?;
     }
     let body = serde_json::to_vec(&lookup).map_err(|_| Failure::new(Code::Internal))?;
     let call = BridgeCall::new(Verb::Post, LOOKUP_PATH, &[200])
@@ -121,7 +95,7 @@ pub async fn lookup(shared: &Arc<Shared>, bridge_id: &str, cards: Vec<CardSelect
 pub async fn save(shared: &Arc<Shared>, bridge_id: &str, card: CardSave) -> Outcome {
     card.check()
         .map_err(|_| Failure::new(Code::InvalidRequest))?;
-    profiles_offered(shared, bridge_id).await?;
+    play::require(shared, bridge_id, Need::Profiles).await?;
     let body = serde_json::to_vec(&card).map_err(|_| Failure::new(Code::Internal))?;
     let call = BridgeCall::new(Verb::Put, CARDS_ME_PATH, SAVED)
         .body(Body::Json(&body))
@@ -160,7 +134,7 @@ pub async fn search(
     search
         .check()
         .map_err(|_| Failure::new(Code::InvalidRequest))?;
-    profiles_offered(shared, bridge_id).await?;
+    play::require(shared, bridge_id, Need::Profiles).await?;
     let body = serde_json::to_vec(&search).map_err(|_| Failure::new(Code::Internal))?;
     let call = BridgeCall::new(Verb::Post, SEARCH_PATH, &[200])
         .body(Body::Json(&body))
