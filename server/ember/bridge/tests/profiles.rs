@@ -72,7 +72,7 @@ async fn a_card_shows_what_its_player_saved_to_anyone_with_a_selector() {
     assert_eq!(card["pins"], json!(["rank", "wins"]));
     assert_eq!(
         card["style"],
-        json!({ "device": 2, "link": 1, "region": "euc1", "looking": 34 })
+        json!({ "device": 2, "link": 1, "region": "euw", "looking": 34 })
     );
     // The month they came, never the day, and never an account.
     assert_eq!(card["since"], MONTH);
@@ -153,17 +153,27 @@ async fn a_save_that_is_not_one_the_bridge_stores_is_refused() {
     assert!(world.stored(&b.discord).await.is_none());
 
     // The most it takes is accepted: four pins, two bits, the last device and
-    // link, every known region.
-    for (at, region) in ember_protocol::relay::REGIONS.into_iter().enumerate() {
+    // link, and an area. A Nightly from before areas sends its relay's code,
+    // which is taken and kept as no region: it says how the player connected,
+    // not where they are.
+    let regions = [
+        ("naw", Some("naw")),
+        ("oce", Some("oce")),
+        ("euc1", None),
+        ("sam", Some("sam")),
+    ];
+    for (at, (sent, kept)) in regions.into_iter().enumerate() {
         let mut card = with(&|card| {
             card["pins"] = json!(["a", "b", "c", "d"]);
             card["style"] = json!({ "device": 4, "link": 2, "looking": 33 });
             card["main"] = json!(43);
         });
-        card["style"]["region"] = json!(region);
-        world.save(if at < 2 { &a } else { &b }, card).await;
-        let seen = world.card_of(&b, &a).await;
+        card["style"]["region"] = json!(sent);
+        let member = if at < 2 { &a } else { &b };
+        world.save(member, card).await;
+        let seen = world.card_of(&a, member).await;
         assert_eq!(seen["pins"], json!(["a", "b", "c", "d"]));
+        assert_eq!(seen["style"]["region"].as_str(), kept, "{sent}");
     }
 }
 

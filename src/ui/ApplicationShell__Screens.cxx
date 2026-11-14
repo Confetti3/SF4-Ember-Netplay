@@ -1,4 +1,5 @@
 #include "ApplicationShell.hxx"
+#include "AreaNames.hxx"
 #include "MenuPresentation.hxx"
 #include "PlayerCard.hxx"
 #include "PlayerPage.hxx"
@@ -61,7 +62,7 @@ public:
         auto& shell = f.shell;
         if (f.screen == PublicRoomsPanel::FiltersScreen) {
             title = loc::T("public.filters");
-            return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::KnownRegion(f.view), f.view.canEditPreferences);
+            return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::HomeArea(f.view), f.view.canEditPreferences);
         }
         title = loc::T("screen.public_rooms");
         const std::string bridge = shell.identity_.UsableBridge(f.view);
@@ -113,7 +114,7 @@ private:
     static bool ChangeFilter(const ScreenFrame& f, const MenuAction& a) {
         auto& shell = f.shell;
         auto filter = shell.preferences_.roomFilter;
-        if (!PublicRoomsPanel::ChangeFilter(a, PublicRoomsPanel::KnownRegion(f.view), filter)) return false;
+        if (!PublicRoomsPanel::ChangeFilter(a, PublicRoomsPanel::HomeArea(f.view), filter)) return false;
         if (f.view.canEditPreferences && filter != shell.preferences_.roomFilter) {
             shell.preferences_.roomFilter = filter;
             shell.preferencesDirty_ = true; shell.saveAt_ = ImGui::GetTime() + .45; shell.error_.clear();
@@ -121,13 +122,15 @@ private:
         return true;
     }
 public:
-    // Public rooms say where they sit and the player's region, and Options
-    // refreshes the list while it can. An opening room's card is information,
-    // so the cursor waits on its Stop row.
+    // Public rooms say where they sit and the player's area, or that it is not set,
+    // and Options refreshes the list while it can. An opening room's card is
+    // information, so the cursor waits on its Stop row.
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
         const ShellView& v = f.view;
         menu.eyebrow = loc::T("online.eyebrow_browse");
-        if (const char* region = RelayRegionName(PublicRoomsPanel::KnownRegion(v))) menu.headerChips.push_back({loc::Tf("public.your_region", region), palette::Ready});
+        const Area home = PublicRoomsPanel::HomeArea(v);
+        if (home != Area::None) menu.headerChips.push_back({loc::Tf("public.your_area", AreaName(home)), palette::Ready});
+        else menu.headerChips.push_back({loc::T("public.area_unset"), v2::Colors().muted});
         menu.paneWidth = 380;
         if (f.shell.publicRooms_.Refreshable(v)) menu.shortcutHints = ShortcutHints({{MenuInput::Options, loc::T("legend.refresh")}});
         if (v.session.room == netplay::RoomState::Opening && f.rows && menu.navigation.Focus() == "pr-opening") menu.navigation.Focus("cancel-open", *f.rows);

@@ -155,8 +155,7 @@ void DecodeProfileFields(const json& object, netplay::levels::Card& card) {
 		card.hasStyle = true;
 		card.style.device = profiles::DeviceFromWire(ReadNumber(*style, "device"));
 		card.style.link = profiles::LinkFromWire(ReadNumber(*style, "link"));
-		const auto region = ReadText(*style, "region", profiles::MaxRegionBytes);
-		if (profiles::RegionShaped(region)) card.style.region = region;
+		card.style.area = AreaFromCode(ReadText(*style, "region", profiles::MaxRegionBytes));
 		card.style.looking = profiles::LookingFromWire(ReadNumber(*style, "looking"));
 	}
 	if (const auto versus = object.find("versus"); versus != object.end() && versus->is_object()) {

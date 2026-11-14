@@ -416,6 +416,7 @@ mod tests {
             created_at: 10,
             host_region: Some("use1".into()),
             creator_region: None,
+            creator_area: None,
             invitation_sealed: Some(vec![1, 2, 3]),
             creator_ember_id: "creator".into(),
             opened_at: Some(20),

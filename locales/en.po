@@ -346,6 +346,24 @@ msgstr "Hidden"
 msgid "settings.country.current"
 msgstr "Current"
 
+msgid "settings.place"
+msgstr "Country and area"
+
+msgid "settings.area"
+msgstr "Area"
+
+msgid "settings.area_detail"
+msgstr "Where you play from. Your player card and the public rooms you create show it, and the public rooms list marks the rooms near it. Automatic follows the time zone set in Windows. Left and Right change it."
+
+msgid "settings.area.automatic_value"
+msgstr "Automatic ({0}, from Windows)"
+
+msgid "settings.area.automatic_none"
+msgstr "Automatic (not set)"
+
+msgid "settings.area.hidden"
+msgstr "Hidden"
+
 msgid "country.search"
 msgstr "Search"
 
@@ -372,6 +390,42 @@ msgstr "No country matches"
 
 msgid "country.none_detail"
 msgstr "Change the search to see more countries."
+
+msgid "area.naw"
+msgstr "NA West"
+
+msgid "area.nac"
+msgstr "NA Central"
+
+msgid "area.nae"
+msgstr "NA East"
+
+msgid "area.cam"
+msgstr "Central America & Caribbean"
+
+msgid "area.sam"
+msgstr "South America"
+
+msgid "area.euw"
+msgstr "Europe West"
+
+msgid "area.eue"
+msgstr "Europe East"
+
+msgid "area.mea"
+msgstr "Middle East & Africa"
+
+msgid "area.sas"
+msgstr "South Asia"
+
+msgid "area.eas"
+msgstr "East Asia"
+
+msgid "area.sea"
+msgstr "South-East Asia"
+
+msgid "area.oce"
+msgstr "Oceania"
 
 msgid "settings.language.system_with"
 msgstr "Automatic: {0}"
@@ -548,7 +602,7 @@ msgid "connection.relayed_advice"
 msgstr "Relayed means your two networks could not connect directly, so match traffic goes through a relay server. Matches still work; use the recommended delay. For a direct connection, either player can try turning on UPnP in their router, forwarding UDP port 45760 to their PC, or turning off a VPN."
 
 msgid "connection.route_relayed_via"
-msgstr "Relayed ({0})"
+msgstr "Relayed via {0}"
 
 msgid "connection.direct_checking"
 msgstr "Still checking whether your network allows direct connections."
@@ -574,32 +628,35 @@ msgstr "Check connection again"
 msgid "network.relay"
 msgstr "Relay"
 
+msgid "network.relay_chip"
+msgstr "Relay: {0}"
+
 msgid "network.relay_detail"
 msgstr "The relay server that helps your game find other players. Match traffic goes through it only when a direct connection is not possible."
 
 msgid "network.relay_connected"
-msgstr "{0} (connected)"
+msgstr "{0} · connected"
 
 msgid "network.relay_connecting"
-msgstr "{0} (connecting)"
+msgstr "{0} · connecting"
 
 msgid "network.relay_none"
 msgstr "Not connected"
 
-msgid "network.region_use1"
-msgstr "US East"
+msgid "network.relay_use1"
+msgstr "Ember US (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "US West"
+msgid "network.relay_usw1"
+msgstr "n0 US West"
 
-msgid "network.region_euc1"
-msgstr "Europe"
+msgid "network.relay_euc1"
+msgstr "Ember Europe"
 
-msgid "network.region_aps1"
-msgstr "Asia Pacific"
+msgid "network.relay_aps1"
+msgstr "n0 Asia"
 
-msgid "network.region_other"
-msgstr "Other region"
+msgid "network.relay_other"
+msgstr "Another relay"
 
 msgid "network.status"
 msgstr "Network"
@@ -1480,8 +1537,11 @@ msgstr "Wired or Wi-Fi, as Ember measures it. You can hide it."
 msgid "card.region_row"
 msgstr "Region"
 
-msgid "card.region_detail"
-msgstr "Your region, from your connection. You can hide it."
+msgid "card.area_detail"
+msgstr "Your area, from your settings. You can hide it."
+
+msgid "card.area_unset"
+msgstr "Not set"
 
 msgid "card.shown"
 msgstr "{0} · shown"
@@ -4064,8 +4124,8 @@ msgstr "Could not create the room. Check your internet connection and try again.
 msgid "runtime.relay_unreachable"
 msgstr "Could not reach the relay server. Check your internet connection, firewall or VPN, then try again."
 
-msgid "runtime.relay_unreachable_region"
-msgstr "Could not reach the relay server ({0}). Check your internet connection, firewall or VPN, then try again."
+msgid "runtime.relay_unreachable_named"
+msgstr "Could not reach the relay server {0}. Check your internet connection, firewall or VPN, then try again."
 
 msgid "runtime.host_unreachable"
 msgstr "Could not reach the host, directly or through a relay. The room may have closed. If it is open, Windows Firewall is the usual cause: in Windows Security > Firewall & network protection > Allow an app through firewall, allow sf4-net.exe (Private and Public). A VPN can also be in the way."
@@ -5134,11 +5194,11 @@ msgstr "Loading rooms..."
 msgid "public.needs_id_detail"
 msgstr "Create an Ember ID, then trust a service under Linked accounts. That service lists the public rooms."
 
-msgid "public.room_detail"
-msgstr "{0}\nPlayers: {1}/{2}. Region: {3}."
+msgid "public.room_detail_seats"
+msgstr "{0}\nPlayers: {1}/{2}."
 
-msgid "public.room_detail_playing"
-msgstr "{0}\nPlayers: {1}/{2}. Region: {3}.\nMatches in progress: {4}."
+msgid "public.room_detail_matches"
+msgstr "Matches in progress: {0}."
 
 msgid "public.joining_value"
 msgstr "Joining..."
@@ -5231,7 +5291,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "Choose which rooms are listed: by area, room type, open seats and connection. Your choice is kept for next time."
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5239,14 +5299,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "Area"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "Show rooms from every area, only rooms in or next to your area, or one area. Left and Right change it."
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "All areas"
 
 msgid "public.filter_region_near"
 msgstr "Near me"
@@ -5278,8 +5338,8 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember doesn't know your region yet, so it can't tell which rooms are near you."
+msgid "public.filter_near_unset"
+msgstr "Your area is not set, so Ember can't tell which rooms are near you. Set it in Settings, Country and area."
 
 msgid "public.near_you"
 msgstr "Near you"
@@ -5308,8 +5368,11 @@ msgstr "{0} min"
 msgid "public.age_hours"
 msgstr "{0} h"
 
-msgid "public.room_detail2"
-msgstr "Host {0}, {1}. {2} of {3} seats taken."
+msgid "public.room_detail_host"
+msgstr "Host {0}. {1} of {2} seats taken."
+
+msgid "public.room_detail_area"
+msgstr "Area: {0}."
 
 msgid "public.room_detail_match"
 msgstr " A match is on."
@@ -8280,8 +8343,11 @@ msgstr "ONLINE · JOIN"
 msgid "online.eyebrow_browse"
 msgstr "ONLINE · BROWSE"
 
-msgid "public.your_region"
-msgstr "Your region {0}"
+msgid "public.your_area"
+msgstr "Your area: {0}"
+
+msgid "public.area_unset"
+msgstr "Set your area in Settings"
 
 msgid "home.notifications"
 msgstr "Notifications"

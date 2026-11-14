@@ -1,4 +1,5 @@
 #include "CardModel.hxx"
+#include "AreaNames.hxx"
 #include "CountryFlag.hxx"
 #include "NameMarks.hxx"
 #include "PlayerCard.hxx"
@@ -101,11 +102,7 @@ std::vector<Chip> PlaysChips(const profiles::Style& style) {
     }
     if (style.link == profiles::Link::Wired) chips.push_back({Chip::Kind::Link, loc::T("style.wired")});
     else if (style.link == profiles::Link::WiFi) chips.push_back({Chip::Kind::Link, loc::T("style.wifi")});
-    if (!style.region.empty()) {
-        const char* name = style.region == "use1" ? loc::T("network.region_use1") : style.region == "usw1" ? loc::T("network.region_usw1") :
-            style.region == "euc1" ? loc::T("network.region_euc1") : style.region == "aps1" ? loc::T("network.region_aps1") : loc::T("network.region_other");
-        chips.push_back({Chip::Kind::Region, name});
-    }
+    if (style.area != Area::None) chips.push_back({Chip::Kind::Region, AreaName(style.area)});
     return chips;
 }
 

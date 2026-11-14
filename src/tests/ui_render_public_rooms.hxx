@@ -24,12 +24,12 @@ void ShootPublicRooms(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& vie
     // Keep the answered request id, or the panel waits on Checking forever.
     id=netplay::IdentityView{};id.requestId=view.identityRequest;id.known=true;id.state="ready";id.fingerprint="j25zrhe6-pmdhvlja";
     id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.bridges={{"brg_00000000-0000-4000-8000-000000000001","https://bridge.example","Example"}};
-    view.netReport.reported=true;view.netReport.relay="use1";
+    view.netReport.reported=true;view.netReport.relay="use1";view.automaticArea=Area::NaEast;
     auto& publicRooms=view.publicRooms;publicRooms=netplay::publicrooms::Status{};
     const std::string service=id.bridges[0].id;
     publicRooms.listedAt=100000;
-    const auto listed=[](const char* roomId,std::string name,unsigned members,unsigned capacity,unsigned playing,const char* region="use1"){
-        netplay::publicrooms::Room room;room.id=roomId;room.name=std::move(name);room.members=members;room.capacity=capacity;room.playing=playing;room.region=region;
+    const auto listed=[](const char* roomId,std::string name,unsigned members,unsigned capacity,unsigned playing,Area area=Area::NaEast){
+        netplay::publicrooms::Room room;room.id=roomId;room.name=std::move(name);room.members=members;room.capacity=capacity;room.playing=playing;room.area=area;
         room.createdAt=100000-1500;return room;};
     const auto detailed=[](netplay::publicrooms::Room room,std::string host,std::vector<int> fighters,int format,int rotation){
         room.hasDetails=true;room.hostName=std::move(host);room.fighters=std::move(fighters);room.setFormat=format;room.rotation=rotation;return room;};
@@ -42,10 +42,13 @@ void ShootPublicRooms(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& vie
         rooms.back().locked=true;
         rooms.push_back(detailed(listed("e","Full House",8,8,0),"Gouken",{2,7,12,17,22,27,32,37},1,0));
         rooms.push_back(detailed(listed("f","Big Lobby",9,16,0),"Kate",{1,2,3,4,5,6,7,8,9},0,0));
-        rooms.push_back(detailed(listed("g","Euro Night",4,8,0,"euc1"),"Hugo",{10,15,20,25},2,1));
+        rooms.push_back(detailed(listed("g","Euro Night",4,8,0,Area::EuropeWest),"Hugo",{10,15,20,25},2,1));
         // Each fighter plays at their own input delay: a chip on the card and in the preview.
         rooms.back().ownDelay=true;
-        rooms.push_back(listed("h","Old Bridge Room",2,8,0,"aps1"));
+        // A room from a build before areas, or whose creator hid theirs: no place.
+        rooms.push_back(listed("h","Old Bridge Room",2,8,0,Area::None));
+        // A room next to the player's area is near too.
+        rooms.push_back(detailed(listed("i","Midwest Mondays",3,8,0,Area::NaCentral),"Lee",{6,9,13},2,0));
         return rooms;};
     const auto settleList=[&](std::vector<netplay::publicrooms::Room> rooms,const std::string& error=std::string()){
         publicRooms.bridge=service;publicRooms.rooms=std::move(rooms);publicRooms.error=error;publicRooms.loading=false;++publicRooms.listed;};
@@ -75,9 +78,9 @@ void ShootPublicRooms(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& vie
     // A filter that hides every room: Near me, with only far rooms listed.
     {
         std::vector<netplay::publicrooms::Room> distant;
-        for(auto room:allRooms())if(room.region!="use1")distant.push_back(room);
+        for(auto room:allRooms())if(!AreaNear(Area::NaEast,room.area))distant.push_back(room);
         settleList(distant);visit();draw(nullptr,0,8);
-        // The Filters row opens the page; Region steps there, and Back returns to the list.
+        // The Filters row opens the page; Area steps there, and Back returns to the list.
         const bool canEdit=view.canEditPreferences;view.canEditPreferences=true;
         const auto filter=[&](int steps){
             for(int i=0;i<24&&shell.Navigation().Focus()!="pr-filters";++i){
@@ -86,7 +89,7 @@ void ShootPublicRooms(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& vie
             }
             Require(shell.Navigation().Focus()=="pr-filters","The Filters row is unreachable");
             draw(nullptr,MenuInput::Select,1);draw(nullptr,0,2);
-            Require(shell.Navigation().Screen()==PublicRoomsPanel::FiltersScreen&&shell.Navigation().Focus()=="pr-filter-region","The filters page did not open on Region");
+            Require(shell.Navigation().Screen()==PublicRoomsPanel::FiltersScreen&&shell.Navigation().Focus()=="pr-filter-area","The filters page did not open on Area");
             if(steps>0)draw("public-rooms-filters");
             for(int i=0;i<std::abs(steps);++i){draw(nullptr,steps>0?MenuInput::Right:MenuInput::Left,1);draw(nullptr,0,1);}
             draw(nullptr,MenuInput::Back,1);draw(nullptr,0,3);

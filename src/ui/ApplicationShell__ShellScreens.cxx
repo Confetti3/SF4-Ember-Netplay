@@ -71,7 +71,7 @@ public:
         const ShellView& v = f.view;
         if (f.screen == "online") {
             menu.eyebrow = loc::T("online.eyebrow");
-            menu.headerChips.push_back({std::string(loc::T("network.relay")) + " \xC2\xB7 " + DescribeRelay(v.netReport), v.netReport.relayConnected ? palette::Ready : v2::Colors().muted});
+            menu.headerChips.push_back({loc::Tf("network.relay_chip", DescribeRelay(v.netReport)), v.netReport.relayConnected ? palette::Ready : v2::Colors().muted});
             menu.listWidth = 560;
         } else if (f.screen == "join") {
             menu.eyebrow = loc::T("online.eyebrow_join");

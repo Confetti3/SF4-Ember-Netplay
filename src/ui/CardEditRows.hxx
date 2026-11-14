@@ -45,12 +45,12 @@ constexpr const char* LookingPrefix = "looking:";
 inline bool OnCardScreen(const std::string& screen) { return screen == "card-edit" || screen == PinsScreen || screen == LookingScreen; }
 
 // What the game measures now: the device Automatic stands for, the connection,
-// the relay region Ember picked (empty for none or an unnamed one) and the
+// the area Windows gives (which the area's Automatic stands for) and the
 // counters that say which award families have a level.
 struct Measured {
     netplay::profiles::Device automatic = netplay::profiles::Device::None;
     NetworkLink link = NetworkLink::Unknown;
-    std::string region;
+    Area automaticArea = Area::None;
     netplay::awards::Counters counters;
 };
 // As the card's preview and the card save read them (ProfilePanel::OwnSubjectOf).
@@ -61,7 +61,8 @@ std::string DeviceValue(const netplay::PlayerPreferences& prefs, netplay::profil
 // Every value of the Device row in the order Left and Right step through them.
 std::vector<std::string> DeviceValues(netplay::profiles::Device automatic);
 std::string LinkValue(const netplay::PlayerPreferences& prefs, NetworkLink link);
-std::string RegionValue(const netplay::PlayerPreferences& prefs, const std::string& region);
+// The area the card shows, from Settings: its name, Not set, or Hidden.
+std::string RegionValue(const netplay::PlayerPreferences& prefs, Area automaticArea);
 // "Long sets, Happy to teach", or None.
 std::string LookingValue(const netplay::PlayerPreferences& prefs);
 // "Your highest", or "3 chosen".

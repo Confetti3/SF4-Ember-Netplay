@@ -240,7 +240,7 @@ fn full_card() -> Value {
         "name": "Player 2", "country": "FR", "main": 5,
         "badge": {"band": 7, "settled": true}, "since": 1748736000,
         "worn": {"title": "matches", "icon": "streak"}, "pins": ["rank", "wins"],
-        "style": {"device": 2, "link": 1, "region": "euc1", "looking": 34},
+        "style": {"device": 2, "link": 1, "region": "euw", "looking": 34},
         "versus": {"won": 4, "lost": 3, "last_at": 1731000000}, "friend": FRIEND})
 }
 
@@ -294,7 +294,7 @@ fn a_card_says_what_its_player_shows_and_only_what_there_is() {
     // A style with only a region says only that, and a worn title alone.
     let some = PlayerCard {
         style: Style {
-            region: Some("use1".into()),
+            region: Some("nac".into()),
             ..Style::default()
         },
         worn: Worn {
@@ -304,7 +304,7 @@ fn a_card_says_what_its_player_shows_and_only_what_there_is() {
         ..plain
     };
     let wire = serde_json::to_value(&some).unwrap();
-    assert_eq!(wire["style"], json!({"region": "use1"}));
+    assert_eq!(wire["style"], json!({"region": "nac"}));
     assert_eq!(wire["worn"], json!({"title": "rank"}));
 }
 
@@ -368,7 +368,7 @@ fn a_card_with_a_value_it_cannot_hold_is_refused() {
             "region",
             PlayerCard {
                 style: Style {
-                    region: Some("EUC1".into()),
+                    region: Some("EUW".into()),
                     ..Style::default()
                 },
                 ..good.clone()
@@ -422,7 +422,7 @@ fn save() -> CardSave {
     read(
         &json!({"listing": {"name": "Player 1", "country": "DE"}, "main": 3,
         "worn": {"title": "matches", "icon": "streak"}, "pins": ["rank", "wins"],
-        "style": {"device": 2, "link": 1, "region": "euc1", "looking": 34}}),
+        "style": {"device": 2, "link": 1, "region": "euw", "looking": 34}}),
     )
 }
 
@@ -434,7 +434,7 @@ fn a_card_save_is_checked_before_it_is_sent_or_stored() {
         serde_json::to_value(&good).unwrap(),
         json!({"listing": {"name": "Player 1", "country": "DE"}, "main": 3,
             "worn": {"title": "matches", "icon": "streak"}, "pins": ["rank", "wins"],
-            "style": {"device": 2, "link": 1, "region": "euc1", "looking": 34}})
+            "style": {"device": 2, "link": 1, "region": "euw", "looking": 34}})
     );
     // Only the listing is needed; the rest says nothing.
     let bare: CardSave = read(&json!({"listing": {"name": "Player 1"}}));
@@ -443,11 +443,19 @@ fn a_card_save_is_checked_before_it_is_sent_or_stored() {
         serde_json::to_value(&bare).unwrap(),
         json!({"listing": {"name": "Player 1"}})
     );
-    // Four pins, two bits, the last device and link, every known region.
+    // Four pins, two bits, the last device and link, every area.
+    for area in crate::area::Area::NAMES {
+        let mut each = good.clone();
+        each.style.region = Some(area.into());
+        assert!(each.check().is_ok(), "{area}");
+        assert_eq!(each.style.stored_region(), Some(area));
+    }
+    // A Nightly from before areas sent its relay's code: taken, and stored as none.
     for region in crate::relay::REGIONS {
         let mut each = good.clone();
         each.style.region = Some(region.into());
         assert!(each.check().is_ok(), "{region}");
+        assert_eq!(each.style.stored_region(), None, "{region}");
     }
     let mut edge = good.clone();
     edge.pins = ["a", "b", "c", "d"].map(String::from).to_vec();

@@ -212,7 +212,7 @@ std::size_t Saves(const Journey& j) {
 void EditCardChoicesJourney() {
  Journey j;
  j.h.view.ownLink = NetworkLink::Wired;
- j.h.view.netReport.reported = true; j.h.view.netReport.relay = "euc1";
+ j.h.view.netReport.reported = true; j.h.view.netReport.relay = "use1"; j.h.view.automaticArea = Area::EuropeWest;
  Answer(j);
  // Five families reached: matches, wins, streak, rank and (from the five fighters played) cast.
  Counters(j, 120, 3, 3, 5);
@@ -256,7 +256,7 @@ void EditCardChoicesJourney() {
  Check(save && !save->preferences.cardShowLink && j.row("card-link")->value == loc::T("card.hidden"), "Left did not hide the connection");
  save = change("card-link", MenuInput::Right);
  Check(save && save->preferences.cardShowLink && j.row("card-link")->value == loc::Tf("card.shown", loc::T("style.wired")), "Right did not show the connection");
- Check(j.row("card-region") && j.row("card-region")->value == loc::Tf("card.shown", loc::T("network.region_euc1")), "Region does not read the relay region Ember picked");
+ Check(j.row("card-region") && j.row("card-region")->value == loc::Tf("card.shown", loc::T("area.euw")), "Region does not read the player's area, whatever relay Ember picked");
  save = change("card-region", MenuInput::Left);
  Check(save && !save->preferences.cardShowRegion && j.row("card-region")->value == loc::T("card.hidden"), "Left did not hide the region");
 

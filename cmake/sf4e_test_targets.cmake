@@ -151,6 +151,8 @@ sf4e_add_unit_test(NAME GameLanguage SOURCES "src/tests/game_language_test.cxx" 
 add_executable(CountriesTest "src/tests/countries_test.cxx")
 target_link_libraries(CountriesTest PRIVATE sf4e_localization nlohmann_json::nlohmann_json)
 add_test(NAME Countries COMMAND CountriesTest "${CMAKE_SOURCE_DIR}" "$<TARGET_FILE_DIR:Sidecar>")
+# The areas: their table, neighbours and the saved choice.
+sf4e_add_unit_test(NAME Area SOURCES "src/tests/area_test.cxx" TIMEOUT 15)
 
 sf4e_add_unit_test(NAME LobbyMusic SOURCES "src/tests/lobby_music_test.cxx" LIBS sf4e_selection STD 17 TIMEOUT 15)
 

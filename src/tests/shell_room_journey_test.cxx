@@ -252,10 +252,10 @@ static void RoomBoardJourneys() {
   Check(row("relay")!=rows.end()&&row("network")!=rows.end()&&row("relay")->info&&row("network")->info,"Online lacks the relay and network rows");
   Check(row("relay")->value==loc::T("connection.checking")&&row("network")->value==loc::T("connection.checking"),"Unreported network is not shown as checking");
   h.view.netReport.reported=true;h.view.netReport.relay="euc1";h.view.netReport.relayConnected=true;h.view.netReport.nat=NatClass::Strict;h.Frame();
-  Check(row("relay")->value==loc::Tf("network.relay_connected",loc::T("network.region_euc1"))&&row("network")->value==loc::T("network.nat_strict")&&
+  Check(row("relay")->value==loc::Tf("network.relay_connected",loc::T("network.relay_euc1"))&&row("network")->value==loc::T("network.nat_strict")&&
    row("network")->detail==loc::T("network.nat_detail_strict"),"Online shows the wrong relay or network class");
   h.view.netReport.relayConnected=false;h.view.netReport.nat=NatClass::NoUdp;h.view.netReport.captivePortal=true;h.Frame();
-  Check(row("relay")->value==loc::Tf("network.relay_connecting",loc::T("network.region_euc1"))&&row("network")->value==loc::T("network.nat_no_udp")&&
+  Check(row("relay")->value==loc::Tf("network.relay_connecting",loc::T("network.relay_euc1"))&&row("network")->value==loc::T("network.nat_no_udp")&&
    row("network")->detail.find(loc::T("network.captive_portal"))!=std::string::npos,"A disconnected relay or captive portal is not shown");
   h.view.controllerReady=h.view.canOpenRoom=false;h.Frame();
   Check(!row("create")->enabled&&row("create")->quiet&&row("create")->detail==loc::T("room.controller_required")&&row("public-rooms")->detail==loc::T("room.controller_required"),"Online rows without a controller do not ask for one");

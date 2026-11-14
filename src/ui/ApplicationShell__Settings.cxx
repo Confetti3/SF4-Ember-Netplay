@@ -9,6 +9,7 @@
 // one builder a panel may share, so every row keeps its id and the shell's
 // handlers serve both.
 #include "ApplicationShell.hxx"
+#include "AreaNames.hxx"
 #include "CardEditRows.hxx"
 #include "ControllersScreen.hxx"
 #include "LineIcons.hxx"
@@ -101,7 +102,7 @@ public:
     // The tabs in order, each with its panels in the order its rail shows them.
     static const std::vector<Tab>& Tabs() {
         using I = LineIcon;
-        static const SettingsPanel controls{"controls", "screen.player", I::User, &Controls}, country{"country", "settings.country", I::World, &Country},
+        static const SettingsPanel controls{"controls", "screen.player", I::User, &Controls}, country{"country", "settings.place", I::World, &Country},
             profile{"profile", "home.profile", I::Id, &Profile, &ProfileCard}, defaults{"defaults", "screen.defaults", I::Adjustments, &Defaults},
             trainingReplays{"training-replays", "settings.training_replays", I::Movie, &TrainingReplays, &PictureSpot},
             look{"look", "settings.group.look", I::Palette, &Look}, gameThemes{"game-themes", "settings.group.game_themes", I::Brush, &GameThemeParts}, matchHud{"match-hud", "settings.match_hud", I::LayoutNavbar, &MatchHud, &MatchHudPicture},
@@ -158,11 +159,15 @@ public:
             v.session.room == netplay::RoomState::Idle, v.padLayer);
     }
     static Entries ControllerList(Shell&, const ShellView& v) { return ControllerRows(v.padLayer, v.pads, v.canChangeController, v.canEditPreferences); }
-    // The flag beside the player's name; Select opens the country picker.
+    // The flag beside the player's name, where Select opens the country picker, and the
+    // area they play from, which Left and Right step and Select lists (AreaChoiceTexts).
     static Entries Country(Shell& s, const ShellView& v) {
         auto row = Row("country", loc::T("settings.country"), v.canEditPreferences ? loc::T("settings.country_detail") : Reason(v), v.canEditPreferences);
         row.value = CountryPicker::ChoiceText(s.preferences_.country, v.automaticCountry);
-        return {row};
+        auto area = Value("area", loc::T("settings.area"), AreaChoiceText(s.preferences_.area, v.automaticArea),
+            v.canEditPreferences ? loc::T("settings.area_detail") : Reason(v), v.canEditPreferences);
+        OfferSteps(area, AreaChoiceTexts(v.automaticArea));
+        return {row, area};
     }
     // The rows Profile and Edit card share.
     static MenuEntry NameRow(Shell& s, const ShellView& v) { return TextRow("name", loc::T("profile.player_name"), s.preferences_.displayName, 31, v.canEditPreferences); }
@@ -219,7 +224,7 @@ public:
         const auto measured = CardMeasured(v);
         return card_edit::LookingEntries({s.preferences_, measured, v.canEditPreferences});
     }
-    // What the game measures for the card: the controller, the connection, the relay region and the counters.
+    // What the game measures for the card: the controller, the connection, Windows' area and the counters.
     static card_edit::Measured CardMeasured(const ShellView& v) { return card_edit::MeasuredOf(v, AwardCounters(v)); }
     // A card row's press, saved like any setting. One that passes a limit changes nothing and says why.
     static void CardChanged(Shell& s, const card_edit::Change& change, const netplay::PlayerPreferences& prior) {
@@ -689,6 +694,7 @@ bool ApplicationShell::AdjustSetting(netplay::PlayerPreferences& p, const MenuAc
     else if (id == "arrange-tables") p.roomTableGrid = a.delta > 0;
     else if (id == "arrange-pictures") p.roomCharacterPictures = a.delta > 0;
     else if (id == "tv") p.tvMode = a.delta > 0;
+    else if (id == "area") p.area = p.area.Stepped(a.delta);
     else if (id == "picture-corner") p.pictureSpot = p.pictureSpot / 4 * 4 + (p.pictureSpot % 4 + 4 + a.delta) % 4;
     else if (id == "picture-size") p.pictureSpot = p.pictureSpot % 4 + 4 * clamp(p.pictureSpot / 4 + a.delta, 0, 2);
     else if (id == "watched-picture" || id == "arrange-picture") p.pictureMode = clamp(p.pictureMode + a.delta, PictureSmall, PictureOff);

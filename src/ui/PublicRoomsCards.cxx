@@ -1,5 +1,6 @@
 #include "PublicRoomsCards.hxx"
 #include "ApplicationShell.hxx"
+#include "AreaNames.hxx"
 #include "GameMenu.hxx"
 #include "MenuProbes.hxx"
 #include "MenuRows.hxx"
@@ -183,23 +184,23 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
     Text(ImVec2(nameX, nameY), nameFont, ink, Elide(nameFont, e.label, rightLimit - nameX));
     ImGui::PopFont();
 
-    // Line 2: the host and the region, and a mark when the room is near.
-    const std::string region = room.region.empty() ? std::string() : PublicRoomsPanel::RegionLabel(room.region);
-    const std::string known = PublicRoomsPanel::KnownRegion(v);
-    const bool near = !known.empty() && room.region == known;
+    // Line 2: the host and the creator's area, and a mark when the room is near
+    // the player's own. A room without an area names no place.
+    const std::string place = AreaName(room.area);
+    const bool near = AreaNear(PublicRoomsPanel::HomeArea(v), room.area);
     const std::string nearText = loc::T("public.near_you");
     const float nearWidth = near ? ChipWidth(nearText.c_str(), lineWidth * .45f) : 0;
     const float metaWidth = lineWidth - (near ? nearWidth + 8 * s : 0);
     std::string meta;
     float interfaceWidth = 0;
     if (visible && !room.hostName.empty()) NoteUserText(room.hostName);
-    if (!room.hostName.empty() && !region.empty()) {
-        interfaceWidth = Measure(metaFont, loc::Tf("public.card_meta", "", region).c_str());
+    if (!room.hostName.empty() && !place.empty()) {
+        interfaceWidth = Measure(metaFont, loc::Tf("public.card_meta", "", place).c_str());
         const std::string host = Elide(metaFont, room.hostName, metaWidth - interfaceWidth);
-        if (host.empty()) { meta = region; interfaceWidth = Measure(metaFont, region.c_str()); }
-        else meta = loc::Tf("public.card_meta", host, region);
+        if (host.empty()) { meta = place; interfaceWidth = Measure(metaFont, place.c_str()); }
+        else meta = loc::Tf("public.card_meta", host, place);
     } else if (!room.hostName.empty()) meta = Elide(metaFont, room.hostName, metaWidth);
-    else { meta = region; interfaceWidth = Measure(metaFont, region.c_str()); }
+    else { meta = place; interfaceWidth = Measure(metaFont, place.c_str()); }
     const float chipY = metaY + (metaFont - 20 * s) * .5f;
     if (!meta.empty()) {
         if (interfaceWidth > 0) ReportMenuText("pr-room-meta", metaFont, 20 * s, interfaceWidth, metaWidth);

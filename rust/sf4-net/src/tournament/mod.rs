@@ -38,6 +38,7 @@ use std::{
 
 use ember_protocol::{
     EmberId,
+    area::Area,
     encoding::Counter,
     friends::{FriendAction, FriendsSync as FriendsSyncBody},
     levels::{CardSave, CardSelector},
@@ -201,6 +202,10 @@ pub enum Request {
         /// life. Sent only when true.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         own_delay: bool,
+        /// Where the creator plays from, which the room list shows as the
+        /// room's place. Absent while their area is hidden or not set.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        area: Option<Area>,
     },
     /// The ticket and invitation for joining an open public room.
     RoomTicket {
@@ -1174,7 +1179,17 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             capacity,
             build,
             own_delay,
-        } => rooms::create(shared, &bridge_id, &name, capacity, &build, own_delay).await,
+            area,
+        } => {
+            let room = rooms::Room {
+                name: &name,
+                capacity,
+                build: &build,
+                own_delay,
+                area,
+            };
+            rooms::create(shared, &bridge_id, room).await
+        }
         Request::RoomTicket {
             bridge_id,
             room_id,

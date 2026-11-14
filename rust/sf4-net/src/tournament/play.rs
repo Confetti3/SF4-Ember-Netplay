@@ -19,6 +19,7 @@ use ember_protocol::{
     friends::FRIENDS_FEATURE,
     levels::{CLASS_BONUS_FEATURE, POINTS_FEATURE, PROFILES_FEATURE},
     report::Outcome as GameOutcome,
+    rooms::AREA_FEATURE,
     skill::RANKING_FEATURE,
 };
 use serde::de::DeserializeOwned;
@@ -76,6 +77,8 @@ pub(super) struct Features {
     pub profiles: bool,
     /// It reads a claim's `held_binding` and may answer it `Unchanged`.
     pub unchanged: bool,
+    /// It reads a room create's `area` and lists it (`rooms::AREA_FEATURE`).
+    pub room_area: bool,
     /// Where its public replay archive lists its games, when it says
     /// (`Capabilities::archive`).
     pub archive: Option<String>,
@@ -93,6 +96,7 @@ impl Features {
             friends: lists(FRIENDS_FEATURE),
             profiles: lists(PROFILES_FEATURE),
             unchanged: lists(CLAIM_UNCHANGED_FEATURE),
+            room_area: lists(AREA_FEATURE),
             archive: capabilities.archive.clone(),
         }
     }

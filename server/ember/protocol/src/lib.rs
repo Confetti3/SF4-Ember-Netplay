@@ -8,6 +8,7 @@
 //! use this one.
 pub mod api;
 pub mod archive;
+pub mod area;
 pub mod awards;
 pub mod cards;
 pub mod challenge;

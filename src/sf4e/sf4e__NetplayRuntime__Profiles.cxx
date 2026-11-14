@@ -82,7 +82,7 @@ profiles::Device AutomaticDeviceNow() {
 // What the card shows of how this player plays, as the game measures it now. The connection is read again at most once
 // a minute, and when a room is joined or left, but never while a match is played on this PC: the adapter probe runs on
 // this thread and waits on the system (under Wine it reads files), so the card keeps the last reading until the match
-// is over. The region is the relay Ember last picked.
+// is over. The region is the player's area, from Settings and Windows.
 profiles::Style OwnStyleNow(std::uint64_t nowMs) {
 	auto& signals = runtime->cardSignals;
 	const std::uint64_t epoch = UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().roomEpoch : 0;
@@ -94,11 +94,7 @@ profiles::Style OwnStyleNow(std::uint64_t nowMs) {
 		signals.linkMs = nowMs;
 		signals.linkEpoch = epoch;
 	}
-	if (runtime->room) {
-		const auto relay = NormalizeRelayRegion(runtime->room->Network().relay);
-		if (IsRelayRegionCode(relay)) signals.region = relay;
-	}
-	return profiles::OwnStyle(runtime->preferences, AutomaticDeviceNow(), signals.link, signals.region);
+	return profiles::OwnStyle(runtime->preferences, AutomaticDeviceNow(), signals.link, runtime->automaticArea);
 }
 
 // The player's card goes to the service when it changed: at start, and after Edit card saves.

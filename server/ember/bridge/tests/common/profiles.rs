@@ -366,5 +366,5 @@ pub async fn offers(bridge: &Bridge, feature: &str) -> bool {
 pub fn full_card() -> Json_ {
     json!({ "listing": { "name": "Player 1", "country": "DE" }, "main": 3,
         "worn": { "title": "matches", "icon": "streak" }, "pins": ["rank", "wins"],
-        "style": { "device": 2, "link": 1, "region": "euc1", "looking": 34 } })
+        "style": { "device": 2, "link": 1, "region": "euw", "looking": 34 } })
 }

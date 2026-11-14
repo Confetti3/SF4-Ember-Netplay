@@ -15,4 +15,15 @@ inline CountryPreference ReadCountryPreference(const nlohmann::json& saved) {
 inline void WriteCountryPreference(const PlayerPreferences& value, nlohmann::json& saved) {
     saved["country"] = value.country.ToString();
 }
+// The saved area beside it: "auto", "hidden" or an area's code. A profile from
+// before areas has none, and anything else is Automatic.
+inline AreaPreference ReadAreaPreference(const nlohmann::json& saved) {
+    if (!saved.is_object()) return {};
+    const auto found = saved.find("area");
+    if (found == saved.end() || !found->is_string()) return {};
+    return AreaPreference::Parsed(found->get<std::string>());
+}
+inline void WriteAreaPreference(const PlayerPreferences& value, nlohmann::json& saved) {
+    saved["area"] = value.area.ToString();
+}
 } }

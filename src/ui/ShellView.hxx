@@ -100,7 +100,7 @@ struct ShellView {
     bool delayLocked=false, canProbe=false, canApplyDelay=false;
     std::string probeStatus;
     RouteKind probeRoute=RouteKind::Unknown;
-    // Where a relayed route goes (a region code) and who is on the other side,
+    // Which relay a relayed route goes through (a relay code) and who is on the other side,
     // for the connection check: the opponent's name and how their network
     // reported it. netReport is this PC's own.
     std::string probeRelay, probeOpponent;
@@ -131,6 +131,8 @@ struct ShellView {
     bool checkUpdatesAtLaunch = true;
     // The country Automatic shows: Windows' region, or none.
     CountryCode automaticCountry;
+    // The area Automatic shows: from Windows' time zone and region, or none.
+    Area automaticArea = Area::None;
     // This PC's clock, unix seconds, to tell a match past its expiry (0 when unknown).
     std::uint64_t unixNow = 0;
     // The game's own config.ini as read at launch, and whether the player has

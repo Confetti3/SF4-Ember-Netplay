@@ -17,14 +17,15 @@ inline std::optional<room::RoomType> WantedType(RoomFilter::Type type) {
 	}
 }
 
-// Whether `filter` lists `room`. `home` is the region of this PC's home relay,
-// empty while it is unknown: Near then lists every region, as it cannot say
-// which are near. A room that sent no type passes the type filter only under
-// All, since it cannot be told to be of the type asked for.
-inline bool Matches(const RoomFilter& filter, const Room& room, const std::string& home) {
-	using Region = RoomFilter::Region;
-	if (filter.scope == Region::Near && !home.empty() && room.region != home) return false;
-	if (filter.scope == Region::One && room.region != filter.region) return false;
+// Whether `filter` lists `room`. `home` is the player's own area, None while it
+// is not set: Near then lists every room, as it cannot say which are near. A
+// room whose creator gave no area is never near and in no one area. A room
+// that sent no type passes the type filter only under All, since it cannot be
+// told to be of the type asked for.
+inline bool Matches(const RoomFilter& filter, const Room& room, Area home) {
+	using Place = RoomFilter::Place;
+	if (filter.scope == Place::Near && home != Area::None && !AreaNear(home, room.area)) return false;
+	if (filter.scope == Place::One && room.area != filter.area) return false;
 	if (filter.type != RoomFilter::Type::All && room.type != WantedType(filter.type)) return false;
 	if (filter.openSeats && !room.Joinable()) return false;
 	return !filter.wiredOnly || room.wiredOnly;

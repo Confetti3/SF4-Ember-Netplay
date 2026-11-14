@@ -524,12 +524,12 @@ void ApplicationShell::AnswerDialog(const Submit& submit) {
  // Any closed notice answers the update question if it is the one on show.
  if(updatePrompt_.Open()&&!menu_.NoticeOpen())FinishUpdatePrompt(result,submit);
 }
-// Quick join asks for the first room with a free seat that the room filter lists, in the player's
-// region when it is known and the filter names none. With none it offers to create one, which the
+// Quick join asks for the first room with a free seat that the room filter lists, near the player's
+// area when it is set and the filter names none. With none it offers to create one, which the
 // next frame opens.
 void ApplicationShell::QuickJoin(const ShellView& v) {
  error_.clear();
- if(const auto id=publicRooms_.QuickPick(v,PublicRoomsPanel::KnownRegion(v),preferences_.roomFilter)){
+ if(const auto id=publicRooms_.QuickPick(v,PublicRoomsPanel::HomeArea(v),preferences_.roomFilter)){
   if(publicRooms_.Join(*id))menu_.navigation.Prefer("pr-room:"+*id);
   return;
  }

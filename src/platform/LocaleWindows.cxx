@@ -55,4 +55,10 @@ CountryCode WindowsCountry() {
     if (!GetGeoInfoW(nation, GEO_ISO2, code, static_cast<int>(sizeof(code) / sizeof(code[0])), 0)) return {};
     return CountryFromGeoIso2(code);
 }
+
+std::string WindowsTimeZone() {
+    DYNAMIC_TIME_ZONE_INFORMATION zone = {};
+    if (GetDynamicTimeZoneInformation(&zone) == TIME_ZONE_ID_INVALID) return {};
+    return WideToUtf8(zone.TimeZoneKeyName);
+}
 } }

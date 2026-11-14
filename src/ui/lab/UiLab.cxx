@@ -170,6 +170,7 @@ ui::ShellView FakeView() {
     // This PC's own confirmed online games: fewer than the account's rated games, which the bridge counts from every PC.
     view.preferences.record.wins = 312; view.preferences.record.losses = 198;
     view.automaticCountry = CountryCode::Parsed("BE");
+    view.automaticArea = Area::EuropeWest;
     view.selectionSummary = "Ryu / Original / Color 01 / Ultra I";
     // The pick the room's Ultra button and Table options' Ultra row step and open.
     view.fighterName = "Ryu"; view.ultraName = "Ultra I: Metsu Hadoken"; view.ultraSteps = view.colorSteps = true;
@@ -309,7 +310,7 @@ void RoomPoints(ui::ShellView& view, bool listed, const std::string& relationSta
         card.hasStyle = m.name != "Akira";
         card.style.device = static_cast<netplay::profiles::Device>(1 + m.id % 4);
         card.style.link = m.id % 2 ? netplay::profiles::Link::Wired : netplay::profiles::Link::WiFi;
-        card.style.region = "euc1";
+        card.style.area = Area::EuropeWest;
         card.style.looking = static_cast<std::uint8_t>(m.id % 2 ? netplay::profiles::LookingLongSets | netplay::profiles::LookingTeach : netplay::profiles::LookingRanked);
         card.worn.title = "wins"; card.worn.icon = m.id % 3 ? "streak" : "friends";
         card.awards.rival = 12; card.awards.opponents = 30;
@@ -336,16 +337,17 @@ void DrawLabBackdrop() {
     ImGui::End();
 }
 void PublicRooms(ui::ShellView& view) {
-    const auto room = [](const char* id, const char* name, const char* host, const char* region, unsigned members, unsigned capacity, unsigned playing) {
-        netplay::publicrooms::Room r; r.id = id; r.name = name; r.hostName = host; r.region = region; r.members = members; r.capacity = capacity; r.playing = playing;
+    const auto room = [](const char* id, const char* name, const char* host, Area area, unsigned members, unsigned capacity, unsigned playing) {
+        netplay::publicrooms::Room r; r.id = id; r.name = name; r.hostName = host; r.area = area; r.members = members; r.capacity = capacity; r.playing = playing;
         r.hasDetails = true; r.setFormat = 2; r.rotation = 0; r.createdAt = 100; r.type = room::RoomType::Classic;
         for (unsigned i = 0; i < members; ++i) r.fighters.push_back(static_cast<int>(i * 5 % 44));
         return r;
     };
     auto& list = view.publicRooms;
     list.bridge = "brg_1"; list.loading = false; list.listedAt = 1300; ++list.listed;
-    list.rooms = {room("a", "EU Monday Night Fights", "Katie", "euc1", 6, 8, 2), room("b", "Ultra only, AE2012 welcome", "Daigo-fan", "euc1", 3, 4, 1),
-        room("c", "Beginners, ask anything", "Sven", "euc1", 2, 12, 0), room("d", "East coast casuals", "Marn", "use1", 8, 8, 3), room("e", "Tokyo late night", "Kaz", "aps1", 5, 10, 2)};
+    // Rooms in the player's area (Europe West), next to it, far from it, and one whose creator hid theirs.
+    list.rooms = {room("a", "EU Monday Night Fights", "Katie", Area::EuropeWest, 6, 8, 2), room("b", "Ultra only, AE2012 welcome", "Daigo-fan", Area::EuropeEast, 3, 4, 1),
+        room("c", "Beginners, ask anything", "Sven", Area::None, 2, 12, 0), room("d", "East coast casuals", "Marn", Area::NaEast, 8, 8, 3), room("e", "Tokyo late night", "Kaz", Area::EastAsia, 5, 10, 2)};
     // Each type of room on the board: Arcade cabinets and a King of the hill among the Classic tables.
     list.rooms[0].type = room::RoomType::Arcade; list.rooms[4].type = room::RoomType::King;
 }

@@ -152,7 +152,7 @@ Bundle Sample() {
 	bundle.pins = {"wins", "rival"};
 	bundle.style.device = Device::Stick;
 	bundle.style.link = Link::Wired;
-	bundle.style.region = "euc1";
+	bundle.style.area = Area::EuropeWest;
 	bundle.style.looking = LookingLongSets | LookingTeach;
 	return bundle;
 }
@@ -182,7 +182,7 @@ void TheCardIsSavedOnlyOnAChange() {
 		if (part == 2) other.main = 4;
 		if (part == 3) other.worn.icon = "streak";
 		if (part == 4) other.pins.pop_back();
-		if (part == 5) other.style.region.clear();
+		if (part == 5) other.style.area = Area::None;
 		EXPECT(other != bundle && saver.Due("brg_1", "emb_1", other, Saver::MinGapMs));
 	}
 	// Another service or Ember ID is a new card to save, at once.
@@ -230,26 +230,30 @@ PlayerPreferences Prefs() {
 	return preferences;
 }
 
-// What the card says of how the player plays: Automatic or the chosen device, the measured link and the region only
-// while shown, and what the player is looking for.
+// What the card says of how the player plays: Automatic or the chosen device, the measured link and the player's
+// area only while shown, and what the player is looking for.
 void TheStyleComesFromPreferencesAndMeasures() {
 	auto preferences = Prefs();
-	auto style = OwnStyle(preferences, Device::Stick, NetworkLink::Wired, "euc1");
-	EXPECT(style.device == Device::Stick && style.link == Link::Wired && style.region == "euc1" && style.looking == 0);
+	auto style = OwnStyle(preferences, Device::Stick, NetworkLink::Wired, Area::EuropeWest);
+	EXPECT(style.device == Device::Stick && style.link == Link::Wired && style.area == Area::EuropeWest && style.looking == 0);
 	preferences.cardDevice = 3;
 	preferences.cardLooking = LookingCasuals | LookingNew;
-	style = OwnStyle(preferences, Device::Stick, NetworkLink::Wireless, "usw1");
-	EXPECT(style.device == Device::Leverless && style.link == Link::WiFi && style.region == "usw1" && style.looking == 17);
+	// An area the player chose wins over Windows'.
+	preferences.area = AreaPreference::Of(Area::SouthAmerica);
+	style = OwnStyle(preferences, Device::Stick, NetworkLink::Wireless, Area::EuropeWest);
+	EXPECT(style.device == Device::Leverless && style.link == Link::WiFi && style.area == Area::SouthAmerica && style.looking == 17);
 	preferences.cardDevice = 5;
 	preferences.cardShowLink = false;
 	preferences.cardShowRegion = false;
-	style = OwnStyle(preferences, Device::Stick, NetworkLink::Wired, "euc1");
-	EXPECT(style.device == Device::None && style.link == Link::None && style.region.empty() && style.looking == 17);
-	// Not measured, or no relay region known: not shown, whatever the player allows.
+	style = OwnStyle(preferences, Device::Stick, NetworkLink::Wired, Area::EuropeWest);
+	EXPECT(style.device == Device::None && style.link == Link::None && style.area == Area::None && style.looking == 17);
+	// An area hidden in Settings is not on the card, even while the card shows its region.
 	preferences = Prefs();
-	style = OwnStyle(preferences, Device::None, NetworkLink::Unknown, "other");
-	EXPECT(!style.Any());
-	style = OwnStyle(preferences, Device::None, NetworkLink::Unknown, "");
+	preferences.area = AreaPreference::Hidden();
+	EXPECT(OwnStyle(preferences, Device::None, NetworkLink::Unknown, Area::EuropeWest).area == Area::None);
+	// Not measured, or no area set: not shown, whatever the player allows.
+	preferences = Prefs();
+	style = OwnStyle(preferences, Device::None, NetworkLink::Unknown, Area::None);
 	EXPECT(!style.Any());
 }
 
@@ -276,7 +280,7 @@ void TheBundleHoldsWhatTheCatalogKnows() {
 void TheRequestsHaveTheShapesTheHelperReads() {
 	const json save = {{"op", "card_save"}, {"bridge_id", "brg_1"}, {"card", {
 		{"listing", {{"name", "Player 1"}, {"country", "DE"}}}, {"main", 3}, {"worn", {{"title", "matches"}}},
-		{"pins", json::array({"wins", "rival"})}, {"style", {{"device", 2}, {"link", 1}, {"region", "euc1"}, {"looking", 34}}}}}};
+		{"pins", json::array({"wins", "rival"})}, {"style", {{"device", 2}, {"link", 1}, {"region", "euw"}, {"looking", 34}}}}}};
 	EXPECT(CardSaveRequest("brg_1", Sample()) == save);
 	// Nothing worn, nothing pinned, no flag, no region, no main: empty members, not absent ones the bridge would keep.
 	Bundle bare;
