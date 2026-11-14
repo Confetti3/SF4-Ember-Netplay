@@ -62,6 +62,13 @@ private:
 // bridge rates classes and counts fighter levels from. A room keeps its newest
 // MaximumWonGames, which the room host reports on every status.
 constexpr std::size_t MaximumWonGames = 32;
+// The most the games array may weigh as the room host writes it: the limit
+// every deployed room supervisor accepts. A supervisor from before 1.6.0
+// drops a larger array whole, and with it every game of that report, so a
+// room keeps only the newest games that fit (TrimWonGames). 32 games that
+// name their fighters can reach 6849 bytes; about 28 of the longest fit, and
+// the bridge counts each game once, the first time a report carries it.
+constexpr std::size_t MaximumWonGamesBytes = 6144;
 // The most games before a game in its battle (room::Action::game, WonGame::game).
 constexpr std::uint32_t MaximumGameInBattle = 1000;
 struct WonGame {

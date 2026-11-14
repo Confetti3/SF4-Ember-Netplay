@@ -155,9 +155,21 @@ stays far under `MaximumStatusLineBytes` (about 44 KB of 60,000).
 `MaximumWonGames` stays 32: lowering it would refuse checkpoints written
 before (`LoadServerOwned` checks the size).
 
-**Deploy order.** Supervisor and bridge first, then publish the room host. An
-older supervisor drops a whole games array over 6,144 bytes, which a busy
-1.6.0 room could reach, and its games would be neither rated nor counted.
+**Deploy order.** Any. An older supervisor (and an older bridge) drops a whole
+games array over 6,144 bytes, so the room itself keeps only the newest games
+whose array fits that (`MaximumWonGamesBytes`, `TrimWonGames` in
+`src/common/SkillBadgeJson.hxx`): at worst 28 of the longest games, otherwise
+up to 32. The 8,192-byte limits above are headroom, not a requirement.
+
+Dropping the oldest is safe. The bridge counts a game the first time a report
+carries it (`INSERT OR IGNORE INTO rated_games` in `skill::record_games`) and
+never takes one back, so a game that later falls out of the list stays
+counted. The room host writes a status line as soon as a game ends, and the
+bridge reads every room's latest line every 5 seconds (`POLL_SECS`); a room has
+at most 8 tables, each game takes far longer than 5 seconds, so at most 8 new
+games arrive between two reads, well under the 28 kept. A game is lost unread
+only while the bridge or the supervisor stays down long enough for 28 newer
+games to end, as with the 32 kept before.
 
 ### Older room hosts
 
