@@ -48,8 +48,8 @@ netplay::archive::Game DecodeArchiveGame(const json& entry) {
 	game.url = Text(entry, "url", limits::MaxUrl);
 	if (game.url.empty()) throw std::invalid_argument("url");
 	game.crc = ArchiveText(entry, "crc", 8);
-	game.savedAt = OptionalSeconds(entry, "saved_at");
-	game.size = OptionalSeconds(entry, "size");
+	game.savedAt = LenientCount(entry, "saved_at");
+	game.size = LenientCount(entry, "size");
 	Pair(entry, "fighters", [&](int side, const json& value) { game.fighters[side] = Whole(value, 0, 255, -1); });
 	Pair(entry, "names", [&](int side, const json& value) { if (value.is_string()) game.names[side] = SingleLine(value.get<std::string>()).substr(0, MaxArchiveText); });
 	Pair(entry, "countries", [&](int side, const json& value) {
