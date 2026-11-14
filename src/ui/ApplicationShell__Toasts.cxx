@@ -132,7 +132,7 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
   const ImU32 tone=ImGui::ColorConvertFloat4ToU32(ToneColor(t.tone));
   d->AddRectFilled({a.x,a.y+8*s},{b.x,b.y+8*s},v2::color::Alpha(c.ink,.5f),4*s);
   d->AddRectFilled(a,b,v2::PanelGround(),4*s);
-  d->AddRect(a,b,c.border,4*s,0,s);
+  d->AddRect(a,b,c.border,4*s,0,Hairline());
   d->AddRectFilled(a,{a.x+4*s,b.y},tone,4*s,ImDrawFlags_RoundCornersLeft);
   if(t.id==toastFocus_&&!modal)v2::Focus(d,a,b);
   ToneMark(d,{a.x+pad+icon*.5f,a.y+12*s+icon*.5f},8*s,t.tone,tone);
@@ -169,7 +169,7 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
     if(ImGui::InvisibleButton("##act",{q.x-p.x,button}))toastAsked_={t.id,i};
     const bool hovered=ImGui::IsItemHovered();ImGui::PopID();
     d->AddRectFilled(p,q,hovered?c.hover:first?c.button:v2::color::Alpha(c.button,0),4*s);
-    d->AddRect(p,q,first?c.hover:c.border,4*s,0,s);
+    d->AddRect(p,q,first?c.hover:c.border,4*s,0,Hairline());
     const ImVec2 k(p.x+12*s,p.y+(button-keySize)*.5f);
     if(key)DrawPromptGlyph(d,key,k,keySize,MenuArt(),s);
     d->AddText(font,labelSize,{k.x+mark,p.y+(button-labelSize)*.5f},first?c.text:c.muted,label.c_str());

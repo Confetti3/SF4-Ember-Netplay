@@ -139,6 +139,7 @@ public:
 		sent_ = true;
 		lastSentMs_ = nowMs;
 		batch_ = batch;
+		sentGeneration_ = generation_;
 		flight_ = {id, nowMs};
 		if (!id) Finish("helper_unavailable", std::nullopt);
 	}
@@ -148,9 +149,9 @@ public:
 	// unanswered are asked again after the gap.
 	void Finish(const std::string& failure, std::optional<std::vector<std::optional<Card>>> answers) {
 		const auto batch = std::move(batch_);
-		const auto overtaken = std::move(overtaken_);
+		// Asked before a friends action went through (Refresh): older than what the cards show.
+		const bool overtaken = sentGeneration_ != generation_;
 		batch_.clear();
-		overtaken_.clear();
 		flight_ = {};
 		error_ = failure;
 		if (failure == Unavailable) unavailable_ = true;
@@ -158,8 +159,8 @@ public:
 		for (std::size_t i = 0; i < batch.size(); ++i) {
 			if (!Wanted(batch[i])) continue;
 			// An answer asked before a friends action went through is older than what the card shows: kept, and asked again.
-			if (overtaken.count(batch[i]) && entries_.count(batch[i])) { entries_[batch[i]].stale = true; continue; }
-			entries_[batch[i]] = {std::move((*answers)[i]), overtaken.count(batch[i]) != 0};
+			if (overtaken && entries_.count(batch[i])) { entries_[batch[i]].stale = true; continue; }
+			entries_[batch[i]] = {std::move((*answers)[i]), overtaken};
 		}
 		Publish();
 	}
@@ -173,7 +174,7 @@ public:
 	// asked before the action, does not stand for the cards it names.
 	void Refresh() {
 		for (auto& entry : entries_) entry.second.stale = true;
-		overtaken_.insert(batch_.begin(), batch_.end());
+		++generation_;
 	}
 	// The action named the member carrying `token` (Add friend, Accept, Block): their card shows `relation` until
 	// the look-up Refresh asked for answers. Nothing for a token without a card.
@@ -211,7 +212,6 @@ private:
 		entries_.clear();
 		sets_.clear();
 		batch_.clear();
-		overtaken_.clear();
 		flight_ = {};
 		error_.clear();
 		unavailable_ = false;
@@ -227,8 +227,8 @@ private:
 	std::map<std::string, Entry> entries_;
 	std::vector<std::uint64_t> sets_;
 	std::vector<std::string> batch_;
-	// The tokens of the look-up in flight that a friends action overtook (Refresh).
-	std::set<std::string> overtaken_;
+	// Refresh counts the friends actions; a look-up in flight whose generation is not the current one was asked before one.
+	std::uint64_t generation_ = 0, sentGeneration_ = 0;
 	InFlight flight_;
 	bool sent_ = false, unavailable_ = false;
 	std::uint64_t lastSentMs_ = 0, refreshAtMs_ = 0;
