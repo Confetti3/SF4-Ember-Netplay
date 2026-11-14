@@ -1,3 +1,4 @@
+#include "../ui/PromptDevice.hxx"
 #include "shell_journey_support.hxx"
 namespace {
 // A deciding Arcade pair's prompt on a DirectInput stick, which has no
@@ -159,10 +160,52 @@ static void PostMatchRematchAfterNewOpponent() {
  Check(a.actions.size()==answered+1&&RoomActionIs(a.actions.back(),room::ActionKind::Rematch),"Rematch after New opponent did not answer the room");
  SetMenuEntriesProbe({});SetMenuCardTextProbe({});
 }
+// The device the prompts name changes on a press and on nothing else: pad frames then idle ones keep the pad, a key press
+// switches to the keyboard, a pad button back, and a held button or key is no new press.
+static void PromptDeviceDecision() {
+ using sf4e::ui::PromptDevice;
+ PromptDevice device;
+ const unsigned key=MenuInput::Select,pad=MenuInput::Down;
+ for(int frame=0;frame<3;++frame)device.Note(0,false,frame?pad:0);
+ Check(!device.Keyboard(),"Pad frames showed the keyboard");
+ for(int frame=0;frame<30;++frame)device.Note(0,false,0);
+ Check(!device.Keyboard(),"Idle frames changed the prompts");
+ device.Note(key,false,0);
+ Check(device.Keyboard(),"A key press did not show the keyboard");
+ for(int frame=0;frame<30;++frame)device.Note(key,false,0);
+ Check(device.Keyboard(),"A key held changed the prompts");
+ device.Note(key,false,pad);
+ Check(!device.Keyboard(),"A pad button did not show the pad");
+ for(int frame=0;frame<30;++frame)device.Note(key,false,pad);
+ Check(!device.Keyboard(),"A key and a button held changed the prompts");
+ device.Note(key,true,pad);
+ Check(device.Keyboard(),"Typing did not show the keyboard");
+}
+// A key held while a text screen opens and closes (the keys the menu reads change with it) is no new press: the pad's prompts stay.
+static void PromptsKeepThePad() {
+ using namespace sf4e;
+ Harness h;
+ SetMenuGlyphs(input::PadXInput,input::xinput::A,input::xinput::B);
+ NoteMenuDevice(0);NoteMenuDevice(MenuInput::Down);NoteMenuDevice(0);
+ Check(!KeyboardPrompts(),"A pad press did not show the pad's prompts");
+ ImGui::GetIO().AddKeyEvent(ImGuiKey_Space,true);h.Frame();
+ ReadMenuInput(false,false,0);
+ Check(KeyboardPrompts(),"A key press did not show the keyboard's prompts");
+ ReadMenuInput(false,false,MenuInput::Down);
+ Check(!KeyboardPrompts(),"A pad button after a key did not show the pad's prompts");
+ for(int frame=0;frame<6;++frame){
+  ReadMenuInput(false,frame%2==0,MenuInput::Down);
+  Check(!KeyboardPrompts(),"A text screen opening over a held key changed the prompts");
+ }
+ ImGui::GetIO().AddKeyEvent(ImGuiKey_Space,false);h.Frame();
+ SetMenuGlyphs(input::PadKeyboard,0,0);
+}
 // Each journey has its own harness, one ImGui context at a time.
 void ButtonPromptJourneys() {
  ButtonPromptsRow();
  DecidingPromptOnStick();
  PostMatchUltra();
  PostMatchRematchAfterNewOpponent();
+ PromptDeviceDecision();
+ PromptsKeepThePad();
 }
