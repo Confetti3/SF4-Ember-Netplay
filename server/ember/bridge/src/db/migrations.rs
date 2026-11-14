@@ -224,7 +224,8 @@ fn settle_unnamed_055(tx: &Transaction<'_>) -> Result<(), OpenError> {
     Err(OpenError::Migration(
         "migration 055 is recorded without a file name, and the database has neither the \
          archive listing index of 055_archive_listing.sql nor only the column of the old \
-         055_room_wired_only.sql"
+         055_room_wired_only.sql. Nothing was changed: start the bridge build that ran \
+         before this deploy again, or restore the database backup taken just before it"
             .into(),
     ))
 }
@@ -255,7 +256,9 @@ fn check_records(tx: &Transaction<'_>, migrations: &[Migration]) -> Result<(), O
             return Err(OpenError::Migration(format!(
                 "the database recorded migration {version:03} without a file name, which only a \
                  bridge of another line writes: this bridge's files above \
-                 {LAST_UNNAMED_VERSION:03} are always recorded by name"
+                 {LAST_UNNAMED_VERSION:03} are always recorded by name. Nothing was changed: \
+                 start the bridge build that ran before this deploy again, or restore the \
+                 database backup taken just before it"
             )));
         }
         let Some(migration) = migrations
@@ -358,8 +361,10 @@ fn refuse_other_games(tx: &Transaction<'_>) -> Result<(), OpenError> {
     }
     Err(OpenError::Migration(format!(
         "the database holds rows of another game than usf4 in {}: this bridge is USF4's alone \
-         and would list and rate them as its own. Run clear-sfv-rows.py (the shared library's \
-         server/sfv-bridge) on it first, with this bridge stopped",
+         and would list and rate them as its own. Nothing was changed. Keep this bridge \
+         stopped, back the database up, run clear-sfv-rows.py (the shared library's \
+         server/sfv-bridge) on it, then start this bridge again \
+         (server/ember/bridge/deploy/UPGRADE-1.6.0.md)",
         found.join(", ")
     )))
 }
