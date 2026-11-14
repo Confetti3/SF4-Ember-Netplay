@@ -1,5 +1,5 @@
 //! Profile search (docs/design/PROFILE.md): players are found by name or friend code, never
-//! listing someone who blocked the caller or has no Discord account.
+//! listing someone who blocked the caller, has no Discord account or turned friends off.
 
 mod common;
 
@@ -120,6 +120,53 @@ async fn a_search_lists_nobody_who_blocked_the_caller_or_has_no_discord_account(
         .await;
     let (names, _) = world.found(&caller, json!({ "name": "Rex" })).await;
     assert_eq!(names, ["Rex 3"]);
+}
+
+/// Turning friends off is how a player leaves search (docs/design/PROFILE.md,
+/// "Migration 064"): by name as by code. Their card row stays, and is still
+/// served from a room's token; leaving the ranking hides nobody.
+#[tokio::test]
+async fn a_player_with_friends_off_is_not_found_by_name_and_keeps_their_card() {
+    let world = World::start().await;
+    let caller = world.joined(1, 1, "Player 1").await;
+    let rex = world.joined(2, 2, "Rex").await;
+    world
+        .save(&rex, json!({ "listing": { "name": "Rex" }, "main": 7 }))
+        .await;
+    let (names, _) = world.found(&caller, json!({ "name": "Rex" })).await;
+    assert_eq!(names, ["Rex"]);
+
+    let (status, _) = world
+        .call(
+            Method::POST,
+            &rex,
+            ACTIONS_PATH,
+            Some(json!({ "action": "forget" })),
+        )
+        .await;
+    assert_ne!(status, StatusCode::OK);
+    let (names, more) = world.found(&caller, json!({ "name": "Rex" })).await;
+    assert!(names.is_empty());
+    assert!(!more);
+    assert!(world.stored(&rex.discord).await.is_some());
+    let card = world.card_of(&caller, &rex).await;
+    assert_eq!(card["name"], "Rex");
+    assert_eq!(card["main"], 7);
+
+    // Friends on again: found again.
+    world.act(&rex, json!({ "action": "turn_on" })).await;
+    let (names, _) = world.found(&caller, json!({ "name": "Rex" })).await;
+    assert_eq!(names, ["Rex"]);
+
+    // Leaving the ranking hides no one: cards are public.
+    world
+        .sql(format!(
+            "INSERT INTO ranking_choices (discord_user_id, ranked) VALUES ('{}', 0)",
+            rex.discord
+        ))
+        .await;
+    let (names, _) = world.found(&caller, json!({ "name": "Rex" })).await;
+    assert_eq!(names, ["Rex"]);
 }
 
 #[tokio::test]

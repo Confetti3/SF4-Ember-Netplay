@@ -449,8 +449,11 @@ fn found_of(row: &rusqlite::Row<'_>) -> rusqlite::Result<Found> {
 
 /// Up to `scan` accounts with a Discord account connected whose name is
 /// `name` in any case (ASCII; what SQLite's NOCASE folds), then those that
-/// begin with it, each most recently updated first. A caller drops the ones
-/// it may not list and keeps what it wants.
+/// begin with it, each most recently updated first. An account that turned
+/// friends off (`social_accounts.off`, `friends::store::forget`) is not
+/// found: turning friends off is how a player leaves search, as it is how
+/// their friend code stops naming them. A caller drops the ones it may not
+/// list and keeps what it wants.
 pub fn find_by_name(tx: &Transaction<'_>, name: &str, scan: usize) -> Result<Vec<Found>> {
     let pattern = format!(
         "{}%",
@@ -463,6 +466,8 @@ pub fn find_by_name(tx: &Transaction<'_>, name: &str, scan: usize) -> Result<Vec
             "SELECT discord_user_id, name, country, main_fighter, since FROM player_cards
              WHERE name LIKE ?1 ESCAPE '\\'
                AND EXISTS (SELECT 1 FROM discord_accounts d WHERE d.user_id = player_cards.discord_user_id)
+               AND NOT EXISTS (SELECT 1 FROM social_accounts s
+                               WHERE s.discord_user_id = player_cards.discord_user_id AND s.off = 1)
              ORDER BY name = ?2 DESC, updated_at DESC, discord_user_id LIMIT ?3",
         )?
         .query_map(params![pattern, name, scan as i64], found_of)?

@@ -700,7 +700,10 @@ pub fn new_code(tx: &Transaction<'_>, caller: &str, now: u64) -> Result<()> {
 /// blocks stay, since they protect the player and are not friends' data;
 /// blocks others placed on them are those players' own. The row, with the
 /// name, flag and main its game last sent, stays too, so turning friends on
-/// needs nothing from the game but the action.
+/// needs nothing from the game but the action. Its card (`player_cards`)
+/// stays as well and is still served to whoever holds its token from a room,
+/// but while it is off the account is found neither by name
+/// (`cards::find_by_name`) nor by code.
 pub fn forget(tx: &Transaction<'_>, caller: &str, now: u64) -> Result<()> {
     for statement in [
         "DELETE FROM friendships WHERE first = ?1",
