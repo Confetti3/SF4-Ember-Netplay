@@ -8019,6 +8019,27 @@ msgstr "Life, super and revenge bars, timer and announcements from a theme in th
 msgid "settings.game_theme_battle_hud_none"
 msgstr "No themes with a battle HUD found. Put a theme, with its battle\\hud folder inside, in the game folder's ember\\themes folder, then start the game again."
 
+msgid "settings.game_theme_risk"
+msgstr "Theme files are used as they are, and a broken one can close the game. If that happens, Ember turns that theme off at the next start."
+
+msgid "settings.game_theme_closed"
+msgstr "{0} (closed the game last time)"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0} (not used: its HUD pictures do not match)"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0} (not used: its HUD files cannot be read)"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "{0}'s HUD pictures do not match this edition's HUD layout, so it was not used. The game's own HUD is showing."
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "{0} has HUD files the game cannot read, so it was not used. The game's own HUD is showing."
+
+msgid "runtime.game_theme_turned_off"
+msgstr "{0} was turned off for {1}: the game closed while loading it."
+
 msgid "menu.pages"
 msgstr "Pages"
 

@@ -17,6 +17,17 @@ namespace sf4e {
 		// Tells the game to search ember\theme once App::init, at the game's
 		// first scene, has built its folder list: each runtime tick until then.
 		void Search();
+		// A pick that the game closed on while loading it, found at start-up: turned off for
+		// that part (platform/GameThemeGuard.hxx).
+		struct Turned { netplay::GameThemePart part; std::string theme; };
+		// Start-up, before Use: puts the game's own back for the picks that were turned off.
+		void TurnOff(std::array<std::string, netplay::GameThemePartCount>& picks);
+		// The picks turned off that the settings and the player have yet to be told of, until TurnedOffTold.
+		const std::vector<Turned>& TurnedOff();
+		void TurnedOffTold();
+		// What Settings tells the player about a theme for a part: the game closed on it
+		// and it has not loaded since, or it was refused before use.
+		netplay::GameThemeNote Note(netplay::GameThemePart part, const std::string& theme);
 		// The themes with the part, by name.
 		const std::vector<std::string>& Names(netplay::GameThemePart part);
 		// Uses each part's theme whose name changed; an empty name is the

@@ -146,6 +146,8 @@ struct ShellView {
     bool lobbyMusicAvailable = false;
     // The themes in <game>\ember\themes with each part (netplay::GameThemePart), by name.
     std::array<std::vector<std::string>, netplay::GameThemePartCount> gameThemes;
+    // What Ember knows about some of those themes (netplay::GameThemeNote), by name.
+    std::array<std::map<std::string, netplay::GameThemeNote>, netplay::GameThemePartCount> gameThemeNotes;
     std::vector<gamepads::PadView> pads;
     unsigned captureCandidate = 0;
     gamepads::SetupSnapshot padSetup;

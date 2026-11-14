@@ -15,9 +15,14 @@
 #include "spdlog/spdlog.h"
 
 #include "../Dimps/Dimps.hxx"
+#include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../platform/ApplicationServices.hxx"
+#include "../platform/DurableFile.hxx"
+#include "../platform/GameThemeGuard.hxx"
 #include "../platform/GameThemes.hxx"
+#include "../platform/HudBundleCheck.hxx"
 #include "../platform/Utf8.hxx"
+#include "../training/GameFiles.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__GameThemes.hxx"
 
@@ -32,8 +37,39 @@ struct Part {
 	// The theme last picked, once Use has run: in use, or settled as the game's
 	// own when it is gone. Unknown while the part in use could not be swapped.
 	std::optional<std::string> used;
+	// The theme whose files are in ember\theme for this part now: empty for the
+	// game's own, or when the pick could not be copied.
+	std::string loaded;
 };
 std::array<Part, sf4e::netplay::GameThemePartCount> parts;
+// The crash guard (platform/GameThemeGuard.hxx), and the picks it turned off at start-up that the
+// runtime has yet to put back in the settings and tell the player about.
+game_themes::Guard guard;
+std::vector<sf4e::GameThemes::Turned> turned;
+// The picks refused before use this session (Use), by part and theme, until one is used.
+std::array<std::map<std::string, sf4e::netplay::GameThemeNote>, sf4e::netplay::GameThemePartCount> refused;
+std::string PartFolder(int part) { return sf4e::platform::WideToUtf8(game_themes::Parts[part]); }
+// The game's own newest copy of a file of battle\hud, by the game's folders, newest first.
+std::filesystem::path GameHudFile(const std::wstring& relative) {
+	std::error_code ignored;
+	for (const char* layer : sf4e::training::GameLayers) {
+		const std::filesystem::path path = std::filesystem::path(gameDirectory) / layer / L"battle\\hud" / relative;
+		if (std::filesystem::is_regular_file(path, ignored)) return path;
+	}
+	return {};
+}
+// What a part must satisfy before it is used: the battle HUD's layouts and sheets belong together.
+const game_themes::Rules& ThemeRules() {
+	static const game_themes::Rules rules = [] {
+		game_themes::Rules made;
+		made.battleHud = [](const std::wstring& folder, std::string& reason) { return sf4e::platform::hud_bundle::Check(folder, GameHudFile, reason); };
+		return made;
+	}();
+	return rules;
+}
+void Remember() {
+	if (!game_themes::Save(gameDirectory, guard)) spdlog::warn("In-game themes: the crash guard's state could not be saved");
+}
 // Use has run once: what it does after is the player's pick.
 bool started = false;
 bool searched = false;
@@ -70,6 +106,28 @@ void sf4e::GameThemes::Start(const std::wstring& directory) {
 		parts[i].names = game_themes::Names(gameDirectory, game_themes::Parts[i]);
 		spdlog::info("In-game themes: {} with {}", parts[i].names.size(), platform::WideToUtf8(game_themes::Parts[i]));
 	}
+	// A theme still armed is one the game closed on while loading it.
+	guard = game_themes::Load(gameDirectory);
+	for (const auto& off : game_themes::Recover(guard)) {
+		for (int i = 0; i < netplay::GameThemePartCount; ++i)
+			if (PartFolder(i) == off.part) turned.push_back({ static_cast<netplay::GameThemePart>(i), off.theme });
+		spdlog::warn("In-game themes: the game closed while loading {} for {}; it is turned off", off.theme, off.part);
+	}
+	if (!turned.empty()) Remember();
+}
+
+void sf4e::GameThemes::TurnOff(std::array<std::string, netplay::GameThemePartCount>& picks) {
+	for (const auto& off : turned) if (picks[off.part] == off.theme) picks[off.part].clear();
+}
+
+const std::vector<sf4e::GameThemes::Turned>& sf4e::GameThemes::TurnedOff() { return turned; }
+
+void sf4e::GameThemes::TurnedOffTold() { turned.clear(); }
+
+netplay::GameThemeNote sf4e::GameThemes::Note(netplay::GameThemePart part, const std::string& theme) {
+	const auto found = refused[part].find(theme);
+	if (found != refused[part].end()) return found->second;
+	return game_themes::Closed(guard, PartFolder(part), theme) ? netplay::GameThemeNote::ClosedGame : netplay::GameThemeNote::None;
 }
 
 void sf4e::GameThemes::Search() {
@@ -153,12 +211,34 @@ void sf4e::GameThemes::Judge(const std::string& name, const std::string& verdict
 	std::lock_guard<std::mutex> guard(previewLock);
 	verdicts[name] = verdict;
 	if (verdict == "remove") removals.push_back(name);
-	std::ofstream(Themes() / "review.json") << nlohmann::json(verdicts).dump(1);
+	const std::string text = nlohmann::json(verdicts).dump(1);
+	const fs::path file = Themes() / "review.json";
+	if (!durable::PublishReplace(file, durable::PartialPath(file), text.data(), text.size())) spdlog::warn("In-game themes: the verdicts could not be saved");
 }
 
 void sf4e::GameThemes::Restart() { restartAsk = true; }
 
+namespace {
+// The battle HUD is read as a battle loads. A battle that is loading arms the
+// guard for the HUD theme in use, and one that has reached the fight proves it.
+// A game that closes in between leaves the mark for the next start (Start).
+void WatchBattleHud() {
+	using System = Dimps::Game::Battle::System;
+	const std::string& theme = parts[sf4e::netplay::GameThemeBattleHud].loaded;
+	System* const system = System::staticMethods.GetSingleton();
+	if (!system || theme.empty()) return;
+	const int state = *System::GetReadyState(system);
+	const std::string folder = PartFolder(sf4e::netplay::GameThemeBattleHud);
+	const bool loading = state > System::RS_START && state < System::RS_FIGHT;
+	const bool changed = state == System::RS_FIGHT ? game_themes::Prove(guard, folder, theme) : loading && game_themes::Arm(guard, folder, theme);
+	if (!changed) return;
+	spdlog::info("In-game themes: {} {} {}", folder, theme, loading ? "is loading" : "loaded");
+	Remember();
+}
+}
+
 void sf4e::GameThemes::TakePreview() {
+	WatchBattleHud();
 	if (restartAsk.exchange(false)) {
 		if (platform::StartLauncherAfterExit({})) {
 			spdlog::info("In-game themes: restarting the game");
@@ -210,7 +290,7 @@ void sf4e::GameThemes::Use(const std::array<std::string, netplay::GameThemePartC
 		if (part.used == name) continue;
 		std::string error;
 		const std::string folder = platform::WideToUtf8(game_themes::Parts[i]);
-		const game_themes::Outcome outcome = game_themes::Use(gameDirectory, game_themes::Parts[i], name, error);
+		const game_themes::Outcome outcome = game_themes::Use(gameDirectory, game_themes::Parts[i], name, error, ThemeRules());
 		if (outcome == game_themes::Outcome::Used && i == netplay::GameThemeBattleHud) {
 			for (const auto& [file, bytes] : hudFiles) {
 				std::string problem;
@@ -218,9 +298,19 @@ void sf4e::GameThemes::Use(const std::array<std::string, netplay::GameThemePartC
 					spdlog::warn("In-game themes: HUD file {} not written: {}", file, problem);
 			}
 		}
-		if (outcome == game_themes::Outcome::Used)
+		if (outcome == game_themes::Outcome::Used) {
+			part.loaded = name;
+			refused[i].erase(name);
+			// Files written over the copy are not the files that loaded before.
+			if (i == netplay::GameThemeBattleHud && !hudFiles.empty() && game_themes::Forget(guard, folder)) Remember();
 			spdlog::info("In-game themes: {} {}", folder, name.empty() ? std::string("the game's own") : name);
-		else spdlog::warn("In-game themes: {} {} could not be used: {}", folder, name, error);
+		}
+		else {
+			if (outcome != game_themes::Outcome::Unchanged) part.loaded.clear();
+			if (outcome == game_themes::Outcome::PicturesMismatch) refused[i][name] = netplay::GameThemeNote::PicturesMismatch;
+			if (outcome == game_themes::Outcome::Unreadable) refused[i][name] = netplay::GameThemeNote::Unreadable;
+			spdlog::warn("In-game themes: {} {} could not be used: {}", folder, name, error);
+		}
 		// Only a part that could not be swapped is tried again at the next pick.
 		part.used = outcome == game_themes::Outcome::Unchanged ? std::nullopt : std::optional<std::string>(name);
 		mainMenuChanged |= i == netplay::GameThemeMainMenu && outcome != game_themes::Outcome::Unchanged;

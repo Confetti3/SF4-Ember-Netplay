@@ -140,8 +140,18 @@ Ember writes what it does with themes to its log, `%APPDATA%\sf4e\logs\sf4e.log`
 | `In-game themes: the game searches ember\theme first` | The game was told to look in `ember\theme` |
 | `In-game themes: ui\main_menu Juri` | The theme's main menu was copied in (`battle\hud CvS2` for the battle HUD) |
 | `In-game themes: main menu opened again` | The main menu reloaded to show them |
-| `In-game themes: ui\main_menu Juri could not be used: ...` | Why not. A missing theme goes back to the game's own menus; a file the game had open keeps the theme you had |
+| `In-game themes: ui\main_menu Juri could not be used: ...` | Why not. A missing theme goes back to the game's own menus; a file the game had open keeps the theme you had; a part with more than 2,000 files or 512 MB, or with a link in it, is not copied |
 
 **Settings says no themes were found:** the theme folder needs its `ui` folder directly inside it (`ember\themes\Juri\ui\main_menu`, not `ember\themes\Juri\Juri\ui\main_menu`), and the game needs a restart after adding it.
 
 **A screen is empty or stuck:** the replaced file for it does not work in the game. Pick **The game's own**, then fix or remove that file.
+
+## If a theme closes the game
+
+Ember uses a theme's files as they are, and a battle HUD the game cannot load closes the game as a battle starts. Ember notes down which battle HUD theme it is having the game load, and notes that it loaded once the fight has started. If the game closes in between, the next time it starts Ember turns that theme off for the battle HUD: the pick goes back to **The game's own**, the log says `In-game themes: the game closed while loading <theme> for battle\hud; it is turned off`, and Ember tells you once. Your files are not touched.
+
+In Settings, Interface, In-game themes, that theme is marked "closed the game last time". You can pick it again, for example after fixing its files; Ember watches that load too, and the mark goes once it has loaded. A theme that has loaded since you picked it is not watched again until you pick another one or the HUD editor changes its files. A change you make by hand in `ember\themes` is not noticed: pick another theme and then this one again.
+
+Ember also checks a battle HUD before using it, because the usual cause is known. The HUD layout (`<name>.ems.emz`) draws from the pictures of a sheet (`<name>.tex.emz`) by number, and the game does not check that a number exists in the sheet. The edition icons of the Ultra layout use picture numbers 9 to 14, so a theme that brings an older sheet with 9 pictures and no layout of its own, or a layout and a sheet that do not match, closes the game as the battle loads. For every layout and sheet pair where the theme has at least one file, Ember reads both as the game will see them (the theme's file, else the game's newest copy) and refuses the theme when a layout uses a picture its sheet does not have. The game's own HUD is used instead, the log says why, and Settings says on the row that the theme was not used. The fix is a sheet with as many pictures as the layout uses, or a layout of your own for the sheet. A HUD file that cannot be read as a bundle is refused too.
+
+Ember copies at most 2,000 files and 512 MB for one part, and refuses a part that holds a link or shortcut folder.
