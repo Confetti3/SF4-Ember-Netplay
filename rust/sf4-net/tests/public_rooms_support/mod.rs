@@ -284,6 +284,12 @@ impl Worker {
             .await
     }
 
+    /// A create that gives where the creator plays from.
+    pub async fn create_in(&mut self, bridge_id: &str, name: &str, area: &str) -> Answer {
+        self.ask(json!({ "op": "room_create", "bridge_id": bridge_id, "name": name, "capacity": 4, "build": BUILD, "area": area }))
+            .await
+    }
+
     pub async fn ticket(&mut self, bridge_id: &str, room_id: &str, build: &str) -> Answer {
         self.ask(json!({ "op": "room_ticket", "bridge_id": bridge_id, "room_id": room_id, "build": build }))
             .await

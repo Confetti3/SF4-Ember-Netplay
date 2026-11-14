@@ -226,6 +226,43 @@ async fn a_rooms_own_delay_goes_from_the_helper_through_the_bridge_to_the_superv
     running.abort();
 }
 
+/// The creator's area goes from the helper to a bridge that lists `room_area`,
+/// which shows it in the admission and the listing beside the room's relay;
+/// a creator who gives none has a room without one.
+#[tokio::test]
+async fn a_rooms_area_goes_from_the_helper_through_the_bridge_into_the_listing() {
+    let dirs = dirs("room-area");
+    let (supervisor, url) = fake_supervisor().await;
+    let (running, origin) = bridge(&dirs.0, Some(url)).await;
+    let (kate_endpoint, sam_endpoint) = ("a".repeat(64), "b".repeat(64));
+    let (kate_dirs, sam_dirs) = (Dirs(dirs.0.join("kate")), Dirs(dirs.0.join("sam")));
+    let mut kate = Worker::start(&kate_dirs, &kate_endpoint);
+    let mut sam = Worker::start(&sam_dirs, &sam_endpoint);
+    let (_, bridge_id) = kate.join(&origin).await;
+    sam.join(&origin).await;
+
+    let placed = ok(kate.create_in(&bridge_id, "Montevideo nights", "sam").await);
+    assert_eq!(placed["room"]["area"], "sam");
+    let unplaced = ok(sam.create(&bridge_id, "Somewhere", 4).await);
+    assert!(unplaced["room"].get("area").is_none(), "{unplaced}");
+    let (placed_id, unplaced_id) = (
+        placed["room"]["room_id"].as_str().unwrap().to_owned(),
+        unplaced["room"]["room_id"].as_str().unwrap().to_owned(),
+    );
+    report(&supervisor, &placed_id, 1, &[]);
+    report(&supervisor, &unplaced_id, 1, &[]);
+    ember_bridge::poll_rooms(&running.state).await;
+    let rooms = listed(&ok(sam.list(&bridge_id, BUILD).await));
+    let find = |id: &str| rooms.iter().find(|room| room["room_id"] == id).unwrap();
+    assert_eq!(find(&placed_id)["area"], "sam");
+    assert!(find(&unplaced_id).get("area").is_none());
+    // The relay code still goes beside it.
+    assert!(find(&placed_id)["region"].is_string());
+    kate.task.abort();
+    sam.task.abort();
+    running.abort();
+}
+
 /// Kills the supervisor process the chain test starts, whatever the test does.
 struct SupervisorProcess(std::process::Child);
 
