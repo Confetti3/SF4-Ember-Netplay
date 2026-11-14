@@ -85,7 +85,7 @@ static void Deliver(Client& client, ClientView& view) {
     }
 }
 
-// 300 commits of a busy room while checkpoints apply only every 60: the client
+// 300 commits of a busy room while checkpoints apply only every 30: the client
 // queue holds a few room messages instead of failing at 64, and what it hands
 // the gate leaves the member with the same room, the same chat and the same
 // events, in the same order, as handing it every message.
@@ -104,13 +104,13 @@ static void TestBurstBehindParkedCheckpoints() {
         if (revision%40==0) add(Event(revision));
         add(Data(revision));
         if (revision%3==0) CHECK(client.Admit(Tagged(Diagnostic(static_cast<int>(revision))))==RoomQueueResult::Queued);
-        if (revision%60==0) { client.applied=revision; Deliver(client,view); }
+        if (revision%30==0) { client.applied=revision; Deliver(client,view); }
         CHECK(client.BytesAgree());
     }
     CHECK(client.queue.Empty());
     CHECK(view==reference);
     CHECK(view.snapshot==300 && view.chat==300 && view.data==300 && view.events.size()==7);
-    // 60 commits of two or three room messages each, held in at most three per
+    // 30 commits of two or three room messages each, held in at most three per
     // run of state between events; the verification frames beside them stay
     // inside their own window.
     CHECK(deepest<=12);

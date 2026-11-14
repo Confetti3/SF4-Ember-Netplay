@@ -339,9 +339,9 @@ struct PostMatchSay {
 // shows it; at once for a word not said yet, or said under another authority term (a new
 // leader may have dropped the proposal that carried it); then again until the room shows it,
 // each second while this PC is Current and every PostMatchCatchUpResendMs while it is
-// CatchingUp. A member can stay behind for at most MaximumParkedCommits (104) commits before
-// its room fails, about 17 s in the busiest room (SessionRecovery.hxx), so a lost word is said
-// again at most 3 times in that time instead of 17, which is no amplification of the backlog.
+// CatchingUp. A member can stay behind for at most MaximumParkedCommits (48) commits before
+// its room fails, about 8 s in the busiest room (SessionRecovery.hxx), so a lost word is said
+// again at most twice in that time instead of 8, which is no amplification of the backlog.
 // Not once the shell stops wanting one (not Active).
 constexpr std::uint64_t PostMatchResendMs = 1000;
 constexpr std::uint64_t PostMatchCatchUpResendMs = 5000;

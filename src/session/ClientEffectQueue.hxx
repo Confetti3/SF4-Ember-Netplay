@@ -36,9 +36,9 @@
 namespace sf4e { namespace session {
 
 // How many commits past the oldest one it still waits on a member may queue:
-// the commits the journal is sure to cover at the busiest room's rate of
-// effects that are not room state (GuaranteedEffectEnvelopes).
-constexpr std::uint64_t MaximumParkedCommits = GuaranteedEffectEnvelopes / BusiestEffectsPerCommit;
+// the commits the journal is sure to cover in the busiest room, one reply each
+// beside a match turning over for every member (SessionRecovery.hxx).
+constexpr std::uint64_t MaximumParkedCommits = GuaranteedEffectEnvelopes - MatchTurnoverEnvelopes;
 
 class ClientEffectQueue {
 public:

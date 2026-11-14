@@ -222,15 +222,25 @@ inline bool Replaceable(const EffectEnvelope& effect, const std::vector<EffectEn
 // is the one that binds. The bound is the room's, not each member's, since the
 // members share one journal, and it counts three state entries for each of
 // 16 members (one who has just left keeps its last three until they are the
-// oldest entries, which takes a few from the bound while the room turns over). A 16-member room at its busiest (issue 231 and
-// the public room soak) makes about 6 commits a second, each with one action's
-// reply, and about 2 lifecycle effects a second across its four tables: under
-// 1.4 such effects a commit. BusiestEffectsPerCommit allows 2, so the 208 envelopes
-// cover at least 104 commits, about 17 s at that rate. A member that is
-// further behind fails (ClientEffectQueue), and an effect that is gone all the
-// same fails its room by name at the effect gate rather than being lost.
+// oldest entries, which takes a few from the bound while the room turns over).
+//
+// How many commits that covers. A 16-member room at its busiest (issue 231 and
+// the public room soak) makes about 6 commits a second, each one action with
+// one reply for the member who acted. Its matches add entries per recipient: a
+// table event is journaled once for each member watching that table, so in a
+// King of the hill room with all 16 on one table a match's Ready, Started and
+// Ended alone are 48 envelopes. MatchTurnoverEnvelopes is one match ending and
+// the next starting for every member at once, whatever the tables: each
+// member's Ready, Started and Ended, a disputed result or a Ready timeout line,
+// the reply to its terminal acknowledgement and to its result, and its four
+// match grants (game_prepare, game_connect, game_start, game_end). A fought
+// match (loading, two rounds) lasts longer than the span below, so a member
+// sees at most one such turn in it. What is left, one reply a commit, is
+// MaximumParkedCommits (ClientEffectQueue.hxx): 48 commits, about 8 s at that
+// rate. A member that is further behind fails, and an effect that is gone all
+// the same fails its room by name (Replaceable) rather than being lost.
 constexpr std::size_t GuaranteedEffectEnvelopes = MaxEffectJournalEntries - 3 * room::MaximumMembers;
-constexpr std::size_t BusiestEffectsPerCommit = 2;
+constexpr std::size_t MatchTurnoverEnvelopes = 10 * room::MaximumMembers;
 
 // Supersession, before any budget pressure. A projection followed by a later
 // one for the same (recipient, type) keeps its envelope but drops its replay
