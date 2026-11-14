@@ -161,9 +161,10 @@ inline bool ValidDummyPlan(const DummyPlan& plan) {
 // it: start, its first played frame (ReplyStart); hold, the frame its
 // leading hold repeats on, -1 for none ("[1] > 3HP"); anchor, the frame its
 // first move's input takes effect on; timing, frames after the dummy's free
-// frame that frame is acted on. It goes with the frames it was made for
-// (Session::Reply), whatever the plan becomes after.
-struct ReplySchedule { int start = -1, hold = -1, anchor = -1, timing = 0; };
+// frame that frame is acted on; when, the stun it replies to as DummyPlan::when
+// numbers it (4 any), which its first move waits for (ReplyFirstMoveDue). It
+// goes with the frames it was made for (Session::Reply), whatever the plan becomes after.
+struct ReplySchedule { int start = -1, hold = -1, anchor = -1, timing = 0, when = 4; };
 // Typed moves carry theirs from synthesis (DummyPlan). A recording's comes
 // from its frames: it lands from its first attack button, and has no hold.
 inline ReplySchedule RecordingSchedule(const std::vector<Input>& frames, int timing) {
@@ -255,6 +256,12 @@ private:
     int from_ = 0, elapsed_ = 0, free_ = -1, out_ = 0;
     unsigned stretch_ = 0;
 };
+// Whether the stun the dummy is in, or came out of while free, is one a reply
+// to `when` (DummyPlan::when) answers: any, or that kind itself.
+inline bool StunTriggers(int when, const DummySeen& seen) {
+    const int cause = seen.held ? seen.held : seen.out;
+    return cause && (when == 4 || when == cause);
+}
 // cause: DummySeen::held, else out while the dummy is free. roll: any random number; it decides the chance.
 inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
     return cause && (plan.when == 4 || plan.when == cause) && roll % 100 < static_cast<unsigned>(plan.chance);
@@ -269,9 +276,11 @@ inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
     if (seen.held) return seen.until >= 0 && seen.until <= lead + 1 - timing;
     return seen.free >= 0 && -seen.free <= lead + 1 - timing;
 }
-// Whether a reply's first move is due by its schedule.
+// Whether a reply's first move is due by its schedule. Only once the dummy is
+// in the stun it replies to: a charge held from a hit that may become a
+// knockdown is not let go while the dummy is only being hit.
 inline bool ReplyFirstMoveDue(const ReplySchedule& schedule, const DummySeen& seen) {
-    return ReplyDue(seen, ReplyLead(schedule) + DummyInputLag, schedule.timing);
+    return StunTriggers(schedule.when, seen) && ReplyDue(seen, ReplyLead(schedule) + DummyInputLag, schedule.timing);
 }
 // Whether a reply should begin after this frame's observation: one holding
 // first begins with the stun, any other when its first move is due.

@@ -40,12 +40,12 @@ struct ReplyStep { bool stopped = false, made = false, started = false, dropped 
 // Whether the plan replies to the stretch: to what holds the dummy, else to
 // what it came out of. Typed replies that all begin with a hold (a charge)
 // and reply on getting up begin with a hit, which may knock the dummy down,
-// so the hold goes in from the hit; it is let go if the hit ends standing.
+// so the hold goes in from the hit; its move waits for the knockdown
+// (ReplyFirstMoveDue), and it is let go if the hit ends standing.
 // One choice without a hold would be made on the hit and played as it ends.
 inline bool RepliesTo(const DummyPlan& plan, const DummySeen& seen) {
-    const int cause = seen.held ? seen.held : seen.out;
     const bool hold = !plan.choices.empty() && std::all_of(plan.choices.begin(), plan.choices.end(), [](const ReplyChoice& choice) { return choice.hold >= 0; });
-    return cause && (plan.when == 4 || plan.when == cause || (plan.when == 3 && seen.held == 1 && hold));
+    return StunTriggers(plan.when, seen) || (plan.when == 3 && seen.held == 1 && hold);
 }
 class ReplyDecision {
 public:
@@ -97,12 +97,12 @@ private:
             for (std::size_t i = 0; i < plan.choices.size(); ++i) weights[i] = plan.choices[i].weight;
             reply.choice = choices_.Peek((1u << plan.choices.size()) - 1u, plan.order, weights);
             const ReplyChoice& choice = plan.choices[reply.choice];
-            reply.slot = ReplySlot; reply.frames = choice.moves; reply.schedule = ChoiceSchedule(choice, plan.timing);
+            reply.slot = ReplySlot; reply.frames = choice.moves; reply.schedule = ChoiceSchedule(choice, plan.timing); reply.schedule.when = plan.when;
         } else {
             reply.slot = session.PeekReply();
             if (reply.slot < 0) return false;
             reply.frames = session.Bank().Slot(reply.slot);
-            reply.schedule = RecordingSchedule(reply.frames, plan.timing);
+            reply.schedule = RecordingSchedule(reply.frames, plan.timing); reply.schedule.when = plan.when;
         }
         reply_ = std::move(reply); pending_ = true;
         return true;
