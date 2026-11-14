@@ -112,6 +112,15 @@ void TypeSteps() {
 	filter.StepType(-1); EXPECT(filter.type == RoomFilter::Type::Arcade);
 }
 
+// A room with no area is listed under All and never under Near, so Quick join has to try the filter itself after
+// the near rooms (PublicRoomsPanel::QuickPick) to reach it.
+void ARoomWithNoAreaIsListedUnderAllOnly() {
+	const Room placeless = Make(Area::None);
+	RoomFilter filter;
+	EXPECT(Matches(filter, placeless, Area::NaEast) && !Matches(filter.ForQuickJoin(), placeless, Area::NaEast));
+	EXPECT(Matches(filter, placeless, Area::None) && Matches(filter.ForQuickJoin(), placeless, Area::None));
+}
+
 void QuickJoinStaysNearUnlessAskedOtherwise() {
 	RoomFilter filter;
 	EXPECT(filter.ForQuickJoin().scope == RoomFilter::Place::Near && filter.ForQuickJoin().type == RoomFilter::Type::All);
@@ -130,6 +139,7 @@ int main() {
 	SeatsAndWired();
 	PlaceStepsInOrder();
 	TypeSteps();
+	ARoomWithNoAreaIsListedUnderAllOnly();
 	QuickJoinStaysNearUnlessAskedOtherwise();
 	if (!TEST_FAILURES()) std::printf("Public room filter tests passed\n");
 	return TEST_EXIT_CODE();

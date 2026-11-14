@@ -5335,6 +5335,9 @@ msgstr "Show only the rooms that take wired players alone."
 msgid "public.filter_near_unset"
 msgstr "Your area is not set, so Ember can't tell which rooms are near you. Set it in Settings, Country and area."
 
+msgid "public.filter_near_unlisted"
+msgstr "No room lists an area right now, so Ember can't tell which rooms are near you. Every room is listed."
+
 msgid "public.near_you"
 msgstr "Near you"
 

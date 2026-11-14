@@ -28,7 +28,8 @@ struct RoomFilter {
 	// An area is named exactly when the scope is One.
 	bool Valid() const { return (scope == Place::One) == (area != Area::None); }
 
-	// Quick join takes the nearest room unless the player chose an area.
+	// Quick join looks for a room near the player first unless the player chose an area. A room is
+	// near only when it names an area, so Quick join then falls back to this filter itself.
 	RoomFilter ForQuickJoin() const {
 		RoomFilter quick = *this;
 		if (quick.scope == Place::All) quick.scope = Place::Near;

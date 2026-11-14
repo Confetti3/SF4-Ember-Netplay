@@ -154,8 +154,11 @@ rooms. The list shows one Filters row that summarises what is on; Select opens a
 (`public-filters`) with the four values and Clear filters. The filter is saved with the player's preferences (`roomFilter` in the
 netplay section); a saved place that is not an area (a relay code saved
 before areas, or the US West no build could report) loads as every area.
-Quick join takes the first room the filter lists, near the player's area
-unless the filter names one. Nothing is sent to the bridge.
+Quick join takes the first room the filter lists, a room near the player's area
+first unless the filter names one, then any room the filter lists (a room with no
+area is near no one: the bridge may not list areas, or its creator hid it). Near me is
+not offered while no listed room names an area, and then lists every room. Nothing is
+sent to the bridge.
 
 `POST /v1/rooms/{room_id}/tickets` with `TicketRequest { endpoint_id, build_id }`
 returns `RoomAdmission`. Refusals: `room_not_found`, `room_not_open`,
