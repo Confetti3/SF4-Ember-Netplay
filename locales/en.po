@@ -602,7 +602,7 @@ msgid "connection.relayed_advice"
 msgstr "Relayed means your two networks could not connect directly, so match traffic goes through a relay server. Matches still work; use the recommended delay. For a direct connection, either player can try turning on UPnP in their router, forwarding UDP port 45760 to their PC, or turning off a VPN."
 
 msgid "connection.route_relayed_via"
-msgstr "Relayed ({0})"
+msgstr "Relayed via {0}"
 
 msgid "connection.direct_checking"
 msgstr "Still checking whether your network allows direct connections."
@@ -628,32 +628,35 @@ msgstr "Check connection again"
 msgid "network.relay"
 msgstr "Relay"
 
+msgid "network.relay_chip"
+msgstr "Relay: {0}"
+
 msgid "network.relay_detail"
 msgstr "The relay server that helps your game find other players. Match traffic goes through it only when a direct connection is not possible."
 
 msgid "network.relay_connected"
-msgstr "{0} (connected)"
+msgstr "{0} · connected"
 
 msgid "network.relay_connecting"
-msgstr "{0} (connecting)"
+msgstr "{0} · connecting"
 
 msgid "network.relay_none"
 msgstr "Not connected"
 
-msgid "network.region_use1"
-msgstr "US East"
+msgid "network.relay_use1"
+msgstr "Ember US (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "US West"
+msgid "network.relay_usw1"
+msgstr "n0 US West"
 
-msgid "network.region_euc1"
-msgstr "Europe"
+msgid "network.relay_euc1"
+msgstr "Ember Europe"
 
-msgid "network.region_aps1"
-msgstr "Asia Pacific"
+msgid "network.relay_aps1"
+msgstr "n0 Asia"
 
-msgid "network.region_other"
-msgstr "Other region"
+msgid "network.relay_other"
+msgstr "Another relay"
 
 msgid "network.status"
 msgstr "Network"
@@ -4121,8 +4124,8 @@ msgstr "Could not create the room. Check your internet connection and try again.
 msgid "runtime.relay_unreachable"
 msgstr "Could not reach the relay server. Check your internet connection, firewall or VPN, then try again."
 
-msgid "runtime.relay_unreachable_region"
-msgstr "Could not reach the relay server ({0}). Check your internet connection, firewall or VPN, then try again."
+msgid "runtime.relay_unreachable_named"
+msgstr "Could not reach the relay server {0}. Check your internet connection, firewall or VPN, then try again."
 
 msgid "runtime.host_unreachable"
 msgstr "Could not reach the host, directly or through a relay. The room may have closed. If it is open, Windows Firewall is the usual cause: in Windows Security > Firewall & network protection > Allow an app through firewall, allow sf4-net.exe (Private and Public). A VPN can also be in the way."

@@ -100,7 +100,7 @@ struct ShellView {
     bool delayLocked=false, canProbe=false, canApplyDelay=false;
     std::string probeStatus;
     RouteKind probeRoute=RouteKind::Unknown;
-    // Where a relayed route goes (a region code) and who is on the other side,
+    // Which relay a relayed route goes through (a relay code) and who is on the other side,
     // for the connection check: the opponent's name and how their network
     // reported it. netReport is this PC's own.
     std::string probeRelay, probeOpponent;

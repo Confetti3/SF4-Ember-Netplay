@@ -970,7 +970,7 @@ the ranking is still found (see Open questions).
 
 Each new id goes into `locales/en.po` only, next to its area's ids; the
 translation pass does the other catalogs after the merge. Reused ids are
-named where they are used above (`friends.*`, `room.*`, `network.region_*`,
+named where they are used above (`friends.*`, `room.*`, `area.*`,
 `replays.watch`, `card.of`, `menu.choose`, `profile.main_badge` "MAIN",
 `fighters.main` "Main", `awards.earned_count`). Wording follows the rest of
 Ember: a stepped value reads "{value} · shown" or "Hidden", never "Shown

@@ -30,8 +30,9 @@ const RECOVERY_DISCORD_PREFIX: &str = "emd2:";
 const HEADER: usize = 91;
 /// The same for an sf4e3 record, which adds the coordination route.
 const RECOVERY_HEADER: usize = HEADER + 32 + 8 + 8;
-// Stable wire IDs, independent of relay-map iteration order, each with the
-// region code (`relay::REGIONS`) the native side and the bridge show for it.
+// Stable wire IDs, independent of relay-map iteration order, each with its
+// relay code (`relay::REGIONS`), which the native side names as a relay
+// (src/common/NetworkRoute.hxx) and a room's creator gives the bridge.
 // Append only: never reorder, remove or reuse an entry. A peer of another
 // build never reads these invitations (the build check refuses them first),
 // so an appended entry needs no new invite version.

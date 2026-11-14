@@ -95,7 +95,7 @@ inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
     } else if (measured) {
         const bool relayed = view.probeRoute == RouteKind::Relayed;
         result.value = FramesText(view.recommendedDelay);
-        // A relayed route names its region when the helper reported one.
+        // A relayed route names its relay when the helper reported one.
         const std::string route = relayed ? DescribeRelayedRoute(view.probeRelay) :
             std::string(loc::T(view.probeRoute == RouteKind::Direct ? "connection.route_direct" : "connection.route_unknown"));
         result.detail = loc::Tf("connection.result_detail", route,
