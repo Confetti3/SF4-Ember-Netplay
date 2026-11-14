@@ -533,6 +533,36 @@ void PlayerJourney() {
  Check(Closes(j) == 1, "Leaving their profile did not tell the runtime");
 }
 
+// A Join or Watch question raised over a card and then answered or cancelled returns to the card with its rows and the row
+// that was focused: no frame of it is empty.
+void CardQuestionJourney() {
+ Journey j;
+ Usable(j);
+ Friends(j);
+ pr::Known known;
+ known.name = "Player 2";
+ j.h.shell.OpenPlayer(pr::Key::OfCard("c1.player2"), known);
+ j.h.Frame(0, 2);
+ Card(j, "c1.player2", Relation::None);
+ Check(j.h.shell.Navigation().Screen() == "player-card" && j.rows.size() > 1, "The card has no rows to keep");
+ std::vector<std::string> ids;
+ for (const auto& row : j.rows) ids.push_back(row.id);
+ const std::string focused = ids[1];
+ j.h.shell.Navigation().Focus(focused, j.rows);
+ j.h.Frame(0, 2);
+ auto& visit = j.h.view.friends.visit;
+ visit.active = visit.confirm = true; visit.revision = 7; visit.name = "Player 3";
+ j.h.Frame(0, 3);
+ Check(j.h.shell.Navigation().Screen() == "friends-visit", "A visit that asks first did not open its question over the card");
+ visit.active = visit.confirm = false;
+ j.h.Frame();
+ std::vector<std::string> after;
+ for (const auto& row : j.rows) after.push_back(row.id);
+ Check(j.h.shell.Navigation().Screen() == "player-card", "The card did not come back once the question ended");
+ Check(after == ids, "The frame the question ended on did not draw the card's rows");
+ Check(j.h.shell.Navigation().Focus() == focused, "The card lost its focused row when the question ended");
+}
+
 // Hiding Ember closes the open profile once, and showing it again asks for it again.
 void PlayerHideJourney() {
  Journey j;
@@ -698,7 +728,7 @@ void ReadJourney() {
 
 int main() {
  try {
-  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); EditCardChoicesJourney(); AwardsJourney(); WornClaimsJourney(); AwardsStatesJourney(); AwardNoticesJourney(); HomeJourney(); ReadJourney(); SpatialJourney(); PlayerJourney(); PlayerHideJourney(); PlayerAcceptJourney(); PlayerReplaceJourney(); MostPlayedAndSetsJourney();
+  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); EditCardChoicesJourney(); AwardsJourney(); WornClaimsJourney(); AwardsStatesJourney(); AwardNoticesJourney(); HomeJourney(); ReadJourney(); SpatialJourney(); PlayerJourney(); CardQuestionJourney(); PlayerHideJourney(); PlayerAcceptJourney(); PlayerReplaceJourney(); MostPlayedAndSetsJourney();
   std::cout << "Profile journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

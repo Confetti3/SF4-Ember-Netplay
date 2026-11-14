@@ -656,10 +656,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdatePublicBridge(v,nav.Screen());
  {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
+ // Friends first: a Join or Watch question that ends over a card returns to it here, so the card panels build for the screen this frame shows.
+ friends_.Update(v,nav,identity_.UsableBridge(v),submit);
  profile_.Update(v,preferences_,nav.Screen(),identity_.UsableBridge(v),submit);
  player_.Update(v,nav.Screen(),nav,friends_,identity_.UsableBridge(v),preferences_.displayName,ShownCountry(preferences_.country,v.automaticCountry),submit);
  UpdateAwardNotices(v);
- friends_.Update(v,nav,identity_.UsableBridge(v),submit);
  friends_.Publish(v,nav.Screen(),notices_,now);
  // What an action from a room or the Friends tab came to: said again if Ember hides it before it is read.
  {Notifications::Item said;if(friends_.TakeSaid(said.text,said.tone)){const double seconds=said.tone==Tone::Error?6:4;said.again=true;Tell(std::move(said),seconds);}}
