@@ -8,7 +8,10 @@
 // - A token is looked up when a member carrying it joins, and again 8 s after
 //   a set its member fought ends (the two fighters' cards only: nobody else's
 //   changed). A look-up is up to MaxLookup tokens, at most one in flight, and
-//   at most one every MinGapMs.
+//   at most one every MinGapMs. The runtime sends it through BridgeFlights,
+//   which routes the answer, gives up on a lost one and ends one the helper
+//   could not take; the answer comes here under the flight it began with, so
+//   one that outlived its room or service is nobody's.
 // - A token the bridge answers null for has "no card" until the next trigger.
 //   An old card stays on show while its refresh is awaited.
 // - The friend the Friends tab has focused is wanted too (WantFriend), by their friend id ("fr_...", which the bridge's
@@ -28,7 +31,6 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -39,8 +41,6 @@ class Cards {
 public:
 	// Token to card, for the tokens with a card.
 	using Map = CardMap;
-	// The helper bounds its own bridge requests; this only ends a wait for one it lost.
-	static constexpr std::uint64_t GiveUpMs = 60000;
 	// The least time between look-ups, and the wait after a set ends.
 	static constexpr std::uint64_t MinGapMs = 10000, SetEndedMs = 8000;
 	// The least time before a look-up of friends' cards alone, and how many friends are kept wanted.
@@ -116,14 +116,14 @@ public:
 		}
 	}
 
-	bool Awaiting(std::uint64_t id) const { return id && id == flight_.id; }
+	bool Awaiting(std::uint64_t flight) const { return flight && flight == flight_.token; }
 
 	// The tokens to look up now, up to MaxLookup of those without an answer
 	// (or whose answer is stale); none while a look-up is in flight, after
 	// `Unavailable`, or within MinGapMs of the last one.
 	std::vector<std::string> Take(std::uint64_t nowMs) const {
 		std::vector<std::string> batch;
-		if (flight_.id || unavailable_ || bridge_.empty()) return batch;
+		if (flight_.token || unavailable_ || bridge_.empty()) return batch;
 		const auto asked = [&](const std::string& key) {
 			const auto entry = entries_.find(key);
 			return entry == entries_.end() || entry->second.stale;
@@ -145,23 +145,26 @@ public:
 		return batch;
 	}
 
-	// `batch` (from Take) handed to the helper as `id`; 0 when it could not be, which ends it now.
-	void Sent(std::uint64_t id, const std::vector<std::string>& batch, std::uint64_t nowMs) {
+	// `batch` (from Take) is going to the helper: returns the flight its answer comes back under (Finish). The runtime
+	// sends it through BridgeFlights, which ends one the helper could not take, or never answered, as a refusal.
+	std::uint64_t Begin(const std::vector<std::string>& batch, std::uint64_t nowMs) {
 		sent_ = true;
 		lastSentMs_ = nowMs;
 		batch_ = batch;
-		flight_ = {id, nowMs};
-		if (!id) Finish("helper_unavailable", std::nullopt);
+		flight_ = {++flights_, refreshes_};
+		return flight_.token;
 	}
 
-	// The answer: one entry per token of the batch, in order, or why there is
-	// none (the helper's code, or "bridge_invalid_response"). Tokens left
-	// unanswered are asked again after the gap.
-	void Finish(const std::string& failure, std::optional<std::vector<std::optional<Card>>> answers) {
+	// The answer to `flight`: one entry per token of the batch, in order, or why
+	// there is none (the helper's code, or "bridge_invalid_response"). Tokens
+	// left unanswered are asked again after the gap. The answer to a flight
+	// that was retired (another room or service) is nobody's.
+	void Finish(std::uint64_t flight, const std::string& failure, std::optional<std::vector<std::optional<Card>>> answers) {
+		if (!Awaiting(flight)) return;
 		const auto batch = std::move(batch_);
-		const auto overtaken = std::move(overtaken_);
+		// A friends action that went through while it was on its way overtook every card it names.
+		const bool overtaken = refreshes_ != flight_.refreshes;
 		batch_.clear();
-		overtaken_.clear();
 		flight_ = {};
 		error_ = failure;
 		if (failure == Unavailable) unavailable_ = true;
@@ -169,22 +172,17 @@ public:
 		for (std::size_t i = 0; i < batch.size(); ++i) {
 			if (!Wanted(batch[i])) continue;
 			// An answer asked before a friends action went through is older than what the card shows: kept, and asked again.
-			if (overtaken.count(batch[i]) && entries_.count(batch[i])) { entries_[batch[i]].stale = true; continue; }
-			entries_[batch[i]] = {std::move((*answers)[i]), overtaken.count(batch[i]) != 0};
+			if (overtaken && entries_.count(batch[i])) { entries_[batch[i]].stale = true; continue; }
+			entries_[batch[i]] = {std::move((*answers)[i]), overtaken};
 		}
 		Publish();
-	}
-
-	// Ends the look-up the helper never answered.
-	void Expire(std::uint64_t nowMs) {
-		if (flight_.id && nowMs - flight_.sentMs >= GiveUpMs) Finish("unavailable", std::nullopt);
 	}
 
 	// A friends action went through: every card is looked up again at the next look-up, and a look-up in flight,
 	// asked before the action, does not stand for the cards it names.
 	void Refresh() {
 		for (auto& entry : entries_) entry.second.stale = true;
-		overtaken_.insert(batch_.begin(), batch_.end());
+		++refreshes_;
 	}
 	// The action named the member carrying `token` (Add friend, Accept, Block): their card shows `relation` until
 	// the look-up Refresh asked for answers. Nothing for a token without a card.
@@ -202,7 +200,8 @@ private:
 		std::optional<Card> card;
 		bool stale = false;
 	};
-	struct InFlight { std::uint64_t id = 0, sentMs = 0; };
+	// The look-up on its way, and how many friends actions had gone through when it went.
+	struct InFlight { std::uint64_t token = 0, refreshes = 0; };
 
 	bool Wanted(const std::string& key) const {
 		return std::find(tokens_.begin(), tokens_.end(), key) != tokens_.end() || std::find(friends_.begin(), friends_.end(), key) != friends_.end();
@@ -222,7 +221,6 @@ private:
 		entries_.clear();
 		sets_.clear();
 		batch_.clear();
-		overtaken_.clear();
 		flight_ = {};
 		error_.clear();
 		unavailable_ = false;
@@ -240,11 +238,10 @@ private:
 	std::vector<std::uint64_t> sets_;
 	std::map<std::string, std::uint64_t> dueMs_;
 	std::vector<std::string> batch_;
-	// The tokens of the look-up in flight that a friends action overtook (Refresh).
-	std::set<std::string> overtaken_;
 	InFlight flight_;
 	bool sent_ = false, unavailable_ = false;
-	std::uint64_t lastSentMs_ = 0;
+	// Flights begun, and friends actions that went through (Refresh), so an answer knows whether one overtook it.
+	std::uint64_t lastSentMs_ = 0, flights_ = 0, refreshes_ = 0;
 	std::shared_ptr<const Map> published_;
 };
 

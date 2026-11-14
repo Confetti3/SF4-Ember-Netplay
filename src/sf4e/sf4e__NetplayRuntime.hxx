@@ -612,10 +612,10 @@ void DispatchPublicRooms(const netplay::tournament::Command& command, bool helpe
 using AdmissionDone = std::function<void(const std::string& failure, std::optional<netplay::publicrooms::Admission> admission)>;
 void RequestTicket(const std::string& bridgeId, const std::string& roomId, bool helperReady, AdmissionDone done);
 
-// Rankings (sf4e__NetplayRuntime__Rankings.cxx), the same way.
+// Rankings (sf4e__NetplayRuntime__Rankings.cxx), the same way: answers come back through flights.
 void DispatchRankings(const netplay::tournament::Command& command, bool helperReady);
-bool TakeRankingsAnswer(const session::TournamentAnswer& answer);
-void ExpireRankings(std::uint64_t nowMs);
+// Forgets another Ember ID's standing and board.
+void TickRankings();
 
 // The public replay archive (sf4e__NetplayRuntime__Archive.cxx): a page of its
 // listing, and a listed game downloaded and then watched.
@@ -623,14 +623,12 @@ void DispatchArchive(const commands::ArchiveList& command, bool helperReady);
 void DispatchArchive(const commands::ArchiveWatch& command, bool helperReady);
 
 // Fighter levels (sf4e__NetplayRuntime__Levels.cxx): the player's own, read on
-// the menu's ask, once at start and after a set this PC fought.
+// the menu's ask, once at start and after a set this PC fought. Answers come back through flights.
 void DispatchLevels(const netplay::tournament::Command& command, bool helperReady);
-bool TakeLevelsAnswer(const session::TournamentAnswer& answer);
-// Expires lost reads, notes sets that ended, and starts the reads that are due.
+// Notes sets that ended, and starts the reads that are due.
 void TickLevels(bool helperReady, std::uint64_t nowMs);
 // Other players' cards (same file): the public room's members' tokens are
-// looked up when one joins and 8 s after a set in the room ends.
-bool TakeCardsAnswer(const session::TournamentAnswer& answer);
+// looked up when one joins, and a set's two fighters' 8 s after it ends.
 void TickCards(bool helperReady, std::uint64_t nowMs);
 // The friend the Friends tab has focused: their card is looked up with the members' (Cards::WantFriend).
 void DispatchCards(const commands::FriendCardWanted& command);

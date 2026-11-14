@@ -1,6 +1,6 @@
 // Fighter levels (docs/design/FIGHTER_LEVELS.md, "Client"): the player's own
-// levels. The read goes to the helper on the tournament channel and is
-// answered by request id, like rankings; netplay::levels::Requests decides
+// levels. The read goes to the helper on the tournament channel and its answer
+// comes back through flights, like rankings; netplay::levels::Requests decides
 // what each answer does, and the interface reads the result from the
 // published status. Reads come when the menu asks (Command::Op::LevelsMe: the
 // profile's own at start and when Profile opens), and twice after a set this PC
@@ -15,7 +15,6 @@ namespace sf4e { namespace NetplayFacade {
 namespace {
 using netplay::tournament::Command;
 using nlohmann::json;
-using internal::SendBridgeRequest;
 
 std::string CurrentId() { return runtime->room ? runtime->room->Identity().emberId : std::string(); }
 
@@ -28,6 +27,32 @@ std::vector<std::uint64_t> SetsFought(const room::Snapshot& snapshot) {
 	}
 	return fought;
 }
+
+// The answer to the read of the player's own levels that went as `flight`.
+void TakeLevels(std::uint64_t flight, const session::TournamentAnswer& answer) {
+	auto& requests = runtime->levels;
+	const auto now = GetTickCount64();
+	if (!answer.ok) {
+		const auto failure = netplay::BridgeFlights::Reason(answer);
+		// A bridge without levels has none to show, and is not asked again until the next trigger.
+		if (failure == netplay::levels::Requests::Unavailable) requests.Finish(flight, failure, netplay::levels::Own{}, now);
+		else requests.Finish(flight, failure, std::nullopt, now);
+		return;
+	}
+	auto own = session::DecodeOwnLevels(answer.data);
+	requests.Finish(flight, own ? std::string() : "bridge_invalid_response", std::move(own), now);
+}
+
+// The answer to the look-up of cards that went as `flight`.
+void TakeCards(std::uint64_t flight, const session::TournamentAnswer& answer) {
+	auto& cards = runtime->cards;
+	if (!answer.ok) {
+		cards.Finish(flight, netplay::BridgeFlights::Reason(answer), std::nullopt);
+		return;
+	}
+	auto decoded = session::DecodeCards(answer.data);
+	cards.Finish(flight, decoded ? std::string() : "bridge_invalid_response", std::move(decoded));
+}
 }
 
 namespace internal {
@@ -39,30 +64,14 @@ void DispatchLevels(const Command& command, bool helperReady) {
 	// A read the menu asks for answers the reads that were due.
 	requests.TakeDue(GetTickCount64());
 	const json request = {{"op", "points_me"}, {"bridge_id", command.bridgeId}};
-	requests.Sent(helperReady ? SendBridgeRequest(request) : 0, GetTickCount64());
-}
-
-bool TakeLevelsAnswer(const session::TournamentAnswer& answer) {
-	auto& requests = runtime->levels;
-	if (!requests.Awaiting(answer.requestId)) return false;
-	const auto now = GetTickCount64();
-	if (!answer.ok) {
-		const auto failure = answer.reason.empty() ? std::string("unavailable") : answer.reason;
-		// A bridge without levels has none to show, and is not asked again until the next trigger.
-		if (failure == netplay::levels::Requests::Unavailable) requests.Finish(failure, netplay::levels::Own{}, now);
-		else requests.Finish(failure, std::nullopt, now);
-		return true;
-	}
-	auto own = session::DecodeOwnLevels(answer.data);
-	requests.Finish(own ? std::string() : "bridge_invalid_response", std::move(own), now);
-	return true;
+	const auto flight = requests.Begin();
+	SendFlight(request, helperReady, [flight](const session::TournamentAnswer& answer) { TakeLevels(flight, answer); });
 }
 
 void TickLevels(bool helperReady, std::uint64_t nowMs) {
 	auto& requests = runtime->levels;
 	// Another Ember ID's levels are not shown.
 	if (!requests.Bridge().empty() && requests.EmberId() != CurrentId()) requests.Scope({}, {});
-	requests.Expire(nowMs);
 	if (UserApp::netplay) {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 		requests.NoteSets(snapshot.roomEpoch, SetsFought(snapshot), nowMs);
@@ -78,24 +87,11 @@ void TickLevels(bool helperReady, std::uint64_t nowMs) {
 	DispatchLevels(command, helperReady);
 }
 
-bool TakeCardsAnswer(const session::TournamentAnswer& answer) {
-	auto& cards = runtime->cards;
-	if (!cards.Awaiting(answer.requestId)) return false;
-	if (!answer.ok) {
-		cards.Finish(answer.reason.empty() ? std::string("unavailable") : answer.reason, std::nullopt);
-		return true;
-	}
-	auto decoded = session::DecodeCards(answer.data);
-	cards.Finish(decoded ? std::string() : "bridge_invalid_response", std::move(decoded));
-	return true;
-}
-
 // The cards of a public room's members, to the service own levels are read
 // from. A room that is not public shows none: its tokens are not the bridge's.
 void TickCards(bool helperReady, std::uint64_t nowMs) {
 	auto& cards = runtime->cards;
 	cards.Scope(runtime->levels.Bridge());
-	cards.Expire(nowMs);
 	std::uint64_t epoch = 0;
 	std::vector<std::string> tokens;
 	std::vector<netplay::levels::LastSet> sets;
@@ -123,7 +119,8 @@ void TickCards(bool helperReady, std::uint64_t nowMs) {
 	json selectors = json::array();
 	for (const auto& key : batch) selectors.push_back({{netplay::levels::Cards::IsFriendKey(key) ? "friend" : "card", key}});
 	const json request = {{"op", "cards_lookup"}, {"bridge_id", cards.Bridge()}, {"cards", selectors}};
-	cards.Sent(SendBridgeRequest(request), batch, nowMs);
+	const auto flight = cards.Begin(batch, nowMs);
+	SendFlight(request, helperReady, [flight](const session::TournamentAnswer& answer) { TakeCards(flight, answer); });
 }
 
 void DispatchCards(const commands::FriendCardWanted& command) {

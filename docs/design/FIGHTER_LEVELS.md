@@ -478,9 +478,12 @@ writes none of the selectors' answers or those fields.
   set's end, since the bridge polls rooms every 5 seconds,
   `routes/rooms/poll.rs` `POLL_SECS`). Kept per bridge and Ember ID, as
   rankings are (`RankingRequests.hxx`).
-- `netplay::levels::Cards`: token to card, refreshed when a member with a
-  token joins and 8 seconds after any set in the room ends, at most one
-  look-up of up to 16 tokens every 10 seconds.
+- `netplay::levels::Cards`: token to card, looked up when a member with a
+  token joins, and a set's two fighters' cards 8 seconds after that set ends
+  (nobody else's changed), at most one look-up of up to 16 tokens every 10
+  seconds. The look-ups, the own-points read and the ranking requests go
+  through `BridgeFlights`, which routes each answer to its request and ends a
+  lost one after a minute.
 - A tier change is found by comparing the new `Own` with the one before the set;
   `PLAYER_CARD.md` draws it.
 
