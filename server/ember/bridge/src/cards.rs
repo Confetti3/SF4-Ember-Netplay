@@ -106,19 +106,6 @@ fn stored_in(row: &Row<'_>, at: usize) -> rusqlite::Result<Stored> {
     })
 }
 
-/// `account`'s row, once it has one, one account at a time: the test oracle
-/// of `Reader`'s listings.
-#[cfg(test)]
-pub fn stored(tx: &Transaction<'_>, account: &str) -> Result<Option<Stored>> {
-    Ok(tx
-        .query_row(
-            &format!("SELECT {STORED} FROM player_cards WHERE discord_user_id = ?1"),
-            [account],
-            |row| stored_in(row, 0),
-        )
-        .optional()?)
-}
-
 /// The rows of those of `accounts` that have one and a Discord account
 /// connected, in one read.
 fn listings(tx: &Transaction<'_>, accounts: &[&str]) -> Result<HashMap<String, Stored>> {
