@@ -117,7 +117,7 @@ std::vector<Art> ArtOf(const Host& host, const std::string& name) {
 bool ReadArt(const Host& host, const std::string& name, const Art& a, textures::Image& image) {
     std::string bytes;
     const int width = a.u[2] - a.u[0], height = a.u[3] - a.u[1];
-    return Read(ArtFolder(host, name) / (ArtName(a) + ".png"), bytes) && textures::DecodePng(bytes, width, height, image) && image.width == width && image.height == height;
+    return Read(ArtFolder(host, name) / fs::u8path(ArtName(a) + ".png"), bytes) && textures::DecodePng(bytes, width, height, image) && image.width == width && image.height == height;
 }
 std::string Unbase64(const std::string& text) {
     std::string out; int bits = 0, value = 0;
@@ -245,7 +245,7 @@ Reply Image(const Request& r) {
     if (!Valid(a)) return Fail(400, "bad region");
     const int width = a.u[2] - a.u[0], height = a.u[3] - a.u[1];
     if (!textures::DecodePng(Unbase64(Text(json, "png")), width, height, picture) || picture.width != width || picture.height != height) return Fail(400, "bad picture");
-    if (!WriteFile(ArtFolder(r.host, theme.name) / (ArtName(a) + ".png"), textures::EncodePng(picture))) return Fail(500, "cannot save");
+    if (!WriteFile(ArtFolder(r.host, theme.name) / fs::u8path(ArtName(a) + ".png"), textures::EncodePng(picture))) return Fail(500, "cannot save");
     return Say(200, { { "ok", true }, { "name", ArtName(a) } });
 }
 Reply ImageRemove(const Request& r) {
@@ -254,7 +254,7 @@ Reply ImageRemove(const Request& r) {
     if (!PostedTheme(r, theme)) return Fail(404, "no such theme");
     const std::string stem = Text(json, "name");
     if (!ParseArt(stem, a)) return Fail(400, "bad name");
-    std::error_code ignored; fs::remove(ArtFolder(r.host, theme.name) / (stem + ".png"), ignored);
+    std::error_code ignored; fs::remove(ArtFolder(r.host, theme.name) / fs::u8path(stem + ".png"), ignored);
     return Say(200, { { "ok", true } });
 }
 Reply Restart(const Request& r) { r.host.restart(); return Say(200, { { "ok", true } }); }
