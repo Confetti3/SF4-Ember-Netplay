@@ -106,7 +106,7 @@ bool CardSets::Activate(const std::string& id, const ShellView& v, const Submit&
     if (!card_sets::IsRow(id)) return false;
     const std::string wanted = id.substr(std::string(card_sets::RowPrefix).size());
     const auto entry = std::find_if(entries_.begin(), entries_.end(), [&](const archivesets::Entry& e) { return e.id == wanted; });
-    if (entry == entries_.end() || !v.replays.ready || !v.profileSets.fetching.empty() || !v.archiveBrowse.fetching.empty()) return true;
+    if (entry == entries_.end() || !v.replays.ready || !v.archiveFetch.fetching.empty()) return true;
     std::vector<QueuedGame> games;
     for (const auto* game : entry->games) {
         QueuedGame queued;

@@ -267,7 +267,7 @@ struct FullCardView {
     // How many recent sets the card shows.
     int setRows = 5;
 };
-// The card of `subject` in `room` (PlayerCard.hxx, CardSize), which decides only how many recent sets it has: the drawing
+// The card of `subject` in `room` (PlayerCard.hxx, CardRoom), which decides only how many recent sets it has: the drawing
 // takes every measure from the room it is given.
 FullCardView FullOf(const Subject& subject, Size room);
 

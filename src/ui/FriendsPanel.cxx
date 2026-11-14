@@ -97,10 +97,17 @@ Gate MemberGateOf(const nf::View& view, bool service, bool pending) {
     return gate;
 }
 
+// The requests waiting, newest first: the one group the notifications read, so they do not sort every friend.
+static std::vector<const nf::Incoming*> RequestsOf(const nf::State& state) {
+    std::vector<const nf::Incoming*> requests;
+    for (const auto& request : state.incoming) requests.push_back(&request);
+    std::stable_sort(requests.begin(), requests.end(), [](const nf::Incoming* a, const nf::Incoming* b) { return a->sentAt != b->sentAt ? a->sentAt > b->sentAt : a->id < b->id; });
+    return requests;
+}
+
 Groups Arrange(const nf::State& state) {
     Groups groups;
-    for (const auto& request : state.incoming) groups.requests.push_back(&request);
-    std::stable_sort(groups.requests.begin(), groups.requests.end(), [](const nf::Incoming* a, const nf::Incoming* b) { return a->sentAt != b->sentAt ? a->sentAt > b->sentAt : a->id < b->id; });
+    groups.requests = RequestsOf(state);
     for (const auto& entry : state.friends) {
         switch (entry.presence.kind) {
         case nf::Presence::Kind::InRoom: groups.inRoom.push_back(&entry); break;
@@ -202,15 +209,15 @@ std::vector<MenuChoice> FriendChoices(const nf::State& state, const nf::Friend& 
     const char* inviteWhy = !gate.act ? gate.actWhy : !online ? "friends.invite_unavailable" : !canInvite ? "friends.nothing_to_offer" : nullptr;
     // Inviting while appearing offline tells the friend where this player is.
     const std::string inviteDetail = inviteWhy ? reason(inviteWhy) : state.appearOffline ? reason("friends.invite_reveals") : std::string();
-    return {Choice("card", "room.member_card", true, {}), Choice("join", "friends.join_room", !joinWhy, reason(joinWhy)), Choice("watch", "friends.watch", !watchWhy, reason(watchWhy)),
-        Choice("invite", "friends.invite_room", !inviteWhy, inviteDetail), Choice("remove", "friends.remove", gate.act, reason(gate.actWhy)),
-        Choice("remove-block", "friends.remove_block", gate.act, reason(gate.actWhy))};
+    return {Choice(ChoiceId(FriendChoice::Card), "room.member_card", true, {}), Choice(ChoiceId(FriendChoice::Join), "friends.join_room", !joinWhy, reason(joinWhy)),
+        Choice(ChoiceId(FriendChoice::Watch), "friends.watch", !watchWhy, reason(watchWhy)), Choice(ChoiceId(FriendChoice::Invite), "friends.invite_room", !inviteWhy, inviteDetail),
+        Choice(ChoiceId(FriendChoice::Remove), "friends.remove", gate.act, reason(gate.actWhy)), Choice(ChoiceId(FriendChoice::RemoveBlock), "friends.remove_block", gate.act, reason(gate.actWhy))};
 }
 
 std::vector<MenuChoice> RequestChoices(Gate gate) {
     const std::string why = gate.act ? std::string() : std::string(loc::T(gate.actWhy));
-    return {Choice("card", "room.member_card", true, {}), Choice("accept", "friends.accept", gate.act, why), Choice("decline", "friends.decline", gate.act, why),
-        Choice("decline-block", "friends.decline_block", gate.act, why)};
+    return {Choice(ChoiceId(FriendChoice::Card), "room.member_card", true, {}), Choice(ChoiceId(FriendChoice::Accept), "friends.accept", gate.act, why),
+        Choice(ChoiceId(FriendChoice::Decline), "friends.decline", gate.act, why), Choice(ChoiceId(FriendChoice::DeclineBlock), "friends.decline_block", gate.act, why)};
 }
 
 std::vector<MenuChoice> InviteChoices(Gate gate) {
@@ -227,7 +234,7 @@ Waiting WaitingOf(const nf::View& view, std::uint64_t now) {
     Waiting waiting;
     const auto& state = StateOf(view);
     if (state.kind != nf::State::Kind::Listed) return waiting;
-    waiting.requests = Arrange(state).requests;
+    waiting.requests = RequestsOf(state);
     for (const auto& invite : state.invites)
         if (!(invite.expiresAt && now >= invite.expiresAt) && state.FindFriend(invite.friendId)) waiting.invites.push_back(&invite);
     return waiting;
@@ -259,10 +266,39 @@ std::vector<Notifications::Item> NoticesOf(const nf::View& view, std::uint64_t n
 
 bool NotificationRow(const std::string& row) { return HasPrefix(row, RequestPrefix) || HasPrefix(row, InvitePrefix); }
 
-std::vector<MenuChoice> AskChoices(const std::string& ask, const std::string& name) {
-    const char* label = ask == "remove" ? "friends.remove" : ask == "remove-block" ? "friends.remove_block" : ask == "decline" ? "friends.decline" : "friends.decline_block";
-    return {Choice("yes", label, true, name)};
+namespace {
+// Each choice's id, and the words of its question when it asks first (null: it does not).
+struct ChoiceWords { FriendChoice what; const char* id; const char* question; };
+constexpr ChoiceWords ChoiceTable[] = {
+    {FriendChoice::Add, "add", nullptr}, {FriendChoice::Card, "card", nullptr}, {FriendChoice::Accept, "accept", nullptr},
+    {FriendChoice::Decline, "decline", "friends.decline"}, {FriendChoice::DeclineBlock, "decline-block", "friends.decline_block"},
+    {FriendChoice::Join, "join", nullptr}, {FriendChoice::Watch, "watch", nullptr}, {FriendChoice::Invite, "invite", nullptr},
+    {FriendChoice::Remove, "remove", "friends.remove"}, {FriendChoice::RemoveBlock, "remove-block", "friends.remove_block"},
+    {FriendChoice::Block, "block", "friends.block"}, {FriendChoice::Unblock, "unblock", "friends.unblock"},
+};
+const ChoiceWords* WordsOf(FriendChoice what) {
+    for (const auto& words : ChoiceTable) if (words.what == what) return &words;
+    return nullptr;
 }
+}
+
+FriendChoice ChoiceOf(const std::string& id) {
+    for (const auto& words : ChoiceTable) if (id == words.id) return words.what;
+    return FriendChoice::Other;
+}
+const char* ChoiceId(FriendChoice what) {
+    const auto* words = WordsOf(what);
+    return words ? words->id : "";
+}
+bool Asks(FriendChoice what) {
+    const auto* words = WordsOf(what);
+    return words && words->question;
+}
+std::vector<MenuChoice> QuestionOf(FriendChoice what, const std::string& name) {
+    const auto* words = WordsOf(what);
+    return {Choice("yes", words && words->question ? words->question : "friends.decline_block", true, name)};
+}
+std::vector<MenuChoice> AskChoices(const std::string& ask, const std::string& name) { return QuestionOf(ChoiceOf(ask), name); }
 
 Outcome OutcomeOf(const nf::View& view, std::uint64_t finished, std::uint64_t refusals) {
     if (view.refusals > refusals) return Outcome::Refused;
@@ -447,6 +483,20 @@ bool FriendsPanel::Send(const ShellView& view, Command command, const Submit& su
     return true;
 }
 
+// The popout the player asked for waits on a row of the list: with another screen or no list it is gone, and one that was
+// not opened or answered in time is dropped. Counted once a frame, here, not by the queries that read it.
+void FriendsPanel::TickRaise(const ShellView& v, MenuNavigation& nav) {
+    const std::string& screen = nav.Screen();
+    const bool listed = screen == Screen && ModeOf(v.friends, service_) == Mode::Listed;
+    if ((OnTab(screen) || screen == VisitScreen) && !listed) raise_ = Raise{};
+    // The popout shows on the Friends list, or on the Notifications row it was asked on.
+    if (raise_.row.empty() || !(listed || (screen == NotificationsScreen && NotificationRow(raise_.row)))) return;
+    if (raise_.issued) {
+        if (nav.Choosing()) raise_.seen = true;
+        else if (raise_.seen || ++raise_.waits > 3) raise_ = Raise{};
+    } else if (++raise_.waits > 8) raise_ = Raise{};
+}
+
 void FriendsPanel::Update(const ShellView& v, MenuNavigation& nav, const std::string& bridge, const Submit& submit) {
     const auto& f = v.friends;
     // Another service keeps none of the cards asked for.
@@ -463,6 +513,7 @@ void FriendsPanel::Update(const ShellView& v, MenuNavigation& nav, const std::st
     } else if (asked_) {
         if (Bridge(v).empty() || quiet(commands::FriendsLeave{Bridge(v)})) { asked_ = false; sawVisiting_ = false; }
     }
+    TickRaise(v, nav);
     // What was asked went through, or was refused: each says so.
     if (pending_.active) {
         switch (OutcomeOf(f, pending_.finished, pending_.refusals)) {
@@ -525,8 +576,8 @@ std::optional<MenuEntry> FriendsPanel::RowOf(const ShellView& v, const std::stri
     return row;
 }
 
-void FriendsPanel::AttachNotifications(std::vector<MenuEntry>& rows, const ShellView& v, bool dialog) {
-    if (NotificationRow(raise_.row)) Attach(rows, v, dialog);
+void FriendsPanel::AttachNotifications(std::vector<MenuEntry>& rows, const ShellView& v) {
+    if (NotificationRow(raise_.row)) Attach(rows, v);
 }
 
 bool FriendsPanel::TakesOnNotifications(const std::string& focus, unsigned shortcut) {
@@ -550,20 +601,25 @@ void FriendsPanel::TakeInvite(const ShellView& v, const std::string& invite, con
     if (gate.act) Send(v, commands::FriendDismiss{Bridge(v), invite}, submit, InvitePrefix + invite);
 }
 
+void FriendsPanel::Hide(const ShellView& v, const Submit& submit) {
+    // Hiding Ember closes the tab as stepping off it does: the runtime's friends cadence stops with it.
+    if (!asked_ || Bridge(v).empty()) return;
+    submit(commands::FriendsLeave{Bridge(v)});
+    asked_ = sawVisiting_ = false;
+}
+
 void FriendsPanel::Conceal() {
     asked_ = sawVisiting_ = false;
     raise_ = Raise{};
     wantedCard_.clear();
 }
 
-std::vector<MenuEntry> FriendsPanel::Rows(const ShellView& v, const std::string& screen, bool dialog, std::string& title) {
+std::vector<MenuEntry> FriendsPanel::Rows(const ShellView& v, const std::string& screen, std::string& title) {
     const auto& f = v.friends;
     const auto& state = StateOf(f);
     const Mode mode = ModeOf(f, service_);
     const Gate gate = GateOf(f, service_, pending_.active);
     const std::uint64_t now = v.unixNow;
-    // A popout waits on a row of the list: with another screen or no list, it is gone.
-    if (screen != Screen || mode != Mode::Listed) raise_ = Raise{};
     const auto pendingOn = [&](MenuEntry& row) { if (pending_.active && pending_.row == row.id) row.value = "..."; };
     std::vector<MenuEntry> rows;
     // The question a Join asks before it leaves a room or a game.
@@ -676,17 +732,13 @@ std::vector<MenuEntry> FriendsPanel::Rows(const ShellView& v, const std::string&
     appear.hint = loc::T("friends.change");
     pendingOn(appear);
     rows.push_back(std::move(appear));
-    Attach(rows, v, dialog);
+    Attach(rows, v);
     return rows;
 }
 
 // The popout the player asked for (More, or the question that asks again) goes on its row, which Dress then opens.
-void FriendsPanel::Attach(std::vector<MenuEntry>& rows, const ShellView& v, bool dialog) {
+void FriendsPanel::Attach(std::vector<MenuEntry>& rows, const ShellView& v) {
     if (raise_.row.empty()) return;
-    if (raise_.issued) {
-        if (dialog) raise_.seen = true;
-        else if (raise_.seen || ++raise_.waits > 3) { raise_ = Raise{}; return; }
-    } else if (++raise_.waits > 8) { raise_ = Raise{}; return; }
     const auto row = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == raise_.row; });
     if (row == rows.end()) { raise_ = Raise{}; return; }
     const auto& f = v.friends;
@@ -796,9 +848,10 @@ bool FriendsPanel::Choose(const ShellView& v, const MenuAction& a, const Submit&
     const std::string& what = ask.empty() ? a.text : ask;
     if (!ask.empty() && a.text != "yes") return true;
     // Their card is a page, not an action of the list: it asks nothing of the friends' paths.
-    if (ask.empty() && what == "card") { opening_ = OpeningOfRow(StateOf(f), a.id); return true; }
+    const FriendChoice choice = ChoiceOf(what);
+    if (ask.empty() && choice == FriendChoice::Card) { opening_ = OpeningOfRow(StateOf(f), a.id); return true; }
     // More's choices that ask first go on to the question.
-    if (ask.empty() && (what == "remove" || what == "remove-block" || what == "decline" || what == "decline-block")) { Ask(a.id, what); return true; }
+    if (ask.empty() && Asks(choice)) { Ask(a.id, what); return true; }
     Perform(v, what, id, a.id, submit);
     return true;
 }
@@ -809,21 +862,26 @@ void FriendsPanel::Perform(const ShellView& v, const std::string& what, const st
     const auto& f = v.friends;
     const Gate gate = GateOf(f, service_, pending_.active);
     const std::string& bridge = Bridge(v);
-    if (what == "join" || what == "watch") {
+    const FriendChoice choice = ChoiceOf(what);
+    if (choice == FriendChoice::Join || choice == FriendChoice::Watch) {
         if (!gate.go) Say(loc::T(gate.goWhy), Tone::Error);
-        else if (what == "join") Send(v, commands::FriendJoin{{}, bridge, id}, submit);
+        else if (choice == FriendChoice::Join) Send(v, commands::FriendJoin{{}, bridge, id}, submit);
         else Send(v, commands::FriendWatch{{}, bridge, id}, submit);
         return;
     }
     if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
-    if (what == "accept") Accept(v, id, row, submit);
-    else if (what == "invite") {
+    switch (choice) {
+    case FriendChoice::Accept: Accept(v, id, row, submit); break;
+    case FriendChoice::Invite: {
         const auto* entry = StateOf(f).FindFriend(id);
         Send(v, commands::FriendInvite{bridge, id}, submit, row, entry ? loc::Tf("friends.invite_sent", entry->name) : std::string());
+        break;
     }
-    else if (what == "remove" || what == "remove-block") Send(v, commands::FriendRemove{bridge, id, what == "remove-block"}, submit, row);
-    else if (what == "decline" || what == "decline-block") Send(v, commands::FriendDecline{bridge, id, what == "decline-block"}, submit, row);
-    else if (what == "unblock") Send(v, commands::FriendUnblock{bridge, id}, submit, row);
+    case FriendChoice::Remove: case FriendChoice::RemoveBlock: Send(v, commands::FriendRemove{bridge, id, choice == FriendChoice::RemoveBlock}, submit, row); break;
+    case FriendChoice::Decline: case FriendChoice::DeclineBlock: Send(v, commands::FriendDecline{bridge, id, choice == FriendChoice::DeclineBlock}, submit, row); break;
+    case FriendChoice::Unblock: Send(v, commands::FriendUnblock{bridge, id}, submit, row); break;
+    default: break;
+    }
 }
 
 friends_panel::Gate FriendsPanel::Gates(const ShellView& v) const { return GateOf(v.friends, service_, pending_.active); }

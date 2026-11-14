@@ -1571,7 +1571,7 @@ msgid "friends.busy"
 msgstr "Wait for the last request to finish."
 
 msgid "friends.accept_member"
-msgstr "Accept request"
+msgstr "Accept friend"
 
 msgid "friends.add_member"
 msgstr "Add friend"

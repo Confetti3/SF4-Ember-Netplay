@@ -533,6 +533,27 @@ void PlayerJourney() {
  Check(Closes(j) == 1, "Leaving their profile did not tell the runtime");
 }
 
+// Hiding Ember closes the open profile once, and showing it again asks for it again.
+void PlayerHideJourney() {
+ Journey j;
+ Usable(j);
+ Friends(j);
+ pr::Known known;
+ known.name = "Player 2";
+ j.h.shell.OpenPlayer(pr::Key::OfCard("c1.player2"), known);
+ j.h.Frame(0, 2);
+ Card(j, "c1.player2", Relation::None);
+ Check(Opens(j) == 1 && Closes(j) == 0, "The page did not open once");
+ for (int i = 0; i < 5; ++i) {
+  ImGui::GetIO().DeltaTime = 1.f / 60; ImGui::NewFrame();
+  j.h.shell.Background(j.h.view, j.h.view.room, [&](ShellAction a) { j.h.actions.push_back(a); return true; });
+  ImGui::Render();
+ }
+ Check(Closes(j) == 1, "Hiding Ember did not tell the runtime the profile closed exactly once");
+ j.h.Frame(0, 2);
+ Check(Opens(j) == 2 && Closes(j) == 1 && j.h.shell.Navigation().Screen() == "player-card", "Showing Ember again did not ask for the profile again");
+}
+
 // They asked first: the Primary is Accept request, and it sends the same request, marked mutual.
 void PlayerAcceptJourney() {
  Journey j;
@@ -677,7 +698,7 @@ void ReadJourney() {
 
 int main() {
  try {
-  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); EditCardChoicesJourney(); AwardsJourney(); WornClaimsJourney(); AwardsStatesJourney(); AwardNoticesJourney(); HomeJourney(); ReadJourney(); SpatialJourney(); PlayerJourney(); PlayerAcceptJourney(); PlayerReplaceJourney(); MostPlayedAndSetsJourney();
+  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); EditCardChoicesJourney(); AwardsJourney(); WornClaimsJourney(); AwardsStatesJourney(); AwardNoticesJourney(); HomeJourney(); ReadJourney(); SpatialJourney(); PlayerJourney(); PlayerHideJourney(); PlayerAcceptJourney(); PlayerReplaceJourney(); MostPlayedAndSetsJourney();
   std::cout << "Profile journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

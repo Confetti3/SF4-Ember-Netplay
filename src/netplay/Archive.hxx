@@ -139,13 +139,17 @@ struct Status {
 	std::shared_ptr<const Listing> listing;
 	// Moves each time games are installed, so a reader regroups only then.
 	std::uint64_t revision = 0;
-	// The game being downloaded to watch (its digest), the helper's code when the last download failed,
-	// and how many downloads have ended, answered or not.
-	std::string fetching, fetchError;
-	std::uint64_t fetched = 0;
 	bool Loaded() const { return state == State::Listed && listing; }
 	// Whether this is the listing of `filter` on `bridge`, heard or on its way.
 	bool Answers(const std::string& wanted, const Filter& asked) const { return state != State::Idle && bridge == wanted && filter == asked; }
+};
+
+// The download of a game to watch: the game being downloaded (its digest), the helper's code when the last download
+// failed, and how many downloads have ended, answered or not. One at a time across both browsers, since they write the same
+// files, so it is the runtime's one (ShellView::archiveFetch), not either listing's.
+struct Fetch {
+	std::string fetching, fetchError;
+	std::uint64_t fetched = 0;
 };
 
 } } }

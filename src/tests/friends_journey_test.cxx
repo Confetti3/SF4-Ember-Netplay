@@ -81,6 +81,25 @@ std::vector<std::string> Ids(const Social& j) {
  return ids;
 }
 
+// The popout More opens is timed once a frame (Update): reading the rows again, in a frame or out of one, does not run it down.
+void RowsReadJourney() {
+ Social j;
+ FriendsPanel panel;
+ MenuNavigation nav("notifications");
+ const auto row = panel.RowOf(j.h.view, std::string(friends_panel::RequestPrefix) + "rq_1");
+ Check(row.has_value(), "A waiting request has no Notifications row");
+ const std::vector<MenuEntry> rows{*row};
+ nav.Focus(row->id, rows);
+ MenuAction y;
+ y.kind = MenuAction::Shortcut; y.delta = MenuInput::Options;
+ panel.NotificationShortcut(y, nav);
+ for (int i = 0; i < 30; ++i) {
+  auto copy = rows;
+  panel.AttachNotifications(copy, j.h.view);
+  Check(copy[0].popout, "Reading the rows again ran the asked popout down");
+ }
+}
+
 // The tab keeps the friends fresh: Visit as it opens (and not again for a page over it), Leave as it closes, and Visit
 // again once its cadence lapsed.
 void VisitJourney() {
@@ -106,6 +125,17 @@ void VisitJourney() {
  j.open();
  j.h.Press(MenuInput::NextTab);
  Check(j.screen() == "awards" && j.sent<commands::FriendsLeave>().size() == 2, "Stepping off Friends did not send Leave");
+ // Hiding Ember on Friends is a Leave, once however many frames it stays hidden, and showing it again is a Visit.
+ j.open();
+ const auto visits = j.sent<commands::FriendsVisit>().size(), leaves = j.sent<commands::FriendsLeave>().size();
+ for (int i = 0; i < 5; ++i) {
+  ImGui::GetIO().DeltaTime = 1.f / 60; ImGui::NewFrame();
+  j.h.shell.Background(j.h.view, j.h.view.room, [&](ShellAction a) { j.h.actions.push_back(a); return true; });
+  ImGui::Render();
+ }
+ Check(j.sent<commands::FriendsLeave>().size() == leaves + 1, "Hiding Ember on Friends did not send exactly one Leave");
+ j.h.Frame(0, 3);
+ Check(j.screen() == "friends" && j.sent<commands::FriendsVisit>().size() == visits + 1, "Showing Ember again on Friends did not send Visit");
 }
 
 // The rows: Add a friend, the requests newest first, friends in a room (joinable first), online, offline, then Sent,
@@ -559,7 +589,7 @@ void SettingsJourney() {
 
 int main() {
  try {
-  VisitJourney(); RowsJourney(); ActionsJourney(); CardJourney(); CardWantedJourney(); MoreJourney(); RequestJourney(); AddJourney(); FindJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
+  VisitJourney(); RowsReadJourney(); RowsJourney(); ActionsJourney(); CardJourney(); CardWantedJourney(); MoreJourney(); RequestJourney(); AddJourney(); FindJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
   std::cout << "Friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

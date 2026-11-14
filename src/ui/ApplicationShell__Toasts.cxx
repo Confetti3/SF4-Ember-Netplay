@@ -132,13 +132,14 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
   const ImU32 tone=ImGui::ColorConvertFloat4ToU32(ToneColor(t.tone));
   d->AddRectFilled({a.x,a.y+8*s},{b.x,b.y+8*s},v2::color::Alpha(c.ink,.5f),4*s);
   d->AddRectFilled(a,b,v2::PanelGround(),4*s);
-  d->AddRect(a,b,c.border,4*s,0,s);
+  d->AddRect(a,b,c.border,4*s,0,Hairline());
   d->AddRectFilled(a,{a.x+4*s,b.y},tone,4*s,ImDrawFlags_RoundCornersLeft);
   if(t.id==toastFocus_&&!modal)v2::Focus(d,a,b);
   ToneMark(d,{a.x+pad+icon*.5f,a.y+12*s+icon*.5f},8*s,t.tone,tone);
   const float left=a.x+pad+icon+10*s;float line=a.y+12*s;
   if(t.kind!=ToastKind::None){
-   d->AddText(font,13*s,{left,line},tone,loc::T(kinds[static_cast<int>(t.kind)]));line+=16*s;
+   // The kind never runs on under the time: it is cut to the room the words have.
+   d->AddText(font,13*s,{left,line},tone,v2::Fit(loc::T(kinds[static_cast<int>(t.kind)]),e.wrap,13*s,font).c_str());line+=16*s;
   }else line+=(std::max)(0.f,(icon-size)*.5f);
   NoteUserText(t.text);
   line+=DrawToastWords(d,font,{left,line},e.wrap,t.text,size,s,c.text,c.muted)+9*s;
@@ -154,21 +155,24 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
    ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
    float bx=left;
    const bool keyed=t.id==toastFocus_;
+   // The buttons share the card's width: a label longer than its share is cut, so the row never leaves the card.
+   const float share=(b.x-pad-left-8*s*(t.actions.size()-1))/t.actions.size();
    for(std::size_t i=0;i<t.actions.size();++i){
     const bool first=i==0;
     // The key's prompt glyph, as the hint bar and the post-match buttons draw it.
     const char* key=!keyed?nullptr:first?MenuSelectGlyph():MenuBackGlyph();
-    const float labelW=font->CalcTextSizeA(labelSize,FLT_MAX,0,t.actions[i].label.c_str()).x;
     const float mark=key?keySize+8*s:0;
+    const std::string label=v2::Fit(t.actions[i].label,(std::max)(0.f,share-24*s-mark),labelSize,font,false);
+    const float labelW=font->CalcTextSizeA(labelSize,FLT_MAX,0,label.c_str()).x;
     const ImVec2 p(bx,line),q(bx+12*s+mark+labelW+12*s,line+button);
     ImGui::SetCursorScreenPos(p);ImGui::PushID(static_cast<int>(i));
     if(ImGui::InvisibleButton("##act",{q.x-p.x,button}))toastAsked_={t.id,i};
     const bool hovered=ImGui::IsItemHovered();ImGui::PopID();
     d->AddRectFilled(p,q,hovered?c.hover:first?c.button:v2::color::Alpha(c.button,0),4*s);
-    d->AddRect(p,q,first?c.hover:c.border,4*s,0,s);
+    d->AddRect(p,q,first?c.hover:c.border,4*s,0,Hairline());
     const ImVec2 k(p.x+12*s,p.y+(button-keySize)*.5f);
     if(key)DrawPromptGlyph(d,key,k,keySize,MenuArt(),s);
-    d->AddText(font,labelSize,{k.x+mark,p.y+(button-labelSize)*.5f},first?c.text:c.muted,t.actions[i].label.c_str());
+    d->AddText(font,labelSize,{k.x+mark,p.y+(button-labelSize)*.5f},first?c.text:c.muted,label.c_str());
     bx=q.x+8*s;
    }
    ImGui::End();ImGui::PopStyleVar();
@@ -261,7 +265,7 @@ std::vector<MenuEntry> ApplicationShell::NotificationRows(const ShellView& v,dou
   if(!row.choices.empty()){row.info=false;row.popout=true;}
   rows.push_back(std::move(row));
  }
- friends_.AttachNotifications(rows,v,menu_.navigation.Choosing());
+ friends_.AttachNotifications(rows,v);
  // None yet: a row that says so and what will come, as Sent reports' empty list does.
  if(rows.empty())rows.push_back(InfoRow("toasts-none",loc::T("notifications.none"),"",loc::T("notifications.none_detail")));
  return rows;

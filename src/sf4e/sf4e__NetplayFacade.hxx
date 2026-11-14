@@ -266,6 +266,7 @@ namespace sf4e {
             netplay::rankings::Status rankings;
             // The public replay archive's listing so far, and the download of a game to watch.
             netplay::archive::Status archive;
+            netplay::archive::Fetch archiveFetch;
             // The profile open, the Find a player search, the players fought lately, the sets of the profile open
             // (the archive browser's second slot) and whether the service offers profiles (ShellView's fields of the same names).
             netplay::profiles::Profile profile;

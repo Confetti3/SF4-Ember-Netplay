@@ -7,6 +7,7 @@
 #include "WatchQueue.hxx"
 #include "../netplay/Profiles.hxx"
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -36,9 +37,9 @@ public:
     // The strip over `screen` and the eyebrow "Profile · name". Friends says
     // how many requests wait (the published card's count).
     static void Dress(GameMenu& menu, const std::string& screen, const std::string& name);
-    // Every frame: the levels read on opening and at start. `bridge` is the
-    // usable service, empty without one.
-    void Update(const ShellView& view, const std::string& screen, const std::string& bridge, const Submit& submit);
+    // Every frame: the levels read on opening and at start, and the Card tab's card built once for the frame (the rows and
+    // the drawing both read it). `bridge` is the usable service, empty without one.
+    void Update(const ShellView& view, const netplay::PlayerPreferences& preferences, const std::string& screen, const std::string& bridge, const Submit& submit);
     // The shell is hidden: a read not sent yet is dropped, and showing it again reads afresh.
     void Conceal();
     // The screen's rows, from the card the shell published (`card`), the
@@ -63,6 +64,11 @@ public:
 private:
     // The own subject with the recent sets and the hero's buttons: the Full card's data.
     player_card::Subject SubjectOf(const ShellView& view, const netplay::PlayerPreferences& preferences) const;
+    // This frame's Full card (Update), and the room it was last drawn in (DrawFullCard). Built on the spot when Update did not run first.
+    const player_card::FullCardView& CardNow(const ShellView& view, const netplay::PlayerPreferences& preferences) const;
+    mutable player_card::FullCardView card_;
+    mutable bool built_ = false;
+    std::optional<player_card::Size> room_;
     CardSets sets_;
     std::string read_, focus_;
     bool visiting_ = false, want_ = false;

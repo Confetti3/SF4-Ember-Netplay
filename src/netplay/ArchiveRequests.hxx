@@ -43,9 +43,6 @@ public:
 		fresh.bridge = bridge;
 		fresh.filter = filter;
 		fresh.revision = status_.revision + 1;
-		fresh.fetching = status_.fetching;
-		fresh.fetchError = status_.fetchError;
-		fresh.fetched = status_.fetched;
 		status_ = std::move(fresh);
 		kind_ = Kind::First;
 		emptyPages_ = 0;
@@ -135,26 +132,34 @@ public:
 		return true;
 	}
 
-	// A game's download for the player to watch, `digest`, handed to the helper. One at a time: false while another is on its way.
-	bool BeginFetch(const std::string& digest) {
-		if (!status_.fetching.empty() || digest.empty()) return false;
-		status_.fetching = digest;
-		status_.fetchError.clear();
-		return true;
-	}
-	// The download's end: the helper's code when it failed, empty when the game is on disk.
-	void FinishFetch(const std::string& failure) {
-		status_.fetching.clear();
-		status_.fetchError = failure;
-		++status_.fetched;
-	}
-
 private:
 	enum class Kind { None, First, Next };
 	Status status_;
 	Kind kind_ = Kind::None;
 	Ticket ticket_ = 0;
 	unsigned emptyPages_ = 0;
+};
+
+// The one download of a game to watch (ShellView::archiveFetch), whichever browser the game was listed in.
+class Fetching {
+public:
+	const Fetch& Published() const { return fetch_; }
+	// A game's download, `digest`, handed to the helper. One at a time: false while another is on its way.
+	bool Begin(const std::string& digest) {
+		if (!fetch_.fetching.empty() || digest.empty()) return false;
+		fetch_.fetching = digest;
+		fetch_.fetchError.clear();
+		return true;
+	}
+	// The download's end: the helper's code when it failed, empty when the game is on disk.
+	void Finish(const std::string& failure) {
+		fetch_.fetching.clear();
+		fetch_.fetchError = failure;
+		++fetch_.fetched;
+	}
+
+private:
+	Fetch fetch_;
 };
 
 } } }

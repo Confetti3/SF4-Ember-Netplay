@@ -588,7 +588,7 @@ void ReplaysPanel::DrawDetail(const ShellView& v,const std::string& screen,const
   const auto p=ImGui::GetCursorScreenPos();const float w=ImGui::GetContentRegionAvail().x,h=w*9/16;
   const ImVec2 q(p.x+w,p.y+h);
   d->AddRectFilledMultiColor(p,q,c.header,c.header,c.panel,c.panel);
-  d->AddRect(p,q,c.border,4*s,0,s);
+  d->AddRect(p,q,c.border,4*s,0,Hairline());
   for(const float side:{.3f,.7f})d->AddRectFilled(ImVec2(p.x+w*side-15*s,q.y-h*.16f-90*s*h/400),ImVec2(p.x+w*side+15*s,q.y-h*.16f),side<.5f?c.hover:c.button,4*s);
   d->AddRectFilled(ImVec2(p.x+w*.04f,p.y+h*.06f),ImVec2(p.x+w*.44f,p.y+h*.06f+10*s),c.accentLight);
   d->AddRectFilled(ImVec2(p.x+w*.56f,p.y+h*.06f),ImVec2(p.x+w*.96f,p.y+h*.06f+10*s),c.accentLight);

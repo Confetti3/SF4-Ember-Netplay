@@ -145,6 +145,9 @@ void MoreOnARequest() {
     Check(ask.size() == 1 && ask[0].id == "yes" && ask[0].label == loc::T("friends.remove_block") && ask[0].detail == "Player 3", "the question that asks again does not name the choice and the player");
     Check(fp::AskChoices("decline", "x")[0].label == loc::T("friends.decline") && fp::AskChoices("decline-block", "x")[0].label == loc::T("friends.decline_block") &&
         fp::AskChoices("remove", "x")[0].label == loc::T("friends.remove"), "the question's label is not the choice's");
+    for (const char* id : {"remove", "remove-block", "decline", "decline-block", "block", "unblock"}) Check(fp::Asks(fp::ChoiceOf(id)), "a choice that asks first does not");
+    for (const char* id : {"add", "card", "accept", "join", "watch", "invite", "sets", "steam"}) Check(!fp::Asks(fp::ChoiceOf(id)), "a choice that goes at once asks first");
+    Check(std::string(fp::ChoiceId(fp::ChoiceOf("remove-block"))) == "remove-block" && fp::ChoiceOf("steam") == fp::FriendChoice::Other, "a choice's id does not round-trip");
 }
 
 // What the tab can say: loading, no account, a service without friends, a read that failed with nothing before it, the list.

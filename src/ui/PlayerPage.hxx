@@ -186,8 +186,10 @@ public:
     // listing while a Sets tab is on show, the pick list or a tab the state does not have, and the focus on the first
     // settled card. `bridge` is the usable service, empty without one; `ownName` and `ownCountry` are the player's own as
     // others see them: the name the own Sets tab lists by, and what tells the player's own name from another's.
-    void Update(const ShellView& view, const std::string& screen, MenuNavigation& navigation, const std::string& bridge, const std::string& ownName,
-        const CountryCode& ownCountry, const Submit& submit);
+    void Update(const ShellView& view, const std::string& screen, MenuNavigation& navigation, const FriendsPanel& friends, const std::string& bridge,
+        const std::string& ownName, const CountryCode& ownCountry, const Submit& submit);
+    // The shell is hidden: an open profile is closed as leaving the page closes it (once), and asked again when it shows.
+    void Hide(const Submit& submit);
     // The shell is hidden: nothing asked is kept waiting.
     void Conceal();
 
@@ -200,9 +202,9 @@ public:
         const Submit& submit;
         std::string& error;
     };
-    // The screen's rows. `friends` says what the friends paths allow now; `idle`: no room is joined (a set can be watched);
-    // `dialog`: a choice or question is open over the rows.
-    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, const FriendsPanel& friends, bool idle, bool dialog, std::string& title);
+    // The screen's rows (the Card tab's from this frame's card, built by Update). `idle`: no room is joined (a set can be watched).
+    // A query: the question More asked is timed by Update.
+    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool idle, std::string& title);
     // Select on a row, and an option chosen from one, which carry out what the row means. False: not the page's.
     bool Activate(const ShellView& view, const MenuAction& action, const Hands& hands);
     bool Choose(const ShellView& view, const MenuAction& action, const Hands& hands);
@@ -230,6 +232,17 @@ private:
         bool issued = false, seen = false;
         int waits = 0;
     };
+    // The Card tab as one frame draws it: what the rows, the hero's buttons, the drawing and the opening focus all read, built
+    // once in Update from the same links (the friends paths' gates, with what is pending) and the room the card was last drawn in.
+    struct CardFrame {
+        bool built = false;
+        player_page::Standing standing;
+        player_page::Primary primary;
+        player_card::FullCardView view;
+    };
+    void BuildCardFrame(const ShellView& view, const player_page::Shown& shown, const player_page::Links& links);
+    // This frame's card; built from the plain links when Update did not run first.
+    const CardFrame& CardNow(const ShellView& view);
     player_page::Links LinksOf(const ShellView& view, const FriendsPanel& friends, const player_page::Shown& shown) const;
     // What a press of the Primary or a choice of More does, once it has been asked and answered.
     void Do(const ShellView& view, const std::string& what, const player_page::Shown& shown, const player_page::Standing& standing, const Hands& hands);
@@ -250,6 +263,9 @@ private:
     // The profile whose first settled card the focus was set for.
     std::uint64_t focused_ = 0;
     Raise raise_;
+    CardFrame card_;
+    // The room the Card tab was last drawn in (DrawFullCard).
+    std::optional<player_card::Size> room_;
     // Their recent sets on the Card tab, and the sets lists (their own on Sets, the player's own on the own Sets tab).
     CardSets cardSets_;
     ArchiveTab sets_;

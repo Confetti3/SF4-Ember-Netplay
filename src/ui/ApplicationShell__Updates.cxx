@@ -1,6 +1,7 @@
 #include "ApplicationShell.hxx"
 #include "../common/Localization.hxx"
 #include "MenuDialogs.hxx"
+#include "MenuProbes.hxx"
 #include "MenuRows.hxx"
 #include "RowId.hxx"
 #include "Theme.hxx"
@@ -77,14 +78,34 @@ bool ApplicationShell::DrawNewsCard(const ShellView& v,const MenuEntry& e,ImVec2
  const auto* n=NewsOf(v,e.id);
  if(!n)return false;
  auto* d=ImGui::GetWindowDrawList();const float s=Scale();const auto& c=v2::Colors();
- const float x=min.x+14*s,right=max.x-14*s,top=min.y+12*s;
- v2::Chip(d,ImVec2(x,top),NewsKind(*n),n->stable?c.accent:c.muted);
- float at=right-ImGui::CalcTextSize(n->date.c_str()).x;
- d->AddText(ImVec2(at,top+2*s),c.muted,n->date.c_str());
- if(n->newer){const char* fresh=loc::T("news.new");at-=ImGui::CalcTextSize(fresh).x+10*s;d->AddText(ImVec2(at,top+2*s),c.accent,fresh);}
+ const float x=min.x+14*s,right=max.x-14*s,top=min.y+12*s,gap=10*s,size=ImGui::GetFontSize();
+ const float chip=v2::Chip(d,ImVec2(x,top),NewsKind(*n),n->stable?c.accent:c.muted);
+ ReportMenuCard("news-chip",ImVec2(x,top),ImVec2(x+chip,top+v2::ChipFont()+8*s));
+ // The chip keeps its place. The New mark and the date share the rest of the line: New whole first, the date cut to what is left.
+ const char* fresh=loc::T("news.new");
+ const float room=right-x-chip-gap,freshWidth=n->newer?ImGui::CalcTextSize(fresh).x:0;
+ const bool showFresh=freshWidth>0&&freshWidth<=room;
+ const float dateRoom=room-(showFresh?freshWidth+gap:0);
+ const std::string date=dateRoom>0?v2::Fit(n->date,dateRoom,size):std::string();
+ float at=right;
+ if(!date.empty()){
+  at-=ImGui::CalcTextSize(date.c_str()).x;
+  d->AddText(ImVec2(at,top+2*s),c.muted,date.c_str());
+  ReportMenuCard("news-date",ImVec2(at,top+2*s),ImVec2(right,top+2*s+size));
+  at-=gap;
+ }
+ if(showFresh){
+  d->AddText(ImVec2(at-freshWidth,top+2*s),c.accent,fresh);
+  ReportMenuCard("news-new",ImVec2(at-freshWidth,top+2*s),ImVec2(at,top+2*s+size));
+ }
+ // One line, cut to the card: the release's title is read whole in the pane and the Reader.
  ImGui::PushFont(HeadingFont());
  NoteUserText(n->title);
- d->AddText(ImVec2(x,max.y-12*s-ImGui::GetFontSize()),c.text,FitLabel(n->title,right-x).c_str());
+ const float line=ImGui::GetFontSize();
+ const std::string title=FitLabel(n->title,right-x);
+ const float titleTop=max.y-12*s-line;
+ d->AddText(ImVec2(x,titleTop),c.text,title.c_str());
+ ReportMenuCard("news-title",ImVec2(x,titleTop),ImVec2(x+ImGui::CalcTextSize(title.c_str()).x,titleTop+line));
  ImGui::PopFont();
  return true;
 }
@@ -96,21 +117,30 @@ void ApplicationShell::DrawNewsDetail(const ShellView& v,const std::string& id,c
  if(!n)return;
  auto* d=ImGui::GetWindowDrawList();const float s=Scale();const auto& c=v2::Colors();
  // The hero band across the pane's top: the kind's chip and the title over the kind's ground.
- // It scrolls with the notes, so they never pass over it.
- const ImVec2 a(ImGui::GetWindowPos().x,ImGui::GetWindowPos().y-ImGui::GetScrollY()),b(a.x+ImGui::GetWindowWidth(),a.y+150*s);
+ // It scrolls with the notes, so they never pass over it. The title wraps to the
+ // pane, however long, and the band grows by the lines it takes.
+ const ImVec2 a(ImGui::GetWindowPos().x,ImGui::GetWindowPos().y-ImGui::GetScrollY());
+ const float width=ImGui::GetWindowWidth(),inset=24*s,room=width-2*inset,chipHeight=v2::ChipFont()+8*s;
+ ImGui::PushFont(HeadingFont());
+ const float titleSize=ImGui::GetFontSize()*1.4f;
+ NoteUserText(n->title);
+ ImGui::PopFont();
+ const float titleHeight=v2::Paragraph(nullptr,a,room,n->title,titleSize,c.text,HeadingFont());
+ const ImVec2 b(a.x+width,a.y+(std::max)(150*s,18*s+titleHeight+10*s+chipHeight+18*s));
  d->PushClipRect(a,b,true);
  const ImU32 far=n->stable?v2::color::Alpha(c.accent,.4f):c.header;
  d->AddRectFilledMultiColor(a,b,c.header,far,far,c.header);
  d->AddLine(ImVec2(a.x,b.y-s),ImVec2(b.x,b.y-s),c.border,s);
  d->PopClipRect();
- ImGui::PushFont(HeadingFont());
- const float title=ImGui::GetFontSize()*1.4f;
- NoteUserText(n->title);
- d->AddText(HeadingFont(),title,ImVec2(a.x+24*s,b.y-18*s-title),c.text,n->title.c_str());
- ImGui::PopFont();
- v2::Chip(d,ImVec2(a.x+24*s,b.y-28*s-title-ImGui::GetFontSize()),NewsKind(*n),n->stable?c.accent:c.muted);
+ const ImVec2 titleAt(a.x+inset,b.y-18*s-titleHeight),chipAt(a.x+inset,titleAt.y-10*s-chipHeight);
+ v2::Paragraph(d,titleAt,room,n->title,titleSize,c.text,HeadingFont());
+ ReportMenuCard("news-hero-title",titleAt,ImVec2(titleAt.x+room,titleAt.y+titleHeight));
+ const float chip=v2::Chip(d,chipAt,NewsKind(*n),n->stable?c.accent:c.muted);
+ ReportMenuCard("news-hero-chip",chipAt,ImVec2(chipAt.x+chip,chipAt.y+chipHeight));
  ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x+8*s,b.y+16*s));
- ImGui::TextDisabled("%s",(n->date.empty()?n->tag:n->date+" \xC2\xB7 "+n->tag).c_str());
+ // The date and tag wrap like the notes: a long tag never runs past the pane.
+ v2::Paragraph(n->date.empty()?n->tag:n->date+" \xC2\xB7 "+n->tag,ImGui::GetFontSize(),c.muted,ImGui::GetFont());
+ ReportMenuCard("news-hero-date",ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
  ImGui::Dummy(ImVec2(0,4*s));
  // The notes a line each, with the accent's mark; their own list marks give way to it.
  std::istringstream notes(n->notes);
@@ -121,6 +151,7 @@ void ApplicationShell::DrawNewsDetail(const ShellView& v,const std::string& id,c
   const auto p=ImGui::GetCursorScreenPos();
   d->AddRectFilled(ImVec2(p.x,p.y+ImGui::GetFontSize()*.35f),ImVec2(p.x+6*s,p.y+ImGui::GetFontSize()*.35f+6*s),c.accent);
   ImGui::Indent(18*s);v2::Wrapped(line);ImGui::Unindent(18*s);
+  ReportMenuCard("news-note",ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
  }
  // Update now on the offered release, at the pane's foot: the same as its row, which asks first.
  if(!v.services.launchOffer||v.services.launchOffer->tag!=n->tag)return;

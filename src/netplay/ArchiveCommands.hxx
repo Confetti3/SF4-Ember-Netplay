@@ -4,7 +4,8 @@
 // by the runtime like every other command (RuntimeCommands.hxx). The answers
 // are read from ShellView::archiveBrowse, or from ShellView::profileSets when
 // `profile` is set, the second slot a profile's sets are asked in so they never
-// replace the Archive tab's listing.
+// replace the Archive tab's listing. A download is the one thing both browsers
+// share (ShellView::archiveFetch).
 //
 //   ArchiveList   What the tab wants listed: `filter` on the service `bridge`,
 //                 the next page too once the player is at the end of the list
@@ -34,7 +35,6 @@ struct ArchiveList {
 struct ArchiveWatch {
 	std::string bridge, url, digest;
 	replay::Request watch;
-	bool profile = false;
 	bool Valid() const {
 		return bridge.size() <= netplay::archive::MaxBridge && url.size() <= netplay::archive::MaxUrl && digest.size() <= 64 && watch.path.empty() &&
 			watch.caption.name[0].size() <= netplay::archive::MaxText && watch.caption.name[1].size() <= netplay::archive::MaxText &&

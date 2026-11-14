@@ -132,10 +132,10 @@ void WatchJourney() {
  // The names and classes the archive has are drawn over the game, as a replay's noted classes are.
  const auto& caption=watches[0]->watch.caption;
  Check(caption.names&&caption.name[0]=="Player 1"&&caption.band[0]==7&&caption.band[1]==0,"The watched game did not carry the names and classes the archive has");
- j.h.view.archiveBrowse.fetching=game0.digest;j.h.Frame(0,2);
+ j.h.view.archiveFetch.fetching=game0.digest;j.h.Frame(0,2);
  Check(j.status==loc::T("archive.downloading"),"The status line did not say the game is downloading");
  // It is downloaded; the log has it, and Replays offers the next game, once.
- j.h.view.archiveBrowse.fetching.clear();j.h.view.archiveBrowse.fetched++;j.h.Frame(0,2);
+ j.h.view.archiveFetch.fetching.clear();j.h.view.archiveFetch.fetched++;j.h.Frame(0,2);
  j.h.Screen("replays");
  const auto* next=j.row("set-next");
  Check(next&&next->label==loc::Tf("replays.next_game",2,2)&&next->enabled,"Replays did not offer the set's next game");
@@ -149,9 +149,9 @@ void WatchJourney() {
  Journey k;OpenArchive(k);
  Hear(k,{},ListedGames({game1,game0}));
  PickChoice(k,"archive:emt_a",0);
- k.h.view.archiveBrowse.fetching=game0.digest;k.h.Frame(0,2);
+ k.h.view.archiveFetch.fetching=game0.digest;k.h.Frame(0,2);
  Check(k.status==loc::T("archive.downloading")&&!ChoiceOf(*k.row("archive:emt_a"),"archive-watch")->enabled,"A game being downloaded did not keep Watch now from starting another");
- k.h.view.archiveBrowse.fetching.clear();k.h.view.archiveBrowse.fetched++;k.h.view.archiveBrowse.fetchError="http_404";k.h.Frame(0,2);
+ k.h.view.archiveFetch.fetching.clear();k.h.view.archiveFetch.fetched++;k.h.view.archiveFetch.fetchError="http_404";k.h.Frame(0,2);
  Check(k.status==loc::Tf("archive.download_failed",sf4e::ui::PublicRoomsPanel::FailureText("http_404")),"A download that failed did not say so");
 
  // Without the main menu (a room is open, or the game is not ready) A does not start it.

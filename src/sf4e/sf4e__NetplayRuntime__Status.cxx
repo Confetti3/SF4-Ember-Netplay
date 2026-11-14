@@ -610,6 +610,7 @@ PostPublishState Publish() {
     snapshot.publicRooms = runtime->publicRooms;
     snapshot.rankings = runtime->rankings.Published(GetTickCount64());
     snapshot.archive = runtime->archive.Published();
+    snapshot.archiveFetch = runtime->archiveFetch.Published();
     snapshot.levels = runtime->levels.Published();
     snapshot.memberCards = runtime->cards.Published();
     snapshot.profile = runtime->profiles.Published();

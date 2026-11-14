@@ -553,6 +553,8 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  // Return from the main-character screen are done when Ember shows again.
  UpdatePreferenceSave(v,submit);
  UpdatePadSetup(v,submit,false);
+ // What the screens asked of the runtime while they showed is closed first: a hidden Ember must not keep the friends sync or a profile open through a match.
+ friends_.Hide(v,submit);player_.Hide(submit);
  Conceal();hidden_=true;
  UpdatePostMatch(v,room,ImGui::GetTime(),submit,nullptr);
  // Following goes on while Ember is hidden: a streamer hides it to show the games.
@@ -654,8 +656,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdatePublicBridge(v,nav.Screen());
  {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
- profile_.Update(v,nav.Screen(),identity_.UsableBridge(v),submit);
- player_.Update(v,nav.Screen(),nav,identity_.UsableBridge(v),preferences_.displayName,ShownCountry(preferences_.country,v.automaticCountry),submit);
+ profile_.Update(v,preferences_,nav.Screen(),identity_.UsableBridge(v),submit);
+ player_.Update(v,nav.Screen(),nav,friends_,identity_.UsableBridge(v),preferences_.displayName,ShownCountry(preferences_.country,v.automaticCountry),submit);
  UpdateAwardNotices(v);
  friends_.Update(v,nav,identity_.UsableBridge(v),submit);
  friends_.Publish(v,nav.Screen(),notices_,now);

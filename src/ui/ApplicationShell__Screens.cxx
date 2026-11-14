@@ -221,7 +221,7 @@ class ApplicationShell::FriendsScreens final : public ScreenPanel {
 public:
     bool Owns(const std::string& screen) const override { return FriendsPanel::Owns(screen); }
     std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override {
-        return f.shell.friends_.Rows(f.view, f.screen, f.shell.menu_.navigation.Choosing(), title);
+        return f.shell.friends_.Rows(f.view, f.screen, title);
     }
     // Connect Discord is the Ember ID panel's.
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
@@ -267,7 +267,7 @@ class ApplicationShell::PlayerScreens final : public ScreenPanel {
 public:
     bool Owns(const std::string& screen) const override { return PlayerPage::Owns(screen); }
     std::vector<MenuEntry> Rows(const ScreenFrame& f, bool idle, std::string& title) const override {
-        return f.shell.player_.Rows(f.view, f.screen, f.shell.friends_, idle, f.shell.menu_.navigation.Choosing(), title);
+        return f.shell.player_.Rows(f.view, f.screen, idle, title);
     }
     void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override { f.shell.player_.Status(f.view, f.screen, status, tone); }
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {

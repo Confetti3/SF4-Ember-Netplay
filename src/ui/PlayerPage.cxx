@@ -197,12 +197,9 @@ std::vector<MenuChoice> MoreOf(const Standing& s) {
     return more;
 }
 
-bool Asks(const std::string& choice) { return choice == "remove" || choice == "remove-block" || choice == "block" || choice == "unblock"; }
+bool Asks(const std::string& choice) { return friends_panel::Asks(friends_panel::ChoiceOf(choice)); }
 
-std::vector<MenuChoice> QuestionOf(const std::string& choice, const std::string& name) {
-    const char* label = choice == "remove" ? "friends.remove" : choice == "remove-block" ? "friends.remove_block" : choice == "block" ? "friends.block" : "friends.unblock";
-    return {{"yes", loc::T(label), name, true}};
-}
+std::vector<MenuChoice> QuestionOf(const std::string& choice, const std::string& name) { return friends_panel::QuestionOf(friends_panel::ChoiceOf(choice), name); }
 
 std::vector<std::string> NotesOf(Page page, const std::string& name) {
     const std::string who = name.empty() ? std::string(loc::T("profile.this_player")) : name;
