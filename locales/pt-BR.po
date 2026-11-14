@@ -1530,14 +1530,8 @@ msgstr "Conexão"
 msgid "card.link_detail"
 msgstr "Cabo ou Wi-Fi, como o Ember mede. Você pode ocultar."
 
-msgid "card.region_row"
-msgstr "Região"
-
 msgid "card.area_detail"
-msgstr "Sua área, pelas suas configurações. Você pode ocultar."
-
-msgid "card.area_unset"
-msgstr "Não definida"
+msgstr "De onde você joga, a mesma escolha das Configurações. Oculta a deixa fora do seu cartão e das salas que você cria."
 
 msgid "card.shown"
 msgstr "{0} · visível"
@@ -5715,6 +5709,9 @@ msgstr "Show only the rooms that take wired players alone."
 msgid "public.filter_near_unset"
 msgstr "Sua área não está definida, então o Ember não consegue dizer quais salas estão perto de você. Defina em Configurações, País e área."
 
+msgid "public.filter_near_unlisted"
+msgstr "Nenhuma sala informa uma área agora, então o Ember não consegue dizer quais salas estão perto de você. Todas as salas são listadas."
+
 msgid "public.near_you"
 msgstr "Perto de você"
 
@@ -8487,6 +8484,12 @@ msgstr "As imagens de HUD de {0} não combinam com o layout de HUD desta ediçã
 
 msgid "settings.game_theme_unreadable_detail"
 msgstr "{0} tem arquivos de HUD que o jogo não consegue ler, então ele não foi usado. O HUD do próprio jogo está sendo exibido."
+
+msgid "settings.game_theme_missing"
+msgstr "{0} (usado: faltam algumas imagens de HUD)"
+
+msgid "settings.game_theme_missing_detail"
+msgstr "{0} está sendo usado. O layout de HUD dele cita algumas imagens que a folha dele não tem, e elas não são desenhadas."
 
 msgid "runtime.game_theme_turned_off"
 msgstr "{0} foi desligado para {1}: o jogo fechou ao carregá-lo."

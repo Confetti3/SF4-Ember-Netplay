@@ -1530,14 +1530,8 @@ msgstr "연결"
 msgid "card.link_detail"
 msgstr "유선 또는 Wi-Fi로, Ember가 측정한 값입니다. 숨길 수 있습니다."
 
-msgid "card.region_row"
-msgstr "지역"
-
 msgid "card.area_detail"
-msgstr "설정에서 고른 권역입니다. 숨길 수 있습니다."
-
-msgid "card.area_unset"
-msgstr "설정 안 됨"
+msgstr "플레이하는 위치이며 설정과 같은 선택입니다. 숨기면 카드와 내가 만드는 방에 표시되지 않습니다."
 
 msgid "card.shown"
 msgstr "{0} · 표시 중"
@@ -5715,6 +5709,9 @@ msgstr "Show only the rooms that take wired players alone."
 msgid "public.filter_near_unset"
 msgstr "내 권역이 설정되지 않아 Ember가 가까운 방을 구분할 수 없습니다. 설정의 국가/지역 및 권역에서 정하세요."
 
+msgid "public.filter_near_unlisted"
+msgstr "지금은 권역을 알리는 방이 없어 Ember가 가까운 방을 구분할 수 없습니다. 모든 방을 표시합니다."
+
 msgid "public.near_you"
 msgstr "근처"
 
@@ -8487,6 +8484,12 @@ msgstr "{0}의 HUD 이미지가 이 에디션의 HUD 레이아웃과 맞지 않�
 
 msgid "settings.game_theme_unreadable_detail"
 msgstr "{0}에 게임이 읽을 수 없는 HUD 파일이 있어 사용하지 않았습니다. 게임 기본 HUD가 표시됩니다."
+
+msgid "settings.game_theme_missing"
+msgstr "{0} (사용 중: 일부 HUD 이미지 없음)"
+
+msgid "settings.game_theme_missing_detail"
+msgstr "{0}을(를) 사용합니다. HUD 레이아웃이 쓰는 이미지 중 일부가 시트에 없어 그 이미지는 표시되지 않습니다."
 
 msgid "runtime.game_theme_turned_off"
 msgstr "{0}은(는) {1}에서 꺼졌습니다: 불러오는 중 게임이 종료되었습니다."

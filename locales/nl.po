@@ -1530,14 +1530,8 @@ msgstr "Verbinding"
 msgid "card.link_detail"
 msgstr "Bekabeld of wifi, zoals Ember het meet. Je kunt het verbergen."
 
-msgid "card.region_row"
-msgstr "Regio"
-
 msgid "card.area_detail"
-msgstr "Je gebied, uit je instellingen. Je kunt het verbergen."
-
-msgid "card.area_unset"
-msgstr "Niet ingesteld"
+msgstr "Waar je speelt, dezelfde keuze als in Instellingen. Verborgen houdt het van je kaart en van de kamers die je maakt."
 
 msgid "card.shown"
 msgstr "{0} · getoond"
@@ -5715,6 +5709,9 @@ msgstr "Show only the rooms that take wired players alone."
 msgid "public.filter_near_unset"
 msgstr "Je gebied is niet ingesteld, dus Ember kan niet zeggen welke kamers bij jou in de buurt zijn. Stel het in bij Instellingen, Land en gebied."
 
+msgid "public.filter_near_unlisted"
+msgstr "Geen enkele kamer toont nu een gebied, dus Ember kan niet zeggen welke kamers bij jou in de buurt zijn. Alle kamers worden getoond."
+
 msgid "public.near_you"
 msgstr "In de buurt"
 
@@ -8487,6 +8484,12 @@ msgstr "De HUD-afbeeldingen van {0} passen niet bij de HUD-indeling van deze edi
 
 msgid "settings.game_theme_unreadable_detail"
 msgstr "{0} heeft HUD-bestanden die de game niet kan lezen, dus het is niet gebruikt. De eigen HUD van de game wordt getoond."
+
+msgid "settings.game_theme_missing"
+msgstr "{0} (gebruikt: sommige HUD-afbeeldingen ontbreken)"
+
+msgid "settings.game_theme_missing_detail"
+msgstr "{0} wordt gebruikt. De HUD-indeling noemt enkele afbeeldingen die het bestand niet heeft, en die worden niet getekend."
 
 msgid "runtime.game_theme_turned_off"
 msgstr "{0} is uitgezet voor {1}: de game sloot tijdens het laden."
