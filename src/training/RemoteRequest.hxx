@@ -42,7 +42,7 @@ constexpr std::size_t BodiesHeld = 8u << 20;
 constexpr std::chrono::seconds HeadTime{5}, RequestTime{30};
 struct Resource { Method method; const char* path; bool prefix; std::size_t body; PinFrom pin; Needs needs; Handler handler; };
 // The route a request's method and path name, or none. A prefix route takes what follows its path (a combo's id).
-inline const Resource* FindResource(Method method, const std::string& path) {
+inline const Resource* ResourceAt(Method method, const std::string& path) {
     static const Resource table[] = {
         {Method::Get, "/", false, 0, PinFrom::None, Needs::Nothing, Endpoint::Page},
         {Method::Get, "/api/options", false, 0, PinFrom::Header, Needs::Nothing, Endpoint::Options},
@@ -228,7 +228,7 @@ inline const char* NotNow(Needs needs) {
 struct Admission { const Resource* resource = nullptr; std::optional<Reply> refused; };
 inline Admission Admit(const Head& head, PinGate& pins, unsigned long peer, Clock::time_point now, const std::function<bool(Needs)>& holds) {
     Admission admission;
-    const Resource* resource = FindResource(head.method, head.path);
+    const Resource* resource = ResourceAt(head.method, head.path);
     if (!resource) { admission.refused = TextReply(404, "no"); return admission; }
     if (resource->pin != PinFrom::None) {
         const std::string inAddress = resource->pin == PinFrom::HeaderOrAddress ? QueryParam(head.query, "pin") : std::string();

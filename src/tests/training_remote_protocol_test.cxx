@@ -136,19 +136,19 @@ int main() {
                 {Method::Get, "/api/combos/1-1"}, {Method::Get, "/api/frames"}, {Method::Get, "/api/hud/themes"}, {Method::Get, "/api/hud/theme"}, {Method::Get, "/api/hud/scene"},
                 {Method::Get, "/api/hud/sheet"}, {Method::Post, "/api/hud/image"}, {Method::Post, "/api/hud/image-remove"}, {Method::Post, "/api/hud/restart"},
                 {Method::Post, "/api/hud/save-as"}, {Method::Post, "/api/hud/layout"}, {Method::Post, "/api/hud/apply"}};
-            for (const auto& a : asked) Require(FindResource(a.method, a.path) != nullptr, "A request the page makes has no route");
-            Require(!FindResource(Method::Get, "/api/cmd") && !FindResource(Method::Post, "/") && !FindResource(Method::Get, "/api/combos/") && !FindResource(Method::Post, "/api/hud/imagex") && !FindResource(Method::Get, "/api/nothing"),
+            for (const auto& a : asked) Require(ResourceAt(a.method, a.path) != nullptr, "A request the page makes has no route");
+            Require(!ResourceAt(Method::Get, "/api/cmd") && !ResourceAt(Method::Post, "/") && !ResourceAt(Method::Get, "/api/combos/") && !ResourceAt(Method::Post, "/api/hud/imagex") && !ResourceAt(Method::Get, "/api/nothing"),
                 "A route was found that is not in the table");
-            Require(FindResource(Method::Post, "/api/hud/image")->body == HudImageBytes && FindResource(Method::Post, "/api/hud/layout")->body == HudBytes &&
-                FindResource(Method::Post, "/api/combos")->body == ComboFileBytes && FindResource(Method::Post, "/api/cmd")->body == CommandBytes && FindResource(Method::Get, "/api/state")->body == 0,
+            Require(ResourceAt(Method::Post, "/api/hud/image")->body == HudImageBytes && ResourceAt(Method::Post, "/api/hud/layout")->body == HudBytes &&
+                ResourceAt(Method::Post, "/api/combos")->body == ComboFileBytes && ResourceAt(Method::Post, "/api/cmd")->body == CommandBytes && ResourceAt(Method::Get, "/api/state")->body == 0,
                 "A route's body limit was wrong");
-            Require(FindResource(Method::Get, "/")->pin == PinFrom::None && FindResource(Method::Get, "/api/stream")->pin == PinFrom::HeaderOrAddress &&
-                FindResource(Method::Get, "/api/combos/1-1")->pin == PinFrom::HeaderOrAddress && FindResource(Method::Get, "/api/state")->pin == PinFrom::Header, "A route takes its PIN from the wrong place");
-            Require(std::get<hud::Order>(FindResource(Method::Post, "/api/hud/apply")->handler) == hud::Order::Apply && std::get<Endpoint>(FindResource(Method::Get, "/api/combos/7")->handler) == Endpoint::ComboFile,
+            Require(ResourceAt(Method::Get, "/")->pin == PinFrom::None && ResourceAt(Method::Get, "/api/stream")->pin == PinFrom::HeaderOrAddress &&
+                ResourceAt(Method::Get, "/api/combos/1-1")->pin == PinFrom::HeaderOrAddress && ResourceAt(Method::Get, "/api/state")->pin == PinFrom::Header, "A route takes its PIN from the wrong place");
+            Require(std::get<hud::Order>(ResourceAt(Method::Post, "/api/hud/apply")->handler) == hud::Order::Apply && std::get<Endpoint>(ResourceAt(Method::Get, "/api/combos/7")->handler) == Endpoint::ComboFile,
                 "A route has the wrong handler");
-            Require(FindResource(Method::Post, "/api/camera")->needs == Needs::Camera && FindResource(Method::Get, "/api/camera")->needs == Needs::Nothing, "The camera's orders must wait for the camera");
-            Require(FindResource(Method::Post, "/api/hud/apply")->needs == Needs::NoMatch && FindResource(Method::Post, "/api/hud/restart")->needs == Needs::NoMatch &&
-                FindResource(Method::Post, "/api/hud/layout")->needs == Needs::Nothing, "Applying a HUD and restarting the game must wait for no match");
+            Require(ResourceAt(Method::Post, "/api/camera")->needs == Needs::Camera && ResourceAt(Method::Get, "/api/camera")->needs == Needs::Nothing, "The camera's orders must wait for the camera");
+            Require(ResourceAt(Method::Post, "/api/hud/apply")->needs == Needs::NoMatch && ResourceAt(Method::Post, "/api/hud/restart")->needs == Needs::NoMatch &&
+                ResourceAt(Method::Post, "/api/hud/layout")->needs == Needs::Nothing, "Applying a HUD and restarting the game must wait for no match");
         }
         // A request's head: the method, the path and query, the headers in any case, and a length that is one plain number.
         {
