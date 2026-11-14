@@ -47,9 +47,9 @@ struct Rules {
 // size, links (which would copy what lies outside the theme), and for the battle HUD
 // the check in the rules.
 Verdict Accept(const wchar_t* part, const std::wstring& partFolder, std::string& reason, const Rules& rules = {});
-// A theme or file name is one plain name: nothing that leaves its folder, under 100 characters.
-bool PlainName(const std::wstring& name);
-bool PlainName(const std::string& utf8Name);
+// A theme or file name is one plain name: nothing that leaves its folder (no separator, drive or
+// dot name), under 100 bytes, and UTF-8 a path can be made of. The phone and Settings both use this.
+bool PlainName(const std::string& name);
 // What Use did: the named part is in use (the game's own files for an empty
 // name); the game's own files are, because the theme is gone or its part could
 // not be copied, or was refused (PicturesMismatch, Unreadable: the refusals the player can

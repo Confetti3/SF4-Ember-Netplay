@@ -151,7 +151,7 @@ int main() {
     checking.battleHud = [&](const std::wstring&, std::string&) { return game_themes::Verdict::Accepted; };
     CHECK(game_themes::Use(f.root.wstring(), game_themes::BattleHud, "NoMenus", why, checking) == Outcome::Used && fs::is_regular_file(hud));
     // One plain name rule for theme and file names: no separators or drive, under 100 characters.
-    CHECK(game_themes::PlainName("Neon") && game_themes::PlainName(std::wstring(L"Neon")) && !game_themes::PlainName("a:b") && !game_themes::PlainName("a/b") && !game_themes::PlainName("..") && !game_themes::PlainName(""));
+    CHECK(game_themes::PlainName("Neon") && !game_themes::PlainName("a:b") && !game_themes::PlainName("a/b") && !game_themes::PlainName("a\\b") && !game_themes::PlainName("..\\x") && !game_themes::PlainName("..\\..\\x") && !game_themes::PlainName("a\xff") && !game_themes::PlainName("..") && !game_themes::PlainName(""));
     CHECK(game_themes::PlainName(std::string(99, 'a')) && !game_themes::PlainName(std::string(100, 'a')));
     return 0;
 }

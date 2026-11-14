@@ -30,10 +30,8 @@ constexpr std::size_t MostFile = 16u << 20;
 Reply Say(int status, const nlohmann::json& body) { Reply r; r.status = status; r.body = DumpJson(body); return r; }
 Reply Fail(int status, const char* why) { return Say(status, { { "ok", false }, { "error", why } }); }
 
-// A theme is one folder name: nothing that leaves ember\themes, and UTF-8 a path can be made of.
-bool PlainName(const std::string& name) {
-    return !name.empty() && name != "." && name != ".." && name.size() < 100 && name.find_first_of("\\/:") == std::string::npos && IsWellFormedUtf8(name);
-}
+// A theme is one folder name: the platform's rule, shared with Settings.
+using platform::game_themes::PlainName;
 // A file name as UTF-8, whatever the code page; empty for one Windows cannot give as UTF-8.
 std::string NameOf(const fs::path& path) { return platform::WideToUtf8(path.wstring()); }
 fs::path ThemeFolder(const Host& host, const std::string& name) { return fs::path(host.directory()) / platform::game_themes::Folder / fs::u8path(name); }
