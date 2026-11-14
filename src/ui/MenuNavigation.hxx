@@ -291,6 +291,11 @@ public:
     // so a direction never jumps into a list's hidden rows from beside it
     // (Nearest).
     void Place(const std::string& id, MenuRect box, MenuRect clip) { placing_.push_back({id, box, clip}); }
+    // Where row `id` was placed so far this frame; null when nothing placed it yet.
+    const MenuRect* PlacedNow(const std::string& id) const {
+        for(const auto& p:placing_) if(p.id==id) return &p.box;
+        return nullptr;
+    }
     // What the board on this screen does at its edges (MenuEdge); Stay unless set.
     void SetEdge(MenuEdge edge) { states_[Screen()].edge = edge; }
     MenuEdge Edge() const { return states_.at(Screen()).edge; }
