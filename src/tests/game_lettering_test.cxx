@@ -54,6 +54,11 @@ int main() {
     Check(!lettering::Read(library.data(), library.size(), sheet, bgra, why) && why == "no glyph A", "a library without A was read");
     library = Library(lettering::FontName, all, true);
     Check(!lettering::Read(library.data(), library.size(), sheet, bgra, why), "a glyph cut short was read");
+    // Outlines far beyond any sheet (a million pixels and more at the largest size) are refused,
+    // not converted out of range.
+    library = Library(lettering::FontName, all, false, 1500);
+    Check(!lettering::Read(library.data(), library.size(), sheet, bgra, why) && why == "the glyphs do not fit the sheet", "outlines beyond the sheet were read: " + why);
+    library = Library(lettering::FontName, all);
     library.resize(40);
     Check(!lettering::Read(library.data(), library.size(), sheet, bgra, why), "a cut library was read");
     Check(!lettering::Read(nullptr, 0, sheet, bgra, why), "nothing was read");
