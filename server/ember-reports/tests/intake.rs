@@ -267,6 +267,13 @@ async fn metadata_rejections_and_unicode_comment_boundary() {
         ("app_version", json!("x".repeat(129))),
         ("source_revision", json!("x".repeat(129))),
         ("windows_version", json!("x".repeat(257))),
+        ("phase", json!("Before signal")),
+        ("phase", json!("x".repeat(41))),
+        ("phase", json!(1)),
+        ("hint", json!("C:\Users\x")),
+        ("hint", json!("a".repeat(81))),
+        ("hint", json!("")),
+        ("game_log", json!("this session")),
     ];
     for (key, value) in changes {
         let mut m = meta();
@@ -569,4 +576,30 @@ async fn refusals_send_their_wire_reason() {
         (StatusCode::TOO_MANY_REQUESTS, "rate_limit".into())
     );
     drop(held);
+}
+
+#[tokio::test]
+async fn start_failure_reports_and_the_fields_older_clients_omit() {
+    // A start failure with its phase and hint, and a crash that says its log was left out.
+    let mut failure = meta();
+    failure["kind"] = json!("start_failure");
+    failure["exit_code"] = json!(255);
+    failure["phase"] = json!("after_signal");
+    failure["hint"] = json!("steam_appid_missing,outside_steam");
+    failure["game_log"] = json!("earlier_session");
+    for m in [failure, {
+        let mut crash = meta();
+        crash["game_log"] = json!("absent");
+        crash
+    }] {
+        assert_eq!(
+            validate(parts(vec![("meta", None, serde_json::to_vec(&m).unwrap())])).await,
+            StatusCode::ACCEPTED
+        );
+    }
+    // A client from before these fields sends the original schema 1 metadata.
+    assert_eq!(
+        validate(parts(vec![("meta", None, serde_json::to_vec(&meta()).unwrap())])).await,
+        StatusCode::ACCEPTED
+    );
 }

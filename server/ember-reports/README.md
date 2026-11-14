@@ -70,7 +70,14 @@ POST `multipart/form-data`, at most **5 MiB including boundaries**. One required
 }
 ```
 
-`kind` is `crash` or `problem`; channel is `stable`, `beta` or `nightly`.
+`kind` is `crash`, `problem` or `start_failure` (the game ended during its own
+start-up); channel is `stable`, `beta` or `nightly`. Three optional fields, each
+a short code of `a-z`, `0-9` and `_` (`hint` may list several, comma separated),
+come from clients that report start failures: `phase` (`before_signal` or
+`after_signal`, relative to the game's DLL signalling the launcher), `hint` (what
+the launcher knew about why, such as `steam_appid_missing`, `outside_steam`) and
+`game_log` (`this_session`, `earlier_session` or `absent`: whether the attached
+`sf4e.log` is the reported run's). Clients that omit them are accepted unchanged.
 Build ID is 64 hex digits. App version/source revision are nonempty strings up
 to 128 UTF-8 bytes; Windows version is up to 256 bytes, without control characters.
 Meta is up to 16 KiB. Comment is optional, up to 2000 Unicode characters, not
@@ -154,7 +161,16 @@ instruction address. A report without a dump takes the module and offset from th
 newest `sf4e-crash.log` line for its crash address (`module=<name>+0x<offset>`),
 so every load of a DLL groups as one issue. Events carry channel/build/kind/Windows/exception tags,
 release, comment, source revision, raw codes, report ID and saved dump path.
-Problems use the comment as their message. Events stay strictly below 900 KiB
+Problems use the comment as their message.
+
+A report without a stack or exception code is named by what happened, so each
+cause is its own issue: a start failure is `Start failure` with the exit code and
+phase (fingerprint `start_failure:<exit code>:<phase>`, whatever stack or code the
+game left); a crash with only an exit code is `Game frozen` (0xCFFFFFFF) or
+`Game exit 0x<code>` (fingerprint `exit:<code>`); one with nothing is still
+`Native crash`. A crash with an exception code and a module and offset from the
+crash log is titled `<exception> at <module>+0x<offset>`. Tags carry `phase` and
+`exit_code` when present, and `extra` carries `phase`, `hint` and `game_log`. Events stay strictly below 900 KiB
 after JSON escaping: the crashing stack takes priority, auxiliary threads may
 be limited, and logs retain UTF-8 tails when trimmed from their start.
 

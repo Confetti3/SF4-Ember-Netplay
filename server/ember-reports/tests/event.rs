@@ -7,7 +7,7 @@ use ember_reports::{
 };
 use serde_json::{Value, json};
 use std::{path::PathBuf, time::Duration};
-use support::{Temp, id, report, worker};
+use support::{Temp, id, meta, report, worker};
 
 const SYNTHETIC_DEBUG_ID: &str = "00112233445566778899AABBCCDDEEFF1";
 
@@ -544,4 +544,155 @@ fn dumpless_crash_takes_its_module_from_the_crash_log() {
         fingerprint(&report).0,
         json!(["{{ default }}", "unknown+0x514d16b4"])
     );
+}
+
+// An event for a report with the given metadata changes, no dump and no walk.
+fn named(changes: Value, log: Option<&str>) -> Value {
+    let mut m = meta();
+    let object = m.as_object_mut().unwrap();
+    // Reports without a fault: the defaults carry an exception code and address.
+    object.remove("exception_code");
+    object.remove("crash_address");
+    for (key, value) in changes.as_object().unwrap() {
+        if value.is_null() {
+            object.remove(key);
+        } else {
+            object.insert(key.clone(), value.clone());
+        }
+    }
+    let mut report = intake::Report {
+        meta: serde_json::from_value(m).unwrap(),
+        logs: Default::default(),
+        minidump: None,
+    };
+    if let Some(log) = log {
+        report.logs.insert("sf4e-crash.log".into(), log.into());
+    }
+    serde_json::from_slice(&event::build(&id(&"e".repeat(32)), &report, &Walk::default(), None))
+        .unwrap()
+}
+fn title(event: &Value) -> (String, String) {
+    let exception = &event["exception"]["values"][0];
+    (
+        exception["type"].as_str().unwrap().to_owned(),
+        exception["value"].as_str().unwrap().to_owned(),
+    )
+}
+
+#[test]
+fn a_crash_without_a_stack_is_named_by_its_code_and_module_offset() {
+    let log = |address: &str| {
+        format!("x address={address} module=Sidecar.dll+0x1716B4 thread=2\n")
+    };
+    let first = named(
+        json!({ "exception_code": "0xc0000005", "crash_address": "0x6CAB16B4" }),
+        Some(&log("0x6CAB16B4")),
+    );
+    // Another load of the DLL puts the fault at another address: same title, same issue.
+    let second = named(
+        json!({ "exception_code": "0xc0000005", "crash_address": "0x514D16B4" }),
+        Some(&log("0x514D16B4")),
+    );
+    assert_eq!(
+        title(&first),
+        (
+            "EXCEPTION_ACCESS_VIOLATION".into(),
+            "EXCEPTION_ACCESS_VIOLATION at Sidecar.dll+0x1716b4".into()
+        )
+    );
+    assert_eq!(title(&first), title(&second));
+    assert_eq!(first["fingerprint"], json!(["{{ default }}", "Sidecar.dll+0x1716b4"]));
+    assert_eq!(first["fingerprint"], second["fingerprint"]);
+    assert_eq!(first["level"], "error");
+}
+
+#[test]
+fn a_start_failure_is_its_own_issue_by_exit_code_and_phase() {
+    let before = named(
+        json!({ "kind": "start_failure", "exit_code": 255, "phase": "before_signal",
+            "hint": "steam_appid_missing,outside_steam", "game_log": "absent" }),
+        None,
+    );
+    assert_eq!(
+        title(&before),
+        ("Start failure".into(), "exit 0xFF before the start-up signal".into())
+    );
+    assert_eq!(
+        before["fingerprint"],
+        json!(["{{ default }}", "start_failure:0xff:before_signal"])
+    );
+    assert_eq!(before["tags"]["kind"], "start_failure");
+    assert_eq!(before["tags"]["phase"], "before_signal");
+    assert_eq!(before["tags"]["exit_code"], "0x000000ff");
+    assert_eq!(before["extra"]["hint"], "steam_appid_missing,outside_steam");
+    assert_eq!(before["extra"]["game_log"], "absent");
+    assert_eq!(before["extra"]["phase"], "before_signal");
+    // Not an error of the game's code, and no free text.
+    assert_eq!(before["level"], "warning");
+    assert!(before.get("message").is_none());
+
+    let after = named(
+        json!({ "kind": "start_failure", "exit_code": 255, "phase": "after_signal" }),
+        None,
+    );
+    assert_eq!(
+        title(&after),
+        ("Start failure".into(), "exit 0xFF after the start-up signal".into())
+    );
+    assert_eq!(
+        after["fingerprint"],
+        json!(["{{ default }}", "start_failure:0xff:after_signal"])
+    );
+    assert_ne!(before["fingerprint"], after["fingerprint"]);
+
+    // A record the game wrote on its way out (a code and an address) does not
+    // move the report into a crash's issue.
+    let recorded = named(
+        json!({ "kind": "start_failure", "exit_code": 255, "phase": "after_signal",
+            "exception_code": "0xff", "crash_address": "0x401234" }),
+        None,
+    );
+    assert_eq!(recorded["fingerprint"], after["fingerprint"]);
+    assert_eq!(title(&recorded).0, "Start failure");
+
+    // An old or partial start failure: no phase, no exit code.
+    let unknown = named(json!({ "kind": "start_failure" }), None);
+    assert_eq!(title(&unknown), ("Start failure".into(), "no exit code".into()));
+    assert_eq!(
+        unknown["fingerprint"],
+        json!(["{{ default }}", "start_failure:none:unknown"])
+    );
+}
+
+#[test]
+fn a_frozen_game_and_other_exits_are_named_by_their_exit_code() {
+    let frozen = named(json!({ "exit_code": 0xCFFF_FFFF_u32 }), None);
+    assert_eq!(title(&frozen), ("Game frozen".into(), "exit 0xCFFFFFFF".into()));
+    assert_eq!(frozen["fingerprint"], json!(["{{ default }}", "exit:0xcfffffff"]));
+    assert_eq!(frozen["tags"]["kind"], "crash");
+    assert_eq!(frozen["tags"]["exit_code"], "0xcfffffff");
+
+    let fail_fast = named(json!({ "exit_code": 0xC000_0409_u32 }), None);
+    assert_eq!(
+        title(&fail_fast),
+        ("Game exit 0xC0000409".into(), "exit 0xC0000409".into())
+    );
+    assert_eq!(fail_fast["fingerprint"], json!(["{{ default }}", "exit:0xc0000409"]));
+    assert_ne!(frozen["fingerprint"], fail_fast["fingerprint"]);
+}
+
+#[test]
+fn a_crash_with_nothing_known_keeps_its_old_title() {
+    let unknown = named(json!({}), None);
+    assert_eq!(title(&unknown), ("Native crash".into(), "Native crash".into()));
+    assert!(unknown.get("fingerprint").is_none());
+    // An exception code without an address is still named by the code, as before.
+    let coded = named(json!({ "exception_code": "0xc0000005", "exit_code": 0xC000_0005_u32 }), None);
+    assert_eq!(title(&coded).0, "EXCEPTION_ACCESS_VIOLATION");
+    assert!(coded.get("fingerprint").is_none());
+    // A typed report is still a message with no exception.
+    let problem = named(json!({ "kind": "problem" }), None);
+    assert!(problem.get("exception").is_none());
+    assert_eq!(problem["message"], "It stopped after joining.");
+    assert!(problem.get("fingerprint").is_none());
 }
