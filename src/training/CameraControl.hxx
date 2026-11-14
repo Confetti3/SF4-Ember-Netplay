@@ -1,5 +1,6 @@
 #pragma once
 #include "CameraRig.hxx"
+#include "../platform/DurableFile.hxx"
 #include "../common/JsonField.hxx"
 #include "../common/Utf8Text.hxx"
 #include <array>
@@ -158,12 +159,13 @@ private:
     mutable Clock::time_point start_;
     bool loop_ = false;
     std::filesystem::path file_;
+    // Written whole or not at all, as the other settings files are: a crash mid-write leaves the last views.
     void Save() const {
         if (file_.empty()) return;
         std::error_code ignored;
         std::filesystem::create_directories(file_.parent_path(), ignored);
-        std::ofstream out(file_);
-        if (out) out << nlohmann::json{{"glideMs", settings_.glideMs}, {"views", ViewsJson(settings_)}}.dump(1);
+        const std::string bytes = nlohmann::json{{"glideMs", settings_.glideMs}, {"views", ViewsJson(settings_)}}.dump(1);
+        durable::PublishReplace(file_, durable::PartialPath(file_), bytes.data(), bytes.size());
     }
     static nlohmann::json ViewsJson(const Settings& s);
     // The timeline picks the key at a frame, or none; the lock is held.

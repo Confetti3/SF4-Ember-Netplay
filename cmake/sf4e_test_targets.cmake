@@ -15,7 +15,7 @@ if(WIN32)
         LIBS sf4e_hud_layout sf4e_game_themes sf4e_durable_file TIMEOUT 15 LABELS training)
 endif()
 sf4e_add_unit_test(NAME TrainingCameraRig SOURCES "src/tests/training_camera_rig_test.cxx" STD 17
-    LIBS nlohmann_json::nlohmann_json LABELS training)
+    LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> LABELS training)
 sf4e_add_unit_test(NAME ComboFile SOURCES "src/tests/combo_file_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json LABELS training)
 sf4e_add_unit_test(NAME ComboStore SOURCES "src/tests/combo_store_test.cxx" STD 17
     LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> LABELS training)

@@ -1,4 +1,5 @@
 #include "RemoteHud.hxx"
+#include "RemoteRequest.hxx"
 #include "GameFiles.hxx"
 #include "../platform/DurableFile.hxx"
 #include "../platform/GameThemes.hxx"
@@ -29,22 +30,6 @@ constexpr std::size_t MostFile = 16u << 20;
 Reply Say(int status, const nlohmann::json& body) { Reply r; r.status = status; r.body = DumpJson(body); return r; }
 Reply Fail(int status, const char* why) { return Say(status, { { "ok", false }, { "error", why } }); }
 
-std::string Decode(const std::string& text) {
-    std::string out;
-    for (std::size_t i = 0; i < text.size(); ++i) {
-        if (text[i] == '%' && i + 2 < text.size() && std::isxdigit((unsigned char)text[i + 1]) && std::isxdigit((unsigned char)text[i + 2])) { out += (char)std::stoi(text.substr(i + 1, 2), nullptr, 16); i += 2; }
-        else out += text[i] == '+' ? ' ' : text[i];
-    }
-    return out;
-}
-std::string Param(const std::string& query, const std::string& key) {
-    for (std::size_t at = 0; at < query.size();) {
-        const auto end = query.find('&', at), stop = end == std::string::npos ? query.size() : end;
-        if (query.compare(at, key.size() + 1, key + "=") == 0) return Decode(query.substr(at + key.size() + 1, stop - at - key.size() - 1));
-        at = stop + 1;
-    }
-    return {};
-}
 // A theme is one folder name: nothing that leaves ember\themes, and UTF-8 a path can be made of.
 bool PlainName(const std::string& name) {
     return !name.empty() && name != "." && name != ".." && name.size() < 100 && name.find_first_of("\\/:") == std::string::npos && IsWellFormedUtf8(name);
@@ -210,7 +195,7 @@ Reply Themes(const Request& r) {
 }
 Reply ThemeInfo(const Request& r) {
     Theme theme;
-    if (!OpenTheme(r.host, Param(r.query, "name"), theme)) return Fail(404, "no such theme");
+    if (!OpenTheme(r.host, QueryParam(r.query, "name"), theme)) return Fail(404, "no such theme");
     nlohmann::json elements = nlohmann::json::array(), art = nlohmann::json::array();
     for (const layout::Info& i : layout::Describe(theme.files)) elements.push_back(InfoJson(i));
     for (const Art& a : ArtOf(r.host, theme.name)) art.push_back(ArtName(a));
@@ -218,8 +203,8 @@ Reply ThemeInfo(const Request& r) {
 }
 Reply Scene(const Request& r) {
     Theme theme;
-    if (!OpenTheme(r.host, Param(r.query, "name"), theme)) return Fail(404, "no such theme");
-    const std::string fighter = FighterOf(r.host, Param(r.query, "fighter"));
+    if (!OpenTheme(r.host, QueryParam(r.query, "name"), theme)) return Fail(404, "no such theme");
+    const std::string fighter = FighterOf(r.host, QueryParam(r.query, "fighter"));
     nlohmann::json sprites = nlohmann::json::array(), sheets = nlohmann::json::object();
     for (const layout::Sprite& sp : layout::Sprites(theme.files)) {
         sprites.push_back({ { "n", sp.node }, { "e", sp.element }, { "f", sp.file }, { "t", sp.tex }, { "uv", { sp.uv[0], sp.uv[1], sp.uv[2], sp.uv[3] } },
@@ -236,10 +221,10 @@ Reply Scene(const Request& r) {
 }
 Reply SheetPicture(const Request& r) {
     Theme theme;
-    if (!OpenTheme(r.host, Param(r.query, "name"), theme)) return Fail(404, "no such theme");
-    const std::string relative = SheetOf(Param(r.query, "file"), FighterOf(r.host, Param(r.query, "fighter")));
+    if (!OpenTheme(r.host, QueryParam(r.query, "name"), theme)) return Fail(404, "no such theme");
+    const std::string relative = SheetOf(QueryParam(r.query, "file"), FighterOf(r.host, QueryParam(r.query, "fighter")));
     std::string sheet; std::vector<std::string> dds; textures::Image image;
-    const int index = std::atoi(Param(r.query, "index").c_str());
+    const int index = std::atoi(QueryParam(r.query, "index").c_str());
     // The user's pictures show in the preview, pasted as the game will read them.
     if (relative.empty() || !Read(Find(r.host, theme.name, relative), sheet) || !textures::Entries(WithArt(r.host, theme.name, relative, std::move(sheet)), dds)
         || index < 0 || static_cast<std::size_t>(index) >= dds.size() || !textures::Decode(dds[index], image)) return Fail(404, "no such texture");
