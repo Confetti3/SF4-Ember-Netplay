@@ -16,16 +16,14 @@
 namespace sf4e { namespace session {
 
 // A committed effect's place in the room journal, and for room state its kind,
-// read from its token as it is queued. The effect gate checks the token itself
-// at the queue head; one that does not read is left unmarked here and is
-// dropped there.
+// read from its token as it is queued, with the parse the effect gate uses.
+// The gate still authenticates the token at the queue head; one that does not
+// read is left unmarked here and is dropped there.
 inline void ReadCommitToken(const nlohmann::json& decoded, MessageTag& tag) {
-	try {
-		const auto& token = decoded.at("_commit");
-		const auto term = token.at("term").get<std::uint64_t>(), revision = token.at("revision").get<std::uint64_t>();
-		const auto sequence = token.at("sequence").get<std::uint64_t>(), recipient = token.at("recipient").get<std::uint64_t>();
-		tag.commitTerm = term; tag.commitRevision = revision; tag.commitSequence = sequence; tag.commitRecipient = recipient;
-	} catch (const std::exception&) { return; }
+	EffectEnvelope token;
+	try { decoded.at("_commit").get_to(token); } catch (const std::exception&) { return; }
+	tag.commitTerm = token.term; tag.commitRevision = token.revision;
+	tag.commitSequence = token.sequence; tag.commitRecipient = token.recipient;
 	if (tag.type == "data_update") tag.projection = RoomProjection::TableData;
 	else if (tag.type == "room_snapshot")
 		tag.projection = CarriesRoomChat(decoded) ? RoomProjection::SnapshotWithChat : RoomProjection::Snapshot;

@@ -43,6 +43,10 @@ std::string IrohRoom::PeerIdentity(Connection connection) const {
 	return peer == room_.peers.end() ? std::string() : peer->second.identity;
 }
 
+bool IrohRoom::FromLeader(Connection connection) const {
+	return !room_.coordination.leader.empty() && PeerIdentity(connection) == room_.coordination.leader;
+}
+
 std::uint64_t IrohRoom::PeerIncarnation(Connection connection) const {
 	const auto member = room_.memberIncarnations.find(PeerIdentity(connection));
 	return member == room_.memberIncarnations.end() ? 0 : member->second;
@@ -320,8 +324,8 @@ bool IrohRoom::ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, 
 	if (room_.publicHost && (effect || leaderHandshake || leaderVerification)) return true;
 	// Classified from this one parse; neither queue nor the session layer
 	// parses it again to learn its kind.
-	return Queue((effect || leaderHandshake || leaderVerification) ? room_.clientMessages : room_.serverMessages,
-		{peer->first, id, std::move(payload), "", ClassifyRoomMessage(decoded)});
+	Message message{peer->first, id, std::move(payload), "", ClassifyRoomMessage(decoded)};
+	return effect || leaderHandshake || leaderVerification ? QueueEffect(std::move(message)) : QueueIntent(std::move(message));
 }
 
 SendResult IrohRoom::SendRemote(Connection connection, const std::string& payload, std::int64_t* id) {

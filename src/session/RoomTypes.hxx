@@ -327,16 +327,29 @@ inline bool PostMatchShown(const Member& member, const PostMatchSaid& said) {
 // commit for a room that is already ahead of it; once it has applied them all (Current).
 enum class PostMatchLink : std::uint8_t { Off, CatchingUp, Current };
 
+// What this PC last told the room: the word, when, and under which authority term.
+struct PostMatchSay {
+	PostMatchSaid said;
+	std::uint64_t atMs = 0;
+	std::uint64_t term = 0;
+};
+
 // Whether the runtime says `wanted` to the room now (SayPostMatch), as `member` is shown in
 // the room's own snapshot (null with no room): never while the link is Off or the room already
-// shows it, at once for a word not said yet, and again each second until the room shows it,
-// but only while this PC's snapshot is Current. Not once the shell stops wanting one (not Active).
+// shows it; at once for a word not said yet, or said under another authority term (a new
+// leader may have dropped the proposal that carried it); then again until the room shows it,
+// each second while this PC is Current and every PostMatchCatchUpResendMs while it is
+// CatchingUp. A member can stay behind for at most MaximumParkedCommits (104) commits before
+// its room fails, about 17 s in the busiest room (SessionRecovery.hxx), so a lost word is said
+// again at most 3 times in that time instead of 17, which is no amplification of the backlog.
+// Not once the shell stops wanting one (not Active).
 constexpr std::uint64_t PostMatchResendMs = 1000;
-inline bool PostMatchDue(const PostMatchSaid& wanted, const PostMatchSaid& lastSaid, std::uint64_t lastSaidAtMs,
-	std::uint64_t nowMs, PostMatchLink link, const Member* member) {
+constexpr std::uint64_t PostMatchCatchUpResendMs = 5000;
+inline bool PostMatchDue(const PostMatchSaid& wanted, const PostMatchSay& last, std::uint64_t nowMs,
+	std::uint64_t term, PostMatchLink link, const Member* member) {
 	if (!wanted.Active() || link == PostMatchLink::Off || !member || PostMatchShown(*member, wanted)) return false;
-	if (wanted != lastSaid) return true;
-	return link == PostMatchLink::Current && nowMs - lastSaidAtMs >= PostMatchResendMs;
+	if (wanted != last.said || term != last.term) return true;
+	return nowMs - last.atMs >= (link == PostMatchLink::Current ? PostMatchResendMs : PostMatchCatchUpResendMs);
 }
 
 // The set a table finished last: who sat where for its deciding game, and the

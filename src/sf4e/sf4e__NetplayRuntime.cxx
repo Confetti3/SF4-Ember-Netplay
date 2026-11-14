@@ -843,24 +843,25 @@ static void SayTyping() {
 // too: the shell publishes the answer it wants shown (NotePostMatchAnswer), and
 // what the room's own snapshot shows of the player is what it is compared
 // with, so a word that was lost, refused or overtaken is said again, at most
-// each second, until the room shows it or the shell stops publishing it (the
-// prompt closed). A new word is said at once. Only while the game is on, and
+// each second (every five while this PC catches up, room::PostMatchDue), until
+// the room shows it or the shell stops publishing it (the prompt closed). A new
+// word, or one said before the authority term changed, is said at once. Only while the game is on, and
 // only while the room shows the player a fighter of the answer's match: the
 // authority takes the answer from them alone (room::PostMatchTakes), so a set's
 // rotation that unseated them ends it.
 static void SayPostMatch() {
-	if (!runtime->attached || !UserApp::netplay) { runtime->postMatchSaid = {}; runtime->postMatchSaidAtMs = 0; return; }
+	if (!runtime->attached || !UserApp::netplay) { runtime->postMatchSay = {}; return; }
 	const auto wanted = PostMatchWanted();
-	if (!wanted.Active()) { runtime->postMatchSaid = {}; return; }
+	if (!wanted.Active()) { runtime->postMatchSay.said = {}; return; }
 	const auto& state = runtime->controller.GetSnapshot();
 	const bool live = netplay::Fighting(state.match) && state.control == netplay::Health::Healthy;
 	// Behind the room's commits, this PC's snapshot cannot show the word yet:
-	// it is said once, and again only once the room has caught up here.
+	// it is said again only slowly until the room has caught up here.
 	const auto link = !live ? room::PostMatchLink::Off
 		: !state.coordinated || state.authorityWritable ? room::PostMatchLink::Current : room::PostMatchLink::CatchingUp;
 	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
 	const auto now = GetTickCount64();
-	if (!room::PostMatchDue(wanted, runtime->postMatchSaid, runtime->postMatchSaidAtMs, now, link, room)) return;
+	if (!room::PostMatchDue(wanted, runtime->postMatchSay, now, state.authorityTerm, link, room)) return;
 	room::Action say;
 	say.kind = room::ActionKind::PostMatchAnswer;
 	say.postMatch = wanted.word;
@@ -869,8 +870,11 @@ static void SayPostMatch() {
 	say.game = wanted.game;
 	say.roomEpoch = room.roomEpoch;
 	say.revision = room.revision;
-	runtime->postMatchSaidAtMs = now;
-	if (UserApp::netplay->client.SendRoomAction(say) == session::SendResult::Queued) runtime->postMatchSaid = wanted;
+	runtime->postMatchSay.atMs = now;
+	if (UserApp::netplay->client.SendRoomAction(say) == session::SendResult::Queued) {
+		runtime->postMatchSay.said = wanted;
+		runtime->postMatchSay.term = state.authorityTerm;
+	}
 	else spdlog::info("Room: could not tell the room the post-match answer; it is said again");
 }
 void ReconcileTrainingCall() {

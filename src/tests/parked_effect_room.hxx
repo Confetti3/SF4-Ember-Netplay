@@ -38,12 +38,17 @@ struct ParkedEffectRoom {
 		pipe.Send({{"type", "control_rebound"}, {"epoch", 1}, {"room", id}, {"leader", leader},
 			{"member_incarnations", incarnations}, {"members", json::array({leader})}});
 	}
-	// This member's effect with `payload`, committed at `revision` in term 1,
-	// keeping its payload as the public replay copy.
-	session::EffectEnvelope Committed(std::uint64_t revision, std::uint64_t sequence, json payload) const {
+	// An effect with `payload` for `recipient` (this member when 0), committed at
+	// `revision` in term 1, keeping its payload as the public replay copy and
+	// marked as the leader's JournalEffect marks it.
+	session::EffectEnvelope Committed(std::uint64_t revision, std::uint64_t sequence, json payload,
+		room::MemberId recipient = 0) const {
 		session::EffectEnvelope effect;
 		effect.sequence = sequence; effect.roomEpoch = 9; effect.term = 1; effect.revision = revision;
-		effect.recipient = local.member; effect.endpoint = local.endpoint; effect.type = payload.value("type", std::string());
+		effect.recipient = recipient ? recipient : local.member;
+		effect.endpoint = recipient ? room::ConnectionRef{"relay", "member-" + std::to_string(recipient)} : local.endpoint;
+		effect.type = payload.value("type", std::string());
+		effect.chat = effect.type == "room_snapshot" && session::CarriesRoomChat(payload);
 		effect.publicPayload = std::move(payload);
 		effect.payloadDigest = session::PayloadDigest(effect.publicPayload);
 		return effect;
@@ -62,9 +67,11 @@ struct ParkedEffectRoom {
 		proposal.effectsDigest = session::EffectsDigest(proposal.effects);
 		return json(proposal).dump();
 	}
-	// The leader's live send of one committed effect.
-	void SendLive(const std::string& wire) {
-		pipe.Send({{"type", "message"}, {"epoch", 1}, {"peer", leader}, {"message_id", nextMessage++}, {"payload", wire}});
+	// The leader's live send of one committed effect, or another member's
+	// message on its own control when `from` names it.
+	void SendLive(const std::string& wire, const std::string& from = {}) {
+		pipe.Send({{"type", "message"}, {"epoch", 1}, {"peer", from.empty() ? leader : from},
+			{"message_id", nextMessage++}, {"payload", wire}});
 	}
 	void Transfer(std::uint64_t revision, const std::string& bytes) {
 		const json transfer{{"epoch", 1}, {"room", id}, {"transfer", revision}, {"term", 1},

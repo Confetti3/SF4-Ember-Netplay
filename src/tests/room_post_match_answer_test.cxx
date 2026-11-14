@@ -113,34 +113,43 @@ int main() {
 		Member member;
 		PostMatchSaid wanted, said;
 		wanted.word = PostMatchWord::Back; wanted.generation = 7; wanted.game = 1;
-		EXPECT(PostMatchDue(wanted, said, 0, 5000, PostMatchLink::Current, &member));            // a new word is said at once
+		EXPECT(PostMatchDue(wanted, PostMatchSay{said, 0}, 5000, 0, PostMatchLink::Current, &member));            // a new word is said at once
 		said = wanted;
-		EXPECT(!PostMatchDue(wanted, said, 5000, 5400, PostMatchLink::Current, &member));        // just said: not yet
-		EXPECT(!PostMatchDue(wanted, said, 5000, 5999, PostMatchLink::Current, &member));
-		EXPECT(PostMatchDue(wanted, said, 5000, 6000, PostMatchLink::Current, &member));         // again each second
-		EXPECT(PostMatchDue(wanted, said, 6000, 7000, PostMatchLink::Current, &member));         // and again while unshown
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{said, 5000}, 5400, 0, PostMatchLink::Current, &member));        // just said: not yet
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{said, 5000}, 5999, 0, PostMatchLink::Current, &member));
+		EXPECT(PostMatchDue(wanted, PostMatchSay{said, 5000}, 6000, 0, PostMatchLink::Current, &member));         // again each second
+		EXPECT(PostMatchDue(wanted, PostMatchSay{said, 6000}, 7000, 0, PostMatchLink::Current, &member));         // and again while unshown
 		auto changed = wanted; changed.word = PostMatchWord::Rematch;
-		EXPECT(PostMatchDue(changed, said, 6000, 6100, PostMatchLink::Current, &member));        // a changed word does not wait
+		EXPECT(PostMatchDue(changed, PostMatchSay{said, 6000}, 6100, 0, PostMatchLink::Current, &member));        // a changed word does not wait
 		member.postMatch = PostMatchWord::Back; member.postMatchGeneration = 7; member.postMatchGame = 1;
-		EXPECT(!PostMatchDue(wanted, said, 0, 99999, PostMatchLink::Current, &member));          // the room shows it: stop
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{said, 0}, 99999, 0, PostMatchLink::Current, &member));          // the room shows it: stop
 		member.postMatch = PostMatchWord::None;
-		EXPECT(!PostMatchDue(PostMatchSaid{}, said, 0, 99999, PostMatchLink::Current, &member)); // the prompt closed: nothing wanted
-		EXPECT(!PostMatchDue(wanted, said, 0, 99999, PostMatchLink::Off, &member));         // the game is not on
-		EXPECT(!PostMatchDue(wanted, said, 0, 99999, PostMatchLink::Current, nullptr));          // no room member to compare
+		EXPECT(!PostMatchDue(PostMatchSaid{}, PostMatchSay{said, 0}, 99999, 0, PostMatchLink::Current, &member)); // the prompt closed: nothing wanted
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{said, 0}, 99999, 0, PostMatchLink::Off, &member));         // the game is not on
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{said, 0}, 99999, 0, PostMatchLink::Current, nullptr));          // no room member to compare
 	}
 	{
 		// While this PC is still applying the room's commits, its snapshot cannot show the word yet: a new or
-		// changed word is said at once, but none is said again until it has caught up, however long that takes.
+		// changed word is said at once, and one the room may have lost only every PostMatchCatchUpResendMs.
 		Member member;
 		PostMatchSaid wanted, said;
 		wanted.word = PostMatchWord::Rematch; wanted.generation = 7; wanted.game = 2;
-		EXPECT(PostMatchDue(wanted, said, 0, 5000, PostMatchLink::CatchingUp, &member));
+		EXPECT(PostMatchDue(wanted, PostMatchSay{said, 0, 3}, 5000, 3, PostMatchLink::CatchingUp, &member));
 		said = wanted;
-		for (std::uint64_t now = 6000; now <= 60000; now += 1000)
-			EXPECT(!PostMatchDue(wanted, said, 5000, now, PostMatchLink::CatchingUp, &member));
+		const PostMatchSay last{said, 5000, 3};
+		for (std::uint64_t now = 6000; now < 5000 + PostMatchCatchUpResendMs; now += 1000)
+			EXPECT(!PostMatchDue(wanted, last, now, 3, PostMatchLink::CatchingUp, &member));
 		auto changed = wanted; changed.word = PostMatchWord::Back;
-		EXPECT(PostMatchDue(changed, said, 5000, 5100, PostMatchLink::CatchingUp, &member));
-		EXPECT(PostMatchDue(wanted, said, 5000, 60000, PostMatchLink::Current, &member));     // caught up, still unshown: again
+		EXPECT(PostMatchDue(changed, last, 5100, 3, PostMatchLink::CatchingUp, &member));
+		EXPECT(PostMatchDue(wanted, last, 6000, 3, PostMatchLink::Current, &member));     // caught up, still unshown: again
+		// The say was lost and this PC is still behind: the room hears it again, slowly, before the prompt closes.
+		EXPECT(PostMatchDue(wanted, last, 5000 + PostMatchCatchUpResendMs, 3, PostMatchLink::CatchingUp, &member));
+		// A new leader may have dropped the proposal that carried it: said again at once.
+		EXPECT(PostMatchDue(wanted, last, 5100, 4, PostMatchLink::CatchingUp, &member));
+		EXPECT(PostMatchDue(wanted, last, 5100, 4, PostMatchLink::Current, &member));
+		// Still never once the room shows it.
+		member.postMatch = PostMatchWord::Rematch; member.postMatchGeneration = 7; member.postMatchGame = 2;
+		EXPECT(!PostMatchDue(wanted, last, 99999, 4, PostMatchLink::CatchingUp, &member));
 	}
 	{
 		// The room's own snapshot decides whether it is due at all: only while the room shows this PC a fighter of
@@ -155,37 +164,37 @@ int main() {
 		const PostMatchSaid never;
 		const auto* me = FindMember(view, room.p1);
 		EXPECT(me && PostMatchTakes(view, *me, wanted));
-		EXPECT(PostMatchDue(wanted, never, 0, 5000, PostMatchLink::Current, view));              // seated at the match: said
+		EXPECT(PostMatchDue(wanted, PostMatchSay{never, 0}, 5000, 0, PostMatchLink::Current, view));              // seated at the match: said
 		EXPECT(room.Say(room.p1, wanted.word, wanted.generation, wanted.game).accepted); // as the authority agrees
 		// The rotation unseated them: the seat is another's, though the member still names the table.
 		Snapshot rotated = view;
 		rotated.tables[0].p1 = room.host;
 		EXPECT(!PostMatchTakes(rotated, *FindMember(rotated, room.p1), wanted));
-		EXPECT(!PostMatchDue(wanted, never, 0, 5000, PostMatchLink::Current, rotated));
-		EXPECT(!PostMatchDue(wanted, wanted, 0, 99999, PostMatchLink::Current, rotated));       // nor again each second
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{never, 0}, 5000, 0, PostMatchLink::Current, rotated));
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{wanted, 0}, 99999, 0, PostMatchLink::Current, rotated));       // nor again each second
 		// Moved to another table, or no table.
 		Snapshot moved = view;
 		for (auto& member : moved.members) if (member.id == room.p1) member.table = 1;
-		EXPECT(!PostMatchDue(wanted, never, 0, 5000, PostMatchLink::Current, moved));
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{never, 0}, 5000, 0, PostMatchLink::Current, moved));
 		for (auto& member : moved.members) if (member.id == room.p1) member.table = -1;
-		EXPECT(!PostMatchDue(wanted, never, 0, 5000, PostMatchLink::Current, moved));
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{never, 0}, 5000, 0, PostMatchLink::Current, moved));
 		// The table went on to its next match.
 		Snapshot next = view;
 		++next.tables[0].matchGeneration;
-		EXPECT(!PostMatchDue(wanted, never, 0, 5000, PostMatchLink::Current, next));
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{never, 0}, 5000, 0, PostMatchLink::Current, next));
 		// Not in a room, or not a member of it.
 		Snapshot none = view;
 		none.roomEpoch = 0;
-		EXPECT(!PostMatchDue(wanted, never, 0, 5000, PostMatchLink::Current, none));
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{never, 0}, 5000, 0, PostMatchLink::Current, none));
 		Snapshot stranger = view;
 		stranger.localMember = 9999;
-		EXPECT(!PostMatchDue(wanted, never, 0, 5000, PostMatchLink::Current, stranger));
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{never, 0}, 5000, 0, PostMatchLink::Current, stranger));
 		// The rest of the rule stands: not while the game is off, nor once the room shows it.
-		EXPECT(!PostMatchDue(wanted, never, 0, 5000, PostMatchLink::Off, view));
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{never, 0}, 5000, 0, PostMatchLink::Off, view));
 		const Snapshot shown = room.authority.SnapshotView();
 		Snapshot told = shown;
 		told.localMember = room.p1;
-		EXPECT(!PostMatchDue(wanted, never, 0, 5000, PostMatchLink::Current, told));
+		EXPECT(!PostMatchDue(wanted, PostMatchSay{never, 0}, 5000, 0, PostMatchLink::Current, told));
 	}
 	{
 		// Only a seated fighter of the live match says it, for that match.

@@ -1,44 +1,76 @@
 // A busy room's commits reaching a member whose checkpoint has not applied yet
 // (issue 231): the burst no longer fails the room, the member ends where
 // applying every commit would have left it, with its events and chat, each
-// checkpoint shows that commit's room, and a stream that never applies still
-// fails as it did.
+// checkpoint shows that commit's room in commit order, the journal of a busy
+// 16-member room still vouches for the effects a member waits on, an effect
+// it no longer holds fails the room by name, another peer's tokens decide
+// nothing, and a stream that never applies still fails as it did.
 #include "parked_effect_room.hxx"
 
+#include <set>
 #include <vector>
 
 using session::EffectEnvelope;
 
 namespace {
 
-// The leader's side of a run of commits: each commit's effects for this member
-// sent live as it commits, in BroadcastRoomState's order (the room snapshot,
-// with the chat only when it changed; a table event when there is one; the
-// table's data_update), and the checkpoint the helper exports for a commit.
+// What one commit holds. This member gets its room snapshot (with the chat
+// only when `chat`), a table event when `event`, and its table's data_update,
+// sent live in BroadcastRoomState's order unless their type is `withheld`
+// (a control gap). `others` more members get theirs, and `replies` actions'
+// replies go to them: room_results that carry the whole room. Those are in
+// the journal only. `pad` sizes a snapshot and a reply as a busy room's.
+struct CommitSpec {
+	bool chat = false, event = false;
+	std::size_t others = 0, replies = 0, pad = 0;
+	std::set<std::string> withheld;
+};
+
+// The leader's side of a run of commits, and the checkpoint the helper
+// exports for one of them: the journal of every earlier commit, compacted as
+// the leader keeps it, and that commit's own effects.
 struct CommitStream {
 	ParkedEffectRoom& member;
 	std::map<std::uint64_t, std::vector<EffectEnvelope>> commits;
 	std::vector<json> sent;
+	std::uint64_t sequence = 0;
 
-	void Commit(std::uint64_t revision, bool chat, bool event) {
-		json snapshot{{"marker", revision}};
-		if (chat) snapshot["chat"] = json::array({revision});
-		else snapshot["chat_unchanged"] = true;
-		auto& effects = commits[revision];
-		effects.push_back(member.Committed(revision, revision * 4, json{{"type", "room_snapshot"}, {"snapshot", snapshot}}));
-		if (event) effects.push_back(member.Committed(revision, revision * 4 + 1, json{{"type", "room_event"}, {"marker", revision}}));
-		effects.push_back(member.Committed(revision, revision * 4 + 2, json{{"type", "data_update"}, {"marker", revision}}));
-		for (const auto& effect : effects) {
-			member.SendLive(session::CommittedEffectWire(effect, effect.publicPayload.dump()));
+	EffectEnvelope Add(std::uint64_t revision, json payload, room::MemberId recipient = 0) {
+		auto effect = member.Committed(revision, ++sequence, std::move(payload), recipient);
+		commits[revision].push_back(effect);
+		return effect;
+	}
+	static json Snapshot(std::uint64_t revision, bool chat, std::size_t pad) {
+		json body{{"marker", revision}, {"members", std::string(pad, 'm')}};
+		if (chat) body["chat"] = json::array({revision});
+		else body["chat_unchanged"] = true;
+		return json{{"type", "room_snapshot"}, {"snapshot", body}};
+	}
+	void Commit(std::uint64_t revision, const CommitSpec& spec = {}) {
+		for (std::size_t reply = 0; reply < spec.replies; ++reply)
+			Add(revision, json{{"type", "room_result"}, {"snapshot", std::string(spec.pad, 'r')}}, 101 + (revision + reply) % spec.others);
+		std::vector<EffectEnvelope> mine{Add(revision, Snapshot(revision, spec.chat, spec.pad))};
+		if (spec.event) mine.push_back(Add(revision, json{{"type", "room_event"}, {"marker", revision}}));
+		mine.push_back(Add(revision, json{{"type", "data_update"}, {"marker", revision}}));
+		for (std::size_t other = 0; other < spec.others; ++other) {
+			Add(revision, Snapshot(revision, spec.chat, spec.pad), 101 + other);
+			Add(revision, json{{"type", "data_update"}, {"marker", revision}}, 101 + other);
+		}
+		for (const auto& effect : mine) {
 			sent.push_back(effect.publicPayload);
+			if (!spec.withheld.count(effect.type)) member.SendLive(session::CommittedEffectWire(effect, effect.publicPayload.dump()));
 		}
 	}
-	// The newest commit's checkpoint, as the helper sends it to a member that
-	// is behind: the journal of every earlier commit and its own effects.
+	EffectEnvelope Mine(std::uint64_t revision, const char* type) const {
+		for (const auto& effect : commits.at(revision)) if (effect.type == type && effect.recipient == member.local.member) return effect;
+		CHECK(false);
+		return {};
+	}
 	void Checkpoint(std::uint64_t revision) {
 		std::vector<EffectEnvelope> journal;
 		for (const auto& commit : commits)
 			if (commit.first < revision) journal.insert(journal.end(), commit.second.begin(), commit.second.end());
+		session::CompactEffectJournal(journal);
 		member.Transfer(revision, member.Proposal(revision, journal, commits.at(revision)));
 	}
 };
@@ -72,6 +104,14 @@ std::vector<json> RoomPayloads(const std::vector<session::Message>& received) {
 	}
 	return payloads;
 }
+std::string Kinds(const std::vector<json>& payloads) {
+	std::string kinds;
+	for (const auto& payload : payloads) {
+		const auto type = payload.at("type").get<std::string>();
+		kinds += type == "room_snapshot" ? 's' : type == "room_event" ? 'e' : type == "data_update" ? 'd' : '?';
+	}
+	return kinds;
+}
 
 // Stages the checkpoint sent last, then applies it as the runtime does.
 void Apply(ParkedEffectRoom& member, SessionServer& replica, session::RoomRecoveryRuntime& recovery, std::uint64_t revision) {
@@ -86,11 +126,20 @@ void Apply(ParkedEffectRoom& member, SessionServer& replica, session::RoomRecove
 	CHECK(recovery.AppliedRevision() == revision && recovery.Error().empty() && !member.room->CheckpointPending());
 }
 
+// Polls the client until the room fails, for a test that expects it to.
+void PollUntilFailed(ParkedEffectRoom& member, std::vector<session::Message>& received) {
+	for (int tick = 0; tick < 100 && member.room->GetState() != session::IrohRoom::State::Failed; ++tick) {
+		member.client->Poll(received, 8);
+		member.pipe.Drain();
+		Sleep(1);
+	}
+}
+
 } // namespace
 
 // 80 commits, a verification frame every other one as in a fight, while this
 // member's checkpoint has not applied: 202 live messages behind a parked head,
-// where 64 used to fail the room. It keeps ten room messages, and once the
+// where 64 used to fail the room. It keeps six room messages, and once the
 // newest checkpoint applies it shows the same room, chat and events as
 // applying every commit in turn would.
 static void TestBurstBehindParkedCheckpoint() {
@@ -98,17 +147,18 @@ static void TestBurstBehindParkedCheckpoint() {
 	CommitStream leader{member};
 	std::vector<session::Message> received;
 	for (std::uint64_t revision = 1; revision <= 80; ++revision) {
-		leader.Commit(revision, revision == 30, revision == 40);
+		CommitSpec spec; spec.chat = revision == 30; spec.event = revision == 40;
+		leader.Commit(revision, spec);
 		if (revision % 2 == 0) member.SendLive(json{{"type", "battle_hash"}, {"frameIdx", revision}}.dump());
 		if (revision % 8 == 0) member.Settle(received, 4);
 	}
 	member.Settle(received);
 	CHECK(received.empty() && member.room->GetState() != session::IrohRoom::State::Failed);
-	// The first snapshot and data_update (the head), the snapshot with the
-	// chat, the run up to the event, the event, and the run after it.
+	// The snapshot with the chat, the run up to the event, the event, and the
+	// newest snapshot and data_update after it.
 	const auto parked = member.room->RecoveryState();
-	CHECK(parked.clientQueueMessages == 10 + session::MaximumQueuedVerification);
-	CHECK(parked.clientHeadCommitted && parked.clientHeadRevision == 1 && parked.clientHeadType == "room_snapshot");
+	CHECK(parked.clientQueueMessages == 6 + session::MaximumQueuedVerification);
+	CHECK(parked.clientHeadCommitted && parked.clientHeadRevision == 30 && parked.clientHeadType == "room_snapshot");
 
 	const auto replica = member.fixture.Replica();
 	session::RoomRecoveryRuntime recovery;
@@ -117,9 +167,8 @@ static void TestBurstBehindParkedCheckpoint() {
 	member.Settle(received);
 	const auto delivered = RoomPayloads(received);
 	// What the gate lets through: the snapshot with the chat, the event, and
-	// the newest state; the superseded state the journal no longer holds is
-	// dropped there.
-	CHECK(delivered.size() == 4);
+	// the newest state; replaced state the journal no longer holds is dropped.
+	CHECK(Kinds(delivered) == "sesd");
 	ClientRoom client, reference;
 	for (const auto& payload : delivered) client.Apply(payload);
 	for (const auto& payload : leader.sent) reference.Apply(payload);
@@ -138,11 +187,11 @@ static void TestEachCheckpointShowsItsRoom() {
 	CommitStream leader{member};
 	std::vector<session::Message> received;
 	for (std::uint64_t revision = 1; revision <= 50; ++revision) {
-		leader.Commit(revision, false, false);
+		leader.Commit(revision);
 		if (revision % 8 == 0) member.Settle(received, 4);
 	}
 	member.Settle(received);
-	CHECK(received.empty() && member.room->RecoveryState().clientQueueMessages == 4);
+	CHECK(received.empty() && member.room->RecoveryState().clientQueueMessages == 2);
 
 	const auto replica = member.fixture.Replica();
 	session::RoomRecoveryRuntime recovery;
@@ -150,11 +199,8 @@ static void TestEachCheckpointShowsItsRoom() {
 	Apply(member, *replica, recovery, 20);
 	member.Settle(received);
 	auto delivered = RoomPayloads(received);
-	CHECK(delivered.size() == 2);
-	if (delivered.size() == 2) {
-		CHECK(delivered[0].at("type") == "room_snapshot" && delivered[0].at("snapshot").at("marker") == 20);
-		CHECK(delivered[1].at("type") == "data_update" && delivered[1].at("marker") == 20);
-	}
+	CHECK(Kinds(delivered) == "sd");
+	if (delivered.size() == 2) CHECK(delivered[0].at("snapshot").at("marker") == 20 && delivered[1].at("marker") == 20);
 	const auto waiting = member.room->RecoveryState();
 	CHECK(waiting.clientQueueMessages == 2 && waiting.clientHeadRevision == 50);
 
@@ -163,33 +209,164 @@ static void TestEachCheckpointShowsItsRoom() {
 	Apply(member, *replica, recovery, 50);
 	member.Settle(received);
 	delivered = RoomPayloads(received);
-	CHECK(delivered.size() == 2);
-	if (delivered.size() == 2) {
-		CHECK(delivered[0].at("snapshot").at("marker") == 50 && delivered[1].at("marker") == 50);
+	CHECK(Kinds(delivered) == "sd");
+	if (delivered.size() == 2) CHECK(delivered[0].at("snapshot").at("marker") == 50 && delivered[1].at("marker") == 50);
+}
+
+// Commit 21's snapshot replaced commit 20's in the queue before commit 20
+// applied, while commit 20's data_update was still queued. The replay of the
+// snapshot goes before that data_update, as the commit sent them.
+static void TestReplayKeepsCommitOrder() {
+	ParkedEffectRoom member;
+	CommitStream leader{member};
+	std::vector<session::Message> received;
+	for (std::uint64_t revision = 1; revision <= 20; ++revision) leader.Commit(revision);
+	CommitSpec snapshotOnly; snapshotOnly.withheld = {"data_update"};
+	leader.Commit(21, snapshotOnly);
+	member.Settle(received);
+	CHECK(received.empty() && member.room->RecoveryState().clientQueueMessages == 2);
+	const auto replica = member.fixture.Replica();
+	session::RoomRecoveryRuntime recovery;
+	leader.Checkpoint(20);
+	Apply(member, *replica, recovery, 20);
+	member.Settle(received);
+	const auto delivered = RoomPayloads(received);
+	CHECK(Kinds(delivered) == "sd");
+	if (delivered.size() == 2) CHECK(delivered[0].at("snapshot").at("marker") == 20 && delivered[1].at("marker") == 20);
+}
+
+// A busy 16-member room: every commit gives each member a snapshot of about
+// 4 KB and a data_update, and carries an action's reply of the whole room for
+// another member, which used to push this member's parked event out of the
+// journal's 256 KB after a couple of dozen commits. 60 commits behind, the
+// event, the snapshot with the chat and the newest state all still arrive.
+static void TestBusyJournalKeepsParkedEffects() {
+	ParkedEffectRoom member;
+	CommitStream leader{member};
+	std::vector<session::Message> received;
+	for (std::uint64_t revision = 1; revision <= 60; ++revision) {
+		CommitSpec spec; spec.others = 15; spec.replies = 1; spec.pad = 4096;
+		spec.chat = revision % 10 == 0 && revision < 60; spec.event = revision == 5;
+		leader.Commit(revision, spec);
+		if (revision % 4 == 0) member.Settle(received, 4);
 	}
+	member.Settle(received);
+	CHECK(received.empty() && member.room->GetState() != session::IrohRoom::State::Failed);
+
+	const auto replica = member.fixture.Replica();
+	session::RoomRecoveryRuntime recovery;
+	leader.Checkpoint(60);
+	Apply(member, *replica, recovery, 60);
+	member.Settle(received);
+	const auto delivered = RoomPayloads(received);
+	CHECK(member.room->GetState() != session::IrohRoom::State::Failed);
+	CHECK(Kinds(delivered) == "essd");
+	ClientRoom client;
+	for (const auto& payload : delivered) client.Apply(payload);
+	CHECK(client.events == std::vector<std::uint64_t>{5} && client.chat == json::array({50}));
+	CHECK(client.snapshot == 60 && client.data == 60);
+}
+
+// The same room with five replies a commit: more than the journal is sure to
+// keep (GuaranteedEffectEnvelopes) are committed while this member waits, so
+// its event is gone from the journal when the checkpoint applies. The room
+// fails by name instead of carrying on without it.
+static void TestEvictedEffectFailsTheRoom() {
+	ParkedEffectRoom member;
+	CommitStream leader{member};
+	std::vector<session::Message> received;
+	for (std::uint64_t revision = 1; revision <= 60; ++revision) {
+		CommitSpec spec; spec.others = 15; spec.replies = 5; spec.pad = 1024; spec.event = revision == 5;
+		leader.Commit(revision, spec);
+		if (revision % 4 == 0) member.Settle(received, 4);
+	}
+	member.Settle(received);
+	CHECK(received.empty() && member.room->GetState() != session::IrohRoom::State::Failed);
+	CHECK(60u * 5u > session::GuaranteedEffectEnvelopes && 60u < session::MaximumParkedCommits);
+
+	const auto replica = member.fixture.Replica();
+	session::RoomRecoveryRuntime recovery;
+	leader.Checkpoint(60);
+	Apply(member, *replica, recovery, 60);
+	PollUntilFailed(member, received);
+	CHECK(member.room->GetState() == session::IrohRoom::State::Failed && member.room->Error() == "room_effect_evicted");
+	CHECK(RoomPayloads(received).empty());
+}
+
+// An effect whose live copy was lost in a control gap is replayed once its
+// commit applies, though the queue holds a full window of verification frames.
+static void TestReplayPassesVerificationFrames() {
+	ParkedEffectRoom member;
+	CommitStream leader{member};
+	std::vector<session::Message> received;
+	for (std::uint64_t revision = 1; revision <= 10; ++revision) {
+		CommitSpec spec; spec.event = revision == 5;
+		if (revision == 5) spec.withheld = {"room_event"};
+		leader.Commit(revision, spec);
+	}
+	for (int frame = 0; frame < 40; ++frame) member.SendLive(json{{"type", "battle_hash"}, {"frameIdx", frame}}.dump());
+	member.Settle(received);
+	CHECK(received.empty() && member.room->RecoveryState().clientQueueMessages == 2 + session::MaximumQueuedVerification);
+	const auto replica = member.fixture.Replica();
+	session::RoomRecoveryRuntime recovery;
+	leader.Checkpoint(10);
+	Apply(member, *replica, recovery, 10);
+	member.Settle(received);
+	const auto delivered = RoomPayloads(received);
+	CHECK(Kinds(delivered) == "esd");
+	if (!delivered.empty()) CHECK(delivered[0].at("marker") == 5);
+}
+
+// Another member's messages carry tokens too, but only the leader's stream
+// says where a commit is: a token of this term far ahead from another
+// connection neither fails the room nor waits at its queue head, and another
+// connection's copy of a lost effect does not hold its replay back.
+static void TestOtherPeersTokensDecideNothing() {
+	ParkedEffectRoom member;
+	CommitStream leader{member};
+	const auto other = ParticipantRoom::IdentityOf(3);
+	std::vector<session::Message> received;
+	leader.Commit(1);
+	auto ahead = member.Committed(1000000, 900, json{{"type", "data_update"}, {"marker", 0}});
+	member.SendLive(session::CommittedEffectWire(ahead, ahead.publicPayload.dump()), other);
+	member.Settle(received);
+	CHECK(received.empty() && member.room->GetState() != session::IrohRoom::State::Failed);
+	CHECK(member.room->RecoveryState().clientQueueMessages == 3);
+	CommitSpec lost; lost.event = true; lost.withheld = {"room_event"};
+	leader.Commit(2, lost);
+	auto copy = leader.Mine(2, "room_event");
+	member.SendLive(session::CommittedEffectWire(copy, json{{"type", "room_event"}, {"marker", 99}}.dump()), other);
+	member.Settle(received);
+	CHECK(received.empty() && member.room->GetState() != session::IrohRoom::State::Failed);
+
+	const auto replica = member.fixture.Replica();
+	session::RoomRecoveryRuntime recovery;
+	leader.Checkpoint(2);
+	Apply(member, *replica, recovery, 2);
+	member.Settle(received);
+	const auto delivered = RoomPayloads(received);
+	CHECK(Kinds(delivered) == "sed");
+	if (delivered.size() == 3) CHECK(delivered[1].at("marker") == 2);
+	CHECK(member.room->RecoveryState().clientQueueMessages == 0);
 }
 
 // A stream whose checkpoints never apply still fails the room, under the same
-// name, once its newest commit is MaximumParkedCommits past the one at the
-// head: superseded state no longer counts towards 64 messages, so the wait is
-// bounded by commits instead.
+// name, once its newest commit is MaximumParkedCommits past the oldest it has
+// waited on: replaced state no longer counts towards 64 messages, so the wait
+// is bounded by commits instead.
 static void TestStuckStreamStillFails() {
 	ParkedEffectRoom member;
 	CommitStream leader{member};
 	std::vector<session::Message> received;
 	for (std::uint64_t revision = 1; revision <= 1 + session::MaximumParkedCommits; ++revision) {
-		leader.Commit(revision, false, false);
+		leader.Commit(revision);
 		if (revision % 8 == 0) member.Settle(received, 4);
 	}
 	member.Settle(received);
 	CHECK(received.empty() && member.room->GetState() != session::IrohRoom::State::Failed);
-	CHECK(member.room->RecoveryState().clientQueueMessages == 4);
-	leader.Commit(2 + session::MaximumParkedCommits, false, false);
-	for (int tick = 0; tick < 50 && member.room->GetState() != session::IrohRoom::State::Failed; ++tick) {
-		member.client->Poll(received, 8);
-		member.pipe.Drain();
-		Sleep(1);
-	}
+	CHECK(member.room->RecoveryState().clientQueueMessages == 2);
+	leader.Commit(2 + session::MaximumParkedCommits);
+	PollUntilFailed(member, received);
 	CHECK(member.room->GetState() == session::IrohRoom::State::Failed);
 	CHECK(member.room->Error() == "room_client_receive_queue");
 	CHECK(received.empty());
@@ -225,6 +402,11 @@ int main() {
 	TestCommitTokenTags();
 	TestBurstBehindParkedCheckpoint();
 	TestEachCheckpointShowsItsRoom();
+	TestReplayKeepsCommitOrder();
+	TestBusyJournalKeepsParkedEffects();
+	TestEvictedEffectFailsTheRoom();
+	TestReplayPassesVerificationFrames();
+	TestOtherPeersTokensDecideNothing();
 	TestStuckStreamStillFails();
 	std::cout << "Room effect burst tests passed\n";
 }
