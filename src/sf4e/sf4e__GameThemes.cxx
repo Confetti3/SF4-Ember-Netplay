@@ -25,6 +25,7 @@
 #include "../training/GameFiles.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__GameThemes.hxx"
+#include "sf4e__NetplayFacade.hxx"
 
 namespace {
 std::wstring gameDirectory;
@@ -241,13 +242,15 @@ void WatchBattleHud() {
 
 void sf4e::GameThemes::TakePreview() {
 	WatchBattleHud();
+	// The phone's answer was given when its request began; a match may have started since, so the rule is asked again here.
+	const bool inMatch = NetplayFacade::GetRuntimeSnapshotShared()->InMatch();
 	if (restartAsk.exchange(false)) {
-		if (platform::StartLauncherAfterExit({})) {
+		if (!inMatch && platform::StartLauncherAfterExit({})) {
 			spdlog::info("In-game themes: restarting the game");
 			Dimps::Platform::Main::Close();
 			return;
 		}
-		spdlog::warn("In-game themes: the game could not be restarted");
+		spdlog::warn(inMatch ? "In-game themes: the restart was not done, a match is on" : "In-game themes: the game could not be restarted");
 	}
 	std::optional<Asked> taken;
 	std::vector<std::string> removed;
@@ -270,6 +273,7 @@ void sf4e::GameThemes::TakePreview() {
 		for (int i = 0; i < netplay::GameThemePartCount; ++i) parts[i].names = game_themes::Names(gameDirectory, game_themes::Parts[i]);
 	}
 	if (!taken || !started) return;
+	if (inMatch) { spdlog::warn("In-game themes: {} was not applied, a match is on", taken->name); return; }
 	std::array<std::string, netplay::GameThemePartCount> names;
 	for (int i = 0; i < netplay::GameThemePartCount; ++i) names[i] = parts[i].used.value_or(std::string());
 	names[taken->part] = taken->name;

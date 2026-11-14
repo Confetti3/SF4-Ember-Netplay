@@ -136,6 +136,9 @@ namespace sf4e {
             // The custom content installed on this PC: built once at the scan and shared, never copied.
             selection::InstalledContentPtr installedContent;
 			netplay::Snapshot session;
+			// A match is being prepared, fought or watched: the one rule for "not during a match" (the phone's
+			// Needs::NoMatch answers it at once, and the game thread asks it again before it acts).
+			bool InMatch() const { return session.match != netplay::MatchState::None || foughtGame.Active() || watchedGame.Active(); }
 			// The room as this player's screen shows it (class emblems already
 			// dropped where they are not shown). Built once per change of the
 			// client's room and shared, unchanged, by every snapshot published
