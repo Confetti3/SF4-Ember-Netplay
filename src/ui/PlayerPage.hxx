@@ -13,6 +13,8 @@
 // Opening is one call, ApplicationShell::OpenPlayer; the page then sends ProfileOpen as soon as there is a service to
 // send it to, and ProfileClose when it is left.
 #include "ArchiveTab.hxx"
+#include "CardFrame.hxx"
+#include "RaiseTimer.hxx"
 #include "CardModel.hxx"
 #include "CardSets.hxx"
 #include "FriendsPanel.hxx"
@@ -228,21 +230,9 @@ public:
     player_page::Shown ShownNow(const ShellView& view) const;
 
 private:
-    struct Raise {
-        bool issued = false, seen = false;
-        int waits = 0;
-    };
     // The Card tab as one frame draws it: what the rows, the hero's buttons, the drawing and the opening focus all read, built
     // once in Update from the same links (the friends paths' gates, with what is pending) and the room the card was last drawn in.
-    struct CardFrame {
-        bool built = false;
-        player_page::Standing standing;
-        player_page::Primary primary;
-        player_card::FullCardView view;
-    };
     void BuildCardFrame(const ShellView& view, const player_page::Shown& shown, const player_page::Links& links);
-    // This frame's card; built from the plain links when Update did not run first.
-    const CardFrame& CardNow(const ShellView& view);
     player_page::Links LinksOf(const ShellView& view, const FriendsPanel& friends, const player_page::Shown& shown) const;
     // What a press of the Primary or a choice of More does, once it has been asked and answered.
     void Do(const ShellView& view, const std::string& what, const player_page::Shown& shown, const player_page::Standing& standing, const Hands& hands);
@@ -252,7 +242,7 @@ private:
     void Begin(const netplay::profiles::Key& key, const netplay::profiles::Known& known, MenuNavigation& navigation);
     player_card::Subject SubjectNow(const ShellView& view, const player_page::Shown& shown, const player_page::Standing& standing) const;
     player_page::Standing StandingNow(const ShellView& view, const player_page::Shown& shown, const player_page::Links& links) const;
-    void Ask(const std::string& choice) { ask_ = choice; raise_ = Raise(); }
+    void Ask(const std::string& choice) { ask_ = choice; raise_ = RaiseTimer(); }
 
     // What the page was asked to open, and whether the ProfileOpen for it went out.
     netplay::profiles::Key key_;
@@ -262,8 +252,11 @@ private:
     CountryCode ownCountry_;
     // The profile whose first settled card the focus was set for.
     std::uint64_t focused_ = 0;
-    Raise raise_;
+    RaiseTimer raise_;
+    // This frame's card (CardFrame), and the standing and Primary it was built with.
     CardFrame card_;
+    player_page::Standing standing_;
+    player_page::Primary primary_;
     // The room the Card tab was last drawn in (DrawFullCard).
     std::optional<player_card::Size> room_;
     // Their recent sets on the Card tab, and the sets lists (their own on Sets, the player's own on the own Sets tab).

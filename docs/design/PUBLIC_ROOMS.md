@@ -154,8 +154,11 @@ rooms. The list shows one Filters row that summarises what is on; Select opens a
 (`public-filters`) with the four values and Clear filters. The filter is saved with the player's preferences (`roomFilter` in the
 netplay section); a saved place that is not an area (a relay code saved
 before areas, or the US West no build could report) loads as every area.
-Quick join takes the first room the filter lists, near the player's area
-unless the filter names one. Nothing is sent to the bridge.
+Quick join takes the first room the filter lists, a room near the player's area
+first unless the filter names one, then any room the filter lists (a room with no
+area is near no one: the bridge may not list areas, or its creator hid it). Near me is
+not offered while no listed room names an area, and then lists every room. Nothing is
+sent to the bridge.
 
 `POST /v1/rooms/{room_id}/tickets` with `TicketRequest { endpoint_id, build_id }`
 returns `RoomAdmission`. Refusals: `room_not_found`, `room_not_open`,
@@ -220,7 +223,9 @@ names no place for a room without one, and marks a room "Near you" when it is
 in the player's own area or one next to it (`areas::Neighbours`, one
 symmetric table). The sort puts joinable rooms first, then the player's own
 area, then its neighbours. The header says "Your area: NA West", or asks the
-player to set one. The relay itself is shown only as a relay, on Online
+player to set one. A player who chose Hidden hides the area from others (the card
+and the rooms they create); their own list still uses the area they chose or Windows
+gives (`OwnArea`), so it sorts, marks "Near you" and answers Near me as before. The relay itself is shown only as a relay, on Online
 play's Relay row ("Relay: Ember US (Kansas) · connected").
 
 ## Supervisor API (loopback, `Authorization: Bearer <shared secret>`)

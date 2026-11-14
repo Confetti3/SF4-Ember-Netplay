@@ -48,13 +48,19 @@ public:
     static constexpr const char* RankedNoticeRow = "pr-ranked";
     static bool Owns(const std::string& screen) { return screen == "public-rooms" || screen == FiltersScreen; }
     // The filters page's rows: the four values that Left and Right step, then Clear
-    // filters. `home` is HomeArea; `enabled` is whether the filter can be changed.
-    static std::vector<MenuEntry> FilterRows(const netplay::publicrooms::RoomFilter& filter, Area home, bool enabled);
+    // filters. `home` is HomeArea and `areasListed` is AreasListed; `enabled` is whether the filter can be changed.
+    static std::vector<MenuEntry> FilterRows(const netplay::publicrooms::RoomFilter& filter, Area home, bool areasListed, bool enabled);
     // A refused request or a failed refresh, by its stable code, in words.
     static std::string FailureText(const std::string& code);
-    // The player's own area (Settings, Automatic from Windows), whose rooms and its
-    // neighbours' are near; None while it is not set or hidden.
+    // The player's own area (Settings, a pick or Automatic from Windows, also while it is
+    // hidden from others), whose rooms and its neighbours' are near; None while neither is set.
     static Area HomeArea(const ShellView& view);
+    // Whether any listed room names an area. A service that does not list areas, or rooms whose
+    // creators all hid theirs, leave Near me nothing to tell apart.
+    static bool AreasListed(const ShellView& view);
+    // The area the filter's Near me works from: HomeArea while some listed room names an area,
+    // else None, where Near me is not offered and lists every room.
+    static Area FilterHome(const ShellView& view);
     // How long ago a list was heard from its service, `seconds` ago.
     static std::string UpdatedText(double seconds);
     // The setup card's line: the step while the setup runs, why it stopped once
@@ -83,15 +89,15 @@ public:
     // Left or Right on one of the filter rows changes `filter` (a bool row takes
     // Right as on, Left as off); true when the action was a filter row's. Clear
     // filters, on the page or as the empty list's card, resets it too and is also
-    // reported as the panel's own. `home` is HomeArea.
+    // reported as the panel's own. `home` is FilterHome.
     static bool ChangeFilter(const MenuAction& action, Area home, netplay::publicrooms::RoomFilter& filter);
     // The Options button or key (Y, T) asks for the list again; true when it was the panel's own.
     bool Shortcut(const MenuAction& action, const ShellView& view);
     // The screen shows a list that Options can refresh.
     bool Refreshable(const ShellView& view) const;
     // The room Quick join would ask for: the first listed one with a free seat that
-    // is not locked, was not refused this visit and `filter` lists, near `home`
-    // (HomeArea) unless the filter names an area of its own.
+    // is not locked, was not refused this visit and `filter` lists: a room near `home`
+    // (FilterHome) first unless the filter names an area of its own, then any such room.
     std::optional<std::string> QuickPick(const ShellView& view, Area home, const netplay::publicrooms::RoomFilter& filter) const;
     // Asks for a room's ticket, as pressing its row does; false while a request is waiting.
     bool Join(const std::string& roomId);

@@ -90,6 +90,9 @@ static void PreferenceSavesStepsAndShows() {
 	CHECK(ShownArea(AreaPreference::Automatic(), Area::None) == Area::None);
 	CHECK(ShownArea(AreaPreference::Of(Area::EastAsia), Area::SouthAmerica) == Area::EastAsia);
 	CHECK(ShownArea(AreaPreference::Hidden(), Area::SouthAmerica) == Area::None);
+	// Hidden keeps the area from others only: the player's own screens still use a pick, else Windows'.
+	CHECK(OwnArea(AreaPreference::Hidden(), Area::SouthAmerica) == Area::SouthAmerica && OwnArea(AreaPreference::Hidden(), Area::None) == Area::None);
+	CHECK(OwnArea(AreaPreference::Of(Area::EastAsia), Area::SouthAmerica) == Area::EastAsia && OwnArea(AreaPreference::Automatic(), Area::SouthAmerica) == Area::SouthAmerica);
 }
 
 static void TablesOfZonesAndCountries() {

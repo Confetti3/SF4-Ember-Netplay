@@ -14,37 +14,10 @@ namespace sf4e { namespace session {
 using namespace reading;
 
 namespace {
-// An object, for the answers that ignore members they do not know: a field a
-// later bridge adds to a points or card answer must not break a build already
-// out, so only the keys read are checked.
-const json& Object(const json& value) {
-	if (!value.is_object()) throw std::invalid_argument("object");
-	return value;
-}
-
-// A counter of any size, as the points answers carry them.
-std::uint64_t Unsigned(const json& object, const char* key) {
-	return Seconds(object, key);
-}
 
 // The fighter id of an entry, in the roster.
 std::size_t ReadFighter(const json& object) {
 	return Small(object, "fighter", selection::FighterCount - 1);
-}
-
-// A tier as sent: an unsigned number, and one past the tiers this build draws
-// (a later bridge's table) is the last it knows. `beyond` says it was past.
-std::uint8_t ReadTier(const json& object, bool* beyond = nullptr) {
-	const auto tier = Unsigned(object, "tier");
-	const auto last = static_cast<std::uint64_t>(netplay::levels::TierCount - 1);
-	if (beyond) *beyond = tier > last;
-	return static_cast<std::uint8_t>((std::min)(tier, last));
-}
-
-// A number the bridge may leave out: absent is 0, and one that is there must
-// be an unsigned number.
-std::uint64_t OptionalUnsigned(const json& object, const char* key) {
-	return object.find(key) == object.end() ? 0 : Unsigned(object, key);
 }
 
 // One count of points, a fighter's or the account's. Only its shape is checked:
@@ -55,15 +28,15 @@ std::uint64_t OptionalUnsigned(const json& object, const char* key) {
 netplay::levels::Level DecodeLevel(const json& entry) {
 	netplay::levels::Level level;
 	Object(entry);
-	level.points = Unsigned(entry, "points");
-	level.games = Unsigned(entry, "games");
+	level.points = Count(entry, "points");
+	level.games = Count(entry, "games");
 	// The screens show wins as a share of games.
-	level.wins = (std::min)(Unsigned(entry, "wins"), level.games);
+	level.wins = (std::min)(Count(entry, "wins"), level.games);
 	bool beyond = false;
-	level.tier = ReadTier(entry, &beyond);
-	level.floor = Unsigned(entry, "floor");
-	level.since = OptionalUnsigned(entry, "since");
-	level.next = OptionalUnsigned(entry, "next");
+	level.tier = Tier(entry, &beyond);
+	level.floor = Count(entry, "floor");
+	level.since = OptionalCount(entry, "since");
+	level.next = OptionalCount(entry, "next");
 	// At the last tier this build draws there is none further to name.
 	if (beyond || level.tier == netplay::levels::TierCount - 1) level.next = 0;
 	return level;
@@ -72,8 +45,8 @@ netplay::levels::Level DecodeLevel(const json& entry) {
 // A count the bridge may or may not send, up to `maximum`: absent is 0 (a
 // bridge from before it), one that is there must be an unsigned number, and
 // one past `maximum` is `maximum`.
-std::uint64_t OptionalCount(const json& object, const char* key, std::uint64_t maximum) {
-	return (std::min)(OptionalUnsigned(object, key), maximum);
+std::uint64_t CappedCount(const json& object, const char* key, std::uint64_t maximum) {
+	return (std::min)(OptionalCount(object, key), maximum);
 }
 
 // The counters behind the awards, as the wire says them (ember_protocol::awards::AwardCounts) in an own
@@ -81,13 +54,13 @@ std::uint64_t OptionalCount(const json& object, const char* key, std::uint64_t m
 // unsigned number when it is there. How they relate is the bridge's to say.
 netplay::awards::Counters DecodeAwardCounts(const json& object) {
 	netplay::awards::Counters counts;
-	counts.games = OptionalCount(object, "games", UINT64_MAX);
+	counts.games = CappedCount(object, "games", UINT64_MAX);
 	// The screens show wins as a share of games.
-	counts.wins = (std::min)(OptionalCount(object, "wins", UINT64_MAX), counts.games);
-	counts.bestStreak = static_cast<std::uint32_t>(OptionalCount(object, "best_streak", UINT32_MAX));
-	counts.peakClass = static_cast<std::uint32_t>(OptionalCount(object, "peak_class", SkillBadge::Classes));
-	counts.rival = static_cast<std::uint32_t>(OptionalCount(object, "rival", UINT32_MAX));
-	counts.opponents = static_cast<std::uint32_t>(OptionalCount(object, "opponents", UINT32_MAX));
+	counts.wins = (std::min)(CappedCount(object, "wins", UINT64_MAX), counts.games);
+	counts.bestStreak = static_cast<std::uint32_t>(CappedCount(object, "best_streak", UINT32_MAX));
+	counts.peakClass = static_cast<std::uint32_t>(CappedCount(object, "peak_class", SkillBadge::Classes));
+	counts.rival = static_cast<std::uint32_t>(CappedCount(object, "rival", UINT32_MAX));
+	counts.opponents = static_cast<std::uint32_t>(CappedCount(object, "opponents", UINT32_MAX));
 	return counts;
 }
 
@@ -113,11 +86,6 @@ std::string ReadText(const json& object, const char* key, std::size_t maximum) {
 	return text.size() <= maximum ? text : std::string();
 }
 
-std::uint64_t ReadNumber(const json& object, const char* key) {
-	const auto found = object.find(key);
-	return found != object.end() && found->is_number_unsigned() ? found->get<std::uint64_t>() : 0;
-}
-
 // "fr_" and the uuid, as friends ids are.
 bool IsFriendId(const std::string& id) { return id.size() == 39 && id.compare(0, 3, "fr_") == 0; }
 
@@ -136,7 +104,7 @@ void DecodeProfileFields(const json& object, netplay::levels::Card& card) {
 		card.hasMain = true;
 		card.main = static_cast<std::uint8_t>(fighter->get<std::uint64_t>());
 	}
-	if (const auto since = ReadNumber(object, "since")) { card.hasSince = true; card.since = since; }
+	if (const auto since = LenientCount(object, "since")) { card.hasSince = true; card.since = since; }
 	if (const auto worn = object.find("worn"); worn != object.end() && worn->is_object()) {
 		for (const char* key : {"title", "icon"}) {
 			const auto id = ReadText(*worn, key, profiles::MaxFamilyId);
@@ -153,18 +121,18 @@ void DecodeProfileFields(const json& object, netplay::levels::Card& card) {
 	}
 	if (const auto style = object.find("style"); style != object.end() && style->is_object()) {
 		card.hasStyle = true;
-		card.style.device = profiles::DeviceFromWire(ReadNumber(*style, "device"));
-		card.style.link = profiles::LinkFromWire(ReadNumber(*style, "link"));
+		card.style.device = profiles::DeviceFromWire(LenientCount(*style, "device"));
+		card.style.link = profiles::LinkFromWire(LenientCount(*style, "link"));
 		card.style.area = AreaFromCode(ReadText(*style, "region", profiles::MaxRegionBytes));
-		card.style.looking = profiles::LookingFromWire(ReadNumber(*style, "looking"));
+		card.style.looking = profiles::LookingFromWire(LenientCount(*style, "looking"));
 	}
 	if (const auto versus = object.find("versus"); versus != object.end() && versus->is_object()) {
-		const auto won = ReadNumber(*versus, "won"), lost = ReadNumber(*versus, "lost");
+		const auto won = LenientCount(*versus, "won"), lost = LenientCount(*versus, "lost");
 		if (won || lost) {
 			card.hasVersus = true;
 			card.versus.won = won;
 			card.versus.lost = lost;
-			card.versus.lastAt = ReadNumber(*versus, "last_at");
+			card.versus.lastAt = LenientCount(*versus, "last_at");
 		}
 	}
 	if (card.relation == netplay::levels::Relation::Friend)
@@ -197,8 +165,8 @@ netplay::levels::Card DecodeCard(const json& value) {
 	const auto& object = Object(value);
 	card.relation = DecodeRelation(object);
 	const auto& account = Object(object.at("account"));
-	card.account.points = Unsigned(account, "points");
-	card.account.tier = ReadTier(account);
+	card.account.points = Count(account, "points");
+	card.account.tier = Tier(account);
 	// The counters behind their awards, all absent from an older bridge.
 	if (const auto awards = object.find("awards"); awards != object.end()) card.awards = DecodeAwardCounts(Object(*awards));
 	// A card with no `fighters` is of a player who has played none. A row that cannot be read, and a fighter
@@ -210,8 +178,8 @@ netplay::levels::Card DecodeCard(const json& value) {
 			try {
 				Object(row);
 				fighter.fighter = static_cast<std::uint8_t>(ReadFighter(row));
-				fighter.points = Unsigned(row, "points");
-				fighter.tier = ReadTier(row);
+				fighter.points = Count(row, "points");
+				fighter.tier = Tier(row);
 			} catch (const std::exception&) {
 				continue;
 			}
@@ -299,7 +267,7 @@ std::optional<netplay::profiles::SearchAnswer> DecodeSearch(const json& data) {
 				hit.hasMain = true;
 				hit.main = static_cast<std::uint8_t>(fighter->get<std::uint64_t>());
 			}
-			hit.since = ReadNumber(row, "since");
+			hit.since = LenientCount(row, "since");
 			answer.players.push_back(std::move(hit));
 		}
 		if (const auto more = data.find("more"); more != data.end() && more->is_boolean()) answer.more = more->get<bool>();

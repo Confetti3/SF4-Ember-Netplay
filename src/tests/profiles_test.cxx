@@ -244,10 +244,9 @@ void TheStyleComesFromPreferencesAndMeasures() {
 	EXPECT(style.device == Device::Leverless && style.link == Link::WiFi && style.area == Area::SouthAmerica && style.looking == 17);
 	preferences.cardDevice = 5;
 	preferences.cardShowLink = false;
-	preferences.cardShowRegion = false;
 	style = OwnStyle(preferences, Device::Stick, NetworkLink::Wired, Area::EuropeWest);
-	EXPECT(style.device == Device::None && style.link == Link::None && style.area == Area::None && style.looking == 17);
-	// An area hidden in Settings is not on the card, even while the card shows its region.
+	EXPECT(style.device == Device::None && style.link == Link::None && style.area == Area::SouthAmerica && style.looking == 17);
+	// An area hidden in Settings is not on the card.
 	preferences = Prefs();
 	preferences.area = AreaPreference::Hidden();
 	EXPECT(OwnStyle(preferences, Device::None, NetworkLink::Unknown, Area::EuropeWest).area == Area::None);
@@ -302,10 +301,9 @@ void TheRequestsHaveTheShapesTheHelperReads() {
 // The card preferences load as saved, or as their defaults, one value at a time.
 void TheCardPreferencesRoundTrip() {
 	PlayerPreferences saved;
-	EXPECT(saved.cardDevice == 0 && saved.cardShowLink && saved.cardShowRegion && saved.cardLooking == 0 && saved.cardPins.empty() && saved.Valid());
+	EXPECT(saved.cardDevice == 0 && saved.cardShowLink && saved.cardLooking == 0 && saved.cardPins.empty() && saved.Valid());
 	saved.cardDevice = 5;
 	saved.cardShowLink = false;
-	saved.cardShowRegion = false;
 	saved.cardLooking = LookingCasuals | LookingTeach;
 	saved.cardPins = {"wins", "cast"};
 	CHECK(saved.Valid());
@@ -314,24 +312,24 @@ void TheCardPreferencesRoundTrip() {
 	// Through the text a file holds.
 	PlayerPreferences loaded;
 	netplay::ReadCardPreferences(json::parse(document.dump()), loaded);
-	EXPECT(loaded.cardDevice == 5 && !loaded.cardShowLink && !loaded.cardShowRegion && loaded.cardLooking == 33 && loaded.cardPins == saved.cardPins);
+	EXPECT(loaded.cardDevice == 5 && !loaded.cardShowLink && loaded.cardLooking == 33 && loaded.cardPins == saved.cardPins);
 	// A profile from before the card has none of them.
 	PlayerPreferences old;
 	old.cardDevice = 2;
 	old.cardLooking = 1;
 	netplay::ReadCardPreferences(json::object(), old);
-	EXPECT(old.cardDevice == 0 && old.cardShowLink && old.cardShowRegion && old.cardLooking == 0 && old.cardPins.empty());
+	EXPECT(old.cardDevice == 0 && old.cardShowLink && old.cardLooking == 0 && old.cardPins.empty());
 	netplay::ReadCardPreferences(json::array(), old);
 	EXPECT(old.cardDevice == 0 && old.Valid());
 }
 
 void BadCardPreferencesAreDropped() {
-	json odd = {{"cardDevice", 9}, {"cardShowLink", 1}, {"cardShowRegion", false}, {"cardLooking", 127},
+	json odd = {{"cardDevice", 9}, {"cardShowLink", 1}, {"cardLooking", 127},
 		{"cardPins", json::array({"wins", "Bad Id", 4, "wins", "cast", "rival", "streak", "mastery"})}};
 	PlayerPreferences loaded;
 	netplay::ReadCardPreferences(json::parse(odd.dump()), loaded);
 	// Out of range and of another type are the defaults; what is not known is dropped, the rest stands.
-	EXPECT(loaded.cardDevice == 0 && loaded.cardShowLink && !loaded.cardShowRegion);
+	EXPECT(loaded.cardDevice == 0 && loaded.cardShowLink);
 	EXPECT(loaded.cardLooking == 3);
 	EXPECT((loaded.cardPins == std::vector<std::string>{"wins", "cast", "rival", "streak"}));
 	EXPECT(loaded.Valid());

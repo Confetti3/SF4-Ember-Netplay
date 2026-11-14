@@ -82,12 +82,13 @@ profiles::Device AutomaticDeviceNow() {
 // What the card shows of how this player plays, as the game measures it now. The connection is read again at most once
 // a minute, and when a room is joined or left, but never while a match is played on this PC: the adapter probe runs on
 // this thread and waits on the system (under Wine it reads files), so the card keeps the last reading until the match
-// is over. The region is the player's area, from Settings and Windows.
+// is over. A room stay holds a match object throughout, so a match is on only while that match is live (or a battle
+// runs). The area is the player's, from Settings and Windows.
 profiles::Style OwnStyleNow(std::uint64_t nowMs) {
 	auto& signals = runtime->cardSignals;
 	const std::uint64_t epoch = UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().roomEpoch : 0;
 	const bool due = !signals.linkRead || nowMs - signals.linkMs >= netplay::profiles::Saver::MinGapMs || epoch != signals.linkEpoch;
-	const bool matchRunning = Game::Battle::System::ggpo != nullptr || runtime->match;
+	const bool matchRunning = Game::Battle::System::ggpo != nullptr || (runtime->match && runtime->match->Live());
 	if (due && !matchRunning) {
 		signals.link = DetectNetworkLink();
 		signals.linkRead = true;

@@ -1530,14 +1530,8 @@ msgstr "Połączenie"
 msgid "card.link_detail"
 msgstr "Przewodowe lub Wi-Fi, tak jak mierzy je Ember. Możesz je ukryć."
 
-msgid "card.region_row"
-msgstr "Region"
-
 msgid "card.area_detail"
-msgstr "Twój obszar, z twoich ustawień. Możesz go ukryć."
-
-msgid "card.area_unset"
-msgstr "Nie ustawiono"
+msgstr "Skąd grasz, ten sam wybór co w Ustawieniach. Ukryty zostawia go poza twoją kartą i poza pokojami, które tworzysz."
 
 msgid "card.shown"
 msgstr "{0} · widoczne"
@@ -5715,6 +5709,9 @@ msgstr "Show only the rooms that take wired players alone."
 msgid "public.filter_near_unset"
 msgstr "Twój obszar nie jest ustawiony, więc Ember nie wie, które pokoje są w pobliżu. Ustaw go w Ustawienia, Kraj i obszar."
 
+msgid "public.filter_near_unlisted"
+msgstr "Żaden pokój nie podaje teraz obszaru, więc Ember nie wie, które pokoje są w pobliżu. Widać wszystkie pokoje."
+
 msgid "public.near_you"
 msgstr "W pobliżu"
 
@@ -8487,6 +8484,12 @@ msgstr "Obrazy HUD motywu {0} nie pasują do układu HUD tej edycji, więc nie z
 
 msgid "settings.game_theme_unreadable_detail"
 msgstr "Motyw {0} ma pliki HUD, których gra nie potrafi odczytać, więc nie został użyty. Widać oryginalny HUD gry."
+
+msgid "settings.game_theme_missing"
+msgstr "{0} (używany: brakuje niektórych obrazów HUD)"
+
+msgid "settings.game_theme_missing_detail"
+msgstr "Motyw {0} jest używany. Układ jego HUD wskazuje obrazy, których nie ma w jego arkuszu, i te nie są rysowane."
 
 msgid "runtime.game_theme_turned_off"
 msgstr "Motyw {0} wyłączono dla: {1}. Gra zamknęła się podczas jego wczytywania."

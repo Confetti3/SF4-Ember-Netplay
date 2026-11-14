@@ -222,10 +222,7 @@ Reply Answer(const Resource& resource, const Head& head, const std::string& body
 bool Holds(Needs needs) {
     switch (needs) {
     case Needs::Nothing: return true;
-    case Needs::NoMatch: {
-        const auto runtime = NetplayFacade::GetRuntimeSnapshotShared();
-        return runtime->session.match == netplay::MatchState::None && !runtime->foughtGame.Active() && !runtime->watchedGame.Active();
-    }
+    case Needs::NoMatch: return !NetplayFacade::GetRuntimeSnapshotShared()->InMatch();
     case Needs::Camera: return camera::Phone().TakesOrders();
     }
     return false;

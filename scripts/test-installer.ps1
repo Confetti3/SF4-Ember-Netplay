@@ -17,6 +17,21 @@ foreach ($line in ($setupScript -split "`r?`n" | Where-Object { $_ -match 'Verb:
     if ($line -match '-File\b' -or $line -match '\.ps1') { throw "An elevated setup step runs a script file: $line" }
     if ($line -notmatch 'Filename:\s*"powershell\.exe"' -or $line -notmatch 'Parameters:\s*"[^;]*-Command ') { throw "An elevated setup step is not an inline PowerShell command: $line" }
 }
+# The [Code] section is checked without the compiler too, for the breaks a lost quote leaves: a string left open on
+# a line, a call with an empty argument, and a begin, try or case without its end. Comment lines are skipped.
+$codeSection = $setupScript.Substring($setupScript.IndexOf('[Code]'))
+$opens = 0
+foreach ($line in ($codeSection -split "`r?`n")) {
+    if ($line.TrimStart().StartsWith('//')) { continue }
+    if (([regex]::Matches($line, "'")).Count % 2 -ne 0) { throw "A [Code] line has an unbalanced quote: $line" }
+    $bare = [regex]::Replace($line, "'(?:[^']|'')*'", 'S')
+    foreach ($call in [regex]::Matches($bare, 'StringChangeEx\((.*)\)\s*;')) {
+        $arguments = $call.Groups[1].Value.Split(',')
+        if ($arguments.Count -ne 4 -or ($arguments | Where-Object { $_.Trim() -eq '' })) { throw "A StringChangeEx call does not have four arguments: $line" }
+    }
+    $opens += [regex]::Matches($bare, '\b(begin|try|case)\b', 'IgnoreCase').Count - [regex]::Matches($bare, '\bend\b', 'IgnoreCase').Count
+}
+if ($opens -ne 0) { throw 'The [Code] section has begin, try or case blocks that do not match its end statements' }
 $silent = '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
 # A folder with files that is not an Ember copy is refused untouched.
 New-Item -ItemType Directory -Path $target | Out-Null

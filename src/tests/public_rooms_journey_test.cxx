@@ -591,6 +591,24 @@ void QuickJoinJourney(){
   h.Choose("pr-quick");
   Check(tickets(k)==2&&k.noticeOpen(true),"Quick join with no room under the filter did not offer to create one");
  }
+ {
+  // A service that lists no areas, or creators who hid theirs: no room is near, so Quick join takes a room with a seat
+  // all the same, and Near me is not offered because it could tell no room apart.
+  Journey k;k.OpenList();k.h.view.automaticArea=OwnArea;k.List({Placed("p",Area::None,6,8,1),Placed("q",Area::None,2,8,2)});
+  Check(PublicRoomsPanel::HomeArea(k.h.view)==OwnArea&&PublicRoomsPanel::FilterHome(k.h.view)==Area::None&&!PublicRoomsPanel::AreasListed(k.h.view),"A list with no area names one for Near me");
+  k.h.Choose("pr-quick");
+  Check(tickets(k)==1&&lastTicketIs(k,"brg_1","q"),"Quick join found no room on a list where no room names an area");
+  const auto nearMe=[]{netplay::publicrooms::RoomFilter f;f.scope=netplay::publicrooms::RoomFilter::Place::Near;return f;}();
+  Check(PublicRoomsPanel::FilterRows(nearMe,OwnArea,false,true)[0].detail==loc::T("public.filter_near_unlisted")&&PublicRoomsPanel::FilterRows(nearMe,OwnArea,true,true)[0].detail==loc::T("public.filter_area_detail"),
+   "Near me on a list without areas does not say why it lists every room");
+ }
+ {
+  // Rooms are near no one without an area, so when none is near Quick join takes the one that is joinable.
+  Journey k;k.OpenList();k.h.view.automaticArea=OwnArea;k.List({Placed("x",FarArea,8,8,1),Placed("y",Area::None,3,8,2)});
+  Check(PublicRoomsPanel::FilterHome(k.h.view)==OwnArea,"A list where a room names an area does not offer Near me");
+  k.h.Choose("pr-quick");
+  Check(tickets(k)==1&&lastTicketIs(k,"brg_1","y"),"Quick join skipped a room with no area when none was near");
+ }
  // An empty list also offers to create.
  Journey e;e.OpenList();e.List({});
  e.h.Choose("pr-quick");Check(tickets(e)==0&&e.noticeOpen(true),"Quick join on an empty list did not offer to create a room");
@@ -657,7 +675,7 @@ void FilterJourney(){
  Check(value("pr-filter-area")==loc::T("public.filter_area_all")&&summary()==loc::T("public.filter_summary_all")&&Shown(j)=="dabc","Left did not step the area back to every area");
  // Near me while the player's area is not set says how to set it.
  h.view.preferences.roomFilter.scope=netplay::publicrooms::RoomFilter::Place::Near;
- Check(PublicRoomsPanel::FilterRows(h.view.preferences.roomFilter,Area::None,true)[0].detail==loc::T("public.filter_near_unset"),"Near me without an area does not say to set one");
+ Check(PublicRoomsPanel::FilterRows(h.view.preferences.roomFilter,Area::None,true,true)[0].detail==loc::T("public.filter_near_unset"),"Near me without an area does not say to set one");
  h.view.preferences.roomFilter=netplay::publicrooms::RoomFilter();
  h.view.automaticArea=Area::NaCentral;h.Frame(0,2);
  step("pr-filter-area");

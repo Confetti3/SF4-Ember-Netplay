@@ -1530,14 +1530,8 @@ msgstr "Подключение"
 msgid "card.link_detail"
 msgstr "Проводное или Wi-Fi, как его измеряет Ember. Его можно скрыть."
 
-msgid "card.region_row"
-msgstr "Регион"
-
 msgid "card.area_detail"
-msgstr "Ваша зона, по вашим настройкам. Её можно скрыть."
-
-msgid "card.area_unset"
-msgstr "Не задана"
+msgstr "Откуда вы играете, тот же выбор, что и в Настройках. Скрыта оставляет её вне вашей карточки и лобби, которые вы создаёте."
 
 msgid "card.shown"
 msgstr "{0} · показано"
@@ -5715,6 +5709,9 @@ msgstr "Show only the rooms that take wired players alone."
 msgid "public.filter_near_unset"
 msgstr "Ваша зона не задана, поэтому Ember не может определить, какие лобби рядом. Задайте её в Настройки, Страна и зона."
 
+msgid "public.filter_near_unlisted"
+msgstr "Сейчас ни одно лобби не указывает зону, поэтому Ember не может определить, какие лобби рядом. Показаны все лобби."
+
 msgid "public.near_you"
 msgstr "Рядом"
 
@@ -8487,6 +8484,12 @@ msgstr "Картинки HUD темы {0} не подходят к раскла�
 
 msgid "settings.game_theme_unreadable_detail"
 msgstr "В теме {0} есть файлы HUD, которые игра не может прочитать, поэтому она не использована. Показан собственный HUD игры."
+
+msgid "settings.game_theme_missing"
+msgstr "{0} (используется: некоторых картинок HUD не хватает)"
+
+msgid "settings.game_theme_missing_detail"
+msgstr "Тема {0} используется. Раскладка её HUD ссылается на картинки, которых нет в её листе, и они не отображаются."
 
 msgid "runtime.game_theme_turned_off"
 msgstr "Тема {0} отключена для {1}: игра закрылась при её загрузке."

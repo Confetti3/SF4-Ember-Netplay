@@ -117,8 +117,9 @@ constexpr const char* GameThemeKeys[GameThemePartCount] = {
     "gameThemeBattleHud" };
 // What Ember knows about a theme for a part that the player should be told: the game closed
 // while loading it (turned off at the next start), or it was refused before use because its
-// HUD pictures do not match the HUD layout, or its HUD files could not be read.
-enum class GameThemeNote : unsigned char { None, ClosedGame, PicturesMismatch, Unreadable };
+// HUD pictures do not match the HUD layout, or its HUD files could not be read, or it is used
+// though its HUD layout names pictures its sheet lacks (the game draws those as none).
+enum class GameThemeNote : unsigned char { None, ClosedGame, PicturesMismatch, Unreadable, PicturesMissing };
 // The words each part goes by (locale ids), in the same order.
 constexpr const char* GameThemeLabels[GameThemePartCount] = {
     "settings.game_theme_main_menu", "settings.game_theme_title", "settings.game_theme_chara_select", "settings.game_theme_stage_select",
@@ -153,11 +154,12 @@ struct PlayerPreferences {
     std::string wornTitle, wornIcon;
     // What the card shows of how this player plays (Edit card, docs/design/PROFILE.md). cardDevice: 0 Automatic
     // (the controller in use, profiles::AutomaticDevice), 1 to 4 a chosen device (profiles::Device), 5 Not shown.
-    // The connection and the region are the game's own measures, which the player only shows or hides.
+    // The connection is the game's own measure, which the player only shows or hides; the area is the one choice in
+    // Settings (PlayerPreferences::area), whose Hidden also hides it on the card.
     // cardLooking is the bits of profiles::LookingBit, at most two. cardPins are the award families the card shows,
     // at most four; none is Automatic, the highest families.
     int cardDevice = 0;
-    bool cardShowLink = true, cardShowRegion = true;
+    bool cardShowLink = true;
     std::uint8_t cardLooking = 0;
     std::vector<std::string> cardPins;
     // The room board's column and the members' share of it (MinRoomColumn).

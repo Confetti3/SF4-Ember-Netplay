@@ -491,10 +491,7 @@ void FriendsPanel::TickRaise(const ShellView& v, MenuNavigation& nav) {
     if ((OnTab(screen) || screen == VisitScreen) && !listed) raise_ = Raise{};
     // The popout shows on the Friends list, or on the Notifications row it was asked on.
     if (raise_.row.empty() || !(listed || (screen == NotificationsScreen && NotificationRow(raise_.row)))) return;
-    if (raise_.issued) {
-        if (nav.Choosing()) raise_.seen = true;
-        else if (raise_.seen || ++raise_.waits > 3) raise_ = Raise{};
-    } else if (++raise_.waits > 8) raise_ = Raise{};
+    if (!raise_.timer.Tick(nav.Choosing())) raise_ = Raise{};
 }
 
 void FriendsPanel::Update(const ShellView& v, MenuNavigation& nav, const std::string& bridge, const Submit& submit) {
@@ -590,7 +587,7 @@ void FriendsPanel::NotificationShortcut(const MenuAction& a, MenuNavigation& nav
 
 void FriendsPanel::DressNotifications(const std::vector<MenuEntry>& rows, GameMenu& menu) {
     if (NotificationRow(menu.navigation.Focus())) menu.shortcutHints = ShortcutHints({{MenuInput::Options, loc::T("friends.more")}});
-    if (NotificationRow(raise_.row) && !raise_.issued && menu.navigation.Ask(raise_.row, rows)) { raise_.issued = true; raise_.seen = false; raise_.waits = 0; }
+    if (NotificationRow(raise_.row) && !raise_.timer.issued && menu.navigation.Ask(raise_.row, rows)) raise_.timer.Issue();
 }
 
 void FriendsPanel::TakeInvite(const ShellView& v, const std::string& invite, const Submit& submit) {
@@ -604,8 +601,8 @@ void FriendsPanel::TakeInvite(const ShellView& v, const std::string& invite, con
 void FriendsPanel::Hide(const ShellView& v, const Submit& submit) {
     // Hiding Ember closes the tab as stepping off it does: the runtime's friends cadence stops with it.
     if (!asked_ || Bridge(v).empty()) return;
-    submit(commands::FriendsLeave{Bridge(v)});
-    asked_ = sawVisiting_ = false;
+    // Asked again when the Leave was not queued, as Update does.
+    if (submit(commands::FriendsLeave{Bridge(v)})) asked_ = sawVisiting_ = false;
 }
 
 void FriendsPanel::Conceal() {
@@ -929,6 +926,6 @@ void FriendsPanel::Dress(const ShellView& v, const std::string& screen, const st
         hints.push_back({MenuInput::Fighter, loc::T("find.title")});
         menu.shortcutHints = ShortcutHints(hints);
     }
-    if (!raise_.row.empty() && !raise_.issued && menu.navigation.Ask(raise_.row, rows)) { raise_.issued = true; raise_.seen = false; raise_.waits = 0; }
+    if (!raise_.row.empty() && !raise_.timer.issued && menu.navigation.Ask(raise_.row, rows)) raise_.timer.Issue();
 }
 } }

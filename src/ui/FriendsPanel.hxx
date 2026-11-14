@@ -13,6 +13,7 @@
 #include "MenuNavigation.hxx"
 #include "PlayerCard.hxx"
 #include "PlayerOpening.hxx"
+#include "RaiseTimer.hxx"
 #include "ShellAction.hxx"
 #include "Notifications.hxx"
 #include "../netplay/FriendsView.hxx"
@@ -266,8 +267,7 @@ private:
     struct Raise {
         // The row whose popout is to open, and the choice it asks about (empty: More itself).
         std::string row, ask;
-        bool issued = false, seen = false;
-        int waits = 0;
+        RaiseTimer timer;
     };
     void Perform(const ShellView& view, const std::string& what, const std::string& id, const std::string& row, const Submit& submit);
     template <class Command>

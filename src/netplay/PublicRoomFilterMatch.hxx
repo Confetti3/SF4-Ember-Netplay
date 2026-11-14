@@ -18,8 +18,10 @@ inline std::optional<room::RoomType> WantedType(RoomFilter::Type type) {
 }
 
 // Whether `filter` lists `room`. `home` is the player's own area, None while it
-// is not set: Near then lists every room, as it cannot say which are near. A
-// room whose creator gave no area is never near and in no one area. A room
+// is not set (or no listed room names an area, PublicRoomsPanel::FilterHome): Near then lists
+// every room, as it cannot say which are near. A room whose creator gave no area (the
+// creator hid it, Windows gave none, or the service does not list areas) is never near and
+// in no one area, so it is listed under every area only. A room
 // that sent no type passes the type filter only under All, since it cannot be
 // told to be of the type asked for.
 inline bool Matches(const RoomFilter& filter, const Room& room, Area home) {

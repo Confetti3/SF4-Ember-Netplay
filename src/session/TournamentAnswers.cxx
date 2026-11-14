@@ -117,7 +117,7 @@ Room DecodeRoom(const json& view) {
 	room.members = Small(view, "members", 16);
 	room.capacity = Small(view, "capacity", 16);
 	room.playing = Small(view, "tables_playing", 255);
-	room.createdAt = Seconds(view, "created_at");
+	room.createdAt = Count(view, "created_at");
 	// Only an own-delay room says so; a key of any other kind is not read.
 	if (const auto found = view.find("own_delay"); found != view.end() && found->is_boolean()) room.ownDelay = found->get<bool>();
 	// So is a room whose creator gave an area; anything but an area's code is none.
@@ -205,7 +205,7 @@ std::optional<ClaimReply> DecodeClaimReply(const nlohmann::json& data) {
 			reply.fence = std::to_string(Counter(data, "fence"));
 		} else if (role == "wait") {
 			reply.role = ClaimReply::Role::Wait;
-			reply.retryAfterMs = (std::min)(Seconds(data, "retry_after"), std::uint64_t(60)) * 1000;
+			reply.retryAfterMs = (std::min)(Count(data, "retry_after"), std::uint64_t(60)) * 1000;
 		} else if (role == "room") {
 			reply.role = ClaimReply::Role::Room;
 			reply.roomId = Text(data, "room_id", 32);
@@ -229,7 +229,7 @@ std::optional<WatchReply> DecodeWatchReply(const nlohmann::json& data) {
 		const auto role = Text(data, "role", 16);
 		if (role == "waiting") {
 			reply.role = WatchReply::Role::Waiting;
-			reply.retryAfterMs = (std::min)(Seconds(data, "retry_after"), std::uint64_t(60)) * 1000;
+			reply.retryAfterMs = (std::min)(Count(data, "retry_after"), std::uint64_t(60)) * 1000;
 			reply.reason = Text(data, "reason", 32);
 		} else if (role == "room") {
 			reply.role = WatchReply::Role::Room;
@@ -250,15 +250,15 @@ std::optional<PrepareReply> DecodePrepareReply(const nlohmann::json& data) {
 		PrepareReply reply;
 		const auto state = Text(data, "state", 16);
 		if (state == "pending") {
-			reply.retryAfterMs = (std::min)(Seconds(data, "retry_after"), std::uint64_t(60)) * 1000;
+			reply.retryAfterMs = (std::min)(Count(data, "retry_after"), std::uint64_t(60)) * 1000;
 		} else if (state == "permitted") {
 			reply.permitted = true;
 			reply.permitId = Text(data, "permit_id", 64);
 			reply.generation = Counter(data, "match_generation");
 			// The signed start deadline as a window: both times are the bridge's,
 			// so this PC's clock never enters it.
-			const auto issuedAt = Seconds(data, "issued_at");
-			const auto startBy = Seconds(data, "start_by");
+			const auto issuedAt = Count(data, "issued_at");
+			const auto startBy = Count(data, "start_by");
 			if (!room::ValidPermitId(reply.permitId) || !reply.generation || startBy <= issuedAt ||
 				startBy - issuedAt > room::MaximumPermitWindowMs / 1000) return std::nullopt;
 			reply.startWindowMs = (startBy - issuedAt) * 1000;
@@ -284,8 +284,8 @@ std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& d
 			item.provider = OptionalText(row, "provider", 64);
 			item.roundLabel = OptionalText(row, "round_label", 128);
 			item.profile = OptionalText(row, "native_rules_profile", 64);
-			item.createdAt = OptionalSeconds(row, "created_at");
-			item.expiresAt = OptionalSeconds(row, "expires_at");
+			item.createdAt = LenientCount(row, "created_at");
+			item.expiresAt = LenientCount(row, "expires_at");
 			const auto& slot = row.at("slot");
 			if (!slot.is_number_unsigned() || slot.get<std::uint64_t>() > 1) return std::nullopt;
 			item.slot = static_cast<int>(slot.get<std::uint64_t>());
@@ -375,7 +375,7 @@ std::optional<netplay::rankings::Standing> DecodeStanding(const json& data) {
 		if (ranking == "opted_out") Strict(data, {"ranking", "change_in"});
 		else if (ranking == "ranked") Strict(data, {"ranking", "badge", "listing", "change_in"});
 		else return std::nullopt;
-		if (data.find("change_in") != data.end()) standing.changeIn = Seconds(data, "change_in");
+		if (data.find("change_in") != data.end()) standing.changeIn = Count(data, "change_in");
 		if (ranking == "opted_out") {
 			standing.kind = Kind::OptedOut;
 			return standing;

@@ -79,7 +79,7 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -Command ""Get-NetFirewallRu
 function FirewallFolder(Param: String): String;
 begin
   Result := ExpandConstant('{app}');
-  StringChangeEx(Result, , '', True);
+  StringChangeEx(Result, '''', '''''', True);
 end;
 
 // Only a setup that added the rules asks for administrator rights again to remove them.

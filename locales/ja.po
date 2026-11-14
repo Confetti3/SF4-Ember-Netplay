@@ -1530,14 +1530,8 @@ msgstr "接続"
 msgid "card.link_detail"
 msgstr "有線かWi-Fiか、Emberの測定結果です。非表示にできます。"
 
-msgid "card.region_row"
-msgstr "地域"
-
 msgid "card.area_detail"
-msgstr "設定で選んだエリアです。非表示にできます。"
-
-msgid "card.area_unset"
-msgstr "未設定"
+msgstr "プレイしている場所で、設定と同じ選択です。非表示にすると、カードにも、あなたが作るルームにも表示されません。"
 
 msgid "card.shown"
 msgstr "{0} · 表示中"
@@ -5715,6 +5709,9 @@ msgstr "Show only the rooms that take wired players alone."
 msgid "public.filter_near_unset"
 msgstr "エリアが未設定のため、Emberは近くのルームを判別できません。設定の「国・地域とエリア」で設定してください。"
 
+msgid "public.filter_near_unlisted"
+msgstr "エリアを載せているルームが今はないため、Emberは近くのルームを判別できません。すべてのルームを表示しています。"
+
 msgid "public.near_you"
 msgstr "近く"
 
@@ -8487,6 +8484,12 @@ msgstr "{0}のHUD画像がこのエディションのHUDレイアウトと合わ
 
 msgid "settings.game_theme_unreadable_detail"
 msgstr "{0}にはゲームが読めないHUDファイルがあるため、使用されませんでした。ゲーム標準のHUDを表示しています。"
+
+msgid "settings.game_theme_missing"
+msgstr "{0}（使用中：一部のHUD画像がありません）"
+
+msgid "settings.game_theme_missing_detail"
+msgstr "{0}は使用中です。HUDレイアウトが使う画像の一部がシートにないため、その画像は表示されません。"
 
 msgid "runtime.game_theme_turned_off"
 msgstr "{0}は{1}でオフにされました：読み込み中にゲームが終了したためです。"

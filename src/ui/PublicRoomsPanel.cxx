@@ -189,7 +189,16 @@ std::string PublicRoomsPanel::FailureText(const std::string& code) {
 }
 
 Area PublicRoomsPanel::HomeArea(const ShellView& v) {
-    return ShownArea(v.preferences.area, v.automaticArea);
+    return OwnArea(v.preferences.area, v.automaticArea);
+}
+
+bool PublicRoomsPanel::AreasListed(const ShellView& v) {
+    const auto& rooms = v.publicRooms.rooms;
+    return std::any_of(rooms.begin(), rooms.end(), [](const Room& room) { return room.area != Area::None; });
+}
+
+Area PublicRoomsPanel::FilterHome(const ShellView& v) {
+    return AreasListed(v) ? HomeArea(v) : Area::None;
 }
 
 void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy, room::RoomType type, bool wiredOnly, std::uint8_t tableCount) {
@@ -396,7 +405,7 @@ bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std
     if (list.loading && manualRefresh_) { status = loc::T("public.updating"); tone = Tone::Pending; return true; }
     // A failed refresh leaves the list as it was, so the age still says how stale it is.
     if (!status.empty() || !listed || list.rooms.empty()) return false;
-    const auto shown = Listing(this, list, HomeArea(v), filter).size();
+    const auto shown = Listing(this, list, FilterHome(v), filter).size();
     const std::string updated = UpdatedText(now - listedAt_);
     status = shown == list.rooms.size() ? loc::Tf("public.status_listed", list.rooms.size(), updated) :
         loc::Tf("public.status_filtered", shown, list.rooms.size(), updated);
@@ -406,10 +415,13 @@ bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std
 
 std::optional<std::string> PublicRoomsPanel::QuickPick(const ShellView& v, Area home, const RoomFilter& filter) const {
     if (v.publicRooms.bridge != bridge_) return std::nullopt;
-    const RoomFilter wanted = filter.ForQuickJoin();
-    for (const Room* room : Sorted(this, v.publicRooms, home)) {
-        if (!room->Joinable() || refused_.count(room->id) || !Matches(wanted, *room, home)) continue;
-        return room->id;
+    // A room near the player first; a room that names no area is near no one, so the filter's own rooms follow.
+    const RoomFilter nearFirst = filter.ForQuickJoin();
+    const auto sorted = Sorted(this, v.publicRooms, home);
+    for (const RoomFilter& wanted : {nearFirst, filter}) {
+        for (const Room* room : sorted)
+            if (room->Joinable() && !refused_.count(room->id) && Matches(wanted, *room, home)) return room->id;
+        if (nearFirst == filter) break;
     }
     return std::nullopt;
 }
@@ -458,7 +470,7 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     }
     const auto& list = v.publicRooms;
     const bool free = v.canOpenRoom && !Busy();
-    const Area home = HomeArea(v);
+    const Area home = FilterHome(v);
     // The list on screen is this service's, and has been heard from.
     const bool listed = list.bridge == service && loadedFor_ == service;
     // The toolbar: three cells in a row (or two rows), then the filter's rows and everything else full width.
@@ -508,11 +520,12 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     return rows;
 }
 
-std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, Area home, bool enabled) {
+std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, Area home, bool areasListed, bool enabled) {
     const bool nearUnknown = filter.scope == RoomFilter::Place::Near && home == Area::None;
+    const bool nearUnlisted = filter.scope == RoomFilter::Place::Near && home != Area::None && !areasListed;
     std::vector<MenuEntry> rows;
     rows.push_back(Value(FilterAreaRow, loc::T("public.filter_area"), PlaceValue(filter),
-        loc::T(nearUnknown ? "public.filter_near_unset" : "public.filter_area_detail"), enabled));
+        loc::T(nearUnknown ? "public.filter_near_unset" : nearUnlisted ? "public.filter_near_unlisted" : "public.filter_area_detail"), enabled));
     rows.push_back(Value(FilterTypeRow, loc::T("public.filter_type"), RoomTypeValue(filter), loc::T("public.filter_type_detail"), enabled));
     rows.push_back(Value(FilterSeatsRow, loc::T("public.filter_seats"), loc::T(filter.openSeats ? "common.on" : "common.off"),
         loc::T("public.filter_seats_detail"), enabled));

@@ -264,7 +264,9 @@ inline bool StunTriggers(int when, const DummySeen& seen) {
 }
 // cause: DummySeen::held, else out while the dummy is free. roll: any random number; it decides the chance.
 inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
-    return cause && (plan.when == 4 || plan.when == cause) && roll % 100 < static_cast<unsigned>(plan.chance);
+    DummySeen seen;
+    seen.held = cause;
+    return StunTriggers(plan.when, seen) && roll % 100 < static_cast<unsigned>(plan.chance);
 }
 // Whether a move played from the next update should start after this
 // frame's observation: its first attack button, acted on lead frames in (its

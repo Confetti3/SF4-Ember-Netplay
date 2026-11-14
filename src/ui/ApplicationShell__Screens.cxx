@@ -62,7 +62,7 @@ public:
         auto& shell = f.shell;
         if (f.screen == PublicRoomsPanel::FiltersScreen) {
             title = loc::T("public.filters");
-            return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::HomeArea(f.view), f.view.canEditPreferences);
+            return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::HomeArea(f.view), PublicRoomsPanel::AreasListed(f.view), f.view.canEditPreferences);
         }
         title = loc::T("screen.public_rooms");
         const std::string bridge = shell.identity_.UsableBridge(f.view);
@@ -114,7 +114,7 @@ private:
     static bool ChangeFilter(const ScreenFrame& f, const MenuAction& a) {
         auto& shell = f.shell;
         auto filter = shell.preferences_.roomFilter;
-        if (!PublicRoomsPanel::ChangeFilter(a, PublicRoomsPanel::HomeArea(f.view), filter)) return false;
+        if (!PublicRoomsPanel::ChangeFilter(a, PublicRoomsPanel::FilterHome(f.view), filter)) return false;
         if (f.view.canEditPreferences && filter != shell.preferences_.roomFilter) {
             shell.preferences_.roomFilter = filter;
             shell.preferencesDirty_ = true; shell.saveAt_ = ImGui::GetTime() + .45; shell.error_.clear();

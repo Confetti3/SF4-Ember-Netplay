@@ -146,12 +146,6 @@ std::string LinkValue(const netplay::PlayerPreferences& prefs, NetworkLink link)
     return loc::T("card.unknown_shown");
 }
 
-std::string RegionValue(const netplay::PlayerPreferences& prefs, Area automaticArea) {
-    if (!prefs.cardShowRegion || prefs.area.kind == AreaPreference::Kind::Hidden) return loc::T("card.hidden");
-    const Area area = ShownArea(prefs.area, automaticArea);
-    return area != Area::None ? loc::Tf("card.shown", AreaName(area)) : std::string(loc::T("card.area_unset"));
-}
-
 std::string LookingValue(const netplay::PlayerPreferences& prefs) {
     std::string text;
     for (std::size_t i = 0; i < pr::LookingKinds; ++i)
@@ -189,7 +183,7 @@ std::vector<MenuEntry> PlayEntries(const Context& c) {
     std::vector<MenuEntry> rows;
     rows.push_back(stepped(DeviceRow, "card.device_row", DeviceValue(c.prefs, c.measured.automatic), "card.device_detail"));
     rows.push_back(stepped(LinkRow, "card.link_row", LinkValue(c.prefs, c.measured.link), "card.link_detail"));
-    rows.push_back(stepped(RegionRow, "card.region_row", RegionValue(c.prefs, c.measured.automaticArea), "card.area_detail"));
+    rows.push_back(stepped(AreaRow, "settings.area", AreaChoiceText(c.prefs.area, c.measured.automaticArea), "card.area_detail"));
     auto looking = Row(LookingRow, loc::T("card.looking_row"), Detail(c.canEdit, "card.looking_detail"), c.canEdit);
     looking.value = LookingValue(c.prefs);
     looking.hint = loc::T("menu.choose");
@@ -235,7 +229,7 @@ std::vector<MenuEntry> PinEntries(const Context& c) {
 }
 
 bool Owns(const std::string& id) {
-    return id == DeviceRow || id == LinkRow || id == RegionRow || id == PinsRow || id == LookingRow || id == SteamRow || id == AutoPinsRow ||
+    return id == DeviceRow || id == LinkRow || id == AreaRow || id == PinsRow || id == LookingRow || id == SteamRow || id == AutoPinsRow ||
         FamilyOfRow(id) != nullptr || LookingKindOf(id) < pr::LookingKinds;
 }
 
@@ -246,11 +240,16 @@ Change Adjust(netplay::PlayerPreferences& prefs, const Measured& measured, const
         const int next = (std::max)(0, (std::min)(5, prefs.cardDevice + delta));
         change.changed = next != prefs.cardDevice;
         prefs.cardDevice = next;
-    } else if (id == LinkRow || id == RegionRow) {
+    } else if (id == LinkRow) {
         change.handled = true;
-        bool& shown = id == LinkRow ? prefs.cardShowLink : prefs.cardShowRegion;
-        change.changed = shown != (delta > 0);
-        shown = delta > 0;
+        change.changed = prefs.cardShowLink != (delta > 0);
+        prefs.cardShowLink = delta > 0;
+    } else if (id == AreaRow) {
+        // The same choice as Settings' (Automatic, an area, Hidden), stepped.
+        change.handled = true;
+        const AreaPreference next = prefs.area.Stepped(delta);
+        change.changed = next != prefs.area;
+        prefs.area = next;
     } else if (delta != 0) return SetSwitch(prefs, measured, id, delta > 0 ? 1 : 0);
     return change;
 }

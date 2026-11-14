@@ -11,6 +11,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__Hud.hxx"
+#include "sf4e__GameThemes.hxx"
 #include "../common/HudPictureGuard.hxx"
 
 #include <cstring>
@@ -60,6 +61,8 @@ using Dimps::Game::Sprite::PictureKey;
 constexpr unsigned char kApplyTextureKeyNative[] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x14, 0x53, 0x8B, 0x5D, 0x08, 0x8B, 0x03, 0x56, 0x57, 0x8B, 0xF1 };
 // Game thread only: the HUD's sprites are updated there.
 sf4e::hud_picture::Skips pictureSkips;
+// Whether the picture read is guarded: its bytes were this game build's and the detour attached.
+bool pictureGuardInstalled = false;
 
 std::string ActionName(EmSprite* sprite) {
     const char* action = *EmSprite::GetAction(sprite);
@@ -90,9 +93,11 @@ void InstallPictureGuard() {
         spdlog::warn("HUD: the sprite picture read holds other bytes than this game build's; pictures a sheet lacks are not guarded");
         return;
     }
-    DetourAttach((PVOID*)&EmSprite::publicMethods.ApplyTextureKey, (PVOID)ApplyTextureKey);
+    pictureGuardInstalled = DetourAttach((PVOID*)&EmSprite::publicMethods.ApplyTextureKey, (PVOID)ApplyTextureKey) == NO_ERROR;
 }
 }
+
+bool fHud::PictureGuardInstalled() { return pictureGuardInstalled; }
 
 void fHud::Install() {
     InstallPictureGuard();
@@ -133,6 +138,7 @@ rHud::Unit* fHud::Unit::Factory(DWORD arg1, DWORD arg2) {
     rHud::Unit::ResetUnits(u);
     // A battle's HUD units are made before any of its sprites takes a picture.
     pictureSkips.Reset();
+    sf4e::GameThemes::BattleHudMade();
     return u;
 }
 

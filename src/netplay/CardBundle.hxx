@@ -29,13 +29,13 @@ namespace sf4e { namespace netplay { namespace profiles {
 // the game measures: `automatic` is the device Automatic stands for
 // (AutomaticDevice, none when no controller is known), `link` the measured
 // connection, `automaticArea` the area Windows gives (AreaFromWindows), which
-// the area's Automatic stands for. The connection and the area show only while
-// the player lets them.
+// the area's Automatic stands for. The connection shows only while the player
+// lets it, and the area unless the player's choice of area is Hidden.
 inline Style OwnStyle(const PlayerPreferences& preferences, Device automatic, NetworkLink link, Area automaticArea) {
 	Style style;
 	style.device = preferences.cardDevice == 0 ? automatic : preferences.cardDevice >= 1 && preferences.cardDevice <= 4 ? static_cast<Device>(preferences.cardDevice) : Device::None;
 	if (preferences.cardShowLink) style.link = link == NetworkLink::Wired ? Link::Wired : link == NetworkLink::Wireless ? Link::WiFi : Link::None;
-	if (preferences.cardShowRegion) style.area = ShownArea(preferences.area, automaticArea);
+	style.area = ShownArea(preferences.area, automaticArea);
 	style.looking = LookingFromSaved(preferences.cardLooking);
 	return style;
 }

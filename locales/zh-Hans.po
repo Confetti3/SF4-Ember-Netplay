@@ -1530,14 +1530,8 @@ msgstr "连接"
 msgid "card.link_detail"
 msgstr "有线或 Wi-Fi，由 Ember 测得。你可以隐藏它。"
 
-msgid "card.region_row"
-msgstr "地区"
-
 msgid "card.area_detail"
-msgstr "根据你的设置得出的大区。你可以隐藏它。"
-
-msgid "card.area_unset"
-msgstr "未设置"
+msgstr "你游玩所在的位置，与设置中的选择相同。隐藏后，它不会出现在你的卡片和你创建的房间上。"
 
 msgid "card.shown"
 msgstr "{0} · 已显示"
@@ -5715,6 +5709,9 @@ msgstr "Show only the rooms that take wired players alone."
 msgid "public.filter_near_unset"
 msgstr "你的大区尚未设置，因此 Ember 无法判断哪些房间在附近。请在设置的“国家/地区和大区”中设置。"
 
+msgid "public.filter_near_unlisted"
+msgstr "目前没有房间标明大区，因此 Ember 无法判断哪些房间在附近。已列出所有房间。"
+
 msgid "public.near_you"
 msgstr "附近"
 
@@ -8487,6 +8484,12 @@ msgstr "{0} 的 HUD 图片与此版本的 HUD 布局不匹配，因此未使用�
 
 msgid "settings.game_theme_unreadable_detail"
 msgstr "{0} 含有游戏无法读取的 HUD 文件，因此未使用。当前显示游戏自带的 HUD。"
+
+msgid "settings.game_theme_missing"
+msgstr "{0}（已使用：缺少部分 HUD 图片）"
+
+msgid "settings.game_theme_missing_detail"
+msgstr "{0} 已使用。其 HUD 布局用到的部分图片在图片表中不存在，这些图片不会显示。"
 
 msgid "runtime.game_theme_turned_off"
 msgstr "{0} 已对 {1} 关闭：游戏在加载它时关闭了。"

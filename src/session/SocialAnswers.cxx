@@ -9,8 +9,11 @@
 #include "../common/SkillBadgeJson.hxx"
 #include "../netplay/Levels.hxx"
 #include "../netplay/Rankings.hxx"
+#include "AnswerReading.hxx"
 
 namespace sf4e { namespace session {
+using namespace reading;
+
 namespace {
 using nlohmann::json;
 namespace friends = netplay::friends;
@@ -21,10 +24,6 @@ constexpr std::size_t MaxLabelBytes = 64;
 
 [[noreturn]] void Bad(const char* what) { throw std::invalid_argument(what); }
 
-const json& Object(const json& value) {
-	if (!value.is_object()) Bad("object");
-	return value;
-}
 
 const json& Array(const json& object, const char* key, std::size_t maximum) {
 	const auto found = object.find(key);
@@ -32,30 +31,9 @@ const json& Array(const json& object, const char* key, std::size_t maximum) {
 	return *found;
 }
 
-std::string Text(const json& object, const char* key, std::size_t maximum) {
-	const auto found = object.find(key);
-	if (found == object.end() || !found->is_string()) Bad(key);
-	auto text = found->get<std::string>();
-	if (text.empty() || text.size() > maximum) Bad(key);
-	return text;
-}
 
-// Another player's text is one line.
-std::string SingleLine(std::string text) {
-	for (auto& c : text) if (static_cast<unsigned char>(c) < 32 || c == 127) c = ' ';
-	return text;
-}
 
-std::uint64_t Unsigned(const json& object, const char* key) {
-	const auto found = object.find(key);
-	if (found == object.end() || !found->is_number_unsigned()) Bad(key);
-	return found->get<std::uint64_t>();
-}
 
-// A time or count that may be absent: absent is 0.
-std::uint64_t OptionalUnsigned(const json& object, const char* key) {
-	return object.find(key) == object.end() ? 0 : Unsigned(object, key);
-}
 
 bool Flag(const json& object, const char* key) {
 	const auto found = object.find(key);
@@ -64,26 +42,17 @@ bool Flag(const json& object, const char* key) {
 	return found->get<bool>();
 }
 
-std::uint64_t Bounded(const json& object, const char* key, std::uint64_t maximum) {
-	const auto value = Unsigned(object, key);
-	if (value > maximum) Bad(key);
-	return value;
-}
 
-bool IsHexId(const std::string& text) {
-	return text.size() == 32 && std::all_of(text.begin(), text.end(),
-		[](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
-}
 
 // "fr_", "rq_", "bl_" or "iv_" and the uuid.
 std::string Id(const json& object, const char* key, const char* prefix) {
-	auto id = Text(object, key, IdBytes);
+	auto id = NonEmptyText(object, key, IdBytes);
 	if (id.size() != IdBytes || id.compare(0, 3, prefix) != 0) Bad(key);
 	return id;
 }
 
 std::string Name(const json& object, const char* key) {
-	return SingleLine(Text(object, key, netplay::rankings::MaxNameBytes));
+	return SingleLine(NonEmptyText(object, key, netplay::rankings::MaxNameBytes));
 }
 
 // A country the game's table may lack is shown without a flag; one that is not two upper-case letters is malformed.
@@ -107,7 +76,7 @@ bool IsFriendCode(const std::string& code) {
 
 // A status a later bridge adds reads as the neutral one in a room, so the friend is still listed where they are.
 friends::Status ReadStatus(const json& object) {
-	const auto status = Text(object, "status", 16);
+	const auto status = NonEmptyText(object, "status", 16);
 	if (status == "queued") return friends::Status::Queued;
 	if (status == "ready") return friends::Status::Ready;
 	if (status == "fighting") return friends::Status::Fighting;
@@ -118,28 +87,28 @@ friends::Status ReadStatus(const json& object) {
 
 int ReadTable(const json& object) {
 	if (object.find("table") == object.end()) return -1;
-	return static_cast<int>(Bounded(object, "table", friends::MaxTable));
+	return static_cast<int>(Small(object, "table", friends::MaxTable));
 }
 
 friends::Room DecodeRoom(const json& value) {
 	const auto& object = Object(value);
 	friends::Room room;
-	room.id = Text(object, "room_id", 32);
-	room.name = SingleLine(Text(object, "name", MaxLabelBytes));
-	room.members = static_cast<std::uint8_t>(Bounded(object, "members", 16));
-	room.capacity = static_cast<std::uint8_t>(Bounded(object, "capacity", 16));
+	room.id = NonEmptyText(object, "room_id", 32);
+	room.name = SingleLine(NonEmptyText(object, "name", MaxLabelBytes));
+	room.members = static_cast<std::uint8_t>(Small(object, "members", 16));
+	room.capacity = static_cast<std::uint8_t>(Small(object, "capacity", 16));
 	room.joinable = Flag(object, "joinable");
-	if (!IsHexId(room.id) || room.capacity < 2 || room.members > room.capacity) Bad("room");
+	if (!IsHex(room.id, 32) || room.capacity < 2 || room.members > room.capacity) Bad("room");
 	return room;
 }
 
 friends::Presence DecodePresence(const json& value) {
 	const auto& object = Object(value);
 	friends::Presence presence;
-	const auto state = Text(object, "state", 16);
+	const auto state = NonEmptyText(object, "state", 16);
 	if (state == "offline") {
 		presence.kind = friends::Presence::Kind::Offline;
-		presence.seenAt = OptionalUnsigned(object, "seen_at");
+		presence.seenAt = OptionalCount(object, "seen_at");
 	} else if (state == "room") {
 		presence.kind = friends::Presence::Kind::InRoom;
 		presence.status = ReadStatus(object);
@@ -154,28 +123,23 @@ friends::Presence DecodePresence(const json& value) {
 		// Online, as a state a later bridge adds is: the friend is there, and a state this build cannot name says no more.
 		// An activity it does not know is the menus.
 		presence.kind = friends::Presence::Kind::Online;
-		if (state == "online" && Text(object, "activity", 16) == "offline_play") presence.activity = friends::Activity::OfflinePlay;
+		if (state == "online" && NonEmptyText(object, "activity", 16) == "offline_play") presence.activity = friends::Activity::OfflinePlay;
 	}
 	return presence;
 }
 
-// A frame tier as sent: an unsigned number, and one past the tiers this build
-// draws (a later bridge's table) is the last it knows.
-std::uint8_t Tier(const json& object) {
-	return static_cast<std::uint8_t>((std::min)(Unsigned(object, "tier"), static_cast<std::uint64_t>(netplay::levels::TierCount - 1)));
-}
 
 // Points and tier are shown together or not at all. How many points a tier
 // takes is the bridge's to say.
 friends::Main DecodeMain(const json& value) {
 	const auto& object = Object(value);
 	friends::Main main;
-	main.fighter = static_cast<std::uint8_t>(Bounded(object, "fighter", selection::FighterCount - 1));
+	main.fighter = static_cast<std::uint8_t>(Small(object, "fighter", selection::FighterCount - 1));
 	const bool points = object.find("points") != object.end(), tier = object.find("tier") != object.end();
 	if (points != tier) Bad("tier");
 	if (points) {
 		main.showsPoints = true;
-		main.points = Unsigned(object, "points");
+		main.points = Count(object, "points");
 		main.tier = Tier(object);
 	}
 	return main;
@@ -190,14 +154,14 @@ friends::Friend DecodeFriend(const json& value) {
 	entry.id = Id(object, "id", "fr_");
 	entry.name = Name(object, "name");
 	entry.country = Country(object);
-	entry.since = Unsigned(object, "since");
+	entry.since = Count(object, "since");
 	const auto part = [](auto read) { try { read(); return true; } catch (const std::exception&) { return false; } };
 	if (const auto main = object.find("main"); main != object.end())
 		entry.hasMain = part([&] { entry.main = DecodeMain(*main); });
 	if (const auto account = object.find("account"); account != object.end()) {
 		entry.hasAccount = part([&] {
 			const auto& fields = Object(*account);
-			entry.account.points = Unsigned(fields, "points");
+			entry.account.points = Count(fields, "points");
 			entry.account.tier = Tier(fields);
 		});
 		if (!entry.hasAccount) entry.account = {};
@@ -210,9 +174,9 @@ friends::Friend DecodeFriend(const json& value) {
 	if (const auto record = object.find("record"); record != object.end()) {
 		entry.hasRecord = part([&] {
 			const auto& fields = Object(*record);
-			entry.record.won = Unsigned(fields, "won");
-			entry.record.lost = Unsigned(fields, "lost");
-			entry.record.lastAt = Unsigned(fields, "last_at");
+			entry.record.won = Count(fields, "won");
+			entry.record.lost = Count(fields, "lost");
+			entry.record.lastAt = Count(fields, "last_at");
 		});
 		// A record with no game in it says nothing.
 		if (!entry.hasRecord || (entry.record.won == 0 && entry.record.lost == 0)) { entry.hasRecord = false; entry.record = {}; }
@@ -227,11 +191,11 @@ friends::Incoming DecodeIncoming(const json& value) {
 	entry.id = Id(object, "id", "rq_");
 	entry.name = Name(object, "name");
 	entry.country = Country(object);
-	entry.sentAt = Unsigned(object, "sent_at");
+	entry.sentAt = Count(object, "sent_at");
 	if (const auto played = object.find("played"); played != object.end()) {
 		const auto& fields = Object(*played);
-		entry.games = Unsigned(fields, "games");
-		entry.lastGameAt = Unsigned(fields, "last_at");
+		entry.games = Count(fields, "games");
+		entry.lastGameAt = Count(fields, "last_at");
 	}
 	return entry;
 }
@@ -240,8 +204,8 @@ friends::Outgoing DecodeOutgoing(const json& value) {
 	const auto& object = Object(value);
 	friends::Outgoing entry;
 	entry.id = Id(object, "id", "rq_");
-	entry.label = SingleLine(Text(object, "label", MaxLabelBytes));
-	entry.sentAt = Unsigned(object, "sent_at");
+	entry.label = SingleLine(NonEmptyText(object, "label", MaxLabelBytes));
+	entry.sentAt = Count(object, "sent_at");
 	return entry;
 }
 
@@ -251,7 +215,7 @@ std::optional<friends::Invite> DecodeInvite(const json& value) {
 	friends::Invite entry;
 	entry.id = Id(object, "id", "iv_");
 	entry.friendId = Id(object, "friend", "fr_");
-	entry.expiresAt = Unsigned(object, "expires_at");
+	entry.expiresAt = Count(object, "expires_at");
 	const auto& room = Object(object.at("room"));
 	const bool id = room.find("room_id") != room.end(), secret = room.find("secret") != room.end();
 	// Both is malformed; neither is a kind this build does not know.
@@ -259,11 +223,11 @@ std::optional<friends::Invite> DecodeInvite(const json& value) {
 	if (!id && !secret) return std::nullopt;
 	if (id) {
 		entry.room.kind = friends::InviteRoom::Kind::RoomId;
-		entry.room.value = Text(room, "room_id", 32);
-		if (!IsHexId(entry.room.value)) Bad("room_id");
+		entry.room.value = NonEmptyText(room, "room_id", 32);
+		if (!IsHex(entry.room.value, 32)) Bad("room_id");
 	} else {
 		entry.room.kind = friends::InviteRoom::Kind::Secret;
-		entry.room.value = Text(room, "secret", 127);
+		entry.room.value = NonEmptyText(room, "secret", 127);
 		if (entry.room.value.size() != 127 || (entry.room.value.compare(0, 5, "emd1:") != 0 && entry.room.value.compare(0, 5, "emd2:") != 0))
 			Bad("secret");
 	}
@@ -275,7 +239,7 @@ friends::Blocked DecodeBlocked(const json& value) {
 	friends::Blocked entry;
 	entry.id = Id(object, "id", "bl_");
 	entry.name = Name(object, "name");
-	entry.at = Unsigned(object, "at");
+	entry.at = Count(object, "at");
 	return entry;
 }
 
@@ -302,7 +266,7 @@ bool DecodeFriendsState(const json& data, friends::State& state) {
 		const auto& object = Object(data);
 		friends::State decoded;
 		decoded.kind = friends::State::Kind::Listed;
-		decoded.code = Text(object, "code", 9);
+		decoded.code = NonEmptyText(object, "code", 9);
 		if (!IsFriendCode(decoded.code)) return false;
 		decoded.appearOffline = Flag(object, "appear_offline");
 		decoded.friends = DecodeList<friends::Friend>(object, "friends", friends::MaxFriends, DecodeFriend);
