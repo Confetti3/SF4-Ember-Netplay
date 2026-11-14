@@ -56,6 +56,17 @@ struct ShellView;
 // (also the page's name), and the rows that open Connect Discord and the main
 // page (ids their screens go by).
 inline std::string CardFighterRow(int fighter) { return "card-fighter:" + std::to_string(fighter); }
+// The fighter a CardFighterRow names, or -1 when `row` is not one.
+inline int CardFighterOf(const std::string& row) {
+    constexpr std::size_t prefix = sizeof("card-fighter:") - 1;
+    if (row.compare(0, prefix, "card-fighter:") != 0 || row.size() == prefix) return -1;
+    int fighter = 0;
+    for (std::size_t i = prefix; i < row.size(); ++i) {
+        if (row[i] < '0' || row[i] > '9' || fighter > 100000) return -1;
+        fighter = fighter * 10 + (row[i] - '0');
+    }
+    return fighter;
+}
 constexpr const char* CardEditRow = "card-edit";
 constexpr const char* ChooseMainRow = "main-character";
 // The row that opens Fighter select from the Card tab (the id of its screen).

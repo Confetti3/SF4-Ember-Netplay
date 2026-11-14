@@ -117,6 +117,16 @@ std::vector<MenuChoice> RequestChoices(Gate gate);
 std::vector<MenuChoice> InviteChoices(Gate gate);
 std::vector<MenuChoice> AskChoices(const std::string& ask, const std::string& name);
 
+// The choices a friend, a request or another player's page offers that go to the friends' paths, by the id the choice
+// carries: one vocabulary for the tab's popouts and the profile page's More. `Other` is any id that is not one of them.
+enum class FriendChoice : std::uint8_t { Other, Add, Card, Accept, Decline, DeclineBlock, Join, Watch, Invite, Remove, RemoveBlock, Block, Unblock };
+FriendChoice ChoiceOf(const std::string& id);
+const char* ChoiceId(FriendChoice what);
+// Whether the choice asks again first (Remove, Remove and block, Decline, Decline and block, Block, Unblock), and its
+// question: one option, "yes", worded as the choice and naming the player.
+bool Asks(FriendChoice what);
+std::vector<MenuChoice> QuestionOf(FriendChoice what, const std::string& name);
+
 // What waits on the player in Notifications while the friends are listed (none in any other state): every request,
 // newest first, then every invite still good (not run out, from a friend the list holds), in the list's order. A
 // request or invite is there for as long as the state holds it, whether a toast was said for it or not.

@@ -466,6 +466,8 @@ void CardTabRows() {
     Check(row(pp::PrimaryRow) && row(pp::PrimaryRow)->label == primary.label && row(pp::PrimaryRow)->enabled, "the Primary is not a row with its label");
     Check(row(pp::MoreRow) && row(pp::MoreRow)->popout && !row(pp::MoreRow)->choices.empty() && row(pp::MoreRow)->choices.front().id == "add", "More is not a popout of the entries");
     Check(row(ui::CardFighterRow(12)) && row(ui::CardFighterRow(5)), "their strip's tiles are not rows");
+    Check(ui::CardFighterOf(ui::CardFighterRow(12)) == 12 && ui::CardFighterOf(ui::CardFighterRow(0)) == 0 && ui::CardFighterOf("card-fighter:") < 0 &&
+        ui::CardFighterOf("card-fighter:x") < 0 && ui::CardFighterOf("card-edit") < 0, "a strip tile's row does not name its fighter, or another row does");
     // A question More asked is its one choice.
     rows = pp::CardRows(view, primary, standing, "block", "Player 2");
     Check(row(pp::MoreRow)->choices.size() == 1 && row(pp::MoreRow)->choices[0].id == "yes", "More does not carry its question");

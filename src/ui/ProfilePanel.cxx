@@ -156,9 +156,9 @@ bool ProfilePanel::MostPlayedOf(const ShellView& v, netplay::profiles::Key& key,
 bool ProfilePanel::Activate(const ShellView& v, const MenuAction& a, MenuNavigation& nav, const Submit& submit, WatchQueue& queue, std::string& error) {
     if (a.id == CardEditRow) { nav.Push(CardEditRow); return true; }
     // A strip tile opens the Fighters page on that fighter.
-    if (a.id.compare(0, 13, "card-fighter:") == 0) {
+    if (const int fighter = CardFighterOf(a.id); fighter >= 0) {
         nav.Replace(FightersScreen);
-        nav.Prefer("main-" + a.id.substr(13));
+        nav.Prefer("main-" + std::to_string(fighter));
         return true;
     }
     // An award tile opens the wall on that family, and All sets the Sets tab.

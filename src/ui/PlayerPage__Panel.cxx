@@ -194,17 +194,19 @@ std::vector<MenuEntry> PlayerPage::Rows(const ShellView& v, const std::string& s
 
 void PlayerPage::Do(const ShellView& v, const std::string& what, const Shown& shown, const Standing& standing, const Hands& h) {
     auto& friends = h.friends;
-    if (what == "add") {
+    using friends_panel::FriendChoice;
+    const FriendChoice choice = friends_panel::ChoiceOf(what);
+    if (choice == FriendChoice::Add) {
         if (!shown.token.empty()) friends.RequestMember(v, shown.token, shown.name, false, h.submit);
         else if (standing.byCode) friends.RequestByCode(v, shown.key.value, shown.name, h.submit);
-    } else if (what == "accept") {
-        if (standing.byRequest) friends.ActOnFriend(v, "accept", shown.key.value, h.submit);
+    } else if (choice == FriendChoice::Accept) {
+        if (standing.byRequest) friends.ActOnFriend(v, what, shown.key.value, h.submit);
         else if (!shown.token.empty()) friends.RequestMember(v, shown.token, shown.name, true, h.submit);
-    } else if (what == "join" || what == "watch" || what == "invite" || what == "remove" || what == "remove-block") {
+    } else if (choice == FriendChoice::Join || choice == FriendChoice::Watch || choice == FriendChoice::Invite || choice == FriendChoice::Remove || choice == FriendChoice::RemoveBlock) {
         friends.ActOnFriend(v, what, standing.friendId, h.submit);
-    } else if (what == "unblock") {
-        friends.ActOnFriend(v, "unblock", standing.blockId, h.submit);
-    } else if (what == "block") {
+    } else if (choice == FriendChoice::Unblock) {
+        friends.ActOnFriend(v, what, standing.blockId, h.submit);
+    } else if (choice == FriendChoice::Block) {
         if (!shown.token.empty()) friends.BlockMember(v, shown.token, shown.name, h.submit);
     } else if (what == "sets") {
         h.navigation.Replace(SetsScreen);
@@ -234,9 +236,9 @@ bool PlayerPage::Activate(const ShellView& v, const MenuAction& a, const Hands& 
         return true;
     }
     // A strip tile opens their Fighters on that fighter; an award tile their wall on that family; All sets their Sets.
-    if (HasPrefix(a.id, "card-fighter:")) {
+    if (const int fighter = CardFighterOf(a.id); fighter >= 0) {
         nav.Replace(FightersScreen);
-        nav.Prefer(fighters_tab::RowPrefix + a.id.substr(13));
+        nav.Prefer(fighters_tab::RowPrefix + std::to_string(fighter));
         return true;
     }
     if (HasPrefix(a.id, player_card::AwardRowPrefix)) {
