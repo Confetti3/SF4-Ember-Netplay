@@ -1,15 +1,18 @@
 // What the game reads of the bridge's FriendsState (session/SocialAnswers.hxx):
 // a well-formed state decodes completely, keys a later bridge adds are ignored,
-// and anything malformed is refused whole and leaves the state alone, however
-// it is damaged (a seeded sweep).
+// a row or a friend's part that cannot be read is left out alone, and a state
+// whose shape is wrong is refused whole and leaves the state alone, however it
+// is damaged (a seeded sweep).
 #include "../session/SocialAnswers.hxx"
 
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <iterator>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -135,39 +138,97 @@ void RefusesWhatIsMalformed() {
 	refused("no friends list", changed([](json& d) { d.erase("friends"); }));
 	refused("friends not a list", changed([](json& d) { d["friends"] = "none"; }));
 	refused("no blocked list", changed([](json& d) { d.erase("blocked"); }));
-	refused("friend id of a request", changed([](json& d) { d["friends"][0]["id"] = RequestId; }));
-	refused("friend id too short", changed([](json& d) { d["friends"][0]["id"] = "fr_1"; }));
-	refused("empty name", changed([](json& d) { d["friends"][0]["name"] = ""; }));
-	refused("long name", changed([](json& d) { d["friends"][0]["name"] = std::string(33, 'n'); }));
-	refused("name not text", changed([](json& d) { d["friends"][0]["name"] = 4; }));
-	refused("lower-case country", changed([](json& d) { d["friends"][0]["country"] = "fr"; }));
-	refused("long country", changed([](json& d) { d["friends"][0]["country"] = "FRA"; }));
-	refused("negative since", changed([](json& d) { d["friends"][0]["since"] = -1; }));
-	refused("no presence", changed([](json& d) { d["friends"][0].erase("presence"); }));
-	refused("table past the last", changed([](json& d) { d["friends"][0]["presence"]["table"] = 8; }));
-	refused("a room and private", changed([](json& d) { d["friends"][0]["presence"]["private"] = true; }));
-	refused("room id not hex", changed([](json& d) { d["friends"][0]["presence"]["room"]["room_id"] = std::string(32, 'z'); }));
-	refused("room fuller than its capacity", changed([](json& d) { d["friends"][0]["presence"]["room"]["members"] = 17; }));
-	refused("room of one", changed([](json& d) { d["friends"][0]["presence"]["room"]["capacity"] = 1; d["friends"][0]["presence"]["room"]["members"] = 0; }));
-	refused("online with no activity", changed([](json& d) { d["friends"][1]["presence"] = {{"state", "online"}}; }));
-	refused("fighter past the roster", changed([](json& d) { d["friends"][0]["main"]["fighter"] = 44; }));
-	refused("points without a tier", changed([](json& d) { d["friends"][0]["main"].erase("tier"); }));
-	refused("tier past the last", changed([](json& d) { d["friends"][0]["main"]["tier"] = 5; }));
-	refused("zero points", changed([](json& d) { d["friends"][0]["main"]["points"] = 0; }));
-	refused("account tier past the last", changed([](json& d) { d["friends"][0]["account"]["tier"] = 5; }));
-	refused("account without a tier", changed([](json& d) { d["friends"][0]["account"].erase("tier"); }));
-	refused("account points not a number", changed([](json& d) { d["friends"][0]["account"]["points"] = "many"; }));
-	refused("account not an object", changed([](json& d) { d["friends"][0]["account"] = 7; }));
-	refused("empty record", changed([](json& d) { d["friends"][0]["record"] = {{"won", 0}, {"lost", 0}, {"last_at", 1}}; }));
-	refused("record without a time", changed([](json& d) { d["friends"][0]["record"].erase("last_at"); }));
-	refused("request id of a friend", changed([](json& d) { d["incoming"][0]["id"] = FriendId; }));
-	refused("played nothing", changed([](json& d) { d["incoming"][0]["played"]["games"] = 0; }));
-	refused("long label", changed([](json& d) { d["outgoing"][0]["label"] = std::string(65, 'l'); }));
-	refused("invite room of both kinds", changed([](json& d) { d["invites"][0]["room"]["secret"] = Secret; }));
-	refused("invite secret too short", changed([](json& d) { d["invites"][1]["room"]["secret"] = "emd1:AAAA"; }));
-	refused("invite secret of another kind", changed([](json& d) { d["invites"][1]["room"]["secret"] = "emx9:" + std::string(122, 'A'); }));
-	refused("invite from a request id", changed([](json& d) { d["invites"][0]["friend"] = RequestId; }));
-	refused("block id of a friend", changed([](json& d) { d["blocked"][0]["id"] = FriendId; }));
+}
+
+// A row that cannot be read is left out of its list, and every other row and list is read: one damaged friend never
+// costs the player the whole friends list.
+void LeavesOutRowsItCannotRead() {
+	const json good = FullState();
+	const auto changed = [&](auto edit) { json data = good; edit(data); return data; };
+	const auto leftOut = [&](const char* what, const char* list, json data) {
+		State state;
+		const bool decoded = Decode(data, state);
+		EXPECT_MSG(decoded && state.code == "4F2A-91CX", "%s", what);
+		const std::size_t friends = std::string(list) == "friends" ? 1 : 2, incoming = std::string(list) == "incoming" ? 0 : 1,
+			outgoing = std::string(list) == "outgoing" ? 0 : 1, invites = std::string(list) == "invites" ? 1 : 2,
+			blocked = std::string(list) == "blocked" ? 0 : 1;
+		EXPECT_MSG(state.friends.size() == friends && state.incoming.size() == incoming && state.outgoing.size() == outgoing &&
+			state.invites.size() == invites && state.blocked.size() == blocked, "%s", what);
+	};
+	leftOut("friend id of a request", "friends", changed([](json& d) { d["friends"][0]["id"] = RequestId; }));
+	leftOut("friend id too short", "friends", changed([](json& d) { d["friends"][0]["id"] = "fr_1"; }));
+	leftOut("empty name", "friends", changed([](json& d) { d["friends"][0]["name"] = ""; }));
+	leftOut("long name", "friends", changed([](json& d) { d["friends"][0]["name"] = std::string(33, 'n'); }));
+	leftOut("name not text", "friends", changed([](json& d) { d["friends"][0]["name"] = 4; }));
+	leftOut("lower-case country", "friends", changed([](json& d) { d["friends"][0]["country"] = "fr"; }));
+	leftOut("long country", "friends", changed([](json& d) { d["friends"][0]["country"] = "FRA"; }));
+	leftOut("negative since", "friends", changed([](json& d) { d["friends"][0]["since"] = -1; }));
+	leftOut("no presence", "friends", changed([](json& d) { d["friends"][0].erase("presence"); }));
+	leftOut("table past the last", "friends", changed([](json& d) { d["friends"][0]["presence"]["table"] = 8; }));
+	leftOut("a room and private", "friends", changed([](json& d) { d["friends"][0]["presence"]["private"] = true; }));
+	leftOut("room id not hex", "friends", changed([](json& d) { d["friends"][0]["presence"]["room"]["room_id"] = std::string(32, 'z'); }));
+	leftOut("room fuller than its capacity", "friends", changed([](json& d) { d["friends"][0]["presence"]["room"]["members"] = 17; }));
+	leftOut("room of one", "friends", changed([](json& d) { d["friends"][0]["presence"]["room"]["capacity"] = 1; d["friends"][0]["presence"]["room"]["members"] = 0; }));
+	leftOut("online with no activity", "friends", changed([](json& d) { d["friends"][0]["presence"] = {{"state", "online"}}; }));
+	leftOut("request id of a friend", "incoming", changed([](json& d) { d["incoming"][0]["id"] = FriendId; }));
+	leftOut("long label", "outgoing", changed([](json& d) { d["outgoing"][0]["label"] = std::string(65, 'l'); }));
+	leftOut("invite room of both kinds", "invites", changed([](json& d) { d["invites"][0]["room"]["secret"] = Secret; }));
+	leftOut("invite secret too short", "invites", changed([](json& d) { d["invites"][1]["room"]["secret"] = "emd1:AAAA"; }));
+	leftOut("invite secret of another kind", "invites", changed([](json& d) { d["invites"][1]["room"]["secret"] = "emx9:" + std::string(122, 'A'); }));
+	leftOut("invite from a request id", "invites", changed([](json& d) { d["invites"][0]["friend"] = RequestId; }));
+	leftOut("block id of a friend", "blocked", changed([](json& d) { d["blocked"][0]["id"] = FriendId; }));
+	// The friend left out is the damaged one.
+	State state;
+	EXPECT(Decode(changed([](json& d) { d["friends"][0]["name"] = ""; }), state) && state.friends[0].id == FriendId2);
+}
+
+// A part of a friend that cannot be read (their main, account or record) is left out, and the friend is listed.
+void LeavesOutPartsItCannotRead() {
+	const json good = FullState();
+	const auto read = [&](const char* what, auto edit) {
+		json data = good;
+		edit(data);
+		State state;
+		const bool decoded = Decode(data, state) && state.friends.size() == 2 && state.friends[0].id == FriendId && state.friends[0].name == "Player 3";
+		EXPECT_MSG(decoded, "%s", what);
+		return state.friends.empty() ? netplay::friends::Friend() : state.friends[0];
+	};
+	for (const auto& [what, edit] : std::vector<std::pair<const char*, std::function<void(json&)>>>{
+			{"fighter past the roster", [](json& d) { d["friends"][0]["main"]["fighter"] = 44; }},
+			{"points without a tier", [](json& d) { d["friends"][0]["main"].erase("tier"); }},
+			{"main not an object", [](json& d) { d["friends"][0]["main"] = "Ryu"; }}}) {
+		const auto entry = read(what, edit);
+		EXPECT_MSG(!entry.hasMain && !entry.main.showsPoints && entry.hasAccount && entry.hasRecord, "%s", what);
+	}
+	for (const auto& [what, edit] : std::vector<std::pair<const char*, std::function<void(json&)>>>{
+			{"account without a tier", [](json& d) { d["friends"][0]["account"].erase("tier"); }},
+			{"account points not a number", [](json& d) { d["friends"][0]["account"]["points"] = "many"; }},
+			{"account not an object", [](json& d) { d["friends"][0]["account"] = 7; }}}) {
+		const auto entry = read(what, edit);
+		EXPECT_MSG(!entry.hasAccount && entry.account.points == 0 && entry.hasMain, "%s", what);
+	}
+	for (const auto& [what, edit] : std::vector<std::pair<const char*, std::function<void(json&)>>>{
+			{"empty record", [](json& d) { d["friends"][0]["record"] = {{"won", 0}, {"lost", 0}, {"last_at", 1}}; }},
+			{"record without a time", [](json& d) { d["friends"][0]["record"].erase("last_at"); }}}) {
+		const auto entry = read(what, edit);
+		EXPECT_MSG(!entry.hasRecord && entry.record.won == 0 && entry.hasMain, "%s", what);
+	}
+}
+
+// A friends state from a later bridge: tiers past this build's table, points by a rule it does not know, and members
+// it has never seen. All of it reads; a tier past the last is the last this build draws.
+void ReadsAStateFromTheFuture() {
+	json data = FullState();
+	data["friends"][0]["main"] = {{"fighter", 5}, {"points", 0}, {"tier", 9}, {"prestige", 2}};
+	data["friends"][0]["account"] = {{"points", 1}, {"tier", 200}, {"season", "s2"}};
+	data["incoming"][0]["played"]["games"] = 0;
+	data["friends"][0]["streak"] = 4;
+	State state;
+	EXPECT(Decode(data, state) && state.friends.size() == 2 && state.incoming.size() == 1);
+	const auto& entry = state.friends[0];
+	EXPECT(entry.hasMain && entry.main.showsPoints && entry.main.points == 0 && entry.main.tier == netplay::levels::TierCount - 1);
+	EXPECT(entry.hasAccount && entry.account.points == 1 && entry.account.tier == netplay::levels::TierCount - 1);
+	EXPECT(state.incoming[0].games == 0);
 }
 
 // What a later bridge adds that this build cannot name is read as the nearest thing it can, never as a reason to refuse
@@ -204,13 +265,14 @@ void ToleratesWhatItDoesNotKnow() {
 	EXPECT(Decode(data, state) && state.friends.size() == 2 && !state.friends[0].badge.Present());
 	data["friends"][0]["badge"] = "gold";
 	EXPECT(Decode(data, state) && !state.friends[0].badge.Present() && state.friends[0].name == "Player 3");
-	// Still malformed where it is wrong, not new: both kinds of room in one invite, a known kind that is damaged.
+	// Wrong rather than new (both kinds of room in one invite, a known kind that is damaged) leaves that invite out
+	// as well, and the rest stands.
 	data = FullState();
 	data["invites"][0]["room"]["secret"] = Secret;
-	EXPECT(!Decode(data, state));
+	EXPECT(Decode(data, state) && state.invites.size() == 1 && state.invites[0].room.kind == netplay::friends::InviteRoom::Kind::Secret);
 	data = FullState();
 	data["invites"][0]["room"] = {{"room_id", "zz"}};
-	EXPECT(!Decode(data, state));
+	EXPECT(Decode(data, state) && state.invites.size() == 1 && state.friends.size() == 2);
 	// The code's alphabet is the bridge's; the game reads its shape (it needs no more to show it).
 	data = FullState();
 	data["code"] = "4F2U-91CX";
@@ -313,6 +375,9 @@ int main() {
 	ReadsTheSmallestState();
 	IgnoresUnknownKeys();
 	RefusesWhatIsMalformed();
+	LeavesOutRowsItCannotRead();
+	LeavesOutPartsItCannotRead();
+	ReadsAStateFromTheFuture();
 	ToleratesWhatItDoesNotKnow();
 	KeepsTheBounds();
 	ReadsTheAnswerEvent();

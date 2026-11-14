@@ -467,71 +467,67 @@ std::uint64_t Unsigned(const json& object, const char* key) {
 	return Seconds(object, key);
 }
 
-// The fighter id of an entry, which must come after the one before it so that
-// no fighter appears twice.
-std::size_t NextFighter(const json& object, int& previous) {
-	const auto fighter = Small(object, "fighter", selection::FighterCount - 1);
-	if (static_cast<int>(fighter) <= previous) throw std::invalid_argument("fighter");
-	previous = static_cast<int>(fighter);
-	return fighter;
+// The fighter id of an entry, in the roster.
+std::size_t ReadFighter(const json& object) {
+	return Small(object, "fighter", selection::FighterCount - 1);
 }
 
-// A tier, 0 to TierCount - 1.
-std::uint8_t ReadTier(const json& object) {
-	return static_cast<std::uint8_t>(Small(object, "tier", netplay::levels::TierCount - 1));
+// A tier as sent: an unsigned number, and one past the tiers this build draws
+// (a later bridge's table) is the last it knows. `beyond` says it was past.
+std::uint8_t ReadTier(const json& object, bool* beyond = nullptr) {
+	const auto tier = Unsigned(object, "tier");
+	const auto last = static_cast<std::uint64_t>(netplay::levels::TierCount - 1);
+	if (beyond) *beyond = tier > last;
+	return static_cast<std::uint8_t>((std::min)(tier, last));
 }
 
-// One count of points, a fighter's or the account's, checked as strictly as
-// the bridge checks it. A fighter is listed only with a counted game; the
-// account is always sent, with no game and no `since` until one is counted.
-netplay::levels::Level DecodeLevel(const json& entry, bool listedFighter) {
+// A number the bridge may leave out: absent is 0, and one that is there must
+// be an unsigned number.
+std::uint64_t OptionalUnsigned(const json& object, const char* key) {
+	return object.find(key) == object.end() ? 0 : Unsigned(object, key);
+}
+
+// One count of points, a fighter's or the account's. Only its shape is checked:
+// how points, games, wins, tiers and their thresholds relate is the bridge's
+// rule (a game is a point and a win against the same class or a higher one 1
+// more, today), and a later rule must not cost a player their points. `since`
+// is absent until a game is counted, and `next` at the last tier.
+netplay::levels::Level DecodeLevel(const json& entry) {
 	netplay::levels::Level level;
 	Object(entry);
 	level.points = Unsigned(entry, "points");
 	level.games = Unsigned(entry, "games");
-	level.wins = Unsigned(entry, "wins");
-	level.tier = ReadTier(entry);
+	// The screens show wins as a share of games.
+	level.wins = (std::min)(Unsigned(entry, "wins"), level.games);
+	bool beyond = false;
+	level.tier = ReadTier(entry, &beyond);
 	level.floor = Unsigned(entry, "floor");
-	if (level.wins > level.games || level.games > UINT64_MAX - level.wins) throw std::invalid_argument("wins");
-	// A game is a point and a win at most one more (the class bonus, which only the bridge knows).
-	if (listedFighter && level.games == 0) throw std::invalid_argument("games");
-	if (level.points < level.games || level.points > level.games + level.wins) throw std::invalid_argument("points");
-	// The first counted game is told exactly when there is one.
-	if ((entry.find("since") != entry.end()) != (level.games > 0)) throw std::invalid_argument("since");
-	if (level.games > 0) level.since = Unsigned(entry, "since");
-	// A tier begins at or below the points, and the first begins at 0.
-	if (level.floor > level.points || (level.tier == 0 && level.floor != 0)) throw std::invalid_argument("floor");
-	// The last tier has no next one; every other has one still ahead.
-	const bool hasNext = entry.find("next") != entry.end();
-	if (hasNext != (level.tier != netplay::levels::TierCount - 1)) throw std::invalid_argument("next");
-	if (hasNext) {
-		level.next = Unsigned(entry, "next");
-		if (level.next <= level.points) throw std::invalid_argument("next");
-	}
+	level.since = OptionalUnsigned(entry, "since");
+	level.next = OptionalUnsigned(entry, "next");
+	// At the last tier this build draws there is none further to name.
+	if (beyond || level.tier == netplay::levels::TierCount - 1) level.next = 0;
 	return level;
 }
 
 // A count the bridge may or may not send, up to `maximum`: absent is 0 (a
-// bridge from before it), and one that is there is checked as strictly as the
-// counts beside it.
+// bridge from before it), one that is there must be an unsigned number, and
+// one past `maximum` is `maximum`.
 std::uint64_t OptionalCount(const json& object, const char* key, std::uint64_t maximum) {
-	if (object.find(key) == object.end()) return 0;
-	return Small(object, key, maximum);
+	return (std::min)(OptionalUnsigned(object, key), maximum);
 }
 
 // The counters behind the awards, as the wire says them (ember_protocol::awards::AwardCounts) in an own
-// answer's account and in a card's `awards`: each absent from a bridge that does not send it, so 0, and
-// checked as strictly as the counts beside it when it is there. A run of wins longer than the games
-// played is no answer.
+// answer's account and in a card's `awards`: each absent from a bridge that does not send it, so 0, and an
+// unsigned number when it is there. How they relate is the bridge's to say.
 netplay::awards::Counters DecodeAwardCounts(const json& object) {
 	netplay::awards::Counters counts;
 	counts.games = OptionalCount(object, "games", UINT64_MAX);
-	counts.wins = OptionalCount(object, "wins", UINT64_MAX);
+	// The screens show wins as a share of games.
+	counts.wins = (std::min)(OptionalCount(object, "wins", UINT64_MAX), counts.games);
 	counts.bestStreak = static_cast<std::uint32_t>(OptionalCount(object, "best_streak", UINT32_MAX));
 	counts.peakClass = static_cast<std::uint32_t>(OptionalCount(object, "peak_class", SkillBadge::Classes));
 	counts.rival = static_cast<std::uint32_t>(OptionalCount(object, "rival", UINT32_MAX));
 	counts.opponents = static_cast<std::uint32_t>(OptionalCount(object, "opponents", UINT32_MAX));
-	if (counts.bestStreak > counts.games) throw std::invalid_argument("best_streak");
 	return counts;
 }
 
@@ -646,19 +642,25 @@ netplay::levels::Card DecodeCard(const json& value) {
 	card.account.tier = ReadTier(account);
 	// The counters behind their awards, all absent from an older bridge.
 	if (const auto awards = object.find("awards"); awards != object.end()) card.awards = DecodeAwardCounts(Object(*awards));
-	// A card with no `fighters` is of a player who has played none.
+	// A card with no `fighters` is of a player who has played none. A row that cannot be read, and a fighter
+	// listed again, is left out; the card lists the rest in fighter order.
 	if (const auto fighters = object.find("fighters"); fighters != object.end()) {
 		if (!fighters->is_array() || fighters->size() > static_cast<std::size_t>(selection::FighterCount)) throw std::invalid_argument("fighters");
-		int previous = -1;
 		for (const auto& row : *fighters) {
-			Object(row);
 			netplay::levels::CardFighter fighter;
-			fighter.fighter = static_cast<std::uint8_t>(NextFighter(row, previous));
-			fighter.points = Unsigned(row, "points");
-			if (fighter.points == 0) throw std::invalid_argument("points");
-			fighter.tier = ReadTier(row);
-			card.fighters.push_back(fighter);
+			try {
+				Object(row);
+				fighter.fighter = static_cast<std::uint8_t>(ReadFighter(row));
+				fighter.points = Unsigned(row, "points");
+				fighter.tier = ReadTier(row);
+			} catch (const std::exception&) {
+				continue;
+			}
+			const auto same = [&](const netplay::levels::CardFighter& one) { return one.fighter == fighter.fighter; };
+			if (std::none_of(card.fighters.begin(), card.fighters.end(), same)) card.fighters.push_back(fighter);
 		}
+		std::sort(card.fighters.begin(), card.fighters.end(),
+			[](const netplay::levels::CardFighter& a, const netplay::levels::CardFighter& b) { return a.fighter < b.fighter; });
 	}
 	DecodeProfileFields(object, card);
 	return card;
@@ -675,15 +677,21 @@ std::optional<netplay::levels::Own> DecodeOwnLevels(const json& data) {
 		}
 		if (tag != "counted") return std::nullopt;
 		own.kind = netplay::levels::Own::Kind::Counted;
-		own.account = DecodeLevel(data.at("account"), false);
+		own.account = DecodeLevel(data.at("account"));
 		own.awards = DecodeAwardCounts(data.at("account"));
 		own.hasMostPlayed = DecodeMostPlayed(data, own.mostPlayed);
 		const auto& rows = data.at("fighters");
 		if (!rows.is_array() || rows.size() > static_cast<std::size_t>(selection::FighterCount)) return std::nullopt;
-		int previous = -1;
+		// A fighter row that cannot be read, and a fighter listed again, is left out; the account's points stand.
+		std::array<bool, selection::FighterCount> listed{};
 		for (const auto& row : rows) {
-			const auto fighter = NextFighter(row, previous);
-			own.fighters[fighter] = DecodeLevel(row, true);
+			try {
+				const auto fighter = ReadFighter(Object(row));
+				auto level = DecodeLevel(row);
+				if (listed[fighter]) continue;
+				listed[fighter] = true;
+				own.fighters[fighter] = level;
+			} catch (const std::exception&) {}
 		}
 		return own;
 	} catch (const std::exception&) {

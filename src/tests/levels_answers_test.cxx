@@ -1,14 +1,17 @@
 // What the game reads of the points answers (docs/design/FIGHTER_LEVELS.md): the player's own points
 // in one of two shapes, with the counters behind the awards, and a card look-up as one card or
-// nothing per player. Anything the bridge would not send reads as nothing; a member it adds later
-// is ignored, and a relation it adds reads as none. What a card says of its player is in
-// profile_answers_test.cxx.
+// nothing per player. The reader checks shape, not the bridge's rules: an answer whose shape is
+// wrong reads as nothing, a fighter row that cannot be read is left out alone, how points relate
+// to games and tiers is the bridge's to say, a tier past this build's table is its last, a member
+// added later is ignored, and a relation added later reads as none. What a card says of its player
+// is in profile_answers_test.cxx.
 #include "../session/TournamentAnswers.hxx"
 
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -36,13 +39,15 @@ static void TestLevels() {
 	const json nothing = {{"points", 0u}, {"games", 0u}, {"wins", 0u}, {"tier", 0u}, {"floor", 0u}, {"next", 500u}};
 	const auto fresh = session::DecodeOwnLevels({{"points", "counted"}, {"account", nothing}, {"fighters", json::array()}});
 	CHECK(fresh && fresh->account.points == 0 && fresh->account.since == 0 && fresh->account.next == 500);
-	// The last tier has no next one, and any other tier has one.
+	// The last tier has no next one to name, whatever the bridge sends.
 	auto maxed = entry;
 	maxed["tier"] = 4u;
 	maxed.erase("next");
-	CHECK(session::DecodeOwnLevels(counted(json::array({maxed}))));
+	const auto top = session::DecodeOwnLevels(counted(json::array({maxed})));
+	CHECK(top && top->fighters[3].tier == 4 && top->fighters[3].next == 0);
 	maxed["next"] = 2500u;
-	CHECK(!session::DecodeOwnLevels(counted(json::array({maxed}))));
+	const auto topWithNext = session::DecodeOwnLevels(counted(json::array({maxed})));
+	CHECK(topWithNext && topWithNext->fighters[3].tier == 4 && topWithNext->fighters[3].next == 0);
 	const auto changed = [&](const char* key, const json& value) {
 		auto row = entry;
 		row[key] = value;
@@ -53,15 +58,21 @@ static void TestLevels() {
 		row[key] = value;
 		return json{{"points", "counted"}, {"account", row}, {"fighters", json::array()}};
 	};
-	// A game is a point and a win at most one more (the class bonus): 1000 games with 900 wins are 1000 to 1900 points,
-	// and 9 games with 4 wins are 9 to 13.
-	for (const std::uint64_t points : {1500u, 1899u}) {
-		const auto bonus = session::DecodeOwnLevels(changed("points", points));
-		CHECK(bonus && bonus->fighters[3].points == points && bonus->fighters[3].games == 1000 && bonus->fighters[3].wins == 900);
+	// How points follow from games and wins is the bridge's rule, not the reader's: today a game is a point and a
+	// win one more against the same class or a higher one, and any count of points reads as sent.
+	for (const std::uint64_t points : {0u, 999u, 1500u, 1899u, 1901u}) {
+		const auto any = session::DecodeOwnLevels(changed("points", points));
+		CHECK(any && any->fighters[3].points == points && any->fighters[3].games == 1000 && any->fighters[3].wins == 900);
 	}
-	const auto gamesOnly = session::DecodeOwnLevels(accountChanged("points", 9u));
-	CHECK(gamesOnly && gamesOnly->account.points == 9 && gamesOnly->account.games == 9 && gamesOnly->account.wins == 4);
-	CHECK(!session::DecodeOwnLevels(accountChanged("points", 8u)));
+	for (const std::uint64_t points : {8u, 9u, 14u}) {
+		const auto any = session::DecodeOwnLevels(accountChanged("points", points));
+		CHECK(any && any->account.points == points && any->account.games == 9 && any->account.wins == 4);
+	}
+	// Thresholds read as sent, ahead of the points or not; `next` and `since` are absent when there are none.
+	for (const auto& [key, value] : std::vector<std::pair<const char*, std::uint64_t>>{{"next", 1900u}, {"next", 1899u}, {"floor", 1901u}}) {
+		const auto any = session::DecodeOwnLevels(changed(key, value));
+		CHECK(any && (std::string(key) == "next" ? any->fighters[3].next : any->fighters[3].floor) == value);
+	}
 	auto lacking = entry;
 	lacking.erase("next");
 	auto unfloored = entry;
@@ -76,22 +87,61 @@ static void TestLevels() {
 	sincedNothing["since"] = 1u;
 	auto accountLacking = account;
 	accountLacking.erase("next");
+	const auto noNext = session::DecodeOwnLevels(counted(json::array({lacking})));
+	CHECK(noNext && noNext->fighters[3].points == 1900 && noNext->fighters[3].next == 0);
+	const auto fresh2 = session::DecodeOwnLevels({{"points", "counted"}, {"account", unsinced}, {"fighters", json::array()}});
+	CHECK(fresh2 && fresh2->account.since == 0 && fresh2->account.games == 9);
+	CHECK(session::DecodeOwnLevels({{"points", "counted"}, {"account", sincedNothing}, {"fighters", json::array()}})->account.since == 1);
+	CHECK(session::DecodeOwnLevels({{"points", "counted"}, {"account", accountLacking}, {"fighters", json::array()}})->account.next == 0);
+	// The screens show wins as a share of games: more wins than games read as all of them.
+	const auto overWon = session::DecodeOwnLevels(changed("wins", 1001u));
+	CHECK(overWon && overWon->fighters[3].wins == 1000);
+	CHECK(session::DecodeOwnLevels(accountChanged("wins", 10u))->account.wins == 9);
+	// Both fighters of a list are read, in any order; one listed again is read once.
+	const auto two = session::DecodeOwnLevels(counted(json::array({entry, second})));
+	CHECK(two && two->fighters[2].points == 1900 && two->fighters[3].points == 1900);
+	const auto reversed = session::DecodeOwnLevels(counted(json::array({second, entry})));
+	CHECK(reversed && reversed->fighters[2].points == 1900 && reversed->fighters[3].points == 1900);
+	auto again = entry;
+	again["points"] = 5u;
+	const auto twice = session::DecodeOwnLevels(counted(json::array({entry, again})));
+	CHECK(twice && twice->fighters[3].points == 1900);
+	// A fighter row that cannot be read is left out, and the account's points and the other rows stand.
+	for (const json& unreadable : {changed("fighter", 44u), changed("floor", -1), counted(json::array({unfloored})), changed("since", -1),
+			changed("games", "1000"), changed("tier", -1), changed("next", "2500"), counted(json::array({1u}))}) {
+		const auto partial = session::DecodeOwnLevels(unreadable);
+		CHECK(partial && partial->kind == Kind::Counted && partial->account.points == 13 && partial->fighters[3].points == 0);
+	}
+	auto broken = entry;
+	broken["points"] = "many";
+	const auto oneLeft = session::DecodeOwnLevels(counted(json::array({broken, second})));
+	CHECK(oneLeft && oneLeft->fighters[3].points == 0 && oneLeft->fighters[2].points == 1900);
+	// The answer itself must have its shape: the tag, an account that reads and a list of fighters.
+	json fortyFive = json::array();
+	for (int i = 0; i <= sf4e::selection::FighterCount; ++i) fortyFive.push_back(second);
 	for (const json& invalid : {json{{"points", "ranked"}}, json{{"points", "counted"}},
 			json{{"points", "counted"}, {"fighters", json::array()}},
 			json{{"points", "counted"}, {"account", account}},
 			json{{"points", "counted"}, {"account", 1u}, {"fighters", json::array()}},
-			changed("fighter", 44u), changed("tier", 5u), changed("points", 1901u), changed("points", 999u), changed("points", 0u), changed("wins", 1001u),
-			changed("next", 1900u), changed("next", 1899u), changed("floor", 1901u), changed("floor", -1),
-			counted(json::array({unfloored})), changed("since", -1), changed("games", "1000"),
-			counted(json::array({lacking})),
-			counted(json::array({entry, entry})),
-			counted(json::array({entry, second})),
-			accountChanged("tier", 5u), accountChanged("points", 14u), accountChanged("wins", 10u), accountChanged("next", 13u),
-			accountChanged("floor", 14u), accountChanged("floor", 1u), accountChanged("since", -1),
-			json{{"points", "counted"}, {"account", unsinced}, {"fighters", json::array()}},
-			json{{"points", "counted"}, {"account", sincedNothing}, {"fighters", json::array()}},
-			json{{"points", "counted"}, {"account", accountLacking}, {"fighters", json::array()}}})
+			json{{"points", "counted"}, {"account", account}, {"fighters", entry}},
+			counted(fortyFive),
+			accountChanged("since", -1), accountChanged("points", "13"), accountChanged("tier", -1), accountChanged("floor", "0")})
 		CHECK(!session::DecodeOwnLevels(invalid));
+	// An answer from a later bridge: a tier past this build's table, points by a rule it does not know, thresholds
+	// it would not draw and members it has never seen. All of it reads; the tier is the last this build draws, with
+	// no next one named.
+	auto future = entry;
+	future["tier"] = 7u;
+	future["points"] = 4000u;
+	future["next"] = 9000u;
+	future["prestige"] = 2u;
+	auto futureAccount = account;
+	futureAccount["tier"] = 9u;
+	futureAccount["points"] = 3u;
+	futureAccount["season"] = "s2";
+	const auto later = session::DecodeOwnLevels({{"points", "counted"}, {"account", futureAccount}, {"fighters", json::array({future})}, {"season", 2u}});
+	CHECK(later && later->fighters[3].tier == netplay::levels::TierCount - 1 && later->fighters[3].points == 4000 && later->fighters[3].next == 0 &&
+		later->account.tier == netplay::levels::TierCount - 1 && later->account.points == 3 && later->account.next == 0);
 	// The old `shown` member is a member the reader does not know.
 	const auto tolerated = session::DecodeOwnLevels({{"points", "counted"}, {"rank", 1u}, {"shown", true}, {"account", account}, {"fighters", json::array({extra})}});
 	CHECK(tolerated && tolerated->fighters[3].points == 1900);
@@ -131,11 +181,17 @@ static void TestLevels() {
 		const auto dropped = withRival(bad);
 		CHECK(dropped && dropped->kind == Kind::Counted && !dropped->hasMostPlayed && dropped->account.points == 13);
 	}
-	for (const auto& bad : {json{{"best_streak", 10u}}, json{{"best_streak", -1}}, json{{"peak_class", 11u}}, json{{"peak_class", "6"}}, json{{"rival", -1}}, json{{"opponents", "3"}}}) {
+	// A counter that is not an unsigned number is no answer; how the counters relate is the bridge's to say, and a
+	// class past the last is the last.
+	for (const auto& bad : {json{{"best_streak", -1}}, json{{"peak_class", "6"}}, json{{"rival", -1}}, json{{"opponents", "3"}}}) {
 		auto row = account;
 		row.update(bad);
 		CHECK(!session::DecodeOwnLevels({{"points", "counted"}, {"account", row}, {"fighters", json::array()}}));
 	}
+	auto longRun = account;
+	longRun.update(json{{"best_streak", 10u}, {"peak_class", 11u}});
+	const auto ranOn = session::DecodeOwnLevels({{"points", "counted"}, {"account", longRun}, {"fighters", json::array()}});
+	CHECK(ranOn && ranOn->awards.bestStreak == 10 && ranOn->awards.peakClass == SkillBadge::Classes);
 
 	const json cardAccount = {{"points", 2100u}, {"tier", 2u}};
 	const auto cards = session::DecodeCards({{"cards", json::array({
@@ -153,11 +209,13 @@ static void TestLevels() {
 		{"awards", {{"games", 100u}, {"wins", 50u}, {"best_streak", 5u}, {"peak_class", 6u}, {"rival", 10u}, {"opponents", 50u}, {"later", 1u}}}}})}});
 	CHECK(marked && (*marked)[0] && (*marked)[0]->awards.games == 100 && (*marked)[0]->awards.wins == 50 && (*marked)[0]->awards.bestStreak == 5 &&
 		(*marked)[0]->awards.peakClass == 6 && (*marked)[0]->awards.rival == 10 && (*marked)[0]->awards.opponents == 50);
-	for (const json& badMarks : {json{{"peak_class", 11u}}, json{{"games", -1}}, json{{"wins", "5"}}, json(1u)})
+	for (const json& badMarks : {json{{"games", -1}}, json{{"wins", "5"}}, json(1u)})
 	{
 		const auto unread = session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"awards", badMarks}}})}});
 		CHECK(unread && unread->size() == 1 && !(*unread)[0]);
 	}
+	const auto pastClass = session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"awards", {{"peak_class", 11u}}}}})}});
+	CHECK(pastClass && (*pastClass)[0] && (*pastClass)[0]->awards.peakClass == SkillBadge::Classes);
 	for (const char* relation : {"sent", "received"}) CHECK(session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", relation}}})}}));
 	json seventeen = json::array();
 	for (std::size_t i = 0; i <= netplay::levels::MaxLookup; ++i) seventeen.push_back(json{{"account", cardAccount}, {"relation", "none"}});
@@ -169,21 +227,36 @@ static void TestLevels() {
 	for (const json& invalid : {json{{"cards", json::array({json::object()})}},
 			json{{"cards", json::array({json{{"account", cardAccount}, {"relation", 1u}}})}},
 			json{{"cards", json::array({json{{"account", cardAccount}, {"fighters", json::array()}}})}},
-			// A card always has its account, with a count and a tier in range.
+			// A card always has its account, with a count and a tier.
 			json{{"cards", json::array({json{{"relation", "none"}}})}},
 			json{{"cards", json::array({json{{"fighters", json::array()}, {"relation", "none"}}})}},
 			json{{"cards", json::array({json{{"account", 1u}, {"relation", "none"}}})}},
-			json{{"cards", json::array({json{{"account", {{"points", 1u}, {"tier", 5u}}}, {"relation", "none"}}})}},
+			json{{"cards", json::array({json{{"account", {{"points", 1u}, {"tier", -1}}}, {"relation", "none"}}})}},
 			json{{"cards", json::array({json{{"account", json{{"tier", 0u}}}, {"relation", "none"}}})}},
-			card(json{{"fighter", 3u}, {"level", 31u}, {"games", 612u}}),
-			card(json{{"fighter", 44u}, {"points", 1986u}, {"tier", 3u}}), card(json{{"fighter", 3u}, {"points", 0u}, {"tier", 0u}}),
-			card(json{{"fighter", 3u}, {"points", 1986u}, {"tier", 5u}}),
-			json{{"cards", json::array({json{{"account", cardAccount}, {"fighters", json::array({json{{"fighter", 3u}, {"points", 1u}, {"tier", 0u}},
-				json{{"fighter", 3u}, {"points", 1u}, {"tier", 0u}}})}, {"relation", "none"}}})}}})
+			json{{"cards", json::array({json{{"account", cardAccount}, {"fighters", json{{"fighter", 3u}}}, {"relation", "none"}}})}}})
 	{
 		const auto unread = session::DecodeCards(invalid);
 		CHECK(unread && unread->size() == 1 && !(*unread)[0]);
 	}
+	// A fighter row that cannot be read is left out of its card, and a fighter listed again is listed once; the
+	// card and its account stand.
+	for (const json& partial : {card(json{{"fighter", 3u}, {"level", 31u}, {"games", 612u}}), card(json{{"fighter", 44u}, {"points", 1986u}, {"tier", 3u}}),
+			card(json{{"fighter", 3u}, {"points", -1}, {"tier", 3u}}), card(json(3u))}) {
+		const auto read = session::DecodeCards(partial);
+		CHECK(read && (*read)[0] && (*read)[0]->account.points == 2100 && (*read)[0]->fighters.empty());
+	}
+	const auto listedTwice = session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"fighters", json::array({
+		json{{"fighter", 9u}, {"points", 7u}, {"tier", 0u}}, json{{"fighter", 3u}, {"points", 1u}, {"tier", 0u}},
+		json{{"fighter", 3u}, {"points", 2u}, {"tier", 0u}}})}, {"relation", "none"}}})}});
+	CHECK(listedTwice && (*listedTwice)[0] && (*listedTwice)[0]->fighters.size() == 2 && (*listedTwice)[0]->fighters[0].fighter == 3 &&
+		(*listedTwice)[0]->fighters[0].points == 1 && (*listedTwice)[0]->fighters[1].fighter == 9);
+	// A card from a later bridge: tiers past this build's table are its last, a fighter with no points yet is
+	// listed as sent, and members it does not know are ignored.
+	const auto future = session::DecodeCards({{"cards", json::array({json{{"account", {{"points", 1u}, {"tier", 5u}, {"season", 2u}}},
+		{"fighters", json::array({json{{"fighter", 3u}, {"points", 0u}, {"tier", 0u}}, json{{"fighter", 4u}, {"points", 1986u}, {"tier", 12u}, {"prestige", 1u}}})},
+		{"relation", "none"}, {"frame", "gold"}}})}});
+	CHECK(future && (*future)[0] && (*future)[0]->account.tier == netplay::levels::TierCount - 1 && (*future)[0]->fighters.size() == 2 &&
+		(*future)[0]->fighters[0].points == 0 && (*future)[0]->fighters[1].tier == netplay::levels::TierCount - 1);
 	// Members the reader does not know are ignored; an unknown relation is none.
 	for (const json& ignored : {json{{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"name", "Player 1"}}})}},
 			json{{"cards", json::array({nullptr})}, {"total", 1u}},

@@ -63,7 +63,10 @@ std::optional<netplay::archive::Listing> DecodeArchivePage(const nlohmann::json&
 // whose card could not be read: one bad card never fails the answer). A card's
 // profile members (name, flag, class, main, since, worn, pins, style, versus,
 // friend) are each read on their own, and one that is missing or not
-// understood is left at the card's default.
+// understood is left at the card's default. Points are checked for shape only
+// (unsigned numbers, fighters in the roster): how they relate is the bridge's
+// rule, a tier past this build's table is the last it draws, and a fighter
+// row that cannot be read is left out alone.
 std::optional<netplay::levels::Own> DecodeOwnLevels(const nlohmann::json& data);
 std::optional<std::vector<std::optional<netplay::levels::Card>>> DecodeCards(const nlohmann::json& data);
 // A cards_search answer: the players found (at most MaxSearch; a hit that cannot

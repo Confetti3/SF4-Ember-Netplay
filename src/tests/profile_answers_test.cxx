@@ -157,8 +157,13 @@ void OneBadCardDoesNotFailTheAnswer() {
 	CHECK(cards && cards->size() == 4);
 	EXPECT((*cards)[0] && !(*cards)[1] && !(*cards)[2] && (*cards)[3] && (*cards)[3]->relation == Relation::Sent);
 	json broken = Base();
-	broken["account"] = {{"points", 1}, {"tier", 9}};
+	broken["account"] = {{"points", 1}, {"tier", "gold"}};
 	EXPECT(!(*session::DecodeCards(Parsed({{"cards", json::array({broken})}})))[0]);
+	// A tier past this build's table is a later bridge's, not a broken card: it is the last tier this build draws.
+	json later = Base();
+	later["account"] = {{"points", 1}, {"tier", 9}};
+	const auto read = session::DecodeCards(Parsed({{"cards", json::array({later})}}));
+	EXPECT(read && (*read)[0] && (*read)[0]->account.tier == netplay::levels::TierCount - 1);
 	EXPECT(!session::DecodeCards(Parsed({{"cards", json::array()}})));
 	json many = json::array();
 	for (std::size_t i = 0; i <= netplay::levels::MaxLookup; ++i) many.push_back(Base());

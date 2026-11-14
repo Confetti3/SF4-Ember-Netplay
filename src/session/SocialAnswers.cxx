@@ -159,6 +159,14 @@ friends::Presence DecodePresence(const json& value) {
 	return presence;
 }
 
+// A frame tier as sent: an unsigned number, and one past the tiers this build
+// draws (a later bridge's table) is the last it knows.
+std::uint8_t Tier(const json& object) {
+	return static_cast<std::uint8_t>((std::min)(Unsigned(object, "tier"), static_cast<std::uint64_t>(netplay::levels::TierCount - 1)));
+}
+
+// Points and tier are shown together or not at all. How many points a tier
+// takes is the bridge's to say.
 friends::Main DecodeMain(const json& value) {
 	const auto& object = Object(value);
 	friends::Main main;
@@ -168,12 +176,14 @@ friends::Main DecodeMain(const json& value) {
 	if (points) {
 		main.showsPoints = true;
 		main.points = Unsigned(object, "points");
-		main.tier = static_cast<std::uint8_t>(Bounded(object, "tier", netplay::levels::TierCount - 1));
-		if (main.points == 0) Bad("points");
+		main.tier = Tier(object);
 	}
 	return main;
 }
 
+// Each optional part of a friend stands alone: one this build cannot read is
+// left out and the friend is still listed. What names the friend (id, name,
+// country, since) and where they are (presence) must read, or the row goes.
 friends::Friend DecodeFriend(const json& value) {
 	const auto& object = Object(value);
 	friends::Friend entry;
@@ -181,15 +191,16 @@ friends::Friend DecodeFriend(const json& value) {
 	entry.name = Name(object, "name");
 	entry.country = Country(object);
 	entry.since = Unsigned(object, "since");
-	if (const auto main = object.find("main"); main != object.end()) {
-		entry.hasMain = true;
-		entry.main = DecodeMain(*main);
-	}
+	const auto part = [](auto read) { try { read(); return true; } catch (const std::exception&) { return false; } };
+	if (const auto main = object.find("main"); main != object.end())
+		entry.hasMain = part([&] { entry.main = DecodeMain(*main); });
 	if (const auto account = object.find("account"); account != object.end()) {
-		const auto& fields = Object(*account);
-		entry.hasAccount = true;
-		entry.account.points = Unsigned(fields, "points");
-		entry.account.tier = static_cast<std::uint8_t>(Bounded(fields, "tier", netplay::levels::TierCount - 1));
+		entry.hasAccount = part([&] {
+			const auto& fields = Object(*account);
+			entry.account.points = Unsigned(fields, "points");
+			entry.account.tier = Tier(fields);
+		});
+		if (!entry.hasAccount) entry.account = {};
 	}
 	// A badge this build cannot read is no badge, not a list that cannot be read.
 	entry.badge = ReadSkillBadge(object);
@@ -197,13 +208,16 @@ friends::Friend DecodeFriend(const json& value) {
 	if (presence == object.end()) Bad("presence");
 	entry.presence = DecodePresence(*presence);
 	if (const auto record = object.find("record"); record != object.end()) {
-		const auto& fields = Object(*record);
-		entry.hasRecord = true;
-		entry.record.won = Unsigned(fields, "won");
-		entry.record.lost = Unsigned(fields, "lost");
-		entry.record.lastAt = Unsigned(fields, "last_at");
-		if (entry.record.won == 0 && entry.record.lost == 0) Bad("record");
+		entry.hasRecord = part([&] {
+			const auto& fields = Object(*record);
+			entry.record.won = Unsigned(fields, "won");
+			entry.record.lost = Unsigned(fields, "lost");
+			entry.record.lastAt = Unsigned(fields, "last_at");
+		});
+		// A record with no game in it says nothing.
+		if (!entry.hasRecord || (entry.record.won == 0 && entry.record.lost == 0)) { entry.hasRecord = false; entry.record = {}; }
 	}
+	if (!entry.hasMain) entry.main = {};
 	return entry;
 }
 
@@ -218,7 +232,6 @@ friends::Incoming DecodeIncoming(const json& value) {
 		const auto& fields = Object(*played);
 		entry.games = Unsigned(fields, "games");
 		entry.lastGameAt = Unsigned(fields, "last_at");
-		if (entry.games == 0) Bad("played");
 	}
 	return entry;
 }
@@ -266,16 +279,19 @@ friends::Blocked DecodeBlocked(const json& value) {
 	return entry;
 }
 
-// `decode` returns the entry, or an optional that is empty for a row to leave out.
+// `decode` returns the entry, or an optional that is empty for a row to leave out. A row it cannot read is left out
+// too, and the rest of the list is kept: one damaged row never costs the player the others.
 template <class Entry, class Decode>
 std::vector<Entry> DecodeList(const json& object, const char* key, std::size_t maximum, Decode decode) {
 	std::vector<Entry> entries;
 	const auto& rows = Array(object, key, maximum);
 	entries.reserve(rows.size());
 	for (const auto& row : rows) {
-		auto decoded = decode(row);
-		if constexpr (std::is_same_v<decltype(decoded), std::optional<Entry>>) { if (decoded) entries.push_back(std::move(*decoded)); }
-		else entries.push_back(std::move(decoded));
+		try {
+			auto decoded = decode(row);
+			if constexpr (std::is_same_v<decltype(decoded), std::optional<Entry>>) { if (decoded) entries.push_back(std::move(*decoded)); }
+			else entries.push_back(std::move(decoded));
+		} catch (const std::exception&) {}
 	}
 	return entries;
 }

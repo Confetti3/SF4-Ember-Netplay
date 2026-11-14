@@ -465,7 +465,8 @@ static void FuzzAnswers(Random& random) {
 				CHECK((*board)[i].band >= 1 && (*board)[i].band <= SkillBadge::Classes && (!i || (*board)[i - 1].band >= (*board)[i].band));
 		}
 		if (const auto own = session::DecodeOwnLevels(data))
-			for (const auto& fighter : own->fighters) CHECK(fighter.tier < netplay::levels::TierCount && fighter.wins <= fighter.games && fighter.points >= fighter.games && fighter.points <= fighter.games + fighter.wins);
+			for (const auto& fighter : own->fighters)
+				CHECK(fighter.tier < netplay::levels::TierCount && fighter.wins <= fighter.games && (fighter.tier < netplay::levels::TierCount - 1 || fighter.next == 0));
 		if (const auto cards = session::DecodeCards(data)) {
 			CHECK(!cards->empty() && cards->size() <= netplay::levels::MaxLookup);
 			for (const auto& card : *cards)
