@@ -721,7 +721,7 @@ int main(int argc, char** argv) {
         bool galleryShown = false;
         const std::vector<Size> sizes = chosenW > 0 ? std::vector<Size>{{chosenW,chosenH,chosenScale}} : quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quickMode == "720" ? std::vector<Size>{{1280,720,1}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
-            std::vector<Size>{{1280,720,1}, {1280,800,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1.333f}, {3840,2160,2}, {3840,2160,3}, {1280,720,2}};
+            std::vector<Size>{{1280,720,1}, {1280,800,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1.333f}, {3840,2160,2}, {3840,2160,3}, {1280,720,2}, {1280,720,.7f}, {1920,1080,.7f}};
         std::printf("UI backend: %s\n", headless ? "headless ImGui geometry" :
             renderer.hardwareVertices ? "DX9" : "DX9, vertices on the CPU");
         int frames = 0;
@@ -866,8 +866,9 @@ int main(int argc, char** argv) {
             ShootPadSetup(shell,view,draw,page);
             ShootReplays(shell,view,draw,page,exportsStarted,refuseExports);
             ShootVersionAndChannel(shell,view,draw,page);
-            // News: the hub with five release bodies at the update check's cap and with a very long title, at three Interface sizes on the two common screens (ui_render_news.hxx).
-            ShootNews(shell,view,draw,page,[&](float interfaceSize){if(ApplyTheme(size.dpi,interfaceSize))renderer.Invalidate();},size.dpi==1.f&&(size.w==1280||size.w==1920),size.w,size.h,size.dpi);
+            // News: the hub with five release bodies at the update check's cap and with a very long title, at three Interface sizes on the two common screens, 0.70 included (ui_render_news.hxx).
+            // The two 0.70 sizes are swept there already (Interface size .7 at 1280x720 and 1920x1080), so they are not drawn again here.
+            if(size.dpi>=1.f)ShootNews(shell,view,draw,page,[&](float interfaceSize){if(ApplyTheme(size.dpi,interfaceSize))renderer.Invalidate();},size.dpi==1.f&&(size.w==1280||size.w==1920),size.w,size.h,size.dpi);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
             view.preferences.autoInputDelay=true;page("tab-matches/defaults");view.preferences.autoInputDelay=false;
             page("home");
