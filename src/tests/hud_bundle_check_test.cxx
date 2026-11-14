@@ -35,12 +35,17 @@ Bytes Ems(const std::vector<std::vector<std::int32_t>>& elements) {
         d.resize(element + 0x40);
         PutU32(d, 0x20 + 4 * i, static_cast<std::uint32_t>(element));
         if (elements[i].empty()) continue;
+        // As the game's files have it: the block's key frames (4 bytes each) at +0x10, its keys at +0x14,
+        // both offsets from the start of the file.
         const size_t block = d.size();
         d.resize(block + 0x20);
+        const size_t frames = d.size();
+        d.resize(frames + 4 * elements[i].size());
         const size_t keys = d.size();
         d.resize(keys + 32 * elements[i].size());
         PutU32(d, element + 8, static_cast<std::uint32_t>(block));
         PutS16(d, block + 4, static_cast<std::int16_t>(elements[i].size()));
+        PutU32(d, block + 0x10, static_cast<std::uint32_t>(frames));
         PutU32(d, block + 0x14, static_cast<std::uint32_t>(keys));
         for (size_t k = 0; k < elements[i].size(); ++k) PutU32(d, keys + 32 * k, static_cast<std::uint32_t>(elements[i][k]));
     }
@@ -114,6 +119,15 @@ void Reading() {
     CHECK(bundle::LayoutHighestPicture(Wrap(Layout(14)), highest) && highest == 14);
     CHECK(bundle::LayoutHighestPicture(Ems({}), highest) && highest == -1);
     CHECK(bundle::LayoutHighestPicture(Ems({ {}, { -1 }, { 3, 1 } }), highest) && highest == 3);
+    // A picture block without key frames is not played: its keys name no picture the game reads.
+    {
+        Bytes framesless = Layout(20);
+        std::uint32_t element = 0, block = 0;
+        std::memcpy(&element, framesless.data() + 0x20, 4);
+        std::memcpy(&block, framesless.data() + element + 8, 4);
+        PutU32(framesless, block + 0x10, 0);
+        CHECK(bundle::LayoutHighestPicture(framesless, highest) && highest == -1);
+    }
 
     // Not the file asked for, cut short, or with offsets outside it: refused, never read past the end.
     CHECK(!bundle::LayoutHighestPicture(Sheet(2), highest) && !bundle::SheetPictures(Layout(2), count));
@@ -241,6 +255,23 @@ void Pairs() {
     CHECK(f.Check(reason) == Verdict::Accepted);
     f.Put("game", "ENG/KEN/chara.ems.emz", Wrap(Layout(1)));
     CHECK(f.Check(reason) == Verdict::PicturesMismatch);
+
+    // A sheet in a language or fighter folder is drawn with the CMN layout of its name.
+    f.Clear();
+    f.Put("theme", "ENG/cockpit_text.tex.emz", Wrap(Sheet(2)));
+    f.Put("game", "CMN/cockpit_text.ems.emz", Wrap(Layout(3)));
+    CHECK(f.Check(reason) == Verdict::PicturesMismatch && reason.find("ENG/cockpit_text") != std::string::npos);
+    f.Put("theme", "CMN/cockpit_text.ems.emz", Wrap(Layout(1)));       // the theme's own CMN layout comes first
+    CHECK(f.Check(reason) == Verdict::Accepted);
+    f.Put("theme", "ENG/RYU/chara.tex.emz", Wrap(Sheet(3)));
+    f.Put("game", "CMN/chara.ems.emz", Wrap(Layout(3)));
+    CHECK(f.Check(reason) == Verdict::PicturesMismatch && reason.find("RYU") != std::string::npos);
+    f.Put("theme", "ENG/RYU/chara.tex.emz", Wrap(Sheet(4)));
+    CHECK(f.Check(reason) == Verdict::Accepted);
+    // Not uc: the game's own uc layout names pictures 2 and 3, which no fighter's uc sheet has.
+    f.Put("theme", "ENG/RYU/uc.tex.emz", Wrap(Sheet(2)));
+    f.Put("game", "CMN/uc.ems.emz", Wrap(Layout(3)));
+    CHECK(f.Check(reason) == Verdict::Accepted);
 
     // A layout with no elements, and one whose elements have no pictures, use none.
     f.Clear();

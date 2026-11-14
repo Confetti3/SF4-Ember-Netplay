@@ -18,8 +18,9 @@ namespace sf4e { namespace platform { namespace hud_bundle {
 // ("CMN/cockpit.tex.emz"); empty when the game has none. The game's folders are not known here.
 using GameFile = std::function<std::filesystem::path(const std::wstring& relative)>;
 
-// Every pair <name>.ems.emz and <name>.tex.emz in the same folder, where one of the two
-// is in the theme's folder, is read as the game will see it after the theme is in use. Accepted when
+// Every pair <name>.ems.emz and <name>.tex.emz in the same folder, or a sheet in a language or
+// fighter folder with CMN/<name>.ems.emz, where one of the two is in the theme's folder, is read
+// as the game will see it after the theme is in use. Accepted when
 // each layout's highest picture number is below its sheet's picture count (a pair the game
 // has no other half for is left alone). PicturesMismatch names the pair; Unreadable is a file
 // that cannot be read as an #EMZ, #EMS or #EMB (too large, cut short, not inflating, offsets outside it).
