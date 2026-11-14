@@ -14,6 +14,7 @@
 namespace sf4e { namespace reports {
 constexpr std::size_t LogLimit = 192 * 1024;
 constexpr std::size_t DumpLimit = 4 * 1024 * 1024;
+constexpr std::size_t HeaderLimit = 256;
 constexpr std::size_t BodyLimit = 5 * 1024 * 1024;
 struct Metadata {
     std::string kind = "problem", appVersion, channel, buildId, sourceRevision, windowsVersion;
@@ -27,7 +28,8 @@ struct Metadata {
     // For kind start_failure: how far start-up got ("before_signal" or
     // "after_signal", the Sidecar signal to the launcher) and what the
     // launcher knew about why, as a comma list of short codes
-    // ("steam_appid_missing", "outside_steam").
+    // ("steam_appid_missing", "outside_steam"). They travel in the report
+    // header, and a start failure's wire kind is crash (MetaJson).
     std::string phase, hint;
 };
 struct Log { std::string name, text; };
@@ -65,6 +67,14 @@ std::string RedactLine(std::string_view line, const Account& account = {});
 std::string Utf8Tail(std::string_view bytes, std::size_t limit = LogLimit);
 std::size_t CharacterCount(std::string_view text);
 nlohmann::json MetaJson(const Metadata& meta, const std::string& comment);
+// The first line of launcher.log in a report about one run of the game, with
+// the facts the metadata has no field for:
+//   report: kind=start_failure phase=before_signal hint=steam_appid_missing game_log=earlier_session
+// kind is crash or start_failure, and phase, hint and game_log appear when
+// set. The metadata keeps the first release's schema, so every service accepts
+// the report and a newer one reads the line. Empty for a typed report; at most
+// HeaderLimit bytes with the fields BuildMultipart accepts.
+std::string ReportHeader(const Metadata& meta);
 bool BuildMultipart(const Report& report, const Submission& submission, const std::string& boundary,
     Multipart& result, std::string& error);
 // The intake's name for the channel this build updates from.

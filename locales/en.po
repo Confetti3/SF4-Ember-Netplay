@@ -6242,6 +6242,9 @@ msgstr "The game crashed. Please send the files in %APPDATA%\\sf4e\\logs (sf4e.l
 msgid "launcher.game_crashed_sending"
 msgstr "The game crashed. Send problem reports is on, so its report is being sent, with the small dump if the crash wrote one. The files are also in %APPDATA%\\sf4e\\logs."
 
+msgid "launcher.start_failed_sending"
+msgstr "Game startup or injection failed. Send problem reports is on, so its report is being sent. The launcher log is in %APPDATA%\sf4e\logs."
+
 msgid "reports.settings_title"
 msgstr "Problem reports"
 

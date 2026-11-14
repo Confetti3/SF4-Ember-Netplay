@@ -1,4 +1,5 @@
 use crate::{
+    header::{self, Header},
     intake::{Channel, Kind, Report, hex},
     store::ReportId,
     symbolicate::{Frame, Walk, exception_name},
@@ -68,7 +69,7 @@ struct Tags<'a> {
     exception_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     exit_code: Option<String>,
-    kind: Kind,
+    kind: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     phase: Option<&'a str>,
     windows_version: &'a str,
@@ -184,7 +185,7 @@ fn logged_module(report: &Report, address: u64) -> Option<(String, u64)> {
 }
 
 // What a report without a stack or an exception code says happened, from its
-// kind, exit code and phase, so that start failures, frozen games and other
+// header, exit code and phase, so that start failures, frozen games and other
 // exits each open an issue of their own instead of one "Native crash".
 struct Outcome {
     title: String,
@@ -192,49 +193,53 @@ struct Outcome {
     // The fingerprint's second part.
     print: String,
 }
-fn outcome(m: &Meta) -> Option<Outcome> {
+fn outcome(m: &Meta, header: &Header) -> Option<Outcome> {
     let exit = m.exit_code.map(|n| n as u32);
-    let exit_text = exit.map(|c| format!("0x{c:X}"));
-    let phase = m.phase.as_deref().filter(|p| !p.is_empty());
-    match m.kind {
-        Kind::StartFailure => {
-            let when = match phase {
-                Some("before_signal") => " before the start-up signal",
-                Some("after_signal") => " after the start-up signal",
-                _ => "",
-            };
-            let how = exit_text
-                .as_deref()
-                .map_or_else(|| "no exit code".to_owned(), |c| format!("exit {c}"));
-            Some(Outcome {
-                title: "Start failure".into(),
-                value: format!("{how}{when}"),
-                print: format!(
-                    "start_failure:{}:{}",
-                    exit_text.as_deref().unwrap_or("none").to_ascii_lowercase(),
-                    phase.unwrap_or("unknown")
-                ),
-            })
-        }
-        Kind::Crash => {
-            let code = exit?;
-            let title = if code == 0xCFFF_FFFF {
-                "Game frozen".to_owned()
-            } else {
-                format!("Game exit 0x{code:X}")
-            };
-            Some(Outcome {
-                value: format!("exit 0x{code:X}"),
-                print: format!("exit:0x{code:x}"),
-                title,
-            })
-        }
-        Kind::Problem => None,
+    if header.start_failure {
+        let exit_text = exit.map(|c| format!("0x{c:X}"));
+        let phase = header.phase.as_deref();
+        let when = match phase {
+            Some("before_signal") => " before the start-up signal",
+            Some("after_signal") => " after the start-up signal",
+            _ => "",
+        };
+        let how = exit_text
+            .as_deref()
+            .map_or_else(|| "no exit code".to_owned(), |c| format!("exit {c}"));
+        return Some(Outcome {
+            title: "Start failure".into(),
+            value: format!("{how}{when}"),
+            print: format!(
+                "start_failure:{}:{}",
+                exit_text.as_deref().unwrap_or("none").to_ascii_lowercase(),
+                phase.unwrap_or("unknown")
+            ),
+        });
     }
+    if m.kind != Kind::Crash {
+        return None;
+    }
+    let code = exit?;
+    let title = if code == 0xCFFF_FFFF {
+        "Game frozen".to_owned()
+    } else {
+        format!("Game exit 0x{code:X}")
+    };
+    Some(Outcome {
+        value: format!("exit 0x{code:X}"),
+        print: format!("exit:0x{code:x}"),
+        title,
+    })
 }
 
 pub fn build(id: &ReportId, report: &Report, walk: &Walk, dump_path: Option<&str>) -> Vec<u8> {
     let m = &report.meta;
+    // Only a crash report's header is read; a typed report is its comment.
+    let header = if m.kind == Kind::Crash {
+        header::parse(report)
+    } else {
+        Header::default()
+    };
     let code = walk.code.or_else(|| {
         m.exception_code
             .as_deref()
@@ -244,11 +249,11 @@ pub fn build(id: &ReportId, report: &Report, walk: &Walk, dump_path: Option<&str
     let address = walk
         .address
         .or_else(|| m.crash_address.as_deref().and_then(|s| hex(s, 16)));
-    let what = outcome(m);
+    let what = outcome(m, &header);
     // A start failure is named by what happened, never by a stack or a code a
     // record happened to leave. Other reports are named by their stack's
     // reason or exception code, and only without either by their exit.
-    let start = m.kind == Kind::StartFailure;
+    let start = header.start_failure;
     let named_by_outcome = start || (walk.reason.is_none() && code.is_none());
     let reason = match &what {
         Some(o) if named_by_outcome => o.title.clone(),
@@ -279,7 +284,11 @@ pub fn build(id: &ReportId, report: &Report, walk: &Walk, dump_path: Option<&str
     let ended = m.kind != Kind::Problem;
     // The crash log's module and offset name the fault the same way on every
     // load of the DLL, where the raw address moves.
-    let logged = walk.crash_frames.is_empty().then(|| crash_frames.first()).flatten();
+    let logged = walk
+        .crash_frames
+        .is_empty()
+        .then(|| crash_frames.first())
+        .flatten();
     let value = match (&what, logged) {
         (Some(o), _) if named_by_outcome => o.value.clone(),
         (_, Some(top)) if address.is_some() => {
@@ -308,11 +317,11 @@ pub fn build(id: &ReportId, report: &Report, walk: &Walk, dump_path: Option<&str
             crash_address: address.map(|a| format!("0x{a:x}")),
             exception_code: code.map(|c| format!("0x{c:08x}")),
             exit_code: m.exit_code,
-            game_log: m.game_log.as_deref(),
-            hint: m.hint.as_deref(),
+            game_log: header.game_log.as_deref(),
+            hint: header.hint.as_deref(),
             logs: BTreeMap::new(),
             minidump_path: dump_path,
-            phase: m.phase.as_deref(),
+            phase: header.phase.as_deref(),
             report_id: id.as_str(),
             source_revision: &m.source_revision,
             symbolication: walk.symbolication(),
@@ -334,7 +343,7 @@ pub fn build(id: &ReportId, report: &Report, walk: &Walk, dump_path: Option<&str
         } else {
             None
         },
-        level: if crash { "error" } else { "warning" },
+        level: if crash && !start { "error" } else { "warning" },
         message: (m.kind == Kind::Problem).then(|| m.comment.as_deref().unwrap_or("")),
         platform: "native",
         release: &m.app_version,
@@ -343,8 +352,14 @@ pub fn build(id: &ReportId, report: &Report, walk: &Walk, dump_path: Option<&str
             channel: m.channel,
             exception_code: code.map(|c| format!("0x{c:08x}")),
             exit_code: m.exit_code.map(|n| format!("0x{:08x}", n as u32)),
-            kind: m.kind,
-            phase: m.phase.as_deref(),
+            kind: if start {
+                "start_failure"
+            } else if crash {
+                "crash"
+            } else {
+                "problem"
+            },
+            phase: header.phase.as_deref(),
             windows_version: &m.windows_version,
         },
         threads: Values { values: Vec::new() },

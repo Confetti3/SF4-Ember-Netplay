@@ -14,9 +14,6 @@ pub const LOG_NAMES: [&str; 4] = ["sf4e.log", "launcher.log", "sf4e-crash.log", 
 pub enum Kind {
     Crash,
     Problem,
-    // The game ended during its own start-up: not a crash of the running game.
-    #[serde(rename = "start_failure")]
-    StartFailure,
 }
 #[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -40,17 +37,6 @@ pub struct Meta {
     pub exception_code: Option<String>,
     pub crash_address: Option<String>,
     pub comment: Option<String>,
-    // Added with start-failure reports; older clients omit them. For a start
-    // failure, `phase` is "before_signal" or "after_signal" (the game's DLL
-    // signalled the launcher) and `hint` a comma list of short codes. For a
-    // report about one run, `game_log` says whether sf4e.log is that run's
-    // ("this_session", "earlier_session" when left out, "absent").
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub phase: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hint: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub game_log: Option<String>,
 }
 impl Meta {
     pub fn validate(&self) -> Result<(), Refusal> {
@@ -63,19 +49,6 @@ impl Meta {
         if !text(&self.app_version, 128)
             || !text(&self.source_revision, 128)
             || !text(&self.windows_version, 256)
-        {
-            return Err(Refusal::InvalidMetadata);
-        }
-        fn code(s: &str, cap: usize, commas: bool) -> bool {
-            !s.is_empty()
-                && s.len() <= cap
-                && s.bytes().all(|b| {
-                    b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_' || (commas && b == b',')
-                })
-        }
-        if self.phase.as_ref().is_some_and(|s| !code(s, 40, false))
-            || self.game_log.as_ref().is_some_and(|s| !code(s, 40, false))
-            || self.hint.as_ref().is_some_and(|s| !code(s, 80, true))
         {
             return Err(Refusal::InvalidMetadata);
         }

@@ -362,16 +362,22 @@ std::string RedactLine(std::string_view line, const Account& account) {
     return out;
 }
 nlohmann::json MetaJson(const Metadata& meta, const std::string& comment) {
-    nlohmann::json value={{"schema",1},{"kind",meta.kind},{"app_version",meta.appVersion},{"channel",meta.channel},
+    // A start failure travels as the kind every service accepts; its header says what it is.
+    nlohmann::json value={{"schema",1},{"kind",meta.kind=="start_failure"?"crash":meta.kind},{"app_version",meta.appVersion},{"channel",meta.channel},
         {"build_id",meta.buildId},{"source_revision",meta.sourceRevision},{"windows_version",meta.windowsVersion}};
     if (meta.exitCode) value["exit_code"]=*meta.exitCode;
     if (meta.exceptionCode) value["exception_code"]=Hex(*meta.exceptionCode);
     if (meta.crashAddress) value["crash_address"]=Hex(*meta.crashAddress);
-    if (!meta.gameLog.empty()) value["game_log"]=meta.gameLog;
-    if (!meta.phase.empty()) value["phase"]=meta.phase;
-    if (!meta.hint.empty()) value["hint"]=meta.hint;
     if (!comment.empty()) value["comment"]=comment;
     return value;
+}
+std::string ReportHeader(const Metadata& meta) {
+    if (meta.kind=="problem") return {};
+    std::string line="report: kind="+meta.kind;
+    if (!meta.phase.empty()) line+=" phase="+meta.phase;
+    if (!meta.hint.empty()) line+=" hint="+meta.hint;
+    if (!meta.gameLog.empty()) line+=" game_log="+meta.gameLog;
+    return line+"\n";
 }
 bool BuildMultipart(const Report& report, const Submission& submission, const std::string& boundary, Multipart& result, std::string& error) {
     result={}; error.clear();
@@ -450,7 +456,8 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
             if (ec||written<crash.started) { report.meta.gameLog="earlier_session"; continue; }
             report.meta.gameLog="this_session";
         }
-        const auto tail=ReadTail(directory/name,LogLimit);
+        // launcher.log leaves room for the report header (ReportHeader).
+        const auto tail=ReadTail(directory/name,name==std::string_view("launcher.log")?LogLimit-HeaderLimit:LogLimit);
         if (afterRead) afterRead(directory/name);
         auto text=Utf8Tail(tail.bytes);
         // A tail that starts mid-file drops its first, partial line.
@@ -459,7 +466,15 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
         }
         report.logs.push_back({name,RedactLog(text,cancelled,account)});
     }
-    if (report.meta.kind=="crash"&&!crash.smallDump.empty()) {
+    // The report's own facts go on the first line of launcher.log, a log every
+    // service accepts, so the metadata stays what the first release defined.
+    if (aboutRun) {
+        const auto header=ReportHeader(report.meta);
+        const auto launcher=std::find_if(report.logs.begin(),report.logs.end(),[](const Log& log){return log.name=="launcher.log";});
+        if (launcher!=report.logs.end()) launcher->text.insert(0,header);
+        else report.logs.push_back({"launcher.log",header});
+    }
+    if (aboutRun&&!crash.smallDump.empty()) {
         const auto read=durable::ReadBounded(crash.smallDump,DumpLimit);
         if (read.status==durable::ReadStatus::Read) report.minidump.assign(read.bytes.begin(),read.bytes.end());
         if (report.minidump.compare(0,4,"MDMP")!=0) report.minidump.clear();
