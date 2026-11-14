@@ -26,7 +26,8 @@ bool Start(const std::wstring& file, unsigned width, unsigned height, const std:
 // float interleaved; at most kSoundPerSlot frames (VideoLinkProtocol.hxx).
 void SetSound(const float* stereo, unsigned frames);
 // One picture, as VideoEncoder's Frame takes it. Dropped while the encoder
-// is still opening or when all slots are full, unless fast.
+// is still opening or when all slots are full, unless fast, which waits
+// for the encoder up to 10 seconds and then fails the export.
 void Send(const void* luma, int lumaPitch, const void* chroma, int chromaPitch);
 // Asks the encoder to close the file, without waiting for it. After Fail
 // the file is still discarded.

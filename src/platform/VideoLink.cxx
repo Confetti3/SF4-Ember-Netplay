@@ -22,6 +22,9 @@ std::wstring s_partial;
 ULONGLONG s_stoppedAt = 0;
 // The encoder's process may take this long to close its file before it is ended.
 constexpr ULONGLONG kClosePatienceMs = 30000;
+// A fast export's game waits this long for the encoder to open or to free a
+// slot before the export fails; the encoder itself gives a picture 10 seconds.
+constexpr ULONGLONG kSendPatienceMs = 10000;
 // The encoder's process was ended at that deadline: the export failed,
 // whatever the process exits with.
 bool s_ended = false;
@@ -109,10 +112,17 @@ void SetSound(const float* stereo, unsigned frames) {
 void Send(const void* luma, int lumaPitch, const void* chroma, int chromaPitch) {
 	if (!s_shared) return;
 	// Fast: the game waits for the encoder to open and for a free slot, while
-	// its process lives and the export has not been stopped.
+	// its process lives and the export has not been stopped, for at most
+	// kSendPatienceMs: an encoder that stalls fails the export, not the game.
+	const ULONGLONG waitStarted = GetTickCount64();
 	for (unsigned turn = 0; s_shared->fast && !s_shared->stop && s_shared->opened >= 0 &&
 		(s_shared->opened != 1 || s_shared->sent - s_shared->taken >= static_cast<LONG>(kSlots)); turn++) {
 		if (WaitForSingleObject(s_process, 0) != WAIT_TIMEOUT) break;
+		if (GetTickCount64() - waitStarted > kSendPatienceMs) {
+			spdlog::warn("Video: the encoder did not take a picture in {} seconds; the export failed", kSendPatienceMs / 1000);
+			Fail();
+			break;
+		}
 		Sleep(turn < 64 ? 0 : 1);
 	}
 	if (s_shared->opened != 1) return;
