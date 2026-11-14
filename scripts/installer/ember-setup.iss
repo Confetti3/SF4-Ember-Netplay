@@ -80,6 +80,11 @@ function FirewallFolder(Param: String): String;
 begin
   Result := ExpandConstant('{app}');
   StringChangeEx(Result, '''', '''''', True);
+  // PowerShell also reads the typographic single quotes as the end of a single-quoted string.
+  StringChangeEx(Result, #$2018, #$2018#$2018, True);
+  StringChangeEx(Result, #$2019, #$2019#$2019, True);
+  StringChangeEx(Result, #$201A, #$201A#$201A, True);
+  StringChangeEx(Result, #$201B, #$201B#$201B, True);
 end;
 
 // Only a setup that added the rules asks for administrator rights again to remove them.
