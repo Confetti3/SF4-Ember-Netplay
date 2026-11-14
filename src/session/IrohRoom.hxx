@@ -306,6 +306,8 @@ private:
 	// client queue; a refusal fails the room (FailQueue).
 	bool QueueIntent(Message message);
 	bool QueueEffect(Message message);
+	// Both room queues' payload bytes, which share MaximumQueuedBytes.
+	std::size_t QueuedBytes() const { return room_.serverBytes + room_.clientEffects.Bytes(); }
 	// Says once which bound a room queue hit and what the client queue waits
 	// on, then fails the room under that queue's name.
 	void FailQueue(RoomQueueResult limit, bool serverQueue);
@@ -446,7 +448,8 @@ private:
 		std::deque<Message> serverMessages;
 		ClientEffectQueue clientEffects;
 		std::vector<Connection> closed;
-		std::size_t queuedBytes = 0;
+		// The server queue's payload bytes; the client queue keeps its own.
+		std::size_t serverBytes = 0;
 		CoordinationSnapshot coordination;
 		ProbeSnapshot probe;
 		RoomLoadWindow loadWindow;

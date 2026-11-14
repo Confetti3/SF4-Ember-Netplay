@@ -87,12 +87,21 @@ struct ParkedEffectRoom {
 		auto end = begin; end["type"] = "checkpoint_end"; pipe.Send(end);
 		auto committed = begin; committed["type"] = "checkpoint_committed"; pipe.Send(committed);
 	}
+	// One poll of the client, adding what it delivers to `received`. The
+	// transport counts the vector it is given against its maximum, so each poll
+	// gets a fresh one, as SessionClient's does.
+	bool PollOnce(std::vector<session::Message>& received) {
+		std::vector<session::Message> batch;
+		const bool polled = client->Poll(batch, 8);
+		received.insert(received.end(), std::make_move_iterator(batch.begin()), std::make_move_iterator(batch.end()));
+		pipe.Drain();
+		return polled;
+	}
 	// Polls the client long enough for every helper event sent so far to be
 	// handled (the room handles at most 8 per poll).
 	void Settle(std::vector<session::Message>& received, int polls = 50) {
 		for (int tick = 0; tick < polls; ++tick) {
-			CHECK(client->Poll(received, 8));
-			pipe.Drain();
+			CHECK(PollOnce(received));
 			Sleep(1);
 		}
 	}

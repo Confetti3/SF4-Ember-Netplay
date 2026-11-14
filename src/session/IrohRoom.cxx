@@ -44,7 +44,7 @@ void IrohRoom::Fail(const char* code) {
 	ClearInvitations();
 	room_.serverMessages.clear();
 	room_.clientEffects.Clear();
-	room_.queuedBytes = 0;
+	room_.serverBytes = 0;
 }
 
 void IrohRoom::CloseAllGames() {
@@ -147,7 +147,7 @@ void IrohRoom::Leave(bool abandon) {
 	ClearInvitations();
 	room_.serverMessages.clear();
 	room_.clientEffects.Clear();
-	room_.queuedBytes = 0;
+	room_.serverBytes = 0;
 	for (auto& game : room_.games) { game.second.state = GameState::Closing; game.second.virtualPort = 0; }
 	// A rejected local enqueue never introduced this epoch to the helper.
 	// Waiting for a Leave acknowledgment for that epoch would hang cancellation.
@@ -346,13 +346,16 @@ IrohRoom::RecoverySnapshot IrohRoom::RecoveryState() const {
     state.proposalStatus=sender_.status;
     state.serverQueueMessages=room_.serverMessages.size();
     state.clientQueueMessages=room_.clientEffects.Size();
-    state.queuedBytes=room_.queuedBytes;
+    state.queuedBytes=QueuedBytes();
     state.pendingPublicEffects=replica_.pendingPublicEffects.size();
     state.pendingTerminalReplays=replica_.pendingTerminalReplayEffects.size();
     state.terminalReplaysInFlight=replica_.terminalReplayInFlight.size();
-    if(room_.clientEffects.Empty()) return state;
+    // The head is the oldest room message, what the queue waits on; frames
+    // wait for nothing.
+    const auto& waiting=room_.clientEffects.Messages();
+    if(waiting.empty()) return state;
     try {
-        const auto payload=json::parse(room_.clientEffects.Head().payload);
+        const auto payload=json::parse(waiting.front().payload);
         state.clientHeadType=payload.value("type",std::string());
         if(payload.contains("_commit")) {
             const auto effect=payload.at("_commit").get<EffectEnvelope>();
@@ -585,17 +588,13 @@ IrohRoom::EffectVerdict IrohRoom::HeadGate(const Message& message, const EffectE
     if(verdict==EffectVerdict::Park && token.term==room_.coordination.term && !room_.coordination.leader.empty() &&
         !FromLeader(message.connection)) return EffectVerdict::Drop;
     if(verdict!=EffectVerdict::Missing) return verdict;
-    // Room state is replaceable: the journal keeps the newest of its kind for
-    // this member, which comes live or as a replay, and the newest snapshot
-    // with the chat. Verification is best effort, and a token from any other
-    // connection than the leader's is not the room's to vouch for.
-    const auto& tag=message.tag;
-    const bool newerChat=std::any_of(replica_.appliedEffects.begin(),replica_.appliedEffects.end(),[&](const EffectEnvelope& effect) {
-        return effect.recipient==token.recipient && ChatBearingSnapshot(effect) && effect.revision>token.revision;
-    });
-    if(tag.verification || tag.projection==RoomProjection::Snapshot || tag.projection==RoomProjection::TableData ||
-        (tag.projection==RoomProjection::SnapshotWithChat && newerChat) || !FromLeader(message.connection))
-        return EffectVerdict::Drop;
+    // Room state the journal holds a newer one of comes live or as a replay,
+    // and verification is best effort (Replaceable); a token from any other
+    // connection than the leader's is not the room's to vouch for. The token
+    // does not say whether a snapshot carries the chat; its payload does.
+    auto effect=token;
+    effect.chat=message.tag.projection==RoomProjection::SnapshotWithChat;
+    if(Replaceable(effect,replica_.appliedEffects) || !FromLeader(message.connection)) return EffectVerdict::Drop;
     // A reply, an event, a grant or the chat would be lost without a word
     // (SessionRecovery.hxx: GuaranteedEffectEnvelopes). Fail instead, so the
     // player rejoins a room they can see whole.
@@ -694,7 +693,8 @@ bool IrohRoom::QueueIntent(Message message) {
 	if (std::any_of(room_.serverMessages.begin(), room_.serverMessages.end(), [&](const Message& queued) {
 		return SameQueuedRoomRetry(queued, message);
 	})) return true;
-	const auto queued = QueueRoomMessage(room_.serverMessages, room_.queuedBytes, std::move(message));
+	const auto queued = QueueRoomMessage(room_.serverMessages, room_.serverBytes, std::move(message),
+		MaximumQueuedBytes - room_.clientEffects.Bytes());
 	if (queued == RoomQueueResult::Queued) return true;
 	FailQueue(queued, true);
 	return false;
@@ -702,7 +702,8 @@ bool IrohRoom::QueueIntent(Message message) {
 
 bool IrohRoom::QueueEffect(Message message) {
 	const bool leader = FromLeader(message.connection);
-	const auto queued = room_.clientEffects.Admit(std::move(message), leader, replica_.effectsRevision, room_.queuedBytes);
+	const auto queued = room_.clientEffects.Admit(std::move(message), leader, replica_.effectsRevision,
+		MaximumQueuedBytes - room_.serverBytes);
 	if (queued == RoomQueueResult::Queued) return true;
 	FailQueue(queued, false);
 	return false;

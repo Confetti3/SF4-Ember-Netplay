@@ -40,19 +40,18 @@ static Message Event(std::uint64_t revision) { return Effect("room_event",revisi
 // the leader's unless a message says otherwise.
 struct Client {
     ClientEffectQueue queue;
-    std::size_t bytes=0;
     std::uint64_t applied=0;
     RoomQueueResult Admit(Message message, bool fromLeader = true) {
-        return queue.Admit(std::move(message),fromLeader,applied,bytes);
+        return queue.Admit(std::move(message),fromLeader,applied,MaximumRoomQueueBytes);
     }
     std::uint64_t Revision(std::size_t index) const { return queue.Messages()[index].tag.commitRevision; }
     RoomProjection Kind(std::size_t index) const { return queue.Messages()[index].tag.projection; }
-    std::size_t RoomMessages() const {
-        return static_cast<std::size_t>(std::count_if(queue.Messages().begin(),queue.Messages().end(),
-            [](const Message& queued) { return !IsRoomVerificationMessage(queued); }));
-    }
+    std::size_t RoomMessages() const { return queue.Messages().size(); }
     bool BytesAgree() const {
-        std::size_t total=0; for (const auto& item:queue.Messages()) total+=item.payload.size(); return total==bytes;
+        std::size_t total=0;
+        for (const auto& item:queue.Messages()) total+=item.payload.size();
+        for (const auto& item:queue.Frames()) total+=item.payload.size();
+        return total==queue.Bytes();
     }
 };
 
@@ -76,17 +75,17 @@ struct ClientView {
         return snapshot==other.snapshot && chat==other.chat && data==other.data && events==other.events;
     }
 };
-// The queue head as an effect gate whose journal still holds every effect lets
-// it through once `applied` is the newest commit applied here. The real gate
-// against a compacted journal is RoomEffectBurst's.
+// The drain as an effect gate whose journal still holds every effect: frames
+// go at once, and a room message once `applied` is the newest commit applied
+// here. The real gate against a compacted journal is RoomEffectBurst's.
 static void Deliver(Client& client, ClientView& view) {
-    while (!client.queue.Empty() && client.queue.Head().tag.commitRevision<=client.applied) {
-        view.Apply(client.queue.Head());
-        client.queue.PopHead(client.queue.Head().payload.size(),client.bytes);
+    while (!client.queue.Empty() && client.queue.Next().tag.commitRevision<=client.applied) {
+        view.Apply(client.queue.Next());
+        client.queue.PopNext(client.queue.Next().payload.size());
     }
 }
 
-// 300 commits of a busy room while checkpoints apply only every 60: the client
+// 300 commits of a busy room while checkpoints apply only every 30: the client
 // queue holds a few room messages instead of failing at 64, and what it hands
 // the gate leaves the member with the same room, the same chat and the same
 // events, in the same order, as handing it every message.
@@ -105,13 +104,13 @@ static void TestBurstBehindParkedCheckpoints() {
         if (revision%40==0) add(Event(revision));
         add(Data(revision));
         if (revision%3==0) CHECK(client.Admit(Tagged(Diagnostic(static_cast<int>(revision))))==RoomQueueResult::Queued);
-        if (revision%60==0) { client.applied=revision; Deliver(client,view); }
+        if (revision%30==0) { client.applied=revision; Deliver(client,view); }
         CHECK(client.BytesAgree());
     }
     CHECK(client.queue.Empty());
     CHECK(view==reference);
     CHECK(view.snapshot==300 && view.chat==300 && view.data==300 && view.events.size()==7);
-    // 60 commits of two or three room messages each, held in at most three per
+    // 30 commits of two or three room messages each, held in at most three per
     // run of state between events; the verification frames beside them stay
     // inside their own window.
     CHECK(deepest<=12);
@@ -148,11 +147,13 @@ static void TestReplacedState() {
         CHECK(client.queue.Size()==3 && client.Revision(0)==2 && client.Kind(1)==RoomProjection::None && client.Revision(2)==4);
     }
     {
-        // Verification frames do not end it: they keep no order with commits.
+        // Verification frames wait in their own lane: they keep no order with
+        // commits, and neither end the run nor wait behind it.
         Client client;
         for (auto message:{Snapshot(1),Snapshot(2),Tagged(Diagnostic(1)),Snapshot(3)})
             CHECK(client.Admit(std::move(message))==RoomQueueResult::Queued);
-        CHECK(client.queue.Size()==2 && client.queue.Messages()[0].tag.verification && client.Revision(1)==3);
+        CHECK(client.queue.Size()==2 && client.RoomMessages()==1 && client.Revision(0)==3);
+        CHECK(client.queue.Frames().size()==1 && client.queue.Next().tag.verification && client.BytesAgree());
     }
     {
         // Only the same sender's state for the same member, only from the
@@ -190,17 +191,20 @@ static void TestBoundsStillHold() {
         CHECK(client.queue.ParkedSince(1)==1+MaximumParkedCommits);
     }
     {
+        // Applied already, so the message bound refuses the 65th, not the commit bound.
         Client client;
+        client.applied=MaximumRoomQueueMessages;
         for (std::uint64_t revision=1;revision<=MaximumRoomQueueMessages;++revision)
             CHECK(client.Admit(Event(revision))==RoomQueueResult::Queued);
         CHECK(client.Admit(Event(65))==RoomQueueResult::MessagesFull);
     }
     {
-        // State that replaces itself never reaches the byte bound; events do.
+        // State that replaces itself never reaches the byte bound (12 MB of it
+        // within the commit bound); events do.
         Client client;
-        for (std::uint64_t revision=1;revision<=100;++revision)
+        for (std::uint64_t revision=1;revision<=1+MaximumParkedCommits;++revision)
             CHECK(client.Admit(Effect("room_snapshot",revision,RoomProjection::SnapshotWithChat,7,2,256*1024))==RoomQueueResult::Queued);
-        CHECK(client.queue.Size()==1 && client.BytesAgree() && client.bytes<MaximumRoomQueueBytes);
+        CHECK(client.queue.Size()==1 && client.BytesAgree() && client.queue.Bytes()<MaximumRoomQueueBytes);
     }
     {
         Client client;
@@ -208,7 +212,16 @@ static void TestBoundsStillHold() {
         std::uint64_t revision=0;
         while (result==RoomQueueResult::Queued && revision<MaximumRoomQueueMessages)
             result=client.Admit(Effect("room_event",++revision,RoomProjection::None,7,2,256*1024));
-        CHECK(result==RoomQueueResult::BytesFull && client.bytes<=MaximumRoomQueueBytes && client.BytesAgree());
+        CHECK(result==RoomQueueResult::BytesFull && client.queue.Bytes()<=MaximumRoomQueueBytes && client.BytesAgree());
+    }
+    {
+        // The queue keeps its own byte count, and its budget is what the room's
+        // leaves it beside the server queue: a room message past it is refused,
+        // a frame past it is let go.
+        ClientEffectQueue queue;
+        CHECK(queue.Admit(Effect("room_event",1,RoomProjection::None,7,2,1024),true,0,512)==RoomQueueResult::BytesFull);
+        CHECK(queue.Admit(Tagged(Diagnostic(1)),true,0,0)==RoomQueueResult::Queued && queue.Empty() && queue.Bytes()==0);
+        CHECK(queue.Admit(Event(2),true,0,MaximumRoomQueueBytes)==RoomQueueResult::Queued && queue.Bytes()==Event(2).payload.size());
     }
 }
 
@@ -221,12 +234,11 @@ static void TestReplays() {
         for (int frame=0;frame<100;++frame) CHECK(client.Admit(Tagged(Diagnostic(frame)))==RoomQueueResult::Queued);
         CHECK(client.queue.Size()==1+MaximumQueuedVerification && client.queue.TakesReplay());
         for (std::uint64_t revision=1;revision<MaximumRoomQueueMessages/2;++revision)
-            client.queue.InsertReplay(Event(revision),revision,revision*4,client.bytes);
+            client.queue.InsertReplay(Event(revision),revision,revision*4);
         CHECK(client.RoomMessages()==MaximumRoomQueueMessages/2 && !client.queue.TakesReplay());
-        // Still room for the live stream: a frame makes way.
-        CHECK(client.queue.Size()==MaximumRoomQueueMessages);
-        CHECK(client.Admit(Event(31))==RoomQueueResult::Queued && client.queue.Size()==MaximumRoomQueueMessages);
-        CHECK(client.BytesAgree());
+        // Still room for the live stream: the frames take none of its slots.
+        CHECK(client.Admit(Event(31))==RoomQueueResult::Queued && client.RoomMessages()==MaximumRoomQueueMessages/2+1);
+        CHECK(client.queue.Frames().size()==MaximumQueuedVerification && client.BytesAgree());
     }
     {
         // The live D_20 is queued and S_21 replaced S_20: S_20's replay goes
@@ -236,10 +248,10 @@ static void TestReplays() {
         CHECK(client.queue.Size()==2 && client.Kind(0)==RoomProjection::TableData);
         CHECK(client.queue.HoldsCopy(1,20*4+static_cast<std::uint64_t>(RoomProjection::TableData)));
         CHECK(!client.queue.HoldsCopy(1,20*4+static_cast<std::uint64_t>(RoomProjection::Snapshot)));
-        client.queue.InsertReplay(Snapshot(20),20,20*4+static_cast<std::uint64_t>(RoomProjection::Snapshot),client.bytes);
+        client.queue.InsertReplay(Snapshot(20),20,20*4+static_cast<std::uint64_t>(RoomProjection::Snapshot));
         Message notice{1,0,"{\"type\":\"room_event\"}",{}};
         notice.tag.classified=true; notice.tag.type="room_event"; notice.tag.terminalReplay=true;
-        client.queue.InsertReplay(std::move(notice),20,ClientEffectQueue::AfterCommit,client.bytes);
+        client.queue.InsertReplay(std::move(notice),20,ClientEffectQueue::AfterCommit);
         CHECK(client.queue.Size()==4 && client.Kind(0)==RoomProjection::Snapshot && client.Revision(0)==20);
         CHECK(client.Kind(1)==RoomProjection::TableData && client.queue.Messages()[2].tag.terminalReplay && client.Revision(3)==21);
         CHECK(client.BytesAgree());
@@ -271,16 +283,19 @@ int main() {
     CHECK(QueueRoomMessage(queue,bytes,Diagnostic(301))==RoomQueueResult::Queued);
     CHECK(queue.size()==64 && queue.back().payload==Action("ready").payload);
     CHECK(QueueRoomMessage(queue,bytes,Action("leave"))==RoomQueueResult::MessagesFull);
-    // The client queue keeps the same verification window behind a parked
-    // checkpoint, and its committed effects are never discarded for it.
+    // The client queue keeps the same verification window while the game does
+    // not poll, beside its room messages, which have all their slots.
     {
         Client client;
         for(int i=0;i<300;++i) CHECK(client.Admit(Diagnostic(i))==RoomQueueResult::Queued);
         CHECK(client.queue.Size()==MaximumQueuedVerification && client.BytesAgree());
+        client.applied=MaximumRoomQueueMessages;
         for(std::uint64_t i=1;i<=MaximumRoomQueueMessages;++i) CHECK(client.Admit(Event(i))==RoomQueueResult::Queued);
-        CHECK(client.queue.Size()==MaximumRoomQueueMessages && !IsRoomVerificationMessage(client.queue.Head()));
+        CHECK(client.RoomMessages()==MaximumRoomQueueMessages && client.queue.Frames().size()==MaximumQueuedVerification);
         CHECK(client.Admit(Event(65))==RoomQueueResult::MessagesFull);
         for(std::uint64_t i=0;i<MaximumRoomQueueMessages;++i) CHECK(client.Revision(i)==i+1);
+        // The newest frames, oldest first, go before every room message.
+        CHECK(nlohmann::json::parse(client.queue.Next().payload).at("frameIdx")==300-static_cast<int>(MaximumQueuedVerification));
     }
     // A message classified where it was queued is read from its tag, and the
     // queue keeps exactly the same window as when every entry is parsed.

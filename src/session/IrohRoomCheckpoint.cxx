@@ -222,12 +222,15 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
     std::set<TerminalReplayKey> activeTerminalKeys;
     if (!BuildTerminalReplayEffects(replica_.committedCheckpoints.front(),identity,terminalEffects,activeTerminalKeys)) return false;
     // A reply or an event this member never had, which it was still to get
-    // as a replay and which the new journal no longer holds, would be lost
-    // without a word; the room fails once this activation is done.
+    // as a replay, would be lost without a word once the new journal no longer
+    // holds it, or holds only its envelope while no live copy is queued here to
+    // deliver it (Replaceable says what may go); the room fails once this
+    // activation is done.
     const auto& journal=replica_.committedCheckpoints.front().effects;
     const auto lost=std::find_if(replica_.pendingPublicEffects.begin(),replica_.pendingPublicEffects.end(),[&](const EffectEnvelope& effect) {
-        return !SupersedableProjection(effect) && !replica_.deliveredEffects.count({effect.term,effect.sequence}) &&
-            std::find(journal.begin(),journal.end(),effect)==journal.end();
+        if(replica_.deliveredEffects.count({effect.term,effect.sequence}) || Replaceable(effect,journal)) return false;
+        const auto kept=std::find(journal.begin(),journal.end(),effect);
+        return kept==journal.end() || (kept->publicPayload.is_null() && !room_.clientEffects.HoldsCopy(effect.term,effect.sequence));
     });
     const auto lostEffect=lost==replica_.pendingPublicEffects.end() ? std::optional<EffectEnvelope>() : std::optional<EffectEnvelope>(*lost);
     auto staged=std::move(replica_.committedCheckpoints.front());
@@ -271,7 +274,7 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
                 marker.at("incarnation").get<std::uint64_t>(), marker.at("type").get<std::string>()};
             return !activeTerminalKeys.count(key);
         } catch(const std::exception&) { return false; }
-    },room_.queuedBytes);
+    });
     for(const auto& effect:replica_.appliedEffects) {
         if(!effect.privatePayload && !effect.publicPayload.is_null() && replica_.effectRecipients.count(effect.recipient) &&
             !replica_.deliveredEffects.count({effect.term,effect.sequence})) replica_.pendingPublicEffects.push_back(effect);
@@ -307,12 +310,12 @@ void IrohRoom::PumpCommittedEffects() {
             {"activation_revision",effect.activationRevision},{"payload_digest",effect.payloadDigest}};
         auto bytes=DumpJson(payload);
         if(bytes.size()>MaximumPayload) { Fail("terminal_replay_payload"); return; }
-        if(bytes.size()>MaximumQueuedBytes-room_.queuedBytes) {
+        if(bytes.size()>MaximumQueuedBytes-QueuedBytes()) {
             replica_.pendingTerminalReplayEffects.push_front(std::move(effect)); break;
         }
         replica_.terminalReplayInFlight.emplace(effect.key,effect);
         auto tag=ClassifyRoomMessage(payload);
-        queue.InsertReplay({1,0,std::move(bytes),"",std::move(tag)},effect.activationRevision,ClientEffectQueue::AfterCommit,room_.queuedBytes);
+        queue.InsertReplay({1,0,std::move(bytes),"",std::move(tag)},effect.activationRevision,ClientEffectQueue::AfterCommit);
     }
     for(auto effect=replica_.pendingPublicEffects.begin();effect!=replica_.pendingPublicEffects.end() && queue.TakesReplay();) {
         if(replica_.deliveredEffects.count({effect->term,effect->sequence})) { effect=replica_.pendingPublicEffects.erase(effect); continue; }
@@ -320,9 +323,9 @@ void IrohRoom::PumpCommittedEffects() {
         auto payload=effect->publicPayload; payload["_commit"]=EffectCommitToken(*effect);
         auto bytes=DumpJson(payload);
         if(bytes.size()>MaximumPayload) { effect=replica_.pendingPublicEffects.erase(effect); continue; }
-        if(bytes.size()>MaximumQueuedBytes-room_.queuedBytes) break;
+        if(bytes.size()>MaximumQueuedBytes-QueuedBytes()) break;
         auto tag=ClassifyRoomMessage(payload);
-        queue.InsertReplay({1,0,std::move(bytes),"",std::move(tag)},effect->revision,effect->sequence,room_.queuedBytes);
+        queue.InsertReplay({1,0,std::move(bytes),"",std::move(tag)},effect->revision,effect->sequence);
         effect=replica_.pendingPublicEffects.erase(effect);
     }
 }

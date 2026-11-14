@@ -108,7 +108,7 @@ std::map<Connection, IrohRoom::Peer>::iterator IrohRoom::RetirePeer(std::map<Con
 
 std::map<Connection, IrohRoom::Peer>::iterator IrohRoom::ErasePeer(std::map<Connection, Peer>::iterator peer) {
 	for (auto message = room_.serverMessages.begin(); message != room_.serverMessages.end();) {
-		if (message->connection == peer->first) { room_.queuedBytes -= message->payload.size(); message = room_.serverMessages.erase(message); }
+		if (message->connection == peer->first) { room_.serverBytes -= message->payload.size(); message = room_.serverMessages.erase(message); }
 		else ++message;
 	}
 	return room_.peers.erase(peer);
