@@ -321,15 +321,22 @@ inline bool PostMatchShown(const Member& member, const PostMatchSaid& said) {
 	return member.postMatch == said.word && member.postMatchGeneration == said.generation && member.postMatchGame == said.game;
 }
 
+// How this PC can tell the room its answer now: not at all while the game is off or room
+// control is down (Off); while it is still applying the room's commits (CatchingUp), its own
+// snapshot may not show a word the room already took, and every word said again is another
+// commit for a room that is already ahead of it; once it has applied them all (Current).
+enum class PostMatchLink : std::uint8_t { Off, CatchingUp, Current };
+
 // Whether the runtime says `wanted` to the room now (SayPostMatch), as `member` is shown in
-// the room's own snapshot (null with no room): only while the game is on (`live`), never
-// when the room already shows it, at once for a word not said yet, and again each second
-// until the room shows it. Not once the shell stops wanting one (not Active).
+// the room's own snapshot (null with no room): never while the link is Off or the room already
+// shows it, at once for a word not said yet, and again each second until the room shows it,
+// but only while this PC's snapshot is Current. Not once the shell stops wanting one (not Active).
 constexpr std::uint64_t PostMatchResendMs = 1000;
 inline bool PostMatchDue(const PostMatchSaid& wanted, const PostMatchSaid& lastSaid, std::uint64_t lastSaidAtMs,
-	std::uint64_t nowMs, bool live, const Member* member) {
-	if (!wanted.Active() || !live || !member || PostMatchShown(*member, wanted)) return false;
-	return wanted != lastSaid || nowMs - lastSaidAtMs >= PostMatchResendMs;
+	std::uint64_t nowMs, PostMatchLink link, const Member* member) {
+	if (!wanted.Active() || link == PostMatchLink::Off || !member || PostMatchShown(*member, wanted)) return false;
+	if (wanted != lastSaid) return true;
+	return link == PostMatchLink::Current && nowMs - lastSaidAtMs >= PostMatchResendMs;
 }
 
 // The set a table finished last: who sat where for its deciding game, and the

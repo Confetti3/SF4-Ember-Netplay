@@ -283,9 +283,9 @@ inline bool PostMatchTakes(const Snapshot& room, const Member& member, const Pos
 // PostMatchDue for this PC's own member of `room`: none is due once the room no longer takes the answer
 // (PostMatchTakes), so a fighter the set's rotation unseated stops telling it.
 inline bool PostMatchDue(const PostMatchSaid& wanted, const PostMatchSaid& lastSaid, std::uint64_t lastSaidAtMs,
-	std::uint64_t nowMs, bool live, const Snapshot& room) {
+	std::uint64_t nowMs, PostMatchLink link, const Snapshot& room) {
 	const auto* member = room.roomEpoch ? FindMember(room, room.localMember) : nullptr;
-	return member && PostMatchTakes(room, *member, wanted) && PostMatchDue(wanted, lastSaid, lastSaidAtMs, nowMs, live, member);
+	return member && PostMatchTakes(room, *member, wanted) && PostMatchDue(wanted, lastSaid, lastSaidAtMs, nowMs, link, member);
 }
 
 // A member the room's tournament binding names as a watcher: it only watches,
