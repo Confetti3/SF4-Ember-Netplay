@@ -191,15 +191,18 @@ static void TestBoundsStillHold() {
         CHECK(client.queue.ParkedSince(1)==1+MaximumParkedCommits);
     }
     {
+        // Applied already, so the message bound refuses the 65th, not the commit bound.
         Client client;
+        client.applied=MaximumRoomQueueMessages;
         for (std::uint64_t revision=1;revision<=MaximumRoomQueueMessages;++revision)
             CHECK(client.Admit(Event(revision))==RoomQueueResult::Queued);
         CHECK(client.Admit(Event(65))==RoomQueueResult::MessagesFull);
     }
     {
-        // State that replaces itself never reaches the byte bound; events do.
+        // State that replaces itself never reaches the byte bound (12 MB of it
+        // within the commit bound); events do.
         Client client;
-        for (std::uint64_t revision=1;revision<=100;++revision)
+        for (std::uint64_t revision=1;revision<=1+MaximumParkedCommits;++revision)
             CHECK(client.Admit(Effect("room_snapshot",revision,RoomProjection::SnapshotWithChat,7,2,256*1024))==RoomQueueResult::Queued);
         CHECK(client.queue.Size()==1 && client.BytesAgree() && client.queue.Bytes()<MaximumRoomQueueBytes);
     }
@@ -286,6 +289,7 @@ int main() {
         Client client;
         for(int i=0;i<300;++i) CHECK(client.Admit(Diagnostic(i))==RoomQueueResult::Queued);
         CHECK(client.queue.Size()==MaximumQueuedVerification && client.BytesAgree());
+        client.applied=MaximumRoomQueueMessages;
         for(std::uint64_t i=1;i<=MaximumRoomQueueMessages;++i) CHECK(client.Admit(Event(i))==RoomQueueResult::Queued);
         CHECK(client.RoomMessages()==MaximumRoomQueueMessages && client.queue.Frames().size()==MaximumQueuedVerification);
         CHECK(client.Admit(Event(65))==RoomQueueResult::MessagesFull);

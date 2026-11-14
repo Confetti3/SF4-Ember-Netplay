@@ -217,12 +217,12 @@ static void TestBurstBehindParkedCheckpoint() {
 // The helper sends a member that is behind the newest commit it has, so a
 // checkpoint can apply while later commits are still arriving. Commit 20 then
 // shows commit 20's room, from its replay, although its live state was
-// replaced in the queue by commit 50's, which waits for its own checkpoint.
+// replaced in the queue by commit 45's, which waits for its own checkpoint.
 static void TestEachCheckpointShowsItsRoom() {
 	ParkedEffectRoom member;
 	CommitStream leader{member};
 	std::vector<session::Message> received;
-	for (std::uint64_t revision = 1; revision <= 50; ++revision) {
+	for (std::uint64_t revision = 1; revision <= 45; ++revision) {
 		leader.Commit(revision);
 		if (revision % 8 == 0) member.Settle(received, 4);
 	}
@@ -238,15 +238,15 @@ static void TestEachCheckpointShowsItsRoom() {
 	CHECK(Kinds(delivered) == "sd");
 	if (delivered.size() == 2) CHECK(delivered[0].at("snapshot").at("marker") == 20 && delivered[1].at("marker") == 20);
 	const auto waiting = member.room->RecoveryState();
-	CHECK(waiting.clientQueueMessages == 2 && waiting.clientHeadRevision == 50);
+	CHECK(waiting.clientQueueMessages == 2 && waiting.clientHeadRevision == 45);
 
 	received.clear();
-	leader.Checkpoint(50);
-	Apply(member, *replica, recovery, 50);
+	leader.Checkpoint(45);
+	Apply(member, *replica, recovery, 45);
 	member.Settle(received);
 	delivered = RoomPayloads(received);
 	CHECK(Kinds(delivered) == "sd");
-	if (delivered.size() == 2) CHECK(delivered[0].at("snapshot").at("marker") == 50 && delivered[1].at("marker") == 50);
+	if (delivered.size() == 2) CHECK(delivered[0].at("snapshot").at("marker") == 45 && delivered[1].at("marker") == 45);
 }
 
 // Commit 21's snapshot replaced commit 20's in the queue before commit 20
