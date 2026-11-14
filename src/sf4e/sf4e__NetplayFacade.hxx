@@ -219,6 +219,8 @@ namespace sf4e {
 			bool checkUpdatesAtLaunch = true;
 			// The country Automatic shows: Windows' region, or none.
 			CountryCode automaticCountry;
+			// The area Automatic shows: from Windows' time zone and region, or none.
+			Area automaticArea = Area::None;
 			int localSlot = -1;
 			bool offlineRequested = false;
 			bool hostPublicRoom = false;

@@ -131,6 +131,8 @@ struct ShellView {
     bool checkUpdatesAtLaunch = true;
     // The country Automatic shows: Windows' region, or none.
     CountryCode automaticCountry;
+    // The area Automatic shows: from Windows' time zone and region, or none.
+    Area automaticArea = Area::None;
     // This PC's clock, unix seconds, to tell a match past its expiry (0 when unknown).
     std::uint64_t unixNow = 0;
     // The game's own config.ini as read at launch, and whether the player has

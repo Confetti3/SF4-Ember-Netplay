@@ -322,6 +322,30 @@ static void CountryRoundTrips(const Path& root) {
     netplay::PlayerPreferences invalid; invalid.country.kind=CountryPreference::Kind::Code; CHECK(!invalid.Valid());
 }
 
+// The area is kept beside it as "auto", "hidden" or an area's code; an older
+// profile has none, and anything else (a relay's code, the old US West) loads
+// as Automatic.
+static void AreaRoundTrips(const Path& root) {
+    using namespace sf4e;
+    const auto folder=root/L"area";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring()); std::string error;
+    for (const auto& choice : {AreaPreference::Hidden(), AreaPreference::Of(Area::SouthAmerica), AreaPreference::Automatic()}) {
+        netplay::PlayerPreferences prefs; prefs.area=choice; CHECK(prefs.Valid());
+        Json saved; netplay::WriteAreaPreference(prefs,saved);
+        CHECK(store.SaveLauncher(saved,error));
+        const auto document=Json::parse(Read(folder/L"settings.json"));
+        CHECK(document["netplay"]["area"]==choice.ToString()&&!document["legacyLauncher"].contains("area"));
+        Json loaded; CHECK(store.LoadLauncher(loaded,error));
+        CHECK(netplay::ReadAreaPreference(loaded)==choice);
+    }
+    CHECK(Json(netplay::PlayerPreferences().area.ToString())=="auto");
+    CHECK(netplay::ReadAreaPreference(Json::object())==AreaPreference::Automatic());
+    for (const Json& bad : {Json("use1"),Json("usw1"),Json("SAM"),Json(""),Json(5),Json(nullptr),Json::array({"sam"})})
+        CHECK(netplay::ReadAreaPreference({{"area",bad}})==AreaPreference::Automatic());
+    netplay::PlayerPreferences invalid; invalid.area.kind=AreaPreference::Kind::Chosen; CHECK(!invalid.Valid());
+}
+
 // Speech is one object in the netplay section; an older profile has none, and
 // a field out of range or of another type loads as its default alone.
 static void SpeechRoundTrips(const Path& root) {
@@ -906,6 +930,7 @@ int main() {
     BoolPreferenceRoundTrips(root);
     ButtonPromptRoundTrips(root);
     CountryRoundTrips(root);
+    AreaRoundTrips(root);
     SpeechRoundTrips(root);
     CardPreferencesRoundTrip(root);
     RoomFilterRoundTrips(root);

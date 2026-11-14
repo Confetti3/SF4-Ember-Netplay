@@ -362,6 +362,7 @@ namespace OverlayPrefs {
         netplay::WriteBoolPreferences(preferences, values);
         netplay::WriteButtonPrompts(preferences, values);
         netplay::WriteCountryPreference(preferences, values);
+        netplay::WriteAreaPreference(preferences, values);
         netplay::WriteSpeechPreferences(preferences, values);
         netplay::WriteCardPreferences(preferences, values);
         netplay::WriteRoomFilter(preferences, values);

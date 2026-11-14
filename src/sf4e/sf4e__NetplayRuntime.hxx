@@ -430,6 +430,8 @@ struct Runtime {
 	bool checkUpdatesAtLaunch = true;
 	// Windows' region, read once at start: what Automatic shows.
 	CountryCode automaticCountry;
+	// The area Windows' time zone and region give, read once at start: what the area's Automatic shows.
+	Area automaticArea = Area::None;
 	std::string error;
 	bool ready = false;
 	bool eventSystemReady = false;

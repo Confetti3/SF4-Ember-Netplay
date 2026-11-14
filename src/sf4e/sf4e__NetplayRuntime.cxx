@@ -1,5 +1,6 @@
 #include <atomic>
 #include "sf4e__NetplayRuntime.hxx"
+#include "../common/AreaZones.hxx"
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/ControllerMappings.hxx"
 #include "sf4e__GameEvents.hxx"
@@ -249,6 +250,10 @@ void StartHelper() {
     internal::LoadRecentOpponents();
     runtime->automaticCountry = platform::WindowsCountry();
     spdlog::info("Windows region country {}", runtime->automaticCountry.Present() ? runtime->automaticCountry.ToString() : std::string("none"));
+    const auto timeZone = platform::WindowsTimeZone();
+    runtime->automaticArea = AreaFromWindows(timeZone, runtime->automaticCountry);
+    spdlog::info("Windows time zone {}: area {}", timeZone.empty() ? std::string("none") : timeZone,
+        runtime->automaticArea == Area::None ? std::string("none") : AreaCode(runtime->automaticArea));
     wchar_t gamePath[MAX_PATH] = {};
     if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) {
         const std::filesystem::path gameDirectory = std::filesystem::path(gamePath).parent_path();
@@ -297,6 +302,7 @@ void StartHelper() {
             preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
             preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
             preferences.country = netplay::ReadCountryPreference(saved);
+            preferences.area = netplay::ReadAreaPreference(saved);
             const auto since = saved.find("shareReplaysSince");
             preferences.shareReplaysSince = since != saved.end() && since->is_number_unsigned() ? since->get<std::uint64_t>() : 0;
             preferences.speech = netplay::ReadSpeechPreferences(saved);

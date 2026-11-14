@@ -346,6 +346,24 @@ msgstr "Hidden"
 msgid "settings.country.current"
 msgstr "Current"
 
+msgid "settings.place"
+msgstr "Country and area"
+
+msgid "settings.area"
+msgstr "Area"
+
+msgid "settings.area_detail"
+msgstr "Where you play from. Your player card and the public rooms you create show it, and the public rooms list marks the rooms near it. Automatic follows the time zone set in Windows. Left and Right change it."
+
+msgid "settings.area.automatic_value"
+msgstr "Automatic ({0}, from Windows)"
+
+msgid "settings.area.automatic_none"
+msgstr "Automatic (not set)"
+
+msgid "settings.area.hidden"
+msgstr "Hidden"
+
 msgid "country.search"
 msgstr "Search"
 

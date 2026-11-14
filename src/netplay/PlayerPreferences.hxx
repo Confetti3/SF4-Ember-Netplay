@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include "../common/ButtonPrompts.hxx"
+#include "../common/Area.hxx"
 #include "../common/ButtonLayoutTypes.hxx"
 #include "../common/Country.hxx"
 #include "../common/FighterCatalog.hxx"
@@ -254,6 +255,10 @@ struct PlayerPreferences {
     // Windows' region (Automatic), a country they picked, or Hidden. Sent when
     // they join a room; nothing is sent while it is Hidden or Windows names none.
     CountryPreference country;
+    // Where this player plays from, beside the flag: Windows' time zone (Automatic),
+    // an area they picked, or Hidden. Their card's Region chip and the public rooms
+    // they create show it, and the rooms list calls the rooms in and next to it near.
+    AreaPreference area;
     bool discordPresence = true, discordInvites = true;
     // The launcher sends a crash's report without asking, with the small dump
     // and at most three a day (platform/ReportWorkflow.hxx). Off until the
@@ -318,7 +323,7 @@ struct PlayerPreferences {
             cardPins.size() > profiles::MaxPins) return false;
         for (std::size_t i = 0; i < cardPins.size(); ++i)
             if (!profiles::FamilyIdShaped(cardPins[i]) || std::find(cardPins.begin(), cardPins.begin() + i, cardPins[i]) != cardPins.begin() + i) return false;
-        return country.Valid() && speech.Valid() && roomFilter.Valid() && tableRules.Valid() && publicTableRules.Valid();
+        return country.Valid() && area.Valid() && speech.Valid() && roomFilter.Valid() && tableRules.Valid() && publicTableRules.Valid();
     }
 };
 
