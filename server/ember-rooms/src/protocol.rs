@@ -86,8 +86,9 @@ pub const MAX_DETAILS_DEPTH: usize = 8;
 /// most 1000) and two fighters in at most 213 bytes, 6 849 in all. The bridge
 /// reads up to `MAX_GAMES_BYTES` of games per room; keep them equal. It was
 /// 6144 before 1.6.0 room hosts added `game` and `fighters`; a supervisor
-/// with that limit drops a larger array whole, so supervisors and the bridge
-/// are upgraded before the room host.
+/// with that limit drops a larger array whole, so a room host keeps its report
+/// within 6144 by dropping its oldest games (`MaximumWonGamesBytes`), and the
+/// order of the supervisor upgrade does not matter.
 pub const MAX_GAMES_BYTES: usize = 8192;
 
 /// The longest status line, not counting the newline. The worst case a valid

@@ -24,12 +24,14 @@ Read this through before starting; do the steps in order.
   upsert says `ON CONFLICT (discord_user_id)`, which no longer matches 058's
   key `(game, discord_user_id)`: every rated game fails, and it fails inside
   the one transaction that polls every room, so the room list freezes.
-- **Both room supervisors first.** A supervisor before this range drops a
-  room's whole games array over 6,144 bytes; a busy 1.6.0 room can report up
-  to 8,192 (32 games with fighters). Its games would then be neither rated nor
-  counted, and nothing logs it. The VPS supervisor and server1's must both run
-  this range's `ember-rooms` before any 1.6.0 room host build is installed on
-  either. Keep the VPS supervisor's SFV hosting working while you do, or move
+- **Room supervisors: recommended, in any order.** A supervisor before this
+  range drops a room's whole games array over 6,144 bytes. A 1.6.0 room host
+  keeps its report within that by dropping its oldest games (at worst the 28
+  newest of the longest games are kept, otherwise up to 32), and the bridge
+  counts a game the first time a report carries it, so no game is lost either
+  way. This range's `ember-rooms` raises the limit to 8,192 and so gives
+  headroom, but it is not a precondition for installing a 1.6.0 room host.
+  Keep the VPS supervisor's SFV hosting working while you upgrade it, or move
   SFV off it first.
 - **Other games' rows are cleared with the bridge stopped.** This bridge is
   USF4's alone and refuses a database holding rows of another game in
@@ -51,15 +53,16 @@ Read this through before starting; do the steps in order.
    check it starts and answers. `clear-sfv-rows.py` commits only when a whole
    database `PRAGMA foreign_key_check` is clean, and orphan `rated_games` rows
    from deletions made with keys off (sqlite3 work such as the stuck-match kill
-   script) make it roll back: find and remove those on the copy first, and
-   write down what you removed to do the same on production.
+   script) make it roll back: find and remove those on the copy first (the
+   query is under step 7), and write down what you removed to do the same on
+   production.
 2. **Build** the 1.6.0 bridge binary on the runner (`cargo build --release
    --locked -p ember-bridge`) and copy it to `~/ember-bridge/bin/` on the VPS.
    Keep a copy of the binary production runs today:
    `cp /usr/local/lib/ember-bridge/ember-bridge ~/ember-bridge-rollback/`.
 3. **Upgrade both room supervisors** (VPS and server1) to this range's
-   `ember-rooms` with `sudo bash ~/ember-rooms/setup.sh`, staging no 1.6.0
-   room host build yet. Check each answers `GET /limits`.
+   `ember-rooms` with `sudo bash ~/ember-rooms/setup.sh`. Recommended, and it
+   may also be done after step 10. Check each answers `GET /limits`.
 4. **Move SFV's rows** to the SFV bridge if they are not there yet (the
    library's `docs/design/SFV_BRIDGE.md`): its import reads them from this
    database, so it comes before the clean-up.
@@ -69,7 +72,19 @@ Read this through before starting; do the steps in order.
    the stamp of the newest `bridge-*.sqlite3` in `/var/backups/ember-bridge/`.
 7. **Clear other games' rows**, the bridge still stopped: run
    `clear-sfv-rows.py` on `/var/lib/ember-bridge/bridge.sqlite3` as the bridge's
-   account. If it rolls back, start the old bridge again
+   account. First remove on production the same orphan rows you removed and
+   wrote down on the copy in step 1: `rated_games` rows whose room is gone
+   (left by deletions made with foreign keys off). With the bridge still
+   stopped, list them with
+
+   ```sql
+   SELECT room_id, table_id, generation FROM rated_games
+   WHERE room_id NOT IN (SELECT room_id FROM rooms);
+   ```
+
+   (`sqlite3 /var/lib/ember-bridge/bridge.sqlite3` as the bridge's account)
+   and delete exactly those rows with the same `WHERE`. If the
+   script still rolls back, start the old bridge again
    (`sudo systemctl start ember-bridge`) and stop here: nothing changed.
 8. **Install the 1.6.0 bridge**: `sudo bash ~/ember-bridge/setup.sh`. It starts
    the bridge, which runs 060 to 066. If it refuses to start, read the message
@@ -78,7 +93,7 @@ Read this through before starting; do the steps in order.
 9. **Check** `GET /v1/capabilities` lists `points`, `points_class_bonus`,
    `friends`, `profiles` and `room_area` where the configuration turns them on, the room
    list moves, and `journalctl -u ember-bridge` shows no `database error`.
-10. **Only now** install the 1.6.0 room host builds on the supervisors
+10. **Now** install the 1.6.0 room host builds on the supervisors
     (`builds/<build_id>/` staged, `setup.sh` again) and publish the game.
 
 ## Areas (migration 066)
@@ -96,6 +111,11 @@ that lists `room_area` (`ember_protocol::rooms::AREA_FEATURE`), so against
 today's bridge it creates rooms exactly as before. The relay code keeps going
 in `region`, which Stable 1.5.7 builds send and read unchanged. Nothing to do
 beyond the order above.
+
+A card save is not gated the same way: a 1.6.0 client that saves an area code
+in its player card to a bridge older than this build gets a 400 (`region`).
+Only staging is affected until it is upgraded, because production gains the
+`profiles` routes with this bridge.
 
 ## Stepping back
 

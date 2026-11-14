@@ -73,7 +73,7 @@ pub fn refuse(reason: FriendRefusal) -> ApiFailure {
 }
 
 /// Two accounts in a pair's stored order: `first` sorts before `second`.
-fn ordered<'a>(one: &'a str, other: &'a str) -> (&'a str, &'a str) {
+pub(crate) fn ordered<'a>(one: &'a str, other: &'a str) -> (&'a str, &'a str) {
     if one < other {
         (one, other)
     } else {
@@ -284,40 +284,6 @@ pub fn relations(tx: &Transaction<'_>, caller: &str, targets: &[&str]) -> Result
     Ok(relations)
 }
 
-/// `relation` one account at a time, as it was read before `relations`: the
-/// test oracle the set read is checked against.
-#[cfg(test)]
-pub fn relation_one(tx: &Transaction<'_>, caller: &str, target: &str) -> Result<Option<Relation>> {
-    let (first, second) = ordered(caller, target);
-    let flags: [bool; 5] = tx.query_row(
-        "SELECT EXISTS (SELECT 1 FROM friend_blocks WHERE blocker = ?2 AND blocked = ?1),
-                EXISTS (SELECT 1 FROM friend_blocks WHERE blocker = ?1 AND blocked = ?2),
-                EXISTS (SELECT 1 FROM friendships WHERE first = ?3 AND second = ?4),
-                EXISTS (SELECT 1 FROM friend_requests
-                        WHERE sender = ?1 AND receiver = ?2 AND withdrawn_at IS NULL),
-                EXISTS (SELECT 1 FROM friend_requests
-                        WHERE sender = ?2 AND receiver = ?1 AND hidden_at IS NULL)",
-        params![caller, target, first, second],
-        |row| {
-            Ok([
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-            ])
-        },
-    )?;
-    Ok(match flags {
-        [true, ..] => None,
-        [_, true, ..] => Some(Relation::Blocked),
-        [_, _, true, ..] => Some(Relation::Friend),
-        [_, _, _, true, _] => Some(Relation::Sent),
-        [_, _, _, _, true] => Some(Relation::Received),
-        _ => Some(Relation::None),
-    })
-}
-
 fn count(tx: &Transaction<'_>, sql: &str, params: impl rusqlite::Params) -> Result<u32> {
     Ok(tx.query_row(sql, params, |row| row.get(0))?)
 }
@@ -467,20 +433,6 @@ pub fn accounts_of_codes(tx: &Transaction<'_>, codes: &[&str]) -> Result<HashMap
     )?
     .into_iter()
     .collect())
-}
-
-/// The id both friends call their friendship by, when `one` and `other` are
-/// friends, one pair at a time: the test oracle of `Relations::friendship`.
-#[cfg(test)]
-pub fn friendship_id(tx: &Transaction<'_>, one: &str, other: &str) -> Result<Option<String>> {
-    let (first, second) = ordered(one, other);
-    Ok(tx
-        .query_row(
-            "SELECT id FROM friendships WHERE first = ?1 AND second = ?2",
-            params![first, second],
-            |row| row.get(0),
-        )
-        .optional()?)
 }
 
 /// The sender of request `id`, which `receiver` received; `visible` alone

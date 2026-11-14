@@ -106,19 +106,6 @@ fn stored_in(row: &Row<'_>, at: usize) -> rusqlite::Result<Stored> {
     })
 }
 
-/// `account`'s row, once it has one, one account at a time: the test oracle
-/// of `Reader`'s listings.
-#[cfg(test)]
-pub fn stored(tx: &Transaction<'_>, account: &str) -> Result<Option<Stored>> {
-    Ok(tx
-        .query_row(
-            &format!("SELECT {STORED} FROM player_cards WHERE discord_user_id = ?1"),
-            [account],
-            |row| stored_in(row, 0),
-        )
-        .optional()?)
-}
-
 /// The rows of those of `accounts` that have one and a Discord account
 /// connected, in one read.
 fn listings(tx: &Transaction<'_>, accounts: &[&str]) -> Result<HashMap<String, Stored>> {
@@ -242,7 +229,8 @@ impl Purpose {
         matches!(self, Self::Card | Self::Friends)
     }
 
-    /// With the points, the award counters a card shows.
+    /// The award counters a card shows, read with the points (so only a
+    /// purpose that reads the points may answer true).
     fn awards(self) -> bool {
         self == Self::Card
     }
@@ -262,7 +250,9 @@ impl Purpose {
 /// the one place a card is assembled, and what a search hit, the most played
 /// opponent and a friends state show of other players. It costs the same few
 /// reads (`Purpose`) whatever the number of accounts, all in the one
-/// transaction it is read in. What a purpose does not read reads as none.
+/// transaction it is read in. What a purpose does not read reads as none, so
+/// each caller asks only for what its purpose reads (`reader_tests` holds,
+/// per purpose, the accessors that answer).
 pub struct Reader {
     caller: String,
     friends_offered: bool,
@@ -286,7 +276,7 @@ impl Reader {
         accounts.sort_unstable();
         accounts.dedup();
         let classes = viewer.classes;
-        let awards = purpose.points() && purpose.awards();
+        let awards = purpose.awards();
         let standings = if classes.shown || awards {
             Some(skill::Standings::read(tx, &accounts, viewer.now)?)
         } else {
