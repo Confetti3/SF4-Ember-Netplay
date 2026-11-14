@@ -129,4 +129,12 @@ struct Card {
 // Cards by card token, for the tokens the bridge has a card for.
 using CardMap = std::map<std::string, Card>;
 
+// A public room table's last set as the room shows it: its generation (0
+// before any) and the card tokens of its two fighters, each empty when that
+// fighter carries none or has left. Only these two cards change when it ends.
+struct LastSet {
+	std::uint64_t generation = 0;
+	std::string p1, p2;
+};
+
 } } }

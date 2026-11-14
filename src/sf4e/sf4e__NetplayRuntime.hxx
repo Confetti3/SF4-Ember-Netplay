@@ -282,9 +282,10 @@ struct Runtime {
     struct SetNotice { std::string text; bool error = false; std::uint64_t count = 0; } setNotice;
     // What the last batch of imported replay files came to (the batch count itself is the queue's).
     struct ImportNotice { std::string text; bool error = false; } importNotice;
-    // The bridge requests awaiting an answer, with what each does with it:
-    // the public rooms' and friends' (the other requests above and below keep
-    // their own bookkeeping).
+    // The bridge requests awaiting an answer, with what each does with it: the
+    // public rooms', friends', profiles', rankings', levels', cards' and the
+    // archive's (the tournament, watch and replay requests above keep their own
+    // bookkeeping).
     netplay::BridgeFlights flights;
     // The public room list and the last create or ticket request: the flight
     // of the create or ticket (0 when none), which a new one supersedes, and
@@ -300,16 +301,23 @@ struct Runtime {
     // The download of a game to watch: one at a time, whichever of the two browsers listed it.
     netplay::archive::Fetching archiveFetch;
     // Other players' profiles: the one open and the Find a player search, with their requests in flight
-    // (sf4e__NetplayRuntime__Levels.cxx).
+    // (sf4e__NetplayRuntime__Profiles.cxx).
     netplay::profiles::Requests profiles;
     // The player's own card as the bridge keeps it, and what the save measures: the connection (read at most once
-    // a minute) and the relay region last known (sf4e__NetplayRuntime__Levels.cxx).
+    // a minute and when a room is joined, never during a match; linkEpoch is the room it was read in, 0 for none)
+    // and the relay region last known; and the bundle as last built, with the preferences' revision, the country
+    // and the style it was built from (sf4e__NetplayRuntime__Profiles.cxx).
     netplay::profiles::Saver cardSaver;
     struct CardSignals {
         NetworkLink link = NetworkLink::Unknown;
         bool linkRead = false;
-        std::uint64_t linkMs = 0;
+        std::uint64_t linkMs = 0, linkEpoch = 0;
         std::string region;
+        bool built = false;
+        std::uint64_t builtRevision = 0;
+        CountryCode builtCountry;
+        netplay::profiles::Style builtStyle;
+        netplay::profiles::Bundle bundle;
     } cardSignals;
     // The players this PC fought in public rooms lately, kept beside the preferences and never sent
     // (sf4e__NetplayRuntime__Social.cxx).
@@ -614,10 +622,10 @@ void DispatchPublicRooms(const netplay::tournament::Command& command, bool helpe
 using AdmissionDone = std::function<void(const std::string& failure, std::optional<netplay::publicrooms::Admission> admission)>;
 void RequestTicket(const std::string& bridgeId, const std::string& roomId, bool helperReady, AdmissionDone done);
 
-// Rankings (sf4e__NetplayRuntime__Rankings.cxx), the same way.
+// Rankings (sf4e__NetplayRuntime__Rankings.cxx), the same way: answers come back through flights.
 void DispatchRankings(const netplay::tournament::Command& command, bool helperReady);
-bool TakeRankingsAnswer(const session::TournamentAnswer& answer);
-void ExpireRankings(std::uint64_t nowMs);
+// Forgets another Ember ID's standing and board.
+void TickRankings();
 
 // The public replay archive (sf4e__NetplayRuntime__Archive.cxx): a page of its
 // listing, and a listed game downloaded and then watched.
@@ -625,18 +633,16 @@ void DispatchArchive(const commands::ArchiveList& command, bool helperReady);
 void DispatchArchive(const commands::ArchiveWatch& command, bool helperReady);
 
 // Fighter levels (sf4e__NetplayRuntime__Levels.cxx): the player's own, read on
-// the menu's ask, once at start and after a set this PC fought.
+// the menu's ask, once at start and after a set this PC fought. Answers come back through flights.
 void DispatchLevels(const netplay::tournament::Command& command, bool helperReady);
-bool TakeLevelsAnswer(const session::TournamentAnswer& answer);
-// Expires lost reads, notes sets that ended, and starts the reads that are due.
+// Notes sets that ended, and starts the reads that are due.
 void TickLevels(bool helperReady, std::uint64_t nowMs);
 // Other players' cards (same file): the public room's members' tokens are
-// looked up when one joins and 8 s after a set in the room ends.
-bool TakeCardsAnswer(const session::TournamentAnswer& answer);
+// looked up when one joins, and a set's two fighters' 8 s after it ends.
 void TickCards(bool helperReady, std::uint64_t nowMs);
 // The friend the Friends tab has focused: their card is looked up with the members' (Cards::WantFriend).
 void DispatchCards(const commands::FriendCardWanted& command);
-// Other players' profiles and the player's own card (same file). The interface's commands; the profile and
+// Other players' profiles and the player's own card (sf4e__NetplayRuntime__Profiles.cxx). The interface's commands; the profile and
 // search the helper answers through flights; and the tick that sends what is due: the look-ups of the profile
 // open, the search, and the player's card when it changed (netplay/ProfileRequests.hxx, netplay/CardBundle.hxx).
 void DispatchProfile(const commands::ProfileOpen& command);

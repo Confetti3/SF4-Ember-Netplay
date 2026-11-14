@@ -5,6 +5,7 @@
 #include "SkillBadge.hxx"
 #include "FighterCatalog.hxx"
 #include <nlohmann/json.hpp>
+#include <deque>
 #include <stdexcept>
 
 namespace sf4e {
@@ -80,6 +81,14 @@ inline void from_json(const nlohmann::json& json, WonGame& game) {
 	game.game = place == json.end() ? 0 : static_cast<std::uint32_t>(place->get<std::uint64_t>());
 	if (fighters == json.end()) game.fighters[0] = game.fighters[1] = WonGame::NoFighter;
 	else { game.fighters[0] = fighter((*fighters)[0]); game.fighters[1] = fighter((*fighters)[1]); }
+}
+
+// Drops the oldest of `games` (oldest first) until the array, written as the
+// room host's status line writes it, fits MaximumWonGamesBytes. One game is
+// far under the limit (two accounts of at most 64 bytes), so the newest
+// always stays.
+inline void TrimWonGames(std::deque<WonGame>& games) {
+	while (games.size() > 1 && nlohmann::json(games).dump().size() > MaximumWonGamesBytes) games.pop_front();
 }
 
 }

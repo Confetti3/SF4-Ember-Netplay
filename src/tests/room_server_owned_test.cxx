@@ -449,6 +449,68 @@ static void TestWonGamesNameTheirFightersAndPlace() {
 	EXPECT(!RoomAuthority("Other").RestoreCheckpoint(far));
 }
 
+// An account as long as a real Ember ID: "emb1_" and 52 symbols, 57 bytes.
+static std::string LongAccount(char last) {
+	return "emb1_" + std::string(51, 'q') + last;
+}
+
+// A supervisor from before 1.6.0 drops a games array over 6144 bytes whole, so
+// the room keeps only the newest games that fit. The longest list a room could
+// hold, 32 games of 213 bytes, is 6849 bytes: the oldest go, and the newest
+// stay in their order.
+static void TestWonGamesFitEverySupervisor() {
+	std::deque<sf4e::WonGame> longest;
+	for (std::size_t i = 0; i < sf4e::MaximumWonGames; ++i)
+		longest.push_back({static_cast<std::uint8_t>(TableCount - 1), UINT64_MAX - i, LongAccount('a'), LongAccount('q'),
+			sf4e::MaximumGameInBattle, {sf4e::selection::FighterCount - 1, sf4e::selection::FighterCount - 1}});
+	EXPECT(nlohmann::json(longest).dump().size() == 32 * 213 + 33);
+	auto trimmed = longest;
+	sf4e::TrimWonGames(trimmed);
+	EXPECT(nlohmann::json(trimmed).dump().size() <= sf4e::MaximumWonGamesBytes);
+	// 28 games of 213 bytes and their commas and brackets are 5993 bytes; 29 are 6207.
+	EXPECT(trimmed.size() == 28);
+	EXPECT(std::equal(trimmed.begin(), trimmed.end(), longest.end() - 28));
+	// A list that fits is left alone.
+	std::deque<sf4e::WonGame> short_;
+	for (std::uint64_t i = 1; i <= sf4e::MaximumWonGames; ++i) short_.push_back({0, i, "ember-p1", "ember-p2", 0, {3, 12}});
+	auto kept = short_;
+	sf4e::TrimWonGames(kept);
+	EXPECT(kept == short_);
+
+	// A room whose fighters play on in place with real-length accounts keeps
+	// only what fits, newest last, and restores the same.
+	auto authority = NewRoom();
+	EXPECT(JoinAs(authority, 1, "ember-host").accepted);
+	const auto p1 = MemberOf(JoinAs(authority, 2, LongAccount('a')));
+	const auto p2 = MemberOf(JoinAs(authority, 3, LongAccount('q')));
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	EXPECT(authority.SetMemberChara(p1, Chara{43}) && authority.SetMemberChara(p2, Chara{42}));
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
+	const std::uint32_t games = 40;
+	for (std::uint32_t game = 0; game < games; ++game) {
+		for (const auto member : {p1, p2}) {
+			Action action = TableAction(authority, member, 0, ActionKind::RecordResult);
+			action.matchGeneration = generation; action.game = game; action.continued = game + 1 < games;
+			action.result = game % 2 ? MatchResult::P2Win : MatchResult::P1Win;
+			EXPECT(authority.Apply(member, action).accepted);
+		}
+	}
+	const auto won = authority.WonGames();
+	EXPECT(!won.empty() && won.size() < sf4e::MaximumWonGames);
+	EXPECT(nlohmann::json(won).dump().size() <= sf4e::MaximumWonGamesBytes);
+	for (std::size_t i = 0; i < won.size(); ++i)
+		EXPECT(won[i].game == games - won.size() + i && won[i].generation == generation && won[i].HasFighters());
+	RoomAuthority restored("Other");
+	EXPECT(restored.RestoreCheckpoint(authority.Checkpoint()) && restored.WonGames() == won);
+	// A checkpoint that holds more than fits restores its newest.
+	auto checkpoint = authority.Checkpoint();
+	checkpoint["won_games"] = longest;
+	RoomAuthority over("Other");
+	EXPECT(over.RestoreCheckpoint(checkpoint) && over.WonGames() == std::vector<sf4e::WonGame>(trimmed.begin(), trimmed.end()));
+}
+
 static bool Mentions(const nlohmann::json& value, const char* text) {
 	return value.dump().find(text) != std::string::npos;
 }
@@ -559,6 +621,7 @@ int main() {
 	TestCheckpointRoundTrip();
 	TestWonGamesAreKeptByAccount();
 	TestWonGamesNameTheirFightersAndPlace();
+	TestWonGamesFitEverySupervisor();
 	TestCardTokensComeFromPublicTickets();
 	TestAccountsStayOutOfSnapshots();
 	TestPrivateRoomsAreUnchanged();

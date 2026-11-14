@@ -883,9 +883,9 @@ list.
 | `netplay::profiles::Key` | `src/netplay/Profiles.hxx` (new) | how a profile was opened: card token, friend id, request id, code, or a name (with a country to choose by); and what the opener knew (name, country, badge, fighter, Steam ID) |
 | `netplay::profiles::Style`, `Worn`, `Versus`, `Hit`, `Recent` | the same | the wire's shapes; `Device`, `Link`, `Looking` as enums over the wire's numbers, unknown read as none |
 | `levels::Card` | `src/netplay/Levels.hxx` | gains `name`, `country`, `main`, `badge`, `since`, `worn`, `pins`, `style`, `versus`, `friend` (`has*` flags, as `friends::Friend` does) |
-| `commands::ProfileOpen{key}`, `ProfileClose{}` | `src/netplay/RuntimeCommands.hxx` | look up one card (a name: search, then look-up of the one hit); keep it fresh 8 s after a set in a room as member cards are |
+| `commands::ProfileOpen{key}`, `ProfileClose{}` | `src/netplay/RuntimeCommands.hxx` | look up one card (a name: search, then look-up of the one hit); keep it fresh 8 s after a set its player fought in a room, as member cards are |
 | `commands::PlayerSearch{text}` | the same | one search in flight; a newer text drops the older answer |
-| card save | `src/sf4e/sf4e__NetplayRuntime__Levels.cxx` | the runtime sends `card_save` when the bundle (listing, main, worn, pins, style with the measured link and region) differs from the last one saved for this bridge and Ember ID, at most once a minute, at start and after Edit card saves |
+| card save | `src/sf4e/sf4e__NetplayRuntime__Profiles.cxx` | the runtime sends `card_save` when the bundle (listing, main, worn, pins, style with the measured link and region) differs from the last one saved for this bridge and Ember ID, at most once a minute, at start and after Edit card saves |
 | recent opponents | `src/sf4e/sf4e__NetplayRuntime__Social.cxx` | at each fought public game's end: the opponent's card token, name, country, fighter, room name and time; 20 newest, 7 days; saved beside the preferences, never sent |
 | `ShellView::profile` | `src/ui/ShellView.hxx` | the open profile: key, `Answered<levels::Card>`, the name's hits |
 | `ShellView::playerSearch` | the same | `Answered<SearchAnswer>` and the text it answers |

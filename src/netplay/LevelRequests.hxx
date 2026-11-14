@@ -7,9 +7,13 @@
 //
 // - One read is in flight at a time. A read comes when the menu asks, once at
 //   start, and twice after a set this PC fought ended (the server counts a
-//   set's games a little after it): FirstReadMs and SecondReadMs later.
+//   set's games a little after it): FirstReadMs and SecondReadMs later. The
+//   runtime sends it through BridgeFlights, which routes the answer, gives up
+//   on a lost one and ends one the helper could not take; the answer comes
+//   here under the flight it began with.
 // - Answers belong to one service and one Ember ID. A change of either forgets
-//   the value and retires the read; the counts carry on.
+//   the value and retires the read (its answer is then nobody's); the counts
+//   carry on.
 // - A failed read keeps the value it had.
 #include "Answered.hxx"
 #include "Levels.hxx"
@@ -24,8 +28,6 @@ namespace sf4e { namespace netplay { namespace levels {
 
 class Requests {
 public:
-	// The helper bounds its own bridge requests; this only ends a wait for one it lost.
-	static constexpr std::uint64_t GiveUpMs = 60000;
 	// Reads after a set this PC fought ended, counted from when it did.
 	static constexpr std::uint64_t FirstReadMs = 8000, SecondReadMs = 20000;
 	// The helper's code for a bridge that has no levels.
@@ -47,40 +49,37 @@ public:
 		fresh.finished = answered_.finished;
 		fresh.revision = answered_.revision;
 		answered_ = std::move(fresh);
-		flight_ = {};
+		flight_ = 0;
 	}
 
-	bool MayRead() const { return !flight_.id; }
+	bool MayRead() const { return !flight_; }
 
-	// A request handed to the helper as `id`; 0 when it could not be, which ends it now.
-	void Sent(std::uint64_t id, std::uint64_t nowMs) {
-		if (!id) { Finish("helper_unavailable", std::nullopt, nowMs); return; }
-		flight_ = {id, nowMs};
+	// A read is going to the helper: returns the flight its answer comes back under (Finish).
+	std::uint64_t Begin() {
+		flight_ = ++flights_;
 		answered_.loading = true;
 		answered_.error.clear();
+		return flight_;
 	}
 
-	bool Awaiting(std::uint64_t id) const { return id && id == flight_.id; }
+	bool Awaiting(std::uint64_t flight) const { return flight && flight == flight_; }
 
-	// The answer: the value, or why there is none (the helper's code, or
-	// "bridge_invalid_response"). A bridge without levels answers with an
-	// Own of kind Unavailable and `Unavailable` as the code.
-	void Finish(const std::string& failure, std::optional<Own> own, std::uint64_t nowMs) {
+	// The answer to `flight`: the value, or why there is none (the helper's
+	// code, or "bridge_invalid_response"). A bridge without levels answers
+	// with an Own of kind Unavailable and `Unavailable` as the code. The
+	// answer to a retired flight changes nothing.
+	void Finish(std::uint64_t flight, const std::string& failure, std::optional<Own> own, std::uint64_t nowMs) {
+		if (!Awaiting(flight)) return;
 		if (own) {
 			answered_.value = std::move(*own);
 			answered_.loaded = true;
 			answered_.installedMs = nowMs;
 			++answered_.revision;
 		}
-		flight_ = {};
+		flight_ = 0;
 		answered_.loading = false;
 		answered_.error = failure;
 		++answered_.finished;
-	}
-
-	// Ends the read the helper never answered.
-	void Expire(std::uint64_t nowMs) {
-		if (flight_.id && nowMs - flight_.sentMs >= GiveUpMs) Finish("unavailable", std::nullopt, nowMs);
 	}
 
 	// A set this PC fought ended at `nowMs`: two reads are due after it.
@@ -101,7 +100,7 @@ public:
 
 	// Whether a read is due at `nowMs` and none is in flight; the due ones are then spent.
 	bool TakeDue(std::uint64_t nowMs) {
-		if (flight_.id) return false;
+		if (flight_) return false;
 		const auto spent = std::remove_if(due_.begin(), due_.end(), [&](std::uint64_t at) { return at <= nowMs; });
 		const bool any = spent != due_.end();
 		due_.erase(spent, due_.end());
@@ -109,10 +108,10 @@ public:
 	}
 
 private:
-	struct InFlight { std::uint64_t id = 0, sentMs = 0; };
 	std::string bridge_, emberId_;
 	Answered<Own> answered_;
-	InFlight flight_;
+	// The read on its way (0: none), and how many have begun.
+	std::uint64_t flight_ = 0, flights_ = 0;
 	std::vector<std::uint64_t> due_;
 	std::uint64_t epoch_ = 0;
 	std::vector<std::uint64_t> seen_;

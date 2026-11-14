@@ -299,6 +299,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayRuntime__PublicRooms.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Rankings.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Levels.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Profiles.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Archive.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Social.cxx"
     "src/sf4e/sf4e__NetplayRuntime__RandomFighter.cxx"
@@ -349,6 +350,10 @@ add_library(Session STATIC
     "src/session/IrohMatchSession.cxx"
     "src/session/IrohRoom.hxx"
     "src/session/SessionTransport.hxx"
+    # The game's own answer decoders beside TournamentAnswers.cxx (in sf4e_iroh_room): the room host reads none of these.
+    "src/session/AnswerReading.hxx"
+    "src/session/LevelsAnswers.cxx"
+    "src/session/ArchiveAnswers.cxx"
 )
 target_compile_features(Session PUBLIC cxx_std_17)
 target_link_libraries(

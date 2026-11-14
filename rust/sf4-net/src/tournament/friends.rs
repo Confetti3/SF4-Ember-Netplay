@@ -23,19 +23,6 @@ const REFUSALS: Refusals<'static> = Refusals {
     missing: Some(Code::FriendsUnavailable),
 };
 
-/// The bridge's capabilities list `friends`, or this is
-/// `friends_unavailable` and nothing is asked of it. One that lacks the
-/// feature is read again on the next request, so a bridge upgraded meanwhile
-/// is heard.
-async fn offered(shared: &Arc<Shared>, bridge_id: &str) -> Result<(), Failure> {
-    let bridge = client::approved(shared, bridge_id)?;
-    if play::features(shared, &bridge, Need::Friends).await?.friends {
-        Ok(())
-    } else {
-        Err(Failure::new(Code::FriendsUnavailable))
-    }
-}
-
 /// Sends the player's presence and answers the state it gets back.
 pub async fn sync(shared: &Arc<Shared>, bridge_id: &str, sync: FriendsSync) -> Outcome {
     sync.check()
@@ -54,8 +41,10 @@ pub async fn act(shared: &Arc<Shared>, bridge_id: &str, action: FriendAction) ->
 }
 
 /// Both routes answer the whole state, which is checked before it is passed on.
+/// A bridge whose capabilities do not list `friends` is `friends_unavailable`
+/// and is not asked.
 async fn exchange(shared: &Arc<Shared>, bridge_id: &str, path: &str, body: &[u8]) -> Outcome {
-    offered(shared, bridge_id).await?;
+    play::require(shared, bridge_id, Need::Friends).await?;
     let call = BridgeCall::new(Verb::Post, path, &[200])
         .body(Body::Json(body))
         .refusals(REFUSALS);

@@ -79,7 +79,8 @@ void RoomAuthority::ForgetAccount(MemberId member) {
 // (Action::game), so each game of a rematch played in place has a key of its
 // own at the bridge. Its fighters are the ones both members last shared
 // (SetMemberChara), when both did. The room host reports the newest on every
-// status and the bridge counts each once, so older ones can go.
+// status and the bridge counts each once, so older ones can go: at most
+// MaximumWonGames, and only as many as every supervisor passes on.
 void RoomAuthority::RecordWonGame(std::uint8_t tableId, const Table& table, MatchResult result, std::uint32_t game) {
 	if (!snapshot_.serverOwned || (result != MatchResult::P1Win && result != MatchResult::P2Win)) return;
 	const auto p1 = memberAccounts_.find(table.p1), p2 = memberAccounts_.find(table.p2);
@@ -92,6 +93,7 @@ void RoomAuthority::RecordWonGame(std::uint8_t tableId, const Table& table, Matc
 	if (shared(winner) && shared(loser)) { won.fighters[0] = winner->fighter; won.fighters[1] = loser->fighter; }
 	wonGames_.push_back(std::move(won));
 	if (wonGames_.size() > MaximumWonGames) wonGames_.pop_front();
+	TrimWonGames(wonGames_);
 }
 
 // The last member left. A public room waits for its next joiner, who becomes
@@ -146,6 +148,8 @@ bool RoomAuthority::LoadServerOwned(const nlohmann::json& state) {
 			game.winner == game.loser) return false;
 		wonGames_.push_back(std::move(game));
 	}
+	// A checkpoint from a host that kept more than fits keeps its newest.
+	TrimWonGames(wonGames_);
 	// With nobody inside there is no moderator; with anybody inside there is one.
 	return (snapshot_.host == 0) == snapshot_.members.empty();
 }

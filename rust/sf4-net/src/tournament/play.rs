@@ -126,6 +126,17 @@ impl Need {
             Self::Profiles => offered.profiles,
         }
     }
+
+    /// What a request that needs it is refused as by a bridge without it.
+    fn refusal(self) -> Code {
+        match self {
+            Self::Nothing | Self::Ready => Code::Unsupported,
+            Self::Watch => Code::WatchUnsupported,
+            Self::Levels => Code::LevelsUnavailable,
+            Self::Friends => Code::FriendsUnavailable,
+            Self::Profiles => Code::ProfilesUnavailable,
+        }
+    }
 }
 
 /// What the bridge offers, from the one capabilities read this run keeps for
@@ -149,6 +160,24 @@ pub(super) async fn features(
         .features
         .insert(bridge.bridge_id.clone(), read.clone());
     Ok(read)
+}
+
+/// What the approved bridge `bridge_id` offers, when it offers what `need`
+/// names; else that need's refusal (`friends_unavailable`, ...), and nothing
+/// is asked of it. A bridge that lacked it is read again on the next request
+/// (`features`), so one upgraded meanwhile is heard.
+pub(super) async fn require(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    need: Need,
+) -> Result<Features, Failure> {
+    let bridge = client::approved(shared, bridge_id)?;
+    let offered = features(shared, &bridge, need).await?;
+    if need.met_by(&offered) {
+        Ok(offered)
+    } else {
+        Err(Failure::new(need.refusal()))
+    }
 }
 
 /// Forgets what the bridge offered, so the next claim or watch request reads
