@@ -516,7 +516,8 @@ TierColors TierColor(Tier tier) {
     case Tier::Copper: return {IM_COL32(107, 58, 34, 255), IM_COL32(217, 130, 75, 255)};
     case Tier::Silver: return {IM_COL32(74, 80, 88, 255), IM_COL32(213, 220, 227, 255)};
     case Tier::Gold: return {IM_COL32(110, 84, 24, 255), IM_COL32(242, 197, 92, 255)};
-    case Tier::Ember: return {IM_COL32(122, 30, 14, 255), IM_COL32(255, 135, 56, 255)};
+    // Its own red-orange, not the accent (255, 135, 56) that marks focus nor Copper: an Ember tile at rest never reads as focused.
+    case Tier::Ember: return {IM_COL32(122, 30, 14, 255), IM_COL32(255, 77, 46, 255)};
     default: return {Colors().button, Colors().accent};
     }
 }
@@ -539,8 +540,10 @@ void Icon(ImDrawList* d, int icon, ImVec2 at, float size, ImU32 ink) {
 
 float TitlePlate(ImDrawList* draw, ImVec2 at, float room, float line, const std::string& title, Tier tier) {
     const float s = Scale(), x = at.x, y = at.y;
+    // The tier is written as well as coloured: "Veteran \xC2\xB7 Gold".
+    const std::string label = tier == Tier::None ? title : title + " \xC2\xB7 " + TierName(tier);
     // The plate grows to its title, and a title longer than the room steps down a size.
-    const float cut = line / 3, stripe = line / 2, need = TextWidth(title, 15 * s, HeadingFont()) + stripe + 10 * s + cut + 6 * s;
+    const float cut = line / 3, stripe = line / 2, need = TextWidth(label, 15 * s, HeadingFont()) + stripe + 10 * s + cut + 6 * s;
     const float w = (std::min)(room, (std::max)(340 * s, need));
     const ImVec2 plate[] = {{x + cut, y}, {x + w, y}, {x + w - cut, y + line}, {x, y + line}};
     const ImVec2 mark[] = {{x + cut, y}, {x + stripe, y}, {x + stripe - cut, y + line}, {x, y + line}};
@@ -548,9 +551,9 @@ float TitlePlate(ImDrawList* draw, ImVec2 at, float room, float line, const std:
     draw->AddConvexPolyFilled(plate, 4, colors.plate);
     draw->AddConvexPolyFilled(mark, 4, colors.stripe);
     // Longer than the plate, it steps down to 13 and then smaller still, to no less than 10, before it is cut.
-    const float room13 = w - stripe - 10 * s - cut, wide13 = TextWidth(title, 13 * s, HeadingFont());
+    const float room13 = w - stripe - 10 * s - cut, wide13 = TextWidth(label, 13 * s, HeadingFont());
     const float size = need <= w ? 15 * s : wide13 > room13 && wide13 > 0 ? (std::max)(10 * s, 13 * s * room13 / wide13) : 13 * s;
-    draw->AddText(HeadingFont(), size, ImVec2(x + stripe + 10 * s, y + (line - size) * .5f), Colors().text, Fit(title, w - stripe - 10 * s - cut, size, HeadingFont()).c_str());
+    draw->AddText(HeadingFont(), size, ImVec2(x + stripe + 10 * s, y + (line - size) * .5f), Colors().text, Fit(label, w - stripe - 10 * s - cut, size, HeadingFont()).c_str());
     return w;
 }
 

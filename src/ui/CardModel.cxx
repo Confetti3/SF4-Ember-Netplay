@@ -397,7 +397,9 @@ Subject CardSubject(const netplay::levels::Card& card, const profiles::Known& kn
 std::vector<MenuEntry> CardRows(const FullCardView& v) {
     std::vector<MenuEntry> rows;
     for (const auto& tile : v.strip) {
-        auto row = Row(tile.row, selection::FindFighter(tile.fighter)->name, loc::Tf("level.value", tile.points) + (tile.games.empty() ? std::string() : kDot + tile.games));
+        // The frame's colour is also its word: "1986 points · Gold · 24 games".
+        const std::string tier = tile.points ? std::string(kDot) + v2::TierName(v2::FrameTier(tile.tier)) : std::string();
+        auto row = Row(tile.row, selection::FindFighter(tile.fighter)->name, loc::Tf("level.value", tile.points) + tier + (tile.games.empty() ? std::string() : kDot + tile.games));
         row.hint = loc::T("profile.tab.fighters");
         rows.push_back(std::move(row));
     }
