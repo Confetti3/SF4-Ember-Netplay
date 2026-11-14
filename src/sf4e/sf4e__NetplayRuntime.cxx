@@ -436,7 +436,7 @@ void RestorePendingImports() {
 	if (file.empty()) return;
 	if (const auto taken = replay_import::Restore(file, ReplayImports())) spdlog::info("Replays: {} files kept from the last run wait to import", taken);
 }
-void ApplyGameDisplay() { runtime->services.SetDisplay(gameWindow, gameExclusiveFullScreen); } }
+void ApplyGameDisplay() { runtime->services.Picker().SetDisplay(gameWindow, gameExclusiveFullScreen); } }
 void NotifyRuntimeEventSystemReady() { if (runtime) runtime->eventSystemReady = true; }
 
 void StopHelper() {

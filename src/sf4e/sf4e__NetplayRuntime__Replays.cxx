@@ -42,7 +42,7 @@ static void SayImportBatch(const replay_import::Batch& batch) {
 void TickReplays() {
     ApplyGameDisplay();
     // What the picker returned joins what drops and links handed over.
-    ReplayImports().Add(runtime->services.TakePicked());
+    ReplayImports().Add(runtime->services.Picker().Take());
     // One file a tick, read and written on the game thread (a pack is at most a couple of
     // MB), and only on Ember's menus: in a room or a match the files wait.
     if (const auto batch = replay_import::Step(ReplayImports(), AtMainMenu(), NoRoom(), [](const std::string& file) {

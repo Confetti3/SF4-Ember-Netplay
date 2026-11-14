@@ -152,21 +152,21 @@ int main() {
             ServiceHooks hooks; std::vector<std::wstring> answer{L"C:\\dl\\a.emberreplay",L"C:\\dl\\p.emberpack"};
             hooks.pickReplays=[&]{return answer;};
             ApplicationServices picker(root.wstring(),hooks);
-            CHECK(picker.Snapshot().canPickFiles&&!picker.Snapshot().picking&&picker.TakePicked().empty());
+            CHECK(picker.Snapshot().canPickFiles&&!picker.Snapshot().picking&&picker.Picker().Take().empty());
             for(int round=1;round<=2;++round){
                 CHECK(picker.Request(ServiceAction::PickReplays));
                 const auto pickDeadline=GetTickCount64()+5000;
                 while(picker.Snapshot().picking&&GetTickCount64()<pickDeadline)Sleep(1);
                 CHECK(!picker.Snapshot().picking&&!picker.Snapshot().pending);
-                const auto picked=picker.TakePicked();
+                const auto picked=picker.Picker().Take();
                 const std::vector<std::string> both{"C:\\dl\\a.emberreplay","C:\\dl\\p.emberpack"};
                 CHECK(round==1?picked==both:picked.empty());
-                CHECK(picker.TakePicked().empty());
+                CHECK(picker.Picker().Take().empty());
                 answer.clear();
             }
-            picker.SetDisplay(nullptr,true);
+            picker.Picker().SetDisplay(nullptr,true);
             CHECK(!picker.Snapshot().canPickFiles&&!picker.Request(ServiceAction::PickReplays));
-            picker.SetDisplay(nullptr,false);
+            picker.Picker().SetDisplay(nullptr,false);
             CHECK(picker.Snapshot().canPickFiles);
         }
         // An open picker blocks nothing else: only one is open at a time, but diagnostics (and with
@@ -186,7 +186,7 @@ int main() {
                 const auto openDeadline=GetTickCount64()+5000;
                 while(picker.Snapshot().pending&&GetTickCount64()<openDeadline)Sleep(1);
                 CHECK(!picker.Snapshot().pending&&picker.Snapshot().picking);
-                CHECK(picker.TakePicked().empty());
+                CHECK(picker.Picker().Take().empty());
             }
             // The service ended with the dialog open: it was let go after a short wait, not waited for.
             CHECK(GetTickCount64()-started<4000);
