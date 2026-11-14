@@ -31,6 +31,7 @@ sf4e_add_unit_test(NAME FighterCatalog SOURCES "src/tests/fighter_catalog_test.c
 sf4e_add_unit_test(NAME SessionController SOURCES "src/tests/session_controller_test.cxx" LIBS sf4e_netplay_core Threads::Threads TIMEOUT 15 LABELS room)
 sf4e_add_unit_test(NAME RollbackHud SOURCES "src/tests/rollback_hud_test.cxx")
 sf4e_add_unit_test(NAME HudMementoBounds SOURCES "src/tests/hud_memento_bounds_test.cxx")
+sf4e_add_unit_test(NAME HudPictureGuard SOURCES "src/tests/hud_picture_guard_test.cxx")
 sf4e_add_unit_test(NAME VfxObjectMemento SOURCES "src/tests/vfx_object_memento_test.cxx")
 sf4e_add_unit_test(NAME CodyKnife SOURCES "src/tests/cody_knife_test.cxx" STD 14)
 sf4e_add_unit_test(NAME FocusGate SOURCES "src/tests/focus_gate_test.cxx")
