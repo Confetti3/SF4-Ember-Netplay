@@ -21,29 +21,50 @@ namespace sf4e { namespace replay_import {
 constexpr std::size_t kMostWaiting = 64;
 
 // What a run of imports came to: the files in it, how many could not be
-// imported, and how many games those that could be imported hold.
+// imported, how many games those that could be imported hold, and how many
+// files handed over were skipped before they joined it (not a replay or pack
+// file, not on a local drive, a path too long, or past kMostWaiting waiting).
 struct Batch {
-	std::size_t files = 0, failed = 0, held = 0;
+	std::size_t files = 0, failed = 0, held = 0, skipped = 0;
 };
 
 class Queue {
 public:
 	// UTF-8 paths. Anything that is not a replay or pack file is left out, and
 	// no more than kMostWaiting wait. Returns how many were taken; a batch
-	// already under way takes them into itself.
+	// already under way takes them into itself, and the batch counts those left
+	// out (Batch::skipped). Files left out with nothing taken and no batch under
+	// way are a batch of their own, for TakeSkipped.
 	std::size_t Add(const std::vector<std::string>& files) {
 		std::lock_guard<std::mutex> lock(mutex_);
-		std::size_t taken = 0;
+		std::size_t taken = 0, skipped = 0;
 		for (const auto& file : files) {
-			if (waiting_.size() >= kMostWaiting) break;
-			if (!replay_link::IsReplayPath(file)) continue;
+			if (waiting_.size() >= kMostWaiting || !replay_link::IsReplayPath(file)) { ++skipped; continue; }
 			waiting_.push_back(file);
 			++taken;
 		}
-		if (!taken) return 0;
+		if (!taken) {
+			if (!skipped) return 0;
+			if (open_) batch_.skipped += skipped;
+			else {
+				if (!skippedAlone_) { skippedAlone_ = Batch(); ++batches_; }
+				skippedAlone_->skipped += skipped;
+			}
+			return 0;
+		}
 		if (!open_) { open_ = true; batch_ = {}; ++batches_; }
 		batch_.files += taken;
+		batch_.skipped += skipped;
 		return taken;
+	}
+	// The batch of files that were all left out, once, which ends it.
+	std::optional<Batch> TakeSkipped() {
+		std::lock_guard<std::mutex> lock(mutex_);
+		if (!skippedAlone_) return std::nullopt;
+		const Batch batch = *skippedAlone_;
+		skippedAlone_.reset();
+		++finished_;
+		return batch;
 	}
 	// Files still to import, and how many batches have begun (to tell a new one
 	// from the last).
@@ -76,6 +97,7 @@ private:
 	mutable std::mutex mutex_;
 	std::deque<std::string> waiting_;
 	Batch batch_;
+	std::optional<Batch> skippedAlone_;
 	bool open_ = false;
 	std::uint64_t batches_ = 0, finished_ = 0;
 };
@@ -108,10 +130,12 @@ inline std::size_t Restore(const std::filesystem::path& file, Queue& queue) {
 
 // One tick of the import: only on Ember's menus with no room joined, the next file goes to
 // `importFile` (UTF-8 path in, how many games it holds out, 0 when it could not be imported).
-// The batch is returned on the tick its last file was answered. Files wait otherwise.
+// The batch is returned on the tick its last file was answered, or the tick the files all
+// left out are reported. Files wait otherwise.
 template <class Import>
 std::optional<Batch> Step(Queue& queue, bool atMenu, bool noRoom, Import&& importFile) {
 	if (!atMenu || !noRoom) return std::nullopt;
+	if (const auto skipped = queue.TakeSkipped()) return skipped;
 	const auto file = queue.Next();
 	if (!file) return std::nullopt;
 	return queue.Answered(importFile(*file));
