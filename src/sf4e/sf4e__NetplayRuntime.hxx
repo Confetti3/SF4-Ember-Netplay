@@ -304,7 +304,7 @@ struct Runtime {
     // (sf4e__NetplayRuntime__Profiles.cxx).
     netplay::profiles::Requests profiles;
     // The player's own card as the bridge keeps it, and what the save measures: the connection (read at most once
-    // a minute and when a room is joined, never during a match; linkEpoch is the room it was read in, 0 for none)
+    // a minute and when a room is joined, never while a match is live; linkEpoch is the room it was read in, 0 for none)
     // and the bundle as last built, with the preferences' revision, the country
     // and the style it was built from (sf4e__NetplayRuntime__Profiles.cxx).
     netplay::profiles::Saver cardSaver;
