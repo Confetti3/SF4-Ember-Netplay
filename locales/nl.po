@@ -345,6 +345,24 @@ msgstr "Verborgen"
 msgid "settings.country.current"
 msgstr "Huidig"
 
+msgid "settings.place"
+msgstr "Land en gebied"
+
+msgid "settings.area"
+msgstr "Gebied"
+
+msgid "settings.area_detail"
+msgstr "Waar je speelt. Je spelerskaart en de openbare kamers die je maakt tonen het, en de lijst met openbare kamers markeert kamers in de buurt. Automatisch volgt de tijdzone die in Windows is ingesteld. Links en Rechts wijzigen het."
+
+msgid "settings.area.automatic_value"
+msgstr "Automatisch ({0}, van Windows)"
+
+msgid "settings.area.automatic_none"
+msgstr "Automatisch (niet ingesteld)"
+
+msgid "settings.area.hidden"
+msgstr "Verborgen"
+
 msgid "country.search"
 msgstr "Zoeken"
 
@@ -371,6 +389,42 @@ msgstr "Geen land komt overeen"
 
 msgid "country.none_detail"
 msgstr "Pas de zoekopdracht aan om meer landen te zien."
+
+msgid "area.naw"
+msgstr "NA West"
+
+msgid "area.nac"
+msgstr "NA Midden"
+
+msgid "area.nae"
+msgstr "NA Oost"
+
+msgid "area.cam"
+msgstr "Midden-Amerika en Caraïben"
+
+msgid "area.sam"
+msgstr "Zuid-Amerika"
+
+msgid "area.euw"
+msgstr "West-Europa"
+
+msgid "area.eue"
+msgstr "Oost-Europa"
+
+msgid "area.mea"
+msgstr "Midden-Oosten en Afrika"
+
+msgid "area.sas"
+msgstr "Zuid-Azië"
+
+msgid "area.eas"
+msgstr "Oost-Azië"
+
+msgid "area.sea"
+msgstr "Zuidoost-Azië"
+
+msgid "area.oce"
+msgstr "Oceanië"
 
 msgid "settings.language.system_with"
 msgstr "Automatisch: {0}"
@@ -547,7 +601,7 @@ msgid "connection.relayed_advice"
 msgstr "Via relais betekent dat jullie netwerken niet direct konden verbinden; matchverkeer loopt via een relaisserver. Matches werken nog steeds. Gebruik de aanbevolen vertraging. Voor een directe verbinding kan een van jullie UPnP op de router inschakelen, UDP-poort 45760 naar de pc doorsturen of een VPN uitschakelen."
 
 msgid "connection.route_relayed_via"
-msgstr "Via relais ({0})"
+msgstr "Via {0}"
 
 msgid "connection.direct_checking"
 msgstr "Er wordt nog gecontroleerd of je netwerk directe verbindingen toestaat."
@@ -573,32 +627,35 @@ msgstr "Verbinding hercontroleren"
 msgid "network.relay"
 msgstr "Relais"
 
+msgid "network.relay_chip"
+msgstr "Relais: {0}"
+
 msgid "network.relay_detail"
 msgstr "De relaisserver die je spel helpt andere spelers te vinden. Matchverkeer loopt er alleen via als een directe verbinding niet mogelijk is."
 
 msgid "network.relay_connected"
-msgstr "{0} (verbonden)"
+msgstr "{0} · verbonden"
 
 msgid "network.relay_connecting"
-msgstr "{0} (verbinden)"
+msgstr "{0} · verbinden"
 
 msgid "network.relay_none"
 msgstr "Niet verbonden"
 
-msgid "network.region_use1"
-msgstr "VS-oost"
+msgid "network.relay_use1"
+msgstr "Ember VS (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "VS-west"
+msgid "network.relay_usw1"
+msgstr "n0 VS-west"
 
-msgid "network.region_euc1"
-msgstr "Europa"
+msgid "network.relay_euc1"
+msgstr "Ember Europa"
 
-msgid "network.region_aps1"
-msgstr "Azië-Pacific"
+msgid "network.relay_aps1"
+msgstr "n0 Azië"
 
-msgid "network.region_other"
-msgstr "Andere regio"
+msgid "network.relay_other"
+msgstr "Ander relais"
 
 msgid "network.status"
 msgstr "Netwerk"
@@ -1476,8 +1533,11 @@ msgstr "Bekabeld of wifi, zoals Ember het meet. Je kunt het verbergen."
 msgid "card.region_row"
 msgstr "Regio"
 
-msgid "card.region_detail"
-msgstr "Je regio, afgeleid van je verbinding. Je kunt het verbergen."
+msgid "card.area_detail"
+msgstr "Je gebied, uit je instellingen. Je kunt het verbergen."
+
+msgid "card.area_unset"
+msgstr "Niet ingesteld"
 
 msgid "card.shown"
 msgstr "{0} · getoond"
@@ -4446,8 +4506,8 @@ msgstr "Kon de kamer niet maken. Controleer je internetverbinding en probeer het
 msgid "runtime.relay_unreachable"
 msgstr "Kon de relaisserver niet bereiken. Controleer je internetverbinding, firewall of VPN en probeer het opnieuw."
 
-msgid "runtime.relay_unreachable_region"
-msgstr "Kon de relaisserver ({0}) niet bereiken. Controleer je internetverbinding, firewall of VPN en probeer het opnieuw."
+msgid "runtime.relay_unreachable_named"
+msgstr "Kon de relaisserver {0} niet bereiken. Controleer je internetverbinding, firewall of VPN en probeer het opnieuw."
 
 msgid "runtime.host_unreachable"
 msgstr "De host was niet bereikbaar, direct noch via een relais. De kamer is misschien gesloten. Als die open is, is meestal de Windows-firewall de oorzaak: sta sf4-net.exe toe in Windows-beveiliging > Firewall en netwerkbeveiliging > Een app toestaan via de firewall (Privé en Openbaar). Ook een VPN kan in de weg zitten."
@@ -5445,14 +5505,29 @@ msgstr "{0} sets op rij"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "Direct {0} ms"
 
 msgid "room.latency.relay"
 msgstr "Relay {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "Relais ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Geschatte ping: ongeveer {0} ms."
+
+msgid "room.latency.tip.relay"
+msgstr "Gemeten via het relais. Een directe match is meestal sneller. Verbinding controleren meet het echte pad."
+
+msgid "room.latency.tip.checked_direct"
+msgstr "Gecontroleerd op het pad van de match: direct, {0} ms, {1} ms variatie."
+
+msgid "room.latency.tip.checked_relay"
+msgstr "Gecontroleerd op het pad van de match: via relais, {0} ms, {1} ms variatie."
 
 msgid "room.latency.tip.measuring"
 msgstr "Ping meten..."
@@ -5493,11 +5568,11 @@ msgstr "Kamers laden..."
 msgid "public.needs_id_detail"
 msgstr "Maak een Ember ID en vertrouw een dienst via Gekoppelde accounts. Die dienst toont de openbare kamers."
 
-msgid "public.room_detail"
-msgstr "{0}\nSpelers: {1}/{2}. Regio: {3}."
+msgid "public.room_detail_seats"
+msgstr "{0}\nSpelers: {1}/{2}."
 
-msgid "public.room_detail_playing"
-msgstr "{0}\nSpelers: {1}/{2}. Regio: {3}.\nLopende wedstrijden: {4}."
+msgid "public.room_detail_matches"
+msgstr "Lopende wedstrijden: {0}."
 
 msgid "public.joining_value"
 msgstr "Betreden..."
@@ -5590,7 +5665,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "Kies welke kamers worden getoond: op gebied, kamertype, vrije plekken en verbinding. Je keuze wordt onthouden voor de volgende keer."
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5598,14 +5673,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "Gebied"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "Toon kamers uit alle gebieden, alleen kamers in of naast je gebied, of uit één gebied. Links en Rechts wijzigen het."
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "Alle gebieden"
 
 msgid "public.filter_region_near"
 msgstr "In de buurt"
@@ -5637,8 +5712,8 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember kent je regio nog niet en kan dus niet zeggen welke kamers bij jou in de buurt zijn."
+msgid "public.filter_near_unset"
+msgstr "Je gebied is niet ingesteld, dus Ember kan niet zeggen welke kamers bij jou in de buurt zijn. Stel het in bij Instellingen, Land en gebied."
 
 msgid "public.near_you"
 msgstr "In de buurt"
@@ -5667,8 +5742,11 @@ msgstr "{0} min"
 msgid "public.age_hours"
 msgstr "{0} u"
 
-msgid "public.room_detail2"
-msgstr "Host {0}, {1}. {2} van {3} plekken bezet."
+msgid "public.room_detail_host"
+msgstr "Host {0}. {1} van {2} plekken bezet."
+
+msgid "public.room_detail_area"
+msgstr "Gebied: {0}."
 
 msgid "public.room_detail_match"
 msgstr " Er is een wedstrijd bezig."
@@ -8635,8 +8713,11 @@ msgstr "ONLINE · DEELNEMEN"
 msgid "online.eyebrow_browse"
 msgstr "ONLINE · BLADEREN"
 
-msgid "public.your_region"
-msgstr "Jouw regio {0}"
+msgid "public.your_area"
+msgstr "Jouw gebied: {0}"
+
+msgid "public.area_unset"
+msgstr "Stel je gebied in bij Instellingen"
 
 msgid "home.notifications"
 msgstr "Meldingen"

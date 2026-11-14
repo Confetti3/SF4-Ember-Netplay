@@ -345,6 +345,24 @@ msgstr "Скрыто"
 msgid "settings.country.current"
 msgstr "Текущий"
 
+msgid "settings.place"
+msgstr "Страна и зона"
+
+msgid "settings.area"
+msgstr "Зона"
+
+msgid "settings.area_detail"
+msgstr "Откуда вы играете. Её показывают ваша карточка игрока и открытые лобби, которые вы создаёте, а в списке открытых лобби отмечены лобби рядом с ней. Автоматически берётся часовой пояс из Windows. Влево и Вправо меняют её."
+
+msgid "settings.area.automatic_value"
+msgstr "Автоматически ({0}, из Windows)"
+
+msgid "settings.area.automatic_none"
+msgstr "Автоматически (не задана)"
+
+msgid "settings.area.hidden"
+msgstr "Скрыта"
+
 msgid "country.search"
 msgstr "Поиск"
 
@@ -371,6 +389,42 @@ msgstr "Нет подходящих стран"
 
 msgid "country.none_detail"
 msgstr "Измените поиск, чтобы увидеть больше стран."
+
+msgid "area.naw"
+msgstr "NA (запад)"
+
+msgid "area.nac"
+msgstr "NA (центр)"
+
+msgid "area.nae"
+msgstr "NA (восток)"
+
+msgid "area.cam"
+msgstr "Центральная Америка и Карибы"
+
+msgid "area.sam"
+msgstr "Южная Америка"
+
+msgid "area.euw"
+msgstr "Европа (запад)"
+
+msgid "area.eue"
+msgstr "Европа (восток)"
+
+msgid "area.mea"
+msgstr "Ближний Восток и Африка"
+
+msgid "area.sas"
+msgstr "Южная Азия"
+
+msgid "area.eas"
+msgstr "Восточная Азия"
+
+msgid "area.sea"
+msgstr "Юго-Восточная Азия"
+
+msgid "area.oce"
+msgstr "Океания"
 
 msgid "settings.language.system_with"
 msgstr "Автоматически: {0}"
@@ -547,7 +601,7 @@ msgid "connection.relayed_advice"
 msgstr "Соединение через ретранслятор означает, что ваши сети не смогли связаться напрямую. Матчи всё равно работают; используйте рекомендуемую задержку. Для прямого соединения любой из игроков может включить UPnP на роутере, перенаправить порт UDP 45760 на свой ПК или отключить VPN."
 
 msgid "connection.route_relayed_via"
-msgstr "Через сервер ({0})"
+msgstr "Через {0}"
 
 msgid "connection.direct_checking"
 msgstr "Всё ещё проверяем, допускает ли ваша сеть прямые соединения."
@@ -573,32 +627,35 @@ msgstr "Проверить соединение ещё раз"
 msgid "network.relay"
 msgstr "Ретранслятор"
 
+msgid "network.relay_chip"
+msgstr "Ретранслятор: {0}"
+
 msgid "network.relay_detail"
 msgstr "Сервер-ретранслятор, который помогает игре находить других игроков. Трафик матча идёт через него только тогда, когда прямое соединение невозможно."
 
 msgid "network.relay_connected"
-msgstr "{0} (подключено)"
+msgstr "{0} · подключено"
 
 msgid "network.relay_connecting"
-msgstr "{0} (подключение)"
+msgstr "{0} · подключение"
 
 msgid "network.relay_none"
 msgstr "Нет подключения"
 
-msgid "network.region_use1"
-msgstr "США (восток)"
+msgid "network.relay_use1"
+msgstr "Ember США (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "США (запад)"
+msgid "network.relay_usw1"
+msgstr "n0 США (запад)"
 
-msgid "network.region_euc1"
-msgstr "Европа"
+msgid "network.relay_euc1"
+msgstr "Ember Европа"
 
-msgid "network.region_aps1"
-msgstr "Азия и Океания"
+msgid "network.relay_aps1"
+msgstr "n0 Азия"
 
-msgid "network.region_other"
-msgstr "Другой регион"
+msgid "network.relay_other"
+msgstr "Другой ретранслятор"
 
 msgid "network.status"
 msgstr "Сеть"
@@ -1476,8 +1533,11 @@ msgstr "Проводное или Wi-Fi, как его измеряет Ember. �
 msgid "card.region_row"
 msgstr "Регион"
 
-msgid "card.region_detail"
-msgstr "Ваш регион, определённый по вашему соединению. Его можно скрыть."
+msgid "card.area_detail"
+msgstr "Ваша зона, по вашим настройкам. Её можно скрыть."
+
+msgid "card.area_unset"
+msgstr "Не задана"
 
 msgid "card.shown"
 msgstr "{0} · показано"
@@ -4446,8 +4506,8 @@ msgstr "Не удалось создать лобби. Проверьте под
 msgid "runtime.relay_unreachable"
 msgstr "Не удалось связаться с сервером-ретранслятором. Проверьте интернет, брандмауэр или VPN и повторите попытку."
 
-msgid "runtime.relay_unreachable_region"
-msgstr "Не удалось связаться с сервером-ретранслятором ({0}). Проверьте интернет, брандмауэр или VPN и повторите попытку."
+msgid "runtime.relay_unreachable_named"
+msgstr "Не удалось связаться с сервером-ретранслятором {0}. Проверьте интернет, брандмауэр или VPN и повторите попытку."
 
 msgid "runtime.host_unreachable"
 msgstr "Не удалось связаться с ведущим ни напрямую, ни через ретранслятор. Возможно, лобби закрыто. Если оно открыто, чаще всего виноват брандмауэр Windows: в разделе Безопасность Windows > Брандмауэр и защита сети > Разрешить работу с приложением через брандмауэр разрешите sf4-net.exe (частные и общедоступные сети). Мешать может и VPN."
@@ -5445,14 +5505,29 @@ msgstr "Поединков подряд: {0}"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "Напрямую {0} ms"
 
 msgid "room.latency.relay"
 msgstr "Ретранслятор {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "Ретранслятор ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Примерный пинг: около {0} ms."
+
+msgid "room.latency.tip.relay"
+msgstr "Измерено через ретранслятор. Прямой матч обычно быстрее. Проверить соединение измеряет реальный путь."
+
+msgid "room.latency.tip.checked_direct"
+msgstr "Проверено на пути матча: напрямую, {0} ms, разброс {1} ms."
+
+msgid "room.latency.tip.checked_relay"
+msgstr "Проверено на пути матча: через ретранслятор, {0} ms, разброс {1} ms."
 
 msgid "room.latency.tip.measuring"
 msgstr "Измерение пинга..."
@@ -5493,11 +5568,11 @@ msgstr "Загрузка лобби..."
 msgid "public.needs_id_detail"
 msgstr "Создайте Ember ID и добавьте доверенный сервис в разделе Привязанные аккаунты. Открытые лобби показывает именно этот сервис."
 
-msgid "public.room_detail"
-msgstr "{0}\nИгроков: {1}/{2}. Регион: {3}."
+msgid "public.room_detail_seats"
+msgstr "{0}\nИгроков: {1}/{2}."
 
-msgid "public.room_detail_playing"
-msgstr "{0}\nИгроков: {1}/{2}. Регион: {3}.\nМатчей идёт: {4}."
+msgid "public.room_detail_matches"
+msgstr "Матчей идёт: {0}."
 
 msgid "public.joining_value"
 msgstr "Вход..."
@@ -5590,7 +5665,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "Выберите, какие лобби показывать: по зоне, типу лобби, свободным местам и соединению. Ваш выбор сохранится."
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5598,14 +5673,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "Зона"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "Показывать лобби из всех зон, только лобби в вашей зоне или рядом, или из одной зоны. Влево и Вправо меняют выбор."
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "Все зоны"
 
 msgid "public.filter_region_near"
 msgstr "Рядом"
@@ -5637,8 +5712,8 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember пока не знает ваш регион, поэтому не может определить, какие лобби рядом."
+msgid "public.filter_near_unset"
+msgstr "Ваша зона не задана, поэтому Ember не может определить, какие лобби рядом. Задайте её в Настройки, Страна и зона."
 
 msgid "public.near_you"
 msgstr "Рядом"
@@ -5667,8 +5742,11 @@ msgstr "{0} мин"
 msgid "public.age_hours"
 msgstr "{0} ч"
 
-msgid "public.room_detail2"
-msgstr "Ведущий {0}, {1}. Занято мест: {2} из {3}."
+msgid "public.room_detail_host"
+msgstr "Ведущий {0}. Занято мест: {1} из {2}."
+
+msgid "public.room_detail_area"
+msgstr "Зона: {0}."
 
 msgid "public.room_detail_match"
 msgstr " Идёт матч."
@@ -8635,8 +8713,11 @@ msgstr "ОНЛАЙН · ВХОД"
 msgid "online.eyebrow_browse"
 msgstr "ОНЛАЙН · ОБЗОР"
 
-msgid "public.your_region"
-msgstr "Ваш регион {0}"
+msgid "public.your_area"
+msgstr "Ваша зона: {0}"
+
+msgid "public.area_unset"
+msgstr "Задайте зону в настройках"
 
 msgid "home.notifications"
 msgstr "Уведомления"

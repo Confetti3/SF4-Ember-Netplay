@@ -345,6 +345,24 @@ msgstr "숨김"
 msgid "settings.country.current"
 msgstr "현재"
 
+msgid "settings.place"
+msgstr "국가/지역 및 권역"
+
+msgid "settings.area"
+msgstr "권역"
+
+msgid "settings.area_detail"
+msgstr "플레이하는 위치입니다. 플레이어 카드와 내가 만드는 공개 방에 표시되고, 공개 방 목록에서는 가까운 방에 표시가 붙습니다. 자동은 Windows에 설정된 시간대를 따릅니다. 좌우로 바꿀 수 있습니다."
+
+msgid "settings.area.automatic_value"
+msgstr "자동({0}, Windows 기준)"
+
+msgid "settings.area.automatic_none"
+msgstr "자동(설정 안 됨)"
+
+msgid "settings.area.hidden"
+msgstr "숨김"
+
 msgid "country.search"
 msgstr "검색"
 
@@ -371,6 +389,42 @@ msgstr "일치하는 국가가 없습니다"
 
 msgid "country.none_detail"
 msgstr "검색어를 바꾸면 더 많은 국가가 표시됩니다."
+
+msgid "area.naw"
+msgstr "북미 서부"
+
+msgid "area.nac"
+msgstr "북미 중부"
+
+msgid "area.nae"
+msgstr "북미 동부"
+
+msgid "area.cam"
+msgstr "중미·카리브"
+
+msgid "area.sam"
+msgstr "남미"
+
+msgid "area.euw"
+msgstr "서유럽"
+
+msgid "area.eue"
+msgstr "동유럽"
+
+msgid "area.mea"
+msgstr "중동·아프리카"
+
+msgid "area.sas"
+msgstr "남아시아"
+
+msgid "area.eas"
+msgstr "동아시아"
+
+msgid "area.sea"
+msgstr "동남아시아"
+
+msgid "area.oce"
+msgstr "오세아니아"
 
 msgid "settings.language.system_with"
 msgstr "자동: {0}"
@@ -547,7 +601,7 @@ msgid "connection.relayed_advice"
 msgstr "중계 연결은 두 네트워크가 직접 연결되지 않아 대전 데이터가 중계 서버를 거친다는 뜻입니다. 대전은 가능하니 권장 지연 시간을 사용하세요. 직접 연결하려면 두 플레이어 중 한 명이 공유기의 UPnP를 켜거나, UDP 포트 45760을 PC로 전달하거나, VPN을 꺼보세요."
 
 msgid "connection.route_relayed_via"
-msgstr "중계 연결 ({0})"
+msgstr "{0} 경유 중계"
 
 msgid "connection.direct_checking"
 msgstr "네트워크가 직접 연결을 허용하는지 아직 확인 중입니다."
@@ -573,32 +627,35 @@ msgstr "연결 다시 확인"
 msgid "network.relay"
 msgstr "중계 서버"
 
+msgid "network.relay_chip"
+msgstr "중계 서버: {0}"
+
 msgid "network.relay_detail"
 msgstr "게임이 다른 플레이어를 찾는 것을 돕는 중계 서버입니다. 직접 연결이 불가능할 때만 대전 데이터가 이 서버를 거칩니다."
 
 msgid "network.relay_connected"
-msgstr "{0} (연결됨)"
+msgstr "{0} · 연결됨"
 
 msgid "network.relay_connecting"
-msgstr "{0} (연결 중)"
+msgstr "{0} · 연결 중"
 
 msgid "network.relay_none"
 msgstr "연결 안 됨"
 
-msgid "network.region_use1"
-msgstr "미국 동부"
+msgid "network.relay_use1"
+msgstr "Ember 미국 (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "미국 서부"
+msgid "network.relay_usw1"
+msgstr "n0 미국 서부"
 
-msgid "network.region_euc1"
-msgstr "유럽"
+msgid "network.relay_euc1"
+msgstr "Ember 유럽"
 
-msgid "network.region_aps1"
-msgstr "아시아 태평양"
+msgid "network.relay_aps1"
+msgstr "n0 아시아"
 
-msgid "network.region_other"
-msgstr "기타 지역"
+msgid "network.relay_other"
+msgstr "다른 중계 서버"
 
 msgid "network.status"
 msgstr "네트워크"
@@ -1476,8 +1533,11 @@ msgstr "유선 또는 Wi-Fi로, Ember가 측정한 값입니다. 숨길 수 있�
 msgid "card.region_row"
 msgstr "지역"
 
-msgid "card.region_detail"
-msgstr "연결을 바탕으로 알아낸 지역입니다. 숨길 수 있습니다."
+msgid "card.area_detail"
+msgstr "설정에서 고른 권역입니다. 숨길 수 있습니다."
+
+msgid "card.area_unset"
+msgstr "설정 안 됨"
 
 msgid "card.shown"
 msgstr "{0} · 표시 중"
@@ -4446,8 +4506,8 @@ msgstr "방을 만들지 못했습니다. 인터넷 연결을 확인하고 다�
 msgid "runtime.relay_unreachable"
 msgstr "중계 서버에 연결하지 못했습니다. 인터넷 연결, 방화벽, VPN을 확인하고 다시 시도하세요."
 
-msgid "runtime.relay_unreachable_region"
-msgstr "중계 서버({0})에 연결하지 못했습니다. 인터넷 연결, 방화벽, VPN을 확인하고 다시 시도하세요."
+msgid "runtime.relay_unreachable_named"
+msgstr "중계 서버 {0}에 연결하지 못했습니다. 인터넷 연결, 방화벽, VPN을 확인하고 다시 시도하세요."
 
 msgid "runtime.host_unreachable"
 msgstr "방장에게 직접도, 중계 서버를 통해서도 연결하지 못했습니다. 방이 닫혔을 수 있습니다. 열려 있다면 대부분 Windows 방화벽 때문입니다. Windows 보안 > 방화벽 및 네트워크 보호 > 방화벽에서 앱 허용에서 sf4-net.exe를 허용하세요 (개인 및 공용). VPN이 방해하고 있을 수도 있습니다."
@@ -5445,14 +5505,29 @@ msgstr "{0}세트 연속"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "직접 {0} ms"
 
 msgid "room.latency.relay"
 msgstr "릴레이 {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "릴레이 ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "예상 핑: 약 {0} ms."
+
+msgid "room.latency.tip.relay"
+msgstr "중계 서버를 거쳐 측정한 값입니다. 직접 연결 대전이 보통 더 빠릅니다. 연결 확인으로 실제 경로를 측정할 수 있습니다."
+
+msgid "room.latency.tip.checked_direct"
+msgstr "대전 경로에서 확인: 직접, {0} ms, 변동 {1} ms."
+
+msgid "room.latency.tip.checked_relay"
+msgstr "대전 경로에서 확인: 중계, {0} ms, 변동 {1} ms."
 
 msgid "room.latency.tip.measuring"
 msgstr "핑 측정 중..."
@@ -5493,11 +5568,11 @@ msgstr "방 목록을 불러오는 중..."
 msgid "public.needs_id_detail"
 msgstr "Ember ID를 만들고 연동된 계정에서 신뢰할 서비스를 정하세요. 공개 방은 그 서비스가 목록으로 보여 줍니다."
 
-msgid "public.room_detail"
-msgstr "{0}\n플레이어: {1}/{2}. 지역: {3}."
+msgid "public.room_detail_seats"
+msgstr "{0}\n플레이어: {1}/{2}."
 
-msgid "public.room_detail_playing"
-msgstr "{0}\n플레이어: {1}/{2}. 지역: {3}.\n진행 중인 경기: {4}."
+msgid "public.room_detail_matches"
+msgstr "진행 중인 경기: {0}."
 
 msgid "public.joining_value"
 msgstr "참가하는 중..."
@@ -5590,7 +5665,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "표시할 방을 고릅니다: 권역, 방 종류, 빈자리, 연결 기준. 선택은 다음에도 유지됩니다."
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5598,14 +5673,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "권역"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "모든 권역의 방, 내 권역과 인접한 권역의 방만, 또는 한 권역의 방만 표시합니다. 좌우로 바꿀 수 있습니다."
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "모든 권역"
 
 msgid "public.filter_region_near"
 msgstr "가까운 방"
@@ -5637,8 +5712,8 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember가 아직 내 지역을 알지 못해 가까운 방을 구분할 수 없습니다."
+msgid "public.filter_near_unset"
+msgstr "내 권역이 설정되지 않아 Ember가 가까운 방을 구분할 수 없습니다. 설정의 국가/지역 및 권역에서 정하세요."
 
 msgid "public.near_you"
 msgstr "근처"
@@ -5667,8 +5742,11 @@ msgstr "{0}분"
 msgid "public.age_hours"
 msgstr "{0}시간"
 
-msgid "public.room_detail2"
-msgstr "방장 {0}, {1}. {3}자리 중 {2}자리가 찼습니다."
+msgid "public.room_detail_host"
+msgstr "방장 {0}. {2}자리 중 {1}자리가 찼습니다."
+
+msgid "public.room_detail_area"
+msgstr "권역: {0}."
 
 msgid "public.room_detail_match"
 msgstr " 대전이 진행 중입니다."
@@ -8635,8 +8713,11 @@ msgstr "온라인 · 참가"
 msgid "online.eyebrow_browse"
 msgstr "온라인 · 둘러보기"
 
-msgid "public.your_region"
-msgstr "내 지역 {0}"
+msgid "public.your_area"
+msgstr "내 권역: {0}"
+
+msgid "public.area_unset"
+msgstr "설정에서 권역을 정하세요"
 
 msgid "home.notifications"
 msgstr "알림"

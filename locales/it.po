@@ -345,6 +345,24 @@ msgstr "Nascosto"
 msgid "settings.country.current"
 msgstr "Attuale"
 
+msgid "settings.place"
+msgstr "Paese e area"
+
+msgid "settings.area"
+msgstr "Area"
+
+msgid "settings.area_detail"
+msgstr "Da dove giochi. La tua scheda giocatore e le sale pubbliche che crei la mostrano, e l'elenco delle sale pubbliche segna le sale vicine. Automatico segue il fuso orario impostato in Windows. Sinistra e Destra la cambiano."
+
+msgid "settings.area.automatic_value"
+msgstr "Automatico ({0}, da Windows)"
+
+msgid "settings.area.automatic_none"
+msgstr "Automatico (non impostata)"
+
+msgid "settings.area.hidden"
+msgstr "Nascosta"
+
 msgid "country.search"
 msgstr "Cerca"
 
@@ -371,6 +389,42 @@ msgstr "Nessun paese corrisponde"
 
 msgid "country.none_detail"
 msgstr "Modifica la ricerca per vedere altri paesi."
+
+msgid "area.naw"
+msgstr "NA Ovest"
+
+msgid "area.nac"
+msgstr "NA Centro"
+
+msgid "area.nae"
+msgstr "NA Est"
+
+msgid "area.cam"
+msgstr "America Centrale e Caraibi"
+
+msgid "area.sam"
+msgstr "Sud America"
+
+msgid "area.euw"
+msgstr "Europa Ovest"
+
+msgid "area.eue"
+msgstr "Europa Est"
+
+msgid "area.mea"
+msgstr "Medio Oriente e Africa"
+
+msgid "area.sas"
+msgstr "Asia del Sud"
+
+msgid "area.eas"
+msgstr "Asia dell'Est"
+
+msgid "area.sea"
+msgstr "Sud-est asiatico"
+
+msgid "area.oce"
+msgstr "Oceania"
 
 msgid "settings.language.system_with"
 msgstr "Automatico: {0}"
@@ -547,7 +601,7 @@ msgid "connection.relayed_advice"
 msgstr "Tramite relay significa che le due reti non si collegano direttamente: il traffico della partita passa da un server relay. Le partite funzionano comunque; usa il ritardo consigliato. Per una connessione diretta, uno dei giocatori può attivare UPnP nel router, inoltrare la porta UDP 45760 al proprio PC o disattivare una VPN."
 
 msgid "connection.route_relayed_via"
-msgstr "Tramite relay ({0})"
+msgstr "Tramite {0}"
 
 msgid "connection.direct_checking"
 msgstr "Sto ancora verificando se la tua rete consente connessioni dirette."
@@ -573,32 +627,35 @@ msgstr "Riverifica connessione"
 msgid "network.relay"
 msgstr "Relay"
 
+msgid "network.relay_chip"
+msgstr "Relay: {0}"
+
 msgid "network.relay_detail"
 msgstr "Il server relay che aiuta il gioco a trovare gli altri giocatori. Il traffico della partita lo attraversa solo quando una connessione diretta non è possibile."
 
 msgid "network.relay_connected"
-msgstr "{0} (connesso)"
+msgstr "{0} · connesso"
 
 msgid "network.relay_connecting"
-msgstr "{0} (connessione)"
+msgstr "{0} · connessione"
 
 msgid "network.relay_none"
 msgstr "Non connesso"
 
-msgid "network.region_use1"
-msgstr "USA Est"
+msgid "network.relay_use1"
+msgstr "Ember USA (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "USA Ovest"
+msgid "network.relay_usw1"
+msgstr "n0 USA Ovest"
 
-msgid "network.region_euc1"
-msgstr "Europa"
+msgid "network.relay_euc1"
+msgstr "Ember Europa"
 
-msgid "network.region_aps1"
-msgstr "Asia-Pacifico"
+msgid "network.relay_aps1"
+msgstr "n0 Asia"
 
-msgid "network.region_other"
-msgstr "Altra regione"
+msgid "network.relay_other"
+msgstr "Altro relay"
 
 msgid "network.status"
 msgstr "Rete"
@@ -1476,8 +1533,11 @@ msgstr "Via cavo o Wi-Fi, come la misura Ember. Puoi nasconderla."
 msgid "card.region_row"
 msgstr "Regione"
 
-msgid "card.region_detail"
-msgstr "La tua regione, in base alla tua connessione. Puoi nasconderla."
+msgid "card.area_detail"
+msgstr "La tua area, dalle tue impostazioni. Puoi nasconderla."
+
+msgid "card.area_unset"
+msgstr "Non impostata"
 
 msgid "card.shown"
 msgstr "{0} · visibile"
@@ -4446,8 +4506,8 @@ msgstr "Impossibile creare la sala. Controlla la connessione a internet e riprov
 msgid "runtime.relay_unreachable"
 msgstr "Impossibile raggiungere il server relay. Controlla la connessione a internet, il firewall o la VPN e riprova."
 
-msgid "runtime.relay_unreachable_region"
-msgstr "Impossibile raggiungere il server relay ({0}). Controlla la connessione a internet, il firewall o la VPN e riprova."
+msgid "runtime.relay_unreachable_named"
+msgstr "Impossibile raggiungere il server relay {0}. Controlla la connessione a internet, il firewall o la VPN e riprova."
 
 msgid "runtime.host_unreachable"
 msgstr "Impossibile raggiungere l'host, né direttamente né tramite relay. La sala potrebbe essere chiusa. Se è aperta, di solito la causa è Windows Firewall: in Sicurezza di Windows > Firewall e protezione della rete > Consenti app attraverso il firewall, consenti sf4-net.exe (Privata e Pubblica). Anche una VPN può essere d'ostacolo."
@@ -5445,14 +5505,29 @@ msgstr "{0} set di fila"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "Diretto {0} ms"
 
 msgid "room.latency.relay"
 msgstr "Relay {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "Relay ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Ping stimato: circa {0} ms."
+
+msgid "room.latency.tip.relay"
+msgstr "Misurato tramite il relay. Una partita diretta di solito è più veloce. Verifica connessione misura il percorso reale."
+
+msgid "room.latency.tip.checked_direct"
+msgstr "Verificato sul percorso della partita: diretta, {0} ms, {1} ms di variazione."
+
+msgid "room.latency.tip.checked_relay"
+msgstr "Verificato sul percorso della partita: tramite relay, {0} ms, {1} ms di variazione."
 
 msgid "room.latency.tip.measuring"
 msgstr "Misurazione del ping..."
@@ -5493,11 +5568,11 @@ msgstr "Caricamento delle sale..."
 msgid "public.needs_id_detail"
 msgstr "Crea un Ember ID e imposta un servizio attendibile in Account collegati. Quel servizio elenca le sale pubbliche."
 
-msgid "public.room_detail"
-msgstr "{0}\nGiocatori: {1}/{2}. Regione: {3}."
+msgid "public.room_detail_seats"
+msgstr "{0}\nGiocatori: {1}/{2}."
 
-msgid "public.room_detail_playing"
-msgstr "{0}\nGiocatori: {1}/{2}. Regione: {3}.\nPartite in corso: {4}."
+msgid "public.room_detail_matches"
+msgstr "Partite in corso: {0}."
 
 msgid "public.joining_value"
 msgstr "Ingresso..."
@@ -5590,7 +5665,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "Scegli quali sale sono elencate: per area, tipo di sala, posti liberi e connessione. La tua scelta viene ricordata per la prossima volta."
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5598,14 +5673,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "Area"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "Mostra le sale di tutte le aree, solo quelle nella tua area o accanto, oppure di una sola area. Sinistra e Destra la cambiano."
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "Tutte le aree"
 
 msgid "public.filter_region_near"
 msgstr "Vicino a me"
@@ -5637,8 +5712,8 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember non conosce ancora la tua regione e non può sapere quali sale sono vicine a te."
+msgid "public.filter_near_unset"
+msgstr "La tua area non è impostata, quindi Ember non sa quali sale sono vicine a te. Impostala in Impostazioni, Paese e area."
 
 msgid "public.near_you"
 msgstr "Vicino a te"
@@ -5667,8 +5742,11 @@ msgstr "{0} min"
 msgid "public.age_hours"
 msgstr "{0} h"
 
-msgid "public.room_detail2"
-msgstr "Host {0}, {1}. {2} posti occupati su {3}."
+msgid "public.room_detail_host"
+msgstr "Host {0}. {1} posti occupati su {2}."
+
+msgid "public.room_detail_area"
+msgstr "Area: {0}."
 
 msgid "public.room_detail_match"
 msgstr " È in corso una partita."
@@ -8635,8 +8713,11 @@ msgstr "ONLINE · ENTRA"
 msgid "online.eyebrow_browse"
 msgstr "ONLINE · ESPLORA"
 
-msgid "public.your_region"
-msgstr "La tua regione {0}"
+msgid "public.your_area"
+msgstr "La tua area: {0}"
+
+msgid "public.area_unset"
+msgstr "Imposta la tua area in Impostazioni"
 
 msgid "home.notifications"
 msgstr "Notifiche"

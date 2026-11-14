@@ -345,6 +345,24 @@ msgstr "Ukryty"
 msgid "settings.country.current"
 msgstr "Obecny"
 
+msgid "settings.place"
+msgstr "Kraj i obszar"
+
+msgid "settings.area"
+msgstr "Obszar"
+
+msgid "settings.area_detail"
+msgstr "Skąd grasz. Pokazują go twoja karta gracza i publiczne pokoje, które tworzysz, a lista pokojów publicznych oznacza pokoje w pobliżu. Automatycznie korzysta ze strefy czasowej ustawionej w Windows. Lewo i Prawo zmieniają wybór."
+
+msgid "settings.area.automatic_value"
+msgstr "Automatycznie ({0}, z Windows)"
+
+msgid "settings.area.automatic_none"
+msgstr "Automatycznie (nie ustawiono)"
+
+msgid "settings.area.hidden"
+msgstr "Ukryty"
+
 msgid "country.search"
 msgstr "Szukaj"
 
@@ -371,6 +389,42 @@ msgstr "Brak pasujących krajów"
 
 msgid "country.none_detail"
 msgstr "Zmień wyszukiwanie, aby zobaczyć więcej krajów."
+
+msgid "area.naw"
+msgstr "NA Zachód"
+
+msgid "area.nac"
+msgstr "NA Centrum"
+
+msgid "area.nae"
+msgstr "NA Wschód"
+
+msgid "area.cam"
+msgstr "Ameryka Środkowa i Karaiby"
+
+msgid "area.sam"
+msgstr "Ameryka Południowa"
+
+msgid "area.euw"
+msgstr "Europa Zachodnia"
+
+msgid "area.eue"
+msgstr "Europa Wschodnia"
+
+msgid "area.mea"
+msgstr "Bliski Wschód i Afryka"
+
+msgid "area.sas"
+msgstr "Azja Południowa"
+
+msgid "area.eas"
+msgstr "Azja Wschodnia"
+
+msgid "area.sea"
+msgstr "Azja płd.-wsch."
+
+msgid "area.oce"
+msgstr "Oceania"
 
 msgid "settings.language.system_with"
 msgstr "Automatycznie: {0}"
@@ -547,7 +601,7 @@ msgid "connection.relayed_advice"
 msgstr "Połączenie przez serwer oznacza, że sieci graczy nie mogły połączyć się bezpośrednio, więc ruch gry przechodzi przez serwer pośredniczący. Walki nadal działają; użyj zalecanego opóźnienia. Aby uzyskać połączenie bezpośrednie, dowolny gracz może włączyć UPnP w routerze, przekierować port UDP 45760 na swój komputer lub wyłączyć VPN."
 
 msgid "connection.route_relayed_via"
-msgstr "Przez serwer ({0})"
+msgstr "Przez {0}"
 
 msgid "connection.direct_checking"
 msgstr "Nadal sprawdzamy, czy Twoja sieć umożliwia połączenia bezpośrednie."
@@ -573,32 +627,35 @@ msgstr "Sprawdź ponownie połączenie"
 msgid "network.relay"
 msgstr "Serwer"
 
+msgid "network.relay_chip"
+msgstr "Serwer: {0}"
+
 msgid "network.relay_detail"
 msgstr "Serwer pośredniczący, który pomaga grze znaleźć innych graczy. Ruch walki przechodzi przez niego tylko wtedy, gdy połączenie bezpośrednie jest niemożliwe."
 
 msgid "network.relay_connected"
-msgstr "{0} (połączono)"
+msgstr "{0} · połączono"
 
 msgid "network.relay_connecting"
-msgstr "{0} (łączenie)"
+msgstr "{0} · łączenie"
 
 msgid "network.relay_none"
 msgstr "Brak połączenia"
 
-msgid "network.region_use1"
-msgstr "USA (wschód)"
+msgid "network.relay_use1"
+msgstr "Ember USA (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "USA (zachód)"
+msgid "network.relay_usw1"
+msgstr "n0 USA (zachód)"
 
-msgid "network.region_euc1"
-msgstr "Europa"
+msgid "network.relay_euc1"
+msgstr "Ember Europa"
 
-msgid "network.region_aps1"
-msgstr "Azja i Pacyfik"
+msgid "network.relay_aps1"
+msgstr "n0 Azja"
 
-msgid "network.region_other"
-msgstr "Inny region"
+msgid "network.relay_other"
+msgstr "Inny serwer"
 
 msgid "network.status"
 msgstr "Sieć"
@@ -1476,8 +1533,11 @@ msgstr "Przewodowe lub Wi-Fi, tak jak mierzy je Ember. Możesz je ukryć."
 msgid "card.region_row"
 msgstr "Region"
 
-msgid "card.region_detail"
-msgstr "Twój region, określony na podstawie połączenia. Możesz go ukryć."
+msgid "card.area_detail"
+msgstr "Twój obszar, z twoich ustawień. Możesz go ukryć."
+
+msgid "card.area_unset"
+msgstr "Nie ustawiono"
 
 msgid "card.shown"
 msgstr "{0} · widoczne"
@@ -4446,8 +4506,8 @@ msgstr "Nie udało się utworzyć pokoju. Sprawdź połączenie z internetem i s
 msgid "runtime.relay_unreachable"
 msgstr "Nie udało się połączyć z serwerem pośredniczącym. Sprawdź internet, zaporę lub VPN i spróbuj ponownie."
 
-msgid "runtime.relay_unreachable_region"
-msgstr "Nie udało się połączyć z serwerem pośredniczącym ({0}). Sprawdź internet, zaporę lub VPN i spróbuj ponownie."
+msgid "runtime.relay_unreachable_named"
+msgstr "Nie udało się połączyć z serwerem pośredniczącym {0}. Sprawdź internet, zaporę lub VPN i spróbuj ponownie."
 
 msgid "runtime.host_unreachable"
 msgstr "Nie udało się połączyć z hostem ani bezpośrednio, ani przez serwer pośredniczący. Pokój mógł zostać zamknięty. Jeśli jest otwarty, najczęściej winna jest Zapora systemu Windows: w Zabezpieczenia systemu Windows > Zapora i ochrona sieci > Zezwalaj aplikacji na dostęp przez zaporę zezwól na sf4-net.exe (Prywatne i Publiczne). Przeszkadzać może też VPN."
@@ -5445,14 +5505,29 @@ msgstr "Sety z rzędu: {0}"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "Bezpośrednio {0} ms"
 
 msgid "room.latency.relay"
 msgstr "Przekaźnik {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "Przekaźnik ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Szacowany ping: około {0} ms."
+
+msgid "room.latency.tip.relay"
+msgstr "Zmierzone przez serwer pośredniczący. Bezpośredni mecz jest zwykle szybszy. Sprawdź połączenie mierzy prawdziwą trasę."
+
+msgid "room.latency.tip.checked_direct"
+msgstr "Sprawdzono na trasie meczu: bezpośrednio, {0} ms, wahania {1} ms."
+
+msgid "room.latency.tip.checked_relay"
+msgstr "Sprawdzono na trasie meczu: przez serwer, {0} ms, wahania {1} ms."
 
 msgid "room.latency.tip.measuring"
 msgstr "Mierzenie pingu..."
@@ -5493,11 +5568,11 @@ msgstr "Wczytywanie pokojów..."
 msgid "public.needs_id_detail"
 msgstr "Utwórz Ember ID i zaufaj usłudze w sekcji Powiązane konta. To ta usługa wyświetla pokoje publiczne."
 
-msgid "public.room_detail"
-msgstr "{0}\nGracze: {1}/{2}. Region: {3}."
+msgid "public.room_detail_seats"
+msgstr "{0}\nGracze: {1}/{2}."
 
-msgid "public.room_detail_playing"
-msgstr "{0}\nGracze: {1}/{2}. Region: {3}.\nMecze w toku: {4}."
+msgid "public.room_detail_matches"
+msgstr "Mecze w toku: {0}."
 
 msgid "public.joining_value"
 msgstr "Dołączanie..."
@@ -5590,7 +5665,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "Wybierz, które pokoje są wyświetlane: według obszaru, typu pokoju, wolnych miejsc i połączenia. Twój wybór zostaje zapamiętany na następny raz."
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5598,14 +5673,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "Obszar"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "Pokaż pokoje ze wszystkich obszarów, tylko pokoje w twoim obszarze lub obok niego, albo z jednego obszaru. Lewo i Prawo zmieniają wybór."
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "Wszystkie obszary"
 
 msgid "public.filter_region_near"
 msgstr "W pobliżu"
@@ -5637,8 +5712,8 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember nie zna jeszcze twojego regionu, więc nie wie, które pokoje są w pobliżu."
+msgid "public.filter_near_unset"
+msgstr "Twój obszar nie jest ustawiony, więc Ember nie wie, które pokoje są w pobliżu. Ustaw go w Ustawienia, Kraj i obszar."
 
 msgid "public.near_you"
 msgstr "W pobliżu"
@@ -5667,8 +5742,11 @@ msgstr "{0} min"
 msgid "public.age_hours"
 msgstr "{0} godz."
 
-msgid "public.room_detail2"
-msgstr "Host {0}, {1}. Zajęte miejsca: {2} z {3}."
+msgid "public.room_detail_host"
+msgstr "Host {0}. Zajęte miejsca: {1} z {2}."
+
+msgid "public.room_detail_area"
+msgstr "Obszar: {0}."
 
 msgid "public.room_detail_match"
 msgstr " Trwa mecz."
@@ -8635,8 +8713,11 @@ msgstr "ONLINE · DOŁĄCZANIE"
 msgid "online.eyebrow_browse"
 msgstr "ONLINE · PRZEGLĄDANIE"
 
-msgid "public.your_region"
-msgstr "Twój region {0}"
+msgid "public.your_area"
+msgstr "Twój obszar: {0}"
+
+msgid "public.area_unset"
+msgstr "Ustaw obszar w Ustawieniach"
 
 msgid "home.notifications"
 msgstr "Powiadomienia"

@@ -345,6 +345,24 @@ msgstr "非表示"
 msgid "settings.country.current"
 msgstr "現在"
 
+msgid "settings.place"
+msgstr "国・地域とエリア"
+
+msgid "settings.area"
+msgstr "エリア"
+
+msgid "settings.area_detail"
+msgstr "プレイしている場所です。プレイヤーカードと、あなたが作る公開ルームに表示され、公開ルーム一覧では近くのルームに印が付きます。自動ではWindowsのタイムゾーンに従います。左右で切り替えられます。"
+
+msgid "settings.area.automatic_value"
+msgstr "自動（{0}、Windows設定）"
+
+msgid "settings.area.automatic_none"
+msgstr "自動（未設定）"
+
+msgid "settings.area.hidden"
+msgstr "非表示"
+
 msgid "country.search"
 msgstr "検索"
 
@@ -371,6 +389,42 @@ msgstr "一致する国がありません"
 
 msgid "country.none_detail"
 msgstr "検索を変更すると他の国が表示されます。"
+
+msgid "area.naw"
+msgstr "北米西部"
+
+msgid "area.nac"
+msgstr "北米中部"
+
+msgid "area.nae"
+msgstr "北米東部"
+
+msgid "area.cam"
+msgstr "中米・カリブ海"
+
+msgid "area.sam"
+msgstr "南米"
+
+msgid "area.euw"
+msgstr "欧州西部"
+
+msgid "area.eue"
+msgstr "欧州東部"
+
+msgid "area.mea"
+msgstr "中東・アフリカ"
+
+msgid "area.sas"
+msgstr "南アジア"
+
+msgid "area.eas"
+msgstr "東アジア"
+
+msgid "area.sea"
+msgstr "東南アジア"
+
+msgid "area.oce"
+msgstr "オセアニア"
 
 msgid "settings.language.system_with"
 msgstr "自動：{0}"
@@ -547,7 +601,7 @@ msgid "connection.relayed_advice"
 msgstr "中継接続では、2つのネットワーク間で直接接続できず、対戦通信が中継サーバーを経由します。対戦は可能です。推奨遅延を使ってください。直接接続には、どちらかのプレイヤーがルーターのUPnPを有効にする、UDPポート45760をPCに転送する、VPNをオフにする方法があります。"
 
 msgid "connection.route_relayed_via"
-msgstr "中継 ({0})"
+msgstr "{0}経由で中継"
 
 msgid "connection.direct_checking"
 msgstr "ネットワークが直接接続を許可しているか、まだ確認中です。"
@@ -573,32 +627,35 @@ msgstr "接続を再確認"
 msgid "network.relay"
 msgstr "中継サーバー"
 
+msgid "network.relay_chip"
+msgstr "中継サーバー: {0}"
+
 msgid "network.relay_detail"
 msgstr "ゲームが他のプレイヤーを見つけるのを助ける中継サーバーです。対戦の通信は、直接接続できない場合にのみここを経由します。"
 
 msgid "network.relay_connected"
-msgstr "{0} (接続済み)"
+msgstr "{0} · 接続済み"
 
 msgid "network.relay_connecting"
-msgstr "{0} (接続中)"
+msgstr "{0} · 接続中"
 
 msgid "network.relay_none"
 msgstr "未接続"
 
-msgid "network.region_use1"
-msgstr "米国東部"
+msgid "network.relay_use1"
+msgstr "Ember 米国 (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "米国西部"
+msgid "network.relay_usw1"
+msgstr "n0 米国西部"
 
-msgid "network.region_euc1"
-msgstr "欧州"
+msgid "network.relay_euc1"
+msgstr "Ember 欧州"
 
-msgid "network.region_aps1"
-msgstr "アジア太平洋"
+msgid "network.relay_aps1"
+msgstr "n0 アジア"
 
-msgid "network.region_other"
-msgstr "その他の地域"
+msgid "network.relay_other"
+msgstr "別の中継サーバー"
 
 msgid "network.status"
 msgstr "ネットワーク"
@@ -1476,8 +1533,11 @@ msgstr "有線かWi-Fiか、Emberの測定結果です。非表示にできま�
 msgid "card.region_row"
 msgstr "地域"
 
-msgid "card.region_detail"
-msgstr "接続から判定した地域です。非表示にできます。"
+msgid "card.area_detail"
+msgstr "設定で選んだエリアです。非表示にできます。"
+
+msgid "card.area_unset"
+msgstr "未設定"
 
 msgid "card.shown"
 msgstr "{0} · 表示中"
@@ -4446,8 +4506,8 @@ msgstr "ルームを作成できませんでした。インターネット接続
 msgid "runtime.relay_unreachable"
 msgstr "中継サーバーに接続できませんでした。インターネット接続、ファイアウォール、VPNを確認して、もう一度お試しください。"
 
-msgid "runtime.relay_unreachable_region"
-msgstr "中継サーバー ({0}) に接続できませんでした。インターネット接続、ファイアウォール、VPNを確認して、もう一度お試しください。"
+msgid "runtime.relay_unreachable_named"
+msgstr "中継サーバー {0} に接続できませんでした。インターネット接続、ファイアウォール、VPNを確認して、もう一度お試しください。"
 
 msgid "runtime.host_unreachable"
 msgstr "ホストに直接も中継経由でも接続できませんでした。ルームが閉じられた可能性があります。開いている場合は Windows ファイアウォールが原因のことが多いです。Windows セキュリティ > ファイアウォールとネットワーク保護 > ファイアウォールによるアプリケーションの許可 で sf4-net.exe を許可してください (プライベートとパブリック)。VPNが妨げていることもあります。"
@@ -5445,14 +5505,29 @@ msgstr "{0}セット連続"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "直接 {0} ms"
 
 msgid "room.latency.relay"
 msgstr "リレー {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "リレー ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "推定Ping：約{0} ms。"
+
+msgid "room.latency.tip.relay"
+msgstr "中継サーバー経由で測定した値です。直接接続の対戦のほうが通常は速くなります。「接続を確認」で実際の経路を測定できます。"
+
+msgid "room.latency.tip.checked_direct"
+msgstr "対戦の経路で確認: 直接、{0} ms、変動{1} ms。"
+
+msgid "room.latency.tip.checked_relay"
+msgstr "対戦の経路で確認: 中継、{0} ms、変動{1} ms。"
 
 msgid "room.latency.tip.measuring"
 msgstr "Pingを測定中..."
@@ -5493,11 +5568,11 @@ msgstr "ルームを読み込み中..."
 msgid "public.needs_id_detail"
 msgstr "Ember IDを作成し、連携アカウントで信頼するサービスを登録してください。公開ルームはそのサービスが一覧にします。"
 
-msgid "public.room_detail"
-msgstr "{0}\nプレイヤー: {1}/{2}。リージョン: {3}。"
+msgid "public.room_detail_seats"
+msgstr "{0}\nプレイヤー: {1}/{2}。"
 
-msgid "public.room_detail_playing"
-msgstr "{0}\nプレイヤー: {1}/{2}。リージョン: {3}。\n進行中の試合: {4}。"
+msgid "public.room_detail_matches"
+msgstr "進行中の試合: {0}。"
 
 msgid "public.joining_value"
 msgstr "参加中..."
@@ -5590,7 +5665,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "表示するルームを選びます: エリア、ルームの種類、空き席、接続で絞り込めます。選択は次回も保持されます。"
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5598,14 +5673,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "エリア"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "すべてのエリアのルーム、自分のエリアとその隣のルームだけ、または1つのエリアのルームを表示します。左右で切り替えられます。"
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "すべてのエリア"
 
 msgid "public.filter_region_near"
 msgstr "近く"
@@ -5637,8 +5712,8 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Emberはまだあなたのリージョンを把握していないため、近くのルームを判別できません。"
+msgid "public.filter_near_unset"
+msgstr "エリアが未設定のため、Emberは近くのルームを判別できません。設定の「国・地域とエリア」で設定してください。"
 
 msgid "public.near_you"
 msgstr "近く"
@@ -5667,8 +5742,11 @@ msgstr "{0}分"
 msgid "public.age_hours"
 msgstr "{0}時間"
 
-msgid "public.room_detail2"
-msgstr "ホスト{0}、{1}。{3}席中{2}席が使用中です。"
+msgid "public.room_detail_host"
+msgstr "ホスト{0}。{2}席中{1}席が使用中です。"
+
+msgid "public.room_detail_area"
+msgstr "エリア: {0}。"
 
 msgid "public.room_detail_match"
 msgstr "試合が進行中です。"
@@ -8635,8 +8713,11 @@ msgstr "オンライン · 参加"
 msgid "online.eyebrow_browse"
 msgstr "オンライン · 一覧"
 
-msgid "public.your_region"
-msgstr "あなたの地域 {0}"
+msgid "public.your_area"
+msgstr "あなたのエリア: {0}"
+
+msgid "public.area_unset"
+msgstr "設定でエリアを選んでください"
 
 msgid "home.notifications"
 msgstr "通知"

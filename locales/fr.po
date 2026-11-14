@@ -345,6 +345,24 @@ msgstr "Masqué"
 msgid "settings.country.current"
 msgstr "Actuel"
 
+msgid "settings.place"
+msgstr "Pays et zone"
+
+msgid "settings.area"
+msgstr "Zone"
+
+msgid "settings.area_detail"
+msgstr "D'où vous jouez. Votre carte de joueur et les salons publics que vous créez l'affichent, et la liste des salons publics repère les salons proches. Le mode automatique suit le fuseau horaire défini dans Windows. Gauche et Droite la modifient."
+
+msgid "settings.area.automatic_value"
+msgstr "Automatique ({0}, depuis Windows)"
+
+msgid "settings.area.automatic_none"
+msgstr "Automatique (non définie)"
+
+msgid "settings.area.hidden"
+msgstr "Masquée"
+
 msgid "country.search"
 msgstr "Rechercher"
 
@@ -371,6 +389,42 @@ msgstr "Aucun pays ne correspond"
 
 msgid "country.none_detail"
 msgstr "Modifiez la recherche pour voir plus de pays."
+
+msgid "area.naw"
+msgstr "NA Ouest"
+
+msgid "area.nac"
+msgstr "NA Centre"
+
+msgid "area.nae"
+msgstr "NA Est"
+
+msgid "area.cam"
+msgstr "Amérique centrale et Caraïbes"
+
+msgid "area.sam"
+msgstr "Amérique du Sud"
+
+msgid "area.euw"
+msgstr "Europe Ouest"
+
+msgid "area.eue"
+msgstr "Europe Est"
+
+msgid "area.mea"
+msgstr "Moyen-Orient et Afrique"
+
+msgid "area.sas"
+msgstr "Asie du Sud"
+
+msgid "area.eas"
+msgstr "Asie de l'Est"
+
+msgid "area.sea"
+msgstr "Asie du Sud-Est"
+
+msgid "area.oce"
+msgstr "Océanie"
 
 msgid "settings.language.system_with"
 msgstr "Automatique : {0}"
@@ -547,7 +601,7 @@ msgid "connection.relayed_advice"
 msgstr "Une connexion relayée signifie que vos réseaux ne peuvent pas se joindre directement : le trafic passe par un serveur relais. Les combats restent possibles ; utilisez le délai conseillé. Pour une connexion directe, chaque joueur peut activer UPnP sur son routeur, rediriger le port UDP 45760 vers son PC ou désactiver son VPN."
 
 msgid "connection.route_relayed_via"
-msgstr "Via relais ({0})"
+msgstr "Via {0}"
 
 msgid "connection.direct_checking"
 msgstr "Vérification en cours de la prise en charge des connexions directes par votre réseau."
@@ -573,32 +627,35 @@ msgstr "Revérifier la connexion"
 msgid "network.relay"
 msgstr "Relais"
 
+msgid "network.relay_chip"
+msgstr "Relais : {0}"
+
 msgid "network.relay_detail"
 msgstr "Le serveur relais qui aide votre jeu à trouver les autres joueurs. Le trafic des combats ne passe par lui que si une connexion directe est impossible."
 
 msgid "network.relay_connected"
-msgstr "{0} (connecté)"
+msgstr "{0} · connecté"
 
 msgid "network.relay_connecting"
-msgstr "{0} (connexion)"
+msgstr "{0} · connexion"
 
 msgid "network.relay_none"
 msgstr "Non connecté"
 
-msgid "network.region_use1"
-msgstr "États-Unis Est"
+msgid "network.relay_use1"
+msgstr "Ember États-Unis (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "États-Unis Ouest"
+msgid "network.relay_usw1"
+msgstr "n0 États-Unis Ouest"
 
-msgid "network.region_euc1"
-msgstr "Europe"
+msgid "network.relay_euc1"
+msgstr "Ember Europe"
 
-msgid "network.region_aps1"
-msgstr "Asie-Pacifique"
+msgid "network.relay_aps1"
+msgstr "n0 Asie"
 
-msgid "network.region_other"
-msgstr "Autre région"
+msgid "network.relay_other"
+msgstr "Autre relais"
 
 msgid "network.status"
 msgstr "Réseau"
@@ -1476,8 +1533,11 @@ msgstr "Filaire ou Wi-Fi, tel qu'Ember le mesure. Vous pouvez le masquer."
 msgid "card.region_row"
 msgstr "Région"
 
-msgid "card.region_detail"
-msgstr "Votre région, d'après votre connexion. Vous pouvez la masquer."
+msgid "card.area_detail"
+msgstr "Votre zone, d'après vos paramètres. Vous pouvez la masquer."
+
+msgid "card.area_unset"
+msgstr "Non définie"
 
 msgid "card.shown"
 msgstr "{0} · affiché"
@@ -4446,8 +4506,8 @@ msgstr "Impossible de créer le salon. Vérifiez votre connexion Internet et ré
 msgid "runtime.relay_unreachable"
 msgstr "Impossible de joindre le serveur relais. Vérifiez votre connexion Internet, votre pare-feu ou votre VPN, puis réessayez."
 
-msgid "runtime.relay_unreachable_region"
-msgstr "Impossible de joindre le serveur relais ({0}). Vérifiez votre connexion Internet, votre pare-feu ou votre VPN, puis réessayez."
+msgid "runtime.relay_unreachable_named"
+msgstr "Impossible de joindre le serveur relais {0}. Vérifiez votre connexion Internet, votre pare-feu ou votre VPN, puis réessayez."
 
 msgid "runtime.host_unreachable"
 msgstr "L'hôte est injoignable, en direct comme via un relais. Le salon a peut-être été fermé. S'il est ouvert, c'est le plus souvent le Pare-feu Windows : dans Sécurité Windows > Pare-feu et protection du réseau > Autoriser une application via le Pare-feu, autorisez sf4-net.exe (Privé et Public). Un VPN peut aussi gêner la connexion."
@@ -5445,14 +5505,29 @@ msgstr "{0} sets d'affilée"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "Direct {0} ms"
 
 msgid "room.latency.relay"
 msgstr "Relais {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "Relais ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Ping estimé : environ {0} ms."
+
+msgid "room.latency.tip.relay"
+msgstr "Mesuré via le relais. Un match direct est généralement plus rapide. Vérifier la connexion mesure le trajet réel."
+
+msgid "room.latency.tip.checked_direct"
+msgstr "Vérifié sur le trajet du match : direct, {0} ms, {1} ms de variation."
+
+msgid "room.latency.tip.checked_relay"
+msgstr "Vérifié sur le trajet du match : via relais, {0} ms, {1} ms de variation."
 
 msgid "room.latency.tip.measuring"
 msgstr "Mesure du ping..."
@@ -5493,11 +5568,11 @@ msgstr "Chargement des salons..."
 msgid "public.needs_id_detail"
 msgstr "Créez un Ember ID, puis faites confiance à un service dans Comptes associés. Ce service liste les salons publics."
 
-msgid "public.room_detail"
-msgstr "{0}\nJoueurs : {1}/{2}. Région : {3}."
+msgid "public.room_detail_seats"
+msgstr "{0}\nJoueurs : {1}/{2}."
 
-msgid "public.room_detail_playing"
-msgstr "{0}\nJoueurs : {1}/{2}. Région : {3}.\nMatchs en cours : {4}."
+msgid "public.room_detail_matches"
+msgstr "Matchs en cours : {0}."
 
 msgid "public.joining_value"
 msgstr "Connexion..."
@@ -5590,7 +5665,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "Choisissez les salons listés : par zone, type de salon, places libres et connexion. Votre choix est conservé pour la prochaine fois."
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5598,14 +5673,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "Zone"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "Afficher les salons de toutes les zones, seulement ceux de votre zone ou voisins, ou d'une seule zone. Gauche et Droite la modifient."
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "Toutes les zones"
 
 msgid "public.filter_region_near"
 msgstr "Près de moi"
@@ -5637,8 +5712,8 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember ne connaît pas encore votre région et ne peut pas dire quels salons sont proches de vous."
+msgid "public.filter_near_unset"
+msgstr "Votre zone n'est pas définie, donc Ember ne peut pas dire quels salons sont proches de vous. Définissez-la dans Paramètres, Pays et zone."
 
 msgid "public.near_you"
 msgstr "Près de vous"
@@ -5667,8 +5742,11 @@ msgstr "{0} min"
 msgid "public.age_hours"
 msgstr "{0} h"
 
-msgid "public.room_detail2"
-msgstr "Hôte {0}, {1}. {2} places occupées sur {3}."
+msgid "public.room_detail_host"
+msgstr "Hôte {0}. {1} places occupées sur {2}."
+
+msgid "public.room_detail_area"
+msgstr "Zone : {0}."
 
 msgid "public.room_detail_match"
 msgstr " Un match est en cours."
@@ -8635,8 +8713,11 @@ msgstr "EN LIGNE · REJOINDRE"
 msgid "online.eyebrow_browse"
 msgstr "EN LIGNE · PARCOURIR"
 
-msgid "public.your_region"
-msgstr "Votre région {0}"
+msgid "public.your_area"
+msgstr "Votre zone : {0}"
+
+msgid "public.area_unset"
+msgstr "Définissez votre zone dans Paramètres"
 
 msgid "home.notifications"
 msgstr "Notifications"

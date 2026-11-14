@@ -345,6 +345,24 @@ msgstr "Skryto"
 msgid "settings.country.current"
 msgstr "Aktuální"
 
+msgid "settings.place"
+msgstr "Země a oblast"
+
+msgid "settings.area"
+msgstr "Oblast"
+
+msgid "settings.area_detail"
+msgstr "Odkud hrajete. Zobrazí ji vaše karta hráče a veřejné místnosti, které vytvoříte, a seznam veřejných místností označuje místnosti poblíž. Automaticky se řídí časovým pásmem nastaveným ve Windows. Vlevo a Vpravo ji mění."
+
+msgid "settings.area.automatic_value"
+msgstr "Automaticky ({0}, z Windows)"
+
+msgid "settings.area.automatic_none"
+msgstr "Automaticky (nenastaveno)"
+
+msgid "settings.area.hidden"
+msgstr "Skryta"
+
 msgid "country.search"
 msgstr "Hledat"
 
@@ -371,6 +389,42 @@ msgstr "Žádná země neodpovídá"
 
 msgid "country.none_detail"
 msgstr "Změňte hledání, abyste viděli více zemí."
+
+msgid "area.naw"
+msgstr "NA Západ"
+
+msgid "area.nac"
+msgstr "NA Střed"
+
+msgid "area.nae"
+msgstr "NA Východ"
+
+msgid "area.cam"
+msgstr "Střední Amerika a Karibik"
+
+msgid "area.sam"
+msgstr "Jižní Amerika"
+
+msgid "area.euw"
+msgstr "Západní Evropa"
+
+msgid "area.eue"
+msgstr "Východní Evropa"
+
+msgid "area.mea"
+msgstr "Blízký východ a Afrika"
+
+msgid "area.sas"
+msgstr "Jižní Asie"
+
+msgid "area.eas"
+msgstr "Východní Asie"
+
+msgid "area.sea"
+msgstr "Jihovýchodní Asie"
+
+msgid "area.oce"
+msgstr "Oceánie"
 
 msgid "settings.language.system_with"
 msgstr "Automaticky: {0}"
@@ -547,7 +601,7 @@ msgid "connection.relayed_advice"
 msgstr "Spojení přes server znamená, že se vaše sítě nedokázaly spojit přímo, a data zápasu proto přenáší zprostředkující server. Zápasy fungují dál; použijte doporučené zpoždění. O přímé spojení se může pokusit kterýkoli hráč zapnutím UPnP na routeru, přesměrováním portu UDP 45760 na svůj počítač nebo vypnutím VPN."
 
 msgid "connection.route_relayed_via"
-msgstr "Přes server ({0})"
+msgstr "Přes {0}"
 
 msgid "connection.direct_checking"
 msgstr "Stále se kontroluje, zda vaše síť umožňuje přímá spojení."
@@ -573,32 +627,35 @@ msgstr "Zkontrolovat spojení znovu"
 msgid "network.relay"
 msgstr "Server"
 
+msgid "network.relay_chip"
+msgstr "Server: {0}"
+
 msgid "network.relay_detail"
 msgstr "Zprostředkující server, který hře pomáhá najít ostatní hráče. Data zápasu přes něj jdou jen tehdy, když přímé spojení není možné."
 
 msgid "network.relay_connected"
-msgstr "{0} (připojeno)"
+msgstr "{0} · připojeno"
 
 msgid "network.relay_connecting"
-msgstr "{0} (připojování)"
+msgstr "{0} · připojování"
 
 msgid "network.relay_none"
 msgstr "Nepřipojeno"
 
-msgid "network.region_use1"
-msgstr "USA východ"
+msgid "network.relay_use1"
+msgstr "Ember USA (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "USA západ"
+msgid "network.relay_usw1"
+msgstr "n0 USA západ"
 
-msgid "network.region_euc1"
-msgstr "Evropa"
+msgid "network.relay_euc1"
+msgstr "Ember Evropa"
 
-msgid "network.region_aps1"
-msgstr "Asie a Tichomoří"
+msgid "network.relay_aps1"
+msgstr "n0 Asie"
 
-msgid "network.region_other"
-msgstr "Jiná oblast"
+msgid "network.relay_other"
+msgstr "Jiný server"
 
 msgid "network.status"
 msgstr "Síť"
@@ -1476,8 +1533,11 @@ msgstr "Kabelové nebo Wi-Fi, jak ho měří Ember. Můžete ho skrýt."
 msgid "card.region_row"
 msgstr "Region"
 
-msgid "card.region_detail"
-msgstr "Váš region podle vašeho připojení. Můžete ho skrýt."
+msgid "card.area_detail"
+msgstr "Vaše oblast podle vašeho nastavení. Můžete ji skrýt."
+
+msgid "card.area_unset"
+msgstr "Nenastaveno"
 
 msgid "card.shown"
 msgstr "{0} · zobrazeno"
@@ -4446,8 +4506,8 @@ msgstr "Místnost se nepodařilo vytvořit. Zkontrolujte připojení k internetu
 msgid "runtime.relay_unreachable"
 msgstr "K zprostředkujícímu serveru se nepodařilo připojit. Zkontrolujte internet, firewall nebo VPN a zkuste to znovu."
 
-msgid "runtime.relay_unreachable_region"
-msgstr "K zprostředkujícímu serveru ({0}) se nepodařilo připojit. Zkontrolujte internet, firewall nebo VPN a zkuste to znovu."
+msgid "runtime.relay_unreachable_named"
+msgstr "K zprostředkujícímu serveru {0} se nepodařilo připojit. Zkontrolujte internet, firewall nebo VPN a zkuste to znovu."
 
 msgid "runtime.host_unreachable"
 msgstr "Hostitele se nepodařilo zastihnout, ani přímo, ani přes zprostředkující server. Místnost se mohla zavřít. Pokud je otevřená, nejčastěji za to může Windows Firewall: v Zabezpečení Windows > Brána firewall a ochrana sítě > Povolit aplikaci prostřednictvím brány firewall povolte sf4-net.exe (Soukromé i Veřejné). Překážet může i VPN."
@@ -5445,14 +5505,29 @@ msgstr "Sety v řadě: {0}"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "Přímo {0} ms"
 
 msgid "room.latency.relay"
 msgstr "Relé {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "Relé ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Odhadovaný ping: asi {0} ms."
+
+msgid "room.latency.tip.relay"
+msgstr "Změřeno přes zprostředkující server. Přímý zápas bývá rychlejší. Zkontrolovat spojení změří skutečnou cestu."
+
+msgid "room.latency.tip.checked_direct"
+msgstr "Zkontrolováno na trase zápasu: přímé, {0} ms, kolísání {1} ms."
+
+msgid "room.latency.tip.checked_relay"
+msgstr "Zkontrolováno na trase zápasu: přes server, {0} ms, kolísání {1} ms."
 
 msgid "room.latency.tip.measuring"
 msgstr "Měření pingu..."
@@ -5493,11 +5568,11 @@ msgstr "Načítání místností..."
 msgid "public.needs_id_detail"
 msgstr "Vytvořte si Ember ID a v části Propojené účty důvěřujte nějaké službě. Veřejné místnosti uvádí právě ta služba."
 
-msgid "public.room_detail"
-msgstr "{0}\nHráči: {1}/{2}. Region: {3}."
+msgid "public.room_detail_seats"
+msgstr "{0}\nHráči: {1}/{2}."
 
-msgid "public.room_detail_playing"
-msgstr "{0}\nHráči: {1}/{2}. Region: {3}.\nProbíhající zápasy: {4}."
+msgid "public.room_detail_matches"
+msgstr "Probíhající zápasy: {0}."
 
 msgid "public.joining_value"
 msgstr "Připojování..."
@@ -5590,7 +5665,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "Vyberte, které místnosti se zobrazí: podle oblasti, typu místnosti, volných míst a připojení. Váš výběr se uloží pro příště."
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5598,14 +5673,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "Oblast"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "Zobrazit místnosti ze všech oblastí, jen místnosti ve vaší oblasti nebo vedle ní, nebo z jedné oblasti. Vlevo a Vpravo ji mění."
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "Všechny oblasti"
 
 msgid "public.filter_region_near"
 msgstr "Poblíž"
@@ -5637,8 +5712,8 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember zatím nezná váš region, a proto nepozná, které místnosti jsou poblíž."
+msgid "public.filter_near_unset"
+msgstr "Vaše oblast není nastavena, takže Ember nepozná, které místnosti jsou poblíž. Nastavte ji v Nastavení, Země a oblast."
 
 msgid "public.near_you"
 msgstr "Poblíž"
@@ -5667,8 +5742,11 @@ msgstr "{0} min"
 msgid "public.age_hours"
 msgstr "{0} h"
 
-msgid "public.room_detail2"
-msgstr "Hostitel {0}, {1}. Obsazená místa: {2} z {3}."
+msgid "public.room_detail_host"
+msgstr "Hostitel {0}. Obsazená místa: {1} z {2}."
+
+msgid "public.room_detail_area"
+msgstr "Oblast: {0}."
 
 msgid "public.room_detail_match"
 msgstr " Probíhá zápas."
@@ -8635,8 +8713,11 @@ msgstr "ONLINE · PŘIPOJENÍ"
 msgid "online.eyebrow_browse"
 msgstr "ONLINE · PROCHÁZENÍ"
 
-msgid "public.your_region"
-msgstr "Váš region {0}"
+msgid "public.your_area"
+msgstr "Vaše oblast: {0}"
+
+msgid "public.area_unset"
+msgstr "Nastavte oblast v Nastavení"
 
 msgid "home.notifications"
 msgstr "Oznámení"
