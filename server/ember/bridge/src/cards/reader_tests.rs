@@ -427,3 +427,94 @@ async fn a_search_that_lists_twenty_costs_what_one_that_lists_two_does() {
     assert_eq!(few_statements, many_statements);
     assert!(many_statements <= 4, "{many_statements} statements");
 }
+
+/// Reads players 4 and 5 of a bridge seeded with 60, for the caller, with
+/// classes shown and friends offered, for `purpose`, and hands the `Reader`
+/// to `check`. Player 4 is a developer with points, a card row and a
+/// relation; player 5 has points, a card row, a relation and a record against
+/// the caller.
+async fn read_for(purpose: Purpose, check: fn(&Reader)) {
+    let db = seeded(60).await;
+    db.read(move |tx| {
+        let (caller, classes) = (caller(), classes(true));
+        let viewer = Viewer {
+            caller: &caller,
+            friends_offered: true,
+            classes: &classes,
+            now: NOW,
+        };
+        let (four, five) = (account(4), account(5));
+        let read = Reader::read(tx, &viewer, &[four.as_str(), five.as_str()], purpose)?;
+        check(&read);
+        Ok(())
+    })
+    .await
+    .unwrap();
+}
+
+// Every accessor answers for the purposes whose reads it relies on, and only
+// those (the call sites: `routes::levels` reads `Card` and `Rivals`,
+// `friends` reads `Friends`, `routes::profiles` reads `Hits`). An accessor
+// outside a purpose's contract reads as none.
+
+#[tokio::test]
+async fn a_card_read_answers_every_accessor() {
+    read_for(Purpose::Card, |read| {
+        let (four, five) = (account(4), account(5));
+        let card = read.card(&five).expect("a card");
+        assert_eq!(card.name.as_deref(), Some("Player 5"));
+        assert!(card.versus.is_some());
+        assert!(read.card(&four).is_some());
+        assert!(read.points(&five).is_some());
+        assert!(read.listing(&five).is_some());
+        assert!(read.record(&five).is_some());
+        assert!(read.relation(&five).is_some());
+        assert!(read.badge(&four) == Some(SkillBadge::DEVELOPER));
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn a_friends_read_answers_points_records_relations_and_classes() {
+    read_for(Purpose::Friends, |read| {
+        let (four, five) = (account(4), account(5));
+        assert!(read.points(&five).is_some());
+        assert!(read.record(&five).is_some());
+        assert!(read.relation(&five).is_some());
+        assert!(read.badge(&four) == Some(SkillBadge::DEVELOPER));
+        // Out of contract: a friends state shows no card row, and no whole card.
+        assert!(read.listing(&five).is_none());
+        assert!(read.card(&five).is_none());
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn a_hits_read_answers_relations_and_classes_only() {
+    read_for(Purpose::Hits, |read| {
+        let (four, five) = (account(4), account(5));
+        assert!(read.relation(&five).is_some());
+        assert!(read.badge(&four) == Some(SkillBadge::DEVELOPER));
+        // Out of contract: nothing else is read.
+        assert!(read.points(&five).is_none());
+        assert!(read.listing(&five).is_none());
+        assert!(read.record(&five).is_none());
+        assert!(read.card(&five).is_none());
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn a_rivals_read_answers_card_rows_relations_and_classes() {
+    read_for(Purpose::Rivals, |read| {
+        let (four, five) = (account(4), account(5));
+        assert!(read.listing(&five).is_some());
+        assert!(read.relation(&five).is_some());
+        assert!(read.badge(&four) == Some(SkillBadge::DEVELOPER));
+        // Out of contract: no points, no record, no whole card.
+        assert!(read.points(&five).is_none());
+        assert!(read.record(&five).is_none());
+        assert!(read.card(&five).is_none());
+    })
+    .await;
+}

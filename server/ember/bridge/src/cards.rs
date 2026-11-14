@@ -242,7 +242,8 @@ impl Purpose {
         matches!(self, Self::Card | Self::Friends)
     }
 
-    /// With the points, the award counters a card shows.
+    /// The award counters a card shows, read with the points (so only a
+    /// purpose that reads the points may answer true).
     fn awards(self) -> bool {
         self == Self::Card
     }
@@ -262,7 +263,9 @@ impl Purpose {
 /// the one place a card is assembled, and what a search hit, the most played
 /// opponent and a friends state show of other players. It costs the same few
 /// reads (`Purpose`) whatever the number of accounts, all in the one
-/// transaction it is read in. What a purpose does not read reads as none.
+/// transaction it is read in. What a purpose does not read reads as none, so
+/// each caller asks only for what its purpose reads (`reader_tests` holds,
+/// per purpose, the accessors that answer).
 pub struct Reader {
     caller: String,
     friends_offered: bool,
@@ -286,7 +289,7 @@ impl Reader {
         accounts.sort_unstable();
         accounts.dedup();
         let classes = viewer.classes;
-        let awards = purpose.points() && purpose.awards();
+        let awards = purpose.awards();
         let standings = if classes.shown || awards {
             Some(skill::Standings::read(tx, &accounts, viewer.now)?)
         } else {
