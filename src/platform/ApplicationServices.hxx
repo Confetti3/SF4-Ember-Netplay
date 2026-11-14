@@ -33,7 +33,7 @@ namespace sf4e { namespace platform {
 // PickReplays opens the Windows file picker over the game's window, in the
 // Downloads folder, for replay and set pack files. It runs on a thread of its
 // own, not the worker, so reports, updates and diagnostics go on while it is
-// open; what was picked is taken with TakePicked (nothing for a cancel).
+// open; what was picked is taken with Picker().Take() (nothing for a cancel).
 enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
     PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate, PickReplays };
 // Where the launch check is. Off is a service that makes none (a snapshot
