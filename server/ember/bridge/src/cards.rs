@@ -162,7 +162,7 @@ pub fn save(tx: &Transaction<'_>, account: &str, card: &CardSave, now: u64) -> R
             card.pins.join(","),
             card.style.device,
             card.style.link,
-            card.style.region,
+            card.style.stored_region(),
             card.style.looking,
         ],
     )?;

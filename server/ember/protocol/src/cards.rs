@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, Result,
+    area::is_area,
     awards::{AwardCounts, is_family_id},
     encoding::{is_prefixed_id, is_single_line},
     friends::{PairRecord, parse_friend_code},
@@ -238,8 +239,9 @@ impl Worn {
 }
 
 /// How a player plays, as small numbers the viewer words: the device, the
-/// connection, the relay region and what they are looking for. Every member
-/// is absent at 0, and a value a reader does not know reads as not shown.
+/// connection, the area they play from and what they are looking for. Every
+/// member is absent at 0, and a value a reader does not know reads as not
+/// shown.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Style {
     /// 1 Pad, 2 Stick, 3 Leverless, 4 Keyboard; absent for not shown.
@@ -248,7 +250,10 @@ pub struct Style {
     /// 1 Wired, 2 Wi-Fi; absent for not shown.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub link: u8,
-    /// A relay region's code (`relay::REGIONS`).
+    /// The player's area (`area::Area`'s code): their own claim, shown as the
+    /// card's Region. Nightly builds from before areas sent their relay's code
+    /// (`relay::REGIONS`), which a bridge takes and stores as none
+    /// (`stored_region`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
     /// Bits of `LOOKING_BITS`: 1 Casuals, 2 Long sets, 4 Ranked, 8 Tournament
@@ -257,7 +262,7 @@ pub struct Style {
     pub looking: u32,
 }
 
-/// The longest region code an answer carries.
+/// The longest area code an answer carries.
 const MAX_REGION_CODE: usize = 8;
 
 impl Style {
@@ -265,8 +270,9 @@ impl Style {
         *self == Self::default()
     }
 
-    /// What a bridge accepts to store: each number in its range, a region it
-    /// knows, and at most `MAX_LOOKING` bits of what the player looks for.
+    /// What a bridge accepts to store: each number in its range, an area (or
+    /// the relay code of a build from before areas), and at most
+    /// `MAX_LOOKING` bits of what the player looks for.
     pub fn check_save(&self) -> Result<()> {
         if self.device > MAX_DEVICE {
             return Err(Error::InvalidField("device"));
@@ -277,7 +283,7 @@ impl Style {
         if self
             .region
             .as_deref()
-            .is_some_and(|region| !is_region(region))
+            .is_some_and(|region| !is_area(region) && !is_region(region))
         {
             return Err(Error::InvalidField("region"));
         }
@@ -287,8 +293,14 @@ impl Style {
         Ok(())
     }
 
+    /// The region a bridge stores of a checked save: an area, never a relay's
+    /// code, which only says how a player connected.
+    pub fn stored_region(&self) -> Option<&str> {
+        self.region.as_deref().filter(|region| is_area(region))
+    }
+
     /// What a client accepts in an answer: a later bridge's device, link,
-    /// region or bit is not refused, and reads as not shown.
+    /// area or bit is not refused, and reads as not shown.
     pub fn check(&self) -> Result<()> {
         let shaped = self.region.as_deref().is_none_or(|region| {
             !region.is_empty()

@@ -1,9 +1,9 @@
 # Upgrading production to the 1.6.0 bridge
 
 What this upgrade does to the production database, in what order to do it,
-and how to step back. The bridge runs migrations 060 to 065 (fighter levels,
-friends, account points, award counters, player cards, the class bonus) as it
-starts, each in its own `IMMEDIATE` transaction, and refuses to start on a
+and how to step back. The bridge runs migrations 060 to 066 (fighter levels,
+friends, account points, award counters, player cards, the class bonus,
+areas) as it starts, each in its own `IMMEDIATE` transaction, and refuses to start on a
 database it does not recognise without changing anything.
 
 Read this through before starting; do the steps in order.
@@ -17,7 +17,7 @@ Read this through before starting; do the steps in order.
   up to a day old. Take a backup yourself immediately before the upgrade.
 - **The only safe rollback target is the bridge build production runs
   today** (the shared library's bridge). It records migrations by number only
-  and ignores the 060 to 065 records it does not know, and its
+  and ignores the 060 to 066 records it does not know, and its
   `INSERT INTO rated_games (room_id, table_id, generation)` still fits 060's
   table (`game` defaults to 0). Nothing it does needs a restore.
 - **Not the 1.5.7 bridge of the release branch.** It starts, but its rating
@@ -72,14 +72,30 @@ Read this through before starting; do the steps in order.
    account. If it rolls back, start the old bridge again
    (`sudo systemctl start ember-bridge`) and stop here: nothing changed.
 8. **Install the 1.6.0 bridge**: `sudo bash ~/ember-bridge/setup.sh`. It starts
-   the bridge, which runs 060 to 065. If it refuses to start, read the message
+   the bridge, which runs 060 to 066. If it refuses to start, read the message
    in `journalctl -u ember-bridge`; `setup.sh` has already put the previous
    binary back and started it.
 9. **Check** `GET /v1/capabilities` lists `points`, `points_class_bonus`,
-   `friends` and `profiles` where the configuration turns them on, the room
+   `friends`, `profiles` and `room_area` where the configuration turns them on, the room
    list moves, and `journalctl -u ember-bridge` shows no `database error`.
 10. **Only now** install the 1.6.0 room host builds on the supervisors
     (`builds/<build_id>/` staged, `setup.sh` again) and publish the game.
+
+## Areas (migration 066)
+
+066 joins 060 to 065 and runs with them. It adds `rooms.creator_area`, a
+nullable column with no default (only the table's definition changes, so it is
+cheap on the live table), and clears a card's region where a Nightly before
+areas saved its relay's code there (`use1`, `usw1`, `euc1`, `aps1`), so cards
+read as having no region until their players save again. The old bridge, put
+back, names its columns and leaves the new one NULL.
+
+The bridge must be deployed before any client sends `area`, and the clients
+see to that themselves: a 1.6.0 helper sends a room's `area` only to a bridge
+that lists `room_area` (`ember_protocol::rooms::AREA_FEATURE`), so against
+today's bridge it creates rooms exactly as before. The relay code keeps going
+in `region`, which Stable 1.5.7 builds send and read unchanged. Nothing to do
+beyond the order above.
 
 ## Stepping back
 

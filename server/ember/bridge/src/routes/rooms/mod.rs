@@ -255,8 +255,11 @@ struct Room {
     /// The room host's relay region, set once the supervisor reports the room
     /// hosted, so a room without one is not hosted yet.
     host_region: Option<String>,
-    /// The region its creator gave, which players see in place of the host's.
+    /// The relay its creator gave, which the listing gives in place of the host's.
     creator_region: Option<String>,
+    /// Where its creator plays from, when they said (migration 066): the place
+    /// the room list shows.
+    creator_area: Option<String>,
     invitation_sealed: Option<Vec<u8>>,
     creator_ember_id: String,
     opened_at: Option<u64>,
@@ -283,7 +286,7 @@ struct Room {
 
 const COLUMNS: &str = "room_id, name, build_id, capacity, members, tables_playing, created_at, region, invitation_sealed,
     creator_ember_id, opened_at, closed_at, connection_id, host_name, fighters, locked, set_format, rotation,
-    creator_region, own_delay, room_type, creator_in, wired_only";
+    creator_region, own_delay, room_type, creator_in, wired_only, creator_area";
 
 fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
     Ok(Room {
@@ -310,6 +313,7 @@ fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
         room_type: row.get(20)?,
         creator_in: row.get(21)?,
         wired_only: row.get(22)?,
+        creator_area: row.get(23)?,
     })
 }
 
@@ -345,6 +349,7 @@ impl Room {
             capacity: self.capacity,
             tables_playing: self.tables_playing,
             region: self.creator_region.as_ref().unwrap_or(host_region).clone(),
+            area: self.creator_area.clone(),
             created_at: self.created_at,
             own_delay: self.own_delay,
             host_name: None,

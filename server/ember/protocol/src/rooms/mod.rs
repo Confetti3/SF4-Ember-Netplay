@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, Result,
+    area::Area,
     encoding::{is_false, is_single_line},
     matches::games_to_win_valid,
     play::{MAX_INVITATION, check_build, is_hex},
@@ -28,6 +29,11 @@ pub use connection::{
     ENDED, NOT_LINKED, ROOM_PAGE, RoomCreator, RoomState, join_url,
 };
 pub use ticket::{RoomTicket, SignedRoomTicket};
+
+/// The capability of a bridge that reads a create's `area` and lists it
+/// (`CreateRoom::area`). A build sends `area` only to a bridge that lists it,
+/// since an older one refuses the field.
+pub const AREA_FEATURE: &str = "room_area";
 
 /// Refusal reasons of the room routes.
 pub const ROOM_LIMIT: &str = "room_limit";
@@ -100,6 +106,16 @@ pub fn check_host_name(name: &str) -> Result<()> {
     }
 }
 
+/// A short code as listings carry them: 1 to 8 of a to z and 0 to 9. A
+/// relay's code and an area's both are; a reader takes one it does not know.
+fn is_listed_code(code: &str) -> bool {
+    !code.is_empty()
+        && code.len() <= MAX_REGION
+        && code
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+}
+
 /// A country as players show it: an ISO 3166 alpha-2 code in capitals.
 pub fn is_country(code: &str) -> bool {
     code.len() == 2 && code.bytes().all(|byte| byte.is_ascii_uppercase())
@@ -134,9 +150,16 @@ pub struct RoomSummary {
     pub members: u8,
     pub capacity: u8,
     pub tables_playing: u8,
-    /// The room's region code, such as `use1`: its creator's relay region
-    /// when they gave one (`CreateRoom::region`), else its host's.
+    /// The room's relay code, such as `use1`: its creator's home relay when
+    /// they gave one (`CreateRoom::region`), else its host's. A routing fact,
+    /// which builds from before areas also show as the room's place.
     pub region: String,
+    /// Where the room's creator plays from (`area::Area`'s code), when they
+    /// said (`CreateRoom::area`): what the room list shows as its place. Absent
+    /// for a creator who hid it or a build from before areas. A reader takes
+    /// a code it does not know as none, so a later area does not fail a list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub area: Option<String>,
     pub created_at: u64,
     /// Each fighter plays at the input delay they chose, instead of both at the
     /// higher of the two. Fixed when the room is created. Present only when
@@ -223,14 +246,15 @@ impl RoomSummary {
         if self.members > self.capacity {
             return Err(Error::InvalidField("members"));
         }
-        let region_valid = !self.region.is_empty()
-            && self.region.len() <= MAX_REGION
-            && self
-                .region
-                .bytes()
-                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit());
-        if !region_valid {
+        if !is_listed_code(&self.region) {
             return Err(Error::InvalidField("region"));
+        }
+        if self
+            .area
+            .as_deref()
+            .is_some_and(|area| !is_listed_code(area))
+        {
+            return Err(Error::InvalidField("area"));
         }
         self.check_details()
     }
@@ -254,11 +278,16 @@ pub struct CreateRoom {
     pub name: String,
     pub capacity: u8,
     pub build_id: String,
-    /// The creator's relay region (`relay::REGIONS`), which the listing shows
+    /// The creator's home relay (`relay::REGIONS`), which the listing gives
     /// in place of the room host's: matches are played player to player.
-    /// Left out when the creator's region is not known.
+    /// Left out when the creator's relay is not known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
+    /// Where the creator plays from, their own claim, which the listing shows
+    /// as the room's place (`RoomSummary::area`). Left out when they hid it or
+    /// it is not set, and sent only to a bridge that lists `AREA_FEATURE`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub area: Option<Area>,
     /// Asks for a room whose fighters each play at their own input delay (see
     /// `RoomSummary::own_delay`). Sent only when true; a bridge that does not
     /// know the field refuses the request, which is never retried without it.
@@ -382,6 +411,7 @@ mod tests {
             capacity: 8,
             tables_playing: 1,
             region: "use1".into(),
+            area: None,
             created_at: 900,
             own_delay: false,
             host_name: None,
@@ -460,6 +490,7 @@ mod tests {
             capacity: 8,
             build_id: "build".into(),
             region: None,
+            area: None,
             own_delay: false,
         };
         assert!(create.check().is_ok());
@@ -539,6 +570,19 @@ mod tests {
                 ..summary()
             };
             assert_eq!(bad.check(), Err(Error::InvalidField("region")), "{region}");
+            let bad = RoomSummary {
+                area: Some(region.into()),
+                ..summary()
+            };
+            assert_eq!(bad.check(), Err(Error::InvalidField("area")), "{region}");
+        }
+        // An area this build does not know yet is still a listed room.
+        for area in ["naw", "oce", "xyz9"] {
+            let ok = RoomSummary {
+                area: Some(area.into()),
+                ..summary()
+            };
+            assert!(ok.check().is_ok(), "{area}");
         }
         let bad = RoomSummary {
             room_id: "0".repeat(31),

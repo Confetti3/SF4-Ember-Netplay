@@ -59,6 +59,7 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
     if crate::routes::rooms::enabled(&state) {
         features.push(crate::routes::rooms::FEATURE.into());
         features.push(crate::routes::rooms::CONNECTION_FEATURE.into());
+        features.push(ember_protocol::rooms::AREA_FEATURE.into());
         features.push(ember_protocol::skill::RANKING_FEATURE.into());
         features.push(ember_protocol::levels::POINTS_FEATURE.into());
         features.push(ember_protocol::levels::CLASS_BONUS_FEATURE.into());
