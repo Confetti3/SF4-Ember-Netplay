@@ -447,6 +447,20 @@ bool FriendsPanel::Send(const ShellView& view, Command command, const Submit& su
     return true;
 }
 
+// The popout the player asked for waits on a row of the list: with another screen or no list it is gone, and one that was
+// not opened or answered in time is dropped. Counted once a frame, here, not by the queries that read it.
+void FriendsPanel::TickRaise(const ShellView& v, MenuNavigation& nav) {
+    const std::string& screen = nav.Screen();
+    const bool listed = screen == Screen && ModeOf(v.friends, service_) == Mode::Listed;
+    if ((OnTab(screen) || screen == VisitScreen) && !listed) raise_ = Raise{};
+    // The popout shows on the Friends list, or on the Notifications row it was asked on.
+    if (raise_.row.empty() || !(listed || (screen == NotificationsScreen && NotificationRow(raise_.row)))) return;
+    if (raise_.issued) {
+        if (nav.Choosing()) raise_.seen = true;
+        else if (raise_.seen || ++raise_.waits > 3) raise_ = Raise{};
+    } else if (++raise_.waits > 8) raise_ = Raise{};
+}
+
 void FriendsPanel::Update(const ShellView& v, MenuNavigation& nav, const std::string& bridge, const Submit& submit) {
     const auto& f = v.friends;
     // Another service keeps none of the cards asked for.
@@ -463,6 +477,7 @@ void FriendsPanel::Update(const ShellView& v, MenuNavigation& nav, const std::st
     } else if (asked_) {
         if (Bridge(v).empty() || quiet(commands::FriendsLeave{Bridge(v)})) { asked_ = false; sawVisiting_ = false; }
     }
+    TickRaise(v, nav);
     // What was asked went through, or was refused: each says so.
     if (pending_.active) {
         switch (OutcomeOf(f, pending_.finished, pending_.refusals)) {
@@ -525,8 +540,8 @@ std::optional<MenuEntry> FriendsPanel::RowOf(const ShellView& v, const std::stri
     return row;
 }
 
-void FriendsPanel::AttachNotifications(std::vector<MenuEntry>& rows, const ShellView& v, bool dialog) {
-    if (NotificationRow(raise_.row)) Attach(rows, v, dialog);
+void FriendsPanel::AttachNotifications(std::vector<MenuEntry>& rows, const ShellView& v) {
+    if (NotificationRow(raise_.row)) Attach(rows, v);
 }
 
 bool FriendsPanel::TakesOnNotifications(const std::string& focus, unsigned shortcut) {
@@ -563,14 +578,12 @@ void FriendsPanel::Conceal() {
     wantedCard_.clear();
 }
 
-std::vector<MenuEntry> FriendsPanel::Rows(const ShellView& v, const std::string& screen, bool dialog, std::string& title) {
+std::vector<MenuEntry> FriendsPanel::Rows(const ShellView& v, const std::string& screen, std::string& title) {
     const auto& f = v.friends;
     const auto& state = StateOf(f);
     const Mode mode = ModeOf(f, service_);
     const Gate gate = GateOf(f, service_, pending_.active);
     const std::uint64_t now = v.unixNow;
-    // A popout waits on a row of the list: with another screen or no list, it is gone.
-    if (screen != Screen || mode != Mode::Listed) raise_ = Raise{};
     const auto pendingOn = [&](MenuEntry& row) { if (pending_.active && pending_.row == row.id) row.value = "..."; };
     std::vector<MenuEntry> rows;
     // The question a Join asks before it leaves a room or a game.
@@ -683,17 +696,13 @@ std::vector<MenuEntry> FriendsPanel::Rows(const ShellView& v, const std::string&
     appear.hint = loc::T("friends.change");
     pendingOn(appear);
     rows.push_back(std::move(appear));
-    Attach(rows, v, dialog);
+    Attach(rows, v);
     return rows;
 }
 
 // The popout the player asked for (More, or the question that asks again) goes on its row, which Dress then opens.
-void FriendsPanel::Attach(std::vector<MenuEntry>& rows, const ShellView& v, bool dialog) {
+void FriendsPanel::Attach(std::vector<MenuEntry>& rows, const ShellView& v) {
     if (raise_.row.empty()) return;
-    if (raise_.issued) {
-        if (dialog) raise_.seen = true;
-        else if (raise_.seen || ++raise_.waits > 3) { raise_ = Raise{}; return; }
-    } else if (++raise_.waits > 8) { raise_ = Raise{}; return; }
     const auto row = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == raise_.row; });
     if (row == rows.end()) { raise_ = Raise{}; return; }
     const auto& f = v.friends;

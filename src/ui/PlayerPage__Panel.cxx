@@ -137,6 +137,14 @@ void PlayerPage::Update(const ShellView& v, const std::string& screen, MenuNavig
     else if (on && OnSets(screen)) sets_.BrowseName(shown.name);
     sets_.Update(v, screen, bridge, nav.Focus(), submit);
     if (!on) return;
+    // A question More asked reopens More with its one choice, until it is answered or the popout is closed. Counted once a
+    // frame, here, not by the queries that read it.
+    if (screen == CardScreen && !ask_.empty()) {
+        if (raise_.issued) {
+            if (nav.Choosing()) raise_.seen = true;
+            else if (raise_.seen || ++raise_.waits > 3) { ask_.clear(); raise_ = Raise(); }
+        } else if (++raise_.waits > 8) { ask_.clear(); raise_ = Raise(); }
+    }
     // Several players go by the name: the pick list asks which. A tab the state does not have gives way to Card.
     if (shown.page == Page::Several && screen != PickScreen && IsTab(screen)) nav.Replace(PickScreen);
     else if (shown.page != Page::Several && screen == PickScreen && key_.Present() && v.profile.Open() && v.profile.key == key_) nav.Replace(CardScreen);
@@ -150,7 +158,7 @@ void PlayerPage::Update(const ShellView& v, const std::string& screen, MenuNavig
     }
 }
 
-std::vector<MenuEntry> PlayerPage::Rows(const ShellView& v, const std::string& screen, const FriendsPanel& friends, bool idle, bool dialog, std::string& title) {
+std::vector<MenuEntry> PlayerPage::Rows(const ShellView& v, const std::string& screen, const FriendsPanel& friends, bool idle, std::string& title) {
     if (OnSets(screen)) {
         auto rows = sets_.Rows(v, screen, idle, title);
         if (sets_.IsList(screen)) title = loc::T("profile.tab.sets");
@@ -164,13 +172,6 @@ std::vector<MenuEntry> PlayerPage::Rows(const ShellView& v, const std::string& s
     if (screen == FightersScreen) { title = loc::T("profile.tab.fighters"); return FighterRows(shown); }
     if (screen == AwardsScreen) { title = loc::T("screen.awards"); return AwardRows(shown); }
     title = loc::T("profile.tab.card");
-    // A question More asked reopens More with its one choice, until it is answered or the popout is closed.
-    if (!ask_.empty()) {
-        if (raise_.issued) {
-            if (dialog) raise_.seen = true;
-            else if (raise_.seen || ++raise_.waits > 3) { ask_.clear(); raise_ = Raise(); }
-        } else if (++raise_.waits > 8) { ask_.clear(); raise_ = Raise(); }
-    }
     const auto standing = StandingNow(v, shown, LinksOf(v, friends, shown));
     const auto view = player_card::FullOf(SubjectNow(v, shown, standing), CardSize());
     return CardRows(view, PrimaryOf(standing), standing, ask_, shown.name);

@@ -202,9 +202,9 @@ public:
         const Submit& submit;
         std::string& error;
     };
-    // The screen's rows. `friends` says what the friends paths allow now; `idle`: no room is joined (a set can be watched);
-    // `dialog`: a choice or question is open over the rows.
-    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, const FriendsPanel& friends, bool idle, bool dialog, std::string& title);
+    // The screen's rows. `friends` says what the friends paths allow now; `idle`: no room is joined (a set can be watched).
+    // A query: the question More asked is timed by Update.
+    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, const FriendsPanel& friends, bool idle, std::string& title);
     // Select on a row, and an option chosen from one, which carry out what the row means. False: not the page's.
     bool Activate(const ShellView& view, const MenuAction& action, const Hands& hands);
     bool Choose(const ShellView& view, const MenuAction& action, const Hands& hands);

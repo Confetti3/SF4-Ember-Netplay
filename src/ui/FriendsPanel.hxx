@@ -200,16 +200,16 @@ public:
     void AnswerNotice(const ShellView& view, const std::string& key, std::size_t action, const Submit& submit);
     // Notifications' row of the request or invite `key`, A as on the Friends tab (Accept; Join); More (Y) opens on
     // it by AttachNotifications with the tab's choices and questions, and Activate and Choose answer it as the tab's
-    // own. None for a key no longer waiting. `dialog`: a choice or question is open over the rows.
+    // own. None for a key no longer waiting.
     std::optional<MenuEntry> RowOf(const ShellView& view, const std::string& key) const;
-    void AttachNotifications(std::vector<MenuEntry>& rows, const ShellView& view, bool dialog);
+    void AttachNotifications(std::vector<MenuEntry>& rows, const ShellView& view);
     // Y on a request's or an invite's row there opens its More; the hint bar names it, and the popout asked for opens.
     static bool TakesOnNotifications(const std::string& focus, unsigned shortcut);
     void NotificationShortcut(const MenuAction& action, MenuNavigation& nav);
     void DressNotifications(const std::vector<MenuEntry>& rows, GameMenu& menu);
 
-    // The screen's rows. `dialog`: a choice or question is open over them.
-    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool dialog, std::string& title);
+    // The screen's rows (a query: the popout's timing is kept by Update).
+    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, std::string& title);
     // Select on a row, an option chosen from one and the text typed on Find a player; false when the row is not the
     // panel's. `Shortcut` is X, Y and Delete.
     bool Activate(const ShellView& view, const MenuAction& action, MenuNavigation& nav, const Submit& submit);
@@ -262,9 +262,10 @@ private:
     void Perform(const ShellView& view, const std::string& what, const std::string& id, const std::string& row, const Submit& submit);
     template <class Command>
     bool Send(const ShellView& view, Command command, const Submit& submit, const std::string& row = {}, std::string say = {}, bool back = false);
+    void TickRaise(const ShellView& view, MenuNavigation& nav);
     void Say(std::string words, Tone tone);
     const std::string& Bridge(const ShellView& view) const;
-    void Attach(std::vector<MenuEntry>& rows, const ShellView& view, bool dialog);
+    void Attach(std::vector<MenuEntry>& rows, const ShellView& view);
     void Ask(const std::string& row, const std::string& ask) { raise_ = Raise{row, ask}; }
     // A request's Accept, from `row` (said, once through, as who is now a friend); an invite's Join (go where it
     // says, then drop it) and its Dismiss.

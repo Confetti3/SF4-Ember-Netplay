@@ -265,7 +265,7 @@ std::vector<MenuEntry> ApplicationShell::NotificationRows(const ShellView& v,dou
   if(!row.choices.empty()){row.info=false;row.popout=true;}
   rows.push_back(std::move(row));
  }
- friends_.AttachNotifications(rows,v,menu_.navigation.Choosing());
+ friends_.AttachNotifications(rows,v);
  // None yet: a row that says so and what will come, as Sent reports' empty list does.
  if(rows.empty())rows.push_back(InfoRow("toasts-none",loc::T("notifications.none"),"",loc::T("notifications.none_detail")));
  return rows;

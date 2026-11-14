@@ -81,6 +81,25 @@ std::vector<std::string> Ids(const Social& j) {
  return ids;
 }
 
+// The popout More opens is timed once a frame (Update): reading the rows again, in a frame or out of one, does not run it down.
+void RowsReadJourney() {
+ Social j;
+ FriendsPanel panel;
+ MenuNavigation nav("notifications");
+ const auto row = panel.RowOf(j.h.view, std::string(friends_panel::RequestPrefix) + "rq_1");
+ Check(row.has_value(), "A waiting request has no Notifications row");
+ const std::vector<MenuEntry> rows{*row};
+ nav.Focus(row->id, rows);
+ MenuAction y;
+ y.kind = MenuAction::Shortcut; y.delta = MenuInput::Options;
+ panel.NotificationShortcut(y, nav);
+ for (int i = 0; i < 30; ++i) {
+  auto copy = rows;
+  panel.AttachNotifications(copy, j.h.view);
+  Check(copy[0].popout, "Reading the rows again ran the asked popout down");
+ }
+}
+
 // The tab keeps the friends fresh: Visit as it opens (and not again for a page over it), Leave as it closes, and Visit
 // again once its cadence lapsed.
 void VisitJourney() {
@@ -570,7 +589,7 @@ void SettingsJourney() {
 
 int main() {
  try {
-  VisitJourney(); RowsJourney(); ActionsJourney(); CardJourney(); CardWantedJourney(); MoreJourney(); RequestJourney(); AddJourney(); FindJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
+  VisitJourney(); RowsReadJourney(); RowsJourney(); ActionsJourney(); CardJourney(); CardWantedJourney(); MoreJourney(); RequestJourney(); AddJourney(); FindJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
   std::cout << "Friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }
