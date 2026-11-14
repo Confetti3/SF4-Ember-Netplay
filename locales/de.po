@@ -996,6 +996,9 @@ msgstr "Wähle Dateien im geöffneten Fenster..."
 msgid "replays.import_some_failed"
 msgstr "{0} von {1} Dateien konnten nicht importiert werden."
 
+msgid "replays.import_skipped"
+msgstr "{0} Datei(en) übersprungen. Ember importiert .emberreplay-, .usf4replay- und .emberpack-Dateien von einem lokalen Laufwerk, bis zu 64 auf einmal."
+
 msgid "replays.import_done"
 msgstr "Replays enthält jetzt {0} Spiel(e) aus {1} Datei(en)."
 
@@ -1564,7 +1567,7 @@ msgid "friends.busy"
 msgstr "Warte, bis die letzte Anfrage abgeschlossen ist."
 
 msgid "friends.accept_member"
-msgstr "Anfrage annehmen"
+msgstr "Freund annehmen"
 
 msgid "friends.add_member"
 msgstr "Freund hinzufügen"
@@ -6612,6 +6615,9 @@ msgstr "Das Spiel ist abgestürzt. Bitte die Dateien aus %APPDATA%\\sf4e\\logs (
 msgid "launcher.game_crashed_sending"
 msgstr "Das Spiel ist abgestürzt. Problemberichte senden ist eingeschaltet, daher wird der Bericht gesendet, mit dem kleinen Dump, wenn der Absturz einen geschrieben hat. Die Dateien liegen auch in %APPDATA%\\sf4e\\logs."
 
+msgid "launcher.start_failed_sending"
+msgstr "Spielstart oder Injection fehlgeschlagen. Problemberichte senden ist eingeschaltet, daher wird der Bericht gesendet. Das Launcher-Log liegt in %APPDATA%\\sf4e\\logs."
+
 msgid "reports.settings_title"
 msgstr "Problemberichte"
 
@@ -8385,6 +8391,27 @@ msgstr "Lebens-, Super- und Revenge-Leisten, Timer und Ansagen aus einem Theme i
 
 msgid "settings.game_theme_battle_hud_none"
 msgstr "Keine Themes mit Kampf-HUD gefunden. Lege ein Theme mit seinem battle\\hud-Ordner in ember\\themes im Spielordner ab und starte das Spiel neu."
+
+msgid "settings.game_theme_risk"
+msgstr "Theme-Dateien werden unverändert verwendet, und eine defekte kann das Spiel beenden. Dann schaltet Ember dieses Theme beim nächsten Start ab."
+
+msgid "settings.game_theme_closed"
+msgstr "{0} (hat zuletzt das Spiel beendet)"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0} (nicht genutzt: HUD-Bilder passen nicht)"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0} (nicht genutzt: HUD-Dateien nicht lesbar)"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "Die HUD-Bilder von {0} passen nicht zum HUD-Layout dieser Edition, daher wurde es nicht verwendet. Das eigene HUD des Spiels wird angezeigt."
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "{0} enthält HUD-Dateien, die das Spiel nicht lesen kann, daher wurde es nicht verwendet. Das eigene HUD des Spiels wird angezeigt."
+
+msgid "runtime.game_theme_turned_off"
+msgstr "{0} wurde für {1} abgeschaltet: Das Spiel hat sich beim Laden beendet."
 
 msgid "menu.pages"
 msgstr "Seiten"

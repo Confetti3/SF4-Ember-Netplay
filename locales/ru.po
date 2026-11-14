@@ -996,6 +996,9 @@ msgstr "Выберите файлы в открывшемся окне..."
 msgid "replays.import_some_failed"
 msgstr "Не удалось импортировать файлов: {0} из {1}."
 
+msgid "replays.import_skipped"
+msgstr "Пропущено файлов: {0}. Ember импортирует файлы .emberreplay, .usf4replay и .emberpack с локального диска, до 64 за раз."
+
 msgid "replays.import_done"
 msgstr "Из файлов ({1}) в Записях: {0}."
 
@@ -1564,7 +1567,7 @@ msgid "friends.busy"
 msgstr "Дождитесь завершения последнего запроса."
 
 msgid "friends.accept_member"
-msgstr "Принять запрос"
+msgstr "Принять в друзья"
 
 msgid "friends.add_member"
 msgstr "Добавить в друзья"
@@ -6612,6 +6615,9 @@ msgstr "Игра аварийно завершилась. Отправьте к�
 msgid "launcher.game_crashed_sending"
 msgstr "Игра аварийно завершилась. Включено «Отправлять отчёты о проблемах», поэтому отправляется отчёт с малым дампом, если сбой его записал. Файлы также находятся в %APPDATA%\\sf4e\\logs."
 
+msgid "launcher.start_failed_sending"
+msgstr "Сбой запуска игры или мода. Включено «Отправлять отчёты о проблемах», поэтому отчёт отправляется. Журнал лаунчера находится в %APPDATA%\\sf4e\\logs."
+
 msgid "reports.settings_title"
 msgstr "Отчёты о проблемах"
 
@@ -8385,6 +8391,27 @@ msgstr "Полосы здоровья, супер и реванша, тайме�
 
 msgid "settings.game_theme_battle_hud_none"
 msgstr "Темы с боевым HUD не найдены. Положите тему с папкой battle\\hud внутри в ember\\themes в папке игры и перезапустите игру."
+
+msgid "settings.game_theme_risk"
+msgstr "Файлы темы используются как есть, и повреждённый файл может закрыть игру. Тогда Ember отключит эту тему при следующем запуске."
+
+msgid "settings.game_theme_closed"
+msgstr "{0} (в прошлый раз игра закрылась)"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0} (не используется: картинки HUD не подходят)"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0} (не используется: файлы HUD не читаются)"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "Картинки HUD темы {0} не подходят к раскладке HUD этого издания, поэтому тема не использована. Показан собственный HUD игры."
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "В теме {0} есть файлы HUD, которые игра не может прочитать, поэтому она не использована. Показан собственный HUD игры."
+
+msgid "runtime.game_theme_turned_off"
+msgstr "Тема {0} отключена для {1}: игра закрылась при её загрузке."
 
 msgid "menu.pages"
 msgstr "Страницы"

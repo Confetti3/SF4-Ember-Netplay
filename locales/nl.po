@@ -996,6 +996,9 @@ msgstr "Kies bestanden in het venster dat openging..."
 msgid "replays.import_some_failed"
 msgstr "{0} van {1} bestanden konden niet worden geïmporteerd."
 
+msgid "replays.import_skipped"
+msgstr "{0} bestand(en) overgeslagen. Ember importeert .emberreplay-, .usf4replay- en .emberpack-bestanden van een lokale schijf, maximaal 64 tegelijk."
+
 msgid "replays.import_done"
 msgstr "Replays bevat nu {0} potje(s) uit {1} bestand(en)."
 
@@ -1564,7 +1567,7 @@ msgid "friends.busy"
 msgstr "Wacht tot het laatste verzoek klaar is."
 
 msgid "friends.accept_member"
-msgstr "Verzoek accepteren"
+msgstr "Vriend accepteren"
 
 msgid "friends.add_member"
 msgstr "Vriend toevoegen"
@@ -6612,6 +6615,9 @@ msgstr "Het spel is gecrasht. Stuur de bestanden uit %APPDATA%\\sf4e\\logs (sf4e
 msgid "launcher.game_crashed_sending"
 msgstr "Het spel is gecrasht. Probleemrapporten versturen staat aan, dus het rapport wordt verstuurd, met de kleine dump als de crash die heeft geschreven. De bestanden staan ook in %APPDATA%\\sf4e\\logs."
 
+msgid "launcher.start_failed_sending"
+msgstr "Starten of injectie mislukt. Probleemrapporten versturen staat aan, dus het rapport wordt verstuurd. Het launcherlogboek staat in %APPDATA%\\sf4e\\logs."
+
 msgid "reports.settings_title"
 msgstr "Probleemrapporten"
 
@@ -8385,6 +8391,27 @@ msgstr "Levens-, super- en revengebalken, timer en aankondigingen uit een thema 
 
 msgid "settings.game_theme_battle_hud_none"
 msgstr "Geen thema's met een gevechts-HUD gevonden. Zet een thema, met de map battle\\hud erin, in ember\\themes in de gamemap en start de game opnieuw."
+
+msgid "settings.game_theme_risk"
+msgstr "Themabestanden worden gebruikt zoals ze zijn, en een kapot bestand kan de game laten sluiten. Dan zet Ember dat thema bij de volgende start uit."
+
+msgid "settings.game_theme_closed"
+msgstr "{0} (sloot de game vorige keer)"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0} (niet gebruikt: HUD-afbeeldingen passen niet)"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0} (niet gebruikt: HUD-bestanden onleesbaar)"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "De HUD-afbeeldingen van {0} passen niet bij de HUD-indeling van deze editie, dus het is niet gebruikt. De eigen HUD van de game wordt getoond."
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "{0} heeft HUD-bestanden die de game niet kan lezen, dus het is niet gebruikt. De eigen HUD van de game wordt getoond."
+
+msgid "runtime.game_theme_turned_off"
+msgstr "{0} is uitgezet voor {1}: de game sloot tijdens het laden."
 
 msgid "menu.pages"
 msgstr "Pagina's"

@@ -996,6 +996,9 @@ msgstr "Wybierz pliki w otwartym oknie..."
 msgid "replays.import_some_failed"
 msgstr "Nie udało się zaimportować {0} z {1} plików."
 
+msgid "replays.import_skipped"
+msgstr "Pominięto plików: {0}. Ember importuje pliki .emberreplay, .usf4replay i .emberpack z dysku lokalnego, do 64 naraz."
+
 msgid "replays.import_done"
 msgstr "Powtórek z plików ({1}): {0}."
 
@@ -1564,7 +1567,7 @@ msgid "friends.busy"
 msgstr "Poczekaj na zakończenie ostatniej prośby."
 
 msgid "friends.accept_member"
-msgstr "Przyjmij zaproszenie"
+msgstr "Przyjmij znajomego"
 
 msgid "friends.add_member"
 msgstr "Dodaj znajomego"
@@ -6612,6 +6615,9 @@ msgstr "Gra uległa awarii. Wyślij zespołowi SF4 Ember Netplay pliki z %APPDAT
 msgid "launcher.game_crashed_sending"
 msgstr "Gra uległa awarii. Opcja Wysyłaj zgłoszenia problemów jest włączona, więc wysyłane jest zgłoszenie z małym zrzutem, jeśli awaria go zapisała. Pliki są też w %APPDATA%\\sf4e\\logs."
 
+msgid "launcher.start_failed_sending"
+msgstr "Start gry lub wstrzyknięcie modułu nie powiodło się. Opcja Wysyłaj zgłoszenia problemów jest włączona, więc zgłoszenie jest wysyłane. Dziennik jest w %APPDATA%\\sf4e\\logs."
+
 msgid "reports.settings_title"
 msgstr "Zgłoszenia problemów"
 
@@ -8385,6 +8391,27 @@ msgstr "Paski życia, super i revenge, licznik czasu i komunikaty z motywu w fol
 
 msgid "settings.game_theme_battle_hud_none"
 msgstr "Nie znaleziono motywów z HUD walki. Umieść motyw z folderem battle\\hud w ember\\themes w folderze gry i uruchom grę ponownie."
+
+msgid "settings.game_theme_risk"
+msgstr "Pliki motywu są używane bez zmian, a uszkodzony może zamknąć grę. Wtedy Ember wyłączy ten motyw przy następnym starcie."
+
+msgid "settings.game_theme_closed"
+msgstr "{0} (ostatnio zamknął grę)"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0} (nieużywany: obrazy HUD nie pasują)"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0} (nieużywany: nie można odczytać plików HUD)"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "Obrazy HUD motywu {0} nie pasują do układu HUD tej edycji, więc nie został użyty. Widać oryginalny HUD gry."
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "Motyw {0} ma pliki HUD, których gra nie potrafi odczytać, więc nie został użyty. Widać oryginalny HUD gry."
+
+msgid "runtime.game_theme_turned_off"
+msgstr "Motyw {0} wyłączono dla: {1}. Gra zamknęła się podczas jego wczytywania."
 
 msgid "menu.pages"
 msgstr "Strony"

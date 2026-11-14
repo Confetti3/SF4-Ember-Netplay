@@ -996,6 +996,9 @@ msgstr "開いたウィンドウでファイルを選んでください..."
 msgid "replays.import_some_failed"
 msgstr "{1}個中{0}個のファイルを読み込めませんでした。"
 
+msgid "replays.import_skipped"
+msgstr "{0}個のファイルをスキップしました。Emberはローカルドライブの .emberreplay、.usf4replay、.emberpack ファイルを一度に最大64個まで読み込めます。"
+
 msgid "replays.import_done"
 msgstr "{1}個のファイルから{0}件がリプレイにあります。"
 
@@ -1564,7 +1567,7 @@ msgid "friends.busy"
 msgstr "前のリクエストが終わるまでお待ちください。"
 
 msgid "friends.accept_member"
-msgstr "リクエストを承認"
+msgstr "フレンドとして承認"
 
 msgid "friends.add_member"
 msgstr "フレンドに追加"
@@ -6612,6 +6615,9 @@ msgstr "ゲームがクラッシュしました。%APPDATA%\\sf4e\\logs 内の�
 msgid "launcher.game_crashed_sending"
 msgstr "ゲームがクラッシュしました。「問題レポートを送信」がオンなので、レポートを送信しています（小さなダンプがある場合は含めます）。ファイルは %APPDATA%\\sf4e\\logs にもあります。"
 
+msgid "launcher.start_failed_sending"
+msgstr "ゲームの起動または組み込みに失敗しました。「問題レポートを送信」がオンなので、レポートを送信しています。ランチャーのログは %APPDATA%\\sf4e\\logs にあります。"
+
 msgid "reports.settings_title"
 msgstr "問題レポート"
 
@@ -8385,6 +8391,27 @@ msgstr "ゲームフォルダの ember\\themes 内のテーマから体力・ス
 
 msgid "settings.game_theme_battle_hud_none"
 msgstr "バトルHUDを含むテーマが見つかりません。battle\\hud フォルダを含むテーマをゲームフォルダの ember\\themes に入れ、ゲームを再起動してください。"
+
+msgid "settings.game_theme_risk"
+msgstr "テーマのファイルはそのまま使われるため、壊れたものがあるとゲームが終了することがあります。その場合、Emberは次回の起動時にそのテーマをオフにします。"
+
+msgid "settings.game_theme_closed"
+msgstr "{0}（前回ゲームが終了）"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0}（未使用：HUD画像が不一致）"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0}（未使用：HUDファイルを読めません）"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "{0}のHUD画像がこのエディションのHUDレイアウトと合わないため、使用されませんでした。ゲーム標準のHUDを表示しています。"
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "{0}にはゲームが読めないHUDファイルがあるため、使用されませんでした。ゲーム標準のHUDを表示しています。"
+
+msgid "runtime.game_theme_turned_off"
+msgstr "{0}は{1}でオフにされました：読み込み中にゲームが終了したためです。"
 
 msgid "menu.pages"
 msgstr "ページ"

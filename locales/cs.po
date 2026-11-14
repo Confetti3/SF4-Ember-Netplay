@@ -996,6 +996,9 @@ msgstr "Vyberte soubory v okně, které se otevřelo..."
 msgid "replays.import_some_failed"
 msgstr "{0} z {1} souborů se nepodařilo importovat."
 
+msgid "replays.import_skipped"
+msgstr "Přeskočeno souborů: {0}. Ember importuje soubory .emberreplay, .usf4replay a .emberpack z místního disku, nejvýše 64 najednou."
+
 msgid "replays.import_done"
 msgstr "Souborů: {1}. V Záznamech je teď her: {0}."
 
@@ -1564,7 +1567,7 @@ msgid "friends.busy"
 msgstr "Počkejte, až skončí předchozí požadavek."
 
 msgid "friends.accept_member"
-msgstr "Přijmout žádost"
+msgstr "Přijmout přítele"
 
 msgid "friends.add_member"
 msgstr "Přidat přítele"
@@ -6612,6 +6615,9 @@ msgstr "Hra spadla. Pošlete prosím týmu SF4 Ember Netplay soubory ze složky 
 msgid "launcher.game_crashed_sending"
 msgstr "Hra spadla. Odesílání hlášení problémů je zapnuté, proto se odesílá hlášení s malým výpisem, pokud ho pád zapsal. Soubory jsou také ve složce %APPDATA%\\sf4e\\logs."
 
+msgid "launcher.start_failed_sending"
+msgstr "Spuštění hry nebo injekce selhala. Odesílání hlášení problémů je zapnuté, proto se odesílá hlášení. Protokol spouštěče je v %APPDATA%\\sf4e\\logs."
+
 msgid "reports.settings_title"
 msgstr "Hlášení problémů"
 
@@ -8385,6 +8391,27 @@ msgstr "Ukazatele života, superu a revenge, časovač a hlášky z motivu ve sl
 
 msgid "settings.game_theme_battle_hud_none"
 msgstr "Žádný motiv s bojovým HUD nenalezen. Vložte motiv se složkou battle\\hud do ember\\themes ve složce hry a spusťte hru znovu."
+
+msgid "settings.game_theme_risk"
+msgstr "Soubory motivů se používají tak, jak jsou, a vadný může hru zavřít. Pokud se to stane, Ember ten motiv při dalším spuštění vypne."
+
+msgid "settings.game_theme_closed"
+msgstr "{0} (minule hru zavřel)"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0} (nepoužit: obrázky HUD nesedí)"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0} (nepoužit: soubory HUD nelze přečíst)"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "Obrázky HUD motivu {0} neodpovídají rozložení HUD této edice, proto nebyl použit. Zobrazuje se původní HUD hry."
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "Motiv {0} má soubory HUD, které hra nedokáže přečíst, proto nebyl použit. Zobrazuje se původní HUD hry."
+
+msgid "runtime.game_theme_turned_off"
+msgstr "Motiv {0} byl pro {1} vypnut: hra se při jeho načítání zavřela."
 
 msgid "menu.pages"
 msgstr "Stránky"

@@ -996,6 +996,9 @@ msgstr "Escolha os arquivos na janela que abriu..."
 msgid "replays.import_some_failed"
 msgstr "{0} de {1} arquivos não puderam ser importados."
 
+msgid "replays.import_skipped"
+msgstr "{0} arquivo(s) ignorado(s). O Ember importa arquivos .emberreplay, .usf4replay e .emberpack de uma unidade local, até 64 por vez."
+
 msgid "replays.import_done"
 msgstr "Replays agora tem {0} partida(s) de {1} arquivo(s)."
 
@@ -1564,7 +1567,7 @@ msgid "friends.busy"
 msgstr "Espere o último pedido terminar."
 
 msgid "friends.accept_member"
-msgstr "Aceitar pedido"
+msgstr "Aceitar amigo"
 
 msgid "friends.add_member"
 msgstr "Adicionar amigo"
@@ -6612,6 +6615,9 @@ msgstr "O jogo travou. Envie para a equipe do SF4 Ember Netplay os arquivos de %
 msgid "launcher.game_crashed_sending"
 msgstr "O jogo travou. Enviar relatórios de problemas está ligado, então o relatório está sendo enviado, com o dump pequeno se a falha gerou um. Os arquivos também estão em %APPDATA%\\sf4e\\logs."
 
+msgid "launcher.start_failed_sending"
+msgstr "Falha ao iniciar ou injetar no jogo. Enviar relatórios de problemas está ligado, então o relatório está sendo enviado. O log do inicializador fica em %APPDATA%\\sf4e\\logs."
+
 msgid "reports.settings_title"
 msgstr "Relatórios de problemas"
 
@@ -8385,6 +8391,27 @@ msgstr "Barras de vida, super e revenge, cronômetro e avisos de um tema na past
 
 msgid "settings.game_theme_battle_hud_none"
 msgstr "Nenhum tema com HUD de luta encontrado. Coloque um tema, com a pasta battle\\hud dentro, em ember\\themes na pasta do jogo e abra o jogo de novo."
+
+msgid "settings.game_theme_risk"
+msgstr "Os arquivos de um tema são usados como estão, e um com defeito pode fechar o jogo. Se isso acontecer, o Ember desliga esse tema na próxima inicialização."
+
+msgid "settings.game_theme_closed"
+msgstr "{0} (fechou o jogo da última vez)"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0} (não usado: imagens de HUD não combinam)"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0} (não usado: arquivos de HUD ilegíveis)"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "As imagens de HUD de {0} não combinam com o layout de HUD desta edição, então ele não foi usado. O HUD do próprio jogo está sendo exibido."
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "{0} tem arquivos de HUD que o jogo não consegue ler, então ele não foi usado. O HUD do próprio jogo está sendo exibido."
+
+msgid "runtime.game_theme_turned_off"
+msgstr "{0} foi desligado para {1}: o jogo fechou ao carregá-lo."
 
 msgid "menu.pages"
 msgstr "Páginas"

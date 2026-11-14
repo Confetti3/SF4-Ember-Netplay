@@ -996,6 +996,9 @@ msgstr "열린 창에서 파일을 고르세요..."
 msgid "replays.import_some_failed"
 msgstr "파일 {1}개 중 {0}개를 가져오지 못했습니다."
 
+msgid "replays.import_skipped"
+msgstr "파일 {0}개를 건너뛰었습니다. Ember는 로컬 드라이브의 .emberreplay, .usf4replay, .emberpack 파일을 한 번에 최대 64개까지 가져옵니다."
+
 msgid "replays.import_done"
 msgstr "파일 {1}개의 {0}개가 리플레이에 있습니다."
 
@@ -1564,7 +1567,7 @@ msgid "friends.busy"
 msgstr "이전 요청이 끝날 때까지 기다리세요."
 
 msgid "friends.accept_member"
-msgstr "요청 수락"
+msgstr "친구로 수락"
 
 msgid "friends.add_member"
 msgstr "친구 추가"
@@ -6612,6 +6615,9 @@ msgstr "게임이 충돌했습니다. %APPDATA%\\sf4e\\logs 폴더의 파일(sf4
 msgid "launcher.game_crashed_sending"
 msgstr "게임이 충돌했습니다. 문제 보고서 보내기가 켜져 있어 보고서를 보내는 중입니다(작은 덤프가 있으면 포함). 파일은 %APPDATA%\\sf4e\\logs 폴더에도 있습니다."
 
+msgid "launcher.start_failed_sending"
+msgstr "게임 실행 또는 인젝션에 실패했습니다. 문제 보고서 보내기가 켜져 있어 보고서를 보내는 중입니다. 런처 로그는 %APPDATA%\\sf4e\\logs 폴더에 있습니다."
+
 msgid "reports.settings_title"
 msgstr "문제 보고서"
 
@@ -8385,6 +8391,27 @@ msgstr "게임 폴더의 ember\\themes 안 테마에서 체력·슈퍼·리벤�
 
 msgid "settings.game_theme_battle_hud_none"
 msgstr "배틀 HUD가 든 테마를 찾지 못했습니다. battle\\hud 폴더가 든 테마를 게임 폴더의 ember\\themes에 넣고 게임을 다시 시작하세요."
+
+msgid "settings.game_theme_risk"
+msgstr "테마 파일은 그대로 사용되므로 손상된 파일이 게임을 종료시킬 수 있습니다. 그런 경우 Ember가 다음 실행 때 해당 테마를 끕니다."
+
+msgid "settings.game_theme_closed"
+msgstr "{0} (지난번에 게임 종료됨)"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0} (사용 안 함: HUD 이미지 불일치)"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0} (사용 안 함: HUD 파일을 읽을 수 없음)"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "{0}의 HUD 이미지가 이 에디션의 HUD 레이아웃과 맞지 않아 사용하지 않았습니다. 게임 기본 HUD가 표시됩니다."
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "{0}에 게임이 읽을 수 없는 HUD 파일이 있어 사용하지 않았습니다. 게임 기본 HUD가 표시됩니다."
+
+msgid "runtime.game_theme_turned_off"
+msgstr "{0}은(는) {1}에서 꺼졌습니다: 불러오는 중 게임이 종료되었습니다."
 
 msgid "menu.pages"
 msgstr "페이지"
