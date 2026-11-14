@@ -188,6 +188,32 @@ pub fn record_games(
     Ok(())
 }
 
+/// `record_games` in a savepoint of its own inside the poll's transaction for
+/// every room (`routes::rooms::poll`): a game that fails (a row the schema
+/// refuses, a broken record) rolls back this room's games alone, and the poll
+/// goes on listing, closing and banning every room. Nothing of the room's
+/// games is kept then, so the next poll, which reports them again, tries them
+/// all again. The failure that was rolled back is answered, for the poll to
+/// log; an `Err` is the savepoint's own, which fails the poll as before.
+pub fn record_room_games(
+    tx: &Transaction<'_>,
+    room_id: &str,
+    games: Option<&serde_json::Value>,
+    now: u64,
+) -> Result<Option<crate::error::ApiFailure>> {
+    tx.execute_batch("SAVEPOINT room_games")?;
+    match record_games(tx, room_id, games, now) {
+        Ok(()) => {
+            tx.execute_batch("RELEASE room_games")?;
+            Ok(None)
+        }
+        Err(failure) => {
+            tx.execute_batch("ROLLBACK TO room_games; RELEASE room_games")?;
+            Ok(Some(failure))
+        }
+    }
+}
+
 /// Moves both ratings for a game `winner` won against `loser`, at `sitting`
 /// times what their ratings make it count.
 fn rate(tx: &Transaction<'_>, winner: &str, loser: &str, sitting: f64, now: u64) -> Result<()> {

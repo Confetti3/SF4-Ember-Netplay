@@ -8,7 +8,7 @@ mod common;
 use common::{
     Bridge, Player,
     points::*,
-    public_rooms::{player, send, start},
+    public_rooms::{open_room, player, send, start},
     sites::connect_discord,
     supervisor::report,
 };
@@ -159,6 +159,62 @@ async fn past_eight_games_in_a_sitting_a_game_earns_no_points_of_either_kind() {
     assert_eq!(fighters(&bridge, "200").await, vec![(7, 9, 1)]);
     assert_eq!(account_points(&bridge, "100").await, Some((9, 8)));
     assert_eq!(account_points(&bridge, "200").await, Some((9, 1)));
+}
+
+/// One room's games are counted in a savepoint of their own: a room whose
+/// game the database refuses loses that poll's games alone, and the poll goes
+/// on to count every other room's. The refused games are counted once the
+/// database takes them, as the host reports them again.
+#[tokio::test]
+async fn a_room_whose_game_fails_leaves_the_other_rooms_counted() {
+    let (bridge, fake, refused_room, first, second) = two_players().await;
+    let (third, fourth) = (player(&bridge, 3).await, player(&bridge, 4).await);
+    connect_discord(&bridge, "300", &third).await;
+    connect_discord(&bridge, "400", &fourth).await;
+    let healthy_room = open_room(&bridge, &third, "198.51.100.3", 8).await;
+    report(&fake, &healthy_room, 2, 1, &[]);
+    ember_bridge::poll_rooms(bridge.state()).await;
+    // The first room's pair record is refused, as a row the schema refuses.
+    sql(
+        &bridge,
+        "CREATE TEMP TRIGGER refuse_pair BEFORE INSERT ON pair_records
+         WHEN NEW.first = '100' BEGIN SELECT RAISE(ABORT, 'refused by the test'); END;",
+    )
+    .await;
+    {
+        let mut fake = fake.lock().unwrap();
+        for (room_id, games) in [
+            (
+                &refused_room,
+                vec![game(1, 0, &first, &second, Some([3, 7]))],
+            ),
+            (
+                &healthy_room,
+                vec![game(1, 0, &third, &fourth, Some([5, 9]))],
+            ),
+        ] {
+            let room = fake
+                .rooms
+                .iter_mut()
+                .find(|room| room["room_id"] == room_id.as_str())
+                .expect("the supervisor hosts the room");
+            room["games"] = Json_::Array(games);
+        }
+    }
+    ember_bridge::poll_rooms(bridge.state()).await;
+    // Nothing of the refused room's game stayed, not even its key.
+    assert!(fighters(&bridge, "100").await.is_empty());
+    assert_eq!(account_points(&bridge, "100").await, None);
+    // The other room, polled after it, counted.
+    assert_eq!(fighters(&bridge, "300").await, vec![(5, 1, 1)]);
+    assert_eq!(fighters(&bridge, "400").await, vec![(9, 1, 0)]);
+
+    sql(&bridge, "DROP TRIGGER refuse_pair").await;
+    ember_bridge::poll_rooms(bridge.state()).await;
+    assert_eq!(fighters(&bridge, "100").await, vec![(3, 1, 1)]);
+    assert_eq!(fighters(&bridge, "200").await, vec![(7, 1, 0)]);
+    // And the other room's game counted once.
+    assert_eq!(fighters(&bridge, "300").await, vec![(5, 1, 1)]);
 }
 
 #[tokio::test]
