@@ -224,7 +224,7 @@ public:
         const auto measured = CardMeasured(v);
         return card_edit::LookingEntries({s.preferences_, measured, v.canEditPreferences});
     }
-    // What the game measures for the card: the controller, the connection, the relay region and the counters.
+    // What the game measures for the card: the controller, the connection, Windows' area and the counters.
     static card_edit::Measured CardMeasured(const ShellView& v) { return card_edit::MeasuredOf(v, AwardCounters(v)); }
     // A card row's press, saved like any setting. One that passes a limit changes nothing and says why.
     static void CardChanged(Shell& s, const card_edit::Change& change, const netplay::PlayerPreferences& prior) {

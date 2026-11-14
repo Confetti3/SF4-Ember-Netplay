@@ -309,7 +309,7 @@ void RoomPoints(ui::ShellView& view, bool listed, const std::string& relationSta
         card.hasStyle = m.name != "Akira";
         card.style.device = static_cast<netplay::profiles::Device>(1 + m.id % 4);
         card.style.link = m.id % 2 ? netplay::profiles::Link::Wired : netplay::profiles::Link::WiFi;
-        card.style.region = "euc1";
+        card.style.area = Area::EuropeWest;
         card.style.looking = static_cast<std::uint8_t>(m.id % 2 ? netplay::profiles::LookingLongSets | netplay::profiles::LookingTeach : netplay::profiles::LookingRanked);
         card.worn.title = "wins"; card.worn.icon = m.id % 3 ? "streak" : "friends";
         card.awards.rival = 12; card.awards.opponents = 30;

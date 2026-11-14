@@ -305,14 +305,13 @@ struct Runtime {
     netplay::profiles::Requests profiles;
     // The player's own card as the bridge keeps it, and what the save measures: the connection (read at most once
     // a minute and when a room is joined, never during a match; linkEpoch is the room it was read in, 0 for none)
-    // and the relay region last known; and the bundle as last built, with the preferences' revision, the country
+    // and the bundle as last built, with the preferences' revision, the country
     // and the style it was built from (sf4e__NetplayRuntime__Profiles.cxx).
     netplay::profiles::Saver cardSaver;
     struct CardSignals {
         NetworkLink link = NetworkLink::Unknown;
         bool linkRead = false;
         std::uint64_t linkMs = 0, linkEpoch = 0;
-        std::string region;
         bool built = false;
         std::uint64_t builtRevision = 0;
         CountryCode builtCountry;

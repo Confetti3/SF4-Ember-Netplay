@@ -1,9 +1,8 @@
 #include "CardEditRows.hxx"
+#include "AreaNames.hxx"
 #include "CardModel.hxx"
 #include "CardParts.hxx"
 #include "MenuRows.hxx"
-#include "NetworkFeedback.hxx"
-#include "PublicRoomsPanel.hxx"
 #include "RoomCards.hxx"
 #include "ShellView.hxx"
 #include "Theme.hxx"
@@ -125,7 +124,7 @@ Measured MeasuredOf(const ShellView& v, const aw::Counters& counters) {
     Measured measured;
     measured.automatic = pr::AutomaticDevice(v.inputDevice.type, v.inputDevice.connected, v.gameplayBrand);
     measured.link = v.ownLink;
-    measured.region = PublicRoomsPanel::KnownRegion(v);
+    measured.automaticArea = v.automaticArea;
     measured.counters = counters;
     return measured;
 }
@@ -147,10 +146,10 @@ std::string LinkValue(const netplay::PlayerPreferences& prefs, NetworkLink link)
     return loc::T("card.unknown_shown");
 }
 
-std::string RegionValue(const netplay::PlayerPreferences& prefs, const std::string& region) {
-    if (!prefs.cardShowRegion) return loc::T("card.hidden");
-    const char* name = region.empty() ? nullptr : RelayRegionName(region);
-    return name ? loc::Tf("card.shown", name) : std::string(loc::T("card.unknown_shown"));
+std::string RegionValue(const netplay::PlayerPreferences& prefs, Area automaticArea) {
+    if (!prefs.cardShowRegion || prefs.area.kind == AreaPreference::Kind::Hidden) return loc::T("card.hidden");
+    const Area area = ShownArea(prefs.area, automaticArea);
+    return area != Area::None ? loc::Tf("card.shown", AreaName(area)) : std::string(loc::T("card.area_unset"));
 }
 
 std::string LookingValue(const netplay::PlayerPreferences& prefs) {
@@ -190,7 +189,7 @@ std::vector<MenuEntry> PlayEntries(const Context& c) {
     std::vector<MenuEntry> rows;
     rows.push_back(stepped(DeviceRow, "card.device_row", DeviceValue(c.prefs, c.measured.automatic), "card.device_detail"));
     rows.push_back(stepped(LinkRow, "card.link_row", LinkValue(c.prefs, c.measured.link), "card.link_detail"));
-    rows.push_back(stepped(RegionRow, "card.region_row", RegionValue(c.prefs, c.measured.region), "card.region_detail"));
+    rows.push_back(stepped(RegionRow, "card.region_row", RegionValue(c.prefs, c.measured.automaticArea), "card.area_detail"));
     auto looking = Row(LookingRow, loc::T("card.looking_row"), Detail(c.canEdit, "card.looking_detail"), c.canEdit);
     looking.value = LookingValue(c.prefs);
     looking.hint = loc::T("menu.choose");

@@ -124,7 +124,7 @@ player_card::Subject ProfilePanel::OwnSubjectOf(const ShellView& v, const netpla
     in.pins = prefs.cardPins;
     // How the card says the player plays: their choices and what the game measures now (the card save's own rule).
     in.style = netplay::profiles::OwnStyle(prefs, netplay::profiles::AutomaticDevice(v.inputDevice.type, v.inputDevice.connected, v.gameplayBrand), v.ownLink,
-        PublicRoomsPanel::KnownRegion(v));
+        v.automaticArea);
     const auto* friends = v.friends.state.value.get();
     in.friends = friends && friends->kind == netplay::friends::State::Kind::Listed ? static_cast<std::uint32_t>(friends->friends.size()) : 0;
     return player_card::OwnSubject(in);

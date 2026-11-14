@@ -44,7 +44,7 @@ ce::Measured Measures(pr::Device automatic, aw::Counters counters) {
     ce::Measured measured;
     measured.automatic = automatic;
     measured.link = NetworkLink::Wired;
-    measured.region = "euc1";
+    measured.automaticArea = Area::EuropeWest;
     measured.counters = counters;
     return measured;
 }
@@ -80,10 +80,16 @@ void ValueWords() {
     Check(ce::LinkValue(prefs, NetworkLink::Wired) == loc::Tf("card.shown", loc::T("style.wired")), "A wired connection does not read 'Wired · shown'");
     Check(ce::LinkValue(prefs, NetworkLink::Wireless) == loc::Tf("card.shown", loc::T("style.wifi")), "A wireless connection does not read 'Wi-Fi · shown'");
     Check(ce::LinkValue(prefs, NetworkLink::Unknown) == loc::T("card.unknown_shown"), "An unmeasured connection does not read 'Not known yet · shown'");
-    Check(ce::RegionValue(prefs, "euc1") == loc::Tf("card.shown", loc::T("network.region_euc1")), "A region does not read 'Europe · shown'");
-    Check(ce::RegionValue(prefs, "") == loc::T("card.unknown_shown"), "No region known does not read 'Not known yet · shown'");
+    // The region is the player's area from Settings: Automatic's, a pick, or none set.
+    Check(ce::RegionValue(prefs, Area::EuropeWest) == loc::Tf("card.shown", loc::T("area.euw")), "An area does not read 'Europe West · shown'");
+    Check(ce::RegionValue(prefs, Area::None) == loc::T("card.area_unset"), "No area set does not read 'Not set'");
+    prefs.area = AreaPreference::Of(Area::Oceania);
+    Check(ce::RegionValue(prefs, Area::EuropeWest) == loc::Tf("card.shown", loc::T("area.oce")), "A chosen area does not win over Windows'");
+    prefs.area = AreaPreference::Hidden();
+    Check(ce::RegionValue(prefs, Area::EuropeWest) == loc::T("card.hidden"), "An area hidden in Settings does not read Hidden");
+    prefs.area = AreaPreference::Automatic();
     prefs.cardShowLink = prefs.cardShowRegion = false;
-    Check(ce::LinkValue(prefs, NetworkLink::Wired) == loc::T("card.hidden") && ce::RegionValue(prefs, "euc1") == loc::T("card.hidden"), "A hidden connection or region does not read Hidden");
+    Check(ce::LinkValue(prefs, NetworkLink::Wired) == loc::T("card.hidden") && ce::RegionValue(prefs, Area::EuropeWest) == loc::T("card.hidden"), "A hidden connection or region does not read Hidden");
 
     // Looking for lists its choices in the order a screen does, and None for nothing.
     Check(ce::LookingValue(prefs) == loc::T("card.none"), "Looking for nothing does not read None");

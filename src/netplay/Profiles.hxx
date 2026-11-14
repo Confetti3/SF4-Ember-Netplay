@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "../common/Area.hxx"
 #include "../common/ButtonPrompts.hxx"
 #include "../common/Country.hxx"
 #include "../common/FighterCatalog.hxx"
@@ -92,14 +93,13 @@ inline Device AutomaticDevice(int type, bool connected, gamepads::PromptBrand br
 struct Style {
 	Device device = Device::None;
 	Link link = Link::None;
-	// A relay region code ("use1", "usw1", "euc1", "aps1" as the bridge knows
-	// them; any other shaped code is kept for the screen to call another
-	// region), empty for none.
-	std::string region;
+	// Where the player plays from, their own claim (the card's Region chip);
+	// None when it is hidden or not set, or a code this build does not know.
+	Area area = Area::None;
 	std::uint8_t looking = 0;
-	bool Any() const { return device != Device::None || link != Link::None || !region.empty() || looking != 0; }
+	bool Any() const { return device != Device::None || link != Link::None || area != Area::None || looking != 0; }
 	bool operator==(const Style& other) const {
-		return device == other.device && link == other.link && region == other.region && looking == other.looking;
+		return device == other.device && link == other.link && area == other.area && looking == other.looking;
 	}
 	bool operator!=(const Style& other) const { return !(*this == other); }
 };
@@ -128,12 +128,6 @@ struct Versus {
 inline bool FamilyIdShaped(const std::string& id) {
 	return !id.empty() && id.size() <= MaxFamilyId && std::all_of(id.begin(), id.end(),
 		[](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'; });
-}
-
-// A relay region code's shape: 1 to MaxRegionBytes of a to z and 0 to 9.
-inline bool RegionShaped(const std::string& code) {
-	return !code.empty() && code.size() <= MaxRegionBytes && std::all_of(code.begin(), code.end(),
-		[](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'); });
 }
 
 inline bool PlainText(const std::string& text, std::size_t most) {

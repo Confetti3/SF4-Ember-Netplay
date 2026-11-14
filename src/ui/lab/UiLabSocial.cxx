@@ -65,7 +65,7 @@ std::shared_ptr<const netplay::levels::CardMap> FriendCards(const nf::State& sta
         card.hasMain = true; card.main = entry.main.fighter;
         card.hasSince = true; card.since = entry.since;
         card.worn.title = "streak"; card.worn.icon = "rival";
-        card.hasStyle = true; card.style.device = pr::Device::Stick; card.style.link = pr::Link::Wired; card.style.region = "euc1"; card.style.looking = pr::LookingRanked;
+        card.hasStyle = true; card.style.device = pr::Device::Stick; card.style.link = pr::Link::Wired; card.style.area = Area::EuropeWest; card.style.looking = pr::LookingRanked;
         card.awards.games = 2210; card.awards.wins = 1124; card.awards.bestStreak = 14; card.awards.peakClass = 6; card.awards.rival = 20; card.awards.opponents = 30;
         card.account = entry.account;
         card.fighters = {{entry.main.fighter, entry.main.points, entry.main.tier}};
@@ -178,7 +178,7 @@ bool Player(ui::ShellView& view, const std::string& which) {
     card.hasMain = true; card.main = static_cast<std::uint8_t>(main);
     card.hasSince = true; card.since = Now - 120 * Day;
     card.worn.title = "streak"; card.worn.icon = "rival";
-    card.hasStyle = true; card.style.device = pr::Device::Pad; card.style.link = pr::Link::Wired; card.style.region = "euc1"; card.style.looking = pr::LookingRanked | pr::LookingTeach;
+    card.hasStyle = true; card.style.device = pr::Device::Pad; card.style.link = pr::Link::Wired; card.style.area = Area::EastAsia; card.style.looking = pr::LookingRanked | pr::LookingTeach;
     card.awards.games = 2840; card.awards.wins = 1164; card.awards.bestStreak = 12; card.awards.peakClass = 8; card.awards.rival = 50; card.awards.opponents = 50;
     card.account = {4012, 2};
     card.fighters = {{static_cast<std::uint8_t>(main), 1986, 3}, {5, 860, 2}, {9, 412, 1}, {3, 120, 0}};

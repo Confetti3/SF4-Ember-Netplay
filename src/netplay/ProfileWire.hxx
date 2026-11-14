@@ -17,7 +17,7 @@ namespace sf4e { namespace netplay { namespace profiles {
 // card_save: the bundle as PUT /v1/cards/me carries it. The listing and main
 // are what friends sync sends; worn and pins are family ids, only those the
 // bundle holds; the style always carries device, link and looking as small
-// numbers (0: not shown) and the region only when there is one.
+// numbers (0: not shown) and the region, the area's code, only when there is one.
 inline nlohmann::json CardSaveRequest(const std::string& bridgeId, const Bundle& bundle) {
 	using nlohmann::json;
 	json listing = json::object();
@@ -29,7 +29,7 @@ inline nlohmann::json CardSaveRequest(const std::string& bridgeId, const Bundle&
 	json style = json::object();
 	style["device"] = static_cast<unsigned>(bundle.style.device);
 	style["link"] = static_cast<unsigned>(bundle.style.link);
-	if (!bundle.style.region.empty()) style["region"] = bundle.style.region;
+	if (bundle.style.area != Area::None) style["region"] = AreaCode(bundle.style.area);
 	style["looking"] = static_cast<unsigned>(bundle.style.looking);
 	json card = json::object();
 	card["listing"] = std::move(listing);

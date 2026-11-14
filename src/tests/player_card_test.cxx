@@ -267,7 +267,7 @@ void Chips() {
     netplay::profiles::Style style;
     style.device = netplay::profiles::Device::Stick;
     style.link = netplay::profiles::Link::Wired;
-    style.region = "euc1";
+    style.area = Area::EuropeWest;
     style.looking = netplay::profiles::LookingLongSets | netplay::profiles::LookingTeach;
     const auto plays = pc::PlaysChips(style);
     Check(plays.size() == 3 && plays[0].kind == Chip::Kind::Device && plays[1].kind == Chip::Kind::Link && plays[2].kind == Chip::Kind::Region, "the Plays chips are not device, connection, region");

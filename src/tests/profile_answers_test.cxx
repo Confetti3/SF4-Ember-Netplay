@@ -41,7 +41,7 @@ json FullCard() {
 	card["since"] = 1748736000;
 	card["worn"] = {{"title", "matches"}, {"icon", "streak"}};
 	card["pins"] = json::array({"rank", "wins"});
-	card["style"] = {{"device", 2}, {"link", 1}, {"region", "euc1"}, {"looking", 34}};
+	card["style"] = {{"device", 2}, {"link", 1}, {"region", "euw"}, {"looking", 34}};
 	card["versus"] = {{"won", 3}, {"lost", 5}, {"last_at", 1731000000}};
 	card["friend"] = FriendId;
 	return card;
@@ -64,7 +64,7 @@ void ReadsAFullCard() {
 	EXPECT(card->worn.title == "matches" && card->worn.icon == "streak");
 	EXPECT((card->pins == std::vector<std::string>{"rank", "wins"}));
 	EXPECT(card->hasStyle && card->style.device == profiles::Device::Stick && card->style.link == profiles::Link::Wired &&
-		card->style.region == "euc1" && card->style.looking == (profiles::LookingLongSets | profiles::LookingTeach));
+		card->style.area == Area::EuropeWest && card->style.looking == (profiles::LookingLongSets | profiles::LookingTeach));
 	EXPECT(card->hasVersus && card->versus.won == 3 && card->versus.lost == 5 && card->versus.lastAt == 1731000000);
 	EXPECT(card->friendId == FriendId);
 }
@@ -84,7 +84,10 @@ void UnknownEnumValuesReadAsNone() {
 	card["style"] = {{"device", 9}, {"link", 7}, {"region", "EU!"}, {"looking", 65}};
 	auto read = One(card);
 	CHECK(read && read->hasStyle);
-	EXPECT(read->style.device == profiles::Device::None && read->style.link == profiles::Link::None && read->style.region.empty());
+	EXPECT(read->style.device == profiles::Device::None && read->style.link == profiles::Link::None && read->style.area == Area::None);
+	// A relay's code, which a Nightly before areas saved, is no area either.
+	card["style"]["region"] = "euc1";
+	EXPECT(One(card) && One(card)->style.area == Area::None);
 	// A bit this build does not know is dropped, and the known one stays.
 	EXPECT(read->style.looking == profiles::LookingCasuals);
 	// More than two kinds at once is not something the bridge sends: none.

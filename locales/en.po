@@ -1534,8 +1534,11 @@ msgstr "Wired or Wi-Fi, as Ember measures it. You can hide it."
 msgid "card.region_row"
 msgstr "Region"
 
-msgid "card.region_detail"
-msgstr "Your region, from your connection. You can hide it."
+msgid "card.area_detail"
+msgstr "Your area, from your settings. You can hide it."
+
+msgid "card.area_unset"
+msgstr "Not set"
 
 msgid "card.shown"
 msgstr "{0} · shown"

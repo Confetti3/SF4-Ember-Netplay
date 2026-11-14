@@ -331,7 +331,7 @@ it, with the player's values, so a change shows at once.
 | AWARDS | Awards on card | "Your highest" or "3 chosen" | opens `card-pins` | player; Automatic by default |
 | HOW YOU PLAY | Device | "Stick · automatic", Pad, Stick, Leverless, Keyboard, Hidden | Left / Right step | the game by default, the player may override |
 | HOW YOU PLAY | Connection | "Wired · shown" or Hidden | Left / Right flip | the game; the player only shows or hides it |
-| HOW YOU PLAY | Region | "Europe · shown" or Hidden | Left / Right flip | the game; the player only shows or hides it |
+| HOW YOU PLAY | Region | "Europe West · shown", Not set, or Hidden | Left / Right flip | the player's area from Settings; here the player only shows or hides it |
 | HOW YOU PLAY | Looking for | "Long sets, Happy to teach" or None | opens `card-looking` | player only |
 | - | Show my Steam profile | switch | flips | player |
 
@@ -348,9 +348,13 @@ What the game fills by itself:
   chip is left out.
 - **Connection**: `NetworkLink` as the room's link mark measures it (Wired,
   Wi-Fi); Unknown is not shown.
-- **Region**: the relay region Ember picked (`PublicRoomsPanel::KnownRegion`),
-  named by `network.region_*` (US East, US West, Europe, Asia Pacific, Other
-  region); none known: not shown.
+- **Region**: the player's area (`src/common/Area.hxx`), their own claim:
+  Settings, Country and area, where Automatic follows Windows' time zone with
+  Windows' country as the tie-break (`AreaFromWindows`), an area they chose,
+  or Hidden. It is named by `area.*` (NA West, Europe West, ...). Not set or
+  hidden in Settings: no chip, and the row reads Not set or Hidden. The relay
+  Ember connects through is never shown here: it is a routing fact, not where
+  the player is (`PUBLIC_ROOMS.md`, "Where a room is").
 
 `card-pins`: a first row "Show my highest" (switch, on by default; on, the
 rest are disabled with its detail); then each family with a level reached, as
@@ -778,7 +782,7 @@ FROM ranking_choices r WHERE r.name IS NOT NULL;
 | `pins` | 0 to 4 distinct family ids, comma-separated; empty is Automatic |
 | `device` | 0 not shown, 1 Pad, 2 Stick, 3 Leverless, 4 Keyboard |
 | `link` | 0 not shown, 1 Wired, 2 Wi-Fi |
-| `region` | a relay region code the bridge knows (`use1`, `usw1`, `euc1`, `aps1`), or NULL |
+| `region` | an area code (`ember_protocol::area::Area`: `naw`, `nac`, `nae`, `cam`, `sam`, `euw`, `eue`, `mea`, `sas`, `eas`, `sea`, `oce`), or NULL. Nightly builds before areas saved their relay's code here; migration 066 cleared those, and a save that still sends one is taken and stored as NULL |
 | `looking` | bits: 1 Casuals, 2 Long sets, 4 Ranked, 8 Tournament practice, 16 New to the game, 32 Happy to teach; at most two set |
 
 Read by account (key), and by name for search (index). Rows are kept for
@@ -808,7 +812,7 @@ minutes. Answers 204.
 ```json
 {"listing":{"name":"Player 1","country":"DE"},"main":3,
  "worn":{"title":"matches","icon":"streak"},"pins":["rank","wins"],
- "style":{"device":2,"link":1,"region":"euc1","looking":34}}
+ "style":{"device":2,"link":1,"region":"euw","looking":34}}
 ```
 
 | Field | Rule |
@@ -817,7 +821,7 @@ minutes. Answers 204.
 | `main` | 0 to 43, optional |
 | `worn` | `title`, `icon`: optional family ids |
 | `pins` | 0 to 4 distinct family ids |
-| `style.device` | 0 to 4; `style.link` 0 to 2; `style.region` a known code or absent; `style.looking` under 64 with at most two bits |
+| `style.device` | 0 to 4; `style.link` 0 to 2; `style.region` an area code (or a relay code, stored as none) or absent; `style.looking` under 64 with at most two bits |
 
 **`POST /v1/cards/search`** (new). Player session; a Discord account; bucket
 `cards-search:{account}` 20 a minute.
@@ -872,8 +876,8 @@ so 1.6.0 games keep their cards current.
 `CardSelector::Code`; `Worn`, `Style`, `Versus`; `PlayerCard`'s optional
 fields; `CardSave` (`deny_unknown_fields`, `check`), `CardSearch` (exactly one
 of the two, `check`), `SearchHit`, `SearchAnswer`; `MAX_PINS = 4`,
-`MAX_SEARCH = 20`, `MAX_FAMILY_ID = 32`. Region codes from the rooms module's
-list.
+`MAX_SEARCH = 20`, `MAX_FAMILY_ID = 32`. Region codes are the area codes of
+`area::Area`; a reader takes one it does not know as none.
 
 ### Helper ops (`rust/sf4-net/src/tournament/levels.rs`)
 
@@ -1014,7 +1018,8 @@ Ember: a stepped value reads "{value} · shown" or "Hidden", never "Shown
 | `card.link_row` | Connection |
 | `card.link_detail` | Wired or Wi-Fi, as Ember measures it. You can hide it. |
 | `card.region_row` | Region |
-| `card.region_detail` | Your region, from the relay Ember picked. You can hide it. |
+| `card.area_detail` | Your area, from your settings. You can hide it. |
+| `card.area_unset` | Not set |
 | `card.shown` | {0} · shown |
 | `card.unknown_shown` | Not known yet · shown |
 | `card.hidden` | Hidden |
