@@ -140,8 +140,16 @@ Ember writes what it does with themes to its log, `%APPDATA%\sf4e\logs\sf4e.log`
 | `In-game themes: the game searches ember\theme first` | The game was told to look in `ember\theme` |
 | `In-game themes: ui\main_menu Juri` | The theme's main menu was copied in (`battle\hud CvS2` for the battle HUD) |
 | `In-game themes: main menu opened again` | The main menu reloaded to show them |
-| `In-game themes: ui\main_menu Juri could not be used: ...` | Why not. A missing theme goes back to the game's own menus; a file the game had open keeps the theme you had |
+| `In-game themes: ui\main_menu Juri could not be used: ...` | Why not. A missing theme goes back to the game's own menus; a file the game had open keeps the theme you had; a part with more than 2,000 files or 512 MB, or with a link in it, is not copied |
 
 **Settings says no themes were found:** the theme folder needs its `ui` folder directly inside it (`ember\themes\Juri\ui\main_menu`, not `ember\themes\Juri\Juri\ui\main_menu`), and the game needs a restart after adding it.
 
 **A screen is empty or stuck:** the replaced file for it does not work in the game. Pick **The game's own**, then fix or remove that file.
+
+## If a theme closes the game
+
+Ember uses a theme's files as they are, and a battle HUD the game cannot load closes the game as a battle starts. Ember notes down which battle HUD theme it is having the game load, and notes that it loaded once the fight has started. If the game closes in between, the next time it starts Ember turns that theme off for the battle HUD: the pick goes back to **The game's own**, the log says `In-game themes: the game closed while loading <theme> for battle\hud; it is turned off`, and Ember tells you once. Your files are not touched.
+
+In Settings, Interface, In-game themes, that theme is marked "closed the game last time". You can pick it again, for example after fixing its files; Ember watches that load too, and the mark goes once it has loaded. A theme that has loaded since you picked it is not watched again until you pick another one or the HUD editor changes its files. A change you make by hand in `ember\themes` is not noticed: pick another theme and then this one again.
+
+Ember copies at most 2,000 files and 512 MB for one part, and refuses a part that holds a link or shortcut folder.

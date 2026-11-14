@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,15 @@ constexpr const wchar_t* Parts[] = { MainMenu, L"ui\\advertise", L"ui\\chara_sel
     L"ui\\versus", L"ui\\pause_menu", L"ui\\network_mode", L"ui\\edition_mark", L"ui\\common", L"ui\\sound", BattleHud };
 // The themes in <game>\ember\themes that have the part, by name. Names are UTF-8.
 std::vector<std::string> Names(const std::wstring& gameDirectory, const wchar_t* part);
+// What one part may hold when it is copied: the biggest real HUD and menu themes
+// are a few hundred files and tens of megabytes, so these only stop a folder that
+// would stall the game or fill the disk.
+struct Limits { unsigned files = 2000; std::uintmax_t bytes = std::uintmax_t(512) << 20; };
+// Whether a theme's part folder may be copied, and the plain reason when not. This is
+// the one place a part's files are accepted or refused before they go in use: today
+// its size, and links (which would copy what lies outside the theme); a check of the
+// files' format belongs here too.
+bool Accept(const std::wstring& partFolder, std::string& reason, const Limits& limits = {});
 // What Use did: the named part is in use (the game's own files for an empty
 // name); the game's own files are, because the theme is gone or its part could
 // not be copied; or nothing changed, because the part in use could not be moved
@@ -32,7 +42,7 @@ std::vector<std::string> Names(const std::wstring& gameDirectory, const wchar_t*
 enum class Outcome { Used, GameOwn, Unchanged };
 // Makes ember\theme\<part> hold the named theme's part, or nothing for an
 // empty name.
-Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error);
+Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error, const Limits& limits = {});
 // Puts bytes at ember\theme\<part>\<file> (a plain relative path, no ".."),
 // replacing what Use copied there; the game never reads a half-written file.
 bool WriteActive(const std::wstring& gameDirectory, const wchar_t* part, const std::string& file, const std::string& bytes, std::string& error);

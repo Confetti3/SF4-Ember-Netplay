@@ -11,6 +11,8 @@ sf4e_add_unit_test(NAME TrainingRemoteProtocol SOURCES "src/tests/training_remot
     LIBS nlohmann_json::nlohmann_json LABELS training)
 sf4e_add_unit_test(NAME HudLayout SOURCES "src/tests/hud_layout_test.cxx" STD 17 LIBS sf4e_hud_layout TIMEOUT 15 LABELS training)
 if(WIN32)
+    sf4e_add_unit_test(NAME GameThemeGuard SOURCES "src/tests/game_theme_guard_test.cxx"
+        STD 17 LIBS sf4e_game_theme_guard TIMEOUT 15)
     sf4e_add_unit_test(NAME TrainingRemoteHud SOURCES "src/tests/training_remote_hud_test.cxx" "src/training/RemoteHud.cxx" STD 17
         LIBS sf4e_hud_layout sf4e_game_themes sf4e_durable_file TIMEOUT 15 LABELS training)
 endif()

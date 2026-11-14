@@ -106,5 +106,32 @@ int main() {
     CHECK(text == "two" && !fs::exists(f.root / game_themes::ActiveFolder / game_themes::BattleHud / "CMN/cockpit.ems.emz.tmp"));
     CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "../../escape.txt", "x", error) && !error.empty());
     CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "", "x", error));
+    // A part past its limits is refused whole, with the reason, and leaves the game's own
+    // files (never the theme before, never half a copy); one inside them is used.
+    f.File("ember/themes/Many/ui/main_menu/a.emz");
+    f.File("ember/themes/Many/ui/main_menu/sub/b.emz");
+    f.File("ember/themes/Many/ui/main_menu/sub/c.emz");
+    f.File("ember/themes/Heavy/ui/main_menu/a.emz", std::string(200, 'x'));
+    game_themes::Limits tiny;
+    tiny.files = 3;
+    tiny.bytes = 100;
+    std::string why;
+    CHECK(game_themes::Accept((f.root / "ember/themes/Many/ui/main_menu").wstring(), why, tiny) && why.empty());
+    CHECK(!game_themes::Accept((f.root / "ember/themes/Heavy/ui/main_menu").wstring(), why, tiny) && why.find("MB") != std::string::npos);
+    CHECK(!game_themes::Accept((f.root / "ember/themes/Missing/ui/main_menu").wstring(), why, tiny) && !why.empty());
+    tiny.files = 2;
+    CHECK(!game_themes::Accept((f.root / "ember/themes/Many/ui/main_menu").wstring(), why, tiny) && why.find("2 files") != std::string::npos);
+    CHECK(f.Use("Blue") == Outcome::Used && f.Menus("title.emz"));
+    CHECK(game_themes::Use(f.root.wstring(), game_themes::MainMenu, "Many", why, tiny) == Outcome::GameOwn && !why.empty());
+    CHECK(!fs::exists(f.Active()) && !fs::exists(f.Active().wstring() + L".next") && !fs::exists(f.Active().wstring() + L".old"));
+    CHECK(game_themes::Use(f.root.wstring(), game_themes::MainMenu, "Heavy", why, tiny) == Outcome::GameOwn && !fs::exists(f.Active()));
+    tiny.files = 3;
+    CHECK(game_themes::Use(f.root.wstring(), game_themes::MainMenu, "Many", why, tiny) == Outcome::Used && why.empty() && f.Menus("sub/c.emz"));
+    // The limits of a real part are far above these.
+    CHECK(game_themes::Limits().files >= 1000 && game_themes::Limits().bytes >= (std::uintmax_t(256) << 20));
+    // Names with a drive or stream in them are no plain file names.
+    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "CMN/x:y", "x", error));
+    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "C:\\x.emz", "x", error));
+    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "\\x.emz", "x", error));
     return 0;
 }

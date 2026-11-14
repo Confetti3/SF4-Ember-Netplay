@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <system_error>
 
 namespace fs = std::filesystem;
@@ -26,7 +27,26 @@ std::vector<std::string> Names(const std::wstring& gameDirectory, const wchar_t*
     return names;
 }
 
-Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error) {
+bool Accept(const std::wstring& partFolder, std::string& reason, const Limits& limits) {
+    unsigned files = 0;
+    std::uintmax_t bytes = 0;
+    std::error_code failed;
+    for (fs::recursive_directory_iterator it(partFolder, failed), end; !failed && it != end; it.increment(failed)) {
+        const fs::file_status status = it->symlink_status(failed);
+        if (failed) break;
+        if (status.type() == fs::file_type::directory) continue;
+        if (status.type() != fs::file_type::regular) { reason = "has a link or other entry that is not a file"; return false; }
+        const std::uintmax_t size = it->file_size(failed);
+        if (failed) break;
+        bytes += size;
+        if (++files > limits.files) { reason = "more than " + std::to_string(limits.files) + " files"; return false; }
+        if (bytes > limits.bytes) { reason = "more than " + std::to_string((limits.bytes + (std::uintmax_t(1) << 20) - 1) >> 20) + " MB"; return false; }
+    }
+    if (failed) { reason = failed.message(); return false; }
+    return true;
+}
+
+Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error, const Limits& limits) {
     error.clear();
     const fs::path game(gameDirectory), active = game / ActiveFolder / part;
     fs::path next = active, old = active;
@@ -40,10 +60,11 @@ Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::s
     fs::remove_all(next, ignored);
     if (!name.empty()) {
         std::error_code copied;
+        const fs::path source = game / Folder / theme / part;
         if (!PlainName(theme)) error = "not a folder name";
-        else {
+        else if (Accept(source.wstring(), error, limits)) {
             fs::create_directories(active.parent_path(), copied);
-            if (!copied) fs::copy(game / Folder / theme / part, next, fs::copy_options::recursive, copied);
+            if (!copied) fs::copy(source, next, fs::copy_options::recursive, copied);
             if (copied) error = copied.message();
         }
         // A part that cannot be used leaves the game's own files, never the theme before.
@@ -62,7 +83,7 @@ Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::s
 bool WriteActive(const std::wstring& gameDirectory, const wchar_t* part, const std::string& file, const std::string& bytes, std::string& error) {
     error.clear();
     const fs::path relative = fs::u8path(file);
-    bool plain = !file.empty() && relative.is_relative() && !relative.has_root_name();
+    bool plain = !file.empty() && file.find(':') == std::string::npos && relative.is_relative() && !relative.has_root_name();
     for (const auto& piece : relative) plain = plain && piece != ".." && piece != ".";
     if (!plain) { error = "not a plain file name"; return false; }
     const fs::path target = fs::path(gameDirectory) / ActiveFolder / part / relative;
