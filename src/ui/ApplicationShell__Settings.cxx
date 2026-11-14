@@ -57,8 +57,8 @@ constexpr GameThemeRow GameThemeRows[netplay::GameThemePartCount] = {
     {"game-theme-battle-hud", "settings.game_theme_battle_hud_detail", "settings.game_theme_battle_hud_none"}};
 // What a note on a theme (netplay::GameThemeNote) adds to its name, and to the row's words
 // when it is the pick: nothing for no note, and none beyond the name for the game having closed on it.
-constexpr const char* GameThemeNoteSuffix[] = {nullptr, "settings.game_theme_closed", "settings.game_theme_mismatch", "settings.game_theme_unreadable"};
-constexpr const char* GameThemeNoteDetail[] = {nullptr, nullptr, "settings.game_theme_mismatch_detail", "settings.game_theme_unreadable_detail"};
+constexpr const char* GameThemeNoteSuffix[] = {nullptr, "settings.game_theme_closed", "settings.game_theme_mismatch", "settings.game_theme_unreadable", "settings.game_theme_missing"};
+constexpr const char* GameThemeNoteDetail[] = {nullptr, nullptr, "settings.game_theme_mismatch_detail", "settings.game_theme_unreadable_detail", "settings.game_theme_missing_detail"};
 // "Automatic" first, then every locale by its own name.
 std::vector<MenuChoice> LanguageChoices() {
     std::vector<MenuChoice> choices;

@@ -42,7 +42,10 @@ Verdict Accept(const wchar_t* part, const std::wstring& partFolder, std::string&
         if (bytes > limits.bytes) { reason = "more than " + std::to_string((limits.bytes + (std::uintmax_t(1) << 20) - 1) >> 20) + " MB"; return Verdict::Refused; }
     }
     if (failed) { reason = failed.message(); return Verdict::Refused; }
-    if (rules.battleHud && std::wstring(part) == BattleHud) return rules.battleHud(partFolder, reason);
+    if (rules.battleHud && std::wstring(part) == BattleHud) {
+        const Verdict checked = rules.battleHud(partFolder, reason);
+        return checked == Verdict::PicturesMismatch && rules.pictureGuard ? Verdict::PicturesGuarded : checked;
+    }
     return Verdict::Accepted;
 }
 
@@ -59,14 +62,20 @@ Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::s
     // between the two renames is the game's own, which is harmless.
     fs::remove_all(next, ignored);
     Verdict verdict = Verdict::Accepted;
+    std::string guarded;
     if (!name.empty()) {
         std::error_code copied;
         const fs::path source = game / Folder / theme / part;
         if (!PlainName(name)) error = "not a folder name";
-        else if ((verdict = Accept(part, source.wstring(), error, rules)) == Verdict::Accepted) {
-            fs::create_directories(active.parent_path(), copied);
-            if (!copied) fs::copy(source, next, fs::copy_options::recursive, copied);
-            if (copied) error = copied.message();
+        else {
+            verdict = Accept(part, source.wstring(), error, rules);
+            // A part used with pictures missing keeps its reason apart: no error stops the copy.
+            if (verdict == Verdict::PicturesGuarded) guarded.swap(error);
+            if (verdict == Verdict::Accepted || verdict == Verdict::PicturesGuarded) {
+                fs::create_directories(active.parent_path(), copied);
+                if (!copied) fs::copy(source, next, fs::copy_options::recursive, copied);
+                if (copied) error = copied.message();
+            }
         }
         // A part that cannot be used leaves the game's own files, never the theme before.
         if (!error.empty()) fs::remove_all(next, ignored);
@@ -78,6 +87,7 @@ Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::s
     if (fs::exists(next, ignored)) fs::rename(next, active, moved);
     if (moved) { error = moved.message(); return Outcome::GameOwn; }
     fs::remove_all(old, ignored);
+    if (error.empty() && verdict == Verdict::PicturesGuarded) { error = guarded; return Outcome::UsedWithMissingPictures; }
     if (error.empty()) return Outcome::Used;
     return verdict == Verdict::PicturesMismatch ? Outcome::PicturesMismatch : verdict == Verdict::Unreadable ? Outcome::Unreadable : Outcome::GameOwn;
 }

@@ -146,6 +146,14 @@ int main() {
     CHECK(f.Use("NoMenus", game_themes::BattleHud) == Outcome::Used && fs::is_regular_file(hud));
     CHECK(game_themes::Use(f.root.wstring(), game_themes::BattleHud, "NoMenus", why, checking) == Outcome::PicturesMismatch && asked == 1 && why == "pairs");
     CHECK(!fs::exists(hud) && !fs::exists(hud.parent_path().parent_path().wstring() + L".next"));
+    // Where the game's picture read is guarded, the same mismatch is used and the reason is kept for the note;
+    // an unreadable file still refuses.
+    checking.pictureGuard = true;
+    CHECK(game_themes::Use(f.root.wstring(), game_themes::BattleHud, "NoMenus", why, checking) == Outcome::UsedWithMissingPictures && why == "pairs" && fs::is_regular_file(hud));
+    CHECK(game_themes::InUse(Outcome::Used) && game_themes::InUse(Outcome::UsedWithMissingPictures) && !game_themes::InUse(Outcome::PicturesMismatch));
+    checking.battleHud = [&](const std::wstring&, std::string& reason) { reason = "cut"; return game_themes::Verdict::Unreadable; };
+    CHECK(game_themes::Use(f.root.wstring(), game_themes::BattleHud, "NoMenus", why, checking) == Outcome::Unreadable && !fs::exists(hud));
+    checking.pictureGuard = false;
     checking.battleHud = [&](const std::wstring&, std::string& reason) { reason = "cut"; return game_themes::Verdict::Unreadable; };
     CHECK(game_themes::Use(f.root.wstring(), game_themes::BattleHud, "NoMenus", why, checking) == Outcome::Unreadable && !fs::exists(hud));
     checking.battleHud = [&](const std::wstring&, std::string&) { return game_themes::Verdict::Accepted; };

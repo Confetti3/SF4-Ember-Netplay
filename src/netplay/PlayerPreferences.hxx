@@ -117,8 +117,9 @@ constexpr const char* GameThemeKeys[GameThemePartCount] = {
     "gameThemeBattleHud" };
 // What Ember knows about a theme for a part that the player should be told: the game closed
 // while loading it (turned off at the next start), or it was refused before use because its
-// HUD pictures do not match the HUD layout, or its HUD files could not be read.
-enum class GameThemeNote : unsigned char { None, ClosedGame, PicturesMismatch, Unreadable };
+// HUD pictures do not match the HUD layout, or its HUD files could not be read, or it is used
+// though its HUD layout names pictures its sheet lacks (the game draws those as none).
+enum class GameThemeNote : unsigned char { None, ClosedGame, PicturesMismatch, Unreadable, PicturesMissing };
 // The words each part goes by (locale ids), in the same order.
 constexpr const char* GameThemeLabels[GameThemePartCount] = {
     "settings.game_theme_main_menu", "settings.game_theme_title", "settings.game_theme_chara_select", "settings.game_theme_stage_select",

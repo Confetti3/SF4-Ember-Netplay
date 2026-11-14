@@ -32,15 +32,19 @@ std::vector<std::string> Names(const std::wstring& gameDirectory, const wchar_t*
 // would stall the game or fill the disk.
 struct Limits { unsigned files = 2000; std::uintmax_t bytes = std::uintmax_t(512) << 20; };
 // Why a part may not be used, or that it may. PicturesMismatch: its HUD layout and
-// picture sheets do not belong together (the game closes on that); Unreadable: a HUD file
-// is not one the game can read.
-enum class Verdict { Accepted, Refused, PicturesMismatch, Unreadable };
+// picture sheets do not belong together (the game closes on that); PicturesGuarded: the same
+// mismatch where the game's picture read is guarded (Rules::pictureGuard), so the part is
+// used and those pictures are drawn as none; Unreadable: a HUD file is not one the game can read.
+enum class Verdict { Accepted, Refused, PicturesMismatch, PicturesGuarded, Unreadable };
 // What a part must satisfy: its size, and for the battle HUD a check of its files. The check
 // is given the theme's battle\hud folder; it knows the game's own files through whoever
 // supplies it (hud_bundle::Check), so this folder of code stays free of the game's folders.
 struct Rules {
     Limits limits;
     std::function<Verdict(const std::wstring& themeHudFolder, std::string& reason)> battleHud;
+    // The game's picture read draws a picture its sheet lacks as none (sf4e::Game::Battle::Hud::PictureGuardInstalled),
+    // so the files' mismatch is a note and not a refusal. Without it the mismatch refuses the part.
+    bool pictureGuard = false;
 };
 // Whether a theme's part folder may be copied, and the plain reason when not. This is
 // the one place a part's files are accepted or refused before they go in use: their
@@ -55,8 +59,9 @@ bool PlainName(const std::string& name);
 // not be copied, or was refused (PicturesMismatch, Unreadable: the refusals the player can
 // do something about; GameOwn also covers the size limits); or nothing changed, because the
 // part in use could not be moved aside (the game has one of its files open). Error says why
-// for all but Used.
-enum class Outcome { Used, GameOwn, PicturesMismatch, Unreadable, Unchanged };
+// for all but Used; UsedWithMissingPictures is in use too, and Error names the pictures.
+enum class Outcome { Used, UsedWithMissingPictures, GameOwn, PicturesMismatch, Unreadable, Unchanged };
+inline bool InUse(Outcome outcome) { return outcome == Outcome::Used || outcome == Outcome::UsedWithMissingPictures; }
 // Makes ember\theme\<part> hold the named theme's part, or nothing for an
 // empty name.
 Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error, const Rules& rules = {});

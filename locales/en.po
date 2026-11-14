@@ -8118,6 +8118,12 @@ msgstr "{0}'s HUD pictures do not match this edition's HUD layout, so it was not
 msgid "settings.game_theme_unreadable_detail"
 msgstr "{0} has HUD files the game cannot read, so it was not used. The game's own HUD is showing."
 
+msgid "settings.game_theme_missing"
+msgstr "{0} (used: some HUD pictures are missing)"
+
+msgid "settings.game_theme_missing_detail"
+msgstr "{0} is used. Its HUD layout names some pictures its sheet does not have, and those are not drawn."
+
 msgid "runtime.game_theme_turned_off"
 msgstr "{0} was turned off for {1}: the game closed while loading it."
 

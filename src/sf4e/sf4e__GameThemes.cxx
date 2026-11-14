@@ -25,6 +25,7 @@
 #include "../training/GameFiles.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__GameThemes.hxx"
+#include "sf4e__Game__Battle__Hud.hxx"
 #include "sf4e__NetplayFacade.hxx"
 
 namespace {
@@ -47,8 +48,8 @@ std::array<Part, sf4e::netplay::GameThemePartCount> parts;
 // runtime has yet to put back in the settings and tell the player about.
 game_themes::Guard guard;
 std::vector<sf4e::GameThemes::Turned> turned;
-// The picks refused before use this session (Use), by part and theme, until one is used.
-std::array<std::map<std::string, sf4e::netplay::GameThemeNote>, sf4e::netplay::GameThemePartCount> refused;
+// What Use found about a pick this session, by part and theme: refused before use, or used with some HUD pictures missing.
+std::array<std::map<std::string, sf4e::netplay::GameThemeNote>, sf4e::netplay::GameThemePartCount> noted;
 std::string PartFolder(int part) { return sf4e::platform::WideToUtf8(game_themes::Parts[part]); }
 // The game's own newest copy of a file of battle\hud, by the game's folders, newest first.
 std::filesystem::path GameHudFile(const std::wstring& relative) {
@@ -64,6 +65,7 @@ const game_themes::Rules& ThemeRules() {
 	static const game_themes::Rules rules = [] {
 		game_themes::Rules made;
 		made.battleHud = [](const std::wstring& folder, std::string& reason) { return sf4e::platform::hud_bundle::Check(folder, GameHudFile, reason); };
+		made.pictureGuard = sf4e::Game::Battle::Hud::PictureGuardInstalled();
 		return made;
 	}();
 	return rules;
@@ -126,8 +128,8 @@ const std::vector<sf4e::GameThemes::Turned>& sf4e::GameThemes::TurnedOff() { ret
 void sf4e::GameThemes::TurnedOffTold() { turned.clear(); }
 
 sf4e::netplay::GameThemeNote sf4e::GameThemes::Note(netplay::GameThemePart part, const std::string& theme) {
-	const auto found = refused[part].find(theme);
-	if (found != refused[part].end()) return found->second;
+	const auto found = noted[part].find(theme);
+	if (found != noted[part].end()) return found->second;
 	return game_themes::Closed(guard, PartFolder(part), theme) ? netplay::GameThemeNote::ClosedGame : netplay::GameThemeNote::None;
 }
 
@@ -297,24 +299,27 @@ void sf4e::GameThemes::Use(const std::array<std::string, netplay::GameThemePartC
 		std::string error;
 		const std::string folder = platform::WideToUtf8(game_themes::Parts[i]);
 		const game_themes::Outcome outcome = game_themes::Use(gameDirectory, game_themes::Parts[i], name, error, ThemeRules());
-		if (outcome == game_themes::Outcome::Used && i == netplay::GameThemeBattleHud) {
+		const bool used = game_themes::InUse(outcome);
+		if (used && i == netplay::GameThemeBattleHud) {
 			for (const auto& [file, bytes] : hudFiles) {
 				std::string problem;
 				if (!game_themes::WriteActive(gameDirectory, game_themes::Parts[i], file, bytes, problem))
 					spdlog::warn("In-game themes: HUD file {} not written: {}", file, problem);
 			}
 		}
-		if (outcome == game_themes::Outcome::Used) {
+		if (used) {
 			part.loaded = name;
-			refused[i].erase(name);
+			noted[i].erase(name);
+			if (outcome == game_themes::Outcome::UsedWithMissingPictures) noted[i][name] = netplay::GameThemeNote::PicturesMissing;
 			// Files written over the copy are not the files that loaded before.
 			if (i == netplay::GameThemeBattleHud && !hudFiles.empty() && game_themes::Forget(guard, folder)) Remember();
 			spdlog::info("In-game themes: {} {}", folder, name.empty() ? std::string("the game's own") : name);
+			if (outcome == game_themes::Outcome::UsedWithMissingPictures) spdlog::warn("In-game themes: {} {} is used, and some pictures its HUD names are not drawn: {}", folder, name, error);
 		}
 		else {
 			if (outcome != game_themes::Outcome::Unchanged) part.loaded.clear();
-			if (outcome == game_themes::Outcome::PicturesMismatch) refused[i][name] = netplay::GameThemeNote::PicturesMismatch;
-			if (outcome == game_themes::Outcome::Unreadable) refused[i][name] = netplay::GameThemeNote::Unreadable;
+			if (outcome == game_themes::Outcome::PicturesMismatch) noted[i][name] = netplay::GameThemeNote::PicturesMismatch;
+			if (outcome == game_themes::Outcome::Unreadable) noted[i][name] = netplay::GameThemeNote::Unreadable;
 			spdlog::warn("In-game themes: {} {} could not be used: {}", folder, name, error);
 		}
 		// Only a part that could not be swapped is tried again at the next pick.
