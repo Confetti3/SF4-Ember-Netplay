@@ -46,6 +46,9 @@ std::atomic<int> s_streams{0}, s_requests{0};
 std::atomic<int> s_loops{0};  // the two loops run detached, so no thread object can outlive the process and end it in std::terminate
 SOCKET s_listen = INVALID_SOCKET, s_dns = INVALID_SOCKET;
 unsigned short s_port = 0;
+// The address the phone opens, found once as the server starts: the menu shows it every frame.
+std::mutex s_urlLock;
+std::string s_url;
 PinGate s_pins;
 BodyBudget s_bodies{BodiesHeld};
 // The sockets of the requests and streams under way, so Stop can end every wait on them at once.
@@ -327,6 +330,22 @@ SOCKET OpenMdns() {
         setsockopt(socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, reinterpret_cast<const char*>(&group), sizeof(group)) != 0) { closesocket(socket); return INVALID_SOCKET; }
     return socket;
 }
+// The PC's private IPv4 address on a network with a gateway (the LAN the phone is on), or empty.
+std::string LanAddress() {
+    ULONG size = 16384; std::vector<char> buffer(size);
+    if (GetAdaptersAddresses(AF_INET, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_INCLUDE_GATEWAYS, nullptr, reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data()), &size) != NO_ERROR) return {};
+    for (auto* adapter = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data()); adapter; adapter = adapter->Next) {
+        if (adapter->OperStatus != IfOperStatusUp || adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK || !adapter->FirstGatewayAddress) continue;
+        for (auto* unicast = adapter->FirstUnicastAddress; unicast; unicast = unicast->Next) {
+            const auto* at = reinterpret_cast<sockaddr_in*>(unicast->Address.lpSockaddr);
+            const auto host = ntohl(at->sin_addr.s_addr);
+            if (!PrivatePeer(host) || (host >> 24) == 127) continue;
+            char text[INET_ADDRSTRLEN]; inet_ntop(AF_INET, &at->sin_addr, text, sizeof(text));
+            return text;
+        }
+    }
+    return {};
+}
 } // namespace
 
 bool PrivatePeer(unsigned long a) {
@@ -349,6 +368,9 @@ bool Start() {
     }
     if (!s_port) { closesocket(s_listen); s_listen = INVALID_SOCKET; return false; }
     s_dns = OpenMdns();  // without it the phone types the PC's address; the page and PIN work the same
+    // The IPv4 address, since the name needs mDNS and many networks and phones do not resolve it.
+    const std::string lan = LanAddress();
+    { std::lock_guard<std::mutex> hold(s_urlLock); s_url = std::string("http://") + (lan.empty() ? HostName : lan) + ":" + std::to_string(s_port); }
     s_running = true;
     ++s_loops; std::thread([] { HttpLoop(); --s_loops; }).detach();
     if (s_dns != INVALID_SOCKET) { ++s_loops; std::thread([] { MdnsLoop(); --s_loops; }).detach(); }
@@ -358,6 +380,7 @@ void Stop() {
     if (!s_running.exchange(false)) return;
     hud::Allow(false);
     s_pins.Reset({});
+    { std::lock_guard<std::mutex> hold(s_urlLock); s_url.clear(); }
     // Every wait on a phone ends at once, and the loops see s_running within their 200 ms wait. Bounded: a
     // handler still busy is left to end on its own.
     EndClients();
@@ -366,32 +389,11 @@ void Stop() {
     closesocket(s_listen); if (s_dns != INVALID_SOCKET) closesocket(s_dns);
     s_listen = s_dns = INVALID_SOCKET; s_port = 0;
 }
-// The PC's private IPv4 address on a network with a gateway (the LAN the phone is on), or empty.
-std::string LanAddress() {
-    ULONG size = 16384; std::vector<char> buffer(size);
-    if (GetAdaptersAddresses(AF_INET, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_INCLUDE_GATEWAYS, nullptr, reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data()), &size) != NO_ERROR) return {};
-    for (auto* adapter = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data()); adapter; adapter = adapter->Next) {
-        if (adapter->OperStatus != IfOperStatusUp || adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK || !adapter->FirstGatewayAddress) continue;
-        for (auto* unicast = adapter->FirstUnicastAddress; unicast; unicast = unicast->Next) {
-            const auto* at = reinterpret_cast<sockaddr_in*>(unicast->Address.lpSockaddr);
-            const auto host = ntohl(at->sin_addr.s_addr);
-            if (!PrivatePeer(host) || (host >> 24) == 127) continue;
-            char text[INET_ADDRSTRLEN]; inet_ntop(AF_INET, &at->sin_addr, text, sizeof(text));
-            return text;
-        }
-    }
-    return {};
-}
 std::string Pin() { return s_running ? s_pins.Pin() : std::string(); }
 std::string Link() { const auto url = Url(); return url.empty() ? url : url + "/?pin=" + Pin(); }
 bool Open() {
     const auto link = Link();
     return !link.empty() && reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", link.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > 32;
 }
-// The IPv4 address, since the name needs mDNS and many networks and phones do not resolve it.
-std::string Url() {
-    if (!s_running) return {};
-    const auto lan = LanAddress();
-    return std::string("http://") + (lan.empty() ? HostName : lan) + ":" + std::to_string(s_port);
-}
+std::string Url() { std::lock_guard<std::mutex> hold(s_urlLock); return s_url; }
 } } }
