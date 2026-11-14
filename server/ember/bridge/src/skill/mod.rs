@@ -23,10 +23,12 @@ use ember_protocol::{
     levels::FIGHTERS,
     skill::{SKILL_BANDS, SkillBadge},
 };
-use rusqlite::{OptionalExtension, Transaction, params};
+use std::collections::{HashMap, HashSet};
+
+use rusqlite::{OptionalExtension, Row, Transaction, params};
 use serde::Deserialize;
 
-use crate::error::Result;
+use crate::{db::select_in, error::Result};
 use glicko::Rating;
 
 /// The lowest rating of each class above the first: D below 1200, D+ from
@@ -333,8 +335,66 @@ pub fn last_shown(
         return Ok(Some(SkillBadge::DEVELOPER));
     }
     let (rating, band) = load(tx, account, now)?;
+    Ok(Some(class_shown(&rating, band)))
+}
+
+/// `last_shown` for each of `accounts` at once, in two reads however many
+/// there are: the ranking choices, then the ratings of those that take part.
+/// An account that shows no class has no entry.
+pub fn last_shown_of(
+    tx: &Transaction<'_>,
+    accounts: &[&str],
+    developers: &[String],
+    now: u64,
+) -> Result<HashMap<String, SkillBadge>> {
+    let opted_out: HashSet<String> = select_in(
+        tx,
+        "SELECT discord_user_id FROM ranking_choices
+         WHERE game = 'usf4' AND NOT ranked AND discord_user_id IN ({ids})",
+        &[],
+        accounts,
+        |row| row.get::<_, String>(0),
+    )?
+    .into_iter()
+    .collect();
+    let developers = Developers {
+        accounts: developers,
+        shown: true,
+    };
+    let mut shown = HashMap::new();
+    let mut rated = Vec::new();
+    for account in accounts
+        .iter()
+        .filter(|account| !opted_out.contains(**account))
+    {
+        if developers.mark(account) {
+            shown.insert((*account).to_owned(), SkillBadge::DEVELOPER);
+        } else {
+            rated.push(*account);
+        }
+    }
+    let mut ratings: HashMap<String, (Rating, u8)> = select_in(
+        tx,
+        "SELECT discord_user_id, rating, deviation, volatility, band, played_at
+         FROM skill_ratings WHERE game = 'usf4' AND discord_user_id IN ({ids})",
+        &[],
+        &rated,
+        |row| Ok((row.get::<_, String>(0)?, rating_at(row, 1, now)?)),
+    )?
+    .into_iter()
+    .collect();
+    for account in rated {
+        let (rating, band) = ratings.remove(account).unwrap_or((Rating::NEW, 0));
+        shown.insert(account.to_owned(), class_shown(&rating, band));
+    }
+    Ok(shown)
+}
+
+/// The class to show for a `rating` with `band` shown last: the band once the
+/// rating stands behind it.
+fn class_shown(rating: &Rating, band: u8) -> SkillBadge {
     let settled = band != 0 && rating.deviation <= SETTLED_DEVIATION;
-    Ok(Some(SkillBadge::class(band, settled)))
+    SkillBadge::class(band, settled)
 }
 
 /// The class to show for `account` now, band 0 while it is still placing. It
@@ -387,20 +447,22 @@ fn load(tx: &Transaction<'_>, account: &str, now: u64) -> Result<(Rating, u8)> {
             "SELECT rating, deviation, volatility, band, played_at
              FROM skill_ratings WHERE game = 'usf4' AND discord_user_id = ?1",
             [account],
-            |row| {
-                let rating = Rating {
-                    rating: row.get(0)?,
-                    deviation: row.get(1)?,
-                    volatility: row.get(2)?,
-                };
-                Ok((rating, row.get(3)?, row.get::<_, u64>(4)?))
-            },
+            |row| rating_at(row, 0, now),
         )
         .optional()?;
-    Ok(match stored {
-        Some((rating, band, played_at)) => (aged(rating, played_at, now), band),
-        None => (Rating::NEW, 0),
-    })
+    Ok(stored.unwrap_or((Rating::NEW, 0)))
+}
+
+/// The rating, band and last game in columns `at` to `at + 4` of a
+/// `skill_ratings` row: the rating aged to `now`, and the band last shown.
+fn rating_at(row: &Row<'_>, at: usize, now: u64) -> rusqlite::Result<(Rating, u8)> {
+    let rating = Rating {
+        rating: row.get(at)?,
+        deviation: row.get(at + 1)?,
+        volatility: row.get(at + 2)?,
+    };
+    let played_at: u64 = row.get(at + 4)?;
+    Ok((aged(rating, played_at, now), row.get(at + 3)?))
 }
 
 /// `rating` from a game at `played_at`, grown less sure by the days since.

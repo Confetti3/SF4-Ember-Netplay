@@ -100,10 +100,14 @@ pub async fn act(
     }
     let (live, keys) = (state.friends.clone(), state.keys.clone());
     let (account, now) = (caller.account.clone(), caller.now);
-    state
+    let effect = state
         .db
         .write(move |tx| friends::act(tx, &live, &keys, &account, action, now))
         .await?;
+    // What the action changes in memory waits for its commit.
+    if let Some(effect) = effect {
+        state.friends.apply(effect, now);
+    }
     answer(&state, caller).await
 }
 

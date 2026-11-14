@@ -13,10 +13,13 @@ use ember_protocol::{
     rooms::is_player_name,
     skill::Listing,
 };
+use std::collections::HashMap;
+
 use rusqlite::{OptionalExtension, Row, Transaction, params};
 
 use crate::{
     cards,
+    db::select_in,
     error::{ApiFailure, Result},
     util::{new_id, random},
 };
@@ -729,44 +732,91 @@ pub fn record(tx: &Transaction<'_>, caller: &str, other: &str) -> Result<Option<
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .optional()?;
-    Ok(stored
-        .map(|(first_wins, second_wins, last_at)| {
-            let (won, lost) = if caller == first {
-                (first_wins, second_wins)
-            } else {
-                (second_wins, first_wins)
-            };
-            PairRecord { won, lost, last_at }
-        })
-        .filter(|record| record.won + record.lost > 0))
+    Ok(stored.and_then(|(first_wins, second_wins, last_at)| {
+        counted_record(caller == first, first_wins, second_wins, last_at)
+    }))
 }
 
-/// The public room `room_id` as a friend's presence shows it, while it is
-/// open and listed (the filter of `rooms::player_rooms`): joinable when it is
-/// not locked, not full and of `build_id`. None for any other room.
-pub fn listed_room(
+/// `record` between `caller` and each of `others` at once, in one read: the
+/// ones with a counted game, by the other account.
+pub fn records(
     tx: &Transaction<'_>,
-    room_id: &str,
-    build_id: Option<&str>,
-) -> Result<Option<FriendRoom>> {
-    let room = tx
-        .query_row(
-            "SELECT name, members, capacity, build_id = ?2, COALESCE(locked, 0) FROM rooms
-             WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL
-               AND region IS NOT NULL AND members >= 1",
-            params![room_id, build_id],
-            |row| room_of(room_id, row),
-        )
-        .optional()?;
-    Ok(room.filter(|room| room.check().is_ok()))
+    caller: &str,
+    others: &[&str],
+) -> Result<HashMap<String, PairRecord>> {
+    let rows = select_in(
+        tx,
+        "SELECT first, second, first_wins, second_wins, played_at FROM pair_records
+         WHERE (first = ?1 AND second IN ({ids})) OR (second = ?1 AND first IN ({ids}))",
+        &[&caller],
+        others,
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, u64>(2)?,
+                row.get::<_, u64>(3)?,
+                row.get::<_, u64>(4)?,
+            ))
+        },
+    )?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|(first, second, first_wins, second_wins, last_at)| {
+            let from_first = first == caller;
+            let record = counted_record(from_first, first_wins, second_wins, last_at)?;
+            Some((if from_first { second } else { first }, record))
+        })
+        .collect())
 }
 
-fn room_of(room_id: &str, row: &Row<'_>) -> rusqlite::Result<FriendRoom> {
-    let (members, capacity): (u8, u8) = (row.get(1)?, row.get(2)?);
-    let (same_build, locked): (Option<bool>, bool) = (row.get(3)?, row.get(4)?);
+/// A pair's wins from the caller's side, `from_first` when the caller is the
+/// pair's first account; none before a counted game.
+fn counted_record(
+    from_first: bool,
+    first_wins: u64,
+    second_wins: u64,
+    last_at: u64,
+) -> Option<PairRecord> {
+    let (won, lost) = if from_first {
+        (first_wins, second_wins)
+    } else {
+        (second_wins, first_wins)
+    };
+    Some(PairRecord { won, lost, last_at }).filter(|record| record.won + record.lost > 0)
+}
+
+/// The public rooms among `room_ids` as a friend's presence shows them, by
+/// room id, while each is open and listed (the filter of
+/// `rooms::player_rooms`), all in one read: joinable when not locked, not full
+/// and of `build_id`. Any other room has no entry.
+pub fn listed_rooms(
+    tx: &Transaction<'_>,
+    room_ids: &[&str],
+    build_id: Option<&str>,
+) -> Result<HashMap<String, FriendRoom>> {
+    let rooms = select_in(
+        tx,
+        "SELECT room_id, name, members, capacity, build_id = ?1, COALESCE(locked, 0) FROM rooms
+         WHERE room_id IN ({ids}) AND closed_at IS NULL AND invitation_sealed IS NOT NULL
+           AND region IS NOT NULL AND members >= 1",
+        &[&build_id],
+        room_ids,
+        room_of,
+    )?;
+    Ok(rooms
+        .into_iter()
+        .filter(|room| room.check().is_ok())
+        .map(|room| (room.room_id.clone(), room))
+        .collect())
+}
+
+fn room_of(row: &Row<'_>) -> rusqlite::Result<FriendRoom> {
+    let (members, capacity): (u8, u8) = (row.get(2)?, row.get(3)?);
+    let (same_build, locked): (Option<bool>, bool) = (row.get(4)?, row.get(5)?);
     Ok(FriendRoom {
-        room_id: room_id.to_owned(),
-        name: row.get(0)?,
+        room_id: row.get(0)?,
+        name: row.get(1)?,
         members,
         capacity,
         joinable: same_build == Some(true) && !locked && members < capacity,

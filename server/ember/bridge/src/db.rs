@@ -12,7 +12,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use rusqlite::{Connection, Transaction, TransactionBehavior};
+use rusqlite::{Connection, Row, ToSql, Transaction, TransactionBehavior, params_from_iter};
 use tokio::sync::watch;
 
 use crate::error::ApiFailure;
@@ -148,6 +148,32 @@ impl Db {
         .await
         .map_err(|_| ApiFailure::unavailable())?
     }
+}
+
+/// Runs `sql` for a whole set of ids at once and maps each row with `map`. The
+/// text has `{ids}` where the list of an `IN (...)` goes; `fixed` binds the
+/// statement's own values first (`?1`, `?2`, ...), and each id after them. A
+/// set of any size is one statement, so a route that reads many accounts costs
+/// the same number of queries whatever their count. Callers keep the set within
+/// the limits of the protocol, well under what SQLite binds.
+pub fn select_in<T>(
+    tx: &Transaction<'_>,
+    sql: &str,
+    fixed: &[&dyn ToSql],
+    ids: &[&str],
+    map: impl FnMut(&Row<'_>) -> rusqlite::Result<T>,
+) -> Result<Vec<T>, ApiFailure> {
+    let first = fixed.len() + 1;
+    let marks: Vec<String> = (first..first + ids.len())
+        .map(|number| format!("?{number}"))
+        .collect();
+    let mut statement = tx.prepare(&sql.replace("{ids}", &marks.join(", ")))?;
+    let mut values: Vec<&dyn ToSql> = fixed.to_vec();
+    values.extend(ids.iter().map(|id| id as &dyn ToSql));
+    let rows = statement
+        .query_map(params_from_iter(values), map)?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(rows)
 }
 
 /// A stored name this bridge does not know, such as a state a newer bridge

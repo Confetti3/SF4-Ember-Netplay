@@ -31,10 +31,12 @@ use ember_protocol::{
         PlayerCard, Relation,
     },
 };
-use rusqlite::{OptionalExtension, Transaction, params};
+use std::collections::{HashMap, HashSet};
+
+use rusqlite::{OptionalExtension, Row, Transaction, params};
 
 use super::account;
-use crate::error::Result;
+use crate::{db::select_in, error::Result};
 
 /// The points where each fighter tier begins, Ash to Ember: the frame colours
 /// of `v2::TierColor`.
@@ -126,6 +128,16 @@ struct Counted {
 }
 
 impl Counted {
+    /// No game counted yet.
+    fn none() -> Self {
+        Self {
+            games: 0,
+            wins: 0,
+            lower_wins: 0,
+            first_at: None,
+        }
+    }
+
     /// A game is 1 point and a win with the bonus 1 more.
     fn points(&self) -> u64 {
         self.games
@@ -404,14 +416,75 @@ fn card_with(tx: &Transaction<'_>, account: &str, awards: bool) -> Result<Option
     } else {
         AwardCounts::default()
     };
-    Ok(Some(PlayerCard {
-        fighters: fighter_counts(tx, account)?
+    Ok(Some(counted_card(
+        &counted,
+        &fighter_counts(tx, account)?,
+        awards,
+    )))
+}
+
+/// A card made of an account's count and its fighters' counts.
+fn counted_card(counted: &Counted, fighters: &[(u8, Counted)], awards: AwardCounts) -> PlayerCard {
+    PlayerCard {
+        fighters: fighters
             .iter()
             .map(|(fighter, count)| count.card_fighter(*fighter))
             .collect(),
         awards,
         ..PlayerCard::bare(counted.card_account(), Relation::None)
-    }))
+    }
+}
+
+/// `card` for every one of `accounts` at once, in three reads however many
+/// there are: the cards of those with a Discord account connected, each as
+/// `card` serves it. A friends state, which wants the points of all of a
+/// player's friends, reads this one.
+pub fn cards(tx: &Transaction<'_>, accounts: &[&str]) -> Result<HashMap<String, PlayerCard>> {
+    let connected: HashSet<String> = select_in(
+        tx,
+        "SELECT user_id FROM discord_accounts WHERE user_id IN ({ids})",
+        &[],
+        accounts,
+        |row| row.get::<_, String>(0),
+    )?
+    .into_iter()
+    .collect();
+    let mut totals: HashMap<String, Counted> = select_in(
+        tx,
+        "SELECT discord_user_id, games, wins, lower_wins, first_at FROM account_points
+         WHERE discord_user_id IN ({ids})",
+        &[],
+        accounts,
+        |row| Ok((row.get::<_, String>(0)?, counted_in(row, 1)?)),
+    )?
+    .into_iter()
+    .collect();
+    let mut fighters: HashMap<String, Vec<(u8, Counted)>> = HashMap::new();
+    for (account, fighter, count) in select_in(
+        tx,
+        "SELECT discord_user_id, fighter, games, wins, lower_wins, first_at FROM fighter_levels
+         WHERE discord_user_id IN ({ids}) ORDER BY discord_user_id, fighter",
+        &[],
+        accounts,
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, u8>(1)?,
+                counted_in(row, 2)?,
+            ))
+        },
+    )? {
+        fighters.entry(account).or_default().push((fighter, count));
+    }
+    Ok(connected
+        .into_iter()
+        .map(|account| {
+            let counted = totals.remove(&account).unwrap_or_else(Counted::none);
+            let played = fighters.remove(&account).unwrap_or_default();
+            let card = counted_card(&counted, &played, AwardCounts::default());
+            (account, card)
+        })
+        .collect())
 }
 
 /// `account`'s own count; none counted yet reads as no games.
@@ -421,22 +494,21 @@ fn account_count(tx: &Transaction<'_>, account: &str) -> Result<Counted> {
             "SELECT games, wins, lower_wins, first_at FROM account_points
              WHERE discord_user_id = ?1",
             [account],
-            |row| {
-                Ok(Counted {
-                    games: row.get(0)?,
-                    wins: row.get(1)?,
-                    lower_wins: row.get(2)?,
-                    first_at: Some(row.get(3)?),
-                })
-            },
+            |row| counted_in(row, 0),
         )
         .optional()?;
-    Ok(stored.unwrap_or(Counted {
-        games: 0,
-        wins: 0,
-        lower_wins: 0,
-        first_at: None,
-    }))
+    Ok(stored.unwrap_or_else(Counted::none))
+}
+
+/// The count in columns `at` to `at + 3` of a row: games, wins, wins without
+/// the bonus and when the first game was counted.
+fn counted_in(row: &Row<'_>, at: usize) -> rusqlite::Result<Counted> {
+    Ok(Counted {
+        games: row.get(at)?,
+        wins: row.get(at + 1)?,
+        lower_wins: row.get(at + 2)?,
+        first_at: Some(row.get(at + 3)?),
+    })
 }
 
 /// `account`'s played fighters with their counts, ascending.
@@ -446,17 +518,7 @@ fn fighter_counts(tx: &Transaction<'_>, account: &str) -> Result<Vec<(u8, Counte
          WHERE discord_user_id = ?1 ORDER BY fighter",
     )?;
     let rows = statement
-        .query_map([account], |row| {
-            Ok((
-                row.get(0)?,
-                Counted {
-                    games: row.get(1)?,
-                    wins: row.get(2)?,
-                    lower_wins: row.get(3)?,
-                    first_at: Some(row.get(4)?),
-                },
-            ))
-        })?
+        .query_map([account], |row| Ok((row.get(0)?, counted_in(row, 1)?)))?
         .collect::<rusqlite::Result<_>>()?;
     Ok(rows)
 }
@@ -614,12 +676,7 @@ mod tests {
             (199, 0, 0, Some(200))
         );
         // An account with no game has no `since`, and passes the checks.
-        let none = Counted {
-            games: 0,
-            wins: 0,
-            lower_wins: 0,
-            first_at: None,
-        };
+        let none = Counted::none();
         let account = none.own_account(awards_of(&none));
         assert!(account.check().is_ok(), "{account:?}");
         assert_eq!(
