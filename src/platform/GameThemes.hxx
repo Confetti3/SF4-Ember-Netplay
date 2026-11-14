@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -30,19 +31,35 @@ std::vector<std::string> Names(const std::wstring& gameDirectory, const wchar_t*
 // are a few hundred files and tens of megabytes, so these only stop a folder that
 // would stall the game or fill the disk.
 struct Limits { unsigned files = 2000; std::uintmax_t bytes = std::uintmax_t(512) << 20; };
+// Why a part may not be used, or that it may. PicturesMismatch: its HUD layout and
+// picture sheets do not belong together (the game closes on that); Unreadable: a HUD file
+// is not one the game can read.
+enum class Verdict { Accepted, Refused, PicturesMismatch, Unreadable };
+// What a part must satisfy: its size, and for the battle HUD a check of its files. The check
+// is given the theme's battle\hud folder; it knows the game's own files through whoever
+// supplies it (hud_bundle::Check), so this folder of code stays free of the game's folders.
+struct Rules {
+    Limits limits;
+    std::function<Verdict(const std::wstring& themeHudFolder, std::string& reason)> battleHud;
+};
 // Whether a theme's part folder may be copied, and the plain reason when not. This is
-// the one place a part's files are accepted or refused before they go in use: today
-// its size, and links (which would copy what lies outside the theme); a check of the
-// files' format belongs here too.
-bool Accept(const std::wstring& partFolder, std::string& reason, const Limits& limits = {});
+// the one place a part's files are accepted or refused before they go in use: their
+// size, links (which would copy what lies outside the theme), and for the battle HUD
+// the check in the rules.
+Verdict Accept(const wchar_t* part, const std::wstring& partFolder, std::string& reason, const Rules& rules = {});
+// A theme or file name is one plain name: nothing that leaves its folder, under 100 characters.
+bool PlainName(const std::wstring& name);
+bool PlainName(const std::string& utf8Name);
 // What Use did: the named part is in use (the game's own files for an empty
 // name); the game's own files are, because the theme is gone or its part could
-// not be copied; or nothing changed, because the part in use could not be moved
-// aside (the game has one of its files open). Error says why for the last two.
-enum class Outcome { Used, GameOwn, Unchanged };
+// not be copied, or was refused (PicturesMismatch, Unreadable: the refusals the player can
+// do something about; GameOwn also covers the size limits); or nothing changed, because the
+// part in use could not be moved aside (the game has one of its files open). Error says why
+// for all but Used.
+enum class Outcome { Used, GameOwn, PicturesMismatch, Unreadable, Unchanged };
 // Makes ember\theme\<part> hold the named theme's part, or nothing for an
 // empty name.
-Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error, const Limits& limits = {});
+Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error, const Rules& rules = {});
 // Puts bytes at ember\theme\<part>\<file> (a plain relative path, no ".."),
 // replacing what Use copied there; the game never reads a half-written file.
 bool WriteActive(const std::wstring& gameDirectory, const wchar_t* part, const std::string& file, const std::string& bytes, std::string& error);

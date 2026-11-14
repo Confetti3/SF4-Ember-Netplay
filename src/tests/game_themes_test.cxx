@@ -112,20 +112,20 @@ int main() {
     f.File("ember/themes/Many/ui/main_menu/sub/b.emz");
     f.File("ember/themes/Many/ui/main_menu/sub/c.emz");
     f.File("ember/themes/Heavy/ui/main_menu/a.emz", std::string(200, 'x'));
-    game_themes::Limits tiny;
-    tiny.files = 3;
-    tiny.bytes = 100;
+    game_themes::Rules tiny;
+    tiny.limits.files = 3;
+    tiny.limits.bytes = 100;
     std::string why;
-    CHECK(game_themes::Accept((f.root / "ember/themes/Many/ui/main_menu").wstring(), why, tiny) && why.empty());
-    CHECK(!game_themes::Accept((f.root / "ember/themes/Heavy/ui/main_menu").wstring(), why, tiny) && why.find("MB") != std::string::npos);
-    CHECK(!game_themes::Accept((f.root / "ember/themes/Missing/ui/main_menu").wstring(), why, tiny) && !why.empty());
-    tiny.files = 2;
-    CHECK(!game_themes::Accept((f.root / "ember/themes/Many/ui/main_menu").wstring(), why, tiny) && why.find("2 files") != std::string::npos);
+    CHECK(game_themes::Accept(game_themes::MainMenu, (f.root / "ember/themes/Many/ui/main_menu").wstring(), why, tiny) == game_themes::Verdict::Accepted && why.empty());
+    CHECK(game_themes::Accept(game_themes::MainMenu, (f.root / "ember/themes/Heavy/ui/main_menu").wstring(), why, tiny) == game_themes::Verdict::Refused && why.find("MB") != std::string::npos);
+    CHECK(game_themes::Accept(game_themes::MainMenu, (f.root / "ember/themes/Missing/ui/main_menu").wstring(), why, tiny) == game_themes::Verdict::Refused && !why.empty());
+    tiny.limits.files = 2;
+    CHECK(game_themes::Accept(game_themes::MainMenu, (f.root / "ember/themes/Many/ui/main_menu").wstring(), why, tiny) == game_themes::Verdict::Refused && why.find("2 files") != std::string::npos);
     CHECK(f.Use("Blue") == Outcome::Used && f.Menus("title.emz"));
     CHECK(game_themes::Use(f.root.wstring(), game_themes::MainMenu, "Many", why, tiny) == Outcome::GameOwn && !why.empty());
     CHECK(!fs::exists(f.Active()) && !fs::exists(f.Active().wstring() + L".next") && !fs::exists(f.Active().wstring() + L".old"));
     CHECK(game_themes::Use(f.root.wstring(), game_themes::MainMenu, "Heavy", why, tiny) == Outcome::GameOwn && !fs::exists(f.Active()));
-    tiny.files = 3;
+    tiny.limits.files = 3;
     CHECK(game_themes::Use(f.root.wstring(), game_themes::MainMenu, "Many", why, tiny) == Outcome::Used && why.empty() && f.Menus("sub/c.emz"));
     // The limits of a real part are far above these.
     CHECK(game_themes::Limits().files >= 1000 && game_themes::Limits().bytes >= (std::uintmax_t(256) << 20));
@@ -133,5 +133,22 @@ int main() {
     CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "CMN/x:y", "x", error));
     CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "C:\\x.emz", "x", error));
     CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "\\x.emz", "x", error));
+    // The battle HUD's own check is asked for the battle HUD only, and its verdict decides: a refused HUD
+    // leaves the game's own, with the kind of refusal for the player.
+    int asked = 0;
+    game_themes::Rules checking;
+    checking.battleHud = [&](const std::wstring&, std::string& reason) { ++asked; reason = "pairs"; return game_themes::Verdict::PicturesMismatch; };
+    CHECK(f.Use("Blue") == Outcome::Used && f.Menus("title.emz"));
+    CHECK(game_themes::Use(f.root.wstring(), game_themes::MainMenu, "Blue", why, checking) == Outcome::Used && asked == 0);
+    CHECK(f.Use("NoMenus", game_themes::BattleHud) == Outcome::Used && fs::is_regular_file(hud));
+    CHECK(game_themes::Use(f.root.wstring(), game_themes::BattleHud, "NoMenus", why, checking) == Outcome::PicturesMismatch && asked == 1 && why == "pairs");
+    CHECK(!fs::exists(hud) && !fs::exists(hud.parent_path().parent_path().wstring() + L".next"));
+    checking.battleHud = [&](const std::wstring&, std::string& reason) { reason = "cut"; return game_themes::Verdict::Unreadable; };
+    CHECK(game_themes::Use(f.root.wstring(), game_themes::BattleHud, "NoMenus", why, checking) == Outcome::Unreadable && !fs::exists(hud));
+    checking.battleHud = [&](const std::wstring&, std::string&) { return game_themes::Verdict::Accepted; };
+    CHECK(game_themes::Use(f.root.wstring(), game_themes::BattleHud, "NoMenus", why, checking) == Outcome::Used && fs::is_regular_file(hud));
+    // One plain name rule for theme and file names: no separators or drive, under 100 characters.
+    CHECK(game_themes::PlainName("Neon") && game_themes::PlainName(std::wstring(L"Neon")) && !game_themes::PlainName("a:b") && !game_themes::PlainName("a/b") && !game_themes::PlainName("..") && !game_themes::PlainName(""));
+    CHECK(game_themes::PlainName(std::string(99, 'a')) && !game_themes::PlainName(std::string(100, 'a')));
     return 0;
 }

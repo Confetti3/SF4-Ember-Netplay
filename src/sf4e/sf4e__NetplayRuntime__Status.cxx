@@ -630,8 +630,11 @@ PostPublishState Publish() {
     for (int part = 0; part < netplay::GameThemePartCount; ++part) {
         const auto themePart = static_cast<netplay::GameThemePart>(part);
         snapshot.gameThemes[part] = GameThemes::Names(themePart);
-        snapshot.gameThemesClosed[part].clear();
-        for (const auto& name : snapshot.gameThemes[part]) if (GameThemes::ClosedTheGame(themePart, name)) snapshot.gameThemesClosed[part].push_back(name);
+        snapshot.gameThemeNotes[part].clear();
+        for (const auto& name : snapshot.gameThemes[part]) {
+            const auto note = GameThemes::Note(themePart, name);
+            if (note != netplay::GameThemeNote::None) snapshot.gameThemeNotes[part][name] = note;
+        }
     }
     snapshot.padSetup = Gamepads::ReadFrame().setup;
     snapshot.padLayerPending = gamepads::LayerPending(runtime->preferences.controllerLayer, runtime->runningControllerLayer);

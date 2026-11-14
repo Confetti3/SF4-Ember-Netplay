@@ -54,6 +54,10 @@ constexpr GameThemeRow GameThemeRows[netplay::GameThemePartCount] = {
     {"game-theme-buttons", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
     {"game-theme-menu-sounds", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
     {"game-theme-battle-hud", "settings.game_theme_battle_hud_detail", "settings.game_theme_battle_hud_none"}};
+// What a note on a theme (netplay::GameThemeNote) adds to its name, and to the row's words
+// when it is the pick: nothing for no note, and none beyond the name for the game having closed on it.
+constexpr const char* GameThemeNoteSuffix[] = {nullptr, "settings.game_theme_closed", "settings.game_theme_mismatch", "settings.game_theme_unreadable"};
+constexpr const char* GameThemeNoteDetail[] = {nullptr, nullptr, "settings.game_theme_mismatch_detail", "settings.game_theme_unreadable_detail"};
 // "Automatic" first, then every locale by its own name.
 std::vector<MenuChoice> LanguageChoices() {
     std::vector<MenuChoice> choices;
@@ -270,15 +274,18 @@ public:
     static MenuEntry GameTheme(Shell& s, const ShellView& v, netplay::GameThemePart part) {
         const GameThemeRow& r = GameThemeRows[part];
         const auto& themes = v.gameThemes[part];
-        const auto& closed = v.gameThemesClosed[part];
+        const auto& notes = v.gameThemeNotes[part];
         const std::string& theme = s.preferences_.gameThemes[part];
         const bool found = std::find(themes.begin(), themes.end(), theme) != themes.end();
-        // A theme the game closed on stays pickable (its files may be fixed), and says so.
-        const auto shown = [&](const std::string& name) {
-            return std::find(closed.begin(), closed.end(), name) != closed.end() ? loc::Tf("settings.game_theme_closed", name) : name;
+        // A theme the game closed on, or that was refused, stays pickable (its files may be fixed), and says so.
+        const auto noteOf = [&](const std::string& name) {
+            const auto note = notes.find(name);
+            return static_cast<int>(note == notes.end() ? netplay::GameThemeNote::None : note->second);
         };
+        const auto shown = [&](const std::string& name) { const int note = noteOf(name); return note ? loc::Tf(GameThemeNoteSuffix[note], name) : name; };
         const std::string game = loc::T("settings.game_theme_game");
-        const std::string detail = themes.empty() ? std::string(loc::T(r.none)) : std::string(loc::T(r.detail)) + " " + loc::T("settings.game_theme_risk");
+        std::string detail = themes.empty() ? std::string(loc::T(r.none)) : std::string(loc::T(r.detail)) + " " + loc::T("settings.game_theme_risk");
+        if (found && GameThemeNoteDetail[noteOf(theme)]) detail = loc::Tf(GameThemeNoteDetail[noteOf(theme)], theme);
         auto row = Value(r.id, loc::T(netplay::GameThemeLabels[part]), found ? shown(theme) : game, detail, v.canEditPreferences && !themes.empty());
         // Select lists the game's own and the themes; a pick is the steps to it (OfferSteps).
         std::vector<std::string> labels;

@@ -25,8 +25,9 @@ namespace sf4e {
 		// The picks turned off that the settings and the player have yet to be told of, until TurnedOffTold.
 		const std::vector<Turned>& TurnedOff();
 		void TurnedOffTold();
-		// Whether the game closed on the theme for the part and it has not loaded since (Settings marks it).
-		bool ClosedTheGame(netplay::GameThemePart part, const std::string& theme);
+		// What Settings tells the player about a theme for a part: the game closed on it
+		// and it has not loaded since, or it was refused before use.
+		netplay::GameThemeNote Note(netplay::GameThemePart part, const std::string& theme);
 		// The themes with the part, by name.
 		const std::vector<std::string>& Names(netplay::GameThemePart part);
 		// Uses each part's theme whose name changed; an empty name is the

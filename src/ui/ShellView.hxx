@@ -146,8 +146,8 @@ struct ShellView {
     bool lobbyMusicAvailable = false;
     // The themes in <game>\ember\themes with each part (netplay::GameThemePart), by name.
     std::array<std::vector<std::string>, netplay::GameThemePartCount> gameThemes;
-    // The ones of those the game closed on while loading, and has not loaded since.
-    std::array<std::vector<std::string>, netplay::GameThemePartCount> gameThemesClosed;
+    // What Ember knows about some of those themes (netplay::GameThemeNote), by name.
+    std::array<std::map<std::string, netplay::GameThemeNote>, netplay::GameThemePartCount> gameThemeNotes;
     std::vector<gamepads::PadView> pads;
     unsigned captureCandidate = 0;
     gamepads::SetupSnapshot padSetup;
