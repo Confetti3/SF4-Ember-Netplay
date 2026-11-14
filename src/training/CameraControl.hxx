@@ -17,6 +17,15 @@ constexpr std::size_t MaxKeys = 64;
 // Where "render shot" stands (sf4e__ReplayStore.cxx moves it): a shot is rendered from a replay
 // Ember started; it leaves that replay, plays it again as an export and records only the keys' frames.
 enum class Render { Unavailable, Ready, Leaving, Starting, Waiting, Recording, Closing, Done, Failed };
+// A shot being rendered: from leaving the replay until the export's file closes. Its keys drive the camera through that export.
+constexpr bool Rendering(Render state) { return state >= Render::Leaving && state <= Render::Closing; }
+// What the camera's settings may do to the game's camera this frame. Over a battle played over the network:
+// nothing at all, not even put back what they changed (that belongs to another battle). Out of use: only put
+// the game's camera back. In use: lay the offsets over it.
+enum class Use { Network, Off, On };
+// The camera is in use where the overlay offers it (`offered`: Training, or a replay Ember plays to watch, the
+// overlay's one rule) and while a shot is rendered from such a replay; never in a battle played over the network.
+constexpr Use UseOf(bool offered, Render render, bool network) { return network ? Use::Network : offered || Rendering(render) ? Use::On : Use::Off; }
 // One move of a glide: ease the live offsets to `to` over ms, then wait hold ms.
 struct Leg { Offsets to; int ms = 1000; int hold = 0; Ease ease = Ease::Smooth; };
 constexpr int MaxLegs = 32, MinLegMs = 50, MaxLegMs = 120000;
@@ -58,6 +67,24 @@ public:
         o = Limit(o);
     }
     void Reset() { std::lock_guard<std::mutex> hold(lock_); Settings fresh; fresh.views = settings_.views; fresh.glideMs = settings_.glideMs; settings_ = fresh; legs_.clear(); }
+    // The camera back to the game's own: no offsets, no free camera, no dolly, no glide. The saved views, the
+    // glide time and the shot's keys stay.
+    void Rest() {
+        std::lock_guard<std::mutex> hold(lock_);
+        legs_.clear(); settings_.gliding = false;
+        settings_.live = Offsets{}; settings_.free = false; settings_.dolly = false;
+    }
+    // Where the overlay offers the camera now, once a frame. When the camera goes out of use (Training or the
+    // replay closed, and no shot is being rendered) it rests, so nothing set there reaches another battle.
+    void SetOffered(bool offered) {
+        offered_ = offered;
+        const bool inUse = UseFor(false) == Use::On;
+        if (inUse_.exchange(inUse) && !inUse) Rest();
+    }
+    // What the settings may do over this battle (`network`: GGPO plays it).
+    Use UseFor(bool network) const { return UseOf(offered_, GetRender(), network); }
+    // The phone's orders are taken only while the camera is in use.
+    bool TakesOrders() const { return UseFor(false) == Use::On; }
     static nlohmann::json Json(const Settings& s);
     // The battle's frame as the game thread last saw it (-1: not in a fight); a key added without a frame lands here.
     void SetFrame(int frame) { frame_ = frame; }
@@ -108,6 +135,7 @@ private:
         }
         settings_.gliding = false;
     }
+    std::atomic<bool> offered_{false}, inUse_{false};
     std::atomic<bool> renderAsked_{false}, cancelAsked_{false};
     std::atomic<int> render_{0};
     std::atomic<int> frame_{-1}, total_{0}, seek_{0}, seekFrame_{0}, floor_{0};

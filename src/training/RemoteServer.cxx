@@ -60,7 +60,7 @@ int CheckPin(const std::string& given, unsigned long peer) {
     return 1;
 }
 void Reply(SOCKET socket, int status, const char* type, const std::string& body, const std::string& extra = {}) {
-    const char* reason = status == 200 ? "OK" : status == 400 ? "Bad Request" : status == 403 ? "Forbidden" : status == 429 ? "Too Many Requests" : status == 500 ? "Internal Server Error" : "Not Found";
+    const char* reason = status == 200 ? "OK" : status == 400 ? "Bad Request" : status == 403 ? "Forbidden" : status == 409 ? "Conflict" : status == 429 ? "Too Many Requests" : status == 500 ? "Internal Server Error" : "Not Found";
     const std::string head = "HTTP/1.1 " + std::to_string(status) + " " + reason + "\r\nContent-Type: " + type +
         "\r\nContent-Length: " + std::to_string(body.size()) + "\r\nCache-Control: no-store\r\n" + extra + "Connection: close\r\n\r\n";
     send(socket, head.data(), static_cast<int>(head.size()), 0);
@@ -198,6 +198,8 @@ bool Serve(SOCKET socket, unsigned long peer) {
     if (get && path == "/api/state") { Reply(socket, 200, "application/json", ValuesJson(ReadView(), Phone().Values()).dump()); return false; }
     if (get && path == "/api/camera") { Reply(socket, 200, "application/json", camera::Phone().State().dump()); return false; }
     if (post && path == "/api/camera") {
+        // Changed only where the camera is in use: Training, a replay Ember plays, a shot being rendered.
+        if (!camera::Phone().TakesOrders()) { Reply(socket, 409, "application/json", nlohmann::json{{"ok", false}, {"error", "the camera works in Training and in replays"}}.dump()); return false; }
         std::string problem;
         const auto answer = camera::Phone().Order(nlohmann::json::parse(request.substr(request.find("\r\n\r\n") + 4), nullptr, false), problem);
         if (answer.is_null()) Reply(socket, 400, "application/json", nlohmann::json{{"ok", false}, {"error", problem}}.dump());

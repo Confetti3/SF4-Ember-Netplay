@@ -1,11 +1,19 @@
 #include <filesystem>
-#include "../training/CameraControl.hxx"
+#include "../training/CameraLayer.hxx"
+#include <cstring>
 #include <cstdio>
 #include <stdexcept>
 // The phone camera's maths: offsets over the game's camera, and the dolly track.
 using namespace sf4e::training::camera;
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
 bool Near(float a, float b, float e = 1e-3f) { return std::fabs(a - b) <= e; }
+// A camera as the game holds one, in plain arrays: the hook's layer is laid over it.
+struct FakeCamera {
+    float view[16] = {}, proj[16] = {}, eye[3] = {0, 1, -5}, target[3] = {0, 1, 0}, roll = 0, aspect = 16.f / 9, fov = 0.7854f, unitView[16] = {}, unitProj[16] = {};
+    FakeCamera() { ViewMatrix(ReadPose(At()), view); std::memcpy(unitView, view, sizeof view); proj[0] = proj[5] = proj[10] = proj[15] = 1; std::memcpy(unitProj, proj, sizeof proj); }
+    Fields At() { return {view, proj, eye, target, &roll, &aspect, &fov, unitView, unitProj}; }
+    bool operator==(const FakeCamera& other) const { return std::memcmp(this, &other, sizeof *this) == 0; }
+};
 float Distance(const Pose& p) { const Vec3 d = p.eye - p.target; return std::sqrt(Dot(d, d)); }
 int main() {
     try {
@@ -140,6 +148,55 @@ int main() {
             Require(tl.Get().loop, "The loop must turn on");
             tl.ClearGoal();
             Require(!tl.Goal(round, frame) && tl.GetSeek() == Seek::None, "A cleared goal must be gone");
+        }
+        {
+            // Where the camera is in use: the overlay's offer (Training, a replay Ember plays) or a shot rendering; never over the network.
+            Require(UseOf(true, Render::Unavailable, false) == Use::On && UseOf(false, Render::Recording, false) == Use::On && UseOf(false, Render::Leaving, false) == Use::On,
+                "Training, a watched replay and a shot rendering must use the camera");
+            Require(UseOf(false, Render::Ready, false) == Use::Off && UseOf(false, Render::Done, false) == Use::Off && UseOf(false, Render::Unavailable, false) == Use::Off,
+                "Anywhere else the camera must be out of use");
+            Require(UseOf(true, Render::Ready, true) == Use::Network && UseOf(false, Render::Recording, true) == Use::Network, "A battle played over the network must never use the camera");
+        }
+        {
+            // The hook's layer: out of use it writes nothing, in use it lays over and puts back, and over the network it never writes.
+            Control control; Layer layer; std::string error;
+            control.Order({{"live", {{"yaw", 0.5}, {"zoom", 0.5}}}, {"free", true}}, error);
+            FakeCamera camera; const FakeCamera game = camera; const Fields at = camera.At();
+            layer.Restore(&at, Use::Off); layer.Lay(&at, Use::Off, control);
+            Require(camera == game && !layer.Holding(), "A camera out of use must be left untouched");
+            layer.Restore(&at, Use::Network); layer.Lay(&at, Use::Network, control);
+            Require(camera == game && !layer.Holding(), "A battle played over the network must be left untouched");
+            const auto check = layer.Lay(&at, Use::On, control);
+            Require(check.made && check.trusted && layer.Holding() && !(camera == game) && !Near(camera.eye[0], game.eye[0]), "A camera in use must be laid over");
+            layer.Restore(&at, Use::On);
+            Require(camera == game && !layer.Holding(), "Before the next update the game's camera must be put back exactly");
+            layer.Lay(&at, Use::On, control);
+            const FakeCamera laid = camera;
+            layer.Restore(&at, Use::Network); layer.Lay(&at, Use::Network, control);
+            Require(camera == laid && !layer.Holding(), "Over the network what was held must be dropped, never written");
+            camera = game;
+            layer.Lay(&at, Use::On, control); layer.Lay(&at, Use::Off, control);
+            Require(camera == game && !layer.Holding(), "Going out of use must put the game's camera back once");
+            layer.Lay(&at, Use::Off, control);
+            Require(camera == game, "Out of use nothing more is written");
+            Require(!layer.Lay(nullptr, Use::On, control).made && !layer.Holding(), "No camera, nothing laid");
+        }
+        {
+            // Training or the replay closing gives the game its camera back; the views and the shot's keys stay.
+            Control control; std::string error;
+            control.SetOffered(true);
+            Require(control.TakesOrders(), "Offered, the camera must take orders");
+            control.Order({{"live", {{"yaw", 0.5}}}, {"free", true}, {"saveView", 0}, {"keys", nlohmann::json::array({{{"frame", 10}}, {{"frame", 50}}})}, {"dolly", true}}, error);
+            Require(control.Get().Active() && control.Get().dolly, "The settings must be taken");
+            control.SetOffered(false);
+            const auto rested = control.Get();
+            Require(!rested.Active() && !rested.free && !rested.dolly && !rested.gliding && rested.keys.size() == 2 && rested.views[0].used, "Closing must rest the live settings and keep the views and keys");
+            Require(!control.TakesOrders() && control.UseFor(false) == Use::Off, "Closed, the camera must refuse orders");
+            control.SetOffered(true); control.Order({{"dolly", true}}, error);
+            control.SetRender(Render::Waiting); control.SetOffered(false);
+            Require(control.Get().dolly && control.TakesOrders() && control.UseFor(true) == Use::Network, "A shot rendering must keep its keys driving the camera");
+            control.SetRender(Render::Done); control.SetOffered(false);
+            Require(!control.Get().dolly && !control.TakesOrders(), "The shot done, the camera must rest");
         }
         // The view matrix of a camera looking along +z from the origin is the identity.
         float view[16]; ViewMatrix(Pose{{0, 0, 0}, {0, 0, 1}, 0, 0.7854f}, view);
