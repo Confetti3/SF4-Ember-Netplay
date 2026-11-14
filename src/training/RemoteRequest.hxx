@@ -1,6 +1,7 @@
 #pragma once
 #include "ComboFile.hxx"
 #include "RemoteHud.hxx"
+#include "../common/JsonDump.hxx"
 #include <atomic>
 #include <cctype>
 #include <chrono>
@@ -215,7 +216,7 @@ inline std::chrono::milliseconds NextWait(Clock::time_point now, Clock::time_poi
 }
 
 inline Reply TextReply(int status, const char* text) { Reply reply; reply.status = status; reply.type = "text/plain"; reply.body = text; return reply; }
-inline Reply JsonReply(const nlohmann::json& value, int status = 200) { Reply reply; reply.status = status; reply.body = value.dump(); return reply; }
+inline Reply JsonReply(const nlohmann::json& value, int status = 200) { Reply reply; reply.status = status; reply.body = DumpJson(value); return reply; }
 // A route that cannot be served now, as the page shows it.
 inline const char* NotNow(Needs needs) { return needs == Needs::Camera ? "the camera works in Training and in replays" : ""; }
 // A request decided on its head alone: refused, with the answer to send, or taken by its route. In this order:

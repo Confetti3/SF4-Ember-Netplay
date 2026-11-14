@@ -13,11 +13,14 @@
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../ui/TrainingPanel.hxx"
+#include "../common/JsonDump.hxx"
+#include "../common/JsonField.hxx"
 #include <winsock2.h>
 #include <shellapi.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <bcrypt.h>
+#include <spdlog/spdlog.h>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -79,7 +82,7 @@ int Receive(SOCKET socket, char* buffer, int size, Clock::time_point deadline) {
 std::string Words(const char* key, int arg) { return arg < 0 ? std::string(loc::T(key)) : loc::Tf(key, arg); }
 // One phone's live stream: what changed since the last message, about 20 times a second. It ends when the
 // phone goes or the server stops. ponytail: each stream reads the view itself; one shared reader if phones multiply.
-void Stream(SOCKET socket) {
+void Feed(SOCKET socket) {
     DWORD timeout = 500; setsockopt(socket, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
     const std::string head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\nConnection: keep-alive\r\n\r\nretry: 2000\n\n";
     bool alive = send(socket, head.data(), static_cast<int>(head.size()), 0) > 0;
@@ -95,8 +98,8 @@ void Stream(SOCKET socket) {
         const auto sides = std::string(ui::TrainingFrameData(view.meter, 0)) + '\n' + ui::TrainingFrameData(view.meter, 1);
         if (sides != lines) { lines = sides; message["lines"] = {ui::TrainingFrameData(view.meter, 0), ui::TrainingFrameData(view.meter, 1)}; }
         const auto readings = DataJson(view), extras = LiveJson(view);
-        if (const auto now = readings.dump(); now != data) { data = now; message["data"] = readings; }
-        if (const auto now = extras.dump(); now != live) { live = now; message["live"] = extras; }
+        if (const auto now = DumpJson(readings); now != data) { data = now; message["data"] = readings; }
+        if (const auto now = DumpJson(extras); now != live) { live = now; message["live"] = extras; }
         const auto now = std::chrono::steady_clock::now();
         std::string frame = message.empty() ? std::string() : EventFrame(message);
         if (frame.empty() && now - quiet > std::chrono::seconds(10)) frame = ": ping\n\n";
@@ -107,6 +110,11 @@ void Stream(SOCKET socket) {
         if (alive && select(0, &gone, nullptr, nullptr, &none) > 0 && recv(socket, &byte, 1, 0) <= 0) alive = false;
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
+}
+// A stream's thread: nothing it meets may end the game, so whatever it throws ends the stream with a line in the log.
+void Stream(SOCKET socket) {
+    try { Feed(socket); }
+    catch (const std::exception& e) { spdlog::warn("Phone remote: a stream ended on an error: {}", e.what()); }
     Close(socket);
     --s_streams;
 }
@@ -128,26 +136,26 @@ std::string FighterName(int id) { const auto* fighter = selection::FindFighter(i
 nlohmann::json ComboOrder(const nlohmann::json& body, const std::string& cmd) {
     const auto fail = [](const char* why) { return nlohmann::json{{"ok", false}, {"error", why}}; };
     auto& store = Combos();
-    const auto id = body.value("id", nlohmann::json());
+    const auto id = JsonField<std::string>(body, "id");
     std::string name, error;
     if (cmd == "comboSave") {
         const auto last = LastCombo();
         if (last.frames.empty()) return fail("no combo recorded");
-        if (!ParseComboName(body.value("name", nlohmann::json()), name, error)) return fail("bad name");
+        if (!ParseComboName(JsonField<std::string>(body, "name"), name, error)) return fail("bad name");
         SavedCombo combo; combo.name = name; combo.fighter = last.fighter; combo.hits = (std::min)(last.hits, 999);
         combo.x[0] = last.x[0]; combo.x[1] = last.x[1]; combo.frames = last.frames;
         std::string saved;
         return store.Add(std::move(combo), saved, error) ? nlohmann::json{{"ok", true}, {"id", saved}} : fail("could not save");
     }
-    if (!id.is_string()) return fail("no id");
-    if (cmd == "comboDelete") return {{"ok", store.Delete(id.get<std::string>())}};
+    if (!id) return fail("no id");
+    if (cmd == "comboDelete") return {{"ok", store.Delete(*id)}};
     if (cmd == "comboRename") {
-        if (!ParseComboName(body.value("name", nlohmann::json()), name, error)) return fail("bad name");
-        return store.Rename(id.get<std::string>(), name, error) ? nlohmann::json{{"ok", true}} : fail("could not rename");
+        if (!ParseComboName(JsonField<std::string>(body, "name"), name, error)) return fail("bad name");
+        return store.Rename(*id, name, error) ? nlohmann::json{{"ok", true}} : fail("could not rename");
     }
     SavedCombo combo;
     const auto view = ReadView();
-    if (!view.available || !store.Load(id.get<std::string>(), combo)) return fail("cannot play");
+    if (!view.available || !store.Load(*id, combo)) return fail("cannot play");
     bool ok = true;
     for (auto& command : ComboPlayCommands(combo, view.generation)) ok &= Submit(std::move(command));
     return {{"ok", ok}};
@@ -210,7 +218,7 @@ bool Holds(Needs needs) { return needs != Needs::Camera || camera::Phone().Takes
 // Answers one request; a stream takes the socket over and returns true. The head comes first, within HeadBytes
 // and HeadTime; the route, the PIN and the body's length are settled from it before any of the body is read;
 // then the body, within the route's limit, the bodies' budget and RequestTime.
-bool Serve(SOCKET socket, unsigned long peer) {
+bool Respond(SOCKET socket, unsigned long peer) {
     DWORD timeout = 5000; setsockopt(socket, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
     const auto start = Clock::now();
     std::string request; char buffer[2048];
@@ -239,6 +247,17 @@ bool Serve(SOCKET socket, unsigned long peer) {
     }
     Send(socket, Answer(resource, head, body));
     return false;
+}
+// A request's thread: nothing a request does may end the game, so whatever it throws is answered 500 with a line
+// in the log. The answer is fixed text, so sending it cannot fail in turn.
+bool Serve(SOCKET socket, unsigned long peer) {
+    try { return Respond(socket, peer); }
+    catch (const std::exception& e) {
+        spdlog::warn("Phone remote: a request failed: {}", e.what());
+        static const char failed[] = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        send(socket, failed, static_cast<int>(sizeof(failed) - 1), 0);
+        return false;
+    }
 }
 void HttpLoop() {
     while (s_running) {

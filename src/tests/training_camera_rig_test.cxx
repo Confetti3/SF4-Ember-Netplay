@@ -1,6 +1,7 @@
 #include <filesystem>
 #include "../training/CameraLayer.hxx"
 #include <cstring>
+#include <fstream>
 #include <cstdio>
 #include <stdexcept>
 // The phone camera's maths: offsets over the game's camera, and the dolly track.
@@ -197,6 +198,38 @@ int main() {
             Require(control.Get().dolly && control.TakesOrders() && control.UseFor(true) == Use::Network, "A shot rendering must keep its keys driving the camera");
             control.SetRender(Render::Done); control.SetOffered(false);
             Require(!control.Get().dolly && !control.TakesOrders(), "The shot done, the camera must rest");
+        }
+        {
+            // An order's fields of the wrong type count as not there: nothing throws, nothing is narrowed.
+            Control control; std::string error;
+            control.SetFrame(10); control.Order({{"addKey", {{"frame", 5}}}}, error);
+            auto state = control.Order({{"reset", 1}, {"stopGlide", "x"}, {"free", "yes"}, {"glideMs", 1e300}, {"loop", 2}, {"tour", "y"}, {"render", 1}, {"clearKeys", 1}}, error);
+            Require(!state.is_null() && state["glideMs"] == MaxLegMs && state["free"] == false && state["keys"].size() == 1, "Fields of the wrong type must be skipped and numbers kept in range");
+            Require(control.Order({{"easeKey", {{"key", "0"}, {"ease", "x"}}}}, error).is_null() && error == "bad key", "A key index that is not a number must be refused");
+            Require(control.Order({{"selectKey", 4294967296.0}}, error).is_null() && control.Order({{"delKey", 4294967296LL}}, error).is_null(), "A key index past an int must be refused, not cut down");
+            state = control.Order({{"moveKey", {{"key", 0}, {"frame", "z"}}}, {"easeKey", {{"key", 0}, {"ease", "x"}}}}, error);
+            Require(!state.is_null() && state["keys"][0]["frame"] == 5 && state["keys"][0]["ease"] == static_cast<int>(Ease::Smooth), "A key's other fields of the wrong type must keep their values");
+            state = control.Order({{"saveView", 0}, {"viewName", 5}, {"seek", 1e30}, {"addKey", 7}}, error);
+            Require(!state.is_null() && state["views"][0]["name"] == "View 1" && state["keys"].size() == 2, "A name that is not text must give the slot's own");
+            Require(!control.Order({{"glide", nlohmann::json::array({{{"ms", "x"}, {"hold", 1e300}, {"at", 3}}})}}, error).is_null(), "A glide's legs of the wrong type must be skipped");
+            Require(control.Order({{"saveView", "0"}}, error).is_null() && error == "bad slot", "A slot that is not a number must be refused");
+            // A long name is cut between UTF-8 characters: 39 bytes, then a three-byte character that does not fit.
+            state = control.Order({{"saveView", 1}, {"viewName", std::string(39, 'a') + "\xE3\x83\xAA"}}, error);
+            Require(state["views"][1]["name"] == std::string(39, 'a'), "A name must be cut between characters");
+        }
+        {
+            // A views file of the wrong shape is read for what it holds and nothing else.
+            const auto file = std::filesystem::temp_directory_path() / "sf4e-camera-views-wrong.json";
+            std::string longName;
+            for (int i = 0; i < 20; ++i) longName += "\xE3\x83\xAA";  // 60 bytes of three-byte characters
+            std::ofstream(file, std::ios::binary) << "{\"glideMs\":\"x\",\"views\":[{\"used\":1,\"name\":\"A\"},{\"used\":true,\"name\":[\"a\"],\"at\":7},"
+                "{\"used\":true,\"name\":\"" << longName << "\",\"at\":{\"yaw\":\"q\",\"zoom\":2}}]}";
+            Control control; control.SetFile(file);
+            const auto s = control.Get();
+            Require(s.glideMs == 2000 && !s.views[0].used && s.views[1].used && s.views[1].name.empty() && s.views[1].at.Identity(), "Fields of the wrong type in the file must be skipped");
+            Require(s.views[2].used && s.views[2].name.size() <= ViewNameBytes && sf4e::IsWellFormedUtf8(s.views[2].name) && Near(s.views[2].at.zoom, 2), "A name in the file must come out as UTF-8 within its length");
+            Require(!nlohmann::json(control.State()).dump().empty(), "The state with the file's names must be written");
+            std::filesystem::remove(file);
         }
         // The view matrix of a camera looking along +z from the origin is the identity.
         float view[16]; ViewMatrix(Pose{{0, 0, 0}, {0, 0, 1}, 0, 0.7854f}, view);

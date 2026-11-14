@@ -1,5 +1,7 @@
 #pragma once
 #include "CameraRig.hxx"
+#include "../common/JsonField.hxx"
+#include "../common/Utf8Text.hxx"
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -30,9 +32,14 @@ constexpr Use UseOf(bool offered, Render render, bool network) { return network 
 struct Leg { Offsets to; int ms = 1000; int hold = 0; Ease ease = Ease::Smooth; };
 constexpr int MaxLegs = 32, MinLegMs = 50, MaxLegMs = 120000;
 using Clock = std::chrono::steady_clock;
-// A camera the player saved to come back to, and the slots there are (more later).
+// A camera the player saved to come back to, and the slots there are (more later). A name is at most
+// ViewNameBytes of UTF-8, cut between characters.
 struct View { bool used = false; std::string name; Offsets at; };
 constexpr int ViewSlots = 4;
+constexpr std::size_t ViewNameBytes = 40;
+// A time in ms as a number from an order or a file, kept to [low, MaxLegMs].
+inline int LegMs(double ms, int low) { return static_cast<int>((std::min)((std::max)(ms, static_cast<double>(low)), static_cast<double>(MaxLegMs))); }
+inline Ease EaseOf(int value) { return static_cast<Ease>((std::min)((std::max)(value, 0), 2)); }
 // Where a jump along a replay stands (sf4e__ReplayPlayback.cxx moves it): a jump ahead is played to at speed, a jump back
 // loads a snapshot and then plays to the frame.
 enum class Seek { None, Forward };
@@ -159,6 +166,11 @@ private:
         if (out) out << nlohmann::json{{"glideMs", settings_.glideMs}, {"views", ViewsJson(settings_)}}.dump(1);
     }
     static nlohmann::json ViewsJson(const Settings& s);
+    // The timeline picks the key at a frame, or none; the lock is held.
+    void SelectFrame(int frame) {
+        settings_.selected = -1;
+        for (std::size_t i = 0; i < settings_.keys.size(); ++i) if (settings_.keys[i].frame == frame) settings_.selected = static_cast<int>(i);
+    }
     void StartGlide(std::vector<Leg> legs, bool loop, Clock::time_point now) {
         legs_ = std::move(legs); loop_ = loop;
         at_ = 0; from_ = settings_.live; start_ = now; settings_.gliding = true;
@@ -193,15 +205,16 @@ inline void Control::SetFile(std::filesystem::path file) {
     std::lock_guard<std::mutex> hold(lock_);
     file_ = std::move(file);
     std::ifstream in(file_);
-    nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
-    if (!j.is_object()) return;
-    if (j.contains("glideMs") && j["glideMs"].is_number()) settings_.glideMs = (std::min)((std::max)(static_cast<int>(j["glideMs"].get<double>()), MinLegMs), MaxLegMs);
-    if (j.contains("views") && j["views"].is_array())
-        for (std::size_t i = 0; i < j["views"].size() && i < settings_.views.size(); ++i) {
-            const auto& v = j["views"][i];
-            if (!v.is_object() || !v.value("used", false)) continue;
-            settings_.views[i] = {true, v.value("name", std::string()).substr(0, 40), ReadOffsets(v.value("at", nlohmann::json()), Offsets{})};
-        }
+    const nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
+    if (const auto ms = JsonField<double>(j, "glideMs")) settings_.glideMs = LegMs(*ms, MinLegMs);
+    const auto* views = JsonMember(j, "views");
+    if (!views || !views->is_array()) return;
+    for (std::size_t i = 0; i < views->size() && i < settings_.views.size(); ++i) {
+        const auto& v = (*views)[i];
+        if (!JsonField<bool>(v, "used").value_or(false)) continue;
+        const auto* at = JsonMember(v, "at");
+        settings_.views[i] = {true, Utf8Trim(JsonField<std::string>(v, "name").value_or(std::string()), ViewNameBytes), at ? ReadOffsets(*at, Offsets{}) : Offsets{}};
+    }
 }
 inline nlohmann::json Control::ViewsJson(const Settings& s) {
     nlohmann::json views = nlohmann::json::array();
@@ -218,82 +231,80 @@ inline nlohmann::json Control::Order(const nlohmann::json& body, std::string& er
     error.clear();
     if (!body.is_object()) { error = "no order"; return nullptr; }
     std::lock_guard<std::mutex> hold(lock_);
-    const auto flag = [&](const char* name, bool& field) { const auto v = body.find(name); if (v != body.end() && v->is_boolean()) field = v->get<bool>(); };
+    // Every field is read as the type it must be; one of another type counts as not there.
+    const auto flag = [&](const char* name) { return JsonField<bool>(body, name).value_or(false); };
+    const auto set = [&](const char* name, bool& field) { if (const auto v = JsonField<bool>(body, name)) field = *v; };
     const auto key = [](const nlohmann::json& j) {
         Key k;
-        if (j.is_object() && j.contains("frame") && j["frame"].is_number_integer()) k.frame = (std::min)((std::max)(j["frame"].get<int>(), 0), 1000000);
-        if (j.is_object() && j.contains("ease") && j["ease"].is_number_integer()) k.ease = static_cast<Ease>((std::min)((std::max)(j["ease"].get<int>(), 0), 2));
-        if (j.is_object() && j.contains("at")) k.at = ReadOffsets(j["at"], Offsets{});
+        if (const auto frame = JsonField<int>(j, "frame")) k.frame = (std::min)((std::max)(*frame, 0), 1000000);
+        if (const auto ease = JsonField<int>(j, "ease")) k.ease = EaseOf(*ease);
+        if (const auto* at = JsonMember(j, "at")) k.at = ReadOffsets(*at, Offsets{});
         return k;
     };
     Advance(now);
-    const bool takeOver = body.value("reset", false) || body.contains("live") || body.value("stopGlide", false);
-    if (takeOver) { legs_.clear(); settings_.gliding = false; }
-    if (body.value("reset", false)) { Settings fresh; fresh.views = settings_.views; fresh.glideMs = settings_.glideMs; settings_ = fresh; }
-    if (body.contains("live")) settings_.live = ReadOffsets(body["live"], settings_.live);
-    flag("free", settings_.free); flag("dolly", settings_.dolly);
-    if (body.contains("keys")) {
-        if (!body["keys"].is_array() || body["keys"].size() > MaxKeys) { error = "bad keys"; return nullptr; }
+    const bool reset = flag("reset");
+    if (reset || JsonMember(body, "live") || flag("stopGlide")) { legs_.clear(); settings_.gliding = false; }
+    if (reset) { Settings fresh; fresh.views = settings_.views; fresh.glideMs = settings_.glideMs; settings_ = fresh; }
+    if (const auto* live = JsonMember(body, "live")) settings_.live = ReadOffsets(*live, settings_.live);
+    set("free", settings_.free); set("dolly", settings_.dolly);
+    if (const auto* keys = JsonMember(body, "keys")) {
+        if (!keys->is_array() || keys->size() > MaxKeys) { error = "bad keys"; return nullptr; }
         settings_.keys.clear(); settings_.selected = -1;
-        for (const auto& j : body["keys"]) settings_.keys.push_back(key(j));
+        for (const auto& j : *keys) settings_.keys.push_back(key(j));
         Tidy(settings_.keys);
     }
-    if (body.contains("addKey")) {
+    if (const auto* add = JsonMember(body, "addKey")) {
         if (settings_.keys.size() >= MaxKeys) { error = "too many keys"; return nullptr; }
-        Key added = key(body["addKey"]);
-        if (!body["addKey"].contains("frame") && frame_ >= 0) added.frame = frame_;
+        Key added = key(*add);
+        if (!JsonField<int>(*add, "frame") && frame_ >= 0) added.frame = frame_;
         settings_.keys.push_back(added);
         Tidy(settings_.keys);
-        settings_.selected = -1;
-        for (std::size_t i = 0; i < settings_.keys.size(); ++i) if (settings_.keys[i].frame == added.frame) settings_.selected = static_cast<int>(i);
+        SelectFrame(added.frame);
     }
     // The timeline's edits of the keys, by index into the sorted list.
-    const auto index = [&](const nlohmann::json& v, int& out) {
-        if (!v.is_number_integer() || v.get<int>() < 0 || v.get<int>() >= static_cast<int>(settings_.keys.size())) { error = "bad key"; return false; }
-        out = v.get<int>(); return true;
+    const auto index = [&](const std::optional<int>& v, int& out) {
+        if (!v || *v < 0 || *v >= static_cast<int>(settings_.keys.size())) { error = "bad key"; return false; }
+        out = *v; return true;
     };
     int at = 0;
-    if (body.contains("selectKey")) { if (body["selectKey"].is_null()) settings_.selected = -1; else if (index(body["selectKey"], at)) settings_.selected = at; }
-    if (error.empty() && body.contains("delKey") && index(body["delKey"], at)) { settings_.keys.erase(settings_.keys.begin() + at); settings_.selected = -1; }
-    if (error.empty() && body.contains("updateKey") && index(body["updateKey"], at)) settings_.keys[at].at = Limit(settings_.live);
-    if (error.empty() && body.contains("easeKey") && body["easeKey"].is_object() && index(body["easeKey"].value("key", -1), at)) {
-        const int e = body["easeKey"].value("ease", 1);
-        settings_.keys[at].ease = static_cast<Ease>((std::min)((std::max)(e, 0), 2));
-    }
-    if (error.empty() && body.contains("moveKey") && body["moveKey"].is_object() && index(body["moveKey"].value("key", -1), at)) {
-        settings_.keys[at].frame = (std::min)((std::max)(body["moveKey"].value("frame", settings_.keys[at].frame), 0), 1000000);
-        const int frame = settings_.keys[at].frame;
+    if (const auto* pick = JsonMember(body, "selectKey")) { if (pick->is_null()) settings_.selected = -1; else if (index(JsonField<int>(body, "selectKey"), at)) settings_.selected = at; }
+    if (error.empty() && JsonMember(body, "delKey") && index(JsonField<int>(body, "delKey"), at)) { settings_.keys.erase(settings_.keys.begin() + at); settings_.selected = -1; }
+    if (error.empty() && JsonMember(body, "updateKey") && index(JsonField<int>(body, "updateKey"), at)) settings_.keys[at].at = Limit(settings_.live);
+    const auto* easeKey = JsonMember(body, "easeKey");
+    if (error.empty() && easeKey && easeKey->is_object() && index(JsonField<int>(*easeKey, "key"), at)) settings_.keys[at].ease = EaseOf(JsonField<int>(*easeKey, "ease").value_or(1));
+    const auto* moveKey = JsonMember(body, "moveKey");
+    if (error.empty() && moveKey && moveKey->is_object() && index(JsonField<int>(*moveKey, "key"), at)) {
+        const int frame = (std::min)((std::max)(JsonField<int>(*moveKey, "frame").value_or(settings_.keys[at].frame), 0), 1000000);
+        settings_.keys[at].frame = frame;
         Tidy(settings_.keys);
-        settings_.selected = -1;
-        for (std::size_t i = 0; i < settings_.keys.size(); ++i) if (settings_.keys[i].frame == frame) settings_.selected = static_cast<int>(i);
+        SelectFrame(frame);
     }
-    flag("loop", settings_.loop);
-    if (error.empty() && body.contains("seek") && body["seek"].is_number_integer()) AskSeek(body["seek"].get<int>());
-    if (body.contains("glide")) {
-        const auto& list = body["glide"];
-        if (!list.is_array() || list.empty() || list.size() > MaxLegs) { error = "bad glide"; return nullptr; }
+    set("loop", settings_.loop);
+    if (const auto seek = JsonField<int>(body, "seek"); error.empty() && seek) AskSeek(*seek);
+    if (const auto* list = JsonMember(body, "glide")) {
+        if (!list->is_array() || list->empty() || list->size() > MaxLegs) { error = "bad glide"; return nullptr; }
         std::vector<Leg> legs;
-        for (const auto& j : list) {
+        for (const auto& j : *list) {
             Leg leg;
-            const auto whole = [&](const char* name, int low, int& field) { if (j.is_object() && j.contains(name) && j[name].is_number()) field = (std::min)((std::max)(static_cast<int>(j[name].get<double>()), low), MaxLegMs); };
-            whole("ms", MinLegMs, leg.ms); whole("hold", 0, leg.hold);
-            if (j.is_object() && j.contains("ease") && j["ease"].is_number_integer()) leg.ease = static_cast<Ease>((std::min)((std::max)(j["ease"].get<int>(), 0), 2));
-            if (j.is_object() && j.contains("at")) leg.to = ReadOffsets(j["at"], Offsets{});
+            if (const auto ms = JsonField<double>(j, "ms")) leg.ms = LegMs(*ms, MinLegMs);
+            if (const auto pause = JsonField<double>(j, "hold")) leg.hold = LegMs(*pause, 0);
+            if (const auto ease = JsonField<int>(j, "ease")) leg.ease = EaseOf(*ease);
+            if (const auto* to = JsonMember(j, "at")) leg.to = ReadOffsets(*to, Offsets{});
             legs.push_back(leg);
         }
-        StartGlide(std::move(legs), body.value("loop", false), now);
+        StartGlide(std::move(legs), flag("loop"), now);
     }
     const auto slot = [&](const char* name, int& out) {
-        const auto v = body.find(name);
-        if (v == body.end()) return false;
-        if (!v->is_number_integer() || v->get<int>() < 0 || v->get<int>() >= ViewSlots) { error = "bad slot"; return false; }
-        out = v->get<int>(); return true;
+        if (!JsonMember(body, name)) return false;
+        const auto v = JsonField<int>(body, name);
+        if (!v || *v < 0 || *v >= ViewSlots) { error = "bad slot"; return false; }
+        out = *v; return true;
     };
     int n = 0;
-    if (body.contains("glideMs") && body["glideMs"].is_number()) { settings_.glideMs = (std::min)((std::max)(static_cast<int>(body["glideMs"].get<double>()), MinLegMs), MaxLegMs); Save(); }
+    if (const auto ms = JsonField<double>(body, "glideMs")) { settings_.glideMs = LegMs(*ms, MinLegMs); Save(); }
     if (slot("saveView", n)) {
         std::string name = "View " + std::to_string(n + 1);
-        if (body.contains("viewName") && body["viewName"].is_string() && !body["viewName"].get<std::string>().empty()) name = body["viewName"].get<std::string>().substr(0, 40);
+        if (const auto given = JsonField<std::string>(body, "viewName"); given && !given->empty()) name = Utf8Trim(*given, ViewNameBytes);
         settings_.views[n] = {true, name, settings_.live}; Save();
     }
     if (error.empty() && slot("deleteView", n)) { settings_.views[n] = View{}; Save(); }
@@ -301,21 +312,21 @@ inline nlohmann::json Control::Order(const nlohmann::json& body, std::string& er
         if (!settings_.views[n].used) error = "that view is empty";
         else StartGlide({Leg{settings_.views[n].at, settings_.glideMs, 0, Ease::Smooth}}, false, now);
     }
-    if (error.empty() && body.value("tour", false)) {
+    if (error.empty() && flag("tour")) {
         std::vector<Leg> legs;
         for (const auto& v : settings_.views) if (v.used) legs.push_back(Leg{v.at, settings_.glideMs, 400, Ease::Smooth});
         if (legs.size() < 2) error = "a tour needs two saved views";
-        else StartGlide(std::move(legs), body.value("loop", false), now);
+        else StartGlide(std::move(legs), flag("loop"), now);
     }
-    if (error.empty() && body.contains("effect") && body["effect"].is_string()) {
+    if (const auto effect = JsonField<std::string>(body, "effect"); error.empty() && effect) {
         std::vector<Leg> legs;
-        if (!EffectLegs(body["effect"].get<std::string>(), settings_.live, settings_.glideMs, legs)) error = "no such effect";
+        if (!EffectLegs(*effect, settings_.live, settings_.glideMs, legs)) error = "no such effect";
         else StartGlide(std::move(legs), false, now);
     }
     if (!error.empty()) return nullptr;
-    if (body.value("clearKeys", false)) { settings_.keys.clear(); settings_.selected = -1; }
-    if (body.value("cancelRender", false)) cancelAsked_ = true;
-    if (body.value("render", false)) {
+    if (flag("clearKeys")) { settings_.keys.clear(); settings_.selected = -1; }
+    if (flag("cancelRender")) cancelAsked_ = true;
+    if (flag("render")) {
         if (settings_.keys.size() < 2) { error = "a shot needs two keys"; return nullptr; }
         if (render_ != static_cast<int>(Render::Ready)) { error = "watch a replay from Ember's Replays screen first"; return nullptr; }
         settings_.dolly = true; renderAsked_ = true;

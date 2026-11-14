@@ -79,8 +79,11 @@ private:
         std::vector<std::string> ids;
         std::error_code ignored;
         for (std::filesystem::directory_iterator at(directory_, ignored), end; !ignored && at != end; at.increment(ignored)) {
-            const auto& path = at->path();
-            if (path.extension() == ".json" && ValidComboId(path.stem().string())) ids.push_back(path.stem().string());
+            // An id is plain ASCII; a name with other characters is no combo's (and path::string() would throw on it).
+            if (at->path().extension() != ".json") continue;
+            std::string id;
+            for (const wchar_t c : at->path().stem().wstring()) id += c > 0 && c < 0x80 ? static_cast<char>(c) : '\0';
+            if (id.find('\0') == std::string::npos && ValidComboId(id)) ids.push_back(id);
         }
         return ids;
     }

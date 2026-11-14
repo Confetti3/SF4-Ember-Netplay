@@ -60,6 +60,17 @@ int main() {
         Require(ParseOrder({{"cmd", "comboRename"}, {"id", "1-1"}}, view, order, error) == Route::Store && order.id == "comboRename", "A saved combo's order was not left to the store");
         Require(ParseOrder({{"cmd", "comboPlay"}}, view, order, error) == Route::Store && ParseOrder({{"cmd", "comboRecord"}}, view, order, error) == Route::Game, "Combo check's orders were mixed up with the store's");
         Require(ParseOrder({{"cmd", "comboAnything"}}, view, order, error) == Route::Refused && error == "unknown cmd", "A combo order nobody knows was taken");
+        // Fields of the wrong type are refused, never thrown on, and a number too big for an int is not cut down to a valid one.
+        Require(ParseOrder({{"set", "guard"}, {"value", "2"}}, view, order, error) == Route::Refused && error == "bad value", "A value that is text was taken");
+        Require(ParseOrder({{"set", "guard"}, {"value", 4294967298LL}}, view, order, error) == Route::Refused && error == "bad value", "A value past an int was cut down");
+        Require(ParseOrder({{"cmd", 5}}, view, order, error) == Route::Refused && error == "no cmd", "An order name that is a number was taken");
+        Require(ParseOrder({{"cmd", "select"}, {"slot", "1"}}, view, order, error) == Route::Refused && ParseOrder({{"cmd", "replyMoves"}, {"text", 623}}, view, order, error) == Route::Refused,
+            "Fields of the wrong type were taken");
+        // Text that is not UTF-8 (a modded fighter's script names) is written with U+FFFD, never thrown on.
+        {
+            const json bad = {{"data", {{"sides", {{{"script", {{"name", std::string("Ryu\xff\xfe")}}}}}}}}};
+            Require(EventFrame(bad).find("Ryu\xEF\xBF\xBD") != std::string::npos && JsonReply(bad).body.find("Ryu\xEF\xBF\xBD") != std::string::npos, "Bytes that are not UTF-8 must be written as U+FFFD");
+        }
         // The page's data: the options, and every value with the game's from the view.
         const auto page = OptionsJson([](const char* key, int arg) { return std::string(key) + (arg < 0 ? "" : std::to_string(arg)); });
         Require(page["options"].size() == Options().size() && page["options"][0]["choices"][0].size() == 2, "The options JSON was wrong");
@@ -113,7 +124,7 @@ int main() {
             play[1].frames.size() == 2 && play[0].generation == 9 && play[1].generation == 9, "A saved combo did not become Place then ComboPlay");
         std::string name;
         Require(ParseComboName("  My combo ", name, error) && name == "My combo", "A name was not trimmed");
-        Require(!ParseComboName("   ", name, error) && !ParseComboName("a\nb", name, error) && !ParseComboName(std::string(ComboNameBytes + 1, 'a'), name, error) && !ParseComboName(5, name, error), "A bad name was taken");
+        Require(!ParseComboName("   ", name, error) && !ParseComboName("a\nb", name, error) && !ParseComboName(std::string(ComboNameBytes + 1, 'a'), name, error) && !ParseComboName(std::nullopt, name, error), "A bad name was taken");
         // Frame data: the fighters with their counts, one fighter's rows, nothing for an unknown one.
         const json frames = {{"cols", {"move"}}, {"fighters", {{"Ryu", {{"5LP"}, {"5MP"}}}, {"Ken", {{"5LP"}}}}}};
         Require(FramesIndex(frames)["fighters"].size() == 2 && FramesIndex(frames)["fighters"][1] == json({{"name", "Ryu"}, {"moves", 2}}), "The fighter list was wrong");

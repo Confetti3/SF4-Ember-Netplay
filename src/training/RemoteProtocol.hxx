@@ -3,6 +3,8 @@
 #include "FighterData.hxx"
 #include "FighterMoves.hxx"
 #include "RemoteOptions.hxx"
+#include "../common/JsonDump.hxx"
+#include "../common/JsonField.hxx"
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -143,11 +145,11 @@ inline std::vector<Command> ComboPlayCommands(const SavedCombo& combo, std::uint
     Command play; play.action = Action::ComboPlay; play.generation = generation; play.frames = combo.frames;
     return {place, play};
 }
-// A name from the phone: text with no control characters, 1 to ComboNameBytes bytes after trimming.
-inline bool ParseComboName(const nlohmann::json& value, std::string& name, std::string& error) {
+// A name from the phone (none: the order had no text there): no control characters, 1 to ComboNameBytes bytes after trimming.
+inline bool ParseComboName(const std::optional<std::string>& value, std::string& name, std::string& error) {
     name.clear();
-    if (!value.is_string()) { error = "no name"; return false; }
-    name = value.get<std::string>();
+    if (!value) { error = "no name"; return false; }
+    name = *value;
     name.erase(0, name.find_first_not_of(" \t")); name.erase(name.find_last_not_of(" \t") + 1);
     if (name.empty() || !CleanText(name, ComboNameBytes)) { error = "bad name"; return false; }
     return true;
@@ -165,7 +167,8 @@ inline nlohmann::json FramesOf(const nlohmann::json& data, const std::string& fi
     return {{"fighter", fighter}, {"cols", data["cols"]}, {"rows", data["fighters"][fighter]}};
 }
 // One Server-Sent Events message.
-inline std::string EventFrame(const nlohmann::json& message) { return "data: " + message.dump() + "\n\n"; }
+// A fighter's script names are the .bac file's bytes: written as UTF-8 whatever they hold.
+inline std::string EventFrame(const nlohmann::json& message) { return "data: " + DumpJson(message) + "\n\n"; }
 
 // Where a phone's order goes: the game as a Command, the overlay thread by its
 // Mailbox (an option or an action only it can do), the saved combos (Store:
@@ -176,27 +179,26 @@ struct Order { Command command; std::string id; int value = 0; std::string text;
 inline Route ParseOrder(const nlohmann::json& body, const View& view, Order& order, std::string& error) {
     order = Order{};
     if (!body.is_object()) { error = "no order"; return Route::Refused; }
-    const auto set = body.value("set", nlohmann::json());
-    if (set.is_string()) {
-        const auto value = body.value("value", nlohmann::json());
-        const auto* option = FindOption(set.get<std::string>());
+    if (const auto set = JsonField<std::string>(body, "set")) {
+        const auto value = JsonField<int>(body, "value");
+        const auto* option = FindOption(*set);
         if (!option) { error = "unknown option"; return Route::Refused; }
-        if (!value.is_number_integer() || !option->Has(value.get<int>())) { error = "bad value"; return Route::Refused; }
-        order.id = option->id; order.value = value.get<int>();
+        if (!value || !option->Has(*value)) { error = "bad value"; return Route::Refused; }
+        order.id = option->id; order.value = *value;
         if (option->lab) return Route::Overlay;
         order.command = option->command(order.value, view);
         return Route::Game;
     }
-    const auto name = body.value("cmd", nlohmann::json());
-    if (!name.is_string()) { error = "no cmd"; return Route::Refused; }
-    const auto text = name.get<std::string>();
+    const auto name = JsonField<std::string>(body, "cmd");
+    if (!name) { error = "no cmd"; return Route::Refused; }
+    const std::string& text = *name;
     // Combo check's start needs the fighters the player picked, which only the overlay holds.
     if (text == "comboStart") { order.id = text; return Route::Overlay; }
     // The reply's moves, typed or picked: the overlay checks them as the menu's field does.
     if (text == "replyMoves") {
-        const auto moves = body.value("text", nlohmann::json());
-        if (!moves.is_string() || moves.get<std::string>().size() > 256) { error = "bad moves"; return Route::Refused; }
-        order.id = text; order.text = moves.get<std::string>(); return Route::Overlay;
+        const auto moves = JsonField<std::string>(body, "text");
+        if (!moves || moves->size() > 256) { error = "bad moves"; return Route::Refused; }
+        order.id = text; order.text = *moves; return Route::Overlay;
     }
     for (const char* stored : {"comboSave", "comboRename", "comboDelete", "comboPlay"})
         if (text == stored) { order.id = text; return Route::Store; }
@@ -206,9 +208,9 @@ inline Route ParseOrder(const nlohmann::json& body, const View& view, Order& ord
     order.command.generation = view.generation;
     for (const auto& entry : plain) if (text == entry.first) { order.command.action = entry.second; return Route::Game; }
     if (text == "select") {
-        const auto slot = body.value("slot", nlohmann::json());
-        if (!slot.is_number_integer() || slot < 0 || slot >= SlotCount) { error = "bad slot"; return Route::Refused; }
-        order.command.action = Action::Select; order.command.slot = slot.get<int>();
+        const auto slot = JsonField<int>(body, "slot");
+        if (!slot || *slot < 0 || *slot >= SlotCount) { error = "bad slot"; return Route::Refused; }
+        order.command.action = Action::Select; order.command.slot = *slot;
         return Route::Game;
     }
     error = "unknown cmd"; return Route::Refused;
