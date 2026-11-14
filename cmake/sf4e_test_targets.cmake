@@ -295,6 +295,7 @@ sf4e_add_unit_test(NAME SessionServerTransportLobby SOURCES "src/tests/session_s
 sf4e_add_unit_test(NAME SessionServerTransportBarriers SOURCES "src/tests/session_server_transport_barriers_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportTerminal SOURCES "src/tests/session_server_transport_terminal_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportCommit SOURCES "src/tests/session_server_transport_commit_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
+sf4e_add_unit_test(NAME RoomEffectBurst SOURCES "src/tests/room_effect_burst_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportDepartures SOURCES "src/tests/session_server_transport_departures_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerLatency SOURCES "src/tests/session_server_latency_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME MemberLatency SOURCES "src/tests/member_latency_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
