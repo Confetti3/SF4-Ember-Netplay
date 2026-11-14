@@ -8,16 +8,11 @@ mod common;
 use common::{
     Bridge, Player,
     points::*,
-    public_rooms::{open_room, player, send, start},
-    sites::connect_discord,
-    supervisor::{BUILD, ENDPOINT, Supervisor, report},
+    public_rooms::{player, send, start},
+    supervisor::report,
 };
-use ember_protocol::{
-    encoding::b64u,
-    levels::{CARD_PREFIX, CARD_VALID_SECS, LOOKUP_PATH, POINTS_PATH, is_card_token},
-};
+use ember_protocol::levels::{CARD_VALID_SECS, POINTS_PATH, is_card_token};
 use reqwest::{Method, StatusCode};
-use rusqlite::OptionalExtension;
 use serde_json::{Value as Json_, json};
 
 #[tokio::test]

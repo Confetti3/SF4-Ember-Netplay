@@ -8,22 +8,11 @@ use common::{
     Bridge, Player,
     profiles::*,
     public_rooms::{player, reason, send},
-    seed,
-    supervisor::{self, BUILD, Supervisor},
 };
-use ember_bridge::{config, integrations::Secrets};
-use ember_protocol::{
-    encoding::b64u,
-    friends::{ACTIONS_PATH, SYNC_PATH},
-    levels::{
-        CARD_PREFIX, CARDS_ME_PATH, CardAnswers, LOOKUP_PATH, MAX_SEARCH, SEARCH_PATH,
-        SearchAnswer, is_card_token,
-    },
-};
+
+use ember_protocol::levels::{CARDS_ME_PATH, SEARCH_PATH};
 use reqwest::{Method, StatusCode};
-use rusqlite::OptionalExtension;
 use serde_json::{Value as Json_, json};
-use zeroize::Zeroizing;
 
 #[tokio::test]
 async fn profiles_are_offered_beside_points_where_public_rooms_are_on() {

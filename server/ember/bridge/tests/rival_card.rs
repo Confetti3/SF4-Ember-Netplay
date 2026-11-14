@@ -6,16 +6,11 @@ mod common;
 use common::{
     Bridge, Player,
     points::*,
-    public_rooms::{open_room, player, send, start},
+    public_rooms::{player, send},
     sites::connect_discord,
-    supervisor::{BUILD, ENDPOINT, Supervisor, report},
 };
-use ember_protocol::{
-    encoding::b64u,
-    levels::{CARD_PREFIX, CARD_VALID_SECS, LOOKUP_PATH, POINTS_PATH, is_card_token},
-};
+use ember_protocol::levels::{POINTS_PATH, is_card_token};
 use reqwest::{Method, StatusCode};
-use rusqlite::OptionalExtension;
 use serde_json::{Value as Json_, json};
 
 /// Players 3 to `last`, with Discord accounts 300 to `last`00.

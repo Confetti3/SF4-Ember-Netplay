@@ -300,7 +300,6 @@ pub fn month_start(secs: u64) -> u64 {
     // Howard Hinnant's civil-from-days, for the day of the month.
     let days = (secs / 86_400) as i64;
     let shifted = days + 719_468;
-    let era = shifted.div_euclid(146_097);
     let day_of_era = shifted.rem_euclid(146_097);
     let year_of_era =
         (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;

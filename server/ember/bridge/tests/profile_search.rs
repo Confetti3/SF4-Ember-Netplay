@@ -3,26 +3,13 @@
 
 mod common;
 
-use common::{
-    Bridge, Player,
-    profiles::*,
-    public_rooms::{player, reason, send},
-    seed,
-    supervisor::{self, BUILD, Supervisor},
-};
-use ember_bridge::{config, integrations::Secrets};
+use common::{Player, profiles::*, public_rooms::player};
 use ember_protocol::{
-    encoding::b64u,
-    friends::{ACTIONS_PATH, SYNC_PATH},
-    levels::{
-        CARD_PREFIX, CARDS_ME_PATH, CardAnswers, LOOKUP_PATH, MAX_SEARCH, SEARCH_PATH,
-        SearchAnswer, is_card_token,
-    },
+    friends::ACTIONS_PATH,
+    levels::{MAX_SEARCH, is_card_token},
 };
 use reqwest::{Method, StatusCode};
-use rusqlite::OptionalExtension;
-use serde_json::{Value as Json_, json};
-use zeroize::Zeroizing;
+use serde_json::json;
 
 /// Names saved in this order, a second apart: the most recent is last.
 async fn named(

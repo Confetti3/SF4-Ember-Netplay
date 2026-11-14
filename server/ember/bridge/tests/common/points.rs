@@ -9,10 +9,7 @@ use super::{
 };
 use ember_protocol::{
     encoding::b64u,
-    levels::{
-        CARD_PREFIX, CARD_VALID_SECS, CLASS_BONUS_POINTS_PATH, LOOKUP_PATH, POINTS_PATH,
-        is_card_token,
-    },
+    levels::{CARD_PREFIX, CLASS_BONUS_POINTS_PATH, LOOKUP_PATH, POINTS_PATH},
 };
 use reqwest::{Method, StatusCode};
 use rusqlite::OptionalExtension;

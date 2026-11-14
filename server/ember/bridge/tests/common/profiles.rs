@@ -7,7 +7,7 @@ use std::sync::Mutex;
 
 use super::{
     Bridge, Player,
-    public_rooms::{player, reason, send},
+    public_rooms::{player, send},
     seed,
     supervisor::{self, BUILD, Supervisor},
 };
@@ -15,10 +15,7 @@ use ember_bridge::{config, integrations::Secrets};
 use ember_protocol::{
     encoding::b64u,
     friends::{ACTIONS_PATH, SYNC_PATH},
-    levels::{
-        CARD_PREFIX, CARDS_ME_PATH, CardAnswers, LOOKUP_PATH, MAX_SEARCH, SEARCH_PATH,
-        SearchAnswer, is_card_token,
-    },
+    levels::{CARD_PREFIX, CARDS_ME_PATH, CardAnswers, LOOKUP_PATH, SEARCH_PATH, SearchAnswer},
 };
 use reqwest::{Method, StatusCode};
 use rusqlite::OptionalExtension;

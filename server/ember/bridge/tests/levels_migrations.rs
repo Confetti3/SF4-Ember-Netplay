@@ -8,7 +8,6 @@
 use std::path::Path;
 
 use ember_bridge::{Db, testing::TempDir};
-use rusqlite::OptionalExtension;
 
 /// Applies `migrations/` up to 056 as a bridge from before 060 did, each
 /// recorded by its number only.
