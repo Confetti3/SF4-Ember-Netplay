@@ -106,6 +106,17 @@ void VisitJourney() {
  j.open();
  j.h.Press(MenuInput::NextTab);
  Check(j.screen() == "awards" && j.sent<commands::FriendsLeave>().size() == 2, "Stepping off Friends did not send Leave");
+ // Hiding Ember on Friends is a Leave, once however many frames it stays hidden, and showing it again is a Visit.
+ j.open();
+ const auto visits = j.sent<commands::FriendsVisit>().size(), leaves = j.sent<commands::FriendsLeave>().size();
+ for (int i = 0; i < 5; ++i) {
+  ImGui::GetIO().DeltaTime = 1.f / 60; ImGui::NewFrame();
+  j.h.shell.Background(j.h.view, j.h.view.room, [&](ShellAction a) { j.h.actions.push_back(a); return true; });
+  ImGui::Render();
+ }
+ Check(j.sent<commands::FriendsLeave>().size() == leaves + 1, "Hiding Ember on Friends did not send exactly one Leave");
+ j.h.Frame(0, 3);
+ Check(j.screen() == "friends" && j.sent<commands::FriendsVisit>().size() == visits + 1, "Showing Ember again on Friends did not send Visit");
 }
 
 // The rows: Add a friend, the requests newest first, friends in a room (joinable first), online, offline, then Sent,

@@ -184,6 +184,8 @@ public:
     // a Join asks, opened over whatever shows; a refusal's words, and what an action that went through says.
     // `bridge` is the usable service, empty without one.
     void Update(const ShellView& view, MenuNavigation& nav, const std::string& bridge, const Submit& submit);
+    // The shell is hidden: the runtime is told the tab closed (once; Conceal follows every hidden frame).
+    void Hide(const ShellView& view, const Submit& submit);
     // The shell is hidden: the cadence is told again when it shows.
     void Conceal();
     // The words to show as a notice (a refusal, an invite or request sent), once.

@@ -56,6 +56,13 @@ void PlayerPage::Open(const netplay::profiles::Key& key, const netplay::profiles
     Begin(key, known, nav);
 }
 
+void PlayerPage::Hide(const Submit& submit) {
+    if (!onProfile_ || !submit(commands::ProfileClose{})) return;
+    onProfile_ = false;
+    asked_ = false;
+    ask_.clear();
+}
+
 void PlayerPage::Conceal() { focus_.clear(); }
 
 Links PlayerPage::PlainLinks(const ShellView& v, const Shown& shown) const {

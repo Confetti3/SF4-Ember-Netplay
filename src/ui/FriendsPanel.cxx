@@ -550,6 +550,13 @@ void FriendsPanel::TakeInvite(const ShellView& v, const std::string& invite, con
     if (gate.act) Send(v, commands::FriendDismiss{Bridge(v), invite}, submit, InvitePrefix + invite);
 }
 
+void FriendsPanel::Hide(const ShellView& v, const Submit& submit) {
+    // Hiding Ember closes the tab as stepping off it does: the runtime's friends cadence stops with it.
+    if (!asked_ || Bridge(v).empty()) return;
+    submit(commands::FriendsLeave{Bridge(v)});
+    asked_ = sawVisiting_ = false;
+}
+
 void FriendsPanel::Conceal() {
     asked_ = sawVisiting_ = false;
     raise_ = Raise{};

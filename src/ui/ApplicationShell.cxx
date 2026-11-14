@@ -553,6 +553,8 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  // Return from the main-character screen are done when Ember shows again.
  UpdatePreferenceSave(v,submit);
  UpdatePadSetup(v,submit,false);
+ // What the screens asked of the runtime while they showed is closed first: a hidden Ember must not keep the friends sync or a profile open through a match.
+ friends_.Hide(v,submit);player_.Hide(submit);
  Conceal();hidden_=true;
  UpdatePostMatch(v,room,ImGui::GetTime(),submit,nullptr);
  // Following goes on while Ember is hidden: a streamer hides it to show the games.

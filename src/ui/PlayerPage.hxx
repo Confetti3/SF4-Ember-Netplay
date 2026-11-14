@@ -188,6 +188,8 @@ public:
     // others see them: the name the own Sets tab lists by, and what tells the player's own name from another's.
     void Update(const ShellView& view, const std::string& screen, MenuNavigation& navigation, const std::string& bridge, const std::string& ownName,
         const CountryCode& ownCountry, const Submit& submit);
+    // The shell is hidden: an open profile is closed as leaving the page closes it (once), and asked again when it shows.
+    void Hide(const Submit& submit);
     // The shell is hidden: nothing asked is kept waiting.
     void Conceal();
 
