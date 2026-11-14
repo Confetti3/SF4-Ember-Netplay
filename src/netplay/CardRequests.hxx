@@ -5,9 +5,10 @@
 // this decides, so the rules are tested without a helper
 // (card_requests_test.cxx). docs/design/FIGHTER_LEVELS.md, "Client".
 //
-// - A token is looked up when a member carrying it joins, and every token
-//   again 8 s after any set in the room ends. A look-up is up to MaxLookup
-//   tokens, at most one in flight, and at most one every MinGapMs.
+// - A token is looked up when a member carrying it joins, and again 8 s after
+//   a set its member fought ends (the two fighters' cards only: nobody else's
+//   changed). A look-up is up to MaxLookup tokens, at most one in flight, and
+//   at most one every MinGapMs.
 // - A token the bridge answers null for has "no card" until the next trigger.
 //   An old card stays on show while its refresh is awaited.
 // - The friend the Friends tab has focused is wanted too (WantFriend), by their friend id ("fr_...", which the bridge's
@@ -78,9 +79,11 @@ public:
 	}
 
 	// The room as it is now: its epoch (0 when none, or not a public room),
-	// the tokens its members carry, and the generation of each table's last
-	// set. The first look at a room only notes what already ended.
-	void Observe(std::uint64_t epoch, const std::vector<std::string>& tokens, const std::vector<std::uint64_t>& sets, std::uint64_t nowMs) {
+	// the tokens its members carry, and each table's last set. A set that ends
+	// makes its two fighters' cards due again SetEndedMs later (what its games
+	// changed); no other card changed. The first look at a room only notes what
+	// already ended.
+	void Observe(std::uint64_t epoch, const std::vector<std::string>& tokens, const std::vector<LastSet>& sets, std::uint64_t nowMs) {
 		if (epoch != epoch_) {
 			Forget();
 			epoch_ = epoch;
@@ -97,11 +100,19 @@ public:
 		if (dropped) Publish();
 		if (sets.size() == sets_.size())
 			for (std::size_t table = 0; table < sets.size(); ++table)
-				if (sets[table] && sets[table] != sets_[table]) refreshAtMs_ = nowMs + SetEndedMs;
-		sets_ = sets;
-		if (refreshAtMs_ && nowMs >= refreshAtMs_) {
-			for (auto& entry : entries_) entry.second.stale = true;
-			refreshAtMs_ = 0;
+				if (sets[table].generation && sets[table].generation != sets_[table])
+					for (const auto* token : {&sets[table].p1, &sets[table].p2})
+						if (!token->empty()) dueMs_[*token] = nowMs + SetEndedMs;
+		sets_.clear();
+		for (const auto& set : sets) sets_.push_back(set.generation);
+		// A card is asked again once its wait is over. One whose look-up is on its way stays due until that answer is in:
+		// the answer was asked before the wait ended.
+		for (auto due = dueMs_.begin(); due != dueMs_.end();) {
+			if (!Wanted(due->first)) { due = dueMs_.erase(due); continue; }
+			if (nowMs < due->second || std::find(batch_.begin(), batch_.end(), due->first) != batch_.end()) { ++due; continue; }
+			const auto entry = entries_.find(due->first);
+			if (entry != entries_.end()) entry->second.stale = true;
+			due = dueMs_.erase(due);
 		}
 	}
 
@@ -215,7 +226,7 @@ private:
 		flight_ = {};
 		error_.clear();
 		unavailable_ = false;
-		refreshAtMs_ = 0;
+		dueMs_.clear();
 		if (shown) Publish();
 	}
 
@@ -225,13 +236,15 @@ private:
 	// The friends the Friends tab focused lately, newest first (WantFriend).
 	std::vector<std::string> friends_;
 	std::map<std::string, Entry> entries_;
+	// The generation of each table's last set, and when each card a set ended for is due again.
 	std::vector<std::uint64_t> sets_;
+	std::map<std::string, std::uint64_t> dueMs_;
 	std::vector<std::string> batch_;
 	// The tokens of the look-up in flight that a friends action overtook (Refresh).
 	std::set<std::string> overtaken_;
 	InFlight flight_;
 	bool sent_ = false, unavailable_ = false;
-	std::uint64_t lastSentMs_ = 0, refreshAtMs_ = 0;
+	std::uint64_t lastSentMs_ = 0;
 	std::shared_ptr<const Map> published_;
 };
 

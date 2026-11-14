@@ -24,6 +24,10 @@ static Card Showing(std::uint8_t fighter, std::uint64_t points) {
 
 static void Scope(Cards& cards) { cards.Scope("brg_1"); }
 
+// `count` tables with no set yet, and a table whose last set is `generation`, fought by the members carrying `p1` and `p2`.
+static std::vector<LastSet> Tables(std::size_t count) { return std::vector<LastSet>(count); }
+static LastSet Set(std::uint64_t generation, const std::string& p1 = "", const std::string& p2 = "") { return {generation, p1, p2}; }
+
 // Asks for what Take offers and answers it with `answers`.
 static void Look(Cards& cards, std::uint64_t id, std::uint64_t nowMs, const Answers& answers) {
 	cards.Sent(id, cards.Take(nowMs), nowMs);
@@ -35,16 +39,16 @@ static void Look(Cards& cards, std::uint64_t id, std::uint64_t nowMs, const Answ
 static void JoinAsks() {
 	Cards cards;
 	Scope(cards);
-	cards.Observe(1, {}, {0, 0}, 0);
+	cards.Observe(1, {}, Tables(2), 0);
 	EXPECT(cards.Take(0).empty());
-	cards.Observe(1, {"c1.a"}, {0, 0}, 100);
+	cards.Observe(1, {"c1.a"}, Tables(2), 100);
 	EXPECT((cards.Take(100) == Batch{"c1.a"}));
 	cards.Sent(7, {"c1.a"}, 100);
 	EXPECT(cards.Awaiting(7) && !cards.Awaiting(8) && cards.Take(100 + Cards::MinGapMs).empty());
 	cards.Finish("", Answers{Showing(3, 31)});
 	EXPECT(!cards.Awaiting(7) && cards.Published()->size() == 1 && cards.Published()->at("c1.a").fighters[0].points == 31);
 	// A second member joins: it waits for the gap.
-	cards.Observe(1, {"c1.a", "c1.b"}, {0, 0}, 200);
+	cards.Observe(1, {"c1.a", "c1.b"}, Tables(2), 200);
 	EXPECT(cards.Take(200).empty());
 	EXPECT((cards.Take(100 + Cards::MinGapMs) == Batch{"c1.b"}));
 	Look(cards, 8, 100 + Cards::MinGapMs, Answers{std::nullopt});
@@ -57,7 +61,7 @@ static void Limits() {
 	Scope(cards);
 	Batch tokens;
 	for (int i = 0; i < 20; ++i) tokens.push_back("c1.t" + std::to_string(i));
-	cards.Observe(1, tokens, {0}, 0);
+	cards.Observe(1, tokens, Tables(1), 0);
 	const Batch first = cards.Take(1000);
 	EXPECT(first.size() == MaxLookup && first.front() == "c1.t0" && first.back() == "c1.t15");
 	cards.Sent(1, first, 1000);
@@ -77,26 +81,47 @@ static void Limits() {
 	EXPECT(!cards.Awaiting(2) && cards.Error() == "unavailable" && cards.Take(50000 + Cards::GiveUpMs).size() == 4);
 }
 
-// A set ending anywhere in the room asks again for every token 8 s later; the
-// old card stays on show meanwhile, and a null is asked about again then.
+// A set that ends asks again, 8 s later, for its two fighters' cards only: nobody
+// else's changed. The old card stays on show meanwhile, and a null is asked
+// about again then.
 static void SetEndAsks() {
 	Cards cards;
 	Scope(cards);
-	const Batch both = {"c1.a", "c1.b"};
-	cards.Observe(1, both, {5, 0}, 0);
-	Look(cards, 1, 0, Answers{Showing(1, 2), std::nullopt});
+	const Batch three = {"c1.a", "c1.b", "c1.c"};
+	cards.Observe(1, three, {Set(5, "c1.a", "c1.c"), Set(0)}, 0);
+	Look(cards, 1, 0, Answers{Showing(1, 2), std::nullopt, Showing(2, 2)});
 	// A set already ended when the room was first seen is not new.
-	cards.Observe(1, both, {5, 0}, 20000);
+	cards.Observe(1, three, {Set(5, "c1.a", "c1.c"), Set(0)}, 20000);
 	EXPECT(cards.Take(30000).empty());
-	cards.Observe(1, both, {5, 9}, 40000);
-	cards.Observe(1, both, {5, 9}, 40000 + Cards::SetEndedMs - 1);
+	const std::vector<LastSet> ended = {Set(5, "c1.a", "c1.c"), Set(9, "c1.a", "c1.b")};
+	cards.Observe(1, three, ended, 40000);
+	cards.Observe(1, three, ended, 40000 + Cards::SetEndedMs - 1);
 	EXPECT(cards.Take(40000 + Cards::SetEndedMs - 1).empty());
-	cards.Observe(1, both, {5, 9}, 40000 + Cards::SetEndedMs);
-	EXPECT(cards.Take(40000 + Cards::SetEndedMs) == both);
-	EXPECT(cards.Published()->size() == 1);
+	cards.Observe(1, three, ended, 40000 + Cards::SetEndedMs);
+	EXPECT((cards.Take(40000 + Cards::SetEndedMs) == Batch{"c1.a", "c1.b"}));
+	EXPECT(cards.Published()->size() == 2);
 	Look(cards, 2, 40000 + Cards::SetEndedMs, Answers{Showing(1, 3), Showing(4, 5)});
-	EXPECT(cards.Published()->size() == 2 && cards.Published()->at("c1.a").fighters[0].points == 3);
+	EXPECT(cards.Published()->size() == 3 && cards.Published()->at("c1.a").fighters[0].points == 3 && cards.Published()->at("c1.c").fighters[0].points == 2);
 	EXPECT(cards.Take(1000000).empty());
+	// A fighter who carries no token, or one no member carries any more, asks for nothing.
+	const std::vector<LastSet> tokenless = {Set(5, "c1.a", "c1.c"), Set(10, "", "c1.z")};
+	cards.Observe(1, three, tokenless, 100000);
+	cards.Observe(1, three, tokenless, 100000 + Cards::SetEndedMs);
+	EXPECT(cards.Take(1000000).empty());
+
+	// A set that ends while its fighters' cards are on their way asks again once that answer is in: it was asked before
+	// the set's games were counted.
+	Cards flying;
+	Scope(flying);
+	const Batch both = {"c1.a", "c1.b"};
+	flying.Observe(1, both, Tables(1), 0);
+	flying.Sent(1, flying.Take(0), 0);
+	flying.Observe(1, both, {Set(3, "c1.a", "c1.b")}, 100);
+	flying.Observe(1, both, {Set(3, "c1.a", "c1.b")}, 100 + Cards::SetEndedMs);
+	flying.Finish("", Answers{Showing(1, 1), Showing(2, 2)});
+	EXPECT(flying.Published()->size() == 2 && flying.Take(Cards::MinGapMs).empty());
+	flying.Observe(1, both, {Set(3, "c1.a", "c1.b")}, 100 + Cards::SetEndedMs + 1);
+	EXPECT(flying.Take(Cards::MinGapMs) == both);
 }
 
 // A token no member carries is dropped, and leaving the room or another
@@ -104,30 +129,30 @@ static void SetEndAsks() {
 static void Pruning() {
 	Cards cards;
 	Scope(cards);
-	cards.Observe(1, {"c1.a", "c1.b"}, {0}, 0);
+	cards.Observe(1, {"c1.a", "c1.b"}, Tables(1), 0);
 	Look(cards, 1, 0, Answers{Showing(1, 2), Showing(2, 3)});
-	cards.Observe(1, {"c1.b"}, {0}, 100);
+	cards.Observe(1, {"c1.b"}, Tables(1), 100);
 	EXPECT(cards.Published()->size() == 1 && cards.Published()->count("c1.b") == 1);
 	// An answer for a token that left while it was awaited is not kept.
-	cards.Observe(1, {"c1.b", "c1.c"}, {0}, 200);
+	cards.Observe(1, {"c1.b", "c1.c"}, Tables(1), 200);
 	cards.Sent(2, cards.Take(20000), 20000);
-	cards.Observe(1, {"c1.b"}, {0}, 20100);
+	cards.Observe(1, {"c1.b"}, Tables(1), 20100);
 	cards.Finish("", Answers{Showing(5, 5)});
 	EXPECT(cards.Published()->size() == 1 && cards.Published()->count("c1.c") == 0);
 	// The snapshot a reader holds is never changed under it.
 	const auto shown = cards.Published();
 	cards.Observe(0, {}, {}, 30000);
 	EXPECT(cards.Published()->empty() && shown->size() == 1);
-	cards.Observe(1, {"c1.b"}, {0}, 40000);
+	cards.Observe(1, {"c1.b"}, Tables(1), 40000);
 	EXPECT(cards.Take(40000) == Batch{"c1.b"});
 	Look(cards, 3, 40000, Answers{Showing(1, 1)});
 	cards.Scope("brg_2");
 	EXPECT(cards.Published()->empty() && cards.Take(100000).empty());
-	cards.Observe(1, {"c1.b"}, {0}, 100000);
+	cards.Observe(1, {"c1.b"}, Tables(1), 100000);
 	EXPECT(cards.Take(100000) == Batch{"c1.b"});
 	// A look-up in flight when the room changed is not awaited any more.
 	cards.Sent(4, cards.Take(100000), 100000);
-	cards.Observe(2, {"c1.b"}, {0}, 100100);
+	cards.Observe(2, {"c1.b"}, Tables(1), 100100);
 	EXPECT(!cards.Awaiting(4));
 }
 
@@ -136,16 +161,16 @@ static void Pruning() {
 static void Unavailable() {
 	Cards cards;
 	Scope(cards);
-	cards.Observe(1, {"c1.a"}, {0}, 0);
+	cards.Observe(1, {"c1.a"}, Tables(1), 0);
 	cards.Sent(1, cards.Take(0), 0);
 	cards.Finish("bridge_unreachable", std::nullopt);
 	EXPECT(cards.Error() == "bridge_unreachable" && cards.Take(Cards::MinGapMs - 1).empty() && cards.Take(Cards::MinGapMs).size() == 1);
 	cards.Sent(2, cards.Take(Cards::MinGapMs), Cards::MinGapMs);
 	cards.Finish(Cards::Unavailable, std::nullopt);
 	EXPECT(cards.Take(1000000).empty());
-	cards.Observe(1, {"c1.a", "c1.b"}, {0}, 1000000);
+	cards.Observe(1, {"c1.a", "c1.b"}, Tables(1), 1000000);
 	EXPECT(cards.Take(1000000).empty());
-	cards.Observe(2, {"c1.a"}, {0}, 1000100);
+	cards.Observe(2, {"c1.a"}, Tables(1), 1000100);
 	EXPECT(cards.Take(1000100).size() == 1);
 	// An answer of the wrong length installs nothing.
 	cards.Sent(3, cards.Take(1000100), 1000100);
@@ -165,7 +190,7 @@ static void ActionRefreshes() {
 	Cards cards;
 	Scope(cards);
 	const Batch both = {"c1.a", "c1.b"};
-	cards.Observe(1, both, {0}, 0);
+	cards.Observe(1, both, Tables(1), 0);
 	Look(cards, 1, 0, Answers{Related(Relation::None), std::nullopt});
 	EXPECT(cards.Take(1000000).empty());
 	// Add friend went through: Request sent at once, on a new map; a token without a card is left alone.
@@ -183,10 +208,10 @@ static void ActionRefreshes() {
 	// A look-up in flight as an action goes through answers with the card as it stood before: not shown, asked again.
 	Cards flying;
 	Scope(flying);
-	flying.Observe(1, both, {0}, 0);
+	flying.Observe(1, both, Tables(1), 0);
 	Look(flying, 1, 0, Answers{Related(Relation::None), Related(Relation::Received)});
-	flying.Observe(1, both, {9}, 1000);
-	flying.Observe(1, both, {9}, 1000 + Cards::SetEndedMs);
+	flying.Observe(1, both, {Set(9, "c1.a", "c1.b")}, 1000);
+	flying.Observe(1, both, {Set(9, "c1.a", "c1.b")}, 1000 + Cards::SetEndedMs);
 	flying.Sent(2, flying.Take(Cards::MinGapMs), Cards::MinGapMs);
 	flying.Refresh();
 	flying.Relate("c1.b", Relation::Friend);
@@ -448,26 +473,39 @@ static void ProfileAnswersThatAreNotACard() {
 	EXPECT(shown.Published().state == Profile::State::NoCard && !shown.Published().card.loaded);
 }
 
-// The card is looked up again 8 s after a set in the room ends, and after a friends action, never closer together than
-// MinRefreshMs.
+// The card is looked up again 8 s after a set its player fought ends, and after a friends action, never closer together
+// than MinRefreshMs.
 static void TheCardIsKeptFresh() {
 	profiles::Requests requests;
 	OpenIn(requests, profiles::Key::OfCard("c1.a"));
 	requests.FinishLookup(requests.Take(0).ticket, "", Found(WithProfile("A")), 5);
-	requests.Observe(1, {0, 0}, 0);
+	requests.Observe(1, Tables(2), 0);
 	EXPECT(!requests.Take(100000));
-	requests.Observe(1, {9, 0}, 20000);
-	requests.Observe(1, {9, 0}, 20000 + profiles::Requests::SetEndedMs - 1);
+	// A set between two other players changes nothing on this card.
+	requests.Observe(1, {Set(0), Set(4, "c1.b", "c1.c")}, 10000);
+	requests.Observe(1, {Set(0), Set(4, "c1.b", "c1.c")}, 10000 + profiles::Requests::SetEndedMs);
+	EXPECT(!requests.Take(100000));
+	const std::vector<LastSet> fought = {Set(9, "c1.b", "c1.a"), Set(4, "c1.b", "c1.c")};
+	requests.Observe(1, fought, 20000);
+	requests.Observe(1, fought, 20000 + profiles::Requests::SetEndedMs - 1);
 	EXPECT(!requests.Take(20000 + profiles::Requests::SetEndedMs - 1));
-	requests.Observe(1, {9, 0}, 20000 + profiles::Requests::SetEndedMs);
+	requests.Observe(1, fought, 20000 + profiles::Requests::SetEndedMs);
 	const auto fresh = requests.Take(20000 + profiles::Requests::SetEndedMs);
 	EXPECT(fresh && fresh.kind == Asked::Kind::Lookup && fresh.value == "c1.a");
 	requests.FinishLookup(fresh.ticket, "", Found(WithProfile("A2")), 30000);
 	EXPECT(requests.Published().card.value.name == "A2" && requests.Published().card.revision == 2 && !requests.Take(1000000));
 	// The first look at a room only notes what ended; the same sets seen again change nothing.
-	requests.Observe(2, {5, 0}, 40000);
-	requests.Observe(2, {5, 0}, 60000);
+	requests.Observe(2, {Set(5, "c1.a", "c1.b"), Set(0)}, 40000);
+	requests.Observe(2, {Set(5, "c1.a", "c1.b"), Set(0)}, 60000);
 	EXPECT(!requests.Take(1000000));
+	// A profile opened by a friend id has no token to tell by: any set may have been theirs.
+	profiles::Requests byFriend;
+	OpenIn(byFriend, profiles::Key::OfFriend("fr_1"));
+	byFriend.FinishLookup(byFriend.Take(0).ticket, "", Found(WithProfile("F")), 5);
+	byFriend.Observe(1, Tables(1), 10000);
+	byFriend.Observe(1, {Set(2, "c1.b", "c1.c")}, 20000);
+	byFriend.Observe(1, {Set(2, "c1.b", "c1.c")}, 20000 + profiles::Requests::SetEndedMs);
+	EXPECT(byFriend.Take(20000 + profiles::Requests::SetEndedMs).value == "fr_1");
 	// A friends action refreshes it.
 	requests.Refresh();
 	const auto action = requests.Take(1000000);
@@ -484,9 +522,9 @@ static void TheCardIsKeptFresh() {
 	profiles::Requests idle;
 	idle.Scope("brg_1", "emb_1");
 	idle.Refresh();
-	idle.Observe(1, {0}, 0);
-	idle.Observe(1, {3}, 1);
-	idle.Observe(1, {3}, 100000);
+	idle.Observe(1, Tables(1), 0);
+	idle.Observe(1, {Set(3, "c1.a", "c1.b")}, 1);
+	idle.Observe(1, {Set(3, "c1.a", "c1.b")}, 100000);
 	EXPECT(!idle.Take(1000000));
 }
 
@@ -635,12 +673,12 @@ static void FriendCards() {
 		Cards cards;
 		Scope(cards);
 		cards.WantFriend("fr_1");
-		cards.Observe(1, {"c1.a"}, {0}, 0);
+		cards.Observe(1, {"c1.a"}, Tables(1), 0);
 		EXPECT((cards.Take(0) == Batch{"c1.a", "fr_1"}));
 		cards.Sent(1, cards.Take(0), 0);
 		cards.Finish("", Answers{Showing(1, 1), std::nullopt});
 		EXPECT(cards.Published()->size() == 1 && cards.Take(1000000).empty());
-		cards.Observe(1, {"c1.a", "c1.b"}, {0}, 100);
+		cards.Observe(1, {"c1.a", "c1.b"}, Tables(1), 100);
 		EXPECT(cards.Take(Cards::FriendGapMs).empty() && (cards.Take(Cards::MinGapMs) == Batch{"c1.b"}));
 		cards.Sent(2, {"c1.b"}, Cards::MinGapMs);
 		cards.Finish("", Answers{Showing(2, 2)});

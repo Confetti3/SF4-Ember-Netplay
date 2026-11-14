@@ -14,7 +14,7 @@
 //   "Several" (the page asks which), unless the opener's country settles it.
 //   Any other key is looked up at once.
 // - The card on show stays while a refresh is awaited, and a refresh that
-//   fails keeps it. A refresh comes 8 s after a set in the room ends, and
+//   fails keeps it. A refresh comes 8 s after a set its player fought ends, and
 //   after a friends action went through (Refresh), at least MinRefreshMs
 //   after the last look-up; the card the action named shows what it made of
 //   them at once (Relate).
@@ -208,19 +208,22 @@ public:
 		stale_ = true;
 	}
 
-	// The room as it is now: its epoch (0 when none, or not a public room) and the generation of each table's last
-	// set. A set that ends in the room makes the card be looked up again SetEndedMs later (what a game between the
-	// two changed). The first look at a room only notes what already ended.
-	void Observe(std::uint64_t epoch, const std::vector<std::uint64_t>& sets, std::uint64_t nowMs) {
+	// The room as it is now: its epoch (0 when none, or not a public room) and each table's last set. A set the open
+	// profile's player fought makes the card be looked up again SetEndedMs after it ends (what its games changed); a
+	// profile with no card token to tell by (opened by a friend id, a request or a code) is looked up again after any
+	// set, as it may have been theirs. The first look at a room only notes what already ended.
+	void Observe(std::uint64_t epoch, const std::vector<levels::LastSet>& sets, std::uint64_t nowMs) {
 		if (epoch != epoch_) {
 			epoch_ = epoch;
 			sets_.clear();
 			refreshAtMs_ = 0;
 		}
+		const auto fought = [&](const levels::LastSet& set) { return profile_.token.empty() || profile_.token == set.p1 || profile_.token == set.p2; };
 		if (sets.size() == sets_.size())
 			for (std::size_t table = 0; table < sets.size(); ++table)
-				if (sets[table] && sets[table] != sets_[table]) refreshAtMs_ = nowMs + SetEndedMs;
-		sets_ = sets;
+				if (sets[table].generation && sets[table].generation != sets_[table] && fought(sets[table])) refreshAtMs_ = nowMs + SetEndedMs;
+		sets_.clear();
+		for (const auto& set : sets) sets_.push_back(set.generation);
 		if (refreshAtMs_ && nowMs >= refreshAtMs_) {
 			refreshAtMs_ = 0;
 			Refresh();

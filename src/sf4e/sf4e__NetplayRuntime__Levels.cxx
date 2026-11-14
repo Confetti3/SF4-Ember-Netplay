@@ -98,18 +98,23 @@ void TickCards(bool helperReady, std::uint64_t nowMs) {
 	cards.Expire(nowMs);
 	std::uint64_t epoch = 0;
 	std::vector<std::string> tokens;
-	std::vector<std::uint64_t> sets;
+	std::vector<netplay::levels::LastSet> sets;
 	if (UserApp::netplay && runtime->room && runtime->room->ServerOwned()) {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 		epoch = snapshot.roomEpoch;
 		if (epoch) {
+			const auto cardOf = [&](room::MemberId id) {
+				for (const auto& member : snapshot.members)
+					if (member.id == id && member.card.Present()) return member.card.ToString();
+				return std::string();
+			};
 			for (const auto& member : snapshot.members)
 				if (member.card.Present()) tokens.push_back(member.card.ToString());
-			for (const auto& table : snapshot.tables) sets.push_back(table.lastSet.generation);
+			for (const auto& table : snapshot.tables) sets.push_back({table.lastSet.generation, cardOf(table.lastSet.p1), cardOf(table.lastSet.p2)});
 		}
 	}
 	cards.Observe(epoch, tokens, sets, nowMs);
-	// The profile open is looked up again after a set in this room ends, as the members' cards are.
+	// The profile open is looked up again after a set its player fought ends, as their card in the room is.
 	runtime->profiles.Observe(epoch, sets, nowMs);
 	if (!helperReady) return;
 	const auto batch = cards.Take(nowMs);
