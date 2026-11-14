@@ -10,6 +10,14 @@ $Installer = (Resolve-Path -LiteralPath $Installer).Path
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{791CAF8E-B4B5-45D5-AB5C-B4864DDB8866}_is1'
 if (Test-Path -LiteralPath $uninstallKey) { throw 'SF4 Ember Netplay is installed for this user; uninstall it before running this test.' }
 $target = Join-Path ([IO.Path]::GetTempPath()) ("ember-installer-test-" + [Guid]::NewGuid().ToString('N'))
+# Nothing a normal process can rewrite is run elevated: an entry that asks for administrator rights runs no file from
+# the user's profile, and uninstall runs no script file at all.
+$setupScript = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'installer\ember-setup.iss') -Raw
+foreach ($line in ($setupScript -split "`r?`n" | Where-Object { $_ -match 'Verb:\s*runas' })) {
+    if ($line -match '\{localappdata\}') { throw "An elevated setup step runs a file the user can write: $line" }
+    if ($line -match '-File' -and $line -notmatch '\{tmp\}') { throw "An elevated setup step runs a file outside Setup's temporary folder: $line" }
+}
+if ($setupScript -match '(?s)\[UninstallRun\](.*?)\[Code\]' -and $Matches[1] -match '-File') { throw 'Uninstall runs a script file' }
 $silent = '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
 # A folder with files that is not an Ember copy is refused untouched.
 New-Item -ItemType Directory -Path $target | Out-Null
