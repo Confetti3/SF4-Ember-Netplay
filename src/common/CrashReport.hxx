@@ -108,6 +108,43 @@ inline size_t FormatCrashHeader(char* out, size_t size, const CrashFacts& facts)
 	return (size_t)written < size ? (size_t)written : size - 1;
 }
 
+// The 32-bit registers at the fault.
+struct CrashRegisters {
+	uint32_t eax, ebx, ecx, edx, esi, edi, ebp, esp, eip;
+};
+
+// One line, terminated, cut to `size`. Returns the length written.
+inline size_t FormatRegisters(char* out, size_t size, const CrashRegisters& r) {
+	if (!out || !size) return 0;
+	const int written = snprintf(out, size,
+		"registers: eax=0x%08X ebx=0x%08X ecx=0x%08X edx=0x%08X esi=0x%08X edi=0x%08X ebp=0x%08X esp=0x%08X eip=0x%08X\n",
+		r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp, r.esp, r.eip);
+	if (written < 0) { out[0] = '\0'; return 0; }
+	return (size_t)written < size ? (size_t)written : size - 1;
+}
+
+// The code bytes at the faulting instruction as one terminated line, cut to
+// `size`: "code at 0x<address>: 8B 40 10 ...", or "unreadable" when none could
+// be read. Returns the length written.
+inline size_t FormatCodeBytes(char* out, size_t size, uint64_t address, const uint8_t* bytes, size_t count) {
+	if (!out || !size) return 0;
+	int written = snprintf(out, size, "code at 0x%08llX:", (unsigned long long)address);
+	if (written < 0) { out[0] = '\0'; return 0; }
+	size_t length = (size_t)written < size ? (size_t)written : size - 1;
+	if (!bytes || !count) {
+		written = snprintf(out + length, size - length, " unreadable");
+		if (written > 0) length += (size_t)written < size - length ? (size_t)written : size - length - 1;
+	}
+	for (size_t i = 0; bytes && i < count; ++i) {
+		written = snprintf(out + length, size - length, " %02X", bytes[i]);
+		if (written < 0 || (size_t)written >= size - length) break;
+		length += (size_t)written;
+	}
+	if (length + 1 < size) { out[length++] = '\n'; out[length] = '\0'; }
+	else { out[size - 1] = '\0'; length = size - 1; }
+	return length;
+}
+
 // True when the 7 bytes before a return address end in an x86 call: E8
 // rel32, or FF /2 through a register, [register], [register+disp] or
 // [disp32], with or without a SIB byte. A stack word that passes is

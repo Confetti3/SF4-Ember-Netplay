@@ -155,6 +155,53 @@ static void TestCallersLine() {
 	CHECK(length == strlen(line));
 }
 
+static void TestRegistersLine() {
+	char out[256];
+	const CrashRegisters registers = { 0, 0x0A64E0064u, 1, 2, 3, 4, 0x0019FF80u, 0x0019FF40u, 0x006ED0A3u };
+	const size_t written = FormatRegisters(out, sizeof(out), registers);
+	CHECK(written == strlen(out));
+	CHECK(std::string(out) ==
+		"registers: eax=0x00000000 ebx=0xA64E0064 ecx=0x00000001 edx=0x00000002 esi=0x00000003 edi=0x00000004 "
+		"ebp=0x0019FF80 esp=0x0019FF40 eip=0x006ED0A3\n");
+	// One line only, and nothing the crash record's own header search could mistake for its fields.
+	CHECK(std::string(out).find('\n') == strlen(out) - 1);
+	CHECK(std::string(out).find(" code=0x") == std::string::npos);
+	CHECK(std::string(out).find(" address=0x") == std::string::npos);
+
+	char small[24];
+	const size_t cut = FormatRegisters(small, sizeof(small), registers);
+	CHECK(cut == sizeof(small) - 1);
+	CHECK(small[cut] == '\0');
+	CHECK(FormatRegisters(nullptr, 0, registers) == 0);
+}
+
+static void TestCodeBytesLine() {
+	char out[128];
+	const uint8_t bytes[16] = {0x8B, 0x40, 0x10, 0x85, 0xC0, 0x74, 0x05, 0x8B, 0x48, 0x04, 0x89, 0x4D, 0xFC, 0xC3, 0x90, 0xCC};
+	size_t written = FormatCodeBytes(out, sizeof(out), 0x006ED0A3ull, bytes, 16);
+	CHECK(written == strlen(out));
+	CHECK(std::string(out) == "code at 0x006ED0A3: 8B 40 10 85 C0 74 05 8B 48 04 89 4D FC C3 90 CC\n");
+
+	// Fewer bytes than asked for are listed as read: a fault at the end of a mapped page.
+	written = FormatCodeBytes(out, sizeof(out), 0x006ED0A3ull, bytes, 3);
+	CHECK(std::string(out) == "code at 0x006ED0A3: 8B 40 10\n");
+
+	// Nothing readable, such as a jump to an unmapped address.
+	written = FormatCodeBytes(out, sizeof(out), 0, bytes, 0);
+	CHECK(std::string(out) == "code at 0x00000000: unreadable\n");
+	written = FormatCodeBytes(out, sizeof(out), 0x12345678ull, nullptr, 16);
+	CHECK(std::string(out) == "code at 0x12345678: unreadable\n");
+	CHECK(written == strlen(out));
+
+	// A line cut by a small buffer stays terminated and in one line.
+	char small[24];
+	written = FormatCodeBytes(small, sizeof(small), 0x006ED0A3ull, bytes, 16);
+	CHECK(written == strlen(small));
+	CHECK(written < sizeof(small));
+	CHECK(strchr(small, '\n') == nullptr || strchr(small, '\n') == small + written - 1);
+	CHECK(FormatCodeBytes(nullptr, 0, 0, bytes, 16) == 0);
+}
+
 int main() {
 	TestRingKeepsTheLastLinesInOrder();
 	TestRingCutsLongLines();
@@ -164,6 +211,8 @@ int main() {
 	TestAddressSpaceFold();
 	TestEndsInCall();
 	TestCallersLine();
+	TestRegistersLine();
+	TestCodeBytesLine();
 	printf("crash_report_test: all tests passed\n");
 	return 0;
 }
