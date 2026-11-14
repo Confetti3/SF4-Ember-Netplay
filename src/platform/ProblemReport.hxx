@@ -19,6 +19,11 @@ struct Metadata {
     std::string kind = "problem", appVersion, channel, buildId, sourceRevision, windowsVersion;
     std::optional<std::uint32_t> exitCode, exceptionCode;
     std::optional<std::uint64_t> crashAddress;
+    // For a report about one run of the game (kind crash or start_failure):
+    // whether sf4e.log is the log of that run, as "this_session",
+    // "earlier_session" (left out: written before the run began) or "absent".
+    // Empty for a typed problem report, whose log is the one on disk.
+    std::string gameLog;
 };
 struct Log { std::string name, text; };
 struct Report {

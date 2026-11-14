@@ -146,11 +146,23 @@ void Collection() {
     write("sf4e-crash.log","kind=unhandled_exception code=0xC0000005 address=0x401234 module=Sidecar.dll\n");
     write("small.dmp","MDMPpayload"); CrashContext context; context.smallDump=path/"small.dmp"; context.started=(std::filesystem::file_time_type::min)();
     auto report=Collect(path,Fixture().meta,context,{});
+    CHECK_OR_THROW(report.meta.gameLog=="this_session");
     CHECK_OR_THROW(report.logs.size()==2&&report.logs[0].text.find("private")==std::string::npos);
     CHECK_OR_THROW(report.logs[0].text.find("Game ready")!=std::string::npos&&report.logs[0].text.size()<=LogLimit);
     CHECK_OR_THROW(report.meta.exceptionCode==0xC0000005u&&report.meta.crashAddress==0x401234&&report.minidump=="MDMPpayload");
+    // Written before this run began: neither the crash record nor the game's
+    // log is attached, and the report says the log was left out.
     context.started=(std::filesystem::file_time_type::max)(); report=Collect(path,Fixture().meta,context,{});
-    CHECK_OR_THROW(!report.meta.exceptionCode&&report.logs.size()==1&&report.logs[0].name=="sf4e.log");
+    CHECK_OR_THROW(!report.meta.exceptionCode&&report.logs.empty()&&report.meta.gameLog=="earlier_session");
+    CHECK_OR_THROW(MetaJson(report.meta,"")["game_log"]=="earlier_session");
+    // A typed report is about no run: the log on disk goes, with no verdict.
+    auto problem=Fixture().meta; problem.kind="problem"; report=Collect(path,problem,context,{});
+    CHECK_OR_THROW(report.logs.size()==2&&report.logs[0].name=="sf4e.log"&&report.meta.gameLog.empty());
+    CHECK_OR_THROW(!MetaJson(report.meta,"").contains("game_log"));
+    // No log at all.
+    std::filesystem::remove(path/"sf4e.log"); report=Collect(path,Fixture().meta,context,{});
+    CHECK_OR_THROW(report.logs.empty()&&report.meta.gameLog=="absent");
+    write("sf4e.log","Game ready\n"); context.started=(std::filesystem::file_time_type::min)();
     write("small.dmp","MDMP"+std::string(DumpLimit,'x')); report=Collect(path,Fixture().meta,context,{}); CHECK_OR_THROW(report.minidump.empty());
     // A tail cut through an invitation/profile/address discards the partial
     // first line, rather than offering an unrecognizable secret fragment.

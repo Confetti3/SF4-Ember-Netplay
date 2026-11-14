@@ -361,6 +361,7 @@ nlohmann::json MetaJson(const Metadata& meta, const std::string& comment) {
     if (meta.exitCode) value["exit_code"]=*meta.exitCode;
     if (meta.exceptionCode) value["exception_code"]=Hex(*meta.exceptionCode);
     if (meta.crashAddress) value["crash_address"]=Hex(*meta.crashAddress);
+    if (!meta.gameLog.empty()) value["game_log"]=meta.gameLog;
     if (!comment.empty()) value["comment"]=comment;
     return value;
 }
@@ -370,6 +371,7 @@ bool BuildMultipart(const Report& report, const Submission& submission, const st
     const auto& m=report.meta;
     if ((m.kind!="crash"&&m.kind!="problem") || (m.channel!="stable"&&m.channel!="beta"&&m.channel!="nightly") ||
         !SafeField(m.appVersion,128)||!SafeField(m.sourceRevision,128)||!SafeField(m.windowsVersion,256)||!HexDigits(m.buildId,64)||
+        (!m.gameLog.empty()&&ShortCode(m.gameLog).empty())||
         !ValidUtf8(submission.comment)||CharacterCount(submission.comment)>2000 ||
         (m.kind=="problem"&&submission.comment.find_first_not_of(" \t\r\n")==std::string::npos)||report.logs.size()>4 ||
         boundary.empty()||boundary.size()>70||!std::all_of(boundary.begin(),boundary.end(),[](unsigned char c){return std::isalnum(c)||c=='-';})) return reject();
@@ -406,7 +408,11 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
     // A crash report carries the crash record only when this crash wrote it:
     // an older one would name another crash, and the tracker would group it there.
     bool attachCrashRecord=true;
-    if (report.meta.kind=="crash") {
+    // A report about one run carries only what that run wrote: the launcher
+    // began the run at crash.started, so a log last written before it belongs
+    // to an earlier run and would be read as this one's.
+    const bool aboutRun=report.meta.kind=="crash";
+    if (aboutRun) {
         report.meta.exitCode=crash.exitCode; report.meta.exceptionCode=crash.exceptionCode; report.meta.crashAddress=crash.address;
         std::error_code ec;
         attachCrashRecord=std::filesystem::last_write_time(directory/L"sf4e-crash.log",ec)>=crash.started&&!ec;
@@ -425,7 +431,15 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
     for (const char* name:{"sf4e.log","launcher.log","sf4e-crash.log","sf4-net.log"}) {
         if (cancelled&&cancelled()) throw std::runtime_error("cancelled");
         if (!attachCrashRecord&&name==std::string_view("sf4e-crash.log")) continue;
-        std::error_code ec; if (!std::filesystem::is_regular_file(directory/name,ec)||ec) continue;
+        std::error_code ec; if (!std::filesystem::is_regular_file(directory/name,ec)||ec) {
+            if (aboutRun&&name==std::string_view("sf4e.log")) report.meta.gameLog="absent";
+            continue;
+        }
+        if (aboutRun&&name==std::string_view("sf4e.log")) {
+            const auto written=std::filesystem::last_write_time(directory/name,ec);
+            if (ec||written<crash.started) { report.meta.gameLog="earlier_session"; continue; }
+            report.meta.gameLog="this_session";
+        }
         const auto tail=ReadTail(directory/name,LogLimit);
         if (afterRead) afterRead(directory/name);
         auto text=Utf8Tail(tail.bytes);
