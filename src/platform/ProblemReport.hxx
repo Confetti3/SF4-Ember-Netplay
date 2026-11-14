@@ -14,11 +14,23 @@
 namespace sf4e { namespace reports {
 constexpr std::size_t LogLimit = 192 * 1024;
 constexpr std::size_t DumpLimit = 4 * 1024 * 1024;
+constexpr std::size_t HeaderLimit = 256;
 constexpr std::size_t BodyLimit = 5 * 1024 * 1024;
 struct Metadata {
     std::string kind = "problem", appVersion, channel, buildId, sourceRevision, windowsVersion;
     std::optional<std::uint32_t> exitCode, exceptionCode;
     std::optional<std::uint64_t> crashAddress;
+    // For a report about one run of the game (kind crash or start_failure):
+    // whether sf4e.log is the log of that run, as "this_session",
+    // "earlier_session" (left out: written before the run began) or "absent".
+    // Empty for a typed problem report, whose log is the one on disk.
+    std::string gameLog;
+    // For kind start_failure: how far start-up got ("before_signal" or
+    // "after_signal", the Sidecar signal to the launcher) and what the
+    // launcher knew about why, as a comma list of short codes
+    // ("steam_appid_missing", "outside_steam"). They travel in the report
+    // header, and a start failure's wire kind is crash (MetaJson).
+    std::string phase, hint;
 };
 struct Log { std::string name, text; };
 struct Report {
@@ -30,6 +42,9 @@ struct CrashContext {
     std::optional<std::uint32_t> exitCode, exceptionCode;
     std::optional<std::uint64_t> address;
     std::filesystem::path smallDump;
+    // Set when the game ended during its own start-up (common/CrashReport.hxx,
+    // ClassifyStartFailure): the report is a start failure, not a crash.
+    std::string startPhase, startHint;
     std::filesystem::file_time_type started = (std::filesystem::file_time_type::max)();
 };
 // A report the player sends from its preview. The small dump goes with it
@@ -52,6 +67,14 @@ std::string RedactLine(std::string_view line, const Account& account = {});
 std::string Utf8Tail(std::string_view bytes, std::size_t limit = LogLimit);
 std::size_t CharacterCount(std::string_view text);
 nlohmann::json MetaJson(const Metadata& meta, const std::string& comment);
+// The first line of launcher.log in a report about one run of the game, with
+// the facts the metadata has no field for:
+//   report: kind=start_failure phase=before_signal hint=steam_appid_missing game_log=earlier_session
+// kind is crash or start_failure, and phase, hint and game_log appear when
+// set. The metadata keeps the first release's schema, so every service accepts
+// the report and a newer one reads the line. Empty for a typed report; at most
+// HeaderLimit bytes with the fields BuildMultipart accepts.
+std::string ReportHeader(const Metadata& meta);
 bool BuildMultipart(const Report& report, const Submission& submission, const std::string& boundary,
     Multipart& result, std::string& error);
 // The intake's name for the channel this build updates from.
@@ -69,7 +92,7 @@ enum class Status { Pending, Received, Refused, NotSent };
 struct Record {
     std::int64_t time = 0;  // seconds since 1970, UTC, when the send was reserved
     Status status = Status::Pending;
-    // kind: "crash" or "problem"; id: 32 lowercase hex digits or empty;
+    // kind: "crash" or "problem" (a start failure counts as "crash"); id: 32 lowercase hex digits or empty;
     // reason: a short code of a-z, 0-9 and '_', or empty; attempt: 16
     // lowercase hex digits that tie the outcome to its reservation.
     std::string kind = "crash", id, reason, attempt;

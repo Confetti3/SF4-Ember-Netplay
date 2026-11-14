@@ -4,6 +4,7 @@
 #include <limits>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <iostream>
 #include <stdexcept>
 #include <chrono>
@@ -135,6 +136,31 @@ void MultipartCases() {
     using sf4e::updates::UpdateChannel;
     CHECK_OR_THROW(std::string(ReportChannel(UpdateChannel::Stable))=="stable"&&std::string(ReportChannel(UpdateChannel::Beta))=="beta");
     CHECK_OR_THROW(std::string(ReportChannel(UpdateChannel::Nightly))=="nightly");
+    // A start failure names its phase and what the launcher knew, and carries no dump or fault facts.
+    auto failure=Fixture(); failure.meta.kind="start_failure"; failure.meta.phase="before_signal"; failure.meta.hint="steam_appid_missing,outside_steam";
+    failure.meta.gameLog="earlier_session"; failure.meta.exceptionCode.reset(); failure.meta.crashAddress.reset(); failure.minidump.clear();
+    failure.meta.exitCode=255; failure.logs={{"launcher.log","Started\n"}};
+    submission={};
+    CHECK_OR_THROW(BuildMultipart(failure,submission,"EmberTestBoundary",body,error));
+    const auto failureMeta=MetaJson(failure.meta,"");
+    // On the wire it is a crash with the first release's fields only; the header carries the rest.
+    CHECK_OR_THROW(failureMeta["kind"]=="crash"&&failureMeta["exit_code"]==255&&!failureMeta.contains("crash_address"));
+    CHECK_OR_THROW(failureMeta.size()==8&&!failureMeta.contains("phase")&&!failureMeta.contains("hint")&&!failureMeta.contains("game_log"));
+    CHECK_OR_THROW(ReportHeader(failure.meta)=="report: kind=start_failure phase=before_signal hint=steam_appid_missing,outside_steam game_log=earlier_session\n");
+    CHECK_OR_THROW(ReportHeader(Fixture().meta)=="report: kind=crash\n");
+    auto typed=Fixture().meta; typed.kind="problem"; CHECK_OR_THROW(ReportHeader(typed).empty());
+    // The longest header leaves room under HeaderLimit.
+    auto longest=failure.meta; longest.phase=std::string(40,'a'); longest.hint=std::string(80,'b'); longest.gameLog=std::string(40,'c');
+    CHECK_OR_THROW(ReportHeader(longest).size()<=HeaderLimit);
+    // Only a start failure has a phase and a hint, and it must have a phase made of short codes.
+    for (const auto change:std::initializer_list<void(*)(Report&)>{
+        [](Report& r){ r.meta.phase.clear(); }, [](Report& r){ r.meta.phase="Before signal"; },
+        [](Report& r){ r.meta.hint="C:\Users\x"; }, [](Report& r){ r.meta.hint=std::string(81,'a'); },
+        [](Report& r){ r.meta.kind="crash"; }, [](Report& r){ r.meta.kind="problem"; } }) {
+        auto bad=failure; change(bad); CHECK_OR_THROW(!BuildMultipart(bad,Submission{"A problem.",true},"EmberTestBoundary",body,error));
+    }
+    // A crash or a typed report sends neither field.
+    CHECK_OR_THROW(!MetaJson(Fixture().meta,"").contains("phase")&&!MetaJson(Fixture().meta,"").contains("hint"));
 }
 void Collection() {
     const auto path=std::filesystem::temp_directory_path()/std::filesystem::path("ember-report-test-"+
@@ -146,11 +172,35 @@ void Collection() {
     write("sf4e-crash.log","kind=unhandled_exception code=0xC0000005 address=0x401234 module=Sidecar.dll\n");
     write("small.dmp","MDMPpayload"); CrashContext context; context.smallDump=path/"small.dmp"; context.started=(std::filesystem::file_time_type::min)();
     auto report=Collect(path,Fixture().meta,context,{});
-    CHECK_OR_THROW(report.logs.size()==2&&report.logs[0].text.find("private")==std::string::npos);
+    CHECK_OR_THROW(report.meta.gameLog=="this_session");
+    CHECK_OR_THROW(report.logs.size()==3&&report.logs[2].name=="launcher.log"&&report.logs[2].text=="report: kind=crash game_log=this_session\n");
+    CHECK_OR_THROW(report.logs[0].text.find("private")==std::string::npos);
     CHECK_OR_THROW(report.logs[0].text.find("Game ready")!=std::string::npos&&report.logs[0].text.size()<=LogLimit);
     CHECK_OR_THROW(report.meta.exceptionCode==0xC0000005u&&report.meta.crashAddress==0x401234&&report.minidump=="MDMPpayload");
+    // Written before this run began: neither the crash record nor the game's
+    // log is attached, and the report says the log was left out.
     context.started=(std::filesystem::file_time_type::max)(); report=Collect(path,Fixture().meta,context,{});
-    CHECK_OR_THROW(!report.meta.exceptionCode&&report.logs.size()==1&&report.logs[0].name=="sf4e.log");
+    CHECK_OR_THROW(!report.meta.exceptionCode&&report.meta.gameLog=="earlier_session");
+    // The report says so in its header, on the first line of launcher.log.
+    CHECK_OR_THROW(!MetaJson(report.meta,"").contains("game_log"));
+    CHECK_OR_THROW(report.logs.size()==1&&report.logs[0].name=="launcher.log"&&
+        report.logs[0].text=="report: kind=crash game_log=earlier_session\n");
+    // A typed report is about no run: the log on disk goes, with no verdict.
+    auto problem=Fixture().meta; problem.kind="problem"; report=Collect(path,problem,context,{});
+    CHECK_OR_THROW(report.logs.size()==2&&report.logs[0].name=="sf4e.log"&&report.meta.gameLog.empty());
+    for (const auto& log:report.logs) CHECK_OR_THROW(log.text.find("report: ")!=0);
+    CHECK_OR_THROW(!MetaJson(report.meta,"").contains("game_log"));
+    // No log at all.
+    std::filesystem::remove(path/"sf4e.log"); report=Collect(path,Fixture().meta,context,{});
+    CHECK_OR_THROW(report.meta.gameLog=="absent"&&report.logs.size()==1&&report.logs[0].text=="report: kind=crash game_log=absent\n");
+    // A full launcher.log still fits its limit with the header on its first line.
+    write("launcher.log","Started\n"+std::string(LogLimit,'y')+"\nLast line\n"); report=Collect(path,Fixture().meta,context,{});
+    CHECK_OR_THROW(report.logs.size()==1&&report.logs[0].text.size()<=LogLimit&&
+        report.logs[0].text.find("report: kind=crash game_log=absent\nLast line\n")==0);
+    Multipart full; std::string fullError;
+    CHECK_OR_THROW(BuildMultipart(report,Submission{},"EmberTestBoundary",full,fullError));
+    std::filesystem::remove(path/"launcher.log");
+    write("sf4e.log","Game ready\n"); context.started=(std::filesystem::file_time_type::min)();
     write("small.dmp","MDMP"+std::string(DumpLimit,'x')); report=Collect(path,Fixture().meta,context,{}); CHECK_OR_THROW(report.minidump.empty());
     // A tail cut through an invitation/profile/address discards the partial
     // first line, rather than offering an unrecognizable secret fragment.

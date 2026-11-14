@@ -1,6 +1,7 @@
 pub mod bugsink;
 pub mod config;
 pub mod event;
+pub mod header;
 pub mod intake;
 pub mod limits;
 pub mod refusal;

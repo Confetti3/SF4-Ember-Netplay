@@ -570,3 +570,22 @@ async fn refusals_send_their_wire_reason() {
     );
     drop(held);
 }
+
+#[tokio::test]
+async fn a_start_failure_report_is_accepted_as_a_crash_with_a_header_line() {
+    // The new client's report: original schema 1 metadata and a launcher.log
+    // whose first line is the report header.
+    let mut m = meta();
+    m["exit_code"] = json!(255);
+    let launcher = b"report: kind=start_failure phase=before_signal game_log=absent
+Started
+".to_vec();
+    assert_eq!(
+        validate(parts(vec![
+            ("meta", None, serde_json::to_vec(&m).unwrap()),
+            ("log", Some("launcher.log"), launcher),
+        ]))
+        .await,
+        StatusCode::ACCEPTED
+    );
+}

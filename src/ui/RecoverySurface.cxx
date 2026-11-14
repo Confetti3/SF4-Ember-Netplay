@@ -166,7 +166,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         if (offerOnly && !state.reporting.preparation) reportView.asking = true;
         // Sent without a press: the message says so, and that the dump stayed here.
         if (state.reporting.automatic && state.reporting.authorized && !std::exchange(sendingShown, true))
-            message = loc::T("launcher.game_crashed_sending");
+            message = crash && !crash->startPhase.empty() ? loc::T("launcher.start_failed_sending") : loc::T("launcher.game_crashed_sending");
         RecoveryChoice choice = RecoveryChoice::None;
         if (reportOpen) {
             const auto* vp=ImGui::GetMainViewport(); ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);

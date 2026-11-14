@@ -203,6 +203,10 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 	record << in.rdbuf();
 	in.close();
 	CHECK(Count(record.str(), "kind=heap_corruption code=0xC0000374") == 1);
+	// The registers and the code at the fault, one line each, after the header.
+	CHECK(Count(record.str(), "\nregisters: eax=0x") == 1);
+	CHECK(record.str().find(" eip=0x") != std::string::npos);
+	CHECK(Count(record.str(), "\ncode at 0x") == 1);
 	CHECK(record.str().find("left-by-an-earlier-crash") == std::string::npos);
 	CHECK(record.str().find("the last line before the corruption") != std::string::npos);
 	DeleteFileW(dump.c_str());
@@ -243,6 +247,8 @@ void TestNonZeroExitIsRecorded() {
 	// The header leads the record; the last lines repeat it once logged.
 	CHECK(record.str().find("kind=exit code=0x000000FF") == 0);
 	CHECK(record.str().find("ExitProcess(255)") != std::string::npos);
+	CHECK(Count(record.str(), "\nregisters: eax=0x") == 1);
+	CHECK(Count(record.str(), "\ncode at 0x") == 1);
 	CHECK(record.str().find("the last line before the corruption") != std::string::npos);
 	DeleteFileW(dump.c_str());
 	DeleteFileW((logs + L"\\sf4e-crash.log").c_str());

@@ -1,5 +1,9 @@
 # Deploying ember-reports
 
+The service can be deployed before or after the clients that send start failures:
+they use the original schema 1 metadata (see the README), so an older service
+stores their reports and groups them the old way.
+
 Build in WSL (see [../README.md](../README.md)). Stage this folder as
 `~/ember-reports/` on the VPS with the Linux binary in `bin/ember-reports`:
 

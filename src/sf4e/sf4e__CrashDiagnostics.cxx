@@ -46,6 +46,8 @@ char s_header[1024];
 char s_module[MAX_PATH];
 char s_detail[256];
 char s_callers[640];
+char s_registers[256];
+char s_code[128];
 
 // The modules whose return addresses the callers line names, found at
 // Install so the crash path only compares numbers.
@@ -145,6 +147,32 @@ const char* FormatCallers(const EXCEPTION_POINTERS* pointers, uintptr_t scanFrom
 	return s_callers;
 }
 
+// The registers at the fault as one line in s_registers; empty without a
+// context. Returns the line's length.
+size_t FormatRegistersLine(const EXCEPTION_POINTERS* pointers) {
+	s_registers[0] = '\0';
+	if (!pointers || !pointers->ContextRecord) return 0;
+	const CONTEXT& context = *pointers->ContextRecord;
+	const sf4e::crash::CrashRegisters registers = { context.Eax, context.Ebx, context.Ecx, context.Edx,
+		context.Esi, context.Edi, context.Ebp, context.Esp, context.Eip };
+	return sf4e::crash::FormatRegisters(s_registers, sizeof(s_registers), registers);
+}
+
+// The 16 bytes at the faulting instruction as one line in s_code; empty
+// without an exception record. The read goes through the kernel, so an
+// address that is not mapped gives fewer bytes instead of a second fault, and
+// it allocates nothing. Returns the line's length.
+size_t FormatCodeLine(const EXCEPTION_POINTERS* pointers) {
+	s_code[0] = '\0';
+	if (!pointers || !pointers->ExceptionRecord) return 0;
+	const uintptr_t address = reinterpret_cast<uintptr_t>(pointers->ExceptionRecord->ExceptionAddress);
+	uint8_t bytes[16] = {};
+	SIZE_T read = 0;
+	ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<LPCVOID>(address), bytes, sizeof(bytes), &read);
+	if (read > sizeof(bytes)) read = 0;
+	return sf4e::crash::FormatCodeBytes(s_code, sizeof(s_code), address, bytes, read);
+}
+
 // dumpInProcess=false never falls back to MiniDumpWriteDump in this process,
 // which can deadlock on the loader lock; the launcher's bounded request is
 // the only dump then.
@@ -161,6 +189,12 @@ void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	// carried earlier crashes would be grouped with them.
 	HANDLE file = CreateFileW(s_recordPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (file != INVALID_HANDLE_VALUE) WriteText(file, s_header, headerLength);
+	const size_t registersLength = FormatRegistersLine(pointers);
+	const size_t codeLength = FormatCodeLine(pointers);
+	if (file != INVALID_HANDLE_VALUE) {
+		if (registersLength) WriteText(file, s_registers, registersLength);
+		if (codeLength) WriteText(file, s_code, codeLength);
+	}
 	const char* callers = FormatCallers(pointers, scanFrom);
 	if (file != INVALID_HANDLE_VALUE && callers[0]) {
 		WriteText(file, callers, strlen(callers));
@@ -172,6 +206,8 @@ void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	// wait for it forever, so the ring is taken as it stands.
 	if (!heapCorrupt) {
 		spdlog::critical("Crash: {:.{}}", s_header, headerLength ? headerLength - 1 : 0); // without the newline
+		if (registersLength) spdlog::critical("Crash {:.{}}", s_registers, registersLength - 1);
+		if (codeLength) spdlog::critical("Crash {:.{}}", s_code, codeLength - 1);
 		if (callers[0]) spdlog::critical("Crash {}", callers);
 		spdlog::default_logger()->flush();
 		Sleep(250);

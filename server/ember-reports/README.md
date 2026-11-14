@@ -154,7 +154,35 @@ instruction address. A report without a dump takes the module and offset from th
 newest `sf4e-crash.log` line for its crash address (`module=<name>+0x<offset>`),
 so every load of a DLL groups as one issue. Events carry channel/build/kind/Windows/exception tags,
 release, comment, source revision, raw codes, report ID and saved dump path.
-Problems use the comment as their message. Events stay strictly below 900 KiB
+Problems use the comment as their message.
+
+A crash report can say more than its metadata holds in a header on the first
+line of the attached `launcher.log` (`src/header.rs`):
+
+```
+report: kind=start_failure phase=before_signal hint=steam_appid_missing,outside_steam game_log=earlier_session
+```
+
+`kind=start_failure` means the game ended during its own start-up; `phase` is
+`before_signal` or `after_signal` (relative to the game's DLL signalling the
+launcher); `hint` lists what the launcher knew about why; `game_log` says whether
+the attached `sf4e.log` is the reported run's (`this_session`, `earlier_session`
+when it was left out, `absent`). Values are short codes of `a-z`, `0-9` and `_`;
+anything else is ignored. The metadata stays the original schema 1 and the kind
+stays `crash`, so every service that accepted the earlier client accepts this one:
+the header is only text in a log, which an older service stores untouched and this
+one reads. Deploy order does not matter: an older service with a newer client
+receives the reports and groups them the old way, as `Native crash`.
+
+A report without a stack or exception code is named by what happened, so each
+cause is its own issue: a start failure is `Start failure` with the exit code and
+phase (fingerprint `start_failure:<exit code>:<phase>`, whatever stack or code the
+game left); a crash with only an exit code is `Game frozen` (0xCFFFFFFF) or
+`Game exit 0x<code>` (fingerprint `exit:<code>`); one with nothing is still
+`Native crash`. A crash with an exception code and a module and offset from the
+crash log is titled `<exception> at <module>+0x<offset>`. Tags carry `phase` and
+`exit_code` when present (tag `kind` is `start_failure` for a start failure), and
+`extra` carries `phase`, `hint` and `game_log` from the header. Events stay strictly below 900 KiB
 after JSON escaping: the crashing stack takes priority, auxiliary threads may
 be limited, and logs retain UTF-8 tails when trimmed from their start.
 
