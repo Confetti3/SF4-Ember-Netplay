@@ -4,6 +4,7 @@
 #include "RemoteHud.hxx"
 #include "RemoteHudPage.hxx"
 #include "../sf4e/sf4e__GameThemes.hxx"
+#include "../sf4e/sf4e__NetplayFacade.hxx"
 #include "ComboStore.hxx"
 #include "GameFiles.hxx"
 #include "RemoteProtocol.hxx"
@@ -214,7 +215,17 @@ Reply Answer(const Resource& resource, const Head& head, const std::string& body
     return TextReply(404, "no");
 }
 // Whether what a route needs holds now.
-bool Holds(Needs needs) { return needs != Needs::Camera || camera::Phone().TakesOrders(); }
+bool Holds(Needs needs) {
+    switch (needs) {
+    case Needs::Nothing: return true;
+    case Needs::NoMatch: {
+        const auto runtime = NetplayFacade::GetRuntimeSnapshotShared();
+        return runtime->session.match == netplay::MatchState::None && !runtime->foughtGame.Active() && !runtime->watchedGame.Active();
+    }
+    case Needs::Camera: return camera::Phone().TakesOrders();
+    }
+    return false;
+}
 // Answers one request; a stream takes the socket over and returns true. The head comes first, within HeadBytes
 // and HeadTime; the route, the PIN and the body's length are settled from it before any of the body is read;
 // then the body, within the route's limit, the bodies' budget and RequestTime.

@@ -29,9 +29,10 @@ using Handler = std::variant<Endpoint, hud::Order>;
 // Where a request's PIN is: none asked (the page itself), the X-Pin header, or also the address (?pin=), since
 // an EventSource and a download link cannot set a header.
 enum class PinFrom { None, Header, HeaderOrAddress };
-// What must hold for a route to be served now: nothing more, or the camera in use (Training, a watched replay,
-// a shot rendering).
-enum class Needs { Nothing, Camera };
+// What must hold for a route to be served now: nothing more, no match (an order that changes the running
+// game: none while a match is prepared, played or ended on screen, the player's own or a room's they fight or
+// watch), or the camera in use (Training, a watched replay, a shot rendering).
+enum class Needs { Nothing, NoMatch, Camera };
 // The bytes a request may bring: its head (the request line and headers) on every route, and each route's body.
 constexpr std::size_t HeadBytes = 8192, CommandBytes = 1024, CameraBytes = 16384, HudBytes = 64u << 10, HudImageBytes = 6u << 20;
 // The bodies all requests under way may hold together: one HUD picture and the small ones beside it. With at
@@ -60,10 +61,10 @@ inline const Resource* FindResource(Method method, const std::string& path) {
         {Method::Get, "/api/hud/sheet", false, 0, PinFrom::Header, Needs::Nothing, hud::Order::Sheet},
         {Method::Post, "/api/hud/image", false, HudImageBytes, PinFrom::Header, Needs::Nothing, hud::Order::Image},
         {Method::Post, "/api/hud/image-remove", false, HudBytes, PinFrom::Header, Needs::Nothing, hud::Order::ImageRemove},
-        {Method::Post, "/api/hud/restart", false, HudBytes, PinFrom::Header, Needs::Nothing, hud::Order::Restart},
+        {Method::Post, "/api/hud/restart", false, HudBytes, PinFrom::Header, Needs::NoMatch, hud::Order::Restart},
         {Method::Post, "/api/hud/save-as", false, HudBytes, PinFrom::Header, Needs::Nothing, hud::Order::SaveAs},
         {Method::Post, "/api/hud/layout", false, HudBytes, PinFrom::Header, Needs::Nothing, hud::Order::Layout},
-        {Method::Post, "/api/hud/apply", false, HudBytes, PinFrom::Header, Needs::Nothing, hud::Order::Apply},
+        {Method::Post, "/api/hud/apply", false, HudBytes, PinFrom::Header, Needs::NoMatch, hud::Order::Apply},
     };
     for (const Resource& resource : table) {
         if (resource.method != method) continue;
@@ -218,7 +219,9 @@ inline std::chrono::milliseconds NextWait(Clock::time_point now, Clock::time_poi
 inline Reply TextReply(int status, const char* text) { Reply reply; reply.status = status; reply.type = "text/plain"; reply.body = text; return reply; }
 inline Reply JsonReply(const nlohmann::json& value, int status = 200) { Reply reply; reply.status = status; reply.body = DumpJson(value); return reply; }
 // A route that cannot be served now, as the page shows it.
-inline const char* NotNow(Needs needs) { return needs == Needs::Camera ? "the camera works in Training and in replays" : ""; }
+inline const char* NotNow(Needs needs) {
+    return needs == Needs::Camera ? "the camera works in Training and in replays" : needs == Needs::NoMatch ? "not during a match" : "";
+}
 // A request decided on its head alone: refused, with the answer to send, or taken by its route. In this order:
 // an address the remote does not answer (404), a wrong PIN or one locked out (403, 429), a route that cannot be
 // served now (409), a body over the route's limit (400). `holds` says whether what a route needs holds now.

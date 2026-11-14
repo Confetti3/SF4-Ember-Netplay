@@ -147,6 +147,8 @@ int main() {
             Require(std::get<hud::Order>(FindResource(Method::Post, "/api/hud/apply")->handler) == hud::Order::Apply && std::get<Endpoint>(FindResource(Method::Get, "/api/combos/7")->handler) == Endpoint::ComboFile,
                 "A route has the wrong handler");
             Require(FindResource(Method::Post, "/api/camera")->needs == Needs::Camera && FindResource(Method::Get, "/api/camera")->needs == Needs::Nothing, "The camera's orders must wait for the camera");
+            Require(FindResource(Method::Post, "/api/hud/apply")->needs == Needs::NoMatch && FindResource(Method::Post, "/api/hud/restart")->needs == Needs::NoMatch &&
+                FindResource(Method::Post, "/api/hud/layout")->needs == Needs::Nothing, "Applying a HUD and restarting the game must wait for no match");
         }
         // A request's head: the method, the path and query, the headers in any case, and a length that is one plain number.
         {
@@ -164,8 +166,8 @@ int main() {
         {
             PinGate pins; pins.Reset("123456");
             const auto now = Clock::now();
-            bool cameraInUse = false;
-            const auto holds = [&](Needs needs) { return needs != Needs::Camera || cameraInUse; };
+            bool cameraInUse = false, match = true;
+            const auto holds = [&](Needs needs) { return needs == Needs::Camera ? cameraInUse : needs == Needs::NoMatch ? !match : true; };
             const auto admit = [&](const std::string& text, unsigned long peer = 1) { Head head; Require(ParseHead(text, head), "A test head was not read"); return Admit(head, pins, peer, now, holds); };
             Require(admit("GET /nothing HTTP/1.1").refused->status == 404, "An address the remote does not answer");
             Require(admit("GET / HTTP/1.1").resource != nullptr, "The page itself needs no PIN");
@@ -181,6 +183,10 @@ int main() {
             Require(notNow.refused && notNow.refused->status == 409 && json::parse(notNow.refused->body)["ok"] == false, "Camera orders out of Training and replays must be refused, as JSON the page reads");
             cameraInUse = true;
             Require(admit("POST /api/camera HTTP/1.1\r\nX-Pin: 123456\r\nContent-Length: 10").resource != nullptr, "Camera orders in use must be taken");
+            const auto restart = admit("POST /api/hud/restart HTTP/1.1\r\nX-Pin: 123456\r\nContent-Length: 2");
+            Require(restart.refused && restart.refused->status == 409 && json::parse(restart.refused->body)["error"] == "not during a match", "A restart during a match must be refused");
+            match = false;
+            Require(admit("POST /api/hud/apply HTTP/1.1\r\nX-Pin: 123456\r\nContent-Length: 2").resource != nullptr, "Applying a HUD with no match must be taken");
         }
         // Wrong PINs: five lock one address out for 30 s; the addresses kept are bounded; past the budget only signed-in addresses get in.
         {
