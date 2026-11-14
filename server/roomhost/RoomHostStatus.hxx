@@ -27,8 +27,10 @@ static_assert(MaximumWonGames == 32, "MAX_GAMES_BYTES in ember-rooms and the bri
 // and a games array of at most SupervisorGamesBytes, as written, and drops a
 // larger one (MAX_DETAILS_BYTES and MAX_GAMES_BYTES in protocol.rs). The
 // largest won game is 213 bytes (two Ember IDs, the largest generation, game
-// and fighters), so 32 of them are under 7 KB. A supervisor from before 1.6.0
-// drops games over 6144 bytes: it is upgraded before this room host is.
+// and fighters), so 32 of them are under 7 KB. The room keeps only its newest
+// won games whose report fits MaximumWonGamesBytes (6144, TrimWonGames), the
+// limit of a supervisor from before 1.6.0, so the report fits what every
+// deployed supervisor accepts, whichever is upgraded first.
 constexpr std::size_t SupervisorDetailsBytes = 2048, SupervisorGamesBytes = 8192;
 
 // What the bridge lists beside a room (the status line's "details" object).
