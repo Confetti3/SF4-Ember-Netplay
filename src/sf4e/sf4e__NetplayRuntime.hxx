@@ -298,12 +298,12 @@ struct Runtime {
     // The second slot of the archive browser: the sets of the profile open. Never the Archive tab's listing.
     netplay::archive::Requests profileSets;
     // Other players' profiles: the one open and the Find a player search, with their requests in flight
-    // (sf4e__NetplayRuntime__Levels.cxx).
+    // (sf4e__NetplayRuntime__Profiles.cxx).
     netplay::profiles::Requests profiles;
     // The player's own card as the bridge keeps it, and what the save measures: the connection (read at most once
     // a minute and when a room is joined, never during a match; linkEpoch is the room it was read in, 0 for none)
     // and the relay region last known; and the bundle as last built, with the preferences' revision, the country
-    // and the style it was built from (sf4e__NetplayRuntime__Levels.cxx).
+    // and the style it was built from (sf4e__NetplayRuntime__Profiles.cxx).
     netplay::profiles::Saver cardSaver;
     struct CardSignals {
         NetworkLink link = NetworkLink::Unknown;
@@ -639,7 +639,7 @@ void TickLevels(bool helperReady, std::uint64_t nowMs);
 void TickCards(bool helperReady, std::uint64_t nowMs);
 // The friend the Friends tab has focused: their card is looked up with the members' (Cards::WantFriend).
 void DispatchCards(const commands::FriendCardWanted& command);
-// Other players' profiles and the player's own card (same file). The interface's commands; the profile and
+// Other players' profiles and the player's own card (sf4e__NetplayRuntime__Profiles.cxx). The interface's commands; the profile and
 // search the helper answers through flights; and the tick that sends what is due: the look-ups of the profile
 // open, the search, and the player's card when it changed (netplay/ProfileRequests.hxx, netplay/CardBundle.hxx).
 void DispatchProfile(const commands::ProfileOpen& command);
