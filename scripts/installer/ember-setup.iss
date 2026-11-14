@@ -44,8 +44,11 @@ Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 ; The uninstall helper, kept beside the uninstaller rather than in the folder,
 ; so uninstall works whatever has happened to {app}\Updater.exe since.
 Source: "{#PackageDir}\Updater.exe"; DestDir: "{localappdata}\{#AppName} Setup"; DestName: "ember-uninstall.exe"; Flags: ignoreversion
-Source: "ember-firewall.ps1"; DestDir: "{localappdata}\{#AppName} Setup"; Flags: ignoreversion
 Source: "{#Redist}"; DestDir: "{tmp}"; DestName: "vc_redist.x86.exe"; Flags: deleteafterinstall; Check: RuntimeOutdated
+
+[InstallDelete]
+; Earlier setups left the firewall script in the user's folder.
+Type: files; Name: "{localappdata}\{#AppName} Setup\ember-firewall.ps1"
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\Launcher.exe"; WorkingDir: "{app}"
@@ -56,13 +59,29 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\Launcher.exe"; WorkingDir: "{
 ; administrator rights. Declining leaves Launcher.exe to report the old runtime.
 Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing the Microsoft Visual C++ runtime. This can take a minute..."; BeforeInstall: RuntimeBar(True); AfterInstall: RuntimeBar(False); Check: RuntimeOutdated
 ; The firewall rules need administrator rights too, so this is asked for only when the task is chosen.
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{localappdata}\{#AppName} Setup\ember-firewall.ps1"" -Folder ""{app}"""; Verb: runas; Flags: shellexec runhidden waituntilterminated; StatusMsg: "Allowing Ember in Windows Firewall..."; Tasks: firewall
+; No file is run elevated, not even one in Setup's temporary folder, which the user can write to: the
+; rules are the command itself, and so is their removal under [UninstallRun]. Inno Setup's quoting for
+; Parameters: the whole value is in double quotes, a double quote inside it is written twice, and a
+; "{" starts a constant. So the command is wrapped in "" "" (the quotes PowerShell's -Command takes),
+; uses only single quotes inside, and no braces of its own; the folder comes from {code:FirewallFolder}
+; (the install folder with any single quote doubled, for a single-quoted PowerShell string).
+; Group "Ember" holds both rules, and anything already in it is replaced, so a second install leaves one copy.
+; Matches: sf4-net.exe, inbound, Private and Public networks. Phone remote: TCP 47321-47328 in, Private
+; networks only, and only from the local subnet.
+Filename: "powershell.exe"; Parameters: "-NoProfile -Command ""$ErrorActionPreference = 'Stop'; Get-NetFirewallRule -Group Ember -ErrorAction SilentlyContinue | Remove-NetFirewallRule; New-NetFirewallRule -DisplayName 'Ember matches (sf4-net.exe)' -Group Ember -Action Allow -Direction Inbound -Program '{code:FirewallFolder}\sf4-net.exe' -Profile Private,Public | Out-Null; New-NetFirewallRule -DisplayName 'Ember phone remote' -Group Ember -Action Allow -Direction Inbound -Protocol TCP -LocalPort 47321-47328 -RemoteAddress LocalSubnet -Profile Private | Out-Null"""; Verb: runas; Flags: shellexec runhidden waituntilterminated; StatusMsg: "Allowing Ember in Windows Firewall..."; Tasks: firewall
 Filename: "{app}\Launcher.exe"; Description: "{cm:LaunchProgram,{#AppName}}"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{localappdata}\{#AppName} Setup\ember-firewall.ps1"" -Remove"; Verb: runas; Flags: shellexec runhidden waituntilterminated; RunOnceId: "EmberFirewall"; Check: FirewallRulesExist
+Filename: "powershell.exe"; Parameters: "-NoProfile -Command ""Get-NetFirewallRule -Group Ember -ErrorAction SilentlyContinue | Remove-NetFirewallRule"""; Verb: runas; Flags: shellexec runhidden waituntilterminated; RunOnceId: "EmberFirewall"; Check: FirewallRulesExist
 
 [Code]
+// The install folder as a single-quoted PowerShell string holds it (an apostrophe in a folder name is doubled).
+function FirewallFolder(Param: String): String;
+begin
+  Result := ExpandConstant('{app}');
+  StringChangeEx(Result, , '', True);
+end;
+
 // Only a setup that added the rules asks for administrator rights again to remove them.
 function FirewallRulesExist: Boolean;
 var

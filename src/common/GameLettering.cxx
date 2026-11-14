@@ -173,9 +173,14 @@ bool DrawSheet(const Outlines& font, Sheet& sheet, std::vector<unsigned char>& b
         for (std::size_t g = 0; g < sheet.glyphs.size(); ++g) {
             float x0 = font.outlines[g].front().x0, x1 = x0, y0 = font.outlines[g].front().y0, y1 = y0;
             for (const auto& s : font.outlines[g]) { x0 = (std::min)({x0, s.x0, s.x1}); x1 = (std::max)({x1, s.x0, s.x1}); y0 = (std::min)({y0, s.y0, s.y1}); y1 = (std::max)({y1, s.y0, s.y1}); }
-            // Whole pixels round the ink, a float's error short of a whole one taken as it.
-            const auto down = [](float v) { return static_cast<int>(std::floor(v + 1e-3f)); };
-            const auto up = [](float v) { return static_cast<int>(std::ceil(v - 1e-3f)); };
+            // Whole pixels round the ink, a float's error short of a whole one taken as it. A
+            // font whose outlines reach far beyond any sheet is held to a million pixels (and a
+            // value that is no number to its negative), so the conversion is always defined and
+            // the glyph is refused below as too big.
+            constexpr float MostPixels = 1048576.f;
+            const auto held = [](float v) { return v > -MostPixels ? (v < MostPixels ? v : MostPixels) : -MostPixels; };
+            const auto down = [&](float v) { return static_cast<int>(std::floor(held(v) + 1e-3f)); };
+            const auto up = [&](float v) { return static_cast<int>(std::ceil(held(v) - 1e-3f)); };
             const int left = down(x0 * scale) - Padding, top = down(y0 * scale) - Padding;
             const int w = up(x1 * scale) + Padding - left, h = up(y1 * scale) + Padding - top;
             if (x + w > SheetWidth) { x = 0; y += shelf; shelf = 0; }

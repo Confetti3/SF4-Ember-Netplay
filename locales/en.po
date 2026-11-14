@@ -1000,6 +1000,9 @@ msgstr "Choose files in the window that opened..."
 msgid "replays.import_some_failed"
 msgstr "{0} of {1} files could not be imported."
 
+msgid "replays.import_skipped"
+msgstr "{0} file(s) were skipped. Ember imports .emberreplay, .usf4replay and .emberpack files on a local drive, up to 64 at a time."
+
 msgid "replays.import_done"
 msgstr "Replays now holds {0} game(s) from {1} file(s)."
 

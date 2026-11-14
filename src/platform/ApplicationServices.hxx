@@ -18,6 +18,7 @@
 #include <thread>
 #include <vector>
 #include <atomic>
+#include "ReplayPicker.hxx"
 
 namespace sf4e { namespace platform {
 // SwitchUpdateChannel saves the channel ApplicationServices::SwitchUpdateChannel
@@ -32,7 +33,7 @@ namespace sf4e { namespace platform {
 // PickReplays opens the Windows file picker over the game's window, in the
 // Downloads folder, for replay and set pack files. It runs on a thread of its
 // own, not the worker, so reports, updates and diagnostics go on while it is
-// open; what was picked is taken with TakePicked (nothing for a cancel).
+// open; what was picked is taken with Picker().Take() (nothing for a cancel).
 enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
     PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate, PickReplays };
 // Where the launch check is. Off is a service that makes none (a snapshot
@@ -179,13 +180,9 @@ public:
     bool ReportCrash(const reports::CrashContext& crash, reports::AutomaticCrash::Consent consent);
     bool SendReport(const reports::Submission& submission);
     ServiceSnapshot Snapshot() const;
-    // The game's display as the game knows it: its window (which the picker
-    // is shown over; null for none) and whether it owns the whole screen
-    // (exclusive full screen), where PickReplays is refused.
-    void SetDisplay(void* window, bool exclusiveFullScreen);
-    // The files the picker returned since the last call, as UTF-8 paths; the
-    // game thread collects them, so a pick never lands anywhere else.
-    std::vector<std::string> TakePicked();
+    // The file picker PickReplays opens: the game tells it its display and
+    // collects what was picked from it.
+    ReplayPicker& Picker() { return picker_; }
     void Cancel() { cancelled_ = true; }
     void Observe(const DiagnosticsView& diagnostics);
 private:
@@ -194,16 +191,7 @@ private:
     // Starts a report operation through Start; the caller holds mutex_.
     bool QueueReport(ServiceAction action, reports::Operation operation);
     void Run();
-    // PickReplays: the picker's own thread and what it shares with the game
-    // thread. It outlives a destroyed service only as long as its thread does,
-    // so the thread holds it and never this object.
-    struct Picker;
-    bool StartPicker();
-    std::shared_ptr<Picker> CurrentPicker() const;
-    mutable std::mutex pickerMutex_;
-    std::shared_ptr<Picker> picker_;
-    std::atomic<void*> window_{nullptr};
-    std::atomic<bool> exclusiveFullScreen_{false};
+    ReplayPicker picker_;
     mutable std::mutex mutex_;
     std::condition_variable wake_;
     bool stop_ = false;

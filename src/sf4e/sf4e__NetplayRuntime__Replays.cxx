@@ -26,21 +26,23 @@ void RunReplayRequest(const replay::Request& request) {
     replaystore::Start(request, AtMainMenu(), NoRoom());
 }
 
-// What a run of imports came to, kept for the Replays screen beside the count of batches that
-// ended. The batch is its own answer: the screen needs no other counter to tell it from an
+// What a run of imports came to, with the files that were skipped before they joined it, kept
+// for the Replays screen beside the count of batches that ended. The batch is its own answer: the screen needs no other counter to tell it from an
 // older one, whether it begins and ends in one tick or many.
 static void SayImportBatch(const replay_import::Batch& batch) {
     auto& notice = runtime->importNotice;
-    notice.error = batch.failed != 0;
-    if (!batch.failed) notice.text = loc::Tf("replays.import_done", batch.held, batch.files);
+    notice.error = batch.failed != 0 || batch.skipped != 0;
+    notice.text.clear();
+    if (batch.files && !batch.failed) notice.text = loc::Tf("replays.import_done", batch.held, batch.files);
     else if (batch.files == 1) notice.text = loc::T("replays.set_import_failed");
-    else notice.text = loc::Tf("replays.import_some_failed", batch.failed, batch.files);
+    else if (batch.files) notice.text = loc::Tf("replays.import_some_failed", batch.failed, batch.files);
+    if (batch.skipped) notice.text += (notice.text.empty() ? "" : " ") + loc::Tf("replays.import_skipped", batch.skipped);
 }
 
 void TickReplays() {
     ApplyGameDisplay();
     // What the picker returned joins what drops and links handed over.
-    ReplayImports().Add(runtime->services.TakePicked());
+    ReplayImports().Add(runtime->services.Picker().Take());
     // One file a tick, read and written on the game thread (a pack is at most a couple of
     // MB), and only on Ember's menus: in a room or a match the files wait.
     if (const auto batch = replay_import::Step(ReplayImports(), AtMainMenu(), NoRoom(), [](const std::string& file) {

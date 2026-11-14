@@ -243,6 +243,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__OverlayPrefs.cxx"
     "src/sf4e/sf4e__OverlayRandomFighter.hxx"
     "src/sf4e/sf4e__OverlayRandomFighter.cxx"
+    "src/sf4e/sf4e__WatchedPicture.hxx"
+    "src/sf4e/sf4e__WatchedPicture.cxx"
     "src/sf4e/sf4e__Pad.hxx"
     "src/sf4e/sf4e__Pad.cxx"
     "src/sf4e/sf4e__BackgroundPlay.hxx"
@@ -351,7 +353,7 @@ target_compile_features(sf4e-room-host PRIVATE cxx_std_17)
 target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room)
 
 
-add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/platform/UpdatePolicy.cxx src/platform/ReportWorkflow.cxx src/platform/ReportHistory.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
+add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/platform/ReplayPicker.cxx src/platform/UpdatePolicy.cxx src/platform/ReportWorkflow.cxx src/platform/ReportHistory.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
 target_compile_features(sf4e_app_services PUBLIC cxx_std_17)
 target_compile_definitions(sf4e_app_services PRIVATE SF4E_APP_VERSION="${PROJECT_VERSION}")
 target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization sf4e_replay_files sf4e_problem_report PRIVATE sf4e_common sf4e_selection sf4e_package_installer sf4e_durable_file spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt ole32)

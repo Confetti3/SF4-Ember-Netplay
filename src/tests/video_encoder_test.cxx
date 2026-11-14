@@ -283,6 +283,17 @@ int wmain(int argc, wchar_t** argv) {
 	CHECK(s_longestPoll < 500);
 	CHECK(Temporaries(file) == leftBefore);
 	CHECK(read(file) == previous);
+	// A fast export whose encoder never opens and never dies: Send gives up
+	// within its patience and fails the export instead of holding the game.
+	SetEnvironmentVariableW(L"SF4E_TEST_ENCODER_HANGS", L"1");
+	CHECK(link::Start(file.wstring(), width, height, self, true));
+	SetEnvironmentVariableW(L"SF4E_TEST_ENCODER_HANGS", nullptr);
+	const ULONGLONG sendStarted = GetTickCount64();
+	link::Send(luma.data(), pitch, chroma.data(), pitch);
+	CHECK(GetTickCount64() - sendStarted < 20000);
+	CHECK(!Finish());
+	CHECK(Temporaries(file) == leftBefore);
+	CHECK(read(file) == previous);
 	std::wcout << L"Encoded " << size << L" bytes to " << file.wstring() << L"\n";
 	return 0;
 }

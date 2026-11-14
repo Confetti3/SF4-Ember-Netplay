@@ -31,13 +31,25 @@ inline std::vector<unsigned char> BoxShape(int x0, int y0, int x1, int y1) {
     w.U(0, 1); w.U(0, 5);                                    // the end
     return w.bytes;
 }
+// A glyph's shape that runs `lines` horizontal lines of 32000 units to the right.
+inline std::vector<unsigned char> LongShape(int lines) {
+    constexpr int Bits = 16;
+    BitWriter w;
+    w.U(1, 4); w.U(0, 4);
+    w.U(0, 1); w.U(0b00101, 5); w.U(Bits, 5); w.S(0, Bits); w.S(0, Bits); w.U(1, 1);
+    for (int i = 0; i < lines; ++i) { w.U(1, 1); w.U(1, 1); w.U(Bits - 2, 4); w.U(0, 1); w.U(0, 1); w.S(32000, Bits); }
+    w.U(0, 1); w.U(0, 5);
+    return w.bytes;
+}
 // A library's tags: a DefineFont3 named `name` with `characters`, each a box
 // 0.6 em wide and 0.75 em tall on the baseline (the F's capital height), then
-// the end. With `cut`, the last glyph's shape stops halfway.
-inline std::vector<unsigned char> Library(const std::string& name, const std::string& characters, bool cut = false) {
+// the end. With `cut`, the last glyph's shape stops halfway. With `reach`, every
+// glyph is a one-unit box but the A, which runs that many lines of 32000 units
+// to the right: an outline far beyond what the sheet can hold at any size.
+inline std::vector<unsigned char> Library(const std::string& name, const std::string& characters, bool cut = false, int reach = 0) {
     std::vector<std::vector<unsigned char>> shapes;
     for (std::size_t i = 0; i < characters.size(); ++i) {
-        auto shape = BoxShape(1000, -15360, 13000, 0);
+        auto shape = !reach ? BoxShape(1000, -15360, 13000, 0) : characters[i] == 'A' ? LongShape(reach) : BoxShape(0, -1, 1, 0);
         if (cut && i + 1 == characters.size()) shape.resize(shape.size() / 2);
         shapes.push_back(shape);
     }

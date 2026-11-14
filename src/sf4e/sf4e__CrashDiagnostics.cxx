@@ -376,6 +376,10 @@ void HeapCheckpoint(const char* operation, int frame) {
 	CheckHeaps(operation, frame, false);
 }
 
+unsigned long long LargestFreeRange() {
+	return WalkAddressSpace().largestFree;
+}
+
 void NoteMatchBoundary(const char* label) {
 	CheckHeaps(label, -1, true);
 	PROCESS_MEMORY_COUNTERS_EX memory = {};

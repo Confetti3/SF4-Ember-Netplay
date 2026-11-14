@@ -1,6 +1,8 @@
 #include "sf4e__Overlay.hxx"
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__OverlayRandomFighter.hxx"
+#include "sf4e__WatchedPicture.hxx"
+#include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__SelfTest.hxx"
 #include "sf4e__GameEvents.hxx"
@@ -62,33 +64,6 @@ static std::unique_ptr<sf4e::ui::SelectionArt> s_selectionArt;
 // a session, and ImGui writes through the null it gets then (EMBER-70). Never
 // freed, so no static destructor runs after the device is gone.
 static ImFontAtlas& OverlayFontAtlas() { static auto* atlas = IM_NEW(ImFontAtlas)(); return *atlas; }
-// The watched game's picture (ShellView::watchedPicture): the render target
-// copied at its own size, which also resolves a multisampled one, then
-// filtered down. Made at the first size seen and let go with the overlay,
-// which a Reset (also a change of resolution) or the device going frees.
-// The full copy keeps the target's format for the resolve; the shown one is
-// X8R8G8B8, so it samples opaque whatever alpha the game left in an A8R8G8B8
-// backbuffer (ImGui blends images by their alpha).
-static IDirect3DTexture9* s_watchedFull = nullptr, * s_watchedShown = nullptr;
-static bool s_watchedFailed = false;
-static ImTextureID WatchedPicture(unsigned width, unsigned height) {
-	IDirect3DDevice9* device = Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice;
-	IDirect3DSurface9* target = nullptr, * full = nullptr, * shown = nullptr;
-	D3DSURFACE_DESC desc{};
-	const bool fresh = !s_watchedShown;
-	const bool done = !s_watchedFailed && SUCCEEDED(device->GetRenderTarget(0, &target)) && SUCCEEDED(target->GetDesc(&desc)) &&
-		(s_watchedFull || SUCCEEDED(device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET, desc.Format, D3DPOOL_DEFAULT, &s_watchedFull, nullptr))) &&
-		(s_watchedShown || SUCCEEDED(device->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &s_watchedShown, nullptr))) &&
-		SUCCEEDED(s_watchedFull->GetSurfaceLevel(0, &full)) && SUCCEEDED(s_watchedShown->GetSurfaceLevel(0, &shown)) &&
-		SUCCEEDED(device->StretchRect(target, nullptr, full, nullptr, D3DTEXF_NONE)) && SUCCEEDED(device->StretchRect(full, nullptr, shown, nullptr, D3DTEXF_LINEAR));
-	for (auto* surface : {target, full, shown}) if (surface) surface->Release();
-	// Once per overlay: the format names the backbuffer this picture came from.
-	if (done && fresh) spdlog::info("Overlay: watched game's picture {}x{} from its {}x{} frame in format {}", width, height, desc.Width, desc.Height, static_cast<int>(desc.Format));
-	// Once: the menu then stays translucent until the overlay is made again.
-	// A driver that will not convert the format to X8R8G8B8 ends up here too.
-	if (!done && !s_watchedFailed) { s_watchedFailed = true; spdlog::warn("Overlay: no {}x{} picture of the watched game's {}x{} frame in format {}", width, height, desc.Width, desc.Height, static_cast<int>(desc.Format)); }
-	return done ? reinterpret_cast<ImTextureID>(s_watchedShown) : ImTextureID{};
-}
 static sf4e::ui::FighterSelector s_fighterSelectors[3];
 static sf4e::ui::ApplicationShell shell;
 // The room the drawn shell shows, kept across frames (DrawApplicationHome).
@@ -256,6 +231,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 		[](const std::string& line) { spdlog::warn("{}", line); }));
     sf4e::ui::SetMenuArt(s_selectionArt.get());
     sf4e::ui::SetAtlasBuildLog([](const char* line) { spdlog::info("{}", line); });
+    sf4e::ui::SetLargestFreeRange([] { return static_cast<std::size_t>(sf4e::crash::LargestFreeRange()); });
     shell.SetChatLog([](const std::string& line) { spdlog::info("{}", line); });
 	fMainMenu::OnModeSelectedOverride = OnMainMenuModeSelected;
 
@@ -400,7 +376,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         const auto& size = ImGui::GetMainViewport()->Size;
         // The texture is made once, at the largest size the picture can be shown, so any size stays sharp.
         const float share = sf4e::ui::WatchedPictureTaken;
-        view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * share), static_cast<unsigned>(size.y * share));
+        view.watchedPicture = sf4e::overlay::WatchedPicture(static_cast<unsigned>(size.x * share), static_cast<unsigned>(size.y * share));
     }
     view.lockInDrops = snapshot.lockInDrops;
 	view.canEditPreferences = snapshot.canEditPreferences;
@@ -938,8 +914,7 @@ void Overlay::FreeOverlay() {
     controllerNavigation.Reset();
     sf4e::ui::SetMenuArt(nullptr);
     s_selectionArt.reset();
-    for (auto** texture : {&s_watchedFull, &s_watchedShown}) if (*texture) { (*texture)->Release(); *texture = nullptr; }
-    s_watchedFailed = false;
+    sf4e::overlay::ReleaseWatchedPicture();
     // The window no longer takes drops once Ember's hooks are gone.
     sf4e::platform::AcceptDroppedFiles(s_overlayWindow, false);
     sf4e::NetplayFacade::NoteGameWindow(nullptr);
