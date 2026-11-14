@@ -96,6 +96,13 @@ int main() {
     block[12] = 4; block[16] = 4; block[128] = (char)255; block[129] = (char)255; block[136] = 0x00; block[137] = (char)0xF8;
     CHECK(hud_textures::Decode(block, image) && image.rgba[0] == 255 && image.rgba[1] == 0 && image.rgba[2] == 0 && image.rgba[3] == 255);
 
+    // Elements of the files the game reads only as it starts say so (the editor's restart note); the cockpit and the groups do not.
+    {
+        std::map<std::string, bool> atStart;
+        for (const auto& element : hud_layout::Elements()) atStart[element.id] = hud_layout::LoadsAtStart(element.file);
+        CHECK(atStart["p1_label"] && atStart["p2_name"] && atStart["p1_face"] && atStart["p2_ucname"] && atStart["kotext"]);
+        CHECK(!atStart["p1_life"] && !atStart["clock"] && !atStart["p1_all"]);
+    }
     // layout.json: good entries survive, bad ones and unknown ids do not.
     const auto json = nlohmann::json::parse(R"({"p1_plate":{"x":1,"y":2,"rot":3,"s":0.5,"hide":true},"p2_name":{"x":"no"},"nothing":{"x":1,"y":1,"rot":0,"s":1},"p1_life":{"x":1,"y":2,"rot":0,"s":0}})");
     const auto read = hud_layout::LayoutFromJson(json);

@@ -393,6 +393,10 @@ void GameMenu::DrawBody(Frame& f, v2::Box content) {
         if (focused) v2::Focus(d, box.min, box.max);
     }
     ImGui::EndDisabled();
+    // A body that placed the focused row but named no place for its choices (a card's More button) has them open at that row,
+    // so a choice the pad asked for is always drawn.
+    if (bodyChoices.card.W() <= 0)
+        if (const MenuRect* placed = navigation.PlacedNow(navigation.Focus())) bodyChoices = {BoxOf(*placed), content};
     f.valuePanel = DrawValuePanel(f, bodyChoices.card, bodyChoices.column);
 }
 

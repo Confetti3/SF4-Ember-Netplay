@@ -16,9 +16,12 @@ struct Element {
 const std::vector<Element>& Elements();
 // The HUD files the elements live in (battle\hud\CMN\<name>.ems.emz).
 const std::vector<std::string>& Files();
+// Whether the game reads a HUD file only as it starts (names, portraits, the PLAYER / CPU labels and the ultra move
+// name: docs/design/HUD_EDITOR.md), so an edit to its elements shows after a restart. The cockpit is read each battle.
+bool LoadsAtStart(const std::string& file);
 
 // Where an element is on the 1280x720 canvas, as the file has it.
-struct Info { std::string id, label, parent; double cx = 0, cy = 0, w = 0, h = 0; };
+struct Info { std::string id, label, parent; double cx = 0, cy = 0, w = 0, h = 0; bool atStart = false; };
 // What the user did to an element: its stock centre goes to (x, y), then
 // rotation (clockwise degrees) and scale about it. A group moves its elements.
 struct Edit { double x = 0, y = 0, rot = 0, scale = 1; bool hide = false; };

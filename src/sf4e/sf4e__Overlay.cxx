@@ -639,7 +639,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (sf4e::selftest::MenuFrame(shell.Navigation(), menuButtons) && !presentation.Visible() && presentation.Available()) presentation.Open("the menu self-test");
     sf4e::ui::SetMenuInput({menuButtons, ImGui::GetTime()});
     for (const auto& pad : snapshot.pads) if (pad.gameplay) sf4e::ui::SetMenuPromptBrand(snapshot.promptBrand, gamepads::NamesOf(pad.table));
-    sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.menu,snapshot.promptBrand);
+    // The runtime fills the sample only while the pad can drive the menu; a frame it did not fill leaves the prompts as they were.
+    if (snapshot.menuController.deviceType >= 0) sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.menu,snapshot.promptBrand);
     if (presentation.Reopened()) shell.ShowPlay();
     // The game's battle log was opened from the Replays screen: Ember's menu
     // gets out of the way, and comes back on that screen when the replay

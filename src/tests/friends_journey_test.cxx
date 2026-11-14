@@ -6,6 +6,7 @@
 #include "public_rooms_journey_support.hxx"
 #include "../ui/FriendsPanel.hxx"
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <memory>
 namespace {
 namespace nf = sf4e::netplay::friends;
@@ -199,6 +200,36 @@ void ActionsJourney() {
  Check(opens.size() == 1 && opens[0]->key == netplay::profiles::Key::OfFriend("fr_5") && opens[0]->known.name == "Player 5", "A friend's card was not asked for by their friend id with their name");
  j.h.Press(MenuInput::Back);
  Check(j.screen() == "friends", "Back from a friend's card did not return to the tab");
+}
+
+// Whether the choices popout (GameMenu::DrawValuePanel) was drawn in the frame just run.
+bool PopoutDrawn() {
+ const ImGuiWindow* window = ImGui::FindWindowByName("###Values");
+ return window && (window->Active || window->WasActive);
+}
+
+// More is Y on the Friends tab's friend and on another player's Card tab: each opens its choices, and the popout is drawn where a
+// player sees it, the Card tab's from the hero's More button (a card is no board row that draws its own choices).
+void MorePopoutJourney() {
+ Social j;
+ j.open();
+ j.focus("friend:fr_3");
+ j.h.Press(MenuInput::Options);
+ j.h.Frame();
+ Check(j.choosing() && PopoutDrawn(), "Y on a friend opened no popout that is drawn");
+ j.h.Press(MenuInput::Back);
+ j.h.Frame();
+ Check(!j.choosing() && !PopoutDrawn(), "Back left the friend's popout drawn");
+ j.focus("friend:fr_5");
+ j.h.Press(MenuInput::Select);
+ Check(j.screen() == "player-card", "A on a friend did not open their Player card");
+ j.h.Frame(0, 2);
+ j.h.Press(MenuInput::Options);
+ j.h.Frame();
+ Check(j.choosing() && PopoutDrawn(), "Y on another player's Card tab opened no popout that is drawn");
+ j.h.Press(MenuInput::Back);
+ j.h.Frame();
+ Check(!j.choosing() && j.screen() == "player-card" && !PopoutDrawn(), "Back from More on the Card tab left it open or left the page");
 }
 
 // More's Player card, first on a friend and on a request, opens their profile by their friend id or request id.
@@ -589,7 +620,7 @@ void SettingsJourney() {
 
 int main() {
  try {
-  VisitJourney(); RowsReadJourney(); RowsJourney(); ActionsJourney(); CardJourney(); CardWantedJourney(); MoreJourney(); RequestJourney(); AddJourney(); FindJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
+  VisitJourney(); RowsReadJourney(); RowsJourney(); ActionsJourney(); CardJourney(); MorePopoutJourney(); CardWantedJourney(); MoreJourney(); RequestJourney(); AddJourney(); FindJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
   std::cout << "Friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

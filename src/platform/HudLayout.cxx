@@ -147,7 +147,7 @@ bool Load(const std::map<std::string, std::string>& emz, std::map<std::string, E
 std::vector<Info> Infos(const std::map<std::string, Ems>& files) {
     std::map<std::string, Info> info;
     auto put = [&](const Element& el, const Box& b) {
-        info[el.id] = { el.id, el.label, el.parent, (b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, b.x1 - b.x0, b.y1 - b.y0 };
+        info[el.id] = { el.id, el.label, el.parent, (b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, b.x1 - b.x0, b.y1 - b.y0, LoadsAtStart(el.file) };
     };
     for (const Element& el : Elements()) { Box b; if (!el.file.empty() && BoxOf(el, files, b)) put(el, b); }
     for (const Element& el : Elements()) {
@@ -212,6 +212,8 @@ const std::vector<std::string>& Files() {
     static const std::vector<std::string> files = { "cockpit", "chara", "cockpit_text", "uc" };
     return files;
 }
+
+bool LoadsAtStart(const std::string& file) { return file == "chara" || file == "cockpit_text" || file == "uc"; }
 
 const std::vector<Element>& Elements() {
     static const std::vector<Element> elements = [] {

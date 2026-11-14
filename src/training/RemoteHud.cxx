@@ -169,7 +169,7 @@ bool Build(const Host& host, const std::string& name, const std::map<std::string
     return true;
 }
 nlohmann::json InfoJson(const layout::Info& i) {
-    return { { "id", i.id }, { "label", i.label }, { "parent", i.parent }, { "cx", i.cx }, { "cy", i.cy }, { "w", i.w }, { "h", i.h } };
+    return { { "id", i.id }, { "label", i.label }, { "parent", i.parent }, { "cx", i.cx }, { "cy", i.cy }, { "w", i.w }, { "h", i.h }, { "atStart", i.atStart } };
 }
 
 struct Request { const Host& host; std::string query; nlohmann::json json; };      // json: the body of a POST
