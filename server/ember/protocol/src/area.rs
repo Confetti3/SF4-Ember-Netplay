@@ -59,6 +59,22 @@ mod tests {
             .collect()
     }
 
+    /// The rooms page's AREAS, in its order: `{ code: 'Name', ... }` on one line.
+    fn site_areas(script: &str) -> Vec<(String, String)> {
+        let open = "var AREAS = {";
+        let start = script.find(open).expect("the rooms page's AREAS") + open.len();
+        let body = &script[start..start + script[start..].find('}').unwrap()];
+        body.split(',')
+            .map(|pair| {
+                let (code, name) = pair.split_once(':').unwrap();
+                (
+                    code.trim().to_owned(),
+                    name.trim().trim_matches('\'').to_owned(),
+                )
+            })
+            .collect()
+    }
+
     /// The English name of `key` in a gettext catalog.
     fn catalog_name(catalog: &str, key: &str) -> Option<String> {
         let catalog = catalog.replace("\r\n", "\n");
@@ -98,6 +114,24 @@ mod tests {
             assert!(
                 name.is_some_and(|name| !name.is_empty()),
                 "{code} has no name"
+            );
+        }
+    }
+
+    #[test]
+    fn the_rooms_page_lists_the_same_areas_by_the_games_names() {
+        let Some(script) = repository_file("server/ember-short/deploy/site/assets/rooms.js") else {
+            return;
+        };
+        let catalog = repository_file("locales/en.po").expect("the English catalog");
+        let listed = site_areas(&script);
+        let codes: Vec<&str> = listed.iter().map(|(code, _)| code.as_str()).collect();
+        assert_eq!(codes, Area::NAMES);
+        for (code, name) in &listed {
+            assert_eq!(
+                catalog_name(&catalog, &format!("area.{code}")).as_ref(),
+                Some(name),
+                "{code}"
             );
         }
     }
