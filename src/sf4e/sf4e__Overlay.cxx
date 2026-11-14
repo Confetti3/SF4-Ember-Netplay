@@ -460,6 +460,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.publicRooms = snapshot.publicRooms;
     view.rankings = snapshot.rankings;
     view.archiveBrowse = snapshot.archive;
+    view.archiveFetch = snapshot.archiveFetch;
     view.levels = snapshot.levels;
     view.memberCards = snapshot.memberCards;
     view.profile = snapshot.profile;

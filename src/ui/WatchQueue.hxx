@@ -38,7 +38,7 @@ public:
     void Pop() { games_.erase(games_.begin()); }
     // Whether the front game can start now: the game takes a replay, and an
     // archive game is not still being downloaded behind another.
-    bool Ready(const ShellView& v) const { return !games_.empty() && v.replays.ready && (!Front().Archived() || v.archiveBrowse.fetching.empty()); }
+    bool Ready(const ShellView& v) const { return !games_.empty() && v.replays.ready && (!Front().Archived() || v.archiveFetch.fetching.empty()); }
     // The command that starts the front game, which then leaves the queue.
     ShellAction Start(const ShellView& v) {
         const QueuedGame game = std::move(games_.front());

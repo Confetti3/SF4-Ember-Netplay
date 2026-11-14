@@ -103,7 +103,7 @@ MenuEntry EntryRow(const ShellView& v, const Entry& entry, bool idle, const std:
     row.hint = loc::T("archive.watch_hint");
     const bool several = entry.games.size() > 1;
     row.choices.push_back(NeedsMenu("archive-watch", loc::T(several ? "replays.watch_set" : "replays.watch"), loc::T(several ? "replays.watch_set_detail" : "replays.watch_detail"),
-        idle, v.replays.ready && v.archiveBrowse.fetching.empty()));
+        idle, v.replays.ready && v.archiveFetch.fetching.empty()));
     const std::string names[2] = {NameOf(entry, 0), NameOf(entry, 1)};
     if (profile) {
         // The players of the set other than the one listed: their cards replace the profile (PlayerPage).
@@ -434,7 +434,7 @@ bool ArchiveTab::Choose(const MenuAction& a, const ShellView& v, const Submit& s
     const std::string names[2] = {NameOf(*entry, 0), NameOf(*entry, 1)};
     if (const auto name = FoundName(a.text, names)) {
         OpenFor(*name, nav);
-    } else if (a.text == "archive-watch" && v.replays.ready && v.archiveBrowse.fetching.empty()) {
+    } else if (a.text == "archive-watch" && v.replays.ready && v.archiveFetch.fetching.empty()) {
         // The first game now; each next one from the Next game row on Replays, where the log comes back to.
         queue.Fill(Games(*entry, v));
         if (!submit(queue.Start(v))) error = loc::T("error.queue_failed");
@@ -460,7 +460,7 @@ std::optional<player_opening::Opening> ArchiveTab::PlayerOf(const MenuAction& a)
 
 bool ArchiveTab::Status(const ShellView& v, const std::string& screen, std::string& status, Tone& tone) const {
     if (!(Owns(screen) || IsList(screen) || screen == place_.filter || screen == place_.fighter) || !status.empty()) return false;
-    const auto& answer = v.archiveBrowse;
+    const auto& answer = v.archiveFetch;
     if (!answer.fetching.empty()) { status = loc::T("archive.downloading"); tone = Tone::Pending; return true; }
     if (answer.fetchError.empty()) return false;
     status = loc::Tf("archive.download_failed", PublicRoomsPanel::FailureText(answer.fetchError));

@@ -153,24 +153,25 @@ static void EmptyPagesStop() {
 	EXPECT(requests.Cursor() == "4.ab");
 }
 
-// The download of a game to watch: one at a time, and its end is counted whether it was answered or lost.
+// The download of a game to watch: one at a time for both browsers, and its end is counted whether it was answered or lost.
 static void GameDownloads() {
+	ar::Fetching fetch;
+	EXPECT(!fetch.Begin(""));
+	EXPECT(fetch.Begin(Digest(1)) && fetch.Published().fetching == Digest(1));
+	EXPECT(!fetch.Begin(Digest(2)));
+	fetch.Finish("");
+	EXPECT(fetch.Published().fetching.empty() && fetch.Published().fetchError.empty() && fetch.Published().fetched == 1);
+	EXPECT(fetch.Begin(Digest(2)));
+	fetch.Finish("http_404");
+	EXPECT(fetch.Published().fetchError == "http_404" && fetch.Published().fetched == 2);
+	// A listing asked for meanwhile, in either browser, is not the download's.
 	ar::Requests requests;
-	EXPECT(!requests.BeginFetch(""));
-	EXPECT(requests.BeginFetch(Digest(1)) && requests.Published().fetching == Digest(1));
-	EXPECT(!requests.BeginFetch(Digest(2)));
-	requests.FinishFetch("");
-	EXPECT(requests.Published().fetching.empty() && requests.Published().fetchError.empty() && requests.Published().fetched == 1);
-	EXPECT(requests.BeginFetch(Digest(2)));
-	requests.FinishFetch("http_404");
-	EXPECT(requests.Published().fetchError == "http_404" && requests.Published().fetched == 2);
-	// A listing asked for meanwhile does not forget how the downloads stand.
-	EXPECT(requests.BeginFetch(Digest(3)));
+	EXPECT(fetch.Begin(Digest(3)));
 	requests.Begin("brg_1", {});
-	EXPECT(requests.Published().fetching == Digest(3) && requests.Published().fetched == 2);
-	requests.FinishFetch("");
-	EXPECT(requests.Published().fetched == 3 && requests.Published().fetchError.empty());
-	EXPECT(requests.BeginFetch(Digest(4)) && requests.Published().fetchError.empty());
+	EXPECT(fetch.Published().fetching == Digest(3) && fetch.Published().fetched == 2);
+	fetch.Finish("");
+	EXPECT(fetch.Published().fetched == 3 && fetch.Published().fetchError.empty());
+	EXPECT(fetch.Begin(Digest(4)) && fetch.Published().fetchError.empty());
 }
 
 // What the tab wants is asked of the runtime as it stands: the first page of its filter once, the next page once
@@ -313,10 +314,6 @@ static void TwoSlotsAreIndependent() {
 	// A failure of one leaves the other's listing as it was.
 	const auto again = profile.Begin("brg_1", sets);
 	EXPECT(profile.Finish(again, "http_502", std::nullopt) && profile.Published().state == State::Failed && tab.Published().state == State::Listed);
-	// A download is counted by the slot that asked for it.
-	EXPECT(tab.BeginFetch(Digest(1)) && tab.Published().fetching == Digest(1) && profile.Published().fetching.empty());
-	tab.FinishFetch("");
-	EXPECT(tab.Published().fetched == 1 && profile.Published().fetched == 0);
 	// Each keeps its own revision, so a reader of one regroups only for its own pages.
 	const auto revision = tab.Published().revision;
 	const auto third = profile.Begin("brg_1", sets);

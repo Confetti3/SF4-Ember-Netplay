@@ -297,6 +297,8 @@ struct Runtime {
     netplay::archive::Requests archive;
     // The second slot of the archive browser: the sets of the profile open. Never the Archive tab's listing.
     netplay::archive::Requests profileSets;
+    // The download of a game to watch: one at a time, whichever of the two browsers listed it.
+    netplay::archive::Fetching archiveFetch;
     // Other players' profiles: the one open and the Find a player search, with their requests in flight
     // (sf4e__NetplayRuntime__Levels.cxx).
     netplay::profiles::Requests profiles;

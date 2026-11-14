@@ -9,8 +9,9 @@
 // There are two browsers, each its own netplay::archive::Requests: the Archive
 // tab's (runtime->archive, ShellView::archiveBrowse) and the sets of the
 // profile open (runtime->profileSets, ShellView::profileSets), so a profile's
-// sets never replace the Archive tab's listing. A command names its slot
-// (`profile` on its commands) and its answers return to that slot.
+// sets never replace the Archive tab's listing. A listing command names its slot
+// (`profile`) and its answers return to that slot. A download is one thing for
+// both (runtime->archiveFetch, ShellView::archiveFetch).
 #include "sf4e__NetplayRuntime.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
@@ -64,27 +65,25 @@ void DispatchPage(const commands::ArchiveList& command, bool helperReady) {
 }
 
 // The game is on disk, or why it is not. A game that is is played as the interface asked.
-void TakeGame(bool profile, replay::Request watch, const std::string& path, const session::TournamentAnswer& answer) {
+void TakeGame(replay::Request watch, const std::string& path, const session::TournamentAnswer& answer) {
 	const std::string failure = !answer.ok ? BridgeFlights::Reason(answer) : std::string();
 	if (!failure.empty()) spdlog::info("Archive: the game was not downloaded: {}", failure);
-	Slot(profile).FinishFetch(failure);
+	runtime->archiveFetch.Finish(failure);
 	if (!failure.empty()) return;
 	watch.path = path;
 	internal::RunReplayRequest(watch);
 }
 
 void DispatchWatch(const commands::ArchiveWatch& command, bool helperReady) {
-	auto& requests = Slot(command.profile);
 	const auto path = platform::replays::ArchiveWatchPath(command.digest);
 	// One download at a time across both browsers: they write the same files.
-	if (!Slot(!command.profile).Published().fetching.empty()) return;
-	if (command.bridge.empty() || command.url.empty() || path.empty() || !requests.BeginFetch(command.digest)) return;
+	if (command.bridge.empty() || command.url.empty() || path.empty() || !runtime->archiveFetch.Begin(command.digest)) return;
 	platform::replays::PruneArchiveWatching(path);
 	const std::string utf8 = platform::WideToUtf8(path.wstring());
 	const json request = {{"op", "archive_fetch"}, {"bridge_id", command.bridge}, {"url", command.url}, {"path", utf8}};
 	replay::Request watch = command.watch;
 	spdlog::info("Archive: downloading a game to watch");
-	internal::SendFlight(request, helperReady, [profile = command.profile, watch = std::move(watch), utf8](const session::TournamentAnswer& answer) { TakeGame(profile, watch, utf8, answer); });
+	internal::SendFlight(request, helperReady, [watch = std::move(watch), utf8](const session::TournamentAnswer& answer) { TakeGame(watch, utf8, answer); });
 }
 }
 

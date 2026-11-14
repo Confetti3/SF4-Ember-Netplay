@@ -224,9 +224,10 @@ struct ShellView {
     // The bridge's public rooms and the answer to the last create or ticket request.
     netplay::publicrooms::Status publicRooms;
     netplay::rankings::Status rankings;
-    // The public replay archive's listing as the Replays screen's Archive tab asked for it, and the
-    // download of a game to watch.
+    // The public replay archive's listing as the Replays screen's Archive tab asked for it.
     netplay::archive::Status archiveBrowse;
+    // The download of a game to watch: one at a time across both browsers (the Archive tab's and a profile's sets).
+    netplay::archive::Fetch archiveFetch;
     // The profile page's data (docs/design/PROFILE.md). Commands: commands::ProfileOpen, ProfileClose and PlayerSearch.
     // The profile open: how it was opened, what the opener knew, and the card as it arrives. `state` Closed when none
     // is open; see netplay::profiles::Profile for each state's meaning and what each holds.
