@@ -131,7 +131,8 @@ std::vector<Art> ArtOf(const Host& host, const std::string& name) {
 }
 bool ReadArt(const Host& host, const std::string& name, const Art& a, textures::Image& image) {
     std::string bytes;
-    return Read(ArtFolder(host, name) / (ArtName(a) + ".png"), bytes) && textures::DecodePng(bytes, image) && image.width == a.u[2] - a.u[0] && image.height == a.u[3] - a.u[1];
+    const int width = a.u[2] - a.u[0], height = a.u[3] - a.u[1];
+    return Read(ArtFolder(host, name) / (ArtName(a) + ".png"), bytes) && textures::DecodePng(bytes, width, height, image) && image.width == width && image.height == height;
 }
 std::string Unbase64(const std::string& text) {
     std::string out; int bits = 0, value = 0;
@@ -257,7 +258,8 @@ Reply Image(const Request& r) {
     for (int i = 0; i < 4; ++i) a.u[i] = (*uv)[i].is_number_integer() && (*uv)[i] >= 0 && (*uv)[i] <= 4096 ? (*uv)[i].get<int>() : -1;
     textures::Image picture;
     if (!Valid(a)) return Fail(400, "bad region");
-    if (!textures::DecodePng(Unbase64(Text(json, "png")), picture) || picture.width != a.u[2] - a.u[0] || picture.height != a.u[3] - a.u[1]) return Fail(400, "bad picture");
+    const int width = a.u[2] - a.u[0], height = a.u[3] - a.u[1];
+    if (!textures::DecodePng(Unbase64(Text(json, "png")), width, height, picture) || picture.width != width || picture.height != height) return Fail(400, "bad picture");
     if (!WriteFile(ArtFolder(r.host, theme.name) / (ArtName(a) + ".png"), textures::EncodePng(picture))) return Fail(500, "cannot save");
     return Say(200, { { "ok", true }, { "name", ArtName(a) } });
 }

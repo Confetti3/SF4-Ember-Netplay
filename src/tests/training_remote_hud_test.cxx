@@ -127,7 +127,7 @@ int main() {
     {
         const auto view = get(hud::Order::Sheet, "name=Test&file=cockpit&index=0");
         sf4e::platform::hud_textures::Image seen;
-        CHECK(view.status == 200 && sf4e::platform::hud_textures::DecodePng(view.body, seen) && seen.rgba[(1 * 4 + 1) * 4] == 1 && seen.rgba[0] == 255);
+        CHECK(view.status == 200 && sf4e::platform::hud_textures::DecodePng(view.body, 4096, 4096, seen) && seen.rgba[(1 * 4 + 1) * 4] == 1 && seen.rgba[0] == 255);
     }
     CHECK(post(hud::Order::Apply, R"({"theme":"Test","layout":{}})").status == 200);
     CHECK(applied.size() == 1 && applied.count("CMN/cockpit.tex.emz") == 1);
