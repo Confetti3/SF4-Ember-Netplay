@@ -894,7 +894,11 @@ void ReconcileTrainingCall() {
 // put back to the game's own in the saved settings, as a pick in Settings is, and the player is told once.
 static void SettleTurnedOffThemes() {
 	const auto& turned = GameThemes::TurnedOff();
-	if (turned.empty() || !OverlayPrefs::SavePlayerPreferences(runtime->preferences)) return;
+	// A save that failed is tried again in a few seconds, not on every tick.
+	static std::uint64_t retryAtMs = 0;
+	const auto now = GetTickCount64();
+	if (turned.empty() || now < retryAtMs) return;
+	if (!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) { retryAtMs = now + 5000; return; }
 	for (const auto& off : turned)
 		PushAlert(loc::Tf("runtime.game_theme_turned_off", off.theme, loc::T(netplay::GameThemeLabels[off.part])).c_str(), NoticeSeverity::Warning);
 	GameThemes::TurnedOffTold();

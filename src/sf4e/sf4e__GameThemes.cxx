@@ -50,7 +50,15 @@ game_themes::Guard guard;
 std::vector<sf4e::GameThemes::Turned> turned;
 // What Use found about a pick this session, by part and theme: refused before use, or used with some HUD pictures missing.
 std::array<std::map<std::string, sf4e::netplay::GameThemeNote>, sf4e::netplay::GameThemePartCount> noted;
-std::string PartFolder(int part) { return sf4e::platform::WideToUtf8(game_themes::Parts[part]); }
+// A part's folder as the guard names it, made once: every status snapshot asks for each theme's note.
+const std::string& PartFolder(int part) {
+	static const std::array<std::string, sf4e::netplay::GameThemePartCount> folders = [] {
+		std::array<std::string, sf4e::netplay::GameThemePartCount> made;
+		for (int i = 0; i < sf4e::netplay::GameThemePartCount; ++i) made[i] = sf4e::platform::WideToUtf8(game_themes::Parts[i]);
+		return made;
+	}();
+	return folders[part];
+}
 // The game's own newest copy of a file of battle\hud, by the game's folders, newest first.
 std::filesystem::path GameHudFile(const std::wstring& relative) {
 	std::error_code ignored;
