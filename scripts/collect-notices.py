@@ -61,6 +61,8 @@ embedded = [('Unicode Character Database data (problem-report redaction tables, 
              'interface)', repo / 'src' / 'ui' / 'fonts' / 'NotoSansCJK-OFL.txt'),
             ('Tabler Icons outline paths (src/ui/LineIcons.inc, the interface line icons)',
              repo / 'src' / 'ui' / 'TablerIcons-MIT.txt'),
+            ('QR Code generator library by Project Nayuki (src/third_party/qrcodegen, the Training phone '
+             'remote QR code)', repo / 'src' / 'third_party' / 'qrcodegen' / 'LICENSE.txt'),
             ('List of Dirty, Naughty, Obscene, and Otherwise Bad Words by Shutterstock and contributors '
              '(assets/chat-filter, the room chat filter word lists, embedded in the interface)',
              repo / 'assets' / 'chat-filter' / 'LICENSE')]

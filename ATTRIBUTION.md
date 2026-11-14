@@ -64,6 +64,11 @@ converted to WOFF2 by [scripts/build-web-assets.py](scripts/build-web-assets.py)
 Subsetting keeps Inter's name, which is not a Reserved Font Name. The license is
 served beside them as `/assets/fonts/OFL.txt`.
 
+The Training phone remote's QR code is made by Project Nayuki's
+[QR Code generator library](https://www.nayuki.io/page/qr-code-generator-library),
+used unchanged under the MIT license ([src/third_party/qrcodegen/LICENSE.txt](src/third_party/qrcodegen/LICENSE.txt)).
+Packages include the notice in `notices/THIRD_PARTY_LICENSES.txt`.
+
 Controller support links [SDL 3](https://www.libsdl.org/) statically into Sidecar.dll,
 under the zlib license. Its notice is in `notices/THIRD_PARTY_LICENSES.txt`.
 
