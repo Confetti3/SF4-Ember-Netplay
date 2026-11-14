@@ -220,7 +220,9 @@ async fn the_desk_calls_a_set_on_discord_and_posts_its_score() {
     );
     assert!(content.contains("(<@222>)"), "{content}");
     assert!(content.contains("(<@333>)"), "{content}");
-    assert!(!content.contains("999"), "{content}");
+    // The desk's own Discord id is not what is mentioned. It is looked for as
+    // a mention: the call's link carries random ids that may hold "999".
+    assert!(!content.contains("<@999>"), "{content}");
     assert!(
         content.contains(&format!(
             "/m#{}/{match_id}",
