@@ -724,6 +724,13 @@ static void TestTyping() {
 	chat.text = "hello";
 	chat.actionId = ++next;
 	CHECK(authority.Apply(guest, chat).accepted && !shown(guest) && shown(host));
+	// The runtime's rule (TypingDue): a start at once and each TypingResendMs, a stop only after a
+	// start and while shown, so none after the member's own line.
+	Member member;
+	CHECK(TypingDue(true, 0, 2000, &member) && !TypingDue(true, 1000, 3999, &member) && TypingDue(true, 1000, 4000, &member));
+	CHECK(!TypingDue(false, 1000, 2000, &member) && !TypingDue(false, 1000, 2000, nullptr));
+	member.typingMs = TypingMs;
+	CHECK(TypingDue(false, 1000, 2000, &member) && !TypingDue(false, 0, 2000, &member));
 	// On the wire: as "locked", written only when set, and capped rather than refused when a newer peer says more.
 	auto action = TableAction(authority, guest, 0, ActionKind::Typing);
 	action.typing = true;

@@ -332,6 +332,15 @@ inline bool PostMatchDue(const PostMatchSaid& wanted, const PostMatchSaid& lastS
 	return wanted != lastSaid || nowMs - lastSaidAtMs >= PostMatchResendMs;
 }
 
+// Whether the runtime says a Typing word now (SayTyping), as `member` is shown in the room's own
+// snapshot (null with no room): a start at once and each TypingResendMs, a stop only while the
+// snapshot still shows them typing (a line they sent already ended it, ApplyChat).
+constexpr std::uint64_t TypingResendMs = 3000;
+inline bool TypingDue(bool typing, std::uint64_t lastSaidAtMs, std::uint64_t nowMs, const Member* member) {
+	if (typing) return !lastSaidAtMs || nowMs - lastSaidAtMs >= TypingResendMs;
+	return lastSaidAtMs && member && member->typingMs;
+}
+
 // The set a table finished last: who sat where for its deciding game, and the
 // final score by seat. The score itself resets for the next set.
 struct SetRecord {

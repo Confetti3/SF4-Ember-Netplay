@@ -385,7 +385,7 @@ struct Runtime {
 	std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
 	// When the room was last told whether the player is in Training.
 	std::uint64_t trainingSaidAtMs = 0;
-	// When the room was last told the player is typing; zero once told they stopped.
+	// When the room was last told the player is typing; zero once they stopped typing.
 	std::uint64_t typingSaidAtMs = 0;
 	// The post-match answer last said to the room, and when (SayPostMatch).
 	room::PostMatchSaid postMatchSaid;
