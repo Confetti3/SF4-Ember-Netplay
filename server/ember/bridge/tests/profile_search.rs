@@ -3,7 +3,7 @@
 
 mod common;
 
-use common::{Player, profiles::*, public_rooms::player};
+use common::profiles::*;
 use ember_protocol::{
     friends::ACTIONS_PATH,
     levels::{MAX_SEARCH, is_card_token},

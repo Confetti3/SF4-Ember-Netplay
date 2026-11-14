@@ -87,6 +87,9 @@ void WalkNews(sf4e::ui::ApplicationShell& shell, const Draw& draw, const Page& p
     using namespace sf4e;
     using namespace ui;
     page("news");
+    // A screen keeps the row last focused on it, so the walk starts from the first release by asking for it.
+    shell.Navigation().Prefer("news-0");
+    draw(nullptr, 0, 2);
     Require(shell.Navigation().Screen() == "news" && shell.Navigation().Focus() == "news-0", (where + ": News did not open on its first release").c_str());
     bool paneSeen = false;
     for (std::size_t i = 0; i < count; ++i) {
@@ -105,6 +108,8 @@ void WalkNews(sf4e::ui::ApplicationShell& shell, const Draw& draw, const Page& p
     // Select reads the focused release in full; the pane steps aside for it (it would print the title and notes twice).
     shell.Navigation().Home();
     page("news");
+    shell.Navigation().Prefer("news-0");
+    draw(nullptr, 0, 2);
     draw(nullptr, MenuInput::Select, 1);
     draw(nullptr, 0, 2);
     Require(shell.Navigation().Reading(), (where + ": Select did not open the release in the Reader").c_str());

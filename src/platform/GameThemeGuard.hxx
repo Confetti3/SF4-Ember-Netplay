@@ -14,7 +14,7 @@
 // Parts are named by their folder (game_themes::Parts). The state is a plain
 // value; Load and Save keep it in <game>\ember\theme-guard.json.
 namespace sf4e { namespace platform { namespace game_themes {
-constexpr wchar_t GuardFile[] = L"ember\theme-guard.json";
+constexpr wchar_t GuardFile[] = L"ember\\theme-guard.json";
 
 struct Guard {
     std::map<std::string, std::string> armed;                // part -> the theme being loaded now

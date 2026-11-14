@@ -30,7 +30,10 @@ fn uuid(prefix: &str, number: usize) -> String {
 
 /// A friend's Discord account, on either side of the caller in sort order.
 fn friend_account(number: usize) -> String {
-    format!("{}{number:03}", if number % 2 == 0 { 'd' } else { 'f' })
+    format!(
+        "{}{number:03}",
+        if number.is_multiple_of(2) { 'd' } else { 'f' }
+    )
 }
 
 fn social(
@@ -46,8 +49,8 @@ fn social(
         params![
             account,
             format!("Player {number}"),
-            (number % 2 == 0).then_some("JP"),
-            (number % 5 != 0).then_some((number % 40) as u8),
+            number.is_multiple_of(2).then_some("JP"),
+            (!number.is_multiple_of(5)).then_some((number % 40) as u8),
             format!("code-{account}"),
             off_line,
             NOW - 1_000 - number as u64,
@@ -124,7 +127,7 @@ fn seed(tx: &Transaction<'_>, friends: usize, now: u64) -> rusqlite::Result<()> 
                 [&account],
             )?;
         }
-        if number % 2 == 0 {
+        if number.is_multiple_of(2) {
             tx.execute(
                 "INSERT INTO skill_ratings (game, discord_user_id, rating, deviation, volatility, band, played_at)
                  VALUES ('usf4', ?1, ?2, ?3, 0.06, ?4, ?5)",
@@ -155,7 +158,7 @@ fn seed(tx: &Transaction<'_>, friends: usize, now: u64) -> rusqlite::Result<()> 
              VALUES (?1, ?2, ?3, 'label', ?4)",
             params![uuid("rq", number), sender, CALLER, 100 + number as u64],
         )?;
-        if number % 2 == 0 {
+        if number.is_multiple_of(2) {
             tx.execute(
                 "INSERT INTO pair_records (first, second, first_wins, second_wins, played_at)
                  VALUES (?1, ?2, 3, 1, 5)",

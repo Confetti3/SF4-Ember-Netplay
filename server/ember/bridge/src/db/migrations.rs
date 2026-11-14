@@ -275,14 +275,14 @@ fn check_records(tx: &Transaction<'_>, migrations: &[Migration]) -> Result<(), O
         };
         let expected = migration.checksum();
         let Some(name) = name else {
-            if let Some(shown) = schema_shows(tx, version)? {
-                if !shown.1 {
-                    return Err(OpenError::Migration(format!(
-                        "the database recorded migration {version:03} without a file name, but \
-                         its schema lacks {}: that migration did not run as {} does",
-                        shown.0, migration.name
-                    )));
-                }
+            if let Some(shown) = schema_shows(tx, version)?
+                && !shown.1
+            {
+                return Err(OpenError::Migration(format!(
+                    "the database recorded migration {version:03} without a file name, but \
+                     its schema lacks {}: that migration did not run as {} does",
+                    shown.0, migration.name
+                )));
             }
             tx.execute(
                 "UPDATE schema_migrations SET name = ?2, checksum = ?3 WHERE version = ?1",

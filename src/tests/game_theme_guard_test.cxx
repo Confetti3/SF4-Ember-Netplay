@@ -9,7 +9,7 @@ namespace fs = std::filesystem;
 using namespace sf4e::platform::game_themes;
 
 namespace {
-const std::string Hud = "battle\hud", Menu = "ui\main_menu";
+const std::string Hud = "battle\\hud", Menu = "ui\\main_menu";
 
 struct Folder {
     fs::path root;
@@ -73,7 +73,7 @@ void RoundTrip() {
         const Guard none = FromJson(text);
         CHECK(none.armed.empty() && none.proven.empty());
     }
-    const Guard partial = FromJson("{\"armed\":{\"battle\\hud\":\"A\",\"x\":4},\"closed\":{\"b\":[7,\"x\",\"\"]}}");
+    const Guard partial = FromJson("{\"armed\":{\"battle\\\\hud\":\"A\",\"x\":4},\"closed\":{\"b\":[7,\"x\",\"\"]}}");
     CHECK(partial.armed.size() == 1 && partial.armed.at(Hud) == "A" && partial.closed.size() == 1 && partial.closed.at("b").size() == 1);
 }
 

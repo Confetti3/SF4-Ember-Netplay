@@ -252,11 +252,11 @@ static void TestLevels() {
 		(*listedTwice)[0]->fighters[0].points == 1 && (*listedTwice)[0]->fighters[1].fighter == 9);
 	// A card from a later bridge: tiers past this build's table are its last, a fighter with no points yet is
 	// listed as sent, and members it does not know are ignored.
-	const auto future = session::DecodeCards({{"cards", json::array({json{{"account", {{"points", 1u}, {"tier", 5u}, {"season", 2u}}},
+	const auto laterBridge = session::DecodeCards({{"cards", json::array({json{{"account", {{"points", 1u}, {"tier", 5u}, {"season", 2u}}},
 		{"fighters", json::array({json{{"fighter", 3u}, {"points", 0u}, {"tier", 0u}}, json{{"fighter", 4u}, {"points", 1986u}, {"tier", 12u}, {"prestige", 1u}}})},
 		{"relation", "none"}, {"frame", "gold"}}})}});
-	CHECK(future && (*future)[0] && (*future)[0]->account.tier == netplay::levels::TierCount - 1 && (*future)[0]->fighters.size() == 2 &&
-		(*future)[0]->fighters[0].points == 0 && (*future)[0]->fighters[1].tier == netplay::levels::TierCount - 1);
+	CHECK(laterBridge && (*laterBridge)[0] && (*laterBridge)[0]->account.tier == netplay::levels::TierCount - 1 && (*laterBridge)[0]->fighters.size() == 2 &&
+		(*laterBridge)[0]->fighters[0].points == 0 && (*laterBridge)[0]->fighters[1].tier == netplay::levels::TierCount - 1);
 	// Members the reader does not know are ignored; an unknown relation is none.
 	for (const json& ignored : {json{{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"name", "Player 1"}}})}},
 			json{{"cards", json::array({nullptr})}, {"total", 1u}},

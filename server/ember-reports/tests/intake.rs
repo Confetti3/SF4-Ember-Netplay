@@ -579,7 +579,8 @@ async fn a_start_failure_report_is_accepted_as_a_crash_with_a_header_line() {
     m["exit_code"] = json!(255);
     let launcher = b"report: kind=start_failure phase=before_signal game_log=absent
 Started
-".to_vec();
+"
+    .to_vec();
     assert_eq!(
         validate(parts(vec![
             ("meta", None, serde_json::to_vec(&m).unwrap()),

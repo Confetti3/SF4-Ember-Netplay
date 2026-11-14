@@ -296,7 +296,7 @@ fn the_most_played_opponent_rides_beside_the_account_and_is_optional() {
     assert_eq!(members, ["badge", "card", "country", "lost", "name", "won"]);
     // A country and a badge are optional.
     let bare: RivalCard = read(&json!({"card": "c1.a", "name": "Player 7", "won": 1, "lost": 0}));
-    assert_eq!((bare.country.clone(), bare.badge.clone()), (None, None));
+    assert_eq!((bare.country.clone(), bare.badge), (None, None));
     assert!(bare.check().is_ok());
     let wire = serde_json::to_value(&bare).unwrap();
     assert!(wire.get("country").is_none() && wire.get("badge").is_none());

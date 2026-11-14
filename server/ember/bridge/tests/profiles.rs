@@ -5,7 +5,7 @@
 mod common;
 
 use common::{
-    Bridge, Player,
+    Bridge,
     profiles::*,
     public_rooms::{player, reason, send},
 };

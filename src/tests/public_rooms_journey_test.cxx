@@ -583,7 +583,7 @@ void QuickJoinJourney(){
   k.Admit("room_full");
   // Near me, then NA West, NA Central, NA East, Central America, South America and Europe West.
   step("pr-filter-area",MenuInput::Right,7);
-  Check(k.row("pr-filters")->value==loc::T("area.euw")+" \xC2\xB7 "+RoomTypeName(room::RoomType::Classic),"The Filters row does not say Europe West and Classic");
+  Check(k.row("pr-filters")->value==std::string(loc::T("area.euw"))+" \xC2\xB7 "+RoomTypeName(room::RoomType::Classic),"The Filters row does not say Europe West and Classic");
   h.Choose("pr-quick");
   Check(tickets(k)==2&&lastTicketIs(k,"brg_1","f"),"Quick join stayed near the player's area after the filter named another");
   k.Admit("room_full");

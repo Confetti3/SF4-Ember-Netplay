@@ -549,7 +549,7 @@ mod tests {
         // Every day of a long stretch starts at a day of the month's first.
         for day in 0..20_000u64 {
             let start = month_start(day * DAY + 7);
-            assert!(start <= day * DAY && start % DAY == 0, "{day}");
+            assert!(start <= day * DAY && start.is_multiple_of(DAY), "{day}");
             assert_eq!(month_start(start), start, "{day}");
             assert!(day * DAY - start < 31 * DAY, "{day}");
         }

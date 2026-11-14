@@ -6,7 +6,7 @@ mod common;
 use common::{
     blumint, code,
     play::{
-        BUILD, ROOM, act, bound, bound_as, claim_as, descriptor, endpoint, permit, prepare,
+        BUILD, ROOM, Table, act, bound, bound_as, claim_as, descriptor, endpoint, permit, prepare,
         publish, report,
     },
     watch::*,

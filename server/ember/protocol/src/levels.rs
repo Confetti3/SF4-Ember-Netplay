@@ -52,6 +52,9 @@ pub const MAX_TIER: u8 = 4;
 /// The caller's own points (`GET /v1/points/me`).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "points", rename_all = "snake_case")]
+// The counted answer is the usual one and travels by value like every other wire type here, so the
+// no-account answer is not boxed to shrink it.
+#[allow(clippy::large_enum_variant)]
 pub enum OwnLevels {
     /// No Discord account is connected to the caller's Ember ID, and points
     /// belong to one.

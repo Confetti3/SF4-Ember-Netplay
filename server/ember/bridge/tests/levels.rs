@@ -6,7 +6,7 @@
 mod common;
 
 use common::{
-    Bridge, Player,
+    Bridge,
     points::*,
     public_rooms::{open_room, player, send, start},
     sites::connect_discord,

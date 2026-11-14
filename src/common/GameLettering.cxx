@@ -177,7 +177,7 @@ bool DrawSheet(const Outlines& font, Sheet& sheet, std::vector<unsigned char>& b
             // font whose outlines reach far beyond any sheet is held to a million pixels (and a
             // value that is no number to its negative), so the conversion is always defined and
             // the glyph is refused below as too big.
-            constexpr float MostPixels = 1048576.f;
+            static constexpr float MostPixels = 1048576.f;
             const auto held = [](float v) { return v > -MostPixels ? (v < MostPixels ? v : MostPixels) : -MostPixels; };
             const auto down = [&](float v) { return static_cast<int>(std::floor(held(v) + 1e-3f)); };
             const auto up = [&](float v) { return static_cast<int>(std::ceil(held(v) - 1e-3f)); };

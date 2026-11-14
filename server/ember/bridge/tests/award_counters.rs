@@ -4,11 +4,7 @@
 //! `AwardCounts::shown`.
 mod common;
 
-use common::{
-    Bridge, Player,
-    points::*,
-    public_rooms::{player, send},
-};
+use common::{Bridge, Player, points::*, public_rooms::send};
 use ember_protocol::levels::POINTS_PATH;
 use reqwest::{Method, StatusCode};
 use serde_json::{Value as Json_, json};

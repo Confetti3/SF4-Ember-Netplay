@@ -22,7 +22,7 @@ use axum::{
     Json, Router,
     body::Body,
     extract::{ConnectInfo, DefaultBodyLimit, FromRequest, Multipart, Request, State},
-    http::{StatusCode, header},
+    http::{StatusCode, header as http_header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::post,
@@ -130,7 +130,7 @@ async fn admission(State(app): State<Arc<App>>, mut request: Request, next: Next
             let mut response = refusal(StatusCode::TOO_MANY_REQUESTS, Refusal::RateLimit);
             response
                 .headers_mut()
-                .insert(header::RETRY_AFTER, retry.to_string().parse().unwrap());
+                .insert(http_header::RETRY_AFTER, retry.to_string().parse().unwrap());
             return response;
         }
         let reservation = match app.gate.reserve() {
@@ -158,7 +158,7 @@ async fn admission(State(app): State<Arc<App>>, mut request: Request, next: Next
     let mut response = result;
     response
         .headers_mut()
-        .insert(header::CACHE_CONTROL, "no-store".parse().unwrap());
+        .insert(http_header::CACHE_CONTROL, "no-store".parse().unwrap());
     let id = response
         .extensions()
         .get::<ReportId>()

@@ -124,7 +124,7 @@ const std::vector<sf4e::GameThemes::Turned>& sf4e::GameThemes::TurnedOff() { ret
 
 void sf4e::GameThemes::TurnedOffTold() { turned.clear(); }
 
-netplay::GameThemeNote sf4e::GameThemes::Note(netplay::GameThemePart part, const std::string& theme) {
+sf4e::netplay::GameThemeNote sf4e::GameThemes::Note(netplay::GameThemePart part, const std::string& theme) {
 	const auto found = refused[part].find(theme);
 	if (found != refused[part].end()) return found->second;
 	return game_themes::Closed(guard, PartFolder(part), theme) ? netplay::GameThemeNote::ClosedGame : netplay::GameThemeNote::None;
@@ -225,8 +225,10 @@ namespace {
 void WatchBattleHud() {
 	using System = Dimps::Game::Battle::System;
 	const std::string& theme = parts[sf4e::netplay::GameThemeBattleHud].loaded;
+	// The game's singleton getter is set once its offsets are known; without the game (the runtime's tests) there is no battle.
+	if (theme.empty() || !System::staticMethods.GetSingleton) return;
 	System* const system = System::staticMethods.GetSingleton();
-	if (!system || theme.empty()) return;
+	if (!system) return;
 	const int state = *System::GetReadyState(system);
 	const std::string folder = PartFolder(sf4e::netplay::GameThemeBattleHud);
 	const bool loading = state > System::RS_START && state < System::RS_FIGHT;

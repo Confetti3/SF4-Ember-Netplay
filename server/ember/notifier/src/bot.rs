@@ -18,7 +18,7 @@ pub(crate) const BUSY: &str = "Ember could not be reached. Try again in a moment
 
 pub(crate) enum Opened {
     /// A new room, or the open one the creator already had.
-    Room(ConnectionRoom),
+    Room(Box<ConnectionRoom>),
     /// The creator is not linked on the connection.
     NotLinked,
     /// Why it did not work, in words for the person who asked.
@@ -57,11 +57,11 @@ impl Notifier {
             });
         }
         match client.create_room(&command).await {
-            Ok(room) => Opened::Room(room),
+            Ok(room) => Opened::Room(Box::new(room)),
             Err(BridgeError::Refused(refusal)) => match refusal.reason.as_deref() {
                 Some(ROOM_LIMIT) => match &refusal.room_id {
                     Some(room_id) => match client.room(room_id).await {
-                        Ok(room) => Opened::Room(room),
+                        Ok(room) => Opened::Room(Box::new(room)),
                         Err(_) => Opened::Failed(LIMIT_TEXT.into()),
                     },
                     None => Opened::Failed(LIMIT_TEXT.into()),

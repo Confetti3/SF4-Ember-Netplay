@@ -1,6 +1,6 @@
 use crate::{
     header::{self, Header},
-    intake::{Channel, Kind, Report, hex},
+    intake::{Channel, Kind, Meta, Report, hex},
     store::ReportId,
     symbolicate::{Frame, Walk, exception_name},
 };

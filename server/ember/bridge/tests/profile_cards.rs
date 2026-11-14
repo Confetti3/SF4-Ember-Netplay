@@ -4,7 +4,7 @@
 
 mod common;
 
-use common::{Player, profiles::*, public_rooms::player, seed, supervisor::BUILD};
+use common::{profiles::*, public_rooms::player, seed, supervisor::BUILD};
 use ember_protocol::{
     friends::{ACTIONS_PATH, SYNC_PATH},
     levels::{CARDS_ME_PATH, LOOKUP_PATH, SEARCH_PATH},

@@ -220,6 +220,8 @@ void MorePopoutJourney() {
  j.h.Press(MenuInput::Back);
  j.h.Frame();
  Check(!j.choosing() && !PopoutDrawn(), "Back left the friend's popout drawn");
+ // With nothing to offer the friend (no room to invite to), A opens their Player card.
+ j.view().canInvite = false; j.h.Frame(0, 3);
  j.focus("friend:fr_5");
  j.h.Press(MenuInput::Select);
  Check(j.screen() == "player-card", "A on a friend did not open their Player card");

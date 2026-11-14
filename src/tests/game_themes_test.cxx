@@ -101,8 +101,11 @@ int main() {
     std::string error;
     CHECK(game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "CMN/cockpit.ems.emz", "one", error));
     CHECK(game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "CMN/cockpit.ems.emz", "two", error));
-    std::ifstream written(f.root / game_themes::ActiveFolder / game_themes::BattleHud / "CMN/cockpit.ems.emz", std::ios::binary);
-    std::string text((std::istreambuf_iterator<char>(written)), std::istreambuf_iterator<char>());
+    std::string text;
+    {   // closed before the part is replaced below: a file still open keeps the folder from moving
+        std::ifstream written(f.root / game_themes::ActiveFolder / game_themes::BattleHud / "CMN/cockpit.ems.emz", std::ios::binary);
+        text.assign(std::istreambuf_iterator<char>(written), std::istreambuf_iterator<char>());
+    }
     CHECK(text == "two" && !fs::exists(f.root / game_themes::ActiveFolder / game_themes::BattleHud / "CMN/cockpit.ems.emz.tmp"));
     CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "../../escape.txt", "x", error) && !error.empty());
     CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "", "x", error));

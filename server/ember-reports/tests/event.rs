@@ -767,7 +767,10 @@ fn a_start_failure_report_passes_the_released_intake() {
     // header on the first line of a launcher.log cut to leave room for it.
     let header = BEFORE_SIGNAL;
     let reserve = 256;
-    let launcher = format!("{header}{}", "x".repeat(released_contract::LOG_BYTES - reserve));
+    let launcher = format!(
+        "{header}{}",
+        "x".repeat(released_contract::LOG_BYTES - reserve)
+    );
     assert!(header.len() <= reserve);
     let mut m = meta();
     let object = m.as_object_mut().unwrap();

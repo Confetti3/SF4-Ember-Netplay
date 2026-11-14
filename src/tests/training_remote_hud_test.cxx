@@ -115,8 +115,8 @@ int main() {
     CHECK(post(hud::Order::Layout, R"({"theme":"Test","layout":7})").status == 200 && post(hud::Order::ImageRemove, R"({"theme":"Test","name":5})").status == 400);
     CHECK(post(hud::Order::Layout, "not json").status == 404 && get(hud::Order::Theme, "name=%FF%FE").status == 404);   // a name that is not UTF-8 makes no path
     // File names the ANSI code page cannot hold are listed as UTF-8, or passed over, and never end a request.
-    fs::create_directories(root / "resource" / "battle" / "hud" / "ENG" / L"リュウ");
-    std::ofstream(root / sf4e::platform::game_themes::Folder / "Test" / "layout-art" / L"リ-0-1-1-3-3.png", std::ios::binary) << "x";
+    fs::create_directories(root / "resource" / "battle" / "hud" / "ENG" / L"\u30EA\u30E5\u30A6");
+    std::ofstream(root / sf4e::platform::game_themes::Folder / "Test" / "layout-art" / L"\u30EA-0-1-1-3-3.png", std::ios::binary) << "x";
     {
         const auto listed = nlohmann::json::parse(get(hud::Order::Scene, "name=Test&fighter=RYU").body);
         CHECK(std::find(listed["fighters"].begin(), listed["fighters"].end(), "\xE3\x83\xAA\xE3\x83\xA5\xE3\x82\xA6") != listed["fighters"].end());

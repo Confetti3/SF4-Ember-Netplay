@@ -155,7 +155,7 @@ void MultipartCases() {
     // Only a start failure has a phase and a hint, and it must have a phase made of short codes.
     for (const auto change:std::initializer_list<void(*)(Report&)>{
         [](Report& r){ r.meta.phase.clear(); }, [](Report& r){ r.meta.phase="Before signal"; },
-        [](Report& r){ r.meta.hint="C:\Users\x"; }, [](Report& r){ r.meta.hint=std::string(81,'a'); },
+        [](Report& r){ r.meta.hint="C:\\Users\\x"; }, [](Report& r){ r.meta.hint=std::string(81,'a'); },
         [](Report& r){ r.meta.kind="crash"; }, [](Report& r){ r.meta.kind="problem"; } }) {
         auto bad=failure; change(bad); CHECK_OR_THROW(!BuildMultipart(bad,Submission{"A problem.",true},"EmberTestBoundary",body,error));
     }
