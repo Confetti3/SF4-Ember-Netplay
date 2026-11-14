@@ -199,14 +199,20 @@ profiles::Device AutomaticDeviceNow() {
 	return profiles::AutomaticDevice(device.type, device.connected, Gamepads::BrandForDevice(device.type, device.index));
 }
 
-// What the card shows of how this player plays, as the game measures it now. The connection is read at most once a
-// minute; the region is the relay Ember last picked.
+// What the card shows of how this player plays, as the game measures it now. The connection is read again at most once
+// a minute, and when a room is joined or left, but never while a match is played on this PC: the adapter probe runs on
+// this thread and waits on the system (under Wine it reads files), so the card keeps the last reading until the match
+// is over. The region is the relay Ember last picked.
 profiles::Style OwnStyleNow(std::uint64_t nowMs) {
 	auto& signals = runtime->cardSignals;
-	if (!signals.linkRead || nowMs - signals.linkMs >= netplay::profiles::Saver::MinGapMs) {
+	const std::uint64_t epoch = UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().roomEpoch : 0;
+	const bool due = !signals.linkRead || nowMs - signals.linkMs >= netplay::profiles::Saver::MinGapMs || epoch != signals.linkEpoch;
+	const bool matchRunning = Game::Battle::System::ggpo != nullptr || runtime->match;
+	if (due && !matchRunning) {
 		signals.link = DetectNetworkLink();
 		signals.linkRead = true;
 		signals.linkMs = nowMs;
+		signals.linkEpoch = epoch;
 	}
 	if (runtime->room) {
 		const auto relay = NormalizeRelayRegion(runtime->room->Network().relay);
@@ -225,7 +231,18 @@ void TickCardSave(bool helperReady, std::uint64_t nowMs) {
 	const auto& own = runtime->levels.Published();
 	// Only a Discord account has a card.
 	if (own.loaded && own.value.kind == netplay::levels::Own::Kind::NoAccount) return;
-	const auto bundle = profiles::BundleOf(runtime->preferences, runtime->automaticCountry, OwnStyleNow(nowMs));
+	// The bundle is built again only when what it is made from moved: the preferences, Windows' region or the style.
+	auto& signals = runtime->cardSignals;
+	const auto style = OwnStyleNow(nowMs);
+	const auto revision = runtime->preferencesStore.Revision();
+	if (!signals.built || revision != signals.builtRevision || !(runtime->automaticCountry == signals.builtCountry) || !(style == signals.builtStyle)) {
+		signals.bundle = profiles::BundleOf(runtime->preferences, runtime->automaticCountry, style);
+		signals.built = true;
+		signals.builtRevision = revision;
+		signals.builtCountry = runtime->automaticCountry;
+		signals.builtStyle = style;
+	}
+	const auto& bundle = signals.bundle;
 	if (!saver.Due(bridge, id, bundle, nowMs)) return;
 	saver.Sent(bridge, id, bundle, nowMs);
 	spdlog::info("Profile: the card is sent to the service");
