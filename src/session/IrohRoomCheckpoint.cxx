@@ -271,7 +271,7 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
                 marker.at("incarnation").get<std::uint64_t>(), marker.at("type").get<std::string>()};
             return !activeTerminalKeys.count(key);
         } catch(const std::exception&) { return false; }
-    },room_.queuedBytes);
+    });
     for(const auto& effect:replica_.appliedEffects) {
         if(!effect.privatePayload && !effect.publicPayload.is_null() && replica_.effectRecipients.count(effect.recipient) &&
             !replica_.deliveredEffects.count({effect.term,effect.sequence})) replica_.pendingPublicEffects.push_back(effect);
@@ -307,12 +307,12 @@ void IrohRoom::PumpCommittedEffects() {
             {"activation_revision",effect.activationRevision},{"payload_digest",effect.payloadDigest}};
         auto bytes=DumpJson(payload);
         if(bytes.size()>MaximumPayload) { Fail("terminal_replay_payload"); return; }
-        if(bytes.size()>MaximumQueuedBytes-room_.queuedBytes) {
+        if(bytes.size()>MaximumQueuedBytes-QueuedBytes()) {
             replica_.pendingTerminalReplayEffects.push_front(std::move(effect)); break;
         }
         replica_.terminalReplayInFlight.emplace(effect.key,effect);
         auto tag=ClassifyRoomMessage(payload);
-        queue.InsertReplay({1,0,std::move(bytes),"",std::move(tag)},effect.activationRevision,ClientEffectQueue::AfterCommit,room_.queuedBytes);
+        queue.InsertReplay({1,0,std::move(bytes),"",std::move(tag)},effect.activationRevision,ClientEffectQueue::AfterCommit);
     }
     for(auto effect=replica_.pendingPublicEffects.begin();effect!=replica_.pendingPublicEffects.end() && queue.TakesReplay();) {
         if(replica_.deliveredEffects.count({effect->term,effect->sequence})) { effect=replica_.pendingPublicEffects.erase(effect); continue; }
@@ -320,9 +320,9 @@ void IrohRoom::PumpCommittedEffects() {
         auto payload=effect->publicPayload; payload["_commit"]=EffectCommitToken(*effect);
         auto bytes=DumpJson(payload);
         if(bytes.size()>MaximumPayload) { effect=replica_.pendingPublicEffects.erase(effect); continue; }
-        if(bytes.size()>MaximumQueuedBytes-room_.queuedBytes) break;
+        if(bytes.size()>MaximumQueuedBytes-QueuedBytes()) break;
         auto tag=ClassifyRoomMessage(payload);
-        queue.InsertReplay({1,0,std::move(bytes),"",std::move(tag)},effect->revision,effect->sequence,room_.queuedBytes);
+        queue.InsertReplay({1,0,std::move(bytes),"",std::move(tag)},effect->revision,effect->sequence);
         effect=replica_.pendingPublicEffects.erase(effect);
     }
 }

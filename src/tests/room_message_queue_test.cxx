@@ -40,10 +40,9 @@ static Message Event(std::uint64_t revision) { return Effect("room_event",revisi
 // the leader's unless a message says otherwise.
 struct Client {
     ClientEffectQueue queue;
-    std::size_t bytes=0;
     std::uint64_t applied=0;
     RoomQueueResult Admit(Message message, bool fromLeader = true) {
-        return queue.Admit(std::move(message),fromLeader,applied,bytes);
+        return queue.Admit(std::move(message),fromLeader,applied,MaximumRoomQueueBytes);
     }
     std::uint64_t Revision(std::size_t index) const { return queue.Messages()[index].tag.commitRevision; }
     RoomProjection Kind(std::size_t index) const { return queue.Messages()[index].tag.projection; }
@@ -52,7 +51,7 @@ struct Client {
         std::size_t total=0;
         for (const auto& item:queue.Messages()) total+=item.payload.size();
         for (const auto& item:queue.Frames()) total+=item.payload.size();
-        return total==bytes;
+        return total==queue.Bytes();
     }
 };
 
@@ -82,7 +81,7 @@ struct ClientView {
 static void Deliver(Client& client, ClientView& view) {
     while (!client.queue.Empty() && client.queue.Next().tag.commitRevision<=client.applied) {
         view.Apply(client.queue.Next());
-        client.queue.PopNext(client.queue.Next().payload.size(),client.bytes);
+        client.queue.PopNext(client.queue.Next().payload.size());
     }
 }
 
@@ -202,7 +201,7 @@ static void TestBoundsStillHold() {
         Client client;
         for (std::uint64_t revision=1;revision<=100;++revision)
             CHECK(client.Admit(Effect("room_snapshot",revision,RoomProjection::SnapshotWithChat,7,2,256*1024))==RoomQueueResult::Queued);
-        CHECK(client.queue.Size()==1 && client.BytesAgree() && client.bytes<MaximumRoomQueueBytes);
+        CHECK(client.queue.Size()==1 && client.BytesAgree() && client.queue.Bytes()<MaximumRoomQueueBytes);
     }
     {
         Client client;
@@ -210,7 +209,16 @@ static void TestBoundsStillHold() {
         std::uint64_t revision=0;
         while (result==RoomQueueResult::Queued && revision<MaximumRoomQueueMessages)
             result=client.Admit(Effect("room_event",++revision,RoomProjection::None,7,2,256*1024));
-        CHECK(result==RoomQueueResult::BytesFull && client.bytes<=MaximumRoomQueueBytes && client.BytesAgree());
+        CHECK(result==RoomQueueResult::BytesFull && client.queue.Bytes()<=MaximumRoomQueueBytes && client.BytesAgree());
+    }
+    {
+        // The queue keeps its own byte count, and its budget is what the room's
+        // leaves it beside the server queue: a room message past it is refused,
+        // a frame past it is let go.
+        ClientEffectQueue queue;
+        CHECK(queue.Admit(Effect("room_event",1,RoomProjection::None,7,2,1024),true,0,512)==RoomQueueResult::BytesFull);
+        CHECK(queue.Admit(Tagged(Diagnostic(1)),true,0,0)==RoomQueueResult::Queued && queue.Empty() && queue.Bytes()==0);
+        CHECK(queue.Admit(Event(2),true,0,MaximumRoomQueueBytes)==RoomQueueResult::Queued && queue.Bytes()==Event(2).payload.size());
     }
 }
 
@@ -223,7 +231,7 @@ static void TestReplays() {
         for (int frame=0;frame<100;++frame) CHECK(client.Admit(Tagged(Diagnostic(frame)))==RoomQueueResult::Queued);
         CHECK(client.queue.Size()==1+MaximumQueuedVerification && client.queue.TakesReplay());
         for (std::uint64_t revision=1;revision<MaximumRoomQueueMessages/2;++revision)
-            client.queue.InsertReplay(Event(revision),revision,revision*4,client.bytes);
+            client.queue.InsertReplay(Event(revision),revision,revision*4);
         CHECK(client.RoomMessages()==MaximumRoomQueueMessages/2 && !client.queue.TakesReplay());
         // Still room for the live stream: the frames take none of its slots.
         CHECK(client.Admit(Event(31))==RoomQueueResult::Queued && client.RoomMessages()==MaximumRoomQueueMessages/2+1);
@@ -237,10 +245,10 @@ static void TestReplays() {
         CHECK(client.queue.Size()==2 && client.Kind(0)==RoomProjection::TableData);
         CHECK(client.queue.HoldsCopy(1,20*4+static_cast<std::uint64_t>(RoomProjection::TableData)));
         CHECK(!client.queue.HoldsCopy(1,20*4+static_cast<std::uint64_t>(RoomProjection::Snapshot)));
-        client.queue.InsertReplay(Snapshot(20),20,20*4+static_cast<std::uint64_t>(RoomProjection::Snapshot),client.bytes);
+        client.queue.InsertReplay(Snapshot(20),20,20*4+static_cast<std::uint64_t>(RoomProjection::Snapshot));
         Message notice{1,0,"{\"type\":\"room_event\"}",{}};
         notice.tag.classified=true; notice.tag.type="room_event"; notice.tag.terminalReplay=true;
-        client.queue.InsertReplay(std::move(notice),20,ClientEffectQueue::AfterCommit,client.bytes);
+        client.queue.InsertReplay(std::move(notice),20,ClientEffectQueue::AfterCommit);
         CHECK(client.queue.Size()==4 && client.Kind(0)==RoomProjection::Snapshot && client.Revision(0)==20);
         CHECK(client.Kind(1)==RoomProjection::TableData && client.queue.Messages()[2].tag.terminalReplay && client.Revision(3)==21);
         CHECK(client.BytesAgree());

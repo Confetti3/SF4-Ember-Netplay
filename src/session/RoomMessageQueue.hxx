@@ -32,14 +32,16 @@ inline bool IsRoomVerificationMessage(const Message& message) {
 // Either queue. Verification is best effort: keep the newest bounded window
 // while quorum commits pause the server or the game does not poll its client,
 // reserving the rest of the queue for room messages, which are never
-// discarded here.
+// discarded here. `queuedBytes` is the queue's own payload bytes, and `budget`
+// what the room's byte budget leaves it: MaximumRoomQueueBytes less the other
+// queue's bytes.
 inline RoomQueueResult QueueRoomMessage(std::deque<Message>& destination,
-    std::size_t& queuedBytes, Message message) {
+    std::size_t& queuedBytes, Message message, std::size_t budget = MaximumRoomQueueBytes) {
+    const auto fits = [&] { return queuedBytes <= budget && message.payload.size() <= budget - queuedBytes; };
     const bool diagnostic = IsRoomVerificationMessage(message);
     auto diagnostics = static_cast<std::size_t>(std::count_if(destination.begin(), destination.end(), IsRoomVerificationMessage));
     while ((diagnostic && diagnostics >= MaximumQueuedVerification) ||
-        destination.size() >= MaximumRoomQueueMessages ||
-        message.payload.size() > MaximumRoomQueueBytes - queuedBytes) {
+        destination.size() >= MaximumRoomQueueMessages || !fits()) {
         const auto oldest = std::find_if(destination.begin(), destination.end(), IsRoomVerificationMessage);
         if (oldest == destination.end()) {
             if (diagnostic) return RoomQueueResult::Queued;
@@ -49,7 +51,7 @@ inline RoomQueueResult QueueRoomMessage(std::deque<Message>& destination,
         destination.erase(oldest);
         --diagnostics;
     }
-    if (message.payload.size() > MaximumRoomQueueBytes - queuedBytes) return RoomQueueResult::BytesFull;
+    if (!fits()) return RoomQueueResult::BytesFull;
     if (destination.size() >= MaximumRoomQueueMessages) return RoomQueueResult::MessagesFull;
     queuedBytes += message.payload.size();
     destination.push_back(std::move(message));

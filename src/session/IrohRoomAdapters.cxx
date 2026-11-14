@@ -39,7 +39,7 @@ class IrohRoom::ServerAdapter final : public ServerTransport {
 				if (!messages.empty() && (!prefixBatchable || !(*batchable)(room->room_.serverMessages.front()))) break;
 				if (messages.empty()) prefixBatchable = (*batchable)(room->room_.serverMessages.front());
 			}
-			room->room_.queuedBytes -= room->room_.serverMessages.front().payload.size();
+			room->room_.serverBytes -= room->room_.serverMessages.front().payload.size();
 			messages.push_back(std::move(room->room_.serverMessages.front())); room->room_.serverMessages.pop_front();
 			if (batchable && !prefixBatchable) break;
 		}
@@ -109,7 +109,7 @@ public:
             if(verdict==EffectVerdict::Missing) return false;
             if(verdict==EffectVerdict::Park) break;
             if(verdict==EffectVerdict::Drop) {
-                queue.PopNext(bytes,room->room_.queuedBytes);
+                queue.PopNext(bytes);
                 continue;
             }
             // A bare hello_resp is only the CID half of an admission
@@ -136,7 +136,7 @@ public:
             if(type=="join_rej" || (type=="hello_resp" && committed))
                 room->room_.pendingAdmission=false;
             messages.push_back(std::move(head));
-            queue.PopNext(bytes,room->room_.queuedBytes);
+            queue.PopNext(bytes);
 		}
 		return true;
 	}
