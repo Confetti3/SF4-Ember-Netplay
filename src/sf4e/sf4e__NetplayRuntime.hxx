@@ -282,9 +282,10 @@ struct Runtime {
     struct SetNotice { std::string text; bool error = false; std::uint64_t count = 0; } setNotice;
     // What the last batch of imported replay files came to (the batch count itself is the queue's).
     struct ImportNotice { std::string text; bool error = false; } importNotice;
-    // The bridge requests awaiting an answer, with what each does with it:
-    // the public rooms' and friends' (the other requests above and below keep
-    // their own bookkeeping).
+    // The bridge requests awaiting an answer, with what each does with it: the
+    // public rooms', friends', profiles', rankings', levels', cards' and the
+    // archive's (the tournament, watch and replay requests above keep their own
+    // bookkeeping).
     netplay::BridgeFlights flights;
     // The public room list and the last create or ticket request: the flight
     // of the create or ticket (0 when none), which a new one supersedes, and
