@@ -13,14 +13,18 @@
 //! the Discord user ID and the issue time, both little-endian u64. Only the
 //! bridge reads one, and two tokens of the same account cannot be matched by
 //! anyone else.
+use std::collections::HashMap;
+
 use ember_protocol::{
     encoding::{b64u, decode_b64u},
+    friends::PairRecord,
     levels::{CARD_PREFIX, CARD_VALID_SECS, CardSave, PlayerCard, Relation, Style, Worn},
     skill::{Listing, SkillBadge},
 };
-use rusqlite::{OptionalExtension, Transaction, params};
+use rusqlite::{OptionalExtension, Row, Transaction, params};
 
 use crate::{
+    db::select_in,
     error::Result,
     friends::{Classes, store},
     secrets::Keys,
@@ -72,40 +76,66 @@ pub struct Stored {
     pub style: Style,
 }
 
-/// `account`'s row, once it has one.
+/// The `player_cards` columns a `Stored` is read from, in its order.
+const STORED: &str = "name, country, main_fighter, since, worn_title, worn_icon, pins,
+                      device, link, region, looking";
+
+/// The `Stored` in columns `at` onwards of a row that selected `STORED`.
+fn stored_in(row: &Row<'_>, at: usize) -> rusqlite::Result<Stored> {
+    let pins: String = row.get(at + 6)?;
+    Ok(Stored {
+        name: row.get(at)?,
+        country: row.get(at + 1)?,
+        main: row.get(at + 2)?,
+        since: row.get(at + 3)?,
+        worn: Worn {
+            title: row.get(at + 4)?,
+            icon: row.get(at + 5)?,
+        },
+        pins: pins
+            .split(',')
+            .filter(|pin| !pin.is_empty())
+            .map(str::to_owned)
+            .collect(),
+        style: Style {
+            device: row.get(at + 7)?,
+            link: row.get(at + 8)?,
+            region: row.get(at + 9)?,
+            looking: row.get(at + 10)?,
+        },
+    })
+}
+
+/// `account`'s row, once it has one, one account at a time: the test oracle
+/// of `Reader`'s listings.
+#[cfg(test)]
 pub fn stored(tx: &Transaction<'_>, account: &str) -> Result<Option<Stored>> {
     Ok(tx
         .query_row(
-            "SELECT name, country, main_fighter, since, worn_title, worn_icon, pins,
-                    device, link, region, looking
-             FROM player_cards WHERE discord_user_id = ?1",
+            &format!("SELECT {STORED} FROM player_cards WHERE discord_user_id = ?1"),
             [account],
-            |row| {
-                let pins: String = row.get(6)?;
-                Ok(Stored {
-                    name: row.get(0)?,
-                    country: row.get(1)?,
-                    main: row.get(2)?,
-                    since: row.get(3)?,
-                    worn: Worn {
-                        title: row.get(4)?,
-                        icon: row.get(5)?,
-                    },
-                    pins: pins
-                        .split(',')
-                        .filter(|pin| !pin.is_empty())
-                        .map(str::to_owned)
-                        .collect(),
-                    style: Style {
-                        device: row.get(7)?,
-                        link: row.get(8)?,
-                        region: row.get(9)?,
-                        looking: row.get(10)?,
-                    },
-                })
-            },
+            |row| stored_in(row, 0),
         )
         .optional()?)
+}
+
+/// The rows of those of `accounts` that have one and a Discord account
+/// connected, in one read.
+fn listings(tx: &Transaction<'_>, accounts: &[&str]) -> Result<HashMap<String, Stored>> {
+    Ok(select_in(
+        tx,
+        &format!(
+            "SELECT discord_user_id, {STORED} FROM player_cards
+             WHERE discord_user_id IN ({{ids}})
+               AND EXISTS (SELECT 1 FROM discord_accounts d
+                           WHERE d.user_id = player_cards.discord_user_id)"
+        ),
+        &[],
+        accounts,
+        |row| Ok((row.get::<_, String>(0)?, stored_in(row, 1)?)),
+    )?
+    .into_iter()
+    .collect())
 }
 
 /// Replaces `account`'s card with what its player chose to show. The row is
@@ -165,78 +195,236 @@ pub fn note_listing(
 
 /// `card` with what `stored` says of its player: the name, flag and main, the
 /// month they came, the families they wear and show, how they play.
-pub fn describe(card: PlayerCard, stored: Stored) -> PlayerCard {
+fn describe(card: PlayerCard, stored: &Stored) -> PlayerCard {
     PlayerCard {
-        name: Some(stored.name),
-        country: stored.country,
+        name: Some(stored.name.clone()),
+        country: stored.country.clone(),
         main: stored.main,
         since: Some(month_start(stored.since)),
-        worn: stored.worn,
-        pins: stored.pins,
-        style: stored.style,
+        worn: stored.worn.clone(),
+        pins: stored.pins.clone(),
+        style: stored.style.clone(),
         ..card
     }
 }
 
-/// `target`'s card as `caller` sees it: none when `target` blocked them or has
-/// no Discord account connected; otherwise their points, the counters behind
-/// their awards, what they chose to show, their class while classes are shown
-/// and, for a caller who is not themselves, their record against the caller.
-/// Their relation, and the id of the friendship when it is one, come once
-/// friends are offered. The one place a card is assembled.
-pub fn card_for(
-    tx: &Transaction<'_>,
-    caller: Option<&str>,
-    target: &str,
+/// Who reads cards, and how the bridge shows them: the caller's Discord
+/// account (none for a caller without one), whether friends are offered,
+/// the classes, and the time.
+pub struct Viewer<'a> {
+    pub caller: Option<&'a str>,
+    pub friends_offered: bool,
+    pub classes: &'a Classes,
+    pub now: u64,
+}
+
+/// What a `Reader` reads of its accounts. Each part is a fixed number of
+/// reads, whatever the number of accounts.
+#[derive(Clone, Copy)]
+pub struct Parts {
+    /// The points and fighters (`levels::cards`): three reads.
+    pub points: bool,
+    /// With `points`, the award counters a card shows: two more.
+    pub awards: bool,
+    /// The class each shows, while the bridge shows classes.
+    pub badges: bool,
+    /// Their `player_cards` rows, of those with a Discord account connected.
+    pub listings: bool,
+    /// The caller's relation to each, with the friendship's id.
+    pub relations: bool,
+    /// The caller's record against each.
+    pub records: bool,
+}
+
+impl Parts {
+    /// Everything a card says: a card look-up.
+    pub const CARD: Self = Self {
+        points: true,
+        awards: true,
+        badges: true,
+        listings: true,
+        relations: true,
+        records: true,
+    };
+    /// A friends state's friends: the points, the class and the record.
+    pub const FRIENDS: Self = Self {
+        points: true,
+        awards: false,
+        badges: true,
+        listings: false,
+        relations: false,
+        records: true,
+    };
+    /// A search's hits: whether each may be listed, and the class.
+    pub const HITS: Self = Self {
+        points: false,
+        awards: false,
+        badges: true,
+        listings: false,
+        relations: true,
+        records: false,
+    };
+    /// The most played opponents: whether each may be named, the name and
+    /// the class.
+    pub const RIVALS: Self = Self {
+        points: false,
+        awards: false,
+        badges: true,
+        listings: true,
+        relations: true,
+        records: false,
+    };
+}
+
+/// What the bridge holds of a set of accounts for a viewer, read at once:
+/// the one place a card is assembled, and what a search hit, the most played
+/// opponent and a friends state show of other players. It costs the same few
+/// reads (`Parts`) whatever the number of accounts, all in the one
+/// transaction it is read in.
+pub struct Reader {
+    caller: Option<String>,
     friends_offered: bool,
-    classes: &Classes,
-    now: u64,
-) -> Result<Option<PlayerCard>> {
-    let relation = match caller {
-        Some(caller) => store::relation(tx, caller, target)?,
-        None => Some(Relation::None),
-    };
-    let Some(relation) = relation else {
-        return Ok(None);
-    };
-    let Some(card) = levels::awarded_card(tx, target)? else {
-        return Ok(None);
-    };
-    let relation = if friends_offered {
-        relation
-    } else {
-        Relation::None
-    };
-    let mut card = PlayerCard {
-        relation,
-        badge: badge(tx, target, classes, now)?,
-        ..card
-    };
-    if let Some(stored) = stored(tx, target)? {
-        card = describe(card, stored);
+    cards: HashMap<String, PlayerCard>,
+    badges: HashMap<String, SkillBadge>,
+    listings: HashMap<String, Stored>,
+    relations: Option<store::Relations>,
+    records: HashMap<String, PairRecord>,
+}
+
+impl Reader {
+    /// Reads `parts` of `accounts` for `viewer`. An account may come more
+    /// than once; it is read once.
+    pub fn read(
+        tx: &Transaction<'_>,
+        viewer: &Viewer<'_>,
+        accounts: &[&str],
+        parts: Parts,
+    ) -> Result<Self> {
+        let mut accounts = accounts.to_vec();
+        accounts.sort_unstable();
+        accounts.dedup();
+        let classes = viewer.classes;
+        let shows_badges = parts.badges && classes.shown;
+        let awards = parts.points && parts.awards;
+        let standings = if shows_badges || awards {
+            Some(skill::Standings::read(tx, &accounts, viewer.now)?)
+        } else {
+            None
+        };
+        let cards = if parts.points {
+            levels::cards(tx, &accounts, standings.as_ref().filter(|_| awards))?
+        } else {
+            HashMap::new()
+        };
+        let badges = match &standings {
+            Some(standings) if shows_badges => accounts
+                .iter()
+                .filter_map(|account| {
+                    let badge = standings.last_shown(account, &classes.developers)?;
+                    Some(((*account).to_owned(), badge))
+                })
+                .collect(),
+            _ => HashMap::new(),
+        };
+        let listings = if parts.listings {
+            listings(tx, &accounts)?
+        } else {
+            HashMap::new()
+        };
+        let relations = match viewer.caller {
+            Some(caller) if parts.relations => Some(store::relations(tx, caller, &accounts)?),
+            _ => None,
+        };
+        let records = match viewer.caller {
+            Some(caller) if parts.records => store::records(tx, caller, &accounts)?,
+            _ => HashMap::new(),
+        };
+        Ok(Self {
+            caller: viewer.caller.map(str::to_owned),
+            friends_offered: viewer.friends_offered,
+            cards,
+            badges,
+            listings,
+            relations,
+            records,
+        })
     }
-    if let Some(caller) = caller.filter(|caller| *caller != target) {
-        card.versus = store::record(tx, caller, target)?;
-        if relation == Relation::Friend {
-            card.friend = store::friendship_id(tx, caller, target)?;
+
+    /// `target`'s card as the caller sees it: none when `target` blocked them
+    /// or has no Discord account connected; otherwise their points, the
+    /// counters behind their awards, what they chose to show, their class
+    /// while classes are shown and, for a caller who is not themselves, their
+    /// record against the caller. Their relation, and the id of the
+    /// friendship when it is one, come once friends are offered.
+    /// Read with `Parts::CARD`.
+    pub fn card(&self, target: &str) -> Option<PlayerCard> {
+        let relation = self.relation(target)?;
+        let card = self.cards.get(target)?.clone();
+        let relation = if self.friends_offered {
+            relation
+        } else {
+            Relation::None
+        };
+        let mut card = PlayerCard {
+            relation,
+            badge: self.badge(target),
+            ..card
+        };
+        if let Some(stored) = self.listings.get(target) {
+            card = describe(card, stored);
+        }
+        if self
+            .caller
+            .as_deref()
+            .is_some_and(|caller| caller != target)
+        {
+            card.versus = self.record(target);
+            if relation == Relation::Friend {
+                card.friend = self
+                    .relations
+                    .as_ref()
+                    .and_then(|relations| relations.friendship(target));
+            }
+        }
+        Some(card)
+    }
+
+    /// The caller's relation to `account` (`store::Relations`): none when it
+    /// blocked the caller. `none` for a caller without a Discord account, and
+    /// when relations were not read.
+    pub fn relation(&self, account: &str) -> Option<Relation> {
+        match (&self.caller, &self.relations) {
+            (Some(_), Some(relations)) => relations.relation(account),
+            _ => Some(Relation::None),
         }
     }
-    Ok(Some(card))
+
+    /// `account`'s points and fighters as its card shows them, when it has a
+    /// Discord account connected.
+    pub fn points(&self, account: &str) -> Option<&PlayerCard> {
+        self.cards.get(account)
+    }
+
+    /// The class `account` shows now, as a friends state shows it: none while
+    /// the bridge hides classes or when the player does not take part.
+    pub fn badge(&self, account: &str) -> Option<SkillBadge> {
+        self.badges.get(account).copied()
+    }
+
+    /// `account`'s `player_cards` row, while a Discord account is connected.
+    pub fn listing(&self, account: &str) -> Option<&Stored> {
+        self.listings.get(account)
+    }
+
+    /// The caller's record against `account`, from the caller's side.
+    pub fn record(&self, account: &str) -> Option<PairRecord> {
+        self.records.get(account).copied()
+    }
 }
 
-/// The class `account` shows now, as a friends state shows it: none while
-/// the bridge hides classes or when the player does not take part.
-pub fn badge(
-    tx: &Transaction<'_>,
-    account: &str,
-    classes: &Classes,
-    now: u64,
-) -> Result<Option<SkillBadge>> {
-    if !classes.shown {
-        return Ok(None);
-    }
-    skill::last_shown(tx, account, &classes.developers, now)
-}
+#[cfg(test)]
+#[path = "cards/reader_tests.rs"]
+mod reader_tests;
 
 /// A player a search found, as stored.
 pub struct Found {
@@ -269,7 +457,7 @@ pub fn find_by_name(tx: &Transaction<'_>, name: &str, scan: usize) -> Result<Vec
             .replace('_', "\\_")
     );
     let found = tx
-        .prepare(
+        .prepare_cached(
             "SELECT discord_user_id, name, country, main_fighter, since FROM player_cards
              WHERE name LIKE ?1 ESCAPE '\\'
                AND EXISTS (SELECT 1 FROM discord_accounts d WHERE d.user_id = player_cards.discord_user_id)

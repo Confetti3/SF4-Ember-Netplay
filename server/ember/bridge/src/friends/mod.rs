@@ -32,7 +32,6 @@ use crate::{
     error::{ApiFailure, Result},
     linking::Site,
     routes::{rooms, sign_in},
-    skill,
 };
 
 /// Whether friends are offered: where public rooms are on and `rooms.friends`
@@ -175,9 +174,9 @@ fn opened(keys: &Keys, card: &str, now: u64) -> Result<String> {
 /// whether a friend's room is joinable, is the one their last sync named.
 ///
 /// It costs the same few reads whatever the number of friends: the caller's
-/// own lists, then one read each for the friends' points, classes, records
-/// and rooms (`skill::levels::cards`, `skill::last_shown_of`,
-/// `store::records`, `store::listed_rooms`), all in the one transaction `tx`.
+/// own lists, the friends' points, classes and records, and the senders'
+/// records (`cards::Reader`), and the friends' rooms (`store::listed_rooms`),
+/// all in the one transaction `tx`.
 pub fn state(
     tx: &Transaction<'_>,
     live: &Live,
@@ -193,19 +192,18 @@ pub fn state(
     let build = live.seen(caller).map(|seen| seen.build_id);
     let rows = store::friends(tx, caller)?;
     let requests = store::incoming(tx, caller)?;
-    let accounts: Vec<&str> = rows.iter().map(|row| row.account.as_str()).collect();
-    let senders: Vec<&str> = requests.iter().map(|row| row.sender.as_str()).collect();
-    let mut cards = skill::levels::cards(tx, &accounts)?;
-    let mut badges = if classes.shown {
-        skill::last_shown_of(tx, &accounts, &classes.developers, now)?
-    } else {
-        HashMap::new()
+    let accounts: Vec<&str> = rows
+        .iter()
+        .map(|row| row.account.as_str())
+        .chain(requests.iter().map(|row| row.sender.as_str()))
+        .collect();
+    let viewer = cards::Viewer {
+        caller: Some(caller),
+        friends_offered: true,
+        classes,
+        now,
     };
-    let records = store::records(
-        tx,
-        caller,
-        &[accounts.as_slice(), senders.as_slice()].concat(),
-    )?;
+    let read = cards::Reader::read(tx, &viewer, &accounts, cards::Parts::FRIENDS)?;
     let seen: Vec<Option<Seen>> = rows.iter().map(|row| visible(live, row, now)).collect();
     let room_ids: Vec<&str> = seen
         .iter()
@@ -219,15 +217,15 @@ pub fn state(
     let mut friends = Vec::with_capacity(rows.len());
     let mut ids = HashMap::with_capacity(rows.len());
     for (row, seen) in rows.into_iter().zip(seen) {
-        let (main, account) = levels_of(&row, cards.remove(&row.account));
+        let (main, account) = levels_of(&row, read.points(&row.account));
         friends.push(Friend {
             id: row.id.clone(),
             since: row.since,
             main,
             account,
-            badge: badges.remove(&row.account),
+            badge: read.badge(&row.account),
             presence: presence_of(&row, seen, &rooms),
-            record: records.get(&row.account).copied(),
+            record: read.record(&row.account),
             name: row.shown.name,
             country: row.shown.country,
         });
@@ -236,7 +234,7 @@ pub fn state(
     let incoming = requests
         .into_iter()
         .map(|row| IncomingRequest {
-            played: records.get(&row.sender).map(|record| Played {
+            played: read.record(&row.sender).map(|record| Played {
                 games: record.won + record.lost,
                 last_at: record.last_at,
             }),
@@ -278,7 +276,7 @@ pub fn state(
 /// account points, and their main shows none.
 fn levels_of(
     friend: &FriendRow,
-    card: Option<PlayerCard>,
+    card: Option<&PlayerCard>,
 ) -> (Option<MainFighter>, Option<CardAccount>) {
     let main = friend.shown.main.map(|fighter| {
         let played = card.as_ref().and_then(|card| {

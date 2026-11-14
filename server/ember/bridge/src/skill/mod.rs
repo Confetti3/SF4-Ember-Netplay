@@ -314,10 +314,11 @@ pub fn show(
     badge_of(tx, &account, now).map(Some)
 }
 
-/// The class last shown for Discord account `account`, read without
-/// remembering anything: what its friends see (docs/design/FRIENDS.md). None
-/// when it does not take part, the developer mark for a developer, and
-/// otherwise the band last shown, settled while its aged rating is.
+/// The class last shown for Discord account `account`, one account at a time:
+/// the test oracle `Standings::last_shown` is checked against. None when it
+/// does not take part, the developer mark for a developer, and otherwise the
+/// band last shown, settled while its aged rating is.
+#[cfg(test)]
 pub fn last_shown(
     tx: &Transaction<'_>,
     account: &str,
@@ -338,56 +339,74 @@ pub fn last_shown(
     Ok(Some(class_shown(&rating, band)))
 }
 
-/// `last_shown` for each of `accounts` at once, in two reads however many
-/// there are: the ranking choices, then the ratings of those that take part.
-/// An account that shows no class has no entry.
-pub fn last_shown_of(
-    tx: &Transaction<'_>,
-    accounts: &[&str],
-    developers: &[String],
-    now: u64,
-) -> Result<HashMap<String, SkillBadge>> {
-    let opted_out: HashSet<String> = select_in(
-        tx,
-        "SELECT discord_user_id FROM ranking_choices
-         WHERE game = 'usf4' AND NOT ranked AND discord_user_id IN ({ids})",
-        &[],
-        accounts,
-        |row| row.get::<_, String>(0),
-    )?
-    .into_iter()
-    .collect();
-    let developers = Developers {
-        accounts: developers,
-        shown: true,
-    };
-    let mut shown = HashMap::new();
-    let mut rated = Vec::new();
-    for account in accounts
-        .iter()
-        .filter(|account| !opted_out.contains(**account))
-    {
-        if developers.mark(account) {
-            shown.insert((*account).to_owned(), SkillBadge::DEVELOPER);
-        } else {
-            rated.push(*account);
+/// What the ranking tables hold of a set of Discord accounts, read at once
+/// (two reads however many there are): which of them do not take part, and
+/// the rating and band last shown of each that has one. Read only: nothing is
+/// remembered as shown.
+pub struct Standings {
+    opted_out: HashSet<String>,
+    ratings: HashMap<String, (Rating, u8)>,
+}
+
+impl Standings {
+    pub fn read(tx: &Transaction<'_>, accounts: &[&str], now: u64) -> Result<Self> {
+        let opted_out = select_in(
+            tx,
+            "SELECT discord_user_id FROM ranking_choices
+             WHERE game = 'usf4' AND NOT ranked AND discord_user_id IN ({ids})",
+            &[],
+            accounts,
+            |row| row.get::<_, String>(0),
+        )?
+        .into_iter()
+        .collect();
+        let ratings = select_in(
+            tx,
+            "SELECT discord_user_id, rating, deviation, volatility, band, played_at
+             FROM skill_ratings WHERE game = 'usf4' AND discord_user_id IN ({ids})",
+            &[],
+            accounts,
+            |row| Ok((row.get::<_, String>(0)?, rating_at(row, 1, now)?)),
+        )?
+        .into_iter()
+        .collect();
+        Ok(Self { opted_out, ratings })
+    }
+
+    /// Whether `account` takes part in ranking: without a choice stored, it
+    /// does (`takes_part`).
+    pub fn takes_part(&self, account: &str) -> bool {
+        !self.opted_out.contains(account)
+    }
+
+    /// The class `account`'s rating last showed, 1 to the top; 0 without one
+    /// (`levels::class`).
+    pub fn band(&self, account: &str) -> u8 {
+        self.ratings.get(account).map_or(0, |(_, band)| *band)
+    }
+
+    /// The class `account` shows its friends and on its card, as last shown
+    /// (docs/design/FRIENDS.md): none when it does not take part, the
+    /// developer mark for one of `developers`, and otherwise the band last
+    /// shown, settled while its aged rating is.
+    pub fn last_shown(&self, account: &str, developers: &[String]) -> Option<SkillBadge> {
+        if !self.takes_part(account) {
+            return None;
         }
+        let developer = Developers {
+            accounts: developers,
+            shown: true,
+        };
+        if developer.mark(account) {
+            return Some(SkillBadge::DEVELOPER);
+        }
+        let (rating, band) = self
+            .ratings
+            .get(account)
+            .copied()
+            .unwrap_or((Rating::NEW, 0));
+        Some(class_shown(&rating, band))
     }
-    let mut ratings: HashMap<String, (Rating, u8)> = select_in(
-        tx,
-        "SELECT discord_user_id, rating, deviation, volatility, band, played_at
-         FROM skill_ratings WHERE game = 'usf4' AND discord_user_id IN ({ids})",
-        &[],
-        &rated,
-        |row| Ok((row.get::<_, String>(0)?, rating_at(row, 1, now)?)),
-    )?
-    .into_iter()
-    .collect();
-    for account in rated {
-        let (rating, band) = ratings.remove(account).unwrap_or((Rating::NEW, 0));
-        shown.insert(account.to_owned(), class_shown(&rating, band));
-    }
-    Ok(shown)
 }
 
 /// The class to show for a `rating` with `band` shown last: the band once the
@@ -421,11 +440,8 @@ fn badge_of(tx: &Transaction<'_>, account: &str, now: u64) -> Result<SkillBadge>
 /// The Discord account connected to `ember_id`.
 pub fn account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
     Ok(tx
-        .query_row(
-            "SELECT user_id FROM discord_accounts WHERE ember_id = ?1",
-            [ember_id.as_str()],
-            |row| row.get(0),
-        )
+        .prepare_cached("SELECT user_id FROM discord_accounts WHERE ember_id = ?1")?
+        .query_row([ember_id.as_str()], |row| row.get(0))
         .optional()?)
 }
 

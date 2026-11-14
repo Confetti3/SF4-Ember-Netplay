@@ -1,19 +1,16 @@
 //! The friends state of a player with many friends: it is what building each
 //! friend on its own makes, in the same order, and it costs the same
 //! number of statements for 5 friends as for 150.
-use std::{cell::Cell, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use ember_protocol::{
     friends::{PresenceReport, RoomReport, RoomStatus},
     skill::SkillBadge,
 };
-use rusqlite::{
-    OptionalExtension, Transaction, params,
-    trace::{TraceEvent, TraceEventCodes},
-};
+use rusqlite::{OptionalExtension, Transaction, params};
 
 use super::*;
-use crate::Db;
+use crate::{Db, db::counting::counted, skill};
 
 const NOW: u64 = 1_800_000_000;
 const CALLER: &str = "e000";
@@ -26,25 +23,6 @@ const ROOMS: [(&str, bool, bool); 4] = [
     ("00000000000000000000000000000003", false, true),
     ("00000000000000000000000000000004", true, true),
 ];
-
-thread_local! {
-    static STATEMENTS: Cell<usize> = const { Cell::new(0) };
-}
-
-fn count_statement(event: TraceEvent<'_>) {
-    if matches!(event, TraceEvent::Stmt(..)) {
-        STATEMENTS.with(|statements| statements.set(statements.get() + 1));
-    }
-}
-
-/// What `work` returns, and the statements it ran on `tx`'s connection.
-fn counted<T>(tx: &Transaction<'_>, work: impl FnOnce() -> T) -> (T, usize) {
-    STATEMENTS.with(|statements| statements.set(0));
-    tx.trace_v2(TraceEventCodes::SQLITE_TRACE_STMT, Some(count_statement));
-    let value = work();
-    tx.trace_v2(TraceEventCodes::SQLITE_TRACE_STMT, None);
-    (value, STATEMENTS.with(Cell::get))
-}
 
 fn uuid(prefix: &str, number: usize) -> String {
     format!("{prefix}_{number:08x}-1111-4111-8111-111111111111")
@@ -267,7 +245,7 @@ fn one_at_a_time(
             },
             _ => HashMap::new(),
         };
-        let (main, account) = levels_of(&row, skill::levels::card(tx, &row.account)?);
+        let (main, account) = levels_of(&row, skill::levels::card(tx, &row.account)?.as_ref());
         let badge = if classes.shown {
             skill::last_shown(tx, &row.account, &classes.developers, now)?
         } else {

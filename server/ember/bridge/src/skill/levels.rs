@@ -35,7 +35,7 @@ use std::collections::{HashMap, HashSet};
 
 use rusqlite::{OptionalExtension, Row, Transaction, params};
 
-use super::account;
+use super::{Standings, account};
 use crate::{db::select_in, error::Result};
 
 /// The points where each fighter tier begins, Ash to Ember: the frame colours
@@ -363,7 +363,7 @@ pub struct Pair {
 /// keys (the primary key, and `pair_records_second` from migration 063) and
 /// turned to `account`'s side.
 pub fn pairs_by_games(tx: &Transaction<'_>, account: &str, limit: usize) -> Result<Vec<Pair>> {
-    let mut statement = tx.prepare(
+    let mut statement = tx.prepare_cached(
         "SELECT other, won, lost FROM (
              SELECT second AS other, first_wins AS won, second_wins AS lost, played_at
              FROM pair_records WHERE first = ?1
@@ -386,21 +386,22 @@ pub fn pairs_by_games(tx: &Transaction<'_>, account: &str, limit: usize) -> Resu
     Ok(rows)
 }
 
-/// The card of Discord account `account` as another player sees it: its
-/// points, always (FIGHTER_LEVELS.md, "Cards are public"), and None once it
-/// has no Discord account connected. Its relation is `none`; the card look-up
-/// sets the caller's own (`cards::card_for`). A friends state, which wants the
-/// points and fighters alone, reads this one.
+/// The card of Discord account `account`, one account at a time: the test
+/// oracle `cards` is checked against. Its points, and None once it has no
+/// Discord account connected.
+#[cfg(test)]
 pub fn card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
     card_with(tx, account, false)
 }
 
-/// `card` with the award counters a card shows (`AwardCounts::shown`): the
-/// class only while the player takes part in ranking.
+/// `card` with the award counters a card shows, one account at a time: the
+/// test oracle of `cards` with `Standings`.
+#[cfg(test)]
 pub fn awarded_card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
     card_with(tx, account, true)
 }
 
+#[cfg(test)]
 fn card_with(tx: &Transaction<'_>, account: &str, awards: bool) -> Result<Option<PlayerCard>> {
     let connected: bool = tx.query_row(
         "SELECT EXISTS (SELECT 1 FROM discord_accounts WHERE user_id = ?1)",
@@ -435,11 +436,20 @@ fn counted_card(counted: &Counted, fighters: &[(u8, Counted)], awards: AwardCoun
     }
 }
 
-/// `card` for every one of `accounts` at once, in three reads however many
-/// there are: the cards of those with a Discord account connected, each as
-/// `card` serves it. A friends state, which wants the points of all of a
-/// player's friends, reads this one.
-pub fn cards(tx: &Transaction<'_>, accounts: &[&str]) -> Result<HashMap<String, PlayerCard>> {
+/// The cards of `accounts` as another player sees them, all at once: three
+/// reads however many there are, and two more with `awards`. Each has its
+/// points, always (FIGHTER_LEVELS.md, "Cards are public"), and only an
+/// account with a Discord account connected has one. Its relation is `none`;
+/// `cards::Reader` sets the caller's own. With `awards` (the ranking tables
+/// of the same accounts), each carries the award counters a card shows
+/// (`AwardCounts::shown`): the class only while the player takes part in
+/// ranking. A friends state, which wants the points and fighters alone, reads
+/// them without.
+pub fn cards(
+    tx: &Transaction<'_>,
+    accounts: &[&str],
+    awards: Option<&Standings>,
+) -> Result<HashMap<String, PlayerCard>> {
     let connected: HashSet<String> = select_in(
         tx,
         "SELECT user_id FROM discord_accounts WHERE user_id IN ({ids})",
@@ -476,15 +486,95 @@ pub fn cards(tx: &Transaction<'_>, accounts: &[&str]) -> Result<HashMap<String, 
     )? {
         fighters.entry(account).or_default().push((fighter, count));
     }
+    let mut kept = match awards {
+        Some(_) => kept_counts(tx, accounts)?,
+        None => HashMap::new(),
+    };
     Ok(connected
         .into_iter()
         .map(|account| {
             let counted = totals.remove(&account).unwrap_or_else(Counted::none);
             let played = fighters.remove(&account).unwrap_or_default();
-            let card = counted_card(&counted, &played, AwardCounts::default());
+            let shown = match awards {
+                Some(standings) => {
+                    let kept = kept.remove(&account).unwrap_or_default();
+                    AwardCounts {
+                        games: counted.games,
+                        wins: counted.wins,
+                        best_streak: kept.best_streak,
+                        peak_class: kept.peak.max(standings.band(&account)),
+                        rival: kept.rival,
+                        opponents: kept.opponents,
+                    }
+                    .shown(standings.takes_part(&account))
+                }
+                None => AwardCounts::default(),
+            };
+            let card = counted_card(&counted, &played, shown);
             (account, card)
         })
         .collect())
+}
+
+/// What an account's award counters keep beyond its games and wins
+/// (`award_counts`): its best run, its peak class, and from the pair records
+/// its most games against one opponent and the opponents faced.
+#[derive(Default)]
+struct Kept {
+    best_streak: u32,
+    peak: u8,
+    rival: u32,
+    opponents: u32,
+}
+
+/// `Kept` of each of `accounts`, in two reads however many there are. An
+/// account with no row of either kind has none, which reads as all 0, as
+/// `award_counts` reads it. A pair row is counted for each of its two
+/// accounts in the set, and once for a row whose two accounts are the same.
+fn kept_counts(tx: &Transaction<'_>, accounts: &[&str]) -> Result<HashMap<String, Kept>> {
+    let mut kept: HashMap<String, Kept> = HashMap::new();
+    for (account, best_streak, peak) in select_in(
+        tx,
+        "SELECT discord_user_id, best_streak, peak_band FROM award_counters
+         WHERE discord_user_id IN ({ids})",
+        &[],
+        accounts,
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, u32>(1)?,
+                row.get::<_, u8>(2)?,
+            ))
+        },
+    )? {
+        let entry = kept.entry(account).or_default();
+        entry.best_streak = best_streak;
+        entry.peak = peak;
+    }
+    for (account, rival, opponents) in select_in(
+        tx,
+        "SELECT account, MAX(games), COUNT(*) FROM (
+             SELECT first AS account, first_wins + second_wins AS games
+             FROM pair_records WHERE first IN ({ids})
+             UNION ALL
+             SELECT second, first_wins + second_wins
+             FROM pair_records WHERE second IN ({ids}) AND second <> first)
+         GROUP BY account",
+        &[],
+        accounts,
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, u32>(1)?,
+                row.get::<_, u32>(2)?,
+            ))
+        },
+    )? {
+        let entry = kept.entry(account).or_default();
+        entry.rival = rival;
+        entry.opponents = opponents;
+    }
+    Ok(kept)
 }
 
 /// `account`'s own count; none counted yet reads as no games.
