@@ -9,7 +9,7 @@
 #include "../common/NetworkNat.hxx"
 #include "../common/NetworkRoute.hxx"
 #include "RoomFailure.hxx"
-#include "RoomMessageQueue.hxx"
+#include "ClientEffectQueue.hxx"
 #include "../common/RoomLimits.hxx"
 #include "Admission.hxx"
 #include "../netplay/IdentityView.hxx"
@@ -302,9 +302,16 @@ private:
 	bool Command(const std::string& payload);
 	PeerEnd EndPeerCommand(const std::string& peer, std::uint64_t generation, bool failWhenFull);
 	SendResult SendRemote(Connection connection, const std::string& payload, std::int64_t* id);
-	bool Queue(std::deque<Message>& destination, Message message);
-	// Says which bound a room queue hit and what the client queue waits on.
-	void LogQueueFull(RoomQueueResult limit, bool serverQueue) const;
+	// A member's intent into the server queue, a committed effect into the
+	// client queue; a refusal fails the room (FailQueue).
+	bool QueueIntent(Message message);
+	bool QueueEffect(Message message);
+	// Says once which bound a room queue hit and what the client queue waits
+	// on, then fails the room under that queue's name.
+	void FailQueue(RoomQueueResult limit, bool serverQueue);
+	// A message on the committed leader's connection, the stream the room's
+	// commits come on (the local server's own when this PC leads).
+	bool FromLeader(Connection connection) const;
 	void Fail(const char* code);
 	bool ConsumeGameEvent(const nlohmann::json& event, const std::string& type);
     // `body`, when set, is a raw-body frame's checkpoint chunk.
@@ -317,13 +324,19 @@ private:
     bool HandleHelperError(const nlohmann::json& event);
     void PumpCheckpoint();
     // What the client queue does with the message at its head: deliver it,
-    // park it there, or drop it.
-    enum class EffectVerdict { Deliver, Park, Drop };
+    // park it there, or drop it. Missing: a committed effect the applied
+    // journal no longer holds; HeadGate drops it or fails the room.
+    enum class EffectVerdict { Deliver, Park, Drop, Missing };
     // Parses a message once, attaches the parsed payload as its body when it
     // delivers, and caches a parked effect's checked token on the message.
+    // Missing only once the room has failed.
     EffectVerdict AuthorizedEffect(Message& message);
     // The activation gate for a committed effect whose digest has been checked.
     EffectVerdict CommitGate(const EffectEnvelope& token) const;
+    // CommitGate for the token of the message at the head, with what only the
+    // message says: who sent it, and whether a Missing effect is replaceable
+    // state (Drop) or would be lost without a word (the room fails by name).
+    EffectVerdict HeadGate(const Message& message, const EffectEnvelope& token);
     // Recipient and duplicate checks, then rewrites the payload without its
     // token and attaches `payload` as the body.
     EffectVerdict DeliverCommitted(Message& message, const EffectEnvelope& token, nlohmann::json& payload);
@@ -431,7 +444,7 @@ private:
 		// The authenticated roster from control_rebound: endpoint and incarnation.
 		std::map<std::string, std::uint64_t> memberIncarnations;
 		std::deque<Message> serverMessages;
-		std::deque<Message> clientMessages;
+		ClientEffectQueue clientEffects;
 		std::vector<Connection> closed;
 		std::size_t queuedBytes = 0;
 		CoordinationSnapshot coordination;

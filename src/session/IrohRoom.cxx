@@ -43,7 +43,7 @@ void IrohRoom::Fail(const char* code) {
 	room_.error = code;
 	ClearInvitations();
 	room_.serverMessages.clear();
-	room_.clientMessages.clear();
+	room_.clientEffects.Clear();
 	room_.queuedBytes = 0;
 }
 
@@ -146,7 +146,7 @@ void IrohRoom::Leave(bool abandon) {
 	room_.localOpen = false;
 	ClearInvitations();
 	room_.serverMessages.clear();
-	room_.clientMessages.clear();
+	room_.clientEffects.Clear();
 	room_.queuedBytes = 0;
 	for (auto& game : room_.games) { game.second.state = GameState::Closing; game.second.virtualPort = 0; }
 	// A rejected local enqueue never introduced this epoch to the helper.
@@ -345,14 +345,14 @@ IrohRoom::RecoverySnapshot IrohRoom::RecoveryState() const {
     state.proposalEnded=sender_.ended;
     state.proposalStatus=sender_.status;
     state.serverQueueMessages=room_.serverMessages.size();
-    state.clientQueueMessages=room_.clientMessages.size();
+    state.clientQueueMessages=room_.clientEffects.Size();
     state.queuedBytes=room_.queuedBytes;
     state.pendingPublicEffects=replica_.pendingPublicEffects.size();
     state.pendingTerminalReplays=replica_.pendingTerminalReplayEffects.size();
     state.terminalReplaysInFlight=replica_.terminalReplayInFlight.size();
-    if(room_.clientMessages.empty()) return state;
+    if(room_.clientEffects.Empty()) return state;
     try {
-        const auto payload=json::parse(room_.clientMessages.front().payload);
+        const auto payload=json::parse(room_.clientEffects.Head().payload);
         state.clientHeadType=payload.value("type",std::string());
         if(payload.contains("_commit")) {
             const auto effect=payload.at("_commit").get<EffectEnvelope>();
@@ -574,7 +574,35 @@ IrohRoom::EffectVerdict IrohRoom::CommitGate(const EffectEnvelope& token) const 
     // the token deliverable or rejects the staged checkpoint; dropping it
     // here strands a valid native grant permanently.
     if(token.term>room_.coordination.term || token.revision>replica_.effectsRevision) return EffectVerdict::Park;
-    return EffectVerdict::Drop;
+    // This term's commit, applied, and gone from the journal it applied with.
+    return EffectVerdict::Missing;
+}
+
+IrohRoom::EffectVerdict IrohRoom::HeadGate(const Message& message, const EffectEnvelope& token) {
+    const auto verdict=CommitGate(token);
+    // A later commit of this term comes only on its leader's stream: another
+    // connection's token for one never applies, so it does not wait at the head.
+    if(verdict==EffectVerdict::Park && token.term==room_.coordination.term && !room_.coordination.leader.empty() &&
+        !FromLeader(message.connection)) return EffectVerdict::Drop;
+    if(verdict!=EffectVerdict::Missing) return verdict;
+    // Room state is replaceable: the journal keeps the newest of its kind for
+    // this member, which comes live or as a replay, and the newest snapshot
+    // with the chat. Verification is best effort, and a token from any other
+    // connection than the leader's is not the room's to vouch for.
+    const auto& tag=message.tag;
+    const bool newerChat=std::any_of(replica_.appliedEffects.begin(),replica_.appliedEffects.end(),[&](const EffectEnvelope& effect) {
+        return effect.recipient==token.recipient && ChatBearingSnapshot(effect) && effect.revision>token.revision;
+    });
+    if(tag.verification || tag.projection==RoomProjection::Snapshot || tag.projection==RoomProjection::TableData ||
+        (tag.projection==RoomProjection::SnapshotWithChat && newerChat) || !FromLeader(message.connection))
+        return EffectVerdict::Drop;
+    // A reply, an event, a grant or the chat would be lost without a word
+    // (SessionRecovery.hxx: GuaranteedEffectEnvelopes). Fail instead, so the
+    // player rejoins a room they can see whole.
+    spdlog::warn("Room: committed effect gone from the applied journal type={} term={} revision={} sequence={} applied={}",
+        token.type,token.term,token.revision,token.sequence,replica_.effectsRevision);
+    Fail("room_effect_evicted");
+    return EffectVerdict::Missing;
 }
 
 IrohRoom::EffectVerdict IrohRoom::DeliverCommitted(Message& message, const EffectEnvelope& token, json& payload) {
@@ -596,7 +624,7 @@ IrohRoom::EffectVerdict IrohRoom::AuthorizedEffect(Message& message) {
         // again once, to deliver it.
         if(message.checkedCommit) {
             const auto token=message.checkedCommit;
-            const auto verdict=CommitGate(*token);
+            const auto verdict=HeadGate(message,*token);
             if(verdict!=EffectVerdict::Deliver) return verdict;
             auto payload=json::parse(message.payload);
             payload.erase("_commit");
@@ -636,7 +664,7 @@ IrohRoom::EffectVerdict IrohRoom::AuthorizedEffect(Message& message) {
         }
         if(!payload.contains("_commit")) {
             const auto messageType=payload.value("type",std::string());
-            const bool fromLeader=room_.coordination.writable && PeerIdentity(message.connection)==room_.coordination.leader;
+            const bool fromLeader=room_.coordination.writable && FromLeader(message.connection);
             if(!(fromLeader && ((room_.pendingAdmission && (messageType=="hello_resp" || messageType=="join_rej")) ||
                 IsVerificationType(messageType)))) return EffectVerdict::Drop;
             message.body=std::make_shared<json>(std::move(payload));
@@ -649,48 +677,54 @@ IrohRoom::EffectVerdict IrohRoom::AuthorizedEffect(Message& message) {
         // instead of parking the queue. It stays SHA-256 over the canonical
         // dump of the parsed payload without its token.
         if(PayloadDigest(payload)!=token.payloadDigest) return EffectVerdict::Drop;
-        const auto verdict=CommitGate(token);
+        const auto verdict=HeadGate(message,token);
         if(verdict==EffectVerdict::Park) message.checkedCommit=std::make_shared<EffectEnvelope>(token);
         if(verdict!=EffectVerdict::Deliver) return verdict;
         return DeliverCommitted(message,token,payload);
     } catch(const std::exception&) { return EffectVerdict::Drop; }
 }
 
-bool IrohRoom::Queue(std::deque<Message>& destination, Message message) {
+bool IrohRoom::QueueIntent(Message message) {
 	// A committed proposal is immutable, so SessionServer temporarily stops
 	// draining client intents while the helper obtains quorum. Terminal receipt
 	// acknowledgements deliberately retry the same action ID during that wait.
 	// Keep one authenticated copy in the server queue instead of allowing exact
-	// retries to consume the entire bounded transport queue. Distinct actions,
-	// senders, and all server-to-client effects retain their original ordering;
-	// the client queue drops only state a newer effect replaces (QueueRoomEffect).
-	const bool serverQueue = &destination == &room_.serverMessages;
-	if (serverQueue) {
-		if (std::any_of(destination.begin(), destination.end(), [&](const Message& queued) {
-			return SameQueuedRoomRetry(queued, message);
-		})) return true;
-	}
-	const auto queued = serverQueue ? QueueRoomMessage(destination, room_.queuedBytes, std::move(message))
-		: QueueRoomEffect(destination, room_.queuedBytes, std::move(message), replica_.effectsRevision);
+	// retries to consume the entire bounded transport queue. Distinct actions
+	// and senders retain their original ordering.
+	if (std::any_of(room_.serverMessages.begin(), room_.serverMessages.end(), [&](const Message& queued) {
+		return SameQueuedRoomRetry(queued, message);
+	})) return true;
+	const auto queued = QueueRoomMessage(room_.serverMessages, room_.queuedBytes, std::move(message));
 	if (queued == RoomQueueResult::Queued) return true;
-	if (room_.state != State::Failed) LogQueueFull(queued, serverQueue);
-	Fail(queued == RoomQueueResult::BytesFull ? "room_receive_bytes"
-		: serverQueue ? "room_server_receive_queue" : "room_client_receive_queue");
+	FailQueue(queued, true);
+	return false;
+}
+
+bool IrohRoom::QueueEffect(Message message) {
+	const bool leader = FromLeader(message.connection);
+	const auto queued = room_.clientEffects.Admit(std::move(message), leader, replica_.effectsRevision, room_.queuedBytes);
+	if (queued == RoomQueueResult::Queued) return true;
+	FailQueue(queued, false);
 	return false;
 }
 
 // Once, before Fail clears both queues: the bound hit, and whether the client
 // queue's head waited on a checkpoint that had not arrived (nothing staged,
 // applied behind the room's revision) or on one staged but not yet applied.
-void IrohRoom::LogQueueFull(RoomQueueResult limit, bool serverQueue) const {
-	const auto state = RecoveryState();
-	spdlog::warn("Room: queue full queue={} limit={} client={} server={} bytes={} head={} head_term={} head_revision={} "
-		"term={} revision={} applied={} staged={} replays={} terminal_replays={}", serverQueue ? "server" : "client",
-		limit == RoomQueueResult::BytesFull ? "bytes" : limit == RoomQueueResult::CommitsBehind ? "commits" : "messages",
-		state.clientQueueMessages, state.serverQueueMessages, state.queuedBytes,
-		state.clientHeadType.empty() ? std::string("-") : state.clientHeadType, state.clientHeadTerm, state.clientHeadRevision,
-		room_.coordination.term, room_.coordination.revision, replica_.effectsRevision, state.stagedCheckpoints,
-		state.pendingPublicEffects, state.pendingTerminalReplays + state.terminalReplaysInFlight);
+void IrohRoom::FailQueue(RoomQueueResult limit, bool serverQueue) {
+	if (room_.state != State::Failed) {
+		const auto state = RecoveryState();
+		spdlog::warn("Room: queue full queue={} limit={} client={} server={} bytes={} head={} head_term={} head_revision={} "
+			"parked_since={} term={} revision={} applied={} staged={} replays={} terminal_replays={}", serverQueue ? "server" : "client",
+			limit == RoomQueueResult::BytesFull ? "bytes" : limit == RoomQueueResult::CommitsBehind ? "commits" : "messages",
+			state.clientQueueMessages, state.serverQueueMessages, state.queuedBytes,
+			state.clientHeadType.empty() ? std::string("-") : state.clientHeadType, state.clientHeadTerm, state.clientHeadRevision,
+			room_.clientEffects.ParkedSince(replica_.effectsRevision), room_.coordination.term, room_.coordination.revision,
+			replica_.effectsRevision, state.stagedCheckpoints, state.pendingPublicEffects,
+			state.pendingTerminalReplays + state.terminalReplaysInFlight);
+	}
+	Fail(limit == RoomQueueResult::BytesFull ? "room_receive_bytes"
+		: serverQueue ? "room_server_receive_queue" : "room_client_receive_queue");
 }
 
 // Once a minute unless the applied roster is empty: commits made and applied
