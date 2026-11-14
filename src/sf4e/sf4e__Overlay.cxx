@@ -635,7 +635,6 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         ask(SummonsReason::PublicRoomLink, SummonsSequenceKey(snapshot.tournament.roomLink.sequence), menuFree, snapshot.tournament.roomLink.free);
         summons.Update(asks, [](const char* why) { presentation.Open(why); });
     }
-    sf4e::ui::SetOverlayCursorOwnership(focused && presentation.Visible());
     const bool assigning = snapshot.inputCapture != sf4e::input::Capture::Idle;
     // Player navigation is semantic, not ImGui spatial scoring. Text input is
     // still provided by the Win32 backend after explicit field activation.
@@ -871,9 +870,14 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // taken only with the focus.
     const bool shown = presentation.Visible() || s_trainingControls.Open();
     const bool passive = sf4e::ui::PassiveOverlayShown(presentation.Visible(), s_trainingControls.Open(), nativePaused);
+    const bool fight = layers.matchActive && focused && passive;
     const bool visible = focused && shown;
     pointerCapture = focused && !visible && hud.pointer;
-    sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture);
+    // A Training table keeps its pointer for the F6 chip.
+    const bool table = frame->localFighter && snapshot.practiceMatch;
+    const bool hideCursor = fight && !table;
+    sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture || hideCursor);
+    if (hideCursor) ImGui::SetMouseCursor(ImGuiMouseCursor_None);
     // This frame publishes only the menu's part of the capture; the training
     // controls' part is their controller's own (CapturesInput).
     capture = focused && presentation.Visible();
@@ -902,8 +906,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     static sf4e::ui::TimedHint watchingHint(10);
     const bool watchingHintDue = watchingHint.Due(
         snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch, GetTickCount64() / 1000.0);
-    if (layers.matchActive && focused && passive) {
-        if (frame->localFighter && snapshot.practiceMatch)
+    if (fight) {
+        if (table)
             sf4e::ui::DrawMatchKeysNotice({"training.match.checkpoint_disabled", "training.match.end_hint"});
         else if (watchingHintDue) sf4e::ui::DrawMatchKeysNotice({"runtime.watching_hint"});
     }

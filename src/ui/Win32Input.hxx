@@ -11,8 +11,8 @@ IMGUI_API void ImGui_ImplWin32_SetInputBridge(sf4e::ui::Win32InputBridge* bridge
 IMGUI_API void ImGui_ImplWin32_SetRenderSize(float width, float height);
 
 namespace sf4e { namespace ui {
-// Set before the Win32 backend's NewFrame as well as on visibility/focus changes.
-// The hidden overlay must leave native cursor shape and visibility alone.
+// Decided once per frame after the layers, dropped on focus loss. Ember owns the
+// cursor while its menu or the chip takes the mouse, and during a fight to hide it.
 void SetOverlayCursorOwnership(bool capture);
 // Nonzero means the native game must not process this message again.
 // `capture` takes every input (an open menu); `pointer` takes only the mouse
