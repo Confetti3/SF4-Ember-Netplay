@@ -5071,14 +5071,29 @@ msgstr "{0} sets in a row"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "Direct {0} ms"
 
 msgid "room.latency.relay"
 msgstr "Relay {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "Relay ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Estimated ping: about {0} ms."
+
+msgid "room.latency.tip.relay"
+msgstr "Measured through the relay. A direct match is usually faster. Check connection measures the real path."
+
+msgid "room.latency.tip.checked_direct"
+msgstr "Checked on the match's path: direct, {0} ms, {1} ms jitter."
+
+msgid "room.latency.tip.checked_relay"
+msgstr "Checked on the match's path: relayed, {0} ms, {1} ms jitter."
 
 msgid "room.latency.tip.measuring"
 msgstr "Measuring ping..."

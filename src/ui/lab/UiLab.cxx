@@ -219,9 +219,12 @@ void JoinRoom(ui::ShellView& view) {
         if (i <= 6) { m.setsWon = static_cast<std::uint16_t>(i % 4); m.setsLost = static_cast<std::uint16_t>(i % 3); }
         // Class marks and pings, as a public room shows them.
         m.badge = i == 2 ? SkillBadge::Developer() : i == 3 ? SkillBadge::Placing() : i < 9 ? SkillBadge::OfClass(static_cast<std::uint8_t>(i), i % 2 == 0) : SkillBadge{};
-        if (i > 1) { session::MemberLatency l; l.incarnation = m.incarnation; l.state = session::MemberLatency::State::Value; l.rttMs = 20 + i * 13 % 190; l.relay = i % 3 == 0; view.memberLatency[m.id] = l; }
+        // Member 2 is the opponent, checked below; member 3 is measured through a relay, member 5 not measured yet.
+        if (i > 1) { session::MemberLatency l; l.incarnation = m.incarnation; l.state = i == 5 ? session::MemberLatency::State::Measuring : session::MemberLatency::State::Value; l.rttMs = i == 5 ? 0 : 20 + i * 13 % 190; l.relay = i % 3 == 0; view.memberLatency[m.id] = l; }
         view.room.members.push_back(m);
     }
+    // This PC's connection check against its opponent (member 2): direct, 9 ms, 1.2 ms jitter, so their row shows the match's own figure.
+    view.probeStatus = "ready"; view.recommendedDelay = 2; view.probeRoute = sf4e::RouteKind::Direct; view.probeP50Us = 9000; view.probeP95Us = 11000; view.probeJitterUs = 1200;
     const char* chat[] = {"Welcome! Grab a table or join a queue.", "Good games. I'll watch the next one.", "Ready for another set?", "Let's run it back!"};
     for (int i = 0; i < 12; ++i) view.room.chat.push_back({static_cast<std::uint64_t>(i + 1), static_cast<room::MemberId>(i % 16 + 1), chat[i % 4]});
 }

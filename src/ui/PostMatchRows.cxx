@@ -54,7 +54,7 @@ std::optional<v2::Box> DrawPlayer(const ShellView& v, ImDrawList* d, v2::Box row
     const float top = row.min.y + (row.H() - line) * .5f;
     float after = x;
     if (player.member) {
-        const auto tag = MemberTag(v.memberLatency, *player.member, v.room.localMember);
+        const auto tag = MemberTag(v, *player.member);
         // The tag is given only the width it needs: Tag puts its ping at the far end of what it is given, and the chip follows that end.
         const float room = (std::min)((std::max)(right - x - chip - 12 * s, 60 * s), v2::TagWidth(tag, v2::TagSize::S));
         v2::Tag(d, ImVec2(x, top), room, tag, v2::TagSize::S);

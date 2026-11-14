@@ -87,7 +87,7 @@ inline std::string ProbeMilliseconds(std::uint64_t us) {
 inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
     ConnectionCheckFeedback result;
     result.checking = view.probeStatus == "checking";
-    const bool measured = view.recommendedDelay >= 0 && view.recommendedDelay <= MaximumInputDelay;
+    const bool measured = view.ConnectionMeasured();
     if (result.checking) {
         result.value = loc::T("connection.checking");
         result.detail = loc::T("connection.checking_detail");

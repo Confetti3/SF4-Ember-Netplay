@@ -666,7 +666,13 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
     const std::string name = Fit(tag.name, (std::max)(0.f, nameMax), nameSize, nameFont, false);
     draw->AddText(nameFont, nameSize, ImVec2(x, middle), Colors().text, name.c_str());
     x += TextWidth(name, nameSize, nameFont) + gap;
-    if (!ping.empty()) Chip(draw, ImVec2(at.x + right - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);
+    if (!ping.empty()) {
+        const ImVec2 chipAt(at.x + right - pingWidth, at.y + (line - chipHeight) * .5f);
+        Chip(draw, chipAt, ping, tag.ping.color);
+        // The tip says what the number is: its route, and whether it was checked.
+        if (!tag.ping.tip.empty() && ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(chipAt, ImVec2(chipAt.x + pingWidth, chipAt.y + chipHeight)))
+            ImGui::SetTooltip("%s", tag.ping.tip.c_str());
+    }
     if (tag.link) DrawNetworkLinkGlyph(draw, ImVec2(at.x + width - glyph, at.y + (line - glyph) * .5f), glyph, *tag.link);
     if (!twoLines) {
         if (title) { draw->AddText(ImGui::GetFont(), font, ImVec2(x, at.y + (line - font) * .5f), Colors().muted, tag.title.c_str()); x += titleWidth; }

@@ -3,6 +3,7 @@
 // runtime and the player, built by the caller (sf4e__Overlay.cxx, the lab).
 #include <imgui.h>
 #include "RoomCards.hxx"
+#include "../common/InputDelay.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/FighterCatalog.hxx"
@@ -108,6 +109,8 @@ struct ShellView {
     std::uint64_t probeP50Us=0, probeP95Us=0, probeP99Us=0, probeJitterUs=0;
     bool probeBenchmark=false;
     unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;
+    // The connection check has a result for the seated opponent: not under way, and it recommends a delay.
+    bool ConnectionMeasured() const { return probeStatus != "checking" && recommendedDelay >= 0 && recommendedDelay <= MaximumInputDelay; }
     // The ping to each other member while the room board is open, by member.
     session::MemberLatencyTable memberLatency;
     int localSlot = -1;

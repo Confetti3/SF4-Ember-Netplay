@@ -16,7 +16,8 @@ namespace sf4e { namespace ui {
 // tip that explains it. With neither, nothing is drawn.
 struct LatencyMark {
     std::string text,tip;
-    // The chip: the estimate with its route, "Direct 44 ms"; none while unknown.
+    // The chip with its route where the row has room, "Relay ~80 ms" or a
+    // checked "Direct 9 ms"; none where the plain text says all of it.
     std::string routed;
     ImU32 color=IM_COL32(181,169,155,255);
 };

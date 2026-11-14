@@ -243,7 +243,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   return found==rows.end()?nullptr:&*found;
  };
  const auto tag=[&](const room::Member& m,ImVec2 at,float width,v2::TagSize size,std::string status){
-  auto g=MemberTag(v.memberLatency,m,v.room.localMember);g.status=std::move(status);
+  auto g=MemberTag(v,m);g.status=std::move(status);
   if(m.id==v.room.localMember)g.name+=loc::T("room.suffix_you");
   // A small tag keeps the name, flag and class only.
   if(size==v2::TagSize::XS){g.ping={};g.link.reset();}
