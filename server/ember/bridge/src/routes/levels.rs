@@ -23,19 +23,37 @@ use rusqlite::Transaction;
 
 use crate::{
     AppState,
-    auth::Player,
     cards::{self, Parts, Reader, Viewer},
-    error::{ApiFailure, Result},
+    error::Result,
     friends::{self, Classes, store},
     http::{Body, GENERAL_BODY, ok},
-    routes::{play::playing, rooms},
+    routes::account::{Bucket, Gate, PlayerAccount},
     secrets::Keys,
-    skill::{self, levels},
+    skill::levels,
 };
 
-/// Level requests one player may make per window, both routes together.
-const REQUESTS_PER_WINDOW: usize = 60;
-const WINDOW_SECS: u64 = 10 * 60;
+/// A player's own points. The game reads them at start, when the Profile
+/// opens, and twice after each set it fought (8 and 20 seconds after its
+/// end, `LevelRequests.hxx`), so a set of even a minute costs two: 30 in ten
+/// minutes leaves room for opening the Profile as often as anyone does. Kept
+/// apart from the look-ups, so a busy room's cards never cost a player their
+/// own points.
+const OWN: Bucket = Bucket {
+    name: "points-me",
+    uses: 30,
+    window: 10 * 60,
+};
+/// Card look-ups. The game sends at most one every 10 seconds for a room's
+/// members (`CardRequests.hxx`, `MinGapMs`), and one of friends alone every
+/// 3 seconds while the Friends tab moves its focus: 120 in ten minutes is
+/// twice a room's steady most, and room for opening profiles and looking
+/// through friends besides. Each look-up costs the same few reads whatever
+/// its number of cards (`cards::Reader`).
+const LOOKUPS: Bucket = Bucket {
+    name: "cards-lookup",
+    uses: 120,
+    window: 10 * 60,
+};
 
 /// `GET /v1/points/me`. Read only: nothing is remembered as shown. A build
 /// that reads class bonus points says so in the query and is answered the
@@ -46,7 +64,8 @@ pub async fn own(
     RawQuery(query): RawQuery,
     headers: HeaderMap,
 ) -> Result<Response> {
-    let (player, now) = admit(&state, &headers).await?;
+    let caller = PlayerAccount::admit(&state, &headers, Gate::Points, &OWN).await?;
+    let now = caller.now;
     let keys = state.keys.clone();
     let friends_offered = friends::offered(&state);
     let classes = Classes::of(&state);
@@ -58,9 +77,9 @@ pub async fn own(
     let levels = state
         .db
         .read(move |tx| {
-            let mut own = levels::own(tx, &player.ember_id, sum)?;
+            let mut own = levels::own(tx, &caller.ember_id, sum)?;
             if let OwnLevels::Counted { rival, .. } = &mut own
-                && let Some(caller) = skill::account(tx, &player.ember_id)?
+                && let Some(caller) = &caller.account
             {
                 let viewer = Viewer {
                     caller: Some(caller.as_str()),
@@ -68,7 +87,7 @@ pub async fn own(
                     classes: &classes,
                     now,
                 };
-                *rival = most_played(tx, &keys, &viewer, &caller)?;
+                *rival = most_played(tx, &keys, &viewer, caller)?;
             }
             Ok(own)
         })
@@ -131,7 +150,7 @@ pub async fn lookup(
     headers: HeaderMap,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let (player, now) = admit(&state, &headers).await?;
+    let caller = PlayerAccount::admit(&state, &headers, Gate::Points, &LOOKUPS).await?;
     let lookup: CardLookup = body.parse()?;
     lookup.check()?;
     let keys = state.keys.clone();
@@ -140,12 +159,11 @@ pub async fn lookup(
     let answers = state
         .db
         .read(move |tx| {
-            let caller = skill::account(tx, &player.ember_id)?;
             let viewer = Viewer {
-                caller: caller.as_deref(),
+                caller: caller.account.as_deref(),
                 friends_offered,
                 classes: &classes,
-                now,
+                now: caller.now,
             };
             answer(tx, &keys, &viewer, &lookup.cards)
         })
@@ -233,23 +251,4 @@ fn targets_of(
                 .filter(|target| Some(target.as_str()) != own),
         })
         .collect())
-}
-
-/// The calling player, within their request budget, and the time.
-async fn admit(state: &AppState, headers: &HeaderMap) -> Result<(Player, u64)> {
-    if !rooms::enabled(state) {
-        return Err(ApiFailure::not_found());
-    }
-    let player = playing(state, headers).await?;
-    let now = state.now();
-    state
-        .rate
-        .check(
-            &format!("points:{}", player.ember_id.as_str()),
-            REQUESTS_PER_WINDOW,
-            WINDOW_SECS,
-            now,
-        )
-        .map_err(ApiFailure::rate_limited)?;
-    Ok((player, now))
 }

@@ -9,6 +9,7 @@ use common::{
     Bridge, Player,
     points::*,
     public_rooms::{player, send, start},
+    sites::connect_discord,
     supervisor::report,
 };
 use ember_protocol::levels::{CARD_VALID_SECS, POINTS_PATH, is_card_token};
@@ -507,6 +508,51 @@ async fn a_look_up_takes_one_to_sixteen_well_formed_selectors() {
         let (status, body) = lookup(&bridge, &first, bad.clone()).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{bad}: {body}");
     }
+}
+
+/// Own points and card look-ups are limited apart, and by Discord account: a
+/// busy room's look-ups never cost a player their own points, and the same
+/// account on a new Ember ID does not start a fresh budget.
+#[tokio::test]
+async fn own_points_and_look_ups_are_limited_apart_by_discord_account() {
+    let (bridge, _fake, _room_id, first, _second) = two_players().await;
+    let token = sealed(&bridge, 0x01, 200, bridge.state().now());
+    for _ in 0..120 {
+        cards(&bridge, &first, json!([{ "card": token }])).await;
+    }
+    let (status, _) = lookup(&bridge, &first, json!([{ "card": token }])).await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+    // Their own points are still answered, 30 times in ten minutes.
+    for _ in 0..30 {
+        own(&bridge, &first).await;
+    }
+    let (status, _) = send(
+        &bridge,
+        Method::GET,
+        first.token(),
+        "198.51.100.7",
+        POINTS_PATH,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+
+    // The same Discord account on another Ember ID has spent the same budget.
+    let moved = player(&bridge, 3).await;
+    sql(
+        &bridge,
+        "DELETE FROM discord_accounts WHERE user_id = '100'",
+    )
+    .await;
+    connect_discord(&bridge, "100", &moved).await;
+    let (status, _) = lookup(&bridge, &moved, json!([{ "card": token }])).await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+    // A player without one is limited by their Ember ID.
+    let unlinked = player(&bridge, 4).await;
+    assert_eq!(
+        cards(&bridge, &unlinked, json!([{ "card": token }])).await,
+        json!([null])
+    );
 }
 
 /// Whether `bridge` lists `points` among its capabilities.

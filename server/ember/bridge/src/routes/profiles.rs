@@ -13,30 +13,20 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use ember_protocol::{
-    api::ErrorCode,
     friends::parse_friend_code,
     levels::{CardSave, CardSearch, MAX_SEARCH, SearchAnswer, SearchHit},
-    skill::NO_ACCOUNT,
 };
 use rusqlite::Transaction;
 
 use crate::{
     AppState,
     cards::{self, Parts, Reader, Viewer},
-    error::{ApiFailure, Result},
+    error::Result,
     friends::{self, Classes, store},
     http::{Body, GENERAL_BODY, ok},
-    routes::{play::playing, rooms},
+    routes::account::{Bucket, Gate, Linked},
     secrets::Keys,
-    skill,
 };
-
-/// A rate limit: uses per window of seconds, by Discord account.
-struct Bucket {
-    name: &'static str,
-    uses: usize,
-    window: u64,
-}
 
 const SAVES: Bucket = Bucket {
     name: "cards-me",
@@ -54,19 +44,13 @@ const SEARCHES: Bucket = Bucket {
 /// that more matched.
 const SCAN: usize = 200;
 
-/// The calling player's Discord account and the time.
-struct Caller {
-    account: String,
-    now: u64,
-}
-
 /// `PUT /v1/cards/me`: replaces what the caller's card shows. 204.
 pub async fn save(
     State(state): State<AppState>,
     headers: HeaderMap,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let caller = admit(&state, &headers, &SAVES).await?;
+    let caller = Linked::admit(&state, &headers, Gate::Profiles, &SAVES).await?;
     let card: CardSave = body.parse()?;
     card.check()?;
     state
@@ -83,7 +67,7 @@ pub async fn search(
     headers: HeaderMap,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let caller = admit(&state, &headers, &SEARCHES).await?;
+    let caller = Linked::admit(&state, &headers, Gate::Profiles, &SEARCHES).await?;
     let search: CardSearch = body.parse()?;
     search.check()?;
     let keys = state.keys.clone();
@@ -153,34 +137,4 @@ pub(crate) fn find(
         });
     }
     Ok(SearchAnswer { players, more })
-}
-
-/// The calling player's Discord account, within `bucket`.
-async fn admit(state: &AppState, headers: &HeaderMap, bucket: &Bucket) -> Result<Caller> {
-    if !rooms::enabled(state) {
-        return Err(ApiFailure::not_found());
-    }
-    let ember_id = playing(state, headers).await?.ember_id;
-    let account = state
-        .db
-        .read(move |tx| skill::account(tx, &ember_id))
-        .await?
-        .ok_or_else(|| {
-            ApiFailure::new(
-                ErrorCode::Forbidden,
-                "Connect a Discord account to have a card.",
-            )
-            .detail("reason", NO_ACCOUNT)
-        })?;
-    let now = state.now();
-    state
-        .rate
-        .check(
-            &format!("{}:{account}", bucket.name),
-            bucket.uses,
-            bucket.window,
-            now,
-        )
-        .map_err(ApiFailure::rate_limited)?;
-    Ok(Caller { account, now })
 }

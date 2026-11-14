@@ -63,7 +63,7 @@ pub fn refuse(reason: FriendRefusal) -> ApiFailure {
             ErrorCode::StaleRevision,
             "That friend cannot be invited now.",
         ),
-        // Written where the account is looked up (`routes::friends::admit`).
+        // Written where the account is looked up (`routes::account::Gate`).
         FriendRefusal::NoDiscordAccount => (
             ErrorCode::Forbidden,
             "Connect a Discord account to have friends.",

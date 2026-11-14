@@ -327,8 +327,10 @@ asks only a bridge that lists `points`, and an older bridge answers 404, which t
 
 ### `GET /v1/points/me`
 
-Player session (`routes::play::playing`), bucket `points:{ember_id}` 60 per
-10 minutes shared with card look-ups.
+Player session (`routes::account::PlayerAccount`), bucket `points-me` 30 per
+10 minutes by Discord account (by Ember ID for a caller without one). Card
+look-ups have their own bucket, `cards-lookup` 120 per 10 minutes, keyed the
+same way, so a busy room's look-ups never cost a player their own points.
 
 ```json
 {"points":"no_account"}

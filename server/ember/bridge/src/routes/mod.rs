@@ -1,3 +1,4 @@
+pub mod account;
 pub mod archive;
 pub mod blumint;
 pub mod desk_pages;
