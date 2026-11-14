@@ -177,8 +177,8 @@ pub async fn own(bridge: &Bridge, player: &Player) -> Json_ {
     own_at(bridge, player, CLASS_BONUS_POINTS_PATH).await
 }
 
-/// `own` as a build from before the class bonus asks it: with no query.
-pub async fn own_before_the_bonus(bridge: &Bridge, player: &Player) -> Json_ {
+/// `own` asked with no query, as a build from before the class bonus asks it.
+pub async fn own_plainly(bridge: &Bridge, player: &Player) -> Json_ {
     own_at(bridge, player, POINTS_PATH).await
 }
 

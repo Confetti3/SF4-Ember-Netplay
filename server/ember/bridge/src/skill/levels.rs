@@ -105,18 +105,6 @@ impl Played {
     }
 }
 
-/// How a count's points are summed for the build that asks.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Sum {
-    /// The points as they are earned: a game is 1, a win with the bonus 1 more.
-    Earned,
-    /// Games plus wins, every win counted with a bonus. A build from before
-    /// the class bonus refuses its own points unless they are exactly that
-    /// (`ember_protocol::levels::CLASS_BONUS_FEATURE`), so it is shown this
-    /// sum, which is the same number until one of its wins earns no bonus.
-    GamesAndWins,
-}
-
 /// One count of games and wins: a fighter's or the account's.
 struct Counted {
     games: u64,
@@ -142,17 +130,6 @@ impl Counted {
     fn points(&self) -> u64 {
         self.games
             .saturating_add(self.wins.saturating_sub(self.lower_wins))
-    }
-
-    /// This count as `sum` shows it.
-    fn summed(self, sum: Sum) -> Self {
-        match sum {
-            Sum::Earned => self,
-            Sum::GamesAndWins => Self {
-                lower_wins: 0,
-                ..self
-            },
-        }
     }
 
     /// The account's own answer: its points and frame, with `awards`, which
@@ -326,18 +303,18 @@ fn award_counts(tx: &Transaction<'_>, account: &str, counted: &Counted) -> Resul
     })
 }
 
-/// The points of the player as `ember_id`, for themselves: the account's and
-/// every fighter's, summed as `sum` says.
-pub fn own(tx: &Transaction<'_>, ember_id: &EmberId, sum: Sum) -> Result<OwnLevels> {
+/// The points of the player as `ember_id`, for themselves, as they are
+/// earned: the account's and every fighter's.
+pub fn own(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<OwnLevels> {
     let Some(account) = account(tx, ember_id)? else {
         return Ok(OwnLevels::NoAccount {});
     };
-    let counted = account_count(tx, &account)?.summed(sum);
+    let counted = account_count(tx, &account)?;
     Ok(OwnLevels::Counted {
         account: counted.own_account(award_counts(tx, &account, &counted)?),
         fighters: fighter_counts(tx, &account)?
             .into_iter()
-            .map(|(fighter, count)| count.summed(sum).own_fighter(fighter))
+            .map(|(fighter, count)| count.own_fighter(fighter))
             .collect(),
         // The route that knows the keys and the classes fills it in.
         rival: None,
@@ -714,11 +691,8 @@ mod tests {
         // Every win against a lower class: the points are the games.
         assert_eq!(counted(10, 6, 6).points(), 10);
         assert_eq!(counted(10, 6, 0).points(), 16);
-        // A build from before the bonus is shown games plus wins, and the
-        // games and wins themselves either way.
-        let before = counted(10, 6, 2).summed(Sum::GamesAndWins).own_fighter(7);
-        assert_eq!((before.points, before.games, before.wins), (16, 10, 6));
-        let earned = counted(10, 6, 2).summed(Sum::Earned).own_fighter(7);
+        // The player's own answer says the games and wins behind the points.
+        let earned = counted(10, 6, 2).own_fighter(7);
         assert_eq!((earned.points, earned.games, earned.wins), (14, 10, 6));
     }
 

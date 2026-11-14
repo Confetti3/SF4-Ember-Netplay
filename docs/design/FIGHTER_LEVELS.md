@@ -358,29 +358,23 @@ cards are public.
 
 #### Builds from before the class bonus
 
-The Nightly builds published before the class bonus
-(`v1.6.0-nightly20261112.2` and earlier) refuse their own points unless
-`points == games + wins`, in three places: `OwnAccount::check` and
-`OwnFighter::check` as their helper carries them, and the game's own decoder
-(`DecodeLevel`, `src/session/TournamentAnswers.cxx`). Answered the points as
-they are earned, such a build would show no points at all from the first win
-against a lower class. So the route answers by who asks:
+The route answers the points as they are earned to every build, asked with
+the class bonus query (`GET /v1/points/me?class_bonus=1`,
+`CLASS_BONUS_POINTS_PATH`, which a build sends only to a bridge that lists
+`points_class_bonus`) or without it. The bridge keeps listing
+`points_class_bonus`, and reads the query as the plain path.
 
-- `GET /v1/points/me?class_bonus=1` (`CLASS_BONUS_POINTS_PATH`): the points
-  as they are earned. A build sends the query only to a bridge that lists
-  `points_class_bonus`.
-- `GET /v1/points/me` with no query, or any other: `points` is
-  `games + wins` for the account and every fighter, with the tier, `floor`
-  and `next` of that sum, which those builds accept. It is the same number
-  as the earned one until a win earns no bonus.
-
-Cards (`POST /v1/cards/lookup`) carry the earned points to every build: no
-build ever checked a card's points against games and wins. So a build from
-before the bonus may show its player a higher number on their own page than
-others see on their card, until it is updated. The plain answer can be
-removed once no such build is in use; the checks of newer builds
-(`games <= points <= games + wins`) take either answer, so they also read a
-bridge from before the bonus, which is asked with no query.
+The only builds that checked `points == games + wins` are the Nightlies
+published before the class bonus (`v1.6.0-nightly20261112.2` and earlier),
+in `OwnAccount::check`, `OwnFighter::check` and the game's own decoder
+(`DecodeLevel`, `src/session/TournamentAnswers.cxx`). No Stable build ever
+called `/v1/points/me` (1.5.7 does not), so the plain answer of games plus
+wins that once served those Nightlies was removed before 1.6.0 Stable: such a
+Nightly shows no points of its own from its player's first win that earns no
+bonus, until it updates. Cards (`POST /v1/cards/lookup`) always carried the
+earned points: no build checks a card's points against games and wins. The
+checks of newer builds (`games <= points <= games + wins`) also read a bridge
+from before the bonus, which is asked with no query.
 
 ### The card token in the room ticket
 

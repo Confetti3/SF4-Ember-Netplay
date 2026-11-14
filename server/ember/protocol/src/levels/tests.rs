@@ -422,8 +422,8 @@ fn a_most_played_opponent_is_checked() {
 #[test]
 fn class_bonus_points_are_asked_at_the_points_path_with_its_query() {
     assert_eq!(
-        CLASS_BONUS_POINTS_PATH,
-        format!("{POINTS_PATH}?{CLASS_BONUS_QUERY}")
+        CLASS_BONUS_POINTS_PATH.split_once('?'),
+        Some((POINTS_PATH, "class_bonus=1"))
     );
     assert_ne!(CLASS_BONUS_FEATURE, POINTS_FEATURE);
 }

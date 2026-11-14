@@ -35,15 +35,14 @@ pub const POINTS_FEATURE: &str = "points";
 pub const POINTS_PATH: &str = "/v1/points/me";
 /// The capability of a bridge whose points follow the class bonus: a win
 /// earns its second point only against the same class or a higher one, so
-/// points can be fewer than games plus wins. Builds from before it refuse
-/// such points (they check `points == games + wins`), so the bridge answers
-/// `POINTS_PATH` with games plus wins, and the points as they are earned only
-/// to a build that asks `CLASS_BONUS_POINTS_PATH`, which a build does only of
-/// a bridge that lists this.
+/// points can be fewer than games plus wins. A build that reads such points
+/// asks `CLASS_BONUS_POINTS_PATH` of a bridge that lists this. The bridge
+/// answers the points as they are earned however it is asked: only Nightly
+/// builds from before the bonus, never a Stable one, checked
+/// `points == games + wins`.
 pub const CLASS_BONUS_FEATURE: &str = "points_class_bonus";
-/// The query a build that reads class bonus points puts on `POINTS_PATH`.
-pub const CLASS_BONUS_QUERY: &str = "class_bonus=1";
-/// `POINTS_PATH` with `CLASS_BONUS_QUERY`.
+/// `POINTS_PATH` with the query a build that reads class bonus points sends,
+/// which a bridge reads as `POINTS_PATH`.
 pub const CLASS_BONUS_POINTS_PATH: &str = "/v1/points/me?class_bonus=1";
 /// Fighters a player can have points for: 0 to 43, USF4's roster.
 pub const FIGHTERS: u8 = 44;
