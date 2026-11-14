@@ -4,7 +4,7 @@
 
 mod common;
 
-use common::{Player, profiles::*, public_rooms::player, supervisor::BUILD};
+use common::{Player, profiles::*, public_rooms::player, seed, supervisor::BUILD};
 use ember_protocol::{
     friends::{ACTIONS_PATH, SYNC_PATH},
     levels::{CARDS_ME_PATH, LOOKUP_PATH, SEARCH_PATH},
@@ -90,6 +90,65 @@ async fn a_look_up_by_code_opens_the_card_of_its_one_account() {
         world.cards(&a, json!([{ "code": code }])).await,
         json!([null])
     );
+}
+
+/// A block is between Discord accounts, so a caller without one could be the
+/// blocked player on a throwaway Ember ID: they are shown no card at all.
+#[tokio::test]
+async fn a_block_holds_against_a_caller_without_a_discord_account() {
+    let world = World::start().await;
+    let a = world.member(1, 1, "Player 1").await;
+    let b = world.member(2, 2, "Player 2").await;
+    let c = world.member(3, 3, "Player 3").await;
+    world
+        .sql(format!(
+            "INSERT INTO friend_blocks (blocker, blocked, id, name, at) VALUES ('{}', '{}', 'bl_x', 'Player 2', 1)",
+            a.discord, b.discord
+        ))
+        .await;
+    // The blocked player sees nothing of A; anyone else with Discord does.
+    assert_eq!(world.card_of(&b, &a).await, Json_::Null);
+    assert_eq!(world.card_of(&c, &a).await["relation"], "none");
+
+    // B again, holding A's token from a room, on an Ember ID with no Discord
+    // account: nothing, and nothing of anyone else either.
+    let throwaway = Member {
+        player: player(&world.bridge, 9).await,
+        discord: String::new(),
+        name: "Player 9",
+    };
+    world
+        .ember_ids
+        .lock()
+        .unwrap()
+        .push(throwaway.player.id().as_str().to_owned());
+    let (of_a, of_c) = (world.token(&a), world.token(&c));
+    assert_eq!(
+        world
+            .cards(&throwaway, json!([{ "card": of_a }, { "card": of_c }]))
+            .await,
+        json!([null, null])
+    );
+    // The same Ember ID once it connects Discord sees C's card again.
+    let joined = Member {
+        discord: account(9),
+        player: throwaway.player,
+        name: "Player 9",
+    };
+    seed::link_discord_at(
+        world.bridge.state(),
+        &joined.discord,
+        joined.player.id().as_str(),
+        "discord_name_9",
+        CONNECTED,
+    )
+    .await;
+    world
+        .accounts
+        .lock()
+        .unwrap()
+        .extend([joined.discord.clone(), "discord_name_9".to_owned()]);
+    assert_eq!(world.card_of(&joined, &c).await["relation"], "none");
 }
 
 /// Both orders of two accounts' pair record, as the bridge stores one: the

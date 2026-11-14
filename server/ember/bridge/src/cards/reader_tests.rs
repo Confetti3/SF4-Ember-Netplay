@@ -279,7 +279,12 @@ async fn a_card_read_with_many_is_the_card_read_alone() {
             let mut cards = Vec::new();
             for target in &targets {
                 let card = read.card(target);
-                let expected = one_card(tx, &viewer, target)?;
+                // A caller without a Discord account is shown no card: a
+                // block could not hold against them.
+                let expected = match caller {
+                    Some(_) => one_card(tx, &viewer, target)?,
+                    None => None,
+                };
                 assert_eq!(
                     serde_json::to_string(&card).unwrap(),
                     serde_json::to_string(&expected).unwrap(),
@@ -287,6 +292,10 @@ async fn a_card_read_with_many_is_the_card_read_alone() {
                 );
                 assert_eq!(card, expected, "{target}");
                 cards.push(card);
+            }
+            if caller.is_none() {
+                assert!(cards.iter().all(Option::is_none));
+                continue;
             }
             // Each kind of card is among them, so the equality means something.
             assert!(cards.iter().any(Option::is_none));
@@ -299,11 +308,9 @@ async fn a_card_read_with_many_is_the_card_read_alone() {
             assert!(shown.iter().any(|card| card.name.is_none()));
             assert!(shown.iter().any(|card| card.awards.best_streak > 0));
             assert!(shown.iter().any(|card| card.awards.peak_class > 0));
-            if caller.is_some() {
-                assert!(shown.iter().any(|card| card.versus.is_some()));
-                assert!(shown.iter().any(|card| card.versus.is_none()));
-            }
-            if caller.is_some() && friends_offered {
+            assert!(shown.iter().any(|card| card.versus.is_some()));
+            assert!(shown.iter().any(|card| card.versus.is_none()));
+            if friends_offered {
                 for relation in [
                     Relation::Friend,
                     Relation::Blocked,

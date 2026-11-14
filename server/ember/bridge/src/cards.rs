@@ -350,14 +350,20 @@ impl Reader {
         })
     }
 
-    /// `target`'s card as the caller sees it: none when `target` blocked them
-    /// or has no Discord account connected; otherwise their points, the
-    /// counters behind their awards, what they chose to show, their class
-    /// while classes are shown and, for a caller who is not themselves, their
-    /// record against the caller. Their relation, and the id of the
-    /// friendship when it is one, come once friends are offered.
-    /// Read with `Parts::CARD`.
+    /// `target`'s card as the caller sees it: none for a caller without a
+    /// Discord account, and none when `target` blocked the caller or has no
+    /// Discord account connected; otherwise their points, the counters behind
+    /// their awards, what they chose to show, their class while classes are
+    /// shown and, for a caller who is not themselves, their record against
+    /// the caller. Their relation, and the id of the friendship when it is
+    /// one, come once friends are offered. Read with `Parts::CARD`.
+    ///
+    /// A block is between Discord accounts (docs/design/PROFILE.md,
+    /// "Privacy"): a caller with none cannot be told from a player the card's
+    /// account blocked, who could otherwise read the card from a throwaway
+    /// Ember ID, so they are shown no card at all.
     pub fn card(&self, target: &str) -> Option<PlayerCard> {
+        let caller = self.caller.as_deref()?;
         let relation = self.relation(target)?;
         let card = self.cards.get(target)?.clone();
         let relation = if self.friends_offered {
@@ -373,11 +379,7 @@ impl Reader {
         if let Some(stored) = self.listings.get(target) {
             card = describe(card, stored);
         }
-        if self
-            .caller
-            .as_deref()
-            .is_some_and(|caller| caller != target)
-        {
+        if caller != target {
             card.versus = self.record(target);
             if relation == Relation::Friend {
                 card.friend = self

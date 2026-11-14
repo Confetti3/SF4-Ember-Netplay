@@ -123,8 +123,9 @@ fn most_played(
 /// `POST /v1/cards/lookup`: one card, or null, per selector, in order. A
 /// friend id names the caller's friend, a request id a request the caller
 /// received, and a code a friend code, once friends are offered. A player who
-/// blocked the caller shows them no card, and once friends are offered each
-/// card carries the caller's relation to its player.
+/// blocked the caller shows them no card, a caller without a Discord account
+/// is shown none (a block could not hold against them), and once friends are
+/// offered each card carries the caller's relation to its player.
 pub async fn lookup(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -154,13 +155,19 @@ pub async fn lookup(
 
 /// The cards `selectors` name for `viewer`, one entry per selector, in
 /// order: the same few reads however many there are (`targets_of`,
-/// `cards::Reader`).
+/// `cards::Reader`). A caller without a Discord account is shown none
+/// (`Reader::card`), so nothing is read for them.
 pub(crate) fn answer(
     tx: &Transaction<'_>,
     keys: &Keys,
     viewer: &Viewer<'_>,
     selectors: &[CardSelector],
 ) -> Result<CardAnswers> {
+    if viewer.caller.is_none() {
+        return Ok(CardAnswers {
+            cards: vec![None; selectors.len()],
+        });
+    }
     let targets = targets_of(tx, keys, viewer, selectors)?;
     let accounts: Vec<&str> = targets.iter().flatten().map(String::as_str).collect();
     let read = Reader::read(tx, viewer, &accounts, Parts::CARD)?;

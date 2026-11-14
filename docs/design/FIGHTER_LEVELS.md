@@ -421,7 +421,7 @@ ask the bridge for that player's card later, as often as it needs, fresh.
 | Field | Rule |
 |---|---|
 | request `cards` | 1 to 16 selectors: `card` (a token) or `friend` (a friend id, `FRIENDS.md`) |
-| answer `cards` | one entry per selector, in order; `null` for a token that does not open, is over 7 days old, or names an account without a Discord account now, and for a friend id that is not the caller's friend |
+| answer `cards` | one entry per selector, in order; `null` for a token that does not open, is over 7 days old, or names an account without a Discord account now, for a friend id that is not the caller's friend, and for every selector of a caller whose Ember ID has no Discord account (`PROFILE.md`, Privacy) |
 | `account` | always present: the account's `points` and `tier` only (its games and wins are in `awards`) |
 | `fighters` | as in `points/me` but `fighter`, `points`, `tier` only; always present, an empty array when nothing is played |
 | `relation` | the caller's relation to that player: `none`, `friend`, `sent`, `received`, `blocked` (the caller blocked them); `none` for a player who blocked the caller |
@@ -440,12 +440,14 @@ writes none of the selectors' answers or those fields.
 ## Who sees what
 
 - Your own points: always, to you.
-- A card is how players find each other to add friends, so it is public.
-  Others' points are shown to a room member (through the card token) and to a
-  friend, whether or not that player takes part in ranking
-  (`ranking_choices.ranked` is not read). A card is `null` only for an account
-  with no Discord account connected, and for a player who blocked the caller
-  (`FRIENDS.md`).
+- A card is how players find each other to add friends, so it is public to
+  every player with a Discord account. Others' points are shown to a room
+  member (through the card token) and to a friend, whether or not that player
+  takes part in ranking (`ranking_choices.ranked` is not read). A card is
+  `null` for an account with no Discord account connected, for a player who
+  blocked the caller (`FRIENDS.md`), and for a caller with no Discord account:
+  a block is between Discord accounts, and only a caller with one can be
+  checked against it.
 - Others see the account's and each fighter's points and tier. A card also
   carries the counts behind the awards (`awards`, `PROFILE.md`, Privacy): the
   account's counted games, wins and best win run as they are, its peak class,

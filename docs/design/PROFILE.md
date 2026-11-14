@@ -476,7 +476,7 @@ from the row, the room or the friend), and fills in as the card arrives.
 |---|---|---|---|
 | Reading | the opener's words; points lines and record at 40 % alpha with 0; "Reading Player 2's card." (`profile.reading`) under the record; awards and recent sets as their reading states | all four | disabled, "Reading" |
 | Card read | whole | all four | by relation |
-| No card (the look-up answers null: no Discord account, an expired token, or a player who blocked you; the page never says which) | name line as the opener knew it; no points lines, record or awards; "Player 2 has no card to show." and "Their sets are still listed by name." | Card, Sets | View sets |
+| No card (the look-up answers null: no Discord account on either side, an expired token, or a player who blocked you; the page never says which) | name line as the opener knew it; no points lines, record or awards; "Player 2 has no card to show." and "Their sets are still listed by name." | Card, Sets | View sets |
 | Blocked by you | name line; "You blocked Player 2. Unblock them to see their card." | Card | Unblock |
 | A name, nobody | name line; "No player on Ember goes by Player 2 now." | Card, Sets | View sets |
 | A name, several | `player-pick` opens instead: "Players named Player 2", one Row each (picture, flag, class, name, "On Ember since 2026-03"), newest active first; A opens that one | - | - |
@@ -928,10 +928,17 @@ against that player, which the answer already sends for the awards.
 
 | Who | Sees |
 |---|---|
-| Anyone with a selector (a room member's token, a friend id, a received request, a friend code, a search result, a name) | name, flag, class, main, On Ember since (month), worn and shown award families, the award counters (rated games, wins, best streak, fighters played, top frame, peak class), FP and BP with tiers, how they play, and their own relation and record with that player |
+| Anyone with a Discord account connected and a selector (a room member's token, a friend id, a received request, a friend code, a search result, a name) | name, flag, class, main, On Ember since (month), worn and shown award families, the award counters (rated games, wins, best streak, fighters played, top frame, peak class), FP and BP with tiers, how they play, and their own relation and record with that player |
 | Friends only | presence and friend since (`FRIENDS.md`), invites |
-| Never served | a Discord ID or name, an Ember ID, a rating, the friends count of another, per-fighter games and wins of another, anything to a player the account blocked |
+| Never served | a Discord ID or name, an Ember ID, a rating, the friends count of another, per-fighter games and wins of another, anything to a player the account blocked, any card to a caller without a Discord account |
 | Never leaves the PC | recent opponents, the search texts, the controller's name or model (only the device class), the measured latency and route (only Wired / Wi-Fi), anything of the region beyond its code |
+
+A block is between Discord accounts, and a caller without one cannot be told
+apart from a blocked player on a throwaway Ember ID, so the look-up answers
+`null` for every selector of a caller whose Ember ID has no Discord account
+(`cards::Reader::card`): a card is served only to a caller with a Discord
+account that the card's account has not blocked. Such a player still sees
+what the room itself shows of its members (name, flag, class, fighter).
 
 A player who wants less exposure hides each chip in Edit card and blocks
 whoever bothers them; a block also hides them from that player's search. A
