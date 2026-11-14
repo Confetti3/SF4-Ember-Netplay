@@ -820,14 +820,18 @@ static void SayTraining() {
 		spdlog::info("Room: could not say the player is {} Training; it is said again", training ? "in" : "out of");
 }
 // The room is told the player is typing while the shell notes a draft being
-// written, again every three seconds to keep it shown, and once when they
-// stop. A word lost or refused is let go: the room drops it after TypingMs.
+// written, and once when they stop (room::TypingDue). A word lost or refused
+// is let go: the room drops it after TypingMs.
 static void SayTyping() {
 	if (!runtime->attached || !UserApp::netplay) { runtime->typingSaidAtMs = 0; return; }
 	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
 	const bool typing = room.roomEpoch && ChatTypingShown(room.roomEpoch);
 	const auto now = GetTickCount64();
-	if (typing ? runtime->typingSaidAtMs && now - runtime->typingSaidAtMs < 3000 : !runtime->typingSaidAtMs) return;
+	const auto* me = room::FindMember(room, room.localMember);
+	if (!room::TypingDue(typing, runtime->typingSaidAtMs, now, me)) {
+		if (!typing) runtime->typingSaidAtMs = 0;
+		return;
+	}
 	if (runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return;
 	room::Action say;
 	say.kind = room::ActionKind::Typing;
