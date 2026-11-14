@@ -387,9 +387,8 @@ struct Runtime {
 	std::uint64_t trainingSaidAtMs = 0;
 	// When the room was last told the player is typing; zero once told they stopped.
 	std::uint64_t typingSaidAtMs = 0;
-	// The post-match answer last said to the room, and when (SayPostMatch).
-	room::PostMatchSaid postMatchSaid;
-	std::uint64_t postMatchSaidAtMs = 0;
+	// The post-match answer last said to the room, when, and in which term (SayPostMatch).
+	room::PostMatchSay postMatchSay;
 	// The newest RoomNoticesKept room events for the chat, numbered from 1 by
 	// roomNoticeSequence. The interface takes each once by its number.
 	static constexpr std::size_t RoomNoticesKept = 16;
