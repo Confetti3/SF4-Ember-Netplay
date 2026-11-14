@@ -53,8 +53,9 @@ Read this through before starting; do the steps in order.
    check it starts and answers. `clear-sfv-rows.py` commits only when a whole
    database `PRAGMA foreign_key_check` is clean, and orphan `rated_games` rows
    from deletions made with keys off (sqlite3 work such as the stuck-match kill
-   script) make it roll back: find and remove those on the copy first, and
-   write down what you removed to do the same on production.
+   script) make it roll back: find and remove those on the copy first (the
+   query is under step 7), and write down what you removed to do the same on
+   production.
 2. **Build** the 1.6.0 bridge binary on the runner (`cargo build --release
    --locked -p ember-bridge`) and copy it to `~/ember-bridge/bin/` on the VPS.
    Keep a copy of the binary production runs today:
@@ -71,7 +72,19 @@ Read this through before starting; do the steps in order.
    the stamp of the newest `bridge-*.sqlite3` in `/var/backups/ember-bridge/`.
 7. **Clear other games' rows**, the bridge still stopped: run
    `clear-sfv-rows.py` on `/var/lib/ember-bridge/bridge.sqlite3` as the bridge's
-   account. If it rolls back, start the old bridge again
+   account. First remove on production the same orphan rows you removed and
+   wrote down on the copy in step 1: `rated_games` rows whose room is gone
+   (left by deletions made with foreign keys off). With the bridge still
+   stopped, list them with
+
+   ```sql
+   SELECT room_id, table_id, generation FROM rated_games
+   WHERE room_id NOT IN (SELECT room_id FROM rooms);
+   ```
+
+   (`sqlite3 /var/lib/ember-bridge/bridge.sqlite3` as the bridge's account)
+   and delete exactly those rows with the same `WHERE`. If the
+   script still rolls back, start the old bridge again
    (`sudo systemctl start ember-bridge`) and stop here: nothing changed.
 8. **Install the 1.6.0 bridge**: `sudo bash ~/ember-bridge/setup.sh`. It starts
    the bridge, which runs 060 to 066. If it refuses to start, read the message
@@ -98,6 +111,11 @@ that lists `room_area` (`ember_protocol::rooms::AREA_FEATURE`), so against
 today's bridge it creates rooms exactly as before. The relay code keeps going
 in `region`, which Stable 1.5.7 builds send and read unchanged. Nothing to do
 beyond the order above.
+
+A card save is not gated the same way: a 1.6.0 client that saves an area code
+in its player card to a bridge older than this build gets a 400 (`region`).
+Only staging is affected until it is upgraded, because production gains the
+`profiles` routes with this bridge.
 
 ## Stepping back
 
