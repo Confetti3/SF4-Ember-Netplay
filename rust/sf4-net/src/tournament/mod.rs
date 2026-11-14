@@ -904,22 +904,54 @@ async fn respond(
         carried
     });
     let status = status.and_then(|status| serde_json::to_value(status).ok());
+    // Waits for queue room instead of dropping: answers are rare and the
+    // native side must see each one.
+    let _ = events.send(answer_event(request_id, op, outcome, status)).await;
+}
+
+/// The most a `tournament` event may weigh as JSON. An IPC frame holds at most
+/// `wire::MAX_IPC_PAYLOAD` (512 KiB), and one that does not fit cannot be
+/// written: the writer task ends, and the game loses the helper, rooms and
+/// gameplay included. A desk read passes on a bracket site's answer of up to
+/// 1 MiB, so every answer is measured; 64 KiB under the frame's limit leaves
+/// room for the frame and the event's other members.
+const MAX_ANSWER_BYTES: usize = crate::wire::MAX_IPC_PAYLOAD - 64 * 1024;
+
+/// The `tournament` event answering `request_id` with `outcome`, or the same
+/// answer refused as `bridge_response_too_large` when its JSON would weigh more
+/// than `MAX_ANSWER_BYTES` (or could not be written at all).
+fn answer_event(request_id: u64, op: &str, outcome: Outcome, identity: Option<Value>) -> Event {
     let (ok, reason, data) = match outcome {
         Ok(data) => (true, None, data),
         Err(failure) => (false, Some(failure.into_reason()), None),
     };
-    // Waits for queue room instead of dropping: answers are rare and the
-    // native side must see each one.
-    let _ = events
-        .send(Event::Tournament {
+    let event = Event::Tournament {
+        request_id,
+        op: op.into(),
+        ok,
+        reason,
+        identity,
+        data,
+    };
+    if serde_json::to_vec(&event).is_ok_and(|json| json.len() <= MAX_ANSWER_BYTES) {
+        return event;
+    }
+    match event {
+        Event::Tournament {
             request_id,
-            op: op.into(),
-            ok,
-            reason,
-            identity: status,
-            data,
-        })
-        .await;
+            op,
+            identity,
+            ..
+        } => Event::Tournament {
+            request_id,
+            op,
+            ok: false,
+            reason: Some(Failure::new(Code::BridgeResponseTooLarge).into_reason()),
+            identity,
+            data: None,
+        },
+        event => event,
+    }
 }
 
 fn check_path(path: &str) -> Result<&Path, Failure> {
@@ -1464,6 +1496,57 @@ mod tests {
         drop(handle);
         let _ = tokio::time::timeout(Duration::from_secs(10), task).await;
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // An answer whose JSON would weigh more than an IPC frame takes, less a
+    // margin, goes as the same answer refused as `bridge_response_too_large`;
+    // one up to the limit goes as it is. Either fits a frame, so the writer
+    // never fails on it and the game keeps its helper.
+    #[test]
+    fn an_answer_too_large_for_a_frame_is_refused() {
+        let with = |text: String| {
+            answer_event(
+                7,
+                "desk_read",
+                Ok(Some(json!({ "sets": text }))),
+                Some(json!({ "ember_id": "emb1_x" })),
+            )
+        };
+        let size = |event: &Event| serde_json::to_vec(event).unwrap().len();
+        let empty = size(&with(String::new()));
+        let fitting = with("x".repeat(MAX_ANSWER_BYTES - empty));
+        assert_eq!(size(&fitting), MAX_ANSWER_BYTES);
+        assert!(matches!(fitting, Event::Tournament { ok: true, data: Some(_), .. }));
+        for text in [
+            "x".repeat(MAX_ANSWER_BYTES - empty + 1),
+            "x".repeat(1024 * 1024),
+        ] {
+            let refused = with(text);
+            assert!(size(&refused) < 1024);
+            assert_eq!(
+                serde_json::to_value(&refused).unwrap(),
+                json!({
+                    "type": "tournament", "request_id": 7, "op": "desk_read", "ok": false,
+                    "reason": "bridge_response_too_large", "identity": { "ember_id": "emb1_x" },
+                })
+            );
+        }
+        let payload = crate::service::encode_event(fitting).unwrap();
+        assert!(payload.len() <= crate::wire::MAX_IPC_PAYLOAD);
+        // A refusal is measured the same way and goes as it is.
+        let refusal = answer_event(
+            8,
+            "points_me",
+            Err(Failure::new(Code::LevelsUnavailable)),
+            None,
+        );
+        assert_eq!(
+            serde_json::to_value(&refusal).unwrap(),
+            json!({
+                "type": "tournament", "request_id": 8, "op": "points_me", "ok": false,
+                "reason": "points_unavailable",
+            })
+        );
     }
 
     // The codes the game reads are spelled as they always were, and a bridge's

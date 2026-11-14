@@ -72,7 +72,7 @@ async fn session(shared: &Arc<Shared>, bridge_id: &str) -> Result<SiteSession, F
     let session = SiteSession {
         site,
         token: Zeroizing::new(created.access_token),
-        expires_at: client::now() + created.expires_in,
+        expires_at: client::now().saturating_add(created.expires_in),
         ember_id,
         organizer: created.organizer,
     };
@@ -252,6 +252,12 @@ fn text(value: &Value) -> Value {
     }
 }
 
+/// A whole number the site sent, or null: nothing else it sends in a number's
+/// place is passed on to the game.
+fn number(value: &Value) -> Value {
+    value.as_i64().map_or(Value::Null, |number| json!(number))
+}
+
 /// The site's `2026-11-10T20:00:00.000Z` in Unix seconds, or none.
 fn unix(value: &Value) -> Option<u64> {
     let at = value.as_str()?;
@@ -279,7 +285,7 @@ fn events(found: &Value) -> Value {
                 "starts_at".into(),
                 json!(unix(&t["starts_at"]).unwrap_or(0)),
             );
-            event.insert("games_to_win".into(), t["games_to_win"].clone());
+            event.insert("games_to_win".into(), number(&t["games_to_win"]));
             event.insert(
                 "check_in".into(),
                 json!(t["check_in"].as_bool().unwrap_or(false)),
@@ -335,11 +341,13 @@ fn sets(found: &Value) -> Vec<Value> {
             };
             let mut shown = Map::new();
             shown.insert("id".into(), text(&set["id"]));
-            shown.insert("round".into(), set["round"].clone());
+            shown.insert("round".into(), number(&set["round"]));
             shown.insert("round_label".into(), text(&set["round_label"]));
             shown.insert("players".into(), json!(players));
-            if set["scores"].is_array() {
-                shown.insert("score".into(), set["scores"].clone());
+            // One score for each of the set's two players.
+            if let Some(scores) = set["scores"].as_array() {
+                let scores: Vec<Value> = scores.iter().take(2).map(number).collect();
+                shown.insert("score".into(), json!(scores));
             }
             shown.insert("desk_state".into(), json!(state));
             shown.insert("held".into(), json!(held));
@@ -423,6 +431,27 @@ mod tests {
         );
         assert_eq!(unix(&json!("2026-11-12T19:00:00.500Z")), None);
         assert_eq!(unix(&Value::Null), None);
+    }
+
+    // What the site sends in a number's place is passed on only as a number:
+    // a text, a list or an object of any size is not.
+    #[test]
+    fn the_desks_numbers_are_only_numbers() {
+        let long = "x".repeat(MAX_ANSWER / 2);
+        let found = json!([{ "id": "weekly_3", "games_to_win": long }]);
+        assert_eq!(events(&found)[0]["games_to_win"], Value::Null);
+        let found = json!([{ "id": "weekly_3", "games_to_win": { "a": [1, 2, 3] } }]);
+        assert_eq!(events(&found)[0]["games_to_win"], Value::Null);
+        let found = json!({ "sets": [
+            { "id": "r1-1", "round": [long], "scores": [2, long, 1, 0] },
+            { "id": "r1-2", "round": -2, "scores": { "a": 1 } },
+        ] });
+        let shown = sets(&found);
+        assert_eq!(shown[0]["round"], Value::Null);
+        assert_eq!(shown[0]["score"], json!([2, null]));
+        assert_eq!(shown[1]["round"], json!(-2));
+        assert!(shown[1].get("score").is_none());
+        assert!(serde_json::to_vec(&shown).unwrap().len() < 1024);
     }
 
     #[test]
