@@ -29,6 +29,8 @@ struct TurnedOff { std::string part, theme; };
 bool Arm(Guard& guard, const std::string& part, const std::string& theme);
 // The game loaded the theme's files: it is proven, and no longer closed.
 bool Prove(Guard& guard, const std::string& part, const std::string& theme);
+// The game closed the battle that was loading the theme without reaching the fight: nothing is blamed on it.
+bool Disarm(Guard& guard, const std::string& part, const std::string& theme);
 // The files of the part changed (another pick, or edits written over it): it has to prove itself again.
 bool Forget(Guard& guard, const std::string& part);
 // At start-up: every theme still armed is the one the game closed on. It becomes

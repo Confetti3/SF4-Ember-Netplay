@@ -40,6 +40,9 @@ namespace sf4e {
 		// Game thread: the game has made a battle's HUD, so it is about to load the battle HUD theme in use
 		// (the crash guard is armed for it; the fight state proves it).
 		void BattleHudMade();
+		// Game thread: the game closes the battle. A theme still armed never reached the fight, so a normal exit
+		// before the next one does not blame it.
+		void BattleClosed();
 		// Any thread: shows a part's theme without saving it (the developer
 		// picker where settings are locked, as in Training); a battle HUD in a
 		// Training fight loads that battle again. The saved theme comes back

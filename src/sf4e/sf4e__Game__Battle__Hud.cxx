@@ -61,7 +61,8 @@ using Dimps::Game::Sprite::PictureKey;
 constexpr unsigned char kApplyTextureKeyNative[] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x14, 0x53, 0x8B, 0x5D, 0x08, 0x8B, 0x03, 0x56, 0x57, 0x8B, 0xF1 };
 // Game thread only: the HUD's sprites are updated there.
 sf4e::hud_picture::Skips pictureSkips;
-// Whether the picture read is guarded: its bytes were this game build's and the detour attached.
+// Whether the picture read is guarded: its bytes were this game build's and the detour is committed.
+bool pictureGuardQueued = false;
 bool pictureGuardInstalled = false;
 
 std::string ActionName(EmSprite* sprite) {
@@ -93,9 +94,11 @@ void InstallPictureGuard() {
         spdlog::warn("HUD: the sprite picture read holds other bytes than this game build's; pictures a sheet lacks are not guarded");
         return;
     }
-    pictureGuardInstalled = DetourAttach((PVOID*)&EmSprite::publicMethods.ApplyTextureKey, (PVOID)ApplyTextureKey) == NO_ERROR;
+    pictureGuardQueued = DetourAttach((PVOID*)&EmSprite::publicMethods.ApplyTextureKey, (PVOID)ApplyTextureKey) == NO_ERROR;
 }
 }
+
+void fHud::HooksCommitted() { pictureGuardInstalled = pictureGuardQueued; }
 
 bool fHud::PictureGuardInstalled() { return pictureGuardInstalled; }
 

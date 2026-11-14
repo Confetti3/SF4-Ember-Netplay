@@ -37,6 +37,13 @@ bool Prove(Guard& guard, const std::string& part, const std::string& theme) {
     return changed;
 }
 
+bool Disarm(Guard& guard, const std::string& part, const std::string& theme) {
+    const auto armed = guard.armed.find(part);
+    if (armed == guard.armed.end() || armed->second != theme) return false;
+    guard.armed.erase(armed);
+    return true;
+}
+
 bool Forget(Guard& guard, const std::string& part) { return guard.proven.erase(part) != 0; }
 
 std::vector<TurnedOff> Recover(Guard& guard) {

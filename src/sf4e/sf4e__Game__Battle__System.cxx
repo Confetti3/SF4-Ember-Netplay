@@ -11,6 +11,7 @@
 #include "../common/MementoGuards.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "sf4e__MenuMusic.hxx"
+#include "sf4e__GameThemes.hxx"
 #include "../training/CameraHook.hxx"
 
 static_assert(sf4e::NativePauseOrHoldFlag == rSystem::SSF_PAUSE_OR_HOLD, "BattlePause.hxx flag differs from the native one");
@@ -535,6 +536,7 @@ void fSystem::CloseBattle() {
     sf4e::training::CloseBattle();
     sf4e::replayplayback::CloseBattle();
     sf4e::InputLag::CloseBattle();
+    sf4e::GameThemes::BattleClosed();
     sf4e::custom::EndBattle();
     sf4e::MenuMusic::Pick();
     bool summaryEmitted = false;

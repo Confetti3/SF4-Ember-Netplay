@@ -14,6 +14,7 @@
 #include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Event.hxx"
 #include "sf4e__Game.hxx"
+#include "sf4e__Game__Battle__Hud.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__GameThemes.hxx"
 #include "sf4e__InputLag.hxx"
@@ -258,6 +259,7 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 void sf4e::HooksCommitted() {
 	BackgroundPlay::Activate();
 	InputLag::Activate();
+	Game::Battle::Hud::HooksCommitted();
 }
 
 void fIEmSpriteAction::RecordToAdditionalMemento(rIEmSpriteAction* a, AdditionalMemento& m) {

@@ -256,6 +256,12 @@ void sf4e::GameThemes::BattleHudMade() {
 	Remember();
 }
 
+void sf4e::GameThemes::BattleClosed() {
+	const std::string& theme = parts[netplay::GameThemeBattleHud].loaded;
+	if (theme.empty() || !game_themes::Disarm(guard, PartFolder(netplay::GameThemeBattleHud), theme)) return;
+	Remember();
+}
+
 void sf4e::GameThemes::TakePreview() {
 	ProveBattleHud();
 	// The phone's answer was given when its request began; a match may have started since, so the rule is asked again here.

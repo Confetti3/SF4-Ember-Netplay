@@ -35,6 +35,10 @@ void Sequence() {
     CHECK(!Arm(guard, Hud, "Neon") && !Prove(guard, Hud, "Neon"));
     CHECK(Recover(guard).empty() && !Closed(guard, Hud, "Neon"));
 
+    // A battle closed before its fight leaves nothing armed, and only for the theme that was armed.
+    CHECK(Arm(guard, Hud, "Blue") && !Disarm(guard, Hud, "Neon") && Disarm(guard, Hud, "Blue") && guard.armed.empty() && !Disarm(guard, Hud, "Blue"));
+    CHECK(Recover(guard).empty() && !Closed(guard, Hud, "Blue"));
+
     // Another pick starts over: it is armed, and Neon is no longer proven.
     CHECK(Arm(guard, Hud, "Blue"));
     CHECK(Prove(guard, Hud, "Blue"));
