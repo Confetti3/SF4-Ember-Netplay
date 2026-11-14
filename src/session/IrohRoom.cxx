@@ -588,17 +588,13 @@ IrohRoom::EffectVerdict IrohRoom::HeadGate(const Message& message, const EffectE
     if(verdict==EffectVerdict::Park && token.term==room_.coordination.term && !room_.coordination.leader.empty() &&
         !FromLeader(message.connection)) return EffectVerdict::Drop;
     if(verdict!=EffectVerdict::Missing) return verdict;
-    // Room state is replaceable: the journal keeps the newest of its kind for
-    // this member, which comes live or as a replay, and the newest snapshot
-    // with the chat. Verification is best effort, and a token from any other
-    // connection than the leader's is not the room's to vouch for.
-    const auto& tag=message.tag;
-    const bool newerChat=std::any_of(replica_.appliedEffects.begin(),replica_.appliedEffects.end(),[&](const EffectEnvelope& effect) {
-        return effect.recipient==token.recipient && ChatBearingSnapshot(effect) && effect.revision>token.revision;
-    });
-    if(tag.verification || tag.projection==RoomProjection::Snapshot || tag.projection==RoomProjection::TableData ||
-        (tag.projection==RoomProjection::SnapshotWithChat && newerChat) || !FromLeader(message.connection))
-        return EffectVerdict::Drop;
+    // Room state the journal holds a newer one of comes live or as a replay,
+    // and verification is best effort (Replaceable); a token from any other
+    // connection than the leader's is not the room's to vouch for. The token
+    // does not say whether a snapshot carries the chat; its payload does.
+    auto effect=token;
+    effect.chat=message.tag.projection==RoomProjection::SnapshotWithChat;
+    if(Replaceable(effect,replica_.appliedEffects) || !FromLeader(message.connection)) return EffectVerdict::Drop;
     // A reply, an event, a grant or the chat would be lost without a word
     // (SessionRecovery.hxx: GuaranteedEffectEnvelopes). Fail instead, so the
     // player rejoins a room they can see whole.

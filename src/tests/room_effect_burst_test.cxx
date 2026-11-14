@@ -67,11 +67,15 @@ struct CommitStream {
 		CHECK(false);
 		return {};
 	}
-	void Checkpoint(std::uint64_t revision) {
+	// `shed`: effects whose replay copy the journal no longer carries, as the
+	// leader's byte budget sheds copies before envelopes.
+	void Checkpoint(std::uint64_t revision, const std::vector<EffectEnvelope>& shed = {}) {
 		std::vector<EffectEnvelope> journal;
 		for (const auto& commit : commits)
 			if (commit.first < revision) journal.insert(journal.end(), commit.second.begin(), commit.second.end());
 		session::CompactEffectJournal(journal);
+		for (auto& effect : journal)
+			if (std::find(shed.begin(), shed.end(), effect) != shed.end()) effect.publicPayload = nullptr;
 		member.Transfer(revision, member.Proposal(revision, journal, commits.at(revision)));
 	}
 };
@@ -125,8 +129,8 @@ std::string Kinds(const std::vector<json>& payloads) {
 	return kinds;
 }
 
-// Stages the checkpoint sent last, then applies it as the runtime does.
-void Apply(ParkedEffectRoom& member, SessionServer& replica, session::RoomRecoveryRuntime& recovery, std::uint64_t revision) {
+// Stages the checkpoint sent last.
+void Stage(ParkedEffectRoom& member, std::uint64_t revision) {
 	session::IrohRoom::CommittedCheckpoint staged;
 	for (int tick = 0; tick < 5000 && !member.room->TakeCommittedCheckpoint(staged); ++tick) {
 		member.room->Poll();
@@ -134,6 +138,11 @@ void Apply(ParkedEffectRoom& member, SessionServer& replica, session::RoomRecove
 		Sleep(1);
 	}
 	CHECK(member.room->TakeCommittedCheckpoint(staged) && staged.identity.revision == revision);
+}
+
+// Stages the checkpoint sent last, then applies it as the runtime does.
+void Apply(ParkedEffectRoom& member, SessionServer& replica, session::RoomRecoveryRuntime& recovery, std::uint64_t revision) {
+	Stage(member, revision);
 	CHECK(recovery.Tick(replica, *member.room));
 	CHECK(recovery.AppliedRevision() == revision && recovery.Error().empty() && !member.room->CheckpointPending());
 }
@@ -376,6 +385,42 @@ static void TestFramesWaitForNoCheckpoint() {
 	CHECK(FrameIndices(received).empty() && Kinds(RoomPayloads(received)) == "sd");
 }
 
+// An event this member missed in a control gap waits for its replay, but the
+// game has not polled since its commit applied, and the next commit's journal
+// keeps only the event's envelope: its copy was shed. The room fails by name
+// rather than going on without it. A member that holds the live copy in its
+// queue loses nothing when the copy is shed, and gets the event.
+static void TestShedReplayCopyFailsTheRoom() {
+	for (const bool liveCopy : {false, true}) {
+		ParkedEffectRoom member;
+		CommitStream leader{member};
+		std::vector<session::Message> received;
+		for (std::uint64_t revision = 1; revision <= 11; ++revision) {
+			CommitSpec spec; spec.event = revision == 5;
+			if (revision == 5 && !liveCopy) spec.withheld = {"room_event"};
+			leader.Commit(revision, spec);
+		}
+		member.Settle(received);
+		CHECK(received.empty() && member.room->GetState() != session::IrohRoom::State::Failed);
+		const auto replica = member.fixture.Replica();
+		session::RoomRecoveryRuntime recovery;
+		leader.Checkpoint(10);
+		Apply(member, *replica, recovery, 10);
+		leader.Checkpoint(11, {leader.Mine(5, "room_event")});
+		if (!liveCopy) {
+			Stage(member, 11);
+			recovery.Tick(*replica, *member.room);
+			CHECK(member.room->GetState() == session::IrohRoom::State::Failed && member.room->Error() == "room_effect_evicted");
+			continue;
+		}
+		Apply(member, *replica, recovery, 11);
+		member.Settle(received);
+		const auto delivered = RoomPayloads(received);
+		CHECK(member.room->GetState() != session::IrohRoom::State::Failed && Kinds(delivered) == "esd");
+		if (!delivered.empty()) CHECK(delivered[0].at("marker") == 5);
+	}
+}
+
 // Another member's messages carry tokens too, but only the leader's stream
 // says where a commit is: a token of this term far ahead from another
 // connection neither fails the room nor waits at its queue head, and another
@@ -466,6 +511,7 @@ int main() {
 	TestBusyJournalKeepsParkedEffects();
 	TestEvictedEffectFailsTheRoom();
 	TestReplayPassesVerificationFrames();
+	TestShedReplayCopyFailsTheRoom();
 	TestOtherPeersTokensDecideNothing();
 	TestStuckStreamStillFails();
 	std::cout << "Room effect burst tests passed\n";

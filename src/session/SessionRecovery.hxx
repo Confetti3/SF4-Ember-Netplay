@@ -183,19 +183,31 @@ inline bool ChatBearingSnapshot(const EffectEnvelope& effect) {
 	return effect.type == "room_snapshot" && effect.chat;
 }
 
-// Room state a later entry replaces: a projection followed by one of its kind
-// for its recipient, except the newest snapshot with the chat, which the later
-// chat_unchanged ones leave out.
+// Whether `later`, committed after `effect`, replaces it: room state of its
+// kind for its recipient, and for a snapshot with the chat one with the chat
+// too, as the later chat_unchanged ones leave it out.
+inline bool ReplacesState(const EffectEnvelope& later, const EffectEnvelope& effect) {
+	return SupersedableProjection(effect) && later.recipient == effect.recipient &&
+		(ChatBearingSnapshot(effect) ? ChatBearingSnapshot(later) : later.type == effect.type);
+}
+
+// Room state a later entry replaces.
 inline bool ReplacedState(const std::vector<EffectEnvelope>& history, std::size_t index) {
-	const auto& effect = history[index];
-	if (!SupersedableProjection(effect)) return false;
-	bool later = false, laterChat = false;
-	for (auto next = index + 1; next < history.size(); ++next) {
-		if (history[next].recipient != effect.recipient) continue;
-		later = later || history[next].type == effect.type;
-		laterChat = laterChat || ChatBearingSnapshot(history[next]);
-	}
-	return later && (!ChatBearingSnapshot(effect) || laterChat);
+	return std::any_of(history.begin() + static_cast<std::ptrdiff_t>(index) + 1, history.end(),
+		[&](const EffectEnvelope& later) { return ReplacesState(later, history[index]); });
+}
+
+// Whether a member may go without an effect it has not had once `journal` no
+// longer holds it whole (its entry gone, or its replay copy): room state the
+// journal holds a newer one of, and best-effort verification. Anything else
+// would be lost without a word, so its room fails by name instead, at the
+// effect gate (IrohRoom::HeadGate) or at activation.
+inline bool Replaceable(const EffectEnvelope& effect, const std::vector<EffectEnvelope>& journal) {
+	if (effect.type == "battle_hash" || effect.type == "battle_snapshot") return true;
+	return std::any_of(journal.begin(), journal.end(), [&](const EffectEnvelope& later) {
+		const bool after = later.revision > effect.revision || (later.revision == effect.revision && later.sequence > effect.sequence);
+		return after && ReplacesState(later, effect);
+	});
 }
 
 // What the journal promises a member whose checkpoints apply late. Room state

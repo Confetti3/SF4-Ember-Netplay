@@ -222,12 +222,15 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
     std::set<TerminalReplayKey> activeTerminalKeys;
     if (!BuildTerminalReplayEffects(replica_.committedCheckpoints.front(),identity,terminalEffects,activeTerminalKeys)) return false;
     // A reply or an event this member never had, which it was still to get
-    // as a replay and which the new journal no longer holds, would be lost
-    // without a word; the room fails once this activation is done.
+    // as a replay, would be lost without a word once the new journal no longer
+    // holds it, or holds only its envelope while no live copy is queued here to
+    // deliver it (Replaceable says what may go); the room fails once this
+    // activation is done.
     const auto& journal=replica_.committedCheckpoints.front().effects;
     const auto lost=std::find_if(replica_.pendingPublicEffects.begin(),replica_.pendingPublicEffects.end(),[&](const EffectEnvelope& effect) {
-        return !SupersedableProjection(effect) && !replica_.deliveredEffects.count({effect.term,effect.sequence}) &&
-            std::find(journal.begin(),journal.end(),effect)==journal.end();
+        if(replica_.deliveredEffects.count({effect.term,effect.sequence}) || Replaceable(effect,journal)) return false;
+        const auto kept=std::find(journal.begin(),journal.end(),effect);
+        return kept==journal.end() || (kept->publicPayload.is_null() && !room_.clientEffects.HoldsCopy(effect.term,effect.sequence));
     });
     const auto lostEffect=lost==replica_.pendingPublicEffects.end() ? std::optional<EffectEnvelope>() : std::optional<EffectEnvelope>(*lost);
     auto staged=std::move(replica_.committedCheckpoints.front());
