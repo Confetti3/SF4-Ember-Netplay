@@ -12,7 +12,8 @@ enum class RoomQueueResult { Queued, BytesFull, MessagesFull, CommitsBehind };
 constexpr std::size_t MaximumRoomQueueMessages = 64;
 constexpr std::size_t MaximumRoomQueueBytes = 4 * 1024 * 1024;
 // Verification frames are best effort: either queue keeps the newest of them,
-// in at most half its slots.
+// the server queue in at most half its slots, the client queue in a lane of
+// their own (ClientEffectQueue).
 constexpr std::size_t MaximumQueuedVerification = MaximumRoomQueueMessages / 2;
 
 inline bool IsVerificationType(const std::string& type) {
@@ -29,7 +30,7 @@ inline bool IsRoomVerificationMessage(const Message& message) {
 }
 
 // Either queue. Verification is best effort: keep the newest bounded window
-// while quorum commits pause the server or a checkpoint parks the client,
+// while quorum commits pause the server or the game does not poll its client,
 // reserving the rest of the queue for room messages, which are never
 // discarded here.
 inline RoomQueueResult QueueRoomMessage(std::deque<Message>& destination,

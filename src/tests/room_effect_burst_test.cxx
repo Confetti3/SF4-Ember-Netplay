@@ -4,7 +4,8 @@
 // checkpoint shows that commit's room in commit order, the journal of a busy
 // 16-member room still vouches for the effects a member waits on, an effect
 // it no longer holds fails the room by name, another peer's tokens decide
-// nothing, and a stream that never applies still fails as it did.
+// nothing, a stream that never applies still fails as it did, and the
+// verification frames of a fight never wait for a checkpoint.
 #include "parked_effect_room.hxx"
 
 #include <set>
@@ -104,6 +105,17 @@ std::vector<json> RoomPayloads(const std::vector<session::Message>& received) {
 	}
 	return payloads;
 }
+// A fighter's verification frame as the leader relays it: no commit token.
+std::string Frame(int index) { return json{{"type", "battle_hash"}, {"frameIdx", index}}.dump(); }
+// The frame numbers of the verification frames delivered, in order.
+std::vector<int> FrameIndices(const std::vector<session::Message>& received) {
+	std::vector<int> frames;
+	for (const auto& message : received) {
+		const auto payload = json::parse(message.payload);
+		if (session::IsVerificationType(payload.value("type", std::string()))) frames.push_back(payload.at("frameIdx").get<int>());
+	}
+	return frames;
+}
 std::string Kinds(const std::vector<json>& payloads) {
 	std::string kinds;
 	for (const auto& payload : payloads) {
@@ -129,7 +141,16 @@ void Apply(ParkedEffectRoom& member, SessionServer& replica, session::RoomRecove
 // Polls the client until the room fails, for a test that expects it to.
 void PollUntilFailed(ParkedEffectRoom& member, std::vector<session::Message>& received) {
 	for (int tick = 0; tick < 100 && member.room->GetState() != session::IrohRoom::State::Failed; ++tick) {
-		member.client->Poll(received, 8);
+		member.PollOnce(received);
+		Sleep(1);
+	}
+}
+
+// Lets the room take in every helper event sent so far while the game does
+// not poll its client queue.
+void TakeIn(ParkedEffectRoom& member) {
+	for (int tick = 0; tick < 50; ++tick) {
+		member.room->Poll();
 		member.pipe.Drain();
 		Sleep(1);
 	}
@@ -138,27 +159,33 @@ void PollUntilFailed(ParkedEffectRoom& member, std::vector<session::Message>& re
 } // namespace
 
 // 80 commits, a verification frame every other one as in a fight, while this
-// member's checkpoint has not applied: 202 live messages behind a parked head,
-// where 64 used to fail the room. It keeps six room messages, and once the
-// newest checkpoint applies it shows the same room, chat and events as
-// applying every commit in turn would.
+// member's checkpoint has not applied: 161 room messages behind a parked head,
+// where 64 used to fail the room. It keeps six of them, and once the newest
+// checkpoint applies it shows the same room, chat and events as applying every
+// commit in turn would. The 40 frames reach the game as they come.
 static void TestBurstBehindParkedCheckpoint() {
 	ParkedEffectRoom member;
 	CommitStream leader{member};
 	std::vector<session::Message> received;
+	std::vector<int> frames;
 	for (std::uint64_t revision = 1; revision <= 80; ++revision) {
 		CommitSpec spec; spec.chat = revision == 30; spec.event = revision == 40;
 		leader.Commit(revision, spec);
-		if (revision % 2 == 0) member.SendLive(json{{"type", "battle_hash"}, {"frameIdx", revision}}.dump());
+		if (revision % 2 == 0) {
+			frames.push_back(static_cast<int>(revision));
+			member.SendLive(Frame(frames.back()));
+		}
 		if (revision % 8 == 0) member.Settle(received, 4);
 	}
 	member.Settle(received);
-	CHECK(received.empty() && member.room->GetState() != session::IrohRoom::State::Failed);
+	CHECK(FrameIndices(received) == frames && RoomPayloads(received).empty());
+	CHECK(member.room->GetState() != session::IrohRoom::State::Failed);
 	// The snapshot with the chat, the run up to the event, the event, and the
-	// newest snapshot and data_update after it.
+	// newest snapshot and data_update after it; the head is the oldest of them.
 	const auto parked = member.room->RecoveryState();
-	CHECK(parked.clientQueueMessages == 6 + session::MaximumQueuedVerification);
+	CHECK(parked.clientQueueMessages == 6);
 	CHECK(parked.clientHeadCommitted && parked.clientHeadRevision == 30 && parked.clientHeadType == "room_snapshot");
+	received.clear();
 
 	const auto replica = member.fixture.Replica();
 	session::RoomRecoveryRuntime recovery;
@@ -294,7 +321,9 @@ static void TestEvictedEffectFailsTheRoom() {
 }
 
 // An effect whose live copy was lost in a control gap is replayed once its
-// commit applies, though the queue holds a full window of verification frames.
+// commit applies, though the game has not polled and a full window of
+// verification frames waits: the frames take none of the room messages'
+// places, and go to the game first.
 static void TestReplayPassesVerificationFrames() {
 	ParkedEffectRoom member;
 	CommitStream leader{member};
@@ -304,17 +333,47 @@ static void TestReplayPassesVerificationFrames() {
 		if (revision == 5) spec.withheld = {"room_event"};
 		leader.Commit(revision, spec);
 	}
-	for (int frame = 0; frame < 40; ++frame) member.SendLive(json{{"type", "battle_hash"}, {"frameIdx", frame}}.dump());
-	member.Settle(received);
-	CHECK(received.empty() && member.room->RecoveryState().clientQueueMessages == 2 + session::MaximumQueuedVerification);
+	for (int frame = 0; frame < 40; ++frame) member.SendLive(Frame(frame));
+	TakeIn(member);
+	CHECK(member.room->RecoveryState().clientQueueMessages == 2 + session::MaximumQueuedVerification);
 	const auto replica = member.fixture.Replica();
 	session::RoomRecoveryRuntime recovery;
 	leader.Checkpoint(10);
 	Apply(member, *replica, recovery, 10);
 	member.Settle(received);
+	std::vector<int> newest;
+	for (int frame = 40 - static_cast<int>(session::MaximumQueuedVerification); frame < 40; ++frame) newest.push_back(frame);
+	CHECK(FrameIndices(received) == newest);
 	const auto delivered = RoomPayloads(received);
 	CHECK(Kinds(delivered) == "esd");
 	if (!delivered.empty()) CHECK(delivered[0].at("marker") == 5);
+}
+
+// The frame order rule on its own. A verification frame belongs to no commit,
+// so it reaches the game on the next poll whether it came before a commit
+// whose checkpoint has not applied here or after it, while that commit's room
+// state waits at the queue head until its checkpoint applies.
+static void TestFramesWaitForNoCheckpoint() {
+	ParkedEffectRoom member;
+	CommitStream leader{member};
+	std::vector<session::Message> received;
+	member.SendLive(Frame(30));
+	member.Settle(received);
+	CHECK(FrameIndices(received) == std::vector<int>{30});
+	leader.Commit(1);
+	member.SendLive(Frame(60));
+	member.Settle(received);
+	CHECK(FrameIndices(received) == std::vector<int>({30, 60}) && RoomPayloads(received).empty());
+	const auto parked = member.room->RecoveryState();
+	CHECK(parked.clientQueueMessages == 2 && parked.clientHeadRevision == 1 && parked.clientHeadType == "room_snapshot");
+
+	received.clear();
+	const auto replica = member.fixture.Replica();
+	session::RoomRecoveryRuntime recovery;
+	leader.Checkpoint(1);
+	Apply(member, *replica, recovery, 1);
+	member.Settle(received);
+	CHECK(FrameIndices(received).empty() && Kinds(RoomPayloads(received)) == "sd");
 }
 
 // Another member's messages carry tokens too, but only the leader's stream
@@ -400,6 +459,7 @@ static void TestCommitTokenTags() {
 
 int main() {
 	TestCommitTokenTags();
+	TestFramesWaitForNoCheckpoint();
 	TestBurstBehindParkedCheckpoint();
 	TestEachCheckpointShowsItsRoom();
 	TestReplayKeepsCommitOrder();

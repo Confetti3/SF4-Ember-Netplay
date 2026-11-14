@@ -350,9 +350,12 @@ IrohRoom::RecoverySnapshot IrohRoom::RecoveryState() const {
     state.pendingPublicEffects=replica_.pendingPublicEffects.size();
     state.pendingTerminalReplays=replica_.pendingTerminalReplayEffects.size();
     state.terminalReplaysInFlight=replica_.terminalReplayInFlight.size();
-    if(room_.clientEffects.Empty()) return state;
+    // The head is the oldest room message, what the queue waits on; frames
+    // wait for nothing.
+    const auto& waiting=room_.clientEffects.Messages();
+    if(waiting.empty()) return state;
     try {
-        const auto payload=json::parse(room_.clientEffects.Head().payload);
+        const auto payload=json::parse(waiting.front().payload);
         state.clientHeadType=payload.value("type",std::string());
         if(payload.contains("_commit")) {
             const auto effect=payload.at("_commit").get<EffectEnvelope>();

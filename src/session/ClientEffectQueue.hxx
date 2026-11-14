@@ -3,6 +3,13 @@
 // until the checkpoint of their commit applies here (IrohRoom::AuthorizedEffect
 // decides each head), and the replays of applied commits. Its rules, in one
 // place:
+//  - A verification frame never waits for a checkpoint. A bare battle_hash or
+//    battle_snapshot belongs to no commit (the leader relays it as it comes,
+//    without a token), and the game only compares it with its own fight's
+//    hash for that frame, so the frames go to the game first, on the next poll,
+//    whatever room messages are parked. They wait in their own lane, which keeps
+//    the newest MaximumQueuedVerification (QueueRoomMessage) and takes none of
+//    the room messages' slots.
 //  - Only the leader's stream says where a commit is. A token from any other
 //    connection is checked by the effect gate like any other, but never decides
 //    what this queue replaces, holds back or fails for.
@@ -10,10 +17,7 @@
 //    same member from the same sender drops the older one still queued in the
 //    run of state at the queue's end, except that a snapshot with the chat goes
 //    only for a newer one with the chat. Any other room message ends the run,
-//    so no state moves past an event; verification frames do not, as they keep
-//    no order with the commits.
-//  - Verification frames keep the newest MaximumQueuedVerification
-//    (QueueRoomMessage), and make way for room messages.
+//    so no state moves past an event.
 //  - A replay goes where its live copy would have been, before the first queued
 //    effect committed after it, and waits while that live copy is still queued.
 //    Replays fill at most half of the room messages' slots.
@@ -46,6 +50,7 @@ public:
 	// leader's stream. Anything past the limits is refused, and the room fails
 	// under the result's name.
 	RoomQueueResult Admit(Message message, bool fromLeader, std::uint64_t appliedRevision, std::size_t& queuedBytes) {
+		if (BareFrame(message)) return QueueRoomMessage(frames_, queuedBytes, std::move(message));
 		auto& tag = message.tag;
 		if (!fromLeader) tag.commitTerm = tag.commitRevision = tag.commitSequence = tag.commitRecipient = 0;
 		if (tag.commitRevision > appliedRevision) {
@@ -66,11 +71,7 @@ public:
 		return oldest == messages_.end() ? 0 : oldest->tag.commitRevision;
 	}
 
-	bool TakesReplay() const {
-		const auto roomMessages = std::count_if(messages_.begin(), messages_.end(),
-			[](const Message& queued) { return !IsRoomVerificationMessage(queued); });
-		return static_cast<std::size_t>(roomMessages) < MaximumRoomQueueMessages / 2;
-	}
+	bool TakesReplay() const { return messages_.size() < MaximumRoomQueueMessages / 2; }
 	bool HoldsCopy(std::uint64_t term, std::uint64_t sequence) const {
 		return sequence && std::any_of(messages_.begin(), messages_.end(), [&](const Message& queued) {
 			return queued.tag.commitSequence == sequence && queued.tag.commitTerm == term;
@@ -87,13 +88,16 @@ public:
 		messages_.insert(later, std::move(message));
 	}
 
-	// The drain, one head at a time. `size` is the payload size the head was
-	// queued with: the gate rewrites a delivered payload without its token.
-	bool Empty() const { return messages_.empty(); }
-	std::size_t Size() const { return messages_.size(); }
-	Message& Head() { return messages_.front(); }
-	const Message& Head() const { return messages_.front(); }
-	void PopHead(std::size_t size, std::size_t& queuedBytes) { queuedBytes -= size; messages_.pop_front(); }
+	// The drain, one message at a time: the frames, then the room messages from
+	// their head. `size` is the payload size the message was queued with: the
+	// gate rewrites a delivered payload without its token.
+	bool Empty() const { return frames_.empty() && messages_.empty(); }
+	std::size_t Size() const { return frames_.size() + messages_.size(); }
+	Message& Next() { return frames_.empty() ? messages_.front() : frames_.front(); }
+	void PopNext(std::size_t size, std::size_t& queuedBytes) {
+		queuedBytes -= size;
+		(frames_.empty() ? messages_ : frames_).pop_front();
+	}
 	// Activation's removal of notifications a newer receipt no longer needs.
 	template <class Remove> void EraseIf(Remove remove, std::size_t& queuedBytes) {
 		for (auto queued = messages_.begin(); queued != messages_.end();) {
@@ -102,18 +106,27 @@ public:
 			queued = messages_.erase(queued);
 		}
 	}
-	void Clear() { messages_.clear(); parkedSince_ = 0; }
-	// What is queued, oldest first, for diagnostics and tests.
+	void Clear() { frames_.clear(); messages_.clear(); parkedSince_ = 0; }
+	// What is queued, oldest first, for diagnostics and tests: the room
+	// messages, whose head is what the queue waits on, and the frames.
 	const std::deque<Message>& Messages() const { return messages_; }
+	const std::deque<Message>& Frames() const { return frames_; }
 
 private:
+	// A verification frame without a commit token or a replay marker: the gate
+	// passes it on its sender alone. One with either waits with the room
+	// messages, for the gate to decide at their head.
+	static bool BareFrame(const Message& message) {
+		return !message.tag.committed && !message.tag.terminalReplay && IsRoomVerificationMessage(message);
+	}
+
 	void DropReplacedState(const Message& incoming, std::size_t& queuedBytes) {
 		const auto& newer = incoming.tag;
 		if (newer.projection == RoomProjection::None || !newer.commitRevision) return;
 		auto run = messages_.end();
 		while (run != messages_.begin()) {
 			const auto& previous = *std::prev(run);
-			if (previous.tag.projection == RoomProjection::None && !IsRoomVerificationMessage(previous)) break;
+			if (previous.tag.projection == RoomProjection::None) break;
 			--run;
 		}
 		const auto snapshot = [](RoomProjection kind) {
@@ -133,7 +146,7 @@ private:
 		}
 	}
 
-	std::deque<Message> messages_;
+	std::deque<Message> frames_, messages_;
 	std::uint64_t parkedSince_ = 0;
 };
 

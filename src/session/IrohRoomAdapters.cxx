@@ -103,13 +103,13 @@ public:
         room->PumpCommittedEffects();
         auto& queue=room->room_.clientEffects;
 		while (messages.size() < maximum && !queue.Empty()) {
-            const auto bytes=queue.Head().payload.size();
-            const auto verdict=room->AuthorizedEffect(queue.Head());
+            const auto bytes=queue.Next().payload.size();
+            const auto verdict=room->AuthorizedEffect(queue.Next());
             // The room has failed and its queues are cleared.
             if(verdict==EffectVerdict::Missing) return false;
             if(verdict==EffectVerdict::Park) break;
             if(verdict==EffectVerdict::Drop) {
-                queue.PopHead(bytes,room->room_.queuedBytes);
+                queue.PopNext(bytes,room->room_.queuedBytes);
                 continue;
             }
             // A bare hello_resp is only the CID half of an admission
@@ -120,7 +120,7 @@ public:
             // envelope, while join_rej is always terminal. Read from the
             // payload as it is delivered: the body AuthorizedEffect
             // parsed, else the tag of the unchanged payload.
-            auto& head=queue.Head();
+            auto& head=queue.Next();
             std::string type;
             bool committed=false;
             if(head.body) {
@@ -136,7 +136,7 @@ public:
             if(type=="join_rej" || (type=="hello_resp" && committed))
                 room->room_.pendingAdmission=false;
             messages.push_back(std::move(head));
-            queue.PopHead(bytes,room->room_.queuedBytes);
+            queue.PopNext(bytes,room->room_.queuedBytes);
 		}
 		return true;
 	}
