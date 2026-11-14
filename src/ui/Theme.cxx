@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
 #include <cstdarg>
 #include <cstring>
@@ -25,6 +26,31 @@ void ReportAtlasBuild(bool complete, int width, int height, std::size_t userGlyp
     std::snprintf(line, sizeof(line), "Theme: font atlas rebuilt %dx%d user_glyphs=%u reason=%s%s", width, height,
         static_cast<unsigned>(userGlyphs), forUserText ? "player_text" : "interface", complete ? "" : " incomplete");
     atlasBuildLog(line);
+}
+// The game's measure of its largest free address range (SetLargestFreeRange),
+// the size of the atlas last baked, when a skipped rebuild may be looked at
+// again, and whether the log has said so yet.
+std::function<std::size_t()> largestFreeRange;
+std::size_t atlasBytes = 0;
+std::chrono::steady_clock::time_point glyphRebuildRetry;
+bool skipLogged = false;
+constexpr std::chrono::seconds SkippedRebuildRetry(10);
+// Whether the atlas may be baked again for player text now. When the address
+// space has no room for it the old atlas stays, the measure is not taken again
+// for a while, and the log says so once.
+bool RoomToRebuildAtlas(std::chrono::steady_clock::time_point now) {
+    if (!largestFreeRange || !atlasBytes) return true;
+    const std::size_t free = largestFreeRange();
+    if (AtlasRebuildFits(free, atlasBytes)) return true;
+    glyphRebuildRetry = now + SkippedRebuildRetry;
+    if (!skipLogged && atlasBuildLog) {
+        skipLogged = true;
+        char line[160];
+        std::snprintf(line, sizeof(line), "Theme: font atlas rebuild for player text skipped, largest free range %u MB for an atlas of %u MB",
+            static_cast<unsigned>(free >> 20), static_cast<unsigned>(atlasBytes >> 20));
+        atlasBuildLog(line);
+    }
+    return false;
 }
 ImVec4 Color(unsigned rgb, float alpha = 1.0f) {
     return ImVec4(((rgb >> 16) & 255) / 255.f, ((rgb >> 8) & 255) / 255.f,
@@ -166,6 +192,10 @@ void NoteUserText(const std::string& utf8, UserTextRole role) {
     }
 }
 void SetAtlasBuildLog(std::function<void(const char*)> log) { atlasBuildLog = std::move(log); }
+void SetLargestFreeRange(std::function<std::size_t()> measure) {
+    largestFreeRange = std::move(measure);
+    glyphRebuildRetry = {};
+}
 bool ApplyTheme(float displayScale, float interfaceScale) {
     interfaceSize = interfaceScale;
     const float scale = (std::max)(MinThemeScale, (std::min)(displayScale * interfaceScale, 3.f));
@@ -177,10 +207,14 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
     const auto now = std::chrono::steady_clock::now();
     UpdateWantedUserGlyphs(now);
     const bool userGlyphsAdded = !std::includes(atlasUserGlyphs.begin(), atlasUserGlyphs.end(), wantedUserGlyphs.begin(), wantedUserGlyphs.end());
-    const bool userGlyphsDue = userGlyphsAdded && (!userGlyphBuildSeen || now - lastUserGlyphBuild >= rebuildInterval);
-    if (io.Fonts->Fonts.Size == 3 &&
+    const bool atlasCurrent = io.Fonts->Fonts.Size == 3 &&
         std::fabs(io.Fonts->Fonts[0]->FontSize * io.Fonts->Fonts[0]->Scale - BodySize) < .01f &&
-        std::fabs(atlasScale - scale) < .001f && atlasCatalog == catalog && !userGlyphsDue) {
+        std::fabs(atlasScale - scale) < .001f && atlasCatalog == catalog;
+    // Player text alone does not rebuild an atlas the address space has no
+    // room for; a scale or language change does, as it must.
+    const bool userGlyphsDue = userGlyphsAdded && now >= glyphRebuildRetry &&
+        (!userGlyphBuildSeen || now - lastUserGlyphBuild >= rebuildInterval) && (!atlasCurrent || RoomToRebuildAtlas(now));
+    if (atlasCurrent && !userGlyphsDue) {
         // A context made after a device reset shares the kept atlas but starts
         // with ImGui's default font, scale and style.
         if (!io.FontDefault) ThemeContext(scale);
@@ -281,6 +315,7 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
         for (int row = 0; row < brand::Size; ++row)
             std::memcpy(pixels + ((mark->Y + row) * atlasWidth + mark->X) * 4,
                         brand::Pixels + row * brand::Size * 4, brand::Size * 4);
+    atlasBytes = static_cast<std::size_t>(atlasWidth) * static_cast<std::size_t>(atlasHeight) * 5;
     ReportAtlasBuild(built && markFits, atlasWidth, atlasHeight, atlasUserGlyphs.size(), userGlyphsAdded);
     io.Fonts->TexPixelsUseColors = true;
     atlasScale = scale;

@@ -76,6 +76,18 @@ void SetUserGlyphRebuildInterval(std::chrono::milliseconds interval);
 // Hears one line per font atlas rebuild (size, glyphs players' text added, and
 // whether the build completed), for the game's log.
 void SetAtlasBuildLog(std::function<void(const char*)> log);
+// Whether an atlas that takes atlasBytes (a texel is 4 bytes of pixels and 1
+// of the alpha it is made from) can be baked again in an address space whose
+// largest free range is largestFreeRange: the range has to hold twice that,
+// for the new atlas while the old one is still let go and the packer's own
+// memory.
+constexpr bool AtlasRebuildFits(std::size_t largestFreeRange, std::size_t atlasBytes) { return largestFreeRange / 2 >= atlasBytes; }
+// How the game measures its address space's largest free range, in bytes (a
+// 32-bit process may not have a large one late in a session). With it, a
+// rebuild only for player text waits while the range is too small for the
+// atlas, and the atlas as it is keeps drawing; without it (tests) every
+// rebuild runs.
+void SetLargestFreeRange(std::function<std::size_t()> measure);
 // How long a character stays wanted after text last drew it; tests shorten it
 // to retire text.
 void SetUserGlyphRetention(std::chrono::milliseconds retention);
