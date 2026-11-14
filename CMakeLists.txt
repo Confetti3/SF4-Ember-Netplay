@@ -237,6 +237,7 @@ add_library(sf4e STATIC
     "src/training/TrainingRuntime.cxx"
     "src/training/CameraHook.cxx"
     "src/training/RemoteServer.cxx"
+    "src/training/RemoteMdns.cxx"
     "src/training/RemoteHud.cxx"
     "src/training/TrainingCapture.cxx"
     "src/sf4e/sf4e__OverlayPrefs.hxx"
