@@ -2,6 +2,7 @@
 #include <optional>
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include "TrainingCapture.hxx"
 #include "FighterPlacement.hxx"
@@ -101,6 +102,12 @@ std::atomic<bool> hitBoxesShown{false};
 std::atomic<bool> dataShown{false};
 // Hakan's oil kept at its most (the Data page's Oil always full).
 std::atomic<bool> oilFull{false};
+// The reply trace, one log line per frame a reply waits or the dummy is held (ReplyFrameTrace):
+// off unless SF4E_TRAINING_TRACE=1 is in the game's environment, read once.
+bool ReplyTraceOn() {
+    static const bool on = [] { const char* env = std::getenv("SF4E_TRAINING_TRACE"); return env && env[0] == '1'; }();
+    return on;
+}
 // Training and the match meter both feed the one meter, so each applies the player's choice before it observes.
 void ApplyMeterSettings() {
     meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
@@ -860,8 +867,13 @@ void AfterUpdate(Native* system) {
             int* options = DummyOptions();
             // Typed or recorded, the reply is played for the way the dummy
             // faces on each frame (Session::Prepare), from the next update.
-            if (replies.Observe(dummyPlan, seen, session, dummyRandom()).none)
-                spdlog::info("Training: no reply, no recording that is on can be one");
+            const ReplyStep step = replies.Observe(dummyPlan, seen, session, dummyRandom());
+            if (step.none) spdlog::info("Training: no reply, no recording that is on can be one");
+            if (ReplyTraceOn()) {
+                const std::string line = ReplyFrameTrace(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters[1], seen, step,
+                    replies.Pending() != nullptr, session.Replying());
+                if (!line.empty()) spdlog::info("Training: reply trace {}", line);
+            }
             if (seen.freed && dummyPlan.varyStance && options) {
                 const int action = options[Manager::OPT_ACTION];
                 if (action == 0 || action == 1) dummyControl.Set(options[Manager::OPT_ACTION], dummyRandom() & 1);
@@ -881,6 +893,7 @@ void AfterUpdate(Native* system) {
         if (!capture) capture = new TrainingCapture();
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
     } else if (sampling && delta != 0) {
+        if (ReplyTraceOn() && (replies.Pending() || session.Replying())) spdlog::info("Training: reply trace frames not consecutive, the stun watch and any pending reply forgotten");
         meter.Reset(); ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
         ++gapResets;
     }

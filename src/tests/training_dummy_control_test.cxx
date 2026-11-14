@@ -269,7 +269,7 @@ int main() {
                     else if (held && run.free < 0) run.free = frame;
                     // The production decision, as the runtime makes it each observed frame.
                     const ReplyStep decision = dummy.replies.Observe(reply, seen, session, 0);
-                    run.dropped = run.dropped || decision.stopped;
+                    run.dropped = run.dropped || decision.stopped != ReplyDrop::None;
                     began = began || decision.started;
                 }
                 run.read = game.read;

@@ -2,6 +2,7 @@
 #include "TrainingSession.hxx"
 #include <algorithm>
 #include <cstdint>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -33,10 +34,28 @@ struct PendingReply {
     DummyPlan plan;
     std::uint64_t revision = 0, epoch = 0;
 };
-// What one frame's decision did. stopped: a new stun ended the reply that
-// played; dropped: the pending reply went before it began; none: the stretch
-// was to reply with a recording and no slot that is on can be one.
-struct ReplyStep { bool stopped = false, made = false, started = false, dropped = false, none = false; };
+// Why a reply went before it played out, for the log: HitAgain, the dummy was
+// hit again; NotRepliedTo, the stretch turned out to be none the plan replies to;
+// NewStretch, a new stretch began while the reply waited; PlanChanged and
+// SlotsChanged, the plan or the slots were edited meanwhile; PlayChanged, what the
+// session plays changed (its epoch).
+enum class ReplyDrop { None, HitAgain, NotRepliedTo, NewStretch, PlanChanged, SlotsChanged, PlayChanged };
+inline const char* ReplyDropName(ReplyDrop why) {
+    switch (why) {
+    case ReplyDrop::HitAgain: return "hit again";
+    case ReplyDrop::NotRepliedTo: return "stretch is not one the plan replies to";
+    case ReplyDrop::NewStretch: return "new stretch";
+    case ReplyDrop::PlanChanged: return "plan changed";
+    case ReplyDrop::SlotsChanged: return "slots changed";
+    case ReplyDrop::PlayChanged: return "session play changed";
+    default: return "none";
+    }
+}
+// What one frame's decision did. stopped: why a new stun ended the reply that
+// played; dropped: why the pending reply went before it began; none: the
+// stretch was to reply with a recording and no slot that is on can be one;
+// declined: the stretch's chance roll said no reply.
+struct ReplyStep { ReplyDrop stopped = ReplyDrop::None, dropped = ReplyDrop::None; bool made = false, started = false, none = false, declined = false; };
 // Whether the plan replies to the stretch: to what holds the dummy, else to
 // what it came out of. Typed replies that all begin with a hold (a charge)
 // and reply on getting up begin with a hit, which may knock the dummy down,
@@ -46,6 +65,27 @@ struct ReplyStep { bool stopped = false, made = false, started = false, dropped 
 inline bool RepliesTo(const DummyPlan& plan, const DummySeen& seen) {
     const bool hold = !plan.choices.empty() && std::all_of(plan.choices.begin(), plan.choices.end(), [](const ReplyChoice& choice) { return choice.hold >= 0; });
     return StunTriggers(plan.when, seen) || (plan.when == 3 && seen.held == 1 && hold);
+}
+// One frame of the reply trace (the log, SF4E_TRAINING_TRACE): what the game
+// says of the dummy (status raw and as classified, action, posture, combo
+// damage), what the stun watch makes of it (stretch, held, until, free, out)
+// and what the reply did, with the reason when one went. Nothing for a frame
+// where the dummy is free (past its first few) and no reply waits or plays; a
+// status that holds it in nothing known, as a throw's sequence, is traced.
+inline std::string ReplyFrameTrace(int frame, const FighterSample& dummy, const DummySeen& seen, const ReplyStep& step, bool pending, bool replying) {
+    const bool free = DummyHold(dummy) == 0 && (seen.free < 0 || seen.free > 3);
+    if (!pending && !replying && free && step.stopped == ReplyDrop::None) return {};
+    std::string line = "frame " + std::to_string(frame) + " dummy status " + std::to_string(dummy.status) + " (" + PhaseName(ClassifyStatus(dummy.status)) +
+        ") action " + std::to_string(dummy.action) + " posture " + std::to_string(dummy.posture) + " combo damage " + std::to_string(dummy.comboDamage) +
+        " | stretch " + std::to_string(seen.stretch) + " held " + std::to_string(seen.held) + " until " + std::to_string(seen.until) +
+        " free " + std::to_string(seen.free) + " out " + std::to_string(seen.out) + " | pending " + (pending ? "yes" : "no") + ", replying " + (replying ? "yes" : "no");
+    if (step.made) line += ", reply decided";
+    if (step.declined) line += ", chance said no reply";
+    if (step.none) line += ", no recording to reply with";
+    if (step.started) line += ", reply began";
+    if (step.dropped != ReplyDrop::None) line += std::string(", pending reply dropped: ") + ReplyDropName(step.dropped);
+    if (step.stopped != ReplyDrop::None) line += std::string(", playing reply stopped: ") + ReplyDropName(step.stopped);
+    return line;
 }
 class ReplyDecision {
 public:
@@ -57,16 +97,21 @@ public:
         const bool repliesTo = RepliesTo(plan, seen);
         // Hit again, or the stretch turned out to be none the plan replies
         // to: a reply already begun is dropped, and a new stretch decides anew.
-        if (session.Replying() && ((seen.held && seen.stretch != decided_) || (seen.stretch == decided_ && !repliesTo))) {
-            session.StopReply(); step.stopped = true;
+        if (session.Replying()) {
+            if (seen.held && seen.stretch != decided_) step.stopped = ReplyDrop::HitAgain;
+            else if (seen.stretch == decided_ && !repliesTo) step.stopped = ReplyDrop::NotRepliedTo;
+            if (step.stopped != ReplyDrop::None) session.StopReply();
         }
-        if (pending_ && (seen.stretch != reply_.stretch || !repliesTo || !SamePlan(plan, reply_.plan) ||
-                session.Bank().Revision() != reply_.revision || session.Epoch() != reply_.epoch)) {
-            Reset(); step.dropped = true;
+        if (pending_) {
+            step.dropped = seen.stretch != reply_.stretch ? ReplyDrop::NewStretch : !repliesTo ? ReplyDrop::NotRepliedTo :
+                !SamePlan(plan, reply_.plan) ? ReplyDrop::PlanChanged : session.Bank().Revision() != reply_.revision ? ReplyDrop::SlotsChanged :
+                session.Epoch() != reply_.epoch ? ReplyDrop::PlayChanged : ReplyDrop::None;
+            if (step.dropped != ReplyDrop::None) Reset();
         }
         if (!pending_ && repliesTo && seen.stretch != decided_) {
             decided_ = seen.stretch;
             if (roll % 100 < static_cast<unsigned>(plan.chance)) { step.made = Make(plan, seen.stretch, session); step.none = !step.made; }
+            else step.declined = true;
         }
         if (pending_ && ReplyBegins(reply_.schedule, seen)) {
             pending_ = false;
