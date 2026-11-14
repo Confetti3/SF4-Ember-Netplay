@@ -270,7 +270,10 @@ impl WireSet {
         let entry = |wire: WireEntry| Entry {
             participant_id: wire.id,
             name: None,
-            discord: wire.accounts.into_iter().find_map(|account| account.discord),
+            discord: wire
+                .accounts
+                .into_iter()
+                .find_map(|account| account.discord),
         };
         Some(Set {
             round_label: self

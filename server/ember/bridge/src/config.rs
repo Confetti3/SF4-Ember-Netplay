@@ -144,7 +144,9 @@ impl Archive {
     /// before the bucket's name, and `archive::PATH`. None when the base does
     /// not end in the bucket, which the bridge then cannot place.
     pub fn listing_url(&self) -> Option<String> {
-        let host = self.public_base.strip_suffix(&format!("/{}", self.bucket))?;
+        let host = self
+            .public_base
+            .strip_suffix(&format!("/{}", self.bucket))?;
         Some(format!("{host}{}", ember_protocol::archive::PATH))
     }
 }
@@ -712,7 +714,10 @@ mod tests {
             own_site.listing_url().as_deref(),
             Some("https://archive.example/v1/archive")
         );
-        assert_eq!(archive("other", "https://s3.example/replays").listing_url(), None);
+        assert_eq!(
+            archive("other", "https://s3.example/replays").listing_url(),
+            None
+        );
     }
 
     /// Whether a configuration with one connection of `kind` and these extra

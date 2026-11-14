@@ -187,7 +187,10 @@ fn keeps(filter: &Filter, game: &Game) -> bool {
                     .flatten()
                     .any(|text| ascii_has(text, q))
             })
-        && filter.name.as_deref().is_none_or(|name| either(&game.names, name))
+        && filter
+            .name
+            .as_deref()
+            .is_none_or(|name| either(&game.names, name))
         && filter
             .class
             .is_none_or(|class| game.classes.contains(&Some(class)))

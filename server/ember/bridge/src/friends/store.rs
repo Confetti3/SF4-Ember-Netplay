@@ -220,7 +220,15 @@ pub fn relation(tx: &Transaction<'_>, caller: &str, target: &str) -> Result<Opti
                 EXISTS (SELECT 1 FROM friend_requests
                         WHERE sender = ?2 AND receiver = ?1 AND hidden_at IS NULL)",
         params![caller, target, first, second],
-        |row| Ok([row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?]),
+        |row| {
+            Ok([
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+            ])
+        },
     )?;
     Ok(match flags {
         [true, ..] => None,

@@ -58,7 +58,9 @@ async fn a_win_earns_its_bonus_only_against_the_same_class_or_a_higher_one() {
     set_class(&bridge, "100", 6).await;
     // The same class, a higher one, then a lower one: 2, 2 and 1 for the
     // winner, and 1 each time for the loser.
-    for (generation, class, winner_points, loser_points) in [(1, 6, 2, 1), (2, 8, 4, 2), (3, 4, 5, 3)] {
+    for (generation, class, winner_points, loser_points) in
+        [(1, 6, 2, 1), (2, 8, 4, 2), (3, 4, 5, 3)]
+    {
         set_class(&bridge, "200", class).await;
         play(
             &bridge,
@@ -116,8 +118,12 @@ async fn a_player_without_a_class_is_nobodys_lower() {
     // Neither has a rating yet; then the winner has a class and the loser
     // none; then the loser's rating is still placing (class 0); then the
     // winner has none and the loser the lowest class. Each win is 2.
-    let steps: [(Option<u8>, Option<u8>); 4] =
-        [(None, None), (Some(9), None), (Some(9), Some(0)), (Some(0), Some(1))];
+    let steps: [(Option<u8>, Option<u8>); 4] = [
+        (None, None),
+        (Some(9), None),
+        (Some(9), Some(0)),
+        (Some(0), Some(1)),
+    ];
     for (index, (winner, loser)) in steps.into_iter().enumerate() {
         let generation = index as u64 + 1;
         if let Some(class) = winner {
@@ -181,7 +187,11 @@ async fn the_loser_earns_a_point_whatever_the_classes_and_no_points_are_taken() 
         // against a lower class is no more. The lowest class earns 2 for
         // its win and 1 for its loss.
         let earned = [after[0] - before[0], after[1] - before[1]];
-        assert_eq!(earned, if top_won { [1, 1] } else { [1, 2] }, "game {generation}");
+        assert_eq!(
+            earned,
+            if top_won { [1, 1] } else { [1, 2] },
+            "game {generation}"
+        );
         before = after;
     }
     assert_eq!(counts(&bridge, &first, 3).await, [(5, 5, 2); 2]);

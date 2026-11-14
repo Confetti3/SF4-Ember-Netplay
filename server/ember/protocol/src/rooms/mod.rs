@@ -440,12 +440,16 @@ mod tests {
         assert!(serde_json::from_str::<TicketRequest>(ticket).is_err());
         // Without it both read.
         assert!(
-            serde_json::from_str::<CreateRoom>(r#"{"name":"Room","capacity":8,"build_id":"build"}"#)
-                .is_ok()
+            serde_json::from_str::<CreateRoom>(
+                r#"{"name":"Room","capacity":8,"build_id":"build"}"#
+            )
+            .is_ok()
         );
         assert!(
-            serde_json::from_str::<TicketRequest>(r#"{"endpoint_id":"endpoint","build_id":"build"}"#)
-                .is_ok()
+            serde_json::from_str::<TicketRequest>(
+                r#"{"endpoint_id":"endpoint","build_id":"build"}"#
+            )
+            .is_ok()
         );
     }
 

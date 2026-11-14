@@ -25,10 +25,7 @@ use crate::{
     error::{ApiFailure, Result},
     friends::{self, Classes, store},
     http::{Body, GENERAL_BODY, ok},
-    routes::{
-        play::playing,
-        rooms,
-    },
+    routes::{play::playing, rooms},
     secrets::Keys,
     skill,
 };

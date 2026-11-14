@@ -88,7 +88,9 @@ impl Tiers {
 pub(super) enum Played {
     Lost,
     /// `bonus`: the win earned the class bonus (`class_bonus`).
-    Won { bonus: bool },
+    Won {
+        bonus: bool,
+    },
 }
 
 impl Played {
@@ -254,11 +256,7 @@ pub(super) fn count_account(
 
 /// Counts the result of a game in `account`'s run of wins: a win goes on with
 /// it, a loss ends it, and the best run so far only ever rises.
-pub(super) fn count_streak(
-    tx: &Transaction<'_>,
-    account: &str,
-    won: bool,
-) -> Result<()> {
+pub(super) fn count_streak(tx: &Transaction<'_>, account: &str, won: bool) -> Result<()> {
     tx.execute(
         "INSERT INTO award_counters (discord_user_id, streak, best_streak)
          VALUES (?1, ?2, ?2)
@@ -595,14 +593,26 @@ mod tests {
         }
         // The top tier has no next tier.
         let top = row(2_500, 1_300, 0).own_fighter(7);
-        assert_eq!((top.points, top.tier, top.floor, top.next), (3_800, 4, 2_500, None));
+        assert_eq!(
+            (top.points, top.tier, top.floor, top.next),
+            (3_800, 4, 2_500, None)
+        );
         let first = row(1, 0, 0).own_fighter(7);
-        assert_eq!((first.points, first.tier, first.floor, first.next), (1, 0, 0, Some(200)));
+        assert_eq!(
+            (first.points, first.tier, first.floor, first.next),
+            (1, 0, 0, Some(200))
+        );
         let edge = row(100, 100, 0).own_fighter(7);
-        assert_eq!((edge.points, edge.tier, edge.floor, edge.next), (200, 1, 200, Some(700)));
+        assert_eq!(
+            (edge.points, edge.tier, edge.floor, edge.next),
+            (200, 1, 200, Some(700))
+        );
         // A win without the bonus is a point short of the tier.
         let short = row(100, 100, 1).own_fighter(7);
-        assert_eq!((short.points, short.tier, short.floor, short.next), (199, 0, 0, Some(200)));
+        assert_eq!(
+            (short.points, short.tier, short.floor, short.next),
+            (199, 0, 0, Some(200))
+        );
         // An account with no game has no `since`, and passes the checks.
         let none = Counted {
             games: 0,
@@ -613,7 +623,13 @@ mod tests {
         let account = none.own_account(awards_of(&none));
         assert!(account.check().is_ok(), "{account:?}");
         assert_eq!(
-            (account.points, account.tier, account.floor, account.next, account.since),
+            (
+                account.points,
+                account.tier,
+                account.floor,
+                account.next,
+                account.since
+            ),
             (0, 0, 0, Some(500), None)
         );
         let top_row = row(8_000, 3_000, 500);

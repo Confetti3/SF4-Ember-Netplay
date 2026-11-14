@@ -1,8 +1,8 @@
 use serde_json::{Value, json};
 
 use super::*;
-use crate::levels::tests::{ignores_extra, read, refuses_extra};
 use crate::awards::MAX_FAMILY_ID;
+use crate::levels::tests::{ignores_extra, read, refuses_extra};
 
 const FRIEND: &str = "fr_11111111-1111-4111-8111-111111111111";
 const REQUEST: &str = "rq_11111111-1111-4111-8111-111111111111";
@@ -91,7 +91,11 @@ fn a_look_up_takes_one_to_sixteen_tokens_or_friend_ids() {
         (CardSelector::Code("4F2A-91C!".into()), "code"),
         (CardSelector::Code(String::new()), "code"),
     ] {
-        assert_eq!(selector.check(), Err(Error::InvalidField(field)), "{selector:?}");
+        assert_eq!(
+            selector.check(),
+            Err(Error::InvalidField(field)),
+            "{selector:?}"
+        );
     }
 
     // A selector names one thing, and nothing it does not know.
@@ -143,12 +147,10 @@ fn a_look_up_answer_has_one_entry_per_selector() {
     assert!(empty.check().is_ok());
     // A reader without `fighters` reads none; one without `account`
     // refuses the card.
-    let bare: PlayerCard =
-        read(&json!({"account": {"points": 2, "tier": 0}, "relation": "none"}));
+    let bare: PlayerCard = read(&json!({"account": {"points": 2, "tier": 0}, "relation": "none"}));
     assert!(bare.fighters.is_empty());
     assert!(
-        serde_json::from_value::<PlayerCard>(json!({"fighters": [], "relation": "none"}))
-            .is_err()
+        serde_json::from_value::<PlayerCard>(json!({"fighters": [], "relation": "none"})).is_err()
     );
 
     let empty_answer = CardAnswers { cards: vec![] };
@@ -253,7 +255,14 @@ fn a_card_says_what_its_player_shows_and_only_what_there_is() {
     assert_eq!(card.worn.title.as_deref(), Some("matches"));
     assert_eq!(card.pins, ["rank", "wins"]);
     assert_eq!(card.style.device, 2);
-    assert_eq!(card.versus, Some(PairRecord { won: 4, lost: 3, last_at: 1_731_000_000 }));
+    assert_eq!(
+        card.versus,
+        Some(PairRecord {
+            won: 4,
+            lost: 3,
+            last_at: 1_731_000_000
+        })
+    );
     assert_eq!(card.friend.as_deref(), Some(FRIEND));
     assert_eq!(serde_json::to_value(&card).unwrap(), wire);
     ignores_extra::<PlayerCard>(&wire, "");
@@ -269,15 +278,29 @@ fn a_card_says_what_its_player_shows_and_only_what_there_is() {
         r#"{"account":{"points":0,"tier":0},"fighters":[],"relation":"none"}"#
     );
     let zeros = PlayerCard {
-        style: Style { device: 0, link: 0, region: None, looking: 0 },
-        worn: Worn { title: None, icon: None },
+        style: Style {
+            device: 0,
+            link: 0,
+            region: None,
+            looking: 0,
+        },
+        worn: Worn {
+            title: None,
+            icon: None,
+        },
         ..plain.clone()
     };
     assert_eq!(zeros, plain);
     // A style with only a region says only that, and a worn title alone.
     let some = PlayerCard {
-        style: Style { region: Some("use1".into()), ..Style::default() },
-        worn: Worn { title: Some("rank".into()), icon: None },
+        style: Style {
+            region: Some("use1".into()),
+            ..Style::default()
+        },
+        worn: Worn {
+            title: Some("rank".into()),
+            icon: None,
+        },
         ..plain
     };
     let wire = serde_json::to_value(&some).unwrap();
@@ -289,39 +312,105 @@ fn a_card_says_what_its_player_shows_and_only_what_there_is() {
 fn a_card_with_a_value_it_cannot_hold_is_refused() {
     let good: PlayerCard = read(&full_card());
     let broken = [
-        ("name", PlayerCard { name: Some(String::new()), ..good.clone() }),
-        ("name", PlayerCard { name: Some("a\nb".into()), ..good.clone() }),
-        ("country", PlayerCard { country: Some("fr".into()), ..good.clone() }),
-        ("main", PlayerCard { main: Some(FIGHTERS), ..good.clone() }),
-        ("family", PlayerCard {
-            worn: Worn { title: Some("Rank".into()), icon: None },
-            ..good.clone()
-        }),
-        ("pins", PlayerCard {
-            pins: ["a", "b", "c", "d", "e"].map(String::from).to_vec(),
-            ..good.clone()
-        }),
-        ("pins", PlayerCard { pins: vec!["x y".into()], ..good.clone() }),
-        ("region", PlayerCard {
-            style: Style { region: Some("EUC1".into()), ..Style::default() },
-            ..good.clone()
-        }),
-        ("record", PlayerCard {
-            versus: Some(PairRecord { won: 0, lost: 0, last_at: 1 }),
-            ..good.clone()
-        }),
-        ("friend", PlayerCard { friend: Some("rq_x".into()), ..good.clone() }),
-        ("badge", PlayerCard {
-            badge: Some(SkillBadge::class(11, true)),
-            ..good.clone()
-        }),
+        (
+            "name",
+            PlayerCard {
+                name: Some(String::new()),
+                ..good.clone()
+            },
+        ),
+        (
+            "name",
+            PlayerCard {
+                name: Some("a\nb".into()),
+                ..good.clone()
+            },
+        ),
+        (
+            "country",
+            PlayerCard {
+                country: Some("fr".into()),
+                ..good.clone()
+            },
+        ),
+        (
+            "main",
+            PlayerCard {
+                main: Some(FIGHTERS),
+                ..good.clone()
+            },
+        ),
+        (
+            "family",
+            PlayerCard {
+                worn: Worn {
+                    title: Some("Rank".into()),
+                    icon: None,
+                },
+                ..good.clone()
+            },
+        ),
+        (
+            "pins",
+            PlayerCard {
+                pins: ["a", "b", "c", "d", "e"].map(String::from).to_vec(),
+                ..good.clone()
+            },
+        ),
+        (
+            "pins",
+            PlayerCard {
+                pins: vec!["x y".into()],
+                ..good.clone()
+            },
+        ),
+        (
+            "region",
+            PlayerCard {
+                style: Style {
+                    region: Some("EUC1".into()),
+                    ..Style::default()
+                },
+                ..good.clone()
+            },
+        ),
+        (
+            "record",
+            PlayerCard {
+                versus: Some(PairRecord {
+                    won: 0,
+                    lost: 0,
+                    last_at: 1,
+                }),
+                ..good.clone()
+            },
+        ),
+        (
+            "friend",
+            PlayerCard {
+                friend: Some("rq_x".into()),
+                ..good.clone()
+            },
+        ),
+        (
+            "badge",
+            PlayerCard {
+                badge: Some(SkillBadge::class(11, true)),
+                ..good.clone()
+            },
+        ),
     ];
     for (field, card) in broken {
         assert_eq!(card.check(), Err(Error::InvalidField(field)), "{card:?}");
     }
     // A device, link or bit a later bridge adds is read, as not shown.
     let later = PlayerCard {
-        style: Style { device: 9, link: 7, region: Some("sae1".into()), looking: 255 },
+        style: Style {
+            device: 9,
+            link: 7,
+            region: Some("sae1".into()),
+            looking: 255,
+        },
         ..good
     };
     assert!(later.check().is_ok());
@@ -330,9 +419,11 @@ fn a_card_with_a_value_it_cannot_hold_is_refused() {
 }
 
 fn save() -> CardSave {
-    read(&json!({"listing": {"name": "Player 1", "country": "DE"}, "main": 3,
+    read(
+        &json!({"listing": {"name": "Player 1", "country": "DE"}, "main": 3,
         "worn": {"title": "matches", "icon": "streak"}, "pins": ["rank", "wins"],
-        "style": {"device": 2, "link": 1, "region": "euc1", "looking": 34}}))
+        "style": {"device": 2, "link": 1, "region": "euc1", "looking": 34}}),
+    )
 }
 
 #[test]
@@ -360,7 +451,12 @@ fn a_card_save_is_checked_before_it_is_sent_or_stored() {
     }
     let mut edge = good.clone();
     edge.pins = ["a", "b", "c", "d"].map(String::from).to_vec();
-    edge.style = Style { device: 4, link: 2, region: None, looking: 0b10_0001 };
+    edge.style = Style {
+        device: 4,
+        link: 2,
+        region: None,
+        looking: 0b10_0001,
+    };
     edge.main = Some(FIGHTERS - 1);
     assert!(edge.check().is_ok());
 
@@ -434,9 +530,21 @@ fn a_card_save_is_checked_before_it_is_sent_or_stored() {
 
 #[test]
 fn a_search_asks_for_a_name_or_a_code_and_not_both() {
-    let name = |text: &str| CardSearch { name: Some(text.into()), code: None };
-    let code = |text: &str| CardSearch { name: None, code: Some(text.into()) };
-    for good in [name("Pl"), name("  Play  "), name(&"a".repeat(32)), code("4F2A-91CX"), code("4f2a 91cx")] {
+    let name = |text: &str| CardSearch {
+        name: Some(text.into()),
+        code: None,
+    };
+    let code = |text: &str| CardSearch {
+        name: None,
+        code: Some(text.into()),
+    };
+    for good in [
+        name("Pl"),
+        name("  Play  "),
+        name(&"a".repeat(32)),
+        code("4F2A-91CX"),
+        code("4f2a 91cx"),
+    ] {
         assert!(good.check().is_ok(), "{good:?}");
     }
     assert_eq!(name("  Play ").trimmed_name(), Some("Play"));
@@ -450,14 +558,23 @@ fn a_search_asks_for_a_name_or_a_code_and_not_both() {
         (code(""), "code"),
         (CardSearch::default(), "search"),
         (
-            CardSearch { name: Some("Play".into()), code: Some("4F2A-91CX".into()) },
+            CardSearch {
+                name: Some("Play".into()),
+                code: Some("4F2A-91CX".into()),
+            },
             "search",
         ),
     ] {
         assert_eq!(bad.check(), Err(Error::InvalidField(field)), "{bad:?}");
     }
-    assert_eq!(serde_json::to_value(name("Play")).unwrap(), json!({"name": "Play"}));
-    assert_eq!(serde_json::to_value(code("4F2A-91CX")).unwrap(), json!({"code": "4F2A-91CX"}));
+    assert_eq!(
+        serde_json::to_value(name("Play")).unwrap(),
+        json!({"name": "Play"})
+    );
+    assert_eq!(
+        serde_json::to_value(code("4F2A-91CX")).unwrap(),
+        json!({"code": "4F2A-91CX"})
+    );
     let wire = json!({"name": "Play"});
     refuses_extra::<CardSearch>(&wire, "");
 }
@@ -479,21 +596,59 @@ fn a_search_answer_lists_at_most_twenty_players() {
     assert!(!short.more && short.check().is_ok());
 
     let hit = answer.players[1].clone();
-    let many = |count: usize| SearchAnswer { players: vec![hit.clone(); count], more: false };
+    let many = |count: usize| SearchAnswer {
+        players: vec![hit.clone(); count],
+        more: false,
+    };
     assert!(many(MAX_SEARCH).check().is_ok());
-    assert_eq!(many(MAX_SEARCH + 1).check(), Err(Error::InvalidField("players")));
+    assert_eq!(
+        many(MAX_SEARCH + 1).check(),
+        Err(Error::InvalidField("players"))
+    );
     for (field, bad) in [
-        ("card", SearchHit { card: "fr_x".into(), ..hit.clone() }),
-        ("name", SearchHit { name: String::new(), ..hit.clone() }),
-        ("country", SearchHit { country: Some("x".into()), ..hit.clone() }),
-        ("main", SearchHit { main: Some(FIGHTERS), ..hit.clone() }),
-        ("badge", SearchHit { badge: Some(SkillBadge::class(11, true)), ..hit.clone() }),
+        (
+            "card",
+            SearchHit {
+                card: "fr_x".into(),
+                ..hit.clone()
+            },
+        ),
+        (
+            "name",
+            SearchHit {
+                name: String::new(),
+                ..hit.clone()
+            },
+        ),
+        (
+            "country",
+            SearchHit {
+                country: Some("x".into()),
+                ..hit.clone()
+            },
+        ),
+        (
+            "main",
+            SearchHit {
+                main: Some(FIGHTERS),
+                ..hit.clone()
+            },
+        ),
+        (
+            "badge",
+            SearchHit {
+                badge: Some(SkillBadge::class(11, true)),
+                ..hit.clone()
+            },
+        ),
     ] {
         assert_eq!(bad.check(), Err(Error::InvalidField(field)), "{bad:?}");
     }
     // A hit without its card or name is no answer.
-    assert!(serde_json::from_value::<SearchAnswer>(
-        json!({"players": [{"name": "Player 3", "since": 1}]})
-    )
-    .is_err());
+    assert!(
+        serde_json::from_value::<SearchAnswer>(
+            json!({"players": [{"name": "Player 3", "since": 1}]})
+        )
+        .is_err()
+    );
 }

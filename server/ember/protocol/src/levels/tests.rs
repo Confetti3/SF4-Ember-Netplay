@@ -38,14 +38,7 @@ pub(crate) fn refuses_extra<T: DeserializeOwned>(value: &Value, pointer: &str) {
     );
 }
 
-fn own(
-    fighter: u8,
-    games: u64,
-    wins: u64,
-    tier: u8,
-    floor: u64,
-    next: Option<u64>,
-) -> OwnFighter {
+fn own(fighter: u8, games: u64, wins: u64, tier: u8, floor: u64, next: Option<u64>) -> OwnFighter {
     OwnFighter {
         fighter,
         points: games.saturating_add(wins),
@@ -137,8 +130,7 @@ fn own_points_ignore_unknown_members_and_refuse_unknown_states() {
     // A member that is missing is refused, not defaulted.
     assert!(serde_json::from_value::<OwnLevels>(json!({"points": "counted"})).is_err());
     assert!(
-        serde_json::from_value::<OwnLevels>(json!({"points": "counted", "fighters": []}))
-            .is_err()
+        serde_json::from_value::<OwnLevels>(json!({"points": "counted", "fighters": []})).is_err()
     );
     assert!(
         serde_json::from_value::<OwnFighter>(
@@ -230,7 +222,11 @@ fn an_account_is_checked_against_its_own_counts_and_frame() {
         ("floor", account(100, 99, 0, 5, Some(500))),
     ];
     for (field, account) in refused {
-        assert_eq!(account.check(), Err(Error::InvalidField(field)), "{account:?}");
+        assert_eq!(
+            account.check(),
+            Err(Error::InvalidField(field)),
+            "{account:?}"
+        );
     }
     // The account is checked with the answer, and a bad one fails it.
     let bad = OwnLevels::Counted {
@@ -344,13 +340,56 @@ fn a_most_played_opponent_is_checked() {
     };
     assert!(counted(good.clone()).check().is_ok());
     let refused = [
-        ("card", RivalCard { card: "c2.abc".into(), ..good.clone() }),
-        ("card", RivalCard { card: "c1.".into(), ..good.clone() }),
-        ("name", RivalCard { name: String::new(), ..good.clone() }),
-        ("name", RivalCard { name: "Player\n7".into(), ..good.clone() }),
-        ("country", RivalCard { country: Some("usa".into()), ..good.clone() }),
-        ("won", RivalCard { won: 0, lost: 0, ..good.clone() }),
-        ("badge", RivalCard { badge: Some(SkillBadge::class(0, true)), ..good.clone() }),
+        (
+            "card",
+            RivalCard {
+                card: "c2.abc".into(),
+                ..good.clone()
+            },
+        ),
+        (
+            "card",
+            RivalCard {
+                card: "c1.".into(),
+                ..good.clone()
+            },
+        ),
+        (
+            "name",
+            RivalCard {
+                name: String::new(),
+                ..good.clone()
+            },
+        ),
+        (
+            "name",
+            RivalCard {
+                name: "Player\n7".into(),
+                ..good.clone()
+            },
+        ),
+        (
+            "country",
+            RivalCard {
+                country: Some("usa".into()),
+                ..good.clone()
+            },
+        ),
+        (
+            "won",
+            RivalCard {
+                won: 0,
+                lost: 0,
+                ..good.clone()
+            },
+        ),
+        (
+            "badge",
+            RivalCard {
+                badge: Some(SkillBadge::class(0, true)),
+                ..good.clone()
+            },
+        ),
     ];
     for (field, rival) in refused {
         assert_eq!(
@@ -360,8 +399,24 @@ fn a_most_played_opponent_is_checked() {
         );
     }
     // Lost games alone, or won games alone, are a record.
-    assert!(RivalCard { won: 0, lost: 5, ..good.clone() }.check().is_ok());
-    assert!(RivalCard { won: 5, lost: 0, ..good }.check().is_ok());
+    assert!(
+        RivalCard {
+            won: 0,
+            lost: 5,
+            ..good.clone()
+        }
+        .check()
+        .is_ok()
+    );
+    assert!(
+        RivalCard {
+            won: 5,
+            lost: 0,
+            ..good
+        }
+        .check()
+        .is_ok()
+    );
 }
 
 #[test]

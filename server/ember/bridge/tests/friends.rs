@@ -22,7 +22,7 @@ use ember_bridge::{config, integrations::Secrets};
 use ember_protocol::{
     encoding::b64u,
     friends::{ACTIONS_PATH, FriendAction, FriendsState, SYNC_PATH},
-    levels::{CARD_PREFIX, CARD_VALID_SECS, POINTS_PATH, LOOKUP_PATH},
+    levels::{CARD_PREFIX, CARD_VALID_SECS, LOOKUP_PATH, POINTS_PATH},
     skill::{BOARD_PATH, STANDING_PATH},
 };
 use reqwest::StatusCode;
@@ -99,11 +99,17 @@ impl Drop for World {
         let ember_ids = self.ember_ids.lock().unwrap();
         for (path, answer) in self.answers.lock().unwrap().iter() {
             for secret in accounts.iter() {
-                assert!(!answer.contains(secret.as_str()), "{path} names {secret}: {answer}");
+                assert!(
+                    !answer.contains(secret.as_str()),
+                    "{path} names {secret}: {answer}"
+                );
             }
             if path.starts_with("/v1/friends") || path == LOOKUP_PATH {
                 for ember_id in ember_ids.iter() {
-                    assert!(!answer.contains(ember_id.as_str()), "{path} names {ember_id}: {answer}");
+                    assert!(
+                        !answer.contains(ember_id.as_str()),
+                        "{path} names {ember_id}: {answer}"
+                    );
                 }
             }
         }
@@ -180,7 +186,13 @@ impl World {
     async fn member(&self, byte: u8, discord: &str, name: &'static str) -> Member {
         let player = player(&self.bridge, byte).await;
         let username = format!("discord_name_{discord}");
-        seed::link_discord(self.bridge.state(), discord, player.id().as_str(), &username).await;
+        seed::link_discord(
+            self.bridge.state(),
+            discord,
+            player.id().as_str(),
+            &username,
+        )
+        .await;
         self.accounts
             .lock()
             .unwrap()
@@ -263,8 +275,11 @@ impl World {
 
     async fn ask(&self, from: &Member, to: &Member) -> Json_ {
         let card = self.card(to);
-        self.act(from, json!({ "action": "request", "card": card, "label": to.name }))
-            .await
+        self.act(
+            from,
+            json!({ "action": "request", "card": card, "label": to.name }),
+        )
+        .await
     }
 
     async fn befriend(&self, one: &Member, other: &Member) -> String {
@@ -351,7 +366,10 @@ async fn offers(bridge: &Bridge, feature: &str) -> bool {
         .await
         .unwrap();
     let (_, body) = common::read(response).await;
-    body["features"].as_array().unwrap().contains(&json!(feature))
+    body["features"]
+        .as_array()
+        .unwrap()
+        .contains(&json!(feature))
 }
 
 #[tokio::test]
@@ -372,9 +390,7 @@ async fn friends_are_offered_beside_levels_where_discord_sign_in_is() {
     assert_eq!(reason(&answer), "no_discord_account");
     // An action before any sync has no state to answer.
     let first = world.member(1, A, "Player 1").await;
-    let (status, answer) = world
-        .try_act(&first, json!({ "action": "new_code" }))
-        .await;
+    let (status, answer) = world.try_act(&first, json!({ "action": "new_code" })).await;
     assert_eq!(status, StatusCode::CONFLICT, "{answer}");
 
     // Public rooms without Discord sign-in: no friends, and 404.
@@ -400,7 +416,10 @@ async fn a_request_by_card_or_by_code_is_sent_and_accepted() {
     assert_eq!(sent["outgoing"][0]["label"], "Player 2");
     let seen = world.sync(&b, menus()).await;
     let incoming = &seen["incoming"][0];
-    assert_eq!((incoming["name"].clone(), incoming["country"].clone()), (json!("Player 1"), json!("GB")));
+    assert_eq!(
+        (incoming["name"].clone(), incoming["country"].clone()),
+        (json!("Player 1"), json!("GB"))
+    );
     // They never played: nothing of a record.
     assert!(incoming.get("played").is_none(), "{incoming}");
     assert_eq!(world.relation(&a, &b).await, "sent");
@@ -422,19 +441,33 @@ async fn a_request_by_card_or_by_code_is_sent_and_accepted() {
     // A friend's whole card by the friendship's id; nobody else's friend.
     let card = world.cards(&a, json!([{ "friend": friend }])).await;
     assert_eq!(card[0]["relation"], "friend");
-    assert_eq!(world.cards(&c, json!([{ "friend": friend }])).await, json!([null]));
+    assert_eq!(
+        world.cards(&c, json!([{ "friend": friend }])).await,
+        json!([null])
+    );
 
     // By code, as typed: any case, spaces, O for 0. The label is the code.
     let code = friends["code"].as_str().unwrap().to_owned();
     let typed = code.to_lowercase().replace('-', " ").replace('0', "o");
-    let asked = world.act(&c, json!({ "action": "request", "code": typed })).await;
+    let asked = world
+        .act(&c, json!({ "action": "request", "code": typed }))
+        .await;
     assert_eq!(asked["outgoing"][0]["label"], code);
-    assert_eq!(world.sync(&a, menus()).await["incoming"][0]["name"], "Player 3");
+    assert_eq!(
+        world.sync(&a, menus()).await["incoming"][0]["name"],
+        "Player 3"
+    );
 
     let refusals = [
-        (json!({ "action": "request", "code": "0000-0000" }), "unknown_code"),
+        (
+            json!({ "action": "request", "code": "0000-0000" }),
+            "unknown_code",
+        ),
         (json!({ "action": "request", "code": code }), "own_card"),
-        (json!({ "action": "request", "card": world.card(&a), "label": "Me" }), "own_card"),
+        (
+            json!({ "action": "request", "card": world.card(&a), "label": "Me" }),
+            "own_card",
+        ),
         (
             json!({ "action": "request", "label": "Player 2",
                 "card": sealed(&world.bridge, B, world.now() - CARD_VALID_SECS - 1) }),
@@ -442,17 +475,26 @@ async fn a_request_by_card_or_by_code_is_sent_and_accepted() {
         ),
     ];
     for (action, expected) in refusals {
-        assert_eq!(world.refused(&a, action.clone()).await, expected, "{action}");
+        assert_eq!(
+            world.refused(&a, action.clone()).await,
+            expected,
+            "{action}"
+        );
     }
 }
 
 #[tokio::test]
 async fn asking_someone_who_asked_you_makes_you_friends() {
     let world = World::start().await;
-    let (a, b) = (world.join(1, A, "Player 1").await, world.join(2, B, "Player 2").await);
+    let (a, b) = (
+        world.join(1, A, "Player 1").await,
+        world.join(2, B, "Player 2").await,
+    );
     world.ask(&a, &b).await;
     let code = world.sync(&a, menus()).await["code"].clone();
-    let both = world.act(&b, json!({ "action": "request", "code": code })).await;
+    let both = world
+        .act(&b, json!({ "action": "request", "code": code }))
+        .await;
     assert_eq!(both["friends"][0]["name"], "Player 1");
     assert!(ids(&both["incoming"]).is_empty() && ids(&both["outgoing"]).is_empty());
     let other = world.sync(&a, menus()).await;
@@ -496,15 +538,23 @@ async fn a_declined_blocked_or_unseen_request_still_looks_sent() {
     // card is gone for them.
     let card = world.card(&c);
     world
-        .act(&b, json!({ "action": "block", "card": card, "label": "Player 3" }))
+        .act(
+            &b,
+            json!({ "action": "block", "card": card, "label": "Player 3" }),
+        )
         .await;
     let code = world.sync(&b, menus()).await["code"].clone();
-    let asked = world.act(&c, json!({ "action": "request", "code": code })).await;
+    let asked = world
+        .act(&c, json!({ "action": "request", "code": code }))
+        .await;
     assert_eq!(ids(&asked["outgoing"]).len(), 1);
     assert!(ids(&world.sync(&b, menus()).await["incoming"]).is_empty());
     assert_eq!(world.relation(&b, &c).await, "blocked");
     let blocker = world.card(&b);
-    assert_eq!(world.cards(&c, json!([{ "card": blocker }])).await, json!([null]));
+    assert_eq!(
+        world.cards(&c, json!([{ "card": blocker }])).await,
+        json!([null])
+    );
 
     // A request lapses 30 days after it was sent; then it may be sent again.
     world.bridge.clock.advance(30 * DAY);
@@ -541,7 +591,13 @@ async fn daily_pending_and_inbox_limits_hold() {
     assert_eq!(ids(&world.ask(&c, &b).await["outgoing"]).len(), 1);
     let inbox = world.sync(&b, menus()).await;
     assert_eq!(ids(&inbox["incoming"]).len(), 50);
-    assert!(inbox["incoming"].as_array().unwrap().iter().all(|r| r["name"] == "Player 9"));
+    assert!(
+        inbox["incoming"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|r| r["name"] == "Player 9")
+    );
 
     // 20 new requests a day.
     let mut statement = String::new();
@@ -579,7 +635,10 @@ async fn daily_pending_and_inbox_limits_hold() {
     let ask_c = json!({ "action": "request", "card": card, "label": "Player 3" });
     assert_eq!(world.refused(&a, ask_c.clone()).await, "request_limit");
     world
-        .act(&a, json!({ "action": "cancel", "request": request_id(100) }))
+        .act(
+            &a,
+            json!({ "action": "cancel", "request": request_id(100) }),
+        )
         .await;
     assert_eq!(ids(&world.act(&a, ask_c).await["outgoing"]).len(), 30);
 }
@@ -594,13 +653,19 @@ async fn a_block_removes_everything_both_ways_and_hides_from_cards() {
     );
     let friend = world.befriend(&a, &b).await;
     world
-        .act(&a, json!({ "action": "invite", "friend": friend,
-            "room": { "room_id": "0f0123456789abcdef0123456789abcd" } }))
+        .act(
+            &a,
+            json!({ "action": "invite", "friend": friend,
+            "room": { "room_id": "0f0123456789abcdef0123456789abcd" } }),
+        )
         .await;
     assert_eq!(ids(&world.sync(&b, menus()).await["invites"]).len(), 1);
 
     let removed = world
-        .act(&a, json!({ "action": "remove", "friend": friend, "block": true }))
+        .act(
+            &a,
+            json!({ "action": "remove", "friend": friend, "block": true }),
+        )
         .await;
     assert!(ids(&removed["friends"]).is_empty());
     assert_eq!(removed["blocked"][0]["name"], "Player 2");
@@ -609,17 +674,31 @@ async fn a_block_removes_everything_both_ways_and_hides_from_cards() {
     assert!(!blocked.to_string().contains("Player 1"), "{blocked}");
     assert_eq!(world.relation(&a, &b).await, "blocked");
     let blocker = world.card(&a);
-    assert_eq!(world.cards(&b, json!([{ "card": blocker }])).await, json!([null]));
+    assert_eq!(
+        world.cards(&b, json!([{ "card": blocker }])).await,
+        json!([null])
+    );
     // The blocked player's friend id no longer opens a card either.
-    assert_eq!(world.cards(&b, json!([{ "friend": friend }])).await, json!([null]));
+    assert_eq!(
+        world.cards(&b, json!([{ "friend": friend }])).await,
+        json!([null])
+    );
 
     // Decline and block lists the sender by their own name.
     world.ask(&c, &a).await;
     let request = world.sync(&a, menus()).await["incoming"][0]["id"].clone();
     let declined = world
-        .act(&a, json!({ "action": "decline", "request": request, "block": true }))
+        .act(
+            &a,
+            json!({ "action": "decline", "request": request, "block": true }),
+        )
         .await;
-    let names: Vec<&Json_> = declined["blocked"].as_array().unwrap().iter().map(|b| &b["name"]).collect();
+    let names: Vec<&Json_> = declined["blocked"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| &b["name"])
+        .collect();
     assert_eq!(names.len(), 2);
     assert!(names.contains(&&json!("Player 3")));
 
@@ -653,31 +732,51 @@ async fn turning_friends_off_deletes_the_friends_but_keeps_the_players_blocks() 
     world.befriend(&a, &b).await;
     let card = world.card(&c);
     world
-        .act(&a, json!({ "action": "block", "card": card, "label": "Player 3" }))
+        .act(
+            &a,
+            json!({ "action": "block", "card": card, "label": "Player 3" }),
+        )
         .await;
     world.ask(&d, &a).await;
     // C's own block on A is C's to keep.
     let card = world.card(&a);
     world
-        .act(&c, json!({ "action": "block", "card": card, "label": "Player 1" }))
+        .act(
+            &c,
+            json!({ "action": "block", "card": card, "label": "Player 1" }),
+        )
         .await;
     let old = world.sync(&a, menus()).await["code"].clone();
 
     // The answer to the action itself is the refusal.
-    assert_eq!(world.refused(&a, json!({ "action": "forget" })).await, "friends_off");
+    assert_eq!(
+        world.refused(&a, json!({ "action": "forget" })).await,
+        "friends_off"
+    );
     assert!(ids(&world.sync(&b, menus()).await["friends"]).is_empty());
     assert!(ids(&world.sync(&d, menus()).await["outgoing"]).is_empty());
     assert_eq!(
-        world.refused(&b, json!({ "action": "request", "code": old })).await,
+        world
+            .refused(&b, json!({ "action": "request", "code": old }))
+            .await,
         "unknown_code"
     );
     for (query, rows) in [
-        ("SELECT COUNT(*) FROM friendships WHERE first = ?1 OR second = ?1", 0),
-        ("SELECT COUNT(*) FROM friend_requests WHERE sender = ?1 OR receiver = ?1", 0),
+        (
+            "SELECT COUNT(*) FROM friendships WHERE first = ?1 OR second = ?1",
+            0,
+        ),
+        (
+            "SELECT COUNT(*) FROM friend_requests WHERE sender = ?1 OR receiver = ?1",
+            0,
+        ),
         // The player's own blocks stay, and so does what others placed.
         ("SELECT COUNT(*) FROM friend_blocks WHERE blocker = ?1", 1),
         ("SELECT COUNT(*) FROM friend_blocks WHERE blocked = ?1", 1),
-        ("SELECT COUNT(*) FROM social_accounts WHERE discord_user_id = ?1 AND off = 1", 1),
+        (
+            "SELECT COUNT(*) FROM social_accounts WHERE discord_user_id = ?1 AND off = 1",
+            1,
+        ),
     ] {
         assert_eq!(world.count(query, A).await, rows, "{query}");
     }
@@ -704,10 +803,19 @@ async fn an_account_that_is_off_refuses_every_route_but_turn_on() {
         json!({ "action": "request", "code": "0000-0000" }),
         json!({ "action": "block", "card": world.card(&a), "label": "Player 1" }),
     ] {
-        assert_eq!(world.refused(&a, action.clone()).await, "friends_off", "{action}");
+        assert_eq!(
+            world.refused(&a, action.clone()).await,
+            "friends_off",
+            "{action}"
+        );
     }
     assert_eq!(
-        world.count("SELECT off FROM social_accounts WHERE discord_user_id = ?1", A).await,
+        world
+            .count(
+                "SELECT off FROM social_accounts WHERE discord_user_id = ?1",
+                A
+            )
+            .await,
         1
     );
 }
@@ -730,7 +838,9 @@ async fn nobody_can_reach_an_account_that_is_off() {
     assert!(ids(&world.sync(&b, menus()).await["friends"]).is_empty());
     let code = world.code_of(A).await;
     assert_eq!(
-        world.refused(&c, json!({ "action": "request", "code": code })).await,
+        world
+            .refused(&c, json!({ "action": "request", "code": code }))
+            .await,
         "unknown_code"
     );
     // By card: it looks sent, and nothing reaches them.
@@ -740,7 +850,10 @@ async fn nobody_can_reach_an_account_that_is_off() {
     // Nobody is invited to nothing: the friendship is gone.
     assert_eq!(
         world
-            .refused(&b, json!({ "action": "invite", "friend": friend, "room": { "secret": secret } }))
+            .refused(
+                &b,
+                json!({ "action": "invite", "friend": friend, "room": { "secret": secret } })
+            )
             .await,
         "invite_unavailable"
     );
@@ -751,7 +864,9 @@ async fn nobody_can_reach_an_account_that_is_off() {
     assert!(ids(&state["friends"]).is_empty());
     // And their new code works for whoever has it.
     let code = state["code"].clone();
-    world.act(&b, json!({ "action": "request", "code": code })).await;
+    world
+        .act(&b, json!({ "action": "request", "code": code }))
+        .await;
     assert_eq!(ids(&world.sync(&a, menus()).await["incoming"]).len(), 1);
 }
 
@@ -765,7 +880,10 @@ async fn turning_friends_on_again_brings_back_the_account_and_its_blocks_but_not
     );
     let card = world.card(&c);
     let blocked = world
-        .act(&a, json!({ "action": "block", "card": card, "label": "Player 3" }))
+        .act(
+            &a,
+            json!({ "action": "block", "card": card, "label": "Player 3" }),
+        )
         .await;
     let old = world.sync(&a, menus()).await["code"].clone();
     world.refused(&a, json!({ "action": "forget" })).await;
@@ -777,23 +895,30 @@ async fn turning_friends_on_again_brings_back_the_account_and_its_blocks_but_not
     // The game's next sync is an ordinary one, and so are the others'.
     assert_eq!(world.sync(&a, menus()).await["code"], on["code"]);
     assert_eq!(
-        world.refused(&b, json!({ "action": "request", "code": old })).await,
+        world
+            .refused(&b, json!({ "action": "request", "code": old }))
+            .await,
         "unknown_code"
     );
     // The block still holds: C asks A and the request looks sent.
     world.ask(&c, &a).await;
     assert!(ids(&world.sync(&a, menus()).await["incoming"]).is_empty());
     // Turning on twice changes nothing.
-    assert_eq!(world.act(&a, json!({ "action": "turn_on" })).await["code"], on["code"]);
+    assert_eq!(
+        world.act(&a, json!({ "action": "turn_on" })).await["code"],
+        on["code"]
+    );
     // A friend can be made again.
     world.befriend(&a, &b).await;
 }
 
-
 #[tokio::test]
 async fn a_friends_public_room_is_joinable_on_the_same_build() {
     let world = World::start().await;
-    let (a, b) = (world.join(1, A, "Player 1").await, world.join(2, B, "Player 2").await);
+    let (a, b) = (
+        world.join(1, A, "Player 1").await,
+        world.join(2, B, "Player 2").await,
+    );
     world.befriend(&a, &b).await;
     let room_id = world.room(&a, 2).await;
     let fighting = json!({ "activity": "room",
@@ -812,7 +937,10 @@ async fn a_friends_public_room_is_joinable_on_the_same_build() {
     // A full room is not joinable either.
     report(&world.fake, &room_id, 8, 1, &[]);
     ember_bridge::poll_rooms(world.bridge.state()).await;
-    assert_eq!(presence(world.sync(&a, menus()).await)["room"]["joinable"], false);
+    assert_eq!(
+        presence(world.sync(&a, menus()).await)["room"]["joinable"],
+        false
+    );
 
     // A room that is not listed is "in a room" and no more; a private one is
     // only private.
@@ -853,7 +981,10 @@ async fn a_friends_public_room_is_joinable_on_the_same_build() {
 #[tokio::test]
 async fn a_friend_carries_their_account_points() {
     let world = World::start().await;
-    let (a, b) = (world.join(1, A, "Player 1").await, world.join(2, B, "Player 2").await);
+    let (a, b) = (
+        world.join(1, A, "Player 1").await,
+        world.join(2, B, "Player 2").await,
+    );
     let friend = world.befriend(&a, &b).await;
     let account = |state: &Json_| state["friends"][0]["account"].clone();
     assert_eq!(
@@ -910,12 +1041,18 @@ async fn appearing_offline_freezes_what_friends_see() {
     let room = json!({ "room_id": "0f0123456789abcdef0123456789abcd" });
     assert_eq!(
         world
-            .refused(&a, json!({ "action": "invite", "friend": friend, "room": room }))
+            .refused(
+                &a,
+                json!({ "action": "invite", "friend": friend, "room": room })
+            )
             .await,
         "invite_unavailable"
     );
     let invited = world
-        .act(&b, json!({ "action": "invite", "friend": a_friend, "room": room }))
+        .act(
+            &b,
+            json!({ "action": "invite", "friend": a_friend, "room": room }),
+        )
         .await;
     assert!(ids(&invited["invites"]).is_empty());
     let invites = world.sync(&a, menus()).await["invites"].clone();
@@ -924,12 +1061,18 @@ async fn appearing_offline_freezes_what_friends_see() {
     // Not a friend: nobody to invite.
     assert_eq!(
         world
-            .refused(&c, json!({ "action": "invite", "friend": friend, "room": room }))
+            .refused(
+                &c,
+                json!({ "action": "invite", "friend": friend, "room": room })
+            )
             .await,
         "invite_unavailable"
     );
     let dismissed = world
-        .act(&a, json!({ "action": "dismiss", "invite": invites[0]["id"] }))
+        .act(
+            &a,
+            json!({ "action": "dismiss", "invite": invites[0]["id"] }),
+        )
         .await;
     assert!(ids(&dismissed["invites"]).is_empty());
 
@@ -952,20 +1095,33 @@ async fn appearing_offline_freezes_what_friends_see() {
 #[tokio::test]
 async fn a_new_code_once_a_day_and_the_old_one_stops_working() {
     let world = World::start().await;
-    let (mut a, mut b) = (world.join(1, A, "Player 1").await, world.join(2, B, "Player 2").await);
+    let (mut a, mut b) = (
+        world.join(1, A, "Player 1").await,
+        world.join(2, B, "Player 2").await,
+    );
     let old = world.sync(&a, menus()).await["code"].clone();
-    assert_eq!(world.refused(&a, json!({ "action": "new_code" })).await, "code_too_soon");
+    assert_eq!(
+        world.refused(&a, json!({ "action": "new_code" })).await,
+        "code_too_soon"
+    );
     world.bridge.clock.advance(DAY);
     world.renew(&mut a).await;
     world.renew(&mut b).await;
     let new = world.act(&a, json!({ "action": "new_code" })).await["code"].clone();
     assert_ne!(new, old);
     assert_eq!(
-        world.refused(&b, json!({ "action": "request", "code": old })).await,
+        world
+            .refused(&b, json!({ "action": "request", "code": old }))
+            .await,
         "unknown_code"
     );
-    world.act(&b, json!({ "action": "request", "code": new })).await;
-    assert_eq!(world.sync(&a, menus()).await["incoming"][0]["name"], "Player 2");
+    world
+        .act(&b, json!({ "action": "request", "code": new }))
+        .await;
+    assert_eq!(
+        world.sync(&a, menus()).await["incoming"][0]["name"],
+        "Player 2"
+    );
 }
 
 /// Every action, and every route that serves one player's data to another,
@@ -982,34 +1138,55 @@ async fn every_action_and_route_is_scanned() {
     let friend = world.befriend(&a, &b).await;
     let room_id = world.room(&a, 2).await;
     world
-        .sync(&b, json!({ "activity": "room",
-            "room": { "room_id": room_id, "status": "watching", "table": 1 } }))
+        .sync(
+            &b,
+            json!({ "activity": "room",
+            "room": { "room_id": room_id, "status": "watching", "table": 1 } }),
+        )
         .await;
     let secret = format!("emd2:{}", "a-_9".repeat(30) + "ab");
     world
-        .act(&a, json!({ "action": "invite", "friend": friend, "room": { "secret": secret } }))
+        .act(
+            &a,
+            json!({ "action": "invite", "friend": friend, "room": { "secret": secret } }),
+        )
         .await;
     let invite = world.sync(&b, menus()).await["invites"][0]["id"].clone();
-    world.act(&b, json!({ "action": "dismiss", "invite": invite })).await;
+    world
+        .act(&b, json!({ "action": "dismiss", "invite": invite }))
+        .await;
     world.ask(&c, &a).await;
     let request = world.sync(&a, menus()).await["incoming"][0]["id"].clone();
     world
         .act(&a, json!({ "action": "decline", "request": request }))
         .await;
     let sent = world.sync(&c, menus()).await["outgoing"][0]["id"].clone();
-    world.act(&c, json!({ "action": "cancel", "request": sent })).await;
+    world
+        .act(&c, json!({ "action": "cancel", "request": sent }))
+        .await;
     let card = world.card(&c);
     let blocked = world
-        .act(&b, json!({ "action": "block", "card": card, "label": "Player 3" }))
+        .act(
+            &b,
+            json!({ "action": "block", "card": card, "label": "Player 3" }),
+        )
         .await;
     world
-        .act(&b, json!({ "action": "unblock", "block": blocked["blocked"][0]["id"] }))
+        .act(
+            &b,
+            json!({ "action": "unblock", "block": blocked["blocked"][0]["id"] }),
+        )
         .await;
     world
         .act(&a, json!({ "action": "appear_offline", "on": true }))
         .await;
     world.refused(&a, json!({ "action": "new_code" })).await;
-    world.cards(&b, json!([{ "card": world.card(&a) }, { "friend": friend }])).await;
+    world
+        .cards(
+            &b,
+            json!([{ "card": world.card(&a) }, { "friend": friend }]),
+        )
+        .await;
     world
         .act(&b, json!({ "action": "remove", "friend": friend }))
         .await;
@@ -1021,7 +1198,11 @@ async fn every_action_and_route_is_scanned() {
     }
     let ticket = format!("/v1/rooms/{room_id}/tickets");
     let (status, answer) = world
-        .post(&b, &ticket, json!({ "endpoint_id": ENDPOINT, "build_id": BUILD, "card": true }))
+        .post(
+            &b,
+            &ticket,
+            json!({ "endpoint_id": ENDPOINT, "build_id": BUILD, "card": true }),
+        )
         .await;
     assert_eq!(status, StatusCode::CREATED, "{answer}");
 
@@ -1036,7 +1217,14 @@ async fn every_action_and_route_is_scanned() {
         .iter()
         .map(|(path, _)| path.clone())
         .collect();
-    for path in [SYNC_PATH, ACTIONS_PATH, LOOKUP_PATH, POINTS_PATH, STANDING_PATH, BOARD_PATH] {
+    for path in [
+        SYNC_PATH,
+        ACTIONS_PATH,
+        LOOKUP_PATH,
+        POINTS_PATH,
+        STANDING_PATH,
+        BOARD_PATH,
+    ] {
         assert!(paths.contains(path), "{path} was not called");
     }
 }
@@ -1075,7 +1263,10 @@ async fn friends_stay_dormant_while_the_switch_is_off() {
 
     let friend = "fr_11111111-1111-4111-8111-111111111111";
     let cards = world
-        .cards(&a, json!([{ "friend": friend }, { "card": world.card(&b) }]))
+        .cards(
+            &a,
+            json!([{ "friend": friend }, { "card": world.card(&b) }]),
+        )
         .await;
     assert_eq!(cards[0], Json_::Null);
     assert_eq!(cards[1]["relation"], json!("none"));

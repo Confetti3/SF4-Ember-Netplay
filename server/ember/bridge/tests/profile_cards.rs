@@ -31,7 +31,9 @@ async fn a_look_up_by_request_opens_only_the_receivers_visible_request() {
     let a = world.joined(1, 1, "Player 1").await;
     let b = world.joined(2, 2, "Player 2").await;
     let c = world.joined(3, 3, "Player 3").await;
-    world.save(&b, json!({ "listing": { "name": "Player 2" }, "main": 7 })).await;
+    world
+        .save(&b, json!({ "listing": { "name": "Player 2" }, "main": 7 }))
+        .await;
 
     // B asks A: A holds the request, and opens B's card with it.
     let request = world.ask(&b, &a).await;
@@ -51,7 +53,10 @@ async fn a_look_up_by_request_opens_only_the_receivers_visible_request() {
     // A request nobody sent, and a friend id, are no request.
     assert_eq!(
         world
-            .cards(&a, json!([{ "request": "rq_11111111-1111-4111-8111-111111111111" }]))
+            .cards(
+                &a,
+                json!([{ "request": "rq_11111111-1111-4111-8111-111111111111" }])
+            )
             .await,
         json!([null])
     );
@@ -188,14 +193,20 @@ async fn a_friends_sync_keeps_the_card_current_and_leaves_what_was_saved() {
     world.sync_as(&a, "player 1", "FR", 5).await;
     let card = world.card_of(&b, &a).await;
     assert_eq!(card["name"], "player 1");
-    assert_eq!((card["country"].clone(), card["main"].clone()), (json!("FR"), json!(5)));
+    assert_eq!(
+        (card["country"].clone(), card["main"].clone()),
+        (json!("FR"), json!(5))
+    );
 
     // A saved card keeps what only a save writes through the syncs after.
     world.save(&a, full_card()).await;
     world.tick();
     world.sync_as(&a, "Player 1", "DE", 3).await;
     let card = world.card_of(&b, &a).await;
-    assert_eq!(card["worn"], json!({ "title": "matches", "icon": "streak" }));
+    assert_eq!(
+        card["worn"],
+        json!({ "title": "matches", "icon": "streak" })
+    );
     assert_eq!(card["style"]["device"], 2);
     assert_eq!(card["since"], MONTH);
 
@@ -207,7 +218,14 @@ async fn a_friends_sync_keeps_the_card_current_and_leaves_what_was_saved() {
 
     // An account that turned friends off is not written by its game's syncs.
     // Forgetting answers as friends are off, the state it leaves.
-    let (forgot, _) = world.call(Method::POST, &a, ACTIONS_PATH, Some(json!({ "action": "forget" }))).await;
+    let (forgot, _) = world
+        .call(
+            Method::POST,
+            &a,
+            ACTIONS_PATH,
+            Some(json!({ "action": "forget" })),
+        )
+        .await;
     assert_eq!(forgot, StatusCode::CONFLICT);
     let (status, _) = world
         .call(
@@ -240,13 +258,18 @@ async fn a_card_shows_the_class_only_while_classes_are_shown_and_the_player_take
     let a = shown.member(1, 1, "Player 1").await;
     let b = shown.member(2, 2, "Player 2").await;
     seed_rating(&shown, &a.discord).await;
-    shown.save(&a, json!({ "listing": { "name": "Player 1" } })).await;
+    shown
+        .save(&a, json!({ "listing": { "name": "Player 1" } }))
+        .await;
     assert_eq!(
         shown.card_of(&b, &a).await["badge"],
         json!({ "band": 6, "settled": true })
     );
     let answer = shown.search(&b, json!({ "name": "Player 1" })).await;
-    assert_eq!(answer["players"][0]["badge"], json!({ "band": 6, "settled": true }));
+    assert_eq!(
+        answer["players"][0]["badge"],
+        json!({ "band": 6, "settled": true })
+    );
     // Not taking part shows no class.
     shown
         .sql(format!(
@@ -262,7 +285,9 @@ async fn a_card_shows_the_class_only_while_classes_are_shown_and_the_player_take
     let b = hidden.member(2, 2, "Player 2").await;
     seed_rating(&hidden, &a.discord).await;
     assert!(hidden.card_of(&b, &a).await.get("badge").is_none());
-    hidden.save(&a, json!({ "listing": { "name": "Player 1" } })).await;
+    hidden
+        .save(&a, json!({ "listing": { "name": "Player 1" } }))
+        .await;
     let answer = hidden.search(&b, json!({ "name": "Player 1" })).await;
     assert!(answer["players"][0].get("badge").is_none());
 }

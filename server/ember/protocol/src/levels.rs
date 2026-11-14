@@ -24,7 +24,9 @@ use crate::{
     skill::SkillBadge,
 };
 
-pub use crate::awards::{AwardCounts, MAX_FAMILY_ID, OPPONENT_MARKS, RIVAL_MARKS, is_family_id, mark};
+pub use crate::awards::{
+    AwardCounts, MAX_FAMILY_ID, OPPONENT_MARKS, RIVAL_MARKS, is_family_id, mark,
+};
 pub use crate::cards::*;
 
 /// The capability a bridge with the levels routes offers.
@@ -95,7 +97,11 @@ impl RivalCard {
         if !is_player_name(&self.name) {
             return Err(Error::InvalidField("name"));
         }
-        if self.country.as_deref().is_some_and(|country| !is_country(country)) {
+        if self
+            .country
+            .as_deref()
+            .is_some_and(|country| !is_country(country))
+        {
             return Err(Error::InvalidField("country"));
         }
         if self.won.saturating_add(self.lost) == 0 {

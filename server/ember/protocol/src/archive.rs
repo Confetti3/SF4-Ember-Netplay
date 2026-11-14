@@ -37,7 +37,10 @@ pub fn is_cursor(text: &str) -> bool {
 }
 
 fn is_digest(text: &str) -> bool {
-    text.len() == 64 && text.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    text.len() == 64
+        && text
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 /// What `GET /v1/archive` is asked: a filter, the order (`sort=class`, else
@@ -80,14 +83,23 @@ impl Query {
         let text = |field: &Option<String>| field.as_deref().is_none_or(plain);
         text(&self.event)
             && text(&self.q)
-            && self.name.as_deref().is_none_or(|name| !name.is_empty() && name.len() <= MAX_NAME && plain(name))
+            && self
+                .name
+                .as_deref()
+                .is_none_or(|name| !name.is_empty() && name.len() <= MAX_NAME && plain(name))
             && self
                 .country
                 .as_deref()
                 .is_none_or(|code| code.len() == 2 && code.bytes().all(|b| b.is_ascii_uppercase()))
-            && self.round.as_deref().is_none_or(|round| ROUNDS.contains(&round))
+            && self
+                .round
+                .as_deref()
+                .is_none_or(|round| ROUNDS.contains(&round))
             && self.class.is_none_or(|band| (1..=10).contains(&band))
-            && self.sort.as_deref().is_none_or(|sort| sort == "class" || sort == "newest")
+            && self
+                .sort
+                .as_deref()
+                .is_none_or(|sort| sort == "class" || sort == "newest")
             && self.cursor.as_deref().is_none_or(is_cursor)
     }
 
@@ -252,7 +264,10 @@ mod tests {
             games: vec![game()],
             sets: BTreeMap::from([(
                 "emt_a".to_owned(),
-                Set { score: [2, 1], pack: None },
+                Set {
+                    score: [2, 1],
+                    pack: None,
+                },
             )]),
             events: vec!["Player 1's Cup".into()],
             countries: vec!["BE".into(), "GB".into()],
@@ -279,7 +294,11 @@ mod tests {
                 "sort": "class", "more": true, "next": "9.1700000000.ab",
             })
         );
-        let empty = serde_json::to_value(Page { sort: "newest".into(), ..Page::default() }).unwrap();
+        let empty = serde_json::to_value(Page {
+            sort: "newest".into(),
+            ..Page::default()
+        })
+        .unwrap();
         assert_eq!(
             empty,
             json!({ "games": [], "sets": {}, "events": [], "countries": [], "total": null,
@@ -289,7 +308,11 @@ mod tests {
 
     #[test]
     fn a_page_reads_back_what_it_wrote_and_what_older_pages_lacked() {
-        let page = Page { games: vec![game()], sort: "newest".into(), ..Page::default() };
+        let page = Page {
+            games: vec![game()],
+            sort: "newest".into(),
+            ..Page::default()
+        };
         let back: Page = serde_json::from_value(serde_json::to_value(&page).unwrap()).unwrap();
         assert_eq!(back, page);
         let minimal: Page = serde_json::from_value(json!({})).unwrap();
@@ -304,7 +327,11 @@ mod tests {
 
     #[test]
     fn unknown_members_are_ignored_and_a_game_that_is_not_whole_is_dropped() {
-        let mut odd = serde_json::to_value(Page { games: vec![game()], ..Page::default() }).unwrap();
+        let mut odd = serde_json::to_value(Page {
+            games: vec![game()],
+            ..Page::default()
+        })
+        .unwrap();
         odd["banner"] = json!("hello");
         odd["games"][0]["tags"] = json!(["a"]);
         let broken = [
@@ -333,8 +360,16 @@ mod tests {
         .unwrap();
         let page = page.bounded();
         assert_eq!(page.countries, ["BE", "GB"]);
-        assert_eq!((page.sort.as_str(), page.more, page.next), ("newest", false, None));
-        let page = Page { next: Some("9.ab".into()), sort: "class".into(), ..Page::default() }.bounded();
+        assert_eq!(
+            (page.sort.as_str(), page.more, page.next),
+            ("newest", false, None)
+        );
+        let page = Page {
+            next: Some("9.ab".into()),
+            sort: "class".into(),
+            ..Page::default()
+        }
+        .bounded();
         assert_eq!((page.sort.as_str(), page.more), ("class", true));
     }
 
@@ -345,12 +380,22 @@ mod tests {
     #[test]
     fn each_filter_is_a_query_pair_in_one_order() {
         assert!(Query::default().pairs().is_empty());
-        let all = query(json!({ "event": "Cup", "fighter": 3, "country": "NL", "round": "top8",
-            "q": "Ann", "name": "Ann", "class": 9, "sort": "class", "cursor": "2.ab" }));
+        let all = query(
+            json!({ "event": "Cup", "fighter": 3, "country": "NL", "round": "top8",
+            "q": "Ann", "name": "Ann", "class": 9, "sort": "class", "cursor": "2.ab" }),
+        );
         let keys: Vec<_> = all.pairs().into_iter().map(|(key, _)| key).collect();
-        assert_eq!(keys, ["class", "country", "cursor", "event", "fighter", "name", "q", "round", "sort"]);
+        assert_eq!(
+            keys,
+            [
+                "class", "country", "cursor", "event", "fighter", "name", "q", "round", "sort"
+            ]
+        );
         assert!(query(json!({ "sort": "newest" })).pairs().is_empty());
-        assert_eq!(query(json!({ "name": "Ann" })).pairs(), vec![("name", "Ann".to_owned())]);
+        assert_eq!(
+            query(json!({ "name": "Ann" })).pairs(),
+            vec![("name", "Ann".to_owned())]
+        );
     }
 
     #[test]
@@ -370,7 +415,10 @@ mod tests {
         ] {
             assert!(!query(bad.clone()).check(), "{bad}");
         }
-        assert!(query(json!({ "class": 1, "round": "pools", "country": "BE", "name": "Player 2" })).check());
+        assert!(
+            query(json!({ "class": 1, "round": "pools", "country": "BE", "name": "Player 2" }))
+                .check()
+        );
         assert!(query(json!({ "cursor": "1700000000.0123abcd" })).check());
     }
 }

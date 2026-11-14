@@ -317,7 +317,9 @@ async fn migration_063_starts_the_award_counters_from_what_is_kept() {
              ORDER BY discord_user_id",
         )
         .unwrap()
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })
         .unwrap()
         .collect::<rusqlite::Result<_>>()
         .unwrap();
@@ -394,7 +396,14 @@ async fn migration_064_starts_the_player_cards_from_what_friends_and_rankings_kn
         )
         .unwrap()
         .query_map([], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?))
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get(5)?,
+            ))
         })
         .unwrap()
         .collect::<rusqlite::Result<_>>()
@@ -405,10 +414,23 @@ async fn migration_064_starts_the_player_cards_from_what_friends_and_rankings_kn
     assert_eq!(cards.len(), 3, "{cards:?}");
     assert_eq!(
         cards[0],
-        ("100".into(), "Player 1".into(), Some("DE".into()), Some(3), 1500, 5000)
+        (
+            "100".into(),
+            "Player 1".into(),
+            Some("DE".into()),
+            Some(3),
+            1500,
+            5000
+        )
     );
-    assert_eq!(cards[1], ("200".into(), "Player 2".into(), None, None, 6000, 6000));
-    assert_eq!((&cards[2].0[..], &cards[2].1[..], cards[2].2.as_deref()), ("300", "Player 3", Some("JP")));
+    assert_eq!(
+        cards[1],
+        ("200".into(), "Player 2".into(), None, None, 6000, 6000)
+    );
+    assert_eq!(
+        (&cards[2].0[..], &cards[2].1[..], cards[2].2.as_deref()),
+        ("300", "Player 3", Some("JP"))
+    );
     assert_eq!((cards[2].3, cards[2].5), (None, 7000));
     assert!(cards[2].4 > 1_000_000_000, "{}", cards[2].4);
 
@@ -500,7 +522,10 @@ async fn migration_065_keeps_every_accounts_points_and_an_older_bridge_still_cou
     // The same games, wins and points for every account and fighter: no win
     // so far loses its bonus.
     let connection = rusqlite::Connection::open(&path).unwrap();
-    assert_eq!(points_state(&connection, "games + wins - lower_wins"), before);
+    assert_eq!(
+        points_state(&connection, "games + wins - lower_wins"),
+        before
+    );
     assert_eq!(points_state(&connection, "games + wins"), before);
 
     // A bridge from before 065, put back, counts a won game as it always

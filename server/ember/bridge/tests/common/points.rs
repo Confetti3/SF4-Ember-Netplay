@@ -7,7 +7,6 @@ use super::{
     sites::connect_discord,
     supervisor::{BUILD, ENDPOINT, Supervisor, report},
 };
-use rusqlite::OptionalExtension;
 use ember_protocol::{
     encoding::b64u,
     levels::{
@@ -16,6 +15,7 @@ use ember_protocol::{
     },
 };
 use reqwest::{Method, StatusCode};
+use rusqlite::OptionalExtension;
 use serde_json::{Value as Json_, json};
 
 pub const FRIEND: &str = "fr_11111111-1111-4111-8111-111111111111";
@@ -31,7 +31,9 @@ pub async fn two_players_showing_classes() -> (Bridge, Supervisor, String, Playe
     two_players_on(start_showing_classes().await).await
 }
 
-async fn two_players_on((bridge, fake): (Bridge, Supervisor)) -> (Bridge, Supervisor, String, Player, Player) {
+async fn two_players_on(
+    (bridge, fake): (Bridge, Supervisor),
+) -> (Bridge, Supervisor, String, Player, Player) {
     let (first, second) = (player(&bridge, 1).await, player(&bridge, 2).await);
     connect_discord(&bridge, "100", &first).await;
     connect_discord(&bridge, "200", &second).await;

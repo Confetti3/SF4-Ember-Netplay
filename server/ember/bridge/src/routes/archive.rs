@@ -110,7 +110,10 @@ fn signed_in_with_discord(tx: &Transaction<'_>, player: &EmberId) -> Result<()> 
 /// class order is then the newest. `name` keeps only the games a side's exact
 /// name is on, which a player's profile lists their sets by; it combines with
 /// every other filter.
-pub async fn list(State(state): State<AppState>, Query(query): Query<ListingQuery>) -> Result<Response> {
+pub async fn list(
+    State(state): State<AppState>,
+    Query(query): Query<ListingQuery>,
+) -> Result<Response> {
     let Some(archive) = state.config.archive.clone() else {
         return Err(ApiFailure::not_found());
     };
@@ -178,7 +181,12 @@ pub async fn list(State(state): State<AppState>, Query(query): Query<ListingQuer
                 countries,
                 total: Some(total),
                 matching,
-                sort: if order == Order::Class { "class" } else { "newest" }.to_owned(),
+                sort: if order == Order::Class {
+                    "class"
+                } else {
+                    "newest"
+                }
+                .to_owned(),
                 more: next.is_some(),
                 next: next.map(|next| next.text(order)),
             })

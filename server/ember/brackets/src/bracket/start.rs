@@ -125,16 +125,18 @@ impl Bracket {
             return Ok(false);
         };
         let players = entries.each_ref().map(|entry| {
-            found.player(entry).ok_or_else(|| match (&entry.discord, found.not_asked()) {
-                (_, Some(why)) => why.to_owned(),
-                (None, None) => format!(
-                    "entry {} has no Discord account to find its player by",
-                    entry.participant_id
-                ),
-                (Some(discord), None) => {
-                    format!("Discord account {discord} has not connected in Ember")
-                }
-            })
+            found
+                .player(entry)
+                .ok_or_else(|| match (&entry.discord, found.not_asked()) {
+                    (_, Some(why)) => why.to_owned(),
+                    (None, None) => format!(
+                        "entry {} has no Discord account to find its player by",
+                        entry.participant_id
+                    ),
+                    (Some(discord), None) => {
+                        format!("Discord account {discord} has not connected in Ember")
+                    }
+                })
         });
         let command = match players {
             [Ok(one), Ok(two)] => self.command(set, attempt, [one, two]),

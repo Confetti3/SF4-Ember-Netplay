@@ -12,14 +12,13 @@ use common::{
     sites::connect_discord,
     supervisor::{BUILD, ENDPOINT, Supervisor, report},
 };
-use rusqlite::OptionalExtension;
 use ember_protocol::{
     encoding::b64u,
     levels::{CARD_PREFIX, CARD_VALID_SECS, LOOKUP_PATH, POINTS_PATH, is_card_token},
 };
 use reqwest::{Method, StatusCode};
+use rusqlite::OptionalExtension;
 use serde_json::{Value as Json_, json};
-
 
 #[tokio::test]
 async fn each_players_fighter_earns_points_from_a_game() {
@@ -350,7 +349,10 @@ fn take_versus(seen: &mut Json_) -> Vec<Option<(u64, u64)>> {
         .map(|card| {
             let record = card.as_object_mut()?.remove("versus")?;
             assert!(record["last_at"].as_u64().unwrap() > 0, "{record}");
-            Some((record["won"].as_u64().unwrap(), record["lost"].as_u64().unwrap()))
+            Some((
+                record["won"].as_u64().unwrap(),
+                record["lost"].as_u64().unwrap(),
+            ))
         })
         .collect()
 }
@@ -438,7 +440,10 @@ async fn a_card_token_rides_in_a_ticket_that_asks_and_opens_for_seven_days() {
         json!([{ "card": joined }, { "card": rejoined }, { "friend": FRIEND }]),
     )
     .await;
-    assert_eq!(take_versus(&mut seen), vec![Some((1, 0)), Some((1, 0)), None]);
+    assert_eq!(
+        take_versus(&mut seen),
+        vec![Some((1, 0)), Some((1, 0)), None]
+    );
     assert_eq!(seen, json!([card, card, null]));
     // A joiner without a Discord account gets no token.
     let unlinked = player(&bridge, 3).await;
@@ -463,9 +468,13 @@ async fn a_card_token_rides_in_a_ticket_that_asks_and_opens_for_seven_days() {
     let other_purpose = sealed(&bridge, 0x02, 200, now);
     let other_bridge = start().await.0;
     let foreign = sealed(&other_bridge, 0x01, 200, now);
-    let mut seen = cards(&bridge, &first, json!([
-        { "card": week_old }, { "card": older }, { "card": other_purpose }, { "card": foreign }
-    ]))
+    let mut seen = cards(
+        &bridge,
+        &first,
+        json!([
+            { "card": week_old }, { "card": older }, { "card": other_purpose }, { "card": foreign }
+        ]),
+    )
     .await;
     assert_eq!(take_versus(&mut seen), vec![Some((1, 0)), None, None, None]);
     assert_eq!(seen, json!([card, null, null, null]));

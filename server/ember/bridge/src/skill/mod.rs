@@ -559,7 +559,11 @@ mod tests {
         // A Grand Master back after some months, or in their first games:
         // the rating is unsure and by Glicko alone one loss to a D player
         // costs a class or two. (deviation, the loss alone, at most now)
-        for (deviation, alone, most) in [(111.0, 60.0, 8.0), (150.0, 120.0, 15.0), (200.0, 215.0, 65.0)] {
+        for (deviation, alone, most) in [
+            (111.0, 60.0, 8.0),
+            (150.0, 120.0, 15.0),
+            (200.0, 215.0, 65.0),
+        ] {
             let master = unsure(2100.0, deviation);
             let by_glicko = master.rating - master.after(newer, 0.0, 1.0).rating;
             assert!(by_glicko > alone, "{deviation}: {by_glicko}");

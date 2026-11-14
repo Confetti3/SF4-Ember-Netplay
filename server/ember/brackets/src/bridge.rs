@@ -14,11 +14,7 @@ use ember_protocol::{
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use zeroize::Zeroizing;
 
-use crate::{
-    http::http_client,
-    sets::Ended,
-    site::Entry,
-};
+use crate::{http::http_client, sets::Ended, site::Entry};
 
 const MAX_ANSWER: usize = 256 * 1024;
 /// How long a refusal of Discord lookups is taken as read: a change on the
@@ -270,16 +266,21 @@ impl BridgeClient {
                 discord: chunk.iter().map(|&id| id.to_owned()).collect(),
                 ..Lookup::default()
             };
-            match self.answer::<LookupAnswer>(self.post(LOOKUP_PATH).json(&lookup)).await {
-                Ok(answer) => found.players.extend(answer.players.into_iter().map(|player| {
-                    (
-                        player.discord_user_id,
-                        Player {
-                            participant_id: player.participant_id,
-                            ember_id: player.ember_id,
-                        },
-                    )
-                })),
+            match self
+                .answer::<LookupAnswer>(self.post(LOOKUP_PATH).json(&lookup))
+                .await
+            {
+                Ok(answer) => found
+                    .players
+                    .extend(answer.players.into_iter().map(|player| {
+                        (
+                            player.discord_user_id,
+                            Player {
+                                participant_id: player.participant_id,
+                                ember_id: player.ember_id,
+                            },
+                        )
+                    })),
                 Err(error) if is_forbidden(&error) => {
                     *self
                         .refused_at

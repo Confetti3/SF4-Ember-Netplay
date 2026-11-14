@@ -42,7 +42,11 @@ use crate::{
 /// the friends routes and the card look-up all ask this.
 pub fn offered(state: &AppState) -> bool {
     rooms::enabled(state)
-        && state.config.rooms.as_ref().is_some_and(|rooms| rooms.friends)
+        && state
+            .config
+            .rooms
+            .as_ref()
+            .is_some_and(|rooms| rooms.friends)
         && sign_in::offered(state, &Site::Discord)
 }
 
@@ -172,7 +176,7 @@ pub fn state(
     if own.off {
         return Err(refuse(FriendRefusal::FriendsOff));
     }
-    let build =live.seen(caller).map(|seen| seen.build_id);
+    let build = live.seen(caller).map(|seen| seen.build_id);
     let rows = store::friends(tx, caller)?;
     let mut friends = Vec::with_capacity(rows.len());
     let mut ids = HashMap::with_capacity(rows.len());
@@ -240,9 +244,11 @@ fn levels_of(
 ) -> Result<(Option<MainFighter>, Option<CardAccount>)> {
     let card = skill::levels::card(tx, &friend.account)?;
     let main = friend.shown.main.map(|fighter| {
-        let played = card
-            .as_ref()
-            .and_then(|card| card.fighters.iter().find(|played| played.fighter == fighter));
+        let played = card.as_ref().and_then(|card| {
+            card.fighters
+                .iter()
+                .find(|played| played.fighter == fighter)
+        });
         MainFighter {
             fighter,
             points: played.map(|played| played.points),

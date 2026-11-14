@@ -10,12 +10,12 @@ use common::{
     sites::connect_discord,
     supervisor::{BUILD, ENDPOINT, Supervisor, report},
 };
-use rusqlite::OptionalExtension;
 use ember_protocol::{
     encoding::b64u,
     levels::{CARD_PREFIX, CARD_VALID_SECS, LOOKUP_PATH, POINTS_PATH, is_card_token},
 };
 use reqwest::{Method, StatusCode};
+use rusqlite::OptionalExtension;
 use serde_json::{Value as Json_, json};
 
 /// Players 3 to `last`, with Discord accounts 300 to `last`00.
@@ -53,8 +53,11 @@ async fn pair(
 
 /// A `player_cards` row for `account`: the name and flag its card shows.
 async fn card_row(bridge: &Bridge, account: &str, name: &str, country: Option<&str>) {
-    let (account, name, country) =
-        (account.to_owned(), name.to_owned(), country.map(str::to_owned));
+    let (account, name, country) = (
+        account.to_owned(),
+        name.to_owned(),
+        country.map(str::to_owned),
+    );
     bridge
         .state()
         .db
@@ -133,10 +136,15 @@ async fn the_most_played_opponent_is_the_pair_with_the_most_games_and_ties_go_to
     pair(&bridge, "100", "200", 10, 5, 100).await;
     pair(&bridge, "100", "300", 6, 9, 200).await;
     pair(&bridge, "100", "400", 3, 1, 300).await;
-    let rival = rival_of(&bridge, &first).await.expect("a most played opponent");
+    let rival = rival_of(&bridge, &first)
+        .await
+        .expect("a most played opponent");
     assert_eq!(rival["name"], json!("Player 3"));
     assert_eq!(rival["country"], json!("US"));
-    assert_eq!((rival["won"].clone(), rival["lost"].clone()), (json!(6), json!(9)));
+    assert_eq!(
+        (rival["won"].clone(), rival["lost"].clone()),
+        (json!(6), json!(9))
+    );
 
     // The token opens that player's card, whose record is the same one.
     let token = rival["card"].as_str().unwrap();
@@ -144,7 +152,10 @@ async fn the_most_played_opponent_is_the_pair_with_the_most_games_and_ties_go_to
     let seen = cards(&bridge, &first, json!([{ "card": token }])).await;
     assert_eq!(seen[0]["name"], json!("Player 3"));
     assert_eq!(
-        (seen[0]["versus"]["won"].clone(), seen[0]["versus"]["lost"].clone()),
+        (
+            seen[0]["versus"]["won"].clone(),
+            seen[0]["versus"]["lost"].clone()
+        ),
         (json!(6), json!(9))
     );
     assert_eq!(rival.get("badge"), seen[0].get("badge"));
@@ -155,13 +166,19 @@ async fn the_most_played_opponent_is_the_pair_with_the_most_games_and_ties_go_to
         "UPDATE pair_records SET played_at = 400 WHERE first = '100' AND second = '200'",
     )
     .await;
-    assert_eq!(rival_name(&bridge, &first).await, Some(("Player 2".into(), 10, 5)));
+    assert_eq!(
+        rival_name(&bridge, &first).await,
+        Some(("Player 2".into(), 10, 5))
+    );
     sql(
         &bridge,
         "UPDATE pair_records SET first_wins = 40 WHERE first = '100' AND second = '400'",
     )
     .await;
-    assert_eq!(rival_name(&bridge, &first).await, Some(("Player 4".into(), 40, 1)));
+    assert_eq!(
+        rival_name(&bridge, &first).await,
+        Some(("Player 4".into(), 40, 1))
+    );
 
     // A card never names the player's own most played opponent.
     let own_card = token_of(&bridge, &first, &room_id).await;
@@ -181,8 +198,14 @@ async fn the_record_is_the_callers_whichever_side_of_the_pair_row_they_are() {
     card_row(&bridge, "200", "Player 2", None).await;
     pair(&bridge, "100", "200", 10, 5, 1).await;
     // The first of the row won 10 and lost 5; the second the other way.
-    assert_eq!(rival_name(&bridge, &first).await, Some(("Player 2".into(), 10, 5)));
-    assert_eq!(rival_name(&bridge, &second).await, Some(("Player 1".into(), 5, 10)));
+    assert_eq!(
+        rival_name(&bridge, &first).await,
+        Some(("Player 2".into(), 10, 5))
+    );
+    assert_eq!(
+        rival_name(&bridge, &second).await,
+        Some(("Player 1".into(), 5, 10))
+    );
 
     // The same through the games themselves: the first beats the second three
     // times, and each sees it from their own side.
@@ -191,28 +214,47 @@ async fn the_record_is_the_callers_whichever_side_of_the_pair_row_they_are() {
     card_row(&bridge, "200", "Player 2", None).await;
     let games = (1..=3).map(|n| game(n, 0, &first, &second, None)).collect();
     play(&bridge, &fake, &room_id, games).await;
-    assert_eq!(rival_name(&bridge, &first).await, Some(("Player 2".into(), 3, 0)));
-    assert_eq!(rival_name(&bridge, &second).await, Some(("Player 1".into(), 0, 3)));
+    assert_eq!(
+        rival_name(&bridge, &first).await,
+        Some(("Player 2".into(), 3, 0))
+    );
+    assert_eq!(
+        rival_name(&bridge, &second).await,
+        Some(("Player 1".into(), 0, 3))
+    );
 }
 
 #[tokio::test]
 async fn a_pair_where_either_side_blocked_the_other_is_passed_over() {
     let (bridge, _fake, _room_id, first, _second) = two_players().await;
     more_players(&bridge, 4).await;
-    for (account, name) in [("200", "Player 2"), ("300", "Player 3"), ("400", "Player 4")] {
+    for (account, name) in [
+        ("200", "Player 2"),
+        ("300", "Player 3"),
+        ("400", "Player 4"),
+    ] {
         card_row(&bridge, account, name, None).await;
     }
     pair(&bridge, "100", "200", 12, 8, 1).await;
     pair(&bridge, "100", "300", 5, 5, 2).await;
     pair(&bridge, "100", "400", 3, 2, 3).await;
-    assert_eq!(rival_name(&bridge, &first).await, Some(("Player 2".into(), 12, 8)));
+    assert_eq!(
+        rival_name(&bridge, &first).await,
+        Some(("Player 2".into(), 12, 8))
+    );
 
     // Player 2 blocked the caller: the next most played.
     block(&bridge, "200", "100").await;
-    assert_eq!(rival_name(&bridge, &first).await, Some(("Player 3".into(), 5, 5)));
+    assert_eq!(
+        rival_name(&bridge, &first).await,
+        Some(("Player 3".into(), 5, 5))
+    );
     // The caller blocked Player 3: the one after.
     block(&bridge, "100", "300").await;
-    assert_eq!(rival_name(&bridge, &first).await, Some(("Player 4".into(), 3, 2)));
+    assert_eq!(
+        rival_name(&bridge, &first).await,
+        Some(("Player 4".into(), 3, 2))
+    );
     // Player 4 blocked the caller too: none, though the answer stays counted.
     block(&bridge, "400", "100").await;
     let levels = points(&bridge, &first).await;
@@ -220,7 +262,10 @@ async fn a_pair_where_either_side_blocked_the_other_is_passed_over() {
     assert!(levels.get("rival").is_none(), "{levels}");
     // A block that is lifted passes nothing over.
     sql(&bridge, "DELETE FROM friend_blocks WHERE blocker = '200'").await;
-    assert_eq!(rival_name(&bridge, &first).await, Some(("Player 2".into(), 12, 8)));
+    assert_eq!(
+        rival_name(&bridge, &first).await,
+        Some(("Player 2".into(), 12, 8))
+    );
 }
 
 #[tokio::test]
@@ -245,10 +290,16 @@ async fn an_opponent_with_no_card_row_is_passed_over_and_only_the_first_five_are
 
     // A card for the fifth: it is the first that can be shown.
     card_row(&bridge, "600", "Player 6", None).await;
-    assert_eq!(rival_name(&bridge, &first).await, Some(("Player 6".into(), 10, 0)));
+    assert_eq!(
+        rival_name(&bridge, &first).await,
+        Some(("Player 6".into(), 10, 0))
+    );
     // And for the first: the most played shows once it has a name.
     card_row(&bridge, "200", "Player 2", None).await;
-    assert_eq!(rival_name(&bridge, &first).await, Some(("Player 2".into(), 30, 0)));
+    assert_eq!(
+        rival_name(&bridge, &first).await,
+        Some(("Player 2".into(), 30, 0))
+    );
 }
 
 #[tokio::test]
@@ -262,8 +313,17 @@ async fn there_is_no_most_played_opponent_before_a_counted_game() {
         assert!(levels.get("rival").is_none(), "{levels}");
     }
     // The first counted game brings one.
-    play(&bridge, &fake, &room_id, vec![game(1, 0, &second, &first, None)]).await;
-    assert_eq!(rival_name(&bridge, &first).await, Some(("Player 2".into(), 0, 1)));
+    play(
+        &bridge,
+        &fake,
+        &room_id,
+        vec![game(1, 0, &second, &first, None)],
+    )
+    .await;
+    assert_eq!(
+        rival_name(&bridge, &first).await,
+        Some(("Player 2".into(), 0, 1))
+    );
     // A player with no Discord account has no points answer to hold one.
     let unlinked = player(&bridge, 9).await;
     let levels = points(&bridge, &unlinked).await;
@@ -280,7 +340,8 @@ async fn the_most_played_opponent_names_no_account() {
     assert!(
         rival
             .keys()
-            .all(|member| ["badge", "card", "country", "lost", "name", "won"].contains(&member.as_str())),
+            .all(|member| ["badge", "card", "country", "lost", "name", "won"]
+                .contains(&member.as_str())),
         "{rival:?}"
     );
     let text = levels.to_string();

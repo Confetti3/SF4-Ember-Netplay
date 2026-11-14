@@ -302,7 +302,10 @@ fn check_records(tx: &Transaction<'_>, migrations: &[Migration]) -> Result<(), O
 /// does, for the unnamed records of 056 to 059 (056 is this line's own; 057 to 059 are the
 /// library's files):
 /// what is looked for, and whether it is there. `None` for the others.
-fn schema_shows(tx: &Transaction<'_>, version: i64) -> rusqlite::Result<Option<(&'static str, bool)>> {
+fn schema_shows(
+    tx: &Transaction<'_>,
+    version: i64,
+) -> rusqlite::Result<Option<(&'static str, bool)>> {
     Ok(match version {
         56 => Some(("the column rooms.wired_only", has_column(tx, "rooms", "wired_only")?)),
         57 => Some(("the column rooms.game", has_column(tx, "rooms", "game")?)),
@@ -386,8 +389,8 @@ fn has_column(tx: &Transaction<'_>, table: &str, column: &str) -> rusqlite::Resu
 }
 
 #[cfg(test)]
-#[path = "migrations_tests.rs"]
-mod tests;
-#[cfg(test)]
 #[path = "migrations_ledger_tests.rs"]
 mod ledger_tests;
+#[cfg(test)]
+#[path = "migrations_tests.rs"]
+mod tests;

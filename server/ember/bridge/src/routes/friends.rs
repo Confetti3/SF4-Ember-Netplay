@@ -15,9 +15,7 @@ use crate::{
     error::{ApiFailure, Result},
     friends::{self, Classes, store},
     http::{Body, GENERAL_BODY, ok},
-    routes::{
-        play::playing,
-    },
+    routes::play::playing,
     skill,
 };
 
