@@ -226,6 +226,12 @@ std::string ShortCode(const std::string& text) {
     for (const char c:text) if (!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='_')) return {};
     return text;
 }
+// Short codes separated by commas.
+std::string ShortCodes(const std::string& text) {
+    if (text.empty()||text.size()>80) return {};
+    for (const char c:text) if (!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='_'||c==',')) return {};
+    return text;
+}
 }
 std::size_t CharacterCount(std::string_view text) {
     std::size_t count=0; for (unsigned char c:text) if ((c&0xC0)!=0x80) ++count; return count;
@@ -362,6 +368,8 @@ nlohmann::json MetaJson(const Metadata& meta, const std::string& comment) {
     if (meta.exceptionCode) value["exception_code"]=Hex(*meta.exceptionCode);
     if (meta.crashAddress) value["crash_address"]=Hex(*meta.crashAddress);
     if (!meta.gameLog.empty()) value["game_log"]=meta.gameLog;
+    if (!meta.phase.empty()) value["phase"]=meta.phase;
+    if (!meta.hint.empty()) value["hint"]=meta.hint;
     if (!comment.empty()) value["comment"]=comment;
     return value;
 }
@@ -369,9 +377,11 @@ bool BuildMultipart(const Report& report, const Submission& submission, const st
     result={}; error.clear();
     const auto reject=[&]{error="Invalid or oversized report.";return false;};
     const auto& m=report.meta;
-    if ((m.kind!="crash"&&m.kind!="problem") || (m.channel!="stable"&&m.channel!="beta"&&m.channel!="nightly") ||
+    if ((m.kind!="crash"&&m.kind!="problem"&&m.kind!="start_failure") || (m.channel!="stable"&&m.channel!="beta"&&m.channel!="nightly") ||
         !SafeField(m.appVersion,128)||!SafeField(m.sourceRevision,128)||!SafeField(m.windowsVersion,256)||!HexDigits(m.buildId,64)||
-        (!m.gameLog.empty()&&ShortCode(m.gameLog).empty())||
+        (!m.gameLog.empty()&&ShortCode(m.gameLog).empty())||(!m.phase.empty()&&ShortCode(m.phase).empty())||
+        (!m.hint.empty()&&ShortCodes(m.hint).empty())||(m.kind!="start_failure"&&(!m.phase.empty()||!m.hint.empty()))||
+        (m.kind=="start_failure"&&m.phase.empty())||
         !ValidUtf8(submission.comment)||CharacterCount(submission.comment)>2000 ||
         (m.kind=="problem"&&submission.comment.find_first_not_of(" \t\r\n")==std::string::npos)||report.logs.size()>4 ||
         boundary.empty()||boundary.size()>70||!std::all_of(boundary.begin(),boundary.end(),[](unsigned char c){return std::isalnum(c)||c=='-';})) return reject();
@@ -411,7 +421,7 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
     // A report about one run carries only what that run wrote: the launcher
     // began the run at crash.started, so a log last written before it belongs
     // to an earlier run and would be read as this one's.
-    const bool aboutRun=report.meta.kind=="crash";
+    const bool aboutRun=report.meta.kind=="crash"||report.meta.kind=="start_failure";
     if (aboutRun) {
         report.meta.exitCode=crash.exitCode; report.meta.exceptionCode=crash.exceptionCode; report.meta.crashAddress=crash.address;
         std::error_code ec;

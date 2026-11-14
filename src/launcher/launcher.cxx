@@ -220,7 +220,8 @@ int FindSF4(
 	return 0;
 }
 
-void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
+// True when the game folder has its steam_appid.txt (or this call made it).
+bool CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 	wchar_t szAppIDPath[1024] = { 0 };
 	DWORD nBytesWritten = 0;
 
@@ -229,13 +230,13 @@ void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 
 	PathCombine(szAppIDPath, szGuiltyDirectory, L"steam_appid.txt");
 	if (PathFileExistsW(szAppIDPath)) {
-		return;
+		return true;
 	}
 
 	char allow[8] = { 0 };
 	if (GetEnvironmentVariableA("SF4E_ALLOW_STEAM_APPID_WRITE", allow, sizeof(allow)) == 0) {
 		spdlog::warn(L"Game steam_appid.txt missing at {}; runtime write disabled, relying on inherited SteamAppId/SteamGameId env", szAppIDPath);
-		return;
+		return false;
 	}
 
 	HANDLE hAppIDHandle = CreateFile(
@@ -257,10 +258,10 @@ void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 			spdlog::warn(L"Could not fully write game steam_appid.txt at {}", szAppIDPath);
 		}
 		CloseHandle(hAppIDHandle);
+		return true;
 	}
-	else {
-		spdlog::warn(L"Could not create game steam_appid.txt dev fallback at {} (Win32 {})", szAppIDPath, GetLastError());
-	}
+	spdlog::warn(L"Could not create game steam_appid.txt dev fallback at {} (Win32 {})", szAppIDPath, GetLastError());
+	return false;
 }
 
 // Windows' own test for its Not Responding ghost, on the window the game
@@ -295,6 +296,14 @@ void ArchiveReplays() {
 	if (sf4e::platform::replays::Archive() < 0 && !noted) { noted = true; spdlog::info("Replays: no settings folder, nothing archived"); }
 }
 
+// How the wait for Sidecar's start-up signal ended (common/CrashReport.hxx,
+// ClassifyStartFailure).
+struct StartTiming {
+	bool endedBeforeSignal = false;
+	bool signalled = false;
+	ULONGLONG signalTick = 0;
+};
+
 HANDLE CreateSF4Process(
 	const sf4e::Payload& payload,
 	sf4e::platform::HelperProcess& helper,
@@ -305,7 +314,8 @@ HANDLE CreateSF4Process(
 	int nDlls,
 	LPCSTR* rlpDlls,
 	sf4e::crash::DumpChannel& dumps,
-	DWORD& startError
+	DWORD& startError,
+	StartTiming& timing
 ) {
 	wchar_t szErrorString[1024] = { 0 };
 	DWORD dwError;
@@ -406,6 +416,7 @@ HANDLE CreateSF4Process(
 		if (lockWaitResult == WAIT_OBJECT_0 + 1) {
 			DWORD exitCode = 0;
 			GetExitCodeProcess(pi.hProcess, &exitCode);
+			timing.endedBeforeSignal = true;
 			spdlog::warn("Game exited before Sidecar startup completed (exit code {})", exitCode);
 		}
 		else if (lockWaitResult == WAIT_TIMEOUT) {
@@ -415,6 +426,8 @@ HANDLE CreateSF4Process(
 			spdlog::warn("Could not wait for Sidecar startup (Win32 {})", GetLastError());
 		}
 		else {
+			timing.signalled = true;
+			timing.signalTick = GetTickCount64();
 			spdlog::info("CreateSF4Process received Sidecar sync signal");
 		}
 		CloseHandle(hSyncEvent);
@@ -607,7 +620,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     if (!steamCommand.empty() && steamCommand.front().rfind("-", 0) == 0) return app.exit(CLI::ExtrasError(steamCommand));
     // Steam Input applies only when Steam starts the launcher, which then has
     // Steam's overlay module; sf4e.log's HID list shows whether it took effect.
-    spdlog::info("Started {} Steam{}", GetModuleHandleW(L"GameOverlayRenderer.dll") ? "by" : "outside",
+    const bool startedBySteam = GetModuleHandleW(L"GameOverlayRenderer.dll") != nullptr;
+    spdlog::info("Started {} Steam{}", startedBySteam ? "by" : "outside",
         steamCommand.empty() ? "" : " with the game command");
     if (!localeOverride.empty() && sf4e::loc::ValidPreference(localeOverride)) {
         languagePreference = localeOverride;
@@ -790,7 +804,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         ArchiveReplays();
         const char* dlls[] = {sidecarAnsi};
-        CreateAppIDFile(location.directory.data());
+        const bool appIdPresent = CreateAppIDFile(location.directory.data());
         sf4e::platform::HelperProcess helper, discord;
         const auto helperPath = std::filesystem::path(installRoot)/L"sf4-net.exe";
         sf4e::crash::DumpChannel dumps;
@@ -807,7 +821,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
         if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
         DWORD startError = 0;
-        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps,startError);
+        StartTiming startTiming;
+        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps,startError,startTiming);
         if (!game) {
             dumps.Close();
             // ERROR_ELEVATION_REQUIRED: SSFIV.exe is marked to run as administrator.
@@ -827,13 +842,27 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }, [&] { return GameWindowState(gameId); });
         dumps.Close();
         if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5, dumps.reportWritten.c_str());
+        const ULONGLONG endedTick = GetTickCount64();
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
         const bool crashed = sf4e::crash::IsCrashExit(exitCode);
+        bool startFailed = false;
         if (crashed) {
             reportCrash.exitCode = exitCode; reportCrash.smallDump = dumps.reportWritten;
             if (dumps.exceptionCode) reportCrash.exceptionCode = dumps.exceptionCode;
             if (dumps.crashAddress) reportCrash.address = dumps.crashAddress;
+            // _exit(255) while the game was still starting is its start-up failing,
+            // not a crash: reported as a start failure, with what is known of why.
+            const auto phase = sf4e::crash::ClassifyStartFailure(exitCode, startTiming.endedBeforeSignal, startTiming.signalled,
+                startTiming.signalled ? endedTick - startTiming.signalTick : 0);
+            if (phase != sf4e::crash::StartPhase::None) {
+                startFailed = true;
+                reportCrash.startPhase = sf4e::crash::StartPhaseName(phase);
+                if (!appIdPresent) reportCrash.startHint = "steam_appid_missing";
+                if (!startedBySteam) reportCrash.startHint += std::string(reportCrash.startHint.empty() ? "" : ",") + "outside_steam";
+                spdlog::warn("The game's start-up failed ({}): the game exited with code 255 {}", reportCrash.startPhase,
+                    phase == sf4e::crash::StartPhase::BeforeSignal ? "before Sidecar signalled" : "shortly after Sidecar signalled");
+            }
         }
         // Windows' own dump is looked for when Ember kept none, a freeze's included.
         if (crashed && !dumps.written[0] && dumps.reportWritten.empty()) NoteWindowsCrashDump(gameId);
@@ -850,7 +879,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // either: say what blocked the game and where to allow it.
         const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" :
             exitCode == 0xC0E90002u ? "launcher.game_blocked_by_windows" :
-            steamAbove ? "launcher.steam_runs_as_admin" : crashed ? (reportable ? "launcher.game_crashed" : "launcher.game_crashed_files") : "launcher.game_error";
+            steamAbove ? "launcher.steam_runs_as_admin" : startFailed ? "launcher.start_failed" : crashed ? (reportable ? "launcher.game_crashed" : "launcher.game_crashed_files") : "launcher.game_error";
         if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory,false,sf4e::ui::Tone::Error,false,
             reportable ? std::optional<sf4e::reports::CrashContext>(reportCrash) : std::nullopt)) continue;
         return 0;

@@ -72,6 +72,24 @@ static void TestExitCodeNames() {
 	CHECK(std::string(ExitCodeName(255)).find("fatal runtime error") != std::string::npos);
 }
 
+static void TestStartFailureClassification() {
+	// Ended before Sidecar signalled: a start failure, whatever the time.
+	CHECK(ClassifyStartFailure(255, true, false, 0) == StartPhase::BeforeSignal);
+	// Shortly after the signal, up to the window.
+	CHECK(ClassifyStartFailure(255, false, true, 1800) == StartPhase::AfterSignal);
+	CHECK(ClassifyStartFailure(255, false, true, StartFailureWindowMs) == StartPhase::AfterSignal);
+	// Later it is a crash of a running game.
+	CHECK(ClassifyStartFailure(255, false, true, StartFailureWindowMs + 1) == StartPhase::None);
+	// Never signalled and not seen ending in start-up (the 60 s wait ran out).
+	CHECK(ClassifyStartFailure(255, false, false, 0) == StartPhase::None);
+	// Only the start-failure exit code counts: a loader failure, a fault and a freeze are not.
+	for (const uint32_t code : {0u, 1u, 3u, 0xC0000005u, 0xC0000135u, 0xC0000409u, 0xCFFFFFFFu})
+		CHECK(ClassifyStartFailure(code, true, false, 0) == StartPhase::None);
+	CHECK(std::string(StartPhaseName(StartPhase::BeforeSignal)) == "before_signal");
+	CHECK(std::string(StartPhaseName(StartPhase::AfterSignal)) == "after_signal");
+	CHECK(std::string(StartPhaseName(StartPhase::None)).empty());
+}
+
 static void TestHeaderNamesTheFault() {
 	char out[256];
 	CrashFacts facts = { "unhandled_exception", 0xC0000005u, 0x0052F3D0ull, "SSFIV.exe", 0x12F3D0ull, 4242u, "" };
@@ -206,6 +224,7 @@ int main() {
 	TestRingKeepsTheLastLinesInOrder();
 	TestRingCutsLongLines();
 	TestExitCodeNames();
+	TestStartFailureClassification();
 	TestHeaderNamesTheFault();
 	TestHeaderToleratesMissingFacts();
 	TestAddressSpaceFold();

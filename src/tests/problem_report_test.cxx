@@ -4,6 +4,7 @@
 #include <limits>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <iostream>
 #include <stdexcept>
 #include <chrono>
@@ -135,6 +136,24 @@ void MultipartCases() {
     using sf4e::updates::UpdateChannel;
     CHECK_OR_THROW(std::string(ReportChannel(UpdateChannel::Stable))=="stable"&&std::string(ReportChannel(UpdateChannel::Beta))=="beta");
     CHECK_OR_THROW(std::string(ReportChannel(UpdateChannel::Nightly))=="nightly");
+    // A start failure names its phase and what the launcher knew, and carries no dump or fault facts.
+    auto failure=Fixture(); failure.meta.kind="start_failure"; failure.meta.phase="before_signal"; failure.meta.hint="steam_appid_missing,outside_steam";
+    failure.meta.gameLog="earlier_session"; failure.meta.exceptionCode.reset(); failure.meta.crashAddress.reset(); failure.minidump.clear();
+    failure.meta.exitCode=255; failure.logs={{"launcher.log","Started\n"}};
+    submission={};
+    CHECK_OR_THROW(BuildMultipart(failure,submission,"EmberTestBoundary",body,error));
+    const auto failureMeta=MetaJson(failure.meta,"");
+    CHECK_OR_THROW(failureMeta["kind"]=="start_failure"&&failureMeta["exit_code"]==255&&failureMeta["phase"]=="before_signal");
+    CHECK_OR_THROW(failureMeta["hint"]=="steam_appid_missing,outside_steam"&&failureMeta["game_log"]=="earlier_session"&&!failureMeta.contains("crash_address"));
+    // Only a start failure has a phase and a hint, and it must have a phase made of short codes.
+    for (const auto change:std::initializer_list<void(*)(Report&)>{
+        [](Report& r){ r.meta.phase.clear(); }, [](Report& r){ r.meta.phase="Before signal"; },
+        [](Report& r){ r.meta.hint="C:\Users\x"; }, [](Report& r){ r.meta.hint=std::string(81,'a'); },
+        [](Report& r){ r.meta.kind="crash"; }, [](Report& r){ r.meta.kind="problem"; } }) {
+        auto bad=failure; change(bad); CHECK_OR_THROW(!BuildMultipart(bad,Submission{"A problem.",true},"EmberTestBoundary",body,error));
+    }
+    // A crash or a typed report sends neither field.
+    CHECK_OR_THROW(!MetaJson(Fixture().meta,"").contains("phase")&&!MetaJson(Fixture().meta,"").contains("hint"));
 }
 void Collection() {
     const auto path=std::filesystem::temp_directory_path()/std::filesystem::path("ember-report-test-"+

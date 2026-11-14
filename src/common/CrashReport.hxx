@@ -86,6 +86,34 @@ inline bool IsCrashExit(uint32_t code) {
 	return (code & 0xF0000000u) == 0xC0000000u || code == 0xE06D7363u || code == 3 || code == 255;
 }
 
+// How far the game's start-up had got when the process ended, as the launcher
+// saw it: Sidecar signals the launcher once it is running in the game.
+enum class StartPhase { None, BeforeSignal, AfterSignal };
+
+// The game's C runtime ends a failed start-up with _exit(255). Within this
+// long after Sidecar's signal such an exit is still the start-up failing, not
+// the game crashing while it ran.
+constexpr uint64_t StartFailureWindowMs = 3000;
+
+// None unless the game ended with the start-failure exit code during
+// start-up: before the signal (`endedBeforeSignal`), or within
+// StartFailureWindowMs of it (`msSinceSignal`, when `signalled`).
+inline StartPhase ClassifyStartFailure(uint32_t exitCode, bool endedBeforeSignal, bool signalled, uint64_t msSinceSignal) {
+	if (exitCode != 255) return StartPhase::None;
+	if (endedBeforeSignal) return StartPhase::BeforeSignal;
+	if (signalled && msSinceSignal <= StartFailureWindowMs) return StartPhase::AfterSignal;
+	return StartPhase::None;
+}
+
+// The phase as the report's `phase` field names it; "" for None.
+inline const char* StartPhaseName(StartPhase phase) {
+	switch (phase) {
+	case StartPhase::BeforeSignal: return "before_signal";
+	case StartPhase::AfterSignal: return "after_signal";
+	default: return "";
+	}
+}
+
 struct CrashFacts {
 	const char* kind;         // unhandled_exception, heap_corruption, ggpo_assertion, terminate, purecall, invalid_parameter, exit
 	uint32_t code;            // exception code, or 0

@@ -24,6 +24,11 @@ struct Metadata {
     // "earlier_session" (left out: written before the run began) or "absent".
     // Empty for a typed problem report, whose log is the one on disk.
     std::string gameLog;
+    // For kind start_failure: how far start-up got ("before_signal" or
+    // "after_signal", the Sidecar signal to the launcher) and what the
+    // launcher knew about why, as a comma list of short codes
+    // ("steam_appid_missing", "outside_steam").
+    std::string phase, hint;
 };
 struct Log { std::string name, text; };
 struct Report {
@@ -35,6 +40,9 @@ struct CrashContext {
     std::optional<std::uint32_t> exitCode, exceptionCode;
     std::optional<std::uint64_t> address;
     std::filesystem::path smallDump;
+    // Set when the game ended during its own start-up (common/CrashReport.hxx,
+    // ClassifyStartFailure): the report is a start failure, not a crash.
+    std::string startPhase, startHint;
     std::filesystem::file_time_type started = (std::filesystem::file_time_type::max)();
 };
 // A report the player sends from its preview. The small dump goes with it
@@ -74,7 +82,7 @@ enum class Status { Pending, Received, Refused, NotSent };
 struct Record {
     std::int64_t time = 0;  // seconds since 1970, UTC, when the send was reserved
     Status status = Status::Pending;
-    // kind: "crash" or "problem"; id: 32 lowercase hex digits or empty;
+    // kind: "crash" or "problem" (a start failure counts as "crash"); id: 32 lowercase hex digits or empty;
     // reason: a short code of a-z, 0-9 and '_', or empty; attempt: 16
     // lowercase hex digits that tie the outcome to its reservation.
     std::string kind = "crash", id, reason, attempt;
