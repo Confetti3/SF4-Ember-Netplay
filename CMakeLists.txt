@@ -243,6 +243,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__OverlayPrefs.cxx"
     "src/sf4e/sf4e__OverlayRandomFighter.hxx"
     "src/sf4e/sf4e__OverlayRandomFighter.cxx"
+    "src/sf4e/sf4e__OverlayWatchedPicture.hxx"
+    "src/sf4e/sf4e__OverlayWatchedPicture.cxx"
     "src/sf4e/sf4e__Pad.hxx"
     "src/sf4e/sf4e__Pad.cxx"
     "src/sf4e/sf4e__BackgroundPlay.hxx"
