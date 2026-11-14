@@ -702,6 +702,19 @@ bool IrohRoom::Queue(std::deque<Message>& destination, Message message) {
 		})) return true;
 	}
 	const auto queued = QueueRoomMessage(destination, room_.queuedBytes, std::move(message), &destination == &room_.serverMessages);
+	if (queued == RoomQueueResult::Queued) return true;
+	// Failing clears both queues, so say first what filled them: a client head
+	// parked behind its activation, effects pumped from the replica, or a
+	// backlog never drained. Once, like Fail's own line.
+	if (room_.state != State::Failed) {
+		const auto state = RecoveryState();
+		spdlog::warn("Room: queue full server={} client={} bytes={} head={} committed={} head_term={} room_term={} "
+			"head_revision={} applied_revision={} staged={} pending_public={} pending_replays={} replays_in_flight={}",
+			state.serverQueueMessages, state.clientQueueMessages, state.queuedBytes, state.clientHeadType,
+			state.clientHeadCommitted, state.clientHeadTerm, room_.coordination.term, state.clientHeadRevision,
+			replica_.effectsRevision, state.stagedCheckpoints, state.pendingPublicEffects, state.pendingTerminalReplays,
+			state.terminalReplaysInFlight);
+	}
 	if (queued == RoomQueueResult::BytesFull) {
 		Fail("room_receive_bytes");
 		return false;
