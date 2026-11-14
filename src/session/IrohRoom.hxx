@@ -9,6 +9,7 @@
 #include "../common/NetworkNat.hxx"
 #include "../common/NetworkRoute.hxx"
 #include "RoomFailure.hxx"
+#include "RoomMessageQueue.hxx"
 #include "../common/RoomLimits.hxx"
 #include "Admission.hxx"
 #include "../netplay/IdentityView.hxx"
@@ -247,8 +248,8 @@ private:
 	class ServerAdapter;
 	class ClientAdapter;
 	static constexpr std::size_t MaximumPayload = 65536;
-	static constexpr std::size_t MaximumQueuedMessages = 64;
-	static constexpr std::size_t MaximumQueuedBytes = 4 * 1024 * 1024;
+	static constexpr std::size_t MaximumQueuedMessages = MaximumRoomQueueMessages;
+	static constexpr std::size_t MaximumQueuedBytes = MaximumRoomQueueBytes;
 	static constexpr std::size_t MaximumUdpPayload = 65507;
 	// Active controls remain bounded by the helper's room capacity. Native
 	// Started participants may retain stable handles after leaving the room.
@@ -302,6 +303,8 @@ private:
 	PeerEnd EndPeerCommand(const std::string& peer, std::uint64_t generation, bool failWhenFull);
 	SendResult SendRemote(Connection connection, const std::string& payload, std::int64_t* id);
 	bool Queue(std::deque<Message>& destination, Message message);
+	// Says which bound a room queue hit and what the client queue waits on.
+	void LogQueueFull(RoomQueueResult limit, bool serverQueue) const;
 	void Fail(const char* code);
 	bool ConsumeGameEvent(const nlohmann::json& event, const std::string& type);
     // `body`, when set, is a raw-body frame's checkpoint chunk.

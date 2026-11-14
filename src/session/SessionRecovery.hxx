@@ -163,14 +163,19 @@ inline bool SupersedableProjection(const EffectEnvelope& effect) {
 // four leaves one commit of margin.
 static constexpr std::uint64_t SupersededProjectionRevisions = 4;
 
-// A room_snapshot replay copy that carries the room chat itself rather than
-// saying chat_unchanged. Never throws on an odd payload.
-inline bool ChatBearingSnapshot(const EffectEnvelope& effect) {
-	if (effect.type != "room_snapshot" || !effect.publicPayload.is_object()) return false;
-	const auto snapshot = effect.publicPayload.find("snapshot");
-	if (snapshot == effect.publicPayload.end() || !snapshot->is_object()) return false;
+// A room_snapshot payload that carries the room chat itself rather than saying
+// chat_unchanged. Never throws on an odd payload.
+inline bool CarriesRoomChat(const nlohmann::json& payload) {
+	if (!payload.is_object()) return false;
+	const auto snapshot = payload.find("snapshot");
+	if (snapshot == payload.end() || !snapshot->is_object()) return false;
 	const auto unchanged = snapshot->find("chat_unchanged");
 	return unchanged == snapshot->end() || !unchanged->is_boolean() || !unchanged->get<bool>();
+}
+
+// A room_snapshot replay copy that carries the room chat.
+inline bool ChatBearingSnapshot(const EffectEnvelope& effect) {
+	return effect.type == "room_snapshot" && CarriesRoomChat(effect.publicPayload);
 }
 
 // Supersession, before any budget pressure. A projection followed by a later

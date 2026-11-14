@@ -852,10 +852,15 @@ static void SayPostMatch() {
 	if (!runtime->attached || !UserApp::netplay) { runtime->postMatchSaid = {}; runtime->postMatchSaidAtMs = 0; return; }
 	const auto wanted = PostMatchWanted();
 	if (!wanted.Active()) { runtime->postMatchSaid = {}; return; }
-	const bool live = netplay::Fighting(runtime->controller.GetSnapshot().match) && runtime->controller.GetSnapshot().control == netplay::Health::Healthy;
+	const auto& state = runtime->controller.GetSnapshot();
+	const bool live = netplay::Fighting(state.match) && state.control == netplay::Health::Healthy;
+	// Behind the room's commits, this PC's snapshot cannot show the word yet:
+	// it is said once, and again only once the room has caught up here.
+	const auto link = !live ? room::PostMatchLink::Off
+		: !state.coordinated || state.authorityWritable ? room::PostMatchLink::Current : room::PostMatchLink::CatchingUp;
 	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
 	const auto now = GetTickCount64();
-	if (!room::PostMatchDue(wanted, runtime->postMatchSaid, runtime->postMatchSaidAtMs, now, live, room)) return;
+	if (!room::PostMatchDue(wanted, runtime->postMatchSaid, runtime->postMatchSaidAtMs, now, link, room)) return;
 	room::Action say;
 	say.kind = room::ActionKind::PostMatchAnswer;
 	say.postMatch = wanted.word;

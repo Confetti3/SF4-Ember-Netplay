@@ -1,6 +1,7 @@
 // IrohRoom: committed checkpoint proposal, decode, staging and activation.
 #include "IrohRoom.hxx"
 #include "RoomMessageQueue.hxx"
+#include "RoomMessageTag.hxx"
 #include "sf4e__SessionProtocol.hxx"
 #include "../common/JsonDump.hxx"
 #include "../common/RoomLimits.hxx"
@@ -9,6 +10,8 @@
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <limits>
+#include <set>
+#include <utility>
 
 namespace sf4e { namespace session {
 using nlohmann::json;
@@ -273,6 +276,53 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
         ConsumeCoordinationEvent(marker,"checkpoint_committed");
     }
     return true;
+}
+// The applied commit's replays: a receipt's terminal notifications, then the
+// public effects this client has not had. Each goes where its live copy would
+// be, after the effects of applied commits and before the first effect of a
+// commit not applied yet, so it never waits behind one, and together they take
+// at most half the queue, leaving the rest to the live stream. A public replay
+// waits while the live copy of its effect is still queued: that copy delivers
+// it, and the replay is needed only if the copy is dropped.
+void IrohRoom::PumpCommittedEffects() {
+    auto at=FirstUnappliedEffect(room_.clientMessages,replica_.effectsRevision);
+    const auto belowHalf=[&] { return room_.clientMessages.size()<MaximumQueuedMessages/2; };
+    // Classified from the object it was encoded from.
+    const auto insert=[&](std::string bytes,const json& payload) {
+        room_.queuedBytes+=bytes.size();
+        room_.clientMessages.insert(room_.clientMessages.begin()+static_cast<std::ptrdiff_t>(at++),
+            Message{1,0,std::move(bytes),"",ClassifyRoomMessage(payload)});
+    };
+    while(!replica_.pendingTerminalReplayEffects.empty() && belowHalf()) {
+        auto effect=std::move(replica_.pendingTerminalReplayEffects.front());
+        replica_.pendingTerminalReplayEffects.pop_front();
+        auto payload=effect.publicPayload;
+        payload["_terminal_replay"]={{"table",effect.key.table},{"generation",effect.key.generation},
+            {"member",effect.key.member},{"endpoint",effect.key.endpoint},{"incarnation",effect.key.incarnation},
+            {"type",effect.key.type},{"room_epoch",effect.roomEpoch},
+            {"activation_revision",effect.activationRevision},{"payload_digest",effect.payloadDigest}};
+        auto bytes=DumpJson(payload);
+        if(bytes.size()>MaximumPayload) { Fail("terminal_replay_payload"); return; }
+        if(bytes.size()>MaximumQueuedBytes-room_.queuedBytes) {
+            replica_.pendingTerminalReplayEffects.push_front(std::move(effect)); break;
+        }
+        replica_.terminalReplayInFlight.emplace(effect.key,effect);
+        insert(std::move(bytes),payload);
+    }
+    std::set<std::pair<std::uint64_t,std::uint64_t>> live;
+    for(const auto& queued:room_.clientMessages)
+        if(queued.tag.commitSequence) live.insert({queued.tag.commitTerm,queued.tag.commitSequence});
+    for(auto effect=replica_.pendingPublicEffects.begin();effect!=replica_.pendingPublicEffects.end() && belowHalf();) {
+        const std::pair<std::uint64_t,std::uint64_t> key{effect->term,effect->sequence};
+        if(replica_.deliveredEffects.count(key)) { effect=replica_.pendingPublicEffects.erase(effect); continue; }
+        if(live.count(key)) { ++effect; continue; }
+        auto payload=effect->publicPayload; payload["_commit"]=EffectCommitToken(*effect);
+        auto bytes=DumpJson(payload);
+        if(bytes.size()>MaximumPayload) { effect=replica_.pendingPublicEffects.erase(effect); continue; }
+        if(bytes.size()>MaximumQueuedBytes-room_.queuedBytes) break;
+        insert(std::move(bytes),payload);
+        effect=replica_.pendingPublicEffects.erase(effect);
+    }
 }
 bool IrohRoom::DiscardCommittedCheckpoint(const coordination::TransferIdentity& identity) {
     if (replica_.committedCheckpoints.empty() || !SameTransfer(replica_.committedCheckpoints.front().identity,identity)) return false;

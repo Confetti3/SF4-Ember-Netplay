@@ -656,62 +656,41 @@ IrohRoom::EffectVerdict IrohRoom::AuthorizedEffect(Message& message) {
     } catch(const std::exception&) { return EffectVerdict::Drop; }
 }
 
-void IrohRoom::PumpCommittedEffects() {
-    while(!replica_.pendingTerminalReplayEffects.empty() && room_.clientMessages.size()<MaximumQueuedMessages) {
-        auto effect=std::move(replica_.pendingTerminalReplayEffects.front());
-        replica_.pendingTerminalReplayEffects.pop_front();
-        auto payload=effect.publicPayload;
-        payload["_terminal_replay"]={{"table",effect.key.table},{"generation",effect.key.generation},
-            {"member",effect.key.member},{"endpoint",effect.key.endpoint},{"incarnation",effect.key.incarnation},
-            {"type",effect.key.type},{"room_epoch",effect.roomEpoch},
-            {"activation_revision",effect.activationRevision},{"payload_digest",effect.payloadDigest}};
-        auto bytes=DumpJson(payload);
-        if(bytes.size()>MaximumPayload) { Fail("terminal_replay_payload"); return; }
-        if(bytes.size()>MaximumQueuedBytes-room_.queuedBytes) {
-            replica_.pendingTerminalReplayEffects.push_front(std::move(effect)); break;
-        }
-        room_.queuedBytes+=bytes.size();
-        replica_.terminalReplayInFlight.emplace(effect.key,effect);
-        // Classified from the object it was encoded from; marked as a
-        // terminal replay here, where it is made.
-        room_.clientMessages.push_back({1,0,std::move(bytes),"",ClassifyRoomMessage(payload)});
-    }
-    while(!replica_.pendingPublicEffects.empty() && room_.clientMessages.size()<MaximumQueuedMessages) {
-        const auto& effect=replica_.pendingPublicEffects.front();
-        if(replica_.deliveredEffects.count({effect.term,effect.sequence})) {replica_.pendingPublicEffects.pop_front(); continue;}
-        auto payload=effect.publicPayload; payload["_commit"]=EffectCommitToken(effect);
-        auto bytes=DumpJson(payload);
-        if(bytes.size()>MaximumPayload) {replica_.pendingPublicEffects.pop_front(); continue;}
-        if(bytes.size()>MaximumQueuedBytes-room_.queuedBytes) break;
-        room_.queuedBytes+=bytes.size();
-        room_.clientMessages.push_back({1,0,std::move(bytes),"",ClassifyRoomMessage(payload)});
-        replica_.pendingPublicEffects.pop_front();
-    }
-}
-
 bool IrohRoom::Queue(std::deque<Message>& destination, Message message) {
 	// A committed proposal is immutable, so SessionServer temporarily stops
 	// draining client intents while the helper obtains quorum. Terminal receipt
 	// acknowledgements deliberately retry the same action ID during that wait.
 	// Keep one authenticated copy in the server queue instead of allowing exact
 	// retries to consume the entire bounded transport queue. Distinct actions,
-	// senders, and all server-to-client effects retain their original ordering.
-	if (&destination == &room_.serverMessages) {
+	// senders, and all server-to-client effects retain their original ordering;
+	// the client queue drops only state a newer effect replaces (QueueRoomEffect).
+	const bool serverQueue = &destination == &room_.serverMessages;
+	if (serverQueue) {
 		if (std::any_of(destination.begin(), destination.end(), [&](const Message& queued) {
 			return SameQueuedRoomRetry(queued, message);
 		})) return true;
 	}
-	const auto queued = QueueRoomMessage(destination, room_.queuedBytes, std::move(message), &destination == &room_.serverMessages);
-	if (queued == RoomQueueResult::BytesFull) {
-		Fail("room_receive_bytes");
-		return false;
-	}
-	if (queued == RoomQueueResult::MessagesFull) {
-		Fail(&destination == &room_.serverMessages
-			? "room_server_receive_queue" : "room_client_receive_queue");
-		return false;
-	}
-	return true;
+	const auto queued = serverQueue ? QueueRoomMessage(destination, room_.queuedBytes, std::move(message))
+		: QueueRoomEffect(destination, room_.queuedBytes, std::move(message), replica_.effectsRevision);
+	if (queued == RoomQueueResult::Queued) return true;
+	if (room_.state != State::Failed) LogQueueFull(queued, serverQueue);
+	Fail(queued == RoomQueueResult::BytesFull ? "room_receive_bytes"
+		: serverQueue ? "room_server_receive_queue" : "room_client_receive_queue");
+	return false;
+}
+
+// Once, before Fail clears both queues: the bound hit, and whether the client
+// queue's head waited on a checkpoint that had not arrived (nothing staged,
+// applied behind the room's revision) or on one staged but not yet applied.
+void IrohRoom::LogQueueFull(RoomQueueResult limit, bool serverQueue) const {
+	const auto state = RecoveryState();
+	spdlog::warn("Room: queue full queue={} limit={} client={} server={} bytes={} head={} head_term={} head_revision={} "
+		"term={} revision={} applied={} staged={} replays={} terminal_replays={}", serverQueue ? "server" : "client",
+		limit == RoomQueueResult::BytesFull ? "bytes" : limit == RoomQueueResult::CommitsBehind ? "commits" : "messages",
+		state.clientQueueMessages, state.serverQueueMessages, state.queuedBytes,
+		state.clientHeadType.empty() ? std::string("-") : state.clientHeadType, state.clientHeadTerm, state.clientHeadRevision,
+		room_.coordination.term, room_.coordination.revision, replica_.effectsRevision, state.stagedCheckpoints,
+		state.pendingPublicEffects, state.pendingTerminalReplays + state.terminalReplaysInFlight);
 }
 
 // Once a minute unless the applied roster is empty: commits made and applied
