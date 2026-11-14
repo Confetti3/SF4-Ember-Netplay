@@ -269,7 +269,7 @@ int main() {
                     else if (held && run.free < 0) run.free = frame;
                     // The production decision, as the runtime makes it each observed frame.
                     const ReplyStep decision = dummy.replies.Observe(reply, seen, session, 0);
-                    run.dropped = run.dropped || decision.stopped;
+                    run.dropped = run.dropped || decision.stopped != ReplyDrop::None;
                     began = began || decision.started;
                 }
                 run.read = game.read;
@@ -582,10 +582,22 @@ int main() {
                     Require(timed.button + 1 == timed.free + timing && (timing < 0 || timed.move == timed.button + 1) && !timed.dropped,
                         "A charge reply's button did not meet the end of a timed knockdown");
                 }
+                // The same hit twice, the second with its length known: the
+                // charge is held from the hit, but nothing is pressed or comes
+                // out while the dummy is only being hit and it ends standing.
                 Dummy standing;
-                const Run hit = play(standing, reply, 0, statuses(ActorStatus::Damage, 33, 0u, 0), Down);
-                Require(hit.read[6] == Down && hit.dropped && hit.move < 0 && hit.ended >= 0 && hit.ended <= 40,
-                    "A charge reply on getting up went on after a hit that ended standing");
+                const auto hitOnly = statuses(ActorStatus::Damage, 33, 0u, 0);
+                for (int time = 0; time < 2; ++time) {
+                    const Run hit = play(standing, reply, 0, hitOnly, Down);
+                    Require(hit.read[6] == Down && hit.dropped && hit.button < 0 && hit.move < 0 && hit.ended >= 0 && hit.ended <= 40,
+                        "A charge reply on getting up went on after a hit that ended standing");
+                }
+                // That hit's length is known now, and the next one knocks the
+                // dummy down: the charge still holds from the hit and the move
+                // comes out as the knockdown ends, not as the hit does.
+                const Run down = play(standing, reply, 0, knockdown, Down);
+                Require(down.read[6] == Down && down.button >= 38 && down.free == 87 && down.button + 1 == down.free + (std::max)(Lead(reply) + 2, 0) &&
+                    down.move == down.button + 1 && !down.dropped, "A charge reply let go on a hit whose length was known, before the knockdown it became");
             }
         }
         std::puts("Training dummy control checks passed.");
