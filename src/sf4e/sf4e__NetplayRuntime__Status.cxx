@@ -627,7 +627,12 @@ PostPublishState Publish() {
     snapshot.pads = runtime->pads; snapshot.padLayer = runtime->padLayer;
     snapshot.runningControllerLayer = runtime->runningControllerLayer;
     snapshot.lobbyMusicAvailable = MenuMusic::Available();
-    for (int part = 0; part < netplay::GameThemePartCount; ++part) snapshot.gameThemes[part] = GameThemes::Names(static_cast<netplay::GameThemePart>(part));
+    for (int part = 0; part < netplay::GameThemePartCount; ++part) {
+        const auto themePart = static_cast<netplay::GameThemePart>(part);
+        snapshot.gameThemes[part] = GameThemes::Names(themePart);
+        snapshot.gameThemesClosed[part].clear();
+        for (const auto& name : snapshot.gameThemes[part]) if (GameThemes::ClosedTheGame(themePart, name)) snapshot.gameThemesClosed[part].push_back(name);
+    }
     snapshot.padSetup = Gamepads::ReadFrame().setup;
     snapshot.padLayerPending = gamepads::LayerPending(runtime->preferences.controllerLayer, runtime->runningControllerLayer);
     snapshot.padHintUntil = runtime->padHintUntil;

@@ -5,6 +5,7 @@
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__GameThemes.hxx"
 #include "sf4e__MenuMusic.hxx"
+#include "sf4e__OverlayPrefs.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/ReplayPath.hxx"
@@ -321,6 +322,7 @@ void StartHelper() {
     // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.
     if (!saved.contains("inputDelay")) preferences.welcomed = false;
     MenuMusic::Use(preferences.endlessLobbyMusic);
+    GameThemes::TurnOff(preferences.gameThemes);
     GameThemes::Use(preferences.gameThemes);
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
     runtime->hostPublicRoom = EnvFlag("SF4E_HOST_PUBLIC_ROOM");
@@ -869,6 +871,15 @@ static void SayPostMatch() {
 void ReconcileTrainingCall() {
 	if (runtime) CallOutOfTraining();
 }
+// A theme the game closed on while loading (GameThemes::Start) is already off for the game; here it is
+// put back to the game's own in the saved settings, as a pick in Settings is, and the player is told once.
+static void SettleTurnedOffThemes() {
+	const auto& turned = GameThemes::TurnedOff();
+	if (turned.empty() || !OverlayPrefs::SavePlayerPreferences(runtime->preferences)) return;
+	for (const auto& off : turned)
+		PushAlert(loc::Tf("runtime.game_theme_turned_off", off.theme, loc::T(netplay::GameThemeLabels[off.part])).c_str(), NoticeSeverity::Warning);
+	GameThemes::TurnedOffTold();
+}
 void TickRuntime() {
 	if (!runtime) return;
 	{
@@ -887,6 +898,7 @@ void TickRuntime() {
 	PumpDiscordClient();
 	GameThemes::Search();
 	GameThemes::TakePreview();
+	SettleTurnedOffThemes();
 	// Legacy error/teardown hooks can retire the client between owner ticks.
 	// Dispose its coordinator before dereferencing that client again.
 	if (runtime->attached && !UserApp::netplay) {

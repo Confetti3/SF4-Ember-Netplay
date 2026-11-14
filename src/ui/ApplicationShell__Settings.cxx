@@ -39,21 +39,21 @@ namespace {
 constexpr int RoomPresets[] = {28, 36, 56};
 const char* const RoomPresetKeys[] = {"settings.room_preset.board", "settings.room_preset.balanced", "settings.room_preset.chat"};
 int RoomPreset(int column) { return column <= 30 ? 0 : column >= 50 ? 2 : 1; }
-// Each in-game theme part's row, by netplay::GameThemePart: its id, name, the words
-// under it, and those it shows with no theme found.
-struct GameThemeRow { const char *id, *label, *detail, *none; };
+// Each in-game theme part's row, by netplay::GameThemePart: its id, the words
+// under it, and those it shows with no theme found (its name is netplay::GameThemeLabels).
+struct GameThemeRow { const char *id, *detail, *none; };
 constexpr GameThemeRow GameThemeRows[netplay::GameThemePartCount] = {
-    {"game-theme-main-menu", "settings.game_theme_main_menu", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
-    {"game-theme-title", "settings.game_theme_title", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
-    {"game-theme-chara-select", "settings.game_theme_chara_select", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
-    {"game-theme-stage-select", "settings.game_theme_stage_select", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
-    {"game-theme-versus", "settings.game_theme_versus", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
-    {"game-theme-pause-menu", "settings.game_theme_pause_menu", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
-    {"game-theme-network", "settings.game_theme_network", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
-    {"game-theme-edition-marks", "settings.game_theme_edition_marks", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
-    {"game-theme-buttons", "settings.game_theme_buttons", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
-    {"game-theme-menu-sounds", "settings.game_theme_menu_sounds", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
-    {"game-theme-battle-hud", "settings.game_theme_battle_hud", "settings.game_theme_battle_hud_detail", "settings.game_theme_battle_hud_none"}};
+    {"game-theme-main-menu", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-title", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-chara-select", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-stage-select", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-versus", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-pause-menu", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-network", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-edition-marks", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-buttons", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-menu-sounds", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-battle-hud", "settings.game_theme_battle_hud_detail", "settings.game_theme_battle_hud_none"}};
 // "Automatic" first, then every locale by its own name.
 std::vector<MenuChoice> LanguageChoices() {
     std::vector<MenuChoice> choices;
@@ -270,12 +270,19 @@ public:
     static MenuEntry GameTheme(Shell& s, const ShellView& v, netplay::GameThemePart part) {
         const GameThemeRow& r = GameThemeRows[part];
         const auto& themes = v.gameThemes[part];
+        const auto& closed = v.gameThemesClosed[part];
         const std::string& theme = s.preferences_.gameThemes[part];
         const bool found = std::find(themes.begin(), themes.end(), theme) != themes.end();
+        // A theme the game closed on stays pickable (its files may be fixed), and says so.
+        const auto shown = [&](const std::string& name) {
+            return std::find(closed.begin(), closed.end(), name) != closed.end() ? loc::Tf("settings.game_theme_closed", name) : name;
+        };
         const std::string game = loc::T("settings.game_theme_game");
-        auto row = Value(r.id, loc::T(r.label), found ? theme : game, loc::T(themes.empty() ? r.none : r.detail), v.canEditPreferences && !themes.empty());
+        const std::string detail = themes.empty() ? std::string(loc::T(r.none)) : std::string(loc::T(r.detail)) + " " + loc::T("settings.game_theme_risk");
+        auto row = Value(r.id, loc::T(netplay::GameThemeLabels[part]), found ? shown(theme) : game, detail, v.canEditPreferences && !themes.empty());
         // Select lists the game's own and the themes; a pick is the steps to it (OfferSteps).
-        std::vector<std::string> labels = themes;
+        std::vector<std::string> labels;
+        for (const auto& name : themes) labels.push_back(shown(name));
         labels.insert(labels.begin(), game);
         OfferSteps(row, labels);
         return row;

@@ -116,6 +116,8 @@ namespace sf4e {
             bool lobbyMusicAvailable = false;
             // The themes with each part found as the game started (GameThemes::Names).
             std::array<std::vector<std::string>, netplay::GameThemePartCount> gameThemes;
+            // Those of them the game closed on while loading (GameThemes::ClosedTheGame).
+            std::array<std::vector<std::string>, netplay::GameThemePartCount> gameThemesClosed;
             std::vector<gamepads::PadView> pads;
             unsigned captureCandidate = 0;
             std::uint64_t padHintUntil = 0;

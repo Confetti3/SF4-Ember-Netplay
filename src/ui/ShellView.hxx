@@ -146,6 +146,8 @@ struct ShellView {
     bool lobbyMusicAvailable = false;
     // The themes in <game>\ember\themes with each part (netplay::GameThemePart), by name.
     std::array<std::vector<std::string>, netplay::GameThemePartCount> gameThemes;
+    // The ones of those the game closed on while loading, and has not loaded since.
+    std::array<std::vector<std::string>, netplay::GameThemePartCount> gameThemesClosed;
     std::vector<gamepads::PadView> pads;
     unsigned captureCandidate = 0;
     gamepads::SetupSnapshot padSetup;
