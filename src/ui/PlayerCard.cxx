@@ -112,14 +112,8 @@ void DrawFighterEdge(ImDrawList* d, v2::Box box, std::uint64_t points, int tier)
     d->AddRect(ImVec2(box.min.x + inset, box.min.y + inset), ImVec2(box.max.x - inset, box.max.y - inset), v2::TierColor(v2::FrameTier(tier)).stripe, 0, 0, Hairline());
 }
 
-namespace {
-// The room the Full card was last drawn in. Its rows are counted for that room, so they are the parts the next frame draws
-// whatever the shell takes from the window round the body (TV mode's margins, a footer). Empty until a card is drawn.
-std::optional<player_card::Size> drawnRoom;
-}
-
-player_card::Size CardSize() {
-    if (drawnRoom) return *drawnRoom;
+player_card::Size CardRoom(const std::optional<player_card::Size>& drawn) {
+    if (drawn) return *drawn;
     // No card drawn yet: the window less the shell's usual chrome, 242 logical px at 1080.
     const float s = Scale(), width = ImGui::GetIO().DisplaySize.x;
     return {(width - 2 * v2::SideMargin(width, s)) / s, ImGui::GetIO().DisplaySize.y / s - 242.f};
@@ -493,12 +487,11 @@ float DrawNarrow(const Ctx& c, ImVec2 origin, float width) {
 }
 }
 
-float DrawFullCard(const player_card::FullCardView& card, FighterArt art, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action,
+CardDrawn DrawFullCard(const player_card::FullCardView& card, FighterArt art, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action,
     bool changed, float bodyHeight) {
     const float s = Scale(), width = ImGui::GetContentRegionAvail().x;
-    // Measured for the room it is given, which the next frame's rows are counted for.
+    // Measured for the room it is given, which the next frame's rows are counted for (CardDrawn).
     const player_card::Size size{width / s, bodyHeight / s};
-    drawnRoom = size;
     const player_card::Metrics metrics = player_card::MetricsOf(size);
     const Ctx c{ImGui::GetWindowDrawList(), card, metrics, art, card.levels == CardLevels::Pending ? .4f : 1.f, s, rows, nav, action, changed};
     const ImVec2 origin = ImGui::GetCursorScreenPos();
@@ -507,7 +500,7 @@ float DrawFullCard(const player_card::FullCardView& card, FighterArt art, const 
     const float total = size.Narrow() ? DrawNarrow(c, ImVec2(origin.x + (width - column) * .5f, origin.y), column) : DrawColumns(c, origin, bodyHeight);
     ImGui::SetCursorScreenPos(origin);
     ImGui::Dummy(ImVec2(width, total));
-    return total;
+    return {total, size};
 }
 
 // Connect Discord, the way to points and friends a player without an account has.

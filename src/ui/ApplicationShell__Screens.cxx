@@ -267,7 +267,7 @@ class ApplicationShell::PlayerScreens final : public ScreenPanel {
 public:
     bool Owns(const std::string& screen) const override { return PlayerPage::Owns(screen); }
     std::vector<MenuEntry> Rows(const ScreenFrame& f, bool idle, std::string& title) const override {
-        return f.shell.player_.Rows(f.view, f.screen, f.shell.friends_, idle, title);
+        return f.shell.player_.Rows(f.view, f.screen, idle, title);
     }
     void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override { f.shell.player_.Status(f.view, f.screen, status, tone); }
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {

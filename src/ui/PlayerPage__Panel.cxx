@@ -108,8 +108,24 @@ player_card::Subject PlayerPage::SubjectNow(const ShellView& v, const Shown& sho
     return SubjectOf(shown, standing, AroundOf(v, shown, standing), cardSets_.View(v));
 }
 
-void PlayerPage::Update(const ShellView& v, const std::string& screen, MenuNavigation& nav, const std::string& bridge, const std::string& ownName,
-    const CountryCode& ownCountry, const Submit& submit) {
+void PlayerPage::BuildCardFrame(const ShellView& v, const Shown& shown, const Links& links) {
+    card_.standing = StandingNow(v, shown, links);
+    card_.primary = PrimaryOf(card_.standing);
+    card_.view = player_card::FullOf(SubjectNow(v, shown, card_.standing), CardRoom(room_));
+    card_.built = true;
+}
+
+const PlayerPage::CardFrame& PlayerPage::CardNow(const ShellView& v) {
+    if (!card_.built) {
+        const Shown shown = ShownNow(v);
+        BuildCardFrame(v, shown, PlainLinks(v, shown));
+    }
+    return card_;
+}
+
+void PlayerPage::Update(const ShellView& v, const std::string& screen, MenuNavigation& nav, const FriendsPanel& friends, const std::string& bridge,
+    const std::string& ownName, const CountryCode& ownCountry, const Submit& submit) {
+    card_.built = false;
     bridge_ = bridge;
     ownName_ = ownName;
     ownCountry_ = ownCountry;
@@ -149,16 +165,16 @@ void PlayerPage::Update(const ShellView& v, const std::string& screen, MenuNavig
     if (shown.page == Page::Several && screen != PickScreen && IsTab(screen)) nav.Replace(PickScreen);
     else if (shown.page != Page::Several && screen == PickScreen && key_.Present() && v.profile.Open() && v.profile.key == key_) nav.Replace(CardScreen);
     else if (IsTab(screen) && shown.page != Page::Several && !HasTab(shown, screen)) nav.Replace(CardScreen);
+    // The card this frame draws, built once for everything that reads it.
+    if (nav.Screen() == CardScreen) BuildCardFrame(v, shown, LinksOf(v, friends, shown));
     // The first settled card opens with the focus on the Primary when it can be pressed, else on its first fighter.
-    if (screen == CardScreen && shown.page != Page::Reading && shown.page != Page::Several && focused_ != v.profile.opened) {
+    if (screen == CardScreen && card_.built && shown.page != Page::Reading && shown.page != Page::Several && focused_ != v.profile.opened) {
         focused_ = v.profile.opened;
-        const auto standing = StandingNow(v, shown, PlainLinks(v, shown));
-        const auto view = player_card::FullOf(SubjectNow(v, shown, standing), player_card::Size::Wide);
-        nav.Prefer(FocusOnOpen(PrimaryOf(standing), view));
+        nav.Prefer(FocusOnOpen(card_.primary, card_.view));
     }
 }
 
-std::vector<MenuEntry> PlayerPage::Rows(const ShellView& v, const std::string& screen, const FriendsPanel& friends, bool idle, std::string& title) {
+std::vector<MenuEntry> PlayerPage::Rows(const ShellView& v, const std::string& screen, bool idle, std::string& title) {
     if (OnSets(screen)) {
         auto rows = sets_.Rows(v, screen, idle, title);
         if (sets_.IsList(screen)) title = loc::T("profile.tab.sets");
@@ -172,9 +188,8 @@ std::vector<MenuEntry> PlayerPage::Rows(const ShellView& v, const std::string& s
     if (screen == FightersScreen) { title = loc::T("profile.tab.fighters"); return FighterRows(shown); }
     if (screen == AwardsScreen) { title = loc::T("screen.awards"); return AwardRows(shown); }
     title = loc::T("profile.tab.card");
-    const auto standing = StandingNow(v, shown, LinksOf(v, friends, shown));
-    const auto view = player_card::FullOf(SubjectNow(v, shown, standing), CardSize());
-    return CardRows(view, PrimaryOf(standing), standing, ask_, shown.name);
+    const auto& card = CardNow(v);
+    return CardRows(card.view, card.primary, card.standing, ask_, shown.name);
 }
 
 void PlayerPage::Do(const ShellView& v, const std::string& what, const Shown& shown, const Standing& standing, const Hands& h) {

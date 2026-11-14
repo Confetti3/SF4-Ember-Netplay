@@ -73,12 +73,12 @@ void PlayerPage::Draw(const ShellView& v, const std::string& screen, const std::
     const bool changed = nav.Focus() != focus_;
     focus_ = nav.Focus();
     const FighterArt art = v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait;
-    const Shown shown = ShownNow(v);
-    const auto standing = StandingNow(v, shown, PlainLinks(v, shown));
     if (screen == CardScreen) {
-        const auto view = player_card::FullOf(SubjectNow(v, shown, standing), CardSize());
-        DrawFullCard(view, art, rows, nav, action, changed, height);
-    } else if (screen == FightersScreen) {
+        room_ = DrawFullCard(CardNow(v).view, art, rows, nav, action, changed, height).room;
+        return;
+    }
+    const Shown shown = ShownNow(v);
+    if (screen == FightersScreen) {
         const auto own = shown.card ? fighters_tab::LevelsOfCard(*shown.card) : netplay::levels::Own();
         fighters_tab::Shown tab;
         tab.levels = &own;
@@ -88,7 +88,7 @@ void PlayerPage::Draw(const ShellView& v, const std::string& screen, const std::
         tab.others = true;
         fighters_tab::Draw(tab, rows, nav, action, changed);
     } else if (screen == AwardsScreen) {
-        DrawWall(shown, SubjectNow(v, shown, standing), art, rows, nav, action, changed);
+        DrawWall(shown, SubjectNow(v, shown, StandingNow(v, shown, PlainLinks(v, shown))), art, rows, nav, action, changed);
     }
 }
 

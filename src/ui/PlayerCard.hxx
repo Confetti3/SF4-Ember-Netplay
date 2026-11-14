@@ -11,6 +11,7 @@
 #include "../netplay/FriendsView.hxx"
 #include "../netplay/Levels.hxx"
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -79,12 +80,17 @@ void DrawFighterEdge(ImDrawList* d, v2::Box box, std::uint64_t points, int tier)
 // rows, All sets (player_card::CardRows), the hero's buttons and Choose a main
 // among `rows`. `changed` scrolls a newly focused row into view. Returns the
 // height taken.
-float DrawFullCard(const player_card::FullCardView& card, FighterArt art, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action,
+// The room it measured goes back with the height, which its panel keeps for the next frame's CardRoom.
+struct CardDrawn {
+    float height = 0;
+    player_card::Size room;
+};
+CardDrawn DrawFullCard(const player_card::FullCardView& card, FighterArt art, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action,
     bool changed, float bodyHeight);
-// The room the card was last drawn in, which is what FullOf takes for the recent sets the card has: the rows are counted
-// for the room the drawing measures, so they are the parts drawn, and a resize is caught up with a frame later. Before any
-// card is drawn it is the window less the shell's usual chrome.
-player_card::Size CardSize();
+// The room FullOf is given for the recent sets the card has: the room the card was last drawn in (`drawn`), so the rows are
+// counted for the parts the drawing measures and a resize is caught up with a frame later. Before any card is drawn it is
+// the window less the shell's usual chrome.
+player_card::Size CardRoom(const std::optional<player_card::Size>& drawn);
 
 // Another player's card as the Panel draws it (a room member, a friend, the
 // player's own as others see it): the picture of their fighter on its tier
