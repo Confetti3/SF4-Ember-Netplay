@@ -373,6 +373,42 @@ msgstr "No country matches"
 msgid "country.none_detail"
 msgstr "Change the search to see more countries."
 
+msgid "area.naw"
+msgstr "NA West"
+
+msgid "area.nac"
+msgstr "NA Central"
+
+msgid "area.nae"
+msgstr "NA East"
+
+msgid "area.cam"
+msgstr "Central America & Caribbean"
+
+msgid "area.sam"
+msgstr "South America"
+
+msgid "area.euw"
+msgstr "Europe West"
+
+msgid "area.eue"
+msgstr "Europe East"
+
+msgid "area.mea"
+msgstr "Middle East & Africa"
+
+msgid "area.sas"
+msgstr "South Asia"
+
+msgid "area.eas"
+msgstr "East Asia"
+
+msgid "area.sea"
+msgstr "South-East Asia"
+
+msgid "area.oce"
+msgstr "Oceania"
+
 msgid "settings.language.system_with"
 msgstr "Automatic: {0}"
 

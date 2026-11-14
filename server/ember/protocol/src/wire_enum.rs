@@ -67,6 +67,7 @@ mod tests {
 
     use crate::{
         api::ErrorCode,
+        area::Area,
         challenge::{Action, Method},
         event::Kind,
         friends::FriendRefusal,
@@ -99,6 +100,7 @@ mod tests {
     #[test]
     fn every_wire_enum_spells_each_variant_once() {
         names_agree(&Format::ALL, Format::as_str, Format::parse);
+        names_agree(&Area::ALL, Area::as_str, Area::parse);
         names_agree(&Side::ALL, Side::as_str, Side::parse);
         names_agree(&Status::ALL, Status::as_str, Status::parse);
         names_agree(&Rotation::ALL, Rotation::as_str, Rotation::parse);
