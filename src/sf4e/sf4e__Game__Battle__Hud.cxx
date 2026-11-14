@@ -11,6 +11,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__Hud.hxx"
+#include "sf4e__GameThemes.hxx"
 #include "../common/HudPictureGuard.hxx"
 
 #include <cstring>
@@ -137,6 +138,7 @@ rHud::Unit* fHud::Unit::Factory(DWORD arg1, DWORD arg2) {
     rHud::Unit::ResetUnits(u);
     // A battle's HUD units are made before any of its sprites takes a picture.
     pictureSkips.Reset();
+    sf4e::GameThemes::BattleHudMade();
     return u;
 }
 

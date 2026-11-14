@@ -222,10 +222,10 @@ void sf4e::GameThemes::Judge(const std::string& name, const std::string& verdict
 void sf4e::GameThemes::Restart() { restartAsk = true; }
 
 namespace {
-// The battle HUD is read as a battle loads. A battle that is loading arms the
-// guard for the HUD theme in use, and one that has reached the fight proves it.
+// The battle HUD is read as a battle loads. The game making the battle's HUD arms the guard for
+// the HUD theme in use (BattleHudMade), and a battle that has reached the fight proves it.
 // A game that closes in between leaves the mark for the next start (Start).
-void WatchBattleHud() {
+void ProveBattleHud() {
 	using System = Dimps::Game::Battle::System;
 	const std::string& theme = parts[sf4e::netplay::GameThemeBattleHud].loaded;
 	// The game's singleton getter is set once its offsets are known; without the game (the runtime's tests) there is no battle.
@@ -234,16 +234,22 @@ void WatchBattleHud() {
 	if (!system) return;
 	const int state = *System::GetReadyState(system);
 	const std::string folder = PartFolder(sf4e::netplay::GameThemeBattleHud);
-	const bool loading = state > System::RS_START && state < System::RS_FIGHT;
-	const bool changed = state == System::RS_FIGHT ? game_themes::Prove(guard, folder, theme) : loading && game_themes::Arm(guard, folder, theme);
-	if (!changed) return;
-	spdlog::info("In-game themes: {} {} {}", folder, theme, loading ? "is loading" : "loaded");
+	if (state != System::RS_FIGHT || !game_themes::Prove(guard, folder, theme)) return;
+	spdlog::info("In-game themes: {} {} loaded", folder, theme);
 	Remember();
 }
 }
 
+void sf4e::GameThemes::BattleHudMade() {
+	const std::string& theme = parts[netplay::GameThemeBattleHud].loaded;
+	const std::string folder = PartFolder(netplay::GameThemeBattleHud);
+	if (theme.empty() || !game_themes::Arm(guard, folder, theme)) return;
+	spdlog::info("In-game themes: {} {} is loading", folder, theme);
+	Remember();
+}
+
 void sf4e::GameThemes::TakePreview() {
-	WatchBattleHud();
+	ProveBattleHud();
 	// The phone's answer was given when its request began; a match may have started since, so the rule is asked again here.
 	const bool inMatch = NetplayFacade::GetRuntimeSnapshotShared()->InMatch();
 	if (restartAsk.exchange(false)) {
