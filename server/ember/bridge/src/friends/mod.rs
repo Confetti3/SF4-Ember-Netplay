@@ -198,12 +198,12 @@ pub fn state(
         .chain(requests.iter().map(|row| row.sender.as_str()))
         .collect();
     let viewer = cards::Viewer {
-        caller: Some(caller),
+        caller,
         friends_offered: true,
         classes,
         now,
     };
-    let read = cards::Reader::read(tx, &viewer, &accounts, cards::Parts::FRIENDS)?;
+    let read = cards::Reader::read(tx, &viewer, &accounts, cards::Purpose::Friends)?;
     let seen: Vec<Option<Seen>> = rows.iter().map(|row| visible(live, row, now)).collect();
     let room_ids: Vec<&str> = seen
         .iter()

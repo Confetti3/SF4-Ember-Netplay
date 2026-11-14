@@ -17,7 +17,7 @@ use rusqlite::Transaction;
 
 use crate::{
     AppState,
-    cards::{self, Parts, Reader, Viewer},
+    cards::{self, Purpose, Reader, Viewer},
     error::Result,
     friends::{self, Classes, store},
     http::{Body, GENERAL_BODY, ok},
@@ -66,7 +66,7 @@ pub async fn own(State(state): State<AppState>, headers: HeaderMap) -> Result<Re
                 && let Some(caller) = &caller.account
             {
                 let viewer = Viewer {
-                    caller: Some(caller.as_str()),
+                    caller: caller.as_str(),
                     friends_offered,
                     classes: &classes,
                     now,
@@ -92,7 +92,7 @@ fn most_played(
 ) -> Result<Option<RivalCard>> {
     let pairs = levels::pairs_by_games(tx, caller, levels::RIVAL_CANDIDATES)?;
     let others: Vec<&str> = pairs.iter().map(|pair| pair.other.as_str()).collect();
-    let read = Reader::read(tx, viewer, &others, Parts::RIVALS)?;
+    let read = Reader::read(tx, viewer, &others, Purpose::Rivals)?;
     for pair in &pairs {
         // A block either way passes the pair over: `relation` is none when
         // they blocked the caller and `Blocked` when the caller blocked them.
@@ -126,9 +126,10 @@ fn most_played(
 /// `POST /v1/cards/lookup`: one card, or null, per selector, in order. A
 /// friend id names the caller's friend, a request id a request the caller
 /// received, and a code a friend code, once friends are offered. A player who
-/// blocked the caller shows them no card, a caller without a Discord account
-/// is shown none (a block could not hold against them), and once friends are
-/// offered each card carries the caller's relation to its player.
+/// blocked the caller shows them no card, and once friends are offered each
+/// card carries the caller's relation to its player. A block is between
+/// Discord accounts, so a caller without one is shown no card at all
+/// (docs/design/PROFILE.md, "Privacy").
 pub async fn lookup(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -137,6 +138,11 @@ pub async fn lookup(
     let caller = PlayerAccount::admit(&state, &headers, Gate::Points, &LOOKUPS).await?;
     let lookup: CardLookup = body.parse()?;
     lookup.check()?;
+    let (Some(account), now) = (caller.account, caller.now) else {
+        return Ok(ok(&CardAnswers {
+            cards: vec![None; lookup.cards.len()],
+        }));
+    };
     let keys = state.keys.clone();
     let friends_offered = friends::offered(&state);
     let classes = Classes::of(&state);
@@ -144,10 +150,10 @@ pub async fn lookup(
         .db
         .read(move |tx| {
             let viewer = Viewer {
-                caller: caller.account.as_deref(),
+                caller: &account,
                 friends_offered,
                 classes: &classes,
-                now: caller.now,
+                now,
             };
             answer(tx, &keys, &viewer, &lookup.cards)
         })
@@ -157,22 +163,16 @@ pub async fn lookup(
 
 /// The cards `selectors` name for `viewer`, one entry per selector, in
 /// order: the same few reads however many there are (`targets_of`,
-/// `cards::Reader`). A caller without a Discord account is shown none
-/// (`Reader::card`), so nothing is read for them.
+/// `cards::Reader`).
 pub(crate) fn answer(
     tx: &Transaction<'_>,
     keys: &Keys,
     viewer: &Viewer<'_>,
     selectors: &[CardSelector],
 ) -> Result<CardAnswers> {
-    if viewer.caller.is_none() {
-        return Ok(CardAnswers {
-            cards: vec![None; selectors.len()],
-        });
-    }
     let targets = targets_of(tx, keys, viewer, selectors)?;
     let accounts: Vec<&str> = targets.iter().flatten().map(String::as_str).collect();
-    let read = Reader::read(tx, viewer, &accounts, Parts::CARD)?;
+    let read = Reader::read(tx, viewer, &accounts, Purpose::Card)?;
     Ok(CardAnswers {
         cards: targets
             .iter()
@@ -183,8 +183,8 @@ pub(crate) fn answer(
 
 /// The account each of `selectors` names for the viewer, if it names one they
 /// may open, in order. A friend, a request and a code are the caller's own,
-/// so they need their Discord account and friends being offered; a code never
-/// names the caller. Each kind is one read for all its selectors, and none
+/// so they name someone only while friends are offered; a code never names
+/// the caller. Each kind is one read for all its selectors, and none
 /// when there are none of it.
 fn targets_of(
     tx: &Transaction<'_>,
@@ -192,7 +192,7 @@ fn targets_of(
     viewer: &Viewer<'_>,
     selectors: &[CardSelector],
 ) -> Result<Vec<Option<String>>> {
-    let own = viewer.caller.filter(|_| viewer.friends_offered);
+    let own = viewer.friends_offered.then_some(viewer.caller);
     let codes: Vec<Option<String>> = selectors
         .iter()
         .map(|selector| match selector {

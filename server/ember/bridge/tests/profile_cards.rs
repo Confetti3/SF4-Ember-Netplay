@@ -92,8 +92,8 @@ async fn a_look_up_by_code_opens_the_card_of_its_one_account() {
     );
 }
 
-/// A block is between Discord accounts, so a caller without one could be the
-/// blocked player on a throwaway Ember ID: they are shown no card at all.
+/// A block is between Discord accounts and is checked against the caller's:
+/// a caller without one is shown no card at all.
 #[tokio::test]
 async fn a_block_holds_against_a_caller_without_a_discord_account() {
     let world = World::start().await;
@@ -110,9 +110,9 @@ async fn a_block_holds_against_a_caller_without_a_discord_account() {
     assert_eq!(world.card_of(&b, &a).await, Json_::Null);
     assert_eq!(world.card_of(&c, &a).await["relation"], "none");
 
-    // B again, holding A's token from a room, on an Ember ID with no Discord
-    // account: nothing, and nothing of anyone else either.
-    let throwaway = Member {
+    // A player on an Ember ID with no Discord account, holding A's and C's
+    // tokens from a room: no card of anyone.
+    let unlinked = Member {
         player: player(&world.bridge, 9).await,
         discord: String::new(),
         name: "Player 9",
@@ -121,18 +121,18 @@ async fn a_block_holds_against_a_caller_without_a_discord_account() {
         .ember_ids
         .lock()
         .unwrap()
-        .push(throwaway.player.id().as_str().to_owned());
+        .push(unlinked.player.id().as_str().to_owned());
     let (of_a, of_c) = (world.token(&a), world.token(&c));
     assert_eq!(
         world
-            .cards(&throwaway, json!([{ "card": of_a }, { "card": of_c }]))
+            .cards(&unlinked, json!([{ "card": of_a }, { "card": of_c }]))
             .await,
         json!([null, null])
     );
-    // The same Ember ID once it connects Discord sees C's card again.
+    // The same Ember ID, once it connects Discord, sees C's card.
     let joined = Member {
         discord: account(9),
-        player: throwaway.player,
+        player: unlinked.player,
         name: "Player 9",
     };
     seed::link_discord_at(

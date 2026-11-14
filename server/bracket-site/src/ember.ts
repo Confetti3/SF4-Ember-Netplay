@@ -16,12 +16,12 @@ export const SESSIONS_PATH = "/v1/sessions";
 const SECONDS = { challenge: 60, access: 3600 };
 const DIGEST = /^[A-Za-z0-9_-]{43}$/;
 /**
- * How many challenges are given out. Nobody is signed in when asking, so the
- * limits are what bounds the rows a stranger can make: `perEmberId` a
- * challenge's lifetime (a game asks one per sign-in), and `live` unanswered
- * challenges at once, whoever asked, which also holds against a flood of new
- * keys. The site sits behind a proxy and reads no client address, so there is
- * no limit by address: every request would share the proxy's.
+ * How many challenges are given out. Nobody is signed in yet when asking, so
+ * these limits bound the rows sign-ins add: `perEmberId` within a challenge's
+ * lifetime (a game asks one per sign-in), and `live` unanswered challenges at
+ * once, however many keys ask. The site sits behind a proxy and reads no
+ * client address, so there is no limit by address: every request would share
+ * the proxy's.
  */
 export interface ChallengeLimits {
   perEmberId: number;

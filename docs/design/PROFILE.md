@@ -941,11 +941,10 @@ against that player, which the answer already sends for the awards.
 | Never served | a Discord ID or name, an Ember ID, a rating, the friends count of another, per-fighter games and wins of another, anything to a player the account blocked, any card to a caller without a Discord account |
 | Never leaves the PC | recent opponents, the search texts, the controller's name or model (only the device class), the measured latency and route (only Wired / Wi-Fi), anything of the region beyond its code |
 
-A block is between Discord accounts, and a caller without one cannot be told
-apart from a blocked player on a throwaway Ember ID, so the look-up answers
-`null` for every selector of a caller whose Ember ID has no Discord account
-(`cards::Reader::card`): a card is served only to a caller with a Discord
-account that the card's account has not blocked. Such a player still sees
+A block is between Discord accounts and is checked against the caller's, so
+the look-up answers `null` for every selector of a caller whose Ember ID has
+no Discord account (`routes::levels::lookup`): a card is served only to a
+caller with a Discord account that the card's account has not blocked. Such a player still sees
 what the room itself shows of its members (name, flag, class, fighter).
 
 A player who wants less exposure hides each chip in Edit card and blocks

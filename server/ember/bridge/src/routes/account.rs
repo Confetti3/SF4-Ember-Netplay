@@ -6,10 +6,9 @@
 //! where the gate needs one), then the route's rate limit.
 //!
 //! A limit is kept per Discord account, which follows the player to any Ember
-//! ID it is connected to: an Ember ID costs nothing to replace
-//! (`skill`), so a limit by Ember ID alone could be walked around. Only a
-//! caller without a Discord account, who can read nothing but their own empty
-//! points, is limited by Ember ID.
+//! ID it is connected to, as their rating and points do (`skill`). Only a
+//! caller without a Discord account, who is answered no points and no cards,
+//! is limited by Ember ID.
 use axum::http::HeaderMap;
 use ember_protocol::{EmberId, api::ErrorCode, friends::FriendRefusal, skill::NO_ACCOUNT};
 

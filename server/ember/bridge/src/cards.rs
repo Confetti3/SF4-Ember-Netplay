@@ -209,115 +209,96 @@ fn describe(card: PlayerCard, stored: &Stored) -> PlayerCard {
 }
 
 /// Who reads cards, and how the bridge shows them: the caller's Discord
-/// account (none for a caller without one), whether friends are offered,
-/// the classes, and the time.
+/// account, whether friends are offered, the classes, and the time. A block
+/// is between Discord accounts, so only a caller with one reads another
+/// player's card (`routes::levels::lookup`, docs/design/PROFILE.md,
+/// "Privacy").
 pub struct Viewer<'a> {
-    pub caller: Option<&'a str>,
+    pub caller: &'a str,
     pub friends_offered: bool,
     pub classes: &'a Classes,
     pub now: u64,
 }
 
-/// What a `Reader` reads of its accounts. Each part is a fixed number of
-/// reads, whatever the number of accounts.
-#[derive(Clone, Copy)]
-pub struct Parts {
-    /// The points and fighters (`levels::cards`): three reads.
-    pub points: bool,
-    /// With `points`, the award counters a card shows: two more.
-    pub awards: bool,
-    /// The class each shows, while the bridge shows classes.
-    pub badges: bool,
-    /// Their `player_cards` rows, of those with a Discord account connected.
-    pub listings: bool,
-    /// The caller's relation to each, with the friendship's id.
-    pub relations: bool,
-    /// The caller's record against each.
-    pub records: bool,
+/// What a `Reader` is read for, which decides what it reads beyond the
+/// caller's relation to each account and, while the bridge shows them, the
+/// classes. Each read is a fixed number of statements, whatever the number of
+/// accounts.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Purpose {
+    /// A card look-up: everything a card says.
+    Card,
+    /// A friends state's friends and requests: points and records.
+    Friends,
+    /// A search's hits: nothing more.
+    Hits,
+    /// The most played opponents: their names.
+    Rivals,
 }
 
-impl Parts {
-    /// Everything a card says: a card look-up.
-    pub const CARD: Self = Self {
-        points: true,
-        awards: true,
-        badges: true,
-        listings: true,
-        relations: true,
-        records: true,
-    };
-    /// A friends state's friends: the points, the class and the record.
-    pub const FRIENDS: Self = Self {
-        points: true,
-        awards: false,
-        badges: true,
-        listings: false,
-        relations: false,
-        records: true,
-    };
-    /// A search's hits: whether each may be listed, and the class.
-    pub const HITS: Self = Self {
-        points: false,
-        awards: false,
-        badges: true,
-        listings: false,
-        relations: true,
-        records: false,
-    };
-    /// The most played opponents: whether each may be named, the name and
-    /// the class.
-    pub const RIVALS: Self = Self {
-        points: false,
-        awards: false,
-        badges: true,
-        listings: true,
-        relations: true,
-        records: false,
-    };
+impl Purpose {
+    /// The points and fighters (`levels::cards`).
+    fn points(self) -> bool {
+        matches!(self, Self::Card | Self::Friends)
+    }
+
+    /// With the points, the award counters a card shows.
+    fn awards(self) -> bool {
+        self == Self::Card
+    }
+
+    /// The `player_cards` rows.
+    fn listings(self) -> bool {
+        matches!(self, Self::Card | Self::Rivals)
+    }
+
+    /// The caller's records against each.
+    fn records(self) -> bool {
+        matches!(self, Self::Card | Self::Friends)
+    }
 }
 
 /// What the bridge holds of a set of accounts for a viewer, read at once:
 /// the one place a card is assembled, and what a search hit, the most played
 /// opponent and a friends state show of other players. It costs the same few
-/// reads (`Parts`) whatever the number of accounts, all in the one
-/// transaction it is read in.
+/// reads (`Purpose`) whatever the number of accounts, all in the one
+/// transaction it is read in. What a purpose does not read reads as none.
 pub struct Reader {
-    caller: Option<String>,
+    caller: String,
     friends_offered: bool,
     cards: HashMap<String, PlayerCard>,
     badges: HashMap<String, SkillBadge>,
     listings: HashMap<String, Stored>,
-    relations: Option<store::Relations>,
+    relations: store::Relations,
     records: HashMap<String, PairRecord>,
 }
 
 impl Reader {
-    /// Reads `parts` of `accounts` for `viewer`. An account may come more
+    /// Reads `accounts` for `viewer` and `purpose`. An account may come more
     /// than once; it is read once.
     pub fn read(
         tx: &Transaction<'_>,
         viewer: &Viewer<'_>,
         accounts: &[&str],
-        parts: Parts,
+        purpose: Purpose,
     ) -> Result<Self> {
         let mut accounts = accounts.to_vec();
         accounts.sort_unstable();
         accounts.dedup();
         let classes = viewer.classes;
-        let shows_badges = parts.badges && classes.shown;
-        let awards = parts.points && parts.awards;
-        let standings = if shows_badges || awards {
+        let awards = purpose.points() && purpose.awards();
+        let standings = if classes.shown || awards {
             Some(skill::Standings::read(tx, &accounts, viewer.now)?)
         } else {
             None
         };
-        let cards = if parts.points {
+        let cards = if purpose.points() {
             levels::cards(tx, &accounts, standings.as_ref().filter(|_| awards))?
         } else {
             HashMap::new()
         };
         let badges = match &standings {
-            Some(standings) if shows_badges => accounts
+            Some(standings) if classes.shown => accounts
                 .iter()
                 .filter_map(|account| {
                     let badge = standings.last_shown(account, &classes.developers)?;
@@ -326,44 +307,35 @@ impl Reader {
                 .collect(),
             _ => HashMap::new(),
         };
-        let listings = if parts.listings {
+        let listings = if purpose.listings() {
             listings(tx, &accounts)?
         } else {
             HashMap::new()
         };
-        let relations = match viewer.caller {
-            Some(caller) if parts.relations => Some(store::relations(tx, caller, &accounts)?),
-            _ => None,
-        };
-        let records = match viewer.caller {
-            Some(caller) if parts.records => store::records(tx, caller, &accounts)?,
-            _ => HashMap::new(),
+        let records = if purpose.records() {
+            store::records(tx, viewer.caller, &accounts)?
+        } else {
+            HashMap::new()
         };
         Ok(Self {
-            caller: viewer.caller.map(str::to_owned),
+            caller: viewer.caller.to_owned(),
             friends_offered: viewer.friends_offered,
             cards,
             badges,
             listings,
-            relations,
+            relations: store::relations(tx, viewer.caller, &accounts)?,
             records,
         })
     }
 
-    /// `target`'s card as the caller sees it: none for a caller without a
-    /// Discord account, and none when `target` blocked the caller or has no
-    /// Discord account connected; otherwise their points, the counters behind
-    /// their awards, what they chose to show, their class while classes are
-    /// shown and, for a caller who is not themselves, their record against
-    /// the caller. Their relation, and the id of the friendship when it is
-    /// one, come once friends are offered. Read with `Parts::CARD`.
-    ///
-    /// A block is between Discord accounts (docs/design/PROFILE.md,
-    /// "Privacy"): a caller with none cannot be told from a player the card's
-    /// account blocked, who could otherwise read the card from a throwaway
-    /// Ember ID, so they are shown no card at all.
+    /// `target`'s card as the caller sees it: none when `target` blocked the
+    /// caller or has no Discord account connected; otherwise their points,
+    /// the counters behind their awards, what they chose to show, their class
+    /// while classes are shown and, for a caller who is not themselves, their
+    /// record against the caller. Their relation, and the id of the
+    /// friendship when it is one, come once friends are offered. Read for
+    /// `Purpose::Card`.
     pub fn card(&self, target: &str) -> Option<PlayerCard> {
-        let caller = self.caller.as_deref()?;
         let relation = self.relation(target)?;
         let card = self.cards.get(target)?.clone();
         let relation = if self.friends_offered {
@@ -379,26 +351,19 @@ impl Reader {
         if let Some(stored) = self.listings.get(target) {
             card = describe(card, stored);
         }
-        if caller != target {
+        if self.caller != target {
             card.versus = self.record(target);
             if relation == Relation::Friend {
-                card.friend = self
-                    .relations
-                    .as_ref()
-                    .and_then(|relations| relations.friendship(target));
+                card.friend = self.relations.friendship(target);
             }
         }
         Some(card)
     }
 
     /// The caller's relation to `account` (`store::Relations`): none when it
-    /// blocked the caller. `none` for a caller without a Discord account, and
-    /// when relations were not read.
+    /// blocked the caller.
     pub fn relation(&self, account: &str) -> Option<Relation> {
-        match (&self.caller, &self.relations) {
-            (Some(_), Some(relations)) => relations.relation(account),
-            _ => Some(Relation::None),
-        }
+        self.relations.relation(account)
     }
 
     /// `account`'s points and fighters as its card shows them, when it has a

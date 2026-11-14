@@ -20,7 +20,7 @@ use rusqlite::Transaction;
 
 use crate::{
     AppState,
-    cards::{self, Parts, Reader, Viewer},
+    cards::{self, Purpose, Reader, Viewer},
     error::Result,
     friends::{self, Classes, store},
     http::{Body, GENERAL_BODY, ok},
@@ -77,7 +77,7 @@ pub async fn search(
         .db
         .read(move |tx| {
             let viewer = Viewer {
-                caller: Some(caller.account.as_str()),
+                caller: caller.account.as_str(),
                 friends_offered,
                 classes: &classes,
                 now: caller.now,
@@ -113,11 +113,11 @@ pub(crate) fn find(
         _ => Vec::new(),
     };
     let accounts: Vec<&str> = found.iter().map(|hit| hit.account.as_str()).collect();
-    let read = Reader::read(tx, viewer, &accounts, Parts::HITS)?;
+    let read = Reader::read(tx, viewer, &accounts, Purpose::Hits)?;
     let mut players = Vec::new();
     let mut more = false;
     for hit in &found {
-        if Some(hit.account.as_str()) == viewer.caller || read.relation(&hit.account).is_none() {
+        if hit.account == viewer.caller || read.relation(&hit.account).is_none() {
             continue;
         }
         let Some(card) = cards::issue(keys, &hit.account, viewer.now) else {

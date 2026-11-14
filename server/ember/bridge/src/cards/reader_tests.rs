@@ -1,5 +1,5 @@
 //! The cards a `Reader` assembles are, byte for byte, the ones assembled one
-//! account at a time before it, for every kind of player and caller; and a
+//! account at a time before it, for every kind of player; and a
 //! look-up of 16 cards or a search that lists 20 players runs as many
 //! statements as one of 2.
 use std::path::Path;
@@ -217,11 +217,7 @@ async fn seeded(targets: usize) -> Db {
 /// `target`'s card as it was assembled before `Reader`: one account at a
 /// time, a dozen statements each.
 fn one_card(tx: &Transaction<'_>, viewer: &Viewer<'_>, target: &str) -> Result<Option<PlayerCard>> {
-    let relation = match viewer.caller {
-        Some(caller) => store::relation_one(tx, caller, target)?,
-        None => Some(Relation::None),
-    };
-    let Some(relation) = relation else {
+    let Some(relation) = store::relation_one(tx, viewer.caller, target)? else {
         return Ok(None);
     };
     let Some(card) = levels::awarded_card(tx, target)? else {
@@ -245,10 +241,10 @@ fn one_card(tx: &Transaction<'_>, viewer: &Viewer<'_>, target: &str) -> Result<O
     if let Some(stored) = stored(tx, target)? {
         card = describe(card, &stored);
     }
-    if let Some(caller) = viewer.caller.filter(|caller| *caller != target) {
-        card.versus = store::record(tx, caller, target)?;
+    if viewer.caller != target {
+        card.versus = store::record(tx, viewer.caller, target)?;
         if relation == Relation::Friend {
-            card.friend = store::friendship_id(tx, caller, target)?;
+            card.friend = store::friendship_id(tx, viewer.caller, target)?;
         }
     }
     Ok(Some(card))
@@ -262,29 +258,19 @@ async fn a_card_read_with_many_is_the_card_read_alone() {
         let mut accounts: Vec<String> = (0..=60).map(account).collect();
         accounts.extend([NOBODY.to_owned(), OPPONENT.to_owned(), account(5)]);
         let targets: Vec<&str> = accounts.iter().map(String::as_str).collect();
-        for (caller, friends_offered, shown) in [
-            (Some(caller.as_str()), true, true),
-            (Some(caller.as_str()), false, true),
-            (Some(caller.as_str()), true, false),
-            (None, true, true),
-        ] {
+        for (friends_offered, shown) in [(true, true), (false, true), (true, false)] {
             let classes = classes(shown);
             let viewer = Viewer {
-                caller,
+                caller: &caller,
                 friends_offered,
                 classes: &classes,
                 now: NOW,
             };
-            let read = Reader::read(tx, &viewer, &targets, Parts::CARD)?;
+            let read = Reader::read(tx, &viewer, &targets, Purpose::Card)?;
             let mut cards = Vec::new();
             for target in &targets {
                 let card = read.card(target);
-                // A caller without a Discord account is shown no card: a
-                // block could not hold against them.
-                let expected = match caller {
-                    Some(_) => one_card(tx, &viewer, target)?,
-                    None => None,
-                };
+                let expected = one_card(tx, &viewer, target)?;
                 assert_eq!(
                     serde_json::to_string(&card).unwrap(),
                     serde_json::to_string(&expected).unwrap(),
@@ -293,23 +279,19 @@ async fn a_card_read_with_many_is_the_card_read_alone() {
                 assert_eq!(card, expected, "{target}");
                 cards.push(card);
             }
-            if caller.is_none() {
-                assert!(cards.iter().all(Option::is_none));
-                continue;
-            }
             // Each kind of card is among them, so the equality means something.
             assert!(cards.iter().any(Option::is_none));
-            let shown: Vec<&PlayerCard> = cards.iter().flatten().collect();
+            let served: Vec<&PlayerCard> = cards.iter().flatten().collect();
             assert!(
-                shown
+                served
                     .iter()
                     .any(|card| card.name.is_some() && !card.pins.is_empty())
             );
-            assert!(shown.iter().any(|card| card.name.is_none()));
-            assert!(shown.iter().any(|card| card.awards.best_streak > 0));
-            assert!(shown.iter().any(|card| card.awards.peak_class > 0));
-            assert!(shown.iter().any(|card| card.versus.is_some()));
-            assert!(shown.iter().any(|card| card.versus.is_none()));
+            assert!(served.iter().any(|card| card.name.is_none()));
+            assert!(served.iter().any(|card| card.awards.best_streak > 0));
+            assert!(served.iter().any(|card| card.awards.peak_class > 0));
+            assert!(served.iter().any(|card| card.versus.is_some()));
+            assert!(served.iter().any(|card| card.versus.is_none()));
             if friends_offered {
                 for relation in [
                     Relation::Friend,
@@ -319,33 +301,29 @@ async fn a_card_read_with_many_is_the_card_read_alone() {
                     Relation::None,
                 ] {
                     assert!(
-                        shown.iter().any(|card| card.relation == relation),
+                        served.iter().any(|card| card.relation == relation),
                         "{relation:?}"
                     );
                 }
-                assert!(shown.iter().any(|card| card.friend.is_some()));
+                assert!(served.iter().any(|card| card.friend.is_some()));
             }
-            if shown_classes(&viewer) {
+            if shown {
                 assert!(
-                    shown
+                    served
                         .iter()
                         .any(|card| card.badge == Some(SkillBadge::DEVELOPER))
                 );
-                assert!(shown.iter().any(|card| {
+                assert!(served.iter().any(|card| {
                     card.badge
                         .is_some_and(|badge| badge != SkillBadge::DEVELOPER)
                 }));
-                assert!(shown.iter().any(|card| card.badge.is_none()));
+                assert!(served.iter().any(|card| card.badge.is_none()));
             }
         }
         Ok(())
     })
     .await
     .unwrap();
-}
-
-fn shown_classes(viewer: &Viewer<'_>) -> bool {
-    viewer.classes.shown
 }
 
 /// A token for player `n`, as a room shows it.
@@ -364,7 +342,7 @@ async fn look_up(
         let selectors = selectors(&keys);
         let (caller, classes) = (caller(), classes(true));
         let viewer = Viewer {
-            caller: Some(caller.as_str()),
+            caller: &caller,
             friends_offered: true,
             classes: &classes,
             now: NOW,
@@ -420,7 +398,7 @@ async fn search(targets: usize) -> (SearchAnswer, usize) {
         let keys = Keys::generate();
         let (caller, classes) = (caller(), classes(true));
         let viewer = Viewer {
-            caller: Some(caller.as_str()),
+            caller: &caller,
             friends_offered: true,
             classes: &classes,
             now: NOW,
