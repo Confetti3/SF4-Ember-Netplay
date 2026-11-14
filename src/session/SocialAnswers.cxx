@@ -24,16 +24,11 @@ constexpr std::size_t MaxLabelBytes = 64;
 
 [[noreturn]] void Bad(const char* what) { throw std::invalid_argument(what); }
 
-
 const json& Array(const json& object, const char* key, std::size_t maximum) {
 	const auto found = object.find(key);
 	if (found == object.end() || !found->is_array() || found->size() > maximum) Bad(key);
 	return *found;
 }
-
-
-
-
 
 bool Flag(const json& object, const char* key) {
 	const auto found = object.find(key);
@@ -41,8 +36,6 @@ bool Flag(const json& object, const char* key) {
 	if (!found->is_boolean()) Bad(key);
 	return found->get<bool>();
 }
-
-
 
 // "fr_", "rq_", "bl_" or "iv_" and the uuid.
 std::string Id(const json& object, const char* key, const char* prefix) {

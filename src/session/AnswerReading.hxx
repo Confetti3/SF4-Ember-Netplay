@@ -1,6 +1,6 @@
 #pragma once
 // The field readers the helper-answer decoders share (TournamentAnswers.cxx,
-// LevelsAnswers.cxx, ArchiveAnswers.cxx). Each reads one member of a JSON
+// LevelsAnswers.cxx, ArchiveAnswers.cxx, SocialAnswers.cxx). Each reads one member of a JSON
 // object; one that is missing, of the wrong type or out of bounds is an
 // exception the decoder turns into "malformed", unless the reader says
 // otherwise.
@@ -49,6 +49,13 @@ inline std::uint64_t Count(const json& object, const char* key) {
 // A count the bridge may leave out: absent is 0, and one that is there must be an unsigned number.
 inline std::uint64_t OptionalCount(const json& object, const char* key) {
 	return object.find(key) == object.end() ? 0 : Count(object, key);
+}
+
+// A count the bridge may or may not send, up to `maximum`: absent is 0 (a
+// bridge from before it), one that is there must be an unsigned number, and
+// one past `maximum` is `maximum`.
+inline std::uint64_t CappedCount(const json& object, const char* key, std::uint64_t maximum) {
+	return (std::min)(OptionalCount(object, key), maximum);
 }
 
 // A count or time the bridge may or may not send: absent or not an unsigned number is 0

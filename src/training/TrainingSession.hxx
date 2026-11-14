@@ -256,17 +256,14 @@ private:
     int from_ = 0, elapsed_ = 0, free_ = -1, out_ = 0;
     unsigned stretch_ = 0;
 };
+// Whether a stun of this kind (0 for none) is one a reply to `when` (DummyPlan::when) answers: any, or that kind itself.
+inline bool Answers(int when, int cause) { return cause && (when == 4 || when == cause); }
 // Whether the stun the dummy is in, or came out of while free, is one a reply
-// to `when` (DummyPlan::when) answers: any, or that kind itself.
-inline bool StunTriggers(int when, const DummySeen& seen) {
-    const int cause = seen.held ? seen.held : seen.out;
-    return cause && (when == 4 || when == cause);
-}
+// to `when` answers.
+inline bool StunTriggers(int when, const DummySeen& seen) { return Answers(when, seen.held ? seen.held : seen.out); }
 // cause: DummySeen::held, else out while the dummy is free. roll: any random number; it decides the chance.
 inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
-    DummySeen seen;
-    seen.held = cause;
-    return StunTriggers(plan.when, seen) && roll % 100 < static_cast<unsigned>(plan.chance);
+    return Answers(plan.when, cause) && roll % 100 < static_cast<unsigned>(plan.chance);
 }
 // Whether a move played from the next update should start after this
 // frame's observation: its first attack button, acted on lead frames in (its

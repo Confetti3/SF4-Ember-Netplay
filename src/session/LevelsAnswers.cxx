@@ -42,13 +42,6 @@ netplay::levels::Level DecodeLevel(const json& entry) {
 	return level;
 }
 
-// A count the bridge may or may not send, up to `maximum`: absent is 0 (a
-// bridge from before it), one that is there must be an unsigned number, and
-// one past `maximum` is `maximum`.
-std::uint64_t CappedCount(const json& object, const char* key, std::uint64_t maximum) {
-	return (std::min)(OptionalCount(object, key), maximum);
-}
-
 // The counters behind the awards, as the wire says them (ember_protocol::awards::AwardCounts) in an own
 // answer's account and in a card's `awards`: each absent from a bridge that does not send it, so 0, and an
 // unsigned number when it is there. How they relate is the bridge's to say.
