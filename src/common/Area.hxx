@@ -122,14 +122,22 @@ struct AreaPreference {
 	bool operator!=(const AreaPreference& rhs) const { return !(*this == rhs); }
 };
 
-// The area a player shows: Automatic takes Windows' (`automatic`, None when
-// Windows says too little), a pick its own, Hidden none.
+// The area a player shows to others (their card, the rooms they create): Automatic
+// takes Windows' (`automatic`, None when Windows says too little), a pick its own,
+// Hidden none.
 inline Area ShownArea(const AreaPreference& preference, Area automatic) {
 	switch (preference.kind) {
 	case AreaPreference::Kind::Chosen: return preference.area;
 	case AreaPreference::Kind::Hidden: return Area::None;
 	default: return automatic;
 	}
+}
+
+// The area the player's own screens use (the public rooms list sorts and marks "near"
+// by it): a pick, else Windows', also while the area is Hidden, which only keeps it
+// from others.
+inline Area OwnArea(const AreaPreference& preference, Area automatic) {
+	return preference.kind == AreaPreference::Kind::Chosen ? preference.area : automatic;
 }
 
 }

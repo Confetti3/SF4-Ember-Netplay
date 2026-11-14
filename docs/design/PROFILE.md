@@ -41,7 +41,7 @@ wire, migration 064, and one addition after it: the most played opponent).
 | The Full card fills the body, width and height: the hero runs the whole height with its two buttons at its foot; the middle column ends with top fighters as tall as the column leaves; the right column holds awards, the most played opponent (own) or the record between you (another's), five recent sets and All sets. | The owner's first complaint was the empty card. At 1920x1080 the 1.6.0 card, and this document's first draft, ended every column about two thirds down. SF4's own player data screen is one full sheet. |
 | Progress meters join the points lines (own card only): `1986 FP`, its meter, "Gold · 514 points to Ember". The PROGRESS heading goes. | The meter belongs to the number it measures. Another player's card is then the same shape with the meters left out. |
 | Record is four cells: Rated games, Win rate (own) or Wins (another's), Best streak, Fighters played. No current streak. | Games, wins and best streak are public through the card's marks; a percentage on someone else's card reads as a skill score, which the class already is (see Open questions). A current streak is about the last hour; the room board already shows sets won in the room. |
-| How a player plays is preset chips in two labelled groups, never free text: **Plays** (device and connection, mostly measured, and the region: the area the player gives in Settings) and **Looking for** (up to two choices: intent), the second outlined in the accent. On the Panel, Looking for is never hidden: Region gives way first, then Connection. | Free text needs moderation Ember has no path for (`PLAYER_CARD.md`). Intent is what a player reads a card for before inviting; it must stand apart from the facts. |
+| How a player plays is preset chips in two labelled groups, never free text: **Plays** (device and connection, mostly measured, and the area the player gives in Settings) and **Looking for** (up to two choices: intent), the second outlined in the accent. On the Panel, Looking for is never hidden: Area gives way first, then Connection. | Free text needs moderation Ember has no path for (`PLAYER_CARD.md`). Intent is what a player reads a card for before inviting; it must stand apart from the facts. |
 | The awards showcase is up to four **families**, each its icon on the plate of the level's tier, its level pips and the level's title under it. Worn and shown families travel as family ids; the card carries the counters and the viewer works out each level. | The owner's model: one icon per family whose colour is how hard the level was. Levels move up by themselves, so nothing stored goes stale, and a family no counter reaches is not drawn. |
 | The thick accent frame means focus and nothing else. A tier shows as a plate's fill and an icon's own colour, or on a fighter picture as a 1 px inner line and the `LevelBand`; never as a frame. | Copper, Gold and Ember sit next to the accent; three tier frames on one screen read as three focuses (design critique). |
 | 13 px is the smallest text on any card size, at 1.00x. | Interface size now goes down to 0.70x; the social words were the smallest on the card. |
@@ -110,12 +110,12 @@ its label when it has nothing:
 
 | Group | Chips | Look |
 |---|---|---|
-| Plays | device, connection, region | `v2::Chip` in the muted tone (ground at 18 %) |
+| Plays | device, connection, area | `v2::Chip` in the muted tone (ground at 18 %) |
 | Looking for | up to two of Casuals, Long sets, Ranked, Tournament practice, New to the game, Happy to teach | the same chip with no ground, a 1 px accent outline and text in `c.text` |
 
 On the Full card both groups share a line, 24 px apart, and the second wraps
 to its own line when they do not fit. On the Panel each group has its own
-line; when Plays does not fit, Region is dropped first, then Connection;
+line; when Plays does not fit, Area is dropped first, then Connection;
 Looking for is never shortened.
 
 ## Three sizes
@@ -127,7 +127,7 @@ Looking for is never shortened.
 | Worn title on its plate, worn icon beside it | title row | the plate and the icon (28) under the name | dropped |
 | About: country, "On Ember since 2026-03" | yes | dropped | dropped |
 | Presence (friends only) | a line under the about line | the line above the facts (Friends tab) | the row's status line (as 1.6.0) |
-| Plays, Looking for | both groups, one line, wraps | a line each; Region, then Connection give way | dropped |
+| Plays, Looking for | both groups, one line, wraps | a line each; Area, then Connection give way | dropped |
 | FP and BP lines | 30 / 24, own with meters | 26 / 22, left-aligned under the title | dropped |
 | Record | four cells | one 14 px line: "2840 rated games · 1164 wins · best streak 12" | dropped |
 | Top fighters | three tiles, the main marked | dropped (the picture is the one fighter) | dropped |
@@ -331,7 +331,7 @@ it, with the player's values, so a change shows at once.
 | AWARDS | Awards on card | "Your highest" or "3 chosen" | opens `card-pins` | player; Automatic by default |
 | HOW YOU PLAY | Device | "Stick · automatic", Pad, Stick, Leverless, Keyboard, Hidden | Left / Right step | the game by default, the player may override |
 | HOW YOU PLAY | Connection | "Wired · shown" or Hidden | Left / Right flip | the game; the player only shows or hides it |
-| HOW YOU PLAY | Region | "Europe West · shown", Not set, or Hidden | Left / Right flip | the player's area from Settings; here the player only shows or hides it |
+| HOW YOU PLAY | Area | "Automatic (Europe West, from Windows)", an area, or Hidden | Left / Right step | Settings' one choice of area (`settings.area`), stepped here too; Hidden is the only way to hide it |
 | HOW YOU PLAY | Looking for | "Long sets, Happy to teach" or None | opens `card-looking` | player only |
 | - | Show my Steam profile | switch | flips | player |
 
@@ -348,11 +348,15 @@ What the game fills by itself:
   chip is left out.
 - **Connection**: `NetworkLink` as the room's link mark measures it (Wired,
   Wi-Fi); Unknown is not shown.
-- **Region**: the player's area (`src/common/Area.hxx`), their own claim:
+- **Area**: the player's area (`src/common/Area.hxx`), their own claim:
   Settings, Country and area, where Automatic follows Windows' time zone with
   Windows' country as the tie-break (`AreaFromWindows`), an area they chose,
-  or Hidden. It is named by `area.*` (NA West, Europe West, ...). Not set or
-  hidden in Settings: no chip, and the row reads Not set or Hidden. The relay
+  or Hidden. It is named by `area.*` (NA West, Europe West, ...). That one
+  choice is the only control (Edit card steps the same preference; the old
+  `cardShowRegion` switch is read as Hidden once and retired). Not set or
+  Hidden: no chip. Hidden keeps the area from others only (the card, the
+  rooms the player creates); the player's own public rooms list still sorts
+  and marks "near" by the area Windows gives (`OwnArea`). The relay
   Ember connects through is never shown here: it is a routing fact, not where
   the player is (`PUBLIC_ROOMS.md`, "Where a room is").
 
@@ -373,7 +377,7 @@ Hint bar, by the focused row:
 | Row | Hint bar |
 |---|---|
 | A row that opens something (Name, Flag, Main, Title, Icon, Awards on card, Looking for) | `A Choose` (`menu.choose`), `B Back` |
-| A stepped row (Device, Connection, Region) | `‹ › Change`, `B Back` (A steps too, unnamed) |
+| A stepped row (Device, Connection, Area) | `‹ › Change`, `B Back` (A steps too, unnamed) |
 | A switch (Show my Steam profile) | `A Change`, `B Back` |
 
 ## Another player's profile
@@ -584,7 +588,7 @@ The Panel card at 1080 (520 wide panel, 488 inside), top to bottom:
 | Picture | 112 x 112, left | their main (a room: the fighter they play), tier line |
 | Beside it, 16 to the right | name line 30; 8 under it the title plate 28 and 8 after it the worn icon 28; 8 under them the FP and BP lines (26), left-aligned under the plate | as the Full card, smaller |
 | Record line | 14 px, 12 under the taller of the two | "2210 rated games · 1124 wins · best streak 14" |
-| Plays | 28, 10 under | "Plays" label and its chips; Region gives way first, then Connection |
+| Plays | 28, 10 under | "Plays" label and its chips; Area gives way first, then Connection |
 | Looking for | 28, 8 under | "Looking for" label and its outlined chips, never shortened |
 | Awards | 32, 10 under | four family icons on their tier plates, 8 apart, then "24 of 37" muted |
 
@@ -903,7 +907,7 @@ of the two, `check`), `SearchHit`, `SearchAnswer`; `MAX_PINS = 4`,
 | `ShellView::playerSearch` | the same | `Answered<SearchAnswer>` and the text it answers |
 | `ShellView::recentOpponents` | the same | the list |
 | `ShellView::profileSets` | the same | a second slot of the archive stream's browse state, so a profile's sets never replace the Archive tab's |
-| preferences | `src/netplay/PlayerPreferences.hxx` | `cardDevice` (0 Automatic, 1-4, 5 Not shown), `cardShowLink`, `cardShowRegion`, `cardLooking` (bits), `cardPins` (ids, empty Automatic); validated on load, unknown values dropped |
+| preferences | `src/netplay/PlayerPreferences.hxx` | `cardDevice` (0 Automatic, 1-4, 5 Not shown), `cardShowLink`, `cardLooking` (bits), `cardPins` (ids, empty Automatic); validated on load, unknown values dropped |
 
 ### Addition after W1/W2: the most played opponent
 
@@ -1017,9 +1021,7 @@ Ember: a stepped value reads "{value} · shown" or "Hidden", never "Shown
 | `card.device_detail` | What you play on, shown on your card. Automatic follows the controller you use. |
 | `card.link_row` | Connection |
 | `card.link_detail` | Wired or Wi-Fi, as Ember measures it. You can hide it. |
-| `card.region_row` | Region |
-| `card.area_detail` | Your area, from your settings. You can hide it. |
-| `card.area_unset` | Not set |
+| `card.area_detail` | Where you play from, the same choice as in Settings. Hidden keeps it off your card and off the rooms you create. |
 | `card.shown` | {0} · shown |
 | `card.unknown_shown` | Not known yet · shown |
 | `card.hidden` | Hidden |

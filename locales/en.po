@@ -1534,14 +1534,8 @@ msgstr "Connection"
 msgid "card.link_detail"
 msgstr "Wired or Wi-Fi, as Ember measures it. You can hide it."
 
-msgid "card.region_row"
-msgstr "Region"
-
 msgid "card.area_detail"
-msgstr "Your area, from your settings. You can hide it."
-
-msgid "card.area_unset"
-msgstr "Not set"
+msgstr "Where you play from, the same choice as in Settings. Hidden keeps it off your card and off the rooms you create."
 
 msgid "card.shown"
 msgstr "{0} · shown"

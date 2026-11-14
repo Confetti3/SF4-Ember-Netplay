@@ -183,7 +183,7 @@ void EditCardJourney() {
  j.h.Press(MenuInput::Options);
  Check(j.h.shell.Navigation().Screen() == "card-edit", "Y on Card did not open Edit card");
  j.h.Frame(0, 2);
- for (const char* id : {"name", "country", "main-character", "card-title", "card-icon", "card-pins", "card-device", "card-link", "card-region", "card-looking", "share-steam"}) Check(j.row(id) != nullptr, "Edit card is missing one of the card's rows");
+ for (const char* id : {"name", "country", "main-character", "card-title", "card-icon", "card-pins", "card-device", "card-link", "card-area", "card-looking", "share-steam"}) Check(j.row(id) != nullptr, "Edit card is missing one of the card's rows");
  j.h.Press(MenuInput::Back);
  Check(j.h.shell.Navigation().Screen() == "card", "Back from Edit card did not return to Card");
  j.h.shell.Navigation().Focus(ui::CardEditRow, j.rows);
@@ -256,9 +256,9 @@ void EditCardChoicesJourney() {
  Check(save && !save->preferences.cardShowLink && j.row("card-link")->value == loc::T("card.hidden"), "Left did not hide the connection");
  save = change("card-link", MenuInput::Right);
  Check(save && save->preferences.cardShowLink && j.row("card-link")->value == loc::Tf("card.shown", loc::T("style.wired")), "Right did not show the connection");
- Check(j.row("card-region") && j.row("card-region")->value == loc::Tf("card.shown", loc::T("area.euw")), "Region does not read the player's area, whatever relay Ember picked");
- save = change("card-region", MenuInput::Left);
- Check(save && !save->preferences.cardShowRegion && j.row("card-region")->value == loc::T("card.hidden"), "Left did not hide the region");
+ Check(j.row("card-area") && j.row("card-area")->label == loc::T("settings.area") && j.row("card-area")->value == loc::Tf("settings.area.automatic_value", loc::T("area.euw")), "Area does not read the player's area, whatever relay Ember picked");
+ save = change("card-area", MenuInput::Right);
+ Check(save && save->preferences.area.ToString() != "auto" && save->preferences.area.ToString() != "hidden", "Right did not choose an area");
 
  // Looking for opens a page of six; a third choice is refused with words and saves nothing.
  j.h.shell.Navigation().Focus("card-looking", j.rows);
@@ -301,9 +301,9 @@ void EditCardChoicesJourney() {
  for (const auto& row : j.rows) Check(!row.enabled, "A pins row changes in a room");
  j.h.Press(MenuInput::Back);
  j.h.Frame(0, 2);
- for (const char* id : {"card-pins", "card-looking", "card-device", "card-link", "card-region", "share-steam", "name", "country", "main-character", "card-title", "card-icon"})
+ for (const char* id : {"card-pins", "card-looking", "card-device", "card-link", "card-area", "share-steam", "name", "country", "main-character", "card-title", "card-icon"})
   Check(j.row(id) && !j.row(id)->enabled, "An Edit card row changes in a room");
- for (const char* id : {"card-pins", "card-looking", "card-device", "card-link", "card-region"})
+ for (const char* id : {"card-pins", "card-looking", "card-device", "card-link", "card-area"})
   Check(j.row(id)->detail == loc::T("profile.leave_room_to_edit"), "An Edit card row does not say to leave the room");
 }
 

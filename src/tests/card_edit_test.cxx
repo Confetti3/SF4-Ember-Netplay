@@ -76,20 +76,12 @@ void ValueWords() {
     Check(ce::DeviceValue(prefs, pr::Device::Stick) == loc::T("card.hidden"), "A device this build does not know is not Hidden");
     Check(ce::DeviceValues(pr::Device::Stick).size() == 6, "Device has not six values");
 
-    // The game measures the connection and the region; the player only shows or hides them.
+    // The game measures the connection; the player only shows or hides it.
     Check(ce::LinkValue(prefs, NetworkLink::Wired) == loc::Tf("card.shown", loc::T("style.wired")), "A wired connection does not read 'Wired · shown'");
     Check(ce::LinkValue(prefs, NetworkLink::Wireless) == loc::Tf("card.shown", loc::T("style.wifi")), "A wireless connection does not read 'Wi-Fi · shown'");
     Check(ce::LinkValue(prefs, NetworkLink::Unknown) == loc::T("card.unknown_shown"), "An unmeasured connection does not read 'Not known yet · shown'");
-    // The region is the player's area from Settings: Automatic's, a pick, or none set.
-    Check(ce::RegionValue(prefs, Area::EuropeWest) == loc::Tf("card.shown", loc::T("area.euw")), "An area does not read 'Europe West · shown'");
-    Check(ce::RegionValue(prefs, Area::None) == loc::T("card.area_unset"), "No area set does not read 'Not set'");
-    prefs.area = AreaPreference::Of(Area::Oceania);
-    Check(ce::RegionValue(prefs, Area::EuropeWest) == loc::Tf("card.shown", loc::T("area.oce")), "A chosen area does not win over Windows'");
-    prefs.area = AreaPreference::Hidden();
-    Check(ce::RegionValue(prefs, Area::EuropeWest) == loc::T("card.hidden"), "An area hidden in Settings does not read Hidden");
-    prefs.area = AreaPreference::Automatic();
-    prefs.cardShowLink = prefs.cardShowRegion = false;
-    Check(ce::LinkValue(prefs, NetworkLink::Wired) == loc::T("card.hidden") && ce::RegionValue(prefs, Area::EuropeWest) == loc::T("card.hidden"), "A hidden connection or region does not read Hidden");
+    prefs.cardShowLink = false;
+    Check(ce::LinkValue(prefs, NetworkLink::Wired) == loc::T("card.hidden"), "A hidden connection does not read Hidden");
 
     // Looking for lists its choices in the order a screen does, and None for nothing.
     Check(ce::LookingValue(prefs) == loc::T("card.none"), "Looking for nothing does not read None");
@@ -131,8 +123,11 @@ void ConnectionAndRegion() {
     Check(ce::Adjust(prefs, measured, ce::LinkRow, -1).changed && !prefs.cardShowLink, "Left did not hide the connection");
     Check(!ce::Adjust(prefs, measured, ce::LinkRow, -1).changed, "Hiding a hidden connection changed it");
     Check(ce::Adjust(prefs, measured, ce::LinkRow, 1).changed && prefs.cardShowLink, "Right did not show the connection");
-    Check(ce::Adjust(prefs, measured, ce::RegionRow, -1).changed && !prefs.cardShowRegion, "Left did not hide the region");
-    Check(ce::Adjust(prefs, measured, ce::RegionRow, 1).changed && prefs.cardShowRegion, "Right did not show the region");
+    // The area is Settings' one choice, stepped: Automatic, each area, Hidden last.
+    Check(!ce::Adjust(prefs, measured, ce::AreaRow, -1).changed && prefs.area == AreaPreference::Automatic(), "Left from Automatic changed the area");
+    Check(ce::Adjust(prefs, measured, ce::AreaRow, 1).changed && prefs.area == AreaPreference::Automatic().Stepped(1), "Right did not choose the first area");
+    Check(ce::Adjust(prefs, measured, ce::AreaRow, 100).changed && prefs.area == AreaPreference::Hidden(), "Stepping to the end did not hide the area");
+    Check(ce::Adjust(prefs, measured, ce::AreaRow, -1).changed && prefs.area != AreaPreference::Hidden(), "Left from Hidden did not show an area again");
     // Select on a stepped row is not this module's: only the arrows change it.
     Check(!ce::Press(prefs, measured, ce::DeviceRow).handled && !ce::Press(prefs, measured, ce::LinkRow).handled, "Select changed a stepped row");
 }

@@ -33,7 +33,7 @@ constexpr const char* LookingScreen = "card-looking";
 // Edit card's rows. PinsRow and LookingRow open their pages.
 constexpr const char* DeviceRow = "card-device";
 constexpr const char* LinkRow = "card-link";
-constexpr const char* RegionRow = "card-region";
+constexpr const char* AreaRow = "card-area";
 constexpr const char* PinsRow = "card-pins";
 constexpr const char* LookingRow = "card-looking";
 constexpr const char* SteamRow = "share-steam";
@@ -61,8 +61,6 @@ std::string DeviceValue(const netplay::PlayerPreferences& prefs, netplay::profil
 // Every value of the Device row in the order Left and Right step through them.
 std::vector<std::string> DeviceValues(netplay::profiles::Device automatic);
 std::string LinkValue(const netplay::PlayerPreferences& prefs, NetworkLink link);
-// The area the card shows, from Settings: its name, Not set, or Hidden.
-std::string RegionValue(const netplay::PlayerPreferences& prefs, Area automaticArea);
 // "Long sets, Happy to teach", or None.
 std::string LookingValue(const netplay::PlayerPreferences& prefs);
 // "Your highest", or "3 chosen".

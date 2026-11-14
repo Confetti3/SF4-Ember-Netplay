@@ -344,6 +344,20 @@ static void AreaRoundTrips(const Path& root) {
     for (const Json& bad : {Json("use1"),Json("usw1"),Json("SAM"),Json(""),Json(5),Json(nullptr),Json::array({"sam"})})
         CHECK(netplay::ReadAreaPreference({{"area",bad}})==AreaPreference::Automatic());
     netplay::PlayerPreferences invalid; invalid.area.kind=AreaPreference::Kind::Chosen; CHECK(!invalid.Valid());
+    // The card's old switch for hiding the area reads as Hidden, whatever the area key says; a switch left on changes nothing.
+    CHECK(netplay::ReadAreaPreference({{"cardShowRegion",false}})==AreaPreference::Hidden());
+    CHECK(netplay::ReadAreaPreference({{"area","sam"},{"cardShowRegion",false}})==AreaPreference::Hidden());
+    CHECK(netplay::ReadAreaPreference({{"area","sam"},{"cardShowRegion",true}})==AreaPreference::Of(Area::SouthAmerica));
+    CHECK(netplay::ReadAreaPreference({{"cardShowRegion","no"}})==AreaPreference::Automatic());
+    // In a saved file the old key is read until a save carries the area choice, which retires it.
+    const auto old=root/L"area-old";
+    CHECK(std::filesystem::create_directory(old));
+    SettingsStore oldStore(old.wstring());
+    Json loaded;
+    CHECK(oldStore.SaveLauncher({{"cardShowRegion",false}},error)&&oldStore.LoadLauncher(loaded,error));
+    CHECK(netplay::ReadAreaPreference(loaded)==AreaPreference::Hidden());
+    CHECK(oldStore.SaveLauncher({{"area","auto"}},error)&&oldStore.LoadLauncher(loaded,error));
+    CHECK(netplay::ReadAreaPreference(loaded)==AreaPreference::Automatic()&&!loaded.contains("cardShowRegion"));
 }
 
 // Speech is one object in the netplay section; an older profile has none, and
@@ -382,11 +396,11 @@ static void CardPreferencesRoundTrip(const Path& root) {
     CHECK(document["netplay"]["cardDevice"]==3&&document["netplay"]["cardLooking"]==36&&document["netplay"]["cardPins"]==Json::array({"wins","cast"})&&!document["legacyLauncher"].contains("cardPins"));
     Json loaded; CHECK(store.LoadLauncher(loaded,error));
     netplay::PlayerPreferences back; netplay::ReadCardPreferences(loaded,back);
-    CHECK(back.cardDevice==3&&!back.cardShowLink&&back.cardShowRegion&&back.cardLooking==36&&back.cardPins==prefs.cardPins&&back.Valid());
+    CHECK(back.cardDevice==3&&!back.cardShowLink&&back.cardLooking==36&&back.cardPins==prefs.cardPins&&back.Valid());
     netplay::PlayerPreferences fresh; netplay::ReadCardPreferences(Json::object(),fresh);
-    CHECK(fresh.cardDevice==0&&fresh.cardShowLink&&fresh.cardShowRegion&&fresh.cardLooking==0&&fresh.cardPins.empty());
-    netplay::PlayerPreferences odd; netplay::ReadCardPreferences({{"cardDevice",8},{"cardShowRegion",false},{"cardLooking",63},{"cardPins",{"wins","Bad","wins","rival"}}},odd);
-    CHECK(odd.cardDevice==0&&odd.cardShowLink&&!odd.cardShowRegion&&odd.cardLooking==3&&odd.cardPins==std::vector<std::string>({"wins","rival"})&&odd.Valid());
+    CHECK(fresh.cardDevice==0&&fresh.cardShowLink&&fresh.cardLooking==0&&fresh.cardPins.empty());
+    netplay::PlayerPreferences odd; netplay::ReadCardPreferences({{"cardDevice",8},{"cardLooking",63},{"cardPins",{"wins","Bad","wins","rival"}}},odd);
+    CHECK(odd.cardDevice==0&&odd.cardShowLink&&odd.cardLooking==3&&odd.cardPins==std::vector<std::string>({"wins","rival"})&&odd.Valid());
 }
 
 // The public rooms filter is one object in the netplay section. An older profile

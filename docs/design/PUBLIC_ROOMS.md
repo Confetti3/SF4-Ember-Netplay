@@ -220,7 +220,9 @@ names no place for a room without one, and marks a room "Near you" when it is
 in the player's own area or one next to it (`areas::Neighbours`, one
 symmetric table). The sort puts joinable rooms first, then the player's own
 area, then its neighbours. The header says "Your area: NA West", or asks the
-player to set one. The relay itself is shown only as a relay, on Online
+player to set one. A player who chose Hidden hides the area from others (the card
+and the rooms they create); their own list still uses the area they chose or Windows
+gives (`OwnArea`), so it sorts, marks "Near you" and answers Near me as before. The relay itself is shown only as a relay, on Online
 play's Relay row ("Relay: Ember US (Kansas) · connected").
 
 ## Supervisor API (loopback, `Authorization: Bearer <shared secret>`)

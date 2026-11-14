@@ -189,7 +189,7 @@ std::string PublicRoomsPanel::FailureText(const std::string& code) {
 }
 
 Area PublicRoomsPanel::HomeArea(const ShellView& v) {
-    return ShownArea(v.preferences.area, v.automaticArea);
+    return OwnArea(v.preferences.area, v.automaticArea);
 }
 
 void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy, room::RoomType type, bool wiredOnly, std::uint8_t tableCount) {
