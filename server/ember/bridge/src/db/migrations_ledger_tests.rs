@@ -349,7 +349,10 @@ fn an_unnamed_056_is_adopted_only_when_the_schema_shows_it_ran() {
     older.push((56, "SELECT 1;"));
     as_an_older_bridge(&mut connection, &older);
     let text = refusal(migrate(&mut connection, MIGRATIONS));
-    assert!(text.contains("056") && text.contains("rooms.wired_only"), "{text}");
+    assert!(
+        text.contains("056") && text.contains("rooms.wired_only"),
+        "{text}"
+    );
     assert!(!text.contains("  "), "{text}");
     assert!(!has_table(&connection, "fighter_levels"));
 }
@@ -372,7 +375,10 @@ fn an_unnamed_057_to_059_is_adopted_only_when_the_schema_shows_it_ran() {
     older.push((58, "SELECT 1;"));
     as_an_older_bridge(&mut connection, &older);
     let text = refusal(migrate(&mut connection, MIGRATIONS));
-    assert!(text.contains("058") && text.contains("skill_ratings"), "{text}");
+    assert!(
+        text.contains("058") && text.contains("skill_ratings"),
+        "{text}"
+    );
 
     // 059 recorded without the column on matches.
     let mut connection = Connection::open_in_memory().unwrap();
@@ -380,7 +386,10 @@ fn an_unnamed_057_to_059_is_adopted_only_when_the_schema_shows_it_ran() {
     older.push((59, "SELECT 1;"));
     as_an_older_bridge(&mut connection, &older);
     let text = refusal(migrate(&mut connection, MIGRATIONS));
-    assert!(text.contains("059") && text.contains("matches.game"), "{text}");
+    assert!(
+        text.contains("059") && text.contains("matches.game"),
+        "{text}"
+    );
 
     // All three with their schema are adopted.
     let mut connection = Connection::open_in_memory().unwrap();
@@ -421,7 +430,10 @@ fn a_database_holding_another_games_rows_is_refused_naming_the_tables() {
         )
         .unwrap();
     let text = refusal(migrate(&mut connection, MIGRATIONS));
-    assert!(text.contains("rooms, skill_ratings, ranking_choices"), "{text}");
+    assert!(
+        text.contains("rooms, skill_ratings, ranking_choices"),
+        "{text}"
+    );
 }
 
 #[test]

@@ -7,15 +7,12 @@ use super::{
     sites::connect_discord,
     supervisor::{BUILD, ENDPOINT, Supervisor, report},
 };
-use rusqlite::OptionalExtension;
 use ember_protocol::{
     encoding::b64u,
-    levels::{
-        CARD_PREFIX, CARD_VALID_SECS, CLASS_BONUS_POINTS_PATH, LOOKUP_PATH, POINTS_PATH,
-        is_card_token,
-    },
+    levels::{CARD_PREFIX, CLASS_BONUS_POINTS_PATH, LOOKUP_PATH, POINTS_PATH},
 };
 use reqwest::{Method, StatusCode};
+use rusqlite::OptionalExtension;
 use serde_json::{Value as Json_, json};
 
 pub const FRIEND: &str = "fr_11111111-1111-4111-8111-111111111111";
@@ -31,7 +28,9 @@ pub async fn two_players_showing_classes() -> (Bridge, Supervisor, String, Playe
     two_players_on(start_showing_classes().await).await
 }
 
-async fn two_players_on((bridge, fake): (Bridge, Supervisor)) -> (Bridge, Supervisor, String, Player, Player) {
+async fn two_players_on(
+    (bridge, fake): (Bridge, Supervisor),
+) -> (Bridge, Supervisor, String, Player, Player) {
     let (first, second) = (player(&bridge, 1).await, player(&bridge, 2).await);
     connect_discord(&bridge, "100", &first).await;
     connect_discord(&bridge, "200", &second).await;
@@ -178,8 +177,8 @@ pub async fn own(bridge: &Bridge, player: &Player) -> Json_ {
     own_at(bridge, player, CLASS_BONUS_POINTS_PATH).await
 }
 
-/// `own` as a build from before the class bonus asks it: with no query.
-pub async fn own_before_the_bonus(bridge: &Bridge, player: &Player) -> Json_ {
+/// `own` asked with no query, as a build from before the class bonus asks it.
+pub async fn own_plainly(bridge: &Bridge, player: &Player) -> Json_ {
     own_at(bridge, player, POINTS_PATH).await
 }
 

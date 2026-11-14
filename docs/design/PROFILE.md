@@ -476,7 +476,7 @@ from the row, the room or the friend), and fills in as the card arrives.
 |---|---|---|---|
 | Reading | the opener's words; points lines and record at 40 % alpha with 0; "Reading Player 2's card." (`profile.reading`) under the record; awards and recent sets as their reading states | all four | disabled, "Reading" |
 | Card read | whole | all four | by relation |
-| No card (the look-up answers null: no Discord account, an expired token, or a player who blocked you; the page never says which) | name line as the opener knew it; no points lines, record or awards; "Player 2 has no card to show." and "Their sets are still listed by name." | Card, Sets | View sets |
+| No card (the look-up answers null: no Discord account on either side, an expired token, or a player who blocked you; the page never says which) | name line as the opener knew it; no points lines, record or awards; "Player 2 has no card to show." and "Their sets are still listed by name." | Card, Sets | View sets |
 | Blocked by you | name line; "You blocked Player 2. Unblock them to see their card." | Card | Unblock |
 | A name, nobody | name line; "No player on Ember goes by Player 2 now." | Card, Sets | View sets |
 | A name, several | `player-pick` opens instead: "Players named Player 2", one Row each (picture, flag, class, name, "On Ember since 2026-03"), newest active first; A opens that one | - | - |
@@ -781,9 +781,17 @@ FROM ranking_choices r WHERE r.name IS NOT NULL;
 | `region` | a relay region code the bridge knows (`use1`, `usw1`, `euc1`, `aps1`), or NULL |
 | `looking` | bits: 1 Casuals, 2 Long sets, 4 Ranked, 8 Tournament practice, 16 New to the game, 32 Happy to teach; at most two set |
 
-Read by account (key), and by name for search (index). Rows are deleted
-where the bridge forgets an account's other rows. A rollback to a bridge
-before 064 leaves the table unread.
+Read by account (key), and by name for search (index). Rows are kept for
+good, as the points and the rating are: no path of the bridge deletes one.
+What hides a row instead:
+
+| When | The row | Served |
+|---|---|---|
+| The Discord account is disconnected (`discord_accounts` row gone) | kept, for when it connects again | no card from any selector, not found by name or code, not named as anyone's most played opponent |
+| The player turns friends off (`forget`, `social_accounts.off`) | kept; a friends sync no longer writes it, Edit card (`PUT /v1/cards/me`) still does | the card from a room's token as before; not found by name, and its code names nobody (the code is replaced); friendships and requests are deleted, so no friend or request selector opens it |
+| The player leaves the ranking (`ranking_choices.ranked` 0) | kept | everything as before (cards are public), but no class and no peak class |
+
+A rollback to a bridge before 064 leaves the table unread.
 
 ### Wire contracts
 
@@ -825,7 +833,7 @@ minutes. Answers 204.
 |---|---|
 | request | exactly one of `name` (2 to 32 bytes after trimming) or `code` (as `request` by code reads it) |
 | `players` | at most 20: names equal to `name` (any case) first, then names that begin with it, each most recently updated first; a code gives its one account |
-| left out | the caller; an account that blocked the caller; an account with friends turned off is still listed (cards are public) |
+| left out | the caller; an account that blocked the caller; an account with friends turned off (by name and by code); an account without a Discord account connected. An account that left the ranking is still listed (cards are public) |
 | `card` | a fresh card token (`c1.`, `FIGHTER_LEVELS.md`), valid 7 days |
 | `more` | true when more than 20 matched |
 
@@ -928,15 +936,22 @@ against that player, which the answer already sends for the awards.
 
 | Who | Sees |
 |---|---|
-| Anyone with a selector (a room member's token, a friend id, a received request, a friend code, a search result, a name) | name, flag, class, main, On Ember since (month), worn and shown award families, the award counters (rated games, wins, best streak, fighters played, top frame, peak class), FP and BP with tiers, how they play, and their own relation and record with that player |
+| Anyone with a Discord account connected and a selector (a room member's token, a friend id, a received request, a friend code, a search result, a name) | name, flag, class, main, On Ember since (month), worn and shown award families, the award counters (rated games, wins, best streak, fighters played, top frame, peak class), FP and BP with tiers, how they play, and their own relation and record with that player |
 | Friends only | presence and friend since (`FRIENDS.md`), invites |
-| Never served | a Discord ID or name, an Ember ID, a rating, the friends count of another, per-fighter games and wins of another, anything to a player the account blocked |
+| Never served | a Discord ID or name, an Ember ID, a rating, the friends count of another, per-fighter games and wins of another, anything to a player the account blocked, any card to a caller without a Discord account |
 | Never leaves the PC | recent opponents, the search texts, the controller's name or model (only the device class), the measured latency and route (only Wired / Wi-Fi), anything of the region beyond its code |
+
+A block is between Discord accounts and is checked against the caller's, so
+the look-up answers `null` for every selector of a caller whose Ember ID has
+no Discord account (`routes::levels::lookup`): a card is served only to a
+caller with a Discord account that the card's account has not blocked. Such a player still sees
+what the room itself shows of its members (name, flag, class, fighter).
 
 A player who wants less exposure hides each chip in Edit card and blocks
 whoever bothers them; a block also hides them from that player's search. A
-player found by name is found because they play on Ember: there is no
-opt-out of search (see Open questions).
+player found by name is found because they play on Ember; turning friends
+off is the way out of search, by name as by code, and a player who leaves
+the ranking is still found (see Open questions).
 
 ### Older peers
 
@@ -1091,6 +1106,6 @@ ranking row and an archive row's player; watch a recent set from a card.
 |---|---|---|
 | Show win rate on other players' cards? | No: others see Rated games and Wins; the percentage stays on your own card. The class is the skill mark. | One cell's key and value. |
 | Add the opponent on the post-match prompt with View / C? | Yes: it is the only face-side button the prompt does not use, and the button is also a D-pad row for sticks. | A different shortcut is one line. |
-| Can every player be found by name, with no opt-out? | Yes: cards are public; blocking hides a player from the blocked one's search. | A switch and a column. |
+| Can every player be found by name, with no opt-out? | Decided for 1.6.0: no. A player with friends turned off is found neither by name nor by code (the off switch of migration 061 is the opt-out); blocking hides a player from the blocked one's search; cards from a room's token stay public. | A switch of its own would be a column and a Settings row. |
 | Match sets by account now (archive columns, key and backfill) rather than by name? | Later, after this release: by name works today, and the page says what it means. | The four steps under "Sets by name"; no client change beyond the selector. |
 | Give the own Profile a Sets tab (five tabs)? | Yes: All sets needs a home, and it is the same list as another player's. | Point All sets at Replays > Archive instead. |

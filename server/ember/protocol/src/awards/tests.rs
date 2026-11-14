@@ -11,10 +11,25 @@ use crate::{
 
 #[test]
 fn a_family_id_is_a_short_lower_case_word_with_hyphens() {
-    for good in ["rank", "matches", "a", "opponents", "a-b-9", &"x".repeat(MAX_FAMILY_ID)] {
+    for good in [
+        "rank",
+        "matches",
+        "a",
+        "opponents",
+        "a-b-9",
+        &"x".repeat(MAX_FAMILY_ID),
+    ] {
         assert!(is_family_id(good), "{good:?}");
     }
-    for bad in ["", "Rank", "a b", "a_b", "é", "a\n", &"x".repeat(MAX_FAMILY_ID + 1)] {
+    for bad in [
+        "",
+        "Rank",
+        "a b",
+        "a_b",
+        "é",
+        "a\n",
+        &"x".repeat(MAX_FAMILY_ID + 1),
+    ] {
         assert!(!is_family_id(bad), "{bad:?}");
     }
 }
@@ -55,7 +70,10 @@ fn catalog_needs(text: &str, family: &str) -> Vec<u64> {
 
 #[test]
 fn the_card_milestones_are_the_catalogs_rival_and_opponent_levels() {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/netplay/Awards.hxx");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/netplay/Awards.hxx"
+    );
     // A crate built outside the repository has no catalog to read.
     let Ok(text) = std::fs::read_to_string(path) else {
         return;
@@ -100,8 +118,20 @@ fn counts_are_checked_against_each_other() {
     assert!(good.check().is_ok());
     for (field, bad) in [
         ("wins", AwardCounts { wins: 11, ..good }),
-        ("best_streak", AwardCounts { best_streak: 11, ..good }),
-        ("peak_class", AwardCounts { peak_class: SKILL_BANDS + 1, ..good }),
+        (
+            "best_streak",
+            AwardCounts {
+                best_streak: 11,
+                ..good
+            },
+        ),
+        (
+            "peak_class",
+            AwardCounts {
+                peak_class: SKILL_BANDS + 1,
+                ..good
+            },
+        ),
     ] {
         assert_eq!(bad.check(), Err(Error::InvalidField(field)));
     }
@@ -117,8 +147,18 @@ fn the_award_counters_are_optional_on_every_answer() {
     let OwnLevels::Counted { account, .. } = read::<OwnLevels>(&old) else {
         panic!("counted");
     };
-    assert_eq!(account.awards, AwardCounts { games: 9, wins: 4, ..AwardCounts::default() });
-    assert_eq!(serde_json::to_value(&account).unwrap().get("best_streak"), None);
+    assert_eq!(
+        account.awards,
+        AwardCounts {
+            games: 9,
+            wins: 4,
+            ..AwardCounts::default()
+        }
+    );
+    assert_eq!(
+        serde_json::to_value(&account).unwrap().get("best_streak"),
+        None
+    );
 
     // A bridge with them writes them in the account, beside the points, only while they are not 0.
     let mut with = account.clone();
@@ -129,7 +169,12 @@ fn the_award_counters_are_optional_on_every_answer() {
     assert!(with.check().is_ok());
     let wire = serde_json::to_value(&with).unwrap();
     assert_eq!(
-        [&wire["best_streak"], &wire["peak_class"], &wire["rival"], &wire["opponents"]],
+        [
+            &wire["best_streak"],
+            &wire["peak_class"],
+            &wire["rival"],
+            &wire["opponents"]
+        ],
         [&json!(7), &json!(6), &json!(3), &json!(2)]
     );
     assert_eq!(read::<OwnAccount>(&wire), with);
@@ -156,13 +201,23 @@ fn a_card_carries_the_counters_behind_the_awards() {
     let card: PlayerCard = read(&marked);
     assert_eq!(
         card.awards,
-        AwardCounts { games: 137, wins: 61, best_streak: 7, peak_class: 6, rival: 50, opponents: 0 }
+        AwardCounts {
+            games: 137,
+            wins: 61,
+            best_streak: 7,
+            peak_class: 6,
+            rival: 50,
+            opponents: 0
+        }
     );
     assert!(card.check().is_ok());
     assert_eq!(serde_json::to_value(&card).unwrap(), marked);
     // A count of 0 is not written; a member a later bridge adds is ignored.
     let sparse = PlayerCard {
-        awards: AwardCounts { games: 1, ..AwardCounts::default() },
+        awards: AwardCounts {
+            games: 1,
+            ..AwardCounts::default()
+        },
         ..card.clone()
     };
     assert_eq!(

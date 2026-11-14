@@ -4,8 +4,8 @@
 //! rating, so a new Ember ID keeps them and a throwaway one has none.
 //!
 //! The tables are `store`'s, what is kept in memory only is `presence`'s;
-//! this module carries out a player's action on both and puts together the
-//! `FriendsState` every friends answer is. Nothing it answers names an
+//! this module carries out a player's action on the tables and puts together
+//! the `FriendsState` every friends answer is. Nothing it answers names an
 //! account: friendships, requests, blocks and invites are named by random
 //! ids, and players by the name and flag their own game sends.
 pub mod presence;
@@ -16,16 +16,15 @@ use std::collections::HashMap;
 use ember_protocol::{
     Error,
     friends::{
-        FriendAction, FriendPresence, FriendRefusal, FriendsState, IncomingRequest, MainFighter,
-        Played, ReceivedInvite, parse_friend_code,
+        Friend, FriendAction, FriendPresence, FriendRefusal, FriendRoom, FriendsState,
+        IncomingRequest, MainFighter, Played, ReceivedInvite, parse_friend_code,
     },
-    levels::CardAccount,
-    skill::SkillBadge,
+    levels::{CardAccount, PlayerCard},
 };
 use rusqlite::Transaction;
 
 use self::{
-    presence::{Doing, Live},
+    presence::{Doing, Effect, Live, Seen},
     store::{FriendRow, refuse},
 };
 use crate::{
@@ -33,7 +32,6 @@ use crate::{
     error::{ApiFailure, Result},
     linking::Site,
     routes::{rooms, sign_in},
-    skill,
 };
 
 /// Whether friends are offered: where public rooms are on and `rooms.friends`
@@ -42,7 +40,11 @@ use crate::{
 /// the friends routes and the card look-up all ask this.
 pub fn offered(state: &AppState) -> bool {
     rooms::enabled(state)
-        && state.config.rooms.as_ref().is_some_and(|rooms| rooms.friends)
+        && state
+            .config
+            .rooms
+            .as_ref()
+            .is_some_and(|rooms| rooms.friends)
         && sign_in::offered(state, &Site::Discord)
 }
 
@@ -72,9 +74,11 @@ fn resync() -> ApiFailure {
     )
 }
 
-/// Carries out `action` for Discord account `caller`, in `tx` and in memory.
-/// An action naming a request, friendship, block or invite that is not the
-/// caller's changes nothing: the state answered shows how things stand.
+/// Carries out `action` for Discord account `caller` in `tx`. An action naming
+/// a request, friendship, block or invite that is not the caller's changes
+/// nothing: the state answered shows how things stand. What it changes in
+/// memory comes back as an `Effect`, for the route to make once `tx` has
+/// committed.
 ///
 /// An account that turned friends off refuses everything but `TurnOn` as
 /// `friends_off`. `TurnOn` needs the account's row, which only a sync makes:
@@ -87,11 +91,12 @@ pub fn act(
     caller: &str,
     action: FriendAction,
     now: u64,
-) -> Result<()> {
+) -> Result<Option<Effect>> {
     let own = store::account(tx, caller)?.ok_or_else(resync)?;
     if own.off && !matches!(action, FriendAction::TurnOn {}) {
         return Err(refuse(FriendRefusal::FriendsOff));
     }
+    let stored = |done: Result<()>| done.map(|()| None);
     match action {
         FriendAction::Request { card, label, code } => {
             let (target, label) = match (card, label, code) {
@@ -104,26 +109,29 @@ pub fn act(
                 }
                 _ => return Err(Error::InvalidField("request").into()),
             };
-            store::ask(tx, caller, &target, &label, now)
+            stored(store::ask(tx, caller, &target, &label, now))
         }
-        FriendAction::Accept { request } => store::accept(tx, caller, &request, now),
+        FriendAction::Accept { request } => stored(store::accept(tx, caller, &request, now)),
         FriendAction::Decline { request, block } => {
-            store::decline(tx, caller, &request, block, now)
+            stored(store::decline(tx, caller, &request, block, now))
         }
-        FriendAction::Cancel { request } => store::cancel(tx, caller, &request, now),
-        FriendAction::Remove { friend, block } => {
-            if let Some(other) = store::remove(tx, caller, &friend, block, now)? {
-                live.unpair(caller, &other);
-            }
-            Ok(())
-        }
+        FriendAction::Cancel { request } => stored(store::cancel(tx, caller, &request, now)),
+        FriendAction::Remove { friend, block } => Ok(store::remove(
+            tx, caller, &friend, block, now,
+        )?
+        .map(|other| Effect::Unpair {
+            one: caller.to_owned(),
+            other,
+        })),
         FriendAction::Block { card, label } => {
             let target = opened(keys, &card, now)?;
             store::block(tx, caller, &target, &store::listed_name(&label), now)?;
-            live.unpair(caller, &target);
-            Ok(())
+            Ok(Some(Effect::Unpair {
+                one: caller.to_owned(),
+                other: target,
+            }))
         }
-        FriendAction::Unblock { block } => store::unblock(tx, caller, &block),
+        FriendAction::Unblock { block } => stored(store::unblock(tx, caller, &block)),
         FriendAction::Invite { friend, room } => {
             let reachable = match store::friend_of(tx, caller, &friend)? {
                 Some(other) => {
@@ -135,21 +143,25 @@ pub fn act(
                 None => None,
             };
             let invitee = reachable.ok_or_else(|| refuse(FriendRefusal::InviteUnavailable))?;
-            live.invite(caller, &invitee, room, now);
-            Ok(())
+            Ok(Some(Effect::Invite {
+                inviter: caller.to_owned(),
+                invitee,
+                room,
+            }))
         }
-        FriendAction::Dismiss { invite } => {
-            live.dismiss(caller, &invite);
-            Ok(())
-        }
-        FriendAction::AppearOffline { on } => store::appear_offline(tx, caller, on, now),
-        FriendAction::NewCode {} => store::new_code(tx, caller, now),
+        FriendAction::Dismiss { invite } => Ok(Some(Effect::Dismiss {
+            invitee: caller.to_owned(),
+            id: invite,
+        })),
+        FriendAction::AppearOffline { on } => stored(store::appear_offline(tx, caller, on, now)),
+        FriendAction::NewCode {} => stored(store::new_code(tx, caller, now)),
         FriendAction::Forget {} => {
             store::forget(tx, caller, now)?;
-            live.forget(caller);
-            Ok(())
+            Ok(Some(Effect::Forget {
+                account: caller.to_owned(),
+            }))
         }
-        FriendAction::TurnOn {} => store::turn_on(tx, caller, now),
+        FriendAction::TurnOn {} => stored(store::turn_on(tx, caller, now)),
     }
 }
 
@@ -160,6 +172,11 @@ fn opened(keys: &Keys, card: &str, now: u64) -> Result<String> {
 
 /// Everything `caller` sees of their friends now. The caller's build, for
 /// whether a friend's room is joinable, is the one their last sync named.
+///
+/// It costs the same few reads whatever the number of friends: the caller's
+/// own lists, the friends' points, classes and records, and the senders'
+/// records (`cards::Reader`), and the friends' rooms (`store::listed_rooms`),
+/// all in the one transaction `tx`.
 pub fn state(
     tx: &Transaction<'_>,
     live: &Live,
@@ -172,29 +189,52 @@ pub fn state(
     if own.off {
         return Err(refuse(FriendRefusal::FriendsOff));
     }
-    let build =live.seen(caller).map(|seen| seen.build_id);
+    let build = live.seen(caller).map(|seen| seen.build_id);
     let rows = store::friends(tx, caller)?;
+    let requests = store::incoming(tx, caller)?;
+    let accounts: Vec<&str> = rows
+        .iter()
+        .map(|row| row.account.as_str())
+        .chain(requests.iter().map(|row| row.sender.as_str()))
+        .collect();
+    let viewer = cards::Viewer {
+        caller,
+        friends_offered: true,
+        classes,
+        now,
+    };
+    let read = cards::Reader::read(tx, &viewer, &accounts, cards::Purpose::Friends)?;
+    let seen: Vec<Option<Seen>> = rows.iter().map(|row| visible(live, row, now)).collect();
+    let room_ids: Vec<&str> = seen
+        .iter()
+        .flatten()
+        .filter_map(|seen| match &seen.doing {
+            Doing::Room(room) => room.room_id.as_deref(),
+            Doing::Activity(_) => None,
+        })
+        .collect();
+    let rooms = store::listed_rooms(tx, &room_ids, build.as_deref())?;
     let mut friends = Vec::with_capacity(rows.len());
     let mut ids = HashMap::with_capacity(rows.len());
-    for row in rows {
-        let (main, account) = levels_of(tx, &row)?;
-        friends.push(ember_protocol::friends::Friend {
+    for (row, seen) in rows.into_iter().zip(seen) {
+        let (main, account) = levels_of(&row, read.points(&row.account));
+        friends.push(Friend {
             id: row.id.clone(),
             since: row.since,
             main,
             account,
-            badge: badge_of(tx, &row.account, classes, now)?,
-            presence: presence_of(tx, live, &row, build.as_deref(), now)?,
-            record: store::record(tx, caller, &row.account)?,
+            badge: read.badge(&row.account),
+            presence: presence_of(&row, seen, &rooms),
+            record: read.record(&row.account),
             name: row.shown.name,
             country: row.shown.country,
         });
         ids.insert(row.account, row.id);
     }
-    let mut incoming = Vec::new();
-    for row in store::incoming(tx, caller)? {
-        incoming.push(IncomingRequest {
-            played: store::record(tx, caller, &row.sender)?.map(|record| Played {
+    let incoming = requests
+        .into_iter()
+        .map(|row| IncomingRequest {
+            played: read.record(&row.sender).map(|record| Played {
                 games: record.won + record.lost,
                 last_at: record.last_at,
             }),
@@ -202,8 +242,8 @@ pub fn state(
             name: row.name,
             country: row.country,
             sent_at: row.sent_at,
-        });
-    }
+        })
+        .collect();
     // An invite stands only while its sender is a friend.
     let invites = live
         .invites_for(caller, now)
@@ -235,63 +275,57 @@ pub fn state(
 /// A friend with no card (their Discord account was disconnected) has no
 /// account points, and their main shows none.
 fn levels_of(
-    tx: &Transaction<'_>,
     friend: &FriendRow,
-) -> Result<(Option<MainFighter>, Option<CardAccount>)> {
-    let card = skill::levels::card(tx, &friend.account)?;
+    card: Option<&PlayerCard>,
+) -> (Option<MainFighter>, Option<CardAccount>) {
     let main = friend.shown.main.map(|fighter| {
-        let played = card
-            .as_ref()
-            .and_then(|card| card.fighters.iter().find(|played| played.fighter == fighter));
+        let played = card.as_ref().and_then(|card| {
+            card.fighters
+                .iter()
+                .find(|played| played.fighter == fighter)
+        });
         MainFighter {
             fighter,
             points: played.map(|played| played.points),
             tier: played.map(|played| played.tier),
         }
     });
-    Ok((main, card.map(|card| card.account)))
+    (main, card.map(|card| card.account))
 }
 
-fn badge_of(
-    tx: &Transaction<'_>,
-    account: &str,
-    classes: &Classes,
-    now: u64,
-) -> Result<Option<SkillBadge>> {
-    if !classes.shown {
-        return Ok(None);
-    }
-    skill::last_shown(tx, account, &classes.developers, now)
+/// What a friend's last sync said, while the caller may see it: not while the
+/// friend appears offline, or has not synced lately.
+fn visible(live: &Live, friend: &FriendRow, now: u64) -> Option<Seen> {
+    live.seen(&friend.account)
+        .filter(|seen| !friend.shown.appear_offline && seen.online(now))
 }
 
 /// Where a friend is, as the caller may see it: offline, with when they were
-/// last seen, while they appear offline or have not synced lately; else what
-/// their last sync said, with their public room while it is open and listed.
+/// last seen, while they appear offline or have not synced lately (`seen` is
+/// none); else what their last sync said, with their public room while it is
+/// open and listed (`rooms`).
 fn presence_of(
-    tx: &Transaction<'_>,
-    live: &Live,
     friend: &FriendRow,
-    build: Option<&str>,
-    now: u64,
-) -> Result<FriendPresence> {
-    let seen = live
-        .seen(&friend.account)
-        .filter(|seen| !friend.shown.appear_offline && seen.online(now));
+    seen: Option<Seen>,
+    rooms: &HashMap<String, FriendRoom>,
+) -> FriendPresence {
     let Some(seen) = seen else {
-        return Ok(FriendPresence::Offline {
+        return FriendPresence::Offline {
             seen_at: Some(friend.shown.seen_at),
-        });
+        };
     };
-    Ok(match seen.doing {
+    match seen.doing {
         Doing::Activity(activity) => FriendPresence::Online { activity },
         Doing::Room(room) => FriendPresence::Room {
             status: room.status,
             table: room.table,
-            room: match room.room_id {
-                Some(room_id) => store::listed_room(tx, &room_id, build)?,
-                None => None,
-            },
+            room: room
+                .room_id
+                .and_then(|room_id| rooms.get(&room_id).cloned()),
             private: room.private,
         },
-    })
+    }
 }
+
+#[cfg(test)]
+mod state_tests;

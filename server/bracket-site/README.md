@@ -72,6 +72,8 @@ which answers a `tournament.act` challenge for `POST /v1/sessions`, then
 `POST /v1/sessions` `{ "command": {}, "proof" }`. The answer's
 `access_token` (an hour) is the player's Discord account on every route; a
 player who has not connected Discord in Ember gets 409.
+A challenge lives 60 seconds; one Ember ID may hold 10 at once and the site
+10,000 in all, and a request past either is answered 429.
 
 | Request | Who | |
 |---|---|---|

@@ -431,7 +431,9 @@ impl FriendAction {
                 room.check()
             }
             Self::Dismiss { invite } => check_id(invite, "iv", "invite"),
-            Self::AppearOffline { .. } | Self::NewCode {} | Self::Forget {} | Self::TurnOn {} => Ok(()),
+            Self::AppearOffline { .. } | Self::NewCode {} | Self::Forget {} | Self::TurnOn {} => {
+                Ok(())
+            }
         }
     }
 }
@@ -602,7 +604,11 @@ pub struct Friend {
     /// Their class as last shown, or the developer mark; absent when they do
     /// not take part in ranking, or classes are hidden; also absent when it
     /// is one this build cannot read.
-    #[serde(default, deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub badge: Option<SkillBadge>,
     #[serde(deserialize_with = "presence_or_online")]
     pub presence: FriendPresence,
@@ -878,9 +884,15 @@ mod tests {
         let with = round_trips::<FriendsState>(&wire, FriendsState::check);
         assert_eq!(
             with.friends[0].account,
-            Some(CardAccount { points: 2331, tier: 3 })
+            Some(CardAccount {
+                points: 2331,
+                tier: 3
+            })
         );
-        wire["friends"][0].as_object_mut().unwrap().remove("account");
+        wire["friends"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("account");
         let without = round_trips::<FriendsState>(&wire, FriendsState::check);
         assert_eq!(without.friends[0].account, None);
     }
@@ -929,19 +941,30 @@ mod tests {
     #[test]
     fn ignores_unknown_value() {
         // A room status a later bridge adds is "in the room" and no more.
-        reads_unknown_value_as("/friends/0/presence/status", json!("arcade_queue"), |state| {
-            assert!(matches!(
-                state.friends[0].presence,
-                FriendPresence::Room { status: RoomStatus::Idle, table: Some(0), room: Some(_), .. }
-            ));
-            assert!(state.check().is_ok());
-        });
+        reads_unknown_value_as(
+            "/friends/0/presence/status",
+            json!("arcade_queue"),
+            |state| {
+                assert!(matches!(
+                    state.friends[0].presence,
+                    FriendPresence::Room {
+                        status: RoomStatus::Idle,
+                        table: Some(0),
+                        room: Some(_),
+                        ..
+                    }
+                ));
+                assert!(state.check().is_ok());
+            },
+        );
         // An activity reads as the plain "online".
         let mut wire = state_wire();
         wire["friends"][0]["presence"] = json!({"state": "online", "activity": "streaming"});
         assert_eq!(
             read::<FriendsState>(&wire).friends[0].presence,
-            FriendPresence::Online { activity: Activity::Menus }
+            FriendPresence::Online {
+                activity: Activity::Menus
+            }
         );
         // A presence state it does not know reads as online, whatever else it
         // carries, and the rest of the friend is kept.
@@ -949,7 +972,9 @@ mod tests {
         let state = read::<FriendsState>(&wire);
         assert_eq!(
             state.friends[0].presence,
-            FriendPresence::Online { activity: Activity::Menus }
+            FriendPresence::Online {
+                activity: Activity::Menus
+            }
         );
         assert_eq!(state.friends[0].name, "Player 3");
         // An invite of a kind it does not know is dropped; the others stay.
@@ -964,17 +989,32 @@ mod tests {
         assert_eq!(state.invites.len(), 1);
         assert_eq!(state.invites[0].room, InviteRoom::RoomId(ROOM.into()));
         // A badge it cannot read shows none, as one a bridge never sent does.
-        for badge in [json!({"band": 7, "settled": true, "extra": 1}), json!(5), json!(null)] {
+        for badge in [
+            json!({"band": 7, "settled": true, "extra": 1}),
+            json!(5),
+            json!(null),
+        ] {
             let mut wire = state_wire();
             wire["friends"][0]["badge"] = badge;
             assert_eq!(read::<FriendsState>(&wire).friends[0].badge, None);
         }
         // What it does read is written back as it was.
         let wire = state_wire();
-        assert_eq!(serde_json::to_value(read::<FriendsState>(&wire)).unwrap(), wire);
+        assert_eq!(
+            serde_json::to_value(read::<FriendsState>(&wire)).unwrap(),
+            wire
+        );
         // The requests share these types and stay strict.
-        assert!(serde_json::from_value::<RoomReport>(json!({"status": "arcade_queue", "private": true})).is_err());
-        assert!(serde_json::from_value::<SkillBadge>(json!({"band": 7, "settled": true, "extra": 1})).is_err());
+        assert!(
+            serde_json::from_value::<RoomReport>(
+                json!({"status": "arcade_queue", "private": true})
+            )
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<SkillBadge>(json!({"band": 7, "settled": true, "extra": 1}))
+                .is_err()
+        );
         assert!(serde_json::from_value::<InviteRoom>(json!({"lobby": "x"})).is_err());
     }
 
@@ -999,13 +1039,15 @@ mod tests {
             ]
         );
         assert_eq!(FriendRefusal::NAMES.as_slice(), names.as_slice());
-        assert_eq!(FriendRefusal::NoDiscordAccount.as_str(), crate::skill::NO_ACCOUNT);
+        assert_eq!(
+            FriendRefusal::NoDiscordAccount.as_str(),
+            crate::skill::NO_ACCOUNT
+        );
         for reason in FriendRefusal::ALL {
             assert_eq!(serde_json::to_value(reason).unwrap(), reason.as_str());
             assert_eq!(FriendRefusal::parse(reason.as_str()), Some(reason));
         }
     }
-
 
     #[test]
     fn a_friends_presence_is_one_of_three_states() {

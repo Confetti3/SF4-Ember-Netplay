@@ -8,25 +8,15 @@
 //! that serves one player's data to another, for the Discord IDs it seeded.
 //! A new route of that kind joins its list.
 use axum::{extract::State, http::HeaderMap, response::Response};
-use ember_protocol::friends::{FriendAction, FriendRefusal, FriendsSync, PresenceReport};
+use ember_protocol::friends::{FriendAction, FriendsSync, PresenceReport};
 
 use crate::{
     AppState,
-    error::{ApiFailure, Result},
+    error::Result,
     friends::{self, Classes, store},
     http::{Body, GENERAL_BODY, ok},
-    routes::{
-        play::playing,
-    },
-    skill,
+    routes::account::{Bucket, Gate, Linked},
 };
-
-/// A rate limit: uses per window of seconds, by Discord account.
-struct Bucket {
-    name: &'static str,
-    uses: usize,
-    window: u64,
-}
 
 const SYNCS: Bucket = Bucket {
     name: "friends-sync",
@@ -50,19 +40,13 @@ const INVITES: Bucket = Bucket {
     window: 10 * 60,
 };
 
-/// The calling player's Discord account and the time.
-struct Caller {
-    account: String,
-    now: u64,
-}
-
 /// `POST /v1/friends/sync`: the caller's presence in, the state out.
 pub async fn sync(
     State(state): State<AppState>,
     headers: HeaderMap,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let caller = admit(&state, &headers, &SYNCS).await?;
+    let caller = Linked::admit(&state, &headers, Gate::Friends, &SYNCS).await?;
     let sync: FriendsSync = body.parse()?;
     sync.check()?;
     let FriendsSync {
@@ -89,7 +73,7 @@ pub async fn act(
     headers: HeaderMap,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let caller = admit(&state, &headers, &ACTIONS).await?;
+    let caller = Linked::admit(&state, &headers, Gate::Friends, &ACTIONS).await?;
     let action: FriendAction = body.parse()?;
     action.check()?;
     let own_bucket = match &action {
@@ -98,19 +82,23 @@ pub async fn act(
         _ => None,
     };
     if let Some(bucket) = own_bucket {
-        spend(&state, bucket, &caller)?;
+        caller.spend(&state, bucket)?;
     }
     let (live, keys) = (state.friends.clone(), state.keys.clone());
     let (account, now) = (caller.account.clone(), caller.now);
-    state
+    let effect = state
         .db
         .write(move |tx| friends::act(tx, &live, &keys, &account, action, now))
         .await?;
+    // What the action changes in memory waits for its commit.
+    if let Some(effect) = effect {
+        state.friends.apply(effect, now);
+    }
     answer(&state, caller).await
 }
 
 /// The state `caller` sees after their sync or action.
-async fn answer(state: &AppState, caller: Caller) -> Result<Response> {
+async fn answer(state: &AppState, caller: Linked) -> Result<Response> {
     let live = state.friends.clone();
     let classes = Classes::of(state);
     let answer = state
@@ -118,35 +106,4 @@ async fn answer(state: &AppState, caller: Caller) -> Result<Response> {
         .read(move |tx| friends::state(tx, &live, &caller.account, &classes, caller.now))
         .await?;
     Ok(ok(&answer))
-}
-
-/// The calling player's Discord account, within `bucket`.
-async fn admit(state: &AppState, headers: &HeaderMap, bucket: &Bucket) -> Result<Caller> {
-    if !friends::offered(state) {
-        return Err(ApiFailure::not_found());
-    }
-    let ember_id = playing(state, headers).await?.ember_id;
-    let account = state
-        .db
-        .read(move |tx| skill::account(tx, &ember_id))
-        .await?
-        .ok_or_else(|| store::refuse(FriendRefusal::NoDiscordAccount))?;
-    let caller = Caller {
-        account,
-        now: state.now(),
-    };
-    spend(state, bucket, &caller)?;
-    Ok(caller)
-}
-
-fn spend(state: &AppState, bucket: &Bucket, caller: &Caller) -> Result<()> {
-    state
-        .rate
-        .check(
-            &format!("{}:{}", bucket.name, caller.account),
-            bucket.uses,
-            bucket.window,
-            caller.now,
-        )
-        .map_err(ApiFailure::rate_limited)
 }

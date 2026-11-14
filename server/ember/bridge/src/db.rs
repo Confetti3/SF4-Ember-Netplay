@@ -12,11 +12,13 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use rusqlite::{Connection, Transaction, TransactionBehavior};
+use rusqlite::{Connection, Row, ToSql, Transaction, TransactionBehavior, params_from_iter};
 use tokio::sync::watch;
 
 use crate::error::ApiFailure;
 
+#[cfg(test)]
+pub(crate) mod counting;
 mod migrations;
 
 /// Why `Db::open` could not open the database.
@@ -76,6 +78,7 @@ impl Db {
         connection.pragma_update(None, "synchronous", "FULL")?;
         connection.pragma_update(None, "foreign_keys", "ON")?;
         connection.busy_timeout(std::time::Duration::from_secs(5))?;
+        connection.set_prepared_statement_cache_capacity(STATEMENT_CACHE);
         let mut db = connection;
         migrations::migrate(&mut db, migrations::MIGRATIONS)?;
         Ok(Self(Arc::new(Shared {
@@ -149,6 +152,36 @@ impl Db {
         .map_err(|_| ApiFailure::unavailable())?
     }
 }
+
+/// Runs `sql` for a whole set of ids at once and maps each row with `map`. The
+/// text has `{ids}` where the list of an `IN (...)` goes; `fixed` binds the
+/// statement's own values first (`?1`, `?2`, ...), and the ids go after them
+/// as one JSON array (`json_each`, as the archive listing reads its keys). A
+/// set of any size is one statement, and the same text whatever the size, so
+/// it is prepared once and kept (`prepare_cached`): a route that reads many
+/// accounts costs the same number of queries whatever their count.
+pub fn select_in<T>(
+    tx: &Transaction<'_>,
+    sql: &str,
+    fixed: &[&dyn ToSql],
+    ids: &[&str],
+    map: impl FnMut(&Row<'_>) -> rusqlite::Result<T>,
+) -> Result<Vec<T>, ApiFailure> {
+    let list = format!("SELECT value FROM json_each(?{})", fixed.len() + 1);
+    let mut statement = tx.prepare_cached(&sql.replace("{ids}", &list))?;
+    let ids = serde_json::to_string(ids).map_err(|_| ApiFailure::unavailable())?;
+    let mut values: Vec<&dyn ToSql> = fixed.to_vec();
+    values.push(&ids);
+    let rows = statement
+        .query_map(params_from_iter(values), map)?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(rows)
+}
+
+/// Statements the bridge keeps prepared on its one connection
+/// (`prepare_cached`): the set reads and the hot per-player ones, with room
+/// to spare, so a busy route never pushes another's out.
+const STATEMENT_CACHE: usize = 128;
 
 /// A stored name this bridge does not know, such as a state a newer bridge
 /// wrote before a rollback. The value itself is not said: SQL errors are

@@ -2,8 +2,9 @@
 //! counted game is 1 point for each player, and the winner earns 1 more only
 //! against an opponent of the same class or a higher one, or when either has
 //! no class. The loser earns its point whatever the classes, the account's
-//! points and the fighter's agree, the repeat cap still counts nothing, and a
-//! build from before the bonus is answered games plus wins.
+//! points and the fighter's agree, the repeat cap still counts nothing, and
+//! every build is answered the points as they are earned, asked with the
+//! bonus's query or without.
 mod common;
 
 use common::{Bridge, Player, points::*};
@@ -58,7 +59,9 @@ async fn a_win_earns_its_bonus_only_against_the_same_class_or_a_higher_one() {
     set_class(&bridge, "100", 6).await;
     // The same class, a higher one, then a lower one: 2, 2 and 1 for the
     // winner, and 1 each time for the loser.
-    for (generation, class, winner_points, loser_points) in [(1, 6, 2, 1), (2, 8, 4, 2), (3, 4, 5, 3)] {
+    for (generation, class, winner_points, loser_points) in
+        [(1, 6, 2, 1), (2, 8, 4, 2), (3, 4, 5, 3)]
+    {
         set_class(&bridge, "200", class).await;
         play(
             &bridge,
@@ -116,8 +119,12 @@ async fn a_player_without_a_class_is_nobodys_lower() {
     // Neither has a rating yet; then the winner has a class and the loser
     // none; then the loser's rating is still placing (class 0); then the
     // winner has none and the loser the lowest class. Each win is 2.
-    let steps: [(Option<u8>, Option<u8>); 4] =
-        [(None, None), (Some(9), None), (Some(9), Some(0)), (Some(0), Some(1))];
+    let steps: [(Option<u8>, Option<u8>); 4] = [
+        (None, None),
+        (Some(9), None),
+        (Some(9), Some(0)),
+        (Some(0), Some(1)),
+    ];
     for (index, (winner, loser)) in steps.into_iter().enumerate() {
         let generation = index as u64 + 1;
         if let Some(class) = winner {
@@ -181,7 +188,11 @@ async fn the_loser_earns_a_point_whatever_the_classes_and_no_points_are_taken() 
         // against a lower class is no more. The lowest class earns 2 for
         // its win and 1 for its loss.
         let earned = [after[0] - before[0], after[1] - before[1]];
-        assert_eq!(earned, if top_won { [1, 1] } else { [1, 2] }, "game {generation}");
+        assert_eq!(
+            earned,
+            if top_won { [1, 1] } else { [1, 2] },
+            "game {generation}"
+        );
         before = after;
     }
     assert_eq!(counts(&bridge, &first, 3).await, [(5, 5, 2); 2]);
@@ -292,7 +303,7 @@ async fn the_class_a_ticket_showed_is_the_one_the_bonus_reads() {
 }
 
 #[tokio::test]
-async fn a_build_from_before_the_bonus_is_answered_games_plus_wins() {
+async fn every_build_is_answered_the_points_as_earned() {
     let (bridge, fake, room_id, first, second) = two_players().await;
     // The bridge lists the class bonus beside points.
     let response = bridge
@@ -329,25 +340,20 @@ async fn a_build_from_before_the_bonus_is_answered_games_plus_wins() {
             { "fighter": 3, "points": 3, "games": 3, "wins": 2, "tier": 0, "floor": 0, "next": 200 }] })
     );
     // Asked with no query, as a build from before the bonus asks: the same
-    // games and wins, and the points that build checks them against.
-    let before = own_before_the_bonus(&bridge, &first).await;
+    // points as earned. Only Nightlies from before the bonus asked so, and
+    // they are not answered games plus wins any more.
     assert_eq!(
-        before,
-        json!({ "points": "counted",
-            "account": { "points": 5, "games": 3, "wins": 2, "tier": 0, "floor": 0, "next": 500 },
-            "fighters": [
-            { "fighter": 3, "points": 5, "games": 3, "wins": 2, "tier": 0, "floor": 0, "next": 200 }] })
+        own_plainly(&bridge, &first).await,
+        own(&bridge, &first).await
     );
-    // A player whose every win earned its bonus reads the same either way.
     assert_eq!(
         own(&bridge, &second).await,
-        own_before_the_bonus(&bridge, &second).await
+        own_plainly(&bridge, &second).await
     );
     assert_eq!(counts(&bridge, &second, 7).await, [(4, 3, 1); 2]);
 
-    // The tier is that of the points answered: 150 games with 100 wins, 60
-    // of them without a bonus, are 190 points (Ash) as earned, and 250
-    // (Copper) to a build from before the bonus.
+    // The tier is that of the points as earned: 150 games with 100 wins, 60
+    // of them without a bonus, are 190 points (Ash), however it is asked.
     sql(
         &bridge,
         "UPDATE fighter_levels SET games = 150, wins = 100, lower_wins = 60
@@ -360,7 +366,7 @@ async fn a_build_from_before_the_bonus_is_answered_games_plus_wins() {
         json!({ "fighter": 3, "points": 190, "games": 150, "wins": 100, "tier": 0, "floor": 0, "next": 200 })
     );
     assert_eq!(
-        fighter(own_before_the_bonus(&bridge, &first).await),
-        json!({ "fighter": 3, "points": 250, "games": 150, "wins": 100, "tier": 1, "floor": 200, "next": 700 })
+        fighter(own_plainly(&bridge, &first).await),
+        json!({ "fighter": 3, "points": 190, "games": 150, "wins": 100, "tier": 0, "floor": 0, "next": 200 })
     );
 }

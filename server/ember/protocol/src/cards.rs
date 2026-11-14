@@ -214,7 +214,6 @@ impl CardAccount {
     }
 }
 
-
 /// The award families a player wears beside their name: the title's and the
 /// icon's, as family ids. The viewer draws each family's current level (its
 /// title, its icon in that level's tier), so a family the player has reached
@@ -275,7 +274,11 @@ impl Style {
         if self.link > MAX_LINK {
             return Err(Error::InvalidField("link"));
         }
-        if self.region.as_deref().is_some_and(|region| !is_region(region)) {
+        if self
+            .region
+            .as_deref()
+            .is_some_and(|region| !is_region(region))
+        {
             return Err(Error::InvalidField("region"));
         }
         if self.looking & !LOOKING_BITS != 0 || self.looking.count_ones() > MAX_LOOKING {
@@ -381,10 +384,18 @@ impl PlayerCard {
             return Err(Error::InvalidField("fighters"));
         }
         self.fighters.iter().try_for_each(CardFighter::check)?;
-        if self.name.as_deref().is_some_and(|name| !is_player_name(name)) {
+        if self
+            .name
+            .as_deref()
+            .is_some_and(|name| !is_player_name(name))
+        {
             return Err(Error::InvalidField("name"));
         }
-        if self.country.as_deref().is_some_and(|country| !is_country(country)) {
+        if self
+            .country
+            .as_deref()
+            .is_some_and(|country| !is_country(country))
+        {
             return Err(Error::InvalidField("country"));
         }
         if self.main.is_some_and(|main| main >= FIGHTERS) {
@@ -401,7 +412,11 @@ impl PlayerCard {
         if let Some(versus) = &self.versus {
             versus.check()?;
         }
-        if self.friend.as_deref().is_some_and(|id| !is_prefixed_id(id, "fr")) {
+        if self
+            .friend
+            .as_deref()
+            .is_some_and(|id| !is_prefixed_id(id, "fr"))
+        {
             return Err(Error::InvalidField("friend"));
         }
         Ok(())
@@ -534,7 +549,11 @@ impl SearchHit {
         if !is_player_name(&self.name) {
             return Err(Error::InvalidField("name"));
         }
-        if self.country.as_deref().is_some_and(|country| !is_country(country)) {
+        if self
+            .country
+            .as_deref()
+            .is_some_and(|country| !is_country(country))
+        {
             return Err(Error::InvalidField("country"));
         }
         if self.main.is_some_and(|main| main >= FIGHTERS) {

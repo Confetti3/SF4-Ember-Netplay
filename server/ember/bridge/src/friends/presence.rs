@@ -47,6 +47,26 @@ pub struct Invite {
     pub expires_at: u64,
 }
 
+/// A change to what is kept in memory that follows a stored one. A friends
+/// action returns it instead of making it, and the route makes it
+/// (`Live::apply`) once the write has committed, so a write that is rolled
+/// back leaves nothing changed here.
+#[derive(Debug)]
+pub enum Effect {
+    /// The invites between two accounts end: they are no longer friends.
+    Unpair { one: String, other: String },
+    /// `inviter` offers `invitee` a room.
+    Invite {
+        inviter: String,
+        invitee: String,
+        room: InviteRoom,
+    },
+    /// `invitee` drops the invite `id`.
+    Dismiss { invitee: String, id: String },
+    /// Everything of `account` is forgotten: friends are off for it.
+    Forget { account: String },
+}
+
 /// Presence by account, and invites by the account invited.
 #[derive(Default)]
 pub struct Live(Mutex<Inner>);
@@ -63,6 +83,20 @@ impl Live {
         self.0
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// Makes `effect` at `now`.
+    pub fn apply(&self, effect: Effect, now: u64) {
+        match effect {
+            Effect::Unpair { one, other } => self.unpair(&one, &other),
+            Effect::Invite {
+                inviter,
+                invitee,
+                room,
+            } => self.invite(&inviter, &invitee, room, now),
+            Effect::Dismiss { invitee, id } => self.dismiss(&invitee, &id),
+            Effect::Forget { account } => self.forget(&account),
+        }
     }
 
     /// Records `account`'s presence; `offline` forgets it at once.

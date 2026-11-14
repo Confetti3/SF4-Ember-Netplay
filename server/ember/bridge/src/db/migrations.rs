@@ -224,7 +224,8 @@ fn settle_unnamed_055(tx: &Transaction<'_>) -> Result<(), OpenError> {
     Err(OpenError::Migration(
         "migration 055 is recorded without a file name, and the database has neither the \
          archive listing index of 055_archive_listing.sql nor only the column of the old \
-         055_room_wired_only.sql"
+         055_room_wired_only.sql. Nothing was changed: start the bridge build that ran \
+         before this deploy again, or restore the database backup taken just before it"
             .into(),
     ))
 }
@@ -255,7 +256,9 @@ fn check_records(tx: &Transaction<'_>, migrations: &[Migration]) -> Result<(), O
             return Err(OpenError::Migration(format!(
                 "the database recorded migration {version:03} without a file name, which only a \
                  bridge of another line writes: this bridge's files above \
-                 {LAST_UNNAMED_VERSION:03} are always recorded by name"
+                 {LAST_UNNAMED_VERSION:03} are always recorded by name. Nothing was changed: \
+                 start the bridge build that ran before this deploy again, or restore the \
+                 database backup taken just before it"
             )));
         }
         let Some(migration) = migrations
@@ -302,7 +305,10 @@ fn check_records(tx: &Transaction<'_>, migrations: &[Migration]) -> Result<(), O
 /// does, for the unnamed records of 056 to 059 (056 is this line's own; 057 to 059 are the
 /// library's files):
 /// what is looked for, and whether it is there. `None` for the others.
-fn schema_shows(tx: &Transaction<'_>, version: i64) -> rusqlite::Result<Option<(&'static str, bool)>> {
+fn schema_shows(
+    tx: &Transaction<'_>,
+    version: i64,
+) -> rusqlite::Result<Option<(&'static str, bool)>> {
     Ok(match version {
         56 => Some(("the column rooms.wired_only", has_column(tx, "rooms", "wired_only")?)),
         57 => Some(("the column rooms.game", has_column(tx, "rooms", "game")?)),
@@ -355,8 +361,10 @@ fn refuse_other_games(tx: &Transaction<'_>) -> Result<(), OpenError> {
     }
     Err(OpenError::Migration(format!(
         "the database holds rows of another game than usf4 in {}: this bridge is USF4's alone \
-         and would list and rate them as its own. Run clear-sfv-rows.py (the shared library's \
-         server/sfv-bridge) on it first, with this bridge stopped",
+         and would list and rate them as its own. Nothing was changed. Keep this bridge \
+         stopped, back the database up, run clear-sfv-rows.py (the shared library's \
+         server/sfv-bridge) on it, then start this bridge again \
+         (server/ember/bridge/deploy/UPGRADE-1.6.0.md)",
         found.join(", ")
     )))
 }
@@ -386,8 +394,8 @@ fn has_column(tx: &Transaction<'_>, table: &str, column: &str) -> rusqlite::Resu
 }
 
 #[cfg(test)]
-#[path = "migrations_tests.rs"]
-mod tests;
-#[cfg(test)]
 #[path = "migrations_ledger_tests.rs"]
 mod ledger_tests;
+#[cfg(test)]
+#[path = "migrations_tests.rs"]
+mod tests;

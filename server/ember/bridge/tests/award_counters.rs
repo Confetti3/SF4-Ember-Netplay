@@ -7,15 +7,9 @@ mod common;
 use common::{
     Bridge, Player,
     points::*,
-    public_rooms::{open_room, player, send, start},
-    sites::connect_discord,
-    supervisor::{BUILD, ENDPOINT, Supervisor, report},
+    public_rooms::{player, send},
 };
-use rusqlite::OptionalExtension;
-use ember_protocol::{
-    encoding::b64u,
-    levels::{CARD_PREFIX, CARD_VALID_SECS, LOOKUP_PATH, POINTS_PATH, is_card_token},
-};
+use ember_protocol::levels::POINTS_PATH;
 use reqwest::{Method, StatusCode};
 use serde_json::{Value as Json_, json};
 

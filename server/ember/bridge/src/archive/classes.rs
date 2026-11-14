@@ -15,7 +15,14 @@
 //! nothing refreshes them: the listing shows none and picks and orders by
 //! none (`routes::archive::list`), so showing them again only moves the
 //! classes that moved meanwhile.
-use std::collections::HashMap;
+//!
+//! A pass reads the whole board under the write lock, so maintenance runs one
+//! only when it is due (`Refreshed`): when something that feeds the board was
+//! written since the last (`skill::board_version`), while the last left games
+//! unsettled, and at least every `STALE_SECS` besides, since a rating grows
+//! less sure by the day without a game, which can take a player off the board
+//! with nothing written.
+use std::{collections::HashMap, sync::Mutex};
 
 use rusqlite::{Transaction, params};
 
@@ -24,13 +31,68 @@ use crate::{error::Result, skill::ranking};
 /// Games given a new class in one pass at most.
 pub(crate) const ROWS_PER_PASS: i64 = 1000;
 
+/// The longest a refresh waits when nothing that feeds the board was written.
+pub(crate) const STALE_SECS: u64 = 60 * 60;
+
 /// Brings the classes the archive's games carry towards the board's, while
-/// the bridge shows classes.
-pub fn refresh(tx: &Transaction<'_>, shown: bool, developers: &[String], now: u64) -> Result<()> {
+/// the bridge shows classes. Whether every player's games carry their class
+/// after it: false while a change is still being given out.
+pub fn refresh(tx: &Transaction<'_>, shown: bool, developers: &[String], now: u64) -> Result<bool> {
     if !shown {
-        return Ok(());
+        return Ok(true);
     }
-    refresh_with(tx, &ranking::public_classes(tx, developers, now)?)
+    refresh_with(tx, &ranking::public_classes(tx, developers, now)?)?;
+    let unsettled: bool = tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM archive_player_classes WHERE settled = 0)",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(!unsettled)
+}
+
+/// The last refresh one bridge made, for whether the next is due.
+#[derive(Default)]
+pub struct Refreshed(Mutex<Option<Last>>);
+
+#[derive(Clone, Copy)]
+struct Last {
+    /// `skill::board_version` as the refresh began.
+    version: u64,
+    at: u64,
+    /// No game was left without its player's class.
+    settled: bool,
+}
+
+impl Refreshed {
+    /// Whether a refresh is due at `now` with the board's writes at
+    /// `version`: always the first time, and after a write that can move the
+    /// board, while games are left unsettled, `STALE_SECS` after the last, or
+    /// once the clock went back.
+    pub fn due(&self, version: u64, now: u64) -> bool {
+        let last = *self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        last.is_none_or(|last| {
+            last.version != version
+                || !last.settled
+                || now < last.at
+                || now >= last.at.saturating_add(STALE_SECS)
+        })
+    }
+
+    /// A refresh that began with the board's writes at `version` finished at
+    /// `now`, `settled` or not.
+    pub fn done(&self, version: u64, now: u64, settled: bool) {
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(Last {
+            version,
+            at: now,
+            settled,
+        });
+    }
 }
 
 /// One pass towards `board`.
@@ -107,4 +169,29 @@ pub(crate) fn apply(tx: &Transaction<'_>, rows: i64) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_refresh_is_due_only_when_the_board_can_have_moved() {
+        let refreshed = Refreshed::default();
+        // The first pass always refreshes.
+        assert!(refreshed.due(5, 1_000));
+        refreshed.done(5, 1_000, true);
+        // Nothing written since: not due, until the board can have aged.
+        assert!(!refreshed.due(5, 1_010));
+        assert!(!refreshed.due(5, 1_000 + STALE_SECS - 1));
+        assert!(refreshed.due(5, 1_000 + STALE_SECS));
+        // A write that can move the board, or a clock that went back.
+        assert!(refreshed.due(6, 1_010));
+        assert!(refreshed.due(5, 999));
+        // Games left unsettled: the next pass goes on with them.
+        refreshed.done(6, 1_020, false);
+        assert!(refreshed.due(6, 1_021));
+        refreshed.done(6, 1_030, true);
+        assert!(!refreshed.due(6, 1_031));
+    }
 }

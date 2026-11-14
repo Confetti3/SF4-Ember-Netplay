@@ -13,10 +13,13 @@ use ember_protocol::{
     rooms::is_player_name,
     skill::Listing,
 };
+use std::collections::HashMap;
+
 use rusqlite::{OptionalExtension, Row, Transaction, params};
 
 use crate::{
     cards,
+    db::select_in,
     error::{ApiFailure, Result},
     util::{new_id, random},
 };
@@ -60,7 +63,7 @@ pub fn refuse(reason: FriendRefusal) -> ApiFailure {
             ErrorCode::StaleRevision,
             "That friend cannot be invited now.",
         ),
-        // Written where the account is looked up (`routes::friends::admit`).
+        // Written where the account is looked up (`routes::account::Gate`).
         FriendRefusal::NoDiscordAccount => (
             ErrorCode::Forbidden,
             "Connect a Discord account to have friends.",
@@ -122,11 +125,8 @@ pub fn sync(
     now: u64,
 ) -> Result<()> {
     let off: Option<bool> = tx
-        .query_row(
-            "SELECT off FROM social_accounts WHERE discord_user_id = ?1",
-            [account],
-            |row| row.get(0),
-        )
+        .prepare_cached("SELECT off FROM social_accounts WHERE discord_user_id = ?1")?
+        .query_row([account], |row| row.get(0))
         .optional()?;
     if off == Some(true) {
         return Err(refuse(FriendRefusal::FriendsOff));
@@ -174,22 +174,21 @@ pub struct Account {
 /// `account`'s settings, once it has synced.
 pub fn account(tx: &Transaction<'_>, account: &str) -> Result<Option<Account>> {
     Ok(tx
-        .query_row(
+        .prepare_cached(
             "SELECT name, country, main_fighter, code, appear_offline, seen_at, off
              FROM social_accounts WHERE discord_user_id = ?1",
-            [account],
-            |row| {
-                Ok(Account {
-                    name: row.get(0)?,
-                    country: row.get(1)?,
-                    main: row.get(2)?,
-                    code: row.get(3)?,
-                    appear_offline: row.get(4)?,
-                    seen_at: row.get(5)?,
-                    off: row.get(6)?,
-                })
-            },
-        )
+        )?
+        .query_row([account], |row| {
+            Ok(Account {
+                name: row.get(0)?,
+                country: row.get(1)?,
+                main: row.get(2)?,
+                code: row.get(3)?,
+                appear_offline: row.get(4)?,
+                seen_at: row.get(5)?,
+                off: row.get(6)?,
+            })
+        })
         .optional()?)
 }
 
@@ -206,10 +205,89 @@ pub fn account_of_code(tx: &Transaction<'_>, code: &str) -> Result<Option<String
 }
 
 /// What `caller` is to `target`, from `caller`'s side; None when `target`
-/// blocked `caller`, who then sees nothing of them. A request the receiver
-/// cannot see does not make them `received`, and one its sender withdrew
-/// does not make the sender `sent`.
+/// blocked `caller`, who then sees nothing of them (`relations`).
 pub fn relation(tx: &Transaction<'_>, caller: &str, target: &str) -> Result<Option<Relation>> {
+    Ok(relations(tx, caller, &[target])?.relation(target))
+}
+
+/// What `caller` is to each of a set of accounts, read at once
+/// (`relations`).
+pub struct Relations {
+    /// By account: [blocked the caller, blocked by the caller, a friend,
+    /// asked by the caller, asked the caller].
+    flags: HashMap<String, [bool; 5]>,
+    /// The friendship's id, by friend.
+    friendships: HashMap<String, String>,
+}
+
+impl Relations {
+    /// What `caller` is to `target`; None when `target` blocked `caller`. A
+    /// request the receiver cannot see does not make them `received`, and one
+    /// its sender withdrew does not make the sender `sent`. An account not in
+    /// the set read is `none`.
+    pub fn relation(&self, target: &str) -> Option<Relation> {
+        Some(match self.flags.get(target).copied().unwrap_or_default() {
+            [true, ..] => return None,
+            [_, true, ..] => Relation::Blocked,
+            [_, _, true, ..] => Relation::Friend,
+            [_, _, _, true, _] => Relation::Sent,
+            [_, _, _, _, true] => Relation::Received,
+            _ => Relation::None,
+        })
+    }
+
+    /// The id both friends call their friendship by, when `target` is the
+    /// caller's friend.
+    pub fn friendship(&self, target: &str) -> Option<String> {
+        self.friendships.get(target).cloned()
+    }
+}
+
+/// What `caller` is to each of `targets`, in one read however many there are:
+/// the blocks both ways, the friendships with their ids, and the requests both
+/// ways that count.
+pub fn relations(tx: &Transaction<'_>, caller: &str, targets: &[&str]) -> Result<Relations> {
+    let rows = select_in(
+        tx,
+        "SELECT 0, blocker, NULL FROM friend_blocks WHERE blocked = ?1 AND blocker IN ({ids})
+         UNION ALL
+         SELECT 1, blocked, NULL FROM friend_blocks WHERE blocker = ?1 AND blocked IN ({ids})
+         UNION ALL
+         SELECT 2, CASE WHEN first = ?1 THEN second ELSE first END, id FROM friendships
+         WHERE (first = ?1 AND second IN ({ids})) OR (second = ?1 AND first IN ({ids}))
+         UNION ALL
+         SELECT 3, receiver, NULL FROM friend_requests
+         WHERE sender = ?1 AND receiver IN ({ids}) AND withdrawn_at IS NULL
+         UNION ALL
+         SELECT 4, sender, NULL FROM friend_requests
+         WHERE receiver = ?1 AND sender IN ({ids}) AND hidden_at IS NULL",
+        &[&caller],
+        targets,
+        |row| {
+            Ok((
+                row.get::<_, u8>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        },
+    )?;
+    let mut relations = Relations {
+        flags: HashMap::new(),
+        friendships: HashMap::new(),
+    };
+    for (kind, account, friendship) in rows {
+        if let Some(id) = friendship {
+            relations.friendships.insert(account.clone(), id);
+        }
+        relations.flags.entry(account).or_default()[usize::from(kind)] = true;
+    }
+    Ok(relations)
+}
+
+/// `relation` one account at a time, as it was read before `relations`: the
+/// test oracle the set read is checked against.
+#[cfg(test)]
+pub fn relation_one(tx: &Transaction<'_>, caller: &str, target: &str) -> Result<Option<Relation>> {
     let (first, second) = ordered(caller, target);
     let flags: [bool; 5] = tx.query_row(
         "SELECT EXISTS (SELECT 1 FROM friend_blocks WHERE blocker = ?2 AND blocked = ?1),
@@ -220,7 +298,15 @@ pub fn relation(tx: &Transaction<'_>, caller: &str, target: &str) -> Result<Opti
                 EXISTS (SELECT 1 FROM friend_requests
                         WHERE sender = ?2 AND receiver = ?1 AND hidden_at IS NULL)",
         params![caller, target, first, second],
-        |row| Ok([row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?]),
+        |row| {
+            Ok([
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+            ])
+        },
     )?;
     Ok(match flags {
         [true, ..] => None,
@@ -330,14 +416,62 @@ fn befriend(tx: &Transaction<'_>, one: &str, other: &str, now: u64) -> Result<()
     Ok(())
 }
 
-/// The account that sent `receiver` the request `id`, when `receiver` can see
-/// it: the one a card look-up by request opens.
-pub fn received_from(tx: &Transaction<'_>, receiver: &str, id: &str) -> Result<Option<String>> {
-    sender_of(tx, receiver, id, true)
+/// The accounts that sent `receiver` each of the requests `ids` they can see,
+/// by request id, in one read: the ones a card look-up by request opens.
+pub fn received_from(
+    tx: &Transaction<'_>,
+    receiver: &str,
+    ids: &[&str],
+) -> Result<HashMap<String, String>> {
+    Ok(select_in(
+        tx,
+        "SELECT id, sender FROM friend_requests
+         WHERE id IN ({ids}) AND receiver = ?1 AND hidden_at IS NULL",
+        &[&receiver],
+        ids,
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?
+    .into_iter()
+    .collect())
+}
+
+/// The accounts `caller` is friends with as each of `ids`, by friendship id,
+/// in one read: the ones a card look-up by friend opens (`friend_of`).
+pub fn friends_by_id(
+    tx: &Transaction<'_>,
+    caller: &str,
+    ids: &[&str],
+) -> Result<HashMap<String, String>> {
+    Ok(select_in(
+        tx,
+        "SELECT id, CASE WHEN first = ?1 THEN second ELSE first END FROM friendships
+         WHERE id IN ({ids}) AND (first = ?1 OR second = ?1)",
+        &[&caller],
+        ids,
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?
+    .into_iter()
+    .collect())
+}
+
+/// The accounts whose codes are `codes` (as `parse_friend_code` writes them),
+/// by code, in one read; an account that is off holds none
+/// (`account_of_code`).
+pub fn accounts_of_codes(tx: &Transaction<'_>, codes: &[&str]) -> Result<HashMap<String, String>> {
+    Ok(select_in(
+        tx,
+        "SELECT code, discord_user_id FROM social_accounts WHERE code IN ({ids}) AND off = 0",
+        &[],
+        codes,
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?
+    .into_iter()
+    .collect())
 }
 
 /// The id both friends call their friendship by, when `one` and `other` are
-/// friends.
+/// friends, one pair at a time: the test oracle of `Relations::friendship`.
+#[cfg(test)]
 pub fn friendship_id(tx: &Transaction<'_>, one: &str, other: &str) -> Result<Option<String>> {
     let (first, second) = ordered(one, other);
     Ok(tx
@@ -566,7 +700,10 @@ pub fn new_code(tx: &Transaction<'_>, caller: &str, now: u64) -> Result<()> {
 /// blocks stay, since they protect the player and are not friends' data;
 /// blocks others placed on them are those players' own. The row, with the
 /// name, flag and main its game last sent, stays too, so turning friends on
-/// needs nothing from the game but the action.
+/// needs nothing from the game but the action. Its card (`player_cards`)
+/// stays as well and is still served to whoever holds its token from a room,
+/// but while it is off the account is found neither by name
+/// (`cards::find_by_name`) nor by code.
 pub fn forget(tx: &Transaction<'_>, caller: &str, now: u64) -> Result<()> {
     for statement in [
         "DELETE FROM friendships WHERE first = ?1",
@@ -612,7 +749,7 @@ pub struct FriendRow {
 
 /// `caller`'s friends, at most `MAX_FRIENDS`.
 pub fn friends(tx: &Transaction<'_>, caller: &str) -> Result<Vec<FriendRow>> {
-    let mut statement = tx.prepare(
+    let mut statement = tx.prepare_cached(
         "SELECT f.id, f.since, f.other, s.name, s.country, s.main_fighter, s.code,
                 s.appear_offline, s.seen_at, s.off
          FROM (SELECT id, since, second AS other FROM friendships WHERE first = ?1
@@ -653,7 +790,7 @@ pub struct IncomingRow {
 
 /// The requests `caller` can see, newest first, at most `MAX_INCOMING`.
 pub fn incoming(tx: &Transaction<'_>, caller: &str) -> Result<Vec<IncomingRow>> {
-    let mut statement = tx.prepare(
+    let mut statement = tx.prepare_cached(
         "SELECT r.id, r.sender, s.name, s.country, r.sent_at
          FROM friend_requests r JOIN social_accounts s ON s.discord_user_id = r.sender
          WHERE r.receiver = ?1 AND r.hidden_at IS NULL
@@ -676,7 +813,7 @@ pub fn incoming(tx: &Transaction<'_>, caller: &str) -> Result<Vec<IncomingRow>> 
 /// The requests `caller` sent and did not withdraw, hidden ones too: they
 /// stay "sent". Newest first.
 pub fn outgoing(tx: &Transaction<'_>, caller: &str) -> Result<Vec<OutgoingRequest>> {
-    let mut statement = tx.prepare(
+    let mut statement = tx.prepare_cached(
         "SELECT id, label, sent_at FROM friend_requests
          WHERE sender = ?1 AND withdrawn_at IS NULL ORDER BY sent_at DESC",
     )?;
@@ -694,7 +831,7 @@ pub fn outgoing(tx: &Transaction<'_>, caller: &str) -> Result<Vec<OutgoingReques
 
 /// The players `caller` blocked, newest first, at most `MAX_BLOCKS`.
 pub fn blocked(tx: &Transaction<'_>, caller: &str) -> Result<Vec<BlockedPlayer>> {
-    let mut statement = tx.prepare(
+    let mut statement = tx.prepare_cached(
         "SELECT id, name, at FROM friend_blocks WHERE blocker = ?1 ORDER BY at DESC LIMIT ?2",
     )?;
     let rows = statement
@@ -710,7 +847,9 @@ pub fn blocked(tx: &Transaction<'_>, caller: &str) -> Result<Vec<BlockedPlayer>>
 }
 
 /// The record between `caller` and `other` from `caller`'s side
-/// (`pair_records`, migration 060): absent before their first counted game.
+/// (`pair_records`, migration 060), one pair at a time: the test oracle of
+/// `records`.
+#[cfg(test)]
 pub fn record(tx: &Transaction<'_>, caller: &str, other: &str) -> Result<Option<PairRecord>> {
     let (first, second) = ordered(caller, other);
     let stored: Option<(u64, u64, u64)> = tx
@@ -721,44 +860,92 @@ pub fn record(tx: &Transaction<'_>, caller: &str, other: &str) -> Result<Option<
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .optional()?;
-    Ok(stored
-        .map(|(first_wins, second_wins, last_at)| {
-            let (won, lost) = if caller == first {
-                (first_wins, second_wins)
-            } else {
-                (second_wins, first_wins)
-            };
-            PairRecord { won, lost, last_at }
-        })
-        .filter(|record| record.won + record.lost > 0))
+    Ok(stored.and_then(|(first_wins, second_wins, last_at)| {
+        counted_record(caller == first, first_wins, second_wins, last_at)
+    }))
 }
 
-/// The public room `room_id` as a friend's presence shows it, while it is
-/// open and listed (the filter of `rooms::player_rooms`): joinable when it is
-/// not locked, not full and of `build_id`. None for any other room.
-pub fn listed_room(
+/// The record between `caller` and each of `others` from `caller`'s side
+/// (`pair_records`, migration 060), in one read: the ones with a counted
+/// game, by the other account; absent before their first.
+pub fn records(
     tx: &Transaction<'_>,
-    room_id: &str,
-    build_id: Option<&str>,
-) -> Result<Option<FriendRoom>> {
-    let room = tx
-        .query_row(
-            "SELECT name, members, capacity, build_id = ?2, COALESCE(locked, 0) FROM rooms
-             WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL
-               AND region IS NOT NULL AND members >= 1",
-            params![room_id, build_id],
-            |row| room_of(room_id, row),
-        )
-        .optional()?;
-    Ok(room.filter(|room| room.check().is_ok()))
+    caller: &str,
+    others: &[&str],
+) -> Result<HashMap<String, PairRecord>> {
+    let rows = select_in(
+        tx,
+        "SELECT first, second, first_wins, second_wins, played_at FROM pair_records
+         WHERE (first = ?1 AND second IN ({ids})) OR (second = ?1 AND first IN ({ids}))",
+        &[&caller],
+        others,
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, u64>(2)?,
+                row.get::<_, u64>(3)?,
+                row.get::<_, u64>(4)?,
+            ))
+        },
+    )?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|(first, second, first_wins, second_wins, last_at)| {
+            let from_first = first == caller;
+            let record = counted_record(from_first, first_wins, second_wins, last_at)?;
+            Some((if from_first { second } else { first }, record))
+        })
+        .collect())
 }
 
-fn room_of(room_id: &str, row: &Row<'_>) -> rusqlite::Result<FriendRoom> {
-    let (members, capacity): (u8, u8) = (row.get(1)?, row.get(2)?);
-    let (same_build, locked): (Option<bool>, bool) = (row.get(3)?, row.get(4)?);
+/// A pair's wins from the caller's side, `from_first` when the caller is the
+/// pair's first account; none before a counted game.
+fn counted_record(
+    from_first: bool,
+    first_wins: u64,
+    second_wins: u64,
+    last_at: u64,
+) -> Option<PairRecord> {
+    let (won, lost) = if from_first {
+        (first_wins, second_wins)
+    } else {
+        (second_wins, first_wins)
+    };
+    Some(PairRecord { won, lost, last_at }).filter(|record| record.won + record.lost > 0)
+}
+
+/// The public rooms among `room_ids` as a friend's presence shows them, by
+/// room id, while each is open and listed (the filter of
+/// `rooms::player_rooms`), all in one read: joinable when not locked, not full
+/// and of `build_id`. Any other room has no entry.
+pub fn listed_rooms(
+    tx: &Transaction<'_>,
+    room_ids: &[&str],
+    build_id: Option<&str>,
+) -> Result<HashMap<String, FriendRoom>> {
+    let rooms = select_in(
+        tx,
+        "SELECT room_id, name, members, capacity, build_id = ?1, COALESCE(locked, 0) FROM rooms
+         WHERE room_id IN ({ids}) AND closed_at IS NULL AND invitation_sealed IS NOT NULL
+           AND region IS NOT NULL AND members >= 1",
+        &[&build_id],
+        room_ids,
+        room_of,
+    )?;
+    Ok(rooms
+        .into_iter()
+        .filter(|room| room.check().is_ok())
+        .map(|room| (room.room_id.clone(), room))
+        .collect())
+}
+
+fn room_of(row: &Row<'_>) -> rusqlite::Result<FriendRoom> {
+    let (members, capacity): (u8, u8) = (row.get(2)?, row.get(3)?);
+    let (same_build, locked): (Option<bool>, bool) = (row.get(4)?, row.get(5)?);
     Ok(FriendRoom {
-        room_id: room_id.to_owned(),
-        name: row.get(0)?,
+        room_id: row.get(0)?,
+        name: row.get(1)?,
         members,
         capacity,
         joinable: same_build == Some(true) && !locked && members < capacity,

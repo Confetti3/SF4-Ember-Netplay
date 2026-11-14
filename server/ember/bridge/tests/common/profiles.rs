@@ -7,7 +7,7 @@ use std::sync::Mutex;
 
 use super::{
     Bridge, Player,
-    public_rooms::{player, reason, send},
+    public_rooms::{player, send},
     seed,
     supervisor::{self, BUILD, Supervisor},
 };
@@ -15,10 +15,7 @@ use ember_bridge::{config, integrations::Secrets};
 use ember_protocol::{
     encoding::b64u,
     friends::{ACTIONS_PATH, SYNC_PATH},
-    levels::{
-        CARD_PREFIX, CARDS_ME_PATH, CardAnswers, LOOKUP_PATH, MAX_SEARCH, SEARCH_PATH,
-        SearchAnswer, is_card_token,
-    },
+    levels::{CARD_PREFIX, CARDS_ME_PATH, CardAnswers, LOOKUP_PATH, SEARCH_PATH, SearchAnswer},
 };
 use reqwest::{Method, StatusCode};
 use rusqlite::OptionalExtension;
@@ -68,7 +65,10 @@ impl Drop for World {
         let ember_ids = self.ember_ids.lock().unwrap();
         for (path, answer) in self.answers.lock().unwrap().iter() {
             for secret in accounts.iter().chain(ember_ids.iter()) {
-                assert!(!answer.contains(secret.as_str()), "{path} names {secret}: {answer}");
+                assert!(
+                    !answer.contains(secret.as_str()),
+                    "{path} names {secret}: {answer}"
+                );
             }
         }
     }
@@ -132,7 +132,10 @@ impl World {
             CONNECTED,
         )
         .await;
-        self.accounts.lock().unwrap().extend([discord.clone(), username]);
+        self.accounts
+            .lock()
+            .unwrap()
+            .extend([discord.clone(), username]);
         self.ember_ids
             .lock()
             .unwrap()
@@ -165,15 +168,8 @@ impl World {
         path: &str,
         body: Option<Json_>,
     ) -> (StatusCode, Json_) {
-        let (status, answer) = send(
-            &self.bridge,
-            method,
-            member.player.token(),
-            IP,
-            path,
-            body,
-        )
-        .await;
+        let (status, answer) =
+            send(&self.bridge, method, member.player.token(), IP, path, body).await;
         self.record(path, &answer);
         (status, answer)
     }
@@ -186,7 +182,8 @@ impl World {
     }
 
     pub async fn try_save(&self, member: &Member, card: Json_) -> (StatusCode, Json_) {
-        self.call(Method::PUT, member, CARDS_ME_PATH, Some(card)).await
+        self.call(Method::PUT, member, CARDS_ME_PATH, Some(card))
+            .await
     }
 
     /// The names of the players `body` finds for `member`, in order, and
@@ -211,7 +208,8 @@ impl World {
     }
 
     pub async fn try_search(&self, member: &Member, body: Json_) -> (StatusCode, Json_) {
-        self.call(Method::POST, member, SEARCH_PATH, Some(body)).await
+        self.call(Method::POST, member, SEARCH_PATH, Some(body))
+            .await
     }
 
     /// The cards `member` sees for `selectors`, each checked as a client
@@ -236,7 +234,10 @@ impl World {
         let mut plain = vec![0x01];
         plain.extend(member.discord.parse::<u64>().unwrap().to_le_bytes());
         plain.extend(self.now().to_le_bytes());
-        format!("{CARD_PREFIX}{}", b64u(&self.bridge.state().keys.seal(&plain)))
+        format!(
+            "{CARD_PREFIX}{}",
+            b64u(&self.bridge.state().keys.seal(&plain))
+        )
     }
 
     /// `viewer`'s card of `member`, or null.
@@ -268,8 +269,11 @@ impl World {
     /// `from` asks `to` by card, and `to` answers it: the request id.
     pub async fn ask(&self, from: &Member, to: &Member) -> String {
         let card = self.token(to);
-        self.act(from, json!({ "action": "request", "card": card, "label": to.name }))
-            .await;
+        self.act(
+            from,
+            json!({ "action": "request", "card": card, "label": to.name }),
+        )
+        .await;
         self.sync(to).await["incoming"][0]["id"]
             .as_str()
             .unwrap()
@@ -353,7 +357,10 @@ pub async fn offers(bridge: &Bridge, feature: &str) -> bool {
         .await
         .unwrap();
     let (_, body) = super::read(response).await;
-    body["features"].as_array().unwrap().contains(&json!(feature))
+    body["features"]
+        .as_array()
+        .unwrap()
+        .contains(&json!(feature))
 }
 
 pub fn full_card() -> Json_ {

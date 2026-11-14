@@ -23,10 +23,15 @@ use ember_protocol::{
     levels::FIGHTERS,
     skill::{SKILL_BANDS, SkillBadge},
 };
-use rusqlite::{OptionalExtension, Transaction, params};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::atomic::{AtomicU64, Ordering},
+};
+
+use rusqlite::{OptionalExtension, Row, Transaction, params};
 use serde::Deserialize;
 
-use crate::error::Result;
+use crate::{db::select_in, error::Result};
 use glicko::Rating;
 
 /// The lowest rating of each class above the first: D below 1200, D+ from
@@ -186,6 +191,51 @@ pub fn record_games(
     Ok(())
 }
 
+/// `record_games` in a savepoint of its own inside the poll's transaction for
+/// every room (`routes::rooms::poll`): a game that fails (a row the schema
+/// refuses, a broken record) rolls back this room's games alone, and the poll
+/// goes on listing, closing and banning every room. Nothing of the room's
+/// games is kept then, so the next poll, which reports them again, tries them
+/// all again. The failure that was rolled back is answered, for the poll to
+/// log; an `Err` is the savepoint's own, which fails the poll as before.
+pub fn record_room_games(
+    tx: &Transaction<'_>,
+    room_id: &str,
+    games: Option<&serde_json::Value>,
+    now: u64,
+) -> Result<Option<crate::error::ApiFailure>> {
+    tx.execute_batch("SAVEPOINT room_games")?;
+    match record_games(tx, room_id, games, now) {
+        Ok(()) => {
+            tx.execute_batch("RELEASE room_games")?;
+            Ok(None)
+        }
+        Err(failure) => {
+            tx.execute_batch("ROLLBACK TO room_games; RELEASE room_games")?;
+            Ok(Some(failure))
+        }
+    }
+}
+
+/// Counts the writes that can move the public rankings board
+/// (`ranking::public_classes`): a rating, the band last shown, a ranking
+/// choice, a Discord account connected or disconnected. The archive's class
+/// refresh reads it to run only when the board can have moved
+/// (`archive::classes::Refreshed`). In memory and process-wide: a write the
+/// database rolls back, or another bridge in the same process, only costs a
+/// refresh more.
+static BOARD: AtomicU64 = AtomicU64::new(0);
+
+/// Notes a write that can move the public rankings board (`BOARD`).
+pub fn board_moved() {
+    BOARD.fetch_add(1, Ordering::SeqCst);
+}
+
+/// How many writes that can move the board there have been (`BOARD`).
+pub fn board_version() -> u64 {
+    BOARD.load(Ordering::SeqCst)
+}
+
 /// Moves both ratings for a game `winner` won against `loser`, at `sitting`
 /// times what their ratings make it count.
 fn rate(tx: &Transaction<'_>, winner: &str, loser: &str, sitting: f64, now: u64) -> Result<()> {
@@ -312,10 +362,11 @@ pub fn show(
     badge_of(tx, &account, now).map(Some)
 }
 
-/// The class last shown for Discord account `account`, read without
-/// remembering anything: what its friends see (docs/design/FRIENDS.md). None
-/// when it does not take part, the developer mark for a developer, and
-/// otherwise the band last shown, settled while its aged rating is.
+/// The class last shown for Discord account `account`, one account at a time:
+/// the test oracle `Standings::last_shown` is checked against. None when it
+/// does not take part, the developer mark for a developer, and otherwise the
+/// band last shown, settled while its aged rating is.
+#[cfg(test)]
 pub fn last_shown(
     tx: &Transaction<'_>,
     account: &str,
@@ -333,8 +384,84 @@ pub fn last_shown(
         return Ok(Some(SkillBadge::DEVELOPER));
     }
     let (rating, band) = load(tx, account, now)?;
+    Ok(Some(class_shown(&rating, band)))
+}
+
+/// What the ranking tables hold of a set of Discord accounts, read at once
+/// (two reads however many there are): which of them do not take part, and
+/// the rating and band last shown of each that has one. Read only: nothing is
+/// remembered as shown.
+pub struct Standings {
+    opted_out: HashSet<String>,
+    ratings: HashMap<String, (Rating, u8)>,
+}
+
+impl Standings {
+    pub fn read(tx: &Transaction<'_>, accounts: &[&str], now: u64) -> Result<Self> {
+        let opted_out = select_in(
+            tx,
+            "SELECT discord_user_id FROM ranking_choices
+             WHERE game = 'usf4' AND NOT ranked AND discord_user_id IN ({ids})",
+            &[],
+            accounts,
+            |row| row.get::<_, String>(0),
+        )?
+        .into_iter()
+        .collect();
+        let ratings = select_in(
+            tx,
+            "SELECT discord_user_id, rating, deviation, volatility, band, played_at
+             FROM skill_ratings WHERE game = 'usf4' AND discord_user_id IN ({ids})",
+            &[],
+            accounts,
+            |row| Ok((row.get::<_, String>(0)?, rating_at(row, 1, now)?)),
+        )?
+        .into_iter()
+        .collect();
+        Ok(Self { opted_out, ratings })
+    }
+
+    /// Whether `account` takes part in ranking: without a choice stored, it
+    /// does (`takes_part`).
+    pub fn takes_part(&self, account: &str) -> bool {
+        !self.opted_out.contains(account)
+    }
+
+    /// The class `account`'s rating last showed, 1 to the top; 0 without one
+    /// (`levels::class`).
+    pub fn band(&self, account: &str) -> u8 {
+        self.ratings.get(account).map_or(0, |(_, band)| *band)
+    }
+
+    /// The class `account` shows its friends and on its card, as last shown
+    /// (docs/design/FRIENDS.md): none when it does not take part, the
+    /// developer mark for one of `developers`, and otherwise the band last
+    /// shown, settled while its aged rating is.
+    pub fn last_shown(&self, account: &str, developers: &[String]) -> Option<SkillBadge> {
+        if !self.takes_part(account) {
+            return None;
+        }
+        let developer = Developers {
+            accounts: developers,
+            shown: true,
+        };
+        if developer.mark(account) {
+            return Some(SkillBadge::DEVELOPER);
+        }
+        let (rating, band) = self
+            .ratings
+            .get(account)
+            .copied()
+            .unwrap_or((Rating::NEW, 0));
+        Some(class_shown(&rating, band))
+    }
+}
+
+/// The class to show for a `rating` with `band` shown last: the band once the
+/// rating stands behind it.
+fn class_shown(rating: &Rating, band: u8) -> SkillBadge {
     let settled = band != 0 && rating.deviation <= SETTLED_DEVIATION;
-    Ok(Some(SkillBadge::class(band, settled)))
+    SkillBadge::class(band, settled)
 }
 
 /// The class to show for `account` now, band 0 while it is still placing. It
@@ -353,6 +480,7 @@ fn badge_of(tx: &Transaction<'_>, account: &str, now: u64) -> Result<SkillBadge>
             "UPDATE skill_ratings SET band = ?2 WHERE game = 'usf4' AND discord_user_id = ?1",
             params![account, band],
         )?;
+        board_moved();
         levels::note_class(tx, account, band)?;
     }
     Ok(SkillBadge::class(band, band != 0 && settled))
@@ -361,11 +489,8 @@ fn badge_of(tx: &Transaction<'_>, account: &str, now: u64) -> Result<SkillBadge>
 /// The Discord account connected to `ember_id`.
 pub fn account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
     Ok(tx
-        .query_row(
-            "SELECT user_id FROM discord_accounts WHERE ember_id = ?1",
-            [ember_id.as_str()],
-            |row| row.get(0),
-        )
+        .prepare_cached("SELECT user_id FROM discord_accounts WHERE ember_id = ?1")?
+        .query_row([ember_id.as_str()], |row| row.get(0))
         .optional()?)
 }
 
@@ -387,20 +512,22 @@ fn load(tx: &Transaction<'_>, account: &str, now: u64) -> Result<(Rating, u8)> {
             "SELECT rating, deviation, volatility, band, played_at
              FROM skill_ratings WHERE game = 'usf4' AND discord_user_id = ?1",
             [account],
-            |row| {
-                let rating = Rating {
-                    rating: row.get(0)?,
-                    deviation: row.get(1)?,
-                    volatility: row.get(2)?,
-                };
-                Ok((rating, row.get(3)?, row.get::<_, u64>(4)?))
-            },
+            |row| rating_at(row, 0, now),
         )
         .optional()?;
-    Ok(match stored {
-        Some((rating, band, played_at)) => (aged(rating, played_at, now), band),
-        None => (Rating::NEW, 0),
-    })
+    Ok(stored.unwrap_or((Rating::NEW, 0)))
+}
+
+/// The rating, band and last game in columns `at` to `at + 4` of a
+/// `skill_ratings` row: the rating aged to `now`, and the band last shown.
+fn rating_at(row: &Row<'_>, at: usize, now: u64) -> rusqlite::Result<(Rating, u8)> {
+    let rating = Rating {
+        rating: row.get(at)?,
+        deviation: row.get(at + 1)?,
+        volatility: row.get(at + 2)?,
+    };
+    let played_at: u64 = row.get(at + 4)?;
+    Ok((aged(rating, played_at, now), row.get(at + 3)?))
 }
 
 /// `rating` from a game at `played_at`, grown less sure by the days since.
@@ -424,6 +551,7 @@ fn store(tx: &Transaction<'_>, account: &str, rating: Rating, now: u64) -> Resul
             now
         ],
     )?;
+    board_moved();
     Ok(())
 }
 
@@ -559,7 +687,11 @@ mod tests {
         // A Grand Master back after some months, or in their first games:
         // the rating is unsure and by Glicko alone one loss to a D player
         // costs a class or two. (deviation, the loss alone, at most now)
-        for (deviation, alone, most) in [(111.0, 60.0, 8.0), (150.0, 120.0, 15.0), (200.0, 215.0, 65.0)] {
+        for (deviation, alone, most) in [
+            (111.0, 60.0, 8.0),
+            (150.0, 120.0, 15.0),
+            (200.0, 215.0, 65.0),
+        ] {
             let master = unsure(2100.0, deviation);
             let by_glicko = master.rating - master.after(newer, 0.0, 1.0).rating;
             assert!(by_glicko > alone, "{deviation}: {by_glicko}");

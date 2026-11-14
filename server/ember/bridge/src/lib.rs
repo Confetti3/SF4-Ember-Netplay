@@ -57,6 +57,8 @@ pub struct AppState {
     ranking_board: Arc<routes::ranking::PublicCache>,
     /// Friends' presence and invites, kept in memory only (`friends`).
     friends: Arc<friends::presence::Live>,
+    /// When maintenance last refreshed the archive's classes.
+    archive_classes: Arc<archive::classes::Refreshed>,
     /// The client shared by the calls to the bridge's configured services.
     http: util::Outbound,
 }
@@ -79,6 +81,7 @@ impl AppState {
             rooms: Arc::new(routes::rooms::Shared::default()),
             ranking_board: Arc::new(routes::ranking::PublicCache::default()),
             friends: Arc::new(friends::presence::Live::default()),
+            archive_classes: Arc::new(archive::classes::Refreshed::default()),
             http: util::Outbound::default(),
         }
     }
@@ -171,6 +174,14 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
 /// runs it every few seconds; tests call it after moving the clock.
 pub async fn maintain(state: &AppState) {
     routes::maintenance_once(state).await;
+}
+
+/// Marks the public rankings board as moved, as the bridge does itself when
+/// it writes a rating, the band shown, a ranking choice or a Discord account,
+/// so the next maintenance pass refreshes the archive's classes. Tests that
+/// write those rows straight into the database call it.
+pub fn board_moved() {
+    skill::board_moved();
 }
 
 /// One poll of the room supervisor: member counts, invitations and kicks

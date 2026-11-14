@@ -291,8 +291,10 @@ invite box says).
   sync and every action but `turn_on` are refused as `friends_off`, so the
   game's own 30-second sync cannot turn friends on again. A request by code
   is refused as an unknown code, one by card looks sent and is never shown
-  (also after they turn friends on), and an invite finds no friend. Only
-  `turn_on` ends it.
+  (also after they turn friends on), and an invite finds no friend. The
+  player is not found by name either (`PROFILE.md`, Find a player); their
+  card stays and is still served from a room's token. Only `turn_on` ends
+  it.
 - The Discord account moving to another Ember ID keeps its friends; a
   different Discord account on the same Ember ID starts with none.
 

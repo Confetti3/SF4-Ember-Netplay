@@ -180,10 +180,14 @@ impl Site {
     ) -> Result<()> {
         self.release(tx, ctx, ember_id, user_id)?;
         match self {
-            Self::Discord => tx.execute(
-                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, ?4)",
-                params![user_id, ember_id, username, ctx.now],
-            )?,
+            Self::Discord => {
+                // Which Ember ID the board lists the account under moves.
+                crate::skill::board_moved();
+                tx.execute(
+                    "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, ?4)",
+                    params![user_id, ember_id, username, ctx.now],
+                )?
+            }
             Self::Configured(site) => {
                 // A site may let an account rename, and a name it gave up
                 // can be taken by another. An older account of this site
@@ -235,6 +239,9 @@ impl Site {
     /// the links its sign-in approved.
     pub fn disconnect(&self, tx: &Transaction<'_>, ctx: &Ctx, ember_id: &str) -> Result<()> {
         sign_ins::end(tx, self, ember_id)?;
+        if *self == Self::Discord {
+            crate::skill::board_moved();
+        }
         let (table, scope) = self.scope(ACCOUNTS);
         let removed: Option<String> = tx
             .query_row(

@@ -8,22 +8,11 @@ use common::{
     Bridge, Player,
     profiles::*,
     public_rooms::{player, reason, send},
-    seed,
-    supervisor::{self, BUILD, Supervisor},
 };
-use ember_bridge::{config, integrations::Secrets};
-use ember_protocol::{
-    encoding::b64u,
-    friends::{ACTIONS_PATH, SYNC_PATH},
-    levels::{
-        CARD_PREFIX, CARDS_ME_PATH, CardAnswers, LOOKUP_PATH, MAX_SEARCH, SEARCH_PATH,
-        SearchAnswer, is_card_token,
-    },
-};
+
+use ember_protocol::levels::{CARDS_ME_PATH, SEARCH_PATH};
 use reqwest::{Method, StatusCode};
-use rusqlite::OptionalExtension;
 use serde_json::{Value as Json_, json};
-use zeroize::Zeroizing;
 
 #[tokio::test]
 async fn profiles_are_offered_beside_points_where_public_rooms_are_on() {
@@ -36,7 +25,15 @@ async fn profiles_are_offered_beside_points_where_public_rooms_are_on() {
     assert!(!offers(&plain, "profiles").await);
     assert!(!offers(&plain, "points").await);
     let caller = player(&plain, 1).await;
-    let (status, _) = send(&plain, Method::PUT, caller.token(), IP, CARDS_ME_PATH, Some(full_card())).await;
+    let (status, _) = send(
+        &plain,
+        Method::PUT,
+        caller.token(),
+        IP,
+        CARDS_ME_PATH,
+        Some(full_card()),
+    )
+    .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     let (status, _) = send(
         &plain,
@@ -68,7 +65,10 @@ async fn a_card_shows_what_its_player_saved_to_anyone_with_a_selector() {
     assert_eq!(card["name"], "Player 1");
     assert_eq!(card["country"], "DE");
     assert_eq!(card["main"], 3);
-    assert_eq!(card["worn"], json!({ "title": "matches", "icon": "streak" }));
+    assert_eq!(
+        card["worn"],
+        json!({ "title": "matches", "icon": "streak" })
+    );
     assert_eq!(card["pins"], json!(["rank", "wins"]));
     assert_eq!(
         card["style"],
@@ -108,7 +108,9 @@ async fn a_card_shows_what_its_player_saved_to_anyone_with_a_selector() {
             c.discord
         ))
         .await;
-    world.save(&c, json!({ "listing": { "name": "Player 3" } })).await;
+    world
+        .save(&c, json!({ "listing": { "name": "Player 3" } }))
+        .await;
     // 2027-01-15, so the first of that January.
     assert_eq!(world.card_of(&a, &c).await["since"], 1_798_761_600);
 }

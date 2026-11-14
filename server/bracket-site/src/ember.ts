@@ -15,6 +15,19 @@ export const ACTION = "tournament.act";
 export const SESSIONS_PATH = "/v1/sessions";
 const SECONDS = { challenge: 60, access: 3600 };
 const DIGEST = /^[A-Za-z0-9_-]{43}$/;
+/**
+ * How many challenges are given out. Nobody is signed in yet when asking, so
+ * these limits bound the rows sign-ins add: `perEmberId` within a challenge's
+ * lifetime (a game asks one per sign-in), and `live` unanswered challenges at
+ * once, however many keys ask. The site sits behind a proxy and reads no
+ * client address, so there is no limit by address: every request would share
+ * the proxy's.
+ */
+export interface ChallengeLimits {
+  perEmberId: number;
+  live: number;
+}
+const LIMITS: ChallengeLimits = { perEmberId: 10, live: 10_000 };
 
 export interface EmberOptions {
   db: DatabaseSync;
@@ -24,10 +37,14 @@ export interface EmberOptions {
   bridgeId: string;
   bridge: Pick<BridgeClient, "prover">;
   now?: () => number;
+  /** `LIMITS` unless a test sets its own. */
+  limits?: ChallengeLimits;
 }
 
 export class EmberSignIn {
   readonly #options: EmberOptions;
+  /** When each Ember ID asked for its challenges still alive, in seconds; kept in memory only. */
+  readonly #asked = new Map<string, number[]>();
 
   constructor(options: EmberOptions) {
     this.#options = options;
@@ -39,6 +56,21 @@ export class EmberSignIn {
 
   #now(): number {
     return Math.floor((this.#options.now?.() ?? Date.now()) / 1000);
+  }
+
+  /** One more challenge for `emberId` at `now`, or 429 when it, or the site, holds as many as it may. */
+  #admit(emberId: string, now: number): void {
+    const limits = this.#options.limits ?? LIMITS;
+    const alive = (at: number) => at + SECONDS.challenge > now;
+    if (this.#asked.size > limits.live) {
+      for (const [id, times] of this.#asked) if (!times.some(alive)) this.#asked.delete(id);
+    }
+    const asked = (this.#asked.get(emberId) ?? []).filter(alive);
+    if (asked.length >= limits.perEmberId) fail(429, "too many sign-ins for this Ember ID; try again in a minute");
+    const { live } = this.#options.db.prepare("SELECT COUNT(*) AS live FROM ember_challenges").get() as { live: number };
+    if (live >= limits.live) fail(429, "too many sign-ins in progress; try again in a minute");
+    asked.push(now);
+    this.#asked.set(emberId, asked);
   }
 
   /** Who a token from `POST /v1/sessions` is. */
@@ -72,18 +104,20 @@ export class EmberSignIn {
           const body = await readJson(request);
           if (body.action !== ACTION || body.method !== "POST" || body.path !== SESSIONS_PATH) fail(400, `only ${ACTION} at POST ${SESSIONS_PATH}`);
           const now = this.#now();
+          const emberId = emberIdOf(body.public_key);
+          const requestDigest = text(body.request_digest, DIGEST, "request_digest is a SHA-256 in base64url");
           db.prepare("DELETE FROM ember_challenges WHERE expires_at <= ?").run(now);
-          // ponytail: no rate limit; add one per Ember ID if challenges are ever flooded.
+          this.#admit(emberId, now);
           const challenge: Challenge = {
             version: 1,
             bridge_id: bridgeId,
             audience: origin,
             challenge_id: `chl_${randomUUID()}`,
-            ember_id: emberIdOf(body.public_key),
+            ember_id: emberId,
             action: ACTION,
             method: "POST",
             path: SESSIONS_PATH,
-            request_digest: text(body.request_digest, DIGEST, "request_digest is a SHA-256 in base64url"),
+            request_digest: requestDigest,
             nonce: randomBytes(32).toString("base64url"),
             issued_at: now,
             expires_at: now + SECONDS.challenge,

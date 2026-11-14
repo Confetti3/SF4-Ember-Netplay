@@ -10,16 +10,11 @@ use common::{
     points::*,
     public_rooms::{open_room, player, send, start},
     sites::connect_discord,
-    supervisor::{BUILD, ENDPOINT, Supervisor, report},
+    supervisor::report,
 };
-use rusqlite::OptionalExtension;
-use ember_protocol::{
-    encoding::b64u,
-    levels::{CARD_PREFIX, CARD_VALID_SECS, LOOKUP_PATH, POINTS_PATH, is_card_token},
-};
+use ember_protocol::levels::{CARD_VALID_SECS, POINTS_PATH, is_card_token};
 use reqwest::{Method, StatusCode};
 use serde_json::{Value as Json_, json};
-
 
 #[tokio::test]
 async fn each_players_fighter_earns_points_from_a_game() {
@@ -164,6 +159,62 @@ async fn past_eight_games_in_a_sitting_a_game_earns_no_points_of_either_kind() {
     assert_eq!(fighters(&bridge, "200").await, vec![(7, 9, 1)]);
     assert_eq!(account_points(&bridge, "100").await, Some((9, 8)));
     assert_eq!(account_points(&bridge, "200").await, Some((9, 1)));
+}
+
+/// One room's games are counted in a savepoint of their own: a room whose
+/// game the database refuses loses that poll's games alone, and the poll goes
+/// on to count every other room's. The refused games are counted once the
+/// database takes them, as the host reports them again.
+#[tokio::test]
+async fn a_room_whose_game_fails_leaves_the_other_rooms_counted() {
+    let (bridge, fake, refused_room, first, second) = two_players().await;
+    let (third, fourth) = (player(&bridge, 3).await, player(&bridge, 4).await);
+    connect_discord(&bridge, "300", &third).await;
+    connect_discord(&bridge, "400", &fourth).await;
+    let healthy_room = open_room(&bridge, &third, "198.51.100.3", 8).await;
+    report(&fake, &healthy_room, 2, 1, &[]);
+    ember_bridge::poll_rooms(bridge.state()).await;
+    // The first room's pair record is refused, as a row the schema refuses.
+    sql(
+        &bridge,
+        "CREATE TEMP TRIGGER refuse_pair BEFORE INSERT ON pair_records
+         WHEN NEW.first = '100' BEGIN SELECT RAISE(ABORT, 'refused by the test'); END;",
+    )
+    .await;
+    {
+        let mut fake = fake.lock().unwrap();
+        for (room_id, games) in [
+            (
+                &refused_room,
+                vec![game(1, 0, &first, &second, Some([3, 7]))],
+            ),
+            (
+                &healthy_room,
+                vec![game(1, 0, &third, &fourth, Some([5, 9]))],
+            ),
+        ] {
+            let room = fake
+                .rooms
+                .iter_mut()
+                .find(|room| room["room_id"] == room_id.as_str())
+                .expect("the supervisor hosts the room");
+            room["games"] = Json_::Array(games);
+        }
+    }
+    ember_bridge::poll_rooms(bridge.state()).await;
+    // Nothing of the refused room's game stayed, not even its key.
+    assert!(fighters(&bridge, "100").await.is_empty());
+    assert_eq!(account_points(&bridge, "100").await, None);
+    // The other room, polled after it, counted.
+    assert_eq!(fighters(&bridge, "300").await, vec![(5, 1, 1)]);
+    assert_eq!(fighters(&bridge, "400").await, vec![(9, 1, 0)]);
+
+    sql(&bridge, "DROP TRIGGER refuse_pair").await;
+    ember_bridge::poll_rooms(bridge.state()).await;
+    assert_eq!(fighters(&bridge, "100").await, vec![(3, 1, 1)]);
+    assert_eq!(fighters(&bridge, "200").await, vec![(7, 1, 0)]);
+    // And the other room's game counted once.
+    assert_eq!(fighters(&bridge, "300").await, vec![(5, 1, 1)]);
 }
 
 #[tokio::test]
@@ -350,7 +401,10 @@ fn take_versus(seen: &mut Json_) -> Vec<Option<(u64, u64)>> {
         .map(|card| {
             let record = card.as_object_mut()?.remove("versus")?;
             assert!(record["last_at"].as_u64().unwrap() > 0, "{record}");
-            Some((record["won"].as_u64().unwrap(), record["lost"].as_u64().unwrap()))
+            Some((
+                record["won"].as_u64().unwrap(),
+                record["lost"].as_u64().unwrap(),
+            ))
         })
         .collect()
 }
@@ -438,7 +492,10 @@ async fn a_card_token_rides_in_a_ticket_that_asks_and_opens_for_seven_days() {
         json!([{ "card": joined }, { "card": rejoined }, { "friend": FRIEND }]),
     )
     .await;
-    assert_eq!(take_versus(&mut seen), vec![Some((1, 0)), Some((1, 0)), None]);
+    assert_eq!(
+        take_versus(&mut seen),
+        vec![Some((1, 0)), Some((1, 0)), None]
+    );
     assert_eq!(seen, json!([card, card, null]));
     // A joiner without a Discord account gets no token.
     let unlinked = player(&bridge, 3).await;
@@ -463,9 +520,13 @@ async fn a_card_token_rides_in_a_ticket_that_asks_and_opens_for_seven_days() {
     let other_purpose = sealed(&bridge, 0x02, 200, now);
     let other_bridge = start().await.0;
     let foreign = sealed(&other_bridge, 0x01, 200, now);
-    let mut seen = cards(&bridge, &first, json!([
-        { "card": week_old }, { "card": older }, { "card": other_purpose }, { "card": foreign }
-    ]))
+    let mut seen = cards(
+        &bridge,
+        &first,
+        json!([
+            { "card": week_old }, { "card": older }, { "card": other_purpose }, { "card": foreign }
+        ]),
+    )
     .await;
     assert_eq!(take_versus(&mut seen), vec![Some((1, 0)), None, None, None]);
     assert_eq!(seen, json!([card, null, null, null]));
@@ -503,6 +564,51 @@ async fn a_look_up_takes_one_to_sixteen_well_formed_selectors() {
         let (status, body) = lookup(&bridge, &first, bad.clone()).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{bad}: {body}");
     }
+}
+
+/// Own points and card look-ups are limited apart, and by Discord account: a
+/// busy room's look-ups never cost a player their own points, and the same
+/// account on a new Ember ID does not start a fresh budget.
+#[tokio::test]
+async fn own_points_and_look_ups_are_limited_apart_by_discord_account() {
+    let (bridge, _fake, _room_id, first, _second) = two_players().await;
+    let token = sealed(&bridge, 0x01, 200, bridge.state().now());
+    for _ in 0..120 {
+        cards(&bridge, &first, json!([{ "card": token }])).await;
+    }
+    let (status, _) = lookup(&bridge, &first, json!([{ "card": token }])).await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+    // Their own points are still answered, 30 times in ten minutes.
+    for _ in 0..30 {
+        own(&bridge, &first).await;
+    }
+    let (status, _) = send(
+        &bridge,
+        Method::GET,
+        first.token(),
+        "198.51.100.7",
+        POINTS_PATH,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+
+    // The same Discord account on another Ember ID has spent the same budget.
+    let moved = player(&bridge, 3).await;
+    sql(
+        &bridge,
+        "DELETE FROM discord_accounts WHERE user_id = '100'",
+    )
+    .await;
+    connect_discord(&bridge, "100", &moved).await;
+    let (status, _) = lookup(&bridge, &moved, json!([{ "card": token }])).await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+    // A player without one is limited by their Ember ID.
+    let unlinked = player(&bridge, 4).await;
+    assert_eq!(
+        cards(&bridge, &unlinked, json!([{ "card": token }])).await,
+        json!([null])
+    );
 }
 
 /// Whether `bridge` lists `points` among its capabilities.

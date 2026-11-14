@@ -13,32 +13,20 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use ember_protocol::{
-    api::ErrorCode,
     friends::parse_friend_code,
     levels::{CardSave, CardSearch, MAX_SEARCH, SearchAnswer, SearchHit},
-    skill::NO_ACCOUNT,
 };
 use rusqlite::Transaction;
 
 use crate::{
-    AppState, cards,
-    error::{ApiFailure, Result},
+    AppState,
+    cards::{self, Purpose, Reader, Viewer},
+    error::Result,
     friends::{self, Classes, store},
     http::{Body, GENERAL_BODY, ok},
-    routes::{
-        play::playing,
-        rooms,
-    },
+    routes::account::{Bucket, Gate, Linked},
     secrets::Keys,
-    skill,
 };
-
-/// A rate limit: uses per window of seconds, by Discord account.
-struct Bucket {
-    name: &'static str,
-    uses: usize,
-    window: u64,
-}
 
 const SAVES: Bucket = Bucket {
     name: "cards-me",
@@ -56,19 +44,13 @@ const SEARCHES: Bucket = Bucket {
 /// that more matched.
 const SCAN: usize = 200;
 
-/// The calling player's Discord account and the time.
-struct Caller {
-    account: String,
-    now: u64,
-}
-
 /// `PUT /v1/cards/me`: replaces what the caller's card shows. 204.
 pub async fn save(
     State(state): State<AppState>,
     headers: HeaderMap,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let caller = admit(&state, &headers, &SAVES).await?;
+    let caller = Linked::admit(&state, &headers, Gate::Profiles, &SAVES).await?;
     let card: CardSave = body.parse()?;
     card.check()?;
     state
@@ -85,7 +67,7 @@ pub async fn search(
     headers: HeaderMap,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let caller = admit(&state, &headers, &SEARCHES).await?;
+    let caller = Linked::admit(&state, &headers, Gate::Profiles, &SEARCHES).await?;
     let search: CardSearch = body.parse()?;
     search.check()?;
     let keys = state.keys.clone();
@@ -93,24 +75,32 @@ pub async fn search(
     let classes = Classes::of(&state);
     let answer = state
         .db
-        .read(move |tx| find(tx, &keys, &classes, friends_offered, &caller, &search))
+        .read(move |tx| {
+            let viewer = Viewer {
+                caller: caller.account.as_str(),
+                friends_offered,
+                classes: &classes,
+                now: caller.now,
+            };
+            find(tx, &keys, &viewer, &search)
+        })
         .await?;
     Ok(ok(&answer))
 }
 
-/// The players `search` finds for `caller`. A friend code names an account
-/// only while friends are offered, as everywhere else.
-fn find(
+/// The players `search` finds for the viewer, who has a Discord account: the
+/// same few reads however many it finds (`cards::find_by_name`,
+/// `cards::Reader`). A friend code names an account only while friends are
+/// offered, as everywhere else.
+pub(crate) fn find(
     tx: &Transaction<'_>,
     keys: &Keys,
-    classes: &Classes,
-    friends_offered: bool,
-    caller: &Caller,
+    viewer: &Viewer<'_>,
     search: &CardSearch,
 ) -> Result<SearchAnswer> {
     let found = match (search.trimmed_name(), search.code.as_deref()) {
         (Some(name), _) => cards::find_by_name(tx, name, SCAN)?,
-        (None, Some(code)) if friends_offered => {
+        (None, Some(code)) if viewer.friends_offered => {
             match parse_friend_code(code)
                 .map(|code| store::account_of_code(tx, &code))
                 .transpose()?
@@ -122,15 +112,15 @@ fn find(
         }
         _ => Vec::new(),
     };
+    let accounts: Vec<&str> = found.iter().map(|hit| hit.account.as_str()).collect();
+    let read = Reader::read(tx, viewer, &accounts, Purpose::Hits)?;
     let mut players = Vec::new();
     let mut more = false;
-    for hit in found {
-        if hit.account == caller.account
-            || store::relation(tx, &caller.account, &hit.account)?.is_none()
-        {
+    for hit in &found {
+        if hit.account == viewer.caller || read.relation(&hit.account).is_none() {
             continue;
         }
-        let Some(card) = cards::issue(keys, &hit.account, caller.now) else {
+        let Some(card) = cards::issue(keys, &hit.account, viewer.now) else {
             continue;
         };
         if players.len() == MAX_SEARCH {
@@ -139,42 +129,12 @@ fn find(
         }
         players.push(SearchHit {
             card,
-            badge: cards::badge(tx, &hit.account, classes, caller.now)?,
-            name: hit.name,
-            country: hit.country,
+            badge: read.badge(&hit.account),
+            name: hit.name.clone(),
+            country: hit.country.clone(),
             main: hit.main,
             since: cards::month_start(hit.since),
         });
     }
     Ok(SearchAnswer { players, more })
-}
-
-/// The calling player's Discord account, within `bucket`.
-async fn admit(state: &AppState, headers: &HeaderMap, bucket: &Bucket) -> Result<Caller> {
-    if !rooms::enabled(state) {
-        return Err(ApiFailure::not_found());
-    }
-    let ember_id = playing(state, headers).await?.ember_id;
-    let account = state
-        .db
-        .read(move |tx| skill::account(tx, &ember_id))
-        .await?
-        .ok_or_else(|| {
-            ApiFailure::new(
-                ErrorCode::Forbidden,
-                "Connect a Discord account to have a card.",
-            )
-            .detail("reason", NO_ACCOUNT)
-        })?;
-    let now = state.now();
-    state
-        .rate
-        .check(
-            &format!("{}:{account}", bucket.name),
-            bucket.uses,
-            bucket.window,
-            now,
-        )
-        .map_err(ApiFailure::rate_limited)?;
-    Ok(Caller { account, now })
 }

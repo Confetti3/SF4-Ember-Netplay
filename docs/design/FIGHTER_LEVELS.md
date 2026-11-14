@@ -339,8 +339,10 @@ asks only a bridge that lists `points`, and an older bridge answers 404, which t
 
 ### `GET /v1/points/me`
 
-Player session (`routes::play::playing`), bucket `points:{ember_id}` 60 per
-10 minutes shared with card look-ups.
+Player session (`routes::account::PlayerAccount`), bucket `points-me` 30 per
+10 minutes by Discord account (by Ember ID for a caller without one). Card
+look-ups have their own bucket, `cards-lookup` 120 per 10 minutes, keyed the
+same way, so a busy room's look-ups never cost a player their own points.
 
 ```json
 {"points":"no_account"}
@@ -368,29 +370,23 @@ cards are public.
 
 #### Builds from before the class bonus
 
-The Nightly builds published before the class bonus
-(`v1.6.0-nightly20261112.2` and earlier) refuse their own points unless
-`points == games + wins`, in three places: `OwnAccount::check` and
-`OwnFighter::check` as their helper carries them, and the game's own decoder
-(`DecodeLevel`, `src/session/TournamentAnswers.cxx`). Answered the points as
-they are earned, such a build would show no points at all from the first win
-against a lower class. So the route answers by who asks:
+The route answers the points as they are earned to every build, asked with
+the class bonus query (`GET /v1/points/me?class_bonus=1`,
+`CLASS_BONUS_POINTS_PATH`, which a build sends only to a bridge that lists
+`points_class_bonus`) or without it. The bridge keeps listing
+`points_class_bonus`, and reads the query as the plain path.
 
-- `GET /v1/points/me?class_bonus=1` (`CLASS_BONUS_POINTS_PATH`): the points
-  as they are earned. A build sends the query only to a bridge that lists
-  `points_class_bonus`.
-- `GET /v1/points/me` with no query, or any other: `points` is
-  `games + wins` for the account and every fighter, with the tier, `floor`
-  and `next` of that sum, which those builds accept. It is the same number
-  as the earned one until a win earns no bonus.
-
-Cards (`POST /v1/cards/lookup`) carry the earned points to every build: no
-build ever checked a card's points against games and wins. So a build from
-before the bonus may show its player a higher number on their own page than
-others see on their card, until it is updated. The plain answer can be
-removed once no such build is in use; the checks of newer builds
-(`games <= points <= games + wins`) take either answer, so they also read a
-bridge from before the bonus, which is asked with no query.
+The only builds that checked `points == games + wins` are the Nightlies
+published before the class bonus (`v1.6.0-nightly20261112.2` and earlier),
+in `OwnAccount::check`, `OwnFighter::check` and the game's own decoder
+(`DecodeLevel`, `src/session/TournamentAnswers.cxx`). No Stable build ever
+called `/v1/points/me` (1.5.7 does not), so the plain answer of games plus
+wins that once served those Nightlies was removed before 1.6.0 Stable: such a
+Nightly shows no points of its own from its player's first win that earns no
+bonus, until it updates. Cards (`POST /v1/cards/lookup`) always carried the
+earned points: no build checks a card's points against games and wins. The
+checks of newer builds (`games <= points <= games + wins`) also read a bridge
+from before the bonus, which is asked with no query.
 
 ### The card token in the room ticket
 
@@ -433,7 +429,7 @@ ask the bridge for that player's card later, as often as it needs, fresh.
 | Field | Rule |
 |---|---|
 | request `cards` | 1 to 16 selectors: `card` (a token) or `friend` (a friend id, `FRIENDS.md`) |
-| answer `cards` | one entry per selector, in order; `null` for a token that does not open, is over 7 days old, or names an account without a Discord account now, and for a friend id that is not the caller's friend |
+| answer `cards` | one entry per selector, in order; `null` for a token that does not open, is over 7 days old, or names an account without a Discord account now, for a friend id that is not the caller's friend, and for every selector of a caller whose Ember ID has no Discord account (`PROFILE.md`, Privacy) |
 | `account` | always present: the account's `points` and `tier` only (its games and wins are in `awards`) |
 | `fighters` | as in `points/me` but `fighter`, `points`, `tier` only; always present, an empty array when nothing is played |
 | `relation` | the caller's relation to that player: `none`, `friend`, `sent`, `received`, `blocked` (the caller blocked them); `none` for a player who blocked the caller |
@@ -452,12 +448,14 @@ writes none of the selectors' answers or those fields.
 ## Who sees what
 
 - Your own points: always, to you.
-- A card is how players find each other to add friends, so it is public.
-  Others' points are shown to a room member (through the card token) and to a
-  friend, whether or not that player takes part in ranking
-  (`ranking_choices.ranked` is not read). A card is `null` only for an account
-  with no Discord account connected, and for a player who blocked the caller
-  (`FRIENDS.md`).
+- A card is how players find each other to add friends, so it is public to
+  every player with a Discord account. Others' points are shown to a room
+  member (through the card token) and to a friend, whether or not that player
+  takes part in ranking (`ranking_choices.ranked` is not read). A card is
+  `null` for an account with no Discord account connected, for a player who
+  blocked the caller (`FRIENDS.md`), and for a caller with no Discord account:
+  a block is between Discord accounts, and only a caller with one can be
+  checked against it.
 - Others see the account's and each fighter's points and tier. A card also
   carries the counts behind the awards (`awards`, `PROFILE.md`, Privacy): the
   account's counted games, wins and best win run as they are, its peak class,

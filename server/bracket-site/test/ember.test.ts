@@ -118,3 +118,34 @@ test("the operator's invite makes an organizer, once", async () => {
   const [, later] = await signIn(seeds.kate);
   assert.equal(later.organizer, true);
 });
+
+test("challenges are limited by Ember ID and by how many wait at once", async () => {
+  const limitedDir = mkdtempSync(join(tmpdir(), "bracket-site-limits-"));
+  const limitedStore = new Store(join(limitedDir, "site.sqlite3"));
+  const ember = new EmberSignIn({ db: limitedStore.db, origin: ORIGIN, bridgeId: BRIDGE, bridge, limits: { perEmberId: 3, live: 5 } });
+  const server = bracketSite({ store: limitedStore, operatorToken: OPERATOR, connectorToken: "connector", ember, bridge: { lookupPlayers: async () => [] } });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1/auth/challenges`;
+  const ask = async (seed: Uint8Array): Promise<number> => {
+    const body = { public_key: publicKeyFromSeed(seed), action: "tournament.act", method: "POST", path: "/v1/sessions", request_digest: commandDigest({}) };
+    const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    await response.text();
+    return response.status;
+  };
+  const waiting = () => (limitedStore.db.prepare("SELECT COUNT(*) AS n FROM ember_challenges").get() as { n: number }).n;
+  try {
+    // One Ember ID: three while they live, and a refusal stores nothing.
+    const one = randomBytes(32);
+    assert.deepEqual([await ask(one), await ask(one), await ask(one), await ask(one)], [201, 201, 201, 429]);
+    assert.equal(waiting(), 3);
+    // Other keys still may, until five wait in all, however many keys ask.
+    assert.equal(await ask(randomBytes(32)), 201);
+    assert.equal(await ask(randomBytes(32)), 201);
+    assert.equal(await ask(randomBytes(32)), 429);
+    assert.equal(waiting(), 5);
+  } finally {
+    server.close();
+    limitedStore.close();
+    rmSync(limitedDir, { recursive: true, force: true });
+  }
+});

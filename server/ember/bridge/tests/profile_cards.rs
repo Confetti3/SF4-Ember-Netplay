@@ -4,26 +4,13 @@
 
 mod common;
 
-use common::{
-    Bridge, Player,
-    profiles::*,
-    public_rooms::{player, reason, send},
-    seed,
-    supervisor::{self, BUILD, Supervisor},
-};
-use ember_bridge::{config, integrations::Secrets};
+use common::{Player, profiles::*, public_rooms::player, seed, supervisor::BUILD};
 use ember_protocol::{
-    encoding::b64u,
     friends::{ACTIONS_PATH, SYNC_PATH},
-    levels::{
-        CARD_PREFIX, CARDS_ME_PATH, CardAnswers, LOOKUP_PATH, MAX_SEARCH, SEARCH_PATH,
-        SearchAnswer, is_card_token,
-    },
+    levels::{CARDS_ME_PATH, LOOKUP_PATH, SEARCH_PATH},
 };
 use reqwest::{Method, StatusCode};
-use rusqlite::OptionalExtension;
 use serde_json::{Value as Json_, json};
-use zeroize::Zeroizing;
 
 #[tokio::test]
 async fn a_look_up_by_request_opens_only_the_receivers_visible_request() {
@@ -31,7 +18,9 @@ async fn a_look_up_by_request_opens_only_the_receivers_visible_request() {
     let a = world.joined(1, 1, "Player 1").await;
     let b = world.joined(2, 2, "Player 2").await;
     let c = world.joined(3, 3, "Player 3").await;
-    world.save(&b, json!({ "listing": { "name": "Player 2" }, "main": 7 })).await;
+    world
+        .save(&b, json!({ "listing": { "name": "Player 2" }, "main": 7 }))
+        .await;
 
     // B asks A: A holds the request, and opens B's card with it.
     let request = world.ask(&b, &a).await;
@@ -51,7 +40,10 @@ async fn a_look_up_by_request_opens_only_the_receivers_visible_request() {
     // A request nobody sent, and a friend id, are no request.
     assert_eq!(
         world
-            .cards(&a, json!([{ "request": "rq_11111111-1111-4111-8111-111111111111" }]))
+            .cards(
+                &a,
+                json!([{ "request": "rq_11111111-1111-4111-8111-111111111111" }])
+            )
             .await,
         json!([null])
     );
@@ -98,6 +90,65 @@ async fn a_look_up_by_code_opens_the_card_of_its_one_account() {
         world.cards(&a, json!([{ "code": code }])).await,
         json!([null])
     );
+}
+
+/// A block is between Discord accounts and is checked against the caller's:
+/// a caller without one is shown no card at all.
+#[tokio::test]
+async fn a_block_holds_against_a_caller_without_a_discord_account() {
+    let world = World::start().await;
+    let a = world.member(1, 1, "Player 1").await;
+    let b = world.member(2, 2, "Player 2").await;
+    let c = world.member(3, 3, "Player 3").await;
+    world
+        .sql(format!(
+            "INSERT INTO friend_blocks (blocker, blocked, id, name, at) VALUES ('{}', '{}', 'bl_x', 'Player 2', 1)",
+            a.discord, b.discord
+        ))
+        .await;
+    // The blocked player sees nothing of A; anyone else with Discord does.
+    assert_eq!(world.card_of(&b, &a).await, Json_::Null);
+    assert_eq!(world.card_of(&c, &a).await["relation"], "none");
+
+    // A player on an Ember ID with no Discord account, holding A's and C's
+    // tokens from a room: no card of anyone.
+    let unlinked = Member {
+        player: player(&world.bridge, 9).await,
+        discord: String::new(),
+        name: "Player 9",
+    };
+    world
+        .ember_ids
+        .lock()
+        .unwrap()
+        .push(unlinked.player.id().as_str().to_owned());
+    let (of_a, of_c) = (world.token(&a), world.token(&c));
+    assert_eq!(
+        world
+            .cards(&unlinked, json!([{ "card": of_a }, { "card": of_c }]))
+            .await,
+        json!([null, null])
+    );
+    // The same Ember ID, once it connects Discord, sees C's card.
+    let joined = Member {
+        discord: account(9),
+        player: unlinked.player,
+        name: "Player 9",
+    };
+    seed::link_discord_at(
+        world.bridge.state(),
+        &joined.discord,
+        joined.player.id().as_str(),
+        "discord_name_9",
+        CONNECTED,
+    )
+    .await;
+    world
+        .accounts
+        .lock()
+        .unwrap()
+        .extend([joined.discord.clone(), "discord_name_9".to_owned()]);
+    assert_eq!(world.card_of(&joined, &c).await["relation"], "none");
 }
 
 /// Both orders of two accounts' pair record, as the bridge stores one: the
@@ -188,14 +239,20 @@ async fn a_friends_sync_keeps_the_card_current_and_leaves_what_was_saved() {
     world.sync_as(&a, "player 1", "FR", 5).await;
     let card = world.card_of(&b, &a).await;
     assert_eq!(card["name"], "player 1");
-    assert_eq!((card["country"].clone(), card["main"].clone()), (json!("FR"), json!(5)));
+    assert_eq!(
+        (card["country"].clone(), card["main"].clone()),
+        (json!("FR"), json!(5))
+    );
 
     // A saved card keeps what only a save writes through the syncs after.
     world.save(&a, full_card()).await;
     world.tick();
     world.sync_as(&a, "Player 1", "DE", 3).await;
     let card = world.card_of(&b, &a).await;
-    assert_eq!(card["worn"], json!({ "title": "matches", "icon": "streak" }));
+    assert_eq!(
+        card["worn"],
+        json!({ "title": "matches", "icon": "streak" })
+    );
     assert_eq!(card["style"]["device"], 2);
     assert_eq!(card["since"], MONTH);
 
@@ -207,7 +264,14 @@ async fn a_friends_sync_keeps_the_card_current_and_leaves_what_was_saved() {
 
     // An account that turned friends off is not written by its game's syncs.
     // Forgetting answers as friends are off, the state it leaves.
-    let (forgot, _) = world.call(Method::POST, &a, ACTIONS_PATH, Some(json!({ "action": "forget" }))).await;
+    let (forgot, _) = world
+        .call(
+            Method::POST,
+            &a,
+            ACTIONS_PATH,
+            Some(json!({ "action": "forget" })),
+        )
+        .await;
     assert_eq!(forgot, StatusCode::CONFLICT);
     let (status, _) = world
         .call(
@@ -240,13 +304,18 @@ async fn a_card_shows_the_class_only_while_classes_are_shown_and_the_player_take
     let a = shown.member(1, 1, "Player 1").await;
     let b = shown.member(2, 2, "Player 2").await;
     seed_rating(&shown, &a.discord).await;
-    shown.save(&a, json!({ "listing": { "name": "Player 1" } })).await;
+    shown
+        .save(&a, json!({ "listing": { "name": "Player 1" } }))
+        .await;
     assert_eq!(
         shown.card_of(&b, &a).await["badge"],
         json!({ "band": 6, "settled": true })
     );
     let answer = shown.search(&b, json!({ "name": "Player 1" })).await;
-    assert_eq!(answer["players"][0]["badge"], json!({ "band": 6, "settled": true }));
+    assert_eq!(
+        answer["players"][0]["badge"],
+        json!({ "band": 6, "settled": true })
+    );
     // Not taking part shows no class.
     shown
         .sql(format!(
@@ -262,7 +331,9 @@ async fn a_card_shows_the_class_only_while_classes_are_shown_and_the_player_take
     let b = hidden.member(2, 2, "Player 2").await;
     seed_rating(&hidden, &a.discord).await;
     assert!(hidden.card_of(&b, &a).await.get("badge").is_none());
-    hidden.save(&a, json!({ "listing": { "name": "Player 1" } })).await;
+    hidden
+        .save(&a, json!({ "listing": { "name": "Player 1" } }))
+        .await;
     let answer = hidden.search(&b, json!({ "name": "Player 1" })).await;
     assert!(answer["players"][0].get("badge").is_none());
 }

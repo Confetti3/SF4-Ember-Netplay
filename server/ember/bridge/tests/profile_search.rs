@@ -1,38 +1,32 @@
 //! Profile search (docs/design/PROFILE.md): players are found by name or friend code, never
-//! listing someone who blocked the caller or has no Discord account.
+//! listing someone who blocked the caller, has no Discord account or turned friends off.
 
 mod common;
 
-use common::{
-    Bridge, Player,
-    profiles::*,
-    public_rooms::{player, reason, send},
-    seed,
-    supervisor::{self, BUILD, Supervisor},
-};
-use ember_bridge::{config, integrations::Secrets};
+use common::{Player, profiles::*, public_rooms::player};
 use ember_protocol::{
-    encoding::b64u,
-    friends::{ACTIONS_PATH, SYNC_PATH},
-    levels::{
-        CARD_PREFIX, CARDS_ME_PATH, CardAnswers, LOOKUP_PATH, MAX_SEARCH, SEARCH_PATH,
-        SearchAnswer, is_card_token,
-    },
+    friends::ACTIONS_PATH,
+    levels::{MAX_SEARCH, is_card_token},
 };
 use reqwest::{Method, StatusCode};
-use rusqlite::OptionalExtension;
-use serde_json::{Value as Json_, json};
-use zeroize::Zeroizing;
+use serde_json::json;
 
 /// Names saved in this order, a second apart: the most recent is last.
-async fn named(world: &World, names: &[&'static str], first: u8, first_account: u64) -> Vec<Member> {
+async fn named(
+    world: &World,
+    names: &[&'static str],
+    first: u8,
+    first_account: u64,
+) -> Vec<Member> {
     let mut members = Vec::new();
     for (at, name) in names.iter().copied().enumerate() {
         let member = world
             .member(first + at as u8, first_account + at as u64, name)
             .await;
         world.tick();
-        world.save(&member, json!({ "listing": { "name": name } })).await;
+        world
+            .save(&member, json!({ "listing": { "name": name } }))
+            .await;
         members.push(member);
     }
     members
@@ -42,9 +36,17 @@ async fn named(world: &World, names: &[&'static str], first: u8, first_account: 
 async fn a_name_finds_exact_matches_first_then_leading_ones_each_newest_first() {
     let world = World::start().await;
     let caller = world.member(1, 1, "Annabel").await;
-    world.save(&caller, json!({ "listing": { "name": "Annabel" } })).await;
+    world
+        .save(&caller, json!({ "listing": { "name": "Annabel" } }))
+        .await;
     // Saved oldest first. "Joann" holds the text but does not begin with it.
-    named(&world, &["Ann", "Annie", "ann", "Anna", "Joann", "Bo_b", "Bobb"], 10, 10).await;
+    named(
+        &world,
+        &["Ann", "Annie", "ann", "Anna", "Joann", "Bo_b", "Bobb"],
+        10,
+        10,
+    )
+    .await;
 
     // Any case finds the same players: the exact names (any case) first, the
     // newest first, then those that begin with it, again the newest first.
@@ -78,7 +80,9 @@ async fn a_name_finds_exact_matches_first_then_leading_ones_each_newest_first() 
 async fn a_search_lists_nobody_who_blocked_the_caller_or_has_no_discord_account() {
     let world = World::start().await;
     let caller = world.member(1, 1, "Player 1").await;
-    world.save(&caller, json!({ "listing": { "name": "Player 1" } })).await;
+    world
+        .save(&caller, json!({ "listing": { "name": "Player 1" } }))
+        .await;
     let others = named(&world, &["Rex 1", "Rex 2", "Rex 3"], 10, 10).await;
     let (names, _) = world.found(&caller, json!({ "name": "Rex" })).await;
     assert_eq!(names, ["Rex 3", "Rex 2", "Rex 1"]);
@@ -118,6 +122,53 @@ async fn a_search_lists_nobody_who_blocked_the_caller_or_has_no_discord_account(
     assert_eq!(names, ["Rex 3"]);
 }
 
+/// Turning friends off is how a player leaves search (docs/design/PROFILE.md,
+/// "Migration 064"): by name as by code. Their card row stays, and is still
+/// served from a room's token; leaving the ranking hides nobody.
+#[tokio::test]
+async fn a_player_with_friends_off_is_not_found_by_name_and_keeps_their_card() {
+    let world = World::start().await;
+    let caller = world.joined(1, 1, "Player 1").await;
+    let rex = world.joined(2, 2, "Rex").await;
+    world
+        .save(&rex, json!({ "listing": { "name": "Rex" }, "main": 7 }))
+        .await;
+    let (names, _) = world.found(&caller, json!({ "name": "Rex" })).await;
+    assert_eq!(names, ["Rex"]);
+
+    let (status, _) = world
+        .call(
+            Method::POST,
+            &rex,
+            ACTIONS_PATH,
+            Some(json!({ "action": "forget" })),
+        )
+        .await;
+    assert_ne!(status, StatusCode::OK);
+    let (names, more) = world.found(&caller, json!({ "name": "Rex" })).await;
+    assert!(names.is_empty());
+    assert!(!more);
+    assert!(world.stored(&rex.discord).await.is_some());
+    let card = world.card_of(&caller, &rex).await;
+    assert_eq!(card["name"], "Rex");
+    assert_eq!(card["main"], 7);
+
+    // Friends on again: found again.
+    world.act(&rex, json!({ "action": "turn_on" })).await;
+    let (names, _) = world.found(&caller, json!({ "name": "Rex" })).await;
+    assert_eq!(names, ["Rex"]);
+
+    // Leaving the ranking hides no one: cards are public.
+    world
+        .sql(format!(
+            "INSERT INTO ranking_choices (discord_user_id, ranked) VALUES ('{}', 0)",
+            rex.discord
+        ))
+        .await;
+    let (names, _) = world.found(&caller, json!({ "name": "Rex" })).await;
+    assert_eq!(names, ["Rex"]);
+}
+
 #[tokio::test]
 async fn a_search_lists_twenty_and_says_when_more_matched() {
     let world = World::start().await;
@@ -137,12 +188,19 @@ async fn a_search_lists_twenty_and_says_when_more_matched() {
     }
     // Twenty match: all are listed and no more are.
     world
-        .sql(statements.replace("'Many 21'", "'Few 21'").replace("'Many 22'", "'Few 22'"))
+        .sql(
+            statements
+                .replace("'Many 21'", "'Few 21'")
+                .replace("'Many 22'", "'Few 22'"),
+        )
         .await;
     let (names, more) = world.found(&caller, json!({ "name": "Many" })).await;
     assert_eq!(names.len(), MAX_SEARCH);
     assert!(!more);
-    assert_eq!((names[0].as_str(), names[19].as_str()), ("Many 20", "Many 01"));
+    assert_eq!(
+        (names[0].as_str(), names[19].as_str()),
+        ("Many 20", "Many 01")
+    );
 
     // Two more: the twenty newest, and a word that more matched.
     world
@@ -151,7 +209,10 @@ async fn a_search_lists_twenty_and_says_when_more_matched() {
     let (names, more) = world.found(&caller, json!({ "name": "Many" })).await;
     assert_eq!(names.len(), MAX_SEARCH);
     assert!(more);
-    assert_eq!((names[0].as_str(), names[19].as_str()), ("Many 22", "Many 03"));
+    assert_eq!(
+        (names[0].as_str(), names[19].as_str()),
+        ("Many 22", "Many 03")
+    );
 }
 
 #[tokio::test]
@@ -189,7 +250,9 @@ async fn a_friend_code_finds_one_player_who_is_not_the_caller() {
         assert_eq!(answer["more"], false);
     }
     // Not yourself; not a code nobody holds.
-    let (names, _) = world.found(&a, json!({ "code": world.code_of(&a).await })).await;
+    let (names, _) = world
+        .found(&a, json!({ "code": world.code_of(&a).await }))
+        .await;
     assert!(names.is_empty());
     let (names, _) = world.found(&a, json!({ "code": "ZZZZ-ZZZZ" })).await;
     assert!(names.is_empty());
@@ -208,7 +271,12 @@ async fn a_friend_code_finds_one_player_who_is_not_the_caller() {
     assert_eq!(names, ["Player 2"]);
     // Turning friends off replaces the code: the old one finds nobody.
     let (status, _) = world
-        .call(Method::POST, &b, ACTIONS_PATH, Some(json!({ "action": "forget" })))
+        .call(
+            Method::POST,
+            &b,
+            ACTIONS_PATH,
+            Some(json!({ "action": "forget" })),
+        )
         .await;
     assert_ne!(status, StatusCode::OK);
     let (names, _) = world.found(&a, json!({ "code": code })).await;
@@ -220,7 +288,9 @@ async fn a_friend_code_is_no_selector_while_friends_are_off() {
     let world = World::start_with(false, false).await;
     let a = world.member(1, 1, "Player 1").await;
     let b = world.member(2, 2, "Player 2").await;
-    world.save(&b, json!({ "listing": { "name": "Player 2" } })).await;
+    world
+        .save(&b, json!({ "listing": { "name": "Player 2" } }))
+        .await;
     world
         .sql(format!(
             "INSERT INTO social_accounts (discord_user_id, name, code, code_at, seen_at)

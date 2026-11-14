@@ -197,7 +197,16 @@ fn apply(
         if let (Some(rev), true) = (room.rev, matched) {
             applied.insert(room.room_id.clone(), rev);
         }
-        skill::record_games(tx, &room.room_id, room.games.as_ref(), now)?;
+        // A room whose games fail is logged and left behind, never the poll.
+        if let Some(failure) =
+            skill::record_room_games(tx, &room.room_id, room.games.as_ref(), now)?
+        {
+            eprintln!(
+                "ember-bridge: the games of room {} were not counted, and the poll went on: {}",
+                room.room_id,
+                failure.cause.as_deref().unwrap_or(&failure.message)
+            );
+        }
         // Bans last for the room's life and are never evicted: the supervisor
         // reports at most `MAX_ROOM_BANS` per room, and the table keeps all.
         for banned in &room.banned {
