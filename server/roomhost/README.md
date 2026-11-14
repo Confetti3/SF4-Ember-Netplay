@@ -142,7 +142,7 @@ when one drifts; the room host's own side is `static_assert`s in
 | A status line, as the supervisor reads it | 128 KiB | `MAX_LINE_BYTES` (protocol.rs), `SupervisorLineBytes` (`RoomHostStatus.hxx`); a longer line is a protocol error and the child is killed |
 | A status line, as the room host writes it | 60 000 bytes | `MaximumStatusLineBytes` (`RoomHostStatus.hxx`); the host ends the room with `status_too_large` rather than write a longer one |
 | The `details` object | 2048 bytes as written | `MAX_DETAILS_BYTES` (protocol.rs), `SupervisorDetailsBytes` (`RoomHostStatus.hxx`), `MAX_DETAILS_REPORT` (`server/ember/bridge/src/routes/rooms/supervisor.rs`); a larger one is dropped and the room stays up |
-| The `games` array | 8192 bytes as written (6144 before 1.6.0) | `MAX_GAMES_BYTES` (protocol.rs), `SupervisorGamesBytes` (`RoomHostStatus.hxx`), `MAX_GAMES_REPORT` (bridge); a larger one is dropped the same way |
+| The `games` array | 8192 bytes as written (6144 before 1.6.0; a 1.6.0 room host keeps its report within 6144, dropping its oldest games) | `MAX_GAMES_BYTES` (protocol.rs), `SupervisorGamesBytes` (`RoomHostStatus.hxx`), `MAX_GAMES_REPORT` (bridge); a larger one is dropped the same way |
 
 The largest valid line: 512 Ember IDs of 57 bytes (60 with quotes and a comma,
 30 720 bytes), an invitation of at most 4096 bytes (`MAX_INVITATION`), the
@@ -156,9 +156,14 @@ sound host is never killed for its line.
 
 The 1.6.0 room host writes each won game's place in its battle (`game`) and its
 two fighters (`fighters`, docs/design/FIGHTER_LEVELS.md), so a busy room's
-games can pass the 6144 bytes a supervisor before 1.6.0 passes on. Such a
-supervisor drops the whole array while it is that large, and the bridge never
-sees those games: they are neither rated nor counted for levels. Upgrade the
-supervisor and the bridge first, then stage the 1.6.0 room host. Older room
+games can pass the 6144 bytes a supervisor before 1.6.0 passes on. A supervisor
+with that limit drops the whole array while it is that large, so the room host
+keeps its report within it: it drops its oldest games until the array fits
+`MaximumWonGamesBytes` (6144, `src/common/SkillBadge.hxx`), and the bridge has
+counted those already (it counts a game the first time a report carries it).
+The supervisor upgrade raises the limit to 8192 and is recommended for
+headroom, but it may come before or after the 1.6.0 room host is staged. The
+bridge must be upgraded before clients that send a room's `area` (the
+`room_area` capability decides that). Older room
 hosts keep working under the new limits: their games are smaller and read as
 before.

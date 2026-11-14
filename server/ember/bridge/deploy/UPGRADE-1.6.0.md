@@ -24,12 +24,14 @@ Read this through before starting; do the steps in order.
   upsert says `ON CONFLICT (discord_user_id)`, which no longer matches 058's
   key `(game, discord_user_id)`: every rated game fails, and it fails inside
   the one transaction that polls every room, so the room list freezes.
-- **Both room supervisors first.** A supervisor before this range drops a
-  room's whole games array over 6,144 bytes; a busy 1.6.0 room can report up
-  to 8,192 (32 games with fighters). Its games would then be neither rated nor
-  counted, and nothing logs it. The VPS supervisor and server1's must both run
-  this range's `ember-rooms` before any 1.6.0 room host build is installed on
-  either. Keep the VPS supervisor's SFV hosting working while you do, or move
+- **Room supervisors: recommended, in any order.** A supervisor before this
+  range drops a room's whole games array over 6,144 bytes. A 1.6.0 room host
+  keeps its report within that by dropping its oldest games (at worst the 28
+  newest of the longest games are kept, otherwise up to 32), and the bridge
+  counts a game the first time a report carries it, so no game is lost either
+  way. This range's `ember-rooms` raises the limit to 8,192 and so gives
+  headroom, but it is not a precondition for installing a 1.6.0 room host.
+  Keep the VPS supervisor's SFV hosting working while you upgrade it, or move
   SFV off it first.
 - **Other games' rows are cleared with the bridge stopped.** This bridge is
   USF4's alone and refuses a database holding rows of another game in
@@ -58,8 +60,8 @@ Read this through before starting; do the steps in order.
    Keep a copy of the binary production runs today:
    `cp /usr/local/lib/ember-bridge/ember-bridge ~/ember-bridge-rollback/`.
 3. **Upgrade both room supervisors** (VPS and server1) to this range's
-   `ember-rooms` with `sudo bash ~/ember-rooms/setup.sh`, staging no 1.6.0
-   room host build yet. Check each answers `GET /limits`.
+   `ember-rooms` with `sudo bash ~/ember-rooms/setup.sh`. Recommended, and it
+   may also be done after step 10. Check each answers `GET /limits`.
 4. **Move SFV's rows** to the SFV bridge if they are not there yet (the
    library's `docs/design/SFV_BRIDGE.md`): its import reads them from this
    database, so it comes before the clean-up.
@@ -78,7 +80,7 @@ Read this through before starting; do the steps in order.
 9. **Check** `GET /v1/capabilities` lists `points`, `points_class_bonus`,
    `friends`, `profiles` and `room_area` where the configuration turns them on, the room
    list moves, and `journalctl -u ember-bridge` shows no `database error`.
-10. **Only now** install the 1.6.0 room host builds on the supervisors
+10. **Now** install the 1.6.0 room host builds on the supervisors
     (`builds/<build_id>/` staged, `setup.sh` again) and publish the game.
 
 ## Areas (migration 066)
