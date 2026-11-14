@@ -25,6 +25,7 @@
 #include "../ui/CameraPanel.hxx"
 #include "../training/RemoteServer.hxx"
 #include "../training/RemoteHud.hxx"
+#include "../training/CameraControl.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/DroppedFiles.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
@@ -771,7 +772,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_trainingControls.Close();
         }
     }
-    sf4e::ui::DrawCameraPanel(training.available || replayKeys, focused, sf4e::netplay::SettingsStore::DefaultDirectory(), replayKeys, snapshot.replays, [&playback](sf4e::replaytransport::Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard, playback.session); });
+    // The camera is offered over Training and a replay Ember plays to watch; it follows this one rule (CameraControl.hxx: UseOf).
+    const bool cameraOffered = training.available || replayKeys;
+    sf4e::training::camera::Phone().SetOffered(cameraOffered);
+    sf4e::ui::DrawCameraPanel(cameraOffered, focused, sf4e::netplay::SettingsStore::DefaultDirectory(), replayKeys, snapshot.replays, [&playback](sf4e::replaytransport::Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard, playback.session); });
     sf4e::ui::DrawGameThemesFloat(focused, !training.available && snapshot.session.match == sf4e::netplay::MatchState::None && !presentation.Visible());
     sf4e::ui::OverlayLayersView layers;
     layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available(); layers.exporting = exporting;

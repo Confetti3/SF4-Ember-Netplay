@@ -24,7 +24,7 @@ public:
         if (table + 4ull * count > d.size()) return;
         for (uint32_t i = 0; i < count; ++i) {
             const uint32_t at = U32(table + 4 * i);
-            if (at + 0x40 > d.size()) return;
+            if (std::uint64_t{at} + 0x40 > d.size()) return;
             order.push_back(Name(at));
             nodes[order.back()] = at;
         }
@@ -35,12 +35,13 @@ public:
     std::vector<std::string> order;
     std::map<std::string, uint32_t> nodes;
 
-    uint32_t U32(size_t o) const { uint32_t v = 0; if (o + 4 <= d.size()) std::memcpy(&v, d.data() + o, 4); return v; }
-    int S16(size_t o) const { int16_t v = 0; if (o + 2 <= d.size()) std::memcpy(&v, d.data() + o, 2); return v; }
-    float F(size_t o) const { float v = 0; if (o + 4 <= d.size()) std::memcpy(&v, d.data() + o, 4); return v; }
-    void PutF(size_t o, float v) { if (o + 4 <= d.size()) std::memcpy(&d[o], &v, 4); }
-    void PutS16(size_t o, int v) { const int16_t s = (int16_t)v; if (o + 2 <= d.size()) std::memcpy(&d[o], &s, 2); }
-    void PutU32(size_t o, uint32_t v) { if (o + 4 <= d.size()) std::memcpy(&d[o], &v, 4); }
+    // Offsets come from the file, so each bound is checked in 64 bits: one near 0xFFFFFFFF never wraps to a small one that passes.
+    uint32_t U32(std::uint64_t o) const { uint32_t v = 0; if (o + 4 <= d.size()) std::memcpy(&v, d.data() + o, 4); return v; }
+    int S16(std::uint64_t o) const { int16_t v = 0; if (o + 2 <= d.size()) std::memcpy(&v, d.data() + o, 2); return v; }
+    float F(std::uint64_t o) const { float v = 0; if (o + 4 <= d.size()) std::memcpy(&v, d.data() + o, 4); return v; }
+    void PutF(std::uint64_t o, float v) { if (o + 4 <= d.size()) std::memcpy(&d[static_cast<size_t>(o)], &v, 4); }
+    void PutS16(std::uint64_t o, int v) { const int16_t s = (int16_t)v; if (o + 2 <= d.size()) std::memcpy(&d[static_cast<size_t>(o)], &s, 2); }
+    void PutU32(std::uint64_t o, uint32_t v) { if (o + 4 <= d.size()) std::memcpy(&d[static_cast<size_t>(o)], &v, 4); }
     std::string Name(uint32_t at) const { return std::string(d.c_str() + at + 0x20, strnlen(d.c_str() + at + 0x20, 0x20)); }
     uint32_t Alloc(size_t n) { while (d.size() % 16) d.push_back(0); const uint32_t o = (uint32_t)d.size(); d.append(n, '\0'); return o; }
 

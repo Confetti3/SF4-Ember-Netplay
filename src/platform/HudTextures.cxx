@@ -8,7 +8,15 @@
 
 namespace sf4e { namespace platform { namespace hud_textures {
 namespace {
-std::uint32_t U32(const std::string& d, size_t at) { std::uint32_t v = 0; if (at + 4 <= d.size()) std::memcpy(&v, d.data() + at, 4); return v; }
+// Offsets come from the file, so every sum is made in 64 bits: one near 0xFFFFFFFF never wraps to a small one that passes.
+std::uint32_t U32(const std::string& d, std::uint64_t at) { std::uint32_t v = 0; if (at + 4 <= d.size()) std::memcpy(&v, d.data() + at, 4); return v; }
+// The entry of an #EMB's table at `index`, as start and size within it; false when it does not lie inside.
+bool Entry(const std::string& emb, std::uint32_t table, std::uint32_t index, std::size_t& start, std::size_t& size) {
+    const std::uint64_t slot = std::uint64_t{table} + 8ull * index, at = slot + U32(emb, slot), length = U32(emb, slot + 4);
+    if (slot + 8 > emb.size() || at > emb.size() || length > emb.size() - at) return false;
+    start = static_cast<std::size_t>(at); size = static_cast<std::size_t>(length);
+    return true;
+}
 void Colour565(unsigned c, int& r, int& g, int& b) { r = (c >> 11 & 31) * 255 / 31; g = (c >> 5 & 63) * 255 / 63; b = (c & 31) * 255 / 31; }
 void Put32(std::string& s, std::uint32_t v) { for (int i = 3; i >= 0; --i) s.push_back(static_cast<char>(v >> (8 * i))); }
 void Chunk(std::string& out, const char* type, const std::string& data) {
@@ -28,8 +36,8 @@ bool Entries(const std::string& file, std::vector<std::string>& dds) {
     if (count > 4096 || table + 8ull * count > emb.size()) return false;
     dds.clear();
     for (std::uint32_t i = 0; i < count; ++i) {
-        const size_t slot = table + 8ull * i, start = slot + U32(emb, slot), size = U32(emb, slot + 4);
-        if (start > emb.size() || size > emb.size() - start) return false;
+        std::size_t start = 0, size = 0;
+        if (!Entry(emb, table, i, start, size)) return false;
         dds.push_back(emb.substr(start, size));
     }
     return true;
@@ -132,27 +140,31 @@ void EncodeBlock(const Image& im, int bx, int by, std::uint8_t* out) {
     out[8] = c0 & 255; out[9] = c0 >> 8; out[10] = c1 & 255; out[11] = c1 >> 8;
     for (int i = 0; i < 4; ++i) out[12 + i] = static_cast<std::uint8_t>(idx >> (8 * i));
 }
-std::uint32_t Be32(const std::string& d, size_t at) {
+std::uint32_t Be32(const std::string& d, std::uint64_t at) {
     return at + 4 <= d.size() ? (static_cast<std::uint32_t>(static_cast<std::uint8_t>(d[at])) << 24 | static_cast<std::uint8_t>(d[at + 1]) << 16 | static_cast<std::uint8_t>(d[at + 2]) << 8 | static_cast<std::uint8_t>(d[at + 3])) : 0;
 }
 }
 
-bool DecodePng(const std::string& png, Image& image) {
+bool DecodePng(const std::string& png, int mostWidth, int mostHeight, Image& image) {
     if (png.size() < 33 || png.compare(0, 8, "\x89PNG\r\n\x1a\n", 8) != 0) return false;
     std::string packed;
     int width = 0, height = 0;
     for (size_t at = 8; at + 12 <= png.size();) {
         const std::uint32_t size = Be32(png, at);
         const std::string type = png.substr(at + 4, 4);
-        if (size > png.size() || at + 12 + size > png.size()) return false;
+        if (std::uint64_t{at} + 12 + size > png.size()) return false;
         if (type == "IHDR") {
             if (size < 13) return false;
-            width = static_cast<int>(Be32(png, at + 8)); height = static_cast<int>(Be32(png, at + 12));
+            const std::uint32_t w = Be32(png, at + 8), h = Be32(png, at + 12);
+            // The size the header claims is checked first: the pixels are unpacked into that much memory.
+            if (!w || !h || w > static_cast<std::uint32_t>((std::min)(mostWidth, 4096)) || h > static_cast<std::uint32_t>((std::min)(mostHeight, 4096))) return false;
+            width = static_cast<int>(w); height = static_cast<int>(h);
             if (png[at + 16] != 8 || png[at + 17] != 6 || png[at + 20] != 0) return false;       // 8 bit RGBA, not interlaced
-        } else if (type == "IDAT") packed.append(png, at + 8, size);
+        } else if (!width) return false;      // the header comes first
+        else if (type == "IDAT") packed.append(png, at + 8, size);
         at += 12ull + size;
     }
-    if (width <= 0 || height <= 0 || width > 4096 || height > 4096) return false;
+    if (width <= 0 || height <= 0) return false;
     const size_t row = static_cast<size_t>(width) * 4;
     std::vector<unsigned char> raw;
     if (!zinflate::InflateBounded(reinterpret_cast<const unsigned char*>(packed.data()), packed.size(), zinflate::Format::Zlib, (row + 1) * height, raw, (row + 1) * height)) return false;
@@ -178,9 +190,8 @@ bool Paste(const std::string& texEmz, int entry, const Image& picture, int x, in
     std::string emb;
     if (!hud_layout::Unpack(texEmz, emb) || emb.compare(0, 4, "#EMB") != 0) return false;
     const std::uint32_t count = U32(emb, 0xC), table = U32(emb, 0x18);
-    if (entry < 0 || static_cast<std::uint32_t>(entry) >= count || table + 8ull * count > emb.size()) return false;
-    const size_t slot = table + 8ull * entry, start = slot + U32(emb, slot), size = U32(emb, slot + 4);
-    if (start > emb.size() || size > emb.size() - start) return false;
+    std::size_t start = 0, size = 0;
+    if (entry < 0 || static_cast<std::uint32_t>(entry) >= count || table + 8ull * count > emb.size() || !Entry(emb, table, static_cast<std::uint32_t>(entry), start, size)) return false;
     std::string dds = emb.substr(start, size);
     Image sheet;
     if (!Decode(dds, sheet) || x < 0 || y < 0 || x + picture.width > sheet.width || y + picture.height > sheet.height) return false;

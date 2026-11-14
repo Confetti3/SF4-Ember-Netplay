@@ -1,9 +1,14 @@
 #include "RemoteHud.hxx"
+#include "RemoteRequest.hxx"
 #include "GameFiles.hxx"
 #include "../platform/DurableFile.hxx"
 #include "../platform/GameThemes.hxx"
 #include "../platform/HudLayout.hxx"
 #include "../platform/HudTextures.hxx"
+#include "../platform/Utf8.hxx"
+#include "../common/JsonDump.hxx"
+#include "../common/JsonField.hxx"
+#include "../common/Utf8Text.hxx"
 #include <algorithm>
 #include <atomic>
 #include <filesystem>
@@ -21,29 +26,16 @@ namespace {
 std::atomic<bool> s_allowed{false};
 constexpr std::size_t MostFile = 16u << 20;
 
-Reply Say(int status, const nlohmann::json& body) { Reply r; r.status = status; r.body = body.dump(); return r; }
+// Names read from a theme's files are bytes as the file has them: written as UTF-8 whatever they hold.
+Reply Say(int status, const nlohmann::json& body) { Reply r; r.status = status; r.body = DumpJson(body); return r; }
 Reply Fail(int status, const char* why) { return Say(status, { { "ok", false }, { "error", why } }); }
 
-std::string Decode(const std::string& text) {
-    std::string out;
-    for (std::size_t i = 0; i < text.size(); ++i) {
-        if (text[i] == '%' && i + 2 < text.size() && std::isxdigit((unsigned char)text[i + 1]) && std::isxdigit((unsigned char)text[i + 2])) { out += (char)std::stoi(text.substr(i + 1, 2), nullptr, 16); i += 2; }
-        else out += text[i] == '+' ? ' ' : text[i];
-    }
-    return out;
-}
-std::string Param(const std::string& query, const std::string& key) {
-    for (std::size_t at = 0; at < query.size();) {
-        const auto end = query.find('&', at), stop = end == std::string::npos ? query.size() : end;
-        if (query.compare(at, key.size() + 1, key + "=") == 0) return Decode(query.substr(at + key.size() + 1, stop - at - key.size() - 1));
-        at = stop + 1;
-    }
-    return {};
-}
-// A theme is one folder name: nothing that leaves ember\themes.
+// A theme is one folder name: nothing that leaves ember\themes, and UTF-8 a path can be made of.
 bool PlainName(const std::string& name) {
-    return !name.empty() && name != "." && name != ".." && name.size() < 100 && name.find_first_of("\\/:") == std::string::npos;
+    return !name.empty() && name != "." && name != ".." && name.size() < 100 && name.find_first_of("\\/:") == std::string::npos && IsWellFormedUtf8(name);
 }
+// A file name as UTF-8, whatever the code page; empty for one Windows cannot give as UTF-8.
+std::string NameOf(const fs::path& path) { return platform::WideToUtf8(path.wstring()); }
 fs::path ThemeFolder(const Host& host, const std::string& name) { return fs::path(host.directory()) / platform::game_themes::Folder / fs::u8path(name); }
 fs::path HudFolder(const Host& host, const std::string& name) { return ThemeFolder(host, name) / "battle" / "hud" / "CMN"; }
 
@@ -77,7 +69,7 @@ bool Files(const Host& host, const std::string& name, std::map<std::string, std:
 std::vector<std::string> Fighters(const Host& host) {
     std::vector<std::string> names; std::error_code ignored;
     for (fs::directory_iterator it(fs::path(host.directory()) / "resource" / "battle" / "hud" / "ENG", ignored), end; !ignored && it != end; it.increment(ignored))
-        if (it->is_directory(ignored)) names.push_back(it->path().filename().string());
+        if (it->is_directory(ignored)) if (std::string name = NameOf(it->path().filename()); !name.empty()) names.push_back(std::move(name));
     std::sort(names.begin(), names.end());
     return names;
 }
@@ -117,14 +109,15 @@ std::vector<Art> ArtOf(const Host& host, const std::string& name) {
     std::vector<Art> list; std::error_code ignored;
     for (fs::directory_iterator it(ArtFolder(host, name), ignored), end; !ignored && it != end; it.increment(ignored)) {
         Art a;
-        if (it->path().extension() == ".png" && ParseArt(it->path().stem().string(), a)) list.push_back(a);
+        if (it->path().extension() == ".png" && ParseArt(NameOf(it->path().stem()), a)) list.push_back(a);
     }
     std::sort(list.begin(), list.end(), [](const Art& x, const Art& y) { return ArtName(x) < ArtName(y); });
     return list;
 }
 bool ReadArt(const Host& host, const std::string& name, const Art& a, textures::Image& image) {
     std::string bytes;
-    return Read(ArtFolder(host, name) / (ArtName(a) + ".png"), bytes) && textures::DecodePng(bytes, image) && image.width == a.u[2] - a.u[0] && image.height == a.u[3] - a.u[1];
+    const int width = a.u[2] - a.u[0], height = a.u[3] - a.u[1];
+    return Read(ArtFolder(host, name) / fs::u8path(ArtName(a) + ".png"), bytes) && textures::DecodePng(bytes, width, height, image) && image.width == width && image.height == height;
 }
 std::string Unbase64(const std::string& text) {
     std::string out; int bits = 0, value = 0;
@@ -180,9 +173,7 @@ nlohmann::json InfoJson(const layout::Info& i) {
 }
 
 struct Request { const Host& host; std::string query; nlohmann::json json; };      // json: the body of a POST
-std::string Text(const nlohmann::json& json, const char* key) {
-    return json.is_object() && json.value(key, nlohmann::json()).is_string() ? json[key].get<std::string>() : std::string();
-}
+std::string Text(const nlohmann::json& json, const char* key) { return JsonField<std::string>(json, key).value_or(std::string()); }
 // The theme a request names, with its HUD files.
 struct Theme { std::string name; std::map<std::string, std::string> files; };
 bool OpenTheme(const Host& host, const std::string& name, Theme& theme) { theme.name = name; return PlainName(name) && Files(host, name, theme.files); }
@@ -204,7 +195,7 @@ Reply Themes(const Request& r) {
 }
 Reply ThemeInfo(const Request& r) {
     Theme theme;
-    if (!OpenTheme(r.host, Param(r.query, "name"), theme)) return Fail(404, "no such theme");
+    if (!OpenTheme(r.host, QueryParam(r.query, "name"), theme)) return Fail(404, "no such theme");
     nlohmann::json elements = nlohmann::json::array(), art = nlohmann::json::array();
     for (const layout::Info& i : layout::Describe(theme.files)) elements.push_back(InfoJson(i));
     for (const Art& a : ArtOf(r.host, theme.name)) art.push_back(ArtName(a));
@@ -212,8 +203,8 @@ Reply ThemeInfo(const Request& r) {
 }
 Reply Scene(const Request& r) {
     Theme theme;
-    if (!OpenTheme(r.host, Param(r.query, "name"), theme)) return Fail(404, "no such theme");
-    const std::string fighter = FighterOf(r.host, Param(r.query, "fighter"));
+    if (!OpenTheme(r.host, QueryParam(r.query, "name"), theme)) return Fail(404, "no such theme");
+    const std::string fighter = FighterOf(r.host, QueryParam(r.query, "fighter"));
     nlohmann::json sprites = nlohmann::json::array(), sheets = nlohmann::json::object();
     for (const layout::Sprite& sp : layout::Sprites(theme.files)) {
         sprites.push_back({ { "n", sp.node }, { "e", sp.element }, { "f", sp.file }, { "t", sp.tex }, { "uv", { sp.uv[0], sp.uv[1], sp.uv[2], sp.uv[3] } },
@@ -230,10 +221,10 @@ Reply Scene(const Request& r) {
 }
 Reply SheetPicture(const Request& r) {
     Theme theme;
-    if (!OpenTheme(r.host, Param(r.query, "name"), theme)) return Fail(404, "no such theme");
-    const std::string relative = SheetOf(Param(r.query, "file"), FighterOf(r.host, Param(r.query, "fighter")));
+    if (!OpenTheme(r.host, QueryParam(r.query, "name"), theme)) return Fail(404, "no such theme");
+    const std::string relative = SheetOf(QueryParam(r.query, "file"), FighterOf(r.host, QueryParam(r.query, "fighter")));
     std::string sheet; std::vector<std::string> dds; textures::Image image;
-    const int index = std::atoi(Param(r.query, "index").c_str());
+    const int index = std::atoi(QueryParam(r.query, "index").c_str());
     // The user's pictures show in the preview, pasted as the game will read them.
     if (relative.empty() || !Read(Find(r.host, theme.name, relative), sheet) || !textures::Entries(WithArt(r.host, theme.name, relative, std::move(sheet)), dds)
         || index < 0 || static_cast<std::size_t>(index) >= dds.size() || !textures::Decode(dds[index], image)) return Fail(404, "no such texture");
@@ -245,24 +236,25 @@ Reply Image(const Request& r) {
     Theme theme;
     if (!PostedTheme(r, theme)) return Fail(404, "no such theme");
     Art a;
-    const auto uv = json.value("uv", nlohmann::json());
-    a.file = json.value("file", std::string()); a.fighter = json.value("fighter", std::string()); a.tex = json.value("tex", -1);
+    const auto* uv = JsonMember(json, "uv");
+    a.file = Text(json, "file"); a.fighter = Text(json, "fighter"); a.tex = JsonField<int>(json, "tex").value_or(-1);
     if (a.file != "chara" && a.file != "uc") a.fighter.clear();
-    if (!uv.is_array() || uv.size() != 4) return Fail(400, "bad region");
-    for (int i = 0; i < 4; ++i) a.u[i] = uv[i].is_number_integer() ? uv[i].get<int>() : -1;
+    if (!uv || !uv->is_array() || uv->size() != 4) return Fail(400, "bad region");
+    for (int i = 0; i < 4; ++i) a.u[i] = (*uv)[i].is_number_integer() && (*uv)[i] >= 0 && (*uv)[i] <= 4096 ? (*uv)[i].get<int>() : -1;
     textures::Image picture;
     if (!Valid(a)) return Fail(400, "bad region");
-    if (!textures::DecodePng(Unbase64(json.value("png", std::string())), picture) || picture.width != a.u[2] - a.u[0] || picture.height != a.u[3] - a.u[1]) return Fail(400, "bad picture");
-    if (!WriteFile(ArtFolder(r.host, theme.name) / (ArtName(a) + ".png"), textures::EncodePng(picture))) return Fail(500, "cannot save");
+    const int width = a.u[2] - a.u[0], height = a.u[3] - a.u[1];
+    if (!textures::DecodePng(Unbase64(Text(json, "png")), width, height, picture) || picture.width != width || picture.height != height) return Fail(400, "bad picture");
+    if (!WriteFile(ArtFolder(r.host, theme.name) / fs::u8path(ArtName(a) + ".png"), textures::EncodePng(picture))) return Fail(500, "cannot save");
     return Say(200, { { "ok", true }, { "name", ArtName(a) } });
 }
 Reply ImageRemove(const Request& r) {
     const auto& json = r.json;
     Theme theme; Art a;
     if (!PostedTheme(r, theme)) return Fail(404, "no such theme");
-    const std::string stem = json.value("name", std::string());
+    const std::string stem = Text(json, "name");
     if (!ParseArt(stem, a)) return Fail(400, "bad name");
-    std::error_code ignored; fs::remove(ArtFolder(r.host, theme.name) / (stem + ".png"), ignored);
+    std::error_code ignored; fs::remove(ArtFolder(r.host, theme.name) / fs::u8path(stem + ".png"), ignored);
     return Say(200, { { "ok", true } });
 }
 Reply Restart(const Request& r) { r.host.restart(); return Say(200, { { "ok", true } }); }
@@ -278,8 +270,8 @@ Reply SaveAs(const Request& r) {
     // The copy is the theme as the game reads it: the edits are in its files, so it keeps neither layout.json nor the pictures.
     fs::create_directories(ThemeFolder(host, copy), failed);
     for (fs::directory_iterator it(ThemeFolder(host, theme.name), failed), end; !failed && it != end; it.increment(failed)) {
-        const std::string leaf = it->path().filename().string();
-        if (leaf == "layout.json" || leaf == "layout-art" || leaf == "review.json") continue;
+        const std::wstring leaf = it->path().filename().wstring();
+        if (leaf == L"layout.json" || leaf == L"layout-art" || leaf == L"review.json") continue;
         fs::copy(it->path(), ThemeFolder(host, copy) / it->path().filename(), fs::copy_options::recursive, failed);
     }
     bool saved = !failed;
@@ -292,8 +284,8 @@ Reply Edit(const Request& r, bool apply) {
     const auto& json = r.json;
     Theme theme;
     if (!PostedTheme(r, theme)) return Fail(404, "no such theme");
-    const bool given = json.contains("layout");
-    const layout::Layout edits = given ? layout::LayoutFromJson(json["layout"]) : Saved(r.host, theme.name);
+    const auto* given = JsonMember(json, "layout");
+    const layout::Layout edits = given ? layout::LayoutFromJson(*given) : Saved(r.host, theme.name);
     if (given && !Save(r.host, theme.name, edits)) return Fail(500, "cannot save");
     if (!apply) return Say(200, { { "ok", true } });
     std::map<std::string, std::string> written;
@@ -301,27 +293,27 @@ Reply Edit(const Request& r, bool apply) {
     r.host.apply(theme.name, std::move(written));
     return Say(200, { { "ok", true } });
 }
-Reply Layout(const Request& r) { return Edit(r, false); }
-Reply Apply(const Request& r) { return Edit(r, true); }
 
-struct Route { bool post; const char* name; Reply (*run)(const Request&); };
-const Route Routes[] = {
-    { false, "themes", Themes }, { false, "theme", ThemeInfo }, { false, "scene", Scene }, { false, "sheet", SheetPicture },
-    { true, "image", Image }, { true, "image-remove", ImageRemove }, { true, "restart", Restart }, { true, "save-as", SaveAs },
-    { true, "layout", Layout }, { true, "apply", Apply },
-};
 }
 
 void Allow(bool allowed) { s_allowed = allowed; }
 bool Allowed() { return s_allowed; }
-bool Owns(const std::string& path) { return path.compare(0, 9, "/api/hud/") == 0; }
-
-Reply Handle(const Host& host, bool post, const std::string& path, const std::string& query, const std::string& body, const std::string& userAgent) {
+Reply Handle(const Host& host, Order order, const std::string& query, const std::string& body, const std::string& userAgent) {
     if (!s_allowed) return Fail(403, "off");
     if (!layout::DesktopAgent(userAgent)) return Fail(403, "desktop");
-    const std::string route = path.substr(9);
-    for (const Route& candidate : Routes)
-        if (candidate.post == post && route == candidate.name) return candidate.run({ host, query, post ? nlohmann::json::parse(body, nullptr, false) : nlohmann::json() });
+    const Request r{ host, query, nlohmann::json::parse(body, nullptr, false) };
+    switch (order) {
+    case Order::Themes: return Themes(r);
+    case Order::Theme: return ThemeInfo(r);
+    case Order::Scene: return Scene(r);
+    case Order::Sheet: return SheetPicture(r);
+    case Order::Image: return Image(r);
+    case Order::ImageRemove: return ImageRemove(r);
+    case Order::Restart: return Restart(r);
+    case Order::SaveAs: return SaveAs(r);
+    case Order::Layout: return Edit(r, false);
+    case Order::Apply: return Edit(r, true);
+    }
     return Fail(404, "no");
 }
 } } } }

@@ -1,4 +1,5 @@
 #include "../training/RemoteProtocol.hxx"
+#include "../training/RemoteRequest.hxx"
 #include <algorithm>
 #include <iterator>
 #include <cstdio>
@@ -56,6 +57,20 @@ int main() {
         Require(ParseOrder({{"set", "format"}, {"value", 0}}, view, order, error) == Route::Refused && error == "unknown option", "An unknown option");
         Require(ParseOrder({{"cmd", "format"}}, view, order, error) == Route::Refused && error == "unknown cmd", "An unknown order");
         Require(ParseOrder(json("record"), view, order, error) == Route::Refused, "Not an object");
+        Require(ParseOrder({{"cmd", "comboRename"}, {"id", "1-1"}}, view, order, error) == Route::Store && order.id == "comboRename", "A saved combo's order was not left to the store");
+        Require(ParseOrder({{"cmd", "comboPlay"}}, view, order, error) == Route::Store && ParseOrder({{"cmd", "comboRecord"}}, view, order, error) == Route::Game, "Combo check's orders were mixed up with the store's");
+        Require(ParseOrder({{"cmd", "comboAnything"}}, view, order, error) == Route::Refused && error == "unknown cmd", "A combo order nobody knows was taken");
+        // Fields of the wrong type are refused, never thrown on, and a number too big for an int is not cut down to a valid one.
+        Require(ParseOrder({{"set", "guard"}, {"value", "2"}}, view, order, error) == Route::Refused && error == "bad value", "A value that is text was taken");
+        Require(ParseOrder({{"set", "guard"}, {"value", 4294967298LL}}, view, order, error) == Route::Refused && error == "bad value", "A value past an int was cut down");
+        Require(ParseOrder({{"cmd", 5}}, view, order, error) == Route::Refused && error == "no cmd", "An order name that is a number was taken");
+        Require(ParseOrder({{"cmd", "select"}, {"slot", "1"}}, view, order, error) == Route::Refused && ParseOrder({{"cmd", "replyMoves"}, {"text", 623}}, view, order, error) == Route::Refused,
+            "Fields of the wrong type were taken");
+        // Text that is not UTF-8 (a modded fighter's script names) is written with U+FFFD, never thrown on.
+        {
+            const json bad = {{"data", {{"sides", {{{"script", {{"name", std::string("Ryu\xff\xfe")}}}}}}}}};
+            Require(EventFrame(bad).find("Ryu\xEF\xBF\xBD") != std::string::npos && JsonReply(bad).body.find("Ryu\xEF\xBF\xBD") != std::string::npos, "Bytes that are not UTF-8 must be written as U+FFFD");
+        }
         // The page's data: the options, and every value with the game's from the view.
         const auto page = OptionsJson([](const char* key, int arg) { return std::string(key) + (arg < 0 ? "" : std::to_string(arg)); });
         Require(page["options"].size() == Options().size() && page["options"][0]["choices"][0].size() == 2, "The options JSON was wrong");
@@ -109,11 +124,103 @@ int main() {
             play[1].frames.size() == 2 && play[0].generation == 9 && play[1].generation == 9, "A saved combo did not become Place then ComboPlay");
         std::string name;
         Require(ParseComboName("  My combo ", name, error) && name == "My combo", "A name was not trimmed");
-        Require(!ParseComboName("   ", name, error) && !ParseComboName("a\nb", name, error) && !ParseComboName(std::string(ComboNameBytes + 1, 'a'), name, error) && !ParseComboName(5, name, error), "A bad name was taken");
+        Require(!ParseComboName("   ", name, error) && !ParseComboName("a\nb", name, error) && !ParseComboName(std::string(ComboNameBytes + 1, 'a'), name, error) && !ParseComboName(std::nullopt, name, error), "A bad name was taken");
         // Frame data: the fighters with their counts, one fighter's rows, nothing for an unknown one.
         const json frames = {{"cols", {"move"}}, {"fighters", {{"Ryu", {{"5LP"}, {"5MP"}}}, {"Ken", {{"5LP"}}}}}};
         Require(FramesIndex(frames)["fighters"].size() == 2 && FramesIndex(frames)["fighters"][1] == json({{"name", "Ryu"}, {"moves", 2}}), "The fighter list was wrong");
         Require(FramesOf(frames, "Ryu")["rows"].size() == 2 && FramesOf(frames, "Ryu")["cols"][0] == "move" && FramesOf(frames, "Nobody").is_null() && FramesIndex(json()).at("fighters").empty(), "A fighter's rows were wrong");
+        // The route table: every request the pages make has its route, its body limit and where its PIN may be.
+        {
+            const struct { Method method; const char* path; } asked[] = {{Method::Get, "/"}, {Method::Get, "/api/options"}, {Method::Get, "/api/state"}, {Method::Get, "/api/stream"},
+                {Method::Post, "/api/cmd"}, {Method::Get, "/api/camera"}, {Method::Post, "/api/camera"}, {Method::Get, "/api/combos"}, {Method::Post, "/api/combos"},
+                {Method::Get, "/api/combos/1-1"}, {Method::Get, "/api/frames"}, {Method::Get, "/api/hud/themes"}, {Method::Get, "/api/hud/theme"}, {Method::Get, "/api/hud/scene"},
+                {Method::Get, "/api/hud/sheet"}, {Method::Post, "/api/hud/image"}, {Method::Post, "/api/hud/image-remove"}, {Method::Post, "/api/hud/restart"},
+                {Method::Post, "/api/hud/save-as"}, {Method::Post, "/api/hud/layout"}, {Method::Post, "/api/hud/apply"}};
+            for (const auto& a : asked) Require(ResourceAt(a.method, a.path) != nullptr, "A request the page makes has no route");
+            Require(!ResourceAt(Method::Get, "/api/cmd") && !ResourceAt(Method::Post, "/") && !ResourceAt(Method::Get, "/api/combos/") && !ResourceAt(Method::Post, "/api/hud/imagex") && !ResourceAt(Method::Get, "/api/nothing"),
+                "A route was found that is not in the table");
+            Require(ResourceAt(Method::Post, "/api/hud/image")->body == HudImageBytes && ResourceAt(Method::Post, "/api/hud/layout")->body == HudBytes &&
+                ResourceAt(Method::Post, "/api/combos")->body == ComboFileBytes && ResourceAt(Method::Post, "/api/cmd")->body == CommandBytes && ResourceAt(Method::Get, "/api/state")->body == 0,
+                "A route's body limit was wrong");
+            Require(ResourceAt(Method::Get, "/")->pin == PinFrom::None && ResourceAt(Method::Get, "/api/stream")->pin == PinFrom::HeaderOrAddress &&
+                ResourceAt(Method::Get, "/api/combos/1-1")->pin == PinFrom::HeaderOrAddress && ResourceAt(Method::Get, "/api/state")->pin == PinFrom::Header, "A route takes its PIN from the wrong place");
+            Require(std::get<hud::Order>(ResourceAt(Method::Post, "/api/hud/apply")->handler) == hud::Order::Apply && std::get<Endpoint>(ResourceAt(Method::Get, "/api/combos/7")->handler) == Endpoint::ComboFile,
+                "A route has the wrong handler");
+            Require(ResourceAt(Method::Post, "/api/camera")->needs == Needs::Camera && ResourceAt(Method::Get, "/api/camera")->needs == Needs::Nothing, "The camera's orders must wait for the camera");
+            Require(ResourceAt(Method::Post, "/api/hud/apply")->needs == Needs::NoMatch && ResourceAt(Method::Post, "/api/hud/restart")->needs == Needs::NoMatch &&
+                ResourceAt(Method::Post, "/api/hud/layout")->needs == Needs::Nothing, "Applying a HUD and restarting the game must wait for no match");
+        }
+        // A request's head: the method, the path and query, the headers in any case, and a length that is one plain number.
+        {
+            Head head;
+            Require(ParseHead("GET /api/frames?fighter=Ryu HTTP/1.1\r\nHost: x\r\nx-pin:  123456 \r\nUSER-AGENT: Phone", head) && head.method == Method::Get && head.path == "/api/frames" &&
+                head.query == "fighter=Ryu" && head.pin == "123456" && head.userAgent == "Phone" && head.length == 0, "A head was read wrong");
+            Require(ParseHead("POST /api/cmd HTTP/1.1\r\nContent-Length: 42", head) && head.method == Method::Post && head.length == 42, "A body's length was read wrong");
+            Require(!ParseHead("PUT /api/cmd HTTP/1.1", head) && !ParseHead("GET /api/cmd", head) && !ParseHead("GET  HTTP/1.1", head), "A request line the remote does not take was read");
+            Require(!ParseHead("POST /api/cmd HTTP/1.1\r\nContent-Length: 12a", head) && !ParseHead("POST /api/cmd HTTP/1.1\r\nContent-Length: -1", head) &&
+                !ParseHead("POST /api/cmd HTTP/1.1\r\nContent-Length: 9999999999", head) && !ParseHead("POST /api/cmd HTTP/1.1\r\nContent-Length: 1\r\nContent-Length: 2", head),
+                "A length that is not one plain number was taken");
+            Require(UrlDecode("a%20b+c%zz%4") == "a b c%zz%4" && QueryParam("x=1&pin=12%2034", "pin") == "12 34" && QueryParam("xpin=1", "pin").empty() && QueryParam("", "pin").empty(), "An address was decoded wrong");
+        }
+        // Decided on the head alone, in order: the route, the PIN, what the route needs, then the body's length.
+        {
+            PinGate pins; pins.Reset("123456");
+            const auto now = Clock::now();
+            bool cameraInUse = false, match = true;
+            const auto holds = [&](Needs needs) { return needs == Needs::Camera ? cameraInUse : needs == Needs::NoMatch ? !match : true; };
+            const auto admit = [&](const std::string& text, unsigned long peer = 1) { Head head; Require(ParseHead(text, head), "A test head was not read"); return Admit(head, pins, peer, now, holds); };
+            Require(admit("GET /nothing HTTP/1.1").refused->status == 404, "An address the remote does not answer");
+            Require(admit("GET / HTTP/1.1").resource != nullptr, "The page itself needs no PIN");
+            Require(admit("POST /api/hud/image HTTP/1.1\r\nX-Pin: 000000\r\nContent-Length: 6000000", 2).refused->status == 403, "A wrong PIN must be refused before the length is looked at");
+            const auto big = admit("POST /api/hud/image HTTP/1.1\r\nX-Pin: 123456\r\nContent-Length: 7000000");
+            Require(big.refused && big.refused->status == 400 && big.refused->body == "too big", "A body over the route's limit must be refused");
+            Require(admit("POST /api/hud/image HTTP/1.1\r\nX-Pin: 123456\r\nContent-Length: 6000000").resource != nullptr, "A picture within its limit must be taken");
+            Require(admit("POST /api/cmd HTTP/1.1\r\nX-Pin: 123456\r\nContent-Length: 2000").refused->status == 400, "An order is small");
+            Require(admit("GET /api/stream?pin=123456 HTTP/1.1").resource != nullptr && admit("GET /api/combos/1-1?pin=123456 HTTP/1.1").resource != nullptr, "A stream and a download take the PIN in the address");
+            Require(admit("GET /api/state?pin=123456 HTTP/1.1", 3).refused->status == 403, "Other routes take the PIN only in the header");
+            Require(admit("POST /api/camera HTTP/1.1\r\nX-Pin: 000000", 4).refused->status == 403, "The PIN comes before what the route needs");
+            const auto notNow = admit("POST /api/camera HTTP/1.1\r\nX-Pin: 123456\r\nContent-Length: 10");
+            Require(notNow.refused && notNow.refused->status == 409 && json::parse(notNow.refused->body)["ok"] == false, "Camera orders out of Training and replays must be refused, as JSON the page reads");
+            cameraInUse = true;
+            Require(admit("POST /api/camera HTTP/1.1\r\nX-Pin: 123456\r\nContent-Length: 10").resource != nullptr, "Camera orders in use must be taken");
+            const auto restart = admit("POST /api/hud/restart HTTP/1.1\r\nX-Pin: 123456\r\nContent-Length: 2");
+            Require(restart.refused && restart.refused->status == 409 && json::parse(restart.refused->body)["error"] == "not during a match", "A restart during a match must be refused");
+            match = false;
+            Require(admit("POST /api/hud/apply HTTP/1.1\r\nX-Pin: 123456\r\nContent-Length: 2").resource != nullptr, "Applying a HUD with no match must be taken");
+        }
+        // Wrong PINs: five lock one address out for 30 s; the addresses kept are bounded; past the budget only signed-in addresses get in.
+        {
+            using V = PinGate::Verdict;
+            const auto t0 = Clock::now();
+            PinGate pins; pins.Reset("123456");
+            for (int i = 0; i < PinGate::FailuresAllowed; ++i) Require(pins.Check("1", 10, t0) == V::Wrong, "A wrong PIN must be wrong");
+            Require(pins.Check("123456", 10, t0) == V::Locked && pins.Check("123456", 11, t0) == V::Right, "Five wrong tries must lock that address only");
+            Require(pins.Check("123456", 10, t0 + PinGate::LockFor) == V::Right, "The lockout must end");
+            pins.Reset("123456");
+            for (unsigned long peer = 100; peer < 100 + PinGate::Budget; ++peer) Require(pins.Check("1", peer, t0) == V::Wrong, "A first wrong try");
+            Require(pins.Check("123456", 500, t0) == V::Locked, "Past the budget a new address must wait");
+            pins.Reset("123456"); pins.Check("123456", 99, t0);
+            for (unsigned long peer = 100; peer < 100 + PinGate::Budget; ++peer) pins.Check("1", peer, t0);
+            Require(pins.Check("123456", 99, t0) == V::Right, "An address that signed in must keep working past the budget");
+            Require(pins.Check("123456", 500, t0 + PinGate::BudgetWindow) == V::Right, "The budget must come back after its minute");
+            pins.Reset("123456");
+            for (unsigned long peer = 0; peer < PinGate::MaxPeers; ++peer) Require(pins.Check("123456", 1000 + peer, t0) == V::Right, "Signing in");
+            Require(pins.Check("123456", 5000, t0) == V::Locked, "More addresses than are kept must be refused");
+            pins.Reset("");
+            Require(pins.Check("", 1, t0) == V::Wrong, "A stopped remote's empty PIN must match nothing");
+        }
+        // What requests hold: the bodies' budget, given back as each request goes, and a wait cut into slices.
+        {
+            BodyBudget bodies(BodiesHeld);
+            {
+                const BodyBudget::Lease picture(bodies, HudImageBytes);
+                Require(static_cast<bool>(picture) && !BodyBudget::Lease(bodies, HudImageBytes) && static_cast<bool>(BodyBudget::Lease(bodies, HudBytes)), "The budget must hold one picture and small bodies beside it");
+            }
+            Require(bodies.Held() == 0, "A request's share must come back when it goes");
+            const auto t = Clock::now();
+            Require(NextWait(t, t).count() == 0 && NextWait(t + std::chrono::seconds(1), t).count() == 0 && NextWait(t, t + RequestTime) == WaitSlice &&
+                NextWait(t, t + std::chrono::milliseconds(50)).count() == 50, "A wait must be cut to the time left, in slices");
+        }
     } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }
     return 0;
 }

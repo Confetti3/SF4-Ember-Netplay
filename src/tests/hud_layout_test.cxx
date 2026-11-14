@@ -51,7 +51,8 @@ int main() {
     CHECK(!hud_textures::Decode("DDS short", image));
     // PNG back to pixels, and a picture pasted into the sheet (raw BGRA here).
     hud_textures::Image fromPng;
-    CHECK(hud_textures::DecodePng(hud_textures::EncodePng(image), fromPng) && fromPng.width == 4 && fromPng.rgba == image.rgba);
+    CHECK(hud_textures::DecodePng(hud_textures::EncodePng(image), 4, 4, fromPng) && fromPng.width == 4 && fromPng.rgba == image.rgba);
+    CHECK(!hud_textures::DecodePng(hud_textures::EncodePng(image), 3, 4, fromPng) && !hud_textures::DecodePng(hud_textures::EncodePng(image), 4, 3, fromPng));   // past the most asked
     hud_textures::Image two; two.width = 2; two.height = 2; two.rgba.assign(16, 0);
     for (int i = 0; i < 4; ++i) { two.rgba[4 * i] = 10; two.rgba[4 * i + 1] = 20; two.rgba[4 * i + 2] = 30; two.rgba[4 * i + 3] = 200; }
     std::string pasted;
@@ -59,7 +60,36 @@ int main() {
     CHECK(hud_textures::Entries(pasted, dds) && hud_textures::Decode(dds[0], image));
     CHECK(image.rgba[(1 * 4 + 1) * 4] == 10 && image.rgba[(2 * 4 + 2) * 4 + 3] == 200 && image.rgba[0] == 255);   // inside the picture, and the rest untouched
     CHECK(!hud_textures::Paste(hud_layout::Pack(hud_fixture::OneSheet()), 0, two, 3, 3, pasted));   // does not fit
-    CHECK(!hud_textures::DecodePng("not a png at all, long enough to pass the size check......", fromPng));
+    CHECK(!hud_textures::DecodePng("not a png at all, long enough to pass the size check......", 4096, 4096, fromPng));
+    {
+        // A small PNG whose header claims 4096 x 4096 is refused on its header, before anything is unpacked.
+        std::string huge = hud_textures::EncodePng(image);
+        const char side[4] = { 0, 0, 0x10, 0 };
+        huge.replace(16, 4, side, 4); huge.replace(20, 4, side, 4);
+        CHECK(!hud_textures::DecodePng(huge, 1024, 1024, fromPng));
+        // A chunk before the header, and a chunk whose length runs past the end, are refused.
+        std::string first = hud_textures::EncodePng(image);
+        first.replace(12, 4, "IDAT");
+        CHECK(!hud_textures::DecodePng(first, 4, 4, fromPng));
+        std::string longChunk = hud_textures::EncodePng(image);
+        const char most[4] = { (char)0xFF, (char)0xFF, (char)0xFF, (char)0xF8 };
+        longChunk.replace(8, 4, most, 4);
+        CHECK(!hud_textures::DecodePng(longChunk, 4, 4, fromPng));
+    }
+    {
+        // Offsets near 0xFFFFFFFF in a sheet's #EMB and a layout's #EMS are refused, not wrapped round to small ones.
+        std::string emb(0x40, '\0');
+        emb.replace(0, 4, "#EMB");
+        const std::uint32_t one = 1, table = 0x20, far = 0xFFFFFFF0u, length = 4;
+        std::memcpy(&emb[0xC], &one, 4); std::memcpy(&emb[0x18], &table, 4); std::memcpy(&emb[0x20], &far, 4); std::memcpy(&emb[0x24], &length, 4);
+        CHECK(!hud_textures::Entries(emb, dds) && !hud_textures::Paste(hud_layout::Pack(emb), 0, two, 0, 0, pasted));
+        std::string bad(0x40, '\0');
+        bad.replace(0, 4, "#EMS");
+        std::memcpy(&bad[0xC], &one, 4); std::memcpy(&bad[0x14], &table, 4); std::memcpy(&bad[0x20], &far, 4);
+        CHECK(hud_layout::Describe({ { "cockpit", bad } }).empty() && hud_layout::Sprites({ { "cockpit", bad } }).empty());
+        std::map<std::string, std::string> none;
+        CHECK(!hud_layout::Apply({ { "cockpit", bad } }, {}, none));
+    }
     // One DXT5 block: alpha 255 throughout, colour 0 pure red (565: 0xF800), every texel colour 0.
     std::string block(128 + 16, '\0');
     block.replace(0, 4, "DDS "); block.replace(84, 4, "DXT5");

@@ -9,7 +9,8 @@ namespace sf4e { namespace training { namespace remote {
 // Starts the server and the name answer; false when no port was free. Any thread, once.
 bool Start();
 void Stop();
-// The PIN the phone types, and the address it opens ("http://192.168.0.57:47321", the PC's LAN address; ember.local when it has none); empty while stopped.
+// The PIN the phone types, and the address it opens ("http://192.168.0.57:47321", the PC's LAN address as the
+// server started; ember.local when it had none); empty while stopped. Cheap: the menu asks every frame.
 std::string Pin();
 std::string Url();
 // What the QR code holds: this PC's private address, the port and the PIN, so the phone signs in by scanning. Empty while stopped or with no private address.
