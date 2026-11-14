@@ -23,7 +23,10 @@ use ember_protocol::{
     levels::FIGHTERS,
     skill::{SKILL_BANDS, SkillBadge},
 };
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::atomic::{AtomicU64, Ordering},
+};
 
 use rusqlite::{OptionalExtension, Row, Transaction, params};
 use serde::Deserialize;
@@ -212,6 +215,25 @@ pub fn record_room_games(
             Ok(Some(failure))
         }
     }
+}
+
+/// Counts the writes that can move the public rankings board
+/// (`ranking::public_classes`): a rating, the band last shown, a ranking
+/// choice, a Discord account connected or disconnected. The archive's class
+/// refresh reads it to run only when the board can have moved
+/// (`archive::classes::Refreshed`). In memory and process-wide: a write the
+/// database rolls back, or another bridge in the same process, only costs a
+/// refresh more.
+static BOARD: AtomicU64 = AtomicU64::new(0);
+
+/// Notes a write that can move the public rankings board (`BOARD`).
+pub fn board_moved() {
+    BOARD.fetch_add(1, Ordering::SeqCst);
+}
+
+/// How many writes that can move the board there have been (`BOARD`).
+pub fn board_version() -> u64 {
+    BOARD.load(Ordering::SeqCst)
 }
 
 /// Moves both ratings for a game `winner` won against `loser`, at `sitting`
@@ -458,6 +480,7 @@ fn badge_of(tx: &Transaction<'_>, account: &str, now: u64) -> Result<SkillBadge>
             "UPDATE skill_ratings SET band = ?2 WHERE game = 'usf4' AND discord_user_id = ?1",
             params![account, band],
         )?;
+        board_moved();
         levels::note_class(tx, account, band)?;
     }
     Ok(SkillBadge::class(band, band != 0 && settled))
@@ -528,6 +551,7 @@ fn store(tx: &Transaction<'_>, account: &str, rating: Rating, now: u64) -> Resul
             now
         ],
     )?;
+    board_moved();
     Ok(())
 }
 

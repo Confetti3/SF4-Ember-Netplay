@@ -1631,6 +1631,9 @@ async fn with_classes(shown: bool) -> Fixture {
 /// A maintenance pass, which gives the archive's games their players'
 /// classes as the board shows them now (`archive::classes`).
 async fn classes_refreshed(f: &Fixture) {
+    // The ratings and choices these tests write go straight into the
+    // database, past what marks the board as moved.
+    ember_bridge::board_moved();
     ember_bridge::maintain(f.bridge.state()).await;
 }
 

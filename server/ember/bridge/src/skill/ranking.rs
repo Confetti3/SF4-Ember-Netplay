@@ -142,6 +142,7 @@ pub fn choose(
              name = ?4, country = ?5",
         params![account, chosen.ranked, changed_at, name, country],
     )?;
+    super::board_moved();
     standing(tx, ember_id, classes_shown, developers, now)
 }
 

@@ -339,12 +339,18 @@ pub async fn maintenance_once(state: &AppState) {
         .await;
     state.friends.prune(now);
     // Its own transaction: the rest of the pass never waits on it or fails
-    // with it.
-    if let Err(error) = state
-        .db
-        .write(move |tx| crate::archive::classes::refresh(tx, classes_shown, &developers, now))
-        .await
-    {
-        eprintln!("maintenance: could not refresh the archive's classes: {error:?}");
+    // with it. Only when due: it reads the whole board under the write lock.
+    let board = crate::skill::board_version();
+    if state.archive_classes.due(board, now) {
+        match state
+            .db
+            .write(move |tx| crate::archive::classes::refresh(tx, classes_shown, &developers, now))
+            .await
+        {
+            Ok(settled) => state.archive_classes.done(board, now, settled),
+            Err(error) => {
+                eprintln!("maintenance: could not refresh the archive's classes: {error:?}")
+            }
+        }
     }
 }
