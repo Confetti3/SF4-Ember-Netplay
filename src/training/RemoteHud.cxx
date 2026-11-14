@@ -301,27 +301,27 @@ Reply Edit(const Request& r, bool apply) {
     r.host.apply(theme.name, std::move(written));
     return Say(200, { { "ok", true } });
 }
-Reply Layout(const Request& r) { return Edit(r, false); }
-Reply Apply(const Request& r) { return Edit(r, true); }
 
-struct Route { bool post; const char* name; Reply (*run)(const Request&); };
-const Route Routes[] = {
-    { false, "themes", Themes }, { false, "theme", ThemeInfo }, { false, "scene", Scene }, { false, "sheet", SheetPicture },
-    { true, "image", Image }, { true, "image-remove", ImageRemove }, { true, "restart", Restart }, { true, "save-as", SaveAs },
-    { true, "layout", Layout }, { true, "apply", Apply },
-};
 }
 
 void Allow(bool allowed) { s_allowed = allowed; }
 bool Allowed() { return s_allowed; }
-bool Owns(const std::string& path) { return path.compare(0, 9, "/api/hud/") == 0; }
-
-Reply Handle(const Host& host, bool post, const std::string& path, const std::string& query, const std::string& body, const std::string& userAgent) {
+Reply Handle(const Host& host, Order order, const std::string& query, const std::string& body, const std::string& userAgent) {
     if (!s_allowed) return Fail(403, "off");
     if (!layout::DesktopAgent(userAgent)) return Fail(403, "desktop");
-    const std::string route = path.substr(9);
-    for (const Route& candidate : Routes)
-        if (candidate.post == post && route == candidate.name) return candidate.run({ host, query, post ? nlohmann::json::parse(body, nullptr, false) : nlohmann::json() });
+    const Request r{ host, query, nlohmann::json::parse(body, nullptr, false) };
+    switch (order) {
+    case Order::Themes: return Themes(r);
+    case Order::Theme: return ThemeInfo(r);
+    case Order::Scene: return Scene(r);
+    case Order::Sheet: return SheetPicture(r);
+    case Order::Image: return Image(r);
+    case Order::ImageRemove: return ImageRemove(r);
+    case Order::Restart: return Restart(r);
+    case Order::SaveAs: return SaveAs(r);
+    case Order::Layout: return Edit(r, false);
+    case Order::Apply: return Edit(r, true);
+    }
     return Fail(404, "no");
 }
 } } } }

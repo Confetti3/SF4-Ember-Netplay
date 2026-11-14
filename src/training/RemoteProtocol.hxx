@@ -168,8 +168,9 @@ inline nlohmann::json FramesOf(const nlohmann::json& data, const std::string& fi
 inline std::string EventFrame(const nlohmann::json& message) { return "data: " + message.dump() + "\n\n"; }
 
 // Where a phone's order goes: the game as a Command, the overlay thread by its
-// Mailbox (an option or an action only it can do), or nowhere.
-enum class Route { Refused, Game, Overlay };
+// Mailbox (an option or an action only it can do), the saved combos (Store:
+// save, rename, delete or play one, named by order.id), or nowhere.
+enum class Route { Refused, Game, Overlay, Store };
 struct Order { Command command; std::string id; int value = 0; std::string text; };
 // {"cmd": name} or {"set": id, "value": n}; generation is the battle the page last saw.
 inline Route ParseOrder(const nlohmann::json& body, const View& view, Order& order, std::string& error) {
@@ -197,6 +198,8 @@ inline Route ParseOrder(const nlohmann::json& body, const View& view, Order& ord
         if (!moves.is_string() || moves.get<std::string>().size() > 256) { error = "bad moves"; return Route::Refused; }
         order.id = text; order.text = moves.get<std::string>(); return Route::Overlay;
     }
+    for (const char* stored : {"comboSave", "comboRename", "comboDelete", "comboPlay"})
+        if (text == stored) { order.id = text; return Route::Store; }
     static const std::pair<const char*, Action> plain[] = {{"record", Action::AdvanceRecording}, {"play", Action::Play}, {"stop", Action::Interrupt},
         {"clear", Action::Clear}, {"mirror", Action::Mirror}, {"save", Action::Save}, {"restore", Action::Restore},
         {"comboRecord", Action::ComboRecord}, {"comboStop", Action::ComboStop}};
