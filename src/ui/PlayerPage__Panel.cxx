@@ -39,7 +39,7 @@ void PlayerPage::Begin(const netplay::profiles::Key& key, const netplay::profile
     asked_ = false;
     focused_ = 0;
     ask_.clear();
-    raise_ = Raise();
+    raise_ = RaiseTimer();
     // Opened from a profile (a set's opponent, the pick list) it replaces that one, so Back goes where the first came from.
     if (OnProfile(nav.Screen())) nav.Replace(CardScreen);
     else nav.Push(CardScreen);
@@ -109,18 +109,10 @@ player_card::Subject PlayerPage::SubjectNow(const ShellView& v, const Shown& sho
 }
 
 void PlayerPage::BuildCardFrame(const ShellView& v, const Shown& shown, const Links& links) {
-    card_.standing = StandingNow(v, shown, links);
-    card_.primary = PrimaryOf(card_.standing);
-    card_.view = player_card::FullOf(SubjectNow(v, shown, card_.standing), CardRoom(room_));
+    standing_ = StandingNow(v, shown, links);
+    primary_ = PrimaryOf(standing_);
+    card_.view = player_card::FullOf(SubjectNow(v, shown, standing_), CardRoom(room_));
     card_.built = true;
-}
-
-const PlayerPage::CardFrame& PlayerPage::CardNow(const ShellView& v) {
-    if (!card_.built) {
-        const Shown shown = ShownNow(v);
-        BuildCardFrame(v, shown, PlainLinks(v, shown));
-    }
-    return card_;
 }
 
 void PlayerPage::Update(const ShellView& v, const std::string& screen, MenuNavigation& nav, const FriendsPanel& friends, const std::string& bridge,
@@ -156,10 +148,7 @@ void PlayerPage::Update(const ShellView& v, const std::string& screen, MenuNavig
     // A question More asked reopens More with its one choice, until it is answered or the popout is closed. Counted once a
     // frame, here, not by the queries that read it.
     if (screen == CardScreen && !ask_.empty()) {
-        if (raise_.issued) {
-            if (nav.Choosing()) raise_.seen = true;
-            else if (raise_.seen || ++raise_.waits > 3) { ask_.clear(); raise_ = Raise(); }
-        } else if (++raise_.waits > 8) { ask_.clear(); raise_ = Raise(); }
+        if (!raise_.Tick(nav.Choosing())) { ask_.clear(); raise_ = RaiseTimer(); }
     }
     // Several players go by the name: the pick list asks which. A tab the state does not have gives way to Card.
     if (shown.page == Page::Several && screen != PickScreen && IsTab(screen)) nav.Replace(PickScreen);
@@ -170,7 +159,7 @@ void PlayerPage::Update(const ShellView& v, const std::string& screen, MenuNavig
     // The first settled card opens with the focus on the Primary when it can be pressed, else on its first fighter.
     if (screen == CardScreen && card_.built && shown.page != Page::Reading && shown.page != Page::Several && focused_ != v.profile.opened) {
         focused_ = v.profile.opened;
-        nav.Prefer(FocusOnOpen(card_.primary, card_.view));
+        nav.Prefer(FocusOnOpen(primary_, card_.view));
     }
 }
 
@@ -188,8 +177,9 @@ std::vector<MenuEntry> PlayerPage::Rows(const ShellView& v, const std::string& s
     if (screen == FightersScreen) { title = loc::T("profile.tab.fighters"); return FighterRows(shown); }
     if (screen == AwardsScreen) { title = loc::T("screen.awards"); return AwardRows(shown); }
     title = loc::T("profile.tab.card");
-    const auto& card = CardNow(v);
-    return CardRows(card.view, card.primary, card.standing, ask_, shown.name);
+    // Update builds the card while the Card tab is on show; with none there is nothing to list.
+    if (!card_.built) return {};
+    return CardRows(card_.view, primary_, standing_, ask_, shown.name);
 }
 
 void PlayerPage::Do(const ShellView& v, const std::string& what, const Shown& shown, const Standing& standing, const Hands& h) {
@@ -273,7 +263,7 @@ bool PlayerPage::Choose(const ShellView& v, const MenuAction& a, const Hands& h)
         if (!ask_.empty()) {
             const std::string what = ask_;
             ask_.clear();
-            raise_ = Raise();
+            raise_ = RaiseTimer();
             if (a.text == "yes") Do(v, what, shown, standing, h);
         } else if (Asks(a.text)) Ask(a.text);
         else Do(v, a.text, shown, standing, h);
@@ -325,7 +315,7 @@ void PlayerPage::Dress(const ShellView& v, const std::string& screen, const std:
         menu.shortcutHints = sets_.Hints(v, screen);
     }
     // The question More asked opens More again, on its one choice.
-    if (!ask_.empty() && !raise_.issued && menu.navigation.Ask(MoreRow, rows)) { raise_.issued = true; raise_.seen = false; raise_.waits = 0; }
+    if (!ask_.empty() && !raise_.issued && menu.navigation.Ask(MoreRow, rows)) raise_.Issue();
 }
 
 } }

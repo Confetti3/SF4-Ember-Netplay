@@ -2,6 +2,7 @@
 #include "ShellAction.hxx"
 #include "GameMenu.hxx"
 #include "MenuNavigation.hxx"
+#include "CardFrame.hxx"
 #include "CardSets.hxx"
 #include "PlayerCard.hxx"
 #include "WatchQueue.hxx"
@@ -64,10 +65,8 @@ public:
 private:
     // The own subject with the recent sets and the hero's buttons: the Full card's data.
     player_card::Subject SubjectOf(const ShellView& view, const netplay::PlayerPreferences& preferences) const;
-    // This frame's Full card (Update), and the room it was last drawn in (DrawFullCard). Built on the spot when Update did not run first.
-    const player_card::FullCardView& CardNow(const ShellView& view, const netplay::PlayerPreferences& preferences) const;
-    mutable player_card::FullCardView card_;
-    mutable bool built_ = false;
+    // This frame's Full card, filled by Update while the Card tab is on show, and the room it was last drawn in (DrawFullCard).
+    CardFrame card_;
     std::optional<player_card::Size> room_;
     CardSets sets_;
     std::string read_, focus_;

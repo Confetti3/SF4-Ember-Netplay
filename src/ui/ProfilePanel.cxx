@@ -39,20 +39,15 @@ void ProfilePanel::Dress(GameMenu& menu, const std::string& screen, const std::s
         if (menu.tabs[i].first == screen) menu.tab = static_cast<int>(i);
 }
 
-const player_card::FullCardView& ProfilePanel::CardNow(const ShellView& v, const netplay::PlayerPreferences& prefs) const {
-    if (!built_) {
-        card_ = player_card::FullOf(SubjectOf(v, prefs), CardRoom(room_));
-        built_ = true;
-    }
-    return card_;
-}
-
 void ProfilePanel::Update(const ShellView& v, const netplay::PlayerPreferences& prefs, const std::string& screen, const std::string& bridge, const Submit& submit) {
-    built_ = false;
+    card_.built = false;
     // The recent sets are asked for while the Card tab is on show: once when it comes on show and when the name or service
     // changes, never every frame and never while another page shows.
     sets_.Update(v, bridge, v.preferences.displayName, screen == CardScreen, submit);
-    if (screen == CardScreen) CardNow(v, prefs);
+    if (screen == CardScreen) {
+        card_.view = player_card::FullOf(SubjectOf(v, prefs), CardRoom(room_));
+        card_.built = true;
+    }
     const bool visiting = InStrip(screen);
     if (visiting && !visiting_) want_ = true;
     visiting_ = visiting;
@@ -92,7 +87,9 @@ std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const netplay::Pla
     // The Card tab's rows: the way to choose a main when there is none, then the card's own parts (the strip's tiles, the
     // award tiles, Most played, the recent sets and All sets: player_card::CardRows, the parts drawn), Edit card, Fighter
     // select, and Connect Discord when there is no account.
-    const auto& view = CardNow(v, prefs);
+    // Update builds the card while the Card tab is on show; with none there is nothing to list.
+    if (!card_.built) return rows;
+    const auto& view = card_.view;
     if (view.hero < 0) {
         auto choose = Row(ChooseMainRow, loc::T("card.choose_main"), loc::T("profile.choose_main_detail"));
         choose.hint = loc::T("card.choose_main");
@@ -187,6 +184,6 @@ void ProfilePanel::Draw(const ShellView& v, const netplay::PlayerPreferences& pr
         fighters_tab::Draw(shown, rows, nav, action, changed);
         return;
     }
-    room_ = DrawFullCard(CardNow(v, prefs), v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait, rows, nav, action, changed, height).room;
+    if (card_.built) room_ = DrawFullCard(card_.view, v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait, rows, nav, action, changed, height).room;
 }
 } }

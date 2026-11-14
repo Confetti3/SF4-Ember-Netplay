@@ -74,7 +74,7 @@ void PlayerPage::Draw(const ShellView& v, const std::string& screen, const std::
     focus_ = nav.Focus();
     const FighterArt art = v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait;
     if (screen == CardScreen) {
-        room_ = DrawFullCard(CardNow(v).view, art, rows, nav, action, changed, height).room;
+        if (card_.built) room_ = DrawFullCard(card_.view, art, rows, nav, action, changed, height).room;
         return;
     }
     const Shown shown = ShownNow(v);
