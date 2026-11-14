@@ -390,17 +390,17 @@ static void CardPreferencesRoundTrip(const Path& root) {
 }
 
 // The public rooms filter is one object in the netplay section. An older profile
-// has none, and a field out of range, of another type or naming a region that is
-// no longer known loads as All (a flag as off) on its own.
+// has none, and a field out of range, of another type or naming a place that is
+// not an area (a relay's code, the old US West) loads as All (a flag as off) on its own.
 static void RoomFilterRoundTrips(const Path& root) {
     using namespace sf4e;
     using netplay::publicrooms::RoomFilter;
     const auto folder=root/L"room-filter";
     CHECK(std::filesystem::create_directory(folder));
     SettingsStore store(folder.wstring()); std::string error;
-    for (const auto& pick : {RoomFilter(), RoomFilter{RoomFilter::Region::Near,"",RoomFilter::Type::King,true,false},
-                             RoomFilter{RoomFilter::Region::One,"euc1",RoomFilter::Type::Classic,false,true},
-                             RoomFilter{RoomFilter::Region::One,"aps1",RoomFilter::Type::Arcade,true,true}}) {
+    for (const auto& pick : {RoomFilter(), RoomFilter{RoomFilter::Place::Near,Area::None,RoomFilter::Type::King,true,false},
+                             RoomFilter{RoomFilter::Place::One,Area::EuropeWest,RoomFilter::Type::Classic,false,true},
+                             RoomFilter{RoomFilter::Place::One,Area::Oceania,RoomFilter::Type::Arcade,true,true}}) {
         netplay::PlayerPreferences prefs; prefs.roomFilter=pick; CHECK(prefs.Valid());
         Json saved; netplay::WriteRoomFilter(prefs,saved);
         CHECK(store.SaveLauncher(saved,error));
@@ -411,16 +411,19 @@ static void RoomFilterRoundTrips(const Path& root) {
     CHECK(netplay::ReadRoomFilter(Json::object())==RoomFilter());
     CHECK(netplay::ReadRoomFilter(Json("filter"))==RoomFilter());
     CHECK(netplay::ReadRoomFilter({{"roomFilter",7}})==RoomFilter());
-    // A region that is no longer known falls back to All without losing the rest.
-    const auto gone=netplay::ReadRoomFilter({{"roomFilter",{{"region","mars"},{"type","arcade"},{"seats",true},{"wired",true}}}});
-    CHECK(gone.scope==RoomFilter::Region::All&&gone.region.empty()&&gone.type==RoomFilter::Type::Arcade&&gone.openSeats&&gone.wiredOnly&&gone.Valid());
+    // A place that is not an area falls back to All without losing the rest: a relay's code a build
+    // before areas saved, the old US West no build could report, or anything else.
+    for (const char* gone : {"mars","use1","usw1","euc1","aps1","other","NAW"}) {
+        const auto read=netplay::ReadRoomFilter({{"roomFilter",{{"region",gone},{"type","arcade"},{"seats",true},{"wired",true}}}});
+        CHECK(read.scope==RoomFilter::Place::All&&read.area==Area::None&&read.type==RoomFilter::Type::Arcade&&read.openSeats&&read.wiredOnly&&read.Valid());
+    }
+    CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"region","sam"}}}}).area==Area::SouthAmerica);
     const auto odd=netplay::ReadRoomFilter({{"roomFilter",{{"region",3},{"type","brawl"},{"seats","yes"},{"wired",1}}}});
     CHECK(odd==RoomFilter());
-    CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"region","near"}}}}).scope==RoomFilter::Region::Near);
-    // Preferences carrying a filter that names no region to filter by are invalid.
-    netplay::PlayerPreferences invalid; invalid.roomFilter.scope=RoomFilter::Region::One; CHECK(!invalid.Valid());
-    invalid.roomFilter.region="mars"; CHECK(!invalid.Valid());
-    invalid.roomFilter.region="use1"; CHECK(invalid.Valid());
+    CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"region","near"}}}}).scope==RoomFilter::Place::Near);
+    // Preferences carrying a filter that names no area to filter by are invalid.
+    netplay::PlayerPreferences invalid; invalid.roomFilter.scope=RoomFilter::Place::One; CHECK(!invalid.Valid());
+    invalid.roomFilter.area=Area::NaEast; CHECK(invalid.Valid());
 }
 
 // The Interface size runs from 0.70x to 1.50x in steps of 0.05; a saved value outside that range loads as 1.00x,

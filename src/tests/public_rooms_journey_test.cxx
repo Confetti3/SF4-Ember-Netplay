@@ -28,7 +28,9 @@ void ListJourney(){
  Check(j.row("pr-loading")&&j.row("pr-loading")->wide&&j.row("pr-quick")&&!j.row("pr-quick")->enabled&&!j.row("pr-room:a"),"The first load has no loading card");
  auto friday=MakeRoom("a","Friday Night",3,8);friday.hostName="Ken";friday.createdAt=100;
  auto match=MakeRoom("b","金曜ルーム",2,4,1);match.createdAt=200;
- j.List({friday,match,MakeRoom("c","Full House",4,4)});
+ // Full House's creator hid their area: its row names no place.
+ auto full=MakeRoom("c","Full House",4,4);full.area=Area::None;
+ j.List({friday,match,full});
  // The toolbar is three grid cells: Quick join, Create room, Paste room link; the filter's four rows and the rooms follow, full width.
  std::vector<std::string> order;for(const auto& r:j.rows)order.push_back(r.id);
  Check(order==std::vector<std::string>({"pr-quick","pr-create","pr-paste","pr-filters","pr-room:a","pr-room:b","pr-room:c"}),"The list is not Quick join, Create room, Paste room link, Filters and then the rooms");
@@ -43,10 +45,12 @@ void ListJourney(){
  const auto* first=j.row("pr-room:a");const auto* second=j.row("pr-room:b");
  Check(first->label=="Friday Night"&&first->userText&&first->value.empty()&&first->hint==loc::T("online.join"),"A room does not show its name and Join");
  Check(second->label=="金曜ルーム"&&second->userText,"A room name is not drawn as player text");
- // With details the row names the host, region and seats; without them it keeps the plain sentence.
- Check(first->detail==loc::Tf("public.room_detail2","Ken",loc::T("network.region_use1"),3u,8u)&&first->detailText==DetailText::Name,"A room's detail does not name its host and seats");
- Check(second->detail==loc::Tf("public.room_detail_playing","金曜ルーム",2u,4u,"use1",1u)&&second->detailText==DetailText::Name,"A room with a match on and no details does not say so");
- Check(j.row("pr-room:c")->detail==loc::Tf("public.room_detail","Full House",4u,4u,"use1")&&!j.row("pr-room:c")->enabled,"A full room is not shown disabled");
+ // With details the row names the host and seats, without them the name and seats; then the creator's area, when they gave one.
+ const std::string area=" "+loc::Tf("public.room_detail_area",loc::T("area.nae"));
+ Check(first->detail==loc::Tf("public.room_detail_host","Ken",3u,8u)+area&&first->detailText==DetailText::Name,"A room's detail does not name its host, seats and area");
+ Check(second->detail==loc::Tf("public.room_detail_seats","金曜ルーム",2u,4u)+area+"\n"+loc::Tf("public.room_detail_matches",1u)&&second->detailText==DetailText::Name,
+  "A room with a match on and no details does not say so");
+ Check(j.row("pr-room:c")->detail==loc::Tf("public.room_detail_seats","Full House",4u,4u)&&!j.row("pr-room:c")->enabled,"A full room without an area is not shown disabled and without a place");
  // Options refreshes by hand: Updating... while it is in flight; a failed refresh is said once.
  const auto before=j.lists();
  h.Press(MenuInput::Options);
@@ -420,10 +424,12 @@ void RestoredCreateJourney(){
  Check(k.row("host")&&k.row("host")->enabled&&k.requests().empty(),"Choosing Public did not select the service");
 }
 
-// A room placed in `region`, named by its ID, with its seats, when it opened and whether it is locked.
-netplay::publicrooms::Room Placed(const char* id,const char* region,unsigned members,unsigned capacity,std::uint64_t createdAt=0,bool locked=false){
- auto room=MakeRoom(id,id,members,capacity);room.region=region;room.createdAt=createdAt;room.locked=locked;return room;
+// A room whose creator is in `area`, named by its ID, with its seats, when it opened and whether it is locked.
+netplay::publicrooms::Room Placed(const char* id,Area area,unsigned members,unsigned capacity,std::uint64_t createdAt=0,bool locked=false){
+ auto room=MakeRoom(id,id,members,capacity);room.area=area;room.createdAt=createdAt;room.locked=locked;return room;
 }
+// The areas the journeys place rooms in: the player's own, one next to it, and a far one.
+constexpr Area OwnArea=Area::NaEast,NextArea=Area::NaCentral,FarArea=Area::EuropeWest;
 // Whether the status is the list's own count of `rooms` open, with whatever age it gives.
 bool CountsRooms(const std::string& status,std::size_t rooms){
  const std::string sample=loc::Tf("public.status_listed",rooms,std::string(""));
@@ -473,20 +479,26 @@ void HostedLastRoomJourney(){
  Check(join&&join->charter.type==room::RoomType::King&&join->charter.tableCount==1&&join->createdRules&&*join->createdRules==saved.tables,"A stream PC did not open the last room's type and tables");
 }
 
-// Rooms that can be joined come first, near ones before far ones once the region
-// is known, then the most free seats, the most players and the oldest; locked and
-// full rooms are last and cannot be pressed. Without a region nothing is near.
+// Rooms that can be joined come first, those in the player's area and then those
+// next to it before far ones once the player's area is set, then the most free
+// seats, the most players and the oldest; locked and full rooms are last and
+// cannot be pressed. Without an area of the player's own nothing is near, and
+// the relay this PC connects through says nothing about it.
 void SortJourney(){
  Journey j;auto& h=j.h;j.OpenList();
- j.List({Placed("x","euc1",1,8,5),Placed("f","use1",4,4,6),Placed("l","use1",1,8,7,true),Placed("n","use1",2,8,20),Placed("m","use1",5,8,9),Placed("p","use1",2,8,10)});
- Check(Shown(j)=="xpnmlf",(std::string("Rooms are not sorted by free seats when no region is known: ")+Shown(j)).c_str());
+ j.List({Placed("x",FarArea,1,8,5),Placed("f",OwnArea,4,4,6),Placed("l",OwnArea,1,8,7,true),Placed("n",OwnArea,2,8,20),Placed("m",OwnArea,5,8,9),Placed("p",OwnArea,2,8,10)});
+ Check(Shown(j)=="xpnmlf",(std::string("Rooms are not sorted by free seats when the player's area is not set: ")+Shown(j)).c_str());
  Check(j.row("pr-room:p")->enabled&&!j.row("pr-room:l")->enabled&&!j.row("pr-room:f")->enabled,"A locked or full room can be pressed");
- h.view.netReport.relay="other";h.Frame(0,2);
- Check(Shown(j)=="xpnmlf","The other region was taken for a region that is near");
  h.view.netReport.relay="use1";h.Frame(0,2);
+ Check(Shown(j)=="xpnmlf","The relay was taken for the player's area");
+ h.view.automaticArea=OwnArea;h.Frame(0,2);
  Check(Shown(j)=="pnmxlf",(std::string("Near rooms do not come before far ones: ")+Shown(j)).c_str());
+ // An area the player hid in Settings is no area: nothing is near.
+ h.view.preferences.area=AreaPreference::Hidden();h.Frame(0,2);
+ Check(Shown(j)=="xpnmlf","An area hidden in Settings still made rooms near");
+ h.view.preferences.area=AreaPreference::Automatic();h.Frame(0,2);
  // The order does not wobble from one refresh to the next.
- j.List({Placed("p","use1",2,8,10),Placed("n","use1",2,8,20),Placed("x","euc1",1,8,5),Placed("m","use1",5,8,9),Placed("f","use1",4,4,6),Placed("l","use1",1,8,7,true)});
+ j.List({Placed("p",OwnArea,2,8,10),Placed("n",OwnArea,2,8,20),Placed("x",FarArea,1,8,5),Placed("m",OwnArea,5,8,9),Placed("f",OwnArea,4,4,6),Placed("l",OwnArea,1,8,7,true)});
  Check(Shown(j)=="pnmxlf","The same rooms in another bridge order were sorted differently");
  // The order is kept between frames for one refresh, but what the list holds decides it: rooms
  // changed under the same refresh count are sorted again, and a new count with the same rooms
@@ -496,16 +508,19 @@ void SortJourney(){
  Check(Shown(j)=="pmnxlf",(std::string("A room that filled up under the same refresh kept its place: ")+Shown(j)).c_str());
  ++h.view.publicRooms.listed;h.Frame(0,2);
  Check(Shown(j)=="pmnxlf","A new refresh count with the same rooms changed the order");
+ // The player's own area comes before its neighbours, which come before the rest and rooms without an area.
+ j.List({Placed("u",FarArea,1,8,3),Placed("t",NextArea,1,8,2),Placed("w",Area::None,1,8,4),Placed("s",OwnArea,6,8,1)});
+ Check(Shown(j)=="stuw",(std::string("The player's area, then its neighbours, do not come first: ")+Shown(j)).c_str());
 }
 
-// Quick join asks for the first room that can be joined, in the player's region when
-// it is known (not a far room with more seats), skips the rooms that refused this
+// Quick join asks for the first room that can be joined, near the player's area when
+// it is set (not a far room with more seats), skips the rooms that refused this
 // visit, and with none left offers to create one.
 void QuickJoinJourney(){
  {
  Journey j;auto& h=j.h;j.OpenList();
- h.view.netReport.relay="use1";
- j.List({Placed("x","euc1",1,8,5),Placed("f","use1",4,4,6),Placed("l","use1",1,8,7,true),Placed("n","use1",2,8,20),Placed("m","use1",5,8,9)});
+ h.view.automaticArea=OwnArea;
+ j.List({Placed("x",FarArea,1,8,5),Placed("f",OwnArea,4,4,6),Placed("l",OwnArea,1,8,7,true),Placed("n",OwnArea,2,8,20),Placed("m",OwnArea,5,8,9)});
  Check(j.row("pr-quick")&&j.row("pr-quick")->enabled,"Quick join is not offered on a list");
  h.Choose("pr-quick");
  Check(tickets(j)==1&&lastTicketIs(j,"brg_1","n"),"Quick join did not ask for the near room with the most free seats");
@@ -534,17 +549,23 @@ void QuickJoinJourney(){
  Check(h.shell.Navigation().Screen()=="create"&&j.row("visibility")&&j.row("visibility")->value==loc::T("public.visibility.public"),"Create room on the notice did not open Create on Public");
  }
  {
-  // Without a known region any room with a seat will do: the one with the most free seats.
-  Journey k;k.OpenList();k.List({Placed("x","euc1",1,8,5),Placed("n","use1",2,8,20),Placed("f","use1",4,4,6)});
+  // Without an area of the player's own any room with a seat will do: the one with the most free seats.
+  Journey k;k.OpenList();k.List({Placed("x",FarArea,1,8,5),Placed("n",OwnArea,2,8,20),Placed("f",OwnArea,4,4,6)});
   k.h.Choose("pr-quick");
-  Check(tickets(k)==1&&lastTicketIs(k,"brg_1","x"),"Quick join without a region did not ask for the room with the most seats");
+  Check(tickets(k)==1&&lastTicketIs(k,"brg_1","x"),"Quick join without an area did not ask for the room with the most seats");
  }
  {
-  // The filter narrows Quick join: a room type, and a region the player chose in place of the near default.
-  Journey k;auto& h=k.h;k.OpenList();h.view.netReport.relay="use1";
-  auto arcade=Placed("a","use1",2,8,1);arcade.type=room::RoomType::Arcade;
-  auto classic=Placed("c","use1",2,8,2);classic.type=room::RoomType::Classic;
-  auto distant=Placed("f","euc1",1,8,3);distant.type=room::RoomType::Classic;
+  // A neighbour's room is near too: taken before a far room with more seats.
+  Journey k;k.OpenList();k.h.view.automaticArea=OwnArea;k.List({Placed("x",FarArea,1,8,5),Placed("t",NextArea,6,8,20)});
+  k.h.Choose("pr-quick");
+  Check(tickets(k)==1&&lastTicketIs(k,"brg_1","t"),"Quick join did not take the room next to the player's area");
+ }
+ {
+  // The filter narrows Quick join: a room type, and an area the player chose in place of the near default.
+  Journey k;auto& h=k.h;k.OpenList();h.view.automaticArea=OwnArea;
+  auto arcade=Placed("a",OwnArea,2,8,1);arcade.type=room::RoomType::Arcade;
+  auto classic=Placed("c",OwnArea,2,8,2);classic.type=room::RoomType::Classic;
+  auto distant=Placed("f",FarArea,1,8,3);distant.type=room::RoomType::Classic;
   k.List({arcade,classic,distant});
   const auto settle=[&]{
    h.Wait(1);
@@ -560,10 +581,11 @@ void QuickJoinJourney(){
   h.Choose("pr-quick");
   Check(tickets(k)==1&&lastTicketIs(k,"brg_1","c"),"Quick join asked for a room the type filter hides");
   k.Admit("room_full");
-  step("pr-filter-region",MenuInput::Right,4);
-  Check(k.row("pr-filters")->value==PublicRoomsPanel::RegionLabel("euc1")+" \xC2\xB7 "+RoomTypeName(room::RoomType::Classic),"The Filters row does not say Europe and Classic");
+  // Near me, then NA West, NA Central, NA East, Central America, South America and Europe West.
+  step("pr-filter-area",MenuInput::Right,7);
+  Check(k.row("pr-filters")->value==loc::T("area.euw")+" \xC2\xB7 "+RoomTypeName(room::RoomType::Classic),"The Filters row does not say Europe West and Classic");
   h.Choose("pr-quick");
-  Check(tickets(k)==2&&lastTicketIs(k,"brg_1","f"),"Quick join stayed near the player's region after the filter named another");
+  Check(tickets(k)==2&&lastTicketIs(k,"brg_1","f"),"Quick join stayed near the player's area after the filter named another");
   k.Admit("room_full");
   step("pr-filter-type",MenuInput::Right,1);
   h.Choose("pr-quick");
@@ -574,16 +596,16 @@ void QuickJoinJourney(){
  e.h.Choose("pr-quick");Check(tickets(e)==0&&e.noticeOpen(true),"Quick join on an empty list did not offer to create a room");
 }
 
-// The filter's rows (Region, Room type, Open seats, Connection) step with Left and Right,
+// The filter's rows (Area, Room type, Open seats, Connection) step with Left and Right,
 // are saved with the preferences, and a filter with nothing to show says so and offers to
 // clear it. A room that sent no type shows only under All types.
 void FilterJourney(){
  Journey j;auto& h=j.h;j.OpenList();
  const auto relist=[&]{
-  auto a=Placed("a","use1",3,8,1);a.type=room::RoomType::Classic;
-  auto b=Placed("b","euc1",2,4,2);b.type=room::RoomType::Arcade;b.wiredOnly=true;
-  auto c=Placed("c","use1",4,4,3);c.type=room::RoomType::King;
-  auto d=Placed("d","aps1",1,8,4);
+  auto a=Placed("a",Area::NaWest,3,8,1);a.type=room::RoomType::Classic;
+  auto b=Placed("b",FarArea,2,4,2);b.type=room::RoomType::Arcade;b.wiredOnly=true;
+  auto c=Placed("c",Area::NaWest,4,4,3);c.type=room::RoomType::King;
+  auto d=Placed("d",Area::EastAsia,1,8,4);
   j.List({a,b,c,d});
  };
  relist();
@@ -615,30 +637,34 @@ void FilterJourney(){
  // Select opens the page: the four values, which Left and Right step, and Clear filters, off while nothing is filtered.
  h.Choose("pr-filters");
  {std::vector<std::string> page;for(const auto& r:j.rows)page.push_back(r.id);
-  Check(h.shell.Navigation().Screen()==PublicRoomsPanel::FiltersScreen&&page==std::vector<std::string>({"pr-filter-region","pr-filter-type","pr-filter-seats","pr-filter-wired","pr-filters-clear"}),
+  Check(h.shell.Navigation().Screen()==PublicRoomsPanel::FiltersScreen&&page==std::vector<std::string>({"pr-filter-area","pr-filter-type","pr-filter-seats","pr-filter-wired","pr-filters-clear"}),
    "The filters page does not hold the four values and Clear filters");}
- for(const char* row:{"pr-filter-region","pr-filter-type","pr-filter-seats","pr-filter-wired"})
+ for(const char* row:{"pr-filter-area","pr-filter-type","pr-filter-seats","pr-filter-wired"})
   Check(j.row(row)->adjustable&&j.row(row)->enabled&&!j.row(row)->detail.empty(),"A filter row on the page is not adjustable or is disabled");
  Check(!j.row("pr-filters-clear")->enabled&&j.row("pr-filters-clear")->label==loc::T("public.clear_filters"),"Clear filters is offered with nothing filtered");
- Check(j.row("pr-filter-region")->value==loc::T("public.filter_region_all")&&j.row("pr-filter-type")->value==loc::T("public.filter_type_all")&&
+ Check(j.row("pr-filter-area")->value==loc::T("public.filter_area_all")&&j.row("pr-filter-type")->value==loc::T("public.filter_type_all")&&
   j.row("pr-filter-seats")->value==loc::T("common.off")&&j.row("pr-filter-wired")->value==loc::T("public.filter_wired_all"),"The filters page does not start on every room");
  h.Press(MenuInput::Back);
  Check(h.shell.Navigation().Screen()=="public-rooms"&&h.shell.Navigation().Focus()=="pr-filters","Back did not return to the Filters row");
 
- // Region: Near me is not offered until this PC's region is known.
- step("pr-filter-region");
- Check(value("pr-filter-region")==PublicRoomsPanel::RegionLabel("use1")&&summary()==PublicRoomsPanel::RegionLabel("use1")&&Shown(j)=="ac","Right on Region without a known region did not skip Near me to US East");
- step("pr-filter-region");
+ // Area: Near me is not offered until the player's area is set; then each area in the table's order.
+ step("pr-filter-area");
+ Check(value("pr-filter-area")==loc::T("area.naw")&&summary()==loc::T("area.naw")&&Shown(j)=="ac","Right on Area without an area of the player's own did not skip Near me to NA West");
+ step("pr-filter-area");
  Check(Shown(j).empty()&&j.row("pr-clear-filters")&&j.row("pr-clear-filters")->label==loc::T("public.none_filtered")&&j.row("pr-clear-filters")->hint==loc::T("public.clear_filters")&&
-  j.row("pr-clear-filters")->wide&&j.row("pr-clear-filters")->height==110&&!j.row("pr-none")&&!j.row("pr-error"),"A region with no rooms has no card that clears the filter");
- step("pr-filter-region",MenuInput::Left,2);
- Check(value("pr-filter-region")==loc::T("public.filter_region_all")&&summary()==loc::T("public.filter_summary_all")&&Shown(j)=="dabc","Left did not step the region back to every region");
- h.view.netReport.relay="use1";h.Frame(0,2);
- step("pr-filter-region");
- Check(value("pr-filter-region")==loc::T("public.filter_region_near")&&summary()==loc::T("public.filter_region_near")&&Shown(j)=="ac","Near me lists rooms that are not near");
+  j.row("pr-clear-filters")->wide&&j.row("pr-clear-filters")->height==110&&!j.row("pr-none")&&!j.row("pr-error"),"An area with no rooms has no card that clears the filter");
+ step("pr-filter-area",MenuInput::Left,2);
+ Check(value("pr-filter-area")==loc::T("public.filter_area_all")&&summary()==loc::T("public.filter_summary_all")&&Shown(j)=="dabc","Left did not step the area back to every area");
+ // Near me while the player's area is not set says how to set it.
+ h.view.preferences.roomFilter.scope=netplay::publicrooms::RoomFilter::Place::Near;
+ Check(PublicRoomsPanel::FilterRows(h.view.preferences.roomFilter,Area::None,true)[0].detail==loc::T("public.filter_near_unset"),"Near me without an area does not say to set one");
+ h.view.preferences.roomFilter=netplay::publicrooms::RoomFilter();
+ h.view.automaticArea=Area::NaCentral;h.Frame(0,2);
+ step("pr-filter-area");
+ Check(value("pr-filter-area")==loc::T("public.filter_region_near")&&summary()==loc::T("public.filter_region_near")&&Shown(j)=="ac","Near me lists rooms that are not in or next to the player's area");
  relist();
  Check(j.status==loc::Tf("public.status_filtered",std::size_t(2),std::size_t(4),loc::T("public.updated_now")),"The status does not say how many of the rooms are shown");
- step("pr-filter-region",MenuInput::Left);
+ step("pr-filter-area",MenuInput::Left);
 
  // Room type: a room that sent no type (d) passes under All types only.
  step("pr-filter-type");
@@ -667,7 +693,7 @@ void FilterJourney(){
  // Saved with the preferences, and kept on leaving and coming back.
  const auto saved=std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return Is<commands::SavePreferences>(a);});
  Check(saved>=1&&h.view.preferences.roomFilter.wiredOnly&&h.view.preferences.roomFilter.openSeats&&h.view.preferences.roomFilter.type==netplay::publicrooms::RoomFilter::Type::King&&
-  h.view.preferences.roomFilter.scope==netplay::publicrooms::RoomFilter::Region::All,"The filter was not sent to be saved");
+  h.view.preferences.roomFilter.scope==netplay::publicrooms::RoomFilter::Place::All,"The filter was not sent to be saved");
  h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);relist();
  Check(summary()==std::string(RoomTypeName(room::RoomType::King))+dot+loc::T("public.filter_summary_seats")+dot+loc::T("public.filter_wired_only")&&j.row("pr-clear-filters"),"The filter was forgotten on leaving Public rooms");
 
@@ -800,7 +826,7 @@ void CurrentRoomJourney(){
  const auto lastRequest=[&]{std::uint64_t id=0;for(const auto& a:sent)if(TournamentIs(a,Op::RoomTicket)||TournamentIs(a,Op::RoomCreate))id=As<commands::Tournament>(a)->tournament.request;return id;};
  const auto admit=[&](const char* roomId,const char* name){
   auto& list=v.publicRooms;list.failure.clear();
-  list.admission=netplay::publicrooms::Admission{{roomId,name,"use1",1,8,0},"sf4e3:inv","{\"ticket\":{}}"};
+  list.admission=netplay::publicrooms::Admission{{roomId,name,Area::NaEast,1,8,0},"sf4e3:inv","{\"ticket\":{}}"};
   list.admitting=0;list.answered=lastRequest();update();
  };
  update();

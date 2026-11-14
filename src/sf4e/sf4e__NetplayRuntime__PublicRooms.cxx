@@ -86,6 +86,8 @@ void DispatchAdmission(const Command& command, bool helperReady) {
 		TicketRequest(command.bridgeId, command.roomId);
 	// Only a room that asks for each player's own delay says so; the helper reads an absent key as the shared one.
 	if (create && command.ownDelay) request["own_delay"] = true;
+	// A new room shows where its creator plays from, unless they hid it or it is not set.
+	if (const Area area = ShownArea(runtime->preferences.area, runtime->automaticArea); create && area != Area::None) request["area"] = AreaCode(area);
 	runtime->admissionRequest = SendAdmission(request, helperReady, [](const std::string& failure, std::optional<netplay::publicrooms::Admission> admission) {
 		FinishAdmission(failure, std::move(admission));
 	});

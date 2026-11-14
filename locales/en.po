@@ -5191,11 +5191,11 @@ msgstr "Loading rooms..."
 msgid "public.needs_id_detail"
 msgstr "Create an Ember ID, then trust a service under Linked accounts. That service lists the public rooms."
 
-msgid "public.room_detail"
-msgstr "{0}\nPlayers: {1}/{2}. Region: {3}."
+msgid "public.room_detail_seats"
+msgstr "{0}\nPlayers: {1}/{2}."
 
-msgid "public.room_detail_playing"
-msgstr "{0}\nPlayers: {1}/{2}. Region: {3}.\nMatches in progress: {4}."
+msgid "public.room_detail_matches"
+msgstr "Matches in progress: {0}."
 
 msgid "public.joining_value"
 msgstr "Joining..."
@@ -5288,7 +5288,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "Choose which rooms are listed: by area, room type, open seats and connection. Your choice is kept for next time."
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5296,14 +5296,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "Area"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "Show rooms from every area, only rooms in or next to your area, or one area. Left and Right change it."
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "All areas"
 
 msgid "public.filter_region_near"
 msgstr "Near me"
@@ -5335,8 +5335,8 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember doesn't know your region yet, so it can't tell which rooms are near you."
+msgid "public.filter_near_unset"
+msgstr "Your area is not set, so Ember can't tell which rooms are near you. Set it in Settings, Country and area."
 
 msgid "public.near_you"
 msgstr "Near you"
@@ -5365,8 +5365,11 @@ msgstr "{0} min"
 msgid "public.age_hours"
 msgstr "{0} h"
 
-msgid "public.room_detail2"
-msgstr "Host {0}, {1}. {2} of {3} seats taken."
+msgid "public.room_detail_host"
+msgstr "Host {0}. {1} of {2} seats taken."
+
+msgid "public.room_detail_area"
+msgstr "Area: {0}."
 
 msgid "public.room_detail_match"
 msgstr " A match is on."
@@ -8337,8 +8340,11 @@ msgstr "ONLINE · JOIN"
 msgid "online.eyebrow_browse"
 msgstr "ONLINE · BROWSE"
 
-msgid "public.your_region"
-msgstr "Your region {0}"
+msgid "public.your_area"
+msgstr "Your area: {0}"
+
+msgid "public.area_unset"
+msgstr "Set your area in Settings"
 
 msgid "home.notifications"
 msgstr "Notifications"

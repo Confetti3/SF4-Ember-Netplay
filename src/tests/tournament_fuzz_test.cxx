@@ -125,6 +125,10 @@ static void TestRoomListDetails() {
 	const auto plain = room(json::object());
 	CHECK(plain.createdAt == 900 && plain.hostName.empty() && plain.fighters.empty() && !plain.locked && !plain.hasDetails &&
 		plain.setFormat == -1 && plain.rotation == -1 && !plain.type);
+	// The creator's area, when the bridge sends one; a relay's code, a code this build does not
+	// know or another kind of value is none, and the row still decodes.
+	CHECK(plain.area == Area::None && room({{"area", "sam"}}).area == Area::SouthAmerica);
+	for (const json& other : {json("use1"), json("SAM"), json("xyz"), json(7), json(nullptr)}) CHECK(room({{"area", other}}).area == Area::None);
 	// created_at is required, and is a number.
 	auto bare = Row(); bare.erase("created_at");
 	CHECK(!decode(bare));

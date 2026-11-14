@@ -114,13 +114,14 @@ Room DecodeRoom(const json& view) {
 	Room room;
 	room.id = Text(view, "room_id", 32);
 	room.name = SingleLine(Text(view, "name", 64));
-	room.region = Text(view, "region", 16);
 	room.members = Small(view, "members", 16);
 	room.capacity = Small(view, "capacity", 16);
 	room.playing = Small(view, "tables_playing", 255);
 	room.createdAt = Seconds(view, "created_at");
 	// Only an own-delay room says so; a key of any other kind is not read.
 	if (const auto found = view.find("own_delay"); found != view.end() && found->is_boolean()) room.ownDelay = found->get<bool>();
+	// So is a room whose creator gave an area; anything but an area's code is none.
+	if (const auto found = view.find("area"); found != view.end() && found->is_string()) room.area = AreaFromCode(found->get<std::string>());
 	if (!IsHex(room.id, 32) || room.name.empty() || room.capacity < 2 || room.members > room.capacity) throw std::invalid_argument("room");
 	DecodeDetails(view, room);
 	return room;

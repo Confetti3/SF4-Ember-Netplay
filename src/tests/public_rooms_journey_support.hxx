@@ -87,7 +87,7 @@ struct Journey {
  void AdmitAs(std::uint64_t request,const char* failure="",const char* roomId="b",const char* invitation="sf4e3:host-invitation",
   const char* ticket="{\"ticket\":{\"room_id\":\"b\"},\"kid\":\"k1\",\"signature\":\"sig\"}"){
   auto& list=h.view.publicRooms;list.failure=failure;
-  list.admission=*failure?netplay::publicrooms::Admission{}:netplay::publicrooms::Admission{{roomId,"Open Mic","use1",3,8,0},invitation,ticket};
+  list.admission=*failure?netplay::publicrooms::Admission{}:netplay::publicrooms::Admission{{roomId,"Open Mic",Area::NaEast,3,8,0},invitation,ticket};
   list.admitting=0;list.answered=request;h.Frame(0,2);
  }
  // ... the newest one sent.
@@ -95,7 +95,7 @@ struct Journey {
 };
 
 inline netplay::publicrooms::Room MakeRoom(const char* id,const char* name,unsigned members,unsigned capacity,unsigned playing=0){
- netplay::publicrooms::Room room;room.id=id;room.name=name;room.members=members;room.capacity=capacity;room.playing=playing;room.region="use1";return room;
+ netplay::publicrooms::Room room;room.id=id;room.name=name;room.members=members;room.capacity=capacity;room.playing=playing;room.area=Area::NaEast;return room;
 }
 
 // A service and room a room link names, and a service the player does not trust.
