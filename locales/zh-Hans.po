@@ -756,6 +756,12 @@ msgstr "在线对战"
 msgid "home.online_detail"
 msgstr "创建或加入房间、浏览公开房间，或设置用于赛事的 Ember ID。"
 
+msgid "home.friends"
+msgstr "好友"
+
+msgid "home.friends_detail"
+msgstr "加入好友的房间、回复请求，并添加新好友。"
+
 msgid "home.return_room"
 msgstr "返回当前房间。"
 
@@ -1170,6 +1176,15 @@ msgstr "好友"
 msgid "friends.tab_count"
 msgstr "好友 · {0}"
 
+msgid "friends.home_online"
+msgstr "{0} 人在线"
+
+msgid "friends.home_request_one"
+msgstr "1 条请求"
+
+msgid "friends.home_requests"
+msgstr "{0} 条请求"
+
 msgid "profile.view_sets"
 msgstr "查看系列赛"
 
@@ -1265,6 +1280,15 @@ msgstr "在菜单中"
 
 msgid "friends.offline_play"
 msgstr "离线游玩"
+
+msgid "friends.playing_game"
+msgstr "正在玩 {0}"
+
+msgid "friends.room_game"
+msgstr "在房间中 · {0}"
+
+msgid "friends.another_game"
+msgstr "正在玩其他游戏"
 
 msgid "friends.last_online"
 msgstr "上次在线 {0}"
@@ -1602,6 +1626,9 @@ msgstr "好友功能已关闭。"
 msgid "friends.cannot_join"
 msgstr "现在无法加入该房间。"
 
+msgid "friends.join_unavailable"
+msgstr "该房间目前无法加入。"
+
 msgid "friends.cannot_watch"
 msgstr "该好友不在可观战的对局中。"
 
@@ -1649,6 +1676,9 @@ msgstr "{0} 邀请你加入房间"
 
 msgid "friends.later"
 msgstr "稍后"
+
+msgid "friends.view"
+msgstr "查看"
 
 msgid "friends.dismiss"
 msgstr "关闭"
@@ -4137,6 +4167,21 @@ msgstr "使用 Wi-Fi 的玩家仍可加入、观战和聊天，但不能入座�
 msgid "room.wired_only.settings_detail"
 msgstr "从下一次入座开始生效。已入座的人不会失去席位。"
 
+msgid "room.privacy"
+msgstr "隐私"
+
+msgid "room.privacy.friends"
+msgstr "好友"
+
+msgid "room.privacy.hidden"
+msgstr "隐藏"
+
+msgid "room.privacy.detail"
+msgstr "好友：房间内任何人的好友都能看到该房间，并可在房间开放时加入。隐藏：他们只能看到你在私人房间中，需通过邀请加入。"
+
+msgid "room.privacy.settings_detail"
+msgstr "已加入的玩家可凭邀请返回。将加入权限设为已锁定，可阻止任何人加入。"
+
 msgid "room.apply_name"
 msgstr "应用房间名称"
 
@@ -5537,6 +5582,9 @@ msgstr "公开房间"
 
 msgid "online.public_detail"
 msgstr "浏览任何人都能加入的开放房间，或快速加入附近的房间。"
+
+msgid "online.friends_detail"
+msgstr "在线的好友和他们所在的房间。"
 
 msgid "public.create"
 msgstr "创建公开房间"
@@ -8611,6 +8659,9 @@ msgstr "更多…"
 msgid "room.v2.more_detail"
 msgstr "控制器、房间设置、公开房间的链接和画面布局。"
 
+msgid "room.v2.friends_detail"
+msgstr "邀请好友加入此房间，或加入好友的房间。"
+
 msgid "room.v2.part_state"
 msgstr "{0}：{1}"
 
@@ -8736,6 +8787,9 @@ msgstr "待回复：{0}"
 
 msgid "notifications.none_detail"
 msgstr "好友请求、邀请和 Ember 的提示会显示在这里。"
+
+msgid "notifications.friends_detail"
+msgstr "你的好友、请求和已拉黑的玩家。"
 
 msgid "home.news"
 msgstr "新闻/通知"

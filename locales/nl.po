@@ -756,6 +756,12 @@ msgstr "Online spelen"
 msgid "home.online_detail"
 msgstr "Maak een kamer, doe mee aan een kamer, bekijk de openbare kamers of stel je Ember ID in voor toernooien."
 
+msgid "home.friends"
+msgstr "Vrienden"
+
+msgid "home.friends_detail"
+msgstr "Doe mee met je vrienden, beantwoord verzoeken en voeg nieuwe vrienden toe."
+
 msgid "home.return_room"
 msgstr "Keer terug naar je huidige kamer."
 
@@ -1170,6 +1176,15 @@ msgstr "Vrienden"
 msgid "friends.tab_count"
 msgstr "Vrienden · {0}"
 
+msgid "friends.home_online"
+msgstr "{0} online"
+
+msgid "friends.home_request_one"
+msgstr "1 verzoek"
+
+msgid "friends.home_requests"
+msgstr "{0} verzoeken"
+
 msgid "profile.view_sets"
 msgstr "Sets bekijken"
 
@@ -1265,6 +1280,15 @@ msgstr "In de menu's"
 
 msgid "friends.offline_play"
 msgstr "Speelt offline"
+
+msgid "friends.playing_game"
+msgstr "Speelt {0}"
+
+msgid "friends.room_game"
+msgstr "In een kamer · {0}"
+
+msgid "friends.another_game"
+msgstr "Speelt een ander spel"
 
 msgid "friends.last_online"
 msgstr "Laatst online {0}"
@@ -1602,6 +1626,9 @@ msgstr "Vrienden staan uit."
 msgid "friends.cannot_join"
 msgstr "Je kunt nu niet in die kamer komen."
 
+msgid "friends.join_unavailable"
+msgstr "Die kamer kan nu niet worden betreden."
+
 msgid "friends.cannot_watch"
 msgstr "Die vriend zit niet in een spel dat je kunt bekijken."
 
@@ -1649,6 +1676,9 @@ msgstr "{0} nodigt je uit in een kamer"
 
 msgid "friends.later"
 msgstr "Later"
+
+msgid "friends.view"
+msgstr "Bekijken"
 
 msgid "friends.dismiss"
 msgstr "Negeren"
@@ -4137,6 +4167,21 @@ msgstr "Spelers op wifi kunnen meedoen, kijken en chatten, maar geen plek inneme
 msgid "room.wired_only.settings_detail"
 msgstr "Geldt vanaf de volgende plek die wordt ingenomen. Wie nu zit, houdt zijn plek."
 
+msgid "room.privacy"
+msgstr "Privacy"
+
+msgid "room.privacy.friends"
+msgstr "Vrienden"
+
+msgid "room.privacy.hidden"
+msgstr "Verborgen"
+
+msgid "room.privacy.detail"
+msgstr "Vrienden: vrienden van iedereen in de kamer zien hem en kunnen hem betreden zolang hij open is. Verborgen: ze zien alleen dat je in een privékamer zit en komen binnen met een uitnodiging."
+
+msgid "room.privacy.settings_detail"
+msgstr "Spelers die al zijn binnengekomen kunnen met hun uitnodiging terugkomen. Zet Toegang op Vergrendeld zodat niemand meer binnenkomt."
+
 msgid "room.apply_name"
 msgstr "Kamernaam toepassen"
 
@@ -5537,6 +5582,9 @@ msgstr "Openbare kamers"
 
 msgid "online.public_detail"
 msgstr "Bekijk open kamers waar iedereen in kan, of doe snel mee aan een kamer bij jou in de buurt."
+
+msgid "online.friends_detail"
+msgstr "Vrienden die online zijn en de kamers waarin ze zitten."
 
 msgid "public.create"
 msgstr "Openbare kamer maken"
@@ -8611,6 +8659,9 @@ msgstr "Meer…"
 msgid "room.v2.more_detail"
 msgstr "Controllers, kamerinstellingen, de link van een openbare kamer en de indeling van het bord."
 
+msgid "room.v2.friends_detail"
+msgstr "Nodig vrienden uit voor deze kamer of betreed de hunne."
+
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
 
@@ -8736,6 +8787,9 @@ msgstr "{0} wachten"
 
 msgid "notifications.none_detail"
 msgstr "Vriendschapsverzoeken, uitnodigingen en meldingen van Ember staan hier."
+
+msgid "notifications.friends_detail"
+msgstr "Je vrienden, verzoeken en geblokkeerde spelers."
 
 msgid "home.news"
 msgstr "Nieuws/Meldingen"

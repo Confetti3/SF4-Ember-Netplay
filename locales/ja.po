@@ -756,6 +756,12 @@ msgstr "オンライン対戦"
 msgid "home.online_detail"
 msgstr "ルームを作成・参加するか、公開ルームを探すか、大会用のEmber IDを設定します。"
 
+msgid "home.friends"
+msgstr "フレンド"
+
+msgid "home.friends_detail"
+msgstr "フレンドのルームに参加したり、リクエストに応えたり、フレンドを追加したりします。"
+
 msgid "home.return_room"
 msgstr "現在のルームに戻る"
 
@@ -1170,6 +1176,15 @@ msgstr "フレンド"
 msgid "friends.tab_count"
 msgstr "フレンド · {0}"
 
+msgid "friends.home_online"
+msgstr "{0}人オンライン"
+
+msgid "friends.home_request_one"
+msgstr "リクエスト1件"
+
+msgid "friends.home_requests"
+msgstr "リクエスト{0}件"
+
 msgid "profile.view_sets"
 msgstr "セットを見る"
 
@@ -1265,6 +1280,15 @@ msgstr "メニュー画面"
 
 msgid "friends.offline_play"
 msgstr "オフライン対戦中"
+
+msgid "friends.playing_game"
+msgstr "{0}をプレイ中"
+
+msgid "friends.room_game"
+msgstr "ルーム内 · {0}"
+
+msgid "friends.another_game"
+msgstr "別のゲームをプレイ中"
 
 msgid "friends.last_online"
 msgstr "最終オンライン {0}"
@@ -1602,6 +1626,9 @@ msgstr "フレンドはオフです。"
 msgid "friends.cannot_join"
 msgstr "今はそのルームに参加できません。"
 
+msgid "friends.join_unavailable"
+msgstr "そのルームには今は参加できません。"
+
 msgid "friends.cannot_watch"
 msgstr "そのフレンドは観戦できる対戦中ではありません。"
 
@@ -1649,6 +1676,9 @@ msgstr "{0} さんがルームに招待しています"
 
 msgid "friends.later"
 msgstr "あとで"
+
+msgid "friends.view"
+msgstr "見る"
 
 msgid "friends.dismiss"
 msgstr "閉じる"
@@ -4137,6 +4167,21 @@ msgstr "Wi-Fiのプレイヤーも参加、観戦、チャットはできます�
 msgid "room.wired_only.settings_detail"
 msgstr "次に席に着くときから適用されます。今座っている人は席を失いません。"
 
+msgid "room.privacy"
+msgstr "プライバシー"
+
+msgid "room.privacy.friends"
+msgstr "フレンド"
+
+msgid "room.privacy.hidden"
+msgstr "非表示"
+
+msgid "room.privacy.detail"
+msgstr "フレンド：ルームにいる誰かのフレンドにルームが表示され、開放中は参加できます。非表示：プライベートルームにいることだけが見え、参加は招待が必要です。"
+
+msgid "room.privacy.settings_detail"
+msgstr "すでに参加した人は招待で戻れます。誰も参加できないようにするには、参加制限をロック中にしてください。"
+
 msgid "room.apply_name"
 msgstr "ルーム名を適用"
 
@@ -5537,6 +5582,9 @@ msgstr "公開ルーム"
 
 msgid "online.public_detail"
 msgstr "誰でも参加できる公開ルームを探すか、近くのルームにクイック参加します。"
+
+msgid "online.friends_detail"
+msgstr "オンラインのフレンドと、そのフレンドがいるルーム。"
 
 msgid "public.create"
 msgstr "公開ルームを作成"
@@ -8611,6 +8659,9 @@ msgstr "その他…"
 msgid "room.v2.more_detail"
 msgstr "コントローラー、ルーム設定、公開ルームのリンク、画面の配置。"
 
+msgid "room.v2.friends_detail"
+msgstr "フレンドをこのルームに招待、またはフレンドのルームに参加。"
+
 msgid "room.v2.part_state"
 msgstr "{0}：{1}"
 
@@ -8736,6 +8787,9 @@ msgstr "対応待ち: {0}"
 
 msgid "notifications.none_detail"
 msgstr "フレンドリクエスト、招待、Ember からのお知らせがここに表示されます。"
+
+msgid "notifications.friends_detail"
+msgstr "フレンド、リクエスト、ブロックしたプレイヤー。"
 
 msgid "home.news"
 msgstr "ニュース/通知"

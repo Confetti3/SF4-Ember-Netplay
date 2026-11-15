@@ -756,6 +756,12 @@ msgstr "Gioco online"
 msgid "home.online_detail"
 msgstr "Crea una sala, entra in una, sfoglia le sale pubbliche o configura il tuo Ember ID per i tornei."
 
+msgid "home.friends"
+msgstr "Amici"
+
+msgid "home.friends_detail"
+msgstr "Raggiungi i tuoi amici, rispondi alle richieste e aggiungi nuovi amici."
+
 msgid "home.return_room"
 msgstr "Torna alla sala attuale."
 
@@ -1170,6 +1176,15 @@ msgstr "Amici"
 msgid "friends.tab_count"
 msgstr "Amici · {0}"
 
+msgid "friends.home_online"
+msgstr "{0} online"
+
+msgid "friends.home_request_one"
+msgstr "1 richiesta"
+
+msgid "friends.home_requests"
+msgstr "{0} richieste"
+
 msgid "profile.view_sets"
 msgstr "Vedi i set"
 
@@ -1265,6 +1280,15 @@ msgstr "Nei menu"
 
 msgid "friends.offline_play"
 msgstr "Gioca offline"
+
+msgid "friends.playing_game"
+msgstr "Gioca a {0}"
+
+msgid "friends.room_game"
+msgstr "In una sala · {0}"
+
+msgid "friends.another_game"
+msgstr "Gioca a un altro gioco"
 
 msgid "friends.last_online"
 msgstr "Ultimo accesso {0}"
@@ -1602,6 +1626,9 @@ msgstr "Gli amici sono disattivati."
 msgid "friends.cannot_join"
 msgstr "Non puoi entrare in quella sala ora."
 
+msgid "friends.join_unavailable"
+msgstr "Non è possibile entrare in quella sala ora."
+
 msgid "friends.cannot_watch"
 msgstr "Quell'amico non è in una partita che puoi guardare."
 
@@ -1649,6 +1676,9 @@ msgstr "{0} ti invita in una sala"
 
 msgid "friends.later"
 msgstr "Più tardi"
+
+msgid "friends.view"
+msgstr "Vedi"
 
 msgid "friends.dismiss"
 msgstr "Ignora"
@@ -4137,6 +4167,21 @@ msgstr "I giocatori in Wi-Fi possono entrare, guardare e chattare, ma non prende
 msgid "room.wired_only.settings_detail"
 msgstr "Vale dal prossimo posto occupato. Chi è seduto ora mantiene il posto."
 
+msgid "room.privacy"
+msgstr "Privacy"
+
+msgid "room.privacy.friends"
+msgstr "Amici"
+
+msgid "room.privacy.hidden"
+msgstr "Nascosta"
+
+msgid "room.privacy.detail"
+msgstr "Amici: gli amici di chiunque sia nella sala la vedono e possono entrare finché è aperta. Nascosta: vedono solo che sei in una sala privata ed entrano su invito."
+
+msgid "room.privacy.settings_detail"
+msgstr "I giocatori già entrati possono rientrare con il loro invito. Imposta Accesso su Bloccata per impedire a chiunque di entrare."
+
 msgid "room.apply_name"
 msgstr "Applica nome sala"
 
@@ -5537,6 +5582,9 @@ msgstr "Sale pubbliche"
 
 msgid "online.public_detail"
 msgstr "Sfoglia le sale aperte a tutti oppure entra subito in una vicina a te."
+
+msgid "online.friends_detail"
+msgstr "Gli amici online e le sale in cui si trovano."
 
 msgid "public.create"
 msgstr "Crea sala pubblica"
@@ -8611,6 +8659,9 @@ msgstr "Altro…"
 msgid "room.v2.more_detail"
 msgstr "Controller, impostazioni sala, link di una sala pubblica e disposizione della schermata."
 
+msgid "room.v2.friends_detail"
+msgstr "Invita amici in questa sala o entra nella loro."
+
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
 
@@ -8736,6 +8787,9 @@ msgstr "{0} in attesa"
 
 msgid "notifications.none_detail"
 msgstr "Richieste di amicizia, inviti e avvisi di Ember compaiono qui."
+
+msgid "notifications.friends_detail"
+msgstr "I tuoi amici, le richieste e i giocatori bloccati."
 
 msgid "home.news"
 msgstr "Notizie/Notifiche"

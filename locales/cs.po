@@ -756,6 +756,12 @@ msgstr "Hra online"
 msgid "home.online_detail"
 msgstr "Vytvořte místnost, připojte se k nějaké, procházejte veřejné místnosti nebo si nastavte Ember ID pro turnaje."
 
+msgid "home.friends"
+msgstr "Přátelé"
+
+msgid "home.friends_detail"
+msgstr "Připojte se k přátelům, odpovězte na žádosti a přidejte nové přátele."
+
 msgid "home.return_room"
 msgstr "Vrátit se do aktuální místnosti."
 
@@ -1170,6 +1176,15 @@ msgstr "Přátelé"
 msgid "friends.tab_count"
 msgstr "Přátelé · {0}"
 
+msgid "friends.home_online"
+msgstr "Online: {0}"
+
+msgid "friends.home_request_one"
+msgstr "1 žádost"
+
+msgid "friends.home_requests"
+msgstr "Žádosti: {0}"
+
 msgid "profile.view_sets"
 msgstr "Zobrazit sety"
 
@@ -1265,6 +1280,15 @@ msgstr "V nabídkách"
 
 msgid "friends.offline_play"
 msgstr "Hraje offline"
+
+msgid "friends.playing_game"
+msgstr "Hraje {0}"
+
+msgid "friends.room_game"
+msgstr "V místnosti · {0}"
+
+msgid "friends.another_game"
+msgstr "Hraje jinou hru"
 
 msgid "friends.last_online"
 msgstr "Naposledy online {0}"
@@ -1602,6 +1626,9 @@ msgstr "Přátelé jsou vypnuti."
 msgid "friends.cannot_join"
 msgstr "Do této místnosti se teď nelze připojit."
 
+msgid "friends.join_unavailable"
+msgstr "K této místnosti se teď nelze připojit."
+
 msgid "friends.cannot_watch"
 msgstr "Tento přítel není ve hře, kterou lze sledovat."
 
@@ -1649,6 +1676,9 @@ msgstr "{0} tě zve do místnosti"
 
 msgid "friends.later"
 msgstr "Později"
+
+msgid "friends.view"
+msgstr "Zobrazit"
 
 msgid "friends.dismiss"
 msgstr "Zavřít"
@@ -4137,6 +4167,21 @@ msgstr "Hráči na Wi-Fi se mohou připojit, dívat se a chatovat, ale nemohou o
 msgid "room.wired_only.settings_detail"
 msgstr "Platí od dalšího obsazeného místa. Nikdo, kdo teď sedí, o místo nepřijde."
 
+msgid "room.privacy"
+msgstr "Soukromí"
+
+msgid "room.privacy.friends"
+msgstr "Přátelé"
+
+msgid "room.privacy.hidden"
+msgstr "Skryto"
+
+msgid "room.privacy.detail"
+msgstr "Přátelé: přátelé kohokoli v místnosti ji vidí a mohou se připojit, dokud je otevřená. Skryto: vidí jen, že jste v soukromé místnosti, a připojují se s pozvánkou."
+
+msgid "room.privacy.settings_detail"
+msgstr "Hráči, kteří se už připojili, se mohou vrátit se svou pozvánkou. Nastavte Vstup na Uzamčeno, aby se nikdo nemohl připojit."
+
 msgid "room.apply_name"
 msgstr "Použít název"
 
@@ -5537,6 +5582,9 @@ msgstr "Veřejné místnosti"
 
 msgid "online.public_detail"
 msgstr "Procházejte otevřené místnosti, do kterých se může připojit kdokoli, nebo se rychle připojte k jedné poblíž."
+
+msgid "online.friends_detail"
+msgstr "Přátelé, kteří jsou online, a místnosti, ve kterých jsou."
 
 msgid "public.create"
 msgstr "Vytvořit veřejnou místnost"
@@ -8611,6 +8659,9 @@ msgstr "Další…"
 msgid "room.v2.more_detail"
 msgstr "Ovladače, nastavení místnosti, odkaz veřejné místnosti a rozložení plochy."
 
+msgid "room.v2.friends_detail"
+msgstr "Pozvěte přátele do této místnosti nebo se připojte k jejich."
+
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
 
@@ -8736,6 +8787,9 @@ msgstr "Čeká: {0}"
 
 msgid "notifications.none_detail"
 msgstr "Žádosti o přátelství, pozvánky a oznámení Emberu se zobrazí tady."
+
+msgid "notifications.friends_detail"
+msgstr "Vaši přátelé, žádosti a blokovaní hráči."
 
 msgid "home.news"
 msgstr "Novinky/Oznámení"

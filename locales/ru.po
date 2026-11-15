@@ -756,6 +756,12 @@ msgstr "Игра по сети"
 msgid "home.online_detail"
 msgstr "Открытые или приватные лобби"
 
+msgid "home.friends"
+msgstr "Друзья"
+
+msgid "home.friends_detail"
+msgstr "Заходите к друзьям, отвечайте на запросы и добавляйте новых друзей."
+
 msgid "home.return_room"
 msgstr "Вернуться в текущее лобби"
 
@@ -1170,6 +1176,15 @@ msgstr "Друзья"
 msgid "friends.tab_count"
 msgstr "Друзья · {0}"
 
+msgid "friends.home_online"
+msgstr "В сети: {0}"
+
+msgid "friends.home_request_one"
+msgstr "1 запрос"
+
+msgid "friends.home_requests"
+msgstr "Запросы: {0}"
+
 msgid "profile.view_sets"
 msgstr "Смотреть сеты"
 
@@ -1265,6 +1280,15 @@ msgstr "В меню"
 
 msgid "friends.offline_play"
 msgstr "Играет без сети"
+
+msgid "friends.playing_game"
+msgstr "Играет в {0}"
+
+msgid "friends.room_game"
+msgstr "В лобби · {0}"
+
+msgid "friends.another_game"
+msgstr "Играет в другую игру"
 
 msgid "friends.last_online"
 msgstr "Был в сети {0}"
@@ -1602,6 +1626,9 @@ msgstr "Друзья отключены."
 msgid "friends.cannot_join"
 msgstr "Сейчас нельзя войти в это лобби."
 
+msgid "friends.join_unavailable"
+msgstr "Это лобби сейчас недоступно для входа."
+
 msgid "friends.cannot_watch"
 msgstr "Этот друг не в игре, которую можно смотреть."
 
@@ -1649,6 +1676,9 @@ msgstr "{0} приглашает вас в лобби"
 
 msgid "friends.later"
 msgstr "Позже"
+
+msgid "friends.view"
+msgstr "Открыть"
 
 msgid "friends.dismiss"
 msgstr "Закрыть"
@@ -4137,6 +4167,21 @@ msgstr "Игроки на Wi-Fi могут войти, смотреть и пи�
 msgid "room.wired_only.settings_detail"
 msgstr "Действует со следующего занятого места. Те, кто уже сидит, места не теряют."
 
+msgid "room.privacy"
+msgstr "Приватность"
+
+msgid "room.privacy.friends"
+msgstr "Друзья"
+
+msgid "room.privacy.hidden"
+msgstr "Скрыто"
+
+msgid "room.privacy.detail"
+msgstr "Друзья: друзья любого участника видят лобби и могут войти, пока оно открыто. Скрыто: они видят только, что вы в закрытом лобби, и входят по приглашению."
+
+msgid "room.privacy.settings_detail"
+msgstr "Игроки, которые уже вошли, могут вернуться по своему приглашению. Установите для пункта «Доступ» значение «Закрыто», чтобы никто не мог войти."
+
 msgid "room.apply_name"
 msgstr "Сохранить имя"
 
@@ -5537,6 +5582,9 @@ msgstr "Открытые лобби"
 
 msgid "online.public_detail"
 msgstr "Просматривайте открытые лобби, куда может войти любой, или быстро войдите в лобби поблизости."
+
+msgid "online.friends_detail"
+msgstr "Друзья в сети и лобби, в которых они находятся."
 
 msgid "public.create"
 msgstr "Создать открытое лобби"
@@ -8611,6 +8659,9 @@ msgstr "Ещё…"
 msgid "room.v2.more_detail"
 msgstr "Контроллеры, настройки лобби, ссылка публичного лобби и вид экрана."
 
+msgid "room.v2.friends_detail"
+msgstr "Приглашайте друзей в это лобби или заходите в их лобби."
+
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
 
@@ -8736,6 +8787,9 @@ msgstr "Ждут: {0}"
 
 msgid "notifications.none_detail"
 msgstr "Здесь появляются запросы в друзья, приглашения и уведомления Ember."
+
+msgid "notifications.friends_detail"
+msgstr "Ваши друзья, запросы и заблокированные игроки."
 
 msgid "home.news"
 msgstr "Новости/Уведомления"
