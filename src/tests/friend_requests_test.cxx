@@ -261,7 +261,7 @@ void Commands() {
 	static_assert(IsFriendAction<FriendRequest> && IsFriendAction<FriendRequestByCode> && IsFriendAction<FriendAccept> && IsFriendAction<FriendDecline> &&
 		IsFriendAction<FriendCancel> && IsFriendAction<FriendRemove> && IsFriendAction<FriendBlock> && IsFriendAction<FriendUnblock> &&
 		IsFriendAction<FriendNewCode> && IsFriendAction<FriendAppearOffline> && IsFriendAction<FriendTurnOff> && IsFriendAction<FriendTurnOn> &&
-		IsFriendAction<FriendInvite> && IsFriendAction<FriendDismiss>, "the bridge's actions");
+		IsFriendAction<FriendInvite> && IsFriendAction<FriendDismiss> && IsFriendAction<FriendAskJoin>, "the bridge's actions");
 	static_assert(!IsFriendAction<FriendsVisit> && !IsFriendAction<FriendsLeave> && !IsFriendAction<FriendJoin> && !IsFriendAction<FriendWatch> &&
 		!IsFriendAction<FriendTakeInvite> && !IsFriendAction<FriendAnswerVisit>, "going to a friend asks the bridge nothing");
 	static_assert(IsFriendVisit<FriendJoin> && IsFriendVisit<FriendsVisit> && !IsFriendVisit<FriendAccept>, "the others");
@@ -275,6 +275,9 @@ void Commands() {
 	// Each action names itself for the log by its kind alone.
 	EXPECT(std::string(FriendRequest::LogName) == "request by card" && std::string(FriendDismiss::LogName) == "dismiss" &&
 		std::string(FriendTurnOff::LogName) == "turn off");
+	EXPECT(std::string(FriendAskJoin::LogName) == "join private" && HasBounds<FriendAskJoin>);
+	FriendAskJoin longFriend{{}, "b", std::string(65, 'x')};
+	EXPECT(!longFriend.Valid() && FriendAskJoin{{}, "brg", "fr_1"}.Bytes() == 7 && FriendAskJoin{{}, "brg", "fr_1"}.Valid());
 	EXPECT(HasBounds<FriendJoin> && HasBounds<FriendTurnOn> && BridgeOf(FriendAction(FriendNewCode{"brg_1"})) == std::string("brg_1"));
 }
 
@@ -304,6 +307,8 @@ void Wire() {
 	EXPECT(act(FriendTurnOff{"brg_1"}) == wrapped({{"action", "forget"}}));
 	EXPECT(act(FriendTurnOn{"brg_1"}) == wrapped({{"action", "turn_on"}}));
 	EXPECT(act(FriendDismiss{"brg_1", "iv_1"}) == wrapped({{"action", "dismiss"}, {"invite", "iv_1"}}));
+	// A join names the friend and nothing else, and needs no offer of this player's own.
+	EXPECT(act(FriendAskJoin{{}, "brg_1", FriendId}) == wrapped({{"action", "join"}, {"friend", FriendId}}));
 	Offer publicRoom; publicRoom.kind = Offer::Kind::PublicRoom; publicRoom.value = RoomId;
 	Offer privateRoom; privateRoom.kind = Offer::Kind::PrivateRoom; privateRoom.value = SecretText;
 	EXPECT(act(FriendInvite{"brg_1", FriendId}, publicRoom) == wrapped({{"action", "invite"}, {"friend", FriendId}, {"room", {{"room_id", RoomId}}}}));
@@ -326,11 +331,27 @@ void Wire() {
 	Listing listing;
 	listing.name = "Player 1"; listing.country = "GB"; listing.main = 3;
 	EXPECT(SyncRequest("brg_1", "b1", listing, fighting) == json({{"op", "friends_sync"}, {"bridge_id", "brg_1"}, {"sync", {
-		{"build_id", "b1"}, {"listing", {{"name", "Player 1"}, {"country", "GB"}}}, {"main", 3},
+		{"build_id", "b1"}, {"game", "usf4"}, {"listing", {{"name", "Player 1"}, {"country", "GB"}}}, {"main", 3},
 		{"presence", {{"activity", "room"}, {"room", {{"room_id", RoomId}, {"status", "fighting"}, {"table", 0}}}}}}}}));
 	listing.country.clear(); listing.main = -1;
 	EXPECT(SyncRequest("brg_1", "b1", listing, menus) == json({{"op", "friends_sync"}, {"bridge_id", "brg_1"}, {"sync", {
-		{"build_id", "b1"}, {"listing", {{"name", "Player 1"}}}, {"presence", {{"activity", "menus"}}}}}}));
+		{"build_id", "b1"}, {"game", "usf4"}, {"listing", {{"name", "Player 1"}}}, {"presence", {{"activity", "menus"}}}}}}));
+
+	// A private room that friends may join carries its offer, and a hidden one does not.
+	Report offered;
+	offered.kind = Report::Kind::InRoom; offered.status = Status::Idle; offered.offered = true;
+	offered.name = "Open Mic"; offered.members = 3; offered.capacity = 8; offered.secret = SecretText;
+	EXPECT(SyncRequest("brg_1", "b1", listing, offered) == json({{"op", "friends_sync"}, {"bridge_id", "brg_1"}, {"sync", {
+		{"build_id", "b1"}, {"game", "usf4"}, {"listing", {{"name", "Player 1"}}},
+		{"presence", {{"activity", "room"}, {"room", {{"private", true}, {"status", "idle"},
+			{"offer", {{"secret", SecretText}, {"name", "Open Mic"}, {"members", 3}, {"capacity", 8}}}}}}}}}}));
+	EXPECT(SyncRequest("brg_1", "b1", listing, offered.WithoutOffer()) == json({{"op", "friends_sync"}, {"bridge_id", "brg_1"}, {"sync", {
+		{"build_id", "b1"}, {"game", "usf4"}, {"listing", {{"name", "Player 1"}}},
+		{"presence", {{"activity", "room"}, {"room", {{"private", true}, {"status", "idle"}}}}}}}}));
+	// A public room's report never has one, whatever else it holds.
+	Report publicRoom = fighting;
+	publicRoom.offered = true; publicRoom.secret = SecretText;
+	EXPECT(publicRoom.ToJson() == fighting.ToJson());
 }
 }
 

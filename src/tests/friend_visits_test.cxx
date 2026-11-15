@@ -96,6 +96,82 @@ void WatchingAFriend() {
 	EXPECT(ToFriend(state, FriendId, true).refusal == Refusal::NotJoinable);
 }
 
+// A friend in a private room that friends may join is joined by asking for its invitation: the destination names the
+// friend and holds no key. A room that is not joinable, or that offers nothing, is not joined, and its table is not watched.
+void JoiningAPrivateOffer() {
+	auto state = Listed();
+	auto entry = InRoom(FriendId, Status::Fighting, 1);
+	entry.presence.hasRoom = false;
+	entry.presence.room = Room();
+	entry.presence.privateRoom = true;
+	entry.presence.hasPrivateOffer = true;
+	entry.presence.privateOffer.name = "Open Mic";
+	entry.presence.privateOffer.members = 3;
+	entry.presence.privateOffer.capacity = 8;
+	entry.presence.privateOffer.joinable = true;
+	state.friends.push_back(entry);
+
+	auto where = ToFriend(state, FriendId, false);
+	EXPECT(where.kind == Destination::Kind::PrivateOffer && where.Any() && where.refusal == Refusal::None);
+	EXPECT(where.name == "Player 3" && where.secret.empty() && where.roomId.empty() && where.watchTable == -1);
+	// Its table is not watched from the list, fighting or not.
+	where = ToFriend(state, FriendId, true);
+	EXPECT(!where.Any() && where.refusal == Refusal::NotJoinable && where.secret.empty() && where.watchTable == -1);
+	state.friends[0].presence.status = Status::Idle;
+	EXPECT(ToFriend(state, FriendId, true).refusal == Refusal::NotJoinable && ToFriend(state, FriendId, false).kind == Destination::Kind::PrivateOffer);
+
+	// Full, locked or of another build: shown, not joinable.
+	state.friends[0].presence.privateOffer.joinable = false;
+	where = ToFriend(state, FriendId, false);
+	EXPECT(!where.Any() && where.refusal == Refusal::NotJoinable && where.name == "Player 3" && where.secret.empty());
+	state.friends[0].presence.privateOffer.joinable = true;
+
+	// A private room that offers nothing is joined by invite only, whether or not its table is asked for.
+	state.friends[0].presence.hasPrivateOffer = false;
+	state.friends[0].presence.privateOffer = PrivateOffer();
+	EXPECT(ToFriend(state, FriendId, false).refusal == Refusal::PrivateRoom && ToFriend(state, FriendId, true).refusal == Refusal::PrivateRoom);
+	// An offer for a room that is not private is no room to join: the public room rules.
+	state.friends[0].presence.privateRoom = false;
+	state.friends[0].presence.hasPrivateOffer = true;
+	state.friends[0].presence.privateOffer.joinable = true;
+	EXPECT(ToFriend(state, FriendId, false).refusal == Refusal::NotInRoom);
+	// Not in a room at all.
+	state.friends[0].presence = Presence();
+	state.friends[0].presence.kind = Presence::Kind::Online;
+	state.friends[0].presence.hasPrivateOffer = true;
+	state.friends[0].presence.privateOffer.joinable = true;
+	EXPECT(ToFriend(state, FriendId, false).refusal == Refusal::NotInRoom);
+}
+
+// A friend in another game is joined by nothing, public or private; one that names no game, or this one, is as before.
+void AFriendInAnotherGame() {
+	auto state = Listed();
+	state.friends.push_back(InRoom(FriendId, Status::Fighting, 1));
+	EXPECT(ToFriend(state, FriendId, false).kind == Destination::Kind::PublicRoom);
+	state.friends[0].presence.game = "usf4";
+	EXPECT(sf4e::netplay::SameGame("") && sf4e::netplay::SameGame("usf4") && !sf4e::netplay::SameGame("sfv") && !sf4e::netplay::SameGame("USF4"));
+	EXPECT(ToFriend(state, FriendId, false).kind == Destination::Kind::PublicRoom && ToFriend(state, FriendId, true).watchTable == 1);
+	state.friends[0].presence.game = "sfv";
+	auto where = ToFriend(state, FriendId, false);
+	EXPECT(!where.Any() && where.refusal == Refusal::OtherGame && where.name == "Player 3" && where.roomId.empty());
+	EXPECT(ToFriend(state, FriendId, true).refusal == Refusal::OtherGame);
+	// Before anything about the room: a joinable private offer or a room that is not joinable are the other game's too.
+	state.friends[0].presence.room.joinable = false;
+	EXPECT(ToFriend(state, FriendId, false).refusal == Refusal::OtherGame);
+	state.friends[0].presence.hasRoom = false;
+	state.friends[0].presence.privateRoom = true;
+	state.friends[0].presence.hasPrivateOffer = true;
+	state.friends[0].presence.privateOffer.joinable = true;
+	EXPECT(ToFriend(state, FriendId, false).refusal == Refusal::OtherGame && ToFriend(state, FriendId, false).kind == Destination::Kind::None);
+	// A friend who is in no room is in no room, whatever the game.
+	state.friends[0].presence.kind = Presence::Kind::Online;
+	EXPECT(ToFriend(state, FriendId, false).refusal == Refusal::NotInRoom);
+	// Titles of the games this build knows; none for one it does not.
+	EXPECT(std::string(sf4e::netplay::GameTitle("usf4")) == "USF4" && std::string(sf4e::netplay::GameTitle("sfv")) == "SFV" && std::string(sf4e::netplay::GameTitle("umvc3")) == "UMVC3");
+	EXPECT(std::string(sf4e::netplay::GameTitle("")).empty() && std::string(sf4e::netplay::GameTitle("tekken")).empty());
+	EXPECT(std::string(sf4e::netplay::GameId) == "usf4");
+}
+
 void TakingAnInvite() {
 	auto state = Listed();
 	state.friends.push_back(InRoom(FriendId, Status::Idle, -1));
@@ -325,6 +401,8 @@ void ANewVisitReplaces() {
 int main() {
 	JoiningAFriend();
 	WatchingAFriend();
+	JoiningAPrivateOffer();
+	AFriendInAnotherGame();
 	TakingAnInvite();
 	AFreePlayerJoins();
 	WatchingOnceIn();

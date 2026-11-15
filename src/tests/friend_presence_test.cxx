@@ -105,23 +105,103 @@ void InAPublicRoom() {
 	EXPECT(world.Reported().kind == Report::Kind::InRoom);
 }
 
-// A private room is only "in a private room", whatever the player does there.
+// A private room its host hid from friends is only "in a private room", whatever the player does there.
 void InAPrivateRoom() {
 	World world;
 	world.Join(room::MemberStatus::Playing);
+	world.room.friendsHidden = true;
 	world.room.members[0].seat = 1;
 	world.room.members[0].table = 0;
 	const auto report = world.Reported();
 	EXPECT(report.kind == Report::Kind::InRoom && report.roomId.empty() && report.status == Status::Fighting && report.table == 0);
 	const auto text = report.ToJson().dump();
 	EXPECT(report.ToJson() == json({{"activity", "room"}, {"room", {{"private", true}, {"status", "fighting"}, {"table", 0}}}}));
-	// The join secret is never in presence.
-	EXPECT(text.find("emd1") == std::string::npos && text.find("secret") == std::string::npos);
+	// Nothing of the room is offered, so the join secret is not in presence.
+	EXPECT(!report.offered && report.secret.empty());
+	EXPECT(text.find("emd1") == std::string::npos && text.find("secret") == std::string::npos && text.find("offer") == std::string::npos);
 	// A public room the game has no id for is reported as one that is not named.
 	world.identity.isPublic = true;
 	EXPECT(world.Reported().roomId.empty());
 	world.identity.publicId = "not an id";
 	EXPECT(world.Reported().roomId.empty());
+}
+
+// A private room open to friends reports its name, size and invitation, under the rule discord::Describe offers a room
+// to Discord friends by, and never for a public room or a room its host hid.
+void AnOfferedPrivateRoom() {
+	World world;
+	world.Join(room::MemberStatus::Idle);
+	world.room.name = "Open Mic";
+	auto report = world.Reported();
+	EXPECT(report.kind == Report::Kind::InRoom && report.roomId.empty() && report.status == Status::Idle);
+	EXPECT(report.offered && report.name == "Open Mic" && report.members == 1 && report.capacity == 16 && report.secret == Invitation);
+	EXPECT(report.ToJson() == json({{"activity", "room"}, {"room", {{"private", true}, {"status", "idle"},
+		{"offer", {{"secret", Invitation}, {"name", "Open Mic"}, {"members", 1}, {"capacity", 16}}}}}}));
+	// The table of a seated fighter goes along as before.
+	world.room.members[0].status = room::MemberStatus::Playing;
+	world.room.members[0].seat = 0;
+	world.room.members[0].table = 2;
+	report = world.Reported();
+	EXPECT(report.offered && report.table == 2 && report.ToJson().at("room").at("offer").at("name") == "Open Mic");
+	world.room.members[0].status = room::MemberStatus::Idle;
+	world.room.members[0].seat = -1;
+	world.room.members[0].table = -1;
+
+	// Hidden by the host: nothing is offered, and the report is the plain one.
+	world.room.friendsHidden = true;
+	EXPECT(!world.Reported().offered && world.Reported() == world.Reported().WithoutOffer());
+	world.room.friendsHidden = false;
+	// A room that is locked, full, no longer healthy, bound to a match or with no invitation offers nothing.
+	world.room.locked = true;
+	EXPECT(!world.Reported().offered && world.Reported().secret.empty() && world.Reported().kind == Report::Kind::InRoom);
+	world.room.locked = false;
+	world.room.capacity = 1;
+	EXPECT(!world.Reported().offered);
+	world.room.capacity = 16;
+	world.session.control = netplay::Health::Lost;
+	EXPECT(!world.Reported().offered);
+	world.session.control = netplay::Health::Healthy;
+	world.room.tournament.matchId = "emt_1";
+	EXPECT(!world.Reported().offered);
+	world.room.tournament = room::TournamentBinding();
+	world.input.secret.clear();
+	EXPECT(!world.Reported().offered);
+	world.input.secret = Invitation;
+	EXPECT(world.Reported().offered);
+	// A public room is never offered this way, hidden or not.
+	world.identity.isPublic = true;
+	world.identity.publicId = RoomId;
+	report = world.Reported();
+	EXPECT(!report.offered && report.roomId == RoomId && report.ToJson().dump().find("offer") == std::string::npos);
+}
+
+// What a sync compares: a renewed invitation, a new member, a rename, a leader change and the host's setting all differ.
+void TheOfferIsCompared() {
+	World world;
+	world.Join(room::MemberStatus::Idle);
+	world.room.name = "Open Mic";
+	const auto base = world.Reported();
+	EXPECT(base.offered && base == world.Reported() && !(base != world.Reported()));
+	world.input.secret = "emd1:" + std::string(122, 'B');
+	EXPECT(world.Reported() != base);
+	world.input.secret = Invitation;
+	room::Member other;
+	other.id = 3;
+	world.room.members.push_back(other);
+	EXPECT(world.Reported().members == 2 && world.Reported() != base);
+	world.room.members.pop_back();
+	world.room.name = "Another room";
+	EXPECT(world.Reported() != base);
+	world.room.name = "Open Mic";
+	world.room.capacity = 8;
+	EXPECT(world.Reported().capacity == 8 && world.Reported() != base);
+	world.room.capacity = 16;
+	EXPECT(world.Reported() == base);
+	world.room.friendsHidden = true;
+	EXPECT(world.Reported() != base);
+	// Without its offer a report is the same as the one of a hidden room.
+	EXPECT(base.WithoutOffer() == world.Reported() && !base.WithoutOffer().offered && base.WithoutOffer().secret.empty() && base.WithoutOffer().name.empty());
+	EXPECT(base.WithoutOffer().ToJson() == json({{"activity", "room"}, {"room", {{"private", true}, {"status", "idle"}}}}));
 }
 
 // The room that can be offered, by the rule discord::Describe offers a room to Discord friends by.
@@ -166,6 +246,8 @@ int main() {
 	OutsideARoom();
 	InAPublicRoom();
 	InAPrivateRoom();
+	AnOfferedPrivateRoom();
+	TheOfferIsCompared();
 	WhatCanBeOffered();
 	if (TEST_FAILURES()) std::printf("%d failure(s)\n", TEST_FAILURES());
 	return TEST_EXIT_CODE();
