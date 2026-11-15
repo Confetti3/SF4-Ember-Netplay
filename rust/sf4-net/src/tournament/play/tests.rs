@@ -225,6 +225,11 @@ fn a_bridge_offers_what_its_capabilities_list() {
     assert!(Features::of(&capabilities(&[RANKING_FEATURE])).ranking);
     let social = Features::of(&capabilities(&[POINTS_FEATURE, FRIENDS_FEATURE]));
     assert!(social.levels && social.friends && !social.ranking);
+    // The presence members are their own feature, listed beside friends but
+    // not implied by it.
+    assert!(!social.friends_presence_v2);
+    let presence = Features::of(&capabilities(&[FRIENDS_FEATURE, PRESENCE_V2_FEATURE]));
+    assert!(presence.friends && presence.friends_presence_v2);
     assert!(Features::of(&capabilities(&[POINTS_FEATURE])).levels);
     assert!(!Features::of(&capabilities(&[POINTS_FEATURE])).friends);
     // The class bonus is listed beside points by a bridge that counts it.
