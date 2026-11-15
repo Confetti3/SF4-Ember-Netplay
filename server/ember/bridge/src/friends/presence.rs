@@ -22,11 +22,13 @@ pub enum Doing {
     Room(RoomReport),
 }
 
-/// An account's last presence and the build it was sent from.
+/// An account's last presence and the build and game it was sent from. A
+/// private room's offer sits inside `doing`; its `Debug` hides the invitation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Seen {
     pub doing: Doing,
     pub build_id: String,
+    pub game: String,
     pub beat_at: u64,
 }
 
@@ -100,7 +102,14 @@ impl Live {
     }
 
     /// Records `account`'s presence; `offline` forgets it at once.
-    pub fn report(&self, account: &str, presence: PresenceReport, build_id: String, now: u64) {
+    pub fn report(
+        &self,
+        account: &str,
+        presence: PresenceReport,
+        build_id: String,
+        game: String,
+        now: u64,
+    ) {
         let doing = match presence {
             PresenceReport::Menus {} => Doing::Activity(Activity::Menus),
             PresenceReport::OfflinePlay {} => Doing::Activity(Activity::OfflinePlay),
@@ -113,6 +122,7 @@ impl Live {
         let seen = Seen {
             doing,
             build_id,
+            game,
             beat_at: now,
         };
         self.inner().seen.insert(account.to_owned(), seen);
@@ -219,6 +229,7 @@ mod tests {
             private: true,
             status: RoomStatus::Training,
             table: Some(2),
+            offer: None,
         };
         live.report(
             "a",
@@ -226,6 +237,7 @@ mod tests {
                 room: training.clone(),
             },
             "build".into(),
+            "usf4".into(),
             NOW,
         );
         assert_eq!(
@@ -233,6 +245,7 @@ mod tests {
             Some(Seen {
                 doing: Doing::Room(training),
                 build_id: "build".into(),
+                game: "usf4".into(),
                 beat_at: NOW,
             })
         );
@@ -248,12 +261,24 @@ mod tests {
     #[test]
     fn an_offline_report_forgets_the_presence_at_once() {
         let live = Live::default();
-        live.report("a", PresenceReport::Menus {}, "build".into(), NOW);
+        live.report(
+            "a",
+            PresenceReport::Menus {},
+            "build".into(),
+            "usf4".into(),
+            NOW,
+        );
         assert_eq!(
             live.seen("a").map(|seen| seen.doing),
             Some(Doing::Activity(Activity::Menus))
         );
-        live.report("a", PresenceReport::Offline {}, "build".into(), NOW + 1);
+        live.report(
+            "a",
+            PresenceReport::Offline {},
+            "build".into(),
+            "usf4".into(),
+            NOW + 1,
+        );
         assert_eq!(live.seen("a"), None);
     }
 
@@ -305,7 +330,13 @@ mod tests {
 
         live.invite("a", "b", room(), NOW);
         live.invite("b", "c", room(), NOW);
-        live.report("b", PresenceReport::Menus {}, "build".into(), NOW);
+        live.report(
+            "b",
+            PresenceReport::Menus {},
+            "build".into(),
+            "usf4".into(),
+            NOW,
+        );
         live.forget("b");
         assert!(live.invites_for("b", NOW).is_empty());
         assert!(live.invites_for("c", NOW).is_empty());

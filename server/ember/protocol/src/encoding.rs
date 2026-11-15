@@ -233,10 +233,12 @@ mod tests {
 
     #[test]
     fn game_ids_are_short_lower_case_words() {
-        for good in ["usf4", "sfv", "a", "0", &"z9".repeat(8)] {
+        let longest = "z9".repeat(8);
+        for good in ["usf4", "sfv", "a", "0", longest.as_str()] {
             assert!(is_game_id(good), "{good}");
         }
-        for bad in ["", "SFV", "sf-v", "sf_v", "sf v", "s\u{e9}", &"a".repeat(17)] {
+        let too_long = "a".repeat(17);
+        for bad in ["", "SFV", "sf-v", "sf_v", "sf v", "s\u{e9}", too_long.as_str()] {
             assert!(!is_game_id(bad), "{bad:?}");
         }
     }

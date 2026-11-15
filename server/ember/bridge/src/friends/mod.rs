@@ -16,8 +16,9 @@ use std::collections::HashMap;
 use ember_protocol::{
     Error,
     friends::{
-        Friend, FriendAction, FriendPresence, FriendRefusal, FriendRoom, FriendsState,
-        IncomingRequest, MainFighter, Played, ReceivedInvite, parse_friend_code,
+        DEFAULT_GAME, Friend, FriendAction, FriendPresence, FriendRefusal, FriendRoom,
+        FriendsState, IncomingRequest, Joining, MainFighter, Played, PrivateRoom, ReceivedInvite,
+        parse_friend_code,
     },
     levels::{CardAccount, PlayerCard},
 };
@@ -149,6 +150,9 @@ pub fn act(
                 room,
             }))
         }
+        // Hands out a secret, so it has its own answer (`join`), which the
+        // route calls; here it is not an action that changes anything.
+        FriendAction::Join { .. } => Err(Error::InvalidField("action").into()),
         FriendAction::Dismiss { invite } => Ok(Some(Effect::Dismiss {
             invitee: caller.to_owned(),
             id: invite,
@@ -165,13 +169,71 @@ pub fn act(
     }
 }
 
+/// The invitation to the private room of the friend `friend_id` (`fr_`), for
+/// `caller` who pressed join. It is what the bridge hands out of the offer a
+/// friend's game reported, and only here: no state carries it otherwise.
+///
+/// The check is the invite's reachability (still friends, not appearing
+/// offline, synced lately) and the visit's: the same game and build as the
+/// caller's last sync, a private room on offer, and a seat free. Every way it
+/// fails is `join_unavailable`, so the caller learns nothing about which; an
+/// account with friends off is refused as `friends_off`, as every route does.
+pub fn join(
+    tx: &Transaction<'_>,
+    live: &Live,
+    caller: &str,
+    friend_id: &str,
+    now: u64,
+) -> Result<Joining> {
+    let own = store::account(tx, caller)?.ok_or_else(resync)?;
+    if own.off {
+        return Err(refuse(FriendRefusal::FriendsOff));
+    }
+    let viewer = live.seen(caller).ok_or_else(resync)?;
+    let unavailable = || refuse(FriendRefusal::JoinUnavailable);
+    let other = store::friend_of(tx, caller, friend_id)?.ok_or_else(unavailable)?;
+    let shown = store::account(tx, &other)?.ok_or_else(unavailable)?;
+    if shown.appear_offline {
+        return Err(unavailable());
+    }
+    let seen = live
+        .seen(&other)
+        .filter(|seen| seen.online(now))
+        .ok_or_else(unavailable)?;
+    if seen.game != viewer.game || seen.build_id != viewer.build_id {
+        return Err(unavailable());
+    }
+    let Doing::Room(room) = seen.doing else {
+        return Err(unavailable());
+    };
+    let offer = room
+        .offer
+        .filter(|_| room.private)
+        .filter(|offer| offer.members < offer.capacity)
+        .ok_or_else(unavailable)?;
+    Ok(Joining {
+        friend: friend_id.to_owned(),
+        secret: offer.secret,
+    })
+}
+
 /// The account a card token names, or `card_expired`.
 fn opened(keys: &Keys, card: &str, now: u64) -> Result<String> {
     cards::open(keys, card, now).ok_or_else(|| refuse(FriendRefusal::CardExpired))
 }
 
-/// Everything `caller` sees of their friends now. The caller's build, for
-/// whether a friend's room is joinable, is the one their last sync named.
+/// The game and build of the viewer's last sync: what decides whose rooms a
+/// state shows and whether they are joinable.
+struct Viewing<'a> {
+    game: &'a str,
+    build: Option<&'a str>,
+}
+
+/// Everything `caller` sees of their friends now. The caller's game and
+/// build, for whose rooms are shown and whether a friend's room is joinable,
+/// are the ones their last sync named. A caller the bridge has not heard from
+/// since it started is read as the default game's with no build, so an older
+/// build's first answer shows what it always did.
 ///
 /// It costs the same few reads whatever the number of friends: the caller's
 /// own lists, the friends' points, classes and records, and the senders'
@@ -189,7 +251,11 @@ pub fn state(
     if own.off {
         return Err(refuse(FriendRefusal::FriendsOff));
     }
-    let build = live.seen(caller).map(|seen| seen.build_id);
+    let last = live.seen(caller);
+    let viewing = Viewing {
+        game: last.as_ref().map_or(DEFAULT_GAME, |seen| seen.game.as_str()),
+        build: last.as_ref().map(|seen| seen.build_id.as_str()),
+    };
     let rows = store::friends(tx, caller)?;
     let requests = store::incoming(tx, caller)?;
     let accounts: Vec<&str> = rows
@@ -213,7 +279,7 @@ pub fn state(
             Doing::Activity(_) => None,
         })
         .collect();
-    let rooms = store::listed_rooms(tx, &room_ids, build.as_deref())?;
+    let rooms = store::listed_rooms(tx, &room_ids, viewing.build, viewing.game)?;
     let mut friends = Vec::with_capacity(rows.len());
     let mut ids = HashMap::with_capacity(rows.len());
     for (row, seen) in rows.into_iter().zip(seen) {
@@ -224,7 +290,7 @@ pub fn state(
             main,
             account,
             badge: read.badge(&row.account),
-            presence: presence_of(&row, seen, &rooms),
+            presence: presence_of(&row, seen, &viewing, &rooms),
             record: read.record(&row.account),
             name: row.shown.name,
             country: row.shown.country,
@@ -265,6 +331,7 @@ pub fn state(
         outgoing: store::outgoing(tx, caller)?,
         invites,
         blocked: store::blocked(tx, caller)?,
+        joining: None,
     };
     state.check().map_err(|_| ApiFailure::unavailable())?;
     Ok(state)
@@ -302,11 +369,15 @@ fn visible(live: &Live, friend: &FriendRow, now: u64) -> Option<Seen> {
 
 /// Where a friend is, as the caller may see it: offline, with when they were
 /// last seen, while they appear offline or have not synced lately (`seen` is
-/// none); else what their last sync said, with their public room while it is
-/// open and listed (`rooms`).
+/// none); else what their last sync said and the game it was for. A friend in
+/// the viewer's game has their public room while it is open and listed
+/// (`rooms`) and their private room's facts while they offer it, joinable
+/// when it is of the viewer's build and has a seat free; a friend in another
+/// game shows only what they are doing, and no room.
 fn presence_of(
     friend: &FriendRow,
     seen: Option<Seen>,
+    viewing: &Viewing<'_>,
     rooms: &HashMap<String, FriendRoom>,
 ) -> FriendPresence {
     let Some(seen) = seen else {
@@ -314,16 +385,43 @@ fn presence_of(
             seen_at: Some(friend.shown.seen_at),
         };
     };
+    let same_game = seen.game == viewing.game;
+    let same_build = viewing.build == Some(seen.build_id.as_str());
     match seen.doing {
-        Doing::Activity(activity) => FriendPresence::Online { activity },
-        Doing::Room(room) => FriendPresence::Room {
+        Doing::Activity(activity) => FriendPresence::Online {
+            activity,
+            game: Some(seen.game),
+        },
+        Doing::Room(room) if !same_game => FriendPresence::Room {
             status: room.status,
             table: room.table,
-            room: room
-                .room_id
-                .and_then(|room_id| rooms.get(&room_id).cloned()),
+            room: None,
             private: room.private,
+            game: Some(seen.game),
+            private_room: None,
         },
+        Doing::Room(room) => {
+            let private_room = room
+                .offer
+                .as_ref()
+                .filter(|_| room.private)
+                .map(|offer| PrivateRoom {
+                    name: offer.name.clone(),
+                    members: offer.members,
+                    capacity: offer.capacity,
+                    joinable: same_build && offer.members < offer.capacity,
+                });
+            FriendPresence::Room {
+                status: room.status,
+                table: room.table,
+                room: room
+                    .room_id
+                    .and_then(|room_id| rooms.get(&room_id).cloned()),
+                private: room.private,
+                game: Some(seen.game),
+                private_room,
+            }
+        }
     }
 }
 
