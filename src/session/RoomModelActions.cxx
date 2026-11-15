@@ -58,6 +58,16 @@ Result RoomAuthority::ApplySetWiredOnly(MemberId member, const Action& action) {
 	return Accept();
 }
 
+// Only a room its players own, and that is not a match room, has friends to
+// hide it from. The setting changes what the friends of its members are shown
+// and nothing about play.
+Result RoomAuthority::ApplySetFriendsHidden(MemberId member, const Action& action) {
+	if (!IsHost(member)) return Reject(RejectReason::NotHost);
+	if (snapshot_.serverOwned || snapshot_.tournament.Active()) return Reject(RejectReason::Unauthorized);
+	if (snapshot_.friendsHidden != action.friendsHidden) { snapshot_.friendsHidden = action.friendsHidden; TouchRoom(); }
+	return Accept();
+}
+
 Result RoomAuthority::ApplyKick(MemberId member, const Action& action) {
 	if (!IsHost(member) || action.target == 0 || action.target == snapshot_.host) return Reject(RejectReason::Unauthorized);
 	const auto* targetMember = Find(action.target);
@@ -508,7 +518,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (snapshot_.closed && action.kind != ActionKind::Leave) return Reject(RejectReason::Closed);
 	if (action.roomEpoch != snapshot_.roomEpoch) return Reject(RejectReason::StaleRoom);
 	const bool roomAction = action.kind == ActionKind::SetCapacity || action.kind == ActionKind::SetTableCount || action.kind == ActionKind::Lock ||
-		action.kind == ActionKind::SetWiredOnly || action.kind == ActionKind::Kick || action.kind == ActionKind::Close || action.kind == ActionKind::Rename ||
+		action.kind == ActionKind::SetWiredOnly || action.kind == ActionKind::SetFriendsHidden || action.kind == ActionKind::Kick || action.kind == ActionKind::Close || action.kind == ActionKind::Rename ||
 		action.kind == ActionKind::TransferHost;
 	if (roomAction && action.revision != snapshot_.revision) return Reject(RejectReason::StaleRoom);
 	const bool generationScopedUnwatch = action.kind == ActionKind::Unwatch && action.matchGeneration != 0;
@@ -552,6 +562,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::SetTableCount) return ApplySetTableCount(member, action);
 	if (action.kind == ActionKind::Lock) return ApplyLock(member, action);
 	if (action.kind == ActionKind::SetWiredOnly) return ApplySetWiredOnly(member, action);
+	if (action.kind == ActionKind::SetFriendsHidden) return ApplySetFriendsHidden(member, action);
 	// The bound fighters keep their seats; nobody is kicked from a match room.
 	if (action.kind == ActionKind::Kick && snapshot_.tournament.Active()) return Reject(RejectReason::Unauthorized);
 	if (action.kind == ActionKind::Kick) return ApplyKick(member, action);

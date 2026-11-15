@@ -11,6 +11,7 @@ RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint6
 	snapshot_.protocolVersion = ProtocolVersion;
 	snapshot_.practice = charter.practice;
 	snapshot_.wiredOnly = charter.wiredOnly;
+	snapshot_.friendsHidden = charter.friendsHidden;
 	snapshot_.type = charter.type;
 	snapshot_.tableCount = InRange<std::uint8_t>(charter.tableCount, 1, static_cast<std::uint8_t>(TableCount))
 		? charter.tableCount : DefaultTableCount(charter.type);
@@ -44,6 +45,7 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member, bool withChat) const {
 		result.practice = snapshot_.practice;
 		result.delayPolicy = snapshot_.delayPolicy;
 		result.wiredOnly = snapshot_.wiredOnly;
+		result.friendsHidden = snapshot_.friendsHidden;
 		result.type = snapshot_.type;
 		result.tableCount = snapshot_.tableCount;
 		result.cabinets = snapshot_.cabinets;
