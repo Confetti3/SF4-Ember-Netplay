@@ -48,6 +48,7 @@ public:
         title = loc::T("online.title");
         std::vector<MenuEntry> rows = {open("create", loc::T("online.create"), loc::T("online.create_detail")), open("join", loc::T("online.join"), loc::T("online.join_detail")),
             open("public-rooms", loc::T("screen.public_rooms"), loc::T("online.public_detail")),
+            Row("friends", loc::T("home.friends"), loc::T("online.friends_detail")),
             Row("identity", loc::T("screen.identity"), s.identity_.EntryDetail(v)),
             Row("rankings", loc::T("screen.rankings"), loc::T("rankings.entry_detail"))};
         rows.back().value = RankingsPanel::EntryValue(v, s.identity_.UsableBridge(v));
