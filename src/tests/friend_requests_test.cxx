@@ -350,9 +350,9 @@ void Wire() {
 		{"build_id", "b1"}, {"game", "usf4"}, {"listing", {{"name", "Player 1"}}},
 		{"presence", {{"activity", "room"}, {"room", {{"private", true}, {"status", "idle"}}}}}}}}));
 	// A public room's report never has one, whatever else it holds.
-	Report publicRoom = fighting;
-	publicRoom.offered = true; publicRoom.secret = SecretText;
-	EXPECT(publicRoom.ToJson() == fighting.ToJson());
+	Report listedRoom = fighting;
+	listedRoom.offered = true; listedRoom.secret = SecretText;
+	EXPECT(listedRoom.ToJson() == fighting.ToJson());
 }
 }
 
