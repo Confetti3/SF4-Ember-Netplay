@@ -5710,7 +5710,7 @@ msgid "public.filter_near_unset"
 msgstr "Tu zona no está definida, así que Ember no puede saber qué salas te quedan cerca. Defínela en Ajustes, País y zona."
 
 msgid "public.filter_near_unlisted"
-msgstr "Ninguna sala indica una zona por ahora, así que Ember no puede saber qué salas te quedan cerca. Se muestran todas las salas."
+msgstr "Ninguna sala de la lista indica una zona por ahora, así que Ember no puede saber qué salas te quedan cerca. Se muestran todas las salas."
 
 msgid "public.near_you"
 msgstr "Cerca de ti"
@@ -8489,7 +8489,7 @@ msgid "settings.game_theme_missing"
 msgstr "{0} (se usa: faltan algunas imágenes de HUD)"
 
 msgid "settings.game_theme_missing_detail"
-msgstr "{0} se usa. Su diseño de HUD nombra algunas imágenes que su hoja no tiene, y esas no se dibujan."
+msgstr "{0} se usa. El diseño de HUD nombra algunas imágenes que su hoja no tiene, y esas no se dibujan."
 
 msgid "runtime.game_theme_turned_off"
 msgstr "{0} se desactivó para {1}: el juego se cerró al cargarlo."

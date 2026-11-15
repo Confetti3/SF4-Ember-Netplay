@@ -5710,7 +5710,7 @@ msgid "public.filter_near_unset"
 msgstr "Twój obszar nie jest ustawiony, więc Ember nie wie, które pokoje są w pobliżu. Ustaw go w Ustawienia, Kraj i obszar."
 
 msgid "public.filter_near_unlisted"
-msgstr "Żaden pokój nie podaje teraz obszaru, więc Ember nie wie, które pokoje są w pobliżu. Widać wszystkie pokoje."
+msgstr "Żaden pokój na liście nie podaje teraz obszaru, więc Ember nie wie, które pokoje są w pobliżu. Widać wszystkie pokoje."
 
 msgid "public.near_you"
 msgstr "W pobliżu"
@@ -8489,7 +8489,7 @@ msgid "settings.game_theme_missing"
 msgstr "{0} (używany: brakuje niektórych obrazów HUD)"
 
 msgid "settings.game_theme_missing_detail"
-msgstr "Motyw {0} jest używany. Układ jego HUD wskazuje obrazy, których nie ma w jego arkuszu, i te nie są rysowane."
+msgstr "Motyw {0} jest używany. Układ HUD wskazuje obrazy, których nie ma w jego arkuszu, i te nie są rysowane."
 
 msgid "runtime.game_theme_turned_off"
 msgstr "Motyw {0} wyłączono dla: {1}. Gra zamknęła się podczas jego wczytywania."

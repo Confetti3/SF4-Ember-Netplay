@@ -5710,7 +5710,7 @@ msgid "public.filter_near_unset"
 msgstr "내 권역이 설정되지 않아 Ember가 가까운 방을 구분할 수 없습니다. 설정의 국가/지역 및 권역에서 정하세요."
 
 msgid "public.filter_near_unlisted"
-msgstr "지금은 권역을 알리는 방이 없어 Ember가 가까운 방을 구분할 수 없습니다. 모든 방을 표시합니다."
+msgstr "지금은 목록에 권역을 알리는 방이 없어 Ember가 가까운 방을 구분할 수 없습니다. 모든 방을 표시합니다."
 
 msgid "public.near_you"
 msgstr "근처"

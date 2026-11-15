@@ -5710,7 +5710,7 @@ msgid "public.filter_near_unset"
 msgstr "エリアが未設定のため、Emberは近くのルームを判別できません。設定の「国・地域とエリア」で設定してください。"
 
 msgid "public.filter_near_unlisted"
-msgstr "エリアを載せているルームが今はないため、Emberは近くのルームを判別できません。すべてのルームを表示しています。"
+msgstr "今は一覧のどのルームもエリアを載せていないため、Emberは近くのルームを判別できません。すべてのルームを表示しています。"
 
 msgid "public.near_you"
 msgstr "近く"

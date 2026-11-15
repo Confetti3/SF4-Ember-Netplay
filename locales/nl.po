@@ -5710,7 +5710,7 @@ msgid "public.filter_near_unset"
 msgstr "Je gebied is niet ingesteld, dus Ember kan niet zeggen welke kamers bij jou in de buurt zijn. Stel het in bij Instellingen, Land en gebied."
 
 msgid "public.filter_near_unlisted"
-msgstr "Geen enkele kamer toont nu een gebied, dus Ember kan niet zeggen welke kamers bij jou in de buurt zijn. Alle kamers worden getoond."
+msgstr "Geen enkele kamer in de lijst toont nu een gebied, dus Ember kan niet zeggen welke kamers bij jou in de buurt zijn. Alle kamers worden getoond."
 
 msgid "public.near_you"
 msgstr "In de buurt"

@@ -5710,7 +5710,7 @@ msgid "public.filter_near_unset"
 msgstr "La tua area non è impostata, quindi Ember non sa quali sale sono vicine a te. Impostala in Impostazioni, Paese e area."
 
 msgid "public.filter_near_unlisted"
-msgstr "Nessuna sala indica un'area al momento, quindi Ember non sa quali sale sono vicine a te. Vengono elencate tutte le sale."
+msgstr "Nessuna sala dell'elenco indica un'area al momento, quindi Ember non sa quali sale sono vicine a te. Vengono mostrate tutte le sale."
 
 msgid "public.near_you"
 msgstr "Vicino a te"
@@ -8489,7 +8489,7 @@ msgid "settings.game_theme_missing"
 msgstr "{0} (usato: mancano alcune immagini HUD)"
 
 msgid "settings.game_theme_missing_detail"
-msgstr "{0} è usato. Il suo layout HUD cita alcune immagini che il suo foglio non ha, e queste non vengono disegnate."
+msgstr "{0} è usato. Il layout HUD cita alcune immagini che il suo foglio non ha, e queste non vengono disegnate."
 
 msgid "runtime.game_theme_turned_off"
 msgstr "{0} è stato disattivato per {1}: il gioco si è chiuso durante il caricamento."

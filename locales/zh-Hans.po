@@ -5710,7 +5710,7 @@ msgid "public.filter_near_unset"
 msgstr "你的大区尚未设置，因此 Ember 无法判断哪些房间在附近。请在设置的“国家/地区和大区”中设置。"
 
 msgid "public.filter_near_unlisted"
-msgstr "目前没有房间标明大区，因此 Ember 无法判断哪些房间在附近。已列出所有房间。"
+msgstr "目前列表中没有房间标明大区，因此 Ember 无法判断哪些房间在附近。已显示所有房间。"
 
 msgid "public.near_you"
 msgstr "附近"
@@ -8489,7 +8489,7 @@ msgid "settings.game_theme_missing"
 msgstr "{0}（已使用：缺少部分 HUD 图片）"
 
 msgid "settings.game_theme_missing_detail"
-msgstr "{0} 已使用。其 HUD 布局用到的部分图片在图片表中不存在，这些图片不会显示。"
+msgstr "{0} 已使用。HUD 布局用到的部分图片在图片表中不存在，这些图片不会显示。"
 
 msgid "runtime.game_theme_turned_off"
 msgstr "{0} 已对 {1} 关闭：游戏在加载它时关闭了。"

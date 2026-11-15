@@ -5710,7 +5710,7 @@ msgid "public.filter_near_unset"
 msgstr "Vaše oblast není nastavena, takže Ember nepozná, které místnosti jsou poblíž. Nastavte ji v Nastavení, Země a oblast."
 
 msgid "public.filter_near_unlisted"
-msgstr "Žádná místnost teď neuvádí oblast, takže Ember nepozná, které místnosti jsou poblíž. Zobrazují se všechny místnosti."
+msgstr "Žádná místnost v seznamu teď neuvádí oblast, takže Ember nepozná, které místnosti jsou poblíž. Zobrazují se všechny místnosti."
 
 msgid "public.near_you"
 msgstr "Poblíž"
@@ -8489,7 +8489,7 @@ msgid "settings.game_theme_missing"
 msgstr "{0} (použit: některé obrázky HUD chybí)"
 
 msgid "settings.game_theme_missing_detail"
-msgstr "Motiv {0} je použit. Rozložení jeho HUD uvádí obrázky, které jeho sada nemá, a ty se nezobrazují."
+msgstr "Motiv {0} je použit. Rozložení HUD uvádí obrázky, které jeho sada nemá, a ty se nezobrazují."
 
 msgid "runtime.game_theme_turned_off"
 msgstr "Motiv {0} byl pro {1} vypnut: hra se při jeho načítání zavřela."

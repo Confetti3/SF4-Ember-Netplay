@@ -5710,7 +5710,7 @@ msgid "public.filter_near_unset"
 msgstr "Votre zone n'est pas définie, donc Ember ne peut pas dire quels salons sont proches de vous. Définissez-la dans Paramètres, Pays et zone."
 
 msgid "public.filter_near_unlisted"
-msgstr "Aucun salon n'indique de zone pour l'instant, donc Ember ne peut pas dire quels salons sont proches de vous. Tous les salons sont listés."
+msgstr "Aucun salon de la liste n'indique de zone pour l'instant, donc Ember ne peut pas dire quels salons sont proches de vous. Tous les salons sont affichés."
 
 msgid "public.near_you"
 msgstr "Près de vous"
@@ -8489,7 +8489,7 @@ msgid "settings.game_theme_missing"
 msgstr "{0} (utilisé : certaines images HUD manquent)"
 
 msgid "settings.game_theme_missing_detail"
-msgstr "{0} est utilisé. La disposition de son HUD cite des images que sa feuille n'a pas ; elles ne sont pas dessinées."
+msgstr "{0} est utilisé. La disposition du HUD cite des images que sa feuille n'a pas ; elles ne sont pas dessinées."
 
 msgid "runtime.game_theme_turned_off"
 msgstr "{0} a été désactivé pour {1} : le jeu s'est fermé pendant son chargement."

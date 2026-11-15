@@ -5336,7 +5336,7 @@ msgid "public.filter_near_unset"
 msgstr "Your area is not set, so Ember can't tell which rooms are near you. Set it in Settings, Country and area."
 
 msgid "public.filter_near_unlisted"
-msgstr "No room lists an area right now, so Ember can't tell which rooms are near you. Every room is listed."
+msgstr "No room on the list names an area right now, so Ember can't tell which rooms are near you. Every room is shown."
 
 msgid "public.near_you"
 msgstr "Near you"
@@ -8119,7 +8119,7 @@ msgid "settings.game_theme_missing"
 msgstr "{0} (used: some HUD pictures are missing)"
 
 msgid "settings.game_theme_missing_detail"
-msgstr "{0} is used. Its HUD layout names some pictures its sheet does not have, and those are not drawn."
+msgstr "{0} is used. The HUD layout names some pictures its sheet does not have, and those are not drawn."
 
 msgid "runtime.game_theme_turned_off"
 msgstr "{0} was turned off for {1}: the game closed while loading it."

@@ -5710,7 +5710,7 @@ msgid "public.filter_near_unset"
 msgstr "Ihr Gebiet ist nicht festgelegt, daher kann Ember nicht sagen, welche Räume in Ihrer Nähe sind. Legen Sie es unter Einstellungen, Land und Gebiet fest."
 
 msgid "public.filter_near_unlisted"
-msgstr "Derzeit nennt kein Raum ein Gebiet, daher kann Ember nicht sagen, welche Räume in Ihrer Nähe sind. Alle Räume werden aufgelistet."
+msgstr "Derzeit nennt kein Raum in der Liste ein Gebiet, daher kann Ember nicht sagen, welche Räume in Ihrer Nähe sind. Alle Räume werden angezeigt."
 
 msgid "public.near_you"
 msgstr "In der Nähe"
