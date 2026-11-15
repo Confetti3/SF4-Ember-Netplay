@@ -693,6 +693,7 @@ void HomeJourney() {
  Check(j.h.shell.Navigation().Screen() == "card", "Home's Profile row did not open Card while requests wait");
  Check(ui::MenuPlayerCard().requests == 2, "The card does not carry the waiting requests for the Friends tab");
  // Home's Friends row says the requests waiting, then the friends online, and opens the Friends tab; Back returns Home.
+ j.h.Screen("home"); j.h.Frame(0, 2);
  const auto* friendsRow = j.row("friends");
  Check(friendsRow && friendsRow->value == loc::Tf("friends.home_requests", 2) && friendsRow->valueHighlighted, "Home's Friends row does not say how many requests wait");
  j.h.Choose("friends");
