@@ -238,7 +238,15 @@ mod tests {
             assert!(is_game_id(good), "{good}");
         }
         let too_long = "a".repeat(17);
-        for bad in ["", "SFV", "sf-v", "sf_v", "sf v", "s\u{e9}", too_long.as_str()] {
+        for bad in [
+            "",
+            "SFV",
+            "sf-v",
+            "sf_v",
+            "sf v",
+            "s\u{e9}",
+            too_long.as_str(),
+        ] {
             assert!(!is_game_id(bad), "{bad:?}");
         }
     }

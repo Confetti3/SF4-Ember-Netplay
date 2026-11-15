@@ -1888,11 +1888,14 @@ mod tests {
             }),
             field("offer")
         );
-        let offered = |change: &dyn Fn(&mut PrivateOffer)| {
-            with(&|r| change(r.offer.as_mut().unwrap()))
-        };
+        let offered =
+            |change: &dyn Fn(&mut PrivateOffer)| with(&|r| change(r.offer.as_mut().unwrap()));
         for bad in ["", "emd1:short", "emd3:AAAA", "c1.abcdEFGH-_09"] {
-            assert_eq!(offered(&|o| o.secret = bad.into()), field("secret"), "{bad}");
+            assert_eq!(
+                offered(&|o| o.secret = bad.into()),
+                field("secret"),
+                "{bad}"
+            );
         }
         assert_eq!(
             offered(&|o| o.secret = format!("emd2:{}", "A".repeat(123))),
@@ -1961,7 +1964,13 @@ mod tests {
                 "{bad}"
             );
         }
-        for bad in [json!(7), json!("SFV"), json!(""), json!("a".repeat(17)), json!(null)] {
+        for bad in [
+            json!(7),
+            json!("SFV"),
+            json!(""),
+            json!("a".repeat(17)),
+            json!(null),
+        ] {
             let mut wire = wire.clone();
             wire["game"] = bad.clone();
             assert_eq!(

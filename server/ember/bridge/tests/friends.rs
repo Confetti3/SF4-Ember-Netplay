@@ -333,7 +333,10 @@ async fn every_action_and_route_is_scanned() {
     // join gets (`World`'s drop scans them all).
     world.sync(&b, world.offering('x', 2, 8)).await;
     let seen = world.sync(&a, menus()).await;
-    assert_eq!(seen["friends"][0]["presence"]["private_room"]["joinable"], true);
+    assert_eq!(
+        seen["friends"][0]["presence"]["private_room"]["joinable"],
+        true
+    );
     let joined = world
         .act(&a, json!({ "action": "join", "friend": friend }))
         .await;

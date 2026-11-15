@@ -253,7 +253,9 @@ pub fn state(
     }
     let last = live.seen(caller);
     let viewing = Viewing {
-        game: last.as_ref().map_or(DEFAULT_GAME, |seen| seen.game.as_str()),
+        game: last
+            .as_ref()
+            .map_or(DEFAULT_GAME, |seen| seen.game.as_str()),
         build: last.as_ref().map(|seen| seen.build_id.as_str()),
     };
     let rows = store::friends(tx, caller)?;
@@ -401,16 +403,16 @@ fn presence_of(
             private_room: None,
         },
         Doing::Room(room) => {
-            let private_room = room
-                .offer
-                .as_ref()
-                .filter(|_| room.private)
-                .map(|offer| PrivateRoom {
-                    name: offer.name.clone(),
-                    members: offer.members,
-                    capacity: offer.capacity,
-                    joinable: same_build && offer.members < offer.capacity,
-                });
+            let private_room =
+                room.offer
+                    .as_ref()
+                    .filter(|_| room.private)
+                    .map(|offer| PrivateRoom {
+                        name: offer.name.clone(),
+                        members: offer.members,
+                        capacity: offer.capacity,
+                        joinable: same_build && offer.members < offer.capacity,
+                    });
             FriendPresence::Room {
                 status: room.status,
                 table: room.table,

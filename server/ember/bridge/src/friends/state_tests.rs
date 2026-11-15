@@ -471,7 +471,10 @@ fn a_private_offer_is_shown_as_facts_within_one_game() {
     assert!(matches!(
         full,
         FriendPresence::Room {
-            private_room: Some(PrivateRoom { joinable: false, .. }),
+            private_room: Some(PrivateRoom {
+                joinable: false,
+                ..
+            }),
             ..
         }
     ));
@@ -481,9 +484,17 @@ fn a_private_offer_is_shown_as_facts_within_one_game() {
         build: None,
     };
     assert!(matches!(
-        presence_of(&row, Some(seen_in("usf4", BUILD, private_report(2, 8))), &unsynced, &none),
+        presence_of(
+            &row,
+            Some(seen_in("usf4", BUILD, private_report(2, 8))),
+            &unsynced,
+            &none
+        ),
         FriendPresence::Room {
-            private_room: Some(PrivateRoom { joinable: false, .. }),
+            private_room: Some(PrivateRoom {
+                joinable: false,
+                ..
+            }),
             ..
         }
     ));
