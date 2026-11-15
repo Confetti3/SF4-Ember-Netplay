@@ -4,12 +4,14 @@
 #include <string>
 
 namespace uilab {
-// --friends full|requests|notifications|empty|noaccount|unavailable|loading|unreachable|offline: a service the player
+// --friends full|requests|notifications|privateoffer|othergame|empty|noaccount|unavailable|loading|unreachable|offline: a service the player
 // trusts and its friends answer in that state (--screen friends, friends-add, friends-sent, friends-blocked, or
 // notifications for what waits there).
 //   full: two requests, friends in a room, online and offline, three requests sent, one block
 //   requests: two requests and one friend       empty: read, nothing in it
 //   notifications: the full list with Player 2's request and Player 3's invite waiting (--screen notifications)
+//   privateoffer: the full list with Player 4 in a private room that can be joined, Player 11 in a full one, Player 13 in one with no offer
+//   othergame: the full list with Player 11 in an SFV room, Player 13 in a game with no known title, Player 14 at the SFV menus
 //   noaccount / unavailable: the one card       loading: the first read in flight
 //   unreachable: the full list, the last sync failed (Not updated)       offline: the full list, appearing offline
 // Returns false for a state it does not know.

@@ -26,6 +26,14 @@ void InRoom(nf::Friend& entry, nf::Status status, int table, const char* room, b
     p.room.id = std::string(32, 'a'); p.room.name = room; p.room.members = 7; p.room.capacity = 16; p.room.joinable = joinable;
 }
 
+// A friend in a private room the bridge offered this player (members of capacity, joinable or not).
+void PrivateOffered(nf::Friend& entry, const char* room, int members, int capacity, bool joinable) {
+    auto& p = entry.presence;
+    p.kind = nf::Presence::Kind::InRoom; p.privateRoom = true; p.hasPrivateOffer = true;
+    p.privateOffer.name = room; p.privateOffer.members = static_cast<std::uint8_t>(members);
+    p.privateOffer.capacity = static_cast<std::uint8_t>(capacity); p.privateOffer.joinable = joinable;
+}
+
 std::shared_ptr<nf::State> Full() {
     auto state = std::make_shared<nf::State>();
     state->kind = nf::State::Kind::Listed;
@@ -109,6 +117,26 @@ bool Friends(ui::ShellView& view, const std::string& which) {
         state->incoming = {request};
         nf::Invite invite; invite.id = "iv_1"; invite.friendId = "fr_3"; invite.room.value = std::string(32, 'a'); invite.expiresAt = Now + Hour;
         state->invites = {invite};
+    } else if (which == "privateoffer") {
+        // Player 4 is in a private room that can be joined, Player 11 in one that is full; Player 13's has no offer (Hidden).
+        state = Full();
+        for (auto& entry : state->friends) if (entry.id == "fr_4") PrivateOffered(entry, "Quiet corner", 3, 8, true);
+        auto full = Pal("11", "Player 11", "NL", 8, 540, 2, 4, 6, 2);
+        PrivateOffered(full, "Friday set", 8, 8, false);
+        full.presence.status = nf::Status::Fighting; full.presence.table = 1;
+        auto hidden = Pal("13", "Player 13", "CA", 2, 95, 0, 0, 0, 1);
+        hidden.presence.kind = nf::Presence::Kind::InRoom; hidden.presence.privateRoom = true;
+        state->friends.push_back(full); state->friends.push_back(hidden);
+    } else if (which == "othergame") {
+        // Player 11 is in a room of SFV, Player 13 plays a game this build has no title for, Player 14 is at the SFV menus.
+        state = Full();
+        auto sfv = Pal("11", "Player 11", "NL", 8, 540, 2, 4, 6, 2);
+        InRoom(sfv, nf::Status::Idle, -1, "Rooftop", true); sfv.presence.game = "sfv";
+        auto unknown = Pal("13", "Player 13", "CA", 2, 95, 0, 0, 0, 1);
+        unknown.presence.kind = nf::Presence::Kind::Online; unknown.presence.game = "zzz";
+        auto menus = Pal("14", "Player 14", "AU", 4, 310, 1, 3, 2, 2);
+        menus.presence.kind = nf::Presence::Kind::Online; menus.presence.game = "sfv";
+        state->friends.push_back(sfv); state->friends.push_back(unknown); state->friends.push_back(menus);
     } else if (which == "empty") {
         state = std::make_shared<nf::State>();
         state->kind = nf::State::Kind::Listed; state->code = "4F2A-91CX";
