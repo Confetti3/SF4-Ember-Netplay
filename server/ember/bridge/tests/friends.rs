@@ -329,6 +329,16 @@ async fn every_action_and_route_is_scanned() {
     world
         .act(&b, json!({ "action": "dismiss", "invite": invite }))
         .await;
+    // A private room on offer: no answer shows its invitation but the one a
+    // join gets (`World`'s drop scans them all).
+    world.sync(&b, world.offering('x', 2, 8)).await;
+    let seen = world.sync(&a, menus()).await;
+    assert_eq!(seen["friends"][0]["presence"]["private_room"]["joinable"], true);
+    let joined = world
+        .act(&a, json!({ "action": "join", "friend": friend }))
+        .await;
+    assert_eq!(joined["joining"]["secret"], invitation('x'));
+    assert!(world.sync(&a, menus()).await.get("joining").is_none());
     world.ask(&c, &a).await;
     let request = world.sync(&a, menus()).await["incoming"][0]["id"].clone();
     world

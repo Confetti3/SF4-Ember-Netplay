@@ -8,7 +8,7 @@
 //! that serves one player's data to another, for the Discord IDs it seeded.
 //! A new route of that kind joins its list.
 use axum::{extract::State, http::HeaderMap, response::Response};
-use ember_protocol::friends::{FriendAction, FriendsSync, PresenceReport};
+use ember_protocol::friends::{FriendAction, FriendsSync, Joining, PresenceReport};
 
 use crate::{
     AppState,
@@ -39,6 +39,13 @@ const INVITES: Bucket = Bucket {
     uses: 10,
     window: 10 * 60,
 };
+/// Joins by account: each one hands out a room's invitation, so they are
+/// counted as invites are.
+const JOINS: Bucket = Bucket {
+    name: "friends-join",
+    uses: 10,
+    window: 10 * 60,
+};
 
 /// `POST /v1/friends/sync`: the caller's presence in, the state out.
 pub async fn sync(
@@ -49,11 +56,13 @@ pub async fn sync(
     let caller = Linked::admit(&state, &headers, Gate::Friends, &SYNCS).await?;
     let sync: FriendsSync = body.parse()?;
     sync.check()?;
+    let game = sync.game_id().to_owned();
     let FriendsSync {
         build_id,
         listing,
         main,
         presence,
+        game: _,
     } = sync;
     let leaving = matches!(presence, PresenceReport::Offline {});
     let (account, now) = (caller.account.clone(), caller.now);
@@ -63,8 +72,8 @@ pub async fn sync(
         .await?;
     state
         .friends
-        .report(&caller.account, presence, build_id, now);
-    answer(&state, caller).await
+        .report(&caller.account, presence, build_id, game, now);
+    answer(&state, caller, None).await
 }
 
 /// `POST /v1/friends/actions`: one action in, the state after it out.
@@ -79,10 +88,22 @@ pub async fn act(
     let own_bucket = match &action {
         FriendAction::Request { code: Some(_), .. } => Some(&CODE_REQUESTS),
         FriendAction::Invite { .. } => Some(&INVITES),
+        FriendAction::Join { .. } => Some(&JOINS),
         _ => None,
     };
     if let Some(bucket) = own_bucket {
         caller.spend(&state, bucket)?;
+    }
+    // A join changes nothing; it answers the room's invitation beside the
+    // state, once, and that is the only answer that carries one. It is never
+    // logged.
+    if let FriendAction::Join { friend } = action {
+        let (live, account, now) = (state.friends.clone(), caller.account.clone(), caller.now);
+        let joining = state
+            .db
+            .read(move |tx| friends::join(tx, &live, &account, &friend, now))
+            .await?;
+        return answer(&state, caller, Some(joining)).await;
     }
     let (live, keys) = (state.friends.clone(), state.keys.clone());
     let (account, now) = (caller.account.clone(), caller.now);
@@ -94,16 +115,18 @@ pub async fn act(
     if let Some(effect) = effect {
         state.friends.apply(effect, now);
     }
-    answer(&state, caller).await
+    answer(&state, caller, None).await
 }
 
-/// The state `caller` sees after their sync or action.
-async fn answer(state: &AppState, caller: Linked) -> Result<Response> {
+/// The state `caller` sees after their sync or action, with the invitation
+/// a join answered.
+async fn answer(state: &AppState, caller: Linked, joining: Option<Joining>) -> Result<Response> {
     let live = state.friends.clone();
     let classes = Classes::of(state);
-    let answer = state
+    let mut answer = state
         .db
         .read(move |tx| friends::state(tx, &live, &caller.account, &classes, caller.now))
         .await?;
+    answer.joining = joining;
     Ok(ok(&answer))
 }

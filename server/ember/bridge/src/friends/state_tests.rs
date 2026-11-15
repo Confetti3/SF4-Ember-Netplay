@@ -15,6 +15,7 @@ use crate::{Db, db::counting::counted, skill};
 const NOW: u64 = 1_800_000_000;
 const CALLER: &str = "e000";
 const BUILD: &str = "build-1";
+const GAME: &str = "usf4";
 /// Listed rooms that friends are in, with whether each is open and of the
 /// caller's build: the open one of the same build is joinable.
 const ROOMS: [(&str, bool, bool); 4] = [
@@ -181,7 +182,13 @@ fn seed(tx: &Transaction<'_>, friends: usize, now: u64) -> rusqlite::Result<()> 
 /// What each friend is doing: most online in the menus, some in a room, some
 /// not heard from for a while, some never.
 fn report(live: &Live, friends: usize, now: u64) {
-    live.report(CALLER, PresenceReport::Menus {}, BUILD.into(), now);
+    live.report(
+        CALLER,
+        PresenceReport::Menus {},
+        BUILD.into(),
+        GAME.into(),
+        now,
+    );
     for number in 1..=friends {
         let account = friend_account(number);
         let room = |room_id: Option<&str>| PresenceReport::Room {
@@ -190,6 +197,7 @@ fn report(live: &Live, friends: usize, now: u64) {
                 private: room_id.is_none(),
                 status: RoomStatus::Fighting,
                 table: Some(1),
+                offer: None,
             },
         };
         let (presence, at) = match number % 6 {
@@ -200,7 +208,7 @@ fn report(live: &Live, friends: usize, now: u64) {
             4 => (PresenceReport::Menus {}, now - 500),
             _ => continue,
         };
-        live.report(&account, presence, BUILD.into(), at);
+        live.report(&account, presence, BUILD.into(), GAME.into(), at);
     }
 }
 
@@ -214,6 +222,10 @@ fn one_at_a_time(
 ) -> Result<FriendsState> {
     let own = store::account(tx, caller)?.ok_or_else(resync)?;
     let build = live.seen(caller).map(|seen| seen.build_id);
+    let viewing = Viewing {
+        game: GAME,
+        build: build.as_deref(),
+    };
     let mut friends = Vec::new();
     for row in store::friends(tx, caller)? {
         let room = |room_id: &str| -> Result<Option<FriendRoom>> {
@@ -221,8 +233,8 @@ fn one_at_a_time(
                 .query_row(
                     "SELECT room_id, name, members, capacity, build_id = ?2, COALESCE(locked, 0) FROM rooms
                      WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL
-                       AND region IS NOT NULL AND members >= 1",
-                    params![room_id, build],
+                       AND region IS NOT NULL AND members >= 1 AND game = ?3",
+                    params![room_id, build, GAME],
                     |row| {
                         let (members, capacity): (u8, u8) = (row.get(2)?, row.get(3)?);
                         let (same_build, locked): (Option<bool>, bool) = (row.get(4)?, row.get(5)?);
@@ -260,7 +272,7 @@ fn one_at_a_time(
             main,
             account,
             badge,
-            presence: presence_of(&row, seen, &listed),
+            presence: presence_of(&row, seen, &viewing, &listed),
             record: store::record(tx, caller, &row.account)?,
             name: row.shown.name,
             country: row.shown.country,
@@ -287,6 +299,7 @@ fn one_at_a_time(
         outgoing: store::outgoing(tx, caller)?,
         invites: Vec::new(),
         blocked: store::blocked(tx, caller)?,
+        joining: None,
     })
 }
 
@@ -376,4 +389,120 @@ async fn the_statements_of_a_state_do_not_grow_with_the_friends() {
     let (_, _, many) = both(150).await;
     assert_eq!(few, many);
     assert!(many <= 16, "{many} statements");
+}
+
+fn friend_row() -> FriendRow {
+    FriendRow {
+        id: uuid("fr", 1),
+        since: 1,
+        account: "d001".into(),
+        shown: store::Account {
+            name: "Player 1".into(),
+            country: None,
+            main: None,
+            code: "code".into(),
+            appear_offline: false,
+            seen_at: NOW - 5,
+            off: false,
+        },
+    }
+}
+
+fn seen_in(game: &str, build: &str, room: RoomReport) -> Seen {
+    Seen {
+        doing: Doing::Room(room),
+        build_id: build.into(),
+        game: game.into(),
+        beat_at: NOW,
+    }
+}
+
+fn private_report(members: u8, capacity: u8) -> RoomReport {
+    RoomReport {
+        room_id: None,
+        private: true,
+        status: RoomStatus::Idle,
+        table: None,
+        offer: Some(ember_protocol::friends::PrivateOffer {
+            secret: format!("emd1:{}", "A".repeat(122)),
+            name: "Lounge".into(),
+            members,
+            capacity,
+        }),
+    }
+}
+
+/// A private offer is shown as its facts, joinable on the viewer's build with
+/// a seat free, and in no case with the invitation; a friend in another game
+/// shows the game and the status only.
+#[test]
+fn a_private_offer_is_shown_as_facts_within_one_game() {
+    let row = friend_row();
+    let none = HashMap::new();
+    let viewing = Viewing {
+        game: "usf4",
+        build: Some(BUILD),
+    };
+    let shown = |seen: Seen| presence_of(&row, Some(seen), &viewing, &none);
+    let facts = |joinable| PrivateRoom {
+        name: "Lounge".into(),
+        members: 2,
+        capacity: 8,
+        joinable,
+    };
+    let room = |private_room, game: &str| FriendPresence::Room {
+        status: RoomStatus::Idle,
+        table: None,
+        room: None,
+        private: true,
+        game: Some(game.into()),
+        private_room,
+    };
+
+    assert_eq!(
+        shown(seen_in("usf4", BUILD, private_report(2, 8))),
+        room(Some(facts(true)), "usf4")
+    );
+    assert_eq!(
+        shown(seen_in("usf4", "build-2", private_report(2, 8))),
+        room(Some(facts(false)), "usf4")
+    );
+    let full = shown(seen_in("usf4", BUILD, private_report(8, 8)));
+    assert!(matches!(
+        full,
+        FriendPresence::Room {
+            private_room: Some(PrivateRoom { joinable: false, .. }),
+            ..
+        }
+    ));
+    // The viewer has not synced: nothing is joinable.
+    let unsynced = Viewing {
+        game: "usf4",
+        build: None,
+    };
+    assert!(matches!(
+        presence_of(&row, Some(seen_in("usf4", BUILD, private_report(2, 8))), &unsynced, &none),
+        FriendPresence::Room {
+            private_room: Some(PrivateRoom { joinable: false, .. }),
+            ..
+        }
+    ));
+    // Another game: the game and no room.
+    assert_eq!(
+        shown(seen_in("sfv", BUILD, private_report(2, 8))),
+        room(None, "sfv")
+    );
+    // No offer: private and no more.
+    let plain = RoomReport {
+        offer: None,
+        ..private_report(2, 8)
+    };
+    assert_eq!(shown(seen_in("usf4", BUILD, plain)), room(None, "usf4"));
+    // Offline stays offline, whatever was offered.
+    assert_eq!(
+        presence_of(&row, None, &viewing, &none),
+        FriendPresence::Offline {
+            seen_at: Some(NOW - 5)
+        }
+    );
 }

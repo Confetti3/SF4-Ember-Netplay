@@ -67,6 +67,7 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
     }
     if crate::friends::offered(&state) {
         features.push(ember_protocol::friends::FRIENDS_FEATURE.into());
+        features.push(ember_protocol::friends::PRESENCE_V2_FEATURE.into());
     }
     // A connection's own settings say whether it may use these.
     features.push(ember_protocol::partner::LOOKUP_FEATURE.into());

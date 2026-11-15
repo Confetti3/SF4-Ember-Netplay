@@ -2,7 +2,9 @@
 //! `friends_blocks.rs`, `friends_presence.rs`): every answer a test receives
 //! is kept, and scanned when its `World` ends for the Discord IDs and names it
 //! seeded, and the friends and card answers also for the Ember IDs: none may
-//! carry one.
+//! carry one. The invitations of the private rooms a test offers
+//! (`World::offering`) are in no answer either, except the one answer to
+//! `join`, which hands one out.
 use std::{collections::BTreeSet, sync::Mutex};
 
 use super::{
@@ -36,6 +38,7 @@ pub fn named(action: &FriendAction) -> &'static str {
         FriendAction::Block { .. } => "block",
         FriendAction::Unblock { .. } => "unblock",
         FriendAction::Invite { .. } => "invite",
+        FriendAction::Join { .. } => "join",
         FriendAction::Dismiss { .. } => "dismiss",
         FriendAction::AppearOffline { .. } => "appear_offline",
         FriendAction::NewCode {} => "new_code",
@@ -44,7 +47,7 @@ pub fn named(action: &FriendAction) -> &'static str {
     }
 }
 
-pub const ACTIONS: [&str; 13] = [
+pub const ACTIONS: [&str; 14] = [
     "request",
     "accept",
     "decline",
@@ -53,12 +56,23 @@ pub const ACTIONS: [&str; 13] = [
     "block",
     "unblock",
     "invite",
+    "join",
     "dismiss",
     "appear_offline",
     "new_code",
     "forget",
     "turn_on",
 ];
+
+/// What an answer to a join is kept under: the one answer that may carry an
+/// invitation.
+pub const JOINED: &str = "/v1/friends/actions (join)";
+
+/// A private room's invitation as a game reports it (`emd1:` and 122
+/// characters), told apart from another's by `tag`.
+pub fn invitation(tag: char) -> String {
+    format!("emd1:{}{tag}", "A".repeat(121))
+}
 
 /// A player with a Discord account.
 pub struct Member {
@@ -78,6 +92,8 @@ pub struct World {
     pub accounts: Mutex<Vec<String>>,
     /// The Ember IDs seeded: in no friends or card answer.
     pub ember_ids: Mutex<Vec<String>>,
+    /// The invitations offered: in no answer but the answer to a join.
+    pub invitations: Mutex<Vec<String>>,
     /// The actions sent, by name.
     pub sent: Mutex<BTreeSet<&'static str>>,
 }
@@ -89,7 +105,16 @@ impl Drop for World {
         }
         let accounts = self.accounts.lock().unwrap();
         let ember_ids = self.ember_ids.lock().unwrap();
+        let invitations = self.invitations.lock().unwrap();
         for (path, answer) in self.answers.lock().unwrap().iter() {
+            if path != JOINED {
+                for invitation in invitations.iter() {
+                    assert!(
+                        !answer.contains(invitation.as_str()),
+                        "{path} carries an invitation: {answer}"
+                    );
+                }
+            }
             for secret in accounts.iter() {
                 assert!(
                     !answer.contains(secret.as_str()),
@@ -159,6 +184,7 @@ impl World {
             answers: Mutex::default(),
             accounts: Mutex::default(),
             ember_ids: Mutex::default(),
+            invitations: Mutex::default(),
             sent: Mutex::default(),
         }
     }
@@ -213,8 +239,13 @@ impl World {
     }
 
     pub async fn post(&self, member: &Member, path: &str, body: Json_) -> (StatusCode, Json_) {
+        let kept = if path == ACTIONS_PATH && body["action"] == "join" {
+            JOINED
+        } else {
+            path
+        };
         let (status, answer) = self.bridge.post(member.player.token(), path, body).await;
-        self.record(path, &answer);
+        self.record(kept, &answer);
         (status, answer)
     }
 
@@ -237,6 +268,33 @@ impl World {
             "main": 3, "presence": presence });
         let (status, answer) = self.post(member, SYNC_PATH, body).await;
         Self::state_of(status, answer)
+    }
+
+    /// A sync that names its `game`, as a client of a bridge with
+    /// `friends_presence_v2` does.
+    pub async fn sync_in(
+        &self,
+        member: &Member,
+        build: &str,
+        game: &str,
+        presence: Json_,
+    ) -> Json_ {
+        let body = json!({ "build_id": build, "game": game,
+            "listing": { "name": member.name, "country": "GB" },
+            "main": 3, "presence": presence });
+        let (status, answer) = self.post(member, SYNC_PATH, body).await;
+        Self::state_of(status, answer)
+    }
+
+    /// The presence of a player in a private room of `members` of `capacity`
+    /// that offers its invitation (`invitation(tag)`), which no answer but a
+    /// join may then carry.
+    pub fn offering(&self, tag: char, members: u8, capacity: u8) -> Json_ {
+        let secret = invitation(tag);
+        self.invitations.lock().unwrap().push(secret.clone());
+        json!({ "activity": "room", "room": { "private": true, "status": "idle",
+            "offer": { "secret": secret, "name": "Private lounge",
+                       "members": members, "capacity": capacity } } })
     }
 
     pub async fn sync(&self, member: &Member, presence: Json_) -> Json_ {
