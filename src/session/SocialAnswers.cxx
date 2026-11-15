@@ -95,6 +95,29 @@ friends::Room DecodeRoom(const json& value) {
 	return room;
 }
 
+// A game id as the protocol names it: 1 to 16 characters of [a-z0-9]. Anything else is no game named, which is this game's.
+std::string ReadGame(const json& object) {
+	const auto found = object.find("game");
+	if (found == object.end() || !found->is_string()) return {};
+	const auto& text = found->get_ref<const std::string&>();
+	if (text.empty() || text.size() > 16) return {};
+	for (const char c : text)
+		if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))) return {};
+	return text;
+}
+
+// The facts of a private room friends may join. Never a secret: that comes only in the answer to a join.
+friends::PrivateOffer DecodePrivateOffer(const json& value) {
+	const auto& object = Object(value);
+	friends::PrivateOffer offer;
+	offer.name = SingleLine(NonEmptyText(object, "name", MaxLabelBytes));
+	offer.members = static_cast<std::uint8_t>(Small(object, "members", 16));
+	offer.capacity = static_cast<std::uint8_t>(Small(object, "capacity", 16));
+	offer.joinable = Flag(object, "joinable");
+	if (offer.capacity < 2 || offer.members > offer.capacity) Bad("private_room");
+	return offer;
+}
+
 friends::Presence DecodePresence(const json& value) {
 	const auto& object = Object(value);
 	friends::Presence presence;
@@ -112,11 +135,25 @@ friends::Presence DecodePresence(const json& value) {
 			presence.hasRoom = true;
 			presence.room = DecodeRoom(*room);
 		}
+		// Only a private room has one; a part this build cannot read drops only itself.
+		if (presence.privateRoom) {
+			if (const auto offer = object.find("private_room"); offer != object.end()) {
+				try {
+					presence.privateOffer = DecodePrivateOffer(*offer);
+					presence.hasPrivateOffer = true;
+				} catch (const std::exception&) {
+					presence.privateOffer = {};
+					presence.hasPrivateOffer = false;
+				}
+			}
+		}
+		presence.game = ReadGame(object);
 	} else {
 		// Online, as a state a later bridge adds is: the friend is there, and a state this build cannot name says no more.
 		// An activity it does not know is the menus.
 		presence.kind = friends::Presence::Kind::Online;
 		if (state == "online" && NonEmptyText(object, "activity", 16) == "offline_play") presence.activity = friends::Activity::OfflinePlay;
+		if (state == "online") presence.game = ReadGame(object);
 	}
 	return presence;
 }
@@ -268,6 +305,23 @@ bool DecodeFriendsState(const json& data, friends::State& state) {
 		decoded.invites = DecodeList<friends::Invite>(object, "invites", friends::MaxInvites, DecodeInvite);
 		decoded.blocked = DecodeList<friends::Blocked>(object, "blocked", friends::MaxBlocked, DecodeBlocked);
 		state = std::move(decoded);
+		return true;
+	} catch (const std::exception&) {
+		return false;
+	}
+}
+
+bool DecodeJoining(const json& data, friends::Joining& joining) {
+	try {
+		const auto& object = Object(data);
+		const auto found = object.find("joining");
+		if (found == object.end()) return false;
+		const auto& fields = Object(*found);
+		friends::Joining decoded;
+		decoded.friendId = Id(fields, "friend", "fr_");
+		decoded.secret = NonEmptyText(fields, "secret", 127);
+		if (decoded.secret.size() != 127 || (decoded.secret.compare(0, 5, "emd1:") != 0 && decoded.secret.compare(0, 5, "emd2:") != 0)) return false;
+		joining = std::move(decoded);
 		return true;
 	} catch (const std::exception&) {
 		return false;

@@ -107,6 +107,11 @@ static DispatchOutcome Handle(Command& command, bool, Attempt) {
 	DispatchFriends(command);
 	return DispatchOutcome::Dropped;
 }
+// A Join is the one visit that may ask the bridge for something (a private room's invitation), so it needs the helper.
+static DispatchOutcome Handle(commands::FriendJoin& command, bool helperReady, Attempt) {
+	DispatchFriends(command, helperReady);
+	return DispatchOutcome::Dropped;
+}
 // Profiles and the Find a player search are bridge reads: no room generation applies.
 static DispatchOutcome Handle(commands::ProfileOpen& command, bool, Attempt) {
 	DispatchProfile(command);

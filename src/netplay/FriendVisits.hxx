@@ -6,10 +6,14 @@
 // tested without a game (friend_visits_test.cxx).
 //
 // - Join goes to the friend's public room, by its id, when the bridge says it
-//   is joinable. A friend in a private room is joined only by an invite, whose
-//   secret goes through the Discord join's own path (discord::PendingInvite).
+//   is joinable. A friend in a private room that friends may join (a private
+//   offer, which names the room and says whether it is joinable but holds no
+//   key) is joined by asking the bridge for its invitation, which then goes
+//   through the Discord join's own path (discord::PendingInvite), as a taken
+//   invite's does. A private room that offers nothing is joined by invite
+//   only. A friend in another game is joined by neither (SameGame).
 // - Watch is Join, then, once in, the room's own Watch on the friend's table.
-//   Only a friend who is fighting can be watched.
+//   Only a friend who is fighting in a public room can be watched.
 // - A visit asks first when this PC is in a room or a game (`busy`), as a
 //   Discord join does: nothing leaves until the player answers Switch, and
 //   a Cancel or the room changing ends it. It then leaves, asks the bridge for
@@ -19,6 +23,7 @@
 //   answer (admitted or refused) comes back through BridgeFlights, which gives
 //   up on a lost one, so the visit keeps no request of its own.
 #include "Friends.hxx"
+#include "GameIdentity.hxx"
 
 #include <cstdint>
 #include <string>
@@ -27,7 +32,14 @@ namespace sf4e { namespace netplay { namespace friends {
 
 // Where a command to go to a friend leads.
 struct Destination {
-	enum class Kind : std::uint8_t { None, PublicRoom, PrivateInvite } kind = Kind::None;
+	enum class Kind : std::uint8_t {
+		None,
+		PublicRoom,
+		PrivateInvite,
+		// A friend's private room that friends may join: its invitation is asked of the bridge when the player presses Join, so
+		// there is none yet.
+		PrivateOffer,
+	} kind = Kind::None;
 	// Why there is none.
 	enum class Refusal : std::uint8_t {
 		None,
@@ -41,6 +53,8 @@ struct Destination {
 		NotJoinable,
 		// Watch: the friend is not fighting, or the bridge named no table.
 		NotFighting,
+		// The friend is in another game.
+		OtherGame,
 	} refusal = Refusal::None;
 	// PublicRoom: the room's id, and for a Watch the friend's table (-1: only join).
 	std::string roomId;
@@ -53,7 +67,7 @@ struct Destination {
 	bool Any() const { return kind != Kind::None; }
 };
 
-// A friend's public room, joined or, with `watch`, watched at their table.
+// A friend's room, joined or, with `watch`, watched at their table (a public room's only).
 inline Destination ToFriend(const State& state, const std::string& friendId, bool watch) {
 	Destination destination;
 	const Friend* entry = state.FindFriend(friendId);
@@ -61,7 +75,14 @@ inline Destination ToFriend(const State& state, const std::string& friendId, boo
 	destination.name = entry->name;
 	const Presence& presence = entry->presence;
 	if (presence.kind != Presence::Kind::InRoom) destination.refusal = Destination::Refusal::NotInRoom;
-	else if (presence.privateRoom) destination.refusal = Destination::Refusal::PrivateRoom;
+	else if (!SameGame(presence.game)) destination.refusal = Destination::Refusal::OtherGame;
+	else if (presence.privateRoom) {
+		if (!presence.hasPrivateOffer) destination.refusal = Destination::Refusal::PrivateRoom;
+		// The table of a private room is not watched from the list, and a room that is full, locked or of another build is not joined.
+		else if (watch || !presence.privateOffer.joinable) destination.refusal = Destination::Refusal::NotJoinable;
+		else destination.kind = Destination::Kind::PrivateOffer;
+		return destination;
+	}
 	else if (!presence.hasRoom) destination.refusal = Destination::Refusal::NotInRoom;
 	else if (!presence.room.joinable) destination.refusal = Destination::Refusal::NotJoinable;
 	else if (watch && (presence.status != Status::Fighting || presence.table < 0)) destination.refusal = Destination::Refusal::NotFighting;

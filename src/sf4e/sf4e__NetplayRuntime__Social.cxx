@@ -9,7 +9,11 @@
 // a public room by the ticket the Public rooms list's Join asks for, with a
 // Watch of the friend's table once in; a private room's invitation through
 // the Discord join's own path (discord::PendingInvite), which asks first when
-// the player is busy. netplay::friends::Visit holds the waiting.
+// the player is busy. A friend's private room that friends may join goes the
+// same way once the bridge has handed out its invitation, which it does only
+// for the one Join press that asked (the `join` action, TakeJoining): the
+// invitation is used for that press and kept nowhere else. netplay::friends::
+// Visit holds the waiting.
 #include "sf4e__NetplayRuntime.hxx"
 #include "../common/HexText.hxx"
 #include "../netplay/FriendWire.hxx"
@@ -102,6 +106,8 @@ const char* RefusalKey(const std::string& code) {
 		{"no_discord_account", "friends.no_account"}, {"friends_unavailable", "friends.unavailable"},
 		// A state, not an error (Requests::Off), but a refusal that reaches the words says so.
 		{"friends_off", "friends.off"}, {"nothing_to_offer", "friends.nothing_to_offer"},
+		// A private room that can no longer be joined: hidden, full, locked, gone, or the friend no longer shows it.
+		{"join_unavailable", "friends.join_unavailable"},
 	};
 	for (const auto& entry : table) if (code == entry.first) return entry.second;
 	// This runtime's own: another action already waits, or the one asked was dropped (friends::Requests).
@@ -151,14 +157,19 @@ const char* DestinationKey(friends::Destination::Refusal refusal, bool invite) {
 	case Refusal::Gone: return invite ? "friends.invite_gone" : "friends.cannot_join";
 	case Refusal::PrivateRoom: return "friends.private_invite_only";
 	case Refusal::NotFighting: return "friends.cannot_watch";
+	// The friend is in another game: no room of theirs is joined from this one.
+	case Refusal::OtherGame: return "friends.join_unavailable";
 	default: return "friends.cannot_join";
 	}
 }
 
-// What a flight is, for its answer: a sync, or an action of the kind named, with what it made of a room member.
+// What a flight is, for its answer: a sync, or an action of the kind named, with what it made of a room member. A join
+// also remembers whose room it asked for and the room generation the press was made in, which its answer must still match.
 struct Flight {
 	const char* action = nullptr;
 	MemberChange change;
+	std::string joinFriend;
+	std::uint64_t joinGeneration = 0;
 };
 
 // An answer read: the state it brought, or why there is none (the helper's or the bridge's code, or
@@ -195,6 +206,29 @@ void RelateCards(const Flight& flight, const std::string& failure) {
 	internal::NoteProfileAction(failure.empty() ? flight.change.card : std::string(), flight.change.relation);
 }
 
+void GoToFriend(const std::string& bridge, const friends::Destination& where, bool watch, std::uint64_t generation);
+
+// A private room's invitation arrived, for the press that asked for it: taken through the same path as an invite
+// received (GoToFriend), and only while it is for the friend asked about and the room the press was made in is still the
+// room the player is in. The invitation is never copied into the state, a log line or the interface.
+void TakeJoining(const Flight& flight, const session::TournamentAnswer& answer) {
+	friends::Joining joining;
+	if (!session::DecodeJoining(answer.data, joining) || joining.friendId != flight.joinFriend) {
+		spdlog::info("Friends: join private answered without an invitation for that friend");
+		runtime->error = loc::T("friends.join_unavailable");
+		return;
+	}
+	if (runtime->controller.GetSnapshot().generation.room != flight.joinGeneration) {
+		spdlog::info("Friends: join private dropped: the room changed since the press");
+		return;
+	}
+	friends::Destination where;
+	where.kind = friends::Destination::Kind::PrivateInvite;
+	where.secret = std::move(joining.secret);
+	if (const auto* entry = runtime->friends.Published().value->FindFriend(flight.joinFriend)) where.name = entry->name;
+	GoToFriend(runtime->friends.Bridge(), where, false, flight.joinGeneration);
+}
+
 // A sync's or an action's answer, for the flight it began (netplay::friends::Requests::Finish): logged, its effect on
 // the cards, then the state, and the requests and invites it brought.
 void TakeAnswer(std::uint64_t token, const Flight& flight, const session::TournamentAnswer& answer) {
@@ -207,6 +241,8 @@ void TakeAnswer(std::uint64_t token, const Flight& flight, const session::Tourna
 	const auto before = requests.Published().value;
 	requests.Finish(token, answered.failure, answered.state, GetTickCount64());
 	if (answered.state && before) NoteArrivals(*before, *answered.state);
+	// The answer to a join also carries the room's invitation, which is no part of the state.
+	if (!flight.joinFriend.empty() && answered.failure.empty()) TakeJoining(flight, answer);
 }
 
 // Hands `request` to the helper as the sync (`flight.action` null) or the action in flight.
@@ -228,7 +264,12 @@ void SendAction(const commands::FriendAction& action, bool helperReady) {
 	}
 	if (std::holds_alternative<commands::FriendTurnOn>(action)) runtime->friends.TurningOn();
 	spdlog::info("Friends: {} sent{}", ActionName(action), helperReady ? "" : " while the helper is not ready");
-	Send(request, Flight{ActionName(action), ChangeOf(action)}, helperReady, GetTickCount64());
+	Flight flight{ActionName(action), ChangeOf(action)};
+	if (const auto* join = std::get_if<commands::FriendAskJoin>(&action)) {
+		flight.joinFriend = join->friendId;
+		flight.joinGeneration = join->generation.room;
+	}
+	Send(request, std::move(flight), helperReady, GetTickCount64());
 }
 
 // The service and Ember ID friends are for (Requests::Scope); a change that dropped the action in flight or held
@@ -403,11 +444,19 @@ namespace {
 bool Pressed(const netplay::Generation& pressed) { return runtime->controller.GetSnapshot().generation == pressed; }
 }
 
-void DispatchFriends(const commands::FriendJoin& command) {
+void DispatchFriends(const commands::FriendJoin& command, bool helperReady) {
 	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
 	ScopeFriends(command.bridge, CurrentId());
 	const auto where = friends::ToFriend(*runtime->friends.Published().value, command.friendId, false);
-	if (Resolve(where, false)) GoToFriend(command.bridge, where, false, command.generation.room);
+	if (!Resolve(where, false)) return;
+	// A private room that friends may join has no invitation yet: the bridge hands it out for this press, and the
+	// answer goes where a taken invite goes (TakeJoining). One action is in flight at a time, so a second press
+	// meanwhile is held or refused as any action is.
+	if (where.kind == friends::Destination::Kind::PrivateOffer) {
+		DispatchFriends(commands::FriendAction(commands::FriendAskJoin{command.generation, command.bridge, command.friendId}), helperReady);
+		return;
+	}
+	GoToFriend(command.bridge, where, false, command.generation.room);
 }
 
 void DispatchFriends(const commands::FriendWatch& command) {
@@ -470,8 +519,11 @@ void TickSocial(bool helperReady, std::uint64_t nowMs) {
 	runtime->friendsCanInvite = presented.offer.Any();
 	requests.NotePresence(presented.revision);
 	if (auto held = requests.TakeHeld()) SendAction(*held, helperReady);
-	else if (helperReady && requests.SyncDue(nowMs))
-		Send(friends::SyncRequest(requests.Bridge(), sf4e::sidecarHash, OwnListing(), presented.report), Flight{}, helperReady, nowMs);
+	else if (helperReady && requests.SyncDue(nowMs)) {
+		// A player who appears offline offers no room: friends are told nothing of it, and no invitation leaves the PC.
+		const auto report = requests.Published().value->appearOffline ? presented.report.WithoutOffer() : presented.report;
+		Send(friends::SyncRequest(requests.Bridge(), sf4e::sidecarHash, OwnListing(), report), Flight{}, helperReady, nowMs);
+	}
 	TickVisit(helperReady, nowMs);
 }
 
