@@ -60,14 +60,24 @@ struct Groups {
     std::vector<const nf::Friend*> inRoom, online, offline;
 };
 Groups Arrange(const nf::State& state);
+// What Home's Friends row counts: the requests waiting (WaitingOf, so only while the friends are listed) and the friends
+// who are not offline. Both are 0 with no list.
+struct Counts { int requests = 0, online = 0; };
+Counts CountsOf(const nf::View& view, std::uint64_t now);
 
 // A friend's card, as DrawOtherCard draws it: their main and its points and, when the bridge sent them, the account's
 // as a second line; without those the one line of the main (a friend's state carries nothing more).
 OtherCardView CardOf(const nf::Friend& entry, FighterArt art);
-// A friend's public room can be joined now.
+// The room a friend is in that this player is shown: a public room's, or the private room the bridge offered this player
+// (netplay::friends::Presence::hasPrivateOffer). Not offered, not in a room or in another game: none.
+struct ShownRoom { std::string name; int members = 0, capacity = 0; };
+std::optional<ShownRoom> RoomOf(const nf::Friend& entry);
+// The friend is in another game than this one (netplay::SameGame): nothing of theirs can be joined or answered with an invite.
+bool OtherGame(const nf::Friend& entry);
+// A friend's room can be joined now: a public room the bridge lists as joinable, or a private room it offered this player as joinable.
 bool Joinable(const nf::Friend& entry);
 // What A does on a friend's row: Join their room, Invite them to this player's
-// room, or open their Player card. Offline friends, and friends with nothing to offer, have only the card.
+// room, or open their Player card. Offline friends, friends of another game and friends with nothing to offer have only the card.
 enum class Press { Card, Join, Invite };
 Press PressOf(const nf::Friend& entry, bool canInvite);
 
@@ -98,7 +108,8 @@ std::string IdOf(const std::string& row, const char* prefix);
 // "3 h ago" or "2 d ago", `at` against `now` (unix seconds); an hour at least,
 // and empty when either is not known.
 std::string Ago(std::uint64_t now, std::uint64_t at);
-// Where a friend is: "Playing at table 1 · Player 5's room", "At the menus", "Last online 3 h ago", ...
+// Where a friend is: "Playing at table 1 · Player 5's room", "At the menus", "Last online 3 h ago", ...; of a friend in another
+// game, which game ("Playing SFV", "In a room · SFV", or "Playing another game" for a title this build does not know).
 std::string Status(const nf::Friend& entry, std::uint64_t now);
 // A request's second line: "Played you 6 games, last 1 d ago" or that they have not.
 std::string PlayedLine(const nf::Incoming& request, std::uint64_t now);
@@ -170,6 +181,9 @@ public:
     static constexpr const char* Source = "friends";
     // Settings, Online, Friends: the panel of Appear offline, the friend code and Turn off friends (Turn on friends, once off).
     static constexpr const char* SettingsScreen = "tab-online/friends";
+    // The Friends screen is offered to this player: friends exist for their account and service, whether listed yet or not
+    // (Notifications' Friends row shows exactly then).
+    bool Offered(const ShellView& view) const;
     // The tab or a page over it: where X, Y and Delete are the tab's even in a room.
     static bool OnTab(const std::string& screen) { return screen == Screen || screen == AddScreen || screen == SentScreen || screen == BlockedScreen; }
     // The tab, a page over it or the Settings panel: where the friends' own chips show.

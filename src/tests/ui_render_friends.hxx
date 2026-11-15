@@ -1,6 +1,6 @@
 #pragma once
 // The Friends shots of ui_render_test.cxx: the tab in each state the lab has (a full list, requests only, an empty
-// list, no Discord account, a service without friends, the first read in flight, the last sync failed and appearing
+// list, friends in private rooms the bridge offered and in another game, no Discord account, a service without friends, the first read in flight, the last sync failed and appearing
 // offline), then Add a friend, Sent, Blocked, More open on a friend and the question a Join asks. The friends are the
 // UI lab's (src/ui/lab/UiLabSocial.cxx), so the shots and the lab show the same people. `draw` and `page` are the
 // test's own.
@@ -14,7 +14,7 @@ void ShootFriends(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     using namespace sf4e;using namespace sf4e::ui;
     // The lab's service and player stand in for the shots' own, and are given back.
     const auto identity=view.identity;const auto name=view.preferences.displayName;const auto clock=view.unixNow;
-    for(const char* state:{"full","requests","empty","noaccount","unavailable","loading","unreachable","offline"}){
+    for(const char* state:{"full","requests","privateoffer","othergame","empty","noaccount","unavailable","loading","unreachable","offline"}){
         Require(uilab::Friends(view,state),"The lab has no such friends state");
         page("friends");draw(nullptr,0,6);draw((std::string("friends-")+state).c_str());
         Require(shell.Navigation().Screen()=="friends","Friends did not open");
@@ -29,6 +29,13 @@ void ShootFriends(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     draw(nullptr,MenuInput::Options,1);draw(nullptr,0,4);draw("friends-more");
     Require(shell.Navigation().Choosing(),"More did not open on a friend");
     draw(nullptr,MenuInput::Back,1);draw(nullptr,0,3);
+    // More on a friend in a private room that can be joined: Join is enabled.
+    Require(uilab::Friends(view,"privateoffer"),"The lab has no private offer friends state");
+    page("friends");shell.Navigation().Prefer("friend:fr_4");draw(nullptr,0,6);
+    draw(nullptr,MenuInput::Options,1);draw(nullptr,0,4);draw("friends-more-private");
+    Require(shell.Navigation().Choosing(),"More did not open on a friend in a private room");
+    draw(nullptr,MenuInput::Back,1);draw(nullptr,0,3);
+    Require(uilab::Friends(view,"full"),"The lab has no full friends state");
     // A Join that asks first, over the tab.
     auto& visit=view.friends.visit;
     visit.active=visit.confirm=true;visit.revision=1;visit.name="Player 3";

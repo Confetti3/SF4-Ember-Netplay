@@ -89,6 +89,8 @@ struct RoomTemplate {
     int tableCount = static_cast<int>(room::ClassicTableCount);
     // The room's Wired players only rule (room::Snapshot::wiredOnly).
     bool wiredOnly = false;
+    // Whether the room, a private one, is hidden from its members' friends (room::Snapshot::friendsHidden).
+    bool friendsHidden = false;
     TableSetup tables;
     bool Valid() const {
         if (name.empty() || name.size() > 32 || roomName.empty() || roomName.size() > 64 || capacity < 2 || capacity > static_cast<int>(room::MaxMembers) ||
@@ -99,7 +101,7 @@ struct RoomTemplate {
     bool operator==(const RoomTemplate& rhs) const {
         return name == rhs.name && roomName == rhs.roomName && capacity == rhs.capacity && isPublic == rhs.isPublic &&
             practice == rhs.practice && delayPolicy == rhs.delayPolicy && tableCount == rhs.tableCount && wiredOnly == rhs.wiredOnly &&
-            tables == rhs.tables;
+            friendsHidden == rhs.friendsHidden && tables == rhs.tables;
     }
 };
 constexpr std::size_t MaxRoomTemplates = 12;
@@ -300,6 +302,8 @@ struct PlayerPreferences {
     int roomTableCount = static_cast<int>(room::ClassicTableCount);
     // Whether a room created here, public or private, is for wired players only (room::Snapshot::wiredOnly).
     bool roomWiredOnly = false;
+    // Whether a private room created here is hidden from its members' friends instead of joinable by them (room::Snapshot::friendsHidden).
+    bool roomFriendsHidden = false;
     room::Rules tableRules;
     // The rules a public room is created with. Its tables open at the public
     // default; the creator, once in as host, sets these.

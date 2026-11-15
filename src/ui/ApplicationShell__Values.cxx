@@ -23,6 +23,7 @@ std::vector<std::string> ValueLabels(const std::string& id, const std::string& v
     if (id == "delay-policy") return Words({"room.delay_policy.shared", "room.delay_policy.own"});
     if (id == "room-type") for (const auto type : {room::RoomType::Classic, room::RoomType::Arcade, room::RoomType::King}) labels.push_back(RoomTypeName(type));
     if (id == "visibility") return Words({"public.visibility.private", "public.visibility.public"});
+    if (id == "privacy" || id == "room-privacy") return Words({"room.privacy.friends", "room.privacy.hidden"});
     if (id == "watched-picture" || id == "arrange-picture") return Words({"size.small", "size.large", "room.v2.picture_none"});
     if (id == "hud-size" || id == "picture-size") return Words({"size.small", "size.standard", "size.large"});
     if (id == "hud-layout") for (int i = 0; i <= 1; ++i) labels.push_back(MatchStripLayoutName(i));

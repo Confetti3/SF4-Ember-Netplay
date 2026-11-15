@@ -57,3 +57,57 @@ void WiredOnlyJourney() {
  Check(row("queue")->enabled,"A player whose link is unknown was kept out of a wired room");
  SetMenuEntriesProbe({});
 }
+
+// Privacy: a private room's Friends or Hidden, on Create right after Visibility and not for a public room, kept with the
+// defaults once changed and carried by Create room; the host changes it in Room settings, which a public room leaves out.
+void PrivacyJourney() {
+ using namespace sf4e;
+ Harness h;h.Frame();
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
+ h.Screen("online");h.Choose("create");
+ Check(row("privacy")!=rows.end()&&row("privacy")->value==loc::T("room.privacy.friends")&&row("privacy")->label==loc::T("room.privacy"),
+  "Create did not offer Privacy, on Friends");
+ Check(row("visibility")!=rows.end()&&row("privacy")==row("visibility")+1,"Privacy is not right after Visibility on Create");
+ h.Choose("host");
+ const auto* hosted=h.actions.empty()?nullptr:As<commands::HostRoom>(h.actions.back());
+ Check(hosted&&!hosted->charter.friendsHidden,"Create room asked for a hidden room");
+ Check(!netplay::RoomPreferences(hosted->preferences).contains("friendsHidden"),"A room open to friends was written to the saved defaults as hidden");
+ h.Screen("online");h.Choose("create");
+ h.FocusOn("privacy");h.Press(MenuInput::Right);
+ Check(row("privacy")->value==loc::T("room.privacy.hidden"),"Privacy did not turn to Hidden");
+ h.Choose("host");
+ hosted=As<commands::HostRoom>(h.actions.back());
+ Check(hosted&&hosted->charter.friendsHidden,"Create room did not ask for a hidden room");
+ Check(netplay::RoomPreferences(hosted->preferences).at("friendsHidden")==true,"Hidden did not reach the saved defaults");
+ h.Screen("online");h.Choose("create");
+ Check(row("privacy")->value==loc::T("room.privacy.hidden"),"Privacy was forgotten when Create opened again");
+ // A public room has no Privacy; the gameplay defaults keep it.
+ h.FocusOn("visibility");h.Press(MenuInput::Right);
+ Check(row("privacy")==rows.end(),"Public Create offered Privacy");
+ h.Press(MenuInput::Left);
+ Check(row("privacy")!=rows.end(),"Private Create lost Privacy");
+ h.Screen("tab-matches/defaults");
+ Check(row("privacy")!=rows.end()&&row("privacy")->value==loc::T("room.privacy.hidden"),"Gameplay defaults did not offer Privacy, as saved");
+ // In the room: the host changes it in Room settings.
+ room::Member me,other;me.id=1;me.name="Me";me.host=true;other.id=2;other.name="Other";
+ JoinedRoom(h,14);h.view.session.control=netplay::Health::Healthy;
+ h.view.room.members={me,other};h.view.room.host=1;
+ h.Frame();h.Screen("room-admin");
+ Check(row("room-privacy")!=rows.end()&&row("room-privacy")->value==loc::T("room.privacy.friends")&&row("room-privacy")->enabled,
+  "Room settings did not offer the host Privacy, on Friends");
+ const auto before=h.actions.size();
+ h.FocusOn("room-privacy");h.Press(MenuInput::Right);
+ Check(h.actions.size()==before+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){
+  return sent.roomAction.kind==room::ActionKind::SetFriendsHidden&&sent.roomAction.friendsHidden;}),"Room settings did not hide the room");
+ // Hidden already: Left sends Friends. A public room and a tournament's leave the row out; a member who is not the host cannot change it.
+ h.view.room.friendsHidden=true;h.Frame();
+ h.FocusOn("room-privacy");h.Press(MenuInput::Left);
+ Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){
+  return sent.roomAction.kind==room::ActionKind::SetFriendsHidden&&!sent.roomAction.friendsHidden;}),"Room settings did not show the room to friends again");
+ h.view.room.serverOwned=true;h.Frame();
+ Check(row("room-privacy")==rows.end(),"A public room offered Privacy in its settings");
+ h.view.room.serverOwned=false;h.view.room.host=2;h.Frame();
+ Check(row("room-privacy")!=rows.end()&&!row("room-privacy")->enabled,"A member who is not the host could change Privacy");
+ SetMenuEntriesProbe({});
+}

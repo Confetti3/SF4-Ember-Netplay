@@ -209,6 +209,7 @@ void ToastJourney() {
   const auto before = j.sent<commands::FriendAccept>().size();
   j.h.Press(MenuInput::Back); j.h.Frame(0, 2);
   Check(j.sent<commands::FriendAccept>().size() == before && j.screen() == "home", "Later on the request toast sent accept or changed the screen");
+  // The request toast has three buttons, Accept, View and Later: Select is the first and Back the last, so Back above was Later.
  }
  // An invite: Join takes it and then drops it; Dismiss only drops it. Neither opens a screen.
  {
@@ -522,14 +523,60 @@ void NotificationsJourney() {
   off->kind = nf::State::Kind::Off;
   j.Give(off);
   j.h.Screen("notifications"); j.h.Frame(0, 2);
-  Check(j.rows.size() == 1 && j.rows[0].id == "toasts-none", "Notifications listed something, or an error, with friends off");
+  // Friends are still offered (the screen says how to turn them on): their row stands beside the empty list's.
+  Check(j.rows.size() == 2 && j.rows[0].id == "notifications-friends" && j.rows[1].id == "toasts-none", "Notifications listed something but the Friends row, or an error, with friends off");
  }
+ {
+  // The Friends row follows what waits and opens the Friends screen; Back returns to Notifications.
+  RoomJourney j(Relation::None, true, false); j.h.Screen("home");
+  j.Give(WithRequest(true, true));
+  j.h.Screen("notifications"); j.h.Frame(0, 2);
+  std::vector<std::string> ids;
+  for (const auto& r : j.rows) ids.push_back(r.id);
+  Check(ids == std::vector<std::string>({"request:rq_1", "invite:iv_1", "notifications-friends"}), "Notifications does not list the Friends row after the request and the invite");
+  const auto* row = j.row("notifications-friends");
+  Check(row && row->label == loc::T("home.friends") && row->detail == loc::T("notifications.friends_detail"), "Notifications' Friends row is not worded as Friends");
+  j.h.Choose("notifications-friends");
+  Check(j.screen() == "friends", "Notifications' Friends row did not open the Friends screen");
+  j.h.Press(MenuInput::Back);
+  Check(j.screen() == "notifications", "Back from the Friends screen did not return to Notifications");
+ }
+ {
+  // Nothing waits: the row is there all the same.
+  RoomJourney j; j.h.Screen("home");
+  j.Give(WithRequest(false, false));
+  j.h.Screen("notifications"); j.h.Frame(0, 2);
+  Check(j.row("notifications-friends"), "Notifications has no Friends row while nothing waits");
+ }
+}
+
+// Friends from the room's More menu: after Room settings, and Back returns to the room.
+void MoreFriendsJourney() {
+ RoomJourney j;
+ j.h.Screen("room"); j.h.Frame(0, 3);
+ const auto* more = j.row("room-more");
+ Check(more, "The room has no More");
+ std::size_t admin = more->choices.size(), friends = admin;
+ for (std::size_t i = 0; i < more->choices.size(); ++i) { if (more->choices[i].id == "room-admin") admin = i; if (more->choices[i].id == "room-friends") friends = i; }
+ Check(friends < more->choices.size() && friends == admin + 1 && more->choices[friends].enabled && more->choices[friends].label == loc::T("home.friends") &&
+  more->choices[friends].detail == loc::T("room.v2.friends_detail"), "More does not offer Friends right after the room's settings");
+ j.h.Choose("room-more");
+ for (std::size_t i = 0; i < friends; ++i) j.h.Press(MenuInput::Down);
+ j.h.Press(MenuInput::Select);
+ Check(j.screen() == "friends", "More's Friends did not open the Friends screen");
+ // The tab's own X, Y and Delete still work over a room.
+ j.Give(WithRequest(true, false));
+ j.h.Press(MenuInput::Fighter);
+ Check(j.screen() == "friends-add", "X on the Friends screen opened from a room did not open Find a player");
+ j.h.Press(MenuInput::Back);
+ j.h.Press(MenuInput::Back);
+ Check(j.screen() == "room", "Back from Friends did not return to the room");
 }
 
 int main() {
  try {
   PopoutJourney(); PlayerCardJourney(); PageJourney(); RelationRowsJourney(); BlockJourney(); ToastJourney();
-  AnsweredWhileHiddenJourney(); RequestOverPromptJourney(); PostMatchFriendJourney(); ToastAnsweredJourney(); NotificationsJourney();
+  AnsweredWhileHiddenJourney(); RequestOverPromptJourney(); PostMatchFriendJourney(); ToastAnsweredJourney(); NotificationsJourney(); MoreFriendsJourney();
   std::cout << "Room friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

@@ -246,6 +246,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(const auto member=RowKey(a.id,"member-")){selectedMember_=*member;nav.Push("room-member");return;}
  if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"){nav.Push(a.id);return;}
  if(a.id=="room-controls"){nav.Push("player");return;}
+ if(a.id=="room-friends"){nav.Push(FriendsPanel::Screen);return;}
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;ShowNotice(loc::T("room.invitation_copied"),Tone::Success,ImGui::GetTime()+3);return;}
   if(a.id=="copy-short"){CopyShortInvitation(v,submit);return;}
   if(a.id=="copy-room-link"){
@@ -349,6 +350,12 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   const bool on=a.kind==MenuAction::Adjust?a.delta>0:!v.room.wiredOnly;
   if(on==v.room.wiredOnly)return;
   request.kind=ActionKind::SetWiredOnly;request.wiredOnly=on;
+ }
+ else if(a.id=="room-privacy"){
+  // Left is Friends and Right Hidden; Select turns it the other way.
+  const bool hidden=a.kind==MenuAction::Adjust?a.delta>0:!v.room.friendsHidden;
+  if(hidden==v.room.friendsHidden)return;
+  request.kind=ActionKind::SetFriendsHidden;request.friendsHidden=hidden;
  }
  else if(a.id=="compose"){
   // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.
