@@ -514,7 +514,7 @@ void SortJourney(){
 }
 
 // Quick join asks for the first room that can be joined, near the player's area when
-// it is set (not a far room with more seats), skips the rooms that refused this
+// it is set (not a far room with more seats) and then any other room that can be joined, skips the rooms that refused this
 // visit, and with none left offers to create one.
 void QuickJoinJourney(){
  {
@@ -530,19 +530,24 @@ void QuickJoinJourney(){
  h.Choose("pr-quick");
  Check(tickets(j)==2&&lastTicketIs(j,"brg_1","m"),"Quick join asked again for a room that was full");
  j.Admit("room_locked");
- // Only a far room, a locked one and a full one are left: nothing near has a seat.
+ // Nothing near has a seat left (the others are locked or full): the far room that has one is the fallback.
  h.Choose("pr-quick");
- Check(tickets(j)==2,"Quick join asked for a room none of which qualified");
+ Check(tickets(j)==3&&lastTicketIs(j,"brg_1","x"),"Quick join did not fall back to the far room when no near room was left");
+ j.Admit("room_full");
+ // Every room that can be joined has refused.
+ h.Choose("pr-quick");
+ Check(tickets(j)==3,"Quick join asked for a room none of which qualified");
  Check(j.noticeOpen(true),"Quick join with no room did not offer to create one");
  h.Press(MenuInput::Select);h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="public-rooms"&&!j.noticeOpen(),"OK on the notice left Public rooms or kept the notice");
  // Leaving the screen ends the visit: the refused room is a candidate again.
  h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);
  h.Choose("pr-quick");
- Check(tickets(j)==3&&lastTicketIs(j,"brg_1","n"),"A new visit did not forget the rooms that refused");
+ Check(tickets(j)==4&&lastTicketIs(j,"brg_1","n"),"A new visit did not forget the rooms that refused");
  j.Admit("banned");h.Choose("pr-quick");
- Check(lastTicketIs(j,"brg_1","m")&&tickets(j)==4,"A room that banned the player was asked for again");
+ Check(lastTicketIs(j,"brg_1","m")&&tickets(j)==5,"A room that banned the player was asked for again");
  // With nothing to join the notice's other button opens Create on Public.
+ j.Admit("room_full");h.Choose("pr-quick");
  j.Admit("room_full");h.Choose("pr-quick");
  Check(j.noticeOpen(true),"The notice with no room does not carry the Create button");
  h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,4);
