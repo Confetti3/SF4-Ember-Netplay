@@ -210,12 +210,17 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   for(auto& r:rows)if(r.id==FighterSelectRow)r.enabled=r.enabled&&selectionAvailable_;
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
+   Row("friends",loc::T("home.friends"),loc::T("home.friends_detail")),
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle),
    Row("replays",loc::T("home.replays"),loc::T("home.replays_detail"))};
   // Training straight from Home, before Play offline.
   rows.insert(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="offline";}),Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle));
+  // Friends say what waits there: the requests to answer, else how many friends are on (as the last list read had them).
+  {const auto counts=friends_panel::CountsOf(v.friends,v.unixNow);auto& friendsRow=rows[1];
+   if(counts.requests){friendsRow.value=counts.requests==1?std::string(loc::T("friends.home_request_one")):loc::Tf("friends.home_requests",counts.requests);friendsRow.valueHighlighted=true;}
+   else if(counts.online)friendsRow.value=loc::Tf("friends.home_online",counts.online);}
   // News, with the notifications beside the channel's releases (the panel under the player card shows the first three).
   rows.push_back(Row("news",loc::T("home.news"),NewsDetail(v)));
   // What waits there for an answer (friends' requests among it), counted here alone on Home.
@@ -398,6 +403,8 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  // The matches screen, by way of Online play and Ember ID so Back goes there.
  else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
  else if(a.id=="profile")nav.Push(ProfilePanel::CardScreen);
+ // Home's, Online play's and the room's Friends: the Profile strip on its Friends tab, so Back returns to where it was opened.
+ else if(a.id=="friends")nav.Push(FriendsPanel::Screen);
  else if(a.id=="main-character")nav.Push(a.id);
  // Edit card's Title and Icon rows go to the award worn there, to change it.
  else if(a.id=="card-title"||a.id=="card-icon"){const bool title=a.id=="card-title";const std::string& worn=title?preferences_.wornTitle:preferences_.wornIcon;if(!worn.empty())nav.Prefer("award:"+worn);nav.Push("awards");}

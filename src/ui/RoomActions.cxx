@@ -246,6 +246,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(const auto member=RowKey(a.id,"member-")){selectedMember_=*member;nav.Push("room-member");return;}
  if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"){nav.Push(a.id);return;}
  if(a.id=="room-controls"){nav.Push("player");return;}
+ if(a.id=="room-friends"){nav.Push(FriendsPanel::Screen);return;}
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;ShowNotice(loc::T("room.invitation_copied"),Tone::Success,ImGui::GetTime()+3);return;}
   if(a.id=="copy-short"){CopyShortInvitation(v,submit);return;}
   if(a.id=="copy-room-link"){

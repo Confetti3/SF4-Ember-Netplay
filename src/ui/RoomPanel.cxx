@@ -463,6 +463,8 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
     // The controller and its buttons, one press from the board.
     more.choices.push_back({"room-controls",loc::T("player.controllers"),loc::T("room.controls_detail")});
     more.choices.push_back({"room-admin",loc::T("room.settings"),loc::T(c.host?"room.settings.detail":"room.settings.host_only"),c.host});
+    // The friends list, one press from the room: to invite friends here or join theirs (Back returns to the room).
+    more.choices.push_back({"room-friends",loc::T("home.friends"),loc::T("room.v2.friends_detail")});
    }
    const auto shownPart=[&](const char* part,bool on){return loc::Tf("room.v2.part_state",loc::T(part),loc::T(on?"common.on":"common.off"));};
    more.choices.push_back({"room-show-members",shownPart("room.members",preferences_.roomShowMembers),loc::T("room.v2.part_detail"),layoutOpen});
