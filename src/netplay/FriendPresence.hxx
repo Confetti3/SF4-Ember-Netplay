@@ -11,6 +11,7 @@
 // Discord friends too. The invitation reaches the bridge in the sync but never
 // leaves it unless a friend presses Join there, or the player sends it in an
 // invite they choose. Pure: tested without a helper (friend_presence_test.cxx).
+#include "../common/Utf8Text.hxx"
 #include "../discord/Presence.hxx"
 #include "../session/RoomFollow.hxx"
 #include "Friends.hxx"
@@ -116,6 +117,35 @@ inline int TableOf(const room::Snapshot& room) {
 	return room::WatchedTable(room, room.localMember);
 }
 
+// A room's name as an offer may carry it, or empty when it may carry none. The
+// bridge takes a room name of 1 to 64 bytes of well-formed text with no
+// control character and no white space at either end (the protocol's
+// check_room_name), and refuses the whole sync for any other. The room itself
+// allows more: "Player 1's room " with its trailing space is a name there. So
+// the white space at the ends is left off for the offer, and a name that still
+// is not one offers no room: the player then shows as in a private room, and
+// their friends list keeps refreshing.
+inline std::string OfferName(const std::string& roomName) {
+	// What the protocol trims by: Unicode's White_Space outside the controls.
+	const auto space = [](std::uint32_t c) {
+		return c == 0x20 || c == 0xA0 || c == 0x1680 || (c >= 0x2000 && c <= 0x200A) || c == 0x2028 || c == 0x2029 || c == 0x202F ||
+			c == 0x205F || c == 0x3000;
+	};
+	std::size_t begin = std::string::npos, end = 0;
+	for (std::size_t at = 0; at < roomName.size();) {
+		std::uint32_t code = 0;
+		const std::size_t length = Utf8CharacterBytes(roomName, at, &code);
+		if (!length || code < 0x20 || (code >= 0x7F && code <= 0x9F)) return {};
+		if (!space(code)) {
+			if (begin == std::string::npos) begin = at;
+			end = at + length;
+		}
+		at += length;
+	}
+	if (begin == std::string::npos || end - begin > 64) return {};
+	return roomName.substr(begin, end - begin);
+}
+
 // The presence for what the player is doing: `described` is discord::Describe's
 // description of the same moment, `room` the room snapshot it was made from.
 inline Report ReportOf(const discord::Presence& described, const room::Snapshot& room, const RoomIdentity& identity) {
@@ -135,10 +165,11 @@ inline Report ReportOf(const discord::Presence& described, const room::Snapshot&
 	if (described.training) report.status = Status::Training;
 	else report.table = TableOf(room);
 	// A private room friends may join: offered under the rule Discord's Join follows (described.offerable), once it
-	// has an invitation, unless its host hid it from friends.
-	if (!identity.isPublic && described.offerable && !described.secret.empty() && !room.friendsHidden) {
+	// has an invitation, unless its host hid it from friends, and while its name is one the bridge takes (OfferName).
+	const std::string offeredName = identity.isPublic ? std::string() : OfferName(room.name);
+	if (!identity.isPublic && described.offerable && !described.secret.empty() && !room.friendsHidden && !offeredName.empty()) {
 		report.offered = true;
-		report.name = room.name;
+		report.name = offeredName;
 		report.members = described.size;
 		report.capacity = described.capacity;
 		report.secret = described.secret;
