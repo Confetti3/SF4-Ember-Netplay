@@ -350,6 +350,12 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(on==v.room.wiredOnly)return;
   request.kind=ActionKind::SetWiredOnly;request.wiredOnly=on;
  }
+ else if(a.id=="room-privacy"){
+  // Left is Friends and Right Hidden; Select turns it the other way.
+  const bool hidden=a.kind==MenuAction::Adjust?a.delta>0:!v.room.friendsHidden;
+  if(hidden==v.room.friendsHidden)return;
+  request.kind=ActionKind::SetFriendsHidden;request.friendsHidden=hidden;
+ }
  else if(a.id=="compose"){
   // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.
   // A room that cannot take it yet holds it, and FlushChat sends it then; one held is the only one accepted.
