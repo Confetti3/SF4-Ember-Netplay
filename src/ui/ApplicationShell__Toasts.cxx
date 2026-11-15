@@ -159,8 +159,9 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
    const float share=(b.x-pad-left-8*s*(t.actions.size()-1))/t.actions.size();
    for(std::size_t i=0;i<t.actions.size();++i){
     const bool first=i==0;
-    // The key's prompt glyph, as the hint bar and the post-match buttons draw it.
-    const char* key=!keyed?nullptr:first?MenuSelectGlyph():MenuBackGlyph();
+    // The key's prompt glyph, as the hint bar and the post-match buttons draw it: Select presses the first button and
+    // Back the last, so one between them (a request's View) has none and is clicked.
+    const char* key=!keyed?nullptr:first?MenuSelectGlyph():i+1==t.actions.size()?MenuBackGlyph():nullptr;
     const float mark=key?keySize+8*s:0;
     const std::string label=v2::Fit(t.actions[i].label,(std::max)(0.f,share-24*s-mark),labelSize,font,false);
     const float labelW=font->CalcTextSizeA(labelSize,FLT_MAX,0,label.c_str()).x;
@@ -194,7 +195,16 @@ void ApplicationShell::AnswerToast(const ShellView& v,double now,const Submit& s
  const std::size_t index=(std::min)(asked,item->actions.size()-1);
  const ToastAction act=item->actions[index];
  if(toastFocus_==id)toastFocus_=0;
- if(item->source==FriendsPanel::Source){friends_.AnswerNotice(v,item->key,index,submit);return;}
+ if(item->source==FriendsPanel::Source){
+  // A request's View (its second of three buttons) opens the Friends screen on that request; Accept and Later are the panel's.
+  if(HasPrefix(item->key,friends_panel::RequestPrefix)&&index==1){
+   auto& nav=menu_.navigation;
+   if(nav.Screen()!=FriendsPanel::Screen)nav.Push(FriendsPanel::Screen);
+   nav.Prefer(item->key);
+   return;
+  }
+  friends_.AnswerNotice(v,item->key,index,submit);return;
+ }
  for(const auto& command:act.commands){
   if(!submit(std::visit([](const auto& typed)->ShellAction{return typed;},command))){error_=loc::T("error.queue_failed");break;}
  }
@@ -219,6 +229,8 @@ public:
     bool Owns(const std::string& screen) const override { return screen == FriendsPanel::NotificationsScreen; }
     std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.NotificationRows(f.view, ImGui::GetTime(), title); }
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        // Friends opens the screen, so Back returns here.
+        if (a.id == "notifications-friends") { f.shell.menu_.navigation.Push(FriendsPanel::Screen); return true; }
         return friends_panel::NotificationRow(a.id) && f.shell.friends_.Activate(f.view, a, f.shell.menu_.navigation, submit);
     }
     bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
@@ -265,9 +277,14 @@ std::vector<MenuEntry> ApplicationShell::NotificationRows(const ShellView& v,dou
   if(!row.choices.empty()){row.info=false;row.popout=true;}
   rows.push_back(std::move(row));
  }
- friends_.AttachNotifications(rows,v);
  // None yet: a row that says so and what will come, as Sent reports' empty list does.
  if(rows.empty())rows.push_back(InfoRow("toasts-none",loc::T("notifications.none"),"",loc::T("notifications.none_detail")));
+ // The Friends screen, after what waits from friends, whenever friends are offered here (not only when something waits).
+ if(friends_.Offered(v)){
+  const auto last=std::find_if(rows.rbegin(),rows.rend(),[](const MenuEntry& e){return friends_panel::NotificationRow(e.id);});
+  rows.insert(last==rows.rend()?rows.begin():last.base(),Row("notifications-friends",loc::T("home.friends"),loc::T("notifications.friends_detail")));
+ }
+ friends_.AttachNotifications(rows,v);
  return rows;
 }
 } }

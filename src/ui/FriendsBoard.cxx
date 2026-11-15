@@ -251,8 +251,9 @@ void DrawPersonPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool 
         // Where they are, with the room's count: the row says it too, so it goes first when the panel is taller than the body, which
         // would hide the buttons under it.
         std::string where = e.detail;
-        if (entry->presence.kind == nf::Presence::Kind::InRoom && entry->presence.hasRoom && entry->presence.room.capacity)
-            where += " \xC2\xB7 " + loc::Tf("card.of", static_cast<int>(entry->presence.room.members), static_cast<int>(entry->presence.room.capacity));
+        // A private room the bridge offered shows its count as a public room does; another game's room shows none.
+        if (const auto shown = RoomOf(*entry); shown && shown->capacity)
+            where += " \xC2\xB7 " + loc::Tf("card.of", shown->members, shown->capacity);
         const auto ago = Ago(f.now, entry->record.lastAt);
         const std::vector<v2::TagView::Fact> facts{{loc::T("card.you_and"), RecordOf(*entry)}, {loc::T("friends.last_played"), ago.empty() ? std::string("-") : ago},
             {loc::T("friends.since"), entry->since ? LocalTime(entry->since, "%Y-%m-%d") : std::string("-")}};

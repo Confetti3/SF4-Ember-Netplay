@@ -14,7 +14,7 @@
 //   that state (--screen replay-archive, replay-archive-filter or replay-archive-fighter)
 // --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's levels (--screen card, fighters,
 //   card-edit, card-looking, card-pins, awards or home; awards without it reads played)
-// --friends full|requests|notifications|empty|noaccount|unavailable|loading|unreachable|offline: the player's friends in
+// --friends full|requests|notifications|privateoffer|othergame|empty|noaccount|unavailable|loading|unreachable|offline: the player's friends in
 //   that state (--screen friends, friends-add, friends-sent or friends-blocked; UiLabSocial.hxx); with --toasts the
 //   requests and an invite arrive as toasts (--friends full --toasts); --screen tab-online/friends is the Settings panel;
 //   --friends notifications --screen notifications lists Player 2's request and an invite waiting

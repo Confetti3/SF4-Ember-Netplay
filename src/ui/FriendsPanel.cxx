@@ -6,6 +6,7 @@
 #include "../common/LocalTime.hxx"
 #include "../common/Localization.hxx"
 #include "../netplay/FriendVisits.hxx"
+#include "../netplay/GameIdentity.hxx"
 #include "FindPlayer.hxx"
 #include "PublicRoomsPanel.hxx"
 #include <algorithm>
@@ -36,6 +37,7 @@ const char* WhyNotThere(const nf::Destination& destination, bool watch) {
     using Refusal = nf::Destination::Refusal;
     switch (destination.refusal) {
     case Refusal::PrivateRoom: return "friends.private_invite_only";
+    case Refusal::OtherGame: return "friends.join_unavailable";
     case Refusal::None: return nullptr;
     default: return watch ? "friends.cannot_watch" : "friends.cannot_join";
     }
@@ -142,13 +144,38 @@ OtherCardView CardOf(const nf::Friend& entry, FighterArt art) {
     return card;
 }
 
+bool OtherGame(const nf::Friend& entry) { return !netplay::SameGame(entry.presence.game); }
+
+std::optional<ShownRoom> RoomOf(const nf::Friend& entry) {
+    const auto& presence = entry.presence;
+    if (presence.kind != nf::Presence::Kind::InRoom || OtherGame(entry)) return std::nullopt;
+    if (presence.privateRoom) {
+        // A private room with no offer, or one the bridge sent no name for, is no room to name.
+        if (!presence.hasPrivateOffer || presence.privateOffer.name.empty()) return std::nullopt;
+        return ShownRoom{presence.privateOffer.name, static_cast<int>(presence.privateOffer.members), static_cast<int>(presence.privateOffer.capacity)};
+    }
+    if (!presence.hasRoom) return std::nullopt;
+    return ShownRoom{presence.room.name, static_cast<int>(presence.room.members), static_cast<int>(presence.room.capacity)};
+}
+
 bool Joinable(const nf::Friend& entry) {
     const auto& presence = entry.presence;
-    return presence.kind == nf::Presence::Kind::InRoom && presence.hasRoom && !presence.privateRoom && presence.room.joinable;
+    if (presence.kind != nf::Presence::Kind::InRoom || OtherGame(entry)) return false;
+    if (presence.privateRoom) return presence.hasPrivateOffer && presence.privateOffer.joinable;
+    return presence.hasRoom && presence.room.joinable;
+}
+
+Counts CountsOf(const nf::View& view, std::uint64_t now) {
+    Counts counts;
+    const auto& state = StateOf(view);
+    if (state.kind != nf::State::Kind::Listed) return counts;
+    counts.requests = static_cast<int>(WaitingOf(view, now).requests.size());
+    for (const auto& entry : state.friends) if (entry.presence.kind != nf::Presence::Kind::Offline) ++counts.online;
+    return counts;
 }
 
 Press PressOf(const nf::Friend& entry, bool canInvite) {
-    if (entry.presence.kind == nf::Presence::Kind::Offline) return Press::Card;
+    if (entry.presence.kind == nf::Presence::Kind::Offline || OtherGame(entry)) return Press::Card;
     if (Joinable(entry)) return Press::Join;
     return canInvite ? Press::Invite : Press::Card;
 }
@@ -161,6 +188,12 @@ std::string Ago(std::uint64_t now, std::uint64_t at) {
     return seconds < 24 * 3600 ? loc::Tf("friends.hours_ago", (std::max<std::uint64_t>)(1, seconds / 3600)) : loc::Tf("friends.days_ago", seconds / (24 * 3600));
 }
 
+// Which game a friend of another one is in, in `known`'s words; "Playing another game" when this build has no title for it.
+static std::string GameWords(const std::string& game, const char* known) {
+    const std::string title = netplay::GameTitle(game);
+    return title.empty() ? std::string(loc::T("friends.another_game")) : loc::Tf(known, title);
+}
+
 std::string Status(const nf::Friend& entry, std::uint64_t now) {
     const auto& presence = entry.presence;
     switch (presence.kind) {
@@ -169,13 +202,16 @@ std::string Status(const nf::Friend& entry, std::uint64_t now) {
         return ago.empty() ? std::string() : loc::Tf("friends.last_online", ago);
     }
     case nf::Presence::Kind::Online:
+        if (OtherGame(entry)) return GameWords(presence.game, "friends.playing_game");
         return loc::T(presence.activity == nf::Activity::OfflinePlay ? "friends.offline_play" : "friends.menus");
     case nf::Presence::Kind::InRoom:
+        if (OtherGame(entry)) return GameWords(presence.game, "friends.room_game");
         break;
     }
-    // A room that is neither public and listed nor private is no room to name.
-    if (presence.privateRoom || !presence.hasRoom) return loc::T("friends.private_room");
-    const std::string& room = presence.room.name;
+    // A room that is neither public and listed nor private, or a private one the bridge offered no name for, is no room to name.
+    const auto shown = RoomOf(entry);
+    if (!shown) return loc::T("friends.private_room");
+    const std::string& room = shown->name;
     switch (presence.status) {
     case nf::Status::Fighting: if (presence.table >= 0) return loc::Tf("friends.playing_table", presence.table + 1, room); break;
     case nf::Status::Watching: if (presence.table >= 0) return loc::Tf("friends.watching_table", presence.table + 1, room); break;
@@ -203,9 +239,11 @@ std::string CodeShown(const std::string& typed) {
 std::vector<MenuChoice> FriendChoices(const nf::State& state, const nf::Friend& entry, bool canInvite, Gate gate) {
     const auto reason = [](const char* key) { return key ? std::string(loc::T(key)) : std::string(); };
     const auto join = nf::ToFriend(state, entry.id, false), watch = nf::ToFriend(state, entry.id, true);
-    const char* joinWhy = !gate.go ? gate.goWhy : WhyNotThere(join, false);
+    // Join follows Joinable, which also takes a private room the bridge offered; the refusal's own words are ToFriend's, else a plain no.
+    const char* joinWhy = !gate.go ? gate.goWhy : Joinable(entry) ? nullptr : WhyNotThere(join, false) ? WhyNotThere(join, false) : "friends.cannot_join";
+    // Watch stays with public rooms: ToFriend refuses it for a private room, offered or not, and for another game.
     const char* watchWhy = !gate.go ? gate.goWhy : WhyNotThere(watch, true);
-    const bool online = entry.presence.kind != nf::Presence::Kind::Offline;
+    const bool online = entry.presence.kind != nf::Presence::Kind::Offline && !OtherGame(entry);
     const char* inviteWhy = !gate.act ? gate.actWhy : !online ? "friends.invite_unavailable" : !canInvite ? "friends.nothing_to_offer" : nullptr;
     // Inviting while appearing offline tells the friend where this player is.
     const std::string inviteDetail = inviteWhy ? reason(inviteWhy) : state.appearOffline ? reason("friends.invite_reveals") : std::string();
@@ -244,22 +282,23 @@ std::vector<Notifications::Item> NoticesOf(const nf::View& view, std::uint64_t n
     const auto& state = StateOf(view);
     const auto waiting = WaitingOf(view, now);
     std::vector<Notifications::Item> items;
-    const auto item = [&](std::string key, std::string text, const char* first, const char* second) {
+    const auto item = [&](std::string key, std::string text, std::initializer_list<const char*> buttons) {
         Notifications::Item notice;
         notice.key = std::move(key);
         notice.text = std::move(text);
         // The diamond the Friends tab marks a request with, not the triangle that reads as a warning.
         notice.tone = Tone::Neutral;
-        notice.actions = {{loc::T(first)}, {loc::T(second)}};
+        for (const char* button : buttons) notice.actions.push_back({loc::T(button)});
         notice.again = true;
         items.push_back(std::move(notice));
     };
+    // A request's buttons: Accept first (Select), View, and Later last (Back); the shell opens the list on View (AnswerToast).
     for (const auto* request : waiting.requests)
-        item(RequestPrefix + request->id, loc::Tf("friends.toast_request", request->name) + "\n" + PlayedLine(*request, now), "friends.accept", "friends.later");
+        item(RequestPrefix + request->id, loc::Tf("friends.toast_request", request->name) + "\n" + PlayedLine(*request, now), {"friends.accept", "friends.view", "friends.later"});
     for (const auto* invite : waiting.invites) {
         const auto& from = *state.FindFriend(invite->friendId);
         const std::string room = InvitedRoom(*invite, from);
-        item(InvitePrefix + invite->id, loc::Tf("friends.toast_invite", from.name) + (room.empty() ? std::string() : "\n" + room), "toast.join", "friends.dismiss");
+        item(InvitePrefix + invite->id, loc::Tf("friends.toast_invite", from.name) + (room.empty() ? std::string() : "\n" + room), {"toast.join", "friends.dismiss"});
     }
     return items;
 }
@@ -399,6 +438,8 @@ const char* UnusableWords(Mode mode, Gate gate) {
 }
 }
 
+bool FriendsPanel::Offered(const ShellView& v) const { return ModeOf(v.friends, service_) != Mode::Unavailable; }
+
 bool FriendsPanel::SettingsRow(const std::string& row) { return row == AppearRow || row == NewCodeRow || row == ForgetRow || row == TurnOnRow; }
 
 std::vector<MenuEntry> FriendsPanel::SettingsRows(const ShellView& v) {
@@ -432,7 +473,8 @@ void FriendsPanel::BlockMember(const ShellView& v, const std::string& card, cons
 }
 
 void FriendsPanel::AnswerNotice(const ShellView& v, const std::string& key, std::size_t action, const Submit& submit) {
-    // The first button is Accept or Join; the second, Later, only puts the toast away, or Dismiss.
+    // The first button is Accept or Join; a request's second, View, is the shell's (it opens the list) and its last, Later,
+    // only puts the toast away; an invite's second is Dismiss.
     if (HasPrefix(key, RequestPrefix)) { if (action == 0) Accept(v, IdOf(key, RequestPrefix), key, submit); }
     else if (HasPrefix(key, InvitePrefix)) {
         if (action == 0) TakeInvite(v, IdOf(key, InvitePrefix), submit);

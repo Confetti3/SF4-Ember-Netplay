@@ -8,6 +8,7 @@
 // helper reads it.
 #include "FriendCommands.hxx"
 #include "FriendPresence.hxx"
+#include "GameIdentity.hxx"
 
 #include <cstdint>
 #include <string>
@@ -35,6 +36,7 @@ inline nlohmann::json SyncRequest(const std::string& bridgeId, const std::string
 	if (!listing.country.empty()) shown["country"] = listing.country;
 	json sync = json::object();
 	sync["build_id"] = buildId;
+	sync["game"] = GameId;
 	sync["listing"] = std::move(shown);
 	if (listing.main >= 0) sync["main"] = listing.main;
 	sync["presence"] = report.ToJson();
@@ -74,6 +76,8 @@ inline json ActOf(const commands::FriendAppearOffline& c) { auto act = Act("appe
 inline json ActOf(const commands::FriendTurnOff&) { return Act("forget"); }
 inline json ActOf(const commands::FriendTurnOn&) { return Act("turn_on"); }
 inline json ActOf(const commands::FriendDismiss& c) { auto act = Act("dismiss"); act["invite"] = c.invite; return act; }
+// The answer to this one is the invitation of the friend's private room (session::DecodeJoining).
+inline json ActOf(const commands::FriendAskJoin& c) { auto act = Act("join"); act["friend"] = c.friendId; return act; }
 // An invite names the room offered; without one it is not sent.
 inline json ActOf(const commands::FriendInvite& c, const Offer& offer) {
 	if (!offer.Any()) return nullptr;

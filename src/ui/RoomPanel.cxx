@@ -463,6 +463,8 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
     // The controller and its buttons, one press from the board.
     more.choices.push_back({"room-controls",loc::T("player.controllers"),loc::T("room.controls_detail")});
     more.choices.push_back({"room-admin",loc::T("room.settings"),loc::T(c.host?"room.settings.detail":"room.settings.host_only"),c.host});
+    // The friends list, one press from the room: to invite friends here or join theirs (Back returns to the room).
+    more.choices.push_back({"room-friends",loc::T("home.friends"),loc::T("room.v2.friends_detail")});
    }
    const auto shownPart=[&](const char* part,bool on){return loc::Tf("room.v2.part_state",loc::T(part),loc::T(on?"common.on":"common.off"));};
    more.choices.push_back({"room-show-members",shownPart("room.members",preferences_.roomShowMembers),loc::T("room.v2.part_detail"),layoutOpen});
@@ -714,6 +716,8 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
    loc::Tf("room.tables.detail",static_cast<int>(TableCount)),host));
   rows.push_back(Value("lock",loc::T("room.admission"),loc::T(s.locked?"room.locked":"room.open"),loc::T("room.admission.detail"),host));
   rows.push_back(WiredOnlyRow("room-wired-only",s.wiredOnly,std::string(loc::T("room.wired_only.detail"))+"\n"+loc::T("room.wired_only.settings_detail"),host));
+  // Only a private room the host opened itself can be hidden: a public room is listed by its service and a tournament's is bound to its match.
+  if(!s.serverOwned&&!s.tournament.Active())rows.push_back(PrivacyRow("room-privacy",s.friendsHidden,loc::T("room.privacy.settings_detail"),host));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
   if(tables)rows.push_back(Row("apply-tables",loc::T("room.apply_tables"),loc::Tf("room.tables.detail",static_cast<int>(TableCount)),

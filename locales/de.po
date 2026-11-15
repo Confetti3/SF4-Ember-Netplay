@@ -756,6 +756,12 @@ msgstr "Online-Spiel"
 msgid "home.online_detail"
 msgstr "Erstellen Sie einen Raum, treten Sie einem bei, durchsuchen Sie öffentliche Räume oder richten Sie die Ember ID für Turniere ein."
 
+msgid "home.friends"
+msgstr "Freunde"
+
+msgid "home.friends_detail"
+msgstr "Treten Sie Freunden bei, beantworten Sie Anfragen und fügen Sie neue Freunde hinzu."
+
 msgid "home.return_room"
 msgstr "Zum aktuellen Raum zurückkehren."
 
@@ -1170,6 +1176,15 @@ msgstr "Freunde"
 msgid "friends.tab_count"
 msgstr "Freunde · {0}"
 
+msgid "friends.home_online"
+msgstr "{0} online"
+
+msgid "friends.home_request_one"
+msgstr "1 Anfrage"
+
+msgid "friends.home_requests"
+msgstr "{0} Anfragen"
+
 msgid "profile.view_sets"
 msgstr "Sets ansehen"
 
@@ -1265,6 +1280,15 @@ msgstr "In den Menüs"
 
 msgid "friends.offline_play"
 msgstr "Spielt offline"
+
+msgid "friends.playing_game"
+msgstr "Spielt {0}"
+
+msgid "friends.room_game"
+msgstr "In einem Raum · {0}"
+
+msgid "friends.another_game"
+msgstr "Spielt ein anderes Spiel"
 
 msgid "friends.last_online"
 msgstr "Zuletzt online {0}"
@@ -1602,6 +1626,9 @@ msgstr "Freunde sind ausgeschaltet."
 msgid "friends.cannot_join"
 msgstr "Du kannst diesem Raum gerade nicht beitreten."
 
+msgid "friends.join_unavailable"
+msgstr "Diesem Raum kann gerade nicht beigetreten werden."
+
 msgid "friends.cannot_watch"
 msgstr "Dieser Freund ist nicht in einem Spiel, das du ansehen kannst."
 
@@ -1649,6 +1676,9 @@ msgstr "{0} lädt dich in einen Raum ein"
 
 msgid "friends.later"
 msgstr "Später"
+
+msgid "friends.view"
+msgstr "Ansehen"
 
 msgid "friends.dismiss"
 msgstr "Verwerfen"
@@ -4137,6 +4167,21 @@ msgstr "Spieler im WLAN können beitreten, zuschauen und chatten, aber keinen Pl
 msgid "room.wired_only.settings_detail"
 msgstr "Gilt ab dem nächsten Platz, der genommen wird. Wer jetzt sitzt, behält seinen Platz."
 
+msgid "room.privacy"
+msgstr "Privatsphäre"
+
+msgid "room.privacy.friends"
+msgstr "Freunde"
+
+msgid "room.privacy.hidden"
+msgstr "Verborgen"
+
+msgid "room.privacy.detail"
+msgstr "Freunde: Freunde aller Personen im Raum sehen ihn und können beitreten, solange er offen ist. Verborgen: Freunde sehen nur, dass jemand in einem privaten Raum ist, und treten per Einladung bei."
+
+msgid "room.privacy.settings_detail"
+msgstr "Spieler, die schon beigetreten sind, können mit ihrer Einladung zurückkehren. Mit Zutritt auf Gesperrt kann niemand mehr beitreten."
+
 msgid "room.apply_name"
 msgstr "Raumnamen übernehmen"
 
@@ -5537,6 +5582,9 @@ msgstr "Öffentliche Räume"
 
 msgid "online.public_detail"
 msgstr "Durchsuchen Sie offene Räume, denen jeder beitreten kann, oder treten Sie schnell einem in Ihrer Nähe bei."
+
+msgid "online.friends_detail"
+msgstr "Freunde, die online sind, und die Räume, in denen sie sind."
 
 msgid "public.create"
 msgstr "Öffentlichen Raum erstellen"
@@ -8611,6 +8659,9 @@ msgstr "Mehr…"
 msgid "room.v2.more_detail"
 msgstr "Controller, Raumeinstellungen, der Link eines öffentlichen Raums und das Layout der Übersicht."
 
+msgid "room.v2.friends_detail"
+msgstr "Freunde in diesen Raum einladen oder ihrem Raum beitreten."
+
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
 
@@ -8736,6 +8787,9 @@ msgstr "{0} warten"
 
 msgid "notifications.none_detail"
 msgstr "Freundschaftsanfragen, Einladungen und Hinweise von Ember erscheinen hier."
+
+msgid "notifications.friends_detail"
+msgstr "Freunde, Anfragen und blockierte Spieler."
 
 msgid "home.news"
 msgstr "Neuigkeiten/Benachrichtigungen"

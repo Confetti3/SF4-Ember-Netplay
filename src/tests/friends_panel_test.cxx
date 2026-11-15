@@ -7,6 +7,7 @@
 #include "../ui/PlayerOpening.hxx"
 #include "../ui/PostMatchFriend.hxx"
 #include "../ui/ShellView.hxx"
+#include "../netplay/GameIdentity.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../common/Localization.hxx"
 #include <cstdio>
@@ -37,6 +38,15 @@ nf::Friend InRoom(const char* name, bool joinable, nf::Status status = nf::Statu
     auto& p = entry.presence;
     p.kind = nf::Presence::Kind::InRoom; p.status = status; p.table = table; p.hasRoom = true;
     p.room.id = std::string(32, 'a'); p.room.name = "Player 5's room"; p.room.joinable = joinable;
+    return entry;
+}
+// A friend in a private room, with the invitation offer the bridge showed this player (none: `offered` false).
+nf::Friend PrivateRoomOf(const char* name, bool offered, bool joinable, std::uint8_t members = 3, std::uint8_t capacity = 8) {
+    auto entry = Pal(name);
+    auto& p = entry.presence;
+    p.kind = nf::Presence::Kind::InRoom; p.privateRoom = true;
+    p.hasPrivateOffer = offered;
+    if (offered) { p.privateOffer.name = "Secret room"; p.privateOffer.members = members; p.privateOffer.capacity = capacity; p.privateOffer.joinable = joinable; }
     return entry;
 }
 nf::Friend Online(const char* name) { auto entry = Pal(name); entry.presence.kind = nf::Presence::Kind::Online; return entry; }
@@ -323,7 +333,8 @@ void WaitingInNotifications() {
     Check(notices.size() == 3 && notices[0].key == "request:rq_2" && notices[1].key == "request:rq_1" && notices[2].key == "invite:iv_1",
         "what waits is not told into Notifications by its rows' ids, in order");
     Check(notices[0].Head() == loc::Tf("friends.toast_request", "Player 2") && notices[0].text == notices[0].Head() + "\n" + loc::T("friends.not_played") &&
-        notices[0].actions.size() == 2 && notices[0].actions[0].label == loc::T("friends.accept") && notices[0].actions[1].label == loc::T("friends.later") && notices[0].again,
+        notices[0].actions.size() == 3 && notices[0].actions[0].label == loc::T("friends.accept") && notices[0].actions[1].label == loc::T("friends.view") &&
+        notices[0].actions[2].label == loc::T("friends.later") && notices[0].again,
         "a request's item does not say who asks, whether they played, Accept and Later");
     Check(notices[2].text == loc::Tf("friends.toast_invite", "Player 3") + "\nPlayer 5's room" && notices[2].actions[0].label == loc::T("toast.join") &&
         notices[2].actions[1].label == loc::T("friends.dismiss"), "an invite's item does not say who invites, to which room, Join and Dismiss");
@@ -527,7 +538,82 @@ void PostMatchFriendStates() {
     Check(!pm::InputsOf(view, &them, false).card, "this PC's own member has a box");
 }
 
+// A private room the bridge offered is joined like a public one; one it offered as full is named but not joinable; one with no
+// offer stays "In a private room".
+void PrivateOffers() {
+    using fp::Press;
+    const auto open = fp::Gate{true, true, nullptr, nullptr};
+    auto joinable = PrivateRoomOf("Open", true, true);
+    Check(fp::Joinable(joinable) && fp::PressOf(joinable, false) == Press::Join && fp::PressOf(joinable, true) == Press::Join, "a joinable private offer is not Join");
+    Check(fp::Status(joinable, Now) == loc::Tf("friends.waiting_room", "Secret room"), "a private offer's room is not named as a public room is");
+    joinable.presence.status = nf::Status::Fighting; joinable.presence.table = 1;
+    Check(fp::Status(joinable, Now) == loc::Tf("friends.playing_table", 2, "Secret room"), "a friend fighting in a private offer is not at their table");
+    const auto shown = fp::RoomOf(joinable);
+    Check(shown && shown->name == "Secret room" && shown->members == 3 && shown->capacity == 8, "the panel does not show the offer's count");
+    nf::State state;
+    state.friends = {joinable, PrivateRoomOf("Full", true, false), PrivateRoomOf("Bare", false, false)};
+    state.kind = nf::State::Kind::Listed;
+    const auto choices = fp::FriendChoices(state, state.friends[0], true, open);
+    Check(Pick(choices, "join")->enabled && !Pick(choices, "watch")->enabled && !Pick(choices, "watch")->detail.empty(), "More on a joinable private offer does not enable Join and disable Watch");
+    const auto full = PrivateRoomOf("Full", true, false);
+    Check(!fp::Joinable(full) && fp::PressOf(full, true) == Press::Invite && fp::PressOf(full, false) == Press::Card, "a private offer that is full can be joined");
+    Check(fp::Status(full, Now) == loc::Tf("friends.waiting_room", "Secret room"), "a full private offer does not name its room");
+    const auto fullChoices = fp::FriendChoices(state, state.friends[1], true, open);
+    Check(!Pick(fullChoices, "join")->enabled && !Pick(fullChoices, "join")->detail.empty(), "a full private offer can be joined from More");
+    const auto bare = PrivateRoomOf("Bare", false, false);
+    Check(!fp::Joinable(bare) && fp::Status(bare, Now) == loc::T("friends.private_room") && !fp::RoomOf(bare), "a private room with no offer is not left as it was");
+    // Joinable friends are listed first in a room.
+    state.friends = {PrivateRoomOf("Aaa", true, false), PrivateRoomOf("Zed", true, true), InRoom("Mid", true)};
+    Check(Names(fp::Arrange(state).inRoom) == std::vector<std::string>({"Mid", "Zed", "Aaa"}), "a joinable private offer is not listed with the joinable rooms");
+}
+
+// A friend in another game has no Join, no Invite and no count, and says which game.
+void OtherGames() {
+    using fp::Press;
+    const auto open = fp::Gate{true, true, nullptr, nullptr};
+    auto sfv = InRoom("Sfv", true);
+    sfv.presence.game = "sfv";
+    Check(fp::OtherGame(sfv) && !fp::Joinable(sfv) && fp::PressOf(sfv, true) == Press::Card && !fp::RoomOf(sfv), "a friend in a room of another game can be joined");
+    Check(fp::Status(sfv, Now) == loc::Tf("friends.room_game", netplay::GameTitle("sfv")), "a friend in another game's room does not say which game");
+    auto menus = Online("Menus");
+    menus.presence.game = "sfv";
+    Check(fp::Status(menus, Now) == loc::Tf("friends.playing_game", netplay::GameTitle("sfv")) && fp::PressOf(menus, true) == Press::Card, "a friend online in another game does not say which game");
+    auto unknown = InRoom("Unknown", true);
+    unknown.presence.game = "zzz";
+    Check(fp::Status(unknown, Now) == loc::T("friends.another_game"), "a room of a game with no title does not say another game");
+    auto unknownOnline = Online("Unknown");
+    unknownOnline.presence.game = "zzz";
+    Check(fp::Status(unknownOnline, Now) == loc::T("friends.another_game"), "a friend online in a game with no title does not say another game");
+    // Offline friends have no game to name; this game's id reads as this game.
+    auto here = InRoom("Here", true);
+    here.presence.game = netplay::GameId;
+    Check(!fp::OtherGame(here) && fp::Joinable(here), "a friend of this game's id is another game's");
+    nf::State state;
+    state.friends = {sfv};
+    state.kind = nf::State::Kind::Listed;
+    const auto choices = fp::FriendChoices(state, state.friends[0], true, open);
+    Check(!Pick(choices, "join")->enabled && Pick(choices, "join")->detail == loc::T("friends.join_unavailable") && !Pick(choices, "invite")->enabled, "More on a friend of another game offers Join or Invite");
+}
+
+// Home's Friends row counts the requests waiting, and the friends who are not offline.
+void HomeCounts() {
+    nf::State state;
+    state.friends = {Online("A"), InRoom("B", true), Offline("C", Now - Hour), PrivateRoomOf("D", false, false)};
+    auto none = fp::CountsOf(ListedView(state), Now);
+    Check(none.requests == 0 && none.online == 3, "online friends are not counted without requests");
+    nf::Incoming request;
+    request.id = "rq_1";
+    state.incoming = {request};
+    const auto some = fp::CountsOf(ListedView(state), Now);
+    Check(some.requests == 1 && some.online == 3, "a waiting request is not counted");
+    const auto unlisted = fp::CountsOf(nf::View{}, Now);
+    Check(unlisted.requests == 0 && unlisted.online == 0, "friends not listed are counted");
+}
+
 int main() {
+    PrivateOffers();
+    OtherGames();
+    HomeCounts();
     WaitingInNotifications();
     Outcomes();
     MemberGate();

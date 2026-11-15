@@ -5,6 +5,7 @@
 // Join that asks first opens its question.
 #include "public_rooms_journey_support.hxx"
 #include "../ui/FriendsPanel.hxx"
+#include "../netplay/GameIdentity.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <memory>
@@ -164,6 +165,27 @@ void RowsJourney() {
  Check(j.row("friend:fr_5")->hint == loc::T("room.member_card") && j.row("friend:fr_3")->hint == loc::T("friends.join"), "Without a room to offer a friend's row still says Invite");
  // The tab's label counts the requests.
  Check(ui::MenuPlayerCard().requests == 2, "The Friends tab does not count the requests");
+}
+
+// A friend in a private room the bridge offered joins like a public one; a full one is named without Join; a friend in another
+// game says which and has neither Join nor Invite.
+void PrivateOfferJourney() {
+ auto state = FullState();
+ auto open = Pal("20", "Player 20"); open.presence.kind = nf::Presence::Kind::InRoom; open.presence.privateRoom = true; open.presence.hasPrivateOffer = true;
+ open.presence.privateOffer.name = "Quiet corner"; open.presence.privateOffer.members = 3; open.presence.privateOffer.capacity = 8; open.presence.privateOffer.joinable = true;
+ auto full = open; full.id = "fr_21"; full.name = "Player 21"; full.presence.privateOffer.joinable = false;
+ auto bare = open; bare.id = "fr_22"; bare.name = "Player 22"; bare.presence.hasPrivateOffer = false;
+ auto sfv = FriendIn("23", "Player 23", true, nf::Status::Idle, -1); sfv.presence.game = "sfv";
+ state->friends.push_back(open); state->friends.push_back(full); state->friends.push_back(bare); state->friends.push_back(sfv);
+ Social j(state);
+ j.open();
+ Check(j.row("friend:fr_20")->hint == loc::T("friends.join") && j.row("friend:fr_20")->detail == loc::Tf("friends.waiting_room", "Quiet corner"), "A joinable private offer is not Join, named as a public room is");
+ Check(j.row("friend:fr_21")->hint == loc::T("friends.invite") && j.row("friend:fr_21")->detail == loc::Tf("friends.waiting_room", "Quiet corner"), "A full private offer says Join, or does not name its room");
+ Check(j.row("friend:fr_22")->detail == loc::T("friends.private_room"), "A private room with no offer names its room");
+ Check(j.row("friend:fr_23")->hint == loc::T("room.member_card") && j.row("friend:fr_23")->detail == loc::Tf("friends.room_game", netplay::GameTitle("sfv")), "A friend in another game's room says Join or does not name the game");
+ j.select("friend:fr_20");
+ const auto joins = j.sent<commands::FriendJoin>();
+ Check(joins.size() == 1 && joins[0]->friendId == "fr_20", "A on a joinable private offer did not send Join for the friend");
 }
 
 // A on a joinable friend sends Join; on a request, Accept; on a friend to invite, Invite. While an action is in flight
@@ -622,7 +644,7 @@ void SettingsJourney() {
 
 int main() {
  try {
-  VisitJourney(); RowsReadJourney(); RowsJourney(); ActionsJourney(); CardJourney(); MorePopoutJourney(); CardWantedJourney(); MoreJourney(); RequestJourney(); AddJourney(); FindJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
+  VisitJourney(); RowsReadJourney(); RowsJourney(); PrivateOfferJourney(); ActionsJourney(); CardJourney(); MorePopoutJourney(); CardWantedJourney(); MoreJourney(); RequestJourney(); AddJourney(); FindJourney(); AppearJourney(); PagesJourney(); StatesJourney(); VisitQuestionJourney(); SettingsJourney(); RoomJourney();
   std::cout << "Friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

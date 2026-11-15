@@ -14,11 +14,13 @@
 //! strict, so the tolerance is on the answer's fields (`lenient`). A build
 //! asks only a bridge that lists [`FRIENDS_FEATURE`], and an older bridge
 //! answers 404.
+use std::fmt;
+
 use serde::{Deserialize, Deserializer, Serialize, de::DeserializeOwned};
 
 use crate::{
     Error, Result,
-    encoding::{is_false, is_prefixed_id, is_single_line},
+    encoding::{is_false, is_game_id, is_prefixed_id, is_single_line},
     levels::{CardAccount, FIGHTERS, MAX_TIER, is_card_token},
     play::{check_build, is_hex},
     rooms::{MAX_CAPACITY, MAX_NAME, MIN_CAPACITY, check_room_name, is_country, is_player_name},
@@ -29,6 +31,15 @@ use crate::{
 /// The capability a bridge with the friends routes offers, and only beside
 /// `levels`.
 pub const FRIENDS_FEATURE: &str = "friends";
+/// The capability of a bridge that reads the `game` of a sync, the `offer` of
+/// a private room report and the `join` action, and answers `game`,
+/// `private_room` and `joining`. Offered wherever [`FRIENDS_FEATURE`] is. A
+/// bridge from before it refuses those request members, so a client names
+/// none of them to a bridge that does not list this.
+pub const PRESENCE_V2_FEATURE: &str = "friends_presence_v2";
+/// The game a sync that names none is for: builds from before the `game`
+/// member are that game's. The one place the default is written.
+pub const DEFAULT_GAME: &str = "usf4";
 /// `POST` a `FriendsSync`, answered with the `FriendsState`.
 pub const SYNC_PATH: &str = "/v1/friends/sync";
 /// `POST` a `FriendAction`, answered with the `FriendsState` after it.
@@ -72,6 +83,11 @@ wire_enum! {
         CodeTooSoon = "code_too_soon",
         /// Not a friend, or the friend is offline or appears offline.
         InviteUnavailable = "invite_unavailable",
+        /// The caller cannot join that friend's private room now, for any
+        /// reason: not a friend, offline or appearing offline, another game
+        /// or build, no room on offer, or the room is full. One refusal for
+        /// all of them, so the caller learns nothing about which.
+        JoinUnavailable = "join_unavailable",
     }
 }
 
@@ -139,6 +155,14 @@ fn check_table(table: Option<u8>) -> Result<()> {
     }
 }
 
+fn check_game(game: Option<&str>) -> Result<()> {
+    if game.is_none_or(is_game_id) {
+        Ok(())
+    } else {
+        Err(Error::InvalidField("game"))
+    }
+}
+
 fn check_country(country: Option<&str>) -> Result<()> {
     if country.is_none_or(is_country) {
         Ok(())
@@ -200,15 +224,50 @@ fn activity_or_menus<'de, D: Deserializer<'de>>(
     Ok(lenient(deserializer)?.unwrap_or(Activity::Menus))
 }
 
+/// A game id of an answer, or none when it is not one (`is_game_id`): a
+/// value this build cannot use drops only itself.
+fn game_or_none<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error> {
+    Ok(lenient::<_, String>(deserializer)?.filter(|game| is_game_id(game)))
+}
+
+/// A private room of an answer, or none when it cannot be read or is not
+/// well formed: it drops only itself, and the friend stays in the room.
+fn private_room_or_none<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<PrivateRoom>, D::Error> {
+    Ok(lenient::<_, PrivateRoom>(deserializer)?.filter(|room| room.check().is_ok()))
+}
+
+/// The invitation a join answered, or none when it cannot be read.
+fn joining_or_none<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<Joining>, D::Error> {
+    Ok(lenient::<_, Joining>(deserializer)?.filter(|joining| joining.check().is_ok()))
+}
+
 /// A presence this build cannot read (a state it does not know) reads as
 /// online and doing the plain thing, with no room: the friend is shown as
 /// there, which is true of anyone with a presence at all.
 fn presence_or_online<'de, D: Deserializer<'de>>(
     deserializer: D,
 ) -> std::result::Result<FriendPresence, D::Error> {
-    Ok(lenient(deserializer)?.unwrap_or(FriendPresence::Online {
+    let mut presence = lenient(deserializer)?.unwrap_or(FriendPresence::Online {
         activity: Activity::Menus,
-    }))
+        game: None,
+    });
+    // A private room's facts beside a room that is not private say nothing
+    // this build can show: they drop, and the friend stays where they are.
+    if let FriendPresence::Room {
+        private: false,
+        private_room,
+        ..
+    } = &mut presence
+    {
+        *private_room = None;
+    }
+    Ok(presence)
 }
 
 /// A list of which the entries this build cannot read are left out, so one
@@ -266,6 +325,11 @@ pub struct RoomReport {
     /// 0 to `MAX_TABLE`, when seated or watching.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub table: Option<u8>,
+    /// The private room's invitation and display facts, for friends to join
+    /// by; only with `private`, and only to a bridge that lists
+    /// [`PRESENCE_V2_FEATURE`]. Absent keeps the room to invites.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offer: Option<PrivateOffer>,
 }
 
 impl RoomReport {
@@ -276,8 +340,62 @@ impl RoomReport {
         if self.room_id.as_deref().is_some_and(|id| !is_hex(id, 32)) {
             return Err(Error::InvalidField("room_id"));
         }
+        if let Some(offer) = &self.offer {
+            if !self.private {
+                return Err(Error::InvalidField("offer"));
+            }
+            offer.check()?;
+        }
         check_table(self.table)
     }
+}
+
+/// What a private room's member tells the bridge so friends of anyone in the
+/// room can join it: the room's own invitation, which the bridge hands to a
+/// friend only when they press join, and the facts a friend's list shows.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PrivateOffer {
+    /// The room's `emd1:` or `emd2:` invitation (`is_invitation_secret`).
+    pub secret: String,
+    pub name: String,
+    pub members: u8,
+    pub capacity: u8,
+}
+
+impl PrivateOffer {
+    pub fn check(&self) -> Result<()> {
+        if !is_invitation_secret(&self.secret) {
+            return Err(Error::InvalidField("secret"));
+        }
+        check_room_name(&self.name)?;
+        check_facts(self.members, self.capacity)
+    }
+}
+
+/// The invitation is a key to the room, so it stays out of any log line that
+/// prints a report.
+impl fmt::Debug for PrivateOffer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PrivateOffer")
+            .field("secret", &"<redacted>")
+            .field("name", &self.name)
+            .field("members", &self.members)
+            .field("capacity", &self.capacity)
+            .finish()
+    }
+}
+
+/// A room's capacity is within the limits and it holds at least one player
+/// and no more than its capacity.
+fn check_facts(members: u8, capacity: u8) -> Result<()> {
+    if !(MIN_CAPACITY..=MAX_CAPACITY).contains(&capacity) {
+        return Err(Error::InvalidField("capacity"));
+    }
+    if !(1..=capacity).contains(&members) {
+        return Err(Error::InvalidField("members"));
+    }
+    Ok(())
 }
 
 /// The presence a client sends: what its player is doing now.
@@ -309,6 +427,11 @@ pub struct FriendsSync {
     /// As in a ticket request: decides whether a friend's public room is
     /// joinable for this caller.
     pub build_id: String,
+    /// The game the client is for (`is_game_id`); absent reads as
+    /// [`DEFAULT_GAME`]. Only to a bridge that lists [`PRESENCE_V2_FEATURE`].
+    /// Decides whose rooms the caller may see and join.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game: Option<String>,
     /// What friends see as the name and flag.
     pub listing: Listing,
     /// The player's main fighter, 0 to `FIGHTERS` - 1.
@@ -318,8 +441,16 @@ pub struct FriendsSync {
 }
 
 impl FriendsSync {
+    /// The game this sync is for.
+    pub fn game_id(&self) -> &str {
+        self.game.as_deref().unwrap_or(DEFAULT_GAME)
+    }
+
     pub fn check(&self) -> Result<()> {
         check_build(&self.build_id)?;
+        if self.game.as_deref().is_some_and(|game| !is_game_id(game)) {
+            return Err(Error::InvalidField("game"));
+        }
         self.listing.check()?;
         if self.main.is_some_and(|main| main >= FIGHTERS) {
             return Err(Error::InvalidField("main"));
@@ -390,6 +521,9 @@ pub enum FriendAction {
     Unblock { block: String },
     /// Offers a friend the caller's room for 10 minutes.
     Invite { friend: String, room: InviteRoom },
+    /// Asks for the invitation to a friend's private room (`fr_`). Answered
+    /// with `FriendsState::joining`, or `FriendRefusal::JoinUnavailable`.
+    Join { friend: String },
     /// Drops an invite the caller received (`iv_`).
     Dismiss { invite: String },
     /// Friends see the caller as offline.
@@ -430,6 +564,7 @@ impl FriendAction {
                 check_id(friend, "fr", "friend")?;
                 room.check()
             }
+            Self::Join { friend } => check_id(friend, "fr", "friend"),
             Self::Dismiss { invite } => check_id(invite, "iv", "invite"),
             Self::AppearOffline { .. } | Self::NewCode {} | Self::Forget {} | Self::TurnOn {} => {
                 Ok(())
@@ -497,8 +632,60 @@ impl FriendRoom {
     }
 }
 
+/// A private room a friend is in and offers to join: the facts a list shows
+/// and whether the caller can join it now. Never the invitation, which a
+/// `Join` action hands out.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PrivateRoom {
+    pub name: String,
+    pub members: u8,
+    pub capacity: u8,
+    /// Same game and build as the caller, and not full.
+    pub joinable: bool,
+}
+
+impl PrivateRoom {
+    pub fn check(&self) -> Result<()> {
+        check_room_name(&self.name)?;
+        check_facts(self.members, self.capacity)
+    }
+}
+
+/// The invitation to a friend's private room, answered to `Join` and to
+/// nothing else.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Joining {
+    /// The friend (`fr_`) the caller asked about.
+    pub friend: String,
+    /// The room's `emd1:` or `emd2:` invitation (`is_invitation_secret`).
+    pub secret: String,
+}
+
+impl Joining {
+    pub fn check(&self) -> Result<()> {
+        check_id(&self.friend, "fr", "friend")?;
+        if is_invitation_secret(&self.secret) {
+            Ok(())
+        } else {
+            Err(Error::InvalidField("secret"))
+        }
+    }
+}
+
+/// The invitation is a key to the room, so it stays out of any log line that
+/// prints a state.
+impl fmt::Debug for Joining {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Joining")
+            .field("friend", &self.friend)
+            .field("secret", &"<redacted>")
+            .finish()
+    }
+}
+
 /// Where a friend is, as the caller may see it. A friend who appears offline
-/// is `Offline`.
+/// is `Offline`. `game` is the game they are playing, written whenever the
+/// bridge knows it; a friend in another game than the caller's shows no room.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum FriendPresence {
@@ -510,6 +697,12 @@ pub enum FriendPresence {
     Online {
         #[serde(deserialize_with = "activity_or_menus")]
         activity: Activity,
+        #[serde(
+            default,
+            deserialize_with = "game_or_none",
+            skip_serializing_if = "Option::is_none"
+        )]
+        game: Option<String>,
     },
     /// In a room: a public one by `room`, a private one by `private`, or, for
     /// a public room that is no longer open and listed, neither.
@@ -524,23 +717,45 @@ pub enum FriendPresence {
         /// Written only when true.
         #[serde(default, skip_serializing_if = "is_false")]
         private: bool,
+        #[serde(
+            default,
+            deserialize_with = "game_or_none",
+            skip_serializing_if = "Option::is_none"
+        )]
+        game: Option<String>,
+        /// A private room the caller may see the facts of: only with
+        /// `private`, and only for a friend in the caller's game.
+        #[serde(
+            default,
+            deserialize_with = "private_room_or_none",
+            skip_serializing_if = "Option::is_none"
+        )]
+        private_room: Option<PrivateRoom>,
     },
 }
 
 impl FriendPresence {
     pub fn check(&self) -> Result<()> {
         match self {
-            Self::Offline { .. } | Self::Online { .. } => Ok(()),
+            Self::Offline { .. } => Ok(()),
+            Self::Online { game, .. } => check_game(game.as_deref()),
             Self::Room {
                 table,
                 room,
                 private,
+                game,
+                private_room,
                 ..
             } => {
                 if room.is_some() && *private {
                     return Err(Error::InvalidField("room"));
                 }
+                if private_room.is_some() && !*private {
+                    return Err(Error::InvalidField("private_room"));
+                }
+                check_game(game.as_deref())?;
                 check_table(*table)?;
+                private_room.as_ref().map_or(Ok(()), PrivateRoom::check)?;
                 room.as_ref().map_or(Ok(()), FriendRoom::check)
             }
         }
@@ -725,6 +940,14 @@ pub struct FriendsState {
     pub invites: Vec<ReceivedInvite>,
     /// At most `MAX_BLOCKS`.
     pub blocked: Vec<BlockedPlayer>,
+    /// The invitation to the friend's private room the caller asked to join.
+    /// Written only in the answer to `FriendAction::Join`, never in a sync's.
+    #[serde(
+        default,
+        deserialize_with = "joining_or_none",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub joining: Option<Joining>,
 }
 
 impl FriendsState {
@@ -745,7 +968,8 @@ impl FriendsState {
         self.incoming.iter().try_for_each(IncomingRequest::check)?;
         self.outgoing.iter().try_for_each(OutgoingRequest::check)?;
         self.invites.iter().try_for_each(ReceivedInvite::check)?;
-        self.blocked.iter().try_for_each(BlockedPlayer::check)
+        self.blocked.iter().try_for_each(BlockedPlayer::check)?;
+        self.joining.as_ref().map_or(Ok(()), Joining::check)
     }
 }
 
@@ -854,8 +1078,11 @@ mod tests {
                     joinable: true,
                 }),
                 private: false,
+                game: None,
+                private_room: None,
             }
         );
+        assert_eq!(state.joining, None);
         assert_eq!(state.invites[0].room, InviteRoom::RoomId(ROOM.into()));
 
         // Members that are only written when set stay out of an empty state,
@@ -868,6 +1095,7 @@ mod tests {
             outgoing: vec![],
             invites: vec![],
             blocked: vec![],
+            joining: None,
         };
         assert!(empty.check().is_ok());
         assert_eq!(
@@ -963,7 +1191,8 @@ mod tests {
         assert_eq!(
             read::<FriendsState>(&wire).friends[0].presence,
             FriendPresence::Online {
-                activity: Activity::Menus
+                activity: Activity::Menus,
+                game: None
             }
         );
         // A presence state it does not know reads as online, whatever else it
@@ -973,7 +1202,8 @@ mod tests {
         assert_eq!(
             state.friends[0].presence,
             FriendPresence::Online {
-                activity: Activity::Menus
+                activity: Activity::Menus,
+                game: None
             }
         );
         assert_eq!(state.friends[0].name, "Player 3");
@@ -1036,6 +1266,7 @@ mod tests {
                 "request_limit",
                 "code_too_soon",
                 "invite_unavailable",
+                "join_unavailable",
             ]
         );
         assert_eq!(FriendRefusal::NAMES.as_slice(), names.as_slice());
@@ -1103,6 +1334,8 @@ mod tests {
                 joinable: false,
             }),
             private: true,
+            game: None,
+            private_room: None,
         };
         assert_eq!(private_with_room.check(), Err(Error::InvalidField("room")));
         let at_table = |table| FriendPresence::Room {
@@ -1110,6 +1343,8 @@ mod tests {
             table: Some(table),
             room: None,
             private: false,
+            game: None,
+            private_room: None,
         };
         assert!(at_table(MAX_TABLE).check().is_ok());
         assert_eq!(
@@ -1211,6 +1446,8 @@ mod tests {
                         joinable: false,
                     }),
                     private: false,
+                    game: None,
+                    private_room: None,
                 }
             })
         };
@@ -1334,6 +1571,7 @@ mod tests {
             private: false,
             status: RoomStatus::Ready,
             table: Some(1),
+            offer: None,
         };
         assert!(in_room(report.clone()).is_ok());
         for (bad, field) in [
@@ -1423,6 +1661,7 @@ mod tests {
             json!({"action": "new_code"}),
             json!({"action": "forget"}),
             json!({"action": "turn_on"}),
+            json!({"action": "join", "friend": FRIEND}),
         ];
         for wire in &cases {
             round_trips::<FriendAction>(wire, FriendAction::check);
@@ -1457,6 +1696,8 @@ mod tests {
             json!({"action": "invite", "friend": FRIEND,
                 "room": {"room_id": ROOM, "secret": secret}}),
             json!({"action": "invite", "friend": FRIEND, "room": {"room": ROOM}}),
+            json!({"action": "join"}),
+            json!({"action": "join", "friend": FRIEND, "room": {"room_id": ROOM}}),
         ] {
             assert!(
                 serde_json::from_value::<FriendAction>(bad.clone()).is_err(),
@@ -1569,6 +1810,11 @@ mod tests {
             check(json!({"action": "invite", "friend": FRIEND, "room": {"room_id": "0F"}})),
             field("room_id")
         );
+        assert_eq!(
+            check(json!({"action": "join", "friend": REQUEST})),
+            field("friend")
+        );
+        assert!(check(json!({"action": "join", "friend": FRIEND})).is_ok());
         let long = format!("emd2:{}", "A".repeat(123));
         for secret in ["emd1:", "emd3:AAAA", long.as_str()] {
             assert_eq!(
@@ -1582,6 +1828,306 @@ mod tests {
             "room": {"secret": format!("emd2:{}", "a-_9".repeat(30) + "ab")}}))
             .is_ok()
         );
+    }
+
+    fn offer() -> PrivateOffer {
+        PrivateOffer {
+            secret: secret(),
+            name: "Player 1's room".into(),
+            members: 2,
+            capacity: 8,
+        }
+    }
+
+    #[test]
+    fn a_sync_names_its_game_and_offers_a_private_room() {
+        let wire = json!({"build_id": "build", "game": "usf4", "listing": {"name": "Player 1"},
+            "presence": {"activity": "room", "room": {"private": true, "status": "idle",
+                "offer": {"secret": secret(), "name": "Player 1's room",
+                          "members": 2, "capacity": 8}}}});
+        let sync = round_trips::<FriendsSync>(&wire, FriendsSync::check);
+        assert_eq!(sync.game_id(), "usf4");
+        match &sync.presence {
+            PresenceReport::Room { room } => assert_eq!(room.offer, Some(offer())),
+            other => panic!("{other:?}"),
+        }
+        // A request stays strict at the offer too.
+        refuses_extra::<FriendsSync>(&wire, "/presence/room/offer");
+
+        // A sync that names no game is the default game's and writes none.
+        let plain = json!({"build_id": "build", "listing": {"name": "Player 1"},
+            "presence": {"activity": "menus"}});
+        let sync = round_trips::<FriendsSync>(&plain, FriendsSync::check);
+        assert_eq!(sync.game, None);
+        assert_eq!(sync.game_id(), DEFAULT_GAME);
+
+        let with = |game: &str| {
+            let mut sync = sync.clone();
+            sync.game = Some(game.into());
+            sync.check()
+        };
+        assert!(with("sfv").is_ok());
+        assert!(with("usf4").is_ok());
+        assert!(with(&"a".repeat(16)).is_ok());
+        let long = "a".repeat(17);
+        for bad in ["", "SFV", "sf-v", "sf v", "s\u{e9}", long.as_str()] {
+            assert_eq!(with(bad), Err(Error::InvalidField("game")), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn an_offer_goes_only_with_a_private_room_and_must_be_well_formed() {
+        let with = |change: &dyn Fn(&mut RoomReport)| {
+            let mut report = RoomReport {
+                room_id: None,
+                private: true,
+                status: RoomStatus::Idle,
+                table: None,
+                offer: Some(offer()),
+            };
+            change(&mut report);
+            report.check()
+        };
+        let field = |name| Err(Error::InvalidField(name));
+        assert_eq!(with(&|_| {}), Ok(()));
+        assert_eq!(with(&|r| r.offer = None), Ok(()));
+        // A public room has no offer.
+        assert_eq!(
+            with(&|r| {
+                r.room_id = Some(ROOM.into());
+                r.private = false;
+            }),
+            field("offer")
+        );
+        let offered =
+            |change: &dyn Fn(&mut PrivateOffer)| with(&|r| change(r.offer.as_mut().unwrap()));
+        for bad in ["", "emd1:short", "emd3:AAAA", "c1.abcdEFGH-_09"] {
+            assert_eq!(
+                offered(&|o| o.secret = bad.into()),
+                field("secret"),
+                "{bad}"
+            );
+        }
+        assert_eq!(
+            offered(&|o| o.secret = format!("emd2:{}", "A".repeat(123))),
+            field("secret")
+        );
+        assert_eq!(offered(&|o| o.name = "".into()), field("name"));
+        assert_eq!(offered(&|o| o.name = "two\nlines".into()), field("name"));
+        assert_eq!(offered(&|o| o.capacity = 1), field("capacity"));
+        assert_eq!(offered(&|o| o.capacity = 17), field("capacity"));
+        assert_eq!(offered(&|o| o.members = 0), field("members"));
+        assert_eq!(offered(&|o| o.members = 9), field("members"));
+        assert_eq!(offered(&|o| o.members = 8), Ok(()));
+        assert_eq!(offered(&|o| o.members = 1), Ok(()));
+    }
+
+    #[test]
+    fn a_private_room_of_an_answer_has_its_facts_and_no_invitation() {
+        let wire = json!({"state": "room", "status": "idle", "private": true, "game": "usf4",
+            "private_room": {"name": "Player 1's room", "members": 2, "capacity": 8,
+                             "joinable": true}});
+        let presence = round_trips::<FriendPresence>(&wire, FriendPresence::check);
+        let expected = |private_room, game: Option<&str>| FriendPresence::Room {
+            status: RoomStatus::Idle,
+            table: None,
+            room: None,
+            private: true,
+            game: game.map(str::to_owned),
+            private_room,
+        };
+        let facts = PrivateRoom {
+            name: "Player 1's room".into(),
+            members: 2,
+            capacity: 8,
+            joinable: true,
+        };
+        assert_eq!(presence, expected(Some(facts.clone()), Some("usf4")));
+        ignores_extra::<FriendPresence>(&wire, "/private_room");
+
+        // Another game's friend: the game and no room.
+        round_trips::<FriendPresence>(
+            &json!({"state": "online", "activity": "menus", "game": "sfv"}),
+            FriendPresence::check,
+        );
+        round_trips::<FriendPresence>(
+            &json!({"state": "room", "status": "fighting", "private": true, "game": "sfv"}),
+            FriendPresence::check,
+        );
+
+        // A value this build cannot use drops only itself.
+        for bad in [
+            json!({"name": "", "members": 2, "capacity": 8, "joinable": true}),
+            json!({"name": "Room", "members": 9, "capacity": 8, "joinable": true}),
+            json!({"name": "Room", "members": 0, "capacity": 8, "joinable": true}),
+            json!({"name": "Room", "members": 2, "capacity": 99, "joinable": true}),
+            json!({"name": "Room", "members": 2, "capacity": 8}),
+            json!({"name": "Room"}),
+            json!("room"),
+            json!(5),
+            json!(null),
+        ] {
+            let mut wire = wire.clone();
+            wire["private_room"] = bad.clone();
+            assert_eq!(
+                read::<FriendPresence>(&wire),
+                expected(None, Some("usf4")),
+                "{bad}"
+            );
+        }
+        for bad in [
+            json!(7),
+            json!("SFV"),
+            json!(""),
+            json!("a".repeat(17)),
+            json!(null),
+        ] {
+            let mut wire = wire.clone();
+            wire["game"] = bad.clone();
+            assert_eq!(
+                read::<FriendPresence>(&wire),
+                expected(Some(facts.clone()), None),
+                "{bad}"
+            );
+            let mut online = json!({"state": "online", "activity": "menus"});
+            online["game"] = bad.clone();
+            assert_eq!(
+                read::<FriendPresence>(&online),
+                FriendPresence::Online {
+                    activity: Activity::Menus,
+                    game: None
+                },
+                "{bad}"
+            );
+        }
+        // Inside a state the friend stays whole.
+        let mut wire = state_wire();
+        wire["friends"][0]["presence"]["game"] = json!(7);
+        wire["friends"][0]["presence"]["private_room"] = json!({"name": ""});
+        let state = read::<FriendsState>(&wire);
+        assert!(matches!(
+            state.friends[0].presence,
+            FriendPresence::Room {
+                room: Some(_),
+                game: None,
+                private_room: None,
+                ..
+            }
+        ));
+        assert_eq!(state.friends[0].name, "Player 3");
+        // Well-formed facts beside a room that is not private drop too, and
+        // the answer still checks.
+        let mut wire = state_wire();
+        wire["friends"][0]["presence"]["private_room"] =
+            json!({"name": "Lounge", "members": 2, "capacity": 8, "joinable": true});
+        let state = read::<FriendsState>(&wire);
+        assert!(matches!(
+            state.friends[0].presence,
+            FriendPresence::Room {
+                room: Some(_),
+                private: false,
+                private_room: None,
+                ..
+            }
+        ));
+        assert_eq!(state.check(), Ok(()));
+
+        // What the bridge writes is checked: a private room only with
+        // `private`, and a game that is one.
+        let public_with_facts = FriendPresence::Room {
+            status: RoomStatus::Idle,
+            table: None,
+            room: None,
+            private: false,
+            game: None,
+            private_room: Some(facts.clone()),
+        };
+        assert_eq!(
+            public_with_facts.check(),
+            Err(Error::InvalidField("private_room"))
+        );
+        assert_eq!(
+            expected(None, Some("SFV")).check(),
+            Err(Error::InvalidField("game"))
+        );
+        assert_eq!(
+            FriendPresence::Online {
+                activity: Activity::Menus,
+                game: Some("".into())
+            }
+            .check(),
+            Err(Error::InvalidField("game"))
+        );
+        let bad_facts = PrivateRoom {
+            members: 9,
+            ..facts
+        };
+        assert_eq!(
+            expected(Some(bad_facts), None).check(),
+            Err(Error::InvalidField("members"))
+        );
+    }
+
+    #[test]
+    fn a_join_is_answered_with_the_invitation() {
+        let mut wire = state_wire();
+        wire["joining"] = json!({"friend": FRIEND, "secret": secret()});
+        let state = round_trips::<FriendsState>(&wire, FriendsState::check);
+        assert_eq!(
+            state.joining,
+            Some(Joining {
+                friend: FRIEND.into(),
+                secret: secret()
+            })
+        );
+        ignores_extra::<FriendsState>(&wire, "/joining");
+        // An ordinary state has none, and writes none.
+        let plain = round_trips::<FriendsState>(&state_wire(), FriendsState::check);
+        assert_eq!(plain.joining, None);
+
+        // One this build cannot use drops only itself.
+        for bad in [
+            json!({"friend": FRIEND, "secret": "emd1:short"}),
+            json!({"friend": "x", "secret": secret()}),
+            json!({"friend": FRIEND}),
+            json!(3),
+            json!(null),
+        ] {
+            let mut wire = state_wire();
+            wire["joining"] = bad.clone();
+            let state = read::<FriendsState>(&wire);
+            assert_eq!(state.joining, None, "{bad}");
+            assert_eq!(state.friends.len(), 1);
+        }
+        let mut bad = state.clone();
+        bad.joining = Some(Joining {
+            friend: REQUEST.into(),
+            secret: secret(),
+        });
+        assert_eq!(bad.check(), Err(Error::InvalidField("friend")));
+    }
+
+    #[test]
+    fn debug_output_never_carries_an_invitation() {
+        let report = PresenceReport::Room {
+            room: RoomReport {
+                room_id: None,
+                private: true,
+                status: RoomStatus::Idle,
+                table: None,
+                offer: Some(offer()),
+            },
+        };
+        let mut state = read::<FriendsState>(&state_wire());
+        state.joining = Some(Joining {
+            friend: FRIEND.into(),
+            secret: secret(),
+        });
+        let shown = format!("{:?} {:?} {report:?} {state:?}", offer(), state.joining);
+        assert!(!shown.contains(&secret()), "{shown}");
+        assert!(!shown.contains("emd1:"), "{shown}");
+        assert!(shown.contains("redacted"));
+        assert!(shown.contains("Player 1's room"));
     }
 
     #[test]

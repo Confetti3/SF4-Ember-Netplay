@@ -423,7 +423,7 @@ void RetainedChangesStayTheirs(){
    Check(!(h.sent()[i]->op==IdentityOp::LinkList&&h.sent()[i]->bridge=="brg_1"),"An earlier change's follow-up read was queued");
  }
 }
-// Ember ID is under Online play, after Public rooms. Its screen leads with the
+// Ember ID is under Online play, after Public rooms and Friends. Its screen leads with the
 // matches, then Discord on Ember's own service, showing the connected account,
 // which Connect Discord can also disconnect. Back goes to Online play.
 void EmberIdFromOnline(){
@@ -435,9 +435,9 @@ void EmberIdFromOnline(){
  h.Screen("home");
  Check(!h.row("identity"),"Home still has its own Ember ID row");
  h.Screen("online");
- Check(h.row("identity")&&h.index("identity")==h.index("public-rooms")+1&&h.index("rankings")==h.index("identity")+1&&
+ Check(h.row("identity")&&h.index("friends")==h.index("public-rooms")+1&&h.index("identity")==h.index("friends")+1&&h.index("rankings")==h.index("identity")+1&&
   h.index("relay")==h.index("rankings")+1&&h.index("network")==h.index("relay")+1,
-  "Ember ID and Rankings are not between Public rooms and the route rows on Online play");
+  "Friends, Ember ID and Rankings are not between Public rooms and the route rows on Online play");
  Check(!h.row("identity")->info&&h.row("relay")->info&&h.row("network")->info,"The route rows lost their information role");
  h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity"&&h.trail()=="home>online>identity","Ember ID on Online play did not open its screen");
  Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"The Ember ID screen did not read Ember's own service");

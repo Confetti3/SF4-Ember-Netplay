@@ -215,6 +215,119 @@ void LeavesOutPartsItCannotRead() {
 	}
 }
 
+json PrivateOffer() { return {{"name", "Open Mic"}, {"members", 3}, {"capacity", 8}, {"joinable", true}}; }
+
+// The first friend's presence, replaced, and what the state then reads of them.
+netplay::friends::Friend ReadPresence(json presence) {
+	json data = FullState();
+	data["friends"][0]["presence"] = std::move(presence);
+	State state;
+	EXPECT(Decode(data, state) && state.friends.size() == 2 && state.friends[0].id == FriendId);
+	return state.friends.empty() ? netplay::friends::Friend() : state.friends[0];
+}
+
+// A friend's game, and the private room they may be joined in: parts of a presence that stand alone.
+void ReadsTheGameAndAPrivateOffer() {
+	// No game named is the empty id, which is this game's.
+	EXPECT(ReadPresence({{"state", "online"}, {"activity", "menus"}}).presence.game.empty());
+	EXPECT(ReadPresence({{"state", "online"}, {"activity", "menus"}, {"game", "sfv"}}).presence.game == "sfv");
+	auto inPublicRoom = ReadPresence({{"state", "room"}, {"status", "idle"}, {"game", "usf4"},
+		{"room", {{"room_id", RoomId}, {"name", "Player 1's room"}, {"members", 7}, {"capacity", 16}, {"joinable", true}}}});
+	EXPECT(inPublicRoom.presence.game == "usf4" && inPublicRoom.presence.hasRoom && !inPublicRoom.presence.hasPrivateOffer);
+	// A game that is not 1 to 16 of [a-z0-9] is ignored, not the presence.
+	for (const json& bad : {json(""), json("USF4"), json("sf-v"), json("a23456789012345678"), json(7), json(nullptr), json::array()}) {
+		const auto entry = ReadPresence({{"state", "online"}, {"activity", "offline_play"}, {"game", bad}});
+		EXPECT(entry.presence.kind == Presence::Kind::Online && entry.presence.activity == netplay::friends::Activity::OfflinePlay && entry.presence.game.empty());
+	}
+	EXPECT(ReadPresence({{"state", "online"}, {"activity", "menus"}, {"game", "a2345678901234567"}}).presence.game.empty());
+	EXPECT(ReadPresence({{"state", "online"}, {"activity", "menus"}, {"game", "a234567890123456"}}).presence.game == "a234567890123456");
+	// An offline friend has no game to show.
+	EXPECT(ReadPresence({{"state", "offline"}, {"seen_at", 9}, {"game", "sfv"}}).presence.game.empty());
+
+	// A private room that friends may join: its facts, never a key.
+	auto offered = ReadPresence({{"state", "room"}, {"status", "queued"}, {"private", true}, {"private_room", PrivateOffer()}, {"game", "usf4"}});
+	const auto& at = offered.presence;
+	EXPECT(at.privateRoom && !at.hasRoom && at.hasPrivateOffer && at.privateOffer.name == "Open Mic" && at.privateOffer.members == 3 &&
+		at.privateOffer.capacity == 8 && at.privateOffer.joinable && at.game == "usf4" && at.status == netplay::friends::Status::Queued);
+	auto notJoinable = PrivateOffer();
+	notJoinable["joinable"] = false;
+	EXPECT(ReadPresence({{"state", "room"}, {"status", "idle"}, {"private", true}, {"private_room", notJoinable}}).presence.privateOffer.joinable == false);
+	// A private room with no offer is as before.
+	const auto plain = ReadPresence({{"state", "room"}, {"status", "idle"}, {"private", true}}).presence;
+	EXPECT(plain.privateRoom && !plain.hasPrivateOffer && plain.privateOffer.name.empty());
+
+	// A private_room that cannot be read drops only itself: the friend is still listed in a private room.
+	const std::vector<std::pair<const char*, std::function<void(json&)>>> malformed = {
+		{"not an object", [](json& o) { o = "Open Mic"; }},
+		{"no name", [](json& o) { o.erase("name"); }},
+		{"empty name", [](json& o) { o["name"] = ""; }},
+		{"name too long", [](json& o) { o["name"] = std::string(65, 'n'); }},
+		{"members not a number", [](json& o) { o["members"] = "3"; }},
+		{"members past capacity", [](json& o) { o["members"] = 9; }},
+		{"capacity of one", [](json& o) { o["capacity"] = 1; }},
+		{"capacity past the room", [](json& o) { o["capacity"] = 17; }},
+		{"joinable not a flag", [](json& o) { o["joinable"] = 1; }},
+	};
+	for (const auto& [what, edit] : malformed) {
+		auto offer = PrivateOffer();
+		edit(offer);
+		const auto entry = ReadPresence({{"state", "room"}, {"status", "ready"}, {"private", true}, {"private_room", offer}, {"game", "usf4"}});
+		EXPECT_MSG(entry.presence.kind == Presence::Kind::InRoom && entry.presence.privateRoom && !entry.presence.hasPrivateOffer &&
+			entry.presence.privateOffer.name.empty() && !entry.presence.privateOffer.joinable && entry.presence.game == "usf4" &&
+			entry.presence.status == netplay::friends::Status::Ready, "%s", what);
+	}
+	// It is accepted only with `private`: a public room, or neither, ignores it.
+	const auto publicRoom = ReadPresence({{"state", "room"}, {"status", "idle"}, {"private_room", PrivateOffer()},
+		{"room", {{"room_id", RoomId}, {"name", "Player 1's room"}, {"members", 7}, {"capacity", 16}, {"joinable", true}}}}).presence;
+	EXPECT(publicRoom.hasRoom && !publicRoom.privateRoom && !publicRoom.hasPrivateOffer);
+	const auto notPrivate = ReadPresence({{"state", "room"}, {"status", "idle"}, {"private", false}, {"private_room", PrivateOffer()}}).presence;
+	EXPECT(!notPrivate.privateRoom && !notPrivate.hasPrivateOffer);
+	const auto online = ReadPresence({{"state", "online"}, {"activity", "menus"}, {"private_room", PrivateOffer()}}).presence;
+	EXPECT(online.kind == Presence::Kind::Online && !online.hasPrivateOffer);
+	// A key to the room is no part of what a presence holds: a secret beside the offer is ignored.
+	auto withKey = PrivateOffer();
+	withKey["secret"] = Secret;
+	EXPECT(ReadPresence({{"state", "room"}, {"status", "idle"}, {"private", true}, {"private_room", withKey}}).presence.hasPrivateOffer);
+}
+
+// The answer to a join: the friend and the room's invitation, which are no part of the state.
+void ReadsAJoining() {
+	netplay::friends::Joining joining;
+	json data = FullState();
+	EXPECT(!session::DecodeJoining(data, joining));
+	data["joining"] = {{"friend", FriendId}, {"secret", Secret}};
+	EXPECT(session::DecodeJoining(json::parse(data.dump()), joining) && joining.friendId == FriendId && joining.secret == Secret);
+	// It rides the usual state, which still reads, and has no trace of the key.
+	State state;
+	EXPECT(Decode(data, state) && state.friends.size() == 2);
+	const std::string second = "emd2:" + std::string(122, 'B');
+	data["joining"]["secret"] = second;
+	EXPECT(session::DecodeJoining(json::parse(data.dump()), joining) && joining.secret == second);
+
+	// What cannot be read leaves the answer alone.
+	const netplay::friends::Joining before = joining;
+	const std::vector<std::pair<const char*, std::function<void(json&)>>> bad = {
+		{"no joining", [](json& d) { d.erase("joining"); }},
+		{"joining not an object", [](json& d) { d["joining"] = "emd1:"; }},
+		{"no friend", [](json& d) { d["joining"].erase("friend"); }},
+		{"friend not an id", [](json& d) { d["joining"]["friend"] = "fr_1"; }},
+		{"friend of another kind", [](json& d) { d["joining"]["friend"] = RequestId; }},
+		{"no secret", [](json& d) { d["joining"].erase("secret"); }},
+		{"secret not a string", [](json& d) { d["joining"]["secret"] = 7; }},
+		{"secret too short", [](json& d) { d["joining"]["secret"] = "emd1:" + std::string(121, 'A'); }},
+		{"secret too long", [](json& d) { d["joining"]["secret"] = "emd1:" + std::string(123, 'A'); }},
+		{"secret of another kind", [](json& d) { d["joining"]["secret"] = "emd3:" + std::string(122, 'A'); }},
+		{"secret without a prefix", [](json& d) { d["joining"]["secret"] = std::string(127, 'A'); }},
+		{"data not an object", [](json& d) { d = json::array(); }},
+	};
+	for (const auto& [what, edit] : bad) {
+		json damaged = data;
+		edit(damaged);
+		netplay::friends::Joining out = before;
+		EXPECT_MSG(!session::DecodeJoining(json::parse(damaged.dump()), out) && out.friendId == before.friendId && out.secret == before.secret, "%s", what);
+	}
+}
+
 // A friends state from a later bridge: tiers past this build's table, points by a rule it does not know, and members
 // it has never seen. All of it reads; a tier past the last is the last this build draws.
 void ReadsAStateFromTheFuture() {
@@ -377,6 +490,8 @@ int main() {
 	RefusesWhatIsMalformed();
 	LeavesOutRowsItCannotRead();
 	LeavesOutPartsItCannotRead();
+	ReadsTheGameAndAPrivateOffer();
+	ReadsAJoining();
 	ReadsAStateFromTheFuture();
 	ToleratesWhatItDoesNotKnow();
 	KeepsTheBounds();

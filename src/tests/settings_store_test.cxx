@@ -921,6 +921,34 @@ int main() {
             CHECK(!sf4e::netplay::ReadRoomPreferences(bad, read));
         }
     }
+    // A private room's Hidden is a room default and a template's: written only when set, and Friends when the key is missing.
+    {
+        CHECK(!result["roomDefaults"].contains("friendsHidden") && !restored.roomFriendsHidden);
+        auto hidden = defaults;
+        hidden.roomFriendsHidden = true;
+        sf4e::netplay::RoomTemplate saved;
+        saved.name = "Hidden"; saved.roomName = "Quiet room"; saved.friendsHidden = true;
+        saved.tables = sf4e::netplay::TableSetup::Same(defaults.tableRules);
+        hidden.roomTemplates = {saved};
+        const Json document{{"roomDefaults", sf4e::netplay::RoomPreferences(hidden)}};
+        CHECK(document["roomDefaults"].at("friendsHidden") == true && document["roomDefaults"]["templates"][0].at("friendsHidden") == true);
+        sf4e::netplay::PlayerPreferences read;
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, read) && read.roomFriendsHidden && read.roomTemplates.size() == 1 &&
+            read.roomTemplates[0] == saved && read.roomTemplates[0].friendsHidden);
+        // A template that differs only in Privacy is another template.
+        auto shown = saved;
+        shown.friendsHidden = false;
+        CHECK(!(shown == saved));
+        auto plain = document;
+        plain["roomDefaults"].erase("friendsHidden");
+        plain["roomDefaults"]["templates"][0].erase("friendsHidden");
+        CHECK(sf4e::netplay::ReadRoomPreferences(plain, read) && !read.roomFriendsHidden && !read.roomTemplates[0].friendsHidden);
+        for (const Json& invalid : {Json(1), Json("yes"), Json(nullptr)}) {
+            auto bad = document;
+            bad["roomDefaults"]["friendsHidden"] = invalid;
+            CHECK(!sf4e::netplay::ReadRoomPreferences(bad, read));
+        }
+    }
     // The last public room's type and template, for a stream PC: written only
     // when not Classic or none, and a type past King is refused.
     {

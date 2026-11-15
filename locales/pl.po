@@ -756,6 +756,12 @@ msgstr "Gra online"
 msgid "home.online_detail"
 msgstr "Utwórz pokój, dołącz do pokoju, przeglądaj pokoje publiczne albo skonfiguruj Ember ID do turniejów."
 
+msgid "home.friends"
+msgstr "Znajomi"
+
+msgid "home.friends_detail"
+msgstr "Dołączaj do znajomych, odpowiadaj na zaproszenia i dodawaj nowych znajomych."
+
 msgid "home.return_room"
 msgstr "Wróć do bieżącego pokoju."
 
@@ -1170,6 +1176,15 @@ msgstr "Znajomi"
 msgid "friends.tab_count"
 msgstr "Znajomi · {0}"
 
+msgid "friends.home_online"
+msgstr "Online: {0}"
+
+msgid "friends.home_request_one"
+msgstr "1 zaproszenie"
+
+msgid "friends.home_requests"
+msgstr "Zaproszenia: {0}"
+
 msgid "profile.view_sets"
 msgstr "Pokaż sety"
 
@@ -1265,6 +1280,15 @@ msgstr "W menu"
 
 msgid "friends.offline_play"
 msgstr "Gra offline"
+
+msgid "friends.playing_game"
+msgstr "Gra w {0}"
+
+msgid "friends.room_game"
+msgstr "W pokoju · {0}"
+
+msgid "friends.another_game"
+msgstr "Gra w inną grę"
 
 msgid "friends.last_online"
 msgstr "Ostatnio online {0}"
@@ -1602,6 +1626,9 @@ msgstr "Znajomi są wyłączeni."
 msgid "friends.cannot_join"
 msgstr "Nie możesz teraz dołączyć do tego pokoju."
 
+msgid "friends.join_unavailable"
+msgstr "Nie można teraz dołączyć do tego pokoju."
+
 msgid "friends.cannot_watch"
 msgstr "Ten znajomy nie jest w grze, którą możesz oglądać."
 
@@ -1649,6 +1676,9 @@ msgstr "{0} zaprasza cię do pokoju"
 
 msgid "friends.later"
 msgstr "Później"
+
+msgid "friends.view"
+msgstr "Zobacz"
 
 msgid "friends.dismiss"
 msgstr "Odrzuć"
@@ -4137,6 +4167,21 @@ msgstr "Gracze na Wi-Fi mogą dołączyć, oglądać i czatować, ale nie mogą 
 msgid "room.wired_only.settings_detail"
 msgstr "Dotyczy następnego zajętego miejsca. Nikt, kto teraz siedzi, nie traci miejsca."
 
+msgid "room.privacy"
+msgstr "Prywatność"
+
+msgid "room.privacy.friends"
+msgstr "Znajomi"
+
+msgid "room.privacy.hidden"
+msgstr "Ukryty"
+
+msgid "room.privacy.detail"
+msgstr "Znajomi: znajomi każdego z pokoju widzą go i mogą dołączyć, dopóki jest otwarty. Ukryty: widzą tylko, że jesteś w pokoju prywatnym, i dołączają z zaproszeniem."
+
+msgid "room.privacy.settings_detail"
+msgstr "Gracze, którzy już dołączyli, mogą wrócić ze swoim zaproszeniem. Ustaw Dostęp na Zamknięty, aby nikt nie mógł dołączyć."
+
 msgid "room.apply_name"
 msgstr "Zmień nazwę"
 
@@ -5537,6 +5582,9 @@ msgstr "Pokoje publiczne"
 
 msgid "online.public_detail"
 msgstr "Przeglądaj otwarte pokoje, do których może dołączyć każdy, albo szybko dołącz do jednego w pobliżu."
+
+msgid "online.friends_detail"
+msgstr "Znajomi, którzy są online, i pokoje, w których przebywają."
 
 msgid "public.create"
 msgstr "Utwórz pokój publiczny"
@@ -8611,6 +8659,9 @@ msgstr "Więcej…"
 msgid "room.v2.more_detail"
 msgstr "Kontrolery, ustawienia pokoju, link do pokoju publicznego i układ planszy."
 
+msgid "room.v2.friends_detail"
+msgstr "Zaproś znajomych do tego pokoju albo dołącz do ich pokoju."
+
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
 
@@ -8736,6 +8787,9 @@ msgstr "Oczekuje: {0}"
 
 msgid "notifications.none_detail"
 msgstr "Zaproszenia do znajomych, zaproszenia do pokoju i powiadomienia Embera pojawiają się tutaj."
+
+msgid "notifications.friends_detail"
+msgstr "Twoi znajomi, zaproszenia i zablokowani gracze."
 
 msgid "home.news"
 msgstr "Aktualności/Powiadomienia"

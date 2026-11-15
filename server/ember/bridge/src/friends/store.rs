@@ -63,6 +63,10 @@ pub fn refuse(reason: FriendRefusal) -> ApiFailure {
             ErrorCode::StaleRevision,
             "That friend cannot be invited now.",
         ),
+        FriendRefusal::JoinUnavailable => (
+            ErrorCode::StaleRevision,
+            "That friend's room cannot be joined now.",
+        ),
         // Written where the account is looked up (`routes::account::Gate`).
         FriendRefusal::NoDiscordAccount => (
             ErrorCode::Forbidden,
@@ -869,19 +873,21 @@ fn counted_record(
 
 /// The public rooms among `room_ids` as a friend's presence shows them, by
 /// room id, while each is open and listed (the filter of
-/// `rooms::player_rooms`), all in one read: joinable when not locked, not full
-/// and of `build_id`. Any other room has no entry.
+/// `rooms::player_rooms`) and of the viewer's `game`, all in one read:
+/// joinable when not locked, not full and of `build_id`. Any other room has no
+/// entry.
 pub fn listed_rooms(
     tx: &Transaction<'_>,
     room_ids: &[&str],
     build_id: Option<&str>,
+    game: &str,
 ) -> Result<HashMap<String, FriendRoom>> {
     let rooms = select_in(
         tx,
         "SELECT room_id, name, members, capacity, build_id = ?1, COALESCE(locked, 0) FROM rooms
          WHERE room_id IN ({ids}) AND closed_at IS NULL AND invitation_sealed IS NOT NULL
-           AND region IS NOT NULL AND members >= 1",
-        &[&build_id],
+           AND region IS NOT NULL AND members >= 1 AND game = ?2",
+        &[&build_id, &game],
         room_ids,
         room_of,
     )?;

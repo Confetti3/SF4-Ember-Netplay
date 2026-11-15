@@ -36,6 +36,11 @@
 //                        the runtime works out what can be offered, and refuses
 //                        when nothing can (ShellView::friends.canInvite says).
 //   FriendDismiss        Drop an invite received.
+//   FriendAskJoin        Ask for the invitation of a friend's private room. The
+//                        interface never sends it: FriendJoin on such a room
+//                        does, as the runtime decides (a public room or a
+//                        private one) from the friend's presence. `generation`
+//                        is the room the press was made in.
 //
 // Going to a friend, which does not use the one action the bridge takes at a
 // time, so it never refuses for it, and is dropped once the room generation
@@ -164,12 +169,19 @@ struct FriendDismiss {
 	bool Valid() const { return bridge.size() <= friend_limits::Bridge && invite.size() <= friend_limits::Id; }
 	std::size_t Bytes() const { return bridge.size() + invite.size(); }
 };
+struct FriendAskJoin {
+	static constexpr const char* LogName = "join private";
+	netplay::Generation generation;
+	std::string bridge, friendId;
+	bool Valid() const { return bridge.size() <= friend_limits::Bridge && friendId.size() <= friend_limits::Id; }
+	std::size_t Bytes() const { return bridge.size() + friendId.size(); }
+};
 
 // The bridge's actions (friends_act): one at a time is in flight. This list is
 // what makes a command one of them; the wire builder has an overload for each
 // (FriendWire.hxx).
 using FriendAction = std::variant<FriendRequest, FriendRequestByCode, FriendAccept, FriendDecline, FriendCancel, FriendRemove, FriendBlock,
-	FriendUnblock, FriendNewCode, FriendAppearOffline, FriendTurnOff, FriendTurnOn, FriendInvite, FriendDismiss>;
+	FriendUnblock, FriendNewCode, FriendAppearOffline, FriendTurnOff, FriendTurnOn, FriendInvite, FriendDismiss, FriendAskJoin>;
 
 // A Join, a Watch or an invite, made for the room the player saw.
 struct FriendJoin {

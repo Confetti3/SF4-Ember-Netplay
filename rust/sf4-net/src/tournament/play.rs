@@ -16,7 +16,7 @@ use ember_protocol::{
         Permit, Prepare, PrepareAnswer, PublishRoom, SignedBinding, SignedPermit, TABLE,
         WATCH_FEATURE,
     },
-    friends::FRIENDS_FEATURE,
+    friends::{FRIENDS_FEATURE, PRESENCE_V2_FEATURE},
     levels::{CLASS_BONUS_FEATURE, POINTS_FEATURE, PROFILES_FEATURE},
     report::Outcome as GameOutcome,
     rooms::AREA_FEATURE,
@@ -72,6 +72,10 @@ pub(super) struct Features {
     pub class_bonus: bool,
     /// It serves the friends routes.
     pub friends: bool,
+    /// Its friends routes read a sync's `game` and a private room's `offer`
+    /// and the `join` action (`friends::PRESENCE_V2_FEATURE`); an older one
+    /// refuses those members.
+    pub friends_presence_v2: bool,
     /// It serves the card save and search routes, reads the look-up's
     /// `request` and `code` selectors and the archive's `name`.
     pub profiles: bool,
@@ -94,6 +98,7 @@ impl Features {
             levels: lists(POINTS_FEATURE),
             class_bonus: lists(CLASS_BONUS_FEATURE),
             friends: lists(FRIENDS_FEATURE),
+            friends_presence_v2: lists(PRESENCE_V2_FEATURE),
             profiles: lists(PROFILES_FEATURE),
             unchanged: lists(CLAIM_UNCHANGED_FEATURE),
             room_area: lists(AREA_FEATURE),
@@ -186,7 +191,7 @@ pub(super) async fn require(
 
 /// Forgets what the bridge offered, so the next claim or watch request reads
 /// its capabilities again.
-fn forget_features(shared: &Shared, bridge: &Approved) -> Result<(), Failure> {
+pub(super) fn forget_features(shared: &Shared, bridge: &Approved) -> Result<(), Failure> {
     play_state(shared)?.features.remove(&bridge.bridge_id);
     Ok(())
 }

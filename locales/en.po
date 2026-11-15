@@ -757,6 +757,12 @@ msgstr "Online play"
 msgid "home.online_detail"
 msgstr "Create or join a room, browse public rooms, or set up Ember ID for tournaments."
 
+msgid "home.friends"
+msgstr "Friends"
+
+msgid "home.friends_detail"
+msgstr "Join friends, answer requests and add new friends."
+
 msgid "home.return_room"
 msgstr "Return to your current room."
 
@@ -1174,6 +1180,15 @@ msgstr "Friends"
 msgid "friends.tab_count"
 msgstr "Friends · {0}"
 
+msgid "friends.home_online"
+msgstr "{0} online"
+
+msgid "friends.home_request_one"
+msgstr "1 request"
+
+msgid "friends.home_requests"
+msgstr "{0} requests"
+
 msgid "profile.view_sets"
 msgstr "View sets"
 
@@ -1269,6 +1284,15 @@ msgstr "At the menus"
 
 msgid "friends.offline_play"
 msgstr "Playing offline"
+
+msgid "friends.playing_game"
+msgstr "Playing {0}"
+
+msgid "friends.room_game"
+msgstr "In a room · {0}"
+
+msgid "friends.another_game"
+msgstr "Playing another game"
 
 msgid "friends.last_online"
 msgstr "Last online {0}"
@@ -1606,6 +1630,9 @@ msgstr "Friends are off."
 msgid "friends.cannot_join"
 msgstr "You can't join that room right now."
 
+msgid "friends.join_unavailable"
+msgstr "That room cannot be joined now."
+
 msgid "friends.cannot_watch"
 msgstr "That friend is not in a game you can watch."
 
@@ -1653,6 +1680,9 @@ msgstr "{0} invites you to a room"
 
 msgid "friends.later"
 msgstr "Later"
+
+msgid "friends.view"
+msgstr "View"
 
 msgid "friends.dismiss"
 msgstr "Dismiss"
@@ -3865,6 +3895,16 @@ msgid "room.wired_only.detail"
 msgstr "Players on Wi-Fi can still join, watch and chat, but cannot take a seat. Players whose connection is unknown can play."
 msgid "room.wired_only.settings_detail"
 msgstr "Applies to the next seat taken. Nobody seated now loses their seat."
+msgid "room.privacy"
+msgstr "Privacy"
+msgid "room.privacy.friends"
+msgstr "Friends"
+msgid "room.privacy.hidden"
+msgstr "Hidden"
+msgid "room.privacy.detail"
+msgstr "Friends: friends of anyone in the room see it and can join while it is open. Hidden: they see only that you are in a private room, and join by invite."
+msgid "room.privacy.settings_detail"
+msgstr "Players who already joined can come back with their invitation. Set Admission to Locked to stop anyone joining."
 msgid "room.apply_name"
 msgstr "Apply room name"
 msgid "room.apply_name.detail"
@@ -5163,6 +5203,9 @@ msgstr "Public rooms"
 
 msgid "online.public_detail"
 msgstr "Browse open rooms anyone can join, or quick-join one near you."
+
+msgid "online.friends_detail"
+msgstr "Friends who are online, and the rooms they are in."
 
 msgid "public.create"
 msgstr "Create public room"
@@ -8241,6 +8284,9 @@ msgstr "More…"
 msgid "room.v2.more_detail"
 msgstr "Controllers, room settings, a public room's link and the board's layout."
 
+msgid "room.v2.friends_detail"
+msgstr "Invite friends to this room, or join theirs."
+
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
 
@@ -8366,6 +8412,9 @@ msgstr "{0} waiting"
 
 msgid "notifications.none_detail"
 msgstr "Friend requests, invites and Ember's notices show here."
+
+msgid "notifications.friends_detail"
+msgstr "Your friends, requests and blocked players."
 
 msgid "home.news"
 msgstr "News/Notifications"

@@ -55,6 +55,12 @@ static void TestSnapshotWithoutChat() {
 		}
 	};
 	same(authority);
+	// The setting that hides a room from its members' friends is copied too.
+	Action hide = TableAction(authority, host, 0, ActionKind::SetFriendsHidden);
+	hide.friendsHidden = true;
+	EXPECT(authority.Apply(host, hide).accepted && authority.SnapshotView().friendsHidden);
+	EXPECT(authority.SnapshotFor(p1, false).friendsHidden && authority.SnapshotFor(p1, true).friendsHidden);
+	same(authority);
 	for (const auto member : {p1, p2, queuer}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	Action chat = TableAction(authority, p1, 0, ActionKind::Chat);
 	chat.text = "hello";
@@ -128,15 +134,15 @@ static void TestMemberLook() {
 // room replacing it is created with; a table count out of range is the type's
 // default.
 static void TestCharter() {
-	const Charter chosen{RoomType::King, true, DelayPolicy::Own, 3, true};
+	const Charter chosen{RoomType::King, true, DelayPolicy::Own, 3, true, true};
 	RoomAuthority authority("Charter", 16, 315, Rules(), chosen);
 	const auto& room = authority.SnapshotView();
-	EXPECT(room.type == RoomType::King && room.practice && room.delayPolicy == DelayPolicy::Own && room.tableCount == 3 && room.wiredOnly);
+	EXPECT(room.type == RoomType::King && room.practice && room.delayPolicy == DelayPolicy::Own && room.tableCount == 3 && room.wiredOnly && room.friendsHidden);
 	const auto again = CharterOf(room);
-	EXPECT(again.type == chosen.type && again.practice && again.delayPolicy == chosen.delayPolicy && again.tableCount == 3 && again.wiredOnly);
+	EXPECT(again.type == chosen.type && again.practice && again.delayPolicy == chosen.delayPolicy && again.tableCount == 3 && again.wiredOnly && again.friendsHidden);
 	const Charter defaults;
 	EXPECT(defaults.type == RoomType::Classic && !defaults.practice && defaults.delayPolicy == DelayPolicy::Shared &&
-		defaults.tableCount == ClassicTableCount && !defaults.wiredOnly);
+		defaults.tableCount == ClassicTableCount && !defaults.wiredOnly && !defaults.friendsHidden);
 	for (const RoomType type : {RoomType::Classic, RoomType::Arcade}) {
 		RoomAuthority outOfRange("Default count", 16, 316, Rules(), Charter{type, false, DelayPolicy::Shared, 0});
 		EXPECT(outOfRange.SnapshotView().tableCount == DefaultTableCount(type));

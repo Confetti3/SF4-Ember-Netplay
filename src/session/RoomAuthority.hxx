@@ -181,6 +181,7 @@ private:
 	Result ApplySetTableCount(MemberId member, const Action& action);
 	Result ApplyLock(MemberId member, const Action& action);
 	Result ApplySetWiredOnly(MemberId member, const Action& action);
+	Result ApplySetFriendsHidden(MemberId member, const Action& action);
 	Result ApplyKick(MemberId member, const Action& action);
 	Result ApplyChat(MemberId member, const Action& action);
 	Result ApplyRename(MemberId member, const Action& action);

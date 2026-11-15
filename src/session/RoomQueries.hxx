@@ -182,6 +182,7 @@ inline Charter CharterOf(const Snapshot& room) {
 	charter.delayPolicy = room.delayPolicy;
 	charter.tableCount = room.tableCount;
 	charter.wiredOnly = room.wiredOnly;
+	charter.friendsHidden = room.friendsHidden;
 	return charter;
 }
 // The tables a room's members can sit at, watch or set rules for; the others

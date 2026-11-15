@@ -139,9 +139,13 @@ enum class ActionKind : std::uint8_t {
 	// are the room's own. Only the same build shares a room (the guest's
 	// sidecarHash must equal the host's), so every peer knows the kind.
 	PostMatchAnswer,
+	// The host of a private room hides it from the friends of its members
+	// (Action::friendsHidden) or shows it to them again. Appended so older
+	// authorities reject it as an unknown kind.
+	SetFriendsHidden,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::PostMatchAnswer;
+constexpr ActionKind LastActionKind = ActionKind::SetFriendsHidden;
 
 // A presence word: a member's own state, said by the runtime and compared with
 // what the room's snapshot shows of the member, so a word that was lost or
@@ -457,13 +461,15 @@ struct ChatMessage {
 // for its replacement (CharterOf). RoomAuthority starts the room's Snapshot
 // with them. type, practice and delayPolicy are the room's for its life;
 // tableCount (out of range: the type's DefaultTableCount) and wiredOnly are
-// where it starts, which its host can change (SetTableCount, SetWiredOnly).
+// where it starts, which its host can change (SetTableCount, SetWiredOnly);
+// friendsHidden is where a private room starts (SetFriendsHidden).
 struct Charter {
 	RoomType type = RoomType::Classic;
 	bool practice = false;
 	DelayPolicy delayPolicy = DelayPolicy::Shared;
 	std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount);
 	bool wiredOnly = false;
+	bool friendsHidden = false;
 };
 
 struct Snapshot {
@@ -492,6 +498,11 @@ struct Snapshot {
 	// by its host (SetWiredOnly); a fighter seated before it came on keeps the
 	// seat. Serialized only when true.
 	bool wiredOnly = false;
+	// A private room its members' friends are not shown: they see "In a private
+	// room" and are handed no invitation. Chosen when the room is created and
+	// changed by its host (SetFriendsHidden), never in a room its server owns or
+	// a match room. Serialized only when true.
+	bool friendsHidden = false;
 	// The room's type (RoomType), fixed for its life. In an Arcade or King of
 	// the hill room a member sits at any free cabinet and plays the player who
 	// has waited longest, at whichever table is free: a table is a pair, not a
@@ -586,6 +597,8 @@ struct Action {
 	std::uint8_t tableCount = 0;
 	// SetWiredOnly: the rule on. Written only when set.
 	bool wiredOnly = false;
+	// SetFriendsHidden: the setting on. Written only when set.
+	bool friendsHidden = false;
 };
 
 struct Event {

@@ -48,6 +48,16 @@ struct Room {
 	bool joinable = false;
 };
 
+// A private room a friend is in that its members' friends may join: what a
+// friend is shown of it. The invitation is never part of it; the bridge hands
+// it out only when the player presses Join (Joining).
+struct PrivateOffer {
+	std::string name;
+	std::uint8_t members = 0, capacity = 0;
+	// Open, not locked, not full, and of this player's build.
+	bool joinable = false;
+};
+
 // Where a friend is, as this player may see it. A friend who appears offline is Offline.
 struct Presence {
 	enum class Kind : std::uint8_t { Offline, Online, InRoom } kind = Kind::Offline;
@@ -62,6 +72,12 @@ struct Presence {
 	int table = -1;
 	bool hasRoom = false, privateRoom = false;
 	Room room;
+	// Online or InRoom: the game the friend is in (GameIdentity.hxx), empty
+	// when the bridge named none, which is this game's.
+	std::string game;
+	// A private room that friends may join: its facts, never its invitation.
+	bool hasPrivateOffer = false;
+	PrivateOffer privateOffer;
 };
 
 // The wins between this player and a friend, from this player's side, and their last game.
@@ -121,6 +137,14 @@ struct Blocked {
 	// "bl_..."
 	std::string id, name;
 	std::uint64_t at = 0;
+};
+
+// The answer to a join: the invitation of the private room of friend
+// `friendId`. It is a key to the room, so it lives only as long as the one
+// press that asked for it and is never part of State, a log line or anything
+// shown.
+struct Joining {
+	std::string friendId, secret;
 };
 
 // The player's friends as the bridge last answered.

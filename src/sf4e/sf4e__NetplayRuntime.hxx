@@ -660,7 +660,7 @@ void NoteProfileAction(const std::string& token, netplay::levels::Relation relat
 void DispatchFriends(const commands::FriendsVisit& command);
 void DispatchFriends(const commands::FriendsLeave& command);
 void DispatchFriends(commands::FriendAction action, bool helperReady);
-void DispatchFriends(const commands::FriendJoin& command);
+void DispatchFriends(const commands::FriendJoin& command, bool helperReady);
 void DispatchFriends(const commands::FriendWatch& command);
 void DispatchFriends(const commands::FriendTakeInvite& command);
 void DispatchFriends(const commands::FriendAnswerVisit& command);

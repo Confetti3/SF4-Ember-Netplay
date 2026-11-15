@@ -692,6 +692,26 @@ void HomeJourney() {
  j.h.Choose("profile");
  Check(j.h.shell.Navigation().Screen() == "card", "Home's Profile row did not open Card while requests wait");
  Check(ui::MenuPlayerCard().requests == 2, "The card does not carry the waiting requests for the Friends tab");
+ // Home's Friends row says the requests waiting, then the friends online, and opens the Friends tab; Back returns Home.
+ j.h.Screen("home"); j.h.Frame(0, 2);
+ const auto* friendsRow = j.row("friends");
+ Check(friendsRow && friendsRow->value == loc::Tf("friends.home_requests", 2) && friendsRow->valueHighlighted, "Home's Friends row does not say how many requests wait");
+ j.h.Choose("friends");
+ Check(j.h.shell.Navigation().Screen() == "friends", "Home's Friends row did not open the Friends tab");
+ j.h.Press(MenuInput::Back);
+ Check(j.h.shell.Navigation().Screen() == "home", "Back from the Friends tab did not return Home");
+ state->incoming.resize(1);
+ j.h.Frame(0, 2);
+ Check(j.row("friends") && j.row("friends")->value == loc::T("friends.home_request_one"), "Home's Friends row does not say one request");
+ state->incoming.clear();
+ state->friends.resize(2);
+ state->friends[0].id = "fr_a"; state->friends[0].name = "A"; state->friends[0].presence.kind = netplay::friends::Presence::Kind::Online;
+ state->friends[1].id = "fr_b"; state->friends[1].name = "B";
+ j.h.Frame(0, 2);
+ Check(j.row("friends") && j.row("friends")->value == loc::Tf("friends.home_online", 1) && !j.row("friends")->valueHighlighted, "Home's Friends row does not say how many friends are online");
+ state->friends[0].presence.kind = netplay::friends::Presence::Kind::Offline;
+ j.h.Frame(0, 2);
+ Check(j.row("friends") && j.row("friends")->value.empty(), "Home's Friends row says something with nobody online or waiting");
 }
 
 // The levels are read when Profile opens, and once at start for the service in use.
