@@ -2823,6 +2823,12 @@ msgstr "Mise au sol"
 msgid "training.meter.meaty"
 msgstr "Meaty"
 
+msgid "training.meter.projectile_invincible"
+msgstr "Invincible aux projectiles"
+
+msgid "training.meter.invincible"
+msgstr "Totalement invincible"
+
 msgid "training.meter.hitstop"
 msgstr "Hitstop"
 

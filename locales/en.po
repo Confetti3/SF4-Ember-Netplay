@@ -2829,6 +2829,12 @@ msgstr "Knockdown"
 msgid "training.meter.meaty"
 msgstr "Meaty"
 
+msgid "training.meter.projectile_invincible"
+msgstr "Projectile invincible"
+
+msgid "training.meter.invincible"
+msgstr "Fully invincible"
+
 msgid "training.meter.hitstop"
 msgstr "Hitstop"
 

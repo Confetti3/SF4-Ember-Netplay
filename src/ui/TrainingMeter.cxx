@@ -426,6 +426,16 @@ ImU32 ClassicColor(MeterKind kind) {
     default: return IM_COL32(48, 50, 54, 245);
     }
 }
+// An invincible frame in Street Fighter 6's colours: tan where only fireballs miss, white where nothing hits.
+ImU32 InvincibleColor(Invincibility invincibility) {
+    return invincibility == Invincibility::Full ? IM_COL32(236, 238, 242, 245) : IM_COL32(214, 190, 148, 245);
+}
+// The darker lines across such a frame's cell, whose top edge sits `lean` further right than its bottom.
+void InvincibleLines(ImDrawList* draw, Invincibility invincibility, ImVec2 at, float width, float height, float lean, float line) {
+    const ImU32 colour = invincibility == Invincibility::Full ? IM_COL32(110, 114, 122, 255) : IM_COL32(112, 84, 46, 255);
+    for (float t = .2f; t < .9f; t += .2f)
+        draw->AddLine(ImVec2(at.x + lean * (1 - t), at.y + height * t), ImVec2(at.x + width + lean * (1 - t), at.y + height * t), colour, line);
+}
 // The data line's colour for a reading: the three move numbers in their bar
 // colours, a meaty in pink, a result or advantage green ahead and red behind.
 // The readings that are a move's frame counts, drawn white whatever they colour.
@@ -559,7 +569,10 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
             [&](int i, const MeterCell& shown) {
                 // Meaty frames, as the model marked them once the other was up (MeterCell::meaty).
                 const MeterKind kind = options.classicColors && shown.meaty ? MeterKind::Meaty : shown.kind;
-                quad(i * cell, (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), options.classicColors ? ClassicColor(kind) : TrainingCellColor(shown, true));
+                const float from = i * cell, to = (i + 1) * cell - (cell >= 3 ? 1.f : 0.f);
+                const bool invincible = options.classicColors && shown.invincibility != Invincibility::None;
+                quad(from, to, invincible ? InvincibleColor(shown.invincibility) : options.classicColors ? ClassicColor(kind) : TrainingCellColor(shown, true));
+                if (invincible) InvincibleLines(draw, shown.invincibility, ImVec2(origin.x + from, origin.y), to - from, height, slant, 2 * hudScale);
                 return kind;
             },
             // Frames still to come stay dim, so the bar keeps its length.
@@ -611,6 +624,13 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
         for (const auto& entry : entries) {
             const ImVec2 at = place(loc::T(entry.label));
             draw->AddRectFilled(at, ImVec2(at.x + box, at.y + box), options.classicColors ? ClassicColor(entry.kind) : entry.color);
+        }
+        if (options.classicColors) {
+            for (const auto invincibility : {Invincibility::Projectile, Invincibility::Full}) {
+                const ImVec2 at = place(loc::T(invincibility == Invincibility::Full ? "training.meter.invincible" : "training.meter.projectile_invincible"));
+                draw->AddRectFilled(at, ImVec2(at.x + box, at.y + box), InvincibleColor(invincibility));
+                InvincibleLines(draw, invincibility, at, box, box, 0, 2 * hudScale);
+            }
         }
         const ImVec2 at = place(loc::T("training.meter.hitstop"));
         StopLine(draw, ImVec2(at.x + box * .25f, at.y), box, options.classicSlant ? box * .35f : 0.f);

@@ -2823,6 +2823,12 @@ msgstr "Derribo"
 msgid "training.meter.meaty"
 msgstr "Meaty"
 
+msgid "training.meter.projectile_invincible"
+msgstr "Invencible a proyectiles"
+
+msgid "training.meter.invincible"
+msgstr "Invencible total"
+
 msgid "training.meter.hitstop"
 msgstr "Hitstop"
 

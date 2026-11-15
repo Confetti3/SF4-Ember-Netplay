@@ -2823,6 +2823,12 @@ msgstr "倒地"
 msgid "training.meter.meaty"
 msgstr "压起身"
 
+msgid "training.meter.projectile_invincible"
+msgstr "飞行道具无敌"
+
+msgid "training.meter.invincible"
+msgstr "完全无敌"
+
 msgid "training.meter.hitstop"
 msgstr "顿帧"
 

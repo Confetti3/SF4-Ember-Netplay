@@ -2823,6 +2823,12 @@ msgstr "Sražení"
 msgid "training.meter.meaty"
 msgstr "Meaty"
 
+msgid "training.meter.projectile_invincible"
+msgstr "Nezranitelný vůči střelám"
+
+msgid "training.meter.invincible"
+msgstr "Plně nezranitelný"
+
 msgid "training.meter.hitstop"
 msgstr "Hitstop"
 

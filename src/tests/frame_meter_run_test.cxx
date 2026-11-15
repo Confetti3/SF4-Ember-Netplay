@@ -524,6 +524,20 @@ int main() {
             Require(counted.View().startupFrames[0] == 3 && counted.View().moves[0].active == 2 && counted.View().moves[0].recovery == 7,
                 "The cells changed a move's numbers");
         }
+        {
+            // A fighter no fireball can hit: its own move's cells carry it, a knocked-down fighter's do not.
+            FighterSample sample; sample.valid = true; sample.posture = 0; sample.timeScale = 1; sample.invincibility = Invincibility::Projectile;
+            sample.status = 16; sample.action = 100; sample.firstActiveFrame = 3; sample.lastActiveFrame = 5; sample.actionFrame = 1;
+            Require(ResolveMeterCell(sample, nullptr, {}).invincibility == Invincibility::Projectile, "A projectile-invincible startup frame was not marked");
+            sample.actionFrame = 4;
+            Require(ResolveMeterCell(sample, nullptr, {}).invincibility == Invincibility::None, "A projectile-invincible active frame was marked");
+            sample.status = ActorStatus::Down;
+            Require(ResolveMeterCell(sample, nullptr, {}).invincibility == Invincibility::None, "A knocked-down fighter's frame was marked projectile-invincible");
+            sample.status = 16; sample.actionFrame = 1; sample.invincibility = Invincibility::Full;
+            Require(ResolveMeterCell(sample, nullptr, {}).invincibility == Invincibility::Full, "A fully invincible startup frame was not marked");
+            sample.invincibility = Invincibility::None;
+            Require(ResolveMeterCell(sample, nullptr, {}).invincibility == Invincibility::None, "A frame a fireball can hit was marked");
+        }
         std::puts("Frame meter run tests passed");
         return 0;
     } catch (const std::exception& error) {

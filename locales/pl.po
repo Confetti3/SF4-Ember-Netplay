@@ -2823,6 +2823,12 @@ msgstr "Powalenie"
 msgid "training.meter.meaty"
 msgstr "Meaty"
 
+msgid "training.meter.projectile_invincible"
+msgstr "Niewrażliwy na pociski"
+
+msgid "training.meter.invincible"
+msgstr "Całkowicie niewrażliwy"
+
 msgid "training.meter.hitstop"
 msgstr "Hitstop"
 

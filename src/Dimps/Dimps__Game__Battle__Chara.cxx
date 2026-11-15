@@ -51,6 +51,11 @@ unsigned int Actor::GetBodyMask(Actor* a, BodyList list) {
 	return *(unsigned int*)((unsigned char*)a + (list == BodyList::Strike ? 0x6814 : 0x6818));
 }
 
+// After the throw mask, as the game keeps them.
+unsigned int Actor::GetProjectileMask(Actor* a) {
+	return *(unsigned int*)((unsigned char*)a + 0x681c);
+}
+
 // Six list pointers from +0x130; a list keeps its first box at +0x20 and its
 // count at +0x2C.
 unsigned char* Actor::GetAttackBoxes(const void* object, unsigned list, unsigned& count) {
