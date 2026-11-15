@@ -36,6 +36,7 @@ const REFUSALS: Refusals<'static> = Refusals {
 
 /// Sends the player's presence and answers the state it gets back.
 pub async fn sync(shared: &Arc<Shared>, bridge_id: &str, mut sync: FriendsSync) -> Outcome {
+    drop_unreadable_offer(&mut sync);
     sync.check()
         .map_err(|_| Failure::new(Code::InvalidRequest))?;
     let offered = play::require(shared, bridge_id, Need::Friends).await?;
@@ -68,6 +69,23 @@ fn strip_presence_v2(sync: &mut FriendsSync) {
     sync.game = None;
     if let PresenceReport::Room { room } = &mut sync.presence {
         room.offer = None;
+    }
+}
+
+/// An offer the bridge would refuse goes without failing the sync it rides in:
+/// the player is still in their private room, and their friends list still
+/// refreshes. A room's name is checked more loosely by the room than by the
+/// bridge (a trailing space is a name to one and not to the other), and the
+/// offer is the only part of a presence that carries it.
+fn drop_unreadable_offer(sync: &mut FriendsSync) {
+    if let PresenceReport::Room { room } = &mut sync.presence {
+        if room
+            .offer
+            .as_ref()
+            .is_some_and(|offer| offer.check().is_err())
+        {
+            room.offer = None;
+        }
     }
 }
 
@@ -233,6 +251,29 @@ mod tests {
                 "offer": { "secret": format!("emd1:{}", "A".repeat(122)),
                            "name": "Lounge", "members": 2, "capacity": 8 } } } }))
         .unwrap()
+    }
+
+    // An offer whose room name the bridge would refuse is left out, and the
+    // sync goes as a private room's without one.
+    #[test]
+    fn an_offer_the_bridge_would_refuse_is_dropped_and_the_sync_still_goes() {
+        for name in ["Lounge ", " Lounge", "Lounge\u{3000}", ""] {
+            let mut sync = offering_sync();
+            if let PresenceReport::Room { room } = &mut sync.presence {
+                room.offer.as_mut().unwrap().name = name.to_owned();
+            }
+            assert!(sync.check().is_err(), "{name:?}");
+            drop_unreadable_offer(&mut sync);
+            assert!(sync.check().is_ok(), "{name:?}");
+            assert_eq!(
+                serde_json::to_value(&sync).unwrap()["presence"],
+                json!({ "activity": "room", "room": { "private": true, "status": "idle" } })
+            );
+        }
+        // A well-formed offer stays.
+        let mut sync = offering_sync();
+        drop_unreadable_offer(&mut sync);
+        assert!(matches!(&sync.presence, PresenceReport::Room { room } if room.offer.is_some()));
     }
 
     // A bridge without `friends_presence_v2` is sent the sync it read before:

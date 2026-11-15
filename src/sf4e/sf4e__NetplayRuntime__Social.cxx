@@ -521,7 +521,10 @@ void TickSocial(bool helperReady, std::uint64_t nowMs) {
 	if (auto held = requests.TakeHeld()) SendAction(*held, helperReady);
 	else if (helperReady && requests.SyncDue(nowMs)) {
 		// A player who appears offline offers no room: friends are told nothing of it, and no invitation leaves the PC.
-		const auto report = requests.Published().value->appearOffline ? presented.report.WithoutOffer() : presented.report;
+		// Whether they do is the bridge's to say, so until a state has come (the first sync after a start, or after
+		// the service or Ember ID changed) the sync goes without the offer as well; the next one carries it.
+		const auto& published = requests.Published();
+		const auto report = !published.loaded || published.value->appearOffline ? presented.report.WithoutOffer() : presented.report;
 		Send(friends::SyncRequest(requests.Bridge(), sf4e::sidecarHash, OwnListing(), report), Flight{}, helperReady, nowMs);
 	}
 	TickVisit(helperReady, nowMs);

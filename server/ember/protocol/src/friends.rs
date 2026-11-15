@@ -253,10 +253,21 @@ fn joining_or_none<'de, D: Deserializer<'de>>(
 fn presence_or_online<'de, D: Deserializer<'de>>(
     deserializer: D,
 ) -> std::result::Result<FriendPresence, D::Error> {
-    Ok(lenient(deserializer)?.unwrap_or(FriendPresence::Online {
+    let mut presence = lenient(deserializer)?.unwrap_or(FriendPresence::Online {
         activity: Activity::Menus,
         game: None,
-    }))
+    });
+    // A private room's facts beside a room that is not private say nothing
+    // this build can show: they drop, and the friend stays where they are.
+    if let FriendPresence::Room {
+        private: false,
+        private_room,
+        ..
+    } = &mut presence
+    {
+        *private_room = None;
+    }
+    Ok(presence)
 }
 
 /// A list of which the entries this build cannot read are left out, so one
@@ -2004,6 +2015,22 @@ mod tests {
             }
         ));
         assert_eq!(state.friends[0].name, "Player 3");
+        // Well-formed facts beside a room that is not private drop too, and
+        // the answer still checks.
+        let mut wire = state_wire();
+        wire["friends"][0]["presence"]["private_room"] =
+            json!({"name": "Lounge", "members": 2, "capacity": 8, "joinable": true});
+        let state = read::<FriendsState>(&wire);
+        assert!(matches!(
+            state.friends[0].presence,
+            FriendPresence::Room {
+                room: Some(_),
+                private: false,
+                private_room: None,
+                ..
+            }
+        ));
+        assert_eq!(state.check(), Ok(()));
 
         // What the bridge writes is checked: a private room only with
         // `private`, and a game that is one.

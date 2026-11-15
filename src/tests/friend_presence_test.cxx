@@ -147,6 +147,19 @@ void AnOfferedPrivateRoom() {
 	world.room.members[0].seat = -1;
 	world.room.members[0].table = -1;
 
+	// The offer's name is one the bridge takes: white space at its ends is left off, and a name that is none without
+	// it, or holds a control character, or is not text, offers no room (the sync still goes, as a private room's).
+	world.room.name = " Open Mic \xE3\x80\x80";
+	EXPECT(world.Reported().offered && world.Reported().name == "Open Mic");
+	for (const std::string bad : {std::string("   "), std::string("\xE3\x80\x80"), std::string("Open\tMic"), std::string("Open\xC2\x85Mic"),
+			std::string("Open\xFFMic"), std::string(" ") + std::string(65, 'x')}) {
+		world.room.name = bad;
+		EXPECT(!world.Reported().offered && world.Reported().name.empty() && world.Reported().kind == Report::Kind::InRoom &&
+			world.Reported().ToJson().dump().find("offer") == std::string::npos);
+	}
+	EXPECT(friends::OfferName(std::string(64, 'x')) == std::string(64, 'x') && friends::OfferName("a b") == "a b" && friends::OfferName("").empty());
+	world.room.name = "Open Mic";
+
 	// Hidden by the host: nothing is offered, and the report is the plain one.
 	world.room.friendsHidden = true;
 	EXPECT(!world.Reported().offered && world.Reported() == world.Reported().WithoutOffer());

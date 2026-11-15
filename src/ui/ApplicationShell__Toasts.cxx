@@ -159,8 +159,9 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
    const float share=(b.x-pad-left-8*s*(t.actions.size()-1))/t.actions.size();
    for(std::size_t i=0;i<t.actions.size();++i){
     const bool first=i==0;
-    // The key's prompt glyph, as the hint bar and the post-match buttons draw it.
-    const char* key=!keyed?nullptr:first?MenuSelectGlyph():MenuBackGlyph();
+    // The key's prompt glyph, as the hint bar and the post-match buttons draw it: Select presses the first button and
+    // Back the last, so one between them (a request's View) has none and is clicked.
+    const char* key=!keyed?nullptr:first?MenuSelectGlyph():i+1==t.actions.size()?MenuBackGlyph():nullptr;
     const float mark=key?keySize+8*s:0;
     const std::string label=v2::Fit(t.actions[i].label,(std::max)(0.f,share-24*s-mark),labelSize,font,false);
     const float labelW=font->CalcTextSizeA(labelSize,FLT_MAX,0,label.c_str()).x;

@@ -346,7 +346,12 @@ also offered to them (`presence.room.offer`) while all of these hold:
 - its Privacy setting is Friends (`room::Snapshot::friendsHidden` is off);
 - it passes the rule `discord::Describe` offers a room to Discord friends by
   (`offerable`): not a bound match, healthy, not locked, not full; and it has
-  an invitation that has not run out.
+  an invitation that has not run out;
+- its name is one the bridge takes (`OfferName`): white space at the ends is
+  left off for the offer, and a name with a control character, or with nothing
+  else in it, offers no room. The room allows such names; the bridge refuses a
+  sync that carries one, so the helper also drops an offer that fails its own
+  check before it sends the sync.
 
 `netplay::friends::ReportOf` builds the offer and the sync carries it to the
 bridge. The Discord presence and invite settings do not govern it; they are
@@ -376,7 +381,9 @@ turned on; the player still sees their friends, requests and invites, and
 can still invite (an invite reveals them to that one friend, which the
 invite box says). While it is on, the game sends no offer
 (`Report::WithoutOffer`), so no invitation leaves the PC, and the bridge
-refuses a `join` for that player's room.
+refuses a `join` for that player's room. Whether it is on is the bridge's to
+say, so the first sync after a start, or after the service or Ember ID
+changed, goes without the offer too.
 
 ## Privacy
 
