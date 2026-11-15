@@ -628,9 +628,7 @@ Turn off friends (after asking: says what is deleted; blocks are kept). While th
 
 ## Strings
 
-Added to all fourteen catalogs, as for `PLAYER_CARD.md`. The private room and
-entry point ids at the end of the table are in `locales/en.po` so far; the
-other thirteen catalogs follow in the translation pass.
+Added to all fourteen catalogs, as for `PLAYER_CARD.md`.
 
 | Key | English |
 |---|---|
