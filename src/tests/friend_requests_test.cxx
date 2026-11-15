@@ -277,7 +277,8 @@ void Commands() {
 		std::string(FriendTurnOff::LogName) == "turn off");
 	EXPECT(std::string(FriendAskJoin::LogName) == "join private" && HasBounds<FriendAskJoin>);
 	FriendAskJoin longFriend{{}, "b", std::string(65, 'x')};
-	EXPECT(!longFriend.Valid() && FriendAskJoin{{}, "brg", "fr_1"}.Bytes() == 7 && FriendAskJoin{{}, "brg", "fr_1"}.Valid());
+	FriendAskJoin shortFriend{{}, "brg", "fr_1"};
+	EXPECT(!longFriend.Valid() && shortFriend.Bytes() == 7 && shortFriend.Valid());
 	EXPECT(HasBounds<FriendJoin> && HasBounds<FriendTurnOn> && BridgeOf(FriendAction(FriendNewCode{"brg_1"})) == std::string("brg_1"));
 }
 
