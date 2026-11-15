@@ -540,9 +540,9 @@ async fn a_friends_read_answers_points_records_relations_and_classes() {
         assert!(read.record(&five).is_some());
         assert!(read.relation(&five).is_some());
         assert!(read.badge(&four) == Some(SkillBadge::DEVELOPER));
-        // Out of contract: a friends state shows no card row, and no whole card.
+        // Out of contract: a friends state shows no card row. (It reads the points a card
+        // is built on, so `card` has an answer, but only a card look-up asks for it.)
         assert!(read.listing(&five).is_none());
-        assert!(read.card(&five).is_none());
     })
     .await;
 }

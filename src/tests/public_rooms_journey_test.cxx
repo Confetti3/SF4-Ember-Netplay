@@ -493,9 +493,9 @@ void SortJourney(){
  Check(Shown(j)=="xpnmlf","The relay was taken for the player's area");
  h.view.automaticArea=OwnArea;h.Frame(0,2);
  Check(Shown(j)=="pnmxlf",(std::string("Near rooms do not come before far ones: ")+Shown(j)).c_str());
- // An area the player hid in Settings is no area: nothing is near.
+ // An area the player hid in Settings is hidden from others only: their own list still sorts by it.
  h.view.preferences.area=AreaPreference::Hidden();h.Frame(0,2);
- Check(Shown(j)=="xpnmlf","An area hidden in Settings still made rooms near");
+ Check(Shown(j)=="pnmxlf",(std::string("An area hidden in Settings stopped the own list sorting by it: ")+Shown(j)).c_str());
  h.view.preferences.area=AreaPreference::Automatic();h.Frame(0,2);
  // The order does not wobble from one refresh to the next.
  j.List({Placed("p",OwnArea,2,8,10),Placed("n",OwnArea,2,8,20),Placed("x",FarArea,1,8,5),Placed("m",OwnArea,5,8,9),Placed("f",OwnArea,4,4,6),Placed("l",OwnArea,1,8,7,true)});
