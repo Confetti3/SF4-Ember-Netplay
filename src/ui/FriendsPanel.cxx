@@ -37,6 +37,7 @@ const char* WhyNotThere(const nf::Destination& destination, bool watch) {
     using Refusal = nf::Destination::Refusal;
     switch (destination.refusal) {
     case Refusal::PrivateRoom: return "friends.private_invite_only";
+    case Refusal::OtherGame: return "friends.join_unavailable";
     case Refusal::None: return nullptr;
     default: return watch ? "friends.cannot_watch" : "friends.cannot_join";
     }
@@ -151,7 +152,7 @@ std::optional<ShownRoom> RoomOf(const nf::Friend& entry) {
     if (presence.privateRoom) {
         // A private room with no offer, or one the bridge sent no name for, is no room to name.
         if (!presence.hasPrivateOffer || presence.privateOffer.name.empty()) return std::nullopt;
-        return ShownRoom{presence.privateOffer.name, presence.privateOffer.members, presence.privateOffer.capacity};
+        return ShownRoom{presence.privateOffer.name, static_cast<int>(presence.privateOffer.members), static_cast<int>(presence.privateOffer.capacity)};
     }
     if (!presence.hasRoom) return std::nullopt;
     return ShownRoom{presence.room.name, static_cast<int>(presence.room.members), static_cast<int>(presence.room.capacity)};
@@ -240,8 +241,8 @@ std::vector<MenuChoice> FriendChoices(const nf::State& state, const nf::Friend& 
     const auto join = nf::ToFriend(state, entry.id, false), watch = nf::ToFriend(state, entry.id, true);
     // Join follows Joinable, which also takes a private room the bridge offered; the refusal's own words are ToFriend's, else a plain no.
     const char* joinWhy = !gate.go ? gate.goWhy : Joinable(entry) ? nullptr : WhyNotThere(join, false) ? WhyNotThere(join, false) : "friends.cannot_join";
-    // Watch stays with public rooms: a private room, offered or not, has no table to watch from here.
-    const char* watchWhy = !gate.go ? gate.goWhy : entry.presence.privateRoom ? "friends.private_invite_only" : OtherGame(entry) ? "friends.cannot_watch" : WhyNotThere(watch, true);
+    // Watch stays with public rooms: ToFriend refuses it for a private room, offered or not, and for another game.
+    const char* watchWhy = !gate.go ? gate.goWhy : WhyNotThere(watch, true);
     const bool online = entry.presence.kind != nf::Presence::Kind::Offline && !OtherGame(entry);
     const char* inviteWhy = !gate.act ? gate.actWhy : !online ? "friends.invite_unavailable" : !canInvite ? "friends.nothing_to_offer" : nullptr;
     // Inviting while appearing offline tells the friend where this player is.
