@@ -1,5 +1,6 @@
 #include "PublicRoomsCards.hxx"
 #include "ApplicationShell.hxx"
+#include "AreaNames.hxx"
 #include "GameMenu.hxx"
 #include "MenuProbes.hxx"
 #include "MenuRows.hxx"
@@ -63,7 +64,7 @@ struct TypeLook { const char* name; const char* detail; ImU32 colour; };
 std::optional<TypeLook> LookOf(const Room& room) {
     if (!room.type) return std::nullopt;
     const room::RoomType type = *room.type;
-    const ImU32 colour = type == room::KingRoom ? v2::TierColor(v2::Tier::Gold).stripe : type == room::ArcadeRoom ? palette::Purple : palette::Ivory;
+    const ImU32 colour = type == room::RoomType::King ? v2::TierColor(v2::Tier::Gold).stripe : type == room::RoomType::Arcade ? palette::Purple : palette::Ivory;
     return TypeLook{RoomTypeName(type), RoomTypeDetail(type), colour};
 }
 
@@ -183,23 +184,23 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
     Text(ImVec2(nameX, nameY), nameFont, ink, Elide(nameFont, e.label, rightLimit - nameX));
     ImGui::PopFont();
 
-    // Line 2: the host and the region, and a mark when the room is near.
-    const std::string region = room.region.empty() ? std::string() : PublicRoomsPanel::RegionLabel(room.region);
-    const std::string known = PublicRoomsPanel::KnownRegion(v);
-    const bool near = !known.empty() && room.region == known;
+    // Line 2: the host and the creator's area, and a mark when the room is near
+    // the player's own. A room without an area names no place.
+    const std::string place = AreaName(room.area);
+    const bool near = AreaNear(PublicRoomsPanel::HomeArea(v), room.area);
     const std::string nearText = loc::T("public.near_you");
     const float nearWidth = near ? ChipWidth(nearText.c_str(), lineWidth * .45f) : 0;
     const float metaWidth = lineWidth - (near ? nearWidth + 8 * s : 0);
     std::string meta;
     float interfaceWidth = 0;
     if (visible && !room.hostName.empty()) NoteUserText(room.hostName);
-    if (!room.hostName.empty() && !region.empty()) {
-        interfaceWidth = Measure(metaFont, loc::Tf("public.card_meta", "", region).c_str());
+    if (!room.hostName.empty() && !place.empty()) {
+        interfaceWidth = Measure(metaFont, loc::Tf("public.card_meta", "", place).c_str());
         const std::string host = Elide(metaFont, room.hostName, metaWidth - interfaceWidth);
-        if (host.empty()) { meta = region; interfaceWidth = Measure(metaFont, region.c_str()); }
-        else meta = loc::Tf("public.card_meta", host, region);
+        if (host.empty()) { meta = place; interfaceWidth = Measure(metaFont, place.c_str()); }
+        else meta = loc::Tf("public.card_meta", host, place);
     } else if (!room.hostName.empty()) meta = Elide(metaFont, room.hostName, metaWidth);
-    else { meta = region; interfaceWidth = Measure(metaFont, region.c_str()); }
+    else { meta = place; interfaceWidth = Measure(metaFont, place.c_str()); }
     const float chipY = metaY + (metaFont - 20 * s) * .5f;
     if (!meta.empty()) {
         if (interfaceWidth > 0) ReportMenuText("pr-room-meta", metaFont, 20 * s, interfaceWidth, metaWidth);
@@ -274,6 +275,15 @@ void DrawMessage(const MenuEntry& e, ImVec2 min, ImVec2 max, ImU32 color, bool f
     const float labelHeight = max.y - min.y - 2 * edge - (action ? pillH + 8 * s : 0);
     DrawCardParagraph(ImVec2(min.x + pad, min.y + edge), 18 * s, color, e.label, width, labelHeight, e.id.c_str());
     if (action) DrawAction(ImVec2(min.x + pad, max.y - edge - pillH), e.hint, pillH, false, e.enabled, width, (e.id + "-action").c_str());
+    DrawFrame(min, max, focused);
+}
+
+// A quiet notice: its line over what it means, nothing else on the card.
+void DrawNotice(const MenuEntry& e, ImVec2 min, ImVec2 max, bool focused) {
+    const float s = Scale(), pad = 12 * s, head = 22 * s, width = max.x - min.x - 2 * pad;
+    DrawCardLine(ImVec2(min.x + pad, min.y + 12 * s), 16 * s, palette::Ivory, e.label, width, e.id.c_str(), head);
+    const float top = min.y + 12 * s + head + 4 * s;
+    DrawCardParagraph(ImVec2(min.x + pad, top), 14 * s, palette::Muted, e.detail, width, max.y - 10 * s - top, (e.id + "-detail").c_str());
     DrawFrame(min, max, focused);
 }
 
@@ -399,6 +409,7 @@ bool DrawPublicCard(const ShellView& v, const PublicRoomsPanel& panel, const Pub
         return true;
     }
     if (id == "pr-none" || id == "pr-clear-filters") { DrawMessage(e, min, max, palette::Ivory, focused); return true; }
+    if (id == PublicRoomsPanel::RankedNoticeRow) { DrawNotice(e, min, max, focused); return true; }
     if (id == "pr-error") { DrawMessage(e, min, max, ErrorColor(), focused); return true; }
     if (id == "pr-checking") { DrawChecking(e, min, max, focused, now); return true; }
     if (id == "pr-loading") { DrawLoading(e, min, max, focused, now); return true; }

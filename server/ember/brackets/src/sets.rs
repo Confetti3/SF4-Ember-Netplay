@@ -247,8 +247,8 @@ pub fn on_open(tracked: Option<&Tracked>, entries: [&str; 2]) -> OnOpen {
         Progress::Live | Progress::Stuck => OnOpen::Leave,
         // Open again, after a report or the organizer's decision, for the
         // same two players: the organizer reopened it to correct it, and
-        // decides it (on Challonge, reopening a set reopens the sets after
-        // it too). Ember plays it again only for other players. A set whose
+        // decides it (reopening a set may reopen the sets after it too).
+        // Ember plays it again only for other players. A set whose
         // match ended because the set changed is `Waiting` instead, and is
         // played again whoever its players are.
         Progress::Reported | Progress::Closed if tracked.entry_ids() == entries => OnOpen::Leave,
@@ -310,7 +310,7 @@ mod tests {
 
     fn received(ended: Ended) -> Received {
         Received {
-            id: ExternalId::parse("challonge:t:1001:1").unwrap(),
+            id: ExternalId::parse("http:t:1001:1").unwrap(),
             match_id: "emt_1".into(),
             players: [ember(), player(2)],
             ended,
@@ -325,7 +325,7 @@ mod tests {
             entries: Some(players.map(|id| Entry {
                 participant_id: id.into(),
                 name: None,
-                accounts: Vec::new(),
+                discord: None,
             })),
             status,
             underway: false,
@@ -337,17 +337,17 @@ mod tests {
     #[test]
     fn external_ids_round_trip() {
         let id = ExternalId {
-            bracket: "challonge:ember_weekly-12".into(),
+            bracket: "http:ember_weekly-12".into(),
             set: "8008135".into(),
             attempt: 3,
         };
         let text = id.to_string();
-        assert_eq!(text, "challonge:ember_weekly-12:8008135:3");
+        assert_eq!(text, "http:ember_weekly-12:8008135:3");
         assert_eq!(ExternalId::parse(&text), Some(id));
         for text in [
-            "challonge:t:8008135:0",
-            "challonge:t:8008135:x",
-            "challonge:t::1",
+            "http:t:8008135:0",
+            "http:t:8008135:x",
+            "http:t::1",
             "t:8008135:1",
             "8008135:1",
             "",
@@ -494,7 +494,7 @@ mod tests {
     fn a_result_body_is_read_past_fields_a_later_bridge_adds() {
         let body = serde_json::json!({
             "type": RESULT_TYPE, "bridge_id": "brg_x", "connection_id": "brackets",
-            "match_id": "emt_1", "external_match_id": "challonge:t:1001:1",
+            "match_id": "emt_1", "external_match_id": "http:t:1001:1",
             "outcome": "completed", "revision": "5", "ended_at": "2026-10-18T00:00:00Z",
             "participants": [
                 { "participant_id": "epl_a", "ember_id": ember(), "slot": 0, "score": 2, "rating": 1500 },
@@ -521,7 +521,7 @@ mod tests {
             revision: "5".into(),
             connection_id: "brackets".into(),
             match_id: "emt_1".into(),
-            external_match_id: "challonge:t:1001:2".into(),
+            external_match_id: "http:t:1001:2".into(),
             outcome: Outcome::Completed,
             // Listed slot 1 first: order on the wire does not matter.
             participants: vec![

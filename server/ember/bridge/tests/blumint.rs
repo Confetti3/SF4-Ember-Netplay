@@ -176,7 +176,9 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     ember_bridge::deliver_results(f.bridge.state()).await;
     assert!(submitted(&f).is_empty());
     // BluMint is down at first: the result is sent again later, once. The
-    // bridge's own worker runs alongside these passes; either may send.
+    // bridge's own worker runs alongside these passes; either may send. The
+    // retry waits for the clock, so the test sees it.
+    f.bridge.clock.freeze();
     f.blumint.lock().unwrap().fail = 1;
     win(&f, &id, 1, "game-1").await;
     assert_eq!(match_state(&f, &id).await, "completed");
@@ -825,6 +827,8 @@ async fn closing_a_match_that_has_ended_changes_nothing() {
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
     let (_, created) = create(&f, "set-1", 1).await;
     let id = created["matchId"].as_str().unwrap().to_owned();
+    // The retry waits for the clock, so the test sees it.
+    f.bridge.clock.freeze();
     f.blumint.lock().unwrap().fail = 1;
     win(&f, &id, 0, "game-1").await;
     results::until(&f.bridge, &id, |(state, attempts)| {

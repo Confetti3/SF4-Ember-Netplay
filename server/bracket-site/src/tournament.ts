@@ -54,6 +54,8 @@ export interface Tournament {
   clips?: Clip[];
   /** Its public vote, once opened (`vote.ts`). */
   vote?: Vote;
+  /** Its organizers' Discord channel, which the notifier posts its feed to too. Never shown. */
+  discord_webhook?: string | null;
 }
 
 export type Action = "plan" | "open_sign_ups" | "close_sign_ups" | "open_check_in" | "reopen_sign_ups" | "start" | "reset" | "archive" | "cancel";

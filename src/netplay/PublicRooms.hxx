@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../common/Area.hxx"
 #include "../common/RoomRules.hxx"
 #include <cstddef>
 #include <cstdint>
@@ -26,7 +27,11 @@ constexpr std::size_t MaxHostNameBytes = 32;
 // detail=1) and are decoded leniently: a field that is absent or invalid keeps
 // its default here, never failing the row.
 struct Room {
-	std::string id, name, region;
+	std::string id, name;
+	// Where the room's creator plays from, when they said: the room's place.
+	// None for a creator who hid it, a build before areas, or an area this
+	// build does not know. The relay code the bridge also lists is not read.
+	Area area = Area::None;
 	unsigned members = 0, capacity = 0, playing = 0;
 	// When the room opened, in the bridge's seconds; Status::listedAt is the
 	// bridge's clock for the same list, so the difference is the room's age.

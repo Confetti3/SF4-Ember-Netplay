@@ -100,7 +100,7 @@ void ChatTranscript::Diff(const room::Snapshot& snapshot) {
             line.table = static_cast<unsigned>(i);
             const int seat = table.lastSet.winnerSeat;
             line.score[0] = table.lastSet.score[seat]; line.score[1] = table.lastSet.score[1 - seat];
-            if (snapshot.arcade != room::ClassicRoom) {
+            if (room::RulesOf(snapshot).cabinets) {
                 const auto loser = names_.find(table.lastSet.Loser());
                 if (loser != names_.end()) line.opponent = loser->second;
             }

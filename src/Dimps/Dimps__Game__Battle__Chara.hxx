@@ -249,6 +249,19 @@ namespace Dimps {
 					static __mementoableMethods mementoableMethods;
 				};
 
+				// The unit's items (Cody's knife, Balrog's mask and claw), each
+				// with its own memento, recorded and restored by the unit's.
+				struct ItemCollection
+				{
+					typedef struct __publicMethods {
+						// impl::ItemCollection vtable slot 8: null past the end.
+						void* (ItemCollection::* GetItemByIndex)(unsigned int index);
+					} __publicMethods;
+
+					static void Locate(HMODULE peRoot);
+					static __publicMethods publicMethods;
+				};
+
 				struct Unit
 				{
 					typedef struct __publicMethods {
@@ -268,7 +281,7 @@ namespace Dimps {
 					Actor* playerActors[2];
 					void* actors_0x10[2];
 					void* actors_0x18[2];
-					void* lpItemCollection;
+					ItemCollection* lpItemCollection;
 				};
 			}
 		}

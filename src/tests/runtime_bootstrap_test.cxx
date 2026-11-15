@@ -71,25 +71,22 @@ int wmain(int argc, wchar_t** argv) {
 	// Exercise the real UI-to-runtime admission seam: these commands have
 	// handlers, even though the session controller rejects them outside a room.
 	const auto initialDelay = snapshot.selectedDelay;
-	for (auto kind : {netplay::CommandKind::CheckConnection, netplay::CommandKind::ApplyDelay,
-		netplay::CommandKind::ReplaceRoom}) {
-		NetplayFacade::RuntimeCommand action;
-		action.command = {kind, snapshot.session.generation, {}};
-		action.selectedDelay = 4;
+	const auto generation = snapshot.session.generation;
+	const sf4e::RuntimeRequest actions[] = {sf4e::commands::CheckConnection{generation}, sf4e::commands::ApplyDelay{generation, 4},
+		sf4e::commands::ReplaceRoom{generation}};
+	for (const auto& action : actions) {
 		CHECK(NetplayFacade::SubmitRuntimeCommand(action));
 		NetplayFacade::TickRuntime();
 		CHECK(NetplayFacade::GetRuntimeSnapshot().session.room == netplay::RoomState::Idle);
 		CHECK(NetplayFacade::GetRuntimeSnapshot().selectedDelay == initialDelay);
 	}
-	NetplayFacade::RuntimeCommand preferences;
-	preferences.command = {netplay::CommandKind::SavePreferences, snapshot.session.generation, {}};
+	sf4e::commands::SavePreferences preferences{generation};
 	preferences.preferences.displayName = "Must wait for the menu";
 	CHECK(NetplayFacade::SubmitRuntimeCommand(preferences));
-	preferences.command.kind = netplay::CommandKind::SetLobbySettings;
-	CHECK(NetplayFacade::SubmitRuntimeCommand(preferences));
+	CHECK(NetplayFacade::SubmitRuntimeCommand(sf4e::commands::LobbySettings{generation, preferences.preferences.lobby}));
 	NetplayFacade::TickRuntime();
 	CHECK(NetplayFacade::GetRuntimeSnapshot().preferences.displayName == "Player");
-	CHECK(NetplayFacade::SubmitRuntimeCommand({{netplay::CommandKind::StartOffline, snapshot.session.generation, {}}, {}}));
+	CHECK(NetplayFacade::SubmitRuntimeCommand(sf4e::commands::StartOffline{generation}));
 	NetplayFacade::TickRuntime();
 	CHECK(NetplayFacade::GetRuntimeSnapshot().offlineRequested);
 	NetplayFacade::StopHelper();
@@ -111,9 +108,8 @@ int wmain(int argc, wchar_t** argv) {
 	CHECK(snapshot.helperReady);
 	CHECK(!snapshot.canOpenRoom && !snapshot.atMainMenu);
 	// No game is loaded: commands must not touch Dimps addresses before readiness.
-	NetplayFacade::RuntimeCommand host;
-	host.command = {netplay::CommandKind::HostRoom, snapshot.session.generation, {}};
-	host.displayName = "Host";
+	sf4e::commands::HostRoom host;
+	host.generation = snapshot.session.generation;
 	CHECK(NetplayFacade::SubmitRuntimeCommand(std::move(host)));
 	NetplayFacade::TickRuntime();
 	CHECK(NetplayFacade::GetRuntimeSnapshot().session.room == netplay::RoomState::Idle);

@@ -15,8 +15,7 @@ std::vector<MenuEntry> ApplicationShell::TrainingSelectRows(const ShellView& v,s
 }
 void ApplicationShell::TrainingSelectActivate(const MenuAction& a,const ShellView& v,const Submit& submit) {
  if(a.id=="training-start"){
-  ShellAction training;training.startTraining=true;
-  if(!submit(std::move(training)))error_=loc::T("error.queue_failed");
+  if(!submit(StartTraining{}))error_=loc::T("error.queue_failed");
   return;
  }
  selectionForDummy_=a.id=="training-dummy";

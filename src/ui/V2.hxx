@@ -7,6 +7,7 @@
 #include "../common/NetworkLink.hxx"
 #include <imgui.h>
 #include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -27,11 +28,14 @@ constexpr ImU32 Alpha(ImU32 color, float alpha) { return (color & ~IM_COL32_A_MA
 // 16 under 900 logical pixels of width, 24 under 1700, 40 above; content is
 // capped at 2000 and centred, so a 21:9 or 32:9 screen grows margins, not rows.
 constexpr float ContentCap = 2000;
+// A window under NarrowWidth logical pixels is narrow; NarrowContent is the widest content such a window has, which is
+// the most a layout drawn for narrow windows is asked to fill.
+constexpr float NarrowWidth = 900, NarrowPad = 16, NarrowContent = NarrowWidth - 2 * NarrowPad;
 inline float Pad(float width, float scale) {
     const float logical = width / scale;
-    return (logical < 900 ? 16 : logical < 1700 ? 24 : 40) * scale;
+    return (logical < NarrowWidth ? NarrowPad : logical < 1700 ? 24 : 40) * scale;
 }
-inline bool Narrow(float width, float scale) { return width / scale < 900; }
+inline bool Narrow(float width, float scale) { return width / scale < NarrowWidth; }
 inline float SideMargin(float width, float scale) { return (std::max)(Pad(width, scale), (width - ContentCap * scale) * .5f); }
 
 // A screen is laid out by cutting boxes off a box, as the design boards stack
@@ -68,6 +72,10 @@ float SectionHeading(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32
 // with Fit, so the text probe sees it; `centred` centres it in `width`.
 // Returns the width drawn.
 float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font = nullptr, bool centred = false, bool probe = true);
+// A line `size` tall that gives way down to `least` when it would not fit `width`, centred on the line it
+// would have had at `size`, and cut with "..." only beyond that. Its words are shown whole elsewhere (a tile's
+// games are on the Fighters tab), so the text probe is not told.
+float TextShrunk(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, float least, ImU32 color, ImFont* font = nullptr);
 // A heading at `size` in the heading font that wraps rather than cut (a
 // Settings rail head, a panel's title): one line when it fits `width`, else
 // as many whole words as the first line holds (one at least) and the rest on
@@ -206,13 +214,51 @@ TierColors TierColor(Tier tier);
 // scaled to `size`; -1 draws nothing.
 constexpr int IconCount = 12;
 void Icon(ImDrawList* draw, int icon, ImVec2 at, float size, ImU32 ink);
-// The awards (the Awards board): a title on its tier's plate and the icon that
-// goes with it, lowest tier first. The ids are the identity backend's; the
-// rest are the catalog ids of its title, its icon's name and how to earn it.
-struct Award { const char* id; int icon; Tier tier; const char *title, *name, *how; };
-extern const Award Awards[11];
-const Award* FindAward(const std::string& id);
 const char* TierName(Tier tier);
+// A title on its tier's plate (the profile card's, the Card tab's): a slanted
+// bar `line` tall at `at` with the tier's stripe at its start, as wide as the
+// title needs, from 340 px up to `room`. Returns its width.
+float TitlePlate(ImDrawList* draw, ImVec2 at, float room, float line, const std::string& title, Tier tier);
+
+// Points (FIGHTER_LEVELS.md, PLAYER_CARD.md), drawn as the game draws its PP and
+// BP under a player's name: the number, a space, then the two-letter label, on one
+// line with no plate, box or frame. The number is white, in the game's own digits,
+// read from the player's installed game (SelectionArt::PointDigits); while the
+// digits have not loaded, or the game has none, it is the heading font's digits.
+// The label is in the heading font, white with a dark outline, its capitals as
+// tall as the digits. 0 draws as 0 (the Profile card of a fighter not played
+// yet: callers that show only played fighters leave those out), and shows at
+// most 999999. The tier never colours the number. Speech and the text probe read
+// the words a caller puts beside it ("1986 points"), never the number drawn.
+// LevelMark.cxx.
+// The award tier of a frame tier the bridge sent, 0 (Ash) to 4 (Ember); another
+// number is held to that range.
+Tier FrameTier(int tier);
+// The line `<number> <label>` with its top left at `at`, the digits `height`
+// tall. `labelId` is the catalog id of the label: "points.label" (FP, a
+// fighter's points) or "points.account_label" (BP, the account's). Returns the
+// width, which LevelWidth gives without drawing. `alpha` (0 to 1) dims the
+// whole line, for a number still being read.
+float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, const char* labelId, float alpha = 1.f);
+float LevelWidth(std::uint64_t points, float height, const char* labelId);
+// Two lines stacked, `<fighter> FP` over `<account> BP`, each `height` tall
+// with `gap` between: the numbers right-aligned in one column and the labels
+// starting at one x after it (how SF4 stacks them under a name). On every
+// line the label's capitals are as tall as the digits' light faces and stand
+// on their baseline. Returns the height, which is 2 * height + gap.
+float LevelLines(ImDrawList* draw, ImVec2 at, float height, float gap, std::uint64_t fighter, std::uint64_t account, float alpha = 1.f);
+// A gain ("+16") `height` tall at `at` on no ground, in the game's gold digits
+// with a plus in the heading font. Returns its width; nothing for 0.
+float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain);
+// Over a fighter's picture `tile`: the line `<number> FP` centred on a short
+// dark shade across its foot, shrunk to fit the picture's width. The shade is
+// only there to read over art: no frame is drawn round the picture. `alpha`
+// dims the line as Level does. Returns the band's height, 0 when it is left out
+// (a picture too small for a number that reads).
+float LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, float alpha = 1.f);
+// A progress bar on the frame's ground: `part` of it (0 to 1) in the accent,
+// and the last `fresh` of that part (the same measure) in the light accent.
+void Meter(ImDrawList* draw, Box box, float part, float fresh);
 
 // The player tag: flag · rank · name · title · indicators, always in that
 // order. Space short: status goes first, then the title; flag, rank, name and
@@ -233,11 +279,22 @@ struct TagView {
     int fighter = -1;
     // The title's tier colours its plate; the icon (-1 none) sits on the card's right.
     Tier tier = Tier::None;
+    // The icon's own tier colours it (an award worn as the icon is not the title's); none takes the title's.
+    Tier iconTier = Tier::None;
     int icon = -1;
     std::string about;
+    // L only, the player's own card: the main's points over the account's, under the about line.
+    struct Points { bool shown = false; std::uint64_t fighter = 0, account = 0; } points;
     struct Fact { std::string key, value; };
     std::vector<Fact> facts;
 };
+// Facts as cells across `width`, `across` to a line (at least one), each line
+// 52 px: the key muted over the value, a rule over each line and between
+// cells (the L tag's, the Card tab's). A key too wide for its cell wraps onto
+// a second line (Heading) and every line grows by it. Returns the height it
+// took, which FactCellsHeight gives without drawing.
+float FactCellsHeight(float width, const std::vector<TagView::Fact>& facts, std::size_t across);
+float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across, float valueSize = 17);
 // Draws at `at` within `width`; returns the height it took.
 float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize size);
 // The width an XS or S tag needs on its one line for nothing in it to give

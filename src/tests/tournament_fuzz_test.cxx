@@ -125,6 +125,10 @@ static void TestRoomListDetails() {
 	const auto plain = room(json::object());
 	CHECK(plain.createdAt == 900 && plain.hostName.empty() && plain.fighters.empty() && !plain.locked && !plain.hasDetails &&
 		plain.setFormat == -1 && plain.rotation == -1 && !plain.type);
+	// The creator's area, when the bridge sends one; a relay's code, a code this build does not
+	// know or another kind of value is none, and the row still decodes.
+	CHECK(plain.area == Area::None && room({{"area", "sam"}}).area == Area::SouthAmerica);
+	for (const json& other : {json("use1"), json("SAM"), json("xyz"), json(7), json(nullptr)}) CHECK(room({{"area", other}}).area == Area::None);
 	// created_at is required, and is a number.
 	auto bare = Row(); bare.erase("created_at");
 	CHECK(!decode(bare));
@@ -154,7 +158,7 @@ static void TestRoomListDetails() {
 	// The room's type: Classic, Arcade or King of the hill. Details without one are an older
 	// room host's, whose rooms are Classic; a type this build does not know stays unknown.
 	for (unsigned type = 0; type <= 2; ++type) CHECK(room({{"room_type", type}}).type == static_cast<room::RoomType>(type) && room({{"room_type", type}}).hasDetails);
-	CHECK(room({{"set_format", 2u}}).type == room::ClassicRoom);
+	CHECK(room({{"set_format", 2u}}).type == room::RoomType::Classic);
 	CHECK(!room({{"room_type", 3u}}).type && !room({{"room_type", 3u}}).hasDetails);
 	CHECK(!room({{"room_type", 3u}, {"set_format", 2u}}).type && !room({{"room_type", "arcade"}}).type && !room({{"room_type", -1}}).type);
 	// wired_only: only a room that takes wired players alone sends it, and a missing, false or
@@ -463,6 +467,15 @@ static void FuzzAnswers(Random& random) {
 			CHECK(board->size() <= netplay::rankings::MaxBoard);
 			for (std::size_t i = 0; i < board->size(); ++i)
 				CHECK((*board)[i].band >= 1 && (*board)[i].band <= SkillBadge::Classes && (!i || (*board)[i - 1].band >= (*board)[i].band));
+		}
+		if (const auto own = session::DecodeOwnLevels(data))
+			for (const auto& fighter : own->fighters)
+				CHECK(fighter.tier < netplay::levels::TierCount && fighter.wins <= fighter.games && (fighter.tier < netplay::levels::TierCount - 1 || fighter.next == 0));
+		if (const auto cards = session::DecodeCards(data)) {
+			CHECK(!cards->empty() && cards->size() <= netplay::levels::MaxLookup);
+			for (const auto& card : *cards)
+				if (card) CHECK(card->pins.size() <= netplay::profiles::MaxPins && card->name.size() <= netplay::profiles::MaxNameBytes &&
+					netplay::profiles::LookingCount(card->style.looking) <= netplay::profiles::MaxLooking && (!card->hasMain || card->main < selection::FighterCount));
 		}
 		if (const auto list = session::DecodeAssignments(data)) {
 			CHECK(list->size() <= 50);

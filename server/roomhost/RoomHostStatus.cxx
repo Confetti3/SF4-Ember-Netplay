@@ -85,7 +85,7 @@ RoomDetails DetailsOf(const room::Snapshot& snapshot) {
 	details.setFormat = static_cast<int>(snapshot.tables[0].rules.format);
 	details.rotation = static_cast<int>(snapshot.tables[0].rules.rotation);
 	details.ownDelay = snapshot.delayPolicy == room::DelayPolicy::Own;
-	details.roomType = static_cast<int>(snapshot.arcade);
+	details.roomType = static_cast<int>(snapshot.type);
 	details.wiredOnly = snapshot.wiredOnly;
 	return details;
 }

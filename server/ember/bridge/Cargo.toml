@@ -36,3 +36,5 @@ zeroize = "1"
 ed25519-dalek = "=3.0.0"
 # The tests of this crate use the same testing module as the other crates.
 ember-bridge = { path = ".", features = ["test-support"] }
+# The friends state test counts the statements a read runs.
+rusqlite = { version = "0.40.2", features = ["trace"] }

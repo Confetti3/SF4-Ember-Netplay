@@ -1,14 +1,18 @@
 // IrohRoom: committed checkpoint proposal, decode, staging and activation.
 #include "IrohRoom.hxx"
 #include "RoomMessageQueue.hxx"
+#include "RoomMessageTag.hxx"
 #include "sf4e__SessionProtocol.hxx"
 #include "../common/JsonDump.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../common/EnvFlag.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
 #include <algorithm>
 #include <limits>
+#include <optional>
+#include <set>
 
 namespace sf4e { namespace session {
 using nlohmann::json;
@@ -217,6 +221,18 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
     std::vector<TerminalReplayEffect> terminalEffects;
     std::set<TerminalReplayKey> activeTerminalKeys;
     if (!BuildTerminalReplayEffects(replica_.committedCheckpoints.front(),identity,terminalEffects,activeTerminalKeys)) return false;
+    // A reply or an event this member never had, which it was still to get
+    // as a replay, would be lost without a word once the new journal no longer
+    // holds it, or holds only its envelope while no live copy is queued here to
+    // deliver it (Replaceable says what may go); the room fails once this
+    // activation is done.
+    const auto& journal=replica_.committedCheckpoints.front().effects;
+    const auto lost=std::find_if(replica_.pendingPublicEffects.begin(),replica_.pendingPublicEffects.end(),[&](const EffectEnvelope& effect) {
+        if(replica_.deliveredEffects.count({effect.term,effect.sequence}) || Replaceable(effect,journal)) return false;
+        const auto kept=std::find(journal.begin(),journal.end(),effect);
+        return kept==journal.end() || (kept->publicPayload.is_null() && !room_.clientEffects.HoldsCopy(effect.term,effect.sequence));
+    });
+    const auto lostEffect=lost==replica_.pendingPublicEffects.end() ? std::optional<EffectEnvelope>() : std::optional<EffectEnvelope>(*lost);
     auto staged=std::move(replica_.committedCheckpoints.front());
     replica_.committedCheckpoints.pop_front();
     replica_.effectRecipients=std::move(staged.recipients);
@@ -244,25 +260,21 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
     for(auto it=replica_.terminalReplayInFlight.begin();it!=replica_.terminalReplayInFlight.end();) {
         if(!activeTerminalKeys.count(it->first)) it=replica_.terminalReplayInFlight.erase(it); else ++it;
     }
-    for(auto it=room_.clientMessages.begin();it!=room_.clientMessages.end();) {
-        bool remove=false;
+    room_.clientEffects.EraseIf([&](const Message& queued) {
         // Only a terminal replay can be removed. Every edge into this queue
         // classifies what it queues, so other messages are not parsed here.
-        if(it->tag.classified && !it->tag.terminalReplay) { ++it; continue; }
+        if(queued.tag.classified && !queued.tag.terminalReplay) return false;
         try {
-            const auto queued=json::parse(it->payload);
-            if(queued.contains("_terminal_replay")) {
-                const auto marker=queued.at("_terminal_replay");
-                const auto key=TerminalReplayKey{
-                    marker.at("table").get<std::uint8_t>(), marker.at("generation").get<std::uint64_t>(),
-                    marker.at("member").get<room::MemberId>(), marker.at("endpoint").get<room::ConnectionRef>(),
-                    marker.at("incarnation").get<std::uint64_t>(), marker.at("type").get<std::string>()};
-                remove=!activeTerminalKeys.count(key);
-            }
-        } catch(const std::exception&) {}
-        if(remove) { room_.queuedBytes-=it->payload.size(); it=room_.clientMessages.erase(it); }
-        else ++it;
-    }
+            const auto payload=json::parse(queued.payload);
+            if(!payload.contains("_terminal_replay")) return false;
+            const auto marker=payload.at("_terminal_replay");
+            const auto key=TerminalReplayKey{
+                marker.at("table").get<std::uint8_t>(), marker.at("generation").get<std::uint64_t>(),
+                marker.at("member").get<room::MemberId>(), marker.at("endpoint").get<room::ConnectionRef>(),
+                marker.at("incarnation").get<std::uint64_t>(), marker.at("type").get<std::string>()};
+            return !activeTerminalKeys.count(key);
+        } catch(const std::exception&) { return false; }
+    });
     for(const auto& effect:replica_.appliedEffects) {
         if(!effect.privatePayload && !effect.publicPayload.is_null() && replica_.effectRecipients.count(effect.recipient) &&
             !replica_.deliveredEffects.count({effect.term,effect.sequence})) replica_.pendingPublicEffects.push_back(effect);
@@ -272,7 +284,50 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
         auto marker=std::move(replica_.pendingCommittedMarker); replica_.pendingCommittedMarker=nullptr;
         ConsumeCoordinationEvent(marker,"checkpoint_committed");
     }
+    if(lostEffect) {
+        spdlog::warn("Room: unreplayed effect gone from the applied journal type={} term={} revision={} sequence={} applied={}",
+            lostEffect->type,lostEffect->term,lostEffect->revision,lostEffect->sequence,identity.revision);
+        Fail("room_effect_evicted");
+    }
     return true;
+}
+// The applied commit's replays: a receipt's terminal notifications, then the
+// public effects this client has not had, each placed in commit order by the
+// client queue (ClientEffectQueue::InsertReplay). A public replay waits while
+// a copy of its effect is still queued: that copy delivers it, and the replay
+// is needed only if the copy is dropped. Replays are classified from the
+// object they were encoded from.
+void IrohRoom::PumpCommittedEffects() {
+    if(replica_.pendingTerminalReplayEffects.empty() && replica_.pendingPublicEffects.empty()) return;
+    auto& queue=room_.clientEffects;
+    while(!replica_.pendingTerminalReplayEffects.empty() && queue.TakesReplay()) {
+        auto effect=std::move(replica_.pendingTerminalReplayEffects.front());
+        replica_.pendingTerminalReplayEffects.pop_front();
+        auto payload=effect.publicPayload;
+        payload["_terminal_replay"]={{"table",effect.key.table},{"generation",effect.key.generation},
+            {"member",effect.key.member},{"endpoint",effect.key.endpoint},{"incarnation",effect.key.incarnation},
+            {"type",effect.key.type},{"room_epoch",effect.roomEpoch},
+            {"activation_revision",effect.activationRevision},{"payload_digest",effect.payloadDigest}};
+        auto bytes=DumpJson(payload);
+        if(bytes.size()>MaximumPayload) { Fail("terminal_replay_payload"); return; }
+        if(bytes.size()>MaximumQueuedBytes-QueuedBytes()) {
+            replica_.pendingTerminalReplayEffects.push_front(std::move(effect)); break;
+        }
+        replica_.terminalReplayInFlight.emplace(effect.key,effect);
+        auto tag=ClassifyRoomMessage(payload);
+        queue.InsertReplay({1,0,std::move(bytes),"",std::move(tag)},effect.activationRevision,ClientEffectQueue::AfterCommit);
+    }
+    for(auto effect=replica_.pendingPublicEffects.begin();effect!=replica_.pendingPublicEffects.end() && queue.TakesReplay();) {
+        if(replica_.deliveredEffects.count({effect->term,effect->sequence})) { effect=replica_.pendingPublicEffects.erase(effect); continue; }
+        if(queue.HoldsCopy(effect->term,effect->sequence)) { ++effect; continue; }
+        auto payload=effect->publicPayload; payload["_commit"]=EffectCommitToken(*effect);
+        auto bytes=DumpJson(payload);
+        if(bytes.size()>MaximumPayload) { effect=replica_.pendingPublicEffects.erase(effect); continue; }
+        if(bytes.size()>MaximumQueuedBytes-QueuedBytes()) break;
+        auto tag=ClassifyRoomMessage(payload);
+        queue.InsertReplay({1,0,std::move(bytes),"",std::move(tag)},effect->revision,effect->sequence);
+        effect=replica_.pendingPublicEffects.erase(effect);
+    }
 }
 bool IrohRoom::DiscardCommittedCheckpoint(const coordination::TransferIdentity& identity) {
     if (replica_.committedCheckpoints.empty() || !SameTransfer(replica_.committedCheckpoints.front().identity,identity)) return false;

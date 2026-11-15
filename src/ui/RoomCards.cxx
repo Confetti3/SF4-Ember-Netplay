@@ -1,7 +1,13 @@
 #include "RoomCards.hxx"
 #include "V2.hxx"
 #include "GameMenu.hxx"
+#include "PlayerCard.hxx"
+#include "ProfilePanel.hxx"
+#include "RoomPanelBoard.hxx"
+#include "ShellView.hxx"
 #include "Theme.hxx"
+#include "../common/FighterCatalog.hxx"
+#include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
 
@@ -26,12 +32,42 @@ void FlushCardTip(std::string& elided) {
 }
 void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max) {
  const float s=Scale(),h=max.y-min.y,face=h-12*s;auto* d=ImGui::GetWindowDrawList();
- DrawCharacterPortrait(FighterPicture{card.mainFighter,card.art},ImVec2(min.x+6*s,min.y+6*s),ImVec2(min.x+6*s+face,max.y-6*s));
+ const v2::Box portrait{ImVec2(min.x+6*s,min.y+6*s),ImVec2(min.x+6*s+face,max.y-6*s)};
+ DrawCharacterPortrait(FighterPicture{card.mainFighter,card.art},portrait.min,portrait.max);
+ if(card.points)v2::LevelBand(d,portrait,card.points->points);
  const float x=min.x+16*s+face,w=max.x-x-14*s;
  v2::TagView tag{card.label,{},{},card.marks,card.latency};tag.link=card.link;
  v2::Tag(d,ImVec2(x,min.y+5*s),w,tag,v2::TagSize::S);
  std::string elided;
  DrawCardText(elided,ImVec2(x,max.y-20*s),w,card.record.empty()?card.status:card.status+" \xC2\xB7 "+card.record,14*s,palette::Muted);
  NoteUserText(card.name);
+}
+OtherCardView MemberOtherCard(const ShellView& view,const room::Member& member,FighterArt art) {
+ const auto points=PointsOf(view,member);
+ const auto look=SeatLookOf(view,member);
+ const auto& c=v2::Colors();
+ OtherCardView card;
+ if(const auto* looked=CardOf(view,member)){
+  // Their card: the chips, record, worn title and icon and families at the level its counters earn, the fighter they play now.
+  netplay::profiles::Known known;known.name=member.name;known.country=member.country;known.badge=member.badge;known.fighter=look.fighter;
+  card=PanelOf(player_card::CardSubject(*looked,known,look.fighter,true,view.profilesService!=netplay::profiles::Service::Missing),art);
+ }else if(member.id==view.room.localMember&&view.room.serverOwned){
+  card=ProfilePanel::OwnPanel(view,view.preferences);
+  card.fighterPoints=0;card.fighterTier=0;
+  if(const auto played=points.Of(look.fighter)){card.fighterPoints=played->points;card.fighterTier=played->tier;}
+ }
+ else{
+  // As the member's seat, cabinet and row: no card read, no points drawn.
+  card.points=points.known;
+  if(const auto played=points.Of(look.fighter)){card.fighterPoints=played->points;card.fighterTier=played->tier;}
+  card.accountPoints=points.account.points;
+ }
+ card.name=member.name;card.country=member.country;card.badge=member.badge;
+ card.fighter=look.fighter;card.art=art;
+ // A friend and a request sent are states to show; a request received is the page's Accept row.
+ using netplay::levels::Relation;
+ if(points.relation==Relation::Friend){card.chip=loc::T("friends.are_friends");card.chipTone=c.ready;}
+ else if(points.relation==Relation::Sent){card.chip=loc::T("friends.request_sent");card.chipTone=c.muted;}
+ return card;
 }
 } }

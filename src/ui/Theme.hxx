@@ -47,7 +47,7 @@ inline float WatchedPictureShareFor(int spot) { const float shares[] = {WatchedP
 constexpr float WatchedPictureTaken = .62f;
 
 // Call between frames. A true result requires backend font texture recreation.
-// Text is drawn at `displayScale` times the player's Interface size (Scale()):
+// Text is drawn at `displayScale` times the player's Interface size (Scale(), from MinThemeScale to 3):
 // over the game the larger of Windows' DPI scale and the picture's height over
 // 1080 lines, in the recovery window Windows' DPI scale alone. A size passed
 // with a font is its em, as on the design boards.
@@ -76,10 +76,27 @@ void SetUserGlyphRebuildInterval(std::chrono::milliseconds interval);
 // Hears one line per font atlas rebuild (size, glyphs players' text added, and
 // whether the build completed), for the game's log.
 void SetAtlasBuildLog(std::function<void(const char*)> log);
+// Whether an atlas that takes atlasBytes (a texel is 4 bytes of pixels and 1
+// of the alpha it is made from) can be baked again in an address space whose
+// largest free range is largestFreeRange: the range has to hold twice that,
+// for the new atlas while the old one is still let go and the packer's own
+// memory.
+constexpr bool AtlasRebuildFits(std::size_t largestFreeRange, std::size_t atlasBytes) { return largestFreeRange / 2 >= atlasBytes; }
+// How the game measures its address space's largest free range, in bytes (a
+// 32-bit process may not have a large one late in a session). With it, a
+// rebuild only for player text waits while the range is too small for the
+// atlas, and the atlas as it is keeps drawing; without it (tests) every
+// rebuild runs.
+void SetLargestFreeRange(std::function<std::size_t()> measure);
 // How long a character stays wanted after text last drew it; tests shorten it
 // to retire text.
 void SetUserGlyphRetention(std::chrono::milliseconds retention);
 float Scale();
+// The width of a one-pixel line at Scale(): never under one pixel, which a smaller Interface size would otherwise
+// draw faint. Lines and borders take it as their thickness.
+float Hairline();
+// The smallest Scale() the theme sets: the Interface size at its least (netplay::MinInterfaceScale) on a display at 100%.
+constexpr float MinThemeScale = .6f;
 // The player's Interface size alone, for what is laid out in the game's
 // pixels and so leaves the display scale out (the training HUD).
 float InterfaceScale();
@@ -219,6 +236,10 @@ constexpr const char* ExportCaptionWindow = "Export caption";
 // its class, the line (with the score when no names carry it) and the mark.
 ExportCaptionView ExportCaptionViewOf(const replay::Caption& caption, int nameOffset);
 void DrawExportCaption(const ExportCaptionView& view);
+// The caption's name plates on a screen at screenPos of screenSize, as DrawExportCaption
+// places them: the split match HUD's plates (MatchStripGeometry) for the same names and
+// classes. A name left empty has no plate (valid false).
+std::array<MatchStripBox,2> ExportCaptionPlates(const ExportCaptionView& view,ImVec2 screenPos,ImVec2 screenSize);
 void DrawControllerWarning(const std::string& message);
 struct DiagnosticStripView {
     bool hasRemote = false, networkAvailable = false;

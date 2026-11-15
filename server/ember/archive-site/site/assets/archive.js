@@ -36,13 +36,17 @@ const el = (tag, props = {}, ...children) => {
 };
 const DOWNLOAD = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-const state = { filter: {}, view: {}, games: [], sets: {}, events: [], countries: [], next: null, more: false, loading: false, groups: [], openSet: null, flags: null, total: null, matching: null };
-// Pages a filtered view loads by itself, so a search or a class reaches every
-// game it keeps (400 games a page): beyond them, Older replays goes on.
+const state = { filter: {}, sort: '', order: '', games: [], sets: {}, events: [], countries: [], next: null, more: false, loading: false, groups: [], openSet: null, flags: null, total: null, matching: null };
+// Games a full answer holds. The bridge answers with fewer when a page of a
+// filter looked at all it may and found fewer: the page then asks again by
+// itself, at most AUTO_PAGES times, until a full answer's worth has come
+// since it was asked; beyond that, Older replays goes on.
+const LISTED = 400;
 const AUTO_PAGES = 25;
 let autoPages = 0;
-// `filter` goes to the bridge; `view` (a class and the order) is applied here,
-// to the games loaded so far.
+let askedAt = 0;
+// `filter` and `sort` (the order: '' newest, 'class' highest class first) both
+// go to the bridge, which picks and orders the games.
 
 // --- Pieces -----------------------------------------------------------------
 
@@ -127,16 +131,15 @@ function readAddress() {
   const params = new URLSearchParams(location.search);
   state.filter = {};
   for (const key of ['event', 'fighter', 'country', 'round', 'q']) if (params.get(key)) state.filter[key] = params.get(key);
-  state.view = {};
   const band = parseInt(params.get('class'), 10);
-  if (band >= 1 && band <= CLASSES.length) state.view.class = String(band);
-  if (params.get('sort') === 'class') state.view.sort = 'class';
+  if (band >= 1 && band <= CLASSES.length) state.filter.class = String(band);
+  state.sort = params.get('sort') === 'class' ? 'class' : '';
   $('q').value = state.filter.q || '';
   state.openSet = params.get('set');
 }
 
 function writeAddress(push) {
-  const params = new URLSearchParams({ ...state.filter, ...state.view });
+  const params = new URLSearchParams(asked());
   if (state.openSet) params.set('set', state.openSet);
   const query = params.toString();
   const url = query ? '?' + query : location.pathname;
@@ -147,11 +150,19 @@ function writeAddress(push) {
 // arrives, and "Older replays" does nothing while any page is loading. Each
 // later page is asked for with the cursor the last answer gave.
 let requested = 0;
-async function load(append) {
+// What the bridge is asked for: the filter, and the order unless newest, in
+// one key order, so two askings of the same compare equal.
+const asked = () => {
+  const all = state.sort ? { ...state.filter, sort: state.sort } : { ...state.filter };
+  return Object.fromEntries(Object.keys(all).sort().map((key) => [key, all[key]]));
+};
+const newestFirst = (a, b) => b.saved_at - a.saved_at || (a.digest < b.digest ? 1 : -1);
+async function load(append, auto = false) {
   if (append && (!state.next || state.loading)) return;
-  const params = new URLSearchParams(state.filter);
+  const params = new URLSearchParams(asked());
   if (append) params.set('cursor', state.next);
-  else { state.next = null; state.more = false; $('more').hidden = true; autoPages = 0; }
+  else { state.next = null; state.more = false; $('more').hidden = true; }
+  if (!auto) { autoPages = 0; askedAt = append ? state.games.length : 0; }
   const mine = ++requested;
   state.loading = true;
   $('events').setAttribute('aria-busy', 'true');
@@ -167,11 +178,16 @@ async function load(append) {
     state.countries = listed.countries;
     state.next = listed.next || null;
     state.more = state.next !== null;
+    // The order the bridge used: the newest while it hides classes.
+    state.order = listed.sort === 'class' ? 'class' : '';
     if (typeof listed.total === 'number') { state.total = listed.total; state.matching = listed.matching; }
-  } catch {
+  } catch (error) {
     if (mine !== requested) return;
     state.loading = false;
     $('more').disabled = false;
+    // A cursor the bridge no longer takes (it began or stopped showing
+    // classes, so the order changed): start again from the top.
+    if (append && error.message === '400') { load(false); return; }
     $('summary').textContent = 'The archive did not answer. Try again in a minute.';
     $('events').replaceChildren(el('p', { className: 'note' }, el('button', { type: 'button', className: 'btn', textContent: 'Try again', onclick: () => load(false) })));
     $('events').removeAttribute('aria-busy');
@@ -179,19 +195,17 @@ async function load(append) {
   }
   state.loading = false;
   $('more').disabled = false;
-  state.groups = group(state.games);
+  // Sessions and sets are told apart newest first, whatever the order.
+  state.groups = group(state.order ? [...state.games].sort(newestFirst) : state.games);
   render();
-  if (wantsMore()) { autoPages += 1; setTimeout(() => load(true), 400); }
+  if (wantsMore()) { autoPages += 1; setTimeout(() => load(true, true), 400); }
 }
 
-// Whether the page should load the next page by itself: a search or a filter
-// the bridge applies until it has every game the filter keeps, a class or the
-// class order until it has every game, both at most AUTO_PAGES pages.
+// Whether the page should ask for the next page by itself: while less than a
+// full answer's worth of games came since it was asked, there is more, and it
+// asked by itself fewer than AUTO_PAGES times.
 function wantsMore() {
-  if (!state.more || autoPages >= AUTO_PAGES) return false;
-  if (state.view.class || state.view.sort === 'class') return true;
-  if (!Object.keys(state.filter).length) return false;
-  return state.matching == null || state.games.length < state.matching;
+  return state.more && autoPages < AUTO_PAGES && state.games.length - askedAt < LISTED;
 }
 
 // "1,234 games", with the reader's own digit grouping.
@@ -236,8 +250,7 @@ const FILTERS = [
   ['round', 'Round', 'Any round'],
   ['class', 'Class', 'Any class'],
 ];
-const LOCAL = ['class'];
-const chosen = (key) => (LOCAL.includes(key) ? state.view[key] : state.filter[key]);
+const chosen = (key) => state.filter[key];
 
 function filterValue(key) {
   const value = chosen(key);
@@ -264,9 +277,9 @@ function renderFilters() {
     button.addEventListener('click', () => pick(key, label, any));
     return button;
   }));
-  $('clear').hidden = Object.keys(state.filter).length === 0 && !state.view.class;
+  $('clear').hidden = Object.keys(state.filter).length === 0;
   for (const button of document.querySelectorAll('#order button')) {
-    button.setAttribute('aria-pressed', String((button.dataset.sort || '') === (state.view.sort || '')));
+    button.setAttribute('aria-pressed', String((button.dataset.sort || '') === state.sort));
   }
 }
 
@@ -311,8 +324,6 @@ function bestClass(set) {
   return best;
 }
 
-function hasClass(set, band) { return set.games.some((game) => (game.classes || []).includes(band)); }
-
 function matchRow(set, dated) {
   if (set.player && set.games.length > 1) return sessionRow(set, dated);
   const first = set.games[0];
@@ -334,33 +345,30 @@ function matchRow(set, dated) {
 }
 
 function renderList() {
-  const filtered = Object.keys(state.filter).length > 0 || Boolean(state.view.class);
-  const band = state.view.class ? +state.view.class : 0;
-  const groups = state.groups
-    .map((event) => ({ ...event, sets: band ? event.sets.filter((set) => hasClass(set, band)) : event.sets }))
-    .filter((event) => event.sets.length);
-  const games = groups.reduce((n, event) => n + event.sets.reduce((m, set) => m + set.games.length, 0), 0);
-  const local = band || state.view.sort === 'class';
+  const filtered = Object.keys(state.filter).length > 0;
+  const groups = state.groups;
+  const games = state.games.length;
   $('total').textContent = state.total != null ? count(state.total, 'game', 'games') : '';
-  const busy = wantsMore() ? ' Loading the rest…' : '';
-  const among = state.more ? ` among the newest ${count(state.games.length, 'game', 'games')}.${busy || ' Older replays looks further back.'}` : '';
-  const server = Object.keys(state.filter).length > 0;
+  const order = state.order === 'class' ? ', highest class first' : '';
+  const busy = wantsMore() ? ' Loading more…' : '';
+  // How many there are, when the bridge knows: all games, or those the filter keeps.
+  const of = filtered ? state.matching : state.total;
+  const shown = state.more
+    ? of != null ? `${count(games, 'game', 'games')} of ${of.toLocaleString()} shown${order}.`
+      : `${count(games, 'game', 'games')} shown${order}.`
+    : of != null && filtered ? `${count(of, 'game matches', 'games match')}${order}.` : `${count(games, 'game', 'games')}${order}.`;
   $('summary').textContent = games
-    ? band ? `${count(games, 'game', 'games')} with a ${CLASSES[band - 1]} player${among}`
-      : local ? `${count(games, 'game', 'games')}, highest class first${among}`
-        : server && state.matching != null ? `${count(state.matching, 'game matches', 'games match')}${state.more ? `, ${count(state.games.length, 'shown', 'shown')}.${busy}` : ''}`
-          : state.total != null && state.more ? `The newest ${count(state.games.length, 'game', 'games')} of ${count(state.total, 'game', 'games')}. Older replays shows more.`
-            : `${count(games, 'game', 'games')}${state.more ? ', newest first' : ''}`
-    : state.more ? 'None of the newest replays match. Look further back with Older replays.'
+    ? shown + (state.more ? busy || ' Older replays shows more.' : '')
+    : state.more ? 'None found yet.' + (busy || ' Older replays looks further.')
       : filtered ? 'No replays match these filters.' : 'No replays yet. Games shared from Ember show up here.';
-  if (state.view.sort === 'class') {
+  if (state.order === 'class') {
     // One list, the highest class first; rows without a class last, newest first within each.
     const sets = groups.flatMap((event) => event.sets);
     const newest = (set) => set.games[set.games.length - 1].saved_at;
     sets.sort((a, b) => bestClass(b) - bestClass(a) || newest(b) - newest(a));
     $('events').replaceChildren(el('section', { className: 'event' },
       el('div', { className: 'event-head' }, el('h2', { textContent: 'Highest class first' }),
-        el('span', { className: 'note', textContent: plural(games, 'game', 'games') })),
+        el('span', { className: 'note', textContent: count(games, 'game', 'games') })),
       el('ol', { className: 'matches' }, ...sets.map((set) => matchRow(set, true)))));
   } else {
     $('events').replaceChildren(...groups.map((event) => el('section', { className: 'event' },
@@ -423,16 +431,8 @@ function render() {
 function openSet(key) { state.openSet = key; writeAddress(true); render(); scrollTo(0, 0); $('back').focus(); }
 function closeSet() { state.openSet = null; writeAddress(true); render(); }
 function refresh() { state.openSet = null; writeAddress(false); load(false); }
-function clearFilters() { state.filter = {}; delete state.view.class; $('q').value = ''; refresh(); }
-function setView(key, value) {
-  if (value) state.view[key] = value; else delete state.view[key];
-  state.openSet = null;
-  writeAddress(false);
-  autoPages = 0;
-  render();
-  // A class or the class order covers every game: load the rest now.
-  if (!state.loading && wantsMore()) { autoPages += 1; load(true); }
-}
+function clearFilters() { state.filter = {}; $('q').value = ''; refresh(); }
+function setSort(sort) { state.sort = sort || ''; refresh(); }
 
 // The popup grid: "Any" first, then every value; picking one closes it.
 function pick(key, label, any) {
@@ -458,7 +458,6 @@ function pick(key, label, any) {
     button.setAttribute('aria-pressed', String(value === current));
     button.addEventListener('click', () => {
       dialog.close();
-      if (LOCAL.includes(key)) { setView(key, value); return; }
       if (value) state.filter[key] = value; else delete state.filter[key];
       refresh();
     });
@@ -502,13 +501,13 @@ $('pick-close').addEventListener('click', () => $('pick').close());
 $('back').addEventListener('click', closeSet);
 $('clear').addEventListener('click', clearFilters);
 for (const button of document.querySelectorAll('#order button')) {
-  button.addEventListener('click', () => setView('sort', button.dataset.sort));
+  button.addEventListener('click', () => setSort(button.dataset.sort));
 }
 $('more').addEventListener('click', () => load(true));
 window.addEventListener('popstate', () => {
-  const before = JSON.stringify(state.filter);
+  const before = JSON.stringify(asked());
   readAddress();
-  if (JSON.stringify(state.filter) !== before) load(false); else render();
+  if (JSON.stringify(asked()) !== before) load(false); else render();
 });
 let typing;
 $('q').addEventListener('input', () => {

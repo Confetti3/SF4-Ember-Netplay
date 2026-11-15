@@ -70,6 +70,7 @@ fn sign(arguments: &[String]) -> Result<String, String> {
         issued_at,
         expires_at: issued_at + TICKET_SECS,
         badge: None,
+        card: None,
     };
     let signed = ticket
         .sign(&identity(seed)?, kid)

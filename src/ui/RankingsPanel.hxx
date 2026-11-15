@@ -1,5 +1,7 @@
 #pragma once
+#include "ShellAction.hxx"
 #include "MenuNavigation.hxx"
+#include "PlayerOpening.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
@@ -11,7 +13,6 @@
 
 namespace sf4e { namespace ui {
 struct ShellView;
-struct ShellAction;
 enum class Tone;
 
 // Rankings (docs/design/SKILL_BADGE.md, "Rankings"): the player's own class and
@@ -49,6 +50,9 @@ public:
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool identityPending, std::string& title) const;
     // True when the row was the panel's own. Connect Discord is the Ember ID panel's.
     bool Activate(const MenuAction& action, const ShellView& view, MenuNavigation& navigation);
+    // The player a press on a row of the board opens (A): by their listed name and flag, with the class the board lists them
+    // in. None for any other row.
+    std::optional<player_opening::Opening> PlayerOf(const ShellView& view, const MenuAction& action) const;
     // The Options button or key (Y, T) reads the screen's answer again.
     bool Shortcut(const MenuAction& action);
     bool Refreshable() const { return Owns(lastScreen_) && !bridge_.empty(); }

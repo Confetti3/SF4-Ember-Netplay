@@ -6,8 +6,11 @@
 pub mod blumint;
 pub mod challonge;
 pub mod discord;
+pub mod friends;
 pub mod league;
 pub mod play;
+pub mod points;
+pub mod profiles;
 pub mod public_rooms;
 pub mod receiver;
 pub mod results;

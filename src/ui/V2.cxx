@@ -51,7 +51,7 @@ void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar) {
 void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act) {
     const float s = Scale();
     draw->AddRectFilled(card.min, card.max, focused ? Colors().header : hovered ? Colors().hover : color::Alpha(Colors().frame, .92f), 4 * s);
-    draw->AddRect(card.min, card.max, color::Alpha(Colors().border, .6f), 4 * s, 0, s);
+    draw->AddRect(card.min, card.max, color::Alpha(Colors().border, .6f), 4 * s, 0, Hairline());
     if (act) draw->AddRectFilled(card.min, ImVec2(card.min.x + 3 * s, card.max.y), Colors().accent, 4 * s, ImDrawFlags_RoundCornersLeft);
 }
 
@@ -77,7 +77,7 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
     auto* d = ImGui::GetWindowDrawList();
     const float side = SideMargin(ImGui::GetWindowWidth(), s);
     d->AddRectFilled(bar.min, bar.max, color::Alpha(Colors().ink, .92f));
-    d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), Colors().border, s);
+    d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), Colors().border, Hairline());
     int pressed = -1;
     float x = bar.min.x + side;
     const float right = bar.max.x - side, size = 15 * s, icon = bell ? 30 * s : 0;
@@ -134,7 +134,7 @@ int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec
     ImGui::InvisibleButton(id, ImVec2(w, h));
     const bool held = ImGui::IsItemActive(), hovered = ImGui::IsItemHovered();
     d->AddRectFilled(p, ImVec2(p.x + w, p.y + h), Colors().frame, 4 * s);
-    d->AddRect(p, ImVec2(p.x + w, p.y + h), hovered || held ? Colors().accent : Colors().border, 4 * s, 0, s);
+    d->AddRect(p, ImVec2(p.x + w, p.y + h), hovered || held ? Colors().accent : Colors().border, 4 * s, 0, Hairline());
     const ImVec2 size(block.x * w, block.y * h);
     const auto at = [&](ImVec2 centre) { return ImVec2(p.x + centre.x * w - size.x * .5f, p.y + centre.y * h - size.y * .5f); };
     const auto mouse = ImGui::GetMousePos();
@@ -147,7 +147,7 @@ int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec
     }
     for (int i = 0; i < static_cast<int>(spots.size()); ++i) {
         const auto q = at(spots[i]);
-        d->AddRect(q, ImVec2(q.x + size.x, q.y + size.y), held && i == nearest ? Colors().accent : color::Alpha(Colors().muted, .5f), 2 * s, 0, s);
+        d->AddRect(q, ImVec2(q.x + size.x, q.y + size.y), held && i == nearest ? Colors().accent : color::Alpha(Colors().muted, .5f), 2 * s, 0, Hairline());
     }
     const ImVec2 q = held ? ImVec2(mouse.x - size.x * .5f, mouse.y - size.y * .5f) : at(spots[(std::max)(0, (std::min)(static_cast<int>(spots.size()) - 1, current))]);
     d->AddRectFilled(q, ImVec2(q.x + size.x, q.y + size.y), Colors().accent, 2 * s);
@@ -233,8 +233,8 @@ Box Panel(ImDrawList* draw, Box b, const char* title, const char* trailing, bool
     draw->AddRectFilled(b.min, b.max, PanelGround(), 4 * s);
     const Box head = CutTop(b, 20 * s + HeadingHeight(title, titleRoom, size));
     if (open) draw->AddRectFilled(head.min, head.max, c.header, 4 * s, ImDrawFlags_RoundCornersTop);
-    draw->AddLine(ImVec2(head.min.x, head.max.y), head.max, c.border, s);
-    draw->AddRect(head.min, b.max, open ? c.accentLight : c.border, 4 * s, 0, s);
+    draw->AddLine(ImVec2(head.min.x, head.max.y), head.max, c.border, Hairline());
+    draw->AddRect(head.min, b.max, open ? c.accentLight : c.border, 4 * s, 0, Hairline());
     if (tw > 0) draw->AddText(ImVec2(head.max.x - 16 * s - tw, head.min.y + (head.H() - ImGui::GetFontSize()) * .5f), c.muted, trailing);
     Heading(draw, ImVec2(head.min.x + 16 * s, head.min.y + 10 * s), titleRoom, title, size, c.text);
     return b;
@@ -249,6 +249,12 @@ float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, fl
     const float w = TextWidth(shown, size, font);
     draw->AddText(font, size, ImVec2(centred ? at.x + (width - w) * .5f : at.x, at.y), color, shown.c_str());
     return w;
+}
+float TextShrunk(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, float least, ImU32 color, ImFont* font) {
+    if (!font) font = ImGui::GetFont();
+    const float measured = font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x;
+    const float used = measured > width ? (std::max)(least, size * width / measured) : size;
+    return Text(draw, ImVec2(at.x, at.y + (size - used) * .5f), width, text, used, color, font, false, false);
 }
 namespace {
 // A heading's two lines in `width`: all of it on the first when it fits, else
@@ -272,7 +278,9 @@ float HeadingHeight(const std::string& text, float width, float size, ImFont* fo
 float Heading(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font) {
     if (!font) font = HeadingFont();
     const auto [first, second] = HeadingLines(text, width, size, font);
-    Text(draw, at, width, first, size, color, font);
+    // A heading with no space to break at (Japanese, or one long word) shrinks to its room before it is cut.
+    if (second.empty() && TextWidth(first, size, font) > width) TextShrunk(draw, at, width, first, size, size * .75f, color, font);
+    else Text(draw, at, width, first, size, color, font);
     if (second.empty()) return size;
     Text(draw, ImVec2(at.x, at.y + size * HeadingLine), width, second, size, color, font);
     return size * (1 + HeadingLine);
@@ -290,7 +298,7 @@ void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, 
     if (!enabled) { fill = c.frame; edge = c.border; ink = c.muted; }
     else if (primary) { fill = focused || hovered ? c.accentLight : c.accent; edge = c.accent; ink = c.ink; }
     draw->AddRectFilled(b.min, b.max, fill, 4 * s);
-    draw->AddRect(b.min, b.max, edge, 4 * s, 0, s);
+    draw->AddRect(b.min, b.max, edge, 4 * s, 0, Hairline());
     if (!label.empty()) Text(draw, ImVec2(b.min.x + 12 * s, b.min.y + (b.H() - size) * .5f), b.W() - 24 * s, label, size, ink, HeadingFont(), true);
     if (focused && primary && enabled) draw->AddRect(b.min, b.max, c.text, 4 * s, 0, 3 * s);
     else if (focused) Focus(draw, b.min, b.max);
@@ -340,7 +348,7 @@ void Words(ImDrawList* draw, Box b, const std::string& label, const std::string&
     const float s = Scale(), x = b.min.x + 16 * s, w = b.W() - 32 * s;
     const auto& c = Colors();
     draw->AddRectFilled(b.min, b.max, c.frame, 4 * s);
-    draw->AddRect(b.min, b.max, c.border, 4 * s, 0, s);
+    draw->AddRect(b.min, b.max, c.border, 4 * s, 0, Hairline());
     Text(draw, ImVec2(x, b.min.y + 6 * s), w, label, 16 * s, c.text, HeadingFont());
     if (wrap) Paragraph(draw, ImVec2(x, b.min.y + 28 * s), w, detail, 15 * s, c.muted);
     else Text(draw, ImVec2(x, b.min.y + 28 * s), w, detail.substr(0, detail.find('\n')), 15 * s, c.muted);
@@ -360,7 +368,7 @@ void Fact(const std::string& key, const std::string& value) {
     const auto p = ImGui::GetCursorScreenPos();
     auto* d = ImGui::GetWindowDrawList();
     d->AddRectFilled(p, ImVec2(p.x + w, p.y + h), Colors().frame, 4 * s);
-    d->AddRect(p, ImVec2(p.x + w, p.y + h), Colors().border, 4 * s, 0, s);
+    d->AddRect(p, ImVec2(p.x + w, p.y + h), Colors().border, 4 * s, 0, Hairline());
     const std::string shown = Fit(value, share.value, font);
     const float vw = TextWidth(shown, font);
     Text(d, ImVec2(p.x + 12 * s, p.y + 10 * s), share.under ? room : room - vw - 16 * s, key, font, Colors().muted);
@@ -438,7 +446,7 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
     }
     // A title may be a player's own words (a room's name), so the probe leaves it out.
     draw->AddText(HeadingFont(), titleSize, ImVec2(x, y), Colors().text, Fit(title, room, titleSize, HeadingFont(), false).c_str());
-    draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), Colors().border, s);
+    draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), Colors().border, Hairline());
     draw->AddRectFilled(ImVec2(x, p.y + height - s), ImVec2(x + 72 * s, p.y + height + 2 * s), Colors().accent);
     ImGui::Dummy(ImVec2(width, measures.height));
     return pressed;
@@ -496,7 +504,7 @@ int Tabs(const std::vector<std::string>& labels, int current) {
         x += w;
     }
     draw->PopClipRect();
-    draw->AddLine(ImVec2(origin.x, start.y + height), ImVec2(origin.x + full, start.y + height), Colors().border, s);
+    draw->AddLine(ImVec2(origin.x, start.y + height), ImVec2(origin.x + full, start.y + height), Colors().border, Hairline());
     ImGui::SetCursorScreenPos(origin);
     ImGui::Dummy(ImVec2(full, height + 8 * s));
     return pressed;
@@ -508,50 +516,94 @@ TierColors TierColor(Tier tier) {
     case Tier::Copper: return {IM_COL32(107, 58, 34, 255), IM_COL32(217, 130, 75, 255)};
     case Tier::Silver: return {IM_COL32(74, 80, 88, 255), IM_COL32(213, 220, 227, 255)};
     case Tier::Gold: return {IM_COL32(110, 84, 24, 255), IM_COL32(242, 197, 92, 255)};
-    case Tier::Ember: return {IM_COL32(122, 30, 14, 255), IM_COL32(255, 135, 56, 255)};
+    // Its own red-orange, not the accent (255, 135, 56) that marks focus nor Copper: an Ember tile at rest never reads as focused.
+    case Tier::Ember: return {IM_COL32(122, 30, 14, 255), IM_COL32(255, 77, 46, 255)};
     default: return {Colors().button, Colors().accent};
     }
 }
 
-// The icons' order is Icon's; Bracket (9) waits for its event to be announced.
-const Award Awards[11] = {
-    {"entrant", 0, Tier::Ash, "award.entrant.title", "award.entrant.icon", "award.entrant.how"},
-    {"launch-night", 1, Tier::Ash, "award.launch-night.title", "award.launch-night.icon", "award.launch-night.how"},
-    {"weekly-top16", 2, Tier::Copper, "award.weekly-top16.title", "award.weekly-top16.icon", "award.weekly-top16.how"},
-    {"rollback-regular", 3, Tier::Copper, "award.rollback-regular.title", "award.rollback-regular.icon", "award.rollback-regular.how"},
-    {"weekly-top8", 4, Tier::Silver, "award.weekly-top8.title", "award.weekly-top8.icon", "award.weekly-top8.how"},
-    {"by-ear", 5, Tier::Silver, "award.by-ear.title", "award.by-ear.icon", "award.by-ear.how"},
-    {"monthly-finalist", 6, Tier::Gold, "award.monthly-finalist.title", "award.monthly-finalist.icon", "award.monthly-finalist.how"},
-    {"organizer", 7, Tier::Gold, "award.organizer.title", "award.organizer.icon", "award.organizer.how"},
-    {"commentary", 8, Tier::Gold, "award.commentary.title", "award.commentary.icon", "award.commentary.how"},
-    {"season1-veteran", 10, Tier::Ember, "award.season1-veteran.title", "award.season1-veteran.icon", "award.season1-veteran.how"},
-    {"cup-champion", 11, Tier::Ember, "award.cup-champion.title", "award.cup-champion.icon", "award.cup-champion.how"}};
-const Award* FindAward(const std::string& id) {
-    for (const auto& a : Awards) if (id == a.id) return &a;
-    return nullptr;
-}
 const char* TierName(Tier tier) {
     const char* keys[] = {"", "tier.ash", "tier.copper", "tier.silver", "tier.gold", "tier.ember"};
     return tier == Tier::None ? "" : loc::T(keys[static_cast<int>(tier)]);
 }
 
 void Icon(ImDrawList* d, int icon, ImVec2 at, float size, ImU32 ink) {
-    // The Titles & icons board's icons by index (the worn icon's number), each
-    // named as the catalog's award.*.icon names it.
-    static constexpr LineIcon Icons[IconCount] = {LineIcon::Flame /* Spark */, LineIcon::History /* Rewind */, LineIcon::Laurel,
-        LineIcon::CalendarCheck, LineIcon::Octagon8, LineIcon::Wave /* Soundwave */, LineIcon::Medal, LineIcon::Flag,
-        LineIcon::Microphone, LineIcon::Tournament /* Bracket */, LineIcon::ShieldStar /* Crest */, LineIcon::Crown};
+    // The title icons by index (the worn icon's number). The awards use one for
+    // each family (Awards.hxx: flag, laurel, flame, shield, medal, bracket and
+    // the pair of people); the others wait for what is awarded next.
+    static constexpr LineIcon Icons[IconCount] = {LineIcon::Flame, LineIcon::History, LineIcon::Laurel,
+        LineIcon::CalendarCheck, LineIcon::Octagon8, LineIcon::Wave, LineIcon::Medal, LineIcon::Flag,
+        LineIcon::Users, LineIcon::Tournament, LineIcon::ShieldStar, LineIcon::Crown};
     // Thinner than Tabler's 2: these sit large on their tiles (40 to 56 px).
     if (icon >= 0 && icon < IconCount) DrawLineIcon(d, Icons[icon], at, size, ink, 1.5f);
+}
+
+float TitlePlate(ImDrawList* draw, ImVec2 at, float room, float line, const std::string& title, Tier tier) {
+    const float s = Scale(), x = at.x, y = at.y;
+    // The tier is written as well as coloured: "Veteran \xC2\xB7 Gold".
+    const std::string label = tier == Tier::None ? title : title + " \xC2\xB7 " + TierName(tier);
+    // The plate grows to its title, and a title longer than the room steps down a size.
+    const float cut = line / 3, stripe = line / 2, need = TextWidth(label, 15 * s, HeadingFont()) + stripe + 10 * s + cut + 6 * s;
+    const float w = (std::min)(room, (std::max)(340 * s, need));
+    const ImVec2 plate[] = {{x + cut, y}, {x + w, y}, {x + w - cut, y + line}, {x, y + line}};
+    const ImVec2 mark[] = {{x + cut, y}, {x + stripe, y}, {x + stripe - cut, y + line}, {x, y + line}};
+    const auto colors = TierColor(tier);
+    draw->AddConvexPolyFilled(plate, 4, colors.plate);
+    draw->AddConvexPolyFilled(mark, 4, colors.stripe);
+    // Longer than the plate, it steps down to 13 and then smaller still, to no less than 10, before it is cut.
+    const float room13 = w - stripe - 10 * s - cut, wide13 = TextWidth(label, 13 * s, HeadingFont());
+    const float size = need <= w ? 15 * s : wide13 > room13 && wide13 > 0 ? (std::max)(10 * s, 13 * s * room13 / wide13) : 13 * s;
+    draw->AddText(HeadingFont(), size, ImVec2(x + stripe + 10 * s, y + (line - size) * .5f), Colors().text, Fit(label, w - stripe - 10 * s - cut, size, HeadingFont()).c_str());
+    return w;
+}
+
+namespace {
+// How far a fact's value sits lower when a key wraps onto a second line: the
+// same for every cell, so the rules and values stay level across the cells.
+float FactKeyExtra(float width, const std::vector<TagView::Fact>& facts, std::size_t across) {
+    const float s = Scale(), room = width / across - 28 * s;
+    for (const auto& fact : facts)
+        if (HeadingHeight(fact.key, room, 13 * s) > 13 * s) return 13 * s * HeadingLine;
+    return 0;
+}
+std::size_t FactAcross(const std::vector<TagView::Fact>& facts, std::size_t across) { return (std::max<std::size_t>)(1, (std::min)(across, facts.size())); }
+}
+float FactCellsHeight(float width, const std::vector<TagView::Fact>& facts, std::size_t across) {
+    if (facts.empty()) return 0;
+    across = FactAcross(facts, across);
+    return (52 * Scale() + FactKeyExtra(width, facts, across)) * ((facts.size() + across - 1) / across);
+}
+float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across, float valueSize) {
+    const auto& c = Colors();
+    const float s = Scale();
+    across = FactAcross(facts, across);
+    const float cell = width / across, extra = FactKeyExtra(width, facts, across), height = 52 * s + extra;
+    for (std::size_t i = 0; i < facts.size(); ++i) {
+        const ImVec2 p(at.x + cell * (i % across), at.y + height * (i / across));
+        if (i % across == 0) draw->AddLine(p, ImVec2(at.x + width, p.y), c.border, Hairline());
+        else draw->AddLine(p, ImVec2(p.x, p.y + height), c.border, Hairline());
+        Heading(draw, ImVec2(p.x + 14 * s, p.y + 9 * s), cell - 28 * s, facts[i].key, 13 * s, c.muted);
+        // A value a little too wide for its cell is set smaller, down to the card's text floor, before it is cut.
+        const float room = cell - 28 * s, whole = HeadingFont()->CalcTextSizeA(valueSize * s, FLT_MAX, 0, facts[i].value.c_str()).x;
+        const float size = whole > room && whole > 0 ? (std::max)(13 * s, valueSize * s * room / whole) : valueSize * s;
+        draw->AddText(HeadingFont(), size, ImVec2(p.x + 14 * s, p.y + 26 * s + extra + (valueSize * s - size) * .5f), c.text, Fit(facts[i].value, room, size, HeadingFont()).c_str());
+    }
+    return FactCellsHeight(width, facts, across);
 }
 
 namespace {
 // The L tag (Tag): the profile card.
 float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) {
     const auto& c = Colors();
-    const float s = Scale(), pad = 20 * s, tile = 96 * s, band = tile + 36 * s, line = 34 * s, nameSize = 26 * s;
+    const float s = Scale(), pad = 20 * s, tile = 96 * s, line = 34 * s, nameSize = 26 * s;
+    // The points lines (22 px digits, 20 at 720p) stand under the about line,
+    // or under the name and title when there is none, and the band grows to hold them.
+    const float digits = (ImGui::GetIO().DisplaySize.y / s <= 720 ? 20 : 22) * s, pointsGap = 4 * s, aboutRow = tag.about.empty() ? 0 : 26 * s;
+    const float lines = tag.points.shown ? 2 * digits + pointsGap : 0;
+    const float textBottom = 18 * s + line + 8 * s + (tag.title.empty() ? 0 : line + 8 * s) + aboutRow;
+    const float band = (std::max)(tile + 36 * s, textBottom + lines + 18 * s);
     const std::size_t count = tag.facts.size(), across = width < 640 * s && count > 2 ? (count + 1) / 2 : count;
-    const float factHeight = 52 * s, height = band + (count ? factHeight * ((count + across - 1) / across) : 0);
+    const float height = band + FactCellsHeight(width, tag.facts, across);
     draw->AddRectFilled(at, ImVec2(at.x + width, at.y + height), color::Alpha(c.panel, .94f), 4 * s);
     draw->AddRectFilledMultiColor(at, ImVec2(at.x + width * .7f, at.y + band), c.header, color::Alpha(c.header, 0), color::Alpha(c.header, 0), c.header);
     const ImVec2 t(at.x + pad, at.y + 18 * s);
@@ -561,7 +613,7 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
     const float iconTile = tag.icon >= 0 ? 56 * s : 0;
     if (iconTile > 0) {
         const ImVec2 it(at.x + width - pad - iconTile, t.y);
-        const auto ink = TierColor(tag.tier).stripe;
+        const auto ink = TierColor(tag.iconTier != Tier::None ? tag.iconTier : tag.tier).stripe;
         draw->AddRectFilled(it, ImVec2(it.x + iconTile, it.y + iconTile), c.frame, 4 * s);
         draw->AddRect(it, ImVec2(it.x + iconTile, it.y + iconTile), ink, 4 * s, 0, 2 * s);
         Icon(draw, tag.icon, ImVec2(it.x + 8 * s, it.y + 8 * s), iconTile - 16 * s, ink);
@@ -572,31 +624,14 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
     NoteUserText(tag.name);
     draw->AddText(HeadingFont(), nameSize, ImVec2(x + marks, y + (line - nameSize) * .5f), c.text, Fit(tag.name, room - marks, nameSize, HeadingFont(), false).c_str());
     y += line + 8 * s;
-    // The title on its plate: a slanted bar with the accent's stripe at its start.
     if (!tag.title.empty()) {
-        // The plate grows to its title, and a title longer than the room steps down a size.
-        const float cut = line / 3, stripe = line / 2, need = TextWidth(tag.title, 15 * s, HeadingFont()) + stripe + 10 * s + cut + 6 * s;
-        const float w = (std::min)(room, (std::max)(340 * s, need));
-        const ImVec2 plate[] = {{x + cut, y}, {x + w, y}, {x + w - cut, y + line}, {x, y + line}};
-        const ImVec2 mark[] = {{x + cut, y}, {x + stripe, y}, {x + stripe - cut, y + line}, {x, y + line}};
-        const auto tier = TierColor(tag.tier);
-        draw->AddConvexPolyFilled(plate, 4, tier.plate);
-        draw->AddConvexPolyFilled(mark, 4, tier.stripe);
-        const float size = need > w ? 13 * s : 15 * s;
-        draw->AddText(HeadingFont(), size, ImVec2(x + stripe + 10 * s, y + (line - size) * .5f), c.text, Fit(tag.title, w - stripe - 10 * s - cut, size, HeadingFont()).c_str());
+        TitlePlate(draw, ImVec2(x, y), room, line, tag.title, tag.tier);
         y += line + 8 * s;
     }
-    draw->AddText(ImGui::GetFont(), 14 * s, ImVec2(x, y), c.muted, Fit(tag.about, room, 14 * s).c_str());
-    // The facts, a cell each, key over value.
-    const float cell = count ? width / across : 0;
-    for (std::size_t i = 0; i < count; ++i) {
-        const ImVec2 p(at.x + cell * (i % across), at.y + band + factHeight * (i / across));
-        if (i % across == 0) draw->AddLine(p, ImVec2(at.x + width, p.y), c.border, s);
-        else draw->AddLine(p, ImVec2(p.x, p.y + factHeight), c.border, s);
-        draw->AddText(HeadingFont(), 12 * s, ImVec2(p.x + 14 * s, p.y + 10 * s), c.muted, Fit(tag.facts[i].key, cell - 28 * s, 12 * s, HeadingFont()).c_str());
-        draw->AddText(HeadingFont(), 15 * s, ImVec2(p.x + 14 * s, p.y + 26 * s), c.text, Fit(tag.facts[i].value, cell - 28 * s, 15 * s, HeadingFont()).c_str());
-    }
-    draw->AddRect(at, ImVec2(at.x + width, at.y + height), c.border, 4 * s, 0, s);
+    if (!tag.about.empty()) draw->AddText(ImGui::GetFont(), 14 * s, ImVec2(x, y), c.muted, Fit(tag.about, room, 14 * s).c_str());
+    if (tag.points.shown) LevelLines(draw, ImVec2(x, y + aboutRow), digits, pointsGap, tag.points.fighter, tag.points.account);
+    FactCells(draw, ImVec2(at.x, at.y + band), width, tag.facts, across);
+    draw->AddRect(at, ImVec2(at.x + width, at.y + height), c.border, 4 * s, 0, Hairline());
     return height;
 }
 }
@@ -631,7 +666,13 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
     const std::string name = Fit(tag.name, (std::max)(0.f, nameMax), nameSize, nameFont, false);
     draw->AddText(nameFont, nameSize, ImVec2(x, middle), Colors().text, name.c_str());
     x += TextWidth(name, nameSize, nameFont) + gap;
-    if (!ping.empty()) Chip(draw, ImVec2(at.x + right - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);
+    if (!ping.empty()) {
+        const ImVec2 chipAt(at.x + right - pingWidth, at.y + (line - chipHeight) * .5f);
+        Chip(draw, chipAt, ping, tag.ping.color);
+        // The tip says what the number is: its route, and whether it was checked.
+        if (!tag.ping.tip.empty() && ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(chipAt, ImVec2(chipAt.x + pingWidth, chipAt.y + chipHeight)))
+            ImGui::SetTooltip("%s", tag.ping.tip.c_str());
+    }
     if (tag.link) DrawNetworkLinkGlyph(draw, ImVec2(at.x + width - glyph, at.y + (line - glyph) * .5f), glyph, *tag.link);
     if (!twoLines) {
         if (title) { draw->AddText(ImGui::GetFont(), font, ImVec2(x, at.y + (line - font) * .5f), Colors().muted, tag.title.c_str()); x += titleWidth; }

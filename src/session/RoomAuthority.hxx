@@ -6,17 +6,9 @@ namespace sf4e { namespace room {
 
 class RoomAuthority {
 public:
-	// practice, delayPolicy and arcade are the room's for its life
-	// (Snapshot::practice, Snapshot::delayPolicy, Snapshot::arcade); nothing
-	// changes them later. tableCount is how many tables a Classic room starts
-	// with (Snapshot::tableCount), which its host can change (SetTableCount);
-	// out of range it is ClassicTableCount. wiredOnly is the room's Wired
-	// players only rule (Snapshot::wiredOnly), which its host can change
-	// (SetWiredOnly).
+	// The room starts as `charter` says (Charter), every table with `defaults`.
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
-		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false,
-		DelayPolicy delayPolicy = DelayPolicy::Shared, RoomType arcade = ClassicRoom,
-		std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount), bool wiredOnly = false);
+		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), Charter charter = Charter());
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }
@@ -58,6 +50,9 @@ public:
     bool FighterAllowed(MemberId member,int fighter,int edition) const;
     // Members whose last activity is tracked; never more than the roster.
     std::size_t TrackedActivity() const { return lastActiveMs_.size(); }
+	// Whether an Arcade or King of the hill room seats `a` and `b` together
+	// now (partedFrom_, RoomModelArcade.cxx).
+	bool MayMeet(MemberId a, MemberId b) const;
 
     // Authority recovery is deliberately distinct from the public UI snapshot.
     // Import validates into a temporary owner and leaves this owner unchanged
@@ -78,7 +73,9 @@ public:
 	// 0 when no game is under way there. A binding for another match, or an
 	// older one for this match, is refused.
 	Result BindTournament(const TournamentBinding& binding);
-	Result EndMatch(std::uint8_t table, std::uint64_t generation, MatchResult result);
+	// `game` is the ending game's place in its battle (Action::game of the
+	// agreed result), which a server-owned room's won game keeps.
+	Result EndMatch(std::uint8_t table, std::uint64_t generation, MatchResult result, std::uint32_t game = 0);
 	// True only when AdvanceTime(nowMs) can emit a timer-driven room event.
 	// Pending results which have not reached their deadline, and unresolved
 	// results already paused for host review, are not timer work.
@@ -184,6 +181,7 @@ private:
 	Result ApplySetTableCount(MemberId member, const Action& action);
 	Result ApplyLock(MemberId member, const Action& action);
 	Result ApplySetWiredOnly(MemberId member, const Action& action);
+	Result ApplySetFriendsHidden(MemberId member, const Action& action);
 	Result ApplyKick(MemberId member, const Action& action);
 	Result ApplyChat(MemberId member, const Action& action);
 	Result ApplyRename(MemberId member, const Action& action);
@@ -207,6 +205,7 @@ private:
 	Result ApplyLockSpectating(MemberId member, const Action& action, Table* table, Member* item);
 	Result ApplySetTraining(MemberId member, const Action& action);
 	Result ApplyTyping(MemberId member, const Action& action);
+	Result ApplyPostMatchAnswer(MemberId member, const Action& action);
 	Result ApplyPermitReady(MemberId member, const Action& action, Table* table);
 	// Table 0 of a room bound to a tournament match.
 	bool BoundTable(const Table& table) const;
@@ -289,10 +288,13 @@ private:
 	Result ApplyRematch(MemberId member, const Action& action, Table* table);
 	Result ApplySetRoomType(MemberId member, const Action& action);
 	Table* Waiter(MemberId member, MemberId parted, const Table* except);
+	MemberId NextInLine(MemberId member) const;
 	void JoinTable(MemberId member, Table& table);
 	void SwapFighter(MemberId leaving, Table& table, const ArcadeWaitingAsker& asker);
 	void PartPair(Table& table, MemberId member);
 	void PairArcade(MemberId member, MemberId parted);
+	void SeatLine(MemberId a, MemberId b);
+	Result ApplyArcadeStand(MemberId member);
 	void ArcadeSetEnded(Table& table, MemberId winner, MemberId loser);
 	void ArcadeVacated(Table& table, MemberId left);
 	void StandUp(MemberId member);
@@ -363,7 +365,7 @@ private:
 	void BanAccount(const std::string& account);
 	bool BanWouldExceedCap(const std::string& account) const;
 	void ForgetAccount(MemberId member);
-	void RecordWonGame(std::uint8_t tableId, const Table& table, MatchResult result);
+	void RecordWonGame(std::uint8_t tableId, const Table& table, MatchResult result, std::uint32_t game);
 	void ReopenEmptyRoom();
 	void SaveServerOwned(nlohmann::json& state) const;
 	bool LoadServerOwned(const nlohmann::json& state);
@@ -425,6 +427,11 @@ private:
 	// Not checkpointed. TypingLeftMs is how long that word still stands.
 	std::map<MemberId, std::pair<std::uint64_t, bool>> typing_;
 	std::uint32_t TypingLeftMs(MemberId member) const;
+	// An Arcade or King of the hill room's fighters who asked for a new
+	// opponent and parted from them (PartPair), each with the one they left,
+	// until they sit with someone else (MayMeet). Not checkpointed: a restored
+	// room forgets it, and such a pair may meet again sooner.
+	std::map<MemberId, MemberId> partedFrom_;
 	std::map<MemberId, ActionId> lastAcceptedActions_;
 	std::set<ConnectionRef> kicked_;
 	// Server-owned rooms only. Held here rather than on Member so an account

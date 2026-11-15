@@ -15,9 +15,10 @@
   "max_poll_secs": 1800,
   "tournaments": [
     {
-      "adapter": "challonge",
-      "tournament": "18643720",
-      "credential": { "kind": "v1_key", "file": "challonge.key" },
+      "adapter": "http",
+      "tournament": "staging",
+      "api_base": "https://brackets.ember.fraccie.be/tournaments/staging/ember",
+      "credential": { "kind": "bearer", "file": "site.token" },
       "rounds": { "games_to_win": 1 }
     }
   ]

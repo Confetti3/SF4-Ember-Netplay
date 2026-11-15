@@ -170,6 +170,17 @@ int main() {
         Require(DummyReplies(plan, 1, 49) && !DummyReplies(plan, 1, 50) && !DummyReplies(plan, 2, 0) && !DummyReplies(plan, 0, 0), "Reply chance or cause misjudged");
         plan.when = 4;
         Require(DummyReplies(plan, 3, 0) && ValidDummyPlan(plan), "A reply to anything missed a knockdown");
+        {
+            // A reply to getting up lets its move go only in a knockdown, whatever a hit's known length says.
+            ReplySchedule wake, any; wake.when = 3;
+            DummySeen hit; hit.held = 1; hit.until = 0; hit.stretch = 1;
+            DummySeen down = hit; down.held = 3;
+            DummySeen standing; standing.free = 0; standing.out = 1; standing.stretch = 1;
+            DummySeen risen = standing; risen.out = 3;
+            Require(!ReplyFirstMoveDue(wake, hit) && !ReplyFirstMoveDue(wake, standing) && ReplyFirstMoveDue(wake, down) && ReplyFirstMoveDue(wake, risen),
+                "A reply to getting up was due in a hit, or not in a knockdown");
+            Require(ReplyFirstMoveDue(any, hit) && ReplyFirstMoveDue(any, standing), "A reply to any stun was not due in a hit");
+        }
         plan.timing = MaxReplyTiming + 1;
         Require(!ValidDummyPlan(plan), "A reply timing beyond its range was accepted");
         plan.timing = 0;

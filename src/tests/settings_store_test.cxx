@@ -11,6 +11,7 @@
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/SpeechPreferenceJson.hxx"
+#include "../netplay/CardPreferenceJson.hxx"
 #include "../netplay/PublicRoomFilterJson.hxx"
 #define NOMINMAX
 #include <windows.h>
@@ -18,6 +19,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <limits>
 #include <algorithm>
 #include <functional>
 #include <iterator>
@@ -320,6 +322,44 @@ static void CountryRoundTrips(const Path& root) {
     netplay::PlayerPreferences invalid; invalid.country.kind=CountryPreference::Kind::Code; CHECK(!invalid.Valid());
 }
 
+// The area is kept beside it as "auto", "hidden" or an area's code; an older
+// profile has none, and anything else (a relay's code, the old US West) loads
+// as Automatic.
+static void AreaRoundTrips(const Path& root) {
+    using namespace sf4e;
+    const auto folder=root/L"area";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring()); std::string error;
+    for (const auto& choice : {AreaPreference::Hidden(), AreaPreference::Of(Area::SouthAmerica), AreaPreference::Automatic()}) {
+        netplay::PlayerPreferences prefs; prefs.area=choice; CHECK(prefs.Valid());
+        Json saved; netplay::WriteAreaPreference(prefs,saved);
+        CHECK(store.SaveLauncher(saved,error));
+        const auto document=Json::parse(Read(folder/L"settings.json"));
+        CHECK(document["netplay"]["area"]==choice.ToString()&&!document["legacyLauncher"].contains("area"));
+        Json loaded; CHECK(store.LoadLauncher(loaded,error));
+        CHECK(netplay::ReadAreaPreference(loaded)==choice);
+    }
+    CHECK(Json(netplay::PlayerPreferences().area.ToString())=="auto");
+    CHECK(netplay::ReadAreaPreference(Json::object())==AreaPreference::Automatic());
+    for (const Json& bad : {Json("use1"),Json("usw1"),Json("SAM"),Json(""),Json(5),Json(nullptr),Json::array({"sam"})})
+        CHECK(netplay::ReadAreaPreference({{"area",bad}})==AreaPreference::Automatic());
+    netplay::PlayerPreferences invalid; invalid.area.kind=AreaPreference::Kind::Chosen; CHECK(!invalid.Valid());
+    // The card's old switch for hiding the area reads as Hidden, whatever the area key says; a switch left on changes nothing.
+    CHECK(netplay::ReadAreaPreference({{"cardShowRegion",false}})==AreaPreference::Hidden());
+    CHECK(netplay::ReadAreaPreference({{"area","sam"},{"cardShowRegion",false}})==AreaPreference::Hidden());
+    CHECK(netplay::ReadAreaPreference({{"area","sam"},{"cardShowRegion",true}})==AreaPreference::Of(Area::SouthAmerica));
+    CHECK(netplay::ReadAreaPreference({{"cardShowRegion","no"}})==AreaPreference::Automatic());
+    // In a saved file the old key is read until a save carries the area choice, which retires it.
+    const auto old=root/L"area-old";
+    CHECK(std::filesystem::create_directory(old));
+    SettingsStore oldStore(old.wstring());
+    Json loaded;
+    CHECK(oldStore.SaveLauncher({{"cardShowRegion",false}},error)&&oldStore.LoadLauncher(loaded,error));
+    CHECK(netplay::ReadAreaPreference(loaded)==AreaPreference::Hidden());
+    CHECK(oldStore.SaveLauncher({{"area","auto"}},error)&&oldStore.LoadLauncher(loaded,error));
+    CHECK(netplay::ReadAreaPreference(loaded)==AreaPreference::Automatic()&&!loaded.contains("cardShowRegion"));
+}
+
 // Speech is one object in the netplay section; an older profile has none, and
 // a field out of range or of another type loads as its default alone.
 static void SpeechRoundTrips(const Path& root) {
@@ -340,18 +380,41 @@ static void SpeechRoundTrips(const Path& root) {
     netplay::PlayerPreferences invalid; invalid.speech.volume=0; CHECK(!invalid.Valid());
 }
 
+// What Edit card keeps (the device, whether the connection and region show, what the player is looking for and the
+// award families the card shows) is read from the netplay section the way it was written; a profile from before the
+// card has none and loads as the defaults, and a value out of range loads as its default alone.
+static void CardPreferencesRoundTrip(const Path& root) {
+    using namespace sf4e;
+    const auto folder=root/L"card";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring()); std::string error;
+    netplay::PlayerPreferences prefs; prefs.cardDevice=3; prefs.cardShowLink=false; prefs.cardLooking=netplay::profiles::LookingRanked|netplay::profiles::LookingTeach; prefs.cardPins={"wins","cast"};
+    CHECK(prefs.Valid());
+    Json saved; netplay::WriteCardPreferences(prefs,saved);
+    CHECK(store.SaveLauncher(saved,error));
+    const auto document=Json::parse(Read(folder/L"settings.json"));
+    CHECK(document["netplay"]["cardDevice"]==3&&document["netplay"]["cardLooking"]==36&&document["netplay"]["cardPins"]==Json::array({"wins","cast"})&&!document["legacyLauncher"].contains("cardPins"));
+    Json loaded; CHECK(store.LoadLauncher(loaded,error));
+    netplay::PlayerPreferences back; netplay::ReadCardPreferences(loaded,back);
+    CHECK(back.cardDevice==3&&!back.cardShowLink&&back.cardLooking==36&&back.cardPins==prefs.cardPins&&back.Valid());
+    netplay::PlayerPreferences fresh; netplay::ReadCardPreferences(Json::object(),fresh);
+    CHECK(fresh.cardDevice==0&&fresh.cardShowLink&&fresh.cardLooking==0&&fresh.cardPins.empty());
+    netplay::PlayerPreferences odd; netplay::ReadCardPreferences({{"cardDevice",8},{"cardLooking",63},{"cardPins",{"wins","Bad","wins","rival"}}},odd);
+    CHECK(odd.cardDevice==0&&odd.cardShowLink&&odd.cardLooking==3&&odd.cardPins==std::vector<std::string>({"wins","rival"})&&odd.Valid());
+}
+
 // The public rooms filter is one object in the netplay section. An older profile
-// has none, and a field out of range, of another type or naming a region that is
-// no longer known loads as All (a flag as off) on its own.
+// has none, and a field out of range, of another type or naming a place that is
+// not an area (a relay's code, the old US West) loads as All (a flag as off) on its own.
 static void RoomFilterRoundTrips(const Path& root) {
     using namespace sf4e;
     using netplay::publicrooms::RoomFilter;
     const auto folder=root/L"room-filter";
     CHECK(std::filesystem::create_directory(folder));
     SettingsStore store(folder.wstring()); std::string error;
-    for (const auto& pick : {RoomFilter(), RoomFilter{RoomFilter::Region::Near,"",RoomFilter::Type::King,true,false},
-                             RoomFilter{RoomFilter::Region::One,"euc1",RoomFilter::Type::Classic,false,true},
-                             RoomFilter{RoomFilter::Region::One,"aps1",RoomFilter::Type::Arcade,true,true}}) {
+    for (const auto& pick : {RoomFilter(), RoomFilter{RoomFilter::Place::Near,Area::None,RoomFilter::Type::King,true,false},
+                             RoomFilter{RoomFilter::Place::One,Area::EuropeWest,RoomFilter::Type::Classic,false,true},
+                             RoomFilter{RoomFilter::Place::One,Area::Oceania,RoomFilter::Type::Arcade,true,true}}) {
         netplay::PlayerPreferences prefs; prefs.roomFilter=pick; CHECK(prefs.Valid());
         Json saved; netplay::WriteRoomFilter(prefs,saved);
         CHECK(store.SaveLauncher(saved,error));
@@ -362,18 +425,38 @@ static void RoomFilterRoundTrips(const Path& root) {
     CHECK(netplay::ReadRoomFilter(Json::object())==RoomFilter());
     CHECK(netplay::ReadRoomFilter(Json("filter"))==RoomFilter());
     CHECK(netplay::ReadRoomFilter({{"roomFilter",7}})==RoomFilter());
-    // A region that is no longer known falls back to All without losing the rest.
-    const auto gone=netplay::ReadRoomFilter({{"roomFilter",{{"region","mars"},{"type","arcade"},{"seats",true},{"wired",true}}}});
-    CHECK(gone.scope==RoomFilter::Region::All&&gone.region.empty()&&gone.type==RoomFilter::Type::Arcade&&gone.openSeats&&gone.wiredOnly&&gone.Valid());
+    // A place that is not an area falls back to All without losing the rest: a relay's code a build
+    // before areas saved, the old US West no build could report, or anything else.
+    for (const char* gone : {"mars","use1","usw1","euc1","aps1","other","NAW"}) {
+        const auto read=netplay::ReadRoomFilter({{"roomFilter",{{"region",gone},{"type","arcade"},{"seats",true},{"wired",true}}}});
+        CHECK(read.scope==RoomFilter::Place::All&&read.area==Area::None&&read.type==RoomFilter::Type::Arcade&&read.openSeats&&read.wiredOnly&&read.Valid());
+    }
+    CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"region","sam"}}}}).area==Area::SouthAmerica);
     const auto odd=netplay::ReadRoomFilter({{"roomFilter",{{"region",3},{"type","brawl"},{"seats","yes"},{"wired",1}}}});
     CHECK(odd==RoomFilter());
-    CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"region","near"}}}}).scope==RoomFilter::Region::Near);
-    // Preferences carrying a filter that names no region to filter by are invalid.
-    netplay::PlayerPreferences invalid; invalid.roomFilter.scope=RoomFilter::Region::One; CHECK(!invalid.Valid());
-    invalid.roomFilter.region="mars"; CHECK(!invalid.Valid());
-    invalid.roomFilter.region="use1"; CHECK(invalid.Valid());
+    CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"region","near"}}}}).scope==RoomFilter::Place::Near);
+    // Preferences carrying a filter that names no area to filter by are invalid.
+    netplay::PlayerPreferences invalid; invalid.roomFilter.scope=RoomFilter::Place::One; CHECK(!invalid.Valid());
+    invalid.roomFilter.area=Area::NaEast; CHECK(invalid.Valid());
 }
 
+// The Interface size runs from 0.70x to 1.50x in steps of 0.05; a saved value outside that range loads as 1.00x,
+// and one inside it survives a restart.
+static void InterfaceScaleRange(const Path& root) {
+    using namespace sf4e::netplay;
+    PlayerPreferences preferences;
+    CHECK(preferences.interfaceScale == 1.f && preferences.Valid());
+    for (const float scale : {MinInterfaceScale, .95f, 1.f, MaxInterfaceScale}) { preferences.interfaceScale = scale; CHECK(preferences.Valid()); }
+    for (const float scale : {.65f, 0.f, -1.f, 1.55f, std::numeric_limits<float>::quiet_NaN()}) { preferences.interfaceScale = scale; CHECK(!preferences.Valid()); }
+    CHECK(InterfaceScaleOrDefault(.7f) == .7f && InterfaceScaleOrDefault(.95f) == .95f && InterfaceScaleOrDefault(1.5f) == 1.5f);
+    CHECK(InterfaceScaleOrDefault(.65f) == 1.f && InterfaceScaleOrDefault(1.6f) == 1.f && InterfaceScaleOrDefault(0.f) == 1.f);
+    // The least size is kept as saved: the value written reads back as itself.
+    SettingsStore store((root / L"interface-scale").wstring());
+    std::string error; Json saved;
+    CHECK(store.SaveLauncher({{"interfaceScale", MinInterfaceScale}}, error));
+    CHECK(store.LoadLauncher(saved, error));
+    CHECK(InterfaceScaleOrDefault(saved.value("interfaceScale", 1.f)) == MinInterfaceScale);
+}
 static void ControllerLayerRoundTrip(const Path& root) {
     SettingsStore store((root / L"controller-layer").wstring());
     std::string error; Json saved;
@@ -491,6 +574,9 @@ int main() {
     // The award worn on the card stays in the netplay section until the backend stores it.
     CHECK(store.SaveLauncher({{"wornTitle","organizer"},{"wornIcon","by-ear"}},error));
     CHECK(store.LoadLauncher(result,error)&&result["wornTitle"]=="organizer"&&result["wornIcon"]=="by-ear");
+    // So do the themes of each part, folder names.
+    CHECK(store.SaveLauncher({{"gameThemeMenus","Neon"},{"gameThemeBattleHud","CvS2"}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["gameThemeMenus"]=="Neon"&&result["gameThemeBattleHud"]=="CvS2");
     // A profile from before 1.1.0, the wrong type, out of range, or a number past an
     // int's range (which a plain conversion would wrap into range) is Default.
     using sf4e::netplay::ReadMatchHudNameOffset;
@@ -835,6 +921,47 @@ int main() {
             CHECK(!sf4e::netplay::ReadRoomPreferences(bad, read));
         }
     }
+    // A private room's Hidden is a room default and a template's: written only when set, and Friends when the key is missing.
+    {
+        CHECK(!result["roomDefaults"].contains("friendsHidden") && !restored.roomFriendsHidden);
+        auto hidden = defaults;
+        hidden.roomFriendsHidden = true;
+        sf4e::netplay::RoomTemplate saved;
+        saved.name = "Hidden"; saved.roomName = "Quiet room"; saved.friendsHidden = true;
+        saved.tables = sf4e::netplay::TableSetup::Same(defaults.tableRules);
+        hidden.roomTemplates = {saved};
+        const Json document{{"roomDefaults", sf4e::netplay::RoomPreferences(hidden)}};
+        CHECK(document["roomDefaults"].at("friendsHidden") == true && document["roomDefaults"]["templates"][0].at("friendsHidden") == true);
+        sf4e::netplay::PlayerPreferences read;
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, read) && read.roomFriendsHidden && read.roomTemplates.size() == 1 &&
+            read.roomTemplates[0] == saved && read.roomTemplates[0].friendsHidden);
+        // A template that differs only in Privacy is another template.
+        auto shown = saved;
+        shown.friendsHidden = false;
+        CHECK(!(shown == saved));
+        auto plain = document;
+        plain["roomDefaults"].erase("friendsHidden");
+        plain["roomDefaults"]["templates"][0].erase("friendsHidden");
+        CHECK(sf4e::netplay::ReadRoomPreferences(plain, read) && !read.roomFriendsHidden && !read.roomTemplates[0].friendsHidden);
+        for (const Json& invalid : {Json(1), Json("yes"), Json(nullptr)}) {
+            auto bad = document;
+            bad["roomDefaults"]["friendsHidden"] = invalid;
+            CHECK(!sf4e::netplay::ReadRoomPreferences(bad, read));
+        }
+    }
+    // The last public room's type and template, for a stream PC: written only
+    // when not Classic or none, and a type past King is refused.
+    {
+        CHECK(!result["roomDefaults"].contains("publicType") && !result["roomDefaults"].contains("publicTemplate"));
+        auto last = defaults;
+        last.publicRoomType = sf4e::room::RoomType::King; last.publicRoomTemplate = "Stream"; last.publicArcadeTables = 1;
+        const Json document{{"roomDefaults", sf4e::netplay::RoomPreferences(last)}};
+        sf4e::netplay::PlayerPreferences read;
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, read) && read.publicRoomType == sf4e::room::RoomType::King && read.publicRoomTemplate == "Stream" && read.publicArcadeTables == 1);
+        auto bad = document;
+        bad["roomDefaults"]["publicType"] = 3;
+        CHECK(!sf4e::netplay::ReadRoomPreferences(bad, read));
+    }
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
         Json{{"format", 257}}, Json{{"format", 11}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}},
         Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 11}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}},
@@ -848,8 +975,11 @@ int main() {
     BoolPreferenceRoundTrips(root);
     ButtonPromptRoundTrips(root);
     CountryRoundTrips(root);
+    AreaRoundTrips(root);
     SpeechRoundTrips(root);
+    CardPreferencesRoundTrip(root);
     RoomFilterRoundTrips(root);
+    InterfaceScaleRange(root);
     ControllerLayerRoundTrip(root);
     ShareReplaysConsent(root);
     RemoveTempRoot(root);

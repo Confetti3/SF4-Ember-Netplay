@@ -163,6 +163,15 @@ try {
         'assets\selection\RYU\extra\portrait.png', 'assets\selection\..\Launcher.exe', 'assets\selection\RYU\portrait.png:ads', '\Launcher.exe', 'C:\x.png')
     $stillAccepted = @($oldRefuses | Where-Object { @(Get-EmberNewFilesOldUpdaterRejects @($_)).Count -ne 1 })
     Check ($stillAccepted.Count -eq 0) "the 1.4.1 floor accepted files its updater rejects: $($stillAccepted -join ', ')"
+    # The inventory itself: no file the current package lists may be one 1.4.1 refuses. The stream host's scripts
+    # were listed as package paths and stopped packaging; they are embedded in Launcher.exe now.
+    $listedNow = @([regex]::Matches([IO.File]::ReadAllText((Join-Path $PSScriptRoot '..\src\common\PackageInventory.inc')), '(?m)^SF4E_PACKAGE_(?:REQUIRED|OPTIONAL)\("([^"]+)"\)') |
+        ForEach-Object { $_.Groups[1].Value.Replace('\\', '\') })
+    Check ($listedNow.Count -gt 20) 'PackageInventory.inc lists too few files; the reader no longer matches it'
+    $listedRefused = @(Get-EmberNewFilesOldUpdaterRejects $listedNow)
+    Check ($listedRefused.Count -eq 0) "PackageInventory.inc lists files the 1.4.1 updater refuses: $($listedRefused -join ', ')"
+    Check (@($listedNow | Where-Object { $_ -like 'scripts\*' }).Count -eq 0) 'PackageInventory.inc lists a scripts\ file; the stream host is embedded in Launcher.exe'
+    Pass 'PackageInventory.inc lists no file the 1.4.1 updater refuses'
     # The whole-package check that New-EmberPackage runs, whatever the channel.
     $okPackage = Join-Path $root 'old-ok'
     New-Tree $okPackage @{ 'Launcher.exe' = 'x'; 'MANIFEST.txt' = 'm'; 'assets/selection/RYU/portrait.png' = 'p' }

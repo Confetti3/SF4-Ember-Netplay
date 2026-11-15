@@ -36,7 +36,7 @@ impl Choice {
         let stored = tx
             .query_row(
                 "SELECT ranked, changed_at, name, country FROM ranking_choices
-                 WHERE discord_user_id = ?1",
+                 WHERE game = 'usf4' AND discord_user_id = ?1",
                 [account],
                 |row| {
                     let (name, country): (Option<String>, _) = (row.get(2)?, row.get(3)?);
@@ -138,10 +138,11 @@ pub fn choose(
     tx.execute(
         "INSERT INTO ranking_choices (discord_user_id, ranked, changed_at, name, country)
          VALUES (?1, ?2, ?3, ?4, ?5)
-         ON CONFLICT (discord_user_id) DO UPDATE SET ranked = ?2, changed_at = ?3,
+         ON CONFLICT (game, discord_user_id) DO UPDATE SET ranked = ?2, changed_at = ?3,
              name = ?4, country = ?5",
         params![account, chosen.ranked, changed_at, name, country],
     )?;
+    super::board_moved();
     standing(tx, ember_id, classes_shown, developers, now)
 }
 
@@ -162,9 +163,9 @@ pub fn board(
         "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, c.name, c.country,
                 COALESCE(d.ember_id = ?1, 0), r.discord_user_id
          FROM skill_ratings r
-         JOIN ranking_choices c ON c.discord_user_id = r.discord_user_id
+         JOIN ranking_choices c ON c.game = r.game AND c.discord_user_id = r.discord_user_id
          JOIN discord_accounts d ON d.user_id = r.discord_user_id
-         WHERE c.ranked AND c.name IS NOT NULL",
+         WHERE r.game = 'usf4' AND c.ranked AND c.name IS NOT NULL",
     )?;
     let mut rows = statement.query([ember_id.map(EmberId::as_str)])?;
     let mut listed = Vec::new();
@@ -205,30 +206,25 @@ pub fn board(
     Ok(Board { players })
 }
 
-/// The class the public board shows today for each of `ember_ids` that is
-/// on it, by Ember ID: the same players and classes as `board` (taking
-/// part, listed, settled, not a developer), without its cap. Read only, so
-/// a page anyone can open never moves a stored class.
+/// The class the public board shows today for every player on it, by Ember
+/// ID: the same players and classes as `board` (taking part, listed,
+/// settled, not a developer), without its cap. Read only, so a page anyone
+/// can open never moves a stored class. The archive's games carry these
+/// (`archive::classes`).
 pub fn public_classes(
     tx: &Transaction<'_>,
-    ember_ids: &[&str],
     developers: &[String],
     now: u64,
 ) -> Result<std::collections::HashMap<String, u8>> {
     let mut classes = std::collections::HashMap::new();
-    if ember_ids.is_empty() {
-        return Ok(classes);
-    }
-    let wanted = serde_json::to_string(ember_ids).map_err(|_| ApiFailure::unavailable())?;
     let mut statement = tx.prepare(
         "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, d.ember_id, r.discord_user_id
          FROM skill_ratings r
-         JOIN ranking_choices c ON c.discord_user_id = r.discord_user_id
+         JOIN ranking_choices c ON c.game = r.game AND c.discord_user_id = r.discord_user_id
          JOIN discord_accounts d ON d.user_id = r.discord_user_id
-         WHERE c.ranked AND c.name IS NOT NULL
-           AND d.ember_id IN (SELECT value FROM json_each(?1))",
+         WHERE r.game = 'usf4' AND c.ranked AND c.name IS NOT NULL",
     )?;
-    let mut rows = statement.query([wanted])?;
+    let mut rows = statement.query([])?;
     while let Some(row) = rows.next()? {
         let rating = Rating {
             rating: row.get(0)?,

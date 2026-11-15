@@ -61,13 +61,6 @@ pub(crate) fn id<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D
     WireId::deserialize(deserializer).map(WireId::into_text)
 }
 
-/// An ID that may be `null` or absent, as text.
-pub(crate) fn optional_id<'de, D: Deserializer<'de>>(
-    deserializer: D,
-) -> Result<Option<String>, D::Error> {
-    Ok(Option::<WireId>::deserialize(deserializer)?.map(WireId::into_text))
-}
-
 /// No redirects, short timeouts.
 pub(crate) fn http_client() -> Result<reqwest::Client, String> {
     ember_protocol::client::http_client(
@@ -89,23 +82,14 @@ mod tests {
     struct Ids {
         #[serde(deserialize_with = "id")]
         id: String,
-        #[serde(default, deserialize_with = "optional_id")]
-        other: Option<String>,
     }
 
     #[test]
     fn ids_read_as_text_whatever_their_type() {
-        let ids = |value| serde_json::from_value::<Ids>(value).map(|ids| (ids.id, ids.other));
-        assert_eq!(
-            ids(json!({ "id": 65089253, "other": "7" })).unwrap(),
-            ("65089253".into(), Some("7".into()))
-        );
-        assert_eq!(
-            ids(json!({ "id": "7", "other": null })).unwrap(),
-            ("7".into(), None)
-        );
+        let ids = |value| serde_json::from_value::<Ids>(value).map(|ids| ids.id);
+        assert_eq!(ids(json!({ "id": 65089253 })).unwrap(), "65089253");
         assert!(ids(json!({ "id": -2 })).is_err());
-        assert_eq!(ids(json!({ "id": "s-1" })).unwrap(), ("s-1".into(), None));
+        assert_eq!(ids(json!({ "id": "s-1" })).unwrap(), "s-1");
         assert!(ids(json!({ "id": 1.5 })).is_err());
         assert!(bearer("bad\ntoken", "the token").is_err());
         assert!(bearer("good", "the token").unwrap().is_sensitive());

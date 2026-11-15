@@ -66,5 +66,38 @@ int main() {
     CHECK(!discord::TicketMetadata("emd1:"+std::string(122,'!'),party,expires));
     CHECK(!discord::TicketMetadata("emd1:"+std::string(121,'A'),party,expires));
     CHECK(!discord::TicketMetadata("emd1:"+std::string(122,'A'),party,expires));
+    // The description, typed, for what is built from it besides the companion's text.
+    {
+        netplay::Snapshot typedSession;
+        room::Snapshot typedRoom;
+        discord::PresenceInput typed(typedSession, typedRoom);
+        CHECK(discord::Describe(typed).where==discord::Presence::Where::Starting);
+        typed.ready=true;
+        CHECK(discord::Describe(typed).where==discord::Presence::Where::Menus);
+        typed.offline=true;
+        CHECK(discord::Describe(typed).where==discord::Presence::Where::Offline);
+        typedSession.room=netplay::RoomState::Joined; typedSession.control=netplay::Health::Healthy;
+        room::Member self; self.id=2; self.status=room::MemberStatus::Ready; self.training=true;
+        typedRoom.members.push_back(self); typedRoom.localMember=2; typedRoom.capacity=16;
+        auto inRoom=discord::Describe(typed);
+        CHECK(inRoom.where==discord::Presence::Where::Room && inRoom.status==room::MemberStatus::Ready && inRoom.training && inRoom.offerable);
+        // Whether the room could be offered does not depend on having an invitation to offer.
+        CHECK(inRoom.secret.empty());
+        typedRoom.locked=true; CHECK(!discord::Describe(typed).offerable); typedRoom.locked=false;
+        typedRoom.capacity=1; CHECK(!discord::Describe(typed).offerable); typedRoom.capacity=16;
+        typedSession.control=netplay::Health::Lost; CHECK(!discord::Describe(typed).offerable); typedSession.control=netplay::Health::Healthy;
+        typedRoom.tournament.matchId="emt_1"; CHECK(!discord::Describe(typed).offerable);
+    }
+    // A friend's invitation has no companion count to be ordered by; its revision follows the last one's and never goes back.
+    {
+        discord::PendingInvite pending;
+        CHECK(pending.Offer("a","party",300,5,6,false) && pending.Revision()==5);
+        CHECK(pending.OfferFromFriend("b","other",300,6,true) && pending.Revision()==6 && pending.NeedsConfirmation());
+        CHECK(!pending.OfferFromFriend("b","other",300,6,true));
+        CHECK(!pending.Matches(5) && pending.Matches(6));
+        CHECK(pending.Offer("c","party",300,6,6,false) && pending.Revision()==7);
+        CHECK(!pending.Offer("d","party",300,6,6,false));
+        CHECK(pending.Offer("d","party",300,7,6,false) && pending.Revision()==8);
+    }
     return 0;
 }

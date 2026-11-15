@@ -23,6 +23,7 @@ fn ticket(badge: Option<SkillBadge>) -> RoomTicket {
         issued_at: 1000,
         expires_at: 1000 + TICKET_SECS,
         badge,
+        card: None,
     }
 }
 

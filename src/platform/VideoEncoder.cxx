@@ -148,6 +148,10 @@ struct Encoder::Impl {
 	std::atomic<bool> audioRuns{false};
 	ComPtr<IMFDXGIDeviceManager> card;
 	std::string cardName;
+	// A fast export's (Begin: fed): its sound comes through Sound, and
+	// fedWritten counts the sample frames written so far.
+	bool fed = false;
+	LONGLONG fedWritten = 0;
 
 	bool OpenSound(DWORD pid);
 	bool WriteSound(const BYTE* data, UINT32 frames, float gain, LONGLONG& written);
@@ -263,7 +267,7 @@ HRESULT Encoder::Impl::Open(const std::wstring& file, IMFDXGIDeviceManager* on) 
 	if (SUCCEEDED(hr)) hr = VideoType(MFVideoFormat_NV12, width, height, &nv12);
 	if (SUCCEEDED(hr)) hr = nv12->SetUINT32(MF_MT_DEFAULT_STRIDE, width);
 	if (SUCCEEDED(hr)) hr = writer->SetInputMediaType(videoStream, nv12.Get(), nullptr);
-	if (SUCCEEDED(hr) && capture) {
+	if (SUCCEEDED(hr) && (capture || fed)) {
 		hr = AudioType(MFAudioFormat_AAC, kAacBytesPerSecond, &aac);
 		if (SUCCEEDED(hr)) hr = writer->AddStream(aac.Get(), &audioStream);
 		if (SUCCEEDED(hr)) hr = AudioType(MFAudioFormat_PCM, kSampleRate * kAudioFrameBytes, &pcm);
@@ -284,7 +288,7 @@ void Encoder::Impl::LogEncoder() {
 	attributes->GetUINT32(MF_TRANSFORM_ASYNC, &async);
 	const std::string narrow = WideToUtf8(name);
 	summary = fmt::format("{}x{} {} by '{}' ({}{}), holding up to {} pictures{}", width, height, width > 4096 || height > 2160 ? "HEVC" : "H.264", narrow, async ? "hardware" : "software",
-		card ? " on " + cardName : std::string(", Windows' choice"), holdLimit, capture ? "" : ", no sound");
+		card ? " on " + cardName : std::string(", Windows' choice"), holdLimit, fed ? ", fast, the sound made by the picture" : capture ? "" : ", no sound");
 	spdlog::info("Video: {}", summary);
 }
 
@@ -294,7 +298,7 @@ Encoder::~Encoder() { End(); }
 
 const std::string& Encoder::Summary() const { return impl_->summary; }
 
-bool Encoder::Begin(const std::wstring& file, unsigned width, unsigned height, unsigned long soundPid) {
+bool Encoder::Begin(const std::wstring& file, unsigned width, unsigned height, unsigned long soundPid, bool fed) {
 	Impl& e = *impl_;
 	// Delay-loaded (CMakeLists.txt): N editions without the Media Feature Pack have neither.
 	if (e.writer || !width || !height || width % 2 || height % 2 || !LoadLibraryW(L"mfplat.dll") || !LoadLibraryW(L"mfreadwrite.dll")) return false;
@@ -302,11 +306,12 @@ bool Encoder::Begin(const std::wstring& file, unsigned width, unsigned height, u
 	if (FAILED(hr)) { spdlog::warn("Video: Media Foundation did not start ({:#x})", static_cast<unsigned>(hr)); return false; }
 	e.width = width; e.height = height; e.lastFrame = -1; e.pictures = e.dropped = 0; e.failed = false;
 	e.summary.clear();
+	e.fed = fed; e.fedWritten = 0;
 	// Six tenths of the address space still free, in pictures; 120 is two seconds, more than any queue needs.
 	MEMORYSTATUSEX memory = {sizeof memory};
 	GlobalMemoryStatusEx(&memory);
 	e.holdLimit = static_cast<long>((std::min)(120ull, memory.ullAvailVirtual * 6 / 10 / (width * height * 3ull / 2)));
-	e.OpenSound(soundPid);
+	if (!fed) e.OpenSound(soundPid);
 	// On the preferred card first; where that card has no encoder for this
 	// picture, the encoder Windows picks by itself, as before.
 	e.card = PreferredCard(e.cardName);
@@ -339,6 +344,9 @@ void Encoder::Frame(const void* luma, int lumaPitch, const void* chroma, int chr
 	if (!e.writer || e.failed) return;
 	ComPtr<IMFTrackedSample> tracked; ComPtr<IMFSample> sample; ComPtr<IMFMediaBuffer> buffer; BYTE* bytes = nullptr;
 	const DWORD size = e.width * e.height * 3 / 2;
+	// Fed, no picture is dropped: the encoder is waited for, at most ten
+	// seconds, and the game waits on this process meanwhile (VideoLink.cxx: Send).
+	for (int waited = 0; e.fed && e.returned->held >= e.holdLimit && waited < 10000; waited++) Sleep(1);
 	if (e.returned->held >= e.holdLimit || FAILED(MFCreateMemoryBuffer(size, &buffer)) || FAILED(MFCreateTrackedSample(&tracked)) || FAILED(tracked.As(&sample)) ||
 		FAILED(buffer->Lock(&bytes, nullptr, nullptr))) { e.dropped++; return; }
 	MFCopyImage(bytes, e.width, static_cast<const BYTE*>(luma), lumaPitch, e.width, e.height);
@@ -349,13 +357,20 @@ void Encoder::Frame(const void* luma, int lumaPitch, const void* chroma, int chr
 	e.returned->held++;
 	tracked->SetAllocator(e.returned.Get(), nullptr);
 	// The real time it was drawn at, so the picture stays with the sound when a frame is missing.
-	at = (std::max)(at - e.start, e.lastFrame + 1);
+	at = (std::max)(e.fed ? at : at - e.start, e.lastFrame + 1);
 	e.lastFrame = at;
 	sample->SetSampleTime(at);
 	sample->SetSampleDuration(10000000 / kFrameRate);
 	const HRESULT hr = e.writer->WriteSample(e.videoStream, sample.Get());
 	if (SUCCEEDED(hr)) e.pictures++;
 	else if (!e.failed) { e.failed = true; spdlog::warn("Video: the encoder stopped taking pictures after {} ({:#x})", e.pictures, static_cast<unsigned>(hr)); }
+}
+
+void Encoder::Sound(const float* stereo, unsigned frames) {
+	Impl& e = *impl_;
+	if (!e.writer || e.failed || !e.fed || !frames) return;
+	if (!e.WriteSound(reinterpret_cast<const BYTE*>(stereo), frames, 1, e.fedWritten) && e.failed)
+		spdlog::warn("Video: the encoder stopped taking sound after {} sample frames", e.fedWritten);
 }
 
 bool Encoder::End() {

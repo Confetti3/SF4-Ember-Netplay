@@ -57,7 +57,7 @@ struct Command {
 	// SavePack: the set matchId's pack from its bridge, into the archive's packs folder.
 	enum class Op : std::uint8_t {
 		None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket, Watch,
-		RankingStanding, RankingChoose, RankingBoard, SavePack,
+		RankingStanding, RankingChoose, RankingBoard, SavePack, LevelsMe,
 	} op = Op::None;
 	std::string bridgeId, matchId;
 	// RoomCreate names and sizes the new room; RoomTicket names the room to join.

@@ -33,7 +33,9 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
         hint("Ember shortcut", loc::T("runtime.open_shortcut"), 12, view.shortcutHintAlpha);
     if (passive && view.matchWaitsForMenu) hint("Ember match waiting", loc::T("runtime.return_menu_to_join"), 44);
     if (passive && !view.matchActive && !view.padHint.empty()) hint("Ember controller", view.padHint.c_str(), 76);
-    if (view.captionShown) DrawExportCaption(view.caption);
+    // An export's caption is in its video whatever is open over it; a watched
+    // replay's names and classes give way to Ember's windows, as the HUD does.
+    if (view.captionShown && (view.exporting || passive)) DrawExportCaption(view.caption);
     // A replay has no GGPO session, so its meter is drawn here, not with the
     // match's below. An export's stays drawn under a window, since it is in
     // the video; the strip and lanes are never drawn over an export.

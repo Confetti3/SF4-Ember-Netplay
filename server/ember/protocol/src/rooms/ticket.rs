@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     EmberId, Error, PublicKey, Result, SigningIdentity,
     encoding::is_prefixed_id,
+    levels::is_card_token,
     play::{VERSION, is_hex},
     sign::{BridgeSigned, Domain, bridge_sign, bridge_verify},
     skill::SkillBadge,
@@ -28,6 +29,13 @@ pub struct RoomTicket {
     /// so a ticket without one is byte for byte what it was before.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub badge: Option<SkillBadge>,
+    /// The joiner's card token (`levels::is_card_token`): the bridge's sealed
+    /// name for their Discord account, which a room shows its members so any
+    /// of them can ask the bridge for that player's card. For a joiner who
+    /// asked (`TicketRequest::card`) and has a Discord account. Written only
+    /// when present, so a ticket without one is byte for byte what it was.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card: Option<String>,
 }
 
 impl RoomTicket {
@@ -45,7 +53,15 @@ impl RoomTicket {
         if let Some((_, field)) = fields.iter().find(|(valid, _)| !valid) {
             return Err(Error::InvalidField(field));
         }
-        self.badge.as_ref().map_or(Ok(()), SkillBadge::check)
+        self.badge.as_ref().map_or(Ok(()), SkillBadge::check)?;
+        if self
+            .card
+            .as_deref()
+            .is_some_and(|token| !is_card_token(token))
+        {
+            return Err(Error::InvalidField("card"));
+        }
+        Ok(())
     }
 
     pub fn sign(&self, key: &SigningIdentity, kid: &str) -> Result<SignedRoomTicket> {
@@ -195,6 +211,50 @@ mod tests {
             assert!(ticket.sign(&bridge, "k1").is_err(), "{ticket:?}");
         }
         assert!(good.sign(&bridge, "k1").is_ok());
+    }
+
+    #[test]
+    fn the_card_token_is_under_the_signature_and_must_be_one() {
+        let bridge = key(9);
+        let id = key(1).ember_id().clone();
+        let token = format!("c1.{}", "A".repeat(76));
+        let carded = RoomTicket {
+            card: Some(token),
+            ..ticket(&id)
+        };
+        let signed = carded.sign(&bridge, "k1").unwrap();
+        let wire = serde_json::to_string(&signed).unwrap();
+        let read: SignedRoomTicket = serde_json::from_str(&wire).unwrap();
+        assert_eq!(read.verify(&bridge.public_key(), "k1").unwrap(), &carded);
+        let mut forged = read.clone();
+        forged.ticket.card = Some(format!("c1.{}", "B".repeat(76)));
+        assert!(forged.verify(&bridge.public_key(), "k1").is_err());
+        let mut stripped = read;
+        stripped.ticket.card = None;
+        assert!(stripped.verify(&bridge.public_key(), "k1").is_err());
+        let too_long = format!("c1.{}", "A".repeat(97));
+        for card in [
+            "",
+            "c1.",
+            "c2.abc",
+            "abc",
+            "c1.has space",
+            "c1.pad==",
+            "c1.a+b",
+            too_long.as_str(),
+        ] {
+            let bad = RoomTicket {
+                card: Some(card.into()),
+                ..ticket(&id)
+            };
+            assert_eq!(bad.check(), Err(Error::InvalidField("card")), "{card}");
+            assert!(bad.sign(&bridge, "k1").is_err(), "{card}");
+        }
+        let longest = RoomTicket {
+            card: Some(format!("c1.{}", "A".repeat(96))),
+            ..ticket(&id)
+        };
+        assert!(longest.check().is_ok());
     }
 
     #[test]

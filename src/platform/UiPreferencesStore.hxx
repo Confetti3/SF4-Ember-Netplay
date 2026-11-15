@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "../common/UpdateChannel.hxx"
+#include "../netplay/Profiles.hxx"
 
 namespace sf4e { namespace platform {
 
@@ -69,6 +70,14 @@ std::vector<AnnouncedMatch> LoadAnnouncedMatches();
 // file stay as they were; on failure the file is left intact.
 bool SaveAnnouncedMatches(const std::vector<AnnouncedMatch>& matches, std::string& error);
 
+// The players this PC fought in public rooms lately, newest first: what Find a player lists as Recent opponents
+// (netplay/Profiles.hxx, RecentList). Kept here on this PC and never sent. What the file holds, or nothing when it is
+// absent or invalid: entries that are malformed are dropped one by one, never the whole list, and at most
+// netplay::profiles::MaxRecent are read. Saving replaces the list, bounded the same way; the language and the rest of the
+// file stay as they were, and on failure the file is left intact.
+std::vector<netplay::profiles::Recent> LoadRecentOpponents();
+bool SaveRecentOpponents(const std::vector<netplay::profiles::Recent>& entries, std::string& error);
+
 namespace testing {
 std::string LoadLanguagePreferenceFrom(const std::wstring& directory);
 bool SaveLanguagePreferenceTo(const std::wstring& directory,
@@ -83,6 +92,8 @@ bool SaveLastUpdateCheckTo(const std::wstring& directory, std::uint64_t time, st
 bool SaveSkippedUpdateTo(const std::wstring& directory, std::string_view tag, std::string& error);
 std::vector<AnnouncedMatch> LoadAnnouncedMatchesFrom(const std::wstring& directory);
 bool SaveAnnouncedMatchesTo(const std::wstring& directory, const std::vector<AnnouncedMatch>& matches, std::string& error);
+std::vector<netplay::profiles::Recent> LoadRecentOpponentsFrom(const std::wstring& directory);
+bool SaveRecentOpponentsTo(const std::wstring& directory, const std::vector<netplay::profiles::Recent>& entries, std::string& error);
 }
 
 } } // namespace sf4e::platform

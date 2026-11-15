@@ -9,10 +9,14 @@
 
 #include "sf4e.hxx"
 #include "sf4e__BackgroundPlay.hxx"
+#include "sf4e__ExportSound.hxx"
+#include "sf4e__ReplayCapture.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Event.hxx"
 #include "sf4e__Game.hxx"
+#include "sf4e__Game__Battle__Hud.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__GameThemes.hxx"
 #include "sf4e__InputLag.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e__Gamepads.hxx"
@@ -243,15 +247,19 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	Pad::Install();
 	Gamepads::Install();
 	BackgroundPlay::Install();
+	exportsound::Install();
+	replaycapture::SetSoundSource({&exportsound::Hold, &exportsound::Render, &exportsound::Release});
 	InputLag::Install();
 	Platform::Install();
 	UserApp::Install();
 	custom::Install();
+	GameThemes::Install();
 }
 
 void sf4e::HooksCommitted() {
 	BackgroundPlay::Activate();
 	InputLag::Activate();
+	Game::Battle::Hud::HooksCommitted();
 }
 
 void fIEmSpriteAction::RecordToAdditionalMemento(rIEmSpriteAction* a, AdditionalMemento& m) {

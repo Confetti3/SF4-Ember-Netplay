@@ -1,7 +1,11 @@
 #include "../platform/ApplicationServices.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../common/sf4e__NetUtil.hxx"
+#include "../common/ReplayImportQueue.hxx"
 #include <windows.h>
+#include <atomic>
+#include <memory>
+#include <optional>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -141,6 +145,144 @@ int main() {
             while(service.Snapshot().pending&&GetTickCount64()<folderDeadline)Sleep(1);
             const auto shown=service.Snapshot();
             CHECK(!shown.pending&&!shown.succeeded&&shown.lastAction==ServiceAction::ShowReplayFile&&!shown.message.empty());
+        }
+        // Import replay's picker runs on a thread of its own: what the player picks is taken
+        // as UTF-8 paths, a cancel as none, and full screen refuses it.
+        {
+            ServiceHooks hooks; std::vector<std::wstring> answer{L"C:\\dl\\a.emberreplay",L"C:\\dl\\p.emberpack"};
+            hooks.pickReplays=[&]{return answer;};
+            ApplicationServices picker(root.wstring(),hooks);
+            CHECK(picker.Snapshot().canPickFiles&&!picker.Snapshot().picking&&picker.Picker().Take().empty());
+            for(int round=1;round<=2;++round){
+                CHECK(picker.Request(ServiceAction::PickReplays));
+                const auto pickDeadline=GetTickCount64()+5000;
+                while(picker.Snapshot().picking&&GetTickCount64()<pickDeadline)Sleep(1);
+                CHECK(!picker.Snapshot().picking&&!picker.Snapshot().pending);
+                const auto picked=picker.Picker().Take();
+                const std::vector<std::string> both{"C:\\dl\\a.emberreplay","C:\\dl\\p.emberpack"};
+                CHECK(round==1?picked==both:picked.empty());
+                CHECK(picker.Picker().Take().empty());
+                answer.clear();
+            }
+            picker.Picker().SetDisplay(nullptr,true);
+            CHECK(!picker.Snapshot().canPickFiles&&!picker.Request(ServiceAction::PickReplays));
+            picker.Picker().SetDisplay(nullptr,false);
+            CHECK(picker.Snapshot().canPickFiles);
+        }
+        // An open picker blocks nothing else: only one is open at a time, but diagnostics (and with
+        // them reports, updates and the rest of the worker) go on, and ending the service does not
+        // wait for the dialog.
+        {
+            auto release=std::make_shared<std::atomic<bool>>(false);
+            ServiceHooks hooks;
+            hooks.pickReplays=[release]{while(!release->load())Sleep(1);return std::vector<std::wstring>{L"C:\\dl\\late.emberreplay"};};
+            const auto started=GetTickCount64();
+            {
+                ApplicationServices picker(root.wstring(),hooks);
+                CHECK(picker.Request(ServiceAction::PickReplays)&&picker.Snapshot().picking);
+                CHECK(!picker.Request(ServiceAction::PickReplays));
+                DiagnosticsView view;
+                CHECK(picker.Request(ServiceAction::ExportDiagnostics,view));
+                const auto openDeadline=GetTickCount64()+5000;
+                while(picker.Snapshot().pending&&GetTickCount64()<openDeadline)Sleep(1);
+                CHECK(!picker.Snapshot().pending&&picker.Snapshot().picking);
+                CHECK(picker.Picker().Take().empty());
+            }
+            // The service ended with the dialog open: it was let go after a short wait, not waited for.
+            CHECK(GetTickCount64()-started<4000);
+            release->store(true);
+            Sleep(20);
+        }
+        // The one queue the picker, a drop and a link share: replay and pack files only, in order, no
+        // more than the most; a batch is reported when its last file is answered, however long that
+        // takes, and files added meanwhile are part of it.
+        {
+            using sf4e::replay_import::Queue;
+            Queue queue;
+            CHECK(queue.Add({"C:\\dl\\notes.txt","C:\\dl\\a.emberreplay","relative.emberreplay","C:\\dl\\p.emberpack"})==2);
+            CHECK(queue.Waiting()==2&&queue.Batches()==1);
+            CHECK(queue.Next()==std::optional<std::string>("C:\\dl\\a.emberreplay"));
+            CHECK(!queue.Answered(3));                       // a pack still waits
+            CHECK(queue.Add({"D:\\x\\d.usf4replay"})==1&&queue.Batches()==1);
+            CHECK(queue.Next()==std::optional<std::string>("C:\\dl\\p.emberpack"));
+            CHECK(!queue.Answered(0));                       // not a whole pack
+            CHECK(queue.Next()==std::optional<std::string>("D:\\x\\d.usf4replay"));
+            const auto batch=queue.Answered(2);
+            CHECK(batch&&batch->files==3&&batch->failed==1&&batch->held==5);
+            CHECK(queue.Waiting()==0&&!queue.Next());
+            CHECK(queue.Add({"C:\\dl\\n.emberreplay"})==1&&queue.Batches()==2);
+            std::vector<std::string> many;
+            for(int i=0;i<100;++i)many.push_back("C:\\dl\\"+std::to_string(i)+".emberreplay");
+            CHECK(queue.Add(many)==sf4e::replay_import::kMostWaiting-1&&queue.Waiting()==sf4e::replay_import::kMostWaiting);
+        }
+        // Files left out are counted, not lost without a word: by the batch they were handed over with, or, when
+        // none of them could join one, as a batch of their own that is reported once and ends.
+        {
+            using sf4e::replay_import::Queue;
+            const std::string unc="\\\\server\\share\\a.emberreplay",extended="\\\\?\\C:\\dl\\b.emberreplay",tooLong="C:\\"+std::string(2000,'d')+".emberreplay";
+            Queue queue;
+            CHECK(queue.Add({"C:\\dl\\notes.zip",unc,extended,tooLong})==0&&queue.Waiting()==0&&queue.Batches()==1&&queue.Finished()==0);
+            CHECK(queue.Add({"C:\\dl\\more.txt"})==0&&queue.Batches()==1);                // still the same unreported batch
+            const auto alone=queue.TakeSkipped();
+            CHECK(alone&&alone->files==0&&alone->skipped==5&&queue.Finished()==1&&!queue.TakeSkipped());
+            CHECK(queue.Add({"C:\\dl\\a.emberreplay","C:\\dl\\b.zip"})==1&&queue.Batches()==2);
+            CHECK(queue.Add({unc})==0&&queue.Batches()==2&&!queue.TakeSkipped());          // joins the batch under way
+            queue.Next();
+            const auto batch=queue.Answered(1);
+            CHECK(batch&&batch->files==1&&batch->skipped==2&&batch->held==1);
+            std::vector<std::string> many;
+            for(int i=0;i<70;++i)many.push_back("C:\\dl\\"+std::to_string(i)+".emberreplay");
+            Queue full;
+            CHECK(full.Add(many)==sf4e::replay_import::kMostWaiting&&full.Waiting()==sf4e::replay_import::kMostWaiting);
+            CHECK(full.Add({"C:\\dl\\late.emberreplay"})==0);
+            std::size_t answered=0;
+            std::optional<sf4e::replay_import::Batch> done;
+            while(full.Next()){done=full.Answered(1);++answered;}
+            CHECK(answered==sf4e::replay_import::kMostWaiting&&done&&done->skipped==70-sf4e::replay_import::kMostWaiting+1);
+            // Step reports the skipped-only batch on a menu, not before.
+            Queue stepped;
+            stepped.Add({"C:\\dl\\x.zip"});
+            const auto never=[](const std::string&){return std::size_t(1);};
+            CHECK(!sf4e::replay_import::Step(stepped,false,true,never)&&stepped.Finished()==0);
+            const auto said=sf4e::replay_import::Step(stepped,true,true,never);
+            CHECK(said&&said->skipped==1&&stepped.Finished()==1);
+        }
+        // Files still waiting when the game closes are kept and come back at the next start; with none waiting
+        // there is no note, and a second start finds nothing.
+        {
+            using sf4e::replay_import::Queue;
+            const auto note=root/"pending-imports.txt";
+            Queue before;
+            before.Add({"C:\\dl\\a.emberreplay","D:\\x\\b.usf4replay"});
+            CHECK(sf4e::replay_import::Keep(note,before.Pending())&&std::filesystem::exists(note));
+            Queue after;
+            CHECK(sf4e::replay_import::Restore(note,after)==2&&!std::filesystem::exists(note));
+            CHECK(after.Pending()==before.Pending()&&after.Waiting()==2);
+            CHECK(sf4e::replay_import::Restore(note,after)==0);
+            CHECK(sf4e::replay_import::Keep(note,{})&&!std::filesystem::exists(note));
+        }
+        // The runtime's import step (Step), as TickReplays calls it: one file a tick, only on Ember's menus
+        // with no room, files waiting otherwise, and the batch reported on the tick its last file is answered.
+        {
+            using sf4e::replay_import::Queue;
+            using sf4e::replay_import::Step;
+            Queue queue;
+            std::vector<std::string> imported;
+            const auto doImport=[&](const std::string& file){imported.push_back(file);return file.find("bad")!=std::string::npos?std::size_t(0):std::size_t(2);};
+            CHECK(!Step(queue,true,true,doImport)&&imported.empty());                  // nothing waits
+            CHECK(queue.Add({"C:\\dl\\a.emberreplay","C:\\dl\\bad.emberreplay","C:\\dl\\c.emberreplay"})==3);
+            CHECK(!Step(queue,false,true,doImport)&&!Step(queue,true,false,doImport)&&!Step(queue,false,false,doImport));
+            CHECK(imported.empty()&&queue.Waiting()==3);                              // in a room or a match they wait
+            CHECK(!Step(queue,true,true,doImport)&&imported.size()==1&&queue.Waiting()==2);   // one file a tick
+            CHECK(!Step(queue,true,true,doImport)&&imported.size()==2);
+            CHECK(!Step(queue,true,false,doImport)&&queue.Waiting()==1);                // a room joined mid-batch holds the rest
+            const auto batch=Step(queue,true,true,doImport);
+            CHECK(batch&&batch->files==3&&batch->failed==1&&batch->held==4&&imported.size()==3&&imported[1]=="C:\\dl\\bad.emberreplay");
+            CHECK(queue.Waiting()==0&&queue.Batches()==1&&queue.Finished()==1);
+            // A one-file batch begins and ends in one tick: both counts have moved by the time anyone looks.
+            CHECK(queue.Add({"C:\\dl\\d.emberreplay"})==1&&queue.Batches()==2&&queue.Finished()==1);
+            const auto single=Step(queue,true,true,doImport);
+            CHECK(single&&single->files==1&&single->failed==0&&single->held==2&&queue.Batches()==2&&queue.Finished()==2);
         }
     }
     RemoveTempRoot(root);

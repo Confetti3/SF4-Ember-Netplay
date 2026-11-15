@@ -18,19 +18,14 @@ pub trait Site: Send + Sync {
     /// The sets the site lists as open. A list read in pages is no snapshot
     /// and can miss a set, so a set's absence proves nothing.
     fn open_sets(&self, purpose: Purpose) -> SiteFuture<'_, Vec<Set>>;
-    /// Every set of the bracket, as the open ones and the rest: what a desk
-    /// event's bracket view shows. `None` from a site that cannot list them
-    /// all, which then shows only the sets seen open.
-    fn whole_sets(&self, _purpose: Purpose) -> SiteFuture<'_, Option<(Vec<Set>, Vec<Set>)>> {
-        Box::pin(async { Ok(None) })
-    }
     /// One set as it is now, or `None` when the site says it does not
     /// exist: the evidence asked for before a match is cancelled or a
     /// result is set aside.
     fn set<'a>(&'a self, id: &'a str, purpose: Purpose) -> SiteFuture<'a, Option<Set>>;
     /// Whether the bracket is over, asked when a read finds no open set.
     fn standing(&self) -> SiteFuture<'_, Standing>;
-    fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()>;
+    /// `match_id`: the Ember match made for this attempt.
+    fn mark_underway<'a>(&'a self, id: &'a str, match_id: &'a str) -> SiteFuture<'a, ()>;
     fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, Reported>;
 
     /// Whether `report` uses each game's winner (`Report::sequence`), which
@@ -51,24 +46,6 @@ pub enum Standing {
 }
 
 /// An account an entry stands for, by which the bridge finds its player.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Account {
-    /// An account on a bridge sign-in site, by the ID that site's lookup
-    /// matches (a Challonge username, a start.gg user ID).
-    Site { site: String, id: String },
-    /// A Discord account the platform shows linked to the entry.
-    Discord { user_id: String },
-}
-
-impl fmt::Display for Account {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Site { site, id } => write!(f, "{site} account {id}"),
-            Self::Discord { user_id } => write!(f, "Discord account {user_id}"),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Set {
     pub id: String,
@@ -91,12 +68,9 @@ pub struct Set {
 /// adapters that fill it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Extras {
-    /// The stage of the event the set is in: a start.gg phase, Challonge's
-    /// group or final stage, an http service's `phase`. Round rules can name
-    /// it, since stages number their rounds afresh.
+    /// The stage of the event the set is in, the service's `phase`. Round
+    /// rules can name it, since stages number their rounds afresh.
     pub phase: Option<Phase>,
-    /// The stream the set is assigned to (start.gg).
-    pub stream: Option<String>,
 }
 
 /// The longest phase name a round rule or an http service's set may give.
@@ -175,9 +149,9 @@ pub struct Entry {
     pub participant_id: String,
     /// The name the site shows for the entry, when it gives one.
     pub name: Option<String>,
-    /// The accounts behind the entry, the one to try first first: its site
-    /// account, then a linked Discord account.
-    pub accounts: Vec<Account>,
+    /// The Discord account the site shows linked to the entry, by user ID:
+    /// its player is found by it.
+    pub discord: Option<String>,
 }
 
 impl Set {
@@ -239,8 +213,6 @@ pub enum SiteError {
     /// stops and the whole tournament waits under the growing wait until
     /// the operator or organizer fixes it.
     Denied(String),
-    /// A scheduled read would go past the site's request budget.
-    BudgetSpent,
 }
 
 impl fmt::Display for SiteError {
@@ -250,7 +222,6 @@ impl fmt::Display for SiteError {
             | Self::Refused(message)
             | Self::Deferred(message)
             | Self::Denied(message) => f.write_str(message),
-            Self::BudgetSpent => f.write_str("this month's request budget is spent"),
         }
     }
 }

@@ -242,6 +242,11 @@ Locale Active() {
     return index < Count ? static_cast<Locale>(index) : Locale::En;
 }
 
+bool SingularCount(unsigned long long count) {
+    const Locale locale = Active();
+    return count == 1 || (count == 0 && (locale == Locale::Fr || locale == Locale::PtBR));
+}
+
 const char* T(const char* id) {
     EnsureCatalogs();
     const auto index = activeIndex.load(std::memory_order_acquire);

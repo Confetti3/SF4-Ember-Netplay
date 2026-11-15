@@ -52,6 +52,10 @@ pub struct Config {
     /// connection they run on. None runs none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub desk: Option<Desk>,
+    /// The tournament service the game's desk talks to (Ember's bracket
+    /// site), named to the game in the capabilities. None runs none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournaments: Option<Tournaments>,
     /// An owner-only file with the secrets of the services this bridge calls
     /// (`integrations::Secrets`). Needed when `discord` or a sign-in site is
     /// set.
@@ -95,6 +99,16 @@ pub struct Desk {
     pub invite_only: bool,
 }
 
+/// The tournament service: it issues `tournament.act` challenges at its own
+/// `origin`, and its `direct` connection asks who signed them
+/// (`routes::lookup::prover`).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Tournaments {
+    pub connection: String,
+    pub origin: String,
+}
+
 /// Pruning of old sets' replays (`routes::replays::prune`).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -125,6 +139,18 @@ pub struct Archive {
     pub public_base: String,
 }
 
+impl Archive {
+    /// The URL the archive lists its games at: the host `public_base` is on,
+    /// before the bucket's name, and `archive::PATH`. None when the base does
+    /// not end in the bucket, which the bridge then cannot place.
+    pub fn listing_url(&self) -> Option<String> {
+        let host = self
+            .public_base
+            .strip_suffix(&format!("/{}", self.bucket))?;
+        Some(format!("{host}{}", ember_protocol::archive::PATH))
+    }
+}
+
 fn default_region() -> String {
     "us-east-1".into()
 }
@@ -150,6 +176,10 @@ pub struct Discord {
     pub api_base: String,
 }
 
+fn friends_on() -> bool {
+    true
+}
+
 fn discord_api() -> String {
     "https://discord.com/api".into()
 }
@@ -165,6 +195,12 @@ pub struct Rooms {
     /// way, so the bands can be calibrated before anyone sees one.
     #[serde(default)]
     pub skill_badges: bool,
+    /// Friends are on: the friends routes, the `friends` capability, the card
+    /// look-up's `friend` selector and a card's `relation`. On by default; an
+    /// operator turns them off with `false`. They also need Discord sign-in,
+    /// since a friend list belongs to a Discord account.
+    #[serde(default = "friends_on")]
+    pub friends: bool,
     /// Discord user IDs of Ember's developers: their badge is the developer
     /// mark in place of a class, and they are not on the ranking board. Their
     /// games are rated as anyone's, so their opponents' ratings stay fair.
@@ -429,6 +465,7 @@ impl Config {
             discord: None,
             sign_in_sites: Vec::new(),
             desk: None,
+            tournaments: None,
             integration_secrets: None,
             rooms: None,
             match_expiry_hours: DEFAULT_MATCH_EXPIRY_HOURS,
@@ -581,6 +618,19 @@ impl Config {
         {
             return Err("desk.connection must name a direct connection".into());
         }
+        if let Some(tournaments) = &self.tournaments {
+            if !self
+                .connection(&tournaments.connection)
+                .is_some_and(|(_, connection)| connection.kind == "direct")
+            {
+                return Err("tournaments.connection must name a direct connection".into());
+            }
+            if check_origin(&tournaments.origin, self.policy()).is_err()
+                || tournaments.origin == self.origin
+            {
+                return Err("tournaments.origin must be another origin".into());
+            }
+        }
         Ok(())
     }
 
@@ -642,6 +692,33 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    /// The capabilities name the archive's listing: beside the bucket on the
+    /// host that serves it, whatever that host is.
+    #[test]
+    fn the_archive_names_where_it_lists_its_games() {
+        let archive = |bucket: &str, public_base: &str| Archive {
+            endpoint: "http://127.0.0.1:9400".into(),
+            bucket: bucket.into(),
+            region: default_region(),
+            access_key: "key".into(),
+            public_base: public_base.into(),
+        };
+        let staging = archive("replays", "https://bridge-staging.example/archive/replays");
+        assert_eq!(
+            staging.listing_url().as_deref(),
+            Some("https://bridge-staging.example/archive/v1/archive")
+        );
+        let own_site = archive("replays-live", "https://archive.example/replays-live");
+        assert_eq!(
+            own_site.listing_url().as_deref(),
+            Some("https://archive.example/v1/archive")
+        );
+        assert_eq!(
+            archive("other", "https://s3.example/replays").listing_url(),
+            None
+        );
+    }
 
     /// Whether a configuration with one connection of `kind` and these extra
     /// settings is accepted.

@@ -37,6 +37,7 @@ src/session/IrohRoomPeers.cxx
 src/session/IrohRoomPublic.cxx
 src/session/IdentityEvents.cxx
 src/session/TournamentAnswers.cxx
+src/session/SocialAnswers.cxx
 
 # [room_model]
 src/session/RoomModel.cxx

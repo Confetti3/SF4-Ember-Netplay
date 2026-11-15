@@ -209,6 +209,7 @@ void SessionServer::JournalEffect(session::Connection client, const json& payloa
 	// game_connect remains a private native transition. Pair capabilities and
 	// connection setup are never replayed from a replicated payload.
 	envelope.privatePayload = !publicReplay || session::ContainsCapabilityField(payload);
+	envelope.chat = type == "room_snapshot" && session::CarriesRoomChat(payload);
 	if (!envelope.privatePayload && retainPublicReplay) envelope.publicPayload = payload;
 	auto& effects = _candidate.effects;
 	if (type == "room_snapshot" || type == "data_update") {

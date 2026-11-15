@@ -281,6 +281,7 @@ int main() {
 			entry.publicPayload = std::string(type) == "room_snapshot"
 				? nlohmann::json{{"type", type}, {"snapshot", snapshot}}
 				: nlohmann::json{{"type", type}, {"matchGeneration", revision}};
+			entry.chat = std::string(type) == "room_snapshot" && sf4e::session::CarriesRoomChat(entry.publicPayload);
 			entry.payloadDigest = sf4e::session::PayloadDigest(entry.publicPayload);
 			journal.push_back(entry);
 		};
@@ -327,6 +328,65 @@ int main() {
 		sf4e::session::CompactEffectJournal(untracked);
 		assert(untracked == journal);
 		for (std::size_t i = 0; i < journal.size(); ++i) assert(untracked[i].publicPayload == journal[i].publicPayload);
+	}
+
+	// What the journal promises a member that is behind (GuaranteedEffectEnvelopes),
+	// in the busiest 16-member room, compacted after every commit as the leader
+	// keeps it: each commit gives every member a snapshot of the whole room and a
+	// data_update, and an action's reply carrying the whole room to one of them;
+	// every tenth commit carries the chat. The newest 208 effects that are not
+	// room state keep their envelopes whatever their size, each member keeps
+	// its newest snapshot, data_update and snapshot with the chat (marked as
+	// such though its copy is shed), and the journal stays inside both budgets.
+	{
+		namespace recovery = sf4e::session;
+		std::vector<EffectEnvelope> journal, replies;
+		std::vector<std::size_t> sizes;
+		std::uint64_t sequence = 0;
+		const auto add = [&](std::uint64_t revision, std::uint64_t recipient, const char* type, nlohmann::json payload) {
+			auto entry = effect;
+			entry.sequence = ++sequence; entry.revision = revision; entry.recipient = recipient; entry.type = type;
+			entry.endpoint.user = "peer-" + std::to_string(recipient);
+			entry.chat = std::string(type) == "room_snapshot" && recovery::CarriesRoomChat(payload);
+			entry.publicPayload = std::move(payload);
+			entry.payloadDigest = recovery::PayloadDigest(entry.publicPayload);
+			if (!recovery::SupersedableProjection(entry)) replies.push_back(entry);
+			sizes.push_back(nlohmann::json(entry).dump().size());
+			journal.push_back(std::move(entry));
+		};
+		const std::uint64_t last = 300, lastChat = 293;
+		for (std::uint64_t revision = 1; revision <= last; ++revision) {
+			add(revision, 1 + revision % 16, "room_result", {{"type", "room_result"}, {"snapshot", std::string(8 * 1024, 'r')}});
+			for (std::uint64_t recipient = 1; recipient <= 16; ++recipient) {
+				nlohmann::json body{{"members", std::string(8 * 1024, 'm')}};
+				if (revision % 10 == 3) body["chat"] = nlohmann::json::array({revision});
+				else body["chat_unchanged"] = true;
+				add(revision, recipient, "room_snapshot", {{"type", "room_snapshot"}, {"snapshot", body}});
+				add(revision, recipient, "data_update", {{"type", "data_update"}, {"revision", revision}});
+			}
+			recovery::CompactEffectJournal(journal, sizes);
+			assert(journal.size() <= recovery::MaxEffectJournalEntries);
+			assert(recovery::EffectJournalBytes(journal) <= recovery::MaxEffectJournalBytes);
+		}
+		const auto kept = [&](const EffectEnvelope& wanted) {
+			return std::find(journal.begin(), journal.end(), wanted) != journal.end();
+		};
+		assert(recovery::GuaranteedEffectEnvelopes == 208 && replies.size() == last);
+		for (std::size_t i = replies.size() - recovery::GuaranteedEffectEnvelopes; i < replies.size(); ++i) assert(kept(replies[i]));
+		for (std::uint64_t recipient = 1; recipient <= 16; ++recipient) {
+			const auto newest = [&](const char* type, std::uint64_t revision) {
+				return std::any_of(journal.begin(), journal.end(), [&](const EffectEnvelope& entry) {
+					return entry.recipient == recipient && entry.type == type && entry.revision == revision;
+				});
+			};
+			assert(newest("room_snapshot", last) && newest("data_update", last));
+			assert(std::any_of(journal.begin(), journal.end(), [&](const EffectEnvelope& entry) {
+				return entry.recipient == recipient && entry.revision == lastChat && recovery::ChatBearingSnapshot(entry);
+			}));
+		}
+		// The chat mark is part of the journal, not of an effect's identity.
+		auto marked = effect; marked.chat = true;
+		assert(nlohmann::json(marked).get<EffectEnvelope>().chat && marked == effect);
 	}
 
 	// The CNG digest is the standard SHA-256, as is the portable reference: the

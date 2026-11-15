@@ -1,7 +1,8 @@
-//! A fake organizer service answering the `http` adapter's contract
-//! (ADAPTERS.md) under `/svc`: it checks the token and the contract
-//! version, keeps its sets in memory and logs each request. Knobs make it
-//! fail the way a real service behind a proxy can.
+//! A fake bracket service answering the `http` adapter's contract
+//! (ADAPTERS.md) under `/tournaments/<TOURNAMENT>/ember`, as the bracket
+//! site does: it checks the token and the contract version, keeps its sets
+//! in memory, moves winners on to the sets they feed, and logs each
+//! request. Knobs make it fail the way a real service behind a proxy can.
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::{Arc, Mutex},
@@ -15,6 +16,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde_json::{Value, json};
+
+use super::TOURNAMENT;
 
 pub const SERVICE_TOKEN: &str = "test-service-token";
 
@@ -45,6 +48,9 @@ pub struct ServiceState {
     /// Sets left out of lists and answered with a bare 404, as a route the
     /// service no longer mounts would be.
     pub hidden: HashSet<String>,
+    /// Sets left out of lists only, as a list cached for a moment would
+    /// leave out a set read on its own.
+    pub unlisted: HashSet<String>,
     /// Reports are recorded without changing the sets read, as a service
     /// whose reads are cached for a while would answer.
     pub stale_reads: bool,
@@ -58,12 +64,121 @@ pub struct ServiceState {
     pub fail_reports: VecDeque<StatusCode>,
     /// Reports and `/underway` are answered `200` with a text body.
     pub text_answers: bool,
+    /// What `/standing` answers; without it, a bare 404, as a service
+    /// without the route answers.
+    pub standing: Option<&'static str>,
+}
+
+/// Player `n`'s Discord account, which their entry names.
+pub fn discord(n: u8) -> String {
+    format!("2742203425587561{n:02}")
+}
+
+/// Player `n`'s entry: `player<n>`, by their Discord account.
+pub fn entry(n: u8) -> Value {
+    json!({ "id": format!("player{n}"), "accounts": [{ "discord": discord(n) }] })
+}
+
+/// An open set between players `a` and `b`.
+pub fn open(id: &str, round: i32, [a, b]: [u8; 2]) -> Value {
+    json!({ "id": id, "round": round, "status": "open", "entries": [entry(a), entry(b)] })
+}
+
+/// A pending set whose entries are the winners of the sets `from`.
+// ponytail: `fed_by` is the fake's own bookkeeping; the connector ignores it.
+pub fn fed_by(id: &str, round: i32, from: [&str; 2]) -> Value {
+    json!({ "id": id, "round": round, "status": "pending", "fed_by": from })
+}
+
+impl ServiceState {
+    fn index(&self, id: &str) -> usize {
+        self.sets.iter().position(|set| set["id"] == id).unwrap()
+    }
+
+    /// Opens each pending set whose two feeding sets are decided, with
+    /// their winners.
+    fn advance(&mut self) {
+        let winner = |sets: &[Value], id: &Value| {
+            let set = sets.iter().find(|set| set["id"] == *id)?;
+            let winner = set["winner"].as_str()?;
+            set["entries"]
+                .as_array()?
+                .iter()
+                .find(|entry| entry["id"] == winner)
+                .cloned()
+        };
+        for index in 0..self.sets.len() {
+            let set = &self.sets[index];
+            if set["status"] != "pending" || !set["fed_by"].is_array() {
+                continue;
+            }
+            if let (Some(a), Some(b)) = (
+                winner(&self.sets, &set["fed_by"][0]),
+                winner(&self.sets, &set["fed_by"][1]),
+            ) {
+                self.sets[index]["entries"] = json!([a, b]);
+                self.sets[index]["status"] = json!("open");
+            }
+        }
+    }
+
+    /// The organizer decides a set by hand for the entry in `slot`.
+    pub fn decide(&mut self, id: &str, slot: usize) {
+        let index = self.index(id);
+        let set = &mut self.sets[index];
+        set["winner"] = set["entries"][slot]["id"].clone();
+        set["status"] = json!("decided");
+        self.advance();
+    }
+
+    /// The organizer reopens a set to correct it: open again with no
+    /// winner, and every set after it that it fed pending again, without
+    /// entries. Their reports are forgotten.
+    pub fn reopen(&mut self, id: &str) {
+        let set = self.set(id).as_object_mut().unwrap();
+        set.insert("status".into(), json!("open"));
+        set.remove("winner");
+        set.remove("underway");
+        let mut reset = vec![json!(id)];
+        let mut index = 0;
+        while let Some(fed) = reset.get(index).cloned() {
+            index += 1;
+            for set in &mut self.sets {
+                if set["fed_by"]
+                    .as_array()
+                    .is_some_and(|from| from.contains(&fed))
+                {
+                    let set = set.as_object_mut().unwrap();
+                    set.insert("status".into(), json!("pending"));
+                    for field in ["entries", "winner", "underway"] {
+                        set.remove(field);
+                    }
+                    reset.push(set["id"].clone());
+                }
+            }
+        }
+        self.reports
+            .retain(|report| !reset.contains(&json!(report.set)));
+    }
+
+    /// Set `id` as the service now has it.
+    pub fn set(&mut self, id: &str) -> &mut Value {
+        let index = self.index(id);
+        &mut self.sets[index]
+    }
 }
 
 pub struct FakeService {
+    /// Where it listens, as a desk service's base URL names it.
+    pub origin: String,
     /// The base URL the connector is given.
     pub base: String,
     pub state: Arc<Mutex<ServiceState>>,
+}
+
+/// Where the service answers, as the bracket site serves a tournament.
+fn prefix() -> String {
+    format!("/tournaments/{TOURNAMENT}/ember")
 }
 
 fn json_answer(body: Value) -> Response {
@@ -108,13 +223,13 @@ async fn handle(
     let mut state = state.lock().unwrap();
     state.log.push(Logged {
         method: method.clone(),
-        path: uri.to_string(),
+        path: uri.to_string().trim_start_matches(&prefix()).to_owned(),
         body: body.clone(),
     });
     if let Some(status) = state.fail_next.pop_front() {
         return status.into_response();
     }
-    let path = uri.path().trim_start_matches("/svc");
+    let path = uri.path().trim_start_matches(&prefix());
     let parts: Vec<&str> = path.trim_start_matches('/').split('/').collect();
     if let [_, id, ..] = parts.as_slice()
         && state.hidden.contains(*id)
@@ -131,9 +246,8 @@ async fn handle(
                 .iter()
                 .filter(|set| set["status"] == "open")
                 .filter(|set| {
-                    !state
-                        .hidden
-                        .contains(set["id"].as_str().unwrap_or_default())
+                    let id = set["id"].as_str().unwrap_or_default();
+                    !state.hidden.contains(id) && !state.unlisted.contains(id)
                 })
                 .cloned()
                 .collect();
@@ -188,6 +302,7 @@ async fn handle(
             if !state.stale_reads {
                 state.sets[index]["status"] = json!("decided");
                 state.sets[index]["winner"] = recorded.body["winner"].clone();
+                state.advance();
             }
             state.reports.push(recorded);
             if std::mem::take(&mut state.lose_report_answer) {
@@ -195,7 +310,9 @@ async fn handle(
             }
             written(&state)
         }
-        // `/standing` is optional; this service has none.
+        (Method::GET, ["standing"]) if state.standing.is_some() => {
+            json_answer(json!({ "standing": state.standing }))
+        }
         _ => StatusCode::NOT_FOUND.into_response(),
     }
 }
@@ -207,8 +324,13 @@ impl FakeService {
             ..ServiceState::default()
         }));
         let app = Router::new().fallback(handle).with_state(state.clone());
-        let base = format!("{}/svc", super::serve(app).await);
-        Self { base, state }
+        let origin = super::serve(app).await;
+        let base = format!("{origin}{}", prefix());
+        Self {
+            origin,
+            base,
+            state,
+        }
     }
 
     /// `METHOD path` of each request since the last call.

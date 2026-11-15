@@ -276,7 +276,6 @@ msgstr "K dispozici je aktualizace: {0}"
 msgid "services.go_back_available"
 msgstr "Je možné se vrátit k verzi {0}"
 
-
 msgid "services.up_to_date"
 msgstr "Máte aktuální verzi."
 
@@ -346,6 +345,24 @@ msgstr "Skryto"
 msgid "settings.country.current"
 msgstr "Aktuální"
 
+msgid "settings.place"
+msgstr "Země a oblast"
+
+msgid "settings.area"
+msgstr "Oblast"
+
+msgid "settings.area_detail"
+msgstr "Odkud hrajete. Zobrazí ji vaše karta hráče a veřejné místnosti, které vytvoříte, a seznam veřejných místností označuje místnosti poblíž. Automaticky se řídí časovým pásmem nastaveným ve Windows. Vlevo a Vpravo ji mění."
+
+msgid "settings.area.automatic_value"
+msgstr "Automaticky ({0}, z Windows)"
+
+msgid "settings.area.automatic_none"
+msgstr "Automaticky (nenastaveno)"
+
+msgid "settings.area.hidden"
+msgstr "Skryta"
+
 msgid "country.search"
 msgstr "Hledat"
 
@@ -372,6 +389,42 @@ msgstr "Žádná země neodpovídá"
 
 msgid "country.none_detail"
 msgstr "Změňte hledání, abyste viděli více zemí."
+
+msgid "area.naw"
+msgstr "NA Západ"
+
+msgid "area.nac"
+msgstr "NA Střed"
+
+msgid "area.nae"
+msgstr "NA Východ"
+
+msgid "area.cam"
+msgstr "Střední Amerika a Karibik"
+
+msgid "area.sam"
+msgstr "Jižní Amerika"
+
+msgid "area.euw"
+msgstr "Západní Evropa"
+
+msgid "area.eue"
+msgstr "Východní Evropa"
+
+msgid "area.mea"
+msgstr "Blízký východ a Afrika"
+
+msgid "area.sas"
+msgstr "Jižní Asie"
+
+msgid "area.eas"
+msgstr "Východní Asie"
+
+msgid "area.sea"
+msgstr "Jihovýchodní Asie"
+
+msgid "area.oce"
+msgstr "Oceánie"
 
 msgid "settings.language.system_with"
 msgstr "Automaticky: {0}"
@@ -426,6 +479,9 @@ msgstr "Vložit"
 
 msgid "menu.adjust"
 msgstr "Upravit"
+
+msgid "menu.change"
+msgstr "Změnit"
 
 msgid "speech.position"
 msgstr "{0} z {1}"
@@ -545,13 +601,13 @@ msgid "connection.relayed_advice"
 msgstr "Spojení přes server znamená, že se vaše sítě nedokázaly spojit přímo, a data zápasu proto přenáší zprostředkující server. Zápasy fungují dál; použijte doporučené zpoždění. O přímé spojení se může pokusit kterýkoli hráč zapnutím UPnP na routeru, přesměrováním portu UDP 45760 na svůj počítač nebo vypnutím VPN."
 
 msgid "connection.route_relayed_via"
-msgstr "Přes server ({0})"
+msgstr "Přes {0}"
 
 msgid "connection.direct_checking"
 msgstr "Stále se kontroluje, zda vaše síť umožňuje přímá spojení."
 
 msgid "connection.blocked_local_no_udp"
-msgstr "Pravděpodobná příčina: vaše síť blokuje UDP."
+msgstr "Pravděpodobná příčina: Windows Firewall nebo vaše síť blokuje UDP. V Zabezpečení Windows > Brána firewall a ochrana sítě > Povolit aplikaci prostřednictvím brány firewall povolte sf4-net.exe (Soukromé i Veřejné)."
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "Pravděpodobná příčina: síť hráče {0} blokuje UDP."
@@ -571,32 +627,35 @@ msgstr "Zkontrolovat spojení znovu"
 msgid "network.relay"
 msgstr "Server"
 
+msgid "network.relay_chip"
+msgstr "Server: {0}"
+
 msgid "network.relay_detail"
 msgstr "Zprostředkující server, který hře pomáhá najít ostatní hráče. Data zápasu přes něj jdou jen tehdy, když přímé spojení není možné."
 
 msgid "network.relay_connected"
-msgstr "{0} (připojeno)"
+msgstr "{0} · připojeno"
 
 msgid "network.relay_connecting"
-msgstr "{0} (připojování)"
+msgstr "{0} · připojování"
 
 msgid "network.relay_none"
 msgstr "Nepřipojeno"
 
-msgid "network.region_use1"
-msgstr "USA východ"
+msgid "network.relay_use1"
+msgstr "Ember USA (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "USA západ"
+msgid "network.relay_usw1"
+msgstr "n0 USA západ"
 
-msgid "network.region_euc1"
-msgstr "Evropa"
+msgid "network.relay_euc1"
+msgstr "Ember Evropa"
 
-msgid "network.region_aps1"
-msgstr "Asie a Tichomoří"
+msgid "network.relay_aps1"
+msgstr "n0 Asie"
 
-msgid "network.region_other"
-msgstr "Jiná oblast"
+msgid "network.relay_other"
+msgstr "Jiný server"
 
 msgid "network.status"
 msgstr "Síť"
@@ -617,7 +676,7 @@ msgid "network.nat_detail_strict"
 msgstr "Váš router používá striktní NAT, proto přímá spojení často selhávají a zápasy mohou jít přes server."
 
 msgid "network.nat_detail_no_udp"
-msgstr "Vaše síť zřejmě blokuje UDP, proto přímá spojení selžou a zápasy mohou jít přes server. Příčinou může být firewall nebo VPN."
+msgstr "Vaše síť zřejmě blokuje UDP, proto přímá spojení selžou a zápasy mohou jít přes server. Nejčastěji za to může Windows Firewall, když jste při prvním spuštění přeskočili jeho dotaz nebo je síť nastavená jako veřejná. V Zabezpečení Windows > Brána firewall a ochrana sítě > Povolit aplikaci prostřednictvím brány firewall povolte sf4-net.exe (Soukromé i Veřejné). UDP může blokovat i VPN."
 
 msgid "network.nat_detail_checking"
 msgstr "Kontrola vaší sítě. Po spuštění hry to trvá několik sekund."
@@ -697,6 +756,12 @@ msgstr "Hra online"
 msgid "home.online_detail"
 msgstr "Vytvořte místnost, připojte se k nějaké, procházejte veřejné místnosti nebo si nastavte Ember ID pro turnaje."
 
+msgid "home.friends"
+msgstr "Přátelé"
+
+msgid "home.friends_detail"
+msgstr "Připojte se k přátelům, odpovězte na žádosti a přidejte nové přátele."
+
 msgid "home.return_room"
 msgstr "Vrátit se do aktuální místnosti."
 
@@ -725,7 +790,7 @@ msgid "home.profile"
 msgstr "Profil"
 
 msgid "home.profile_detail"
-msgstr "Vaše jméno, hlavní postava a místní potvrzená bilance online."
+msgstr "Vaše karta, bojovníci, přátelé a ocenění."
 
 msgid "home.settings"
 msgstr "Nastavení"
@@ -931,9 +996,6 @@ msgstr "Opustí nabídku Emberu a otevře Battle Log hry, kde se přehrávají z
 msgid "replays.open_log_room"
 msgstr "Nejdřív opusťte místnost."
 
-
-
-
 msgid "replays.set_value"
 msgstr "{0} záznamů · {1} místností"
 
@@ -971,10 +1033,40 @@ msgid "replays.next_video_detail"
 msgstr "Připraví video této hry: zkontroluj popisek a pak Vytvořit video."
 
 msgid "replays.link_import"
-msgstr "Importovat set"
+msgstr "Importovat"
 
 msgid "replays.link_import_detail"
-msgstr "Přidá všechny hry z tohoto balíčku setu do Záznamů."
+msgstr "Přidá do Záznamů záznam nebo všechny hry z balíčku setu."
+
+msgid "replays.import"
+msgstr "Importovat záznam"
+
+msgid "replays.import_detail"
+msgstr "Vyberte uložené záznamy nebo balíčky setů, třeba ze Stažených souborů. Výběr souborů vyžaduje myš nebo klávesnici. Soubory můžete také přetáhnout do okna hry."
+
+msgid "replays.import_fullscreen"
+msgstr "Výběr souborů nelze otevřít přes celou obrazovku. Přepněte hru do okna nebo na Borderless a zkuste to znovu."
+
+msgid "replays.import_title"
+msgstr "Importovat záznamy"
+
+msgid "replays.import_filter"
+msgstr "Záznamy a balíčky setů"
+
+msgid "services.picking_replays"
+msgstr "Vyberte soubory v okně, které se otevřelo..."
+
+msgid "replays.import_some_failed"
+msgstr "{0} z {1} souborů se nepodařilo importovat."
+
+msgid "replays.import_skipped"
+msgstr "Přeskočeno souborů: {0}. Ember importuje soubory .emberreplay, .usf4replay a .emberpack z místního disku, nejvýše 64 najednou."
+
+msgid "replays.import_done"
+msgstr "Souborů: {1}. V Záznamech je teď her: {0}."
+
+msgid "replays.import_waiting"
+msgstr "Soubory k importu: {0}. Naimportují se, jakmile bude vpředu menu Emberu."
 
 msgid "replays.set_pack_working"
 msgstr "Ukládám balíček setu..."
@@ -988,11 +1080,8 @@ msgstr "Balíček setu se nepodařilo uložit. Služba možná ještě nemá jeh
 msgid "replays.set_pack_unavailable"
 msgstr "Balíček setu teď nejde uložit. Ember potřebuje spojení se službou setu."
 
-msgid "replays.set_imported"
-msgstr "{0} her setu je v Záznamech."
-
 msgid "replays.set_import_failed"
-msgstr "Tento soubor není celý balíček setu, nic se neimportovalo."
+msgstr "Tento soubor není celý záznam ani balíček setu, nic se neimportovalo."
 
 msgid "settings.training_auto_ready"
 msgstr "Připravit mě při výzvě z Tréninku"
@@ -1034,7 +1123,7 @@ msgid "profile.player_name"
 msgstr "Jméno hráče"
 
 msgid "profile.main_character"
-msgstr "Hlavní postava"
+msgstr "Hlavní bojovník"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Zobrazuje se na kartě hráče bez ohledu na výběr pro zápas."
@@ -1068,6 +1157,735 @@ msgstr "Vybráním uložíte hlavní postavu a upravíte kartu hráče."
 
 msgid "profile.leave_room_to_edit"
 msgstr "Pro úpravu profilu opusťte místnost."
+
+msgid "profile.eyebrow"
+msgstr "Profil · {0}"
+
+msgid "profile.tab.card"
+msgstr "Karta"
+
+msgid "profile.tab.fighters"
+msgstr "Bojovníci"
+
+msgid "profile.tab.sets"
+msgstr "Sety"
+
+msgid "profile.tab.friends"
+msgstr "Přátelé"
+
+msgid "friends.tab_count"
+msgstr "Přátelé · {0}"
+
+msgid "friends.home_online"
+msgstr "Online: {0}"
+
+msgid "friends.home_request_one"
+msgstr "1 žádost"
+
+msgid "friends.home_requests"
+msgstr "Žádosti: {0}"
+
+msgid "profile.view_sets"
+msgstr "Zobrazit sety"
+
+msgid "profile.card_of"
+msgstr "Karta hráče: {0}"
+
+msgid "profile.this_player"
+msgstr "tohoto hráče"
+
+msgid "profile.reading"
+msgstr "Načítání karty hráče {0}…"
+
+msgid "profile.reading_button"
+msgstr "Načítání"
+
+msgid "profile.no_card"
+msgstr "Hráč {0} nemá kartu, kterou by šlo ukázat."
+
+msgid "profile.sets_by_name"
+msgstr "Sety se dál vypisují podle jména."
+
+msgid "profile.blocked"
+msgstr "Zablokovali jste hráče {0}. Odblokujte ho, abyste viděli jeho kartu."
+
+msgid "profile.nobody"
+msgstr "Žádný hráč na Emberu se teď nejmenuje {0}."
+
+msgid "profile.unreachable"
+msgstr "Ember se nepodařilo kontaktovat. Zkuste to za chvíli znovu."
+
+msgid "profile.unsupported"
+msgstr "Tato služba nenabízí profily."
+
+msgid "profile.try_again"
+msgstr "Zkusit znovu"
+
+msgid "profile.pick_title"
+msgstr "Hráči se jménem {0}"
+
+msgid "profile.pick_screen"
+msgstr "Hráči"
+
+msgid "profile.in_this_room"
+msgstr "V této místnosti"
+
+msgid "profile.request_sent_detail"
+msgstr "Zrušíte ji v Přátelé, Odeslané."
+
+msgid "profile.sets_note"
+msgstr "Sety se hledají podle jména {0}: zobrazí se tu i každý, kdo ho používal, a dřívější jména ne."
+
+msgid "profile.sets_player"
+msgstr "Hráč"
+
+msgid "profile.sets_player_detail"
+msgstr "Sety patří k tomuto jménu. Zůstává, i když seznam zužujete."
+
+msgid "profile.sets_opponent"
+msgstr "Soupeř"
+
+msgid "profile.sets_opponent_detail"
+msgstr "Vypíše sety proti hráči, jehož jméno obsahuje tato písmena."
+
+msgid "friends.requests_heading"
+msgstr "ŽÁDOSTI · {0}"
+
+msgid "friends.in_room"
+msgstr "V MÍSTNOSTI · {0}"
+
+msgid "friends.online"
+msgstr "ONLINE · {0}"
+
+msgid "friends.offline"
+msgstr "OFFLINE · {0}"
+
+msgid "friends.playing_table"
+msgstr "Hraje u stolu {0} · {1}"
+
+msgid "friends.watching_table"
+msgstr "Sleduje stůl {0} · {1}"
+
+msgid "friends.waiting_room"
+msgstr "V {0}"
+
+msgid "friends.training_room"
+msgstr "V tréninku · {0}"
+
+msgid "friends.private_room"
+msgstr "V soukromé místnosti"
+
+msgid "friends.menus"
+msgstr "V nabídkách"
+
+msgid "friends.offline_play"
+msgstr "Hraje offline"
+
+msgid "friends.playing_game"
+msgstr "Hraje {0}"
+
+msgid "friends.room_game"
+msgstr "V místnosti · {0}"
+
+msgid "friends.another_game"
+msgstr "Hraje jinou hru"
+
+msgid "friends.last_online"
+msgstr "Naposledy online {0}"
+
+msgid "friends.hours_ago"
+msgstr "před {0} h"
+
+msgid "friends.days_ago"
+msgstr "před {0} d"
+
+msgid "friends.join"
+msgstr "Připojit se"
+
+msgid "friends.join_room"
+msgstr "Připojit se k místnosti"
+
+msgid "friends.watch"
+msgstr "Sledovat"
+
+msgid "friends.invite"
+msgstr "Pozvat"
+
+msgid "friends.invite_room"
+msgstr "Pozvat do mé místnosti"
+
+msgid "friends.more"
+msgstr "Více"
+
+msgid "friends.open"
+msgstr "Otevřít"
+
+msgid "friends.change"
+msgstr "Změnit"
+
+msgid "friends.accept"
+msgstr "Přijmout"
+
+msgid "friends.decline"
+msgstr "Odmítnout"
+
+msgid "friends.decline_block"
+msgstr "Odmítnout a zablokovat"
+
+msgid "friends.remove"
+msgstr "Odebrat přítele"
+
+msgid "friends.remove_block"
+msgstr "Odebrat a zablokovat"
+
+msgid "friends.unblock"
+msgstr "Odblokovat"
+
+msgid "friends.cancel_request"
+msgstr "Zrušit žádost"
+
+msgid "friends.are_friends"
+msgstr "Přátelé"
+
+msgid "friends.played_you"
+msgstr "Společně {0} her, naposledy {1}"
+
+msgid "friends.not_played"
+msgstr "Ještě jste spolu nehráli."
+
+msgid "friends.record"
+msgstr "Vy a {0}"
+
+msgid "friends.last_played"
+msgstr "Naposledy hráno"
+
+msgid "friends.since"
+msgstr "Přátelé od"
+
+msgid "friends.your_code"
+msgstr "Váš kód {0}"
+
+msgid "friends.code"
+msgstr "Kód přítele"
+
+msgid "friends.code_detail"
+msgstr "Dejte tento kód hráči, aby si vás mohl přidat."
+
+msgid "friends.new_code"
+msgstr "Nový kód"
+
+msgid "friends.new_code_detail"
+msgstr "Starý kód přestane fungovat. Jeden nový kód denně."
+
+msgid "friends.send"
+msgstr "Odeslat žádost"
+
+msgid "friends.send_detail"
+msgstr "Odešle žádost o přátelství na tento kód."
+
+msgid "find.title"
+msgstr "Najít hráče"
+
+msgid "find.text_row"
+msgstr "Jméno nebo kód přítele"
+
+msgid "find.text_detail"
+msgstr "Alespoň dvě písmena jména, nebo kód přítele."
+
+msgid "find.search"
+msgstr "Hledat"
+
+msgid "find.players"
+msgstr "HRÁČI · {0}"
+
+msgid "find.searching"
+msgstr "Hledání…"
+
+msgid "find.none"
+msgstr "Žádný hráč se tak nejmenuje."
+
+msgid "find.more"
+msgstr "Vyhovuje víc hráčů. Zadejte víc z jména."
+
+msgid "find.recent"
+msgstr "NEDÁVNÍ SOUPEŘI"
+
+msgid "find.recent_line"
+msgstr "Hráno {0} · {1}"
+
+msgid "find.recent_when"
+msgstr "Hráno {0}"
+
+msgid "find.recent_empty"
+msgstr "Hráči, které potkáte ve veřejných místnostech, se tu zobrazují týden."
+
+msgid "friends.sent"
+msgstr "Odeslané · {0}"
+
+msgid "friends.sent_ago"
+msgstr "Odesláno {0}"
+
+msgid "friends.blocked"
+msgstr "Blokovaní · {0}"
+
+msgid "friends.appear_offline"
+msgstr "Zobrazovat se offline"
+
+msgid "friends.appear_offline_detail"
+msgstr "Přátelé vás vidí offline. Vy je stále vidíte a stále můžete zvát."
+
+msgid "friends.appearing_offline"
+msgstr "Zobrazujete se offline"
+
+msgid "friends.invite_reveals"
+msgstr "Vaše pozvánka ukáže tomuto příteli, kde jste."
+
+msgid "friends.unreachable"
+msgstr "Službu se nepodařilo zastihnout. Přátelé se zobrazí, až odpoví."
+
+msgid "friends.not_updated"
+msgstr "Neaktualizováno"
+
+msgid "friends.loading"
+msgstr "Načítání vašich přátel."
+
+msgid "friends.empty"
+msgstr "Přidávejte přátele z veřejné místnosti: otevřete kartu hráče člena. Nebo mu pošlete svůj kód přítele."
+
+msgid "friends.request_sent_to"
+msgstr "Žádost odeslána hráči {0}."
+
+msgid "friends.now_friends"
+msgstr "Ty a {0} jste teď přátelé."
+
+msgid "friends.blocked_name"
+msgstr "Hráč {0} je zablokovaný."
+
+msgid "friends.invite_sent"
+msgstr "Pozvánka odeslána hráči {0}."
+
+msgid "friends.visit_title"
+msgstr "ZA PŘÍTELEM"
+
+msgid "friends.visit_stay"
+msgstr "Zůstat tady"
+
+msgid "friends.visit_stay_detail"
+msgstr "Nechodit. Vaše místnost nebo hra zůstane, jak je."
+
+msgid "friends.visit_join"
+msgstr "Odejít a připojit se k {0}"
+
+msgid "friends.visit_watch"
+msgstr "Odejít a sledovat {0}"
+
+msgid "friends.visit_detail"
+msgstr "Vaše současná místnost nebo hra skončí, když odejdete."
+
+msgid "card.edit"
+msgstr "Upravit kartu"
+
+msgid "card.account"
+msgstr "Účet"
+
+msgid "card.top_fighters"
+msgstr "NEJLEPŠÍ BOJOVNÍCI"
+
+msgid "card.choose_main"
+msgstr "Vybrat hlavního"
+
+msgid "card.edit_detail"
+msgstr "Vaše jméno, vlajka, hlavní, titul, ocenění a styl hry."
+
+msgid "card.title_row"
+msgstr "Titul"
+
+msgid "card.icon_row"
+msgstr "Ikona"
+
+msgid "card.none"
+msgstr "Žádný"
+
+msgid "card.award_detail"
+msgstr "Otevře Ocenění. Vyberte tam získané ocenění, abyste ho nosili."
+
+msgid "card.how_heading"
+msgstr "JAK HRAJETE"
+
+msgid "card.pins_row"
+msgstr "Ocenění na kartě"
+
+msgid "card.pins_auto"
+msgstr "Nejvyšší"
+
+msgid "card.pins_chosen"
+msgstr "Vybráno: {0}"
+
+msgid "card.pins_detail"
+msgstr "Až čtyři ocenění na vaší kartě, každé na úrovni, kterou jste dosáhli. Možnost Ukázat moje nejvyšší vybere ta nejtěžší."
+
+msgid "card.pins_auto_row"
+msgstr "Ukázat moje nejvyšší"
+
+msgid "card.pins_auto_detail"
+msgstr "Karta ukazuje ocenění získaná na nejvyšších úrovních. Vypněte, abyste si až čtyři vybrali sami."
+
+msgid "card.pins_full"
+msgstr "Nejvýš čtyři. Nejdřív jedno sundejte."
+
+msgid "card.pins_nothing"
+msgstr "Dosažená ocenění se tu objeví k výběru. Zatím žádná nemáte."
+
+msgid "card.automatic"
+msgstr "Automaticky"
+
+msgid "card.device_row"
+msgstr "Zařízení"
+
+msgid "card.device_auto"
+msgstr "{0} · automaticky"
+
+msgid "card.device_detail"
+msgstr "Na čem hrajete, zobrazeno na kartě. Automaticky se řídí používaným ovladačem."
+
+msgid "card.link_row"
+msgstr "Připojení"
+
+msgid "card.link_detail"
+msgstr "Kabelové nebo Wi-Fi, jak ho měří Ember. Můžete ho skrýt."
+
+msgid "card.area_detail"
+msgstr "Odkud hrajete, stejná volba jako v Nastavení. Skryta ji nechá mimo vaši kartu a mimo místnosti, které vytvoříte."
+
+msgid "card.shown"
+msgstr "{0} · zobrazeno"
+
+msgid "card.unknown_shown"
+msgstr "Zatím neznámé · zobrazeno"
+
+msgid "card.hidden"
+msgstr "Skryto"
+
+msgid "card.looking_detail"
+msgstr "Až dvě, zobrazená na kartě."
+
+msgid "card.looking_full"
+msgstr "Nejvýš dvě. Nejdřív jedno vypněte."
+
+msgid "points.label"
+msgstr "FP"
+
+msgid "points.account_label"
+msgstr "BP"
+
+msgid "level.value"
+msgstr "Body: {0}"
+
+msgid "level.games"
+msgstr "Zápasů: {0}"
+
+msgid "level.game_one"
+msgstr "Zápasů: {0}"
+
+msgid "friends.unknown_code"
+msgstr "Žádný hráč nemá tento kód přítele."
+
+msgid "friends.full"
+msgstr "Seznam přátel je plný."
+
+msgid "friends.request_limit"
+msgstr "Na dnes jste už odeslali dost žádostí."
+
+msgid "friends.card_expired"
+msgstr "Tato karta vypršela. Zkuste to znovu z místnosti."
+
+msgid "friends.own_card"
+msgstr "To je vaše vlastní karta."
+
+msgid "friends.code_too_soon"
+msgstr "Nový kód můžete vytvořit jednou denně."
+
+msgid "friends.invite_unavailable"
+msgstr "Tohoto přítele teď nelze pozvat."
+
+msgid "friends.blocks_full"
+msgstr "Váš seznam blokovaných je plný."
+
+msgid "friends.failed"
+msgstr "Se službou přátel se nepodařilo spojit. Zkuste to později."
+
+msgid "friends.no_account"
+msgstr "Přátelé vyžadují účet Discord."
+
+msgid "friends.unavailable"
+msgstr "Tato služba zatím přátele nenabízí."
+
+msgid "friends.off"
+msgstr "Přátelé jsou vypnuti."
+
+msgid "friends.cannot_join"
+msgstr "Do této místnosti se teď nelze připojit."
+
+msgid "friends.join_unavailable"
+msgstr "K této místnosti se teď nelze připojit."
+
+msgid "friends.cannot_watch"
+msgstr "Tento přítel není ve hře, kterou lze sledovat."
+
+msgid "friends.visit_in_room"
+msgstr "Vstoupili jste do místnosti, ale nedostali jste se k jejich stolu."
+
+msgid "friends.private_invite_only"
+msgstr "Do soukromé místnosti se vstupuje jen pozvánkou."
+
+msgid "friends.invite_gone"
+msgstr "Tato pozvánka už skončila."
+
+msgid "friends.nothing_to_offer"
+msgstr "Vaši místnost teď nelze nabídnout."
+
+msgid "friends.busy"
+msgstr "Počkejte, až skončí předchozí požadavek."
+
+msgid "friends.accept_member"
+msgstr "Přijmout přítele"
+
+msgid "friends.add_member"
+msgstr "Přidat přítele"
+
+msgid "friends.request_sent"
+msgstr "Žádost odeslána"
+
+msgid "friends.blocked_member"
+msgstr "Zablokován"
+
+msgid "friends.blocked_member_detail"
+msgstr "Odblokujete ho v Profil, Přátelé, Blokovaní."
+
+msgid "friends.block"
+msgstr "Zablokovat"
+
+msgid "friends.block_detail"
+msgstr "Ukončí jakékoli přátelství nebo žádost mezi vámi. Vrátíte to v Profil, Přátelé, Blokovaní."
+
+msgid "friends.toast_request"
+msgstr "{0} se s tebou chce přátelit"
+
+msgid "friends.toast_invite"
+msgstr "{0} tě zve do místnosti"
+
+msgid "friends.later"
+msgstr "Později"
+
+msgid "friends.view"
+msgstr "Zobrazit"
+
+msgid "friends.dismiss"
+msgstr "Zavřít"
+
+msgid "friends.turn_off"
+msgstr "Vypnout přátele"
+
+msgid "friends.turn_on"
+msgstr "Zapnout přátele"
+
+msgid "friends.turn_on_detail"
+msgstr "Znovu zapne přátele s novým kódem přítele."
+
+msgid "friends.turned_on"
+msgstr "Přátelé jsou zapnuti."
+
+msgid "friends.turn_off_detail"
+msgstr "Odstraní tvé přátele a žádosti a zruší tvůj kód přítele. Tvé blokace zůstanou."
+
+msgid "room.member_card"
+msgstr "Karta hráče"
+
+msgid "level.points_to"
+msgstr "Do {1} zbývá bodů: {0}"
+
+msgid "level.top"
+msgstr "Nejvyšší rám"
+
+msgid "level.no_account"
+msgstr "Připojte Discord a získávejte body."
+
+msgid "level.unavailable"
+msgstr "Tato služba zatím body nepočítá."
+
+msgid "level.loading"
+msgstr "Načítání vašich bodů."
+
+msgid "level.loading_other"
+msgstr "Načítání bodů tohoto hráče."
+
+msgid "level.none"
+msgstr "Odehrajte veřejný hodnocený zápas a začněte získávat body."
+
+msgid "level.not_played"
+msgstr "Zatím nehráno"
+
+msgid "level.unreachable"
+msgstr "Službu se nepodařilo zastihnout. Vaše body se zobrazí, až odpoví."
+
+msgid "level.unreachable_other"
+msgstr "Ember se nepodařilo zastihnout. Body hráče se zobrazí, až bude zpět."
+
+msgid "card.counted_games"
+msgstr "Hodnocené zápasy"
+
+msgid "card.win_rate"
+msgstr "Podíl výher"
+
+msgid "card.fighters_played"
+msgstr "Hraní bojovníci"
+
+msgid "card.of"
+msgstr "{0} z {1}"
+
+msgid "card.about"
+msgstr "{0} · Na Emberu od {1}"
+
+msgid "card.since"
+msgstr "Na Emberu od {0}"
+
+msgid "card.wins"
+msgstr "Výhry"
+
+msgid "card.best_streak"
+msgstr "Nejlepší série"
+
+msgid "card.record_line"
+msgstr "Hodnocené zápasy: {0} · výhry: {1} · nejlepší série: {2}"
+
+msgid "card.tier_to"
+msgstr "{0} · do {2} zbývá bodů: {1}"
+
+msgid "card.tier_top"
+msgstr "{0} · Nejvyšší rám"
+
+msgid "card.awards"
+msgstr "OCENĚNÍ"
+
+msgid "card.no_awards"
+msgstr "Zatím žádná ocenění. První přijde s prvním hodnoceným zápasem."
+
+msgid "card.most_played"
+msgstr "NEJČASTĚJI HRÁNO"
+
+msgid "card.most_played_line"
+msgstr "{0} – {1} · her: {2}"
+
+msgid "card.most_played_none"
+msgstr "Nejčastější soupeř se tu objeví po prvním hodnoceném zápase."
+
+msgid "card.recent_sets"
+msgstr "POSLEDNÍ SETY"
+
+msgid "card.all_sets"
+msgstr "Všechny sety"
+
+msgid "card.set_vs"
+msgstr "vs {0}"
+
+msgid "card.set_online"
+msgstr "Online"
+
+msgid "card.sets_loading"
+msgstr "Načítání setů…"
+
+msgid "card.sets_none"
+msgstr "Pod tímto jménem zatím nejsou archivované sety."
+
+msgid "card.sets_unavailable"
+msgstr "Tato služba sety neuchovává."
+
+msgid "card.sets_unreachable"
+msgstr "Archiv není dostupný. Sety se zobrazí, až odpoví."
+
+msgid "card.you_and"
+msgstr "Vzájemné zápasy"
+
+msgid "card.relation"
+msgstr "Přátelé"
+
+msgid "card.since_date"
+msgstr "Od {0}"
+
+msgid "card.not_friends"
+msgstr "Nejste přátelé"
+
+msgid "card.they_asked"
+msgstr "Poslal vám žádost"
+
+msgid "card.plays"
+msgstr "Hraje na"
+
+msgid "card.playing"
+msgstr "HRAJE"
+
+msgid "card.looking_row"
+msgstr "Hledá"
+
+msgid "style.pad"
+msgstr "Gamepad"
+
+msgid "style.stick"
+msgstr "Stick"
+
+msgid "style.leverless"
+msgstr "Leverless"
+
+msgid "style.keyboard"
+msgstr "Klávesnice"
+
+msgid "style.wired"
+msgstr "Kabel"
+
+msgid "style.wifi"
+msgstr "Wi-Fi"
+
+msgid "style.casuals"
+msgstr "Pohodové hry"
+
+msgid "style.long_sets"
+msgstr "Dlouhé sety"
+
+msgid "style.ranked"
+msgstr "Hodnocené zápasy"
+
+msgid "style.practice"
+msgstr "Turnajový trénink"
+
+msgid "style.new"
+msgstr "Nováček"
+
+msgid "style.teach"
+msgstr "Ochota učit"
+
+msgid "fighters.how"
+msgstr "Jak se body získávají"
+
+msgid "fighters.how_detail"
+msgstr "Každý veřejný hodnocený zápas s bojovníkem přidá 1 bod, ať výhra, nebo prohra. Výhra přidá další 1 bod, když je třída vašeho soupeře stejná jako vaše nebo vyšší, nebo když jeden z vás ještě nemá třídu. Body nikdy neklesají. Barva rámu se mění, jak body rostou. Po osmi zápasech proti stejnému hráči během jedné seance se další zápasy nepočítají."
+
+msgid "fighters.won"
+msgstr "Výhry"
+
+msgid "fighters.since"
+msgstr "Od"
+
+msgid "fighters.main"
+msgstr "Hlavní"
+
+msgid "fighters.played_heading"
+msgstr "ODEHRANÉ · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "ZATÍM NEHRANÉ · {0}"
+
+msgid "fighters.your_main"
+msgstr "Váš hlavní"
 
 msgid "online.title"
 msgstr "HRA ONLINE"
@@ -1195,8 +2013,6 @@ msgstr "Bez okraje"
 msgid "player.borderless_detail"
 msgstr "Hra vyplní obrazovku v okně bez rámečku, vykreslená v nativním rozlišení obrazovky v poměru 16:9, s černými pruhy na širší nebo vyšší obrazovce. Když je zapnuto, Alt+Enter ani vlastní volby rozlišení a celé obrazovky ve hře nic nedělají; hra si tam vaši volbu ponechá na dobu, kdy bude vypnuto. Týká se jen tohoto PC. Změny se projeví při dalším spuštění hry."
 
-
-
 msgid "size.small"
 msgstr "Malé"
 
@@ -1311,6 +2127,9 @@ msgstr "Po zavření menu Ember na pár sekund ukáže F10 nebo Start, abyste v�
 msgid "settings.interface_size"
 msgstr "Velikost rozhraní"
 
+msgid "settings.interface_size_detail"
+msgstr "Nad 1.00x se text lépe čte na televizi. Pod 1.00x se na monitor vejde víc, ale s menším textem."
+
 msgid "discord.show_activity"
 msgstr "Zobrazit aktivitu"
 
@@ -1323,11 +2142,23 @@ msgstr "Pozvánky zpřístupní vaši místnost dalším lidem."
 msgid "discord.enable_first"
 msgstr "Nejprve zapněte aktivitu na Discord."
 
-msgid "discord.tournament_account"
-msgstr "Turnajový účet"
+msgid "discord.account"
+msgstr "Účet Discord"
 
-msgid "discord.tournament_account_detail"
-msgstr "Účet Discord, který zná váš turnajový web, například BluMint. Může se lišit od účtu v aplikaci Discord. Vyberte pro připojení nebo změnu."
+msgid "discord.account_none"
+msgstr "Nepřipojeno"
+
+msgid "discord.account_linked"
+msgstr "Připojeno · {0}"
+
+msgid "discord.account_detail"
+msgstr "Připojte účet Discord pro hodnocené zápasy, body, přátele a sdílené záznamy. Používají ho i turnajové weby jako BluMint. Může to být jiný účet než v aplikaci Discord."
+
+msgid "discord.account_linked_detail"
+msgstr "Účet Discord připojený k vašemu Ember ID. Využívají ho hodnocené zápasy, body, přátelé, sdílené záznamy a turnajové weby jako BluMint. Může se lišit od účtu v aplikaci Discord. Výběrem účet změníte nebo odpojíte."
+
+msgid "discord.server"
+msgstr "Server Discord Emberu"
 
 msgid "discord.invitation_title"
 msgstr "POZVÁNKA DISCORD"
@@ -1660,7 +2491,7 @@ msgid "training.reply"
 msgstr "Odpověď figuríny"
 
 msgid "training.reply.detail"
-msgstr "Co figurína udělá sama, jakmile je znovu volná, aby potrestala přerušené kombo nebo riskantní zakončení: přehraje Údery odpovědi, nebo pozici odpovědi, když je ten řádek prázdný. Odpověď čeká, dokud běží přehrávání nebo nahrávání."
+msgstr "Co figurína dělá sama od sebe, jakmile je zase volná, aby potrestala pokažené kombo nebo nebezpečné zakončení: zahraje jednu ze zapnutých pozic odpovědi, nebo zapnuté nahrávky, dokud není zapnutá žádná pozice."
 
 msgid "training.reply.hit"
 msgstr "Po přerušeném kombu"
@@ -1673,9 +2504,6 @@ msgstr "Při vstávání"
 
 msgid "training.reply.any"
 msgstr "Vždy po zotavení"
-
-msgid "training.reply.recordings"
-msgstr "Nahrávky"
 
 msgid "training.reply.no_recordings_on"
 msgstr "Žádná zapnutá nahrávka se nehodí jako odpověď"
@@ -1696,22 +2524,49 @@ msgid "training.reply.moves"
 msgstr "Údery odpovědi"
 
 msgid "training.reply.moves.detail"
-msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Fungují i slova pro pohyby: qcf, qcb, dp, rdp, hcf a hcb, například qcfP nebo dp+HP. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. [1] drží směr do dalšího pohybu, [1]20f ho drží 20 snímků a 10f čeká: [1] > 3HP blokuje dole, dokud figurína není volná, pak stiskne 3HP. Prázdné pole odpoví zapnutou nahrávkou."
-
-msgid "training.reply.move"
-msgstr "Předvolba odpovědi"
-
-msgid "training.reply.move.detail"
-msgstr "Vlevo a vpravo vyberou běžnou odpověď v numpad zápisu, čtenou pro stranu, kam figurína hledí. Nahrávky odpovídají zapnutou nahrávkou; Vlastní ponechá napsané údery. Vybrat otevře Údery odpovědi k napsání."
-
-msgid "training.reply.custom"
-msgstr "Vlastní"
+msgstr "Úder této pozice v numpadové notaci, třeba 623HP nebo 44, čtený pro stranu, kam figurína hledí. Fungují i slova pohybů: qcf, qcb, dp, rdp, hcf a hcb. [HP] drží tlačítko, ]HP[ ho pustí v prvním volném snímku, [1]20f drží směr 20 snímků a 10f čeká. Prázdné úder odebere."
 
 msgid "training.reply.timing"
 msgstr "Načasování odpovědi"
 
 msgid "training.reply.timing.detail"
 msgstr "Počet snímků po prvním volném snímku figuríny, na který padne tlačítko odpovědi. Délka omráčení se zjistí napoprvé; do té doby odpověď začne, když omráčení skončí."
+
+msgid "training.reply.order"
+msgstr "Pořadí odpovědí"
+
+msgid "training.reply.order.detail"
+msgstr "Jak figurína vybírá ze zapnutých pozic: náhodně, každou pozici podle její váhy, nebo postupně, jednu po druhé."
+
+msgid "training.reply.slot"
+msgstr "Pozice odpovědi {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Jeden úder, kterým může figurína odpovědět. Vlevo a Vpravo ho zapnou nebo vypnou; Vybrat otevře jeho údery."
+
+msgid "training.reply.slot_on"
+msgstr "Používat tuto pozici"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Zda figurína smí pro svou odpověď vybrat tuto pozici."
+
+msgid "training.reply.weight"
+msgstr "Váha"
+
+msgid "training.reply.weight.detail"
+msgstr "Podíl této pozice v náhodném výběru vedle ostatních, 1 až 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Vyprázdnit tuto pozici"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Odebere úder této pozice."
+
+msgid "training.reply.every_fighter"
+msgstr "Každý bojovník"
+
+msgid "training.reply.charge"
+msgstr "Nabití"
 
 msgid "training.key.reset"
 msgstr "Klávesa obnovení"
@@ -1742,6 +2597,18 @@ msgstr "Counter hit"
 
 msgid "training.dummy.quick"
 msgstr "Rychlé vstávání"
+
+msgid "training.dummy.stun"
+msgstr "Stun"
+
+msgid "training.dummy.stun_normal"
+msgstr "Normal"
+
+msgid "training.dummy.stun_constant"
+msgstr "Constant"
+
+msgid "training.dummy.stun_none"
+msgstr "None"
 
 msgid "training.dummy.super"
 msgstr "Super lišta"
@@ -1929,6 +2796,9 @@ msgstr "Aktivní"
 msgid "training.meter.recovery"
 msgstr "Zotavení"
 
+msgid "training.meter.total"
+msgstr "Celkem"
+
 msgid "training.meter.hit"
 msgstr "Zásah"
 
@@ -2069,6 +2939,9 @@ msgstr "Legenda, značky a lem"
 
 msgid "training.meter.classic_slant"
 msgstr "Šikmé buňky"
+
+msgid "training.meter.classic_p2"
+msgstr "Zobrazit čísla P2"
 
 msgid "training.meter.hud_part.detail"
 msgstr "Zobrazí tuto část tréninkového HUD během souboje. F5 skryje celý HUD."
@@ -2350,7 +3223,10 @@ msgid "runtime.room_request_failed"
 msgstr "Požadavek místnosti selhal. Opusťte místnost a zkuste to znovu."
 
 msgid "runtime.build_mismatch"
-msgstr "Neshodují se verze. Oba hráči musí mít stejný balíček SF4 Ember Netplay."
+msgstr "Váš Ember a tato místnost mají různé verze. Zeptejte se hostitele, jakou verzi používá, a pak aktualizujte nebo změňte kanál aktualizací v Nápověda > Hledat aktualizace, aby se shodovaly."
+
+msgid "runtime.build_mismatch_update"
+msgstr "Váš Ember je zastaralý, a proto se do této místnosti nemůže připojit. Aktualizujte v Nápověda > Hledat aktualizace a pak se připojte znovu."
 
 msgid "runtime.room_full"
 msgstr "Místnost je plná."
@@ -2366,6 +3242,7 @@ msgstr "Výběr podle těchto pravidel není dostupný. Ve Výběru postavy zvol
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay  /  F10 nebo Start"
+
 msgid "runtime.return_menu_to_join"
 msgstr "Vraťte se do hlavní nabídky a připojte se k zápasu."
 
@@ -2435,6 +3312,9 @@ msgstr "Návrat do místnosti."
 msgid "runtime.table_game_cancelled"
 msgstr "Zápas u tohoto stolu byl zrušen. Vraťte se do místnosti a znovu potvrďte Připraven."
 
+msgid "runtime.match_start_timeout"
+msgstr "Zápas se do minuty nespustil, a proto byl zrušen pro oba hráče. V místnosti znovu potvrďte Připraven."
+
 msgid "runtime.practice_ended"
 msgstr "Trénink skončil. Vraťte se do místnosti a znovu potvrďte Připraven."
 
@@ -2467,8 +3347,6 @@ msgstr "Tato verze není ta, která byla nabídnuta. Zkontrolujte aktualizace zn
 
 msgid "update.close_sf4"
 msgstr "Před instalací aktualizace zavřete Ultra Street Fighter IV."
-msgid "update.elevated"
-msgstr "Ember běží jako správce. Zavřete ho a spusťte normálně, aby šly instalovat aktualizace."
 
 msgid "update.install_dir_failed"
 msgstr "Nepodařilo se zjistit instalační složku."
@@ -2670,6 +3548,7 @@ msgstr "{0} / HOSTITEL"
 
 msgid "room.member_status"
 msgstr "{0}"
+
 msgid "room.member.watcher"
 msgstr "Divák"
 
@@ -2720,12 +3599,16 @@ msgstr "{0} vyhrál(a) hru u stolu {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} vyhrál(a) set u stolu {1} ({2})"
+
 msgid "chat.event.set_won_against"
 msgstr "{0} vyhrál(a) set proti {1} ({2})"
+
 msgid "chat.typing.one"
 msgstr "{0} píše..."
+
 msgid "chat.typing.two"
 msgstr "{0} a {1} píšou..."
+
 msgid "chat.typing.many"
 msgstr "Několik lidí píše..."
 
@@ -2785,39 +3668,6 @@ msgstr "Předchozí zápas se stále uzavírá. Místnost bude možné nahradit 
 
 msgid "room.updating"
 msgstr "Úprava místnosti..."
-
-msgid "room.table_name"
-msgstr "Název stolu"
-
-msgid "room.table_name.detail"
-msgstr "Zobrazí se na kartě stolu za číslem, třeba Začátečníci. Prázdné ukáže jen číslo."
-
-msgid "room.template"
-msgstr "Šablona"
-
-msgid "room.template.none"
-msgstr "Žádná"
-
-msgid "room.template.detail"
-msgstr "Uložená místnost. Nastaví řádky níže a po otevření místnosti pravidla a název každého stolu. Vlevo a Vpravo vybírají."
-
-msgid "room.template.delete"
-msgstr "Smazat šablonu"
-
-msgid "room.template.delete.detail"
-msgstr "Smaže šablonu {0} z tohoto PC."
-
-msgid "room.template.full"
-msgstr "Máš {0} šablon. Nejdřív jednu smaž v Vytvořit místnost."
-
-msgid "room.template.saved"
-msgstr "Uloženo jako šablona {0}."
-
-msgid "room.save_template"
-msgstr "Uložit jako šablonu"
-
-msgid "room.save_template.detail"
-msgstr "Uloží nastavení této místnosti a pravidla a název každého stolu na tomto PC pro Vytvořit místnost > Šablona. Stejný název ji přepíše."
 
 msgid "room.fighter_not_shared"
 msgstr "Postava zatím neznámá"
@@ -2893,6 +3743,39 @@ msgstr "Otevírá se náhradní místnost. Zvolte Kopírovat pozvánku a pošlet
 
 msgid "room.action_rejected"
 msgstr "Místnost se změnila nebo akci odmítla. Zkontrolujte aktuální stav a zkuste to znovu."
+
+msgid "room.table_name"
+msgstr "Název stolu"
+
+msgid "room.table_name.detail"
+msgstr "Zobrazí se na kartě stolu za číslem, třeba Začátečníci. Prázdné ukáže jen číslo."
+
+msgid "room.template"
+msgstr "Šablona"
+
+msgid "room.template.none"
+msgstr "Žádná"
+
+msgid "room.template.detail"
+msgstr "Uložená místnost. Nastaví řádky níže a po otevření místnosti pravidla a název každého stolu. Vlevo a Vpravo vybírají."
+
+msgid "room.template.delete"
+msgstr "Smazat šablonu"
+
+msgid "room.template.delete.detail"
+msgstr "Smaže šablonu {0} z tohoto PC."
+
+msgid "room.template.full"
+msgstr "Máš {0} šablon. Nejdřív jednu smaž v Vytvořit místnost."
+
+msgid "room.template.saved"
+msgstr "Uloženo jako šablona {0}."
+
+msgid "room.save_template"
+msgstr "Uložit jako šablonu"
+
+msgid "room.save_template.detail"
+msgstr "Uloží nastavení této místnosti a pravidla a název každého stolu na tomto PC pro Vytvořit místnost > Šablona. Stejný název ji přepíše."
 
 msgid "room.leave_current_table"
 msgstr "Nejprve opusťte svůj stůl."
@@ -3001,6 +3884,7 @@ msgstr "Zvolené zpoždění je pro tento zápas uzamčeno."
 
 msgid "room.match_delay.at_least"
 msgstr "Min. zpoždění: {0} sn."
+
 msgid "room.match_delay.at_least_one"
 msgstr "Min. zpoždění: {0} sn."
 
@@ -3042,6 +3926,7 @@ msgstr "Čeká se na dokončení aktuálního zápasu nebo změny výběru."
 
 msgid "room.change_fighter.detail"
 msgstr "Vyberte postavu, pak její Ultra. Vraťte se sem a potvrďte Připraven."
+
 msgid "room.appearance.detail"
 msgstr "Šipky vlevo a vpravo zde mění barvu. Výběr zvolí kostým a pak jeho barvu."
 
@@ -3098,9 +3983,6 @@ msgstr "Do fronty"
 
 msgid "room.stop_watching"
 msgstr "Přestat sledovat"
-
-
-
 
 msgid "room.stop_watching.detail"
 msgstr "Přestane sledovat tento stůl a vrátí vás do místnosti. Hráči hrají dál."
@@ -3213,9 +4095,6 @@ msgstr "Změny se projeví až po potvrzení."
 msgid "room.rules.host_only"
 msgstr "Pravidla stolu může měnit jen hostitel."
 
-msgid "room.rules.tournament"
-msgstr "Pravidla u tohoto stolu určuje turnaj."
-
 msgid "room.apply_rules"
 msgstr "Použít pravidla"
 
@@ -3288,6 +4167,21 @@ msgstr "Hráči na Wi-Fi se mohou připojit, dívat se a chatovat, ale nemohou o
 msgid "room.wired_only.settings_detail"
 msgstr "Platí od dalšího obsazeného místa. Nikdo, kdo teď sedí, o místo nepřijde."
 
+msgid "room.privacy"
+msgstr "Soukromí"
+
+msgid "room.privacy.friends"
+msgstr "Přátelé"
+
+msgid "room.privacy.hidden"
+msgstr "Skryto"
+
+msgid "room.privacy.detail"
+msgstr "Přátelé: přátelé kohokoli v místnosti ji vidí a mohou se připojit, dokud je otevřená. Skryto: vidí jen, že jste v soukromé místnosti, a připojují se s pozvánkou."
+
+msgid "room.privacy.settings_detail"
+msgstr "Hráči, kteří se už připojili, se mohou vrátit se svou pozvánkou. Nastavte Vstup na Uzamčeno, aby se nikdo nemohl připojit."
+
 msgid "room.apply_name"
 msgstr "Použít název"
 
@@ -3299,12 +4193,19 @@ msgstr "Použít kapacitu"
 
 msgid "room.apply_capacity.detail"
 msgstr "Odeslat tuto kapacitu."
+
 msgid "room.tables"
 msgstr "Stoly"
+
 msgid "room.tables_detail"
 msgstr "Kolik stolů místnost má, od 1 do {0}. Hostitel to může později změnit v Nastavení místnosti."
+
+msgid "room.tables_arcade_detail"
+msgstr "Kolik dvojic hraje najednou, od 1 do {0}. Ostatní čekají ve frontě. Při 1 vítěz zůstává a poražený jde na konec fronty."
+
 msgid "room.tables.detail"
 msgstr "Stoly lze přidat až do počtu {0}. Stůl lze odebrat, jen když u něj nikdo nehraje, nečeká ani nesleduje."
+
 msgid "room.apply_tables"
 msgstr "Použít stoly"
 
@@ -3617,6 +4518,9 @@ msgstr "Síť není dostupná. Hraní offline je dostupné."
 msgid "runtime.room_join_failed"
 msgstr "K místnosti se nepodařilo připojit. Zkontrolujte pozvánku a zda mají oba hráči stejný balíček SF4 Ember Netplay."
 
+msgid "room.rules.tournament"
+msgstr "Pravidla u tohoto stolu určuje turnaj."
+
 msgid "runtime.invite_expired"
 msgstr "Platnost této pozvánky vypršela. Požádejte hostitele, ať zkopíruje novou."
 
@@ -3624,7 +4528,7 @@ msgid "runtime.invite_own_room"
 msgstr "Tato pozvánka vede zpět na vaši vlastní hru: byla zkopírována dřív, než jste místnost opustili. Požádejte hostitele, ať pozvánku zkopíruje znovu."
 
 msgid "runtime.invite_other_build"
-msgstr "Hostitel používá jiný balíček SF4 Ember Netplay. Oba hráči potřebují stejnou verzi."
+msgstr "Hostitel používá jinou verzi Emberu. Zeptejte se, jakou, a pak aktualizujte nebo změňte kanál aktualizací v Nápověda > Hledat aktualizace, aby se shodovaly."
 
 msgid "runtime.invite_malformed"
 msgstr "Text pozvánky je neúplný. Zkopírujte ji znovu a vložte celou pozvánku."
@@ -3641,11 +4545,11 @@ msgstr "Místnost se nepodařilo vytvořit. Zkontrolujte připojení k internetu
 msgid "runtime.relay_unreachable"
 msgstr "K zprostředkujícímu serveru se nepodařilo připojit. Zkontrolujte internet, firewall nebo VPN a zkuste to znovu."
 
-msgid "runtime.relay_unreachable_region"
-msgstr "K zprostředkujícímu serveru ({0}) se nepodařilo připojit. Zkontrolujte internet, firewall nebo VPN a zkuste to znovu."
+msgid "runtime.relay_unreachable_named"
+msgstr "K zprostředkujícímu serveru {0} se nepodařilo připojit. Zkontrolujte internet, firewall nebo VPN a zkuste to znovu."
 
 msgid "runtime.host_unreachable"
-msgstr "Hostitele se nepodařilo zastihnout, ani přímo, ani přes zprostředkující server. Místnost se mohla zavřít, nebo může překážet firewall či VPN."
+msgstr "Hostitele se nepodařilo zastihnout, ani přímo, ani přes zprostředkující server. Místnost se mohla zavřít. Pokud je otevřená, nejčastěji za to může Windows Firewall: v Zabezpečení Windows > Brána firewall a ochrana sítě > Povolit aplikaci prostřednictvím brány firewall povolte sf4-net.exe (Soukromé i Veřejné). Překážet může i VPN."
 
 msgid "runtime.join_control_lost"
 msgstr "K hostiteli se podařilo připojit, ale spojení se neustále přerušovalo. Zkontrolujte připojení k internetu a zkuste to znovu."
@@ -3968,81 +4872,17 @@ msgstr "Použít jiný účet Discord"
 msgid "connect.change_detail"
 msgstr "Otevře Discord ve vašem prohlížeči a připojí místo toho jiný účet. Váš turnajový web pak musí používat tento účet."
 
-msgid "site.title"
-msgstr "Připojit {0}"
-
-msgid "site.row_detail"
-msgstr "Připojte svůj účet {0}, aby vaše Ember ID našly turnaje na {0}."
-
-msgid "site.go_detail"
-msgstr "Po připojení {0} mohou turnaje na {0} najít vaše Ember ID. Ember otevře {0} ve vašem prohlížeči: tam schvalte účet, který používá váš turnaj."
-
-msgid "site.setting_up_detail"
-msgstr "Ember otevírá {0} ve vašem prohlížeči."
-
-msgid "site.waiting"
-msgstr "Schvalte to v prohlížeči. Tato obrazovka se aktualizuje, jakmile bude {0} připojen."
-
-msgid "site.waiting_label"
-msgstr "Čekání na {0}"
-
-msgid "site.waiting_detail"
-msgstr "Schvalte v prohlížeči pomocí účtu {0}, který používá váš turnaj. Tato obrazovka se aktualizuje sama."
-
-msgid "site.connected"
-msgstr "{0} připojen"
-
-msgid "site.connected_detail"
-msgstr "Turnaje na {0} vás nyní podle tohoto účtu najdou."
-
-msgid "site.change"
-msgstr "Použít jiný účet {0}"
-
-msgid "site.change_detail"
-msgstr "Otevře {0} ve vašem prohlížeči a připojí místo toho jiný účet. Váš turnaj pak musí používat tento účet."
-
-msgid "site.remove_detail"
-msgstr "Odpojí tento účet {0} od vašeho Ember ID v této službě. Turnaje na {0} vás podle něj už nenajdou."
-
-msgid "site.organizer"
-msgstr "Přístup organizátora"
-
-
-msgid "site.organizer_held"
-msgstr "Povoleno"
-
-
-msgid "site.organizer_opened"
-msgstr "Povolte přístup organizátora v prohlížeči. Tato obrazovka se obnoví sama."
-
-msgid "site.organizer_now"
-msgstr "Přístup organizátora povolen. Turnajový stůl je v Ember ID."
-
-
-
 msgid "screen.tournament_desk"
 msgstr "Pořádání turnajů"
 
 msgid "desk.entry_detail"
-msgstr "Přístup pořadatele, webový desk a tvé události."
-
-msgid "desk.event_detail"
-msgstr "Na {0}. Vyber pro zobrazení setů."
-
-msgid "desk.status.draft"
-msgstr "Koncept"
-
-msgid "desk.status.ready"
-msgstr "Připraveno"
-
-msgid "desk.status.running"
-msgstr "Probíhá"
+msgstr "Tvé turnaje na webu pavouka Emberu."
 
 msgid "desk.none"
 msgstr "Zatím žádné události"
 
 msgid "desk.none_detail"
-msgstr "Vytvoř a spusť své události na webu turnajového stolu; objeví se tady, jakmile poběží."
+msgstr "Vyber Nový turnaj a vytvoř ho; od té doby se ukazuje tady."
 
 msgid "desk.view"
 msgstr "Zobrazení"
@@ -4061,12 +4901,6 @@ msgstr "Zobrazit"
 
 msgid "desk.filter.all"
 msgstr "Vše"
-
-msgid "desk.filter.winners"
-msgstr "Vítězové"
-
-msgid "desk.filter.losers"
-msgstr "Poražení"
 
 msgid "desk.filter.action"
 msgstr "Potřebuje tebe"
@@ -4089,35 +4923,17 @@ msgstr "Čeká"
 msgid "desk.state.not_ready"
 msgstr "Nepřipraveno"
 
-msgid "desk.state.called"
-msgstr "Vyvolán"
-
 msgid "desk.state.playing"
 msgstr "Hraje se"
 
 msgid "desk.state.needs_review"
 msgstr "Ke kontrole"
 
-msgid "desk.state.needs_organizer"
-msgstr "Potřebuje tebe"
-
-msgid "desk.state.reporting"
-msgstr "Odesílá se výsledek"
-
 msgid "desk.state.done"
 msgstr "Hotovo"
 
 msgid "desk.state.held"
 msgstr "Pozastaven"
-
-msgid "desk.side.winners"
-msgstr "Vítězové"
-
-msgid "desk.side.losers"
-msgstr "Poražení"
-
-msgid "desk.side.grand_final"
-msgstr "Velké finále"
 
 msgid "desk.tbd"
 msgstr "Bude upřesněno"
@@ -4136,21 +4952,6 @@ msgstr "Tento set už do události nepatří"
 
 msgid "desk.state"
 msgstr "Stav"
-
-msgid "desk.called"
-msgstr "Vyvolán."
-
-msgid "desk.called_posted"
-msgstr "Vyvolán a zveřejněn na Discordu."
-
-msgid "desk.called_waiting"
-msgstr "Vyvolán; příspěvek na Discordu je na cestě."
-
-msgid "desk.called_failed"
-msgstr "Vyvolán, ale Discord příspěvek nepřijal."
-
-msgid "desk.not_called"
-msgstr "Zatím nevyvolán."
 
 msgid "desk.call"
 msgstr "Vyvolat znovu"
@@ -4197,91 +4998,14 @@ msgstr "Zaznamená hru odehranou mimo Ember, například odvetu, na které se ob
 msgid "desk.done"
 msgstr "Hotovo."
 
-msgid "desk.web"
-msgstr "Přihlášeno na webu"
-
-msgid "desk.web_none"
-msgstr "Žádný prohlížeč není přihlášen k turnajovému pultu."
-
-msgid "desk.web_detail"
-msgstr "Nejnovější: {0} přes {1}. Webová relace končí po 12 hodinách nebo po 2 hodinách nečinnosti."
-
-msgid "desk.web_end"
-msgstr "Odhlásit všude"
-
-msgid "desk.web_end_detail"
-msgstr "Ukončí všechny webové relace pultu pro toto Ember ID. Pro použití se na webu přihlaste znovu."
-
-msgid "desk.web_new"
-msgstr "Někdo se přihlásil k tvému turnajovému pultu na webu. Nebyl jsi to ty? Zvol Odhlásit všude."
-
-msgid "desk.web_ended"
-msgstr "Odhlášeno z webového pultu všude."
-
 msgid "desk.open_browser"
 msgstr "Otevřít v prohlížeči"
 
 msgid "desk.open_browser_detail"
-msgstr "Otevře webový pult v prohlížeči tohoto PC, přihlášený tímto Ember ID, se všemi povolenými změnami."
-
-msgid "desk.open_phone"
-msgstr "Přihlásit se na jiném zařízení"
-
-msgid "desk.open_phone_detail"
-msgstr "Otevři desk na libovolném zařízení a zadej sem kód, který ukáže."
-
-msgid "desk.code_at"
-msgstr "Zadej na"
-
-msgid "desk.code_at_detail"
-msgstr "Otevři to na druhém zařízení. Ukáže kód, který zadáš sem."
-
-
-
-
-
+msgstr "Otevře web pavouka v prohlížeči tohoto PC. Přihlas se tam přes Discord."
 
 msgid "desk.opened"
-msgstr "Pult se otevřel v prohlížeči."
-
-msgid "site.cancel_detail"
-msgstr "Přestane čekat. Až budete připraveni, zvolte znovu Připojit {0}."
-
-msgid "site.off"
-msgstr "Přihlášení přes {0} je vypnuté"
-
-msgid "site.off_detail"
-msgstr "Tato turnajová služba teď přihlášení přes {0} nenabízí. Zkuste to později."
-
-msgid "site.retry_detail"
-msgstr "Znovu načte váš účet {0}."
-
-msgid "site.opened"
-msgstr "Dokončete přihlášení k {0} v prohlížeči."
-
-msgid "site.done"
-msgstr "{0} připojen jako {1}."
-
-msgid "site.removed"
-msgstr "Účet {0} byl odpojen."
-
-msgid "site.cancelled"
-msgstr "Čekání na {0} bylo zastaveno."
-
-msgid "site.busy"
-msgstr "Přihlášení přes {0} je teď vytížené. Zkuste to později."
-
-msgid "site.gone"
-msgstr "Tato turnajová služba už přihlášení přes {0} nenabízí."
-
-msgid "site.no_service"
-msgstr "Turnajová služba Ember není nastavena"
-
-msgid "site.no_service_detail"
-msgstr "{0} se připojuje přes turnajovou službu Ember. Nejprve ji vyhledejte v části Propojené účty a pak se sem vraťte."
-
-msgid "site.screen"
-msgstr "Účet webu"
+msgstr "Web pavouka se otevřel v prohlížeči."
 
 msgid "identity.failure.browser"
 msgstr "Ember nemohl otevřít váš prohlížeč."
@@ -4799,6 +5523,12 @@ msgstr "Šipky vlevo a vpravo mění vaši Ultru pro další hru. S novou Ultrou
 msgid "postmatch.ultra.set"
 msgstr "Vaše Ultra pro další hru je nastavena."
 
+msgid "postmatch.add_friend.detail"
+msgstr "Pošle hráči {0} žádost o přátelství. Vaše odpověď na odvetu zůstane, jaká je."
+
+msgid "postmatch.accept_friend.detail"
+msgstr "Přijme žádost o přátelství od hráče {0}. Vaše odpověď na odvetu zůstane, jaká je."
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
@@ -4814,14 +5544,29 @@ msgstr "Sety v řadě: {0}"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "Přímo {0} ms"
 
 msgid "room.latency.relay"
 msgstr "Relé {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "Relé ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Odhadovaný ping: asi {0} ms."
+
+msgid "room.latency.tip.relay"
+msgstr "Změřeno přes zprostředkující server. Přímý zápas bývá rychlejší. Zkontrolovat spojení změří skutečnou cestu."
+
+msgid "room.latency.tip.checked_direct"
+msgstr "Zkontrolováno na trase zápasu: přímé, {0} ms, kolísání {1} ms."
+
+msgid "room.latency.tip.checked_relay"
+msgstr "Zkontrolováno na trase zápasu: přes server, {0} ms, kolísání {1} ms."
 
 msgid "room.latency.tip.measuring"
 msgstr "Měření pingu..."
@@ -4838,6 +5583,9 @@ msgstr "Veřejné místnosti"
 msgid "online.public_detail"
 msgstr "Procházejte otevřené místnosti, do kterých se může připojit kdokoli, nebo se rychle připojte k jedné poblíž."
 
+msgid "online.friends_detail"
+msgstr "Přátelé, kteří jsou online, a místnosti, ve kterých jsou."
+
 msgid "public.create"
 msgstr "Vytvořit veřejnou místnost"
 
@@ -4850,17 +5598,23 @@ msgstr "Otevře veřejnou místnost ve službě Ember ID, připojí vás do ní 
 msgid "public.create_needs_id"
 msgstr "Veřejné místnosti vyžadují Ember ID a důvěryhodnou službu. Nastavíte je v části Veřejné místnosti."
 
+msgid "public.ranked_needs_discord"
+msgstr "Pro hodnocené zápasy připojte Discord"
+
+msgid "public.ranked_needs_discord_detail"
+msgstr "Zápasy se počítají do vaší třídy a bodů jen s připojeným účtem Discord. Hrát můžete i bez něj."
+
 msgid "public.loading"
 msgstr "Načítání místností..."
 
 msgid "public.needs_id_detail"
 msgstr "Vytvořte si Ember ID a v části Propojené účty důvěřujte nějaké službě. Veřejné místnosti uvádí právě ta služba."
 
-msgid "public.room_detail"
-msgstr "{0}\nHráči: {1}/{2}. Region: {3}."
+msgid "public.room_detail_seats"
+msgstr "{0}\nHráči: {1}/{2}."
 
-msgid "public.room_detail_playing"
-msgstr "{0}\nHráči: {1}/{2}. Region: {3}.\nProbíhající zápasy: {4}."
+msgid "public.room_detail_matches"
+msgstr "Probíhající zápasy: {0}."
 
 msgid "public.joining_value"
 msgstr "Připojování..."
@@ -4953,7 +5707,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "Vyberte, které místnosti se zobrazí: podle oblasti, typu místnosti, volných míst a připojení. Váš výběr se uloží pro příště."
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -4961,14 +5715,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "Oblast"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "Zobrazit místnosti ze všech oblastí, jen místnosti ve vaší oblasti nebo vedle ní, nebo z jedné oblasti. Vlevo a Vpravo ji mění."
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "Všechny oblasti"
 
 msgid "public.filter_region_near"
 msgstr "Poblíž"
@@ -5000,8 +5754,11 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember zatím nezná váš region, a proto nepozná, které místnosti jsou poblíž."
+msgid "public.filter_near_unset"
+msgstr "Vaše oblast není nastavena, takže Ember nepozná, které místnosti jsou poblíž. Nastavte ji v Nastavení, Země a oblast."
+
+msgid "public.filter_near_unlisted"
+msgstr "Žádná místnost v seznamu teď neuvádí oblast, takže Ember nepozná, které místnosti jsou poblíž. Zobrazují se všechny místnosti."
 
 msgid "public.near_you"
 msgstr "Poblíž"
@@ -5030,8 +5787,11 @@ msgstr "{0} min"
 msgid "public.age_hours"
 msgstr "{0} h"
 
-msgid "public.room_detail2"
-msgstr "Hostitel {0}, {1}. Obsazená místa: {2} z {3}."
+msgid "public.room_detail_host"
+msgstr "Hostitel {0}. Obsazená místa: {1} z {2}."
+
+msgid "public.room_detail_area"
+msgstr "Oblast: {0}."
 
 msgid "public.room_detail_match"
 msgstr " Probíhá zápas."
@@ -5171,6 +5931,48 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Zapněte nebo vypněte části HUD během souboje."
 
+msgid "training.remote"
+msgstr "Phone remote"
+
+msgid "training.remote.detail"
+msgstr "Change the dummy and the recording from a phone on the same network. Off until you turn it on."
+
+msgid "training.remote.address"
+msgstr "Address"
+
+msgid "training.remote.address.detail"
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
+
+msgid "training.remote.pin"
+msgstr "PIN"
+
+msgid "training.remote.pin.detail"
+msgstr "The phone types this once. It changes each time the remote is turned on."
+
+msgid "training.remote.qr"
+msgstr "Scan QR to Connect"
+
+msgid "training.remote.qr.detail"
+msgstr "Point the phone's camera at the code. It opens the page and signs in."
+
+msgid "training.remote.newpin"
+msgstr "New PIN"
+
+msgid "training.remote.newpin.detail"
+msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
+
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
+msgid "training.remote.failed"
+msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
+
 msgid "training.hitboxes"
 msgstr "Hitboxy"
 
@@ -5308,6 +6110,15 @@ msgstr "Limit"
 
 msgid "training.data.no_charge"
 msgstr "Žádné nabíjecí útoky"
+
+msgid "training.data.oil"
+msgstr "Olej"
+
+msgid "training.data.oil_full"
+msgstr "Olej vždy plný"
+
+msgid "training.data.oil_full.detail"
+msgstr "Hakan má stále nejvíc oleje, jako by právě použil Oil Shower. Jen v Tréninku."
 
 msgid "training.color_key"
 msgstr "Význam barev"
@@ -5507,6 +6318,9 @@ msgstr "Sedněte si sem: hrajete s tím, kdo čeká nejdéle, nebo počkáte na 
 msgid "room.arcade_waiting"
 msgstr "Čeká"
 
+msgid "room.arcade_in_line"
+msgstr "Pořadí ve frontě: {0}"
+
 msgid "room.cabinet_free"
 msgstr "VHOĎ MINCI"
 
@@ -5653,6 +6467,63 @@ msgstr "S videem"
 
 msgid "replays.show.kept"
 msgstr "Ponechané"
+
+msgid "replays.sort"
+msgstr "Řadit"
+
+msgid "replays.sort_detail"
+msgstr "Pořadí seznamu."
+
+msgid "replays.sort.newest"
+msgstr "Nejnovější první"
+
+msgid "replays.sort.oldest"
+msgstr "Nejstarší první"
+
+msgid "replays.sort.player"
+msgstr "Jméno hráče"
+
+msgid "replays.sort.fighter"
+msgstr "Jméno bojovníka"
+
+msgid "replays.sort.longest"
+msgstr "Nejdelší první"
+
+msgid "replays.fighter_detail"
+msgstr "Jen zápasy, ve kterých hrál tento bojovník."
+
+msgid "replays.filter"
+msgstr "Řadit a filtrovat"
+
+msgid "replays.filter_detail"
+msgstr "Otevře stránku, která řadí seznam a vybírá bojovníky."
+
+msgid "replays.side"
+msgstr "Strana"
+
+msgid "replays.side_detail"
+msgstr "Na které straně musí vybraní bojovníci být."
+
+msgid "replays.side.either"
+msgstr "Kterákoli strana"
+
+msgid "replays.side.one"
+msgstr "Hráč 1"
+
+msgid "replays.side.two"
+msgstr "Hráč 2"
+
+msgid "replays.matches_shown"
+msgstr "Zobrazené zápasy"
+
+msgid "replays.sets_shown"
+msgstr "Zobrazené sety"
+
+msgid "replays.filter_reset"
+msgstr "Obnovit"
+
+msgid "replays.filter_reset_detail"
+msgstr "Vrátí každou volbu na začátek."
 
 msgid "replays.search"
 msgstr "Hledat"
@@ -5867,6 +6738,9 @@ msgstr "Hra spadla. Pošlete prosím týmu SF4 Ember Netplay soubory ze složky 
 msgid "launcher.game_crashed_sending"
 msgstr "Hra spadla. Odesílání hlášení problémů je zapnuté, proto se odesílá hlášení s malým výpisem, pokud ho pád zapsal. Soubory jsou také ve složce %APPDATA%\\sf4e\\logs."
 
+msgid "launcher.start_failed_sending"
+msgstr "Spuštění hry nebo injekce selhala. Odesílání hlášení problémů je zapnuté, proto se odesílá hlášení. Protokol spouštěče je v %APPDATA%\\sf4e\\logs."
+
 msgid "reports.settings_title"
 msgstr "Hlášení problémů"
 
@@ -5969,7 +6843,6 @@ msgstr "Obrázky tlačítek, které Ember ukazuje. Automaticky odpovídá ovlada
 msgid "player.prompts_auto"
 msgstr "Automaticky"
 
-
 msgid "controller.brand.stick"
 msgstr "Bojová tlačítka"
 
@@ -6011,8 +6884,6 @@ msgstr "Připojeno: {0}"
 
 msgid "player.controllers_detail"
 msgstr "Hrajete s {0}. Prohlédněte si všechny připojené ovladače, vyzkoušejte jejich tlačítka a nastavte ty, které Ember ještě nezná."
-
-
 
 msgid "player.game_reads"
 msgstr "Nechat hru číst ovladače"
@@ -7389,36 +8260,6 @@ msgstr "Zimbabwe"
 
 #. End of the generated country names.
 
-msgid "desk.offstream"
-msgstr "Dělej to mimo stream"
-
-msgid "desk.offstream_detail"
-msgstr "Kdo vidí tvou obrazovku, kód použít nemůže, ale přihlašuj se stejně mimo stream."
-
-msgid "desk.device_code"
-msgstr "Kód z druhého zařízení"
-
-msgid "desk.device_approved"
-msgstr "Druhé zařízení je přihlášené k desku."
-
-msgid "desk.device_asked"
-msgstr "Požádal"
-
-msgid "desk.device_unknown"
-msgstr "Neznámý prohlížeč"
-
-msgid "desk.device_asked_detail"
-msgstr "Před {0} min. Schvaluj jen, pokud je to tvoje zařízení."
-
-msgid "desk.device_pick"
-msgstr "Ukazuje {0}"
-
-msgid "desk.device_pick_detail"
-msgstr "Vyber číslo, které ukazuje druhé zařízení. Špatná volba kód odmítne."
-
-msgid "desk.device_refused"
-msgstr "Kód je špatný nebo vypršel. Získej nový na druhém zařízení."
-
 msgid "desk.mode"
 msgstr "Turnajový režim"
 
@@ -7429,7 +8270,7 @@ msgid "desk.mode_invite"
 msgstr "Potřebuješ pozvánku"
 
 msgid "desk.mode_on_detail"
-msgstr "Pořádej vlastní akce z Emberu: propoj svůj web s pavouky, níže povol přístup pořadatele a pak otevři pult na tomto PC nebo jiném zařízení."
+msgstr "Pořádej vlastní turnaje z Emberu, na webu pavouka Emberu."
 
 msgid "desk.mode_invite_detail"
 msgstr "Turnajový režim je zatím jen na pozvánku. Zadej pozvánku, kterou jsi dostal; každá funguje jen jednou."
@@ -7442,9 +8283,6 @@ msgstr "Turnajový režim je pro tvé Ember ID zapnutý."
 
 msgid "desk.invite_invalid"
 msgstr "Tato pozvánka neplatí. Zkontroluj ji, nebo si řekni o novou."
-
-msgid "desk.site.on"
-msgstr "Na {0}"
 
 msgid "desk.site.detail"
 msgstr "Kde turnaj na svém webu s pavouky je. Níže jsou kroky, které web teď dovoluje."
@@ -7495,28 +8333,7 @@ msgid "desk.move.cancel"
 msgstr "Zrušit turnaj"
 
 msgid "desk.move.detail"
-msgstr "Požádá {0} o tuto změnu hned. Hráči ji uvidí okamžitě."
-
-msgid "desk.org_site"
-msgstr "Přístup pořadatele {0}"
-
-msgid "desk.org_unlinked"
-msgstr "Nepropojeno"
-
-msgid "desk.org_unlinked_detail"
-msgstr "Nejdřív propoj svůj účet {0} v Propojených účtech."
-
-msgid "desk.org_allow"
-msgstr "Povolit"
-
-msgid "desk.org_allow_detail"
-msgstr "Umožní Emberu vést tvé turnaje na {0}. {0} se otevře v prohlížeči ke schválení."
-
-msgid "desk.org_remove_detail"
-msgstr "Odebere přístup pořadatele. Propojený účet zůstane."
-
-msgid "site.organizer_where"
-msgstr "Přístup pořadatele je v Ember ID > Pořádání turnajů."
+msgstr "Provede tuto změnu na webu pavouka hned. Hráči ji uvidí okamžitě."
 
 msgid "screen.rankings"
 msgstr "Žebříčky"
@@ -7647,6 +8464,84 @@ msgstr "Režim TV"
 msgid "settings.tv_mode_detail"
 msgstr "Pro televizi na druhé straně místnosti: vše o čtvrtinu větší, uvnitř bezpečného okraje 5 %."
 
+msgid "settings.group.game_themes"
+msgstr "Herní motivy"
+
+msgid "settings.game_theme_main_menu"
+msgstr "Hlavní nabídka"
+
+msgid "settings.game_theme_title"
+msgstr "Titulní obrazovka"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Výběr postavy"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Výběr arény"
+
+msgid "settings.game_theme_versus"
+msgstr "Obrazovka versus"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Nabídka pauzy"
+
+msgid "settings.game_theme_network"
+msgstr "Síťové nabídky"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Značky edice"
+
+msgid "settings.game_theme_buttons"
+msgstr "Tlačítka a ikony"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Zvuky nabídek"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Soubory pro tuto obrazovku z motivu ve složce ember\\themes složky hry. Soubory hry zůstávají beze změny. Hlavní nabídka ukáže volbu hned, ostatní obrazovky při dalším otevření."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Žádný motiv nemá soubory pro tuto obrazovku. Vložte motiv s jeho složkou ui do složky ember\\themes ve složce hry a spusťte hru znovu."
+
+msgid "settings.game_theme_game"
+msgstr "Původní ze hry"
+
+msgid "settings.game_theme_battle_hud"
+msgstr "Bojový HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Ukazatele života, superu a revenge, časovač a hlášky z motivu ve složce ember\\themes ve složce hry. Soubory hry zůstanou beze změny. Ukáže se v příštím boji."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Žádný motiv s bojovým HUD nenalezen. Vložte motiv se složkou battle\\hud do ember\\themes ve složce hry a spusťte hru znovu."
+
+msgid "settings.game_theme_risk"
+msgstr "Soubory motivů se používají tak, jak jsou, a vadný může hru zavřít. Pokud se to stane, Ember ten motiv při dalším spuštění vypne."
+
+msgid "settings.game_theme_closed"
+msgstr "{0} (minule hru zavřel)"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0} (nepoužit: obrázky HUD nesedí)"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0} (nepoužit: soubory HUD nelze přečíst)"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "Obrázky HUD motivu {0} neodpovídají rozložení HUD této edice, proto nebyl použit. Zobrazuje se původní HUD hry."
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "Motiv {0} má soubory HUD, které hra nedokáže přečíst, proto nebyl použit. Zobrazuje se původní HUD hry."
+
+msgid "settings.game_theme_missing"
+msgstr "{0} (použit: některé obrázky HUD chybí)"
+
+msgid "settings.game_theme_missing_detail"
+msgstr "Motiv {0} je použit. Rozložení HUD uvádí obrázky, které jeho sada nemá, a ty se nezobrazují."
+
+msgid "runtime.game_theme_turned_off"
+msgstr "Motiv {0} byl pro {1} vypnut: hra se při jeho načítání zavřela."
+
 msgid "menu.pages"
 msgstr "Stránky"
 
@@ -7707,7 +8602,6 @@ msgstr "Otevřít panel"
 msgid "settings.panel.close_action"
 msgstr "Zavřít panel"
 
-
 msgid "class.developer"
 msgstr "Dev"
 
@@ -7764,6 +8658,9 @@ msgstr "Další…"
 
 msgid "room.v2.more_detail"
 msgstr "Ovladače, nastavení místnosti, odkaz veřejné místnosti a rozložení plochy."
+
+msgid "room.v2.friends_detail"
+msgstr "Pozvěte přátele do této místnosti nebo se připojte k jejich."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
@@ -7870,20 +8767,32 @@ msgstr "ONLINE · PŘIPOJENÍ"
 msgid "online.eyebrow_browse"
 msgstr "ONLINE · PROCHÁZENÍ"
 
-msgid "public.your_region"
-msgstr "Váš region {0}"
+msgid "public.your_area"
+msgstr "Vaše oblast: {0}"
+
+msgid "public.area_unset"
+msgstr "Nastavte oblast v Nastavení"
 
 msgid "home.notifications"
 msgstr "Oznámení"
 
 msgid "notifications.none"
-msgstr "Zatím nic."
+msgstr "Žádná oznámení"
+
+msgid "notifications.tab_count"
+msgstr "Oznámení · {0}"
+
+msgid "notifications.waiting"
+msgstr "Čeká: {0}"
 
 msgid "notifications.none_detail"
-msgstr "Co Ember oznámí, třeba zkopírovaný odkaz nebo opuštěnou místnost, tu zůstane po tuto relaci."
+msgstr "Žádosti o přátelství, pozvánky a oznámení Emberu se zobrazí tady."
+
+msgid "notifications.friends_detail"
+msgstr "Vaši přátelé, žádosti a blokovaní hráči."
 
 msgid "home.news"
-msgstr "Novinky"
+msgstr "Novinky/Oznámení"
 
 msgid "news.heading"
 msgstr "NOVINKY"
@@ -8065,9 +8974,11 @@ msgstr "Zápasy"
 msgid "replays.tab.sets"
 msgstr "Sety"
 
+msgid "replays.tab.archive"
+msgstr "Archiv"
+
 msgid "replays.set_matches"
 msgstr "Zápasy: {0}"
-
 
 msgid "replays.fact.fighters"
 msgstr "Bojovníci"
@@ -8077,6 +8988,213 @@ msgstr "Hráno"
 
 msgid "replays.fact.length"
 msgstr "Délka"
+
+msgid "archive.filters"
+msgstr "Filtry"
+
+msgid "archive.filters_detail"
+msgstr "Zúžíte sety podle hráče, události, bojovníka, třídy, země nebo kola a zvolíte jejich pořadí."
+
+msgid "archive.filter_none"
+msgstr "Vše, nejnovější první"
+
+msgid "archive.filter_class"
+msgstr "Třída {0}"
+
+msgid "archive.online"
+msgstr "Online hry"
+
+msgid "archive.sort_newest"
+msgstr "Nejnovější první"
+
+msgid "archive.sort_class"
+msgstr "Nejvyšší třída první"
+
+msgid "archive.round.top8"
+msgstr "Top 8"
+
+msgid "archive.round.pools"
+msgstr "Skupiny"
+
+msgid "archive.round.winners"
+msgstr "Winners"
+
+msgid "archive.round.losers"
+msgstr "Losers"
+
+msgid "archive.round.grand"
+msgstr "Velké finále"
+
+msgid "archive.any_class"
+msgstr "Jakákoli třída"
+
+msgid "archive.any_country"
+msgstr "Jakákoli země"
+
+msgid "archive.any_event"
+msgstr "Jakákoli událost"
+
+msgid "archive.any_round"
+msgstr "Jakékoli kolo"
+
+msgid "archive.any_fighter"
+msgstr "Jakýkoli bojovník"
+
+msgid "archive.any_fighter_detail"
+msgstr "Vypíše sety bez ohledu na bojovníka."
+
+msgid "archive.f_text"
+msgstr "Hráč nebo událost"
+
+msgid "archive.f_text_detail"
+msgstr "Sety, v nichž jméno hráče nebo události obsahuje tato písmena."
+
+msgid "archive.f_fighter"
+msgstr "Bojovník"
+
+msgid "archive.f_fighter_detail"
+msgstr "Vypíše sety, v nichž tohoto bojovníka použil některý z hráčů."
+
+msgid "archive.f_class"
+msgstr "Třída"
+
+msgid "archive.f_class_detail"
+msgstr "Vypíše sety, v nichž má některý z hráčů dnes tuto třídu."
+
+msgid "archive.f_country"
+msgstr "Země"
+
+msgid "archive.f_country_detail"
+msgstr "Vypíše sety s hráčem z této země."
+
+msgid "archive.f_event"
+msgstr "Událost"
+
+msgid "archive.f_event_detail"
+msgstr "Vypíše sety jedné turnajové události, nebo jen online hry."
+
+msgid "archive.f_round"
+msgstr "Kolo"
+
+msgid "archive.f_round_detail"
+msgstr "Vypíše turnajové sety jednoho kola."
+
+msgid "archive.f_sort"
+msgstr "Řazení"
+
+msgid "archive.f_sort_detail"
+msgstr "Nejnovější první, nebo sety s nejvyšší třídou první."
+
+msgid "archive.games_shown"
+msgstr "Zobrazené hry"
+
+msgid "archive.games_of"
+msgstr "{0} z {1}"
+
+msgid "archive.clear"
+msgstr "Zrušit filtry"
+
+msgid "archive.clear_detail"
+msgstr "Znovu zobrazí všechny sety."
+
+msgid "archive.no_service"
+msgstr "Nastavte své Ember ID"
+
+msgid "archive.no_service_detail"
+msgstr "Archiv potřebuje Ember ID. Otevřete Ember ID a nastavte si ho."
+
+msgid "archive.loading"
+msgstr "Načítání setů…"
+
+msgid "archive.loading_detail"
+msgstr "Žádám archiv o nejnovější sety."
+
+msgid "archive.loading_more"
+msgstr "Načítání dalších"
+
+msgid "archive.loading_more_detail"
+msgstr "Žádám archiv o starší sety."
+
+msgid "archive.unsupported"
+msgstr "Tady není archiv záznamů"
+
+msgid "archive.unsupported_detail"
+msgstr "Tato služba nenabízí veřejný archiv záznamů."
+
+msgid "archive.failed"
+msgstr "Archiv není dostupný"
+
+msgid "archive.failed_detail"
+msgstr "{0} Výběrem to zkusíte znovu."
+
+msgid "archive.none"
+msgstr "Žádný set neodpovídá těmto filtrům"
+
+msgid "archive.none_detail"
+msgstr "Zrušte filtry a uvidíte všechny sety."
+
+msgid "archive.empty"
+msgstr "V archivu zatím nejsou žádné záznamy"
+
+msgid "archive.empty_detail"
+msgstr "Hry, které hráči sdílejí z Emberu, se objeví tady."
+
+msgid "archive.more_failed"
+msgstr "Další se nepodařilo načíst"
+
+msgid "archive.more_failed_detail"
+msgstr "Výběrem to zkusíte znovu."
+
+msgid "archive.retry"
+msgstr "Zkusit znovu"
+
+msgid "archive.downloading"
+msgstr "Stahování hry"
+
+msgid "archive.download_failed"
+msgstr "Hru se nepodařilo stáhnout. {0}"
+
+msgid "archive.vs"
+msgstr "vs"
+
+msgid "archive.watch_hint"
+msgstr "Přehrát"
+
+msgid "archive.find"
+msgstr "Sety hráče {0}"
+
+msgid "archive.find_detail"
+msgstr "Vypíše sety, které hráč {0} odehrál ve veřejném archivu."
+
+msgid "archive.game_one"
+msgstr "1 hra"
+
+msgid "archive.games"
+msgstr "Her: {0}"
+
+msgid "archive.met"
+msgstr "vs {0}"
+
+msgid "archive.session_label"
+msgstr "{0}, her: {1}"
+
+msgid "archive.fact.event"
+msgstr "Událost"
+
+msgid "archive.fact.round"
+msgstr "Kolo"
+
+msgid "archive.fact.games"
+msgstr "Hry"
+
+msgid "archive.fact.size"
+msgstr "Velikost"
+
+msgid "archive.size_kb"
+msgstr "{0} KB"
+
+msgid "archive.game_n"
+msgstr "Hra {0}"
 
 msgid "keyboard.recent"
 msgstr "Nedávné:"
@@ -8159,23 +9277,20 @@ msgstr "Předchozí krok"
 msgid "screen.awards"
 msgstr "Ocenění"
 
-msgid "awards.titles"
-msgstr "Tituly"
-
-msgid "awards.icons"
-msgstr "Ikony"
-
 msgid "awards.card"
 msgstr "Tvoje karta"
 
 msgid "awards.card_detail"
-msgstr "Tvoje karta, jak ji vidí ostatní. Výběr otevře tvá ocenění: tituly a ikony, které můžeš nosit."
+msgstr "Tvoje karta, jak ji vidí ostatní. Výběr otevře Profil."
 
 msgid "awards.entry_detail"
 msgstr "Tituly a ikony, které jsi získal, a jak získat ostatní. Vyber jeden a nos ho na své kartě."
 
 msgid "awards.earned_count"
 msgstr "Získáno {0} z {1}"
+
+msgid "awards.not_reached"
+msgstr "Zatím nedosaženo"
 
 msgid "awards.card_heading"
 msgstr "TVOJE KARTA · JAK JI VIDÍ OSTATNÍ"
@@ -8195,14 +9310,35 @@ msgstr "Zamčeno"
 msgid "awards.wear"
 msgstr "Dát na kartu"
 
+msgid "awards.wear_title"
+msgstr "Nosit titul"
+
+msgid "awards.wear_icon"
+msgstr "Nosit ikonu"
+
+msgid "awards.wear_both"
+msgstr "Nosit obojí"
+
 msgid "awards.detail_worn"
 msgstr "Na tvé kartě."
 
 msgid "awards.detail_earned"
 msgstr "Získáno. Výběr ho dá na tvou kartu."
 
-msgid "awards.detail_locked"
-msgstr "Zamčeno. {0}."
+msgid "awards.progress"
+msgstr "{0} z {1}"
+
+msgid "awards.next"
+msgstr "Další: {0}"
+
+msgid "awards.top_level"
+msgstr "Nejvyšší úroveň"
+
+msgid "awards.notice"
+msgstr "Získáno ocenění: {0}"
+
+msgid "awards.link_discord"
+msgstr "Připoj Discord a získávej ocenění."
 
 msgid "tier.ash"
 msgstr "Popel"
@@ -8219,104 +9355,266 @@ msgstr "Zlato"
 msgid "tier.ember"
 msgstr "Ember"
 
-msgid "award.entrant.title"
-msgstr "ÚČASTNÍK EMBER"
+msgid "award.matches.name"
+msgstr "Odehrané zápasy"
 
-msgid "award.entrant.icon"
-msgstr "Jiskra"
-
-msgid "award.entrant.how"
-msgstr "Odehraj jeden set v libovolném pavouku Ember"
-
-msgid "award.launch-night.title"
-msgstr "NOC SPUŠTĚNÍ"
-
-msgid "award.launch-night.icon"
-msgstr "Přetočení"
-
-msgid "award.launch-night.how"
-msgstr "Hraj během události ke spuštění Emberu"
-
-msgid "award.weekly-top16.title"
-msgstr "TOP 16 TÝDNE"
-
-msgid "award.weekly-top16.icon"
-msgstr "Vavřín"
-
-msgid "award.weekly-top16.how"
-msgstr "Skonči v top 16 na Ember Weekly"
-
-msgid "award.rollback-regular.title"
-msgstr "ROLLBACKOVÝ ŠTAMGAST"
-
-msgid "award.rollback-regular.icon"
-msgstr "Kalendář"
-
-msgid "award.rollback-regular.how"
-msgstr "Zúčastni se 10 turnajů Ember Weekly v jedné sezóně"
-
-msgid "award.weekly-top8.title"
-msgstr "TOP 8 TÝDNE"
-
-msgid "award.weekly-top8.icon"
-msgstr "Osmiúhelník 8"
-
-msgid "award.weekly-top8.how"
-msgstr "Skonči v top 8 na Ember Weekly"
-
-msgid "award.by-ear.title"
-msgstr "PO SLUCHU"
-
-msgid "award.by-ear.icon"
-msgstr "Zvuková vlna"
-
-msgid "award.by-ear.how"
-msgstr "Vyhraj set v pavouku jen se zvukem"
-
-msgid "award.monthly-finalist.title"
-msgstr "FINALISTA MĚSÍCE"
-
-msgid "award.monthly-finalist.icon"
-msgstr "Medaile"
-
-msgid "award.monthly-finalist.how"
-msgstr "Dostaň se do velkého finále Ember Monthly"
-
-msgid "award.organizer.title"
-msgstr "POŘADATEL TURNAJŮ"
-
-msgid "award.organizer.icon"
+msgid "award.matches.icon"
 msgstr "Vlajka"
 
-msgid "award.organizer.how"
-msgstr "Uděluje tým Emberu pořadatelům akcí"
+msgid "award.matches.1.title"
+msgstr "Nový vyzyvatel"
 
-msgid "award.commentary.title"
-msgstr "KOMENTÁTOR"
+msgid "award.matches.1.how"
+msgstr "Odehraj svůj první hodnocený zápas ve veřejné místnosti"
 
-msgid "award.commentary.icon"
-msgstr "Mikrofon"
+msgid "award.matches.100.title"
+msgstr "Štamgast"
 
-msgid "award.commentary.how"
-msgstr "Uděluje se komentátorům streamů"
+msgid "award.matches.100.how"
+msgstr "Odehraj 100 hodnocených zápasů ve veřejných místnostech"
 
-msgid "award.season1-veteran.title"
-msgstr "VETERÁN 1. SEZÓNY"
+msgid "award.matches.500.title"
+msgstr "Veterán"
 
-msgid "award.season1-veteran.icon"
-msgstr "Erb"
+msgid "award.matches.500.how"
+msgstr "Odehraj 500 hodnocených zápasů ve veřejných místnostech"
 
-msgid "award.season1-veteran.how"
-msgstr "Skonči v top 32 v každém Monthly 1. sezóny"
+msgid "award.matches.1000.title"
+msgstr "World Warrior"
 
-msgid "award.cup-champion.title"
-msgstr "ŠAMPION EMBER CUP"
+msgid "award.matches.1000.how"
+msgstr "Odehraj 1000 hodnocených zápasů ve veřejných místnostech"
 
-msgid "award.cup-champion.icon"
-msgstr "Koruna"
+msgid "award.matches.5000.title"
+msgstr "Na doživotí"
 
-msgid "award.cup-champion.how"
-msgstr "Vyhraj Ember Cup na konci sezóny"
+msgid "award.matches.5000.how"
+msgstr "Odehraj 5000 hodnocených zápasů ve veřejných místnostech"
+
+msgid "award.wins.name"
+msgstr "Výhry"
+
+msgid "award.wins.icon"
+msgstr "Vavřín"
+
+msgid "award.wins.1.title"
+msgstr "První výhra"
+
+msgid "award.wins.1.how"
+msgstr "Vyhraj svůj první hodnocený zápas ve veřejné místnosti"
+
+msgid "award.wins.50.title"
+msgstr "Uchazeč"
+
+msgid "award.wins.50.how"
+msgstr "Vyhraj 50 hodnocených zápasů ve veřejných místnostech"
+
+msgid "award.wins.250.title"
+msgstr "Zápasník"
+
+msgid "award.wins.250.how"
+msgstr "Vyhraj 250 hodnocených zápasů ve veřejných místnostech"
+
+msgid "award.wins.1000.title"
+msgstr "Šampion"
+
+msgid "award.wins.1000.how"
+msgstr "Vyhraj 1000 hodnocených zápasů ve veřejných místnostech"
+
+msgid "award.wins.2500.title"
+msgstr "Legenda"
+
+msgid "award.wins.2500.how"
+msgstr "Vyhraj 2500 hodnocených zápasů ve veřejných místnostech"
+
+msgid "award.streak.name"
+msgstr "Série výher"
+
+msgid "award.streak.icon"
+msgstr "Plamen"
+
+msgid "award.streak.3.title"
+msgstr "Rozjetý"
+
+msgid "award.streak.3.how"
+msgstr "Vyhraj 3 hodnocené zápasy v řadě"
+
+msgid "award.streak.5.title"
+msgstr "Žhavá série"
+
+msgid "award.streak.5.how"
+msgstr "Vyhraj 5 hodnocených zápasů v řadě"
+
+msgid "award.streak.10.title"
+msgstr "Nedotknutelný"
+
+msgid "award.streak.10.how"
+msgstr "Vyhraj 10 hodnocených zápasů v řadě"
+
+msgid "award.streak.15.title"
+msgstr "Neporazitelný"
+
+msgid "award.streak.15.how"
+msgstr "Vyhraj 15 hodnocených zápasů v řadě"
+
+msgid "award.streak.20.title"
+msgstr "Nezastavitelný"
+
+msgid "award.streak.20.how"
+msgstr "Vyhraj 20 hodnocených zápasů v řadě"
+
+msgid "award.rank.name"
+msgstr "Nejvyšší třída"
+
+msgid "award.rank.icon"
+msgstr "Štít"
+
+msgid "award.mastery.name"
+msgstr "Mistrovství bojovníků"
+
+msgid "award.mastery.icon"
+msgstr "Medaile"
+
+msgid "award.mastery.1.title"
+msgstr "Učeň"
+
+msgid "award.mastery.1.how"
+msgstr "Přiveď bojovníka k rámu Měď"
+
+msgid "award.mastery.2.title"
+msgstr "Adept"
+
+msgid "award.mastery.2.how"
+msgstr "Přiveď bojovníka k rámu Stříbro"
+
+msgid "award.mastery.3.title"
+msgstr "Specialista"
+
+msgid "award.mastery.3.how"
+msgstr "Přiveď bojovníka k rámu Zlato"
+
+msgid "award.mastery.4.title"
+msgstr "Mistr"
+
+msgid "award.mastery.4.how"
+msgstr "Přiveď bojovníka k rámu Ember"
+
+msgid "award.cast.name"
+msgstr "Použití bojovníci"
+
+msgid "award.cast.icon"
+msgstr "Pavouk"
+
+msgid "award.cast.5.title"
+msgstr "Plán B"
+
+msgid "award.cast.5.how"
+msgstr "Hraj v hodnocených zápasech za 5 různých bojovníků"
+
+msgid "award.cast.15.title"
+msgstr "Všestranný"
+
+msgid "award.cast.15.how"
+msgstr "Hraj v hodnocených zápasech za 15 různých bojovníků"
+
+msgid "award.cast.30.title"
+msgstr "Tovaryš"
+
+msgid "award.cast.30.how"
+msgstr "Hraj v hodnocených zápasech za 30 různých bojovníků"
+
+msgid "award.cast.all.title"
+msgstr "Všichni bojovníci"
+
+msgid "award.cast.all.how"
+msgstr "Hraj v hodnocených zápasech za každého bojovníka"
+
+msgid "award.friends.name"
+msgstr "Přátelé"
+
+msgid "award.friends.icon"
+msgstr "Dvojice"
+
+msgid "award.friends.1.title"
+msgstr "Sparingpartner"
+
+msgid "award.friends.1.how"
+msgstr "Přidej přítele"
+
+msgid "award.friends.5.title"
+msgstr "Dobrá společnost"
+
+msgid "award.friends.5.how"
+msgstr "Měj 5 přátel"
+
+msgid "award.friends.15.title"
+msgstr "Stálá parta"
+
+msgid "award.friends.15.how"
+msgstr "Měj 15 přátel"
+
+msgid "award.rival.name"
+msgstr "Rival"
+
+msgid "award.rival.icon"
+msgstr "Historie"
+
+msgid "award.rival.10.title"
+msgstr "Známá tvář"
+
+msgid "award.rival.10.how"
+msgstr "Odehraj 10 hodnocených zápasů proti jednomu soupeři"
+
+msgid "award.rival.50.title"
+msgstr "Rival"
+
+msgid "award.rival.50.how"
+msgstr "Odehraj 50 hodnocených zápasů proti jednomu soupeři"
+
+msgid "award.rival.100.title"
+msgstr "Nemesis"
+
+msgid "award.rival.100.how"
+msgstr "Odehraj 100 hodnocených zápasů proti jednomu soupeři"
+
+msgid "award.rival.250.title"
+msgstr "Věčný rival"
+
+msgid "award.rival.250.how"
+msgstr "Odehraj 250 hodnocených zápasů proti jednomu soupeři"
+
+msgid "award.opponents.name"
+msgstr "Soupeři"
+
+msgid "award.opponents.icon"
+msgstr "Vlna"
+
+msgid "award.opponents.10.title"
+msgstr "Otevřená výzva"
+
+msgid "award.opponents.10.how"
+msgstr "Změř síly s 10 různými soupeři v hodnocených zápasech"
+
+msgid "award.opponents.50.title"
+msgstr "Široký kruh"
+
+msgid "award.opponents.50.how"
+msgstr "Změř síly s 50 různými soupeři v hodnocených zápasech"
+
+msgid "award.opponents.200.title"
+msgstr "Pouliční legenda"
+
+msgid "award.opponents.200.how"
+msgstr "Změř síly s 200 různými soupeři v hodnocených zápasech"
+
+msgid "award.opponents.500.title"
+msgstr "Rival všech"
+
+msgid "award.opponents.500.how"
+msgstr "Změř síly s 500 různými soupeři v hodnocených zápasech"
+
+msgid "award.rank.how"
+msgstr "Dosáhni třídy {0} ve veřejných místnostech"
 
 msgid "toast.kind.invitation"
 msgstr "POZVÁNKA"
@@ -8470,3 +9768,87 @@ msgstr "Dopadly všechny zásahy."
 
 msgid "training.combo_check.run.dropped"
 msgstr "Nedopadly všechny zásahy."
+
+msgid "desk.draft.new"
+msgstr "Nový turnaj"
+
+msgid "desk.draft.new_detail"
+msgstr "Název, datum, sety a check-in. Průběžně se ukládá jako koncept."
+
+msgid "desk.draft.title"
+msgstr "Název"
+
+msgid "desk.draft.title_first"
+msgstr "Nejdřív zadej název"
+
+msgid "desk.draft.saved"
+msgstr "Koncept vznikne s názvem; zbytek nastavíš potom a ukládá se při každé změně."
+
+msgid "desk.draft.date"
+msgstr "Datum"
+
+msgid "desk.draft.date_detail"
+msgstr "Vlevo / vpravo: den. Tvoje časové pásmo; každý ho vidí ve svém."
+
+msgid "desk.draft.time"
+msgstr "Začátek"
+
+msgid "desk.draft.time_detail"
+msgstr "Vlevo / vpravo: 15 minut."
+
+msgid "desk.draft.first_to"
+msgstr "Každý set do"
+
+msgid "desk.draft.first_to_detail"
+msgstr "Vlevo / Vpravo: počet her, který vyhrává set."
+
+msgid "desk.draft.discord"
+msgstr "Kanál Discordu"
+
+msgid "desk.draft.discord_set"
+msgstr "Nastaveno"
+
+msgid "desk.draft.discord_unset"
+msgstr "Žádný"
+
+msgid "desk.draft.discord_detail"
+msgstr "Výzvy a skóre jdou do tohoto kanálu. Nastavuje se na webu pavouka."
+
+msgid "desk.draft.open_event"
+msgstr "Otevřít akci"
+
+msgid "desk.draft.open_event_detail"
+msgstr "Přihlášky, kroky na webu, spuštění pavouka a jeho sety."
+
+msgid "desk.event.state"
+msgstr "Stav"
+
+msgid "desk.event.starts"
+msgstr "Začíná {0}"
+
+msgid "desk.event.signed_up"
+msgstr "Přihlášeno"
+
+msgid "desk.event.signed_up_detail"
+msgstr "Hráči přihlášení na webu pavouka."
+
+msgid "desk.start"
+msgstr "Spustit pavouka"
+
+msgid "desk.start_detail"
+msgstr "Vytvoří se z přihlášených; Ember zavolá první sety."
+
+msgid "desk.event.edit"
+msgstr "Upravit podrobnosti a pravidla"
+
+msgid "desk.event.edit_detail"
+msgstr "Název, začátek, sety a check-in."
+
+msgid "desk.stop.draft"
+msgstr "Smazat koncept"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.check_in"
+msgstr "Check-in"

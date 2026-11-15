@@ -338,7 +338,7 @@ footer a:hover { color: var(--ivory); }
 .room-card.arcade { border-left: 3px solid var(--arcade); }
 .room-card.king { border-left: 3px solid var(--king); }
 
-/* The type buttons sit on their own row above the regions. */
+/* The type buttons sit on their own row above the areas. */
 .room-types { order: -1; flex-basis: 100%; }
 .room-types .room-filter[data-type="1"][aria-pressed="true"] { background: var(--arcade); border-color: var(--arcade); }
 .room-types .room-filter[data-type="2"][aria-pressed="true"] { background: var(--king); border-color: var(--king); }

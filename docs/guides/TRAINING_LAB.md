@@ -209,11 +209,9 @@ The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge
 
    ![Dummy reply](../images/guides/training_lab/reply.webp)
 
-3. On **Reply preset**, pick a common reply with Left and Right, or press Select to type your own into **Reply moves**.
-
-   ![Reply preset set to 623P](../images/guides/training_lab/reply-preset.webp)
-
-4. Close the controls and knock the dummy down, or hit it, as the reply needs.
+3. Press Select on a **Reply slot** to give it a move: pick one from the list, the moves every fighter has first, then the dummy's own from its command list, with its strengths as buttons on the row that Left and Right move between (a charge move has a **Charge** row under it with the ways to hold it: `[4]6`, `[1]6` or `[1]3` for a back charge, `[2]8`, `[1]8`, `[1]7` or `[1]9` for a down charge), or press Select on **Reply moves** to type your own. Left and Right on a slot turn it on or off; **Empty this slot** removes its move.
+4. With more than one slot on, **Reply order** says how the dummy picks: at random, each slot as often as its **Weight** says, or in order, one after the other. With no slot on, the dummy replies with the recordings that are on.
+5. Close the controls and knock the dummy down, or hit it, as the reply needs.
 
 The first time the dummy sees a given knockdown or stun, it measures it and replies as it ends, often a little late. Every time after that, the reply comes out on the first free frame, as a reversal. **Reply timing** moves it up to five frames earlier or later.
 
@@ -229,7 +227,7 @@ Directions are written for a dummy facing right; the dummy turns them for the si
 | Forward dash | `66` |
 | Jump back, up, forward | `7`, `8`, `9` |
 | Fireball | `236P` or `qcf P` |
-| EX fireball | `236PP` |
+| EX fireball (needs a quarter of the Super gauge, or the game plays the plain move) | `236PP` |
 | Super | `236236P` |
 | Ultra | `236236PPP` |
 | Spinning piledriver | `360P` |
@@ -239,13 +237,14 @@ Directions are written for a dummy facing right; the dummy turns them for the si
 | Short combo | `2LK > 2LP xx 623HP` |
 | Hundred Hand Slap | `HP(mash)` |
 | Block low until free, then sweep | `[1] > 2HK` |
+| Move on letting a button go (Zonk Knuckle, Quesadilla Bomb, Turn Punch) | `]HP[` |
 | Charge move on wake-up (Flash Kick, Sonic Boom) | `[1] > 8HK`, `[1] > 6HP` |
 
 #### Charge moves
 
-Start the reply with a held direction, then type the charge move **without** its charge: `[1] > 8HK` for a Flash Kick, `[1] > 6HP` for a Sonic Boom, `[1] > 6P` for a Psycho Crusher. `[1]` is down-back, so it charges both back and down. The dummy holds it from the moment it is knocked down or stunned and lets go just in time to press the move on its first free frame.
+Pick the charge move from the list, or type it: `[4]6P` for a Psycho Crusher, `[2]8HK` for a Flash Kick. You can also start the reply with a held direction and type the move **without** its charge: `[1] > 8HK`, `[1] > 6HP`. `[1]` is down-back, so it charges both back and down. The dummy holds the charge from the moment it is hit, blocks or is knocked down, and lets go just in time to press the move on its first free frame.
 
-A charge built this way is only as long as the stun. A knockdown is long enough, so charge moves work **On Wake-Up**. Every charge in the game is longer than a normal blockstun, so after blocking the move comes out uncharged unless the blockstun is long.
+While the dummy holds, Ember keeps its charges full, so the move comes out charged however short the stun, after a single jab as after a knockdown.
 
 Don't write the charge twice: `[1] > [4]6P` holds back for a whole new charge after the dummy gets up. `[4]6P` on its own is right only when nothing comes before it to hold the charge through.
 
@@ -264,7 +263,7 @@ Any case works, and spaces are optional.
 | `cl.` `far.` | Close or far standing normal | `cl.HP` |
 | `j.` | A straight-up jump with the attack in the air | `j.HK` |
 | `>` or `,` | Then the next move, once the dummy can act again (a link) | `2LK > 2LP` |
-| `xx` | Cancel into the next move when the hit lands | `2MK xx 236HP` |
+| `xx` | Cancel into the next move when the hit lands, or after a dash as soon as the dash can be cancelled | `2MK xx 236HP`, `66 > xx 5MP` |
 | `~` | Follow-up pressed about ten frames into the move before | `236P ~ LP` |
 | `[4]6` | Charge back, then forward | `[4]6P` |
 | `[1]` | Hold a direction until the next move | `[1] > 2HK` |
@@ -296,7 +295,7 @@ Moves are separated by `>` or `,`; `xx` before a move means it cancels the one b
 
 - motion: numpad digits, `[4]6` for charge, `360`, `720`, or a word: `qcf` (236), `qcb` (214), `dp` (623), `rdp` (421), `hcf` (41236), `hcb` (63214), with its button straight after, after a space or after `+` (`qcfP`, `dp HP`, `qcb+LK`). `cr.` is 2; `st.`, `cl.` and `far.` are 5.
 - buttons: `LP MP HP LK MK HK` joined by `+`, or `P PP PPP K KK KKK`. `[HP]` holds, `]HP[` releases, `(mash)` presses five times: `P(mash)`, `K(mash)` or several buttons cycle one per frame (a piano, five presses in five frames), a single button goes on and off (five in ten). `(mash HP-MP-LP-HP-MP)` sets the order and the count, one press per frame, up to 10; a digit before a button gives that press its own direction, `5K(mash 1MK-1MK-1MK-1MK)`.
-- `@N`: the move's own timing offset, -120 to +120 frames, from what it waits on: the dummy being free for the first move (added to **Reply timing**), the move before for a link, the hit for a cancel. `#N`: the frame of the reply the move takes effect on (its button; with none, its last direction, as for a jump or a dash; for a jumping attack, its jump), 0 to 7200, counted from the reply's first played frame, a later move's `@N` then counted from that frame (the first move's stays the reply's); only frames of a known length can come before it, so it is refused on the first move with nothing before it, after a hold with no count leading the reply, and after any wait on the fight (a link or a cancel). The first move cannot be a cancel, a follow-up or a button let go (`]HP[`, which comes out on the release, a time the reply cannot set). A reply needs a move: holds and waits alone are refused.
+- `@N`: the move's own timing offset, -120 to +120 frames, from what it waits on: the dummy being free for the first move (added to **Reply timing**), the move before for a link, the hit for a cancel. `#N`: the frame of the reply the move takes effect on (its button; with none, its last direction, as for a jump or a dash; for a jumping attack, its jump), 0 to 7200, counted from the reply's first played frame, a later move's `@N` then counted from that frame (the first move's stays the reply's); only frames of a known length can come before it, so it is refused on the first move with nothing before it, after a hold with no count leading the reply, and after any wait on the fight (a link or a cancel). The first move cannot be a cancel or a follow-up. It can be a plain button let go (`]HP[`): the dummy holds the button through the stun and lets go when the reply is due, so a hold-and-release move such as Cody's Zonk Knuckle comes out on wake-up with no hold to wait out. A reply needs a move: holds and waits alone are refused.
 - `FADC` is the focus cancel (MP+MK, then the dash at once). `RFADC` is the red focus: LP+MP+MK tapped and let go so the red focus attack comes out and lands, then the dash on that hit.
 - A direction held alone, read for the facing like any other: `[1]` holds down-back until the next move begins its own input, held through that move's wait for the dummy to be free or a follow-up's delay (`[1] > 3HP`); `[2]30f` holds down for 30 frames (1 to 7200); `10f` waits 10 frames with nothing held. Before the first move these lead into it: the move plays straight after them, and a reply starts early enough for them and the move's motion to end with its button, or a jump's or a dash's last direction, on the first free frame. A hold with no count needs a move right after it, not another hold or a wait; a reply cannot start with a wait; and moves that would take more than 7200 frames are refused whole.
 
@@ -326,6 +325,18 @@ Block all, for example, is Select, Right, Select. Left and Right still step a
 value one at a time. On an Xbox pad, R3 (press the right stick) opens and
 closes the controls on its own; F6 and Back + Start still work. See [V2
 menus](V2_MENUS.md#training).
+
+## Phone remote
+
+Change the dummy and the recording from a phone on the same network, so you do not have to open the menu mid-session.
+
+1. Open the lab, then **Phone remote**, and turn it on. It is off until you do, and only devices on your local network can reach it.
+2. Point the phone's camera at the QR code. The page opens and signs in. Without a camera, open the address shown and type the PIN.
+3. Use the buttons: the dummy's action, block, quick stand, counter hit, stun and gauges, then Record, Play, Stop, Clear, Mirror and the position buttons. The page shows what is set now.
+
+**Save and share combos.** On the phone, open Tools > Combos. Press Record, play the combo, then name it and press Save last. Each saved combo can be played on the dummy, renamed, deleted, downloaded as a `.json` file, or shown as text to copy. Import a file or pasted text to add someone else's combo. Combos are kept in the `combos` folder next to `training.json` (up to 100), and the file holds the exact frames, so it plays the same for everyone. The phone page runs over plain `http` on your network, so it cannot use the phone's share sheet: download the file or copy the text instead.
+
+The PIN changes each time the remote is turned on. Five wrong PINs lock the remote for 30 seconds. If the phone cannot connect, see "Phone remote cannot connect" in [Troubleshooting](TROUBLESHOOTING.md); Windows may ask once to allow Ember on private networks, or setup's firewall option does it for you.
 
 ## Implementation notes
 

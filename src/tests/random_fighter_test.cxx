@@ -99,7 +99,7 @@ selection::Pick Sent(const room::RandomFighterPick& pick, const selection::Pick&
 // An Arcade room whose winners keep their fighters, first to 2, with no keeper.
 Snapshot KeepersTable() {
     auto room = Seated();
-    room.arcade = room::ArcadeRoom;
+    room.type = room::RoomType::Arcade;
     room.tables[0].rules.winnerKeepsFighter = true; room.tables[0].rules.format = room::SetFormat::Ft2;
     return room;
 }

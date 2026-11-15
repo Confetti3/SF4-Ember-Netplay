@@ -1,4 +1,4 @@
-// The room board of an Arcade or King of the hill room (Snapshot::arcade,
+// The room board of an Arcade or King of the hill room (Snapshot::type,
 // Arcade.dc.html): sixteen cabinets in two rows, each pair in its own colour
 // and linked by a line wherever its two cabinets stand; King of the hill the
 // same under its top slot. Every cabinet is its row. A Classic room keeps its
@@ -214,7 +214,7 @@ float ApplicationShell::ArcadeBoardHeight(const ShellView& v,const std::vector<M
  const float s=Scale(),strip=MatchupStripHeight(MatchupCount(rows),s);
  // As DrawArcadeBoard lays it out: the banner, the matchups, the focus margin
  // round the rows, and a scrollbar under rows that scroll across.
- return (v.room.arcade==room::KingRoom?(TopSlotHeight+8)*s:0)+(strip>0?strip+8*s:0)+12*s+
+ return (room::RulesOf(v.room).winnerStays?(TopSlotHeight+8)*s:0)+(strip>0?strip+8*s:0)+12*s+
   2*LeastCabinet*s*CabinetReach+Aisle*s+(RowsScrollAcross(width-12*s,s)?ImGui::GetStyle().ScrollbarSize:0);
 }
 
@@ -243,7 +243,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   return found==rows.end()?nullptr:&*found;
  };
  const auto tag=[&](const room::Member& m,ImVec2 at,float width,v2::TagSize size,std::string status){
-  auto g=MemberTag(v.memberLatency,m,v.room.localMember);g.status=std::move(status);
+  auto g=MemberTag(v,m);g.status=std::move(status);
   if(m.id==v.room.localMember)g.name+=loc::T("room.suffix_you");
   // A small tag keeps the name, flag and class only.
   if(size==v2::TagSize::XS){g.ping={};g.link.reset();}
@@ -251,7 +251,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  };
  const FighterArt art=RoomFighterArt(preferences_);
  v2::Box board=area;
- if(type==room::KingRoom){
+ if(room::RulesOf(type).winnerStays){
   // The top slot: the longest current streak, its holder and the streak.
   const v2::Box banner=v2::CutTop(board,TopSlotHeight*s,8*s);
   v2::CardGround(d,banner,false,false,true);
@@ -339,7 +339,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const auto* m=room::FindMember(v.room,v.room.cabinets[i]);
   const auto* t=m&&m->table>=0?&v.room.tables[m->table]:nullptr;
   const bool paired=t&&t->p1&&t->p2,seated=m!=nullptr;const ImU32 pair=paired?PairColor(t->id):pending;
-  const bool crowned=type==room::KingRoom&&v.room.topSlot==i;
+  const bool crowned=room::RulesOf(type).winnerStays&&v.room.topSlot==i;
   // What the seated player picked, or their main (SeatLookOf).
   const SeatLook look=m?SeatLookOf(v,*m):SeatLook{};
   // Every cabinet glows: dim while free, brighter once someone sits there, in the
@@ -352,7 +352,9 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   // the Rematch choice, or Insert coin.
   const int side=t&&t->p2==m->id?1:0;
   std::string first=loc::T("room.cabinet_free"),second;ImU32 tone=c.muted;
-  if(m&&!paired){first=loc::T("room.arcade_waiting");tone=c.text;}
+  if(m&&!paired){first=loc::T("room.arcade_waiting");tone=c.text;
+   // At no table: every table in play is taken, so they wait in line.
+   if(const int place=room::ArcadeLinePlace(v.room,m->id))second=loc::Tf("room.arcade_in_line",place);}
   else if(paired&&t->deciding){first=loc::T(ArcadeAnswerKey(*t,side));tone=pending;}
   // Who plays whom: the opponent's name on the screen, in the pair's colour, over the score.
   else if(paired){const auto* other=room::FindMember(v.room,side?t->p1:t->p2);
@@ -381,7 +383,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   // gold on the top slot.
   const v2::Box& marquee=k.marquee;
   const float mh=marquee.H(),ms=(std::min)(15*s,mh*.68f);const ImU32 ink=paired||crowned?c.ink:waiting?c.text:c.muted;
-  const int streak=type==room::KingRoom?v.room.streaks[i]:0;
+  const int streak=room::RulesOf(type).winnerStays?v.room.streaks[i]:0;
   v2::Text(d,ImVec2(marquee.min.x+4*s,marquee.min.y+(mh-ms)*.5f),streak?marquee.W()*.45f:marquee.W()-8*s,std::to_string(i+1),ms,ink,HeadingFont(),!streak);
   if(streak){
    const std::string count=std::to_string(streak);
@@ -390,6 +392,13 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
    v2::Icon(d,v2::IconCount-1,ImVec2(marquee.max.x-8*s-cw-ms,marquee.min.y+(mh-ms)*.5f),ms,ink);
   }
   if(pictured)DrawCabinetFighter(d,screen,picture,glass,ultra,s);
+  // Their points in the screen's top right corner, where the screen's words (at its foot) are not.
+  if(m)if(const auto points=PointsOf(v,*m,look.fighter)){
+   const float h=(std::min)(10*s,screen.H()*.12f),x=(std::max)(screen.min.x+2*s,screen.max.x-3*s-v2::LevelWidth(points->points,h,"points.label"));
+   d->PushClipRect(screen.min,screen.max,true);
+   v2::Level(d,ImVec2(x,screen.min.y+3*s),h,points->points,"points.label");
+   d->PopClipRect();
+  }
   const float ss=(std::min)(15*s,screen.H()*.34f);
   const auto space=first.find(' ');
   if(second.empty()&&space!=std::string::npos&&HeadingFont()->CalcTextSizeA(ss,FLT_MAX,0,first.c_str()).x>screen.W()-4*s){second=first.substr(space+1);first.resize(space);}

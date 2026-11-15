@@ -39,15 +39,28 @@ int main() try {
         "Relayed route label was not translated");
     sf4e::loc::SetActive(sf4e::loc::Locale::En);
 
-    // A relayed check names the relay's region and where the direct path most
-    // likely failed, as a likely cause, from both sides' network reports.
+    // A relayed check names the relay, as a relay and never as a place, and where the
+    // direct path most likely failed, as a likely cause, from both sides' network reports.
     using sf4e::NatClass;
     measured.probeRelay = "euc1"; measured.probeOpponent = "Ken";
-    Check(DescribeConnectionCheck(measured).detail.rfind("Relayed (Europe) connection.", 0) == 0, "A relayed check did not name its region");
+    Check(DescribeConnectionCheck(measured).detail.rfind("Relayed via Ember Europe connection.", 0) == 0, "A relayed check did not name its relay");
+    measured.probeRelay = "use1";
+    Check(DescribeConnectionCheck(measured).detail.rfind("Relayed via Ember US (Kansas) connection.", 0) == 0, "Ember's US relay is not named as the relay in Kansas");
     measured.probeRelay = "other";
-    Check(DescribeConnectionCheck(measured).detail.rfind("Relayed (Other region) connection.", 0) == 0, "An unpinned relay was not reduced to other");
+    Check(DescribeConnectionCheck(measured).detail.rfind("Relayed via Another relay connection.", 0) == 0, "An unpinned relay was not reduced to another relay");
     measured.probeRelay.clear();
-    Check(DescribeConnectionCheck(measured).detail.rfind("Relayed connection.", 0) == 0, "A relay without a region changed the route label");
+    Check(DescribeConnectionCheck(measured).detail.rfind("Relayed connection.", 0) == 0, "A relay without a code changed the route label");
+    // The Network screen's relay row: the relay and whether this PC is connected to it.
+    NetworkSummary own; own.reported = true; own.relay = "aps1"; own.relayConnected = true;
+    Check(DescribeRelay(own) == "n0 Asia \xC2\xB7 connected", "The relay row does not read 'n0 Asia · connected'");
+    own.relay = "use1"; own.relayConnected = false;
+    Check(DescribeRelay(own) == "Ember US (Kansas) \xC2\xB7 connecting", "The relay row does not read 'Ember US (Kansas) · connecting'");
+    own.relay.clear();
+    Check(DescribeRelay(own) == sf4e::loc::T("network.relay_none"), "No home relay does not read Not connected");
+    own.reported = false;
+    Check(DescribeRelay(own) == sf4e::loc::T("connection.checking"), "Before the first report the relay is not being checked");
+    for (const auto& relay : sf4e::Relays) Check(sf4e::IsRelayRegionCode(relay.code) && RelayName(relay.code), "A pinned relay has no name");
+    Check(!sf4e::IsRelayRegionCode("other") && RelayName("other") && !RelayName("") && !RelayName("naw"), "Another relay, no relay or an area was taken for a pinned relay");
     const auto block = [&](NatClass local, NatClass peer, bool reported = true) {
         measured.netReport.reported = reported; measured.netReport.nat = local; measured.probeOpponentNat = peer;
         return DescribeConnectionCheck(measured);
@@ -77,11 +90,11 @@ int main() try {
     const auto failure = [](bool hosting, FailureStage stage, const char* region = "") {
         return DescribeOpeningFailure(hosting, stage, region);
     };
-    Check(failure(false, FailureStage::RelayUnreachable, "usw1") == sf4e::loc::Tf("runtime.relay_unreachable_region", sf4e::loc::T("network.region_usw1")),
-        "An unreachable relay was not named by region");
+    Check(failure(false, FailureStage::RelayUnreachable, "usw1") == sf4e::loc::Tf("runtime.relay_unreachable_named", sf4e::loc::T("network.relay_usw1")),
+        "An unreachable relay was not named");
     Check(failure(true, FailureStage::RelayUnreachable) == sf4e::loc::T("runtime.relay_unreachable") &&
         failure(false, FailureStage::RelayUnreachable, "https://use1-1.relay.n0.iroh.link./") == sf4e::loc::T("runtime.relay_unreachable"),
-        "An unreachable relay without a known region did not use the plain sentence");
+        "An unreachable relay without a known code did not use the plain sentence");
     Check(failure(false, FailureStage::HostUnreachable) == sf4e::loc::T("runtime.host_unreachable"), "An unreachable host has no sentence");
     Check(failure(false, FailureStage::ControlLost) == sf4e::loc::T("runtime.join_control_lost"), "A dropped link has no sentence");
     Check(failure(false, FailureStage::Unknown) == sf4e::loc::T("runtime.room_join_failed"), "A join without a stage lost its generic sentence");
@@ -92,6 +105,11 @@ int main() try {
         failure(false, FailureStage::ShortUnavailable) == sf4e::loc::T("runtime.invite_short_unavailable") &&
         failure(false, FailureStage::ShortUnknown) == sf4e::loc::T("runtime.invite_short_unknown"),
         "A refused invitation lost its reason");
+    Check(DescribeOpeningFailure(false, FailureStage::InviteOtherBuild, "", true) == sf4e::loc::T("runtime.build_mismatch_update") &&
+        DescribeOpeningFailure(false, FailureStage::InviteExpired, "", true) == sf4e::loc::T("runtime.invite_expired") &&
+        DescribeOpeningFailure(true, FailureStage::InviteOtherBuild, "", true) == sf4e::loc::T("runtime.room_host_failed") &&
+        DescribePublicOpeningFailure(FailureStage::InviteOtherBuild, "", true) == sf4e::loc::T("runtime.build_mismatch_update"),
+        "A refusal for another build did not say the update fixes it");
     Check(failure(true, FailureStage::InviteExpired) == sf4e::loc::T("runtime.room_host_failed") &&
         failure(true, FailureStage::InviteOtherBuild) == sf4e::loc::T("runtime.room_host_failed") &&
         failure(true, FailureStage::InviteMalformed) == sf4e::loc::T("runtime.room_host_failed") &&

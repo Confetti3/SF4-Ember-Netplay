@@ -50,5 +50,9 @@ void OnGgpoAssertion(const char* message);
 // lines), and puts the crash filter back if something replaced it.
 void NoteMatchBoundary(const char* label);
 
+// The largest free range of the process's address space now, in bytes: what
+// decides whether the next big allocation can still be placed.
+unsigned long long LargestFreeRange();
+
 } // namespace crash
 } // namespace sf4e

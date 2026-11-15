@@ -1,0 +1,1228 @@
+fighter	move	strength	game_key
+Ryu	Collarbone Breaker	MP	6MP
+Ryu	Solar Plexus Strike	HP	6HP
+Ryu	Hadoken	LP	236LP
+Ryu	Hadoken	MP	236MP
+Ryu	Hadoken	HP	236HP
+Ryu	EX Hadoken	EX	236PP
+Ryu	Shoryuken	LP	623LP
+Ryu	Shoryuken	MP	623MP
+Ryu	Shoryuken	HP	623HP
+Ryu	EX Shoryuken	EX	623PP
+Ryu	Tatsumaki Senpukyaku	LK	214LK
+Ryu	Tatsumaki Senpukyaku	MK	214MK
+Ryu	Tatsumaki Senpukyaku	HK	214HK
+Ryu	EX Tatsumaki Senpukyaku	EX	214KK
+Ryu	Air Tatsumaki Senpukyaku	LK	j.214LK
+Ryu	Air Tatsumaki Senpukyaku	MK	j.214MK
+Ryu	Air Tatsumaki Senpukyaku	HK	j.214HK
+Ryu	EX Air Tatsumaki Senpukyaku	EX	j.214KK
+Ryu	Shinku Hadoken	LP	236236LP
+Ryu	Shinku Hadoken	MP	236236MP
+Ryu	Shinku Hadoken	HP	236236HP
+Ryu	Metsu Hadoken		236236PPP
+Ryu	Metsu Shoryuken		236236KKK
+Ken	Inazuma Kick	MK	4MK
+Ken	MK Step Kick	MK	6MK
+Ken	Thunder Kick	HK	6HK
+Ken	Hadoken	LP	236LP
+Ken	Hadoken	MP	236MP
+Ken	Hadoken	HP	236HP
+Ken	EX Hadoken	EX	236PP
+Ken	Shoryuken	LP	623LP
+Ken	Shoryuken	MP	623MP
+Ken	Shoryuken	HP	623HP
+Ken	EX Shoryuken	EX	623PP
+Ken	Tatsumaki Senpukyaku	LK	214LK
+Ken	Tatsumaki Senpukyaku	MK	214MK
+Ken	Tatsumaki Senpukyaku	HK	214HK
+Ken	EX Tatsumaki Senpukyaku	EX	214KK
+Ken	Airborne Tatsumaki Senpukyaku	LK	j.214LK
+Ken	Airborne Tatsumaki Senpukyaku	MK	j.214MK
+Ken	Airborne Tatsumaki Senpukyaku	HK	j.214HK
+Ken	EX Airborne Tatsumaki Senpukyaku	EX	j.214KK
+Ken	Shoryureppa	LP	236236LP
+Ken	Shoryureppa	MP	236236MP
+Ken	Shoryureppa	HP	236236HP
+Ken	Shinryuken		236236PPP
+Ken	Guren Senpukyaku		236236KKK
+Chun-Li	Rear Spin Kick	LK	3LK
+Chun-Li	Kintekishu	MK	4MK
+Chun-Li	Kakusenshu	MK	6MK
+Chun-Li	Kakukyakuraku	HK	3HK
+Chun-Li	Yosokyaku (1)	MK	j.2MK
+Chun-Li	Ryuseiraku		j.LP+LK
+Chun-Li	Hyakuretsukyaku	LK	5LK(mash)
+Chun-Li	Hyakuretsukyaku	MK	5MK(mash)
+Chun-Li	Hyakuretsukyaku	HK	5HK(mash)
+Chun-Li	EX Hyakuretsukyaku	EX	5KK(mash)
+Chun-Li	Kikoken	LP	[4]6LP
+Chun-Li	Kikoken	MP	[4]6MP
+Chun-Li	Kikoken	HP	[4]6HP
+Chun-Li	EX Kikoken	EX	[4]6PP
+Chun-Li	Hazanshu	LK	63214LK
+Chun-Li	Hazanshu	MK	63214MK
+Chun-Li	Hazanshu	HK	63214HK
+Chun-Li	EX Hazanshu	EX	63214KK
+Chun-Li	Spinning Bird Kick	LK	[2]8LK
+Chun-Li	Spinning Bird Kick	MK	[2]8MK
+Chun-Li	Spinning Bird Kick	HK	[2]8HK
+Chun-Li	EX Spinning Bird Kick	EX	[2]8KK
+Chun-Li	Senretsukyaku	LK	[4]646LK
+Chun-Li	Senretsukyaku	MK	[4]646MK
+Chun-Li	Senretsukyaku	HK	[4]646HK
+Chun-Li	Hosenka		[4]646KKK
+Chun-Li	Kikosho		236236PPP
+Chun-Li	Tenkukyaku	MK	j.3MK
+E. Honda	Shikofumi	HK	3HK
+E. Honda	Hundred Hand Slap	LP	5LP(mash)
+E. Honda	Hundred Hand Slap	MP	5MP(mash)
+E. Honda	Hundred Hand Slap	HP	5HP(mash)
+E. Honda	EX Hundred Hand Slap	EX	5PP(mash)
+E. Honda	Sumo Headbutt	LP	[4]6LP
+E. Honda	Sumo Headbutt	MP	[4]6MP
+E. Honda	Sumo Headbutt	HP	[4]6HP
+E. Honda	EX Sumo Headbutt	EX	[4]6PP
+E. Honda	Sumo Smash	LK	[2]8LK
+E. Honda	Sumo Smash	MK	[2]8MK
+E. Honda	Sumo Smash	HK	[2]8HK
+E. Honda	EX Sumo Smash	EX	[2]8KK
+E. Honda	Oicho Throw	LP	63214LP
+E. Honda	Oicho Throw	MP	63214MP
+E. Honda	Oicho Throw	HP	63214HP
+E. Honda	EX Oicho Throw	EX	63214PP
+E. Honda	Super Killer Head Ram	LP	[4]646LP
+E. Honda	Super Killer Head Ram	MP	[4]646MP
+E. Honda	Super Killer Head Ram	HP	[4]646HP
+E. Honda	Ultimate Killer Head Ram		[4]646PPP
+E. Honda	Orochi Breaker		6321463214PPP
+Blanka	Rock Crusher	MP	4MP
+Blanka	Rock Crusher Overhead	MP	6MP
+Blanka	Amazon River Run	HP	3HP
+Blanka	Coward Crouch		2PPP
+Blanka	Rolling Attack	LP	[4]6LP
+Blanka	Rolling Attack	MP	[4]6MP
+Blanka	Rolling Attack	HP	[4]6HP
+Blanka	EX Rolling Attack	EX	[4]6PP
+Blanka	Backstep Ball	LK	[4]6LK
+Blanka	Backstep Ball	MK	[4]6MK
+Blanka	Backstep Ball	HK	[4]6HK
+Blanka	EX Backstep Ball	EX	[4]6KK
+Blanka	Vertical Roll	LK	[2]8LK
+Blanka	Vertical Roll	MK	[2]8MK
+Blanka	Vertical Roll	HK	[2]8HK
+Blanka	EX Vertical Roll	EX	[2]8KK
+Blanka	Electric Thunder	LP	5LP(mash)
+Blanka	Electric Thunder	MP	5MP(mash)
+Blanka	Electric Thunder	HP	5HP(mash)
+Blanka	EX Electric Thunder	EX	5PP(mash)
+Blanka	Surprise Forward		6KKK
+Blanka	Surprise Back		4KKK
+Blanka	Ground Shave Roll	LP	[4]646LP
+Blanka	Ground Shave Roll	MP	[4]646MP
+Blanka	Ground Shave Roll	HP	[4]646HP
+Blanka	Lightning Cannonball		[4]646PPP
+Zangief	Long Kick	HK	3HK
+Zangief	Flying Body Attack	HP	fj.2HP
+Zangief	Double Knee Drop	LK	fj.2LK
+Zangief	Spinning Piledriver	LP	360LP
+Zangief	Spinning Piledriver	MP	360MP
+Zangief	Spinning Piledriver	HP	360HP
+Zangief	EX Spinning Piledriver		360PP
+Zangief	Banishing Flat	LP	623LP
+Zangief	Banishing Flat	MP	623MP
+Zangief	Banishing Flat	HP	623HP
+Zangief	EX Banishing Flat	EX	623PP
+Zangief	Double Lariat		5PPP
+Zangief	Quick Double Lariat		5KKK
+Zangief	Atomic Suplex	LK	360LK
+Zangief	Atomic Suplex	HK	360HK
+Zangief	EX Atomic Suplex	EX	360KK
+Zangief	Flying Power Bomb		360MK
+Zangief	Final Atomic Buster	LP	720LP
+Zangief	Final Atomic Buster	MP	720MP
+Zangief	Final Atomic Buster	HP	720HP
+Zangief	Ultimate Atomic Buster		720PPP
+Zangief	Siberian Blizzard		j.720KKK
+Zangief	Headbutt	MP	j.8MP
+Zangief	Headbutt	HP	j.8HP
+Guile	Straight Chop	MP	6MP
+Guile	Spinning Back Knuckle	HP	6HP
+Guile	Knee Bazooka	LK	4LK
+Guile	Rolling Sobat	MK	4MK
+Guile	Reverse Spin Kick	HK	4HK
+Guile	Guile High Kick	HK	3HK
+Guile	Flying Mare		j.LP+LK
+Guile	Flying Buster Drop		j.4LP+LK
+Guile	Sonic Boom	LP	[4]6LP
+Guile	Sonic Boom	MP	[4]6MP
+Guile	Sonic Boom	HP	[4]6HP
+Guile	EX Sonic Boom	EX	[4]6PP
+Guile	Flash Kick	LK	[2]8LK
+Guile	Flash Kick	MK	[2]8MK
+Guile	Flash Kick	HK	[2]8HK
+Guile	EX Flash Kick	EX	[2]8KK
+Guile	Double Flash	LK	[1]319LK
+Guile	Double Flash	MK	[1]319MK
+Guile	Double Flash	HK	[1]319HK
+Guile	Flash Explosion		[1]319KKK
+Guile	Sonic Hurricane		[4]646PPP
+Guile	Toward	LK	6LK
+Guile	Toward	MK	6MK
+Guile	Toward	HK	6HK
+Guile	Shades of Glory		2HP+HK
+Guile	Shades of Glory		2HP+HK
+Dhalsim	Back LP	LP	4LP
+Dhalsim	Back MP	MP	4MP
+Dhalsim	Back HP	HP	4HP
+Dhalsim	Back LK	LK	4LK
+Dhalsim	Back MK	MK	4MK
+Dhalsim	Back HK	HK	4HK
+Dhalsim	Down/Back LP	LP	1LP
+Dhalsim	Down/Back MP	MP	1MP
+Dhalsim	Down/Back HP	HP	1HP
+Dhalsim	Down/Back LK	LK	1LK
+Dhalsim	Down/Back MK	MK	1MK
+Dhalsim	Down/Back HK	HK	1HK
+Dhalsim	Yoga Tower		2PPP
+Dhalsim	Yoga Spear	LK	j.2LK
+Dhalsim	Yoga Mummy	HP	j.2HP
+Dhalsim	Yoga Fire	LP	236LP
+Dhalsim	Yoga Fire	MP	236MP
+Dhalsim	Yoga Fire	HP	236HP
+Dhalsim	EX Yoga Fire	EX	236PP
+Dhalsim	Yoga Flame	LP	63214LP
+Dhalsim	Yoga Flame	MP	63214MP
+Dhalsim	Yoga Flame	HP	63214HP
+Dhalsim	EX Yoga Flame	EX	63214PP
+Dhalsim	Yoga Blast	LK	63214LK
+Dhalsim	Yoga Blast	MK	63214MK
+Dhalsim	Yoga Blast	HK	63214HK
+Dhalsim	EX Yoga Blast	EX	63214KK
+Dhalsim	Yoga Teleport		623KKK
+Dhalsim	Yoga Inferno	LP	236236LP
+Dhalsim	Yoga Inferno	MP	236236MP
+Dhalsim	Yoga Inferno	HP	236236HP
+Dhalsim	Yoga Catastrophe		236236PPP
+Dhalsim	Yoga Shangri-La		j.236236KKK
+Dhalsim	Air back	LP	j.4LP
+Dhalsim	Air back	LK	j.4LK
+Dhalsim	Air back	MP	j.4MP
+Dhalsim	Air back	MK	j.4MK
+Dhalsim	Air back	HP	j.4HP
+Dhalsim	Air back	HK	j.4HK
+Dhalsim	Yoga Spear	MK	j.2MK
+Dhalsim	Yoga Spear	HK	j.2HK
+Balrog	Dash Straight	LP	[4]6LP
+Balrog	Dash Straight	MP	[4]6MP
+Balrog	Dash Straight	HP	[4]6HP
+Balrog	EX Dash Straight	EX	[4]6PP
+Balrog	Dash Upper	LK	[4]6LK
+Balrog	Dash Upper	MK	[4]6MK
+Balrog	Dash Upper	HK	[4]6HK
+Balrog	EX Dash Upper	EX	[4]6KK
+Balrog	Dash Low Straight	LP	[4]3LP
+Balrog	Dash Low Straight	MP	[4]3MP
+Balrog	Dash Low Straight	HP	[4]3HP
+Balrog	EX Dash Low Straight	EX	[4]3PP
+Balrog	Dash Swing Blow	LP	[4]3LP
+Balrog	Dash Swing Blow	MP	[4]3MP
+Balrog	Dash Low Smash	LK	[4]3LK
+Balrog	Dash Low Smash	MK	[4]3MK
+Balrog	Dash Low Smash	HK	[4]3HK
+Balrog	EX Dash Low Smash	EX	[4]3KK
+Balrog	Buffalo Headbutt	LP	[2]8LP
+Balrog	Buffalo Headbutt	MP	[2]8MP
+Balrog	Buffalo Headbutt	HP	[2]8HP
+Balrog	EX Buffalo Headbutt	EX	[2]8PP
+Balrog	Turn Punch		]PPP[
+Balrog	Turn Punch		]PPP[
+Balrog	Turn Punch		]PPP[
+Balrog	Turn Punch		]PPP[
+Balrog	Turn Punch		]PPP[
+Balrog	Turn Punch		]PPP[
+Balrog	Turn Punch		]PPP[
+Balrog	Turn Punch		]PPP[
+Balrog	Turn Punch		]PPP[
+Balrog	Turn Punch		]PPP[
+Balrog	Crazy Buffalo (Punch)		[4]646P
+Balrog	Crazy Buffalo (Kick)		[4]646K
+Balrog	Violent Buffalo (Punch)		[4]646PPP
+Balrog	Violent Buffalo (Kick)		[4]646KKK
+Balrog	Dirty Bull		6321463214PPP
+Balrog	Dirty Bull		6321463214PPP
+Balrog	Dirty Bull		6321463214PPP
+Balrog	Dirty Bull		6321463214PPP
+Balrog	Dirty Bull		6321463214PPP
+Balrog	Dirty Bull		6321463214PPP
+Vega	Piece of Mercury	MK	3MK
+Vega	Cosmic Heel	HK	3HK
+Vega	Stardust Drop		j.LP+LK
+Vega	Rolling Crystal Flash	LP	[4]6LP
+Vega	Rolling Crystal Flash	MP	[4]6MP
+Vega	Rolling Crystal Flash	HP	[4]6HP
+Vega	EX Rolling Crystal Flash	EX	[4]6PP
+Vega	Scarlet Terror	LK	[1]6LK
+Vega	Scarlet Terror	MK	[1]6MK
+Vega	Scarlet Terror	HK	[1]6HK
+Vega	EX Scarlet Terror	EX	[1]6KK
+Vega	Sky High Claw	LP	[2]8LP
+Vega	Sky High Claw	MP	[2]8MP
+Vega	Sky High Claw	HP	[2]8HP
+Vega	EX Sky High Claw		[2]8PP
+Vega	Flying Barcelona Attack	LK	[2]8LK
+Vega	Flying Barcelona Attack	MK	[2]8MK
+Vega	Flying Barcelona Attack	HK	[2]8HK
+Vega	EX Flying Barcelona Attack	EX	[2]8KK
+Vega	Back Slash		5PPP
+Vega	Short Back Slash		5KKK
+Vega	Remove Claw		623P
+Vega	Remove Mask		623PP
+Vega	Flying Barcelona Special	LK	[1]319LK
+Vega	Flying Barcelona Special	MK	[1]319MK
+Vega	Flying Barcelona Special	HK	[1]319HK
+Vega	Bloody High Claw		[1]319KKK
+Vega	Splendid Claw		[1]646KKK
+Vega	Pick Up Mask		2LP+HP
+Vega	Pick Up Mask		2LP+MP
+Vega	Pick Up Mask		2MP+HP
+Sagat	Heavy Tiger Elbow	HP	6HP
+Sagat	Low Step Kick	LK	6LK
+Sagat	High Step Kick	HK	6HK
+Sagat	High Tiger Shot	LP	236LP
+Sagat	High Tiger Shot	MP	236MP
+Sagat	High Tiger Shot	HP	236HP
+Sagat	EX High Tiger Shot	EX	236PP
+Sagat	Low Tiger Shot	LK	236LK
+Sagat	Low Tiger Shot	MK	236MK
+Sagat	Low Tiger Shot	HK	236HK
+Sagat	EX Low Tiger Shot	EX	236KK
+Sagat	Tiger Uppercut	LP	623LP
+Sagat	Tiger Uppercut	MP	623MP
+Sagat	Tiger Uppercut	HP	623HP
+Sagat	EX Tiger Uppercut	EX	623PP
+Sagat	Tiger Knee	LK	623LK
+Sagat	Tiger Knee	MK	623MK
+Sagat	Tiger Knee	HK	623HK
+Sagat	EX Tiger Knee	EX	623KK
+Sagat	Angry Charge		214214K
+Sagat	Tiger Genocide	LK	236236LK
+Sagat	Tiger Genocide	MK	236236MK
+Sagat	Tiger Genocide	HK	236236HK
+Sagat	Tiger Destruction		236236KKK
+Sagat	Tiger Cannon		236236PPP
+Sagat	Tiger Uppercut	LP	623LP
+Sagat	Tiger Uppercut	MP	623MP
+Sagat	Tiger Uppercut	HP	623HP
+Sagat	EX Tiger Uppercut	EX	623PP
+M. Bison	Psycho Crusher	LP	[4]6LP
+M. Bison	Psycho Crusher	MP	[4]6MP
+M. Bison	Psycho Crusher	HP	[4]6HP
+M. Bison	EX Psycho Crusher	EX	[4]6PP
+M. Bison	Double Knee Press	LK	[4]6LK
+M. Bison	Double Knee Press	MK	[4]6MK
+M. Bison	Double Knee Press	HK	[4]6HK
+M. Bison	EX Double Knee Press	EX	[4]6KK
+M. Bison	Head Press	LK	[2]8LK
+M. Bison	Head Press	MK	[2]8MK
+M. Bison	Head Press	HK	[2]8HK
+M. Bison	EX Head Press	EX	[2]8KK
+M. Bison	Knee Press Nightmare	LK	[4]646LK
+M. Bison	Knee Press Nightmare	MK	[4]646MK
+M. Bison	Knee Press Nightmare	HK	[4]646HK
+M. Bison	Nightmare Booster		[4]646KKK
+M. Bison	Devil Reverse	LP	[2]8LP
+M. Bison	Devil Reverse	MP	[2]8MP
+M. Bison	Devil Reverse	HP	[2]8HP
+M. Bison	EX Devil Reverse	EX	[2]8PP
+C. Viper	Viper Elbow	MP	6MP
+C. Viper	Double Kick	HK	6HK
+C. Viper	Viper Blade	HK	3HK
+C. Viper	Thunder Knuckle	LP	214LP
+C. Viper	Thunder Knuckle	MP	214MP
+C. Viper	Thunder Knuckle	HP	214HP
+C. Viper	EX Thunder Knuckle	EX	214PP
+C. Viper	Burning Kick	LK	214LK
+C. Viper	Burning Kick	MK	214MK
+C. Viper	Burning Kick	HK	214HK
+C. Viper	EX Burning Kick	EX	214KK
+C. Viper	Air Burning Kick	LK	j.214LK
+C. Viper	Air Burning Kick	MK	j.214MK
+C. Viper	Air Burning Kick	HK	j.214HK
+C. Viper	EX Air Burning Kick	EX	j.214KK
+C. Viper	Seismic Hammer	LP	623LP
+C. Viper	Seismic Hammer	MP	623MP
+C. Viper	Seismic Hammer	HP	623HP
+C. Viper	EX Seismic Hammer	EX	623PP
+C. Viper	Emergency Combination	LK	236236LK
+C. Viper	Emergency Combination	MK	236236MK
+C. Viper	Emergency Combination	HK	236236HK
+C. Viper	Burst Time		236236PPP
+Rufus	Vulture Kick	MK	6MK
+Rufus	Glory Kick	MK	3MK
+Rufus	Fragrance Palm	HP	6HP
+Rufus	Falcon Kick	MK	j.3MK
+Rufus	Messiah Kick	LK	236LK
+Rufus	Messiah Kick	MK	236MK
+Rufus	Messiah Kick	HK	236HK
+Rufus	EX Messiah Kick	EX	236KK
+Rufus	Galactic Tornado	LP	236LP
+Rufus	Galactic Tornado	MP	236MP
+Rufus	Galactic Tornado	HP	236HP
+Rufus	EX Galactic Tornado	EX	236PP
+Rufus	Snake Strike	LP	623LP
+Rufus	Snake Strike	MP	623MP
+Rufus	Snake Strike	HP	623HP
+Rufus	EX Snake Strike	EX	623PP
+Rufus	Spectacle Romance	LP	236236LP
+Rufus	Spectacle Romance	MP	236236MP
+Rufus	Spectacle Romance	HP	236236HP
+Rufus	Space Opera Symphony		236236PPP
+Rufus	Big Bang Typhoon		214214PPP
+El Fuerte	Shower Kick	MK	6MK
+El Fuerte	Sky Sopressa Drop		j.LP+LK
+El Fuerte	Habanero Dash		236P
+El Fuerte	EX Habanero Dash	EX	236PP
+El Fuerte	Habanero Back Dash		214P
+El Fuerte	EX Habanero Back Dash	EX	214PP
+El Fuerte	Guacamole Leg Throw	LK	623LK
+El Fuerte	Guacamole Leg Throw	MK	623MK
+El Fuerte	EX Guacamole Leg Throw	EX	623KK
+El Fuerte	Guacamole Leg Throw	HK	623HK
+El Fuerte	El Fuerte Dynamite	LK	236236LK
+El Fuerte	El Fuerte Dynamite	MK	236236MK
+El Fuerte	El Fuerte Dynamite	HK	236236HK
+El Fuerte	El Fuerte Flying Giga Buster		236236KKK
+El Fuerte	El Fuerte Ultra Spark		214214KKK
+Abel	Forward Kick	MK	6MK
+Abel	Change of Direction	LP	236LP
+Abel	Change of Direction	MP	236MP
+Abel	Change of Direction	HP	236HP
+Abel	EX Change of Direction	EX	236PP
+Abel	Wheel Kick	LK	214LK
+Abel	Wheel Kick	MK	214MK
+Abel	Wheel Kick	HK	214HK
+Abel	EX Wheel Kick	EX	214KK
+Abel	Marseilles Roll	LK	236LK
+Abel	Marseilles Roll	MK	236MK
+Abel	Marseilles Roll	HK	236HK
+Abel	EX Marseilles Roll	EX	236KK
+Abel	Falling Sky	LP	623LP
+Abel	Falling Sky	MP	623MP
+Abel	Falling Sky	HP	623HP
+Abel	EX Falling Sky	EX	623PP
+Abel	Tornado Throw	LP	63214LP
+Abel	Tornado Throw	MP	63214MP
+Abel	Tornado Throw	HP	63214HP
+Abel	EX Tornado Throw	EX	63214PP
+Abel	Heartless	LP	236236LP
+Abel	Heartless	MP	236236MP
+Abel	Heartless	HP	236236HP
+Abel	Soulless		236236PPP
+Abel	Breathless		236236KKK
+Seth	Yosokyaku (1)	MK	j.2MK
+Seth	Tenmakujinkyaku	HK	fj.2HK
+Seth	Sonic Boom	LP	236LP
+Seth	Sonic Boom	MP	236MP
+Seth	Sonic Boom	HP	236HP
+Seth	EX Sonic Boom	EX	236PP
+Seth	Shoryuken	LP	623LP
+Seth	Shoryuken	MP	623MP
+Seth	Shoryuken	HP	623HP
+Seth	EX Shoryuken	EX	623PP
+Seth	Hyakuretsukyaku	LK	214LK
+Seth	Hyakuretsukyaku	MK	214MK
+Seth	Hyakuretsukyaku	HK	214HK
+Seth	EX Hyakuretsukyaku	EX	214KK
+Seth	Tanden Engine	LP	214LP
+Seth	Tanden Engine	MP	214MP
+Seth	Tanden Engine	HP	214HP
+Seth	EX Tanden Engine	EX	214PP
+Seth	Spinning Piledriver	LP	360LP
+Seth	Spinning Piledriver	MP	360MP
+Seth	Spinning Piledriver	HP	360HP
+Seth	EX Spinning Piledriver	EX	360PP
+Seth	Tanden Storm	LP	236236LP
+Seth	Tanden Storm	MP	236236MP
+Seth	Tanden Storm	HP	236236HP
+Seth	Tanden Stream		236236PPP
+Seth	Tanden Typhoon		214214PPP
+Akuma	Zagaihasatsu	MP	6MP
+Akuma	Gohadoken	LP	236LP
+Akuma	Gohadoken	MP	236MP
+Akuma	Gohadoken	HP	236HP
+Akuma	EX Gohadoken	EX	236PP
+Akuma	Shakunetsu Hadoken	LP	63214LP
+Akuma	Shakunetsu Hadoken	MP	63214MP
+Akuma	Shakunetsu Hadoken	HP	63214HP
+Akuma	EX Shakunetsu Hadoken	EX	63214PP
+Akuma	Zanku Hadoken	LP	j.236LP
+Akuma	Zanku Hadoken	MP	j.236MP
+Akuma	Zanku Hadoken	HP	j.236HP
+Akuma	EX Zanku Hadoken	EX	j.236PP
+Akuma	Goshoryuken	LP	623LP
+Akuma	Goshoryuken	MP	623MP
+Akuma	Goshoryuken	HP	623HP
+Akuma	EX Goshoryuken	EX	623PP
+Akuma	Tatsumaki Zankukyaku	LK	214LK
+Akuma	Tatsumaki Zankukyaku	MK	214MK
+Akuma	Tatsumaki Zankukyaku	HK	214HK
+Akuma	EX Tatsumaki Zankukyaku	EX	214KK
+Akuma	Air Tatsumaki Zankukyaku	LK	j.214LK
+Akuma	Air Tatsumaki Zankukyaku	MK	j.214MK
+Akuma	Air Tatsumaki Zankukyaku	HK	j.214HK
+Akuma	EX Air Tatsumaki Zankukyaku	EX	j.214KK
+Akuma	Hyakkishu	LK	623LK
+Akuma	EX Hyakkishu	EX	623KK
+Akuma	Hyakki Gosho		623MK
+Akuma	Hyakki Gosai		623HK
+Akuma	Ashura Senku (Far)		623PPP
+Akuma	Ashura Senku (Close)		421PPP
+Akuma	Demon Armageddon		88KKK
+Akuma	Raging Demon		LP ~ LP@-8 ~ 6LK@-8 ~ HP@-8
+Akuma	Raging Demon (4LK)		LP ~ LP@-8 ~ 4LK@-8 ~ HP@-8
+Gouken	Sakotsukudaki	MP	6MP
+Gouken	Gohadoken	LP	236LP
+Gouken	Gohadoken	MP	236MP
+Gouken	Gohadoken	HP	236HP
+Gouken	EX Gohadoken	EX	236PP
+Gouken	Senkugoshoha	LP	623LP
+Gouken	Senkugoshoha	MP	623MP
+Gouken	Senkugoshoha	HP	623HP
+Gouken	EX Senkugoshoha	EX	623PP
+Gouken	Tatsumaki Gorasesn	LK	214LK
+Gouken	Tatsumaki Gorasesn	MK	214MK
+Gouken	Tatsumaki Gorasesn	HK	214HK
+Gouken	EX Tatsumaki Gorasen	EX	214KK
+Gouken	Airborne Tatsumaki Gorasen	LK	j.214LK
+Gouken	Airborne Tatsumaki Gorasen	MK	j.214MK
+Gouken	Airborne Tatsumaki Gorasen	HK	j.214HK
+Gouken	EX Airborne Tatsumaki Gorasen	EX	j.214KK
+Gouken	Hyakkishu	LK	623LK
+Gouken	Hyakkishu	HK	623HK
+Gouken	EX Hyakkishu	EX	623KK
+Gouken	Hyakki Gosai		623MK
+Gouken	Kongoshin	LP	421LP
+Gouken	Kongoshin	HP	421HP
+Gouken	Kongoshin Triggered		421MP
+Gouken	EX Kongoshin	EX	421PP
+Gouken	Forbidden Shoryuken	LP	236236LP
+Gouken	Forbidden Shoryuken	MP	236236MP
+Gouken	Forbidden Shoryuken	HP	236236HP
+Gouken	Shin Shoryuken		236236PPP
+Gouken	Denjin Hadoken		236236KKK
+T. Hawk	Thrust Peak	LP	3LP
+T. Hawk	Heavy Shoulder	MP	j.2MP
+T. Hawk	Heavy Body Press	HP	j.2HP
+T. Hawk	Mexican Typhoon	LP	360LP
+T. Hawk	Mexican Typhoon	MP	360MP
+T. Hawk	Mexican Typhoon	HP	360HP
+T. Hawk	EX Mexican Typhoon	EX	360PP
+T. Hawk	Tomahawk Buster	LP	623LP
+T. Hawk	Tomahawk Buster	MP	623MP
+T. Hawk	Tomahawk Buster	HP	623HP
+T. Hawk	EX Tomahawk Buster	EX	623PP
+T. Hawk	Condor Dive		j.PPP
+T. Hawk	Condor Spire	LK	623LK
+T. Hawk	Condor Spire	MK	623MK
+T. Hawk	Condor Spire	HK	623HK
+T. Hawk	EX Condor Spire	EX	623KK
+T. Hawk	Double Typhoon	LP	720LP
+T. Hawk	Double Typhoon	MP	720MP
+T. Hawk	Double Typhoon	HP	720HP
+T. Hawk	Raging Typhoon		720PPP
+T. Hawk	Raging Slash		6321463214KKK
+Cammy	Cannon Spike	LK	623LK
+Cammy	Cannon Spike	MK	623MK
+Cammy	Cannon Spike	HK	623HK
+Cammy	EX Cannon Spike	EX	623KK
+Cammy	Spiral Arrow	LK	236LK
+Cammy	Spiral Arrow	MK	236MK
+Cammy	Spiral Arrow	HK	236HK
+Cammy	EX Spiral Arrow	EX	236KK
+Cammy	Quick Spin Knuckle	LP	63214LP
+Cammy	Quick Spin Knuckle	MP	63214MP
+Cammy	Quick Spin Knuckle	HP	63214HP
+Cammy	EX Quick Spin Knuckle	EX	63214PP
+Cammy	Hooligan Combinations	LP	12369LP
+Cammy	Hooligan Combinations	MP	12369MP
+Cammy	Hooligan Combinations	HP	12369HP
+Cammy	EX Hooligan Combinations	EX	12369PP
+Cammy	Cannon Strike	LK	fj.214LK
+Cammy	Cannon Strike	MK	fj.214MK
+Cammy	Cannon Strike	HK	fj.214HK
+Cammy	EX Cannon Strike	EX	j.214KK
+Cammy	Spin Drive Smasher	LK	236236LK
+Cammy	Spin Drive Smasher	MK	236236MK
+Cammy	Spin Drive Smasher	HK	236236HK
+Cammy	Gyro Drive Smasher		236236KKK
+Cammy	CQC (Cammy Quick Combination)		214214PPP
+Cammy	Air Throw		j.LP+LK
+Fei Long	Chokkarakusho	MK	6MK
+Fei Long	Engekishu	HK	6HK
+Fei Long	Rekkaken	LP	236LP
+Fei Long	Rekkaken	MP	236MP
+Fei Long	Rekkaken	HP	236HP
+Fei Long	EX Rekkaken	EX	236PP
+Fei Long	Shienkyaku	LK	421LK
+Fei Long	Shienkyaku	MK	421MK
+Fei Long	Shienkyaku	HK	421HK
+Fei Long	EX Shienkyaku	EX	421KK
+Fei Long	Rekkukyaku	LK	412368LK
+Fei Long	Rekkukyaku	MK	412368MK
+Fei Long	Rekkukyaku	HK	412368HK
+Fei Long	EX Rekkukyaku	EX	412368KK
+Fei Long	Tenshin		63214K
+Fei Long	EX Tenshin	EX	63214KK
+Fei Long	Rekkashinken	LP	236236LP
+Fei Long	Rekkashinken	MP	236236MP
+Fei Long	Rekkashinken	HP	236236HP
+Fei Long	Rekkashingeki		236236PPP
+Fei Long	Gekirinken		236236KKK
+Dee Jay	Knee Shot	LK	fj.2LK
+Dee Jay	Air Slasher	LP	[4]6LP
+Dee Jay	Air Slasher	MP	[4]6MP
+Dee Jay	Air Slasher	HP	[4]6HP
+Dee Jay	EX Air Slasher	EX	[4]6PP
+Dee Jay	Double Rolling Sobat	LK	[4]6LK
+Dee Jay	Double Rolling Sobat	MK	[4]6MK
+Dee Jay	Double Rolling Sobat	HK	[4]6HK
+Dee Jay	EX Double Rolling Sobat	EX	[4]6KK
+Dee Jay	Jackknife Maximum	LK	[2]8LK
+Dee Jay	Jackknife Maximum	MK	[2]8MK
+Dee Jay	Jackknife Maximum	HK	[2]8HK
+Dee Jay	EX Jackknife Maximum	EX	[2]8KK
+Dee Jay	Machinegun Upper	LP	[2]8LP
+Dee Jay	Machinegun Upper	MP	[2]8MP
+Dee Jay	Machinegun Upper	HP	[2]8HP
+Dee Jay	EX Machinegun Upper	EX	[2]8PP
+Dee Jay	Sobat Carnival	LK	[4]646LK
+Dee Jay	Sobat Carnival	MK	[4]646MK
+Dee Jay	Sobat Carnival	HK	[4]646HK
+Dee Jay	Climax Beat		[1]319PPP
+Dee Jay	Sobat Festival		[4]646KKK
+Sakura	Flower Kick	MK	6MK
+Sakura	Hadoken		236P
+Sakura	EX Hadoken	EX	236LP+MP
+Sakura	EX Hadoken Lv2	EX	236MP+HP
+Sakura	EX Hadoken Lv3	EX	236LP+HP
+Sakura	Shouoken	LP	623LP
+Sakura	Shouoken	MP	623MP
+Sakura	Shouoken	HP	623HP
+Sakura	EX Shouoken	EX	623PP
+Sakura	Shunpukyaku	LK	214LK
+Sakura	Shunpukyaku	MK	214MK
+Sakura	Shunpukyaku	HK	214HK
+Sakura	EX Shunpukyaku	EX	214KK
+Sakura	Sakura Otoshi	LK	623LK
+Sakura	Sakura Otoshi	MK	623MK
+Sakura	Sakura Otoshi	HK	623HK
+Sakura	EX Sakura Otoshi	EX	623KK
+Sakura	Haru Ichiban	LK	214214LK
+Sakura	Haru Ichiban	MK	214214MK
+Sakura	Haru Ichiban	HK	214214HK
+Sakura	Haru Ranman		214214KKK
+Sakura	Shinku Hadoken		236236PPP
+Sakura	Shinku Tengyo Hadoken		236236KKK
+Rose	Slide	MK	3MK
+Rose	Soul Piede	HK	6HK
+Rose	Soul Spark	LP	41236LP
+Rose	Soul Spark	MP	41236MP
+Rose	Soul Spark	HP	41236HP
+Rose	EX Soul Spark	EX	41236PP
+Rose	Soul Spiral	LK	236LK
+Rose	Soul Spiral	MK	236MK
+Rose	Soul Spiral	HK	236HK
+Rose	EX Soul Spiral	EX	236KK
+Rose	Soul Reflect	LP	214LP
+Rose	Soul Reflect	MP	214MP
+Rose	Soul Reflect	HP	214HP
+Rose	EX Soul Reflect	EX	214PP
+Rose	Soul Throw	LP	623LP
+Rose	Soul Throw	LP	623LP
+Rose	Soul Throw	MP	623MP
+Rose	Soul Throw	HP	623HP
+Rose	EX Soul Throw	EX	623PP
+Rose	Soul Throw	MP	623MP
+Rose	Soul Throw	HP	623HP
+Rose	EX Soul Throw	EX	623PP
+Rose	Aura Soul Spark	LP	236236LP
+Rose	Aura Soul Spark	MP	236236MP
+Rose	Aura Soul Spark	HP	236236HP
+Rose	Illusion Spark		236236PPP
+Rose	Soul Satellite		214214KKK
+Gen	Change Style: Crane		5PPP > 5KKK
+Gen	Hyakurenko	LP	5PPP > 5LP(mash)
+Gen	Hyakurenko	MP	5PPP > 5MP(mash)
+Gen	Hyakurenko	HP	5PPP > 5HP(mash)
+Gen	EX Hyakurenko	EX	5PPP > 5PP(mash)
+Gen	Gekiro	LK	5PPP > 623LK
+Gen	Gekiro	MK	5PPP > 623MK
+Gen	Gekiro	HK	5PPP > 623HK
+Gen	EX Gekiro	EX	5PPP > 623KK
+Gen	Zan'ei	LP	5PPP > 236236LP
+Gen	Zan'ei	MP	5PPP > 236236MP
+Gen	Zan'ei	HP	5PPP > 236236HP
+Gen	Zetsuei		5PPP > 236236PPP
+Gen	Shitenketsu		5PPP > 214214PPP
+Gen	Change Style: Mantis		5KKK > 5PPP
+Gen	Jyasen	LP	5KKK > [4]6LP
+Gen	Jyasen	MP	5KKK > [4]6MP
+Gen	Jyasen	HP	5KKK > [4]6HP
+Gen	EX Jyasen	EX	5KKK > [4]6LP+MP
+Gen	EX Jyasen	EX	5KKK > [4]6LP+HP
+Gen	EX Jyasen	EX	5KKK > [4]6MP+HP
+Gen	Oga	LK	5KKK > [2]8LK
+Gen	Oga	MK	5KKK > [2]8MK
+Gen	Oga	HK	5KKK > [2]8HK
+Gen	EX Oga	EX	5KKK > [2]8KK
+Gen	Jyakoha	LK	5KKK > 236236LK
+Gen	Jyakoha	MK	5KKK > 236236MK
+Gen	Jyakoha	HK	5KKK > 236236HK
+Gen	Ryukoha		5KKK > 236236KKK
+Gen	Teiga		5KKK > j.236236KKK
+Gen	Shitenketsu		5PPP > 214214PPP
+Gen	Change Style: Mantis		5KKK > 5PPP
+Gen	Change Style: Crane		5PPP > 5KKK
+Dan	Saikyo Kick	HK	4HK
+Dan	Gadoken	LP	236LP
+Dan	Gadoken	MP	236MP
+Dan	Gadoken	HP	236HP
+Dan	EX Gadoken	EX	236PP
+Dan	Koryuken	LP	623LP
+Dan	Koryuken	MP	623MP
+Dan	Koryuken	HP	623HP
+Dan	EX Koryuken	EX	623PP
+Dan	Dankukyaku	LK	214LK
+Dan	Dankukyaku	MK	214MK
+Dan	Dankukyaku	HK	214HK
+Dan	EX Dankukyaku	EX	214KK
+Dan	Airborne Dankukyaku	LK	j.214LK
+Dan	Airborne Dankukyaku	MK	j.214MK
+Dan	Airborne Dankukyaku	HK	j.214HK
+Dan	EX Air Dankukyaku	EX	j.214KK
+Dan	Hissho Buraiken	LP	236236LP
+Dan	Hissho Buraiken	MP	236236MP
+Dan	Hissho Buraiken	HP	236236HP
+Dan	Shisso Buraiken		236236PPP
+Dan	Haoh Gadoken		236236KKK
+Dan	Crouching Taunt		2HP+HK
+Dan	Air Taunt		j.HP+HK
+Dan	Legendary Taunt		236236HP+HK
+Guy	Neck Breaker	MP	6MP
+Guy	Ninja Sickle	HK	3HK
+Guy	Hozanto	LP	214LP
+Guy	Hozanto	MP	214MP
+Guy	Hozanto	HP	214HP
+Guy	EX Hozanto	EX	214PP
+Guy	Bushin Senpukyaku	LK	214LK
+Guy	EX Bushin Senpukyaku	EX	214MK+HK
+Guy	EX Bushin Senpukyaku	EX	214LK+MK
+Guy	Bushin Senpukyaku	MK	214MK
+Guy	Bushin Senpukyaku	HK	214HK
+Guy	EX Bushin Senpukyaku	EX	214LK+HK
+Guy	Bushin Izuna Otoshi	LP	236LP
+Guy	Bushin Izuna Otoshi	MP	236MP
+Guy	Bushin Izuna Otoshi	HP	236HP
+Guy	EX Bushin Izuna Otoshi	EX	236PP
+Guy	Run	LK	236LK
+Guy	Run	MK	236MK
+Guy	Run	HK	236HK
+Guy	EX Run		236KK
+Guy	Kaiten Izuna Otoshi	LP	j.236LP
+Guy	Kaiten Izuna Otoshi	MP	j.236MP
+Guy	Kaiten Izuna Otoshi	HP	j.236HP
+Guy	EX Kaiten Izuna Otoshi	EX	j.236PP
+Guy	Bushin Hasoken	LP	236236LP
+Guy	Bushin Hasoken	MP	236236MP
+Guy	Bushin Hasoken	HP	236236HP
+Guy	Bushin Goraisenpujin		236236KKK
+Guy	Bushin Muso Renge		6321463214PPP
+Guy	Elbow Drop	MP	j.2MP
+Cody	Stomach Blow	MP	6MP
+Cody	Crack Kick	HK	6HK
+Cody	Jaw Crusher	MP	4MP
+Cody	Hammer Hook	HP	6HP
+Cody	Bad Stone	LP	236LP
+Cody	Bad Stone	LP	236LP
+Cody	Bad Stone	MP	236MP
+Cody	Bad Stone	MP	236MP
+Cody	Bad Stone	HP	236HP
+Cody	Bad Stone	HP	236HP
+Cody	EX Bad Stone	EX	236PP
+Cody	Pick Up Knife		2PPP
+Cody	Criminal Upper	LP	214LP
+Cody	Criminal Upper	MP	214MP
+Cody	Criminal Upper	HP	214HP
+Cody	EX Criminal Upper	EX	214PP
+Cody	Ruffian Kick	LK	236LK
+Cody	Ruffian Kick	MK	236MK
+Cody	Ruffian Kick	HK	236HK
+Cody	EX Ruffian Kick	EX	236KK
+Cody	Dead End Irony	LK	236236LK
+Cody	Dead End Irony	MK	236236MK
+Cody	Dead End Irony	HK	236236HK
+Cody	Final Destruction		236236PPP
+Cody	Last Dread Dust		214214PPP
+Cody	Fake Bad Stone		2HP+HK
+Cody	Fake Bad Stone		2HP+HK
+Ibuki	Agemen	MP	4MP
+Ibuki	Spin Kick	LK	6LK
+Ibuki	Reverse Spin Kick	MK	4MK
+Ibuki	Hammer Kick	MK	6MK
+Ibuki	Sazan	MK	3MK
+Ibuki	Bonsho Kick	HK	6HK
+Ibuki	Tobizaru		j.LP+LK
+Ibuki	Kunai	LP	j.236LP
+Ibuki	Kunai	MP	j.236MP
+Ibuki	Kunai	HP	j.236HP
+Ibuki	EX Kunai	EX	j.236PP
+Ibuki	Tsujigoe	LP	623LP
+Ibuki	Tsujigoe	MP	623MP
+Ibuki	Tsujigoe	HP	623HP
+Ibuki	Neck Breaker	LP	41236LP
+Ibuki	Neck Breaker	MP	41236MP
+Ibuki	Neck Breaker	HP	41236HP
+Ibuki	EX Neck Breaker	EX	41236PP
+Ibuki	Raida	LP	63214LP
+Ibuki	Raida	MP	63214MP
+Ibuki	Raida	HP	63214HP
+Ibuki	EX Raida	EX	63214PP
+Ibuki	Kasumi Gake	LK	236LK
+Ibuki	Kasumi Gake	MK	236MK
+Ibuki	Kasumi Gake	HK	236HK
+Ibuki	Kazegiri	LK	623LK
+Ibuki	Kazegiri	MK	623MK
+Ibuki	Kazegiri	HK	623HK
+Ibuki	EX Kazegiri	EX	623KK
+Ibuki	Tsumuji	LK	214LK
+Ibuki	Tsumuji	MK	214MK
+Ibuki	Tsumuji	HK	214HK
+Ibuki	EX Tsumuji	EX	214KK
+Ibuki	Hien	LK	421LK
+Ibuki	Hien	MK	421MK
+Ibuki	Hien	HK	421HK
+Ibuki	EX Hien	EX	421KK
+Ibuki	Kasumi Suzaku	LP	j.236236LP
+Ibuki	Kasumi Suzaku	MP	j.236236MP
+Ibuki	Kasumi Suzaku	HP	j.236236HP
+Ibuki	Yoroitoshi		6321463214PPP
+Ibuki	Hashinsho		236236KKK
+Makoto	Toward LP	LP	6LP
+Makoto	Toward MP	MP	6MP
+Makoto	Toward HP	HP	6HP
+Makoto	Toward LK	LK	6LK
+Makoto	Toward MK	MK	6MK
+Makoto	Toward HK	HK	6HK
+Makoto	Fukiage	LP	623LP
+Makoto	Fukiage	MP	623MP
+Makoto	Fukiage	HP	623HP
+Makoto	EX Fukiage	EX	623PP
+Makoto	Hayate	LP	236LP
+Makoto	Hayate	MP	236MP
+Makoto	Hayate	HP	236HP
+Makoto	EX Hayate	EX	236PP
+Makoto	Oroshi	LP	214LP
+Makoto	Oroshi	MP	214MP
+Makoto	Oroshi	HP	214HP
+Makoto	EX Oroshi	EX	214PP
+Makoto	Karakusa	LK	63214LK
+Makoto	Karakusa	MK	63214MK
+Makoto	Karakusa	HK	63214HK
+Makoto	EX Karakusa	EX	63214KK
+Makoto	Tsurugi	LK	j.214LK
+Makoto	Tsurugi	MK	j.214MK
+Makoto	Tsurugi	HK	j.214HK
+Makoto	EX Tsurugi	EX	j.214KK
+Makoto	Tanden Renki	LP	236236LP
+Makoto	Tanden Renki	MP	236236MP
+Makoto	Tanden Renki	HP	236236HP
+Makoto	Seichusan Godanzuki		236236PPP
+Makoto	Abare Tosanami	LK	236236KKK
+Dudley	Slipping Jab	LP	6LP
+Dudley	Stomach Blow	MP	6MP
+Dudley	Kidney Blow	MK	6MK
+Dudley	Step Straight	HP	6HP
+Dudley	Dart Shot	HK	6HK
+Dudley	Jet Upper	LP	623LP
+Dudley	Jet Upper	MP	623MP
+Dudley	Jet Upper	HP	623HP
+Dudley	EX Jet Upper	EX	623PP
+Dudley	Machine Gun Blow	LP	41236LP
+Dudley	Machine Gun Blow	MP	41236MP
+Dudley	Machine Gun Blow	HP	41236HP
+Dudley	EX Machine Gun Blow	EX	41236PP
+Dudley	Cross Counter	LP	63214LP
+Dudley	Cross Counter	MP	63214MP
+Dudley	Cross Counter	HP	63214HP
+Dudley	EX Cross Counter	EX	63214PP
+Dudley	LK Swing Blow	LK	63214LK
+Dudley	LK Swing Blow	MK	63214MK
+Dudley	LK Swing Blow	HK	63214HK
+Dudley	EX Swing Blow	EX	63214KK
+Dudley	Duck	LK	41236LK
+Dudley	Duck	MK	41236MK
+Dudley	Duck	HK	41236HK
+Dudley	EX Duck	EX	41236KK
+Dudley	EX Thunder Bolt	EX	[2]8KK
+Dudley	Thunder Bolt	HK	[2]8HK
+Dudley	Thunder Bolt	MK	[2]8MK
+Dudley	Thunder Bolt	LK	[2]8LK
+Dudley	Rocket Upper	LP	236236LP
+Dudley	Rocket Upper	MP	236236MP
+Dudley	Rocket Upper	HP	236236HP
+Dudley	Rolling Thunder		236236KKK
+Dudley	Corkscrew Blow		236236PPP
+Dudley	Victory Rose		2HP+HK
+Adon	Jaguar Crunch	MP	6MP
+Adon	Jaguar Kick	LK	421LK
+Adon	Jaguar Kick	MK	421MK
+Adon	Jaguar Kick	HK	421HK
+Adon	EX Jaguar Kick	EX	421KK
+Adon	Air Jaguar Kick	LK	j.214LK
+Adon	Air Jaguar Kick	MK	j.214MK
+Adon	Air Jaguar Kick	HK	j.214HK
+Adon	EX Air Jaguar Kick	EX	j.214KK
+Adon	Rising Jaguar	LK	623LK
+Adon	Rising Jaguar	MK	623MK
+Adon	Rising Jaguar	HK	623HK
+Adon	EX Rising Jaguar	EX	623KK
+Adon	Jaguar Tooth	LK	63214LK
+Adon	Jaguar Tooth	MK	63214MK
+Adon	Jaguar Tooth	HK	63214HK
+Adon	EX Jaguar Tooth	EX	63214KK
+Adon	Jaguar Varied Assault	LP	236236LP
+Adon	Jaguar Varied Assault	MP	236236MP
+Adon	Jaguar Varied Assault	HP	236236HP
+Adon	Jaguar Revolver		214214KKK
+Adon	Jaguar Avalanche		236236KKK
+Hakan	Hakan Smash	LP	6LP
+Hakan	Hakan Tackle	MP	6MP
+Hakan	Hakan Spear	HP	6HP
+Hakan	Step Low	LK	6LK
+Hakan	Front Kick	MK	6MK
+Hakan	Step Knee	HK	6HK
+Hakan	Guard Position		2PPP
+Hakan	Hakan Stomp		j.LP+LK
+Hakan	Oil Shower	LK	623LK
+Hakan	Oil Shower	MK	623MK
+Hakan	Oil Shower	HK	623HK
+Hakan	EX Oil Shower	EX	623KK
+Hakan	Oil Slide	LP	236LP
+Hakan	Oil Slide	MP	236MP
+Hakan	Oil Slide	HP	236HP
+Hakan	EX Oil Slide	EX	236PP
+Hakan	Oil Rocket	LP	360LP
+Hakan	Oil Rocket	MP	360MP
+Hakan	Oil Rocket	HP	360HP
+Hakan	EX Oil Rocket	EX	360PP
+Hakan	Oil Dive	LK	360LK
+Hakan	Oil Dive	MK	360MK
+Hakan	Oil Dive	HK	360HK
+Hakan	EX Oil Dive	EX	360KK
+Hakan	Oil Dive (Charged)	LP	360LP
+Hakan	Oil Dive (Charged)	MP	360MP
+Hakan	Oil Dive (Charged)	HP	360HP
+Hakan	Oil Dive (Charged)		360KK
+Hakan	Flying Oil Spin	LK	236236LK
+Hakan	Flying Oil Spin	MK	236236MK
+Hakan	Flying Oil Spin	HK	236236HK
+Hakan	Oil Coaster		720PPP
+Hakan	Oil Combination Hold		222KKK
+Hakan	Hakan Smash	LP	6LP
+Hakan	Hakan Tackle	MP	6MP
+Hakan	Hakan Spear	HP	6HP
+Hakan	Step Low	LK	6LK
+Hakan	Front Kick	MK	6MK
+Hakan	Step Knee	HK	6HK
+Hakan	Guard Position		2PPP
+Hakan	EX Oil Slide	EX	236PP
+Hakan	EX Oil Rocket	EX	360PP
+Hakan	Oil Dive	LK	360LK
+Hakan	Oil Dive	MK	360MK
+Hakan	Oil Dive	HK	360HK
+Hakan	Flying Oil Spin	LK	236236LK
+Hakan	Flying Oil Spin	MK	236236MK
+Hakan	Flying Oil Spin	HK	236236HK
+Hakan	Oil Coaster		720PPP
+Hakan	Oil Combination Hold		222KKK
+Juri	Sekku	MK	6MK
+Juri	Fuhajin	LK	236LK
+Juri	Fuhajin (Release)	MK	236MK
+Juri	Fuhajin (Release)	HK	236HK
+Juri	EX Fuhajin	EX	236LK+HK
+Juri	EX Fuhajin	EX	236MK+HK
+Juri	EX Fuhajin	EX	236LK+MK
+Juri	Shikusen	LK	j.214LK
+Juri	Shikusen	MK	j.214MK
+Juri	Shikusen	HK	j.214HK
+Juri	EX Shikusen	EX	j.214LK+HK
+Juri	EX Shikusen	EX	j.214MK+HK
+Juri	EX Shikusen	EX	j.214LK+MK
+Juri	Senpusha	LK	214LK
+Juri	Senpusha	MK	214MK
+Juri	Senpusha	HK	214HK
+Juri	EX Senpusha	EX	214KK
+Juri	Kasatushi	LP	214LP
+Juri	Kasatushi	MP	214MP
+Juri	Kasatushi	HP	214HP
+Juri	EX Kasatushi	EX	214PP
+Juri	Fuharenjin	LK	214214LK
+Juri	Fuharenjin	MK	214214MK
+Juri	Fuharenjin	HK	214214HK
+Juri	Feng Shui Engine		236236PPP
+Juri	Kaisen Dankairaku		236236KKK
+Yun	Senpukyaku	MK	6MK
+Yun	Dakai	HP	6HP
+Yun	Raigekishu	LK	j.3LK
+Yun	Raigekishu	MK	j.3MK
+Yun	Raigekishu	HK	j.3HK
+Yun	Zesshou Hohou	LP	236LP
+Yun	Zesshou Hohou	MP	236MP
+Yun	Zesshou Hohou	HP	236HP
+Yun	EX Zesshou Hohou	EX	236PP
+Yun	Tetsuzanko	LP	623LP
+Yun	Tetsuzanko	MP	623MP
+Yun	Tetsuzanko	HP	623HP
+Yun	EX Tetsuzanko	EX	623PP
+Yun	Kobokushi (Fake)	LP	214LP
+Yun	Kobokushi (Fake)	HP	214HP
+Yun	Kobokushi		214MP
+Yun	EX Kobokushi	EX	214PP
+Yun	Nishokyaku	LK	623LK
+Yun	Nishokyaku	MK	623MK
+Yun	Nishokyaku	HK	623HK
+Yun	EX Nishokyaku	EX	623KK
+Yun	Zenpou Tenshin	LK	63214LK
+Yun	Zenpou Tenshin	MK	63214MK
+Yun	Zenpou Tenshin	HK	63214HK
+Yun	EX Zenpou Tenshin	EX	63214KK
+Yun	Genei Jin	LP	236236LP
+Yun	Genei Jin	MP	236236MP
+Yun	Genei Jin	HP	236236HP
+Yun	You Hou		236236PPP
+Yun	Sorai Rengeki		236236KKK
+Yang	Senpukyaku	MK	6MK
+Yang	Raigekishu	LK	j.3LK
+Yang	Raigekishu	MK	j.3MK
+Yang	Raigekishu	HK	j.3HK
+Yang	Tourouzan	LP	236LP
+Yang	Tourouzan MP	MP	236MP
+Yang	Tourouzan HP	HP	236HP
+Yang	EX Tourouzan	EX	236PP
+Yang	Kaihou	LK	236LK
+Yang	Kaihou	MK	236MK
+Yang	Kaihou	HK	236HK
+Yang	EX Kaihou	EX	236KK
+Yang	Byakko Soshoda	LP	214LP
+Yang	Byakko Soshoda	MP	214MP
+Yang	Byakko Soshoda	HP	214HP
+Yang	EX Byakko Soshoda	EX	214PP
+Yang	Senkyutai	LK	623LK
+Yang	Senkyutai	MK	623MK
+Yang	Senkyutai	HK	623HK
+Yang	EX Senkyutai	EX	623KK
+Yang	Zenpo Tenshin	LK	63214LK
+Yang	Zenpo Tenshin	MK	63214MK
+Yang	Zenpo Tenshin	HK	63214HK
+Yang	EX Zenpo Tenshin	EX	63214KK
+Yang	Sei'ei Enbu		214214P
+Yang	Raishin Mahhaken		236236PPP
+Yang	Tenshin Senkyutai		236236KKK
+Evil Ryu	Zugaihasatsu	MP	6MP
+Evil Ryu	Senbukyaku	MK	6MK
+Evil Ryu	Tenmakujinkyaku	MK	fj.2MK
+Evil Ryu	Hadoken	LP	236LP
+Evil Ryu	Hadoken	MP	236MP
+Evil Ryu	Hadoken	HP	236HP
+Evil Ryu	EX Hadoken		236PP
+Evil Ryu	Shakunetsu Hadoken	LP	63214LP
+Evil Ryu	Shakunetsu Hadoken	MP	63214MP
+Evil Ryu	Shakunetsu Hadoken	HP	63214HP
+Evil Ryu	EX Shakunetsu Hadoken	EX	63214PP
+Evil Ryu	Shoryuken	LP	623LP
+Evil Ryu	Shoryuken	MP	623MP
+Evil Ryu	Shoryuken	HP	623HP
+Evil Ryu	EX Shoryuken	EX	623PP
+Evil Ryu	Tatsumaki	LK	214LK
+Evil Ryu	Tatsumaki	MK	214MK
+Evil Ryu	Tatsumaki	HK	214HK
+Evil Ryu	EX Tatsumaki	EX	214KK
+Evil Ryu	Air Tatsumaki	LK	j.214LK
+Evil Ryu	Air Tatsumaki	MK	j.214MK
+Evil Ryu	Air Tatsumaki	HK	j.214HK
+Evil Ryu	EX Air Tatsumaki	EX	j.214KK
+Evil Ryu	Ryusokyaku	LK	41236LK
+Evil Ryu	Ryusokyaku	MK	41236MK
+Evil Ryu	Ryusokyaku	HK	41236HK
+Evil Ryu	EX Ryusokyaku	EX	41236KK
+Evil Ryu	Metsu Hadoken		236236PPP
+Evil Ryu	Messatsu-Goshoryu		236236KKK
+Evil Ryu	Raging Demon		LP ~ LP@-8 ~ 6LK@-8 ~ HP@-8
+Oni	Toward LP	LP	6LP
+Oni	Toward HP	HP	6HP
+Oni	Toward LK	LK	6LK
+Oni	Toward MK	MK	6MK
+Oni	Toward HK	HK	6HK
+Oni	Ganka Uchi	MP	4MP
+Oni	Gohadoken	LP	236LP
+Oni	Gohadoken	MP	236MP
+Oni	Gohadoken	HP	236HP
+Oni	EX Gohadoken	EX	236PP
+Oni	Gorai Hadoken	LP	63214LP
+Oni	Gorai Hadoken	MP	63214MP
+Oni	Gorai Hadoken	HP	63214HP
+Oni	EX Gorai Hadoken	EX	63214PP
+Oni	Zanku Hadosho	LP	j.214LP
+Oni	Zanku Hadosho	MP	j.214MP
+Oni	Zanku Hadosho	HP	j.214HP
+Oni	Goshoryuken	LP	623LP
+Oni	Goshoryuken	MP	623MP
+Oni	Goshoryuken	HP	623HP
+Oni	EX Goshoryuken	EX	623PP
+Oni	Tatsumaki	LK	214LK
+Oni	Tatsumaki	MK	214MK
+Oni	Tatsumaki	HK	214HK
+Oni	EX Tatsumaki	EX	214KK
+Oni	Air Tatsumaki	LK	j.214LK
+Oni	Air Tatsumaki	MK	j.214MK
+Oni	Air Tatsumaki	HK	j.214HK
+Oni	EX Air Tatsumaki	EX	j.214KK
+Oni	Sekisei Jiraiken	LK	623LK
+Oni	Sekisei Jiraiken	MK	623MK
+Oni	Sekisei Jiraiken	HK	623HK
+Oni	EX Sekisei Jiraiken	EX	623KK
+Oni	Rakan Dantojin	LK	41236LK
+Oni	Rakan Dantojin	MK	41236MK
+Oni	Rakan Dantojin	HK	41236HK
+Oni	EX Rakan Dantojin	EX	41236KK
+Oni	Meido Gohado		236236PPP
+Oni	Meido Gohado		236236KKK
+Oni	Air Meido Gohado		j.236236PPP
+Oni	Tenchi Sokaigen		6321463214PPP
+Oni	Zugai Hasatsu	MP	6MP
+Oni	Raging Demon		LP ~ LP@-8 ~ 6LK@-8 ~ HP@-8
+Oni	Air Raging Demon		j.LP ~ LP@-8 ~ 6LK@-8 ~ HP@-8
+Rolento	Trick Rod	MK	6MK
+Rolento	Stinger Jump	LK	623LK
+Rolento	Stinger Jump	MK	623MK
+Rolento	Stinger Jump	HK	623HK
+Rolento	EX Stinger Jump	EX	623KK
+Rolento	Patriot Circle	LP	236LP
+Rolento	Patriot Circle	MP	236MP
+Rolento	Patriot Circle	HP	236HP
+Rolento	EX Patriot Circle	EX	236PP
+Rolento	Mekong Delta Attack (Flip)		5PPP
+Rolento	Mekong Delta Escape		214K
+Rolento	EX Mekong Delta Escape		214KK
+Rolento	Mine Sweeper	LP	214214LP
+Rolento	Mine Sweeper	MP	214214MP
+Rolento	Mine Sweeper	HP	214214HP
+Rolento	Take No Prisoners		236236KKK
+Rolento	Spike Rod	MK	j.2MK
+Elena	Handstand Kick	MP	6MP
+Elena	Handstand Whip	MK	6MK
+Elena	Round Arch	HK	4HK
+Elena	Sliding	HK	3HK
+Elena	Mallet Smash		63214PP
+Elena	Mallet Smash	HP	63214HP
+Elena	Mallet Smash	MP	63214MP
+Elena	Mallet Smash	LP	63214LP
+Elena	Scratch Wheel	LK	623LK
+Elena	Scratch Wheel	MK	623MK
+Elena	Scratch Wheel	HK	623HK
+Elena	EX Scratch Wheel	EX	623KK
+Elena	Lynx Tail	LK	421LK
+Elena	Lynx Tail	MK	421MK
+Elena	Lynx Tail	HK	421HK
+Elena	EX Lynx Tail	EX	421KK
+Elena	Rhino Horn	LK	41236LK
+Elena	Rhino Horn	MK	41236MK
+Elena	Rhino Horn	HK	41236HK
+Elena	EX Rhino Horn	EX	41236KK
+Elena	Spin Scythe	LK	214LK
+Elena	Spin Scythe	MK	214MK
+Elena	Spin Scythe	HK	214HK
+Elena	EX Spin Scythe	EX	214KK
+Elena	Spinning Beat	LK	236236LK
+Elena	Spinning Beat	MK	236236MK
+Elena	Spinning Beat	HK	236236HK
+Elena	Brave Dance		236236KKK
+Elena	Healing		236236PPP
+Elena	Healing		236236PPP
+Poison	Elbow Drop	MP	6MP
+Poison	Aeolus Edge	LP	236LP
+Poison	Aeolus Edge	MP	236MP
+Poison	Aeolus Edge	HP	236HP
+Poison	EX Aeolus Edge	EX	236PP
+Poison	Whip of Love	LP	214LP
+Poison	Whip of Love	MP	214MP
+Poison	Whip of Love	HP	214HP
+Poison	EX Whip of Love	EX	214PP
+Poison	Kissed by a Goddess	LK	623LK
+Poison	Kissed by a Goddess	MK	623MK
+Poison	Kissed by a Goddess	HK	623HK
+Poison	EX Kissed by a Goddess	EX	623KK
+Poison	Love Me Tender	LK	214LK
+Poison	Love Me Tender	MK	214MK
+Poison	Love Me Tender	HK	214HK
+Poison	EX Love Me Tender	EX	214KK
+Poison	Backflip		5KKK
+Poison	Thunder Whip		236236P
+Poison	Love Storm		236236PPP
+Poison	Poison Kiss		6321463214PPP
+Hugo	Hammer Hook	HP	6HP
+Hugo	Giant Palm Bomber	LP	214LP
+Hugo	Giant Palm Bomber	MP	214MP
+Hugo	Giant Palm Bomber	HP	214HP
+Hugo	EX Giant Palm Bomber	EX	214PP
+Hugo	Moonsault Press	LP	360LP
+Hugo	Moonsault Press	MP	360MP
+Hugo	Moonsault Press	HP	360HP
+Hugo	EX Moonsault Press	EX	360PP
+Hugo	Shootdown Backbreaker	LK	623LK
+Hugo	Shootdown Backbreaker	MK	623MK
+Hugo	Shootdown Backbreaker	HK	623HK
+Hugo	EX Shootdown Backbreaker	EX	623KK
+Hugo	Ultra Throw		63214K
+Hugo	EX Ultra Throw	EX	63214KK
+Hugo	Monster Lariat	LK	236LK
+Hugo	Monster Lariat	MK	236MK
+Hugo	Monster Lariat	HK	236HK
+Hugo	EX Monster Lariat	EX	236KK
+Hugo	Meat Squasher	LK	360LK
+Hugo	Meat Squasher	MK	360MK
+Hugo	Meat Squasher	HK	360HK
+Hugo	EX Meat Squasher	EX	360KK
+Hugo	Hammer Mountain	LP	236236LP
+Hugo	Hammer Mountain	HP	236236HP
+Hugo	Hammer Mountain	MP	236236MP
+Hugo	Gigas Breaker		720PPP
+Hugo	Megaton Press		236236KKK
+Hugo	Leap Attack	MK	22MK
+Hugo	Body Press	HP	j.2HP
+Decapre	Fox Tail	MK	3MK
+Decapre	Flying Neck Hunt		j.LP+LK
+Decapre	Psycho Sting	LP	[2]8LP
+Decapre	Psycho Sting	MP	[2]8MP
+Decapre	Psycho Sting	HP	[2]8HP
+Decapre	EX Psycho Sting	EX	[2]8PP
+Decapre	Rapid Dagger	LP	5LP(mash)
+Decapre	Rapid Dagger	MP	5MP(mash)
+Decapre	Rapid Dagger	HP	5HP(mash)
+Decapre	EX Rapid Dagger	EX	5PP(mash)
+Decapre	Spiral Arrow	LK	j.[4]6LK
+Decapre	Spiral Arrow	MK	j.[4]6MK
+Decapre	Spiral Arrow	HK	j.[4]6HK
+Decapre	EX Spiral Arrow	EX	j.[4]6KK
+Decapre	Scramble (Ground)	LK	[4]6LK
+Decapre	Scramble (Ground)	HK	[4]6HK
+Decapre	Scramble (Ground)	MK	[4]6MK
+Decapre	EX Scramble (Ground)	EX	[4]6LK+MK
+Decapre	Scramble (Air)		[4]6MK+HK
+Decapre	Scramble (Air)		[4]6LK+HK
+Decapre	Strafe Dagger		[4]646P
+Decapre	Psycho Stream		[4]646PPP
+Decapre	DCM (Ground)		[4]646KKK
+Decapre	DCM (Air)		[1]319KKK
+Decapre	Flying Neck Hunt		j.LP+LK

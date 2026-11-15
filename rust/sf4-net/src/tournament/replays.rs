@@ -161,7 +161,7 @@ where
                 ));
             }
             Err(Failure::Local(Code::ReplaysUnsupported)) => {}
-            Err(Failure::Bridge(reason)) if reason == Code::DiscordRequired.as_str() => {
+            Err(Failure::Bridge(refusal)) if refusal.is_reason(Code::DiscordRequired.as_str()) => {
                 discord = true;
             }
             Err(failure) => failed = Some(failure),
@@ -207,7 +207,7 @@ pub async fn pack(shared: &Arc<Shared>, bridge_id: &str, match_id: &str, path: &
 #[cfg(test)]
 mod tests {
     use super::{
-        super::{Code, Failure, Request, client, within},
+        super::{Code, Failure, Refusal, Request, client, within},
         REFUSALS, REPLAY_BUDGET, SET_REFUSALS, Sides, first_keeping,
     };
     use serde_json::json;
@@ -320,7 +320,7 @@ mod tests {
             })
             .await
         };
-        let discord = || Err(Failure::Bridge("discord_required".to_owned()));
+        let discord = || Err(Failure::Bridge(Refusal::Reason("discord_required".into())));
         let unsupported = || Err(Failure::new(Code::ReplaysUnsupported));
         let reason = |outcome: super::Outcome| outcome.err().map(Failure::into_reason);
         assert_eq!(

@@ -28,9 +28,9 @@ struct Room {
 	std::uint64_t nextAction = 1;
 	int nextConnection = 0;
 
-	explicit Room(bool wiredOnly, RoomType type = ClassicRoom)
-		: authority("Wired room", 16, 51, FirstToOne(), false, DelayPolicy::Shared, type,
-			static_cast<std::uint8_t>(ClassicTableCount), wiredOnly) {
+	explicit Room(bool wiredOnly, RoomType type = RoomType::Classic)
+		: authority("Wired room", 16, 51, FirstToOne(),
+			Charter{type, false, DelayPolicy::Shared, static_cast<std::uint8_t>(ClassicTableCount), wiredOnly}) {
 		authority.AdvanceTime(1000);
 		host = Join("Host", NetworkLink::Wired, true);
 	}
@@ -190,7 +190,7 @@ int main() {
 	{
 		// Arcade: Wi-Fi does not sit at a cabinet; Unknown and Wired do. One
 		// already sitting before the rule moves between cabinets.
-		Room room(false, ArcadeRoom);
+		Room room(false, RoomType::Arcade);
 		const auto wifi = room.Join("Alex", NetworkLink::Wireless);
 		EXPECT(room.At(wifi, ActionKind::Queue, 0, 0).accepted && CabinetOf(room.View(), wifi) == 0);
 		EXPECT(room.SetWiredOnly(room.host, true).accepted);

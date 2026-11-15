@@ -17,6 +17,7 @@ struct ScriptRow {
     std::vector<bac::Speed> speeds;        // list 4, written in place of the skipped list
     int interruptible = 0;                 // the header's
     Ids reflects;                          // hitboxes of type 4, which meet only fireballs
+    std::vector<std::array<int, 3>> cancels; // list 6 {condition, from, to}, in place of the skipped list
 };
 static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int, ScriptRow>& effects) {
     const std::size_t counts[] = {scripts.empty() ? 0 : static_cast<std::size_t>(scripts.rbegin()->first) + 1,
@@ -64,6 +65,13 @@ static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int
                 for (const auto& speed : row.speeds) { Put16(data, speed.from); Put16(data, speed.from + 1); }
                 Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
                 for (const auto& speed : row.speeds) { std::uint32_t bits; std::memcpy(&bits, &speed.speed, 4); Put32(data, bits); }
+            } else if (!row.cancels.empty()) {
+                const std::size_t record = lists.size();
+                Put16(lists, 6); Put16(lists, static_cast<std::uint32_t>(row.cancels.size()));
+                Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
+                for (const auto& cancel : row.cancels) { Put16(data, cancel[1]); Put16(data, cancel[2]); }
+                Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
+                for (const auto& cancel : row.cancels) { Put32(data, cancel[0]); Put32(data, 16); }
             } else list(9, 3); // A list the reader skips.
             const std::size_t at = out.size();
             out.resize(at + 0x18);
@@ -96,6 +104,15 @@ int main() {
         const Bytes reflecting = Scripts({{0, reflect}}, {});
         bac::File read;
         CHECK(ReadExact(reflecting, reflecting.size(), read, error) && read.scripts[0].hits.empty() && !read.scripts[0].canHit);
+    }
+    {
+        // Cancels: only condition 1, the window the cancel starts in, is kept.
+        ScriptRow dash = Script({});
+        dash.cancels = {{0, 0, 20}, {1, 1, 14}};
+        const Bytes dashing = Scripts({{0, dash}}, {});
+        bac::File read;
+        CHECK(ReadExact(dashing, dashing.size(), read, error) && read.scripts[0].cancels.size() == 1 &&
+            read.scripts[0].cancels[0][0] == 1 && read.scripts[0].cancels[0][1] == 14);
     }
     // Of its two jumps only kind 0 is kept, with its first frame.
     CHECK(model.scripts[6].flows.size() == 1 && model.scripts[6].flows[0].at == 0 && model.scripts[6].flows[0].script == 3);
@@ -177,7 +194,7 @@ int main() {
             std::vector<training::ScriptRun> expect;
             for (int frame = 0; frame < now.total; ++frame) {
                 const float at = static_cast<float>(frame);
-                const MeterKind kind = script ? training::BoundaryKind(at, first, last) : training::HitPhaseKind(bac::HitPhase(now, at));
+                const MeterKind kind = script ? training::BoundaryKind(at, first, last) : training::HitPhaseKind(bac::PhaseAt(now, at));
                 if (expect.empty() || expect.back().kind != kind) expect.push_back({frame, frame + 1, kind});
                 else expect.back().to = frame + 1;
             }
@@ -210,20 +227,20 @@ int main() {
         Bytes other = bcm; other[1] = 'X';
         CHECK(training::ReadChargeNames(other.data(), other.size()).empty() && training::ReadChargeNames(nullptr, 64).empty());
     }
-    int first = -1, last = -1;
-    CHECK(bac::ProjectileBoundary(model, 0, first, last) && first == 27 && last == 28);
+    int first = -1, last = -1, delay = -1;
+    CHECK(bac::ProjectileBoundary(model, 0, first, last, &delay) && first == 27 && last == 28);
     // Evil Ryu's falling fireball (421P): the effect spawned at 47 hits once it goes on in another at its
     // frame 25, 17 game frames on at 1.5 a frame.
     {
-        bac::File oni;
-        oni.scripts.resize(1); oni.effects.resize(2);
-        oni.scripts[0].effects = {0}; oni.scripts[0].spawns = {{{47, 48}}};
-        oni.effects[0].speeds = {{0, 1.5f}}; oni.effects[0].flows = {{25, 1}};
-        oni.effects[1].canHit = true;
-        int a = -1, b = -1, delay = -1;
-        CHECK(bac::ProjectileBoundary(oni, 0, a, b, &delay) && a == 48 && b == 49 && delay == 17);
-        oni.effects[0].flows = {{25, 0}};
-        CHECK(!bac::ProjectileBoundary(oni, 0, a, b));
+        bac::File fall;
+        fall.scripts.resize(1); fall.effects.resize(2);
+        fall.scripts[0].effects = {0}; fall.scripts[0].spawns = {{{47, 48}}};
+        fall.effects[0].speeds = {{0, 1.5f}}; fall.effects[0].flows = {{25, 1}};
+        fall.effects[1].canHit = true;
+        int a = -1, b = -1;
+        CHECK(bac::ProjectileBoundary(fall, 0, a, b, &delay) && a == 48 && b == 49 && delay == 17);
+        fall.effects[0].flows = {{25, 0}};
+        CHECK(!bac::ProjectileBoundary(fall, 0, a, b, &delay));
     }
     // List 4 sets how many script frames a game frame plays: Balrog getting up
     // plays 2 a frame up to 50, then 1, so it is free 29 frames on, at 54.
@@ -238,6 +255,15 @@ int main() {
         CHECK(script.interruptible == 54 && script.speeds.size() == 2 && script.speeds[1].from == 50 && script.speeds[0].speed == 2.0f);
         CHECK(bac::GameFrames(script, 0, 54) == 29 && bac::GameFrames(script, 2, 54) == 28 && bac::GameFrames(script, 54, 54) == 0);
         CHECK(bac::GameFrames(model.scripts[0], 0, 10) == 10 && bac::GameFrames(bac::Script{{}, {}, {}, {{0, 0.0f}}}, 0, 10) == -1);
+        // Cammy's plays 2 a frame up to 57: the frame from 56 ends at 57.5,
+        // so 58 is 30 frames on, not 29 (in game).
+        bac::Script cammy;
+        cammy.speeds = {{0, 2.0f}, {57, 1.0f}};
+        CHECK(bac::GameFrames(cammy, 0, 58) == 30 && bac::GameFrames(cammy, 56, 58) == 2 && bac::GameFrames(cammy, 56, 57) == 1);
+        // 0.5 up to 57, then 2: the frame from 56.75 reaches 58; stopping on
+        // the change would take two.
+        cammy.speeds = {{0, 0.5f}, {57, 2.0f}};
+        CHECK(bac::GameFrames(cammy, 56.75f, 58) == 1);
     }
     // A reaction as the game played Balrog's to Ryu's 5LP, 5MP, 5HP and 2MK,
     // first frame after hitstop, and 5LP's at speed 1 again: frames to free less one.
@@ -249,7 +275,7 @@ int main() {
     }
     for (int action : {-1, 1, 2, 3, 4, 5, 6, 999}) {
         first = last = -1;
-        CHECK(!bac::ProjectileBoundary(model, action, first, last) && first == -1 && last == -1);
+        CHECK(!bac::ProjectileBoundary(model, action, first, last, &delay) && first == -1 && last == -1);
     }
     // Exact-size reads retain the old truncation and mutation coverage.
     for (std::size_t size = 0; size < bytes.size(); ++size) {
@@ -261,7 +287,7 @@ int main() {
         CHECK(!ReadExact(bad, bad.size(), unchanged, error) && !error.empty());
         CHECK(unchanged.scripts.size() == 7 && unchanged.effects.size() == 4 && unchanged.effects[0].canHit);
         int a = -1, b = -1;
-        CHECK(bac::ProjectileBoundary(unchanged, 0, a, b) && a == 27 && b == 28);
+        CHECK(bac::ProjectileBoundary(unchanged, 0, a, b, &delay) && a == 27 && b == 28);
     };
     CHECK(!bac::Read(nullptr, 64, model, error));
     Bytes bad = bytes; bad[1] = 'X'; refused(bad);
@@ -288,7 +314,7 @@ int main() {
         bac::File mutated;
         if (ReadExact(bad, bad.size(), mutated, error)) for (std::int32_t action = -1; action < 10; ++action) {
             int a = -1, b = -1;
-            bac::ProjectileBoundary(mutated, action, a, b);
+            bac::ProjectileBoundary(mutated, action, a, b, &delay);
         } else CHECK(mutated.scripts.empty() && mutated.effects.empty());
     }
     // Missing or incomplete optional spawn frames keep the effect but give
@@ -299,16 +325,48 @@ int main() {
     bac::File untimed;
     CHECK(ReadExact(bad, bad.size(), untimed, error));
     first = last = -1;
-    CHECK(!bac::ProjectileBoundary(untimed, 0, first, last));
+    CHECK(!bac::ProjectileBoundary(untimed, 0, first, last, &delay));
+    {
+        // A dash's cancel window, frames 1 to 14.
+        bac::Script dash;
+        dash.cancels = {{1, 14}};
+        CHECK(!bac::CancelOpen(dash, 0.5f) && bac::CancelOpen(dash, 1.f) && bac::CancelOpen(dash, 13.9f) && !bac::CancelOpen(dash, 14.f));
+    }
     {
         // Ken's close MK (Omega): boxes 8 to 10 and 14 to 17, read after each update.
         bac::Script mk;
         mk.hits = {{8, 10}, {14, 17}};
-        CHECK(bac::HitPhase(mk, 7.5f) == 0 && bac::HitPhase(mk, 8.f) == 1 && bac::HitPhase(mk, 9.9f) == 1);
-        CHECK(bac::HitPhase(mk, 10.f) == 2 && bac::HitPhase(mk, 13.5f) == 2 && bac::HitPhase(mk, 14.f) == 1);
-        CHECK(bac::HitPhase(mk, 17.f) == 3 && bac::HitPhase(bac::Script{}, 9.f) == -1);
+        using P = bac::HitPhase;
+        CHECK(bac::PhaseAt(mk, 7.5f) == P::Before && bac::PhaseAt(mk, 8.f) == P::Out && bac::PhaseAt(mk, 9.9f) == P::Out);
+        CHECK(bac::PhaseAt(mk, 10.f) == P::Between && bac::PhaseAt(mk, 13.5f) == P::Between && bac::PhaseAt(mk, 14.f) == P::Out);
+        CHECK(bac::PhaseAt(mk, 17.f) == P::Done && bac::PhaseAt(bac::Script{}, 9.f) == P::NoHit);
         mk.hits.push_back({-1, -1});
-        CHECK(bac::HitPhase(mk, 9.f) == -1);
+        CHECK(bac::PhaseAt(mk, 9.f) == P::Untimed);
+    }
+    {
+        // El Fuerte's charges are three counters at three levels, and three pairs; Guile's two are alone.
+        training::FighterData ric;
+        const std::vector<std::string> names{"QUESA_L_tameL", "QUESA_L_tameM", "QUESA_L_tameH", "QUESA_M_tameL", "QUESA_M_tameM", "QUESA_M_tameH",
+            "QUESA_H_tameL", "QUESA_H_tameM", "QUESA_H_tameH", "QUESA_EX_tameLM", "QUESA_EX_tameLH", "QUESA_EX_tameMH"};
+        ric.chargeNames = std::make_shared<const std::vector<std::string>>(names);
+        // As the game counts: 130, 37 and 185 frames held, each level stopping at its own requirement.
+        const int held[3] = {130, 37, 185}, need[3] = {60, 120, 180};
+        for (std::size_t i = 0; i < names.size(); ++i) ric.charges[i] = {i, training::ChargeBack, i < 9 ? need[i / 3] : 210, i < 9 ? (std::min)(held[i % 3], need[i / 3]) : 40 + static_cast<int>(i)};
+        ric.chargeCount = names.size();
+        auto groups = training::ChargeGroups(ric);
+        const std::vector<std::size_t> lights{0, 3, 6}, mediums{1, 4, 7}, heavies{2, 5, 8};
+        CHECK(training::ChargeGroupName(ric, lights) == "QUESA_tameL" && training::ChargeGroupName(ric, groups[3]) == "QUESA_EX_tameLM");
+        CHECK(groups.size() == 6 && groups[0] == lights && groups[1] == mediums && groups[2] == heavies);
+        // Nothing held yet: the same groups, as the frames a word changes tell the level from the counter.
+        for (auto& charge : ric.charges) charge.held = 0;
+        CHECK(training::ChargeGroups(ric).size() == 6);
+        training::FighterData guile;
+        guile.chargeNames = std::make_shared<const std::vector<std::string>>(std::vector<std::string>{"SONICBOOM", "SOMERSAULT"});
+        guile.charges[0] = {0, training::ChargeBack, 50, 45}; guile.charges[1] = {1, training::ChargeDown, 55, 55}; guile.chargeCount = 2;
+        CHECK(training::ChargeGroups(guile).size() == 2);
+        // Juri's three button charges are not her fireball stock; no one else's are named so.
+        const std::vector<std::string> juri{"CHARGE_L", "CHARGE_M", "CHARGE_H"};
+        CHECK(training::HasFuhajinStock(&juri) && !training::HasFuhajinStock(ric.chargeNames.get()) && !training::HasFuhajinStock(guile.chargeNames.get()));
     }
     return 0;
 }

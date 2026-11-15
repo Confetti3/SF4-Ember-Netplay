@@ -10,11 +10,11 @@
 use std::sync::Arc;
 
 use ember_protocol::replays::{MAX_REPLAY, Replay};
-use rusqlite::{Transaction, params};
+use rusqlite::{ToSql, Transaction, params};
 
 use super::{
-    BATCH, Leased, Outcome, Queue, Record,
-    archive::{key, retry, settled},
+    BATCH, Leased, Outcome, Queue, Record, Table,
+    archive::{GAMES, key, retry, settled},
 };
 use crate::{AppState, archive::duplicates::identified, error::Result, s3::Bucket};
 
@@ -71,8 +71,10 @@ impl Duplicates {
 impl Queue for Duplicates {
     type Item = Copy;
 
-    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Copy>>> {
-        let rows = tx
+    const TABLE: Table = GAMES;
+
+    fn due(&self, tx: &Transaction<'_>, now: u64) -> Result<Vec<Leased<Copy>>> {
+        Ok(tx
             .prepare(
                 "SELECT digest, attempts, state = 'duplicate' FROM archive_games
                  WHERE ((game IS NULL AND state = 'stored') OR state = 'duplicate') AND next_attempt_at <= ?1
@@ -91,14 +93,13 @@ impl Queue for Duplicates {
                     first_attempt_at: None,
                 })
             })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for row in &rows {
-            tx.execute(
-                "UPDATE archive_games SET next_attempt_at = ?1, attempts = ?2 WHERE digest = ?3",
-                params![until, row.attempt, row.item.digest()],
-            )?;
+            .collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    fn key(copy: &Copy) -> Vec<&dyn ToSql> {
+        match copy {
+            Copy::Unread(digest) | Copy::Duplicate(digest) => vec![digest],
         }
-        Ok(rows)
     }
 
     /// An unread copy is known only by the whole replay its digest names

@@ -218,9 +218,38 @@ pub(crate) fn is_single_line(text: &str, max: usize) -> bool {
         && text.trim() == text
 }
 
+/// Whether `text` is a game id: 1 to 16 lower-case letters and digits, as
+/// `usf4` or `sfv`. The one rule every field that names a game follows.
+pub fn is_game_id(text: &str) -> bool {
+    (1..=16).contains(&text.len())
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn game_ids_are_short_lower_case_words() {
+        let longest = "z9".repeat(8);
+        for good in ["usf4", "sfv", "a", "0", longest.as_str()] {
+            assert!(is_game_id(good), "{good}");
+        }
+        let too_long = "a".repeat(17);
+        for bad in [
+            "",
+            "SFV",
+            "sf-v",
+            "sf_v",
+            "sf v",
+            "s\u{e9}",
+            too_long.as_str(),
+        ] {
+            assert!(!is_game_id(bad), "{bad:?}");
+        }
+    }
 
     #[test]
     fn base32_matches_rfc4648_vectors() {

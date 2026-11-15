@@ -177,6 +177,8 @@ static void TestScore() {
 	CHECK(Parse(replay.data(), replay.size(), match));
 	const Summary summary = Summarize(match);
 	CHECK(summary.scored && summary.score[1] == 2 && summary.rounds == 2 && summary.frames == 2 && summary.stats[0].presses[0] == 2 && summary.players[0].fighter == 25);
+	// And how it went: the score after each round, the last being the final score.
+	CHECK(summary.firstTo == match.roundsToWin && summary.roundScores.size() == 1 && summary.roundScores[0][0] == 0 && summary.roundScores[0][1] == 1);
 }
 
 static void TestRefusals() {

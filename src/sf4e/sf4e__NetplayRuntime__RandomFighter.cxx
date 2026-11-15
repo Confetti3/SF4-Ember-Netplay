@@ -96,14 +96,10 @@ void TickRandomFighter() {
 
 void SetRandomFighterRollForTest(std::function<int()> roll) { rollForTest = std::move(roll); }
 
-TypedCommand& WithRandomFighter(TypedCommand& command) {
-	auto* ready = std::get_if<commands::Room>(&command);
-	if (!ready || (ready->command.kind != netplay::CommandKind::Ready && ready->command.kind != netplay::CommandKind::Rematch))
-		return command;
+void WithRandomFighter(commands::Ready& ready) {
 	Noted from;
 	{ std::lock_guard<std::mutex> lock(notedMutex); from = noted; }
-	if (from.random) ready->character = Sent(from, ready->character);
-	return command;
+	if (from.random) ready.pick = selection::FromNative(Sent(from, NativePick(ready.pick)));
 }
 } // namespace internal
 } } // namespace sf4e::NetplayFacade

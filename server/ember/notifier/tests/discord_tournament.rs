@@ -30,6 +30,7 @@ async fn serve(site: &Mock, discord: &Mock) -> String {
         token: "site-bot-token".into(),
         feed: false,
         feed_secs: 60,
+        webhooks: "https://discord.com/api/webhooks".into(),
         roles: None,
     });
     config.discord = Some(Discord {
@@ -263,7 +264,7 @@ async fn a_live_tournaments_news_is_posted_once_as_one_message() {
         "/live" => (
             200,
             json!({ "tournaments": [
-                { "id": "weekly", "last": 2 },
+                { "id": "weekly", "last": 2, "webhook": "https://discord.com/api/webhooks/123456789012345678/own-token" },
                 { "id": "quiet", "last": 0 },
                 { "id": "league:ember", "last": 1, "feed": "/leagues/ember/feed" },
             ] })
@@ -292,10 +293,19 @@ async fn a_live_tournaments_news_is_posted_once_as_one_message() {
         token: "site-bot-token".into(),
         feed: true,
         feed_secs: 3600,
+        webhooks: format!("{}/own", discord.origin),
         roles: None,
     });
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let (_, tasks) = notifier(config.clone()).start(listener).unwrap();
+    // Its organizers' own channel gets its news alone.
+    let own = discord
+        .wait_for(Method::POST, "/own/123456789012345678/own-token")
+        .await;
+    assert_eq!(
+        own.body["content"],
+        "Semifinals: P3 beats P2 2-1.\nUpset: seed 3 \\*P3\\* knocks out seed 2."
+    );
     let posted = discord.wait_for(Method::POST, "/hook").await;
     assert_eq!(
         posted.body["content"],
@@ -317,7 +327,41 @@ async fn a_live_tournaments_news_is_posted_once_as_one_message() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let (_, tasks) = notifier(config).start(listener).unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    assert_eq!(discord.requests().len(), 1);
+    assert_eq!(discord.requests().len(), 2);
+    for task in tasks {
+        task.abort();
+    }
+}
+
+#[tokio::test]
+async fn a_tournaments_own_channel_gets_its_news_without_a_shared_channel() {
+    let site = Mock::start(|request| match request.path.as_str() {
+        "/live" => (
+            200,
+            json!({ "tournaments": [{ "id": "weekly", "last": 1, "webhook": "https://discord.com/api/webhooks/123456789012345678/own-token" }] }).to_string(),
+        ),
+        _ if request.path.starts_with("/tournaments/weekly/feed") => (200, json!({ "items": [{ "n": 1, "text": "Final: P1 beats P2 2-0." }] }).to_string()),
+        _ => (404, "{}".into()),
+    })
+    .await;
+    let discord = Mock::start(|_| (200, "{}".into())).await;
+    let mut config = base_config("own-feed");
+    config.discord = None;
+    config.brackets = Some(Brackets {
+        base: site.origin.clone(),
+        token: "site-bot-token".into(),
+        feed: true,
+        feed_secs: 3600,
+        webhooks: format!("{}/own", discord.origin),
+        roles: None,
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let (_, tasks) = notifier(config).start(listener).unwrap();
+    let own = discord
+        .wait_for(Method::POST, "/own/123456789012345678/own-token")
+        .await;
+    assert_eq!(own.body["content"], "Final: P1 beats P2 2-0.");
+    assert_eq!(own.body["username"], "Ember");
     for task in tasks {
         task.abort();
     }
@@ -427,6 +471,7 @@ async fn award_roles_are_made_once_and_given_to_members_only() {
         token: "site-bot-token".into(),
         feed: false,
         feed_secs: 3600,
+        webhooks: "https://discord.com/api/webhooks".into(),
         roles: Some(Roles {
             guild_id: "g1".into(),
             kinds: vec!["champion".into()],

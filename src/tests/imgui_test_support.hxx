@@ -5,13 +5,18 @@
 #include "../ui/Theme.hxx"
 #include <imgui.h>
 
+// Each one owns its own context and destroys that one, so several can be alive
+// at once and go in any order; Use() makes this one current again.
 struct HeadlessImGui {
+    ImGuiContext* const context;
     ImGuiIO& io;
-    HeadlessImGui() : io((ImGui::CreateContext(), ImGui::GetIO())) {
+    // CreateContext leaves the current context alone when there is one, so this one is made current before its IO is read.
+    HeadlessImGui() : context(ImGui::CreateContext()), io((ImGui::SetCurrentContext(context), ImGui::GetIO())) {
         io.IniFilename = nullptr; io.DisplaySize = ImVec2(1280, 960);
         sf4e::ui::ApplyTheme(1);
     }
-    ~HeadlessImGui() { ImGui::DestroyContext(); }
+    ~HeadlessImGui() { ImGui::DestroyContext(context); }
+    void Use() { ImGui::SetCurrentContext(context); }
     HeadlessImGui(const HeadlessImGui&) = delete;
     HeadlessImGui& operator=(const HeadlessImGui&) = delete;
 };

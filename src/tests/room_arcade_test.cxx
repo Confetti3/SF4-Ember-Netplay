@@ -1,17 +1,19 @@
 // Arcade and King of the hill rooms: sixteen one-player cabinets; whoever sits
-// down plays the player who has waited longest (Snapshot::arcade).
+// down plays the player who has waited longest (Snapshot::type).
 #include "room_authority_support.hxx"
 #include "../common/RematchInput.hxx"
 
+#include <algorithm>
 #include <iterator>
 #include <map>
 #include <set>
 #include <vector>
 
-static RoomAuthority Arcade(RoomType type = ArcadeRoom, SetFormat format = SetFormat::Ft1) {
+// All eight tables unless `tables` says, as Create opens one.
+static RoomAuthority Arcade(RoomType type = RoomType::Arcade, SetFormat format = SetFormat::Ft1, std::size_t tables = TableCount) {
 	Rules rules;
 	rules.format = format;
-	return RoomAuthority("Arcade", 16, 1, rules, false, DelayPolicy::Shared, type);
+	return RoomAuthority("Arcade", 16, 1, rules, Charter{type, false, DelayPolicy::Shared, static_cast<std::uint8_t>(tables)});
 }
 
 // Queue names a cabinet: table + seat * TableCount.
@@ -73,6 +75,23 @@ static void TestFirstComeFirstPaired() {
 	for (int i = 2; i < 16; ++i, --cabinet) { if (cabinet == 12) --cabinet; if (cabinet == 3) --cabinet; Sit(authority, members[i], cabinet); }
 	for (int i = 0; i < 16; i += 2) CHECK(Paired(authority, members[i], members[i + 1]));
 	for (const auto& t : authority.SnapshotView().tables) CHECK(t.phase == TablePhase::Waiting && t.queue.empty());
+}
+
+// A sit or stand-up on an old copy of its table is refused, as at any table,
+// out of play or not; a fighter who readied can still stand up.
+static void TestCabinetActionsKeepTableRules() {
+	auto authority = Arcade(RoomType::Arcade, SetFormat::Ft1, 1);
+	const MemberId a = Join(authority, 0, true), b = Join(authority, 1, false), c = Join(authority, 2, false);
+	Sit(authority, a, 0); Sit(authority, b, TableCount);
+	Action stale = TableAction(authority, c, 3, ActionKind::Queue);
+	--stale.tableRevision;
+	CHECK(authority.Apply(c, stale).reason == RejectReason::StaleTable);
+	Sit(authority, c, 3);
+	CHECK(authority.SnapshotView().line == std::vector<MemberId>{c});
+	CHECK(Choose(authority, a, ActionKind::Ready).accepted && Choose(authority, b, ActionKind::Ready).accepted);
+	CHECK(authority.SnapshotView().tables[0].phase == TablePhase::Ready);
+	CHECK(Choose(authority, a, ActionKind::Unqueue).accepted);
+	CHECK(Paired(authority, b, c));
 }
 
 // Two pairs, so nobody waits alone: after a set the pair stays, Ready waits
@@ -186,7 +205,7 @@ static void TestArcadeFiveRotate() {
 // waits; streaks count per cabinet, and the top slot goes to the longest one
 // until someone beats that streak or beats its holder. A tie keeps it.
 static void TestKingStreaksAndCrown() {
-	auto authority = Arcade(KingRoom);
+	auto authority = Arcade(RoomType::King);
 	const MemberId a = Join(authority, 0, true), b = Join(authority, 1), c = Join(authority, 2), d = Join(authority, 3);
 	Sit(authority, a, 0); Sit(authority, b, 1); Sit(authority, c, 2); Sit(authority, d, 3);
 	const auto& room = authority.SnapshotView();
@@ -209,7 +228,7 @@ static void TestKingStreaksAndCrown() {
 // King of the hill with two players: the loser challenges again at once,
 // the winner's streak going on.
 static void TestKingTwoPlayers() {
-	auto authority = Arcade(KingRoom);
+	auto authority = Arcade(RoomType::King);
 	const MemberId a = Join(authority, 0, true), b = Join(authority, 1);
 	Sit(authority, a, 0); Sit(authority, b, 8);
 	const auto& room = authority.SnapshotView();
@@ -243,7 +262,7 @@ static void TestArcadeOnTheWire() {
 	CHECK(wire.at("arcade") == 1 && wire.get<Snapshot>().cabinets[4] == a);
 	CHECK(!nlohmann::json(RoomAuthority("Classic").SnapshotView()).contains("arcade"));
 	RoomAuthority restored("Restore");
-	CHECK(restored.RestoreCheckpoint(authority.Checkpoint()) && restored.SnapshotView().arcade == ArcadeRoom && restored.SnapshotView().cabinets[4] == a);
+	CHECK(restored.RestoreCheckpoint(authority.Checkpoint()) && restored.SnapshotView().type == RoomType::Arcade && restored.SnapshotView().cabinets[4] == a);
 	const auto refuses = [](nlohmann::json state) {
 		try { (void)state.get<Snapshot>(); } catch (const std::exception&) { return true; }
 		return false;
@@ -274,25 +293,27 @@ static void TestPublicArcade() {
 	CHECK(joined.accepted);
 	const MemberId host = joined.snapshot.members.back().id;
 	Action type = TableAction(authority, host, 0, ActionKind::SetRoomType);
-	type.roomType = KingRoom;
+	type.roomType = RoomType::King;
 	type.rules.format = SetFormat::Ft2;
-	CHECK(nlohmann::json(type).get<Action>().roomType == KingRoom);
+	type.tableCount = 1;
+	CHECK(nlohmann::json(type).get<Action>().roomType == RoomType::King);
 	CHECK(authority.Apply(host, type).accepted);
 	const auto& room = authority.SnapshotView();
-	CHECK(room.arcade == KingRoom && room.tables[7].rules.format == SetFormat::Ft2);
-	CHECK(nlohmann::json(room).get<Snapshot>().arcade == KingRoom);
+	CHECK(room.type == RoomType::King && room.tables[7].rules.format == SetFormat::Ft2 && TablesInPlay(room) == 1);
+	CHECK(nlohmann::json(room).get<Snapshot>().type == RoomType::King);
 	type = TableAction(authority, host, 0, ActionKind::SetRoomType);
-	type.roomType = ArcadeRoom;
+	type.roomType = RoomType::Arcade;
 	CHECK(!authority.Apply(host, type).accepted);
 	Sit(authority, host, 6);
-	CHECK(authority.Leave(host).accepted && room.arcade == ClassicRoom);
+	// Empty, it is a Classic room at the default count again.
+	CHECK(authority.Leave(host).accepted && room.type == RoomType::Classic && room.tableCount == ClassicTableCount && room.line.empty());
 	auto arcade = Arcade();
 	CHECK(arcade.SetServerOwned());
 }
 
 // An Arcade room may also be a Practice room.
 static void TestArcadePracticeRoom() {
-	RoomAuthority authority("Both", 8, 1, Rules(), true, DelayPolicy::Shared, ArcadeRoom);
+	RoomAuthority authority("Both", 8, 1, Rules(), Charter{RoomType::Arcade, true});
 	const MemberId a = Join(authority, 0, true), b = Join(authority, 1);
 	Sit(authority, a, 0); Sit(authority, b, 2);
 	CHECK(authority.SnapshotView().practice && Paired(authority, a, b));
@@ -306,7 +327,7 @@ static void TestWinnerKeepsFighterAndRecords() {
 		Rules rules;
 		rules.format = SetFormat::Ft1;
 		rules.winnerKeepsFighter = option;
-		RoomAuthority authority("Arcade", 16, 1, rules, false, DelayPolicy::Shared, ArcadeRoom);
+		RoomAuthority authority("Arcade", 16, 1, rules, Charter{RoomType::Arcade});
 		const MemberId a = Join(authority, 0, true), b = Join(authority, 1);
 		Sit(authority, a, 0); Sit(authority, b, 9);
 		CHECK(authority.SetMemberChara(a, {5, 14}) && authority.SetMemberChara(b, {7, 14}));
@@ -348,8 +369,8 @@ static void TestWinnerKeepsFighterAndRecords() {
 static void TestRematchInPlaceFollowsSetGoal() {
 	Snapshot snapshot;
 	auto& table = snapshot.tables[0];
-	for (const auto type : {ArcadeRoom, KingRoom}) {
-		snapshot.arcade = type;
+	for (const auto type : {RoomType::Arcade, RoomType::King}) {
+		snapshot.type = type;
 		table.rules.format = SetFormat::Unlimited;
 		table.score[0] = table.score[1] = 0;
 		CHECK(SetGoal(snapshot, table) == 1);
@@ -357,7 +378,7 @@ static void TestRematchInPlaceFollowsSetGoal() {
 		CHECK(!RematchInPlaceOffered(snapshot, table, MatchResult::P2Win));
 		CHECK(RematchInPlaceOffered(snapshot, table, MatchResult::Draw));
 	}
-	snapshot.arcade = ArcadeRoom;
+	snapshot.type = RoomType::Arcade;
 	table.rules.format = SetFormat::Ft2;
 	CHECK(SetGoal(snapshot, table) == 2);
 	CHECK(RematchInPlaceOffered(snapshot, table, MatchResult::P1Win));   // 1-0 mid-set
@@ -365,7 +386,7 @@ static void TestRematchInPlaceFollowsSetGoal() {
 	CHECK(!RematchInPlaceOffered(snapshot, table, MatchResult::P1Win));  // wins the set
 	CHECK(RematchInPlaceOffered(snapshot, table, MatchResult::P2Win));
 	// Classic rooms keep an unlimited set open.
-	snapshot.arcade = ClassicRoom;
+	snapshot.type = RoomType::Classic;
 	table.rules.format = SetFormat::Unlimited;
 	CHECK(SetGoal(snapshot, table) == 0);
 	CHECK(RematchInPlaceOffered(snapshot, table, MatchResult::P1Win));
@@ -376,7 +397,7 @@ static void TestRematchInPlaceFollowsSetGoal() {
 // the next one is fought, and a set's last game only once both reports agree.
 static void TestStandingCountsTheGameJustPlayed() {
 	Snapshot snapshot;
-	snapshot.arcade = ArcadeRoom;
+	snapshot.type = RoomType::Arcade;
 	auto& table = snapshot.tables[0];
 	table.rules.format = SetFormat::Ft3;
 	table.matchGeneration = 7; table.phase = TablePhase::Playing;
@@ -558,6 +579,88 @@ static void TestFullRoomTwoRequestsSwap() {
 	CHECK(Asking(authority) == 0 && Waits(authority, partner));
 }
 
+// What holds after every step, whoever does what: a cabinet holder is at one
+// table, a pair carries no wait stamp and a lone fighter does, choices and
+// requests live on a deciding pair only, one table at most asks and only
+// while nobody is free, at most the two who just parted wait alone (a third
+// would have been paired with one of them), the line waits only beside pairs
+// or a lone fighter none of it may meet (MayMeet), the top slot is the
+// longest streak, a free cabinet has no streak, and member rows mirror the
+// tables.
+static void Sound(const RoomAuthority& authority, const std::string& what) {
+	const auto& r = authority.SnapshotView();
+	const auto sound = [&](bool holds, const char* rule) { CHECK_MSG(holds, "%s, after %s", rule, what.c_str()); };
+	std::map<MemberId, int> seats;
+	int asking = 0;
+	for (const auto& t : r.tables) {
+		for (const auto m : {t.p1, t.p2}) if (m) ++seats[m];
+		const bool pair = t.p1 && t.p2;
+		sound(pair ? t.waitingSince == 0 : (!t.p1 && !t.p2) || t.waitingSince > 0, "wait stamp");
+		sound(t.deciding ? pair : !t.wantsNew[0] && !t.wantsNew[1] && !t.rematch[0] && !t.rematch[1], "choices on a deciding pair");
+		sound(pair ? t.phase == TablePhase::Waiting || t.phase == TablePhase::Ready : t.phase == TablePhase::Idle, "table phase");
+		asking += t.wantsNew[0] || t.wantsNew[1];
+	}
+	sound(asking <= 1, "one table asks");
+	const auto inPlay = r.tables.begin() + static_cast<std::ptrdiff_t>(TablesInPlay(r));
+	sound(!asking || (r.line.empty() && std::none_of(r.tables.begin(), inPlay, [](const Table& t) { return ArcadeAlone(t) || ArcadeEmpty(t); })),
+		"a request waits while nobody is free");
+	sound(std::count_if(r.tables.begin(), r.tables.end(), ArcadeAlone) <= 2, "two alone at most");
+	for (const auto& seat : seats) sound(seat.second == 1 && CabinetOf(r, seat.first) >= 0, "a seat has a cabinet");
+	for (std::size_t i = 0; i < CabinetCount; ++i) {
+		const bool seated = r.cabinets[i] && seats[r.cabinets[i]] == 1;
+		sound(r.cabinets[i] ? seated != (ArcadeLinePlace(r, r.cabinets[i]) != 0) : r.streaks[i] == 0, "a cabinet has a table or a place in line");
+	}
+	for (const auto m : r.line) sound(CabinetOf(r, m) >= 0 && ArcadeLinePlace(r, m) == static_cast<int>(std::find(r.line.begin(), r.line.end(), m) - r.line.begin()) + 1, "the line holds cabinets once each");
+	const bool line = !r.line.empty();
+	for (std::size_t i = 0; i < TableCount; ++i) {
+		const auto& t = r.tables[i];
+		const MemberId lone = ArcadeAlone(t) ? (t.p1 ? t.p1 : t.p2) : 0;
+		const bool meets = lone && std::any_of(r.line.begin(), r.line.end(), [&](MemberId m) { return authority.MayMeet(lone, m); });
+		if (i >= TablesInPlay(r)) sound(ArcadeEmpty(t), "a table out of play is empty");
+		else sound(!line || (!ArcadeEmpty(t) && !meets), "the line waits only beside pairs, or a lone fighter none of it may meet");
+	}
+	for (const auto s : r.streaks) sound(r.topSlot < 0 ? s == 0 : s <= r.streaks[r.topSlot] && r.streaks[r.topSlot] > 0, "top slot");
+	for (const auto& m : r.members) {
+		const int table = TableOf(authority, m.id);
+		sound(m.table == table && (table < 0 ? m.seat < 0 && m.status == MemberStatus::Idle :
+			m.seat == (r.tables[table].p1 == m.id ? 0 : 1) && (m.status == MemberStatus::Seated || m.status == MemberStatus::Ready)), "member row");
+	}
+}
+
+// One table, as in the game's Endless Battle: the winner stays, whoever has waited longest
+// plays them, and the loser goes to the back of the line. Leaving the line,
+// a seat coming free and a table added each seat the line in order, and the
+// line goes on the wire.
+static void TestOneTableLine() {
+	for (const RoomType type : {RoomType::Arcade, RoomType::King}) {
+		auto authority = Arcade(type, SetFormat::Ft1, 1);
+		const auto& r = authority.SnapshotView();
+		const MemberId a = Join(authority, 0, true), b = Join(authority, 1), c = Join(authority, 2), d = Join(authority, 3), e = Join(authority, 4);
+		Sit(authority, a, 0); Sit(authority, b, 8); Sit(authority, c, 5); Sit(authority, d, 6);
+		const auto place = [&](MemberId m) { return ArcadeLinePlace(r, m); };
+		CHECK(Paired(authority, a, b) && place(c) == 1 && place(d) == 2 && TableOf(authority, c) < 0);
+		CHECK(ArcadeEmpty(r.tables[5]) && PlaceOf(r, c).kind == Place::Kind::Line && PlaceOf(r, c).position == 1);
+		Beat(authority, a);
+		CHECK(Paired(authority, a, c) && place(d) == 1 && place(b) == 2);
+		Beat(authority, c);
+		CHECK(Paired(authority, c, d) && place(b) == 1 && place(a) == 2);
+		if (type == RoomType::King) CHECK(r.streaks[CabinetOf(r, c)] == 1 && r.streaks[CabinetOf(r, a)] == 0);
+		const auto wire = nlohmann::json(r);
+		CHECK(wire.contains("line") && wire.get<Snapshot>().line == r.line);
+		Sit(authority, e, 7);
+		CHECK(place(e) == 3);
+		CHECK(authority.Leave(b).accepted && place(a) == 1 && place(e) == 2);
+		CHECK(Choose(authority, d, ActionKind::Unqueue).accepted && Paired(authority, c, a) && place(e) == 1);
+		// Leaving the line by its cabinet, and sitting back down at the back.
+		CHECK(authority.Apply(e, TableAction(authority, e, 7, ActionKind::Unqueue)).accepted && CabinetOf(r, e) < 0);
+		Sit(authority, e, 7);
+		CHECK(place(e) == 1);
+		CHECK(authority.Apply(a, [&] { Action grow = TableAction(authority, a, 0, ActionKind::SetTableCount); grow.tableCount = 2; return grow; }()).accepted);
+		CHECK(Waits(authority, e) && TableOf(authority, e) == 1);
+		Sound(authority, "the one-table line");
+	}
+}
+
 // Gagapa's room: sixteen fighters, sets ending one table after another, and
 // every winner asking for a new opponent. Nobody is kept on the same opponent:
 // at most one request waits at a time, each fighter meets several others, and
@@ -574,6 +677,7 @@ static void TestFullRoomRotates() {
 		const MemberId winner = step % 3 ? t.p1 : t.p2;
 		const MemberId loser = OpponentOf(authority, winner);
 		Beat(authority, winner);
+		Sound(authority, "a set end in the rotation");
 		met[winner].insert(loser); met[loser].insert(winner);
 		if (authority.SnapshotView().tables[TableOf(authority, winner)].deciding) {
 			CHECK(Choose(authority, winner, ActionKind::NewOpponent).accepted);
@@ -588,16 +692,243 @@ static void TestFullRoomRotates() {
 	for (const auto member : m) CHECK(met[member].size() >= 3);
 }
 
+// King of the hill in a full room: the loser has no table to wait at, so the
+// pair stays and the loser asks for a new opponent at once; the next set to
+// end elsewhere trades the losers, and both streaks go on. Rematch from both
+// keeps the pair instead.
+static void TestFullRoomKing() {
+	auto authority = Arcade(RoomType::King);
+	const auto m = FullRoom(authority);
+	const auto& room = authority.SnapshotView();
+	const MemberId a = m[0], b = OpponentOf(authority, a);
+	Beat(authority, a);
+	const auto& t = room.tables[TableOf(authority, a)];
+	CHECK(Paired(authority, a, b) && t.deciding && t.wantsNew[t.p1 == b ? 0 : 1] && Asking(authority) == 1);
+	CHECK(room.streaks[0] == 1 && room.topSlot == 0);
+	MemberId c = 0;
+	for (const auto member : m) if (member != a && member != b) { c = member; break; }
+	const MemberId d = OpponentOf(authority, c);
+	Beat(authority, c);
+	CHECK(Paired(authority, a, d) && Paired(authority, c, b) && Asking(authority) == 0);
+	CHECK(room.streaks[0] == 1 && room.streaks[CabinetOf(room, c)] == 1);
+	for (const auto& x : room.tables) CHECK(!x.deciding);
+	Beat(authority, a);
+	CHECK(Choose(authority, d, ActionKind::Rematch).accepted && Choose(authority, a, ActionKind::Rematch).accepted);
+	CHECK(Paired(authority, a, d) && !t.deciding && Asking(authority) == 0 && room.streaks[0] == 2);
+	Sound(authority, "the King pair's Rematch");
+}
+
+// The report of 8 November: in a full room both fighters of a pair asked for
+// a new opponent (a King loser asks by itself). A fighter elsewhere stands up:
+// one of the two plays the partner left behind and the other waits alone.
+// That new pair's set ends and the two still do not meet while anyone else at
+// the cabinets can come free; the next set to end elsewhere seats them apart.
+static void TestPartedPairWaitsForSomeoneElse() {
+	for (const RoomType type : {RoomType::Arcade, RoomType::King}) {
+		auto authority = Arcade(type);
+		const auto m = FullRoom(authority);
+		const MemberId a = m[0], b = OpponentOf(authority, a);
+		Beat(authority, a);
+		if (type == RoomType::Arcade) CHECK(Choose(authority, b, ActionKind::NewOpponent).accepted);
+		CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted && Paired(authority, a, b) && Asking(authority) == 2);
+		CHECK(authority.MayMeet(a, b));  // still a pair: nothing is kept until they part
+		MemberId x = 0;
+		for (const auto member : m) if (member != a && member != b) { x = member; break; }
+		const MemberId y = OpponentOf(authority, x);
+		CHECK(Choose(authority, x, ActionKind::Unqueue).accepted);
+		const MemberId first = Paired(authority, a, y) ? a : b, second = first == a ? b : a;
+		CHECK(Paired(authority, first, y) && Waits(authority, second) && !authority.MayMeet(first, second));
+		Beat(authority, first);
+		CHECK(!Paired(authority, first, second));
+		Sound(authority, "a parted pair's next set");
+		// Arcade: the winner's pair stays to choose; King: the loser plays the
+		// one waiting, and the winner waits for someone else.
+		if (type == RoomType::Arcade) CHECK(Paired(authority, first, y) && Waits(authority, second));
+		else CHECK(Waits(authority, first) && Paired(authority, y, second));
+		if (type == RoomType::King) continue;
+		// The new opponent leaves: the two wait apart, and the next set to end
+		// elsewhere takes the one who waited longer, its loser the other.
+		CHECK(Choose(authority, y, ActionKind::Unqueue).accepted);
+		CHECK(Waits(authority, first) && Waits(authority, second));
+		Sound(authority, "a parted pair left alone");
+		MemberId c = 0;
+		for (const auto member : m) if (member != a && member != b && member != x && member != y) { c = member; break; }
+		const MemberId d = OpponentOf(authority, c);
+		Beat(authority, c);
+		CHECK(Paired(authority, c, second) && Paired(authority, d, first));
+	}
+}
+
+// Two tables and a line: the pair that asked parts when a fifth player sits
+// down, one to play them and one to the line, which then lets the winner of
+// their new pair pass rather than play the one they left. With nobody else
+// at the cabinets the two play each other again, and just ready.
+static void TestPartedPairInLineAndAlone() {
+	auto authority = Arcade(RoomType::Arcade, SetFormat::Ft1, 2);
+	const auto& r = authority.SnapshotView();
+	const MemberId a = Join(authority, 0, true), b = Join(authority, 1), c = Join(authority, 2), d = Join(authority, 3), e = Join(authority, 4);
+	Sit(authority, a, 0); Sit(authority, b, 8); Sit(authority, c, 1); Sit(authority, d, 9);
+	CHECK(Paired(authority, a, b) && Paired(authority, c, d));
+	Beat(authority, a);
+	CHECK(Choose(authority, b, ActionKind::NewOpponent).accepted && Choose(authority, a, ActionKind::NewOpponent).accepted && Asking(authority) == 2);
+	Sit(authority, e, 2);
+	CHECK(Paired(authority, a, e) && ArcadeLinePlace(r, b) == 1);
+	Beat(authority, a);
+	CHECK(Paired(authority, a, e) && r.tables[TableOf(authority, a)].deciding && ArcadeLinePlace(r, b) == 1);
+	Sound(authority, "the line passing a parted pair");
+	Beat(authority, c);
+	CHECK(Paired(authority, c, b) && ArcadeLinePlace(r, d) == 1);
+	// Everyone but the parted two leaves: they play each other again.
+	auto fresh = Arcade(RoomType::Arcade, SetFormat::Ft1, 2);
+	const MemberId p = Join(fresh, 0, true), q = Join(fresh, 1), s = Join(fresh, 2), t = Join(fresh, 3);
+	Sit(fresh, p, 0); Sit(fresh, q, 8); Sit(fresh, s, 1); Sit(fresh, t, 9);
+	Beat(fresh, p);
+	CHECK(Choose(fresh, q, ActionKind::NewOpponent).accepted && Choose(fresh, p, ActionKind::NewOpponent).accepted);
+	CHECK(Choose(fresh, s, ActionKind::Unqueue).accepted);
+	CHECK(Paired(fresh, p, t) && Waits(fresh, q));
+	Beat(fresh, p);
+	CHECK(Paired(fresh, p, t) && Waits(fresh, q));
+	CHECK(fresh.Leave(t).accepted);
+	const auto& last = fresh.SnapshotView().tables[TableOf(fresh, p)];
+	CHECK(Paired(fresh, p, q) && !last.deciding && last.phase == TablePhase::Waiting);
+	CHECK(Choose(fresh, p, ActionKind::Ready).accepted && Choose(fresh, q, ActionKind::Ready).accepted);
+	Sound(fresh, "the parted pair alone in the room");
+}
+
+// A random walk through a room: members join, sit anywhere, stand up and
+// leave now and then, sets end either way, deciding pairs answer. After each
+// step the room is sound; a winner keeps the table; the loser leaves it
+// whenever a table is free (King) or someone else sits (Arcade, asked
+// first); New opponent with someone free parts the pair.
+static void TestRandomWalk(RoomType type, std::size_t tables = TableCount) {
+	std::uint32_t rng = 2026u + static_cast<std::uint32_t>(type) + 97u * static_cast<std::uint32_t>(tables);
+	const auto roll = [&](int n) { rng = rng * 1664525u + 1013904223u; return static_cast<int>((rng >> 8) % n); };
+	for (int round = 0; round < 60; ++round) {
+		auto authority = Arcade(type, SetFormat::Ft1, tables);
+		std::vector<MemberId> members{Join(authority, 0, true)};
+		int joined = 1;
+		for (int step = 0; step < 300; ++step) {
+			const auto& r = authority.SnapshotView();
+			std::vector<MemberId> deciding, playing, unseated;
+			for (const auto& t : r.tables) for (const auto m : {t.p1, t.p2}) if (m && t.p2 && t.p1) (t.deciding ? deciding : playing).push_back(m);
+			for (const auto m : members) if (CabinetOf(r, m) < 0) unseated.push_back(m);
+			const auto pick = [&](const std::vector<MemberId>& from) { return from[roll(static_cast<int>(from.size()))]; };
+			const int op = roll(100);
+			std::string what = "nothing";
+			if (op < 4 && members.size() > 1) {
+				const MemberId m = pick(members);
+				if (m != members[0]) { CHECK(authority.Leave(m).accepted); members.erase(std::find(members.begin(), members.end(), m)); what = "leave"; }
+			} else if (op < 8 && !playing.empty()) { CHECK(Choose(authority, pick(playing), ActionKind::Unqueue).accepted); what = "stand up"; }
+			else if (op < 20 && members.size() < 16) { members.push_back(Join(authority, joined++)); what = "join"; }
+			else if (op < 40 && !unseated.empty()) {
+				std::vector<int> open;
+				for (int i = 0; i < static_cast<int>(CabinetCount); ++i) if (!r.cabinets[i]) open.push_back(i);
+				Sit(authority, pick(unseated), open[roll(static_cast<int>(open.size()))]);
+				what = "sit";
+			} else if (op < 70 && !deciding.empty()) {
+				const MemberId m = pick(deciding), other = OpponentOf(authority, m);
+				const bool free = ArcadeSomeoneFree(r, static_cast<std::size_t>(TableOf(authority, m)));
+				const auto kind = roll(2) ? ActionKind::Rematch : ActionKind::NewOpponent;
+				CHECK(Choose(authority, m, kind).accepted);
+				if (kind == ActionKind::NewOpponent && free) CHECK(!Paired(authority, m, other));
+				what = kind == ActionKind::Rematch ? "rematch" : "new opponent";
+			} else if (!playing.empty()) {
+				const MemberId m = pick(playing), other = OpponentOf(authority, m);
+				const int table = TableOf(authority, m);
+				const bool free = ArcadeSomeoneFree(r, static_cast<std::size_t>(table));
+				const bool others = std::any_of(r.cabinets.begin(), r.cabinets.end(), [&](MemberId c) { return c && c != m && c != other; });
+				Beat(authority, m);
+				CHECK(TableOf(authority, m) == table);
+				const auto& after = r.tables[table];
+				if (Paired(authority, m, other)) CHECK(!others || after.deciding);
+				if (type == RoomType::King && others && free) CHECK(!Paired(authority, m, other));
+				if (type == RoomType::King && others && Paired(authority, m, other)) CHECK(after.wantsNew[after.p1 == other ? 0 : 1]);
+				what = "set end";
+			}
+			Sound(authority, what + " at step " + std::to_string(step) + " of round " + std::to_string(round));
+		}
+	}
+}
+
+// Each room type's rules, as the room and every view read them, and the
+// numbers the wire and saved settings hold for each type.
+static void TestTypeRules() {
+	CHECK(static_cast<int>(RoomType::Classic) == 0 && static_cast<int>(RoomType::Arcade) == 1 && static_cast<int>(RoomType::King) == 2);
+	CHECK(ValidRoomType(0) && ValidRoomType(2) && !ValidRoomType(3) && !ValidRoomType(-1));
+	const auto& classic = RulesOf(RoomType::Classic);
+	CHECK(!classic.cabinets && !classic.rulesFixed && !classic.setAlwaysEnds && !classic.winnerStays && !classic.keeperOption &&
+		classic.tournamentBindable && classic.defaultTableCount == ClassicTableCount);
+	for (const RoomType type : {RoomType::Arcade, RoomType::King}) {
+		const auto& rules = RulesOf(type);
+		CHECK(rules.cabinets && rules.rulesFixed && rules.setAlwaysEnds && rules.keeperOption && !rules.tournamentBindable &&
+			rules.defaultTableCount == TableCount && rules.winnerStays == (type == RoomType::King));
+		CHECK(DefaultTableCount(type) == TableCount);
+	}
+	CHECK(DefaultTableCount(RoomType::Classic) == ClassicTableCount);
+	// A value no snapshot holds reads as any type but Classic did before.
+	CHECK(&RulesOf(static_cast<RoomType>(7)) == &RulesOf(RoomType::Arcade));
+	Snapshot room;
+	room.type = static_cast<RoomType>(3);
+	CHECK(!ArcadeKindValid(room));
+}
+
+// A cabinet's Queue names it as table + seat * TableCount, and the room reads
+// it back the same way; only in a room that seats by cabinet do Queue and
+// Unqueue name one.
+static void TestCabinetNaming() {
+	for (std::size_t cabinet = 0; cabinet < CabinetCount; ++cabinet) {
+		const auto action = CabinetQueueAction(cabinet);
+		CHECK(action.kind == ActionKind::Queue && action.table < TableCount && (action.seat == 0 || action.seat == 1) && CabinetNamed(action) == cabinet);
+	}
+	Snapshot room;
+	CHECK(!NamesCabinet(room, ActionKind::Queue) && !NamesCabinet(room, ActionKind::Unqueue));
+	room.type = RoomType::King;
+	CHECK(NamesCabinet(room, ActionKind::Queue) && NamesCabinet(room, ActionKind::Unqueue) && !NamesCabinet(room, ActionKind::Watch));
+}
+
+// Who keeps the seat with no answer after a game: everyone in a room that
+// seats by cabinet; nobody at an Unlimited Classic table; both inside a set;
+// after a set, whoever the rotation keeps.
+static void TestKeepsSeatAfterGame() {
+	Snapshot room;
+	auto& table = room.tables[0];
+	table.p1 = 1; table.p2 = 2; table.phase = TablePhase::Playing; table.matchGeneration = 5;
+	table.rules.format = SetFormat::Unlimited;
+	CHECK(!KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 1));
+	table.rules.format = SetFormat::Ft2;
+	CHECK(KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 1) && KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 2));
+	table.score[0] = 1;
+	table.rules.rotation = RotationMode::WinnerStays;
+	CHECK(KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 1) && !KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 2));
+	table.rules.rotation = RotationMode::LoserStays;
+	CHECK(!KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 1) && KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 2));
+	CHECK(GameSeats(table, 5) == std::make_pair(MemberId(1), MemberId(2)));
+	room.type = RoomType::Arcade;
+	table.rules.format = SetFormat::Unlimited;
+	CHECK(KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 2));
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
+		TestTypeRules();
+		TestCabinetNaming();
+		TestKeepsSeatAfterGame();
 		TestFirstComeFirstPaired();
+		TestCabinetActionsKeepTableRules();
 		TestRematchBoth();
 		TestRematchOneRepairs();
 		TestFullRoomNewOpponent();
 		TestFullRoomRequestTakesAFreedSeat();
 		TestFullRoomTwoRequestsSwap();
 		TestFullRoomRotates();
+		TestFullRoomKing();
+		TestPartedPairWaitsForSomeoneElse();
+		TestPartedPairInLineAndAlone();
+		TestRandomWalk(RoomType::Arcade);
+		TestRandomWalk(RoomType::King);
+		TestOneTableLine();
+		for (const std::size_t tables : {1, 3}) { TestRandomWalk(RoomType::Arcade, tables); TestRandomWalk(RoomType::King, tables); }
 		TestArcadeWinnerPlaysWaiter();
 		TestArcadeTwoPlayers();
 		TestArcadePairsChoose();

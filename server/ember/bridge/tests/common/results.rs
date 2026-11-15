@@ -3,7 +3,7 @@
 //! credentials of the match's connection and tenant.
 use std::time::Duration;
 
-use ember_bridge::testing::until_async;
+use ember_bridge::testing::polled_async;
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
 
@@ -70,17 +70,23 @@ pub async fn delivery(bridge: &Bridge, id: &str) -> (String, u32) {
 /// Runs delivery passes until the match's delivery is `done`, for at most
 /// sixty seconds (every pass is a round of real work, and the whole
 /// workspace may be testing alongside). The bridge's own worker runs alongside; either may send.
+/// A first retry is due a second after the failure, so a test that waits to
+/// see one freezes the clock first, or the worker may send again unseen.
 pub async fn until(bridge: &Bridge, id: &str, done: impl Fn((String, u32)) -> bool) {
-    until_async(
-        "the delivery to settle",
-        Duration::from_secs(60),
-        || async {
-            if done(delivery(bridge, id).await) {
-                return true;
-            }
-            ember_bridge::deliver_results(bridge.state()).await;
-            false
-        },
-    )
+    let last = std::sync::Mutex::new(None);
+    let settled = polled_async(Duration::from_secs(60), || async {
+        let seen = delivery(bridge, id).await;
+        if done(seen.clone()) {
+            return true;
+        }
+        *last.lock().unwrap() = Some(seen);
+        ember_bridge::deliver_results(bridge.state()).await;
+        false
+    })
     .await;
+    assert!(
+        settled,
+        "gave up waiting for the delivery to settle after 60s; last seen {:?}",
+        last.lock().unwrap()
+    );
 }

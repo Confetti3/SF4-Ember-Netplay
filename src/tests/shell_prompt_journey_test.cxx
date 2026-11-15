@@ -1,3 +1,4 @@
+#include "../ui/PromptDevice.hxx"
 #include "shell_journey_support.hxx"
 namespace {
 // A deciding Arcade pair's prompt on a DirectInput stick, which has no
@@ -11,7 +12,7 @@ void DecidingPromptOnStick() {
  NoteMenuDevice(0);NoteMenuDevice(MenuInput::Down);NoteMenuDevice(0);
  Check(!MenuShortcutGlyph(MenuInput::Fighter)&&!MenuShortcutGlyph(MenuInput::Options),"The stick was given a Fighter or Options shortcut");
  JoinedRoom(a,16);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
- a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+ a.view.room.host=1;a.view.room.revision=3;a.view.room.type=room::RoomType::Arcade;
  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;a.view.room.members.push_back(local);
  room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
  auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
@@ -65,15 +66,15 @@ static void ButtonPromptsRow() {
   Check(MenuPromptBrand()==brands[i],"Button prompts did not apply before autosave");
   Check(h.actions.size()==before,"Button prompts bypassed normal autosave");
   h.Frame(0,45);
-  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.buttonPrompts==choices[i],"Button prompts did not autosave the next style");
-  h.view.preferences=h.actions.back().preferences;h.Frame();
+  Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.buttonPrompts==choices[i];}),"Button prompts did not autosave the next style");
+  h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  }
  h.Press(MenuInput::Right);Check(MenuPromptBrand()==PromptBrand{Brand::Nintendo},"Button prompts exceeded its last value");
  for(int i=2;i>=0;--i) {
   h.Press(MenuInput::Left);h.Frame(0,45);
   const auto want=static_cast<ButtonPrompts>(i);
-  Check(h.actions.back().preferences.buttonPrompts==want,"Button prompts did not autosave the previous style");
-  h.view.preferences=h.actions.back().preferences;h.Frame();
+  Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.buttonPrompts==want;}),"Button prompts did not autosave the previous style");
+  h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  }
  Check(MenuPromptBrand()==h.view.gameplayBrand,"Automatic did not restore the PS5 variant");
  h.Press(MenuInput::Left);Check(MenuPromptBrand()==h.view.gameplayBrand,"Button prompts exceeded Automatic");
@@ -98,7 +99,7 @@ static void ButtonPromptsRow() {
 // send, until the player answers; the countdown runs on.
 static void PostMatchUltra() {
  using namespace sf4e;
- using Field=ShellAction::SelectionStep::Field;
+ using Field=ui::SelectionStep::Field;
  Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
  a.view.room.host=1;a.view.room.revision=3;
  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;a.view.room.members.push_back(local);
@@ -112,7 +113,7 @@ static void PostMatchUltra() {
  Check(a.shell.Navigation().Screen()=="post-match"&&a.shell.Navigation().Focus()=="again"&&row("ultra")!=rows.end()&&row("ultra")->enabled&&
   row("ultra")->adjustable&&row("ultra")->value==ui::UltraName(0,0)&&rows.back().id=="ultra","The post-match prompt offers no Ultra under the answer, or Rematch lost the focus");
  a.FocusOn("ultra");const auto sent=a.actions.size();a.Press(MenuInput::Right);
- Check(a.actions.size()==sent+1&&a.actions.back().selectionStep.field==Field::Ultra&&a.actions.back().selectionStep.delta==1&&
+ Check(a.actions.size()==sent+1&&Is<ui::SelectionStep>(a.actions.back(),[](const ui::SelectionStep& s){return s.field==Field::Ultra&&s.delta==1;})&&
   a.shell.Navigation().Screen()=="post-match","Right on the post-match Ultra did not step it");
  // Once the runtime holds the answer, the Ultra is set for the next game.
  a.view.canChangeUltra=false;a.view.readyPress=netplay::ReadyPress::Held;a.Frame();
@@ -127,9 +128,9 @@ static void PostMatchUltra() {
 // next game; only New opponent is closed, and both views say it was chosen.
 static void PostMatchRematchAfterNewOpponent() {
  using namespace sf4e;
- using Field=ShellAction::SelectionStep::Field;
+ using Field=ui::SelectionStep::Field;
  Harness a;JoinedRoom(a,19);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
- a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+ a.view.room.host=1;a.view.room.revision=3;a.view.room.type=room::RoomType::Arcade;
  for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
  auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
  a.view.room.tables[1].p1=3;a.view.room.tables[1].p2=4;a.view.room.tables[1].phase=room::TablePhase::Playing;
@@ -144,7 +145,7 @@ static void PostMatchRematchAfterNewOpponent() {
  Check(a.shell.Navigation().Screen()=="post-match"&&row("rematch")!=rows.end()&&row("rematch")->enabled&&row("new-opponent")!=rows.end()&&row("new-opponent")->enabled,
   "A deciding prompt did not open with Rematch and New opponent");
  const auto sent=a.actions.size();a.shell.Navigation().Focus("new-opponent",rows);a.Press(MenuInput::Select);
- Check(a.actions.size()==sent+1&&a.actions.back().roomAction.kind==room::ActionKind::NewOpponent,"The prompt's New opponent did not ask the room");
+ Check(a.actions.size()==sent+1&&RoomActionIs(a.actions.back(),room::ActionKind::NewOpponent),"The prompt's New opponent did not ask the room");
  // The room holds the request until a set ends or a seat comes free.
  t.wantsNew[0]=true;++t.revision;++a.view.room.revision;a.Frame(0,2);
  Check(a.shell.Navigation().Screen()=="post-match","The prompt closed once New opponent was asked for");
@@ -154,10 +155,50 @@ static void PostMatchRematchAfterNewOpponent() {
  Check(words["pm-you"]==loc::T("room.new_opponent_chosen"),"This PC's row did not say New opponent was chosen");
  // The Ultra still steps, and Rematch still answers, taking the request back.
  a.shell.Navigation().Focus("ultra",rows);const auto stepped=a.actions.size();a.Press(MenuInput::Right);
- Check(a.actions.size()==stepped+1&&a.actions.back().selectionStep.field==Field::Ultra,"The Ultra did not step after New opponent was asked for");
+ Check(a.actions.size()==stepped+1&&Is<ui::SelectionStep>(a.actions.back(),[](const ui::SelectionStep& s){return s.field==Field::Ultra;}),"The Ultra did not step after New opponent was asked for");
  const auto answered=a.actions.size();a.shell.Navigation().Focus("rematch",rows);a.Press(MenuInput::Select);
- Check(a.actions.size()==answered+1&&a.actions.back().roomAction.kind==room::ActionKind::Rematch,"Rematch after New opponent did not answer the room");
+ Check(a.actions.size()==answered+1&&RoomActionIs(a.actions.back(),room::ActionKind::Rematch),"Rematch after New opponent did not answer the room");
  SetMenuEntriesProbe({});SetMenuCardTextProbe({});
+}
+// The device the prompts name changes on a press and on nothing else: pad frames then idle ones keep the pad, a key press
+// switches to the keyboard, a pad button back, and a held button or key is no new press.
+static void PromptDeviceDecision() {
+ using sf4e::ui::PromptDevice;
+ PromptDevice device;
+ const unsigned key=MenuInput::Select,pad=MenuInput::Down;
+ for(int frame=0;frame<3;++frame)device.Note(0,false,frame?pad:0);
+ Check(!device.Keyboard(),"Pad frames showed the keyboard");
+ for(int frame=0;frame<30;++frame)device.Note(0,false,0);
+ Check(!device.Keyboard(),"Idle frames changed the prompts");
+ device.Note(key,false,0);
+ Check(device.Keyboard(),"A key press did not show the keyboard");
+ for(int frame=0;frame<30;++frame)device.Note(key,false,0);
+ Check(device.Keyboard(),"A key held changed the prompts");
+ device.Note(key,false,pad);
+ Check(!device.Keyboard(),"A pad button did not show the pad");
+ for(int frame=0;frame<30;++frame)device.Note(key,false,pad);
+ Check(!device.Keyboard(),"A key and a button held changed the prompts");
+ device.Note(key,true,pad);
+ Check(device.Keyboard(),"Typing did not show the keyboard");
+}
+// A key held while a text screen opens and closes (the keys the menu reads change with it) is no new press: the pad's prompts stay.
+static void PromptsKeepThePad() {
+ using namespace sf4e;
+ Harness h;
+ SetMenuGlyphs(input::PadXInput,input::xinput::A,input::xinput::B);
+ NoteMenuDevice(0);NoteMenuDevice(MenuInput::Down);NoteMenuDevice(0);
+ Check(!KeyboardPrompts(),"A pad press did not show the pad's prompts");
+ ImGui::GetIO().AddKeyEvent(ImGuiKey_Space,true);h.Frame();
+ ReadMenuInput(false,false,0);
+ Check(KeyboardPrompts(),"A key press did not show the keyboard's prompts");
+ ReadMenuInput(false,false,MenuInput::Down);
+ Check(!KeyboardPrompts(),"A pad button after a key did not show the pad's prompts");
+ for(int frame=0;frame<6;++frame){
+  ReadMenuInput(false,frame%2==0,MenuInput::Down);
+  Check(!KeyboardPrompts(),"A text screen opening over a held key changed the prompts");
+ }
+ ImGui::GetIO().AddKeyEvent(ImGuiKey_Space,false);h.Frame();
+ SetMenuGlyphs(input::PadKeyboard,0,0);
 }
 // Each journey has its own harness, one ImGui context at a time.
 void ButtonPromptJourneys() {
@@ -165,4 +206,6 @@ void ButtonPromptJourneys() {
  DecidingPromptOnStick();
  PostMatchUltra();
  PostMatchRematchAfterNewOpponent();
+ PromptDeviceDecision();
+ PromptsKeepThePad();
 }

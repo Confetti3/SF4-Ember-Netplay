@@ -66,8 +66,8 @@ private:
 class SlotPicker {
 public:
     explicit SlotPicker(unsigned seed = 1) : random_(seed) {}
-    // -1 when the set is empty.
-    int Peek(SlotSet eligible, Order order) {
+    // -1 when the set is empty. weights: one per slot for the random draw, each 1 without.
+    int Peek(SlotSet eligible, Order order, const int* weights = nullptr) {
         if (eligible != set_) { set_ = eligible; next_ = 0; }
         if (!eligible) return -1;
         if (order == Order::InOrder) {
@@ -76,10 +76,11 @@ public:
                 if (InSet(eligible, slot)) return slot;
             }
         }
-        int count = 0;
-        for (int slot = 0; slot < SlotCount; ++slot) count += InSet(eligible, slot);
-        int pick = static_cast<int>(Draw() % static_cast<unsigned>(count));
-        for (int slot = 0; slot < SlotCount; ++slot) if (InSet(eligible, slot) && pick-- == 0) return slot;
+        const auto weight = [&](int slot) { return InSet(eligible, slot) ? weights ? static_cast<unsigned>(weights[slot]) : 1u : 0u; };
+        unsigned total = 0;
+        for (int slot = 0; slot < SlotCount; ++slot) total += weight(slot);
+        unsigned pick = Draw() % total;
+        for (int slot = 0; slot < SlotCount; ++slot) { if (pick < weight(slot)) return slot; pick -= weight(slot); }
         return -1;
     }
     void Commit(int slot) { if (slot >= 0 && slot < SlotCount) next_ = (slot + 1) % SlotCount; }

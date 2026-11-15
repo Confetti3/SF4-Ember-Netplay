@@ -19,7 +19,7 @@ Result RoomAuthority::ApplySetCapacity(MemberId member, const Action& action) {
 	snapshot_.capacity = action.capacity; TouchRoom(); return Accept();
 }
 
-// A private Classic room (TableCountChangeable) grows to any count up to
+// A private room (TableCountChangeable) grows to any count up to
 // TableCount. It shrinks only past tables nobody is at and whose last game is
 // wholly over: every recipient of its terminal receipt, an ending spectator as
 // much as a fighter, has acknowledged it. So no place, game or result is lost
@@ -35,7 +35,12 @@ Result RoomAuthority::ApplySetTableCount(MemberId member, const Action& action) 
 		if (std::any_of(receipt.recipients.begin(), receipt.recipients.end(), [](const TerminalRecipient& recipient) { return !recipient.acknowledged; }))
 			return Reject(RejectReason::TerminalLedgerFull);
 	}
-	if (snapshot_.tableCount != action.tableCount) { snapshot_.tableCount = action.tableCount; TouchRoom(); }
+	if (snapshot_.tableCount != action.tableCount) {
+		snapshot_.tableCount = action.tableCount;
+		// An Arcade room's new tables seat its line.
+		if (RulesOf(snapshot_).cabinets) SeatLine(0, 0);
+		TouchRoom();
+	}
 	return Accept();
 }
 
@@ -50,6 +55,16 @@ Result RoomAuthority::ApplyLock(MemberId member, const Action& action) {
 Result RoomAuthority::ApplySetWiredOnly(MemberId member, const Action& action) {
 	if (!IsHost(member)) return Reject(RejectReason::NotHost);
 	if (snapshot_.wiredOnly != action.wiredOnly) { snapshot_.wiredOnly = action.wiredOnly; TouchRoom(); }
+	return Accept();
+}
+
+// Only a room its players own, and that is not a match room, has friends to
+// hide it from. The setting changes what the friends of its members are shown
+// and nothing about play.
+Result RoomAuthority::ApplySetFriendsHidden(MemberId member, const Action& action) {
+	if (!IsHost(member)) return Reject(RejectReason::NotHost);
+	if (snapshot_.serverOwned || snapshot_.tournament.Active()) return Reject(RejectReason::Unauthorized);
+	if (snapshot_.friendsHidden != action.friendsHidden) { snapshot_.friendsHidden = action.friendsHidden; TouchRoom(); }
 	return Accept();
 }
 
@@ -141,6 +156,27 @@ Result RoomAuthority::ApplyTyping(MemberId member, const Action& action) {
 	return Accept();
 }
 
+// A fighter's answer to the prompt over the WIN of one game, kept for the
+// others to show while that game's prompt is open. It names the game it
+// answers (the match's generation and its place in the battle) and a seated
+// fighter of that match alone may say it. It binds nobody, and, like Typing,
+// it moves no room revision: it is presence, shown to the others in the
+// snapshot that follows every accepted action, and it must not make a host's
+// room action (Lock, Kick, capacity, rename) stale. The runtime says it again
+// until the snapshot shows it (SayPostMatch); a word replaces the last, and
+// the member's action watermark refuses an older copy of one.
+Result RoomAuthority::ApplyPostMatchAnswer(MemberId member, const Action& action) {
+	Member* item = Find(member);
+	if (!item) return Reject(RejectReason::UnknownMember);
+	const Table* table = FindTable(static_cast<std::uint8_t>(item->table >= 0 ? item->table : TableCount));
+	if (!table || (table->p1 != member && table->p2 != member)) return Reject(RejectReason::NotSeated);
+	if (!action.matchGeneration || action.matchGeneration != table->matchGeneration) return Reject(RejectReason::WrongGeneration);
+	const auto game = action.postMatch == PostMatchWord::None ? 0 : action.game;
+	const auto generation = action.postMatch == PostMatchWord::None ? 0 : action.matchGeneration;
+	item->postMatch = action.postMatch; item->postMatchGeneration = generation; item->postMatchGame = game;
+	return Accept();
+}
+
 Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& action) {
 	if (!action.matchGeneration) return Reject(RejectReason::WrongGeneration);
 	for (auto& receipt : terminalReceipts_) {
@@ -177,7 +213,7 @@ Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& ac
 
 Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table* table) {
 	// An Arcade room's rules are the room's, chosen when it was created.
-	if (snapshot_.arcade) return Reject(RejectReason::Unauthorized);
+	if (RulesOf(snapshot_).rulesFixed) return Reject(RejectReason::Unauthorized);
 	if (!CanEditRules(member)) return Reject(RejectReason::NotHost);
 	if (GameUnderWay(*table) || !action.rules.Valid()) return Reject(RejectReason::InvalidRules);
 	// A different set length or rotation starts a new set. Round count, time and
@@ -190,7 +226,6 @@ Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table
 
 Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* table) {
 	if (HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
-	if (snapshot_.arcade) return ApplyArcadeSit(member, action);
 	const bool asked = action.seat == 0 || action.seat == 1;
 	for (const auto& other : snapshot_.tables) {
 		if (other.p1 == member || other.p2 == member) return Reject(RejectReason::AlreadySeated);
@@ -235,8 +270,6 @@ Result RoomAuthority::ApplyUnqueue(MemberId member, Table* table) {
 	const int seat = table->p1 == member ? 0 : table->p2 == member ? 1 : -1;
 	if (seat < 0) return Reject(RejectReason::NotQueued);
 	if (table->phase == TablePhase::Playing || table->phase == TablePhase::Paused) return Reject(RejectReason::WrongPhase);
-	// In an Arcade room it is standing up from the cabinet.
-	if (snapshot_.arcade) { RemoveFromTable(member); return Accept(); }
 	if (seat == 0) table->p1 = 0; else table->p2 = 0;
 	if (auto* standing = Find(member)) standing->delayLocked = false;
 	ClearReadiness(*table);
@@ -409,10 +442,10 @@ Result RoomAuthority::ApplyRecordResult(MemberId member, const Action& action, T
 		table->phase = TablePhase::Paused; Touch(*table);
 		return Accept({Event{Event::Kind::ResultDisputed, id, table->matchGeneration, member, action.result}});
 	}
-	if (!action.continued || !pendingContinued_[id]) return EndMatch(id, table->matchGeneration, action.result);
+	if (!action.continued || !pendingContinued_[id]) return EndMatch(id, table->matchGeneration, action.result, action.game);
 	// Both fighters went on to a rematch in the same battle: the game counts,
 	// and the match, its spectators and its stream go on.
-	RecordWonGame(id, *table, action.result);
+	RecordWonGame(id, *table, action.result, action.game);
 	if (action.result == MatchResult::P1Win) ++table->score[0];
 	else if (action.result == MatchResult::P2Win) ++table->score[1];
 	gamesScored_[id] = action.game + 1;
@@ -485,7 +518,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (snapshot_.closed && action.kind != ActionKind::Leave) return Reject(RejectReason::Closed);
 	if (action.roomEpoch != snapshot_.roomEpoch) return Reject(RejectReason::StaleRoom);
 	const bool roomAction = action.kind == ActionKind::SetCapacity || action.kind == ActionKind::SetTableCount || action.kind == ActionKind::Lock ||
-		action.kind == ActionKind::SetWiredOnly || action.kind == ActionKind::Kick || action.kind == ActionKind::Close || action.kind == ActionKind::Rename ||
+		action.kind == ActionKind::SetWiredOnly || action.kind == ActionKind::SetFriendsHidden || action.kind == ActionKind::Kick || action.kind == ActionKind::Close || action.kind == ActionKind::Rename ||
 		action.kind == ActionKind::TransferHost;
 	if (roomAction && action.revision != snapshot_.revision) return Reject(RejectReason::StaleRoom);
 	const bool generationScopedUnwatch = action.kind == ActionKind::Unwatch && action.matchGeneration != 0;
@@ -504,6 +537,14 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	// A bound match's watchers read the room and say nothing: every kind, room
 	// actions included, is refused to them unless WatcherMay lists it.
 	if (IsWatcher(snapshot_, member) && !WatcherMay(action.kind)) return Reject(RejectReason::Unauthorized);
+	// An Arcade room's Queue and Unqueue name a cabinet, not a table: sitting
+	// down there, perhaps into the line, and standing up. Its table can be
+	// out of play, where FindTable finds nothing; the revision still counts.
+	if (NamesCabinet(snapshot_, action.kind)) {
+		if (action.table >= TableCount) return Reject(RejectReason::UnknownTable);
+		if (action.tableRevision != snapshot_.tables[action.table].revision) return Reject(RejectReason::StaleTable);
+		return action.kind == ActionKind::Queue ? ApplyArcadeSit(member, action) : ApplyArcadeStand(member);
+	}
 	// PermitReady names its reserved generation, so the other fighter's
 	// permit arriving first does not make it stale.
 	if (IsTableAction(action.kind) && action.kind != ActionKind::RecordResult && action.kind != ActionKind::MatchFinished && action.kind != ActionKind::CancelResult && action.kind != ActionKind::AbortMatch && action.kind != ActionKind::AcknowledgeTerminal && action.kind != ActionKind::PermitReady && !generationScopedUnwatch) {
@@ -521,6 +562,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::SetTableCount) return ApplySetTableCount(member, action);
 	if (action.kind == ActionKind::Lock) return ApplyLock(member, action);
 	if (action.kind == ActionKind::SetWiredOnly) return ApplySetWiredOnly(member, action);
+	if (action.kind == ActionKind::SetFriendsHidden) return ApplySetFriendsHidden(member, action);
 	// The bound fighters keep their seats; nobody is kicked from a match room.
 	if (action.kind == ActionKind::Kick && snapshot_.tournament.Active()) return Reject(RejectReason::Unauthorized);
 	if (action.kind == ActionKind::Kick) return ApplyKick(member, action);
@@ -528,6 +570,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::Rename) return ApplyRename(member, action);
 	if (action.kind == ActionKind::SetTraining) return ApplySetTraining(member, action);
 	if (action.kind == ActionKind::Typing) return ApplyTyping(member, action);
+	if (action.kind == ActionKind::PostMatchAnswer) return ApplyPostMatchAnswer(member, action);
 	if (action.kind == ActionKind::SetRoomType) return ApplySetRoomType(member, action);
 	// An acknowledgement names its receipt, which outlives the game and can
 	// outlive the table being in play (SetTableCount), so it is matched against

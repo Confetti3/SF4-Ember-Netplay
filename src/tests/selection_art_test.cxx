@@ -2,12 +2,15 @@
 // of a file that fails to decode, and which failures are final and logged.
 #include "../ui/SelectionArt.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/PointDigits.hxx"
 #include "../common/StageCatalog.hxx"
+#include "game_lettering_support.hxx"
 #include "temp_root.hxx"
 #include "test_support.hxx"
 
 #include <windows.h>
 #include <d3d9.h>
+#include <zlib.h>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -15,6 +18,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -32,11 +36,10 @@ void Write(const fs::path& path, const std::string& bytes) {
     std::ofstream(path, std::ios::binary) << bytes;
 }
 void Put32(std::string& bytes, std::size_t at, std::uint32_t value) { std::memcpy(&bytes[at], &value, 4); }
-// A Ranking.emz like the game's: one EMB entry `name` holding a plain 32-bit
-// BGRA DDS of `side` pixels, which Windows' DDS codec cannot read. The EMZ
-// holds it in one stored deflate block. The `margin` pixels round its edge are
+// A plain 32-bit BGRA DDS of `side` pixels, which Windows' DDS codec cannot
+// read, like the game's class emblems. The `margin` pixels round its edge are
 // transparent, as a crown's canvas is round the crown.
-std::string RankingArchive(const std::string& name, std::uint32_t side, std::uint32_t margin = 0) {
+std::string PlainDds(std::uint32_t side, std::uint32_t margin = 0) {
     std::string dds(128 + side * side * 4, '\x7f');
     for (std::uint32_t y = 0; y < side; ++y) for (std::uint32_t x = 0; x < side; ++x)
         if (x < margin || y < margin || x >= side - margin || y >= side - margin) std::memset(&dds[128 + (y * side + x) * 4], 0, 4);
@@ -45,21 +48,52 @@ std::string RankingArchive(const std::string& name, std::uint32_t side, std::uin
     std::memset(&dds[24], 0, 104);
     Put32(dds, 76, 32); Put32(dds, 80, 0x41); Put32(dds, 88, 32);
     Put32(dds, 92, 0xff0000); Put32(dds, 96, 0xff00); Put32(dds, 100, 0xff); Put32(dds, 104, 0xff000000); Put32(dds, 108, 0x1000);
+    return dds;
+}
+// An EMZ like the game's: one EMB entry `name` holding `dds`, in stored
+// deflate blocks (a stored block holds at most 65535 bytes, so a 256x256
+// sheet takes several).
+std::string Archive(const std::string& name, const std::string& dds) {
     std::string emb(64, '\0');
     std::memcpy(&emb[0], "#EMB", 4);
     Put32(emb, 12, 1); Put32(emb, 24, 32); Put32(emb, 28, 40);
     Put32(emb, 32, 64 - 32); Put32(emb, 36, static_cast<std::uint32_t>(dds.size()));
     Put32(emb, 40, 44); std::memcpy(&emb[44], name.c_str(), name.size() + 1);
     emb += dds;
-    const auto length = static_cast<std::uint16_t>(emb.size());
     std::string emz(16, '\0');
     std::memcpy(&emz[0], "#EMZ", 4);
     Put32(emz, 8, static_cast<std::uint32_t>(emb.size())); Put32(emz, 12, 16);
-    emz += '\x01';
-    emz.append(reinterpret_cast<const char*>(&length), 2);
-    const std::uint16_t inverse = static_cast<std::uint16_t>(~length);
-    emz.append(reinterpret_cast<const char*>(&inverse), 2);
-    return emz + emb;
+    for (std::size_t at = 0; at < emb.size();) {
+        const auto length = static_cast<std::uint16_t>((std::min)(emb.size() - at, std::size_t{65535}));
+        emz += at + length == emb.size() ? '\x01' : '\x00';
+        emz.append(reinterpret_cast<const char*>(&length), 2);
+        const std::uint16_t inverse = static_cast<std::uint16_t>(~length);
+        emz.append(reinterpret_cast<const char*>(&inverse), 2);
+        emz.append(emb, at, length);
+        at += length;
+    }
+    return emz;
+}
+std::string RankingArchive(const std::string& name, std::uint32_t side, std::uint32_t margin = 0) { return Archive(name, PlainDds(side, margin)); }
+// The point digits' sheet as the game draws it (PointDigits.hxx): glyph blocks
+// of alpha in the places the real sheet has them, `drop` of a band's glyphs
+// left out, and the first digit of the white set `taller` pixels taller.
+std::string DigitSheet(int drop = 0, int taller = 0) {
+    std::string dds = PlainDds(256);
+    std::memset(&dds[128], 0, 256 * 256 * 4);
+    struct Row { int top, bottom; std::vector<std::pair<int, int>> columns; };
+    const Row rows[] = {
+        {3, 29, {{3, 24}, {33, 52}, {63, 75}, {90, 107}, {118, 135}, {145, 164}}}, {37, 61, {{34, 52}, {61, 80}, {89, 107}, {117, 136}, {145, 164}}},
+        {72, 97, {{3, 24}, {33, 52}, {63, 75}, {90, 107}, {118, 135}, {145, 164}}}, {105, 129, {{34, 52}, {61, 80}, {89, 107}, {117, 136}, {145, 164}}},
+        {143, 173, {{9, 31}, {52, 66}, {90, 111}, {130, 151}, {169, 192}, {210, 232}}},
+        {183, 213, {{9, 31}, {50, 71}, {89, 112}, {129, 151}, {178, 187}, {206, 238}}}};
+    for (const auto& row : rows) {
+        const std::size_t keep = row.columns.size() - (&row == &rows[5] ? drop : 0);
+        for (std::size_t i = 0; i < keep; ++i)
+            for (int y = row.top - (&row == &rows[4] && i == 0 ? taller : 0); y <= row.bottom; ++y)
+                for (int x = row.columns[i].first; x <= row.columns[i].second; ++x) dds[128 + (y * 256 + x) * 4 + 3] = '\xff';
+    }
+    return dds;
 }
 // Pumps until `request` has settled or `frames` have passed.
 template <class Request> SelectionImage Settle(SelectionArt& art, Request request, int frames) {
@@ -205,6 +239,40 @@ int main() {
         CHECK(two.texture && !two.missing && two.width == 32);
         CHECK(logged.size() == 5 && logged[4].find("ultra-icons/uc2.dds uses a fallback") != std::string::npos);
         CHECK(!art.UltraIcon(3).texture && !art.UltraIcon(-1).texture);
+
+        // The game's point digits come from its ranked result archive: the
+        // sheet loads at its own size, and each glyph's ink is measured from
+        // its alpha (the digit 7 of the white set is the second row's second).
+        const fs::path result = game / L"resource" / L"ui" / L"net_result" / L"CMN" / L"net_result.tex.emz";
+        Write(result, Archive("net_vs_number.dds", DigitSheet()));
+        const auto points = Settle(art, [&] { return art.PointDigits().image; }, 2000);
+        const auto sheet = art.PointDigits().sheet;
+        if (!(points.texture && !points.missing && sheet))
+            for (const auto& line : logged) std::printf("art said: %s\n", line.c_str());
+        CHECK(points.texture && !points.missing && points.width == 256 && points.height == 256 && sheet);
+        if (sheet) {
+            const auto& seven = sheet->sets[sf4e::point_digits::White][7];
+            CHECK(seven.x == 50 && seven.w == 22 && seven.y == 183 && seven.h == 31);
+            const auto& gold = sheet->sets[sf4e::point_digits::Gold];
+            CHECK(gold[0].x == 33 && gold[0].w == 20 && gold[0].y == 3 && gold[0].h == 27);
+            CHECK(gold[9].x == 145 && gold[9].y == 37 && gold[9].h == 25);
+            CHECK(sheet->sets[sf4e::point_digits::Blue][5].y == 105 && sheet->sets[sf4e::point_digits::Blue][4].x == 145);
+        }
+        // The game's lettering comes from its font library, a Scaleform "CFX"
+        // file whose tags are deflated. Its header's length is not the
+        // inflated tags' (the game's own is not), so it is not trusted.
+        {
+            const auto tags = lettering_support::Library(sf4e::game_lettering::FontName, sf4e::game_lettering::Characters);
+            std::string deflated(compressBound(static_cast<uLong>(tags.size())), '\0');
+            uLongf size = static_cast<uLongf>(deflated.size());
+            CHECK(compress(reinterpret_cast<Bytef*>(&deflated[0]), &size, tags.data(), static_cast<uLong>(tags.size())) == Z_OK);
+            deflated.resize(size);
+            Write(game / L"resource" / L"ui" / L"fonts" / L"ENG" / L"fonts.gfx", std::string("CFX\x09\x10\x00\x00\x00", 8) + deflated);
+            const auto letters = Settle(art, [&] { return art.GameLetters().image; }, 2000);
+            const auto lettering = art.GameLetters().sheet;
+            CHECK(letters.texture && !letters.missing && letters.width == sf4e::game_lettering::SheetWidth && lettering && lettering->Covers("FP") && lettering->Covers("BP"));
+        }
+        CHECK(logged.size() == 5);
     }
     {
         // An Ultra mark far larger than the game's 32-pixel icons is refused
@@ -215,6 +283,32 @@ int main() {
         const auto huge = Settle(art, [&] { return art.UltraIcon(0); }, 4000);
         CHECK(huge.missing && !huge.texture);
         CHECK(lines.size() == 1 && lines[0].find("ultra-icons/uc1.dds") != std::string::npos && lines[0].find("96x96") != std::string::npos);
+        // A point digits' sheet of another size, or with a glyph missing from a
+        // row, is refused as unusable, retried, then reported once.
+        const fs::path result = game / L"resource" / L"ui" / L"net_result" / L"CMN" / L"net_result.tex.emz";
+        Write(result, Archive("net_vs_number.dds", PlainDds(128)));
+        const auto undersized = Settle(art, [&] { return art.PointDigits().image; }, 4000);
+        CHECK(undersized.missing && !undersized.texture && !art.PointDigits().sheet);
+        CHECK(lines.size() == 2 && lines[1].find("point-digits") != std::string::npos && lines[1].find("not 256x256") != std::string::npos);
+        sf4e::point_digits::Sheet measured;
+        std::string why;
+        const std::string whole = DigitSheet(), gapped = DigitSheet(1);
+        const auto bytes = [](const std::string& dds) { return reinterpret_cast<const unsigned char*>(dds.data()) + 128; };
+        CHECK(sf4e::point_digits::Measure(bytes(whole), 256, 256, measured, why));
+        CHECK(!sf4e::point_digits::Measure(bytes(gapped), 256, 256, measured, why) && why.find("row 183 holds 5 glyphs, not 6") != std::string::npos);
+        // Glyphs may be taller than the nominal band, up to its slack.
+        const std::string tall = DigitSheet(0, 2);
+        CHECK(sf4e::point_digits::Measure(bytes(tall), 256, 256, measured, why) && measured.sets[sf4e::point_digits::White][0].h == 33);
+        CHECK(!sf4e::point_digits::Measure(nullptr, 256, 256, measured, why));
+        // The light fill inside a glyph's outline is its face: here rows 186 to
+        // 208 of the white 7 (columns 50 to 71, rows 183 to 213). A glyph with
+        // no light fill, as every other here, has none.
+        std::string lit = DigitSheet();
+        for (int y = 186; y <= 208; ++y)
+            for (int x = 52; x <= 69; ++x) { char* p = &lit[128 + (y * 256 + x) * 4]; p[0] = p[1] = p[2] = static_cast<char>(0xff); }
+        CHECK(sf4e::point_digits::Measure(bytes(lit), 256, 256, measured, why));
+        const auto& face = measured.sets[sf4e::point_digits::White];
+        CHECK(face[7].faceY == 186 && face[7].faceH == 23 && face[7].y == 183 && face[7].h == 31 && face[6].faceH == 0);
     }
     device->Release(); d3d->Release(); DestroyWindow(window);
     RemoveTempRoot(root);

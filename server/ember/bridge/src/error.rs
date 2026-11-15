@@ -15,6 +15,9 @@ pub struct ApiFailure {
     pub message: Cow<'static, str>,
     pub details: serde_json::Map<String, serde_json::Value>,
     pub retry_after: Option<u64>,
+    /// Why the bridge failed, for its own log only: never sent. The text of
+    /// a database error, which names tables and constraints, never values.
+    pub cause: Option<String>,
 }
 
 impl ApiFailure {
@@ -24,6 +27,7 @@ impl ApiFailure {
             message: message.into(),
             details: serde_json::Map::new(),
             retry_after: None,
+            cause: None,
         }
     }
 
@@ -89,7 +93,10 @@ impl From<rusqlite::Error> for ApiFailure {
     fn from(error: rusqlite::Error) -> Self {
         // SQL errors name tables and constraints, never bound values.
         eprintln!("ember-bridge: database error: {error}");
-        Self::unavailable()
+        Self {
+            cause: Some(error.to_string()),
+            ..Self::unavailable()
+        }
     }
 }
 

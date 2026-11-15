@@ -78,6 +78,27 @@ Expect-Rejection 'The build points at another Ember service*'
 Assert-BuildReceipt $source $build $stage | Out-Null
 [IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source")
 Write-Output 'PASS non-production Ember service refused by receipt, missing field and cache'
+# A channel with its own Ember service (Nightly's staging bridge) packages only a build made for exactly that one.
+$channelService = 'https://bridge-staging.example'
+$serviceReceipt = $goodReceipt | ConvertFrom-Json
+$serviceReceipt.emberService = $channelService
+$serviceReceipt | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $build 'build-provenance.json')
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source`nSF4E_EMBER_SERVICE:STRING=$channelService")
+Assert-BuildReceipt $source $build $stage -EmberService $channelService | Out-Null
+function Expect-ServiceRejection([string]$Service) {
+    try { Assert-BuildReceipt $source $build $stage -EmberService $Service | Out-Null; throw 'Unexpected acceptance' }
+    catch { if ($_.Exception.Message -notlike 'The build points at another Ember service*') { throw } }
+}
+Expect-ServiceRejection 'https://bridge-staging.example.org'
+Expect-ServiceRejection 'HTTPS://BRIDGE-STAGING.EXAMPLE'
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source`nSF4E_EMBER_SERVICE:STRING=https://elsewhere.example")
+Expect-ServiceRejection $channelService
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source")
+Expect-ServiceRejection $channelService
+Set-Content (Join-Path $build 'build-provenance.json') $goodReceipt
+Expect-ServiceRejection $channelService
+Assert-BuildReceipt $source $build $stage | Out-Null
+Write-Output "PASS a channel's own Ember service is required in the receipt and the cache, exactly"
 # -SkipFingerprint drops only the fresh fingerprint of the tree: a changed tree passes, every other check still rejects.
 [IO.File]::WriteAllText((Join-Path $source 'feature.cxx'), 'newer feature')
 Assert-BuildReceipt $source $build $stage -SkipFingerprint | Out-Null
@@ -226,6 +247,29 @@ $designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-
 $target = Get-EmberBuildTarget $nightly
 if ($target.channel -ne 'nightly' -or $target.sourceDirectory -ne 'nightly' -or $target.buildDirectory -ne 'build/nightly' -or $target.installDirectory -ne 'build/nightly/stage' -or $target.features[0] -ne 'fixture') { throw 'Channel target failed' }
 Write-Output 'PASS channel target and properties'
+# emberService: a channel names its own (an https origin), the top-level (stable) entry never does, and a
+# channel without one reads as production ('').
+if ($target.emberService -cne '') { throw 'A channel without emberService did not read as production' }
+$designation.channels.nightly.emberService = 'https://bridge-staging.example'
+$designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-target.json')
+if ((Get-EmberBuildTarget $nightly).emberService -cne 'https://bridge-staging.example') { throw 'Channel emberService failed' }
+if ((Get-EmberBuildTarget $standalone).emberService -cne '') { throw 'Stable read another channel''s emberService' }
+foreach ($bad in @('http://bridge-staging.example', 'https://bridge-staging.example/', 'https://bridge-staging.example/v1', 'bridge-staging.example', 'https://Bridge.example', ' https://bridge.example')) {
+    $designation.channels.nightly.emberService = $bad
+    $designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-target.json')
+    try { Get-EmberBuildTarget $nightly | Out-Null; throw "Unexpected acceptance of '$bad'" }
+    catch { if ($_.Exception.Message -notlike 'channels.nightly.emberService in*must be an https origin*') { throw } }
+}
+$designation.channels.nightly.Remove('emberService')
+$designation.emberService = 'https://bridge-staging.example'
+$designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-target.json')
+foreach ($checkout in @($standalone, $nightly)) {
+    try { Get-EmberBuildTarget $checkout | Out-Null; throw 'Unexpected acceptance' }
+    catch { if ($_.Exception.Message -notlike 'The top-level (stable) entry of*must not name an emberService*') { throw } }
+}
+$designation.Remove('emberService')
+$designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-target.json')
+Write-Output 'PASS a channel names its own https Ember service; Stable never does, and a channel without one is production'
 if ((Get-EmberBuildTarget $standalone).channel -ne 'stable') { throw 'Stable target failed' }
 Write-Output 'PASS top-level target remains stable'
 try { Get-EmberBuildTarget $source | Out-Null; throw 'Unexpected acceptance' }

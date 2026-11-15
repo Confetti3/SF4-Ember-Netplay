@@ -94,22 +94,14 @@ namespace launcher {
 			for (const auto& notice : UpdaterNotices) arguments.notices.push_back(platform::Utf8ToWide(loc::T(notice.key)));
 		}
 
-		// Every Updater start asks this first, so installing and recovering an
-		// interrupted update decide the same way (see platform/Elevation.hxx).
-		static bool UpdaterMayRun() {
-			const auto elevation = platform::ProcessElevation();
-			if (elevation == platform::Elevation::Normal) return true;
-			AppendUpdateLog(elevation == platform::Elevation::Elevated ?
-				"Updater not started: Ember is running as administrator" :
-				"Updater not started: could not tell whether Ember is running as administrator");
-			return false;
-		}
-
-		enum class SpawnResult { Started, Failed, NotNormalUser };
+		enum class SpawnResult { Started, Failed };
 		static SpawnResult SpawnUpdater(const wchar_t* installDir, const wchar_t* updaterDir, const wchar_t* params) {
-			if (!UpdaterMayRun()) {
-				return SpawnResult::NotNormalUser;
-			}
+			// An administrator token is not a reason to stop: the install is the
+			// player's own folder, files the Updater writes take that folder's
+			// permissions, and with UAC off or on the built-in Administrator
+			// account every process holds the token. The log keeps the fact.
+			if (platform::ProcessElevation() == platform::Elevation::Elevated)
+				AppendUpdateLog("Ember is running as administrator; updating anyway");
 			wchar_t updaterPath[MAX_PATH] = { 0 };
 			if (!StageUpdaterOutsideInstall(installDir, updaterDir, updaterPath, MAX_PATH)) {
 				return SpawnResult::Failed;
@@ -308,7 +300,6 @@ namespace launcher {
 		// transaction, so it runs from a copy outside the install as usual.
 		switch (SpawnUpdater(installDir, installDir, params.c_str())) {
 		case SpawnResult::Started: return PendingRecovery::Started;
-		case SpawnResult::NotNormalUser: return PendingRecovery::NotNormalUser;
 		default: return PendingRecovery::Failed;
 		}
 	}
@@ -598,11 +589,6 @@ namespace launcher {
 			result.error = loc::T("update.close_sf4");
 			return result;
 		}
-		// Asked again before the Updater starts; asking now saves the download.
-		if (!UpdaterMayRun()) {
-			result.error = loc::T("update.elevated");
-			return result;
-		}
 
 		wchar_t installDir[MAX_PATH] = { 0 };
 		if (!GetLauncherInstallDir(installDir, MAX_PATH)) {
@@ -770,7 +756,6 @@ namespace launcher {
         })) { result.error = loc::T("update.cancelled"); return result; }
         switch (spawned) {
         case SpawnResult::Started: break;
-        case SpawnResult::NotNormalUser: result.error = loc::T("update.elevated"); return result;
         default: result.error = loc::T("update.updater_start_failed"); return result;
         }
 

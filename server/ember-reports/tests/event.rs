@@ -7,7 +7,7 @@ use ember_reports::{
 };
 use serde_json::{Value, json};
 use std::{path::PathBuf, time::Duration};
-use support::{Temp, id, report, worker};
+use support::{Temp, id, meta, report, worker};
 
 const SYNTHETIC_DEBUG_ID: &str = "00112233445566778899AABBCCDDEEFF1";
 
@@ -544,4 +544,300 @@ fn dumpless_crash_takes_its_module_from_the_crash_log() {
         fingerprint(&report).0,
         json!(["{{ default }}", "unknown+0x514d16b4"])
     );
+}
+
+// The 1.5.7 service's contract: `server/ember-reports/src/intake.rs` at
+// `origin/release`, copied here so that a client change can never ask for more
+// than the service players' reports go to today. Reports from a new client
+// must pass these rules unchanged; the current service then reads more from
+// them, never the other way round.
+mod released_contract {
+    use serde_json::Value;
+    use std::collections::BTreeMap;
+
+    pub const KINDS: [&str; 2] = ["crash", "problem"];
+    pub const META_FIELDS: [&str; 11] = [
+        "schema",
+        "kind",
+        "app_version",
+        "channel",
+        "build_id",
+        "source_revision",
+        "windows_version",
+        "exit_code",
+        "exception_code",
+        "crash_address",
+        "comment",
+    ];
+    pub const LOG_NAMES: [&str; 4] = ["sf4e.log", "launcher.log", "sf4e-crash.log", "sf4-net.log"];
+    pub const LOG_BYTES: usize = 192 * 1024;
+    pub const META_BYTES: usize = 16 * 1024;
+    pub const BODY_BYTES: usize = 5 * 1024 * 1024;
+
+    pub fn accepts(meta: &Value, logs: &BTreeMap<String, String>) -> bool {
+        let fields = meta.as_object().unwrap();
+        fields.keys().all(|key| META_FIELDS.contains(&key.as_str()))
+            && KINDS.contains(&meta["kind"].as_str().unwrap())
+            && serde_json::to_vec(meta).unwrap().len() <= META_BYTES
+            && logs.len() <= 4
+            && logs
+                .iter()
+                .all(|(name, text)| LOG_NAMES.contains(&name.as_str()) && text.len() <= LOG_BYTES)
+            && logs.values().map(String::len).sum::<usize>() <= BODY_BYTES
+    }
+}
+
+const BEFORE_SIGNAL: &str =
+    "report: kind=start_failure phase=before_signal hint=outside_steam game_log=absent\n";
+const AFTER_SIGNAL: &str =
+    "report: kind=start_failure phase=after_signal hint=steam_appid_missing,outside_steam\n";
+
+// An event for what a client sends: the original schema 1 metadata with the
+// given changes (no fault facts unless a change adds them), an optional
+// launcher.log and an optional crash log, no dump and no walk.
+fn named(changes: Value, launcher: Option<&str>, crash_log: Option<&str>) -> Value {
+    let mut m = meta();
+    let object = m.as_object_mut().unwrap();
+    object.remove("exception_code");
+    object.remove("crash_address");
+    for (key, value) in changes.as_object().unwrap() {
+        object.insert(key.clone(), value.clone());
+    }
+    let mut report = intake::Report {
+        meta: serde_json::from_value(m).unwrap(),
+        logs: Default::default(),
+        minidump: None,
+    };
+    for (name, text) in [("launcher.log", launcher), ("sf4e-crash.log", crash_log)] {
+        if let Some(text) = text {
+            report.logs.insert(name.into(), text.into());
+        }
+    }
+    assert!(released_contract::accepts(
+        &serde_json::to_value(&report.meta).unwrap(),
+        &report.logs
+    ));
+    serde_json::from_slice(&event::build(
+        &id(&"e".repeat(32)),
+        &report,
+        &Walk::default(),
+        None,
+    ))
+    .unwrap()
+}
+fn title(event: &Value) -> (String, String) {
+    let exception = &event["exception"]["values"][0];
+    (
+        exception["type"].as_str().unwrap().to_owned(),
+        exception["value"].as_str().unwrap().to_owned(),
+    )
+}
+
+#[test]
+fn a_crash_without_a_stack_is_named_by_its_code_and_module_offset() {
+    let log = |address: &str| format!("x address={address} module=Sidecar.dll+0x1716B4 thread=2\n");
+    let first = named(
+        json!({ "exception_code": "0xc0000005", "crash_address": "0x6CAB16B4" }),
+        None,
+        Some(&log("0x6CAB16B4")),
+    );
+    // Another load of the DLL puts the fault at another address: same title, same issue.
+    let second = named(
+        json!({ "exception_code": "0xc0000005", "crash_address": "0x514D16B4" }),
+        None,
+        Some(&log("0x514D16B4")),
+    );
+    assert_eq!(
+        title(&first),
+        (
+            "EXCEPTION_ACCESS_VIOLATION".into(),
+            "EXCEPTION_ACCESS_VIOLATION at Sidecar.dll+0x1716b4".into()
+        )
+    );
+    assert_eq!(title(&first), title(&second));
+    assert_eq!(
+        first["fingerprint"],
+        json!(["{{ default }}", "Sidecar.dll+0x1716b4"])
+    );
+    assert_eq!(first["fingerprint"], second["fingerprint"]);
+    assert_eq!(first["level"], "error");
+}
+
+#[test]
+fn a_start_failure_travels_as_a_crash_and_is_its_own_issue() {
+    let launcher = format!("{BEFORE_SIGNAL}Started\n");
+    let before = named(json!({ "exit_code": 255 }), Some(&launcher), None);
+    assert_eq!(
+        title(&before),
+        (
+            "Start failure".into(),
+            "exit 0xFF before the start-up signal".into()
+        )
+    );
+    assert_eq!(
+        before["fingerprint"],
+        json!(["{{ default }}", "start_failure:0xff:before_signal"])
+    );
+    assert_eq!(before["tags"]["kind"], "start_failure");
+    assert_eq!(before["tags"]["phase"], "before_signal");
+    assert_eq!(before["tags"]["exit_code"], "0x000000ff");
+    assert_eq!(before["extra"]["hint"], "outside_steam");
+    assert_eq!(before["extra"]["game_log"], "absent");
+    assert_eq!(before["extra"]["phase"], "before_signal");
+    // The header stays in the stored log, where the released service keeps it too.
+    assert!(
+        before["extra"]["logs"]["launcher.log"]
+            .as_str()
+            .unwrap()
+            .starts_with("report: kind=start_failure")
+    );
+    // Not an error of the game's code, and no free text.
+    assert_eq!(before["level"], "warning");
+    assert!(before.get("message").is_none());
+
+    let launcher = format!("{AFTER_SIGNAL}Started\n");
+    let after = named(json!({ "exit_code": 255 }), Some(&launcher), None);
+    assert_eq!(
+        title(&after),
+        (
+            "Start failure".into(),
+            "exit 0xFF after the start-up signal".into()
+        )
+    );
+    assert_eq!(
+        after["fingerprint"],
+        json!(["{{ default }}", "start_failure:0xff:after_signal"])
+    );
+    assert_ne!(before["fingerprint"], after["fingerprint"]);
+    assert_eq!(after["extra"]["hint"], "steam_appid_missing,outside_steam");
+    assert!(after["extra"].get("game_log").is_none());
+
+    // A record the game wrote on its way out (a code and an address) does not
+    // move the report into a crash's issue.
+    let recorded = named(
+        json!({ "exit_code": 255, "exception_code": "0xff", "crash_address": "0x401234" }),
+        Some(&launcher),
+        None,
+    );
+    assert_eq!(recorded["fingerprint"], after["fingerprint"]);
+    assert_eq!(title(&recorded).0, "Start failure");
+
+    // A header without a phase or an exit code.
+    let unknown = named(json!({}), Some("report: kind=start_failure\n"), None);
+    assert_eq!(
+        title(&unknown),
+        ("Start failure".into(), "no exit code".into())
+    );
+    assert_eq!(
+        unknown["fingerprint"],
+        json!(["{{ default }}", "start_failure:none:unknown"])
+    );
+}
+
+#[test]
+fn only_the_first_line_of_launcher_log_is_a_header() {
+    for launcher in [
+        "Started\nreport: kind=start_failure phase=before_signal\n",
+        " report: kind=start_failure phase=before_signal\n",
+        "report: kind=Start_Failure phase=before_signal\n",
+        "report: kind=start_failure\u{0}\n",
+    ] {
+        let event = named(json!({ "exit_code": 255 }), Some(launcher), None);
+        assert_eq!(title(&event).0, "Game exit 0xFF", "{launcher:?}");
+        assert_eq!(event["tags"]["kind"], "crash");
+    }
+    // Invalid values and unknown keys are dropped, valid fields kept.
+    let event = named(
+        json!({ "exit_code": 255 }),
+        Some("report: kind=start_failure phase=Before-signal hint=outside_steam extra=1\n"),
+        None,
+    );
+    assert_eq!(event["tags"]["kind"], "start_failure");
+    assert!(event["tags"].get("phase").is_none());
+    assert_eq!(event["extra"]["hint"], "outside_steam");
+    // A typed report never takes a header.
+    let problem = named(json!({ "kind": "problem" }), Some(BEFORE_SIGNAL), None);
+    assert!(problem.get("exception").is_none());
+    assert_eq!(problem["tags"]["kind"], "problem");
+}
+
+#[test]
+fn a_start_failure_report_passes_the_released_intake() {
+    // What the launcher sends: schema 1 metadata only, kind crash, and the
+    // header on the first line of a launcher.log cut to leave room for it.
+    let header = BEFORE_SIGNAL;
+    let reserve = 256;
+    let launcher = format!(
+        "{header}{}",
+        "x".repeat(released_contract::LOG_BYTES - reserve)
+    );
+    assert!(header.len() <= reserve);
+    let mut m = meta();
+    let object = m.as_object_mut().unwrap();
+    object.remove("exception_code");
+    object.remove("crash_address");
+    object.insert("exit_code".into(), json!(255));
+    let logs = [
+        ("launcher.log".to_owned(), launcher),
+        ("sf4e-crash.log".to_owned(), "kind=exit\n".to_owned()),
+    ]
+    .into_iter()
+    .collect();
+    assert!(released_contract::accepts(&m, &logs));
+    // And the contract does refuse what the new client must not send.
+    let mut field = m.clone();
+    field["phase"] = json!("before_signal");
+    assert!(!released_contract::accepts(&field, &logs));
+    let mut kind = m;
+    kind["kind"] = json!("start_failure");
+    assert!(!released_contract::accepts(&kind, &logs));
+}
+
+#[test]
+fn a_frozen_game_and_other_exits_are_named_by_their_exit_code() {
+    let frozen = named(json!({ "exit_code": 0xCFFF_FFFF_u32 }), None, None);
+    assert_eq!(
+        title(&frozen),
+        ("Game frozen".into(), "exit 0xCFFFFFFF".into())
+    );
+    assert_eq!(
+        frozen["fingerprint"],
+        json!(["{{ default }}", "exit:0xcfffffff"])
+    );
+    assert_eq!(frozen["tags"]["kind"], "crash");
+    assert_eq!(frozen["tags"]["exit_code"], "0xcfffffff");
+
+    let fail_fast = named(json!({ "exit_code": 0xC000_0409_u32 }), None, None);
+    assert_eq!(
+        title(&fail_fast),
+        ("Game exit 0xC0000409".into(), "exit 0xC0000409".into())
+    );
+    assert_eq!(
+        fail_fast["fingerprint"],
+        json!(["{{ default }}", "exit:0xc0000409"])
+    );
+    assert_ne!(frozen["fingerprint"], fail_fast["fingerprint"]);
+}
+
+#[test]
+fn a_crash_with_nothing_known_keeps_its_old_title() {
+    let unknown = named(json!({}), None, None);
+    assert_eq!(
+        title(&unknown),
+        ("Native crash".into(), "Native crash".into())
+    );
+    assert!(unknown.get("fingerprint").is_none());
+    // An exception code without an address is still named by the code, as before.
+    let coded = named(
+        json!({ "exception_code": "0xc0000005", "exit_code": 0xC000_0005_u32 }),
+        None,
+        None,
+    );
+    assert_eq!(title(&coded).0, "EXCEPTION_ACCESS_VIOLATION");
+    assert!(coded.get("fingerprint").is_none());
+    // A typed report is still a message with no exception.
+    let problem = named(json!({ "kind": "problem" }), None, None);
+    assert!(problem.get("exception").is_none());
+    assert_eq!(problem["message"], "It stopped after joining.");
+    assert!(problem.get("fingerprint").is_none());
 }

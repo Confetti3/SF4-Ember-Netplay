@@ -11,8 +11,9 @@
 //    deadline is measured from the moment the fighters are synchronized,
 //    because before that the fight cannot start anyway and a spectator's
 //    late load costs the fighters nothing. If no fighter ever synchronizes,
-//    the fighters' own GGPO disconnect tolerance ends the session, so no
-//    spectator drop is needed.
+//    the match's start bound ends the session (GGPO's disconnect tolerance
+//    runs only once a link is RUNNING; IrohMatchSession::StartTimeoutMs), so
+//    no spectator drop is needed.
 //    At a tournament match's bound table the deadline is BoundSyncDeadlineMs,
 //    kept as its own constant so it can differ from SyncDeadlineMs.
 //  - backlog: send_queue_len is the spectator's count of unacknowledged
@@ -80,7 +81,8 @@ public:
 	// is elsewhere (Training, Options) for `deadlineMs` (SyncDeadlineFor, the
 	// same one P1 waits by) has missed the window in which P1 waits for it, and
 	// sits that game out instead of entering a stream P1 dropped. A fighter
-	// keeps waiting: its opponent's GGPO disconnect tolerance bounds that.
+	// keeps waiting: the match's start bound (IrohMatchSession::StartTimeoutMs)
+	// ends a wait that runs on, for both fighters.
 	enum class EntryStep { Enter, Wait, SitOut };
 	static EntryStep EntryGate(bool atMainMenu, bool spectator, std::uint64_t waitedMs, std::uint64_t deadlineMs) {
 		if (atMainMenu) return EntryStep::Enter;

@@ -1,5 +1,6 @@
 #include "ZipExtract.hxx"
 #include "PackageInstaller.hxx"
+#include "../../common/Inflate.hxx"
 #include <zlib.h>
 #include <filesystem>
 #include <fstream>
@@ -23,9 +24,9 @@ bool ReadAt(std::ifstream& in, std::uint64_t at, void* out, std::size_t n) {
 // Copies the entry's data starting at `at` to out, inflating it when deflated,
 // and checks its size and CRC.
 std::string Copy(std::ifstream& in, std::uint64_t at, const Entry& e, std::ofstream& out, const std::atomic<bool>& cancel) {
-    std::vector<unsigned char> buffer(1 << 16), inflated(1 << 16);
-    z_stream stream{};
-    if (e.method == 8 && inflateInit2(&stream, -MAX_WBITS) != Z_OK) return "inflate init failed";
+    std::vector<unsigned char> buffer(1 << 16);
+    zinflate::Stream stream(zinflate::Format::Raw);
+    if (e.method == 8 && !stream.Ready()) return "inflate init failed";
     std::uint32_t crc = crc32(0, nullptr, 0), written = 0;
     const auto put = [&](const unsigned char* data, std::size_t n) {
         out.write(reinterpret_cast<const char*>(data), n);
@@ -41,23 +42,13 @@ std::string Copy(std::ifstream& in, std::uint64_t at, const Entry& e, std::ofstr
         if (e.method == 0) {
             if (!put(buffer.data(), take)) { error = "write failed"; break; }
         } else {
-            stream.next_in = buffer.data(); stream.avail_in = static_cast<uInt>(take);
-            int code = Z_OK;
-            // inflate can take the last input bytes while output is still
-            // pending, so a call that fills the whole buffer is followed by
-            // another even when no input is left.
-            while ((stream.avail_in > 0 || stream.avail_out == 0) && code != Z_STREAM_END) {
-                stream.next_out = inflated.data(); stream.avail_out = static_cast<uInt>(inflated.size());
-                code = inflate(&stream, Z_NO_FLUSH);
-                if (code == Z_BUF_ERROR) break; // nothing was pending: the next chunk is needed
-                if (code != Z_OK && code != Z_STREAM_END) { error = "inflate failed"; break; }
-                if (!put(inflated.data(), inflated.size() - stream.avail_out)) { error = "write failed"; break; }
-            }
-            if (!error.empty() || code == Z_STREAM_END) break;
+            const auto status = stream.Feed(buffer.data(), take, put);
+            if (status == zinflate::Status::Error) error = "inflate failed";
+            else if (status == zinflate::Status::Refused) error = "write failed";
+            if (!error.empty() || status == zinflate::Status::End) break;
         }
         if (cancel) { error = "cancelled"; break; }
     }
-    if (e.method == 8) inflateEnd(&stream);
     if (!error.empty()) return error;
     if (written != e.size) return "entry size mismatch";
     if (crc != e.crc) return "entry crc mismatch";

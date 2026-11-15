@@ -22,9 +22,9 @@ struct Journey:Harness {
  std::string trail(){auto nav=shell.Navigation();std::string out=nav.Screen();
   for(int i=0;i<8&&nav.Return().kind==MenuAction::Returned;++i)out=nav.Screen()+">"+out;return out;}
  // The identity requests and tournament commands submitted so far.
- std::vector<const sf4e::netplay::IdentityRequest*> sent()const{std::vector<const sf4e::netplay::IdentityRequest*> out;for(const auto& a:actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;}
+ std::vector<const sf4e::netplay::IdentityRequest*> sent()const{std::vector<const sf4e::netplay::IdentityRequest*> out;for(const auto& a:actions)if(const auto* i=As<commands::Identity>(a))out.push_back(&i->identity);return out;}
  std::vector<const sf4e::netplay::tournament::Command*> played()const{
-  using sf4e::netplay::tournament::Command;std::vector<const Command*> out;for(const auto& a:actions)if(a.tournament.op!=Command::Op::None)out.push_back(&a.tournament);return out;}
+  using sf4e::netplay::tournament::Command;std::vector<const Command*> out;for(const auto& a:actions)if(const auto* t=As<commands::Tournament>(a))out.push_back(&t->tournament);return out;}
  // How many of the requests from index `from` on carry `op`.
  std::size_t count(IdentityOp op,std::size_t from=0)const{std::size_t n=0;const auto all=sent();for(std::size_t i=from;i<all.size();++i)n+=all[i]->op==op;return n;}
  // The service answers the newest request, with a failure when `ok` is false.

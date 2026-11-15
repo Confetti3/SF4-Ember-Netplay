@@ -52,8 +52,23 @@ stronger opponent, a weaker friend, a long set or a break.
   against the same opponent in one sitting, each game counts a quarter; a
   sitting ends after three hours without a game between the two.
 - Games while a rating is still unsure (a deviation above 110, about the
-  first ten games) count in full: it needs them to settle, and its gap to
-  anyone says little yet.
+  first ten games, or a couple of months without a game) count in full: it
+  needs them to settle, and its gap to anyone says little yet.
+- Except a loss to a clearly weaker player, which stays light however unsure
+  the rating. The loser's game is weighed by the part of the gap that is
+  clear of both deviations: the loser's rating less two of its deviations,
+  against the winner's plus two of its own (`clear_gap_weight`; two
+  deviations is about the range a rating is 95% sure of). A Grand Master
+  rating back after five months (a deviation of 150) that loses to a settled
+  D player gives up about 12 points; by Glicko alone it was 125, and 221, two
+  classes, after ten months (a deviation of 200), which is now about 62. The
+  winner's game counts as before. A new player's losses, and any loss that
+  two deviations could explain, count in full, so a rating finds its place as
+  fast as it did and nobody is rated higher for the rule: 40 simulated
+  players of known skill end as close to it with the rule as without. What
+  it does not change is a loss to a player who is lower but not clearly so:
+  at a deviation of 200 one loss can still cost up to about 215 points
+  (against a player some 700 lower), and about 120 at 150.
 - A class never drops on its own, needs a margin to move, and has no number,
   no position on the board and no promotion match to play for.
 
@@ -105,7 +120,30 @@ HUD beside the name, on the Ember strip between the link glyph and the name,
 and on the split layout's plates between the Ember rule and the name
 (`src/ui/MatchHud.cxx`). They are taken with the name and link when the match
 starts, from the room as the runtime shows it, so a private room's host
-cannot put one there and hiding emblems hides them too. The player's own
+cannot put one there and hiding emblems hides them too. Fighters and
+spectators read the same two sides (`CaptureMatchSides`,
+`src/common/MatchSide.hxx`). A replay export's caption draws the split
+layout's plates, so a video shows each class where a live match does
+(`ExportCaptionPlates`). The two differ in where the class comes from: a
+video's is the class each player has on the board when it is rendered, so
+only a settled, listed class; the HUD's is the one the player's room ticket
+carried when they joined the room, so it can be "?", faint or the Dev mark,
+and a class that settles or moves during a session shows as it was until the
+player joins a room again.
+
+A replay keeps the classes its match HUD showed when the match started, so
+watching it later shows them as they were then. They are a note of their own
+beside the replay's names note (`EMBRCLS1`, `<crc>-<size>.classes` in the
+archive's `.names` folder, bound to the replay by its SHA-256;
+`src/common/ReplayProvenance.hxx`), so the names note keeps the form older
+builds read, and a replay without one plays as before. Only a class is kept,
+never "?" or the Dev mark, and none is kept while the player hides class
+emblems, since the HUD had none. Watch now draws each side's name and class
+on the export caption's plates while the replay's battle plays, when a side
+has both and the player shows class emblems (`replay::WatchCaption`), under
+nothing of Ember's that is open; a replay with no class draws nothing. An
+export starts from the same classes. A replay from the archive site or a
+set's pack carries no classes yet: neither file has a place for them. The player's own
 profile card (Home, Awards, Profile) shows the class of their standing; the
 standing is read once a session for each service and Ember ID, away from
 Rankings, so the card has it without a visit. That read lists nobody.

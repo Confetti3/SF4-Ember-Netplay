@@ -6,8 +6,11 @@
 
 #include "../common/RoomRules.hxx"
 #include "../common/SkillBadgeJson.hxx"
+#include "AnswerReading.hxx"
 
 namespace sf4e { namespace session {
+using namespace reading;
+
 namespace {
 using nlohmann::json;
 using netplay::tournament::Binding;
@@ -15,15 +18,6 @@ using netplay::tournament::ClaimReply;
 using netplay::tournament::PrepareReply;
 using netplay::tournament::WatchReply;
 using netplay::publicrooms::Room;
-
-// A bounded string field, or an exception the decoder turns into "malformed".
-std::string Text(const json& object, const char* key, std::size_t maximum) {
-	const auto& value = object.at(key);
-	if (!value.is_string()) throw std::invalid_argument(key);
-	auto text = value.get<std::string>();
-	if (text.size() > maximum) throw std::invalid_argument(key);
-	return text;
-}
 
 std::string OptionalText(const json& object, const char* key, std::size_t maximum) {
 	const auto found = object.find(key);
@@ -37,37 +31,6 @@ std::uint64_t Counter(const json& object, const char* key) {
 	if (text.empty() || !std::all_of(text.begin(), text.end(), [](char c) { return c >= '0' && c <= '9'; }) ||
 		(text.size() > 1 && text.front() == '0')) throw std::invalid_argument(key);
 	return std::stoull(text);
-}
-
-std::uint64_t Seconds(const json& object, const char* key) {
-	const auto& value = object.at(key);
-	if (!value.is_number_unsigned()) throw std::invalid_argument(key);
-	return value.get<std::uint64_t>();
-}
-
-// A time the bridge may or may not send: absent or not an unsigned number is 0
-// (unknown), so a newer or older bridge never costs the player a row.
-std::uint64_t OptionalSeconds(const json& object, const char* key) {
-	const auto found = object.find(key);
-	return found != object.end() && found->is_number_unsigned() ? found->get<std::uint64_t>() : 0;
-}
-
-bool IsHex(const std::string& text, std::size_t length) {
-	return text.size() == length && std::all_of(text.begin(), text.end(),
-		[](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
-}
-
-// A bounded unsigned number, or an exception the decoder turns into "malformed".
-unsigned Small(const json& object, const char* key, std::uint64_t maximum) {
-	const auto& value = object.at(key);
-	if (!value.is_number_unsigned() || value.get<std::uint64_t>() > maximum) throw std::invalid_argument(key);
-	return static_cast<unsigned>(value.get<std::uint64_t>());
-}
-
-// A room name is another player's text: kept to one line.
-std::string SingleLine(std::string text) {
-	for (auto& c : text) if (static_cast<unsigned char>(c) < 32 || c == 127) c = ' ';
-	return text;
 }
 
 // Unicode White_Space the bridge's own trim removes, as it appears in UTF-8:
@@ -140,8 +103,8 @@ void DecodeDetails(const json& view, Room& room) {
 		room.hasDetails = true;
 	}
 	if (const auto found = view.find("room_type"); found == view.end()) {
-		if (room.hasDetails) room.type = room::ClassicRoom;
-	} else if (found->is_number_unsigned() && found->get<std::uint64_t>() <= room::KingRoom) {
+		if (room.hasDetails) room.type = room::RoomType::Classic;
+	} else if (found->is_number_unsigned() && found->get<std::uint64_t>() <= static_cast<std::uint64_t>(room::RoomType::King)) {
 		room.type = static_cast<room::RoomType>(found->get<std::uint64_t>());
 		room.hasDetails = true;
 	}
@@ -151,13 +114,14 @@ Room DecodeRoom(const json& view) {
 	Room room;
 	room.id = Text(view, "room_id", 32);
 	room.name = SingleLine(Text(view, "name", 64));
-	room.region = Text(view, "region", 16);
 	room.members = Small(view, "members", 16);
 	room.capacity = Small(view, "capacity", 16);
 	room.playing = Small(view, "tables_playing", 255);
-	room.createdAt = Seconds(view, "created_at");
+	room.createdAt = Count(view, "created_at");
 	// Only an own-delay room says so; a key of any other kind is not read.
 	if (const auto found = view.find("own_delay"); found != view.end() && found->is_boolean()) room.ownDelay = found->get<bool>();
+	// So is a room whose creator gave an area; anything but an area's code is none.
+	if (const auto found = view.find("area"); found != view.end() && found->is_string()) room.area = AreaFromCode(found->get<std::string>());
 	if (!IsHex(room.id, 32) || room.name.empty() || room.capacity < 2 || room.members > room.capacity) throw std::invalid_argument("room");
 	DecodeDetails(view, room);
 	return room;
@@ -207,7 +171,8 @@ bool IsTournamentPlayOp(const std::string& op) {
 		op == "match_leave" || op == "assignment_list" || op == "match_watch" || op == "match_unwatch" ||
 		op == "room_list" || op == "room_create" || op == "room_ticket" ||
 		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" ||
-		op == "replay_send" || op == "replay_archive" || op == "replay_pack";
+		op == "points_me" || op == "cards_lookup" || op == "cards_search" || op == "card_save" || op == "friends_sync" || op == "friends_act" ||
+		op == "replay_send" || op == "replay_archive" || op == "replay_pack" || op == "archive_list" || op == "archive_fetch";
 }
 
 std::optional<TournamentAnswer> ReadTournamentAnswer(const nlohmann::json& event) {
@@ -240,7 +205,7 @@ std::optional<ClaimReply> DecodeClaimReply(const nlohmann::json& data) {
 			reply.fence = std::to_string(Counter(data, "fence"));
 		} else if (role == "wait") {
 			reply.role = ClaimReply::Role::Wait;
-			reply.retryAfterMs = (std::min)(Seconds(data, "retry_after"), std::uint64_t(60)) * 1000;
+			reply.retryAfterMs = (std::min)(Count(data, "retry_after"), std::uint64_t(60)) * 1000;
 		} else if (role == "room") {
 			reply.role = ClaimReply::Role::Room;
 			reply.roomId = Text(data, "room_id", 32);
@@ -264,7 +229,7 @@ std::optional<WatchReply> DecodeWatchReply(const nlohmann::json& data) {
 		const auto role = Text(data, "role", 16);
 		if (role == "waiting") {
 			reply.role = WatchReply::Role::Waiting;
-			reply.retryAfterMs = (std::min)(Seconds(data, "retry_after"), std::uint64_t(60)) * 1000;
+			reply.retryAfterMs = (std::min)(Count(data, "retry_after"), std::uint64_t(60)) * 1000;
 			reply.reason = Text(data, "reason", 32);
 		} else if (role == "room") {
 			reply.role = WatchReply::Role::Room;
@@ -285,15 +250,15 @@ std::optional<PrepareReply> DecodePrepareReply(const nlohmann::json& data) {
 		PrepareReply reply;
 		const auto state = Text(data, "state", 16);
 		if (state == "pending") {
-			reply.retryAfterMs = (std::min)(Seconds(data, "retry_after"), std::uint64_t(60)) * 1000;
+			reply.retryAfterMs = (std::min)(Count(data, "retry_after"), std::uint64_t(60)) * 1000;
 		} else if (state == "permitted") {
 			reply.permitted = true;
 			reply.permitId = Text(data, "permit_id", 64);
 			reply.generation = Counter(data, "match_generation");
 			// The signed start deadline as a window: both times are the bridge's,
 			// so this PC's clock never enters it.
-			const auto issuedAt = Seconds(data, "issued_at");
-			const auto startBy = Seconds(data, "start_by");
+			const auto issuedAt = Count(data, "issued_at");
+			const auto startBy = Count(data, "start_by");
 			if (!room::ValidPermitId(reply.permitId) || !reply.generation || startBy <= issuedAt ||
 				startBy - issuedAt > room::MaximumPermitWindowMs / 1000) return std::nullopt;
 			reply.startWindowMs = (startBy - issuedAt) * 1000;
@@ -319,8 +284,8 @@ std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& d
 			item.provider = OptionalText(row, "provider", 64);
 			item.roundLabel = OptionalText(row, "round_label", 128);
 			item.profile = OptionalText(row, "native_rules_profile", 64);
-			item.createdAt = OptionalSeconds(row, "created_at");
-			item.expiresAt = OptionalSeconds(row, "expires_at");
+			item.createdAt = LenientCount(row, "created_at");
+			item.expiresAt = LenientCount(row, "expires_at");
 			const auto& slot = row.at("slot");
 			if (!slot.is_number_unsigned() || slot.get<std::uint64_t>() > 1) return std::nullopt;
 			item.slot = static_cast<int>(slot.get<std::uint64_t>());
@@ -410,7 +375,7 @@ std::optional<netplay::rankings::Standing> DecodeStanding(const json& data) {
 		if (ranking == "opted_out") Strict(data, {"ranking", "change_in"});
 		else if (ranking == "ranked") Strict(data, {"ranking", "badge", "listing", "change_in"});
 		else return std::nullopt;
-		if (data.find("change_in") != data.end()) standing.changeIn = Seconds(data, "change_in");
+		if (data.find("change_in") != data.end()) standing.changeIn = Count(data, "change_in");
 		if (ranking == "opted_out") {
 			standing.kind = Kind::OptedOut;
 			return standing;

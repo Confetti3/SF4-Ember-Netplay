@@ -50,5 +50,14 @@ struct ReplaysView {
 	std::string setNotice;
 	bool setNoticeError = false;
 	std::uint64_t setNotices = 0;
+	// The replay files waiting to import (sf4e__NetplayRuntime: ReplayImports),
+	// and how many batches of them have begun.
+	std::size_t importWaiting = 0;
+	std::uint64_t importBatches = 0;
+	// How many have ended, and what the last came to. A batch that begins and ends between two
+	// snapshots shows both counts moved, so the answer is the batch's own, not a shared notice's.
+	std::uint64_t importFinished = 0;
+	std::string importNotice;
+	bool importNoticeError = false;
 };
 } }

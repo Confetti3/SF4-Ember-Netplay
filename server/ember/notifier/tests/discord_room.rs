@@ -594,6 +594,7 @@ async fn the_command_is_registered_for_the_application_or_a_server() {
         token: "site-bot-token".into(),
         feed: false,
         feed_secs: 60,
+        webhooks: "https://discord.com/api/webhooks".into(),
         roles: None,
     });
     alone

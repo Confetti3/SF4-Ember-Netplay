@@ -41,6 +41,10 @@ struct Script {
     bool canHit = false; std::vector<std::int32_t> effects; std::vector<std::array<int, 2>> spawns;
     std::vector<Speed> speeds; int last = 0, interruptible = 0, total = 0;
     std::string name; std::vector<Hit> hits; std::vector<Flow> flows;
+    // Script frames [first, last) where a move of a cancel list can start
+    // (list 6 records whose condition is 1: processCommandCancel starts a
+    // pending move only while one is open). Oiled Hakan's dash: from frame 1.
+    std::vector<std::array<int, 2>> cancels;
 };
 // scripts: indexed by action id. An empty slot is an empty Script.
 // juggleStart: by hit-data row, the juggle count a launch on a standing foe
@@ -49,8 +53,8 @@ struct File { std::vector<Script> scripts, effects; std::vector<int> juggleStart
 
 namespace detail {
 constexpr std::size_t HeaderSize = 0x28, ScriptHeader = 0x18, ListSize = 12, FlowSize = 8, HitboxSize = 44, EtcSize = 32;
-constexpr std::size_t SpeedSize = 4;
-constexpr unsigned Flow = 0, Speeds = 4, Hitbox = 7, Etc = 10;
+constexpr std::size_t SpeedSize = 4, CancelSize = 8;
+constexpr unsigned Flow = 0, Speeds = 4, Cancels = 6, Hitbox = 7, Etc = 10;
 
 // One table of scripts. used: bytes read so far. The records of a real file
 // never share bytes, so together they fit in the file; this keeps offsets
@@ -73,7 +77,7 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
         for (std::size_t j = 0; j < lists; ++j) {
             const std::uint64_t list = base + j * ListSize;
             const unsigned type = in.U16(list);
-            const std::size_t size = type == Flow ? FlowSize : type == Speeds ? SpeedSize : type == Hitbox ? HitboxSize : type == Etc ? EtcSize : 0;
+            const std::size_t size = type == Flow ? FlowSize : type == Speeds ? SpeedSize : type == Cancels ? CancelSize : type == Hitbox ? HitboxSize : type == Etc ? EtcSize : 0;
             if (!size) continue;
             const std::size_t commands = in.U16(list + 2);
             // The data offset counts from the list's own record.
@@ -99,6 +103,8 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
                         out[i].hits.push_back({timed ? in.U16(frames + k * 4) : -1, timed ? in.U16(frames + k * 4 + 2) : -1,
                             static_cast<std::int8_t>(in.data[record + 33]), static_cast<std::int8_t>(in.data[record + 34]), id});
                     }
+                } else if (type == Cancels) {
+                    if (in.U32(record) == 1 && frames && in.Has(frames + k * 4, 4)) out[i].cancels.push_back({in.U16(frames + k * 4), in.U16(frames + k * 4 + 2)});
                 } else if (type == Speeds) {
                     float speed;
                     std::memcpy(&speed, in.data + record, sizeof speed);
@@ -147,6 +153,9 @@ inline bool Read(const std::uint8_t* bytes, std::size_t size, File& model, std::
 
 // Game frames the script takes from script frame `at` to `to`, each moving it
 // on by the speed in effect, 1 before any; -1 when the speeds never get there.
+// A frame that crosses a speed change plays the rest of it at the new speed,
+// not stopping on the change: Cammy getting up, 2 a frame up to 57, read in
+// game at 56, 57.5, 58.5.
 inline float SpeedAt(const Script& script, float at) {
     const Speed* now = nullptr;
     for (const auto& speed : script.speeds) if (speed.from <= at && (!now || speed.from >= now->from)) now = &speed;
@@ -155,9 +164,16 @@ inline float SpeedAt(const Script& script, float at) {
 inline int GameFrames(const Script& script, float at, int to) {
     int frames = 0;
     for (; at < to; ++frames) {
-        const float step = SpeedAt(script, at);
-        if (!(step > 0) || frames >= 4096) return -1;
-        at += step;
+        if (frames >= 4096) return -1;
+        for (float left = 1; left > 0;) {
+            const float step = SpeedAt(script, at);
+            if (!(step > 0)) return -1;
+            float next = 1e9f;
+            for (const auto& speed : script.speeds) if (speed.from > at && speed.from < next) next = static_cast<float>(speed.from);
+            if (at + step * left <= next) { at += step * left; break; }
+            left -= (next - at) / step;
+            at = next;
+        }
     }
     return frames;
 }
@@ -177,22 +193,35 @@ inline int StunFrames(const Script& script, float at, float speed) {
 }
 
 // Where a script's own hitboxes stand at script frame `frame`, read after the
-// game's update: -1 the script has none (or untimed ones), 0 none out yet, 1
-// one is out, 2 between two hits, 3 all done. A box from first up to last is
-// out while first <= int(frame) < last: the game's clock stops on each whole
-// script frame (Engine::advance 0x52F810), so a box is out from the first
-// update that reaches its first frame.
-inline int HitPhase(const Script& script, float frame) {
+// game's update: Untimed when the file does not say (a box without frames),
+// NoHit when the script has none. A box from first up to last is out while
+// first <= int(frame) < last: the game's clock stops on each whole script frame
+// (Engine::advance 0x52F810), so a box is out from the first update that
+// reaches its first frame.
+enum class HitPhase { Untimed, NoHit, Before, Out, Between, Done };
+inline HitPhase PhaseAt(const Script& script, float frame) {
+    if (script.hits.empty()) return HitPhase::NoHit;
     const auto untimed = [](const Hit& hit) { return hit.first < 0 || hit.last <= hit.first; };
-    if (script.hits.empty() || std::any_of(script.hits.begin(), script.hits.end(), untimed)) return -1;
+    if (std::any_of(script.hits.begin(), script.hits.end(), untimed)) return HitPhase::Untimed;
     const int at = static_cast<int>(std::floor(frame));
     bool before = true, after = true;
     for (const auto& hit : script.hits) {
-        if (hit.first <= at && at < hit.last) return 1;
+        if (hit.first <= at && at < hit.last) return HitPhase::Out;
         before = before && at < hit.first;
         after = after && at >= hit.last;
     }
-    return before ? 0 : after ? 3 : 2;
+    return before ? HitPhase::Before : after ? HitPhase::Done : HitPhase::Between;
+}
+// Whether the script can be cancelled at script frame `frame`: what a cancel
+// out of a dash waits for (training::WaitCancel), a dash having no hit to wait on.
+inline bool CancelOpen(const Script& script, float frame) {
+    const int at = static_cast<int>(frame);
+    return std::any_of(script.cancels.begin(), script.cancels.end(), [at](const std::array<int, 2>& w) { return w[0] <= at && at < w[1]; });
+}
+// Whether every hitbox of the script is timed and there is at least one.
+inline bool HasTimedHits(const Script& script) {
+    const HitPhase phase = PhaseAt(script, 0);
+    return phase != HitPhase::Untimed && phase != HitPhase::NoHit;
 }
 // The attack boundary of a script whose attack is an effect it spawns (a
 // fireball): the earliest spawn of an effect that can hit, in the terms of the

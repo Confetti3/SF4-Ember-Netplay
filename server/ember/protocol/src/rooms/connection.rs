@@ -51,6 +51,7 @@ impl ConnectionCreateRoom {
             capacity: self.capacity,
             build_id: self.build_id.clone(),
             region: None,
+            area: None,
             own_delay: false,
         }
     }

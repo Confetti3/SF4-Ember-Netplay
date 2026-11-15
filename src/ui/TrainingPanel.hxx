@@ -11,6 +11,9 @@
 
 namespace sf4e { namespace ui {
 using TrainingSubmit = std::function<bool(training::Command)>;
+// The phone remote the live overlay offers (training::remote); unset in the UI lab, which hides its page.
+struct TrainingRemote { std::function<bool()> start; std::function<void()> stop; std::function<std::string()> url, pin, link; std::function<bool()> open; std::function<bool()> hudAllowed; std::function<void(bool)> allowHud; };  // link: the address with the PIN, what the QR code holds
+void SetTrainingRemote(TrainingRemote remote);
 void DrawTrainingPanel(const training::View& view, const TrainingSubmit& submit);
 // Shared by the live overlay and render tests; owns fixed geometry and input focus.
 void DrawTrainingFlyout(const training::View& view, const TrainingSubmit& submit);
@@ -70,6 +73,8 @@ std::vector<TrainingKeyHint> TrainingPositionKeys();
 // What the last position command did, while it is news; empty after a few seconds.
 std::string TrainingNotice(bool& failed);
 MenuNavigation& TrainingNavigation();
+// The phone remote's changes, applied on the overlay thread; call every frame.
+void ServeTrainingPhone(const training::View& view, const TrainingSubmit& submit);
 std::string TrainingFrameData(const training::MeterView& meter, int side);
 // The Frame data page's choices for drawing the meter, as training.json keeps
 // them; the training HUD and the match meter read them every frame. Set is for

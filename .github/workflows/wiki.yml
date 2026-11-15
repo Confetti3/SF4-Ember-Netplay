@@ -22,7 +22,7 @@ defaults:
 jobs:
   build:
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.repository == 'Confetti3/sf4-ember-builds' && 'namespace-profile-emberbuilds' || 'ubuntu-latest' }}
     timeout-minutes: 15
     permissions:
       contents: write
@@ -54,7 +54,7 @@ jobs:
         run: python3 scripts/wiki/publish.py --repo "$GITHUB_REPOSITORY"
   dry-run:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.repository == 'Confetti3/sf4-ember-builds' && 'namespace-profile-emberbuilds' || 'ubuntu-latest' }}
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}

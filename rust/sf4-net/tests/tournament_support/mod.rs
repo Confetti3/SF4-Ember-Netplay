@@ -76,41 +76,6 @@ pub async fn start_bridge(
     serve(config, secrets, Clock::default(), listener).await
 }
 
-/// The site `deploy/sites/<file>.json` defines, listed as `id` and named
-/// `name`, with every page it would use at `origin`.
-pub fn site(file: &str, id: &str, name: &str, origin: &str) -> config::SignInSite {
-    let path = format!(
-        "{}/../../server/ember/bridge/deploy/sites/{file}.json",
-        env!("CARGO_MANIFEST_DIR")
-    );
-    let mut site: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-    site["id"] = json!(id);
-    site["display_name"] = json!(name);
-    localize(&mut site, origin);
-    site["hosts"] = json!(["127.0.0.1"]);
-    serde_json::from_value(site).unwrap()
-}
-
-/// Every URL in `value` (sign-in, user, organizer) moved to `origin`, keeping
-/// its path. `link_prefix` stays: it is shown, not fetched, and must be https.
-fn localize(value: &mut Value, origin: &str) {
-    match value {
-        Value::String(text) if text.starts_with("https://") => {
-            // Not through Url: a "{tournament}" placeholder in the path must
-            // survive as written.
-            let rest = &text["https://".len()..];
-            let path = rest.find('/').map_or("", |at| &rest[at..]);
-            *text = format!("{origin}{path}");
-        }
-        Value::Object(fields) => fields
-            .iter_mut()
-            .filter(|(key, _)| *key != "link_prefix")
-            .for_each(|(_, field)| localize(field, origin)),
-        Value::Array(items) => items.iter_mut().for_each(|item| localize(item, origin)),
-        _ => {}
-    }
-}
-
 /// One HTTP/1.1 request as it was sent: its method, path, headers (names in
 /// lowercase) and body.
 pub struct HttpRequest {

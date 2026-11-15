@@ -27,11 +27,21 @@ export function contractRoutes(store: Store, authorize: (request: IncomingMessag
   return [
     [
       "GET",
+      /^\/ember\/tournaments$/,
+      (request) => {
+        // The tournaments a connector in desk mode runs: the live ones. Only its own token reads them.
+        authorize(request, undefined);
+        const live = store.all().filter((tournament) => tournament.state === "live");
+        return [200, { tournaments: live.map(({ id, games_to_win }) => ({ id, games_to_win })) }];
+      },
+    ],
+    [
+      "GET",
       /^\/tournaments\/([^/]+)\/ember\/sets$/,
       (request, [id], url) => {
         const tournament = played(request, id!);
         const state = url.searchParams.get("state");
-        const sets = (tournament?.sets ?? []).filter((set) => !state || status(set) === state);
+        const sets = (tournament?.sets ?? []).filter((set) => !state || statusFor(set) === state);
         return [200, { sets: sets.map((set) => contractSet(tournament!, set)) }];
       },
     ],
@@ -58,10 +68,12 @@ export function contractRoutes(store: Store, authorize: (request: IncomingMessag
       /^\/tournaments\/([^/]+)\/ember\/sets\/([^/]+)\/underway$/,
       async (request, [id, setId]) => {
         const tournament = played(request, id!) ?? fail(404, `no tournament ${id}`);
-        await readJson(request);
+        const { ember_match } = gamesOf(await readJson(request));
         const set = tournament.sets.find((each) => each.id === setId) ?? fail(404, `no set ${setId}`);
         if (!set.underway) setLive(tournament, set, new Date().toISOString());
         set.underway = true;
+        // Each attempt's match, for the organizer to void or draw its games.
+        if (ember_match) set.ember_match = ember_match;
         store.save(tournament);
         return [204];
       },
@@ -125,6 +137,11 @@ function gamesOf(body: Json): Played {
 }
 
 /** A set as the connector reads it: each entry is found by its Discord account. */
+/** A held set waits, as one still missing a player does. */
+function statusFor(set: BracketSet): string {
+  return set.held && status(set) === "open" ? "pending" : status(set);
+}
+
 function contractSet(tournament: Tournament, set: BracketSet): Json {
   const [one, two] = set.entries;
   const entry = (id: string) => ({ id, accounts: [{ discord: tournament.entrants.find((each) => each.ember_id === id)!.discord }] });
@@ -132,7 +149,7 @@ function contractSet(tournament: Tournament, set: BracketSet): Json {
     id: set.id,
     round: set.round,
     round_label: roundLabel(set.round, tournament.rounds),
-    status: status(set),
+    status: statusFor(set),
     entries: one && two ? [entry(one), entry(two)] : null,
     underway: set.underway,
     winner: set.winner,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 struct IDirect3DDevice9;
 
@@ -46,5 +47,20 @@ State GetState();
 void Frame(IDirect3DDevice9* device);
 void Release();
 void Resume(IDirect3DDevice9* device);
+
+// A fast export (SF4E_EXPORT_FAST=1 when Begin is called): the replay plays
+// as fast as the encoder takes its pictures, each stamped a sixtieth of a
+// second after the one before, and the sound is made by the picture from the
+// source set here (sf4e__ExportSound.hxx) instead of captured from the
+// speakers. Without a source, or when it cannot hold the game's sound, the
+// export runs at the game's own speed as before. Fast: true while such an
+// export records, for the frame limiter.
+struct SoundSource {
+	bool (*hold)();
+	bool (*render)(unsigned long long pictures, std::vector<float>& stereo);
+	void (*release)();
+};
+void SetSoundSource(const SoundSource& source);
+bool Fast();
 
 } }

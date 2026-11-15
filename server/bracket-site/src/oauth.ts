@@ -96,7 +96,7 @@ export class OAuth {
     return grant && { discord: grant.discord, name: grant.username, operator: false, organizer: grant.scope.split(" ").includes("organizer") };
   }
 
-  /** Who a session cookie is: always a player, as only the bridge signs organizers in. */
+  /** Who a session cookie is: a player; `actor()` makes them an organizer when the site has. */
   session(request: IncomingMessage): Actor | undefined {
     const value = cookie(request, SESSION_COOKIE);
     const grant = value ? this.#find("session", value) : undefined;

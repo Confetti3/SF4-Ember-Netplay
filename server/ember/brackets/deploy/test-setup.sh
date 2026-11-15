@@ -227,7 +227,7 @@ echo "2. setup.sh without secrets installs everything and starts nothing"
 run "$SD/setup.sh" --
 check "exits 0" succeeded
 check "says not started" mentions "NOT STARTED"
-check "names the missing files" mentions "provider.token result.secret challonge.key"
+check "names the missing files" mentions "provider.token result.secret site.token"
 check "creates the account" account "$S"
 check "installs the binary" present "$LIBS/ember-brackets"
 check "installs the configuration as brackets.json" same "$SD/brackets.staging.json" "$STS/brackets.json"
@@ -272,7 +272,7 @@ check "stores the result secret again from its file" has_text "$STUB/stored-resu
 
 echo "5. setup.sh with the secrets in place starts the service"
 umask 077
-printf 'organizer-key\n' > "$SD/secrets/challonge.key"
+printf 'organizer-key\n' > "$SD/secrets/site.token"
 umask 022
 run "$SD/setup.sh" --
 check "exits 0" succeeded
@@ -281,7 +281,7 @@ check "the connector answers through nginx" mentions "public: ok (https://bracke
 check "other paths are 404" mentions "every other path: 404"
 check "ends done" mentions "=== done ==="
 check "the credential is installed" has_text "$STS/provider.token" "$TOKEN"
-check "every secret is owned 0600" bash -c 'for f in provider.token result.secret challonge.key; do [ "$(stat -c %a "$1/$f")" = 600 ] || exit 1; done' _ "$STS"
+check "every secret is owned 0600" bash -c 'for f in provider.token result.secret site.token; do [ "$(stat -c %a "$1/$f")" = 600 ] || exit 1; done' _ "$STS"
 check "secrets/ is empty afterwards" dir_empty "$SD/secrets"
 check "no secret is in the output" silent_about "organizer-key"
 
@@ -323,7 +323,7 @@ check "a listen address off loopback is refused" failed
 python3 - "$HERE/brackets.staging.json" "$SD/brackets.staging.json" <<'PY'
 import json, sys
 c = json.load(open(sys.argv[1]))
-c["tournaments"][0]["credential"]["file"] = "../challonge.key"
+c["tournaments"][0]["credential"]["file"] = "../site.token"
 json.dump(c, open(sys.argv[2], "w"))
 PY
 run "$SD/setup.sh" --
@@ -350,10 +350,10 @@ check "says so" mentions "must be a real folder with mode 0700"
 rmdir "$SD/secrets"
 mv "$T/secrets.kept" "$SD/secrets"
 printf 'x\n' > "$T/real"
-ln -s "$T/real" "$SD/secrets/challonge.key"
+ln -s "$T/real" "$SD/secrets/site.token"
 run "$SD/setup.sh" --
 check "a symlink among the secrets is refused" failed
-rm -f "$SD/secrets/challonge.key"
+rm -f "$SD/secrets/site.token"
 
 echo "9. nginx rejecting the site puts the old files back"
 cp "$HERE/nginx/brackets.conf.in" "$T/template.kept"

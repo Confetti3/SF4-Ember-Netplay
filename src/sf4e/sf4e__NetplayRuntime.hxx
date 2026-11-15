@@ -31,9 +31,11 @@
 #include "../session/RecoveryProgress.hxx"
 #include "../session/ReadyChime.hxx"
 #include "../session/TrainingCall.hxx"
+#include "../common/ReplayImportQueue.hxx"
 #include "../netplay/AutoDelayCheck.hxx"
 #include "../netplay/CreatedRules.hxx"
 #include "../netplay/BoundedMailbox.hxx"
+#include "../netplay/Revisioned.hxx"
 #include "../netplay/MatchResultOutbox.hxx"
 #include "../netplay/MatchEndRules.hxx"
 #include "../netplay/ParkedIntent.hxx"
@@ -41,6 +43,17 @@
 #include "../netplay/WatchPlay.hxx"
 #include "../netplay/OwedAbort.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/BridgeFlights.hxx"
+#include "../netplay/CardRequests.hxx"
+#include "../netplay/FriendPresence.hxx"
+#include "../netplay/FriendRequests.hxx"
+#include "../netplay/FriendVisits.hxx"
+#include "../netplay/FriendsView.hxx"
+#include "../netplay/ArchiveRequests.hxx"
+#include "../netplay/CardBundle.hxx"
+#include "../netplay/ProfileRequests.hxx"
+#include "../netplay/ProfileWire.hxx"
+#include "../netplay/LevelRequests.hxx"
 #include "../netplay/RankingRequests.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../netplay/SettingsStore.hxx"
@@ -51,6 +64,7 @@
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/SpeechPreferenceJson.hxx"
+#include "../netplay/CardPreferenceJson.hxx"
 #include "../netplay/PublicRoomFilterJson.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../common/SpectatorPolicy.hxx"
@@ -106,77 +120,25 @@ struct TraceFields {
     }
 };
 
-// A RuntimeCommand is one of these families. Each holds the fields its handler
-// reads, under the RuntimeCommand names, so a handler reads `command.x` as it
-// did. Every family but Identity and Tournament carries the controller
-// generation it was made for (`command.command.generation`), and its handler
-// checks that first.
-namespace commands {
-struct Identity { netplay::IdentityRequest identity; };
-struct Tournament { netplay::tournament::Command tournament; };
-struct Training { netplay::Command command; TrainingEntry training = TrainingEntry::None; };
-struct LeaveWatchedGame { netplay::Command command; netplay::WatchedGame leaveWatchedGame; };
-struct DiscordInvite {
-    netplay::Command command;
-    discord::InviteAction discordAction = discord::InviteAction::None;
-    std::uint64_t discordRevision = 0;
-};
-struct PreviewSound { netplay::Command command; int previewSoundVolume = -1; };
-struct Replay { netplay::Command command; replay::Request replay; };
-struct ShortInvitation { netplay::Command command; };
-struct Pad { netplay::Command command; gamepads::ControllerRequest padAction; };
-// Save only the settings a room leaves open, from `preferences` (RuntimeRequest::roomSettings).
-struct RoomSettings { netplay::Command command; netplay::PlayerPreferences preferences; };
-struct Input { netplay::Command command; input::Action inputAction = input::Action::None; };
-struct Service {
-    netplay::Command command;
-    platform::ServiceAction service = platform::ServiceAction::None;
-    std::string servicePath;
-    launcher::InstallOffer updateOffer;
-    updates::UpdateChannel updateChannel = updates::UpdateChannel::Stable;
-    SteamId steamProfile;
-    reports::Submission reportSubmission;
-};
-// A room command: netplay::Command and what its kinds carry.
-struct Room {
-    netplay::Command command;
-    // With JoinInvite or LeaveRoom from a Discord invitation: re-validated here.
-    std::uint64_t discordRevision = 0;
-    netplay::PlayerPreferences preferences;
-    std::string publicTicket;
-    std::optional<netplay::TableSetup> createdRules;
-    JoinKind join = JoinKind::Private;
-    bool practiceRoom = false;
-    room::RoomType arcadeRoom = room::ClassicRoom;
-    room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
-    std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
-    bool wiredOnly = false;
-    Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
-    int stage = 0;
-    selection::RandomPool randomPool;
-    room::Action roomAction;
-    int selectedDelay = -1;
-    // RuntimeCommand::roomSettings: save only the settings a room leaves open, from `preferences`; sent alone.
-    bool roomSettings = false;
-};
+// A parked command waits under one of these (Runtime::readyIntent and the rest).
+using Intent = netplay::ParkedIntent<RuntimeRequest>;
+// The game's form of the pick a Ready carries.
+inline Dimps::GameEvents::VsMode::ConfirmedCharaConditions NativePick(const selection::Pick& pick) {
+    Dimps::GameEvents::VsMode::ConfirmedCharaConditions native{};
+    selection::ToNative(pick, native);
+    return native;
 }
-using TypedCommand = std::variant<commands::Identity, commands::Tournament, commands::Training, commands::LeaveWatchedGame,
-    commands::DiscordInvite, commands::PreviewSound, commands::Replay, commands::ShortInvitation, commands::Pad,
-    commands::RoomSettings, commands::Input, commands::Service, commands::Room>;
-// The one place that decides which family a submitted command is. A command
-// with several families' fields set is the first of: identity, tournament,
-// Training from the room, leave the watched game, Discord invite action, sound
-// preview, replay, short link, pad request, room settings save, input action, service, else a room
-// command. So the hidden shell's submit, which fills identity and a room
-// command together, is an identity request.
-TypedCommand Classify(RuntimeCommand command);
-
-using Intent = netplay::ParkedIntent<TypedCommand>;
 
 // The networking errors that stay until networking is back. They are kept as a
 // kind and a code, and their sentence is made from the catalog when it is
 // raised and again when the language changes.
 enum class StickyError { None, StartFailed, HelperUnavailable };
+
+// What the player is doing, as Discord's presence and friends' presence are both described from it
+// (sf4e__NetplayRuntime__Status.cxx): the key moves when anything the description is made from does. `shown`: whether the
+// presence and its invitation are given out (Discord's follow the player's settings, friends' are always on).
+using PresenceKey = std::array<std::uint64_t, 11>;
+struct PresenceShown { bool presence = true, invites = true; };
 
 struct Runtime {
     StickyError stickyError = StickyError::None;
@@ -193,7 +155,7 @@ struct Runtime {
     const char* discordStatusId = "discord.unavailable_gameplay_ok";
     std::string discordPublished;
     ULONGLONG discordLastPublish = 0;
-    std::array<std::uint64_t,11> discordPresenceKey{};
+    PresenceKey discordPresenceKey{};
     bool discordPresenceKeyValid=false;
 
     input::Assignment input;
@@ -282,16 +244,9 @@ struct Runtime {
 	// Not part of MatchTeardown: CloseRoom does not reset it.
 	std::uint8_t matchFinishedTable = 0;
     bool replacementPending=false;
-    // The Practice and Arcade choices of the room this PC hosts: the player's
-    // on Create, the closed room's for a replacement, false for a room it joins.
-    bool practiceRoom=false;
-    room::RoomType arcadeRoom=room::ClassicRoom;
-    // The delay policy of the room this PC hosts, chosen the same way.
-    room::DelayPolicy delayPolicy=room::DelayPolicy::Shared;
-    // How many tables the Classic room this PC hosts opens with, chosen the same way.
-    std::uint8_t tableCount=static_cast<std::uint8_t>(room::ClassicTableCount);
-    // The Wired players only rule of the room this PC hosts, chosen the same way.
-    bool wiredOnly=false;
+    // What the room this PC hosts is created as: the player's choices on
+    // Create, the closed room's for a replacement, the default for a room it joins.
+    room::Charter charter;
     // The player's Leave of the room. CloseRoom resets it whole.
     struct RoomLeave {
         bool leaveRequested=false, leaveAcknowledged=false;
@@ -325,14 +280,66 @@ struct Runtime {
     std::uint64_t packRequest = 0;
     std::filesystem::path packPath;
     struct SetNotice { std::string text; bool error = false; std::uint64_t count = 0; } setNotice;
-    // The public room list and the last create or ticket request: their helper
-    // request ids (0 when none is in flight), when each was sent, and what
-    // the interface sees.
-    std::uint64_t roomListRequest=0, admissionRequest=0;
-    std::uint64_t roomListSentMs=0, admissionSentMs=0;
+    // What the last batch of imported replay files came to (the batch count itself is the queue's).
+    struct ImportNotice { std::string text; bool error = false; } importNotice;
+    // The bridge requests awaiting an answer, with what each does with it: the
+    // public rooms', friends', profiles', rankings', levels', cards' and the
+    // archive's (the tournament, watch and replay requests above keep their own
+    // bookkeeping).
+    netplay::BridgeFlights flights;
+    // The public room list and the last create or ticket request: the flight
+    // of the create or ticket (0 when none), which a new one supersedes, and
+    // what the interface sees.
+    std::uint64_t admissionRequest=0;
     netplay::publicrooms::Status publicRooms;
     // Rankings: the requests in flight and what the interface sees.
     netplay::rankings::Requests rankings;
+    // The public replay archive's browser: the page in flight and the listing so far.
+    netplay::archive::Requests archive;
+    // The second slot of the archive browser: the sets of the profile open. Never the Archive tab's listing.
+    netplay::archive::Requests profileSets;
+    // The download of a game to watch: one at a time, whichever of the two browsers listed it.
+    netplay::archive::Fetching archiveFetch;
+    // Other players' profiles: the one open and the Find a player search, with their requests in flight
+    // (sf4e__NetplayRuntime__Profiles.cxx).
+    netplay::profiles::Requests profiles;
+    // The player's own card as the bridge keeps it, and what the save measures: the connection (read at most once
+    // a minute and when a room is joined, never while a match is live; linkEpoch is the room it was read in, 0 for none)
+    // and the bundle as last built, with the preferences' revision, the country
+    // and the style it was built from (sf4e__NetplayRuntime__Profiles.cxx).
+    netplay::profiles::Saver cardSaver;
+    struct CardSignals {
+        NetworkLink link = NetworkLink::Unknown;
+        bool linkRead = false;
+        std::uint64_t linkMs = 0, linkEpoch = 0;
+        bool built = false;
+        std::uint64_t builtRevision = 0;
+        CountryCode builtCountry;
+        netplay::profiles::Style builtStyle;
+        netplay::profiles::Bundle bundle;
+    } cardSignals;
+    // The players this PC fought in public rooms lately, kept beside the preferences and never sent
+    // (sf4e__NetplayRuntime__Social.cxx).
+    netplay::profiles::RecentList recentOpponents;
+    // The player's own fighter levels: the read in flight and the last answer.
+    netplay::levels::Requests levels;
+    // Other players' cards in a public room: the look-up in flight and the answers.
+    netplay::levels::Cards cards;
+    // The player's friends: the sync or action in flight and the last state, the
+    // visit to a friend's public room under way, and whether the player's room
+    // can be offered a friend now (sf4e__NetplayRuntime__Social.cxx).
+    netplay::friends::Requests friends;
+    netplay::friends::Visit friendVisit;
+    bool friendsCanInvite = false;
+    // What friends are told, described again only when the key of what it is made from moves (or the invitation
+    // offered runs out, at `refreshAt`, unix seconds); `revision` moves when the report itself changes.
+    struct FriendsPresence {
+        bool valid = false;
+        PresenceKey key{};
+        netplay::friends::Report report;
+        netplay::friends::Offer offer;
+        std::uint64_t refreshAt = 0, revision = 0;
+    } friendsPresence;
     // Match links from the browser (ember://tournament/open), from a later
     // launcher or the start argument, and the last one the interface was given.
     platform::MatchLinkMailbox matchLinks;
@@ -387,8 +394,10 @@ struct Runtime {
 	std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
 	// When the room was last told whether the player is in Training.
 	std::uint64_t trainingSaidAtMs = 0;
-	// When the room was last told the player is typing; zero once told they stopped.
+	// When the room was last told the player is typing; zero once they stopped typing.
 	std::uint64_t typingSaidAtMs = 0;
+	// The post-match answer last said to the room, when, and in which term (SayPostMatch).
+	room::PostMatchSay postMatchSay;
 	// The newest RoomNoticesKept room events for the chat, numbered from 1 by
 	// roomNoticeSequence. The interface takes each once by its number.
 	static constexpr std::size_t RoomNoticesKept = 16;
@@ -405,7 +414,12 @@ struct Runtime {
 	ULONGLONG errorShownAtMs = 0;
 	std::unique_ptr<netplay::LobbySettings> pendingLobbySettings;
 	ULONGLONG lobbySettingsDeadline = 0;
-	netplay::PlayerPreferences preferences;
+	// Read as `preferences`; changed only through EditPreferences(), which moves
+	// the revision that PublishFingerprint compares, so no writer can leave a
+	// throttled fight showing old settings.
+	netplay::Revisioned<netplay::PlayerPreferences> preferencesStore;
+	const netplay::PlayerPreferences& preferences = preferencesStore.Get();
+	netplay::PlayerPreferences& EditPreferences() { return preferencesStore.Edit(); }
 	netplay::SessionController controller;
 	// Shared with the bridge (sf4e__RuntimeBridge), which producers on other
 	// threads push through; StopHelper closes it before this object goes.
@@ -415,12 +429,16 @@ struct Runtime {
 	bool checkUpdatesAtLaunch = true;
 	// Windows' region, read once at start: what Automatic shows.
 	CountryCode automaticCountry;
+	// The area Windows' time zone and region give, read once at start: what the area's Automatic shows.
+	Area automaticArea = Area::None;
 	std::string error;
 	bool ready = false;
 	bool eventSystemReady = false;
 	bool attached = false;
 	bool helperLossReported = false;
 	bool offlineRequested = false;
+	// Launcher --host-public-room: the shell keeps a public room open.
+	bool hostPublicRoom = false;
 	// Room links from the browser (ember://join/...): the launcher's start
 	// argument, or one a later launcher handed over. The newest waits here
 	// as the https link for the Join screen; the sequence tells it apart.
@@ -505,8 +523,8 @@ void DrainActionReplies();
 void ConfirmLobbySettings();
 void ResolvePendingIntents(bool helperReady);
 // A room command (host, join, leave) on tournament play's behalf, through
-// the same checks as a press.
-netplay::DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command, JoinKind join);
+// the same checks as a press, for the controller's generation now.
+netplay::DispatchOutcome DispatchTournamentRoomCommand(RuntimeRequest command);
 // A joined room ended for the player. True when watching a match took it as
 // its own news (a notice, then a fresh ask), so the generic error is not shown.
 bool EndWatchedRoom(netplay::tournament::WatchRoomEnd end);
@@ -545,8 +563,8 @@ void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverit
 // The room ended this PC's game with no result: retire it and say so.
 void EndUnscoredMatch(room::MatchResult result);
 void RetireFinishedMatch(const char* label);
-// The player's leave of the game this PC watches (RuntimeCommand::
-// leaveWatchedGame), decided against the stream and the room as they are when
+// The player's leave of the game this PC watches (commands::
+// LeaveWatchedGame), decided against the stream and the room as they are when
 // it runs (netplay::LeaveOfWatchedGame): nothing once that view is gone, only
 // the rest of the stream once the room has finished the game, otherwise an
 // Unwatch scoped to the game and the player's own end of the stream. Deferred
@@ -574,6 +592,13 @@ void OpenConnectLink(const std::string& bridge, bool launched = false);
 // replay operation on (sf4e__ReplayStore.hxx).
 void RunReplayRequest(const replay::Request& request);
 void TickReplays();
+// The replay files to import, from a link, a drop or the picker alike. It is not the runtime's:
+// a file may be dropped from the window-message thread while the runtime is being deleted, so
+// it lives to the end of the process, and its waiting files are kept across a restart.
+replay_import::Queue& ReplayImports();
+void KeepPendingImports();
+void RestorePendingImports();
+void ApplyGameDisplay();
 // What the Replays screen is told of the last set pack saved or imported.
 void SaySet(std::string text, bool error);
 // Hands a public room link to the interface, which asks for the room's ticket
@@ -585,20 +610,73 @@ netplay::tournament::Status TournamentStatus();
 
 // Public rooms (sf4e__NetplayRuntime__PublicRooms.cxx).
 // Sends one bridge request on the tournament channel; the id the helper will
-// answer under, or 0 when it was not sent. The helper bounds its own bridge
-// requests; BridgeRequestGiveUpMs only ends a wait for one it lost.
-constexpr std::uint64_t BridgeRequestGiveUpMs = 60000;
+// answer under, or 0 when it was not sent.
 std::uint64_t SendBridgeRequest(const nlohmann::json& request);
+// Sends one bridge request and has its answer go to `handler`, through
+// runtime->flights, which also ends it when the helper cannot take it or never
+// answers (netplay/BridgeFlights.hxx). `helperReady` false is "cannot take it".
+std::uint64_t SendFlight(const nlohmann::json& request, bool helperReady, netplay::BridgeFlights::Handler handler);
 void DispatchPublicRooms(const netplay::tournament::Command& command, bool helperReady);
-// True when the answer was to a public room request, which it then took.
-bool TakePublicRoomsAnswer(const session::TournamentAnswer& answer);
-// Gives up on a request the helper never answered.
-void ExpirePublicRooms(std::uint64_t nowMs);
+// Asks for a public room's ticket exactly as its Join does. `done` is told how
+// it ended: the failure (the bridge's code, empty when none) and the admission.
+using AdmissionDone = std::function<void(const std::string& failure, std::optional<netplay::publicrooms::Admission> admission)>;
+void RequestTicket(const std::string& bridgeId, const std::string& roomId, bool helperReady, AdmissionDone done);
 
-// Rankings (sf4e__NetplayRuntime__Rankings.cxx), the same way.
+// Rankings (sf4e__NetplayRuntime__Rankings.cxx), the same way: answers come back through flights.
 void DispatchRankings(const netplay::tournament::Command& command, bool helperReady);
-bool TakeRankingsAnswer(const session::TournamentAnswer& answer);
-void ExpireRankings(std::uint64_t nowMs);
+// Forgets another Ember ID's standing and board.
+void TickRankings();
+
+// The public replay archive (sf4e__NetplayRuntime__Archive.cxx): a page of its
+// listing, and a listed game downloaded and then watched.
+void DispatchArchive(const commands::ArchiveList& command, bool helperReady);
+void DispatchArchive(const commands::ArchiveWatch& command, bool helperReady);
+
+// Fighter levels (sf4e__NetplayRuntime__Levels.cxx): the player's own, read on
+// the menu's ask, once at start and after a set this PC fought. Answers come back through flights.
+void DispatchLevels(const netplay::tournament::Command& command, bool helperReady);
+// Notes sets that ended, and starts the reads that are due.
+void TickLevels(bool helperReady, std::uint64_t nowMs);
+// Other players' cards (same file): the public room's members' tokens are
+// looked up when one joins, and a set's two fighters' 8 s after it ends.
+void TickCards(bool helperReady, std::uint64_t nowMs);
+// The friend the Friends tab has focused: their card is looked up with the members' (Cards::WantFriend).
+void DispatchCards(const commands::FriendCardWanted& command);
+// Other players' profiles and the player's own card (sf4e__NetplayRuntime__Profiles.cxx). The interface's commands; the profile and
+// search the helper answers through flights; and the tick that sends what is due: the look-ups of the profile
+// open, the search, and the player's card when it changed (netplay/ProfileRequests.hxx, netplay/CardBundle.hxx).
+void DispatchProfile(const commands::ProfileOpen& command);
+void DispatchProfile(const commands::ProfileClose& command);
+void DispatchProfile(const commands::PlayerSearch& command);
+void TickProfiles(bool helperReady, std::uint64_t nowMs);
+// A friends action went through: the profile open is looked up again, and the card the action named shows what
+// it made of the player (the member cards' Refresh and Relate).
+void NoteProfileAction(const std::string& token, netplay::levels::Relation relation);
+
+// Friends (sf4e__NetplayRuntime__Social.cxx): the interface's commands, the
+// helper's answers, the presence sent each tick it is due, and what the
+// interface reads. A Join, a Watch or an invitation of a friend's is carried
+// out here too (netplay/FriendVisits.hxx).
+void DispatchFriends(const commands::FriendsVisit& command);
+void DispatchFriends(const commands::FriendsLeave& command);
+void DispatchFriends(commands::FriendAction action, bool helperReady);
+void DispatchFriends(const commands::FriendJoin& command, bool helperReady);
+void DispatchFriends(const commands::FriendWatch& command);
+void DispatchFriends(const commands::FriendTakeInvite& command);
+void DispatchFriends(const commands::FriendAnswerVisit& command);
+void TickSocial(bool helperReady, std::uint64_t nowMs);
+// A game this PC fought in a public room ended: its opponent joins the recent opponents (kept 7 days, saved
+// beside the preferences). Nothing for a private room or an opponent without a card token.
+void NoteOpponent(const room::Snapshot& snapshot, int table, int seat);
+// Reads the saved recent opponents at start.
+void LoadRecentOpponents();
+// The key of what the player's presence is made from, and the Discord input it is described from (Status.cxx): the one
+// rule for Discord's and friends'. `atMainMenu` is the caller's one reading of AtMainMenu() for the tick.
+PresenceKey PresenceKeyOf(const netplay::Snapshot& session, const room::Snapshot& current, bool atMainMenu, PresenceShown shown);
+discord::PresenceInput PresenceInputOf(const netplay::Snapshot& session, const room::Snapshot& current, bool atMainMenu, PresenceShown shown);
+// Tells the friends' service this player is leaving, best effort, as the game closes.
+void SayFriendsGoodbye();
+netplay::friends::View FriendsStatus();
 
 // Controllers (sf4e__NetplayRuntime__Input.cxx).
 std::string DeviceName(const input::Device& device);
@@ -623,12 +701,17 @@ PostPublishState Publish();
 PostPublishState PublishThrottled();
 void PumpDiscordClient();
 void PublishAndTickDiscordInvite();
+// Whether an invitation to another room must ask first: this PC is in a room,
+// plays offline, or is in a game (the rule a Discord join is asked by).
+bool BusyForInvitation(const netplay::Snapshot& state);
 // Keeps the helper's ping subscription in step with the room board.
 void TickMemberLatency();
 // Whether the overlay drew the fighter selector lately in room `roomGeneration` (NoteFighterSelector).
 bool FighterSelectorShown(std::uint64_t roomGeneration);
 // Whether the shell noted a chat draft being written lately in room `roomGeneration` (NoteChatTyping).
 bool ChatTypingShown(std::uint64_t roomGeneration);
+// The answer to the post-match prompt the shell is wanting said (NotePostMatchAnswer); not active once the shell stops noting one.
+room::PostMatchSaid PostMatchWanted();
 // The pick is Random (NoteRandomFighter): each game is rolled for, so a
 // rematch leaves the battle instead of replaying its fighters in place.
 bool RandomFighterChosen();
@@ -641,8 +724,8 @@ void TickRandomFighter();
 struct RandomFighterRoll { int fighter = -1; std::uint64_t serial = 0; };
 RandomFighterRoll CurrentRandomFighter();
 // A Ready or Rematch of a Random pick takes the rolled fighter as it is
-// dispatched, fresh or parked; every other command is left as it is.
-TypedCommand& WithRandomFighter(TypedCommand& command);
+// dispatched, fresh or parked.
+void WithRandomFighter(commands::Ready& ready);
 // Tests only: the roll draws from `roll` instead of a random engine; an empty
 // one restores the engine.
 void SetRandomFighterRollForTest(std::function<int()> roll);

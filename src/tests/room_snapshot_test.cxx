@@ -55,6 +55,12 @@ static void TestSnapshotWithoutChat() {
 		}
 	};
 	same(authority);
+	// The setting that hides a room from its members' friends is copied too.
+	Action hide = TableAction(authority, host, 0, ActionKind::SetFriendsHidden);
+	hide.friendsHidden = true;
+	EXPECT(authority.Apply(host, hide).accepted && authority.SnapshotView().friendsHidden);
+	EXPECT(authority.SnapshotFor(p1, false).friendsHidden && authority.SnapshotFor(p1, true).friendsHidden);
+	same(authority);
 	for (const auto member : {p1, p2, queuer}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	Action chat = TableAction(authority, p1, 0, ActionKind::Chat);
 	chat.text = "hello";
@@ -66,7 +72,7 @@ static void TestSnapshotWithoutChat() {
 	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
 	same(authority);
 	// A King of the hill room's type and cabinets, with someone seated.
-	RoomAuthority king("King", 16, 314, Rules(), false, DelayPolicy::Shared, KingRoom);
+	RoomAuthority king("King", 16, 314, Rules(), Charter{RoomType::King});
 	EXPECT(Join(king, 0, true) == host);
 	Action sit = TableAction(king, host, 2, ActionKind::Queue);
 	sit.seat = 1;
@@ -124,10 +130,30 @@ static void TestMemberLook() {
 	EXPECT(!authority.SnapshotView().tables[0].ready[0] && member(authority, p2).costume == 0);
 }
 
+// A room starts as its Charter says, and CharterOf gives back the charter a
+// room replacing it is created with; a table count out of range is the type's
+// default.
+static void TestCharter() {
+	const Charter chosen{RoomType::King, true, DelayPolicy::Own, 3, true, true};
+	RoomAuthority authority("Charter", 16, 315, Rules(), chosen);
+	const auto& room = authority.SnapshotView();
+	EXPECT(room.type == RoomType::King && room.practice && room.delayPolicy == DelayPolicy::Own && room.tableCount == 3 && room.wiredOnly && room.friendsHidden);
+	const auto again = CharterOf(room);
+	EXPECT(again.type == chosen.type && again.practice && again.delayPolicy == chosen.delayPolicy && again.tableCount == 3 && again.wiredOnly && again.friendsHidden);
+	const Charter defaults;
+	EXPECT(defaults.type == RoomType::Classic && !defaults.practice && defaults.delayPolicy == DelayPolicy::Shared &&
+		defaults.tableCount == ClassicTableCount && !defaults.wiredOnly && !defaults.friendsHidden);
+	for (const RoomType type : {RoomType::Classic, RoomType::Arcade}) {
+		RoomAuthority outOfRange("Default count", 16, 316, Rules(), Charter{type, false, DelayPolicy::Shared, 0});
+		EXPECT(outOfRange.SnapshotView().tableCount == DefaultTableCount(type));
+	}
+}
+
 int main() {
 	TestLocalMatchGenerations();
 	TestSnapshotWithoutChat();
 	TestMemberLook();
+	TestCharter();
 	if (TEST_FAILURES()) return 1;
 	std::puts("RoomSnapshot test passed");
 	return 0;

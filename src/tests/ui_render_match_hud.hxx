@@ -113,6 +113,12 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
     split.links[0]=NetworkLink::Wired;split.links[1]=NetworkLink::Wireless;
     split.pingMs=68;split.rollbackFrames=2;split.appliedDelay=3;split.layout=1;
     matchStrip=split;draw("match-hud-split");
+    // A public room's match: each fighter's class on their plate, as a replay video shows it, for a
+    // fighter and for a spectator (an A+ class needs the game's art; "?" is drawn without it).
+    matchStrip.badges[0]=SkillBadge::Placing();matchStrip.badges[1]=SkillBadge::OfClass(8,true);matchStrip.score="1 - 0";
+    draw("match-hud-split-classes");
+    matchStrip.spectator=true;matchStrip.behindFrames=12;draw("match-hud-split-classes-spectator");
+    matchStrip=split;
     for(int anchor=1;anchor<=netplay::MaxMatchHudAnchor;++anchor){
         matchStrip.anchor=anchor;
         const auto shot="match-hud-split-anchor-"+std::to_string(anchor);draw(shot.c_str());

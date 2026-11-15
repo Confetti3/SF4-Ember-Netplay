@@ -8,12 +8,14 @@
 mod archive;
 mod audit;
 mod auth;
+mod cards;
 pub mod config;
 mod ctx;
 mod db;
 mod delivery;
 mod error;
 mod events;
+mod friends;
 mod http;
 pub mod integrations;
 mod linking;
@@ -33,7 +35,7 @@ use std::{net::SocketAddr, sync::Arc};
 use tokio::{net::TcpListener, task::JoinHandle};
 
 pub use config::Config;
-pub use db::Db;
+pub use db::{Db, OpenError};
 pub use routes::blumint::liveness::LEASE_SECS as PRESENCE_LEASE_SECS;
 /// Tournament Mode's invitations, for the operator's commands.
 pub use routes::organizer::invites::{
@@ -53,6 +55,10 @@ pub struct AppState {
     rate: Arc<rate::Limiter>,
     rooms: Arc<routes::rooms::Shared>,
     ranking_board: Arc<routes::ranking::PublicCache>,
+    /// Friends' presence and invites, kept in memory only (`friends`).
+    friends: Arc<friends::presence::Live>,
+    /// When maintenance last refreshed the archive's classes.
+    archive_classes: Arc<archive::classes::Refreshed>,
     /// The client shared by the calls to the bridge's configured services.
     http: util::Outbound,
 }
@@ -74,6 +80,8 @@ impl AppState {
             rate: Arc::new(rate::Limiter::default()),
             rooms: Arc::new(routes::rooms::Shared::default()),
             ranking_board: Arc::new(routes::ranking::PublicCache::default()),
+            friends: Arc::new(friends::presence::Live::default()),
+            archive_classes: Arc::new(archive::classes::Refreshed::default()),
             http: util::Outbound::default(),
         }
     }
@@ -166,6 +174,14 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
 /// runs it every few seconds; tests call it after moving the clock.
 pub async fn maintain(state: &AppState) {
     routes::maintenance_once(state).await;
+}
+
+/// Marks the public rankings board as moved, as the bridge does itself when
+/// it writes a rating, the band shown, a ranking choice or a Discord account,
+/// so the next maintenance pass refreshes the archive's classes. Tests that
+/// write those rows straight into the database call it.
+pub fn board_moved() {
+    skill::board_moved();
 }
 
 /// One poll of the room supervisor: member counts, invitations and kicks

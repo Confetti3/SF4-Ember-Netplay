@@ -187,25 +187,14 @@ static RuntimeGgpoStart StartRuntimeGgpo(const char*& failure) {
     if (!sf4e::NetplayFacade::GetRuntimeMatchEndpoints(endpoints)) return RuntimeGgpoStart::NoStream;
     auto& netplay = fUserApp::netplay;
     if (!netplay || endpoints.participantCount < 2 || endpoints.participantCount > sf4e::room::MaxMatchParticipants) return RuntimeGgpoStart::Failed;
-    // Room names are unique, so the name finds the member's link. The class
-    // comes from the room as the runtime shows it, which keeps a class only
-    // in a room this client joined as public and only while the player shows
-    // class emblems (ShownRoomOf); the client's own snapshot keeps whatever a
-    // private room's host wrote.
+    // Each fighter's name, link and class, for fighters and spectators alike
+    // (CaptureMatchSides). The class comes from the room as the runtime shows
+    // it (ShownRoomOf); the client's own snapshot keeps whatever a private
+    // room's host wrote.
     const auto& room = netplay->client.GetRoomSnapshot();
     const auto shown = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
     const sf4e::room::Snapshot* shownRoom = shown ? shown->room.get() : nullptr;
-    for (std::size_t side = 0; side < 2; ++side) {
-        auto& captured = netplay->matchSides[side];
-        captured = {};
-        if (side < netplay->client._lobbyData.members.size()) captured.name = netplay->client._lobbyData.members[side].name;
-        if (captured.name.empty()) continue;
-        for (const auto& member : room.members)
-            if (member.name == captured.name) captured.link = member.link;
-        if (shownRoom)
-            for (const auto& member : shownRoom->members)
-                if (member.name == captured.name) captured.badge = member.badge;
-    }
+    sf4e::CaptureMatchSides(netplay->client._lobbyData.members, room.members, shownRoom ? &shownRoom->members : nullptr, netplay->matchSides);
     netplay->spectating = endpoints.localSlot >= 2;
     netplay->watchedScore[0] = netplay->watchedScore[1] = 0;
     const auto* table = LocalTable(room);
@@ -271,9 +260,11 @@ static RuntimeGgpoStart StartRuntimeGgpo(const char*& failure) {
         if (!netplay->spectating && table && table->id == sf4e::room::TournamentTable && room.tournament.Active() &&
             published->tournament.matchId == room.tournament.matchId)
             set = {published->tournament.bridgeId, room.tournament.matchId, room.tournament.bindingRevision};
+        // The classes the HUD shows go with the names, so the replay shows them too.
+        const sf4e::SkillBadge classes[2] = {netplay->matchSides[0].badge, netplay->matchSides[1].badge};
         sf4e::platform::replays::NoteMatchStart(netplay->matchSides[0].name, netplay->matchSides[1].name, netplay->spectating,
             netplay->client._matchData.chara[0].charaID, netplay->client._matchData.chara[1].charaID,
-            recordingEnabled, set);
+            recordingEnabled, set, classes);
     }
     sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
     sf4e::NetplayFacade::ResetGgpoBattleWatch();

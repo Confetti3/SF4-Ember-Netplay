@@ -7,17 +7,13 @@ site's sets and writes back to it. There are two ways to write one:
 
 - **In Rust**, inside this crate: implement the `Site` trait
   (`src/site.rs`) and add a value to `Adapter` in `src/config.rs`. The
-  Challonge (`src/challonge.rs`) and start.gg (`src/startgg.rs`) adapters
-  are the examples.
+  `http` adapter (`src/service.rs`) is the example.
 - **As a service of your own, in any language**: configure the `http`
   adapter, and answer the small JSON contract below. Nothing in Ember
   changes.
 
-Players are found on the bridge by an account the site shows for them. For
-a sign-in site the bridge has (Challonge, start.gg, or one an operator
-defines in its config) that is the account the player connected in Ember;
-a Discord account the player connected in Ember works for any site that
-shows the Discord account linked to an entry.
+Players are found on the bridge by the Discord account the site shows for
+each entry: the one the player connected in Ember.
 
 ## The `Site` trait
 
@@ -30,21 +26,13 @@ rely on.
 | Method | Returns | The adapter promises |
 |---|---|---|
 | `open_sets(purpose)` | every set the site lists as open | Each playable set it can see, entries player 1 first. A set it cannot see may simply be missing: the connector never acts on a set's absence. |
-| `set(id, purpose)` | one set, or `None` | `None` only when the site itself says the set does not exist: Challonge answers 404 for the match's own URL (any 404 there, including one from a proxy in front of it), start.gg `Set not found for id: <id>`, an `http` service `{"set": null}`. |
+| `set(id, purpose)` | one set, or `None` | `None` only when the site itself says the set does not exist (an `http` service answers `{"set": null}`). |
 | `standing()` | `Finished`, `PlayedOut` or `Running` | `Finished` only when the site says the event is over: the connector then stops reading it for good. `PlayedOut` when every set looks played but more may come (a later stage, a reopened set). |
-| `mark_underway(id)` | nothing | May be called again for a set already underway. A failure is only logged. |
+| `mark_underway(id, match_id)` | nothing | May be called again for a set already underway, also with a new attempt's match. A failure is only logged. |
 | `report(id, report)` | `Sent` or `AlreadyHeld` | Records the winner and each entry's games won. May be called again for a report already recorded (see Delivery below): answer `AlreadyHeld` when the set already holds this winner, so the log does not claim the connector wrote it. Answer `Sent` only on positive evidence: the site's answer shows the set decided for this winner, or, when it does not, a fresh read of the set does (one still open is `Deferred`). Report only a set that reads open now, not one gone pending. If the site can tell, refuse (`Refused`) rather than write over a set that has a different result, or games entered that disagree with `report.sequence`. |
 | `wants_games()` | `bool`, `false` unless overridden | Whether `report` uses each game's winner, in the order played (`report.sequence`). Only then does the connector read the games from the bridge before reporting, and check that they add up to the score. |
 
-`purpose` says why a read is made, `Scheduled` or `Result`: a site with a
-request budget may refuse a scheduled read with `BudgetSpent`, but never a
-read for a result.
-
-An adapter does not say whether its accounts are names an account can
-change: the bridge does. For a player found by an account on a sign-in site
-the bridge looks up by username (its capabilities' `lookup_by`), the
-connector points out, once per player, an account connected more than 30
-days ago, whichever adapter named it.
+`purpose` says why a read is made, `Scheduled` or `Result`.
 
 A `Set` carries:
 
@@ -54,20 +42,11 @@ A `Set` carries:
   players. The label goes into the match's metadata, where the bridge takes
   at most 1024 bytes: a longer one is cut there.
 - `entries`: player 1 and player 2 once both are known. Each `Entry` has an
-  `participant_id` (same rule as set IDs) and its `accounts`, the one to try
-  first first:
-  - `Account::Site { site, id }`: an account on the bridge's sign-in site
-    `site`, by the ID that site looks up (a Challonge username, a start.gg
-    user ID). An ID the site's accounts cannot have finds nobody, so only
-    its entry waits. A site the bridge has no sign-in site for is not asked
-    at all (the connector reads the bridge's sites from its capabilities),
-    and the set's log line says so once. A site the bridge has but the
-    connection may not look up (not in its `lookup_sites`) makes the bridge
-    refuse the lookup: the connector asks again kind by kind, so only the
-    entries that need that site wait, with the reason in their log line;
-  - `Account::Discord { user_id }`: a Discord account linked to the entry.
-    A connection without `discord_lookup` refuses these the same way, and
-    only the entries that need one wait.
+  `participant_id` (same rule as set IDs), its `name` and its `discord`
+  user ID, when the site shows one. An entry without one, or whose
+  Discord account is not connected in Ember, waits, and its set's log line
+  says so once. A connection without `discord_lookup` is refused by the
+  bridge: every set waits, with the reason logged once.
 - `status`: `Pending` (waiting on an earlier set), `Open` (can be played,
   no result) or `Decided`.
 - `underway`, when the site says so, and `winner` (the winning entry's
@@ -78,8 +57,6 @@ A `Set` carries:
     and, where the site has one, an ID (`Phase::new` drops a blank name, and
     `Phase::is_valid_name` is the check round rules use). Round rules can name
     it (README, `rounds`), since stages number their rounds from 1 again.
-  - `stream`, the stream the set is assigned to, when the site says. With
-    `hold.streamed` (start.gg only), such a set waits.
 
 Errors:
 
@@ -93,9 +70,8 @@ Errors:
   report, after a read that worked in the same pass, it is taken as a
   failure on that set alone, and the result waits like a `Deferred` one.
 - `Deferred` (from `report` only): this one report cannot be taken now, for
-  a reason of its own set, which may pass (start.gg refusing it with an
-  error it does not explain while the set is still open and unchanged, or
-  an `http` service answering `423` as below).
+  a reason of its own set, which may pass (an `http` service answering
+  `423` as below).
   That result alone waits, a minute doubling up to an hour, while every
   other result and read goes on; after 12 tries (about 6 hours, counted
   while the connector runs) its set is left to the organizer.
@@ -116,9 +92,8 @@ Errors:
 - **Attempts.** A match that restarts (a disputed game) or expires unplayed
   is played again as a new attempt, up to 5; then the organizer decides. A
   set the organizer opens again after its score was reported or decided is
-  the organizer's while it has the same two players: no new match is made
-  (on Challonge, reopening a set to correct it reopens the sets after it,
-  which are left the same way). Only a set that opens for other players
+  the organizer's while it has the same two players: no new match is made.
+  Only a set that opens for other players
   gets a new attempt. A set whose match was cancelled because the set
   changed or went away before it was decided (a reopen sending it back to
   pending, say) gets a new attempt when it opens again, whoever plays it.
@@ -173,8 +148,6 @@ and the first that covers a set sets its length (README, `rounds`).
   `-`. It goes into the match IDs, so keep it as it is while the bracket
   runs.
 - The token is sent as `Authorization: Bearer <token>`.
-- `bridge_site` does not apply: each account in your answers names its
-  site.
 
 Every request carries `Accept: application/json` and
 `Ember-Brackets-Contract: 1`. If you change a shape below in a way an older
@@ -212,8 +185,8 @@ fields in your answers are ignored, so you may add fields freely.
       "round_label": "Winners round 2",
       "status": "open",
       "entries": [
-        { "id": "player1", "accounts": [{ "site": "challonge", "id": "Player_1" }] },
-        { "id": "player2", "accounts": [{ "site": "startgg", "id": "1234567" }, { "discord": "274220342558756145" }] }
+        { "id": "player1", "accounts": [{ "discord": "274220342558756145" }] },
+        { "id": "player2", "accounts": [{ "discord": "100000000000000001" }] }
       ],
       "underway": false
     }
@@ -229,7 +202,7 @@ fields in your answers are ignored, so you may add fields freely.
 | `round_label` | no (`Round <round>`) | Shown to the players, at most 1024 bytes |
 | `entries` | no | Player 1 and player 2, once both are known, else `null` or absent |
 | `entries[].id` | yes | Same rule as `id` |
-| `entries[].accounts` | no | In the order to try: `{ "site": "<bridge site>", "id": "<what that site looks up>" }` or `{ "discord": "<Discord user ID>" }`. An ID in the wrong form finds nobody, a site the bridge does not have is not asked, and a site (or Discord) the connection may not look up is refused: in each case only that entry's set waits, with the reason logged once. |
+| `entries[].accounts` | no | `{ "discord": "<Discord user ID>" }`; the first is used, and any other kind of account is passed over. An entry without one waits, with the reason logged once. |
 | `underway` | no (`false`) | |
 | `winner` | no | The winning entry's `id`, once decided |
 | `phase` | no | The stage of the event the set is in (`"Pools"`, `"Top 8"`), 1 to 64 characters once the spaces around it are dropped. A tournament's round rules can name it; a set without one is covered only by rules without `phase`. A blank or whitespace `phase` is read as none (the set is kept, and the connector logs it once). A `phase` over 64 characters, or one that is not a string, is out of shape: the set is left out of the read, logged once, like any other. Added in contract 1 as an optional field, so a service without it stays valid. |
@@ -253,8 +226,9 @@ tournament for good.
 
 ### Writing
 
-`POST {base}/sets/{id}/underway` with `{}`: mark the set started. Answer
-`2xx`, also when it already was.
+`POST {base}/sets/{id}/underway` with `{ "ember_match": "<match ID>" }`: mark
+the set started, played as that Ember match. Sent again with each new
+attempt's match. Answer `2xx`, also when it already was.
 
 `POST {base}/sets/{id}/report`, with an `Idempotency-Key` header:
 

@@ -1,5 +1,8 @@
 #pragma once
+#include "ShellAction.hxx"
+#include "WatchQueue.hxx"
 #include "MenuNavigation.hxx"
+#include "PlayerOpening.hxx"
 #include "ReplaysView.hxx"
 #include "../platform/ReplaySets.hxx"
 #include "../common/ReplayRequest.hxx"
@@ -8,6 +11,7 @@
 #include <functional>
 #include <imgui.h>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -15,8 +19,8 @@
 namespace sf4e { namespace ui {
 // What the list's Show row lists (ReplaySummaryText.hxx).
 enum class ReplayShow;
+enum class ReplaySort;
 struct ShellView;
-struct ShellAction;
 enum class Tone;
 
 // Ember's replay archive: the Replays list and what Select offers on a row
@@ -29,7 +33,7 @@ enum class Tone;
 class ReplaysPanel {
 public:
     using Submit = std::function<bool(ShellAction)>;
-    static bool Owns(const std::string& screen) { return screen == "replays" || screen == "replay-inputs" || screen == "replay-export" || screen == "replay-sets" || screen == "replay-set"; }
+    static bool Owns(const std::string& screen) { return screen == "replays" || screen == "replay-filter" || screen == "replay-inputs" || screen == "replay-export" || screen == "replay-sets" || screen == "replay-set"; }
     // Home, then the Replays screen: a replay link's question, and the way
     // back once the game's battle log returns to the main menu.
     static void Show(MenuNavigation& navigation) { navigation.Home(); navigation.Push("replays"); }
@@ -40,6 +44,10 @@ public:
         std::string detailFile;
         std::uint64_t detailRevision = 0;
     };
+    // Whether the fighter filter lists this native id (the card on the Sort and filter screen).
+    bool Ticked(int fighter) const { return (fighters_ >> fighter & 1) != 0; }
+    // The fighter a card on the Sort & filter screen names ("rf-<native id>"), if the id is one.
+    static std::optional<int> FilterFighter(const std::string& id);
     Wants Wanted(const std::string& screen) const;
     // Every frame, before the rows: a new replay link takes the menu to its
     // question, only with no room open; in a room it waits until it is left.
@@ -47,7 +55,7 @@ public:
     // Sets (replay-sets) lists the sets the archive holds, and a set's own
     // screen (replay-set) its games (platform/ReplaySets.hxx).
     void Update(const ShellView& view, const netplay::PlayerPreferences& saved, MenuNavigation& navigation, const Submit& submit);
-    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool idle, std::string& title) const;
+    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, const std::string& parent, bool idle, std::string& title) const;
     // True when the row was the panel's own. `error` is what the shell shows
     // when a request could not be queued.
     // `saved` is the shell's copy of the player's preferences, which an export's
@@ -72,6 +80,13 @@ public:
     // choices); on Export video the pane is the caption over a small screen.
     bool DrawCard(const ShellView& view, const MenuEntry& row, ImVec2 min, ImVec2 max) const;
     void DrawDetail(const ShellView& view, const std::string& screen, const std::string& id, MenuNavigation& navigation, const std::vector<MenuEntry>& rows) const;
+    // The player a chosen Find this player's sets stands for, when `action` is one on a replay's row.
+    std::optional<std::string> PlayerToFind(const ShellView& view, const MenuAction& action) const;
+    // The player a chosen Player card stands for, when `action` is one on a replay's row: by name, with the class the match was played in.
+    std::optional<player_opening::Opening> PlayerToOpen(const ShellView& view, const MenuAction& action) const;
+    // The set being watched, a game at a time (the Next game row): a set on this PC, or one a panel of
+    // the public archive filled, whose games are downloaded as they start.
+    WatchQueue& Queue() { return queue_; }
     // The replay file the Inputs and stats screen wants read, as its row named it.
     const std::string& InputsFile() const { return inputsFile_; }
     std::uint64_t InputsRevision() const { return inputsRevision_; }
@@ -81,7 +96,8 @@ private:
     void Watch(const ShellView& view, const std::string& path, bool meter, const Submit& submit, std::string& error);
     void OpenExport(const ShellView& view, const netplay::PlayerPreferences& saved, const platform::replays::ArchivedReplay& replay);
     void NextVideo(const ShellView& view, const netplay::PlayerPreferences& saved, MenuNavigation& nav);
-    void QueueSet(const platform::replays::ArchivedSet& set, bool exporting);
+    void QueueSet(const ShellView& view, const platform::replays::ArchivedSet& set, bool exporting);
+    void StartNext(const ShellView& view, const Submit& submit, std::string& error);
     bool Generate(const ShellView& view, const Submit& submit);
     // The replay the Inputs and stats screen is of, as its row was when it
     // was chosen. The lister hands over its match, summary and round logs;
@@ -96,7 +112,15 @@ private:
     bool meter_ = false;
     // The list's filter (ReplaySummaryText.hxx: ReplayShown): what Show lists,
     // and the Search text a player's or fighter's name must contain.
+    std::vector<const platform::replays::ArchivedReplay*> Shown(const ShellView& view) const;
+    std::vector<const platform::replays::ArchivedSet*> SetsShown() const;
+    void FilterRows(std::vector<MenuEntry>& rows) const;
+    void NoneShownRow(std::vector<MenuEntry>& rows, std::size_t before) const;
+    std::string FilterText() const;
     ReplayShow show_{}; // All
+    ReplaySort sort_{}; // Newest
+    std::uint64_t fighters_ = 0; // the fighters the filter lists, by native id as bits; 0 for any
+    int side_ = 0;               // which side they must be on: either, player 1, player 2
     std::string search_;
     // The archive's sets (ReplaySets.hxx), grouped when Update sees a new
     // listing. The listing is held beside them, as the sets' games point into it.
@@ -107,9 +131,8 @@ private:
     // The replay link last seen, so its question opens the Replays screen once.
     std::string linkSeen_;
     // Watch set: the set's games still to play, each started from the Next
-    // game row on Replays, and how many the set has.
-    std::vector<std::string> setQueue_;
-    std::size_t setGames_ = 0;
+    // game row on Replays.
+    WatchQueue queue_;
     // The queue makes videos (set-export), not watches. The game at its front
     // stays there until its video is made: Sent says its export was accepted
     // and its end is awaited (the export numbered sentExport_);
@@ -117,14 +140,19 @@ private:
     // Either way a refused or failed export leaves the game to the Next video row.
     // Only the end of the export sent counts, never another export's.
     enum class SetStep { Manual, Sent, Advance };
-    bool setExport_ = false;
     SetStep setStep_ = SetStep::Manual;
     std::uint64_t exports_ = 0, sentExport_ = 0;
     // The set whose games replay-set lists.
     std::string setShown_;
-    // A set pack was last asked for here (Save set pack, a pack link's Import):
+    // A set pack was last asked for here (Save set pack):
     // the status line has its answer once the notice count passes this one.
     bool setAsked_ = false;
     std::uint64_t setNoticeAsked_ = 0;
+    // The status line has the answer of the last batch of imported files (importSeen_) to give.
+    bool importAsked_ = false;
+    // Import replay: the game imports the files the picker, a drop or a link
+    // hands over, one queue for all three; this is the count of its batches
+    // already taken, so a new one brings its answer to the status line.
+    std::uint64_t importSeen_ = 0;
 };
 } }

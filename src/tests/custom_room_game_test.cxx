@@ -650,6 +650,8 @@ int wmain(int argc, wchar_t** argv) {
 				}
 				unsigned char inputs[2 * session::GgpoInputBytes] = {}; int disconnected = 0;
 				if (ggpo_synchronize_input(ggpo[i], inputs, sizeof(inputs), &disconnected) != GGPO_OK) return;
+				// GGPO runs: what the runtime tells the session (IrohMatchSession::StartTimeoutMs), so a long --frames run is not timed out.
+				matches[i]->GameRunning();
 				if (!player && frames[i] >= 2) {
 					for (std::size_t side = 0; side < 2; ++side) {
 						std::size_t sender = 0;

@@ -21,8 +21,9 @@ std::vector<std::string> ValueLabels(const std::string& id, const std::string& v
     if (value == loc::T("common.on") || value == loc::T("common.off")) return Words({"common.off", "common.on"});
     if (id == "hud-spacing") return Words({"spacing.normal", "spacing.raised"});
     if (id == "delay-policy") return Words({"room.delay_policy.shared", "room.delay_policy.own"});
-    if (id == "room-type") return Words({"room.type.classic", "room.type.arcade", "room.type.king"});
+    if (id == "room-type") for (const auto type : {room::RoomType::Classic, room::RoomType::Arcade, room::RoomType::King}) labels.push_back(RoomTypeName(type));
     if (id == "visibility") return Words({"public.visibility.private", "public.visibility.public"});
+    if (id == "privacy" || id == "room-privacy") return Words({"room.privacy.friends", "room.privacy.hidden"});
     if (id == "watched-picture" || id == "arrange-picture") return Words({"size.small", "size.large", "room.v2.picture_none"});
     if (id == "hud-size" || id == "picture-size") return Words({"size.small", "size.standard", "size.large"});
     if (id == "hud-layout") for (int i = 0; i <= 1; ++i) labels.push_back(MatchStripLayoutName(i));
@@ -39,7 +40,9 @@ std::vector<std::string> ValueLabels(const std::string& id, const std::string& v
     if (id == "time") for (int t : room::RoundTimes) labels.push_back(std::to_string(t));
     if (id == "set-length") for (int n = 0; n <= room::MaxSetLength; ++n) labels.push_back(SetLengthText(static_cast<room::SetFormat>(n)));
     if (id == "rotation") for (int r = 0; r <= 2; ++r) labels.push_back(RotationText(static_cast<room::RotationMode>(r)));
-    if (id == "replay-show") for (const char* key : kReplayShowKeys) labels.push_back(loc::T(key));
+    if (id == "rf-show") for (const char* key : kReplayShowKeys) labels.push_back(loc::T(key));
+    if (id == "rf-sort") for (const char* key : kReplaySortKeys) labels.push_back(loc::T(key));
+    if (id == "rf-side") for (const char* key : kReplaySideKeys) labels.push_back(loc::T(key));
     return labels;
 }
 }

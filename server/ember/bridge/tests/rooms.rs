@@ -67,6 +67,7 @@ async fn the_supervisor_must_be_a_loopback_address() {
         config.rooms = Some(config::Rooms {
             supervisor_url: refused.into(),
             skill_badges: false,
+            friends: false,
             developers: Vec::new(),
         });
         assert!(config.validate().is_err(), "{refused}");
@@ -79,6 +80,7 @@ async fn the_supervisor_must_be_a_loopback_address() {
         config.rooms = Some(config::Rooms {
             supervisor_url: accepted.into(),
             skill_badges: false,
+            friends: false,
             developers: Vec::new(),
         });
         assert!(config.validate().is_ok(), "{accepted}");

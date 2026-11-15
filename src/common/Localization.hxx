@@ -25,6 +25,10 @@ bool ValidPreference(std::string_view preference);
 std::string_view NextPreference(std::string_view preference, int delta);
 void SetActive(Locale locale);
 Locale Active();
+// Whether `count` takes a catalog's singular ("_one") string in the active
+// locale. French and Brazilian Portuguese say 0 in the singular too (CLDR's
+// "one" category); the others' catalogs word their counts so that only 1 is.
+bool SingularCount(unsigned long long count);
 const char* T(const char* id);
 const char* NativeName(Locale locale);
 const char* Tag(Locale locale);

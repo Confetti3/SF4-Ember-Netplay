@@ -1,6 +1,4 @@
-//! A sign-in from Ember on a bridge: Discord's, or a sign-in site's the
-//! bridge lists (Challonge, start.gg and any later one; optional, on bridges
-//! with the matching feature). The helper asks the bridge to start a sign-in
+//! A sign-in from Ember on a bridge (Discord's). The helper asks the bridge to start a sign-in
 //! with a proof and opens the site's page in the player's browser itself, so
 //! the game never handles the address. The player approves there, and the
 //! game reads the account until it appears.
@@ -25,9 +23,6 @@ pub(super) struct Routes {
     pub connect: Action,
     pub remove: Action,
     pub cancel: Action,
-    /// A sign-in the bridge started but whose page was not opened is ended
-    /// at once (best effort), so it holds none of the site's starts.
-    pub end_unopened: bool,
     /// Whether an address the bridge answers is the sign-in's own page, which
     /// is the only kind opened.
     pub is_sign_in_page: Box<dyn Fn(&str) -> bool + Send + Sync>,
@@ -40,28 +35,10 @@ pub async fn status(shared: &Arc<Shared>, bridge_id: &str, routes: &Routes) -> O
     Ok(Some(json!(connection)))
 }
 
-/// The player's organizer grant on the bridge: `organizer` is its scope and
-/// expiry, or null when none is held. The tokens never leave the bridge.
-pub async fn grant(shared: &Arc<Shared>, bridge_id: &str, routes: &Routes) -> Outcome {
-    #[derive(serde::Deserialize, serde::Serialize)]
-    struct Grant {
-        scope: String,
-        expires_at: u64,
-    }
-    #[derive(serde::Deserialize)]
-    struct Held {
-        organizer: Option<Grant>,
-    }
-    let call = BridgeCall::new(Verb::Get, &routes.account_path, &[200]);
-    let held: Held = client::request_as(shared, bridge_id, &call).await?;
-    Ok(Some(json!({ "organizer": held.organizer })))
-}
-
 /// Starts a sign-in and opens the site's page in the browser, if
 /// `Routes::is_sign_in_page` says it is the site's own; anything else the
 /// bridge answers is not opened. The account appears once the player finishes
-/// there; `status` reads it. The routes say whether a sign-in whose page
-/// was not opened is ended (`Routes::end_unopened`).
+/// there; `status` reads it.
 pub async fn connect(shared: &Arc<Shared>, bridge_id: &str, routes: &Routes) -> Outcome {
     let started = proven(
         shared,
@@ -77,13 +54,7 @@ pub async fn connect(shared: &Arc<Shared>, bridge_id: &str, routes: &Routes) -> 
         .filter(|started| (routes.is_sign_in_page)(&started.authorize_url))
         .ok_or_else(|| Failure::new(Code::BridgeInvalidResponse))
         .and_then(|started| browser::open(&started.authorize_url));
-    if let Err(failure) = opened {
-        if routes.end_unopened {
-            let _ = cancel(shared, bridge_id, routes).await;
-        }
-        return Err(failure);
-    }
-    Ok(Some(json!({ "opened": true })))
+    opened.map(|()| Some(json!({ "opened": true })))
 }
 
 /// Disconnects the player's account on the bridge.

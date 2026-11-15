@@ -22,6 +22,7 @@
 #include "sf4e__Game__Battle.hxx"
 #include "BuildIdentity.hxx"
 #include "sf4e__Platform.hxx"
+#include "../training/RemoteServer.hxx"
 #include "sf4e__Borderless.hxx"
 #include "sf4e__StartupLog.hxx"
 #include "sf4e__ReplayCapture.hxx"
@@ -222,6 +223,31 @@ void fD3D::CancelFrameShift() {
 
 int fD3D::LimitFrame(float frameDelta) {
     const unsigned long long previousExit = *rD3D::GetLastLimiterExit(this);
+    // A fast export (sf4e__ReplayCapture.hxx: Fast) plays as fast as the
+    // encoder takes its pictures, which holds the game (VideoLink.cxx: Send);
+    // SF4E_EXPORT_SPEED=N caps it at N times the game's own speed instead.
+    static const double exportSpeed = [] {
+        char value[16] = {};
+        const DWORD length = GetEnvironmentVariableA("SF4E_EXPORT_SPEED", value, sizeof(value));
+        const double speed = length > 0 && length < sizeof(value) ? atof(value) : 0.0;
+        if (speed > 1.0) spdlog::info("Video: fast exports capped at {:.2f} times the game's speed", speed);
+        return speed > 1.0 ? speed : 100.0;
+    }();
+    if (sf4e::replaycapture::Fast()) {
+        // Every frame drawn, none skipped: with a period shorter than any
+        // frame takes, each would count as late, and the limiter would skip
+        // drawing to catch up, so the video would lose pictures its sound has.
+        float* period = rD3D::GetFramePeriodSeconds(this);
+        const float saved = *period;
+        *period = (float)(saved / exportSpeed);
+        *rD3D::GetLimiterLateness(this) = 0.0f;
+        (this->*rD3D::privateMethods.LimitFrame)(frameDelta);
+        if (*period == (float)(saved / exportSpeed)) *period = saved;
+        *rD3D::GetLimiterLateness(this) = 0.0f;
+        *rD3D::GetLimiterSkips(this) = 0;
+        NoteFrame(previousExit, *rD3D::GetLastLimiterExit(this), (float)(saved / exportSpeed));
+        return 0;
+    }
     const int result = LimitPacedFrame(frameDelta);
     NoteFrame(previousExit, *rD3D::GetLastLimiterExit(this), *rD3D::GetFramePeriodSeconds(this));
     return result;
@@ -280,6 +306,8 @@ void fD3D::BuildPresentParameters() {
     sf4e::borderless::BeforePresentParameters(this, rMain::staticMethods.GetSingleton(), s_display.borderless);
     (this->*rD3D::privateMethods.BuildPresentParameters)();
     D3DPRESENT_PARAMETERS* parameters = rD3D::GetPresentParameters(this);
+    // A file picker would stay behind a game that owns the screen.
+    sf4e::NetplayFacade::NoteExclusiveFullScreen(!parameters->Windowed);
     if (parameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE) {
         s_vsyncForcedFrom = parameters->PresentationInterval;
         parameters->PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
@@ -298,6 +326,7 @@ void fD3D::RunScene_Render(void* sceneCommandList) {
 }
 
 void fD3D::Destroy() {
+    sf4e::training::remote::Stop();  // its threads must be over before the process ends
     sf4e::replaycapture::Release();
     Overlay::FreeOverlay();
     (this->*rD3D::privateMethods.Destroy)();

@@ -10,6 +10,7 @@
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/SpeechPreferenceJson.hxx"
+#include "../netplay/CardPreferenceJson.hxx"
 #include "../netplay/PublicRoomFilterJson.hxx"
 
 #include <algorithm>
@@ -361,8 +362,11 @@ namespace OverlayPrefs {
         netplay::WriteBoolPreferences(preferences, values);
         netplay::WriteButtonPrompts(preferences, values);
         netplay::WriteCountryPreference(preferences, values);
+        netplay::WriteAreaPreference(preferences, values);
         netplay::WriteSpeechPreferences(preferences, values);
+        netplay::WriteCardPreferences(preferences, values);
         netplay::WriteRoomFilter(preferences, values);
+        for (int part = 0; part < netplay::GameThemePartCount; ++part) values[netplay::GameThemeKeys[part]] = preferences.gameThemes[part];
         values["controllerMappings"] = preferences.controllerMappings;
         values["buttonLayouts"] = gamepads::LayoutsToJson(preferences.buttonLayouts);
         if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);

@@ -11,8 +11,11 @@
 #   ember_runtime       starts the netplay runtime or reads the overlay's
 #       settings: both open the player's settings.lock without sharing, and the
 #       runtime opens the fixed Local\SF4Ember* link mailboxes.
+#   d3d9_device         draws through a D3D9 device (the UI render sweeps). The
+#       driver reserves 32-bit address space for every texture size it is
+#       asked for, so two sweeps side by side run each other out of it.
 # Any other test's files, pipes and named objects carry a pid or random name.
-set(SF4E_TEST_LOCKS loopback_udp_ports ember_processes ember_runtime)
+set(SF4E_TEST_LOCKS loopback_udp_ports ember_processes ember_runtime d3d9_device)
 
 # Every test carries at least one label, so a retest can pick a family with
 # `ctest -L <label>` (or leave one out with -LE) instead of a name pattern. A

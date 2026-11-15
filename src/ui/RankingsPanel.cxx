@@ -5,6 +5,8 @@
 #include "NameMarks.hxx"
 #include "CountryFlag.hxx"
 #include "PublicRoomsPanel.hxx"
+#include "PlayerPage.hxx"
+#include "RowId.hxx"
 #include "SignInSites.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
@@ -101,16 +103,18 @@ void RankingsPanel::Update(const ShellView& v, const std::string& screen, const 
     // Rankings and its board are one visit: coming back from the board reads nothing again.
     if (owned && !Owns(lastScreen_)) { wantStanding_ = true; listingSent_ = false; }
     if (screen == BoardScreen && lastScreen_ != BoardScreen) wantBoard_ = true;
-    lastScreen_ = screen;
+    // A profile opened from a row is a step aside, not leaving: Back is the visit again, which reads nothing.
+    const bool aside = Owns(lastScreen_) && PlayerPage::Owns(screen);
+    if (!aside) lastScreen_ = screen;
     if (owned) { bridge_ = bridge; own_ = own; }
     // Leaving drops what was not asked yet; a choice already on its way is
     // still answered, and said, wherever the player is.
-    else { wantStanding_ = wantBoard_ = false; if (pending_ && !pending_->sent) pending_.reset(); }
+    else if (!aside) { wantStanding_ = wantBoard_ = false; if (pending_ && !pending_->sent) pending_.reset(); }
     TakeAnswers(v, owned);
+    if (aside) return;
     if (!owned) { ReadForProfile(v, bridge, submit); return; }
     if (bridge_.empty()) return;
-    ShellAction action;
-    action.command.generation = v.session.generation;
+    commands::Tournament action;
     if (pending_ && !pending_->sent) {
         // Beyond every identity the runtime has seen, so no earlier answer can pass for this one's.
         lastRequest_ = (std::max)({lastRequest_, status.chose, status.choosing}) + 1;
@@ -142,8 +146,7 @@ void RankingsPanel::ReadForProfile(const ShellView& v, const std::string& bridge
     std::string key = bridge + "\n" + v.identity.emberId;
     if (key == profileRead_ || status.choosing || status.standing.loading) return;
     if (status.bridge == bridge && status.emberId == v.identity.emberId && status.standing.loaded) { profileRead_ = std::move(key); return; }
-    ShellAction action;
-    action.command.generation = v.session.generation;
+    commands::Tournament action;
     action.tournament.op = Command::Op::RankingStanding;
     action.tournament.bridgeId = bridge;
     if (submit(std::move(action))) profileRead_ = std::move(key);
@@ -303,7 +306,9 @@ std::vector<MenuEntry> RankingsPanel::BoardRows(const ShellView& v) const {
         const auto& entry = (*board)[i];
         std::string detail = loc::Tf("class.tip", ClassName(entry.band));
         if (entry.listing.country.Present()) detail += "\n" + CountryName(entry.listing.country);
-        auto player = InfoRow("rkb-p:" + std::to_string(i), entry.listing.name, {}, std::move(detail));
+        // A board's player opens their profile.
+        auto player = Row("rkb-p:" + std::to_string(i), entry.listing.name, std::move(detail));
+        player.hint = loc::T("room.member_card");
         player.userText = true; player.detailText = DetailText::Name; player.height = PlayerHeight; player.valueHighlighted = entry.own;
         player.left = rows[headers.back()].id; player.key = i;
         rows.push_back(std::move(player));
@@ -332,6 +337,13 @@ bool RankingsPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
         return true;
     }
     return false;
+}
+
+std::optional<player_opening::Opening> RankingsPanel::PlayerOf(const ShellView& v, const MenuAction& a) const {
+    const auto at = RowKey<std::size_t>(a.id, "rkb-p:");
+    const auto* board = v.rankings.bridge == bridge_ && v.rankings.board.loaded ? v.rankings.board.value.get() : nullptr;
+    if (!at || !board || *at >= board->size()) return std::nullopt;
+    return player_opening::OpeningOf((*board)[*at]);
 }
 
 bool RankingsPanel::Shortcut(const MenuAction& a) {

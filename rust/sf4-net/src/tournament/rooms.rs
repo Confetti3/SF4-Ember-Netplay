@@ -11,6 +11,8 @@ use std::sync::Arc;
 
 use ember_protocol::{
     Error as ProtocolError,
+    api::ErrorCode,
+    area::Area,
     rooms::{
         BANNED, CreateRoom, INVALID_NAME, ROOM_FULL, ROOM_LIMIT, ROOM_LOCKED, ROOM_NOT_FOUND,
         ROOM_NOT_OPEN, RoomAdmission, RoomList, RoomSummary, TicketRequest, UNSUPPORTED_BUILD,
@@ -66,7 +68,7 @@ fn invalid_request() -> Failure {
 /// `own_delay_unsupported` and never retried as a room with the shared delay.
 fn create_failure(failure: Failure, own_delay: bool) -> Failure {
     match failure {
-        Failure::Bridge(code) if own_delay && code == "invalid_request" => {
+        Failure::Bridge(refusal) if own_delay && refusal.is(ErrorCode::InvalidRequest) => {
             Failure::new(Code::OwnDelayUnsupported)
         }
         other => other,
@@ -129,50 +131,82 @@ pub async fn list(shared: &Arc<Shared>, bridge_id: &str, build: &str) -> Outcome
 }
 
 /// The ticket request this helper makes for `build`, checked. The class and
-/// the developer mark are asked for only from a bridge that offers ranking:
-/// an older one refuses either field.
-fn ticket_request(endpoint_id: &str, build: &str, ranking: bool) -> Result<TicketRequest, Failure> {
+/// the developer mark are asked for only from a bridge that offers ranking,
+/// and the card token only from one that offers levels: an older one refuses
+/// any of those fields.
+fn ticket_request(
+    endpoint_id: &str,
+    build: &str,
+    offered: play::Features,
+) -> Result<TicketRequest, Failure> {
     let request = TicketRequest {
         endpoint_id: endpoint_id.to_owned(),
         build_id: build.to_owned(),
-        skill_badge: ranking,
-        developer_badge: ranking,
+        skill_badge: offered.ranking,
+        developer_badge: offered.ranking,
+        card: offered.levels,
     };
     request.check().map_err(|_| invalid_request())?;
     Ok(request)
 }
 
-/// Opens a room and takes its creator's ticket in one step. The room is
-/// placed in this helper's relay region when it has a known one. A room
-/// opened but not entered is closed by the supervisor, so a failed ticket
-/// needs no cleanup here.
-pub async fn create(
-    shared: &Arc<Shared>,
-    bridge_id: &str,
-    name: &str,
-    capacity: u8,
-    build: &str,
-    own_delay: bool,
-) -> Outcome {
+/// The room the game asks to open.
+pub struct Room<'a> {
+    pub name: &'a str,
+    pub capacity: u8,
+    pub build: &'a str,
+    pub own_delay: bool,
+    /// Where the creator plays from; none while it is hidden or not set.
+    pub area: Option<Area>,
+}
+
+/// The create this helper sends for `room`, checked, to a bridge that offers
+/// `offered`: `region` is this helper's home relay, and the area goes only to
+/// a bridge that reads it, since an older one refuses the field.
+fn create_command(
+    room: &Room<'_>,
+    region: Option<&str>,
+    offered: &play::Features,
+) -> Result<CreateRoom, Failure> {
     let command = CreateRoom {
-        name: name.to_owned(),
-        capacity,
-        build_id: build.to_owned(),
-        region: (shared.home_region)().map(str::to_owned),
-        own_delay,
+        name: room.name.to_owned(),
+        capacity: room.capacity,
+        build_id: room.build.to_owned(),
+        region: region.map(str::to_owned),
+        area: room.area.filter(|_| offered.room_area),
+        own_delay: room.own_delay,
     };
     command.check().map_err(|error| match error {
         ProtocolError::InvalidField("name") => Failure::new(Code::InvalidName),
         _ => invalid_request(),
     })?;
+    Ok(command)
+}
+
+/// Opens a room and takes its creator's ticket in one step. The room is
+/// given this helper's home relay when it has a known one, and the creator's
+/// area when the bridge reads it. A room opened but not entered is closed by
+/// the supervisor, so a failed ticket needs no cleanup here.
+pub async fn create(shared: &Arc<Shared>, bridge_id: &str, room: Room<'_>) -> Outcome {
+    let region = (shared.home_region)();
+    // Checked before any bridge is looked up, so a bad name is always one.
+    create_command(&room, region, &play::Features::default())?;
     // Nothing is opened that this helper could not then take a ticket for.
-    ticket_request(&shared.endpoint_id, build, false)?;
+    ticket_request(&shared.endpoint_id, room.build, play::Features::default())?;
+    // What the bridge offers, read once a run; a failed read asks as an
+    // older build would, without the area.
+    let bridge = client::approved(shared, bridge_id)?;
+    let offered = play::features(shared, &bridge, play::Need::Nothing)
+        .await
+        .unwrap_or_default();
+    let command = create_command(&room, region, &offered)?;
+    let own_delay = command.own_delay;
     let body = serde_json::to_vec(&command).map_err(|_| Failure::new(Code::Internal))?;
     let call = BridgeCall::new(Verb::Post, "/v1/rooms", &[201])
         .body(Body::Json(&body))
         .refusals(REFUSALS)
         .timeout(client::CREATE_TIMEOUT);
-    let room: RoomSummary = client::request_as(shared, bridge_id, &call)
+    let created: RoomSummary = client::request_as(shared, bridge_id, &call)
         .await
         .and_then(|room: RoomSummary| {
             let asked = room.name == command.name
@@ -194,7 +228,7 @@ pub async fn create(
         .map_err(|failure| create_failure(failure, own_delay))?;
     // A second session call, so a session that lapses between the two steps
     // renews without asking the bridge for another room.
-    admit(shared, bridge_id, &room.room_id, build).await
+    admit(shared, bridge_id, &created.room_id, room.build).await
 }
 
 /// The ticket and invitation for an open room.
@@ -206,16 +240,16 @@ pub async fn ticket(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build:
 
 /// Asks for the ticket and checks the admission before it is answered.
 async fn admit(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build: &str) -> Outcome {
-    ticket_request(&shared.endpoint_id, build, false)?;
+    ticket_request(&shared.endpoint_id, build, play::Features::default())?;
     let path = format!("/v1/rooms/{room_id}/tickets");
     let path = &path;
     client::with_session(shared, bridge_id, |bridge, token| async move {
         // What the bridge offers, read once a run; a failed read asks as
         // an older build would, which every bridge answers.
-        let ranking = play::features(shared, &bridge, play::Need::Nothing)
+        let offered = play::features(shared, &bridge, play::Need::Nothing)
             .await
-            .is_ok_and(|features| features.ranking);
-        let body = serde_json::to_vec(&ticket_request(&shared.endpoint_id, build, ranking)?)
+            .unwrap_or_default();
+        let body = serde_json::to_vec(&ticket_request(&shared.endpoint_id, build, offered)?)
             .map_err(|_| Failure::new(Code::Internal))?;
         let call = BridgeCall::new(Verb::Post, path, &[201])
             .body(Body::Json(&body))
@@ -264,7 +298,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::tournament::Request;
+    use crate::tournament::{Refusal, Request};
 
     fn request(value: Value) -> Request {
         serde_json::from_value(value).expect("a request")
@@ -279,11 +313,13 @@ mod tests {
         let list = json!({ "op": "room_list", "bridge_id": "brg_x", "build": "b1" });
         let create = json!({ "op": "room_create", "bridge_id": "brg_x", "name": "Friendly matches", "capacity": 8, "build": "b1" });
         let own = json!({ "op": "room_create", "bridge_id": "brg_x", "name": "Friendly matches", "capacity": 8, "build": "b1", "own_delay": true });
+        let placed = json!({ "op": "room_create", "bridge_id": "brg_x", "name": "Friendly matches", "capacity": 8, "build": "b1", "area": "oce" });
         let ticket = json!({ "op": "room_ticket", "bridge_id": "brg_x", "room_id": "0123456789abcdef0123456789abcdef", "build": "b1" });
         for (value, op) in [
             (list, "room_list"),
             (create, "room_create"),
             (own, "room_create"),
+            (placed, "room_create"),
             (ticket, "room_ticket"),
         ] {
             let parsed = request(value.clone());
@@ -303,6 +339,8 @@ mod tests {
             json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "build": "b" }),
             json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "capacity": 8, "build": "b", "own_delay": 1 }),
             json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "capacity": 8, "build": "b", "own_delay": "yes" }),
+            json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "capacity": 8, "build": "b", "area": "use1" }),
+            json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "capacity": 8, "build": "b", "area": "OCE" }),
             json!({ "op": "room_ticket", "bridge_id": "brg_x", "build": "b" }),
         ];
         for value in bad {
@@ -345,7 +383,7 @@ mod tests {
             "http_502",
         ] {
             assert_eq!(
-                create_failure(Failure::Bridge(code.into()), true).as_str(),
+                create_failure(Failure::Bridge(Refusal::Reason(code.into())), true).as_str(),
                 code
             );
         }
@@ -436,13 +474,81 @@ mod tests {
     }
 
     #[test]
+    fn a_create_carries_the_area_only_to_a_bridge_that_reads_it() {
+        let room = Room {
+            name: "Friendly matches",
+            capacity: 8,
+            build: "b1",
+            own_delay: false,
+            area: Some(Area::SouthAmerica),
+        };
+        let sent = |offered: play::Features, region| {
+            serde_json::to_value(create_command(&room, region, &offered).unwrap()).unwrap()
+        };
+        let older = sent(play::Features::default(), Some("use1"));
+        assert_eq!(
+            older,
+            json!({ "name": "Friendly matches", "capacity": 8, "build_id": "b1", "region": "use1" })
+        );
+        let reads = play::Features {
+            room_area: true,
+            ..play::Features::default()
+        };
+        let placed = sent(reads.clone(), Some("use1"));
+        assert_eq!(
+            (&placed["area"], &placed["region"]),
+            (&json!("sam"), &json!("use1"))
+        );
+        // A hidden area, or no known relay, leaves its field out.
+        let hidden = Room { area: None, ..room };
+        let command = create_command(&hidden, None, &reads).unwrap();
+        assert_eq!((command.area, command.region), (None, None));
+        // The name is checked whatever the bridge offers.
+        let unnamed = Room { name: "", ..hidden };
+        assert_eq!(
+            create_command(&unnamed, None, &reads).unwrap_err().as_str(),
+            "invalid_name"
+        );
+    }
+
+    #[test]
     fn a_ticket_asks_for_badges_only_from_a_bridge_that_offers_ranking() {
         let endpoint = "ab".repeat(32);
-        let older = serde_json::to_value(ticket_request(&endpoint, "b1", false).unwrap()).unwrap();
+        let ask = |offered| serde_json::to_value(ticket_request(&endpoint, "b1", offered).unwrap()).unwrap();
+        let older = ask(play::Features::default());
         assert_eq!(older, json!({ "endpoint_id": endpoint, "build_id": "b1" }));
-        let ranking = serde_json::to_value(ticket_request(&endpoint, "b1", true).unwrap()).unwrap();
+        let ranking = ask(play::Features {
+            ranking: true,
+            ..play::Features::default()
+        });
         assert_eq!(ranking["skill_badge"], json!(true));
         assert_eq!(ranking["developer_badge"], json!(true));
+        assert!(ranking.get("card").is_none());
+    }
+
+    #[test]
+    fn a_ticket_asks_for_a_card_token_only_from_a_bridge_that_lists_levels() {
+        let endpoint = "ab".repeat(32);
+        let ask = |offered| serde_json::to_value(ticket_request(&endpoint, "b1", offered).unwrap()).unwrap();
+        let levels = ask(play::Features {
+            levels: true,
+            ..play::Features::default()
+        });
+        assert_eq!(levels["card"], json!(true));
+        // The class and the mark are a different feature's fields.
+        assert!(levels.get("skill_badge").is_none() && levels.get("developer_badge").is_none());
+        let friends_only = ask(play::Features {
+            friends: true,
+            ..play::Features::default()
+        });
+        assert!(friends_only.get("card").is_none());
+        let both = ask(play::Features {
+            ranking: true,
+            levels: true,
+            ..play::Features::default()
+        });
+        assert_eq!(both["card"], json!(true));
+        assert_eq!(both["skill_badge"], json!(true));
     }
 
     #[test]

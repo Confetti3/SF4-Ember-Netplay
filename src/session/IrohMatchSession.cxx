@@ -145,9 +145,19 @@ bool IrohMatchSession::StartQueuedSetup() {
     // its link to P1 is up and that report has gone out.
     if (pendingStart_ && phase_ == Phase::Connecting && readySent_) {
         pendingStart_=false;
-        phase_=Phase::Started;
+        EnterStarted();
     }
     return true;
+}
+
+// Every way into Started: the links are up, and the start's own window opens
+// for the game to load the battle and run (StartTimeoutMs). It needs no room,
+// so a control outage does not suspend it.
+void IrohMatchSession::EnterStarted() {
+	phase_ = Phase::Started;
+	gameRunning_ = false;
+	deadlineSuspended_ = false;
+	deadline_ = Now() + StartTimeoutMs;
 }
 
 bool IrohMatchSession::AcceptGrant(const json& message) {
@@ -371,7 +381,7 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 				pendingConnect_=true;
 			} else if (type == "game_start" && phase_ == Phase::Connecting) {
 				if (!ControlReadyForSetup() || !readySent_) pendingStart_=true;
-				else phase_ = Phase::Started;
+				else EnterStarted();
 			}
 		} catch (const json::exception&) { return Fail("invalid_match_message"); }
 	}
@@ -467,7 +477,9 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 		if (waitingForProjection_ && !deadlineSuspended_ && now > deadline_) return Fail("match_setup_timeout");
 		return true;
 	}
-	if (phase_ != Phase::Started && !deadlineSuspended_ && now > deadline_) return Fail("match_setup_timeout");
+	const bool started = phase_ == Phase::Started;
+	if ((!started || !gameRunning_) && !deadlineSuspended_ && now > deadline_)
+		return Fail(started ? "match_start_timeout" : "match_setup_timeout");
 	if (phase_ == Phase::Preparing) {
 		const bool waiting = std::all_of(links_.begin(), links_.end(), [&](const Link& link) {
 			const auto state = GameOf(*room_, link.peer).state;

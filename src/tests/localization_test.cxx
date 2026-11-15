@@ -1,5 +1,6 @@
 #include "../common/Localization.hxx"
 #include "../launcher/update/UpdaterArguments.hxx"
+#include "../netplay/Awards.hxx"
 #include "../ui/Theme.hxx"
 #include "EmbeddedFonts.hxx"
 
@@ -260,7 +261,7 @@ int main(int argc, char** argv) {
     }
     // The room's error ids and the session client's stand in the catalogs, so a
     // failure the client reports is a sentence and never an internal code.
-    for (const char* id : {"runtime.room_request_failed", "runtime.build_mismatch", "room.catching_up", "room.control_recovering"})
+    for (const char* id : {"runtime.room_request_failed", "runtime.build_mismatch", "runtime.build_mismatch_update", "room.catching_up", "room.control_recovering"})
         for (std::size_t i = 0; i < count; ++i) CHECK(catalogs[i].count(id));
 
     // Names, room names and chat are drawn by the embedded fonts whatever the
@@ -286,6 +287,14 @@ int main(int argc, char** argv) {
         const auto extension = item.path().extension().string();
         if (extension == ".cxx" || extension == ".hxx" || extension == ".cpp" || extension == ".h")
             sources += Read(item.path());
+    }
+    // The award ids are joined from pieces by the table's macros and looked up by family (AwardIconName), so no source holds
+    // them whole: the table's own are what the code reads.
+    for (const auto& family : sf4e::netplay::awards::Catalog) {
+        const auto note = [&](const std::string& id) { sources += "\"" + id + "\""; };
+        note(family.name);
+        note(std::string("award.") + family.id + ".icon");
+        for (std::size_t i = 0; i < family.count; ++i) { note(family.levels[i].title); note(family.levels[i].how); }
     }
     const std::regex lookup("\\b(?:T|Tf)\\(\\s*\"([^\"]+)\"");
     for (std::sregex_iterator it(sources.begin(), sources.end(), lookup), end; it != end; ++it) {
@@ -316,5 +325,11 @@ int main(int argc, char** argv) {
         SetActive(Locale::En);
     }
     CHECK(std::string(Tag(Locale::PtBR)) == "pt-BR" && std::string(NativeName(Locale::Es419)) == "Español (Latinoamérica)");
+    // French and Brazilian Portuguese count 0 in the singular; English does not.
+    CHECK(SingularCount(1) && !SingularCount(0) && !SingularCount(2));
+    SetActive(Locale::Fr); CHECK(SingularCount(0) && SingularCount(1) && !SingularCount(2));
+    SetActive(Locale::PtBR); CHECK(SingularCount(0) && !SingularCount(2));
+    SetActive(Locale::De); CHECK(!SingularCount(0) && SingularCount(1));
+    SetActive(Locale::En);
     std::cout << "Localization resolution, parser, catalogs and formatting passed\n";
 }

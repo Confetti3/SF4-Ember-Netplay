@@ -7,7 +7,9 @@
 
 #include <nlohmann/json.hpp>
 
+#include "../netplay/Archive.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/Levels.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 
@@ -15,7 +17,8 @@
 // room_publish, game_prepare, game_report, match_leave, match_watch,
 // match_unwatch, assignment_list) and
 // to public room requests (room_list, room_create, room_ticket) and ranking
-// requests (ranking_standing, ranking_choose, ranking_board),
+// requests (ranking_standing, ranking_choose, ranking_board) and archive requests
+// (archive_list, archive_fetch),
 // held apart from the identity answers the Ember ID screens show. Each is
 // decoded completely into a typed reply, or not at all: a malformed answer
 // never reaches the state machine half-read.
@@ -50,5 +53,25 @@ std::optional<netplay::publicrooms::Admission> DecodeAdmission(const nlohmann::j
 // A ranking_standing or ranking_choose answer's standing, and a ranking_board answer's board.
 std::optional<netplay::rankings::Standing> DecodeStanding(const nlohmann::json& data);
 std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const nlohmann::json& data);
+
+// An archive_list answer's page: the games it lists, their tournament sets' scores, the filter's
+// choices and where the next page starts (netplay/Archive.hxx).
+std::optional<netplay::archive::Listing> DecodeArchivePage(const nlohmann::json& data);
+
+// A points_me answer's levels, and a cards_lookup answer's cards (one per
+// selector, in order; nullopt inside for a selector that found no card, or
+// whose card could not be read: one bad card never fails the answer). A card's
+// profile members (name, flag, class, main, since, worn, pins, style, versus,
+// friend) are each read on their own, and one that is missing or not
+// understood is left at the card's default. Points are checked for shape only
+// (unsigned numbers, fighters in the roster): how they relate is the bridge's
+// rule, a tier past this build's table is the last it draws, and a fighter
+// row that cannot be read is left out alone.
+std::optional<netplay::levels::Own> DecodeOwnLevels(const nlohmann::json& data);
+std::optional<std::vector<std::optional<netplay::levels::Card>>> DecodeCards(const nlohmann::json& data);
+// A cards_search answer: the players found (at most MaxSearch; a hit that cannot
+// be read is left out) and whether more matched. Nothing for an answer that has
+// no list. A card_save answer carries nothing to decode: its ok is the whole answer.
+std::optional<netplay::profiles::SearchAnswer> DecodeSearch(const nlohmann::json& data);
 
 } }

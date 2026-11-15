@@ -107,8 +107,8 @@ void ExportChoicesJourney() {
  // are focused directly (Prefer), so every change is made before it is sent.
  const auto saved=[&]{
   const auto sent=h.actions.size();h.Wait(1.f);
-  const auto at=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==netplay::CommandKind::SavePreferences;});
-  Check(at!=h.actions.rend()&&h.actions.size()>sent,"A caption choice was not saved");
+  const auto* at=Last<commands::SavePreferences>(h.actions);
+  Check(at&&h.actions.size()>sent,"A caption choice was not saved");
   h.view.preferences=at->preferences;h.Frame();return h.view.preferences;
  };
  const auto step=[&](const char* id,unsigned direction){h.shell.Navigation().Prefer(id);h.Frame();h.Press(direction);};
@@ -139,7 +139,8 @@ void ExportChoicesJourney() {
  h.FocusOn("cap-set2");h.Press(MenuInput::Right);h.Frame();
  Check(row("cap-set2").value=="1","Right no longer steps a side's wins");
  h.Choose("cap-generate");
- const auto& sent=h.actions.back().replay;
+ const auto* exported=As<commands::Replay>(h.actions.back());
+ const auto sent=exported?exported->replay:sf4e::replay::Request{};
  Check(sent.mode==replay::Mode::Export&&sent.caption.wins[0]==0&&sent.caption.wins[1]==1&&!sent.caption.line&&!sent.caption.mark&&sent.caption.set&&sent.meter,
   "Generate did not send the typed wins with the saved choices");
  // Set score turned off stays off, even for a replay with a set before it.
@@ -152,7 +153,7 @@ void ExportChoicesJourney() {
  Check(row("cap-names").value==loc::T("common.off"),"An export of unnamed players started with names on");
  // Left there changes nothing on screen, so it saves nothing for later exports.
  {const auto before=h.actions.size();step("cap-names",MenuInput::Left);h.Wait(1.f);
-  Check(std::none_of(h.actions.begin()+before,h.actions.end(),[](const ShellAction& a){return a.command.kind==netplay::CommandKind::SavePreferences;}),
+  Check(std::none_of(h.actions.begin()+before,h.actions.end(),[](const ShellAction& a){return Is<commands::SavePreferences>(a);}),
    "Left on Player names already off saved a choice");}
  SetMenuEntriesProbe({});
 }
@@ -165,9 +166,9 @@ void SetWatchJourney() {
  List(h,{last,first});h.view.replays.ready=true;
  h.Screen("replay-sets");
  auto sent=h.actions.size();h.Choose("set:C:\\r\\s2.emberreplay");h.Press(MenuInput::Select);
- Check(h.actions.size()==sent+1&&h.actions.back().replay.mode==replay::Mode::Watch&&h.actions.back().replay.path=="C:\\r\\s1.emberreplay","Watch set did not play the set's first game");
+ Check(h.actions.size()==sent+1&&Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==replay::Mode::Watch&&r.replay.path=="C:\\r\\s1.emberreplay";}),"Watch set did not play the set's first game");
  h.Screen("replays");sent=h.actions.size();h.Choose("set-next");
- Check(h.actions.size()==sent+1&&h.actions.back().replay.mode==replay::Mode::Watch&&h.actions.back().replay.path=="C:\\r\\s2.emberreplay","Next game did not play the set's second game");
+ Check(h.actions.size()==sent+1&&Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==replay::Mode::Watch&&r.replay.path=="C:\\r\\s2.emberreplay";}),"Next game did not play the set's second game");
 }
 }
 void ReplayJourneys() {
@@ -185,35 +186,90 @@ void ReplayJourneys() {
   Check(!h.shell.ReplayWants().listing&&!h.shell.ReplayWants().detail,"Home asked the replay workers for something");
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shownRows){rows=shownRows;});h.Screen("replays");
   Check(h.shell.ReplayWants().listing&&!h.shell.ReplayWants().detail,"The Replays screen did not ask for a listing");
-  Check(rows.size()==5&&rows[0].id=="replay-log"&&rows[1].id=="replay-folder"&&rows[2].id=="replay-show"&&rows[3].id=="replay-search","Replays retained settings above the list");
-  Check(rows[4].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay score and status separator wrong");
-  Check(rows[4].id=="replay:C:\\r\\a.emberreplay"&&rows[4].label==ReplayRowLabel(shown.label,shown.names,shown.fighters),"Replay row lost its file or its label");
+  Check(rows.size()==6&&rows[0].id=="replay-import"&&rows[1].id=="replay-log"&&rows[2].id=="replay-folder"&&rows[3].id=="replay-filter"&&rows[4].id=="replay-search","Replays retained settings above the list");
+  Check(rows[5].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay score and status separator wrong");
+  Check(rows[5].id=="replay:C:\\r\\a.emberreplay"&&rows[5].label==ReplayRowLabel(shown.label,shown.names,shown.fighters),"Replay row lost its file or its label");
   // The portraits show the fighters, so the label names the players: a noted name, else the fighter.
-  Check(rows[4].label==shown.label+"  "+loc::Tf("replays.fighters",std::string("Ann"),std::string(loc::T("common.unavailable"))),"Replay row label did not name its players");
-  Check(rows[4].Match()&&rows[4].fighter1==0&&rows[4].fighter2==-1,"Replay row did not carry its fighters for the portraits, or kept an unknown one");
+  Check(rows[5].label==shown.label+"  "+loc::Tf("replays.fighters",std::string("Ann"),std::string(loc::T("common.unavailable"))),"Replay row label did not name its players");
+  Check(rows[5].Match()&&rows[5].fighter1==0&&rows[5].fighter2==-1,"Replay row did not carry its fighters for the portraits, or kept an unknown one");
   Check(rows[0].fighter1==-1&&!rows[0].Match(),"A plain row drew portraits");
-  Check(rows[4].detail.find("LP ")==std::string::npos,"Replay list still duplicates input totals");
-  Check(rows[4].choices.size()==7&&rows[4].choices[0].id=="watch"&&rows[4].choices[1].id=="watch-meter"&&rows[4].choices[2].id=="add"&&rows[4].choices[3].id=="export"&&rows[4].choices[4].id=="inputs"&&rows[4].choices[5].id=="keep"&&rows[4].choices[6].id=="show-folder","Replay choice order wrong");
+  Check(rows[5].detail.find("LP ")==std::string::npos,"Replay list still duplicates input totals");
+  Check(rows[5].choices.size()==9&&rows[5].choices[0].id=="watch"&&rows[5].choices[1].id=="watch-meter"&&rows[5].choices[2].id=="add"&&rows[5].choices[3].id=="export"&&rows[5].choices[4].id=="inputs"&&rows[5].choices[5].id=="keep"&&rows[5].choices[6].id=="show-folder"&&rows[5].choices[7].id=="find-1"&&rows[5].choices[8].id=="card-1","Replay choice order wrong");
   // Show in folder asks the services for the row's own file, and its answer is the status line.
   {const auto sent=h.actions.size();h.Choose("replay:C:\\r\\a.emberreplay");for(int i=0;i<6;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
-   Check(h.actions.size()==sent+1&&h.actions.back().service==platform::ServiceAction::ShowReplayFile&&h.actions.back().servicePath=="C:\\r\\a.emberreplay"&&h.actions.back().replay.mode==sf4e::replay::Mode::None,"Show in folder did not ask for the replay's file");
+   Check(h.actions.size()==sent+1&&Is<commands::Service>(h.actions.back(),[](const commands::Service& s){return s.service==platform::ServiceAction::ShowReplayFile&&s.servicePath=="C:\\r\\a.emberreplay";}),"Show in folder did not ask for the replay's file");
    std::string status;Tone tone=Tone::Neutral;SetMenuStatusProbe([&](const char* text,Tone value){status=text;tone=value;});
    h.view.services.lastAction=platform::ServiceAction::ShowReplayFile;h.view.services.message="Opened C:\\r in Explorer.";h.view.services.succeeded=true;h.Frame();
    Check(status=="Opened C:\\r in Explorer."&&tone==Tone::Success,"Show in folder's answer was not the status");
    h.view.services.succeeded=false;h.view.services.message="Not opened.";h.Frame();
    Check(status=="Not opened."&&tone==Tone::Error,"Show in folder's failure was not an error");
    SetMenuStatusProbe({});h.view.services={};}
+  // Import replay is always listed, ahead of the list. With the picker unavailable (full screen) it is off and says why.
+  Check(!rows[0].enabled&&rows[0].detail==loc::T("replays.import_fullscreen"),"Import replay was offered where the picker cannot open");
+  // Select asks the services for the picker, and nothing more: the files it returns, files dropped on the
+  // window and a link's Import all go to one queue in the game, which says what they came to. The screen only
+  // shows the picker open, the files waiting for Ember's menus, and the batch's answer.
+  {h.view.services.canPickFiles=true;h.Frame();
+   Check(rows[0].enabled&&rows[0].detail==loc::T("replays.import_detail"),"Import replay was not offered where the picker can open");
+   const auto sent=h.actions.size();h.Choose("replay-import");
+   Check(h.actions.size()==sent+1&&Is<commands::Service>(h.actions.back(),[](const commands::Service& s){return s.service==platform::ServiceAction::PickReplays;}),"Import replay did not ask for the picker");
+   std::string status;Tone tone=Tone::Neutral;SetMenuStatusProbe([&](const char* text,Tone value){status=text;tone=value;});
+   h.view.services.picking=true;h.Frame();
+   Check(!rows[0].enabled&&status==loc::T("services.picking_replays")&&tone==Tone::Pending,"An open picker did not say so, or could be opened twice");
+   h.view.services.picking=false;h.Frame();
+   Check(rows[0].enabled&&h.actions.size()==sent+1,"The panel sent files to import itself");
+   // Files wait for Ember's menus (in a room or a match): the screen says how many, and never gives up on them.
+   h.view.replays.importWaiting=3;h.Frame();
+   Check(status==loc::Tf("replays.import_waiting",3)&&tone==Tone::Pending,"Files waiting for the menus were not said");
+   for(int frame=0;frame<2000;++frame)h.Frame();
+   Check(status==loc::Tf("replays.import_waiting",3),"Waiting files were given up on after a time");
+   // A batch begins (from any of the three ways in) and finishes: the game's notice is the answer, and a
+   // notice that was already there does not end it.
+   h.view.replays.importWaiting=0;h.view.replays.importBatches=1;h.view.replays.setNotices=7;h.Frame();
+   Check(status==loc::T("replays.set_pack_working"),"A batch that began was not shown as working");
+   h.view.replays.importFinished=1;h.view.replays.importNotice=loc::Tf("replays.import_done",5,2);h.view.replays.importNoticeError=false;h.Frame();
+   Check(status==loc::Tf("replays.import_done",5,2)&&tone==Tone::Success,"A batch that all went in was not reported");
+   // A set pack saved meanwhile is not the batch's answer, and does not end its wait.
+   h.view.replays.importBatches=2;h.view.replays.setNotices=8;h.Frame();
+   Check(status==loc::T("replays.set_pack_working"),"A set pack's notice ended an import batch's wait");
+   // The runtime begins and ends a one-file batch in one tick: the one snapshot has both counts moved, and the
+   // answer is shown, not waited for.
+   h.view.replays.importBatches=3;h.view.replays.importFinished=3;h.view.replays.importNotice=loc::T("replays.set_import_failed");h.view.replays.importNoticeError=true;h.Frame();
+   Check(status==loc::T("replays.set_import_failed")&&tone==Tone::Error,"A batch that began and ended in one snapshot was left on Working");
+   h.view.replays.importBatches=4;h.view.replays.importFinished=4;h.view.replays.importNotice=loc::Tf("replays.import_done",1,1);h.view.replays.importNoticeError=false;h.Frame();
+   Check(status==loc::Tf("replays.import_done",1,1)&&tone==Tone::Success,"A second batch that began and ended in one snapshot was not reported");
+   SetMenuStatusProbe({});h.view.services={};h.view.replays.importNoticeError=false;}
+  // A batch that begins while the player is elsewhere brings the Replays screen up, though not over a room's menu.
+  h.Screen("home");h.view.replays.importBatches=5;h.view.replays.importFinished=5;h.Frame();
+  Check(h.shell.Navigation().Screen()=="replays","A batch of dropped files did not open the Replays screen");
+  // The next request from the screen (here the picker again) takes the batch's answer off the status line.
+  h.view.services.canPickFiles=true;h.Frame();h.Choose("replay-import");h.view.services={};h.Frame();
   SetMenuEntriesProbe({});h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
-  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path=="C:\\r\\a.emberreplay","Watch now did not ask for the replay's file");
-  Check(!h.actions.back().replay.meter,"Watch now unexpectedly requested the frame meter");
+  Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::Watch&&r.replay.path=="C:\\r\\a.emberreplay";}),"Watch now did not ask for the replay's file");
+  Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return !r.replay.meter;}),"Watch now unexpectedly requested the frame meter");
   h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
-  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.meter,"Watch with frame meter did not request the meter");
+  Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::Watch&&r.replay.meter;}),"Watch with frame meter did not request the meter");
+  // A replay with no class noted draws nothing over the game; one with classes
+  // sends its names and classes to be drawn on the plates, while emblems show.
+  Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return !r.replay.caption.Any();}),"Watch drew a caption for a replay with no class");
+  {auto classed=shown;classed.names[0]="Player 1";classed.names[1]="Player 2";
+   classed.classes[0]=SkillBadge::OfClass(7,true);classed.classes[1]=SkillBadge::OfClass(10,true);List(h,{classed});
+   h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
+   Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){const auto& c=r.replay.caption;
+    return r.replay.mode==sf4e::replay::Mode::Watch&&c.names&&c.name[0]=="Player 1"&&c.name[1]=="Player 2"&&c.band[0]==7&&c.band[1]==10&&!c.line&&!c.set&&!c.mark;}),
+    "Watch did not send the replay's names and classes");
+   h.view.preferences.classEmblems=false;h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
+   Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::Watch&&!r.replay.caption.Any();}),"Watch drew classes the player hides");
+   h.view.preferences.classEmblems=true;List(h,{shown});}
   h.Screen("home");h.view.replays.link="D:\\x\\b.usf4replay";h.Frame();
   Check(h.shell.Navigation().Screen()=="replays","A replay link did not open the Replays screen");
+  // A replay file may be imported as a set pack is; Not now is last.
   h.Choose("replay-link");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
-  Check(h.actions.back().replay.mode==sf4e::replay::Mode::DismissLink&&h.actions.back().replay.path.empty(),"Not now did not dismiss the link");
+  Check(Is<commands::Replay>(h.actions.back(),[&](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::Import&&r.replay.path==h.view.replays.link;}),"Import did not ask for the link's replay file");
+  h.Choose("replay-link");h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+  Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::DismissLink&&r.replay.path.empty();}),"Not now did not dismiss the link");
   h.Choose("replay-link");h.Press(MenuInput::Select);
-  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==h.view.replays.link,"Play it did not ask for the link's file");
+  Check(Is<commands::Replay>(h.actions.back(),[&](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::Watch&&r.replay.path==h.view.replays.link;}),"Play it did not ask for the link's file");
   // The game's battle log came back to the main menu: Replays again, from Home.
   h.Screen("tab-player");h.shell.ShowReplays();h.Frame();
   Check(h.shell.Navigation().Screen()=="replays"&&h.shell.Navigation().Parent()=="home","Returning from the battle log did not show Replays over Home");
@@ -224,6 +280,10 @@ void ReplayJourneys() {
    Check(status=="Not added."&&tone==Tone::Error,"Replays did not show its failed request");
    h.Screen("home");Check(status!="Not added.","The replay notice showed outside Replays");
    SetMenuStatusProbe({});h.view.replays.notice.clear();h.view.replays.noticeError=false;h.Screen("replays");}
+  // A batch that begins while a room's menu is in front does not take it over; its files wait.
+  h.Screen("home");h.view.session.room=netplay::RoomState::Joined;h.view.replays.importBatches=6;h.view.replays.importFinished=6;h.Frame();
+  Check(h.shell.Navigation().Screen()!="replays","A batch took the room's menu");
+  h.view.session.room=netplay::RoomState::Idle;h.Frame();h.Screen("replays");
   // Export video opens the caption's screen; the set so far is counted from the two matches before, the line is the date and score, and Generate sends all of it.
   {auto third=Listed("C:\\r\\c.emberreplay","2026-10-06 21:40"),second=third,first=third;third.names[0]="A";third.names[1]="B";third.summary=sf4e::replayinputs::Summary{};third.summary->scored=true;third.summary->score[0]=2;third.summary->score[1]=1;third.summary->frames=161*60;third.time=3000;
    second=third;second.path=std::filesystem::u8path("C:\\r\\b.emberreplay");second.time=2500;second.summary->score[0]=0;second.summary->score[1]=2;
@@ -231,7 +291,8 @@ void ReplayJourneys() {
    h.view.replays.link.clear();List(h,{third,second,first});h.Screen("replays");h.Choose("replay:C:\\r\\c.emberreplay");for(int i=0;i<3;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
    Check(h.shell.Navigation().Screen()=="replay-export","Export video did not open the caption's screen");
    h.Choose("cap-mark");h.Press(MenuInput::Left);h.Frame();h.Choose("cap-generate");
-   const auto& sent=h.actions.back().replay;
+   const auto* exported=As<commands::Replay>(h.actions.back());
+   const auto sent=exported?exported->replay:sf4e::replay::Request{};
    Check(sent.mode==sf4e::replay::Mode::Export&&sent.path=="C:\\r\\c.emberreplay"&&sent.caption.names&&sent.caption.line&&!sent.caption.mark&&sent.caption.set,"Generate did not send the export with its caption");
    Check(sent.caption.wins[0]==1&&sent.caption.wins[1]==1&&sent.caption.text=="2026-10-06"&&sent.caption.name[0]=="A","The caption did not start from the replay and the set before it, with no score that tells the winner");
    Check(h.shell.Navigation().Screen()=="replays","Generate did not return to the Replays screen");
@@ -239,7 +300,7 @@ void ReplayJourneys() {
    // The export screen's Frame meter row goes with Generate, and is kept for the next export.
    h.Choose("replay:C:\\r\\c.emberreplay");for(int i=0;i<3;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
    h.FocusOn("cap-meter");h.Press(MenuInput::Right);h.Choose("cap-generate");
-   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Export&&h.actions.back().replay.meter,"Generate did not send the frame meter");
+   Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::Export&&r.replay.meter;}),"Generate did not send the frame meter");
    {std::vector<MenuEntry> page;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& e){page=e;});
     h.Choose("replay:C:\\r\\c.emberreplay");for(int i=0;i<3;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
     const auto meter=std::find_if(page.begin(),page.end(),[](const MenuEntry& e){return e.id=="cap-meter";});
@@ -259,7 +320,7 @@ void ReplayJourneys() {
     h.Press(MenuInput::Select);
     Check(h.actions.size()==sent&&!h.shell.Navigation().Confirming(),"Cancel focused first did not keep the export");
     h.FocusOn("export-cancel");h.Press(MenuInput::Select);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
-    Check(h.actions.size()==sent+1&&h.actions.back().replay.mode==sf4e::replay::Mode::CancelExport&&h.actions.back().replay.path.empty(),"Confirming Cancel export did not cancel it");
+    Check(h.actions.size()==sent+1&&Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==sf4e::replay::Mode::CancelExport&&r.replay.path.empty();}),"Confirming Cancel export did not cancel it");
     // Once the encoder closes the file, or is ending a cancelled one, there is nothing to cancel.
     h.view.replays.exportStage=sf4e::replay::ExportStage::Cancelling;h.Frame();
     Check(shownRows[0].value==loc::T("export.cancelling")&&!row("export-cancel"),"A cancelling export still offered Cancel");
@@ -270,6 +331,20 @@ void ReplayJourneys() {
     SetMenuEntriesProbe({});}}
   InputsJourney(h,true);
   InputsReplacementJourney(h);
+  // A choice that needs the main menu and no room says why it is unavailable, not only greys.
+  {std::vector<MenuEntry> shownRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& e){shownRows=e;});
+   const auto choice=[&](const char* id){
+    for(const auto& e:shownRows)if(e.id=="replay:C:\\r\\c.emberreplay")for(const auto& c:e.choices)if(c.id==id)return c;
+    Check(false,"A replay row's choice was not listed");return MenuChoice{};};
+   h.view.replays.link.clear();List(h,{Listed("C:\\r\\c.emberreplay","2026-10-06 21:40")});h.Screen("replays");
+   Check(choice("watch").enabled&&choice("watch").detail==loc::T("replays.watch_detail"),"Watch now was not offered at the main menu");
+   // Joining a room takes the menu to the room, so Replays is opened again over it.
+   h.view.session.room=netplay::RoomState::Joined;h.Frame();h.shell.Navigation().Push("replays");h.Frame();
+   Check(!choice("watch").enabled&&choice("watch").detail==loc::T("replays.open_log_room"),"Watch now in a room did not say to leave it");
+   Check(!choice("export").enabled&&choice("export").detail==loc::T("replays.open_log_room")&&choice("add").enabled&&choice("inputs").enabled,"A room left a choice without its reason, or greyed one that works there");
+   h.view.session.room=netplay::RoomState::Idle;h.view.replays.ready=false;h.Frame();
+   Check(!choice("watch").enabled&&choice("watch").detail==loc::T("replays.not_ready")&&!choice("add").enabled&&choice("add").detail==loc::T("replays.not_ready"),"Watch now in a match did not say it needs the main menu");
+   h.view.replays.ready=true;SetMenuEntriesProbe({});h.Frame();}
   // In a room the menu is the room's: a link waits there, and takes the menu once the room is left.
   h.view.replays.link.clear();h.Frame();h.Screen("home");
   h.view.session.room=netplay::RoomState::Joined;h.view.replays.link="D:\\x\\c.usf4replay";h.Frame();
