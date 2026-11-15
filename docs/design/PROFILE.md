@@ -150,7 +150,7 @@ both pages.
 | `card` | own tab 1 | Card | `ProfilePanel` + `PlayerCard.cxx` | Home's card, Home's Profile row |
 | `fighters` | own tab 2 | Fighters | `ProfilePanel` | a strip tile, LB / RB |
 | `sets` | own tab 3 (new) | Sets | `PlayerPage` (the archive list, own name) | All sets, a recent set's row's Y, LB / RB |
-| `friends` | own tab 4 | Friends · {requests} | `FriendsPanel` | LB / RB, Home's Profile row when requests wait, a request toast |
+| `friends` | own tab 4 | Friends · {requests} | `FriendsPanel` | LB / RB, Home's Friends row, Online play's Friends row, a room's More menu, the Notifications list, a request toast's View (`FRIENDS.md`, Client). Home's Profile row opens Card, always |
 | `awards` | own tab 5 | Awards | `ApplicationShell__Awards.cxx` | a family tile, LB / RB |
 | `card-edit` | page over Card | Edit card | Settings `PageOf` (`CardEdit`) | Y on Card, the Edit card button |
 | `card-pins` | page over Edit card (new) | Awards on card | Settings `PageOf` | Edit card's Awards on card row |
@@ -409,7 +409,7 @@ focus on it when it is enabled, else on the first strip tile.
 | none, they have a card | Add friend | `FriendRequest` with their card token and their name as label |
 | received (they asked you) | Accept request | `FriendRequest` with the token (the bridge accepts a mutual request) |
 | sent | Request sent (disabled; detail "Cancel it in Friends, Sent.") | - |
-| friend, in a joinable public room | Join their room | `FriendJoin` |
+| friend, in a joinable room (a public room, or a private room offered to you) | Join their room | `FriendJoin` |
 | friend, online, you can offer a room | Invite to my room | `FriendInvite` |
 | friend, otherwise | View sets | opens `player-sets` |
 | blocked (you blocked them) | Unblock (asks first) | `FriendUnblock` |
@@ -423,7 +423,7 @@ detail (1.6.0's rule):
 | Entry | Offered when | Detail when disabled |
 |---|---|---|
 | Add friend / Accept request / Request sent | not friends, not blocked | "Cancel it in Friends, Sent." |
-| Join their room | a friend in a joinable public room | the friend's room words |
+| Join their room | a friend in a joinable room (a public room, or a private room offered to you) | the friend's room words |
 | Watch | a friend fighting in a joinable public room | as the Friends tab |
 | Invite to my room | a friend, and you have a room to offer | `friends.invite_unavailable` |
 | View sets | always | - |
@@ -673,7 +673,10 @@ the others at 40 %; games under a tile at 13 px (was 12).
 1.6.0's layout, states, pages and navigation stand, with the changes under
 "The Panel card in its places". Waiting requests and invites are also listed
 in Notifications (the friends' notifications merge); the tab does not change
-for it. Hint bar: `A {row hint}`, `Y More`, `X Find a player`, `B Back`, `LB
+for it. Notifications also has a Friends row that opens the tab. A friend in a
+private room offered to the player is joined from the tab like one in a public
+room, and a friend in another game shows the game and has nothing to join
+(`FRIENDS.md`, Presence). Hint bar: `A {row hint}`, `Y More`, `X Find a player`, `B Back`, `LB
 RB Pages`.
 
 ## Awards tab (own)
@@ -685,7 +688,10 @@ left (above).
 ## Home, Toasts, Settings
 
 Unchanged from 1.6.0, except Home's Fighter select row, which the menu stream
-moves to the Card tab.
+moves to the Card tab, and Home's Friends row, after Online play, which opens
+the Friends tab (its value is the requests waiting, else the friends online).
+Home's Profile row opens Card. A request toast has three buttons, Accept, View
+and Later; View opens the Friends tab on that request.
 
 ## Hint bar, every screen
 
