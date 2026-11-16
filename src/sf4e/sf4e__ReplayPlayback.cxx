@@ -15,7 +15,9 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../common/BattlePause.hxx"
+#include "../common/ReplaySnapshotRing.hxx"
 #include "sf4e__Game__Battle__System.hxx"
+#include "sf4e__MementoGuards.hxx"
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "../training/CameraControl.hxx"
@@ -66,12 +68,13 @@ using fSystem = sf4e::Game::Battle::System;
 
 // Snapshots of the replay as it plays, one when the controls take it over and then one each s_snapEvery frames, so a
 // jump back loads the nearest one before the frame and plays on from it. The memento guard's ownership table holds
-// about 2000 payloads and a state takes about 60, so at most kMostSnaps are kept; when they are all taken every other
+// about 2000 payloads and a state takes about 90, so the ring is judged by the claims it holds (ReplaySnapshotRing.hxx), not by a count; when it is full every other
 // one is freed and the spacing doubles, which covers any round more coarsely instead of failing. The recorder's cursor is part
 // of a state (SaveState::Save takes the recorder), so loading one puts the playback back with the fighters.
-// A state never outlives its battle: CloseBattle frees them all.
+// A state never outlives its battle: CloseBattle frees them all. A state that cannot be taken or freed fails alone
+// (memento::OptionalScope): no netplay abort follows, and the replay plays on.
 struct Snap { int round = 0, frame = 0; fSystem::SaveState state; };
-constexpr int kFirstEvery = 120, kMostSnaps = 24;
+constexpr int kFirstEvery = 120;
 int s_snapEvery = kFirstEvery;
 std::vector<std::unique_ptr<Snap>> s_snaps;
 bool s_snapsBroken = false;
@@ -80,6 +83,7 @@ bool s_loadWaiting = false;
 int s_loadRound = 0, s_loadFrame = 0;
 
 void FreeSnaps(bool engineAlive) {
+	sf4e::memento::OptionalScope optional;
 	int n = 0;
 	for (auto& snap : s_snaps) {
 		if (snap->state.used) { if (engineAlive) fSystem::SaveState::Free(&snap->state); else fSystem::SaveState::Reclaim(&snap->state, "replay_snapshots", n); }
@@ -90,6 +94,7 @@ void FreeSnaps(bool engineAlive) {
 
 // Frees every other snapshot (the first of each kept) and doubles the spacing.
 void ThinSnaps() {
+	sf4e::memento::OptionalScope optional;
 	std::vector<std::unique_ptr<Snap>> kept;
 	for (std::size_t i = 0; i < s_snaps.size(); ++i) {
 		if (i % 2 == 0) kept.push_back(std::move(s_snaps[i]));
@@ -324,10 +329,13 @@ void sf4e::replayplayback::BeforeUpdate(Dimps::Game::Battle::System* system) {
 	// One when there is none at or before this frame in the round, then one each s_snapEvery frames after the last.
 	const Snap* before = BestSnap(recorder->round, frame);
 	if (before && frame - before->frame < s_snapEvery) return;
-	if (static_cast<int>(s_snaps.size()) >= kMostSnaps) ThinSnaps();
+	std::size_t held = 0, largest = 0;
+	for (const auto& each : s_snaps) { held += each->state.guardClaims; largest = (std::max)(largest, each->state.guardClaims); }
+	if (sf4e::replaysnaps::NeedsThinning(s_snaps.size(), held, largest)) ThinSnaps();
 	auto snap = std::make_unique<Snap>();
 	snap->round = recorder->round; snap->frame = frame;
-	if (!fSystem::SaveState::Save(&snap->state)) {
+	const bool saved = [&] { sf4e::memento::OptionalScope optional; return fSystem::SaveState::Save(&snap->state); }();
+	if (!saved) {
 		spdlog::warn("Camera: the replay could not be snapshotted at frame {}; jumps back restart the replay", frame);
 		s_snapsBroken = true; return;
 	}
