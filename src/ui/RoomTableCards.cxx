@@ -24,6 +24,16 @@ int SeatOf(const MenuChoice& offer) {
  return option?option->seat:-1;
 }
 
+// A quiet card's question: its answers share the two seats' span, the seats stand aside.
+void AnswerInSeats(TableCardLayout& at,std::size_t count,float s) {
+ if(!count)return;
+ const MenuRect span{at.seats[0].x0,at.seats[0].y0,at.seats[1].x1,at.seats[1].y1};
+ const float gap=table_card::Between*s,each=(span.x1-span.x0-(count-1)*gap)/count;
+ at.buttons.assign(count,span);
+ for(std::size_t i=0;i<count;++i){at.buttons[i].x0=span.x0+i*(each+gap);at.buttons[i].x1=at.buttons[i].x0+each;}
+ at.seats[0]=at.seats[1]={span.x1,span.y0,span.x1,span.y1};
+}
+
 // The buttons on a card's line: its offers that are not seats (Join queue,
 // Watch); on your own place what leaves it; while the card asks a question
 // (leaving a seat, ending the watched game), the question's answers.
@@ -319,7 +329,9 @@ void DrawTableCards(const RoomBoardFrame& f,const v2::Box& tables,const TableFlo
   const v2::Box b{at,ImVec2(at.x+cardWidth,at.y+floor.places.heights[n])};
   const auto buttons=CardButtonsOf(f,card,place);
   const auto words=CardWordsOf(f,card,buttons,b);
-  const auto layout=LayOutTableCard(floor.shape,words.input);
+  auto layout=LayOutTableCard(floor.shape,words.input);
+  // A quiet card has no line for buttons: a question on it (a watcher's seat that would end the view) is answered where its seats stand.
+  if(words.input.content.quiet&&buttons.kind==CardButtons::Kind::Question)AnswerInSeats(layout,buttons.choices.size(),f.s);
   // The offers that are seats, each in its seat's box.
   std::vector<std::pair<const MenuChoice*,v2::Box>> seats;
   for(const auto& offer:e.segments)
