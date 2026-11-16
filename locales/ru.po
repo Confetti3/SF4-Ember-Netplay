@@ -8728,12 +8728,6 @@ msgstr "Показать"
 msgid "room.v2.show_detail"
 msgstr "Разворачивает полностью."
 
-msgid "room.v2.copy_invite"
-msgstr "Приглашение"
-
-msgid "room.v2.copy_link"
-msgstr "Короткая ссылка"
-
 msgid "settings.room_show_members_detail"
 msgstr "Панель участников комнаты. Если она скрыта, столбец занимает чат, а если скрыты обе — столы на всю ширину."
 

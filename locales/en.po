@@ -1648,6 +1648,12 @@ msgstr "That invite has ended."
 msgid "friends.nothing_to_offer"
 msgstr "Your room can't be offered right now."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "Admission is Locked in this room. Set it to Open in Room settings to invite friends."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "This room is full."
+
 msgid "friends.busy"
 msgstr "Wait for the last request to finish."
 
@@ -3564,6 +3570,10 @@ msgid "room.copy_short_invitation"
 msgstr "Copy short link"
 msgid "room.copy_short_invitation.detail"
 msgstr "A short link for chat, kept by the Ember link service while the room is open."
+msgid "room.invite.detail"
+msgstr "Invite a friend, or copy a link or invitation to share."
+msgid "room.invite.more_friends"
+msgstr "More friends…"
 msgid "room.leaving"
 msgstr "Leaving room..."
 msgid "room.leave"
@@ -8318,6 +8328,9 @@ msgstr "EMBER · ONLINE · PUBLIC ROOM"
 msgid "room.v2.invitation_only"
 msgstr "Invitation only"
 
+msgid "room.v2.friends_can_join"
+msgstr "Friends can join"
+
 msgid "room.v2.listed"
 msgstr "Listed in Public rooms"
 
@@ -8377,12 +8390,6 @@ msgstr "Show"
 
 msgid "room.v2.show_detail"
 msgstr "Unfolds it to its full size."
-
-msgid "room.v2.copy_invite"
-msgstr "Invitation"
-
-msgid "room.v2.copy_link"
-msgstr "Short link"
 
 msgid "settings.room_show_members_detail"
 msgstr "The room board's Members panel. Hidden, Chat takes the column, or the tables the full width."

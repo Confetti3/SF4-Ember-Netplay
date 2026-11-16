@@ -77,6 +77,15 @@ struct Harness {
   if(!at()){std::string all;for(const auto& r:reached)all+=" "+r;throw std::runtime_error(std::string("Journey item not reachable: ")+id+" on "+shell.Navigation().Screen()+" focused "+shell.Navigation().Focus()+"; reached:"+all);}
  }
  void Choose(const char* id){FocusOn(id);Press(MenuInput::Select);}
+ // A choice of a popout row, as a player makes it: open the row, step down to the choice, select it.
+ void Pick(const char* row,const char* choice){
+  std::vector<MenuEntry> shown;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){shown=r;});Frame();SetMenuEntriesProbe({});
+  const auto entry=std::find_if(shown.begin(),shown.end(),[&](const MenuEntry& e){return e.id==row;});
+  if(entry==shown.end())throw std::runtime_error(std::string("Journey popout not offered: ")+row);
+  std::size_t at=0;while(at<entry->choices.size()&&entry->choices[at].id!=choice)++at;
+  if(at==entry->choices.size())throw std::runtime_error(std::string("Journey choice not offered: ")+choice+" by "+row);
+  Choose(row);for(std::size_t i=0;i<at;++i)Press(MenuInput::Down);Press(MenuInput::Select);
+ }
  void Screen(const char* id){shell.Navigation().Home();if(std::string(id)!="home")shell.Navigation().Push(id);Frame();}
 };
 // A room this player (member 1) has joined, with its tables numbered, and no

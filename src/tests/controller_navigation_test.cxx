@@ -945,7 +945,7 @@ void BoardTiesAndScrolls(){
  const MenuRect list{1220,90,1870,600};
  const auto add=[&](const std::string& id,MenuRect box,MenuRect clip){rows.push_back(Row(id,id,""));boxes.emplace_back(id,box,clip);};
  add("ready",{40,900,320,948},{});add("room-ultra",{331,900,610,948},{});add("options",{623,900,901,948},{});add("room-training",{914,900,1193,948},{});
- add("copy",{40,960,224,1008},{});add("copy-short",{232,960,416,1008},{});add("room-more",{428,960,805,1008},{});add("leave",{817,960,1193,1008},{});
+ add("invite",{40,960,416,1008},{});add("room-more",{428,960,805,1008},{});add("leave",{817,960,1193,1008},{});
  add("member-1",{1230,500,1860,550},list);add("member-2",{1230,560,1860,610},list);add("member-3",{1230,960,1860,1010},list);
  MenuNavigation nav;double time=0;
  const auto frame=[&](unsigned held){time+=.016;nav.Update({held,time},rows);for(const auto& b:boxes)nav.Place(std::get<0>(b),std::get<1>(b),std::get<2>(b));};
@@ -953,7 +953,7 @@ void BoardTiesAndScrolls(){
  frame(0);frame(0);
  Check(from("leave",MenuInput::Up)=="room-training"&&from("room-ultra",MenuInput::Down)=="room-more"&&from("options",MenuInput::Down)=="room-more",
   "A tie between two buttons went to the earlier rather than the one more squarely that way");
- Check(from("ready",MenuInput::Down)=="copy"&&from("room-training",MenuInput::Down)=="leave","A button under another lost to its neighbour");
+ Check(from("ready",MenuInput::Down)=="invite"&&from("room-training",MenuInput::Down)=="leave","A button under another lost to its neighbour");
  Check(from("leave",MenuInput::Right)=="leave","Right from the bar's end reached a member scrolled out of sight");
  Check(from("member-1",MenuInput::Down)=="member-2"&&from("member-2",MenuInput::Down)=="member-3","The list's own rows lost their hidden next one");
 }

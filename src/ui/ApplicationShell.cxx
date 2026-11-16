@@ -245,7 +245,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="training"){
   rows=TrainingSelectRows(v,title);
  }else if(screen=="discord-invitation"){
-  title=loc::T("discord.invitation_title");rows={Row("invite-cancel",loc::T("discord.cancel_invitation"),loc::T("discord.cancel_invitation_detail"))};
+  // A friend's invitation is titled by the friend, in words the header keeps (a title in capitals gives way to the screen's name, Discord invitation).
+  title=v.discordFriend?loc::Tf("friends.toast_invite",v.discordFriendName):loc::T("discord.invitation_title");rows={Row("invite-cancel",loc::T("discord.cancel_invitation"),loc::T("discord.cancel_invitation_detail"))};
   if(v.discordConfirm)rows.push_back(ConfirmRow("invite-switch",loc::T("discord.switch_room"),v.discordCanSwitch?loc::T("discord.switch_room_detail"):loc::T("discord.wait_game"),v.discordCanSwitch));
   else rows.push_back(Row("invite-wait",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail"),false));
  }else if(screen=="developer"&&developer){
@@ -655,8 +656,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowError(v.readyFailure);
  }
  // An invitation is a toast (Join opens its screen), and a row on Home while it waits: it never takes the player off what they were doing.
+ // A friend's was answered on its own toast (Join), so it speaks again only to ask before it leaves a room or a game, and in the friend's words.
  if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;
-  Say(loc::T("discord.invitation_notice"),Tone::Pending,30,ToastKind::Invitation,{{loc::T("toast.join"),"discord-invitation","invite-switch"},{loc::T("updates.launch_later")}});}
+  if(!v.discordFriend||v.discordConfirm)Say(v.discordFriend?loc::Tf("friends.toast_invite",v.discordFriendName):std::string(loc::T("discord.invitation_notice")),Tone::Pending,30,ToastKind::Invitation,{{loc::T("toast.join"),"discord-invitation","invite-switch"},{loc::T("updates.launch_later")}});}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  // A replay link takes the menu to its question only with no room: in a room the menu is the room's, and the link waits until it is left.
  replays_.Update(v,preferences_,nav,submit);

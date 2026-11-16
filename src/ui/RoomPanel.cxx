@@ -9,6 +9,7 @@
 #include "RoomFeedback.hxx"
 #include "RoomControls.hxx"
 #include "RoomCards.hxx"
+#include "RoomInvite.hxx"
 #include "RowId.hxx"
 #include "LatencyMark.hxx"
 #include "FighterSelector.hxx"
@@ -404,8 +405,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  }else rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
  if(pictureOnBoard_)rows.push_back(Row("room-hide-picture",loc::T("room.v2.hide_picture"),loc::T("room.v2.hide_detail"),v.CanEditRoomSettings()));
  // The action bar: Ready and the Ultra when seated, the table options (Y),
- // Training, the invitation's two copy buttons side by side, More…, the
- // asking rows, then Leave room last.
+ // Training, Invite, More…, the asking rows, then Leave room last.
  if(s.roomEpoch&&c.place.kind==Place::Kind::Seat){
   const auto ready=DescribeReady(v,s.tables[c.place.table],c.place.seat);
   // A bar button is a few words wide, so Unready drops its "unlock fighter", as on the card's strip.
@@ -434,10 +434,11 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // The tournament's own room is never shared, from its first claim: the window
  // before its binding lands has no tournament snapshot yet.
  if(!c.tournamentRoom&&!s.serverOwned&&!v.tournament.MatchRoomActive()){
-  rows.push_back(Row("copy",loc::T("room.copy_invitation"),loc::T("room.copy_invitation.detail"),!v.invitation.empty()));
-  // Once made, the detail shows the link itself so it can be read out.
-  rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
-   v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
+  // One button: the friends to invite now, and the two ways to hand a link out (room_invite::ChoicesOf).
+  MenuEntry invite=Row("invite",loc::T("friends.invite"),loc::T("room.invite.detail"));invite.popout=true;
+  invite.choices=room_invite::ChoicesOf(v,friends_.Gates(v));
+  invite.enabled=std::any_of(invite.choices.begin(),invite.choices.end(),[](const MenuChoice& choice){return choice.enabled;});
+  rows.push_back(std::move(invite));
  }
  // More… (a popout): a public room's link, the controllers and the room's
  // settings, then the board's parts as switches, which Select flips and More…

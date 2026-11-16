@@ -8728,12 +8728,6 @@ msgstr "Pokaż"
 msgid "room.v2.show_detail"
 msgstr "Rozwija do pełnego rozmiaru."
 
-msgid "room.v2.copy_invite"
-msgstr "Zaproszenie"
-
-msgid "room.v2.copy_link"
-msgstr "Krótki link"
-
 msgid "settings.room_show_members_detail"
 msgstr "Panel Uczestnicy w pokoju. Gdy jest ukryty, czat zajmuje kolumnę, a gdy oba są ukryte, stoły zajmują całą szerokość."
 

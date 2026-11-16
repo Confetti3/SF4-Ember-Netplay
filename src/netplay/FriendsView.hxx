@@ -36,6 +36,8 @@ struct View {
 	std::uint64_t refusals = 0;
 	// The player's room can be offered to a friend now (public or private).
 	bool canInvite = false;
+	// What keeps it from being offered; read only while `canInvite` is off.
+	OfferBlock cannotInvite = OfferBlock::Other;
 	// Syncing at the tab's cadence (Visit sent, Leave not).
 	bool visiting = false;
 

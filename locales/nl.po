@@ -8728,12 +8728,6 @@ msgstr "Tonen"
 msgid "room.v2.show_detail"
 msgstr "Klapt het weer helemaal uit."
 
-msgid "room.v2.copy_invite"
-msgstr "Uitnodiging"
-
-msgid "room.v2.copy_link"
-msgstr "Korte link"
-
 msgid "settings.room_show_members_detail"
 msgstr "Het paneel Leden op het kamerbord. Verborgen neemt Chat de kolom, of de tafels de volle breedte."
 

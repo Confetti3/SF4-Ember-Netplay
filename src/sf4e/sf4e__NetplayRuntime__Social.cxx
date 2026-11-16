@@ -286,7 +286,7 @@ void GoToFriend(const std::string& bridge, const friends::Destination& where, bo
 		std::string party;
 		std::uint64_t expires = 0;
 		if (!discord::TicketMetadata(where.secret, party, expires)) { runtime->error = loc::T("discord.invitation_invalid"); return; }
-		runtime->discordInvite.OfferFromFriend(where.secret, party, expires, generation, busy);
+		runtime->discordInvite.OfferFromFriend(where.secret, party, expires, generation, busy, where.name);
 		spdlog::info("Friends: invitation {}", busy ? "waits for an answer" : "pending");
 		return;
 	}
@@ -548,6 +548,7 @@ friends::View FriendsStatus() {
 	if (!view.refusal.empty()) view.refusalText = loc::T(RefusalKey(view.refusal));
 	view.refusals = requests.Refusals();
 	view.canInvite = runtime->friendsCanInvite;
+	view.cannotInvite = runtime->friendsPresence.offer.why;
 	view.visiting = requests.Visiting();
 	const auto& visit = runtime->friendVisit;
 	view.visit.active = visit.Active();
