@@ -54,7 +54,7 @@ std::string DPadKey(const char* direction) { return std::string("D-pad ") + dire
 // The loop chip: its name and what the marks say.
 std::string LoopLabel(const ReplayHudView& view) {
     const char* state = view.seek.loop == replaytransport::LoopPhase::Looping ? "A-B" : view.seek.loop == replaytransport::LoopPhase::MarkedA ? "A" : nullptr;
-    return loc::T("replays.controls.loop") + " " + (state ? std::string(state) : loc::T("common.off"));
+    return std::string(loc::T("replays.controls.loop")) + " " + (state ? std::string(state) : std::string(loc::T("common.off")));
 }
 // The timeline: the track, what no seek reaches dimmed, the played part, the
 // loop's marks and span, and the position over the whole length beside it.
