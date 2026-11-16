@@ -165,9 +165,12 @@ inline int GameFrames(const Script& script, float at, int to) {
     int frames = 0;
     for (; at < to; ++frames) {
         if (frames >= 4096) return -1;
+        // Each pass either ends the frame or moves on to the next speed change, so a speed
+        // too large to take anything off `left` (past 1e16) cannot go round for ever.
+        std::size_t passes = 0;
         for (float left = 1; left > 0;) {
             const float step = SpeedAt(script, at);
-            if (!(step > 0)) return -1;
+            if (!(step > 0) || ++passes > script.speeds.size() + 1) return -1;
             float next = 1e9f;
             for (const auto& speed : script.speeds) if (speed.from > at && speed.from < next) next = static_cast<float>(speed.from);
             if (at + step * left <= next) { at += step * left; break; }
