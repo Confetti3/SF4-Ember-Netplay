@@ -216,6 +216,22 @@ struct SteamGame {
 	const wchar_t* exeFolder;
 };
 
+// The mark a link wears on Home. The interface maps each to what draws it.
+enum class LinkMark { Discord, Coffee, Ember, Twitter };
+
+// One of a product's outbound links. `address` is what the browser opens as
+// https://<address> and what the rows name; `label` and `detail` are catalog
+// ids, `detail` taking the address as {0}. A product's table lists them in
+// the order Help & About lists them and Home's header draws them, and ends
+// with {nullptr, ...} (ProductIdentity::links).
+struct Link {
+	const char* id;
+	const char* address;
+	LinkMark mark;
+	const char* label;
+	const char* detail;
+};
+
 struct ProductIdentity {
 	Branding branding;
 
@@ -290,6 +306,11 @@ struct ProductIdentity {
 	// A product's build sets it (SFV Ember's: cmake/ember-x64-probe
 	// EMBER_ACCOUNT_SERVICE), so a test build can name a staging or local one.
 	const char* accountService = nullptr;
+
+	// The product's outbound links (Link), ending with a Link whose id is
+	// null. Null, or a table that names none, is a product with no links: the
+	// shell draws no link button and lists no link row (platform/Links.hxx).
+	const Link* links = nullptr;
 };
 
 const ProductIdentity& Product();

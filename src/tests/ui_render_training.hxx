@@ -35,7 +35,7 @@ void CheckHomeRendering(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& v
             std::vector<std::string> expected=controllerReady
                 ?std::vector<std::string>{"online","friends","profile","settings","training","offline","replays","news","card"}
                 :std::vector<std::string>{"player","online","friends","profile","settings","training","offline","replays","news","card"};
-            for(const auto& link:platform::Links)expected.push_back(std::string("link-")+link.id);
+            for(const auto& link:platform::Links())expected.push_back(std::string("link-")+link.id);
             Require(homeRows.size()==expected.size(),"Home row count wrong");
             for(std::size_t i=0;i<expected.size();++i)Require(homeRows[i].id==expected[i],"Home row order wrong");
             for(const auto& row:homeRows) {

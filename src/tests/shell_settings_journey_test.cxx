@@ -351,7 +351,7 @@ void InterfaceSizeBelowOne() {
 }
 }
 // Each journey owns a Harness and with it the ImGui context, so they run one after another.
-// Ember's links (platform::Links): Help & About lists them in the table's order after the problem report, and
+// Ember's links (platform::Links()): Help & About lists them in the table's order after the problem report, and
 // each asks for its own link; Home's corner draws them as icons at the right of the brand's band where the window
 // has the room. The list wraps as it always did with them drawn; they belong to the aside with the player's card,
 // so Up from the card reaches them, Left and Right stay among them and Down returns to the card. A narrow window
@@ -368,13 +368,13 @@ void EmberLinks() {
  {
   Harness h; Drawn drawn; h.Screen("tab-about/about"); h.Frame(0, 3);
   const auto at = std::find_if(drawn.rows.begin(), drawn.rows.end(), [](const MenuEntry& e) { return e.id == "problem-report"; }) - drawn.rows.begin();
-  bool ordered = at + static_cast<std::ptrdiff_t>(Links.size()) + 1 < static_cast<std::ptrdiff_t>(drawn.rows.size());
-  for (std::size_t i = 0; ordered && i < Links.size(); ++i) {
+  bool ordered = at + static_cast<std::ptrdiff_t>(Links().size()) + 1 < static_cast<std::ptrdiff_t>(drawn.rows.size());
+  for (std::size_t i = 0; ordered && i < Links().size(); ++i) {
    const MenuEntry& e = drawn.rows[static_cast<std::size_t>(at) + 1 + i];
-   ordered = e.id == row(Links[i]) && e.confirm && e.label == loc::T(Links[i].label) && e.detail == loc::Tf(Links[i].detail, Links[i].address);
+   ordered = e.id == row(Links()[i]) && e.confirm && e.label == loc::T(Links()[i].label) && e.detail == loc::Tf(Links()[i].detail, Links()[i].address);
   }
-  Check(ordered && drawn.rows[static_cast<std::size_t>(at) + 1 + Links.size()].id == "version", "Help & About does not list Ember's links in the table's order after the problem report");
-  for (const auto& link : Links) {
+  Check(ordered && drawn.rows[static_cast<std::size_t>(at) + 1 + Links().size()].id == "version", "Help & About does not list Ember's links in the table's order after the problem report");
+  for (const auto& link : Links()) {
    const auto before = h.actions.size();
    h.FocusOn(row(link).c_str()); h.Press(MenuInput::Select);
    Check(h.actions.size() == before, "A link opened before it was confirmed");
@@ -389,13 +389,13 @@ void EmberLinks() {
  {
   Harness h; Drawn drawn; h.Screen("home"); h.Frame(0, 3);
   bool placed = true;
-  for (std::size_t i = 0; i < Links.size(); ++i) {
-   const auto id = row(Links[i]);
+  for (std::size_t i = 0; i < Links().size(); ++i) {
+   const auto id = row(Links()[i]);
    placed = placed && drawn.Shown(id.c_str()) && drawn.Row(id.c_str());
-   if (i) placed = placed && drawn.boxes[id].first.x > drawn.boxes[row(Links[i - 1])].second.x && drawn.Centre(id.c_str()).y == drawn.Centre(row(Links[0]).c_str()).y;
+   if (i) placed = placed && drawn.boxes[id].first.x > drawn.boxes[row(Links()[i - 1])].second.x && drawn.Centre(id.c_str()).y == drawn.Centre(row(Links()[0]).c_str()).y;
   }
-  Check(placed && drawn.Row("online") && drawn.boxes[row(Links.back())].second.y <= drawn.boxes["online"].first.y, "Home does not draw the links as a row of icons over the list");
-  Check(drawn.boxes[row(Links.back())].second.x > ImGui::GetIO().DisplaySize.x * .6f, "Home's links are not at the right of the band");
+  Check(placed && drawn.Row("online") && drawn.boxes[row(Links().back())].second.y <= drawn.boxes["online"].first.y, "Home does not draw the links as a row of icons over the list");
+  Check(drawn.boxes[row(Links().back())].second.x > ImGui::GetIO().DisplaySize.x * .6f, "Home's links are not at the right of the band");
   // The list wraps as it always did: Up from the top to the last row, Down from it to the top.
   h.shell.Navigation().Prefer("online"); h.Frame(0, 2);
   h.Press(MenuInput::Up);
@@ -407,15 +407,15 @@ void EmberLinks() {
   h.Press(MenuInput::Down);
   Check(h.shell.Navigation().Focus() == "card", "Down from the card left it");
   h.Press(MenuInput::Up);
-  Check(h.shell.Navigation().Focus() == row(Links[0]), "Up from the card did not reach the first link");
+  Check(h.shell.Navigation().Focus() == row(Links()[0]), "Up from the card did not reach the first link");
   h.Press(MenuInput::Up);
-  Check(h.shell.Navigation().Focus() == row(Links[0]), "Up from a link left the links");
+  Check(h.shell.Navigation().Focus() == row(Links()[0]), "Up from a link left the links");
   h.Press(MenuInput::Left);
-  Check(h.shell.Navigation().Focus() == row(Links[0]), "Left from the first link left the links");
+  Check(h.shell.Navigation().Focus() == row(Links()[0]), "Left from the first link left the links");
   h.Press(MenuInput::Right); h.Press(MenuInput::Right);
-  Check(h.shell.Navigation().Focus() == row(Links[2]), "Right did not walk along the links");
+  Check(h.shell.Navigation().Focus() == row(Links()[2]), "Right did not walk along the links");
   for (int i = 0; i < 5; ++i) h.Press(MenuInput::Right);
-  Check(h.shell.Navigation().Focus() == row(Links.back()), "Right left the links at their end");
+  Check(h.shell.Navigation().Focus() == row(Links().back()), "Right left the links at their end");
   h.Press(MenuInput::Down);
   Check(h.shell.Navigation().Focus() == "card", "Down from a link did not return to the card");
   const auto before = h.actions.size();
@@ -425,7 +425,7 @@ void EmberLinks() {
  {
   Harness h; Drawn drawn; h.imgui.io.DisplaySize = ImVec2(700, 960); h.Screen("home"); h.Frame(0, 3);
   bool any = false;
-  for (const auto& link : Links) any = any || drawn.Row(row(link).c_str()) || drawn.boxes.count(row(link));
+  for (const auto& link : Links()) any = any || drawn.Row(row(link).c_str()) || drawn.boxes.count(row(link));
   Check(!any && drawn.Row("online"), "A narrow window drew or placed Home's corner links");
   for (int i = 0; i < 12; ++i) h.Press(MenuInput::Up);
   Check(h.shell.Navigation().Focus().compare(0, 5, "link-") != 0, "The pad reached a link the narrow window does not draw");

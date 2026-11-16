@@ -419,14 +419,17 @@ public:
         // The account linked to the Ember ID leads: ranked games, points, friends, shared replays and tournaments need it, and
         // it may not be the one in the Discord app. The community server is the last row, as About opens it.
         auto account = s.identity_.DiscordAccountRow(s.identity_.Discord(v), v);
-        auto community = LinkRow(*platform::FindLink("discord"), v.services, loc::T("discord.server"));
+        // A product that names no Discord link ends the page without it.
+        Entries rows;
+        rows.push_back(std::move(account));
         // Activity and invitations are the Discord companion's; a product
         // without one (ProductIdentity::discordExe) has only the account and the server.
-        if (!ember::Product().discordExe[0]) return {std::move(account), std::move(community)};
-        return {std::move(account),
-            OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences),
-            OnOffValue(p, "invites", loc::T("discord.allow_invitations"), p.discordPresence ? loc::T("discord.invitation_detail") : loc::T("discord.enable_first"), v.canEditPreferences && p.discordPresence),
-            std::move(community)};
+        if (ember::Product().discordExe[0]) {
+            rows.push_back(OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences));
+            rows.push_back(OnOffValue(p, "invites", loc::T("discord.allow_invitations"), p.discordPresence ? loc::T("discord.invitation_detail") : loc::T("discord.enable_first"), v.canEditPreferences && p.discordPresence));
+        }
+        if (const platform::Link* discord = platform::FindLink("discord")) rows.push_back(LinkRow(*discord, v.services, loc::T("discord.server")));
+        return rows;
     }
     // The setting's pane says what a report holds; Select reads it in full.
     static Entries Reports(Shell& s, const ShellView& v) {
@@ -476,7 +479,7 @@ public:
                 s.launchCheckSaveError_.empty() ? std::string(loc::T("settings.update_check_detail")) : s.launchCheckSaveError_)};
         // Ember's links follow the report, in the table's order (Links.hxx), above the version.
         auto at = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "version"; });
-        for (const auto& link : platform::Links) at = rows.insert(at, LinkRow(link, v.services)) + 1;
+        for (const auto& link : platform::Links()) at = rows.insert(at, LinkRow(link, v.services)) + 1;
         // The found release, as the launch question offers it: the game closes and the Updates window installs it.
         if (const auto& offer = v.services.offer)
             rows.push_back(ConfirmRow("update-now", loc::T("updates.launch_now"),

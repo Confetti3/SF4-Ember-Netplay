@@ -8,6 +8,16 @@
 namespace {
 const ember::LocaleOverlay NoLocaleOverlays[] = {{nullptr, nullptr}};
 
+// In the order Help & About lists them and Home's header draws them. Ko-fi has no logo in the
+// icon set, so its mark is the cup.
+constexpr ember::Link Sf4Links[] = {
+	{"discord", "discord.gg/uPNqF5A5uq", ember::LinkMark::Discord, "about.discord", "about.discord_detail"},
+	{"kofi", "ko-fi.com/confetti3", ember::LinkMark::Coffee, "about.kofi", "about.kofi_detail"},
+	{"website", "embernetplay.link", ember::LinkMark::Ember, "about.website", "about.website_detail"},
+	{"twitter", "x.com/kabiefox", ember::LinkMark::Twitter, "about.twitter", "about.twitter_detail"},
+	{nullptr, nullptr, ember::LinkMark::Ember, nullptr, nullptr},
+};
+
 constexpr ember::ProductIdentity Sf4Ember = {
 	{
 		"SF4 Ember Netplay",
@@ -46,6 +56,8 @@ constexpr ember::ProductIdentity Sf4Ember = {
 	L"sf4e-crash-",
 	NoLocaleOverlays,
 	"*.emberreplay;*.usf4replay;*.emberpack",
+	nullptr,
+	Sf4Links,
 };
 }
 

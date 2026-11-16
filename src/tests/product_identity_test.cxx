@@ -78,6 +78,16 @@ static void TestNames() {
 	CHECK(Same(product.launcherLog, L"launcher.log"));
 	CHECK(Same(product.crashLog, L"sf4e-crash.log"));
 	CHECK(Same(product.crashDumpPrefix, L"sf4e-crash-"));
+	// Its links: the community's Discord, Ko-fi, the website and Twitter, in the order Home draws them.
+	CHECK(product.links != nullptr);
+	if (product.links) {
+		const ember::Link* link = product.links;
+		CHECK(Same(link[0].id, "discord") && Same(link[0].address, "discord.gg/uPNqF5A5uq") && link[0].mark == ember::LinkMark::Discord);
+		CHECK(Same(link[1].id, "kofi") && Same(link[1].address, "ko-fi.com/confetti3") && link[1].mark == ember::LinkMark::Coffee);
+		CHECK(Same(link[2].id, "website") && Same(link[2].address, "embernetplay.link") && link[2].mark == ember::LinkMark::Ember);
+		CHECK(Same(link[3].id, "twitter") && Same(link[3].address, "x.com/kabiefox") && link[3].mark == ember::LinkMark::Twitter);
+		CHECK(link[4].id == nullptr);
+	}
 	// SF4 Ember's text is the shared catalogs' own.
 	CHECK(product.localeOverlays != nullptr && product.localeOverlays[0].tag == nullptr);
 }

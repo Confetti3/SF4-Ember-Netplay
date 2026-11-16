@@ -2283,6 +2283,12 @@ msgstr "Entwickler auf Twitter"
 msgid "about.twitter_detail"
 msgstr "Neuigkeiten vom Entwickler von Ember unter {0}. Öffnet sich im Browser hinter dem Spiel."
 
+msgid "about.project"
+msgstr "Projektseite"
+
+msgid "about.project_detail"
+msgstr "Quellcode, Veröffentlichungen und Probleme unter {0}. Öffnet sich im Browser hinter dem Spiel."
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 

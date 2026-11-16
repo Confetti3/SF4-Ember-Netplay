@@ -2283,6 +2283,12 @@ msgstr "開発者のTwitter"
 msgid "about.twitter_detail"
 msgstr "Ember開発者の最新情報：{0}。ゲームの背後でブラウザーを開きます。"
 
+msgid "about.project"
+msgstr "プロジェクトのページ"
+
+msgid "about.project_detail"
+msgstr "ソースコード、リリース、不具合報告：{0}。ゲームの背後でブラウザーを開きます。"
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 

@@ -2283,6 +2283,12 @@ msgstr "Twitter vývojáře"
 msgid "about.twitter_detail"
 msgstr "Novinky od vývojáře Ember na {0}. Otevře se v prohlížeči za hrou."
 
+msgid "about.project"
+msgstr "Stránka projektu"
+
+msgid "about.project_detail"
+msgstr "Zdrojový kód, vydání a hlášení chyb na {0}. Otevře se v prohlížeči za hrou."
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 

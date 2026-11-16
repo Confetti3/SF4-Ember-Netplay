@@ -249,7 +249,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   // Ember's links are rows too, drawn as icons over the card (GameMenu::headerLinks), so they are here only where the
   // card is shown: a row that is not drawn is not there for the pad to reach.
   const float window=ImGui::GetWindowSize().x,scale=Scale();
-  if(v2::SideBySide(window,v2::SideMargin(window,scale),scale))for(const auto& link:platform::Links)rows.push_back(LinkRow(link,v.services));
+  if(v2::SideBySide(window,v2::SideMargin(window,scale),scale))for(const auto& link:platform::Links())rows.push_back(LinkRow(link,v.services));
  }else if(screen=="training"){
   rows=TrainingSelectRows(v,title);
  }else if(screen=="discord-invitation"){
