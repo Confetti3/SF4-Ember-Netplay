@@ -3,11 +3,14 @@
 // The facts a crash must leave behind, kept in a form that can be written
 // from the crashing thread: a fixed ring of the last log lines, a name for
 // each exit code the launcher can see, a header line for the crash record,
-// and a fold over the process address space. Nothing here allocates or
-// takes a lock. The host (sf4e__CrashDiagnostics) owns the Win32 side.
+// a fold over the process address space, and what a fault in unmapped code
+// leaves to name its cause (the unloaded modules, the region, the stack).
+// Nothing here allocates or takes a lock. The host (sf4e__CrashDiagnostics)
+// owns the Win32 side.
 //
 // Pure component: no game or platform dependencies, unit tested (F-015).
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -191,14 +194,224 @@ inline bool EndsInCall(const uint8_t before[7]) {
 	return false;
 }
 
+// Moves `length` past what snprintf just wrote at out + length; false, with
+// that line dropped, when it did not fit in `size`.
+inline bool Advance(char* out, size_t size, size_t& length, int printed) {
+	if (printed < 0 || (size_t)printed >= size - length) { out[length] = '\0'; return false; }
+	length += (size_t)printed;
+	return true;
+}
+
 // Appends " Module+0xOffset" to a callers line of `size` bytes; false when
 // it no longer fits.
 inline bool AppendCaller(char* out, size_t size, size_t& length, const char* module, uint64_t offset) {
 	if (!out || length >= size) return false;
-	const int written = snprintf(out + length, size - length, " %s+0x%llX", module && module[0] ? module : "?", (unsigned long long)offset);
-	if (written < 0 || (size_t)written >= size - length) { out[length] = '\0'; return false; }
-	length += (size_t)written;
-	return true;
+	return Advance(out, size, length, snprintf(out + length, size - length, " %s+0x%llX", module && module[0] ? module : "?", (unsigned long long)offset));
+}
+
+// Where an address lies in the address space, as VirtualQuery says, kept as
+// numbers so the line is formatted and tested without Windows.
+enum class RegionState { Unknown, Free, Reserved, Committed };
+enum class RegionType { None, Image, Mapped, Private };
+
+struct AddressRegion {
+	RegionState state = RegionState::Unknown;
+	RegionType type = RegionType::None;
+	uint32_t protect = 0;
+	uint64_t allocationBase = 0;
+	uint64_t regionBase = 0;
+	uint64_t regionSize = 0;
+};
+
+// One terminated line: "address 0x64A1A5E0: free region=0x64A1A000+0x5E000
+// protect=0x1". A region in use adds its type and allocation base, which a free
+// one does not have.
+inline size_t FormatAddressRegion(char* out, size_t size, uint64_t address, const AddressRegion& region) {
+	if (!out || !size) return 0;
+	out[0] = '\0';
+	size_t length = 0;
+	if (region.state == RegionState::Unknown) {
+		Advance(out, size, length, snprintf(out, size, "address 0x%08llX: not queryable\n", (unsigned long long)address));
+		return length;
+	}
+	const bool free = region.state == RegionState::Free;
+	const char* state = free ? "free" : region.state == RegionState::Reserved ? "reserved" : "committed";
+	const char* type = free ? "" : region.type == RegionType::Image ? " image" : region.type == RegionType::Mapped ? " mapped" :
+		region.type == RegionType::Private ? " private" : "";
+	bool whole = Advance(out, size, length, snprintf(out, size, "address 0x%08llX: %s%s region=0x%08llX+0x%llX protect=0x%X",
+		(unsigned long long)address, state, type, (unsigned long long)region.regionBase, (unsigned long long)region.regionSize, region.protect));
+	if (whole && !free)
+		whole = Advance(out, size, length, snprintf(out + length, size - length, " allocation_base=0x%08llX", (unsigned long long)region.allocationBase));
+	if (!whole || length + 1 >= size) { out[0] = '\0'; return 0; }
+	out[length++] = '\n';
+	out[length] = '\0';
+	return length;
+}
+
+// ntdll keeps the last modules it unloaded in a circular array, which names
+// the image a thread was still running in when its code vanished. This is
+// RTL_UNLOAD_EVENT_TRACE as a 32-bit process has it; the SDK headers lack it.
+struct UnloadEventTrace32 {
+	uint32_t baseAddress;
+	uint32_t sizeOfImage;
+	uint32_t sequence;
+	uint32_t timeDateStamp;
+	uint32_t checkSum;
+	uint16_t imageName[32];
+	uint32_t version[2];
+};
+static_assert(offsetof(UnloadEventTrace32, imageName) == 20 && sizeof(UnloadEventTrace32) == 88, "RTL_UNLOAD_EVENT_TRACE layout");
+
+constexpr size_t UnloadEntryNeeded = offsetof(UnloadEventTrace32, imageName) + sizeof(uint16_t) * 32;
+constexpr uint32_t UnloadTraceMaxElements = 64;   // RTL_UNLOAD_EVENT_TRACE_NUMBER
+constexpr uint32_t UnloadTraceMaxElementSize = 256;
+constexpr size_t UnloadTraceMaxBytes = (size_t)UnloadTraceMaxElements * UnloadTraceMaxElementSize;
+constexpr unsigned UnloadedKept = 8;
+
+struct UnloadedImage {
+	uint64_t base = 0;
+	uint64_t size = 0;
+	uint32_t sequence = 0;
+	char name[33] = {};
+};
+
+// The newest unloads, newest first.
+struct UnloadedImages {
+	UnloadedImage items[UnloadedKept];
+	unsigned count = 0;
+};
+
+// The bytes of an array ntdll reports as `elementCount` elements of
+// `elementSize`, or 0 when the report cannot be right. Entries are stepped by
+// that size, which may exceed the struct above.
+inline size_t UnloadTraceBytes(uint32_t elementSize, uint32_t elementCount) {
+	if (elementSize < UnloadEntryNeeded || elementSize > UnloadTraceMaxElementSize) return 0;
+	if (!elementCount || elementCount > UnloadTraceMaxElements) return 0;
+	return (size_t)elementSize * elementCount;
+}
+
+// The newest entries of a copy of ntdll's array. An empty slot, and an entry
+// that does not look like an image (no 64 KB aligned base, no size, no
+// printable name), are skipped, so memory that is not the array parses to
+// nothing. Names are narrowed; a character outside ASCII becomes '?'.
+inline UnloadedImages ParseUnloadTrace(const uint8_t* array, uint32_t elementSize, uint32_t elementCount) {
+	UnloadedImages found;
+	if (!array || !UnloadTraceBytes(elementSize, elementCount)) return found;
+	for (uint32_t i = 0; i < elementCount; ++i) {
+		UnloadEventTrace32 entry;
+		memset(&entry, 0, sizeof(entry));
+		memcpy(&entry, array + (size_t)i * elementSize, sizeof(entry) < elementSize ? sizeof(entry) : elementSize);
+		if (!entry.baseAddress || (entry.baseAddress & 0xFFFFu) || !entry.sizeOfImage || entry.sizeOfImage >= 0x40000000u) continue;
+		if (entry.imageName[0] < 0x20 || entry.imageName[0] > 0x7E) continue;
+		UnloadedImage image;
+		image.base = entry.baseAddress;
+		image.size = entry.sizeOfImage;
+		image.sequence = entry.sequence;
+		for (size_t c = 0; c < 32 && entry.imageName[c]; ++c)
+			image.name[c] = entry.imageName[c] >= 0x20 && entry.imageName[c] <= 0x7E ? (char)entry.imageName[c] : '?';
+		unsigned at = 0;
+		while (at < found.count && found.items[at].sequence >= image.sequence) ++at;
+		if (at >= UnloadedKept) continue;
+		for (unsigned j = found.count < UnloadedKept ? found.count : UnloadedKept - 1; j > at; --j) found.items[j] = found.items[j - 1];
+		found.items[at] = image;
+		if (found.count < UnloadedKept) ++found.count;
+	}
+	return found;
+}
+
+// The newest unloaded image whose range holds `address`, or nullptr.
+inline const UnloadedImage* FindUnloaded(const UnloadedImages& images, uint64_t address) {
+	for (unsigned i = 0; i < images.count; ++i) {
+		const UnloadedImage& image = images.items[i];
+		if (address >= image.base && address - image.base < image.size) return &image;
+	}
+	return nullptr;
+}
+
+// "unloaded modules: name@0xBase+0xSize ...", newest first, as one terminated
+// line; nothing when the trace holds none.
+inline size_t FormatUnloadedList(char* out, size_t size, const UnloadedImages& images) {
+	if (!out || !size) return 0;
+	out[0] = '\0';
+	if (!images.count) return 0;
+	size_t length = 0;
+	if (!Advance(out, size, length, snprintf(out, size, "unloaded modules:"))) return 0;
+	for (unsigned i = 0; i < images.count; ++i) {
+		const UnloadedImage& image = images.items[i];
+		if (!Advance(out, size, length, snprintf(out + length, size - length, " %s@0x%08llX+0x%llX", image.name,
+			(unsigned long long)image.base, (unsigned long long)image.size))) break;
+	}
+	if (length + 1 >= size) { out[0] = '\0'; return 0; }
+	out[length++] = '\n';
+	out[length] = '\0';
+	return length;
+}
+
+// "unloaded module: name+0xOffset" when the faulting address is inside an
+// unloaded image, and the same with " (esi)" for each of ebx, esi and edi that
+// points into one, a line each. Nothing when none does.
+inline size_t FormatUnloadedHits(char* out, size_t size, const UnloadedImages& images, uint64_t faultAddress, const CrashRegisters& r) {
+	if (!out || !size) return 0;
+	out[0] = '\0';
+	size_t length = 0;
+	struct Probe { const char* suffix; uint64_t address; };
+	const Probe probes[] = { { "", faultAddress }, { " (ebx)", r.ebx }, { " (esi)", r.esi }, { " (edi)", r.edi } };
+	for (const Probe& probe : probes) {
+		const UnloadedImage* image = FindUnloaded(images, probe.address);
+		if (!image) continue;
+		if (!Advance(out, size, length, snprintf(out + length, size - length, "unloaded module: %s+0x%llX%s\n", image->name,
+			(unsigned long long)(probe.address - image->base), probe.suffix))) break;
+	}
+	return length;
+}
+
+// "name+0xOffset" for an address inside a loaded module (`loadedName` and
+// `loadedBase` as the host found them; base 0 for none), or "name+0xOffset
+// (unloaded)" for one inside an unloaded image; empty for neither.
+inline size_t DescribeImage(char* out, size_t size, uint64_t address, const char* loadedName, uint64_t loadedBase, const UnloadedImages& unloaded) {
+	if (!out || !size) return 0;
+	out[0] = '\0';
+	size_t length = 0;
+	if (loadedBase && address >= loadedBase) {
+		Advance(out, size, length, snprintf(out, size, "%s+0x%llX", loadedName && loadedName[0] ? loadedName : "?", (unsigned long long)(address - loadedBase)));
+		return length;
+	}
+	if (const UnloadedImage* image = FindUnloaded(unloaded, address))
+		Advance(out, size, length, snprintf(out, size, "%s+0x%llX (unloaded)", image->name, (unsigned long long)(address - image->base)));
+	return length;
+}
+
+// "label: 0xAddress description" as one terminated line, without the
+// description when it is empty. Nothing when it does not fit.
+inline size_t FormatLocatedAddress(char* out, size_t size, const char* label, uint64_t address, const char* description) {
+	if (!out || !size) return 0;
+	out[0] = '\0';
+	size_t length = 0;
+	const bool described = description && description[0];
+	Advance(out, size, length, snprintf(out, size, "%s: 0x%08llX%s%s\n", label, (unsigned long long)address, described ? " " : "", described ? description : ""));
+	return length;
+}
+
+// The raw stack words from esp under a "stack from esp=0x..." line, one line
+// each: "stack+0x04: 0x69FFA5E0 name+0x5E0 (unloaded)". `describe(word, buffer,
+// size)` fills the annotation of a word that points into an image.
+template <class Describe>
+inline size_t FormatStackWords(char* out, size_t size, uint32_t esp, const uint32_t* words, size_t count, Describe&& describe) {
+	if (!out || !size) return 0;
+	out[0] = '\0';
+	size_t length = 0;
+	if (!words || !count) return 0;
+	if (!Advance(out, size, length, snprintf(out, size, "stack from esp=0x%08X:\n", esp))) return 0;
+	for (size_t i = 0; i < count; ++i) {
+		char label[16], description[96];
+		snprintf(label, sizeof(label), "stack+0x%02X", (unsigned)(i * 4));
+		description[0] = '\0';
+		describe(words[i], description, sizeof(description));
+		const size_t line = FormatLocatedAddress(out + length, size - length, label, words[i], description);
+		if (!line) break;
+		length += line;
+	}
+	return length;
 }
 
 // Free virtual memory seen by a walk over the address space. For the
