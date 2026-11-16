@@ -122,12 +122,14 @@ void TrainingFromRoom() {
  SetMenuStatusProbe([&](const char* text,Tone value){status=text;tone=value;});h.Frame();
  const auto training=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="room-training";});
  Check(training!=rows.end()&&training->label==loc::T("room.training")&&rows.back().id=="leave","Wait in Training label or position wrong");
- // The room's status line says it is a Practice room.
- Check(status==loc::T("room.private_status"),"A private room's status changed");
+ // The room's status line says it is a Practice room. Who may join is the
+ // header's access chip alone, so a plain private room's line is empty and
+ // never says "invitation only" while the chip says friends can join.
+ Check(status.empty(),"A private room's status line repeated or contradicted the header's access chip");
  h.view.room.practice=true;h.Frame();
- Check(status==loc::T("room.practice_status"),"A Practice room's status did not say so");
+ Check(status==loc::T("room.practice"),"A Practice room's status did not say so");
  h.view.room.locked=true;h.Frame();
- Check(status==loc::T("room.practice_locked_status"),"A locked Practice room's status did not say so");
+ Check(status==loc::T("room.practice"),"A locked Practice room's status line repeated the access chip");
  h.view.room.practice=h.view.room.locked=false;h.Frame();
  const auto before=h.actions.size();
  h.Choose("room-training");

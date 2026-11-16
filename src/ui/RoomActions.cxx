@@ -14,6 +14,9 @@
 namespace sf4e { namespace ui {
 using namespace room_controls;
 namespace {
+// How long a table's offer, once sent, refuses a repeat while the room has not
+// answered yet: a request the room refused without a word can be sent again.
+constexpr double OfferResendSeconds=2;
 bool Has(const std::vector<MenuEntry>& rows,const std::string& id){
  return !id.empty()&&std::any_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
 }
@@ -95,11 +98,12 @@ void ApplicationShell::SettleRoomBoard(const ShellView& v,std::vector<MenuEntry>
   for(std::size_t t=0;t<room::TablesInPlay(s)&&to.empty();++t)
    if((!s.tables[t].p1||!s.tables[t].p2)&&Has(rows,"table-"+std::to_string(s.tables[t].id)))to="table-"+std::to_string(s.tables[t].id);
  }
- // A focus it moves opens like a screen (MenuNavigation::Rearm): that frame
- // counts nothing and a button held into it counts once released, so a press
- // made as a room changes under an open board never lands on the row moved to.
+ // The opening focus opens like a screen (MenuNavigation::Rearm): that frame
+ // counts nothing, a button held into it counts once released, and a table
+ // card lights nothing until a direction or a first A, so a press made as a
+ // room changes under an open board never lands on the row it focuses.
  const std::string& start=Has(rows,to)?to:rows.front().id;
- if(start!=nav.Focus()){nav.Focus(start,rows);nav.Rearm();}
+ nav.Focus(start,rows);nav.Rearm();
 }
 
 // X, Y and View open the fighter, table options and chat; the same button
@@ -190,8 +194,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(a.text=="leave-seat")LeavePlace(v,submit);else if(a.text!="stay")RoomAction({MenuAction::Activate,a.text},v,submit);
   return;
  }
- // A table card's offer, exactly as the player saw it (TakeTableOffer), or
- // the answer to its leave question.
+ // A table card's offer, exactly as the player saw it lit, or the answer to
+ // its question (leaving a seat, or ending the watched game).
  if(a.kind==MenuAction::Chosen){
   // More…'s and Invite's choice is the row it stands for.
   if(a.id=="room-more"||a.id=="invite"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
@@ -200,8 +204,24 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(a.text=="leave-seat"){LeavePlace(v,submit);return;}
   const auto* option=FindSeatOption(a.text);
   if(!option)return;
+  // An offer the card no longer has (a seat taken under the light) is said,
+  // never traded for what the card offers now.
+  const auto offers=SeatChoices(v,v.room.tables[selectedTable_]);
+  const auto offer=std::find_if(offers.begin(),offers.end(),[&](const MenuChoice& o){return o.id==a.text;});
+  if(offer==offers.end()){Refuse(loc::T("room.reject.seat_taken"));return;}
+  if(!offer->enabled)return;
+  // One request a table until the room answers it: a mashed A or a double
+  // click is the same press.
+  const double now=ImGui::GetTime();
+  if(offerSent_.table==*table&&offerSent_.revision==v.room.revision&&now-offerSent_.at<OfferResendSeconds)return;
+  // An offer that ends the game this PC watches asks first, on its card; the
+  // question's own answer sends it.
+  const bool confirmed=viewAsk_.asked&&viewAsk_.table==*table&&viewAsk_.offer==a.text;
+  if(EndsWatchedView(v,option->kind)&&!confirmed){viewAsk_={*table,a.text,false};return;}
+  viewAsk_={};
   Action request;request.table=static_cast<std::uint8_t>(selectedTable_);request.kind=option->kind;request.seat=static_cast<std::int8_t>(option->seat);
-  if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
+  if(SendRoom(std::move(request),v,submit))offerSent_={*table,v.room.revision,now};
+  else if(error_.empty())error_=loc::T("room.action_rejected");
   return;
  }
  if(const auto index=RowKey<std::size_t>(a.id,"cabinet-");index&&*index<room::CabinetCount){

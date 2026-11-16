@@ -152,7 +152,9 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
     if (s.tournament.Active() || !room::FindMember(s, s.localMember) || room::PlaceOf(s, s.localMember).kind != room::Place::Kind::None) return {};
     std::vector<const char*> ids;
     for (int seat = 0; seat < 2; ++seat) if (room::SeatOpenNow(t, seat)) ids.push_back(seat ? "sit-p2" : "sit-p1");
-    if (ids.empty()) ids = {"queue", room::WatchesByChoice(t, s.localMember) ? "unwatch" : "watch"};
+    if (ids.empty()) ids.push_back("queue");
+    // Anyone at the table is someone to watch.
+    if (t.p1 || t.p2) ids.push_back(room::WatchesByChoice(t, s.localMember) ? "unwatch" : "watch");
     std::vector<MenuChoice> offers;
     for (const char* id : ids) {
         const auto* option = FindSeatOption(id);
@@ -164,14 +166,18 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
     }
     return offers;
 }
-std::size_t LitOffer(const std::vector<MenuChoice>& offers, const TableLight& light, const room::Table& t) {
-    if (light.table != static_cast<int>(t.id)) return 0;
-    const auto lit = std::find_if(offers.begin(), offers.end(), [&](const MenuChoice& offer) { return offer.id == light.offer; });
-    return lit == offers.end() ? 0 : static_cast<std::size_t>(lit - offers.begin());
-}
 std::string TableRulesText(const ShellView& v, const room::Table& t) {
     return t.rules.format == room::SetFormat::Unlimited ? loc::Tf("room.table_rules_line", t.rules.roundCount, room::MatchRoundTime(v.room, t)) :
         SetSummaryText(t.rules);
+}
+std::string RoomRulesText(const ShellView& v, const room::Table& t) {
+    std::string text;
+    const auto add = [&](const std::string& part) { text += (text.empty() ? "" : " \xC2\xB7 ") + part; };
+    if (v.room.practice) add(loc::T("room.table_footer_practice"));
+    if (v.room.delayPolicy == room::DelayPolicy::Own) add(loc::T("room.table_footer_own_delay"));
+    if (v.room.wiredOnly) add(loc::T("room.table_footer_wired_only"));
+    add(TableRulesText(v, t));
+    return text;
 }
 std::string TableCountsText(const room::Table& t) {
     const auto watching = t.spectators.size() + t.watchingNext.size();
@@ -223,9 +229,12 @@ bool RoomTakesNow(const ShellView& v, room::ActionKind kind, std::size_t table) 
     return RoomActionsAvailable(v) ||
         (RoomCheckpointPending(v) && kind == room::ActionKind::Unwatch && LeavesWatchedGame(v, table));
 }
+bool EndsWatchedView(const ShellView& v, room::ActionKind kind) {
+    return v.watchedGame.Active() && (kind == room::ActionKind::Queue || kind == room::ActionKind::Watch);
+}
 std::string WatchingNote(const ShellView& v, room::ActionKind kind) {
     if (!v.watchedGame.Active()) return {};
-    if (kind == room::ActionKind::Queue || kind == room::ActionKind::Watch) return loc::T("room.watching_ends");
+    if (EndsWatchedView(v, kind)) return loc::T("room.watching_ends");
     return kind == room::ActionKind::Unqueue ? loc::T("room.leave_queue.watching") : "";
 }
 bool LeaveBlocked(const ShellView& v) {
@@ -386,8 +395,9 @@ std::string SelectionBlocker(const ShellView& v) {
     return !v.selectionLockReason.empty() ? v.selectionLockReason : std::string(loc::T("room.change_fighter.waiting"));
 }
 int OptionsTable(const ShellView& v, int selected) {
-    const auto* local = room::FindMember(v.room, v.room.localMember);
-    return local && local->table >= 0 && local->table < static_cast<int>(v.room.tables.size()) ? local->table : selected;
+    const auto place = room::PlaceOf(v.room, v.room.localMember);
+    const bool own = place.kind == room::Place::Kind::Seat || place.kind == room::Place::Kind::Queue;
+    return own && place.table >= 0 && place.table < static_cast<int>(v.room.tables.size()) ? place.table : selected;
 }
 bool HasChatText(const char* text) {
     for (; *text; ++text) if (!std::isspace(static_cast<unsigned char>(*text))) return true;

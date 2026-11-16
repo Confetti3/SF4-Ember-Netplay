@@ -2232,9 +2232,6 @@ msgstr "正在加入房间，等待网络..."
 msgid "room.locked_status"
 msgstr "房间已锁定／仅限邀请"
 
-msgid "room.private_status"
-msgstr "私人房间／仅限邀请"
-
 msgid "room.tournament_status"
 msgstr "赛事对局，先胜{0}局。只有本局的两名玩家可以对战。"
 
@@ -6303,18 +6300,6 @@ msgstr "玩家在桌前排队，并在该桌对战。"
 msgid "room.type.arcade_detail"
 msgstr "十六台街机：坐到任意空位，与等待最久的玩家对战。一局结束后，双方都选“再战”就再打一局，否则各自与下一位等待的玩家对战。"
 
-msgid "room.arcade_status"
-msgstr "街机房间 / 仅限邀请"
-
-msgid "room.arcade_locked_status"
-msgstr "街机房间已锁定 / 仅限邀请"
-
-msgid "room.king_status"
-msgstr "擂台赛 / 仅限邀请"
-
-msgid "room.king_locked_status"
-msgstr "擂台赛已锁定 / 仅限邀请"
-
 msgid "room.arcade_sit"
 msgstr "坐下"
 
@@ -6386,12 +6371,6 @@ msgstr "练习房间"
 
 msgid "room.practice.detail"
 msgstr "房间内的每场对战都是练习对战：体力和能量槽会恢复，双方都不会被击倒，回合时间为 {0}。房间开启期间不会改变。要进行普通对战，请关闭房间并重新创建。"
-
-msgid "room.practice_status"
-msgstr "练习房间／仅限邀请"
-
-msgid "room.practice_locked_status"
-msgstr "练习房间已锁定／仅限邀请"
 
 msgid "inputs.presses_value"
 msgstr "{0} 次按键"
@@ -8625,9 +8604,6 @@ msgstr "对战台"
 
 msgid "room.v2.table"
 msgstr "对战台 {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} 人对战 · {1} 人观战"
 
 msgid "room.v2.group_playing"
 msgstr "对战中"

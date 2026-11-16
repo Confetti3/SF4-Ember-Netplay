@@ -2232,9 +2232,6 @@ msgstr "Připojování k místnosti. Čeká se na síť..."
 msgid "room.locked_status"
 msgstr "Uzamčená místnost / jen s pozvánkou"
 
-msgid "room.private_status"
-msgstr "Soukromá místnost / jen s pozvánkou"
-
 msgid "room.tournament_status"
 msgstr "Turnajový zápas, hraje se na {0} výhry. Hrát mohou jen jeho dva hráči."
 
@@ -6303,18 +6300,6 @@ msgstr "Hráči čekají ve frontě u stolu a hrají u něj."
 msgid "room.type.arcade_detail"
 msgstr "Šestnáct automatů: sedněte si k libovolnému volnému a hrajte s tím, kdo čeká nejdéle. Po setu oba zvolí Odvetu a hrají znovu, jinak každý hraje s dalším čekajícím."
 
-msgid "room.arcade_status"
-msgstr "Místnost herny / jen na pozvání"
-
-msgid "room.arcade_locked_status"
-msgstr "Místnost herny zamčená / jen na pozvání"
-
-msgid "room.king_status"
-msgstr "Král kopce / jen na pozvání"
-
-msgid "room.king_locked_status"
-msgstr "Král kopce zamčený / jen na pozvání"
-
 msgid "room.arcade_sit"
 msgstr "Posadit se"
 
@@ -6386,12 +6371,6 @@ msgstr "Tréninková místnost"
 
 msgid "room.practice.detail"
 msgstr "Každá hra v místnosti je cvičný zápas: zdraví a ukazatele se doplňují, nikdo není vyřazen a čas kola je {0}. Platí to, dokud je místnost otevřená. Chcete-li hrát běžné zápasy, zavřete místnost a vytvořte novou."
-
-msgid "room.practice_status"
-msgstr "Tréninková místnost / jen s pozvánkou"
-
-msgid "room.practice_locked_status"
-msgstr "Uzamčená tréninková místnost / jen s pozvánkou"
 
 msgid "inputs.presses_value"
 msgstr "{0} stisknutí"
@@ -8625,9 +8604,6 @@ msgstr "STOLY"
 
 msgid "room.v2.table"
 msgstr "STŮL {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "Hraje: {0} · sleduje: {1}"
 
 msgid "room.v2.group_playing"
 msgstr "HRAJÍ"

@@ -2232,9 +2232,6 @@ msgstr "Kamer betreden. Wachten op het netwerk..."
 msgid "room.locked_status"
 msgstr "Kamer op slot / op uitnodiging"
 
-msgid "room.private_status"
-msgstr "Privékamer / alleen op uitnodiging"
-
 msgid "room.tournament_status"
 msgstr "Toernooiwedstrijd, eerst tot {0}. Alleen de twee spelers kunnen spelen."
 
@@ -6303,18 +6300,6 @@ msgstr "Spelers staan in de rij bij een tafel en spelen daar."
 msgid "room.type.arcade_detail"
 msgstr "Zestien kasten: ga aan een vrije zitten en speel tegen wie het langst wacht. Na een set kiezen beiden Rematch om opnieuw te spelen, anders speelt ieder tegen de volgende die wacht."
 
-msgid "room.arcade_status"
-msgstr "Arcadekamer / alleen op uitnodiging"
-
-msgid "room.arcade_locked_status"
-msgstr "Arcadekamer op slot / alleen op uitnodiging"
-
-msgid "room.king_status"
-msgstr "King of the hill / alleen op uitnodiging"
-
-msgid "room.king_locked_status"
-msgstr "King of the hill op slot / alleen op uitnodiging"
-
 msgid "room.arcade_sit"
 msgstr "Gaan zitten"
 
@@ -6386,12 +6371,6 @@ msgstr "Oefenkamer"
 
 msgid "room.practice.detail"
 msgstr "Elk spel in de kamer is een oefenwedstrijd: gezondheid en meters vullen zich aan, niemand gaat knock-out en de rondetijd is {0}. Dat blijft zo zolang de kamer open is. Sluit de kamer en maak een nieuwe om normale wedstrijden te spelen."
-
-msgid "room.practice_status"
-msgstr "Oefenkamer / alleen op uitnodiging"
-
-msgid "room.practice_locked_status"
-msgstr "Oefenkamer op slot / op uitnodiging"
 
 msgid "inputs.presses_value"
 msgstr "{0} knopdrukken"
@@ -8625,9 +8604,6 @@ msgstr "TAFELS"
 
 msgid "room.v2.table"
 msgstr "TAFEL {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} spelen · {1} kijken"
 
 msgid "room.v2.group_playing"
 msgstr "SPELEN"

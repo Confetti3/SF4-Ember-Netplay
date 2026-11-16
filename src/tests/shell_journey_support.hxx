@@ -69,9 +69,13 @@ struct Harness {
   for(std::size_t i=0;i<reached.size()&&i<400&&!at();++i)
    for(unsigned direction:{MenuInput::Up,MenuInput::Down,MenuInput::Left,MenuInput::Right}){
     shell.Navigation().Prefer(reached[i]);Frame();
+    std::string lit=shell.Navigation().Lit(reached[i]);
     Press(direction);
-    // A card lights its offers one by one (Left and Right move the light first): a press that left the focus where it was is repeated once.
-    if(!at()&&shell.Navigation().Focus()==reached[i])Press(direction);
+    // A table card lights its places one by one before Left and Right leave
+    // it: a press that only moved the card's light is pressed again.
+    for(int k=0;k<4&&!at()&&reached[i].compare(0,6,"table-")==0&&shell.Navigation().Focus()==reached[i]&&shell.Navigation().Lit(reached[i])!=lit;++k){
+     lit=shell.Navigation().Lit(reached[i]);Press(direction);
+    }
     if(at())break;
     const std::string now=shell.Navigation().Focus();
     if(std::find(reached.begin(),reached.end(),now)==reached.end())reached.push_back(now);

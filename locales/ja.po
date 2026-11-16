@@ -2232,9 +2232,6 @@ msgstr "ルームに参加中。通信を待っています..."
 msgid "room.locked_status"
 msgstr "ルームはロック中 / 招待者のみ"
 
-msgid "room.private_status"
-msgstr "プライベートルーム / 招待者のみ"
-
 msgid "room.tournament_status"
 msgstr "大会の試合、{0}本先取。プレイできるのはこの試合の2人だけです。"
 
@@ -6303,18 +6300,6 @@ msgstr "テーブルごとに順番を待ち、そのテーブルで対戦しま
 msgid "room.type.arcade_detail"
 msgstr "16台の筐体：空いている台に座ると、いちばん長く待っている人と対戦します。セット後、二人ともリマッチを選べば再戦、そうでなければそれぞれ次に待っている人と対戦します。"
 
-msgid "room.arcade_status"
-msgstr "アーケードルーム / 招待のみ"
-
-msgid "room.arcade_locked_status"
-msgstr "アーケードルーム（ロック中） / 招待のみ"
-
-msgid "room.king_status"
-msgstr "キング・オブ・ザ・ヒル / 招待のみ"
-
-msgid "room.king_locked_status"
-msgstr "キング・オブ・ザ・ヒル（ロック中） / 招待のみ"
-
 msgid "room.arcade_sit"
 msgstr "席に着く"
 
@@ -6386,12 +6371,6 @@ msgstr "練習ルーム"
 
 msgid "room.practice.detail"
 msgstr "ルーム内の対戦はすべて練習対戦です。体力とゲージが回復し、KOは発生せず、タイムは{0}です。ルームが開いている間は変わりません。通常の対戦をするには、ルームを閉じて新しく作成してください。"
-
-msgid "room.practice_status"
-msgstr "練習ルーム / 招待者のみ"
-
-msgid "room.practice_locked_status"
-msgstr "練習ルームはロック中 / 招待者のみ"
 
 msgid "inputs.presses_value"
 msgstr "{0}回のボタン入力"
@@ -8625,9 +8604,6 @@ msgstr "テーブル"
 
 msgid "room.v2.table"
 msgstr "テーブル {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "対戦中 {0} · 観戦中 {1}"
 
 msgid "room.v2.group_playing"
 msgstr "対戦中"

@@ -2232,9 +2232,6 @@ msgstr "Вход в лобби. Ожидание сети..."
 msgid "room.locked_status"
 msgstr "Лобби закрыто / вход по приглашению"
 
-msgid "room.private_status"
-msgstr "Закрытое лобби / вход по приглашению"
-
 msgid "room.tournament_status"
 msgstr "Турнирный матч, до {0} побед. Играть могут только два его игрока."
 
@@ -6303,18 +6300,6 @@ msgstr "Игроки встают в очередь к столу и играю�
 msgid "room.type.arcade_detail"
 msgstr "Шестнадцать автоматов: садитесь за любой свободный и играйте с тем, кто ждёт дольше всех. После сета, если оба выберут Реванш, играете снова; иначе каждый играет со следующим ожидающим."
 
-msgid "room.arcade_status"
-msgstr "Аркадная комната / только по приглашению"
-
-msgid "room.arcade_locked_status"
-msgstr "Аркадная комната закрыта / только по приглашению"
-
-msgid "room.king_status"
-msgstr "Царь горы / только по приглашению"
-
-msgid "room.king_locked_status"
-msgstr "Царь горы закрыт / только по приглашению"
-
 msgid "room.arcade_sit"
 msgstr "Сесть"
 
@@ -6386,12 +6371,6 @@ msgstr "Тренировочное лобби"
 
 msgid "room.practice.detail"
 msgstr "Каждая игра в лобби является тренировочным матчем: здоровье и шкалы пополняются, нокаутов нет, а время раунда {0}. Так будет, пока лобби открыто. Чтобы играть обычные матчи, закройте лобби и создайте новое."
-
-msgid "room.practice_status"
-msgstr "Тренировочное лобби / вход по приглашению"
-
-msgid "room.practice_locked_status"
-msgstr "Тренировочное лобби закрыто / вход по приглашению"
 
 msgid "inputs.presses_value"
 msgstr "Нажатий: {0}"
@@ -8625,9 +8604,6 @@ msgstr "СТОЛЫ"
 
 msgid "room.v2.table"
 msgstr "СТОЛ {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "Играют: {0} · смотрят: {1}"
 
 msgid "room.v2.group_playing"
 msgstr "ИГРАЮТ"

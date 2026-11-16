@@ -2232,9 +2232,6 @@ msgstr "Ingresso nella sala. In attesa della rete..."
 msgid "room.locked_status"
 msgstr "Sala bloccata / solo inviti"
 
-msgid "room.private_status"
-msgstr "Sala privata / solo inviti"
-
 msgid "room.tournament_status"
 msgstr "Partita del torneo, vince chi arriva a {0}. Solo i suoi due giocatori possono giocare."
 
@@ -6303,18 +6300,6 @@ msgstr "I giocatori si mettono in coda a un tavolo e giocano lì."
 msgid "room.type.arcade_detail"
 msgstr "Sedici cabinati: siediti a uno libero e gioca contro chi aspetta da più tempo. Dopo un set, se entrambi scelgono Rivincita giocate di nuovo, altrimenti ognuno gioca con il prossimo in attesa."
 
-msgid "room.arcade_status"
-msgstr "Stanza arcade / solo su invito"
-
-msgid "room.arcade_locked_status"
-msgstr "Stanza arcade chiusa / solo su invito"
-
-msgid "room.king_status"
-msgstr "Re della collina / solo su invito"
-
-msgid "room.king_locked_status"
-msgstr "Re della collina chiuso / solo su invito"
-
 msgid "room.arcade_sit"
 msgstr "Siediti"
 
@@ -6386,12 +6371,6 @@ msgstr "Sala di pratica"
 
 msgid "room.practice.detail"
 msgstr "Ogni partita nella sala è una partita di pratica: salute e barre si ricaricano, nessuno va K.O. e il tempo del round è {0}. Resta così finché la sala è aperta. Per giocare partite normali, chiudi la sala e creane una nuova."
-
-msgid "room.practice_status"
-msgstr "Sala di pratica / solo inviti"
-
-msgid "room.practice_locked_status"
-msgstr "Sala di pratica bloccata / solo inviti"
 
 msgid "inputs.presses_value"
 msgstr "{0} pressioni"
@@ -8625,9 +8604,6 @@ msgstr "TAVOLI"
 
 msgid "room.v2.table"
 msgstr "TAVOLO {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} giocano · {1} guardano"
 
 msgid "room.v2.group_playing"
 msgstr "GIOCANO"
