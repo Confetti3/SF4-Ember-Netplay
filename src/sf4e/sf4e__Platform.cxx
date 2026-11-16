@@ -335,14 +335,20 @@ void fD3D::Destroy() {
 }
 
 DWORD fD3D::Reset() {
+    // Field logs: the largest free block of the 2 GB address space falls with the number of device
+    // resets in a battle. Three samples say whose share that is: before anything is freed, after
+    // the game's own reset, and after Ember's overlay is back.
+    sf4e::crash::NoteMatchBoundary("device_reset_begin");
     sf4e::replaycapture::Release();
     Overlay::FreeOverlay();
     DWORD out = (this->*rD3D::privateMethods.Reset)();
+    sf4e::crash::NoteMatchBoundary("device_reset_game");
     sf4e::replaycapture::Resume(lpD3DDevice);
     Overlay::InitializeOverlay(
         (*rMain::GetWindowData(rMain::staticMethods.GetSingleton()))->hWnd,
         Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice
     );
+    sf4e::crash::NoteMatchBoundary("device_reset_end");
     return out;
 }
 
