@@ -1697,8 +1697,9 @@ int main() try {
         // TablesFitTheColumn: at 1280x720 and at 2438x1330 (scale 1.218) four
         // tables in their common states fit the column with no scroll bar,
         // every card whole inside it, and all four cards are one height,
-        // whatever each holds (`even`: a banner's card may keep its 18 px more
-        // where four at its height do not fit, at 1280x720).
+        // whatever each holds (`even`: a banner's card may keep its 18 px more, and
+        // your own card with its strip its 38 px more, where four at its height do
+        // not fit, at 1280x720; at 2438x1330 they are always one height).
         // TablesFillTheColumn: at 2438x1330 the four fill the column: the last
         // card ends within one gap of the column's foot.
         const auto tablesWindow = [&]() -> ImGuiWindow* {
@@ -1785,9 +1786,9 @@ int main() try {
         // Your own seat, two games and a quiet table; your own seat, a game and
         // two quiet tables.
         seat(0, 1, 2, room::TablePhase::Waiting); seat(3, 0, 0, room::TablePhase::Idle);
-        fits("your own seat, two games and a quiet table");
+        fits("your own seat, two games and a quiet table", false);
         seat(2, 0, 0, room::TablePhase::Idle);
-        fits("your own seat, a game and two quiet tables");
+        fits("your own seat, a game and two quiet tables", false);
         // Your own seat with a banner (the opponent's new fighter) and three busy tables.
         seat(2, 6, 7, room::TablePhase::Playing); seat(3, 8, 9, room::TablePhase::Playing);
         view.opponentChangedFighter = 5; ++view.opponentChangeSequence;
@@ -1936,17 +1937,19 @@ int main() try {
         }
         focus("table-0"); frame(); press(MenuInput::Down);
         Check(at() == "table-1", "Down from table 1 did not reach table 2 under it");
-        // Table 1 is the local member's own card, whose places are Ready then Leave seat: Right
-        // steps to Leave seat, and past it goes on to the members.
+        // Table 1 is the local member's own card, whose places are Ready, Leave seat and Table
+        // options: Right steps to Leave seat, then Table options, and past it goes on to the members.
         focus("table-0"); frame(); press(MenuInput::Right);
         Check(at() == "table-0" && shell.Navigation().Lit("table-0") == "leave-place", "Right from your own card did not step to Leave seat");
+        press(MenuInput::Right);
+        Check(at() == "table-0" && shell.Navigation().Lit("table-0") == "table-options", "Right from Leave seat did not step to Table options");
         press(MenuInput::Right);
         Check(RowKey(at(), "member-").has_value(), "Right from a table did not reach the members");
         // ClassicV2CardsMoveAsGrid: with Tables set to Grid, two cards across at this size.
         view.preferences.roomTableGrid = true;
         board(room::RoomType::Classic, 1.f, ImVec2(1280, 960));
-        // Table 1 is your own card: Right steps to Leave seat first, then on to the card beside.
-        focus("table-0"); frame(); press(MenuInput::Right); press(MenuInput::Right);
+        // Table 1 is your own card: Right steps to Leave seat and Table options first, then on to the card beside.
+        focus("table-0"); frame(); press(MenuInput::Right); press(MenuInput::Right); press(MenuInput::Right);
         Check(at() == "table-1", "Right from table 1 did not reach table 2 beside it");
         focus("table-0"); frame(); press(MenuInput::Down);
         Check(at() == "table-2", "Down from table 1 did not reach table 3 under it");

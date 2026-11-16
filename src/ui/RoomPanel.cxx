@@ -181,9 +181,10 @@ void OfferPlaces(MenuEntry& row,std::vector<MenuChoice> places,const MenuNavigat
 // (SeatChoices), as places on the card the navigation lights in turn: A sends
 // the lit one (RoomAction), one that would end the game this PC watches asked
 // about first on the card (`ask`) while it still would. On your own seat the
-// places are Ready and Leave seat (OwnPlaceChoices), Ready the one A takes
-// until another is lit, leaving asked about the same way; on the table you
-// queue at, A opens its options. Each row's detail ends with the rules its
+// places are Ready, Leave seat and Table options (OwnPlaceChoices), Ready the
+// one A takes until another is lit, leaving asked about the same way; on the
+// table you queue at, A opens its options (the strip's Leave queue and Table
+// options are the pointer's). Each row's detail ends with the rules its
 // table plays by, which speech reads.
 void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,const MenuNavigation& nav,const TableAsk& ask){
  using room::Place;
@@ -212,7 +213,7 @@ void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,const MenuNav
    // During a held start the card says what it waits for, and that B,
    // Cancel the start, calls it off.
    if(table.spectatorHold&&control.kind==ReadyControl::Unready)row.detail=control.detail;
-   // The card's line offers Ready and Leave seat, A readying until one is lit. A
+   // The card's strip offers Ready, Leave seat and Table options, A readying until one is lit. A
    // tournament seat has no Leave to offer (ExitFromPlace), so A readies as the row.
    if(exit.seat&&exit.table==static_cast<int>(table.id)){
     OfferPlaces(row,OwnPlaceChoices(v,table,exit),nav,row.hint);
@@ -428,7 +429,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // The action bar: Ready and the Ultra when seated, the table options (Y),
  // Training, Invite, More…, the asking rows, then Leave room last.
  if(s.roomEpoch&&c.place.kind==Place::Kind::Seat){
-  // The same button as your own card's line (OwnPlaceChoices).
+  // The same button as your own card's strip (OwnPlaceChoices).
   const auto ready=ReadyButtonOf(DescribeReady(v,s.tables[c.place.table],c.place.seat));
   rows.push_back(Row("ready",ready.label,ready.detail,ready.enabled));
   // An Arcade pair deciding after a set: Ready is its Rematch, and New
@@ -446,7 +447,8 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  opponentChangeSeen_=v.opponentChangeSequence;
  if(s.roomEpoch){
   // Players open them between almost every game, so they are a button, not a choice of More….
-  rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
+  const auto options=TableOptionsButton(v,selectedTable_);
+  rows.push_back(Row("options",options.label,options.detail,options.enabled));
   rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
  }
  // A tournament room admits only its two fighters, who reach it through the

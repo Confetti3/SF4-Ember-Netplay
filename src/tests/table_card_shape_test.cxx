@@ -362,12 +362,13 @@ void TestSeatTagPlacesItsNote() {
             }
 }
 
-// Your own card's line holds Ready and Leave seat beside its state at the common
-// sizes (1280x720 at scale 1 and 1.5: a versus card, and a stacked one
-// beside the score), apart, inside the head, as wide as they want. Where the two
-// do not fit, the card's name gives way first and then the buttons share what
-// is left, their labels cut, never over TABLE n and its state.
-void TestOwnCardLineHoldsReadyAndLeave() {
+// A card's line holds two buttons (another table's Join queue and Watch) beside
+// its state at the common sizes (1280x720 at scale 1 and 1.5: a versus card, and
+// a stacked one beside the score), apart, inside the head, as wide as they want.
+// Where the two do not fit, the card's name gives way first and then the buttons
+// share what is left, their labels cut, never over TABLE n and its state. (Your
+// own card's buttons are its strip's: TestOwnCardStrip.)
+void TestCardLineHoldsTwoButtons() {
     namespace card = table_card;
     for (const float s : {1.f, 1.5f})
         for (const float logical : {760.f, 400.f, 300.f}) {
@@ -393,10 +394,115 @@ void TestOwnCardLineHoldsReadyAndLeave() {
         }
 }
 
+// Your own card's strip (Ready, Leave seat, Table options; Leave queue and
+// Table options in the queue): its band is part of the card's least height, a
+// Between under the banner and a Foot above the card's end; its buttons are
+// equal, a Between apart, across the card's inner width, as tall as the strip,
+// and the card's line holds none. Nothing else stands over the strip: not the
+// seats, their pictures, the score, the banner or the words, at any step, on
+// the versus card and the stacked one, scaled.
+void TestOwnCardStrip() {
+    namespace card = table_card;
+    const TableCardContent seated{}, own{false, false, true}, ownBanner{false, true, true};
+    // Heights at scale 1 and 1.5: 32 px of buttons and the gap above them.
+    for (const float s : {1.f, 1.5f}) {
+        const auto versus = ShapeTableCards(760 * s, 1, false, s), stacked = ShapeTableCards(400 * s, 1, false, s);
+        EXPECT_MSG(Near(own.Under(), card::Strip + card::Between) && Near(card::Strip, 32), "scale %.1f: the strip's band is not 38 px", s);
+        EXPECT_MSG(Near(versus.Least(own) - versus.Least(seated), (card::Strip + card::Between) * s), "scale %.1f: the strip is not part of a versus card's least", s);
+        EXPECT_MSG(Near(stacked.Least(own) - stacked.Least(seated), (card::Strip + card::Between) * s), "scale %.1f: the strip is not part of a stacked card's least", s);
+        EXPECT_MSG(Near(versus.Least(own), 122 * s) && Near(stacked.Least(own), 150 * s), "scale %.1f: own card's least %.1f / %.1f", s, versus.Least(own), stacked.Least(own));
+        EXPECT_MSG(Near(versus.Least(ownBanner) - versus.Least(own), card::Banner * s), "scale %.1f: the banner and the strip do not add", s);
+        // The step is by the seats' height under the strip: Compact at the least, Medium from 158, Roomy from 198.
+        EXPECT_MSG(versus.StepOf(own, 122 * s) == TableCardStep::Compact && versus.StepOf(own, 157 * s) == TableCardStep::Compact &&
+            versus.StepOf(own, 158 * s) == TableCardStep::Medium && versus.StepOf(own, 197 * s) == TableCardStep::Medium &&
+            versus.StepOf(own, 198 * s) == TableCardStep::Roomy, "scale %.1f: an own card's step is not by the seats' height under its strip", s);
+    }
+    // The fill rule with your seat among the tables.
+    {
+        const auto line = ShapeTableCards(760, 2, false, 1);
+        const TableCardContent quiet{true};
+        // 1920x1080's column: four equal cards, the strip's card as tall as the rest.
+        const auto tall = PlaceTableCards(line, {own, seated, seated, seated}, 780);
+        EXPECT(!tall.scrolls && Near(tall.heights[0], tall.heights[3]) && tall.heights[0] >= 122 && tall.height <= 780);
+        EXPECT(line.StepOf(own, tall.heights[0]) == TableCardStep::Medium);
+        // 1280x720 (375): your card keeps its 122, the quiet tables are lines, no scroll bar.
+        for (const auto& cards : {std::vector<TableCardContent>{own, quiet, quiet, quiet}, std::vector<TableCardContent>{quiet, own, quiet, seated},
+                 std::vector<TableCardContent>{own, seated, seated, quiet}}) {
+            const auto places = PlaceTableCards(line, cards, 375);
+            EXPECT_MSG(!places.scrolls && !places.stripAside && places.height <= 375, "720p with your seat: height %.1f scrolls or lost the strip", places.height);
+            for (std::size_t i = 0; i < cards.size(); ++i) EXPECT(places.heights[i] >= (cards[i].quiet ? card::Quiet : line.Least(cards[i])) - .01f);
+        }
+        // Four games with your seat among them need 392 px with the strip: 17 more than that
+        // column. The strip stands aside (the buttons on the card's line), and four cards of 89 fit.
+        const auto games = PlaceTableCards(line, {own, seated, seated, seated}, 375);
+        EXPECT(!games.scrolls && games.stripAside && Near(games.heights[0], 89) && Near(games.heights[3], 89));
+        // With a banner on your card too (410 with the strip): its card keeps its 102 and the rest their 84.
+        const auto banner = PlaceTableCards(line, {ownBanner, seated, seated, seated}, 375);
+        EXPECT(!banner.scrolls && banner.stripAside && Near(banner.heights[0], 102) && Near(banner.heights[1], 84) && Near(banner.height, 102 + 3 * 84 + 3 * card::Between));
+        // Where the list scrolls with or without it (eight games), the strip stays.
+        const auto many = PlaceTableCards(line, {own, seated, seated, seated, seated, seated, seated, seated}, 300);
+        EXPECT(many.scrolls && !many.stripAside && Near(many.heights[0], 122));
+        // Nobody's strip, nothing aside.
+        EXPECT(!PlaceTableCards(line, {seated, seated, seated, seated}, 300).stripAside);
+    }
+    // Standing aside: the three buttons are the line's, apart, inside the head, never over its lead.
+    for (const float s : {1.f, 1.5f})
+        for (const float logical : {760.f, 400.f}) {
+            const auto shape = ShapeTableCards(logical * s, 1, false, s);
+            TableCardInput in;
+            in.card = {0, 0, logical * s, shape.Least(in.content)};
+            in.lead = 130 * s; in.words = 120 * s; in.score = 40 * s;
+            in.buttons = {70 * s, 80 * s, 100 * s};
+            const auto at = LayOutTableCard(shape, in);
+            EXPECT_MSG(at.buttons.size() == 3 && Width(at.strip) <= 0, "scale %.1f width %.0f: a card with no strip lost a button or kept a strip", s, logical);
+            for (std::size_t i = 0; i < at.buttons.size(); ++i) {
+                EXPECT_MSG(Inside(at.buttons[i], at.head) && at.buttons[i].x0 >= at.head.x0 + in.lead - .01f, "scale %.1f width %.0f: a line button left the head or stood over its lead", s, logical);
+                if (i) EXPECT_MSG(Apart(at.buttons[i - 1], at.buttons[i]), "scale %.1f width %.0f: line buttons overlap", s, logical);
+            }
+        }
+    // Where the boxes stand.
+    for (const float s : {1.f, 1.5f})
+        for (const float logical : {760.f, 560.f, 400.f, 300.f})
+            for (const float extra : {0.f, 20.f, 60.f, 100.f})
+                for (const bool banner : {false, true})
+                    for (const std::size_t count : {std::size_t{2}, std::size_t{3}}) {
+                        const auto shape = ShapeTableCards(logical * s, 1, false, s);
+                        TableCardInput in;
+                        in.content = {false, banner, true};
+                        in.card = {0, 0, logical * s, shape.Least(in.content) + extra * s};
+                        in.lead = 130 * s; in.words = 120 * s; in.score = 40 * s;
+                        in.buttons.assign(count, 90 * s);
+                        const auto at = LayOutTableCard(shape, in);
+                        const char* step = Named(at.step);
+                        const MenuRect inner{card::Pad * s, 0, (logical - card::Pad) * s, in.card.y1};
+                        EXPECT_MSG(Inside(at.strip, inner) && Near(Height(at.strip), card::Strip * s) && Near(at.strip.y1, in.card.y1 - card::Foot * s) &&
+                            Near(at.strip.x0, card::Pad * s) && Near(at.strip.x1, (logical - card::Pad) * s),
+                            "scale %.1f width %.0f extra %.0f: the strip is not the card's inner width above its foot", s, logical, extra);
+                        EXPECT_MSG(at.buttons.size() == count, "scale %.1f width %.0f: strip buttons lost", s, logical);
+                        for (std::size_t i = 0; i < count; ++i) {
+                            EXPECT_MSG(Near(at.buttons[i].y0, at.strip.y0) && Near(at.buttons[i].y1, at.strip.y1) && Near(Width(at.buttons[i]), Width(at.buttons[0])),
+                                "scale %.1f width %.0f: strip buttons are not equal and as tall as the strip", s, logical);
+                            if (i) EXPECT_MSG(Near(at.buttons[i].x0 - at.buttons[i - 1].x1, card::Between * s), "scale %.1f width %.0f: strip buttons are not a Between apart", s, logical);
+                        }
+                        EXPECT_MSG(Near(at.buttons.front().x0, at.strip.x0) && Near(at.buttons.back().x1, at.strip.x1), "scale %.1f width %.0f: strip buttons do not span the strip", s, logical);
+                        // Below the seats, the pictures and the banner; apart from everything else.
+                        EXPECT_MSG(at.strip.y0 >= (std::max)(at.seats[0].y1, at.seats[1].y1) + card::Between * s - .01f &&
+                            (!banner || at.strip.y0 >= at.banner.y1 + card::Between * s - .01f), "scale %.1f width %.0f %s: the strip is not a Between under the seats and banner", s, logical, step);
+                        for (std::size_t side = 0; side < 2; ++side)
+                            EXPECT_MSG(Apart(at.strip, at.seats[side]) && Apart(at.strip, at.faces[side]) && at.faces[side].y1 <= at.strip.y0 + .01f,
+                                "scale %.1f width %.0f %s: a seat or picture stood over the strip", s, logical, step);
+                        EXPECT_MSG(Apart(at.strip, at.head) && Apart(at.strip, at.score) && Apart(at.strip, at.words) && Apart(at.strip, at.banner),
+                            "scale %.1f width %.0f %s: the head, score, words or banner stood over the strip", s, logical, step);
+                        // The card's line holds none of the buttons: its words run to the line's end.
+                        EXPECT_MSG(Near(at.words.x1, shape.versus || !(in.score > 0) ? at.head.x1 : at.score.x0 - card::Space * s), "scale %.1f width %.0f: the line kept room for buttons", s, logical);
+                    }
+}
+
 int main() {
     TestStackedCardKeepsItsText();
     TestSeatTagPlacesItsNote();
-    TestOwnCardLineHoldsReadyAndLeave();
+    TestCardLineHoldsTwoButtons();
+    TestOwnCardStrip();
     TestOnePerLineIsAVersusLineAtCommonSizes();
     TestVersusStartsWhereEachSeatHasItsRoom();
     TestGridKeepsItsColumns();

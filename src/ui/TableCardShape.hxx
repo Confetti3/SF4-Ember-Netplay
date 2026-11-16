@@ -12,7 +12,8 @@
 //
 // A card is its head (the table's line: TABLE n, its state, what differs from
 // the room and its buttons), its body (the two seats), an optional banner
-// line under them, and a foot. What the body shows steps with its height
+// line under them, on your own card a strip of buttons (Ready, Leave seat,
+// Table options), and a foot. What the body shows steps with its height
 // (TableCardStep): the pictures are as tall as the body allows, the words
 // grow with them and the lines the compact card leaves out come back. A card
 // wide enough is a versus line: a fighter's picture at each outer end, each
@@ -39,6 +40,8 @@ constexpr float FaceGap = 8;
 constexpr float Foot = 8;
 // The banner line under the seats.
 constexpr float Banner = 18;
+// Your own card's strip: its buttons' height, standing a Between under the banner.
+constexpr float Strip = 32;
 // A quiet card's one line, and the seat buttons in it.
 constexpr float Quiet = 44;
 constexpr float QuietButton = 32;
@@ -69,8 +72,15 @@ constexpr float VersusLeast = 2 * Pad + 2 * (Face + FaceGap + SeatTextLeast) + M
 constexpr float QuietLineLeast = 2 * Pad + QuietHeadLeast + 2 * (Between + OfferLeast);
 }
 
-// What a card holds: nobody at the table (`quiet`), a banner line.
-struct TableCardContent { bool quiet = false, banner = false; };
+// What a card holds: nobody at the table (`quiet`), a banner line, a strip of
+// buttons (your own place's card). `Under` is what the last two take under the seats.
+struct TableCardContent {
+    bool quiet = false, banner = false, strip = false;
+    float Under() const {
+        namespace c = table_card;
+        return (banner ? c::Banner : 0) + (strip ? c::Between + c::Strip : 0);
+    }
+};
 
 // What a card shows at its height, least first. Line: a quiet table's one
 // line (its head and two seat buttons). Compact: pictures 48 px and more, the
@@ -104,11 +114,11 @@ struct TableCardShape {
     bool versus, quietLine;
     float s;
     // The least a card takes as a whole card (Compact): its head, its seats at
-    // their least, its banner and its foot.
+    // their least, its banner and strip and its foot.
     float Least(const TableCardContent& card) const {
         namespace c = table_card;
         const float seats = versus ? c::Face : 2 * c::SeatRow + c::SeatRowGap;
-        return (c::Head + seats + (card.banner ? c::Banner : 0) + c::Foot) * s;
+        return (c::Head + seats + card.Under() + c::Foot) * s;
     }
     // A quiet card's line: one line, or its head over its seats where the card is too narrow.
     float Line() const {
@@ -118,7 +128,7 @@ struct TableCardShape {
     // The height of one seat's place in a card `height` tall: a versus card's body, a stacked card's row.
     float SeatHeight(const TableCardContent& card, float height) const {
         namespace c = table_card;
-        const float body = height - (c::Head + c::Foot + (card.banner ? c::Banner : 0)) * s;
+        const float body = height - (c::Head + c::Foot + card.Under()) * s;
         return versus ? body : (body - c::SeatRowGap * s) * .5f;
     }
     // The step of a card `height` tall: a quiet card shorter than a whole card is its line.
@@ -150,6 +160,9 @@ struct TableCardPlaces {
     std::vector<float> tops, heights;
     float height = 0, leastRow = 0, leastHeight = 0;
     bool scrolls = false;
+    // The strip stands aside: with it the list would scroll and without it does not,
+    // so your card's buttons stand on its line and its height is a whole card's again.
+    bool stripAside = false;
 };
 // The fill rule. With R rows (a grid's cards in rows of `columns`) and every
 // card at least its Compact height, each row is (area - gaps) / R tall, in
@@ -158,7 +171,7 @@ struct TableCardPlaces {
 // tallest card's least, each card takes its own least (a row its tallest's);
 // where that does not fit either, a quiet card is its Line; and then the list
 // scrolls.
-inline TableCardPlaces PlaceTableCards(const TableCardShape& shape, const std::vector<TableCardContent>& cards, float area) {
+inline TableCardPlaces FillTableCards(const TableCardShape& shape, const std::vector<TableCardContent>& cards, float area) {
     namespace card = table_card;
     TableCardPlaces places;
     if (cards.empty()) return places;
@@ -190,6 +203,20 @@ inline TableCardPlaces PlaceTableCards(const TableCardShape& shape, const std::v
     }
     places.scrolls = places.height > area + .5f;
     return places;
+}
+// The cards stood in the column (FillTableCards), your card's strip included.
+// Where that would scroll, and the list does not without the strip (four busy
+// tables at 1280x720 with your seat among them), the strip stands aside: the
+// same fill with no strip, its buttons on the card's line (`stripAside`).
+inline TableCardPlaces PlaceTableCards(const TableCardShape& shape, const std::vector<TableCardContent>& cards, float area) {
+    auto places = FillTableCards(shape, cards, area);
+    if (!places.scrolls || std::none_of(cards.begin(), cards.end(), [](const TableCardContent& c) { return c.strip; })) return places;
+    auto bare = cards;
+    for (auto& c : bare) c.strip = false;
+    auto aside = FillTableCards(shape, bare, area);
+    if (aside.scrolls) return places;
+    aside.stripAside = true;
+    return aside;
 }
 
 // A seat's picture, square: as tall as the seat's place (`height`) allows,
@@ -224,8 +251,9 @@ inline SeatTag PlaceSeatTag(float left, float room, float tagWidth, float noteWi
 // height decides its step), what it holds, the width its head's lead takes
 // (TABLE n, its state and their spaces), the words that follow want (its
 // name, rules and counts), its score's width (0 for none) and its buttons'
-// wanted widths, left to right: on its line, or on a quiet card, which has
-// none there, a question's answers.
+// wanted widths, left to right: on its line, on a card with a strip its strip's
+// buttons (equal widths, so only their number counts), or on a quiet card,
+// which has none there, a question's answers.
 struct TableCardInput {
     MenuRect card;
     TableCardContent content;
@@ -238,13 +266,16 @@ struct TableCardInput {
 // none); its buttons' press boxes, left to right: on its line between its
 // words and its line's end, never over its lead, the line's whole height
 // (drawn HeadInset inside it), as wide as they want or sharing what is left;
+// on a card with a strip its buttons instead, side by side across the card's
+// inner width, equal, a Between apart, in the strip (its line then holds none);
 // on a quiet card a question's answers across its seats' place, the seats
-// then standing aside; its words' place; its banner's (empty for none).
+// then standing aside; its words' place; its banner's and its strip's (empty
+// for none).
 struct TableCardLayout {
     TableCardStep step = TableCardStep::Compact;
     MenuRect head;
     std::array<MenuRect, 2> seats, faces;
-    MenuRect score, words, banner;
+    MenuRect score, words, banner, strip;
     std::vector<MenuRect> buttons;
 };
 inline TableCardLayout LayOutTableCard(const TableCardShape& shape, const TableCardInput& in) {
@@ -284,7 +315,7 @@ inline TableCardLayout LayOutTableCard(const TableCardShape& shape, const TableC
         return at;
     }
     at.head = {left, b.y0, right, b.y0 + card::Head * s};
-    const float top = at.head.y1, bottom = b.y1 - (card::Foot + (in.content.banner ? card::Banner : 0)) * s, body = (std::max)(0.f, bottom - top);
+    const float top = at.head.y1, bottom = b.y1 - (card::Foot + in.content.Under()) * s, body = (std::max)(0.f, bottom - top);
     if (in.content.quiet) {
         // Nobody at the table: its two seats share the body, side by side, each a half.
         const float half = (inner - card::Between * s) * .5f;
@@ -318,9 +349,10 @@ inline TableCardLayout LayOutTableCard(const TableCardShape& shape, const TableC
     // The head's buttons from its end leftwards, never over its lead: where
     // they do not all fit at their width they share the room, their labels cut.
     const float end = in.score > 0 && !shape.versus ? at.score.x0 - card::Space * s : right, start = (std::min)(left + in.lead, end);
-    const std::size_t count = in.buttons.size();
+    // A card with a strip holds its buttons there, none on its line.
+    const std::size_t count = in.content.strip ? 0 : in.buttons.size();
     float wanted = count ? (count - 1) * card::Between * s : 0;
-    for (const float w : in.buttons) wanted += w;
+    for (std::size_t i = 0; i < count; ++i) wanted += in.buttons[i];
     const float room = end - start, share = count ? (std::max)(0.f, (room - (count - 1) * card::Between * s) / count) : 0;
     float x = end;
     at.buttons.resize(count);
@@ -332,6 +364,16 @@ inline TableCardLayout LayOutTableCard(const TableCardShape& shape, const TableC
     const float wordsEnd = count ? (std::max)(start, at.buttons.front().x0 - card::Space * s) : end;
     at.words = {start, at.head.y0, wordsEnd, at.head.y1};
     if (in.content.banner) at.banner = {left, bottom, right, bottom + card::Banner * s};
+    if (in.content.strip) {
+        at.strip = {left, b.y1 - (card::Foot + card::Strip) * s, right, b.y1 - card::Foot * s};
+        const std::size_t n = in.buttons.size();
+        const float gap = card::Between * s, each = n ? (std::max)(0.f, (inner - (n - 1) * gap) / n) : 0.f;
+        at.buttons.resize(n);
+        for (std::size_t i = 0; i < n; ++i) {
+            const float x0 = left + i * (each + gap);
+            at.buttons[i] = {x0, at.strip.y0, x0 + each, at.strip.y1};
+        }
+    }
     return at;
 }
 } }

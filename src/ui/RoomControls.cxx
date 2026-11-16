@@ -284,9 +284,12 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
     }
     return control;
 }
-ReadyButton ReadyButtonOf(const ReadyControl& control) {
+BarButton ReadyButtonOf(const ReadyControl& control) {
     return {control.kind == ReadyControl::Unready ? std::string(loc::T("room.unready.short")) : std::string(control.label),
         control.refusal.empty() ? control.detail : control.refusal, control.kind != ReadyControl::None};
+}
+BarButton TableOptionsButton(const ShellView& v, int selected) {
+    return {loc::T("room.table_options"), loc::Tf("room.table_options.detail", OptionsTable(v, selected) + 1), true};
 }
 std::vector<MenuChoice> OwnPlaceChoices(const ShellView& v, const room::Table& t, const PlaceExit& place) {
     std::vector<MenuChoice> choices;
@@ -295,6 +298,8 @@ std::vector<MenuChoice> OwnPlaceChoices(const ShellView& v, const room::Table& t
         choices.push_back({OwnPlace::Ready, ready.label, ready.detail, ready.enabled});
     }
     choices.push_back({OwnPlace::Leave, place.label, place.blocker, place.allowed});
+    const auto options = TableOptionsButton(v, place.table);
+    choices.push_back({OwnPlace::Options, options.label, options.detail, options.enabled});
     return choices;
 }
 std::string ReadyWithText(const ShellView& v, const room::Table& t, int seat) {

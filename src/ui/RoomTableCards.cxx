@@ -25,9 +25,9 @@ int SeatOf(const MenuChoice& offer) {
 }
 
 // The buttons on a card's line: its offers that are not seats (Join queue,
-// Watch); on your own place Ready (a seat) and what leaves it; while the card
-// asks a question (leaving a seat, ending the watched game), the question's
-// answers.
+// Watch); on your own place, in its strip, Ready (a seat), what leaves it and
+// Table options; while the card asks a question (leaving a seat, ending the
+// watched game), the question's answers (in the strip on your own card).
 struct CardButtons {
  enum class Kind { Offers, Place, Question } kind=Kind::Offers;
  std::vector<MenuChoice> choices;
@@ -102,7 +102,7 @@ CardPointer PointCard(const RoomBoardFrame& f,const MenuEntry& e,const std::vect
 // What the pointer asks of the card: an offer it moves onto lights, as the
 // pad's Left and Right would, and one it presses is sent (RoomAction refuses
 // what the room would not take); a resting pointer leaves the light alone. On
-// your own place its buttons (Ready, Leave) are sent even where they cannot
+// your own place its buttons (Ready, Leave, Table options) are sent even where they cannot
 // be, for RoomAction to say why; a question's answers answer it.
 void TakePointer(const RoomBoardFrame& f,const MenuEntry& e,const CardPointer& pointer,const std::vector<std::pair<const MenuChoice*,v2::Box>>& seats,
                  const CardButtons& buttons) {
@@ -276,10 +276,12 @@ void DrawCard(const RoomBoardFrame& f,ImDrawList* d,const TableFloor& floor,cons
   const auto& r=at.buttons[i];
   if(r.x1<=r.x0)continue;
   const bool chosen=buttons.kind==CardButtons::Kind::Question?i==f.nav.ChoiceIndex():buttons.choices[i].id==lit;
-  // Pressed on the line's whole height, drawn inside it; a quiet card's answers fill the seats' place, worded as its seats.
-  const float inset=card.content.quiet?0:table_card::HeadInset*s;
+  // Pressed on the line's whole height, drawn inside it; a quiet card's answers fill the seats' place, worded as its
+  // seats; a strip's buttons are drawn as pressed, worded as the seat buttons are.
+  const bool large=card.content.quiet||card.content.strip;
+  const float inset=large?0:table_card::HeadInset*s;
   bool cut=false;
-  v2::CardButton(d,v2::Box{ImVec2(r.x0,r.y0+inset),ImVec2(r.x1,r.y1-inset)},buttons.choices[i].label,card.content.quiet?offerSize:13*s,chosen,
+  v2::CardButton(d,v2::Box{ImVec2(r.x0,r.y0+inset),ImVec2(r.x1,r.y1-inset)},buttons.choices[i].label,large?offerSize:13*s,chosen,
    pointer.buttonOver==static_cast<int>(i),buttons.choices[i].enabled,false,&cut);
   if(cut)elided+=(elided.empty()?"":"\n")+buttons.choices[i].label;
  }
@@ -328,11 +330,18 @@ TableFloor ShapeFloor(const RoomBoardFrame& f,const PlaceExit& place,float width
   const bool quiet=!t.p1&&!t.p2&&t.queue.empty()&&t.spectators.empty()&&t.watchingNext.empty()&&!own&&seatsOnly;
   TableFloor::Card card{&e,&t,{quiet,false},quiet?TableBanner{}:DescribeTableBanner(f.v,t),own};
   card.content.banner=!card.banner.text.empty();
+  // Your own place's card keeps its buttons in a strip, whatever they are asked or offer
+  // (PlaceTableCards may stand it aside).
+  card.content.strip=own;
   contents.push_back(card.content);
   floor.cards.push_back(std::move(card));
  }
  const float area=height-after;
- const auto shapeAt=[&](float w){floor.width=w;floor.shape=ShapeTableCards(w,gridColumns,grid,f.s);floor.places=PlaceTableCards(floor.shape,contents,area);};
+ const auto shapeAt=[&](float w){
+  floor.width=w;floor.shape=ShapeTableCards(w,gridColumns,grid,f.s);floor.places=PlaceTableCards(floor.shape,contents,area);
+  // Where the strip stands aside (the column is too short for it) the card's buttons are on its line.
+  for(auto& card:floor.cards)card.content.strip=card.own&&!floor.places.stripAside;
+ };
  shapeAt(width);
  // Cards that do not fit the scroll stand beside its bar, at the width they are drawn at.
  if(floor.places.scrolls)shapeAt(width-ImGui::GetStyle().ScrollbarSize);
@@ -346,6 +355,8 @@ TableFloor ShapeFloor(const RoomBoardFrame& f,const PlaceExit& place,float width
 //  A stacked card: TABLE 1 [phase] name                              counts        2 - 1
 //                  [face] name, fighter
 //                  [face] name, fighter
+//  Your own card:  as a versus card, its head holding no buttons, and under the seats
+//                  [   Ready up   ]  [  Leave seat  ]  [ Table options ]
 //  A quiet card:   TABLE 3 [Open]
 //                  [      + Play as P1      ]  [      + Play as P2      ]
 //  Its line:       TABLE 3 [Open]   [+ Play as P1]   [+ Play as P2]

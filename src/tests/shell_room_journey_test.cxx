@@ -176,9 +176,10 @@ void AreaStepScrollsIntoView() {
 // game's picture: Column changed with the pad in a room goes out at once in the
 // room's own request, once the runtime's snapshot holds it the next change goes
 // out too, and Picture goes out the same way.
-// Your own seat's card offers Ready (Unready) then Leave seat on its line, as
-// 1.6.0's did: one source with the bar's Ready button, Ready the place A takes
-// until another is lit, Right reaching Leave seat, one press of either a press.
+// Your own seat's card offers Ready (Unready), Leave seat and Table options in
+// its strip, as 1.6.0's did (and Table options): Ready and Table options are the
+// bar's buttons, one source each, Ready the place A takes until another is lit,
+// Right reaching Leave seat then Table options, one press of either a press.
 void OwnSeatCardOffersReadyThenLeave() {
  using namespace sf4e;
  Harness h;h.Frame();
@@ -204,16 +205,19 @@ void OwnSeatCardOffersReadyThenLeave() {
  h.Frame(0,3);h.Screen("room");h.Frame(0,2);
  unlit();
  Check(nav.Focus()=="table-1"&&nav.Lit("table-1").empty(),"The own card could not be focused unlit");
- // The line's places are Ready then Leave seat, Ready the default, and Ready reads and
- // is enabled as the bar's button does, whatever the table is doing.
+ // The strip's places are Ready, Leave seat and Table options, Ready the default; Ready and
+ // Table options read and are enabled as the bar's buttons do, whatever the table is doing.
  const auto sameAsBar=[&](const char* why){
-  const auto& card=row("table-1");const auto& bar=row("ready");
-  const bool same=card.segments.size()==2&&card.segments[0].id=="ready"&&card.segments[1].id=="leave-place"&&card.segmentKind==SegmentKind::Places&&card.defaultPlace=="ready"&&
-   card.segments[0].label==bar.label&&card.segments[0].enabled==bar.enabled&&card.segments[0].detail==bar.detail;
-  if(!same)throw std::runtime_error(std::string("The own card's Ready is not the bar's: ")+why);
+  const auto& card=row("table-1");const auto& bar=row("ready");const auto& options=row("options");
+  const bool same=card.segments.size()==3&&card.segments[0].id=="ready"&&card.segments[1].id=="leave-place"&&card.segments[2].id=="table-options"&&
+   card.segmentKind==SegmentKind::Places&&card.defaultPlace=="ready"&&
+   card.segments[0].label==bar.label&&card.segments[0].enabled==bar.enabled&&card.segments[0].detail==bar.detail&&
+   card.segments[2].label==options.label&&card.segments[2].enabled==options.enabled&&card.segments[2].detail==options.detail;
+  if(!same)throw std::runtime_error(std::string("The own card's Ready or Table options is not the bar's: ")+why);
  };
  sameAsBar("waiting");
- Check(row("table-1").segments[0].label==loc::T("room.ready_up")&&row("table-1").segments[1].label==loc::T("room.leave_seat"),"The own card did not offer Ready then Leave seat");
+ Check(row("table-1").segments[0].label==loc::T("room.ready_up")&&row("table-1").segments[1].label==loc::T("room.leave_seat")&&
+  row("table-1").segments[2].label==loc::T("room.table_options"),"The own card did not offer Ready, Leave seat, then Table options");
  // A takes Ready with nothing lit, as it always did on your own seat, once.
  auto raced=h.actions.size();h.Press(MenuInput::Select);
  Check(h.actions.size()==raced+1&&ReadyIs(h.actions.back()),"A on your own card did not ready");
@@ -258,13 +262,32 @@ void OwnSeatCardOffersReadyThenLeave() {
   Check(h.actions.size()==raced+1&&RoomActionIs(h.actions.back(),room::ActionKind::Unready),"A click on the card's Unready did not unready");
   io.AddMousePosEvent(-1,-1);h.Frame();
  }
+ // Table options: from the strip it opens the page the bar's button opens, by the pad (Right twice
+ // from Ready, then A) and by the mouse, for the same table.
+ {
+  const auto page=[&]{std::vector<std::string> ids;for(const auto& e:rows)ids.push_back(e.id);return ids;};
+  h.Screen("room");h.Frame(0,2);unlit();
+  h.Press(MenuInput::Right);h.Press(MenuInput::Right);
+  Check(nav.Focus()=="table-1"&&nav.Lit("table-1")=="table-options","Right twice from Ready on your own card did not light Table options");
+  h.Press(MenuInput::Select);
+  Check(nav.Screen()=="room-table","A on the card's Table options did not open the options page");
+  h.Frame();const auto fromCard=page();
+  h.Screen("room");h.Frame(0,2);h.Choose("options");h.Frame();
+  Check(nav.Screen()=="room-table"&&page()==fromCard&&!fromCard.empty(),"The bar's Table options opened another page than the card's");
+  h.Screen("room");h.Frame(0,2);h.Wait(1);
+  auto& io=ImGui::GetIO();const auto at=centres.at("table-1/table-options");
+  io.AddMousePosEvent(at.x,at.y);h.Frame();io.AddMouseButtonEvent(0,true);h.Frame();io.AddMouseButtonEvent(0,false);h.Frame(0,2);
+  io.AddMousePosEvent(-1,-1);h.Frame();
+  Check(nav.Screen()=="room-table","A click on the card's Table options did not open the options page");
+  h.Screen("room");h.Frame(0,2);
+ }
  // The bar's reasons stand on the card too: a game under way is the bar's disabled button, here as well.
  table.ready[0]=false;table.phase=room::TablePhase::Playing;++table.revision;h.Frame(0,2);
  sameAsBar("playing");
  // No seat, no Ready.
  table.phase=room::TablePhase::Waiting;table.p1=0;h.view.room.members[0].table=-1;h.view.room.members[0].seat=-1;++table.revision;h.Frame(0,2);
- Check(std::none_of(row("table-1").segments.begin(),row("table-1").segments.end(),[](const MenuChoice& c){return c.id=="ready"||c.id=="leave-place";}),
-  "A member with no seat was offered Ready or Leave seat on a card");
+ Check(std::none_of(row("table-1").segments.begin(),row("table-1").segments.end(),[](const MenuChoice& c){return c.id=="ready"||c.id=="leave-place"||c.id=="table-options";}),
+  "A member with no seat was offered Ready, Leave seat or Table options on a card");
  SetMenuEntriesProbe({});SetMenuCardProbe({});
 }
 void RoomLayoutSavesInRoom() {
@@ -764,12 +787,12 @@ static void RoomBoardJourneys() {
  Check(!seatCard().info&&seatCard().hint==loc::T("room.ready_up"),"A seat that can ready lost its Ready action");
  seatTable.p2=0;h.Frame();
  // The card's Ready is then a dimmed button that says so (the bar's own), and A on it only says why.
- Check(seatCard().info&&seatCard().segments.size()==2&&seatCard().segments[0].label==loc::T("room.ready_up")&&!seatCard().segments[0].enabled,
+ Check(seatCard().info&&seatCard().segments.size()==3&&seatCard().segments[0].label==loc::T("room.ready_up")&&!seatCard().segments[0].enabled,
   "A seat with no opponent offered a Ready that cannot be sent");
  seatTable.p2=2;
  for(const auto phase:{room::TablePhase::Ready,room::TablePhase::Playing,room::TablePhase::Paused}){
   seatTable.phase=phase;h.Frame();
-  Check(seatCard().info&&seatCard().segments.size()==2&&!seatCard().segments[0].enabled&&!seatCard().segments[0].label.empty(),"A seat with nothing to send still offered an action");
+  Check(seatCard().info&&seatCard().segments.size()==3&&!seatCard().segments[0].enabled&&!seatCard().segments[0].label.empty(),"A seat with nothing to send still offered an action");
   h.Frame();
   raced=h.actions.size();h.Press(MenuInput::Select);
   Check(h.actions.size()==raced,"A on a seat with nothing to send sent something");
@@ -808,8 +831,8 @@ static void RoomBoardJourneys() {
  h.view.room.closed=false;h.Frame();
  h.view.room.tables[2].phase=room::TablePhase::Ready;h.Press(MenuInput::Back);Check(boardStatus==finishFirst,"B during a starting game gave no reason a third time");
  // B away from your own card is the ordinary Back: Home, keeping the seat.
- // (Right first lights Ready's neighbour, Leave seat, on the card, then goes on to the card beside.)
- for(int step=0;step<3&&h.shell.Navigation().Focus()=="table-2";++step)h.Press(MenuInput::Right);
+ // (Right lights Leave seat and Table options on the card, then goes on to the card beside.)
+ for(int step=0;step<4&&h.shell.Navigation().Focus()=="table-2";++step)h.Press(MenuInput::Right);
  Check(h.shell.Navigation().Focus()!="table-2","Right did not leave your own card");
  raced=h.actions.size();h.Press(MenuInput::Back);
  Check(h.actions.size()==raced&&h.shell.Navigation().Screen()=="home","B off your own card gave up the seat instead of going Home");

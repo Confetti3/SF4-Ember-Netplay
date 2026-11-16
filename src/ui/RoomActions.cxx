@@ -212,10 +212,12 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   const auto table=RowKey<int>(a.id,"table-");if(!table||*table>=static_cast<int>(v.room.tables.size()))return;
   selectedTable_=*table;
   if(a.text==TableAsk::LeaveSeat){LeavePlace(v,submit);return;}
-  // Your own card's line: Leave seat is B's (it asks first where it gives something up); Ready is
+  // Your own card's strip: Leave seat is B's (it asks first where it gives something up); Ready is
   // an A on the seat, and any press on the card within a moment of the last is that press again
   // (a double click readies once, never readies and unreadies).
   if(a.text==OwnPlace::Leave){RoomAction({MenuAction::Activate,OwnPlace::Leave},v,submit);return;}
+  // Table options is the bar's button, its action the bar's.
+  if(a.text==OwnPlace::Options){RoomAction({MenuAction::Activate,"options"},v,submit);return;}
   if(a.text==OwnPlace::Ready){
    if(samePress(*table,{}))return;
    if(ToggleReady(v,submit))offerSent_={*table,a.text,v.room.tables[static_cast<std::size_t>(*table)].revision,pressTime};

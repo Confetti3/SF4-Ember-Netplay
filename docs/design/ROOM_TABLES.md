@@ -11,16 +11,50 @@ draw cabinets (ARCADE_CABINET_MODE.md).
 The cards fill the column. With R rows (one card a row, or the Grid's two or
 three across) every card is `floor((area - gaps) / R)` tall, at most the cap
 (208 px at scale 1), at least a whole card's least (Compact: 84 px, 112
-stacked, 18 more with a banner). Every card in play is that one height,
+stacked, 18 more with a banner, and on your own place's card 38 more for its
+strip: 122 px versus, 150 stacked). Every card in play is that one height,
 whatever it holds: a calm row of tables. What the cap leaves stands under the
 last card. Where that height is under the tallest card's least, each card
-takes its own least (a banner's card its line more); where that does not fit
-either, a quiet table (nobody seated, queued or watching, nothing on offer
-but its seats) is one 44 px line (68 where too narrow: its seats under its
-head); only then does the list scroll, beside its bar, landing on a card's
-top or the floor's end. Four tables take 190 px each in a 780 px column
-(1950x1070), about 193 at 2438x1330 (scale 1.218), 89 at 1280x720; four
-games and four quiet tables at 1280x720 are four versus cards and four lines.
+takes its own least (a banner's card its line more, your card its strip's);
+where that does not fit either, a quiet table (nobody seated, queued or
+watching, nothing on offer but its seats) is one 44 px line (68 where too
+narrow: its seats under its head); where the list would still scroll but does
+not without your card's strip, the strip stands aside (below); only then does
+the list scroll, beside its bar, landing on a card's top or the floor's end.
+Four tables take 190 px each in a 780 px column (1950x1070), about 193 at
+2438x1330 (scale 1.218), 89 at 1280x720; four games and four quiet tables at
+1280x720 are four versus cards and four lines. With your seat among them at
+1280x720 your card keeps its 122 and the quiet tables are lines (122, 84, 84,
+44); with four busy tables the strip stands aside, and four cards of 89 fit.
+
+## Your own card's strip
+
+The card of the table where you have a place ends in a strip (`TableCardContent::strip`,
+`LayOutTableCard`): three buttons across the card's inner width, equal, a
+`Between` (6 px) apart, 32 px tall at scale 1 (scaled with the card), a
+`Between` under the seats and their banner, and the foot (8 px) under it, so
+the strip is 38 px of the card's least height. On a seat they are Ready up
+(Unready, Rematch; Unready short, as on the bar), Leave seat (Cancel the start),
+Table options; on your queue place Leave queue and Table options. A card's head
+line holds none of them. The seats' pictures and words are laid out above the
+strip at every step (the step is by the seat's height under the strip: Medium
+from a 158 px card, Roomy from 198) and never over it. A question the card asks
+(leaving a seat) puts its answers in the strip, so the card does not change
+height while it is open.
+
+- Ready is the bar's button, one source for both (`ReadyButtonOf`): the same
+  label, enabled state and reason. Table options is the bar's too
+  (`TableOptionsButton`: its label, its detail naming the table, its action
+  "options"), so the strip, the bar and Y open the same page for your table.
+  Neither is shown in a tournament room, which has no Leave to offer (the card
+  is not your own place's there), except a held start's Cancel.
+- Where the list would scroll with the strip and not without it (four busy
+  tables at 1280x720 with your seat among them: 17 px too tall, 410 with a
+  banner, 35), `PlaceTableCards` stands the strip aside: the card is a whole
+  card again and the same three buttons stand on its head line, as the Join
+  queue and Watch of other tables do. The strip is the card's own, not the
+  column's: where the list scrolls anyway it keeps it.
+- A label too wide for its button is cut, the full words on hover.
 
 ## Steps
 
@@ -58,12 +92,8 @@ The heading says once what every table shares: the room's own rules and the
 first table's round rules, then "Playing 2 · Watching 1", never a zero; rules
 that do not fit beside TABLES wrap in a paragraph under it. A card's head line
 (28 px) holds TABLE n and its state, its name, what differs from the room, and
-its buttons: Join queue and Watch, or on your own seat Ready (Unready,
-Rematch) then Leave seat (Cancel the start), on your queue place Leave queue.
-Ready is the bar's button again, one source for both (`ReadyButtonOf`): the
-same label (Unready short), the same enabled state and reason, shown wherever
-the bar shows it (you are seated at that table), never in a tournament room,
-which has no Leave to offer. Where the line cannot hold its buttons at their
+its buttons: Join queue and Watch on another table; on your own place the
+card's strip holds them (above), its head none. Where the line cannot hold its buttons at their
 width the name gives way first, then the buttons share what is left and cut
 their labels (the full words are on hover). An open seat the member may take
 is the seat's whole half, one button with a plus and "Play as P1"; one they
@@ -81,8 +111,12 @@ Watch (Unwatch) while anyone sits there (`SeatChoices`): the row's segments of
   is fill and ink; the card's ring is the only ring.
   Your own seat's card (`defaultPlace`): a direction arriving on it lights
   Ready, and A with nothing lit takes Ready, so A on your own seat readies as
-  it always did; Left and Right reach Leave seat, A on it asks to leave where
-  that gives something up.
+  it always did; Left and Right step across Ready, Leave seat and Table
+  options (past either end moving on as from any row), A on Leave seat asks to
+  leave where that gives something up, A on Table options opens the table's
+  options as the bar's button does; Up and Down leave the card. On your queue
+  place the strip's buttons are the pointer's: A opens the table's options as
+  it always did, B leaves.
 - Mouse: a moving pointer lights, a click sends; a double click's second click
   is ignored. Line buttons are pressed on the line's whole height.
 - The same press: after an offer was sent to a table, that offer again, or any
@@ -94,10 +128,10 @@ Watch (Unwatch) while anyone sits there (`SeatChoices`): the row's segments of
 - While this PC watches a game, an offer that ends the view asks on the card,
   as leaving a scored seat does (one `TableAsk`): Cancel or the offer. A quiet
   card's answers stand where its seats were, across the card and as tall; an
-  occupied card's on its line. The question closes when the watched game ends
+  occupied card's on its line, your own card's in its strip. The question closes when the watched game ends
   and is dropped on a new room or away from the board.
 - A on an offer the room would refuse says why.
-- Table options: Y on a card, or the bar's.
+- Table options: Y on a card, the bar's button, or your own card's strip.
 
 ## The line under the list
 
