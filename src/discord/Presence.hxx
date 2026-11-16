@@ -11,9 +11,6 @@ namespace sf4e { namespace discord {
 struct PresenceInput {
     PresenceInput(const netplay::Snapshot& session, const room::Snapshot& room) : session(session), room(room) {}
     bool ready = false, offline = false, show = true, invites = true;
-    // Discord's own presence hands out the room's secret only while its Privacy is Friends. Friends' offer does not
-    // ask: a Hidden room is joined by the invite its player sends.
-    bool honorsPrivacy = false;
     const netplay::Snapshot& session;
     const room::Snapshot& room;
     std::string party, secret;
@@ -69,7 +66,7 @@ inline Presence Describe(const PresenceInput& in) {
     out.held = in.room.tournament.Active() ? Presence::Held::Match : in.session.control != netplay::Health::Healthy ? Presence::Held::Unhealthy :
         in.room.locked ? Presence::Held::Locked : out.size >= out.capacity ? Presence::Held::Full : Presence::Held::None;
     out.offerable = out.held == Presence::Held::None;
-    if (in.invites && out.offerable && (!in.honorsPrivacy || in.room.OpenToFriends()) && !out.party.empty() && in.expires > in.now && in.secret.size() == 127) {
+    if (in.invites && out.offerable && !out.party.empty() && in.expires > in.now && in.secret.size() == 127) {
         out.secret = in.secret;
         out.expires = in.expires;
     }

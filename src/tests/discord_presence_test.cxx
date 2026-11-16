@@ -27,12 +27,10 @@ int main() {
     roomView.locked=true; CHECK(discord::Describe(in).secret.empty()); roomView.locked=false;
     roomView.capacity=1; CHECK(discord::Describe(in).secret.empty()); roomView.capacity=16;
     in.invites=false; CHECK(discord::Describe(in).secret.empty()); in.invites=true;
-    // A Hidden room's secret stays out of Discord's presence, which honors Privacy; friends' offer does not ask.
+    // Describe does not know Privacy: a Hidden room is still offerable by invite. Discord's publisher withholds its secret by OpenToFriends.
     roomView.friendsHidden=true;
-    CHECK(discord::Describe(in).secret==in.secret);
-    in.honorsPrivacy=true; CHECK(discord::Describe(in).secret.empty() && discord::Describe(in).offerable);
-    roomView.friendsHidden=false; CHECK(discord::Describe(in).secret==in.secret);
-    in.honorsPrivacy=false;
+    CHECK(discord::Describe(in).secret==in.secret && discord::Describe(in).offerable && !roomView.OpenToFriends());
+    roomView.friendsHidden=false; CHECK(roomView.OpenToFriends());
     // A room whose snapshot is bound to a tournament match is never offered to friends.
     roomView.tournament.matchId="emt_1";
     CHECK(roomView.tournament.Active() && discord::Describe(in).secret.empty() && discord::Describe(in).activity=="Ready");
