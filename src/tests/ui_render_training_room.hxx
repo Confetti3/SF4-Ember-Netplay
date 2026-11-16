@@ -38,6 +38,27 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
         Require(status->Pos.x>=0&&status->Pos.x+status->Size.x<=size.w,"The room line left the screen");
     };
     clear();
+    // The keyboard's strip says F10 goes back to the room, right after the
+    // controls, and outside a room's Training it says nothing of it. The
+    // line stays inside the meter in a small window too.
+    {
+        const auto backTo=[&]{
+            const auto& pieces=LastTrainingStrip().pieces;
+            const auto at=std::find(pieces.begin(),pieces.end(),std::string("F10"));
+            return at!=pieces.end()&&at+1!=pieces.end()&&*(at+1)==loc::T("training.back_to_room")&&at==pieces.begin()+2;
+        };
+        auto& io=ImGui::GetIO();const auto roomHere=layers.trainingRoom;
+        if(MenuPromptDevice()==input::PadKeyboard){
+            Require(backTo(),"The strip did not name F10 as the way back to the room");
+            layers.trainingRoom={};draw();
+            Require(std::find(LastTrainingStrip().pieces.begin(),LastTrainingStrip().pieces.end(),std::string("F10"))==LastTrainingStrip().pieces.end(),"The strip named F10 outside a room's Training");
+            layers.trainingRoom=roomHere;
+            const auto wide=io.DisplaySize;io.DisplaySize=ImVec2(640,480);draw();
+            Require(LastTrainingStrip().width<=LastTrainingStrip().room+.5f,"The strip with the way back to the room is wider than the meter");
+            io.DisplaySize=wide;
+        }
+        layers.trainingRoom=roomHere;draw();
+    }
     // Seated, nobody opposite yet.
     s.tables[1].queue.clear();s.tables[1].p1=1;s.members[0].table=1;s.members[0].seat=0;
     layers.trainingRoom=DescribeTrainingRoom(s,0);draw("training-room-status-waiting");clear();

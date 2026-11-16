@@ -396,6 +396,7 @@ static bool Dispatch(Native* system, const Command& command) {
         return restored;
     }
     case Action::ClearHistory: meter.Reset(); return true;
+    case Action::LeaveToRoom: return leaving.LeaveNow();
     case Action::DummyState: WriteDummyState(command.dummy); return true;
     case Action::ComboRecord: comboRecorder.Begin(); comboTally.Reset(); return true;
     case Action::ComboStart: {

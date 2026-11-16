@@ -20,6 +20,10 @@ struct TrainingRoomStatus {
     std::string room, opponent;
     std::string table, place, unread;
     bool Empty() const { return room.empty() && opponent.empty() && table.empty() && place.empty() && unread.empty(); }
+    // Training entered from a room: the status exists only for a member who
+    // joined one, and Training from Home needs none. This is where the way
+    // back to the room (F10, the controls' row) is offered.
+    bool InRoom() const { return !Empty(); }
 };
 // Empty without a joined room or a local member in it. unread: the room
 // chat's unread count, as the room screen shows it.

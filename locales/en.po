@@ -2688,6 +2688,12 @@ msgstr "Close training controls"
 msgid "training.close_controls.detail"
 msgstr "Close Ember, then close SF4's pause menu to resume if it is open."
 
+msgid "training.back_to_room"
+msgstr "Back to room"
+
+msgid "training.back_to_room.detail"
+msgstr "Leave Training and return to {0}. Your place in the room is kept."
+
 msgid "training.slot"
 msgstr "Slot {0}"
 

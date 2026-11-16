@@ -650,7 +650,11 @@ void TrainingPlayPress(const training::View& view,const TrainingSubmit& submit) 
  Command command; command.action=Action::AdvancePlayback; command.generation=view.generation;
  if(!submit||!submit(command)) Notice(loc::T("training.command_rejected"),true);
 }
-void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit) {
+void TrainingBackToRoomPress(const training::View& view,const TrainingSubmit& submit) {
+ Command command; command.action=Action::LeaveToRoom; command.generation=view.generation;
+ if(!submit||!submit(command)) Notice(loc::T("training.command_rejected"),true);
+}
+void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit,const TrainingRoomStatus& room) {
     if(!view.available)return;
     const auto* vp=ImGui::GetMainViewport();
     const ImVec2 size((std::min)(820*Scale(),vp->Size.x*.8f),(std::min)(600*Scale(),vp->Size.y*.8f));
@@ -673,12 +677,12 @@ void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit)
         // Capture remains global even though presentation is only a flyout.
         ImGui::SetNextFrameWantCaptureKeyboard(true);
         ImGui::SetNextFrameWantCaptureMouse(true);
-        DrawTrainingPanel(view,submit);
+        DrawTrainingPanel(view,submit,room);
         ImGui::SetWindowFontScale(1);
     }
     ImGui::End();ImGui::PopStyleVar(5);ImGui::PopStyleColor(2);
 }
-void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
+void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit,const TrainingRoomStatus& room) {
  using namespace training;if(!v.available)return;
  auto& nav=trainingMenu.navigation;
  static std::uint64_t generation=0,pending=0;
@@ -715,6 +719,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
    Row("combo-check",loc::T("training.combo_check"),loc::T("training.combo_check.detail")),
    Row("return",loc::T("training.close_controls"),loc::T("training.close_controls.detail"))};
   if(TrainingRemoteOffered())rows.insert(rows.end()-1,Row("remote",loc::T("training.remote"),loc::T("training.remote.detail")));
+  if(room.InRoom())rows.insert(rows.end()-1,Row("back-to-room",loc::T("training.back_to_room"),loc::Tf("training.back_to_room.detail",room.room)));
  }else if(screen=="remote"&&TrainingRemoteOffered()){
   rows=TrainingRemoteRows();
  }else if(screen=="recording"){
@@ -839,6 +844,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(lab.meter.style!=MeterStyle::Flat);
  },1,{},GameMenu::Body{},true,compactSlots?30:100,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
+ if(a.kind==MenuAction::Activate&&screen=="home"&&a.id=="back-to-room"){TrainingBackToRoomPress(v,submit);ForwardMenuAction({MenuAction::Close});return;}
  // A tab names its page; the pages are the lab's, one level under it, so
  // one replaces another, whatever is open on it (a reader).
  if(a.kind==MenuAction::Shortcut&&!a.id.empty()){if(a.id=="recording")ListRecordings();nav.Replace(a.id);return;}

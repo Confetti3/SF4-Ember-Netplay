@@ -728,6 +728,11 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool padBehind = !focused && snapshot.inputDevice.connected && snapshot.inputDevice.type == sf4e::input::PadXInput;
     const bool offerGoNow = called && (focused || padBehind) && !presentation.Visible() && !nativePaused;
     if (called) s_trainingControls.Close();
+    // Waiting in Training from a room: where the player stands there, and on
+    // the call who sat down. The room is the snapshot's; the unread count is
+    // the room screen's own.
+    const bool inRoom = snapshot.session.room == sf4e::netplay::RoomState::Joined;
+    const auto trainingRoom = training.available && inRoom ? sf4e::ui::DescribeTrainingRoom(snapshot.Room(), shell.UnreadChat()) : sf4e::ui::TrainingRoomStatus{};
     // Training's keys and pad stay off during any replay, an export's too.
     if (focused && training.available && !playback.playback && !presentation.Visible()) {
         // The pad drives the controls while they are open, through the same
@@ -747,6 +752,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         auto practice = [&](sf4e::training::Action action) {
             sf4e::training::Submit({action, training.generation});
         };
+        // Back to the room, as F10 opens Ember's screen everywhere else: in a
+        // room that screen is the room. Not under the call, which is taking them.
+        if (ImGui::IsKeyPressed(ImGuiKey_F10, false) && trainingRoom.InRoom() && !called && !ImGui::GetIO().WantTextInput)
+            sf4e::ui::TrainingBackToRoomPress(training, sf4e::training::Submit);
         sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit);
         // Not under the call either: F7 could otherwise open the recordings there.
         if (sf4e::ui::TrainingPressesAct(s_trainingControls, called) && !ImGui::GetIO().WantTextInput) {
@@ -768,7 +777,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (s_trainingControls.Open()) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
-            sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
+            sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit, trainingRoom);
             sf4e::ui::DrawGameThemesFloat(true, true, true);
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_trainingControls.Close();
         }
@@ -785,11 +794,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     layers.focused = focused; layers.trainingHud = trainingHud;
     layers.matchActive = frame->ggpoSessionActive; layers.matchWaitsForMenu = snapshot.matchWaitsForMenu;
     layers.showMatchHud = snapshot.preferences.showMatchHud;
-    // Waiting in Training from a room: where the player stands there, and on
-    // the call who sat down. The room is the snapshot's; the unread count is
-    // the room screen's own.
-    const bool inRoom = snapshot.session.room == sf4e::netplay::RoomState::Joined;
-    if (training.available && inRoom) layers.trainingRoom = sf4e::ui::DescribeTrainingRoom(snapshot.Room(), shell.UnreadChat());
+    layers.trainingRoom = trainingRoom;
     if (called && inRoom) layers.challenger = sf4e::ui::DescribeChallenger(snapshot.Room(), call);
     if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(focused ? sf4e::ui::MenuPromptDevice() : sf4e::input::PadXInput);
     layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown &&

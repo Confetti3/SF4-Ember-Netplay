@@ -254,6 +254,45 @@ int main() {
             closed.Follow(call(7), battle, 120); closed.Reset();
             Require(closed.Left() == 0 && closed.Call() == 0 && closed.Follow(call(7), battle, 120), "A closed battle kept its call");
         }
+        // The player's own way back to their room (F10, the controls' row):
+        // the call's go now with no call behind it. It leaves on the next
+        // update that may, once, and does nothing while a call's count runs
+        // or after it asked, whatever the room does meanwhile.
+        {
+            const std::uint64_t battle = 40;
+            const auto follow = [&](LeaveCountdown& countdown, std::uint64_t call) {
+                CallControl control; control.call = call; control.generation = battle;
+                countdown.Follow(control, battle, 120);
+            };
+            LeaveCountdown own;
+            follow(own, 0);
+            Require(own.LeaveNow() && own.Left() == 1 && own.Call() == 0, "The player's return was not taken");
+            Require(!own.Tick(false) && own.Left() == 1, "The player's return left a fight that was not running");
+            follow(own, 0);
+            Require(own.Tick(true) && own.Left() == 0, "The player's return did not leave on the next update that could");
+            Require(!own.LeaveNow() && !own.Tick(true), "The player's return left a second time");
+            // A call arriving after the player asked neither lengthens the wait nor takes the battle again.
+            LeaveCountdown first;
+            Require(first.LeaveNow(), "The player's return was refused with no call");
+            follow(first, 7);
+            Require(first.Left() == 1 && first.Call() == 0 && first.Tick(true) && !first.Tick(true), "A call that arrived after the player's return changed it");
+            // While a call's count runs the return is already under way: nothing is taken, and the count goes on.
+            LeaveCountdown counting;
+            follow(counting, 7);
+            Require(!counting.LeaveNow() && counting.Left() == 120 && counting.Call() == 7, "The player's return cut a call's count");
+            // The call's banner ran out and the battle was told to leave: nothing more to ask.
+            for (int frame = 0; frame < 119; ++frame) { follow(counting, 7); counting.Tick(true); }
+            Require(counting.Left() == 1 && !counting.LeaveNow(), "The player's return was taken on a call's last frame");
+            follow(counting, 7);
+            Require(counting.Tick(true) && !counting.LeaveNow(), "The player's return was taken after a call's leave");
+            // Not outside a battle that ended: a closed battle forgets the request.
+            own.Reset();
+            Require(own.LeaveNow(), "A closed battle kept the player's return");
+            // The session takes the command for its own battle only.
+            Session battleSession; battleSession.Enter(); battleSession.SetReady(true);
+            Require(battleSession.Apply({Action::LeaveToRoom, battleSession.GetView().generation}), "The session refused the player's return");
+            Require(!battleSession.Apply({Action::LeaveToRoom, battleSession.GetView().generation + 1}), "The session took the player's return for another battle");
+        }
 
         // Dummy settings: a request within the menu's choices shows in the
         // view until the adapter's read-back; -1 leaves a setting alone.

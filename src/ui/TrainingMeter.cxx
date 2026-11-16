@@ -977,7 +977,7 @@ static TrainingHudArea DrawInputDisplay(const training::View& view, InputDisplay
 static_assert(training::MeterOptions{}.position == static_cast<int>(TrainingHudBottom * 100 + .5f), "The meter's default place left the super meters' edge");
 float TrainingMeterBottom() { return TrainingMeterOptions().position / 100.f; }
 float TrainingMeterWidth(float hudScale) { return (std::min)(620 * hudScale, ImGui::GetMainViewport()->Size.x * .75f); }
-TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
+TrainingHudInput DrawTrainingHud(const training::View& view, bool called, const TrainingRoomStatus& room) {
     if (!view.available) return {};
     const auto* vp = ImGui::GetMainViewport();
     const float hudScale = TrainingHudScale();
@@ -990,7 +990,7 @@ TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
     const ImVec2 hudTop = MeterWindow(view, hudScale, width, hudBottom, options);
     TrainingHudArea area{hudTop.x, hudTop.y, hudTop.x + width, hudBottom};
     if (options.inputs != InputDisplay::Off) area.Cover(DrawInputDisplay(view, options.inputs, hudScale, hudTop.x, width, hudBottom));
-    auto input = DrawTrainingShortcuts(view, called, hudTop.x, hudTop.y, width, hudScale);
+    auto input = DrawTrainingShortcuts(view, called, room, hudTop.x, hudTop.y, width, hudScale);
     area.Cover(input.area);
     input.area = area;
     return input;

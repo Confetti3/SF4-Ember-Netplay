@@ -14,7 +14,7 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
     if (passive && view.focused && training.available && view.trainingHud) {
         DrawTrainingRoomStatus(view.trainingRoom);
         // The Data panel goes where the HUD leaves room.
-        hud = DrawTrainingHud(training, view.challenger.called);
+        hud = DrawTrainingHud(training, view.challenger.called, view.trainingRoom);
         DrawTrainingData(training, hud.area);
         if (hud.open) passive = false;
     }

@@ -14,9 +14,11 @@ using TrainingSubmit = std::function<bool(training::Command)>;
 // The phone remote the live overlay offers (training::remote); unset in the UI lab, which hides its page.
 struct TrainingRemote { std::function<bool()> start; std::function<void()> stop; std::function<std::string()> url, pin, link; std::function<bool()> open; std::function<bool()> hudAllowed; std::function<void(bool)> allowHud; };  // link: the address with the PIN, what the QR code holds
 void SetTrainingRemote(TrainingRemote remote);
-void DrawTrainingPanel(const training::View& view, const TrainingSubmit& submit);
+// room: where the member waits when this Training was entered from a room;
+// the panel then has a row that goes back to it (TrainingBackToRoomPress).
+void DrawTrainingPanel(const training::View& view, const TrainingSubmit& submit, const TrainingRoomStatus& room = {});
 // Shared by the live overlay and render tests; owns fixed geometry and input focus.
-void DrawTrainingFlyout(const training::View& view, const TrainingSubmit& submit);
+void DrawTrainingFlyout(const training::View& view, const TrainingSubmit& submit, const TrainingRoomStatus& room = {});
 // F7 on a recorded slot: opens the controls under token on their recordings,
 // asking before the slot is overwritten. Refused (the focus period ended),
 // it changes nothing and leaves no request for a later opening.
@@ -31,6 +33,10 @@ void TrainingRecordPress(const training::View& view,const TrainingSubmit& submit
 // under which the overlay opens the recordings, or nothing once it has gone.
 bool TakeOverwriteAsk(const training::View& view,input::TrainingControls::Token& token);
 void TrainingPlayPress(const training::View& view,const TrainingSubmit& submit);
+// F10 and the controls' row, in a room's Training: leave for the room at the
+// next tick that may, the way the call's go now does, with no question asked.
+// Sent only for a status that InRoom, and never under the call.
+void TrainingBackToRoomPress(const training::View& view,const TrainingSubmit& submit);
 // Where the lab keeps the dummy's reply and the hotkeys (training.json) and
 // the saved recordings. Until this is set they live in memory only, which is
 // what the render tests want.
@@ -138,12 +144,12 @@ float TrainingHudScale();
 // The HUD's windows: dark enough to read over a bright stage, which still shows through.
 constexpr float TrainingHudBackground = .62f;
 // called: a room calls the player back (ChallengerCall::called); the chip is
-// not drawn then.
-TrainingHudInput DrawTrainingHud(const training::View& view, bool called = false);
+// not drawn then. room: the strip names F10 when it is in a room's Training.
+TrainingHudInput DrawTrainingHud(const training::View& view, bool called = false, const TrainingRoomStatus& room = {});
 // The strip of keys over the meter (TrainingShortcuts.cxx): its left edge at
 // left, its bottom just above meterTop, and no wider than width. The result's
 // area is the strip's.
-TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, float left, float meterTop, float width, float hudScale);
+TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, const TrainingRoomStatus& waiting, float left, float meterTop, float width, float hudScale);
 // What the HUD's shortcut strip drew in its last call, for the render tests:
 // its text height in pixels, the width its line took and the width it had,
 // and each piece's text in order (key, button, chip, label or notice).
