@@ -299,7 +299,7 @@ struct DumpChannel {
 	DWORD exceptionCode = 0;
 	uint64_t crashAddress = 0;
 	// Whether the game made a crash request at all.
-	bool asked = false;
+	bool gameAsked = false;
 
 	bool Create(bool inheritable = false) {
 		SECURITY_ATTRIBUTES attributes = { sizeof(attributes), nullptr, inheritable ? TRUE : FALSE };
@@ -366,7 +366,7 @@ struct DumpChannel {
         written[0] = L'\0';
         reportWritten.clear(); exceptionCode = 0; crashAddress = 0;
         if (asked.magic == DumpRequestMagic) {
-            asked = true;
+            gameAsked = true;
             const auto deadline = GetTickCount64() + budgetMs;
             auto* remotePointers = reinterpret_cast<EXCEPTION_POINTERS*>(static_cast<uintptr_t>(asked.exceptionPointers));
             // Keep exception structures in launcher memory before any slow write.

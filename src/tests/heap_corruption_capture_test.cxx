@@ -395,8 +395,7 @@ void TestRealUnloadTraceNamesAFreedDll() {
 	CHECK(module != nullptr);
 	const uint32_t base = (uint32_t)reinterpret_cast<uintptr_t>(module);
 	FreeLibrary(module);
-	if (GetModuleHandleW(L"msimg32.dll")) { std::printf("unload trace test skipped: msimg32.dll stayed loaded
-"); return; }
+	if (GetModuleHandleW(L"msimg32.dll")) { std::printf("unload trace test skipped: msimg32.dll stayed loaded\n"); return; }
 	using Getter = void (NTAPI*)(ULONG**, ULONG**, PVOID*);
 	const Getter getter = reinterpret_cast<Getter>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetUnloadEventTraceEx"));
 	CHECK(getter != nullptr);
