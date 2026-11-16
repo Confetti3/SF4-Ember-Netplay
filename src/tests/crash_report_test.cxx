@@ -65,6 +65,7 @@ static void TestExitCodeNames() {
 	CHECK(IsCrashExit(0xC0000005u));
 	CHECK(IsCrashExit(0xC0000409u));
 	CHECK(IsCrashExit(0xE06D7363u));
+	CHECK(IsCrashExit(0xE0470001u));
 	CHECK(!IsCrashExit(0));
 	CHECK(!IsCrashExit(0xC0000139u));
 	CHECK(!IsCrashExit(0xC0000135u));
