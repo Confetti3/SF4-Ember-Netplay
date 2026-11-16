@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "../common/Country.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/SkillBadge.hxx"
 #include "AwardCounters.hxx"
 #include "Profiles.hxx"
@@ -69,8 +69,8 @@ struct Own {
 	// can be shown.
 	bool hasMostPlayed = false;
 	MostPlayed mostPlayed;
-	// Indexed by fighter id, 0 to selection::FighterCount - 1.
-	std::array<Level, selection::FighterCount> fighters{};
+	// Indexed by fighter id, 0 to the catalog's fighterCount - 1 (at most ember::MaxFighters).
+	std::array<Level, ember::MaxFighters> fighters{};
 };
 
 // What a card shows of the account, and of one fighter.
@@ -107,7 +107,7 @@ struct Card {
 	std::string name;
 	CountryCode country;
 	SkillBadge badge;
-	// Their main fighter, 0 to FighterCount - 1, when hasMain.
+	// Their main fighter, one of the catalog's, when hasMain.
 	bool hasMain = false;
 	std::uint8_t main = 0;
 	// When they came to Ember: unix seconds, the first of that month; when hasSince.

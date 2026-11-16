@@ -213,7 +213,7 @@ public:
     // The rows Profile and Edit card share.
     static MenuEntry NameRow(Shell& s, const ShellView& v) { return TextRow("name", loc::T("profile.player_name"), s.preferences_.displayName, 31, v.canEditPreferences); }
     static MenuEntry MainRow(Shell& s) {
-        const std::string name = selection::FindFighter(s.preferences_.mainFighter)->name;
+        const std::string name = ember::Catalog().fighterName(s.preferences_.mainFighter);
         auto row = Row("main-character", loc::T("profile.main_character"), loc::Tf("profile.main_character_detail", name));
         row.value = name;
         return row;

@@ -26,7 +26,7 @@
 //   both keep working.
 #include "AwardCounters.hxx"
 #include "Levels.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/SkillBadge.hxx"
 
 #include <algorithm>
@@ -61,12 +61,20 @@ enum class Counter : std::uint8_t {
 // its own, it is "Class" and the class's name as the game shows it (`band`, 2
 // to the top; 0 for the others), and its `how` takes that name too.
 struct Level {
+	// EveryFighter: the game's whole roster (Need).
 	std::uint64_t need;
 	int tier;
 	const char* title;
 	const char* how;
 	int band;
 };
+
+// A level reached by playing every fighter the game has, however many.
+constexpr std::uint64_t EveryFighter = ~std::uint64_t(0);
+// What a level needs, with EveryFighter as the game's roster.
+inline std::uint64_t Need(const Level& level) {
+	return level.need == EveryFighter ? static_cast<std::uint64_t>(ember::Catalog().fighterCount) : level.need;
+}
 
 // `icon` is an index into the interface's icon table (v2::Icon); `name` is the
 // catalog id of the family's name, which a locked tile shows.
@@ -100,7 +108,7 @@ inline constexpr Level RankLevels[] = {SF4E_RANK(5, 0), SF4E_RANK(6, 1), SF4E_RA
 inline constexpr Level MasteryLevels[] = {SF4E_LEVEL("mastery", 1, 1), SF4E_LEVEL("mastery", 2, 2), SF4E_LEVEL("mastery", 3, 3),
 	SF4E_LEVEL("mastery", 4, 4)};
 inline constexpr Level CastLevels[] = {SF4E_LEVEL("cast", 5, 0), SF4E_LEVEL("cast", 15, 1), SF4E_LEVEL("cast", 30, 2),
-	{selection::FighterCount, 3, "award.cast.all.title", "award.cast.all.how", 0}};
+	{EveryFighter, 3, "award.cast.all.title", "award.cast.all.how", 0}};
 inline constexpr Level FriendLevels[] = {SF4E_LEVEL("friends", 1, 0), SF4E_LEVEL("friends", 5, 1), SF4E_LEVEL("friends", 15, 2)};
 inline constexpr Level RivalLevels[] = {SF4E_LEVEL("rival", 10, 0), SF4E_LEVEL("rival", 50, 1), SF4E_LEVEL("rival", 100, 2),
 	SF4E_LEVEL("rival", 250, 3)};
@@ -153,7 +161,7 @@ inline std::uint64_t Have(const Counters& counters, Counter counter) {
 inline int LevelOf(const Counters& counters, const Family& family) {
 	const auto have = Have(counters, family.counter);
 	int level = 0;
-	for (std::size_t i = 0; i < family.count; ++i) if (have >= family.levels[i].need) level = static_cast<int>(i) + 1;
+	for (std::size_t i = 0; i < family.count; ++i) if (have >= Need(family.levels[i])) level = static_cast<int>(i) + 1;
 	return level;
 }
 
@@ -175,7 +183,7 @@ struct Step {
 inline Step Next(const Counters& counters, const Family& family) {
 	const int level = LevelOf(counters, family);
 	if (static_cast<std::size_t>(level) >= family.count) return {Have(counters, family.counter), 0, true};
-	const auto need = family.levels[level].need;
+	const auto need = Need(family.levels[level]);
 	return {(std::min)(Have(counters, family.counter), need), need, false};
 }
 

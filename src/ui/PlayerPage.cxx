@@ -1,4 +1,5 @@
 #include "PlayerPage.hxx"
+#include "../common/GameCatalog.hxx"
 #include "AwardsWall.hxx"
 #include "FightersTab.hxx"
 #include "MenuRows.hxx"
@@ -275,7 +276,7 @@ std::vector<MenuEntry> FighterRows(const Shown& shown) {
         for (const int fighter : *group) {
             const auto& level = own.fighters[fighter];
             // Their games per fighter are never served: the points and the tier are all there is to say.
-            auto row = Row(fighters_tab::RowPrefix + std::to_string(fighter), selection::FindFighter(fighter)->name,
+            auto row = Row(fighters_tab::RowPrefix + std::to_string(fighter), ember::Catalog().fighterName(fighter),
                 loc::Tf("level.value", level.points) + (level.points ? std::string(kDot) + v2::TierName(v2::FrameTier(level.tier)) : std::string()));
             row.info = true;
             rows.push_back(std::move(row));

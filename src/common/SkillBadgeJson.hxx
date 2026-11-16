@@ -3,7 +3,7 @@
 // event and the room snapshot's members) and of a won game (the room
 // checkpoint and the room host's status line).
 #include "SkillBadge.hxx"
-#include "FighterCatalog.hxx"
+#include "GameCatalog.hxx"
 #include <nlohmann/json.hpp>
 #include <deque>
 #include <stdexcept>
@@ -65,7 +65,7 @@ inline void from_json(const nlohmann::json& json, WonGame& game) {
 	const auto fighter = [](const nlohmann::json& value) {
 		// An integer of either kind: a fighter written from an int is a signed
 		// number until the text is parsed back.
-		if (!value.is_number_integer() || value.get<std::int64_t>() < 0 || value.get<std::int64_t>() >= selection::FighterCount)
+		if (!value.is_number_integer() || !ember::ValidFighter(value.get<std::int64_t>()))
 			throw std::invalid_argument("won game fighter");
 		return static_cast<int>(value.get<std::int64_t>());
 	};

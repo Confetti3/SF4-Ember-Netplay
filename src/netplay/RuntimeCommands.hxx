@@ -8,7 +8,8 @@
 // pick, stage and Random stage pool as it hands the command on.
 #include "../common/ControllerRequest.hxx"
 #include "ArchiveCommands.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
+#include "../common/SelectionPick.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../common/SteamId.hxx"
@@ -73,8 +74,7 @@ struct ProfileOpen {
     netplay::profiles::Known known;
     bool Valid() const {
         return bridge.size() <= profile_limits::Bridge && key.Present() && key.value.size() <= profile_limits::Value &&
-            known.name.size() <= netplay::profiles::MaxNameBytes && known.fighter >= -1 &&
-            known.fighter < selection::FighterCount;
+            known.name.size() <= netplay::profiles::MaxNameBytes && (known.fighter == -1 || ember::ValidFighter(known.fighter));
     }
     std::size_t Bytes() const { return bridge.size() + key.value.size() + known.name.size(); }
 };

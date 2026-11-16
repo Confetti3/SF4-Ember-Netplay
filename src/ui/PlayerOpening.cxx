@@ -1,11 +1,11 @@
 #include "PlayerOpening.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 
 namespace sf4e { namespace ui { namespace player_opening {
 namespace {
 namespace profiles = netplay::profiles;
 // The fighter a row shows, or none for an id the game does not know.
-int KnownFighter(int fighter) { return fighter >= 0 && selection::FindFighter(fighter) ? fighter : -1; }
+int KnownFighter(int fighter) { return fighter >= 0 && ember::ValidFighter(fighter) ? fighter : -1; }
 }
 
 Opening OpeningOf(const room::Member& member) {

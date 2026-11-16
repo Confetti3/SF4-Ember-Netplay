@@ -76,9 +76,17 @@ set(EMBER_SF4_SIDE
     # Platform: the game's picture, display settings and custom content.
     platform/FrameGrab.cxx platform/FrameGrab.hxx platform/GameDisplaySettings.cxx
     platform/GameDisplaySettings.hxx platform/CustomContentFiles.cxx platform/CustomContentFiles.hxx
-    # Training's UI over SF4's Training mode.
+    # Training's UI over SF4's Training mode, its camera panel and its phone
+    # remote (with the HUD editor the remote serves).
     ui/TrainingPanel.cxx ui/TrainingPanel.hxx ui/TrainingMeter.cxx ui/TrainingData.cxx
-    ui/TrainingShortcuts.cxx
+    ui/TrainingShortcuts.cxx ui/CameraPanel.cxx ui/CameraPanel.hxx ui/TrainingRemote.cxx ui/TrainingRemote.hxx
+    # In-game themes: SF4's theme folders, its battle HUD's files and their
+    # checks (game::Themes, SettingsFeatures::gameThemes).
+    platform/GameThemes.cxx platform/GameThemes.hxx platform/GameThemeGuard.cxx platform/GameThemeGuard.hxx
+    platform/HudBundleCheck.cxx platform/HudBundleCheck.hxx platform/HudLayout.cxx platform/HudLayout.hxx
+    platform/HudTextures.cxx platform/HudTextures.hxx common/HudPictureGuard.hxx
+    # SF4's engine facts: Cody's knife and the video export's sound clock.
+    common/CodyKnife.hxx common/ExportSoundClock.hxx
     # The UI lab runs the shell on Direct3D 9 with SF4's selector and Training
     # panel (section 7); SFV gets a Direct3D 11 lab of its own.
     ui/lab/UiLab.cxx)

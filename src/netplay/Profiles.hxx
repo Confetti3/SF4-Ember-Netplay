@@ -19,7 +19,7 @@
 #include "../common/Area.hxx"
 #include "../common/ButtonPrompts.hxx"
 #include "../common/Country.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/PadKind.hxx"
 #include "../common/SkillBadge.hxx"
 #include "../common/SteamId.hxx"
@@ -244,7 +244,7 @@ constexpr std::size_t MaxRecent = 20;
 constexpr std::uint64_t RecentLifeSeconds = 7ull * 24 * 60 * 60;
 
 inline bool ValidRecent(const Recent& entry) {
-	return CardToken::Parsed(entry.card).Present() && NameShaped(entry.name) && entry.fighter >= -1 && entry.fighter < selection::FighterCount &&
+	return CardToken::Parsed(entry.card).Present() && NameShaped(entry.name) && (entry.fighter == -1 || ember::ValidFighter(entry.fighter)) &&
 		PlainText(entry.room, MaxRoomBytes) && entry.at != 0;
 }
 

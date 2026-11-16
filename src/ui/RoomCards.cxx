@@ -6,7 +6,7 @@
 #include "RoomPanelBoard.hxx"
 #include "ShellView.hxx"
 #include "Theme.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>

@@ -3,6 +3,7 @@
 // runtime and the player, built by the caller (sf4e__Overlay.cxx, the lab).
 #include <imgui.h>
 #include "RoomCards.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/InputDelay.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"

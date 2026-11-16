@@ -31,8 +31,7 @@ inline std::string ReplayLabel(const std::string& date,const std::string names[2
 }
 // A fighter's name, or that it is not one Ember knows.
 inline std::string FighterName(int id) {
- const auto* fighter=selection::FindFighter(id);
- return fighter?std::string(fighter->name):std::string(loc::T("common.unavailable"));
+ return ember::ValidFighter(id)?std::string(ember::Catalog().fighterName(id)):std::string(loc::T("common.unavailable"));
 }
 // A replay's row on the Replays list, whose portraits show the fighters: the
 // date and the players' names, or a fighter's name where no player name was noted.
@@ -55,7 +54,7 @@ inline ReplayShow Stepped(ReplayShow show,int delta){return static_cast<ReplaySh
 enum class ReplaySort { Newest, Oldest, Player, Fighter, Longest };
 constexpr const char* kReplaySortKeys[]={"replays.sort.newest","replays.sort.oldest","replays.sort.player","replays.sort.fighter","replays.sort.longest"};
 inline ReplaySort Stepped(ReplaySort sort,int delta){return static_cast<ReplaySort>(StepWord(static_cast<int>(sort),delta,std::size(kReplaySortKeys)));}
-static_assert(selection::FighterCount<=64,"the fighter filter is a bit per native id");
+// The fighter filter is a bit per native id: a fighter past the 64th matches no filter.
 // A replay's side (0 either, 1 player 1, 2 player 2) played one of the fighters whose native
 // ids are the bits of `fighters`.
 inline bool ReplayHasFighter(const platform::replays::ArchivedReplay& replay,std::uint64_t fighters,int side) {
@@ -87,7 +86,7 @@ inline bool ReplayShown(const platform::replays::ArchivedReplay& replay,ReplaySh
 // Whether `a` comes before `b` under Sort. Ties keep the archive's order (newest first),
 // so sort with std::stable_sort. Player and Fighter order by player 1, then player 2.
 inline bool ReplayBefore(const platform::replays::ArchivedReplay& a,const platform::replays::ArchivedReplay& b,ReplaySort sort) {
- const auto fighterName=[](const platform::replays::ArchivedReplay& r,int side){const auto* f=selection::FindFighter(r.fighters[side]);return std::string_view(f?f->name:"");};
+ const auto fighterName=[](const platform::replays::ArchivedReplay& r,int side){return std::string_view(ember::FighterNameOr(r.fighters[side],""));};
  switch(sort){
  case ReplaySort::Oldest: return a.time<b.time;
  case ReplaySort::Player: return std::tie(a.names[0],a.names[1])<std::tie(b.names[0],b.names[1]);

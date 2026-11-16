@@ -3,6 +3,7 @@
 // Identity is the player's Ember ID ("account"), which Join receives from the
 // session layer and which stays out of every snapshot.
 #include "RoomModel.hxx"
+#include "../common/GameCatalog.hxx"
 #include "RoomModelDetail.hxx"
 #include "../common/SkillBadgeJson.hxx"
 
@@ -89,7 +90,7 @@ void RoomAuthority::RecordWonGame(std::uint8_t tableId, const Table& table, Matc
 	WonGame won{tableId, table.matchGeneration, (p1Won ? p1 : p2)->second, (p1Won ? p2 : p1)->second, game};
 	const Member* winner = Find(p1Won ? table.p1 : table.p2);
 	const Member* loser = Find(p1Won ? table.p2 : table.p1);
-	const auto shared = [](const Member* member) { return member && member->fighter >= 0 && member->fighter < selection::FighterCount; };
+	const auto shared = [](const Member* member) { return member && ember::ValidFighter(member->fighter); };
 	if (shared(winner) && shared(loser)) { won.fighters[0] = winner->fighter; won.fighters[1] = loser->fighter; }
 	wonGames_.push_back(std::move(won));
 	if (wonGames_.size() > MaximumWonGames) wonGames_.pop_front();

@@ -1,4 +1,5 @@
 #include "CardSets.hxx"
+#include "../common/GameCatalog.hxx"
 #include "ReplaySummaryText.hxx"
 #include "ShellView.hxx"
 #include "../common/Localization.hxx"
@@ -27,8 +28,8 @@ player_card::SetRow RowOf(const archivesets::Entry& entry, const std::string& na
     row.row = std::string(RowPrefix) + entry.id;
     const auto& last = entry.Last();
     const int side = archivesets::SideOf(last, name), other = 1 - side;
-    row.mine = selection::FindFighter(last.fighters[side]) ? last.fighters[side] : -1;
-    row.theirs = selection::FindFighter(last.fighters[other]) ? last.fighters[other] : -1;
+    row.mine = ember::ValidFighter(last.fighters[side]) ? last.fighters[side] : -1;
+    row.theirs = ember::ValidFighter(last.fighters[other]) ? last.fighters[other] : -1;
     row.opponent = last.names[other].empty() ? FighterName(last.fighters[other]) : last.names[other];
     row.country = CountryCode::Parsed(last.countries[other]);
     row.badge = BadgeOf(last.classes[other]);

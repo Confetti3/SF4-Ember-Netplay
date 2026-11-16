@@ -1,4 +1,5 @@
 #include "SocialAnswers.hxx"
+#include "../common/GameCatalog.hxx"
 
 #include <algorithm>
 #include <optional>
@@ -164,7 +165,7 @@ friends::Presence DecodePresence(const json& value) {
 friends::Main DecodeMain(const json& value) {
 	const auto& object = Object(value);
 	friends::Main main;
-	main.fighter = static_cast<std::uint8_t>(Small(object, "fighter", selection::FighterCount - 1));
+	main.fighter = static_cast<std::uint8_t>(Small(object, "fighter", static_cast<std::uint64_t>(ember::Catalog().fighterCount - 1)));
 	const bool points = object.find("points") != object.end(), tier = object.find("tier") != object.end();
 	if (points != tier) Bad("tier");
 	if (points) {

@@ -7,7 +7,7 @@
 #include "RowId.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cctype>
@@ -147,7 +147,7 @@ void DrawPick(ImDrawList* d, const Pick& pick, ImVec2 min, ImVec2 max) {
     const float s = Scale(), side = max.y - min.y - 16 * s;
     // Their main, flag, class and name, and the words under them.
     const v2::Box picture{ImVec2(min.x + 12 * s, min.y + 8 * s), ImVec2(min.x + 12 * s + side, min.y + 8 * s + side)};
-    if (pick.fighter >= 0 && selection::FindFighter(pick.fighter))
+    if (ember::ValidFighter(pick.fighter))
         DrawCharacterPortrait(FighterPicture{pick.fighter, pick.characterArt ? FighterArt::Character : FighterArt::Portrait, 0, 0}, picture.min, picture.max, c.frame);
     else d->AddRectFilled(picture.min, picture.max, c.frame);
     const float x = picture.max.x + 14 * s, room = max.x - x - 12 * s, size = 18 * s;

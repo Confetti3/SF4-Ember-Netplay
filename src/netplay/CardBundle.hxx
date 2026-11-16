@@ -12,6 +12,7 @@
 //   rate limit) waits ten minutes before it is tried again; any other failure
 //   tries again after the minute.
 #include "Awards.hxx"
+#include "../common/GameCatalog.hxx"
 #include "PlayerPreferences.hxx"
 #include "Profiles.hxx"
 #include "Rankings.hxx"
@@ -63,7 +64,7 @@ inline Bundle BundleOf(const PlayerPreferences& preferences, const CountryCode& 
 	Bundle bundle;
 	bundle.name = rankings::ListingName(preferences.displayName);
 	bundle.country = ShownCountry(preferences.country, automaticCountry);
-	bundle.main = preferences.mainFighter >= 0 && preferences.mainFighter < selection::FighterCount ? preferences.mainFighter : -1;
+	bundle.main = ember::ValidFighter(preferences.mainFighter) ? preferences.mainFighter : -1;
 	if (awards::Find(preferences.wornTitle)) bundle.worn.title = preferences.wornTitle;
 	if (awards::Find(preferences.wornIcon)) bundle.worn.icon = preferences.wornIcon;
 	for (const auto& pin : preferences.cardPins) {

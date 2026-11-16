@@ -157,14 +157,14 @@ std::string ReplaysPanel::FilterText() const {
  std::string text=loc::T(kReplaySortKeys[static_cast<int>(sort_)]);
  if(show_!=ReplayShow{})text+=std::string(" \xC2\xB7 ")+loc::T(kReplayShowKeys[static_cast<int>(show_)]);
  std::string names;
- for(const int id:selection::RosterDisplayOrder)if(fighters_>>id&1)names+=(names.empty()?"":", ")+std::string(selection::FindFighter(id)->name);
+ for(const int id:ember::RosterOrder())if(fighters_>>id&1)names+=(names.empty()?"":", ")+std::string(ember::Catalog().fighterName(id));
  if(!names.empty())text+=" \xC2\xB7 "+(side_?std::string(loc::T(kReplaySideKeys[side_]))+": ":std::string())+names;
  return text;
 }
 std::optional<int> ReplaysPanel::FilterFighter(const std::string& id) {
  if(id.size()<4||id.compare(0,3,"rf-")!=0||id[3]<'0'||id[3]>'9')return std::nullopt;
  const int fighter=std::stoi(id.substr(3));
- return selection::FindFighter(fighter)?std::optional<int>(fighter):std::nullopt;
+ return ember::ValidFighter(fighter) ?std::optional<int>(fighter):std::nullopt;
 }
 std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& screen,const std::string& parent,bool idle,std::string& title) const {
  const auto& r=v.replays;std::vector<MenuEntry> rows;
@@ -172,8 +172,8 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
  }else if(screen=="replay-filter"){
   // The fighters as a grid of cards that Select ticks, then the choices under it, as a grid's footer.
   title=loc::T("replays.filter");
-  for(const int id:selection::RosterDisplayOrder){
-   rows.push_back(Row("rf-"+std::to_string(id),selection::FindFighter(id)->name,loc::T("replays.fighter_detail")));
+  for(const int id:ember::RosterOrder()){
+   rows.push_back(Row("rf-"+std::to_string(id),ember::Catalog().fighterName(id),loc::T("replays.fighter_detail")));
    rows.back().key=static_cast<std::uint64_t>(id);
   }
   const auto wide=[&](MenuEntry e){e.wide=true;rows.push_back(std::move(e));};
@@ -564,7 +564,7 @@ bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImV
  if(one){const auto wins=SetScore(*one);score=std::to_string(wins.first)+"-"+std::to_string(wins.second);}
  // The fighters' faces first, a set's the last game's.
  const float face=max.y-min.y-16*s;float x=min.x+16*s;
- for(int side=0;side<2;side++)if(selection::FindFighter(r->fighters[side])){DrawCharacterPortrait(r->fighters[side],ImVec2(x,min.y+8*s),ImVec2(x+face,min.y+8*s+face),c.frame);x+=face+4*s;}
+ for(int side=0;side<2;side++)if(ember::ValidFighter(r->fighters[side])){DrawCharacterPortrait(r->fighters[side],ImVec2(x,min.y+8*s),ImVec2(x+face,min.y+8*s+face),c.frame);x+=face+4*s;}
  if(x>min.x+16*s)x+=8*s;
  const float top=min.y+10*s;
  ImGui::PushFont(HeadingFont());

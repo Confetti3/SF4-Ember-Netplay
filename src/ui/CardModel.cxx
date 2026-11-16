@@ -1,4 +1,5 @@
 #include "CardModel.hxx"
+#include "../common/GameCatalog.hxx"
 #include "AreaNames.hxx"
 #include "CountryFlag.hxx"
 #include "NameMarks.hxx"
@@ -210,14 +211,14 @@ std::vector<v2::TagView::Fact> RecordCells(const aw::Counters& c, bool winRate, 
     return {{loc::T("card.counted_games"), known ? std::to_string(c.games) : dash},
         winRate ? v2::TagView::Fact{loc::T("card.win_rate"), known ? std::to_string(percent) + "%" : dash} : v2::TagView::Fact{loc::T("card.wins"), known ? std::to_string(c.wins) : dash},
         {loc::T("card.best_streak"), known ? std::to_string(c.bestStreak) : dash},
-        {loc::T("card.fighters_played"), known ? loc::Tf("card.of", c.fightersPlayed, selection::FighterCount) : dash}};
+        {loc::T("card.fighters_played"), known ? loc::Tf("card.of", c.fightersPlayed, ember::Catalog().fighterCount) : dash}};
 }
 
 std::string RecordLine(const aw::Counters& c) { return loc::Tf("card.record_line", c.games, c.wins, c.bestStreak); }
 
 std::vector<int> TopFighters(const std::vector<int>& byPoints, int main, std::size_t most) {
     std::vector<int> top;
-    if (main >= 0 && main < selection::FighterCount) top.push_back(main);
+    if (ember::ValidFighter(main)) top.push_back(main);
     for (const int fighter : byPoints) {
         if (top.size() >= most) break;
         if (fighter != main) top.push_back(fighter);
@@ -280,7 +281,7 @@ FullCardView FullOf(const Subject& s, Size room) {
     v.sets = s.sets;
     v.buttons = s.buttons;
     v.hero = s.fighter >= 0 ? s.fighter : s.main;
-    if (const auto* fighter = selection::FindFighter(v.hero)) v.heroName = fighter->name;
+    if (ember::ValidFighter(v.hero)) v.heroName = ember::Catalog().fighterName(v.hero);
     else v.hero = -1;
     v.heroWord = loc::T(s.playing ? "card.playing" : "profile.main_badge");
     v.heroPoints = s.hero.points;
@@ -335,7 +336,7 @@ Subject OwnSubject(const OwnInputs& in) {
     s.country = in.country;
     s.badge = in.badge;
     s.since = in.since;
-    s.main = s.fighter = in.main >= 0 && in.main < selection::FighterCount ? in.main : -1;
+    s.main = s.fighter = ember::ValidFighter(in.main) ? in.main : -1;
     s.worn = in.worn;
     s.pins = in.pins;
     s.style = in.style;
@@ -396,7 +397,7 @@ std::vector<MenuEntry> CardRows(const FullCardView& v) {
     for (const auto& tile : v.strip) {
         // The frame's colour is also its word: "1986 points · Gold · 24 games".
         const std::string tier = tile.points ? std::string(kDot) + v2::TierName(v2::FrameTier(tile.tier)) : std::string();
-        auto row = Row(tile.row, selection::FindFighter(tile.fighter)->name, loc::Tf("level.value", tile.points) + tier + (tile.games.empty() ? std::string() : kDot + tile.games));
+        auto row = Row(tile.row, ember::Catalog().fighterName(tile.fighter), loc::Tf("level.value", tile.points) + tier + (tile.games.empty() ? std::string() : kDot + tile.games));
         row.hint = loc::T("profile.tab.fighters");
         rows.push_back(std::move(row));
     }

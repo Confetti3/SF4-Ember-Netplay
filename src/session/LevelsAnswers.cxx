@@ -2,6 +2,7 @@
 // cards_search), as TournamentAnswers.hxx declares them
 // (docs/design/FIGHTER_LEVELS.md and PROFILE.md, "Wire contracts").
 #include "TournamentAnswers.hxx"
+#include "../common/GameCatalog.hxx"
 
 #include <algorithm>
 #include <array>
@@ -17,7 +18,7 @@ namespace {
 
 // The fighter id of an entry, in the roster.
 std::size_t ReadFighter(const json& object) {
-	return Small(object, "fighter", selection::FighterCount - 1);
+	return Small(object, "fighter", static_cast<std::uint64_t>(ember::Catalog().fighterCount - 1));
 }
 
 // One count of points, a fighter's or the account's. Only its shape is checked:
@@ -93,7 +94,7 @@ void DecodeProfileFields(const json& object, netplay::levels::Card& card) {
 	card.country = ReadCountry(object);
 	card.badge = ReadSkillBadge(object);
 	if (const auto fighter = object.find("main"); fighter != object.end() && fighter->is_number_unsigned() &&
-		fighter->get<std::uint64_t>() < static_cast<std::uint64_t>(selection::FighterCount)) {
+		fighter->get<std::uint64_t>() < static_cast<std::uint64_t>(ember::Catalog().fighterCount)) {
 		card.hasMain = true;
 		card.main = static_cast<std::uint8_t>(fighter->get<std::uint64_t>());
 	}
@@ -165,7 +166,7 @@ netplay::levels::Card DecodeCard(const json& value) {
 	// A card with no `fighters` is of a player who has played none. A row that cannot be read, and a fighter
 	// listed again, is left out; the card lists the rest in fighter order.
 	if (const auto fighters = object.find("fighters"); fighters != object.end()) {
-		if (!fighters->is_array() || fighters->size() > static_cast<std::size_t>(selection::FighterCount)) throw std::invalid_argument("fighters");
+		if (!fighters->is_array() || fighters->size() > static_cast<std::size_t>(ember::Catalog().fighterCount)) throw std::invalid_argument("fighters");
 		for (const auto& row : *fighters) {
 			netplay::levels::CardFighter fighter;
 			try {
@@ -201,9 +202,9 @@ std::optional<netplay::levels::Own> DecodeOwnLevels(const json& data) {
 		own.awards = DecodeAwardCounts(data.at("account"));
 		own.hasMostPlayed = DecodeMostPlayed(data, own.mostPlayed);
 		const auto& rows = data.at("fighters");
-		if (!rows.is_array() || rows.size() > static_cast<std::size_t>(selection::FighterCount)) return std::nullopt;
+		if (!rows.is_array() || rows.size() > static_cast<std::size_t>(ember::Catalog().fighterCount)) return std::nullopt;
 		// A fighter row that cannot be read, and a fighter listed again, is left out; the account's points stand.
-		std::array<bool, selection::FighterCount> listed{};
+		std::vector<bool> listed(static_cast<std::size_t>(ember::Catalog().fighterCount));
 		for (const auto& row : rows) {
 			try {
 				const auto fighter = ReadFighter(Object(row));
@@ -256,7 +257,7 @@ std::optional<netplay::profiles::SearchAnswer> DecodeSearch(const json& data) {
 			hit.country = ReadCountry(row);
 			hit.badge = ReadSkillBadge(row);
 			if (const auto fighter = row.find("main"); fighter != row.end() && fighter->is_number_unsigned() &&
-				fighter->get<std::uint64_t>() < static_cast<std::uint64_t>(selection::FighterCount)) {
+				fighter->get<std::uint64_t>() < static_cast<std::uint64_t>(ember::Catalog().fighterCount)) {
 				hit.hasMain = true;
 				hit.main = static_cast<std::uint8_t>(fighter->get<std::uint64_t>());
 			}

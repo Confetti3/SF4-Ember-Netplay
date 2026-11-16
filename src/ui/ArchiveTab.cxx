@@ -1,4 +1,5 @@
 #include "ArchiveTab.hxx"
+#include "../common/GameCatalog.hxx"
 #include "ApplicationShell.hxx"
 #include "CountryFlag.hxx"
 #include "GameMenu.hxx"
@@ -95,7 +96,7 @@ MenuEntry EntryRow(const ShellView& v, const Entry& entry, bool idle, const std:
     for (const auto& name : first.names) NoteUserText(name);
     NoteUserText(entry.player);
     const int left = lead;
-    const auto known = [&](int side) { return selection::FindFighter(first.fighters[side]) ? first.fighters[side] : -1; };
+    const auto known = [&](int side) { return ember::ValidFighter(first.fighters[side]) ? first.fighters[side] : -1; };
     row.fighter1 = known(left);
     row.fighter2 = known(1 - left);
     row.value = LocalTime(entry.newest);
@@ -164,7 +165,7 @@ bool ArchiveTab::NearEnd(int at, std::size_t rows) {
 int ArchiveTab::FighterOf(const std::string& id) {
     if (id.size() < 4 || id.compare(0, 3, "af-") != 0 || id[3] < '0' || id[3] > '9') return -1;
     const int fighter = std::stoi(id.substr(3));
-    return selection::FindFighter(fighter) ? fighter : -1;
+    return ember::ValidFighter(fighter) ? fighter : -1;
 }
 
 std::string ArchiveTab::FilterSummary(const Filter& filter) {
@@ -299,8 +300,8 @@ std::vector<MenuEntry> ArchiveTab::Rows(const ShellView& v, const std::string& s
     if (screen == place_.fighter) {
         // The fighters as a grid of cards, as the Matches filter lists them; one is chosen, or any.
         title = loc::T("archive.f_fighter");
-        for (const int id : selection::RosterDisplayOrder) {
-            rows.push_back(Row("af-" + std::to_string(id), selection::FindFighter(id)->name, loc::T("replays.fighter_detail")));
+        for (const int id : ember::RosterOrder()) {
+            rows.push_back(Row("af-" + std::to_string(id), ember::Catalog().fighterName(id), loc::T("replays.fighter_detail")));
             rows.back().key = static_cast<std::uint64_t>(id);
         }
         rows.push_back(Row("af-any", loc::T("archive.any_fighter"), loc::T("archive.any_fighter_detail")));
@@ -489,7 +490,7 @@ bool ArchiveTab::DrawCard(const ShellView&, const MenuEntry& e, ImVec2 min, ImVe
     float x = min.x + 16 * s;
     for (int i = 0; i < 2; ++i) {
         const int fighter = first.fighters[i == 0 ? left : 1 - left];
-        if (!selection::FindFighter(fighter)) continue;
+        if (!ember::ValidFighter(fighter)) continue;
         DrawCharacterPortrait(fighter, ImVec2(x, min.y + 8 * s), ImVec2(x + face, min.y + 8 * s + face), c.frame);
         x += face + 4 * s;
     }

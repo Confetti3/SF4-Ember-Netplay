@@ -1,4 +1,5 @@
 #include "PlayerCard.hxx"
+#include "../common/GameCatalog.hxx"
 #include "CardParts.hxx"
 #include "MenuRows.hxx"
 #include "ShellView.hxx"
@@ -26,7 +27,7 @@ std::vector<int> PlayedFighters(const Own& own) {
 Groups Grouped(const Own& own, int main) {
     Groups groups;
     groups.played = PlayedFighters(own);
-    for (const int fighter : selection::RosterDisplayOrder)
+    for (const int fighter : ember::RosterOrder())
         if (!own.fighters[fighter].points) groups.unplayed.push_back(fighter);
     // The main leads its own group, wherever its points would put it.
     for (auto* group : {&groups.played, &groups.unplayed}) {
@@ -100,7 +101,7 @@ Progress ProgressOf(const std::string& name, const Level& level, bool account) {
 
 std::vector<Progress> ProgressRows(const PlayerCardView& view) {
     std::vector<Progress> rows;
-    if (view.mainFighter >= 0) rows.push_back(ProgressOf(selection::FindFighter(view.mainFighter)->name, view.main, false));
+    if (view.mainFighter >= 0) rows.push_back(ProgressOf(ember::Catalog().fighterName(view.mainFighter), view.main, false));
     rows.push_back(ProgressOf(loc::T("card.account"), view.account, true));
     return rows;
 }
@@ -315,7 +316,7 @@ void DrawStripTile(const Ctx& c, v2::Box box, const player_card::StripTile& tile
     // The words under the picture start as far in as the picture does, clear of the focus frame's 2 px edge.
     const float edge = pad, wordsWidth = box.W() - 2 * edge;
     const float y = picture.max.y + 8 * s;
-    v2::Text(c.d, ImVec2(box.min.x + edge, y), wordsWidth, selection::FindFighter(tile.fighter)->name, c.m.tileNameText * s, colors.text, HeadingFont());
+    v2::Text(c.d, ImVec2(box.min.x + edge, y), wordsWidth, ember::Catalog().fighterName(tile.fighter), c.m.tileNameText * s, colors.text, HeadingFont());
     if (!tile.games.empty()) v2::TextShrunk(c.d, ImVec2(box.min.x + edge, y + c.m.tileNameText * s + 5 * s), wordsWidth, tile.games, c.m.tileGamesText * s, player_card::TextFloor * s, colors.muted);
     if (focused) v2::Focus(c.d, box.min, box.max);
 }

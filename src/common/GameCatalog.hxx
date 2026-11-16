@@ -123,6 +123,14 @@ constexpr bool Usable(const GameCatalog& catalog) {
 const GameCatalog& Catalog();
 
 inline bool ValidFighter(std::int64_t id) { return id >= 0 && id < Catalog().fighterCount; }
+// The game's fighters in its own select screen's order (rosterOrder), for a range-for.
+struct RosterView {
+	const int* first;
+	const int* last;
+	const int* begin() const { return first; }
+	const int* end() const { return last; }
+};
+inline RosterView RosterOrder() { return {Catalog().rosterOrder, Catalog().rosterOrder + Catalog().fighterCount}; }
 // A player's main: one of the fighters, or -1 before they choose one (ember::UnsetMain).
 inline bool ValidMain(std::int64_t id) { return id == -1 || ValidFighter(id); }
 

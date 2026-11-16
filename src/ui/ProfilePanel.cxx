@@ -1,4 +1,5 @@
 #include "ProfilePanel.hxx"
+#include "../common/GameCatalog.hxx"
 #include "FightersTab.hxx"
 #include "ShellView.hxx"
 #include "MenuRows.hxx"
@@ -75,7 +76,7 @@ std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const netplay::Pla
         const auto groups = player_card::Grouped(own, card.mainFighter);
         for (const auto* group : {&groups.played, &groups.unplayed}) {
             for (const int fighter : *group) {
-                auto row = Row(FighterRowPrefix + std::to_string(fighter), selection::FindFighter(fighter)->name,
+                auto row = Row(FighterRowPrefix + std::to_string(fighter), ember::Catalog().fighterName(fighter),
                     FighterDetail(own.fighters[fighter].points, own.fighters[fighter].games) + "\n" + loc::T(editable ? "profile.choose_main_detail" : "profile.leave_room_to_edit"), editable);
                 row.hint = loc::T("menu.hint.save_main");
                 rows.push_back(std::move(row));

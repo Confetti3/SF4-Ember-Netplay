@@ -1,4 +1,5 @@
 #include "UiPreferencesStore.hxx"
+#include "../common/GameCatalog.hxx"
 
 #include "../common/Localization.hxx"
 #include "../common/UpdateChannel.hxx"
@@ -235,7 +236,7 @@ std::vector<netplay::profiles::Recent> RecentFrom(const Path& directory) noexcep
             entry.room = text("room");
             entry.country = CountryCode::Parsed(text("country"));
             const auto fighter = item.find("fighter");
-            if (fighter != item.end() && fighter->is_number_integer()) entry.fighter = fighter->get<long long>() >= 0 && fighter->get<long long>() < selection::FighterCount ? fighter->get<int>() : -1;
+            if (fighter != item.end() && fighter->is_number_integer()) entry.fighter = ember::ValidFighter(fighter->get<long long>()) ? fighter->get<int>() : -1;
             const auto at = item.find("at");
             if (at != item.end() && at->is_number_unsigned()) entry.at = at->get<std::uint64_t>();
             if (netplay::profiles::ValidRecent(entry)) entries.push_back(std::move(entry));
