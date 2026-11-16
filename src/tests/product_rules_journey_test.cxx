@@ -1,5 +1,5 @@
 // The shell's product rules (Branding::roomFacesArePicks and with it
-// ember::PlayersHaveMain, answersFromInput, rankingClasses), built twice: ProductRules under SF4 Ember's identity, where
+// ember::UnsetMain, answersFromInput, rankingClasses), built twice: ProductRules under SF4 Ember's identity, where
 // they are off and the shell is as it was, and ProductRulesOn under a product
 // that turns them on (product_rules_product.cxx). Each run checks the
 // behaviour its product's rules ask for.
@@ -61,12 +61,12 @@ void RoomFaces() {
   Check(std::find(seats.begin(),seats.end(),0)!=seats.end()&&std::find(seats.begin(),seats.end(),2)!=seats.end(),"A picked seat did not show the pick");}
 }
 
-// The main (ember::PlayersHaveMain). SF4 Ember's players choose one on
+// The main (ember::UnsetMain). SF4 Ember's players choose one on
 // Profile and their card shows it; a product whose room faces are its picks
 // has none, so Profile offers no Main character and the card shows the
 // player's pick instead (no face for a Random pick).
 void MainFighter() {
- const bool hasMain=ember::PlayersHaveMain();
+ const bool hasMain=ember::UnsetMain()>=0;
  Harness h;h.view.preferences.mainFighter=8;h.view.selectedPick.fighter=3;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.Screen("tab-player/profile");h.Frame();
@@ -130,7 +130,7 @@ void OpponentAnswer() {
  Check((h.shell.Navigation().Screen()=="post-match")==(!fromInput||onResults),
   fromInput&&!onResults?"The prompt waited on over the room after the opponent's decline":"The prompt did not wait for the opponent's answer");
  if(onResults)Check(words["pm-opponent"]==choosing,"The opponent's decline over the WIN still stood on the results");
- Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(sent),h.actions.end(),[](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;}),
+ Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(sent),h.actions.end(),[](const ShellAction& x){return test::Is<commands::RoomAction>(x,[](const commands::RoomAction& a){return a.roomAction.kind==room::ActionKind::Unqueue;});}),
   "A chosen Rematch gave up the seat");
  SetMenuCardTextProbe({});
 }
@@ -149,7 +149,7 @@ void ResultsRematch() {
  const auto backInRoom=[&]{h.view.matchResult=false;h.view.foughtGame={};h.view.session.match=netplay::MatchState::PostMatch;
   h.view.atMainMenu=true;t.phase=room::TablePhase::Waiting;h.open=true;h.Frame();h.Frame();};
  const auto unqueued=[&](std::size_t from){return std::any_of(h.actions.begin()+static_cast<std::ptrdiff_t>(from),h.actions.end(),
-  [](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;});};
+  [](const ShellAction& x){return test::Is<commands::RoomAction>(x,[](const commands::RoomAction& a){return a.roomAction.kind==room::ActionKind::Unqueue;});});};
  // Back over the WIN.
  fight();h.view.matchResult=true;h.Frame();
  Check(h.shell.Navigation().Screen()=="post-match","The WIN's prompt did not open");
@@ -216,9 +216,29 @@ void ClassNames() {
  Check(ui::ClassName(0).empty()&&ui::ClassName(SkillBadge::Classes+1).empty(),"A band past the classes was named");
 }
 
+// The links are the product's own table (ProductIdentity::links): Home's corner and Help & About list it in order, and
+// Settings > Discord ends with its Discord link, if it has one. A product that names none lists none anywhere.
+void ProductLinks() {
+ std::vector<std::string> expected;
+ bool discord=false;
+ for(const ember::Link* link=ember::Product().links;link&&link->id;++link){expected.push_back(std::string("link-")+link->id);discord=discord||std::string(link->id)=="discord";}
+ std::vector<std::string> shown;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){
+  shown.clear();for(const auto& row:rows)if(row.id.compare(0,5,"link-")==0)shown.push_back(row.id);});
+ Harness h;
+ h.Screen("home");h.Frame(0,3);
+ Check(shown==expected,"Home's links are not the product's table, in its order");
+ h.Screen("tab-about/about");h.Frame(0,3);
+ Check(shown==expected,"Help & About's links are not the product's table, in its order");
+ h.Screen("tab-discord");h.Frame(0,3);
+ Check(shown==(discord?std::vector<std::string>{"link-discord"}:std::vector<std::string>{}),"Settings > Discord does not end with the product's Discord link, or has one the product does not name");
+ SetMenuEntriesProbe({});
+}
+
 int main() {
  try {
   RoomFaces();
+  ProductLinks();
   MainFighter();
   OpponentAnswer();
   ResultsRematch();

@@ -188,9 +188,9 @@ void WatchOnlyJourney() {
  Check(rows[3].chosen=="keep","Where nothing plays, the row did not fall back to Keep");
  h.view.replays.ready=true;h.Frame();SetMenuEntriesProbe({});
  h.Choose("replay:C:\\r\\v.sfvreplay");h.Press(MenuInput::Select);
- Check(h.actions.back().replay.mode==replay::Mode::Watch&&h.actions.back().replay.path=="C:\\r\\v.sfvreplay"&&!h.actions.back().replay.meter,"Watch now did not ask for the replay's file");
+ Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==replay::Mode::Watch&&r.replay.path=="C:\\r\\v.sfvreplay"&&!r.replay.meter;}),"Watch now did not ask for the replay's file");
  h.Choose("replay:C:\\r\\v.sfvreplay");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(h.actions.back().replay.mode==replay::Mode::Keep&&h.actions.back().replay.keep,"Keep was not the second choice");
+ Check(Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==replay::Mode::Keep&&r.replay.keep;}),"Keep was not the second choice");
 }
 void ReplayJourneys() {
  using namespace sf4e;

@@ -328,6 +328,7 @@ void ScreenModeRow() {
  Check(h.actions.size() == before + 2 && test::Is<ui::SetScreenMode>(h.actions.back(), [](const ui::SetScreenMode& a) { return a.mode == 1; }), "Right on Screen mode did not ask the game for Window");
  h.view.offersScreenMode = false; h.Frame();
  Check(!drawn.Row("screen-mode"), "The Screen mode row stayed for a game that does not offer it");
+}
 // Interface size steps below 1.00x with Left (pad or keys) down to 0.70x, where it stops; every step shows as
 // its value, and the size saved is the one the preferences accept.
 void InterfaceSizeBelowOne() {
