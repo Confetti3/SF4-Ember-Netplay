@@ -67,6 +67,11 @@ struct MenuEntry {
     // screen with a body of its own never sees it, and the menu draws it in a
     // footer under that body (GameMenu::DrawBody); a list draws it as a card.
     bool footer = false;
+    // One of Home's corner links, drawn in the header's band (GameMenu::headerLinks) and
+    // placed there, last among the entries. They are a row of their own above the list:
+    // Left and Right walk along them, Down returns to the list's top, and Up from the
+    // list's top reaches the first. The list's own movement and wrap pass over them.
+    bool corner = false;
     // The label is a player's own text (a member's name), which may be
     // elided; an interface label must fit, and the render probe checks it.
     bool userText = false;
@@ -478,6 +483,18 @@ public:
         const auto& neighbor=delta<0?e.left:delta>0?e.right:direction&MenuInput::Up?e.up:e.down;
         if(!neighbor.empty()){Focus(neighbor,entries);return {};}
         int index=static_cast<int>(s.index), count=static_cast<int>(entries.size());
+        if(e.corner) {
+            if(delta) { if(index+delta>=0&&index+delta<count&&entries[index+delta].corner) index+=delta; }
+            else if(direction&MenuInput::Down) index=ListEnd(entries,true,s.aside);
+            s.index=index; s.id=entries[index].id;
+            return {};
+        }
+        // The list ends where the corner's rows begin; Up from its top reaches them.
+        if(count>ListCount(entries)) {
+            const int corners=ListCount(entries);
+            if((direction&MenuInput::Up)&&index==ListEnd(entries,true,s.aside)) { s.index=corners; s.id=entries[corners].id; return {}; }
+            count=corners;
+        }
         // A grid's footer rows sit under its cards, one per line.
         const int cells=columns>1?static_cast<int>(MenuGridCells(entries)):count;
         if(delta&&e.adjustable&&(columns==1||index>=cells)) return e.enabled ? MenuAction{MenuAction::Adjust,e.id,{},delta} : MenuAction{};
@@ -556,7 +573,7 @@ private:
     bool BodyPlaced(const std::vector<MenuEntry>& entries) const {
         return std::any_of(placed_.begin(),placed_.end(),[&](const Placement& p) {
             const auto e=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& entry){return entry.id==p.id;});
-            return e!=entries.end()&&!e->footer;
+            return e!=entries.end()&&!e->footer&&!e->corner;
         });
     }
     // The entry placed nearest past `from` in the direction (dx, dy). Past:
@@ -610,12 +627,18 @@ private:
         }
         return entries.size();
     }
+    // How many entries are the list's: all before the corner's rows, which come last.
+    static int ListCount(const std::vector<MenuEntry>& entries) {
+        int count=static_cast<int>(entries.size());
+        while(count>0&&entries[count-1].corner) --count;
+        return count;
+    }
     // Where a list wraps to: its first entry (`first`), else its last, passing
     // over the entry the menu draws beside the list (`aside`, SetAside). Nothing
     // is inferred from how the rows name each other: a partner on a row's line
     // (Frame data's two fighters) is in the list, and so is a card drawn as a row.
     static int ListEnd(const std::vector<MenuEntry>& entries, bool first, const std::string& aside) {
-        const int count=static_cast<int>(entries.size());
+        const int count=ListCount(entries);
         for(int k=0;k<count;++k) {
             const int i=first?k:count-1-k;
             if(aside.empty()||entries[i].id!=aside) return i;

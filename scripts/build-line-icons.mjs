@@ -60,6 +60,9 @@ const icons = [
   ['Brush', ['brush']],
   // The Friends panel.
   ['Users', ['users']],
+  // Home's corner links: Twitter's bird, and the cup that stands for Ko-fi (the set has no Ko-fi logo).
+  ['Twitter', ['brand-twitter']],
+  ['Coffee', ['coffee']],
 ];
 
 // `d` checked against what LineIcons.cxx strokes and written back as its

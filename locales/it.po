@@ -303,15 +303,6 @@ msgstr "Operazione fallita. Riprova. Le copie di ripristino sono conservate in .
 msgid "services.operation_cancelled"
 msgstr "Operazione annullata."
 
-msgid "services.opening_community"
-msgstr "Apertura di Ember Discord nel browser..."
-
-msgid "services.community_opened"
-msgstr "Aperto nel browser. Passa al browser per unirti al server."
-
-msgid "services.community_failed"
-msgstr "Impossibile aprire il browser. Visita {0} per unirti."
-
 msgid "services.opening_steam_profile"
 msgstr "Apertura del profilo Steam nel browser..."
 

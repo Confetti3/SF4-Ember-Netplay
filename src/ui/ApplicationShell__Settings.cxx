@@ -13,6 +13,7 @@
 #include "CardEditRows.hxx"
 #include "ControllersScreen.hxx"
 #include "LineIcons.hxx"
+#include "LinkRows.hxx"
 #include "MenuRows.hxx"
 #include "PlayerCard.hxx"
 #include "RowId.hxx"
@@ -366,11 +367,10 @@ public:
         const auto& p = s.preferences_;
         // The account linked to the Ember ID leads: ranked games, points, friends, shared replays and tournaments need it, and
         // it may not be the one in the Discord app. The community server is the last row, as About opens it.
-        const bool opening = v.services.lastAction == platform::ServiceAction::OpenCommunity && !v.services.message.empty();
         return {s.identity_.DiscordAccountRow(s.identity_.Discord(v)),
             OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences),
             OnOffValue(p, "invites", loc::T("discord.allow_invitations"), p.discordPresence ? loc::T("discord.invitation_detail") : loc::T("discord.enable_first"), v.canEditPreferences && p.discordPresence),
-            ConfirmRow("community", loc::T("discord.server"), opening ? v.services.message : loc::Tf("about.discord_detail", platform::CommunityInvite), !v.services.pending)};
+            LinkRow(*platform::FindLink("discord"), v.services, loc::T("discord.server"))};
     }
     // The setting's pane says what a report holds; Select reads it in full.
     static Entries Reports(Shell& s, const ShellView& v) {
@@ -409,7 +409,6 @@ public:
             reading(Row("font", loc::T("about.font_license"), FontLicense())),
             Row("diagnostics", loc::T("about.export_diagnostics"), outcome({ServiceAction::ExportDiagnostics}, loc::T("about.export_diagnostics_detail")), !v.services.pending),
             Row("problem-report", loc::T("reports.problem"), loc::T("reports.problem_detail"), !v.services.pending),
-            ConfirmRow("community", loc::T("about.discord"), outcome({ServiceAction::OpenCommunity}, loc::Tf("about.discord_detail", platform::CommunityInvite)), !v.services.pending),
             // The version on this PC and the channel its update checks use, as Home's
             // corner shows them, above the check itself; the build in its pane.
             InfoRow("version", loc::T("updates.installed_version"), VersionLine(InstalledVersion(v)),
@@ -419,6 +418,9 @@ public:
             // Saved on its own, as the language is: it is no room or fighter preference.
             Value("launch-update-check", loc::T("settings.update_check"), s.launchCheck_ ? loc::T("common.on") : loc::T("common.off"),
                 s.launchCheckSaveError_.empty() ? std::string(loc::T("settings.update_check_detail")) : s.launchCheckSaveError_)};
+        // Ember's links follow the report, in the table's order (Links.hxx), above the version.
+        auto at = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "version"; });
+        for (const auto& link : platform::Links) at = rows.insert(at, LinkRow(link, v.services)) + 1;
         // The found release, as the launch question offers it: the game closes and the Updates window installs it.
         if (const auto& offer = v.services.offer)
             rows.push_back(ConfirmRow("update-now", loc::T("updates.launch_now"),

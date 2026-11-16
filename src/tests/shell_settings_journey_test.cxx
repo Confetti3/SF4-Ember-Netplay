@@ -221,10 +221,80 @@ void InterfaceSizeBelowOne() {
 }
 }
 // Each journey owns a Harness and with it the ImGui context, so they run one after another.
+// Ember's links (platform::Links): Help & About lists them in the table's order after the problem report, and
+// each asks for its own link; Home's corner draws them as icons at the right of the brand's band where the window
+// has the room, the pad reaches them from the list's top by Up, Right walks along them and Down returns, and a
+// narrow window draws none, so neither the pad nor the pointer has a row the other lacks.
+void EmberLinks() {
+ namespace loc = sf4e::loc;
+ using sf4e::platform::Links;
+ using sf4e::platform::ServiceAction;
+ const auto row = [](const sf4e::platform::Link& link) { return std::string("link-") + link.id; };
+ const auto asked = [](const Harness& h, const char* id) {
+  return std::count_if(h.actions.begin(), h.actions.end(), [&](const ShellAction& a) {
+   return Is<commands::Service>(a, [&](const commands::Service& s) { return s.service == ServiceAction::OpenLink && s.servicePath == id; }); });
+ };
+ {
+  Harness h; Drawn drawn; h.Screen("tab-about"); h.Frame(0, 3);
+  const auto at = std::find_if(drawn.rows.begin(), drawn.rows.end(), [](const MenuEntry& e) { return e.id == "problem-report"; }) - drawn.rows.begin();
+  bool ordered = at + static_cast<std::ptrdiff_t>(Links.size()) + 1 < static_cast<std::ptrdiff_t>(drawn.rows.size());
+  for (std::size_t i = 0; ordered && i < Links.size(); ++i) {
+   const MenuEntry& e = drawn.rows[static_cast<std::size_t>(at) + 1 + i];
+   ordered = e.id == row(Links[i]) && e.confirm && e.label == loc::T(Links[i].label) && e.detail == loc::Tf(Links[i].detail, Links[i].address);
+  }
+  Check(ordered && drawn.rows[static_cast<std::size_t>(at) + 1 + Links.size()].id == "version", "Help & About does not list Ember's links in the table's order after the problem report");
+  for (const auto& link : Links) {
+   const auto before = h.actions.size();
+   h.FocusOn(row(link).c_str()); h.Press(MenuInput::Select);
+   Check(h.actions.size() == before, "A link opened before it was confirmed");
+   h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+   Check(h.actions.size() == before + 1 && asked(h, link.id) == 1 + (&link - Links.data()), "A link in Help & About did not ask for its own link");
+  }
+  h.view.services.lastAction = ServiceAction::OpenLink; h.view.services.lastLink = "kofi"; h.view.services.message = "Opened in your browser. Switch to it.";
+  h.Frame(0, 2);
+  Check(drawn.Row("link-kofi")->detail == h.view.services.message && drawn.Row("link-twitter")->detail == loc::Tf("about.twitter_detail", "x.com/kabiefox"),
+   "The service's message did not show on the one link it was about");
+ }
+ {
+  Harness h; Drawn drawn; h.Screen("home"); h.Frame(0, 3);
+  bool placed = true;
+  for (std::size_t i = 0; i < Links.size(); ++i) {
+   const auto id = row(Links[i]);
+   placed = placed && drawn.Shown(id.c_str()) && drawn.Row(id.c_str())->corner;
+   if (i) placed = placed && drawn.boxes[id].first.x > drawn.boxes[row(Links[i - 1])].second.x && drawn.Centre(id.c_str()).y == drawn.Centre(row(Links[0]).c_str()).y;
+  }
+  Check(placed && drawn.Row("online") && drawn.boxes[row(Links.back())].second.y <= drawn.boxes["online"].first.y, "Home does not draw the links as a row of icons over the list");
+  Check(drawn.boxes[row(Links.back())].second.x > ImGui::GetIO().DisplaySize.x * .6f, "Home's links are not at the right of the band");
+  h.shell.Navigation().Prefer("online"); h.Frame(0, 2);
+  h.Press(MenuInput::Up);
+  Check(h.shell.Navigation().Focus() == row(Links[0]), "Up from Home's first row did not reach the links");
+  h.Press(MenuInput::Up);
+  Check(h.shell.Navigation().Focus() == row(Links[0]), "Up from a link left the links");
+  h.Press(MenuInput::Right); h.Press(MenuInput::Right);
+  Check(h.shell.Navigation().Focus() == row(Links[2]), "Right did not walk along the links");
+  for (int i = 0; i < 5; ++i) h.Press(MenuInput::Right);
+  Check(h.shell.Navigation().Focus() == row(Links.back()), "Right left the links at their end");
+  h.Press(MenuInput::Down);
+  Check(h.shell.Navigation().Focus() == "online", "Down from a link did not return to the list's top");
+  const auto before = h.actions.size();
+  h.FocusOn("link-kofi"); h.Press(MenuInput::Select); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+  Check(h.actions.size() == before + 1 && asked(h, "kofi") == 1, "A link on Home's corner did not ask the question Help & About's row asks");
+ }
+ {
+  Harness h; Drawn drawn; h.imgui.io.DisplaySize = ImVec2(700, 960); h.Screen("home"); h.Frame(0, 3);
+  bool any = false;
+  for (const auto& link : Links) any = any || drawn.Row(row(link).c_str()) || drawn.boxes.count(row(link));
+  Check(!any && drawn.Row("online"), "A narrow window drew or placed Home's corner links");
+  for (int i = 0; i < 12; ++i) h.Press(MenuInput::Up);
+  Check(h.shell.Navigation().Focus().compare(0, 5, "link-") != 0, "The pad reached a link the narrow window does not draw");
+ }
+}
+
 void SettingsJourneys() {
  RoomSettingsFollowOneRule();
  RetrySaveOnPanelScreens();
  PanelFromRailFocusesHead();
  SaveWhileHidden();
  InterfaceSizeBelowOne();
+ EmberLinks();
 }

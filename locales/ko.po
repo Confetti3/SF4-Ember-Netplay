@@ -303,15 +303,6 @@ msgstr "작업에 실패했습니다. 다시 시도하세요. 업데이트 복�
 msgid "services.operation_cancelled"
 msgstr "작업을 취소했습니다."
 
-msgid "services.opening_community"
-msgstr "브라우저에서 Ember Discord를 여는 중..."
-
-msgid "services.community_opened"
-msgstr "브라우저에서 열었습니다. 브라우저로 전환해 서버에 참가하세요."
-
-msgid "services.community_failed"
-msgstr "브라우저를 열지 못했습니다. {0}에서 참가하세요."
-
 msgid "services.opening_steam_profile"
 msgstr "브라우저에서 Steam 프로필을 여는 중..."
 

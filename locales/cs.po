@@ -303,15 +303,6 @@ msgstr "Operace selhala. Zkuste to znovu. Záložní kopie aktualizace jsou v .e
 msgid "services.operation_cancelled"
 msgstr "Operace zrušena."
 
-msgid "services.opening_community"
-msgstr "Ve vašem prohlížeči se otevírá Discord Ember..."
-
-msgid "services.community_opened"
-msgstr "Otevřeno v prohlížeči. Přepněte na něj a připojte se k serveru."
-
-msgid "services.community_failed"
-msgstr "Prohlížeč se nepodařilo otevřít. Připojte se na {0}."
-
 msgid "services.opening_steam_profile"
 msgstr "Profil na Steamu se otevírá v prohlížeči..."
 

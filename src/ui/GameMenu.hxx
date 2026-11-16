@@ -10,6 +10,7 @@
 #include "FighterArt.hxx"
 #include "../common/Country.hxx"
 #include "../netplay/Levels.hxx"
+#include "../platform/Links.hxx"
 #include <functional>
 #include <optional>
 #include <imgui.h>
@@ -257,6 +258,12 @@ public:
     // chips at the header's right end. Empty for none.
     std::string eyebrow;
     std::vector<v2::HeaderChip> headerChips;
+    // Home's corner links: a row each, drawn as an icon at the right end of the
+    // brand's band (DrawCornerLinks) when the window has the room, and placed
+    // there. A row that is not drawn is not among the entries, so the pad
+    // reaches exactly what the mouse can. Empty on every other screen.
+    struct HeaderLink { MenuEntry row; platform::LinkMark mark; };
+    std::vector<HeaderLink> headerLinks;
     // The cards' width (unscaled) beside the detail pane, each card with the
     // first line of its detail and its value as a chip (Online play, Join); 0 for the usual split.
     float listWidth=0;
@@ -371,6 +378,8 @@ private:
     // Parts of Draw (GameMenuDraw.cxx), each in its box cut from the window.
     // The title or Home's brand, and the tabs; `content` loses what they take.
     void DrawHeader(Frame& f, v2::Box& content, bool narrow);
+    // Home's corner links, right-aligned in `band` and centred on its height.
+    void DrawCornerLinks(Frame& f, v2::Box band);
     // A screen's own body in place of the cards, the footer of the shell's
     // own rows (MenuEntry::footer) under it, and its value panel.
     void DrawBody(Frame& f, v2::Box content);

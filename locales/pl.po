@@ -303,15 +303,6 @@ msgstr "Operacja nie powiodła się. Spróbuj ponownie. Kopie odzyskiwania aktua
 msgid "services.operation_cancelled"
 msgstr "Operacja anulowana."
 
-msgid "services.opening_community"
-msgstr "Otwieranie Discord Ember w przeglądarce..."
-
-msgid "services.community_opened"
-msgstr "Otwarto w przeglądarce. Przejdź do niej, aby dołączyć do serwera."
-
-msgid "services.community_failed"
-msgstr "Nie można otworzyć przeglądarki. Dołącz na {0}."
-
 msgid "services.opening_steam_profile"
 msgstr "Otwieranie profilu Steam w przeglądarce..."
 

@@ -8,6 +8,7 @@
     <img alt="Windows x64, Linux and Steam Deck through Proton" src="https://img.shields.io/badge/platform-Windows_%7C_Proton-e97835?style=flat-square&labelColor=242321">
     <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-e97835?style=flat-square&labelColor=242321"></a>
     <a href="https://discord.gg/uPNqF5A5uq"><img alt="Join the Discord" src="https://img.shields.io/badge/discord-join-e97835?style=flat-square&labelColor=242321&logo=discord&logoColor=white"></a>
+    <a href="https://ko-fi.com/confetti3"><img alt="Support Ember on Ko-fi" src="https://img.shields.io/badge/ko--fi-support-e97835?style=flat-square&labelColor=242321&logo=kofi&logoColor=white"></a>
   </p>
   <p>
     <strong><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.6.0/sf4-ember-netplay-1.6.0-setup.exe">Download Ember 1.6.0 for Windows</a></strong>
@@ -15,6 +16,9 @@
     &nbsp; · &nbsp; <a href="docs/guides/STEAM_DECK.md">Steam Deck</a>
     &nbsp; · &nbsp; <a href="docs/release-notes/RELEASE_NOTES_v1.6.0.md">What's new</a>
     &nbsp; · &nbsp; <a href="https://discord.gg/uPNqF5A5uq">Discord</a>
+    &nbsp; · &nbsp; <a href="https://embernetplay.link">Website</a>
+    &nbsp; · &nbsp; <a href="https://x.com/kabiefox">Twitter</a>
+    &nbsp; · &nbsp; <a href="https://ko-fi.com/confetti3">Support</a>
   </p>
 </div>
 

@@ -303,15 +303,6 @@ msgstr "De bewerking is mislukt. Probeer het opnieuw. Herstelkopieën van update
 msgid "services.operation_cancelled"
 msgstr "Bewerking geannuleerd."
 
-msgid "services.opening_community"
-msgstr "Ember Discord openen in je browser..."
-
-msgid "services.community_opened"
-msgstr "Geopend in je browser. Ga erheen om lid te worden van de server."
-
-msgid "services.community_failed"
-msgstr "Kon geen browser openen. Ga naar {0} om lid te worden."
-
 msgid "services.opening_steam_profile"
 msgstr "Steam-profiel openen in je browser..."
 
