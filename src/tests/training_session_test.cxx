@@ -291,7 +291,7 @@ int main() {
             own.Reset();
             Require(own.LeaveNow(), "A closed battle kept the player's return");
             LeaveCountdown rebuilt;
-            Require(rebuilt.LeaveNow());
+            Require(rebuilt.LeaveNow(), "A fresh countdown refused the player's return");
             rebuilt.Reset(true);
             Require(rebuilt.Left() == 1 && !rebuilt.LeaveNow(), "A rebuild took the player's return away");
             Require(rebuilt.Tick(true) && !rebuilt.Tick(true), "The kept return did not leave once");
