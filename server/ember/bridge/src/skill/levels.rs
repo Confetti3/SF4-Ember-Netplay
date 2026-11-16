@@ -408,7 +408,11 @@ fn card_with(tx: &Transaction<'_>, account: &str, awards: bool) -> Result<Option
     }
     let counted = account_count(tx, account)?;
     let awards = if awards {
-        award_counts(tx, account, &counted)?.shown(super::takes_part(tx, account)?)
+        award_counts(tx, account, &counted)?.shown(super::takes_part(
+            tx,
+            ember_protocol::rooms::DEFAULT_GAME,
+            account,
+        )?)
     } else {
         AwardCounts::default()
     };
