@@ -635,8 +635,8 @@ void InviteJourney() {
   const auto* invite = j->row("invite");
   Check(invite && invite->label == loc::T("friends.invite") && invite->popout && invite->enabled, "A private room has no Invite button");
   Check(!j->row("copy") && !j->row("copy-short"), "The bar still has the two copy buttons");
-  Check(Choices(invite) == std::vector<std::string>({"friend:fr_Zed", "friend:fr_Amy", "copy-short", "copy"}), "Invite is not the friends played last, Copy short link and Copy invitation");
-  Check(invite->choices[0].label == "Zed" && invite->choices[0].enabled && invite->choices[2].label == loc::T("room.copy_short_invitation") && invite->choices[3].label == loc::T("room.copy_invitation"), "Invite does not name the friends and the copies");
+  Check(Choices(invite) == std::vector<std::string>({"friend:fr_Zed", "friend:fr_Amy", "room-friends", "copy-short", "copy"}), "Invite is not the friends played last, More friends, Copy short link and Copy invitation");
+  Check(invite->choices[0].label == "Zed" && invite->choices[0].enabled && invite->choices[2].label == loc::T("room.invite.more_friends") && invite->choices[3].label == loc::T("room.copy_short_invitation") && invite->choices[4].label == loc::T("room.copy_invitation"), "Invite does not name the friends and the copies");
   // Choosing a friend sends the invite the Friends screen sends, and says so once it went through.
   PickInvite(*j, "friend:fr_Zed");
   const auto invites = j->sent<commands::FriendInvite>();
