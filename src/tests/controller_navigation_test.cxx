@@ -920,6 +920,25 @@ void BoardGeometry(){
  // that is not placed walks the list.
  rows[0].right="leave";Check(from("cabinet-0",MenuInput::Right)=="leave","An explicit neighbour lost to the geometry");rows[0].right.clear();
  rows[20]=Value("member-0","Volume","3","");nav.Focus("member-0",rows);Check(frame(MenuInput::Right).kind==MenuAction::Adjust,"A placed value row stopped adjusting");frame(0);
+ // A row of places (a table card's offers): a direction arriving lights the
+ // place nearest the side it came from, Left and Right step the light and,
+ // past either end, move on by placement as from any row; Select takes the
+ // lit one. A focus set otherwise lights nothing, and its first Select only
+ // lights. A place gone under the light is told once, and the first lights.
+ rows[2].segments={{"p1","P1"},{"p2","P2"}};rows[2].segmentKind=SegmentKind::Places;rows[2].adjustable=true;
+ Check(from("cabinet-1",MenuInput::Right)=="cabinet-2"&&nav.Lit("cabinet-2")=="p1","Arriving rightwards did not light the first place");
+ Check(press(MenuInput::Right)=="cabinet-2"&&nav.Lit("cabinet-2")=="p2","Right did not light the next place");
+ Check(press(MenuInput::Right)=="cabinet-3","Right past the last place did not move on by placement");
+ Check(press(MenuInput::Left)=="cabinet-2"&&nav.Lit("cabinet-2")=="p2","Arriving leftwards did not light the last place");
+ {const auto taken=frame(MenuInput::Select);frame(0);
+  Check(taken.kind==MenuAction::Chosen&&taken.id=="cabinet-2"&&taken.text=="p2","Select did not take the lit place");}
+ nav.Focus("cabinet-0",rows);nav.Focus("cabinet-2",rows);Check(nav.Lit("cabinet-2").empty(),"A focus set by the screen lit a place");
+ {const auto first=frame(MenuInput::Select);frame(0);
+  Check(first.kind==MenuAction::None&&nav.Lit("cabinet-2")=="p1","The first Select on an unlit row did not just light its first place");}
+ press(MenuInput::Right);rows[2].segments={{"p1","P1"}};
+ {const auto gone=frame(MenuInput::Select);frame(0);
+  Check(gone.kind==MenuAction::Chosen&&gone.text=="p2"&&nav.Lit("cabinet-2")=="p1","A place gone under the light was not told once, or the first did not light");}
+ rows[2].segments.clear();rows[2].segmentKind=SegmentKind::Value;rows[2].adjustable=false;
  Check(from("unplaced",MenuInput::Up)=="leave","A row that is not drawn left the list's movement");
  // A screen that opens has no places until its board draws once: the list moves.
  nav.Push("list");nav.Focus("cabinet-0",rows);time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({MenuInput::Right,time},rows);
@@ -945,7 +964,7 @@ void BoardTiesAndScrolls(){
  const MenuRect list{1220,90,1870,600};
  const auto add=[&](const std::string& id,MenuRect box,MenuRect clip){rows.push_back(Row(id,id,""));boxes.emplace_back(id,box,clip);};
  add("ready",{40,900,320,948},{});add("room-ultra",{331,900,610,948},{});add("options",{623,900,901,948},{});add("room-training",{914,900,1193,948},{});
- add("copy",{40,960,224,1008},{});add("copy-short",{232,960,416,1008},{});add("room-more",{428,960,805,1008},{});add("leave",{817,960,1193,1008},{});
+ add("invite",{40,960,416,1008},{});add("room-more",{428,960,805,1008},{});add("leave",{817,960,1193,1008},{});
  add("member-1",{1230,500,1860,550},list);add("member-2",{1230,560,1860,610},list);add("member-3",{1230,960,1860,1010},list);
  MenuNavigation nav;double time=0;
  const auto frame=[&](unsigned held){time+=.016;nav.Update({held,time},rows);for(const auto& b:boxes)nav.Place(std::get<0>(b),std::get<1>(b),std::get<2>(b));};
@@ -953,7 +972,7 @@ void BoardTiesAndScrolls(){
  frame(0);frame(0);
  Check(from("leave",MenuInput::Up)=="room-training"&&from("room-ultra",MenuInput::Down)=="room-more"&&from("options",MenuInput::Down)=="room-more",
   "A tie between two buttons went to the earlier rather than the one more squarely that way");
- Check(from("ready",MenuInput::Down)=="copy"&&from("room-training",MenuInput::Down)=="leave","A button under another lost to its neighbour");
+ Check(from("ready",MenuInput::Down)=="invite"&&from("room-training",MenuInput::Down)=="leave","A button under another lost to its neighbour");
  Check(from("leave",MenuInput::Right)=="leave","Right from the bar's end reached a member scrolled out of sight");
  Check(from("member-1",MenuInput::Down)=="member-2"&&from("member-2",MenuInput::Down)=="member-3","The list's own rows lost their hidden next one");
 }

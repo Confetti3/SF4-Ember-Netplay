@@ -10,6 +10,7 @@
 #include "RoomControls.hxx"
 #include "RoomCards.hxx"
 #include "RoomPanelBoard.hxx"
+#include "RoomInvite.hxx"
 #include "RowId.hxx"
 #include "LatencyMark.hxx"
 #include "SelectionLabels.hxx"
@@ -55,15 +56,6 @@ const char* StatusName(room::MemberStatus status) {
     case room::MemberStatus::WatchingNext: return loc::T("room.status.watching_next");
     default: return loc::T("room.status.idle");
     }
-}
-// A member with no seat and no queue place anywhere gets the chooser from a
-// table card. Watching elsewhere is no obstacle: sitting down ends it.
-// A room bound to a tournament match seats its fighters itself and refuses
-// every seat change, so nobody there is offered the chooser.
-bool ChoosesSeat(const room::Snapshot& s) {
-    if (s.tournament.Active() || !Member(s, s.localMember)) return false;
-    const auto place = room::PlaceOf(s, s.localMember);
-    return place.kind == room::Place::Kind::None;
 }
 // The board's member groups, in their order: playing, at a table, watching, in the room.
 int MemberGroup(room::MemberStatus status) {
@@ -179,9 +171,13 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
  }
 }
 // A Classic room's floor: a card per table in play. A member with no place
-// gets the seat chooser from it; on your own seat A readies; on the table you
-// queue at, A opens its options.
-void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,int leaveAsk){
+// is offered the table's open seats, else its queue, and watching it
+// (SeatChoices), as places on the card the navigation lights in turn: A sends
+// the lit one (RoomAction), one that would end the game this PC watches asked
+// about first on the card (offer `viewAsk` of table `viewAskTable`). On your
+// own seat A readies; on the table you queue at, A opens its options. Each
+// row's detail ends with the rules its table plays by, which speech reads.
+void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,const MenuNavigation& nav,int leaveAsk,int viewAskTable,const std::string& viewAsk){
  using room::Place;
  const auto& s=v.room;
  const auto mine=room::PlaceOf(s,s.localMember);
@@ -190,11 +186,23 @@ void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,int leaveAsk)
   const auto& table=s.tables[i];
   const auto occupied=(table.p1?1:0)+(table.p2?1:0);
   std::string detail=loc::Tf("room.table_detail",Name(s,table.p1),Name(s,table.p2),PhaseName(table),
-   table.queue.size(),table.spectators.size()+table.watchingNext.size(),local?StatusName(local->status):loc::T("room.connecting"));
+   table.queue.size(),table.spectators.size()+table.watchingNext.size(),local?StatusName(local->status):loc::T("room.connecting"))+"\n"+RoomRulesText(v,table);
   rows.push_back(Row("table-"+std::to_string(table.id),loc::Tf("room.table_occupancy",table.id+1,occupied),detail));
   auto& row=rows.back();row.detailText=DetailText::Name;row.key=table.id;
   const bool ownTable=mine.table==static_cast<int>(table.id);
-  if(ChoosesSeat(s))row.choices=SeatChoices(v,table);
+  if(auto offers=SeatChoices(v,table);!offers.empty()){
+   // Speech says the lit one as the row's value, and the hint bar names what
+   // A does: lights one while none is, sends the lit one, nothing while the
+   // room refuses it.
+   const auto lit=std::find_if(offers.begin(),offers.end(),[&](const MenuChoice& o){return o.id==nav.Lit(row.id);});
+   if(lit==offers.end())row.hint=loc::T("menu.choose");
+   else{row.value=lit->label;if(lit->enabled)row.hint=lit->label;}
+   row.adjustable=true;row.adjustHint=loc::T("menu.choose");
+   if(viewAskTable==static_cast<int>(table.id))
+    if(const auto asked=std::find_if(offers.begin(),offers.end(),[&](const MenuChoice& o){return o.id==viewAsk;});asked!=offers.end())
+     row.choices={{"stay",loc::T("common.cancel"),{}},*asked};
+   row.segments=std::move(offers);row.segmentKind=SegmentKind::Places;
+  }
   else if(mine.kind==Place::Kind::Seat&&ownTable){
    const auto control=OwnSeatRow(row,v,table,mine.seat,leaveAsk==static_cast<int>(table.id));
    // During a held start the card says what it waits for, and that B,
@@ -331,7 +339,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  // A question about leaving a seat belongs to the board it was asked on.
  if(screen!="room"){leaveAsk_=-1;leaveAsked_=false;}
  // A new game at the same table closes a dialog about the last one; moving to
- // another table (a click opens its chooser a frame before this catches up)
+ // another table (a click opens its question a frame before this catches up)
  // does not. Text being typed is not about a game, and only the board and the
  // table's options hold dialogs about one.
  if(generationTable_!=selectedTable_){generationTable_=selectedTable_;tableGeneration_=t.matchGeneration;}
@@ -344,7 +352,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  const bool seated=place.kind==room::Place::Kind::Seat&&place.table==selectedTable_;
  // A seat or queue place at another table blocks joining this one. Watching
  // elsewhere does not, because Queue and Watch both end it (the authority's
- // StopWatching); the board's seat chooser applies the same rule.
+ // StopWatching); the board's table cards apply the same rule (SeatChoices).
  const bool elsewhere=place.kind!=room::Place::Kind::None&&place.table!=selectedTable_;
  const bool queued=std::find(t.queue.begin(),t.queue.end(),s.localMember)!=t.queue.end();
  // A queued member is listed as a spectator of the game it waits out without
@@ -404,14 +412,13 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // The board's rows in the order it draws them: the floor, the Members
  // panel, the Chat panel, the picture's Hide, then the action bar (Room.dc.html).
  if(s.roomEpoch){
-  if(room::RulesOf(s).cabinets)CabinetRows(rows,v,c.mutableRoom,leaveAsk_);else TableCardRows(rows,v,leaveAsk_);
+  if(room::RulesOf(s).cabinets)CabinetRows(rows,v,c.mutableRoom,leaveAsk_);else TableCardRows(rows,v,nav,leaveAsk_,viewAsk_.table,viewAsk_.offer);
   MembersPanelRows(rows,s,preferences_.roomShowMembers,v.CanEditRoomSettings());
   ChatPanelRows(rows,transcript_.Unread(muted_),preferences_.roomShowChat,v.CanEditRoomSettings());
  }else rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
  if(pictureOnBoard_)rows.push_back(Row("room-hide-picture",loc::T("room.v2.hide_picture"),loc::T("room.v2.hide_detail"),v.CanEditRoomSettings()));
  // The action bar: Ready and the Ultra when seated, the table options (Y),
- // Training, the invitation's two copy buttons side by side, More…, the
- // asking rows, then Leave room last.
+ // Training, Invite, More…, the asking rows, then Leave room last.
  if(s.roomEpoch&&c.place.kind==Place::Kind::Seat){
   const auto ready=DescribeReady(v,s.tables[c.place.table],c.place.seat);
   // A bar button is a few words wide, so Unready drops its "unlock fighter", as on the card's strip.
@@ -442,11 +449,13 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // admits by the service's ticket, so its invitation would admit nobody.
  // The tournament's own room is never shared, from its first claim: the window
  // before its binding lands has no tournament snapshot yet.
- if(!c.tournamentRoom&&!s.serverOwned&&!v.tournament.MatchRoomActive()){
-  rows.push_back(Row("copy",loc::T("room.copy_invitation"),loc::T("room.copy_invitation.detail"),!v.invitation.empty()));
-  // Once made, the detail shows the link itself so it can be read out.
-  rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
-   v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
+ if(room_invite::Invitable(v)){
+  // One button: the friends to invite now, and the two ways to hand a link out (room_invite::ChoicesOf).
+  MenuEntry invite=Row("invite",loc::T("friends.invite"),loc::T("room.invite.detail"));invite.popout=true;
+  invite.choices=room_invite::ChoicesOf(v,friends_.Gates(v));
+  invite.chosen=room_invite::FirstEnabled(invite.choices);
+  invite.enabled=std::any_of(invite.choices.begin(),invite.choices.end(),[](const MenuChoice& choice){return choice.enabled;});
+  rows.push_back(std::move(invite));
  }
  // More… (a popout): a public room's link, the controllers and the room's
  // settings, then the board's parts as switches, which Select flips and More…
@@ -504,6 +513,11 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  rows.push_back(ConfirmRow("leave",loc::T(v.session.room==netplay::RoomState::Closing?"room.leaving":"room.leave"),
   LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
  // The questions the board asks of its own rows, once they are all there.
+ // A table card's offer that would end the watched game asks on the card.
+ if(s.roomEpoch&&viewAsk_.table>=0){
+  if(!viewAsk_.asked){if(nav.Ask("table-"+std::to_string(viewAsk_.table),rows))viewAsk_.asked=true;else viewAsk_={};}
+  else if(!nav.Choosing())viewAsk_={};
+ }
  if(s.roomEpoch&&leaveAsk_>=0){
   const auto asked=room::RulesOf(s).cabinets?"cabinet-"+std::to_string(room::CabinetOf(s,s.localMember)):"table-"+std::to_string(leaveAsk_);
   if(!leaveAsked_){if(nav.Ask(asked,rows))leaveAsked_=true;else leaveAsk_=-1;}

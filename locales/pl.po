@@ -312,14 +312,14 @@ msgstr "Operacja nie powiodła się. Spróbuj ponownie. Kopie odzyskiwania aktua
 msgid "services.operation_cancelled"
 msgstr "Operacja anulowana."
 
-msgid "services.opening_community"
-msgstr "Otwieranie Discord Ember w przeglądarce..."
+msgid "services.opening_link"
+msgstr "Otwieranie {0} w przeglądarce..."
 
-msgid "services.community_opened"
-msgstr "Otwarto w przeglądarce. Przejdź do niej, aby dołączyć do serwera."
+msgid "services.link_opened"
+msgstr "Otwarto w przeglądarce. Przejdź do niej."
 
-msgid "services.community_failed"
-msgstr "Nie można otworzyć przeglądarki. Dołącz na {0}."
+msgid "services.link_failed"
+msgstr "Nie można otworzyć przeglądarki. Odwiedź {0}."
 
 msgid "services.opening_steam_profile"
 msgstr "Otwieranie profilu Steam w przeglądarce..."
@@ -534,8 +534,8 @@ msgstr "Pomoc i informacje"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Zaproszenie Discord"
+msgid "screen.room_invitation"
+msgstr "Zaproszenie do pokoju"
 
 msgid "screen.assignment"
 msgstr "Przypisz kontroler"
@@ -1665,6 +1665,15 @@ msgstr "To zaproszenie wygasło."
 msgid "friends.nothing_to_offer"
 msgstr "Twojego pokoju nie można teraz zaproponować."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "Dostęp jest w tym pokoju ustawiony na Zamknięty. Ustaw Otwarty w Ustawieniach pokoju, aby zapraszać znajomych."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "Dostęp jest w tym pokoju ustawiony na Zamknięty."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Ten pokój jest pełny."
+
 msgid "friends.busy"
 msgstr "Poczekaj na zakończenie ostatniej prośby."
 
@@ -2184,9 +2193,6 @@ msgstr "Znajomi korzystają z własnego połączenia z Discordem w serwisie kont
 msgid "discord.server"
 msgstr "Serwer Discord Embera"
 
-msgid "discord.invitation_title"
-msgstr "ZAPROSZENIE DISCORD"
-
 msgid "discord.cancel_invitation"
 msgstr "Odrzuć zaproszenie"
 
@@ -2253,6 +2259,24 @@ msgstr "Dołącz do Discord Ember"
 msgid "about.discord_detail"
 msgstr "Gracze, walki i pomoc na {0}. Otwiera się w przeglądarce za oknem gry."
 
+msgid "about.kofi"
+msgstr "Wesprzyj Ember na Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Wesprzyj rozwój Ember na {0}. Otwiera się w przeglądarce za oknem gry."
+
+msgid "about.website"
+msgstr "Strona Ember"
+
+msgid "about.website_detail"
+msgstr "Pokoje, rankingi i powtórki na {0}. Otwiera się w przeglądarce za oknem gry."
+
+msgid "about.twitter"
+msgstr "Twitter twórcy"
+
+msgid "about.twitter_detail"
+msgstr "Nowości od twórcy Ember na {0}. Otwiera się w przeglądarce za oknem gry."
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 
@@ -2270,9 +2294,6 @@ msgstr "Dołączanie do pokoju. Czekanie na sieć..."
 
 msgid "room.locked_status"
 msgstr "Pokój zamknięty / tylko zaproszenia"
-
-msgid "room.private_status"
-msgstr "Pokój prywatny / tylko zaproszenia"
 
 msgid "room.tournament_status"
 msgstr "Mecz turniejowy, do {0} wygranych. Grać mogą tylko jego dwaj gracze."
@@ -2586,6 +2607,12 @@ msgstr "Opróżnij ten slot"
 msgid "training.reply.clear_slot.detail"
 msgstr "Usuwa cios z tego slotu."
 
+msgid "training.reply.clear_all"
+msgstr "Opróżnij wszystkie sloty"
+
+msgid "training.reply.clear_all.detail"
+msgstr "Usuwa ciosy ze wszystkich slotów odpowiedzi. Ustawienia odpowiedzi pozostają bez zmian."
+
 msgid "training.reply.every_fighter"
 msgstr "Każdy wojownik"
 
@@ -2705,6 +2732,12 @@ msgstr "Zamknij panel treningu"
 
 msgid "training.close_controls.detail"
 msgstr "Zamknij Ember, a potem zamknij menu pauzy SF4, jeśli jest otwarte, aby wznowić grę."
+
+msgid "training.back_to_room"
+msgstr "Powrót do pokoju"
+
+msgid "training.back_to_room.detail"
+msgstr "Opuść trening i wróć do {0}. Twoje miejsce w pokoju zostaje zachowane."
 
 msgid "training.slot"
 msgstr "Slot {0}"
@@ -3681,6 +3714,12 @@ msgstr "Kopiuj krótki link"
 msgid "room.copy_short_invitation.detail"
 msgstr "Krótki link do czatu. Usługa linków Ember przechowuje go, dopóki pokój jest otwarty."
 
+msgid "room.invite.detail"
+msgstr "Zaproś znajomego albo skopiuj link lub zaproszenie, aby je udostępnić."
+
+msgid "room.invite.more_friends"
+msgstr "Więcej znajomych…"
+
 msgid "room.leaving"
 msgstr "Opuszczanie pokoju..."
 
@@ -3716,9 +3755,6 @@ msgstr "Połączenie Wi-Fi"
 
 msgid "room.link_unknown"
 msgstr "Nieznane połączenie"
-
-msgid "room.table_footer"
-msgstr "Rundy: {0} / Czas: {1} s     Kolejka: {2}     Widzowie: {3}"
 
 msgid "room.board_status_host_slot"
 msgstr "HOST / {0} / Stół {1}"
@@ -3768,8 +3804,8 @@ msgstr "Otwarto z linku do pokoju. Sprawdź go, a potem wybierz Dołącz."
 msgid "room.link_waiting"
 msgstr "Otwarto link do pokoju. Pojawi się na ekranie dołączania, gdy opuścisz ten pokój."
 
-msgid "room.replacement_opening"
-msgstr "Otwieranie nowego pokoju. Wybierz Kopiuj zaproszenie i wyślij nowy link. Stary już nie działa."
+msgid "room.replacement_invite"
+msgstr "Otwieranie nowego pokoju. Wybierz Zaproś, potem Kopiuj zaproszenie, i wyślij nowe zaproszenie. Stare już nie działa."
 
 msgid "room.action_rejected"
 msgstr "Pokój się zmienił lub odrzucił działanie. Sprawdź aktualny stan i spróbuj ponownie."
@@ -4404,6 +4440,9 @@ msgstr "Moduł Discord zatrzymał się. Gra działa bez zmian."
 msgid "runtime.room_connection_failed"
 msgstr "Połączenie z pokojem nie powiodło się. Pokój jest zamykany; niepotwierdzone wyniki nie zostaną zapisane."
 
+msgid "runtime.public_room_connection_failed"
+msgstr "Połączenie z pokojem zostało utracone. Niepotwierdzone wyniki nie zostaną zapisane. Dołącz do niego ponownie w sekcji Pokoje publiczne. Jeśli cię odrzuci, odczekaj minutę i spróbuj ponownie."
+
 msgid "runtime.operation_busy"
 msgstr "Operacja jest zajęta. Spróbuj ponownie."
 
@@ -4412,6 +4451,9 @@ msgstr "Nie można otworzyć profilu Steam."
 
 msgid "discord.invitation_expired"
 msgstr "Zaproszenie Discord wygasło. Poproś o nowe."
+
+msgid "room.invitation_expired"
+msgstr "Zaproszenie wygasło. Poproś o nowe."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "Nie udało się wysłać działania widza; ponawianie próby."
@@ -4469,6 +4511,9 @@ msgstr "Walka nie zamknęła się na czas. Wyłączono widok widza."
 
 msgid "runtime.room_closed"
 msgstr "Pokój został zamknięty."
+
+msgid "runtime.room_unreachable"
+msgstr "Połączenie z pokojem zostało utracone albo pokój się zamknął. Jeśli nadal widnieje w sekcji Pokoje publiczne, dołącz do niego ponownie."
 
 msgid "runtime.removed_from_room"
 msgstr "Usunięto cię z pokoju."
@@ -5649,9 +5694,6 @@ msgstr "{0}, {1}"
 msgid "room.table_set"
 msgstr "Set"
 
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     Kolejka: {2}     Widzowie: {3}"
-
 msgid "room.streak"
 msgstr "Sety z rzędu: {0}"
 
@@ -6027,8 +6069,14 @@ msgstr "Ten pokój właśnie się zapełnił albo został zamknięty. Wybierz in
 msgid "public.failure.turned_away"
 msgstr "Pokój odrzucił próbę dołączenia. Być może cię z niego usunięto."
 
+msgid "public.failure.name_taken"
+msgstr "Ta nazwa jest już zajęta w tym pokoju. Jeśli twoje połączenie dopiero co przerwano, twoje dawne miejsce może być jeszcze zarezerwowane: odczekaj minutę i spróbuj ponownie. W przeciwnym razie zmień nazwę w Ustawieniach."
+
 msgid "public.failure.join_failed"
 msgstr "Nie udało się wejść do pokoju. Mógł się właśnie zamknąć. Odśwież listę i wybierz inny."
+
+msgid "public.failure.refused"
+msgstr "Pokój nie przyjął cię. Jeśli twoje połączenie z nim dopiero co przerwano, może on jeszcze trzymać twoje dawne miejsce: odczekaj minutę i spróbuj ponownie. Możliwe też, że cię z niego usunięto."
 
 msgid "legend.refresh"
 msgstr "Odśwież"
@@ -6414,18 +6462,6 @@ msgstr "Gracze ustawiają się w kolejce do stołu i grają przy nim."
 msgid "room.type.arcade_detail"
 msgstr "Szesnaście automatów: usiądź przy dowolnym wolnym i graj z tym, kto czeka najdłużej. Po secie, jeśli obaj wybiorą Rewanż, gracie dalej; inaczej każdy gra z następnym czekającym."
 
-msgid "room.arcade_status"
-msgstr "Pokój salonu gier / tylko z zaproszeniem"
-
-msgid "room.arcade_locked_status"
-msgstr "Pokój salonu gier zamknięty / tylko z zaproszeniem"
-
-msgid "room.king_status"
-msgstr "Król wzgórza / tylko z zaproszeniem"
-
-msgid "room.king_locked_status"
-msgstr "Król wzgórza zamknięty / tylko z zaproszeniem"
-
 msgid "room.arcade_sit"
 msgstr "Usiądź"
 
@@ -6497,12 +6533,6 @@ msgstr "Pokój treningowy"
 
 msgid "room.practice.detail"
 msgstr "Każda gra w pokoju to mecz treningowy: zdrowie i paski się odnawiają, nikt nie zostaje znokautowany, a czas rundy wynosi {0}. Tak pozostaje, dopóki pokój jest otwarty. Aby grać zwykłe mecze, zamknij pokój i utwórz nowy."
-
-msgid "room.practice_status"
-msgstr "Pokój treningowy / tylko zaproszenia"
-
-msgid "room.practice_locked_status"
-msgstr "Pokój treningowy zamknięty / tylko zaproszenia"
 
 msgid "inputs.presses_value"
 msgstr "{0} naciśnięć"
@@ -7623,8 +7653,14 @@ msgstr "Własne opóźnienie"
 msgid "room.table_footer_wired_only"
 msgstr "Tylko kabel"
 
-msgid "room.table_counts"
-msgstr "Kolejka: {0}     Widzowie: {1}"
+msgid "room.table_rules_line"
+msgstr "Rundy: {0} / {1} s"
+
+msgid "room.table_queue"
+msgstr "Kolejka: {0}"
+
+msgid "room.table_watching"
+msgstr "Widzowie: {0}"
 
 msgid "room.input_delay.own"
 msgstr "Twoje opóźnienie: {0}"
@@ -8767,11 +8803,11 @@ msgstr "Obszary"
 msgid "room.v2.tables"
 msgstr "STOŁY"
 
+msgid "room.v2.tables_playing"
+msgstr "Grają: {0}"
+
 msgid "room.v2.table"
 msgstr "STÓŁ {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "Grają: {0} · oglądają: {1}"
 
 msgid "room.v2.group_playing"
 msgstr "GRAJĄ"
@@ -8793,6 +8829,9 @@ msgstr "EMBER · ONLINE · POKÓJ PUBLICZNY"
 
 msgid "room.v2.invitation_only"
 msgstr "Tylko z zaproszeniem"
+
+msgid "room.v2.friends_can_join"
+msgstr "Znajomi mogą dołączyć"
 
 msgid "room.v2.listed"
 msgstr "Na liście Pokoje publiczne"
@@ -8853,12 +8892,6 @@ msgstr "Pokaż"
 
 msgid "room.v2.show_detail"
 msgstr "Rozwija do pełnego rozmiaru."
-
-msgid "room.v2.copy_invite"
-msgstr "Zaproszenie"
-
-msgid "room.v2.copy_link"
-msgstr "Krótki link"
 
 msgid "settings.room_show_members_detail"
 msgstr "Panel Uczestnicy w pokoju. Gdy jest ukryty, czat zajmuje kolumnę, a gdy oba są ukryte, stoły zajmują całą szerokość."

@@ -312,14 +312,14 @@ msgstr "De bewerking is mislukt. Probeer het opnieuw. Herstelkopieën van update
 msgid "services.operation_cancelled"
 msgstr "Bewerking geannuleerd."
 
-msgid "services.opening_community"
-msgstr "Ember Discord openen in je browser..."
+msgid "services.opening_link"
+msgstr "{0} openen in je browser..."
 
-msgid "services.community_opened"
-msgstr "Geopend in je browser. Ga erheen om lid te worden van de server."
+msgid "services.link_opened"
+msgstr "Geopend in je browser. Ga erheen."
 
-msgid "services.community_failed"
-msgstr "Kon geen browser openen. Ga naar {0} om lid te worden."
+msgid "services.link_failed"
+msgstr "Kon geen browser openen. Ga naar {0}."
 
 msgid "services.opening_steam_profile"
 msgstr "Steam-profiel openen in je browser..."
@@ -534,8 +534,8 @@ msgstr "Hulp en info"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Discord-uitnodiging"
+msgid "screen.room_invitation"
+msgstr "Kameruitnodiging"
 
 msgid "screen.assignment"
 msgstr "Controller toewijzen"
@@ -1665,6 +1665,15 @@ msgstr "Die uitnodiging is verlopen."
 msgid "friends.nothing_to_offer"
 msgstr "Je kamer kan nu niet worden aangeboden."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "Toegang is Vergrendeld in deze kamer. Zet het op Open in Kamerinstellingen om vrienden uit te nodigen."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "Toegang is Vergrendeld in deze kamer."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Deze kamer is vol."
+
 msgid "friends.busy"
 msgstr "Wacht tot het laatste verzoek klaar is."
 
@@ -2184,9 +2193,6 @@ msgstr "Vrienden hebben een eigen Discord-koppeling bij de accountdienst van Emb
 msgid "discord.server"
 msgstr "Ember Discord-server"
 
-msgid "discord.invitation_title"
-msgstr "DISCORD-UITNODIGING"
-
 msgid "discord.cancel_invitation"
 msgstr "Uitnodiging annuleren"
 
@@ -2253,6 +2259,24 @@ msgstr "Lid worden van Ember Discord"
 msgid "about.discord_detail"
 msgstr "Spelers, matches en hulp op {0}. Opent in je browser achter het spel."
 
+msgid "about.kofi"
+msgstr "Steun Ember op Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Steun de ontwikkeling van Ember op {0}. Opent in je browser achter het spel."
+
+msgid "about.website"
+msgstr "Ember-website"
+
+msgid "about.website_detail"
+msgstr "Kamers, ranglijsten en replays op {0}. Opent in je browser achter het spel."
+
+msgid "about.twitter"
+msgstr "Ontwikkelaar op Twitter"
+
+msgid "about.twitter_detail"
+msgstr "Nieuws van de ontwikkelaar van Ember op {0}. Opent in je browser achter het spel."
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 
@@ -2270,9 +2294,6 @@ msgstr "Kamer betreden. Wachten op het netwerk..."
 
 msgid "room.locked_status"
 msgstr "Kamer op slot / op uitnodiging"
-
-msgid "room.private_status"
-msgstr "Privékamer / alleen op uitnodiging"
 
 msgid "room.tournament_status"
 msgstr "Toernooiwedstrijd, eerst tot {0}. Alleen de twee spelers kunnen spelen."
@@ -2586,6 +2607,12 @@ msgstr "Dit slot leegmaken"
 msgid "training.reply.clear_slot.detail"
 msgstr "Verwijdert de move van dit slot."
 
+msgid "training.reply.clear_all"
+msgstr "Alle slots leegmaken"
+
+msgid "training.reply.clear_all.detail"
+msgstr "Verwijdert de moves van elk antwoordslot. De antwoordinstellingen blijven zoals ze zijn."
+
 msgid "training.reply.every_fighter"
 msgstr "Elke vechter"
 
@@ -2705,6 +2732,12 @@ msgstr "Trainingsbesturing sluiten"
 
 msgid "training.close_controls.detail"
 msgstr "Sluit Ember en daarna eventueel het SF4-pauzemenu om verder te spelen."
+
+msgid "training.back_to_room"
+msgstr "Terug naar de room"
+
+msgid "training.back_to_room.detail"
+msgstr "Verlaat Training en ga terug naar {0}. Je plaats in de kamer blijft behouden."
 
 msgid "training.slot"
 msgstr "Slot {0}"
@@ -3681,6 +3714,12 @@ msgstr "Korte link kopiëren"
 msgid "room.copy_short_invitation.detail"
 msgstr "Een korte link voor de chat. De Ember-linkdienst bewaart hem zolang de kamer open is."
 
+msgid "room.invite.detail"
+msgstr "Nodig een vriend uit, of kopieer een link of uitnodiging om te delen."
+
+msgid "room.invite.more_friends"
+msgstr "Meer vrienden…"
+
 msgid "room.leaving"
 msgstr "Kamer verlaten..."
 
@@ -3716,9 +3755,6 @@ msgstr "Wifi-verbinding"
 
 msgid "room.link_unknown"
 msgstr "Verbinding onbekend"
-
-msgid "room.table_footer"
-msgstr "Rondes {0} / {1} sec     Wachtrij {2}     Kijken {3}"
 
 msgid "room.board_status_host_slot"
 msgstr "HOST / {0} / Tafel {1}"
@@ -3768,8 +3804,8 @@ msgstr "Geopend via een kamerlink. Controleer hem en kies dan Kamer betreden."
 msgid "room.link_waiting"
 msgstr "Er is een kamerlink geopend. Zodra je deze kamer verlaat, staat hij klaar op het scherm om mee te doen."
 
-msgid "room.replacement_opening"
-msgstr "Nieuwe kamer wordt geopend. Kopieer de uitnodiging en stuur de nieuwe link. De oude werkt niet meer."
+msgid "room.replacement_invite"
+msgstr "Nieuwe kamer wordt geopend. Kies Uitnodigen, dan Uitnodiging kopiëren, en stuur de nieuwe uitnodiging. De oude werkt niet meer."
 
 msgid "room.action_rejected"
 msgstr "De kamer is veranderd of heeft deze actie geweigerd. Bekijk de huidige status en probeer opnieuw."
@@ -4404,6 +4440,9 @@ msgstr "Discord-hulp gestopt. Spel blijft werken."
 msgid "runtime.room_connection_failed"
 msgstr "Kamerverbinding mislukt. De kamer wordt gesloten; onbevestigde uitslagen worden niet vastgelegd."
 
+msgid "runtime.public_room_connection_failed"
+msgstr "Je hebt de verbinding met de kamer verloren. Onbevestigde uitslagen worden niet vastgelegd. Ga er opnieuw in via Openbare kamers. Als de kamer je weigert, wacht dan een minuut en probeer het opnieuw."
+
 msgid "runtime.operation_busy"
 msgstr "De bewerking is bezig. Probeer opnieuw."
 
@@ -4412,6 +4451,9 @@ msgstr "Kon het Steam-profiel niet openen."
 
 msgid "discord.invitation_expired"
 msgstr "De Discord-uitnodiging is verlopen. Vraag om een nieuwe."
+
+msgid "room.invitation_expired"
+msgstr "De uitnodiging is verlopen. Vraag om een nieuwe."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "Toeschouwersactie niet verzonden; nieuwe poging."
@@ -4469,6 +4511,9 @@ msgstr "De match werd niet op tijd afgesloten. De toeschouwersweergave is gestop
 
 msgid "runtime.room_closed"
 msgstr "De kamer is gesloten."
+
+msgid "runtime.room_unreachable"
+msgstr "Je hebt de verbinding met de kamer verloren, of de kamer is gesloten. Staat hij nog in Openbare kamers, ga er dan opnieuw in."
 
 msgid "runtime.removed_from_room"
 msgstr "Je bent uit de kamer verwijderd."
@@ -5649,9 +5694,6 @@ msgstr "{0}, {1}"
 msgid "room.table_set"
 msgstr "Set"
 
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     Wachtrij {2}     Kijken {3}"
-
 msgid "room.streak"
 msgstr "{0} sets op rij"
 
@@ -6027,8 +6069,14 @@ msgstr "Deze kamer is net vol geraakt of vergrendeld. Kies een andere."
 msgid "public.failure.turned_away"
 msgstr "De kamer weigerde je toegang. Je bent er misschien uit verwijderd."
 
+msgid "public.failure.name_taken"
+msgstr "Die naam is al in deze kamer. Als je net bent losgekoppeld, wordt je oude plaats misschien nog vastgehouden: wacht een minuut en probeer het opnieuw. Wijzig anders je naam bij Instellingen."
+
 msgid "public.failure.join_failed"
 msgstr "Kon de kamer niet in. Misschien is hij net gesloten. Vernieuw en kies een andere."
+
+msgid "public.failure.refused"
+msgstr "De kamer liet je niet binnen. Als je er net in zat, houdt hij je oude plaats misschien nog vast: wacht een minuut en probeer het opnieuw. Je bent er mogelijk ook uit verwijderd."
 
 msgid "legend.refresh"
 msgstr "Vernieuwen"
@@ -6414,18 +6462,6 @@ msgstr "Spelers staan in de rij bij een tafel en spelen daar."
 msgid "room.type.arcade_detail"
 msgstr "Zestien kasten: ga aan een vrije zitten en speel tegen wie het langst wacht. Na een set kiezen beiden Rematch om opnieuw te spelen, anders speelt ieder tegen de volgende die wacht."
 
-msgid "room.arcade_status"
-msgstr "Arcadekamer / alleen op uitnodiging"
-
-msgid "room.arcade_locked_status"
-msgstr "Arcadekamer op slot / alleen op uitnodiging"
-
-msgid "room.king_status"
-msgstr "King of the hill / alleen op uitnodiging"
-
-msgid "room.king_locked_status"
-msgstr "King of the hill op slot / alleen op uitnodiging"
-
 msgid "room.arcade_sit"
 msgstr "Gaan zitten"
 
@@ -6497,12 +6533,6 @@ msgstr "Oefenkamer"
 
 msgid "room.practice.detail"
 msgstr "Elk spel in de kamer is een oefenwedstrijd: gezondheid en meters vullen zich aan, niemand gaat knock-out en de rondetijd is {0}. Dat blijft zo zolang de kamer open is. Sluit de kamer en maak een nieuwe om normale wedstrijden te spelen."
-
-msgid "room.practice_status"
-msgstr "Oefenkamer / alleen op uitnodiging"
-
-msgid "room.practice_locked_status"
-msgstr "Oefenkamer op slot / op uitnodiging"
 
 msgid "inputs.presses_value"
 msgstr "{0} knopdrukken"
@@ -7623,8 +7653,14 @@ msgstr "Eigen vertraging"
 msgid "room.table_footer_wired_only"
 msgstr "Alleen kabel"
 
-msgid "room.table_counts"
-msgstr "Wachtrij {0}     Kijken {1}"
+msgid "room.table_rules_line"
+msgstr "Rondes {0} / {1} sec"
+
+msgid "room.table_queue"
+msgstr "Wachtrij {0}"
+
+msgid "room.table_watching"
+msgstr "Kijkers {0}"
 
 msgid "room.input_delay.own"
 msgstr "Jouw vertraging: {0}"
@@ -8767,11 +8803,11 @@ msgstr "Gebieden"
 msgid "room.v2.tables"
 msgstr "TAFELS"
 
+msgid "room.v2.tables_playing"
+msgstr "Spelen {0}"
+
 msgid "room.v2.table"
 msgstr "TAFEL {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} spelen · {1} kijken"
 
 msgid "room.v2.group_playing"
 msgstr "SPELEN"
@@ -8793,6 +8829,9 @@ msgstr "EMBER · ONLINE · OPENBARE KAMER"
 
 msgid "room.v2.invitation_only"
 msgstr "Alleen op uitnodiging"
+
+msgid "room.v2.friends_can_join"
+msgstr "Open voor vrienden"
 
 msgid "room.v2.listed"
 msgstr "Staat in Openbare kamers"
@@ -8853,12 +8892,6 @@ msgstr "Tonen"
 
 msgid "room.v2.show_detail"
 msgstr "Klapt het weer helemaal uit."
-
-msgid "room.v2.copy_invite"
-msgstr "Uitnodiging"
-
-msgid "room.v2.copy_link"
-msgstr "Korte link"
 
 msgid "settings.room_show_members_detail"
 msgstr "Het paneel Leden op het kamerbord. Verborgen neemt Chat de kolom, of de tafels de volle breedte."

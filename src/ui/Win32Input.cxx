@@ -38,7 +38,7 @@ bool ActivationClickFilter::Swallow(UINT message, LPARAM l) {
     return false;
 }
 LRESULT HandleOverlayMessage(HWND window, UINT message, WPARAM w, LPARAM l,
-                             bool capture, bool menuAvailable, bool pointer) {
+                             bool capture, F10Owner f10, bool pointer) {
     const bool mouse = capture || pointer;
     const auto handled = ImGui_ImplWin32_WndProcHandler(window, message, w, l);
     const bool key = message == WM_KEYDOWN || message == WM_KEYUP || message == WM_CHAR;
@@ -47,7 +47,7 @@ LRESULT HandleOverlayMessage(HWND window, UINT message, WPARAM w, LPARAM l,
     if (message == WM_SETCURSOR) return handled;
     if (mouse && message >= WM_MOUSEFIRST && message <= WM_MOUSELAST) return 1;
     if (capture && key) return 1;
-    if (menuAvailable && w == VK_F10 &&
+    if (f10 != F10Owner::Game && w == VK_F10 &&
         (message == WM_KEYDOWN || message == WM_KEYUP || message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)) return 1;
     return 0;
 }

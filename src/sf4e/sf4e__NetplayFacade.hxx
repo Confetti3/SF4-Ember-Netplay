@@ -246,6 +246,8 @@ namespace sf4e {
             platform::ServiceSnapshot services;
             std::string controller;
     bool discordPending = false, discordConfirm = false, discordCanSwitch = false;
+    // Where the pending invitation came from.
+    discord::InviteOrigin inviteOrigin = discord::InviteOrigin::Discord;
     std::uint64_t discordRevision = 0;
     std::string discordStatus;
             input::Capture inputCapture = input::Capture::Idle;

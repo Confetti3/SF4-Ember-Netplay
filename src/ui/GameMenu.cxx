@@ -385,8 +385,17 @@ void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,c
     frame.notice=!notice_.empty()&&!noticeAsked_;
     for(const auto& noticeButton:noticeButtons_)frame.buttons.push_back(noticeButton.label);
     frame.accessKey=AccessibilityKeyName();
-    // The focused entry may be a copy, so its place comes from its id.
-    if(focus){frame.index=static_cast<std::size_t>(std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==focus->id;})-entries.begin());frame.count=entries.size();}
+    // The focused entry may be a copy, so its place comes from its id. Home's links are a row of their own over the
+    // card: they are counted among themselves, and are no part of the list's count.
+    if(focus){
+        const auto isLink=[&](const std::string& id){return std::any_of(headerLinks.begin(),headerLinks.end(),[&](const HeaderLink& link){return link.id==id;});};
+        const bool among=isLink(focus->id);
+        for(const auto& e:entries){
+            if(isLink(e.id)!=among)continue;
+            if(e.id==focus->id)frame.index=frame.count;
+            ++frame.count;
+        }
+    }
     frame.button=button;
     if(!button.empty()) {
         const auto& owner=navigation.Editing()?navigation.EditingId():navigation.DialogId();

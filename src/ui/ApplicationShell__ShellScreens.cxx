@@ -7,6 +7,7 @@
 #include "NetworkFeedback.hxx"
 #include "PlayerCard.hxx"
 #include "RoomFeedback.hxx"
+#include "RoomInvite.hxx"
 #include "RoomPanelBoard.hxx"
 #include "RowId.hxx"
 #include "Theme.hxx"
@@ -143,7 +144,7 @@ public:
         if (f.screen == "room") {
             const bool listed = v.room.serverOwned;
             menu.eyebrow = loc::T(listed ? "room.v2.eyebrow_public" : "room.v2.eyebrow_private");
-            menu.headerChips = {{loc::T(listed ? "room.v2.listed" : "room.v2.invitation_only"), ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending))},
+            menu.headerChips = {{loc::T(room_invite::AccessKey(v)), ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending))},
                 {std::string(loc::T("room.members")) + " " + std::to_string(v.room.members.size()) + "/" + std::to_string(v.room.capacity), palette::Ready}};
         }
         // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.

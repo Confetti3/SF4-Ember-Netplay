@@ -30,14 +30,14 @@ void ListWrap(){
  // last row, not to the card.
  for(auto& r:rows)r.right="card";
  rows.push_back(Row("card","Card",""));rows.back().left="a";
- nav.SetAside("card");
+ nav.SetAside({"card"});
  nav.Focus("a",rows);time+=.016;nav.Update({0,time},rows);hold(MenuInput::Up,.05);
  Check(nav.Focus()=="d","A list's wrap landed on the card beside it");
  nav.Focus("d",rows);hold(MenuInput::Down,.05);
  Check(nav.Focus()=="a","Down from the list's last entry did not go round, over the card beside it, to its first");
  // The narrow window draws the card as the list's last row: the same links, no
  // aside, so a wrap from the top reaches it and the list's wrap is one rule.
- nav.SetAside("");
+ nav.SetAside({});
  nav.Focus("a",rows);time+=.016;nav.Update({0,time},rows);hold(MenuInput::Up,.05);
  Check(nav.Focus()=="card","Up from the top row skipped the card drawn as the list's last row");
  nav.Focus("card",rows);hold(MenuInput::Down,.05);
@@ -52,7 +52,7 @@ void AsideEntry(){
  MenuNavigation nav;double time=0;
  const auto hold=[&](unsigned held,double seconds){for(double end=time+seconds;time<end;){time+=.016;nav.Update({held,time},rows);}time+=.016;nav.Update({0,time},rows);};
  time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({0,time},rows);
- nav.SetAside("card");
+ nav.SetAside({"card"});
  nav.Focus("b",rows);hold(MenuInput::Down,.05);Check(nav.Focus()=="d","Down in the list stopped on the entry beside it");
  hold(MenuInput::Up,.05);Check(nav.Focus()=="b","Up in the list stopped on the entry beside it");
  nav.Focus("d",rows);hold(MenuInput::Down,.05);Check(nav.Focus()=="a","A fresh Down at the list's foot did not go round to its top");
@@ -62,7 +62,7 @@ void AsideEntry(){
  hold(MenuInput::Left,.05);Check(nav.Focus()=="a","Left from the entry beside the list did not go back to it");
  hold(MenuInput::Right,.05);Check(nav.Focus()=="card","Right from the list did not reach the entry beside it");
  // Drawn in the list (narrow), it is one of its entries again.
- nav.SetAside("");nav.Focus("b",rows);hold(MenuInput::Down,.05);Check(nav.Focus()=="card","Down did not reach the card drawn in the list");
+ nav.SetAside({});nav.Focus("b",rows);hold(MenuInput::Down,.05);Check(nav.Focus()=="card","Down did not reach the card drawn in the list");
 }
 void ProfileRecords(){
  using namespace sf4e;netplay::ProfileRecord record;netplay::RandomRoomId roomA{};netplay::RandomRoomId roomB{};roomA[0]=1;roomB[0]=2;

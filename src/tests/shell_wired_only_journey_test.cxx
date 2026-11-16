@@ -1,6 +1,7 @@
 #include "shell_journey_support.hxx"
 #include "shell_additional_journeys.hxx"
 #include "../netplay/RoomPreferences.hxx"
+#include "../ui/RoomControls.hxx"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -55,6 +56,13 @@ void WiredOnlyJourney() {
  // An Unknown link is never kept out.
  h.view.room.members[0].link=NetworkLink::Unknown;h.Frame();
  Check(row("queue")->enabled,"A player whose link is unknown was kept out of a wired room");
+ // On the board a table's seats say the same, and A on one sends nothing.
+ h.view.room.members[0].link=NetworkLink::Wireless;h.Screen("room");h.FocusOn("table-0");
+ {const auto offers=room_controls::SeatChoices(h.view,h.view.room.tables[0]);
+  Check(offers.size()==2&&!offers[0].enabled&&offers[0].detail.find(loc::T("room.reject.wired_only"))==0,
+   "A seat of a wired room was offered to a player on Wi-Fi");}
+ const auto refused=h.actions.size();h.Press(MenuInput::Select);h.Press(MenuInput::Select);
+ Check(h.actions.size()==refused,"A on a wired room's seat sent it for a player on Wi-Fi");
  SetMenuEntriesProbe({});
 }
 

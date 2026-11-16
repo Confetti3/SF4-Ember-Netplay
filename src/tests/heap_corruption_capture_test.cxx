@@ -6,6 +6,7 @@
 // (DumpChannel::ServeUntilExit), writing the dump it asks for.
 
 #include "../common/CrashDump.hxx"
+#include "../common/CrashUnloaded.hxx"
 #include "../sf4e/sf4e__CrashDiagnostics.hxx"
 
 #include <fstream>
@@ -379,7 +380,38 @@ void TestClientWithoutChannelDeclines() {
 	CHECK(!client.Available());
 	CHECK(!client.Configure(nullptr, nullptr, nullptr));
 	EXCEPTION_POINTERS pointers = {};
-	CHECK(!client.Request(&pointers));
+	CHECK(client.Request(&pointers) == DumpAnswer::Unavailable);
+	// Every answer says something different, so a record's "dump:" line is never ambiguous.
+	const DumpAnswer answers[] = { DumpAnswer::NotAsked, DumpAnswer::Unavailable, DumpAnswer::NotSent,
+		DumpAnswer::Unanswered, DumpAnswer::Declined, DumpAnswer::Written };
+	for (size_t i = 0; i < 6; ++i)
+		for (size_t j = i + 1; j < 6; ++j) CHECK(std::string(DumpAnswerName(answers[i])) != DumpAnswerName(answers[j]));
+}
+
+// The real ntdll getter, after a real unload: settles that the third value is
+// the address of the variable holding the array, and the size of an element.
+void TestRealUnloadTraceNamesAFreedDll() {
+	const HMODULE module = LoadLibraryW(L"msimg32.dll");
+	CHECK(module != nullptr);
+	const uint32_t base = (uint32_t)reinterpret_cast<uintptr_t>(module);
+	FreeLibrary(module);
+	if (GetModuleHandleW(L"msimg32.dll")) { std::printf("unload trace test skipped: msimg32.dll stayed loaded\n"); return; }
+	using Getter = void (NTAPI*)(ULONG**, ULONG**, PVOID*);
+	const Getter getter = reinterpret_cast<Getter>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetUnloadEventTraceEx"));
+	CHECK(getter != nullptr);
+	ULONG* sizeAt = nullptr;
+	ULONG* countAt = nullptr;
+	PVOID holder = nullptr;
+	getter(&sizeAt, &countAt, &holder);
+	CHECK(sizeAt && countAt && holder);
+	CHECK(*sizeAt >= UnloadEntryNeeded);
+	const uint8_t* array = *static_cast<uint8_t* const*>(holder);
+	CHECK(array != nullptr);
+	const UnloadedImages images = ParseUnloadTrace(array, *sizeAt, *countAt);
+	bool named = false;
+	for (unsigned i = 0; i < images.count; ++i)
+		if (images.items[i].base == base && _stricmp(images.items[i].name, "msimg32.dll") == 0) named = true;
+	CHECK(named);
 }
 
 void TestReportDumpsStayPaired() {
@@ -483,6 +515,7 @@ int main(int argc, char** argv) {
 		return 0;
 	}
 	TestClientWithoutChannelDeclines();
+	TestRealUnloadTraceNamesAFreedDll();
 	TestEveryDumpIsKeptAndBadRequestsRefused();
 	TestHeapDumpsAreKeptApart();
 	TestReportDumpsStayPaired();

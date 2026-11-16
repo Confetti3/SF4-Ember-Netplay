@@ -31,6 +31,11 @@ enum class Status : std::uint8_t { Idle, Queued, Ready, Fighting, Watching, Trai
 // What an online player outside a room is doing.
 enum class Activity : std::uint8_t { Menus, OfflinePlay };
 
+// What keeps the player's own room from being offered to a friend (FriendPresence.hxx, OfferOf): the room's Admission is
+// Locked (its host's setting; LockedForMember for a player who is not the host) or Full; Other is any other reason, or no room.
+// None when it can be offered. A Hidden room is not one: it is offered by invite, which is how its friends join it.
+enum class OfferBlock : std::uint8_t { None, Locked, LockedForMember, Full, Other };
+
 // A friend's main fighter. Points and tier are shown together or not at all.
 struct Main {
 	std::uint8_t fighter = 0;

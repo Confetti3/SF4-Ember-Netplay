@@ -141,6 +141,7 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     view.controller = snapshot.controller;
     view.discordPending=snapshot.discordPending; view.discordConfirm=snapshot.discordConfirm;
     view.discordRevision=snapshot.discordRevision;
+    view.inviteOrigin=snapshot.inviteOrigin;
     view.discordCanSwitch=snapshot.discordCanSwitch; view.discordStatus=snapshot.discordStatus;
     view.inputDevice = snapshot.inputDevice; view.menuButtons = snapshot.menuController.menu;
     view.gameplayBrand = snapshot.gameplayBrand; view.promptBrand = snapshot.promptBrand;

@@ -11,6 +11,7 @@
 #include "../common/Localization.hxx"
 #include "../ui/GameMenu.hxx"
 #include "../ui/MenuRows.hxx"
+#include "../ui/RoomControls.hxx"
 #include "../ui/Theme.hxx"
 #include "imgui_test_support.hxx"
 #include "shell_action_support.hxx"
@@ -123,10 +124,10 @@ void ByChoiceWatcherStopsWatching() {
     // Leaving the table and the room both say what they end over the game.
     Check(board.Row("leave").detail.find(loc::T("room.leave.watching")) != std::string::npos,
         "Leave room did not say it ends the spectator view");
-    const auto& card = board.Row("table-1");
-    Check(!card.choices.empty() && std::all_of(card.choices.begin(), card.choices.end(), [](const MenuChoice& choice) {
-        return choice.id == "options" || choice.detail.find(loc::T("room.watching_ends")) != std::string::npos;
-    }), "A seat choice elsewhere did not say it ends the spectator view");
+    const auto offers = room_controls::SeatChoices(board.view, board.view.room.tables[1]);
+    Check(board.Has("table-1") && !offers.empty() && std::all_of(offers.begin(), offers.end(), [](const MenuChoice& offer) {
+        return offer.detail.find(loc::T("room.watching_ends")) != std::string::npos;
+    }), "A seat offered elsewhere did not say it ends the spectator view");
     // Once Ember is shown, the board stays where the player goes.
     board.shell.Navigation().Home(); board.Frame();
     Check(board.shell.Navigation().Screen() != "room", "A drawn frame moved the player back to Stop watching");
@@ -310,9 +311,9 @@ void CatchingUpRoomTakesTheLeave() {
         board.view.session.coordinated = true; board.view.session.authorityWritable = false;
         board.OpenOverGame();
         Check(board.Row("stop-watching").enabled, "Stop watching waited for the room to catch up");
-        const auto& choices = board.Row("table-0").choices;
-        Check(std::any_of(choices.begin(), choices.end(), [](const MenuChoice& choice) { return choice.id == "unwatch" && choice.enabled; }),
-            "The watched table's own Unwatch choice waited for the room to catch up");
+        const auto offers = room_controls::SeatChoices(board.view, board.view.room.tables[0]);
+        Check(std::any_of(offers.begin(), offers.end(), [](const MenuChoice& offer) { return offer.id == "unwatch" && offer.enabled; }),
+            "The watched table's own Unwatch offer waited for the room to catch up");
         board.Confirm();
         Check(board.LeftOnce(), "A room catching up did not take Stop watching");
     }

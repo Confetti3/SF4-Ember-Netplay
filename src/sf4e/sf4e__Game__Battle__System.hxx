@@ -14,6 +14,7 @@
 #include "../common/sf4e__GgpoGate.hxx"
 #include "../common/NoticeSeverity.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
+#include "../common/MementoGuards.hxx"
 #include "../common/GgpoTimeline.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/MatchTelemetry.hxx"
@@ -135,6 +136,11 @@ namespace sf4e {
 
 				struct SaveState {
 					bool used = false;
+
+					// Whether the match goes on without this state (a replay's
+					// snapshot) or ends with it (netplay's slots). A failed check
+					// about only optional states raises no abort.
+					sf4e::memento::Stake stake = sf4e::memento::Stake::Match;
 
 					// Whether this state still owns the memento payloads
 					// referenced by `keys`. `Save` transfers ownership in (it

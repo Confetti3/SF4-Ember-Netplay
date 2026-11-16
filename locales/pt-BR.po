@@ -312,14 +312,14 @@ msgstr "A operação falhou. Tente novamente. As cópias de recuperação ficam 
 msgid "services.operation_cancelled"
 msgstr "Operação cancelada."
 
-msgid "services.opening_community"
-msgstr "Abrindo o Discord do Ember no navegador..."
+msgid "services.opening_link"
+msgstr "Abrindo {0} no navegador..."
 
-msgid "services.community_opened"
-msgstr "Aberto no navegador. Mude para ele para entrar no servidor."
+msgid "services.link_opened"
+msgstr "Aberto no navegador. Mude para ele."
 
-msgid "services.community_failed"
-msgstr "Não foi possível abrir o navegador. Acesse {0} para entrar."
+msgid "services.link_failed"
+msgstr "Não foi possível abrir o navegador. Acesse {0}."
 
 msgid "services.opening_steam_profile"
 msgstr "Abrindo o perfil da Steam no navegador..."
@@ -534,8 +534,8 @@ msgstr "Ajuda e informações"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Convite do Discord"
+msgid "screen.room_invitation"
+msgstr "Convite da sala"
 
 msgid "screen.assignment"
 msgstr "Atribuir controle"
@@ -1665,6 +1665,15 @@ msgstr "Esse convite acabou."
 msgid "friends.nothing_to_offer"
 msgstr "Sua sala não pode ser oferecida agora."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "A Entrada está Bloqueada nesta sala. Defina como Aberta em Configurações da sala para convidar amigos."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "A Entrada está Bloqueada nesta sala."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Esta sala está cheia."
+
 msgid "friends.busy"
 msgstr "Espere o último pedido terminar."
 
@@ -2184,9 +2193,6 @@ msgstr "Os amigos têm o próprio vínculo com o Discord no serviço de contas d
 msgid "discord.server"
 msgstr "Servidor do Discord do Ember"
 
-msgid "discord.invitation_title"
-msgstr "CONVITE DO DISCORD"
-
 msgid "discord.cancel_invitation"
 msgstr "Cancelar convite"
 
@@ -2253,6 +2259,24 @@ msgstr "Entrar no Discord do Ember"
 msgid "about.discord_detail"
 msgstr "Jogadores, partidas e suporte em {0}. Abre no navegador por trás do jogo."
 
+msgid "about.kofi"
+msgstr "Apoie o Ember no Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Apoie o desenvolvimento do Ember em {0}. Abre no navegador por trás do jogo."
+
+msgid "about.website"
+msgstr "Site do Ember"
+
+msgid "about.website_detail"
+msgstr "Salas, rankings e replays em {0}. Abre no navegador por trás do jogo."
+
+msgid "about.twitter"
+msgstr "Desenvolvedor no Twitter"
+
+msgid "about.twitter_detail"
+msgstr "Novidades do desenvolvedor do Ember em {0}. Abre no navegador por trás do jogo."
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 
@@ -2270,9 +2294,6 @@ msgstr "Entrando na sala. Aguardando a rede..."
 
 msgid "room.locked_status"
 msgstr "Sala bloqueada / somente por convite"
-
-msgid "room.private_status"
-msgstr "Sala privada / somente por convite"
 
 msgid "room.tournament_status"
 msgstr "Partida de torneio, primeiro a {0}. Só os dois jogadores podem jogar."
@@ -2586,6 +2607,12 @@ msgstr "Esvaziar este espaço"
 msgid "training.reply.clear_slot.detail"
 msgstr "Remove o golpe deste espaço."
 
+msgid "training.reply.clear_all"
+msgstr "Esvaziar todos os espaços"
+
+msgid "training.reply.clear_all.detail"
+msgstr "Remove os golpes de todos os espaços de resposta. As configurações de resposta continuam como estão."
+
 msgid "training.reply.every_fighter"
 msgstr "Todos os lutadores"
 
@@ -2705,6 +2732,12 @@ msgstr "Fechar controles de treino"
 
 msgid "training.close_controls.detail"
 msgstr "Feche o Ember e depois o menu de pausa do SF4 para continuar, se estiver aberto."
+
+msgid "training.back_to_room"
+msgstr "Voltar à sala"
+
+msgid "training.back_to_room.detail"
+msgstr "Saia do Treino e volte para {0}. Seu lugar na sala é mantido."
 
 msgid "training.slot"
 msgstr "Espaço {0}"
@@ -3681,6 +3714,12 @@ msgstr "Copiar link curto"
 msgid "room.copy_short_invitation.detail"
 msgstr "Um link curto para o chat, guardado pelo serviço de links do Ember enquanto a sala estiver aberta."
 
+msgid "room.invite.detail"
+msgstr "Convide um amigo ou copie um link ou convite para compartilhar."
+
+msgid "room.invite.more_friends"
+msgstr "Mais amigos…"
+
 msgid "room.leaving"
 msgstr "Saindo da sala..."
 
@@ -3717,8 +3756,6 @@ msgstr "Conexão Wi-Fi"
 msgid "room.link_unknown"
 msgstr "Conexão desconhecida"
 
-msgid "room.table_footer"
-msgstr "Rounds {0} / {1} s     Fila {2}     Assistindo {3}"
 msgid "room.board_status_host_slot"
 msgstr "ANFITRIÃO / {0} / Mesa {1}"
 msgid "room.board_status_slot"
@@ -3765,8 +3802,8 @@ msgstr "Aberto a partir de um link de sala. Confira e escolha Entrar na sala."
 msgid "room.link_waiting"
 msgstr "Um link de sala foi aberto. Ele estará na tela de entrada assim que você sair desta sala."
 
-msgid "room.replacement_opening"
-msgstr "Abrindo sala substituta. Copie o convite e envie o novo link. O antigo não funciona mais."
+msgid "room.replacement_invite"
+msgstr "Abrindo sala substituta. Escolha Convidar, depois Copiar convite, e envie o novo convite. O antigo não funciona mais."
 
 msgid "room.action_rejected"
 msgstr "A sala mudou ou rejeitou esta ação. Revise o estado atual e tente novamente."
@@ -4401,6 +4438,9 @@ msgstr "O auxiliar do Discord parou. O jogo não foi afetado."
 msgid "runtime.room_connection_failed"
 msgstr "A conexão da sala falhou. A sala está fechando; resultados não confirmados não serão registrados."
 
+msgid "runtime.public_room_connection_failed"
+msgstr "Você perdeu a conexão com a sala. Resultados não confirmados não serão registrados. Entre de novo por Salas públicas. Se ela recusar você, aguarde um minuto e tente novamente."
+
 msgid "runtime.operation_busy"
 msgstr "A operação está ocupada. Tente novamente."
 
@@ -4409,6 +4449,9 @@ msgstr "Não foi possível abrir o perfil da Steam."
 
 msgid "discord.invitation_expired"
 msgstr "O convite do Discord expirou. Peça um novo convite."
+
+msgid "room.invitation_expired"
+msgstr "O convite expirou. Peça um novo."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "A ação de espectador não pôde ser enviada; tentando novamente."
@@ -4466,6 +4509,9 @@ msgstr "A partida não terminou de fechar a tempo. A visualização de espectado
 
 msgid "runtime.room_closed"
 msgstr "A sala foi fechada."
+
+msgid "runtime.room_unreachable"
+msgstr "Você perdeu a conexão com a sala, ou ela foi fechada. Se ainda estiver listada em Salas públicas, entre de novo."
 
 msgid "runtime.removed_from_room"
 msgstr "Você foi removido da sala."
@@ -5643,9 +5689,6 @@ msgstr "{0}, {1}"
 msgid "room.table_set"
 msgstr "Set"
 
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     Fila {2}     Assistindo {3}"
-
 msgid "room.streak"
 msgstr "{0} sets seguidos"
 
@@ -6021,8 +6064,14 @@ msgstr "Esta sala acabou de lotar ou ser bloqueada. Escolha outra."
 msgid "public.failure.turned_away"
 msgstr "A sala recusou a entrada. Você pode ter sido removido dela."
 
+msgid "public.failure.name_taken"
+msgstr "Esse nome já está nesta sala. Se você acabou de ser desconectado, seu lugar antigo ainda pode estar reservado: aguarde um minuto e tente novamente. Caso contrário, altere o nome em Configurações."
+
 msgid "public.failure.join_failed"
 msgstr "Não foi possível entrar na sala. Ela pode ter acabado de fechar. Atualize e escolha outra."
+
+msgid "public.failure.refused"
+msgstr "A sala não aceitou você. Se você acabou de estar nela, ela pode ainda guardar seu lugar antigo: aguarde um minuto e tente novamente. Você também pode ter sido removido dela."
 
 msgid "legend.refresh"
 msgstr "Atualizar"
@@ -6408,18 +6457,6 @@ msgstr "Os jogadores entram na fila de uma mesa e jogam nela."
 msgid "room.type.arcade_detail"
 msgstr "Dezesseis fliperamas: sente em qualquer um livre e jogue contra quem espera há mais tempo. Depois de um set, se os dois escolherem Revanche jogam de novo; se não, cada um joga com o próximo que espera."
 
-msgid "room.arcade_status"
-msgstr "Sala de fliperama / só por convite"
-
-msgid "room.arcade_locked_status"
-msgstr "Sala de fliperama trancada / só por convite"
-
-msgid "room.king_status"
-msgstr "Rei da colina / só por convite"
-
-msgid "room.king_locked_status"
-msgstr "Rei da colina trancado / só por convite"
-
 msgid "room.arcade_sit"
 msgstr "Sentar"
 
@@ -6491,12 +6528,6 @@ msgstr "Sala de prática"
 
 msgid "room.practice.detail"
 msgstr "Toda partida da sala é uma partida de prática: a vida e as barras se enchem, ninguém sofre nocaute e o tempo do round é {0}. Isso vale enquanto a sala estiver aberta. Para jogar partidas normais, feche a sala e crie uma nova."
-
-msgid "room.practice_status"
-msgstr "Sala de prática / somente por convite"
-
-msgid "room.practice_locked_status"
-msgstr "Sala de prática bloqueada / somente por convite"
 
 msgid "inputs.presses_value"
 msgstr "{0} pressionamentos"
@@ -7617,8 +7648,14 @@ msgstr "Atraso próprio"
 msgid "room.table_footer_wired_only"
 msgstr "Só cabo"
 
-msgid "room.table_counts"
-msgstr "Fila {0}     Assistindo {1}"
+msgid "room.table_rules_line"
+msgstr "Rounds {0} / {1} s"
+
+msgid "room.table_queue"
+msgstr "Fila {0}"
+
+msgid "room.table_watching"
+msgstr "Assistindo {0}"
 
 msgid "room.input_delay.own"
 msgstr "Seu atraso: {0}"
@@ -8761,11 +8798,11 @@ msgstr "Áreas"
 msgid "room.v2.tables"
 msgstr "MESAS"
 
+msgid "room.v2.tables_playing"
+msgstr "Jogando {0}"
+
 msgid "room.v2.table"
 msgstr "MESA {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} jogando · {1} assistindo"
 
 msgid "room.v2.group_playing"
 msgstr "JOGANDO"
@@ -8787,6 +8824,9 @@ msgstr "EMBER · ONLINE · SALA PÚBLICA"
 
 msgid "room.v2.invitation_only"
 msgstr "Só com convite"
+
+msgid "room.v2.friends_can_join"
+msgstr "Amigos podem entrar"
 
 msgid "room.v2.listed"
 msgstr "Listada em Salas públicas"
@@ -8847,12 +8887,6 @@ msgstr "Mostrar"
 
 msgid "room.v2.show_detail"
 msgstr "Abre no tamanho completo."
-
-msgid "room.v2.copy_invite"
-msgstr "Convite"
-
-msgid "room.v2.copy_link"
-msgstr "Link curto"
 
 msgid "settings.room_show_members_detail"
 msgstr "O painel Membros da sala. Oculto, o bate-papo ocupa a coluna, ou as mesas toda a largura."

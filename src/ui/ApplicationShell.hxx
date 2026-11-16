@@ -611,11 +611,12 @@ private:
     std::string roomAreaFocus_[static_cast<int>(BoardArea::Count)];
     std::uint64_t roomFocusGeneration_ = 0, roomFocusEpoch_ = 0;
     // Whether the room's action bar followed the tables in their scroll last
-    // frame, and the tables' size: a change shows the focused row again.
+    // frame, the tables' size and their cards' whole height: a change shows
+    // the focused row again.
     struct RoomTablesShape {
         bool follows = false;
-        float width = 0, height = 0;
-        bool operator==(const RoomTablesShape& o) const { return follows == o.follows && width == o.width && height == o.height; }
+        float width = 0, height = 0, cards = 0;
+        bool operator==(const RoomTablesShape& o) const { return follows == o.follows && width == o.width && height == o.height && cards == o.cards; }
     };
     RoomTablesShape roomTablesShape_;
     // The Create board's focus last frame: a new one scrolls into view.
@@ -750,6 +751,14 @@ std::string memberAsk_;
     // B on a seat that would lose a score or hand the seat over asks first: the
     // table whose card carries the question, and whether it is open yet.
     int leaveAsk_=-1;
+    // A table card's offer that would end the game this PC watches
+    // (room_controls::EndsWatchedView) asks first, on its card: the table, the
+    // offer, and whether the question is open yet (RoomAction answers it).
+    struct ViewAsk { int table=-1; std::string offer; bool asked=false; } viewAsk_;
+    // The last offer a table card sent, the room's revision then and when:
+    // another press on that table before the room answers (a mashed A, a
+    // double click) is the same request, never a second one.
+    struct OfferSent { int table=-1; std::uint64_t revision=0; double at=0; } offerSent_;
     // More… asked again by the room's rows: after a switch it holds (moreChosen_
     // is the option it opens on), or as the picture's Small, Big and Off (morePicture_).
     bool moreAsk_=false,morePicture_=false;

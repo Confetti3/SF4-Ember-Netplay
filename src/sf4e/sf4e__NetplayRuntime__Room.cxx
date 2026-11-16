@@ -253,7 +253,8 @@ static DispatchOutcome Handle(commands::Service& command, bool helperReady, Atte
         }
         const std::wstring target = command.service == platform::ServiceAction::ShowReplayFile ? platform::Utf8ToWide(command.servicePath.c_str()) : std::wstring();
         const bool accepted = command.service == platform::ServiceAction::SendReport ?
-            runtime->services.SendReport(command.reportSubmission) : runtime->services.Request(command.service, diagnostics, target);
+            runtime->services.SendReport(command.reportSubmission) : command.service == platform::ServiceAction::OpenLink ?
+            runtime->services.OpenLink(*command.link) : runtime->services.Request(command.service, diagnostics, target);
         if (!accepted) runtime->error = loc::T("runtime.operation_busy");
         else if (command.service == platform::ServiceAction::SendReport || command.service == platform::ServiceAction::PrepareProblemReport ||
             command.service == platform::ServiceAction::CancelReport) runtime->error.clear();
@@ -284,8 +285,8 @@ static bool InvitationHolds(std::uint64_t revision) {
 	if (!runtime->discordInvite.Matches(revision) || !AtMainMenu() ||
 		!CurrentGates().discordCanSwitch || Game().battle.Live()) return false;
 	if (runtime->discordInvite.Expired(static_cast<std::uint64_t>(std::time(nullptr)))) {
+		runtime->error = loc::T(discord::ExpiredWords(runtime->discordInvite.From()));
 		runtime->discordInvite.Cancel();
-		runtime->error = loc::T("discord.invitation_expired");
 		return false;
 	}
 	return true;
