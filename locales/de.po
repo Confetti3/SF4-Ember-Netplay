@@ -303,15 +303,6 @@ msgstr "Vorgang fehlgeschlagen. Erneut versuchen. Sicherungskopien liegen in .em
 msgid "services.operation_cancelled"
 msgstr "Vorgang abgebrochen."
 
-msgid "services.opening_community"
-msgstr "Ember-Discord wird im Browser geöffnet..."
-
-msgid "services.community_opened"
-msgstr "Im Browser geöffnet. Wechseln Sie dorthin, um dem Server beizutreten."
-
-msgid "services.community_failed"
-msgstr "Browser konnte nicht öffnen. Beitreten unter {0}."
-
 msgid "services.opening_steam_profile"
 msgstr "Steam-Profil wird im Browser geöffnet..."
 

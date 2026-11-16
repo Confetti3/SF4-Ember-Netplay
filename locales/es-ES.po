@@ -303,15 +303,6 @@ msgstr "La operación falló. Vuelve a intentarlo. Las copias de recuperación s
 msgid "services.operation_cancelled"
 msgstr "Operación cancelada."
 
-msgid "services.opening_community"
-msgstr "Abriendo el Discord de Ember en el navegador..."
-
-msgid "services.community_opened"
-msgstr "Se abrió en el navegador. Cambia a él para unirte al servidor."
-
-msgid "services.community_failed"
-msgstr "No se pudo abrir el navegador. Visita {0} para unirte."
-
 msgid "services.opening_steam_profile"
 msgstr "Abriendo el perfil de Steam en el navegador..."
 

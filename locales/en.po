@@ -304,14 +304,14 @@ msgstr "The operation failed. Try again. Update recovery copies are kept in .emb
 msgid "services.operation_cancelled"
 msgstr "Operation cancelled."
 
-msgid "services.opening_community"
-msgstr "Opening the Ember Discord in your browser..."
+msgid "services.opening_link"
+msgstr "Opening {0} in your browser..."
 
-msgid "services.community_opened"
-msgstr "Opened in your browser. Switch to it to join the server."
+msgid "services.link_opened"
+msgstr "Opened in your browser. Switch to it."
 
-msgid "services.community_failed"
-msgstr "Could not open a browser. Visit {0} to join."
+msgid "services.link_failed"
+msgstr "Could not open a browser. Visit {0}."
 
 msgid "services.opening_steam_profile"
 msgstr "Opening the Steam profile in your browser..."
@@ -2234,6 +2234,24 @@ msgstr "Join the Ember Discord"
 
 msgid "about.discord_detail"
 msgstr "Players, matches and support at {0}. Opens in your browser behind the game."
+
+msgid "about.kofi"
+msgstr "Support Ember on Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Tips keep the relays and servers running, at {0}. Opens in your browser behind the game."
+
+msgid "about.website"
+msgstr "Ember website"
+
+msgid "about.website_detail"
+msgstr "Rooms, rankings and replays at {0}. Opens in your browser behind the game."
+
+msgid "about.twitter"
+msgstr "Ember on Twitter"
+
+msgid "about.twitter_detail"
+msgstr "News from Ember's developer at {0}. Opens in your browser behind the game."
 
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"

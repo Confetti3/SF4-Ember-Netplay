@@ -299,15 +299,20 @@ public:
     // What the board on this screen does at its edges (MenuEdge); Stay unless set.
     void SetEdge(MenuEdge edge) { states_[Screen()].edge = edge; }
     MenuEdge Edge() const { return states_.at(Screen()).edge; }
-    // The list entry its menu draws beside the list rather than in it, on this
-    // screen (Home's card in its pane; none when the card is drawn as a row).
-    // It is a column of its own: Up and Down on it keep the focus there, and
-    // the list's Up and Down pass over it, so the bottom row goes round to the
-    // top rather than across to the card. Left and Right reach it as before.
-    // It is the one rule: Move and ListEnd read it, and so does the menu's
-    // layout (Aside), instead of guessing from how the rows name each other.
-    void SetAside(const std::string& id) { states_[Screen()].aside = id; }
-    const std::string& Aside() const { return states_.at(Screen()).aside; }
+    // The entries its menu draws beside the list rather than in it, on this
+    // screen (Home's card in its pane and the links over it; none when the card
+    // is drawn as a row). They are a region of their own: the list's Up and
+    // Down pass over them, so the bottom row goes round to the top rather than
+    // across to the card, and a neighbour a row names (Right on the list) leads
+    // in. Among themselves they move by where they were drawn (Place) and stay
+    // at the region's edges. It is the one rule: Move and ListEnd read it, and
+    // so does the menu's layout (IsAside), instead of guessing from how the
+    // rows name each other.
+    void SetAside(std::vector<std::string> ids) { states_[Screen()].aside = std::move(ids); }
+    bool IsAside(const std::string& id) const {
+        const auto state=states_.find(Screen());
+        return state!=states_.end()&&std::find(state->second.aside.begin(),state->second.aside.end(),id)!=state->second.aside.end();
+    }
     const std::string& Focus() const { return states_.at(Screen()).id; }
     // The one open modal, if any; it belongs to the entry named by modalId_.
     // Confirming, Choosing, Editing and Reading each name exactly one mode.
@@ -478,6 +483,15 @@ public:
         const auto& neighbor=delta<0?e.left:delta>0?e.right:direction&MenuInput::Up?e.up:e.down;
         if(!neighbor.empty()){Focus(neighbor,entries);return {};}
         int index=static_cast<int>(s.index), count=static_cast<int>(entries.size());
+        // The aside's rows move among themselves by where they were drawn, and stay at its edges;
+        // only the list's rows (or a neighbour a row names) lead out of it.
+        if(IsAside(e.id)) {
+            if(const Placement* at=Placed(e.id)) {
+                const auto to=Nearest(*at,delta,direction&MenuInput::Up?-1:direction&MenuInput::Down?1:0,entries);
+                if(to<entries.size()&&IsAside(entries[to].id)) { s.index=to; s.id=entries[to].id; }
+            }
+            return {};
+        }
         // A grid's footer rows sit under its cards, one per line.
         const int cells=columns>1?static_cast<int>(MenuGridCells(entries)):count;
         if(delta&&e.adjustable&&(columns==1||index>=cells)) return e.enabled ? MenuAction{MenuAction::Adjust,e.id,{},delta} : MenuAction{};
@@ -502,18 +516,17 @@ public:
             else if((direction&MenuInput::Down)&&index+1<count) ++index;
         }
         else if(columns==1&&!s.aside.empty()&&(direction&(MenuInput::Up|MenuInput::Down))) {
-            if(e.id==s.aside) return {};
             const int way=direction&MenuInput::Up?-1:1;
             int to=index+way;
-            if(to>=0&&to<count&&entries[to].id==s.aside) to+=way;
-            if(to<0||to>=count) { if(!wrap) return {}; to=ListEnd(entries,way>0,s.aside); }
+            while(to>=0&&to<count&&IsAside(entries[to].id)) to+=way;
+            if(to<0||to>=count) { if(!wrap) return {}; to=ListEnd(entries,way>0); }
             index=to;
         }
-        else if(direction&MenuInput::Up) { if(index>=columns)index-=columns; else if(columns==1&&wrap)index=ListEnd(entries,false,s.aside); }
+        else if(direction&MenuInput::Up) { if(index>=columns)index-=columns; else if(columns==1&&wrap)index=ListEnd(entries,false); }
         else if(direction&MenuInput::Down) {
             if(index/columns<(cells-1)/columns)index=(std::min)(cells-1,index+columns);
             else if(cells<count)index=cells;
-            else if(columns==1&&wrap)index=ListEnd(entries,true,s.aside);
+            else if(columns==1&&wrap)index=ListEnd(entries,true);
         }
         else if(columns>1 && delta && index/columns==(index+delta)/columns && index+delta>=0 && index+delta<cells) index+=delta;
         if(index<0) index=0;
@@ -556,7 +569,7 @@ private:
     bool BodyPlaced(const std::vector<MenuEntry>& entries) const {
         return std::any_of(placed_.begin(),placed_.end(),[&](const Placement& p) {
             const auto e=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& entry){return entry.id==p.id;});
-            return e!=entries.end()&&!e->footer;
+            return e!=entries.end()&&!e->footer&&!IsAside(e->id);
         });
     }
     // The entry placed nearest past `from` in the direction (dx, dy). Past:
@@ -614,11 +627,11 @@ private:
     // over the entry the menu draws beside the list (`aside`, SetAside). Nothing
     // is inferred from how the rows name each other: a partner on a row's line
     // (Frame data's two fighters) is in the list, and so is a card drawn as a row.
-    static int ListEnd(const std::vector<MenuEntry>& entries, bool first, const std::string& aside) {
+    int ListEnd(const std::vector<MenuEntry>& entries, bool first) const {
         const int count=static_cast<int>(entries.size());
         for(int k=0;k<count;++k) {
             const int i=first?k:count-1-k;
-            if(aside.empty()||entries[i].id!=aside) return i;
+            if(!IsAside(entries[i].id)) return i;
         }
         return first?0:count-1;
     }
@@ -634,7 +647,7 @@ private:
             std::equal(choiceIds_.begin(), choiceIds_.end(), e.choices.begin(),
                 [](const std::string& id, const MenuChoice& c) { return id == c.id; });
     }
-    struct State { std::string id, aside; std::size_t index=0; float scroll=0; MenuEdge edge=MenuEdge::Stay; };
+    struct State { std::string id; std::vector<std::string> aside; std::size_t index=0; float scroll=0; MenuEdge edge=MenuEdge::Stay; };
     std::vector<std::string> stack_;
     std::map<std::string,State> states_;
     // The open modal and the entry it belongs to. choiceIds_ holds the option

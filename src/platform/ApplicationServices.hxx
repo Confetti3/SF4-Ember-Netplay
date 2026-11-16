@@ -3,6 +3,7 @@
 #include "../common/NetworkNat.hxx"
 #include "../common/NetworkRoute.hxx"
 #include "../common/SteamId.hxx"
+#include "Links.hxx"
 #include "ReportWorkflow.hxx"
 #include "UpdatePolicy.hxx"
 #include <functional>
@@ -22,7 +23,8 @@
 
 namespace sf4e { namespace platform {
 // SwitchUpdateChannel saves the channel ApplicationServices::SwitchUpdateChannel
-// names, then checks for an update on it.
+// names, then checks for an update on it. OpenLink opens the link of Links
+// (Links.hxx) that the request's target names by id, in the browser.
 // ShowReplayFile opens, in Explorer, the folder that holds the archived
 // replay the request names; only a folder of the archive is opened.
 // LaunchUpdateCheck is the check the game makes once per launch when its
@@ -34,15 +36,13 @@ namespace sf4e { namespace platform {
 // Downloads folder, for replay and set pack files. It runs on a thread of its
 // own, not the worker, so reports, updates and diagnostics go on while it is
 // open; what was picked is taken with Picker().Take() (nothing for a cancel).
-enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
+enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, InstallUpdate, OpenRecovery, OpenLink, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
     PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate, PickReplays };
 // Where the launch check is. Off is a service that makes none (a snapshot
 // nobody started one for); Waiting is a launch check not yet asked for.
 enum class LaunchCheck { Off, Waiting, Running, Settled };
 // Starts the Launcher with these arguments; it waits for this game to exit before it acts. False when it could not start.
 bool StartLauncherAfterExit(const std::wstring& arguments);
-// Community Discord server, shown in Help & About and opened as https://<invite>.
-constexpr const char* CommunityInvite = "discord.gg/uPNqF5A5uq";
 enum class DiagnosticTiming : std::size_t {
     CompleteOuterCall,
     OuterTick,
@@ -102,6 +102,8 @@ struct ServiceSnapshot {
     // The action `message` describes, so the interface can show it on the
     // row that requested it rather than on whichever row happens to bind it.
     ServiceAction lastAction = ServiceAction::None;
+    // With OpenLink: the id of the link of the table that action opened, so only its rows show `message`.
+    std::string lastLink;
     std::string message;
     // The step an update being fetched is at, and how far: bytes while
     // downloading and verifying, files after. A total of 0 is not known.

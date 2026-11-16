@@ -303,15 +303,6 @@ msgstr "Операция не удалась. Повторите попытку.
 msgid "services.operation_cancelled"
 msgstr "Операция отменена."
 
-msgid "services.opening_community"
-msgstr "Открытие Ember Discord в браузере..."
-
-msgid "services.community_opened"
-msgstr "Страница открыта в браузере. Перейдите туда, чтобы вступить на сервер."
-
-msgid "services.community_failed"
-msgstr "Не удалось открыть браузер. Перейдите по адресу {0}."
-
 msgid "services.opening_steam_profile"
 msgstr "Открытие профиля Steam в браузере..."
 

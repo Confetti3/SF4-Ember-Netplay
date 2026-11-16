@@ -303,15 +303,6 @@ msgstr "Échec de l'opération. Réessayez. Les copies de récupération sont da
 msgid "services.operation_cancelled"
 msgstr "Opération annulée."
 
-msgid "services.opening_community"
-msgstr "Ouverture du Discord Ember dans votre navigateur..."
-
-msgid "services.community_opened"
-msgstr "Page ouverte dans votre navigateur. Rejoignez-y le serveur."
-
-msgid "services.community_failed"
-msgstr "Impossible d'ouvrir un navigateur. Rendez-vous sur {0}."
-
 msgid "services.opening_steam_profile"
 msgstr "Ouverture du profil Steam dans votre navigateur..."
 

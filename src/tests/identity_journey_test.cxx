@@ -306,7 +306,7 @@ void DiscordAccount(){
  const auto account=[&]{return h.row("discord-account");};
  const auto open=[&]{h.Screen("tab-online/discord");};
  open();
- Check(account()&&h.index("discord-account")<h.index("presence")&&h.index("community")==h.index("invites")+1,"Settings > Discord has no Discord account row before its settings, or no server row after them");
+ Check(account()&&h.index("discord-account")<h.index("presence")&&h.index("link-discord")==h.index("invites")+1,"Settings > Discord has no Discord account row before its settings, or no server row after them");
  Check(account()->value==loc::T("discord.account_none")&&!account()->adjustable&&!account()->info,"Without an Ember ID the Discord account is not Not linked");
  const auto before=h.actions.size();
  h.FocusOn("discord-account");h.Press(MenuInput::Right);h.Press(MenuInput::Left);

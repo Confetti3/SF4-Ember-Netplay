@@ -3,6 +3,7 @@
 #include "ButtonPromptSetting.hxx"
 #include "ControllersScreen.hxx"
 #include "Theme.hxx"
+#include "LinkRows.hxx"
 #include "MenuRows.hxx"
 #include "RowId.hxx"
 #include "RoomFeedback.hxx"
@@ -477,7 +478,10 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
  }
  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
- else if(a.id=="community")Service(platform::ServiceAction::OpenCommunity,v,submit);
+ else if(const auto* link=LinkOfRow(a.id)){
+  commands::Service r;r.service=platform::ServiceAction::OpenLink;r.servicePath=link->id;r.generation=v.session.generation;
+  Send(std::move(r),submit);
+ }
  else if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
 }
 void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const std::string& screen,const Submit& submit) {
@@ -774,7 +778,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // Each screen sets its header (eyebrow, chips), tabs, bell, detail pane and
  // typing below, every frame; the screens drawn first (Button layout, Pad
  // setup) set their own.
- menu_.eyebrow.clear();menu_.headerChips.clear();menu_.tabs.clear();menu_.tab=-1;menu_.statusLeads.clear();menu_.customDetail=false;menu_.typesText=false;
+ menu_.eyebrow.clear();menu_.headerChips.clear();menu_.headerLinks.clear();menu_.tabs.clear();menu_.tab=-1;menu_.statusLeads.clear();menu_.customDetail=false;menu_.typesText=false;
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit))return false;
  // The room board shows a Big picture in its tables' place instead (this frame's word, boardPicture_).
  if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot,v.CanEditRoomSettings())){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
@@ -856,6 +860,11 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // Home's corner says which version this is and which channel it follows.
  menu_.footerNote=screen=="home"?VersionLine(InstalledVersion(v)):std::string();
  if(screen=="home"){
+  // Ember's links, as icons in the header over the player's card (the menu draws them where the card is shown).
+  for(const auto& link:platform::Links){
+   auto row=LinkRow(link,v.services);row.hint=row.label;
+   menu_.headerLinks.push_back({std::move(row),link.mark});
+  }
   // In a room Back does nothing here (the game's own menu is locked behind
   // Ember), so Home offers no way out and the legend no Back.
   if(opening||input::HomeBackHidesShell(v.session.room)){

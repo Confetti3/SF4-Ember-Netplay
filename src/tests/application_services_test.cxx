@@ -1,6 +1,7 @@
 #include "../platform/ApplicationServices.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../common/sf4e__NetUtil.hxx"
+#include "../common/Localization.hxx"
 #include "../common/ReplayImportQueue.hxx"
 #include <windows.h>
 #include <atomic>
@@ -47,6 +48,31 @@ int main() {
         CHECK(!service.SendReport({"A problem",false}));
         CHECK(!service.Request(ServiceAction::SendReport));
         CHECK(!service.Request(ServiceAction::ReportCrash));
+        {
+            // Ember's links: Discord, Ko-fi, the website and Twitter, in that order, each a plain https address with no
+            // tracking parameters and with its words in the catalog; only a link of the table opens.
+            const char* const order[] = {"discord", "kofi", "website", "twitter"};
+            CHECK(Links.size() == 4);
+            for (std::size_t i = 0; i < Links.size(); ++i) {
+                const Link& link = Links[i];
+                const std::string address = link.address;
+                CHECK(std::string(link.id) == order[i] && FindLink(order[i]) == &link);
+                CHECK(!address.empty() && address.find("://") == std::string::npos && address.find('?') == std::string::npos &&
+                    address.find('#') == std::string::npos && address.find(' ') == std::string::npos && address.find('.') != std::string::npos);
+                CHECK(std::string(sf4e::loc::T(link.label)) != link.label && std::string(sf4e::loc::T(link.detail)) != link.detail);
+                CHECK(std::string(sf4e::loc::Tf(link.detail, link.address)).find(address) != std::string::npos);
+                for (std::size_t j = 0; j < i; ++j) CHECK(std::string(Links[j].id) != link.id && std::string(Links[j].address) != address);
+            }
+            CHECK(std::string(Links[1].address) == "ko-fi.com/confetti3" && std::string(Links[2].address) == "embernetplay.link" &&
+                std::string(Links[3].address) == "x.com/kabiefox");
+            CHECK(FindLink("") == nullptr && FindLink("discord ") == nullptr && FindLink("https://discord.gg") == nullptr);
+            CHECK(!service.Request(ServiceAction::OpenLink) && !service.Request(ServiceAction::OpenLink, {}, L"missing") && !service.Request(ServiceAction::OpenLink, {}, L"https://x.com/kabiefox"));
+            CHECK(service.Snapshot().lastAction == ServiceAction::None && service.Snapshot().lastLink.empty());
+            // The three messages are shared: the address is the only part that names the link.
+            CHECK(sf4e::loc::Tf("services.opening_link", "x.com/kabiefox") == "Opening x.com/kabiefox in your browser...");
+            CHECK(sf4e::loc::Tf("services.link_failed", "x.com/kabiefox") == "Could not open a browser. Visit x.com/kabiefox.");
+            CHECK(std::string(sf4e::loc::T("services.link_opened")) == "Opened in your browser. Switch to it.");
+        }
         CHECK(sf4e::HttpPostReport("github.com","multipart/form-data","body",{}).request.error==sf4e::HttpErrorKind::InvalidArgs);
         CHECK(sf4e::HttpPostReport("embernetplay.link.evil","multipart/form-data","body",{}).request.error==sf4e::HttpErrorKind::InvalidArgs);
         CHECK(sf4e::HttpPostReport("embernetplay.link","multipart/form-data","body",[]{return true;}).cancelled);

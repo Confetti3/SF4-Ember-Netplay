@@ -303,15 +303,6 @@ msgstr "操作に失敗しました。再試行してください。復旧用の
 msgid "services.operation_cancelled"
 msgstr "操作をキャンセルしました。"
 
-msgid "services.opening_community"
-msgstr "ブラウザーでEmberのDiscordを開いています..."
-
-msgid "services.community_opened"
-msgstr "ブラウザーで開きました。切り替えてサーバーに参加してください。"
-
-msgid "services.community_failed"
-msgstr "ブラウザーを開けませんでした。{0}にアクセスして参加してください。"
-
 msgid "services.opening_steam_profile"
 msgstr "ブラウザーでSteamプロフィールを開いています..."
 

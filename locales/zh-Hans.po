@@ -303,15 +303,6 @@ msgstr "操作失败，请重试。更新恢复备份保存在 .ember-update-bac
 msgid "services.operation_cancelled"
 msgstr "操作已取消。"
 
-msgid "services.opening_community"
-msgstr "正在浏览器中打开 Ember Discord..."
-
-msgid "services.community_opened"
-msgstr "已在浏览器中打开。请切换到浏览器加入服务器。"
-
-msgid "services.community_failed"
-msgstr "无法打开浏览器。请访问 {0} 加入。"
-
 msgid "services.opening_steam_profile"
 msgstr "正在浏览器中打开 Steam 个人资料..."
 
