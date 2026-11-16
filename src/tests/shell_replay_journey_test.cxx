@@ -186,6 +186,7 @@ void PaneWatchJourney() {
  Check(click.drawn&&click.reason==loc::T("replays.not_ready"),"The pane's Watch now did not say why it cannot start");
  Check(h.actions.size()==sent&&!h.shell.Navigation().Choosing(),"A disabled Watch now button sent something or opened the choices");
 }
+}
 void ReplayJourneys() {
  using namespace sf4e;
  ExportChoicesJourney();
