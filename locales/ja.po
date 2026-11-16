@@ -4644,6 +4644,12 @@ msgstr "対戦を終了しました。2台のゲームの状態が食い違い�
 msgid "runtime.desync_spectator"
 msgstr "観戦画面が試合と食い違いました。いったん退出して、もう一度観戦してください。"
 
+msgid "runtime.game_data_differs"
+msgstr "対戦は開始前に終了しました。ゲームデータが一致しません。一致しないPCで、Steamでゲームファイルの整合性を確認するか、Modを外してください。"
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "対戦は開始前に終了しました。ゲームデータが一致しません（キャラ {0}）。一致しないPCで、Steamでゲームファイルの整合性を確認するか、Modを外してください。"
+
 msgid "runtime.room_link_lost"
 msgstr "ゲームルームへの接続が切れました。インターネット接続を確認して、もう一度お試しください。"
 

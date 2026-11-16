@@ -4646,6 +4646,12 @@ msgstr "대전이 종료되었습니다. 두 게임의 상태가 어긋났습니
 msgid "runtime.desync_spectator"
 msgstr "관전 화면이 실제 대전과 어긋났습니다. 나갔다가 다시 관전하세요."
 
+msgid "runtime.game_data_differs"
+msgstr "대전이 시작 전에 종료되었습니다. 게임 데이터가 다릅니다. 다른 쪽 PC에서 Steam의 게임 파일 무결성을 확인하거나 모드를 제거하세요."
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "대전이 시작 전에 종료되었습니다. 게임 데이터가 다릅니다(캐릭터 {0}). 다른 쪽 PC에서 Steam의 게임 파일 무결성을 확인하거나 모드를 제거하세요."
+
 msgid "runtime.room_link_lost"
 msgstr "게임 방과의 연결이 끊겼습니다. 인터넷 연결을 확인하고 다시 시도하세요."
 

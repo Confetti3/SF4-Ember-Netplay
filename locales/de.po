@@ -4644,6 +4644,12 @@ msgstr "Kampf beendet: Die beiden Spiele sind auseinandergelaufen (Desync). Wäh
 msgid "runtime.desync_spectator"
 msgstr "Ihre Zuschaueransicht ist vom Kampf abgewichen. Verlassen Sie sie und schauen Sie erneut zu."
 
+msgid "runtime.game_data_differs"
+msgstr "Kampf vor dem Beginn beendet: Die Spieldaten unterscheiden sich. Überprüfen Sie auf dem abweichenden PC die Spieldateien in Steam oder entfernen Sie Mods."
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "Kampf vor dem Beginn beendet: Die Spieldaten unterscheiden sich (Charakter {0}). Überprüfen Sie auf dem abweichenden PC die Spieldateien in Steam oder entfernen Sie Mods."
+
 msgid "runtime.room_link_lost"
 msgstr "Verbindung zum Spielraum verloren. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."
 

@@ -4638,6 +4638,12 @@ msgstr "La partida terminó: los dos juegos divergieron (desincronización). Usa
 msgid "runtime.desync_spectator"
 msgstr "Tu vista de espectador se desincronizó de la pelea. Sal y vuelve a mirar."
 
+msgid "runtime.game_data_differs"
+msgstr "La partida terminó antes de empezar: los datos del juego no coinciden. En la PC que difiere, verifica los archivos del juego en Steam o quita los mods."
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "La partida terminó antes de empezar: los datos del juego no coinciden (luchador {0}). En la PC que difiere, verifica los archivos del juego en Steam o quita los mods."
+
 msgid "runtime.room_link_lost"
 msgstr "Se perdió la conexión con la sala de juego. Revisa tu internet y vuelve a intentarlo."
 

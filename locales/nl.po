@@ -4644,6 +4644,12 @@ msgstr "Match beëindigd: de twee spellen liepen uiteen (desync). Gebruik Diagno
 msgid "runtime.desync_spectator"
 msgstr "Je toeschouwersweergave week af van het gevecht. Verlaat de kamer en kijk opnieuw."
 
+msgid "runtime.game_data_differs"
+msgstr "Match beëindigd voordat hij begon: de spelgegevens verschillen. Controleer op de afwijkende pc de spelbestanden in Steam of verwijder mods."
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "Match beëindigd voordat hij begon: de spelgegevens verschillen (personage {0}). Controleer op de afwijkende pc de spelbestanden in Steam of verwijder mods."
+
 msgid "runtime.room_link_lost"
 msgstr "Verbinding met de spelkamer verbroken. Controleer je internet en probeer opnieuw."
 

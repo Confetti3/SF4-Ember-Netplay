@@ -4638,6 +4638,12 @@ msgstr "Partida encerrada: os dois jogos divergiram (dessincronização). Use Ex
 msgid "runtime.desync_spectator"
 msgstr "Sua visão de espectador divergiu da luta. Saia e assista de novo."
 
+msgid "runtime.game_data_differs"
+msgstr "Partida encerrada antes de começar: os dados do jogo são diferentes. No PC que difere, verifique os arquivos do jogo na Steam ou remova os mods."
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "Partida encerrada antes de começar: os dados do jogo são diferentes (lutador {0}). No PC que difere, verifique os arquivos do jogo na Steam ou remova os mods."
+
 msgid "runtime.room_link_lost"
 msgstr "Conexão com a sala de jogo perdida. Verifique sua internet e tente novamente."
 

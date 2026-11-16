@@ -4644,6 +4644,12 @@ msgstr "Zápas skončil: obě hry se rozešly (desynchronizace). Použijte Expor
 msgid "runtime.desync_spectator"
 msgstr "Váš pohled diváka se od zápasu odchýlil. Odejděte a sledujte znovu."
 
+msgid "runtime.game_data_differs"
+msgstr "Zápas skončil dřív, než začal: herní data se liší. Na počítači, který se liší, ověřte soubory hry ve Steamu nebo odeberte mody."
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "Zápas skončil dřív, než začal: herní data se liší (postava {0}). Na počítači, který se liší, ověřte soubory hry ve Steamu nebo odeberte mody."
+
 msgid "runtime.room_link_lost"
 msgstr "Spojení s herní místností se ztratilo. Zkontrolujte internet a zkuste to znovu."
 
