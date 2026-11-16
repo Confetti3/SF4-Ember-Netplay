@@ -335,7 +335,7 @@ fn a_new_database_runs_the_librarys_files_then_the_1_6_files() {
     let versions: Vec<i64> = records(&connection).iter().map(|r| r.0).collect();
     assert_eq!(
         &versions[55..],
-        &[56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66]
+        &[56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67]
     );
     assert!(has_table(&connection, "fighter_levels"));
     assert!(has_table(&connection, "social_accounts"));

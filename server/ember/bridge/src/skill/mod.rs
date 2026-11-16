@@ -362,7 +362,12 @@ fn played(tx: &Transaction<'_>, game: &str, winner: &str, loser: &str, now: u64)
         ],
     )?;
     let ended = now.saturating_sub(SITTING_SECS);
-    tx.execute("DELETE FROM rated_pairs WHERE played_at < ?1", [ended])?;
+    // Each game prunes its own sittings: a game played in one leaves the
+    // others' rows as they are until that game is played again.
+    tx.execute(
+        "DELETE FROM rated_pairs WHERE game = ?1 AND played_at < ?2",
+        params![game, ended],
+    )?;
     Ok(tx.query_row(
         "INSERT INTO rated_pairs (game, first, second, games, played_at) VALUES (?1, ?2, ?3, 1, ?4)
          ON CONFLICT (game, first, second) DO UPDATE SET games = games + 1, played_at = ?4
