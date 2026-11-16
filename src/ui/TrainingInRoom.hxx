@@ -20,9 +20,11 @@ struct TrainingRoomStatus {
     std::string room, opponent;
     std::string table, place, unread;
     bool Empty() const { return room.empty() && opponent.empty() && table.empty() && place.empty() && unread.empty(); }
-    // Training entered from a room: the status exists only for a member who
-    // joined one, and Training from Home needs none. This is where the way
-    // back to the room (F10, the controls' row) is offered.
+    // Training while joined to a room, which is always that room's Training:
+    // Home's Training needs no room and the game's own Training item is locked
+    // while any room is open (NativeMenuLockFor), so a joined member got here
+    // by the room's Wait in Training. The way back to it (F10, the controls'
+    // row) is offered exactly then.
     bool InRoom() const { return !Empty(); }
 };
 // Empty without a joined room or a local member in it. unread: the room

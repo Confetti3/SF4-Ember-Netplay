@@ -285,9 +285,22 @@ int main() {
             Require(counting.Left() == 1 && !counting.LeaveNow(), "The player's return was taken on a call's last frame");
             follow(counting, 7);
             Require(counting.Tick(true) && !counting.LeaveNow(), "The player's return was taken after a call's leave");
-            // Not outside a battle that ended: a closed battle forgets the request.
+            // A closed battle forgets the request, except through the rebuild
+            // Combo check asked for, which the player did not cause: the
+            // request is theirs in the new battle, until it has been told.
             own.Reset();
             Require(own.LeaveNow(), "A closed battle kept the player's return");
+            LeaveCountdown rebuilt;
+            Require(rebuilt.LeaveNow());
+            rebuilt.Reset(true);
+            Require(rebuilt.Left() == 1 && !rebuilt.LeaveNow(), "A rebuild took the player's return away");
+            Require(rebuilt.Tick(true) && !rebuilt.Tick(true), "The kept return did not leave once");
+            rebuilt.Reset(true);
+            Require(rebuilt.Left() == 0 && rebuilt.LeaveNow(), "A return already told to leave outlived its battle");
+            LeaveCountdown counted;
+            follow(counted, 7);
+            counted.Reset(true);
+            Require(counted.Left() == 0 && counted.Call() == 0, "A call's count outlived a rebuild");
             // The session takes the command for its own battle only.
             Session battleSession; battleSession.Enter(); battleSession.SetReady(true);
             Require(battleSession.Apply({Action::LeaveToRoom, battleSession.GetView().generation}), "The session refused the player's return");

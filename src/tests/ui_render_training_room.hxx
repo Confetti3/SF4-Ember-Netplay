@@ -53,9 +53,22 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
             layers.trainingRoom={};draw();
             Require(std::find(LastTrainingStrip().pieces.begin(),LastTrainingStrip().pieces.end(),std::string("F10"))==LastTrainingStrip().pieces.end(),"The strip named F10 outside a room's Training");
             layers.trainingRoom=roomHere;
-            const auto wide=io.DisplaySize;io.DisplaySize=ImVec2(640,480);draw();
-            Require(LastTrainingStrip().width<=LastTrainingStrip().room+.5f,"The strip with the way back to the room is wider than the meter");
-            io.DisplaySize=wide;
+            // The narrowest meter, a 640x480 window at the smallest HUD size.
+            // A recorded choice: F10 and the controls chip come first and are
+            // kept whole, so what a narrow meter loses is the hints after
+            // them, Record and Play first of those and the position keys and
+            // Hide HUD after, each only ever from the end of the line.
+            draw();const auto full=LastTrainingStrip().pieces;
+            const auto wide=io.DisplaySize;const auto options=TrainingMeterOptions();
+            training::MeterOptions smallest;smallest.size=0;SetTrainingMeterOptions(smallest);
+            io.DisplaySize=ImVec2(640,480);draw();
+            const auto& narrow=LastTrainingStrip();
+            Require(narrow.width<=narrow.room+.5f,"The strip with the way back to the room is wider than the meter");
+            Require(backTo(),"A narrow strip dropped the way back to the room");
+            const auto same=[](const std::string& piece,const std::string& meant){
+                return piece==meant||(piece.size()>3&&piece.compare(piece.size()-3,3,"...")==0&&meant.compare(0,piece.size()-3,piece,0,piece.size()-3)==0);};
+            Require(narrow.pieces.size()<=full.size()&&std::equal(narrow.pieces.begin(),narrow.pieces.end(),full.begin(),same),"A narrow strip dropped hints from before its end");
+            SetTrainingMeterOptions(options);io.DisplaySize=wide;
         }
         layers.trainingRoom=roomHere;draw();
     }

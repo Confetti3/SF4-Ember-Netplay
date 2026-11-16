@@ -28,7 +28,7 @@ int main() {
     for (int movement = 0; movement < 100; ++movement) {
         SetCursor(LoadCursor(nullptr, IDC_ARROW));
         const auto handled = sf4e::ui::HandleOverlayMessage(window, WM_SETCURSOR,
-            reinterpret_cast<WPARAM>(window), MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), true, true);
+            reinterpret_cast<WPARAM>(window), MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), true, sf4e::ui::F10Owner::Menu);
         if (!handled) SetCursor(nullptr); // Native game receives the same message.
         if (!GetCursor()) ++disappeared;
     }
@@ -44,39 +44,43 @@ int main() {
         ImGui_ImplWin32_NewFrame();
         check(GetCursor() == resize, "hidden overlay changed native cursor during NewFrame");
         check(sf4e::ui::HandleOverlayMessage(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window),
-            MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), false, true) == 0, "hidden overlay swallowed native cursor event");
+            MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), false, sf4e::ui::F10Owner::Menu) == 0, "hidden overlay swallowed native cursor event");
         check(GetCursor() == resize, "hidden overlay changed native cursor during message handling");
         // Reopening must restore both the arrow and text-input cursor reliably.
         sf4e::ui::SetOverlayCursorOwnership(true);
         ImGui_ImplWin32_NewFrame();
         check(sf4e::ui::HandleOverlayMessage(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window),
-            MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), true, true) != 0, "reopened overlay lost cursor event ownership");
+            MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), true, sf4e::ui::F10Owner::Menu) != 0, "reopened overlay lost cursor event ownership");
         check(GetCursor() == (transition % 2 ? text : arrow), "wrong cursor after reopening");
         SetCursor(resize);
         check(sf4e::ui::HandleOverlayMessage(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window),
-            MAKELPARAM(HTLEFT, WM_MOUSEMOVE), true, true) == 0, "overlay swallowed window-border cursor");
+            MAKELPARAM(HTLEFT, WM_MOUSEMOVE), true, sf4e::ui::F10Owner::Menu) == 0, "overlay swallowed window-border cursor");
         check(GetCursor() == resize, "overlay replaced window-border cursor");
     }
     // Over the training chip the mouse is Ember's, and the keys stay the game's.
     sf4e::ui::SetOverlayCursorOwnership(false);ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);ImGui_ImplWin32_NewFrame();
-    check(sf4e::ui::HandleOverlayMessage(window, WM_MOUSEMOVE, 0, MAKELPARAM(10, 10), false, true, true) != 0, "chip hover leaked the mouse to the game");
-    check(sf4e::ui::HandleOverlayMessage(window, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(10, 10), false, true, true) != 0, "chip click leaked to the game");
-    check(sf4e::ui::HandleOverlayMessage(window, WM_LBUTTONUP, 0, MAKELPARAM(10, 10), false, true, true) != 0, "chip release leaked to the game");
-    check(sf4e::ui::HandleOverlayMessage(window, WM_KEYDOWN, 'A', 0, false, false, true) == 0, "chip hover took the game's keys");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_MOUSEMOVE, 0, MAKELPARAM(10, 10), false, sf4e::ui::F10Owner::Menu, true) != 0, "chip hover leaked the mouse to the game");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(10, 10), false, sf4e::ui::F10Owner::Menu, true) != 0, "chip click leaked to the game");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_LBUTTONUP, 0, MAKELPARAM(10, 10), false, sf4e::ui::F10Owner::Menu, true) != 0, "chip release leaked to the game");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_KEYDOWN, 'A', 0, false, sf4e::ui::F10Owner::Game, true) == 0, "chip hover took the game's keys");
     SetCursor(resize);
     sf4e::ui::SetOverlayCursorOwnership(true);
     check(sf4e::ui::HandleOverlayMessage(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window),
-        MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), false, true, true) != 0 && GetCursor() == arrow, "chip hover did not own the cursor");
-    check(sf4e::ui::HandleOverlayMessage(window, WM_MOUSEMOVE, 0, MAKELPARAM(10, 10), false, true, false) == 0, "leaving the chip kept the mouse");
+        MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), false, sf4e::ui::F10Owner::Menu, true) != 0 && GetCursor() == arrow, "chip hover did not own the cursor");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_MOUSEMOVE, 0, MAKELPARAM(10, 10), false, sf4e::ui::F10Owner::Menu, false) == 0, "leaving the chip kept the mouse");
     // A fight with nothing of Ember's open owns the cursor with none, and the game does not get the message back.
     ImGui::SetMouseCursor(ImGuiMouseCursor_None);ImGui_ImplWin32_NewFrame();
     SetCursor(arrow);
     check(sf4e::ui::HandleOverlayMessage(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window),
-        MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), false, true) != 0 && !GetCursor(), "a fight did not hide the pointer");
-    check(sf4e::ui::HandleOverlayMessage(window, WM_KEYDOWN, 'A', 0, true, true) != 0, "menu typing leaked");
-    check(sf4e::ui::HandleOverlayMessage(window, WM_KEYUP, 'A', 0, false, false) == 0, "native key was swallowed");
-    check(sf4e::ui::HandleOverlayMessage(window, WM_SYSKEYDOWN, VK_F10, 0, false, true) != 0, "F10 was not consumed at menu");
-    check(sf4e::ui::HandleOverlayMessage(window, WM_SYSKEYDOWN, VK_F10, 0, false, false) == 0, "F10 was consumed during gameplay");
+        MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), false, sf4e::ui::F10Owner::Menu) != 0 && !GetCursor(), "a fight did not hide the pointer");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_KEYDOWN, 'A', 0, true, sf4e::ui::F10Owner::Menu) != 0, "menu typing leaked");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_KEYUP, 'A', 0, false, sf4e::ui::F10Owner::Game) == 0, "native key was swallowed");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_SYSKEYDOWN, VK_F10, 0, false, sf4e::ui::F10Owner::Menu) != 0, "F10 was not consumed at menu");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_SYSKEYDOWN, VK_F10, 0, false, sf4e::ui::F10Owner::Game) == 0, "F10 was consumed during gameplay");
+    // A room's Training takes F10 for the way back too, so the game never hands it to Windows' menu.
+    check(sf4e::ui::HandleOverlayMessage(window, WM_SYSKEYDOWN, VK_F10, 0, false, sf4e::ui::F10Owner::RoomTraining) != 0, "F10 reached the game in a room's Training");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_SYSKEYUP, VK_F10, 0, false, sf4e::ui::F10Owner::RoomTraining) != 0, "F10's release reached the game in a room's Training");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_SYSKEYDOWN, VK_F9, 0, false, sf4e::ui::F10Owner::RoomTraining) == 0, "Another key was taken for F10");
     // The click that brings the game forward is a request to focus it, not a press on the row under the pointer.
     {
         using sf4e::ui::ActivationClickFilter;
@@ -186,7 +190,7 @@ int main() {
             int gameDowns = 0;
             const auto route = [&](UINT message, WPARAM w, LPARAM l, bool free) {
                 if (key.Take(message, w, l, gate, free)) return;
-                if (!sf4e::ui::HandleOverlayMessage(window, message, w, l, false, false) && message == WM_KEYDOWN && w == VK_RETURN) ++gameDowns;
+                if (!sf4e::ui::HandleOverlayMessage(window, message, w, l, false, sf4e::ui::F10Owner::Game) && message == WM_KEYDOWN && w == VK_RETURN) ++gameDowns;
             };
             const auto enter = [&](bool free, bool repeat = false) {
                 route(WM_KEYDOWN, VK_RETURN, repeat ? (1L << 30) : 0, free);

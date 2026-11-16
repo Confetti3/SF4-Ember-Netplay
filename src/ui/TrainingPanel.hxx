@@ -14,8 +14,8 @@ using TrainingSubmit = std::function<bool(training::Command)>;
 // The phone remote the live overlay offers (training::remote); unset in the UI lab, which hides its page.
 struct TrainingRemote { std::function<bool()> start; std::function<void()> stop; std::function<std::string()> url, pin, link; std::function<bool()> open; std::function<bool()> hudAllowed; std::function<void(bool)> allowHud; };  // link: the address with the PIN, what the QR code holds
 void SetTrainingRemote(TrainingRemote remote);
-// room: where the member waits when this Training was entered from a room;
-// the panel then has a row that goes back to it (TrainingBackToRoomPress).
+// room: where the member waits in their room's Training; the panel then has a
+// row that goes back to it (TrainingBackToRoomPress).
 void DrawTrainingPanel(const training::View& view, const TrainingSubmit& submit, const TrainingRoomStatus& room = {});
 // Shared by the live overlay and render tests; owns fixed geometry and input focus.
 void DrawTrainingFlyout(const training::View& view, const TrainingSubmit& submit, const TrainingRoomStatus& room = {});
@@ -35,7 +35,8 @@ bool TakeOverwriteAsk(const training::View& view,input::TrainingControls::Token&
 void TrainingPlayPress(const training::View& view,const TrainingSubmit& submit);
 // F10 and the controls' row, in a room's Training: leave for the room at the
 // next tick that may, the way the call's go now does, with no question asked.
-// Sent only for a status that InRoom, and never under the call.
+// Sent only for a status that InRoom, and never under the call. A press the
+// battle takes while it is already leaving is no news; one the queue refuses is told.
 void TrainingBackToRoomPress(const training::View& view,const TrainingSubmit& submit);
 // Where the lab keeps the dummy's reply and the hotkeys (training.json) and
 // the saved recordings. Until this is set they live in memory only, which is
@@ -43,7 +44,8 @@ void TrainingBackToRoomPress(const training::View& view,const TrainingSubmit& su
 void SetTrainingDirectory(std::wstring directory);
 // Reset position and save position on keys the player picks (F2 and F11 at
 // first), over the fight or the controls. Also sends the dummy's plan each battle.
-void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit);
+// backToRoom: F10 goes back to the room now (a room's Training, not under the call).
+void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,bool backToRoom=false);
 // Whether Record and Play, by key or pad, may act now: not while the controls
 // are open, nor while a room calls the player back (TRAINING_IN_ROOMS.md),
 // where the controls stay shut.
@@ -144,12 +146,12 @@ float TrainingHudScale();
 // The HUD's windows: dark enough to read over a bright stage, which still shows through.
 constexpr float TrainingHudBackground = .62f;
 // called: a room calls the player back (ChallengerCall::called); the chip is
-// not drawn then. room: the strip names F10 when it is in a room's Training.
-TrainingHudInput DrawTrainingHud(const training::View& view, bool called = false, const TrainingRoomStatus& room = {});
+// not drawn then. backToRoom: the strip names F10 as the way back to the room.
+TrainingHudInput DrawTrainingHud(const training::View& view, bool called = false, bool backToRoom = false);
 // The strip of keys over the meter (TrainingShortcuts.cxx): its left edge at
 // left, its bottom just above meterTop, and no wider than width. The result's
 // area is the strip's.
-TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, const TrainingRoomStatus& waiting, float left, float meterTop, float width, float hudScale);
+TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, bool backToRoom, float left, float meterTop, float width, float hudScale);
 // What the HUD's shortcut strip drew in its last call, for the render tests:
 // its text height in pixels, the width its line took and the width it had,
 // and each piece's text in order (key, button, chip, label or notice).
