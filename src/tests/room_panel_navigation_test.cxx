@@ -1026,7 +1026,7 @@ int main() try {
     // Focused other than by a direction it lights nothing, and its first A
     // only lights Join queue; Y opens its options list.
     focus("room-more"); frame(); focus("table-0"); frame(); frame();
-    Check(shell.Navigation().Screen() == "room" && !shell.Navigation().Choosing() && row("table-0").adjustable &&
+    Check(shell.Navigation().Screen() == "room" && !shell.Navigation().Choosing() && row("table-0").segmentKind == SegmentKind::Places &&
         row("table-0").value.empty() && row("table-0").hint == loc::T("menu.choose"), "A card focused by the board lit an offer");
     {
         const auto beforeLight = actions.size(); press(MenuInput::Select); frame();
@@ -1770,6 +1770,22 @@ int main() try {
         fits("your own seat, two games and a quiet table");
         seat(2, 0, 0, room::TablePhase::Idle);
         fits("your own seat, a game and two quiet tables");
+        // Your own seat with a banner (the opponent's new fighter) and three busy tables.
+        seat(2, 6, 7, room::TablePhase::Playing); seat(3, 8, 9, room::TablePhase::Playing);
+        view.opponentChangedFighter = 5; ++view.opponentChangeSequence;
+        fits("your own seat with a banner and three busy tables");
+        view.opponentChangedFighter = -1;
+        // Four games, the rules too long for the heading's line (every room rule,
+        // a set, a long language): they take a paragraph under it, and the four
+        // cards still fit.
+        seat(0, 2, 3, room::TablePhase::Playing);
+        view.room.practice = true; view.room.wiredOnly = true; view.room.delayPolicy = room::DelayPolicy::Own;
+        for (auto& t : view.room.tables) t.rules.format = room::SetFormat::Ft2;
+        sf4e::loc::testing::SetPseudoActive();
+        fits("four games, the rules under the heading");
+        sf4e::loc::SetActive(sf4e::loc::Locale::En);
+        view.room.practice = false; view.room.wiredOnly = false; view.room.delayPolicy = room::DelayPolicy::Shared;
+        for (auto& t : view.room.tables) t.rules.format = room::SetFormat::Unlimited;
         // RulesStayInSight: rules too long for the heading's line beside TABLES
         // take a line of their own under it rather than vanish.
         {
@@ -1778,9 +1794,10 @@ int main() try {
             bool shown = false;
             SetMenuTextProbe([&](const char* id, float, float, float, float) { shown = shown || std::string(id) == "v2/" + rules; });
             ApplyTheme(1.5f); io.DisplaySize = ImVec2(640, 720);
-            shell.Navigation().Home(); shell.Navigation().Push("room"); focus("table-0"); frame(); frame();
+            shell.Navigation().Home(); shell.Navigation().Push("room"); focus("table-0"); targets.clear(); frame(); frame();
             SetMenuTextProbe({});
-            Check(shown, "The room's rules were shown nowhere on a narrow board");
+            // Beside TABLES, or in a paragraph of their own under it.
+            Check(shown || targets.count("tables-rules"), "The room's rules were shown nowhere on a narrow board");
             view.room.practice = false; view.room.wiredOnly = false; view.room.delayPolicy = room::DelayPolicy::Shared; ++view.room.revision;
         }
         // EightTablesScrollOnCardEdges: eight tables at 1280x720 fit, or the list

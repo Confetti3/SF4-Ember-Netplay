@@ -105,7 +105,8 @@ inline TableCardPlaces PlaceTableCards(const TableCardShape& shape, const std::v
 // What a card's boxes are laid out from, in screen pixels: its box, what it
 // holds, the width its head's lead takes (TABLE n, its state and their
 // spaces), the words that follow want (its name, rules and counts), its
-// score's width (0 for none) and its head buttons' wanted widths, left to right.
+// score's width (0 for none) and its buttons' wanted widths, left to right:
+// on its line, or on a quiet card, which has none there, a question's answers.
 struct TableCardInput {
     MenuRect card;
     TableCardContent content;
@@ -113,9 +114,11 @@ struct TableCardInput {
     std::vector<float> buttons;
 };
 // The card's boxes: its line; its two seats; its score's place (empty for
-// none); its head buttons, left to right, between its words and its line's
-// end, never over its lead, as wide as they want or sharing what is left;
-// its words' place; its banner's (empty for none).
+// none); its buttons' press boxes, left to right: on its line between its
+// words and its line's end, never over its lead, the line's whole height
+// (drawn HeadInset inside it), as wide as they want or sharing what is left;
+// on a quiet card a question's answers sharing its seats' span, the seats
+// then standing aside; its words' place; its banner's (empty for none).
 struct TableCardLayout {
     MenuRect head;
     std::array<MenuRect, 2> seats;
@@ -133,13 +136,24 @@ inline TableCardLayout LayOutTableCard(const TableCardShape& shape, const TableC
         // each at least a seat's least. Narrower, the seats go under the head.
         const bool line = shape.quietLine;
         const float wanted = (std::max)(card::QuietHeadLeast * s, in.lead + (in.words > 0 ? in.words + card::Space * s : 0));
-        const float lead = line ? (std::min)(wanted, inner - 2 * card::OfferLeast * s - card::Between * s) : 0;
+        // The lead gives way before either seat goes under its least: two seats, a space between and one before them.
+        const float lead = line ? (std::max)(0.f, (std::min)(wanted, inner - 2 * card::OfferLeast * s - 2 * card::Between * s)) : 0;
         const float height = (line ? card::Quiet : card::Head) * s, top = line ? b.y0 + (card::Quiet - card::QuietButton) * .5f * s : b.y0 + height;
         const float x = left + lead + (line ? card::Between * s : 0), half = (right - x - card::Between * s) * .5f;
         at.seats[0] = {x, top, x + half, top + card::QuietButton * s};
         at.seats[1] = {x + half + card::Between * s, top, right, top + card::QuietButton * s};
         at.head = {left, b.y0, line ? x - card::Space * s : right, b.y0 + height};
         at.words = {(std::min)(left + in.lead, at.head.x1), at.head.y0, at.head.x1, at.head.y1};
+        // A question on a quiet card (a watcher's seat that would end the view): its answers take the seats' span.
+        if (const std::size_t count = in.buttons.size()) {
+            const float gap = card::Between * s, each = (std::max)(0.f, (right - x - (count - 1) * gap) / count);
+            at.buttons.resize(count);
+            for (std::size_t i = 0; i < count; ++i) {
+                const float x0 = x + i * (each + gap);
+                at.buttons[i] = {x0, top, x0 + each, top + card::QuietButton * s};
+            }
+            at.seats[0] = at.seats[1] = {right, top, right, top + card::QuietButton * s};
+        }
         return at;
     }
     at.head = {left, b.y0, right, b.y0 + card::Head * s};
@@ -167,7 +181,7 @@ inline TableCardLayout LayOutTableCard(const TableCardShape& shape, const TableC
     at.buttons.resize(count);
     for (std::size_t i = count; i-- > 0;) {
         const float w = wanted <= room ? in.buttons[i] : share;
-        at.buttons[i] = {x - w, at.head.y0 + card::HeadInset * s, x, at.head.y1 - card::HeadInset * s};
+        at.buttons[i] = {x - w, at.head.y0, x, at.head.y1};
         x -= w + card::Between * s;
     }
     const float wordsEnd = count ? (std::max)(start, at.buttons.front().x0 - card::Space * s) : end;

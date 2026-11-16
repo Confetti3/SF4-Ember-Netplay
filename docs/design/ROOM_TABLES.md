@@ -11,7 +11,8 @@ The heading says once what every table shares: the room's own rules (Practice
 match, Own delay, Wired only) and the first table's round rules ("Rounds 3 /
 99 sec", or a set's length and rotation), then "Playing 2 · Watching 1",
 never a zero. The counts give way first; rules that do not fit beside TABLES
-take a line of their own under it.
+wrap in a paragraph under it (13 px), which takes its room from the gap
+above the cards.
 
 A card's line (28 px at scale 1) holds TABLE n and its state, its name, what
 differs from the room ("Queue 2 · Watching 1", its rules where they are not
@@ -35,7 +36,8 @@ A member with no place is offered a table's open seats, else its queue, and
 Watch (Unwatch) while anyone sits there (`SeatChoices`). They are the row's
 segments of `SegmentKind::Places`, lit by `MenuNavigation`. An offered seat
 is its own button, a plus and "Play as P1"; the others stand on the card's
-line, always drawn. A seat the member cannot take reads "Open seat", muted,
+line, always drawn, pressed on the line's height (the kit's compact button,
+`v2::CardButton`). A seat the member cannot take reads "Open seat", muted,
 with no box.
 
 - Pad: a direction arriving on a card lights the offer nearest its side.
@@ -45,11 +47,18 @@ with no box.
   ring is the only ring.
 - Mouse: a moving pointer lights an offer, a click sends it; a resting one
   leaves the light. A double click's second click is ignored.
-- One request a table until the room answers (a new revision, or 2 s).
-- A seat taken under the light sends nothing and says "That seat was just
-  taken"; the card lights what is left.
-- While this PC watches a game, an offer that ends the view asks on the card
-  (Cancel, or the offer), as leaving a scored seat does.
+- The same press: after an offer was sent to a table, that offer again, or
+  any A on that table's card (its Ready once the seat is taken), does nothing
+  for half a second and until the table's revision changes (2 s at most).
+- A lit place that goes away stays the light, drawn lit nowhere; the next A
+  sends it once and the room's words refuse it: "That seat was just taken"
+  for a seat, "This table changed" for the queue or watching. The light then
+  goes out, and the next A lights again.
+- While this PC watches a game, an offer that ends the view asks on the card,
+  as leaving a scored seat does (one `TableAsk`): Cancel, which says why it
+  asks, or the offer. The question closes when the watched game ends, and
+  both questions are dropped on a new room or away from the board.
+- A on an offer the room would refuse says why.
 - Table options: Y on a card, or the bar's (your seat's or queue's table,
   else the last card you were on).
 

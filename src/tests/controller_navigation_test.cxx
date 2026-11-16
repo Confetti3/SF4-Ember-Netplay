@@ -924,8 +924,11 @@ void BoardGeometry(){
  // place nearest the side it came from, Left and Right step the light and,
  // past either end, move on by placement as from any row; Select takes the
  // lit one. A focus set otherwise lights nothing, and its first Select only
- // lights. A place gone under the light is told once, and the first lights.
- rows[2].segments={{"p1","P1"},{"p2","P2"}};rows[2].segmentKind=SegmentKind::Places;rows[2].adjustable=true;
+ // lights. A place gone under the light stays the light, drawn nowhere: the
+ // next Select sends it once, for the screen to refuse, and the light goes
+ // out. The legend's Left and Right read the row's places, not a value.
+ rows[2].segments={{"p1","P1"},{"p2","P2"}};rows[2].segmentKind=SegmentKind::Places;
+ Check(MenuSteps(rows[2])&&!rows[2].adjustable,"A row of places did not read as stepping");
  Check(from("cabinet-1",MenuInput::Right)=="cabinet-2"&&nav.Lit("cabinet-2")=="p1","Arriving rightwards did not light the first place");
  Check(press(MenuInput::Right)=="cabinet-2"&&nav.Lit("cabinet-2")=="p2","Right did not light the next place");
  Check(press(MenuInput::Right)=="cabinet-3","Right past the last place did not move on by placement");
@@ -935,10 +938,13 @@ void BoardGeometry(){
  nav.Focus("cabinet-0",rows);nav.Focus("cabinet-2",rows);Check(nav.Lit("cabinet-2").empty(),"A focus set by the screen lit a place");
  {const auto first=frame(MenuInput::Select);frame(0);
   Check(first.kind==MenuAction::None&&nav.Lit("cabinet-2")=="p1","The first Select on an unlit row did not just light its first place");}
- press(MenuInput::Right);rows[2].segments={{"p1","P1"}};
+ press(MenuInput::Right);rows[2].segments={{"p1","P1"}};frame(0);frame(0);
+ Check(nav.Lit("cabinet-2")=="p2","A place gone under the light was moved to another");
  {const auto gone=frame(MenuInput::Select);frame(0);
-  Check(gone.kind==MenuAction::Chosen&&gone.text=="p2"&&nav.Lit("cabinet-2")=="p1","A place gone under the light was not told once, or the first did not light");}
- rows[2].segments.clear();rows[2].segmentKind=SegmentKind::Value;rows[2].adjustable=false;
+  Check(gone.kind==MenuAction::Chosen&&gone.text=="p2"&&nav.Lit("cabinet-2").empty(),"A place gone under the light was not sent once, or the light stayed on");}
+ {const auto relit=frame(MenuInput::Select);frame(0);
+  Check(relit.kind==MenuAction::None&&nav.Lit("cabinet-2")=="p1","The Select after a gone place did not just light the first");}
+ rows[2].segments.clear();rows[2].segmentKind=SegmentKind::Value;
  Check(from("unplaced",MenuInput::Up)=="leave","A row that is not drawn left the list's movement");
  // A screen that opens has no places until its board draws once: the list moves.
  nav.Push("list");nav.Focus("cabinet-0",rows);time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({MenuInput::Right,time},rows);
