@@ -311,7 +311,92 @@ void TestLayOutNeverOverlaps() {
 }
 }
 
+// A stacked card's picture leaves its player's lines the same 200 px a versus
+// card does (FaceSize), shrinking to a Compact picture (48 px, or the row where
+// that is shorter) where even that does not leave them.
+void TestStackedCardKeepsItsText() {
+    namespace card = table_card;
+    for (const float s : {1.f, 1.5f})
+        for (const float logical : {260.f, 290.f, 330.f, 420.f, 600.f}) {
+            const auto shape = ShapeTableCards(logical * s, 1, false, s);
+            EXPECT_MSG(!shape.versus, "width %.0f scale %.1f is a versus card", logical, s);
+            for (const float height : {112.f, 140.f, card::Cap}) {
+                TableCardInput in;
+                in.content = {false, false};
+                in.card = {0, 0, logical * s, (std::max)(height * s, shape.Least(in.content))};
+                in.lead = 130 * s; in.words = 60 * s; in.score = 40 * s;
+                const auto at = LayOutTableCard(shape, in);
+                for (std::size_t side = 0; side < 2; ++side) {
+                    const float seat = Width(at.seats[side]), text = seat - Width(at.faces[side]) - card::FaceGap * s;
+                    if (seat >= (card::Face + card::FaceGap + card::SeatTextLeast) * s - .01f)
+                        EXPECT_MSG(text >= card::SeatTextLeast * s - .01f, "width %.0f scale %.1f height %.0f: a stacked card's text %.1f is under its least", logical, s, height, text);
+                    else
+                        EXPECT_MSG(Near(Width(at.faces[side]), (std::min)(card::Face * s, Height(at.seats[side]))), "width %.0f scale %.1f height %.0f: a stacked picture is not a Compact one", logical, s, height);
+                    EXPECT_MSG(Inside(at.faces[side], at.seats[side]) && Width(at.faces[side]) <= seat * .5f + .01f, "width %.0f scale %.1f: a stacked picture left its row or passed half the card", logical, s);
+                }
+            }
+        }
+}
+
+// A Compact seat's tag line: the note beside the name (a streak, else the idle
+// time) lies inside the seat's lines, clear of the name, on its inner side, the
+// pair centred on a versus card; where both do not fit the name stands alone.
+void TestSeatTagPlacesItsNote() {
+    namespace card = table_card;
+    for (const float s : {1.f, 1.5f})
+        for (const bool versus : {false, true})
+            for (const bool mirrored : {false, true}) {
+                const float left = 100 * s, room = 200 * s, tag = 90 * s, note = 60 * s;
+                const MenuRect seat{left, 0, left + room, 1};
+                const auto at = PlaceSeatTag(left, room, tag, note, versus, mirrored, s);
+                const MenuRect name{at.tag, 0, at.tag + tag, 1}, beside{at.note, 0, at.note + note, 1};
+                EXPECT_MSG(at.noted && Inside(name, seat) && Inside(beside, seat) && Apart(name, beside), "scale %.1f versus %d mirrored %d: the idle time did not stand in the seat beside the name", s, versus, mirrored);
+                EXPECT_MSG(mirrored ? beside.x1 <= name.x0 - card::Space * s + .01f : beside.x0 >= name.x1 + card::Space * s - .01f, "scale %.1f mirrored %d: the note is not on the name's inner side", s, mirrored);
+                const float pairLeft = (std::min)(name.x0, beside.x0), pairRight = (std::max)(name.x1, beside.x1);
+                if (versus) EXPECT_MSG(Near(pairLeft - left, left + room - pairRight), "scale %.1f mirrored %d: the pair is not centred", s, mirrored);
+                else EXPECT_MSG(Near(pairLeft, left), "scale %.1f mirrored %d: a stacked seat's pair does not start at its picture", s, mirrored);
+                // Too wide for both: the name alone, inside the seat; no note: the name alone.
+                const auto tight = PlaceSeatTag(left, room, 150 * s, note, versus, mirrored, s);
+                EXPECT_MSG(!tight.noted && Inside({tight.tag, 0, tight.tag + 150 * s, 1}, seat), "scale %.1f: a note that does not fit was placed", s);
+                EXPECT(!PlaceSeatTag(left, room, tag, 0, versus, mirrored, s).noted);
+            }
+}
+
+// Your own card's line holds Ready and Leave seat beside its state at the common
+// sizes (1280x720 at scale 1 and 1.5: a versus card, and a stacked one
+// beside the score), apart, inside the head, as wide as they want. Where the two
+// do not fit, the card's name gives way first and then the buttons share what
+// is left, their labels cut, never over TABLE n and its state.
+void TestOwnCardLineHoldsReadyAndLeave() {
+    namespace card = table_card;
+    for (const float s : {1.f, 1.5f})
+        for (const float logical : {760.f, 400.f, 300.f}) {
+            const auto shape = ShapeTableCards(logical * s, 1, false, s);
+            TableCardInput in;
+            in.content = {false, false};
+            in.card = {0, 0, logical * s, (std::max)(card::Cap * s * .5f, shape.Least(in.content))};
+            in.lead = 130 * s; in.words = 120 * s; in.score = 40 * s;
+            const float ready = 76 * s, leave = 84 * s;
+            in.buttons = {ready, leave};
+            const auto at = LayOutTableCard(shape, in);
+            EXPECT_MSG(at.buttons.size() == 2, "width %.0f scale %.1f: a button was lost", logical, s);
+            const float room = (shape.versus ? at.head.x1 : at.score.x0 - card::Space * s) - (at.head.x0 + in.lead);
+            const bool fits = ready + leave + card::Between * s <= room + .01f;
+            for (std::size_t i = 0; i < 2; ++i) {
+                EXPECT_MSG(Inside(at.buttons[i], at.head) && at.buttons[i].x0 >= at.head.x0 + in.lead - .01f, "width %.0f scale %.1f: a button left the head or stood over TABLE n and its state", logical, s);
+                EXPECT_MSG(Apart(at.buttons[i], at.words) && Apart(at.buttons[i], at.score), "width %.0f scale %.1f: a button stood over the name or the score", logical, s);
+            }
+            EXPECT_MSG(Apart(at.buttons[0], at.buttons[1]) && at.buttons[0].x1 <= at.buttons[1].x0 - card::Between * s + .01f, "width %.0f scale %.1f: the buttons touch", logical, s);
+            if (logical >= 400) EXPECT_MSG(fits, "width %.0f scale %.1f: the test's own widths no longer fit", logical, s);
+            if (fits) EXPECT_MSG(Near(Width(at.buttons[0]), ready) && Near(Width(at.buttons[1]), leave), "width %.0f scale %.1f: buttons that fit were not as wide as they want", logical, s);
+            else EXPECT_MSG(Width(at.buttons[0]) < ready && Width(at.buttons[1]) < leave && Near(Width(at.words), 0), "width %.0f scale %.1f: neither the name nor the buttons gave way", logical, s);
+        }
+}
+
 int main() {
+    TestStackedCardKeepsItsText();
+    TestSeatTagPlacesItsNote();
+    TestOwnCardLineHoldsReadyAndLeave();
     TestOnePerLineIsAVersusLineAtCommonSizes();
     TestVersusStartsWhereEachSeatHasItsRoom();
     TestGridKeepsItsColumns();

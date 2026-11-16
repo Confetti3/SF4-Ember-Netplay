@@ -504,7 +504,8 @@ private:
     // (plain Back) otherwise.
     const char* PlaceExitLabel(const ShellView& view) const;
     void OpenTableOptions(const ShellView& view, int table);
-    void ToggleReady(const ShellView& view, const Submit& submit);
+    // Ready, Unready or Rematch for this PC's seat, or the reason it cannot; whether a request was sent.
+    bool ToggleReady(const ShellView& view, const Submit& submit);
     // Sends a step of the pick's Ultra or color, which the overlay applies
     // (SelectionStep): the room's rows and the post-match prompt.
     static void StepPick(SelectionStep step, const Submit& submit);
