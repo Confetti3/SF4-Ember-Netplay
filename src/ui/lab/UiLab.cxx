@@ -727,6 +727,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     else if (screen == "awards" || screen == "sets") Profile(view, "played");
     if (!mainChoice.empty()) view.preferences.mainFighter = mainChoice == "none" ? -1 : std::atoi(mainChoice.c_str());
     if (!profile.empty() || screen == "awards" || screen == "card" || screen == "sets") ProfileSets(view, setsState.empty() ? "full" : setsState);
+    // No service to read points from: the Ember ID trusts none (the sets' service with it).
+    if (profile == "noservice") view.identity.bridges.clear();
     if (!friendsState.empty() && !uilab::Friends(view, friendsState)) return 4;
     if (!playerState.empty() && !uilab::Player(view, playerState)) return 4;
     if (!findState.empty() && !uilab::Find(view, findState)) return 4;
