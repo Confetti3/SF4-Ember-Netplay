@@ -2562,6 +2562,12 @@ msgstr "Esvaziar este espaço"
 msgid "training.reply.clear_slot.detail"
 msgstr "Remove o golpe deste espaço."
 
+msgid "training.reply.clear_all"
+msgstr "Esvaziar todos os espaços"
+
+msgid "training.reply.clear_all.detail"
+msgstr "Remove os golpes de todos os espaços de resposta. As configurações de resposta continuam como estão."
+
 msgid "training.reply.every_fighter"
 msgstr "Todos os lutadores"
 
@@ -2681,6 +2687,12 @@ msgstr "Fechar controles de treino"
 
 msgid "training.close_controls.detail"
 msgstr "Feche o Ember e depois o menu de pausa do SF4 para continuar, se estiver aberto."
+
+msgid "training.back_to_room"
+msgstr "Voltar à sala"
+
+msgid "training.back_to_room.detail"
+msgstr "Saia do Treino e volte para {0}. Seu lugar na sala é mantido."
 
 msgid "training.slot"
 msgstr "Espaço {0}"
@@ -4329,6 +4341,9 @@ msgstr "O auxiliar do Discord parou. O jogo não foi afetado."
 msgid "runtime.room_connection_failed"
 msgstr "A conexão da sala falhou. A sala está fechando; resultados não confirmados não serão registrados."
 
+msgid "runtime.public_room_connection_failed"
+msgstr "Você perdeu a conexão com a sala. Resultados não confirmados não serão registrados. Entre de novo por Salas públicas. Se ela recusar você, aguarde um minuto e tente novamente."
+
 msgid "runtime.operation_busy"
 msgstr "A operação está ocupada. Tente novamente."
 
@@ -4394,6 +4409,9 @@ msgstr "A partida não terminou de fechar a tempo. A visualização de espectado
 
 msgid "runtime.room_closed"
 msgstr "A sala foi fechada."
+
+msgid "runtime.room_unreachable"
+msgstr "Você perdeu a conexão com a sala, ou ela foi fechada. Se ainda estiver listada em Salas públicas, entre de novo."
 
 msgid "runtime.removed_from_room"
 msgstr "Você foi removido da sala."
@@ -5919,8 +5937,14 @@ msgstr "Esta sala acabou de lotar ou ser bloqueada. Escolha outra."
 msgid "public.failure.turned_away"
 msgstr "A sala recusou a entrada. Você pode ter sido removido dela."
 
+msgid "public.failure.name_taken"
+msgstr "Esse nome já está nesta sala. Se você acabou de ser desconectado, seu lugar antigo ainda pode estar reservado: aguarde um minuto e tente novamente. Caso contrário, altere o nome em Configurações."
+
 msgid "public.failure.join_failed"
 msgstr "Não foi possível entrar na sala. Ela pode ter acabado de fechar. Atualize e escolha outra."
+
+msgid "public.failure.refused"
+msgstr "A sala não aceitou você. Se você acabou de estar nela, ela pode ainda guardar seu lugar antigo: aguarde um minuto e tente novamente. Você também pode ter sido removido dela."
 
 msgid "legend.refresh"
 msgstr "Atualizar"

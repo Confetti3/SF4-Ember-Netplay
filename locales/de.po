@@ -2562,6 +2562,12 @@ msgstr "Diesen Slot leeren"
 msgid "training.reply.clear_slot.detail"
 msgstr "Entfernt den Zug dieses Slots."
 
+msgid "training.reply.clear_all"
+msgstr "Alle Slots leeren"
+
+msgid "training.reply.clear_all.detail"
+msgstr "Entfernt die Züge aus allen Antwort-Slots. Die Antworteinstellungen bleiben unverändert."
+
 msgid "training.reply.every_fighter"
 msgstr "Jeder Kämpfer"
 
@@ -2681,6 +2687,12 @@ msgstr "Trainingssteuerung schließen"
 
 msgid "training.close_controls.detail"
 msgstr "Schließen Sie Ember und gegebenenfalls das SF4-Pausenmenü, um fortzufahren."
+
+msgid "training.back_to_room"
+msgstr "Zurück in den Raum"
+
+msgid "training.back_to_room.detail"
+msgstr "Verlassen Sie das Training und kehren Sie zu {0} zurück. Ihr Platz im Raum bleibt erhalten."
 
 msgid "training.slot"
 msgstr "Slot {0}"
@@ -4329,6 +4341,9 @@ msgstr "Discord-Begleitprozess beendet. Spiel unbeeinträchtigt."
 msgid "runtime.room_connection_failed"
 msgstr "Raumverbindung fehlgeschlagen. Raum wird geschlossen; unbestätigte Ergebnisse werden nicht erfasst."
 
+msgid "runtime.public_room_connection_failed"
+msgstr "Die Verbindung zum Raum ist abgebrochen. Unbestätigte Ergebnisse werden nicht erfasst. Treten Sie ihm erneut über Öffentliche Räume bei. Wenn er Sie abweist, warten Sie eine Minute und versuchen Sie es erneut."
+
 msgid "runtime.operation_busy"
 msgstr "Vorgang läuft. Erneut versuchen."
 
@@ -4394,6 +4409,9 @@ msgstr "Kampf wurde nicht rechtzeitig geschlossen. Zuschaueransicht wurde beende
 
 msgid "runtime.room_closed"
 msgstr "Raum geschlossen."
+
+msgid "runtime.room_unreachable"
+msgstr "Die Verbindung zum Raum ist abgebrochen, oder er wurde geschlossen. Wenn er unter Öffentliche Räume noch aufgeführt ist, treten Sie ihm erneut bei."
 
 msgid "runtime.removed_from_room"
 msgstr "Sie wurden aus dem Raum entfernt."
@@ -5919,8 +5937,14 @@ msgstr "Dieser Raum ist gerade voll geworden oder wurde gesperrt. Wählen Sie ei
 msgid "public.failure.turned_away"
 msgstr "Der Raum hat den Beitritt abgelehnt. Sie wurden möglicherweise daraus entfernt."
 
+msgid "public.failure.name_taken"
+msgstr "Dieser Spielername ist in diesem Raum schon vergeben. Falls Ihre Verbindung gerade getrennt wurde, wird Ihr alter Platz womöglich noch gehalten: Warten Sie eine Minute und versuchen Sie es erneut. Andernfalls ändern Sie Ihren Namen unter Einstellungen."
+
 msgid "public.failure.join_failed"
 msgstr "Der Raum konnte nicht betreten werden. Vielleicht wurde er gerade geschlossen. Aktualisieren Sie und wählen Sie einen anderen."
+
+msgid "public.failure.refused"
+msgstr "Der Raum hat Sie nicht aufgenommen. Falls Sie gerade noch darin waren, hält er Ihren alten Platz womöglich noch: Warten Sie eine Minute und versuchen Sie es erneut. Sie wurden möglicherweise auch daraus entfernt."
 
 msgid "legend.refresh"
 msgstr "Aktualisieren"
