@@ -41,13 +41,10 @@ void ProfilePanel::Dress(GameMenu& menu, const std::string& screen, const std::s
         if (menu.tabs[i].first == screen) menu.tab = static_cast<int>(i);
 }
 
-bool ProfilePanel::ReadsPoints(const ShellView& v, const std::string& bridge) {
-    return !v.identity.known || (!bridge.empty() && !v.identity.emberId.empty());
-}
-
-void ProfilePanel::Update(const ShellView& v, const netplay::PlayerPreferences& prefs, const std::string& screen, const std::string& bridge, const Submit& submit) {
+void ProfilePanel::Update(const ShellView& v, const netplay::PlayerPreferences& prefs, const std::string& screen, const std::string& bridge, bool readable,
+    const Submit& submit) {
     card_.built = false;
-    readable_ = ReadsPoints(v, bridge);
+    readable_ = readable;
     // The recent sets are asked for while the Card tab is on show: once when it comes on show and when the name or service
     // changes, never every frame and never while another page shows.
     sets_.Update(v, bridge, v.preferences.displayName, screen == CardScreen, submit);

@@ -40,12 +40,11 @@ public:
     // `sets`: the Sets tab is there (ShellView::offersArchive).
     static void Dress(GameMenu& menu, const std::string& screen, const std::string& name, bool sets);
     // Every frame: the levels read on opening and at start, and the Card tab's card built once for the frame (the rows and
-    // the drawing both read it). `bridge` is the usable service, empty without one.
-    void Update(const ShellView& view, const netplay::PlayerPreferences& preferences, const std::string& screen, const std::string& bridge, const Submit& submit);
-    // Whether the player's own points will be read (Update sends the read): while the Ember ID's state is not known yet they
-    // may be, and once it is, only with a usable service (`bridge`) and an Ember ID. Where they will not, the cards read
-    // player_card::LevelsShown's answer that the service counts none.
-    static bool ReadsPoints(const ShellView& view, const std::string& bridge);
+    // the drawing both read it). `bridge` is the usable service, empty without one; `readable` false where no read of the
+    // points will be sent (IdentityPanel::NoPointsService), so the card reads player_card::LevelsShown's answer that the
+    // service counts none.
+    void Update(const ShellView& view, const netplay::PlayerPreferences& preferences, const std::string& screen, const std::string& bridge, bool readable,
+        const Submit& submit);
     // The shell is hidden: a read not sent yet is dropped, and showing it again reads afresh.
     void Conceal();
     // The screen's rows, from the card the shell published (`card`), the
@@ -77,7 +76,7 @@ private:
     CardSets sets_;
     std::string read_, focus_;
     bool visiting_ = false, want_ = false;
-    // ReadsPoints as of this frame's Update.
+    // `readable` as of this frame's Update.
     bool readable_ = true;
 };
 } }

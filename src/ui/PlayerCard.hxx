@@ -30,7 +30,7 @@ Groups Grouped(const Own& own, int main);
 // bridge sends no earlier start); 1 at the top.
 float Part(const Level& level);
 // The player's own points as the cards read them: the answer, or, where no read of them will be sent (`readable` false:
-// ProfilePanel::ReadsPoints), an answer that the service counts none, so no card says it is reading a read that never
+// IdentityPanel::NoPointsService), an answer that the service counts none, so no card says it is reading a read that never
 // comes and nothing on it looks as if it were loading.
 const netplay::Answered<Own>& LevelsShown(const netplay::Answered<Own>& answer, bool readable);
 // The card's points from the answer: the main first, then the two highest

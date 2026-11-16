@@ -365,7 +365,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  return {status,statusTone};
 }
 const netplay::Answered<netplay::levels::Own>& ApplicationShell::ShownLevels(const ShellView& v) const {
- return player_card::LevelsShown(v.levels,ProfilePanel::ReadsPoints(v,identity_.UsableBridge(v)));
+ return player_card::LevelsShown(v.levels,!identity_.NoPointsService(v));
 }
 void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  using namespace netplay;
@@ -688,7 +688,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Friends live on the product's account bridge (the game's own unless it has one apart), named to the runtime first.
  identity_.NameAccountService(v,submit);
  friends_.Update(v,nav,identity_.AccountBridge(v),submit);
- profile_.Update(v,preferences_,nav.Screen(),identity_.UsableBridge(v),submit);
+ profile_.Update(v,preferences_,nav.Screen(),identity_.UsableBridge(v),!identity_.NoPointsService(v),submit);
  player_.Update(v,nav.Screen(),nav,friends_,identity_.UsableBridge(v),preferences_.displayName,ShownCountry(preferences_.country,v.automaticCountry),submit);
  UpdateAwardNotices(v);
  friends_.Publish(v,nav.Screen(),notices_,now);

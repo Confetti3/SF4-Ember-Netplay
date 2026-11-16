@@ -164,6 +164,13 @@ std::string IdentityPanel::UsableBridge(const ShellView& v) const {
     return bridge_;
 }
 
+bool IdentityPanel::NoPointsService(const ShellView& v) const {
+    const auto& id = v.identity;
+    if (!id.known) return false;
+    if (id.state == "disabled" || id.state == "unavailable") return true;
+    return id.state == "ready" && servicesKnown_ && (id.emberId.empty() || UsableBridge(v).empty());
+}
+
 const char* IdentityPanel::AccountService() {
     return ember::SeparateAccount() ? ember::Product().accountService : EmberService;
 }

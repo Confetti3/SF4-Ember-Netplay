@@ -471,8 +471,8 @@ void Rankings(ui::ShellView& view) {
 // player's points as the card and the Fighters tab show them (--screen card or fighters).
 // played: twelve fighters, the main (Ryu) at 1986 points; one: the main alone; five: the main and
 // four others; fresh: counted, none played yet; sixty: the main in the top tier (the name is kept
-// from the levels); noservice: an Ember ID with no service to read points from, so none is ever
-// read; loading: the first read in flight; unreachable: the first read failed.
+// from the levels); noservice: the Ember ID turned off, so no read of the points is
+// ever sent; loading: the first read in flight; unreachable: the first read failed.
 void Profile(ui::ShellView& view, const std::string& state) {
     view.preferences.displayName = "Player 1";
     view.preferences.mainFighter = 0;
@@ -488,7 +488,7 @@ void Profile(ui::ShellView& view, const std::string& state) {
     answer.loading = state == "loading";
     answer.loaded = !answer.loading && state != "unreachable" && state != "noservice";
     if (state == "unreachable") answer.error = "bridge_unreachable";
-    if (state == "noservice") { auto& id = view.identity; id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; }
+    if (state == "noservice") { auto& id = view.identity; id.known = true; id.state = "disabled"; }
     answer.revision = answer.finished = 1;
     if (!answer.loaded) return;
     auto& own = answer.value;
@@ -727,8 +727,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     else if (screen == "awards" || screen == "sets") Profile(view, "played");
     if (!mainChoice.empty()) view.preferences.mainFighter = mainChoice == "none" ? -1 : std::atoi(mainChoice.c_str());
     if (!profile.empty() || screen == "awards" || screen == "card" || screen == "sets") ProfileSets(view, setsState.empty() ? "full" : setsState);
-    // No service to read points from: the Ember ID trusts none (the sets' service with it).
-    if (profile == "noservice") view.identity.bridges.clear();
+    // No service to read points from: the Ember ID is off (the sets' service with it).
+    if (profile == "noservice") { view.identity = {}; view.identity.known = true; view.identity.state = "disabled"; }
     if (!friendsState.empty() && !uilab::Friends(view, friendsState)) return 4;
     if (!playerState.empty() && !uilab::Player(view, playerState)) return 4;
     if (!findState.empty() && !uilab::Find(view, findState)) return 4;

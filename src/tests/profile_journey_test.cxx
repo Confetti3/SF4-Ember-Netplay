@@ -175,6 +175,24 @@ void StatesJourney() {
  Check(std::string(ui::player_card::NoLevelWords(ui::MenuPlayerCard())) == "level.none" && j.row("main-0") && j.row("main-43"), "Nothing played yet does not list every fighter");
 }
 
+// An Ember ID that is turned off sends no read of the points: the card says the service counts none, never that it is
+// reading, and sends nothing. While the ID's state is not known yet the card still waits for the read.
+void NoServiceJourney() {
+ Journey j;
+ j.h.view.preferences.mainFighter = 3;
+ j.h.view.levels = {};
+ j.h.view.identity = {};
+ j.h.Screen("card");
+ Check(ui::MenuPlayerCard().levels == ui::CardLevels::Pending, "A card whose Ember ID is not known yet does not wait for its points");
+ j.h.view.identity.known = true; j.h.view.identity.state = "disabled";
+ const auto sent = Reads(j);
+ j.h.Frame(0, 2);
+ Check(ui::MenuPlayerCard().levels == ui::CardLevels::Unavailable && std::string(ui::player_card::NoLevelWords(ui::MenuPlayerCard())) == "level.unavailable",
+  "A card with no service to read its points from says it is reading them");
+ Check(Reads(j) == sent, "A card with no service sent a read of its points");
+ Check(j.row(ui::CardFighterRow(3)) != nullptr, "A card with no service lost its main's tile");
+}
+
 // Y and the Edit card row open Edit card, whose rows are the card's, and Back returns to Card; its Title and Icon rows open the awards wall.
 void EditCardJourney() {
  Journey j;
@@ -748,7 +766,7 @@ void ReadJourney() {
 
 int main() {
  try {
-  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); EditCardChoicesJourney(); AwardsJourney(); WornClaimsJourney(); AwardsStatesJourney(); AwardNoticesJourney(); HomeJourney(); ReadJourney(); SpatialJourney(); PlayerJourney(); CardQuestionJourney(); PlayerHideJourney(); PlayerAcceptJourney(); PlayerReplaceJourney(); MostPlayedAndSetsJourney();
+  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); NoServiceJourney(); EditCardJourney(); EditCardChoicesJourney(); AwardsJourney(); WornClaimsJourney(); AwardsStatesJourney(); AwardNoticesJourney(); HomeJourney(); ReadJourney(); SpatialJourney(); PlayerJourney(); CardQuestionJourney(); PlayerHideJourney(); PlayerAcceptJourney(); PlayerReplaceJourney(); MostPlayedAndSetsJourney();
   std::cout << "Profile journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

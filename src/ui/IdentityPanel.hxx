@@ -70,6 +70,9 @@ public:
     // A product's account service apart from its game's own (AccountService)
     // is never it: Ember's own stands for it while it is selected.
     std::string UsableBridge(const ShellView& view) const;
+    // No read of the player's own points will be sent: the Ember ID's state is known and it is turned off or unusable,
+    // or it is ready and its services are listed with none usable. False while either is still on its way.
+    bool NoPointsService(const ShellView& view) const;
     // Where the player's account across Ember's games lives
     // (ember::ProductIdentity::accountService): that origin for a product with
     // one apart from its game's own, else Ember's own service.
