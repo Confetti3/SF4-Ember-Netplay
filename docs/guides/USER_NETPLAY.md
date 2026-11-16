@@ -21,7 +21,7 @@ Own and install Ultra Street Fighter IV on Steam. Use the complete package on bo
 
    ![Join room with Paste invitation highlighted](../images/guides/user_netplay/join-room.webp)
 
-5. A joined member starts idle. Select a table's card to open its seat chooser: **Play as P1** or **Play as P2** for an open seat, **Join queue** to wait for one, or **Watch** to reserve a spectator place (**Watch next game** in Table options). Once watching, **Lock in to watch** in Table options makes the next start wait up to 10 seconds for you if you are still leaving the last game; without it the fighters do not wait and you join the game after. A room has up to 16 members and four independent tables.
+5. A joined member starts idle. Take an open seat on a table's card, **Play as P1** or **Play as P2**, in one press; a full table offers **Join queue** to wait for one, or **Watch** to reserve a spectator place (**Watch next game** in Table options). Once watching, **Lock in to watch** in Table options makes the next start wait up to 10 seconds for you if you are still leaving the last game; without it the fighters do not wait and you join the game after. A room has up to 16 members and four independent tables.
 
    ![Seat chooser on an open battle slot](../images/guides/user_netplay/seat-chooser.webp)
 

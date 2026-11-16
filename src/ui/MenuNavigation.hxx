@@ -503,10 +503,11 @@ public:
         // repeats stop at the end, so holding never spins round. Grids and
         // other boards keep the focus at their edges.
         const bool wrap=(pressed&direction&(MenuInput::Up|MenuInput::Down))!=0;
-        if(const Placement* at=BodyPlaced(entries)?Placed(e.id):nullptr) {
+        if(BodyPlaced(entries)&&Placed(e.id)) {
             const int dy=direction&MenuInput::Up?-1:direction&MenuInput::Down?1:0;
-            auto to=Nearest(*at,delta,dy,entries);
-            if(to==entries.size()&&s.edge==MenuEdge::Flow) to=NextPlaced(s.index,delta+dy,entries);
+            if(MoveByPlace(delta,dy,entries)) return {};
+            auto to=entries.size();
+            if(s.edge==MenuEdge::Flow) to=NextPlaced(s.index,delta+dy,entries);
             if(to==entries.size()&&s.edge==MenuEdge::Flow&&wrap&&dy) to=EndPlaced(dy>0,entries);
             if(to<entries.size()) { s.index=to; s.id=entries[to].id; }
             return {};
@@ -532,6 +533,20 @@ public:
         if(index<0) index=0;
         s.index=index; s.id=entries[index].id;
         return {};
+    }
+    // Moves the focus from where it was placed to the placed row nearest that
+    // way (dx, dy: -1, 0 or 1), as a direction does on a board. A body calls it
+    // for a direction its focused row took itself and had nothing more that
+    // way for (a table card's last offer, Left and Right past it). False, the
+    // focus kept, where no placed row lies that way.
+    bool MoveByPlace(int dx, int dy, const std::vector<MenuEntry>& entries) {
+        auto& s=states_[Screen()];
+        const Placement* at=Placed(s.id);
+        if(!at) return false;
+        const auto to=Nearest(*at,dx,dy,entries);
+        if(to>=entries.size()) return false;
+        s.index=to; s.id=entries[to].id;
+        return true;
     }
 private:
     static const std::string& NoId() { static const std::string none; return none; }

@@ -3696,9 +3696,6 @@ msgstr "Wi-Fi 连接"
 msgid "room.link_unknown"
 msgstr "连接方式未知"
 
-msgid "room.table_footer"
-msgstr "{0} 回合／{1} 秒     排队 {2}     观战 {3}"
-
 msgid "room.board_status_host_slot"
 msgstr "房主／{0}／席位 {1}"
 
@@ -5549,9 +5546,6 @@ msgstr "{0}，{1}"
 
 msgid "room.table_set"
 msgstr "对战组"
-
-msgid "room.table_footer_set"
-msgstr "{0}，{1}     排队 {2}     观战 {3}"
 
 msgid "room.streak"
 msgstr "连胜 {0} 组"
@@ -7514,9 +7508,6 @@ msgstr "各自延迟"
 
 msgid "room.table_footer_wired_only"
 msgstr "仅限有线"
-
-msgid "room.table_counts"
-msgstr "排队 {0}     观战 {1}"
 
 msgid "room.input_delay.own"
 msgstr "你的延迟：{0}"

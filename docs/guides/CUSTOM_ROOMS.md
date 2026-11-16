@@ -39,12 +39,14 @@ play at any table, or watch.
 
 ## Play and rematch
 
-Select a table's card. With no seat or queue place yet, it opens a seat chooser:
+With no seat or queue place yet, a table's open seats are its buttons:
 **Play as P1** or **Play as P2** while that seat is open and nobody is queued
-ahead (an empty table offers both seats), otherwise **Join queue**; then
-**Watch**; and **Table options**. Open seats fill in queue order. If you already
-hold a seat or queue place at another table, the card opens that table's Table
-options instead, and joining there waits until you leave your current place.
+ahead. Click one, or move to the card (it lights P1, or the only open seat),
+light the other with Left or Right and press A. A full table offers **Join
+queue** and **Watch** the same way, at the right of its line. Open seats fill
+in queue order. If you already hold a seat or queue place at another table, A
+on its card opens that table's Table options instead, and joining there waits
+until you leave your current place.
 Seated fighters choose their characters and both select **Ready up** (A on your
 own card) before each game. Before preparation begins, a fighter can withdraw
 readiness with **Unready / unlock fighter**.
@@ -175,7 +177,7 @@ game** stops watching that game and keeps the queue place.
 
 ## Watch
 
-**Watch next game** (**Watch** in the seat chooser) reserves a spectator place
+**Watch next game** (**Watch** on a full table's card) reserves a spectator place
 without joining the queue. A game already in progress cannot be joined halfway
 through. **Stop watching** returns the spectator to the room; the fighters
 continue playing. During a game, Start or F10 opens Ember over it on the room

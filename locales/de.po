@@ -3696,9 +3696,6 @@ msgstr "WLAN-Verbindung"
 msgid "room.link_unknown"
 msgstr "Verbindung unbekannt"
 
-msgid "room.table_footer"
-msgstr "{0} Runden / {1} Sek.     Warteschlange {2}     Zuschauer {3}"
-
 msgid "room.board_status_host_slot"
 msgstr "HOST / {0} / Slot {1}"
 
@@ -5549,9 +5546,6 @@ msgstr "{0}, {1}"
 
 msgid "room.table_set"
 msgstr "Satz"
-
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     Warteschlange {2}     Zuschauer {3}"
 
 msgid "room.streak"
 msgstr "{0} Sätze in Folge"
@@ -7514,9 +7508,6 @@ msgstr "Eigene Verzögerung"
 
 msgid "room.table_footer_wired_only"
 msgstr "Nur Kabel"
-
-msgid "room.table_counts"
-msgstr "Warteschlange {0}     Zuschauer {1}"
 
 msgid "room.input_delay.own"
 msgstr "Ihre Verzögerung: {0}"

@@ -190,13 +190,13 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(a.text=="leave-seat")LeavePlace(v,submit);else if(a.text!="stay")RoomAction({MenuAction::Activate,a.text},v,submit);
   return;
  }
- // A seat chooser's option, exactly as the player saw it.
+ // A table card's offer, exactly as the player saw it (TakeTableOffer), or
+ // the answer to its leave question.
  if(a.kind==MenuAction::Chosen){
   // More…'s and Invite's choice is the row it stands for.
   if(a.id=="room-more"||a.id=="invite"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
   const auto table=RowKey<int>(a.id,"table-");if(!table||*table>=static_cast<int>(v.room.tables.size()))return;
   selectedTable_=*table;
-  if(a.text=="options"){OpenTableOptions(v,selectedTable_);return;}
   if(a.text=="leave-seat"){LeavePlace(v,submit);return;}
   const auto* option=FindSeatOption(a.text);
   if(!option)return;

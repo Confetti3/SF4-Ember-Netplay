@@ -3696,9 +3696,6 @@ msgstr "Connessione Wi-Fi"
 msgid "room.link_unknown"
 msgstr "Connessione sconosciuta"
 
-msgid "room.table_footer"
-msgstr "{0} round / {1} sec     Coda {2}     Spettatori {3}"
-
 msgid "room.board_status_host_slot"
 msgstr "HOST / {0} / Posto {1}"
 
@@ -5549,9 +5546,6 @@ msgstr "{0}, {1}"
 
 msgid "room.table_set"
 msgstr "Set"
-
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     Coda {2}     Spettatori {3}"
 
 msgid "room.streak"
 msgstr "{0} set di fila"
@@ -7514,9 +7508,6 @@ msgstr "Ritardo proprio"
 
 msgid "room.table_footer_wired_only"
 msgstr "Solo cavo"
-
-msgid "room.table_counts"
-msgstr "Coda {0}     Spettatori {1}"
 
 msgid "room.input_delay.own"
 msgstr "Il tuo ritardo: {0}"

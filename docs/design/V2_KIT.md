@@ -125,8 +125,10 @@ whose only placed row is one of them (a body that places nothing) moves by
 row order. Before the geometry come a row's
 explicit `left/right/up/down` (only on a screen that places nothing but its
 aside: a GameMenu list, Home's player card, Rankings) and a value row's Left/Right,
-which adjust it. A row that is not drawn is not placed, so
-the pad reaches exactly what the mouse can. Do not wire neighbours by id on a
+which adjust it; a board whose row steps something drawn on it (a table
+card's offers) hands a step past its last on with
+`MenuNavigation::MoveByPlace`, so it moves as from any row. A row that is
+not drawn is not placed, so the pad reaches exactly what the mouse can. Do not wire neighbours by id on a
 board; draw the rows where they belong.
 
 ### Tabs

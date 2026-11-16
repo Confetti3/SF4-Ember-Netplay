@@ -997,25 +997,23 @@ int main(int argc, char** argv) {
                         if(std::find(seen.begin(),seen.end(),at)==seen.end())seen.push_back(at);
                     }
             };
-            // The seat chooser on an empty table, for a member with no seat.
+            // An empty table's seats, for a member with no seat: the focused
+            // card lights P1, Right lights P2; nothing opens.
             view.room.tables[0].p1=5;view.room.members[0].table=-1;view.room.members[0].seat=-1;
             page("room");
             reach("table-2");
             Require(shell.Navigation().Focus()=="table-2","An empty table is unreachable at this viewport/DPI");
-            draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser");
-            Require(shell.Navigation().Choosing(),"A on an empty table did not open the seat chooser");
-            draw(nullptr,MenuInput::Right,1);draw("room-seat-chooser-p2");
-            draw(nullptr,MenuInput::Back,1);draw();
-            // A full table offers the queue, watching and the table's options;
-            // a watcher sees Stop watching instead.
+            draw("room-seats-p1");
+            draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw("room-seats-p2");
+            Require(shell.Navigation().Focus()=="table-2"&&!shell.Navigation().Choosing(),"Right on an empty table left it or opened a choice");
+            // A full table offers the queue and watching at its head while
+            // focused; a watcher sees Unwatch instead.
             reach("table-1");
             Require(shell.Navigation().Focus()=="table-1","A full table is unreachable at this viewport/DPI");
-            draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser-full");
-            Require(shell.Navigation().Choosing(),"A on a full table did not open the chooser");
-            draw(nullptr,MenuInput::Back,1);draw();
+            draw("room-seats-full");
             view.room.tables[1].spectators={1};
-            draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser-watching");
-            draw(nullptr,MenuInput::Back,1);draw();view.room.tables[1].spectators.clear();
+            draw("room-seats-watching");
+            view.room.tables[1].spectators.clear();
             reach("table-0");
             view.room.tables[0].p1=1;view.room.members[0].table=0;view.room.members[0].seat=0;
             page("room-members");

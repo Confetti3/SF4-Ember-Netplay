@@ -12,7 +12,7 @@ or King of the hill. Any type can be private or public.
    it later in Room settings, as in a Classic room.
 2. The V2 room board lays the tables out by type (Arcade.dc.html):
    - Classic: today's tables as the floor, the two seats of each facing
-     across the score.
+     across the score (ROOM_TABLES.md).
    - Arcade: Real Arcade rows, sixteen tall one-player cabinets in two rows
      of eight, each over its stool with the player's back on it: marquee,
      screen (fighter and score, Waiting, the Rematch choice or Insert coin),

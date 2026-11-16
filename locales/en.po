@@ -3598,8 +3598,6 @@ msgid "room.link_wireless"
 msgstr "Wi-Fi connection"
 msgid "room.link_unknown"
 msgstr "Connection unknown"
-msgid "room.table_footer"
-msgstr "{0} rounds / {1} sec     Queue {2}     Watching {3}"
 msgid "room.board_status_host_slot"
 msgstr "HOST / {0} / Slot {1}"
 msgid "room.board_status_slot"
@@ -5205,9 +5203,6 @@ msgstr "{0}, {1}"
 
 msgid "room.table_set"
 msgstr "Set"
-
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     Queue {2}     Watching {3}"
 
 msgid "room.streak"
 msgstr "{0} sets in a row"
@@ -7175,8 +7170,14 @@ msgstr "Own delay"
 msgid "room.table_footer_wired_only"
 msgstr "Wired only"
 
-msgid "room.table_counts"
-msgstr "Queue {0}     Watching {1}"
+msgid "room.table_rules_line"
+msgstr "{0} rounds / {1} sec"
+
+msgid "room.table_queue"
+msgstr "Queue {0}"
+
+msgid "room.table_watching"
+msgstr "{0} watching"
 
 msgid "room.input_delay.own"
 msgstr "Your delay: {0}"
