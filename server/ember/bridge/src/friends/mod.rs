@@ -271,9 +271,12 @@ pub fn state(
         .map(|row| row.account.as_str())
         .chain(requests.iter().map(|row| row.sender.as_str()))
         .collect();
+    // A friends state exists only while friends are offered, where cards show
+    // no friend code (`cards::codes_shown`).
     let viewer = cards::Viewer {
         caller,
         friends_offered: true,
+        codes_shown: false,
         classes,
         now,
     };

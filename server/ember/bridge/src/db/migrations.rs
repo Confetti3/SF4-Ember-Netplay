@@ -146,8 +146,10 @@ pub(super) const MIGRATIONS: &[Migration] = migrations![
     "064_player_cards.sql",
     "065_points_class_bonus.sql",
     "066_areas.sql",
-    // The shared library's own: every game's fighters (SFV's 45th).
+    // The shared library's own: every game's fighters (SFV's 45th), and the
+    // friend code a card shows where friends are kept on another bridge.
     "067_fighter_rosters.sql",
+    "068_card_friend_codes.sql",
 ];
 
 /// Checks what the database recorded against `migrations`, then applies each

@@ -82,6 +82,53 @@ fn a_session_is_offered_only_to_its_origin() {
     assert!(client.cached(&at("https://b.example"), &ember_id).is_none());
 }
 
+/// Two approved bridges (a game's own and the account bridge its friends are
+/// on) each keep their own session, and forgetting one (as `with_session`
+/// does when its bridge no longer takes the session) leaves the other.
+#[test]
+fn each_bridge_keeps_its_own_session_and_forgetting_one_leaves_the_other() {
+    let client = Client::new();
+    let ember_id = ember_protocol::SigningIdentity::from_seed(&Zeroizing::new([7; 32]))
+        .unwrap()
+        .ember_id()
+        .clone();
+    let bridge = |byte: u8, origin: &str| Approved {
+        bridge_id: ember_protocol::encoding::prefixed_id("brg", [byte; 16]),
+        origin: origin.into(),
+        display_name: "Bridge".into(),
+        approved_at: 0,
+        keys: Vec::new(),
+    };
+    let (game, account) = (
+        bridge(1, "https://game.example"),
+        bridge(2, "https://account.example"),
+    );
+    for (approved, token) in [(&game, "game-token"), (&account, "account-token")] {
+        client.sessions.lock().unwrap().insert(
+            approved.bridge_id.clone(),
+            Session {
+                token: Zeroizing::new(token.into()),
+                expires_at: now() + 600,
+                origin: approved.origin.clone(),
+                ember_id: ember_id.clone(),
+            },
+        );
+    }
+    let token = |approved: &Approved| {
+        client
+            .cached(approved, &ember_id)
+            .map(|token| token.as_str().to_owned())
+    };
+    assert_eq!(token(&game).as_deref(), Some("game-token"));
+    assert_eq!(token(&account).as_deref(), Some("account-token"));
+
+    client.forget_session(&game.bridge_id);
+    assert_eq!(token(&game), None);
+    assert_eq!(token(&account).as_deref(), Some("account-token"));
+    client.forget_session(&account.bridge_id);
+    assert_eq!(token(&account), None);
+}
+
 /// A proof is made for the method the request is sent with, so the two
 /// cannot differ, and a route that takes no proof has none.
 #[test]

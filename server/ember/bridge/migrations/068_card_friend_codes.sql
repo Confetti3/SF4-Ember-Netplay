@@ -1,0 +1,11 @@
+-- The friend code a card shows (docs/design/PROFILE.md, "The friend code on a
+-- card"): the code its player keeps on the bridge that holds their friends
+-- (the account bridge), as their game saved it with `PUT /v1/cards/me`, so
+-- the players of this bridge can add them there. Only a bridge that offers
+-- `card_friend_code` (friends off, a game other than usf4; `cards::codes_shown`)
+-- writes it, and only that bridge's card look-up shows it; NULL everywhere
+-- else, and on every card saved without one. A nullable column with no
+-- default only changes the table's definition, so adding it is cheap on the
+-- live table, and a bridge from before it, put back, names its columns and
+-- leaves this one alone.
+ALTER TABLE player_cards ADD COLUMN friend_code TEXT;

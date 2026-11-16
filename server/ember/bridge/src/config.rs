@@ -198,7 +198,10 @@ pub struct Rooms {
     /// Friends are on: the friends routes, the `friends` capability, the card
     /// look-up's `friend` selector and a card's `relation`. On by default; an
     /// operator turns them off with `false`. They also need Discord sign-in,
-    /// since a friend list belongs to a Discord account.
+    /// since a friend list belongs to a Discord account. Off on a bridge
+    /// whose `game` is not `usf4`, its players keep their friends on another
+    /// bridge, and a card here shows the friend code its player saved for
+    /// that one (`cards::codes_shown`).
     #[serde(default = "friends_on")]
     pub friends: bool,
     /// Discord user IDs of Ember's developers: their badge is the developer

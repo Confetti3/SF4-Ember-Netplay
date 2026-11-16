@@ -9,7 +9,9 @@
 //! search for other players, and two more look-up selectors (a received
 //! request and a friend code; docs/design/PROFILE.md, "Helper ops"). These
 //! are sent only to a bridge that lists `profiles`, and one that does not is
-//! `profiles_unavailable`.
+//! `profiles_unavailable`. A card saved with the player's friend code takes
+//! it only to a bridge that lists `card_friend_code` ("The friend code on a
+//! card"), and a card a look-up answers passes its code on as it came.
 use std::sync::Arc;
 
 use super::{
@@ -90,18 +92,36 @@ pub async fn lookup(shared: &Arc<Shared>, bridge_id: &str, cards: Vec<CardSelect
     to_json(&answers)
 }
 
-/// Saves what the player's card shows, replacing the whole of it. The bridge
-/// answers 204; the game is answered `{}`.
+/// Saves what the player's card shows, replacing the whole of it, its friend
+/// code only where the bridge reads one (`for_bridge`). The bridge answers
+/// 204; the game is answered `{}`.
 pub async fn save(shared: &Arc<Shared>, bridge_id: &str, card: CardSave) -> Outcome {
     card.check()
         .map_err(|_| Failure::new(Code::InvalidRequest))?;
-    play::require(shared, bridge_id, Need::Profiles).await?;
+    let card = for_bridge(card, &play::require(shared, bridge_id, Need::Profiles).await?);
     let body = serde_json::to_vec(&card).map_err(|_| Failure::new(Code::Internal))?;
     let call = BridgeCall::new(Verb::Put, CARDS_ME_PATH, SAVED)
         .body(Body::Json(&body))
         .refusals(PROFILE_REFUSALS);
-    put(shared, bridge_id, &call).await?;
+    put(shared, bridge_id, &call).await.map_err(|failure| {
+        if card.friend_code.is_some() {
+            play::reread_if_malformed(shared, bridge_id, failure)
+        } else {
+            failure
+        }
+    })?;
     Ok(Some(serde_json::json!({})))
+}
+
+/// `card` as the bridge that `offered` describes reads it: its friend code
+/// only when the bridge lists `card_friend_code`. Any other bridge refuses
+/// the member, and would refuse the whole save for it, so the card goes
+/// without it and the rest is saved as ever.
+fn for_bridge(card: CardSave, offered: &play::Features) -> CardSave {
+    CardSave {
+        friend_code: card.friend_code.filter(|_| offered.card_friend_code),
+        ..card
+    }
 }
 
 /// Puts `call` to the bridge `bridge_id`, which answers no body.
@@ -434,6 +454,8 @@ mod tests {
             "style": { "device": 2, "link": 1, "region": "euc1", "looking": 34 } } });
         let bare_save = json!({ "op": "card_save", "bridge_id": "brg_x",
             "card": { "listing": { "name": "Player 1" } } });
+        let coded_save = json!({ "op": "card_save", "bridge_id": "brg_x",
+            "card": { "listing": { "name": "Player 1" }, "friend_code": "4F2A-91CX" } });
         let by_name = json!({ "op": "cards_search", "bridge_id": "brg_x", "name": "Play" });
         let by_code = json!({ "op": "cards_search", "bridge_id": "brg_x", "code": "4F2A-91CX" });
         let lookup = json!({ "op": "cards_lookup", "bridge_id": "brg_x",
@@ -441,6 +463,7 @@ mod tests {
         for (value, op) in [
             (save, "card_save"),
             (bare_save, "card_save"),
+            (coded_save, "card_save"),
             (by_name, "cards_search"),
             (by_code, "cards_search"),
             (lookup, "cards_lookup"),
@@ -512,7 +535,19 @@ mod tests {
             refused_save(card(&|card| card.worn.title = Some("Not An Id".into()))).await,
             "invalid_request"
         );
+        // A friend code not in the form the bridge writes is the game's mistake.
+        for code in ["4f2a-91cx", "4F2A 91CX", "4F2A-91C", ""] {
+            assert_eq!(
+                refused_save(card(&|card| card.friend_code = Some(code.into()))).await,
+                "invalid_request",
+                "{code}"
+            );
+        }
         assert_eq!(refused_save(card(&|_| {})).await, "bridge_not_approved");
+        assert_eq!(
+            refused_save(card(&|card| card.friend_code = Some("4F2A-91CX".into()))).await,
+            "bridge_not_approved"
+        );
 
         let refused_search = |name: Option<&str>, code: Option<&str>| {
             let shared = shared.clone();
@@ -643,7 +678,7 @@ mod tests {
             "pins":["rank","wins"],
             "style":{"device":9,"link":7,"region":"sae1","looking":255,"extra":1},
             "versus":{"won":4,"lost":3,"last_at":1731000000},
-            "friend":"fr_11111111-1111-4111-8111-111111111111","extra":1}]}"#;
+            "friend":"fr_11111111-1111-4111-8111-111111111111","friend_code":"4F2A-91CX","extra":1}]}"#;
         let answers = read::<CardAnswers>(card).unwrap();
         assert!(answers.check().is_ok());
         let value = to_json(&answers).unwrap().unwrap();
@@ -660,6 +695,14 @@ mod tests {
         );
         assert_eq!(card["versus"], json!({ "won": 4, "lost": 3, "last_at": 1_731_000_000u64 }));
         assert_eq!(card["friend"], FRIEND);
+        assert_eq!(card["friend_code"], "4F2A-91CX");
+        // A friend code the game could not send a request with reaches it as none.
+        let odd = read::<CardAnswers>(
+            br#"{"cards":[{"account":{"points":0,"tier":0},"relation":"none","friend_code":"4f2a 91cx"}]}"#,
+        )
+        .unwrap();
+        assert!(odd.check().is_ok());
+        assert!(to_json(&odd).unwrap().unwrap()["cards"][0].get("friend_code").is_none());
         // Shapes are checked: a bad family id or friend id fails the answer.
         for bad in [
             r#"{"cards":[{"account":{"points":0,"tier":0},"relation":"none","pins":["Rank"]}]}"#,
@@ -678,5 +721,37 @@ mod tests {
         for absent in ["name", "country", "main", "badge", "since", "worn", "pins", "style", "versus", "friend"] {
             assert!(value["cards"][0].get(absent).is_none(), "{absent}");
         }
+        assert!(value["cards"][0].get("friend_code").is_none());
+    }
+
+    // The player's friend code goes only to a bridge whose cards carry one;
+    // any other gets the card it always read, which it saves whole.
+    #[test]
+    fn a_friend_code_is_saved_only_where_the_bridge_reads_one() {
+        let card: CardSave = serde_json::from_value(json!({
+            "listing": { "name": "Player 1" }, "main": 3, "friend_code": "4F2A-91CX" }))
+        .unwrap();
+        let profiles = play::Features {
+            profiles: true,
+            ..play::Features::default()
+        };
+        let codes = play::Features {
+            card_friend_code: true,
+            ..profiles.clone()
+        };
+        assert_eq!(for_bridge(card.clone(), &codes), card);
+        let without = for_bridge(card.clone(), &profiles);
+        assert_eq!(without.friend_code, None);
+        assert_eq!(
+            serde_json::to_value(&without).unwrap(),
+            json!({ "listing": { "name": "Player 1" }, "main": 3 })
+        );
+        // A card without one is the same card to either.
+        let plain = CardSave {
+            friend_code: None,
+            ..card
+        };
+        assert_eq!(for_bridge(plain.clone(), &codes), plain);
+        assert_eq!(for_bridge(plain.clone(), &profiles), plain);
     }
 }

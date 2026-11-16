@@ -82,6 +82,11 @@ impl World {
     /// A bridge whose `rooms.friends` switch is `friends` and whose
     /// `rooms.skill_badges` is `classes`.
     pub async fn start_with(friends: bool, classes: bool) -> Self {
+        Self::start_for(friends, classes, ember_protocol::rooms::DEFAULT_GAME).await
+    }
+
+    /// The same, for a bridge whose players play `game` (`rooms.game`).
+    pub async fn start_for(friends: bool, classes: bool, game: &str) -> Self {
         let (fake, url) = supervisor::fake_supervisor().await;
         let bridge = Bridge::start_with(
             |config| {
@@ -89,6 +94,7 @@ impl World {
                 let rooms = config.rooms.as_mut().unwrap();
                 rooms.friends = friends;
                 rooms.skill_badges = classes;
+                rooms.game = game.into();
                 config.discord = Some(config::Discord {
                     client_id: "1546980049692135514".into(),
                     api_base: "http://127.0.0.1:9/api".into(),

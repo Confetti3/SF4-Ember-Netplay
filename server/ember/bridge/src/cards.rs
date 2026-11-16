@@ -19,14 +19,17 @@ use ember_protocol::{
     encoding::{b64u, decode_b64u},
     friends::PairRecord,
     levels::{CARD_PREFIX, CARD_VALID_SECS, CardSave, PlayerCard, Relation, Style, Worn},
+    rooms::is_default_game,
     skill::{Listing, SkillBadge},
 };
 use rusqlite::{OptionalExtension, Row, Transaction, params};
 
 use crate::{
+    AppState,
     db::select_in,
     error::Result,
-    friends::{Classes, store},
+    friends::{self, Classes, store},
+    routes::rooms,
     secrets::Keys,
     skill::{self, levels},
 };
@@ -64,6 +67,27 @@ pub fn open(keys: &Keys, token: &str, now: u64) -> Option<String> {
     (purpose == PURPOSE && now.saturating_sub(issued_at) <= CARD_VALID_SECS).then(|| id.to_string())
 }
 
+/// Whether a card carries its player's friend code
+/// (`levels::CARD_FRIEND_CODE_FEATURE`, docs/design/PROFILE.md, "The friend
+/// code on a card"): where public rooms are on, friends are not offered and
+/// the bridge's game is not USF4, so its players keep their friends on
+/// another bridge and add a room member there by the code their card here
+/// shows. The one place the switch is read: discovery, the card save and the
+/// look-up all ask this.
+pub fn codes_shown(state: &AppState) -> bool {
+    rooms::enabled(state) && !friends::offered(state) && !is_default_game(&rooms::game(state))
+}
+
+/// A save's friend code, which only a bridge whose cards show codes takes: a
+/// client names one only to a bridge that lists the capability, so one sent
+/// elsewhere is a client's mistake.
+pub fn check_friend_code(state: &AppState, card: &CardSave) -> Result<()> {
+    if card.friend_code.is_some() && !codes_shown(state) {
+        return Err(ember_protocol::Error::InvalidField("friend_code").into());
+    }
+    Ok(())
+}
+
 /// What `player_cards` holds of an account.
 pub struct Stored {
     pub name: String,
@@ -74,11 +98,14 @@ pub struct Stored {
     pub worn: Worn,
     pub pins: Vec<String>,
     pub style: Style,
+    /// The friend code its last save carried, which a card shows only while
+    /// `codes_shown`.
+    pub friend_code: Option<String>,
 }
 
 /// The `player_cards` columns a `Stored` is read from, in its order.
 const STORED: &str = "name, country, main_fighter, since, worn_title, worn_icon, pins,
-                      device, link, region, looking";
+                      device, link, region, looking, friend_code";
 
 /// The `Stored` in columns `at` onwards of a row that selected `STORED`.
 fn stored_in(row: &Row<'_>, at: usize) -> rusqlite::Result<Stored> {
@@ -103,6 +130,7 @@ fn stored_in(row: &Row<'_>, at: usize) -> rusqlite::Result<Stored> {
             region: row.get(at + 9)?,
             looking: row.get(at + 10)?,
         },
+        friend_code: row.get(at + 11)?,
     })
 }
 
@@ -125,19 +153,20 @@ fn listings(tx: &Transaction<'_>, accounts: &[&str]) -> Result<HashMap<String, S
     .collect())
 }
 
-/// Replaces `account`'s card with what its player chose to show. The row is
-/// made here the first time, from when the account connected; `since` is
-/// never moved after.
+/// Replaces `account`'s card with what its player chose to show, its friend
+/// code with the rest (a save without one clears it; `routes::profiles::save`
+/// takes one only while `codes_shown`). The row is made here the first time,
+/// from when the account connected; `since` is never moved after.
 pub fn save(tx: &Transaction<'_>, account: &str, card: &CardSave, now: u64) -> Result<()> {
     tx.execute(
         "INSERT INTO player_cards (discord_user_id, name, country, main_fighter, since,
-             worn_title, worn_icon, pins, device, link, region, looking, updated_at)
+             worn_title, worn_icon, pins, device, link, region, looking, friend_code, updated_at)
          VALUES (?1, ?2, ?3, ?4,
              COALESCE((SELECT connected_at FROM discord_accounts WHERE user_id = ?1), ?5),
-             ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?5)
+             ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?5)
          ON CONFLICT (discord_user_id) DO UPDATE SET name = ?2, country = ?3, main_fighter = ?4,
              worn_title = ?6, worn_icon = ?7, pins = ?8, device = ?9, link = ?10, region = ?11,
-             looking = ?12, updated_at = ?5",
+             looking = ?12, friend_code = ?13, updated_at = ?5",
         params![
             account,
             card.listing.name,
@@ -151,6 +180,7 @@ pub fn save(tx: &Transaction<'_>, account: &str, card: &CardSave, now: u64) -> R
             card.style.link,
             card.style.stored_region(),
             card.style.looking,
+            card.friend_code,
         ],
     )?;
     Ok(())
@@ -181,8 +211,9 @@ pub fn note_listing(
 }
 
 /// `card` with what `stored` says of its player: the name, flag and main, the
-/// month they came, the families they wear and show, how they play.
-fn describe(card: PlayerCard, stored: &Stored) -> PlayerCard {
+/// month they came, the families they wear and show, how they play, and,
+/// while `codes_shown`, their friend code.
+fn describe(card: PlayerCard, stored: &Stored, codes_shown: bool) -> PlayerCard {
     PlayerCard {
         name: Some(stored.name.clone()),
         country: stored.country.clone(),
@@ -191,18 +222,20 @@ fn describe(card: PlayerCard, stored: &Stored) -> PlayerCard {
         worn: stored.worn.clone(),
         pins: stored.pins.clone(),
         style: stored.style.clone(),
+        friend_code: stored.friend_code.clone().filter(|_| codes_shown),
         ..card
     }
 }
 
 /// Who reads cards, and how the bridge shows them: the caller's Discord
-/// account, whether friends are offered, the classes, and the time. A block
-/// is between Discord accounts, so only a caller with one reads another
-/// player's card (`routes::levels::lookup`, docs/design/PROFILE.md,
-/// "Privacy").
+/// account, whether friends are offered, whether cards show friend codes
+/// (`codes_shown`), the classes, and the time. A block is between Discord
+/// accounts, so only a caller with one reads another player's card
+/// (`routes::levels::lookup`, docs/design/PROFILE.md, "Privacy").
 pub struct Viewer<'a> {
     pub caller: &'a str,
     pub friends_offered: bool,
+    pub codes_shown: bool,
     pub classes: &'a Classes,
     pub now: u64,
 }
@@ -256,6 +289,7 @@ impl Purpose {
 pub struct Reader {
     caller: String,
     friends_offered: bool,
+    codes_shown: bool,
     cards: HashMap<String, PlayerCard>,
     badges: HashMap<String, SkillBadge>,
     listings: HashMap<String, Stored>,
@@ -315,6 +349,7 @@ impl Reader {
         Ok(Self {
             caller: viewer.caller.to_owned(),
             friends_offered: viewer.friends_offered,
+            codes_shown: viewer.codes_shown,
             cards,
             badges,
             listings,
@@ -325,11 +360,11 @@ impl Reader {
 
     /// `target`'s card as the caller sees it: none when `target` blocked the
     /// caller or has no Discord account connected; otherwise their points,
-    /// the counters behind their awards, what they chose to show, their class
-    /// while classes are shown and, for a caller who is not themselves, their
-    /// record against the caller. Their relation, and the id of the
-    /// friendship when it is one, come once friends are offered. Read for
-    /// `Purpose::Card`.
+    /// the counters behind their awards, what they chose to show (with their
+    /// friend code while cards show codes), their class while classes are
+    /// shown and, for a caller who is not themselves, their record against
+    /// the caller. Their relation, and the id of the friendship when it is
+    /// one, come once friends are offered. Read for `Purpose::Card`.
     pub fn card(&self, target: &str) -> Option<PlayerCard> {
         let relation = self.relation(target)?;
         let card = self.cards.get(target)?.clone();
@@ -344,7 +379,7 @@ impl Reader {
             ..card
         };
         if let Some(stored) = self.listings.get(target) {
-            card = describe(card, stored);
+            card = describe(card, stored, self.codes_shown);
         }
         if self.caller != target {
             card.versus = self.record(target);

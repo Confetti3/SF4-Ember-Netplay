@@ -200,7 +200,7 @@ fn check_card_and_label(card: &str, label: &str) -> Result<()> {
 /// fields of an answer that hold one read through this and choose what an
 /// unknown value is (`Relation` does the same for its type). The answer is
 /// JSON, as every wire type here is.
-fn lenient<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
+pub(crate) fn lenient<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
 where
     D: Deserializer<'de>,
     T: DeserializeOwned,

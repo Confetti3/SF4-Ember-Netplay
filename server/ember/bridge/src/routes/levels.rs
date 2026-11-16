@@ -57,6 +57,7 @@ pub async fn own(State(state): State<AppState>, headers: HeaderMap) -> Result<Re
     let now = caller.now;
     let keys = state.keys.clone();
     let friends_offered = friends::offered(&state);
+    let codes_shown = cards::codes_shown(&state);
     let classes = Classes::of(&state, caller.account.as_deref());
     let levels = state
         .db
@@ -68,6 +69,7 @@ pub async fn own(State(state): State<AppState>, headers: HeaderMap) -> Result<Re
                 let viewer = Viewer {
                     caller: caller.as_str(),
                     friends_offered,
+                    codes_shown,
                     classes: &classes,
                     now,
                 };
@@ -127,9 +129,10 @@ fn most_played(
 /// friend id names the caller's friend, a request id a request the caller
 /// received, and a code a friend code, once friends are offered. A player who
 /// blocked the caller shows them no card, and once friends are offered each
-/// card carries the caller's relation to its player. A block is between
-/// Discord accounts, so a caller without one is shown no card at all
-/// (docs/design/PROFILE.md, "Privacy").
+/// card carries the caller's relation to its player; where cards show codes
+/// (`cards::codes_shown`) each carries its player's saved friend code. A
+/// block is between Discord accounts, so a caller without one is shown no
+/// card at all (docs/design/PROFILE.md, "Privacy").
 pub async fn lookup(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -145,6 +148,7 @@ pub async fn lookup(
     };
     let keys = state.keys.clone();
     let friends_offered = friends::offered(&state);
+    let codes_shown = cards::codes_shown(&state);
     let classes = Classes::of(&state, Some(&account));
     let answers = state
         .db
@@ -152,6 +156,7 @@ pub async fn lookup(
             let viewer = Viewer {
                 caller: &account,
                 friends_offered,
+                codes_shown,
                 classes: &classes,
                 now,
             };

@@ -893,7 +893,7 @@ of the two, `check`), `SearchHit`, `SearchAnswer`; `MAX_PINS = 4`,
 
 | Op | Sends | Answer |
 |---|---|---|
-| `card_save` | `PUT /v1/cards/me` with `card` | `{}`; refusals worded `profiles_unavailable` (404), `no_discord_account`, `rate_limited` |
+| `card_save` | `PUT /v1/cards/me` with `card`; its `friend_code` only to a bridge that lists `card_friend_code` (The friend code on a card) | `{}`; refusals worded `profiles_unavailable` (404), `no_discord_account`, `rate_limited` |
 | `cards_search` | `POST /v1/cards/search` with `name` or `code` | `SearchAnswer`, checked |
 | `cards_lookup` | as 1.6.0, with the two selectors | `CardAnswers` with the new fields |
 | `archive_list` | the archive stream's, plus `name` | the archive stream's |
@@ -945,6 +945,31 @@ against that player, which the answer already sends for the awards.
 | decode | `src/session/TournamentAnswers.cxx` (the points answer) | `levels::Own::mostPlayed` (`levels::MostPlayed {card, name, country, badge, won, lost}`, `hasMostPlayed`); a bad object is dropped alone, never failing the answer |
 | view | `ShellView::levels` | carries it with `Own`; the Card tab reads `levels.value.mostPlayed` |
 | open | `commands::ProfileOpen` with the card token as the key, the name, flag and class as what the opener knew |
+
+### The friend code on a card
+
+For a game whose players keep their friends on another bridge (SFV Ember:
+friends on SF4's bridge, the account bridge; rooms, points and cards on SFV's
+own, `server/sfv-bridge/b10/CROSS_GAME.md`). A room member's card token is
+sealed by the game's bridge, which the account bridge cannot open, so Add
+friend from a room member's card goes by friend code instead: each player's
+game saves its own code (the account bridge's `FriendsState.code`) with its
+card, and the game's bridge shows it on that card.
+
+| Piece | Rule |
+|---|---|
+| capability | `card_friend_code` (`levels::CARD_FRIEND_CODE_FEATURE`), listed beside `profiles` only where public rooms are on, friends are not offered (`rooms.friends = false`) and `rooms.game` is not `usf4`: `cards::codes_shown`, the one place it is decided. SF4's bridges never list it |
+| save | `CardSave.friend_code`: optional, `XXXX-XXXX` as a bridge writes it (`is_friend_code`); sent only to a bridge that lists the capability (the helper drops it for any other), and refused as `invalid_request` by one that does not. The whole card is replaced, so a save without it clears it |
+| look-up | `PlayerCard.friend_code`, only on a card a look-up answers (any selector, the player's own card too), only while `codes_shown`; never on a search hit, the most played opponent or a friends state. A reader drops a code that is not well formed |
+| stored | `player_cards.friend_code` (migration 068, `068_card_friend_codes.sql`), NULL unless saved; a friends sync never writes it |
+| add | the viewing game sends `request` by `code` to the account bridge, which refuses or hides it as it does any typed code (a block either way, friends turned off: `friends::store::ask`) |
+
+Privacy: the game publishes its code only while its friends are on and it
+does not appear offline, and saves the card without it otherwise, so the
+code disappears with the next save. Anyone who can open the card sees it, as
+anyone can type a code; the account bridge still hides a request from a
+player who blocked the sender, so a code shown here adds nothing a blocked
+player could not already try.
 
 ### Privacy
 

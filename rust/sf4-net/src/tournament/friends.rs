@@ -18,12 +18,9 @@ use super::{
     client::{self, Body, BridgeCall, Refusals, Verb},
     play::{self, Need},
 };
-use ember_protocol::{
-    api::ErrorCode,
-    friends::{
-        ACTIONS_PATH, FriendAction, FriendRefusal, FriendsState, FriendsSync, PresenceReport,
-        SYNC_PATH,
-    },
+use ember_protocol::friends::{
+    ACTIONS_PATH, FriendAction, FriendRefusal, FriendsState, FriendsSync, PresenceReport,
+    SYNC_PATH,
 };
 
 /// Refusals of the friends routes that the game words apart: every reason the
@@ -104,22 +101,11 @@ fn join_unavailable() -> Failure {
     ))
 }
 
-/// Whether a bridge refused a request as malformed, as one does that does not
-/// read a member of it: its `invalid_request`, or a 400 that names none. A
-/// reason a route words apart (`own_card`) is another refusal.
-fn refused_as_malformed(failure: &Failure) -> bool {
-    matches!(
-        failure,
-        Failure::Bridge(refusal)
-            if refusal.is(ErrorCode::InvalidRequest) || matches!(refusal, Refusal::Status(400))
-    )
-}
-
 /// Both routes answer the whole state, which is checked before it is passed on.
 /// `carries` says the request held a member of `friends_presence_v2`: when it
 /// is refused as malformed, the bridge may have been put back to one that
 /// does not read it, so what it offers is read again with the next call
-/// (`play::forget_features`), as a claim does.
+/// (`play::reread_if_malformed`), as a claim does.
 async fn exchange(
     shared: &Arc<Shared>,
     bridge_id: &str,
@@ -132,13 +118,10 @@ async fn exchange(
         .refusals(REFUSALS);
     let state: FriendsState = match client::request_as(shared, bridge_id, &call).await {
         Ok(state) => state,
-        Err(failure) => {
-            if carries && refused_as_malformed(&failure) {
-                let bridge = client::approved(shared, bridge_id)?;
-                play::forget_features(shared, &bridge)?;
-            }
-            return Err(failure);
+        Err(failure) if carries => {
+            return Err(play::reread_if_malformed(shared, bridge_id, failure));
         }
+        Err(failure) => return Err(failure),
     };
     state
         .check()
@@ -355,17 +338,17 @@ mod tests {
     #[test]
     fn only_a_malformed_refusal_counts_against_the_members_sent() {
         let malformed = reply(400, &refusal("invalid_request", None)).unwrap_err();
-        assert!(refused_as_malformed(&malformed));
-        assert!(refused_as_malformed(&reply(400, b"").unwrap_err()));
+        assert!(play::refused_as_malformed(&malformed));
+        assert!(play::refused_as_malformed(&reply(400, b"").unwrap_err()));
         // A reason the route words apart, a refusal of another kind and a
         // failing bridge are not.
         let own_card = reply(400, &refusal("invalid_request", Some("own_card"))).unwrap_err();
         assert_eq!(own_card.as_str(), "own_card");
-        assert!(!refused_as_malformed(&own_card));
+        assert!(!play::refused_as_malformed(&own_card));
         let stale = reply(409, &refusal("stale_revision", None)).unwrap_err();
-        assert!(!refused_as_malformed(&stale));
-        assert!(!refused_as_malformed(&reply(503, b"").unwrap_err()));
-        assert!(!refused_as_malformed(&Failure::new(Code::Internal)));
+        assert!(!play::refused_as_malformed(&stale));
+        assert!(!play::refused_as_malformed(&reply(503, b"").unwrap_err()));
+        assert!(!play::refused_as_malformed(&Failure::new(Code::Internal)));
     }
 
     // What the bridge would refuse is refused before any bridge is asked.

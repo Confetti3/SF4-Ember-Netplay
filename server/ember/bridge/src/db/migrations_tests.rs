@@ -850,3 +850,38 @@ fn matches_lobbies_and_tournaments_from_before_games_existed_are_usf4s() {
         assert_eq!(game("tournaments", &format!("etn_{suffix}")), "usf4");
     }
 }
+
+#[test]
+fn cards_from_before_friend_codes_show_none() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    let before = MIGRATIONS
+        .iter()
+        .position(|migration| migration.version == 68)
+        .unwrap();
+    migrate(&mut connection, &MIGRATIONS[..before]).unwrap();
+    connection
+        .execute_batch(
+            "INSERT INTO player_cards (discord_user_id, name, since, updated_at)
+               VALUES ('100', 'Player 1', 1000, 1000);",
+        )
+        .unwrap();
+    migrate(&mut connection, MIGRATIONS).unwrap();
+    // A bridge from before 068, put back, writes a card as it always did.
+    connection
+        .execute_batch(
+            "INSERT INTO player_cards (discord_user_id, name, since, updated_at)
+               VALUES ('200', 'Player 2', 2000, 2000);",
+        )
+        .unwrap();
+    let codes: Vec<(String, Option<String>)> = connection
+        .prepare("SELECT discord_user_id, friend_code FROM player_cards ORDER BY discord_user_id")
+        .unwrap()
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(
+        codes,
+        vec![("100".to_owned(), None), ("200".to_owned(), None)]
+    );
+}

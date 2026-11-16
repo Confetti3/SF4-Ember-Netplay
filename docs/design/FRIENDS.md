@@ -140,6 +140,12 @@ and an operator can still turn it off. While it is off, discovery does not
 list `friends`, both routes answer as an unknown route (404), the card
 look-up's `friend` selector answers null and a card's `relation` is `none`.
 
+Capability `card_friend_code` (`ember_protocol::levels::CARD_FRIEND_CODE_FEATURE`)
+is offered instead by a bridge with friends off whose game is not `usf4`, one
+whose players keep their friends on another bridge: a card there carries the
+friend code its player saved for that bridge, to add a room member by
+(`PROFILE.md`, "The friend code on a card").
+
 Both routes take the player session (`routes::play::playing`) and answer the
 whole `FriendsState`, so the client holds one state and replaces it whole,
 as the desk's read and act do (`desk_read`, `desk_act`).

@@ -536,6 +536,71 @@ fn a_card_save_is_checked_before_it_is_sent_or_stored() {
     refuses_extra::<CardSave>(&wire, "/listing");
 }
 
+/// Codes a bridge never writes: the typed forms `parse_friend_code` reads,
+/// a short or long one, a letter outside the alphabet.
+const NOT_WRITTEN: [&str; 6] = [
+    "4f2a-91cx",
+    "4F2A91CX",
+    "4F2A 91CX",
+    "4F2A-91C",
+    "4F2A-91CXX",
+    "4F2A-91CU",
+];
+
+#[test]
+fn a_save_carries_a_friend_code_only_when_one_is_set_and_well_formed() {
+    let wire = json!({"listing": {"name": "Player 1"}, "friend_code": "4F2A-91CX"});
+    let with: CardSave = read(&wire);
+    assert_eq!(with.friend_code.as_deref(), Some("4F2A-91CX"));
+    assert!(with.check().is_ok());
+    assert_eq!(serde_json::to_value(&with).unwrap(), wire);
+    // A save without one says none, and writes none.
+    let without: CardSave = read(&json!({"listing": {"name": "Player 1"}}));
+    assert_eq!(without.friend_code, None);
+    assert!(serde_json::to_value(&without).unwrap().get("friend_code").is_none());
+    // Only the form the bridge writes is saved.
+    for code in NOT_WRITTEN {
+        let card = CardSave {
+            friend_code: Some(code.into()),
+            ..with.clone()
+        };
+        assert_eq!(card.check(), Err(Error::InvalidField("friend_code")), "{code}");
+    }
+    refuses_extra::<CardSave>(&wire, "");
+}
+
+#[test]
+fn a_card_shows_a_friend_code_only_when_one_is_sent_and_drops_one_it_cannot_use() {
+    let mut wire = full_card();
+    wire["friend_code"] = json!("4F2A-91CX");
+    let card: PlayerCard = read(&wire);
+    assert_eq!(card.friend_code.as_deref(), Some("4F2A-91CX"));
+    assert!(card.check().is_ok());
+    assert_eq!(serde_json::to_value(&card).unwrap(), wire);
+    // A card without one has none, and an older reader's card is unchanged.
+    let plain: PlayerCard = read(&full_card());
+    assert_eq!(plain.friend_code, None);
+    assert_eq!(serde_json::to_value(&plain).unwrap(), full_card());
+    // A code a reader cannot use reads as none and fails nothing else.
+    for code in NOT_WRITTEN
+        .iter()
+        .map(|code| json!(code))
+        .chain([json!(null), json!(7), json!(["4F2A-91CX"])])
+    {
+        let mut odd = full_card();
+        odd["friend_code"] = code.clone();
+        assert_eq!(read::<PlayerCard>(&odd), plain, "{code}");
+    }
+    // A card built with one the bridge would never write does not check.
+    for code in NOT_WRITTEN {
+        let card = PlayerCard {
+            friend_code: Some(code.into()),
+            ..plain.clone()
+        };
+        assert_eq!(card.check(), Err(Error::InvalidField("friend_code")), "{code}");
+    }
+}
+
 #[test]
 fn a_search_asks_for_a_name_or_a_code_and_not_both() {
     let name = |text: &str| CardSearch {

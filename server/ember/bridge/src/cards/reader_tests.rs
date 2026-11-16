@@ -58,8 +58,9 @@ fn connect(tx: &Transaction<'_>, account: &str) -> rusqlite::Result<()> {
 /// The caller and `targets` players, and a few of what each can be: not
 /// connected to Discord, never played, played, opted out of ranking, rated
 /// and settled or still placing, a developer, with or without a card row and
-/// what it shows, and the caller's friend, blocked, blocking, asked or
-/// asking, with a record against the caller or not.
+/// what it shows (a saved friend code among it), and the caller's friend,
+/// blocked, blocking, asked or asking, with a record against the caller or
+/// not.
 fn seed(tx: &Transaction<'_>, targets: usize) -> rusqlite::Result<()> {
     let caller = caller();
     connect(tx, &caller)?;
@@ -131,8 +132,9 @@ fn seed(tx: &Transaction<'_>, targets: usize) -> rusqlite::Result<()> {
         if n % 5 != 2 {
             tx.execute(
                 "INSERT INTO player_cards (discord_user_id, name, country, main_fighter, since,
-                     worn_title, worn_icon, pins, device, link, region, looking, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                     worn_title, worn_icon, pins, device, link, region, looking, updated_at,
+                     friend_code)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                 params![
                     account,
                     format!("Player {n}"),
@@ -147,6 +149,7 @@ fn seed(tx: &Transaction<'_>, targets: usize) -> rusqlite::Result<()> {
                     (n % 3 == 0).then_some("euc1"),
                     number % 64,
                     number,
+                    (n % 4 == 0).then(|| code(n)),
                 ],
             )?;
         }
@@ -304,7 +307,7 @@ fn one_card(tx: &Transaction<'_>, viewer: &Viewer<'_>, target: &str) -> Result<O
         ..card
     };
     if let Some(stored) = stored(tx, target)? {
-        card = describe(card, &stored);
+        card = describe(card, &stored, viewer.codes_shown);
     }
     if viewer.caller != target {
         card.versus = store::record(tx, viewer.caller, target)?;
@@ -323,11 +326,19 @@ async fn a_card_read_with_many_is_the_card_read_alone() {
         let mut accounts: Vec<String> = (0..=60).map(account).collect();
         accounts.extend([NOBODY.to_owned(), OPPONENT.to_owned(), account(5)]);
         let targets: Vec<&str> = accounts.iter().map(String::as_str).collect();
-        for (friends_offered, shown) in [(true, true), (false, true), (true, false)] {
+        // Friends offered or not, cards showing codes (only with friends
+        // off, `codes_shown`) or not, classes shown or not.
+        for (friends_offered, codes_shown, shown) in [
+            (true, false, true),
+            (false, false, true),
+            (true, false, false),
+            (false, true, true),
+        ] {
             let classes = classes(shown);
             let viewer = Viewer {
                 caller: &caller,
                 friends_offered,
+                codes_shown,
                 classes: &classes,
                 now: NOW,
             };
@@ -357,6 +368,18 @@ async fn a_card_read_with_many_is_the_card_read_alone() {
             assert!(served.iter().any(|card| card.awards.peak_class > 0));
             assert!(served.iter().any(|card| card.versus.is_some()));
             assert!(served.iter().any(|card| card.versus.is_none()));
+            // A saved code is on the card exactly while cards show codes.
+            assert_eq!(
+                served.iter().any(|card| card.friend_code.is_some()),
+                codes_shown
+            );
+            if codes_shown {
+                assert!(
+                    served
+                        .iter()
+                        .any(|card| card.name.is_some() && card.friend_code.is_none())
+                );
+            }
             if friends_offered {
                 for relation in [
                     Relation::Friend,
@@ -409,6 +432,7 @@ async fn look_up(
         let viewer = Viewer {
             caller: &caller,
             friends_offered: true,
+            codes_shown: false,
             classes: &classes,
             now: NOW,
         };
@@ -465,6 +489,7 @@ async fn search(targets: usize) -> (SearchAnswer, usize) {
         let viewer = Viewer {
             caller: &caller,
             friends_offered: true,
+            codes_shown: false,
             classes: &classes,
             now: NOW,
         };
@@ -494,17 +519,18 @@ async fn a_search_that_lists_twenty_costs_what_one_that_lists_two_does() {
 }
 
 /// Reads players 4 and 5 of a bridge seeded with 60, for the caller, with
-/// classes shown and friends offered, for `purpose`, and hands the `Reader`
-/// to `check`. Player 4 is a developer with points, a card row and a
-/// relation; player 5 has points, a card row, a relation and a record against
-/// the caller.
-async fn read_for(purpose: Purpose, check: fn(&Reader)) {
+/// classes shown and either friends offered or cards showing codes, for
+/// `purpose`, and hands the `Reader` to `check`. Player 4 is a developer with
+/// points, a card row with a friend code and a relation; player 5 has points,
+/// a card row without a code, a relation and a record against the caller.
+async fn read_for(purpose: Purpose, codes_shown: bool, check: fn(&Reader)) {
     let db = seeded(60).await;
     db.read(move |tx| {
         let (caller, classes) = (caller(), classes(true));
         let viewer = Viewer {
             caller: &caller,
-            friends_offered: true,
+            friends_offered: !codes_shown,
+            codes_shown,
             classes: &classes,
             now: NOW,
         };
@@ -524,7 +550,7 @@ async fn read_for(purpose: Purpose, check: fn(&Reader)) {
 
 #[tokio::test]
 async fn a_card_read_answers_every_accessor() {
-    read_for(Purpose::Card, |read| {
+    read_for(Purpose::Card, false, |read| {
         let (four, five) = (account(4), account(5));
         let card = read.card(&five).expect("a card");
         assert_eq!(card.name.as_deref(), Some("Player 5"));
@@ -541,7 +567,7 @@ async fn a_card_read_answers_every_accessor() {
 
 #[tokio::test]
 async fn a_friends_read_answers_points_records_relations_and_classes() {
-    read_for(Purpose::Friends, |read| {
+    read_for(Purpose::Friends, false, |read| {
         let (four, five) = (account(4), account(5));
         assert!(read.points(&five).is_some());
         assert!(read.record(&five).is_some());
@@ -556,7 +582,7 @@ async fn a_friends_read_answers_points_records_relations_and_classes() {
 
 #[tokio::test]
 async fn a_hits_read_answers_relations_and_classes_only() {
-    read_for(Purpose::Hits, |read| {
+    read_for(Purpose::Hits, false, |read| {
         let (four, five) = (account(4), account(5));
         assert!(read.relation(&five).is_some());
         assert!(read.badge(&four) == Some(SkillBadge::DEVELOPER));
@@ -571,7 +597,7 @@ async fn a_hits_read_answers_relations_and_classes_only() {
 
 #[tokio::test]
 async fn a_rivals_read_answers_card_rows_relations_and_classes() {
-    read_for(Purpose::Rivals, |read| {
+    read_for(Purpose::Rivals, false, |read| {
         let (four, five) = (account(4), account(5));
         assert!(read.listing(&five).is_some());
         assert!(read.relation(&five).is_some());
@@ -582,4 +608,29 @@ async fn a_rivals_read_answers_card_rows_relations_and_classes() {
         assert!(read.card(&five).is_none());
     })
     .await;
+}
+
+// A saved friend code is on a card look-up's card only, and only while cards
+// show codes: never on what a friends state, a search or the most played
+// opponent reads.
+#[tokio::test]
+async fn only_a_card_read_shows_a_friend_code_and_only_where_cards_show_codes() {
+    read_for(Purpose::Card, true, |read| {
+        let four = read.card(&account(4)).expect("a card");
+        assert_eq!(four.friend_code, Some(code(4)));
+        assert!(read.card(&account(5)).expect("a card").friend_code.is_none());
+    })
+    .await;
+    read_for(Purpose::Card, false, |read| {
+        assert!(read.card(&account(4)).expect("a card").friend_code.is_none());
+    })
+    .await;
+    for purpose in [Purpose::Friends, Purpose::Hits, Purpose::Rivals] {
+        read_for(purpose, true, |read| {
+            let four = account(4);
+            assert!(read.card(&four).is_none_or(|card| card.friend_code.is_none()));
+            assert!(read.points(&four).is_none_or(|card| card.friend_code.is_none()));
+        })
+        .await;
+    }
 }

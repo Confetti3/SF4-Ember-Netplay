@@ -17,7 +17,7 @@ use ember_protocol::{
         WATCH_FEATURE,
     },
     friends::{FRIENDS_FEATURE, PRESENCE_V2_FEATURE},
-    levels::{CLASS_BONUS_FEATURE, POINTS_FEATURE, PROFILES_FEATURE},
+    levels::{CARD_FRIEND_CODE_FEATURE, CLASS_BONUS_FEATURE, POINTS_FEATURE, PROFILES_FEATURE},
     report::Outcome as GameOutcome,
     rooms::AREA_FEATURE,
     skill::{RANKING_FEATURE, RANKING_GAMES_FEATURE},
@@ -83,6 +83,10 @@ pub(super) struct Features {
     /// It serves the card save and search routes, reads the look-up's
     /// `request` and `code` selectors and the archive's `name`.
     pub profiles: bool,
+    /// Its cards carry their players' friend codes, and it reads a card
+    /// save's `friend_code` (`levels::CARD_FRIEND_CODE_FEATURE`); any other
+    /// refuses that member.
+    pub card_friend_code: bool,
     /// It reads a claim's `held_binding` and may answer it `Unchanged`.
     pub unchanged: bool,
     /// It reads a room create's `area` and lists it (`rooms::AREA_FEATURE`).
@@ -105,6 +109,7 @@ impl Features {
             friends: lists(FRIENDS_FEATURE),
             friends_presence_v2: lists(PRESENCE_V2_FEATURE),
             profiles: lists(PROFILES_FEATURE),
+            card_friend_code: lists(CARD_FRIEND_CODE_FEATURE),
             unchanged: lists(CLAIM_UNCHANGED_FEATURE),
             room_area: lists(AREA_FEATURE),
             archive: capabilities.archive.clone(),
@@ -205,6 +210,34 @@ pub(super) async fn require(
 pub(super) fn forget_features(shared: &Shared, bridge: &Approved) -> Result<(), Failure> {
     play_state(shared)?.features.remove(&bridge.bridge_id);
     Ok(())
+}
+
+/// Whether a bridge refused a request as malformed, as one does that does not
+/// read a member of it: its `invalid_request`, or a 400 that names none. A
+/// reason a route words apart (`own_card`) is another refusal.
+pub(super) fn refused_as_malformed(failure: &Failure) -> bool {
+    matches!(
+        failure,
+        Failure::Bridge(refusal)
+            if refusal.is(ErrorCode::InvalidRequest) || matches!(refusal, Refusal::Status(400))
+    )
+}
+
+/// `failure` of a request that carried a member only a bridge with an
+/// optional feature reads. When the bridge refused it as malformed it may
+/// have been put back to a version without that feature, so what it offers
+/// is forgotten and read again with the next call (`features`), as a claim
+/// does; a failure to forget is answered in its place.
+pub(super) fn reread_if_malformed(shared: &Shared, bridge_id: &str, failure: Failure) -> Failure {
+    if !refused_as_malformed(&failure) {
+        return failure;
+    }
+    let forgotten = client::approved(shared, bridge_id)
+        .and_then(|bridge| forget_features(shared, &bridge));
+    match forgotten {
+        Ok(()) => failure,
+        Err(other) => other,
+    }
 }
 
 pub(super) fn check_match_id(match_id: &str) -> Result<(), Failure> {

@@ -268,6 +268,10 @@ fn a_bridge_offers_what_its_capabilities_list() {
     let profiles = Features::of(&capabilities(&[POINTS_FEATURE, PROFILES_FEATURE]));
     assert!(profiles.levels && profiles.profiles && !profiles.friends);
     assert!(!Features::of(&capabilities(&[POINTS_FEATURE])).profiles);
+    // A card's friend code is its own feature too, not implied by profiles.
+    assert!(!profiles.card_friend_code);
+    let codes = Features::of(&capabilities(&[PROFILES_FEATURE, CARD_FRIEND_CODE_FEATURE]));
+    assert!(codes.profiles && codes.card_friend_code);
     // A bridge from before rankings per game lists `ranking` alone, and
     // another game's ranking is refused by it as a bridge without rankings.
     let old = Features::of(&capabilities(&[RANKING_FEATURE]));

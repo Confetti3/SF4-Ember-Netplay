@@ -10,8 +10,10 @@
 //! it says what its player chose to show and what the bridge knows of them:
 //! the name, flag, main fighter, when they came to Ember, the award families
 //! they wear and show, how they play, and the caller's own record and
-//! friendship with them. It never carries a Discord account, an Ember ID or a
-//! rating.
+//! friendship with them. On a bridge whose players keep their friends on
+//! another bridge it also carries the friend code they saved for that one
+//! ([`CARD_FRIEND_CODE_FEATURE`]). It never carries a Discord account, an
+//! Ember ID or a rating.
 //!
 //! Requests are strict and answers are tolerant. A request (`CardLookup`,
 //! `CardSelector`, `CardSave`, `CardSearch`) refuses unknown members, so a
@@ -22,14 +24,14 @@
 //! client does not know reads as not shown. A build asks only a bridge that
 //! lists [`crate::levels::POINTS_FEATURE`] (and, for the routes and selectors
 //! of the profile, [`PROFILES_FEATURE`]); an older bridge answers 404.
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     Error, Result,
     area::is_area,
     awards::{AwardCounts, is_family_id},
     encoding::{is_prefixed_id, is_single_line},
-    friends::{PairRecord, parse_friend_code},
+    friends::{PairRecord, is_friend_code, lenient, parse_friend_code},
     levels::{MAX_FIGHTERS, MAX_TIER, is_zero},
     relay::is_region,
     rooms::{MAX_HOST_NAME, is_country, is_player_name},
@@ -43,6 +45,16 @@ pub const LOOKUP_PATH: &str = "/v1/cards/lookup";
 /// [`crate::levels::POINTS_FEATURE`]: `PUT` [`CARDS_ME_PATH`], `POST` [`SEARCH_PATH`], the
 /// selectors `request` and `code`, and the archive's `name`.
 pub const PROFILES_FEATURE: &str = "profiles";
+/// The capability of a bridge whose cards carry their players' friend codes
+/// (`CardSave::friend_code`, `PlayerCard::friend_code`), offered beside
+/// [`PROFILES_FEATURE`] only by a bridge whose friends are off
+/// (`rooms.friends = false`) and whose game is not
+/// [`crate::friends::DEFAULT_GAME`]: one whose players keep their friends on
+/// another bridge (the account bridge), so a room member is added there by
+/// the code their card here shows. A bridge from before it refuses the save's
+/// member as unknown, so a client names `friend_code` only to a bridge that
+/// lists this.
+pub const CARD_FRIEND_CODE_FEATURE: &str = "card_friend_code";
 /// `PUT` a `CardSave`, answered with 204.
 pub const CARDS_ME_PATH: &str = "/v1/cards/me";
 /// `POST` a `CardSearch`, answered with `SearchAnswer`.
@@ -91,6 +103,21 @@ fn check_family(id: &Option<String>) -> Result<()> {
         Some(id) if !is_family_id(id) => Err(Error::InvalidField("family")),
         _ => Ok(()),
     }
+}
+
+fn check_friend_code(code: &Option<String>) -> Result<()> {
+    match code {
+        Some(code) if !is_friend_code(code) => Err(Error::InvalidField("friend_code")),
+        _ => Ok(()),
+    }
+}
+
+/// A friend code of an answer, or none when it is not one as a bridge writes
+/// it (`is_friend_code`): a value this build cannot use drops only itself.
+fn friend_code_or_none<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error> {
+    Ok(lenient::<_, String>(deserializer)?.filter(|code| is_friend_code(code)))
 }
 
 /// One way to name a player in a look-up.
@@ -361,6 +388,16 @@ pub struct PlayerCard {
     /// The friendship's id (`fr_`), when `relation` is `friend`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub friend: Option<String>,
+    /// The friend code they keep on the account bridge, as their game saved
+    /// it (`CardSave::friend_code`): only from a bridge that lists
+    /// [`CARD_FRIEND_CODE_FEATURE`], and only in a look-up. A code that is
+    /// not one as a bridge writes it reads as none.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "friend_code_or_none"
+    )]
+    pub friend_code: Option<String>,
 }
 
 impl PlayerCard {
@@ -381,6 +418,7 @@ impl PlayerCard {
             style: Style::default(),
             versus: None,
             friend: None,
+            friend_code: None,
         }
     }
 
@@ -431,7 +469,7 @@ impl PlayerCard {
         {
             return Err(Error::InvalidField("friend"));
         }
-        Ok(())
+        check_friend_code(&self.friend_code)
     }
 }
 
@@ -476,11 +514,18 @@ pub struct CardSave {
     pub pins: Vec<String>,
     #[serde(default, skip_serializing_if = "Style::is_empty")]
     pub style: Style,
+    /// The caller's friend code on the account bridge (its
+    /// `FriendsState::code`, `is_friend_code`), for this bridge's players to
+    /// add them by there. Only to a bridge that lists
+    /// [`CARD_FRIEND_CODE_FEATURE`]; a card saved without it shows none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub friend_code: Option<String>,
 }
 
 impl CardSave {
     pub fn check(&self) -> Result<()> {
         self.listing.check()?;
+        check_friend_code(&self.friend_code)?;
         if self.main.is_some_and(|main| main >= MAX_FIGHTERS) {
             return Err(Error::InvalidField("main"));
         }

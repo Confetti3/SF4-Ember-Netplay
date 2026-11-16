@@ -47,7 +47,8 @@ const SEARCHES: Bucket = Bucket {
 /// that more matched.
 const SCAN: usize = 200;
 
-/// `PUT /v1/cards/me`: replaces what the caller's card shows. 204.
+/// `PUT /v1/cards/me`: replaces what the caller's card shows, its friend code
+/// too where cards show codes (`cards::codes_shown`). 204.
 pub async fn save(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -57,6 +58,7 @@ pub async fn save(
     let card: CardSave = body.parse()?;
     card.check()?;
     rooms::check_main(&rooms::game(&state), card.main)?;
+    cards::check_friend_code(&state, &card)?;
     state
         .db
         .write(move |tx| cards::save(tx, &caller.account, &card, caller.now))
@@ -76,6 +78,7 @@ pub async fn search(
     search.check()?;
     let keys = state.keys.clone();
     let friends_offered = friends::offered(&state);
+    let codes_shown = cards::codes_shown(&state);
     let classes = Classes::of(&state, Some(&caller.account));
     let answer = state
         .db
@@ -83,6 +86,7 @@ pub async fn search(
             let viewer = Viewer {
                 caller: caller.account.as_str(),
                 friends_offered,
+                codes_shown,
                 classes: &classes,
                 now: caller.now,
             };
