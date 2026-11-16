@@ -64,7 +64,8 @@ CardWords CardWordsOf(const RoomBoardFrame& f,const TableFloor::Card& card,const
  const float nameWidth=width(w.name,15*s,ImGui::GetFont()),differsWidth=width(w.differs,13*s,ImGui::GetFont());
  in.words=nameWidth+differsWidth+(nameWidth>0&&differsWidth>0?c::Space*s:0);
  in.score=width(w.score,22*s,HeadingFont());
- for(const auto& choice:buttons.choices)in.buttons.push_back(width(choice.label,13*s,ImGui::GetFont())+2*c::Space*s);
+ // A hair over the button's own padding (v2::CardButton keeps Space each side), so a label that fits exactly is not cut by rounding.
+ for(const auto& choice:buttons.choices)in.buttons.push_back(std::ceil(width(choice.label,13*s,ImGui::GetFont()))+2*c::Space*s+2*s);
  return w;
 }
 
