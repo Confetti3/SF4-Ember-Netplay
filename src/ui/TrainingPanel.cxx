@@ -196,7 +196,7 @@ void OfferTrainingValues(std::vector<MenuEntry>& rows) {
     }
 }
 // The reply page and the position page (the dummy's and a reply slot's are the game's own, TrainingExtraPages).
-std::vector<MenuEntry> ToolRows(const std::string& screen) {
+std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& screen) {
     LoadPractice();
     if(screen=="reply") {
         std::vector<MenuEntry> rows{
@@ -504,7 +504,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows.push_back(Row("mirror",loc::T("training.mirror"),loc::T("training.mirror.detail"),ready&&v.mode==Mode::Idle&&v.lengths[v.selected]>0));
   for(std::size_t i=0;i<rows.size();++i){rows[i].wide=i>=SlotCount;rows[i].height=compactSlots?30:0;}
  }else if(screen=="tools"||screen=="reply"){
-  rows=ToolRows(screen);
+  rows=ToolRows(v,screen);
   // The typed reply slots are laid out as the recording slots are.
   if(screen=="reply")for(auto& row:rows){row.wide=row.id.compare(0,11,"reply-slot-")!=0;row.height=compactSlots?30:0;}
  }else if(screen=="frame-data"){
