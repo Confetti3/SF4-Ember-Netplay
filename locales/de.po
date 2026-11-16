@@ -3993,6 +3993,9 @@ msgstr "Zuerst Bereitschaft aufheben, dann den Platz verlassen."
 msgid "room.leave_seat.keep"
 msgstr "Platz behalten."
 
+msgid "room.watching_keeps"
+msgstr "Weiter zuschauen. Die andere Wahl beendet das Spiel, das Sie ansehen."
+
 msgid "room.leave_seat.costs_score"
 msgstr "Beim Verlassen endet die Serie und der Spielstand wird zurückgesetzt ({0})."
 
@@ -4487,6 +4490,9 @@ msgstr "Sie sehen diesem Tisch nicht zu."
 
 msgid "room.reject.seat_taken"
 msgstr "Dieser Platz wurde gerade besetzt. Bitte neu wählen."
+
+msgid "room.reject.table_changed"
+msgstr "Dieser Tisch hat sich geändert. Bitte neu wählen."
 
 msgid "room.reject.invalid_rules"
 msgstr "Diese Tischregeln sind ungültig."

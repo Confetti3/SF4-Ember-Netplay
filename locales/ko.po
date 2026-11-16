@@ -3993,6 +3993,9 @@ msgstr "먼저 준비를 취소한 뒤 자리를 비우세요."
 msgid "room.leave_seat.keep"
 msgstr "자리 유지"
 
+msgid "room.watching_keeps"
+msgstr "계속 관전. 다른 선택은 관전 중인 게임을 종료합니다."
+
 msgid "room.leave_seat.costs_score"
 msgstr "자리를 비우면 세트가 끝나고 점수가 초기화됩니다({0})."
 
@@ -4487,6 +4490,9 @@ msgstr "이 테이블을 관전 중이지 않습니다."
 
 msgid "room.reject.seat_taken"
 msgstr "그 자리는 방금 찼습니다. 다시 선택하세요."
+
+msgid "room.reject.table_changed"
+msgstr "이 테이블이 변경되었습니다. 다시 선택하세요."
 
 msgid "room.reject.invalid_rules"
 msgstr "테이블 규칙이 잘못되었습니다."
