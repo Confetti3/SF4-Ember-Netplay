@@ -128,6 +128,7 @@ void NoteRoute(int route, const char* what) {
 
 // Game ticks a jump has been playing forward; it gives up after twenty seconds.
 int s_seekTicks = 0;
+constexpr int kSeekGiveUp = 1200;
 
 
 struct Cadence : rSystem {
