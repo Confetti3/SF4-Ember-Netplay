@@ -554,9 +554,11 @@ private:
     // Select lights again.
     MenuAction TakeLit(const MenuEntry& e) {
         if(Lit(e.id).empty()) {
-            // A row with a default place takes it at once; any other lights its first.
-            light_={e.id,e.defaultPlace.empty()?e.segments.front().id:e.defaultPlace};
-            if(e.defaultPlace.empty()) return {};
+            // A row with a default place takes it at once, leaving no light behind (the row
+            // may stop offering it); any other lights its first.
+            if(!e.defaultPlace.empty()) return e.enabled?MenuAction{MenuAction::Chosen,e.id,e.defaultPlace}:MenuAction{};
+            light_={e.id,e.segments.front().id};
+            return {};
         }
         const MenuAction lit{MenuAction::Chosen,e.id,light_.segment};
         if(std::none_of(e.segments.begin(),e.segments.end(),[&](const MenuChoice& c){return c.id==light_.segment;})) light_={};

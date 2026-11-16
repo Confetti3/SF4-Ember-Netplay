@@ -1936,12 +1936,17 @@ int main() try {
         }
         focus("table-0"); frame(); press(MenuInput::Down);
         Check(at() == "table-1", "Down from table 1 did not reach table 2 under it");
+        // Table 1 is the local member's own card, whose places are Ready then Leave seat: Right
+        // steps to Leave seat, and past it goes on to the members.
         focus("table-0"); frame(); press(MenuInput::Right);
+        Check(at() == "table-0" && shell.Navigation().Lit("table-0") == "leave-place", "Right from your own card did not step to Leave seat");
+        press(MenuInput::Right);
         Check(RowKey(at(), "member-").has_value(), "Right from a table did not reach the members");
         // ClassicV2CardsMoveAsGrid: with Tables set to Grid, two cards across at this size.
         view.preferences.roomTableGrid = true;
         board(room::RoomType::Classic, 1.f, ImVec2(1280, 960));
-        focus("table-0"); frame(); press(MenuInput::Right);
+        // Table 1 is your own card: Right steps to Leave seat first, then on to the card beside.
+        focus("table-0"); frame(); press(MenuInput::Right); press(MenuInput::Right);
         Check(at() == "table-1", "Right from table 1 did not reach table 2 beside it");
         focus("table-0"); frame(); press(MenuInput::Down);
         Check(at() == "table-2", "Down from table 1 did not reach table 3 under it");
