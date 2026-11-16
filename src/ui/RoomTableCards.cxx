@@ -181,7 +181,7 @@ void DrawSeat(const RoomBoardFrame& f,ImDrawList* d,const v2::Box& box,const v2:
  };
  while(shown>0&&block(shown)>box.H())--shown;
  const float top=box.min.y+(std::max)(0.f,(box.H()-block(shown))*.5f);
- DrawCharacterPortrait(SeatPicture(look,f.art),tile.min,tile.max,v2::color::Alpha(c.frame,0.f),PictureAnchor::Foot);
+ DrawFigure(SeatPicture(look,f.art),tile.min,tile.max);
  if(const auto points=PointsOf(v,m,look.fighter))v2::LevelBand(d,tile,points->points);
  if(marked)d->AddRect(ImVec2(tile.min.x-2*s,tile.min.y-2*s),ImVec2(tile.max.x+2*s,tile.max.y+2*s),ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)),3*s,0,2*s);
  const auto tag=MemberTag(v,m);
