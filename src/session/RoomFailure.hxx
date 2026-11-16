@@ -15,6 +15,7 @@ enum class FailureStage {
 	RelayUnreachable, // this PC's home relay never came online
 	HostUnreachable,  // no connection to the host opened, directly or through a relay
 	ControlLost,      // connected to the host, then the link kept dropping
+	Refused,          // a public host read the ticket and turned it away at the door
 	InviteExpired,    // the invitation is past its lifetime, usually from a room since closed
 	InviteOtherBuild, // the invitation comes from a different package
 	InviteMalformed,  // the pasted text is cut short or is not an invitation
@@ -37,12 +38,13 @@ inline FailureStage FailureStageFromHelper(const std::string& code, const std::s
 	if (reason == "relay_unreachable") return FailureStage::RelayUnreachable;
 	if (reason == "host_unreachable") return FailureStage::HostUnreachable;
 	if (reason == "control_lost") return FailureStage::ControlLost;
+	if (reason == "refused") return FailureStage::Refused;
 	return FailureStage::Unknown;
 }
 
 // The helper's own reason for a failed join or host, when it is one of the
 // labels it defines; empty otherwise. For logs and fixtures: the runtime's
-// wording comes from FailureStage, which leaves `timeout` and `refused` Unknown.
+// wording comes from FailureStage, which leaves `timeout` Unknown.
 inline const char* FailureReasonLabel(const std::string& code, const std::string& reason) {
 	if (code != "join_failed" && code != "host_unavailable") return "";
 	for (const char* label : {"relay_unreachable", "host_unreachable", "timeout", "refused", "control_lost"})
@@ -56,6 +58,7 @@ inline const char* FailureStageLabel(FailureStage stage) {
 	case FailureStage::RelayUnreachable: return "relay_unreachable";
 	case FailureStage::HostUnreachable: return "host_unreachable";
 	case FailureStage::ControlLost: return "control_lost";
+	case FailureStage::Refused: return "refused";
 	case FailureStage::InviteExpired: return "invite_expired";
 	case FailureStage::InviteOtherBuild: return "invite_other_build";
 	case FailureStage::InviteMalformed: return "invite_malformed";

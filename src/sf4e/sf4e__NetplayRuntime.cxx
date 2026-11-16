@@ -614,8 +614,8 @@ static void ObserveCoordination() {
 }
 
 // The room is over for this player: say so, leave, and tear the session down.
-static void EndClosedRoom(const netplay::Snapshot& state) {
-	if (!EndWatchedRoom(netplay::tournament::WatchRoomEnd::Closed)) runtime->error=loc::T("runtime.room_closed");
+static void EndClosedRoom(const netplay::Snapshot& state, const char* text) {
+	if (!EndWatchedRoom(netplay::tournament::WatchRoomEnd::Closed)) runtime->error=loc::T(text);
 	runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
 	CloseRoom();
 }
@@ -672,13 +672,14 @@ static void SettleRoomState(bool helperReady) {
 		(runtime->room->GetState() == session::IrohRoom::State::Failed || runtime->room->GetState() == session::IrohRoom::State::Idle ||
 		 runtime->room->GetState() == session::IrohRoom::State::Degraded)) {
 		// The helper gave up on a server-owned room's host (room_closed after its
-		// grace): nothing replaces that host, so the room is closed.
-		if (runtime->room->ServerOwned() && runtime->room->GetState() == session::IrohRoom::State::Idle) EndClosedRoom(state);
+		// grace): nothing replaces that host, so the room is over for this player.
+		// The helper cannot tell a closed room from a host it lost, so the words say both.
+		if (runtime->room->ServerOwned() && runtime->room->GetState() == session::IrohRoom::State::Idle) EndClosedRoom(state, "runtime.room_unreachable");
 		else Apply(netplay::EventKind::ControlLost, loc::T("runtime.room_connection_lost"));
 	}
 	state = runtime->controller.GetSnapshot();
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
-		UserApp::netplay->client.GetRoomSnapshot().closed) EndClosedRoom(state);
+		UserApp::netplay->client.GetRoomSnapshot().closed) EndClosedRoom(state, "runtime.room_closed");
 	state = runtime->controller.GetSnapshot();
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
 		UserApp::netplay->client.GetRoomSnapshot().roomEpoch &&
@@ -933,7 +934,7 @@ void TickRuntime() {
 	// retirement; the helper's room_closed event still fences a subsequent room.
 	if (runtime->attached && runtime->room &&
 		runtime->room->CloseFailedRoom(Game::Battle::System::ggpo != nullptr)) {
-		runtime->error = loc::T("runtime.room_connection_failed");
+		runtime->error = ui::DescribeRoomConnectionFailure(runtime->room->ServerOwned());
 		runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
 		CloseRoom();
 	}
