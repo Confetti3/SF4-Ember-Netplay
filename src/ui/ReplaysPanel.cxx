@@ -296,7 +296,8 @@ MenuEntry ReplaysPanel::ReplayRow(const ShellView& v,const platform::replays::Ar
  if(v.replayInputs)row.choices.push_back({"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")});
  row.choices.push_back({"keep",loc::T(replay.kept?"replays.unkeep":"replays.keep"),loc::T(replay.kept?"replays.unkeep_detail":"replays.keep_detail")});
  row.choices.push_back({"show-folder",loc::T("replays.show_folder"),loc::T("replays.show_folder_detail"),!v.services.pending});
- for(auto& find:FindChoices(replay.names))row.choices.push_back(std::move(find));
+ // A player's sets are found in the public archive, which only a game whose bridge keeps one has (ShellView::offersArchive).
+ if(v.offersArchive)for(auto& find:FindChoices(replay.names))row.choices.push_back(std::move(find));
  for(auto& card:CardChoices(replay.names))row.choices.push_back(std::move(card));
  // Where nothing plays now, what can be done anyway: its inputs, or else its mark.
  row.chosen=!r.ready?(v.replayInputs?"inputs":"keep"):idle?"watch":v.replayGameList?"add":"keep";
@@ -495,6 +496,7 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
  }
 }
 std::optional<std::string> ReplaysPanel::PlayerToFind(const ShellView& v,const MenuAction& a) const {
+ if(!v.offersArchive)return std::nullopt;
  const auto* shown=a.id.compare(0,7,"replay:")==0?Find(v,a.id.substr(7)):nullptr;
  return shown?FoundName(a.text,shown->names):std::nullopt;
 }

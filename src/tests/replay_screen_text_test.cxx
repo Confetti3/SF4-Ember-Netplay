@@ -76,6 +76,9 @@ int main() {
 			Check(ScoreChangesText(summary).empty(), "A match with no known score listed rounds");
 			summary.scored = true; summary.score[0] = 2; summary.score[1] = 1; summary.firstTo = 2; summary.roundScores = {{1, 0}, {1, 1}};
 			Check(ScoreChangesText(summary) == loc::Tf("rules.set_length.first_to", 2) + " \xC2\xB7 1-0 / 1-1 / 2-1", "A match did not list the score after each round");
+			// Played to a length the game did not say (firstTo 0): the scores alone, never "First to 0".
+			auto unknown = summary; unknown.firstTo = 0; unknown.roundScores.clear();
+			Check(ScoreChangesText(unknown) == "2-1", "A match whose length is not known named a first to");
 			platform::replays::ArchivedReplay first, second, third;
 			first.names[0] = "Alice"; first.names[1] = "Bob"; second.names[0] = "Bob"; second.names[1] = "Alice"; third = first;
 			first.summary = replayinputs::Summary{}; first.summary->scored = true; first.summary->score[0] = 2; first.summary->score[1] = 0;

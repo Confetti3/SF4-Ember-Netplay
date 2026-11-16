@@ -124,10 +124,11 @@ inline std::string ExportStageText(replay::ExportStage stage,std::uint32_t frame
 // "2-1", player 1 first, or nothing when the last round's winner is not known.
 inline std::string ScoreText(const replayinputs::Summary& s){return s.scored?std::to_string(s.score[0])+"-"+std::to_string(s.score[1]):std::string();}
 // How a match went, "First to 2 \xC2\xB7 1-0 / 1-1 / 2-1": what it was played to and the score after each
-// round. Empty when the score is not known.
+// round. Empty when the score is not known; without "First to" when what it was played to is not known
+// (a game's summary that leaves firstTo 0, as SFV's battle of several games in place does).
 inline std::string ScoreChangesText(const replayinputs::Summary& s){
  if(!s.scored)return std::string();
- std::string text=loc::Tf("rules.set_length.first_to",s.firstTo)+" \xC2\xB7 ";
+ std::string text=s.firstTo>0?loc::Tf("rules.set_length.first_to",s.firstTo)+" \xC2\xB7 ":std::string();
  for(const auto& wins:s.roundScores)text+=std::to_string(wins[0])+"-"+std::to_string(wins[1])+" / ";
  return text+std::to_string(s.score[0])+"-"+std::to_string(s.score[1]);
 }

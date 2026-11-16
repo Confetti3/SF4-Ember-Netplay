@@ -192,6 +192,14 @@ void FindJourney() {
  const auto& both=*m.row("replay:C:\\r\\m.emberreplay");
  Check(both.choices.size()==11&&both.choices[7].id=="find-1"&&both.choices[8].id=="find-2"&&both.choices[9].id=="card-1"&&both.choices[10].id=="card-2"&&both.choices[7].label==loc::Tf("archive.find","Player 1")&&both.choices[9].label==loc::Tf("profile.card_of","Player 1"),"A match's row does not offer each player's sets and card");
  Check(Choices(*m.row("replay:C:\\r\\n.emberreplay")).back()=="card-1"&&m.row("replay:C:\\r\\n.emberreplay")->choices.size()==9,"A match with one named player does not offer that player's sets and card alone");
+ {
+  // A game whose bridge keeps no archive (SFV): no Find sets on a match's row, the cards still.
+  Journey none;none.h.view.replays.ready=true;none.h.view.offersArchive=false;
+  none.h.view.replays.archive=m.h.view.replays.archive;
+  none.h.Screen("replays");
+  const auto& row=*none.row("replay:C:\\r\\m.emberreplay");
+  Check(row.choices.size()==9&&!ChoiceOf(row,"find-1")&&!ChoiceOf(row,"find-2")&&ChoiceOf(row,"card-1")&&ChoiceOf(row,"card-2"),"A game without the archive offered to find a player's sets");
+ }
  PickChoice(m,"replay:C:\\r\\m.emberreplay",8);
  Check(m.h.shell.Navigation().Screen()=="replay-archive","Find this player's sets on a match did not open the Archive tab");
  m.answerIdentityUntilIdle();m.h.Frame(0,2);
