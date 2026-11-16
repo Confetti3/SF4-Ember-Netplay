@@ -303,6 +303,15 @@ msgstr "Operace selhala. Zkuste to znovu. Záložní kopie aktualizace jsou v .e
 msgid "services.operation_cancelled"
 msgstr "Operace zrušena."
 
+msgid "services.opening_link"
+msgstr "Ve vašem prohlížeči se otevírá {0}..."
+
+msgid "services.link_opened"
+msgstr "Otevřeno v prohlížeči. Přepněte na něj."
+
+msgid "services.link_failed"
+msgstr "Prohlížeč se nepodařilo otevřít. Navštivte {0}."
+
 msgid "services.opening_steam_profile"
 msgstr "Profil na Steamu se otevírá v prohlížeči..."
 
@@ -515,6 +524,9 @@ msgstr "Nápověda"
 
 msgid "screen.discord"
 msgstr "Discord"
+
+msgid "screen.room_invitation"
+msgstr "Pozvánka do místnosti"
 
 msgid "screen.assignment"
 msgstr "Přiřadit ovladač"
@@ -1632,6 +1644,15 @@ msgstr "Tato pozvánka už skončila."
 msgid "friends.nothing_to_offer"
 msgstr "Vaši místnost teď nelze nabídnout."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "Vstup je v této místnosti nastaven na Uzamčeno. Pro pozvání přátel ho v Nastavení místnosti změňte na Otevřeno."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "Vstup je v této místnosti nastaven na Uzamčeno."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Tato místnost je plná."
+
 msgid "friends.busy"
 msgstr "Počkejte, až skončí předchozí požadavek."
 
@@ -2213,6 +2234,24 @@ msgstr "Připojit se k Discord Ember"
 
 msgid "about.discord_detail"
 msgstr "Hráči, zápasy a podpora na {0}. Otevře se v prohlížeči za hrou."
+
+msgid "about.kofi"
+msgstr "Podpořte Ember na Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Podpořte vývoj Ember na {0}. Otevře se v prohlížeči za hrou."
+
+msgid "about.website"
+msgstr "Web Ember"
+
+msgid "about.website_detail"
+msgstr "Místnosti, žebříčky a záznamy na {0}. Otevře se v prohlížeči za hrou."
+
+msgid "about.twitter"
+msgstr "Twitter vývojáře"
+
+msgid "about.twitter_detail"
+msgstr "Novinky od vývojáře Ember na {0}. Otevře se v prohlížeči za hrou."
 
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
@@ -3654,6 +3693,12 @@ msgstr "Kopírovat krátký odkaz"
 msgid "room.copy_short_invitation.detail"
 msgstr "Krátký odkaz do chatu. Drží ho odkazová služba Ember, dokud je místnost otevřená."
 
+msgid "room.invite.detail"
+msgstr "Pozvěte přítele, nebo zkopírujte odkaz či pozvánku ke sdílení."
+
+msgid "room.invite.more_friends"
+msgstr "Další přátelé…"
+
 msgid "room.leaving"
 msgstr "Odcházení..."
 
@@ -3737,6 +3782,9 @@ msgstr "Otevřeno z odkazu na místnost. Zkontrolujte ho a zvolte Připojit se."
 
 msgid "room.link_waiting"
 msgstr "Byl otevřen odkaz na místnost. Až opustíte tuto místnost, najdete ho na obrazovce připojení."
+
+msgid "room.replacement_invite"
+msgstr "Otevírá se náhradní místnost. Zvolte Pozvat, potom Kopírovat pozvánku a pošlete novou pozvánku. Stará už nefunguje."
 
 msgid "room.action_rejected"
 msgstr "Místnost se změnila nebo akci odmítla. Zkontrolujte aktuální stav a zkuste to znovu."
@@ -4331,6 +4379,9 @@ msgstr "Profil na Steamu se nepodařilo otevřít."
 
 msgid "discord.invitation_expired"
 msgstr "Pozvánka Discord vypršela. Požádejte o novou."
+
+msgid "room.invitation_expired"
+msgstr "Pozvánka vypršela. Požádejte o novou."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "Akci diváka se nepodařilo odeslat; zkouší se znovu."
@@ -7500,6 +7551,15 @@ msgstr "Vlastní zpoždění"
 msgid "room.table_footer_wired_only"
 msgstr "Jen kabel"
 
+msgid "room.table_rules_line"
+msgstr "Kola: {0} / {1} s"
+
+msgid "room.table_queue"
+msgstr "Fronta: {0}"
+
+msgid "room.table_watching"
+msgstr "Sleduje: {0}"
+
 msgid "room.input_delay.own"
 msgstr "Vaše zpoždění: {0}"
 
@@ -8649,6 +8709,9 @@ msgstr "EMBER · ONLINE · VEŘEJNÁ MÍSTNOST"
 
 msgid "room.v2.invitation_only"
 msgstr "Jen na pozvánku"
+
+msgid "room.v2.friends_can_join"
+msgstr "Otevřeno přátelům"
 
 msgid "room.v2.listed"
 msgstr "Uvedeno ve Veřejných místnostech"

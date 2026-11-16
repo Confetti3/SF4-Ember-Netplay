@@ -303,6 +303,15 @@ msgstr "De bewerking is mislukt. Probeer het opnieuw. Herstelkopieën van update
 msgid "services.operation_cancelled"
 msgstr "Bewerking geannuleerd."
 
+msgid "services.opening_link"
+msgstr "{0} openen in je browser..."
+
+msgid "services.link_opened"
+msgstr "Geopend in je browser. Ga erheen."
+
+msgid "services.link_failed"
+msgstr "Kon geen browser openen. Ga naar {0}."
+
 msgid "services.opening_steam_profile"
 msgstr "Steam-profiel openen in je browser..."
 
@@ -515,6 +524,9 @@ msgstr "Hulp en info"
 
 msgid "screen.discord"
 msgstr "Discord"
+
+msgid "screen.room_invitation"
+msgstr "Kameruitnodiging"
 
 msgid "screen.assignment"
 msgstr "Controller toewijzen"
@@ -1632,6 +1644,15 @@ msgstr "Die uitnodiging is verlopen."
 msgid "friends.nothing_to_offer"
 msgstr "Je kamer kan nu niet worden aangeboden."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "Toegang is Vergrendeld in deze kamer. Zet het op Open in Kamerinstellingen om vrienden uit te nodigen."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "Toegang is Vergrendeld in deze kamer."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Deze kamer is vol."
+
 msgid "friends.busy"
 msgstr "Wacht tot het laatste verzoek klaar is."
 
@@ -2213,6 +2234,24 @@ msgstr "Lid worden van Ember Discord"
 
 msgid "about.discord_detail"
 msgstr "Spelers, matches en hulp op {0}. Opent in je browser achter het spel."
+
+msgid "about.kofi"
+msgstr "Steun Ember op Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Steun de ontwikkeling van Ember op {0}. Opent in je browser achter het spel."
+
+msgid "about.website"
+msgstr "Ember-website"
+
+msgid "about.website_detail"
+msgstr "Kamers, ranglijsten en replays op {0}. Opent in je browser achter het spel."
+
+msgid "about.twitter"
+msgstr "Ontwikkelaar op Twitter"
+
+msgid "about.twitter_detail"
+msgstr "Nieuws van de ontwikkelaar van Ember op {0}. Opent in je browser achter het spel."
 
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
@@ -3654,6 +3693,12 @@ msgstr "Korte link kopiëren"
 msgid "room.copy_short_invitation.detail"
 msgstr "Een korte link voor de chat. De Ember-linkdienst bewaart hem zolang de kamer open is."
 
+msgid "room.invite.detail"
+msgstr "Nodig een vriend uit, of kopieer een link of uitnodiging om te delen."
+
+msgid "room.invite.more_friends"
+msgstr "Meer vrienden…"
+
 msgid "room.leaving"
 msgstr "Kamer verlaten..."
 
@@ -3737,6 +3782,9 @@ msgstr "Geopend via een kamerlink. Controleer hem en kies dan Kamer betreden."
 
 msgid "room.link_waiting"
 msgstr "Er is een kamerlink geopend. Zodra je deze kamer verlaat, staat hij klaar op het scherm om mee te doen."
+
+msgid "room.replacement_invite"
+msgstr "Nieuwe kamer wordt geopend. Kies Uitnodigen, dan Uitnodiging kopiëren, en stuur de nieuwe uitnodiging. De oude werkt niet meer."
 
 msgid "room.action_rejected"
 msgstr "De kamer is veranderd of heeft deze actie geweigerd. Bekijk de huidige status en probeer opnieuw."
@@ -4331,6 +4379,9 @@ msgstr "Kon het Steam-profiel niet openen."
 
 msgid "discord.invitation_expired"
 msgstr "De Discord-uitnodiging is verlopen. Vraag om een nieuwe."
+
+msgid "room.invitation_expired"
+msgstr "De uitnodiging is verlopen. Vraag om een nieuwe."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "Toeschouwersactie niet verzonden; nieuwe poging."
@@ -7500,6 +7551,15 @@ msgstr "Eigen vertraging"
 msgid "room.table_footer_wired_only"
 msgstr "Alleen kabel"
 
+msgid "room.table_rules_line"
+msgstr "{0} rondes / {1} sec"
+
+msgid "room.table_queue"
+msgstr "Wachtrij {0}"
+
+msgid "room.table_watching"
+msgstr "{0} kijkers"
+
 msgid "room.input_delay.own"
 msgstr "Jouw vertraging: {0}"
 
@@ -8649,6 +8709,9 @@ msgstr "EMBER · ONLINE · OPENBARE KAMER"
 
 msgid "room.v2.invitation_only"
 msgstr "Alleen op uitnodiging"
+
+msgid "room.v2.friends_can_join"
+msgstr "Open voor vrienden"
 
 msgid "room.v2.listed"
 msgstr "Staat in Openbare kamers"

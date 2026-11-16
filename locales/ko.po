@@ -303,6 +303,15 @@ msgstr "작업에 실패했습니다. 다시 시도하세요. 업데이트 복�
 msgid "services.operation_cancelled"
 msgstr "작업을 취소했습니다."
 
+msgid "services.opening_link"
+msgstr "{0} 주소를 브라우저에서 여는 중..."
+
+msgid "services.link_opened"
+msgstr "브라우저에서 열었습니다. 브라우저로 전환하세요."
+
+msgid "services.link_failed"
+msgstr "브라우저를 열지 못했습니다. {0}에 접속하세요."
+
 msgid "services.opening_steam_profile"
 msgstr "브라우저에서 Steam 프로필을 여는 중..."
 
@@ -515,6 +524,9 @@ msgstr "도움말 및 정보"
 
 msgid "screen.discord"
 msgstr "Discord"
+
+msgid "screen.room_invitation"
+msgstr "방 초대"
 
 msgid "screen.assignment"
 msgstr "컨트롤러 지정"
@@ -1632,6 +1644,15 @@ msgstr "그 초대는 종료되었습니다."
 msgid "friends.nothing_to_offer"
 msgstr "지금은 내 방을 제안할 수 없습니다."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "이 방의 참가 허용이 잠김입니다. 친구를 초대하려면 방 설정에서 열림으로 바꾸세요."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "이 방의 참가 허용이 잠김입니다."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "이 방은 가득 찼습니다."
+
 msgid "friends.busy"
 msgstr "이전 요청이 끝날 때까지 기다리세요."
 
@@ -2213,6 +2234,24 @@ msgstr "Ember Discord 참가"
 
 msgid "about.discord_detail"
 msgstr "플레이어, 대전 및 지원: {0}. 게임 뒤에서 브라우저로 엽니다."
+
+msgid "about.kofi"
+msgstr "Ko-fi에서 Ember 후원"
+
+msgid "about.kofi_detail"
+msgstr "Ember 개발 후원: {0}. 게임 뒤에서 브라우저로 엽니다."
+
+msgid "about.website"
+msgstr "Ember 웹사이트"
+
+msgid "about.website_detail"
+msgstr "방, 랭킹, 리플레이: {0}. 게임 뒤에서 브라우저로 엽니다."
+
+msgid "about.twitter"
+msgstr "개발자 Twitter"
+
+msgid "about.twitter_detail"
+msgstr "Ember 개발자 소식: {0}. 게임 뒤에서 브라우저로 엽니다."
 
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
@@ -3654,6 +3693,12 @@ msgstr "짧은 링크 복사"
 msgid "room.copy_short_invitation.detail"
 msgstr "채팅용 짧은 링크입니다. 방이 열려 있는 동안 Ember 링크 서비스가 보관합니다."
 
+msgid "room.invite.detail"
+msgstr "친구를 초대하거나 링크나 초대를 복사해 공유하세요."
+
+msgid "room.invite.more_friends"
+msgstr "친구 더 보기…"
+
 msgid "room.leaving"
 msgstr "방 나가는 중..."
 
@@ -3737,6 +3782,9 @@ msgstr "방 링크로 열었습니다. 확인한 다음 방 참가를 선택하�
 
 msgid "room.link_waiting"
 msgstr "방 링크가 열렸습니다. 이 방을 나가면 참가 화면에 표시됩니다."
+
+msgid "room.replacement_invite"
+msgstr "새 방을 여는 중입니다. 초대, 초대 복사를 차례로 선택해 새 초대를 보내세요. 이전 초대는 더 이상 사용할 수 없습니다."
 
 msgid "room.action_rejected"
 msgstr "방이 변경되었거나 작업을 거부했습니다. 현재 상태를 확인하고 다시 시도하세요."
@@ -4331,6 +4379,9 @@ msgstr "Steam 프로필을 열지 못했습니다."
 
 msgid "discord.invitation_expired"
 msgstr "Discord 초대가 만료되었습니다. 새 초대를 요청하세요."
+
+msgid "room.invitation_expired"
+msgstr "초대가 만료되었습니다. 새 초대를 요청하세요."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "관전 작업을 보내지 못해 다시 시도합니다."
@@ -7500,6 +7551,15 @@ msgstr "각자 지연"
 msgid "room.table_footer_wired_only"
 msgstr "유선만"
 
+msgid "room.table_rules_line"
+msgstr "{0}라운드 / {1}초"
+
+msgid "room.table_queue"
+msgstr "대기 {0}"
+
+msgid "room.table_watching"
+msgstr "관전 {0}"
+
 msgid "room.input_delay.own"
 msgstr "내 지연: {0}"
 
@@ -8649,6 +8709,9 @@ msgstr "EMBER · 온라인 · 공개 방"
 
 msgid "room.v2.invitation_only"
 msgstr "초대 전용"
+
+msgid "room.v2.friends_can_join"
+msgstr "친구 참가 가능"
 
 msgid "room.v2.listed"
 msgstr "공개 방에 표시됨"

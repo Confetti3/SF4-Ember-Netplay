@@ -303,6 +303,15 @@ msgstr "操作に失敗しました。再試行してください。復旧用の
 msgid "services.operation_cancelled"
 msgstr "操作をキャンセルしました。"
 
+msgid "services.opening_link"
+msgstr "ブラウザーで{0}を開いています..."
+
+msgid "services.link_opened"
+msgstr "ブラウザーで開きました。切り替えてください。"
+
+msgid "services.link_failed"
+msgstr "ブラウザーを開けませんでした。{0}にアクセスしてください。"
+
 msgid "services.opening_steam_profile"
 msgstr "ブラウザーでSteamプロフィールを開いています..."
 
@@ -515,6 +524,9 @@ msgstr "ヘルプ・情報"
 
 msgid "screen.discord"
 msgstr "Discord"
+
+msgid "screen.room_invitation"
+msgstr "ルームの招待"
 
 msgid "screen.assignment"
 msgstr "コントローラーの割り当て"
@@ -1632,6 +1644,15 @@ msgstr "その招待は終了しました。"
 msgid "friends.nothing_to_offer"
 msgstr "今はあなたのルームを案内できません。"
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "このルームの「参加制限」は「ロック中」です。フレンドを招待するには「ルーム設定」で「公開」にしてください。"
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "このルームの「参加制限」は「ロック中」です。"
+
+msgid "friends.nothing_to_offer.full"
+msgstr "このルームは満員です。"
+
 msgid "friends.busy"
 msgstr "前のリクエストが終わるまでお待ちください。"
 
@@ -2213,6 +2234,24 @@ msgstr "EmberのDiscordに参加"
 
 msgid "about.discord_detail"
 msgstr "プレイヤー、対戦、サポート：{0}。ゲームの背後でブラウザーを開きます。"
+
+msgid "about.kofi"
+msgstr "Ko-fiでEmberを応援"
+
+msgid "about.kofi_detail"
+msgstr "Emberの開発を応援：{0}。ゲームの背後でブラウザーを開きます。"
+
+msgid "about.website"
+msgstr "Emberのウェブサイト"
+
+msgid "about.website_detail"
+msgstr "ルーム、ランキング、リプレイ：{0}。ゲームの背後でブラウザーを開きます。"
+
+msgid "about.twitter"
+msgstr "開発者のTwitter"
+
+msgid "about.twitter_detail"
+msgstr "Ember開発者の最新情報：{0}。ゲームの背後でブラウザーを開きます。"
 
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
@@ -3654,6 +3693,12 @@ msgstr "短縮リンクをコピー"
 msgid "room.copy_short_invitation.detail"
 msgstr "チャット用の短いリンクです。ルームが開いている間、Emberのリンクサービスが保持します。"
 
+msgid "room.invite.detail"
+msgstr "フレンドを招待するか、リンクや招待をコピーして共有します。"
+
+msgid "room.invite.more_friends"
+msgstr "ほかのフレンド…"
+
 msgid "room.leaving"
 msgstr "ルームから退出中..."
 
@@ -3737,6 +3782,9 @@ msgstr "ルームのリンクから開きました。内容を確認してから
 
 msgid "room.link_waiting"
 msgstr "ルームのリンクが開かれました。このルームから退出すると参加画面に表示されます。"
+
+msgid "room.replacement_invite"
+msgstr "代わりのルームを開設中です。「招待」、「招待をコピー」の順に選び、新しい招待を送ってください。古い招待は使えません。"
 
 msgid "room.action_rejected"
 msgstr "ルームの状態が変わったか、操作が拒否されました。現在の状態を確認して再試行してください。"
@@ -4331,6 +4379,9 @@ msgstr "Steamプロフィールを開けませんでした。"
 
 msgid "discord.invitation_expired"
 msgstr "Discordの招待は期限切れです。新しい招待を依頼してください。"
+
+msgid "room.invitation_expired"
+msgstr "招待は期限切れです。新しい招待を依頼してください。"
 
 msgid "runtime.spectator_action_retrying"
 msgstr "観戦の操作を送信できませんでした。再試行中です。"
@@ -7500,6 +7551,15 @@ msgstr "各自の遅延"
 msgid "room.table_footer_wired_only"
 msgstr "有線のみ"
 
+msgid "room.table_rules_line"
+msgstr "{0}ラウンド / {1}秒"
+
+msgid "room.table_queue"
+msgstr "順番待ち{0}"
+
+msgid "room.table_watching"
+msgstr "観戦{0}"
+
 msgid "room.input_delay.own"
 msgstr "あなたの遅延：{0}"
 
@@ -8649,6 +8709,9 @@ msgstr "EMBER · オンライン · 公開ルーム"
 
 msgid "room.v2.invitation_only"
 msgstr "招待のみ"
+
+msgid "room.v2.friends_can_join"
+msgstr "フレンドも参加可"
 
 msgid "room.v2.listed"
 msgstr "公開ルームに掲載"
