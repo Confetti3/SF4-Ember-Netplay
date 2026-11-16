@@ -27,13 +27,13 @@ namespace {
 // This thread leaves that apartment right after the call, so the call must
 // finish its work first: without SEE_MASK_NOASYNC the shell may go on in helper
 // threads of shell extension DLLs, and CoUninitialize can unload those DLLs
-// under them.
+// under them. The callers show their own failure text, so the shell shows none.
 bool ShellOpen(const wchar_t* target) {
     if (!target || !target[0]) return false;
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     SHELLEXECUTEINFOW request = {};
     request.cbSize = sizeof(request);
-    request.fMask = SEE_MASK_NOASYNC;
+    request.fMask = SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
     request.lpVerb = L"open";
     request.lpFile = target;
     request.nShow = SW_SHOWNORMAL;
