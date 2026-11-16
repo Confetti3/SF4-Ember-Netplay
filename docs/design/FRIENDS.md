@@ -499,7 +499,9 @@ case, spaces or dash, `O` read as 0 and `I`, `L` as 1.
     A room that cannot be offered says why in `OfferOf`'s typed reason (Admission Locked, Full, else none named); a Hidden
     room can be offered, since an invite is how its friends join it. The room's action bar has one Invite button for it
     (`src/ui/RoomInvite.hxx`): the friends the Friends screen would invite (`netplay/FriendInvitees.hxx`), at most six,
-    Friends (More friends once some are listed), then Copy short link and Copy invitation.
+    Friends (More friends once some are listed), then Copy short link and Copy invitation. A public room's bar has the
+    same button (`room_invite::OnBar`): its friends, invited by the room's id, then Copy room link, its page's, which
+    More… lists too; never an invitation, which would admit nobody. A match's room has none.
     A friend's private-room invite and the player's own Join on a friend's room are kept as their own origin
     (`discord::InviteOrigin`): neither is announced as Discord's, and each opens its question directly when it must ask
     before leaving a room or a game.
