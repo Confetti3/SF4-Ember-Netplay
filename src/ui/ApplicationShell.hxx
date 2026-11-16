@@ -519,7 +519,8 @@ private:
     // (plain Back) otherwise.
     const char* PlaceExitLabel(const ShellView& view) const;
     void OpenTableOptions(const ShellView& view, int table);
-    void ToggleReady(const ShellView& view, const Submit& submit);
+    // Ready, Unready or Rematch for this PC's seat, or the reason it cannot; whether a request was sent.
+    bool ToggleReady(const ShellView& view, const Submit& submit);
     // Sends a step of the pick's Ultra or color, which the overlay applies
     // (SelectionStep): the room's rows and the post-match prompt.
     static void StepPick(SelectionStep step, const Submit& submit);
@@ -614,8 +615,8 @@ private:
     std::string roomAreaFocus_[static_cast<int>(BoardArea::Count)];
     std::uint64_t roomFocusGeneration_ = 0, roomFocusEpoch_ = 0;
     // Whether the room's action bar followed the tables in their scroll last
-    // frame, the tables' size and their cards' whole height: a change shows
-    // the focused row again.
+    // frame, the tables' size and their cards' whole height at their least
+    // (what they hold): a change shows the focused row again.
     struct RoomTablesShape {
         bool follows = false;
         float width = 0, height = 0, cards = 0;

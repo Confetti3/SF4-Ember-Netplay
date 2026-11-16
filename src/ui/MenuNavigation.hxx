@@ -111,6 +111,10 @@ struct MenuEntry {
     // carries an id, its words and whether it can be taken now.
     std::vector<MenuChoice> segments;
     SegmentKind segmentKind = SegmentKind::Value;
+    // On a row of places: the place a direction arriving on the row lights
+    // (not the one nearest its side), the one Left and Right step from and the
+    // one Select takes while none is lit (your own seat's Ready). Empty: none.
+    std::string defaultPlace;
     // The heading this row sits under; a new one starts a group of cards.
     std::string group;
     // A match's row (a replay): each side's fighter as a small native
@@ -457,6 +461,15 @@ public:
         if (entry == entries.end() || !entry->enabled || !entry->choices[index].enabled) return {};
         MenuAction a{MenuAction::Chosen, modalId_, choiceIds_[index]}; Cancel(); return a;
     }
+    // A pane's button takes a choice of the row it stands beside, with no
+    // chooser opened: the Chosen action Pick gives, handed out by the next
+    // Update. Nothing is taken while a question is open or for a choice the
+    // row does not offer enabled.
+    bool Press(const std::string& id,const std::string& choice,const std::vector<MenuEntry>& entries) {
+        Reconcile(entries);
+        if (mode_ != Modal::None || !Offers(id,choice,entries)) return false;
+        pressed_={MenuAction::Chosen,id,choice}; return true;
+    }
     MenuAction AcceptText(const std::vector<MenuEntry>& entries) {
         Reconcile(entries); if(!Editing()) return {};
         auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==modalId_;});
@@ -465,6 +478,11 @@ public:
     }
     MenuAction Update(MenuInput in,const std::vector<MenuEntry>& entries,int columns=1,bool deferBack=false,bool deferText=false) {
         Reconcile(entries);
+        if (pressed_.kind != MenuAction::None) {
+            // The pane's press stands only while its row still offers the choice.
+            const MenuAction taken = std::exchange(pressed_, MenuAction{});
+            if (Offers(taken.id,taken.text,entries)) return taken;
+        }
         columns = (std::max)(1, columns);
         unsigned held=0, pressed=0;
         if(!Read(in.held,held,pressed)) return {};
@@ -515,12 +533,18 @@ public:
         const auto& s=states_[Screen()];
         if(s.id!=from) {
             const auto& e=entries[s.index];
-            light_=IsPlaces(e)?LitSegment{e.id,(stepped&MenuInput::Left?e.segments.back():e.segments.front()).id}:LitSegment{};
+            light_=IsPlaces(e)?LitSegment{e.id,ArrivalPlace(e,(stepped&MenuInput::Left)!=0)}:LitSegment{};
         }
         return moved;
     }
 private:
     static const std::string& NoId() { static const std::string none; return none; }
+    // Row `id` is there and enabled, and offers `choice` enabled.
+    static bool Offers(const std::string& id,const std::string& choice,const std::vector<MenuEntry>& entries) {
+        const auto entry = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == id; });
+        if (entry == entries.end() || !entry->enabled) return false;
+        return std::any_of(entry->choices.begin(), entry->choices.end(), [&](const MenuChoice& c) { return c.id == choice && c.enabled; });
+    }
     static bool IsPlaces(const MenuEntry& e) { return e.segmentKind==SegmentKind::Places&&!e.segments.empty(); }
     // Select on a row of places: the lit place as Chosen with its id, for the
     // screen to send or to refuse with its reason (one it cannot take now);
@@ -529,7 +553,13 @@ private:
     // rather than take what is offered now, and the light goes out: the next
     // Select lights again.
     MenuAction TakeLit(const MenuEntry& e) {
-        if(Lit(e.id).empty()) { light_={e.id,e.segments.front().id}; return {}; }
+        if(Lit(e.id).empty()) {
+            // A row with a default place takes it at once, leaving no light behind (the row
+            // may stop offering it); any other lights its first.
+            if(!e.defaultPlace.empty()) return e.enabled?MenuAction{MenuAction::Chosen,e.id,e.defaultPlace}:MenuAction{};
+            light_={e.id,e.segments.front().id};
+            return {};
+        }
         const MenuAction lit{MenuAction::Chosen,e.id,light_.segment};
         if(std::none_of(e.segments.begin(),e.segments.end(),[&](const MenuChoice& c){return c.id==light_.segment;})) light_={};
         return e.enabled?lit:MenuAction{};
@@ -541,7 +571,17 @@ private:
         if(light_.row.empty()) return;
         const auto row=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==light_.row;});
         if(light_.row!=Focus()||row==entries.end()||!IsPlaces(*row)) light_={};
+        // A row with a default place never keeps a light on a place it no longer
+        // has (your seat taken is your own card now): Select takes its default.
+        else if(!row->defaultPlace.empty()&&std::none_of(row->segments.begin(),row->segments.end(),[&](const MenuChoice& c){return c.id==light_.segment;})) light_={};
     }
+    // The place a direction arriving on a row of places lights: its default, else
+    // the nearest its side (the last coming leftwards, the first otherwise).
+    static const std::string& ArrivalPlace(const MenuEntry& e,bool leftwards) {
+        return e.defaultPlace.empty()?(leftwards?e.segments.back():e.segments.front()).id:e.defaultPlace;
+    }
+    // The place Left and Right step from: the lit one, else the default.
+    const std::string& Standing(const MenuEntry& e) const { return Lit(e.id).empty()?e.defaultPlace:Lit(e.id); }
     // What a direction does from the focused row: its explicit neighbour, the
     // aside's own moves, a value row's Adjust, a row of places' light, else a
     // move by where the rows were drawn or by their order.
@@ -563,7 +603,7 @@ private:
         // A row of places: Left and Right light its places in turn (with none
         // lit, the one at that end); past either end they move on below.
         if(delta&&IsPlaces(e)) {
-            const auto lit=std::find_if(e.segments.begin(),e.segments.end(),[&](const MenuChoice& c){return c.id==Lit(e.id);});
+            const auto lit=std::find_if(e.segments.begin(),e.segments.end(),[&](const MenuChoice& c){return c.id==Standing(e);});
             const int at=lit==e.segments.end()?(delta>0?-1:static_cast<int>(e.segments.size())):static_cast<int>(lit-e.segments.begin());
             if(at+delta>=0&&at+delta<static_cast<int>(e.segments.size())) { light_={e.id,e.segments[static_cast<std::size_t>(at+delta)].id}; return {}; }
         }
@@ -727,6 +767,8 @@ private:
     // ids as they were when a choice opened; draft_ is an editor's text.
     Modal mode_=Modal::None;
     std::string modalId_,draft_;
+    // What a pane's button pressed, for the next Update (Press).
+    MenuAction pressed_;
     std::vector<std::string> choiceIds_;
     bool confirmSelected_=false, editAccept_=true, secret_=false;
     PressGate gate_{true};

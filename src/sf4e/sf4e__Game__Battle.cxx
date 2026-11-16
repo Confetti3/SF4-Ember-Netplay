@@ -12,6 +12,7 @@
 #include "../common/SoundReconcile.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 
+#include "sf4e__BattleLoad.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__Chara.hxx"
 #include "sf4e__Game__Battle__Effect.hxx"
@@ -134,6 +135,7 @@ void fJobManager::Install() {
 // job list runs in queue order on the game thread.
 BOOL fJobManager::Start(int workers, int jobs, int jobSize) {
 	spdlog::info("Battle jobs: running on the game thread (engine asked for {} workers)", workers);
+	sf4e::battleload::Started();
 	return (this->*rJobManager::publicMethods.Start)(0, jobs, jobSize);
 }
 

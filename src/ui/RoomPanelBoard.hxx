@@ -77,8 +77,9 @@ struct TableFloor {
     TableCardPlaces places;
 };
 // The floor of the board's table rows `width` wide, `gridColumns` across with
-// the Grid: shaped beside the scroll's bar where its cards and `after` (the
-// action bar following them in the scroll) do not fit in `height`.
+// the Grid, its cards filling `height` less `after` (the action bar following
+// them in the scroll) by the fill rule (PlaceTableCards): shaped beside the
+// scroll's bar where even at their least they do not fit it.
 TableFloor ShapeFloor(const RoomBoardFrame& f, const room_controls::PlaceExit& place, float width, float height, float after, int gridColumns, bool grid);
 // What follows the cards in their scroll: draws it `width` wide at `at` and
 // returns its height. Empty for nothing.

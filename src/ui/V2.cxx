@@ -847,13 +847,17 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
 float TagWidth(const TagView& tag, TagSize size) {
     const float s = Scale(), gap = 8 * s;
     const float font = size == TagSize::XS ? ImGui::GetFontSize() * .85f : ImGui::GetFontSize();
-    // As Tag lays the line out: the ping with its route above XS.
+    // As Tag lays the line out: M's name in the heading font at 22 px, its title and status on a second line.
+    const float nameSize = size == TagSize::M ? 22 * s : font;
+    ImFont* nameFont = size == TagSize::M ? HeadingFont() : ImGui::GetFont();
+    const bool twoLines = size == TagSize::M && !(tag.title.empty() && tag.status.empty());
+    // The ping with its route above XS.
     const std::string& ping = size != TagSize::XS && !tag.ping.routed.empty() ? tag.ping.routed : tag.ping.text;
     // Rounded up to a whole pixel: Tag takes the other parts from the width in
     // its own order, and the float error must not leave the name a hair short
     // of its measure, which would cut it ("FRac...").
-    return std::ceil(NameMarksWidth(tag.marks, font) + TextWidth(tag.name, font, ImGui::GetFont()) + (tag.title.empty() ? 0 : gap + TextWidth(tag.title, font)) +
-        (tag.status.empty() ? 0 : gap + ChipWidth(tag.status)) + (ping.empty() ? 0 : gap + ChipWidth(ping)) +
-        (tag.link ? gap + LinkGlyph() : 0));
+    return std::ceil(NameMarksWidth(tag.marks, nameSize) + TextWidth(tag.name, nameSize, nameFont) +
+        (tag.title.empty() || twoLines ? 0 : gap + TextWidth(tag.title, font)) + (tag.status.empty() || twoLines ? 0 : gap + ChipWidth(tag.status)) +
+        (ping.empty() ? 0 : gap + ChipWidth(ping)) + (tag.link ? gap + LinkGlyph() : 0));
 }
 } } }

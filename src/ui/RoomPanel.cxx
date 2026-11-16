@@ -170,18 +170,31 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
   rows.back().value=SetScoreText(table.score);rows.back().hint=loc::T("room.table_options");rows.back().userText=true;
  }
 }
+// A card's places, which the navigation lights in turn: speech says the lit
+// one as the row's value, and the hint bar names what A does: `idle` while
+// none is lit, the lit one's label, nothing while the room refuses it.
+void OfferPlaces(MenuEntry& row,std::vector<MenuChoice> places,const MenuNavigation& nav,std::string idle){
+ const auto lit=std::find_if(places.begin(),places.end(),[&](const MenuChoice& o){return o.id==nav.Lit(row.id);});
+ if(lit==places.end())row.hint=std::move(idle);
+ else{row.value=lit->label;row.hint=lit->enabled?lit->label:std::string();}
+ row.adjustHint=loc::T("menu.choose");
+ row.segments=std::move(places);row.segmentKind=SegmentKind::Places;
+}
 // A Classic room's floor: a card per table in play. A member with no place
 // is offered the table's open seats, else its queue, and watching it
 // (SeatChoices), as places on the card the navigation lights in turn: A sends
 // the lit one (RoomAction), one that would end the game this PC watches asked
-// about first on the card (`ask`) while it still would. On your own seat A
-// readies, leaving it asked about the same way; on the table you queue at, A
-// opens its options. Each row's detail ends with the rules its table plays
-// by, which speech reads.
+// about first on the card (`ask`) while it still would. On your own seat the
+// places are Ready, Leave seat and Table options (OwnPlaceChoices), Ready the
+// one A takes until another is lit, leaving asked about the same way; on the
+// table you queue at, A opens its options (the strip's Leave queue and Table
+// options are the pointer's). Each row's detail ends with the rules its
+// table plays by, which speech reads.
 void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,const MenuNavigation& nav,const TableAsk& ask){
  using room::Place;
  const auto& s=v.room;
  const auto mine=room::PlaceOf(s,s.localMember);
+ const auto exit=ExitFromPlace(v);
  const auto* local=Member(s,s.localMember);
  for(std::size_t i=0;i<room::TablesInPlay(s);++i){
   const auto& table=s.tables[i];
@@ -192,24 +205,24 @@ void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,const MenuNav
   auto& row=rows.back();row.detailText=DetailText::Name;row.key=table.id;
   const bool ownTable=mine.table==static_cast<int>(table.id);
   if(auto offers=SeatChoices(v,table);!offers.empty()){
-   // Speech says the lit one as the row's value, and the hint bar names what
-   // A does: lights one while none is, sends the lit one, nothing while the
-   // room refuses it.
-   const auto lit=std::find_if(offers.begin(),offers.end(),[&](const MenuChoice& o){return o.id==nav.Lit(row.id);});
-   if(lit==offers.end())row.hint=loc::T("menu.choose");
-   else{row.value=lit->label;if(lit->enabled)row.hint=lit->label;}
-   row.adjustHint=loc::T("menu.choose");
+   // A lights one while none is, sends the lit one.
    if(ask.table==static_cast<int>(table.id))
     if(const auto asked=std::find_if(offers.begin(),offers.end(),[&](const MenuChoice& o){return o.id==ask.offer;});
      asked!=offers.end()&&EndsWatchedView(v,FindSeatOption(asked->id)->kind))
      row.choices={{"stay",loc::T("common.cancel"),loc::T("room.watching_keeps")},*asked};
-   row.segments=std::move(offers);row.segmentKind=SegmentKind::Places;
+   OfferPlaces(row,std::move(offers),nav,loc::T("menu.choose"));
   }
   else if(mine.kind==Place::Kind::Seat&&ownTable){
    const auto control=OwnSeatRow(row,v,table,mine.seat,ask.Leaving()==static_cast<int>(table.id));
    // During a held start the card says what it waits for, and that B,
    // Cancel the start, calls it off.
    if(table.spectatorHold&&control.kind==ReadyControl::Unready)row.detail=control.detail;
+   // The card's strip offers Ready, Leave seat and Table options, A readying until one is lit. A
+   // tournament seat has no Leave to offer (ExitFromPlace), so A readies as the row.
+   if(exit.seat&&exit.table==static_cast<int>(table.id)){
+    OfferPlaces(row,OwnPlaceChoices(v,table,exit),nav,row.hint);
+    row.defaultPlace=OwnPlace::Ready;
+   }
   }
   else if(mine.kind==Place::Kind::Queue&&ownTable)row.hint=loc::T("room.table_options");
  }
@@ -422,9 +435,9 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // The action bar: Ready and the Ultra when seated, the table options (Y),
  // Training, Invite, More…, the asking rows, then Leave room last.
  if(s.roomEpoch&&c.place.kind==Place::Kind::Seat){
-  const auto ready=DescribeReady(v,s.tables[c.place.table],c.place.seat);
-  // A bar button is a few words wide, so Unready drops its "unlock fighter", as on the card's strip.
-  rows.push_back(Row("ready",ready.kind==ReadyControl::Unready?loc::T("room.unready.short"):ready.label,ready.refusal.empty()?ready.detail:ready.refusal,ready.kind!=ReadyControl::None));
+  // The same button as your own card's strip (OwnPlaceChoices).
+  const auto ready=ReadyButtonOf(DescribeReady(v,s.tables[c.place.table],c.place.seat));
+  rows.push_back(Row("ready",ready.label,ready.detail,ready.enabled));
   // An Arcade pair deciding after a set: Ready is its Rematch, and New
   // opponent stands beside it, the cabinet's two choices (CabinetRows) on the
   // bar, so neither needs the player to find their own cabinet.
@@ -443,7 +456,8 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  opponentChangeSeen_=v.opponentChangeSequence;
  if(s.roomEpoch){
   // Players open them between almost every game, so they are a button, not a choice of More….
-  rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
+  const auto options=TableOptionsButton(v,selectedTable_);
+  rows.push_back(Row("options",options.label,options.detail,options.enabled));
   if(v.offersTraining)rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
  }
  // A tournament room admits only its two fighters, who reach it through the
@@ -796,7 +810,7 @@ void ApplicationShell::OpenTableOptions(const ShellView& v,int table) {
  selectedTable_=table;rulesDirty_=false;rulesRevision_=v.room.tables[table].revision;tableRules_=v.room.tables[table].rules;
  nav.Home();nav.Push("room");nav.Push("room-table");
 }
-void ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {
+bool ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {
  // Ready is this PC's own seat, whatever table or cabinet the board has
  // focused (selectedTable_ follows the focus); unseated, the focused table
  // says why not.
@@ -807,15 +821,21 @@ void ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {
  if(control.kind==ReadyControl::Unready){
   room::Action request;request.table=static_cast<std::uint8_t>(table);
   request.kind=room::ActionKind::Unready;request.seat=static_cast<std::int8_t>(seat);
-  if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
- }else if(control.kind==ReadyControl::Rematch&&v.room.tables[table].deciding){
+  const bool sent=SendRoom(std::move(request),v,submit);
+  if(!sent&&error_.empty())error_=loc::T("room.action_rejected");
+  return sent;
+ }
+ if(control.kind==ReadyControl::Rematch&&v.room.tables[table].deciding){
   room::Action request;request.table=static_cast<std::uint8_t>(table);request.kind=room::ActionKind::Rematch;
-  if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
- }else if(control.kind!=ReadyControl::None)
-  SendReady(v,control.kind==ReadyControl::Rematch,submit);
- else if(!control.refusal.empty())
+  const bool sent=SendRoom(std::move(request),v,submit);
+  if(!sent&&error_.empty())error_=loc::T("room.action_rejected");
+  return sent;
+ }
+ if(control.kind!=ReadyControl::None)return SendReady(v,control.kind==ReadyControl::Rematch,submit);
+ if(!control.refusal.empty())
   Refuse(control.refusal,[table,seat](const ShellView& now){
    return DescribeReady(now,now.room.tables[table],seat).kind==ReadyControl::None;});
+ return false;
 }
 void ApplicationShell::LeavePlace(const ShellView& v,const Submit& submit) {
  const auto exit=ExitFromPlace(v);if(exit.table<0)return;

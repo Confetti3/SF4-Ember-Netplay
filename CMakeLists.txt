@@ -292,6 +292,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__StartupLog.cxx"
     "src/sf4e/sf4e__AwayAlert.hxx"
     "src/sf4e/sf4e__AwayAlert.cxx"
+    "src/sf4e/sf4e__BattleLoad.hxx"
+    "src/sf4e/sf4e__BattleLoad.cxx"
     "src/sf4e/sf4e__InputLag.hxx"
     "src/sf4e/sf4e__InputLag.cxx"
     "src/sf4e/sf4e__Platform.hxx"

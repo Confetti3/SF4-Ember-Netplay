@@ -170,6 +170,22 @@ void SetWatchJourney() {
  h.Screen("replays");sent=h.actions.size();h.Choose("set-next");
  Check(h.actions.size()==sent+1&&Is<commands::Replay>(h.actions.back(),[](const commands::Replay& r){return r.replay.mode==replay::Mode::Watch&&r.replay.path=="C:\\r\\s2.emberreplay";}),"Next game did not play the set's second game");
 }
+// The pane's Watch now button watches now: one click sends the replay's watch with no chooser opened. Where the
+// choice is not available the button is disabled and says why, and a click sends nothing.
+void PaneWatchJourney() {
+ using namespace sf4e;Harness h;h.Frame();
+ const std::string path="C:\\r\\p.emberreplay";
+ List(h,{Listed(path,"2026-11-16 20:10")});h.view.replays.ready=true;h.Screen("replays");h.FocusOn(("replay:"+path).c_str());
+ auto sent=h.actions.size();
+ auto click=h.ClickPaneButton();
+ Check(click.drawn&&click.reason.empty(),"The pane's Watch now button was not drawn plain for a ready replay");
+ Check(h.actions.size()==sent+1&&Is<commands::Replay>(h.actions.back(),[&](const commands::Replay& r){return r.replay.mode==replay::Mode::Watch&&!r.replay.meter&&r.replay.path==path;}),"The pane's Watch now did not watch the replay");
+ Check(!h.shell.Navigation().Choosing(),"The pane's Watch now opened the row's choices");
+ h.view.replays.ready=false;h.Frame();sent=h.actions.size();
+ click=h.ClickPaneButton();
+ Check(click.drawn&&click.reason==loc::T("replays.not_ready"),"The pane's Watch now did not say why it cannot start");
+ Check(h.actions.size()==sent&&!h.shell.Navigation().Choosing(),"A disabled Watch now button sent something or opened the choices");
+}
 }
 // A game that offers only watching, keeping and showing a replay (SFV Ember's
 // capabilities): no Battle Log row, and each row's choices are those three,
@@ -197,6 +213,7 @@ void ReplayJourneys() {
  ExportChoicesJourney();
  SetWatchJourney();
  WatchOnlyJourney();
+ PaneWatchJourney();
  Harness h;h.Frame();
  // A replay's row is its file: Watch now asks for that path. A link's question opens the screen and is answered with Watch or a dismissal.
  {

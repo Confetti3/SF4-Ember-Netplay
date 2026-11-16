@@ -123,8 +123,8 @@ void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color);
 enum class ButtonKind { Primary, Secondary, Danger };
 void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, bool focused, bool hovered, bool enabled = true);
 // A button inside a card (Kit: compact button, the kit's one size under the
-// board button): a table card's seat to take, an offer or a question's answer
-// on its line, as tall as the card gives it. Lit (what the pad's Select takes
+// board button): a table card's seat to take (its seat's whole place), an
+// offer or a question's answer on its line, as tall as the card gives it. Lit (what the pad's Select takes
 // now, or the chosen answer) on the hover fill in the text's ink; under a
 // pointer that has not lit it, a brighter edge; at rest the button's fill in
 // muted ink; flat while it cannot be pressed. Lit is fill and ink alone: the
@@ -338,7 +338,7 @@ float FactCellsHeight(float width, const std::vector<TagView::Fact>& facts, std:
 float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across, float valueSize = 17);
 // Draws at `at` within `width`; returns the height it took.
 float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize size);
-// The width an XS or S tag needs on its one line for nothing in it to give
-// way, in whole pixels: Tag at this width draws the whole name.
+// The width an XS, S or M tag needs on its (first) line for nothing in it to
+// give way, in whole pixels: Tag at this width draws the whole name.
 float TagWidth(const TagView& tag, TagSize size);
 } } }

@@ -20,6 +20,7 @@
 #include "../common/ProductIdentity.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Game.hxx"
+#include "sf4e__BattleLoad.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "BuildIdentity.hxx"
 #include "sf4e__Platform.hxx"
@@ -221,6 +222,7 @@ void fD3D::CancelFrameShift() {
 }
 
 int fD3D::LimitFrame(float frameDelta) {
+    sf4e::battleload::Tick();
     const unsigned long long previousExit = *rD3D::GetLastLimiterExit(this);
     // A fast export (sf4e__ReplayCapture.hxx: Fast) plays as fast as the
     // encoder takes its pictures, which holds the game (VideoLink.cxx: Send);
@@ -332,14 +334,20 @@ void fD3D::Destroy() {
 }
 
 DWORD fD3D::Reset() {
+    // Field logs: the largest free block of the 2 GB address space falls with the number of device
+    // resets in a battle. Three samples say whose share that is: before anything is freed, after
+    // the game's own reset, and after Ember's overlay is back.
+    sf4e::crash::NoteMatchBoundary("device_reset_begin");
     sf4e::replaycapture::Release();
     Overlay::FreeOverlay();
     DWORD out = (this->*rD3D::privateMethods.Reset)();
+    sf4e::crash::NoteMatchBoundary("device_reset_game");
     sf4e::replaycapture::Resume(lpD3DDevice);
     Overlay::InitializeOverlay(
         (*rMain::GetWindowData(rMain::staticMethods.GetSingleton()))->hWnd,
         Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice
     );
+    sf4e::crash::NoteMatchBoundary("device_reset_end");
     return out;
 }
 

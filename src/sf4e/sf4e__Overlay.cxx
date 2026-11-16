@@ -230,6 +230,9 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 		}
 		backBuffer->Release();
 	}
+	// Before the first build, so that build's atlas size is in the log too.
+	sf4e::ui::SetAtlasBuildLog([](const char* line) { spdlog::info("{}", line); });
+	sf4e::ui::SetLargestFreeRange([] { return static_cast<std::size_t>(sf4e::crash::LargestFreeRange()); });
 	sf4e::ui::ApplyTheme(OverlayScale());
 	RECT client{}; GetClientRect(hWnd, &client);
 	spdlog::info("Overlay: game draws at {}x{}, window client area {}x{}", backBufferDesc.Width, backBufferDesc.Height, client.right - client.left, client.bottom - client.top);
@@ -246,8 +249,6 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 		moduleFile.substr(0, moduleFile.find_last_of(L"\\/")) + L"/assets/selection",
 		[](const std::string& line) { spdlog::warn("{}", line); }));
     sf4e::ui::SetMenuArt(s_selectionArt.get());
-    sf4e::ui::SetAtlasBuildLog([](const char* line) { spdlog::info("{}", line); });
-    sf4e::ui::SetLargestFreeRange([] { return static_cast<std::size_t>(sf4e::crash::LargestFreeRange()); });
     shell.SetChatLog([](const std::string& line) { spdlog::info("{}", line); });
 	fMainMenu::OnModeSelectedOverride = OnMainMenuModeSelected;
 

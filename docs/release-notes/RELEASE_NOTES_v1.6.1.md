@@ -16,11 +16,12 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 
 - **A replay no longer stops about 50 seconds into a fight.** In 1.6.0 the snapshots that let you jump back filled a table the game's save states share, and the replay ended with a netplay message that had nothing to do with it. The snapshots now stay within that table, and a snapshot that cannot be taken is skipped without ending anything.
 - **Jumping back stays inside the current round** and always reaches the round's start.
+- **"Watch now" watches.** The large button beside a replay, and beside a match in the archive, starts it in one press. In 1.6.0 it opened the list of choices instead.
 
 ### Rooms
 
 - **Sit down in one press.** An open seat is its own button: "Play as P1" or "Play as P2". Click it, or on a pad choose the seat with Left and Right and press Select. The extra box of the same choices is gone.
-- **Tables are compact.** An empty table is one line and a table with players is under half its old height, so the four tables of a room fit on screen at 720p without a scroll bar. The round rules are shown once at the TABLES heading, and a table shows its own only when they differ.
+- **Tables fill their column.** The tables of a room share the height they have: large fighter pictures and names in a big window, compact cards in a small one, so four tables fit at 720p without a scroll bar. The round rules are shown once at the TABLES heading, and a table shows its own only when they differ.
 - **Join queue and Watch are on the table.** A table with players shows both at its top right.
 - **A press cannot send twice.** A double click or a second press before the room answers is ignored.
 - **Watching a game? Ember asks first** before a press that would end what you are watching.
@@ -53,7 +54,7 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 
 ## Known issues
 
-- **Training can freeze when you change fighters.** It was reported on 1.6.0 and is not yet reproduced. If it happens to you, send your `sf4e.log` from that session; setting the environment variable `SF4E_TRAINING_TRACE=1` before starting the game adds what is needed.
+- **A fight can fail to load after a long session,** in Training or online: the game keeps drawing but the fight never starts. It was reported on 1.6.0 as a Training freeze. The likely cause is the game running short of memory space after many returns from Alt+Tab in exclusive fullscreen; until it is fixed, playing borderless or restarting the game after a long session avoids it. 1.6.1 records what was loading and the memory state when it happens: if it happens to you, send your `sf4e.log` from that session.
 - **Players in South-East Asia may be connected through the Europe relay** when the public Asia relay does not answer them. There is no Ember relay in Asia yet.
 - **The Reply moves list has no EX version of Rolento's Mekong Delta Attack.**
 - **There is no US West relay yet.**

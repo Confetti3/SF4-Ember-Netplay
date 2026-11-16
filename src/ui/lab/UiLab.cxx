@@ -759,6 +759,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         ImVec2 at(-FLT_MAX, -FLT_MAX);
         script.push_back(std::sscanf(key.c_str(), "click:%f:%f", &at.x, &at.y) == 2 ? 0 : KeyBit(key)); clickAt.push_back(at); } }
     const auto submit = [&](ui::ShellAction action) {
+        // --trace names a replay the menu asked for, so a scripted click shows whether it sent one.
+        if (const auto* asked = std::get_if<commands::Replay>(&action); asked && traceLog.is_open())
+            traceLog << "  action: replay " << (asked->replay.mode == replay::Mode::Watch ? "watch " : "other ") << asked->replay.path << "\n";
         // Saving is instant here: the shell reads what it saved back from the view.
         if (const auto* saved = std::get_if<commands::SavePreferences>(&action)) view.preferences = saved->preferences;
         const auto* identity = std::get_if<commands::Identity>(&action);

@@ -1715,12 +1715,18 @@ int main() try {
         }
         // TablesFitTheColumn: at 1280x720 and at 2438x1330 (scale 1.218) four
         // tables in their common states fit the column with no scroll bar,
-        // every card whole inside it, and a quiet table is a compact line.
+        // every card whole inside it, and all four cards are one height,
+        // whatever each holds (`even`: a banner's card may keep its 18 px more, and
+        // your own card with its strip its 38 px more, where four at its height do
+        // not fit, at 1280x720; at 2438x1330 they are always one height).
+        // TablesFillTheColumn: at 2438x1330 the four fill the column: the last
+        // card ends within one gap of the column's foot.
         const auto tablesWindow = [&]() -> ImGuiWindow* {
             for (auto* w : GImGui->Windows) if (w->Active && std::strstr(w->Name, "Room tables")) return w;
             return nullptr;
         };
-        const auto fits = [&](const char* state) {
+        const auto height = [&](const std::string& id) { return boxes.at(id).second.y - boxes.at(id).first.y; };
+        const auto fits = [&](const char* state, bool even = true) {
             for (const auto& [scale, size] : {std::pair<float, ImVec2>{1.f, {1280, 720}}, std::pair<float, ImVec2>{1.218f, {2438, 1330}}}) {
                 ApplyTheme(scale); io.DisplaySize = size; ++view.room.revision;
                 shell.Navigation().Home(); shell.Navigation().Push("room"); boxes.clear(); frame(); frame(); frame();
@@ -1733,10 +1739,23 @@ int main() try {
                 if (!whole) {
                     std::cerr << state << " at scale " << scale << " size " << size.x << "x" << size.y << " scroll " << (w ? w->ScrollMax.y : -1.f) << '\n';
                     Check(false, "Four tables did not fit the column without a scroll bar");
+                    continue;
+                }
+                const bool wide = scale > 1;
+                bool same = true;
+                for (int i = 1; i < 4; ++i) same = same && std::fabs(height("table-" + std::to_string(i)) - height("table-0")) < .5f;
+                if ((even || wide) && !same) {
+                    std::cerr << state << " at scale " << scale << " size " << size.x << "x" << size.y << " heights " << height("table-0") << ' ' << height("table-1")
+                              << ' ' << height("table-2") << ' ' << height("table-3") << '\n';
+                    Check(false, "Four tables' cards were not one height");
+                }
+                const float gap = table_card::Between * scale, foot = w->Pos.y + w->Size.y, last = boxes.at("table-3").second.y;
+                if (wide && (last > foot + .5f || last < foot - gap - .5f)) {
+                    std::cerr << state << " last card ends at " << last << ", the column at " << foot << '\n';
+                    Check(false, "Four tables did not fill the column at 2438x1330");
                 }
             }
         };
-        const auto height = [&](const char* id) { return boxes.at(id).second.y - boxes.at(id).first.y; };
         // The room's members, the local player alone in no seat; then each
         // table as a game (two of them seated, Playing), a pair waiting (one),
         // or quiet.
@@ -1754,7 +1773,6 @@ int main() try {
         fits("a quiet room");
         seat(0, 2, 3, room::TablePhase::Playing); seat(1, 4, 0, room::TablePhase::Waiting);
         fits("a game, a pair waiting and two quiet tables");
-        Check(height("table-3") <= height("table-0") * .55f, "A quiet table's card was not compact");
         // ZeroCountsSayNothing: a table's queue and watchers show only when there are any.
         {
             room::Table t;
@@ -1787,13 +1805,13 @@ int main() try {
         // Your own seat, two games and a quiet table; your own seat, a game and
         // two quiet tables.
         seat(0, 1, 2, room::TablePhase::Waiting); seat(3, 0, 0, room::TablePhase::Idle);
-        fits("your own seat, two games and a quiet table");
+        fits("your own seat, two games and a quiet table", false);
         seat(2, 0, 0, room::TablePhase::Idle);
-        fits("your own seat, a game and two quiet tables");
+        fits("your own seat, a game and two quiet tables", false);
         // Your own seat with a banner (the opponent's new fighter) and three busy tables.
         seat(2, 6, 7, room::TablePhase::Playing); seat(3, 8, 9, room::TablePhase::Playing);
         view.opponentChangedFighter = 5; ++view.opponentChangeSequence;
-        fits("your own seat with a banner and three busy tables");
+        fits("your own seat with a banner and three busy tables", false);
         view.opponentChangedFighter = -1;
         // Four games, the rules too long for the heading's line (every room rule,
         // a set, a long language): they take a paragraph under it, and the four
@@ -1841,6 +1859,11 @@ int main() try {
                 Check(false, "Eight tables scrolled to a cut card, or hid the focused one");
             }
         }
+        // QuietTablesFallBackToLines: four games and four quiet tables do not
+        // fit 1280x720 even at their least, so a quiet table is its one line
+        // and a game keeps its versus card.
+        Check(height("table-5") <= height("table-1") * .55f && height("table-1") >= (table_card::Head + table_card::Face + table_card::Foot) - .5f,
+            "Eight tables at 1280x720 did not fall back to quiet lines beside full games");
         view.room.tableCount = tablesInPlay; ++view.room.revision; frame();
         // More...'s popout closes on a click outside it, and that click does nothing else.
         ApplyTheme(1.f); io.DisplaySize = ImVec2(1920, 1080);
@@ -1933,12 +1956,19 @@ int main() try {
         }
         focus("table-0"); frame(); press(MenuInput::Down);
         Check(at() == "table-1", "Down from table 1 did not reach table 2 under it");
+        // Table 1 is the local member's own card, whose places are Ready, Leave seat and Table
+        // options: Right steps to Leave seat, then Table options, and past it goes on to the members.
         focus("table-0"); frame(); press(MenuInput::Right);
+        Check(at() == "table-0" && shell.Navigation().Lit("table-0") == "leave-place", "Right from your own card did not step to Leave seat");
+        press(MenuInput::Right);
+        Check(at() == "table-0" && shell.Navigation().Lit("table-0") == "table-options", "Right from Leave seat did not step to Table options");
+        press(MenuInput::Right);
         Check(RowKey(at(), "member-").has_value(), "Right from a table did not reach the members");
         // ClassicV2CardsMoveAsGrid: with Tables set to Grid, two cards across at this size.
         view.preferences.roomTableGrid = true;
         board(room::RoomType::Classic, 1.f, ImVec2(1280, 960));
-        focus("table-0"); frame(); press(MenuInput::Right);
+        // Table 1 is your own card: Right steps to Leave seat and Table options first, then on to the card beside.
+        focus("table-0"); frame(); press(MenuInput::Right); press(MenuInput::Right); press(MenuInput::Right);
         Check(at() == "table-1", "Right from table 1 did not reach table 2 beside it");
         focus("table-0"); frame(); press(MenuInput::Down);
         Check(at() == "table-2", "Down from table 1 did not reach table 3 under it");

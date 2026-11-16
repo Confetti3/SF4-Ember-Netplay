@@ -51,6 +51,11 @@ inline MenuChoice NeedsMenu(std::string id,std::string label,std::string detail,
     const bool open=idle&&menu;
     return {std::move(id),std::move(label),open?std::move(detail):std::string(loc::T(idle?"replays.not_ready":"replays.open_log_room")),open};
 }
+// A row's primary action is the first choice it lists: Watch on a replay or a set.
+// Its detail pane's big button takes it (DrawPrimaryChoice), so a row must list it first.
+inline const MenuChoice* PrimaryChoice(const MenuEntry& row) {
+    return row.choices.empty()?nullptr:&row.choices.front();
+}
 inline MenuEntry Value(std::string id,std::string label,std::string value,std::string detail,bool enabled=true) {
     auto e=Row(std::move(id),std::move(label),std::move(detail),enabled); e.value=std::move(value); e.adjustable=true; return e;
 }
