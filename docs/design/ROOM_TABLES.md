@@ -1,74 +1,85 @@
 # Classic room tables
 
 The TABLES column of a Classic room's board: rows in `RoomPanel.cxx`
-(`TableCardRows`), offers in `RoomControls`, boxes in `TableCardShape.hxx`
-(`LayOutTableCard`), cards in `RoomTableCards.cxx`, heading and bar in
-`RoomPanelTables.cxx`. Arcade rooms draw cabinets (ARCADE_CABINET_MODE.md).
+(`TableCardRows`), offers in `RoomControls`, boxes and the fill rule in
+`TableCardShape.hxx` (`PlaceTableCards`, `LayOutTableCard`), cards in
+`RoomTableCards.cxx`, heading and bar in `RoomPanelTables.cxx`. Arcade rooms
+draw cabinets (ARCADE_CABINET_MODE.md).
+
+## The fill rule
+
+The cards fill the column. With R rows (one card a row, or the Grid's two or
+three across) every card is `floor((area - gaps) / R)` tall, at most the cap
+(208 px at scale 1), at least a whole card's least (Compact: 84 px, 112
+stacked, 18 more with a banner). Every card in play is that one height,
+whatever it holds: a calm row of tables. What the cap leaves stands under the
+last card. Where that height is under the tallest card's least, each card
+takes its own least (a banner's card its line more); where that does not fit
+either, a quiet table (nobody seated, queued or watching, nothing on offer
+but its seats) is one 44 px line (68 where too narrow: its seats under its
+head); only then does the list scroll, beside its bar, landing on a card's
+top or the floor's end. Four tables take 190 px each in a 780 px column
+(1950x1070), about 193 at 2438x1330 (scale 1.218), 89 at 1280x720; four
+games and four quiet tables at 1280x720 are four versus cards and four lines.
+
+## Steps
+
+What a card shows steps with the height of one seat's place (a versus card's
+body under its head, a stacked card's row), `TableCardStep`:
+
+- Line (a quiet table only): TABLE n, its state and its two seat buttons.
+- Compact (from 84 px): pictures 48 px and up, the player's tag (flag, class,
+  name, ping, link) over the fighter (13 px), a win streak beside the name
+  where it fits, the score 18 px.
+- Medium (from 120): the streak, else the idle time or record, on its own
+  line under the fighter (14 px); the score 20 px.
+- Roomy (from 160): the name in the heading size (`TagSize::M`, 22 px), the
+  fighter 15 px (costume and Ultra on your own seat), the streak, then the
+  idle time or record; the score 22 px; seat buttons' labels 17 px.
+
+A picture is square, at the seat's outer end, as tall as the body (172 px at
+the cap), never leaving a versus line's words their 200 px least. It is the
+pick, else the main, in Settings' art: the game's 1024 px portrait or the
+256x384 figure, decoded large past 128 px, standing on the card's ground with
+no tile. A banner (held start, Ready countdown, Training call) takes 18 px
+from the body. The card is one hairline-bordered ground; TABLE n is a section
+heading; the score is in the accent only while the game is played.
 
 ## What a card shows
 
-The heading says once what every table shares: the room's own rules (Practice
-match, Own delay, Wired only) and the first table's round rules ("Rounds 3 /
-99 sec", or a set's length and rotation), then "Playing 2 · Watching 1",
-never a zero. The counts give way first; rules that do not fit beside TABLES
-wrap in a paragraph under it (13 px), which takes its room from the gap
-above the cards.
-
-A card's line (28 px at scale 1) holds TABLE n and its state, its name, what
-differs from the room ("Queue 2 · Watching 1", its rules where they are not
-the first table's), and at its right its buttons. Heights:
-
-- Empty, nothing on offer but its seats: one 44 px line, the line's start
-  and the two seats beside it (68 px where too narrow: seats under it).
-- One waiting, playing, full: a versus line, 84 px: a 48 px picture, name
-  and fighter at each end, vs or the score between, a win streak by the name.
-- Your own place: the same; Leave seat (Leave queue, Cancel the start) is its
-  line's button, Ready is the bar's.
-- Closed: its state, no score.
-
-A banner (held start, Ready countdown, Training call) adds 18 px. A card too
-narrow for the versus line stacks its seats (112 px). Cards stand 6 px apart;
-a grid's row shares its tallest card's height.
+The heading says once what every table shares: the room's own rules and the
+first table's round rules, then "Playing 2 · Watching 1", never a zero; rules
+that do not fit beside TABLES wrap in a paragraph under it. A card's head line
+(28 px) holds TABLE n and its state, its name, what differs from the room, and
+its buttons: Join queue and Watch, or on your own place Leave seat (Leave
+queue, Cancel the start); Ready is the bar's. An open seat the member may take
+is the seat's whole half, one button with a plus and "Play as P1"; one they
+cannot take reads "Open seat", muted, centred, with no box.
 
 ## Offers
 
 A member with no place is offered a table's open seats, else its queue, and
-Watch (Unwatch) while anyone sits there (`SeatChoices`). They are the row's
-segments of `SegmentKind::Places`, lit by `MenuNavigation`. An offered seat
-is its own button, a plus and "Play as P1"; the others stand on the card's
-line, always drawn, pressed on the line's height (the kit's compact button,
-`v2::CardButton`). A seat the member cannot take reads "Open seat", muted,
-with no box.
+Watch (Unwatch) while anyone sits there (`SeatChoices`): the row's segments of
+`SegmentKind::Places`, lit by `MenuNavigation`.
 
-- Pad: a direction arriving on a card lights the offer nearest its side.
-  Left and Right step the light; past either end they move on as from any
-  row. A sends the lit offer. A focus the board moved (a fresh room) or the
-  pointer set lights nothing until a first A. Lit is fill and ink; the card's
-  ring is the only ring.
-- Mouse: a moving pointer lights an offer, a click sends it; a resting one
-  leaves the light. A double click's second click is ignored.
-- The same press: after an offer was sent to a table, that offer again, or
-  any A on that table's card (its Ready once the seat is taken), does nothing
-  for half a second and until the table's revision changes (2 s at most).
-- A lit place that goes away stays the light, drawn lit nowhere; the next A
-  sends it once and the room's words refuse it: "That seat was just taken"
-  for a seat, "This table changed" for the queue or watching. The light then
-  goes out, and the next A lights again.
+- Pad: a direction arriving on a card lights the offer nearest its side; Left
+  and Right step the light, past either end moving on as from any row; A sends
+  it. A focus the board or the pointer set lights nothing until a first A. Lit
+  is fill and ink; the card's ring is the only ring.
+- Mouse: a moving pointer lights, a click sends; a double click's second click
+  is ignored. Line buttons are pressed on the line's whole height.
+- The same press: after an offer was sent to a table, that offer again, or any
+  A on that card, does nothing for half a second and until the table's
+  revision changes (2 s at most).
+- A lit place that goes away is refused once by the room's words ("That seat
+  was just taken", "This table changed"), then the light goes out.
 - While this PC watches a game, an offer that ends the view asks on the card,
-  as leaving a scored seat does (one `TableAsk`): Cancel, which says why it
-  asks, or the offer. The question closes when the watched game ends, and
-  both questions are dropped on a new room or away from the board.
+  as leaving a scored seat does (one `TableAsk`): Cancel or the offer. A quiet
+  card's answers stand where its seats were, across the card and as tall; an
+  occupied card's on its line. The question closes when the watched game ends
+  and is dropped on a new room or away from the board.
 - A on an offer the room would refuse says why.
-- Table options: Y on a card, or the bar's (your seat's or queue's table,
-  else the last card you were on).
-
-## Fitting
-
-Cards are as tall as their content. The list scrolls only when they do not
-fit, beside its bar, landing on a card's top or the floor's end. At 1280x720
-the cards have about 375 px under a seated player's two-line bar: four games
-take 354, your seat and three busy tables with one banner 372. At 2438x1330
-(scale 1.218) about 790: eight games take 714.
+- Table options: Y on a card, or the bar's.
 
 ## The line under the list
 

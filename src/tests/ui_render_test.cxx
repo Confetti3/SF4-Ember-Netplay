@@ -6,6 +6,7 @@
 #include "../ui/OverlayLayers.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/RecoveryMenu.hxx"
+#include "../ui/TableCardShape.hxx"
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
 #include "ui_render_support.hxx"
@@ -23,6 +24,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -978,6 +980,30 @@ int main(int argc, char** argv) {
             ShootMemberLatency(view,draw,page);
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
             page("room");
+            // TableCardsFillTheColumn: the room's four tables (a pair waiting, a
+            // game, two quiet) are one height and fill the column to within a
+            // gap, or stop at the cap; only where four at one height do not fit
+            // does each keep its own least (a banner's card its line more), the
+            // quiet ones no taller than a full card.
+            {
+                std::map<std::string,std::pair<ImVec2,ImVec2>> cards;
+                SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){cards[id]={min,max};});
+                draw();SetMenuCardProbe({});
+                if(WindowDrawn("Room tables")&&cards.count("table-0")&&cards.count("table-3")){
+                    namespace card=ui::table_card;
+                    const auto* tables=FindWindow("Room tables");
+                    const float s=ui::Scale(),foot=tables->Pos.y+tables->Size.y;
+                    const auto height=[&](int i){const auto& b=cards.at("table-"+std::to_string(i));return b.second.y-b.first.y;};
+                    const bool even=std::fabs(height(1)-height(0))<.5f&&std::fabs(height(2)-height(0))<.5f&&std::fabs(height(3)-height(0))<.5f;
+                    const float last=cards.at("table-3").second.y;
+                    if(even)Require((last<=foot+.5f&&last>=foot-card::Between*s-.5f)||height(0)>=card::Cap*s-.5f,"Four table cards of one height neither filled the column nor stopped at the cap");
+                    else{
+                        const float full=(std::min)(height(0),height(1));
+                        Require(std::fabs(height(1)-height(0))<=card::Banner*s+.5f&&height(2)<=full+.5f&&height(3)<=full+.5f&&
+                            full>=(card::Head+card::Face+card::Foot)*s-.5f,"Table cards of different heights were not each at its least");
+                    }
+                }
+            }
             ShootRoomPictures(view,draw,page);
             ShootRoomPoints(view,draw,page);
             ShootRoomPromptBrands(view,draw,page);
