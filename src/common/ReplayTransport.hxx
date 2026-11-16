@@ -211,6 +211,14 @@ public:
 		}
 		return order;
 	}
+	// A seek to `target` asked for by number (a test tool's), earlier or later
+	// than where the playback stands by its own comparison.
+	SeekOrder To(int target, int position, const SeekBounds& bounds) const {
+		SeekOrder order;
+		const int base = seeking_ ? target_ : position;
+		Aim(order, target, target < base ? Rounding::Earlier : Rounding::Later, base, bounds);
+		return order;
+	}
 	// Once each engine frame: a loop that has reached its B asks for A.
 	SeekOrder Wrap(int position) const {
 		SeekOrder order;

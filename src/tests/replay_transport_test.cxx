@@ -430,6 +430,14 @@ void TestSeekOrders() {
 	CHECK(o.made && o.target == 5000);
 	o = seek.Plan(Command::JumpForward, 5000, bounds);
 	CHECK(!o.made);
+	// A seek by number: earlier or later by its own comparison, held in the bounds.
+	o = seek.To(400, 600, bounds);
+	CHECK(o.made && o.target == 400 && o.rounding == Rounding::Earlier && !o.pause);
+	o = seek.To(9000, 600, bounds);
+	CHECK(o.made && o.target == 5000 && o.rounding == Rounding::Later);
+	o = seek.To(2, 600, bounds);
+	CHECK(o.made && o.target == 101);
+	CHECK(!seek.To(600, 600, bounds).made);
 	// Commands the seek does not know make no order.
 	o = seek.Plan(Command::Step, 600, bounds);
 	CHECK(!o.made && !o.pause);
