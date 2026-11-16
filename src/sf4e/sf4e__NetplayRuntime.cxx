@@ -664,8 +664,8 @@ static void SettleRoomState(bool helperReady) {
 			// Without a rejection, the helper's stage says where it failed; hosting has its own wording.
 			// A public room's join is worded for it: the host locking the room or turning the player away, and a failure no stage explains.
 			Apply(netplay::EventKind::RoomFailed, rejection ?
-				std::string(loc::T(runtime->join==JoinKind::Public ? SessionClient::PublicJoinRejectionKey(*rejection, updateAvailable) : SessionClient::JoinRejectionKey(*rejection, updateAvailable))) :
-				runtime->join==JoinKind::Public ? ui::DescribePublicOpeningFailure(runtime->room->Stage(), runtime->room->Network().relay, updateAvailable) :
+				std::string(loc::T(runtime->room->ServerOwned() ? SessionClient::PublicJoinRejectionKey(*rejection, updateAvailable) : SessionClient::JoinRejectionKey(*rejection, updateAvailable))) :
+				runtime->room->ServerOwned() ? ui::DescribePublicOpeningFailure(runtime->room->Stage(), runtime->room->Network().relay, updateAvailable) :
 				ui::DescribeOpeningFailure(state.isHost, runtime->room->Stage(), runtime->room->Network().relay, updateAvailable));
 		}
 	} else if (state.room == netplay::RoomState::Joined && runtime->room &&
