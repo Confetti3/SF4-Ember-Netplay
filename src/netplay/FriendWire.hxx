@@ -36,7 +36,7 @@ inline nlohmann::json SyncRequest(const std::string& bridgeId, const std::string
 	if (!listing.country.empty()) shown["country"] = listing.country;
 	json sync = json::object();
 	sync["build_id"] = buildId;
-	sync["game"] = GameId;
+	sync["game"] = GameId();
 	sync["listing"] = std::move(shown);
 	if (listing.main >= 0) sync["main"] = listing.main;
 	sync["presence"] = report.ToJson();

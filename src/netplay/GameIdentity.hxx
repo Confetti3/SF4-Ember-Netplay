@@ -1,14 +1,14 @@
 #pragma once
-// Which game this build is, for the friends feature. This is the one
-// game-specific file of it: another game's copy of the friends code changes
-// only GameId (and may add its own titles to GameTitle). A presence names its
-// game so a friend in another game is shown as that and cannot be joined.
+// Which game this build is, for the friends feature: the product's room game
+// (ProductIdentity::roomGame). A presence names its game so a friend in
+// another game is shown as that and cannot be joined.
+#include "../common/ProductIdentity.hxx"
 #include <string>
 
 namespace sf4e { namespace netplay {
 
-// The game's id on the wire: 1 to 16 characters of [a-z0-9].
-constexpr const char* GameId = "usf4";
+// The game's id on the wire: 1 to 16 characters of [a-z0-9] ("usf4", "sfv").
+inline const char* GameId() { return ember::Product().roomGame; }
 
 // The game's short title for another player's presence ("USF4", "SFV", ...);
 // empty for an id this build does not know.
@@ -21,6 +21,6 @@ inline const char* GameTitle(const std::string& id) {
 
 // A presence that names no game is this game's (bridges and builds from
 // before the field).
-inline bool SameGame(const std::string& id) { return id.empty() || id == GameId; }
+inline bool SameGame(const std::string& id) { return id.empty() || id == GameId(); }
 
 } }

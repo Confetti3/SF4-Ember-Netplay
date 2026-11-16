@@ -169,7 +169,7 @@ void AFriendInAnotherGame() {
 	// Titles of the games this build knows; none for one it does not.
 	EXPECT(std::string(sf4e::netplay::GameTitle("usf4")) == "USF4" && std::string(sf4e::netplay::GameTitle("sfv")) == "SFV" && std::string(sf4e::netplay::GameTitle("umvc3")) == "UMVC3");
 	EXPECT(std::string(sf4e::netplay::GameTitle("")).empty() && std::string(sf4e::netplay::GameTitle("tekken")).empty());
-	EXPECT(std::string(sf4e::netplay::GameId) == "usf4");
+	EXPECT(std::string(sf4e::netplay::GameId()) == "usf4");
 }
 
 void TakingAnInvite() {

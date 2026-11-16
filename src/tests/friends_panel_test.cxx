@@ -586,7 +586,7 @@ void OtherGames() {
     Check(fp::Status(unknownOnline, Now) == loc::T("friends.another_game"), "a friend online in a game with no title does not say another game");
     // Offline friends have no game to name; this game's id reads as this game.
     auto here = InRoom("Here", true);
-    here.presence.game = netplay::GameId;
+    here.presence.game = netplay::GameId();
     Check(!fp::OtherGame(here) && fp::Joinable(here), "a friend of this game's id is another game's");
     nf::State state;
     state.friends = {sfv};
