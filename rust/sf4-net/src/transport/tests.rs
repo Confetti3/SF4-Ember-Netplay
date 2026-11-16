@@ -631,6 +631,7 @@ async fn live_relays_answer_probes_and_carry_a_relay_only_connection() {
     for relay in relays {
         let only = || {
             Endpoint::builder(presets::N0)
+                .dns_resolver(os_dns::resolver())
                 .relay_mode(RelayMode::Custom(RelayMap::from_iter([
                     iroh::RelayConfig::from(relay.clone()),
                 ])))
