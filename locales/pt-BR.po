@@ -2232,9 +2232,6 @@ msgstr "Entrando na sala. Aguardando a rede..."
 msgid "room.locked_status"
 msgstr "Sala bloqueada / somente por convite"
 
-msgid "room.private_status"
-msgstr "Sala privada / somente por convite"
-
 msgid "room.tournament_status"
 msgstr "Partida de torneio, primeiro a {0}. Só os dois jogadores podem jogar."
 
@@ -6303,18 +6300,6 @@ msgstr "Os jogadores entram na fila de uma mesa e jogam nela."
 msgid "room.type.arcade_detail"
 msgstr "Dezesseis fliperamas: sente em qualquer um livre e jogue contra quem espera há mais tempo. Depois de um set, se os dois escolherem Revanche jogam de novo; se não, cada um joga com o próximo que espera."
 
-msgid "room.arcade_status"
-msgstr "Sala de fliperama / só por convite"
-
-msgid "room.arcade_locked_status"
-msgstr "Sala de fliperama trancada / só por convite"
-
-msgid "room.king_status"
-msgstr "Rei da colina / só por convite"
-
-msgid "room.king_locked_status"
-msgstr "Rei da colina trancado / só por convite"
-
 msgid "room.arcade_sit"
 msgstr "Sentar"
 
@@ -6386,12 +6371,6 @@ msgstr "Sala de prática"
 
 msgid "room.practice.detail"
 msgstr "Toda partida da sala é uma partida de prática: a vida e as barras se enchem, ninguém sofre nocaute e o tempo do round é {0}. Isso vale enquanto a sala estiver aberta. Para jogar partidas normais, feche a sala e crie uma nova."
-
-msgid "room.practice_status"
-msgstr "Sala de prática / somente por convite"
-
-msgid "room.practice_locked_status"
-msgstr "Sala de prática bloqueada / somente por convite"
 
 msgid "inputs.presses_value"
 msgstr "{0} pressionamentos"
@@ -8625,9 +8604,6 @@ msgstr "MESAS"
 
 msgid "room.v2.table"
 msgstr "MESA {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} jogando · {1} assistindo"
 
 msgid "room.v2.group_playing"
 msgstr "JOGANDO"

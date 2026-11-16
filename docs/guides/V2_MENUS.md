@@ -158,9 +158,9 @@ board.
   while shows how long. On a narrow screen, or with Settings, Interface,
   Room layout, Tables: Grid, the two seats stack.
 - A table card's own buttons are on the card: an open seat is itself the
-  button (Play as P1), a full table's Join queue and Watch stand at the right
-  of its line while it is focused, and your own seat's Ready up and Leave
-  seat run along its bottom.
+  button (Play as P1), a table's Join queue and Watch stand at the right of
+  its line, and on your own seat Leave seat stands there (Ready up is the
+  bar's).
 - Each seat shows the player's fighter, with its costume and Ultra under
   their name, such as Ryu · Original · Ultra I. By default the picture is the
   whole fighter in the costume and colour they picked; Settings, Interface,

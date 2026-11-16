@@ -989,15 +989,15 @@ int main() try {
         io.AddMouseButtonEvent(0, true); frame();
         io.AddMouseButtonEvent(0, false); frame();
     };
-    // FullTableOffersAtItsHead: the focused full table's Join queue and Watch
-    // stand inside its head, side by side, and the mouse presses each, at a
-    // game's screen sizes and interface scales.
+    // FullTableOffersAtItsHead: a full table's Join queue and Watch stand
+    // inside its head, side by side, focused or not, and the mouse presses
+    // each, at a game's screen sizes and interface scales.
     const std::pair<float, ImVec2> screens[] = {{1.f, {1280, 800}}, {1.f, {1920, 1080}}, {1.5f, {1920, 1080}},
         {1.34f, {2560, 1440}}, {2.f, {3840, 2160}}};
     for (const auto& [scale, size] : screens) {
         ApplyTheme(scale); io.DisplaySize = size; frame(); frame();
         for (const char* offer : {"queue", "watch"}) {
-            focus("table-0"); targets.clear(); frame(); frame();
+            focus("room-more"); targets.clear(); frame(); frame();
             const std::string id = std::string("table-0/") + offer;
             const bool shown = clickable.count(id) && clickable[id] && boxes.count("table-0");
             const auto& card = boxes["table-0"];
@@ -1007,7 +1007,7 @@ int main() try {
             if (!shown || !(queue.second.x <= watch.first.x && watch.second.x <= card.second.x && queue.first.y >= card.first.y &&
                     queue.second.y <= card.first.y + head && watch.second.y <= card.first.y + head)) {
                 std::fprintf(stderr, "scale %.2f size %.0fx%.0f offer %s\n", scale, size.x, size.y, offer);
-                Check(false, "A focused full table's offers did not stand side by side in its head");
+                Check(false, "A full table's offers did not stand side by side in its head");
             }
             const auto before = actions.size();
             click(targets.at(id));
@@ -1016,15 +1016,23 @@ int main() try {
                 std::fprintf(stderr, "scale %.2f size %.0fx%.0f offer %s\n", scale, size.x, size.y, offer);
                 Check(false, "A click on a full table's offer sent nothing");
             }
+            // The room answers; the next request at this table may go.
+            ++view.room.revision;
             shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
         }
     }
     ApplyTheme(1.f); io.DisplaySize = ImVec2(1280, 960); frame();
-    // A full table's card offers the queue and watching on the card itself,
-    // Join queue lit first; Y opens its options list.
+    // A full table's card offers the queue and watching on the card itself.
+    // Focused other than by a direction it lights nothing, and its first A
+    // only lights Join queue; Y opens its options list.
     focus("room-more"); frame(); focus("table-0"); frame(); frame();
     Check(shell.Navigation().Screen() == "room" && !shell.Navigation().Choosing() && row("table-0").adjustable &&
-        row("table-0").value == loc::T("room.join_queue"), "A full table's card did not light Join queue first");
+        row("table-0").value.empty() && row("table-0").hint == loc::T("menu.choose"), "A card focused by the board lit an offer");
+    {
+        const auto beforeLight = actions.size(); press(MenuInput::Select); frame();
+        Check(actions.size() == beforeLight && row("table-0").value == loc::T("room.join_queue") && row("table-0").hint == row("table-0").value,
+            "The first A on an unlit card did not just light Join queue");
+    }
     press(MenuInput::Options);
     Check(shell.Navigation().Screen() == "room-table", "Y did not enter the table");
     focus("queue"); const auto beforeQueue = actions.size(); press(MenuInput::Select);
@@ -1681,6 +1689,8 @@ int main() try {
                     std::cerr << "scale " << scale << " size " << size.x << "x" << size.y << " " << table << offer << '\n';
                     Check(false, "A click on a free table's seat did not sit there");
                 }
+                // The room answers; the next request at this table may go.
+                ++view.room.revision;
             }
         }
         // TablesFitTheColumn: at 1280x720 and at 2438x1330 (scale 1.218) four
@@ -1707,12 +1717,22 @@ int main() try {
             }
         };
         const auto height = [&](const char* id) { return boxes.at(id).second.y - boxes.at(id).first.y; };
+        // The room's members, the local player alone in no seat; then each
+        // table as a game (two of them seated, Playing), a pair waiting (one),
+        // or quiet.
+        for (int i = 2; i <= 9; ++i) { room::Member m; m.id = static_cast<room::MemberId>(i); m.name = "Player " + std::to_string(i); view.room.members.push_back(m); }
+        const auto seat = [&](int table, room::MemberId p1, room::MemberId p2, room::TablePhase phase) {
+            auto& t = view.room.tables[static_cast<std::size_t>(table)];
+            t.p1 = p1; t.p2 = p2; t.phase = phase; t.spectators.clear();
+            for (auto& m : view.room.members) if (m.id == p1 || m.id == p2) { m.table = table; m.seat = m.id == p1 ? 0 : 1; }
+        };
+        const auto quiet = [&] {
+            for (int i = 0; i < 4; ++i) seat(i, 0, 0, room::TablePhase::Idle);
+            for (auto& m : view.room.members) { m.table = -1; m.seat = -1; }
+        };
+        quiet();
         fits("a quiet room");
-        // A quiet table's card is about half a seated one's.
-        for (int i = 2; i <= 4; ++i) { room::Member m; m.id = static_cast<room::MemberId>(i); m.name = "Player " + std::to_string(i); view.room.members.push_back(m); }
-        view.room.tables[0].p1 = 2; view.room.tables[0].p2 = 3; view.room.tables[0].phase = room::TablePhase::Playing;
-        view.room.members[1].table = view.room.members[2].table = 0; view.room.members[1].seat = 0; view.room.members[2].seat = 1;
-        view.room.tables[1].p1 = 4; view.room.tables[1].phase = room::TablePhase::Waiting; view.room.members[3].table = 1; view.room.members[3].seat = 0;
+        seat(0, 2, 3, room::TablePhase::Playing); seat(1, 4, 0, room::TablePhase::Waiting);
         fits("a game, a pair waiting and two quiet tables");
         Check(height("table-3") <= height("table-0") * .55f, "A quiet table's card was not compact");
         // ZeroCountsSayNothing: a table's queue and watchers show only when there are any.
@@ -1721,7 +1741,7 @@ int main() try {
             Check(room_controls::TableCountsText(t).empty(), "A table with nobody queued or watching said so");
             t.queue = {5, 6}; t.spectators = {7};
             Check(room_controls::TableCountsText(t) == loc::Tf("room.table_queue", 2) + " \xC2\xB7 " + loc::Tf("room.table_watching", 1),
-                "A table's counts did not read Queue 2 and 1 watching");
+                "A table's counts did not read Queue 2 and Watching 1");
             t.queue.clear();
             Check(room_controls::TableCountsText(t) == loc::Tf("room.table_watching", 1), "A table with nobody queued said its queue");
         }
@@ -1733,11 +1753,36 @@ int main() try {
         Check(!targets.count("room-line"), "The line under the list repeated the focused table card");
         focus("room-more"); targets.clear(); frame(); frame();
         Check(targets.count("room-line") == 1, "The line under the list did not explain a row away from the cards");
-        // Your own seat, a game and two quiet tables fit as well.
-        view.room.members[0].table = 2; view.room.members[0].seat = 0; view.room.tables[2].p1 = 1;
-        view.room.members[3].table = 2; view.room.members[3].seat = 1; view.room.tables[2].p2 = 4; view.room.tables[1].p1 = 0;
-        view.room.tables[2].phase = room::TablePhase::Waiting;
+        // Four games, as a watcher of one of them: each card offers the queue
+        // and watching at its head.
+        seat(0, 2, 3, room::TablePhase::Playing); seat(1, 4, 5, room::TablePhase::Playing);
+        seat(2, 6, 7, room::TablePhase::Playing); seat(3, 8, 9, room::TablePhase::Playing);
+        view.room.tables[0].spectators = {1};
+        fits("four games, watching one");
+        view.room.tables[0].spectators.clear();
+        // Four games idle, in the padded pseudo locale the render tests use.
+        sf4e::loc::testing::SetPseudoActive();
+        fits("four games in a long language");
+        sf4e::loc::SetActive(sf4e::loc::Locale::En);
+        // Your own seat, two games and a quiet table; your own seat, a game and
+        // two quiet tables.
+        seat(0, 1, 2, room::TablePhase::Waiting); seat(3, 0, 0, room::TablePhase::Idle);
+        fits("your own seat, two games and a quiet table");
+        seat(2, 0, 0, room::TablePhase::Idle);
         fits("your own seat, a game and two quiet tables");
+        // RulesStayInSight: rules too long for the heading's line beside TABLES
+        // take a line of their own under it rather than vanish.
+        {
+            view.room.practice = true; view.room.wiredOnly = true; view.room.delayPolicy = room::DelayPolicy::Own; ++view.room.revision;
+            const std::string rules = room_controls::RoomRulesText(view, view.room.tables[0]);
+            bool shown = false;
+            SetMenuTextProbe([&](const char* id, float, float, float, float) { shown = shown || std::string(id) == "v2/" + rules; });
+            ApplyTheme(1.5f); io.DisplaySize = ImVec2(640, 720);
+            shell.Navigation().Home(); shell.Navigation().Push("room"); focus("table-0"); frame(); frame();
+            SetMenuTextProbe({});
+            Check(shown, "The room's rules were shown nowhere on a narrow board");
+            view.room.practice = false; view.room.wiredOnly = false; view.room.delayPolicy = room::DelayPolicy::Shared; ++view.room.revision;
+        }
         // EightTablesScrollOnCardEdges: eight tables at 1280x720 fit, or the list
         // scrolls so its view starts at a card's top or ends at the floor's foot,
         // never cutting a card at its top otherwise.

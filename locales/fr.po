@@ -2232,9 +2232,6 @@ msgstr "Entrée dans le salon. Attente du réseau..."
 msgid "room.locked_status"
 msgstr "Salon verrouillé / sur invitation"
 
-msgid "room.private_status"
-msgstr "Salon privé / sur invitation"
-
 msgid "room.tournament_status"
 msgstr "Match de tournoi, premier à {0}. Seuls ses deux joueurs peuvent jouer."
 
@@ -6303,18 +6300,6 @@ msgstr "Les joueurs font la queue à une table et y jouent."
 msgid "room.type.arcade_detail"
 msgstr "Seize bornes : asseyez-vous à n'importe quelle borne libre et affrontez celui qui attend depuis le plus longtemps. Après un set, si les deux choisissent Revanche, ils rejouent ; sinon chacun affronte le suivant qui attend."
 
-msgid "room.arcade_status"
-msgstr "Salon arcade / sur invitation"
-
-msgid "room.arcade_locked_status"
-msgstr "Salon arcade verrouillé / sur invitation"
-
-msgid "room.king_status"
-msgstr "Roi de la colline / sur invitation"
-
-msgid "room.king_locked_status"
-msgstr "Roi de la colline verrouillé / sur invitation"
-
 msgid "room.arcade_sit"
 msgstr "S'asseoir"
 
@@ -6386,12 +6371,6 @@ msgstr "Salon d'entraînement"
 
 msgid "room.practice.detail"
 msgstr "Chaque partie du salon est un match d'entraînement : la vie et les jauges se remplissent, personne ne subit de K.-O. et le temps du round est {0}. Cela reste ainsi tant que le salon est ouvert. Pour jouer des matchs normaux, fermez le salon et créez-en un nouveau."
-
-msgid "room.practice_status"
-msgstr "Salon d'entraînement / sur invitation"
-
-msgid "room.practice_locked_status"
-msgstr "Salon d'entraînement verrouillé / sur invitation"
 
 msgid "inputs.presses_value"
 msgstr "{0} pressions"
@@ -8625,9 +8604,6 @@ msgstr "TABLES"
 
 msgid "room.v2.table"
 msgstr "TABLE {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} en jeu · {1} spectateurs"
 
 msgid "room.v2.group_playing"
 msgstr "EN JEU"
