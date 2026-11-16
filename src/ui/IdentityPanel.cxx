@@ -215,6 +215,10 @@ void IdentityPanel::Say(std::string text, Tone tone, double seconds) {
     message_ = std::move(text); messageTone_ = tone; messageUntil_ = now_ + seconds;
 }
 
+void IdentityPanel::Queue(IdentityRequest request, bool lookUp) {
+    Queue(std::move(request), lookUp, std::string(), AccountReads{});
+}
+
 void IdentityPanel::Queue(IdentityRequest request, bool lookUp, std::string account, AccountReads reads) {
     const auto owner = finishing_ && sentOwner_ == Owner::Screens ? sentJourney_ : journey_;
     // The new journey reads everything again itself.

@@ -23,7 +23,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 # SFV's flags, plus /WX so that a warning fails the probe instead of passing
 # unread. The packages' own headers are not Ember's to fix.
-add_compile_options(/W4 /permissive- /utf-8 /Zc:__cplusplus /WX /external:anglebrackets /external:W0)
+add_compile_options(/W4 /permissive- /utf-8 /Zc:__cplusplus /WX "$<$<NOT:$<CXX_COMPILER_ID:Clang>>:/external:anglebrackets>" "$<$<NOT:$<CXX_COMPILER_ID:Clang>>:/external:W0>")
 add_compile_definitions(WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00)
 
 find_package(fmt CONFIG REQUIRED)
