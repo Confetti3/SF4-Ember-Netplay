@@ -66,42 +66,35 @@ std::shared_ptr<const sf4e::replaylane::Lanes> s_lanes;
 namespace camera = sf4e::training::camera;
 using fSystem = sf4e::Game::Battle::System;
 
-// Snapshots of the replay as it plays, one when the controls take it over and then one each s_snapEvery frames, so a
+// Snapshots of the replay as it plays, one when the controls take it over and then one each s_snaps.Every() frames, so a
 // jump back loads the nearest one before the frame and plays on from it. The memento guard's ownership table holds
-// about 2000 payloads and a state takes about 90, so the ring is judged by the claims it holds (ReplaySnapshotRing.hxx), not by a count; when it is full every other
-// one is freed and the spacing doubles, which covers any round more coarsely instead of failing. The recorder's cursor is part
-// of a state (SaveState::Save takes the recorder), so loading one puts the playback back with the fighters.
-// A state never outlives its battle: CloseBattle frees them all. A state that cannot be taken or freed fails alone
-// (memento::OptionalScope): no netplay abort follows, and the replay plays on.
-struct Snap { int round = 0, frame = 0; fSystem::SaveState state; };
-constexpr int kFirstEvery = 120;
-int s_snapEvery = kFirstEvery;
-std::vector<std::unique_ptr<Snap>> s_snaps;
+// about 2000 payloads and a state takes 86 to 90 (the 24th snapshot ran it out, 52 seconds into a fight), so the ring is
+// judged by the claims it holds, not by a count (ReplaySnapshotRing.hxx); when it is full every other one of a round is
+// freed and the spacing doubles, which covers the round more coarsely instead of failing. A jump never leaves its round,
+// so a new round frees the earlier rounds' snapshots. The recorder's cursor is part of a state (SaveState::Save takes the
+// recorder), so loading one puts the playback back with the fighters. A state never outlives its battle: CloseBattle
+// frees them all. A snapshot is optional to the match (Stake::Optional): when its save or release fails it is lost alone,
+// no netplay abort follows, and the replay plays on.
+struct Snap : sf4e::replaysnaps::Entry {
+	fSystem::SaveState state;
+	Snap() { state.stake = sf4e::memento::Stake::Optional; }
+	std::size_t Claims() const { return state.guardClaims; }
+	// A state whose claim was taken away is refused by Load before it changes anything.
+	bool Usable() const { return state.used && !state.keyFailure; }
+};
+sf4e::replaysnaps::Ring<Snap> s_snaps;
 bool s_snapsBroken = false;
 // A jump back waiting for the battle update that loads its snapshot.
 bool s_loadWaiting = false;
 int s_loadRound = 0, s_loadFrame = 0;
 
-void FreeSnaps(bool engineAlive) {
-	sf4e::memento::OptionalScope optional;
-	int n = 0;
-	for (auto& snap : s_snaps) {
-		if (snap->state.used) { if (engineAlive) fSystem::SaveState::Free(&snap->state); else fSystem::SaveState::Reclaim(&snap->state, "replay_snapshots", n); }
-		++n;
-	}
-	s_snaps.clear(); s_loadWaiting = false; s_snapEvery = kFirstEvery;
-}
+// How a snapshot the ring drops is given back: its payloads freed, or, once the engine is gone, only its records.
+void FreeSnap(Snap& snap) { if (snap.state.used) fSystem::SaveState::Free(&snap.state); }
+void ReclaimSnap(Snap& snap) { fSystem::SaveState::Reclaim(&snap.state, "replay_snapshots", snap.frame); }
 
-// Frees every other snapshot (the first of each kept) and doubles the spacing.
-void ThinSnaps() {
-	sf4e::memento::OptionalScope optional;
-	std::vector<std::unique_ptr<Snap>> kept;
-	for (std::size_t i = 0; i < s_snaps.size(); ++i) {
-		if (i % 2 == 0) kept.push_back(std::move(s_snaps[i]));
-		else if (s_snaps[i]->state.used) fSystem::SaveState::Free(&s_snaps[i]->state);
-	}
-	s_snaps = std::move(kept);
-	s_snapEvery *= 2;
+void FreeSnaps(bool engineAlive) {
+	if (engineAlive) s_snaps.Clear(FreeSnap); else s_snaps.Clear(ReclaimSnap);
+	s_loadWaiting = false;
 }
 void Leave() {
 	s_view.playback = s_view.armed = s_view.exporting = false;
@@ -135,19 +128,7 @@ void NoteRoute(int route, const char* what) {
 
 // Game ticks a jump has been playing forward; it gives up after twenty seconds.
 int s_seekTicks = 0;
-constexpr int kSeekGiveUp = 1200;
 
-const Snap* BestSnap(int round, int frame) {
-	const Snap* best = nullptr;
-	for (const auto& snap : s_snaps) if (snap->round == round && snap->frame <= frame && (!best || snap->frame > best->frame)) best = snap.get();
-	return best;
-}
-
-const Snap* EarliestSnap(int round) {
-	const Snap* first = nullptr;
-	for (const auto& snap : s_snaps) if (snap->round == round && (!first || snap->frame < first->frame)) first = snap.get();
-	return first;
-}
 
 struct Cadence : rSystem {
 	void Run();
@@ -181,6 +162,7 @@ void Cadence::Run() {
 	// Each round starts playing at 1x, the game's half speed flag cleared,
 	// so its legend reads normal speed when the round is introduced.
 	if (transport::RoundBoundary(static_cast<int>(*rSystem::staticVars.CurrentBattleFlow)) || recorder->round != s_round) {
+		if (recorder->round != s_round) s_snaps.DropOtherRounds(recorder->round, FreeSnap);
 		s_round = recorder->round;
 		s_transport.Reset();
 		*slow = 0; s_transport.Wrote(false);
@@ -213,14 +195,14 @@ void Cadence::Run() {
 			if (b > a && (phone.Frame() >= b || phone.Frame() < a)) phone.AskSeek(a, true);
 		}
 	}
-	{ const Snap* first = recorder ? EarliestSnap(recorder->round) : nullptr; phone.SetFloor(first ? first->frame : 0); }
+	{ const Snap* first = recorder ? s_snaps.Earliest(recorder->round) : nullptr; phone.SetFloor(first ? first->frame : 0); }
 	int want = 0; bool play = false;
 	if (route == transport::Route::Transport && !context.exporting && recorder && phone.TakeSeek(want, play)) {
 		want = (std::max)(0, (std::min)(want, phone.Total() - 1));
 		// Before the first snapshot there is nowhere to go back to: the nearest place is the first one.
 		if (want < phone.Frame() && phone.Floor() > want) want = phone.Floor();
 		if (want >= phone.Frame()) { phone.SetGoal(recorder->round, want, play); phone.SetSeek(camera::Seek::Forward); s_seekTicks = 0; }
-		else if (const Snap* best = BestSnap(recorder->round, want)) {
+		else if (const Snap* best = s_snaps.Best(recorder->round, want)) {
 			s_loadWaiting = true; s_loadRound = best->round; s_loadFrame = best->frame;
 			phone.SetGoal(recorder->round, want, play); phone.SetSeek(camera::Seek::Forward); s_seekTicks = 0;
 			spdlog::info("Camera: jumping back to frame {} from the snapshot at {}", want, best->frame);
@@ -310,38 +292,39 @@ void sf4e::replayplayback::BeforeUpdate(Dimps::Game::Battle::System* system) {
 	if (!recorder || recorder->mode != transport::kRecorderPlaying || !s_view.playback || s_view.exporting) return;
 	if (s_loadWaiting) {
 		s_loadWaiting = false;
-		for (const auto& snap : s_snaps) {
-			if (snap->round != s_loadRound || snap->frame != s_loadFrame) continue;
-			if (!fSystem::SaveState::Load(&snap->state)) {
-				spdlog::error("Camera: the snapshot at frame {} did not load; leaving the battle", snap->frame);
-				camera::Phone().ClearGoal(); s_snapsBroken = true;
-				*rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
-			}
+		camera::Control& phone = camera::Phone();
+		// The one asked for, or the next earlier usable one: a state whose claim was taken away is refused by Load,
+		// so it is skipped and dropped, and the jump falls back.
+		Snap* snap = s_snaps.Best(s_loadRound, s_loadFrame);
+		s_snaps.DropUnusable(FreeSnap);
+		if (!snap) {
+			spdlog::warn("Camera: no snapshot is left to jump back to");
+			phone.ClearGoal();
 			return;
 		}
-		camera::Phone().ClearGoal();
+		if (!fSystem::SaveState::Load(&snap->state)) {
+			spdlog::error("Camera: the snapshot at frame {} did not load; leaving the battle", snap->frame);
+			phone.ClearGoal(); s_snapsBroken = true;
+			*rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
+		}
 		return;
 	}
 	// Only under Ember's controls, where the player is scrubbing; an export plays untouched.
 	if (!s_view.armed || s_snapsBroken || camera::Phone().GetSeek() == camera::Seek::Forward) return;
 	const int frame = rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
 	if (frame < 0) return;
-	// One when there is none at or before this frame in the round, then one each s_snapEvery frames after the last.
-	const Snap* before = BestSnap(recorder->round, frame);
-	if (before && frame - before->frame < s_snapEvery) return;
-	std::size_t held = 0, largest = 0;
-	for (const auto& each : s_snaps) { held += each->state.guardClaims; largest = (std::max)(largest, each->state.guardClaims); }
-	if (sf4e::replaysnaps::NeedsThinning(s_snaps.size(), held, largest)) ThinSnaps();
+	s_snaps.DropUnusable(FreeSnap);
+	if (!s_snaps.Due(recorder->round, frame)) return;
+	if (s_snaps.NeedsThinning()) s_snaps.Thin(FreeSnap);
 	auto snap = std::make_unique<Snap>();
 	snap->round = recorder->round; snap->frame = frame;
-	const bool saved = [&] { sf4e::memento::OptionalScope optional; return fSystem::SaveState::Save(&snap->state); }();
-	if (!saved) {
-		spdlog::warn("Camera: the replay could not be snapshotted at frame {}; jumps back restart the replay", frame);
+	if (!fSystem::SaveState::Save(&snap->state)) {
+		spdlog::warn("Camera: the replay could not be snapshotted at frame {}; jumps back reach only the snapshots taken", frame);
 		s_snapsBroken = true; return;
 	}
 	fSystem::SaveState::ForgetFinishedSounds(&snap->state);
-	if (s_snaps.empty()) spdlog::info("Camera: the replay is snapshotted from frame {} of {}", frame, recorder->streams[recorder->round].frames);
-	s_snaps.push_back(std::move(snap));
+	if (s_snaps.Empty()) spdlog::info("Camera: the replay is snapshotted from frame {} of {}", frame, recorder->streams[recorder->round].frames);
+	s_snaps.Add(std::move(snap));
 }
 
 bool sf4e::replayplayback::SeekMore(Dimps::Game::Battle::System* system, int done) {
