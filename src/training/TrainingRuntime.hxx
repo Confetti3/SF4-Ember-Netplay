@@ -6,9 +6,8 @@ namespace sf4e { namespace training {
 View ReadView();
 // Combo check's last recorded combo (View::check.comboId names it). Any thread.
 combo_check::Combo LastCombo();
-// Where the fighters stand and the battle they stand in, without the rest of
-// the view: what a pad press keeps for the save it may become. Any thread.
-struct Place { std::uint64_t generation = 0; float x[2] = {0, 0}; };
+// Where the fighters stand and the battle they stand in (Place,
+// TrainingSession.hxx). Any thread.
 Place ReadPlace();
 // Whether the pad's chord starts the recording rather than opening the
 // controls (TrainingSession.hxx), as the mode was last published. Any thread.

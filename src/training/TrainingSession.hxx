@@ -433,6 +433,9 @@ private:
     // The call last followed, counting or already told to leave.
     std::uint64_t call_ = 0;
 };
+// Where the fighters stand and the battle they stand in, without the rest of
+// the view: what a pad press keeps for the save it may become.
+struct Place { std::uint64_t generation = 0; float x[2] = {0, 0}; };
 struct View {
     bool available = false, ready = false, checkpoint = false, loop = true;
     // A rollback match whose frame meter is shown: the meter is filled,
@@ -569,6 +572,10 @@ public:
         view_.x[0] = x0; view_.x[1] = x1;
         if (x0 != x1) firstOnLeft_ = x0 < x1;
     }
+    // Where the game keeps each fighter's facing (SFV), the runtime gives it
+    // instead of positions: whether Player 1 faces right. Set after Commit, as
+    // SetPositions is.
+    void SetFacing(bool firstFacesRight) { firstOnLeft_ = firstFacesRight; }
     // The fighter on the left faces right.
     bool FacingRight(int side) const { return (side == 0) == firstOnLeft_; }
     // Every command passes here first, and only here is its battle checked.

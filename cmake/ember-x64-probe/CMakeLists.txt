@@ -47,7 +47,7 @@ list(APPEND _ember_files
     discord/BridgeServer.hxx discord/Presence.hxx discord/Ticket.hxx
     training/FrameMeter.hxx training/HitBoxes.hxx training/MoveInputs.hxx training/PracticeSettings.hxx
     training/RecordingBank.hxx training/RecordingFile.hxx training/RecordingTypes.hxx
-    training/TrainingSession.hxx)
+    training/TrainingSession.hxx training/DummyReply.hxx training/TrainingCommands.hxx training/LabCore.hxx)
 
 set(EMBER_SF4_SIDE
     # Selection: SF4's roster, stages, installed content and packaged art.

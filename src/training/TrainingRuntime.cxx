@@ -10,8 +10,7 @@
 #include "FighterData.hxx"
 #include "GameFiles.hxx"
 #include "ConfirmedSamples.hxx"
-#include "DummyReply.hxx"
-#include "TrainingCommands.hxx"
+#include "LabCore.hxx"
 #include <atomic>
 #include "../common/FighterCatalog.hxx"
 #include "../Dimps/Dimps__Game__Battle__Camera.hxx"
@@ -73,8 +72,6 @@ std::vector<Input> exported;
 // the banner short.
 constexpr int LeaveFrames = 120;
 LeaveCountdown leaving;
-// The call that stands for this battle, as the room's call owner last set it (SetCall).
-CallControl callControl;
 // Each fighter's own files: its scripts, for the moves whose native header
 // names no attack frames (a fireball's hitbox is in the effect the move
 // spawns) and for the Data panel; and its charges' names, read only once the
@@ -152,13 +149,10 @@ ConfirmedSamples confirmed;
 // A Practice room's match. It has no shared checkpoint: the
 // offline checkpoint is not part of the rollback state.
 std::atomic<bool> matchPractice{false};
-// The dummy's own behaviour. The plan is the player's and outlives a battle;
-// offline practice only, so the random numbers need not be reproducible.
-DummyPlan dummyPlan;
-DummyWatch dummyWatch;
-ReplyDecision replies;
-ReplyTrace replyTrace;
-std::minstd_rand dummyRandom{std::random_device{}()};
+// The dummy's own behaviour (LabCore.hxx). The plan is the player's and
+// outlives a battle; offline practice only, so the random numbers need not be
+// reproducible.
+ReplyLab replyLab;
 DummyControl dummyControl;
 // Both fighters as the last update left them, which a playback's waits read
 // a hit against (AfterUpdate); a reset reseeds them from the restored state.
@@ -166,11 +160,11 @@ std::array<FighterSample, 2> playbackSeen;
 // Normal shutdown owns this worker. Never join a thread from a DLL destructor
 // while Windows holds the loader lock.
 TrainingCapture* capture = nullptr;
-std::mutex mutex;
-View published;
+// Where the overlay meets the game thread (LabCore.hxx).
+LabChannel channel;
 // Combo check's last recorded combo, apart from the view so it is not copied each frame.
+std::mutex comboMutex;
 combo_check::Combo lastCombo;
-CommandQueue commands;
 // Separate ownership from the GGPO pool and the developer save slot.
 Battle::SaveState checkpoint;
 Frame output;
@@ -249,7 +243,7 @@ bool RestoreCheckpoint(Native* system) {
     Manager::RecorderState* recorderState = manager ? Manager::GetRecorderState(manager) : nullptr;
     if (recorderState && *recorderState == Manager::REC_PLAYING) *recorderState = Manager::REC_PLAYBACK_ARMED;
     if (dummyControl.Rewind()) ReturnDummyControl(system);
-    meter.Reset(); keptJuggle = {}; ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
+    meter.Reset(); keptJuggle = {}; replyLab.Forget(session);
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
@@ -329,25 +323,17 @@ DummyState ReadDummyState(const DummyState& fallback) {
     state.super = options[Manager::OPT_SC_GAUGE]; state.revenge = options[Manager::OPT_REVENGE_GAUGE];
     return state;
 }
-View ReadView() { std::lock_guard<std::mutex> lock(mutex); return published; }
-combo_check::Combo LastCombo() { std::lock_guard<std::mutex> lock(mutex); return lastCombo; }
-void SetCall(const CallControl& call) { std::lock_guard<std::mutex> lock(mutex); callControl = call; }
-Place ReadPlace() {
-    std::lock_guard<std::mutex> lock(mutex);
-    Place place; place.generation = published.generation; place.x[0] = published.x[0]; place.x[1] = published.x[1];
-    return place;
-}
-bool ChordStartsRecording() { std::lock_guard<std::mutex> lock(mutex); return ChordStartsRecording(published.mode); }
+View ReadView() { return channel.Read(); }
+combo_check::Combo LastCombo() { std::lock_guard<std::mutex> lock(comboMutex); return lastCombo; }
+void SetCall(const CallControl& call) { channel.SetCall(call); }
+Place ReadPlace() { return channel.ReadPlace(); }
+bool ChordStartsRecording() { return channel.ChordStartsRecording(); }
 bool ControlsAvailable() {
     if(!session.GetView().available || Battle::ggpo) return false;
     auto* system=Native::staticMethods.GetSingleton();
     return system && LabBattle(system);
 }
-bool Submit(Command command) {
-    std::lock_guard<std::mutex> lock(mutex);
-    if (!published.available || command.generation != published.generation) return false;
-    return commands.Push(command);
-}
+bool Submit(Command command) { return channel.Submit(command); }
 bool ReadOverride(int side, Input& result) {
     if (!overriding || side < 0 || side >= 2) return false;
     result = output[side]; return true;
@@ -373,7 +359,7 @@ static bool Dispatch(Native* system, const Command& command) {
     }
     switch (command.action) {
     case Action::Place: return MoveFighters(session, ReadRoots(system), command.place);
-    case Action::DummyPlan: dummyPlan = command.plan; return true;
+    case Action::DummyPlan: replyLab.plan = command.plan; return true;
     case Action::ExportSlot:
         exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; return true;
     case Action::Save: {
@@ -400,10 +386,10 @@ static bool Dispatch(Native* system, const Command& command) {
     case Action::ComboRecord: comboRecorder.Begin(); comboTally.Reset(); return true;
     case Action::ComboStart: {
         combo_check::Combo combo;
-        { std::lock_guard<std::mutex> lock(mutex); combo = lastCombo; }
+        { std::lock_guard<std::mutex> lock(comboMutex); combo = lastCombo; }
         if (combo.frames.empty() || command.check.fighters.empty()) return false;
         comboRunner.Begin(command.check, std::move(combo));
-        comboKept = published.dummy;
+        comboKept = channel.Read().dummy;
         spdlog::info("Training: Combo check, {} runs", comboRunner.Runs().size());
         return true;
     }
@@ -437,7 +423,7 @@ void EndCheck() {
 void KeepCombo() {
     combo_check::Combo combo = comboRecorder.Result();
     combo.fighter = comboView.p1;
-    { std::lock_guard<std::mutex> lock(mutex); lastCombo = combo; }
+    { std::lock_guard<std::mutex> lock(comboMutex); lastCombo = combo; }
     ++comboView.comboId; comboView.hits = combo.hits; comboView.frames = static_cast<int>(combo.frames.size());
     spdlog::info("Training: Combo check recorded {} frames, {} hits", combo.frames.size(), combo.hits);
 }
@@ -483,7 +469,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     // The dummy fighter's slots from its last battle (CloseBattle keeps them).
     if (!session.GetView().available) {
         const int fighter = BattleFighter(system, 1);
-        session.Enter(banks.Attach(fighter)); session.Seed(dummyRandom()); replies.Seed(dummyRandom());
+        session.Enter(banks.Attach(fighter)); replyLab.Seed(session);
         comboView.dummy = fighter; comboView.p1 = BattleFighter(system, 0);
         if (fighter < 0) spdlog::info("Training: the dummy's fighter is not known; its slots last this battle only");
     }
@@ -491,14 +477,13 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         *Native::GetReadyState(system) == Native::RS_FIGHT);
     ReconcileDummy(system);
     std::deque<Command> taken; std::vector<std::uint64_t> replaced;
-    { std::lock_guard<std::mutex> lock(mutex); commands.Take(taken, replaced); }
+    channel.Take(taken, replaced);
     RunBatch(PrepareBatch(taken, replaced, session.GetView().generation), acks, [system](const Command& command) { return Dispatch(system, command); });
     if (comboRunner.Running()) StepCheck(system);
     // The countdown follows the call that stands for this battle, before it
     // ticks, so a call that has ended can never take the battle away and a
     // go now taken for the call is never lost (TrainingSession.hxx).
-    CallControl call;
-    { std::lock_guard<std::mutex> lock(mutex); call = callControl; }
+    const CallControl call = channel.Call();
     if (leaving.Follow(call, session.GetView().generation, LeaveFrames)) {
         const bool called = call.volume > 0 && Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger,
             Dimps::Sound::SystemChannel::Voice, call.volume / 100.f);
@@ -826,7 +811,7 @@ void AfterUpdate(Native* system) {
         sampled = fighters; fightersRead = true;
         if (commitInput) for (int side = 0; side < 2; ++side) fighters[side].input = output[side].raw & FightButtons;
         // The dummy as its stun is timed, for a reply's wait now and its decision below.
-        const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action, ScriptedFrames(system, fighters[1], playbackSeen[1]));
+        const DummySeen seen = replyLab.Watch(fighters[1], fighters[0].action, ScriptedFrames(system, fighters[1], playbackSeen[1]));
         // A playback's waiting frames read the fight: the fighter playing it
         // in a neutral state, and a hit on the other one landing this frame.
         {
@@ -846,7 +831,7 @@ void AfterUpdate(Native* system) {
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
             // A reply's leading hold gives way as its first move is due.
             session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hitOn(other, before), until,
-                session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen), cancelOpen);
+                ReplyLab::Due(session, seen), cancelOpen);
             // Combo check: a hit on the dummy, and Player 1's combo as it is done.
             const auto& dummy = fighters[1];
             const auto free = [](const FighterSample& fighter) { return fighter.valid && ClassifyStatus(fighter.status) == Phase::Neutral; };
@@ -869,24 +854,23 @@ void AfterUpdate(Native* system) {
             int* options = DummyOptions();
             // Typed or recorded, the reply is played for the way the dummy
             // faces on each frame (Session::Prepare), from the next update.
-            const ReplyStep step = replies.Observe(dummyPlan, seen, session, dummyRandom());
+            const ReplyStep step = replyLab.Decide(seen, session);
             if (step.none) spdlog::info("Training: no reply, no recording that is on can be one");
             if (ReplyTraceOn()) {
                 const std::string line = ReplyFrameTrace(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters[1], seen, step,
-                    replies.Pending() != nullptr, session.Replying());
+                    replyLab.Pending(), session.Replying());
                 if (!line.empty()) spdlog::info("Training: reply trace {}", line);
             }
-            if (seen.freed && dummyPlan.varyStance && options) {
+            if (seen.freed && replyLab.plan.varyStance && options) {
                 const int action = options[Manager::OPT_ACTION];
-                if (action == 0 || action == 1) dummyControl.Set(options[Manager::OPT_ACTION], dummyRandom() & 1);
+                if (action == 0 || action == 1) dummyControl.Set(options[Manager::OPT_ACTION], replyLab.Draw() & 1);
             }
             // Where the reply's button met the dummy, once per reply, to check timing 0 in the game:
             // a reversal's move starts on the free frame, the update its button is acted on
             // (ReplyTiming::Acted), so both differences are timing.
             ReplyTiming timing;
             const bool pressed = playing.reply && commitInput && (output[1].raw & AttackButtons);
-            if (replyTrace.Observe(session.Replies(), session.Replying(), pressed, seen, fighters[1].valid && fighters[1].status == ActorStatus::Skill,
-                    session.Schedule().timing, timing))
+            if (replyLab.Trace(session, pressed, seen, fighters[1].valid && fighters[1].status == ActorStatus::Skill, timing))
                 spdlog::info("Training: reply trace, frames after the reply was decided: button sent {}, dummy free {}, in its move {}; "
                     "Lower input lag {}, timing {}; move {} after free, {} after the button was acted on",
                     SeenAt(timing.sent), SeenAt(timing.freed), SeenAt(timing.move), sf4e::InputLag::BattleInputLowered() ? "on" : "off", timing.timing,
@@ -895,8 +879,8 @@ void AfterUpdate(Native* system) {
         if (!capture) capture = new TrainingCapture();
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
     } else if (sampling && delta != 0) {
-        if (ReplyTraceOn() && (replies.Pending() || session.Replying())) spdlog::info("Training: reply trace frames not consecutive, the stun watch and any pending reply forgotten");
-        meter.Reset(); ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
+        if (ReplyTraceOn() && (replyLab.Pending() || session.Replying())) spdlog::info("Training: reply trace frames not consecutive, the stun watch and any pending reply forgotten");
+        meter.Reset(); replyLab.Forget(session);
         ++gapResets;
     }
     if (sampling && delta == 1) unfedUpdates = unfedNotReady = unfedMultiFrame = 0;
@@ -915,19 +899,20 @@ void AfterUpdate(Native* system) {
     if (view.available && view.ready && BoxesWanted()) boxes = ReadBoxes(system);
     DataView data;
     if (view.available && view.ready && DataWanted()) data = ReadData(system, fightersRead ? sampled : ReadFighters(system, false));
-    std::lock_guard<std::mutex> lock(mutex);
-    // Whether the match meter shows is ObserveMatch's: a replay's held frame (a slower speed, a pause) runs only
-    // this, and must not hide the meter until the next played frame.
-    const bool watching = published.watching, replayInputs = published.replayInputs;
-    published = view; published.meter = meter.View(); published.boxes = std::move(boxes); published.data = std::move(data);
-    published.watching = watching; published.replayInputs = replayInputs;
-    if (published.available) published.dummy = ReadDummyState(published.dummy);
-    published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
-    published.leavingIn = leaving.Left(); published.leavingCall = leaving.Call();
-    published.acks=acks;
-    comboView.best = comboTally.Best(); comboView.recording = comboRecorder.Armed();
-    comboView.running = comboRunner.Running(); comboView.runs = comboRunner.Runs();
-    published.check = comboView;
+    channel.Publish([&](View& published) {
+        // Whether the match meter shows is ObserveMatch's: a replay's held frame (a slower speed, a pause) runs only
+        // this, and must not hide the meter until the next played frame.
+        const bool watching = published.watching, replayInputs = published.replayInputs;
+        published = view; published.meter = meter.View(); published.boxes = std::move(boxes); published.data = std::move(data);
+        published.watching = watching; published.replayInputs = replayInputs;
+        if (published.available) published.dummy = ReadDummyState(published.dummy);
+        published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
+        published.leavingIn = leaving.Left(); published.leavingCall = leaving.Call();
+        published.acks=acks;
+        comboView.best = comboTally.Best(); comboView.recording = comboRecorder.Armed();
+        comboView.running = comboRunner.Running(); comboView.runs = comboRunner.Runs();
+        published.check = comboView;
+    });
 }
 void SetMatchPractice(bool enabled) { matchPractice = enabled; }
 bool MatchPracticeActive() { return matchPractice; }
@@ -950,7 +935,7 @@ void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const 
         // Turned off mid-match: the meter goes, and starts clean if it is asked for again.
         if (!matchShown) return;
         matchShown = false; meter.Reset(); confirmed.Reset();
-        std::lock_guard<std::mutex> lock(mutex); published.watching = false;
+        channel.Publish([](View& published) { published.watching = false; });
         return;
     }
     // No script-file fallback here, so a projectile move without attack
@@ -967,8 +952,9 @@ void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const 
         if (!confirmed.Next(lastConfirmedInput, frame, next)) return;
         do meter.Observe(frame, next); while (confirmed.Next(lastConfirmedInput, frame, next));
     }
-    std::lock_guard<std::mutex> lock(mutex);
-    published.meter = meter.View(); published.watching = matchShown = true; published.replayInputs = inputs != nullptr;
+    channel.Publish([&](View& published) {
+        published.meter = meter.View(); published.watching = matchShown = true; published.replayInputs = inputs != nullptr;
+    });
 }
 void StopCapture() { delete capture; capture = nullptr; }
 void CloseBattle() {
@@ -986,9 +972,9 @@ void CloseBattle() {
     // The slots stay with the dummy fighter for its next battle, a recording under way among them.
     if (session.GetView().available) banks.Detach(session.TakeBank());
     keptJuggle = {}; session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
-    matchPractice = false; dummyWatch.Reset(); replies.Reset(); replyTrace.Reset(); playbackSeen = {};
+    matchPractice = false; replyLab.Close(); playbackSeen = {};
     // The recording made stays for the next battle, where the check plays it.
     comboTally.Reset(); comboRecorder = {}; comboView.dummy = -1; comboView.p1 = -1; comboView.free = comboView.recording = false;
-    std::lock_guard<std::mutex> lock(mutex); commands.Clear(); published = session.GetView();
+    channel.Close(session.GetView());
 }
 } }

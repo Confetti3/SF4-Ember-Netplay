@@ -20,6 +20,7 @@ sf4e_add_unit_test(NAME SelfTest SOURCES "src/tests/selftest_test.cxx" STD 14)
 sf4e_add_unit_test(NAME FocusCancel SOURCES "src/tests/focus_cancel_test.cxx" STD 14)
 sf4e_add_unit_test(NAME TrainingReply SOURCES "src/tests/training_reply_test.cxx" STD 14 LABELS training)
 sf4e_add_unit_test(NAME TrainingFacing SOURCES "src/tests/training_facing_test.cxx" STD 14 LABELS training)
+sf4e_add_unit_test(NAME TrainingLabCore SOURCES "src/tests/training_lab_core_test.cxx" STD 14 LABELS training)
 # The bank's test includes RecordingBank.hxx alone, so it fails to build
 # if the bank comes to need the session.
 sf4e_add_unit_test(NAME TrainingRecordingBank SOURCES "src/tests/training_recording_bank_test.cxx" STD 14 LABELS training)
