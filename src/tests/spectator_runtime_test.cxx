@@ -196,13 +196,19 @@ void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) 
 // fails (its port cannot be reserved) at the next TickMatch. queued: this PC
 // waits in the table's queue rather than watching by choice, and each game is
 // a whole set, so the end of one rotates the queue.
+sf4e::room::Charter PracticeCharter(bool practice) {
+	sf4e::room::Charter charter;
+	charter.practice = practice;
+	return charter;
+}
+
 struct WatchedGame {
 	sf4e::room::RoomAuthority authority;
 	sf4e::room::MemberId p1 = 0, p2 = 0, member = 0;
 	std::uint64_t generation = 0;
 	RuntimeRoom r;
 	explicit WatchedGame(bool practice, bool enter = true, bool queued = false) :
-		authority("Watched", 16, 96, TableRules(queued), practice) {
+		authority("Watched", 16, 96, TableRules(queued), PracticeCharter(practice)) {
 		namespace room = sf4e::room;
 		const auto join = [&](int index, bool host) {
 			const auto result = authority.Join("Player" + std::to_string(index), room::ConnectionRef{"host", std::to_string(index)}, host);
@@ -281,10 +287,8 @@ static void StreamWatchedGame(WatchedGame& game) {
 
 // Stop watching as the shell submits it: the leave of the watched game, by name.
 static void SubmitStopWatching(WatchedGame& game) {
-	sf4e::NetplayFacade::RuntimeCommand leave{};
-	leave.command.generation = game.r.runtime->controller.GetSnapshot().generation;
-	leave.leaveWatchedGame = {0, game.generation};
-	CHECK(sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(leave)));
+	const sf4e::commands::LeaveWatchedGame leave{game.r.runtime->controller.GetSnapshot().generation, {0, game.generation}};
+	CHECK(sf4e::NetplayFacade::SubmitRuntimeCommand(leave));
 }
 
 // The room actions of `kind` this PC sent from its `from`th message on.
@@ -417,9 +421,7 @@ void TestSpectatorLeavesWatchedGame() {
 // Release lock-in as the shell submits it, taken by the game thread.
 static void SubmitRelease(WatchedGame& game) {
 	const auto& seen = game.r.Client().GetRoomSnapshot();
-	sf4e::NetplayFacade::RuntimeCommand release{};
-	release.command = {sf4e::netplay::CommandKind::RoomAction, game.r.runtime->controller.GetSnapshot().generation, {}};
-	release.roomAction = LockAction(false);
+	sf4e::commands::RoomAction release{game.r.runtime->controller.GetSnapshot().generation, LockAction(false)};
 	release.roomAction.roomEpoch = seen.roomEpoch; release.roomAction.revision = seen.revision;
 	release.roomAction.tableRevision = seen.tables[0].revision;
 	CHECK(sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(release)));
@@ -521,8 +523,7 @@ void TestTableChangeLeavesWithoutFailure() {
 		const auto before = runtime->lockInDrops;
 		const auto sentBefore = game.r.transport->sent.size();
 		const auto& seen = game.r.Client().GetRoomSnapshot();
-		sf4e::NetplayFacade::RuntimeCommand change{};
-		change.command = {sf4e::netplay::CommandKind::RoomAction, runtime->controller.GetSnapshot().generation, {}};
+		sf4e::commands::RoomAction change{runtime->controller.GetSnapshot().generation};
 		change.roomAction.kind = test.kind; change.roomAction.table = test.table;
 		change.roomAction.roomEpoch = seen.roomEpoch; change.roomAction.revision = seen.revision;
 		change.roomAction.tableRevision = seen.tables[test.table].revision;
@@ -694,6 +695,36 @@ void TestSpectatorSitOutNotice() {
 	std::cout << "TestSpectatorSitOutNotice passed\n";
 }
 
+// A started game whose battle never runs here (it never loads, or never
+// synchronizes) is given up at its start bound (IrohMatchSession::StartTimeoutMs),
+// through the one path a failed setup takes: the room hears of it and this PC
+// leaves the game. A spectator leaves that game only, as a lost stream, and
+// keeps watching the table; a fighter's AbortMatch ends it for the table.
+void TestStartBoundLeavesTheGame() {
+	namespace facade = sf4e::NetplayFacade;
+	WatchedGame game(false);
+	auto* runtime = game.r.runtime;
+	auto& match = game.r.Client()._matchData;
+	match.stageID = 0;
+	for (auto& chara : match.chara) { chara.charaID = 0; chara.ultraCombo = 0; chara.unc_edition = 14; }
+	game.r.room->LinkUp(game.generation);
+	game.Tick();
+	game.r.Deliver(json{{"type", "game_start"}, {"generation", game.generation}});
+	game.Tick();
+	CHECK(game.r.Match().GetPhase() == Phase::Started && !runtime->entry.matchEntered);
+	facade::ClearMatchNotice();
+	game.r.now += sf4e::session::IrohMatchSession::StartTimeoutMs - 1;
+	facade::internal::TickMatch();
+	CHECK(game.r.Match().GetPhase() == Phase::Started && game.r.KeptUnwatches(game.generation) == 0);
+	game.r.now += 2;
+	facade::internal::TickMatch();
+	CHECK(game.r.Match().LastFailure() == "match_start_timeout" && runtime->recoveringMatch);
+	CHECK(runtime->error == sf4e::loc::T("runtime.spectator_stream_lost"));
+	CHECK(game.r.KeptUnwatches(game.generation) == 1);
+	facade::ClearMatchNotice();
+	std::cout << "TestStartBoundLeavesTheGame passed\n";
+}
+
 // What an entered room match arms for its battle (its seed and Training rules)
 // reaches no later battle when the entry ends before the game prepares one:
 // the netplay session shut down, the game left, or the entry reset.
@@ -727,9 +758,7 @@ void TestEnteredBattleRequestCancelled() {
 		game.r.room->Coordinate();
 		runtime->room = game.r.room;
 		arm();
-		sf4e::NetplayFacade::RuntimeCommand leave;
-		leave.command = {sf4e::netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}};
-		CHECK(facade::SubmitRuntimeCommand(std::move(leave)));
+		CHECK(facade::SubmitRuntimeCommand(sf4e::commands::LeaveRoom{runtime->controller.GetSnapshot().generation}));
 		sf4e::NetplayFacade::internal::DrainCommands(true);
 		CHECK(runtime->leave.leaveRequested && game.r.room->leaveCalls == 0);
 		CHECK(!prepared());
@@ -787,10 +816,8 @@ void TestGatesMatchPublished() {
 // A Ready parked by hand, as Dispatch parks one, for the controller's generation now.
 static void ParkReady(sf4e::NetplayFacade::internal::Runtime& runtime) {
 	namespace internal = sf4e::NetplayFacade::internal;
-	internal::commands::Room ready;
-	ready.command = {sf4e::netplay::CommandKind::Ready, runtime.controller.GetSnapshot().generation, {}};
-	runtime.readyIntent.Defer(internal::TypedCommand(ready), ready.command.generation, GetTickCount64(),
-		internal::Intent::Budget::Timed);
+	const sf4e::commands::Ready ready{runtime.controller.GetSnapshot().generation};
+	runtime.readyIntent.Defer(sf4e::RuntimeRequest(ready), ready.generation, GetTickCount64(), internal::Intent::Budget::Timed);
 	CHECK(runtime.readyIntent.Parked());
 }
 
@@ -828,11 +855,11 @@ void TestGatesAreCurrent() {
 		r.Projection(1, 0);
 		// A controller change (an input action), or an Unready room action.
 		const auto submit = [&](bool unready) {
-			facade::RuntimeCommand command;
-			command.command = {sf4e::netplay::CommandKind::RoomAction, runtime.controller.GetSnapshot().generation, {}};
-			if (unready) command.roomAction.kind = sf4e::room::ActionKind::Unready;
-			else command.inputAction = sf4e::input::Action::BeginCapture;
-			CHECK(facade::SubmitRuntimeCommand(std::move(command)));
+			const auto generation = runtime.controller.GetSnapshot().generation;
+			sf4e::commands::RoomAction release{generation};
+			release.roomAction.kind = sf4e::room::ActionKind::Unready;
+			CHECK(facade::SubmitRuntimeCommand(unready ? sf4e::RuntimeRequest(release) :
+				sf4e::RuntimeRequest(sf4e::commands::Input{generation, sf4e::input::Action::BeginCapture})));
 		};
 		// The last Publish shows the gate closed (it ran away from the main menu).
 		internal::Publish();
@@ -887,8 +914,7 @@ void TestUnreadyWithdrawsAParkedReady() {
 	const auto generation = runtime->controller.GetSnapshot().generation;
 	ParkReady(*runtime);
 	const auto sentBefore = r.transport->sent.size();
-	facade::RuntimeCommand unready{};
-	unready.command = {sf4e::netplay::CommandKind::RoomAction, generation, {}};
+	sf4e::commands::RoomAction unready{generation};
 	unready.roomAction.kind = room::ActionKind::Unready; unready.roomAction.table = 0; unready.roomAction.seat = 0;
 	CHECK(facade::SubmitRuntimeCommand(std::move(unready)));
 	facade::internal::DrainCommands(true);
@@ -927,11 +953,8 @@ void TestWatcherSavesRoomSettings() {
 		sent.roomShowChat = !sent.roomShowChat;
 		const gamepads::Identity pad{"guid", "serial", "path", "Pad"};
 		sent.buttonLayouts.push_back({pad, gamepads::DefaultLayout});
-		facade::RuntimeCommand save;
-		save.command = {netplay::CommandKind::SavePreferences, session.generation, {}};
-		save.roomSettings = true; save.preferences = sent;
 		runtime.error.clear();
-		CHECK(facade::SubmitRuntimeCommand(std::move(save)));
+		CHECK(facade::SubmitRuntimeCommand(sf4e::commands::RoomSettings{session.generation, sent}));
 		internal::DrainCommands(true);
 		CHECK_MSG(runtime.error.empty(), "%s", runtime.error.c_str());
 		CHECK(runtime.preferences.roomColumn == sent.roomColumn && runtime.preferences.roomShowChat == sent.roomShowChat);
@@ -951,8 +974,7 @@ void TestWatcherSavesRoomSettings() {
 		runtime.pads = {served}; runtime.padLayer = gamepads::Layer::Active;
 		auto edited = gamepads::DefaultLayout; std::swap(edited[0], edited[1]);
 		const auto edit = [&] {
-			facade::RuntimeCommand layout;
-			layout.command = {netplay::CommandKind::SavePreferences, session.generation, {}};
+			sf4e::commands::Pad layout{session.generation};
 			layout.padAction.kind = gamepads::ControllerRequest::Kind::Layout; layout.padAction.id = served.id; layout.padAction.buttons = edited;
 			CHECK(facade::SubmitRuntimeCommand(std::move(layout)));
 			internal::DrainCommands(true);
@@ -986,6 +1008,7 @@ int main() {
 	TestParkedStopWatchingCatchesUp();
 	TestFinishedWatchEndsOnlyTheView();
 	TestSpectatorSitOutNotice();
+	TestStartBoundLeavesTheGame();
 	TestEnteredBattleRequestCancelled();
 	TestGatesMatchPublished();
 	TestGatesAreCurrent();

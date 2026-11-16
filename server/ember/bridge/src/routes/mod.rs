@@ -1,11 +1,14 @@
+pub mod account;
 pub mod archive;
 pub mod blumint;
 pub mod desk_pages;
 pub mod discovery;
 pub mod events;
 pub mod expiry;
+pub mod friends;
 pub mod idempotency;
 pub mod ledger;
+pub mod levels;
 pub mod links;
 pub mod lobbies;
 pub mod lookup;
@@ -13,6 +16,7 @@ pub mod matches;
 pub mod organizer;
 pub mod play;
 pub mod policy;
+pub mod profiles;
 pub mod ranking;
 pub mod records;
 pub mod replays;
@@ -68,6 +72,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/links/{id}", delete(links::remove))
         .route("/v1/players/resolve", post(links::resolve))
         .route(ember_protocol::partner::LOOKUP_PATH, post(lookup::lookup))
+        .route(ember_protocol::partner::PROVER_PATH, post(lookup::prover))
         .route("/v1/players/{ember_id}/record", get(records::record))
         .route("/v1/matches", post(matches::create))
         .route("/v1/matches/{id}", get(matches::get))
@@ -133,6 +138,15 @@ pub fn router(state: AppState) -> Router {
         )
         .route(ember_protocol::skill::BOARD_PATH, get(ranking::board))
         .route("/v1/ranking/board/public", get(ranking::public_board))
+        .route(ember_protocol::levels::POINTS_PATH, get(levels::own))
+        .route(ember_protocol::levels::LOOKUP_PATH, post(levels::lookup))
+        .route(ember_protocol::levels::CARDS_ME_PATH, put(profiles::save))
+        .route(ember_protocol::levels::SEARCH_PATH, post(profiles::search))
+        // tests/friends.rs scans every answer of these and the level routes
+        // for Discord IDs, and tests/profiles.rs those of the profile
+        // routes: a route serving one player's data to another joins its list.
+        .route(ember_protocol::friends::SYNC_PATH, post(friends::sync))
+        .route(ember_protocol::friends::ACTIONS_PATH, post(friends::act))
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
         .route("/v1/lobbies/{id}/queue", post(lobbies::join))
@@ -278,8 +292,10 @@ pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<
 }
 
 /// Expires link intents, holds games whose reports did not arrive, expires
-/// matches nobody played, observes the fighters whose claims lapsed, and
-/// removes sign-ins no site answered, stale challenges, sessions, replay
+/// matches nobody played, observes the fighters whose claims lapsed, brings
+/// the archive's classes towards the rankings board's, lapses friend
+/// requests and forgets stale presences and invites, and removes sign-ins
+/// no site answered, stale challenges, sessions, replay
 /// records, refused BluMint keys and old sets' replays when the bridge prunes
 /// them, once the archive has taken in the sets' games it has not seen.
 /// Durable domain records (links, matches, attempts, reports, events) stay,
@@ -290,6 +306,8 @@ pub async fn maintenance_once(state: &AppState) {
     let ctx = Ctx::of(state);
     let now = ctx.now;
     let cutoff = now.saturating_sub(RETENTION_SECS);
+    let classes_shown = rooms::enabled(state) && rooms::classes_shown(state);
+    let developers = rooms::developers(state);
     // A failed pass changes nothing and the next one tries again.
     let _ = state
         .db
@@ -315,7 +333,24 @@ pub async fn maintenance_once(state: &AppState) {
             crate::archive::sets::backfill(tx, &ctx)?;
             crate::archive::duplicates::fold_kept_before(tx)?;
             replays::prune(tx, &ctx)?;
+            crate::friends::store::sweep(tx, now)?;
             Ok(())
         })
         .await;
+    state.friends.prune(now);
+    // Its own transaction: the rest of the pass never waits on it or fails
+    // with it. Only when due: it reads the whole board under the write lock.
+    let board = crate::skill::board_version();
+    if state.archive_classes.due(board, now) {
+        match state
+            .db
+            .write(move |tx| crate::archive::classes::refresh(tx, classes_shown, &developers, now))
+            .await
+        {
+            Ok(settled) => state.archive_classes.done(board, now, settled),
+            Err(error) => {
+                eprintln!("maintenance: could not refresh the archive's classes: {error:?}")
+            }
+        }
+    }
 }

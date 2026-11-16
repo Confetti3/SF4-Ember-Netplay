@@ -65,9 +65,13 @@ void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLaye
         // The banner is the call's: a countdown with no call standing draws none.
         reset();training.leavingIn=120;layers.challenger.opponent="Opponent";draw();
         Require(!foreground(),"A countdown without a call drew the challenger banner");
-        reset();layers.captionShown=true;layers.caption.names[0]="Caption One";layers.caption.names[1]="Caption Two";
+        reset();layers.exporting=true;layers.captionShown=true;layers.caption.names[0]="Caption One";layers.caption.names[1]="Caption Two";
         layers.caption.line="Export caption";layers.caption.mark=true;draw();
         Require(WindowDrawn(ExportCaptionWindow),"Open window or native pause hid export caption");
+        // A watched replay's names and classes give way to an open window or the game's pause, as the HUD does.
+        layers.exporting=false;layers.caption.line.clear();layers.caption.mark=false;
+        layers.caption.badges[0]=SkillBadge::Placing();layers.caption.badges[1]=SkillBadge::OfClass(8,true);draw();
+        Require(WindowDrawn(ExportCaptionWindow)==passive,"A watched replay's names and classes showed over a window, or hid without one");
         reset();layers.matchActive=true;layers.controllerWarning="Reconnect the controller.";draw();
         Require(WindowDrawn("Controller warning"),"Open window or native pause hid controller warning");
         for(int alert=0;alert<3;++alert) {

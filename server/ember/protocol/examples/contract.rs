@@ -68,6 +68,7 @@ fn main() {
         capacity: 2,
         tables_playing: 0,
         region: "use1".into(),
+        area: None,
         created_at: 1,
         own_delay: true,
         host_name: Some("Host".into()),

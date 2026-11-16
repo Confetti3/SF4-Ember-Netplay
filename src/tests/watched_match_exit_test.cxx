@@ -1,6 +1,6 @@
 // Ember opened over a room game this PC only watches lands on the board at
 // Stop watching, which asks first and submits one leave naming the watched
-// game (ShellAction::leaveWatchedGame); the runtime decides what leaving it
+// game (commands::LeaveWatchedGame); the runtime decides what leaving it
 // takes when it runs. A watcher by choice is offered Stop watching, a queued
 // member Leave this game. Once the room has finished the game while its stream
 // still plays, the row stays and says so. The row and dispatch read the same
@@ -13,6 +13,7 @@
 #include "../ui/MenuRows.hxx"
 #include "../ui/Theme.hxx"
 #include "imgui_test_support.hxx"
+#include "shell_action_support.hxx"
 #include <imgui.h>
 #include <algorithm>
 #include <iostream>
@@ -87,9 +88,9 @@ struct WatchedBoard {
     std::vector<netplay::WatchedGame> Leaves() const {
         std::vector<netplay::WatchedGame> sent;
         for (const auto& action : actions) {
-            Check(action.command.kind != netplay::CommandKind::RoomAction || action.roomAction.kind != room::ActionKind::Unwatch,
+            Check(!test::RoomActionIs(action, room::ActionKind::Unwatch),
                 "A press sent an Unwatch of its own instead of the watched game's leave");
-            if (action.leaveWatchedGame.Active()) sent.push_back(action.leaveWatchedGame);
+            if (const auto* leave = test::As<commands::LeaveWatchedGame>(action)) sent.push_back(leave->leaveWatchedGame);
         }
         return sent;
     }
@@ -193,8 +194,8 @@ struct LockedBoard : WatchedBoard {
     void Release() {
         shell.Navigation().Push("room-table"); Frame();
         shell.Navigation().Focus("lock-spectating", rows); Press(MenuInput::Select);
-        Check(!actions.empty() && actions.back().roomAction.kind == room::ActionKind::LockSpectating &&
-            !actions.back().roomAction.locked, "Release lock-in was not sent");
+        Check(!actions.empty() && test::Is<commands::RoomAction>(actions.back(), [](const commands::RoomAction& sent) {
+            return sent.roomAction.kind == room::ActionKind::LockSpectating && !sent.roomAction.locked; }), "Release lock-in was not sent");
     }
     // The table page's Stop watching, which is the watched game's leave.
     void StopWatching() {

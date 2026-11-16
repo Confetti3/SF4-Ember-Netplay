@@ -8,18 +8,17 @@
 
 namespace sf4e { namespace selftest { namespace online {
 
-using NetplayFacade::RuntimeCommand;
 using NetplayFacade::RuntimeSnapshot;
 
 std::shared_ptr<const RuntimeSnapshot> Now() { return NetplayFacade::GetRuntimeSnapshotShared(); }
 
-RuntimeCommand Command(netplay::CommandKind kind) {
-	const auto now = Now();
-	RuntimeCommand request;
-	request.command = { kind, now->session.generation, {} };
-	request.preferences = now->preferences;
-	request.displayName = now->preferences.displayName;
-	return request;
+netplay::Generation Generation() { return Now()->session.generation; }
+
+commands::Ready AsRyu(bool rematch) {
+	commands::Ready ready;
+	ready.generation = Generation(); ready.rematch = rematch;
+	ready.pick.fighter = 0; ready.pick.edition = Dimps::Game::Battle::ED_USF4;
+	return ready;
 }
 
 netplay::PlayerPreferences TestPreferences(const RuntimeSnapshot& now, bool host) {
@@ -32,18 +31,13 @@ netplay::PlayerPreferences TestPreferences(const RuntimeSnapshot& now, bool host
 }
 
 void UseKeyboard(const RuntimeSnapshot& now) {
-	RuntimeCommand request;
-	request.command.generation = now.session.generation;
-	request.inputAction = input::Action::UseKeyboard;
-	NetplayFacade::SubmitRuntimeCommand(std::move(request));
+	NetplayFacade::SubmitRuntimeCommand(commands::Input{now.session.generation, input::Action::UseKeyboard});
 }
 
 void ReadyAsRyu(const RuntimeSnapshot& now, int table) {
 	const auto& seats = now.Room().tables[table];
 	if (!seats.p1 || !seats.p2 || now.session.match != netplay::MatchState::None || now.session.readyPending) return;
-	RuntimeCommand request = Command(netplay::CommandKind::Ready);
-	request.character.charaID = 0; request.character.unc_edition = Dimps::Game::Battle::ED_USF4;
-	NetplayFacade::SubmitRuntimeCommand(std::move(request));
+	NetplayFacade::SubmitRuntimeCommand(AsRyu(false));
 }
 
 std::string ReadLine(const std::wstring& path) {

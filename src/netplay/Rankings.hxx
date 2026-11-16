@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "Answered.hxx"
 #include "../common/Country.hxx"
 #include "../common/SkillBadge.hxx"
 
@@ -106,22 +107,6 @@ struct BoardEntry {
 	// 1 to SkillBadge::Classes, highest first on the board.
 	std::uint8_t band = 0;
 	bool own = false;
-};
-
-// One kind of request's last answer: whether one is in flight, the helper's
-// code when the last failed, how many have finished, answered or not, and how
-// many values were installed. A failed request moves `finished` but not
-// `revision`, so a reader can tell a newer value from a newer failure. Both
-// counts carry on across a change of service or Ember ID (RankingRequests.hxx).
-template <class Value>
-struct Answered {
-	Value value;
-	bool loaded = false;
-	bool loading = false;
-	std::string error;
-	std::uint64_t finished = 0, revision = 0;
-	// The runtime's clock, milliseconds, when the value arrived.
-	std::uint64_t installedMs = 0;
 };
 
 struct Status {

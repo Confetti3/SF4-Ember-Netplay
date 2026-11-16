@@ -12,7 +12,7 @@ has too little memory to build.
 | [roomhost](roomhost) | `sf4e-room-host`: one public room (C++, shares the session code in `src/`) | built with [roomhost/build-linux.sh](roomhost/build-linux.sh), installed by ember-rooms |
 | [ember-short](ember-short) | `ember-short`: short invitation links and the embernetplay.link pages | [ember-short/deploy](ember-short/deploy) |
 | [ember-reports](ember-reports) | `ember-reports`: opt-in crash/problem reports and local symbolication, forwarded to Bugsink | [ember-reports/deploy](ember-reports/deploy) |
-| [relay](relay) | `iroh-relay` at relay.embernetplay.link: the helper's US relay | [relay/deploy](relay/deploy) |
+| [relay](relay) | `iroh-relay` at relay.embernetplay.link: the helper's US relay; a kit for a relay on a community host (Europe) | [relay/deploy](relay/deploy), [relay/community](relay/community) |
 
 Shared with the game:
 

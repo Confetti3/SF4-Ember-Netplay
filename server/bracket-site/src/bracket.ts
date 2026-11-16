@@ -13,6 +13,8 @@ export interface BracketSet {
   /** Games won, in `entries` order. */
   scores: [number, number] | null;
   underway: boolean;
+  /** Its organizers hold it: the connector waits to start its match. */
+  held?: boolean;
   /** The Idempotency-Key the result came with; null when an organizer entered it. */
   key: string | null;
   /** From the connector's report: each game's winning entry in order, its facts, and the Ember match. */

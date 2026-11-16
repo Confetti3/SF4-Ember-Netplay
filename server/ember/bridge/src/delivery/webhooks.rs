@@ -13,9 +13,9 @@ use std::{
 
 use ember_protocol::webhook::{self, Secret};
 use reqwest::Url;
-use rusqlite::{Transaction, params};
+use rusqlite::{ToSql, Transaction, params};
 
-use super::{BATCH, Leased, Outcome, Queue, Record, Settled};
+use super::{BATCH, Leased, Outcome, Queue, Record, Settled, Table};
 use crate::{AppState, error::Result};
 
 const MAX_RESPONSE: usize = 64 * 1024;
@@ -39,8 +39,10 @@ pub struct Webhooks;
 impl Queue for Webhooks {
     type Item = Due;
 
-    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Due>>> {
-        let rows = tx
+    const TABLE: Table = Table::outbox("delivery_outbox");
+
+    fn due(&self, tx: &Transaction<'_>, now: u64) -> Result<Vec<Leased<Due>>> {
+        Ok(tx
             .prepare(
                 "SELECT o.id, o.attempts, o.first_attempt_at, e.id, e.body, s.id, s.url, s.secret_sealed,
                         s.previous_secret_sealed, s.previous_expires_at
@@ -71,14 +73,11 @@ impl Queue for Webhooks {
                     },
                 })
             })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for row in &rows {
-            tx.execute(
-                "UPDATE delivery_outbox SET next_attempt_at = ?1, attempts = ?2 WHERE id = ?3",
-                params![until, row.attempt, row.item.outbox_id],
-            )?;
-        }
-        Ok(rows)
+            .collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    fn key(item: &Due) -> Vec<&dyn ToSql> {
+        vec![&item.outbox_id]
     }
 
     async fn attempt(&self, state: &AppState, item: &Due) -> Outcome {
@@ -86,27 +85,11 @@ impl Queue for Webhooks {
     }
 
     fn record(&self, tx: &Transaction<'_>, leased: &Leased<Due>, record: &Record) -> Result<()> {
-        let (status, next, error) = match &record.settled {
-            Settled::Delivered => ("delivered", record.at, None),
-            Settled::Retry { at, error } => ("pending", *at, Some(error)),
-            Settled::Refused(error) | Settled::Expired(error) => ("dead", record.at, Some(error)),
-        };
-        let changed = tx.execute(
-            "UPDATE delivery_outbox SET state = ?1, next_attempt_at = ?2,
-                first_attempt_at = COALESCE(first_attempt_at, ?3), last_error = ?4
-             WHERE id = ?5 AND state = 'pending' AND attempts = ?6",
-            params![
-                status,
-                next,
-                record.first_attempt_at,
-                error,
-                leased.item.outbox_id,
-                leased.attempt
-            ],
-        )?;
+        let recorded = Self::TABLE.record(tx, &Self::key(&leased.item), leased.attempt, record)?;
         // The receiver said the endpoint is gone (410). Any other refusal
         // ends only that event.
-        if changed == 1 && matches!(&record.settled, Settled::Refused(error) if error == GONE) {
+        if recorded.is_some() && matches!(&record.settled, Settled::Refused(error) if error == GONE)
+        {
             tx.execute(
                 "UPDATE webhook_subscriptions SET enabled = 0, disabled_at = ?1 WHERE id = ?2",
                 params![record.at, leased.item.subscription_id],

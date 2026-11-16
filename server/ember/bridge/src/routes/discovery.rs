@@ -59,9 +59,17 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
     if crate::routes::rooms::enabled(&state) {
         features.push(crate::routes::rooms::FEATURE.into());
         features.push(crate::routes::rooms::CONNECTION_FEATURE.into());
+        features.push(ember_protocol::rooms::AREA_FEATURE.into());
         features.push(ember_protocol::skill::RANKING_FEATURE.into());
         // The ranking routes read `?game=` (migration 058).
         features.push(ember_protocol::skill::RANKING_GAMES_FEATURE.into());
+        features.push(ember_protocol::levels::POINTS_FEATURE.into());
+        features.push(ember_protocol::levels::CLASS_BONUS_FEATURE.into());
+        features.push(ember_protocol::levels::PROFILES_FEATURE.into());
+    }
+    if crate::friends::offered(&state) {
+        features.push(ember_protocol::friends::FRIENDS_FEATURE.into());
+        features.push(ember_protocol::friends::PRESENCE_V2_FEATURE.into());
     }
     // A connection's own settings say whether it may use these.
     features.push(ember_protocol::partner::LOOKUP_FEATURE.into());
@@ -116,9 +124,24 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
                     authorize_origin,
                     authorize_path,
                     organizer: sign_in && site.organizer.is_some(),
+                    create: site
+                        .organizer
+                        .as_ref()
+                        .and_then(|organizer| organizer.create.as_ref())
+                        .map(|create| create.choices()),
                 }
             })
             .collect(),
+        tournaments: state
+            .config
+            .tournaments
+            .as_ref()
+            .map(|tournaments| tournaments.origin.clone()),
+        archive: state
+            .config
+            .archive
+            .as_ref()
+            .and_then(crate::config::Archive::listing_url),
         limits: Limits {
             max_body_bytes: json::MAX_BODY,
             max_proof_body_bytes: challenge::MAX_PROOF_BODY,

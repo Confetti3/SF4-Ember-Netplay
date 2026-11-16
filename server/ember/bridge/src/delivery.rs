@@ -5,14 +5,19 @@
 //! overwrites the one that replaced it. Retries follow one schedule with
 //! jitter until a day has passed since the first attempt.
 //!
-//! Four queues use it: signed webhooks from the outbox (`webhooks`), match
+//! Nine queues use it: signed webhooks from the outbox (`webhooks`), match
 //! results sent to the platform that created the match (`results`), and,
 //! for a platform that hears how a set stands while it is played
 //! (`Policy::reports_progress`, BluMint), the set's score (`progress`) and
-//! the match's status (`status`). A fifth sends desk events' Discord calls
-//! (`calls`). Two more store the replay archive's games (`archive`) and
-//! its sets' packs (`packs`), and one settles the copies of one game it kept
-//! before it knew them apart (`duplicates`).
+//! the match's status (`status`). Two send desk events' Discord calls
+//! (`calls`) and private match messages (`dms`). Two more store the replay
+//! archive's games (`archive`) and its sets' packs (`packs`), and one
+//! settles the copies of one game it kept before it knew them apart
+//! (`duplicates`).
+//!
+//! Each queue keeps its items in a table of its own and says what is due
+//! (`Queue::due`); the columns it leases and records by (`Table`) are
+//! leased and fenced the same way for all of them.
 pub mod archive;
 pub mod calls;
 pub mod dms;
@@ -21,12 +26,14 @@ pub mod packs;
 pub mod progress;
 pub mod results;
 pub mod status;
+pub mod table;
 pub mod webhooks;
 
 use std::{future::Future, sync::Arc, time::Duration};
 
 use futures_util::StreamExt;
-use rusqlite::Transaction;
+use rusqlite::{ToSql, Transaction};
+pub use table::{Outcomes, Table};
 
 use crate::{AppState, error::Result, util::random};
 
@@ -79,6 +86,18 @@ pub enum Settled {
     Expired(String),
 }
 
+impl Settled {
+    /// What an attempt that did not deliver ended with.
+    pub fn error(&self) -> Option<&str> {
+        match self {
+            Self::Delivered => None,
+            Self::Retry { error, .. } | Self::Refused(error) | Self::Expired(error) => {
+                Some(error.as_str())
+            }
+        }
+    }
+}
+
 /// What a queue records after an attempt.
 pub struct Record {
     /// When the attempt ended.
@@ -90,21 +109,38 @@ pub struct Record {
 pub trait Queue: Send + Sync + 'static {
     type Item: Send + Sync + 'static;
 
-    /// Up to `BATCH` items due at `now`, the longest due first, each leased
-    /// in this write: not taken again before `until`, and its attempts
-    /// counted up to this attempt's number.
-    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Self::Item>>>;
+    /// Where the items are kept, one row each.
+    const TABLE: Table;
+
+    /// Up to `BATCH` items due at `now`, the longest due first, each with the
+    /// number of the attempt about to be made (its attempts so far, plus
+    /// one). `lease` leases them in the same write.
+    fn due(&self, tx: &Transaction<'_>, now: u64) -> Result<Vec<Leased<Self::Item>>>;
+
+    /// The values of `TABLE.key` that name `item`'s row.
+    fn key(item: &Self::Item) -> Vec<&dyn ToSql>;
 
     fn attempt(&self, state: &AppState, item: &Self::Item) -> impl Future<Output = Outcome> + Send;
 
     /// Records `record` if the item is still waiting under this lease (its
     /// attempts are still `leased.attempt`); otherwise a later lease owns it.
+    /// Every queue but the archive's does it with `TABLE.record`.
     fn record(
         &self,
         tx: &Transaction<'_>,
         leased: &Leased<Self::Item>,
         record: &Record,
     ) -> Result<()>;
+
+    /// What is `due`, each item leased: not taken again before `until`, and
+    /// its attempts counted up to this attempt's number. Not overridden.
+    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Self::Item>>> {
+        let due = self.due(tx, now)?;
+        for leased in &due {
+            Self::TABLE.lease(tx, &Self::key(&leased.item), leased.attempt, until)?;
+        }
+        Ok(due)
+    }
 }
 
 /// The longest a worker with nothing due waits before it looks again. A
@@ -207,9 +243,21 @@ mod tests {
     impl Queue for Counting {
         type Item = ();
 
-        fn lease(&self, _: &Transaction<'_>, _: u64, _: u64) -> Result<Vec<Leased<()>>> {
+        const TABLE: Table = Table {
+            name: "nothing",
+            key: &[],
+            attempts: "attempts",
+            next: "next",
+            outcomes: Outcomes::Own,
+        };
+
+        fn due(&self, _: &Transaction<'_>, _: u64) -> Result<Vec<Leased<()>>> {
             self.0.fetch_add(1, Ordering::SeqCst);
             Ok(Vec::new())
+        }
+
+        fn key(_: &()) -> Vec<&dyn ToSql> {
+            Vec::new()
         }
 
         async fn attempt(&self, _: &AppState, _: &()) -> Outcome {

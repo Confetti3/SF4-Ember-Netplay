@@ -11,6 +11,11 @@
 #include "../Dimps/Dimps__Platform.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__Hud.hxx"
+#include "sf4e__GameThemes.hxx"
+#include "../common/HudPictureGuard.hxx"
+
+#include <cstring>
+#include <string>
 
 namespace fHud = sf4e::Game::Battle::Hud;
 namespace rHud = Dimps::Game::Battle::Hud;
@@ -47,7 +52,58 @@ template <typename Queue> static void RestoreQueue(const Queue& memento, dDeque_
         (native->*dDeque_0x10::publicMethods.push_back)((dDeque_0x10::value_type*)&entry);
 }
 
+namespace {
+using Dimps::Game::Sprite::EmSprite;
+using Dimps::Game::Sprite::EmbTextureList;
+using Dimps::Game::Sprite::PictureKey;
+
+// The first bytes of EmSprite::ApplyTextureKey (0x6ED070) in this game build.
+constexpr unsigned char kApplyTextureKeyNative[] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x14, 0x53, 0x8B, 0x5D, 0x08, 0x8B, 0x03, 0x56, 0x57, 0x8B, 0xF1 };
+// Game thread only: the HUD's sprites are updated there.
+sf4e::hud_picture::Skips pictureSkips;
+// Whether the picture read is guarded: its bytes were this game build's and the detour is committed.
+bool pictureGuardQueued = false;
+bool pictureGuardInstalled = false;
+
+std::string ActionName(EmSprite* sprite) {
+    const char* action = *EmSprite::GetAction(sprite);
+    if (!action) return "?";
+    std::string name(action + 0x30, strnlen(action + 0x30, 0x20));
+    for (char& c : name) if (c < 0x20 || c > 0x7e) c = '?';
+    return name;
+}
+
+// A picture the sprite's sheet does not have is drawn as the game draws a sprite with no picture
+// (a negative number): the sprite's texture is cleared. The HUD only: no game state reads it.
+char __fastcall ApplyTextureKey(EmSprite* sprite, void*, PictureKey* key, void* colour) {
+    const EmbTextureList* list = *EmSprite::GetTextureList(sprite);
+    if (key && sf4e::hud_picture::Missing(list != nullptr, list ? list->items : nullptr, list ? list->count : 0, key->picture)) {
+        if (pictureSkips.Note())
+            spdlog::warn("HUD: {} names picture {} and its sheet has {}; it is drawn without a picture (logged once a battle)",
+                ActionName(sprite), key->picture, list->count);
+        PictureKey none = *key;
+        none.picture = -1;
+        return (sprite->*EmSprite::publicMethods.ApplyTextureKey)(&none, colour);
+    }
+    return (sprite->*EmSprite::publicMethods.ApplyTextureKey)(key, colour);
+}
+
+void InstallPictureGuard() {
+    const void* at = *(PVOID*)&EmSprite::publicMethods.ApplyTextureKey;
+    if (std::memcmp(at, kApplyTextureKeyNative, sizeof kApplyTextureKeyNative) != 0) {
+        spdlog::warn("HUD: the sprite picture read holds other bytes than this game build's; pictures a sheet lacks are not guarded");
+        return;
+    }
+    pictureGuardQueued = DetourAttach((PVOID*)&EmSprite::publicMethods.ApplyTextureKey, (PVOID)ApplyTextureKey) == NO_ERROR;
+}
+}
+
+void fHud::HooksCommitted() { pictureGuardInstalled = pictureGuardQueued; }
+
+bool fHud::PictureGuardInstalled() { return pictureGuardInstalled; }
+
 void fHud::Install() {
+    InstallPictureGuard();
     Unit::Install();
     Announce::Unit::Install();
     Cockpit::Unit::Install();
@@ -83,6 +139,9 @@ rHud::Unit* fHud::Unit::Factory(DWORD arg1, DWORD arg2) {
     // to save it. If the memory is not initialized, attempting to
     // access the training unit's vtable will segfault.
     rHud::Unit::ResetUnits(u);
+    // A battle's HUD units are made before any of its sprites takes a picture.
+    pictureSkips.Reset();
+    sf4e::GameThemes::BattleHudMade();
     return u;
 }
 

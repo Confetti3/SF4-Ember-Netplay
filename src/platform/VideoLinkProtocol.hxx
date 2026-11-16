@@ -22,6 +22,9 @@ inline long long Clock() {
 namespace videolink {
 
 constexpr unsigned kSlots = 4;
+// The most sound one picture carries in a fast export, in 48 kHz stereo
+// sample frames (ExportSoundClock.hxx: kMostPerPicture, with room to spare).
+constexpr unsigned kSoundPerSlot = 2048;
 
 // The start of the shared memory; the slots follow. One side writes each
 // counter: the game sent and stop, the encoder taken, opened and the notes.
@@ -36,6 +39,11 @@ struct Shared {
 	// The encoder writes `file` and, once it holds a video, renames it to `final`.
 	wchar_t file[1024], final[1024];
 	char openedAs[256], closedAs[256];
+	// 1 for a fast export (VideoLink.hxx: Start): each picture is stamped by
+	// its number and carries its share of the game's sound, float stereo.
+	LONG fast;
+	UINT32 soundFrames[kSlots];
+	float sound[kSlots][kSoundPerSlot * 2];
 };
 
 inline size_t FrameBytes(const Shared* shared) { return static_cast<size_t>(shared->width) * shared->height * 3 / 2; }

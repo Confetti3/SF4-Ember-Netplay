@@ -8,7 +8,7 @@ use std::sync::Arc;
 use super::{
     Code, Failure, Outcome, Shared,
     client::{self, Body, BridgeCall, Refusals, Verb},
-    play::{self, Features, Need},
+    play::{self, Need},
     rooms::game_path,
 };
 use ember_protocol::{
@@ -26,21 +26,11 @@ const REFUSALS: Refusals<'static> = Refusals {
     missing: Some(Code::RankingUnavailable),
 };
 
-/// Whether a bridge offering `offered` may be asked for `game`'s ranking:
-/// SF4's always, as before; another game's only by a bridge that keeps
-/// rankings per game, since an older one ignores `?game=` and would answer,
-/// or change, the player's SF4 standing and board. Refused as a bridge
-/// without rankings, which the game words as such.
-fn games_offered(game: &str, offered: Features) -> Result<(), Failure> {
-    if is_default_game(game) || offered.ranking_games {
-        Ok(())
-    } else {
-        Err(Failure::new(Code::RankingUnavailable))
-    }
-}
-
-/// `game_path`, once the bridge is known to keep `game`'s ranking apart: its
-/// capabilities, read once a run, and again while it lacks the feature.
+/// `game_path`, once the bridge may be asked for `game`'s ranking: SF4's
+/// always, as before; another game's only by a bridge that keeps rankings per
+/// game (`Need::RankingGames`), since an older one ignores `?game=` and would
+/// answer, or change, the player's SF4 standing and board. Such a bridge is
+/// refused as one without rankings, which the game words as such.
 async fn path_for(
     shared: &Arc<Shared>,
     bridge_id: &str,
@@ -49,8 +39,7 @@ async fn path_for(
 ) -> Result<String, Failure> {
     let path = game_path(path, game)?;
     if !is_default_game(game) {
-        let bridge = client::approved(shared, bridge_id)?;
-        games_offered(game, play::features(shared, &bridge, Need::RankingGames).await?)?;
+        play::require(shared, bridge_id, Need::RankingGames).await?;
     }
     Ok(path)
 }
@@ -176,22 +165,9 @@ mod tests {
             game_path(BOARD_PATH, "sfv").unwrap(),
             "/v1/ranking/board?game=sfv"
         );
-        // Another game asks only a bridge that keeps rankings per game; SF4's
-        // asks any bridge with rankings, as before.
-        let old = Features {
-            ranking: true,
-            ..Features::default()
-        };
-        let per_game = Features {
-            ranking_games: true,
-            ..old
-        };
-        assert!(games_offered("usf4", old).is_ok());
-        assert_eq!(
-            games_offered("sfv", old).unwrap_err().as_str(),
-            "ranking_unavailable"
-        );
-        assert!(games_offered("sfv", per_game).is_ok());
+        // Another game asks only a bridge that keeps rankings per game
+        // (`Need::RankingGames`, play's tests); SF4's asks any bridge with
+        // rankings, as before.
         for unknown in ["sf6", "", "SFV", "sfv&x=1"] {
             assert_eq!(
                 game_path(BOARD_PATH, unknown).unwrap_err().as_str(),

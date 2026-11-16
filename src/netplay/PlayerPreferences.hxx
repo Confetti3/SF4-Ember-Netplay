@@ -1,8 +1,10 @@
 #pragma once
+#include <array>
 #include <string>
 #include <map>
 #include <vector>
 #include "../common/ButtonPrompts.hxx"
+#include "../common/Area.hxx"
 #include "../common/ButtonLayoutTypes.hxx"
 #include "../common/Country.hxx"
 #include "../common/GameCatalog.hxx"
@@ -10,6 +12,7 @@
 #include "../common/RoomRules.hxx"
 #include "ProfileRecord.hxx"
 #include "SpeechPreferences.hxx"
+#include "Profiles.hxx"
 #include "PublicRoomFilter.hxx"
 #include "TableSetup.hxx"
 
@@ -29,6 +32,10 @@ struct LobbySettings {
 
 // How far the name plates move either way, in 720p game units.
 constexpr int MaxMatchHudNameOffset = 60;
+// The Interface size, in steps of 0.05: below 1.00x fits more on a large monitor.
+constexpr float MinInterfaceScale = .7f, MaxInterfaceScale = 1.5f, InterfaceScaleStep = .05f;
+// `scale` as saved, or 1.00x when it is outside the range (an older or hand-edited file).
+inline float InterfaceScaleOrDefault(float scale) { return scale >= MinInterfaceScale && scale <= MaxInterfaceScale ? scale : 1.f; }
 // The match HUD positions run from 0 (bottom center) to this one (top center).
 constexpr int MaxMatchHudAnchor = 5;
 // The room board's layout grips (Customise.dc.html), in percent: the members
@@ -50,6 +57,8 @@ struct RoomTemplate {
     int tableCount = static_cast<int>(room::ClassicTableCount);
     // The room's Wired players only rule (room::Snapshot::wiredOnly).
     bool wiredOnly = false;
+    // Whether the room, a private one, is hidden from its members' friends (room::Snapshot::friendsHidden).
+    bool friendsHidden = false;
     TableSetup tables;
     bool Valid() const {
         if (name.empty() || name.size() > 32 || roomName.empty() || roomName.size() > 64 || capacity < 2 || capacity > static_cast<int>(room::MaxMembers) ||
@@ -60,10 +69,34 @@ struct RoomTemplate {
     bool operator==(const RoomTemplate& rhs) const {
         return name == rhs.name && roomName == rhs.roomName && capacity == rhs.capacity && isPublic == rhs.isPublic &&
             practice == rhs.practice && delayPolicy == rhs.delayPolicy && tableCount == rhs.tableCount && wiredOnly == rhs.wiredOnly &&
-            tables == rhs.tables;
+            friendsHidden == rhs.friendsHidden && tables == rhs.tables;
     }
 };
 constexpr std::size_t MaxRoomTemplates = 12;
+
+// The parts of an in-game theme (sf4e__GameThemes.cxx), in Settings order,
+// and the key each part's pick is saved under.
+// Each menu screen is a part of its own, so its pick can come from any theme.
+enum GameThemePart {
+    GameThemeMainMenu, GameThemeTitle, GameThemeCharaSelect, GameThemeStageSelect, GameThemeVersus,
+    GameThemePauseMenu, GameThemeNetwork, GameThemeEditionMarks, GameThemeButtons, GameThemeMenuSounds,
+    GameThemeBattleHud, GameThemePartCount };
+constexpr const char* GameThemeKeys[GameThemePartCount] = {
+    "gameThemeMainMenu", "gameThemeTitle", "gameThemeCharaSelect", "gameThemeStageSelect", "gameThemeVersus",
+    "gameThemePauseMenu", "gameThemeNetwork", "gameThemeEditionMarks", "gameThemeButtons", "gameThemeMenuSounds",
+    "gameThemeBattleHud" };
+// What Ember knows about a theme for a part that the player should be told: the game closed
+// while loading it (turned off at the next start), or it was refused before use because its
+// HUD pictures do not match the HUD layout, or its HUD files could not be read, or it is used
+// though its HUD layout names pictures its sheet lacks (the game draws those as none).
+enum class GameThemeNote : unsigned char { None, ClosedGame, PicturesMismatch, Unreadable, PicturesMissing };
+// A pick the game closed on while loading it, turned off for that part at the next start.
+struct GameThemeTurnedOff { GameThemePart part; std::string theme; };
+// The words each part goes by (locale ids), in the same order.
+constexpr const char* GameThemeLabels[GameThemePartCount] = {
+    "settings.game_theme_main_menu", "settings.game_theme_title", "settings.game_theme_chara_select", "settings.game_theme_stage_select",
+    "settings.game_theme_versus", "settings.game_theme_pause_menu", "settings.game_theme_network", "settings.game_theme_edition_marks",
+    "settings.game_theme_buttons", "settings.game_theme_menu_sounds", "settings.game_theme_battle_hud" };
 
 struct PlayerPreferences {
     std::string displayName = "Player";
@@ -88,9 +121,19 @@ struct PlayerPreferences {
     // left, 2 bottom right, 3 bottom left) plus 4 times its size (0 small,
     // 1 medium, 2 large). Set from Settings or by dragging the picture.
     int pictureSpot = 0;
-    // The award (v2::Awards' id) whose title, and whose icon, the player wears;
+    // The award family (netplay/Awards.hxx id) whose title, and whose icon, the player wears;
     // empty for the identity's own. Kept here until the backend stores it.
     std::string wornTitle, wornIcon;
+    // What the card shows of how this player plays (Edit card, docs/design/PROFILE.md). cardDevice: 0 Automatic
+    // (the controller in use, profiles::AutomaticDevice), 1 to 4 a chosen device (profiles::Device), 5 Not shown.
+    // The connection is the game's own measure, which the player only shows or hides; the area is the one choice in
+    // Settings (PlayerPreferences::area), whose Hidden also hides it on the card.
+    // cardLooking is the bits of profiles::LookingBit, at most two. cardPins are the award families the card shows,
+    // at most four; none is Automatic, the highest families.
+    int cardDevice = 0;
+    bool cardShowLink = true;
+    std::uint8_t cardLooking = 0;
+    std::vector<std::string> cardPins;
     // The room board's column and the members' share of it (MinRoomColumn).
     int roomColumn = DefaultRoomColumn, roomSplit = DefaultRoomSplit;
     // 0 the Ember strip (one panel), 1 split: names over the game's PLAYER labels and a small telemetry panel.
@@ -139,6 +182,9 @@ struct PlayerPreferences {
     // The main menu plays a stage or character theme, another one after every
     // match, instead of its own track (sf4e__MenuMusic.cxx).
     bool endlessLobbyMusic = true;
+    // The theme each part loads its files from (sf4e__GameThemes.cxx), by
+    // GameThemePart: a folder in <game>\ember\themes, or empty for the game's own.
+    std::array<std::string, GameThemePartCount> gameThemes;
     // Experimental (sf4e__InputLag.cxx): the battle reads each input in the
     // frame it was made instead of the next. A room's match does so only when
     // both fighters have it on, for them and whoever watches; offline battles
@@ -183,6 +229,10 @@ struct PlayerPreferences {
     // Windows' region (Automatic), a country they picked, or Hidden. Sent when
     // they join a room; nothing is sent while it is Hidden or Windows names none.
     CountryPreference country;
+    // Where this player plays from, beside the flag: Windows' time zone (Automatic),
+    // an area they picked, or Hidden. Their card's Region chip and the public rooms
+    // they create show it, and the rooms list calls the rooms in and next to it near.
+    AreaPreference area;
     bool discordPresence = true, discordInvites = true;
     // The launcher sends a crash's report without asking, with the small dump
     // and at most three a day (platform/ReportWorkflow.hxx). Off until the
@@ -196,7 +246,7 @@ struct PlayerPreferences {
     // play: the button layouts, the room board's layout, the chat filter and
     // the watched game's picture, which the board's grips, Hide and Show, More… and
     // Settings › Interface › Room layout change in a room
-    // (ShellAction::roomSettings). The shell sends these alone while a room
+    // (commands::RoomSettings). The shell sends these alone while a room
     // locks the rest (OnlyRoomSettingsChanged), and the runtime saves these
     // alone then (SaveRoomSettings), both while netplay::RoomSettingsOpen holds.
     void CopyRoomSettings(const PlayerPreferences& from) {
@@ -222,22 +272,34 @@ struct PlayerPreferences {
     int roomTableCount = static_cast<int>(room::ClassicTableCount);
     // Whether a room created here, public or private, is for wired players only (room::Snapshot::wiredOnly).
     bool roomWiredOnly = false;
+    // Whether a private room created here is hidden from its members' friends instead of joinable by them (room::Snapshot::friendsHidden).
+    bool roomFriendsHidden = false;
     room::Rules tableRules;
     // The rules a public room is created with. Its tables open at the public
     // default; the creator, once in as host, sets these.
     room::Rules publicTableRules = room::PublicRoomRules();
     std::vector<RoomTemplate> roomTemplates;
+    // The last public room created here, which a stream PC (--host-public-room)
+    // opens again: its type, an Arcade or King room's table count, and the
+    // template it was made from (none if empty).
+    room::RoomType publicRoomType = room::RoomType::Classic;
+    int publicArcadeTables = static_cast<int>(room::TableCount);
+    std::string publicRoomTemplate;
     bool Valid() const {
         if (roomTemplates.size() > MaxRoomTemplates || !std::all_of(roomTemplates.begin(), roomTemplates.end(), [](const RoomTemplate& saved) { return saved.Valid(); })) return false;
         if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidBoundButtons(layout.bound) && gamepads::ValidExtraCopies(layout.extras); })) return false;
-        if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || !ember::ValidFighter(mainFighter) || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay || autoDelayStyle < 0 || autoDelayStyle >= AutoDelayStyles ||
-            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || pictureMode < PictureSmall || pictureMode > PictureOff || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) ||
+        if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || !ember::ValidMain(mainFighter) || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay || autoDelayStyle < 0 || autoDelayStyle >= AutoDelayStyles ||
+            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || pictureMode < PictureSmall || pictureMode > PictureOff || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= MinInterfaceScale && interfaceScale <= MaxInterfaceScale) ||
             !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers) ||
-            roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount)) return false;
+            roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount) || publicRoomType > room::RoomType::King || publicArcadeTables < 1 || publicArcadeTables > static_cast<int>(room::TableCount) || publicRoomTemplate.size() > 32) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
-        return country.Valid() && speech.Valid() && roomFilter.Valid() && tableRules.Valid() && publicTableRules.Valid();
+        if (cardDevice < 0 || cardDevice > 5 || (cardLooking & ~profiles::LookingBitsAll) != 0 || profiles::LookingCount(cardLooking) > profiles::MaxLooking ||
+            cardPins.size() > profiles::MaxPins) return false;
+        for (std::size_t i = 0; i < cardPins.size(); ++i)
+            if (!profiles::FamilyIdShaped(cardPins[i]) || std::find(cardPins.begin(), cardPins.begin() + i, cardPins[i]) != cardPins.begin() + i) return false;
+        return country.Valid() && area.Valid() && speech.Valid() && roomFilter.Valid() && tableRules.Valid() && publicTableRules.Valid();
     }
 };
 

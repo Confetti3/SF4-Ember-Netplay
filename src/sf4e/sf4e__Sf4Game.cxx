@@ -10,6 +10,7 @@
 #include "../platform/LocaleWindows.hxx"
 #include "../Dimps/Dimps.hxx"
 #include "../Dimps/Dimps__Event.hxx"
+#include "../Dimps/Dimps__Game.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
@@ -20,6 +21,7 @@
 #include "sf4e__CustomContent.hxx"
 #include "sf4e__DirectInputFilter.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__GameThemes.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__InputDevices.hxx"
 #include "sf4e__MenuMusic.hxx"
@@ -46,7 +48,11 @@ public:
         auto* root = Dimps::App::GetRootEvent();
         if (!root) return false;
         char* query[] = { "MainMenu" };
-        return Dimps::Event::EventBaseWithEC::FindForegroundEvent(root, query, 1) != nullptr;
+        if (!Dimps::Event::EventBaseWithEC::FindForegroundEvent(root, query, 1)) return false;
+        // Not Ember's while a save's unlock box is up: the game's input answers it.
+        using Dimps::Game::SaveDataController;
+        auto* const unlock = SaveDataController::GetUnlockMessage(SaveDataController::staticMethods.GetSingleton());
+        return !unlock || SaveDataController::staticMethods.UnlockIdle(unlock);
     }
     std::string ForegroundScreen() const override {
         if (!Dimps::App::RootEventReady()) return {};
@@ -234,7 +240,27 @@ public:
     void MarkSent(const std::filesystem::path& file) override { archive::MarkSent(file); }
     void MarkSetClosed(const std::filesystem::path& file) override { archive::MarkSetClosed(file); }
     std::filesystem::path SetPackPath(const std::string& matchId) override { return archive::SetPackPath(matchId); }
-    std::size_t ImportSetPack(const std::filesystem::path& pack) override { return archive::ImportSetPack(pack); }
+    std::size_t ImportReplayFile(const std::filesystem::path& file) override { return archive::ImportReplayFile(file); }
+    std::filesystem::path ArchiveWatchPath(const std::string& digest) override { return archive::ArchiveWatchPath(digest); }
+    void PruneArchiveWatching(const std::filesystem::path& keep) override { archive::PruneArchiveWatching(keep); }
+    void ClearArchiveWatching() override { archive::ClearArchiveWatching(); }
+};
+
+// The themes SF4 searches in <game>\ember\themes (sf4e__GameThemes).
+class Sf4Themes final : public Themes {
+public:
+    void Start() override {
+        wchar_t gamePath[MAX_PATH] = {};
+        if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH))
+            sf4e::GameThemes::Start(std::filesystem::path(gamePath).parent_path().wstring());
+    }
+    void Tick() override { sf4e::GameThemes::Search(); sf4e::GameThemes::TakePreview(); }
+    void TurnOff(std::array<std::string, sf4e::netplay::GameThemePartCount>& picks) override { sf4e::GameThemes::TurnOff(picks); }
+    const std::vector<sf4e::netplay::GameThemeTurnedOff>& TurnedOff() override { return sf4e::GameThemes::TurnedOff(); }
+    void TurnedOffTold() override { sf4e::GameThemes::TurnedOffTold(); }
+    const std::vector<std::string>& Names(sf4e::netplay::GameThemePart part) override { return sf4e::GameThemes::Names(part); }
+    sf4e::netplay::GameThemeNote Note(sf4e::netplay::GameThemePart part, const std::string& theme) override { return sf4e::GameThemes::Note(part, theme); }
+    void Use(const std::array<std::string, sf4e::netplay::GameThemePartCount>& picks) override { sf4e::GameThemes::Use(picks); }
 };
 
 Sf4GameState s_state;
@@ -244,6 +270,7 @@ Sf4Preferences s_preferences;
 Sf4Services s_services;
 Sf4Training s_training;
 Sf4Replays s_replays;
+Sf4Themes s_themes;
 // SF4 offers every feature.
 constexpr Capabilities Sf4Capabilities() {
     Capabilities caps;
@@ -253,6 +280,7 @@ constexpr Capabilities Sf4Capabilities() {
     caps.replayVideo = true;
     caps.replayMeter = true;
     caps.replayInputs = true;
+    caps.archive = true;
     caps.spectators = true;
     caps.padSetup = true;
     caps.steamProfile = true;
@@ -265,7 +293,7 @@ constexpr Capabilities Sf4Capabilities() {
 }
 const Adapter s_game = {
     Sf4Capabilities(),
-    s_state, s_battle, s_input, s_preferences, s_services, s_training, s_replays,
+    s_state, s_battle, s_input, s_preferences, s_services, s_training, s_replays, s_themes,
 };
 }
 

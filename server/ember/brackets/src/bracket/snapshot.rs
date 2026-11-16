@@ -1,13 +1,10 @@
 //! What a desk event's bracket looks like to its organizer (docs/design/
-//! TOURNAMENT_DESK.md): every set of the bracket, with what the connector is
+//! TOURNAMENT_DESK.md): the sets the reads have shown, with what the connector is
 //! doing about it, plus every set it has tracked. Sent to the bridge after
 //! each read, which adds each Ember match's score and state and serves it to
 //! the organizer's desk and, if they make it public, to anyone.
 //!
-//! ponytail: the whole bracket is read every `WHOLE_SECS` (the open sets
-//! every poll), so a set decided between two whole reads shows its last
-//! read state until the next; shorten it if desks need it sooner and the
-//! sites' budgets allow.
+//! Only the sets seen open are shown: the contract lists no others.
 use std::collections::BTreeMap;
 
 use serde_json::{Value, json};
@@ -15,7 +12,7 @@ use serde_json::{Value, json};
 use super::Bracket;
 use crate::{
     sets::{Progress, Tracked},
-    site::{Account, Entry, Set, Status},
+    site::{Entry, Set, Status},
 };
 
 /// The most sets one snapshot carries; the bridge takes no more.
@@ -43,8 +40,8 @@ impl Bracket {
                     "phase": set.extras.phase.as_ref().map(ToString::to_string),
                     "entries": set.entry_ids(),
                     "names": set.entries.as_ref().map(|entries| entries.each_ref().map(|entry| entry.name.as_deref())),
-                    // The Discord account each entrant linked on the site
-                    // (start.gg's), pinged when their Ember ID has none.
+                    // The Discord account each entrant linked on the site,
+                    // pinged when their Ember ID has none.
                     "discord": set.entries.as_ref().map(|entries| entries.each_ref().map(discord)),
                     "status": status,
                     "winner": set.winner,
@@ -70,8 +67,5 @@ impl Bracket {
 }
 
 fn discord(entry: &Entry) -> Option<&str> {
-    entry.accounts.iter().find_map(|account| match account {
-        Account::Discord { user_id } => Some(user_id.as_str()),
-        _ => None,
-    })
+    entry.discord.as_deref()
 }

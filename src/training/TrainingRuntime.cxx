@@ -2,6 +2,7 @@
 #include <optional>
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include "TrainingCapture.hxx"
 #include "FighterPlacement.hxx"
@@ -85,6 +86,8 @@ struct HeldFiles {
     SharedNames names = std::make_shared<std::vector<std::string>>();
 };
 HeldFiles heldFiles[2];
+// Each side's last juggle numbers, shown until an attack has its own; cleared with the battle.
+std::array<Juggle, 2> keptJuggle;
 // The meter in a rollback match: asked for by the player, and fed only
 // frames whose inputs are confirmed. watching is read on the game thread
 // and set from the overlay's.
@@ -97,6 +100,14 @@ std::atomic<bool> meterContinuous{false};
 std::atomic<bool> hitBoxesShown{false};
 // Whether the Data panel is shown (ShowData): its readings are taken only then.
 std::atomic<bool> dataShown{false};
+// Hakan's oil kept at its most (the Data page's Oil always full).
+std::atomic<bool> oilFull{false};
+// The reply trace, one log line per frame a reply waits or the dummy is held (ReplyFrameTrace):
+// off unless SF4E_TRAINING_TRACE=1 is in the game's environment, read once.
+bool ReplyTraceOn() {
+    static const bool on = [] { const char* env = std::getenv("SF4E_TRAINING_TRACE"); return env && env[0] == '1'; }();
+    return on;
+}
 // Training and the match meter both feed the one meter, so each applies the player's choice before it observes.
 void ApplyMeterSettings() {
     meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
@@ -238,7 +249,7 @@ bool RestoreCheckpoint(Native* system) {
     Manager::RecorderState* recorderState = manager ? Manager::GetRecorderState(manager) : nullptr;
     if (recorderState && *recorderState == Manager::REC_PLAYING) *recorderState = Manager::REC_PLAYBACK_ARMED;
     if (dummyControl.Rewind()) ReturnDummyControl(system);
-    meter.Reset(); ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
+    meter.Reset(); keptJuggle = {}; ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
@@ -346,6 +357,8 @@ bool ReadOverride(int side, Input& result) {
 // apply now; only then is the game touched.
 std::array<FighterSample, 2> ReadFighters(Native* system, bool files);
 int BattleFighter(Native* system, int side);
+void KeepDummyCharged(Native* system);
+void FillOil(Native* system);
 void EndCheck();
 void EndRecording();
 static bool Dispatch(Native* system, const Command& command) {
@@ -422,7 +435,8 @@ void EndCheck() {
 }
 // A recording that ends, by its idle frames or now: its combo is the last one.
 void KeepCombo() {
-    const combo_check::Combo& combo = comboRecorder.Result();
+    combo_check::Combo combo = comboRecorder.Result();
+    combo.fighter = comboView.p1;
     { std::lock_guard<std::mutex> lock(mutex); lastCombo = combo; }
     ++comboView.comboId; comboView.hits = combo.hits; comboView.frames = static_cast<int>(combo.frames.size());
     spdlog::info("Training: Combo check recorded {} frames, {} hits", combo.frames.size(), combo.hits);
@@ -469,8 +483,8 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     // The dummy fighter's slots from its last battle (CloseBattle keeps them).
     if (!session.GetView().available) {
         const int fighter = BattleFighter(system, 1);
-        session.Enter(banks.Attach(fighter)); session.Seed(dummyRandom());
-        comboView.dummy = fighter;
+        session.Enter(banks.Attach(fighter)); session.Seed(dummyRandom()); replies.Seed(dummyRandom());
+        comboView.dummy = fighter; comboView.p1 = BattleFighter(system, 0);
         if (fighter < 0) spdlog::info("Training: the dummy's fighter is not known; its slots last this battle only");
     }
     session.SetReady((system->*Native::publicMethods.IsFight)() &&
@@ -518,9 +532,42 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         if (!menu && !sf4e::input::SideAssigned(1)) physical[1] = Input{};
         output = session.Prepare(physical);
         commitInput = true;
+        if (session.Holding()) KeepDummyCharged(system);
+        if (oilFull) FillOil(system);
     }
     overriding = plan.override;
     FollowDummy(system, plan.suppliesDummy);
+}
+// Chara::Actor +0x6ed0, Hakan's oil: frames left in 16.16, added to by the Oil Shower scripts (ETC 25: frames, then
+// the cap, MaxOil) and counted down each frame; found in the game's code. Null for any other fighter.
+int* OilOf(Native* system, int side) {
+    using Unit = Dimps::Game::Battle::Chara::Unit;
+    const auto* who = selection::FindFighter(BattleFighter(system, side));
+    Unit* unit = who && std::strcmp(who->code, "HKN") == 0 ? (system->*Native::publicMethods.GetCharaUnit)() : nullptr;
+    auto* actor = unit ? (unit->*Unit::publicMethods.GetActorByIndex)(side) : nullptr;
+    return actor ? reinterpret_cast<int*>(reinterpret_cast<char*>(actor) + 0x6ed0) : nullptr;
+}
+// Hakan's oil at its most before the game counts this frame, whichever side he is on.
+void FillOil(Native* system) {
+    for (int side = 0; side < 2; ++side)
+        if (int* oil = OilOf(system, side)) *oil = MaxOil << 16;
+}
+// A side's charges as the game counts them; null, count 0, when it has none.
+Dimps::Game::Battle::Command::CommandImpl::ChargeState* ChargeStates(Native* system, int side, int& count) {
+    namespace Command = Dimps::Game::Battle::Command;
+    auto* commands = (Command::Unit*)(system->*Native::publicMethods.GetUnitByIndex)(Native::U_COMMAND);
+    auto* impl = commands ? (commands->*Command::Unit::publicMethods.GetCommandImplForEntry)(side) : nullptr;
+    count = 0;
+    return impl ? Command::CommandImpl::GetChargeStates(impl, count) : nullptr;
+}
+// A charge as good as held: each of the dummy's charges reads full before
+// the game counts this frame, so a reply's charge move comes out the frame the
+// dummy is free, however short its stun (Session::Holding).
+void KeepDummyCharged(Native* system) {
+    int count = 0;
+    auto* states = ChargeStates(system, 1, count);
+    for (int i = 0; states && i < count; ++i)
+        if (states[i].record) { states[i].held = (std::max)(states[i].held, static_cast<int>(states[i].record[3])); states[i].released = 0; }
 }
 // The fighter a player brought into this battle; -1 when the request holds
 // no fighter the catalog knows.
@@ -628,10 +675,9 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
                 sample.firstActiveFrame = script[0];
                 sample.lastActiveFrame = script[1];
                 sample.boundaryProvenance = BoundaryProvenance::BacActionHeader;
-                sample.headerOnly = owned && file->scripts[sample.action].hits.empty();
             }
             // The hits as the game puts them out, from the edition's own file.
-            if (owned) sample.hitPhase = bac::HitPhase(file->scripts[sample.action], sample.actionFrame);
+            if (owned) sample.hits = bac::PhaseAt(file->scripts[sample.action], sample.actionFrame);
             if (script && script[2] > 0 && script[2] <= script[3] && script[3] <= 4096) sample.interruptibleFrame = script[2];
             if (script && script[3] > 0 && script[3] <= 4096) sample.totalFrames = script[3];
         }
@@ -650,10 +696,15 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
         sample.health = Dimps::Math::FixedToFloat(&value);
         sample.untilActionable = (actor->*Actor::publicMethods.GetFramesUntilActionable)();
         sample.hitStop = (actor->*Actor::publicMethods.IsInHitStop)() != 0;
+        if (!Actor::GetProjectileMask(actor))
+            sample.invincibility = Actor::GetBodyMask(actor, Actor::BodyList::Strike) ? Invincibility::Projectile : Invincibility::Full;
         sample.valid = true;
     }
     return fighters;
 }
+// Chara::Actor +0x6ecc, Juri's Fuhajin stock: a bit to each kick (L, M, H), set by the scripts that charge it
+// (409 to 411) and cleared by the ones that throw it (412 to 414); found in the game's code, read only here.
+constexpr std::size_t FuhajinStockOffset = 0x6ecc;
 // The Data panel's readings after an update, on top of the meter's own
 // readings of the fighters (ReadFighters). Only reads.
 DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
@@ -663,7 +714,6 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
     DataView data;
     Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
     if (!unit) return data;
-    auto* commands = (Command::Unit*)(system->*Native::publicMethods.GetUnitByIndex)(Native::U_COMMAND);
     data.frame = Native::GetNumFramesSimulated_FixedPoint(system)->integral;
     const auto amount = [](Actor* actor, void (Actor::*method)(Dimps::Math::FixedPoint*)) {
         Dimps::Math::FixedPoint value{};
@@ -678,6 +728,7 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
         fighter.valid = true;
         fighter.status = sample.status; fighter.script = sample.action; fighter.scriptFrame = sample.actionFrame;
         fighter.scripts = FighterScripts(system, side); fighter.chargeNames = ChargeNames(system, side);
+        if (const int* oil = OilOf(system, static_cast<int>(side))) fighter.oil = (*oil + 0xffff) >> 16;
         const float* root = (actor->*Actor::publicMethods.GetCurrentRootPosition)();
         fighter.x = root[0]; fighter.y = root[1];
         fighter.stance = fighter.status == ActorStatus::Down || fighter.status == ActorStatus::Rise ? Stance::Down :
@@ -693,14 +744,19 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
         fighter.revengeMax = amount(actor, Actor::publicMethods.GetRevengeMax_FixedPoint);
         fighter.juggled = Actor::GetJuggleCount(actor);
         fighter.juggle = JuggleOf(*fighter.scripts, fighter.script, fighter.scriptFrame);
+        // The last attack's juggle numbers stay up until another attack has its own.
+        if (fighter.juggle.start >= 0 || fighter.juggle.add >= 0 || fighter.juggle.limit >= 0) keptJuggle[side] = fighter.juggle;
+        else fighter.juggle = keptJuggle[side];
         if (fighter.status == ActorStatus::Skill)
             if (const unsigned char* move = (actor->*Actor::publicMethods.GetCommandMove)()) {
                 const unsigned short rule = Command::GetMoveRange(move, fighter.range);
                 fighter.rangeRule = rule <= static_cast<unsigned short>(RangeRule::HeightWithin) ? static_cast<RangeRule>(rule) : RangeRule::None;
             }
-        auto* impl = commands ? (commands->*Command::Unit::publicMethods.GetCommandImplForEntry)(side) : nullptr;
         int count = 0;
-        const auto* states = impl ? Command::CommandImpl::GetChargeStates(impl, count) : nullptr;
+        const auto* states = ChargeStates(system, static_cast<int>(side), count);
+        // Juri's three charges only count a held button; her fireball stock is three bits of the fighter.
+        if (HasFuhajinStock(fighter.chargeNames.get())) fighter.stock = *reinterpret_cast<const unsigned*>(reinterpret_cast<const char*>(actor) + FuhajinStockOffset) & 7u;
+        else
         for (int i = 0; states && i < count && fighter.chargeCount < MaxCharges; ++i)
             if (const unsigned short* record = states[i].record)
                 fighter.charges[fighter.chargeCount++] = {static_cast<std::size_t>(i), record[0], record[3], states[i].held};
@@ -780,14 +836,17 @@ void AfterUpdate(Native* system) {
                 return now.valid && ((ClassifyStatus(now.status) == Phase::Hit && ClassifyStatus(was.status) != Phase::Hit) ||
                     now.comboDamage > was.comboDamage);
             };
-            const bool hit = hitOn(other, before);
+            // A cancel out of a dash (oiled Hakan's into a normal) waits for the dash's cancel window.
+            const auto& scripts = FighterScripts(system, static_cast<unsigned>(side))->scripts;
+            const bool cancelOpen = own.valid && own.action >= 0 && own.action < static_cast<int>(scripts.size()) &&
+                bac::CancelOpen(scripts[own.action], own.actionFrame);
             // How soon the script says the fighter is free again, so a link's
             // press can land on that frame: its interruptible frame, else its end.
             const int boundary = MoveRecoveryEnd(own);
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
             // A reply's leading hold gives way as its first move is due.
-            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until,
-                session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen));
+            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hitOn(other, before), until,
+                session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen), cancelOpen);
             // Combo check: a hit on the dummy, and Player 1's combo as it is done.
             const auto& dummy = fighters[1];
             const auto free = [](const FighterSample& fighter) { return fighter.valid && ClassifyStatus(fighter.status) == Phase::Neutral; };
@@ -810,8 +869,13 @@ void AfterUpdate(Native* system) {
             int* options = DummyOptions();
             // Typed or recorded, the reply is played for the way the dummy
             // faces on each frame (Session::Prepare), from the next update.
-            if (replies.Observe(dummyPlan, seen, session, dummyRandom()).none)
-                spdlog::info("Training: no reply, no recording that is on can be one");
+            const ReplyStep step = replies.Observe(dummyPlan, seen, session, dummyRandom());
+            if (step.none) spdlog::info("Training: no reply, no recording that is on can be one");
+            if (ReplyTraceOn()) {
+                const std::string line = ReplyFrameTrace(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters[1], seen, step,
+                    replies.Pending() != nullptr, session.Replying());
+                if (!line.empty()) spdlog::info("Training: reply trace {}", line);
+            }
             if (seen.freed && dummyPlan.varyStance && options) {
                 const int action = options[Manager::OPT_ACTION];
                 if (action == 0 || action == 1) dummyControl.Set(options[Manager::OPT_ACTION], dummyRandom() & 1);
@@ -831,6 +895,7 @@ void AfterUpdate(Native* system) {
         if (!capture) capture = new TrainingCapture();
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
     } else if (sampling && delta != 0) {
+        if (ReplyTraceOn() && (replies.Pending() || session.Replying())) spdlog::info("Training: reply trace frames not consecutive, the stun watch and any pending reply forgotten");
         meter.Reset(); ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
         ++gapResets;
     }
@@ -878,6 +943,7 @@ void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
 void ShowHitBoxes(bool shown) { hitBoxesShown = shown; }
 void ShowData(bool shown) { dataShown = shown; }
+void KeepOilFull(bool on) { oilFull = on; }
 bool Fast() { return comboRunner.Fast() && session.GetView().available && session.GetView().ready; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
     if (!watching) {
@@ -919,10 +985,10 @@ void CloseBattle() {
     playing = {};
     // The slots stay with the dummy fighter for its next battle, a recording under way among them.
     if (session.GetView().available) banks.Detach(session.TakeBank());
-    session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
+    keptJuggle = {}; session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
     matchPractice = false; dummyWatch.Reset(); replies.Reset(); replyTrace.Reset(); playbackSeen = {};
     // The recording made stays for the next battle, where the check plays it.
-    comboTally.Reset(); comboRecorder = {}; comboView.dummy = -1; comboView.free = comboView.recording = false;
+    comboTally.Reset(); comboRecorder = {}; comboView.dummy = -1; comboView.p1 = -1; comboView.free = comboView.recording = false;
     std::lock_guard<std::mutex> lock(mutex); commands.Clear(); published = session.GetView();
 }
 } }

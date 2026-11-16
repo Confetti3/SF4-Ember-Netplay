@@ -201,13 +201,14 @@ function Assert-NightlyPendingSource([object]$Pending, [object]$Snapshot) {
 }
 
 function Assert-NightlyBuildSnapshot([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot,
-                                    [object]$Snapshot, [string]$PackageDirectory, [switch]$SkipFingerprint) {
+                                    [object]$Snapshot, [string]$PackageDirectory, [switch]$SkipFingerprint,
+                                    [string]$EmberService = '') {
     # The receipt check fingerprints the tree itself; tying the receipt to the snapshot
     # covers the content, so only HEAD is left to compare here. Returns the receipt.
     # -SkipFingerprint drops that fresh fingerprint and keeps every other check: the receipt must still
     # equal the snapshot, the packaged receipt too, the staged binaries must hash as recorded and HEAD
     # must be clean and unmoved. Assert-NightlySource fingerprints again before the pending record.
-    $receipt = Assert-BuildReceipt $SourceRoot $BuildRoot $StageRoot -SkipFingerprint:$SkipFingerprint
+    $receipt = Assert-BuildReceipt $SourceRoot $BuildRoot $StageRoot -SkipFingerprint:$SkipFingerprint -EmberService $EmberService
     if ($receipt.sourceFingerprint -cne $Snapshot.fingerprint -or $receipt.baseRevision -cne $Snapshot.revision) {
         throw 'Build receipt does not match the clean Nightly snapshot.'
     }
@@ -591,6 +592,10 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     $releaseRepository = [string]$nightlyTarget.githubRepo
     # Keep every publication and deletion confined to the assets-only repository.
     if ($releaseRepository -ine 'Confetti3/SF4-Ember-Netplay-Nightly') { throw 'channels.nightly.githubRepo must be Confetti3/SF4-Ember-Netplay-Nightly; refusing to touch another repository.' }
+    # Nightly players use the bridge the channel names (the staging bridge), never production by omission: a
+    # build-target.json without it stops here, before git, gh or a build step.
+    $emberService = [string]$nightlyTarget.emberService
+    if (!$emberService) { throw 'channels.nightly.emberService must name the Ember service Nightly builds use, such as https://bridge-staging.embernetplay.link.' }
     $branch = Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'branch', '--show-current') 'Could not read the current branch.'
     if ($branch -ne $nightlyBranch) { throw "Checkout must be on $nightlyBranch, currently: $branch" }
     if (& $Operations.GameRunning) {
@@ -700,10 +705,10 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     # Resolve before the child build script enters vcvarsall. Reuse its actual
     # VS installation for the installer instead of probing again afterwards.
     $VisualStudioPath = (& $Operations.ToolPaths $CheckoutRoot $VisualStudioPath).VisualStudioPath
-    & $Operations.Build $VisualStudioPath $DiscordSdkArchive
+    & $Operations.Build $VisualStudioPath $DiscordSdkArchive $emberService
     $buildDirectory = Join-Path $CheckoutRoot $nightlyTarget.buildDirectory
     $stageDirectory = Join-Path $CheckoutRoot $nightlyTarget.installDirectory
-    $receipt = Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot
+    $receipt = Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot -EmberService $emberService
     # A publication carries its symbols: a build without them stops here, before anything is packaged.
     Assert-ReceiptSymbols $receipt | Out-Null
     $package = & $Operations.Package $OutDirectory $nightlyLabel
@@ -712,7 +717,7 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     $releaseAssets += @($installerPath, "$installerPath.sha256")
     if ($package.gitRev -cne $sourceRevision) { throw 'Packaged source revision changed.' }
     # Packaging fingerprinted the tree seconds ago and Assert-NightlySource does again before the pending record.
-    Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot $package.folderPath -SkipFingerprint | Out-Null
+    Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot $package.folderPath -SkipFingerprint -EmberService $emberService | Out-Null
     $symbolArchive = Save-EmberSymbolArchive $CheckoutRoot $receipt 'nightly' $nightlyLabel $OutDirectory
     # GetHash reads every on-disk byte through BCrypt SHA256, formatting each
     # digest byte with %02hhx: 64 lowercase hex characters, no prefix or separators.

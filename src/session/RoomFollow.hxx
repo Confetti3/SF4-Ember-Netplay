@@ -33,15 +33,17 @@ inline int WatchedTable(const Snapshot& room, MemberId member) {
 // The room's next game for a follower watching `watched`: the lowest-numbered
 // other table in play whose game is Playing, that takes another spectator and
 // whose last game is not still closing (the Watch the room would refuse).
-// Every client chooses the same one.
-inline int NextFollowedGame(const Snapshot& room, int watched) {
+// Every client chooses the same one. A stream PC's follower (RoomFollow::Start)
+// takes table 1's game first, and with no game anywhere goes back to wait there.
+inline int NextFollowedGame(const Snapshot& room, int watched, bool fromTableOne = false) {
 	if (room.localTerminalPending) return -1;
-	for (std::size_t i = 0; i < TablesInPlay(room); ++i) {
+	const auto takes = [&](int i) {
 		const Table& table = room.tables[i];
-		if (static_cast<int>(i) != watched && table.phase == TablePhase::Playing && !room.terminalPending[i] &&
-			table.spectators.size() + table.watchingNext.size() < MaxSpectators) return static_cast<int>(i);
-	}
-	return -1;
+		return i != watched && !room.terminalPending[i] && table.spectators.size() + table.watchingNext.size() < MaxSpectators;
+	};
+	for (int i = 0; i < static_cast<int>(TablesInPlay(room)); ++i)
+		if (takes(i) && room.tables[i].phase == TablePhase::Playing) return i;
+	return fromTableOne && takes(0) ? 0 : -1;
 }
 
 // What the member's watching asks of the room now: a Watch of `table` (a
@@ -73,8 +75,10 @@ struct FollowGate {
 class RoomFollow {
 public:
 	bool On() const { return want_ == Want::Follow; }
-	// Following starts for the room's local member.
-	void Start(const Snapshot& room) { *this = RoomFollow(); Own(room); want_ = Want::Follow; }
+	// Following starts for the room's local member. A stream PC follows
+	// `fromTableOne`: watching nothing, it goes to a game, or else waits at
+	// table 1 (NextFollowedGame).
+	void Start(const Snapshot& room, bool fromTableOne = false) { *this = RoomFollow(); Own(room); want_ = Want::Follow; fromTableOne_ = fromTableOne; }
 	// Following stops; watching stays where it is. Stop watching is not undone.
 	void Stop() { if (want_ == Want::Follow) *this = RoomFollow(); }
 	// A Watch of `table` went to the room at `nowMs`. Following's, or the
@@ -133,9 +137,12 @@ private:
 			if (watched != move_.table && Since(move_.sentMs, nowMs) < FollowMoveTimeoutMs) return {};
 			move_ = {};
 		}
-		if (watched < 0) { *this = RoomFollow(); return {}; }
+		if (watched < 0) {
+			if (!fromTableOne_) { *this = RoomFollow(); return {}; }
+			return gate.roomTakesActions ? FollowStep{ActionKind::Watch, NextFollowedGame(room, -1, true)} : FollowStep{};
+		}
 		if (Holds(watched, room.tables[watched], nowMs) || !gate.roomTakesActions || gate.showingWatchedGame) return {};
-		return {ActionKind::Watch, NextFollowedGame(room, watched)};
+		return {ActionKind::Watch, NextFollowedGame(room, watched, fromTableOne_)};
 	}
 	// Whether the watched table keeps the follower: a game is under way or
 	// about to start there, or the next one is still likely soon.
@@ -172,6 +179,7 @@ private:
 		std::uint64_t quietSinceMs = 0;
 	};
 	Want want_ = Want::Free;
+	bool fromTableOne_ = false;
 	// Whose intent it is: the room and member it was formed in.
 	std::uint64_t epoch_ = 0;
 	MemberId member_ = 0;

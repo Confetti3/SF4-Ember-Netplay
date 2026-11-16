@@ -30,6 +30,21 @@ const char* Name(const room::Snapshot& snapshot, room::MemberId id) {
     const auto* member = Member(snapshot, id);
     return member ? member->name.c_str() : loc::T(id ? "room.member_left" : "room.open_seat");
 }
+// A member's relation as the popout's choice and the page's row show it: Add friend or Accept request to act on,
+// the other states only to say (PROFILE.md, "In a public room").
+struct Relating { const char* label; const char* detail; bool enabled; };
+Relating RelatingOf(netplay::levels::Relation relation) {
+    using netplay::levels::Relation;
+    switch (relation) {
+    case Relation::Friend: return {"friends.are_friends", nullptr, false};
+    case Relation::Sent: return {"friends.request_sent", nullptr, false};
+    case Relation::Received: return {"friends.accept_member", nullptr, true};
+    case Relation::Blocked: return {"friends.blocked_member", "friends.blocked_member_detail", false};
+    default: return {"friends.add_member", nullptr, true};
+    }
+}
+// Whether the member has a card to ask about: another member of a public room whose card the bridge returned.
+bool CanRelate(const ShellView& v, const room::Member& m, const MemberPoints& points) { return points.known && m.id != v.room.localMember && m.card.Present(); }
 const char* StatusName(room::MemberStatus status) {
     switch (status) {
     case room::MemberStatus::Queued: return loc::T("room.status.queued");
@@ -67,7 +82,7 @@ std::string MemberStatusText(const room::Snapshot& s, const room::Member& m, boo
     if (room::IsWatcher(s, m.id)) return loc::Tf(muted ? "room.member_status_muted" : "room.member_status", WatcherTag(s, m));
     const bool host = m.id == room::ActingHost(s);
     if (board) {
-        const int cabinet = s.arcade ? room::CabinetOf(s, m.id) : -1;
+        const int cabinet = room::RulesOf(s).cabinets ? room::CabinetOf(s, m.id) : -1;
         const char* key = cabinet >= 0 ? (host ? "room.board_status_host_cabinet" : "room.board_status_cabinet") :
             m.table >= 0 ? (host ? "room.board_status_host_slot" : "room.board_status_slot") : (host ? "room.board_status_host" : "room.board_status");
         return loc::Tf(key, StatusName(m.status), cabinet >= 0 ? cabinet + 1 : m.table + 1) + (m.spectatorLocked ? loc::T("room.suffix_locked_in") : "");
@@ -134,7 +149,7 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
    m?CabinetState(s,c):loc::T(ownCabinet>=0?"room.arcade_move_detail":"room.arcade_sit_detail")));
   auto& row=rows.back();row.detailText=DetailText::Name;
   if(!m){
-   const bool between=ownCabinet>=0?!room::GameUnderWay(s.tables[mine.table]):mine.kind==Place::Kind::None;
+   const bool between=ownCabinet>=0?mine.table<0||!room::GameUnderWay(s.tables[mine.table]):mine.kind==Place::Kind::None;
    row.hint=loc::T("room.arcade_sit");row.enabled=between&&mutableRoom;
    if(WiredFenced(v,room::ActionKind::Queue)){row.enabled=false;row.detail=WiredOnlyReason();}
    continue;
@@ -245,8 +260,8 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
         return false;
     }
     const bool localSeated = mine.kind == room::Place::Kind::Seat && mine.table == static_cast<int>(action.table);
-    // An Arcade room's Queue names a cabinet, not the table the pair plays at.
-    if (((action.kind == room::ActionKind::Queue && !view.room.arcade) || action.kind == room::ActionKind::Watch ||
+    // A cabinet's Queue names no table (room::NamesCabinet).
+    if (((action.kind == room::ActionKind::Queue && !room::NamesCabinet(view.room, action.kind)) || action.kind == room::ActionKind::Watch ||
         action.kind == room::ActionKind::Unwatch) && localSeated) return false;
     if (action.kind == room::ActionKind::AbortMatch && AbandonableAt(view, table) == AbandonableGame::None) return false;
     if (action.kind == room::ActionKind::Unqueue && localSeated) {
@@ -268,15 +283,11 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
 			action.matchGeneration = table.matchGeneration;
     }
     action.actionId = nextActionId_++;
-    ShellAction request;
-    request.command.kind = netplay::CommandKind::RoomAction;
-    request.command.generation = view.session.generation;
     // Sent, it is the member's watching intent, before the room answers.
     const auto sent = action;
-    request.roomAction = std::move(action);
-    if (!submit(std::move(request))) { error_ = loc::T("error.queue_failed"); return false; }
+    if (!Send(commands::RoomAction{view.session.generation, std::move(action)}, submit)) return false;
     NoteWatching(sent, view.room);
-    error_.clear(); return true;
+    return true;
 }
 
 
@@ -304,7 +315,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   if(const auto* local=Member(s,s.localMember))if(local->table>=0&&local->table<static_cast<int>(s.tables.size()))selectedTable_=local->table;
  }
  // The host took the selected table away: the board starts again at the first.
- if(!s.arcade&&selectedTable_>=static_cast<int>(TablesInPlay(s)))selectedTable_=0;
+ if(!room::RulesOf(s).cabinets&&selectedTable_>=static_cast<int>(TablesInPlay(s)))selectedTable_=0;
  std::vector<MenuEntry> rows;
   const bool mutableRoom=RoomActionsAvailable(v);
   const bool actingHost=s.localMember&&s.localMember==room::ActingHost(s);
@@ -355,10 +366,15 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   if(*id==s.localMember){row.info=true;continue;}
   const auto* m=Member(s,*id);
   if(!m)continue;
-  row.choices={{"mute",loc::T(muted_.count(*id)?"room.unmute_member":"room.mute_member"),loc::T("room.mute_member.detail")}};
+  // Player card first, then Add friend or the state it is in (a member with no card has neither).
+  row.choices={{"player-card",loc::T("room.member_card"),{}}};
+  if(const auto points=PointsOf(v,*m);CanRelate(v,*m,points)){
+   const auto relating=RelatingOf(points.relation);
+   row.choices.push_back({"friend-request",loc::T(relating.label),relating.detail?loc::T(relating.detail):std::string(),relating.enabled});
+  }
+  row.choices.push_back({"mute",loc::T(muted_.count(*id)?"room.unmute_member":"room.mute_member"),loc::T("room.mute_member.detail")});
   // A game without Steam profiles has none to open (ShellView::offersSteamProfile).
-  if(v.offersSteamProfile)
-   row.choices.push_back({"steam-profile",loc::T("room.steam_profile"),loc::T(m->steamId.Present()?"room.steam_profile.detail":"room.steam_profile.none"),m->steamId.Present()});
+  if(v.offersSteamProfile)row.choices.push_back({"steam-profile",loc::T("room.steam_profile"),loc::T(m->steamId.Present()?"room.steam_profile.detail":"room.steam_profile.none"),m->steamId.Present()});
   if(!tournamentRoom)row.choices.push_back({"kick",loc::T("room.kick_member"),loc::Tf("room.kick_member.detail",m->name),host});
   row.choices.push_back({"transfer-host",loc::T("room.transfer_host"),loc::Tf("room.transfer_host.detail",m->name),host&&!room::IsWatcher(s,*id)});
   row.popout=true;
@@ -388,7 +404,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // The board's rows in the order it draws them: the floor, the Members
  // panel, the Chat panel, the picture's Hide, then the action bar (Room.dc.html).
  if(s.roomEpoch){
-  if(s.arcade)CabinetRows(rows,v,c.mutableRoom,leaveAsk_);else TableCardRows(rows,v,leaveAsk_);
+  if(room::RulesOf(s).cabinets)CabinetRows(rows,v,c.mutableRoom,leaveAsk_);else TableCardRows(rows,v,leaveAsk_);
   MembersPanelRows(rows,s,preferences_.roomShowMembers,v.CanEditRoomSettings());
   ChatPanelRows(rows,transcript_.Unread(muted_),preferences_.roomShowChat,v.CanEditRoomSettings());
  }else rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
@@ -456,6 +472,8 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
     // The controller and its buttons, one press from the board.
     more.choices.push_back({"room-controls",loc::T("player.controllers"),loc::T("room.controls_detail")});
     more.choices.push_back({"room-admin",loc::T("room.settings"),loc::T(c.host?"room.settings.detail":"room.settings.host_only"),c.host});
+    // The friends list, one press from the room: to invite friends here or join theirs (Back returns to the room).
+    more.choices.push_back({"room-friends",loc::T("home.friends"),loc::T("room.v2.friends_detail")});
    }
    const auto shownPart=[&](const char* part,bool on){return loc::Tf("room.v2.part_state",loc::T(part),loc::T(on?"common.on":"common.off"));};
    more.choices.push_back({"room-show-members",shownPart("room.members",preferences_.roomShowMembers),loc::T("room.v2.part_detail"),layoutOpen});
@@ -487,7 +505,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
  // The questions the board asks of its own rows, once they are all there.
  if(s.roomEpoch&&leaveAsk_>=0){
-  const auto asked=s.arcade?"cabinet-"+std::to_string(room::CabinetOf(s,s.localMember)):"table-"+std::to_string(leaveAsk_);
+  const auto asked=room::RulesOf(s).cabinets?"cabinet-"+std::to_string(room::CabinetOf(s,s.localMember)):"table-"+std::to_string(leaveAsk_);
   if(!leaveAsked_){if(nav.Ask(asked,rows))leaveAsked_=true;else leaveAsk_=-1;}
   else if(!nav.Choosing()){leaveAsk_=-1;leaveAsked_=false;}
  }
@@ -518,17 +536,17 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
   const auto rulesRows=[&]{
    if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
    // An Arcade room's rules are the room's, set when it was created.
-   if(!c.actingHost||boundTable||s.arcade){
+   if(!c.actingHost||boundTable||room::RulesOf(s).rulesFixed){
     // A game whose fighters have no editions has no Edition select rule to name.
     const int rounds=static_cast<int>(t.rules.roundCount),seconds=static_cast<int>(room::MatchRoundTime(s,t));
     std::string summary=ember::Catalog().editions
      ?loc::Tf(s.practice?"room.rules_summary_practice":"room.rules_summary",rounds,seconds,loc::T(t.rules.editionSelect?"common.on":"common.off"))
      :loc::Tf(s.practice?"room.rules_summary_practice_no_edition":"room.rules_summary_no_edition",rounds,seconds);
     if(s.delayPolicy==room::DelayPolicy::Own)summary=loc::Tf("room.rules_summary_own_delay",summary);
-    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),summary,loc::T(boundTable?"room.rules.tournament":s.arcade?"room.rules.arcade":"room.rules.host_only")));
-    rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),s.arcade?SetLengthText(t.rules.format):SetSummaryText(t.rules),
-     t.rules.format==room::SetFormat::Unlimited||s.arcade?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
-    if(s.arcade)rows.push_back(ReadOnlyValue("winner-keeps-fighter",loc::T("rules.winner_keeps_fighter"),
+    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),summary,loc::T(boundTable?"room.rules.tournament":room::RulesOf(s).rulesFixed?"room.rules.arcade":"room.rules.host_only")));
+    rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),room::RulesOf(s).cabinets?SetLengthText(t.rules.format):SetSummaryText(t.rules),
+     t.rules.format==room::SetFormat::Unlimited||room::RulesOf(s).cabinets?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
+    if(room::RulesOf(s).keeperOption)rows.push_back(ReadOnlyValue("winner-keeps-fighter",loc::T("rules.winner_keeps_fighter"),
      loc::T(t.rules.winnerKeepsFighter?"common.on":"common.off"),loc::T("rules.winner_keeps_fighter.detail")));
     return;
    }
@@ -617,7 +635,7 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
       mutableRoom&&!elsewhere&&!fenced&&!wired));
     };
     if(!boundTable)tableRow(queued?room::ActionKind::Unqueue:room::ActionKind::Queue,queued?"unqueue":"queue",
-     queued?"room.leave_queue":s.arcade?"room.arcade_sit":"room.join_queue");
+     queued?"room.leave_queue":room::RulesOf(s).cabinets?"room.arcade_sit":"room.join_queue");
     // A queued member has no watch choice: Watch is refused them, and the game
     // they wait out is theirs to watch until they are seated or leave the queue.
     if(!queued&&!boundTable){
@@ -661,6 +679,13 @@ void ApplicationShell::RoomMemberRows(std::vector<MenuEntry>& rows,const RoomScr
  const bool host=c.host;
  const bool tournamentRoom=c.tournamentRoom;
    const auto* m=Member(s,selectedMember_);const bool other=m&&m->id!=s.localMember;
+   // How this member stands with the player: Add friend, Accept request, or the state; none without a card.
+   const auto points=m?PointsOf(c.v,*m):MemberPoints{};
+   const bool relate=m&&CanRelate(c.v,*m,points);
+   if(relate){
+    const auto relating=RelatingOf(points.relation);
+    rows.push_back(Row("friend-request",loc::T(relating.label),relating.detail?loc::T(relating.detail):std::string(),relating.enabled));
+   }
    rows.push_back(Row("mute",loc::T(muted_.count(selectedMember_)?"room.unmute_member":"room.mute_member"),loc::T(m?"room.mute_member.detail":"room.member_left.detail"),other));
    // Only a member who chose to show the room their profile has one to open,
    // in a game with Steam profiles (ShellView::offersSteamProfile).
@@ -674,6 +699,9 @@ void ApplicationShell::RoomMemberRows(std::vector<MenuEntry>& rows,const RoomScr
    rows.push_back(ConfirmRow("transfer-host",loc::T("room.transfer_host"),m?loc::Tf("room.transfer_host.detail",m->name):loc::T("room.member_left.detail"),
     host&&other&&!room::IsWatcher(s,selectedMember_)));
    rows.back().detailText=DetailText::Name;
+   // Block is on this page only, for a member whose card the bridge returned.
+   if(relate&&points.relation!=netplay::levels::Relation::Blocked)
+    rows.push_back(ConfirmRow("friend-block",loc::T("friends.block"),loc::T("friends.block_detail")));
 }
 void ApplicationShell::RoomChatRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
  using namespace room;
@@ -705,9 +733,9 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
  const bool host=c.host;
   rows.push_back(TextRow("rename",loc::T("room.name"),roomName_,64,host));
   rows.push_back(Value("room-capacity",loc::T("room.capacity"),std::to_string(roomCapacity_),loc::T("room.capacity.detail"),host));
-  // A private Classic room's host adds tables, or takes away empty ones
-  // (room::TableCountAllowed). An Arcade room plays at all of them; a public
-  // or tournament room keeps the tables it opened with.
+  // A private room's host adds tables, or takes away empty ones
+  // (room::TableCountAllowed); a public or tournament room keeps the tables
+  // it opened with.
   const bool tables=TableCountChangeable(s);
   if(tables)rows.push_back(Value("room-tables",loc::T("room.tables"),std::to_string(roomTableCount_),
    loc::Tf("room.tables.detail",static_cast<int>(TableCount)),host));
@@ -719,6 +747,8 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
   if(c.v.offersSkipScenes)rows.push_back(SkipScenesRow("room-skip-scenes",s.skipScenes,loc::T("room.skip_scenes.detail"),host&&!s.serverOwned));
   // In a game with stages to ban. Every member can look at the page; only a private room's host changes it.
   if(c.v.offersBannedStages)rows.push_back(BannedStagesRow("room-banned-stages",s.bannedStages.size(),loc::T("room.banned_stages.detail")));
+  // Only a private room the host opened itself can be hidden: a public room is listed by its service and a tournament's is bound to its match.
+  if(!s.serverOwned&&!s.tournament.Active())rows.push_back(PrivacyRow("room-privacy",s.friendsHidden,loc::T("room.privacy.settings_detail"),host));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
   if(tables)rows.push_back(Row("apply-tables",loc::T("room.apply_tables"),loc::Tf("room.tables.detail",static_cast<int>(TableCount)),
@@ -731,11 +761,11 @@ MemberCardView ApplicationShell::RoomMemberCard(const ShellView& v,const MenuEnt
  MemberCardView card;
  const auto id=RowKey(e.id,"member-");
  const auto* m=id?Member(v.room,*id):nullptr;if(!m)return card;
- const auto tag=MemberTag(v.memberLatency,*m,v.room.localMember);
+ const auto tag=MemberTag(v,*m);
  card.id=e.id;card.name=m->name;card.label=e.label;card.link=*tag.link;card.marks=tag.marks;card.latency=tag.ping;
- // Who they are, their main; or what they picked, as their seat shows it (Branding::roomFacesArePicks).
- if(!ember::Product().branding.roomFacesArePicks)card.fighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
- else{const auto look=SeatLookOf(v,*m);card.fighter=look.fighter;card.costume=(std::max)(0,look.costume);card.color=(std::max)(0,look.color);}
+ // Who they are: their main, with its points (a seat shows what they picked).
+ card.fighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
+ card.points=PointsOf(v,*m,card.fighter);
  const auto status=MemberStatusText(v.room,*m,false,true);
  const auto idle=IdleText(*m,v.roomElapsedMs);
  card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
@@ -768,7 +798,7 @@ void ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {
   room::Action request;request.table=static_cast<std::uint8_t>(table);request.kind=room::ActionKind::Rematch;
   if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
  }else if(control.kind!=ReadyControl::None)
-  Send(control.kind==ReadyControl::Rematch?netplay::CommandKind::Rematch:netplay::CommandKind::Ready,v,submit);
+  SendReady(v,control.kind==ReadyControl::Rematch,submit);
  else if(!control.refusal.empty())
   Refuse(control.refusal,[table,seat](const ShellView& now){
    return DescribeReady(now,now.room.tables[table],seat).kind==ReadyControl::None;});
@@ -790,8 +820,7 @@ bool ApplicationShell::LeaveWatchedGame(const ShellView& v,const Submit& submit)
   Refuse(RoomWaitReason(v),[table](const ShellView& now){return LeavesWatchedGame(now,table)&&!RoomTakesNow(now,room::ActionKind::Unwatch,table);});
   return false;
  }
- ShellAction request;request.command.generation=v.session.generation;request.leaveWatchedGame=v.watchedGame;
- if(!submit(std::move(request))){error_=loc::T("error.queue_failed");return false;}
+ if(!submit(commands::LeaveWatchedGame{v.session.generation,v.watchedGame})){error_=loc::T("error.queue_failed");return false;}
  // Stop watching of the table, not only the rest of a finished stream or a
  // queued member's game, is the member's watching intent.
  if(leave==netplay::WatchedLeave::Unwatch)follow_.StoppedWatching(v.room,v.watchedGame.table,static_cast<std::uint64_t>(ImGui::GetTime()*1000));

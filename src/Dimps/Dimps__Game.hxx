@@ -177,6 +177,7 @@ namespace Dimps {
 		// then waits for State (0x67C410, the implementation's +0x240) to
 		// reach 2; Busy (0x67C430) refuses a new request while one runs.
 		struct SaveDataController {
+			struct UnlockMessage;
 			typedef struct __publicMethods {
 				void (SaveDataController::* ReadSlot)(int slot, void* buffer, int bytes, int a, int b);
 				void (SaveDataController::* Start)(int);
@@ -185,8 +186,17 @@ namespace Dimps {
 			} __publicMethods;
 			typedef struct __staticMethods {
 				SaveDataController* (*GetSingleton)();
+				bool (__thiscall* UnlockIdle)(UnlockMessage* unlock);
 			} __staticMethods;
 
+			// The implementation's UnlockMessage, idle once every unlock box a save
+			// shows first (0x4DE760) is answered; null until the game's boot builds
+			// the implementation (the singleton's own constructor leaves it null).
+			static constexpr std::size_t Implementation = 0x4, ImplementationUnlock = 0x4;
+			static UnlockMessage* GetUnlockMessage(SaveDataController* controller) {
+				auto* const implementation = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(controller) + Implementation);
+				return implementation ? reinterpret_cast<UnlockMessage*>(implementation + ImplementationUnlock) : nullptr;
+			}
 			static void Locate(HMODULE peRoot);
 			static __publicMethods publicMethods;
 			static __staticMethods staticMethods;
@@ -272,6 +282,51 @@ namespace Dimps {
 				static IEmSpriteNode** GetSpriteNode(SingleNodeControl* c) {
 					return (IEmSpriteNode**)((unsigned int)c + 0x1c);
 				}
+			};
+
+			// The textures the game makes of a picture sheet (#EMB, 0x6DF130 Emb_CreateTextures):
+			// one a picture, in the sheet's order, cut short at the first picture it cannot make.
+			// A texture's width is at +0x10, its height at +0x14.
+			struct EmbTextureList {
+				void* vtbl;
+				void** items;
+				DWORD capacity;
+				DWORD count;
+			};
+			static_assert(offsetof(EmbTextureList, items) == 0x4 && offsetof(EmbTextureList, count) == 0xc, "the texture list's layout");
+
+			// One key of a HUD sprite's picture track, 32 bytes as the #EMS file holds it: the
+			// picture's number in the sheet (negative: none), flags, and its part of the picture in pixels.
+			struct PictureKey {
+				int picture;
+				DWORD flags;
+				DWORD pad_0x8;
+				DWORD wrap;
+				float uv[4];
+			};
+			static_assert(sizeof(PictureKey) == 0x20, "a picture key is 32 bytes");
+
+			// A sprite of a battle HUD (vtable 0x9c7ba0, 0x260 bytes): one #EMS action played with the
+			// textures of its sheet.
+			struct EmSprite {
+				typedef struct __publicMethods {
+					// 0x6ed070, __thiscall, returns with ret 8; its one caller is the sprite's track update
+					// 0x6eda90, as the sprite resets and each frame after. It reads the texture of the key's
+					// picture from the sprite's list (items[picture], then its width and height) without
+					// checking the number against the list's count; a negative number, or no list, takes the
+					// path that clears the sprite's texture (+0xa0).
+					char (EmSprite::* ApplyTextureKey)(PictureKey* key, void* colour);
+				} __publicMethods;
+
+				// The #EMS action the sprite plays; its name, up to 32 characters, is at +0x30.
+				static const char** GetAction(EmSprite* s) {
+					return (const char**)((unsigned int)s + 0x8);
+				}
+				static EmbTextureList** GetTextureList(EmSprite* s) {
+					return (EmbTextureList**)((unsigned int)s + 0xc);
+				}
+				static void Locate(HMODULE peRoot);
+				static __publicMethods publicMethods;
 			};
 		}
 	}

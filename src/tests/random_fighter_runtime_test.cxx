@@ -37,7 +37,7 @@ Chara Pressed(int fighter, int costume) {
 // on `shown`.
 room::Snapshot Room(std::uint64_t revision, int shown) {
     room::Snapshot snapshot;
-    snapshot.roomEpoch = 5; snapshot.revision = revision; snapshot.localMember = 2; snapshot.arcade = room::ArcadeRoom;
+    snapshot.roomEpoch = 5; snapshot.revision = revision; snapshot.localMember = 2; snapshot.type = room::RoomType::Arcade;
     snapshot.name = "Random room";
     for (std::size_t i = 0; i < snapshot.tables.size(); ++i) snapshot.tables[i].id = static_cast<std::uint8_t>(i);
     room::Member opponent, local;
@@ -83,10 +83,10 @@ int RematchSends(const char* name, std::uint32_t mine, std::uint32_t theirs, roo
     r.Snapshot(playing);
     internal::TickRandomFighter();
     // Rematch over the held WIN: parked with the fighter just played.
-    internal::commands::Room rematch;
-    rematch.command = {netplay::CommandKind::Rematch, runtime.controller.GetSnapshot().generation, {}};
-    rematch.character = Pressed(5, 1);
-    runtime.readyIntent.Defer(internal::TypedCommand(rematch), rematch.command.generation, GetTickCount64(), internal::Intent::Budget::Timed);
+    commands::Ready rematch;
+    rematch.generation = runtime.controller.GetSnapshot().generation; rematch.rematch = true;
+    rematch.pick = selection::FromNative(Pressed(5, 1));
+    runtime.readyIntent.Defer(RuntimeRequest(rematch), rematch.generation, GetTickCount64(), internal::Intent::Budget::Timed);
     CHECK(runtime.readyIntent.Parked());
     // The room's settled result, its teardown not yet acknowledged.
     auto settled = Room(revision++, 5);

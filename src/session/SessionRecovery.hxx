@@ -80,6 +80,10 @@ struct EffectEnvelope {
 	// committed handoff. Private game_prepare grants deliberately leave this
 	// null; their pair capabilities are represented only by payloadDigest.
 	nlohmann::json publicPayload = nullptr;
+	// A room_snapshot that carries the room chat itself (CarriesRoomChat), which
+	// later chat_unchanged snapshots leave out. Kept when the copy is shed, so
+	// the journal still knows which snapshot holds the chat. Not identity.
+	bool chat = false;
 
 	bool operator==(const EffectEnvelope& rhs) const {
 		return sequence == rhs.sequence && roomEpoch == rhs.roomEpoch && term == rhs.term && revision == rhs.revision &&
@@ -93,6 +97,7 @@ inline void to_json(nlohmann::json& value, const EffectEnvelope& effect) {
 		{"generation", effect.generation}, {"recipient", effect.recipient}, {"endpoint", effect.endpoint},
 		{"type", effect.type}, {"payload_digest", effect.payloadDigest}, {"private_payload", effect.privatePayload} };
 	if (!effect.privatePayload && !effect.publicPayload.is_null()) value["public_payload"] = effect.publicPayload;
+	if (effect.chat) value["chat"] = true;
 }
 
 // Live delivery already carries the public protocol payload beside `_commit`.
@@ -140,6 +145,7 @@ inline void from_json(const nlohmann::json& value, EffectEnvelope& effect) {
 	effect.payloadDigest = value.at("payload_digest").get<std::string>();
 	effect.privatePayload = value.at("private_payload").get<bool>();
 	effect.publicPayload = value.value("public_payload", nlohmann::json(nullptr));
+	effect.chat = value.value("chat", false);
 	if (effect.privatePayload && !effect.publicPayload.is_null()) throw std::invalid_argument("private effect payload replicated");
 	if (!effect.sequence || !effect.term || !effect.recipient || effect.endpoint.host.empty() || effect.endpoint.user.empty() ||
 		effect.type.empty() || !recovery_detail::IsSha256(effect.payloadDigest)) throw std::invalid_argument("invalid effect envelope");
@@ -163,24 +169,87 @@ inline bool SupersedableProjection(const EffectEnvelope& effect) {
 // four leaves one commit of margin.
 static constexpr std::uint64_t SupersededProjectionRevisions = 4;
 
-// A room_snapshot replay copy that carries the room chat itself rather than
-// saying chat_unchanged. Never throws on an odd payload.
-inline bool ChatBearingSnapshot(const EffectEnvelope& effect) {
-	if (effect.type != "room_snapshot" || !effect.publicPayload.is_object()) return false;
-	const auto snapshot = effect.publicPayload.find("snapshot");
-	if (snapshot == effect.publicPayload.end() || !snapshot->is_object()) return false;
+// A room_snapshot payload that carries the room chat itself rather than saying
+// chat_unchanged. Never throws on an odd payload.
+inline bool CarriesRoomChat(const nlohmann::json& payload) {
+	if (!payload.is_object()) return false;
+	const auto snapshot = payload.find("snapshot");
+	if (snapshot == payload.end() || !snapshot->is_object()) return false;
 	const auto unchanged = snapshot->find("chat_unchanged");
 	return unchanged == snapshot->end() || !unchanged->is_boolean() || !unchanged->get<bool>();
 }
+
+inline bool ChatBearingSnapshot(const EffectEnvelope& effect) {
+	return effect.type == "room_snapshot" && effect.chat;
+}
+
+// Whether `later`, committed after `effect`, replaces it: room state of its
+// kind for its recipient, and for a snapshot with the chat one with the chat
+// too, as the later chat_unchanged ones leave it out.
+inline bool ReplacesState(const EffectEnvelope& later, const EffectEnvelope& effect) {
+	return SupersedableProjection(effect) && later.recipient == effect.recipient &&
+		(ChatBearingSnapshot(effect) ? ChatBearingSnapshot(later) : later.type == effect.type);
+}
+
+// Room state a later entry replaces.
+inline bool ReplacedState(const std::vector<EffectEnvelope>& history, std::size_t index) {
+	return std::any_of(history.begin() + static_cast<std::ptrdiff_t>(index) + 1, history.end(),
+		[&](const EffectEnvelope& later) { return ReplacesState(later, history[index]); });
+}
+
+// Whether a member may go without an effect it has not had once `journal` no
+// longer holds it whole (its entry gone, or its replay copy): room state the
+// journal holds a newer one of, and best-effort verification. Anything else
+// would be lost without a word, so its room fails by name instead, at the
+// effect gate (IrohRoom::HeadGate) or at activation.
+inline bool Replaceable(const EffectEnvelope& effect, const std::vector<EffectEnvelope>& journal) {
+	if (effect.type == "battle_hash" || effect.type == "battle_snapshot") return true;
+	return std::any_of(journal.begin(), journal.end(), [&](const EffectEnvelope& later) {
+		const bool after = later.revision > effect.revision || (later.revision == effect.revision && later.sequence > effect.sequence);
+		return after && ReplacesState(later, effect);
+	});
+}
+
+// What the journal promises a member whose checkpoints apply late. Room state
+// is replaceable: under the budget the journal keeps, for each recipient, only
+// its newest snapshot, its newest data_update and its newest snapshot with the
+// chat. Every other effect (an action's reply, a room event, a match grant or
+// end) keeps at least its envelope, which is all the effect gate needs to
+// authenticate a member's parked live copy, until GuaranteedEffectEnvelopes
+// newer entries have been committed: replay copies are shed before any such
+// envelope is erased, and a journal of nothing but envelopes (under 450 bytes
+// each, under 115 KB for 256) is inside the byte budget, so the entry bound
+// is the one that binds. The bound is the room's, not each member's, since the
+// members share one journal, and it counts three state entries for each of
+// 16 members (one who has just left keeps its last three until they are the
+// oldest entries, which takes a few from the bound while the room turns over).
+//
+// How many commits that covers. A 16-member room at its busiest (issue 231 and
+// the public room soak) makes about 6 commits a second, each one action with
+// one reply for the member who acted. Its matches add entries per recipient: a
+// table event is journaled once for each member watching that table, so in a
+// King of the hill room with all 16 on one table a match's Ready, Started and
+// Ended alone are 48 envelopes. MatchTurnoverEnvelopes is one match ending and
+// the next starting for every member at once, whatever the tables: each
+// member's Ready, Started and Ended, a disputed result or a Ready timeout line,
+// the reply to its terminal acknowledgement and to its result, and its four
+// match grants (game_prepare, game_connect, game_start, game_end). A fought
+// match (loading, two rounds) lasts longer than the span below, so a member
+// sees at most one such turn in it. What is left, one reply a commit, is
+// MaximumParkedCommits (ClientEffectQueue.hxx): 48 commits, about 8 s at that
+// rate. A member that is further behind fails, and an effect that is gone all
+// the same fails its room by name (Replaceable) rather than being lost.
+constexpr std::size_t GuaranteedEffectEnvelopes = MaxEffectJournalEntries - 3 * room::MaximumMembers;
+constexpr std::size_t MatchTurnoverEnvelopes = 10 * room::MaximumMembers;
 
 // Supersession, before any budget pressure. A projection followed by a later
 // one for the same (recipient, type) keeps its envelope but drops its replay
 // copy: a successor replays only the newest projection, and the envelope alone
 // still authenticates a live token for it (EffectEnvelope::operator== ignores
-// the payload). The newest chat-bearing snapshot of a recipient keeps its copy
-// while every later one says chat_unchanged, so a replay still carries the
-// chat. A superseded entry without a copy is erased once it is more than
-// SupersededProjectionRevisions behind the newest revision among the entries
+// the payload). The newest chat-bearing snapshot of a recipient is not
+// superseded while every later one says chat_unchanged: it keeps its copy, so
+// a replay still carries the chat. A superseded entry without a copy is erased
+// once it is more than SupersededProjectionRevisions behind the newest revision among the entries
 // compacted, never the owner's authority revision, so the leader (history plus
 // candidate) and a follower (journal plus effects) compute the same journal.
 inline void DropSupersededProjectionPayloads(std::vector<EffectEnvelope>& history, std::vector<std::size_t>& encoded) {
@@ -192,9 +261,10 @@ inline void DropSupersededProjectionPayloads(std::vector<EffectEnvelope>& histor
 		auto& effect = history[index];
 		if (!SupersedableProjection(effect)) continue;
 		const bool snapshot = effect.type == "room_snapshot";
-		superseded[index] = !(snapshot ? laterSnapshot : laterData).insert(effect.recipient).second;
+		const bool laterOfKind = !(snapshot ? laterSnapshot : laterData).insert(effect.recipient).second;
 		const bool newestChat = snapshot && ChatBearingSnapshot(effect) && laterChat.insert(effect.recipient).second;
-		if (!superseded[index] || effect.publicPayload.is_null() || newestChat) continue;
+		superseded[index] = laterOfKind && !newestChat;
+		if (!superseded[index] || effect.publicPayload.is_null()) continue;
 		effect.publicPayload = nullptr;
 		encoded[index] = DumpJson(nlohmann::json(effect)).size();
 	}
@@ -264,28 +334,28 @@ inline void CompactEffectJournal(std::vector<EffectEnvelope>& history, std::vect
 		history.erase(history.begin() + index);
 		encoded.erase(encoded.begin() + index);
 	};
+	// The budget takes replaced room state first, at any age; then replay
+	// copies, room state's before the rest and the oldest first; only then the
+	// oldest entry (GuaranteedEffectEnvelopes).
 	while (history.size() > MaxEffectJournalEntries || bytes > MaxEffectJournalBytes) {
-		auto removable = history.end();
-		for (auto current = history.begin(); current != history.end(); ++current) {
-			if (!SupersedableProjection(*current)) continue;
-			const auto later = std::find_if(std::next(current), history.end(), [&](const EffectEnvelope& candidate) {
-				return candidate.recipient == current->recipient && candidate.type == current->type;
-			});
-			if (later != history.end()) { removable = current; break; }
-		}
-		if (removable != history.end()) {
-			erase(static_cast<std::size_t>(std::distance(history.begin(), removable)));
+		std::size_t replaced = 0;
+		while (replaced < history.size() && !ReplacedState(history, replaced)) ++replaced;
+		if (replaced < history.size()) {
+			erase(replaced);
 			continue;
 		}
-		// Public projections are optional replay copies: their stable digest is
-		// enough to authenticate a separately delivered effect. Search the whole
-		// journal before discarding an ordered lifecycle identity. Otherwise an
-		// active private game_prepare at the front can be erased merely because a
-		// later recipient's large, unique snapshot crosses the byte budget.
+		// Replay copies are optional: an envelope's stable digest is enough to
+		// authenticate a separately delivered effect. Shed every copy before
+		// discarding an ordered lifecycle identity. Otherwise an active private
+		// game_prepare at the front can be erased merely because a later
+		// recipient's large, unique snapshot or an action's reply, which carries
+		// the whole room, crosses the byte budget.
 		if (bytes > MaxEffectJournalBytes) {
+			const auto copy = [](const EffectEnvelope& effect) { return !effect.publicPayload.is_null(); };
 			auto payload = std::find_if(history.begin(), history.end(), [&](const EffectEnvelope& effect) {
-				return SupersedableProjection(effect) && !effect.publicPayload.is_null();
+				return SupersedableProjection(effect) && copy(effect);
 			});
+			if (payload == history.end()) payload = std::find_if(history.begin(), history.end(), copy);
 			if (payload != history.end()) {
 				const auto index = static_cast<std::size_t>(std::distance(history.begin(), payload));
 				payload->publicPayload = nullptr;

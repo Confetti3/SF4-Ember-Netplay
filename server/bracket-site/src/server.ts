@@ -1,16 +1,18 @@
 // The HTTP routes: who is asking, the tournaments' API for organizers and
 // players, a public view, and the connector's contract (contract.ts).
-import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 
-import type { BridgeClient } from "../../../sdk/typescript/src/index.ts";
+import { BridgeError, type BridgeClient } from "../../../sdk/typescript/src/index.ts";
 import { Conflict, Invalid, roundLabel, status } from "./bracket.ts";
 import { contractRoutes, record } from "./contract.ts";
+import { deskPage } from "./desk.ts";
 import { fail, Failure, readJson, send, text, type Json, type Route } from "./http.ts";
 import { seasonAwards } from "./awards.ts";
 import { emblem, isKind } from "./emblems.ts";
+import type { EmberSignIn } from "./ember.ts";
 import { DEFAULT_POINTS, standings, type League, type Season } from "./league.ts";
-import { push, stats } from "./live.ts";
+import { push, setCalled, stats } from "./live.ts";
 import { OAuth, OAuthError, Redirect } from "./oauth.ts";
 import { home, page, reportPage } from "./page.ts";
 import { manifest, setReplays, type Clip } from "./replays.ts";
@@ -20,6 +22,8 @@ import { ACTIONS, actions, beforeLive, checkIn, enter, move, type Action, type E
 
 const SLUG = /^[A-Za-z0-9_-]{1,64}$/;
 export const DISCORD_ID = /^\d{17,20}$/;
+/** The webhooks the notifier posts to: Discord's own, nothing else. */
+export const WEBHOOK = /^https:\/\/(?:discord|discordapp)\.com\/api\/webhooks\/\d{17,20}\/[A-Za-z0-9_-]{1,100}$/;
 /** The most Discord IDs one bridge lookup takes. */
 const LOOKUP_BATCH = 32;
 
@@ -47,13 +51,19 @@ export interface Options {
   tokens?: (token: string) => Actor | undefined;
   /** Sign-in: the site's OAuth access tokens, browser sessions and their routes. */
   oauth?: OAuth;
+  /** Sign-in from Ember with a proof, and the site's own organizers. */
+  ember?: EmberSignIn;
   /** The site's public origin: a browser's session writes only from its own pages. */
   origin?: string;
   /** The bridge's public origin, which serves a public event's replays. */
   bridgeOrigin?: string;
   fetch?: typeof fetch;
-  /** A bridge connection with `discord_lookup`, which finds each player's Ember ID. */
-  bridge: Pick<BridgeClient, "lookupPlayers">;
+  /**
+   * A bridge connection with `discord_lookup`, which finds each player's Ember
+   * ID. Deciding or voiding a game also needs the organizer role, on the
+   * connection the connector makes matches on.
+   */
+  bridge: Pick<BridgeClient, "lookupPlayers" | "getMatch" | "recordGame" | "voidGame">;
   now?: () => Date;
 }
 
@@ -62,7 +72,12 @@ export function bracketSite(options: Options): Server {
   const now = () => (options.now?.() ?? new Date()).toISOString();
   const found = (id: string) => store.get(id) ?? fail(404, `no tournament ${id}`);
 
+  /** Who is asking; an organizer also when the site made them one (`ember.ts`). */
   function actor(request: IncomingMessage): Actor | undefined {
+    const who = asking(request);
+    return who && !who.organizer && who.discord && options.ember?.isOrganizer(who.discord) ? { ...who, organizer: true } : who;
+  }
+  function asking(request: IncomingMessage): Actor | undefined {
     const token = /^Bearer (.+)$/.exec(request.headers.authorization ?? "")?.[1];
     if (!token) {
       const session = options.oauth?.session(request);
@@ -73,7 +88,7 @@ export function bracketSite(options: Options): Server {
     const discord = typeof header === "string" && DISCORD_ID.test(header) ? header : null;
     if (same(token, options.operatorToken)) return { discord, operator: true, organizer: true };
     if (options.botToken && same(token, options.botToken)) return discord ? { discord, operator: false, organizer: false } : fail(400, "X-Discord-User is required");
-    return options.tokens?.(token) ?? options.oauth?.actor(token);
+    return options.tokens?.(token) ?? options.ember?.actor(token) ?? options.oauth?.actor(token);
   }
   const signedIn = (request: IncomingMessage) => actor(request) ?? fail(401, "wrong or missing token");
   const manages = (who: Actor | undefined, managed: { organizers: string[] }) =>
@@ -81,6 +96,11 @@ export function bracketSite(options: Options): Server {
   const manager = (request: IncomingMessage, tournament: Tournament) => {
     if (!manages(signedIn(request), tournament)) fail(403, "only its organizers may");
     return tournament;
+  };
+  /** The Ember match a set an organizer runs is played as, and the bridge that decides its games. */
+  const played = (request: IncomingMessage, id: string, setId: string) => {
+    const set = manager(request, found(id)).sets.find((each) => each.id === setId) ?? fail(404, `no set ${setId}`);
+    return [set.ember_match ?? fail(409, "the set has no Ember match yet"), options.bridge] as const;
   };
   const player = (request: IncomingMessage) => signedIn(request).discord ?? fail(400, "who? (X-Discord-User)");
   const by = (request: IncomingMessage) => signedIn(request).discord ?? "operator";
@@ -120,7 +140,11 @@ export function bracketSite(options: Options): Server {
     if (!tournament || !manages(actor(request), tournament)) fail(401, "wrong or missing token");
   });
 
+  const operator = (request: IncomingMessage) => {
+    if (!signedIn(request).operator) fail(403, "only the operator may");
+  };
   const routes: Route[] = [
+    ...(options.ember?.routes(signedIn, operator) ?? []),
     [
       "POST",
       /^\/tournaments$/,
@@ -284,7 +308,9 @@ export function bracketSite(options: Options): Server {
     [
       "GET",
       /^\/live$/,
-      () => {
+      (request) => {
+        // The bot's notifier also gets each tournament's own channel.
+        const bot = !!options.botToken && same(/^Bearer (.+)$/.exec(request.headers.authorization ?? "")?.[1] ?? "", options.botToken);
         // Live, or over within the hour, so a follower sees how it ended.
         const recent = (tournament: Tournament) => Date.parse(tournament.log.at(-1)?.at ?? "") > Date.parse(now()) - 3600_000;
         const shown = store.all().filter((tournament) => tournament.state === "live" || (["finished", "cancelled"].includes(tournament.state) && recent(tournament)));
@@ -294,7 +320,13 @@ export function bracketSite(options: Options): Server {
           200,
           {
             tournaments: [
-              ...shown.map((tournament) => ({ id: tournament.id, title: tournament.title, state: tournament.state, last: tournament.feed?.at(-1)?.n ?? 0 })),
+              ...shown.map((tournament) => ({
+                id: tournament.id,
+                title: tournament.title,
+                state: tournament.state,
+                last: tournament.feed?.at(-1)?.n ?? 0,
+                ...(bot && tournament.discord_webhook ? { webhook: tournament.discord_webhook } : {}),
+              })),
               ...leagues.map((league) => ({ id: `league:${league.id}`, title: league.title, state: "league", last: league.feed!.at(-1)!.n, feed: `/leagues/${league.id}/feed` })),
             ],
           },
@@ -308,7 +340,8 @@ export function bracketSite(options: Options): Server {
         const body = await readJson(request);
         const who = signedIn(request);
         return [200, view(change(id!, request, (tournament) => {
-          if (!beforeLive(tournament)) throw new Conflict(`its settings are fixed while ${tournament.state}`);
+          // Its Discord channel may change any time; the rest is fixed once it is live.
+          if (!beforeLive(tournament) && Object.keys(body).some((key) => key !== "discord_webhook")) throw new Conflict(`its settings are fixed while ${tournament.state}`);
           settings(tournament, body, who.operator ? null : who.discord);
           if (tournament.season && !store.leagueOf(tournament.season)) throw new Invalid(`no season ${tournament.season}`);
         }))];
@@ -400,6 +433,54 @@ export function bracketSite(options: Options): Server {
         if (typeof body.winner !== "string" || typeof scores !== "object" || scores === null) fail(400, "a result is { winner, scores: { <ember id>: <games> } }");
         record(store, tournament, setId!, { winner: body.winner, scores, key: null });
         return [200, view(found(id!))];
+      },
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/sets\/([^/]+)\/(hold|call)$/,
+      async (request, [id, setId, what]) => {
+        const body = await readJson(request);
+        const tournament = change(id!, request, (tournament) => {
+          const set = tournament.sets.find((each) => each.id === setId) ?? fail(404, `no set ${setId}`);
+          if (status(set) !== "open") fail(409, "only a set waiting to be played");
+          if (what === "call") return setCalled(tournament, set, now());
+          if (typeof body.held !== "boolean") fail(400, "held is true or false");
+          // A match the connector made already plays on; holding it is for the stream's order before.
+          if (body.held && set.underway) fail(409, "the set is already being played");
+          set.held = body.held;
+        });
+        return [200, view(tournament)];
+      },
+    ],
+    [
+      "GET",
+      /^\/tournaments\/([^/]+)\/sets\/([^/]+)\/games$/,
+      async (request, [id, setId]) => {
+        const [match, bridge] = played(request, id!, setId!);
+        const found = await bridge.getMatch(match).catch(bridgeFailure);
+        const games = (found.attempts as Json[] | undefined) ?? [];
+        return [200, { revision: found.revision ?? null, games: games.map(({ attempt_id, seq, outcome, state }: Json) => ({ attempt_id, seq, outcome, state })) }];
+      },
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/sets\/([^/]+)\/adjudications$/,
+      async (request, [id, setId]) => {
+        // The bridge's own body (kind, winner_slot or draw, attempt_id, reason, expected_revision): it checks the rest.
+        const body = await readJson(request);
+        const [match, bridge] = played(request, id!, setId!);
+        const revision = text(body.expected_revision, /^\d{1,20}$/, "expected_revision is the match's revision");
+        const reason = text(body.reason, /^.{1,500}$/su, "reason is 1 to 500 characters");
+        const attempt = body.attempt_id === undefined ? undefined : text(body.attempt_id, SLUG, "attempt_id is a game's ID");
+        const header = request.headers["idempotency-key"];
+        const key = typeof header === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(header) ? header : randomUUID();
+        const answer =
+          body.kind === "void_game"
+            ? bridge.voidGame(match, attempt ?? fail(400, "attempt_id is the game to void"), revision, reason, key)
+            : body.kind === "game_result" && (body.draw === true || body.winner_slot === 0 || body.winner_slot === 1)
+              ? bridge.recordGame(match, { ...(body.draw === true ? { draw: true as const } : { winnerSlot: body.winner_slot as 0 | 1 }), ...(attempt ? { attemptId: attempt } : {}) }, revision, reason, key)
+              : fail(400, "kind is game_result (winner_slot 0 or 1, or draw: true) or void_game");
+        return [200, (await answer.catch(bridgeFailure)) as Json];
       },
     ],
     [
@@ -540,6 +621,12 @@ export function bracketSite(options: Options): Server {
         response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(shown);
         return;
       }
+      if (url.pathname === "/desk" && request.method === "GET" && options.oauth) {
+        const who = actor(request);
+        const shown = deskPage(who ? { name: who.name ?? who.discord ?? "", organizer: who.organizer } : null);
+        response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(shown);
+        return;
+      }
       const badge = /^\/emblems\/([a-z0-9_]+)\.svg$/.exec(url.pathname);
       if (badge && request.method === "GET") {
         const kind = isKind(badge[1]!) ? badge[1] : fail(404, "no such emblem");
@@ -598,6 +685,12 @@ function settings(tournament: Tournament, body: Json, self: string | null): void
     if (body.starts_at !== null && (typeof body.starts_at !== "string" || Number.isNaN(Date.parse(body.starts_at)))) fail(400, "starts_at is a date and time, or null");
     tournament.starts_at = body.starts_at === null ? null : new Date(body.starts_at as string).toISOString();
   }
+  if (body.discord_webhook !== undefined) {
+    if (body.discord_webhook !== null && (typeof body.discord_webhook !== "string" || !WEBHOOK.test(body.discord_webhook))) {
+      fail(400, "discord_webhook is a Discord channel webhook (https://discord.com/api/webhooks/...), or null");
+    }
+    tournament.discord_webhook = body.discord_webhook as string | null;
+  }
   if (body.season !== undefined) tournament.season = body.season === null ? null : text(body.season, SLUG, "season is 1 to 64 letters, digits, _ or -");
   if (body.organizers !== undefined) {
     const organizers = body.organizers;
@@ -637,10 +730,17 @@ function shuffle<T>(items: T[]): void {
 /** The tournament as anyone may see it, with the actions its state allows. */
 function view(tournament: Tournament): Json {
   // The feed, report, clips and vote have routes of their own; a vote's ballots are never shown.
-  const { feed: _, report: __, clips: ___, vote: ____, ...shown } = tournament;
+  const { feed: _, report: __, clips: ___, vote: ____, discord_webhook: webhook, ...shown } = tournament;
   return {
     ...shown,
+    discord: !!webhook,
     actions: actions(tournament),
     sets: tournament.sets.map(({ key: _, ...set }) => ({ ...set, status: status(set), round_label: roundLabel(set.round, tournament.rounds) })),
   };
+}
+
+/** The bridge's refusal, passed on as it is. */
+function bridgeFailure(error: unknown): never {
+  if (error instanceof BridgeError) fail(error.status >= 500 ? 502 : error.status, error.message);
+  throw error;
 }

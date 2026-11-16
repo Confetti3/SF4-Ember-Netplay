@@ -87,7 +87,7 @@ inline std::string ProbeMilliseconds(std::uint64_t us) {
 inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
     ConnectionCheckFeedback result;
     result.checking = view.probeStatus == "checking";
-    const bool measured = view.recommendedDelay >= 0 && view.recommendedDelay <= MaximumInputDelay;
+    const bool measured = view.ConnectionMeasured();
     if (result.checking) {
         result.value = loc::T("connection.checking");
         result.detail = loc::T("connection.checking_detail");
@@ -95,7 +95,7 @@ inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
     } else if (measured) {
         const bool relayed = view.probeRoute == RouteKind::Relayed;
         result.value = FramesText(view.recommendedDelay);
-        // A relayed route names its region when the helper reported one.
+        // A relayed route names its relay when the helper reported one.
         const std::string route = relayed ? DescribeRelayedRoute(view.probeRelay) :
             std::string(loc::T(view.probeRoute == RouteKind::Direct ? "connection.route_direct" : "connection.route_unknown"));
         result.detail = loc::Tf("connection.result_detail", route,

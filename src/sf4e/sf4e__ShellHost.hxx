@@ -27,12 +27,12 @@ public:
     virtual void FillView(const RuntimeSnapshot& snapshot, sf4e::ui::ShellView& view) = 0;
     // The table page's Ultra and Appearance rows step the pick; nothing is
     // sent. False when the pick cannot change now.
-    virtual bool StepSelection(const sf4e::ui::ShellAction::SelectionStep& step, const RuntimeSnapshot& snapshot) = 0;
+    virtual bool StepSelection(const sf4e::ui::SelectionStep& step, const RuntimeSnapshot& snapshot) = 0;
     // Training select's Start, at the idle main menu: the game enters
     // Training with the player's pick and the dummy.
     virtual void StartTraining(const RuntimeSnapshot& snapshot) = 0;
-    // The pick a room command carries: fighter, stage and random pool.
-    virtual void AddPick(sf4e::NetplayFacade::RuntimeCommand& command) = 0;
+    // The pick a Ready carries: fighter, stage and the stages Random may land on.
+    virtual void AddPick(sf4e::commands::Ready& ready) = 0;
     // The selection screen the shell shows inside its own page: the dummy's
     // on Training select, else the player's.
     virtual void DrawSelection(bool dummy, const RuntimeSnapshot& snapshot) = 0;
@@ -67,9 +67,11 @@ public:
         const sf4e::ui::ApplicationShell::DrawSelection& developer);
     // Hidden, the shell still takes identity answers, ends a cancelled Discord
     // sign-in on its service, keeps the room chat and follows the room.
-    void Background(const ShellGame::RuntimeSnapshot& snapshot);
+    void Background(const ShellGame::RuntimeSnapshot& snapshot, ShellGame& game);
 
 private:
+    // Hands a menu command to the runtime, a Ready with the game's pick.
+    static bool Submit(sf4e::RuntimeRequest request, ShellGame& game);
     sf4e::ui::ApplicationShell shell_;
     // The room the drawn shell shows, kept across frames (Draw).
     sf4e::ui::RoomCarry roomCarry_;

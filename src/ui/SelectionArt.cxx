@@ -1,21 +1,24 @@
 #include "SelectionArt.hxx"
 #include "../common/ProductIdentity.hxx"
+#include "../common/BoundedRead.hxx"
+#include "../common/Inflate.hxx"
 #include "../platform/Utf8.hxx"
 #include <windows.h>
 #include <wincodec.h>
 #include <wrl/client.h>
-#include <zlib.h>
 #include <algorithm>
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <deque>
-#include <fstream>
+#include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <variant>
 #include <vector>
 
 namespace sf4e { namespace ui {
@@ -83,27 +86,17 @@ struct Archive { std::wstring path; std::vector<unsigned char> emb; };
 std::vector<unsigned char> ReadImage(const std::wstring& path, bool& opened, const std::string& entry, Archive& archive) {
     const bool named = !entry.empty();
     if (named && !archive.emb.empty() && archive.path == path) { opened = true; return EmbImage(archive.emb, entry); }
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
-    opened = static_cast<bool>(file);
-    if (!file) return {};
-    const auto length = file.tellg();
-    if (length <= 0 || length > static_cast<std::streamoff>(MaximumFileBytes)) return {};
-    std::vector<unsigned char> bytes(static_cast<std::size_t>(length));
-    file.seekg(0); file.read(reinterpret_cast<char*>(bytes.data()), length);
-    if (!file) return {};
+    auto read = durable::ReadBounded(path, MaximumFileBytes);
+    opened = read.status != durable::ReadStatus::Missing && read.status != durable::ReadStatus::CannotOpen;
+    if (read.status != durable::ReadStatus::Read) return {};
+    std::vector<unsigned char> bytes(std::move(read.bytes));
     if (bytes.size() >= 16 && std::memcmp(bytes.data(), "#EMZ", 4) == 0) {
         const auto size = U32(bytes, 8), start = U32(bytes, 12);
         if (!size || size > MaximumFileBytes || start < 16 || start >= bytes.size()) return {};
         // The archive kept goes before another is expanded in its place.
         if (named) archive = {};
-        std::vector<unsigned char> expanded(size);
-        z_stream stream{};
-        stream.next_in = bytes.data() + start; stream.avail_in = static_cast<uInt>(bytes.size() - start);
-        stream.next_out = expanded.data(); stream.avail_out = size;
-        if (inflateInit2(&stream, -MAX_WBITS) != Z_OK) return {};
-        const int result = inflate(&stream, Z_FINISH);
-        inflateEnd(&stream);
-        if (result != Z_STREAM_END || stream.total_out != size) return {};
+        std::vector<unsigned char> expanded;
+        if (!zinflate::InflateBounded(bytes.data() + start, bytes.size() - start, zinflate::Format::Raw, size, expanded, size)) return {};
         // Asymmetric fighters also have sel_chara_rev.dds for the other side.
         if (!named) return EmbImage(expanded, entry);
         archive.path = path; archive.emb = std::move(expanded);
@@ -132,6 +125,11 @@ ComPtr<IWICBitmapSource> PlainDds(IWICImagingFactory* factory, const std::vector
 // Absent: no candidate file exists, which is final and expected for most
 // color previews. Failed: a file exists but could not be used; worth a retry.
 enum class Outcome { Decoded, Absent, Failed };
+// What an image's decode or its measuring yields besides pixels, for the one
+// feature that asked: the point digits' glyphs, or where the game's lettering
+// is in its sheet. The cache holds it and does not look inside; a third kind of
+// game art adds an alternative here and no flag to the cache.
+using Measured = std::variant<std::monostate, std::shared_ptr<const point_digits::Sheet>, std::shared_ptr<const game_lettering::Sheet>>;
 struct Pixels {
     std::string key;
     UINT width = 0, height = 0;
@@ -140,6 +138,8 @@ struct Pixels {
     // The first existing candidate that was unusable. With Decoded, a later
     // candidate stood in for it.
     std::string failure;
+    // What the decode learned besides the pixels, for the one feature that asked (Measured).
+    Measured measured;
     void Fail(const std::wstring& path, const std::string& reason) {
         outcome = Outcome::Failed;
         if (failure.empty()) failure = WideToUtf8(path) + ": " + reason;
@@ -206,11 +206,51 @@ Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::ve
     }
     return pixels;
 }
+// The game's lettering drawn from the font library at the first candidate that
+// reads (GameLettering.hxx). The library is a Scaleform file: "GFX" (or SWF's
+// "FWS") and its tags, or "CFX" ("CWS") and the tags deflated with zlib. The
+// length its header gives is not the inflated tags' (the game's ENG library
+// says 58589 and inflates to 61448), so the tags are inflated to their end,
+// up to the largest file read.
+Pixels Letters(const std::string& key, const std::vector<std::wstring>& paths) {
+    Pixels pixels; pixels.key = key;
+    for (const auto& path : paths) {
+        const auto read = durable::ReadBounded(path, MaximumFileBytes);
+        if (read.status == durable::ReadStatus::Missing || read.status == durable::ReadStatus::CannotOpen) continue;
+        const auto& bytes = read.bytes;
+        if (read.status != durable::ReadStatus::Read || bytes.size() < 8) { pixels.Fail(path, "unreadable font library"); continue; }
+        const bool deflated = std::memcmp(bytes.data(), "CFX", 3) == 0 || std::memcmp(bytes.data(), "CWS", 3) == 0;
+        const bool plain = std::memcmp(bytes.data(), "GFX", 3) == 0 || std::memcmp(bytes.data(), "FWS", 3) == 0;
+        if (!deflated && !plain) { pixels.Fail(path, "not a font library"); continue; }
+        std::vector<unsigned char> tags;
+        if (deflated) {
+            if (!zinflate::InflateBounded(bytes.data() + 8, bytes.size() - 8, zinflate::Format::Zlib, MaximumFileBytes, tags)) {
+                pixels.Fail(path, "font library does not inflate"); continue;
+            }
+        } else tags.assign(bytes.begin() + 8, bytes.end());
+        auto sheet = std::make_shared<game_lettering::Sheet>();
+        std::string why;
+        if (!game_lettering::Read(tags.data(), tags.size(), *sheet, pixels.bgra, why)) { pixels.bgra.clear(); pixels.Fail(path, why); continue; }
+        pixels.width = game_lettering::SheetWidth; pixels.height = game_lettering::SheetHeight;
+        pixels.measured = std::move(sheet);
+        pixels.outcome = Outcome::Decoded;
+        return pixels;
+    }
+    return pixels;
+}
 }
 
 struct SelectionArt::Impl {
+    // Art that is not a plain image brings its own steps, which the cache runs
+    // without knowing what it is: `source` reads the candidates on the worker
+    // in place of the image decoder (the game's font library, Letters), and
+    // `measure` looks at the decoded pixels on the drawing thread and sets
+    // their `measured` (the point digits' glyphs). A source's own
+    // `measured` is kept when there is no `measure`.
+    using Source = std::function<Pixels(const std::string& key, const std::vector<std::wstring>& candidates)>;
+    using Measure = std::function<bool(Pixels&, std::string& why)>;
     // `entry` names the image inside an archive candidate; empty takes its first.
-    struct Job { std::string key; std::vector<std::wstring> paths; UINT side; std::string entry; UINT maxSide; };
+    struct Job { std::string key; std::vector<std::wstring> paths; UINT side; std::string entry; UINT maxSide; Source source; };
     // Queued: a decode is in flight. Waiting: the last attempt failed and a
     // retry is due at retryFrame. Ready and Missing are final.
     enum class State { Queued, Waiting, Ready, Missing };
@@ -231,6 +271,7 @@ struct SelectionArt::Impl {
     };
     struct Entry {
         Policy policy;
+        Measure measure;
         State state = State::Queued;
         Texture texture;
         UINT width = 0, height = 0;
@@ -238,6 +279,8 @@ struct SelectionArt::Impl {
         std::uint64_t retryFrame = 0;
         ImVec2 uvMin = ImVec2(0, 0), uvMax = ImVec2(1, 1);
         std::uint64_t lastUse = 0;
+        // What the decode or measuring left for the feature that asked (Measured).
+        Measured measured;
     };
     // Declared before entries, so it outlives every texture it made.
     std::unique_ptr<TextureUploader> uploader;
@@ -277,7 +320,8 @@ struct SelectionArt::Impl {
                   job = std::move(jobs.front()); jobs.pop_front(); }
                 Pixels pixels; pixels.key = job.key;
                 try {
-                    if (haveFactory) pixels = Decode(factory.Get(), job.key, job.paths, job.side, job.entry, job.maxSide, archive);
+                    if (job.source) pixels = job.source(job.key, job.paths);
+                    else if (haveFactory) pixels = Decode(factory.Get(), job.key, job.paths, job.side, job.entry, job.maxSide, archive);
                     else { pixels.outcome = Outcome::Failed; pixels.failure = "image decoder unavailable"; }
                 } catch (const std::exception& error) {
                     pixels.bgra.clear(); pixels.outcome = Outcome::Failed;
@@ -290,6 +334,33 @@ struct SelectionArt::Impl {
             }
         }
         if (SUCCEEDED(initialized)) CoUninitialize();
+    }
+    // The picture cached as `key` (SelectionArt::Request), with the steps of
+    // art that is not a plain image.
+    SelectionImage Request(const std::string& key, const Files& files, unsigned side, Policy policy, const std::string& archiveEntry,
+        Source source = {}, Measure measure = {}) {
+        requested = true;
+        auto found = entries.find(key);
+        const bool due = found != entries.end() && found->second.state == State::Waiting && frame >= found->second.retryFrame;
+        if (found == entries.end() || due) {
+            std::vector<std::wstring> candidates = files();
+            std::lock_guard<std::mutex> lock(mutex);
+            if (jobs.size() >= 128) return {};
+            if (found == entries.end()) {
+                found = entries.emplace(key, Entry{}).first;
+                found->second.policy = policy; found->second.measure = std::move(measure);
+            }
+            found->second.state = State::Queued;
+            jobs.push_back({key, std::move(candidates), side, archiveEntry, found->second.policy.maxSide, std::move(source)}); wake.notify_one();
+        }
+        auto& entry = found->second; entry.lastUse = frame;
+        SelectionImage result;
+        result.texture = entry.texture.id;
+        result.uvMin = entry.uvMin; result.uvMax = entry.uvMax;
+        result.width = static_cast<int>(entry.width * (entry.uvMax.x - entry.uvMin.x));
+        result.height = static_cast<int>(entry.height * (entry.uvMax.y - entry.uvMin.y));
+        result.missing = entry.state == State::Missing;
+        return result;
     }
     // A failed attempt is retried, then reported once. An absent image is
     // final at once and reported only where its policy expects one.
@@ -305,32 +376,21 @@ struct SelectionArt::Impl {
         if (retryable) log("Selection art " + key + " unavailable after " + std::to_string(entry.failures) + " attempts: " + failure);
         else if (entry.policy.reportAbsence) log("Selection art " + key + " unavailable: no game or package file");
     }
+    // The measured result a feature's image was cached with, if it has one.
+    template <class T>
+    std::shared_ptr<const T> MeasuredOf(const std::string& key) const {
+        const auto found = entries.find(key);
+        if (found == entries.end()) return {};
+        const auto* kept = std::get_if<std::shared_ptr<const T>>(&found->second.measured);
+        return kept ? *kept : nullptr;
+    }
 };
 
 SelectionArt::SelectionArt(std::unique_ptr<TextureUploader> uploader, std::wstring game, std::wstring assets, Logger log)
     : gameRoot_(std::move(game)), assetRoot_(std::move(assets)), impl_(new Impl(std::move(uploader), std::move(log))) {}
 SelectionArt::~SelectionArt() = default;
 SelectionImage SelectionArt::Request(const std::string& key, const Files& files, unsigned side, Policy policy, const std::string& archiveEntry) {
-    auto& state = *impl_;
-    state.requested = true;
-    auto found = state.entries.find(key);
-    const bool due = found != state.entries.end() && found->second.state == Impl::State::Waiting && state.frame >= found->second.retryFrame;
-    if (found == state.entries.end() || due) {
-        std::vector<std::wstring> candidates = files();
-        std::lock_guard<std::mutex> lock(state.mutex);
-        if (state.jobs.size() >= 128) return {};
-        if (found == state.entries.end()) { found = state.entries.emplace(key, Impl::Entry{}).first; found->second.policy = policy; }
-        found->second.state = Impl::State::Queued;
-        state.jobs.push_back({key, std::move(candidates), side, archiveEntry, found->second.policy.maxSide}); state.wake.notify_one();
-    }
-    auto& entry = found->second; entry.lastUse = state.frame;
-    SelectionImage result;
-    result.texture = entry.texture.id;
-    result.uvMin = entry.uvMin; result.uvMax = entry.uvMax;
-    result.width = static_cast<int>(entry.width * (entry.uvMax.x - entry.uvMin.x));
-    result.height = static_cast<int>(entry.height * (entry.uvMax.y - entry.uvMin.y));
-    result.missing = entry.state == Impl::State::Missing;
-    return result;
+    return impl_->Request(key, files, side, policy, archiveEntry);
 }
 std::vector<std::wstring> SelectionArt::PackagedFiles(const std::string& key) const {
     const std::wstring relative(key.begin(), key.end());
@@ -380,6 +440,11 @@ void SelectionArt::Pump() {
                 std::to_string(entry.policy.exactWidth) + "x" + std::to_string(entry.policy.exactHeight));
             continue;
         }
+        if (entry.measure) {
+            std::string why;
+            if (!entry.measure(pixels, why)) { state.Failed(entry, pixels.key, Outcome::Failed, why); continue; }
+        }
+        entry.measured = std::move(pixels.measured);
         std::string failure;
         const ImTextureID texture = state.uploader->Create(pixels.width, pixels.height, pixels.bgra.data(), failure);
         if (!texture) { state.Failed(entry, pixels.key, Outcome::Failed, failure); continue; }
@@ -414,5 +479,29 @@ void SelectionArt::Pump() {
         state.textureBytes -= oldest->second.width * oldest->second.height * 4;
         state.entries.erase(oldest);
     }
+}
+PointDigitSheet SelectionArt::PointDigits() {
+    PointDigitSheet result;
+    const GameSheet files = PointDigitFiles();
+    if (files.files.empty()) return result;
+    Policy digits; digits.reportAbsence = true; digits.maxSide = point_digits::SheetSide;
+    result.image = impl_->Request("point-digits", [&] { return files.files; }, NativeSide, digits, files.entry, {},
+        [](Pixels& pixels, std::string& why) {
+            auto sheet = std::make_shared<point_digits::Sheet>();
+            if (!point_digits::Measure(pixels.bgra.data(), static_cast<int>(pixels.width), static_cast<int>(pixels.height), *sheet, why)) return false;
+            pixels.measured = std::move(sheet);
+            return true;
+        });
+    if (result.image.texture) result.sheet = impl_->MeasuredOf<point_digits::Sheet>("point-digits");
+    return result;
+}
+GameLetterSheet SelectionArt::GameLetters() {
+    GameLetterSheet result;
+    const GameSheet files = LetterFiles();
+    if (files.files.empty()) return result;
+    Policy letters; letters.reportAbsence = true;
+    result.image = impl_->Request("game-letters", [&] { return files.files; }, NativeSide, letters, {}, Letters);
+    if (result.image.texture) result.sheet = impl_->MeasuredOf<game_lettering::Sheet>("game-letters");
+    return result;
 }
 } }

@@ -1,6 +1,8 @@
-//! The relay regions a player's network is placed in: the short codes of the
-//! Iroh relays the helper pins, which is what the native side shows and what a
-//! room's creator reports as its region. A relay outside these has no code.
+//! The relays a player's network connects through: the short codes of the Iroh
+//! relays the helper pins. A code is a routing fact, how a PC connects, never
+//! where a player is (that is their `area::Area`): the native side names it as
+//! a relay, and a room's creator still gives theirs as the room's `region`,
+//! for routing and for 1.5.7 builds. A relay outside these has no code.
 
 /// The known region codes, in the order of the helper's pinned relays.
 pub const REGIONS: [&str; 4] = ["use1", "usw1", "euc1", "aps1"];

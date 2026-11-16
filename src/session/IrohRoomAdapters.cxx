@@ -39,7 +39,7 @@ class IrohRoom::ServerAdapter final : public ServerTransport {
 				if (!messages.empty() && (!prefixBatchable || !(*batchable)(room->room_.serverMessages.front()))) break;
 				if (messages.empty()) prefixBatchable = (*batchable)(room->room_.serverMessages.front());
 			}
-			room->room_.queuedBytes -= room->room_.serverMessages.front().payload.size();
+			room->room_.serverBytes -= room->room_.serverMessages.front().payload.size();
 			messages.push_back(std::move(room->room_.serverMessages.front())); room->room_.serverMessages.pop_front();
 			if (batchable && !prefixBatchable) break;
 		}
@@ -71,7 +71,7 @@ public:
 		if (!room->room_.localOpen || payload.empty() || payload.size() > MaximumPayload ||
 			room->room_.serverLocalNextId == (std::numeric_limits<std::int64_t>::max)()) return false;
 		// Classified once here, for the queue and the local client.
-		return room->Queue(room->room_.clientMessages, {1, room->room_.serverLocalNextId++, payload, "", ClassifyRoomMessage(payload)});
+		return room->QueueEffect({1, room->room_.serverLocalNextId++, payload, "", ClassifyRoomMessage(payload)});
 	}
 	void Close() override {
 		if (room->epoch_==epoch) {
@@ -101,16 +101,17 @@ public:
 		room->Poll();
 		if (State() == ConnectionState::Failed || State() == ConnectionState::Closed) return false;
         room->PumpCommittedEffects();
-		while (messages.size() < maximum && !room->room_.clientMessages.empty()) {
-            const auto bytes=room->room_.clientMessages.front().payload.size();
-            const auto verdict=room->AuthorizedEffect(room->room_.clientMessages.front());
+        auto& queue=room->room_.clientEffects;
+		while (messages.size() < maximum && !queue.Empty()) {
+            const auto bytes=queue.Next().payload.size();
+            const auto verdict=room->AuthorizedEffect(queue.Next());
+            // The room has failed and its queues are cleared.
+            if(verdict==EffectVerdict::Missing) return false;
             if(verdict==EffectVerdict::Park) break;
             if(verdict==EffectVerdict::Drop) {
-                room->room_.queuedBytes-=bytes;
-                room->room_.clientMessages.pop_front();
+                queue.PopNext(bytes);
                 continue;
             }
-            room->room_.queuedBytes-=bytes;
             // A bare hello_resp is only the CID half of an admission
             // exchange; rejected custom admissions send join_rej
             // immediately afterward. Keep the pending fence through
@@ -119,7 +120,7 @@ public:
             // envelope, while join_rej is always terminal. Read from the
             // payload as it is delivered: the body AuthorizedEffect
             // parsed, else the tag of the unchanged payload.
-            auto& head=room->room_.clientMessages.front();
+            auto& head=queue.Next();
             std::string type;
             bool committed=false;
             if(head.body) {
@@ -135,7 +136,7 @@ public:
             if(type=="join_rej" || (type=="hello_resp" && committed))
                 room->room_.pendingAdmission=false;
             messages.push_back(std::move(head));
-            room->room_.clientMessages.pop_front();
+            queue.PopNext(bytes);
 		}
 		return true;
 	}
@@ -152,7 +153,7 @@ public:
 		if (room->room_.localNextId == (std::numeric_limits<std::int64_t>::max)()) return SendResult::Failed;
 		const auto messageId = room->room_.localNextId++;
 		// Classified once here; the server queue and SessionServer read the tag.
-		if (!room->Queue(room->room_.serverMessages, {1, messageId, payload, "", ClassifyRoomMessage(payload)})) return SendResult::QueueFull;
+		if (!room->QueueIntent({1, messageId, payload, "", ClassifyRoomMessage(payload)})) return SendResult::QueueFull;
 		if (id) *id = messageId;
 		return SendResult::Queued;
 	}

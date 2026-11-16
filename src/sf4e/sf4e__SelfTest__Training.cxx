@@ -26,7 +26,7 @@ using training::Mode;
 // Frames the test records before it stops the recording.
 constexpr int kRecorded = 8 * kSecond;
 // Done: the outcome is written (Finish).
-enum class Stage { ToBattle, Move, Starting, Settling, Measure, Hit, Struck, HeavyHit, HeavyStruck, Record, Standby, Recording, Replaying, SavePosition, Dash, Dashed, Reset, Done };
+enum class Stage { ToBattle, Move, Starting, Settling, Measure, Hit, Struck, HeavyHit, HeavyStruck, BackDash, BackDashed, Record, Standby, Recording, Replaying, SavePosition, Dash, Dashed, Reset, Done };
 
 // Ryu's crouching LP: startup 3, active 2, recovery 7. The numbers on the
 // meter's line have to be these, and its cells 2, 2 and 7 (FrameMeter.hxx:
@@ -36,6 +36,8 @@ constexpr int kStartup = 3, kActive = 2, kRecovery = 7;
 constexpr int kHitAdvantage = 5;
 // Crouching HP on hit, a move made to be cancelled (SSF4 AE frame data, and the BAC: interruptible on its 52nd of 53 frames).
 constexpr int kHeavyHitAdvantage = -13;
+// Ryu's back dash: nothing can hit him on its first 8 frames (RYU.bac's list 8).
+constexpr int kBackDashInvincible = 8;
 
 struct Lab : Steps<Stage> {
 	// Where a played move goes once it has ended, and where it goes if it does not.
@@ -227,8 +229,21 @@ void TickTraining() {
 		break;
 	case Stage::HeavyStruck:
 		HitAdvantage(view, "Ryu crouching HP", kHeavyHitAdvantage);
+		lab.Enter(Stage::BackDash);
+		break;
+	case Stage::BackDash:
+		Play("44", "Ryu back dash", Stage::BackDashed, Stage::Record);
+		break;
+	case Stage::BackDashed: {
+		// Nothing hits Ryu on its first 8 frames (RYU.bac), strikes included.
+		const Cells cells = CountCells(view.meter, 0);
+		const int full = cells.invincible[static_cast<int>(training::Invincibility::Full)], projectile = cells.invincible[static_cast<int>(training::Invincibility::Projectile)];
+		const bool right = full == kBackDashInvincible && !projectile;
+		Say(right, "Ryu back dash invincible", std::to_string(full) + " cells fully invincible, " + std::to_string(projectile) +
+			" projectile invincible only" + (right ? "" : ", expected 8 and none"));
 		lab.Enter(Stage::Record);
 		break;
+	}
 	case Stage::Record:
 		// The lab's record control: standby first, then recording, then stop.
 		// Eight seconds are recorded and played back for five, long enough for

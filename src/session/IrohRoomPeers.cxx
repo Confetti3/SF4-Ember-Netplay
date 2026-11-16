@@ -14,9 +14,10 @@
 namespace sf4e { namespace session {
 
 namespace {
-// What a public host's helper says the ticket admitted, on "connected".
+// What a public host's helper says the ticket admitted, on "connected". A card
+// that is not shaped like a token reads as none, as a badge that is not one does.
 Admission ReadAdmission(const nlohmann::json& event) {
-	return {event.value("account", std::string()), ReadSkillBadge(event)};
+	return {event.value("account", std::string()), ReadSkillBadge(event), ReadCardToken(event)};
 }
 }
 using nlohmann::json;
@@ -40,6 +41,10 @@ std::string IrohRoom::PeerIdentity(Connection connection) const {
 	if (connection == 1) return localIdentity_;
 	const auto peer = room_.peers.find(connection);
 	return peer == room_.peers.end() ? std::string() : peer->second.identity;
+}
+
+bool IrohRoom::FromLeader(Connection connection) const {
+	return !room_.coordination.leader.empty() && PeerIdentity(connection) == room_.coordination.leader;
 }
 
 std::uint64_t IrohRoom::PeerIncarnation(Connection connection) const {
@@ -103,7 +108,7 @@ std::map<Connection, IrohRoom::Peer>::iterator IrohRoom::RetirePeer(std::map<Con
 
 std::map<Connection, IrohRoom::Peer>::iterator IrohRoom::ErasePeer(std::map<Connection, Peer>::iterator peer) {
 	for (auto message = room_.serverMessages.begin(); message != room_.serverMessages.end();) {
-		if (message->connection == peer->first) { room_.queuedBytes -= message->payload.size(); message = room_.serverMessages.erase(message); }
+		if (message->connection == peer->first) { room_.serverBytes -= message->payload.size(); message = room_.serverMessages.erase(message); }
 		else ++message;
 	}
 	return room_.peers.erase(peer);
@@ -320,8 +325,8 @@ bool IrohRoom::ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, 
 	if (room_.publicHost && (effect || leaderHandshake || leaderVerification)) return true;
 	// Classified from this one parse; neither queue nor the session layer
 	// parses it again to learn its kind.
-	return Queue((effect || leaderHandshake || leaderVerification) ? room_.clientMessages : room_.serverMessages,
-		{peer->first, id, std::move(payload), "", ClassifyRoomMessage(decoded)});
+	Message message{peer->first, id, std::move(payload), "", ClassifyRoomMessage(decoded)};
+	return effect || leaderHandshake || leaderVerification ? QueueEffect(std::move(message)) : QueueIntent(std::move(message));
 }
 
 SendResult IrohRoom::SendRemote(Connection connection, const std::string& payload, std::int64_t* id) {

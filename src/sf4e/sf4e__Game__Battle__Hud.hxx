@@ -19,6 +19,10 @@ namespace sf4e {
 				using Dimps::Game::GameMementoKey;
 
 				void Install();
+				// The detour transaction committed: the picture guard queued by Install is in place.
+				void HooksCommitted();
+				// Whether a picture a HUD sheet lacks is drawn as none (a game build this guard knows).
+				bool PictureGuardInstalled();
 				extern bool bAllowHudUpdate;
 				
 				struct Unit : Dimps::Game::Battle::Hud::Unit {

@@ -22,7 +22,14 @@
     'Sagat', 'M. Bison', 'C. Viper', 'Rufus', 'El Fuerte', 'Abel', 'Seth', 'Akuma', 'Gouken', 'T. Hawk', 'Cammy',
     'Fei Long', 'Dee Jay', 'Sakura', 'Rose', 'Gen', 'Dan', 'Guy', 'Cody', 'Ibuki', 'Makoto', 'Dudley', 'Adon',
     'Hakan', 'Juri', 'Yun', 'Yang', 'Evil Ryu', 'Oni', 'Rolento', 'Elena', 'Poison', 'Hugo', 'Decapre'];
-  var REGIONS = { use1: 'US East', usw1: 'US West', euc1: 'Europe', aps1: 'Asia Pacific' };
+  // Where a room's creator plays from, by the code a room carries as `area`, in
+  // the order the filter lists them: Ember's own list (src/common/Area.hxx,
+  // ember_protocol::area::Area, whose tests check this one against them).
+  var AREAS = { naw: 'NA West', nac: 'NA Central', nae: 'NA East', cam: 'Central America & Caribbean', sam: 'South America', euw: 'Europe West', eue: 'Europe East', mea: 'Middle East & Africa', sas: 'South Asia', eas: 'East Asia', sea: 'South-East Asia', oce: 'Oceania' };
+  // The relay a room's creator connects through, by the code every room carries
+  // as `region`: how they connect, never where they are. A room without an area
+  // (its creator hid it, or Ember before 1.6.0 made it) names only its relay.
+  var RELAYS = { use1: 'Ember US (Kansas)', usw1: 'n0 US West', euc1: 'Ember Europe', aps1: 'n0 Asia' };
   var ROTATIONS = ['Winner stays', 'Loser stays', 'Both rotate'];
   // Room types as the room model numbers them (room::RoomType), in the order
   // the page lists them. A room whose host does not say is Classic: room hosts
@@ -44,12 +51,12 @@
   var list = document.getElementById('rooms');
   var summary = document.getElementById('summary');
   var status = document.getElementById('status');
-  var regions = document.getElementById('regions');
+  var areas = document.getElementById('areas');
   var types = document.getElementById('types');
   var games = document.getElementById('games');
   var openOnly = document.getElementById('open-only');
   var refreshButton = document.getElementById('refresh');
-  var state = { rooms: null, bridge: '', listedAt: 0, skew: 0, key: null, region: '', type: '', failed: false,
+  var state = { rooms: null, bridge: '', listedAt: 0, skew: 0, key: null, area: '', type: '', failed: false,
     game: /(?:^|[?&])game=sfv(?:&|$)/.test(location.search) ? GAMES.sfv : GAMES.usf4 };
   // What the cards on screen were drawn from: the body without listed_at, and
   // whether the "could not refresh" note was showing. A refresh that changes
@@ -59,7 +66,15 @@
   var loading = false;
 
   var el = site.el;
-  function regionLabel(code) { return REGIONS[code] || String(code || '').toUpperCase(); }
+  // The room's area when it gave one Ember knows, else none.
+  function areaOf(room) { return Object.prototype.hasOwnProperty.call(AREAS, room.area) ? room.area : ''; }
+  // What the card says of where the room is: its area, or else its relay, as a relay.
+  function placeLabel(room) {
+    var area = areaOf(room);
+    if (area) return AREAS[area];
+    if (typeof room.region !== 'string' || !room.region) return '';
+    return 'Relay: ' + (Object.prototype.hasOwnProperty.call(RELAYS, room.region) ? RELAYS[room.region] : room.region.toUpperCase());
+  }
   function versionOf(build) {
     for (var i = 0; i < VERSIONS.length; i++) if (VERSIONS[i][0] === build) return { label: VERSIONS[i][1], rank: i };
     return { label: null, rank: VERSIONS.length };
@@ -111,8 +126,8 @@
     var titles = el('div', 'room-titles');
     titles.appendChild(el('h2', 'room-name', room.name));
     var meta = el('p', 'room-meta');
-    var where = regionLabel(room.region);
-    meta.textContent = room.host_name ? room.host_name + ' · ' + where : where;
+    var where = placeLabel(room);
+    meta.textContent = room.host_name && where ? room.host_name + ' · ' + where : room.host_name || where;
     titles.appendChild(meta);
     head.appendChild(titles);
 
@@ -206,21 +221,23 @@
     return node;
   }
 
-  function regionButtons(rooms) {
+  // The area buttons: All areas, then each area that has a room, in AREAS
+  // order. A room without an area is listed under All areas only.
+  function areaButtons(rooms) {
     var seen = {};
-    rooms.forEach(function (room) { seen[room.region] = true; });
-    if (state.region && !seen[state.region]) seen[state.region] = true;
-    var codes = Object.keys(seen).sort(function (a, b) { return regionLabel(a).localeCompare(regionLabel(b)); });
-    while (regions.children.length > 1) regions.removeChild(regions.lastChild);
-    codes.forEach(function (code) {
-      var button = el('button', 'room-filter', regionLabel(code));
+    rooms.forEach(function (room) { seen[areaOf(room)] = true; });
+    if (state.area) seen[state.area] = true;
+    while (areas.children.length > 1) areas.removeChild(areas.lastChild);
+    Object.keys(AREAS).forEach(function (code) {
+      if (!seen[code]) return;
+      var button = el('button', 'room-filter', AREAS[code]);
       button.type = 'button';
-      button.setAttribute('data-region', code);
-      regions.appendChild(button);
+      button.setAttribute('data-area', code);
+      areas.appendChild(button);
     });
-    for (var i = 0; i < regions.children.length; i++) {
-      var child = regions.children[i];
-      child.setAttribute('aria-pressed', child.getAttribute('data-region') === state.region ? 'true' : 'false');
+    for (var i = 0; i < areas.children.length; i++) {
+      var child = areas.children[i];
+      child.setAttribute('aria-pressed', child.getAttribute('data-area') === state.area ? 'true' : 'false');
     }
   }
 
@@ -265,7 +282,7 @@
       return;
     }
     var rooms = state.rooms.slice();
-    regionButtons(rooms);
+    areaButtons(rooms);
     typeButtons(rooms);
     var players = rooms.reduce(function (sum, room) { return sum + room.members; }, 0);
     // The bridge's order (unlocked first, most free seats first), newest Ember first.
@@ -275,7 +292,7 @@
       .sort(function (a, b) { return a.rank - b.rank || a.index - b.index; })
       .map(function (entry) { return entry.room; });
     var shown = rooms.filter(function (room) {
-      return (!state.region || room.region === state.region) && (!openOnly.checked || joinable(room)) &&
+      return (!state.area || areaOf(room) === state.area) && (!openOnly.checked || joinable(room)) &&
         (state.type === '' || String(typeOf(room).code) === state.type);
     });
     summary.textContent = rooms.length === 0 ? 'No rooms open' :
@@ -285,7 +302,7 @@
       list.appendChild(message('No public rooms are open right now.',
         'Open one in Ember: Online play, Public rooms, Create room. This page shows it as soon as you are in it.'));
     } else if (shown.length === 0) {
-      list.appendChild(message('No rooms match these filters.', 'Choose All regions or All types, or turn off Open seats only.'));
+      list.appendChild(message('No rooms match these filters.', 'Choose All areas or All types, or turn off Open seats only.'));
     } else {
       // Each type's rooms together under its own heading, once there is more
       // than one type to tell apart.
@@ -367,17 +384,17 @@
     var chosen = GAMES[button.getAttribute('data-game')];
     if (!chosen || chosen === state.game) return;
     state.game = chosen;
-    state.rooms = null; state.key = null; state.region = ''; state.type = '';
+    state.rooms = null; state.key = null; state.area = ''; state.type = '';
     drawn.key = null;
     if (history.replaceState) history.replaceState(null, '', chosen.key === 'usf4' ? location.pathname : '?game=' + chosen.key);
     gameButtons();
     loading = false;
     load();
   });
-  regions.addEventListener('click', function (event) {
+  areas.addEventListener('click', function (event) {
     var button = event.target.closest ? event.target.closest('button') : null;
-    if (!button || !regions.contains(button)) return;
-    state.region = button.getAttribute('data-region') || '';
+    if (!button || !areas.contains(button)) return;
+    state.area = button.getAttribute('data-area') || '';
     render();
   });
   types.addEventListener('click', function (event) {

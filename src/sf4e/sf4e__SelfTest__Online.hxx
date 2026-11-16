@@ -15,9 +15,11 @@ namespace sf4e { namespace selftest { namespace online {
 
 std::shared_ptr<const NetplayFacade::RuntimeSnapshot> Now();
 
-// A command as the room's controls build it, tagged with the current
-// generation so a stale one is dropped as a stale press would be.
-NetplayFacade::RuntimeCommand Command(netplay::CommandKind kind);
+// The generation the screens tag a command with, so a stale one is dropped
+// as a stale press would be.
+netplay::Generation Generation();
+// Ready, or with `rematch` Rematch, as Ryu, as the room's controls send it.
+commands::Ready AsRyu(bool rematch);
 
 // Each side its own name, since a room refuses a second member of the same
 // name; a fixed delay, so Ready does not wait for the connection check; one

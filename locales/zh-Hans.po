@@ -285,7 +285,6 @@ msgstr "有可用更新：{0}"
 msgid "services.go_back_available"
 msgstr "可以回退到 {0}"
 
-
 msgid "services.up_to_date"
 msgstr "已是最新版本。"
 
@@ -355,6 +354,24 @@ msgstr "隐藏"
 msgid "settings.country.current"
 msgstr "当前"
 
+msgid "settings.place"
+msgstr "国家/地区和大区"
+
+msgid "settings.area"
+msgstr "大区"
+
+msgid "settings.area_detail"
+msgstr "你游玩所在的位置。你的玩家卡片和你创建的公开房间会显示它，公开房间列表也会标出附近的房间。自动会跟随 Windows 中设置的时区。可用左右切换。"
+
+msgid "settings.area.automatic_value"
+msgstr "自动（{0}，来自 Windows）"
+
+msgid "settings.area.automatic_none"
+msgstr "自动（未设置）"
+
+msgid "settings.area.hidden"
+msgstr "隐藏"
+
 msgid "country.search"
 msgstr "搜索"
 
@@ -381,6 +398,42 @@ msgstr "没有匹配的国家/地区"
 
 msgid "country.none_detail"
 msgstr "更改搜索以查看更多国家/地区。"
+
+msgid "area.naw"
+msgstr "北美西部"
+
+msgid "area.nac"
+msgstr "北美中部"
+
+msgid "area.nae"
+msgstr "北美东部"
+
+msgid "area.cam"
+msgstr "中美洲和加勒比"
+
+msgid "area.sam"
+msgstr "南美洲"
+
+msgid "area.euw"
+msgstr "西欧"
+
+msgid "area.eue"
+msgstr "东欧"
+
+msgid "area.mea"
+msgstr "中东和非洲"
+
+msgid "area.sas"
+msgstr "南亚"
+
+msgid "area.eas"
+msgstr "东亚"
+
+msgid "area.sea"
+msgstr "东南亚"
+
+msgid "area.oce"
+msgstr "大洋洲"
 
 msgid "settings.language.system_with"
 msgstr "自动－{0}"
@@ -435,6 +488,9 @@ msgstr "粘贴"
 
 msgid "menu.adjust"
 msgstr "调整"
+
+msgid "menu.change"
+msgstr "更改"
 
 msgid "speech.position"
 msgstr "第{0}项，共{1}项"
@@ -554,13 +610,13 @@ msgid "connection.relayed_advice"
 msgstr "中继表示双方网络无法直连，对战流量会经过中继服务器。仍可正常对战，建议使用推荐延迟。如需直连，任一玩家可尝试在路由器开启 UPnP、将 UDP 端口 45760 转发至电脑，或关闭 VPN。"
 
 msgid "connection.route_relayed_via"
-msgstr "中继 ({0})"
+msgstr "经 {0} 中继"
 
 msgid "connection.direct_checking"
 msgstr "仍在检查你的网络是否允许直连。"
 
 msgid "connection.blocked_local_no_udp"
-msgstr "可能原因: 你的网络阻止了 UDP。"
+msgstr "可能原因: Windows 防火墙或你的网络阻止了 UDP。请在“Windows 安全中心 > 防火墙和网络保护 > 允许应用通过防火墙”中允许 sf4-net.exe (专用和公用网络)。"
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "可能原因: {0} 的网络阻止了 UDP。"
@@ -580,32 +636,35 @@ msgstr "重新检查连接"
 msgid "network.relay"
 msgstr "中继"
 
+msgid "network.relay_chip"
+msgstr "中继：{0}"
+
 msgid "network.relay_detail"
 msgstr "帮助游戏找到其他玩家的中继服务器。只有无法直连时，对战流量才会经过它。"
 
 msgid "network.relay_connected"
-msgstr "{0} (已连接)"
+msgstr "{0} · 已连接"
 
 msgid "network.relay_connecting"
-msgstr "{0} (连接中)"
+msgstr "{0} · 连接中"
 
 msgid "network.relay_none"
 msgstr "未连接"
 
-msgid "network.region_use1"
-msgstr "美国东部"
+msgid "network.relay_use1"
+msgstr "Ember 美国 (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "美国西部"
+msgid "network.relay_usw1"
+msgstr "n0 美国西部"
 
-msgid "network.region_euc1"
-msgstr "欧洲"
+msgid "network.relay_euc1"
+msgstr "Ember 欧洲"
 
-msgid "network.region_aps1"
-msgstr "亚太"
+msgid "network.relay_aps1"
+msgstr "n0 亚洲"
 
-msgid "network.region_other"
-msgstr "其他地区"
+msgid "network.relay_other"
+msgstr "其他中继服务器"
 
 msgid "network.status"
 msgstr "网络"
@@ -626,7 +685,7 @@ msgid "network.nat_detail_strict"
 msgstr "你的路由器使用严格 NAT，直连常常失败，对战可能会经过中继服务器。"
 
 msgid "network.nat_detail_no_udp"
-msgstr "你的网络似乎阻止了 UDP，直连会失败，对战可能会经过中继服务器。原因可能是防火墙或 VPN。"
+msgstr "你的网络似乎阻止了 UDP，直连会失败，对战可能会经过中继服务器。最常见的原因是 Windows 防火墙: 首次启动时跳过了它的提示，或网络被设为公用网络。请在“Windows 安全中心 > 防火墙和网络保护 > 允许应用通过防火墙”中允许 sf4-net.exe (专用和公用网络)。VPN 也可能阻止 UDP。"
 
 msgid "network.nat_detail_checking"
 msgstr "正在检查网络。游戏启动后需要几秒钟。"
@@ -706,6 +765,12 @@ msgstr "在线对战"
 msgid "home.online_detail"
 msgstr "创建或加入房间、浏览公开房间，或设置用于赛事的 Ember ID。"
 
+msgid "home.friends"
+msgstr "好友"
+
+msgid "home.friends_detail"
+msgstr "加入好友的房间、回复请求，并添加新好友。"
+
 msgid "home.return_room"
 msgstr "返回当前房间。"
 
@@ -734,7 +799,7 @@ msgid "home.profile"
 msgstr "个人资料"
 
 msgid "home.profile_detail"
-msgstr "您的名称、主角和本地已确认的在线战绩。"
+msgstr "您的名片、角色、好友和奖励。"
 
 msgid "home.settings"
 msgstr "设置"
@@ -943,9 +1008,6 @@ msgstr "离开 Ember 菜单，打开用于播放录像的游戏 Battle Log。"
 msgid "replays.open_log_room"
 msgstr "请先离开房间。"
 
-
-
-
 msgid "replays.set_value"
 msgstr "{0} 个回放 · {1} 个房间"
 
@@ -983,10 +1045,40 @@ msgid "replays.next_video_detail"
 msgstr "准备这一局的视频：检查字幕，然后选择“生成视频”。"
 
 msgid "replays.link_import"
-msgstr "导入对局"
+msgstr "导入"
 
 msgid "replays.link_import_detail"
-msgstr "将此对局包的所有局加入回放。"
+msgstr "将此回放，或对局包的所有局，加入回放。"
+
+msgid "replays.import"
+msgstr "导入回放"
+
+msgid "replays.import_detail"
+msgstr "选择已保存的回放或对局包,例如下载文件夹里的。选择文件需要鼠标或键盘。也可以把文件拖到游戏窗口上。"
+
+msgid "replays.import_fullscreen"
+msgstr "全屏时无法打开文件选择窗口。请把游戏切换为窗口或无边框模式后再试。"
+
+msgid "replays.import_title"
+msgstr "导入回放"
+
+msgid "replays.import_filter"
+msgstr "回放和对局包"
+
+msgid "services.picking_replays"
+msgstr "请在弹出的窗口中选择文件..."
+
+msgid "replays.import_some_failed"
+msgstr "{1} 个文件中有 {0} 个无法导入。"
+
+msgid "replays.import_skipped"
+msgstr "已跳过 {0} 个文件。Ember 可从本地磁盘导入 .emberreplay、.usf4replay 和 .emberpack 文件，一次最多 64 个。"
+
+msgid "replays.import_done"
+msgstr "{1} 个文件中的 {0} 项已在回放中。"
+
+msgid "replays.import_waiting"
+msgstr "有 {0} 个文件待导入。Ember 菜单出现在前台后将立即导入。"
 
 msgid "replays.set_pack_working"
 msgstr "正在保存对局包..."
@@ -1000,11 +1092,8 @@ msgstr "无法保存对局包。其服务可能还没有这些局；请稍后再
 msgid "replays.set_pack_unavailable"
 msgstr "现在无法保存对局包。Ember 需要连接到对局的服务。"
 
-msgid "replays.set_imported"
-msgstr "对局的 {0} 局已在回放中。"
-
 msgid "replays.set_import_failed"
-msgstr "该文件不是完整的对局包，因此未导入任何内容。"
+msgstr "该文件不是完整的回放或对局包，因此未导入任何内容。"
 
 msgid "settings.training_auto_ready"
 msgstr "从训练被叫回时自动准备"
@@ -1080,6 +1169,735 @@ msgstr "选择以保存主角并更新玩家名片。"
 
 msgid "profile.leave_room_to_edit"
 msgstr "请离开房间后再编辑个人资料。"
+
+msgid "profile.eyebrow"
+msgstr "个人资料 · {0}"
+
+msgid "profile.tab.card"
+msgstr "名片"
+
+msgid "profile.tab.fighters"
+msgstr "角色"
+
+msgid "profile.tab.sets"
+msgstr "系列赛"
+
+msgid "profile.tab.friends"
+msgstr "好友"
+
+msgid "friends.tab_count"
+msgstr "好友 · {0}"
+
+msgid "friends.home_online"
+msgstr "{0} 人在线"
+
+msgid "friends.home_request_one"
+msgstr "1 条请求"
+
+msgid "friends.home_requests"
+msgstr "{0} 条请求"
+
+msgid "profile.view_sets"
+msgstr "查看系列赛"
+
+msgid "profile.card_of"
+msgstr "玩家名片：{0}"
+
+msgid "profile.this_player"
+msgstr "该玩家"
+
+msgid "profile.reading"
+msgstr "正在加载 {0} 的名片…"
+
+msgid "profile.reading_button"
+msgstr "读取中"
+
+msgid "profile.no_card"
+msgstr "{0} 没有可显示的名片。"
+
+msgid "profile.sets_by_name"
+msgstr "系列赛仍按名称列出。"
+
+msgid "profile.blocked"
+msgstr "你已拉黑 {0}。解除拉黑后才能查看其名片。"
+
+msgid "profile.nobody"
+msgstr "Ember 上现在没有名为 {0} 的玩家。"
+
+msgid "profile.unreachable"
+msgstr "无法连接 Ember。请稍后再试。"
+
+msgid "profile.unsupported"
+msgstr "此服务不提供个人资料。"
+
+msgid "profile.try_again"
+msgstr "重试"
+
+msgid "profile.pick_title"
+msgstr "名为 {0} 的玩家"
+
+msgid "profile.pick_screen"
+msgstr "玩家"
+
+msgid "profile.in_this_room"
+msgstr "在此房间中"
+
+msgid "profile.request_sent_detail"
+msgstr "可在“好友”的“已发送”中取消。"
+
+msgid "profile.sets_note"
+msgstr "系列赛按名称 {0} 查找：其他用过此名称的人也会显示在这里，之前的名称则不会。"
+
+msgid "profile.sets_player"
+msgstr "玩家"
+
+msgid "profile.sets_player_detail"
+msgstr "这些系列赛属于此名称。缩小列表范围时它会保持不变。"
+
+msgid "profile.sets_opponent"
+msgstr "对手"
+
+msgid "profile.sets_opponent_detail"
+msgstr "列出与名称包含这些字符的玩家的系列赛。"
+
+msgid "friends.requests_heading"
+msgstr "请求 · {0}"
+
+msgid "friends.in_room"
+msgstr "房间中 · {0}"
+
+msgid "friends.online"
+msgstr "在线 · {0}"
+
+msgid "friends.offline"
+msgstr "离线 · {0}"
+
+msgid "friends.playing_table"
+msgstr "在对战席 {0} 对战 · {1}"
+
+msgid "friends.watching_table"
+msgstr "观战对战席 {0} · {1}"
+
+msgid "friends.waiting_room"
+msgstr "在 {0}"
+
+msgid "friends.training_room"
+msgstr "训练中 · {0}"
+
+msgid "friends.private_room"
+msgstr "在私人房间"
+
+msgid "friends.menus"
+msgstr "在菜单中"
+
+msgid "friends.offline_play"
+msgstr "离线游玩"
+
+msgid "friends.playing_game"
+msgstr "正在玩 {0}"
+
+msgid "friends.room_game"
+msgstr "在房间中 · {0}"
+
+msgid "friends.another_game"
+msgstr "正在玩其他游戏"
+
+msgid "friends.last_online"
+msgstr "上次在线 {0}"
+
+msgid "friends.hours_ago"
+msgstr "{0} 小时前"
+
+msgid "friends.days_ago"
+msgstr "{0} 天前"
+
+msgid "friends.join"
+msgstr "加入"
+
+msgid "friends.join_room"
+msgstr "加入房间"
+
+msgid "friends.watch"
+msgstr "观战"
+
+msgid "friends.invite"
+msgstr "邀请"
+
+msgid "friends.invite_room"
+msgstr "邀请到我的房间"
+
+msgid "friends.more"
+msgstr "更多"
+
+msgid "friends.open"
+msgstr "打开"
+
+msgid "friends.change"
+msgstr "更改"
+
+msgid "friends.accept"
+msgstr "接受"
+
+msgid "friends.decline"
+msgstr "拒绝"
+
+msgid "friends.decline_block"
+msgstr "拒绝并拉黑"
+
+msgid "friends.remove"
+msgstr "删除好友"
+
+msgid "friends.remove_block"
+msgstr "删除并拉黑"
+
+msgid "friends.unblock"
+msgstr "解除拉黑"
+
+msgid "friends.cancel_request"
+msgstr "取消请求"
+
+msgid "friends.are_friends"
+msgstr "好友"
+
+msgid "friends.played_you"
+msgstr "一起对战 {0} 场，最近一次 {1}"
+
+msgid "friends.not_played"
+msgstr "你们还没有对战过。"
+
+msgid "friends.record"
+msgstr "你和 {0}"
+
+msgid "friends.last_played"
+msgstr "上次对战"
+
+msgid "friends.since"
+msgstr "成为好友"
+
+msgid "friends.your_code"
+msgstr "你的好友码 {0}"
+
+msgid "friends.code"
+msgstr "好友码"
+
+msgid "friends.code_detail"
+msgstr "把此好友码给其他玩家，对方即可添加你。"
+
+msgid "friends.new_code"
+msgstr "新好友码"
+
+msgid "friends.new_code_detail"
+msgstr "旧好友码将失效。每天可生成一个新好友码。"
+
+msgid "friends.send"
+msgstr "发送请求"
+
+msgid "friends.send_detail"
+msgstr "向该好友码发送好友请求。"
+
+msgid "find.title"
+msgstr "查找玩家"
+
+msgid "find.text_row"
+msgstr "名称或好友码"
+
+msgid "find.text_detail"
+msgstr "名称的至少两个字符，或好友码。"
+
+msgid "find.search"
+msgstr "搜索"
+
+msgid "find.players"
+msgstr "玩家 · {0}"
+
+msgid "find.searching"
+msgstr "正在搜索…"
+
+msgid "find.none"
+msgstr "没有叫这个名字的玩家。"
+
+msgid "find.more"
+msgstr "还有更多玩家匹配。请多输入一些名称。"
+
+msgid "find.recent"
+msgstr "最近的对手"
+
+msgid "find.recent_line"
+msgstr "对战：{0} · {1}"
+
+msgid "find.recent_when"
+msgstr "对战：{0}"
+
+msgid "find.recent_empty"
+msgstr "你在公开房间遇到的玩家会在这里保留一周。"
+
+msgid "friends.sent"
+msgstr "已发送 · {0}"
+
+msgid "friends.sent_ago"
+msgstr "发送于 {0}"
+
+msgid "friends.blocked"
+msgstr "已拉黑 · {0}"
+
+msgid "friends.appear_offline"
+msgstr "显示为离线"
+
+msgid "friends.appear_offline_detail"
+msgstr "好友看到你是离线状态。你仍能看到他们，也仍可邀请。"
+
+msgid "friends.appearing_offline"
+msgstr "正显示为离线"
+
+msgid "friends.invite_reveals"
+msgstr "你的邀请会让这位好友看到你所在的位置。"
+
+msgid "friends.unreachable"
+msgstr "无法连接服务。服务响应后会显示好友。"
+
+msgid "friends.not_updated"
+msgstr "未更新"
+
+msgid "friends.loading"
+msgstr "正在读取你的好友。"
+
+msgid "friends.empty"
+msgstr "从公开房间添加好友：打开成员的玩家名片，或把你的好友码发给对方。"
+
+msgid "friends.request_sent_to"
+msgstr "已向 {0} 发送请求。"
+
+msgid "friends.now_friends"
+msgstr "你和 {0} 现在是好友了。"
+
+msgid "friends.blocked_name"
+msgstr "{0} 已被拉黑。"
+
+msgid "friends.invite_sent"
+msgstr "已向 {0} 发送邀请。"
+
+msgid "friends.visit_title"
+msgstr "前往好友"
+
+msgid "friends.visit_stay"
+msgstr "留在这里"
+
+msgid "friends.visit_stay_detail"
+msgstr "不前往。你的房间或对局保持原样。"
+
+msgid "friends.visit_join"
+msgstr "离开并加入 {0}"
+
+msgid "friends.visit_watch"
+msgstr "离开并观战 {0}"
+
+msgid "friends.visit_detail"
+msgstr "你一离开，当前的房间或对局就会结束。"
+
+msgid "card.edit"
+msgstr "编辑名片"
+
+msgid "card.account"
+msgstr "账号"
+
+msgid "card.top_fighters"
+msgstr "常用角色"
+
+msgid "card.choose_main"
+msgstr "选择主角"
+
+msgid "card.edit_detail"
+msgstr "名称、国旗、主角、称号、奖励和玩法。"
+
+msgid "card.title_row"
+msgstr "称号"
+
+msgid "card.icon_row"
+msgstr "图标"
+
+msgid "card.none"
+msgstr "无"
+
+msgid "card.award_detail"
+msgstr "打开奖励。在那里选择已获得的奖励来佩戴。"
+
+msgid "card.how_heading"
+msgstr "玩法"
+
+msgid "card.pins_row"
+msgstr "名片上的奖励"
+
+msgid "card.pins_auto"
+msgstr "最高奖励"
+
+msgid "card.pins_chosen"
+msgstr "已选 {0} 个"
+
+msgid "card.pins_detail"
+msgstr "名片上最多显示四个奖励，每个按你已达到的等级显示。“显示我的最高奖励”会选出最难的那些。"
+
+msgid "card.pins_auto_row"
+msgstr "显示我的最高奖励"
+
+msgid "card.pins_auto_detail"
+msgstr "名片显示你在最高等级达成的奖励。关闭后可自行选择最多四个。"
+
+msgid "card.pins_full"
+msgstr "最多四个。请先取下一个。"
+
+msgid "card.pins_nothing"
+msgstr "你达成的奖励会显示在这里供选择。你还没有任何奖励。"
+
+msgid "card.automatic"
+msgstr "自动"
+
+msgid "card.device_row"
+msgstr "设备"
+
+msgid "card.device_auto"
+msgstr "{0} · 自动"
+
+msgid "card.device_detail"
+msgstr "你使用的设备，显示在名片上。自动会跟随你使用的手柄。"
+
+msgid "card.link_row"
+msgstr "连接"
+
+msgid "card.link_detail"
+msgstr "有线或 Wi-Fi，由 Ember 测得。你可以隐藏它。"
+
+msgid "card.area_detail"
+msgstr "你游玩所在的位置，与设置中的选择相同。隐藏后，它不会出现在你的卡片和你创建的房间上。"
+
+msgid "card.shown"
+msgstr "{0} · 已显示"
+
+msgid "card.unknown_shown"
+msgstr "暂不清楚 · 已显示"
+
+msgid "card.hidden"
+msgstr "已隐藏"
+
+msgid "card.looking_detail"
+msgstr "最多两个，显示在名片上。"
+
+msgid "card.looking_full"
+msgstr "最多两个。请先关闭一个。"
+
+msgid "points.label"
+msgstr "FP"
+
+msgid "points.account_label"
+msgstr "BP"
+
+msgid "level.value"
+msgstr "{0} 积分"
+
+msgid "level.games"
+msgstr "{0} 场"
+
+msgid "level.game_one"
+msgstr "{0} 场"
+
+msgid "friends.unknown_code"
+msgstr "没有玩家使用该好友码。"
+
+msgid "friends.full"
+msgstr "好友列表已满。"
+
+msgid "friends.request_limit"
+msgstr "今天发送的请求已达上限。"
+
+msgid "friends.card_expired"
+msgstr "该名片已过期，请从房间重试。"
+
+msgid "friends.own_card"
+msgstr "这是你自己的名片。"
+
+msgid "friends.code_too_soon"
+msgstr "新好友码每天只能生成一次。"
+
+msgid "friends.invite_unavailable"
+msgstr "现在无法邀请该好友。"
+
+msgid "friends.blocks_full"
+msgstr "黑名单已满。"
+
+msgid "friends.failed"
+msgstr "无法连接好友服务，请稍后重试。"
+
+msgid "friends.no_account"
+msgstr "好友功能需要 Discord 账号。"
+
+msgid "friends.unavailable"
+msgstr "该服务暂不支持好友。"
+
+msgid "friends.off"
+msgstr "好友功能已关闭。"
+
+msgid "friends.cannot_join"
+msgstr "现在无法加入该房间。"
+
+msgid "friends.join_unavailable"
+msgstr "该房间目前无法加入。"
+
+msgid "friends.cannot_watch"
+msgstr "该好友不在可观战的对局中。"
+
+msgid "friends.visit_in_room"
+msgstr "你已进入房间，但没能前往对战席。"
+
+msgid "friends.private_invite_only"
+msgstr "私人房间只能通过邀请加入。"
+
+msgid "friends.invite_gone"
+msgstr "该邀请已结束。"
+
+msgid "friends.nothing_to_offer"
+msgstr "你的房间目前无法发出邀请。"
+
+msgid "friends.busy"
+msgstr "请等待上一个请求完成。"
+
+msgid "friends.accept_member"
+msgstr "接受好友"
+
+msgid "friends.add_member"
+msgstr "添加好友"
+
+msgid "friends.request_sent"
+msgstr "请求已发送"
+
+msgid "friends.blocked_member"
+msgstr "已拉黑"
+
+msgid "friends.blocked_member_detail"
+msgstr "可在个人资料、好友、已拉黑中解除。"
+
+msgid "friends.block"
+msgstr "拉黑"
+
+msgid "friends.block_detail"
+msgstr "结束你们之间的所有好友关系和请求。可在个人资料、好友、已拉黑中恢复。"
+
+msgid "friends.toast_request"
+msgstr "{0} 想和你成为好友"
+
+msgid "friends.toast_invite"
+msgstr "{0} 邀请你加入房间"
+
+msgid "friends.later"
+msgstr "稍后"
+
+msgid "friends.view"
+msgstr "查看"
+
+msgid "friends.dismiss"
+msgstr "关闭"
+
+msgid "friends.turn_off"
+msgstr "关闭好友功能"
+
+msgid "friends.turn_on"
+msgstr "开启好友功能"
+
+msgid "friends.turn_on_detail"
+msgstr "用新的好友码重新开启好友功能。"
+
+msgid "friends.turned_on"
+msgstr "好友功能已开启。"
+
+msgid "friends.turn_off_detail"
+msgstr "删除你的好友和请求，并作废你的好友码。黑名单会保留。"
+
+msgid "room.member_card"
+msgstr "玩家名片"
+
+msgid "level.points_to"
+msgstr "距离{1}还差 {0} 积分"
+
+msgid "level.top"
+msgstr "最高边框"
+
+msgid "level.no_account"
+msgstr "关联 Discord，即可获得积分。"
+
+msgid "level.unavailable"
+msgstr "此服务暂不统计积分。"
+
+msgid "level.loading"
+msgstr "正在读取你的积分。"
+
+msgid "level.loading_other"
+msgstr "正在读取对方的积分。"
+
+msgid "level.none"
+msgstr "进行一场排位公开对战，即可开始获得积分。"
+
+msgid "level.not_played"
+msgstr "尚未使用"
+
+msgid "level.unreachable"
+msgstr "无法连接服务。服务响应后会显示你的积分。"
+
+msgid "level.unreachable_other"
+msgstr "无法连接 Ember。恢复后会显示对方的积分。"
+
+msgid "card.counted_games"
+msgstr "排位场数"
+
+msgid "card.win_rate"
+msgstr "胜率"
+
+msgid "card.fighters_played"
+msgstr "已使用角色"
+
+msgid "card.of"
+msgstr "{0} / {1}"
+
+msgid "card.about"
+msgstr "{0} · {1}加入 Ember"
+
+msgid "card.since"
+msgstr "{0}加入 Ember"
+
+msgid "card.wins"
+msgstr "胜场"
+
+msgid "card.best_streak"
+msgstr "最高连胜"
+
+msgid "card.record_line"
+msgstr "{0} 场排位对战 · {1} 胜 · 最高 {2} 连胜"
+
+msgid "card.tier_to"
+msgstr "{0} · 距离{2}还差 {1} 积分"
+
+msgid "card.tier_top"
+msgstr "{0} · 最高边框"
+
+msgid "card.awards"
+msgstr "奖励"
+
+msgid "card.no_awards"
+msgstr "还没有奖励。第一个奖励会随你的第一场排位对战而来。"
+
+msgid "card.most_played"
+msgstr "对战最多"
+
+msgid "card.most_played_line"
+msgstr "{0} 胜 {1} 负 · {2} 场"
+
+msgid "card.most_played_none"
+msgstr "你对战最多的对手会在第一场排位对战后显示在这里。"
+
+msgid "card.recent_sets"
+msgstr "最近的系列赛"
+
+msgid "card.all_sets"
+msgstr "全部系列赛"
+
+msgid "card.set_vs"
+msgstr "vs {0}"
+
+msgid "card.set_online"
+msgstr "在线"
+
+msgid "card.sets_loading"
+msgstr "正在加载系列赛…"
+
+msgid "card.sets_none"
+msgstr "此名称下还没有存档的系列赛。"
+
+msgid "card.sets_unavailable"
+msgstr "此服务不保存系列赛。"
+
+msgid "card.sets_unreachable"
+msgstr "无法连接存档。存档响应后会显示系列赛。"
+
+msgid "card.you_and"
+msgstr "交手记录"
+
+msgid "card.relation"
+msgstr "好友"
+
+msgid "card.since_date"
+msgstr "自 {0}"
+
+msgid "card.not_friends"
+msgstr "还不是好友"
+
+msgid "card.they_asked"
+msgstr "对方向你发送了请求"
+
+msgid "card.plays"
+msgstr "使用设备"
+
+msgid "card.playing"
+msgstr "当前使用"
+
+msgid "card.looking_row"
+msgstr "想找"
+
+msgid "style.pad"
+msgstr "手柄"
+
+msgid "style.stick"
+msgstr "街机摇杆"
+
+msgid "style.leverless"
+msgstr "无拉杆"
+
+msgid "style.keyboard"
+msgstr "键盘"
+
+msgid "style.wired"
+msgstr "有线"
+
+msgid "style.wifi"
+msgstr "Wi-Fi"
+
+msgid "style.casuals"
+msgstr "休闲对战"
+
+msgid "style.long_sets"
+msgstr "长系列赛"
+
+msgid "style.ranked"
+msgstr "排位对战"
+
+msgid "style.practice"
+msgstr "赛前练习"
+
+msgid "style.new"
+msgstr "新手"
+
+msgid "style.teach"
+msgstr "乐于指导"
+
+msgid "fighters.how"
+msgstr "积分如何获得"
+
+msgid "fighters.how_detail"
+msgstr "使用角色进行的每场排位公开对战都会得 1 分，无论胜负。当对手的段位与你相同或更高，或者双方中有一方还没有段位时，胜利再加 1 分。积分不会下降。边框颜色随积分变化。同一次连续游玩中对同一玩家超过八场后，不再计入。"
+
+msgid "fighters.won"
+msgstr "胜场"
+
+msgid "fighters.since"
+msgstr "起始"
+
+msgid "fighters.main"
+msgstr "主角"
+
+msgid "fighters.played_heading"
+msgstr "已使用 · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "尚未使用 · {0}"
+
+msgid "fighters.your_main"
+msgstr "你的主角"
 
 msgid "online.title"
 msgstr "在线对战"
@@ -1207,8 +2025,6 @@ msgstr "无边框"
 msgid "player.borderless_detail"
 msgstr "游戏以无边框窗口填满屏幕，按屏幕原生分辨率以 16:9 绘制，在更宽或更高的屏幕上显示黑边。开启时，Alt+Enter 以及游戏自带的分辨率和全屏选项都不起作用；你在那里的选择会保留到关闭时使用。只影响这台电脑。更改将在下次启动游戏时生效。"
 
-
-
 msgid "size.small"
 msgstr "小"
 
@@ -1323,6 +2139,9 @@ msgstr "关闭 Ember 菜单时显示 F10 或 Start 几秒钟，提示如何再�
 msgid "settings.interface_size"
 msgstr "界面大小"
 
+msgid "settings.interface_size_detail"
+msgstr "高于 1.00x 时，在电视上更易阅读。低于 1.00x 时，显示器上能容纳更多内容，但文字更小。"
+
 msgid "discord.show_activity"
 msgstr "显示动态"
 
@@ -1335,11 +2154,23 @@ msgstr "邀请会分享您房间的访问权限。"
 msgid "discord.enable_first"
 msgstr "请先启用 Discord 动态。"
 
-msgid "discord.tournament_account"
-msgstr "赛事账号"
+msgid "discord.account"
+msgstr "Discord 账号"
 
-msgid "discord.tournament_account_detail"
-msgstr "你的赛事网站（例如 BluMint）所知道的 Discord 账号。它可能与 Discord 应用中登录的账号不同。选择后可关联或更换。"
+msgid "discord.account_none"
+msgstr "未关联"
+
+msgid "discord.account_linked"
+msgstr "已关联 · {0}"
+
+msgid "discord.account_detail"
+msgstr "关联一个 Discord 账号，用于排位对战、积分、好友和共享回放。BluMint 等赛事网站也会使用它。它可以与 Discord 应用中的账号不同。"
+
+msgid "discord.account_linked_detail"
+msgstr "已关联到你的 Ember ID 的 Discord 账号。排位对战、积分、好友、共享回放，以及 BluMint 等赛事网站都会使用它。它可能与 Discord 应用中的账号不同。选择即可切换账号或解除关联。"
+
+msgid "discord.server"
+msgstr "Ember Discord 服务器"
 
 msgid "discord.invitation_title"
 msgstr "DISCORD 邀请"
@@ -1672,7 +2503,7 @@ msgid "training.reply"
 msgstr "木桩反击"
 
 msgid "training.reply.detail"
-msgstr "木桩恢复自由后自己做的动作，用来惩罚断掉的连招或不安全的收尾：播放反击招式，该行为空时播放反击槽位。回放或录制进行时它会等待。"
+msgstr "木桩在重新获得自由后自行做出的动作，用来惩罚掉落的连段或不安全的收尾：它使用已开启的某个反击槽位；没有槽位开启时，则播放已开启的录像。"
 
 msgid "training.reply.hit"
 msgstr "连招断掉后"
@@ -1685,9 +2516,6 @@ msgstr "起身时"
 
 msgid "training.reply.any"
 msgstr "每次恢复时"
-
-msgid "training.reply.recordings"
-msgstr "录制"
 
 msgid "training.reply.no_recordings_on"
 msgstr "没有可用作反击的已开启录制"
@@ -1708,22 +2536,49 @@ msgid "training.reply.moves"
 msgstr "反击招式"
 
 msgid "training.reply.moves.detail"
-msgstr "用数字表示法输入的反击，例如 623HP 或 44，按木桩面对的方向读取。也可使用 qcf、qcb、dp、rdp、hcf、hcb 等缩写，例如 qcfP 或 dp+HP。指令在木桩仍被控制时输入，使按键落在它第一个可行动的帧上。[1] 保持一个方向直到下一招，[1]20f 保持 20 帧，10f 等待：例如 [1] > 3HP。留空则用已开启的录制反击。"
-
-msgid "training.reply.move"
-msgstr "预设反击"
-
-msgid "training.reply.move.detail"
-msgstr "左右键以小键盘记法选择常用反击，按木人面向的一侧解读。录制会用一段已开启的录制反击；自定义保留你输入的招式。选择打开反击招式进行输入。"
-
-msgid "training.reply.custom"
-msgstr "自定义"
+msgstr "此槽位的招式，用小键盘表示法输入，例如 623HP 或 44，按木桩朝向解读。也可用指令词：qcf、qcb、dp、rdp、hcf 和 hcb。[HP] 按住按键，]HP[ 在第一个自由帧松开，[1]20f 按住方向 20 帧，10f 为等待。留空则移除招式。"
 
 msgid "training.reply.timing"
 msgstr "反击时机"
 
 msgid "training.reply.timing.detail"
 msgstr "反击按键落在木桩第一个可行动帧之后的帧数。硬直的长度在第一次看到时记下；在此之前，反击在硬直结束时开始。"
+
+msgid "training.reply.order"
+msgstr "反击顺序"
+
+msgid "training.reply.order.detail"
+msgstr "木桩如何在已开启的槽位中选择：随机（按各槽位的权重），或按顺序（一个接一个）。"
+
+msgid "training.reply.slot"
+msgstr "反击槽位 {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "木桩可用来反击的一个招式。左右键开启或关闭；确认键打开它的招式列表。"
+
+msgid "training.reply.slot_on"
+msgstr "使用此槽位"
+
+msgid "training.reply.slot_on.detail"
+msgstr "木桩反击时是否可以选中此槽位。"
+
+msgid "training.reply.weight"
+msgstr "权重"
+
+msgid "training.reply.weight.detail"
+msgstr "随机选择中此槽位相对其他槽位的比重，1 到 9。"
+
+msgid "training.reply.clear_slot"
+msgstr "清空此槽位"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "移除此槽位的招式。"
+
+msgid "training.reply.every_fighter"
+msgstr "所有角色"
+
+msgid "training.reply.charge"
+msgstr "蓄力"
 
 msgid "training.key.reset"
 msgstr "重置键"
@@ -1754,6 +2609,18 @@ msgstr "反击命中"
 
 msgid "training.dummy.quick"
 msgstr "快速起身"
+
+msgid "training.dummy.stun"
+msgstr "Stun"
+
+msgid "training.dummy.stun_normal"
+msgstr "Normal"
+
+msgid "training.dummy.stun_constant"
+msgstr "Constant"
+
+msgid "training.dummy.stun_none"
+msgstr "None"
 
 msgid "training.dummy.super"
 msgstr "超级能量"
@@ -1941,6 +2808,9 @@ msgstr "持续"
 msgid "training.meter.recovery"
 msgstr "硬直"
 
+msgid "training.meter.total"
+msgstr "总计"
+
 msgid "training.meter.hit"
 msgstr "命中"
 
@@ -1964,6 +2834,12 @@ msgstr "倒地"
 
 msgid "training.meter.meaty"
 msgstr "压起身"
+
+msgid "training.meter.projectile_invincible"
+msgstr "飞行道具无敌"
+
+msgid "training.meter.invincible"
+msgstr "完全无敌"
 
 msgid "training.meter.hitstop"
 msgstr "顿帧"
@@ -2081,6 +2957,9 @@ msgstr "图例、标记与边框"
 
 msgid "training.meter.classic_slant"
 msgstr "倾斜格子"
+
+msgid "training.meter.classic_p2"
+msgstr "显示P2数字"
 
 msgid "training.meter.hud_part.detail"
 msgstr "在对战中显示训练 HUD 的这一项。F5 隐藏整个 HUD。"
@@ -2362,7 +3241,10 @@ msgid "runtime.room_request_failed"
 msgstr "房间请求失败。请离开房间后重试。"
 
 msgid "runtime.build_mismatch"
-msgstr "构建版本不匹配。双方必须使用同一 SF4 Ember Netplay 安装包。"
+msgstr "你的 Ember 与此房间的版本不同。请问房主用的是哪个版本，然后在“帮助与关于 > 检查更新”中更新或更改更新渠道，使版本一致。"
+
+msgid "runtime.build_mismatch_update"
+msgstr "你的 Ember 版本过旧，无法加入此房间。请在“帮助与关于 > 检查更新”中更新，然后重新加入。"
 
 msgid "runtime.room_full"
 msgstr "房间已满。"
@@ -2378,6 +3260,7 @@ msgstr "此选择不符合规则。请打开角色选择并改选可用选项。
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay／F10 或 Start"
+
 msgid "runtime.return_menu_to_join"
 msgstr "请返回主菜单以加入对战。"
 
@@ -2447,6 +3330,9 @@ msgstr "正在返回房间。"
 msgid "runtime.table_game_cancelled"
 msgstr "此对战席的对战已取消。请返回房间重新准备。"
 
+msgid "runtime.match_start_timeout"
+msgstr "对战未能在一分钟内开始，已为双方取消。请在房间中重新准备。"
+
 msgid "runtime.practice_ended"
 msgstr "练习已结束。请返回房间重新准备。"
 
@@ -2479,8 +3365,6 @@ msgstr "此版本不是所提供的版本。请重新检查更新。"
 
 msgid "update.close_sf4"
 msgstr "安装更新前请关闭《终极街头霸王IV》。"
-msgid "update.elevated"
-msgstr "Ember 正以管理员身份运行。请关闭后以普通方式启动，再安装更新。"
 
 msgid "update.install_dir_failed"
 msgstr "无法确定安装目录。"
@@ -2733,12 +3617,18 @@ msgstr "{0} 在对战席 {1} 赢下一局 ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} 在对战席 {1} 赢下对战组 ({2})"
+
+msgstr "{0} 在对战位 {1} 赢下对战组 ({2})"
+
 msgid "chat.event.set_won_against"
 msgstr "{0} 赢下与 {1} 的对战组 ({2})"
+
 msgid "chat.typing.one"
 msgstr "{0} 正在输入..."
+
 msgid "chat.typing.two"
 msgstr "{0} 和 {1} 正在输入..."
+
 msgid "chat.typing.many"
 msgstr "多人正在输入..."
 
@@ -2798,39 +3688,6 @@ msgstr "上一场对战仍在关闭，完成后即可重建。"
 
 msgid "room.updating"
 msgstr "正在更新房间..."
-
-msgid "room.table_name"
-msgstr "桌名"
-
-msgid "room.table_name.detail"
-msgstr "显示在桌子卡片的编号后面，例如“新手”。留空只显示编号。"
-
-msgid "room.template"
-msgstr "模板"
-
-msgid "room.template.none"
-msgstr "无"
-
-msgid "room.template.detail"
-msgstr "你保存的房间。它会设置下面各项，并在房间打开后设置每张桌子的规则和名称。左右键选择。"
-
-msgid "room.template.delete"
-msgstr "删除模板"
-
-msgid "room.template.delete.detail"
-msgstr "从这台电脑删除模板 {0}。"
-
-msgid "room.template.full"
-msgstr "你已有 {0} 个模板。请先在“创建房间”中删除一个。"
-
-msgid "room.template.saved"
-msgstr "已保存为模板 {0}。"
-
-msgid "room.save_template"
-msgstr "另存为模板"
-
-msgid "room.save_template.detail"
-msgstr "将此房间的设置以及每张桌子的规则和名称保存在这台电脑上，供“创建房间 > 模板”使用。同名会覆盖。"
 
 msgid "room.fighter_not_shared"
 msgstr "角色未共享"
@@ -2906,6 +3763,39 @@ msgstr "新房间正在打开。请选择复制邀请并发送新链接，旧链
 
 msgid "room.action_rejected"
 msgstr "房间已变化或拒绝了此操作。请查看当前状态后重试。"
+
+msgid "room.table_name"
+msgstr "桌名"
+
+msgid "room.table_name.detail"
+msgstr "显示在桌子卡片的编号后面，例如“新手”。留空只显示编号。"
+
+msgid "room.template"
+msgstr "模板"
+
+msgid "room.template.none"
+msgstr "无"
+
+msgid "room.template.detail"
+msgstr "你保存的房间。它会设置下面各项，并在房间打开后设置每张桌子的规则和名称。左右键选择。"
+
+msgid "room.template.delete"
+msgstr "删除模板"
+
+msgid "room.template.delete.detail"
+msgstr "从这台电脑删除模板 {0}。"
+
+msgid "room.template.full"
+msgstr "你已有 {0} 个模板。请先在“创建房间”中删除一个。"
+
+msgid "room.template.saved"
+msgstr "已保存为模板 {0}。"
+
+msgid "room.save_template"
+msgstr "另存为模板"
+
+msgid "room.save_template.detail"
+msgstr "将此房间的设置以及每张桌子的规则和名称保存在这台电脑上，供“创建房间 > 模板”使用。同名会覆盖。"
 
 msgid "room.leave_current_table"
 msgstr "请先离开当前对战席。"
@@ -3020,6 +3910,7 @@ msgstr "本场对战的所选延迟已锁定。"
 
 msgid "room.match_delay.at_least"
 msgstr "至少 {0} 帧"
+
 msgid "room.match_delay.at_least_one"
 msgstr "至少 {0} 帧"
 
@@ -3061,6 +3952,7 @@ msgstr "等待当前对战或选择更新完成。"
 
 msgid "room.change_fighter.detail"
 msgstr "选择角色，然后选择终极组合。返回此处并选择准备。"
+
 msgid "room.appearance.detail"
 msgstr "左右键在这里切换颜色。选择会先选服装，再选颜色。"
 
@@ -3117,9 +4009,6 @@ msgstr "加入队列"
 
 msgid "room.stop_watching"
 msgstr "停止观战"
-
-
-
 
 msgid "room.stop_watching.detail"
 msgstr "停止观战此对战席并返回房间。双方继续对战。"
@@ -3235,9 +4124,6 @@ msgstr "更改仅在点击应用后生效。"
 msgid "room.rules.host_only"
 msgstr "只有房主可以更改对战席规则。"
 
-msgid "room.rules.tournament"
-msgstr "此桌的规则由赛事决定。"
-
 msgid "room.apply_rules"
 msgstr "应用规则"
 
@@ -3352,6 +4238,21 @@ msgstr "正常"
 msgid "selection.size.tiny"
 msgstr "迷你"
 
+msgid "room.privacy"
+msgstr "隐私"
+
+msgid "room.privacy.friends"
+msgstr "好友"
+
+msgid "room.privacy.hidden"
+msgstr "隐藏"
+
+msgid "room.privacy.detail"
+msgstr "好友：房间内任何人的好友都能看到该房间，并可在房间开放时加入。隐藏：他们只能看到你在私人房间中，需通过邀请加入。"
+
+msgid "room.privacy.settings_detail"
+msgstr "已加入的玩家可凭邀请返回。将加入权限设为已锁定，可阻止任何人加入。"
+
 msgid "room.apply_name"
 msgstr "应用房间名称"
 
@@ -3363,12 +4264,19 @@ msgstr "应用人数上限"
 
 msgid "room.apply_capacity.detail"
 msgstr "提交此人数上限。"
+
 msgid "room.tables"
 msgstr "对战席数"
+
 msgid "room.tables_detail"
 msgstr "房间的对战席数量（1 至 {0}）。房主之后可在房间设置中更改。"
+
+msgid "room.tables_arcade_detail"
+msgstr "同时对战的组数，1 到 {0}。其他人排队等候。设为 1 时，胜者留下，败者排到队尾。"
+
 msgid "room.tables.detail"
 msgstr "对战席最多可增加到 {0} 个。只有在没有人使用时才能减少对战席。"
+
 msgid "room.apply_tables"
 msgstr "应用对战席数"
 
@@ -3693,6 +4601,9 @@ msgstr "网络不可用，仍可离线游玩。"
 msgid "runtime.room_join_failed"
 msgstr "无法加入房间。请检查邀请，并确认双方使用同一 SF4 Ember Netplay 安装包。"
 
+msgid "room.rules.tournament"
+msgstr "此桌的规则由赛事决定。"
+
 msgid "runtime.invite_expired"
 msgstr "此邀请已过期。请让房主复制一个新的邀请。"
 
@@ -3700,7 +4611,7 @@ msgid "runtime.invite_own_room"
 msgstr "此邀请指向你自己的游戏：它是在你离开房间之前复制的。请让房主重新复制邀请。"
 
 msgid "runtime.invite_other_build"
-msgstr "房主使用的是另一个 SF4 Ember Netplay 包。双方需要使用相同版本。"
+msgstr "房主使用的是另一个版本的 Ember。请问清是哪个版本，然后在“帮助与关于 > 检查更新”中更新或更改更新渠道，使版本一致。"
 
 msgid "runtime.invite_malformed"
 msgstr "邀请文本不完整。请重新复制并粘贴完整的邀请。"
@@ -3717,11 +4628,11 @@ msgstr "无法创建房间。请检查网络连接后重试。"
 msgid "runtime.relay_unreachable"
 msgstr "无法连接到中继服务器。请检查网络连接、防火墙或 VPN 后重试。"
 
-msgid "runtime.relay_unreachable_region"
-msgstr "无法连接到中继服务器 ({0})。请检查网络连接、防火墙或 VPN 后重试。"
+msgid "runtime.relay_unreachable_named"
+msgstr "无法连接到中继服务器 {0}。请检查网络连接、防火墙或 VPN 后重试。"
 
 msgid "runtime.host_unreachable"
-msgstr "无法连接到房主，直连和经中继都失败了。房间可能已关闭，或被防火墙或 VPN 挡住。"
+msgstr "无法连接到房主，直连和经中继都失败了。房间可能已关闭。如果房间还开着，最常见的原因是 Windows 防火墙: 请在“Windows 安全中心 > 防火墙和网络保护 > 允许应用通过防火墙”中允许 sf4-net.exe (专用和公用网络)。VPN 也可能造成阻碍。"
 
 msgid "runtime.join_control_lost"
 msgstr "已连上房主，但连接一直中断。请检查网络连接后重试。"
@@ -4044,81 +4955,17 @@ msgstr "使用其他 Discord 账号"
 msgid "connect.change_detail"
 msgstr "在浏览器中打开 Discord，改为关联另一个账号。之后你的赛事网站必须使用该账号。"
 
-msgid "site.title"
-msgstr "关联 {0}"
-
-msgid "site.row_detail"
-msgstr "关联你的 {0} 账号后，{0} 上的赛事就能找到你的 Ember ID。"
-
-msgid "site.go_detail"
-msgstr "关联 {0} 后，{0} 上的赛事就能找到你的 Ember ID。Ember 会在浏览器中打开 {0}：请在那里使用你的赛事所用的账号进行批准。"
-
-msgid "site.setting_up_detail"
-msgstr "Ember 正在浏览器中打开 {0}。"
-
-msgid "site.waiting"
-msgstr "请在浏览器中批准。{0} 关联后，此界面会更新。"
-
-msgid "site.waiting_label"
-msgstr "正在等待 {0}"
-
-msgid "site.waiting_detail"
-msgstr "请在浏览器中使用你的赛事所用的 {0} 账号进行批准。此界面会自动更新。"
-
-msgid "site.connected"
-msgstr "{0} 已关联"
-
-msgid "site.connected_detail"
-msgstr "{0} 上的赛事现在可以通过这个账号找到你。"
-
-msgid "site.change"
-msgstr "使用其他 {0} 账号"
-
-msgid "site.change_detail"
-msgstr "在浏览器中打开 {0}，改为关联另一个账号。之后你的赛事必须使用该账号。"
-
-msgid "site.remove_detail"
-msgstr "在此服务中解除此 {0} 账号与你的 Ember ID 的关联。{0} 上的赛事将无法再通过它找到你。"
-
-msgid "site.organizer"
-msgstr "主办方权限"
-
-
-msgid "site.organizer_held"
-msgstr "已允许"
-
-
-msgid "site.organizer_opened"
-msgstr "请在浏览器中允许组织者权限。此界面会自动更新。"
-
-msgid "site.organizer_now"
-msgstr "已允许组织者权限。赛事台位于 Ember ID 下。"
-
-
-
 msgid "screen.tournament_desk"
 msgstr "赛事组织"
 
 msgid "desk.entry_detail"
-msgstr "组织者权限、网页控制台和你的赛事。"
-
-msgid "desk.event_detail"
-msgstr "在 {0}。选择以查看对局。"
-
-msgid "desk.status.draft"
-msgstr "草稿"
-
-msgid "desk.status.ready"
-msgstr "已就绪"
-
-msgid "desk.status.running"
-msgstr "进行中"
+msgstr "你在 Ember 对阵表网站上的比赛。"
 
 msgid "desk.none"
 msgstr "暂无赛事"
 
 msgid "desk.none_detail"
-msgstr "在赛事台网站上创建并开始赛事，赛事进行时会显示在这里。"
+msgstr "选择“新大会”来创建一个，之后会显示在这里。"
 
 msgid "desk.view"
 msgstr "视图"
@@ -4137,12 +4984,6 @@ msgstr "显示"
 
 msgid "desk.filter.all"
 msgstr "全部"
-
-msgid "desk.filter.winners"
-msgstr "胜者组"
-
-msgid "desk.filter.losers"
-msgstr "败者组"
 
 msgid "desk.filter.action"
 msgstr "需要处理"
@@ -4165,35 +5006,17 @@ msgstr "等待中"
 msgid "desk.state.not_ready"
 msgstr "未就绪"
 
-msgid "desk.state.called"
-msgstr "已叫号"
-
 msgid "desk.state.playing"
 msgstr "比赛中"
 
 msgid "desk.state.needs_review"
 msgstr "需要审核"
 
-msgid "desk.state.needs_organizer"
-msgstr "需要你处理"
-
-msgid "desk.state.reporting"
-msgstr "正在上报结果"
-
 msgid "desk.state.done"
 msgstr "已结束"
 
 msgid "desk.state.held"
 msgstr "已暂停"
-
-msgid "desk.side.winners"
-msgstr "胜者组"
-
-msgid "desk.side.losers"
-msgstr "败者组"
-
-msgid "desk.side.grand_final"
-msgstr "总决赛"
 
 msgid "desk.tbd"
 msgstr "待定"
@@ -4212,21 +5035,6 @@ msgstr "此对局已不在赛事中"
 
 msgid "desk.state"
 msgstr "状态"
-
-msgid "desk.called"
-msgstr "已叫号。"
-
-msgid "desk.called_posted"
-msgstr "已叫号，并已发布到 Discord。"
-
-msgid "desk.called_waiting"
-msgstr "已叫号；Discord 消息正在发送。"
-
-msgid "desk.called_failed"
-msgstr "已叫号，但 Discord 未接受消息。"
-
-msgid "desk.not_called"
-msgstr "尚未叫号。"
 
 msgid "desk.call"
 msgstr "再次叫号"
@@ -4273,91 +5081,14 @@ msgstr "记录在 Ember 之外进行的一局，例如双方同意的重赛。"
 msgid "desk.done"
 msgstr "已完成。"
 
-msgid "desk.web"
-msgstr "已在网页登录"
-
-msgid "desk.web_none"
-msgstr "没有浏览器登录赛事台。"
-
-msgid "desk.web_detail"
-msgstr "最新：{0}，通过 {1}。网页会话在 12 小时后或闲置 2 小时后结束。"
-
-msgid "desk.web_end"
-msgstr "在所有地方退出"
-
-msgid "desk.web_end_detail"
-msgstr "结束此 Ember ID 的所有网页赛事台会话。要使用，请在网页上重新登录。"
-
-msgid "desk.web_new"
-msgstr "有人在网页上登录了你的赛事台。不是你？请选择“在所有地方退出”。"
-
-msgid "desk.web_ended"
-msgstr "已在所有地方退出网页赛事台。"
-
 msgid "desk.open_browser"
 msgstr "在浏览器中打开"
 
 msgid "desk.open_browser_detail"
-msgstr "在本机浏览器中打开网页赛事台，以此 Ember ID 登录，允许所有更改。"
-
-msgid "desk.open_phone"
-msgstr "在其他设备上登录"
-
-msgid "desk.open_phone_detail"
-msgstr "在任意设备上打开控制台，然后在这里输入它显示的代码。"
-
-msgid "desk.code_at"
-msgstr "输入位置"
-
-msgid "desk.code_at_detail"
-msgstr "在另一台设备上打开这个。它会显示一个要在这里输入的代码。"
-
-
-
-
-
+msgstr "在这台电脑的浏览器中打开对阵表网站。在那里用 Discord 登录。"
 
 msgid "desk.opened"
-msgstr "已在浏览器中打开赛事台。"
-
-msgid "site.cancel_detail"
-msgstr "停止等待。准备好后，请再次选择“关联 {0}”。"
-
-msgid "site.off"
-msgstr "{0} 登录已关闭"
-
-msgid "site.off_detail"
-msgstr "此赛事服务目前不提供 {0} 登录。请稍后再试。"
-
-msgid "site.retry_detail"
-msgstr "重新读取你的 {0} 账号。"
-
-msgid "site.opened"
-msgstr "请在浏览器中完成 {0} 登录。"
-
-msgid "site.done"
-msgstr "已将 {0} 关联为 {1}。"
-
-msgid "site.removed"
-msgstr "已解除 {0} 账号关联。"
-
-msgid "site.cancelled"
-msgstr "已停止等待 {0}。"
-
-msgid "site.busy"
-msgstr "{0} 登录当前繁忙。请稍后再试。"
-
-msgid "site.gone"
-msgstr "此赛事服务已不再提供 {0} 登录。"
-
-msgid "site.no_service"
-msgstr "尚未设置 Ember 的赛事服务"
-
-msgid "site.no_service_detail"
-msgstr "{0} 通过 Ember 的赛事服务关联。请先在“已绑定账号”中查找该服务，然后回到这里。"
-
-msgid "site.screen"
-msgstr "站点账号"
+msgstr "对阵表网站已在浏览器中打开。"
 
 msgid "identity.failure.browser"
 msgstr "Ember 无法打开你的浏览器。"
@@ -4875,6 +5606,12 @@ msgstr "左右键切换下一局的终极组合。换了新的终极组合，下
 msgid "postmatch.ultra.set"
 msgstr "下一局的终极组合已选定。"
 
+msgid "postmatch.add_friend.detail"
+msgstr "向 {0} 发送好友请求。你对再战的回应保持不变。"
+
+msgid "postmatch.accept_friend.detail"
+msgstr "接受 {0} 的好友请求。你对再战的回应保持不变。"
+
 msgid "rules.set_summary"
 msgstr "{0}，{1}"
 
@@ -4890,14 +5627,29 @@ msgstr "连胜 {0} 组"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "直连 {0} ms"
 
 msgid "room.latency.relay"
 msgstr "中继 {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "中继 ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "估计网络延迟：约 {0} ms。"
+
+msgid "room.latency.tip.relay"
+msgstr "经中继测得。直连对战通常更快。检查连接可测出真实路径。"
+
+msgid "room.latency.tip.checked_direct"
+msgstr "在对局路径上检查：直连，{0} ms，波动 {1} ms。"
+
+msgid "room.latency.tip.checked_relay"
+msgstr "在对局路径上检查：中继，{0} ms，波动 {1} ms。"
 
 msgid "room.latency.tip.measuring"
 msgstr "正在测量网络延迟..."
@@ -4914,6 +5666,9 @@ msgstr "公开房间"
 msgid "online.public_detail"
 msgstr "浏览任何人都能加入的开放房间，或快速加入附近的房间。"
 
+msgid "online.friends_detail"
+msgstr "在线的好友和他们所在的房间。"
+
 msgid "public.create"
 msgstr "创建公开房间"
 
@@ -4926,17 +5681,23 @@ msgstr "在 Ember ID 服务上创建公开房间并加入，并为所有对战�
 msgid "public.create_needs_id"
 msgstr "公开房间需要 Ember ID 和受信任的服务。请在公开房间页面中设置。"
 
+msgid "public.ranked_needs_discord"
+msgstr "关联 Discord 才能进行排位"
+
+msgid "public.ranked_needs_discord_detail"
+msgstr "只有关联了 Discord 账号，对战才会计入你的等级和积分。不关联也可以正常游玩。"
+
 msgid "public.loading"
 msgstr "正在加载房间..."
 
 msgid "public.needs_id_detail"
 msgstr "请创建 Ember ID，并在已绑定账号中信任一项服务。公开房间由该服务列出。"
 
-msgid "public.room_detail"
-msgstr "{0}\n玩家：{1}/{2}。地区：{3}。"
+msgid "public.room_detail_seats"
+msgstr "{0}\n玩家：{1}/{2}。"
 
-msgid "public.room_detail_playing"
-msgstr "{0}\n玩家：{1}/{2}。地区：{3}。\n进行中的对局：{4}。"
+msgid "public.room_detail_matches"
+msgstr "进行中的对局：{0}。"
 
 msgid "public.joining_value"
 msgstr "正在加入..."
@@ -5029,7 +5790,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "选择列出哪些房间：按大区、房间类型、空位和连接筛选。你的选择会保留到下次。"
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5037,14 +5798,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "大区"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "显示所有大区的房间、仅显示你所在大区及相邻大区的房间，或仅显示某一个大区的房间。可用左右切换。"
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "所有大区"
 
 msgid "public.filter_region_near"
 msgstr "附近"
@@ -5076,8 +5837,11 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember 尚不知道您所在的地区，因此无法判断哪些房间在附近。"
+msgid "public.filter_near_unset"
+msgstr "你的大区尚未设置，因此 Ember 无法判断哪些房间在附近。请在设置的“国家/地区和大区”中设置。"
+
+msgid "public.filter_near_unlisted"
+msgstr "目前列表中没有房间标明大区，因此 Ember 无法判断哪些房间在附近。已显示所有房间。"
 
 msgid "public.near_you"
 msgstr "附近"
@@ -5106,8 +5870,11 @@ msgstr "{0} 分钟"
 msgid "public.age_hours"
 msgstr "{0} 小时"
 
-msgid "public.room_detail2"
-msgstr "房主 {0}，{1}。{3} 个位置中已占 {2} 个。"
+msgid "public.room_detail_host"
+msgstr "房主 {0}。{2} 个位置中已占 {1} 个。"
+
+msgid "public.room_detail_area"
+msgstr "大区：{0}。"
 
 msgid "public.room_detail_match"
 msgstr "对战正在进行。"
@@ -5247,6 +6014,48 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "开关对战中 HUD 的各项。"
 
+msgid "training.remote"
+msgstr "Phone remote"
+
+msgid "training.remote.detail"
+msgstr "Change the dummy and the recording from a phone on the same network. Off until you turn it on."
+
+msgid "training.remote.address"
+msgstr "Address"
+
+msgid "training.remote.address.detail"
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
+
+msgid "training.remote.pin"
+msgstr "PIN"
+
+msgid "training.remote.pin.detail"
+msgstr "The phone types this once. It changes each time the remote is turned on."
+
+msgid "training.remote.qr"
+msgstr "Scan QR to Connect"
+
+msgid "training.remote.qr.detail"
+msgstr "Point the phone's camera at the code. It opens the page and signs in."
+
+msgid "training.remote.newpin"
+msgstr "New PIN"
+
+msgid "training.remote.newpin.detail"
+msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
+
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
+msgid "training.remote.failed"
+msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
+
 msgid "training.hitboxes"
 msgstr "判定框"
 
@@ -5384,6 +6193,15 @@ msgstr "上限"
 
 msgid "training.data.no_charge"
 msgstr "无蓄力招式"
+
+msgid "training.data.oil"
+msgstr "油"
+
+msgid "training.data.oil_full"
+msgstr "油始终满"
+
+msgid "training.data.oil_full.detail"
+msgstr "哈坎的油始终保持最多，如同刚用过 Oil Shower。仅限训练模式。"
 
 msgid "training.color_key"
 msgstr "颜色图例"
@@ -5586,6 +6404,9 @@ msgstr "坐在这里：与等待最久的玩家对战，或等待下一位入座
 msgid "room.arcade_waiting"
 msgstr "等待中"
 
+msgid "room.arcade_in_line"
+msgstr "排队位置：{0}"
+
 msgid "room.cabinet_free"
 msgstr "请投币"
 
@@ -5732,6 +6553,63 @@ msgstr "有视频"
 
 msgid "replays.show.kept"
 msgstr "已保留"
+
+msgid "replays.sort"
+msgstr "排序"
+
+msgid "replays.sort_detail"
+msgstr "列表的顺序。"
+
+msgid "replays.sort.newest"
+msgstr "最新优先"
+
+msgid "replays.sort.oldest"
+msgstr "最早优先"
+
+msgid "replays.sort.player"
+msgstr "玩家名称"
+
+msgid "replays.sort.fighter"
+msgstr "角色名称"
+
+msgid "replays.sort.longest"
+msgstr "最长优先"
+
+msgid "replays.fighter_detail"
+msgstr "仅显示该角色参与的比赛。"
+
+msgid "replays.filter"
+msgstr "排序和筛选"
+
+msgid "replays.filter_detail"
+msgstr "打开用于排序列表和选择角色的页面。"
+
+msgid "replays.side"
+msgstr "方位"
+
+msgid "replays.side_detail"
+msgstr "所选角色必须在哪一侧。"
+
+msgid "replays.side.either"
+msgstr "任一侧"
+
+msgid "replays.side.one"
+msgstr "玩家 1"
+
+msgid "replays.side.two"
+msgstr "玩家 2"
+
+msgid "replays.matches_shown"
+msgstr "列出的比赛"
+
+msgid "replays.sets_shown"
+msgstr "列出的比赛组"
+
+msgid "replays.filter_reset"
+msgstr "重置"
+
+msgid "replays.filter_reset_detail"
+msgstr "将所有选择恢复到初始状态。"
 
 msgid "replays.search"
 msgstr "搜索"
@@ -5946,6 +6824,9 @@ msgstr "游戏崩溃了。请将 %APPDATA%\\sf4e\\logs 中的文件（sf4e.log�
 msgid "launcher.game_crashed_sending"
 msgstr "游戏崩溃了。“发送问题报告”已打开，因此正在发送报告，有小型转储时一并发送。文件也位于 %APPDATA%\\sf4e\\logs。"
 
+msgid "launcher.start_failed_sending"
+msgstr "游戏启动或注入失败。“发送问题报告”已打开，因此正在发送报告。启动器日志位于 %APPDATA%\\sf4e\\logs。"
+
 msgid "reports.settings_title"
 msgstr "问题报告"
 
@@ -6048,7 +6929,6 @@ msgstr "Ember 显示的按钮图案。自动会匹配你游玩时使用的控制
 msgid "player.prompts_auto"
 msgstr "自动"
 
-
 msgid "controller.brand.stick"
 msgstr "战斗按钮"
 
@@ -6090,8 +6970,6 @@ msgstr "已连接 {0} 个"
 
 msgid "player.controllers_detail"
 msgstr "你正在使用 {0} 游玩。查看所有已连接的控制器，测试按钮，并设置 Ember 尚未识别的控制器。"
-
-
 
 msgid "player.game_reads"
 msgstr "让游戏读取控制器"
@@ -7468,36 +8346,6 @@ msgstr "津巴布韦"
 
 #. End of the generated country names.
 
-msgid "desk.offstream"
-msgstr "请在直播画面外操作"
-
-msgid "desk.offstream_detail"
-msgstr "看到你屏幕的人无法使用该代码，但仍请在直播画面外登录。"
-
-msgid "desk.device_code"
-msgstr "另一台设备上的代码"
-
-msgid "desk.device_approved"
-msgstr "另一台设备已登录控制台。"
-
-msgid "desk.device_asked"
-msgstr "请求来自"
-
-msgid "desk.device_unknown"
-msgstr "未知浏览器"
-
-msgid "desk.device_asked_detail"
-msgstr "{0} 分钟前。仅在这是你自己的设备时批准。"
-
-msgid "desk.device_pick"
-msgstr "显示 {0}"
-
-msgid "desk.device_pick_detail"
-msgstr "选择另一台设备上显示的数字。选错会拒绝该代码。"
-
-msgid "desk.device_refused"
-msgstr "代码错误或已过期。请在另一台设备上获取新代码。"
-
 msgid "desk.mode"
 msgstr "赛事模式"
 
@@ -7508,7 +8356,7 @@ msgid "desk.mode_invite"
 msgstr "需要邀请"
 
 msgid "desk.mode_on_detail"
-msgstr "在 Ember 中举办你自己的赛事：关联你的对阵表网站，在下方允许主办方权限，然后在这台电脑或其他设备上打开主办台。"
+msgstr "在 Ember 中通过 Ember 对阵表网站举办你自己的比赛。"
 
 msgid "desk.mode_invite_detail"
 msgstr "赛事模式目前仅限邀请。请输入你收到的邀请码；每个邀请码只能使用一次。"
@@ -7521,9 +8369,6 @@ msgstr "你的 Ember ID 已开启赛事模式。"
 
 msgid "desk.invite_invalid"
 msgstr "该邀请无效。请检查，或申请新的邀请。"
-
-msgid "desk.site.on"
-msgstr "在 {0} 上"
 
 msgid "desk.site.detail"
 msgstr "赛事在对阵表网站上的状态。下面是网站目前允许的操作。"
@@ -7574,28 +8419,7 @@ msgid "desk.move.cancel"
 msgstr "取消赛事"
 
 msgid "desk.move.detail"
-msgstr "请 {0} 现在进行此更改。玩家会立即看到。"
-
-msgid "desk.org_site"
-msgstr "{0} 组织者权限"
-
-msgid "desk.org_unlinked"
-msgstr "未关联"
-
-msgid "desk.org_unlinked_detail"
-msgstr "请先在已关联账号中关联你的 {0} 账号。"
-
-msgid "desk.org_allow"
-msgstr "允许"
-
-msgid "desk.org_allow_detail"
-msgstr "让 Ember 运营你的 {0} 赛事。{0} 会在浏览器中打开以便批准。"
-
-msgid "desk.org_remove_detail"
-msgstr "移除组织者权限。已关联的账号保留。"
-
-msgid "site.organizer_where"
-msgstr "组织者权限位于 Ember ID > 赛事组织。"
+msgstr "立即在对阵表网站上做出此更改。玩家马上就能看到。"
 
 msgid "screen.rankings"
 msgstr "排行榜"
@@ -7744,6 +8568,84 @@ msgstr "游戏设置"
 msgid "settings.screen_mode_window"
 msgstr "窗口"
 
+msgid "settings.group.game_themes"
+msgstr "游戏内主题"
+
+msgid "settings.game_theme_main_menu"
+msgstr "主菜单"
+
+msgid "settings.game_theme_title"
+msgstr "标题画面"
+
+msgid "settings.game_theme_chara_select"
+msgstr "角色选择"
+
+msgid "settings.game_theme_stage_select"
+msgstr "场景选择"
+
+msgid "settings.game_theme_versus"
+msgstr "对战画面"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "暂停菜单"
+
+msgid "settings.game_theme_network"
+msgstr "网络菜单"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "版本标记"
+
+msgid "settings.game_theme_buttons"
+msgstr "按键与图标"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "菜单音效"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "使用游戏文件夹中 ember\\themes 文件夹里某个主题的此画面文件。游戏自身的文件保持不变。主菜单会立即显示所选主题，其他画面在下次打开时显示。"
+
+msgid "settings.game_theme_screen_none"
+msgstr "没有主题包含此画面的文件。请把带有 ui 文件夹的主题放进游戏文件夹的 ember\\themes 文件夹，然后重新启动游戏。"
+
+msgid "settings.game_theme_game"
+msgstr "游戏原版"
+
+msgid "settings.game_theme_battle_hud"
+msgstr "战斗 HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "从游戏文件夹 ember\\themes 中的主题读取体力、超必杀、复仇槽、计时器和播报。游戏自身的文件保持不变。下一场战斗即会显示。"
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "未找到含战斗 HUD 的主题。请将含 battle\\hud 文件夹的主题放入游戏文件夹的 ember\\themes，然后重新启动游戏。"
+
+msgid "settings.game_theme_risk"
+msgstr "主题文件会按原样使用，损坏的文件可能导致游戏关闭。若发生这种情况，Ember 会在下次启动时关闭该主题。"
+
+msgid "settings.game_theme_closed"
+msgstr "{0}（上次导致游戏关闭）"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0}（未使用：HUD 图片不匹配）"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0}（未使用：HUD 文件无法读取）"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "{0} 的 HUD 图片与此版本的 HUD 布局不匹配，因此未使用。当前显示游戏自带的 HUD。"
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "{0} 含有游戏无法读取的 HUD 文件，因此未使用。当前显示游戏自带的 HUD。"
+
+msgid "settings.game_theme_missing"
+msgstr "{0}（已使用：缺少部分 HUD 图片）"
+
+msgid "settings.game_theme_missing_detail"
+msgstr "{0} 已使用。HUD 布局用到的部分图片在图片表中不存在，这些图片不会显示。"
+
+msgid "runtime.game_theme_turned_off"
+msgstr "{0} 已对 {1} 关闭：游戏在加载它时关闭了。"
+
 msgid "menu.pages"
 msgstr "页面"
 
@@ -7804,7 +8706,6 @@ msgstr "展开面板"
 msgid "settings.panel.close_action"
 msgstr "收起面板"
 
-
 msgid "class.developer"
 msgstr "开发"
 
@@ -7861,6 +8762,9 @@ msgstr "更多…"
 
 msgid "room.v2.more_detail"
 msgstr "控制器、房间设置、公开房间的链接和画面布局。"
+
+msgid "room.v2.friends_detail"
+msgstr "邀请好友加入此房间，或加入好友的房间。"
 
 msgid "room.v2.part_state"
 msgstr "{0}：{1}"
@@ -7967,20 +8871,32 @@ msgstr "在线 · 加入"
 msgid "online.eyebrow_browse"
 msgstr "在线 · 浏览"
 
-msgid "public.your_region"
-msgstr "你的地区 {0}"
+msgid "public.your_area"
+msgstr "你的大区：{0}"
+
+msgid "public.area_unset"
+msgstr "请在设置中设置大区"
 
 msgid "home.notifications"
 msgstr "通知"
 
 msgid "notifications.none"
-msgstr "暂无内容。"
+msgstr "暂无通知"
+
+msgid "notifications.tab_count"
+msgstr "通知 · {0}"
+
+msgid "notifications.waiting"
+msgstr "待回复：{0}"
 
 msgid "notifications.none_detail"
-msgstr "Ember 的提示（例如已复制链接或已离开房间）会在本次会话中保留在这里。"
+msgstr "好友请求、邀请和 Ember 的提示会显示在这里。"
+
+msgid "notifications.friends_detail"
+msgstr "你的好友、请求和已拉黑的玩家。"
 
 msgid "home.news"
-msgstr "新闻"
+msgstr "新闻/通知"
 
 msgid "news.heading"
 msgstr "新闻"
@@ -8162,9 +9078,11 @@ msgstr "对战"
 msgid "replays.tab.sets"
 msgstr "系列赛"
 
+msgid "replays.tab.archive"
+msgstr "存档"
+
 msgid "replays.set_matches"
 msgstr "{0} 场对战"
-
 
 msgid "replays.fact.fighters"
 msgstr "角色"
@@ -8174,6 +9092,213 @@ msgstr "对战时间"
 
 msgid "replays.fact.length"
 msgstr "时长"
+
+msgid "archive.filters"
+msgstr "筛选"
+
+msgid "archive.filters_detail"
+msgstr "按玩家、赛事、角色、等级、国家/地区或轮次筛选系列赛，并选择排序方式。"
+
+msgid "archive.filter_none"
+msgstr "全部，最新优先"
+
+msgid "archive.filter_class"
+msgstr "等级 {0}"
+
+msgid "archive.online"
+msgstr "在线对战"
+
+msgid "archive.sort_newest"
+msgstr "最新优先"
+
+msgid "archive.sort_class"
+msgstr "高等级优先"
+
+msgid "archive.round.top8"
+msgstr "Top 8"
+
+msgid "archive.round.pools"
+msgstr "小组赛"
+
+msgid "archive.round.winners"
+msgstr "胜者组"
+
+msgid "archive.round.losers"
+msgstr "败者组"
+
+msgid "archive.round.grand"
+msgstr "总决赛"
+
+msgid "archive.any_class"
+msgstr "任意等级"
+
+msgid "archive.any_country"
+msgstr "任意国家/地区"
+
+msgid "archive.any_event"
+msgstr "任意赛事"
+
+msgid "archive.any_round"
+msgstr "任意轮次"
+
+msgid "archive.any_fighter"
+msgstr "任意角色"
+
+msgid "archive.any_fighter_detail"
+msgstr "不论角色，列出所有系列赛。"
+
+msgid "archive.f_text"
+msgstr "玩家或赛事"
+
+msgid "archive.f_text_detail"
+msgstr "玩家或赛事名称包含这些字符的系列赛。"
+
+msgid "archive.f_fighter"
+msgstr "角色"
+
+msgid "archive.f_fighter_detail"
+msgstr "列出任一玩家使用过该角色的系列赛。"
+
+msgid "archive.f_class"
+msgstr "等级"
+
+msgid "archive.f_class_detail"
+msgstr "列出任一玩家当前为该等级的系列赛。"
+
+msgid "archive.f_country"
+msgstr "国家/地区"
+
+msgid "archive.f_country_detail"
+msgstr "列出有该国家/地区玩家参加的系列赛。"
+
+msgid "archive.f_event"
+msgstr "赛事"
+
+msgid "archive.f_event_detail"
+msgstr "列出某一场赛事的系列赛，或只列出在线对战。"
+
+msgid "archive.f_round"
+msgstr "轮次"
+
+msgid "archive.f_round_detail"
+msgstr "列出某一轮次的赛事系列赛。"
+
+msgid "archive.f_sort"
+msgstr "排序"
+
+msgid "archive.f_sort_detail"
+msgstr "最新优先，或高等级的系列赛优先。"
+
+msgid "archive.games_shown"
+msgstr "显示的对局"
+
+msgid "archive.games_of"
+msgstr "{0} / {1}"
+
+msgid "archive.clear"
+msgstr "清除筛选"
+
+msgid "archive.clear_detail"
+msgstr "重新显示所有系列赛。"
+
+msgid "archive.no_service"
+msgstr "设置你的 Ember ID"
+
+msgid "archive.no_service_detail"
+msgstr "存档需要 Ember ID。打开 Ember ID 进行设置。"
+
+msgid "archive.loading"
+msgstr "正在加载系列赛…"
+
+msgid "archive.loading_detail"
+msgstr "正在向存档请求最新的系列赛。"
+
+msgid "archive.loading_more"
+msgstr "正在加载更多"
+
+msgid "archive.loading_more_detail"
+msgstr "正在向存档请求更早的系列赛。"
+
+msgid "archive.unsupported"
+msgstr "此处没有回放存档"
+
+msgid "archive.unsupported_detail"
+msgstr "此服务不提供公开回放存档。"
+
+msgid "archive.failed"
+msgstr "无法连接存档"
+
+msgid "archive.failed_detail"
+msgstr "{0} 选择即可重试。"
+
+msgid "archive.none"
+msgstr "没有符合筛选条件的系列赛"
+
+msgid "archive.none_detail"
+msgstr "清除筛选即可查看所有系列赛。"
+
+msgid "archive.empty"
+msgstr "存档里还没有回放"
+
+msgid "archive.empty_detail"
+msgstr "玩家从 Ember 分享的对局会显示在这里。"
+
+msgid "archive.more_failed"
+msgstr "无法加载更多"
+
+msgid "archive.more_failed_detail"
+msgstr "选择即可重试。"
+
+msgid "archive.retry"
+msgstr "重试"
+
+msgid "archive.downloading"
+msgstr "正在下载对局"
+
+msgid "archive.download_failed"
+msgstr "无法下载该对局。{0}"
+
+msgid "archive.vs"
+msgstr "vs"
+
+msgid "archive.watch_hint"
+msgstr "观看"
+
+msgid "archive.find"
+msgstr "{0} 的系列赛"
+
+msgid "archive.find_detail"
+msgstr "列出 {0} 在公开存档中打过的系列赛。"
+
+msgid "archive.game_one"
+msgstr "1 局"
+
+msgid "archive.games"
+msgstr "{0} 局"
+
+msgid "archive.met"
+msgstr "vs {0}"
+
+msgid "archive.session_label"
+msgstr "{0}：{1} 局"
+
+msgid "archive.fact.event"
+msgstr "赛事"
+
+msgid "archive.fact.round"
+msgstr "轮次"
+
+msgid "archive.fact.games"
+msgstr "对局"
+
+msgid "archive.fact.size"
+msgstr "大小"
+
+msgid "archive.size_kb"
+msgstr "{0} KB"
+
+msgid "archive.game_n"
+msgstr "第 {0} 局"
 
 msgid "keyboard.recent"
 msgstr "最近："
@@ -8256,23 +9381,20 @@ msgstr "上一步"
 msgid "screen.awards"
 msgstr "奖励"
 
-msgid "awards.titles"
-msgstr "称号"
-
-msgid "awards.icons"
-msgstr "图标"
-
 msgid "awards.card"
 msgstr "你的名片"
 
 msgid "awards.card_detail"
-msgstr "其他人看到的你的名片。选择可打开奖励：你可以佩戴的称号和图标。"
+msgstr "其他人看到的你的名片。选择可打开个人资料。"
 
 msgid "awards.entry_detail"
 msgstr "你已获得的称号和图标，以及其余的获取方式。选择一个即可佩戴在名片上。"
 
 msgid "awards.earned_count"
 msgstr "已获得 {0}/{1}"
+
+msgid "awards.not_reached"
+msgstr "尚未达成"
 
 msgid "awards.card_heading"
 msgstr "你的名片 · 别人看到的样子"
@@ -8292,14 +9414,35 @@ msgstr "未解锁"
 msgid "awards.wear"
 msgstr "佩戴到名片"
 
+msgid "awards.wear_title"
+msgstr "佩戴称号"
+
+msgid "awards.wear_icon"
+msgstr "佩戴图标"
+
+msgid "awards.wear_both"
+msgstr "全部佩戴"
+
 msgid "awards.detail_worn"
 msgstr "已佩戴在名片上。"
 
 msgid "awards.detail_earned"
 msgstr "已获得。选择即可佩戴到名片上。"
 
-msgid "awards.detail_locked"
-msgstr "未解锁。{0}。"
+msgid "awards.progress"
+msgstr "{0} / {1}"
+
+msgid "awards.next"
+msgstr "下一个：{0}"
+
+msgid "awards.top_level"
+msgstr "最高级"
+
+msgid "awards.notice"
+msgstr "获得奖励：{0}"
+
+msgid "awards.link_discord"
+msgstr "关联 Discord 即可获得奖励。"
 
 msgid "tier.ash"
 msgstr "灰烬"
@@ -8316,104 +9459,266 @@ msgstr "金"
 msgid "tier.ember"
 msgstr "余烬"
 
-msgid "award.entrant.title"
-msgstr "EMBER 参赛者"
+msgid "award.matches.name"
+msgstr "对战场数"
 
-msgid "award.entrant.icon"
-msgstr "火花"
-
-msgid "award.entrant.how"
-msgstr "在任意 Ember 对阵中打一局"
-
-msgid "award.launch-night.title"
-msgstr "首发之夜"
-
-msgid "award.launch-night.icon"
-msgstr "回溯"
-
-msgid "award.launch-night.how"
-msgstr "在 Ember 首发活动期间游玩"
-
-msgid "award.weekly-top16.title"
-msgstr "周赛前 16"
-
-msgid "award.weekly-top16.icon"
-msgstr "桂冠"
-
-msgid "award.weekly-top16.how"
-msgstr "在 Ember 周赛中进入前 16"
-
-msgid "award.rollback-regular.title"
-msgstr "回滚常客"
-
-msgid "award.rollback-regular.icon"
-msgstr "日历"
-
-msgid "award.rollback-regular.how"
-msgstr "一个赛季内参加 10 次 Ember 周赛"
-
-msgid "award.weekly-top8.title"
-msgstr "周赛前 8"
-
-msgid "award.weekly-top8.icon"
-msgstr "八边形 8"
-
-msgid "award.weekly-top8.how"
-msgstr "在 Ember 周赛中进入前 8"
-
-msgid "award.by-ear.title"
-msgstr "凭耳取胜"
-
-msgid "award.by-ear.icon"
-msgstr "声波"
-
-msgid "award.by-ear.how"
-msgstr "在纯音频对阵中赢下一局"
-
-msgid "award.monthly-finalist.title"
-msgstr "月赛决赛选手"
-
-msgid "award.monthly-finalist.icon"
-msgstr "奖牌"
-
-msgid "award.monthly-finalist.how"
-msgstr "进入 Ember 月赛总决赛"
-
-msgid "award.organizer.title"
-msgstr "赛事组织者"
-
-msgid "award.organizer.icon"
+msgid "award.matches.icon"
 msgstr "旗帜"
 
-msgid "award.organizer.how"
-msgstr "由 Ember 团队授予活动主办者"
+msgid "award.matches.1.title"
+msgstr "新挑战者"
 
-msgid "award.commentary.title"
-msgstr "解说"
+msgid "award.matches.1.how"
+msgstr "在公开房间进行第一场排位对战"
 
-msgid "award.commentary.icon"
-msgstr "麦克风"
+msgid "award.matches.100.title"
+msgstr "常客"
 
-msgid "award.commentary.how"
-msgstr "授予直播解说"
+msgid "award.matches.100.how"
+msgstr "在公开房间进行 100 场排位对战"
 
-msgid "award.season1-veteran.title"
-msgstr "第一赛季老将"
+msgid "award.matches.500.title"
+msgstr "老将"
 
-msgid "award.season1-veteran.icon"
-msgstr "徽章"
+msgid "award.matches.500.how"
+msgstr "在公开房间进行 500 场排位对战"
 
-msgid "award.season1-veteran.how"
-msgstr "在第一赛季每场月赛中进入前 32"
+msgid "award.matches.1000.title"
+msgstr "世界战士"
 
-msgid "award.cup-champion.title"
-msgstr "EMBER CUP 冠军"
+msgid "award.matches.1000.how"
+msgstr "在公开房间进行 1000 场排位对战"
 
-msgid "award.cup-champion.icon"
-msgstr "王冠"
+msgid "award.matches.5000.title"
+msgstr "终身玩家"
 
-msgid "award.cup-champion.how"
-msgstr "赢得赛季末的 Ember Cup"
+msgid "award.matches.5000.how"
+msgstr "在公开房间进行 5000 场排位对战"
+
+msgid "award.wins.name"
+msgstr "胜场"
+
+msgid "award.wins.icon"
+msgstr "桂冠"
+
+msgid "award.wins.1.title"
+msgstr "首胜"
+
+msgid "award.wins.1.how"
+msgstr "在公开房间赢得第一场排位对战"
+
+msgid "award.wins.50.title"
+msgstr "竞争者"
+
+msgid "award.wins.50.how"
+msgstr "在公开房间赢得 50 场排位对战"
+
+msgid "award.wins.250.title"
+msgstr "赏金斗士"
+
+msgid "award.wins.250.how"
+msgstr "在公开房间赢得 250 场排位对战"
+
+msgid "award.wins.1000.title"
+msgstr "冠军"
+
+msgid "award.wins.1000.how"
+msgstr "在公开房间赢得 1000 场排位对战"
+
+msgid "award.wins.2500.title"
+msgstr "传奇"
+
+msgid "award.wins.2500.how"
+msgstr "在公开房间赢得 2500 场排位对战"
+
+msgid "award.streak.name"
+msgstr "连胜"
+
+msgid "award.streak.icon"
+msgstr "火焰"
+
+msgid "award.streak.3.title"
+msgstr "势头正劲"
+
+msgid "award.streak.3.how"
+msgstr "连续赢得 3 场排位对战"
+
+msgid "award.streak.5.title"
+msgstr "火热连胜"
+
+msgid "award.streak.5.how"
+msgstr "连续赢得 5 场排位对战"
+
+msgid "award.streak.10.title"
+msgstr "不可触碰"
+
+msgid "award.streak.10.how"
+msgstr "连续赢得 10 场排位对战"
+
+msgid "award.streak.15.title"
+msgstr "不可战胜"
+
+msgid "award.streak.15.how"
+msgstr "连续赢得 15 场排位对战"
+
+msgid "award.streak.20.title"
+msgstr "势不可挡"
+
+msgid "award.streak.20.how"
+msgstr "连续赢得 20 场排位对战"
+
+msgid "award.rank.name"
+msgstr "最高等级"
+
+msgid "award.rank.icon"
+msgstr "盾牌"
+
+msgid "award.mastery.name"
+msgstr "角色精通"
+
+msgid "award.mastery.icon"
+msgstr "奖牌"
+
+msgid "award.mastery.1.title"
+msgstr "学徒"
+
+msgid "award.mastery.1.how"
+msgstr "让一名角色达到铜边框"
+
+msgid "award.mastery.2.title"
+msgstr "熟手"
+
+msgid "award.mastery.2.how"
+msgstr "让一名角色达到银边框"
+
+msgid "award.mastery.3.title"
+msgstr "专家"
+
+msgid "award.mastery.3.how"
+msgstr "让一名角色达到金边框"
+
+msgid "award.mastery.4.title"
+msgstr "大师"
+
+msgid "award.mastery.4.how"
+msgstr "让一名角色达到余烬边框"
+
+msgid "award.cast.name"
+msgstr "使用过的角色"
+
+msgid "award.cast.icon"
+msgstr "对阵表"
+
+msgid "award.cast.5.title"
+msgstr "备选角色"
+
+msgid "award.cast.5.how"
+msgstr "在排位对战中使用 5 个不同的角色"
+
+msgid "award.cast.15.title"
+msgstr "全面发展"
+
+msgid "award.cast.15.how"
+msgstr "在排位对战中使用 15 个不同的角色"
+
+msgid "award.cast.30.title"
+msgstr "老手"
+
+msgid "award.cast.30.how"
+msgstr "在排位对战中使用 30 个不同的角色"
+
+msgid "award.cast.all.title"
+msgstr "全员登场"
+
+msgid "award.cast.all.how"
+msgstr "在排位对战中使用每一个角色"
+
+msgid "award.friends.name"
+msgstr "好友"
+
+msgid "award.friends.icon"
+msgstr "双人"
+
+msgid "award.friends.1.title"
+msgstr "陪练"
+
+msgid "award.friends.1.how"
+msgstr "添加一位好友"
+
+msgid "award.friends.5.title"
+msgstr "良朋相伴"
+
+msgid "award.friends.5.how"
+msgstr "拥有 5 位好友"
+
+msgid "award.friends.15.title"
+msgstr "老熟人"
+
+msgid "award.friends.15.how"
+msgstr "拥有 15 位好友"
+
+msgid "award.rival.name"
+msgstr "劲敌"
+
+msgid "award.rival.icon"
+msgstr "历史"
+
+msgid "award.rival.10.title"
+msgstr "老面孔"
+
+msgid "award.rival.10.how"
+msgstr "与同一位对手进行 10 场排位对战"
+
+msgid "award.rival.50.title"
+msgstr "劲敌"
+
+msgid "award.rival.50.how"
+msgstr "与同一位对手进行 50 场排位对战"
+
+msgid "award.rival.100.title"
+msgstr "宿敌"
+
+msgid "award.rival.100.how"
+msgstr "与同一位对手进行 100 场排位对战"
+
+msgid "award.rival.250.title"
+msgstr "永恒劲敌"
+
+msgid "award.rival.250.how"
+msgstr "与同一位对手进行 250 场排位对战"
+
+msgid "award.opponents.name"
+msgstr "对手"
+
+msgid "award.opponents.icon"
+msgstr "波浪"
+
+msgid "award.opponents.10.title"
+msgstr "公开挑战"
+
+msgid "award.opponents.10.how"
+msgstr "在排位对战中遇到 10 位不同的对手"
+
+msgid "award.opponents.50.title"
+msgstr "交友广泛"
+
+msgid "award.opponents.50.how"
+msgstr "在排位对战中遇到 50 位不同的对手"
+
+msgid "award.opponents.200.title"
+msgstr "街头传奇"
+
+msgid "award.opponents.200.how"
+msgstr "在排位对战中遇到 200 位不同的对手"
+
+msgid "award.opponents.500.title"
+msgstr "大家的对手"
+
+msgid "award.opponents.500.how"
+msgstr "在排位对战中遇到 500 位不同的对手"
+
+msgid "award.rank.how"
+msgstr "在公开房间达到等级 {0}"
 
 msgid "toast.kind.invitation"
 msgstr "邀请"
@@ -8567,3 +9872,87 @@ msgstr "全部命中。"
 
 msgid "training.combo_check.run.dropped"
 msgstr "未全部命中。"
+
+msgid "desk.draft.new"
+msgstr "新大会"
+
+msgid "desk.draft.new_detail"
+msgstr "标题、日期、局数和签到。边改边存为草稿。"
+
+msgid "desk.draft.title"
+msgstr "标题"
+
+msgid "desk.draft.title_first"
+msgstr "先填写标题"
+
+msgid "desk.draft.saved"
+msgstr "草稿以标题创建；其余稍后设置，每次更改都会保存。"
+
+msgid "desk.draft.date"
+msgstr "日期"
+
+msgid "desk.draft.date_detail"
+msgstr "左 / 右:一天。按你的时区，其他人看到的是各自的时间。"
+
+msgid "desk.draft.time"
+msgstr "开始"
+
+msgid "desk.draft.time_detail"
+msgstr "左 / 右:15 分钟。"
+
+msgid "desk.draft.first_to"
+msgstr "每局先赢"
+
+msgid "desk.draft.first_to_detail"
+msgstr "左 / 右:赢下一局所需的胜场数。"
+
+msgid "desk.draft.discord"
+msgstr "Discord 频道"
+
+msgid "desk.draft.discord_set"
+msgstr "已设置"
+
+msgid "desk.draft.discord_unset"
+msgstr "无"
+
+msgid "desk.draft.discord_detail"
+msgstr "叫号和比分会发到这个频道。在对阵表网站的页面上设置。"
+
+msgid "desk.draft.open_event"
+msgstr "打开赛事"
+
+msgid "desk.draft.open_event_detail"
+msgstr "报名、网站操作、启动对阵表及各局。"
+
+msgid "desk.event.state"
+msgstr "状态"
+
+msgid "desk.event.starts"
+msgstr "开始于 {0}"
+
+msgid "desk.event.signed_up"
+msgstr "已报名"
+
+msgid "desk.event.signed_up_detail"
+msgstr "在对阵表网站页面上报名的玩家。"
+
+msgid "desk.start"
+msgstr "启动对阵表"
+
+msgid "desk.start_detail"
+msgstr "根据报名者生成，Ember 会呼叫首批对局。"
+
+msgid "desk.event.edit"
+msgstr "编辑详情与规则"
+
+msgid "desk.event.edit_detail"
+msgstr "标题、开始时间、局数和签到。"
+
+msgid "desk.stop.draft"
+msgstr "删除此草稿"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.check_in"
+msgstr "签到"

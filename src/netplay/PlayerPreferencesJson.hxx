@@ -8,6 +8,7 @@
 #include "../common/ButtonLayoutJson.hxx"
 #include "BoolPreferenceJson.hxx"
 #include "ButtonPromptPreference.hxx"
+#include "CardPreferenceJson.hxx"
 #include "CountryPreferenceJson.hxx"
 #include "PlayerPreferences.hxx"
 #include "ProfileRecordJson.hxx"
@@ -28,8 +29,11 @@ inline nlohmann::json PlayerPreferencesJson(const PlayerPreferences& preferences
     WriteBoolPreferences(preferences, values);
     WriteButtonPrompts(preferences, values);
     WriteCountryPreference(preferences, values);
+    WriteAreaPreference(preferences, values);
     WriteSpeechPreferences(preferences, values);
+    WriteCardPreferences(preferences, values);
     WriteRoomFilter(preferences, values);
+    for (int part = 0; part < GameThemePartCount; ++part) values[GameThemeKeys[part]] = preferences.gameThemes[part];
     values["controllerMappings"] = preferences.controllerMappings;
     values["buttonLayouts"] = gamepads::LayoutsToJson(preferences.buttonLayouts);
     if (preferences.record.available) values["onlineRecord"] = ProfileRecordJson(preferences.record);

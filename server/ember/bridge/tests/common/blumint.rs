@@ -38,11 +38,17 @@ pub const OTHER: &str = "blumint-other";
 /// the next recorded calls with, each with its `Retry-After` if any. Every
 /// other recorded call answers 200. A report without the `idempotencyKey`
 /// BluMint requires is refused with 400 and not recorded, as BluMint does.
+///
+/// A match's status (`"mode": "status"`) is sent by the bridge's own worker
+/// whenever the match changes, so it would take whichever scripted answer is
+/// next. `fail` and `answers` are for every other call; a status takes only
+/// `status_answers`.
 #[derive(Default)]
 pub struct Received {
     pub calls: Vec<(String, String, Json)>,
     pub fail: usize,
     pub answers: VecDeque<(u16, Option<u64>)>,
+    pub status_answers: VecDeque<(u16, Option<u64>)>,
 }
 
 pub type Shared = Arc<Mutex<Received>>;
@@ -55,11 +61,12 @@ pub async fn fake_blumint() -> (String, Shared) {
         body: Bytes,
     ) -> Response {
         let mut received = shared.lock().unwrap();
-        if received.fail > 0 {
+        let body: Json = serde_json::from_slice(&body).unwrap();
+        let is_status = body["mode"] == "status";
+        if received.fail > 0 && !is_status {
             received.fail -= 1;
             return AxumStatus::INTERNAL_SERVER_ERROR.into_response();
         }
-        let body: Json = serde_json::from_slice(&body).unwrap();
         if uri.path() == "/api/tournaments/match/submit" && !creation_key(&body) {
             return (
                 AxumStatus::BAD_REQUEST,
@@ -74,7 +81,12 @@ pub async fn fake_blumint() -> (String, Shared) {
             .unwrap_or("")
             .to_owned();
         received.calls.push((uri.path().to_owned(), key, body));
-        let Some((status, retry_after)) = received.answers.pop_front() else {
+        let scripted = if is_status {
+            received.status_answers.pop_front()
+        } else {
+            received.answers.pop_front()
+        };
+        let Some((status, retry_after)) = scripted else {
             return AxumStatus::OK.into_response();
         };
         let mut response = (

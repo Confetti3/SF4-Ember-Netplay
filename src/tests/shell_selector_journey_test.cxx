@@ -21,15 +21,15 @@ void SelectorPages() {
  at("options",false);Check(detail("handicap")==loc::T("selection.locked_detail")&&status==loc::T("selection.status_locked"),"A locked options page kept its editable wording");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
-// The selector the shell opens from Home starts on its board, whatever page it was left on.
-void SelectorFromHome() {
+// The selector the shell opens from Profile starts on its board, whatever page it was left on.
+void SelectorFromProfile() {
  using namespace sf4e;Harness h;FighterSelector selector;selection::Pick pick;
  h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true);};h.view.canEditSelection=true;
- h.Screen("home");h.Choose("selection");
+ h.Screen("card");h.Choose("selection");
  Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home","Fighter select did not open on its first page");
  selector.Navigation().Push("options");h.Frame();
- h.Screen("home");h.Choose("selection");
- Check(selector.Navigation().Screen()=="home","Fighter select reopened from Home on the page it was left on");
+ h.Screen("card");h.Choose("selection");
+ Check(selector.Navigation().Screen()=="home","Fighter select reopened from Profile on the page it was left on");
 }
 // The developer screen draws its own fighter selectors. They neither inherit
 // the room's hints and Back label nor leave a Close behind that would pop the
@@ -46,7 +46,7 @@ void DeveloperSelectors() {
  h.Press(MenuInput::Back);
  Check(h.shell.Navigation().Screen()=="home","Back did not leave the developer screen");
  Check(TakeForwardedMenuAction().kind==MenuAction::None,"The developer screen's selector left a Close behind");
- h.Choose("selection");h.Frame();
+ h.Screen("card");h.Choose("selection");h.Frame();
  Check(h.shell.Navigation().Screen()=="selection","A Close left by the developer screen popped the next Fighter select");
 }
 // Random is the grid's last card, where USFIV has its own: the pad and the
@@ -57,7 +57,7 @@ void SelectorRandomTile() {
  auto& io=ImGui::GetIO();
  const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};
  h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true,{},nullptr,nullptr,kept,&random);};h.view.canEditSelection=true;
- h.Screen("home");h.Choose("selection");
+ h.Screen("card");h.Choose("selection");
  auto& nav=selector.Navigation();
  Check(nav.Screen()=="home"&&nav.Focus()=="fighter-0","Fighter select did not open on the saved fighter");
  // Ryu is the second card of the first line; Random is the fifth of the sixth.

@@ -25,6 +25,11 @@
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/Answered.hxx"
+#include "../netplay/Archive.hxx"
+#include "../netplay/Levels.hxx"
+#include "../netplay/ProfileRequests.hxx"
+#include "../netplay/FriendsView.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
@@ -32,6 +37,7 @@
 #include "../common/ReplayRequest.hxx"
 #include "../common/TrainingEntry.hxx"
 #include "../common/RoomLimits.hxx"
+#include "../netplay/RuntimeCommands.hxx"
 #include "../session/RoomModel.hxx"
 #include "../session/MemberLatency.hxx"
 #include <optional>
@@ -81,81 +87,9 @@ namespace sf4e {
 	};
 
 	namespace NetplayFacade {
-		// How the room being opened was entered: a private invitation or a host, a
-		// public room's ticket (a refusal or failure is worded for it), or a
-		// tournament match's watcher (the room admits it only if it names it).
-		enum class JoinKind : std::uint8_t { Private, Public, Observer };
+		// How the room being opened was entered (a host opens it as Private).
+		using JoinKind = commands::JoinKind;
 
-		struct RuntimeCommand {
-			netplay::Command command;
-            platform::ServiceAction service = platform::ServiceAction::None;
-            // With ShowReplayFile: the archived replay whose folder opens.
-            std::string servicePath;
-            // With UpdateNow or SkipUpdate: the launch offer the player saw.
-            launcher::InstallOffer updateOffer;
-            // With SwitchUpdateChannel: the channel to save and check.
-            updates::UpdateChannel updateChannel = updates::UpdateChannel::Stable;
-            // With OpenSteamProfile: the member's profile to open.
-            SteamId steamProfile;
-            reports::Submission reportSubmission;
-            input::Action inputAction = input::Action::None;
-            gamepads::ControllerRequest padAction;
-            // ShellAction::roomSettings: save only the settings a room leaves open, from `preferences`.
-            bool roomSettings = false;
-    discord::InviteAction discordAction = discord::InviteAction::None;
-    std::uint64_t discordRevision = 0;
-			std::string displayName;
-			sf4e::wire::ConfirmedCharaConditions character = {};
-			int stage = 0;
-			// The stages Random may land on (P1 resolves Random with it).
-			selection::RandomPool randomPool;
-			netplay::PlayerPreferences preferences;
-			room::Action roomAction;
-            int selectedDelay=-1;
-            int previewSoundVolume=-1;
-            // An identity or bridge request; op None when the command is something else.
-            netplay::IdentityRequest identity;
-            // Ask the helper for the room's short link (IrohRoom::RequestShortInvitation).
-            bool shortInvitation=false;
-            // Refresh the assignment list, play a match or stop; op None otherwise.
-            netplay::tournament::Command tournament;
-            // With JoinInvite: the signed ticket (JSON) of a public room's admission, or empty for a private room.
-            std::string publicTicket;
-            // With JoinInvite: Observer for a tournament match's watcher, which the room admits only when it
-            // names it. Public is never set here: a public room's join is the one with a publicTicket.
-            JoinKind join = JoinKind::Private;
-            // With HostRoom, or the JoinInvite of a public room just created: each table's
-            // rules and name chosen on Create.
-            std::optional<netplay::TableSetup> createdRules;
-            // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
-            bool practiceRoom = false;
-            // With HostRoom: the room is an Arcade room for its life (room::Snapshot::arcade).
-            room::RoomType arcadeRoom = room::ClassicRoom;
-            // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
-            room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
-            // With HostRoom: how many tables a Classic room opens with (room::Snapshot::tableCount).
-            std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
-            // With HostRoom, or the JoinInvite of a public room just created: its
-            // Wired players only rule (room::Snapshot::wiredOnly).
-            bool wiredOnly = false;
-            // With HostRoom: the room's Tiny fighters allowed rule (room::Snapshot::tinyFighters).
-            bool tinyFighters = false;
-            // With HostRoom: the room's Skip winner scenes rule (room::Snapshot::skipScenes).
-            // On unless a replacement room carries the rule its host turned off.
-            bool skipScenes = true;
-            // With HostRoom: the room's Banned stages rule (room::Snapshot::bannedStages);
-            // empty unless a replacement room carries the rule its host set.
-            std::vector<std::int64_t> bannedStages;
-            // What the Replays screen asks of the game (sf4e__ReplayStore), or
-            // the player's answer to a replay link; mode None for every other command.
-            replay::Request replay;
-            // Leave the main menu for Training (common/TrainingEntry.hxx). The
-            // runtime judges it when it takes it and only then asks the menu.
-            TrainingEntry training = TrainingEntry::None;
-            // Leave this watched game (Stop watching); empty for every other
-            // command. The runtime decides what leaving it takes when it runs.
-            netplay::WatchedGame leaveWatchedGame;
-		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
             // The gameplay pad's Training record and play buttons (sf4e__Pad.cxx).
@@ -167,6 +101,10 @@ namespace sf4e {
             bool padLayerPending = false, runningControllerLayer = true;
             // The menu music entry is the supported one (Services::LobbyMusicAvailable).
             bool lobbyMusicAvailable = false;
+            // The themes with each part found as the game started (GameThemes::Names).
+            std::array<std::vector<std::string>, netplay::GameThemePartCount> gameThemes;
+            // What is known about some of them (GameThemes::Note), by name.
+            std::array<std::map<std::string, netplay::GameThemeNote>, netplay::GameThemePartCount> gameThemeNotes;
             std::vector<gamepads::PadView> pads;
             unsigned captureCandidate = 0;
             std::uint64_t padHintUntil = 0;
@@ -192,6 +130,9 @@ namespace sf4e {
             // reads it, and nothing else, for what it offers.
             std::vector<std::int64_t> unavailableStages;
 			netplay::Snapshot session;
+			// A match is being prepared, fought or watched: the one rule for "not during a match" (the phone's
+			// Needs::NoMatch answers it at once, and the game thread asks it again before it acts).
+			bool InMatch() const { return session.match != netplay::MatchState::None || foughtGame.Active() || watchedGame.Active(); }
 			// The room as this player's screen shows it (class emblems already
 			// dropped where they are not shown). Built once per change of the
 			// client's room and shared, unchanged, by every snapshot published
@@ -277,8 +218,11 @@ namespace sf4e {
 			bool checkUpdatesAtLaunch = true;
 			// The country Automatic shows: Windows' region, or none.
 			CountryCode automaticCountry;
+			// The area Automatic shows: from Windows' time zone and region, or none.
+			Area automaticArea = Area::None;
 			int localSlot = -1;
 			bool offlineRequested = false;
+			bool hostPublicRoom = false;
 			std::string displayName;
 			std::string invitation;
 			// The room's short link once the helper has one; see IrohRoom.
@@ -321,6 +265,24 @@ namespace sf4e {
             netplay::publicrooms::Status publicRooms;
             // The player's ranking standing, the board and the last choice's answer.
             netplay::rankings::Status rankings;
+            // The public replay archive's listing so far, and the download of a game to watch.
+            netplay::archive::Status archive;
+            netplay::archive::Fetch archiveFetch;
+            // The profile open, the Find a player search, the players fought lately, the sets of the profile open
+            // (the archive browser's second slot) and whether the service offers profiles (ShellView's fields of the same names).
+            netplay::profiles::Profile profile;
+            netplay::profiles::SearchView playerSearch;
+            std::vector<netplay::profiles::Recent> recentOpponents;
+            netplay::archive::Status profileSets;
+            netplay::profiles::Service profilesService = netplay::profiles::Service::Unknown;
+            // The connection the card save last measured (ShellView::ownLink).
+            NetworkLink ownLink = NetworkLink::Unknown;
+            // The player's own fighter levels, as last read.
+            netplay::Answered<netplay::levels::Own> levels;
+            // The cards of a public room's members by card token (null: none).
+            std::shared_ptr<const netplay::levels::CardMap> memberCards;
+            // The player's friends, the action in flight and the last refusal.
+            netplay::friends::View friends;
 		};
 		// Everything the overlay draws from, built on the game thread at the end
 		// of each outer tick and never changed afterwards. It owns its values:
@@ -362,7 +324,7 @@ namespace sf4e {
 		void PublishPresentationFrame();
 		// Any thread. False when the command is malformed, the queue is full,
 		// or no runtime is accepting commands.
-		bool SubmitRuntimeCommand(RuntimeCommand command);
+		bool SubmitRuntimeCommand(RuntimeRequest command);
 		// Any thread: the room board of room `roomGeneration` (room::Snapshot::roomEpoch)
 		// was drawn this frame. The runtime asks for each member's ping only
 		// while the board is drawn (netplay/LatencyBoard.hxx).
@@ -374,6 +336,11 @@ namespace sf4e {
 		// Any thread: the player is writing a chat draft in room `roomGeneration`
 		// this frame. The runtime tells the room they are typing (Typing).
 		void NoteChatTyping(std::uint64_t roomGeneration);
+		// Any thread, every frame the post-match prompt is open (and once as
+		// not active when it is not): the answer the player gave over the WIN.
+		// The runtime holds the latest and tells the room until the room
+		// shows it (PostMatchAnswer); a lost word is told again.
+		void NotePostMatchAnswer(const room::PostMatchSaid& said);
 		// Any thread, every frame: whether the player's pick is Random, the pick
 		// as the overlay has it, and the look remembered for each fighter. The
 		// runtime rolls the next game's fighter (RuntimeSnapshot::randomFighter),

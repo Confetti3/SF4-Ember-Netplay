@@ -235,6 +235,12 @@ std::string ShortCode(const std::string& text) {
     for (const char c:text) if (!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='_')) return {};
     return text;
 }
+// Short codes separated by commas.
+std::string ShortCodes(const std::string& text) {
+    if (text.empty()||text.size()>80) return {};
+    for (const char c:text) if (!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='_'||c==',')) return {};
+    return text;
+}
 }
 std::size_t CharacterCount(std::string_view text) {
     std::size_t count=0; for (unsigned char c:text) if ((c&0xC0)!=0x80) ++count; return count;
@@ -366,7 +372,8 @@ std::string RedactLine(std::string_view line, const Account& account) {
     return out;
 }
 nlohmann::json MetaJson(const Metadata& meta, const std::string& comment) {
-    nlohmann::json value={{"schema",1},{"kind",meta.kind},{"app_version",meta.appVersion},{"channel",meta.channel},
+    // A start failure travels as the kind every service accepts; its header says what it is.
+    nlohmann::json value={{"schema",1},{"kind",meta.kind=="start_failure"?"crash":meta.kind},{"app_version",meta.appVersion},{"channel",meta.channel},
         {"build_id",meta.buildId},{"source_revision",meta.sourceRevision},{"windows_version",meta.windowsVersion}};
     if (meta.exitCode) value["exit_code"]=*meta.exitCode;
     if (meta.exceptionCode) value["exception_code"]=Hex(*meta.exceptionCode);
@@ -374,12 +381,23 @@ nlohmann::json MetaJson(const Metadata& meta, const std::string& comment) {
     if (!comment.empty()) value["comment"]=comment;
     return value;
 }
+std::string ReportHeader(const Metadata& meta) {
+    if (meta.kind=="problem") return {};
+    std::string line="report: kind="+meta.kind;
+    if (!meta.phase.empty()) line+=" phase="+meta.phase;
+    if (!meta.hint.empty()) line+=" hint="+meta.hint;
+    if (!meta.gameLog.empty()) line+=" game_log="+meta.gameLog;
+    return line+"\n";
+}
 bool BuildMultipart(const Report& report, const Submission& submission, const std::string& boundary, Multipart& result, std::string& error) {
     result={}; error.clear();
     const auto reject=[&]{error="Invalid or oversized report.";return false;};
     const auto& m=report.meta;
-    if ((m.kind!="crash"&&m.kind!="problem") || (m.channel!="stable"&&m.channel!="beta"&&m.channel!="nightly") ||
+    if ((m.kind!="crash"&&m.kind!="problem"&&m.kind!="start_failure") || (m.channel!="stable"&&m.channel!="beta"&&m.channel!="nightly") ||
         !SafeField(m.appVersion,128)||!SafeField(m.sourceRevision,128)||!SafeField(m.windowsVersion,256)||!HexDigits(m.buildId,64)||
+        (!m.gameLog.empty()&&ShortCode(m.gameLog).empty())||(!m.phase.empty()&&ShortCode(m.phase).empty())||
+        (!m.hint.empty()&&ShortCodes(m.hint).empty())||(m.kind!="start_failure"&&(!m.phase.empty()||!m.hint.empty()))||
+        (m.kind=="start_failure"&&m.phase.empty())||
         !ValidUtf8(submission.comment)||CharacterCount(submission.comment)>2000 ||
         (m.kind=="problem"&&submission.comment.find_first_not_of(" \t\r\n")==std::string::npos)||report.logs.size()>4 ||
         boundary.empty()||boundary.size()>70||!std::all_of(boundary.begin(),boundary.end(),[](unsigned char c){return std::isalnum(c)||c=='-';})) return reject();
@@ -417,7 +435,11 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
     // A crash report carries the crash record only when this crash wrote it:
     // an older one would name another crash, and the tracker would group it there.
     bool attachCrashRecord=true;
-    if (report.meta.kind=="crash") {
+    // A report about one run carries only what that run wrote: the launcher
+    // began the run at crash.started, so a log last written before it belongs
+    // to an earlier run and would be read as this one's.
+    const bool aboutRun=report.meta.kind=="crash"||report.meta.kind=="start_failure";
+    if (aboutRun) {
         report.meta.exitCode=crash.exitCode; report.meta.exceptionCode=crash.exceptionCode; report.meta.crashAddress=crash.address;
         std::error_code ec;
         attachCrashRecord=std::filesystem::last_write_time(directory/ember::Product().crashLog,ec)>=crash.started&&!ec;
@@ -436,9 +458,20 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
     const auto logs=ReportLogs();
     for (const std::string& name:logs) {
         if (cancelled&&cancelled()) throw std::runtime_error("cancelled");
-        if (!attachCrashRecord&&name==logs[2]) continue;
-        std::error_code ec; if (!std::filesystem::is_regular_file(directory/name,ec)||ec) continue;
-        const auto tail=ReadTail(directory/name,LogLimit);
+        // The product's game log, launcher log and crash record (ReportLogs).
+        const bool gameLog=name==logs[0],launcherLog=name==logs[1],crashRecord=name==logs[2];
+        if (!attachCrashRecord&&crashRecord) continue;
+        std::error_code ec; if (!std::filesystem::is_regular_file(directory/name,ec)||ec) {
+            if (aboutRun&&gameLog) report.meta.gameLog="absent";
+            continue;
+        }
+        if (aboutRun&&gameLog) {
+            const auto written=std::filesystem::last_write_time(directory/name,ec);
+            if (ec||written<crash.started) { report.meta.gameLog="earlier_session"; continue; }
+            report.meta.gameLog="this_session";
+        }
+        // launcher.log leaves room for the report header (ReportHeader).
+        const auto tail=ReadTail(directory/name,launcherLog?LogLimit-HeaderLimit:LogLimit);
         if (afterRead) afterRead(directory/name);
         auto text=Utf8Tail(tail.bytes);
         // A tail that starts mid-file drops its first, partial line.
@@ -447,7 +480,15 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
         }
         report.logs.push_back({name,RedactLog(text,cancelled,account)});
     }
-    if (report.meta.kind=="crash"&&!crash.smallDump.empty()) {
+    // The report's own facts go on the first line of the launcher's log, a log
+    // every service accepts, so the metadata stays what the first release defined.
+    if (aboutRun) {
+        const auto header=ReportHeader(report.meta);
+        const auto launcher=std::find_if(report.logs.begin(),report.logs.end(),[&](const Log& log){return log.name==logs[1];});
+        if (launcher!=report.logs.end()) launcher->text.insert(0,header);
+        else report.logs.push_back({logs[1],header});
+    }
+    if (aboutRun&&!crash.smallDump.empty()) {
         const auto read=durable::ReadBounded(crash.smallDump,DumpLimit);
         if (read.status==durable::ReadStatus::Read) report.minidump.assign(read.bytes.begin(),read.bytes.end());
         if (report.minidump.compare(0,4,"MDMP")!=0) report.minidump.clear();

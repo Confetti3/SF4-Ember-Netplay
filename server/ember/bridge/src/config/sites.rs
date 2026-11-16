@@ -156,6 +156,17 @@ pub struct CreateRequest {
     pub link_prefix: Option<String>,
 }
 
+impl CreateRequest {
+    /// Each setting's name and the values it takes, as the desk and the
+    /// game offer them.
+    pub fn choices(&self) -> ember_protocol::sites::CreateChoices {
+        self.fields
+            .iter()
+            .map(|(name, field)| (name.clone(), field.values.clone()))
+            .collect()
+    }
+}
+
 /// A setting an organizer may give a new event: where it goes in the body
 /// and the values it takes.
 #[derive(Clone, Debug, Serialize, Deserialize)]

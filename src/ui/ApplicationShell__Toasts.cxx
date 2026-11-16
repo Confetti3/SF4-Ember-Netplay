@@ -6,19 +6,41 @@
 #include "V2.hxx"
 #include "GameMenu.hxx"
 #include "MenuGlyphs.hxx"
+#include "../common/Localization.hxx"
 #include <imgui_internal.h>
 #include <algorithm>
 #include <utility>
 
 namespace sf4e { namespace ui {
 namespace {
-constexpr std::size_t ToastsKept=20;
-// How long a card stays up: a notice briefly, one with buttons long enough
-// to reach them. Its words stay in Notifications either way.
-constexpr double ToastSeconds=4,ActionToastSeconds=8;
+// A card stays up ToastSeconds, or ActionToastSeconds with buttons
+// (Notifications.hxx). Its words stay in Notifications either way.
 std::string Ago(double seconds) {
  const int minutes=static_cast<int>(seconds/60);
  return minutes<1?std::string(loc::T("public.updated_now")):loc::Tf("public.updated_minutes",minutes);
+}
+// A toast's words: the first line says it, the rest (a request's "Played you 6 games", an invite's room) sits
+// under it, quieter. Both wrap to `wrap`; the height is what they take, and DrawToastWords draws them.
+struct Words { std::string head, tail; };
+Words WordsOf(const std::string& text) {
+ const auto cut=text.find('\n');
+ return cut==std::string::npos?Words{text,{}}:Words{text.substr(0,cut),text.substr(cut+1)};
+}
+float WordsHeight(ImFont* font,const std::string& text,float wrap,float size,float s) {
+ const auto words=WordsOf(text);
+ float h=font->CalcTextSizeA(size,FLT_MAX,wrap,words.head.c_str()).y;
+ if(!words.tail.empty())h+=4*s+ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,wrap,words.tail.c_str()).y;
+ return h;
+}
+float DrawToastWords(ImDrawList* d,ImFont* font,ImVec2 at,float wrap,const std::string& text,float size,float s,ImU32 ink,ImU32 quiet) {
+ const auto words=WordsOf(text);
+ d->AddText(font,size,at,ink,words.head.c_str(),nullptr,wrap);
+ float h=font->CalcTextSizeA(size,FLT_MAX,wrap,words.head.c_str()).y;
+ if(!words.tail.empty()){
+  d->AddText(ImGui::GetFont(),14*s,{at.x,at.y+h+4*s},quiet,words.tail.c_str(),nullptr,wrap);
+  h+=4*s+ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,wrap,words.tail.c_str()).y;
+ }
+ return h;
 }
 // Each tone has its own shape, so colour is never the only cue (Toasts board):
 // done a disc, waiting a triangle, a refusal a square, the rest a diamond.
@@ -32,28 +54,31 @@ void ToneMark(ImDrawList* d,ImVec2 c,float r,Tone tone,ImU32 ink) {
 }
 }
 
-// A notice or refusal is taken once, when its text first shows; one said
-// again after it lapsed is taken again. It goes into Notifications and is
-// read out whether or not Ember shows; its card shows for ToastSeconds
-// (ActionToastSeconds with buttons), however long the status line keeps the
-// notice. Returns the id of a new toast with buttons, or 0.
+void ApplicationShell::Tell(Notifications::Item item,double seconds) {
+ const double now=ImGui::GetTime();
+ notice_=item.text;noticeTone_=item.tone;noticeUntil_=now+seconds;
+ // The status line now says what is told here: it is this toast, not another.
+ noticeSeen_=notice_;
+ notices_.Say(std::move(item),now);
+}
+
+// A notice or refusal on the status line is told once, when its text first
+// shows; one said again after it lapsed is told again. Every card that came
+// up is read out whether or not Ember shows, once as it appears (again if it
+// is shown again). Returns the newest new card with buttons, or 0.
 unsigned ApplicationShell::TakeNotices(double now) {
- unsigned fresh=0;
  const auto take=[&](const std::string& text,Tone tone,std::string& seen,ToastKind kind){
   if(text==seen)return;
   seen=text;
   if(text.empty())return;
-  const bool extra=noticeExtra_.text==text&&&seen==&noticeSeen_;
-  auto actions=extra?noticeExtra_.actions:std::vector<ToastAction>{};
-  const double shown=now+(actions.empty()?ToastSeconds:ActionToastSeconds);
-  toasts_.push_front({++toastCount_,text,tone,now,shown,extra?noticeExtra_.kind:kind,std::move(actions)});
-  if(!toasts_.front().actions.empty())fresh=toastCount_;
-  if(toasts_.size()>ToastsKept)toasts_.pop_back();
-  // Speech reads a toast once, as it appears.
-  SayMenuNotice(text);
+  Notifications::Item item;item.text=text;item.tone=tone;item.kind=kind;
+  notices_.Say(std::move(item),now);
  };
  take(notice_,noticeTone_,noticeSeen_,ToastKind::None);
  take(error_,Tone::Error,errorSeen_,ToastKind::System);
+ unsigned fresh=0;
+ for(const unsigned id:notices_.TakeAppeared())
+  if(const auto* item=notices_.Find(id)){SayMenuNotice(item->text);if(!item->actions.empty())fresh=id;}
  return fresh;
 }
 
@@ -82,16 +107,16 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
  // A dialog open over the menus takes every click and key, so the buttons
  // wait for it to close.
  const bool modal=ImGui::GetTopMostPopupModal()!=nullptr;
- struct Shown { Toast* t; std::string time; float timeW,wrap,h; };
+ struct Shown { const Notifications::Item* t; std::string time; float timeW,wrap,h; };
  std::vector<Shown> shown;
- for(auto& t:toasts_){
-  if(now>=t.until)continue;
+ for(const auto* card:notices_.Cards(now)){
+  const auto& t=*card;
   if(shown.size()==most)break;
-  Shown e{&t,Ago(now-t.at)};
-  e.timeW=ImGui::GetFont()->CalcTextSizeA(12*s,FLT_MAX,0,e.time.c_str()).x;
+  Shown e{card,Ago(now-t.at)};
+  e.timeW=ImGui::GetFont()->CalcTextSizeA(13*s,FLT_MAX,0,e.time.c_str()).x;
   e.wrap=w-2*pad-icon-10*s-e.timeW-10*s;
   // Eyebrow, text and, on the newest only, the buttons row (Toasts board).
-  float h=font->CalcTextSizeA(size,FLT_MAX,e.wrap,t.text.c_str()).y;
+  float h=WordsHeight(font,t.text,e.wrap,size,s);
   if(t.kind!=ToastKind::None)h+=16*s;
   if(shown.empty()&&!t.actions.empty()&&!modal)h+=9*s+button;
   e.h=(std::max)(icon,h)+24*s;
@@ -102,45 +127,53 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
  static const char* const kinds[]={"","toast.kind.invitation","toast.kind.room","toast.kind.update","toast.kind.match","toast.kind.system"};
  auto* d=ImGui::GetForegroundDrawList();
  for(const auto& e:shown){
-  const Toast& t=*e.t;
+  const auto& t=*e.t;
   const ImVec2 a(x,y),b(x+w,y+e.h);
   const ImU32 tone=ImGui::ColorConvertFloat4ToU32(ToneColor(t.tone));
   d->AddRectFilled({a.x,a.y+8*s},{b.x,b.y+8*s},v2::color::Alpha(c.ink,.5f),4*s);
   d->AddRectFilled(a,b,v2::PanelGround(),4*s);
-  d->AddRect(a,b,c.border,4*s,0,s);
+  d->AddRect(a,b,c.border,4*s,0,Hairline());
   d->AddRectFilled(a,{a.x+4*s,b.y},tone,4*s,ImDrawFlags_RoundCornersLeft);
   if(t.id==toastFocus_&&!modal)v2::Focus(d,a,b);
   ToneMark(d,{a.x+pad+icon*.5f,a.y+12*s+icon*.5f},8*s,t.tone,tone);
   const float left=a.x+pad+icon+10*s;float line=a.y+12*s;
   if(t.kind!=ToastKind::None){
-   d->AddText(font,13*s,{left,line},tone,loc::T(kinds[static_cast<int>(t.kind)]));line+=16*s;
+   // The kind never runs on under the time: it is cut to the room the words have.
+   d->AddText(font,13*s,{left,line},tone,v2::Fit(loc::T(kinds[static_cast<int>(t.kind)]),e.wrap,13*s,font).c_str());line+=16*s;
   }else line+=(std::max)(0.f,(icon-size)*.5f);
   NoteUserText(t.text);
-  d->AddText(font,size,{left,line},c.text,t.text.c_str(),nullptr,e.wrap);
-  line+=font->CalcTextSizeA(size,FLT_MAX,e.wrap,t.text.c_str()).y+9*s;
-  d->AddText(ImGui::GetFont(),12*s,{b.x-pad-e.timeW,a.y+14*s},c.muted,e.time.c_str());
-  // The buttons, each with its key: Select the first, Back the last. A small
-  // window over the card takes the pointer from the list under it.
-  if(&e==&shown[0]&&!t.actions.empty()&&!modal){
+  line+=DrawToastWords(d,font,{left,line},e.wrap,t.text,size,s,c.text,c.muted)+9*s;
+  d->AddText(ImGui::GetFont(),13*s,{b.x-pad-e.timeW,a.y+14*s},c.muted,e.time.c_str());
+  // The buttons. A small window over the card takes the pointer from the list
+  // under it. Each carries its key (Select the first, Back the last) only
+  // while the toast holds focus and so takes those keys: over the post-match
+  // prompt or a dialog they answer what is under it, and the card is clicked.
+  if(&e==&shown[0]&&t.Answerable()&&!modal){
    ImGui::SetNextWindowPos(a);ImGui::SetNextWindowSize({w,e.h});
    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{0,0});
    ImGui::Begin("##toast",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoBackground|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoNav|ImGuiWindowFlags_NoFocusOnAppearing);
    ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
    float bx=left;
+   const bool keyed=t.id==toastFocus_;
+   // The buttons share the card's width: a label longer than its share is cut, so the row never leaves the card.
+   const float share=(b.x-pad-left-8*s*(t.actions.size()-1))/t.actions.size();
    for(std::size_t i=0;i<t.actions.size();++i){
     const bool first=i==0;
-    // The key's prompt glyph, as the hint bar and the post-match buttons draw it.
-    const char* key=first?MenuSelectGlyph():MenuBackGlyph();
-    const float labelW=font->CalcTextSizeA(labelSize,FLT_MAX,0,t.actions[i].label.c_str()).x;
-    const ImVec2 p(bx,line),q(bx+12*s+keySize+8*s+labelW+12*s,line+button);
+    // The key's prompt glyph, as the hint bar and the post-match buttons draw it: Select presses the first button and
+    // Back the last, so one between them (a request's View) has none and is clicked.
+    const char* key=!keyed?nullptr:first?MenuSelectGlyph():i+1==t.actions.size()?MenuBackGlyph():nullptr;
+    const float mark=key?keySize+8*s:0;
+    const std::string label=v2::Fit(t.actions[i].label,(std::max)(0.f,share-24*s-mark),labelSize,font,false);
+    const float labelW=font->CalcTextSizeA(labelSize,FLT_MAX,0,label.c_str()).x;
+    const ImVec2 p(bx,line),q(bx+12*s+mark+labelW+12*s,line+button);
     ImGui::SetCursorScreenPos(p);ImGui::PushID(static_cast<int>(i));
     if(ImGui::InvisibleButton("##act",{q.x-p.x,button}))toastAsked_={t.id,i};
     const bool hovered=ImGui::IsItemHovered();ImGui::PopID();
     d->AddRectFilled(p,q,hovered?c.hover:first?c.button:v2::color::Alpha(c.button,0),4*s);
-    d->AddRect(p,q,first?c.hover:c.border,4*s,0,s);
+    d->AddRect(p,q,first?c.hover:c.border,4*s,0,Hairline());
     const ImVec2 k(p.x+12*s,p.y+(button-keySize)*.5f);
-    DrawPromptGlyph(d,key,k,keySize,MenuArt(),s);
-    d->AddText(font,labelSize,{k.x+keySize+8*s,p.y+(button-labelSize)*.5f},first?c.text:c.muted,t.actions[i].label.c_str());
+    if(key)DrawPromptGlyph(d,key,k,keySize,MenuArt(),s);
+    d->AddText(font,labelSize,{k.x+mark,p.y+(button-labelSize)*.5f},first?c.text:c.muted,label.c_str());
     bx=q.x+8*s;
    }
    ImGui::End();ImGui::PopStyleVar();
@@ -151,61 +184,107 @@ void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
  }
 }
 
-// A toast's action, asked for by its buttons, its keys or its row: the toast
-// goes, and the action opens its screen at its row.
-void ApplicationShell::AnswerToast(double now) {
- const auto [id,index]=std::exchange(toastAsked_,{0,0});
- const auto t=std::find_if(toasts_.begin(),toasts_.end(),[&](const Toast& t){return t.id==id;});
- if(!id||t==toasts_.end()||t->actions.empty())return;
- const ToastAction act=t->actions[(std::min)(index,t->actions.size()-1)];
- t->until=(std::min)(t->until,now);
+// A toast's action, asked for by its buttons, its keys or its row: it is
+// answered (its card goes), and what it asks is done. A source's item is done
+// by its source, as its own row would do it; a one-off's commands are sent as
+// they are, in order, whatever the screen, and the action opens its screen at its row.
+void ApplicationShell::AnswerToast(const ShellView& v,double now,const Submit& submit) {
+ const auto [id,asked]=std::exchange(toastAsked_,{0,0});
+ const auto* item=id?notices_.Answer(id,now):nullptr;
+ if(!item)return;
+ const std::size_t index=(std::min)(asked,item->actions.size()-1);
+ const ToastAction act=item->actions[index];
  if(toastFocus_==id)toastFocus_=0;
+ if(item->source==FriendsPanel::Source){
+  // A request's View (its second of three buttons) opens the Friends screen on that request; Accept and Later are the panel's.
+  if(HasPrefix(item->key,friends_panel::RequestPrefix)&&index==1){
+   auto& nav=menu_.navigation;
+   if(nav.Screen()!=FriendsPanel::Screen)nav.Push(FriendsPanel::Screen);
+   nav.Prefer(item->key);
+   return;
+  }
+  friends_.AnswerNotice(v,item->key,index,submit);return;
+ }
+ for(const auto& command:act.commands){
+  if(!submit(std::visit([](const auto& typed)->ShellAction{return typed;},command))){error_=loc::T("error.queue_failed");break;}
+ }
  if(act.screen.empty())return;
  auto& nav=menu_.navigation;
  if(nav.Screen()!=act.screen){
   // Tournament matches sits under Online play and Ember ID, so Back goes there.
   if(act.screen=="tournament-matches"){nav.Push("online");nav.Push("identity");}
-  nav.Push(act.screen);
+  if(NewsFamily(nav.Screen())&&NewsFamily(act.screen))nav.Replace(act.screen);
+  else nav.Push(act.screen);
  }
  if(!act.row.empty())nav.Prefer(act.row);
 }
 
-// Notifications: the toasts said lately. A toast's action chosen at its row
-// is done as its toast's button would (AnswerToast); the bell that leads here
-// is not shown on it.
+// Notifications: the friends' requests and invites waiting, then the toasts
+// said lately. A request's or invite's row is the Friends panel's own (A, More
+// and its questions, answered as on the Friends tab); a toast's action chosen
+// at its row is done as its toast's button would (AnswerToast). The bell that
+// leads here is not shown on it.
 class ApplicationShell::NotificationScreens final : public ScreenPanel {
 public:
-    bool Owns(const std::string& screen) const override { return screen == "notifications"; }
-    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.NotificationRows(ImGui::GetTime(), title); }
-    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
+    bool Owns(const std::string& screen) const override { return screen == FriendsPanel::NotificationsScreen; }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.NotificationRows(f.view, ImGui::GetTime(), title); }
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        // Friends opens the screen, so Back returns here.
+        if (a.id == "notifications-friends") { f.shell.menu_.navigation.Push(FriendsPanel::Screen); return true; }
+        return friends_panel::NotificationRow(a.id) && f.shell.friends_.Activate(f.view, a, f.shell.menu_.navigation, submit);
+    }
+    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        if (friends_panel::NotificationRow(a.id)) {
+            const bool taken = f.shell.friends_.Choose(f.view, a, submit);
+            f.shell.OpenFriendsPlayer();
+            return taken;
+        }
         const auto toast = RowKey<unsigned>(a.id, "toast-");
         const auto action = RowKey<std::size_t>(a.text, "");
         if (!toast || !action) return false;
         f.shell.toastAsked_ = {*toast, *action};
         return true;
     }
-    void Dress(const ScreenFrame&, GameMenu& menu) const override { menu.statusLeads.clear(); }
+    // Y opens More on a request's or invite's row, before a room's own Y; X and Delete stay the room's.
+    bool TakesShortcut(const ScreenFrame& f, const MenuAction& a) const override {
+        return FriendsPanel::TakesOnNotifications(f.shell.menu_.navigation.Focus(), a.delta);
+    }
+    void Shortcut(const ScreenFrame& f, const MenuAction& a) const override { f.shell.friends_.NotificationShortcut(a, f.shell.menu_.navigation); }
+    // Notifications is the first tab of the News strip, so it has no bell.
+    void Dress(const ScreenFrame& f, GameMenu& menu) const override {
+        f.shell.NewsTabs(f.view, f.screen);
+        menu.statusLeads.clear();
+        if (f.rows) f.shell.friends_.DressNotifications(*f.rows, menu);
+    }
 };
 const ScreenPanel& ApplicationShell::NotificationsOwner() {
     static const NotificationScreens notifications{};
     return notifications;
 }
 
-// Each said toast, newest first; one with actions offers them at its row.
-std::vector<MenuEntry> ApplicationShell::NotificationRows(double now,std::string& title) const {
- title=loc::T("home.notifications");
+// What waits first, each as its source's own row, then each toast said, newest
+// first; one whose actions nobody took offers them at its row.
+std::vector<MenuEntry> ApplicationShell::NotificationRows(const ShellView& v,double now,std::string& title) {
+ title=loc::T("home.news");
  std::vector<MenuEntry> rows;
- for(const auto& t:toasts_){
+ for(const auto* t:notices_.Listed()){
+  if(t->Sourced()){if(auto row=friends_.RowOf(v,t->key))rows.push_back(std::move(*row));continue;}
   // Its kind over the words, so a long notice reads whole in its detail.
   static const char* const kinds[]={"notice.title","toast.kind.invitation","toast.kind.room","toast.kind.update","toast.kind.match","toast.kind.system"};
-  auto row=InfoRow("toast-"+std::to_string(t.id),loc::T(kinds[static_cast<int>(t.kind)]),Ago(now-t.at),{});
-  row.detail=t.text;
-  for(std::size_t i=0;i<t.actions.size();++i)row.choices.push_back({std::to_string(i),t.actions[i].label});
+  auto row=InfoRow("toast-"+std::to_string(t->id),loc::T(kinds[static_cast<int>(t->kind)]),Ago(now-t->at),{});
+  row.detail=t->text;
+  if(t->Answerable())for(std::size_t i=0;i<t->actions.size();++i)row.choices.push_back({std::to_string(i),t->actions[i].label});
   if(!row.choices.empty()){row.info=false;row.popout=true;}
   rows.push_back(std::move(row));
  }
  // None yet: a row that says so and what will come, as Sent reports' empty list does.
  if(rows.empty())rows.push_back(InfoRow("toasts-none",loc::T("notifications.none"),"",loc::T("notifications.none_detail")));
+ // The Friends screen, after what waits from friends, whenever friends are offered here (not only when something waits).
+ if(friends_.Offered(v)){
+  const auto last=std::find_if(rows.rbegin(),rows.rend(),[](const MenuEntry& e){return friends_panel::NotificationRow(e.id);});
+  rows.insert(last==rows.rend()?rows.begin():last.base(),Row("notifications-friends",loc::T("home.friends"),loc::T("notifications.friends_detail")));
+ }
+ friends_.AttachNotifications(rows,v);
  return rows;
 }
 } }

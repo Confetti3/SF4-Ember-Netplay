@@ -6,17 +6,25 @@ namespace Chara = Dimps::Game::Battle::Chara;
 using Chara::Unit;
 using Chara::Actor;
 using Chara::Afterimage;
+using Chara::ItemCollection;
 
 Actor::__publicMethods Actor::publicMethods;
 Actor::__staticMethods Actor::staticMethods;
 
 Unit::__publicMethods Unit::publicMethods;
+ItemCollection::__publicMethods ItemCollection::publicMethods;
 Afterimage::__mementoableMethods Afterimage::mementoableMethods;
 
 void Chara::Locate(HMODULE peRoot) {
 	Actor::Locate(peRoot);
 	Afterimage::Locate(peRoot);
+	ItemCollection::Locate(peRoot);
 	Unit::Locate(peRoot);
+}
+
+void ItemCollection::Locate(HMODULE peRoot) {
+	unsigned int peRootOffset = (unsigned int)peRoot;
+	*(PVOID*)&publicMethods.GetItemByIndex = (PVOID)(peRootOffset + 0x16b3f0);
 }
 
 void Afterimage::Locate(HMODULE peRoot) {
@@ -41,6 +49,11 @@ unsigned char* Actor::GetBodyBox(Actor* a, BodyList list, unsigned index) {
 // The masks in effect this frame, after the push boxes' at +0x6810.
 unsigned int Actor::GetBodyMask(Actor* a, BodyList list) {
 	return *(unsigned int*)((unsigned char*)a + (list == BodyList::Strike ? 0x6814 : 0x6818));
+}
+
+// After the throw mask, as the game keeps them.
+unsigned int Actor::GetProjectileMask(Actor* a) {
+	return *(unsigned int*)((unsigned char*)a + 0x681c);
 }
 
 // Six list pointers from +0x130; a list keeps its first box at +0x20 and its

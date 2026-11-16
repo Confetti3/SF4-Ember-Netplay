@@ -12,96 +12,40 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use rusqlite::{Connection, Transaction, TransactionBehavior};
+use rusqlite::{Connection, Row, ToSql, Transaction, TransactionBehavior, params_from_iter};
 use tokio::sync::watch;
 
 use crate::error::ApiFailure;
 
-/// Applied in order, each once, recorded by version. A version that shipped
-/// keeps its number and its contents; a change is a new version at the end.
-const MIGRATIONS: &[(i64, &str)] = &[
-    (1, include_str!("../migrations/001_identity.sql")),
-    (2, include_str!("../migrations/002_matches.sql")),
-    (3, include_str!("../migrations/003_lobbies.sql")),
-    (4, include_str!("../migrations/004_records.sql")),
-    (5, include_str!("../migrations/005_tournaments.sql")),
-    (6, include_str!("../migrations/006_play.sql")),
-    (7, include_str!("../migrations/007_handoffs.sql")),
-    (8, include_str!("../migrations/008_discord.sql")),
-    (9, include_str!("../migrations/009_blumint.sql")),
-    (10, include_str!("../migrations/010_discord_consent.sql")),
-    (11, include_str!("../migrations/011_discord_moves.sql")),
-    (12, include_str!("../migrations/012_rooms.sql")),
-    (
-        13,
-        include_str!("../migrations/013_connection_settings.sql"),
-    ),
-    (14, include_str!("../migrations/014_room_details.sql")),
-    (15, include_str!("../migrations/015_match_expiry.sql")),
-    (
-        16,
-        include_str!("../migrations/016_discord_confirm_owner.sql"),
-    ),
-    (17, include_str!("../migrations/017_creator_region.sql")),
-    (18, include_str!("../migrations/018_room_own_delay.sql")),
-    (19, include_str!("../migrations/019_blumint_progress.sql")),
-    (
-        20,
-        include_str!("../migrations/020_match_starting_wins.sql"),
-    ),
-    (21, include_str!("../migrations/021_blumint_status.sql")),
-    (
-        22,
-        include_str!("../migrations/022_match_claim_refusals.sql"),
-    ),
-    (23, include_str!("../migrations/023_claim_liveness.sql")),
-    (24, include_str!("../migrations/024_blumint_keys.sql")),
-    (25, include_str!("../migrations/025_claim_ready.sql")),
-    (
-        26,
-        include_str!("../migrations/026_blumint_refused_keys_dropped.sql"),
-    ),
-    (27, include_str!("../migrations/027_sign_in_sites.sql")),
-    (28, include_str!("../migrations/028_match_watch.sql")),
-    (29, include_str!("../migrations/029_skill_ratings.sql")),
-    (30, include_str!("../migrations/030_ranking_choices.sql")),
-    (31, include_str!("../migrations/031_delivery_order.sql")),
-    (32, include_str!("../migrations/032_organizer_grants.sql")),
-    (33, include_str!("../migrations/033_organizer_events.sql")),
-    (34, include_str!("../migrations/034_tournament_drafts.sql")),
-    (35, include_str!("../migrations/035_desk_sessions.sql")),
-    (36, include_str!("../migrations/036_desk_sets.sql")),
-    (37, include_str!("../migrations/037_match_replays.sql")),
-    (38, include_str!("../migrations/038_desk_marks.sql")),
-    (39, include_str!("../migrations/039_desk_calls.sql")),
-    (40, include_str!("../migrations/040_event_sign_ups.sql")),
-    (41, include_str!("../migrations/041_desk_session_seen.sql")),
-    (42, include_str!("../migrations/042_desk_handoffs.sql")),
-    (43, include_str!("../migrations/043_desk_devices.sql")),
-    (44, include_str!("../migrations/044_desk_device_checks.sql")),
-    (
-        45,
-        include_str!("../migrations/045_organizer_events_created.sql"),
-    ),
-    (46, include_str!("../migrations/046_desk_dms.sql")),
-    (
-        47,
-        include_str!("../migrations/047_site_request_shares.sql"),
-    ),
-    (48, include_str!("../migrations/048_organizer_invites.sql")),
-    (49, include_str!("../migrations/049_archive_games.sql")),
-    (50, include_str!("../migrations/050_archive_identity.sql")),
-    (51, include_str!("../migrations/051_archive_late_names.sql")),
-    (52, include_str!("../migrations/052_room_type.sql")),
-    (53, include_str!("../migrations/053_room_creator_in.sql")),
-    (54, include_str!("../migrations/054_archive_games_once.sql")),
-    // 55 is the archive listing index (feat/archive-server-class), already
-    // applied on the production bridge; it lands with that branch.
-    (56, include_str!("../migrations/056_room_wired_only.sql")),
-    (57, include_str!("../migrations/057_room_game.sql")),
-    (58, include_str!("../migrations/058_ranking_games.sql")),
-    (59, include_str!("../migrations/059_match_games.sql")),
-];
+#[cfg(test)]
+pub(crate) mod counting;
+mod migrations;
+
+/// Why `Db::open` could not open the database.
+#[derive(Debug)]
+pub enum OpenError {
+    Sql(rusqlite::Error),
+    /// The database's migrations are not this bridge's, or one failed; the
+    /// text names the migration (`migrations`).
+    Migration(String),
+}
+
+impl std::fmt::Display for OpenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sql(error) => std::fmt::Display::fmt(error, f),
+            Self::Migration(text) => f.write_str(text),
+        }
+    }
+}
+
+impl std::error::Error for OpenError {}
+
+impl From<rusqlite::Error> for OpenError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::Sql(error)
+    }
+}
 
 #[derive(Clone)]
 pub struct Db(Arc<Shared>);
@@ -128,14 +72,15 @@ pub(crate) fn queued() {
 }
 
 impl Db {
-    pub fn open(path: &Path) -> rusqlite::Result<Self> {
+    pub fn open(path: &Path) -> Result<Self, OpenError> {
         let connection = Connection::open(path)?;
         connection.pragma_update(None, "journal_mode", "WAL")?;
         connection.pragma_update(None, "synchronous", "FULL")?;
         connection.pragma_update(None, "foreign_keys", "ON")?;
         connection.busy_timeout(std::time::Duration::from_secs(5))?;
+        connection.set_prepared_statement_cache_capacity(STATEMENT_CACHE);
         let mut db = connection;
-        migrate(&mut db, MIGRATIONS)?;
+        migrations::migrate(&mut db, migrations::MIGRATIONS)?;
         Ok(Self(Arc::new(Shared {
             connection: Mutex::new(db),
             commits: watch::channel(0).0,
@@ -208,6 +153,36 @@ impl Db {
     }
 }
 
+/// Runs `sql` for a whole set of ids at once and maps each row with `map`. The
+/// text has `{ids}` where the list of an `IN (...)` goes; `fixed` binds the
+/// statement's own values first (`?1`, `?2`, ...), and the ids go after them
+/// as one JSON array (`json_each`, as the archive listing reads its keys). A
+/// set of any size is one statement, and the same text whatever the size, so
+/// it is prepared once and kept (`prepare_cached`): a route that reads many
+/// accounts costs the same number of queries whatever their count.
+pub fn select_in<T>(
+    tx: &Transaction<'_>,
+    sql: &str,
+    fixed: &[&dyn ToSql],
+    ids: &[&str],
+    map: impl FnMut(&Row<'_>) -> rusqlite::Result<T>,
+) -> Result<Vec<T>, ApiFailure> {
+    let list = format!("SELECT value FROM json_each(?{})", fixed.len() + 1);
+    let mut statement = tx.prepare_cached(&sql.replace("{ids}", &list))?;
+    let ids = serde_json::to_string(ids).map_err(|_| ApiFailure::unavailable())?;
+    let mut values: Vec<&dyn ToSql> = fixed.to_vec();
+    values.push(&ids);
+    let rows = statement
+        .query_map(params_from_iter(values), map)?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(rows)
+}
+
+/// Statements the bridge keeps prepared on its one connection
+/// (`prepare_cached`): the set reads and the hot per-player ones, with room
+/// to spare, so a busy route never pushes another's out.
+const STATEMENT_CACHE: usize = 128;
+
 /// A stored name this bridge does not know, such as a state a newer bridge
 /// wrote before a rollback. The value itself is not said: SQL errors are
 /// logged, and they name columns, never stored values.
@@ -249,28 +224,25 @@ pub fn unknown(error: &rusqlite::Error) -> bool {
     }
 }
 
-fn migrate(connection: &mut Connection, migrations: &[(i64, &str)]) -> rusqlite::Result<()> {
-    connection.execute_batch(
-        "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)",
-    )?;
-    for (version, sql) in migrations {
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let applied: bool = transaction.query_row(
-            "SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = ?1)",
-            [version],
-            |row| row.get(0),
-        )?;
-        if !applied {
-            transaction.execute_batch(sql)?;
-            transaction.execute(
-                "INSERT INTO schema_migrations (version, applied_at) VALUES (?1, strftime('%s','now'))",
-                [version],
-            )?;
-        }
-        transaction.commit()?;
-    }
-    Ok(())
-}
-
 #[cfg(test)]
-mod tests;
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_stored_name_not_known_fails_the_read_and_says_so() {
+        let connection = Connection::open_in_memory().unwrap();
+        let read = |text: &str| {
+            connection.query_row("SELECT ?1", [text], |row| {
+                known(row, 0, |text| (text == "queued").then_some(()))
+            })
+        };
+        read("queued").unwrap();
+        let error = read("a_later_state").unwrap_err();
+        assert!(unknown(&error), "{error:?}");
+        // Other failures are not mistaken for it.
+        let error = connection
+            .query_row("SELECT 1", [], |row| row.get::<_, String>(0))
+            .unwrap_err();
+        assert!(!unknown(&error));
+    }
+}

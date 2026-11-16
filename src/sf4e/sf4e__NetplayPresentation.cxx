@@ -72,6 +72,9 @@ namespace sf4e {
 			if (place.kind == room::Place::Kind::Queue) {
 				st.queuePosition = place.position;
 				st.queueLength = static_cast<int>(room.tables[place.table].queue.size());
+			} else if (place.kind == room::Place::Kind::Line) {
+				st.queuePosition = place.position;
+				st.queueLength = static_cast<int>(room.line.size());
 			}
 			st.hasMatchScore = HudScore(live && RuntimeSession::netplay->spectating, RuntimeSession::netplay->watchedScoreKnown,
 				RuntimeSession::netplay->watchedScore, liveScoreKnown, liveScore, st.matchScore);

@@ -115,8 +115,12 @@ ImportResult CommitImport(const ImportTransaction& prepared, const Writer& write
 // A battle the game does not save (the opponent left) passes the replay the
 // recorder holds, or nothing: the next archive pass puts it in the archive,
 // and the names bind to it.
+// No class for either side.
+inline const SkillBadge NoClasses[2] = {};
+// `classes` are the sides' classes as the match HUD shows them (MatchSide::badge);
+// only a class is kept, never "?" or the developer mark.
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
-	const replayfiles::SetTag& set = {});
+	const replayfiles::SetTag& set = {}, const SkillBadge (&classes)[2] = NoClasses);
 void NoteMatchEnd(bool confirmed, replayslots::Bytes unsaved);
 // An in-place rematch: the game before it ended with a confirmed result, and
 // the next starts in the same battle with the same players, fighters and set.
@@ -139,10 +143,23 @@ void MarkSetClosed(const std::filesystem::path& file);
 // Where a set's pack is saved: packs\<matchId>.emberpack in the archive, the
 // folder made. Empty when there is no archive or the ID is not a plain one.
 std::filesystem::path SetPackPath(const std::string& matchId);
-// Puts every game of a set's pack (platform/ReplaySetPack.hxx) into the archive,
-// as games of that set this PC watched. How many the archive holds now; 0 for
-// a file that is not a whole pack.
-std::size_t ImportSetPack(const std::filesystem::path& pack);
+// Where a game downloaded from the public replay archive to be watched is
+// saved: watching\<digest>.emberreplay in the archive folder, the folder made.
+// The folder is not part of the archive's listing
+// (Ember's own files are listed from the archive's root), so a game watched
+// this way is not a match of the player's own. Empty when there is no archive
+// or the digest is not 64 lowercase hex digits.
+std::filesystem::path ArchiveWatchPath(const std::string& digest);
+// Removes every other file there: only the game asked for last is kept.
+void PruneArchiveWatching(const std::filesystem::path& keep);
+// Removes the games downloaded to watch (ArchiveWatchPath): at the start, when none is waited for.
+void ClearArchiveWatching();
+// Puts every game of a set's pack, or the one replay of a replay file
+// (platform/ReplaySetPack.hxx: UnpackFile), into the archive, as games this PC
+// watched, those of a set under their set. A game the archive already holds is
+// not written again. How many of the file's games the archive holds now; 0 for
+// a file that is not a whole replay or pack.
+std::size_t ImportReplayFile(const std::filesystem::path& file);
 
 // The archive, newest first. label is the save time in local time, fighters
 // the two native fighter IDs from the replay's record (-1 when the file
@@ -159,6 +176,9 @@ struct ArchivedReplay {
 	std::uint64_t time = 0;
 	int fighters[2] = {-1, -1};
 	std::string names[2];
+	// Each side's public room class when the match was played, as this PC's
+	// HUD showed it (ReplayNames::classes); none when it noted none.
+	SkillBadge classes[2];
 	replayfiles::Provenance provenance = replayfiles::Provenance::Unknown;
 	bool watched = false, sent = false, setClosed = false, kept = false;
 	// The tournament set it was a game of, or none.

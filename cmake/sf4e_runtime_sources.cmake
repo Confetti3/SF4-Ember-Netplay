@@ -11,6 +11,11 @@ set(SF4E_RUNTIME_SOURCES
     sf4e/sf4e__NetplayRuntime__Input.cxx
     sf4e/sf4e__NetplayRuntime__Match.cxx
     sf4e/sf4e__NetplayRuntime__Room.cxx
+    sf4e/sf4e__NetplayRuntime__Replays.cxx
+    sf4e/sf4e__NetplayRuntime__Levels.cxx
+    sf4e/sf4e__NetplayRuntime__Profiles.cxx
+    sf4e/sf4e__NetplayRuntime__Archive.cxx
+    sf4e/sf4e__NetplayRuntime__Social.cxx
     sf4e/sf4e__NetplayRuntime__Tournament.cxx
     sf4e/sf4e__NetplayRuntime__PublicRooms.cxx
     sf4e/sf4e__NetplayRuntime__Rankings.cxx

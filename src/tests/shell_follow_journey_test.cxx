@@ -38,7 +38,7 @@ struct FollowRoom {
  std::vector<int> Sent(room::ActionKind kind,std::size_t from) const{
   std::vector<int> sent;
   for(auto i=from;i<h.actions.size();++i)
-   if(h.actions[i].command.kind==Kind::RoomAction&&h.actions[i].roomAction.kind==kind)sent.push_back(h.actions[i].roomAction.table);
+   if(RoomActionIs(h.actions[i],kind))sent.push_back(As<commands::RoomAction>(h.actions[i])->roomAction.table);
   return sent;
  }
  std::vector<int> Watches(std::size_t from) const{return Sent(room::ActionKind::Watch,from);}
@@ -65,7 +65,7 @@ void FollowFromBoardAndOptions() {
  h.Choose("follow-room");h.Frame(0,3);
  Check(f.Watches(from)==std::vector<int>{2},"Following did not move the watcher to the table playing");
  Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(from),h.actions.end(),[](const ShellAction& a){
-  return a.roomAction.kind==room::ActionKind::Unwatch||a.roomAction.kind==room::ActionKind::LockSpectating;}),"Following sent more than a Watch");
+  return RoomActionIs(a,room::ActionKind::Unwatch)||RoomActionIs(a,room::ActionKind::LockSpectating);}),"Following sent more than a Watch");
  tables[0].spectators.clear();tables[2].watchingNext={1};
  from=h.actions.size();h.Frame(0,10);f.Capture();
  Check(f.Watches(from).empty(),"Following moved again while the game it waits for plays");
@@ -94,7 +94,7 @@ void FollowFromBoardAndOptions() {
  Check(f.Watches(from).empty()&&!f.Row("follow-room"),"A seat did not end following");
  // An Arcade board's action bar offers it too, and moves the same way.
  tables[1].p1=0;f.Local().table=-1;f.Local().seat=-1;tables[1].spectators={1};
- h.view.room.arcade=room::ArcadeRoom;h.Screen("room");f.Capture();
+ h.view.room.type=room::RoomType::Arcade;h.Screen("room");f.Capture();
  Check(f.Row("follow-room")&&f.Row("follow-room")->enabled,"An Arcade watcher's board did not offer Follow the room");
  from=h.actions.size();h.Choose("follow-room");h.Frame(0,3);
  Check(f.Watches(from)==std::vector<int>{2},"Following in an Arcade room did not move to the pair playing");
@@ -122,6 +122,15 @@ void FollowWhileHidden() {
  Check(f.Watches(from).empty(),"Following left before the rematch grace ran out");
  f.Hidden(1,1.5f);f.Hidden();
  Check(f.Watches(from)==std::vector<int>{3},"Following did not move while Ember was hidden");
+}
+
+// A stream PC (--host-public-room) follows by itself, with Ember hidden:
+// from idle table 1 to the game on table 3.
+void StreamPcFollowsByItself() {
+ FollowRoom f(37);auto& h=f.h;
+ h.view.hostPublicRoom=true;
+ const auto from=h.actions.size();f.Hidden(3);
+ Check(f.Watches(from)==std::vector<int>{2},"A stream PC did not follow the room by itself");
 }
 
 // A lock-in pressed on an older snapshot than Follow the room's press lands
@@ -191,6 +200,7 @@ void StopWatchingOnTheDueFrame() {
 void FollowJourneys() {
  FollowFromBoardAndOptions();
  FollowWhileHidden();
+ StreamPcFollowsByItself();
  LockInLandsAfterFollow();
  StopWatchingBeatsMove();
  StopWatchingOnTheDueFrame();

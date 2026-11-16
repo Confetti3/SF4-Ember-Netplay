@@ -8,6 +8,7 @@
 #include "RoomFeedback.hxx"
 #include "NetworkFeedback.hxx"
 #include "MenuPresentation.hxx"
+#include "PlayerCard.hxx"
 #include "SignInSites.hxx"
 #include "RoomControls.hxx"
 #include "V2.hxx"
@@ -73,11 +74,10 @@ bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
 // the list showed it, so a player who came in from there still sees which kind of
 // room they are in.
 std::string RoomKindText(const room::Snapshot& room) {
-    if(room.serverOwned)return std::string(RoomTypeName(room.arcade))+" · "+loc::T(room.locked?"room.public_locked_status":"room.public_status");
+    if(room.serverOwned)return std::string(RoomTypeName(room.type))+" · "+loc::T(room.locked?"room.public_locked_status":"room.public_status");
     if(room.practice)return loc::T(room.locked?"room.practice_locked_status":"room.practice_status");
-    if(room.arcade==room::KingRoom)return loc::T(room.locked?"room.king_locked_status":"room.king_status");
-    if(room.arcade)return loc::T(room.locked?"room.arcade_locked_status":"room.arcade_status");
-    return loc::T(room.locked?"room.locked_status":"room.private_status");
+    const auto& words=WordsOf(room.type);
+    return loc::T(room.locked?words.lockedStatus:words.status);
 }
 std::string RoomStatusText(const room::Snapshot& room) {
     return room.wiredOnly?RoomKindText(room)+" · "+loc::T("room.wired_only"):RoomKindText(room);
@@ -89,48 +89,40 @@ float ApplicationShell::PublicListWidth() {
 }
 std::string TrainingReadyText(int seconds) { return loc::Tf("room.training_call.ready_in",seconds); }
 bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& view, const Submit& submit) {
-    ShellAction action; action.service = kind; action.command.generation = view.session.generation;
-    if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
-    error_.clear(); return true;
+    commands::Service service; service.generation = view.session.generation; service.service = kind;
+    return Send(std::move(service), submit);
 }
 void ApplicationShell::Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked) {
     error_ = std::move(text); errorBlockedText_ = error_; errorBlocked_ = std::move(stillBlocked);
 }
-bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit) {
-    ShellAction action;
-    action.command.kind = kind;
-    action.command.generation = view.session.generation;
-    action.preferences = preferences_;
-    if (kind == netplay::CommandKind::SetLobbySettings) action.preferences.lobby = lobby_;
-    else if (kind == netplay::CommandKind::HostRoom || kind == netplay::CommandKind::SavePreferences) {
-        // Keep the legacy lobby copy synchronized while the room defaults use
-        // the richer per-table Rules contract.
-        action.preferences.lobby.editionSelect = action.preferences.tableRules.editionSelect;
-        action.preferences.lobby.roundCount = action.preferences.tableRules.roundCount;
-        action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
-    }
-    // A game with no prompt over its result screen plays no rematch in place:
-    // the room it opens sends every game back to the room. The saved defaults
-    // keep the player's choice, so a save still reads back as sent.
-    if (kind == netplay::CommandKind::HostRoom && !ember::Catalog().rematchInPlace)
-        action.preferences.tableRules.instantRematch = false;
-    // A Practice room only in a game that plays its round time (RoomSetupRows).
-    action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_ && ember::PlayableRoundTime(room::PracticeRoundTime);
-    action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createArcade_ : room::ClassicRoom;
-    if (kind == netplay::CommandKind::HostRoom) { action.delayPolicy = preferences_.roomDelayPolicy; action.wiredOnly = preferences_.roomWiredOnly; }
-    // A private room only, in a game that draws tiny fighters (the Create row is shown on the same terms).
-    action.tinyFighters = kind == netplay::CommandKind::HostRoom && createTinyFighters_ && !preferences_.roomPublic && view.offersTinyFighters;
-    // An Arcade room plays at every table; only a Classic one has a count to choose.
-    if (kind == netplay::CommandKind::HostRoom && !createArcade_) action.tableCount = static_cast<std::uint8_t>(preferences_.roomTableCount);
-    // Opened from a template: the runtime sets its tables once the room is up.
-    if (kind == netplay::CommandKind::HostRoom && createTables_) action.createdRules = CreateTables(preferences_.tableRules);
-    if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = pasted_link::Tidied(invitation_);
-    // A room opened here is not the public one the panel joined.
-    if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::HostRoom) publicRooms_.ForgetCurrent();
+bool ApplicationShell::Send(ShellAction action, const Submit& submit) {
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
-    error_.clear();
-    if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::LeaveRoom)
-        std::fill(std::begin(invitation_), std::end(invitation_), '\0');
+    error_.clear(); return true;
+}
+netplay::PlayerPreferences ApplicationShell::PreferencesToSend() const {
+    auto preferences = preferences_;
+    // Keep the legacy lobby copy synchronized while the room defaults use
+    // the richer per-table Rules contract.
+    preferences.lobby.editionSelect = preferences.tableRules.editionSelect;
+    preferences.lobby.roundCount = preferences.tableRules.roundCount;
+    preferences.lobby.roundTime = preferences.tableRules.roundTime;
+    return preferences;
+}
+bool ApplicationShell::SendReady(const ShellView& view, bool rematch, const Submit& submit) {
+    commands::Ready ready; ready.generation = view.session.generation; ready.rematch = rematch;
+    return Send(std::move(ready), submit);
+}
+bool ApplicationShell::SendJoin(const ShellView& view, const Submit& submit) {
+    commands::JoinRoom join; join.generation = view.session.generation; join.invitation = pasted_link::Tidied(invitation_);
+    // A room opened here is not the public one the panel joined.
+    publicRooms_.ForgetCurrent();
+    if (!Send(std::move(join), submit)) return false;
+    std::fill(std::begin(invitation_), std::end(invitation_), '\0');
+    return true;
+}
+bool ApplicationShell::SendLeave(const ShellView& view, const Submit& submit) {
+    if (!Send(commands::LeaveRoom{view.session.generation}, submit)) return false;
+    std::fill(std::begin(invitation_), std::end(invitation_), '\0');
     return true;
 }
 
@@ -199,12 +191,14 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
  SyncLayoutPaths(v);
  if(!v.settingsError.empty()&&!retrySave_&&!saveQueued_)saveFailed_=true;
  if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&MaySave(v,preferences_)&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
+  DropStaleAwards(v);
   if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
  }
 }
 std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title) {
  using namespace netplay; auto& nav=menu_.navigation;
  std::vector<MenuEntry> rows;
+ selectionAvailable_=bool(selection);
  if(v.inputCapture!=input::Capture::Idle){
   title=loc::T("controller.assign_title");
   rows={Row("capture-cancel",loc::T("controller.cancel_assignment"),std::string(v.inputCapture==input::Capture::Press?loc::T("controller.press_button"):loc::T("controller.release_buttons"))+"\n"+loc::T("controller.keep_current"))};
@@ -213,20 +207,25 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(const ScreenPanel* owner=ScreenOf(screen)){
   // The panels' screens build their own rows (ScreenOf).
   rows=owner->Rows(ScreenFrame{*this,v,screen},idle,title);
+  // Profile's Fighter select opens only where there is a selector to show.
+  for(auto& r:rows)if(r.id==FighterSelectRow)r.enabled=r.enabled&&selectionAvailable_;
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
-   Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
-    v.selectionLockReason.empty()?loc::T("home.selection_locked"):v.selectionLockReason,bool(selection)),
+   Row("friends",loc::T("home.friends"),loc::T("home.friends_detail")),
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
   if(v.offersReplays)rows.push_back(Row("replays",loc::T("home.replays"),loc::T("home.replays_detail")));
   // Training straight from Home, before Play offline.
   if(v.offersTraining)rows.insert(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="offline";}),Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle));
-  // News, the channel's newest releases (the panel under the player card shows the first three).
-  if(!v.services.update.news.empty())rows.push_back(Row("news",loc::T("home.news"),v.services.update.news.front().title));
-  // Notifications, what Ember said lately (the toasts).
-  rows.push_back(Row("notifications",loc::T("home.notifications"),toasts_.empty()?std::string(loc::T("notifications.none")):toasts_.front().text));
+  // Friends say what waits there: the requests to answer, else how many friends are on (as the last list read had them).
+  {const auto counts=friends_panel::CountsOf(v.friends,v.unixNow);auto& friendsRow=rows[1];
+   if(counts.requests){friendsRow.value=counts.requests==1?std::string(loc::T("friends.home_request_one")):loc::Tf("friends.home_requests",counts.requests);friendsRow.valueHighlighted=true;}
+   else if(counts.online)friendsRow.value=loc::Tf("friends.home_online",counts.online);}
+  // News, with the notifications beside the channel's releases (the panel under the player card shows the first three).
+  rows.push_back(Row("news",loc::T("home.news"),NewsDetail(v)));
+  // What waits there for an answer (friends' requests among it), counted here alone on Home.
+  if(const int waiting=notices_.Waiting()){rows.back().value=loc::Tf("notifications.waiting",waiting);rows.back().valueHighlighted=true;}
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
   // Ember ID lives under Online play; tournament matches ready to play are
@@ -238,11 +237,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   // Back leaves a pending invitation's screen without answering it, so Home
   // keeps a way back to it until it is answered or expires.
   if(v.discordPending)rows.insert(rows.begin(),Row("discord-invitation",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail")));
-  // The player's card is a row too (drawn as the card); Select opens the awards wall.
-  rows.push_back(Row("awards",loc::T("awards.card"),loc::T("awards.card_detail")));
+  // The player's card is a row too (drawn as the card); Select opens Profile on Card.
+  rows.push_back(Row("card",loc::T("awards.card"),loc::T("awards.card_detail")));
   if(developer)rows.push_back(Row("developer","Developer","Development tools."));
   // Right on the list reaches the card beside it, Left goes back to the list's top.
-  for(auto& r:rows)if(r.id=="awards")r.left=rows.front().id;else r.right="awards";
+  for(auto& r:rows)if(r.id=="card")r.left=rows.front().id;else r.right="card";
  }else if(screen=="training"){
   rows=TrainingSelectRows(v,title);
  }else if(screen=="discord-invitation"){
@@ -252,9 +251,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="developer"&&developer){
   // The inspector's selectors are not the shell's own: they inherit no room
   // hints or Back label, and whatever they forward has no reader here.
+  // Drawn as the screen's body (DrawScreen), inside the menu's window.
   SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),{},false});
-  developer();TakeForwardedMenuAction();
-  if(ImGui::Button("Back to Home"))nav.Return();
  }else{
   // Any other screen shows Help & about, as it always has.
   static const std::string about="about";
@@ -372,20 +370,24 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  card.country=ShownCountry(preferences_.country,v.automaticCountry);
  // The profile card (the L tag): Home's and the Player tab's.
  auto& tag=card.profile;const auto& standing=v.rankings.standing;const auto& record=v.preferences.record;
- // A product whose players have no main (ember::PlayersHaveMain) shows their
- // pick there instead, as its room's faces do; a Random pick shows no face.
- const bool hasMain=ember::PlayersHaveMain();
+ // Before the player chooses a main (ember::UnsetMain) their pick stands
+ // there, as their seat shows it; a Random pick shows no face.
+ const bool hasMain=ember::ValidFighter(preferences_.mainFighter);
  tag.name=card.name;tag.marks.country=card.country;
  tag.fighter=hasMain?preferences_.mainFighter:v.selectedRandom?-1:v.selectedPick.fighter;
  tag.title=v.playerTitle;tag.tier=v.playerTier;tag.icon=v.playerIcon;
  // What the player picked on the awards wall, while it is earned.
- if(const auto* a=WornAward(v,preferences_.wornTitle)){tag.title=loc::T(a->title);tag.tier=a->tier;}
- if(const auto* a=WornAward(v,preferences_.wornIcon))tag.icon=a->icon;
+ if(const auto a=WornAward(v,preferences_.wornTitle)){tag.title=AwardTitle(a);tag.tier=v2::FrameTier(a.Current().tier);}
+ if(const auto a=WornAward(v,preferences_.wornIcon)){tag.icon=a.family->icon;tag.iconTier=v2::FrameTier(a.Current().tier);}
  if(standing.loaded&&standing.value.kind==netplay::rankings::Standing::Kind::Ranked&&standing.value.classesShown)tag.marks.badge=standing.value.badge;
  if(card.country.Present())tag.about=CountryName(card.country);
  if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));
  if(hasMain)tag.facts.push_back({loc::T("profile.main_badge"),ember::Catalog().fighterName(preferences_.mainFighter)});
  if(record.available)tag.facts.push_back({loc::T("profile.record"),RecordValue(record)});
+ // The levels the Card tab draws, and the two points lines under Home's card.
+ player_card::Fill(card,v.levels,preferences_.mainFighter);
+ tag.points={true,card.main.points,card.account.points};
+ card.requests=static_cast<int>(friends_panel::WaitingOf(v.friends,v.unixNow).requests.size());
  SetMenuPlayerCard(std::move(card));
  std::vector<MenuNewsItem> news;
  for(const auto& n:v.services.update.news)news.push_back({n.title,n.date.empty()?n.tag:n.date+" \xC2\xB7 "+n.tag});
@@ -402,11 +404,17 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
- else if(a.id=="tournament-account")identity_.OpenTournamentAccount(v,nav);
+ else if(a.id=="discord-account")identity_.OpenDiscordAccount(v,nav);
  // The matches screen, by way of Online play and Ember ID so Back goes there.
  else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
- else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
+ else if(a.id=="profile")nav.Push(ProfilePanel::CardScreen);
+ // Home's, Online play's and the room's Friends: the Profile strip on its Friends tab, so Back returns to where it was opened.
+ else if(a.id=="friends")nav.Push(FriendsPanel::Screen);
+ else if(a.id=="main-character")nav.Push(a.id);
+ // Edit card's Title and Icon rows go to the award worn there, to change it.
+ else if(a.id=="card-title"||a.id=="card-icon"){const bool title=a.id=="card-title";const std::string& worn=title?preferences_.wornTitle:preferences_.wornIcon;if(!worn.empty())nav.Prefer("award:"+worn);nav.Push("awards");}
  else if(a.id=="awards")nav.Push("awards");
+ else if(a.id=="card")nav.Push(ProfilePanel::CardScreen);
  else if(a.id=="country"){countryPicker_.Open();nav.Push(CountryPicker::Screen);nav.Prefer(CountryPicker::RowId(preferences_.country));}
  // A letter on the board goes to its first country, whose code it carries.
  else if(screen==CountryPicker::Screen&&a.id.compare(0,7,"letter-")==0)nav.Prefer("country-"+a.id.substr(7));
@@ -415,10 +423,11 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(const auto main=RowKey<int>(a.id,"main-");main&&v.canEditPreferences){preferences_.mainFighter=*main;preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(screen=="training"&&a.id.compare(0,9,"training-")==0)TrainingSelectActivate(a,v,submit);
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?RoomSelectionStart(v.room):SelectionStart::Board;nav.Push(a.id);}
- else if(a.id=="replays"||a.id=="controllers"||a.id=="news"||a.id=="notifications")nav.Push(a.id);
+ else if(a.id=="news")nav.Push(notices_.Waiting()?"notifications":"news");
+ else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  // News' Update now, confirmed on its row: the launch check's offer, as its question's Update now sends it.
  else if(a.id=="news-update-now"&&v.services.launchOffer){
-  ShellAction r;r.command.generation=v.session.generation;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*v.services.launchOffer;
+  commands::Service r;r.generation=v.session.generation;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*v.services.launchOffer;
   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");else updatePrompt_.Settle(*v.services.launchOffer);
  }
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
@@ -430,20 +439,20 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   // A public room's link pasted here opens the room on Public rooms, as Paste
   // room link there does; while that screen is busy joining, it shows that.
   const auto room=tournament_link::ParseRoomPasted(invitation_);
-  if(!room.Valid())Send(CommandKind::JoinInvite,v,submit);
+  if(!room.Valid())SendJoin(v,submit);
   else {
    if(!publicRooms_.Busy()){publicRooms_.OpenLink(room.bridgeId,room.roomId,true);std::fill(std::begin(invitation_),std::end(invitation_),'\0');}
    ShowRoomLink();
   }
  }
- else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
- else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
+ else if(a.id=="cancel-open")SendLeave(v,submit);
+ else if(a.id=="offline"||a.id=="game-buttons")Send(commands::StartOffline{v.session.generation},submit);
  // Training: the game's main menu goes straight to Training mode, if the runtime finds no room or match.
- else if(a.id=="training"){ShellAction training;training.command.generation=v.session.generation;training.training=TrainingEntry::Home;
-  if(!submit(std::move(training)))error_=loc::T("home.training_unavailable");}
- else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){strcpy_s(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
- else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
- else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
+ else if(a.id=="training"){if(!submit(commands::Training{v.session.generation,TrainingEntry::Home}))error_=loc::T("home.training_unavailable");}
+ else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
+ else if(a.id=="capture"||a.id=="keyboard")submit(commands::Input{v.session.generation,a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard});
+ else if(a.id=="invite-cancel"||a.id=="invite-switch"){
+  if(!submit(commands::DiscordInvite{v.session.generation,a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch,v.discordRevision}))error_=loc::T("error.invitation_changed");}
  else if(a.id=="diagnostics")Service(platform::ServiceAction::ExportDiagnostics,v,submit);
  else if(a.id=="problem-report"){
   if(Service(platform::ServiceAction::PrepareProblemReport,v,submit)){reportPanel_.Open(v.services.reporting.preparation + 1);menu_.navigation.Push("report");}
@@ -455,13 +464,12 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="ready-test"){
   // The volume on screen, which may not be saved yet.
-  ShellAction r;r.command.generation=v.session.generation;r.previewSoundVolume=preferences_.readySoundVolume;
-  if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
+  if(!submit(commands::PreviewSound{v.session.generation,preferences_.readySoundVolume}))error_=loc::T("error.queue_failed");
  }
  else if(a.id=="channel"){
   // Confirmed: the pick is saved and checked; the row shows it until that ends.
   if(!channelPick_.Pending(v.services.channel))return;
-  ShellAction r;r.service=platform::ServiceAction::SwitchUpdateChannel;r.updateChannel=*channelPick_.picked;r.command.generation=v.session.generation;
+  commands::Service r;r.service=platform::ServiceAction::SwitchUpdateChannel;r.updateChannel=*channelPick_.picked;r.generation=v.session.generation;
   channelPick_.applying=submit(std::move(r));
   if(!channelPick_.applying)error_=loc::T("error.queue_failed");
  }
@@ -470,7 +478,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="update-now"){
   const auto& offer=v.services.offer;
   if(!offer)return;
-  ShellAction r;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*offer;r.command.generation=v.session.generation;
+  commands::Service r;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*offer;r.generation=v.session.generation;
   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
  }
  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
@@ -492,13 +500,13 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(screen=="training"&&a.id=="training-hitboxes"){if(v.offersHitboxes&&(a.delta>0)!=v.hitboxesShown)ShowHitboxes(a.delta>0,submit);}
  // Settings' Background artwork row, likewise the game's choice.
  else if(a.id=="menu-artwork"){
-  if(v.offersMenuArtwork&&(a.delta>0)!=v.menuArtworkShown){ShellAction art;art.showMenuArtwork=a.delta>0;if(!submit(std::move(art)))error_=loc::T("error.queue_failed");}
+  if(v.offersMenuArtwork&&(a.delta>0)!=v.menuArtworkShown){if(!submit(ShowMenuArtwork{a.delta>0}))error_=loc::T("error.queue_failed");}
  }
  // Settings' Screen mode row, likewise: Left and Right step through the
  // choices and stop at the ends.
  else if(a.id=="screen-mode"){
   const int next=(std::max)(0,(std::min)(kScreenModes-1,v.screenMode+(a.delta>0?1:-1)));
-  if(v.offersScreenMode&&next!=v.screenMode){ShellAction mode;mode.setScreenMode=next;if(!submit(std::move(mode)))error_=loc::T("error.queue_failed");}
+  if(v.offersScreenMode&&next!=v.screenMode){if(!submit(SetScreenMode{next}))error_=loc::T("error.queue_failed");}
  }
  else if(CreateAdjust(a)){}
  else{
@@ -512,11 +520,12 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
    preferences_.autoInputDelay=next==AutoInputDelayChoice;if(!preferences_.autoInputDelay)preferences_.inputDelay=next;
   }
   else if(a.id=="auto-style")preferences_.autoDelayStyle=(std::max)(0,(std::min)(AutoDelayStyles-1,preferences_.autoDelayStyle+a.delta));
-  else if(AdjustSetting(preferences_,a)||AdjustOnOff(preferences_,a.id,a.delta)||AdjustSpeech(a)){}
+  else if(AdjustSetting(preferences_,a)||AdjustGameTheme(preferences_,v,a)||AdjustOnOff(preferences_,a.id,a.delta)||AdjustSpeech(a)){}
   else if(a.id=="button-prompts")Step(preferences_.buttonPrompts,{0,1,2,3},a.delta);
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
   else if(a.id=="delay-policy")preferences_.roomDelayPolicy=a.delta>0?room::DelayPolicy::Own:room::DelayPolicy::Shared;
   else if(a.id=="wired-only")preferences_.roomWiredOnly=a.delta>0;
+  else if(a.id=="privacy")preferences_.roomFriendsHidden=a.delta>0;
   else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
   else{preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}
@@ -532,7 +541,7 @@ void ApplicationShell::AnswerDialog(const Submit& submit) {
  case NoticeResult::HideGameSettings:{std::string diagnostic;platform::HideGameSettingsCardForever(diagnostic);break;}
  case NoticeResult::OpenButtonLayout:if(dialogContext_.pad)OpenButtonLayout(*dialogContext_.pad);break;
  case NoticeResult::LeaveButtonLayout:{
-  ShellAction log;log.command.generation=dialogContext_.generation;log.padAction.kind=gamepads::ControllerRequest::Kind::LayoutLog;
+  commands::Pad log;log.generation=dialogContext_.generation;log.padAction.kind=gamepads::ControllerRequest::Kind::LayoutLog;
   log.padAction.log=dialogContext_.log;submit(std::move(log));menu_.navigation.Return();break;
  }
  default:break;
@@ -540,12 +549,12 @@ void ApplicationShell::AnswerDialog(const Submit& submit) {
  // Any closed notice answers the update question if it is the one on show.
  if(updatePrompt_.Open()&&!menu_.NoticeOpen())FinishUpdatePrompt(result,submit);
 }
-// Quick join asks for the first room with a free seat that the room filter lists, in the player's
-// region when it is known and the filter names none. With none it offers to create one, which the
-// next frame opens.
+// Quick join asks for the first room with a free seat that the room filter lists, near the player's
+// area when it is set and the filter names none, else any such room. With none it offers to create
+// one, which the next frame opens.
 void ApplicationShell::QuickJoin(const ShellView& v) {
  error_.clear();
- if(const auto id=publicRooms_.QuickPick(v,PublicRoomsPanel::KnownRegion(v),preferences_.roomFilter)){
+ if(const auto id=publicRooms_.QuickPick(v,PublicRoomsPanel::FilterHome(v),preferences_.roomFilter)){
   if(publicRooms_.Join(*id))menu_.navigation.Prefer("pr-room:"+*id);
   return;
  }
@@ -569,6 +578,8 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  // Return from the main-character screen are done when Ember shows again.
  UpdatePreferenceSave(v,submit);
  UpdatePadSetup(v,submit,false);
+ // What the screens asked of the runtime while they showed is closed first: a hidden Ember must not keep the friends sync or a profile open through a match.
+ friends_.Hide(v,submit);player_.Hide(submit);
  Conceal();hidden_=true;
  UpdatePostMatch(v,room,ImGui::GetTime(),submit,nullptr);
  // Following goes on while Ember is hidden: a streamer hides it to show the games.
@@ -576,8 +587,10 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
- // The game is on screen: notices go into Notifications without a card over it.
+ // The game is on screen: notices go into Notifications without a card over
+ // it, and a card the game covered before its time is owed a showing.
  TakeNotices(ImGui::GetTime());
+ notices_.Conceal(ImGui::GetTime());
 }
 
 v2::Box ApplicationShell::ShellArea() const {
@@ -601,7 +614,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // The Ready waits for the runtime's gate, and ends with the seat or the window.
   // A refused submit keeps the request, since the runtime asks for the Ready only once.
   if(!seated||v.trainingReadySeconds<=0)trainingReadySeen_=v.trainingReadySequence;
-  else if(v.trainingReadySequence!=trainingReadySeen_&&v.canReady){selectedTable_=place.table;if(Send(CommandKind::Ready,v,submit))trainingReadySeen_=v.trainingReadySequence;}
+  else if(v.trainingReadySequence!=trainingReadySeen_&&v.canReady){selectedTable_=place.table;if(SendReady(v,false,submit))trainingReadySeen_=v.trainingReadySequence;}
  }
  if(lastUiTime_ >= 0 && now < lastUiTime_) {
   // DX9 reset recreates ImGui, but these deadlines belong to the surviving shell.
@@ -613,7 +626,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
   if(postMatch_)postMatch_->until = RebaseUiTimestamp(postMatch_->until, lastUiTime_, now);
   roomUpdateStarted_ = -1;
-  for(auto& t:toasts_){t.at=RebaseUiTimestamp(t.at,lastUiTime_,now);t.until=RebaseUiTimestamp(t.until,lastUiTime_,now);}
+  notices_.Rebase([&](double t){return RebaseUiTimestamp(t,lastUiTime_,now);});
  }
  lastUiTime_ = now;
  // Player-written text can need glyphs the atlas has not baked yet. The
@@ -645,6 +658,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdateShortCopy(v,now);
  UpdateJoinLink(v,now,submit);
  UpdatePublicRoomLink(v,now);
+ UpdateHostedPublicRoom(v,now);
  if(openPublicCreate_){
   openPublicCreate_=false;
   if(v.session.room==RoomState::Idle&&v.canOpenRoom&&nav.Screen()=="public-rooms")OpenPublicCreate();
@@ -659,6 +673,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  // A replay link takes the menu to its question only with no room: in a room the menu is the room's, and the link waits until it is left.
  replays_.Update(v,preferences_,nav,submit);
+ archive_.Update(v,nav.Screen(),identity_.UsableBridge(v),nav.Focus(),submit);
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);
@@ -666,6 +681,16 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdatePublicBridge(v,nav.Screen());
  {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
+ // Friends first: a Join or Watch question that ends over a card returns to it here, so the card panels build for the screen this frame shows.
+ friends_.Update(v,nav,identity_.UsableBridge(v),submit);
+ profile_.Update(v,preferences_,nav.Screen(),identity_.UsableBridge(v),submit);
+ player_.Update(v,nav.Screen(),nav,friends_,identity_.UsableBridge(v),preferences_.displayName,ShownCountry(preferences_.country,v.automaticCountry),submit);
+ UpdateAwardNotices(v);
+ friends_.Publish(v,nav.Screen(),notices_,now);
+ // What an action from a room or the Friends tab came to: said again if Ember hides it before it is read.
+ {Notifications::Item said;if(friends_.TakeSaid(said.text,said.tone)){const double seconds=said.tone==Tone::Error?6:4;said.again=true;Tell(std::move(said),seconds);}}
+ // Over the post-match prompt a card's keys are the prompt's; on a free screen what was not seen is shown again.
+ {const bool prompt=nav.Screen()=="post-match";notices_.Show(now,prompt,!prompt&&nav.Mode()==MenuNavigation::Modal::None);}
  {std::string said;if(rankings_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
  if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();ShowNotice(loc::T("public.setup_done"),Tone::Success,now+4);}
@@ -763,7 +788,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdateFollow(v,now,submit);
  // Every screen's frame ends here, the embedded ones' too: a toast said on
  // any of them shows at once, and one asked for is answered.
- AnswerToast(now);
+ AnswerToast(v,now,submit);
  DrawToasts(now,nav.Screen()=="notifications",menuRead);
 }
 bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer,double now,bool healthyRoom,const PostMatchFrame& postMatch) {
@@ -803,7 +828,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  if(screen=="report") {
   const auto intent=reportPanel_.Draw(v.services,error_.empty()?v.error:error_);
   if(intent.service!=platform::ServiceAction::None){
-   ShellAction action;action.service=intent.service;action.reportSubmission=intent.submission;action.command.generation=v.session.generation;
+   commands::Service action;action.service=intent.service;action.reportSubmission=intent.submission;action.generation=v.session.generation;
    if(!submit(std::move(action)))error_=loc::T("error.queue_failed");else error_.clear();
   }
   if(intent.close)nav.Return();
@@ -836,6 +861,10 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  GameMenu::Card portraits=owner?owner->Card(frame,now):GameMenu::Card{};
  GameMenu::Detail profilePreview=owner?owner->Detail(frame):GameMenu::Detail{};
  GameMenu::Body board=owner?owner->Body(frame):GameMenu::Body{};
+ if(screen=="developer"&&developer)board=[&](const std::vector<MenuEntry>&,MenuNavigation&,MenuAction&,float,const MenuVisualFeedback&){
+  developer();TakeForwardedMenuAction();
+  if(ImGui::Button("Back to Home"))nav.Return();
+ };
  if(v.inputCapture!=input::Capture::Idle)profilePreview=[&](const std::string&){DrawCaptureDetail(v.inputCapture,v.pads,v.captureCandidate);};
  // Visual grace cannot grant permission: enabled and all dispatch checks stay live.
  const bool checkpointPending=roomScreen && RoomCheckpointPending(v) && !v.controllerUnavailable &&
@@ -873,7 +902,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
   toastFocus_=0;
  }
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
-  ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
+  submit(commands::Input{v.session.generation,input::Action::Cancel});
  }else if(a.kind==MenuAction::Close&&opening){
   // A room being opened keeps its Stop row in reach.
   nav.Push(OpeningScreen(v));
@@ -882,8 +911,8 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
   // behind it is locked there, so Ember stays up (F10 can still hide it).
   if(open&&input::HomeBackHidesShell(v.session.room))*open=false;
  }else if(a.kind==MenuAction::Shortcut){
-  // The hint bar's bell opens Notifications over the screen shown.
-  if(a.id=="notifications")nav.Push(a.id);
+  // The hint bar's bell opens Notifications over the screen shown; on News, Notifications is a tab and replaces it.
+  if(a.id=="notifications"&&!NewsFamily(nav.Screen()))nav.Push(a.id);
   // A tab names the page it shows, and replaces the screen it is on, whatever
   // is open on it (a reader, a choice); a Settings panel's head on the rail
   // names the panel (ShowTab).
@@ -891,6 +920,8 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
    if(a.id=="replay-export")replays_.ExportFrom(v,preferences_,nav.Focus());
    ShowTab(a.id);
   }
+  // A panel that takes a shortcut before the room's own (the Friends tab's More is reachable on a pad in a room).
+  else if(owner&&owner->TakesShortcut(frame,a))owner->Shortcut(frame,a);
   // In a room its shortcuts work from every screen, before any panel's.
   else if(inRoom)RoomShortcut(a,v);
   else if(owner)owner->Shortcut(frame,a);

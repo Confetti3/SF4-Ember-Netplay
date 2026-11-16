@@ -12,10 +12,10 @@
 use std::collections::BTreeMap;
 
 use ember_protocol::{api::ErrorCode, matches::MatchState};
-use rusqlite::{Transaction, params};
+use rusqlite::{ToSql, Transaction, params};
 use serde_json::json;
 
-use super::{BATCH, Leased, Outcome, Queue, Record, Settled, results::BluMint};
+use super::{BATCH, Leased, Outcome, Outcomes, Queue, Record, Table, results::BluMint};
 use crate::{
     AppState,
     audit::audit,
@@ -112,7 +112,18 @@ pub struct Due {
 impl Queue for Progress {
     type Item = Due;
 
-    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Due>>> {
+    const TABLE: Table = Table {
+        name: "blumint_progress",
+        key: &["match_id", "games_played"],
+        attempts: "attempts",
+        next: "next_at",
+        outcomes: Outcomes::Ledger {
+            state: "state",
+            first: "first_at",
+        },
+    };
+
+    fn due(&self, tx: &Transaction<'_>, now: u64) -> Result<Vec<Leased<Due>>> {
         // Each unsent row looks its own match up by id, so a pass reads only
         // the matches a report waits on, however many have ended.
         tx.execute(
@@ -123,7 +134,7 @@ impl Queue for Progress {
             [],
         )?;
         let connections: Vec<&String> = self.destinations.keys().collect();
-        let rows = tx
+        Ok(tx
             .prepare(
                 "SELECT p.match_id, p.games_played, m.connection_id, p.attempts, p.first_at
                  FROM blumint_progress p JOIN matches m ON m.id = p.match_id
@@ -143,15 +154,11 @@ impl Queue for Progress {
                     first_attempt_at: row.get(4)?,
                 })
             })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for row in &rows {
-            tx.execute(
-                "UPDATE blumint_progress SET state = 'delivering', next_at = ?1, attempts = ?2
-                 WHERE match_id = ?3 AND games_played = ?4",
-                params![until, row.attempt, row.item.match_id, row.item.games_played],
-            )?;
-        }
-        Ok(rows)
+            .collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    fn key(item: &Due) -> Vec<&dyn ToSql> {
+        vec![&item.match_id, &item.games_played]
     }
 
     async fn attempt(&self, state: &AppState, item: &Due) -> Outcome {
@@ -190,26 +197,8 @@ impl Queue for Progress {
     }
 
     fn record(&self, tx: &Transaction<'_>, leased: &Leased<Due>, record: &Record) -> Result<()> {
-        let (state, next, error) = match &record.settled {
-            Settled::Delivered => ("delivered", record.at, None),
-            Settled::Retry { at, error } => ("retrying", *at, Some(error.as_str())),
-            Settled::Refused(error) | Settled::Expired(error) => {
-                ("failed", record.at, Some(error.as_str()))
-            }
-        };
-        let changed = tx.execute(
-            "UPDATE blumint_progress SET state = ?1, next_at = ?2, first_at = COALESCE(first_at, ?3)
-             WHERE match_id = ?4 AND games_played = ?5 AND state = 'delivering' AND attempts = ?6",
-            params![
-                state,
-                next,
-                record.first_attempt_at,
-                leased.item.match_id,
-                leased.item.games_played,
-                leased.attempt
-            ],
-        )?;
-        if changed == 1 {
+        let recorded = Self::TABLE.record(tx, &Self::key(&leased.item), leased.attempt, record)?;
+        if let Some(state) = recorded {
             audit(
                 tx,
                 record.at,
@@ -217,7 +206,7 @@ impl Queue for Progress {
                 "blumint.progress",
                 &leased.item.match_id,
                 state,
-                error,
+                record.settled.error(),
             )?;
         }
         Ok(())

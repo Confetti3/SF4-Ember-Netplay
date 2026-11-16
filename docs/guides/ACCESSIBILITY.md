@@ -152,7 +152,7 @@ A fresh install opens on a welcome. Its first question, "Do you want Ember
 to speak?", is spoken even before speech is on: press A or Enter on "Yes,
 read menus aloud". Settings, Accessibility has Speech as its first
 panel, and Text and language holds Interface size and TV mode, which make
-everything larger. See [V2 menus](V2_MENUS.md#speech).
+everything larger (Interface size can also make it smaller). See [V2 menus](V2_MENUS.md#speech).
 
 ## Credits
 

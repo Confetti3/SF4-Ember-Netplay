@@ -1,5 +1,7 @@
 #pragma once
 #include "../common/Country.hxx"
+#include "../common/GameLettering.hxx"
+#include "../common/PointDigits.hxx"
 #include <imgui.h>
 #include <functional>
 #include <memory>
@@ -33,6 +35,22 @@ public:
 // Sf4SelectionArt.cxx, and the runtime's tests have the fake game's
 // (tests/fake_selection.cxx). Ember's own pictures, the cache and the
 // decoding are the same for every game.
+// The game's point digits: their sheet, and each glyph's ink in it. `sheet` is
+// set once the sheet has loaded and been measured.
+struct PointDigitSheet {
+    SelectionImage image;
+    std::shared_ptr<const point_digits::Sheet> sheet;
+};
+// The game's lettering for the points' labels (GameLettering.hxx): the sheet
+// drawn from its font, and where each glyph is in it. `sheet` is set once the
+// font has been read and drawn.
+struct GameLetterSheet {
+    SelectionImage image;
+    std::shared_ptr<const game_lettering::Sheet> sheet;
+};
+
+// File reads, decompression, and WIC decoding run on a worker. Only Pump touches
+// D3D9. Construct/destroy with the overlay's device lifecycle, outside DllMain.
 class SelectionArt {
 public:
     // Receives one line per image that could not be loaded, or that needed a
@@ -77,6 +95,14 @@ public:
     // An emblem from the game's own online ranking archive by its entry name,
     // such as "class_B.dds" (USF4's class emblems, NameMarks.cxx).
     SelectionImage RankingEmblem(const std::string& entry);
+    // The digits of the game's ranked result screen (point_digits, PointDigits.hxx)
+    // and the lettering of its PP and BP (GameLettering.hxx), read from the game
+    // at runtime and never repackaged, from the files the game names
+    // (PointDigitFiles, LetterFiles). Empty for a game that names none, which
+    // sets points in Ember's own font; missing, with a log line, when the
+    // game lacks a file or it is not as measured.
+    PointDigitSheet PointDigits();
+    GameLetterSheet GameLetters();
 
     // Ember's own pictures.
     // Ember's developer mark (assets/input/mark_developer.png), shown in place
@@ -108,6 +134,12 @@ private:
     // Ember's packaged picture for `key` under assetRoot: its cutout, then
     // .png, then .jpg.
     std::vector<std::wstring> PackagedFiles(const std::string& key) const;
+    // The game's own files for its point digits (the sheet inside an archive,
+    // named by `entry`) and its lettering (a font library): none where the
+    // game has none. Each game defines both, as it defines its pictures.
+    struct GameSheet { std::vector<std::wstring> files; std::string entry; };
+    GameSheet PointDigitFiles() const;
+    GameSheet LetterFiles() const;
 
     std::wstring gameRoot_, assetRoot_;
     // The keys a request is built in, kept from one request to the next, so

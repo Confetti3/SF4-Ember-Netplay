@@ -254,13 +254,7 @@ pub async fn accounts(State(state): State<AppState>, headers: HeaderMap) -> Resu
             .organizer
             .as_ref()
             .and_then(|organizer| organizer.create.as_ref())
-            .map(|create| {
-                create
-                    .fields
-                    .iter()
-                    .map(|(name, field)| (name.clone(), json!(field.values)))
-                    .collect::<serde_json::Map<_, _>>()
-            });
+            .map(|create| create.choices());
         let home = url::Url::parse(&defined.authorize_url)
             .map(|url| url.origin().ascii_serialization())
             .unwrap_or_default();

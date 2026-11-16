@@ -10,6 +10,9 @@ use crate::{
 };
 
 pub const LOOKUP_PATH: &str = "/v1/players/lookup";
+/// The player who signed a `tournament.act` challenge for the bridge's
+/// tournament service, asked by that service's connection.
+pub const PROVER_PATH: &str = "/v1/players/prover";
 /// Capabilities features: the bridge has the lookup route, and sends results
 /// to a connection's `results_url`.
 pub const LOOKUP_FEATURE: &str = "players.lookup";
@@ -45,6 +48,26 @@ pub struct LookupAnswer {
     /// was before `accounts` existed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub accounts: Vec<FoundAccount>,
+}
+
+/// `POST /v1/players/prover`: a challenge the tournament service issued and
+/// the proof the player's game signed for it. The bridge checks the signature
+/// against the player's key and that the challenge is for the service; the
+/// service checks the rest of the binding (path, command) and single use.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Prover {
+    pub challenge: crate::challenge::Challenge,
+    pub proof: crate::challenge::Proof,
+}
+
+/// Who signed it: their Discord account when they connected one, linked on
+/// the service's connection as a lookup links it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProverAnswer {
+    pub ember_id: EmberId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub player: Option<FoundPlayer>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

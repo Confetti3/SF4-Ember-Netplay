@@ -1,6 +1,6 @@
 //! A running event's sets: the connector's snapshot, served to the desk
 //! and, when public, to anyone, with the desk's actions on a set.
-use super::*;
+use super::{public_set::PublicSet, *};
 
 /// The largest set snapshot the connector sends: `MAX_SETS` sets of a few
 /// hundred bytes each.
@@ -77,7 +77,7 @@ fn post_news(
         [id],
         |row| row.get(0),
     )?;
-    for set in desk_sets(tx, id, site.as_deref(), Some(stored), true)? {
+    for set in desk_sets(tx, id, site.as_deref(), Some(stored))? {
         let (Some(set_id), Some(match_id)) = (set["id"].as_str(), set["match_id"].as_str()) else {
             continue;
         };
@@ -144,7 +144,7 @@ pub async fn sets(
                 return Ok(None);
             };
             Ok(Some(json!({
-                "sets": desk_sets(tx, &id, site.as_deref(), stored.as_deref(), true)?,
+                "sets": desk_sets(tx, &id, site.as_deref(), stored.as_deref())?,
                 "updated_at": at,
             })))
         })
@@ -196,7 +196,10 @@ pub async fn public(State(state): State<AppState>, Path(id): Path<String>) -> Re
                 "starts_at": starts_at,
                 "site": site,
                 "links": settings(&links),
-                "sets": desk_sets(tx, &id, site.as_deref(), stored.as_deref(), false)?,
+                "sets": desk_sets(tx, &id, site.as_deref(), stored.as_deref())?
+                    .iter()
+                    .map(PublicSet::of)
+                    .collect::<Vec<_>>(),
                 "updated_at": at,
                 "sign_ups_open": sign_ups_open,
             })))
@@ -312,7 +315,7 @@ pub async fn mark(
                     [&id],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )?;
-                let found = desk_sets(tx, &id, site.as_deref(), stored.as_deref(), true)?
+                let found = desk_sets(tx, &id, site.as_deref(), stored.as_deref())?
                     .into_iter()
                     .find(|shown| shown["id"] == json!(set))
                     .unwrap_or_else(|| json!({ "id": set }));
@@ -392,15 +395,14 @@ pub async fn adjudicate(
 
 /// A kept snapshot's sets with what the bridge knows of each one's Ember
 /// match: score, players (by their account on the event's site, else the
-/// name the site shows for the entry; their Ember IDs when `with_ids`), the
-/// round its metadata names when the snapshot has none, and the desk state.
-/// Without `with_ids` no ID of the site's or Ember's is left in a set.
+/// name the site shows for the entry; their Ember IDs), the round its
+/// metadata names when the snapshot has none, and the desk state. This is the
+/// organizer's view, IDs included; the public one is `PublicSet`.
 fn desk_sets(
     tx: &Transaction<'_>,
     event: &str,
     site: Option<&str>,
     stored: Option<&str>,
-    with_ids: bool,
 ) -> Result<Vec<Value>> {
     let sets: Vec<Value> = stored
         .and_then(|stored| serde_json::from_str(stored).ok())
@@ -457,13 +459,11 @@ fn desk_sets(
                         *player = json!(name);
                     }
                 }
-                if with_ids {
-                    set["ember_ids"] = json!(found.ember_ids);
-                    // What a decision from the desk names as its
-                    // `expected_revision`.
-                    set["revision"] = json!(found.revision.to_string());
-                    set["games"] = json!(found.games);
-                }
+                set["ember_ids"] = json!(found.ember_ids);
+                // What a decision from the desk names as its
+                // `expected_revision`.
+                set["revision"] = json!(found.revision.to_string());
+                set["games"] = json!(found.games);
             }
             if let Some(set) = set.as_object_mut() {
                 set.remove("names");
@@ -471,11 +471,6 @@ fn desk_sets(
             set["players"] = json!(players);
             set["side"] = json!(side(&set));
             set["desk_state"] = json!(desk_state(&set, found.as_ref().map(|f| f.state.as_str())));
-            if !with_ids && let Some(set) = set.as_object_mut() {
-                set.remove("match_id");
-                set.remove("entries");
-                set.remove("discord");
-            }
             Ok(set)
         })
         .collect()

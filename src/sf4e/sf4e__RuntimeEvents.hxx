@@ -8,6 +8,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include "../common/MatchResult.hxx"
 #include "../common/NoticeSeverity.hxx"
@@ -36,6 +38,14 @@ namespace sf4e {
 	namespace NetplayFacade {
 		// Called on the game thread when the native main menu first ticks.
 		void NotifyRuntimeEventSystemReady();
+		// The game's window and whether the game owns the whole screen (exclusive
+		// full screen). Any thread, at any time: the file picker is shown over the
+		// window, and refused over a full screen.
+		void NoteGameWindow(void* window);
+		void NoteExclusiveFullScreen(bool exclusive);
+		// Replay files dropped on the game's window (UTF-8 paths): queued with the
+		// picker's and a link's, and imported when Ember's menus are in front.
+		void HandReplayFiles(const std::vector<std::string>& files);
 
 		// The battle, and its rollback session.
 		// Once its battle has loaded, the game starts the rollback session on the

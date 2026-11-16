@@ -35,6 +35,11 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
     if (value.roomTableCount != static_cast<int>(room::ClassicTableCount)) json["tableCount"] = value.roomTableCount;
     // Only on is written; a document without the key reads as off.
     if (value.roomWiredOnly) json["wiredOnly"] = true;
+    // Only Hidden is written; a document without the key reads as Friends.
+    if (value.roomFriendsHidden) json["friendsHidden"] = true;
+    if (value.publicRoomType != room::RoomType::Classic) json["publicType"] = static_cast<int>(value.publicRoomType);
+    if (value.publicArcadeTables != static_cast<int>(room::TableCount)) json["publicTables"] = value.publicArcadeTables;
+    if (!value.publicRoomTemplate.empty()) json["publicTemplate"] = value.publicRoomTemplate;
     if (!value.roomTemplates.empty()) {
         auto& templates = json["templates"] = nlohmann::json::array();
         for (const auto& saved : value.roomTemplates) {
@@ -48,6 +53,7 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
                 {"practice", saved.practice}, {"delay", saved.delayPolicy == room::DelayPolicy::Own ? "own" : "shared"}, {"tables", std::move(tables)}});
             if (saved.tableCount != static_cast<int>(room::ClassicTableCount)) templates.back()["tableCount"] = saved.tableCount;
             if (saved.wiredOnly) templates.back()["wiredOnly"] = true;
+            if (saved.friendsHidden) templates.back()["friendsHidden"] = true;
         }
     }
     return json;
@@ -98,6 +104,7 @@ inline std::vector<RoomTemplate> ReadRoomTemplates(const nlohmann::json& default
             saved.delayPolicy = DelayPolicyOr(item);
             saved.tableCount = item.value("tableCount", static_cast<int>(room::ClassicTableCount));
             saved.wiredOnly = item.value("wiredOnly", false);
+            saved.friendsHidden = item.value("friendsHidden", false);
             const auto& tables = item.at("tables");
             if (!tables.is_array() || tables.size() != room::TableCount) continue;
             bool read = true;
@@ -125,6 +132,7 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
         if (defaults.contains("capacity") && !defaults["capacity"].is_number_integer()) return false;
         if (defaults.contains("public") && !defaults["public"].is_boolean()) return false;
         if (defaults.contains("wiredOnly") && !defaults["wiredOnly"].is_boolean()) return false;
+        if (defaults.contains("friendsHidden") && !defaults["friendsHidden"].is_boolean()) return false;
         if (defaults.contains("delay") && (!defaults["delay"].is_string() ||
             (defaults["delay"].get<std::string>() != "own" && defaults["delay"].get<std::string>() != "shared"))) return false;
         PlayerPreferences candidate = inherited;
@@ -139,6 +147,15 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
         candidate.roomPublic = defaults.value("public", candidate.roomPublic);
         candidate.roomDelayPolicy = DelayPolicyOr(defaults);
         candidate.roomWiredOnly = defaults.value("wiredOnly", false);
+        candidate.roomFriendsHidden = defaults.value("friendsHidden", false);
+        const auto publicType = defaults.value("publicType", static_cast<std::int64_t>(room::RoomType::Classic));
+        if (!room::ValidRoomType(publicType)) return false;
+        candidate.publicRoomType = static_cast<room::RoomType>(publicType);
+        if (defaults.contains("publicTables") && !defaults["publicTables"].is_number_integer()) return false;
+        const auto publicTables = defaults.value("publicTables", static_cast<std::int64_t>(room::TableCount));
+        if (publicTables < 1 || publicTables > static_cast<std::int64_t>(room::TableCount)) return false;
+        candidate.publicArcadeTables = static_cast<int>(publicTables);
+        candidate.publicRoomTemplate = defaults.value("publicTemplate", std::string());
         if (!ReadTableRules(defaults, candidate.tableRules)) return false;
         if (defaults.contains("publicRules") &&
             (!defaults["publicRules"].is_object() || !ReadTableRules(defaults["publicRules"], candidate.publicTableRules))) return false;

@@ -90,7 +90,7 @@ void WatchRechecks() {
  v.tournament.list.bridge = "brg_1";
  // The list is asked for, and comes back without the match.
  const auto asked = [&] {
-  return std::any_of(sent.begin(), sent.end(), [](const ShellAction& s) { return s.tournament.op == Command::Op::Refresh; });
+  return std::any_of(sent.begin(), sent.end(), [](const ShellAction& s) { return TournamentIs(s, Command::Op::Refresh); });
  };
  for (int i = 0; i < 6 && !asked(); ++i) panel.Update(v, "tournament-matches", submit, now += 1);
  Check(asked(), "The match link did not ask for the list");
@@ -101,7 +101,7 @@ void WatchRechecks() {
   panel.Activate(a, v, nav);
   sent.clear();
   panel.Update(v, "tournament-matches", submit, now += 1);
-  return std::any_of(sent.begin(), sent.end(), [](const ShellAction& s) { return s.tournament.op == Command::Op::Watch; });
+  return std::any_of(sent.begin(), sent.end(), [](const ShellAction& s) { return TournamentIs(s, Command::Op::Watch); });
  };
  Check(!press("tm-watch:emt_1"), "Watch went out for a match the player was not offered");
  v.identity.state = "locked"; Check(!press("tm-watch:emt_9"), "Watch went out with no Ember ID ready");
@@ -115,8 +115,9 @@ void WatchRechecks() {
  v.identity.bridges.clear(); Check(!press("tm-watch:emt_9"), "Watch went out for a service the player no longer trusts");
  v.identity.bridges = {{"brg_1", "https://bridge.example", "Example"}};
  Check(press("tm-watch:emt_9"), "Watch did not go out for a match that can be watched");
- const auto went = std::find_if(sent.begin(), sent.end(), [](const ShellAction& s) { return s.tournament.op == Command::Op::Watch; });
- Check(went != sent.end() && went->tournament.matchId == "emt_9" && went->tournament.bridgeId == "brg_1", "Watch did not name its service and match");
+ const auto went = std::find_if(sent.begin(), sent.end(), [](const ShellAction& s) { return TournamentIs(s, Command::Op::Watch); });
+ Check(went != sent.end() && Is<commands::Tournament>(*went, [](const commands::Tournament& t) { return t.tournament.matchId == "emt_9" && t.tournament.bridgeId == "brg_1"; }),
+  "Watch did not name its service and match");
 }
 
 // A match link to a service that is not trusted shows the Watch row with why it cannot be used.

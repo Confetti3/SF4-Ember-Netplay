@@ -12,6 +12,7 @@
 #include "../ui/RecoveryMenu.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "imgui_test_support.hxx"
+#include "shell_action_support.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <algorithm>
@@ -23,14 +24,17 @@
 #include <set>
 #include <stdexcept>
 using namespace sf4e::ui;
+using namespace sf4e::test;
+namespace commands=sf4e::commands;
 using Button=ControllerSample;
-using Kind=sf4e::netplay::CommandKind;
 namespace {
 void Check(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
 // The fighter drawn right of `fighter` in USFIV's select order, which is where Right goes.
 int DisplayedAfter(int fighter){const int* at=std::find(std::begin(sf4e::selection::RosterDisplayOrder),std::end(sf4e::selection::RosterDisplayOrder),fighter);return at[1];}
 struct Harness {
  ApplicationShell shell;ShellView view;std::vector<ShellAction> actions;bool open=true,accept=true;
+ // What the prompt over the WIN sent of the player's answer: nothing, now the runtime says it (kept to show the shell does not).
+ std::vector<sf4e::room::Action> said;
  std::function<void()> selection=[]{},developer;
  HeadlessImGui imgui; // last: created after the shell and destroyed before it
  Harness(){
@@ -39,8 +43,10 @@ struct Harness {
   shell.SetAnnouncedStore([]{return std::vector<sf4e::platform::AnnouncedMatch>{};},[](const std::vector<sf4e::platform::AnnouncedMatch>&){return true;});
  }
  void Frame(unsigned buttons=0,int count=1,float seconds=1.f/60){
-  for(int i=0;i<count;++i){auto& io=ImGui::GetIO();io.DeltaTime=seconds;SetMenuInput({buttons,0});ImGui::NewFrame();
-   shell.Draw(view,&open,[&](ShellAction a){actions.push_back(a);return accept;},selection,developer);
+  for(int i=0;i<count;++i){imgui.Use();auto& io=ImGui::GetIO();io.DeltaTime=seconds;SetMenuInput({buttons,0});ImGui::NewFrame();
+   shell.Draw(view,&open,[&](ShellAction a){
+    if(const auto* r=std::get_if<commands::RoomAction>(&a);r&&r->roomAction.kind==sf4e::room::ActionKind::PostMatchAnswer){said.push_back(r->roomAction);return accept;}
+    actions.push_back(a);return accept;},selection,developer);
    ImGui::Render();}
  }
  // One frame that lets `seconds` of interface time pass (the shell's clock is ImGui's).

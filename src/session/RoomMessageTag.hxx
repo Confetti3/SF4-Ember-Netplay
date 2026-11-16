@@ -9,10 +9,25 @@
 #include <nlohmann/json.hpp>
 
 #include "SessionTransport.hxx"
+#include "SessionRecovery.hxx"
 #include "RoomMessageQueue.hxx"
 #include "sf4e__SessionProtocol.hxx"
 
 namespace sf4e { namespace session {
+
+// A committed effect's place in the room journal, and for room state its kind,
+// read from its token as it is queued, with the parse the effect gate uses.
+// The gate still authenticates the token at the queue head; one that does not
+// read is left unmarked here and is dropped there.
+inline void ReadCommitToken(const nlohmann::json& decoded, MessageTag& tag) {
+	EffectEnvelope token;
+	try { decoded.at("_commit").get_to(token); } catch (const std::exception&) { return; }
+	tag.commitTerm = token.term; tag.commitRevision = token.revision;
+	tag.commitSequence = token.sequence; tag.commitRecipient = token.recipient;
+	if (tag.type == "data_update") tag.projection = RoomProjection::TableData;
+	else if (tag.type == "room_snapshot")
+		tag.projection = CarriesRoomChat(decoded) ? RoomProjection::SnapshotWithChat : RoomProjection::Snapshot;
+}
 
 inline MessageTag ClassifyRoomMessage(const nlohmann::json& decoded) {
 	MessageTag tag;
@@ -21,6 +36,7 @@ inline MessageTag ClassifyRoomMessage(const nlohmann::json& decoded) {
 	const auto type = decoded.find("type");
 	if (type != decoded.end() && type->is_string()) tag.type = type->get<std::string>();
 	tag.committed = decoded.contains("_commit");
+	if (tag.committed) ReadCommitToken(decoded, tag);
 	tag.terminalReplay = decoded.contains("_terminal_replay");
 	tag.verification = IsVerificationType(tag.type);
 	// Only the string "room_action" reads as MT_ROOM_ACTION.

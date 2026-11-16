@@ -4,10 +4,33 @@
 // work as in the game.
 //
 // F1 lab bar · F2 next size · F4 text size · F5 in a room · F6 picture · F12 screenshot
-// --public: an Ember ID, a relay in Europe and five public rooms (Online play, Public rooms).
+// --public: an Ember ID, a relay in Europe and five public rooms (Online play, Public rooms); with --profile noaccount the
+//   list leads with the notice that ranked play needs Discord (--screen public-rooms, or create for its one line).
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
+// --news stress: News (--screen news) also lists a release with a very long title and tag and a notes line that is one long word
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
+// --archive full|more|loading|failed|unsupported|empty|nobridge: Replays' Archive tab with the public archive's listing in
+//   that state (--screen replay-archive, replay-archive-filter or replay-archive-fighter)
+// --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's levels (--screen card, fighters,
+//   card-edit, card-looking, card-pins, awards or home; awards without it reads played)
+// --friends full|requests|notifications|privateoffer|othergame|empty|noaccount|unavailable|loading|unreachable|offline: the player's friends in
+//   that state (--screen friends, friends-add, friends-sent or friends-blocked; UiLabSocial.hxx); with --toasts the
+//   requests and an invite arrive as toasts (--friends full --toasts); --screen tab-online/friends is the Settings panel;
+//   --friends notifications --screen notifications lists Player 2's request and an invite waiting
+// --player friend|room|stranger|asked|sent|blocked|nocard|nobody|several|reading|unreachable|unsupported: another player's
+//   profile page in that state (--screen player-card, player-fighters, player-sets, player-awards or player-pick;
+//   UiLabSocial.hxx); --screen sets is the player's own Sets tab
+// --find recent|empty with --friends: Find a player's page (--screen friends-add) listing the players met lately, or none
+//   (UiLabSocial.hxx); --friends full also reads each friend's card, which the Friends tab's panel draws
+// --relation none|friend|sent|received|blocked with --points: every member of the room stands that way with the player, which the
+//   post-match prompt's Add friend box says (--postmatch choose --points public --relation none)
+// --levels: fighter points in the game's digits, bands on pictures and meters
+//   (all of it shows in --size 3840x2160)
+// --points public|private with --room or --arcade: every member's card as the bridge would have it, in a public room
+//   or a private one (which shows none). Akira keeps their points private and Riley has no card yet; FRaccie's
+//   own points are --profile's (played). On a wide window --screen room-members --keys enter opens a member's popout, and a
+//   second enter their page; the relations go round the members (none, friend, request sent, received, blocked).
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
 // --check report.txt (with --shot): appends each line cut short, text taller than its row and cards overlapping on the
 //   last frame to the report, named by the shot, and exits 2 when there is any (lab/uilab-v2-check.sh tours every screen)
@@ -15,16 +38,19 @@
 //   and writes each step there; exits when it is done, 3 when a step failed
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
 // --seats watch|none with --room: FRaccie watches table 2's game, or has no place in the Classic room
-// UiLab.exe [--size WxH] [--scale 1.25] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--points public|private] [--rankings] [--profile state] [--friends state] [--find state] [--relation word] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 // --trace trace.txt (with --shot): writes the screen and the focused row before the first key and after each one,
 //   so a walk's presses can be counted without reading the pictures
+#include "UiLabNews.hxx"
+#include "UiLabSocial.hxx"
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
 #include "../FighterSelector.hxx"
 #include "../MenuWalk.hxx"
 #include "../RecoveryMenu.hxx"
 #include "../ReplayPlaybackHud.hxx"
+#include "../../common/WatchCaption.hxx"
 #include "../SelectionArt.hxx"
 #include "../SelectionArtD3D9.hxx"
 #include "../TrainingPanel.hxx"
@@ -42,9 +68,12 @@
 #include <array>
 #include <cfloat>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <map>
+#include <memory>
 #include <set>
 #include <sstream>
 #include <string>
@@ -130,22 +159,21 @@ ui::ShellView FakeView() {
     view.controllerReady = view.canChangeController = view.canEditPreferences = view.canEditSelection = view.canChangeUltra = view.canOpenRoom = view.helperReady = true;
     view.controller = "Xbox pad";
     view.preferences.displayName = "FRaccie";
+    // This PC's own confirmed online games: fewer than the account's rated games, which the bridge counts from every PC.
+    view.preferences.record.wins = 312; view.preferences.record.losses = 198;
     view.automaticCountry = CountryCode::Parsed("BE");
+    view.automaticArea = Area::EuropeWest;
     view.selectionSummary = "Ryu / Original / Color 01 / Ultra I";
     // The pick the room's Ultra button and Table options' Ultra row step and open.
     view.fighterName = "Ryu"; view.ultraName = "Ultra I: Metsu Hadoken"; view.ultraSteps = view.colorSteps = true;
     view.selectedPick.fighter = 0; view.selectedPick.ultra = 0;
-    // The card's title and icon, and Home's news, as the backend and the release check give them.
-    view.playerTitle = "TOURNAMENT ORGANIZER"; view.playerTier = ui::v2::Tier::Gold; view.playerIcon = 7;
-    // The awards earned (six of eleven), the Weekly top 8 worn (--screen awards).
-    view.earnedAwards = {"entrant", "launch-night", "weekly-top16", "rollback-regular", "weekly-top8", "organizer"};
-    view.preferences.wornTitle = view.preferences.wornIcon = "weekly-top8";
+    // The card's title and icon are the awards worn (the shell shows a worn award only once it is earned), and Home's news is the release check's.
+    // The awards come from the points (--profile played reaches levels in most families), the Wins family worn (--screen awards).
+    view.preferences.wornTitle = view.preferences.wornIcon = "wins";
     // The installed build, which Home's corner and Help and about name with its kind (VersionLine).
     view.services.installedVersion = "1.5.0";
-    view.services.update.news = {{"v1.3.0", "Ember 1.3.0", "2026-10-21", "New menus: categories, panels and choices.\n- Spectators keep watching through Alt+Enter.", ""},
-        {"v1.2.1", "Ember 1.2.1", "2026-10-17", "Fixes for rollback saves.", ""}, {"v1.2.0", "Ember 1.2.0", "2026-10-14", "Borderless window setting.", ""}};
-    view.services.update.news.insert(view.services.update.news.begin() + 1, {"v1.3.0-nightly.12", "Nightly 1.3.0.12", "2026-10-19", "Room board fits Steam Deck.\n- Speech for menus.", ""});
-    for (auto& n : view.services.update.news) { n.stable = n.tag.find('-') == std::string::npos; n.newer = n.tag > "v1.2.0"; }
+    // Five releases as the update check lists them (UiLabNews.hxx); --news stress puts a very long one in front.
+    view.services.update.news = uilab::NewsReleases();
     // Replays: matches played and watched, the first three a set (newest first).
     auto archive = std::make_shared<std::vector<platform::replays::ArchivedReplay>>();
     const auto replay = [&](const char* file, const char* date, std::uint64_t time, const char* a, const char* b, int fa, int fb, int sa, int sb, bool spectated, bool seen) {
@@ -184,9 +212,12 @@ void JoinRoom(ui::ShellView& view) {
         if (i <= 6) { m.setsWon = static_cast<std::uint16_t>(i % 4); m.setsLost = static_cast<std::uint16_t>(i % 3); }
         // Class marks and pings, as a public room shows them.
         m.badge = i == 2 ? SkillBadge::Developer() : i == 3 ? SkillBadge::Placing() : i < 9 ? SkillBadge::OfClass(static_cast<std::uint8_t>(i), i % 2 == 0) : SkillBadge{};
-        if (i > 1) { session::MemberLatency l; l.incarnation = m.incarnation; l.state = session::MemberLatency::State::Value; l.rttMs = 20 + i * 13 % 190; l.relay = i % 3 == 0; view.memberLatency[m.id] = l; }
+        // Member 2 is the opponent, checked below; member 3 is measured through a relay, member 5 not measured yet.
+        if (i > 1) { session::MemberLatency l; l.incarnation = m.incarnation; l.state = i == 5 ? session::MemberLatency::State::Measuring : session::MemberLatency::State::Value; l.rttMs = i == 5 ? 0 : 20 + i * 13 % 190; l.relay = i % 3 == 0; view.memberLatency[m.id] = l; }
         view.room.members.push_back(m);
     }
+    // This PC's connection check against its opponent (member 2): direct, 9 ms, 1.2 ms jitter, so their row shows the match's own figure.
+    view.probeStatus = "ready"; view.recommendedDelay = 2; view.probeRoute = sf4e::RouteKind::Direct; view.probeP50Us = 9000; view.probeP95Us = 11000; view.probeJitterUs = 1200;
     const char* chat[] = {"Welcome! Grab a table or join a queue.", "Good games. I'll watch the next one.", "Ready for another set?", "Let's run it back!"};
     for (int i = 0; i < 12; ++i) view.room.chat.push_back({static_cast<std::uint64_t>(i + 1), static_cast<room::MemberId>(i % 16 + 1), chat[i % 4]});
 }
@@ -198,11 +229,11 @@ void JoinRoom(ui::ShellView& view) {
 void ArcadeRoom(ui::ShellView& view, room::RoomType type, const std::string& seats) {
     JoinRoom(view);
     const bool full = seats == "full";
-    view.room.arcade = type; view.room.name = type == room::KingRoom ? "King of the hill" : "FRaccie's arcade"; view.room.members.resize(full ? 16 : 9);
+    view.room.type = type; view.room.name = type == room::RoomType::King ? "King of the hill" : "FRaccie's arcade"; view.room.members.resize(full ? 16 : 9);
     const char* names[] = {"FRaccie", "Katie", "Jimbo", "Deck01", "Ash", "Mo", "Lena", "TJ", "Rook", "Sven", "Marn", "Kaz", "Nia", "Otto", "Yui", "Bram"};
     for (auto& m : view.room.members) { m.id = static_cast<room::MemberId>(&m - view.room.members.data() + 1); m.name = names[m.id - 1]; m.table = m.seat = -1; m.status = room::MemberStatus::Idle; }
     for (std::size_t i = 0; i < room::TableCount; ++i) view.room.tables[i] = {}, view.room.tables[i].id = static_cast<std::uint8_t>(i), view.room.tables[i].revision = 1;
-    const bool king = type == room::KingRoom;
+    const bool king = type == room::RoomType::King;
     // Cabinet, member, table, seat, streak.
     const int arcade[][5] = {{0, 2, 0, 0, 0}, {9, 3, 0, 1, 0}, {2, 4, 1, 0, 0}, {5, 5, 1, 1, 0}, {3, 6, 4, 0, 0}, {6, 7, 2, 0, 0}, {14, 8, 2, 1, 0}, {11, 1, 3, 0, 0}, {12, 9, 3, 1, 0}};
     const int hill[][5] = {{0, 2, 0, 0, 5}, {8, 3, 0, 1, 0}, {2, 4, 1, 0, 2}, {3, 5, 1, 1, 0}, {5, 6, 2, 0, 3}, {13, 7, 2, 1, 0}, {10, 8, 3, 0, 1}, {15, 9, 3, 1, 0}, {6, 1, 4, 0, 1}};
@@ -233,6 +264,54 @@ void ArcadeRoom(ui::ShellView& view, room::RoomType type, const std::string& sea
     else { view.room.tables[3].deciding = true; view.room.tables[3].rematch[1] = true; view.room.tables[4].waitingSince = 1; }
     for (auto& line : view.room.chat) line.sender = static_cast<room::MemberId>((line.sender - 1) % view.room.members.size() + 1);
 }
+// --points: the cards of the room's members, by token (Member::card). The others' points are made up from their
+// fighter and main; the local member has no token, so the board reads their own points (--profile) as it would.
+void RoomPoints(ui::ShellView& view, bool listed, const std::string& relationState) {
+    view.room.serverOwned = listed;
+    constexpr std::uint64_t starts[netplay::levels::TierCount] = {0, 200, 700, 1500, 2500};
+    const std::uint64_t spread[] = {3480, 1986, 860, 412, 230, 86, 19};
+    // The friends' cards (--friends) stay beside the members'.
+    auto cards = view.memberCards ? std::make_shared<netplay::levels::CardMap>(*view.memberCards) : std::make_shared<netplay::levels::CardMap>();
+    for (auto& m : view.room.members) {
+        if (m.id == view.room.localMember) continue;
+        m.card = CardToken::Parsed("c1.lab" + std::to_string(m.id));
+        if (m.name == "Riley") continue;
+        netplay::levels::Card card;
+        std::map<int, std::uint64_t> played{{m.fighter, spread[m.id % 7]}, {m.mainFighter, spread[(m.id + 3) % 7]}, {(m.id * 5) % 44, 41}};
+        // Akira has played nothing: a card is still public, at 0.
+        if (m.name == "Akira") played.clear();
+        std::uint64_t account = 0;
+        for (const auto& one : played) {
+            std::uint8_t tier = 0;
+            while (tier + 1 < netplay::levels::TierCount && one.second >= starts[tier + 1]) ++tier;
+            card.fighters.push_back({static_cast<std::uint8_t>(one.first), one.second, tier});
+            account += one.second;
+        }
+        card.account = {account, 0};
+        card.awards.games = m.id % 2 ? 100u : 10u; card.awards.wins = 50; card.awards.bestStreak = 5; card.awards.peakClass = 3 + m.id % 6;
+        using netplay::levels::Relation;
+        static const Relation relations[] = {Relation::None, Relation::Friend, Relation::Sent, Relation::Received, Relation::Blocked};
+        card.relation = relations[m.id % 5];
+        // --relation none|friend|sent|received|blocked: every member stands that way with the player (the post-match prompt's Add friend).
+        static const char* const words[] = {"none", "friend", "sent", "received", "blocked"};
+        for (std::size_t kind = 0; kind < 5; ++kind)
+            if (relationState == words[kind]) card.relation = relations[kind];
+        // What a bridge offering profiles adds: the name, how they play, what they wear and the record with the viewer. Riley wears a
+        // family nobody reached (drawn at no level), and Akira shows no chips.
+        card.name = m.name;
+        card.hasStyle = m.name != "Akira";
+        card.style.device = static_cast<netplay::profiles::Device>(1 + m.id % 4);
+        card.style.link = m.id % 2 ? netplay::profiles::Link::Wired : netplay::profiles::Link::WiFi;
+        card.style.area = Area::EuropeWest;
+        card.style.looking = static_cast<std::uint8_t>(m.id % 2 ? netplay::profiles::LookingLongSets | netplay::profiles::LookingTeach : netplay::profiles::LookingRanked);
+        card.worn.title = "wins"; card.worn.icon = m.id % 3 ? "streak" : "friends";
+        card.awards.rival = 12; card.awards.opponents = 30;
+        card.hasSince = true; card.since = 1740787200;
+        card.hasVersus = m.id % 2 == 0; card.versus.won = 3; card.versus.lost = 5; card.versus.lastAt = 1700000000 - 7200;
+        (*cards)[m.card.ToString()] = card;
+    }
+    view.memberCards = cards;
+}
 // A trusted Ember ID and a relay in Europe; PublicRooms lists rooms once asked.
 void PublicLab(ui::ShellView& view) {
     auto& id = view.identity;
@@ -250,18 +329,120 @@ void DrawLabBackdrop() {
     ImGui::End();
 }
 void PublicRooms(ui::ShellView& view) {
-    const auto room = [](const char* id, const char* name, const char* host, const char* region, unsigned members, unsigned capacity, unsigned playing) {
-        netplay::publicrooms::Room r; r.id = id; r.name = name; r.hostName = host; r.region = region; r.members = members; r.capacity = capacity; r.playing = playing;
-        r.hasDetails = true; r.setFormat = 2; r.rotation = 0; r.createdAt = 100; r.type = room::ClassicRoom;
+    const auto room = [](const char* id, const char* name, const char* host, Area area, unsigned members, unsigned capacity, unsigned playing) {
+        netplay::publicrooms::Room r; r.id = id; r.name = name; r.hostName = host; r.area = area; r.members = members; r.capacity = capacity; r.playing = playing;
+        r.hasDetails = true; r.setFormat = 2; r.rotation = 0; r.createdAt = 100; r.type = room::RoomType::Classic;
         for (unsigned i = 0; i < members; ++i) r.fighters.push_back(static_cast<int>(i * 5 % 44));
         return r;
     };
     auto& list = view.publicRooms;
     list.bridge = "brg_1"; list.loading = false; list.listedAt = 1300; ++list.listed;
-    list.rooms = {room("a", "EU Monday Night Fights", "Katie", "euc1", 6, 8, 2), room("b", "Ultra only, AE2012 welcome", "Daigo-fan", "euc1", 3, 4, 1),
-        room("c", "Beginners, ask anything", "Sven", "euc1", 2, 12, 0), room("d", "East coast casuals", "Marn", "use1", 8, 8, 3), room("e", "Tokyo late night", "Kaz", "aps1", 5, 10, 2)};
+    // Rooms in the player's area (Europe West), next to it, far from it, and one whose creator hid theirs.
+    list.rooms = {room("a", "EU Monday Night Fights", "Katie", Area::EuropeWest, 6, 8, 2), room("b", "Ultra only, AE2012 welcome", "Daigo-fan", Area::EuropeEast, 3, 4, 1),
+        room("c", "Beginners, ask anything", "Sven", Area::None, 2, 12, 0), room("d", "East coast casuals", "Marn", Area::NaEast, 8, 8, 3), room("e", "Tokyo late night", "Kaz", Area::EastAsia, 5, 10, 2)};
     // Each type of room on the board: Arcade cabinets and a King of the hill among the Classic tables.
-    list.rooms[0].type = room::ArcadeRoom; list.rooms[4].type = room::KingRoom;
+    list.rooms[0].type = room::RoomType::Arcade; list.rooms[4].type = room::RoomType::King;
+}
+// --archive full|more|loading|failed|unsupported|empty|nobridge: the public replay archive on a trusted service, as
+// Replays' Archive tab reads it (--screen replay-archive): a tournament set with the bridge's score, online matches of
+// two players (one with each side's flag and class) and one player's session, newest first. more: a next page is loading;
+// nobridge: no service is set up, so the tab says to set up the Ember ID.
+void Archive(ui::ShellView& view, const std::string& state) {
+    namespace ar = netplay::archive;
+    view.replays.ready = true;
+    view.preferences.classEmblems = true;
+    if (state == "nobridge") return;
+    auto& id = view.identity;
+    id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.fingerprint = "lab";
+    id.bridges = {{"brg_1", "https://bridge.example", "Example"}};
+    auto& status = view.archiveBrowse;
+    status.bridge = "brg_1";
+    status.state = state == "loading" ? ar::Status::State::Loading : state == "failed" ? ar::Status::State::Failed :
+        state == "unsupported" ? ar::Status::State::Unsupported : ar::Status::State::Listed;
+    if (state == "failed") status.error = "bridge_unreachable";
+    if (state == "unsupported") status.error = ar::Unsupported;
+    ++status.revision;
+    if (status.state != ar::Status::State::Listed) return;
+    unsigned counter = 0;
+    const auto game = [&](std::uint64_t at, const char* a, const char* b, int fighterA, int fighterB, const char* countryA, const char* countryB, int classA, int classB) {
+        ar::Game g;
+        char digest[80]; std::snprintf(digest, sizeof(digest), "%064x", ++counter);
+        g.digest = digest; g.url = std::string("https://archive.example/games/") + digest + ".emberreplay";
+        g.savedAt = at; g.size = 90000;
+        g.names = {{a, b}}; g.fighters = {{fighterA, fighterB}}; g.countries = {{countryA, countryB}}; g.classes = {{classA, classB}};
+        return g;
+    };
+    auto listing = std::make_shared<ar::Listing>();
+    const std::uint64_t now = 1700000000;
+    for (const std::uint64_t at : {now - 5400, now - 4800, now - 4200}) {
+        auto g = game(at, "Player 1", "Player 2", at % 3 ? 17 : 0, 12, "BE", "GB", 8, 0);
+        g.set = "emt_a"; g.event = "Sample Cup"; g.round = "Top 8"; g.phase = "Winners";
+        listing->games.push_back(g);
+    }
+    listing->sets["emt_a"].score = {{2, 1}};
+    listing->games.push_back(game(now - 3000, "Player 3", "Player 4", 2, 5, "JP", "NL", 10, 6));
+    listing->games.push_back(game(now - 2700, "Player 4", "Player 3", 5, 2, "NL", "JP", 6, 10));
+    for (const std::uint64_t at : {now - 9000, now - 8000, now - 7000})
+        listing->games.push_back(game(at, "Player 5", "", 9 + static_cast<int>(at % 4), 20, "GB", "", 4, 0));
+    listing->games.push_back(game(now - 20000, "Player 6", "Player 7", 33, 21, "GB", "GB", 0, 0));
+    std::sort(listing->games.begin(), listing->games.end(), [](const ar::Game& a, const ar::Game& b) { return a.savedAt > b.savedAt; });
+    listing->events = {"Sample Cup"}; listing->countries = {"BE", "GB", "JP", "NL"};
+    listing->total = 5200; listing->matching = state == "empty" ? 0 : 5200;
+    if (state == "empty") listing->games.clear();
+    if (state == "more") listing->next = "1700000000.0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    status.loadingMore = state == "more";
+    status.listing = listing;
+}
+// --sets full|few|none|loading|failed|unsupported: the player's recent sets as the Card tab asks the archive for them (the
+// profile's second slot, by the name Player 1), on a trusted service. full: six sets, a tournament set among online ones;
+// few: two; none: the archive holds none under the name; loading: the first page on its way; failed: unreachable;
+// unsupported: the service keeps no archive. Without it --profile reads full.
+void ProfileSets(ui::ShellView& view, const std::string& state, const std::string& player = "Player 1") {
+    namespace ar = netplay::archive;
+    view.replays.ready = true;
+    view.preferences.classEmblems = true;
+    view.unixNow = 1700100000;
+    auto& id = view.identity;
+    id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.fingerprint = "lab";
+    id.bridges = {{"brg_1", "https://bridge.example", "Example"}};
+    auto& status = view.profileSets;
+    status.bridge = "brg_1";
+    status.filter = ar::Filter::Named(player);
+    status.state = state == "loading" ? ar::Status::State::Loading : state == "failed" ? ar::Status::State::Failed :
+        state == "unsupported" ? ar::Status::State::Unsupported : ar::Status::State::Listed;
+    if (state == "failed") status.error = "bridge_unreachable";
+    if (state == "unsupported") status.error = ar::Unsupported;
+    ++status.revision;
+    if (status.state != ar::Status::State::Listed) return;
+    unsigned counter = 0;
+    const auto game = [&](std::uint64_t at, const char* a, const char* b, int fighterA, int fighterB, const char* countryA, const char* countryB, int classA, int classB) {
+        ar::Game g;
+        char digest[80]; std::snprintf(digest, sizeof(digest), "%064x", ++counter);
+        g.digest = digest; g.url = std::string("https://archive.example/games/") + digest + ".emberreplay";
+        g.savedAt = at; g.size = 90000;
+        g.names = {{a, b}}; g.fighters = {{fighterA, fighterB}}; g.countries = {{countryA, countryB}}; g.classes = {{classA, classB}};
+        return g;
+    };
+    auto listing = std::make_shared<ar::Listing>();
+    const std::uint64_t now = view.unixNow;
+    if (state != "none") {
+        // Online sets: games of the same two players within half an hour are one set.
+        for (const std::uint64_t at : {now - 7200, now - 6900, now - 6600}) listing->games.push_back(game(at, player.c_str(), "Player 7", 0, 20, "DE", "US", 8, 8));
+        listing->games.push_back(game(now - 90000, "Player 4", player.c_str(), 12, 0, "SE", "DE", 6, 8));
+        if (state != "few") {
+            for (const std::uint64_t at : {now - 200000, now - 199500}) listing->games.push_back(game(at, player.c_str(), "Player 9", 0, 3, "DE", "JP", 8, 0));
+            for (const std::uint64_t at : {now - 400000, now - 399000}) {
+                auto g = game(at, "Player 8", player.c_str(), 5, 0, "FR", "DE", 6, 8);
+                g.set = "emt_a"; g.event = "Weekly 12"; g.round = "Top 8"; g.phase = "Winners";
+                listing->games.push_back(g);
+            }
+            listing->sets["emt_a"].score = {{1, 2}};
+            listing->games.push_back(game(now - 500000, player.c_str(), "Player 5", 0, 7, "DE", "GB", 8, 7));
+            listing->games.push_back(game(now - 600000, "Player 6", player.c_str(), 21, 0, "ES", "DE", 5, 8));
+        }
+    }
+    std::sort(listing->games.begin(), listing->games.end(), [](const ar::Game& a, const ar::Game& b) { return a.savedAt > b.savedAt; });
+    status.listing = listing;
 }
 // An Ember ID on a trusted service (lab --rankings), and Rankings' answers from
 // it: FRaccie at B+ and listed, and a board of sixteen by class, as the design board.
@@ -283,6 +464,122 @@ void Rankings(ui::ShellView& view) {
         board->push_back({{std::get<0>(p), CountryCode::Parsed(std::get<1>(p))}, static_cast<std::uint8_t>(std::get<2>(p)), std::string(std::get<0>(p)) == "FRaccie"});
     r.board.value = board; r.board.loaded = true; r.board.revision = r.board.finished = 1;
 }
+// --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's
+// points as the card and the Fighters tab show them (--screen card or fighters).
+// played: twelve fighters, the main (Ryu) at 1986 points; fresh: counted, none played yet;
+// sixty: the main in the top tier (the name is kept from the levels); loading: the first
+// read in flight; unreachable: the first read failed.
+void Profile(ui::ShellView& view, const std::string& state) {
+    view.preferences.displayName = "Player 1";
+    // How the card says the player plays (Edit card's choices and what the game measures) and what it shows: Stick, wired in
+    // Europe, looking for long sets and a teacher, the Wins family worn as title and Matches as icon, two families chosen.
+    view.preferences.cardDevice = 2; view.preferences.cardLooking = netplay::profiles::LookingLongSets | netplay::profiles::LookingTeach;
+    view.preferences.wornTitle = "wins"; view.preferences.wornIcon = "matches"; view.preferences.cardPins = {"rank", "wins"};
+    view.ownLink = NetworkLink::Wired;
+    view.netReport.reported = true; view.netReport.relay = "euc1";
+    view.preferences.country = CountryPreference();
+    view.automaticCountry = CountryCode::Parsed("DE");
+    auto& answer = view.levels;
+    answer.loading = state == "loading";
+    answer.loaded = !answer.loading && state != "unreachable";
+    if (state == "unreachable") answer.error = "bridge_unreachable";
+    answer.revision = answer.finished = 1;
+    if (!answer.loaded) return;
+    auto& own = answer.value;
+    own.kind = state == "noaccount" ? netplay::levels::Own::Kind::NoAccount : state == "unavailable" ? netplay::levels::Own::Kind::Unavailable : netplay::levels::Own::Kind::Counted;
+    if (own.kind != netplay::levels::Own::Kind::Counted) return;
+    // The account's frame from its points, on its own tiers (500, 2000, 5000, 10000).
+    const auto accountFrame = [&] {
+        constexpr std::uint64_t accountStarts[netplay::levels::TierCount] = {0, 500, 2000, 5000, 10000};
+        auto& a = own.account;
+        a.tier = 0;
+        while (a.tier + 1 < netplay::levels::TierCount && a.points >= accountStarts[a.tier + 1]) ++a.tier;
+        a.floor = accountStarts[a.tier];
+        a.next = a.tier + 1 < netplay::levels::TierCount ? accountStarts[a.tier + 1] : 0;
+    };
+    if (state == "fresh") { accountFrame(); return; }
+    // The lab stands in for the bridge, which decides tiers: Ash from 0, Copper from 200, Silver from 700, Gold
+    // from 1500, Ember from 2500. A point is a game, and a win another.
+    constexpr std::uint64_t starts[netplay::levels::TierCount] = {0, 200, 700, 1500, 2500};
+    const auto set = [&](int fighter, std::uint64_t points) {
+        auto& l = own.fighters[fighter];
+        l.points = points;
+        l.tier = 0;
+        while (l.tier + 1 < netplay::levels::TierCount && points >= starts[l.tier + 1]) ++l.tier;
+        l.floor = starts[l.tier];
+        l.next = l.tier + 1 < netplay::levels::TierCount ? starts[l.tier + 1] : 0;
+        l.games = static_cast<std::uint64_t>(points / 1.5);
+        l.wins = points - l.games;
+        l.since = 1700000000 + static_cast<std::uint64_t>(fighter) * 86400;
+    };
+    set(0, state == "sixty" ? 12840 : 1986);
+    const std::uint64_t others[][2] = {{5, 3480}, {12, 860}, {7, 412}, {20, 230}, {3, 86}, {30, 41}, {40, 19}, {17, 7}, {9, 3}, {26, 2}, {33, 1}};
+    for (const auto& pair : others) set(static_cast<int>(pair[0]), pair[1]);
+    // The account's points are every game of every fighter.
+    for (const auto& level : own.fighters) {
+        own.account.points += level.points;
+        own.account.games += level.games;
+        own.account.wins += level.wins;
+    }
+    own.account.since = 1700000000;
+    // The best run of wins and the highest class ever shown, which the awards read.
+    own.awards = {own.account.games, own.account.wins, state == "sixty" ? 22u : 7u};
+    own.awards.peakClass = 6;
+    own.awards.rival = 40;
+    own.awards.opponents = 60;
+    // The opponent played most (every counted state but fresh).
+    own.hasMostPlayed = true;
+    own.mostPlayed.card = "c1.lab_rival"; own.mostPlayed.name = "Player 7"; own.mostPlayed.country = CountryCode::Parsed("US");
+    own.mostPlayed.badge = SkillBadge::OfClass(8, true); own.mostPlayed.won = 41; own.mostPlayed.lost = 33;
+    accountFrame();
+}
+// --levels: points as the game draws them (FIGHTER_LEVELS.md, Drawing points), wrapping across the window: the
+// numbers 0, 7, 86, 412, 1986 and 12840 and 999999 as `<number> FP` and `<number> BP` at 24, 48 and 96 px (the digits'
+// height), each row ending with a gain of +16 in the gold digits; the same once more with no art, as when the game's
+// sheet is missing (the heading font's digits); then a band on a picture, `<number> FP` on a shade at its foot, with
+// 0, 1, 4 and 6 digits and a narrow picture where the line shrinks to fit, each over a meter part way with a fresh end. The digits are the game's when the game folder (SF4E_GAME_DIR) has its ranked result archive.
+void DrawLevels() {
+    namespace v2 = ui::v2;
+    const auto* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
+    ImGui::Begin("Lab levels", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground);
+    auto* d = ImGui::GetWindowDrawList();
+    const auto& c = v2::Colors();
+    const float s = ui::Scale(), gap = std::round(8 * s), left = vp->Pos.x + 16 * s, right = vp->Pos.x + vp->Size.x - 16 * s;
+    d->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), c.panel);
+    ImVec2 at(left, vp->Pos.y + 16 * s);
+    const std::uint64_t samples[] = {0, 7, 86, 412, 1986, 12840, 999999};
+    const char* const labels[] = {"points.label", "points.account_label"};
+    const auto row = [&](float height) {
+        for (const char* label : labels) {
+            for (const auto points : samples) {
+                if (at.x + v2::LevelWidth(points, height, label) > right) at = ImVec2(left, at.y + height + gap);
+                at.x += v2::Level(d, at, height, points, label) + gap;
+            }
+        }
+        const float gain = std::round(height * .8f);
+        if (at.x + 4 * gain > right) at = ImVec2(left, at.y + height + gap);
+        at.x += v2::LevelGain(d, ImVec2(at.x, at.y + (height - gain) * .5f), gain, 16) + gap;
+        at = ImVec2(left, at.y + height + 2 * gap);
+    };
+    for (const float height : {24.f, 48.f, 96.f}) row(height * s);
+    // The fallback: the menu art taken away for one row.
+    auto* art = ui::MenuArt();
+    ui::SetMenuArt(nullptr);
+    row(48.f * s);
+    ui::SetMenuArt(art);
+    const float tile = std::round(96 * s), bar = std::round(8 * s);
+    const std::uint64_t bands[] = {0, 1, 4, 86, 1986, 999999};
+    for (int i = 0; i < 6; ++i) {
+        // The last picture is narrow, so the six digits shrink to fit.
+        const float side = i == 5 ? std::round(64 * s) : tile;
+        const ImVec2 low(left + i * (tile + gap), at.y), high(low.x + side, low.y + side);
+        ui::DrawCharacterPortrait(i * 7, low, high, c.frame);
+        v2::LevelBand(d, {low, high}, bands[i]);
+        v2::Meter(d, {ImVec2(low.x, high.y + gap), ImVec2(high.x, high.y + gap + bar)}, .2f * i + .1f, .08f);
+    }
+    ImGui::End();
+}
 }
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
@@ -293,8 +590,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     int width = 1280, height = 800;
     float textSize = 1;
     bool tv = false;  // --tv: TV mode
+    bool newsStress = false;  // --news stress: News also lists a release with a very long title, tag and notes
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
-    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile;
+    std::string points;  // --points public|private
+    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState, setsState, playerState, findState, relationState;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
@@ -302,7 +601,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     int pictureMode = 0;  // --picture 0|1|2: the watched game's picture Small, Big or Off
     std::string hidePanes;  // --hide members|chat|both: the room board's panels hidden
     int hud = -1;
-    bool trainingPanel = false, update = false, publicLab = false, rankings = false, playback = false, caption = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
+    // --hud with --watching: a spectator's HUD; --faint: an unsettled class;
+    // --playback with --classes: a replay that noted its players' classes
+    bool watching = false, faint = false, classes = false;
+    bool trainingPanel = false, update = false, publicLab = false, rankings = false, playback = false, caption = false, toasts = false, levels = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
     // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
@@ -316,16 +618,29 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--picture" && more) pictureMode = std::atoi(args[++i].c_str());
         else if (args[i] == "--hide" && more) hidePanes = args[++i];
         else if (args[i] == "--pip") pip = true;
-        else if (args[i] == "--arcade" && more) { ++i; arcade = args[i] == "king" ? room::KingRoom : args[i] == "arcade" ? room::ArcadeRoom : room::ClassicRoom; }
+        else if (args[i] == "--arcade" && more) { ++i; arcade = static_cast<int>(args[i] == "king" ? room::RoomType::King : args[i] == "arcade" ? room::RoomType::Arcade : room::RoomType::Classic); }
         else if (args[i] == "--seats" && more) seats = args[++i];
         else if (args[i] == "--hud" && more) hud = std::atoi(args[++i].c_str());
         else if (args[i] == "--training") trainingPanel = true;
         else if (args[i] == "--public") publicLab = true;
         else if (args[i] == "--rankings") rankings = true;
+        else if (args[i] == "--levels") levels = true;
+        else if (args[i] == "--profile" && more) profile = args[++i];
+        else if (args[i] == "--friends" && more) friendsState = args[++i];
+        else if (args[i] == "--player" && more) playerState = args[++i];
+        else if (args[i] == "--find" && more) findState = args[++i];
+        else if (args[i] == "--relation" && more) relationState = args[++i];
+        else if (args[i] == "--archive" && more) archiveState = args[++i];
+        else if (args[i] == "--sets" && more) setsState = args[++i];
+        else if (args[i] == "--points" && more) points = args[++i];
         else if (args[i] == "--playback") playback = true;
         else if (args[i] == "--caption") caption = true;
+        else if (args[i] == "--watching") watching = true;
+        else if (args[i] == "--faint") faint = true;
+        else if (args[i] == "--classes") classes = true;
         else if (args[i] == "--screen" && more) screen = args[++i];
         else if (args[i] == "--update") update = true;
+        else if (args[i] == "--news" && more) newsStress = args[++i] == "stress";
         else if (args[i] == "--recovery" && more) recovery = args[++i];
         else if (args[i] == "--toasts") toasts = true;
         else if (args[i] == "--welcome") welcome = true;
@@ -384,7 +699,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         t.ready[0] = postMatch == "you"; t.ready[1] = postMatch == "they";
         view.session.match = netplay::MatchState::Playing; view.atMainMenu = false;
     }
-    if (update) { view.services.launchOffer = launcher::InstallOffer{updates::UpdateChannel::Nightly, "v1.3.0", "lab"}; view.services.installedVersion = "v1.2.0"; }
+    if (update) { view.services.launchOffer = launcher::InstallOffer{updates::UpdateChannel::Nightly, "v1.6.0-nightly.3", "lab"}; view.services.installedVersion = "v1.5.0"; }
+    if (newsStress) uilab::AddNewsStress(view.services.update.news);
     if (publicLab) PublicLab(view);
     // The helper's side for --public: each Ember ID request answered, the room list on asking.
     std::uint64_t identityAsked = 0;
@@ -394,6 +710,22 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (!walkFile.empty()) walkLog.open(walkFile, std::ios::trunc);
     if (!walkFrom.empty() && !walk.StartAt(walkFrom)) { if (walkLog.is_open()) walkLog << "FAIL walk-from: no step named " << walkFrom << std::endl; return 3; }
     if (rankings) Rankings(view);
+    if (!archiveState.empty()) Archive(view, archiveState);
+    if (!profile.empty()) Profile(view, profile);
+    else if (screen == "awards" || screen == "sets") Profile(view, "played");
+    if (!profile.empty() || screen == "awards" || screen == "card" || screen == "sets") ProfileSets(view, setsState.empty() ? "full" : setsState);
+    if (!friendsState.empty() && !uilab::Friends(view, friendsState)) return 4;
+    if (!playerState.empty() && !uilab::Player(view, playerState)) return 4;
+    if (!findState.empty() && !uilab::Find(view, findState)) return 4;
+    // Another player's Sets tab lists the archive's sets under their name (Player 2, or Player 6 and Player 3 for friends).
+    if (!playerState.empty()) {
+        const std::string name = playerState == "room" ? "Player 3" : playerState == "friend" ? "Player 6" : playerState == "blocked" ? "Player 16" : "Player 2";
+        ProfileSets(view, setsState.empty() ? "full" : setsState, name);
+    }
+    if (!points.empty()) {
+        if (profile.empty()) Profile(view, "played");
+        RoomPoints(view, points != "private", relationState);
+    }
     // Fighter select (--screen selection) with every fighter, costume and colour there.
     ui::FighterSelector selector;
     selection::Pick pick;
@@ -413,16 +745,16 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         script.push_back(std::sscanf(key.c_str(), "click:%f:%f", &at.x, &at.y) == 2 ? 0 : KeyBit(key)); clickAt.push_back(at); } }
     const auto submit = [&](ui::ShellAction action) {
         // Saving is instant here: the shell reads what it saved back from the view.
-        if (action.command.kind == netplay::CommandKind::SavePreferences) view.preferences = action.preferences;
-        if (publicLab && action.identity.op != netplay::IdentityOp::None) identityAsked = action.identity.ticket;
-        if (publicLab && action.tournament.op == netplay::tournament::Command::Op::RoomList) listAsked = true;
-        // The walk's room opens at once, and leaving it closes it. HostRoom is also every action's
-        // kind when it sends no command, so only Create's Open room counts.
-        hostAsked |= action.command.kind == netplay::CommandKind::HostRoom && shell.Navigation().Screen() == "create" && shell.Navigation().Focus() == "host" &&
-            action.identity.op == netplay::IdentityOp::None && action.tournament.op == netplay::tournament::Command::Op::None;
-        leaveAsked |= action.command.kind == netplay::CommandKind::LeaveRoom;
+        if (const auto* saved = std::get_if<commands::SavePreferences>(&action)) view.preferences = saved->preferences;
+        const auto* identity = std::get_if<commands::Identity>(&action);
+        const auto* tournament = std::get_if<commands::Tournament>(&action);
+        if (publicLab && identity) identityAsked = identity->identity.ticket;
+        if (publicLab && tournament && tournament->tournament.op == netplay::tournament::Command::Op::RoomList) listAsked = true;
+        // The walk's room opens at once, and leaving it closes it.
+        hostAsked |= std::holds_alternative<commands::HostRoom>(action);
+        leaveAsked |= std::holds_alternative<commands::LeaveRoom>(action);
         // The helper answers each Ember ID request at once.
-        if (action.identity.op != netplay::IdentityOp::None) { view.identityTicket = action.identity.ticket; view.identityRequest = view.identity.requestId = view.identityTicket + 100; view.identity.ok = true; }
+        if (identity) { view.identityTicket = identity->identity.ticket; view.identityRequest = view.identity.requestId = view.identityTicket + 100; view.identity.ok = true; }
         return true;
     };
     int frame = 0, winFrame = -1;
@@ -495,6 +827,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         // As the Toasts board: a room notice, a match called and, newest, a Discord invitation.
         if (toasts && frame == 3) shell.Say(loc::T("notice.left_room"), ui::Tone::Success, 600, ui::ToastKind::Room);
         if (toasts && frame == 4) shell.Say(loc::T("tournament.assigned_notice"), ui::Tone::Pending, 600, ui::ToastKind::Match, {{loc::T("toast.open"), "tournament-matches", ""}, {loc::T("updates.launch_later")}});
+        if (toasts && !friendsState.empty()) uilab::FriendsComing(view, frame);
         if (toasts && frame == 5) shell.Say(loc::T("discord.invitation_notice"), ui::Tone::Neutral, 600, ui::ToastKind::Invitation, {{loc::T("toast.join"), "discord-invitation", "invite-switch"}, {loc::T("updates.launch_later")}});
         if (identityAsked && identityAsked != view.identityTicket) {
             view.identityTicket = identityAsked; view.identityRequest = view.identity.requestId = identityAsked + 100; view.identity.ok = true;
@@ -531,25 +864,36 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             for (int side = 0; side < 2; side++) { std::copy(std::begin(rows), std::end(rows), replay.rows[side]); replay.rowCount[side] = 8; }
             ui::DrawReplayStrip(replay);
             ui::DrawReplayLanes(replay);
+            if (classes) {
+                // What Watch draws over a replay that noted its players' classes (replay::WatchCaption).
+                const std::string names[2] = {"Player 1", "Player 2"};
+                const SkillBadge noted[2] = {SkillBadge::OfClass(7, true), SkillBadge::OfClass(8, true)};
+                ui::DrawExportCaption(ui::ExportCaptionViewOf(replay::WatchCaption(names, noted, true), 0));
+            }
             // After the HUD: a window that never comes to the front is put behind those made before it.
             DrawLabBackdrop();
         } else if (caption) {
             // An export's caption, as a replay video carries it.
             ui::ExportCaptionView shown;
-            shown.names[0] = "FRaccie"; shown.names[1] = "Akira"; shown.line = "Ultra Street Fighter IV - Ember Netplay";
-            shown.badges[0] = SkillBadge::OfClass(7, true); shown.badges[1] = SkillBadge::OfClass(7, true); shown.mark = true;
+            shown.names[0] = "Player 1"; shown.names[1] = "Player 2"; shown.line = "Ultra Street Fighter IV - Ember Netplay";
+            shown.badges[0] = SkillBadge::OfClass(7, true); shown.badges[1] = SkillBadge::OfClass(8, true); shown.mark = true;
             ui::DrawExportCaption(shown);
             // After the caption: a window that never comes to the front is put behind those made before it.
             DrawLabBackdrop();
+        } else if (levels) {
+            DrawLevels();
         } else if (hud >= 0) {
             // A fight's HUD: the art stands in for the game behind it.
             DrawLabBackdrop();
             ui::MatchStripView strip;
-            strip.names[0] = "FRaccie"; strip.names[1] = "Akira";
+            strip.names[0] = "Player 1"; strip.names[1] = "Player 2";
             strip.links[0] = NetworkLink::Wired; strip.links[1] = NetworkLink::Wireless;
-            // Their classes as a public room shows them: B+, and Master not played lately (faint).
-            strip.badges[0] = SkillBadge::OfClass(6, true); strip.badges[1] = SkillBadge::OfClass(9, false);
+            // Their classes as a public room shows them, A and A+ as --caption draws them; --faint: the
+            // second Master, not played lately.
+            strip.badges[0] = SkillBadge::OfClass(7, true); strip.badges[1] = faint ? SkillBadge::OfClass(9, false) : SkillBadge::OfClass(8, true);
             strip.pingMs = 96; strip.rollbackFrames = 2; strip.appliedDelay = 2; strip.layout = hud; strip.spectators = 3; strip.score = "2 - 1";
+            // --watching: the same game as a spectator sees it, behind the stream and next in the queue.
+            if (watching) { strip.spectator = true; strip.behindFrames = 12; strip.queuePosition = 1; strip.queueLength = 2; }
             ui::DrawMatchStrip(strip);
             if (toasts) shell.Background(view, view.room, submit);
         } else {

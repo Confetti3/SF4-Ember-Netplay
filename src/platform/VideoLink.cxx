@@ -6,6 +6,7 @@
 
 #include <windows.h>
 #include <spdlog/spdlog.h>
+#include <algorithm>
 #include <cstring>
 #include <vector>
 
@@ -22,11 +23,16 @@ std::wstring s_partial;
 ULONGLONG s_stoppedAt = 0;
 // The encoder's process may take this long to close its file before it is ended.
 constexpr ULONGLONG kClosePatienceMs = 30000;
+// A fast export's game waits this long for the encoder to open or to free a
+// slot before the export fails; the encoder itself gives a picture 10 seconds.
+constexpr ULONGLONG kSendPatienceMs = 10000;
 // The encoder's process was ended at that deadline: the export failed,
 // whatever the process exits with.
 bool s_ended = false;
 // Temporary files that could not be removed yet, tried again on the next Start.
 std::vector<std::wstring> s_leftovers;
+// Fast: the sound for the next picture (SetSound).
+std::vector<float> s_pendingSound;
 
 // The one place a temporary file goes, once no process writes it: the encoder
 // gives a file that holds a video its name first, so what is left is a
@@ -62,7 +68,7 @@ void CopyRows(BYTE* to, const void* from, int pitch, unsigned width, unsigned ro
 
 namespace sf4e { namespace platform { namespace videolink {
 
-bool Start(const std::wstring& file, unsigned width, unsigned height, const std::wstring& encoder) {
+bool Start(const std::wstring& file, unsigned width, unsigned height, const std::wstring& encoder, bool fast) {
 	if (s_shared || file.size() >= 1024) return false;
 	std::vector<std::wstring> leftovers;
 	leftovers.swap(s_leftovers);
@@ -81,7 +87,8 @@ bool Start(const std::wstring& file, unsigned width, unsigned height, const std:
 	s_wake = CreateEventW(nullptr, FALSE, FALSE, WakeName(name).c_str());
 	s_shared = s_mapping ? static_cast<Shared*>(MapViewOfFile(s_mapping, FILE_MAP_ALL_ACCESS, 0, 0, 0)) : nullptr;
 	if (!s_shared || !s_wake) { spdlog::warn("Video: no shared memory for {}x{} ({})", width, height, GetLastError()); Close(); return false; }
-	s_shared->width = width; s_shared->height = height; s_shared->game = GetCurrentProcessId();
+	s_shared->width = width; s_shared->height = height; s_shared->game = GetCurrentProcessId(); s_shared->fast = fast ? 1 : 0;
+	s_pendingSound.clear();
 	wcscpy_s(s_shared->file, s_partial.c_str()); wcscpy_s(s_shared->final, file.c_str());
 	s_dropped = 0;
 
@@ -92,18 +99,47 @@ bool Start(const std::wstring& file, unsigned width, unsigned height, const std:
 	}
 	CloseHandle(process.hThread);
 	s_process = process.hProcess;
+	// Fast: the encoder opens before the game goes on, at most 15 seconds, so
+	// the first picture and its sound start together (sf4e__ExportSound.hxx).
+	for (int waited = 0; fast && s_shared->opened == 0 && waited < 1500; waited++)
+		if (WaitForSingleObject(s_process, 10) != WAIT_TIMEOUT) break;
 	return true;
+}
+
+void SetSound(const float* stereo, unsigned frames) {
+	s_pendingSound.assign(stereo, stereo + static_cast<size_t>((std::min)(frames, kSoundPerSlot)) * 2);
 }
 
 void Send(const void* luma, int lumaPitch, const void* chroma, int chromaPitch) {
 	if (!s_shared) return;
+	// Fast: the game waits for the encoder to open and for a free slot, while
+	// its process lives and the export has not been stopped, for at most
+	// kSendPatienceMs: an encoder that stalls fails the export, not the game.
+	const ULONGLONG waitStarted = GetTickCount64();
+	for (unsigned turn = 0; s_shared->fast && !s_shared->stop && s_shared->opened >= 0 &&
+		(s_shared->opened != 1 || s_shared->sent - s_shared->taken >= static_cast<LONG>(kSlots)); turn++) {
+		if (WaitForSingleObject(s_process, 0) != WAIT_TIMEOUT) break;
+		if (GetTickCount64() - waitStarted > kSendPatienceMs) {
+			spdlog::warn("Video: the encoder did not take a picture in {} seconds; the export failed", kSendPatienceMs / 1000);
+			Fail();
+			break;
+		}
+		Sleep(turn < 64 ? 0 : 1);
+	}
 	if (s_shared->opened != 1) return;
 	const LONG sent = s_shared->sent;
 	if (sent - s_shared->taken >= static_cast<LONG>(kSlots)) { s_dropped++; return; }
 	BYTE* const slot = Slot(s_shared, sent);
+	if (s_shared->fast) {
+		const UINT32 frames = static_cast<UINT32>(s_pendingSound.size() / 2);
+		memcpy(s_shared->sound[sent % kSlots], s_pendingSound.data(), s_pendingSound.size() * sizeof(float));
+		s_shared->soundFrames[sent % kSlots] = frames;
+		s_pendingSound.clear();
+	}
 	CopyRows(slot, luma, lumaPitch, s_shared->width, s_shared->height);
 	CopyRows(slot + s_shared->width * s_shared->height, chroma, chromaPitch, s_shared->width, s_shared->height / 2);
-	s_shared->times[sent % kSlots] = video::Clock();
+	// Fast: stamped by its number, from the first (VideoEncoder.hxx: Begin).
+	s_shared->times[sent % kSlots] = s_shared->fast ? static_cast<LONGLONG>(sent) * 10000000 / 60 : video::Clock();
 	InterlockedIncrement(&s_shared->sent);
 	SetEvent(s_wake);
 }

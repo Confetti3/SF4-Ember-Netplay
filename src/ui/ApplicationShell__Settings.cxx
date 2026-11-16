@@ -9,9 +9,12 @@
 // one builder a panel may share, so every row keeps its id and the shell's
 // handlers serve both.
 #include "ApplicationShell.hxx"
+#include "AreaNames.hxx"
+#include "CardEditRows.hxx"
 #include "ControllersScreen.hxx"
 #include "LineIcons.hxx"
 #include "MenuRows.hxx"
+#include "PlayerCard.hxx"
 #include "RowId.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
@@ -26,6 +29,7 @@
 #include <imgui.h>
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <cstdio>
 #include <ctime>
 #include <iterator>
@@ -37,17 +41,31 @@ namespace {
 constexpr int RoomPresets[] = {28, 36, 56};
 const char* const RoomPresetKeys[] = {"settings.room_preset.board", "settings.room_preset.balanced", "settings.room_preset.chat"};
 int RoomPreset(int column) { return column <= 30 ? 0 : column >= 50 ? 2 : 1; }
-void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
-    auto* d=ImGui::GetWindowDrawList();const float footer=22*Scale();
-    if(auto* menuArt=MenuArt()){const auto art=menuArt->Portrait(fighter);if(art.texture){const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y-footer)/art.height);
-        const float w=art.width*factor,h=art.height*factor;d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);}}
-    // The name shrinks to the card, as the roster's captions do, so narrow cards keep it whole.
-    const char* name=ember::Catalog().fighterName(fighter);
-    const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-8*Scale())*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(name).x));
-    d->AddRectFilled(ImVec2(min.x,max.y-footer),max,palette::ShadeAt(235));
-    d->AddText(ImGui::GetFont(),font,ImVec2(min.x+4*Scale(),max.y-footer+(ImGui::GetFontSize()-font)*.5f),saved?palette::Ember:palette::Ivory,name);
-    if(saved)DrawCardBadge(ImVec2(min.x+4*Scale(),min.y+4*Scale()),max.x-min.x-8*Scale(),loc::T("profile.main_badge"),"main-badge");
-}
+// Each in-game theme part's row, by netplay::GameThemePart: its id, the words
+// under it, and those it shows with no theme found (its name is netplay::GameThemeLabels).
+struct GameThemeRow { const char *id, *detail, *none; };
+constexpr GameThemeRow GameThemeRows[netplay::GameThemePartCount] = {
+    {"game-theme-main-menu", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-title", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-chara-select", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-stage-select", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-versus", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-pause-menu", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-network", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-edition-marks", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-buttons", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-menu-sounds", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-battle-hud", "settings.game_theme_battle_hud_detail", "settings.game_theme_battle_hud_none"}};
+// What a note on a theme (netplay::GameThemeNote) adds to its name, and to the row's words
+// when it is the pick: nothing for no note, and none beyond the name for the game having closed on it.
+struct GameThemeNoteText { const char *suffix, *detail; };
+constexpr GameThemeNoteText GameThemeNotes[] = {
+    {nullptr, nullptr},
+    {"settings.game_theme_closed", nullptr},
+    {"settings.game_theme_mismatch", "settings.game_theme_mismatch_detail"},
+    {"settings.game_theme_unreadable", "settings.game_theme_unreadable_detail"},
+    {"settings.game_theme_missing", "settings.game_theme_missing_detail"}};
+static_assert(sizeof GameThemeNotes / sizeof *GameThemeNotes == static_cast<std::size_t>(netplay::GameThemeNote::PicturesMissing) + 1, "one entry for each note");
 // "Automatic" first, then every locale by its own name.
 std::vector<MenuChoice> LanguageChoices() {
     std::vector<MenuChoice> choices;
@@ -61,11 +79,8 @@ std::vector<MenuChoice> LanguageChoices() {
 }
 // When a report was sent, in this PC's time, as 2026-10-09 14:03.
 std::string ReportTime(std::int64_t time) {
-    const std::time_t at = static_cast<std::time_t>(time);
-    std::tm local{};
-    char text[32] = {};
-    if (localtime_s(&local, &at) != 0 || !std::strftime(text, sizeof(text), "%Y-%m-%d %H:%M", &local)) return "-";
-    return text;
+    const auto text = LocalTime(static_cast<std::uint64_t>(time));
+    return text.empty() ? "-" : text;
 }
 // What a row whose setting cannot change now says instead.
 const char* Reason(const ShellView& v) { return v.canEditPreferences ? loc::T("settings.auto_save") : loc::T("settings.leave_room_to_edit"); }
@@ -89,12 +104,16 @@ std::vector<MenuEntry> Offered(std::vector<MenuEntry> rows, const ShellView& v) 
         {"ready-sound", f.challengerCall}, {"ready-volume", f.challengerCall}, {"ready-test", f.challengerCall},
         {"lobby-music", f.lobbyMusic}, {"arrange-pictures", f.characterPictures}, {"shortcut-hint", f.shortcutHint},
         {"match-frame-meter", v.offersFrameMeter}, {"share-steam", v.offersSteamProfile},
-        {"main-character", ember::PlayersHaveMain()},
         // The name offset follows a game's own HUD position option; a game
         // without one (ember::BattleHud::nameOffset) leaves it nothing to follow.
         {"hud-name-offset", !hud || hud->nameOffset}};
+    // Each In-game themes row is the game's theme folders' (GameThemeRows).
+    const auto themeRow = [](const MenuEntry& row) {
+        return std::any_of(std::begin(GameThemeRows), std::end(GameThemeRows), [&](const GameThemeRow& theme) { return row.id == theme.id; });
+    };
     const auto lacking = [&](const MenuEntry& row) {
-        return std::any_of(std::begin(needs), std::end(needs), [&](const Need& need) { return !need.offered && row.id == need.id; });
+        return std::any_of(std::begin(needs), std::end(needs), [&](const Need& need) { return !need.offered && row.id == need.id; }) ||
+            (!f.gameThemes && themeRow(row));
     };
     rows.erase(std::remove_if(rows.begin(), rows.end(), lacking), rows.end());
     return rows;
@@ -124,21 +143,22 @@ public:
     // The tabs in order, each with its panels in the order its rail shows them.
     static const std::vector<Tab>& Tabs() {
         using I = LineIcon;
-        static const SettingsPanel controls{"controls", "screen.player", I::User, &Controls}, country{"country", "settings.country", I::World, &Country},
+        static const SettingsPanel controls{"controls", "screen.player", I::User, &Controls}, country{"country", "settings.place", I::World, &Country},
             profile{"profile", "home.profile", I::Id, &Profile, &ProfileCard}, defaults{"defaults", "screen.defaults", I::Adjustments, &Defaults},
             trainingReplays{"training-replays", "settings.training_replays", I::Movie, &TrainingReplays, &PictureSpot},
-            look{"look", "settings.group.look", I::Palette, &Look}, matchHud{"match-hud", "settings.match_hud", I::LayoutNavbar, &MatchHud, &MatchHudPicture},
+            look{"look", "settings.group.look", I::Palette, &Look}, gameThemes{"game-themes", "settings.group.game_themes", I::Brush, &GameThemeParts}, matchHud{"match-hud", "settings.match_hud", I::LayoutNavbar, &MatchHud, &MatchHudPicture},
             roomLayout{"room-layout", "settings.group.room_layout", I::LayoutDashboard, &RoomLayout, &RoomLayoutPicture},
             sounds{"sounds", "settings.group.sounds", I::Volume, &Sounds}, speech{"speech", "speech.setting", I::Speakerphone, &Speech},
             text{"text", "settings.group.text", I::Typography, &Text}, help{"help", "settings.group.help", I::Help, &Help},
             discord{"discord", "screen.discord", I::Discord, &Discord}, rankings{"rankings", "screen.rankings", I::ChartBar, &Rankings},
+            friends{"friends", "profile.tab.friends", I::Users, &Friends},
             about{"about", "home.about", I::Info, &About}, reports{"reports", "reports.settings_title", I::Bug, &Reports};
         static const std::vector<Tab> tabs = {
             {"tab-player", "settings.tab.player", {&controls, &country, &profile}},
             {"tab-matches", "settings.tab.matches", {&defaults, &trainingReplays}},
-            {"tab-interface", "settings.tab.interface", {&look, &matchHud, &roomLayout, &sounds}},
+            {"tab-interface", "settings.tab.interface", {&look, &gameThemes, &matchHud, &roomLayout, &sounds}},
             {"tab-access", "settings.tab.accessibility", {&speech, &text, &help}},
-            {"tab-online", "settings.tab.online", {&discord, &rankings}},
+            {"tab-online", "settings.tab.online", {&discord, &rankings, &friends}},
             {"tab-about", "settings.tab.about", {&about, &reports}}};
         return tabs;
     }
@@ -163,6 +183,9 @@ public:
             {"player", "player.title", &Controls},
             {"controllers", "controllers.title", &ControllerList},
             {"profile", "profile.title", &Profile},
+            {"card-edit", "card.edit", &CardEdit},
+            {card_edit::PinsScreen, "card.pins_row", &CardPins},
+            {card_edit::LookingScreen, "card.looking_row", &CardLooking},
             {"main-character", "profile.choose_main_title", &MainCharacters},
             {"sent-reports", "reports.sent_list", &SentReports},
             {"about", "about.title", &About}};
@@ -177,25 +200,79 @@ public:
             v.session.room == netplay::RoomState::Idle, v.padLayer);
     }
     static Entries ControllerList(Shell&, const ShellView& v) { return ControllerRows(v.padLayer, v.pads, v.canChangeController, v.canEditPreferences); }
-    // The flag beside the player's name; Select opens the country picker.
+    // The flag beside the player's name, where Select opens the country picker, and the
+    // area they play from, which Left and Right step and Select lists (AreaChoiceTexts).
     static Entries Country(Shell& s, const ShellView& v) {
         auto row = Row("country", loc::T("settings.country"), v.canEditPreferences ? loc::T("settings.country_detail") : Reason(v), v.canEditPreferences);
         row.value = CountryPicker::ChoiceText(s.preferences_.country, v.automaticCountry);
-        return {row};
+        auto area = Value("area", loc::T("settings.area"), AreaChoiceText(s.preferences_.area, v.automaticArea),
+            v.canEditPreferences ? loc::T("settings.area_detail") : Reason(v), v.canEditPreferences);
+        OfferSteps(area, AreaChoiceTexts(v.automaticArea));
+        return {row, area};
+    }
+    // The rows Profile and Edit card share.
+    static MenuEntry NameRow(Shell& s, const ShellView& v) { return TextRow("name", loc::T("profile.player_name"), s.preferences_.displayName, 31, v.canEditPreferences); }
+    static MenuEntry MainRow(Shell& s) {
+        const std::string name = selection::FindFighter(s.preferences_.mainFighter)->name;
+        auto row = Row("main-character", loc::T("profile.main_character"), loc::Tf("profile.main_character_detail", name));
+        row.value = name;
+        return row;
+    }
+    static MenuEntry SteamRow(Shell& s, const ShellView& v) {
+        return OnOffValue(s.preferences_, "share-steam", loc::T("profile.share_steam"), loc::T("profile.share_steam_detail"), v.canEditPreferences);
     }
     static Entries Profile(Shell& s, const ShellView& v) {
-        const auto& p = s.preferences_;
         const auto& record = v.preferences.record;
-        Entries rows = {TextRow("name", loc::T("profile.player_name"), p.displayName, 31, v.canEditPreferences),
-            Row("main-character", loc::T("profile.main_character"), loc::Tf("profile.main_character_detail", ember::Catalog().fighterName(p.mainFighter))),
+        Entries rows = {NameRow(s, v), MainRow(s),
             Row("record", loc::T("profile.record"), record.available ? loc::Tf("profile.record_detail", record.wins, record.losses) : loc::T("profile.record_unavailable"))};
         rows[2].info = true;
-        rows[1].value = ember::Catalog().fighterName(p.mainFighter);
         rows[2].value = record.available ? RecordValue(record) : loc::T("common.unavailable");
-        rows.push_back(OnOffValue(p, "share-steam", loc::T("profile.share_steam"), loc::T("profile.share_steam_detail"), v.canEditPreferences));
+        rows.push_back(SteamRow(s, v));
         rows.push_back(Row("awards", loc::T("screen.awards"), loc::T("awards.entry_detail")));
         rows.back().value = EarnedCount(v);
         return rows;
+    }
+    // Edit card (from the Card tab): what the card shows, each row's own page,
+    // keyboard or switch, beside the card as others see it. The title and icon
+    // are worn on the awards wall, which their rows open. How the player plays
+    // and which awards show are CardEditRows. In a room none of it changes.
+    static Entries CardEdit(Shell& s, const ShellView& v) {
+        const auto measured = CardMeasured(v);
+        const card_edit::Context card{s.preferences_, measured, v.canEditPreferences};
+        const auto& p = s.preferences_;
+        const auto award = [&](const char* label, const char* id, const std::string& worn, bool title) {
+            auto row = Row(id, loc::T(label), v.canEditPreferences ? loc::T("card.award_detail") : loc::T("profile.leave_room_to_edit"), v.canEditPreferences);
+            const auto found = WornAward(v, worn);
+            row.value = found ? (title ? AwardTitle(found) : AwardIconName(*found.family)) : std::string(loc::T("card.none"));
+            row.group = loc::T("card.awards");
+            return row;
+        };
+        auto name = NameRow(s, v), flag = Country(s, v).front(), main = MainRow(s);
+        if (!v.canEditPreferences) { main.enabled = false; main.detail = loc::T("profile.leave_room_to_edit"); }
+        Entries rows = {name, flag, main, award("card.title_row", "card-title", p.wornTitle, true), award("card.icon_row", "card-icon", p.wornIcon, false), card_edit::PinsEntry(card)};
+        rows.back().group = loc::T("card.awards");
+        for (auto& row : card_edit::PlayEntries(card)) { row.group = loc::T("card.how_heading"); rows.push_back(std::move(row)); }
+        rows.push_back(card_edit::SteamEntry(card));
+        // A row that opens something says Choose, and a stepped one says nothing for Select (card_edit::PlayEntries).
+        for (auto& row : rows) if (row.hint.empty() && !row.adjustable) row.hint = loc::T("menu.choose");
+        return rows;
+    }
+    static Entries CardPins(Shell& s, const ShellView& v) {
+        const auto measured = CardMeasured(v);
+        return card_edit::PinEntries({s.preferences_, measured, v.canEditPreferences});
+    }
+    static Entries CardLooking(Shell& s, const ShellView& v) {
+        const auto measured = CardMeasured(v);
+        return card_edit::LookingEntries({s.preferences_, measured, v.canEditPreferences});
+    }
+    // What the game measures for the card: the controller, the connection, Windows' area and the counters.
+    static card_edit::Measured CardMeasured(const ShellView& v) { return card_edit::MeasuredOf(v, AwardCounters(v)); }
+    // A card row's press, saved like any setting. One that passes a limit changes nothing and says why.
+    static void CardChanged(Shell& s, const card_edit::Change& change, const netplay::PlayerPreferences& prior) {
+        if (change.refusal) { s.Refuse(loc::T(change.refusal)); return; }
+        if (!change.changed) return;
+        if (!s.preferences_.Valid()) { s.preferences_ = prior; s.error_ = loc::T("error.invalid_value"); return; }
+        s.preferencesDirty_ = true; s.saveAt_ = ImGui::GetTime() + .45; s.error_.clear();
     }
     static Entries MainCharacters(Shell&, const ShellView& v) {
         Entries rows;
@@ -254,6 +331,38 @@ public:
         }
         return rows;
     }
+    // A part's theme (PlayerPreferences::gameThemes), from the themes Ember found with that
+    // part. A saved theme that is gone shows as the game's own, which is what the game loads.
+    static MenuEntry GameTheme(Shell& s, const ShellView& v, netplay::GameThemePart part) {
+        const GameThemeRow& r = GameThemeRows[part];
+        const auto& themes = v.gameThemes[part];
+        const auto& notes = v.gameThemeNotes[part];
+        const std::string& theme = s.preferences_.gameThemes[part];
+        const bool found = std::find(themes.begin(), themes.end(), theme) != themes.end();
+        // A theme the game closed on, or that was refused, stays pickable (its files may be fixed), and says so.
+        const auto noteOf = [&](const std::string& name) {
+            const auto note = notes.find(name);
+            return GameThemeNotes[static_cast<int>(note == notes.end() ? netplay::GameThemeNote::None : note->second)];
+        };
+        const auto shown = [&](const std::string& name) { const char* suffix = noteOf(name).suffix; return suffix ? loc::Tf(suffix, name) : name; };
+        const std::string game = loc::T("settings.game_theme_game");
+        // The crash guard covers the battle HUD only, so only that row warns that a broken theme can close the game.
+        std::string detail = themes.empty() ? std::string(loc::T(r.none)) : std::string(loc::T(r.detail));
+        if (!themes.empty() && part == netplay::GameThemeBattleHud) detail += std::string(" ") + loc::T("settings.game_theme_risk");
+        if (found && noteOf(theme).detail) detail = loc::Tf(noteOf(theme).detail, theme);
+        auto row = Value(r.id, loc::T(netplay::GameThemeLabels[part]), found ? shown(theme) : game, detail, v.canEditPreferences && !themes.empty());
+        // Select lists the game's own and the themes; a pick is the steps to it (OfferSteps).
+        std::vector<std::string> labels;
+        for (const auto& name : themes) labels.push_back(shown(name));
+        labels.insert(labels.begin(), game);
+        OfferSteps(row, labels);
+        return row;
+    }
+    static Entries GameThemeParts(Shell& s, const ShellView& v) {
+        Entries rows;
+        for (int part = 0; part < netplay::GameThemePartCount; ++part) rows.push_back(GameTheme(s, v, static_cast<netplay::GameThemePart>(part)));
+        return rows;
+    }
     static Entries MatchHud(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
         const char* sizes[] = {loc::T("size.small"), loc::T("size.standard"), loc::T("size.large")};
@@ -280,7 +389,7 @@ public:
     static Entries Text(Shell& s, const ShellView& v) {
         char size[32];
         std::snprintf(size, sizeof(size), "%.2fx", s.preferences_.interfaceScale);
-        return {Value("scale", loc::T("settings.interface_size"), size, Reason(v), v.canEditPreferences), Tv(s, v), s.LanguageRow()};
+        return {Value("scale", loc::T("settings.interface_size"), size, std::string(loc::T("settings.interface_size_detail")) + "\n" + Reason(v), v.canEditPreferences), Tv(s, v), s.LanguageRow()};
     }
     // The room board's layout, which its grips also drag (RoomGrips). Its parts:
     // hiding one gives its place to the other, or both to the tables. With the
@@ -302,17 +411,22 @@ public:
             Row("arrange-reset", loc::T("settings.room_layout_reset"), loc::T("settings.room_layout_reset_detail"), open)};
     }
     static Entries Speech(Shell& s, const ShellView& v) { return s.AccessibilityRows(v); }
+    // Appear offline, the friend code and Turn off friends (FriendsPanel), which the panel itself answers.
+    static Entries Friends(Shell& s, const ShellView& v) { return s.friends_.SettingsRows(v); }
     static Entries Discord(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
-        // The account tournaments and rankings use, which may not be the one
-        // in the Discord app, through the bridge's own sign-in.
-        auto account = s.identity_.TournamentAccountRow(v);
+        // The account linked to the Ember ID leads: ranked games, points, friends, shared replays and tournaments need it, and
+        // it may not be the one in the Discord app. The community server is the last row, as About opens it.
+        const bool opening = v.services.lastAction == platform::ServiceAction::OpenCommunity && !v.services.message.empty();
+        auto account = s.identity_.DiscordAccountRow(s.identity_.Discord(v));
+        auto community = ConfirmRow("community", loc::T("discord.server"), opening ? v.services.message : loc::Tf("about.discord_detail", platform::CommunityInvite), !v.services.pending);
         // Activity and invitations are the Discord companion's; a product
-        // without one (ProductIdentity::discordExe) has only the account.
-        if (!ember::Product().discordExe[0]) return {account};
-        return {OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences),
+        // without one (ProductIdentity::discordExe) has only the account and the server.
+        if (!ember::Product().discordExe[0]) return {std::move(account), std::move(community)};
+        return {std::move(account),
+            OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences),
             OnOffValue(p, "invites", loc::T("discord.allow_invitations"), p.discordPresence ? loc::T("discord.invitation_detail") : loc::T("discord.enable_first"), v.canEditPreferences && p.discordPresence),
-            account};
+            std::move(community)};
     }
     // The setting's pane says what a report holds; Select reads it in full.
     static Entries Reports(Shell& s, const ShellView& v) {
@@ -432,7 +546,10 @@ public:
             int values = 0;
             for (const auto& row : b.rows) {
                 names += (names.empty() ? "" : " \xC2\xB7 ") + row.label;
-                if (!row.info && !row.value.empty() && values++ < 3) summary += (summary.empty() ? "" : " \xC2\xB7 ") + row.value;
+                // A value that is not set ("-": no friend code yet) is left out, and a switch says what it switches: "Show activity: On".
+                if (row.info || row.value.empty() || row.value == "-" || values >= 3) continue;
+                ++values;
+                summary += (summary.empty() ? "" : " \xC2\xB7 ") + (row.value == loc::T("common.on") || row.value == loc::T("common.off") ? row.label + ": " + row.value : row.value);
             }
             heads.push_back(Row(screen + "/" + b.panel->id, loc::T(b.panel->heading), names));
             heads.back().value = summary;
@@ -466,6 +583,29 @@ public:
         const auto& error = f.shell.languageSaveError_;
         if (!error.empty() && SettingsTabOf(f.screen) == "tab-access") { status = error; tone = Tone::Error; }
     }
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
+        if (FriendsPanel::SettingsRow(a.id) && f.shell.friends_.Activate(f.view, a, f.shell.menu_.navigation, submit)) return true;
+        return CardActivate(f, a);
+    }
+    // Left or Right on the card's rows (CardEditRows), while the preferences can change.
+    bool Adjust(const ScreenFrame& f, const MenuAction& a) const override {
+        if (!card_edit::OnCardScreen(f.screen) || !card_edit::Owns(a.id)) return false;
+        if (!f.view.canEditPreferences) return true;
+        auto& s = f.shell;
+        const auto prior = s.preferences_;
+        CardChanged(s, card_edit::Adjust(s.preferences_, CardMeasured(f.view), a.id, a.delta), prior);
+        return true;
+    }
+    // Select on the card's rows: the two that open a page, and the switches, which it flips.
+    static bool CardActivate(const ScreenFrame& f, const MenuAction& a) {
+        if (!card_edit::OnCardScreen(f.screen) || !card_edit::Owns(a.id)) return false;
+        auto& s = f.shell;
+        if (a.id == card_edit::PinsRow || a.id == card_edit::LookingRow) { s.menu_.navigation.Push(a.id); return true; }
+        if (!f.view.canEditPreferences) return true;
+        const auto prior = s.preferences_;
+        CardChanged(s, card_edit::Press(s.preferences_, CardMeasured(f.view), a.id), prior);
+        return true;
+    }
     bool ReportsSave(const std::string& screen) const override {
         // About and the sent reports have no Saved line.
         return Owns(screen) && screen != "about" && screen != "sent-reports";
@@ -479,6 +619,8 @@ public:
         }
         const Tab* tab = TabOf(f.screen);
         if (!tab) return;
+        // The Friends panel's chips (Appearing offline, not updated) show on it as on the tab.
+        if (f.rows && f.screen == FriendsPanel::SettingsScreen) f.shell.friends_.Dress(f.view, f.screen, *f.rows, menu);
         // Settings · Tab, and · Panel while one is open.
         menu.eyebrow = std::string(loc::T("home.settings")) + " \xC2\xB7 " + loc::T(tab->label);
         if (const BuiltPanel* open = Built(s, f.screen)) menu.eyebrow += std::string(" \xC2\xB7 ") + loc::T(open->panel->heading);
@@ -500,6 +642,9 @@ public:
         Shell* s = &f.shell; const ShellView* v = &f.view;
         if (f.screen == CountryPicker::Screen)
             return [s, v](const MenuEntry& e, ImVec2 min, ImVec2 max) { return s->countryPicker_.DrawRow(e, v->automaticCountry, min, max); };
+        // Each family on the pins page stands on its tier's plate.
+        if (f.screen == card_edit::PinsScreen)
+            return [v](const MenuEntry& e, ImVec2 min, ImVec2 max) { return card_edit::DrawPinRow(e, AwardCounters(*v), min, max); };
         // The main-character grid is fighter select's.
         if (f.screen == "main-character")
             return [v](const MenuEntry& e, ImVec2 min, ImVec2 max) {
@@ -524,8 +669,16 @@ public:
                 for (const auto& b : s->settingsPanels_)
                     if (b.panel->picture && std::any_of(b.rows.begin(), b.rows.end(), [&](const MenuEntry& e) { return e.id == id; })) { b.panel->picture(*s, *v); return; }
             };
-        // The main beside Profile's rows, where the product's players have one.
-        if ((screen == "profile" && ember::PlayersHaveMain()) || screen == "main-character")
+        // Edit card and its pages show the card as others see it, with each change before it is saved.
+        if (card_edit::OnCardScreen(screen))
+            return [s, v](const std::string&) {
+                const auto card = ProfilePanel::OwnPanel(*v, s->preferences_);
+                const auto p = ImGui::GetCursorScreenPos();
+                const float width = ImGui::GetContentRegionAvail().x;
+                const float height = DrawOtherCard(ImGui::GetWindowDrawList(), {p, ImVec2(p.x + width, p.y)}, card);
+                ImGui::Dummy(ImVec2(width, height));
+            };
+        if (screen == "profile" || screen == "main-character")
             return [v, screen](const std::string& id) {
                 const auto chosen = screen == "main-character" ? RowKey<int>(id, "main-") : std::nullopt;
                 const int fighter = chosen.value_or(v->preferences.mainFighter);
@@ -608,13 +761,26 @@ bool ApplicationShell::AdjustSetting(netplay::PlayerPreferences& p, const MenuAc
     else if (id == "arrange-tables") p.roomTableGrid = a.delta > 0;
     else if (id == "arrange-pictures") p.roomCharacterPictures = a.delta > 0;
     else if (id == "tv") p.tvMode = a.delta > 0;
+    else if (id == "area") p.area = p.area.Stepped(a.delta);
     else if (id == "picture-corner") p.pictureSpot = p.pictureSpot / 4 * 4 + (p.pictureSpot % 4 + 4 + a.delta) % 4;
     else if (id == "picture-size") p.pictureSpot = p.pictureSpot % 4 + 4 * clamp(p.pictureSpot / 4 + a.delta, 0, 2);
     else if (id == "watched-picture" || id == "arrange-picture") p.pictureMode = clamp(p.pictureMode + a.delta, PictureSmall, PictureOff);
     else if (id == "ready-volume") p.readySoundVolume = clamp(p.readySoundVolume + 10 * a.delta, 10, 100);
-    else if (id == "scale") p.interfaceScale = (std::max)(1.f, (std::min)(1.5f, p.interfaceScale + .05f * a.delta));
+    // Stepped on the 0.05 grid, so a value reached by stepping down is exactly the one the range and the save check.
+    else if (id == "scale") p.interfaceScale = (std::max)(MinInterfaceScale, (std::min)(MaxInterfaceScale, std::round((p.interfaceScale + InterfaceScaleStep * a.delta) / InterfaceScaleStep) * InterfaceScaleStep));
     else return false;
     return true;
+}
+
+bool ApplicationShell::AdjustGameTheme(netplay::PlayerPreferences& p, const ShellView& v, const MenuAction& a) {
+    for (int part = 0; part < netplay::GameThemePartCount; ++part) {
+        if (a.id != GameThemeRows[part].id) continue;
+        auto names = v.gameThemes[part];
+        names.insert(names.begin(), std::string()); // the game's own (empty) first
+        Step(p.gameThemes[part], names, a.delta);
+        return true;
+    }
+    return false;
 }
 
 // A Settings tab, as the design's board: the rail of panels on the left

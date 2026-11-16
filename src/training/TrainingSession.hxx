@@ -17,7 +17,9 @@
 
 namespace sf4e { namespace training {
 constexpr int HistoryRows = 12;
-constexpr unsigned char WaitActionable = 1, WaitHit = 2, WaitReply = 3;
+// WaitCancel: a cancel out of a move that cannot hit (a dash), on the
+// move's own cancel window.
+constexpr unsigned char WaitActionable = 1, WaitHit = 2, WaitReply = 3, WaitCancel = 4;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
 // for its hit before the motion goes stale. A reply's leading hold has no
@@ -123,36 +125,46 @@ inline bool ValidDummyState(const DummyState& s) {
         (s.super == -1 || s.super == 0 || s.super == 5 || s.super == 7 || s.super == 8) &&
         (s.revenge == -1 || s.revenge == 0 || s.revenge == 5 || s.revenge == 7 || s.revenge == 8);
 }
+// One typed reply (a reply slot): made-up input, held as a slot holds it
+// (for the dummy facing right) and played for the way it faces on each
+// frame, with its schedule as synthesis gives it (Compiled): offset, the
+// first move's own ("5MK@+3"), added to the plan's timing; anchor, the frame
+// of moves its input takes effect on; hold, the frame of its leading hold,
+// -1 for none. weight: its share of a random draw among the choices.
+struct ReplyChoice { std::vector<Input> moves; int offset = 0, anchor = -1, hold = -1, weight = 1; };
 // What the dummy does by itself once it is free again. when: 0 nothing, 1
-// after being hit, 2 after blocking, 3 on getting up, 4 any
-// of them. moves: the reply as made-up input, held as a slot holds it (for
-// the dummy facing right) and played for the way it faces on each frame; when
-// empty it replies with a recording that is on, picked in the slots' order
-// (DummyReply.hxx). chance: percent of the times it replies. timing: frames the reply's first attack
-// button lands after the dummy's first free frame. varyStance: it stands or
-// crouches at random each time. The typed moves' schedule, as synthesis
-// gives it (Compiled), with no typed moves 0, -1 and -1: offset, the first
-// move's own ("5MK@+3"), added to timing; anchor, the frame of moves its
-// input takes effect on; hold, the frame of its leading hold, -1 for none.
+// after being hit, 2 after blocking, 3 on getting up, 4 any of them.
+// choices: the typed replies, one of which each stretch plays, drawn by
+// weight or taken in order; with none it replies with a recording that is
+// on, picked in the recording slots' order (DummyReply.hxx). chance: percent
+// of the times it replies. timing: frames the reply's first attack button
+// lands after the dummy's first free frame. varyStance: it stands or
+// crouches at random each time.
 struct DummyPlan {
-    int when = 0, chance = 100, timing = 0; bool varyStance = false; std::vector<Input> moves;
-    int offset = 0, anchor = -1, hold = -1;
+    int when = 0, chance = 100, timing = 0; bool varyStance = false;
+    std::vector<ReplyChoice> choices; Order order = Order::Random;
 };
 constexpr int MaxReplyTiming = 5;
+constexpr int MaxReplyWeight = 9;
+inline bool ValidChoice(const ReplyChoice& c) {
+    const int frames = static_cast<int>(c.moves.size());
+    return frames > 0 && frames <= MaxFrames && c.weight >= 1 && c.weight <= MaxReplyWeight && c.offset >= MinOffset && c.offset <= MaxOffset &&
+        c.anchor >= 0 && c.anchor < frames && c.hold < c.anchor && (c.hold < 0 || c.moves[c.hold].wait == WaitReply);
+}
+// At most one choice per reply slot (SlotCount), so the choices draw as slots do.
 inline bool ValidDummyPlan(const DummyPlan& plan) {
-    const int frames = static_cast<int>(plan.moves.size());
-    const bool schedule = frames ? plan.offset >= MinOffset && plan.offset <= MaxOffset && plan.anchor >= 0 && plan.anchor < frames &&
-        plan.hold < plan.anchor && (plan.hold < 0 || plan.moves[plan.hold].wait == WaitReply) : !plan.offset && plan.anchor < 0 && plan.hold < 0;
-    return plan.when >= 0 && plan.when <= 4 && plan.chance >= 0 && plan.chance <= 100 &&
-        plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && frames <= MaxFrames && schedule;
+    bool choices = plan.choices.size() <= static_cast<std::size_t>(SlotCount);
+    for (const auto& choice : plan.choices) choices = choices && ValidChoice(choice);
+    return plan.when >= 0 && plan.when <= 4 && plan.chance >= 0 && plan.chance <= 100 && plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && choices;
 }
 // When a reply's first move lands, in frames of the reply as Session plays
 // it: start, its first played frame (ReplyStart); hold, the frame its
 // leading hold repeats on, -1 for none ("[1] > 3HP"); anchor, the frame its
 // first move's input takes effect on; timing, frames after the dummy's free
-// frame that frame is acted on. It goes with the frames it was made for
-// (Session::Reply), whatever the plan becomes after.
-struct ReplySchedule { int start = -1, hold = -1, anchor = -1, timing = 0; };
+// frame that frame is acted on; when, the stun it replies to as DummyPlan::when
+// numbers it (4 any), which its first move waits for (ReplyFirstMoveDue). It
+// goes with the frames it was made for (Session::Reply), whatever the plan becomes after.
+struct ReplySchedule { int start = -1, hold = -1, anchor = -1, timing = 0, when = 4; };
 // Typed moves carry theirs from synthesis (DummyPlan). A recording's comes
 // from its frames: it lands from its first attack button, and has no hold.
 inline ReplySchedule RecordingSchedule(const std::vector<Input>& frames, int timing) {
@@ -161,11 +173,10 @@ inline ReplySchedule RecordingSchedule(const std::vector<Input>& frames, int tim
     schedule.anchor = press == frames.end() ? schedule.start : static_cast<int>(press - frames.begin());
     return schedule;
 }
-// The schedule of the reply a plan plays: its typed moves', else its slot's recording's.
-inline ReplySchedule PlanSchedule(const DummyPlan& plan, const std::vector<Input>& slot) {
-    if (plan.moves.empty()) return RecordingSchedule(slot, plan.timing);
-    ReplySchedule schedule; schedule.start = ReplyStart(plan.moves); schedule.hold = plan.hold; schedule.anchor = plan.anchor;
-    schedule.timing = plan.timing + plan.offset;
+// A typed reply's, from its synthesis, its own offset added to the plan's timing.
+inline ReplySchedule ChoiceSchedule(const ReplyChoice& choice, int timing) {
+    ReplySchedule schedule; schedule.start = ReplyStart(choice.moves); schedule.hold = choice.hold; schedule.anchor = choice.anchor;
+    schedule.timing = timing + choice.offset;
     return schedule;
 }
 // Frames a reply plays before its first move takes effect, after its leading
@@ -245,9 +256,14 @@ private:
     int from_ = 0, elapsed_ = 0, free_ = -1, out_ = 0;
     unsigned stretch_ = 0;
 };
+// Whether a stun of this kind (0 for none) is one a reply to `when` (DummyPlan::when) answers: any, or that kind itself.
+inline bool Answers(int when, int cause) { return cause && (when == 4 || when == cause); }
+// Whether the stun the dummy is in, or came out of while free, is one a reply
+// to `when` answers.
+inline bool StunTriggers(int when, const DummySeen& seen) { return Answers(when, seen.held ? seen.held : seen.out); }
 // cause: DummySeen::held, else out while the dummy is free. roll: any random number; it decides the chance.
 inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
-    return cause && (plan.when == 4 || plan.when == cause) && roll % 100 < static_cast<unsigned>(plan.chance);
+    return Answers(plan.when, cause) && roll % 100 < static_cast<unsigned>(plan.chance);
 }
 // Whether a move played from the next update should start after this
 // frame's observation: its first attack button, acted on lead frames in (its
@@ -259,9 +275,11 @@ inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
     if (seen.held) return seen.until >= 0 && seen.until <= lead + 1 - timing;
     return seen.free >= 0 && -seen.free <= lead + 1 - timing;
 }
-// Whether a reply's first move is due by its schedule.
+// Whether a reply's first move is due by its schedule. Only once the dummy is
+// in the stun it replies to: a charge held from a hit that may become a
+// knockdown is not let go while the dummy is only being hit.
 inline bool ReplyFirstMoveDue(const ReplySchedule& schedule, const DummySeen& seen) {
-    return ReplyDue(seen, ReplyLead(schedule) + DummyInputLag, schedule.timing);
+    return StunTriggers(schedule.when, seen) && ReplyDue(seen, ReplyLead(schedule) + DummyInputLag, schedule.timing);
 }
 // Whether a reply should begin after this frame's observation: one holding
 // first begins with the stun, any other when its first move is due.
@@ -536,8 +554,8 @@ public:
     // whether the fighter is free now, and whether a hit landed on the other one.
     // untilActionable: frames until the fighter's script says it can act again, -1 when unknown.
     // replyDue: a reply's leading hold gives way (ReplyFirstMoveDue on Schedule).
-    void Observe(bool actionable, bool hit, int untilActionable = -1, bool replyDue = false) {
-        actionable_ = actionable; hit_ = hit_ || hit; untilActionable_ = untilActionable; replyDue_ = replyDue;
+    void Observe(bool actionable, bool hit, int untilActionable = -1, bool replyDue = false, bool cancelOpen = false) {
+        actionable_ = actionable; hit_ = hit_ || hit; untilActionable_ = untilActionable; replyDue_ = replyDue; cancelOpen_ = cancelOpen;
     }
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
     // The fighters face each other, by where they stood after the last
@@ -643,10 +661,17 @@ public:
         resumeSide_ = view_.playbackSide; view_.playbackSide = 1;
         Play(slot, std::move(frames));
         view_.replying = true; view_.cursor = first; ++replies_; schedule_ = schedule;
+        // The runtime keeps the dummy's charges full while it holds: a charge
+        // has nothing to wait for, so the reply goes straight to its hold.
+        if (schedule.hold >= 0 && schedule.hold < static_cast<int>(playing_.size()) &&
+            std::all_of(playing_.begin() + view_.cursor, playing_.begin() + schedule.hold, [&](const Input& frame) { return frame.raw == playing_[schedule.hold].raw; }))
+            view_.cursor = (std::max)(view_.cursor, schedule.hold);
         if (slot < SlotCount) replyPicker_.Commit(slot);
         return true;
     }
     bool Replying() const { return view_.replying; }
+    // A reply on its leading hold, or before it: where the runtime keeps the charges full.
+    bool Holding() const { return view_.replying && schedule_.hold >= 0 && view_.cursor <= schedule_.hold; }
     // The schedule of the reply playing, as it began.
     const ReplySchedule& Schedule() const { return schedule_; }
     // Replies started so far, never reset: each new reply changes it.
@@ -687,7 +712,7 @@ public:
                 if (view_.replying && !replyDue_) return;
             } else {
                 // The cue, then the offset's frames more.
-                const bool cued = frame.wait == WaitActionable ? actionable_ : frame.wait == WaitHit ? hit_ : true;
+                const bool cued = frame.wait == WaitActionable ? actionable_ : frame.wait == WaitHit ? hit_ : frame.wait == WaitCancel ? cancelOpen_ : true;
                 // A free frame is pressed on as predicted, plus the offset; seen,
                 // it releases the press the frame after, so a prediction is never late.
                 const bool predicted = frame.wait == WaitActionable && untilActionable_ >= 0 && untilActionable_ <= 1 - frame.offset;
@@ -716,7 +741,7 @@ private:
     // The recording under way, and the frames that play.
     std::vector<Input> scratch_, playing_;
     SlotPicker playPicker_{1}, replyPicker_{2};
-    bool actionable_ = false, hit_ = false, replyDue_ = false;
+    bool actionable_ = false, hit_ = false, replyDue_ = false, cancelOpen_ = false;
     int untilActionable_ = -1;
     int waited_ = 0, waitedPast_ = 0;
     unsigned lastRaw_ = 0;

@@ -28,11 +28,14 @@ struct SettingsFeatures {
     bool characterPictures = false;
     // "F10 or Start" as Ember's menu closes: Help's Show shortcut hint.
     bool shortcutHint = false;
+    // Theme folders for the game's own screens, sounds and battle HUD
+    // (game::Themes): Interface's In-game themes rows.
+    bool gameThemes = false;
 
     static constexpr SettingsFeatures All() {
         SettingsFeatures all;
         all.inputDisplayFixes = all.padLayer = all.keyboard = all.challengerCall = true;
-        all.lobbyMusic = all.characterPictures = all.shortcutHint = true;
+        all.lobbyMusic = all.characterPictures = all.shortcutHint = all.gameThemes = true;
         return all;
     }
 };

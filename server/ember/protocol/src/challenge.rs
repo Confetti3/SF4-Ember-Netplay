@@ -42,6 +42,10 @@ wire_enum! {
         SiteConnect = "site.connect",
         SiteRemove = "site.remove",
         SiteCancel = "site.cancel",
+        /// A request to the bridge's tournament service (`partner::PROVER_PATH`):
+        /// the service issues the challenge, with its own origin as the
+        /// audience, and the bridge never takes it.
+        TournamentAct = "tournament.act",
     }
 }
 

@@ -15,13 +15,12 @@
 // Play offline sends the game nowhere further.
 void TrainingSettingsAndHome() {
  using namespace sf4e;
- using Kind=netplay::CommandKind;
  Harness h;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.Choose("settings");
  Check(h.shell.Navigation().Screen()=="tab-player","Settings did not open on its Player tab");
  // The Interface tab's panels, each with its rows in order; endless lobby music is a sound.
- const std::pair<const char*,std::vector<std::string>> interfacePanels[]={{"tab-interface/look",{"tv"}},
+ const std::pair<const char*,std::vector<std::string>> interfacePanels[]={{"tab-interface/look",{"tv"}},{"tab-interface/game-themes",{"game-theme-main-menu","game-theme-title","game-theme-chara-select","game-theme-stage-select","game-theme-versus","game-theme-pause-menu","game-theme-network","game-theme-edition-marks","game-theme-buttons","game-theme-menu-sounds","game-theme-battle-hud"}},
   {"tab-interface/match-hud",{"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing"}},
   {"tab-interface/room-layout",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-tables","arrange-pictures","chat-filter","arrange-picture","arrange-reset"}},
   {"tab-interface/sounds",{"ready-sound","ready-volume","ready-test","lobby-music"}}};
@@ -31,21 +30,40 @@ void TrainingSettingsAndHome() {
    "An Interface panel's rows changed");
  }
  Check(!rows.back().enabled,"Endless lobby music was offered without the game's menu entry");
+ // The menus theme is off without themes. Right picks the first and saves it,
+ // and its panel lists the game's own and the themes side by side.
+ h.Screen("tab-interface/game-themes");
+ Check(!rows.front().enabled&&!rows.back().enabled,"A part's theme was offered without any themes");
+ h.view.gameThemes[netplay::GameThemeMainMenu]={"Neon","Blue"};h.Frame();
+ Check(!rows.back().enabled,"The battle HUD theme was offered with themes that have only a main menu");
+ Check(rows.front().choices.size()==3&&rows.front().choices[1].label=="Neon"&&rows.front().chosen=="#0","The menus theme's panel did not list the game's own and the themes");
+ h.FocusOn("game-theme-main-menu");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.gameThemes[netplay::GameThemeMainMenu]=="Neon";}),"Right on the menus theme did not save the first theme");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
+ h.Press(MenuInput::Select);h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.gameThemes[netplay::GameThemeMainMenu]=="Blue";}),"Picking a theme in the menus theme's panel did not save it");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
+ // The battle HUD has its own themes and its own pick; the menus stay.
+ h.view.gameThemes[netplay::GameThemeBattleHud]={"CvS2"};h.Frame();
+ h.FocusOn("game-theme-battle-hud");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.gameThemes[netplay::GameThemeBattleHud]=="CvS2"&&s.preferences.gameThemes[netplay::GameThemeMainMenu]=="Blue";}),
+  "Right on the battle HUD theme did not save it beside the menus theme");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  // The chat filter starts on, and Left turns it off and saves it.
  h.Screen("tab-interface/room-layout");
  Check(h.view.preferences.chatFilter,"The chat filter did not start on");
  h.FocusOn("chat-filter");h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.chatFilter,"Turning the chat filter off did not save it");
- h.view.preferences=h.actions.back().preferences;h.Frame();
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return !s.preferences.chatFilter;}),"Turning the chat filter off did not save it");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  h.Screen("tab-matches/training-replays");
  Check(rows.size()==7&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched"&&rows[3].id=="replay-share"&&rows[4].id=="watched-picture"&&
   rows[5].id=="picture-corner"&&rows[6].id=="picture-size","Training and replays settings order wrong");
  Check(rows[1].detail==loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),"Auto-ready detail lost runtime deadline");
  h.FocusOn("match-frame-meter");h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.matchFrameMeter,"Match frame meter did not save from new screen");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("training-auto-ready");h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.trainingAutoReady,"Training auto-ready did not save from new screen");
- h.view.preferences=h.actions.back().preferences;h.Frame();
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchFrameMeter;}),"Match frame meter did not save from new screen");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.FocusOn("training-auto-ready");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.trainingAutoReady;}),"Training auto-ready did not save from new screen");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  // A game without Ember's frame meter is not offered the setting; the rest stay in order.
  h.view.offersFrameMeter=false;h.Frame();h.Screen("tab-matches/training-replays");
  Check(rows.size()==6&&rows[0].id=="training-auto-ready"&&rows[1].id=="replay-save-watched","A game without a frame meter was offered Match frame meter");
@@ -60,13 +78,13 @@ void TrainingSettingsAndHome() {
  // The board shows one letter's countries: typing J shows Japan's.
  ImGui::GetIO().AddInputCharactersUTF8("J");h.Frame();h.Frame();
  h.shell.Navigation().Focus("country-JP",rows);h.Press(MenuInput::Select);h.Frame(0,45);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.country==CountryPreference::Of(CountryCode::Parsed("JP")),"A picked country did not save");
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.country==CountryPreference::Of(CountryCode::Parsed("JP"));}),"A picked country did not save");
  Check(h.shell.Navigation().Screen()=="tab-player/country","Choosing a country did not go back to Settings");
- h.view.preferences=h.actions.back().preferences;h.Frame();
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  h.Screen("home");
  Check(std::any_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="training";}),"Home lost its Training row");
  SetMenuEntriesProbe({});h.Choose("offline");
- Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().training==TrainingEntry::None,"Play offline asked for Training");
+ Check(!h.actions.empty()&&Is<commands::StartOffline>(h.actions.back()),"Play offline asked for Training");
  // The game's own Training item opens Ember's select: your fighter, the dummy, the stage, then Start.
  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.shell.ShowTraining();h.Frame();
@@ -76,12 +94,12 @@ void TrainingSettingsAndHome() {
  h.Screen("training");h.Choose("training-fighter");
  Check(h.shell.Navigation().Screen()=="selection"&&!h.shell.SelectingDummy(),"The fighter row opened the select for the dummy");
  h.Screen("training");h.Choose("training-start");
- Check(h.actions.back().startTraining&&h.actions.back().training==TrainingEntry::None,"Start did not hand over Training select's picks");
+ Check(Is<ui::StartTraining>(h.actions.back()),"Start did not hand over Training select's picks");
  SetMenuEntriesProbe({});
  // Private, then public, then private again, with the meter saved On: the choice survives the public room,
  // entering it saves nothing, and the row says why it is not offered only there.
  h.view.preferences.matchFrameMeter=true;
- const auto saves=[&]{return std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});};
+ const auto saves=[&]{return std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return Is<commands::SavePreferences>(a);});};
  const auto savedBefore=saves();
  for(const bool publicRoom:{false,true,false}){
   JoinedRoom(h,9);h.view.room.serverOwned=publicRoom;h.view.canEditPreferences=false;
@@ -111,14 +129,13 @@ void TrainingSelectHitboxes() {
   rows[3].value==loc::T("common.off")&&rows[3].detail==loc::T("training_select.hitboxes_detail"),"Training select's Hitboxes row is missing or out of place");
  const auto before=h.actions.size();
  h.Choose("training-hitboxes");
- Check(h.actions.size()==before+1&&h.actions.back().showHitboxes&&*h.actions.back().showHitboxes&&
-  h.actions.back().command.kind!=netplay::CommandKind::SavePreferences&&!h.actions.back().startTraining,"Select on Hitboxes did not ask the game to show them");
+ Check(h.actions.size()==before+1&&Is<ui::ShowHitboxes>(h.actions.back(),[](const ui::ShowHitboxes& a){return a.shown;}),"Select on Hitboxes did not ask the game to show them");
  h.view.hitboxesShown=true;h.Frame();
  Check(rows[3].value==loc::T("common.on"),"The Hitboxes row did not show the game's choice");
  h.Press(MenuInput::Right);
  Check(h.actions.size()==before+1,"Right on Hitboxes already shown asked again");
  h.Press(MenuInput::Left);
- Check(h.actions.size()==before+2&&h.actions.back().showHitboxes&&!*h.actions.back().showHitboxes,"Left on Hitboxes did not ask the game to hide them");
+ Check(h.actions.size()==before+2&&Is<ui::ShowHitboxes>(h.actions.back(),[](const ui::ShowHitboxes& a){return !a.shown;}),"Left on Hitboxes did not ask the game to hide them");
  // The game's choice, not the menu's: unchanged until the game says so.
  h.Frame();Check(rows[3].value==loc::T("common.on"),"The Hitboxes row changed before the game kept the choice");
  h.view.offersHitboxes=false;h.view.hitboxesShown=false;h.Frame();
@@ -130,7 +147,6 @@ void TrainingSelectHitboxes() {
 // the runtime allows a Ready.
 void TrainingFromRoom() {
  using namespace sf4e;
- using Kind=netplay::CommandKind;
  Harness h;h.Frame();
  room::Member me,other;me.id=1;me.name="Me";other.id=2;other.name="Other";
  JoinedRoom(h,9);h.view.session.control=netplay::Health::Healthy;
@@ -149,7 +165,7 @@ void TrainingFromRoom() {
  h.view.room.practice=h.view.room.locked=false;h.Frame();
  const auto before=h.actions.size();
  h.Choose("room-training");
- Check(h.actions.size()==before+1&&h.actions.back().training==TrainingEntry::Room&&h.actions.back().command.kind!=Kind::StartOffline,"Training from the room did not ask for Training alone");
+ Check(h.actions.size()==before+1&&Is<commands::Training>(h.actions.back(),[](const commands::Training& t){return t.training==TrainingEntry::Room;}),"Training from the room did not ask for Training alone");
  // Seated opposite another fighter and called back: the table page, with the time to ready on its Ready row.
  me.table=0;me.seat=0;me.status=room::MemberStatus::Seated;other.table=0;other.seat=1;other.status=room::MemberStatus::Seated;
  h.view.room.members={me,other};h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;h.view.room.tables[0].phase=room::TablePhase::Waiting;
@@ -173,7 +189,7 @@ void TrainingFromRoom() {
  h.view.trainingReadySequence=1;h.Frame();h.Frame();
  Check(h.actions.size()==sent,"A Ready was sent before the runtime allowed one");
  h.view.canReady=true;h.Frame();
- Check(h.actions.size()==sent+1&&h.actions.back().command.kind==Kind::Ready,"A player who asked for it was not readied after the call");
+ Check(h.actions.size()==sent+1&&ReadyIs(h.actions.back()),"A player who asked for it was not readied after the call");
  h.Frame();h.Frame();
  Check(h.actions.size()==sent+1,"The call readied the player more than once");
  // A window that closed takes a waiting Ready with it.
@@ -181,7 +197,7 @@ void TrainingFromRoom() {
  Check(h.actions.size()==sent+1,"A Ready outlived its window");
  // A refused submit does not use up the request: it is tried again, and lands exactly once.
  h.view.trainingReadySeconds=15;h.view.trainingReadySequence=3;h.accept=false;h.Frame();
- const auto readies=[&]{return std::count_if(h.actions.begin()+sent,h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::Ready;});};
+ const auto readies=[&]{return std::count_if(h.actions.begin()+sent,h.actions.end(),[](const ShellAction& a){return ReadyIs(a);});};
  Check(readies()==2,"A refused Ready was not attempted");
  h.accept=true;h.Frame();
  Check(readies()==3,"A refused Ready was not retried once the queue took it");
@@ -251,7 +267,6 @@ void TrainingInRoom() {
 // with no round time to choose.
 void PracticeRoomCreate() {
  using namespace sf4e;
- using Kind=netplay::CommandKind;
  Harness h;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
@@ -262,13 +277,13 @@ void PracticeRoomCreate() {
  h.FocusOn("practice-room");h.Press(MenuInput::Right);
  Check(row("practice-room")->value==loc::T("common.on")&&row("time")==rows.end(),"Practice room did not turn on, or left a round time to choose");
  h.Choose("host");
- Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().practiceRoom,"Create room did not ask for a Practice room");
- const auto saved=netplay::RoomPreferences(h.actions.back().preferences);
+ Check(!h.actions.empty()&&Is<commands::HostRoom>(h.actions.back(),[](const commands::HostRoom& r){return r.charter.practice;}),"Create room did not ask for a Practice room");
+ const auto saved=netplay::RoomPreferences(std::get<commands::HostRoom>(h.actions.back()).preferences);
  Check(!saved.contains("practice")&&!saved.contains("training"),"The Practice room choice reached the saved defaults");
  h.Screen("online");h.Choose("create");
  Check(row("practice-room")->value==loc::T("common.off"),"Practice room was still on when Create opened again");
  h.Choose("host");
- Check(h.actions.back().command.kind==Kind::HostRoom&&!h.actions.back().practiceRoom,"A room created with Practice room off asked for one");
+ Check(Is<commands::HostRoom>(h.actions.back(),[](const commands::HostRoom& r){return !r.charter.practice;}),"A room created with Practice room off asked for one");
  // Room type: Classic unless Arcade is chosen, and back to Classic on the next visit.
  h.Screen("online");h.Choose("create");
  Check(row("room-type")!=rows.end()&&row("room-type")->value==loc::T("room.type.classic"),"Create did not open on a Classic room");
@@ -276,16 +291,16 @@ void PracticeRoomCreate() {
  Check(row("room-type")->value==loc::T("room.type.arcade")&&row("room-type")->detail==loc::T("room.type.arcade_detail"),"Room type did not turn to Arcade");
  Check(row("set-length")!=rows.end()&&row("rotation")==rows.end(),"An Arcade room offered who stays after a set");
  h.Choose("host");
- Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().arcadeRoom==room::ArcadeRoom,"Create room did not ask for an Arcade room");
+ Check(Is<commands::HostRoom>(h.actions.back(),[](const commands::HostRoom& r){return r.charter.type==room::RoomType::Arcade;}),"Create room did not ask for an Arcade room");
  h.Screen("online");h.Choose("create");
  Check(row("room-type")->value==loc::T("room.type.classic"),"Arcade was still chosen when Create opened again");
  h.Choose("host");
- Check(h.actions.back().arcadeRoom==room::ClassicRoom,"A Classic room asked to be an Arcade room");
+ Check(Is<commands::HostRoom>(h.actions.back(),[](const commands::HostRoom& r){return r.charter.type==room::RoomType::Classic;}),"A Classic room asked to be an Arcade room");
  // King of the hill is the third type; nothing else about the layout is asked.
  h.Screen("online");h.Choose("create");h.FocusOn("room-type");h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Right);
  Check(row("room-type")->value==loc::T("room.type.king")&&row("arcade-view")==rows.end(),"Room type did not step to King of the hill");
  h.Choose("host");
- Check(h.actions.back().arcadeRoom==room::KingRoom,"Create room did not ask for King of the hill");
+ Check(Is<commands::HostRoom>(h.actions.back(),[](const commands::HostRoom& r){return r.charter.type==room::RoomType::King;}),"Create room did not ask for King of the hill");
  // A public room may have any type but is never a Practice room; the gameplay defaults offer neither.
  h.Screen("online");h.Choose("create");h.FocusOn("visibility");h.Press(MenuInput::Right);
  Check(row("practice-room")==rows.end()&&row("room-type")!=rows.end()&&row("time")!=rows.end(),"Public Create offered Practice room, or no room type");
@@ -299,7 +314,6 @@ void PracticeRoomCreate() {
 // room and on the gameplay defaults too.
 void DelayPolicyCreate() {
  using namespace sf4e;
- using Kind=netplay::CommandKind;
  Harness h;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
@@ -309,14 +323,14 @@ void DelayPolicyCreate() {
   "Create did not open with each player's own delay");
  Check(row("delay-policy")->label==loc::T("room.delay_policy")&&row("delay-policy")->detail==loc::T("room.delay_policy.detail"),"The delay policy did not explain itself");
  h.Choose("host");
- Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Own,"Create room did not ask for each player's own delay");
- Check(netplay::RoomPreferences(h.actions.back().preferences).at("delay")=="own","The default delay was not written to the saved defaults");
+ Check(!h.actions.empty()&&Is<commands::HostRoom>(h.actions.back(),[](const commands::HostRoom& r){return r.charter.delayPolicy==room::DelayPolicy::Own;}),"Create room did not ask for each player's own delay");
+ Check(netplay::RoomPreferences(std::get<commands::HostRoom>(h.actions.back()).preferences).at("delay")=="own","The default delay was not written to the saved defaults");
  h.Screen("online");h.Choose("create");
  h.FocusOn("delay-policy");h.Press(MenuInput::Left);
  Check(row("delay-policy")->value==loc::T("room.delay_policy.shared"),"The delay policy did not turn to the same for both");
  h.Choose("host");
- Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Shared,"Create room did not ask for a Shared delay");
- Check(netplay::RoomPreferences(h.actions.back().preferences).at("delay")=="shared","A Shared delay did not reach the saved defaults");
+ Check(Is<commands::HostRoom>(h.actions.back(),[](const commands::HostRoom& r){return r.charter.delayPolicy==room::DelayPolicy::Shared;}),"Create room did not ask for a Shared delay");
+ Check(netplay::RoomPreferences(std::get<commands::HostRoom>(h.actions.back()).preferences).at("delay")=="shared","A Shared delay did not reach the saved defaults");
  // Kept with the defaults: it is still chosen when Create opens again, and a Practice room has it too.
  h.Screen("online");h.Choose("create");
  Check(row("delay-policy")->value==loc::T("room.delay_policy.shared"),"The delay policy was forgotten when Create opened again");
@@ -330,7 +344,7 @@ void DelayPolicyCreate() {
  h.FocusOn("delay-policy");h.Press(MenuInput::Right);
  Check(row("delay-policy")->value==loc::T("room.delay_policy.own"),"The delay policy did not turn back");
  h.Choose("host");
- Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Own,"Create room did not ask for each player's own delay again");
+ Check(Is<commands::HostRoom>(h.actions.back(),[](const commands::HostRoom& r){return r.charter.delayPolicy==room::DelayPolicy::Own;}),"Create room did not ask for each player's own delay again");
  h.Screen("tab-matches/defaults");
  Check(row("delay-policy")!=rows.end(),"Gameplay defaults did not offer the delay policy");
  SetMenuEntriesProbe({});
@@ -371,7 +385,6 @@ void DelayPolicyInRoom() {
 // room, and changed in the room by its host, never past an occupied table.
 void TableCountCreate() {
  using namespace sf4e;
- using Kind=netplay::CommandKind;
  Harness h;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
@@ -379,23 +392,28 @@ void TableCountCreate() {
  Check(row("tables")!=rows.end()&&row("tables")->value=="4"&&row("tables")->label==loc::T("room.tables")&&
   row("tables")->detail==loc::Tf("room.tables_detail",static_cast<int>(room::TableCount)),"Create did not offer four tables");
  h.Choose("host");
- Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().tableCount==4,"Create room did not ask for four tables");
- Check(!netplay::RoomPreferences(h.actions.back().preferences).contains("tableCount"),"Four tables were written to the saved defaults");
+ Check(!h.actions.empty()&&Is<commands::HostRoom>(h.actions.back(),[](const commands::HostRoom& r){return r.charter.tableCount==4;}),"Create room did not ask for four tables");
+ Check(!netplay::RoomPreferences(std::get<commands::HostRoom>(h.actions.back()).preferences).contains("tableCount"),"Four tables were written to the saved defaults");
  h.Screen("online");h.Choose("create");h.FocusOn("tables");
  for(int i=0;i<6;++i)h.Press(MenuInput::Right);
  Check(row("tables")->value=="8","Tables did not stop at eight");
  h.Press(MenuInput::Left);h.Press(MenuInput::Left);
  h.Choose("host");
- Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().tableCount==6,"Create room did not ask for six tables");
- Check(netplay::RoomPreferences(h.actions.back().preferences).at("tableCount")==6,"The table count did not reach the saved defaults");
- // Kept: Create opens on six again. An Arcade room plays at every table and a
- // public room opens at four, so neither offers the row.
+ Check(Is<commands::HostRoom>(h.actions.back(),[](const commands::HostRoom& r){return r.charter.tableCount==6;}),"Create room did not ask for six tables");
+ Check(netplay::RoomPreferences(std::get<commands::HostRoom>(h.actions.back()).preferences).at("tableCount")==6,"The table count did not reach the saved defaults");
+ // Kept: Create opens on six again. An Arcade room has its own count, all
+ // eight until changed and not kept; one table is winner stays. A public
+ // Classic room opens at four, so it offers no row.
  h.Screen("online");h.Choose("create");
  Check(row("tables")->value=="6","The table count was forgotten when Create opened again");
  h.FocusOn("room-type");h.Press(MenuInput::Right);
- Check(row("tables")==rows.end(),"An Arcade room offered a table count");
+ Check(row("tables")->value=="8"&&row("tables")->detail==loc::Tf("room.tables_arcade_detail",static_cast<int>(room::TableCount)),
+  "An Arcade room did not offer its own table count");
+ h.FocusOn("tables");for(int i=0;i<8;++i)h.Press(MenuInput::Left);
+ Check(row("tables")->value=="1","An Arcade room's tables did not stop at one");
  h.Choose("host");
- Check(h.actions.back().arcadeRoom==room::ArcadeRoom&&h.actions.back().tableCount==room::ClassicTableCount,"An Arcade room asked for a table count");
+ Check(Is<commands::HostRoom>(h.actions.back(),[](const commands::HostRoom& r){return r.charter.type==room::RoomType::Arcade&&r.charter.tableCount==1;}),"An Arcade room did not ask for one table");
+ Check(netplay::RoomPreferences(std::get<commands::HostRoom>(h.actions.back()).preferences).at("tableCount")==6,"An Arcade room's count reached the Classic default");
  h.Screen("online");h.Choose("create");h.FocusOn("visibility");h.Press(MenuInput::Right);
  Check(row("tables")==rows.end(),"Public Create offered a table count");
  h.Press(MenuInput::Left);
@@ -414,11 +432,13 @@ void TableCountCreate() {
  Check(row("room-tables")->value=="7"&&row("apply-tables")->enabled,"Room settings did not offer a seventh table");
  const auto before=h.actions.size();
  h.Choose("apply-tables");
- Check(h.actions.size()==before+1&&h.actions.back().command.kind==Kind::RoomAction&&h.actions.back().roomAction.kind==room::ActionKind::SetTableCount&&
-  h.actions.back().roomAction.tableCount==7,"Apply tables did not send the count");
- // An Arcade room's settings have no count.
- h.view.room.arcade=room::ArcadeRoom;h.Frame();
- Check(row("room-tables")==rows.end()&&row("apply-tables")==rows.end(),"An Arcade room's settings offered a table count");
+ Check(h.actions.size()==before+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){
+  return sent.roomAction.kind==room::ActionKind::SetTableCount&&sent.roomAction.tableCount==7;}),"Apply tables did not send the count");
+ // A private Arcade room's host changes its count too; a public one keeps it.
+ h.view.room.type=room::RoomType::Arcade;h.Frame();
+ Check(row("room-tables")!=rows.end(),"A private Arcade room's settings did not offer a table count");
+ h.view.room.serverOwned=true;h.Frame();
+ Check(row("room-tables")==rows.end()&&row("apply-tables")==rows.end(),"A public Arcade room's settings offered a table count");
  SetMenuEntriesProbe({});
 }
 void TrainingJourneys() {
@@ -592,59 +612,60 @@ void TrainingJourneys() {
  // Even unreadable loaded text must allow Off to reach the runtime.
  reach("reply");press(MenuInput::Right);
  Check(commands.size()==1&&runtimePlan.when==0&&!training::DummyReplies(runtimePlan,1,0)&&
-  saved()["reply"]["when"]==0&&saved()["reply"]["moves"]=="not a move","Invalid loaded text prevented Reply Off");
- const auto edit=[&](const char* text){choose("reply-moves");
+  saved()["reply"]["when"]==0&&saved()["reply"]["slots"][0]["moves"]=="not a move","Invalid loaded text prevented Reply Off");
+ const auto edit=[&](const char* text){choose("reply-slot-0");choose("slot-moves");
   Check(TrainingNavigation().Editing(),"Reply editor did not open");TrainingNavigation().Draft(text);
   // InputText keeps a separate buffer while active. Reload the model draft
   // into that buffer before rendering, or it copies the previous text back.
   auto* editor=ImGui::FindWindowByName("###EditText");Check(editor!=nullptr,"Reply editor was not drawn");
   if(auto* input=ImGui::GetInputTextState(editor->GetID("##Draft"))) input->ReloadUserBufAndMoveToEnd();
   frame();Check(TrainingNavigation().Draft()==text,"Reply draft did not survive rendering");press(MenuInput::Select);
-  Check(!TrainingNavigation().Editing(),"Reply editor did not accept its draft");};
+  Check(!TrainingNavigation().Editing(),"Reply editor did not accept its draft");press(MenuInput::Back);};
  // Start with a valid enabled reply, then accept a nonempty line with no
  // moves. Rejection must preserve the editor, file and runtime together.
  edit("623HP");reach("reply");press(MenuInput::Right);
- Check(runtimePlan.when==1&&!runtimePlan.moves.empty()&&training::DummyReplies(runtimePlan,1,0),"Valid reply did not become active");
- const auto active=saved();const auto activeFrames=runtimePlan.moves.size();commands.clear();
+ Check(runtimePlan.when==1&&!runtimePlan.choices.empty()&&training::DummyReplies(runtimePlan,1,0),"Valid reply did not become active");
+ const auto active=saved();const auto activeFrames=runtimePlan.choices.size();commands.clear();
  edit("> ,");
- Check(commands.empty()&&saved()==active&&runtimePlan.when==1&&runtimePlan.moves.size()==activeFrames&&
+ Check(commands.empty()&&saved()==active&&runtimePlan.when==1&&runtimePlan.choices.size()==activeFrames&&
   !TrainingNotice(failed).empty()&&failed,"Rejected reply partially changed saved settings or runtime");
- choose("reply-moves");Check(TrainingNavigation().Draft()=="623HP","Rejected reply replaced the editor's accepted text");press(MenuInput::Back);
+ choose("reply-slot-0");choose("slot-moves");Check(TrainingNavigation().Draft()=="623HP","Rejected reply replaced the editor's accepted text");press(MenuInput::Back);press(MenuInput::Back);
  reach("reply");press(MenuInput::Left);
- Check(commands.size()==1&&runtimePlan.when==0&&runtimePlan.moves.empty()&&
-  !training::DummyReplies(runtimePlan,1,0)&&saved()["reply"]["when"]==0&&saved()["reply"]["moves"]=="623HP",
+ Check(commands.size()==1&&runtimePlan.when==0&&runtimePlan.choices.empty()&&
+  !training::DummyReplies(runtimePlan,1,0)&&saved()["reply"]["when"]==0&&saved()["reply"]["slots"][0]["moves"]=="623HP",
   "Reply Off disagreed with the saved settings or runtime after a rejected edit");
  // The editor still validates notation while Off; it cannot persist text
  // that would fail the next time replies are enabled.
  const auto off=saved();commands.clear();edit("> ,");
  Check(commands.empty()&&saved()==off&&runtimePlan.when==0,"Reply Off allowed an invalid edit to be saved");
- // The pick list: the typed reply that is no preset shows as Custom; a preset
- // is sent and saved as the same text typed would be; Custom brings the typed
- // reply back; Select opens the typed field; a preset typed in another
- // spelling shows as that preset.
+ // The slots: Select opens one's move list, a pick fills it and turns it
+ // on, the order and weights are kept, Left and Right turn a slot off.
  {
-  const auto focus=[&](const char* id){frame();for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Up);
-   for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Down);Check(TrainingNavigation().Focus()==id,"Training entry unreachable");};
   std::vector<MenuEntry> replyRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){replyRows=rows;});
-  const auto pick=[&]{frame();for(const auto& row:replyRows)if(row.id=="reply-move")return row.value;return std::string();};
-  focus("reply");press(MenuInput::Right);
-  Check(runtimePlan.when==1&&!runtimePlan.moves.empty(),"The typed reply was not turned back on");
-  Check(pick()==loc::T("training.reply.custom"),"A typed reply that is no preset did not show as Custom");
-  focus("reply-move");commands.clear();press(MenuInput::Right);
-  Check(pick()==loc::T("training.reply.recordings")&&saved()["reply"]["moves"]==""&&saved()["reply"]["custom"]=="623HP"&&
-   runtimePlan.moves.empty()&&!saved()["reply"].contains("slot"),"Custom did not step on to the recordings");
-  press(MenuInput::Right);
-  training::DummyPlan typed;std::string error;
-  Check(training::BuildReplyPlan("623P",runtimePlan,typed,error),"The first preset is not notation");
-  Check(pick()=="623P"&&saved()["reply"]["moves"]=="623P"&&commands.back().action==training::Action::DummyPlan&&
-   runtimePlan.moves.size()==typed.moves.size(),"The first preset was not sent and saved as typed text");
-  press(MenuInput::Left);press(MenuInput::Left);
-  Check(pick()==loc::T("training.reply.custom")&&saved()["reply"]["moves"]=="623HP"&&!runtimePlan.moves.empty(),"Custom did not bring the typed reply back");
-  press(MenuInput::Select);frame();
-  Check(TrainingNavigation().Editing()&&TrainingNavigation().Focus()=="reply-moves"&&TrainingNavigation().Draft()=="623HP","Select on the pick list did not open the typed field");
-  press(MenuInput::Back);Check(!TrainingNavigation().Editing(),"The typed field did not close");
-  edit("lp+lk");
-  Check(pick()=="LP+LK"&&saved()["reply"]["custom"]=="623HP","A preset typed in another spelling did not show as that preset");
+  const auto value=[&](const char* id){frame();for(const auto& row:replyRows)if(row.id==id)return row.value;return std::string();};
+  reach("reply");press(MenuInput::Right);
+  Check(runtimePlan.when==1&&runtimePlan.choices.size()==1,"The typed reply was not turned back on");
+  Check(value("reply-slot-0")==std::string(loc::T("common.on"))+", 623HP","A typed reply did not show in the first slot");
+  Check(value("reply-slot-1")==loc::T("training.slot.empty"),"An empty slot did not say so");
+  choose("reply-slot-1");Check(TrainingNavigation().Screen()=="reply-slot","Select on a slot did not open its moves");
+  commands.clear();choose("pick-0");
+  Check(TrainingNavigation().Screen()=="reply","A pick did not return to the slots");
+  Check(saved()["reply"]["slots"][1]["moves"]=="44"&&saved()["reply"]["slots"][1]["on"]==true,"A picked move was not saved");
+  Check(runtimePlan.choices.size()==2,"A picked move did not reach the plan");
+  Check(!commands.empty()&&commands.back().action==training::Action::DummyPlan,"A picked move was not sent");
+  reach("reply-order");press(MenuInput::Right);
+  Check(saved()["reply"]["order"]==1&&runtimePlan.choices.size()==2&&runtimePlan.order==training::Order::InOrder,"In order was not saved and sent");
+  press(MenuInput::Left);Check(saved()["reply"]["order"]==0&&runtimePlan.order==training::Order::Random,"Random was not saved and sent");
+  choose("reply-slot-1");reach("slot-weight");press(MenuInput::Right);
+  Check(saved()["reply"]["slots"][1]["weight"]==2,"A slot's weight was not saved");
+  press(MenuInput::Back);reach("reply-slot-1");press(MenuInput::Left);
+  Check(saved()["reply"]["slots"][1]["on"]==false&&runtimePlan.choices.size()==1,"Left on a slot did not turn it off");
+  // A move with several strengths is one row with them as chips: Right lights the next, Select takes the lit one.
+  choose("reply-slot-2");reach("pick-11");
+  Check([&]{frame();for(const auto& row:replyRows)if(row.id=="pick-11")return row.segments.size()==6&&row.value=="LP";return false;}(),"A move's strengths were not chips on its row");
+  press(MenuInput::Right);Check(value("pick-11")=="MP","Right did not light the next strength");
+  press(MenuInput::Select);
+  Check(TrainingNavigation().Screen()=="reply"&&saved()["reply"]["slots"][2]["moves"]=="cl.MP","Select did not put the lit strength in the slot");
   SetMenuEntriesProbe({});
  }
  // A position is told saved or reset only once the game has done it: a

@@ -214,6 +214,53 @@ bool SaveAnnouncedTo(const Path& directory, const std::vector<AnnouncedMatch>& m
         return false;
     }
 }
+
+const char* RecentOpponentsKey = "recentOpponents";
+
+// Absent from files written before opponents were remembered. A field of the wrong type drops its entry alone.
+std::vector<netplay::profiles::Recent> RecentFrom(const Path& directory) noexcept {
+    std::vector<netplay::profiles::Recent> entries;
+    try {
+        const Json value = LoadValid(directory);
+        if (!value.is_object()) return entries;
+        const auto found = value.find(RecentOpponentsKey);
+        if (found == value.end() || !found->is_array()) return entries;
+        for (const auto& item : *found) {
+            if (entries.size() == netplay::profiles::MaxRecent) break;
+            if (!item.is_object()) continue;
+            const auto text = [&](const char* key) { const auto it = item.find(key); return it != item.end() && it->is_string() ? it->get<std::string>() : std::string(); };
+            netplay::profiles::Recent entry;
+            entry.card = text("card");
+            entry.name = text("name");
+            entry.room = text("room");
+            entry.country = CountryCode::Parsed(text("country"));
+            const auto fighter = item.find("fighter");
+            if (fighter != item.end() && fighter->is_number_integer()) entry.fighter = fighter->get<long long>() >= 0 && fighter->get<long long>() < selection::FighterCount ? fighter->get<int>() : -1;
+            const auto at = item.find("at");
+            if (at != item.end() && at->is_number_unsigned()) entry.at = at->get<std::uint64_t>();
+            if (netplay::profiles::ValidRecent(entry)) entries.push_back(std::move(entry));
+        }
+    } catch (...) { entries.clear(); }
+    return entries;
+}
+
+bool SaveRecentTo(const Path& directory, const std::vector<netplay::profiles::Recent>& entries, std::string& error) noexcept {
+    error.clear();
+    try {
+        Json list = Json::array();
+        for (const auto& entry : entries) {
+            if (list.size() == netplay::profiles::MaxRecent) break;
+            if (!netplay::profiles::ValidRecent(entry)) continue;
+            Json item = {{"card", entry.card}, {"name", entry.name}, {"fighter", entry.fighter}, {"room", entry.room}, {"at", entry.at}};
+            if (entry.country.Present()) item["country"] = entry.country.ToString();
+            list.push_back(std::move(item));
+        }
+        return SaveTo(directory, {{RecentOpponentsKey, std::move(list)}}, error);
+    } catch (...) {
+        error = "The recent opponents could not be saved.";
+        return false;
+    }
+}
 }
 
 void TrimAnnouncedMatches(std::vector<AnnouncedMatch>& matches, const std::string& keep) {
@@ -259,6 +306,12 @@ std::vector<AnnouncedMatch> LoadAnnouncedMatches() { return AnnouncedFrom(netpla
 
 bool SaveAnnouncedMatches(const std::vector<AnnouncedMatch>& matches, std::string& error) {
     return SaveAnnouncedTo(netplay::SettingsStore::DefaultDirectory(), matches, error);
+}
+
+std::vector<netplay::profiles::Recent> LoadRecentOpponents() { return RecentFrom(netplay::SettingsStore::DefaultDirectory()); }
+
+bool SaveRecentOpponents(const std::vector<netplay::profiles::Recent>& entries, std::string& error) {
+    return SaveRecentTo(netplay::SettingsStore::DefaultDirectory(), entries, error);
 }
 
 std::optional<updates::UpdateChannel> UpdateChannelPreference() { return ChannelFrom(netplay::SettingsStore::DefaultDirectory()); }
@@ -309,6 +362,10 @@ bool HideGameSettingsCardIn(const std::wstring& directory, std::string& error) {
     return HideCardIn(directory, error);
 }
 std::vector<AnnouncedMatch> LoadAnnouncedMatchesFrom(const std::wstring& directory) { return AnnouncedFrom(directory); }
+std::vector<netplay::profiles::Recent> LoadRecentOpponentsFrom(const std::wstring& directory) { return RecentFrom(directory); }
+bool SaveRecentOpponentsTo(const std::wstring& directory, const std::vector<netplay::profiles::Recent>& entries, std::string& error) {
+    return SaveRecentTo(directory, entries, error);
+}
 bool SaveAnnouncedMatchesTo(const std::wstring& directory, const std::vector<AnnouncedMatch>& matches, std::string& error) {
     return SaveAnnouncedTo(directory, matches, error);
 }

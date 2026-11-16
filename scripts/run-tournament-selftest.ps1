@@ -12,15 +12,6 @@
 # in the design document. The game has to be closed and Steam signed in on both
 # PCs. Needs Node.js 22.18 or later here, and a free -Port and -Port + 1 on
 # this PC and -Port on the other.
-#
-# -Site challonge plays a real Challonge tournament instead of the bridge's
-# mock provider (docs/design/TOURNAMENT_SELFTEST.md, "Challonge mode"): each
-# game connects its Challonge account in the browser of its PC, where a person
-# signs in and approves (five minutes each), and the ember-brackets connector
-# makes the match from the tournament's one open set and reports its score.
-# -ChallongeConfig is the local run configuration, kept outside the
-# repository, and -ConnectorExe is ember-brackets.exe built from the same
-# checkout as the bridge.
 param(
     # This PC's package, the guest's.
     [Parameter(Mandatory)] [string]$PackageDir,
@@ -35,10 +26,7 @@ param(
     [string]$RemoteTask = "Ember Interactive",
     [Parameter(Mandatory)] [string]$RemoteJobs,
     [int]$Port = 18787,
-    [int]$TimeoutMinutes = 30,
-    [ValidateSet("mock", "challonge")] [string]$Site = "mock",
-    [string]$ChallongeConfig = "",
-    [string]$ConnectorExe = ""
+    [int]$TimeoutMinutes = 30
 )
 
 $ErrorActionPreference = "Stop"
@@ -65,19 +53,8 @@ function Get-Steps([string]$Side, [string]$Log) {
 
 if (Get-Process SSFIV -ErrorAction SilentlyContinue) { throw "Close Ultra Street Fighter IV first." }
 if (-not (Test-Path $BridgeExe)) { throw "ember-bridge.exe not found at $BridgeExe" }
-# The bridge's connection the games link on, and the arguments that change for
-# a sign-in site: the bridge side's, the host job's and the guest's.
+# The bridge's connection the games link on.
 $connection = "mock-local"
-$siteBridgeArguments = @()
-$siteGameArguments = @()
-if ($Site -eq "challonge") {
-    if (-not $ChallongeConfig -or -not (Test-Path $ChallongeConfig -PathType Leaf)) { throw "-ChallongeConfig needs the local run configuration file." }
-    if (-not $ConnectorExe -or -not (Test-Path $ConnectorExe -PathType Leaf)) { throw "-ConnectorExe needs ember-brackets.exe." }
-    $connection = "brackets"
-    $siteBridgeArguments = @("--site", "challonge", "--challonge", "`"$((Resolve-Path $ChallongeConfig).Path)`"", "--connector", "`"$((Resolve-Path $ConnectorExe).Path)`"", "--connection", $connection)
-    $siteGameArguments = @("-Site", "challonge")
-}
-elseif ($ChallongeConfig -or $ConnectorExe) { throw "-ChallongeConfig and -ConnectorExe are for -Site challonge." }
 if (-not (Test-PortFree $Port) -or -not (Test-PortFree ($Port + 1))) { throw "Port $Port or $($Port + 1) is in use on this PC." }
 # The remote paths go into single-quoted strings and a batch line.
 foreach ($path in $RemoteCheckout, $RemoteJobs) { if ($path -match "['`"%]") { throw "The remote path $path has a quote or percent sign in it." } }
@@ -113,7 +90,7 @@ try {
     $coordinator = Start-Process -FilePath $node -PassThru -NoNewWindow -RedirectStandardOutput $coordinatorLog -RedirectStandardError "$coordinatorLog.err" -WorkingDirectory "$repo\sdk\typescript" -ArgumentList (@(
         "tools/selftest-bridge.ts", "--bridge", "`"$BridgeExe`"", "--work", "`"$bridgeWork`"",
         "--host", "`"ssh:$($RemoteHost):$remoteExchange`"", "--guest", "`"$guestExchange`"",
-        "--port", $Port, "--minutes", ($TimeoutMinutes + 5)) + $siteBridgeArguments)
+        "--port", $Port, "--minutes", ($TimeoutMinutes + 5)))
     $ready = (Get-Date).AddMinutes(2)
     while (-not ((Test-Path $coordinatorLog) -and (Select-String -Path $coordinatorLog -Pattern '^READY$' -Quiet))) {
         if ($coordinator.HasExited -or (Get-Date) -gt $ready) { throw "The bridge side did not start: $(Get-Content $coordinatorLog, "$coordinatorLog.err" -ErrorAction SilentlyContinue)" }
@@ -130,7 +107,7 @@ Remove-Item '$remoteExchange' -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path '$remoteExchange' -Force | Out-Null
 Remove-Item '$remoteLog','$remotePid' -ErrorAction SilentlyContinue
 `$pwsh = (Get-Command pwsh).Source
-Set-Content -LiteralPath '$remoteJob' -Encoding ASCII -Value ('@"{0}" -NoProfile -ExecutionPolicy Bypass -File "$RemoteCheckout\scripts\run-tournament-selftest-host.ps1" -PackageDir "$RemoteCheckout\build\current\stage" -Exchange "$remoteExchange" -Bridge "$origin" -PidFile "$remotePid" -Connection "$connection" $($siteGameArguments -join ' ') -TimeoutMinutes $TimeoutMinutes > "$remoteLog" 2>&1' -f `$pwsh)
+Set-Content -LiteralPath '$remoteJob' -Encoding ASCII -Value ('@"{0}" -NoProfile -ExecutionPolicy Bypass -File "$RemoteCheckout\scripts\run-tournament-selftest-host.ps1" -PackageDir "$RemoteCheckout\build\current\stage" -Exchange "$remoteExchange" -Bridge "$origin" -PidFile "$remotePid" -Connection "$connection" -TimeoutMinutes $TimeoutMinutes > "$remoteLog" 2>&1' -f `$pwsh)
 Copy-Item '$remoteJob' '$RemoteJobs\job.cmd' -Force
 schtasks /run /tn '$RemoteTask' | Out-Null
 'started'
@@ -144,9 +121,8 @@ schtasks /run /tn '$RemoteTask' | Out-Null
     $guest = Start-Process -FilePath $pwsh -PassThru -NoNewWindow -RedirectStandardOutput $guestLog -RedirectStandardError "$guestLog.err" -ArgumentList (@(
         "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSScriptRoot\run-selftest.ps1`"", "-PackageDir", "`"$PackageDir`"",
         "-Test", "tournament-guest", "-Exchange", "`"$guestExchange`"", "-Bridge", $origin, "-Connection", $connection,
-        "-TimeoutMinutes", $TimeoutMinutes) + $siteGameArguments)
+        "-TimeoutMinutes", $TimeoutMinutes))
     Write-Host "guest started here"
-    if ($Site -eq "challonge") { Write-Host "A browser opens on each PC: sign in to Challonge as that PC's player and approve, within five minutes." }
 
     # Both games close by themselves, and the host's job says when it is done:
     # its log ends with a line, or its task is Ready again after its PID file

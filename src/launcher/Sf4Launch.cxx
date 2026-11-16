@@ -21,10 +21,12 @@
 #include <string>
 #include <vector>
 
+#include <CLI/CLI.hpp>
 #include <detours/detours.h>
 #include <spdlog/spdlog.h>
 
 #include "LaunchSteps.hxx"
+#include "StreamHostFiles.hxx"
 #include "GameLocator.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "../sf4e/sf4e.hxx"
@@ -52,7 +54,8 @@ struct Run {
 };
 std::unique_ptr<Run> run;
 
-void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
+// True when the game folder has its steam_appid.txt (or this call made it).
+bool CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 	wchar_t szAppIDPath[1024] = { 0 };
 	DWORD nBytesWritten = 0;
 
@@ -61,13 +64,13 @@ void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 
 	PathCombine(szAppIDPath, szGuiltyDirectory, L"steam_appid.txt");
 	if (PathFileExistsW(szAppIDPath)) {
-		return;
+		return true;
 	}
 
 	char allow[8] = { 0 };
 	if (GetEnvironmentVariableA("SF4E_ALLOW_STEAM_APPID_WRITE", allow, sizeof(allow)) == 0) {
 		spdlog::warn(L"Game steam_appid.txt missing at {}; runtime write disabled, relying on inherited SteamAppId/SteamGameId env", szAppIDPath);
-		return;
+		return false;
 	}
 
 	HANDLE hAppIDHandle = CreateFile(
@@ -89,10 +92,10 @@ void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 			spdlog::warn(L"Could not fully write game steam_appid.txt at {}", szAppIDPath);
 		}
 		CloseHandle(hAppIDHandle);
+		return true;
 	}
-	else {
-		spdlog::warn(L"Could not create game steam_appid.txt dev fallback at {} (Win32 {})", szAppIDPath, GetLastError());
-	}
+	spdlog::warn(L"Could not create game steam_appid.txt dev fallback at {} (Win32 {})", szAppIDPath, GetLastError());
+	return false;
 }
 
 // Copies every match replay into Ember's archive (platform/ReplayFiles.hxx)
@@ -113,7 +116,8 @@ HANDLE CreateSF4Process(
 	int nDlls,
 	LPCSTR* rlpDlls,
 	sf4e::crash::DumpChannel& dumps,
-	DWORD& startError
+	DWORD& startError,
+	ember::launch::StartWatch& watch
 ) {
 	wchar_t szErrorString[1024] = { 0 };
 	DWORD dwError;
@@ -214,6 +218,7 @@ HANDLE CreateSF4Process(
 		if (lockWaitResult == WAIT_OBJECT_0 + 1) {
 			DWORD exitCode = 0;
 			GetExitCodeProcess(pi.hProcess, &exitCode);
+			watch.endedBeforeSignal = true;
 			spdlog::warn("Game exited before Sidecar startup completed (exit code {})", exitCode);
 		}
 		else if (lockWaitResult == WAIT_TIMEOUT) {
@@ -223,6 +228,8 @@ HANDLE CreateSF4Process(
 			spdlog::warn("Could not wait for Sidecar startup (Win32 {})", GetLastError());
 		}
 		else {
+			watch.signalled = true;
+			watch.signalTick = GetTickCount64();
 			spdlog::info("CreateSF4Process received Sidecar sync signal");
 		}
 		CloseHandle(hSyncEvent);
@@ -236,7 +243,22 @@ HANDLE CreateSF4Process(
 
 namespace ember { namespace launch {
 
-void AddOptions(CLI::App&) {}
+// --write-stream-host: the stream PC's control panel, embedded here rather
+// than shipped as a package file (cmake/sf4e_stream_host.cmake).
+static bool writeStreamHost = false;
+// Whether the last BeforeStart found the game's steam_appid.txt.
+static bool appIdPresent = true;
+void AddOptions(CLI::App& app) {
+    app.add_flag("--write-stream-host", writeStreamHost, "Write the stream PC control panel to %APPDATA%\\sf4e\\stream-host and show that folder.");
+}
+
+std::optional<int> RunInsteadOfStart() {
+    if (!writeStreamHost) return std::nullopt;
+    const std::wstring folder = sf4e::launcher::WriteStreamHostFiles();
+    if (folder.empty()) spdlog::error("Could not write the stream host files");
+    else ShellExecuteW(nullptr, L"open", folder.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    return folder.empty() ? 1 : 0;
+}
 
 std::wstring LauncherLogName() { return Product().launcherLog; }
 
@@ -270,15 +292,16 @@ std::string ResolveReplayLink(const std::string& uri) {
 void BeforeStart(const std::wstring& gameDirectory) {
     ArchiveReplays();
     std::wstring directory = gameDirectory;
-    CreateAppIDFile(directory.data());
+    appIdPresent = CreateAppIDFile(directory.data());
 }
 
-HANDLE StartGame(const StartRequest& request, StartFailure& failure) {
+HANDLE StartGame(const StartRequest& request, StartFailure& failure, StartWatch& watch) {
+    if (!appIdPresent) watch.hints = "steam_appid_missing";
     run = std::make_unique<Run>();
     const auto helperPath = std::filesystem::path(request.installRoot)/sf4e::platform::helper_pipe::Executable;
     std::wstring directory = request.gameDirectory, executable = request.executable;
     const char* dlls[] = {request.moduleAnsi.c_str()};
-    return CreateSF4Process(payload,run->helper,run->discord,helperPath.wstring(),directory.data(),executable.data(),1,dlls,*request.dumps,failure.error);
+    return CreateSF4Process(payload,run->helper,run->discord,helperPath.wstring(),directory.data(),executable.data(),1,dlls,*request.dumps,failure.error,watch);
 }
 
 void GameEnded(bool ran) {

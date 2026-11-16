@@ -285,7 +285,6 @@ msgstr "Mise à jour disponible : {0}"
 msgid "services.go_back_available"
 msgstr "Vous pouvez revenir à {0}"
 
-
 msgid "services.up_to_date"
 msgstr "Vous êtes à jour."
 
@@ -355,6 +354,24 @@ msgstr "Masqué"
 msgid "settings.country.current"
 msgstr "Actuel"
 
+msgid "settings.place"
+msgstr "Pays et zone"
+
+msgid "settings.area"
+msgstr "Zone"
+
+msgid "settings.area_detail"
+msgstr "D'où vous jouez. Votre carte de joueur et les salons publics que vous créez l'affichent, et la liste des salons publics repère les salons proches. Le mode automatique suit le fuseau horaire défini dans Windows. Gauche et Droite la modifient."
+
+msgid "settings.area.automatic_value"
+msgstr "Automatique ({0}, depuis Windows)"
+
+msgid "settings.area.automatic_none"
+msgstr "Automatique (non définie)"
+
+msgid "settings.area.hidden"
+msgstr "Masquée"
+
 msgid "country.search"
 msgstr "Rechercher"
 
@@ -381,6 +398,42 @@ msgstr "Aucun pays ne correspond"
 
 msgid "country.none_detail"
 msgstr "Modifiez la recherche pour voir plus de pays."
+
+msgid "area.naw"
+msgstr "NA Ouest"
+
+msgid "area.nac"
+msgstr "NA Centre"
+
+msgid "area.nae"
+msgstr "NA Est"
+
+msgid "area.cam"
+msgstr "Amérique centrale et Caraïbes"
+
+msgid "area.sam"
+msgstr "Amérique du Sud"
+
+msgid "area.euw"
+msgstr "Europe Ouest"
+
+msgid "area.eue"
+msgstr "Europe Est"
+
+msgid "area.mea"
+msgstr "Moyen-Orient et Afrique"
+
+msgid "area.sas"
+msgstr "Asie du Sud"
+
+msgid "area.eas"
+msgstr "Asie de l'Est"
+
+msgid "area.sea"
+msgstr "Asie du Sud-Est"
+
+msgid "area.oce"
+msgstr "Océanie"
 
 msgid "settings.language.system_with"
 msgstr "Automatique : {0}"
@@ -435,6 +488,9 @@ msgstr "Coller"
 
 msgid "menu.adjust"
 msgstr "Régler"
+
+msgid "menu.change"
+msgstr "Changer"
 
 msgid "speech.position"
 msgstr "{0} sur {1}"
@@ -554,13 +610,13 @@ msgid "connection.relayed_advice"
 msgstr "Une connexion relayée signifie que vos réseaux ne peuvent pas se joindre directement : le trafic passe par un serveur relais. Les combats restent possibles ; utilisez le délai conseillé. Pour une connexion directe, chaque joueur peut activer UPnP sur son routeur, rediriger le port UDP 45760 vers son PC ou désactiver son VPN."
 
 msgid "connection.route_relayed_via"
-msgstr "Via relais ({0})"
+msgstr "Via {0}"
 
 msgid "connection.direct_checking"
 msgstr "Vérification en cours de la prise en charge des connexions directes par votre réseau."
 
 msgid "connection.blocked_local_no_udp"
-msgstr "Cause probable : votre réseau bloque l'UDP."
+msgstr "Cause probable : le Pare-feu Windows ou votre réseau bloque l'UDP. Dans Sécurité Windows > Pare-feu et protection du réseau > Autoriser une application via le Pare-feu, autorisez sf4-net.exe (Privé et Public)."
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "Cause probable : le réseau de {0} bloque l'UDP."
@@ -580,32 +636,35 @@ msgstr "Revérifier la connexion"
 msgid "network.relay"
 msgstr "Relais"
 
+msgid "network.relay_chip"
+msgstr "Relais : {0}"
+
 msgid "network.relay_detail"
 msgstr "Le serveur relais qui aide votre jeu à trouver les autres joueurs. Le trafic des combats ne passe par lui que si une connexion directe est impossible."
 
 msgid "network.relay_connected"
-msgstr "{0} (connecté)"
+msgstr "{0} · connecté"
 
 msgid "network.relay_connecting"
-msgstr "{0} (connexion)"
+msgstr "{0} · connexion"
 
 msgid "network.relay_none"
 msgstr "Non connecté"
 
-msgid "network.region_use1"
-msgstr "États-Unis Est"
+msgid "network.relay_use1"
+msgstr "Ember États-Unis (Kansas)"
 
-msgid "network.region_usw1"
-msgstr "États-Unis Ouest"
+msgid "network.relay_usw1"
+msgstr "n0 États-Unis Ouest"
 
-msgid "network.region_euc1"
-msgstr "Europe"
+msgid "network.relay_euc1"
+msgstr "Ember Europe"
 
-msgid "network.region_aps1"
-msgstr "Asie-Pacifique"
+msgid "network.relay_aps1"
+msgstr "n0 Asie"
 
-msgid "network.region_other"
-msgstr "Autre région"
+msgid "network.relay_other"
+msgstr "Autre relais"
 
 msgid "network.status"
 msgstr "Réseau"
@@ -626,7 +685,7 @@ msgid "network.nat_detail_strict"
 msgstr "Votre routeur utilise un NAT strict : les connexions directes échouent souvent et les combats peuvent passer par un relais."
 
 msgid "network.nat_detail_no_udp"
-msgstr "Votre réseau semble bloquer l'UDP : les connexions directes échoueront et les combats peuvent passer par un relais. Un pare-feu ou un VPN peut en être la cause."
+msgstr "Votre réseau semble bloquer l'UDP : les connexions directes échoueront et les combats peuvent passer par un relais. Le plus souvent, c'est le Pare-feu Windows, si sa fenêtre a été ignorée au premier lancement ou si le réseau est en mode Public. Dans Sécurité Windows > Pare-feu et protection du réseau > Autoriser une application via le Pare-feu, autorisez sf4-net.exe (Privé et Public). Un VPN peut aussi bloquer l'UDP."
 
 msgid "network.nat_detail_checking"
 msgstr "Vérification de votre réseau. Cela prend quelques secondes après le lancement du jeu."
@@ -706,6 +765,12 @@ msgstr "Jeu en ligne"
 msgid "home.online_detail"
 msgstr "Créez un salon, rejoignez-en un, parcourez les salons publics ou configurez votre Ember ID pour les tournois."
 
+msgid "home.friends"
+msgstr "Amis"
+
+msgid "home.friends_detail"
+msgstr "Rejoignez vos amis, répondez aux demandes et ajoutez de nouveaux amis."
+
 msgid "home.return_room"
 msgstr "Retourner à votre salon actuel."
 
@@ -734,7 +799,7 @@ msgid "home.profile"
 msgstr "Profil"
 
 msgid "home.profile_detail"
-msgstr "Votre nom, personnage principal et bilan en ligne confirmé localement."
+msgstr "Votre carte, combattants, amis et récompenses."
 
 msgid "home.settings"
 msgstr "Paramètres"
@@ -943,9 +1008,6 @@ msgstr "Quitte le menu d'Ember pour le Battle Log du jeu, où les replays sont l
 msgid "replays.open_log_room"
 msgstr "Quittez d'abord le salon."
 
-
-
-
 msgid "replays.set_value"
 msgstr "{0} replays · {1} salons"
 
@@ -983,10 +1045,40 @@ msgid "replays.next_video_detail"
 msgstr "Prépare la vidéo de cette manche : vérifiez sa légende, puis Générer la vidéo."
 
 msgid "replays.link_import"
-msgstr "Importer le set"
+msgstr "Importer"
 
 msgid "replays.link_import_detail"
-msgstr "Ajoute toutes les manches de ce pack de set à Replays."
+msgstr "Ajoute le replay, ou toutes les manches du pack de set, à Replays."
+
+msgid "replays.import"
+msgstr "Importer un replay"
+
+msgid "replays.import_detail"
+msgstr "Choisissez des replays ou des packs de set enregistrés, par exemple dans Téléchargements. Le sélecteur demande une souris ou un clavier. Vous pouvez aussi déposer des fichiers sur la fenêtre du jeu."
+
+msgid "replays.import_fullscreen"
+msgstr "Le sélecteur de fichiers ne peut pas s'ouvrir en plein écran. Passez le jeu en fenêtré ou en Borderless, puis réessayez."
+
+msgid "replays.import_title"
+msgstr "Importer des replays"
+
+msgid "replays.import_filter"
+msgstr "Replays et packs de set"
+
+msgid "services.picking_replays"
+msgstr "Choisissez des fichiers dans la fenêtre ouverte..."
+
+msgid "replays.import_some_failed"
+msgstr "{0} fichier(s) sur {1} n'ont pas pu être importés."
+
+msgid "replays.import_skipped"
+msgstr "{0} fichier(s) ignoré(s). Ember importe les fichiers .emberreplay, .usf4replay et .emberpack d'un disque local, jusqu'à 64 à la fois."
+
+msgid "replays.import_done"
+msgstr "Replays contient maintenant {0} partie(s) issue(s) de {1} fichier(s)."
+
+msgid "replays.import_waiting"
+msgstr "{0} fichier(s) à importer. Ils le seront dès que les menus d'Ember seront au premier plan."
 
 msgid "replays.set_pack_working"
 msgstr "Enregistrement du pack du set..."
@@ -1000,11 +1092,8 @@ msgstr "Le pack du set n'a pas pu être enregistré. Son service n'a peut-être 
 msgid "replays.set_pack_unavailable"
 msgstr "Le pack du set ne peut pas être enregistré maintenant. Ember doit être connecté au service du set."
 
-msgid "replays.set_imported"
-msgstr "{0} manches du set sont dans Replays."
-
 msgid "replays.set_import_failed"
-msgstr "Ce fichier n'est pas un pack de set complet, rien n'a donc été importé."
+msgstr "Ce fichier n'est ni un replay complet ni un pack de set complet, rien n'a donc été importé."
 
 msgid "settings.training_auto_ready"
 msgstr "Prêt automatique depuis l'Entraînement"
@@ -1046,7 +1135,7 @@ msgid "profile.player_name"
 msgstr "Nom du joueur"
 
 msgid "profile.main_character"
-msgstr "Perso principal"
+msgstr "Combattant principal"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Affiché sur votre carte de joueur, indépendamment du choix en combat."
@@ -1080,6 +1169,735 @@ msgstr "Enregistrez votre perso principal sur votre carte de joueur."
 
 msgid "profile.leave_room_to_edit"
 msgstr "Quittez le salon pour modifier votre profil."
+
+msgid "profile.eyebrow"
+msgstr "Profil · {0}"
+
+msgid "profile.tab.card"
+msgstr "Carte"
+
+msgid "profile.tab.fighters"
+msgstr "Combattants"
+
+msgid "profile.tab.sets"
+msgstr "Sets"
+
+msgid "profile.tab.friends"
+msgstr "Amis"
+
+msgid "friends.tab_count"
+msgstr "Amis · {0}"
+
+msgid "friends.home_online"
+msgstr "{0} en ligne"
+
+msgid "friends.home_request_one"
+msgstr "1 demande"
+
+msgid "friends.home_requests"
+msgstr "{0} demandes"
+
+msgid "profile.view_sets"
+msgstr "Voir les sets"
+
+msgid "profile.card_of"
+msgstr "Carte du joueur : {0}"
+
+msgid "profile.this_player"
+msgstr "ce joueur"
+
+msgid "profile.reading"
+msgstr "Chargement de la carte de {0}…"
+
+msgid "profile.reading_button"
+msgstr "Lecture"
+
+msgid "profile.no_card"
+msgstr "{0} n'a pas de carte à montrer."
+
+msgid "profile.sets_by_name"
+msgstr "Ses sets restent listés par nom."
+
+msgid "profile.blocked"
+msgstr "Vous avez bloqué {0}. Débloquez-le pour voir sa carte."
+
+msgid "profile.nobody"
+msgstr "Aucun joueur d'Ember ne s'appelle {0} pour l'instant."
+
+msgid "profile.unreachable"
+msgstr "Ember est inaccessible. Réessayez dans un instant."
+
+msgid "profile.unsupported"
+msgstr "Ce service ne propose pas de profils."
+
+msgid "profile.try_again"
+msgstr "Réessayer"
+
+msgid "profile.pick_title"
+msgstr "Joueurs nommés {0}"
+
+msgid "profile.pick_screen"
+msgstr "Joueurs"
+
+msgid "profile.in_this_room"
+msgstr "Dans ce salon"
+
+msgid "profile.request_sent_detail"
+msgstr "Annulez-la dans Amis, Envoyées."
+
+msgid "profile.sets_note"
+msgstr "Les sets sont trouvés par le nom {0} : quiconque l'a utilisé apparaît aussi ici, mais pas les anciens noms."
+
+msgid "profile.sets_player"
+msgstr "Joueur"
+
+msgid "profile.sets_player_detail"
+msgstr "Les sets sont ceux de ce nom. Il reste quand vous affinez la liste."
+
+msgid "profile.sets_opponent"
+msgstr "Adversaire"
+
+msgid "profile.sets_opponent_detail"
+msgstr "Liste les sets contre un joueur dont le nom contient ces lettres."
+
+msgid "friends.requests_heading"
+msgstr "DEMANDES · {0}"
+
+msgid "friends.in_room"
+msgstr "DANS UN SALON · {0}"
+
+msgid "friends.online"
+msgstr "EN LIGNE · {0}"
+
+msgid "friends.offline"
+msgstr "HORS LIGNE · {0}"
+
+msgid "friends.playing_table"
+msgstr "Joue à la table {0} · {1}"
+
+msgid "friends.watching_table"
+msgstr "Regarde la table {0} · {1}"
+
+msgid "friends.waiting_room"
+msgstr "Dans {0}"
+
+msgid "friends.training_room"
+msgstr "En entraînement · {0}"
+
+msgid "friends.private_room"
+msgstr "Dans un salon privé"
+
+msgid "friends.menus"
+msgstr "Dans les menus"
+
+msgid "friends.offline_play"
+msgstr "Joue hors ligne"
+
+msgid "friends.playing_game"
+msgstr "Joue à {0}"
+
+msgid "friends.room_game"
+msgstr "Dans un salon · {0}"
+
+msgid "friends.another_game"
+msgstr "Joue à un autre jeu"
+
+msgid "friends.last_online"
+msgstr "Dernière connexion {0}"
+
+msgid "friends.hours_ago"
+msgstr "il y a {0} h"
+
+msgid "friends.days_ago"
+msgstr "il y a {0} j"
+
+msgid "friends.join"
+msgstr "Rejoindre"
+
+msgid "friends.join_room"
+msgstr "Rejoindre le salon"
+
+msgid "friends.watch"
+msgstr "Regarder"
+
+msgid "friends.invite"
+msgstr "Inviter"
+
+msgid "friends.invite_room"
+msgstr "Inviter dans mon salon"
+
+msgid "friends.more"
+msgstr "Plus"
+
+msgid "friends.open"
+msgstr "Ouvrir"
+
+msgid "friends.change"
+msgstr "Changer"
+
+msgid "friends.accept"
+msgstr "Accepter"
+
+msgid "friends.decline"
+msgstr "Refuser"
+
+msgid "friends.decline_block"
+msgstr "Refuser et bloquer"
+
+msgid "friends.remove"
+msgstr "Retirer l'ami"
+
+msgid "friends.remove_block"
+msgstr "Retirer et bloquer"
+
+msgid "friends.unblock"
+msgstr "Débloquer"
+
+msgid "friends.cancel_request"
+msgstr "Annuler la demande"
+
+msgid "friends.are_friends"
+msgstr "Amis"
+
+msgid "friends.played_you"
+msgstr "{0} parties ensemble, dernière {1}"
+
+msgid "friends.not_played"
+msgstr "Vous n'avez pas encore joué l'un contre l'autre."
+
+msgid "friends.record"
+msgstr "Vous et {0}"
+
+msgid "friends.last_played"
+msgstr "Dernière partie"
+
+msgid "friends.since"
+msgstr "Ami depuis"
+
+msgid "friends.your_code"
+msgstr "Votre code {0}"
+
+msgid "friends.code"
+msgstr "Code ami"
+
+msgid "friends.code_detail"
+msgstr "Donnez ce code à un joueur pour qu'il puisse vous ajouter."
+
+msgid "friends.new_code"
+msgstr "Nouveau code"
+
+msgid "friends.new_code_detail"
+msgstr "L'ancien code ne fonctionne plus. Un nouveau code par jour."
+
+msgid "friends.send"
+msgstr "Envoyer la demande"
+
+msgid "friends.send_detail"
+msgstr "Envoie une demande d'ami à ce code."
+
+msgid "find.title"
+msgstr "Trouver un joueur"
+
+msgid "find.text_row"
+msgstr "Nom ou code ami"
+
+msgid "find.text_detail"
+msgstr "Au moins deux lettres d'un nom, ou un code ami."
+
+msgid "find.search"
+msgstr "Rechercher"
+
+msgid "find.players"
+msgstr "JOUEURS · {0}"
+
+msgid "find.searching"
+msgstr "Recherche en cours…"
+
+msgid "find.none"
+msgstr "Aucun joueur ne porte ce nom."
+
+msgid "find.more"
+msgstr "D'autres joueurs correspondent. Tapez davantage du nom."
+
+msgid "find.recent"
+msgstr "ADVERSAIRES RÉCENTS"
+
+msgid "find.recent_line"
+msgstr "Joué {0} · {1}"
+
+msgid "find.recent_when"
+msgstr "Joué {0}"
+
+msgid "find.recent_empty"
+msgstr "Les joueurs rencontrés dans les salons publics apparaissent ici pendant une semaine."
+
+msgid "friends.sent"
+msgstr "Envoyées · {0}"
+
+msgid "friends.sent_ago"
+msgstr "Envoyée {0}"
+
+msgid "friends.blocked"
+msgstr "Bloqués · {0}"
+
+msgid "friends.appear_offline"
+msgstr "Apparaître hors ligne"
+
+msgid "friends.appear_offline_detail"
+msgstr "Vos amis vous voient hors ligne. Vous les voyez toujours et pouvez toujours les inviter."
+
+msgid "friends.appearing_offline"
+msgstr "Apparaît hors ligne"
+
+msgid "friends.invite_reveals"
+msgstr "Votre invitation indique à cet ami où vous êtes."
+
+msgid "friends.unreachable"
+msgstr "Service injoignable. Les amis s'afficheront quand il répondra."
+
+msgid "friends.not_updated"
+msgstr "Pas à jour"
+
+msgid "friends.loading"
+msgstr "Chargement de vos amis."
+
+msgid "friends.empty"
+msgstr "Ajoutez des amis depuis un salon public : ouvrez la carte de joueur d'un membre. Ou envoyez-lui votre code ami."
+
+msgid "friends.request_sent_to"
+msgstr "Demande envoyée à {0}."
+
+msgid "friends.now_friends"
+msgstr "Toi et {0} êtes maintenant amis."
+
+msgid "friends.blocked_name"
+msgstr "{0} est bloqué."
+
+msgid "friends.invite_sent"
+msgstr "Invitation envoyée à {0}."
+
+msgid "friends.visit_title"
+msgstr "ALLER VOIR UN AMI"
+
+msgid "friends.visit_stay"
+msgstr "Rester ici"
+
+msgid "friends.visit_stay_detail"
+msgstr "N'y allez pas. Votre salon ou partie reste tel quel."
+
+msgid "friends.visit_join"
+msgstr "Quitter et rejoindre {0}"
+
+msgid "friends.visit_watch"
+msgstr "Quitter et regarder {0}"
+
+msgid "friends.visit_detail"
+msgstr "Votre salon ou partie en cours se termine si vous y allez."
+
+msgid "card.edit"
+msgstr "Modifier la carte"
+
+msgid "card.account"
+msgstr "Compte"
+
+msgid "card.top_fighters"
+msgstr "MEILLEURS COMBATTANTS"
+
+msgid "card.choose_main"
+msgstr "Choisir un principal"
+
+msgid "card.edit_detail"
+msgstr "Votre nom, drapeau, principal, titre, récompenses et façon de jouer."
+
+msgid "card.title_row"
+msgstr "Titre"
+
+msgid "card.icon_row"
+msgstr "Icône"
+
+msgid "card.none"
+msgstr "Aucun"
+
+msgid "card.award_detail"
+msgstr "Ouvre Récompenses. Sélectionnez-y une récompense obtenue pour la porter."
+
+msgid "card.how_heading"
+msgstr "VOTRE FAÇON DE JOUER"
+
+msgid "card.pins_row"
+msgstr "Récompenses sur la carte"
+
+msgid "card.pins_auto"
+msgstr "Plus hautes"
+
+msgid "card.pins_chosen"
+msgstr "{0} choisies"
+
+msgid "card.pins_detail"
+msgstr "Jusqu'à quatre récompenses sur votre carte, chacune au niveau atteint. Afficher mes plus hautes choisit les plus difficiles."
+
+msgid "card.pins_auto_row"
+msgstr "Afficher mes plus hautes"
+
+msgid "card.pins_auto_detail"
+msgstr "La carte affiche les récompenses atteintes aux niveaux les plus hauts. Désactivez cette option pour en choisir jusqu'à quatre vous-même."
+
+msgid "card.pins_full"
+msgstr "Quatre au maximum. Retirez-en une d'abord."
+
+msgid "card.pins_nothing"
+msgstr "Les récompenses atteintes apparaissent ici pour être choisies. Vous n'en avez pas encore."
+
+msgid "card.automatic"
+msgstr "Automatique"
+
+msgid "card.device_row"
+msgstr "Appareil"
+
+msgid "card.device_auto"
+msgstr "{0} · automatique"
+
+msgid "card.device_detail"
+msgstr "Ce sur quoi vous jouez, affiché sur votre carte. Automatique suit la manette utilisée."
+
+msgid "card.link_row"
+msgstr "Connexion"
+
+msgid "card.link_detail"
+msgstr "Filaire ou Wi-Fi, tel qu'Ember le mesure. Vous pouvez le masquer."
+
+msgid "card.area_detail"
+msgstr "D'où vous jouez, le même choix que dans Paramètres. Masquée la retire de votre carte et des salons que vous créez."
+
+msgid "card.shown"
+msgstr "{0} · affiché"
+
+msgid "card.unknown_shown"
+msgstr "Inconnu pour l'instant · affiché"
+
+msgid "card.hidden"
+msgstr "Masqué"
+
+msgid "card.looking_detail"
+msgstr "Deux au maximum, affichés sur votre carte."
+
+msgid "card.looking_full"
+msgstr "Deux au maximum. Désactivez-en un d'abord."
+
+msgid "points.label"
+msgstr "FP"
+
+msgid "points.account_label"
+msgstr "BP"
+
+msgid "level.value"
+msgstr "{0} points"
+
+msgid "level.games"
+msgstr "{0} parties"
+
+msgid "level.game_one"
+msgstr "{0} partie"
+
+msgid "friends.unknown_code"
+msgstr "Aucun joueur n'a ce code ami."
+
+msgid "friends.full"
+msgstr "Cette liste d'amis est pleine."
+
+msgid "friends.request_limit"
+msgstr "Vous avez envoyé assez de demandes pour aujourd'hui."
+
+msgid "friends.card_expired"
+msgstr "Cette carte a expiré. Réessayez depuis le salon."
+
+msgid "friends.own_card"
+msgstr "C'est votre propre carte."
+
+msgid "friends.code_too_soon"
+msgstr "Vous pouvez créer un nouveau code une fois par jour."
+
+msgid "friends.invite_unavailable"
+msgstr "Cet ami ne peut pas être invité pour le moment."
+
+msgid "friends.blocks_full"
+msgstr "Votre liste de blocages est pleine."
+
+msgid "friends.failed"
+msgstr "Impossible de joindre le service d'amis. Réessayez plus tard."
+
+msgid "friends.no_account"
+msgstr "Les amis nécessitent un compte Discord."
+
+msgid "friends.unavailable"
+msgstr "Ce service ne propose pas encore les amis."
+
+msgid "friends.off"
+msgstr "Les amis sont désactivés."
+
+msgid "friends.cannot_join"
+msgstr "Vous ne pouvez pas rejoindre ce salon pour le moment."
+
+msgid "friends.join_unavailable"
+msgstr "Ce salon ne peut pas être rejoint pour le moment."
+
+msgid "friends.cannot_watch"
+msgstr "Cet ami n'est pas dans une partie que vous pouvez regarder."
+
+msgid "friends.visit_in_room"
+msgstr "Vous êtes dans le salon, mais n'avez pas pu rejoindre sa table."
+
+msgid "friends.private_invite_only"
+msgstr "On ne rejoint un salon privé que sur invitation."
+
+msgid "friends.invite_gone"
+msgstr "Cette invitation est terminée."
+
+msgid "friends.nothing_to_offer"
+msgstr "Votre salon ne peut pas être proposé pour le moment."
+
+msgid "friends.busy"
+msgstr "Attendez la fin de la dernière demande."
+
+msgid "friends.accept_member"
+msgstr "Accepter comme ami"
+
+msgid "friends.add_member"
+msgstr "Ajouter en ami"
+
+msgid "friends.request_sent"
+msgstr "Demande envoyée"
+
+msgid "friends.blocked_member"
+msgstr "Bloqué"
+
+msgid "friends.blocked_member_detail"
+msgstr "Débloquez-le dans Profil, Amis, Bloqués."
+
+msgid "friends.block"
+msgstr "Bloquer"
+
+msgid "friends.block_detail"
+msgstr "Met fin à toute amitié ou demande entre vous. Annulable dans Profil, Amis, Bloqués."
+
+msgid "friends.toast_request"
+msgstr "{0} veut devenir ton ami"
+
+msgid "friends.toast_invite"
+msgstr "{0} t’invite dans un salon"
+
+msgid "friends.later"
+msgstr "Plus tard"
+
+msgid "friends.view"
+msgstr "Voir"
+
+msgid "friends.dismiss"
+msgstr "Ignorer"
+
+msgid "friends.turn_off"
+msgstr "Désactiver les amis"
+
+msgid "friends.turn_on"
+msgstr "Activer les amis"
+
+msgid "friends.turn_on_detail"
+msgstr "Réactive les amis avec un nouveau code ami."
+
+msgid "friends.turned_on"
+msgstr "Les amis sont activés."
+
+msgid "friends.turn_off_detail"
+msgstr "Supprime tes amis et demandes et annule ton code ami. Tes blocages restent."
+
+msgid "room.member_card"
+msgstr "Carte du joueur"
+
+msgid "level.points_to"
+msgstr "{0} points avant {1}"
+
+msgid "level.top"
+msgstr "Cadre maximal"
+
+msgid "level.no_account"
+msgstr "Connectez Discord pour gagner des points."
+
+msgid "level.unavailable"
+msgstr "Ce service ne compte pas encore les points."
+
+msgid "level.loading"
+msgstr "Lecture de vos points."
+
+msgid "level.loading_other"
+msgstr "Lecture de ses points."
+
+msgid "level.none"
+msgstr "Jouez une partie publique classée pour commencer à gagner des points."
+
+msgid "level.not_played"
+msgstr "Pas encore joué"
+
+msgid "level.unreachable"
+msgstr "Service injoignable. Vos points s’afficheront quand il répondra."
+
+msgid "level.unreachable_other"
+msgstr "Ember est injoignable. Ses points s’afficheront dès son retour."
+
+msgid "card.counted_games"
+msgstr "Parties classées"
+
+msgid "card.win_rate"
+msgstr "Taux de victoire"
+
+msgid "card.fighters_played"
+msgstr "Combattants joués"
+
+msgid "card.of"
+msgstr "{0} sur {1}"
+
+msgid "card.about"
+msgstr "{0} · Sur Ember depuis {1}"
+
+msgid "card.since"
+msgstr "Sur Ember depuis {0}"
+
+msgid "card.wins"
+msgstr "Victoires"
+
+msgid "card.best_streak"
+msgstr "Meilleure série"
+
+msgid "card.record_line"
+msgstr "{0} parties classées · {1} victoires · meilleure série {2}"
+
+msgid "card.tier_to"
+msgstr "{0} · {1} points avant {2}"
+
+msgid "card.tier_top"
+msgstr "{0} · Cadre maximal"
+
+msgid "card.awards"
+msgstr "RÉCOMPENSES"
+
+msgid "card.no_awards"
+msgstr "Pas encore de récompenses. La première arrive avec votre première partie classée."
+
+msgid "card.most_played"
+msgstr "LE PLUS AFFRONTÉ"
+
+msgid "card.most_played_line"
+msgstr "{0} – {1} · {2} parties"
+
+msgid "card.most_played_none"
+msgstr "L'adversaire le plus affronté apparaîtra ici après votre première partie classée."
+
+msgid "card.recent_sets"
+msgstr "SETS RÉCENTS"
+
+msgid "card.all_sets"
+msgstr "Tous les sets"
+
+msgid "card.set_vs"
+msgstr "vs {0}"
+
+msgid "card.set_online"
+msgstr "En ligne"
+
+msgid "card.sets_loading"
+msgstr "Chargement des sets…"
+
+msgid "card.sets_none"
+msgstr "Aucun set archivé sous ce nom pour l'instant."
+
+msgid "card.sets_unavailable"
+msgstr "Ce service ne conserve pas de sets."
+
+msgid "card.sets_unreachable"
+msgstr "Archives inaccessibles. Les sets s'afficheront quand elles répondront."
+
+msgid "card.you_and"
+msgstr "Face à face"
+
+msgid "card.relation"
+msgstr "Amis"
+
+msgid "card.since_date"
+msgstr "Depuis le {0}"
+
+msgid "card.not_friends"
+msgstr "Pas amis"
+
+msgid "card.they_asked"
+msgstr "Demande reçue"
+
+msgid "card.plays"
+msgstr "Joue sur"
+
+msgid "card.playing"
+msgstr "EN JEU"
+
+msgid "card.looking_row"
+msgstr "Cherche"
+
+msgid "style.pad"
+msgstr "Manette"
+
+msgid "style.stick"
+msgstr "Stick"
+
+msgid "style.leverless"
+msgstr "Leverless"
+
+msgid "style.keyboard"
+msgstr "Clavier"
+
+msgid "style.wired"
+msgstr "Filaire"
+
+msgid "style.wifi"
+msgstr "Wi-Fi"
+
+msgid "style.casuals"
+msgstr "Parties décontractées"
+
+msgid "style.long_sets"
+msgstr "Longs sets"
+
+msgid "style.ranked"
+msgstr "Parties classées"
+
+msgid "style.practice"
+msgstr "Entraînement tournoi"
+
+msgid "style.new"
+msgstr "Débutant"
+
+msgid "style.teach"
+msgstr "Plaisir d'enseigner"
+
+msgid "fighters.how"
+msgstr "Comment les points se gagnent"
+
+msgid "fighters.how_detail"
+msgstr "Chaque partie publique classée avec un combattant rapporte 1 point, qu'on gagne ou qu'on perde. Une victoire en rapporte 1 de plus quand la classe de votre adversaire est identique à la vôtre ou supérieure, ou quand l'un de vous deux n'a pas encore de classe. Les points ne baissent jamais. La couleur du cadre change à mesure qu'ils montent. Après huit parties contre le même joueur en une session, les parties ne comptent plus."
+
+msgid "fighters.won"
+msgstr "Victoires"
+
+msgid "fighters.since"
+msgstr "Depuis"
+
+msgid "fighters.main"
+msgstr "Principal"
+
+msgid "fighters.played_heading"
+msgstr "JOUÉS · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "PAS ENCORE JOUÉS · {0}"
+
+msgid "fighters.your_main"
+msgstr "Votre principal"
 
 msgid "online.title"
 msgstr "JEU EN LIGNE"
@@ -1207,8 +2025,6 @@ msgstr "Sans bordure"
 msgid "player.borderless_detail"
 msgstr "Le jeu remplit l'écran dans une fenêtre sans cadre, rendu à la résolution propre de l'écran en 16:9, avec des bandes noires sur un écran plus large ou plus haut. Tant que c'est activé, Alt+Entrée et les options de résolution et de plein écran du jeu ne font rien ; le jeu garde votre choix pour quand ce sera désactivé. Cela ne concerne que ce PC. Les changements s'appliquent au prochain lancement du jeu."
 
-
-
 msgid "size.small"
 msgstr "Petit"
 
@@ -1323,6 +2139,9 @@ msgstr "Affiche F10 ou Start quelques secondes à la fermeture du menu d'Ember, 
 msgid "settings.interface_size"
 msgstr "Taille interface"
 
+msgid "settings.interface_size_detail"
+msgstr "Au-dessus de 1.00x, c'est plus lisible sur une télé. En dessous de 1.00x, il tient plus de choses sur un écran, avec un texte plus petit."
+
 msgid "discord.show_activity"
 msgstr "Afficher l'activité"
 
@@ -1335,11 +2154,23 @@ msgstr "Les invitations donnent accès à votre salon."
 msgid "discord.enable_first"
 msgstr "Activez d'abord l'activité Discord."
 
-msgid "discord.tournament_account"
-msgstr "Compte de tournoi"
+msgid "discord.account"
+msgstr "Compte Discord"
 
-msgid "discord.tournament_account_detail"
-msgstr "Le compte Discord que connaît votre site de tournoi, comme BluMint. Il peut différer de celui de l'application Discord. Sélectionnez pour le connecter ou le changer."
+msgid "discord.account_none"
+msgstr "Non connecté"
+
+msgid "discord.account_linked"
+msgstr "Connecté · {0}"
+
+msgid "discord.account_detail"
+msgstr "Connectez un compte Discord pour les parties classées, les points, les amis et les replays partagés. Les sites de tournoi comme BluMint l'utilisent aussi. Il peut différer de celui de l'application Discord."
+
+msgid "discord.account_linked_detail"
+msgstr "Le compte Discord connecté à votre Ember ID. Les parties classées, les points, les amis, les replays partagés et les sites de tournoi comme BluMint s'en servent. Il peut différer de celui de l'application Discord. Sélectionnez pour changer de compte ou le déconnecter."
+
+msgid "discord.server"
+msgstr "Serveur Discord d'Ember"
 
 msgid "discord.invitation_title"
 msgstr "INVITATION DISCORD"
@@ -1672,7 +2503,7 @@ msgid "training.reply"
 msgstr "Riposte du mannequin"
 
 msgid "training.reply.detail"
-msgstr "Ce que fait le mannequin de lui-même dès qu'il est de nouveau libre, pour punir un combo raté ou une fin risquée : il joue les Coups de riposte, ou l'emplacement de riposte si cette ligne est vide. La riposte attend pendant une relecture ou un enregistrement."
+msgstr "Ce que le mannequin fait de lui-même dès qu'il est libre, pour punir un combo raté ou une fin dangereuse : il joue l'un des emplacements de riposte activés, ou les enregistrements activés tant qu'aucun emplacement ne l'est."
 
 msgid "training.reply.hit"
 msgstr "Après un combo raté"
@@ -1685,9 +2516,6 @@ msgstr "Au relevé"
 
 msgid "training.reply.any"
 msgstr "Dès qu'il récupère"
-
-msgid "training.reply.recordings"
-msgstr "Enregistrements"
 
 msgid "training.reply.no_recordings_on"
 msgstr "Aucun enregistrement activé ne peut servir de riposte"
@@ -1708,22 +2536,49 @@ msgid "training.reply.moves"
 msgstr "Coups de riposte"
 
 msgid "training.reply.moves.detail"
-msgstr "La riposte saisie en notation numérique, comme 623HP ou 44, lue selon le côté où regarde le mannequin. Les noms de mouvements marchent aussi : qcf, qcb, dp, rdp, hcf et hcb, comme qcfP ou dp+HP. Le mouvement est entré pendant que le mannequin est encore bloqué, pour que le bouton tombe sur sa première frame libre. [1] maintient une direction jusqu'au mouvement suivant, [1]20f la maintient 20 frames et 10f attend : [1] > 3HP garde en bas jusqu'à ce que le mannequin soit libre, puis appuie 3HP. Vide : le mannequin riposte avec un enregistrement activé."
-
-msgid "training.reply.move"
-msgstr "Riposte prédéfinie"
-
-msgid "training.reply.move.detail"
-msgstr "Gauche et droite choisissent une riposte courante en notation numpad, lue pour le côté où regarde le mannequin. Enregistrements riposte avec un enregistrement activé ; Personnalisée garde les coups saisis. Sélectionner ouvre Coups de riposte pour en saisir un."
-
-msgid "training.reply.custom"
-msgstr "Personnalisée"
+msgstr "Le coup de cet emplacement en notation numpad, comme 623HP ou 44, lu pour le côté que regarde le mannequin. Les mots de manipulation marchent aussi : qcf, qcb, dp, rdp, hcf et hcb. [HP] maintient un bouton, ]HP[ le relâche à la première frame libre, [1]20f maintient une direction 20 frames et 10f attend. Vide retire le coup."
 
 msgid "training.reply.timing"
 msgstr "Timing de riposte"
 
 msgid "training.reply.timing.detail"
 msgstr "Frames après la première frame libre du mannequin où tombe le bouton de la riposte. La durée d'un étourdissement est apprise la première fois ; d'ici là, la riposte commence quand il se termine."
+
+msgid "training.reply.order"
+msgstr "Ordre des ripostes"
+
+msgid "training.reply.order.detail"
+msgstr "Comment le mannequin choisit parmi les emplacements activés : au hasard, chacun selon son poids, ou dans l'ordre, l'un après l'autre."
+
+msgid "training.reply.slot"
+msgstr "Riposte {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Un coup avec lequel le mannequin peut riposter. Gauche et Droite l'activent ou le désactivent ; Valider ouvre ses coups."
+
+msgid "training.reply.slot_on"
+msgstr "Utiliser cet emplacement"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Si le mannequin peut choisir cet emplacement pour sa riposte."
+
+msgid "training.reply.weight"
+msgstr "Poids"
+
+msgid "training.reply.weight.detail"
+msgstr "La part de cet emplacement dans le tirage au sort face aux autres, de 1 à 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Vider cet emplacement"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Retire le coup de cet emplacement."
+
+msgid "training.reply.every_fighter"
+msgstr "Tous les combattants"
+
+msgid "training.reply.charge"
+msgstr "Charge"
 
 msgid "training.key.reset"
 msgstr "Touche Rétablir"
@@ -1754,6 +2609,18 @@ msgstr "Contre"
 
 msgid "training.dummy.quick"
 msgstr "Relevée rapide"
+
+msgid "training.dummy.stun"
+msgstr "Stun"
+
+msgid "training.dummy.stun_normal"
+msgstr "Normal"
+
+msgid "training.dummy.stun_constant"
+msgstr "Constant"
+
+msgid "training.dummy.stun_none"
+msgstr "None"
 
 msgid "training.dummy.super"
 msgstr "Jauge super"
@@ -1941,6 +2808,9 @@ msgstr "Actif"
 msgid "training.meter.recovery"
 msgstr "Récupération"
 
+msgid "training.meter.total"
+msgstr "Total"
+
 msgid "training.meter.hit"
 msgstr "Touché"
 
@@ -1964,6 +2834,12 @@ msgstr "Mise au sol"
 
 msgid "training.meter.meaty"
 msgstr "Meaty"
+
+msgid "training.meter.projectile_invincible"
+msgstr "Invincible aux projectiles"
+
+msgid "training.meter.invincible"
+msgstr "Totalement invincible"
 
 msgid "training.meter.hitstop"
 msgstr "Hitstop"
@@ -2081,6 +2957,9 @@ msgstr "Légende, repères et liseré"
 
 msgid "training.meter.classic_slant"
 msgstr "Cellules inclinées"
+
+msgid "training.meter.classic_p2"
+msgstr "Afficher les chiffres de P2"
 
 msgid "training.meter.hud_part.detail"
 msgstr "Affiche cet élément du HUD d'entraînement pendant le combat. F5 masque tout le HUD."
@@ -2362,7 +3241,10 @@ msgid "runtime.room_request_failed"
 msgstr "Échec de la requête au salon. Quittez-le et réessayez."
 
 msgid "runtime.build_mismatch"
-msgstr "Versions incompatibles. Les deux joueurs doivent utiliser le même paquet SF4 Ember Netplay."
+msgstr "Votre Ember et ce salon n'ont pas la même version. Demandez à l'hôte laquelle il utilise, puis mettez à jour ou changez de canal de mise à jour dans Aide et infos > Chercher des mises à jour pour qu'elles correspondent."
+
+msgid "runtime.build_mismatch_update"
+msgstr "Votre Ember n'est pas à jour et ne peut donc pas rejoindre ce salon. Mettez à jour dans Aide et infos > Chercher des mises à jour, puis rejoignez à nouveau."
 
 msgid "runtime.room_full"
 msgstr "Ce salon est complet."
@@ -2378,6 +3260,7 @@ msgstr "Sélection interdite par ces règles. Ouvrez Sélection personnage pour 
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay  /  F10 ou Start"
+
 msgid "runtime.return_menu_to_join"
 msgstr "Revenez au menu principal pour rejoindre le match."
 
@@ -2447,6 +3330,9 @@ msgstr "Retour au salon."
 msgid "runtime.table_game_cancelled"
 msgstr "Combat de cette table annulé. Retournez au salon pour repasser à Prêt."
 
+msgid "runtime.match_start_timeout"
+msgstr "Le combat n'a pas démarré en une minute : il est annulé pour les deux joueurs. Repassez à Prêt dans le salon."
+
 msgid "runtime.practice_ended"
 msgstr "Entraînement terminé. Retournez au salon pour repasser à Prêt."
 
@@ -2479,8 +3365,6 @@ msgstr "Cette version n'est pas celle qui a été proposée. Recherchez à nouve
 
 msgid "update.close_sf4"
 msgstr "Fermez Ultra Street Fighter IV avant d'installer une mise à jour."
-msgid "update.elevated"
-msgstr "Ember est lancé en tant qu'administrateur. Fermez-le et relancez-le normalement pour installer les mises à jour."
 
 msgid "update.install_dir_failed"
 msgstr "Impossible de trouver le dossier d'installation."
@@ -2682,6 +3566,7 @@ msgstr "{0} / HÔTE"
 
 msgid "room.member_status"
 msgstr "{0}"
+
 msgid "room.member.watcher"
 msgstr "Spectateur"
 
@@ -2732,12 +3617,16 @@ msgstr "{0} a gagné un combat à la table {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} a remporté le set à la table {1} ({2})"
+
 msgid "chat.event.set_won_against"
 msgstr "{0} a remporté le set contre {1} ({2})"
+
 msgid "chat.typing.one"
 msgstr "{0} écrit..."
+
 msgid "chat.typing.two"
 msgstr "{0} et {1} écrivent..."
+
 msgid "chat.typing.many"
 msgstr "Plusieurs personnes écrivent..."
 
@@ -2797,39 +3686,6 @@ msgstr "Le combat précédent se ferme encore. Le remplacement sera possible ens
 
 msgid "room.updating"
 msgstr "Mise à jour..."
-
-msgid "room.table_name"
-msgstr "Nom de la table"
-
-msgid "room.table_name.detail"
-msgstr "Affiché sur la carte de la table après son numéro, par exemple Débutants. Vide n'affiche que le numéro."
-
-msgid "room.template"
-msgstr "Modèle"
-
-msgid "room.template.none"
-msgstr "Aucun"
-
-msgid "room.template.detail"
-msgstr "Un salon que vous avez enregistré. Il règle les lignes ci-dessous, puis les règles et le nom de chaque table une fois le salon ouvert. Gauche et Droite choisissent."
-
-msgid "room.template.delete"
-msgstr "Supprimer le modèle"
-
-msgid "room.template.delete.detail"
-msgstr "Supprime le modèle {0} de ce PC."
-
-msgid "room.template.full"
-msgstr "Vous avez {0} modèles. Supprimez-en un dans Créer un salon d'abord."
-
-msgid "room.template.saved"
-msgstr "Enregistré comme modèle {0}."
-
-msgid "room.save_template"
-msgstr "Enregistrer comme modèle"
-
-msgid "room.save_template.detail"
-msgstr "Garde les réglages de ce salon, ainsi que les règles et le nom de chaque table, sur ce PC pour Créer un salon > Modèle. Le même nom le remplace."
 
 msgid "room.fighter_not_shared"
 msgstr "Perso pas encore révélé"
@@ -2905,6 +3761,39 @@ msgstr "Ouverture du nouveau salon. Copiez l'invitation et envoyez le nouveau li
 
 msgid "room.action_rejected"
 msgstr "Le salon a changé ou refusé cette action. Vérifiez son état et réessayez."
+
+msgid "room.table_name"
+msgstr "Nom de la table"
+
+msgid "room.table_name.detail"
+msgstr "Affiché sur la carte de la table après son numéro, par exemple Débutants. Vide n'affiche que le numéro."
+
+msgid "room.template"
+msgstr "Modèle"
+
+msgid "room.template.none"
+msgstr "Aucun"
+
+msgid "room.template.detail"
+msgstr "Un salon que vous avez enregistré. Il règle les lignes ci-dessous, puis les règles et le nom de chaque table une fois le salon ouvert. Gauche et Droite choisissent."
+
+msgid "room.template.delete"
+msgstr "Supprimer le modèle"
+
+msgid "room.template.delete.detail"
+msgstr "Supprime le modèle {0} de ce PC."
+
+msgid "room.template.full"
+msgstr "Vous avez {0} modèles. Supprimez-en un dans Créer un salon d'abord."
+
+msgid "room.template.saved"
+msgstr "Enregistré comme modèle {0}."
+
+msgid "room.save_template"
+msgstr "Enregistrer comme modèle"
+
+msgid "room.save_template.detail"
+msgstr "Garde les réglages de ce salon, ainsi que les règles et le nom de chaque table, sur ce PC pour Créer un salon > Modèle. Le même nom le remplace."
 
 msgid "room.leave_current_table"
 msgstr "Quittez d'abord votre table actuelle."
@@ -3019,6 +3908,7 @@ msgstr "Le délai choisi est verrouillé pour ce combat."
 
 msgid "room.match_delay.at_least"
 msgstr "Au moins {0} trames"
+
 msgid "room.match_delay.at_least_one"
 msgstr "Au moins {0} trame"
 
@@ -3060,6 +3950,7 @@ msgstr "Attente de la fin du combat ou de la mise à jour de sélection."
 
 msgid "room.change_fighter.detail"
 msgstr "Choisissez un personnage, puis son Ultra. Revenez ici et passez à Prêt."
+
 msgid "room.appearance.detail"
 msgstr "Gauche et Droite changent la couleur ici. Sélectionner choisit un costume, puis sa couleur."
 
@@ -3116,9 +4007,6 @@ msgstr "Entrer en file"
 
 msgid "room.stop_watching"
 msgstr "Arrêter de regarder"
-
-
-
 
 msgid "room.stop_watching.detail"
 msgstr "Arrête de regarder cette table et vous ramène au salon. Les combattants continuent de jouer."
@@ -3234,9 +4122,6 @@ msgstr "Modifications actives après Appliquer."
 msgid "room.rules.host_only"
 msgstr "Seul l'hôte modifie ces règles."
 
-msgid "room.rules.tournament"
-msgstr "Le tournoi fixe les règles de cette table."
-
 msgid "room.apply_rules"
 msgstr "Appliquer"
 
@@ -3351,6 +4236,21 @@ msgstr "Normale"
 msgid "selection.size.tiny"
 msgstr "Minuscule"
 
+msgid "room.privacy"
+msgstr "Confidentialité"
+
+msgid "room.privacy.friends"
+msgstr "Amis"
+
+msgid "room.privacy.hidden"
+msgstr "Masqué"
+
+msgid "room.privacy.detail"
+msgstr "Amis : les amis de toute personne du salon le voient et peuvent le rejoindre tant qu'il est ouvert. Masqué : ils voient seulement que vous êtes dans un salon privé, et le rejoignent sur invitation."
+
+msgid "room.privacy.settings_detail"
+msgstr "Les joueurs déjà entrés peuvent revenir avec leur invitation. Réglez Accès sur Verrouillé pour empêcher quiconque de rejoindre."
+
 msgid "room.apply_name"
 msgstr "Valider le nom"
 
@@ -3362,12 +4262,19 @@ msgstr "Valider la capacité"
 
 msgid "room.apply_capacity.detail"
 msgstr "Envoyer cette capacité."
+
 msgid "room.tables"
 msgstr "Tables"
+
 msgid "room.tables_detail"
 msgstr "Nombre de tables du salon, de 1 à {0}. L'hôte peut le changer plus tard dans Paramètres du salon."
+
+msgid "room.tables_arcade_detail"
+msgstr "Combien de paires jouent en même temps, de 1 à {0}. Les autres attendent dans la file. Avec 1, le gagnant reste et le perdant passe en fin de file."
+
 msgid "room.tables.detail"
 msgstr "Ajoutez jusqu'à {0} tables. Une table ne peut être retirée que si personne n'y joue, n'y attend ni n'y regarde."
+
 msgid "room.apply_tables"
 msgstr "Valider les tables"
 
@@ -3692,6 +4599,9 @@ msgstr "Réseau indisponible. Le jeu hors ligne reste accessible."
 msgid "runtime.room_join_failed"
 msgstr "Impossible de rejoindre le salon. Vérifiez l'invitation et que les deux joueurs utilisent le même paquet SF4 Ember Netplay."
 
+msgid "room.rules.tournament"
+msgstr "Le tournoi fixe les règles de cette table."
+
 msgid "runtime.invite_expired"
 msgstr "Cette invitation a expiré. Demandez à l'hôte d'en copier une nouvelle."
 
@@ -3699,7 +4609,7 @@ msgid "runtime.invite_own_room"
 msgstr "Cette invitation renvoie vers votre propre jeu : elle a été copiée avant que vous quittiez le salon. Demandez à l'hôte de copier l'invitation à nouveau."
 
 msgid "runtime.invite_other_build"
-msgstr "L'hôte utilise un autre paquet SF4 Ember Netplay. Les deux joueurs doivent avoir la même version."
+msgstr "L'hôte utilise une autre version d'Ember. Demandez laquelle, puis mettez à jour ou changez de canal de mise à jour dans Aide et infos > Chercher des mises à jour pour qu'elles correspondent."
 
 msgid "runtime.invite_malformed"
 msgstr "Le texte de l'invitation est incomplet. Copiez-la de nouveau et collez l'invitation entière."
@@ -3716,11 +4626,11 @@ msgstr "Impossible de créer le salon. Vérifiez votre connexion Internet et ré
 msgid "runtime.relay_unreachable"
 msgstr "Impossible de joindre le serveur relais. Vérifiez votre connexion Internet, votre pare-feu ou votre VPN, puis réessayez."
 
-msgid "runtime.relay_unreachable_region"
-msgstr "Impossible de joindre le serveur relais ({0}). Vérifiez votre connexion Internet, votre pare-feu ou votre VPN, puis réessayez."
+msgid "runtime.relay_unreachable_named"
+msgstr "Impossible de joindre le serveur relais {0}. Vérifiez votre connexion Internet, votre pare-feu ou votre VPN, puis réessayez."
 
 msgid "runtime.host_unreachable"
-msgstr "L'hôte est injoignable, en direct comme via un relais. Le salon a peut-être été fermé, ou un pare-feu ou un VPN gêne la connexion."
+msgstr "L'hôte est injoignable, en direct comme via un relais. Le salon a peut-être été fermé. S'il est ouvert, c'est le plus souvent le Pare-feu Windows : dans Sécurité Windows > Pare-feu et protection du réseau > Autoriser une application via le Pare-feu, autorisez sf4-net.exe (Privé et Public). Un VPN peut aussi gêner la connexion."
 
 msgid "runtime.join_control_lost"
 msgstr "L'hôte a été joint, mais la connexion n'a cessé de tomber. Vérifiez votre connexion Internet et réessayez."
@@ -4043,81 +4953,17 @@ msgstr "Utiliser un autre compte Discord"
 msgid "connect.change_detail"
 msgstr "Ouvre Discord dans votre navigateur pour connecter un autre compte à la place. Votre site de tournoi devra alors utiliser ce compte."
 
-msgid "site.title"
-msgstr "Connecter {0}"
-
-msgid "site.row_detail"
-msgstr "Connectez votre compte {0} pour que les tournois sur {0} trouvent votre Ember ID."
-
-msgid "site.go_detail"
-msgstr "Connecter {0} permet aux tournois sur {0} de trouver votre Ember ID. Ember ouvre {0} dans votre navigateur : approuvez-y avec le compte qu'utilise votre tournoi."
-
-msgid "site.setting_up_detail"
-msgstr "Ember ouvre {0} dans votre navigateur."
-
-msgid "site.waiting"
-msgstr "Approuvez dans votre navigateur. Cet écran se met à jour quand {0} est connecté."
-
-msgid "site.waiting_label"
-msgstr "En attente de {0}"
-
-msgid "site.waiting_detail"
-msgstr "Approuvez dans votre navigateur avec le compte {0} qu'utilise votre tournoi. Cet écran se met à jour tout seul."
-
-msgid "site.connected"
-msgstr "{0} connecté"
-
-msgid "site.connected_detail"
-msgstr "Les tournois sur {0} peuvent maintenant vous trouver grâce à ce compte."
-
-msgid "site.change"
-msgstr "Utiliser un autre compte {0}"
-
-msgid "site.change_detail"
-msgstr "Ouvre {0} dans votre navigateur pour connecter un autre compte à la place. Votre tournoi devra alors utiliser ce compte."
-
-msgid "site.remove_detail"
-msgstr "Déconnecte ce compte {0} de votre Ember ID sur ce service. Les tournois sur {0} ne pourront plus vous trouver grâce à lui."
-
-msgid "site.organizer"
-msgstr "Accès organisateur"
-
-
-msgid "site.organizer_held"
-msgstr "Autorisé"
-
-
-msgid "site.organizer_opened"
-msgstr "Autorisez l'accès organisateur dans votre navigateur. Cet écran se met à jour tout seul."
-
-msgid "site.organizer_now"
-msgstr "Accès organisateur autorisé. La table du tournoi se trouve sous Ember ID."
-
-
-
 msgid "screen.tournament_desk"
 msgstr "Organisation de tournois"
 
 msgid "desk.entry_detail"
-msgstr "Accès organisateur, le bureau web et tes événements."
-
-msgid "desk.event_detail"
-msgstr "Sur {0}. Sélectionnez pour voir ses sets."
-
-msgid "desk.status.draft"
-msgstr "Brouillon"
-
-msgid "desk.status.ready"
-msgstr "Prêt"
-
-msgid "desk.status.running"
-msgstr "En cours"
+msgstr "Tes tournois sur le site de bracket d'Ember."
 
 msgid "desk.none"
 msgstr "Aucun événement"
 
 msgid "desk.none_detail"
-msgstr "Créez et lancez vos événements sur le site de la table du tournoi ; ils apparaissent ici une fois lancés."
+msgstr "Choisis Nouveau tournoi pour en créer un ; il apparaît ensuite ici."
 
 msgid "desk.view"
 msgstr "Vue"
@@ -4136,12 +4982,6 @@ msgstr "Afficher"
 
 msgid "desk.filter.all"
 msgstr "Tous"
-
-msgid "desk.filter.winners"
-msgstr "Winners"
-
-msgid "desk.filter.losers"
-msgstr "Losers"
 
 msgid "desk.filter.action"
 msgstr "À traiter"
@@ -4164,35 +5004,17 @@ msgstr "En attente"
 msgid "desk.state.not_ready"
 msgstr "Pas prêt"
 
-msgid "desk.state.called"
-msgstr "Appelé"
-
 msgid "desk.state.playing"
 msgstr "En jeu"
 
 msgid "desk.state.needs_review"
 msgstr "À vérifier"
 
-msgid "desk.state.needs_organizer"
-msgstr "Vous attend"
-
-msgid "desk.state.reporting"
-msgstr "Envoi du résultat"
-
 msgid "desk.state.done"
 msgstr "Terminé"
 
 msgid "desk.state.held"
 msgstr "Retenu"
-
-msgid "desk.side.winners"
-msgstr "Winners"
-
-msgid "desk.side.losers"
-msgstr "Losers"
-
-msgid "desk.side.grand_final"
-msgstr "Grande finale"
 
 msgid "desk.tbd"
 msgstr "À déterminer"
@@ -4211,21 +5033,6 @@ msgstr "Ce set ne fait plus partie de l'événement"
 
 msgid "desk.state"
 msgstr "État"
-
-msgid "desk.called"
-msgstr "Appelé."
-
-msgid "desk.called_posted"
-msgstr "Appelé et publié sur Discord."
-
-msgid "desk.called_waiting"
-msgstr "Appelé ; la publication Discord est en route."
-
-msgid "desk.called_failed"
-msgstr "Appelé, mais Discord a refusé la publication."
-
-msgid "desk.not_called"
-msgstr "Pas encore appelé."
 
 msgid "desk.call"
 msgstr "Rappeler"
@@ -4272,91 +5079,14 @@ msgstr "Enregistre une partie jouée hors d'Ember, comme une revanche acceptée 
 msgid "desk.done"
 msgstr "Fait."
 
-msgid "desk.web"
-msgstr "Connecté sur le web"
-
-msgid "desk.web_none"
-msgstr "Aucun navigateur n'est connecté au bureau du tournoi."
-
-msgid "desk.web_detail"
-msgstr "Plus récente : {0} avec {1}. Une session web prend fin après 12 heures, ou 2 heures sans utilisation."
-
-msgid "desk.web_end"
-msgstr "Se déconnecter partout"
-
-msgid "desk.web_end_detail"
-msgstr "Met fin à toutes les sessions web du bureau pour cet Ember ID. Reconnectez-vous sur le web pour l'utiliser."
-
-msgid "desk.web_new"
-msgstr "Quelqu'un s'est connecté à votre bureau de tournoi sur le web. Ce n'était pas vous ? Choisissez Se déconnecter partout."
-
-msgid "desk.web_ended"
-msgstr "Déconnecté du bureau web partout."
-
 msgid "desk.open_browser"
 msgstr "Ouvrir dans le navigateur"
 
 msgid "desk.open_browser_detail"
-msgstr "Ouvre le bureau web dans le navigateur de ce PC, connecté avec cet Ember ID, avec toutes les modifications permises."
-
-msgid "desk.open_phone"
-msgstr "Se connecter sur un autre appareil"
-
-msgid "desk.open_phone_detail"
-msgstr "Ouvre le bureau sur n'importe quel appareil, puis saisis ici le code qu'il affiche."
-
-msgid "desk.code_at"
-msgstr "À saisir sur"
-
-msgid "desk.code_at_detail"
-msgstr "Ouvre ceci sur l'autre appareil. Il affiche un code à saisir ici."
-
-
-
-
-
+msgstr "Ouvre le site de bracket dans le navigateur de ce PC. Connecte-toi avec Discord."
 
 msgid "desk.opened"
-msgstr "Le bureau s'est ouvert dans votre navigateur."
-
-msgid "site.cancel_detail"
-msgstr "Arrête l'attente. Choisissez à nouveau Connecter {0} quand vous êtes prêt."
-
-msgid "site.off"
-msgstr "Connexion {0} désactivée"
-
-msgid "site.off_detail"
-msgstr "Ce service de tournoi ne propose pas la connexion {0} pour le moment. Réessayez plus tard."
-
-msgid "site.retry_detail"
-msgstr "Relit votre compte {0}."
-
-msgid "site.opened"
-msgstr "Terminez la connexion à {0} dans votre navigateur."
-
-msgid "site.done"
-msgstr "{0} connecté en tant que {1}."
-
-msgid "site.removed"
-msgstr "Compte {0} déconnecté."
-
-msgid "site.cancelled"
-msgstr "L'attente de {0} a été arrêtée."
-
-msgid "site.busy"
-msgstr "La connexion {0} est saturée pour le moment. Réessayez plus tard."
-
-msgid "site.gone"
-msgstr "Ce service de tournoi ne propose plus la connexion {0}."
-
-msgid "site.no_service"
-msgstr "Le service de tournoi d'Ember n'est pas configuré"
-
-msgid "site.no_service_detail"
-msgstr "{0} se connecte via le service de tournoi d'Ember. Recherchez-le d'abord dans Comptes associés, puis revenez ici."
-
-msgid "site.screen"
-msgstr "Compte du site"
+msgstr "Le site de bracket s'est ouvert dans ton navigateur."
 
 msgid "identity.failure.browser"
 msgstr "Ember n'a pas pu ouvrir votre navigateur."
@@ -4874,6 +5604,12 @@ msgstr "Gauche et Droite changent votre Ultra pour la partie suivante. Avec un n
 msgid "postmatch.ultra.set"
 msgstr "Votre Ultra pour la partie suivante est choisi."
 
+msgid "postmatch.add_friend.detail"
+msgstr "Envoie une demande d'ami à {0}. Votre réponse à la revanche reste inchangée."
+
+msgid "postmatch.accept_friend.detail"
+msgstr "Accepte la demande d'ami de {0}. Votre réponse à la revanche reste inchangée."
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
@@ -4889,14 +5625,29 @@ msgstr "{0} sets d'affilée"
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
 
+msgid "room.latency.value"
+msgstr "{0} ms"
+
 msgid "room.latency.direct"
 msgstr "Direct {0} ms"
 
 msgid "room.latency.relay"
 msgstr "Relais {0} ms"
 
+msgid "room.latency.relay_estimate"
+msgstr "Relais ~{0} ms"
+
 msgid "room.latency.tip.value"
 msgstr "Ping estimé : environ {0} ms."
+
+msgid "room.latency.tip.relay"
+msgstr "Mesuré via le relais. Un match direct est généralement plus rapide. Vérifier la connexion mesure le trajet réel."
+
+msgid "room.latency.tip.checked_direct"
+msgstr "Vérifié sur le trajet du match : direct, {0} ms, {1} ms de variation."
+
+msgid "room.latency.tip.checked_relay"
+msgstr "Vérifié sur le trajet du match : via relais, {0} ms, {1} ms de variation."
 
 msgid "room.latency.tip.measuring"
 msgstr "Mesure du ping..."
@@ -4913,6 +5664,9 @@ msgstr "Salons publics"
 msgid "online.public_detail"
 msgstr "Parcourez les salons ouverts à tous, ou rejoignez vite un salon proche de chez vous."
 
+msgid "online.friends_detail"
+msgstr "Les amis en ligne et les salons où ils se trouvent."
+
 msgid "public.create"
 msgstr "Créer un salon public"
 
@@ -4925,17 +5679,23 @@ msgstr "Ouvre un salon public sur le service de l'Ember ID, le rejoint et appliq
 msgid "public.create_needs_id"
 msgstr "Les salons publics demandent un Ember ID et un service de confiance. Configurez-les dans Salons publics."
 
+msgid "public.ranked_needs_discord"
+msgstr "Connectez Discord pour les parties classées"
+
+msgid "public.ranked_needs_discord_detail"
+msgstr "Les parties ne comptent pour votre classe et vos points qu'avec un compte Discord connecté. Vous pouvez quand même jouer sans."
+
 msgid "public.loading"
 msgstr "Chargement des salons..."
 
 msgid "public.needs_id_detail"
 msgstr "Créez un Ember ID, puis faites confiance à un service dans Comptes associés. Ce service liste les salons publics."
 
-msgid "public.room_detail"
-msgstr "{0}\nJoueurs : {1}/{2}. Région : {3}."
+msgid "public.room_detail_seats"
+msgstr "{0}\nJoueurs : {1}/{2}."
 
-msgid "public.room_detail_playing"
-msgstr "{0}\nJoueurs : {1}/{2}. Région : {3}.\nMatchs en cours : {4}."
+msgid "public.room_detail_matches"
+msgstr "Matchs en cours : {0}."
 
 msgid "public.joining_value"
 msgstr "Connexion..."
@@ -5028,7 +5788,7 @@ msgid "public.filters"
 msgstr "Filters"
 
 msgid "public.filters_detail"
-msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+msgstr "Choisissez les salons listés : par zone, type de salon, places libres et connexion. Votre choix est conservé pour la prochaine fois."
 
 msgid "public.filter_summary_all"
 msgstr "All rooms"
@@ -5036,14 +5796,14 @@ msgstr "All rooms"
 msgid "public.filter_summary_seats"
 msgstr "Open seats"
 
-msgid "public.filter_region"
-msgstr "Region"
+msgid "public.filter_area"
+msgstr "Zone"
 
-msgid "public.filter_region_detail"
-msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+msgid "public.filter_area_detail"
+msgstr "Afficher les salons de toutes les zones, seulement ceux de votre zone ou voisins, ou d'une seule zone. Gauche et Droite la modifient."
 
-msgid "public.filter_region_all"
-msgstr "All regions"
+msgid "public.filter_area_all"
+msgstr "Toutes les zones"
 
 msgid "public.filter_region_near"
 msgstr "Près de moi"
@@ -5075,8 +5835,11 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
-msgid "public.filter_near_unknown"
-msgstr "Ember ne connaît pas encore votre région et ne peut pas dire quels salons sont proches de vous."
+msgid "public.filter_near_unset"
+msgstr "Votre zone n'est pas définie, donc Ember ne peut pas dire quels salons sont proches de vous. Définissez-la dans Paramètres, Pays et zone."
+
+msgid "public.filter_near_unlisted"
+msgstr "Aucun salon de la liste n'indique de zone pour l'instant, donc Ember ne peut pas dire quels salons sont proches de vous. Tous les salons sont affichés."
 
 msgid "public.near_you"
 msgstr "Près de vous"
@@ -5105,8 +5868,11 @@ msgstr "{0} min"
 msgid "public.age_hours"
 msgstr "{0} h"
 
-msgid "public.room_detail2"
-msgstr "Hôte {0}, {1}. {2} places occupées sur {3}."
+msgid "public.room_detail_host"
+msgstr "Hôte {0}. {1} places occupées sur {2}."
+
+msgid "public.room_detail_area"
+msgstr "Zone : {0}."
 
 msgid "public.room_detail_match"
 msgstr " Un match est en cours."
@@ -5246,6 +6012,48 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Activez ou désactivez des éléments du HUD pendant le combat."
 
+msgid "training.remote"
+msgstr "Phone remote"
+
+msgid "training.remote.detail"
+msgstr "Change the dummy and the recording from a phone on the same network. Off until you turn it on."
+
+msgid "training.remote.address"
+msgstr "Address"
+
+msgid "training.remote.address.detail"
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
+
+msgid "training.remote.pin"
+msgstr "PIN"
+
+msgid "training.remote.pin.detail"
+msgstr "The phone types this once. It changes each time the remote is turned on."
+
+msgid "training.remote.qr"
+msgstr "Scan QR to Connect"
+
+msgid "training.remote.qr.detail"
+msgstr "Point the phone's camera at the code. It opens the page and signs in."
+
+msgid "training.remote.newpin"
+msgstr "New PIN"
+
+msgid "training.remote.newpin.detail"
+msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
+
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
+msgid "training.remote.failed"
+msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
+
 msgid "training.hitboxes"
 msgstr "Hitboxes"
 
@@ -5383,6 +6191,15 @@ msgstr "Limite"
 
 msgid "training.data.no_charge"
 msgstr "Aucun coup à charge"
+
+msgid "training.data.oil"
+msgstr "Huile"
+
+msgid "training.data.oil_full"
+msgstr "Huile toujours pleine"
+
+msgid "training.data.oil_full.detail"
+msgstr "Hakan garde le maximum d'huile, comme s'il venait d'utiliser Oil Shower. Entraînement uniquement."
 
 msgid "training.color_key"
 msgstr "Légende des couleurs"
@@ -5585,6 +6402,9 @@ msgstr "Asseyez-vous ici : vous affrontez celui qui attend depuis le plus longte
 msgid "room.arcade_waiting"
 msgstr "En attente"
 
+msgid "room.arcade_in_line"
+msgstr "Place dans la file : {0}"
+
 msgid "room.cabinet_free"
 msgstr "INSÉREZ UNE PIÈCE"
 
@@ -5731,6 +6551,63 @@ msgstr "Avec vidéo"
 
 msgid "replays.show.kept"
 msgstr "Conservés"
+
+msgid "replays.sort"
+msgstr "Trier"
+
+msgid "replays.sort_detail"
+msgstr "L'ordre de la liste."
+
+msgid "replays.sort.newest"
+msgstr "Plus récents d'abord"
+
+msgid "replays.sort.oldest"
+msgstr "Plus anciens d'abord"
+
+msgid "replays.sort.player"
+msgstr "Nom du joueur"
+
+msgid "replays.sort.fighter"
+msgstr "Nom du combattant"
+
+msgid "replays.sort.longest"
+msgstr "Plus longs d'abord"
+
+msgid "replays.fighter_detail"
+msgstr "Seulement les matchs où ce combattant a joué."
+
+msgid "replays.filter"
+msgstr "Trier et filtrer"
+
+msgid "replays.filter_detail"
+msgstr "Ouvre la page qui trie la liste et choisit les combattants."
+
+msgid "replays.side"
+msgstr "Côté"
+
+msgid "replays.side_detail"
+msgstr "De quel côté les combattants choisis doivent être."
+
+msgid "replays.side.either"
+msgstr "Un côté ou l'autre"
+
+msgid "replays.side.one"
+msgstr "Joueur 1"
+
+msgid "replays.side.two"
+msgstr "Joueur 2"
+
+msgid "replays.matches_shown"
+msgstr "Matchs listés"
+
+msgid "replays.sets_shown"
+msgstr "Sets listés"
+
+msgid "replays.filter_reset"
+msgstr "Réinitialiser"
+
+msgid "replays.filter_reset_detail"
+msgstr "Remet chaque choix à son début."
 
 msgid "replays.search"
 msgstr "Rechercher"
@@ -5945,6 +6822,9 @@ msgstr "Le jeu a planté. Envoyez à l'équipe SF4 Ember Netplay les fichiers de
 msgid "launcher.game_crashed_sending"
 msgstr "Le jeu a planté. Envoyer les rapports de problèmes est activé : son rapport est en cours d'envoi, avec le petit vidage si le plantage en a écrit un. Les fichiers se trouvent aussi dans %APPDATA%\\sf4e\\logs."
 
+msgid "launcher.start_failed_sending"
+msgstr "Échec du lancement ou de l'injection. Envoyer les rapports de problèmes est activé : le rapport est en cours d'envoi. Le journal du lanceur se trouve dans %APPDATA%\\sf4e\\logs."
+
 msgid "reports.settings_title"
 msgstr "Rapports de problèmes"
 
@@ -6047,7 +6927,6 @@ msgstr "Les images de boutons affichées par Ember. Automatique les adapte à la
 msgid "player.prompts_auto"
 msgstr "Automatique"
 
-
 msgid "controller.brand.stick"
 msgstr "Boutons de combat"
 
@@ -6089,8 +6968,6 @@ msgstr "{0} connectées"
 
 msgid "player.controllers_detail"
 msgstr "Vous jouez avec {0}. Voyez toutes les manettes connectées, testez leurs boutons et configurez celles qu'Ember ne connaît pas encore."
-
-
 
 msgid "player.game_reads"
 msgstr "Laisser le jeu lire les manettes"
@@ -7467,36 +8344,6 @@ msgstr "Zimbabwe"
 
 #. End of the generated country names.
 
-msgid "desk.offstream"
-msgstr "Hors stream"
-
-msgid "desk.offstream_detail"
-msgstr "Personne qui voit ton écran ne peut utiliser le code, mais connecte-toi hors stream quand même."
-
-msgid "desk.device_code"
-msgstr "Code de l'autre appareil"
-
-msgid "desk.device_approved"
-msgstr "L'autre appareil est connecté au bureau."
-
-msgid "desk.device_asked"
-msgstr "Demandé par"
-
-msgid "desk.device_unknown"
-msgstr "Un navigateur inconnu"
-
-msgid "desk.device_asked_detail"
-msgstr "Il y a {0} min. N'approuvez que si c'est votre propre appareil."
-
-msgid "desk.device_pick"
-msgstr "Il affiche {0}"
-
-msgid "desk.device_pick_detail"
-msgstr "Choisissez le nombre affiché sur l'autre appareil. Un mauvais choix refuse le code."
-
-msgid "desk.device_refused"
-msgstr "Ce code est faux ou expiré. Obtiens-en un nouveau sur l'autre appareil."
-
 msgid "desk.mode"
 msgstr "Mode tournoi"
 
@@ -7507,7 +8354,7 @@ msgid "desk.mode_invite"
 msgstr "Invitation requise"
 
 msgid "desk.mode_on_detail"
-msgstr "Organisez vos propres événements depuis Ember : liez votre site de brackets, autorisez l'accès organisateur ci-dessous, puis ouvrez le bureau sur ce PC ou un autre appareil."
+msgstr "Organise tes propres tournois depuis Ember, sur le site de bracket d'Ember."
 
 msgid "desk.mode_invite_detail"
 msgstr "Le mode tournoi est sur invitation pour le moment. Saisissez l'invitation reçue ; chacune ne fonctionne qu'une fois."
@@ -7520,9 +8367,6 @@ msgstr "Le mode tournoi est activé pour votre Ember ID."
 
 msgid "desk.invite_invalid"
 msgstr "Cette invitation n'est pas valide. Vérifiez-la ou demandez-en une nouvelle."
-
-msgid "desk.site.on"
-msgstr "Sur {0}"
 
 msgid "desk.site.detail"
 msgstr "Où en est le tournoi sur son site de brackets. Les étapes ci-dessous sont celles que le site permet maintenant."
@@ -7573,28 +8417,7 @@ msgid "desk.move.cancel"
 msgstr "Annuler le tournoi"
 
 msgid "desk.move.detail"
-msgstr "Demande à {0} de faire ce changement maintenant. Les joueurs le voient aussitôt."
-
-msgid "desk.org_site"
-msgstr "Accès organisateur {0}"
-
-msgid "desk.org_unlinked"
-msgstr "Non lié"
-
-msgid "desk.org_unlinked_detail"
-msgstr "Lie d'abord ton compte {0} dans Comptes liés."
-
-msgid "desk.org_allow"
-msgstr "Autoriser"
-
-msgid "desk.org_allow_detail"
-msgstr "Permet à Ember de gérer tes tournois {0}. {0} s'ouvre dans ton navigateur pour l'approuver."
-
-msgid "desk.org_remove_detail"
-msgstr "Retire l'accès organisateur. Ton compte lié reste."
-
-msgid "site.organizer_where"
-msgstr "L'accès organisateur est dans ID Ember > Organisation de tournois."
+msgstr "Fait ce changement sur le site de bracket maintenant. Les joueurs le voient aussitôt."
 
 msgid "screen.rankings"
 msgstr "Classements"
@@ -7743,6 +8566,84 @@ msgstr "Réglage du jeu"
 msgid "settings.screen_mode_window"
 msgstr "Fenêtre"
 
+msgid "settings.group.game_themes"
+msgstr "Thèmes du jeu"
+
+msgid "settings.game_theme_main_menu"
+msgstr "Menu principal"
+
+msgid "settings.game_theme_title"
+msgstr "Écran titre"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Sélection du personnage"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Sélection du stage"
+
+msgid "settings.game_theme_versus"
+msgstr "Écran de versus"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Menu pause"
+
+msgid "settings.game_theme_network"
+msgstr "Menus réseau"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Marques d'édition"
+
+msgid "settings.game_theme_buttons"
+msgstr "Boutons et icônes"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Sons des menus"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Fichiers pour cet écran venant d'un thème du dossier ember\\themes du dossier du jeu. Les fichiers du jeu restent tels quels. Le menu principal affiche le choix tout de suite, les autres écrans à leur prochaine ouverture."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Aucun thème n'a de fichiers pour cet écran. Placez un thème, avec son dossier ui, dans le dossier ember\\themes du dossier du jeu, puis relancez le jeu."
+
+msgid "settings.game_theme_game"
+msgstr "Celui du jeu"
+
+msgid "settings.game_theme_battle_hud"
+msgstr "HUD de combat"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Barres de vie, de super et de revenge, chrono et annonces pris dans un thème du dossier ember\\themes du dossier du jeu. Les fichiers du jeu restent tels quels. Le prochain combat l'affiche."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Aucun thème avec un HUD de combat trouvé. Placez un thème, avec son dossier battle\\hud, dans ember\\themes du dossier du jeu, puis relancez le jeu."
+
+msgid "settings.game_theme_risk"
+msgstr "Les fichiers d'un thème sont utilisés tels quels, et un fichier défectueux peut fermer le jeu. Dans ce cas, Ember désactive ce thème au prochain démarrage."
+
+msgid "settings.game_theme_closed"
+msgstr "{0} (a fermé le jeu la dernière fois)"
+
+msgid "settings.game_theme_mismatch"
+msgstr "{0} (non utilisé : images HUD incompatibles)"
+
+msgid "settings.game_theme_unreadable"
+msgstr "{0} (non utilisé : fichiers HUD illisibles)"
+
+msgid "settings.game_theme_mismatch_detail"
+msgstr "Les images HUD de {0} ne correspondent pas à la disposition du HUD de cette édition ; il n'a donc pas été utilisé. Le HUD du jeu s'affiche."
+
+msgid "settings.game_theme_unreadable_detail"
+msgstr "{0} contient des fichiers HUD que le jeu ne peut pas lire ; il n'a donc pas été utilisé. Le HUD du jeu s'affiche."
+
+msgid "settings.game_theme_missing"
+msgstr "{0} (utilisé : certaines images HUD manquent)"
+
+msgid "settings.game_theme_missing_detail"
+msgstr "{0} est utilisé. La disposition du HUD cite des images que sa feuille n'a pas ; elles ne sont pas dessinées."
+
+msgid "runtime.game_theme_turned_off"
+msgstr "{0} a été désactivé pour {1} : le jeu s'est fermé pendant son chargement."
+
 msgid "menu.pages"
 msgstr "Pages"
 
@@ -7803,7 +8704,6 @@ msgstr "Ouvrir le panneau"
 msgid "settings.panel.close_action"
 msgstr "Fermer le panneau"
 
-
 msgid "class.developer"
 msgstr "Dev"
 
@@ -7860,6 +8760,9 @@ msgstr "Plus…"
 
 msgid "room.v2.more_detail"
 msgstr "Manettes, paramètres du salon, lien d'un salon public et disposition du tableau."
+
+msgid "room.v2.friends_detail"
+msgstr "Invitez des amis dans ce salon ou rejoignez le leur."
 
 msgid "room.v2.part_state"
 msgstr "{0} : {1}"
@@ -7966,20 +8869,32 @@ msgstr "EN LIGNE · REJOINDRE"
 msgid "online.eyebrow_browse"
 msgstr "EN LIGNE · PARCOURIR"
 
-msgid "public.your_region"
-msgstr "Votre région {0}"
+msgid "public.your_area"
+msgstr "Votre zone : {0}"
+
+msgid "public.area_unset"
+msgstr "Définissez votre zone dans Paramètres"
 
 msgid "home.notifications"
 msgstr "Notifications"
 
 msgid "notifications.none"
-msgstr "Rien pour l’instant."
+msgstr "Aucune notification"
+
+msgid "notifications.tab_count"
+msgstr "Notifications · {0}"
+
+msgid "notifications.waiting"
+msgstr "{0} en attente"
 
 msgid "notifications.none_detail"
-msgstr "Ce qu’Ember signale, comme un lien copié ou un salon quitté, reste ici pendant cette session."
+msgstr "Les demandes d’ami, les invitations et les avis d’Ember s’affichent ici."
+
+msgid "notifications.friends_detail"
+msgstr "Vos amis, demandes et joueurs bloqués."
 
 msgid "home.news"
-msgstr "Actualités"
+msgstr "Actualités/Notifications"
 
 msgid "news.heading"
 msgstr "ACTUALITÉS"
@@ -8161,9 +9076,11 @@ msgstr "Matchs"
 msgid "replays.tab.sets"
 msgstr "Sets"
 
+msgid "replays.tab.archive"
+msgstr "Archives"
+
 msgid "replays.set_matches"
 msgstr "{0} matchs"
-
 
 msgid "replays.fact.fighters"
 msgstr "Combattants"
@@ -8173,6 +9090,213 @@ msgstr "Joué"
 
 msgid "replays.fact.length"
 msgstr "Durée"
+
+msgid "archive.filters"
+msgstr "Filtres"
+
+msgid "archive.filters_detail"
+msgstr "Affinez les sets par joueur, événement, combattant, classe, pays ou tour, et choisissez leur ordre."
+
+msgid "archive.filter_none"
+msgstr "Tout, du plus récent au plus ancien"
+
+msgid "archive.filter_class"
+msgstr "Classe {0}"
+
+msgid "archive.online"
+msgstr "Parties en ligne"
+
+msgid "archive.sort_newest"
+msgstr "Plus récents d'abord"
+
+msgid "archive.sort_class"
+msgstr "Classe la plus haute d'abord"
+
+msgid "archive.round.top8"
+msgstr "Top 8"
+
+msgid "archive.round.pools"
+msgstr "Poules"
+
+msgid "archive.round.winners"
+msgstr "Winners"
+
+msgid "archive.round.losers"
+msgstr "Losers"
+
+msgid "archive.round.grand"
+msgstr "Grande finale"
+
+msgid "archive.any_class"
+msgstr "Toutes les classes"
+
+msgid "archive.any_country"
+msgstr "Tous les pays"
+
+msgid "archive.any_event"
+msgstr "Tous les événements"
+
+msgid "archive.any_round"
+msgstr "Tous les tours"
+
+msgid "archive.any_fighter"
+msgstr "Tous les combattants"
+
+msgid "archive.any_fighter_detail"
+msgstr "Liste les sets quel que soit le combattant."
+
+msgid "archive.f_text"
+msgstr "Joueur ou événement"
+
+msgid "archive.f_text_detail"
+msgstr "Sets dont le nom du joueur ou de l'événement contient ces lettres."
+
+msgid "archive.f_fighter"
+msgstr "Combattant"
+
+msgid "archive.f_fighter_detail"
+msgstr "Liste les sets où l'un des deux joueurs a utilisé ce combattant."
+
+msgid "archive.f_class"
+msgstr "Classe"
+
+msgid "archive.f_class_detail"
+msgstr "Liste les sets où l'un des deux joueurs a aujourd'hui cette classe."
+
+msgid "archive.f_country"
+msgstr "Pays"
+
+msgid "archive.f_country_detail"
+msgstr "Liste les sets avec un joueur de ce pays."
+
+msgid "archive.f_event"
+msgstr "Événement"
+
+msgid "archive.f_event_detail"
+msgstr "Liste les sets d'un événement de tournoi, ou seulement les parties en ligne."
+
+msgid "archive.f_round"
+msgstr "Tour"
+
+msgid "archive.f_round_detail"
+msgstr "Liste les sets de tournoi d'un tour."
+
+msgid "archive.f_sort"
+msgstr "Tri"
+
+msgid "archive.f_sort_detail"
+msgstr "Du plus récent au plus ancien, ou les sets avec la classe la plus haute d'abord."
+
+msgid "archive.games_shown"
+msgstr "Manches affichées"
+
+msgid "archive.games_of"
+msgstr "{0} sur {1}"
+
+msgid "archive.clear"
+msgstr "Effacer les filtres"
+
+msgid "archive.clear_detail"
+msgstr "Affiche de nouveau tous les sets."
+
+msgid "archive.no_service"
+msgstr "Configurez votre Ember ID"
+
+msgid "archive.no_service_detail"
+msgstr "Les archives nécessitent un Ember ID. Ouvrez Ember ID pour en configurer un."
+
+msgid "archive.loading"
+msgstr "Chargement des sets…"
+
+msgid "archive.loading_detail"
+msgstr "Demande des sets les plus récents aux archives."
+
+msgid "archive.loading_more"
+msgstr "Chargement de la suite"
+
+msgid "archive.loading_more_detail"
+msgstr "Demande des sets plus anciens aux archives."
+
+msgid "archive.unsupported"
+msgstr "Pas d'archives de replays ici"
+
+msgid "archive.unsupported_detail"
+msgstr "Ce service ne propose pas d'archives publiques de replays."
+
+msgid "archive.failed"
+msgstr "Archives inaccessibles"
+
+msgid "archive.failed_detail"
+msgstr "{0} Sélectionnez pour réessayer."
+
+msgid "archive.none"
+msgstr "Aucun set ne correspond à ces filtres"
+
+msgid "archive.none_detail"
+msgstr "Effacez les filtres pour voir tous les sets."
+
+msgid "archive.empty"
+msgstr "Pas encore de replays dans les archives"
+
+msgid "archive.empty_detail"
+msgstr "Les parties partagées depuis Ember apparaissent ici."
+
+msgid "archive.more_failed"
+msgstr "Impossible de charger la suite"
+
+msgid "archive.more_failed_detail"
+msgstr "Sélectionnez pour réessayer."
+
+msgid "archive.retry"
+msgstr "Réessayer"
+
+msgid "archive.downloading"
+msgstr "Téléchargement de la manche"
+
+msgid "archive.download_failed"
+msgstr "La manche n'a pas pu être téléchargée. {0}"
+
+msgid "archive.vs"
+msgstr "vs"
+
+msgid "archive.watch_hint"
+msgstr "Regarder"
+
+msgid "archive.find"
+msgstr "Sets de {0}"
+
+msgid "archive.find_detail"
+msgstr "Liste les sets joués par {0} dans les archives publiques."
+
+msgid "archive.game_one"
+msgstr "1 manche"
+
+msgid "archive.games"
+msgstr "{0} manches"
+
+msgid "archive.met"
+msgstr "vs {0}"
+
+msgid "archive.session_label"
+msgstr "{0} : {1} manches"
+
+msgid "archive.fact.event"
+msgstr "Événement"
+
+msgid "archive.fact.round"
+msgstr "Tour"
+
+msgid "archive.fact.games"
+msgstr "Manches"
+
+msgid "archive.fact.size"
+msgstr "Taille"
+
+msgid "archive.size_kb"
+msgstr "{0} Ko"
+
+msgid "archive.game_n"
+msgstr "Manche {0}"
 
 msgid "keyboard.recent"
 msgstr "Récents :"
@@ -8255,23 +9379,20 @@ msgstr "Étape précédente"
 msgid "screen.awards"
 msgstr "Récompenses"
 
-msgid "awards.titles"
-msgstr "Titres"
-
-msgid "awards.icons"
-msgstr "Icônes"
-
 msgid "awards.card"
 msgstr "Ta carte"
 
 msgid "awards.card_detail"
-msgstr "Ta carte telle que les autres la voient. Sélectionner ouvre tes récompenses : les titres et icônes que tu peux porter."
+msgstr "Ta carte telle que les autres la voient. Sélectionner ouvre le Profil."
 
 msgid "awards.entry_detail"
 msgstr "Les titres et icônes que tu as obtenus, et comment obtenir les autres. Sélectionnes-en un pour le porter sur ta carte."
 
 msgid "awards.earned_count"
 msgstr "{0} sur {1} obtenus"
+
+msgid "awards.not_reached"
+msgstr "Pas encore atteint"
 
 msgid "awards.card_heading"
 msgstr "TA CARTE · TELLE QUE LES AUTRES LA VOIENT"
@@ -8291,14 +9412,35 @@ msgstr "Verrouillé"
 msgid "awards.wear"
 msgstr "Mettre sur la carte"
 
+msgid "awards.wear_title"
+msgstr "Porter le titre"
+
+msgid "awards.wear_icon"
+msgstr "Porter l'icône"
+
+msgid "awards.wear_both"
+msgstr "Porter les deux"
+
 msgid "awards.detail_worn"
 msgstr "Sur ta carte."
 
 msgid "awards.detail_earned"
 msgstr "Obtenu. Sélectionner le met sur ta carte."
 
-msgid "awards.detail_locked"
-msgstr "Verrouillé. {0}."
+msgid "awards.progress"
+msgstr "{0} sur {1}"
+
+msgid "awards.next"
+msgstr "Suivant : {0}"
+
+msgid "awards.top_level"
+msgstr "Niveau maximal"
+
+msgid "awards.notice"
+msgstr "Récompense obtenue : {0}"
+
+msgid "awards.link_discord"
+msgstr "Connecte Discord pour obtenir des récompenses."
 
 msgid "tier.ash"
 msgstr "Cendre"
@@ -8315,104 +9457,266 @@ msgstr "Or"
 msgid "tier.ember"
 msgstr "Ember"
 
-msgid "award.entrant.title"
-msgstr "PARTICIPANT EMBER"
+msgid "award.matches.name"
+msgstr "Parties jouées"
 
-msgid "award.entrant.icon"
-msgstr "Étincelle"
-
-msgid "award.entrant.how"
-msgstr "Joue un set dans un tableau Ember"
-
-msgid "award.launch-night.title"
-msgstr "SOIRÉE DE LANCEMENT"
-
-msgid "award.launch-night.icon"
-msgstr "Retour"
-
-msgid "award.launch-night.how"
-msgstr "Joue pendant l’événement de lancement d’Ember"
-
-msgid "award.weekly-top16.title"
-msgstr "TOP 16 HEBDO"
-
-msgid "award.weekly-top16.icon"
-msgstr "Laurier"
-
-msgid "award.weekly-top16.how"
-msgstr "Finis dans le top 16 d’un Ember Weekly"
-
-msgid "award.rollback-regular.title"
-msgstr "HABITUÉ DU ROLLBACK"
-
-msgid "award.rollback-regular.icon"
-msgstr "Calendrier"
-
-msgid "award.rollback-regular.how"
-msgstr "Participe à 10 Ember Weekly en une saison"
-
-msgid "award.weekly-top8.title"
-msgstr "TOP 8 HEBDO"
-
-msgid "award.weekly-top8.icon"
-msgstr "Octogone 8"
-
-msgid "award.weekly-top8.how"
-msgstr "Finis dans le top 8 d’un Ember Weekly"
-
-msgid "award.by-ear.title"
-msgstr "À L’OREILLE"
-
-msgid "award.by-ear.icon"
-msgstr "Onde sonore"
-
-msgid "award.by-ear.how"
-msgstr "Gagne un set dans le tableau audio uniquement"
-
-msgid "award.monthly-finalist.title"
-msgstr "FINALISTE MENSUEL"
-
-msgid "award.monthly-finalist.icon"
-msgstr "Médaille"
-
-msgid "award.monthly-finalist.how"
-msgstr "Atteins la grande finale d’un Ember Monthly"
-
-msgid "award.organizer.title"
-msgstr "ORGANISATEUR DE TOURNOI"
-
-msgid "award.organizer.icon"
+msgid "award.matches.icon"
 msgstr "Drapeau"
 
-msgid "award.organizer.how"
-msgstr "Accordé par l’équipe Ember aux organisateurs"
+msgid "award.matches.1.title"
+msgstr "Nouveau challenger"
 
-msgid "award.commentary.title"
-msgstr "AU COMMENTAIRE"
+msgid "award.matches.1.how"
+msgstr "Joue ta première partie classée dans un salon public"
 
-msgid "award.commentary.icon"
-msgstr "Micro"
+msgid "award.matches.100.title"
+msgstr "Habitué"
 
-msgid "award.commentary.how"
-msgstr "Accordé aux commentateurs de stream"
+msgid "award.matches.100.how"
+msgstr "Joue 100 parties classées dans des salons publics"
 
-msgid "award.season1-veteran.title"
-msgstr "VÉTÉRAN SAISON 1"
+msgid "award.matches.500.title"
+msgstr "Vétéran"
 
-msgid "award.season1-veteran.icon"
-msgstr "Blason"
+msgid "award.matches.500.how"
+msgstr "Joue 500 parties classées dans des salons publics"
 
-msgid "award.season1-veteran.how"
-msgstr "Finis dans le top 32 de chaque Monthly de la saison 1"
+msgid "award.matches.1000.title"
+msgstr "World Warrior"
 
-msgid "award.cup-champion.title"
-msgstr "CHAMPION DE L’EMBER CUP"
+msgid "award.matches.1000.how"
+msgstr "Joue 1000 parties classées dans des salons publics"
 
-msgid "award.cup-champion.icon"
-msgstr "Couronne"
+msgid "award.matches.5000.title"
+msgstr "À vie"
 
-msgid "award.cup-champion.how"
-msgstr "Remporte l’Ember Cup de fin de saison"
+msgid "award.matches.5000.how"
+msgstr "Joue 5000 parties classées dans des salons publics"
+
+msgid "award.wins.name"
+msgstr "Victoires"
+
+msgid "award.wins.icon"
+msgstr "Laurier"
+
+msgid "award.wins.1.title"
+msgstr "Première victoire"
+
+msgid "award.wins.1.how"
+msgstr "Gagne ta première partie classée dans un salon public"
+
+msgid "award.wins.50.title"
+msgstr "Prétendant"
+
+msgid "award.wins.50.how"
+msgstr "Gagne 50 parties classées dans des salons publics"
+
+msgid "award.wins.250.title"
+msgstr "Combattant primé"
+
+msgid "award.wins.250.how"
+msgstr "Gagne 250 parties classées dans des salons publics"
+
+msgid "award.wins.1000.title"
+msgstr "Champion"
+
+msgid "award.wins.1000.how"
+msgstr "Gagne 1000 parties classées dans des salons publics"
+
+msgid "award.wins.2500.title"
+msgstr "Légende"
+
+msgid "award.wins.2500.how"
+msgstr "Gagne 2500 parties classées dans des salons publics"
+
+msgid "award.streak.name"
+msgstr "Série de victoires"
+
+msgid "award.streak.icon"
+msgstr "Flamme"
+
+msgid "award.streak.3.title"
+msgstr "En pleine forme"
+
+msgid "award.streak.3.how"
+msgstr "Gagne 3 parties classées d'affilée"
+
+msgid "award.streak.5.title"
+msgstr "Série chaude"
+
+msgid "award.streak.5.how"
+msgstr "Gagne 5 parties classées d'affilée"
+
+msgid "award.streak.10.title"
+msgstr "Intouchable"
+
+msgid "award.streak.10.how"
+msgstr "Gagne 10 parties classées d'affilée"
+
+msgid "award.streak.15.title"
+msgstr "Imbattable"
+
+msgid "award.streak.15.how"
+msgstr "Gagne 15 parties classées d'affilée"
+
+msgid "award.streak.20.title"
+msgstr "Inarrêtable"
+
+msgid "award.streak.20.how"
+msgstr "Gagne 20 parties classées d'affilée"
+
+msgid "award.rank.name"
+msgstr "Classe la plus haute"
+
+msgid "award.rank.icon"
+msgstr "Bouclier"
+
+msgid "award.mastery.name"
+msgstr "Maîtrise des combattants"
+
+msgid "award.mastery.icon"
+msgstr "Médaille"
+
+msgid "award.mastery.1.title"
+msgstr "Apprenti"
+
+msgid "award.mastery.1.how"
+msgstr "Amène un combattant au cadre Cuivre"
+
+msgid "award.mastery.2.title"
+msgstr "Adepte"
+
+msgid "award.mastery.2.how"
+msgstr "Amène un combattant au cadre Argent"
+
+msgid "award.mastery.3.title"
+msgstr "Spécialiste"
+
+msgid "award.mastery.3.how"
+msgstr "Amène un combattant au cadre Or"
+
+msgid "award.mastery.4.title"
+msgstr "Maître"
+
+msgid "award.mastery.4.how"
+msgstr "Amène un combattant au cadre Ember"
+
+msgid "award.cast.name"
+msgstr "Combattants joués"
+
+msgid "award.cast.icon"
+msgstr "Tableau"
+
+msgid "award.cast.5.title"
+msgstr "Choix de secours"
+
+msgid "award.cast.5.how"
+msgstr "Joue 5 combattants différents en parties classées"
+
+msgid "award.cast.15.title"
+msgstr "Polyvalent"
+
+msgid "award.cast.15.how"
+msgstr "Joue 15 combattants différents en parties classées"
+
+msgid "award.cast.30.title"
+msgstr "Compagnon"
+
+msgid "award.cast.30.how"
+msgstr "Joue 30 combattants différents en parties classées"
+
+msgid "award.cast.all.title"
+msgstr "Tout le casting"
+
+msgid "award.cast.all.how"
+msgstr "Joue chaque combattant en parties classées"
+
+msgid "award.friends.name"
+msgstr "Amis"
+
+msgid "award.friends.icon"
+msgstr "Duo"
+
+msgid "award.friends.1.title"
+msgstr "Partenaire d'entraînement"
+
+msgid "award.friends.1.how"
+msgstr "Ajoute un ami"
+
+msgid "award.friends.5.title"
+msgstr "Bonne compagnie"
+
+msgid "award.friends.5.how"
+msgstr "Aie 5 amis"
+
+msgid "award.friends.15.title"
+msgstr "Les habitués"
+
+msgid "award.friends.15.how"
+msgstr "Aie 15 amis"
+
+msgid "award.rival.name"
+msgstr "Rival"
+
+msgid "award.rival.icon"
+msgstr "Historique"
+
+msgid "award.rival.10.title"
+msgstr "Visage familier"
+
+msgid "award.rival.10.how"
+msgstr "Joue 10 parties classées contre un même adversaire"
+
+msgid "award.rival.50.title"
+msgstr "Rival"
+
+msgid "award.rival.50.how"
+msgstr "Joue 50 parties classées contre un même adversaire"
+
+msgid "award.rival.100.title"
+msgstr "Nemesis"
+
+msgid "award.rival.100.how"
+msgstr "Joue 100 parties classées contre un même adversaire"
+
+msgid "award.rival.250.title"
+msgstr "Rival éternel"
+
+msgid "award.rival.250.how"
+msgstr "Joue 250 parties classées contre un même adversaire"
+
+msgid "award.opponents.name"
+msgstr "Adversaires"
+
+msgid "award.opponents.icon"
+msgstr "Vague"
+
+msgid "award.opponents.10.title"
+msgstr "Défi ouvert"
+
+msgid "award.opponents.10.how"
+msgstr "Affronte 10 adversaires différents en parties classées"
+
+msgid "award.opponents.50.title"
+msgstr "Large cercle"
+
+msgid "award.opponents.50.how"
+msgstr "Affronte 50 adversaires différents en parties classées"
+
+msgid "award.opponents.200.title"
+msgstr "Légende de la rue"
+
+msgid "award.opponents.200.how"
+msgstr "Affronte 200 adversaires différents en parties classées"
+
+msgid "award.opponents.500.title"
+msgstr "Rival de tous"
+
+msgid "award.opponents.500.how"
+msgstr "Affronte 500 adversaires différents en parties classées"
+
+msgid "award.rank.how"
+msgstr "Atteins la classe {0} dans des salons publics"
 
 msgid "toast.kind.invitation"
 msgstr "INVITATION"
@@ -8566,3 +9870,87 @@ msgstr "Tous les coups ont touché."
 
 msgid "training.combo_check.run.dropped"
 msgstr "Tous les coups n'ont pas touché."
+
+msgid "desk.draft.new"
+msgstr "Nouveau tournoi"
+
+msgid "desk.draft.new_detail"
+msgstr "Titre, date, sets et check-in. Enregistré en brouillon au fur et à mesure."
+
+msgid "desk.draft.title"
+msgstr "Titre"
+
+msgid "desk.draft.title_first"
+msgstr "Donne-lui d'abord un titre"
+
+msgid "desk.draft.saved"
+msgstr "Le brouillon est créé avec son titre ; le reste se règle ensuite et s'enregistre à chaque changement."
+
+msgid "desk.draft.date"
+msgstr "Date"
+
+msgid "desk.draft.date_detail"
+msgstr "Gauche / Droite : un jour. Ton fuseau horaire ; chacun le voit dans le sien."
+
+msgid "desk.draft.time"
+msgstr "Début"
+
+msgid "desk.draft.time_detail"
+msgstr "Gauche / Droite : 15 minutes."
+
+msgid "desk.draft.first_to"
+msgstr "Chaque set en"
+
+msgid "desk.draft.first_to_detail"
+msgstr "Gauche / Droite : les manches qui gagnent un set."
+
+msgid "desk.draft.discord"
+msgstr "Salon Discord"
+
+msgid "desk.draft.discord_set"
+msgstr "Défini"
+
+msgid "desk.draft.discord_unset"
+msgstr "Aucun"
+
+msgid "desk.draft.discord_detail"
+msgstr "Les appels et les scores vont dans ce salon. Il se règle sur la page du site de bracket."
+
+msgid "desk.draft.open_event"
+msgstr "Ouvrir l'événement"
+
+msgid "desk.draft.open_event_detail"
+msgstr "Inscriptions, actions du site, lancement du bracket et ses sets."
+
+msgid "desk.event.state"
+msgstr "État"
+
+msgid "desk.event.starts"
+msgstr "Commence {0}"
+
+msgid "desk.event.signed_up"
+msgstr "Inscrits"
+
+msgid "desk.event.signed_up_detail"
+msgstr "Les joueurs inscrits sur la page du site de bracket."
+
+msgid "desk.start"
+msgstr "Lancer le bracket"
+
+msgid "desk.start_detail"
+msgstr "Construit à partir des inscrits ; Ember appelle les premiers sets."
+
+msgid "desk.event.edit"
+msgstr "Modifier détails et règles"
+
+msgid "desk.event.edit_detail"
+msgstr "Titre, début, sets et check-in."
+
+msgid "desk.stop.draft"
+msgstr "Supprimer ce brouillon"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.check_in"
+msgstr "Check-in"

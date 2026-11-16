@@ -166,6 +166,7 @@ pub fn choose(
              name = ?5, country = ?6",
         params![game, account, chosen.ranked, changed_at, name, country],
     )?;
+    super::board_moved();
     standing(tx, game, ember_id, classes_shown, developers, now)
 }
 
@@ -231,31 +232,25 @@ pub fn board(
     Ok(Board { players })
 }
 
-/// The class the public board shows today for each of `ember_ids` that is
-/// on it, by Ember ID: the same players and classes as `board` (taking
-/// part, listed, settled, not a developer), without its cap. Read only, so
-/// a page anyone can open never moves a stored class. USF4's classes: the
-/// archive it serves holds USF4's games.
+/// The class the public board shows today for every player on it, by Ember
+/// ID: the same players and classes as `board` (taking part, listed,
+/// settled, not a developer), without its cap. Read only, so a page anyone
+/// can open never moves a stored class. The archive's games carry these
+/// (`archive::classes`): USF4's classes, as the archive holds USF4's games.
 pub fn public_classes(
     tx: &Transaction<'_>,
-    ember_ids: &[&str],
     developers: &[String],
     now: u64,
 ) -> Result<std::collections::HashMap<String, u8>> {
     let mut classes = std::collections::HashMap::new();
-    if ember_ids.is_empty() {
-        return Ok(classes);
-    }
-    let wanted = serde_json::to_string(ember_ids).map_err(|_| ApiFailure::unavailable())?;
     let mut statement = tx.prepare(
         "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, d.ember_id, r.discord_user_id
          FROM skill_ratings r
          JOIN ranking_choices c ON c.game = r.game AND c.discord_user_id = r.discord_user_id
          JOIN discord_accounts d ON d.user_id = r.discord_user_id
-         WHERE r.game = ?2 AND c.ranked AND c.name IS NOT NULL
-           AND d.ember_id IN (SELECT value FROM json_each(?1))",
+         WHERE r.game = ?1 AND c.ranked AND c.name IS NOT NULL",
     )?;
-    let mut rows = statement.query(params![wanted, DEFAULT_GAME])?;
+    let mut rows = statement.query([DEFAULT_GAME])?;
     while let Some(row) = rows.next()? {
         let rating = Rating {
             rating: row.get(0)?,

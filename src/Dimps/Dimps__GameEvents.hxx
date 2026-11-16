@@ -139,8 +139,9 @@ namespace Dimps {
 			static int* GetObserverSelection(MainMenu* observer) { return reinterpret_cast<int*>(reinterpret_cast<std::uint8_t*>(observer) + ObserverSelection); }
 			static SoundManager* GetAppSoundManager(void* app) { return **reinterpret_cast<SoundManager***>(reinterpret_cast<std::uint8_t*>(app) + AppSoundManager); }
 			// The row of the event flow table that is the main menu, and the
-			// one Ember adds for the local battle log (sf4e__GameEvents.cxx).
-			static constexpr int FlowRowMainMenu = 1, FlowRowLocalBattleLog = 15;
+			// ones Ember adds for the local battle log and for the main menu
+			// opening itself again (sf4e__GameEvents.cxx).
+			static constexpr int FlowRowMainMenu = 1, FlowRowLocalBattleLog = 15, FlowRowMainMenuAgain = 16;
 
 			static __itemObserverMethods itemObserverMethods;
 			static __taskMethods taskMethods;

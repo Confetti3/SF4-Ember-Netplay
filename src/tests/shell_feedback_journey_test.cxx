@@ -33,7 +33,7 @@ void NoticeOverDialogs() {
  auto sent=h.actions.size();h.Press(MenuInput::Select);
  Check(h.actions.size()==sent&&!h.shell.Navigation().Confirming(),"Cancel on Use keyboard still switched the device");
  h.Choose("keyboard");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(h.actions.size()==sent+1&&h.actions.back().inputAction==input::Action::UseKeyboard,"Confirming Use keyboard did not switch the device");
+ Check(h.actions.size()==sent+1&&Is<commands::Input>(h.actions.back(),[](const commands::Input& i){return i.inputAction==input::Action::UseKeyboard;}),"Confirming Use keyboard did not switch the device");
 }
 // The failed language save speaks on the Interface screen only, and everything
 // more urgent outranks it.
@@ -161,13 +161,13 @@ void ProblemReportJourneys() {
   Check(rows.size()==2&&rows[0].id=="send-reports","Settings' Problem reports panel does not hold its two rows");
   Check(rows[0].value==loc::T("common.off")&&!h.view.preferences.sendProblemReports,"Problem reports are not off at first");
   h.FocusOn("send-reports");h.Press(MenuInput::Right);h.Frame(0,45);
-  Check(!h.actions.empty()&&h.actions.back().command.kind==netplay::CommandKind::SavePreferences&&h.actions.back().preferences.sendProblemReports,
+  Check(!h.actions.empty()&&Is<commands::SavePreferences>(h.actions.back(),[](const commands::SavePreferences& s){return s.preferences.sendProblemReports;}),
    "Turning problem reports on did not save");
-  h.view.preferences=h.actions.back().preferences;h.Frame();
+  h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
   Check(rows[0].value==loc::T("common.on"),"The setting does not show it is on");
   h.FocusOn("send-reports");h.Press(MenuInput::Left);h.Frame(0,45);
-  Check(h.actions.back().command.kind==netplay::CommandKind::SavePreferences&&!h.actions.back().preferences.sendProblemReports,"Turning problem reports off did not save");
-  h.view.preferences=h.actions.back().preferences;h.Frame();
+  Check(Is<commands::SavePreferences>(h.actions.back(),[](const commands::SavePreferences& s){return !s.preferences.sendProblemReports;}),"Turning problem reports off did not save");
+  h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
   h.Choose("sent-reports");
   Check(h.shell.Navigation().Screen()=="sent-reports"&&rows.size()==1&&rows[0].id=="sent-none","Sent reports does not say there are none");
   // Discord keeps only its own rows.
@@ -237,7 +237,7 @@ void V2AuditJourneys() {
   h.view.discordPending=true;h.view.discordRevision=3;h.Frame();
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
   h.shell.Navigation().Home();h.Frame();SetMenuEntriesProbe({});
-  const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="notifications";});
+  const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="news";});
   Check(row!=rows.end()&&row->detail==loc::T("discord.invitation_notice"),"A toast said over fighter select waited for another screen");
   h.Press(MenuInput::Back);
   Check(!h.open,"A toast said over fighter select took the focus from it");
@@ -251,7 +251,7 @@ void V2AuditJourneys() {
   Harness h;invited(h);
   h.Frame(MenuInput::Select,4);h.Frame(0,2);
   Check(h.shell.Navigation().Screen()=="discord-invitation"&&h.shell.Navigation().Focus()=="invite-cancel","Join did not open the invitation on Cancel invitation, so this case proves nothing");
-  Check(std::none_of(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return a.discordAction==discord::InviteAction::Cancel;}),
+  Check(std::none_of(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return Is<commands::DiscordInvite>(a,[](const commands::DiscordInvite& d){return d.discordAction==discord::InviteAction::Cancel;});}),
    "A held for the toast's Join also cancelled the invitation");
  }
  // A toast that comes while the menu is not free (a notice is open) never
@@ -275,7 +275,7 @@ void V2AuditJourneys() {
   // Home lists it from the frame Ember shows again.
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
   h.Frame(0,2);SetMenuEntriesProbe({});
-  const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="notifications";});
+  const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="news";});
   Check(row!=rows.end()&&row->detail==loc::T("discord.invitation_notice"),"A toast said while Ember was hidden is not in Notifications");
  }
  // A card with buttons stays 8 s over the menus, however briefly the status
@@ -304,7 +304,7 @@ void V2AuditJourneys() {
   Check(seen.back()=="tab-player"&&std::set<std::string>(seen.begin(),seen.end()).size()==6,"RB does not reach every Settings tab and wrap to the first");
   h.Press(MenuInput::PrevTab);Check(h.shell.Navigation().Screen()==seen[5],"LB on the first tab did not wrap to the last");
   h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="home","A tab stepped to stacked on the one it left");
-  h.Screen("awards");h.Press(MenuInput::PrevTab);Check(h.shell.Navigation().Screen()=="awards-icons","LB on Titles did not wrap to Icons");
+  h.Screen("awards");h.Press(MenuInput::PrevTab);Check(h.shell.Navigation().Screen()=="friends","LB on Awards did not step to Friends");
   h.Press(ControllerButtons(0x400,input::PadDirectInput,input::MenuButtons{}.heavyPunch,{}));Check(h.shell.Navigation().Screen()=="awards","A stick's HP did not step the tab");
   SetMenuGlyphs(input::PadDirectInput,input::MenuButtons{1u<<18,1u<<17,"LK","MK"});h.Frame();
   Check(!std::strcmp(MenuShortcutGlyph(MenuInput::PrevTab),"LP")&&!std::strcmp(MenuShortcutGlyph(MenuInput::NextTab),"HP"),"A stick's tab buttons are not named LP and HP");
@@ -323,11 +323,11 @@ void V2AuditJourneys() {
   Check(select==MenuInput::Select&&back==MenuInput::Back,"A stick's LP or HP button bound to Select or Back also stepped a tab");
   SetMenuGlyphs(input::PadDirectInput,rebound);h.Frame();
   Check(!MenuShortcutGlyph(MenuInput::PrevTab)&&!MenuShortcutGlyph(MenuInput::NextTab),"The hint bar names a tab button that selects or goes back");
-  // With tabs (Awards): HP goes back, not on to Icons; LP selects, not back to Icons.
+  // With tabs (Awards): HP goes back, not on to another tab; LP selects, not back to the previous one.
   h.Screen("awards");h.Press(back);
   Check(h.shell.Navigation().Screen()=="home","HP bound to Back did not go back from a screen with tabs");
   h.Screen("awards");h.Press(select);
-  Check(h.shell.Navigation().Screen()!="awards-icons","LP bound to Select stepped a tab");
+  Check(h.shell.Navigation().Screen()=="awards","LP bound to Select stepped a tab");
   // Without tabs (Online play): LP opens the focused row, HP comes back.
   h.Screen("online");const std::string row=h.shell.Navigation().Focus();h.Press(select);
   Check(!row.empty()&&h.shell.Navigation().Screen()!="online","LP bound to Select did not select on a screen without tabs");
@@ -376,7 +376,7 @@ void V2AuditJourneys() {
  {
   Harness h;h.view.preferences.autoInputDelay=true;h.Frame();h.Screen("tab-matches/defaults");h.FocusOn("delay");
   const auto before=h.actions.size();h.Press(MenuInput::Select);h.Frame(0,40);
-  Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(before),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences&&!a.preferences.autoInputDelay;}),
+  Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(before),h.actions.end(),[](const ShellAction& a){return Is<commands::SavePreferences>(a,[](const commands::SavePreferences& s){return !s.preferences.autoInputDelay;});}),
    "Select stepped Auto input delay");
  }
 }

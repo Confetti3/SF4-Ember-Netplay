@@ -12,16 +12,19 @@ using Game::ReplayInfoList;
 using Game::SaveDataController;
 using Game::Request;
 using Game::Sprite::Control;
+using Game::Sprite::EmSprite;
 using Game::Sprite::SingleNodeControl;
 
 GameMementoKey::__publicMethods GameMementoKey::publicMethods;
 int* GameMementoKey::totalMementoSize;
 Request::__publicMethods Request::publicMethods;
 Control::__publicMethods Control::publicMethods;
+EmSprite::__publicMethods EmSprite::publicMethods;
 
 void Game::Locate(HMODULE peRoot) {
 	Battle::Locate(peRoot);
 	Control::Locate(peRoot);
+	EmSprite::Locate(peRoot);
 	GameMementoKey::Locate(peRoot);
 	ReplayBattle::Locate(peRoot);
 	SaveDataController::Locate(peRoot);
@@ -64,6 +67,7 @@ void SaveDataController::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.State = (PVOID)(peRootOffset + 0x27c410);
 	*(PVOID*)&publicMethods.Busy = (PVOID)(peRootOffset + 0x27c430);
 	staticMethods.GetSingleton = (SaveDataController* (*)())(peRootOffset + 0x27c880);
+	*(PVOID*)&staticMethods.UnlockIdle = (PVOID)(peRootOffset + 0x27df70);
 }
 
 void ReplayInfoList::Locate(HMODULE peRoot) {
@@ -89,4 +93,10 @@ void Control::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.Disable_0x57bd80 = (PVOID)(peRootOffset + 0x17bd80);
 	*(PVOID*)&publicMethods.Enable_0x577910 = (PVOID)(peRootOffset + 0x177910);
 	*(PVOID*)&publicMethods.Enable_0x588450 = (PVOID)(peRootOffset + 0x188450);
+}
+
+void EmSprite::Locate(HMODULE peRoot) {
+	unsigned int peRootOffset = (unsigned int)peRoot;
+
+	*(PVOID*)&publicMethods.ApplyTextureKey = (PVOID)(peRootOffset + 0x2ed070);
 }

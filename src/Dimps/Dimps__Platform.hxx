@@ -133,6 +133,15 @@ namespace Dimps {
 			static float* GetFramePeriodSeconds(D3D* d) {
 				return (float*)((unsigned int)d + 0x1f8); // 1/60 under FIXED
 			}
+			// The limiter (0x770DE0) adds each frame's overrun past the period to
+			// this lateness; past a threshold (0x200) it skips drawing frames,
+			// counted at 0x204 and returned, so the game catches up unseen.
+			static float* GetLimiterLateness(D3D* d) {
+				return (float*)((unsigned int)d + 0x1fc); // seconds
+			}
+			static int* GetLimiterSkips(D3D* d) {
+				return (int*)((unsigned int)d + 0x204);
+			}
 			static D3DPRESENT_PARAMETERS* GetPresentParameters(D3D* d) {
 				return (D3DPRESENT_PARAMETERS*)((unsigned int)d + 0x1c);
 			}

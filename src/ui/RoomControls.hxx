@@ -73,7 +73,7 @@ AbandonableGame AbandonableAt(const ShellView& v, const room::Table& t);
 // Whether an Unwatch at `table` leaves the game this PC watches while the room
 // still plays it (netplay::LeaveOfWatchedGame). Every such press, from Stop
 // watching or the table's own Unwatch, goes as that game's leave
-// (ShellAction::leaveWatchedGame), which the runtime scopes to the watched
+// (commands::LeaveWatchedGame), which the runtime scopes to the watched
 // game when it runs, never as an Unwatch of whatever the table plays by then.
 bool LeavesWatchedGame(const ShellView& v, std::size_t table);
 // Whether the room takes a press of `kind` at `table` now. Everything waits

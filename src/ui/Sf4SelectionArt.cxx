@@ -4,6 +4,7 @@
 #include "SelectionArt.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../platform/GameThemes.hxx"
 #include <cstring>
 #include <string>
 #include <vector>
@@ -33,7 +34,8 @@ SelectionImage SelectionArt::Portrait(int fighterId, bool large) {
     const auto paths = [&] {
         auto list = PackagedFiles(key);
         const std::wstring code(fighter->code, fighter->code + 3);
-        for (const wchar_t* root : {L"patch_ae2_tu3", L"patch_ae2_tu2", L"patch_ae2", L"dlc/04_ae2",
+        // The theme's menus first, as the game searches them (platform::game_themes).
+        for (const wchar_t* root : {platform::game_themes::ActiveFolder, L"patch_ae2_tu3", L"patch_ae2_tu2", L"patch_ae2", L"dlc/04_ae2",
                                    L"dlc/03_character_free", L"resource"})
             list.push_back(gameRoot_ + L"/" + root + L"/ui/chara_select/chara/sel_" + code + L".tex.emz");
         // Last resort when the game's portrait cannot be read or decoded: the
@@ -132,5 +134,13 @@ SelectionImage SelectionArt::Stage(int nativeId) {
     if (selection::IsCustomStage(nativeId))
         return Request(key, [&] { return CustomStagePaths(gameRoot_, code.c_str()); }, MaximumImageSide);
     return Request(key, [&] { return PackagedFiles(key); }, MaximumImageSide);
+}
+SelectionArt::GameSheet SelectionArt::PointDigitFiles() const {
+    // The ranked result screen's number art, the same for every language.
+    return {{gameRoot_ + L"/resource/ui/net_result/CMN/net_result.tex.emz"}, "net_vs_number.dds"};
+}
+SelectionArt::GameSheet SelectionArt::LetterFiles() const {
+    // The font the game sets its PP and BP in; its Latin capitals are the same in every language's library.
+    return {{gameRoot_ + L"/resource/ui/fonts/ENG/fonts.gfx"}, {}};
 }
 } }

@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
@@ -18,6 +19,33 @@ struct MatchSide {
     // public, and none while the player hides class emblems.
     SkillBadge badge;
 };
+
+// Both fighters of a native match as the HUD shows them, taken when it starts.
+// `lobby` is the match's native roster (members with a name): the two seats
+// first, then any spectators, so a fighter and a spectator of the same game
+// read the same two sides. A seat with no name is left empty. Room names are
+// unique, so the name finds each fighter's link in `room` (the client's own
+// room) and class in `shown` (the room as the runtime shows it, which keeps
+// a class only in a room joined as public and only while class emblems are
+// shown; null when there is none). The client's own room is never read for a
+// class: a private room's host writes it.
+template <class Lobby, class Members>
+void CaptureMatchSides(const Lobby& lobby, const Members& room, const Members* shown, MatchSide (&sides)[2]) {
+    auto seat = lobby.begin();
+    for (std::size_t side = 0; side < 2; ++side) {
+        auto& captured = sides[side];
+        captured = MatchSide();
+        if (seat == lobby.end()) continue;
+        captured.name = seat->name;
+        ++seat;
+        if (captured.name.empty()) continue;
+        for (const auto& member : room)
+            if (member.name == captured.name) captured.link = member.link;
+        if (shown)
+            for (const auto& member : *shown)
+                if (member.name == captured.name) captured.badge = member.badge;
+    }
+}
 
 // The set score the HUD shows beside a match's names. A fighter sees the
 // table's running score. A spectator's stream can lag the room by seconds, so

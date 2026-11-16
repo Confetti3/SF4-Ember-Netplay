@@ -5,14 +5,14 @@
 //! good.
 mod support;
 
-use ember_brackets::{Clock, Connector, CredentialKind};
+use ember_brackets::{Clock, Connector};
 use ember_protocol::{
     partner::result_id,
     webhook::{self, Headers, Secret},
 };
 use reqwest::StatusCode;
 use serde_json::{Value, json};
-use support::{CONNECTION, challonge_tournament, config, result_secret, temp};
+use support::{CONNECTION, config, result_secret, temp, tournament};
 
 const PLAYER1: &str = "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";
 const MATCH: &str = "emt_8RGUvPxAAZ0V9oj_D-yBDg";
@@ -22,7 +22,7 @@ fn previous_secret() -> Secret {
     Secret::from_bytes([6; 32])
 }
 
-/// A connector whose bridge and Challonge are never called here.
+/// A connector whose bridge and bracket service are never called here.
 fn connector(dir: &std::path::Path, clock: Clock) -> Connector {
     std::fs::write(
         dir.join("previous.secret"),
@@ -32,11 +32,7 @@ fn connector(dir: &std::path::Path, clock: Clock) -> Connector {
     let mut config = config(dir, "http://127.0.0.1:9", "emk_test");
     config.results.path = "/ember/results".into();
     config.results.previous_secret_file = Some(dir.join("previous.secret"));
-    config.tournaments = vec![challonge_tournament(
-        dir,
-        CredentialKind::V1Key,
-        "http://127.0.0.1:9",
-    )];
+    config.tournaments = vec![tournament(dir, "http://127.0.0.1:9")];
     Connector::new(config, clock).unwrap()
 }
 
@@ -67,10 +63,10 @@ fn signed(secret: &Secret, body: &Value, at: u64) -> (Headers, Vec<u8>) {
 async fn only_signed_recent_results_for_this_connection_are_recorded_once() {
     let dir = temp("results");
     let connector = connector(&dir, Clock::frozen(NOW));
-    let body = result("challonge:ember_weekly:1001:1", MATCH);
+    let body = result("http:weekly:s-1:1", MATCH);
     let fresh = |n: u8| {
-        let mut body = result("challonge:ember_weekly:1001:1", &format!("emt_{n:0>22}"));
-        body["external_match_id"] = json!(format!("challonge:ember_weekly:{n}:1"));
+        let mut body = result("http:weekly:s-1:1", &format!("emt_{n:0>22}"));
+        body["external_match_id"] = json!(format!("http:weekly:s-{n}:1"));
         body
     };
 
@@ -145,7 +141,7 @@ async fn only_signed_recent_results_for_this_connection_are_recorded_once() {
 
     // A result for a tournament not configured here is acknowledged.
     let mut unknown = fresh(9);
-    unknown["external_match_id"] = json!("challonge:other_cup:1:1");
+    unknown["external_match_id"] = json!("http:other_cup:s-1:1");
     let (headers, bytes) = signed(&result_secret(), &unknown, NOW);
     assert_eq!(connector.accept(&headers, &bytes), Ok(true));
     drop(connector);
@@ -170,7 +166,7 @@ async fn the_results_url_answers_over_http() {
         }
         request.send()
     };
-    let body = result("challonge:ember_weekly:1001:1", MATCH);
+    let body = result("http:weekly:s-1:1", MATCH);
     let (headers, bytes) = signed(&result_secret(), &body, NOW);
     for _ in 0..2 {
         let answer = send(Some(headers.clone()), bytes.clone()).await.unwrap();

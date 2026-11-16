@@ -525,7 +525,7 @@ static void TestArcadeFighterFollowsSeat() {
 		identity[63] = "0123456789abcdef"[static_cast<std::size_t>(connection) & 15];
 		return identity;
 	});
-	server.EnableCustomRooms("Arcade test", 16, 9, room::Rules(), false, room::DelayPolicy::Shared, room::ArcadeRoom);
+	server.EnableCustomRooms("Arcade test", 16, 9, room::Rules(), room::Charter{room::RoomType::Arcade});
 	CHECK(server.Listen(0) == 0);
 	auto step = [&]() { CHECK(server.Step() == 0); };
 	for (session::Connection connection = 1; connection <= 4; ++connection) {
@@ -615,7 +615,7 @@ static void TestArcadeKeeperReady() {
 	room::Rules rules;
 	rules.format = room::SetFormat::Ft1;
 	rules.winnerKeepsFighter = true;
-	server.EnableCustomRooms("Keeper test", 16, 9, rules, false, room::DelayPolicy::Shared, room::ArcadeRoom);
+	server.EnableCustomRooms("Keeper test", 16, 9, rules, room::Charter{room::RoomType::Arcade});
 	CHECK(server.Listen(0) == 0);
 	auto step = [&]() { CHECK(server.Step() == 0); };
 	for (session::Connection connection = 1; connection <= 2; ++connection) {

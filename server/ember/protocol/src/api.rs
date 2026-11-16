@@ -166,6 +166,15 @@ pub struct Capabilities {
     /// Absent on a bridge without any.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sign_in_sites: Vec<crate::sites::SignInSite>,
+    /// The origin of the bridge's tournament service, which the game's desk
+    /// talks to with `tournament.act` proofs. Absent on a bridge without one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournaments: Option<String>,
+    /// The URL the bridge's public replay archive lists its games at
+    /// (`archive::PATH` on the host that serves the archive), which is not
+    /// always the bridge's own origin. Absent on a bridge without an archive.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive: Option<String>,
     pub limits: Limits,
 }
 

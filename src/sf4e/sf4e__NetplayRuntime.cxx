@@ -1,7 +1,10 @@
+#include <atomic>
 #include "sf4e__NetplayRuntime.hxx"
+#include "../common/AreaZones.hxx"
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/ControllerMappings.hxx"
 #include "../platform/Utf8.hxx"
+#include "../platform/ReplayFiles.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
 #include "../common/InstalledContent.hxx"
@@ -72,11 +75,13 @@ static std::string NativeForegroundName() {
 }
 
 // While a room is joined the native screen is logged whenever it changes, so
-// a log shows what was in front of the player's pad.
+// a log shows what was in front of the player's pad. On a stream PC
+// (--host-public-room) it is logged with no room too: its script presses
+// Start on the title screen.
 static void NoteNativeScreen() {
 	static std::string last;
 	const auto state = runtime->controller.GetSnapshot();
-	if (state.room == netplay::RoomState::Idle) { last.clear(); return; }
+	if (state.room == netplay::RoomState::Idle && !runtime->hostPublicRoom) { last.clear(); return; }
 	const std::string now = NativeForegroundName();
 	if (now.empty() || now == last) return;
 	spdlog::info("Room: native screen {} (was {}), room {}, match {}", now, last.empty() ? "none seen" : last,
@@ -186,7 +191,7 @@ void AttachRoom() {
 		}, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
 		auto rules = runtime->preferences.tableRules;
 		RuntimeSession::server->EnableCustomRooms(runtime->preferences.roomName,
-			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom, runtime->delayPolicy, runtime->arcadeRoom, runtime->tableCount, runtime->wiredOnly, runtime->tinyFighters, runtime->skipScenes, runtime->bannedStages);
+			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->charter);
         const auto& authority=runtime->room->Coordination();
         if(authority.active) RuntimeSession::server->SetAuthority(authority.term,authority.revision,
             authority.writable && authority.leaderLocal && authority.rebound);
@@ -226,12 +231,21 @@ void ConfigureDiscord(const platform::HelperBootstrap& bootstrap) { pendingDisco
 void StartHelper() {
 	if (runtime) return;
 	runtime = new Runtime();
+	internal::RestorePendingImports();
+	// Games downloaded from the public archive to watch last only as long as a run.
+	Game().replays.ClearArchiveWatching();
 	bridge::OpenCommands(runtime->commands);
     runtime->languagePreference = platform::LoadLanguagePreference();
     runtime->checkUpdatesAtLaunch = platform::LoadUpdatePreferences().checkAtLaunch;
+    internal::LoadRecentOpponents();
     runtime->automaticCountry = platform::WindowsCountry();
     spdlog::info("Windows region country {}", runtime->automaticCountry.Present() ? runtime->automaticCountry.ToString() : std::string("none"));
+    const auto timeZone = platform::WindowsTimeZone();
+    runtime->automaticArea = AreaFromWindows(timeZone, runtime->automaticCountry);
+    spdlog::info("Windows time zone {}: area {}", timeZone.empty() ? std::string("none") : timeZone,
+        runtime->automaticArea == Area::None ? std::string("none") : AreaCode(runtime->automaticArea));
     platform::SetGameLanguage(Game().state.Language());
+    Game().themes.Start();
     loc::SetActive(platform::ResolveUiLocale(runtime->languagePreference));
     spdlog::info("Interface language {} (preference {}, game {})", loc::Tag(loc::Active()), runtime->languagePreference,
         platform::GameLanguage().empty() ? "unknown" : platform::GameLanguage());
@@ -239,65 +253,71 @@ void StartHelper() {
         spdlog::warn("Session trace could not be opened (error {}); lifecycle states will count as dropped", GetLastError());
 	runtime->displayName = GetConfig().displayName;
 	if (runtime->displayName.empty()) runtime->displayName = "Player";
-	runtime->preferences.displayName = runtime->displayName;
+	auto& preferences = runtime->EditPreferences();
+	preferences.displayName = runtime->displayName;
     nlohmann::json saved; std::string settingsError;
     netplay::SettingsStore store(netplay::SettingsStore::DefaultDirectory());
     if (store.LoadLauncher(saved, settingsError)) {
-        if(saved.contains("onlineRecord")&&!netplay::ReadProfileRecord(saved["onlineRecord"],runtime->preferences.record))
+        if(saved.contains("onlineRecord")&&!netplay::ReadProfileRecord(saved["onlineRecord"],preferences.record))
             runtime->error=loc::T("runtime.record_invalid");
         // The delay and Auto load from settings here, never from the
         // launcher's config copy of the delay (InputDelayPreference.hxx).
-        netplay::ReadInputDelayPreference(saved,runtime->preferences);
+        netplay::ReadInputDelayPreference(saved,preferences);
         try {
-            netplay::ReadBoolPreferences(saved, runtime->preferences);
-            runtime->preferences.buttonPrompts = netplay::ReadButtonPrompts(saved);
-            runtime->preferences.controllerMappings = netplay::ReadControllerMappings(saved);
-            runtime->preferences.buttonLayouts = gamepads::ReadLayouts(saved, [](unsigned, gamepads::LayoutLoadError) {});
+            netplay::ReadBoolPreferences(saved, preferences);
+            preferences.buttonPrompts = netplay::ReadButtonPrompts(saved);
+            preferences.controllerMappings = netplay::ReadControllerMappings(saved);
+            preferences.buttonLayouts = gamepads::ReadLayouts(saved, [](unsigned, gamepads::LayoutLoadError) {});
             const int hudSize = saved.value("matchHudSize", 1);
-            runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
+            preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;
-            runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= netplay::MaxMatchHudAnchor ? hudAnchor : 0;
+            preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= netplay::MaxMatchHudAnchor ? hudAnchor : 0;
             const int pictureSpot = saved.contains("pictureSpot") && saved["pictureSpot"].is_number_integer() ? saved["pictureSpot"].get<int>() : 0;
-            runtime->preferences.pictureSpot = pictureSpot >= 0 && pictureSpot <= 11 ? pictureSpot : 0;
+            preferences.pictureSpot = pictureSpot >= 0 && pictureSpot <= 11 ? pictureSpot : 0;
             // Before pictureMode there was the bool watchedPicture, off by default: everyone starts on Small now.
             const int pictureMode = saved.contains("pictureMode") && saved["pictureMode"].is_number_integer() ? saved["pictureMode"].get<int>() : netplay::PictureSmall;
-            runtime->preferences.pictureMode = pictureMode >= netplay::PictureSmall && pictureMode <= netplay::PictureOff ? pictureMode : netplay::PictureSmall;
-            const auto worn = [&](const char* key) { return saved.contains(key) && saved[key].is_string() ? saved[key].get<std::string>() : std::string(); };
-            runtime->preferences.wornTitle = worn("wornTitle"); runtime->preferences.wornIcon = worn("wornIcon");
+            preferences.pictureMode = pictureMode >= netplay::PictureSmall && pictureMode <= netplay::PictureOff ? pictureMode : netplay::PictureSmall;
+            const auto text = [&](const char* key) { return saved.contains(key) && saved[key].is_string() ? saved[key].get<std::string>() : std::string(); };
+            preferences.wornTitle = text("wornTitle"); preferences.wornIcon = text("wornIcon");
+            for (int part = 0; part < netplay::GameThemePartCount; ++part) preferences.gameThemes[part] = text(netplay::GameThemeKeys[part]);
             const auto percent = [&](const char* key, int fallback) { return saved.contains(key) && saved[key].is_number_integer() ? saved[key].get<int>() : fallback; };
             const int roomColumn = percent("roomColumn", netplay::DefaultRoomColumn), roomSplit = percent("roomSplit", netplay::DefaultRoomSplit);
-            runtime->preferences.roomColumn = roomColumn >= netplay::MinRoomColumn && roomColumn <= netplay::MaxRoomColumn ? roomColumn : netplay::DefaultRoomColumn;
-            runtime->preferences.roomSplit = roomSplit >= netplay::MinRoomSplit && roomSplit <= netplay::MaxRoomSplit ? roomSplit : netplay::DefaultRoomSplit;
+            preferences.roomColumn = roomColumn >= netplay::MinRoomColumn && roomColumn <= netplay::MaxRoomColumn ? roomColumn : netplay::DefaultRoomColumn;
+            preferences.roomSplit = roomSplit >= netplay::MinRoomSplit && roomSplit <= netplay::MaxRoomSplit ? roomSplit : netplay::DefaultRoomSplit;
             const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
-            runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
-            runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
-            runtime->preferences.country = netplay::ReadCountryPreference(saved);
+            preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
+            preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
+            preferences.country = netplay::ReadCountryPreference(saved);
+            preferences.area = netplay::ReadAreaPreference(saved);
             const auto since = saved.find("shareReplaysSince");
-            runtime->preferences.shareReplaysSince = since != saved.end() && since->is_number_unsigned() ? since->get<std::uint64_t>() : 0;
-            runtime->preferences.speech = netplay::ReadSpeechPreferences(saved);
-            runtime->preferences.roomFilter = netplay::ReadRoomFilter(saved);
+            preferences.shareReplaysSince = since != saved.end() && since->is_number_unsigned() ? since->get<std::uint64_t>() : 0;
+            preferences.speech = netplay::ReadSpeechPreferences(saved);
+            netplay::ReadCardPreferences(saved, preferences);
+            preferences.roomFilter = netplay::ReadRoomFilter(saved);
             const int volume = saved.value("readySoundVolume", 100);
-            runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
-            const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
-            runtime->preferences.mainFighter=ember::ValidFighter(main)?main:0;
+            preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
+            const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():ember::UnsetMain();
+            preferences.mainFighter=ember::ValidFighter(main)?main:ember::UnsetMain();
             const float scale = saved.value("interfaceScale", 1.f);
-            runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
+            preferences.interfaceScale = netplay::InterfaceScaleOrDefault(scale);
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
     {
         // Sharing covers games saved since it came on: on with no cutoff (the
         // default-on first run, or older settings) starts it now, saved here
         // since the preferences writer starts later, so no older game is sent.
-        auto& preferences = runtime->preferences;
         const auto loaded = preferences.shareReplaysSince;
         preferences.shareReplaysSince = netplay::ShareReplaysSince(preferences.shareReplays, loaded, static_cast<std::uint64_t>(_time64(nullptr)));
         if (preferences.shareReplaysSince != loaded && !store.SaveLauncher({{"shareReplaysSince", preferences.shareReplaysSince}}, settingsError))
             spdlog::warn("Replays: when sharing came on could not be saved: {}", settingsError);
     }
     // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.
-    if (!saved.contains("inputDelay")) runtime->preferences.welcomed = false;
-    Game().services.UseLobbyMusic(runtime->preferences.endlessLobbyMusic);
+    if (!saved.contains("inputDelay")) preferences.welcomed = false;
+    Game().services.UseLobbyMusic(preferences.endlessLobbyMusic);
+    Game().themes.TurnOff(preferences.gameThemes);
+    Game().themes.Use(preferences.gameThemes);
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
+    runtime->hostPublicRoom = EnvFlag("SF4E_HOST_PUBLIC_ROOM");
     {
         // Read once and cleared, so the helper never inherits the code.
         char link[64] = {};
@@ -350,10 +370,10 @@ void StartHelper() {
         if (length && length < std::size(text)) runtime->replayLinkAsked = platform::ResolveReplayFile(platform::WideToUtf8(std::wstring(text, length)));
         if (!runtime->replayLinks.Open()) spdlog::warn("Replays: replay links cannot reach this game");
     }
-	runtime->preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
-	runtime->preferences.lobby.roundCount = GetConfig().roundCount;
-	runtime->preferences.lobby.roundTime = GetConfig().roundTimeIntegral;
-	if (!runtime->preferences.lobby.Valid()) runtime->preferences.lobby = {};
+	preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
+	preferences.lobby.roundCount = GetConfig().roundCount;
+	preferences.lobby.roundTime = GetConfig().roundTimeIntegral;
+	if (!preferences.lobby.Valid()) preferences.lobby = {};
 	{
 		nlohmann::json launcher;
 		std::string error;
@@ -363,7 +383,7 @@ void StartHelper() {
 			spdlog::warn("Settings could not be loaded: {}", error);
 			runtime->error = loc::T("runtime.settings_unreadable");
 		}
-		else if (!netplay::ReadRoomPreferences(launcher, runtime->preferences))
+		else if (!netplay::ReadRoomPreferences(launcher, preferences))
 			runtime->error = loc::T("runtime.room_defaults_invalid");
 	}
 	if (pendingBootstrap.helperPid) {
@@ -384,6 +404,33 @@ void StartHelper() {
 }
 
 void NotifyRuntimeGameReady() { if (runtime) runtime->ready = true; }
+// The display facts the platform and overlay report at any time, perhaps before the
+// runtime exists; the game thread hands them to the services each tick.
+static std::atomic<void*> gameWindow{nullptr};
+static std::atomic<bool> gameExclusiveFullScreen{false};
+void NoteGameWindow(void* window) { gameWindow = window; }
+void NoteExclusiveFullScreen(bool exclusive) { gameExclusiveFullScreen = exclusive; }
+void HandReplayFiles(const std::vector<std::string>& files) { internal::ReplayImports().Add(files); }
+namespace internal {
+replay_import::Queue& ReplayImports() { static auto* const queue = new replay_import::Queue; return *queue; }
+// Where the files waiting to import are kept across a restart: beside the settings, not in the archive.
+static std::filesystem::path PendingImportsFile() {
+	const auto archive = Game().replays.ArchivePath();
+	return archive.empty() ? std::filesystem::path() : archive.parent_path() / "pending-imports.txt";
+}
+void KeepPendingImports() {
+	const auto file = PendingImportsFile();
+	const auto waiting = ReplayImports().Pending();
+	if (file.empty()) return;
+	if (!replay_import::Keep(file, waiting)) spdlog::warn("Replays: {} files waiting to import could not be kept for the next start", waiting.size());
+	else if (!waiting.empty()) spdlog::info("Replays: {} files waiting to import are kept for the next start", waiting.size());
+}
+void RestorePendingImports() {
+	const auto file = PendingImportsFile();
+	if (file.empty()) return;
+	if (const auto taken = replay_import::Restore(file, ReplayImports())) spdlog::info("Replays: {} files kept from the last run wait to import", taken);
+}
+void ApplyGameDisplay() { runtime->services.Picker().SetDisplay(gameWindow, gameExclusiveFullScreen); } }
 void NotifyRuntimeEventSystemReady() { if (runtime) runtime->eventSystemReady = true; }
 
 void StopHelper() {
@@ -391,6 +438,7 @@ void StopHelper() {
     // The archive's lister holds files open while it reads; it is ended and waited for here.
     Game().replays.StopListing();
 	if (!runtime) return;
+    SayFriendsGoodbye();
     if (runtime->discordClient) {
         runtime->discordClient->Send("{\"type\":\"shutdown\"}");
         runtime->discordClient->Stop();
@@ -419,6 +467,8 @@ void StopHelper() {
 		runtime->room.reset();
 		runtime->helper->Stop();
 	}
+	// Drops go to a queue that outlives the runtime; what still waits is kept for the next start.
+	internal::KeepPendingImports();
 	delete runtime;
 	runtime = nullptr;
 	bridge::Reset();
@@ -437,40 +487,57 @@ static void TakeJoinLink() {
 	spdlog::info("Room: a room link arrived from the browser");
 }
 
-bool SubmitRuntimeCommand(RuntimeCommand command) {
-	if (command.preferences.buttonLayouts.size() > 32 || command.padAction.log.size() > 2048 || command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
-		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
-		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
-		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || command.servicePath.size() > 4096 ||
-		(command.service == platform::ServiceAction::OpenSteamProfile && !command.steamProfile.Present()) ||
-		command.reportSubmission.comment.size() > 8000 ||
-		command.updateOffer.tag.size() > 64 || command.updateOffer.sha256.size() > 64 ||
-		(command.createdRules && !command.createdRules->Valid())) return false;
-	if (command.identity.op != netplay::IdentityOp::None) {
-		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes() + command.reportSubmission.comment.size();
-		return bridge::PushCommand(std::move(command), bytes);
-	}
-	if (command.tournament.op != netplay::tournament::Command::Op::None) {
-		const auto bytes = sizeof(RuntimeCommand) + command.tournament.Bytes() + command.reportSubmission.comment.size();
-		return bridge::PushCommand(std::move(command), bytes);
-	}
-	// Gameplay/update commands join this queue when their effect handlers exist.
-	const auto kind = command.command.kind;
-	if (command.padAction.kind == gamepads::ControllerRequest::Kind::None && command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation && !command.roomSettings &&
-		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
-		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
-		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
-		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&
-		kind != netplay::CommandKind::RoomAction && kind != netplay::CommandKind::ReplaceRoom &&
-		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
-	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
-		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size() +
-		command.servicePath.size() + command.updateOffer.tag.size() + command.updateOffer.sha256.size() + command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size() +
-		command.reportSubmission.comment.size() + command.padAction.log.size();
-    std::size_t layoutBytes = 0;
-    for (const auto& layout : command.preferences.buttonLayouts)
-        layoutBytes += sizeof(layout) + layout.identity.guid.size() + layout.identity.serial.size() + layout.identity.path.size() + layout.identity.name.size();
-	return bridge::PushCommand(std::move(command), bytes + layoutBytes);
+namespace {
+// What a command may hold, checked before it is queued: the bytes it holds
+// beyond the command itself (the queue's budget), or none when it is malformed.
+using Footprint = std::optional<std::size_t>;
+Footprint PreferencesFootprint(const netplay::PlayerPreferences& preferences) {
+	if (preferences.buttonLayouts.size() > 32 || preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || preferences.roomName.size() > 64)
+		return std::nullopt;
+	std::size_t bytes = preferences.displayName.size() + preferences.roomName.size();
+	for (const auto& layout : preferences.buttonLayouts)
+		bytes += sizeof(layout) + layout.identity.guid.size() + layout.identity.serial.size() + layout.identity.path.size() + layout.identity.name.size();
+	return bytes;
+}
+bool CreatedValid(const std::optional<netplay::TableSetup>& rules) { return !rules || rules->Valid(); }
+Footprint FootprintOf(const commands::Identity& command) { return command.identity.Valid() ? Footprint(command.identity.Bytes()) : std::nullopt; }
+Footprint FootprintOf(const commands::Tournament& command) { return command.tournament.Valid() ? Footprint(command.tournament.Bytes()) : std::nullopt; }
+Footprint FootprintOf(const commands::Replay& command) {
+	const auto& request = command.replay;
+	return request.path.size() + request.caption.name[0].size() + request.caption.name[1].size() + request.caption.text.size();
+}
+Footprint FootprintOf(const commands::Pad& command) {
+	return command.padAction.log.size() > 2048 ? std::nullopt : Footprint(command.padAction.log.size());
+}
+Footprint FootprintOf(const commands::RoomSettings& command) { return PreferencesFootprint(command.preferences); }
+Footprint FootprintOf(const commands::SavePreferences& command) { return PreferencesFootprint(command.preferences); }
+Footprint FootprintOf(const commands::Service& command) {
+	if (command.servicePath.size() > 4096 || (command.service == platform::ServiceAction::OpenSteamProfile && !command.steamProfile.Present()) ||
+		command.reportSubmission.comment.size() > 8000 || command.updateOffer.tag.size() > 64 || command.updateOffer.sha256.size() > 64)
+		return std::nullopt;
+	return command.servicePath.size() + command.updateOffer.tag.size() + command.updateOffer.sha256.size() + command.reportSubmission.comment.size();
+}
+Footprint FootprintOf(const commands::HostRoom& command) {
+	return CreatedValid(command.createdRules) ? PreferencesFootprint(command.preferences) : std::nullopt;
+}
+Footprint FootprintOf(const commands::JoinRoom& command) {
+	if (command.invitation.size() > 4096 || command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || !CreatedValid(command.createdRules))
+		return std::nullopt;
+	return command.invitation.size() + command.publicTicket.size();
+}
+Footprint FootprintOf(const commands::RoomAction& command) {
+	return command.roomAction.text.size() > room::MaximumChatBytes ? std::nullopt : Footprint(command.roomAction.text.size());
+}
+// A friends command states its own bounds; every other command holds nothing beyond itself.
+template <typename Command> Footprint FootprintOf(const Command& command) {
+	if constexpr (commands::HasBounds<Command>) return command.Valid() ? Footprint(command.Bytes()) : std::nullopt;
+	else return std::size_t(0);
+}
+}
+
+bool SubmitRuntimeCommand(RuntimeRequest command) {
+	const auto bytes = std::visit([](const auto& typed) { return FootprintOf(typed); }, command);
+	return bytes && bridge::PushCommand(std::move(command), sizeof(RuntimeRequest) + *bytes);
 }
 
 
@@ -580,12 +647,15 @@ static void SettleRoomState(bool helperReady) {
 		{
 			// The host's refusal (name taken, room full) says what to fix; the generic text does not.
 			const auto rejection = RuntimeSession::netplay ? RuntimeSession::netplay->client.JoinRejection() : std::nullopt;
+			// A build the room refuses is out of date when this PC's own check found an update.
+			const auto update = runtime->services.Snapshot().update;
+			const bool updateAvailable = update.ok && update.updateAvailable && !update.goesBack;
 			// Without a rejection, the helper's stage says where it failed; hosting has its own wording.
 			// A public room's join is worded for it: the host locking the room or turning the player away, and a failure no stage explains.
 			Apply(netplay::EventKind::RoomFailed, rejection ?
-				std::string(loc::T(runtime->join==JoinKind::Public ? SessionClient::PublicJoinRejectionKey(*rejection) : SessionClient::JoinRejectionKey(*rejection))) :
-				runtime->join==JoinKind::Public ? ui::DescribePublicOpeningFailure(runtime->room->Stage(), runtime->room->Network().relay) :
-				ui::DescribeOpeningFailure(state.isHost, runtime->room->Stage(), runtime->room->Network().relay));
+				std::string(loc::T(runtime->join==JoinKind::Public ? SessionClient::PublicJoinRejectionKey(*rejection, updateAvailable) : SessionClient::JoinRejectionKey(*rejection, updateAvailable))) :
+				runtime->join==JoinKind::Public ? ui::DescribePublicOpeningFailure(runtime->room->Stage(), runtime->room->Network().relay, updateAvailable) :
+				ui::DescribeOpeningFailure(state.isHost, runtime->room->Stage(), runtime->room->Network().relay, updateAvailable));
 		}
 	} else if (state.room == netplay::RoomState::Joined && runtime->room &&
 		(runtime->room->GetState() == session::IrohRoom::State::Failed || runtime->room->GetState() == session::IrohRoom::State::Idle ||
@@ -611,17 +681,10 @@ static void SettleRoomState(bool helperReady) {
 		runtime->room->GetState() == session::IrohRoom::State::Idle)) Apply(netplay::EventKind::RoomClosed);
     if(runtime->replacementPending && runtime->controller.GetSnapshot().room==netplay::RoomState::Idle &&
         helperReady && AtMainMenu() && !RuntimeSession::netplay && !Game().battle.Live()) {
-        RuntimeCommand replacement;
-        replacement.command={netplay::CommandKind::HostRoom,runtime->controller.GetSnapshot().generation,{}};
+        commands::HostRoom replacement;
+        replacement.generation=runtime->controller.GetSnapshot().generation;
         replacement.preferences=runtime->preferences;
-        replacement.practiceRoom=runtime->practiceRoom;
-        replacement.arcadeRoom=runtime->arcadeRoom;
-        replacement.delayPolicy=runtime->delayPolicy;
-        replacement.tableCount=runtime->tableCount;
-        replacement.wiredOnly=runtime->wiredOnly;
-        replacement.tinyFighters=runtime->tinyFighters;
-        replacement.skipScenes=runtime->skipScenes;
-        replacement.bannedStages=runtime->bannedStages;
+        replacement.charter=runtime->charter;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
 }
@@ -717,9 +780,8 @@ static void CallOutOfTraining() {
 	case room::TrainingCall::Step::Forfeit: {
 		const auto mine = room::PlaceOf(room, room.localMember);
 		if (mine.kind != room::Place::Kind::Seat || mine.table < 0 || mine.table >= static_cast<int>(room.tables.size())) break;
-		RuntimeCommand forfeit;
-		forfeit.command = {netplay::CommandKind::RoomAction, runtime->controller.GetSnapshot().generation, {}};
-		forfeit.preferences = runtime->preferences;
+		commands::RoomAction forfeit;
+		forfeit.generation = runtime->controller.GetSnapshot().generation;
 		forfeit.roomAction.kind = room::ActionKind::Unqueue;
 		forfeit.roomAction.table = static_cast<std::uint8_t>(mine.table);
 		forfeit.roomAction.roomEpoch = room.roomEpoch;
@@ -755,14 +817,18 @@ static void SayTraining() {
 		spdlog::info("Room: could not say the player is {} Training; it is said again", training ? "in" : "out of");
 }
 // The room is told the player is typing while the shell notes a draft being
-// written, again every three seconds to keep it shown, and once when they
-// stop. A word lost or refused is let go: the room drops it after TypingMs.
+// written, and once when they stop (room::TypingDue). A word lost or refused
+// is let go: the room drops it after TypingMs.
 static void SayTyping() {
 	if (!runtime->attached || !RuntimeSession::netplay) { runtime->typingSaidAtMs = 0; return; }
 	const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
 	const bool typing = room.roomEpoch && ChatTypingShown(room.roomEpoch);
 	const auto now = GetTickCount64();
-	if (typing ? runtime->typingSaidAtMs && now - runtime->typingSaidAtMs < 3000 : !runtime->typingSaidAtMs) return;
+	const auto* me = room::FindMember(room, room.localMember);
+	if (!room::TypingDue(typing, runtime->typingSaidAtMs, now, me)) {
+		if (!typing) runtime->typingSaidAtMs = 0;
+		return;
+	}
 	if (runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return;
 	room::Action say;
 	say.kind = room::ActionKind::Typing;
@@ -772,8 +838,59 @@ static void SayTyping() {
 	runtime->typingSaidAtMs = typing ? now : 0;
 	RuntimeSession::netplay->client.SendRoomAction(say);
 }
+// The player's answer to the prompt over the WIN is said as a presence word
+// too: the shell publishes the answer it wants shown (NotePostMatchAnswer), and
+// what the room's own snapshot shows of the player is what it is compared
+// with, so a word that was lost, refused or overtaken is said again, at most
+// each second (every five while this PC catches up, room::PostMatchDue), until
+// the room shows it or the shell stops publishing it (the prompt closed). A new
+// word, or one said before the authority term changed, is said at once. Only while the game is on, and
+// only while the room shows the player a fighter of the answer's match: the
+// authority takes the answer from them alone (room::PostMatchTakes), so a set's
+// rotation that unseated them ends it.
+static void SayPostMatch() {
+	if (!runtime->attached || !RuntimeSession::netplay) { runtime->postMatchSay = {}; return; }
+	const auto wanted = PostMatchWanted();
+	if (!wanted.Active()) { runtime->postMatchSay.said = {}; return; }
+	const auto& state = runtime->controller.GetSnapshot();
+	const bool live = netplay::Fighting(state.match) && state.control == netplay::Health::Healthy;
+	// Behind the room's commits, this PC's snapshot cannot show the word yet:
+	// it is said again only slowly until the room has caught up here.
+	const auto link = !live ? room::PostMatchLink::Off
+		: !state.coordinated || state.authorityWritable ? room::PostMatchLink::Current : room::PostMatchLink::CatchingUp;
+	const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
+	const auto now = GetTickCount64();
+	if (!room::PostMatchDue(wanted, runtime->postMatchSay, now, state.authorityTerm, link, room)) return;
+	room::Action say;
+	say.kind = room::ActionKind::PostMatchAnswer;
+	say.postMatch = wanted.word;
+	say.table = wanted.table;
+	say.matchGeneration = wanted.generation;
+	say.game = wanted.game;
+	say.roomEpoch = room.roomEpoch;
+	say.revision = room.revision;
+	runtime->postMatchSay.atMs = now;
+	if (RuntimeSession::netplay->client.SendRoomAction(say) == session::SendResult::Queued) {
+		runtime->postMatchSay.said = wanted;
+		runtime->postMatchSay.term = state.authorityTerm;
+	}
+	else spdlog::info("Room: could not tell the room the post-match answer; it is said again");
+}
 void ReconcileTrainingCall() {
 	if (runtime) CallOutOfTraining();
+}
+// A theme the game closed on while loading (game::Themes::Start) is already off for the game; here it is
+// put back to the game's own in the saved settings, as a pick in Settings is, and the player is told once.
+static void SettleTurnedOffThemes() {
+	const auto& turned = Game().themes.TurnedOff();
+	// A save that failed is tried again in a few seconds, not on every tick.
+	static std::uint64_t retryAtMs = 0;
+	const auto now = GetTickCount64();
+	if (turned.empty() || now < retryAtMs) return;
+	if (!Game().preferences.Save(runtime->preferences)) { retryAtMs = now + 5000; return; }
+	for (const auto& off : turned)
+		PushAlert(loc::Tf("runtime.game_theme_turned_off", off.theme, loc::T(netplay::GameThemeLabels[off.part])).c_str(), NoticeSeverity::Warning);
+	Game().themes.TurnedOffTold();
 }
 void TickRuntime() {
 	if (!runtime) return;
@@ -791,6 +908,8 @@ void TickRuntime() {
 	}
 	ObserveCoordination();
 	PumpDiscordClient();
+	Game().themes.Tick();
+	SettleTurnedOffThemes();
 	// Legacy error/teardown hooks can retire the client between owner ticks.
 	// Dispose its coordinator before dereferencing that client again.
 	if (runtime->attached && !RuntimeSession::netplay) {
@@ -841,9 +960,11 @@ void TickRuntime() {
 	NoteNativeScreen();
 	SayTraining();
 	SayTyping();
+	SayPostMatch();
 	TakeJoinLink();
 	TickMemberLatency();
 	PublishAndTickDiscordInvite();
+	TickSocial(helperReady, GetTickCount64());
 }
 
 } } // namespace sf4e::NetplayFacade

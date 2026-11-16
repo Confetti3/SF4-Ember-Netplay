@@ -5,7 +5,9 @@
 #include "../common/SteamId.hxx"
 #include "ReportWorkflow.hxx"
 #include "UpdatePolicy.hxx"
+#include <functional>
 #include <memory>
+#include <string>
 #include <chrono>
 #include <condition_variable>
 #include <array>
@@ -17,6 +19,7 @@
 #include <thread>
 #include <vector>
 #include <atomic>
+#include "ReplayPicker.hxx"
 
 namespace sf4e { namespace platform {
 // SwitchUpdateChannel saves the channel ApplicationServices::SwitchUpdateChannel
@@ -29,11 +32,17 @@ namespace sf4e { namespace platform {
 // the Launcher's Updates window with the offer the player accepted, and
 // SkipUpdate records that they skipped it. OpenSteamProfile opens a member's
 // Steam profile page in the browser; only OpenSteamProfilePage starts it, with a SteamId.
+// PickReplays opens the Windows file picker over the game's window, in the
+// Downloads folder, for replay and set pack files. It runs on a thread of its
+// own, not the worker, so reports, updates and diagnostics go on while it is
+// open; what was picked is taken with Picker().Take() (nothing for a cancel).
 enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
-    PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate };
+    PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate, PickReplays };
 // Where the launch check is. Off is a service that makes none (a snapshot
 // nobody started one for); Waiting is a launch check not yet asked for.
 enum class LaunchCheck { Off, Waiting, Running, Settled };
+// Starts the Launcher with these arguments; it waits for this game to exit before it acts. False when it could not start.
+bool StartLauncherAfterExit(const std::wstring& arguments);
 // Community Discord server, shown in Help & About and opened as https://<invite>.
 constexpr const char* CommunityInvite = "discord.gg/uPNqF5A5uq";
 enum class DiagnosticTiming : std::size_t {
@@ -124,6 +133,11 @@ struct ServiceSnapshot {
     // report operation. Unreadable, it stops every automatic send.
     std::vector<reports::Record> sentReports;
     bool sentReadable = true;
+    // The file picker can be opened now: not while the game owns the whole
+    // screen (exclusive full screen), where a window would stay behind it.
+    bool canPickFiles = false;
+    // The picker is open now.
+    bool picking = false;
 };
 // The home relay and network class, once per export: they rarely change, so
 // the connection history lines leave them out.
@@ -138,6 +152,9 @@ struct ServiceHooks {
     std::function<launcher::UpdateCheckResult(launcher::UpdateChannel)> checkForUpdate;
     std::function<std::uint64_t()> clock;
     std::optional<UpdatePolicy::Store> policyStore;
+    // PickReplays: the files the player picks, or none (a test has no dialog to
+    // open). It runs on the picker's own thread.
+    std::function<std::vector<std::wstring>()> pickReplays;
 };
 class ApplicationServices {
 public:
@@ -168,6 +185,9 @@ public:
     bool ReportCrash(const reports::CrashContext& crash, reports::AutomaticCrash::Consent consent);
     bool SendReport(const reports::Submission& submission);
     ServiceSnapshot Snapshot() const;
+    // The file picker PickReplays opens: the game tells it its display and
+    // collects what was picked from it.
+    ReplayPicker& Picker() { return picker_; }
     void Cancel() { cancelled_ = true; }
     void Observe(const DiagnosticsView& diagnostics);
 private:
@@ -176,6 +196,7 @@ private:
     // Starts a report operation through Start; the caller holds mutex_.
     bool QueueReport(ServiceAction action, reports::Operation operation);
     void Run();
+    ReplayPicker picker_;
     mutable std::mutex mutex_;
     std::condition_variable wake_;
     bool stop_ = false;

@@ -238,7 +238,11 @@ async fn a_status_is_sent_again_until_a_later_one_replaces_it() {
     f.bridge.clock.freeze();
     let start = f.bridge.clock.now();
 
-    f.blumint.lock().unwrap().answers.push_back((503, None));
+    f.blumint
+        .lock()
+        .unwrap()
+        .status_answers
+        .push_back((503, None));
     claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
     ember_bridge::deliver_results(&keyed).await;
     assert_eq!(status_row(&f, &id).await, Some((1, "retrying".into())));
@@ -251,7 +255,11 @@ async fn a_status_is_sent_again_until_a_later_one_replaces_it() {
 
     // Sam's arrival waits on BluMint, and the game starts meanwhile.
     // A wait shorter than the claim lease, so both fighters stay present.
-    f.blumint.lock().unwrap().answers.push_back((503, Some(5)));
+    f.blumint
+        .lock()
+        .unwrap()
+        .status_answers
+        .push_back((503, Some(5)));
     let binding = bound(&f, &id).await;
     ember_bridge::deliver_results(&keyed).await;
     assert_eq!(status_row(&f, &id).await, Some((2, "retrying".into())));
@@ -288,7 +296,11 @@ async fn a_status_on_a_match_blumint_does_not_know_is_not_sent_again() {
     let id = created["matchId"].as_str().unwrap().to_owned();
     f.bridge.clock.freeze();
 
-    f.blumint.lock().unwrap().answers.push_back((404, None));
+    f.blumint
+        .lock()
+        .unwrap()
+        .status_answers
+        .push_back((404, None));
     claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
     ember_bridge::deliver_results(&keyed).await;
     assert_eq!(status_row(&f, &id).await, Some((1, "failed".into())));
@@ -711,6 +723,8 @@ async fn an_organizers_game_leaves_the_status_pending() {
 async fn a_report_is_settled_as_blumints_answer_to_it_says() {
     let f = fixture().await;
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    // Each retry waits for the clock, so the test sees every attempt.
+    f.bridge.clock.freeze();
     let mut set = 0;
     let mut finished = |answers: Vec<(u16, Option<u64>)>| {
         set += 1;

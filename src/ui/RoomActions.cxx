@@ -2,8 +2,10 @@
 // them (RoomPanel.cxx), this sends them on.
 #include "ApplicationShell.hxx"
 #include "MenuRows.hxx"
+#include "PlayerOpening.hxx"
 #include "RoomControls.hxx"
 #include "RoomFeedback.hxx"
+#include "RoomPoints.hxx"
 #include "RowId.hxx"
 #include "../common/Localization.hxx"
 #include <imgui.h>
@@ -25,7 +27,7 @@ std::string AreaStart(const ShellView& v,const std::vector<MenuEntry>& rows,Boar
  // A panel's Hide is a corner button, not where its area starts.
  for(const auto& e:rows)if(BoardAreaOf(e.id)==area&&!HasPrefix(e.id,"room-hide-")){first=e.id;break;}
  if(area==BoardArea::Floor&&mine.kind!=room::Place::Kind::None){
-  const int cabinet=s.arcade?room::CabinetOf(s,s.localMember):-1;
+  const int cabinet=room::RulesOf(s).cabinets?room::CabinetOf(s,s.localMember):-1;
   const std::string own=cabinet>=0?"cabinet-"+std::to_string(cabinet):"table-"+std::to_string(mine.table);
   if(Has(rows,own))return own;
  }
@@ -86,7 +88,7 @@ void ApplicationShell::SettleRoomBoard(const ShellView& v,std::vector<MenuEntry>
  // Watching, the bar: Stop watching while the game shows, else Table options
  // (a Big picture covers the table cards).
  if(to.empty()&&room::WatchedTable(s,s.localMember)>=0)to=Has(rows,"stop-watching")?"stop-watching":"options";
- if(to.empty()&&s.arcade){
+ if(to.empty()&&room::RulesOf(s).cabinets){
   for(std::size_t c=0;c<room::CabinetCount&&to.empty();++c)
    if(!s.cabinets[c]){const auto id="cabinet-"+std::to_string(c);const auto row=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});if(row!=rows.end()&&row->enabled)to=id;}
  }else if(to.empty()){
@@ -124,19 +126,15 @@ void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
  if(a.delta==MenuInput::Fighter){selectionFresh_=true;selectionOpenOn_=RoomSelectionStart(v.room);}
  nav.Home();nav.Push("room");nav.Push(target);
 }
-void ApplicationShell::StepPick(const ShellView& v,ShellAction::SelectionStep step,const Submit& submit) {
- ShellAction request;request.command.generation=v.session.generation;request.selectionStep=step;submit(std::move(request));
-}
+void ApplicationShell::StepPick(SelectionStep step,const Submit& submit) { submit(step); }
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {
  using namespace room;auto& nav=menu_.navigation;
- const auto sendDelay=[&](netplay::CommandKind kind,int selected){
-  if(!RoomActionsAvailable(v) || v.delayLocked ||
-     (kind==netplay::CommandKind::CheckConnection && (!v.canProbe || v.probeStatus=="checking"))) {
+ // Check connection, and a delay to apply (check false).
+ const auto sendDelay=[&](ShellAction request,bool check){
+  if(!RoomActionsAvailable(v) || v.delayLocked || (check && (!v.canProbe || v.probeStatus=="checking"))) {
    Refuse(RoomWaitReason(v),[](const ShellView& now){return !RoomActionsAvailable(now)||now.delayLocked;});return false;
   }
-  ShellAction request;request.command.kind=kind;request.command.generation=v.session.generation;request.selectedDelay=selected;
-  if(!submit(std::move(request))){error_=loc::T("error.queue_failed");return false;}
-  error_.clear();return true;
+  return Send(std::move(request),submit);
  };
  // Typed text first: a text row's id can share a keyed row's prefix ("table-name"
  // beside "table-0"), so a commit never reaches the numeric rows below (EMBER-68).
@@ -207,12 +205,11 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   return;
  }
  if(const auto index=RowKey<std::size_t>(a.id,"cabinet-");index&&*index<room::CabinetCount){
-  // A free cabinet: Queue names it as table + seat * TableCount.
+  // A free cabinet: the Queue that names it.
   const auto cabinet=*index;
   const auto* m=room::FindMember(v.room,v.room.cabinets[cabinet]);
   if(!m){
-   Action request;request.kind=ActionKind::Queue;request.table=static_cast<std::uint8_t>(cabinet%TableCount);request.seat=static_cast<std::int8_t>(cabinet/TableCount);
-   if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
+   if(!SendRoom(room::CabinetQueueAction(cabinet),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
    return;
   }
   if(m->table<0)return;
@@ -249,6 +246,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(const auto member=RowKey(a.id,"member-")){selectedMember_=*member;nav.Push("room-member");return;}
  if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"||a.id=="room-banned-stages"){nav.Push(a.id);return;}
  if(a.id=="room-controls"){nav.Push("player");return;}
+ if(a.id=="room-friends"){nav.Push(FriendsPanel::Screen);return;}
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;ShowNotice(loc::T("room.invitation_copied"),Tone::Success,ImGui::GetTime()+3);return;}
   if(a.id=="copy-short"){CopyShortInvitation(v,submit);return;}
   if(a.id=="copy-room-link"){
@@ -256,20 +254,19 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    if(!link.empty()){ImGui::SetClipboardText(link.c_str());error_.clear();ShowNotice(loc::T("public.link_copied"),Tone::Success,ImGui::GetTime()+3);}
    return;
   }
-  if(a.id=="replace-room"){ShellAction request;request.command.kind=netplay::CommandKind::ReplaceRoom;request.command.generation=v.session.generation;
-   if(!submit(std::move(request)))error_=loc::T("error.queue_failed");
-   else{error_.clear();
+  if(a.id=="replace-room"){
+   if(Send(commands::ReplaceRoom{v.session.generation},submit)){
     // The old invitation dies with the old room epoch. Say so while the row is
     // still on screen, rather than letting friends fail to rejoin silently.
     // This is a caution, not a success.
     notice_=loc::T("room.replacement_opening");
     noticeTone_=Tone::Pending;noticeUntil_=ImGui::GetTime()+8;}
    return;}
-  if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
+  if(a.id=="check-connection"){sendDelay(commands::CheckConnection{v.session.generation},true);return;}
   if(a.id=="input-delay"){
    // Select takes the recommendation; Left and Right choose a delay, or Auto before the smallest.
    const int selected=a.kind==MenuAction::Adjust?StepInputDelay(v.preferences.autoInputDelay,v.selectedDelay,a.delta):-1;
-   sendDelay(netplay::CommandKind::ApplyDelay,selected);return;
+   sendDelay(commands::ApplyDelay{v.session.generation,selected},false);return;
   }
   if(a.id=="ultra"||a.id=="room-ultra"||a.id=="appearance"){
    // Select shows the Ultra or costume cards (a costume goes on to its
@@ -278,7 +275,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    const bool ultra=a.id!="appearance";
    if(a.kind==MenuAction::Adjust){
     if(v.canEditSelection&&RoomActionsAvailable(v))
-     StepPick(v,{ultra?ShellAction::SelectionStep::Field::Ultra:ShellAction::SelectionStep::Field::Color,a.delta},submit);
+     StepPick({ultra?SelectionStep::Field::Ultra:SelectionStep::Field::Color,a.delta},submit);
    }else if(SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=ultra?SelectionStart::Ultras:SelectionStart::Costumes;nav.Push("selection");}
    return;
   }
@@ -286,18 +283,34 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    if(a.kind==MenuAction::Activate&&SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=a.id=="stage"?SelectionStart::Stage:SelectionStart::Options;nav.Push("selection");}
    return;
   }
- if(a.id=="leave"){Send(netplay::CommandKind::LeaveRoom,v,submit);return;}
+ if(a.id=="leave"){SendLeave(v,submit);return;}
  if(a.id=="room-training"){
   // No room command: the runtime sends the game on, if the room still allows it, while the room stays as it is.
-  ShellAction training;training.command.generation=v.session.generation;training.training=TrainingEntry::Room;
-  if(!v.canTrain||!submit(std::move(training)))error_=loc::T("room.training.unavailable");
+  if(!v.canTrain||!submit(commands::Training{v.session.generation,TrainingEntry::Room}))error_=loc::T("room.training.unavailable");
+  return;
+ }
+ // Their profile (a page of its own); Kick and Make host still ask on the member's page.
+ if(a.id=="player-card"){
+  const auto* m=room::FindMember(v.room,selectedMember_);
+  if(!m){error_=loc::T("room.member_left.detail");return;}
+  const auto opening=player_opening::OpeningOf(*m);
+  OpenPlayer(opening.key,opening.known);
+  return;
+ }
+ // Add friend, Accept request and Block name the member by the token their ticket carried and their room name.
+ if(a.id=="friend-request"||a.id=="friend-block"){
+  const auto* m=room::FindMember(v.room,selectedMember_);
+  if(!m||!m->card.Present()){error_=loc::T("room.member_left.detail");return;}
+  // A member who asked first is accepted by the same request, which then says they are friends.
+  if(a.id=="friend-request")friends_.RequestMember(v,m->card.ToString(),m->name,PointsOf(v,*m).relation==netplay::levels::Relation::Received,submit);
+  else friends_.BlockMember(v,m->card.ToString(),m->name,submit);
   return;
  }
  if(a.id=="steam-profile"){
   // The runtime opens Steam's overlay on the profile when it is up, and the browser page otherwise.
   const auto* m=room::FindMember(v.room,selectedMember_);
   if(!m||!m->steamId.Present()){error_=loc::T("room.member_left.detail");return;}
-  ShellAction open;open.command.generation=v.session.generation;
+  commands::Service open;open.generation=v.session.generation;
   open.service=platform::ServiceAction::OpenSteamProfile;open.steamProfile=m->steamId;
   if(!submit(std::move(open)))error_=loc::T("error.queue_failed");else error_.clear();
   return;
@@ -364,6 +377,12 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(want)request.bannedStages.push_back(*stage);
   else request.bannedStages.erase(std::remove(request.bannedStages.begin(),request.bannedStages.end(),*stage),request.bannedStages.end());
  }
+ else if(a.id=="room-privacy"){
+  // Left is Friends and Right Hidden; Select turns it the other way.
+  const bool hidden=a.kind==MenuAction::Adjust?a.delta>0:!v.room.friendsHidden;
+  if(hidden==v.room.friendsHidden)return;
+  request.kind=ActionKind::SetFriendsHidden;request.friendsHidden=hidden;
+ }
  else if(a.id=="compose"){
   // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.
   // A room that cannot take it yet holds it, and FlushChat sends it then; one held is the only one accepted.
@@ -416,6 +435,7 @@ void ApplicationShell::NoteWatching(const room::Action& sent,const room::Snapsho
 // not go is noted as sent, so it waits as one the room refused and goes again.
 void ApplicationShell::UpdateFollow(const ShellView& v,double now,const Submit& submit) {
  const auto nowMs=static_cast<std::uint64_t>(now*1000);
+ FollowAsStreamHost(v);
  const auto step=follow_.Next(v.room,nowMs,{RoomActionsAvailable(v),v.watchedGame.Active()});
  if(!step)return;
  room::Action action;action.kind=step.kind;action.table=static_cast<std::uint8_t>(step.table);

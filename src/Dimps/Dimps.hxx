@@ -58,5 +58,22 @@ namespace Dimps {
 		// The setter (0x6B2530, cdecl): stores the value and derives the
 		// step and the frame limiter's period from it (0x6B2170).
 		static void (__cdecl* SetBattleStepSetting)(float setting);
+
+		// The folders the game looks for its files in (ResourcePathList, held
+		// by the app at +8: 0xA85698), each with a priority. A file opens from
+		// the first folder that has it (0x71CF70), highest priority first and,
+		// within one, highest order first. The game adds "resource", the dlc
+		// folders and "patch" at 0 to 3 and its patch_ae2 folders at 8, the
+		// highest; null until the app is built.
+		static void** resourcePathList;
+		// The game's std::string in its short form: up to 15 bytes in place,
+		// its length at +0x10 and 15 at +0x14. AddResourcePath copies it.
+		struct ShortString { char text[16]; unsigned int size, capacity; };
+		// ResourcePathList::addPath (0x406740, thiscall): adds a folder,
+		// relative to the game's, under its lock and sorts the list. A folder
+		// already listed is left as it is, and a priority over 8 is ignored.
+		// The game's DLC screen adds and removes folders the same way while
+		// it runs (0x6A0F40).
+		static void (__thiscall* AddResourcePath)(void* list, unsigned short priority, const ShortString* folder, unsigned short order);
 	};
 }

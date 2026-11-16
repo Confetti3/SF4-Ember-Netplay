@@ -25,10 +25,20 @@ must select that checkout through `channels.nightly`:
     "buildDirectory": "build/current",
     "installDirectory": "build/current/stage",
     "branch": "nightly",
-    "githubRepo": "Confetti3/SF4-Ember-Netplay-Nightly"
+    "githubRepo": "Confetti3/SF4-Ember-Netplay-Nightly",
+    "emberService": "https://bridge-staging.embernetplay.link"
   }
 }
 ```
+
+`emberService` is Ember's own service for Nightly players (Ember ID, Linked
+accounts, public rooms, points, friends): the staging bridge, so Nightly's
+server features are tried there and never reach production's players.
+`build-current.ps1` builds a checkout with its channel's `emberService` unless
+`-EmberService` names another, the publisher passes it explicitly and refuses
+a `channels.nightly` without one, and packaging accepts only a build made for
+exactly it. Only a channel may name one: the top-level (Stable) entry is
+refused if it does, so Stable stays on production.
 
 Use the channel-aware `Get-EmberBuildTarget` on `nightly` for the existing
 build/package scripts. The publisher requires its returned `.channel` to be

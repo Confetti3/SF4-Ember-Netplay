@@ -8,9 +8,11 @@
 //! replays left is never stored as an empty pack.
 use std::sync::Arc;
 
-use rusqlite::{Transaction, params};
+use rusqlite::{ToSql, Transaction, params};
 
-use super::{BATCH, Leased, Outcome, Queue, Record, archive::settled, archive::store};
+use super::{
+    BATCH, Leased, Outcome, Outcomes, Queue, Record, Table, archive::settled, archive::store,
+};
 use crate::{
     AppState,
     error::Result,
@@ -46,7 +48,15 @@ pub fn changed(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
 impl Queue for Packs {
     type Item = Due;
 
-    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Due>>> {
+    const TABLE: Table = Table {
+        name: "archive_sets",
+        key: &["match_id"],
+        attempts: "attempts",
+        next: "next_attempt_at",
+        outcomes: Outcomes::Own,
+    };
+
+    fn due(&self, tx: &Transaction<'_>, now: u64) -> Result<Vec<Leased<Due>>> {
         let sets = tx
             .prepare(
                 "SELECT match_id, version, attempts, first_attempt_at FROM archive_sets
@@ -64,10 +74,6 @@ impl Queue for Packs {
             .collect::<rusqlite::Result<Vec<_>>>()?;
         let mut leased = Vec::new();
         for (match_id, version, attempt, first_attempt_at) in sets {
-            tx.execute(
-                "UPDATE archive_sets SET next_attempt_at = ?1, attempts = ?2 WHERE match_id = ?3",
-                params![until, attempt, match_id],
-            )?;
             let held: bool = tx.query_row(
                 "SELECT EXISTS (SELECT 1 FROM match_replays WHERE match_id = ?1)",
                 [&match_id],
@@ -88,6 +94,10 @@ impl Queue for Packs {
             });
         }
         Ok(leased)
+    }
+
+    fn key(item: &Due) -> Vec<&dyn ToSql> {
+        vec![&item.match_id]
     }
 
     async fn attempt(&self, state: &AppState, item: &Due) -> Outcome {

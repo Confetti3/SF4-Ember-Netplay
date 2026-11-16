@@ -1,4 +1,5 @@
 #pragma once
+#include "ShellAction.hxx"
 #include "GameMenu.hxx"
 #include "MenuNavigation.hxx"
 #include <functional>
@@ -8,7 +9,6 @@
 namespace sf4e { namespace ui {
 class ApplicationShell;
 struct ShellView;
-struct ShellAction;
 enum class Tone;
 
 // One drawn frame's screen, as the shell hands it to the panel that owns it.
@@ -52,6 +52,8 @@ public:
     virtual bool Choose(const ScreenFrame&, const MenuAction&, const Submit&) const { return false; }
     // The Options button or key.
     virtual void Shortcut(const ScreenFrame&, const MenuAction&) const {}
+    // The panel takes this shortcut before the room's own, in a room too.
+    virtual bool TakesShortcut(const ScreenFrame&, const MenuAction&) const { return false; }
     // What paints the screen's rows and its detail pane; empty for plain ones.
     virtual GameMenu::Card Card(const ScreenFrame&, double) const { return {}; }
     virtual GameMenu::Detail Detail(const ScreenFrame&) const { return {}; }

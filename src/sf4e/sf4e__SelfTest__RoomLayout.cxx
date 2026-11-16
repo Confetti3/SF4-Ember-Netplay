@@ -7,7 +7,7 @@
 // The room layout test: on one PC, in a private room it hosts, the room
 // board's layout (its column, the members' share of it, which panels show)
 // and the watched game's picture are saved the way the board, its grips and
-// Settings save them in a room (RuntimeCommand::roomSettings,
+// Settings save them in a room (commands::RoomSettings,
 // PlayerPreferences::CopyRoomSettings), since a room locks the player's other
 // settings. The runtime has to take them while the room is open, and
 // settings.json, which the next start reads, has to hold them. The old values
@@ -15,9 +15,7 @@
 namespace sf4e { namespace selftest {
 namespace {
 
-using NetplayFacade::RuntimeCommand;
-using netplay::CommandKind;
-using online::Command;
+using online::Generation;
 using online::Now;
 
 enum class Stage { Setup, Opening, Save, Written, Restore, Leaving, Done };
@@ -44,9 +42,7 @@ bool SameLayout(const netplay::PlayerPreferences& a, const netplay::PlayerPrefer
 		a.roomCharacterPictures == b.roomCharacterPictures && a.pictureMode == b.pictureMode && a.pictureSpot == b.pictureSpot;
 }
 void SaveLayout(const netplay::PlayerPreferences& preferences) {
-	RuntimeCommand request = Command(CommandKind::SavePreferences);
-	request.roomSettings = true; request.preferences = preferences;
-	NetplayFacade::SubmitRuntimeCommand(std::move(request));
+	NetplayFacade::SubmitRuntimeCommand(commands::RoomSettings{Generation(), preferences});
 }
 // The settings file as the next start reads it: the layout's keys hold the chosen values.
 bool Written(const netplay::PlayerPreferences& chosen) {
@@ -79,9 +75,8 @@ void TickRoomLayout() {
 	case Stage::Setup: {
 		if (!online::SetupReady(run, *now)) break;
 		run.before = now->preferences;
-		RuntimeCommand request = Command(CommandKind::HostRoom);
-		request.preferences = online::TestPreferences(*now, true);
-		request.displayName = request.preferences.displayName;
+		commands::HostRoom request;
+		request.generation = Generation(); request.preferences = online::TestPreferences(*now, true);
 		NetplayFacade::SubmitRuntimeCommand(std::move(request));
 		run.Enter(Stage::Opening);
 		break;
@@ -112,7 +107,7 @@ void TickRoomLayout() {
 		break;
 	case Stage::Leaving:
 		if (now->session.room == netplay::RoomState::Idle) { Say(true, "left the room"); run.Enter(Stage::Done); Finish(); break; }
-		if (run.Every(3)) NetplayFacade::SubmitRuntimeCommand(Command(CommandKind::LeaveRoom));
+		if (run.Every(3)) NetplayFacade::SubmitRuntimeCommand(commands::LeaveRoom{Generation()});
 		if (run.Late(30)) run.Fail("leave", "the room never let go");
 		break;
 	case Stage::Done:

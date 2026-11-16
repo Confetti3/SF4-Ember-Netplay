@@ -20,9 +20,10 @@ $operations = @{
     GameRunning = { [bool](Get-Process -Name SSFIV -ErrorAction SilentlyContinue) }
     Now = { [DateTime]::UtcNow }
     ToolPaths = { param($SourceRoot, $VisualStudio) Get-EmberToolPaths $SourceRoot $VisualStudio '' }
+    # $EmberService is build-target.json's channels.nightly.emberService (Invoke-NightlyPublish refuses a run without it).
     Build = {
-        param($VisualStudio, $DiscordSdk)
-        & (Join-Path $PSScriptRoot 'build-current.ps1') -Symbols -VisualStudioPath $VisualStudio -DiscordSdkArchive $DiscordSdk
+        param($VisualStudio, $DiscordSdk, $EmberService)
+        & (Join-Path $PSScriptRoot 'build-current.ps1') -Symbols -VisualStudioPath $VisualStudio -DiscordSdkArchive $DiscordSdk -EmberService $EmberService
     }
     Package = { param($OutDir, $Label) New-EmberPackage -OutDir $OutDir -VersionLabel $Label }
     Installer = {

@@ -1,6 +1,7 @@
 #pragma once
-// Training and the replay archive of a game that has neither (its
-// Capabilities::training and replays are off). The runtime may still call
+// Training, the replay archive and in-game themes of a game that has none
+// (its Capabilities::training and replays are off, its
+// SettingsFeatures::gameThemes too). The runtime may still call
 // these services, and each answers that there is nothing: no Training to
 // enter, no archive to list, keep or save. A game without the feature hands
 // one of these to its Adapter; the runtime's test game uses NoReplays.
@@ -38,7 +39,22 @@ public:
     void MarkSent(const std::filesystem::path&) override {}
     void MarkSetClosed(const std::filesystem::path&) override {}
     std::filesystem::path SetPackPath(const std::string&) override { return {}; }
-    std::size_t ImportSetPack(const std::filesystem::path&) override { return 0; }
+    std::size_t ImportReplayFile(const std::filesystem::path&) override { return 0; }
+    std::filesystem::path ArchiveWatchPath(const std::string&) override { return {}; }
+    void PruneArchiveWatching(const std::filesystem::path&) override {}
+    void ClearArchiveWatching() override {}
+};
+
+class NoThemes final : public Themes {
+public:
+    void Start() override {}
+    void Tick() override {}
+    void TurnOff(std::array<std::string, sf4e::netplay::GameThemePartCount>&) override {}
+    const std::vector<sf4e::netplay::GameThemeTurnedOff>& TurnedOff() override { static const std::vector<sf4e::netplay::GameThemeTurnedOff> none; return none; }
+    void TurnedOffTold() override {}
+    const std::vector<std::string>& Names(sf4e::netplay::GameThemePart) override { static const std::vector<std::string> none; return none; }
+    sf4e::netplay::GameThemeNote Note(sf4e::netplay::GameThemePart, const std::string&) override { return sf4e::netplay::GameThemeNote::None; }
+    void Use(const std::array<std::string, sf4e::netplay::GameThemePartCount>&) override {}
 };
 
 } } // namespace ember::game

@@ -9,6 +9,7 @@
 #include "MenuSpeech.hxx"
 #include "FighterArt.hxx"
 #include "../common/Country.hxx"
+#include "../netplay/Levels.hxx"
 #include <functional>
 #include <optional>
 #include <imgui.h>
@@ -31,12 +32,38 @@ int TakeMenuDescribes();
 void SayMenuNotice(const std::string& text);
 // The accessibility button's name on the device the player last used ("RT", "R2", "F2").
 std::string AccessibilityKeyName();
+// What the player's fighter points say, for the card (PLAYER_CARD.md, View models).
+enum class CardLevels {
+    // No answer yet.
+    Pending,
+    // No Discord account is connected, or the service does not count points.
+    NoAccount, Unavailable,
+    // The read failed and there is nothing from before: the points show when the service answers.
+    Unreachable,
+    // Counted: `fighters` and the rest are filled.
+    Counted,
+};
+// One fighter of the card's strip: its points (0 for not played), the frame tier
+// the bridge gave them and counted games.
+struct CardFighter { int fighter = -1; std::uint64_t points = 0; int tier = 0; std::uint64_t games = 0; };
+struct CardFacts { std::uint64_t games = 0; int winPercent = 0, fightersPlayed = 0; };
 struct PlayerCardView {
     std::string name;
     // The flag before the name: the country the player shows, or none.
     CountryCode country;
     // The card as the L tag draws it (title, icon, facts).
     v2::TagView profile;
+    CardLevels levels = CardLevels::Pending;
+    // The main (-1 for none) with its counts, and the account's (BP): what the
+    // Card tab's points lines, meters and words read. All 0 until a game is
+    // counted, and in every state but Counted.
+    int mainFighter = -1;
+    netplay::levels::Level main, account;
+    // The strip: the main, then the two highest others played.
+    std::vector<CardFighter> fighters;
+    CardFacts facts;
+    // Friend requests waiting: the Friends tab's count.
+    int requests = 0;
 };
 void SetMenuPlayerCard(PlayerCardView view);
 const PlayerCardView& MenuPlayerCard();
@@ -48,6 +75,10 @@ void SetMenuNews(std::vector<MenuNewsItem> news);
 // chevron, Select opening every choice in a popup. DrawMenuValue draws one
 // right-aligned in `box`.
 bool MenuValueIsToggle(const MenuEntry& e);
+// What the hint bar says for Left and Right on a focused row: empty when it
+// names nothing (a row that does not step, a disabled one, a switch, which
+// Select flips), else the row's adjustHint or "Adjust".
+std::string MenuAdjustHint(const MenuEntry& e);
 void DrawMenuValue(ImDrawList* draw, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text);
 // A board row at `at`, `width` wide, laid out (MenuRowLayout) as FitMenuRow
 // shares it: 48 px, its words 14 px in from both ends and 8 px between label
@@ -142,10 +173,12 @@ float UltraBadgeWidth(float height,const char* badge);
 // GameMenu::Draw takes it.
 struct RosterGrid { int columns; float cardHeight; };
 RosterGrid LayOutRosterGrid(float windowWidth);
+// Where a picture stands in a box taller than it: hung from the top, or on the foot as a figure in a tall box stands.
+enum class PictureAnchor { Top, Foot };
 // `backing` fills the tile behind the art, which is transparent around the
 // fighter. A picture is the game's portrait or the fighter's whole figure.
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=palette::Rgb(ember::ProductTheme().portrait));
-void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing=palette::Rgb(ember::ProductTheme().portrait));
+void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing=palette::Rgb(ember::ProductTheme().portrait),PictureAnchor anchor=PictureAnchor::Top);
 // The picture's image at the size it is drawn, for a place that lays it out
 // itself; a figure the art lacks is the portrait. Empty before the art loads.
 SelectionImage FighterImage(const FighterPicture& picture,float drawnHeight);

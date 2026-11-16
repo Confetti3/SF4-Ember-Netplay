@@ -33,12 +33,9 @@ param(
     [string]$Exchange = "",
     [string]$Bridge = "",
     [string]$Connection = "",
-    # Optional: a sign-in site (its ID on the bridge) to connect an account on
-    # in the browser, instead of linking with a code (the Challonge mode).
-    [string]$Site = "",
     # Optional: an Ember folder kept between runs (an absolute path), for a run
     # against a running bridge whose accounts were connected once by a person
-    # (docs/guides/TOURNAMENT_TEST.md). Without it each run makes a fresh one.
+    # (docs/design/TOURNAMENT_SELFTEST.md). Without it each run makes a fresh one.
     [string]$KeptEmberDir = "",
     [int]$TimeoutMinutes = 20,
     # The menu test: start the walk at this step (a name its PASS/FAIL lines print),
@@ -51,22 +48,14 @@ $ErrorActionPreference = "Stop"
 if (-not $PackageDir) { $PackageDir = Split-Path $PSScriptRoot -Parent }
 $launcher = Join-Path $PackageDir "Launcher.exe"
 if (-not (Test-Path $launcher)) { throw "Launcher.exe not found in $PackageDir" }
+# One run at a time on this PC: two runs share the account's saves, and each puts
+# them back from its own copy when it ends. The lock file is held open, unshared,
+# until this process exits, however it ends, so a killed run frees it too.
+$lockPath = Join-Path $env:APPDATA "sf4e\selftest.lock"
+New-Item -ItemType Directory -Path (Split-Path $lockPath -Parent) -Force | Out-Null
+try { $lock = [System.IO.File]::Open($lockPath, 'OpenOrCreate', 'ReadWrite', 'None') }
+catch [System.IO.IOException] { throw "Another self-test is running on this PC ($lockPath is held); not running." }
 if (Get-Process SSFIV -ErrorAction SilentlyContinue) { throw "Close Ultra Street Fighter IV first." }
-
-# A test runs in the signed-in account's game, so its saves are copied first,
-# all of them, and nothing runs when that cannot be done.
-$steam = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction SilentlyContinue).SteamPath
-$user = (Get-ItemProperty 'HKCU:\Software\Valve\Steam\ActiveProcess' -ErrorAction SilentlyContinue).ActiveUser
-if (-not $steam -or -not $user) { throw "Steam is not running with an account signed in." }
-$saves = Join-Path $steam "userdata\$user\45760\remote\capcom\superstreetfighteriv\ssf4_savedata"
-if (-not (Test-Path (Join-Path $saves "save.dat"))) { throw "No save data for the signed-in account in $saves" }
-$backup = Join-Path $env:APPDATA ("sf4e\selftest-backups\" + (Get-Date -Format "yyyyMMdd-HHmmss"))
-New-Item -ItemType Directory -Path $backup -Force | Out-Null
-Copy-Item -Path (Join-Path $saves "*") -Destination $backup -Recurse -Force
-if ((Get-ChildItem $backup -File).Count -ne (Get-ChildItem $saves -File).Count) { throw "The saves could not be copied to $backup; not running." }
-Write-Host "Saves copied to $backup"
-# The copies of earlier runs pile up otherwise: the newest five stay.
-Get-ChildItem (Split-Path $backup -Parent) -Directory | Sort-Object Name -Descending | Select-Object -Skip 5 | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
 # The files below a folder, by path inside it, with their hashes.
 function Get-FileTree([string]$Root) {
@@ -76,6 +65,28 @@ function Get-FileTree([string]$Root) {
     }
     $tree
 }
+
+# A test runs in the signed-in account's game, so its saves are copied first,
+# all of them, and nothing runs when that cannot be done. Each run's copy has a
+# folder of its own: one named by the second alone was shared by two runs that
+# started together, and the first to finish deleted the other's copy.
+$steam = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction SilentlyContinue).SteamPath
+$user = (Get-ItemProperty 'HKCU:\Software\Valve\Steam\ActiveProcess' -ErrorAction SilentlyContinue).ActiveUser
+if (-not $steam -or -not $user) { throw "Steam is not running with an account signed in." }
+$saves = Join-Path $steam "userdata\$user\45760\remote\capcom\superstreetfighteriv\ssf4_savedata"
+if (-not (Test-Path (Join-Path $saves "save.dat"))) { throw "No save data for the signed-in account in $saves" }
+$backup = Join-Path $env:APPDATA ("sf4e\selftest-backups\" + (Get-Date -Format "yyyyMMdd-HHmmss") + "-$PID")
+if (Test-Path $backup) { throw "The copy's folder $backup is there already; not running." }
+New-Item -ItemType Directory -Path $backup | Out-Null
+Copy-Item -Path (Join-Path $saves "*") -Destination $backup -Recurse -Force
+# What the copy held when it was made: the saves are put back only from a copy
+# that still holds exactly this.
+$copyMade = Get-FileTree $backup
+$savesBefore = Get-FileTree $saves
+if ($copyMade.Count -ne $savesBefore.Count -or ($savesBefore.Keys | Where-Object { $copyMade[$_] -ne $savesBefore[$_] })) { throw "The saves could not be copied to $backup; not running." }
+Write-Host "Saves copied to $backup"
+# The copies of earlier runs pile up otherwise: the newest five stay.
+Get-ChildItem (Split-Path $backup -Parent) -Directory | Where-Object FullName -ne $backup | Sort-Object Name -Descending | Select-Object -Skip 4 | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
 # A game played to its end saves its replay in the game's slots and the launcher
 # archives it (ReplayFiles.hxx: Ember's archive, through the outbox), and it may
@@ -167,10 +178,6 @@ if ($Test -like "tournament-*") {
     $env:SF4E_SELFTEST_EXCHANGE = (Resolve-Path $Exchange).Path
     $env:SF4E_SELFTEST_BRIDGE = $Bridge
     $env:SF4E_SELFTEST_CONNECTION = $Connection
-    if ($Site) {
-        if ($Site -notmatch '^[a-z0-9-]{1,32}$') { throw "-Site is a sign-in site's ID: 1 to 32 of a-z, 0-9 and -" }
-        $env:SF4E_SELFTEST_SITE = $Site
-    }
 }
 $settings | Where-Object { Test-Path $_ } | ForEach-Object { Copy-Item $_ "$_.selftest" -Force }
 
@@ -227,7 +234,7 @@ try {
     if (-not $process.WaitForExit(10000)) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
 }
 finally {
-    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT, Env:SF4E_SELFTEST_INVITE, Env:SF4E_SELFTEST_EMBER_DIR, Env:SF4E_SELFTEST_EXCHANGE, Env:SF4E_SELFTEST_BRIDGE, Env:SF4E_SELFTEST_CONNECTION, Env:SF4E_SELFTEST_SITE, Env:SF4E_SELFTEST_EMBER_KEPT, Env:SF4E_SELFTEST_EXPORT -ErrorAction SilentlyContinue
+    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT, Env:SF4E_SELFTEST_INVITE, Env:SF4E_SELFTEST_EMBER_DIR, Env:SF4E_SELFTEST_EXCHANGE, Env:SF4E_SELFTEST_BRIDGE, Env:SF4E_SELFTEST_CONNECTION, Env:SF4E_SELFTEST_EMBER_KEPT, Env:SF4E_SELFTEST_EXPORT -ErrorAction SilentlyContinue
     # Nothing is put back under a game that still writes: after a timeout the
     # processes were only asked to end.
     foreach ($running in $game, $process) { if ($running) { [void]$running.WaitForExit(15000) } }
@@ -235,19 +242,27 @@ finally {
     $settings | ForEach-Object { if (Test-Path "$_.selftest") { Move-Item "$_.selftest" $_ -Force } else { Remove-Item $_ -ErrorAction SilentlyContinue } }
     if ($restoresSaves) {
         # The saves become the copy again: files the run added go, the rest are copied back, and
-        # only a folder that then matches the copy lets the copy go.
+        # only a folder that then matches the copy lets the copy go. A copy that no longer
+        # holds what it held when it was made (gone, emptied, changed) is not used: every
+        # save would look added and be deleted.
         $copy = Get-FileTree $backup
-        $current = Get-FileTree $saves
-        $added = @($current.Keys | Where-Object { -not $copy.ContainsKey($_) })
-        $changed = @($copy.Keys | Where-Object { $current.ContainsKey($_) -and $current[$_] -ne $copy[$_] })
-        foreach ($name in $added) { Remove-Item (Join-Path $saves $name) -Force }
-        Copy-Item -Path (Join-Path $backup "*") -Destination $saves -Recurse -Force
-        $now = Get-FileTree $saves
-        if ($now.Count -eq $copy.Count -and -not ($copy.Keys | Where-Object { $now[$_] -ne $copy[$_] })) {
-            Remove-Item $backup -Recurse -Force
-            Write-Host "Saves put back from the copy. The run changed $($changed.Count) file(s) ($(($changed | Sort-Object | Select-Object -First 12) -join ', ')) and added $($added.Count)."
+        $copyIntact = $copy.Count -gt 0 -and $copy.Count -eq $copyMade.Count -and -not ($copyMade.Keys | Where-Object { $copy[$_] -ne $copyMade[$_] })
+        if (-not $copyIntact) {
+            Write-Host "The copy in $backup no longer matches the saves it was made from; the saves were left as the run left them."
         }
-        else { Write-Host "The saves could not be put back; the copy is in $backup" }
+        else {
+            $current = Get-FileTree $saves
+            $added = @($current.Keys | Where-Object { -not $copy.ContainsKey($_) })
+            $changed = @($copy.Keys | Where-Object { $current.ContainsKey($_) -and $current[$_] -ne $copy[$_] })
+            foreach ($name in $added) { Remove-Item (Join-Path $saves $name) -Force }
+            Copy-Item -Path (Join-Path $backup "*") -Destination $saves -Recurse -Force
+            $now = Get-FileTree $saves
+            if ($now.Count -eq $copy.Count -and -not ($copy.Keys | Where-Object { $now[$_] -ne $copy[$_] })) {
+                Remove-Item $backup -Recurse -Force
+                Write-Host "Saves put back from the copy. The run changed $($changed.Count) file(s) ($(($changed | Sort-Object | Select-Object -First 12) -join ', ')) and added $($added.Count)."
+            }
+            else { Write-Host "The saves could not be put back; the copy is in $backup" }
+        }
     }
     if ($playsToTheEnd) {
         for ($i = 0; $i -lt $archives.Count; $i++) {

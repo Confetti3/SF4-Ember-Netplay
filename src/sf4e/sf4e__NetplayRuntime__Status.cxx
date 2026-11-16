@@ -52,6 +52,57 @@ bool StickyRuntimeError(const std::string& error) {
 }
 } // namespace internal
 
+namespace internal {
+// Discord's presence and friends' presence are described from the same inputs, so the rules they share are written
+// once: when the player counts as offline, whose room's invitation goes along, and when a match's room is held back.
+// Only `shown` differs: Discord's follows the player's settings, friends' is always on. `atMainMenu` is the caller's
+// one reading of AtMainMenu() for this tick.
+namespace {
+bool PresenceOffline(const netplay::Snapshot& session, bool atMainMenu) {
+    return runtime->offlineRequested || (runtime->eventSystemReady && !atMainMenu && session.room == netplay::RoomState::Idle);
+}
+// A public room admits by ticket, so its invitation alone would admit nobody.
+bool OffersInvitation(const room::Snapshot& current) { return runtime->room && !current.serverOwned; }
+// A tournament match's room, played or watched, is never offered to friends. Keyed to what this game is doing, not
+// the room's binding: it also covers the window where the match's room is open but not bound yet.
+bool HoldsMatchRoom(const room::Snapshot& current) {
+    return OffersInvitation(current) && netplay::tournament::HoldsMatchRoom(runtime->tournament.GetPhase(), runtime->watch.GetPhase());
+}
+}
+
+PresenceKey PresenceKeyOf(const netplay::Snapshot& session, const room::Snapshot& current, bool atMainMenu, PresenceShown shown) {
+    // The invitation changes on a helper renewal without a room revision, so it is keyed by content.
+    std::uint64_t invitationHash = 1469598103934665603ULL;
+    if (OffersInvitation(current))
+        for (unsigned char c : runtime->room->DiscordInvitation()) { invitationHash ^= c; invitationHash *= 1099511628211ULL; }
+    // Every input the description is built from, except the clock: a secret that expires under an unchanged key is
+    // cleared by the companion itself.
+    return {{runtime->eventSystemReady, PresenceOffline(session, atMainMenu),
+        static_cast<std::uint64_t>(shown.presence) | (static_cast<std::uint64_t>(shown.invites) << 1),
+        session.generation.room, current.revision,
+        static_cast<std::uint64_t>(session.room) | (static_cast<std::uint64_t>(session.match) << 8) | (static_cast<std::uint64_t>(session.control) << 16),
+        current.localMember, static_cast<std::uint64_t>(atMainMenu),
+        current.roomEpoch, invitationHash,
+        static_cast<std::uint64_t>(OffersInvitation(current)) | (static_cast<std::uint64_t>(HoldsMatchRoom(current)) << 1) |
+            (static_cast<std::uint64_t>(current.serverOwned) << 2)}};
+}
+
+discord::PresenceInput PresenceInputOf(const netplay::Snapshot& session, const room::Snapshot& current, bool atMainMenu, PresenceShown shown) {
+    discord::PresenceInput input(session, current);
+    input.ready = runtime->eventSystemReady;
+    input.offline = PresenceOffline(session, atMainMenu);
+    input.show = shown.presence;
+    input.invites = shown.invites;
+    input.now = static_cast<std::uint64_t>(std::time(nullptr));
+    if (OffersInvitation(current)) {
+        input.secret = runtime->room->DiscordInvitation();
+        if (!discord::TicketMetadata(input.secret, input.party, input.expires)) input.secret.clear();
+        if (HoldsMatchRoom(current)) input.secret.clear();
+    }
+    return input;
+}
+} // namespace internal
+
 namespace {
 // The session client reports catalog ids; anything else is an internal code
 // that must not reach the status line.
@@ -64,12 +115,12 @@ std::string RoomErrorText(const std::string& error) {
 // The room as this player's screen shows it and its member list, built once
 // per change and shared by every snapshot published until the next. The
 // client replaces its room only whole, each time under a new sequence, so the
-// sequence and what decides the class emblems are the whole key.
+// sequence and what decides the class emblems and card tokens are the whole key.
 struct ShownRoom {
 	std::shared_ptr<const room::Snapshot> room;
 	std::shared_ptr<const std::vector<netplay::MemberView>> members;
 	std::uint64_t sequence = 0;
-	bool emblems = false;
+	bool emblems = false, publicRoom = false;
 };
 static ShownRoom shownRoom;
 static const ShownRoom& ShownRoomOf(const SessionClient& client) {
@@ -77,11 +128,15 @@ static const ShownRoom& ShownRoomOf(const SessionClient& client) {
 	// public, which it knows from its own join; a private room's host
 	// writes its own snapshot, so any class in one is dropped here. So are
 	// all of them for a player who hides class emblems on their screen.
-	const bool emblems = runtime->room && runtime->room->ServerOwned() && runtime->preferences.classEmblems;
+	// A card token is the bridge's word on the same terms, but a hidden
+	// emblem does not hide it.
+	const bool publicRoom = runtime->room && runtime->room->ServerOwned();
+	const bool emblems = publicRoom && runtime->preferences.classEmblems;
 	const auto sequence = client.RoomSnapshotSequence();
-	if (shownRoom.room && shownRoom.sequence == sequence && shownRoom.emblems == emblems) return shownRoom;
+	if (shownRoom.room && shownRoom.sequence == sequence && shownRoom.emblems == emblems && shownRoom.publicRoom == publicRoom) return shownRoom;
 	auto built = std::make_shared<room::Snapshot>(client.GetRoomSnapshot());
 	if (!emblems) for (auto& member : built->members) member.badge = SkillBadge();
+	if (!publicRoom) for (auto& member : built->members) member.card = CardToken();
 	shownRoom.members.reset();
 	if (built->roomEpoch) {
 		auto members = std::make_shared<std::vector<netplay::MemberView>>();
@@ -98,6 +153,7 @@ static const ShownRoom& ShownRoomOf(const SessionClient& client) {
 	shownRoom.room = std::move(built);
 	shownRoom.sequence = sequence;
 	shownRoom.emblems = emblems;
+	shownRoom.publicRoom = publicRoom;
 	return shownRoom;
 }
 static void FillRoomView(RuntimeSnapshot& snapshot) {
@@ -185,31 +241,9 @@ static void FillLockReasons(RuntimeSnapshot& snapshot) {
 static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
     if (runtime->discordClient && runtime->discordClient->State() == platform::HelperState::Connected) {
         const auto nowTick=GetTickCount64();
-        // A public room admits by ticket, so its invitation alone would admit nobody.
         const room::Snapshot& current = snapshot.Room();
-        const bool offersInvitation = runtime->room && !current.serverOwned;
-        // A tournament match's room, played or watched, is never offered to friends. Keyed to
-        // what this game is doing, not the room's binding: it also covers the window where the
-        // match's room is open but not bound yet.
-        const bool holdsMatchRoom = offersInvitation &&
-            netplay::tournament::HoldsMatchRoom(runtime->tournament.GetPhase(), runtime->watch.GetPhase());
-        // The invitation changes on a helper renewal without a room revision, so it is keyed
-        // by content.
-        std::uint64_t invitationHash = 1469598103934665603ULL;
-        if (offersInvitation)
-            for (unsigned char c : runtime->room->DiscordInvitation()) { invitationHash ^= c; invitationHash *= 1099511628211ULL; }
-        // Every input the message below is built from, except the clock: a secret that
-        // expires under an unchanged key is cleared by the companion itself.
-        const std::array<std::uint64_t,11> key{{runtime->eventSystemReady,
-            runtime->offlineRequested || (runtime->eventSystemReady && !snapshot.atMainMenu && snapshot.session.room==netplay::RoomState::Idle),
-            static_cast<std::uint64_t>(runtime->preferences.discordPresence) | (static_cast<std::uint64_t>(runtime->preferences.discordInvites)<<1),
-            snapshot.session.generation.room,current.revision,
-            static_cast<std::uint64_t>(snapshot.session.room) | (static_cast<std::uint64_t>(snapshot.session.match)<<8) |
-                (static_cast<std::uint64_t>(snapshot.session.control)<<16),
-            current.localMember,static_cast<std::uint64_t>(snapshot.atMainMenu),
-            current.roomEpoch,invitationHash,
-            static_cast<std::uint64_t>(offersInvitation) | (static_cast<std::uint64_t>(holdsMatchRoom)<<1) |
-                (static_cast<std::uint64_t>(current.serverOwned)<<2)}};
+        const internal::PresenceShown shown{runtime->preferences.discordPresence, runtime->preferences.discordInvites};
+        const auto key = internal::PresenceKeyOf(snapshot.session, current, snapshot.atMainMenu, shown);
         const bool publishDue=nowTick-runtime->discordLastPublish>=1000;
         if (runtime->discordPresenceKeyValid && key==runtime->discordPresenceKey) {
             // Nothing changed. The companion exits after 15 s without a message, so the
@@ -217,17 +251,7 @@ static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
             if (publishDue && runtime->discordClient->Send(runtime->discordPublished)) runtime->discordLastPublish=nowTick;
             return;
         }
-        discord::PresenceInput input(snapshot.session, current);
-        input.ready = runtime->eventSystemReady;
-        input.offline = runtime->offlineRequested || (input.ready && !snapshot.atMainMenu &&
-            snapshot.session.room == netplay::RoomState::Idle);
-        input.show = runtime->preferences.discordPresence; input.invites = runtime->preferences.discordInvites;
-        input.now = static_cast<std::uint64_t>(std::time(nullptr));
-        if (offersInvitation) {
-            input.secret = runtime->room->DiscordInvitation();
-            if (!discord::TicketMetadata(input.secret,input.party,input.expires)) input.secret.clear();
-            if (holdsMatchRoom) input.secret.clear();
-        }
+        const auto input = internal::PresenceInputOf(snapshot.session, current, snapshot.atMainMenu, shown);
         const auto value = discord::Describe(input);
         const auto message = nlohmann::json{{"type","presence"},{"epoch",snapshot.session.generation.room},
             {"show",value.show},{"activity",value.activity},{"party",value.party},{"size",value.size},
@@ -358,14 +382,9 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); mix(call.serial); }
     mix(runtime->recoveringMatch); mix(Game().preferences.Pending()); mixString(Game().preferences.Error());
-    mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
-    for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
-    mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
-    mix(runtime->preferences.autoDelayStyle); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.shareReplaysSince); mix(runtime->preferences.pictureSpot); mix(runtime->preferences.pictureMode); mix(runtime->preferences.roomColumn); mix(runtime->preferences.roomSplit);
-    mixString(runtime->preferences.wornTitle); mixString(runtime->preferences.wornIcon);
-    { const auto& speech = runtime->preferences.speech; mix(speech.enabled); mix(speech.rate); mix(speech.volume); mix(speech.details); mix(speech.hints); mix(speech.position); mix(speech.chime); mix(speech.chimeVolume);
-      mix(speech.introHeard); mix(speech.tick); mix(speech.describeUsed); mix(speech.remind); }
-    { const auto& filter = runtime->preferences.roomFilter; mix(static_cast<std::uint64_t>(filter.scope)); mixString(filter.region); mix(static_cast<std::uint64_t>(filter.type)); mix(filter.openSeats); mix(filter.wiredOnly); }
+    { const auto services = runtime->services.Snapshot(); mix(services.pending); mix(services.picking); }
+    mix(ReplayImports().Waiting()); mix(ReplayImports().Batches()); mix(ReplayImports().Finished()); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
+    mix(runtime->preferencesStore.Revision());
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
     mix(AtMainMenu());
@@ -583,6 +602,17 @@ PostPublishState Publish() {
     snapshot.tournament = TournamentStatus();
     snapshot.publicRooms = runtime->publicRooms;
     snapshot.rankings = runtime->rankings.Published(GetTickCount64());
+    snapshot.archive = runtime->archive.Published();
+    snapshot.archiveFetch = runtime->archiveFetch.Published();
+    snapshot.levels = runtime->levels.Published();
+    snapshot.memberCards = runtime->cards.Published();
+    snapshot.profile = runtime->profiles.Published();
+    snapshot.playerSearch = runtime->profiles.SearchPublished();
+    snapshot.recentOpponents = runtime->recentOpponents.Fresh(static_cast<std::uint64_t>(std::time(nullptr)));
+    snapshot.profileSets = runtime->profileSets.Published();
+    snapshot.profilesService = runtime->profiles.Offering();
+    snapshot.ownLink = runtime->cardSignals.link;
+    snapshot.friends = FriendsStatus();
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();
@@ -591,6 +621,15 @@ PostPublishState Publish() {
     snapshot.pads = runtime->pads; snapshot.padLayer = runtime->padLayer;
     snapshot.runningControllerLayer = runtime->runningControllerLayer;
     snapshot.lobbyMusicAvailable = Game().services.LobbyMusicAvailable();
+    for (int part = 0; part < netplay::GameThemePartCount; ++part) {
+        const auto themePart = static_cast<netplay::GameThemePart>(part);
+        snapshot.gameThemes[part] = Game().themes.Names(themePart);
+        snapshot.gameThemeNotes[part].clear();
+        for (const auto& name : snapshot.gameThemes[part]) {
+            const auto note = Game().themes.Note(themePart, name);
+            if (note != netplay::GameThemeNote::None) snapshot.gameThemeNotes[part][name] = note;
+        }
+    }
     snapshot.padSetup = Game().input.ReadPadLayer().setup;
     snapshot.padLayerPending = gamepads::LayerPending(runtime->preferences.controllerLayer, runtime->runningControllerLayer);
     snapshot.padHintUntil = runtime->padHintUntil;
@@ -628,6 +667,9 @@ PostPublishState Publish() {
 	snapshot.replays.detail = Game().replays.LatestDetail();
 	snapshot.replays.setNotice = runtime->setNotice.text; snapshot.replays.setNoticeError = runtime->setNotice.error;
 	snapshot.replays.setNotices = runtime->setNotice.count;
+	snapshot.replays.importWaiting = ReplayImports().Waiting(); snapshot.replays.importBatches = ReplayImports().Batches();
+	snapshot.replays.importFinished = ReplayImports().Finished();
+	snapshot.replays.importNotice = runtime->importNotice.text; snapshot.replays.importNoticeError = runtime->importNotice.error;
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->entry.matchEntered && !snapshot.atMainMenu &&
 		runtime->entry.entryDeferredGeneration && runtime->entry.entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
@@ -664,6 +706,7 @@ PostPublishState Publish() {
 	snapshot.languagePreference = runtime->languagePreference;
 	snapshot.checkUpdatesAtLaunch = runtime->checkUpdatesAtLaunch;
 	snapshot.automaticCountry = runtime->automaticCountry;
+	snapshot.automaticArea = runtime->automaticArea;
 	snapshot.lobbySettings = runtime->preferences.lobby;
 	snapshot.settingsPending = Game().preferences.Pending() || runtime->pendingLobbySettings != nullptr || runtime->lobbyEditIntent.Parked() != nullptr;
 	snapshot.settingsError = Game().preferences.Error();
@@ -674,6 +717,7 @@ PostPublishState Publish() {
                 gamepads::Same(pad.identity, runtime->matchBinding.matchInput.identity) && pad.slot != runtime->matchBinding.matchInput.index;
         }) ? "runtime.match_input_moved" : "runtime.match_input_blocked", DeviceName(runtime->matchBinding.matchInput)):std::string();
 	snapshot.offlineRequested = runtime->offlineRequested;
+	snapshot.hostPublicRoom = runtime->hostPublicRoom;
 	snapshot.pendingJoinLink = runtime->pendingJoinLink;
 	snapshot.pendingJoinSequence = runtime->pendingJoinSequence;
 	constexpr std::chrono::seconds JoinLinkDirectWindow{120};
@@ -726,6 +770,11 @@ PostPublishState PublishThrottled() {
     return cached;
 }
 
+bool BusyForInvitation(const netplay::Snapshot& state) {
+    return state.room!=netplay::RoomState::Idle || runtime->offlineRequested ||
+        (runtime->eventSystemReady && !AtMainMenu());
+}
+
 void PumpDiscordClient() {
     if (runtime->discordClient) {
         platform::HelperMessage message;
@@ -746,8 +795,7 @@ void PumpDiscordClient() {
                     const auto secret=event.at("secret").get<std::string>();
                     std::string party; std::uint64_t expires=0;
                     if (!discord::TicketMetadata(secret,party,expires)) { runtime->error=loc::T("discord.invitation_invalid"); continue; }
-                    const bool busy=state.room!=netplay::RoomState::Idle || runtime->offlineRequested ||
-                        (runtime->eventSystemReady && !AtMainMenu());
+                    const bool busy=BusyForInvitation(state);
                     const bool offered=runtime->discordInvite.Offer(secret,party,expires,event.at("sequence").get<std::uint64_t>(),
                         state.generation.room,busy);
                     spdlog::info("Discord: invitation {} sequence={} room_state={} busy={}", offered ? "pending" : "ignored",
@@ -773,6 +821,16 @@ static netplay::LatencyBoardPulse chatTyping;
 bool ChatTypingShown(std::uint64_t roomGeneration) {
 	return chatTyping.Shown(roomGeneration, GetTickCount64());
 }
+// The post-match answer the shell wants said (NoteNetplayPostMatchAnswer):
+// the latest one, which counts while the shell keeps noting it each frame its
+// prompt is open. The runtime says it (SayPostMatch).
+static std::mutex postMatchMutex;
+static room::PostMatchSaid postMatchWanted;
+static std::uint64_t postMatchNotedMs = 0;
+room::PostMatchSaid PostMatchWanted() {
+	std::lock_guard<std::mutex> lock(postMatchMutex);
+	return GetTickCount64() - postMatchNotedMs < 1500 ? postMatchWanted : room::PostMatchSaid{};
+}
 
 void TickMemberLatency() {
 	if (!runtime->room) return;
@@ -796,12 +854,13 @@ void PublishAndTickDiscordInvite() {
         spdlog::info("Discord: submitting {} for the pending invitation", next==discord::Next::Leave ? "leave" : "join");
         // Another room replaces the one being watched, as Leave does.
         runtime->watch.Stop();
-        RuntimeCommand invite;
-        invite.command={next==discord::Next::Leave ? netplay::CommandKind::LeaveRoom : netplay::CommandKind::JoinInvite,
-            view.session.generation,next==discord::Next::Join ? runtime->discordInvite.Secret() : std::string()};
-        invite.preferences=runtime->preferences;
-        invite.discordRevision=runtime->discordInvite.Revision();
-        SubmitRuntimeCommand(std::move(invite));
+        const auto revision=runtime->discordInvite.Revision();
+        if (next==discord::Next::Leave) SubmitRuntimeCommand(commands::LeaveRoom{view.session.generation,revision});
+        else {
+            commands::JoinRoom join;
+            join.generation=view.session.generation; join.invitation=runtime->discordInvite.Secret(); join.discordRevision=revision;
+            SubmitRuntimeCommand(std::move(join));
+        }
     }
 }
 } // namespace internal
@@ -822,6 +881,12 @@ void NoteFighterSelector(std::uint64_t roomGeneration) {
 
 void NoteChatTyping(std::uint64_t roomGeneration) {
 	internal::chatTyping.Note(roomGeneration, GetTickCount64());
+}
+
+void NotePostMatchAnswer(const room::PostMatchSaid& said) {
+	std::lock_guard<std::mutex> lock(internal::postMatchMutex);
+	internal::postMatchWanted = said;
+	internal::postMatchNotedMs = GetTickCount64();
 }
 
 bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,

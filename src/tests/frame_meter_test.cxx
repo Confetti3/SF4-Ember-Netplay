@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <stdexcept>
 using namespace sf4e::training;
+namespace bac = sf4e::bac;
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
 int main() {
     try {
@@ -95,13 +96,13 @@ int main() {
         }
         startup.Observe(0, startupSamples);
         auto& move = startupSamples[0];
-        move.status = 16; move.action = 100; move.firstActiveFrame = 9;
+        move.status = 16; move.action = 100; move.firstActiveFrame = 9; move.lastActiveFrame = 10;
         move.actionFrame = 3; startup.Observe(1, startupSamples);
         move.actionFrame = 6; startup.Observe(2, startupSamples);
         move.timeScale = 0; startup.Observe(3, startupSamples); // A frame frozen by a super's freeze.
         move.actionFrame = 9; startup.Observe(4, startupSamples);
         Require(startup.View().startupFrames[0] == 3, "Startup counted BAC ticks or freeze instead of advancing frames");
-        move.action = 101; move.actionFrame = 1; move.firstActiveFrame = 2; move.timeScale = 1;
+        move.action = 101; move.actionFrame = 1; move.firstActiveFrame = 2; move.lastActiveFrame = 3; move.timeScale = 1;
         startup.Observe(5, startupSamples); move.actionFrame = 2; startup.Observe(6, startupSamples);
         Require(startup.View().startupFrames[0] == 2, "Target combo follow-up did not update startup");
         move.action = 102; move.actionFrame = 0; move.firstActiveFrame = -1;
@@ -113,7 +114,7 @@ int main() {
         Require(startup.View().startupFrames[0] == -1, "Missing attack boundary fabricated startup");
         Require(startup.View().startupUnavailable[0] == MeasurementUnavailable::NoAttackBoundary,
             "Missing attack boundary had no explanation");
-        move.action = 104; move.firstActiveFrame = 1; move.actionFrame = 1;
+        move.action = 104; move.firstActiveFrame = 1; move.lastActiveFrame = 2; move.actionFrame = 1;
         move.boundaryProvenance = BoundaryProvenance::BacActionHeader; startup.Observe(11, startupSamples);
         Require(startup.View().startupFrames[0] == 3, "Multi-phase startup discarded its initial phase");
         Require(startup.View().startupBoundaryProvenance[0] == BoundaryProvenance::BacActionHeader,
@@ -396,9 +397,9 @@ int main() {
             FrameMeter counted; std::array<FighterSample, 2> pair;
             for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
             counted.Observe(0, pair);
-            pair[0].status = 16; pair[0].action = 346; pair[0].hitPhase = 0;
+            pair[0].status = 16; pair[0].action = 346; pair[0].hits = bac::HitPhase::Before;
             for (int frame = 1; frame <= 6; ++frame) { pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
-            pair[0].action = 369; pair[0].hitPhase = 1; pair[0].actionFrame = 0; counted.Observe(7, pair);
+            pair[0].action = 369; pair[0].hits = bac::HitPhase::Out; pair[0].actionFrame = 0; counted.Observe(7, pair);
             pair[0].actionFrame = 1; counted.Observe(8, pair);
             Require(counted.View().startupFrames[0] == 7 && counted.View().moves[0].active == 2, "A move's active second script restarted its startup");
         }
@@ -411,11 +412,11 @@ int main() {
             counted.Observe(0, pair);
             int tick = 1;
             pair[0].status = 16; pair[0].action = 416; pair[0].commandMove = 0x1000;
-            for (int phase : {0, 1, 1, 1, 3}) { pair[0].hitPhase = phase; pair[0].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
+            for (auto phase : {bac::HitPhase::Before, bac::HitPhase::Out, bac::HitPhase::Out, bac::HitPhase::Out, bac::HitPhase::Done}) { pair[0].hits = phase; pair[0].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
             Require(counted.View().moves[0].active == 3 && counted.View().moves[0].recovery == 1, "The first script's hits or its tail miscounted");
             pair[0].action = 417;
             int frame = 0;
-            for (int phase : {0, 0, 1, 3, 3, 3, 3}) { pair[0].hitPhase = phase; pair[0].actionFrame = static_cast<float>(frame++); counted.Observe(tick++, pair); }
+            for (auto phase : {bac::HitPhase::Before, bac::HitPhase::Before, bac::HitPhase::Out, bac::HitPhase::Done, bac::HitPhase::Done, bac::HitPhase::Done, bac::HitPhase::Done}) { pair[0].hits = phase; pair[0].actionFrame = static_cast<float>(frame++); counted.Observe(tick++, pair); }
             Require(counted.View().startupFrames[0] == 2 && counted.View().moves[0].active == 7 && counted.View().moves[0].recovery == 4,
                 "A two-script move's gap or recovery miscounted");
         }
@@ -442,11 +443,11 @@ int main() {
             FrameMeter counted; std::array<FighterSample, 2> pair;
             for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
             counted.Observe(0, pair);
-            pair[0].status = 16; pair[0].action = 450; pair[0].hitPhase = 0; pair[0].commandMove = 0x1000;
+            pair[0].status = 16; pair[0].action = 450; pair[0].hits = bac::HitPhase::Before; pair[0].commandMove = 0x1000;
             // The target combo's first hit is out on frame 5; Seth's first script has none.
-            for (int frame = 1; frame <= 5; ++frame) { pair[0].hitPhase = input && frame == 5 ? 1 : 0; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            for (int frame = 1; frame <= 5; ++frame) { pair[0].hits = input && frame == 5 ? bac::HitPhase::Out : bac::HitPhase::Before; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
             pair[0].action = 464; pair[0].commandMove = input ? 0x2000 : 0x1000;
-            for (int frame = 0; frame < 7; ++frame) { pair[0].hitPhase = frame < 6 ? 0 : 1; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(6 + frame, pair); }
+            for (int frame = 0; frame < 7; ++frame) { pair[0].hits = frame < 6 ? bac::HitPhase::Before : bac::HitPhase::Out; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(6 + frame, pair); }
             Require(counted.View().startupFrames[0] == (input ? 7 : 12), input ? "A target combo's own startup was not counted" : "A move's own next script restarted its startup");
         }
         {
@@ -460,7 +461,7 @@ int main() {
             pair[0].status = 16; pair[0].action = 210; pair[0].commandMove = 0x5000;
             const auto jab = [&](int frames) {
                 for (int frame = 1; frame <= frames; ++frame) {
-                    pair[0].hitPhase = frame < 3 ? 0 : frame < 5 ? 1 : 3; pair[0].actionFrame = static_cast<float>(frame);
+                    pair[0].hits = frame < 3 ? bac::HitPhase::Before : frame < 5 ? bac::HitPhase::Out : bac::HitPhase::Done; pair[0].actionFrame = static_cast<float>(frame);
                     counted.Observe(tick++, pair);
                     if (frames > 6 && frame == 1)
                         Require(counted.View().startupFrames[0] < 0 && counted.View().moves[0].active == 0, "A chained jab kept the first jab's startup or active frames");
@@ -483,14 +484,14 @@ int main() {
             counted.Observe(0, pair);
             int tick = 1;
             pair[0].status = 16; pair[0].action = 220; pair[1].status = ActorStatus::Forward; pair[1].action = 16;
-            const auto step = [&](float frame, int phase, bool held) {
-                pair[0].actionFrame = frame; pair[0].hitPhase = phase; pair[0].hitStop = held;
+            const auto step = [&](float frame, bac::HitPhase phase, bool held) {
+                pair[0].actionFrame = frame; pair[0].hits = phase; pair[0].hitStop = held;
                 pair[1].actionFrame = static_cast<float>(tick);
                 counted.Observe(tick++, pair);
             };
-            for (int frame = 1; frame <= 3; ++frame) step(static_cast<float>(frame), 0, false);
-            for (int held = 0; held < 4; ++held) step(3, 0, true);
-            step(4, 0, false); step(5, 1, false);
+            for (int frame = 1; frame <= 3; ++frame) step(static_cast<float>(frame), bac::HitPhase::Before, false);
+            for (int held = 0; held < 4; ++held) step(3, bac::HitPhase::Before, true);
+            step(4, bac::HitPhase::Before, false); step(5, bac::HitPhase::Out, false);
             Require(counted.View().startupFrames[0] == 5, "The other fighter's moving counted a held fighter's hitstop");
             Require(counted.View().frames.size() == 9, "Frames the other fighter moved on in were left out of the bars");
         }
@@ -529,12 +530,12 @@ int main() {
             for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
             counted.Observe(0, pair);
             pair[0].status = 16; pair[0].action = 288;
-            for (int frame = 1; frame <= 3; ++frame) { pair[0].hitPhase = frame < 3 ? 0 : 1; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
-            pair[0].action = 292; pair[0].hitPhase = 0; pair[1].status = 24; pair[1].action = 293;
+            for (int frame = 1; frame <= 3; ++frame) { pair[0].hits = frame < 3 ? bac::HitPhase::Before : bac::HitPhase::Out; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            pair[0].action = 292; pair[0].hits = bac::HitPhase::Before; pair[1].status = 24; pair[1].action = 293;
             for (int frame = 0; frame < 5; ++frame) { pair[0].actionFrame = static_cast<float>(frame); pair[1].actionFrame = static_cast<float>(frame); counted.Observe(4 + frame, pair); }
             Require(counted.View().startupFrames[0] == 3 && counted.View().frames.back().cells[0].kind == MeterKind::Sequence,
                 "A throw played in Skill restarted the thrower's startup, or was not drawn as its sequence");
-            pair[0].hitPhase = 3; pair[1].status = 20; pair[1].action = 34;
+            pair[0].hits = bac::HitPhase::Done; pair[1].status = 20; pair[1].action = 34;
             for (int frame = 5; frame < 8; ++frame) { pair[0].actionFrame = static_cast<float>(frame); pair[1].actionFrame = static_cast<float>(frame); counted.Observe(4 + frame, pair); }
             Require(counted.View().startupFrames[0] == 3 && counted.View().moves[0].recovery == 3, "A thrower's frames after the throw were not its recovery");
         }
@@ -575,6 +576,11 @@ int main() {
                 pair[0].status = 0; counted.Observe(12 + cells, pair);
                 Require(counted.View().moves[0].recovery == recovery, "A later recovered state changed completed recovery");
             }
+        }
+        {
+            // A jab of 3, 2 and 7: startup 3 counts its first active frame, which the 2 active frames count again.
+            MoveFrames jab; jab.active = 2; jab.recovery = 7;
+            Require(TotalFrames(3, jab) == 11, "A move's total length miscounted");
         }
         std::puts("Frame meter checks passed.");
         return 0;

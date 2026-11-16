@@ -15,6 +15,7 @@
 // pad layer, Training and replay types, which live in the headers named below
 // until the library moves out (step 9).
 
+#include <array>
 #include <cstddef>
 #include "../common/StageChoice.hxx"
 #include <cstdint>
@@ -61,6 +62,10 @@ struct Capabilities {
     bool replayVideo = false;
     bool replayMeter = false;
     bool replayInputs = false;
+    // The public replay archive of the game's bridge (its archive_list and
+    // archive_fetch): Replays' Archive tab, a profile's archived Sets list and
+    // watching an archived game (ShellView::offersArchive).
+    bool archive = false;
     // Watching a table's games: a room's Watch action, a tournament match's
     // watch and its observer join, and the entry of any game this PC would
     // only watch (queued or watching), which it sits out.
@@ -374,12 +379,43 @@ public:
     virtual void MarkSent(const std::filesystem::path& file) = 0;
     virtual void MarkSetClosed(const std::filesystem::path& file) = 0;
     // Where a set's pack is saved (empty when it cannot be), and taking a
-    // pack's games into the archive: how many the archive holds, 0 for a
-    // file that is no whole pack.
+    // file the player handed over (a set pack, or one replay in a form the
+    // game reads) into the archive: how many games the archive now holds of
+    // it, 0 for a file it cannot take.
     virtual std::filesystem::path SetPackPath(const std::string& matchId) = 0;
-    virtual std::size_t ImportSetPack(const std::filesystem::path& pack) = 0;
+    virtual std::size_t ImportReplayFile(const std::filesystem::path& file) = 0;
+    // The public archive's games downloaded to watch (Capabilities::archive):
+    // where one is kept by its digest (empty when it cannot be), clearing
+    // the others while one is fetched, and clearing them all as the runtime starts.
+    virtual std::filesystem::path ArchiveWatchPath(const std::string& digest) = 0;
+    virtual void PruneArchiveWatching(const std::filesystem::path& keep) = 0;
+    virtual void ClearArchiveWatching() = 0;
 protected:
     ~Replays() = default;
+};
+
+// The game's in-game themes: theme folders that replace the game's own
+// screens, sounds and battle HUD (SettingsFeatures::gameThemes, Settings >
+// Interface > In-game themes). Game thread. A game without them hands
+// NoThemes (sf4e__AbsentGameFeatures.hxx): no theme is ever found.
+class Themes {
+public:
+    // Finds the themes, as the runtime starts.
+    virtual void Start() = 0;
+    // Each runtime tick: what the game needs done for its themes.
+    virtual void Tick() = 0;
+    // Start-up, before Use: the picks the game closed on while loading them
+    // are put back to the game's own (TurnedOff lists them until told).
+    virtual void TurnOff(std::array<std::string, sf4e::netplay::GameThemePartCount>& picks) = 0;
+    virtual const std::vector<sf4e::netplay::GameThemeTurnedOff>& TurnedOff() = 0;
+    virtual void TurnedOffTold() = 0;
+    // The themes found with a part, and what Settings says of one.
+    virtual const std::vector<std::string>& Names(sf4e::netplay::GameThemePart part) = 0;
+    virtual sf4e::netplay::GameThemeNote Note(sf4e::netplay::GameThemePart part, const std::string& theme) = 0;
+    // Uses each part's picked theme (empty: the game's own).
+    virtual void Use(const std::array<std::string, sf4e::netplay::GameThemePartCount>& picks) = 0;
+protected:
+    ~Themes() = default;
 };
 
 struct Adapter {
@@ -391,6 +427,7 @@ struct Adapter {
     Services& services;
     Training& training;
     Replays& replays;
+    Themes& themes;
 };
 
 const Adapter& Game();

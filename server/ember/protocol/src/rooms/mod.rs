@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, Result,
+    area::Area,
     encoding::{is_false, is_single_line},
     matches::games_to_win_valid,
     play::{MAX_INVITATION, check_build, is_hex},
@@ -28,6 +29,11 @@ pub use connection::{
     ENDED, NOT_LINKED, ROOM_PAGE, RoomCreator, RoomState, join_url,
 };
 pub use ticket::{RoomTicket, SignedRoomTicket};
+
+/// The capability of a bridge that reads a create's `area` and lists it
+/// (`CreateRoom::area`). A build sends `area` only to a bridge that lists it,
+/// since an older one refuses the field.
+pub const AREA_FEATURE: &str = "room_area";
 
 /// Refusal reasons of the room routes.
 pub const ROOM_LIMIT: &str = "room_limit";
@@ -98,6 +104,23 @@ pub fn is_game(game: &str) -> bool {
     GAMES.contains(&game)
 }
 
+/// How many fighters `game`'s roster has: a fighter index of that game (a
+/// counted game's `[winner, loser]`, a saved or synced main) is below it, and
+/// every roster is within `levels::MAX_FIGHTERS`. A game outside `GAMES` reads
+/// as USF4's.
+pub fn roster(game: &str) -> u8 {
+    if game == SFV_GAME {
+        SFV_FIGHTERS
+    } else {
+        USF4_FIGHTERS
+    }
+}
+
+/// USF4's roster (`roster`): 0 to 43.
+pub const USF4_FIGHTERS: u8 = 44;
+/// SFV's roster (`roster`): its select screen's 45, 0 to 44.
+pub const SFV_FIGHTERS: u8 = 45;
+
 /// `DEFAULT_GAME`, for a field that is absent.
 pub fn default_game() -> String {
     DEFAULT_GAME.to_owned()
@@ -135,6 +158,16 @@ pub fn check_host_name(name: &str) -> Result<()> {
     }
 }
 
+/// A short code as listings carry them: 1 to 8 of a to z and 0 to 9. A
+/// relay's code and an area's both are; a reader takes one it does not know.
+fn is_listed_code(code: &str) -> bool {
+    !code.is_empty()
+        && code.len() <= MAX_REGION
+        && code
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+}
+
 /// A country as players show it: an ISO 3166 alpha-2 code in capitals.
 pub fn is_country(code: &str) -> bool {
     code.len() == 2 && code.bytes().all(|byte| byte.is_ascii_uppercase())
@@ -169,9 +202,16 @@ pub struct RoomSummary {
     pub members: u8,
     pub capacity: u8,
     pub tables_playing: u8,
-    /// The room's region code, such as `use1`: its creator's relay region
-    /// when they gave one (`CreateRoom::region`), else its host's.
+    /// The room's relay code, such as `use1`: its creator's home relay when
+    /// they gave one (`CreateRoom::region`), else its host's. A routing fact,
+    /// which builds from before areas also show as the room's place.
     pub region: String,
+    /// Where the room's creator plays from (`area::Area`'s code), when they
+    /// said (`CreateRoom::area`): what the room list shows as its place. Absent
+    /// for a creator who hid it or a build from before areas. A reader takes
+    /// a code it does not know as none, so a later area does not fail a list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub area: Option<String>,
     pub created_at: u64,
     /// Each fighter plays at the input delay they chose, instead of both at the
     /// higher of the two. Fixed when the room is created. Present only when
@@ -262,16 +302,17 @@ impl RoomSummary {
         if self.members > self.capacity {
             return Err(Error::InvalidField("members"));
         }
-        let region_valid = !self.region.is_empty()
-            && self.region.len() <= MAX_REGION
-            && self
-                .region
-                .bytes()
-                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit());
-        if !region_valid {
+        if !is_listed_code(&self.region) {
             return Err(Error::InvalidField("region"));
         }
         check_game(&self.game)?;
+        if self
+            .area
+            .as_deref()
+            .is_some_and(|area| !is_listed_code(area))
+        {
+            return Err(Error::InvalidField("area"));
+        }
         self.check_details()
     }
 }
@@ -294,11 +335,16 @@ pub struct CreateRoom {
     pub name: String,
     pub capacity: u8,
     pub build_id: String,
-    /// The creator's relay region (`relay::REGIONS`), which the listing shows
+    /// The creator's home relay (`relay::REGIONS`), which the listing gives
     /// in place of the room host's: matches are played player to player.
-    /// Left out when the creator's region is not known.
+    /// Left out when the creator's relay is not known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
+    /// Where the creator plays from, their own claim, which the listing shows
+    /// as the room's place (`RoomSummary::area`). Left out when they hid it or
+    /// it is not set, and sent only to a bridge that lists `AREA_FEATURE`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub area: Option<Area>,
     /// Asks for a room whose fighters each play at their own input delay (see
     /// `RoomSummary::own_delay`). Sent only when true; a bridge that does not
     /// know the field refuses the request, which is never retried without it.
@@ -346,6 +392,12 @@ pub struct TicketRequest {
     /// as `unsupported_build`. Sent only when it is not `DEFAULT_GAME`.
     #[serde(default = "default_game", skip_serializing_if = "is_default_game")]
     pub game: String,
+    /// The joiner's build shows other players' cards and wants a card token
+    /// in the ticket (`RoomTicket::card`, `docs/design/FIGHTER_LEVELS.md`). A
+    /// build sends it only to a bridge that lists `points`, since an older
+    /// one refuses the field.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub card: bool,
 }
 
 impl TicketRequest {
@@ -413,6 +465,7 @@ mod tests {
             issued_at: 1000,
             expires_at: 1000 + TICKET_SECS,
             badge: None,
+            card: None,
         }
     }
 
@@ -425,6 +478,7 @@ mod tests {
             capacity: 8,
             tables_playing: 1,
             region: "use1".into(),
+            area: None,
             created_at: 900,
             own_delay: false,
             host_name: None,
@@ -478,6 +532,7 @@ mod tests {
             capacity: 8,
             build_id: "build".into(),
             region: None,
+            area: None,
             own_delay: false,
             game: DEFAULT_GAME.into(),
         };
@@ -528,6 +583,7 @@ mod tests {
             skill_badge: false,
             developer_badge: false,
             game: DEFAULT_GAME.into(),
+            card: false,
         };
         assert!(request.check().is_ok());
         let bad = TicketRequest {
@@ -558,6 +614,19 @@ mod tests {
                 ..summary()
             };
             assert_eq!(bad.check(), Err(Error::InvalidField("region")), "{region}");
+            let bad = RoomSummary {
+                area: Some(region.into()),
+                ..summary()
+            };
+            assert_eq!(bad.check(), Err(Error::InvalidField("area")), "{region}");
+        }
+        // An area this build does not know yet is still a listed room.
+        for area in ["naw", "oce", "xyz9"] {
+            let ok = RoomSummary {
+                area: Some(area.into()),
+                ..summary()
+            };
+            assert!(ok.check().is_ok(), "{area}");
         }
         let bad = RoomSummary {
             room_id: "0".repeat(31),
@@ -753,6 +822,69 @@ te"
         assert!(empty.check().is_err());
     }
 
+    /// The serialization of a request and a ticket as they were before the
+    /// card token: the literals below are what the base commit wrote.
+    #[test]
+    fn a_request_and_a_ticket_without_a_card_are_what_they_were() {
+        let endpoint = "c".repeat(64);
+        let request = TicketRequest {
+            endpoint_id: endpoint.clone(),
+            build_id: "build".into(),
+            skill_badge: false,
+            developer_badge: false,
+            card: false,
+        };
+        assert_eq!(
+            serde_json::to_string(&request).unwrap(),
+            format!(r#"{{"endpoint_id":"{endpoint}","build_id":"build"}}"#)
+        );
+        let asked = TicketRequest {
+            skill_badge: true,
+            developer_badge: true,
+            ..request.clone()
+        };
+        let asked_text = format!(
+            r#"{{"endpoint_id":"{endpoint}","build_id":"build","skill_badge":true,"developer_badge":true}}"#
+        );
+        assert_eq!(serde_json::to_string(&asked).unwrap(), asked_text);
+        // The card is the last member, and only when asked for.
+        let with_card = TicketRequest {
+            card: true,
+            ..asked
+        };
+        assert_eq!(
+            serde_json::to_string(&with_card).unwrap(),
+            asked_text.replace("}", r#","card":true}"#)
+        );
+        let read: TicketRequest = json::parse_as(asked_text.as_bytes(), 1024).unwrap();
+        assert!(!read.card);
+
+        let id = key(1).ember_id().clone();
+        let ticket_text = format!(
+            r#"{{"version":1,"bridge_id":"{BRIDGE}","room_id":"{ROOM}","ember_id":"{id}","endpoint_id":"{}","issued_at":1000,"expires_at":1060}}"#,
+            "a".repeat(64)
+        );
+        assert_eq!(serde_json::to_string(&ticket(&id)).unwrap(), ticket_text);
+        let read: RoomTicket = json::parse_as(ticket_text.as_bytes(), 1024).unwrap();
+        assert_eq!(read, ticket(&id));
+        // The card follows the badge, and a ticket that carries one reads back.
+        let carded = RoomTicket {
+            badge: Some(crate::skill::SkillBadge::class(4, true)),
+            card: Some("c1.abc_-123".into()),
+            ..ticket(&id)
+        };
+        let carded_text = ticket_text.replace(
+            "}",
+            r#","badge":{"band":4,"settled":true},"card":"c1.abc_-123"}"#,
+        );
+        assert_eq!(serde_json::to_string(&carded).unwrap(), carded_text);
+        assert_eq!(
+            json::parse_as::<RoomTicket>(carded_text.as_bytes(), 1024).unwrap(),
+            carded
+        );
+        assert!(carded.check().is_ok());
+    }
+
     #[test]
     fn unknown_json_fields_are_rejected() {
         let good = br#"{"name":"Room","capacity":8,"build_id":"build"}"#;
@@ -796,6 +928,9 @@ te"
     #[test]
     fn the_games_are_sf4_by_default_and_sfv() {
         assert_eq!(GAMES, ["usf4", "sfv"]);
+        assert_eq!(roster("usf4"), 44);
+        assert_eq!(roster("sfv"), 45);
+        assert!(GAMES.iter().all(|game| roster(game) <= crate::levels::MAX_FIGHTERS));
         assert_eq!(DEFAULT_GAME, "usf4");
         for game in GAMES {
             assert!(is_game(game), "{game}");

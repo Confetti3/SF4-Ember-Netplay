@@ -39,7 +39,7 @@ use ember_protocol::{
         BANNED, CLOSED_BY_CONNECTION, CloseRoom, ConnectionCreateRoom, ConnectionRoom,
         ConnectionRoomList, CreateRoom, DEFAULT_GAME, INVALID_NAME, NOT_LINKED, ROOM_FULL,
         ROOM_LIMIT, ROOM_LOCKED, RoomList, RoomState, RoomSummary, UNSUPPORTED_BUILD, is_game,
-        join_url,
+        join_url, roster,
     },
 };
 use rusqlite::{OptionalExtension, Row, Transaction, params};
@@ -123,6 +123,29 @@ pub fn developers(state: &AppState) -> Vec<String> {
         .as_ref()
         .map(|rooms| rooms.developers.clone())
         .unwrap_or_default()
+}
+
+/// The game this bridge's players play (`rooms.game`; USF4's without public
+/// rooms): the default game of an answer that is one game's
+/// (`friends::Classes::of`, a friends sync that names none) and the roster a
+/// saved main is checked against (`profiles::save`).
+pub fn game(state: &AppState) -> String {
+    state
+        .config
+        .rooms
+        .as_ref()
+        .map_or_else(|| DEFAULT_GAME.to_owned(), |rooms| rooms.game.clone())
+}
+
+/// A main fighter a player saves or syncs, checked against `game`'s roster
+/// (`rooms::roster`): the protocol's own check takes any game's fighter
+/// index, up to `levels::MAX_FIGHTERS`, so the game's is checked here, where
+/// it is stored.
+pub fn check_main(game: &str, main: Option<u8>) -> Result<()> {
+    if main.is_some_and(|main| main >= roster(game)) {
+        return Err(ember_protocol::Error::InvalidField("main").into());
+    }
+    Ok(())
 }
 
 fn supervisor(state: &AppState) -> Result<Supervisor<'_>> {
@@ -256,8 +279,11 @@ struct Room {
     /// The room host's relay region, set once the supervisor reports the room
     /// hosted, so a room without one is not hosted yet.
     host_region: Option<String>,
-    /// The region its creator gave, which players see in place of the host's.
+    /// The relay its creator gave, which the listing gives in place of the host's.
     creator_region: Option<String>,
+    /// Where its creator plays from, when they said (migration 066): the place
+    /// the room list shows.
+    creator_area: Option<String>,
     invitation_sealed: Option<Vec<u8>>,
     creator_ember_id: String,
     opened_at: Option<u64>,
@@ -286,7 +312,7 @@ struct Room {
 
 const COLUMNS: &str = "room_id, name, build_id, capacity, members, tables_playing, created_at, region, invitation_sealed,
     creator_ember_id, opened_at, closed_at, connection_id, host_name, fighters, locked, set_format, rotation,
-    creator_region, own_delay, room_type, creator_in, wired_only, game";
+    creator_region, own_delay, room_type, creator_in, wired_only, game, creator_area";
 
 fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
     Ok(Room {
@@ -314,6 +340,7 @@ fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
         creator_in: row.get(21)?,
         wired_only: row.get(22)?,
         game: row.get(23)?,
+        creator_area: row.get(24)?,
     })
 }
 
@@ -349,6 +376,7 @@ impl Room {
             capacity: self.capacity,
             tables_playing: self.tables_playing,
             region: self.creator_region.as_ref().unwrap_or(host_region).clone(),
+            area: self.creator_area.clone(),
             created_at: self.created_at,
             own_delay: self.own_delay,
             host_name: None,

@@ -5,9 +5,9 @@
 
 int main() {
  try {
-  ButtonPromptJourneys(); ControllerJourneys(); ButtonLayoutJourneys(); RoomJourneys(); FollowJourneys(); PostMatchJourneys(); ArcadeJourneys(); ReplayJourneys(); TrainingSettingsAndHome(); TrainingSelectHitboxes(); TrainingFromRoom(); PracticeRoomCreate(); DelayPolicyCreate(); DelayPolicyInRoom(); TableCountCreate(); WiredOnlyJourney(); TrainingInRoom();
-  KeyboardJourneys(); RightClickBack(); HomeCardRight(); MemberPopout(); RoomPartsHide(); ChatJourneys(); NoticeOverDialogs(); LanguageSaveFailure(); UpdateLaunchJourneys();
-  SessionReports(); RecoveryWindow(); ProblemReportJourneys(); SelectorPages(); SelectorFromHome();
+  ButtonPromptJourneys(); ControllerJourneys(); ButtonLayoutJourneys(); RoomJourneys(); FollowJourneys(); PostMatchJourneys(); PostMatchLiveAnswerJourney(); ArcadeJourneys(); ReplayJourneys(); ArchiveJourneys(); TrainingSettingsAndHome(); TrainingSelectHitboxes(); TrainingFromRoom(); PracticeRoomCreate(); DelayPolicyCreate(); DelayPolicyInRoom(); TableCountCreate(); WiredOnlyJourney(); PrivacyJourney(); TrainingInRoom();
+  KeyboardJourneys(); RightClickBack(); HomeCardRight(); MemberPopout(); RoomPartsHide(); ChatJourneys(); NoticeOverDialogs(); LanguageSaveFailure(); UpdateLaunchJourneys(); NewsAndNotifications();
+  SessionReports(); RecoveryWindow(); ProblemReportJourneys(); SelectorPages(); SelectorFromProfile();
   DeveloperSelectors(); SelectorRandomTile(); TrainingJourneys(); PresentationJourneys(); AppearanceGalleries(); SelectorSpeech(); V2AuditJourneys(); SettingsJourneys();
   std::cout << "Shell journeys through the renderer passed.\n";
   return 0;

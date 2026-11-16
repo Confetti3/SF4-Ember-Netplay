@@ -29,8 +29,9 @@ inline std::string RecordValue(const netplay::ProfileRecord& r) {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&a.autoDelayStyle==b.autoDelayStyle&&
-        a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.pictureSpot==b.pictureSpot&&a.pictureMode==b.pictureMode&&a.wornTitle==b.wornTitle&&a.wornIcon==b.wornIcon&&a.roomColumn==b.roomColumn&&a.roomSplit==b.roomSplit&&a.speech==b.speech&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
-        a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomTableCount==b.roomTableCount&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules&&a.roomTemplates==b.roomTemplates&&a.country==b.country&&a.roomFilter==b.roomFilter&&a.roomWiredOnly==b.roomWiredOnly;
+        a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.pictureSpot==b.pictureSpot&&a.pictureMode==b.pictureMode&&a.wornTitle==b.wornTitle&&a.wornIcon==b.wornIcon&&a.gameThemes==b.gameThemes&&a.roomColumn==b.roomColumn&&a.roomSplit==b.roomSplit&&a.speech==b.speech&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
+        a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomTableCount==b.roomTableCount&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules&&a.roomTemplates==b.roomTemplates&&a.country==b.country&&a.roomFilter==b.roomFilter&&a.roomWiredOnly==b.roomWiredOnly&&a.roomFriendsHidden==b.roomFriendsHidden&&a.publicRoomType==b.publicRoomType&&a.publicArcadeTables==b.publicArcadeTables&&a.publicRoomTemplate==b.publicRoomTemplate&&
+        a.cardDevice==b.cardDevice&&a.cardShowLink==b.cardShowLink&&a.cardLooking==b.cardLooking&&a.cardPins==b.cardPins;
 }
 // Only what a room leaves open changed (PlayerPreferences::CopyRoomSettings):
 // the button layouts, the room board's layout, the chat filter and the watched
@@ -42,6 +43,13 @@ inline bool OnlyRoomSettingsChanged(const netplay::PlayerPreferences& a, const n
 }
 inline MenuEntry Row(std::string id,std::string label,std::string detail,bool enabled=true) {
     return {std::move(id),std::move(label),std::move(detail),{},enabled};
+}
+// A choice that needs the main menu (`menu`, no match running) and no room open
+// (`idle`): when it is not available its detail says which, as every
+// unavailable choice does, rather than the greyed choice saying nothing.
+inline MenuChoice NeedsMenu(std::string id,std::string label,std::string detail,bool idle,bool menu) {
+    const bool open=idle&&menu;
+    return {std::move(id),std::move(label),open?std::move(detail):std::string(loc::T(idle?"replays.not_ready":"replays.open_log_room")),open};
 }
 inline MenuEntry Value(std::string id,std::string label,std::string value,std::string detail,bool enabled=true) {
     auto e=Row(std::move(id),std::move(label),std::move(detail),enabled); e.value=std::move(value); e.adjustable=true; return e;
@@ -130,6 +138,13 @@ template<typename T> inline void Step(T& value,const std::vector<int>& choices,i
     int index=it==choices.end()?0:static_cast<int>(it-choices.begin());
     value=static_cast<T>(choices[(std::max)(0,(std::min)(static_cast<int>(choices.size())-1,index+delta))]);
 }
+// The same over names; a name not in the list steps from the first.
+inline void Step(std::string& value,const std::vector<std::string>& choices,int delta) {
+    if(choices.empty()) return;
+    auto it=std::find(choices.begin(),choices.end(),value);
+    int index=it==choices.end()?0:static_cast<int>(it-choices.begin());
+    value=choices[(std::max)(0,(std::min)(static_cast<int>(choices.size())-1,index+delta))];
+}
 inline std::string SetLengthText(room::SetFormat format) {
     return format==room::SetFormat::Unlimited?loc::T("rules.set_length.none"):loc::Tf("rules.set_length.first_to",static_cast<int>(format));
 }
@@ -173,17 +188,22 @@ inline MenuEntry PracticeRoomRow(bool on,bool enabled) {
     return Value("practice-room",loc::T("room.practice"),loc::T(on?"common.on":"common.off"),
         loc::Tf("room.practice.detail",room::PracticeRoundTime),enabled);
 }
-// A room type's name (Classic, Arcade, King of the hill) and how it plays, wherever a room's
-// type is shown: Create's row, the public room list and a public room's status line.
-inline const char* RoomTypeName(room::RoomType type) {
-    static const char* const names[]={"room.type.classic","room.type.arcade","room.type.king"};
-    return loc::T(names[type]);
+// A room type's words, the text keys of each room::RoomType: its name (Classic,
+// Arcade, King of the hill) and how it plays, wherever a room's type is shown
+// (Create's row, the public room list and a public room's status line), and a
+// private room's status line, open and locked. Out of range, which no room
+// holds, Arcade's, as any type but Classic read before.
+struct RoomTypeWords { const char* name; const char* detail; const char* status; const char* lockedStatus; };
+inline const RoomTypeWords& WordsOf(room::RoomType type) {
+    static const RoomTypeWords words[]={
+        {"room.type.classic","room.type.classic_detail","room.private_status","room.locked_status"},
+        {"room.type.arcade","room.type.arcade_detail","room.arcade_status","room.arcade_locked_status"},
+        {"room.type.king","room.type.king_detail","room.king_status","room.king_locked_status"}};
+    return words[room::ValidRoomType(static_cast<int>(type))?static_cast<std::size_t>(type):static_cast<std::size_t>(room::RoomType::Arcade)];
 }
-inline const char* RoomTypeDetail(room::RoomType type) {
-    static const char* const details[]={"room.type.classic_detail","room.type.arcade_detail","room.type.king_detail"};
-    return loc::T(details[type]);
-}
-// Create's choice of the room's type, fixed for its life (room::Snapshot::arcade).
+inline const char* RoomTypeName(room::RoomType type) { return loc::T(WordsOf(type).name); }
+inline const char* RoomTypeDetail(room::RoomType type) { return loc::T(WordsOf(type).detail); }
+// Create's choice of the room's type, fixed for its life (room::Snapshot::type).
 inline MenuEntry RoomTypeRow(room::RoomType type,bool enabled) {
     return Value("room-type",loc::T("room.type"),RoomTypeName(type),RoomTypeDetail(type),enabled);
 }
@@ -220,6 +240,13 @@ inline MenuEntry BannedStagesRow(const char* id,std::size_t count,const std::str
 }
 inline MenuEntry BannedStageRow(std::int64_t id,const std::string& name,bool banned,bool enabled) {
     return Value("ban-stage-"+std::to_string(id),name,loc::T(banned?"room.banned_stages.tag":"room.banned_stages.allowed"),std::string(),enabled);
+}
+// A private room's Privacy (room::Snapshot::friendsHidden): Friends lets the
+// friends of anyone in the room join it, Hidden shows them only that it is
+// private. Create's choice, kept with the room defaults (id "privacy"), and
+// the host's in Room settings (id "room-privacy").
+inline MenuEntry PrivacyRow(const char* id,bool hidden,const std::string& detail,bool enabled) {
+    return Value(id,loc::T("room.privacy"),loc::T(hidden?"room.privacy.hidden":"room.privacy.friends"),detail,enabled);
 }
 inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.kind!=MenuAction::Adjust) return false;

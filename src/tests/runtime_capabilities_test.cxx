@@ -114,10 +114,7 @@ void TestTrainingFromHome(bool offered) {
 	CHECK(session.room == netplay::RoomState::Idle && session.match == netplay::MatchState::None);
 	CHECK(facade::TrainingHolds(TrainingEntry::Home, session.generation, session, true, room::Snapshot{}, 0) == offered);
 	CHECK(facade::TrainingRequestHolds(session.generation) == offered);
-	facade::RuntimeCommand training{};
-	training.command.generation = session.generation;
-	training.training = TrainingEntry::Home;
-	CHECK(facade::SubmitRuntimeCommand(std::move(training)));
+	CHECK(facade::SubmitRuntimeCommand(commands::Training{session.generation, TrainingEntry::Home}));
 	internal::DrainCommands(true);
 	CHECK(Fake().trainingRequests == (offered ? 1 : 0));
 	CHECK(home.runtime->error == (offered ? std::string() : std::string(loc::T("home.training_unavailable"))));
@@ -145,7 +142,7 @@ void TestObserverJoin(bool offered) {
 void TestTournamentWatch(bool offered) {
 	Home home;
 	FakeCapabilities().spectators = offered;
-	facade::RuntimeCommand watch{};
+	commands::Tournament watch;
 	watch.tournament.op = netplay::tournament::Command::Op::Watch;
 	watch.tournament.bridgeId = "bridge";
 	watch.tournament.matchId = "match";
@@ -197,9 +194,8 @@ void TestRoomWatch(bool offered) {
 	internal::Publish();
 	CHECK(facade::GetRuntimeSnapshotShared()->canWatch == offered);
 	const auto sentBefore = r.transport->sent.size();
-	facade::RuntimeCommand watch{};
-	watch.command.kind = netplay::CommandKind::RoomAction;
-	watch.command.generation = r.runtime->controller.GetSnapshot().generation;
+	commands::RoomAction watch;
+	watch.generation = r.runtime->controller.GetSnapshot().generation;
 	watch.roomAction.kind = room::ActionKind::Watch;
 	CHECK(facade::SubmitRuntimeCommand(std::move(watch)));
 	internal::DrainCommands(true);
@@ -218,12 +214,11 @@ void TestReadyUnderGameCatalog() {
 	pad.type = 0; pad.index = 0; pad.connected = true;
 	r.runtime->input.Adopt(pad);
 	const auto ready = [&](int fighter, int costume, int color, int stage) {
-		facade::RuntimeCommand press{};
-		press.command.kind = netplay::CommandKind::Ready;
-		press.command.generation = r.runtime->controller.GetSnapshot().generation;
-		press.character.charaID = static_cast<std::uint8_t>(fighter);
-		press.character.costume = static_cast<std::uint8_t>(costume);
-		press.character.color = static_cast<std::uint8_t>(color);
+		commands::Ready press;
+		press.generation = r.runtime->controller.GetSnapshot().generation;
+		press.pick.fighter = fighter;
+		press.pick.costume = costume;
+		press.pick.color = color;
 		press.stage = stage;
 		r.runtime->readyFailure.clear();
 		CHECK(facade::SubmitRuntimeCommand(std::move(press)));
@@ -307,15 +302,14 @@ void TestStagesAtTheTable() {
 	CHECK(internal::UnavailableStagesNow() == (std::vector<std::int64_t>{4, 5, 7}));
 	// Roll 4 is the fifth stage left: 6, where a roll over every stage would
 	// land on 4, which the opponent lacks.
-	internal::commands::Room random;
+	commands::Ready random;
 	random.stage = ember::test::CatalogRandomStage;
 	CHECK(internal::StageToSend(random, 4) == 6);
 	CHECK(internal::StageToSend(random, 0) == 0);
 	const auto ready = [&](int stage) {
-		facade::RuntimeCommand press{};
-		press.command.kind = netplay::CommandKind::Ready;
-		press.command.generation = r.runtime->controller.GetSnapshot().generation;
-		press.character.charaID = 1;
+		commands::Ready press;
+		press.generation = r.runtime->controller.GetSnapshot().generation;
+		press.pick.fighter = 1;
 		press.stage = stage;
 		r.runtime->readyFailure.clear();
 		CHECK(facade::SubmitRuntimeCommand(std::move(press)));
@@ -472,9 +466,9 @@ void TestHitboxesCapability() {
 	CHECK(!ember::game::Capabilities{}.hitboxes);
 	struct Lacking final : ember::ShellGame {
 		void FillView(const RuntimeSnapshot&, ui::ShellView&) override {}
-		bool StepSelection(const ui::ShellAction::SelectionStep&, const RuntimeSnapshot&) override { return false; }
+		bool StepSelection(const ui::SelectionStep&, const RuntimeSnapshot&) override { return false; }
 		void StartTraining(const RuntimeSnapshot&) override {}
-		void AddPick(facade::RuntimeCommand&) override {}
+		void AddPick(commands::Ready&) override {}
 		void DrawSelection(bool, const RuntimeSnapshot&) override {}
 	} lacking;
 	CHECK(!lacking.ShowHitboxes(true) && !lacking.ShowHitboxes(false));

@@ -245,8 +245,8 @@ fn reserve(
     }
     tx.execute(
         "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, creator_address, created_at,
-             connection_id, creator_region, own_delay, game)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+             connection_id, creator_region, own_delay, game, creator_area)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             room_id,
             command.name,
@@ -258,7 +258,8 @@ fn reserve(
             connection_id,
             command.region,
             own_delay,
-            command.game
+            command.game,
+            command.area.map(|area| area.as_str())
         ],
     )?;
     Ok(())

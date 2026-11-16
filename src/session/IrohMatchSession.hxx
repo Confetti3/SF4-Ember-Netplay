@@ -18,6 +18,18 @@ public:
 	IrohMatchSession(SessionClient& client, std::shared_ptr<IrohRoom> room, Clock clock = Clock());
 	~IrohMatchSession();
 	bool Tick(bool ggpoOwnsSocket = false);
+	// From Started the game has this long to enter the battle, load it and
+	// reach GGPO's RUNNING (GameRunning); past it Tick fails the match with
+	// match_start_timeout, and the runtime's abort ends the game for the whole
+	// table. Measured on 8 November, a game started about 10 s after its links
+	// were up: 6 to 9 s of loading on that PC, the slower peer's load and a
+	// sync. A slow hard disk can take two or three times that load, a fighter
+	// still leaving the last battle enters a second or two late, and P1 waits
+	// up to SpectatorPolicy::SyncDeadlineMs more for its spectators, so a
+	// healthy start stays well inside a minute while no stall lasts longer.
+	static constexpr ULONGLONG StartTimeoutMs = 60000;
+	// The game's GGPO session for this generation reached RUNNING: the start is over.
+	void GameRunning() { gameRunning_ = true; }
 	void End();
 	// Convert a failed setup into ordinary generation-scoped teardown. The
 	// caller invokes this after native GGPO has released its socket; unlike End,
@@ -95,6 +107,7 @@ private:
 	bool AcceptGrant(const nlohmann::json& message);
 	bool ControlReadyForSetup() const;
 	bool StartConnecting();
+	void EnterStarted();
 	bool StartQueuedSetup();
 	bool Acknowledge(const char* type, nlohmann::json extra = nlohmann::json::object());
 	bool FlushPendingAcks();
@@ -119,9 +132,13 @@ private:
 	bool pendingStart_ = false;
 	// Generation of a game_connect consumed while its grant was still staged.
 	std::uint64_t earlyConnectGeneration_ = 0;
+	// Until the game runs, the one deadline of whichever window is open: each
+	// setup window's (30 s, suspended through a room control outage) and then
+	// the start's (StartTimeoutMs).
 	ULONGLONG deadline_ = 0;
 	ULONGLONG deadlineRemaining_ = 0;
 	bool deadlineSuspended_ = false;
+	bool gameRunning_ = false;
 	// message is the whole acknowledgement; type and generation identify it.
 	struct PendingAck { std::string type; std::uint64_t generation = 0; nlohmann::json message; };
 	// Set when the authority's grant offers it. P1 then starts once its fighter

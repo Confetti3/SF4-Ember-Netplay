@@ -40,7 +40,8 @@ std::int64_t Now() {
 }
 Report Prepare(const Preparation& input, const Account& account, const std::function<bool()>& cancelled) {
     wchar_t sidecar[MAX_PATH] = {};
-    Metadata meta; meta.kind = input.crash ? "crash" : "problem";
+    Metadata meta; meta.kind = !input.crash ? "problem" : input.crash->startPhase.empty() ? "crash" : "start_failure";
+    if (input.crash) { meta.phase = input.crash->startPhase; meta.hint = input.crash->startHint; }
     meta.appVersion = SF4E_APP_VERSION; meta.sourceRevision = SF4E_SOURCE_REVISION;
     meta.channel = ReportChannel(input.channel);
     if (!install::ResolveInstallFile(ember::Product().gameModule, sidecar, MAX_PATH)) throw std::runtime_error("Sidecar missing");
@@ -304,7 +305,8 @@ WorkflowState ReportWorkflow::Execute(const Operation& operation, WorkflowState 
         if (isCancelled()) { cancel(); return state; }
         // Counted before the upload starts. A record that cannot be read
         // already stops every automatic send, so this one goes uncounted.
-        Record attempt; attempt.kind = state.preview->meta.kind; attempt.dump = outgoing->dump;
+        // The record of sent reports knows two kinds; a start failure is counted as a crash.
+        Record attempt; attempt.kind = state.preview->meta.kind == "problem" ? "problem" : "crash"; attempt.dump = outgoing->dump;
         const auto reservation = history->Reserve(attempt, false, Now());
         if (reservation == Reservation::Failed || reservation == Reservation::LimitReached) {
             state.phase = Phase::Failed; state.message = loc::T("reports.history_failed"); return state;

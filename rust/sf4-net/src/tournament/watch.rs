@@ -117,7 +117,7 @@ mod tests {
     use crate::{
         identity::Protection,
         tournament::{
-            Request,
+            Refusal, Request,
             builtin::Builtin,
             play::send_claim,
             test_support::{capabilities_server, shared_pinning},
@@ -309,7 +309,7 @@ mod tests {
             move |command: Value| async move {
                 sent.lock().unwrap().push(command.get("watch").cloned());
                 if fails {
-                    Err(Failure::Bridge("bridge_unavailable".into()))
+                    Err(Failure::Bridge(Refusal::Status(503)))
                 } else {
                     Ok(json!({}))
                 }

@@ -11,6 +11,7 @@
 #include "../common/StageCatalog.hxx"
 #include "../common/ProductIdentity.hxx"
 #include "ui_render_support.hxx"
+#include "shell_action_support.hxx"
 #include "ui_render_prompt_assets.hxx"
 #include <imgui_internal.h>
 #include <imgui_impl_dx9.h>
@@ -375,10 +376,14 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 
 #include "ui_render_public_rooms.hxx"
 #include "ui_render_rankings.hxx"
+#include "ui_render_profile.hxx"
+#include "ui_render_friends.hxx"
+#include "ui_render_player.hxx"
 #include "ui_render_match_hud.hxx"
 #include "ui_render_chat.hxx"
 #include "ui_render_latency.hxx"
 #include "ui_render_pictures.hxx"
+#include "ui_render_room_points.hxx"
 #include "ui_render_random_card.hxx"
 #include "ui_render_training.hxx"
 #include "ui_render_overlay.hxx"
@@ -386,7 +391,9 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_replays.hxx"
 #include "ui_render_custom_content.hxx"
 #include "ui_render_updates.hxx"
+#include "ui_render_news.hxx"
 #include "ui_render_replay_controls.hxx"
+#include "ui_render_camera_panel.hxx"
 #include "ui_render_reports.hxx"
 #include "ui_render_prompts.hxx"
 #include "ui_render_controllers.hxx"
@@ -693,7 +700,19 @@ int main(int argc, char** argv) {
         // UiRenderLocales run sweeps each translation at the tightest, the
         // commonest and a scaled size, which keeps both runs inside their timeouts.
         const char* localeRun = std::getenv("SF4E_UI_RENDER_LOCALES");
-        const bool translations = localeRun && std::string(localeRun) == "translations";
+        // "translations" sweeps every translation; "translations:N/M" only the
+        // Nth of M shares (1-based), so no one process rebuilds the atlas
+        // texture at new sizes more often than the D3D9 driver's address
+        // space allows (each new size leaves a reservation behind; 13
+        // languages x 3 sizes in one 32-bit process ran out).
+        const std::string localeMode = localeRun ? localeRun : "";
+        const bool translations = localeMode.rfind("translations", 0) == 0;
+        int shard = 1, shards = 1;
+        if (translations && localeMode.size() > 12 && localeMode[12] == ':' &&
+            (std::sscanf(localeMode.c_str() + 13, "%d/%d", &shard, &shards) != 2 || shards < 1 || shard < 1 || shard > shards)) {
+            std::fprintf(stderr, "SF4E_UI_RENDER_LOCALES=%s: expected translations or translations:N/M\n", localeMode.c_str());
+            return 2;
+        }
         // SF4E_UI_RENDER_QUICK=1 is for a quick look at a change: English at 1920x1080 only.
         const char* quickRun = std::getenv("SF4E_UI_RENDER_QUICK");
         const std::string quickMode = quickRun ? quickRun : "";
@@ -707,7 +726,7 @@ int main(int argc, char** argv) {
         bool galleryShown = false;
         const std::vector<Size> sizes = chosenW > 0 ? std::vector<Size>{{chosenW,chosenH,chosenScale}} : quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quickMode == "720" ? std::vector<Size>{{1280,720,1}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
-            std::vector<Size>{{1280,720,1}, {1280,800,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1.333f}, {3840,2160,2}, {3840,2160,3}, {1280,720,2}};
+            std::vector<Size>{{1280,720,1}, {1280,800,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1.333f}, {3840,2160,2}, {3840,2160,3}, {1280,720,2}, {1280,720,.7f}, {1920,1080,.7f}};
         std::printf("UI backend: %s\n", headless ? "headless ImGui geometry" :
             renderer.hardwareVertices ? "DX9" : "DX9, vertices on the CPU");
         int frames = 0;
@@ -727,7 +746,7 @@ int main(int argc, char** argv) {
         if(quick)localePasses={{"en",0}};
         else if(!translations)localePasses={{"en",0},{"pseudo",-1}};
         else for(int i=1;i<static_cast<int>(sf4e::loc::Locale::Count);++i)
-            localePasses.push_back({sf4e::loc::Tag(static_cast<sf4e::loc::Locale>(i)),i});
+            if((i-1)%shards==shard-1)localePasses.push_back({sf4e::loc::Tag(static_cast<sf4e::loc::Locale>(i)),i});
         for(const auto& localePass:localePasses) {
           if(localePass.locale<0)sf4e::loc::testing::SetPseudoActive();
           else sf4e::loc::SetActive(static_cast<sf4e::loc::Locale>(localePass.locale));
@@ -760,6 +779,7 @@ int main(int argc, char** argv) {
             matchStrip.links[0]=NetworkLink::Wired;matchStrip.links[1]=NetworkLink::Wireless;
             matchStrip.pingMs=68;matchStrip.rollbackFrames=2;matchStrip.appliedDelay=3;
             training::Command trainingCommand;
+            bool cameraAvailable=false;ui::ReplayBar cameraBar;
             bool acceptTraining=false,answerTickets=false,holdIdentity=false,overlayTooltip=false;
             std::uint64_t heldTicket=0;
             GameMenu recoveryMenu;recoveryMenu.navigation=RecoveryNavigation(false);ProblemReportPanel reportPanel;platform::ServiceSnapshot reportState;
@@ -772,18 +792,19 @@ int main(int argc, char** argv) {
                     renderer.NewFrame();ImGui::NewFrame();
                     if(mode==0)shell.Draw(view,&open,[&](ShellAction a){
                         // An identity request is answered at once, successfully.
-                        if(a.identity.op!=netplay::IdentityOp::None){
+                        if(const auto* identity=test::As<commands::Identity>(a)){
                             // Held: the helper has not answered, so a setup stays on its step until the shot answers by hand.
-                            if(holdIdentity){heldTicket=a.identity.ticket;return true;}
-                            view.identityTicket=a.identity.ticket;view.identityRequest=view.identity.requestId=view.identityTicket+1000;
+                            if(holdIdentity){heldTicket=identity->identity.ticket;return true;}
+                            view.identityTicket=identity->identity.ticket;view.identityRequest=view.identity.requestId=view.identityTicket+1000;
                             view.identity.ok=true;view.identity.failure.clear();return true;
                         }
-                        if(a.command.kind==netplay::CommandKind::SavePreferences&&view.settingsError.empty())view.preferences=a.preferences;
-                        if(a.replay.mode==replay::Mode::Export){if(refuseExports)return false;const auto& c=a.replay.caption;exportsStarted.push_back(a.replay.path+(c.set?" set "+std::to_string(c.wins[0])+"-"+std::to_string(c.wins[1]):""));}
+                        if(const auto* save=test::As<commands::SavePreferences>(a))if(view.settingsError.empty())view.preferences=save->preferences;
+                        if(const auto* r=test::As<commands::Replay>(a))if(r->replay.mode==replay::Mode::Export){if(refuseExports)return false;const auto& c=r->replay.caption;exportsStarted.push_back(r->replay.path+(c.set?" set "+std::to_string(c.wins[0])+"-"+std::to_string(c.wins[1]):""));}
                         // A public room's ticket is answered with an admission to the room it asked for.
-                        if(answerTickets&&a.tournament.op==netplay::tournament::Command::Op::RoomTicket){
-                            view.publicRooms.answered=a.tournament.request;view.publicRooms.failure.clear();
-                            view.publicRooms.admission.room.id=a.tournament.roomId;
+                        if(answerTickets&&test::TournamentIs(a,netplay::tournament::Command::Op::RoomTicket)){
+                            const auto& ticket=test::As<commands::Tournament>(a)->tournament;
+                            view.publicRooms.answered=ticket.request;view.publicRooms.failure.clear();
+                            view.publicRooms.admission.room.id=ticket.roomId;
                         }
                         return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool,selectorContent,false,&randomPick);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});
@@ -792,6 +813,7 @@ int main(int argc, char** argv) {
                     else if(mode!=0&&mode!=4) {
                         if(mode!=7)overlayLayers=OverlayRenderLayers(mode,matchStrip);
                         (void)DrawOverlayLayers(overlayLayers,training);
+                        DrawCameraPanel(cameraAvailable,true,{},cameraBar);
                         if(mode==9)DrawMatchKeysNotice({"training.match.checkpoint_disabled","training.match.end_hint"});
                         if(mode==10)DrawMatchKeysNotice({"runtime.watching_hint"});
                     }
@@ -839,7 +861,7 @@ int main(int argc, char** argv) {
                 std::string shot=screen;std::replace(shot.begin(),shot.end(),'/','-');draw(shot.c_str());};
             SetMenuGlyphs(3,0x40000,0x20000);
             ShootGameSettingsCard(view,draw);
-            for(const char* screen:{"home","profile","main-character","online","create","join","tab-player","player","tab-matches/defaults","tab-matches/training-replays","tab-interface/match-hud","tab-interface/room-layout","tab-access/speech","tab-access/text","tab-online/discord","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","tab-player","player","tab-matches/defaults","tab-matches/training-replays","tab-interface/match-hud","tab-interface/room-layout","tab-access/speech","tab-access/text","tab-online/discord","tab-online/friends","about"})page(screen);
             // A Settings panel reaches the right end of the tabs over it wherever it shows beside its rail (a narrow window shows the rail alone).
             {float tabsEnd=0;SetMenuCardProbe([&](const char* id,ImVec2,ImVec2 max){if(std::string(id)=="tabs")tabsEnd=max.x;});page("tab-access/text");SetMenuCardProbe({});
              if(!ui::v2::Narrow(FindWindow("EmberShell")->Size.x,ui::Scale())){const auto* rows=FindWindow("settings rows");
@@ -849,6 +871,9 @@ int main(int argc, char** argv) {
             ShootPadSetup(shell,view,draw,page);
             ShootReplays(shell,view,draw,page,exportsStarted,refuseExports);
             ShootVersionAndChannel(shell,view,draw,page);
+            // News: the hub with five release bodies at the update check's cap and with a very long title, at three Interface sizes on the two common screens, 0.70 included (ui_render_news.hxx).
+            // The two 0.70 sizes are swept there already (Interface size .7 at 1280x720 and 1920x1080), so they are not drawn again here.
+            if(size.dpi>=1.f)ShootNews(shell,view,draw,page,[&](float interfaceSize){if(ApplyTheme(size.dpi,interfaceSize))renderer.Invalidate();},size.dpi==1.f&&(size.w==1280||size.w==1920),size.w,size.h,size.dpi);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
             view.preferences.autoInputDelay=true;page("tab-matches/defaults");view.preferences.autoInputDelay=false;
             page("home");
@@ -959,6 +984,7 @@ int main(int argc, char** argv) {
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
             page("room");
             ShootRoomPictures(view,draw,page);
+            ShootRoomPoints(view,draw,page);
             ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
             ShootFlags(shell,view,art.get(),draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();});
@@ -1202,14 +1228,14 @@ int main(int argc, char** argv) {
                 page("tournament-matches");draw(nullptr,0,4);draw("tournament-matches-none");
                 // The tournament desk: the events, an event's sets as a queue and as
                 // its bracket, and a set that needs the organizer.
-                id.deskEvents={{"oev_1","Ember Weekly #13","running","challonge"}};id.deskEvent="oev_1";
-                netplay::DeskSet review;review.id="7";review.roundLabel="Losers Quarter-Final";review.phase="Top 8";review.side="losers";
-                review.round=-3;review.players[0]="Ashgrove";review.players[1]="Minnow";review.score[0]=review.score[1]=1;review.scored=true;
-                review.state="needs_review";review.matchId="emt_7";review.revision="4";review.calledAt=50;review.posted="posted";
+                id.deskEvents={{"t1","Ember Weekly #13","live"}};id.deskEvents[0].signedUp=8;id.deskEvent="t1";
+                netplay::DeskSet review;review.id="r1-3";review.roundLabel="Quarterfinals";
+                review.round=1;review.players[0]="Ashgrove";review.players[1]="Minnow";review.score[0]=review.score[1]=1;review.scored=true;
+                review.state="needs_review";review.matchId="emt_7";review.revision="4";
                 review.games={{"att_1","p1_win","accepted"},{"att_2","","review"}};
-                auto live=review;live.id="5";live.roundLabel="Winners Semi-Final";live.side="winners";live.round=2;
+                auto live=review;live.id="r2-1";live.roundLabel="Semifinals";live.round=2;
                 live.players[0]="Kuro";live.players[1]="Velvet";live.score[0]=2;live.state="playing";live.games.clear();
-                auto later=live;later.id="9";later.roundLabel="Grand Final";later.side="grand_final";later.round=4;
+                auto later=live;later.id="r3-1";later.roundLabel="Final";later.round=3;
                 later.players[0].clear();later.players[1].clear();later.scored=false;later.state="not_ready";later.matchId.clear();
                 id.deskSets={review,live,later};
                 page("tournament-desk");draw(nullptr,0,4);draw("tournament-desk");
@@ -1217,6 +1243,8 @@ int main(int argc, char** argv) {
                 draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
                 draw(nullptr,MenuInput::Select,1);draw(nullptr,0,4);draw("desk-event");
                 Require(shell.Navigation().Screen()=="desk-event","The desk's event did not open");
+                // Past its state and sign-ups to the view.
+                for(int i=0;i<2;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
                 draw(nullptr,MenuInput::Right,1);draw(nullptr,0,2);draw("desk-bracket");
                 draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
                 for(int i=0;i<2;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
@@ -1228,6 +1256,12 @@ int main(int argc, char** argv) {
                 ShootPublicRooms(shell,view,draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();},answerTickets,holdIdentity,heldTicket);
                 // Rankings: your class in each state and the board by class (ui_render_rankings.hxx).
                 ShootRankings(shell,view,draw,page);
+                // Profile: the Card and Fighters tabs in each state of the levels (ui_render_profile.hxx).
+                ShootProfile(shell,view,draw,page);
+                // Friends: the tab in each state, its pages, More and the visit question (ui_render_friends.hxx).
+                ShootFriends(shell,view,draw,page);
+                // Another player's profile: the Card tab in each state, the pick list and their other tabs (ui_render_player.hxx).
+                ShootPlayer(shell,view,draw,page);
                 view.preferences.roomPublic=true;view.preferences.roomName="Open Mic";shell.Navigation().Home();draw(nullptr,0,4);
                 page("create");draw(nullptr,0,8);draw("create-public");
                 view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;
@@ -1264,6 +1298,7 @@ int main(int argc, char** argv) {
             ShootTraining(training,fighters,trainingCommand,acceptTraining,mode,size,draw,io,[&](float dpi){ApplyTheme(dpi);renderer.Invalidate();});
             CheckOverlayVisibility(training,overlayLayers,overlayTooltip,mode,draw);
             ShootReplayControls(training,overlayLayers,mode,size.h,draw);
+            ShootCameraPanel(cameraAvailable,cameraBar,mode,draw);
             ShootTrainingRoom(training,overlayLayers,mode,size,draw);
             mode=3;draw("match-hud");
             ShootMatchHud(matchStrip,draw,[&]{renderer.Invalidate();});

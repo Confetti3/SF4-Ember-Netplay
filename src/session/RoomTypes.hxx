@@ -138,18 +138,55 @@ enum class ActionKind : std::uint8_t {
 	// The host turns the room's Wired players only rule on (Action::wiredOnly)
 	// or off. Appended so older authorities reject it as an unknown kind.
 	SetWiredOnly,
+	// A fighter's answer to the post-match prompt over the WIN
+	// (Action::postMatch, for the game Action::matchGeneration and
+	// Action::game), told to the room as it is made so the opponent's prompt
+	// shows it at once. It binds nobody: the Ready, the leaving and the seat
+	// are the room's own. Only the same build shares a room (the guest's
+	// sidecarHash must equal the host's), so every peer knows the kind.
+	PostMatchAnswer,
+	// The host of a private room hides it from the friends of its members
+	// (Action::friendsHidden) or shows it to them again. Appended so older
+	// authorities reject it as an unknown kind.
+	SetFriendsHidden,
 	// The host turns the room's Tiny fighters allowed rule on (Action::tinyFighters)
-	// or off. A look-only rule that gates no seat. Appended last, so no kind moves.
+	// or off. A look-only rule that gates no seat. Appended after 1.6.0's kinds, so none of SF4's moves.
 	SetTinyFighters,
 	// The host of a private room turns the room's Skip winner scenes rule on
-	// (the default) or off (Action::skipScenes). Appended last, so no kind moves.
+	// (the default) or off (Action::skipScenes). Appended after 1.6.0's kinds, so none of SF4's moves.
 	SetSkipScenes,
 	// The host of a private room replaces the room's Banned stages rule
-	// (Action::bannedStages; empty bans none). Appended last, so no kind moves.
+	// (Action::bannedStages; empty bans none). Appended after 1.6.0's kinds, so none of SF4's moves.
 	SetBannedStages,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
 constexpr ActionKind LastActionKind = ActionKind::SetBannedStages;
+
+// A presence word: a member's own state, said by the runtime and compared with
+// what the room's snapshot shows of the member, so a word that was lost or
+// refused is said again. It binds nobody, and the client shows no error for
+// its refusal. The next one is one line here.
+constexpr bool IsPresence(ActionKind kind) {
+	return kind == ActionKind::SetTraining || kind == ActionKind::Typing || kind == ActionKind::PostMatchAnswer;
+}
+
+// What a fighter has answered the post-match prompt of one game.
+enum class PostMatchWord : std::uint8_t { None = 0, Rematch, FighterSelect, Back };
+constexpr PostMatchWord LastPostMatchWord = PostMatchWord::Back;
+
+// A fighter's answer as the shell wants it said (PostMatchAnswer): the word
+// for the game it answers, named by the table, the match's generation and its
+// place in the battle. Not active without a generation. The runtime keeps the
+// latest and says it until the room shows it (PostMatchShown).
+struct PostMatchSaid {
+	PostMatchWord word = PostMatchWord::None;
+	std::uint8_t table = 0;
+	std::uint64_t generation = 0;
+	std::uint32_t game = 0;
+	bool Active() const { return generation != 0; }
+	bool operator==(const PostMatchSaid& o) const { return word == o.word && table == o.table && generation == o.generation && game == o.game; }
+	bool operator!=(const PostMatchSaid& o) const { return !(*this == o); }
+};
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -192,7 +229,7 @@ struct MemberProfile {
 	NatClass nat = NatClass::Unknown;
 	// Server-owned rooms only, from the room's ticket (Admission.hxx): the
 	// Ember ID a kick and a duplicate join are keyed on, which is never part of
-	// a snapshot, and the player's class, which is.
+	// a snapshot, and the player's class and card token, which are.
 	Admission admission;
 	// The player's Steam profile, only when they chose to show it to the room;
 	// none otherwise.
@@ -300,6 +337,10 @@ struct Member {
     // joined (MemberProfile::missingStages). Written only when not empty, so
     // a room of copies that miss nothing, SF4's every room, keeps its form.
     std::vector<std::int64_t> missingStages;
+    // The card token in that ticket (FIGHTER_LEVELS.md), which members ask the
+    // bridge for this player's card with; none in a private room and for a
+    // member whose ticket had none.
+    CardToken card;
     // The selected delay belongs to this fighter until Ready captures it.
     // Values are deliberately bounded by Action deserialization
     // (0..InputDelayWireCeiling); the authority records at most MaximumInputDelay.
@@ -314,6 +355,13 @@ struct Member {
     // ends by their word, or when a game of theirs starts. Optional on the
     // wire and written only when set, so a state without it reads as before.
     bool training = false;
+    // The member's answer to the post-match prompt of one game of one match
+    // (PostMatchAnswer): shown while that game's prompt is open, and read as
+    // none for any other game. Optional on the wire and written only when set.
+    // Presence, like typing: it moves no room revision (ApplyPostMatchAnswer).
+    PostMatchWord postMatch = PostMatchWord::None;
+    std::uint64_t postMatchGeneration = 0;
+    std::uint32_t postMatchGame = 0;
     // Seconds since the member last did anything in the room (joined, sent a
     // room action, showed a fighter), as of the moment the snapshot was sent;
     // a member in a game counts as active. Stamped per recipient when sent,
@@ -329,6 +377,53 @@ struct Member {
     std::uint16_t setsWon = 0;
     std::uint16_t setsLost = 0;
 };
+
+// Whether the room already shows `said` as `member`'s answer. None is shown by
+// no answer at all (the authority keeps none with no game).
+inline bool PostMatchShown(const Member& member, const PostMatchSaid& said) {
+	if (said.word == PostMatchWord::None) return member.postMatch == PostMatchWord::None;
+	return member.postMatch == said.word && member.postMatchGeneration == said.generation && member.postMatchGame == said.game;
+}
+
+// How this PC can tell the room its answer now: not at all while the game is off or room
+// control is down (Off); while it is still applying the room's commits (CatchingUp), its own
+// snapshot may not show a word the room already took, and every word said again is another
+// commit for a room that is already ahead of it; once it has applied them all (Current).
+enum class PostMatchLink : std::uint8_t { Off, CatchingUp, Current };
+
+// What this PC last told the room: the word, when, and under which authority term.
+struct PostMatchSay {
+	PostMatchSaid said;
+	std::uint64_t atMs = 0;
+	std::uint64_t term = 0;
+};
+
+// Whether the runtime says `wanted` to the room now (SayPostMatch), as `member` is shown in
+// the room's own snapshot (null with no room): never while the link is Off or the room already
+// shows it; at once for a word not said yet, or said under another authority term (a new
+// leader may have dropped the proposal that carried it); then again until the room shows it,
+// each second while this PC is Current and every PostMatchCatchUpResendMs while it is
+// CatchingUp. A member can stay behind for at most MaximumParkedCommits (48) commits before
+// its room fails, about 8 s in the busiest room (SessionRecovery.hxx), so a lost word is said
+// again at most twice in that time instead of 8, which is no amplification of the backlog.
+// Not once the shell stops wanting one (not Active).
+constexpr std::uint64_t PostMatchResendMs = 1000;
+constexpr std::uint64_t PostMatchCatchUpResendMs = 5000;
+inline bool PostMatchDue(const PostMatchSaid& wanted, const PostMatchSay& last, std::uint64_t nowMs,
+	std::uint64_t term, PostMatchLink link, const Member* member) {
+	if (!wanted.Active() || link == PostMatchLink::Off || !member || PostMatchShown(*member, wanted)) return false;
+	if (wanted != last.said || term != last.term) return true;
+	return nowMs - last.atMs >= (link == PostMatchLink::Current ? PostMatchResendMs : PostMatchCatchUpResendMs);
+}
+
+// Whether the runtime says a Typing word now (SayTyping), as `member` is shown in the room's own
+// snapshot (null with no room): a start at once and each TypingResendMs, a stop only while the
+// snapshot still shows them typing (a line they sent already ended it, ApplyChat).
+constexpr std::uint64_t TypingResendMs = 3000;
+inline bool TypingDue(bool typing, std::uint64_t lastSaidAtMs, std::uint64_t nowMs, const Member* member) {
+	if (typing) return !lastSaidAtMs || nowMs - lastSaidAtMs >= TypingResendMs;
+	return lastSaidAtMs && member && member->typingMs;
+}
 
 // The set a table finished last: who sat where for its deciding game, and the
 // final score by seat. The score itself resets for the next set.
@@ -380,7 +475,7 @@ struct Table {
 	std::uint32_t streak = 0;
 	bool resultPending = false;
 	// An Arcade room's pair after a set that nobody waited alone for, with
-	// others at the cabinets (Snapshot::arcade): each fighter's Rematch so
+	// others at the cabinets (Snapshot::type): each fighter's Rematch so
 	// far. Nobody readies until both chose it; New opponent from either
 	// parts the pair.
 	bool deciding = false;
@@ -420,6 +515,27 @@ struct ChatMessage {
 	std::uint64_t sequence = 0;
 	MemberId sender = 0;
 	std::string text;
+};
+
+// What a room is created as: the choices made on Create, or the closed room's
+// for its replacement (CharterOf). RoomAuthority starts the room's Snapshot
+// with them. type, practice and delayPolicy are the room's for its life;
+// tableCount (out of range: the type's DefaultTableCount) and wiredOnly are
+// where it starts, which its host can change (SetTableCount, SetWiredOnly);
+// friendsHidden is where a private room starts (SetFriendsHidden), and so are
+// a private room's game rules tinyFighters, skipScenes and bannedStages
+// (SetTinyFighters, SetSkipScenes, SetBannedStages), which only a game that
+// offers them sets (Capabilities).
+struct Charter {
+	RoomType type = RoomType::Classic;
+	bool practice = false;
+	DelayPolicy delayPolicy = DelayPolicy::Shared;
+	std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount);
+	bool wiredOnly = false;
+	bool friendsHidden = false;
+	bool tinyFighters = false;
+	bool skipScenes = true;
+	std::vector<std::int64_t> bannedStages;
 };
 
 struct Snapshot {
@@ -470,17 +586,24 @@ struct Snapshot {
 	// does not offer it (Capabilities::bannedStages) never reads it. Serialized
 	// only when not empty.
 	std::vector<std::int64_t> bannedStages;
+	// A private room its members' friends are not shown: they see "In a private
+	// room" and are handed no invitation. Chosen when the room is created and
+	// changed by its host (SetFriendsHidden), never in a room its server owns or
+	// a match room. Serialized only when true.
+	bool friendsHidden = false;
 	// The room's type (RoomType), fixed for its life. In an Arcade or King of
 	// the hill room a member sits at any free cabinet and plays the player who
 	// has waited longest, at whichever table is free: a table is a pair, not a
-	// place. Its rules are the room's, set when it is created. Serialized only
-	// when not Classic, with the three fields below.
-	RoomType arcade = ClassicRoom;
-	// How many tables a Classic room plays at, the first ones (TablesInPlay):
-	// chosen when it is created and changed by its host (SetTableCount). An
-	// Arcade or King of the hill room plays at all of them whatever this says.
-	// Serialized only when not ClassicTableCount, so a room at the default
-	// has the wire form it had before.
+	// place. Its rules are the room's, set when it is created. What each type
+	// allows is RulesOf's (RoomQueries.hxx). Serialized as "arcade", only when
+	// not Classic, with the cabinet fields below.
+	RoomType type = RoomType::Classic;
+	// How many tables a room plays at, the first ones (TablesInPlay): chosen
+	// when it is created and changed by a private room's host (SetTableCount).
+	// An Arcade or King of the hill room's pairs play there, and whoever finds
+	// no seat at them waits in line.
+	// Serialized only when not its type's DefaultTableCount, so a room at the
+	// default has the wire form it had before.
 	std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount);
 	// Who sits at each cabinet (0: free), the sets each has won in a row in
 	// King of the hill, and its top slot: the cabinet with the longest current
@@ -488,6 +611,9 @@ struct Snapshot {
 	// beats them.
 	std::array<MemberId, CabinetCount> cabinets = {};
 	std::array<std::uint16_t, CabinetCount> streaks = {};
+	// An Arcade room's line, front first: cabinet holders at no table because
+	// every table in play is a pair. Empty while any table has room.
+	std::vector<MemberId> line;
 	std::int8_t topSlot = -1;
 	MemberId host = 0;
 	MemberId localMember = 0;
@@ -533,6 +659,8 @@ struct Action {
 	bool inTraining = false;
 	// Typing: the member is typing in chat. Travels as "locked" too.
 	bool typing = false;
+	// PostMatchAnswer: the fighter's answer. Written only when set.
+	PostMatchWord postMatch = PostMatchWord::None;
 	MatchResult result = MatchResult::Abort;
 	std::uint64_t matchGeneration = 0;
 	std::uint8_t inputDelay = 2;
@@ -547,12 +675,12 @@ struct Action {
 	// lock-in does not. A player's own Stop watching never sets it.
 	bool keepWatching = false;
 	// RecordResult: games of this match played before the reported one in
-	// the same battle, and whether a rematch in place followed it (the match
-	// stays open). Written only when set.
+	// the same battle (at most MaximumGameInBattle), and whether a rematch in
+	// place followed it (the match stays open). Written only when set.
 	std::uint32_t game = 0;
 	bool continued = false;
 	// SetRoomType: the type. Written only when set.
-	RoomType roomType = ClassicRoom;
+	RoomType roomType = RoomType::Classic;
 	// SetTableCount: the count. Written only when set.
 	std::uint8_t tableCount = 0;
 	// SetWiredOnly: the rule on. Written only when set.
@@ -563,6 +691,8 @@ struct Action {
 	bool skipScenes = true;
 	// SetBannedStages: the whole new set. Written only when not empty.
 	std::vector<std::int64_t> bannedStages;
+	// SetFriendsHidden: the setting on. Written only when set.
+	bool friendsHidden = false;
 };
 
 struct Event {

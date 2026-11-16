@@ -86,6 +86,34 @@ inline bool IsCrashExit(uint32_t code) {
 	return (code & 0xF0000000u) == 0xC0000000u || code == 0xE06D7363u || code == 3 || code == 255;
 }
 
+// How far the game's start-up had got when the process ended, as the launcher
+// saw it: Sidecar signals the launcher once it is running in the game.
+enum class StartPhase { None, BeforeSignal, AfterSignal };
+
+// The game's C runtime ends a failed start-up with _exit(255). Within this
+// long after Sidecar's signal such an exit is still the start-up failing, not
+// the game crashing while it ran.
+constexpr uint64_t StartFailureWindowMs = 3000;
+
+// None unless the game ended with the start-failure exit code during
+// start-up: before the signal (`endedBeforeSignal`), or within
+// StartFailureWindowMs of it (`msSinceSignal`, when `signalled`).
+inline StartPhase ClassifyStartFailure(uint32_t exitCode, bool endedBeforeSignal, bool signalled, uint64_t msSinceSignal) {
+	if (exitCode != 255) return StartPhase::None;
+	if (endedBeforeSignal) return StartPhase::BeforeSignal;
+	if (signalled && msSinceSignal <= StartFailureWindowMs) return StartPhase::AfterSignal;
+	return StartPhase::None;
+}
+
+// The phase as the report's `phase` field names it; "" for None.
+inline const char* StartPhaseName(StartPhase phase) {
+	switch (phase) {
+	case StartPhase::BeforeSignal: return "before_signal";
+	case StartPhase::AfterSignal: return "after_signal";
+	default: return "";
+	}
+}
+
 struct CrashFacts {
 	const char* kind;         // unhandled_exception, heap_corruption, ggpo_assertion, terminate, purecall, invalid_parameter, exit
 	uint32_t code;            // exception code, or 0
@@ -106,6 +134,43 @@ inline size_t FormatCrashHeader(char* out, size_t size, const CrashFacts& facts)
 		(unsigned long long)facts.moduleOffset, facts.threadId, facts.message ? facts.message : "");
 	if (written < 0) { out[0] = '\0'; return 0; }
 	return (size_t)written < size ? (size_t)written : size - 1;
+}
+
+// The 32-bit registers at the fault.
+struct CrashRegisters {
+	uint32_t eax, ebx, ecx, edx, esi, edi, ebp, esp, eip;
+};
+
+// One line, terminated, cut to `size`. Returns the length written.
+inline size_t FormatRegisters(char* out, size_t size, const CrashRegisters& r) {
+	if (!out || !size) return 0;
+	const int written = snprintf(out, size,
+		"registers: eax=0x%08X ebx=0x%08X ecx=0x%08X edx=0x%08X esi=0x%08X edi=0x%08X ebp=0x%08X esp=0x%08X eip=0x%08X\n",
+		r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp, r.esp, r.eip);
+	if (written < 0) { out[0] = '\0'; return 0; }
+	return (size_t)written < size ? (size_t)written : size - 1;
+}
+
+// The code bytes at the faulting instruction as one terminated line, cut to
+// `size`: "code at 0x<address>: 8B 40 10 ...", or "unreadable" when none could
+// be read. Returns the length written.
+inline size_t FormatCodeBytes(char* out, size_t size, uint64_t address, const uint8_t* bytes, size_t count) {
+	if (!out || !size) return 0;
+	int written = snprintf(out, size, "code at 0x%08llX:", (unsigned long long)address);
+	if (written < 0) { out[0] = '\0'; return 0; }
+	size_t length = (size_t)written < size ? (size_t)written : size - 1;
+	if (!bytes || !count) {
+		written = snprintf(out + length, size - length, " unreadable");
+		if (written > 0) length += (size_t)written < size - length ? (size_t)written : size - length - 1;
+	}
+	for (size_t i = 0; bytes && i < count; ++i) {
+		written = snprintf(out + length, size - length, " %02X", bytes[i]);
+		if (written < 0 || (size_t)written >= size - length) break;
+		length += (size_t)written;
+	}
+	if (length + 1 < size) { out[length++] = '\n'; out[length] = '\0'; }
+	else { out[size - 1] = '\0'; length = size - 1; }
+	return length;
 }
 
 // True when the 7 bytes before a return address end in an x86 call: E8

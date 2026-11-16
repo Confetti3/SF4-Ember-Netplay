@@ -7,17 +7,18 @@ namespace sf4e { namespace room {
 using namespace detail;
 
 
-RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy, RoomType arcade, std::uint8_t tableCount, bool wiredOnly, bool tinyFighters, bool skipScenes, std::vector<std::int64_t> bannedStages) {
+RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, Charter charter) {
 	snapshot_.protocolVersion = ProtocolVersion;
-	snapshot_.practice = practice;
-	snapshot_.wiredOnly = wiredOnly;
-	snapshot_.tinyFighters = tinyFighters;
-	snapshot_.skipScenes = skipScenes;
-	snapshot_.bannedStages = BannedStagesFrom(std::move(bannedStages));
-	snapshot_.arcade = arcade;
-	snapshot_.tableCount = InRange<std::uint8_t>(tableCount, 1, static_cast<std::uint8_t>(TableCount))
-		? tableCount : static_cast<std::uint8_t>(ClassicTableCount);
-	snapshot_.delayPolicy = delayPolicy;
+	snapshot_.practice = charter.practice;
+	snapshot_.wiredOnly = charter.wiredOnly;
+	snapshot_.friendsHidden = charter.friendsHidden;
+	snapshot_.tinyFighters = charter.tinyFighters;
+	snapshot_.skipScenes = charter.skipScenes;
+	snapshot_.bannedStages = BannedStagesFrom(charter.bannedStages);
+	snapshot_.type = charter.type;
+	snapshot_.tableCount = InRange<std::uint8_t>(charter.tableCount, 1, static_cast<std::uint8_t>(TableCount))
+		? charter.tableCount : DefaultTableCount(charter.type);
+	snapshot_.delayPolicy = charter.delayPolicy;
 	snapshot_.roomEpoch = roomEpoch == 0 ? 1 : roomEpoch;
 	snapshot_.name = (!name.empty() && name.size() <= MaximumRoomNameBytes && IsValidUtf8(name) && IsSingleLineText(name))
 		? std::move(name) : std::string("Private room");
@@ -50,7 +51,8 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member, bool withChat) const {
 		result.tinyFighters = snapshot_.tinyFighters;
 		result.skipScenes = snapshot_.skipScenes;
 		result.bannedStages = snapshot_.bannedStages;
-		result.arcade = snapshot_.arcade;
+		result.friendsHidden = snapshot_.friendsHidden;
+		result.type = snapshot_.type;
 		result.tableCount = snapshot_.tableCount;
 		result.cabinets = snapshot_.cabinets;
 		result.streaks = snapshot_.streaks;
@@ -271,8 +273,9 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.nat = NatClassFromWire(static_cast<long long>(profile.nat));
 	member.steamId = profile.steamId;
 	member.country = profile.country;
+	// Only a server-owned room has a ticket to vouch for a class or a card.
+	if (snapshot_.serverOwned) { member.badge = profile.admission.badge; member.card = profile.admission.card; }
 	member.missingStages = profile.missingStages;
-	member.badge = profile.admission.badge;
 	member.connection = connection;
 	member.host = snapshot_.host == 0 || host;
 	member.joinOrder = nextJoinOrder_++;
@@ -384,7 +387,7 @@ void RoomAuthority::CompleteSet(Table& table, int winnerSeat) {
 	if (auto* member = Find(winner)) count(member->setsWon);
 	if (auto* member = Find(loser)) count(member->setsLost);
 	// Rules::winnerKeepsFighter: the winner keeps the fighter and edition they won with.
-	const Member* kept = snapshot_.arcade && table.rules.winnerKeepsFighter ? Find(winner) : nullptr;
+	const Member* kept = RulesOf(snapshot_).keeperOption && table.rules.winnerKeepsFighter ? Find(winner) : nullptr;
 	table.keeper = kept && kept->fighter >= 0 ? winner : 0;
 	table.keptFighter = table.keeper ? kept->fighter : -1;
 	table.keptEdition = table.keeper ? kept->edition : -1;
@@ -395,7 +398,7 @@ void RoomAuthority::CompleteSet(Table& table, int winnerSeat) {
 		table.streak = 1;
 	}
 	table.score[0] = table.score[1] = 0;
-	if (snapshot_.arcade) { ArcadeSetEnded(table, winner, loser); return; }
+	if (RulesOf(snapshot_).cabinets) { ArcadeSetEnded(table, winner, loser); return; }
 	// A tournament set has no queue to rotate: the bridge decides what comes
 	// next, and the same two fighters stay seated by slot.
 	if (BoundTable(table)) return;
@@ -445,6 +448,9 @@ void RoomAuthority::CloseLiveGeneration(Table& table) {
 }
 
 void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
+	// The cabinet goes first, so the room seats those left (ArcadeVacated)
+	// knowing who is still at the cabinets.
+	if (RulesOf(snapshot_).cabinets) StandUp(member);
 	for (auto& table : snapshot_.tables) {
 		bool changed = false;
 		bool queueChanged = false;
@@ -486,11 +492,10 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 			Touch(table);
 			SeatQueued(table);
 			NormalizeTableMembers(table);
-			if (snapshot_.arcade) ArcadeVacated(table, member);
+			if (RulesOf(snapshot_).cabinets) ArcadeVacated(table, member);
 		} else if (queueChanged) Touch(table);
 		else if (spectatorsChanged) TouchSpectators(table);
 	}
-	if (snapshot_.arcade) StandUp(member);
 	NormalizeMemberStatus(member);
 }
 
@@ -656,7 +661,7 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2,
 	return Accept(std::move(events));
 }
 
-Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, MatchResult result) {
+Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, MatchResult result, std::uint32_t game) {
 	Table* table = FindTable(tableId);
 	if (!table) return Reject(RejectReason::UnknownTable);
 	if ((table->phase != TablePhase::Playing && table->phase != TablePhase::Paused) || table->matchGeneration != generation) return Reject(RejectReason::WrongGeneration);
@@ -674,7 +679,7 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	// ledger is backpressure, so a failed EndMatch must leave the live table
 	// untouched and retryable.
 	if (!StoreTerminalReceipt(tableId, *table, result)) return Reject(RejectReason::TerminalLedgerFull);
-	RecordWonGame(tableId, *table, result);
+	RecordWonGame(tableId, *table, result, game);
 	if (result == MatchResult::P1Win) ++table->score[0];
 	else if (result == MatchResult::P2Win) ++table->score[1];
 	const auto generationValue = table->matchGeneration;

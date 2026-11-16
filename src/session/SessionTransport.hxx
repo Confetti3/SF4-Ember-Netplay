@@ -20,6 +20,11 @@ enum class ConnectionState { Connecting, Connected, Closed, Failed };
 
 struct EffectEnvelope; // SessionRecovery.hxx
 
+// Room state that the next message of its kind for the same member replaces
+// (RoomMessageQueue.hxx): a committed room_snapshot, with the room chat or
+// saying chat_unchanged, or a table's data_update.
+enum class RoomProjection : std::uint8_t { None, Snapshot, SnapshotWithChat, TableData };
+
 // What the edge that queued a room message read from its one parse, so the
 // room queues and the session layer read this instead of parsing again. A
 // transport that does not classify leaves `classified` false, and every
@@ -37,6 +42,10 @@ struct MessageTag {
 	bool roomAction = false;
 	std::uint8_t actionKind = 0;
 	std::uint32_t protocolVersion = 0;
+	// A committed effect's token as read where it was queued, before the
+	// effect gate checks it at the queue head: zero when it does not read.
+	std::uint64_t commitTerm = 0, commitRevision = 0, commitSequence = 0, commitRecipient = 0;
+	RoomProjection projection = RoomProjection::None;
 };
 
 // Transport-owned IDs are opaque to the lobby. A transport must not reuse an

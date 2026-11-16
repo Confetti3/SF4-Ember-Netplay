@@ -24,6 +24,16 @@ checkpoints; it does not replace v1 until it has demonstrated reliability.
   replay that keeps positions and health but reaches a move or its active
   frames on a different frame now shows up as a character mismatch. Hitbox
   geometry and the evolving RNG are still not hashed.
+- **Cody's knife** (inside each per-character hash, zero for other fighters):
+  the knife's state (0 in his hand or not out, 1 flying, 2 on the ground) and
+  its x while it is out, read from the knife item the actor's item index
+  names (`common/CodyKnife.hxx`). Both are gameplay inputs to the pickup and
+  are saved by the knife's own memento. Without them a knife that lands
+  somewhere else on one PC is silent until Cody next reaches for it, and then
+  shows only as a different move. They count only from the first frame of a
+  round's FIGHT flow on: every FIGHT follows a ROUND_START, which drops the
+  knife at a fixed spot, while before it the item can hold values left from an
+  earlier battle that the two PCs need not share.
 - **overall** = hash of the three subsystem hashes.
 
 ## Explicitly excluded (do not add without a determinism argument)

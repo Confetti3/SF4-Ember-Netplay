@@ -124,7 +124,7 @@ bool StartMenu();
 void TickMenu(bool atMainMenu);
 
 // The cells the meter draws for one side, by kind.
-struct Cells { int startup = 0, active = 0, recovery = 0; };
+struct Cells { int startup = 0, active = 0, recovery = 0; std::array<int, 3> invincible{}; };
 inline Cells CountCells(const training::MeterView& meter, int side) {
 	Cells cells;
 	for (const auto& frame : meter.frames) {
@@ -132,6 +132,7 @@ inline Cells CountCells(const training::MeterView& meter, int side) {
 		cells.startup += kind == training::MeterKind::Startup;
 		cells.active += kind == training::MeterKind::Active;
 		cells.recovery += kind == training::MeterKind::Recovery;
+		cells.invincible[static_cast<int>(frame.cells[side].invincibility)]++;
 	}
 	return cells;
 }

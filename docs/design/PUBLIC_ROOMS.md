@@ -102,20 +102,21 @@ pub struct RoomSummary {
     pub members: u8,
     pub capacity: u8,           // 2..=16
     pub tables_playing: u8,
-    pub region: String,         // the creator's relay region code, e.g. "use1", else the host's
+    pub region: String,         // the creator's relay code, e.g. "use1", else the host's: routing, never a place
+    pub area: Option<String>,   // where the creator plays from ("naw" ...), when they said; written only then
     pub created_at: u64,
     pub own_delay: bool,        // each fighter plays at their own input delay; written only when true
     pub game: String,           // "usf4" or "sfv"; written only when not "usf4"
 }
 ```
 
-`POST /v1/rooms` with `CreateRoom { name, capacity, build_id, region?, game? }` returns
+`POST /v1/rooms` with `CreateRoom { name, capacity, build_id, region?, area?, game? }` returns
 the new room's `RoomSummary` (201). The creator then asks for a ticket like any
-joiner. `region` is the creator's home relay region (`use1`, `usw1`, `euc1` or
+joiner. `region` is the creator's home relay code (`use1`, `usw1`, `euc1` or
 `aps1`), which the helper sends when it has a known one; anything else is
 refused as an invalid request. Matches are played player to player, so the
-listing shows the creator's region, and the room host's own only for a room
-created without one. The bridge keeps the host's region apart (`rooms.region`,
+listing gives the creator's relay, and the room host's own only for a room
+created without one. The bridge keeps the host's relay apart (`rooms.region`,
 set once the room is hosted) for its own bookkeeping. Refusals: `room_limit` (the caller already owns a room, or
 the address or the server is at its limit), `unsupported_build` (no room host
 for that build), `invalid_name`.
@@ -147,14 +148,19 @@ open to every connection. The client decodes it leniently with the other
 details: a value that is not a boolean is ignored.
 
 The Public rooms list is filtered on the client, from the rooms the listing
-returns: by region (every region, near this PC's home relay, or one relay
-region), by room type (Classic, Arcade or King of the hill; a room that sent no
+returns: by area (every area, Near me: the player's own area and the ones next
+to it, or one area; a room without an area shows only under every area), by
+room type (Classic, Arcade or King of the hill; a room that sent no
 type shows only when every type is allowed), by open seats, and by wired-only
 rooms. The list shows one Filters row that summarises what is on; Select opens a page
 (`public-filters`) with the four values and Clear filters. The filter is saved with the player's preferences (`roomFilter` in the
-netplay section); a saved region that is no longer one of the relay regions
-loads as every region. Quick join takes the first room the filter lists, in the
-player's region unless the filter names one. Nothing is sent to the bridge.
+netplay section); a saved place that is not an area (a relay code saved
+before areas, or the US West no build could report) loads as every area.
+Quick join takes the first room the filter lists, a room near the player's area
+first unless the filter names one, then any room the filter lists (a room with no
+area is near no one: the bridge may not list areas, or its creator hid it). Near me is
+not offered while no listed room names an area, and then lists every room. Nothing is
+sent to the bridge.
 
 `POST /v1/rooms/{room_id}/tickets` with `TicketRequest { endpoint_id, build_id, game? }`
 returns `RoomAdmission`. Refusals: `room_not_found`, `room_not_open`,
@@ -230,6 +236,41 @@ Build IDs are any printable ASCII up to 128 bytes everywhere a build ID is
 checked (protocol, bridge, supervisor, room host). SF4 Ember's is a 64-hex
 SHA-256; SFV Ember's has slashes (`sfv-ember/13173604/0.2/8dafe602f7615d90`)
 and is percent-encoded in a query.
+### Where a room is
+
+A relay code is how a PC connects, not where its player is: relays are chosen
+for reachability and are sticky, and Ember's only relay in the Americas is in
+Kansas, so a player in Seattle and one in Montevideo both connect through
+`use1`. A room's place is its creator's area instead (`ember_protocol::area`,
+`src/common/Area.hxx`): one of twelve coarse areas (NA West, NA Central, NA
+East, Central America & Caribbean, South America, Europe West, Europe East,
+Middle East & Africa, South Asia, East Asia, South-East Asia, Oceania), the
+player's own claim. Settings, Country and area, holds it: Automatic, from
+Windows' time zone with Windows' country as the tie-break
+(`AreaFromWindows`), an area the player picked, or Hidden. No network lookup
+is made for it.
+
+`CreateRoom::area` carries it, and the bridge keeps it in `rooms.creator_area`
+(migration 066) and lists it as `RoomSummary::area` in every listing, the
+web rooms page's included. A creator who hid it, or a build from before
+areas, gives none, and the room has no place. The bridge lists the
+`room_area` capability (`rooms::AREA_FEATURE`), and a helper sends `area`
+only to a bridge that lists it, since an older one refuses the field; so a
+new client against an old bridge still creates rooms, and the bridge must be
+deployed first only for areas to show. The relay code keeps travelling in
+`region` exactly as before, so Stable 1.5.7 builds, which send and read only
+`region` and ignore summary fields they do not know, list and join
+unchanged. A listing's area code a client does not know reads as none.
+
+The Public rooms list shows a room's area on its card ("Ken · NA West"),
+names no place for a room without one, and marks a room "Near you" when it is
+in the player's own area or one next to it (`areas::Neighbours`, one
+symmetric table). The sort puts joinable rooms first, then the player's own
+area, then its neighbours. The header says "Your area: NA West", or asks the
+player to set one. A player who chose Hidden hides the area from others (the card
+and the rooms they create); their own list still uses the area they chose or Windows
+gives (`OwnArea`), so it sorts, marks "Near you" and answers Near me as before. The relay itself is shown only as a relay, on Online
+play's Relay row ("Relay: Ember US (Kansas) · connected").
 
 ## Supervisor API (loopback, `Authorization: Bearer <shared secret>`)
 

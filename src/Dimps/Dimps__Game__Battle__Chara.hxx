@@ -211,6 +211,8 @@ namespace Dimps {
 					// Which boxes of a list count on this frame, one bit a box: the
 					// fighter's defaults as the action's script, invincibility and facing leave them.
 					static unsigned int GetBodyMask(Actor* a, BodyList list);
+					// Which strike boxes a fireball can hit this frame; 0 while none can.
+					static unsigned int GetProjectileMask(Actor* a);
 					// The first of an attack's boxes in a list (BOXES_*), null when
 					// empty; count: how many. object: an Actor, or an effect object
 					// (Effect::Unit::GetFirstEffect), which keeps its lists the same way.
@@ -249,6 +251,19 @@ namespace Dimps {
 					static __mementoableMethods mementoableMethods;
 				};
 
+				// The unit's items (Cody's knife, Balrog's mask and claw), each
+				// with its own memento, recorded and restored by the unit's.
+				struct ItemCollection
+				{
+					typedef struct __publicMethods {
+						// impl::ItemCollection vtable slot 8: null past the end.
+						void* (ItemCollection::* GetItemByIndex)(unsigned int index);
+					} __publicMethods;
+
+					static void Locate(HMODULE peRoot);
+					static __publicMethods publicMethods;
+				};
+
 				struct Unit
 				{
 					typedef struct __publicMethods {
@@ -268,7 +283,7 @@ namespace Dimps {
 					Actor* playerActors[2];
 					void* actors_0x10[2];
 					void* actors_0x18[2];
-					void* lpItemCollection;
+					ItemCollection* lpItemCollection;
 				};
 			}
 		}

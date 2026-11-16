@@ -431,7 +431,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
     ConfigureLauncherLogging();
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-    bool showConsole = false, offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false;
+    bool showConsole = false, offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false, hostPublicRoom = false;
     DWORD waitPid = 0;
     std::string localeOverride, joinUri;
     std::vector<std::string> offerWords;
@@ -443,6 +443,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
     app.add_flag("--console", showConsole, "Show diagnostic logging.");
     app.add_flag("--offline", offline, "Start at the native game menu without networking.");
+    app.add_flag("--host-public-room", hostPublicRoom, "Open the last public room created again, and again whenever it closes, watching its games (a stream PC).");
     app.add_flag("--updates", updates, "Open update and recovery controls.");
     app.add_flag("--recovery", recovery, "Open launch recovery controls.");
     app.add_flag("--update-error", updateError, "Show updater recovery after an installation failure.");
@@ -461,12 +462,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     if (!steamCommand.empty() && steamCommand.front().rfind("-", 0) == 0) return app.exit(CLI::ExtrasError(steamCommand));
     // Steam Input applies only when Steam starts the launcher, which then has
     // Steam's overlay module; sf4e.log's HID list shows whether it took effect.
-    spdlog::info("Started {} Steam{}", GetModuleHandleW(SteamOverlayModule) ? "by" : "outside",
+    const bool startedBySteam = GetModuleHandleW(SteamOverlayModule) != nullptr;
+    spdlog::info("Started {} Steam{}", startedBySteam ? "by" : "outside",
         steamCommand.empty() ? "" : " with the game command");
     if (!localeOverride.empty() && sf4e::loc::ValidPreference(localeOverride)) {
         languagePreference = localeOverride;
         sf4e::loc::SetActive(sf4e::platform::ResolveUiLocale(languagePreference));
     }
+    // A product's option that does its work in place of a start (SF4 Ember's stream host files).
+    if (const auto exit = ember::launch::RunInsteadOfStart()) return *exit;
     // The link is a room's short code, never logged, a tournament match, a
     // public room of a service (its IDs are not logged either), or a
     // tournament service asking the player to connect Discord.
@@ -535,9 +539,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     case sf4e::launcher::PendingRecovery::Failed:
         ShowRecovery(sf4e::launcher::WithUpdateLogLocation(sf4e::loc::T("launcher.update_failed")), chosenDirectory, true);
         return 1;
-    case sf4e::launcher::PendingRecovery::NotNormalUser:
-        ShowRecovery(sf4e::loc::T("update.elevated"), chosenDirectory, true);
-        return 1;
     case sf4e::launcher::PendingRecovery::None: break;
     }
     wchar_t installRoot[MAX_PATH] = {}, dllDirectory[MAX_PATH] = {}, pathError[1024] = {};
@@ -550,6 +551,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     sf4e::launcher::LoadPersistedSettings(settings);
     ember::launch::Prepare(settings, showConsole);
     SetEnvironmentVariableW(L"SF4E_START_OFFLINE", offline ? L"1" : nullptr);
+    SetEnvironmentVariableW(L"SF4E_HOST_PUBLIC_ROOM", hostPublicRoom ? L"1" : nullptr);
     // The game reads the room link once at start and clears it (NetplayRuntime).
     SetEnvironmentVariableW(L"SF4E_JOIN_LINK", joinCode.empty() ? nullptr : sf4e::platform::Utf8ToWide(joinCode.c_str()).c_str());
     // A match link likewise, as "<bridge id> <match id>".
@@ -649,7 +651,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
         if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
         ember::launch::StartFailure startFailure;
-        HANDLE game = ember::launch::StartGame({installRoot, location.directory, location.executable, sidecar, sidecarAnsi, &dumps}, startFailure);
+        ember::launch::StartWatch startWatch;
+        HANDLE game = ember::launch::StartGame({installRoot, location.directory, location.executable, sidecar, sidecarAnsi, &dumps}, startFailure, startWatch);
         if (!game) {
             ember::launch::GameEnded(false);
             dumps.Close();
@@ -668,13 +671,27 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }, [&] { return GameWindowState(gameId); });
         dumps.Close();
         if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5, dumps.reportWritten.c_str());
+        const ULONGLONG endedTick = GetTickCount64();
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
         const bool crashed = sf4e::crash::IsCrashExit(exitCode);
+        bool startFailed = false;
         if (crashed) {
             reportCrash.exitCode = exitCode; reportCrash.smallDump = dumps.reportWritten;
             if (dumps.exceptionCode) reportCrash.exceptionCode = dumps.exceptionCode;
             if (dumps.crashAddress) reportCrash.address = dumps.crashAddress;
+            // _exit(255) while the game was still starting is its start-up failing,
+            // not a crash: reported as a start failure, with what is known of why.
+            const auto phase = sf4e::crash::ClassifyStartFailure(exitCode, startWatch.endedBeforeSignal, startWatch.signalled,
+                startWatch.signalled ? endedTick - startWatch.signalTick : 0);
+            if (phase != sf4e::crash::StartPhase::None) {
+                startFailed = true;
+                reportCrash.startPhase = sf4e::crash::StartPhaseName(phase);
+                reportCrash.startHint = startWatch.hints;
+                if (!startedBySteam) reportCrash.startHint += std::string(reportCrash.startHint.empty() ? "" : ",") + "outside_steam";
+                spdlog::warn("The game's start-up failed ({}): the game exited with code 255 {}", reportCrash.startPhase,
+                    phase == sf4e::crash::StartPhase::BeforeSignal ? "before its module signalled" : "shortly after its module signalled");
+            }
         }
         // Windows' own dump is looked for when Ember kept none, a freeze's included.
         if (crashed && !dumps.written[0] && dumps.reportWritten.empty()) NoteWindowsCrashDump(gameId);
@@ -690,7 +707,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // either: say what blocked the game and where to allow it.
         const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" :
             exitCode == 0xC0E90002u ? "launcher.game_blocked_by_windows" :
-            steamAbove ? "launcher.steam_runs_as_admin" : crashed ? (reportable ? "launcher.game_crashed" : "launcher.game_crashed_files") : "launcher.game_error";
+            steamAbove ? "launcher.steam_runs_as_admin" : startFailed ? "launcher.start_failed" : crashed ? (reportable ? "launcher.game_crashed" : "launcher.game_crashed_files") : "launcher.game_error";
         if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory,false,sf4e::ui::Tone::Error,false,
             reportable ? std::optional<sf4e::reports::CrashContext>(reportCrash) : std::nullopt)) continue;
         return 0;

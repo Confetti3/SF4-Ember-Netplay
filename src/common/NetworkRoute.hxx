@@ -3,9 +3,10 @@
 
 namespace sf4e {
 // The helper reduces a connection's selected path to "direct" or
-// "relay:<region>" (or "unavailable") before it sends the route, so no address,
+// "relay:<code>" (or "unavailable") before it sends the route, so no address,
 // port or relay URL ever reaches this process. Native code only reads that
-// class and region back.
+// class and relay code back. A relay code says how this PC connects, never
+// where a player is: that is the player's area (Area.hxx).
 enum class RouteKind { Unknown, Direct, Relayed };
 
 inline RouteKind ClassifyRoute(const std::string& route) {
@@ -14,9 +15,29 @@ inline RouteKind ClassifyRoute(const std::string& route) {
     return RouteKind::Unknown;
 }
 
-// The helper's region codes for the pinned relays, or "other".
+// The helper's codes for the relays it pins (rust/sf4-net src/invite.rs,
+// RELAYS), each with the catalog key of the relay's name. This build's
+// endpoints use Ember's relay in Kansas for "use1", Ember's for Europe for
+// "euc1" and n0's for Asia for "aps1"; "usw1" is n0's US West relay, which
+// builds from before Ember's own relays used.
+struct RelayRow { const char* code; const char* key; };
+constexpr RelayRow Relays[] = {
+    {"use1", "network.relay_use1"},
+    {"usw1", "network.relay_usw1"},
+    {"euc1", "network.relay_euc1"},
+    {"aps1", "network.relay_aps1"},
+};
+
+// The catalog key of a relay's name: a pinned relay's, "network.relay_other"
+// for "other", or null for any other text (empty: no relay).
+inline const char* RelayNameKey(const std::string& code) {
+    for (const auto& relay : Relays) if (code == relay.code) return relay.key;
+    return code == "other" ? "network.relay_other" : nullptr;
+}
+
+// Whether `code` is one of the pinned relays' codes ("other" is not).
 inline bool IsRelayRegionCode(const std::string& code) {
-    return code == "use1" || code == "usw1" || code == "euc1" || code == "aps1";
+    return RelayNameKey(code) != nullptr && code != "other";
 }
 
 // Only a known code or "other" may reach the interface and logs: a relay

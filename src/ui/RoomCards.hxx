@@ -6,7 +6,9 @@
 #include "NameMarks.hxx"
 #include "FighterArt.hxx"
 #include "Theme.hxx"
+#include "RoomPoints.hxx"
 #include <imgui.h>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -15,7 +17,8 @@ namespace sf4e { namespace ui {
 // tip that explains it. With neither, nothing is drawn.
 struct LatencyMark {
     std::string text,tip;
-    // The chip: the estimate with its route, "Direct 44 ms"; none while unknown.
+    // The chip with its route where the row has room, "Relay ~80 ms" or a
+    // checked "Direct 9 ms"; none where the plain text says all of it.
     std::string routed;
     ImU32 color=palette::Muted;
 };
@@ -39,10 +42,11 @@ struct MemberCardView {
     // Their sets won and lost in the room ("2 W / 1 L"), none before the first:
     // after the status, and on the board's list only where it fits beside it.
     std::string record;
-    // The fighter the row shows: the member's main (-1: none shared), or with
-    // Branding::roomFacesArePicks their shared pick in its costume and colour
-    // (-1: no pick shared, drawn as "?").
+    // The fighter the row shows: the member's main (-1: none shared), in the
+    // original outfit unless a caller names a costume and colour.
     int fighter=-1,costume=0,color=0;
+    // The main's points, drawn as a band across its face (PointsOf); none when the room shows none.
+    std::optional<SeatPoints> points;
     // Settings › Room layout › Pictures. A main has no costume of its own, so
     // Characters draws it in the original outfit.
     FighterArt art=FighterArt::Portrait;
@@ -55,4 +59,12 @@ struct MemberCardView {
 // A member as a list row in `min`-`max`: portrait, player tag, status
 // and link mark. The list draws the row's ground, focus and press.
 void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max);
+struct ShellView;
+struct OtherCardView;
+// A member's card on their page (PROFILE.md, "Another player's card"), for
+// DrawOtherCard: the fighter they are playing on its tier edge, their flag,
+// name and class, SF4's two lines (that fighter's points and their account's,
+// 0 for a member with no card), and how they stand with this player as the
+// chip. A private room shows no points lines.
+OtherCardView MemberOtherCard(const ShellView& view,const room::Member& member,FighterArt art);
 } }

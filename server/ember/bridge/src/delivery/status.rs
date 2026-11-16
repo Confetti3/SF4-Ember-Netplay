@@ -11,10 +11,10 @@
 //! is sent once the match has ended: its result or abort says how it ended.
 use std::collections::BTreeMap;
 
-use rusqlite::{OptionalExtension, Transaction, params};
+use rusqlite::{OptionalExtension, ToSql, Transaction, params};
 use serde_json::{Value, json};
 
-use super::{BATCH, Leased, Outcome, Queue, Record, Settled, results::BluMint};
+use super::{BATCH, Leased, Outcome, Outcomes, Queue, Record, Table, results::BluMint};
 use crate::{
     AppState,
     audit::audit,
@@ -137,7 +137,20 @@ pub struct Due {
 impl Queue for Status {
     type Item = Due;
 
-    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Due>>> {
+    /// A match's row holds its latest revision; a lease and its record name
+    /// the revision too, so a newer one is never recorded as this one.
+    const TABLE: Table = Table {
+        name: "blumint_status",
+        key: &["match_id", "revision"],
+        attempts: "attempts",
+        next: "next_at",
+        outcomes: Outcomes::Ledger {
+            state: "state",
+            first: "first_at",
+        },
+    };
+
+    fn due(&self, tx: &Transaction<'_>, now: u64) -> Result<Vec<Leased<Due>>> {
         tx.execute(
             "UPDATE blumint_status SET state = 'not_required'
              WHERE state IN ('queued', 'retrying', 'delivering')
@@ -193,12 +206,6 @@ impl Queue for Status {
                 )?;
                 continue;
             };
-            let attempt = attempts + 1;
-            tx.execute(
-                "UPDATE blumint_status SET state = 'delivering', next_at = ?1, attempts = ?2
-                 WHERE match_id = ?3",
-                params![until, attempt, match_id],
-            )?;
             leased.push(Leased {
                 item: Due {
                     body: blumint::status_report(
@@ -212,11 +219,15 @@ impl Queue for Status {
                     connection_id,
                     revision,
                 },
-                attempt,
+                attempt: attempts + 1,
                 first_attempt_at: first_at,
             });
         }
         Ok(leased)
+    }
+
+    fn key(item: &Due) -> Vec<&dyn ToSql> {
+        vec![&item.match_id, &item.revision]
     }
 
     async fn attempt(&self, state: &AppState, item: &Due) -> Outcome {
@@ -257,26 +268,8 @@ impl Queue for Status {
     }
 
     fn record(&self, tx: &Transaction<'_>, leased: &Leased<Due>, record: &Record) -> Result<()> {
-        let (state, next, error) = match &record.settled {
-            Settled::Delivered => ("delivered", record.at, None),
-            Settled::Retry { at, error } => ("retrying", *at, Some(error.as_str())),
-            Settled::Refused(error) | Settled::Expired(error) => {
-                ("failed", record.at, Some(error.as_str()))
-            }
-        };
-        let changed = tx.execute(
-            "UPDATE blumint_status SET state = ?1, next_at = ?2, first_at = COALESCE(first_at, ?3)
-             WHERE match_id = ?4 AND revision = ?5 AND state = 'delivering' AND attempts = ?6",
-            params![
-                state,
-                next,
-                record.first_attempt_at,
-                leased.item.match_id,
-                leased.item.revision,
-                leased.attempt
-            ],
-        )?;
-        if changed == 1 {
+        let recorded = Self::TABLE.record(tx, &Self::key(&leased.item), leased.attempt, record)?;
+        if let Some(state) = recorded {
             audit(
                 tx,
                 record.at,
@@ -284,7 +277,7 @@ impl Queue for Status {
                 "blumint.status",
                 &leased.item.match_id,
                 state,
-                error,
+                record.settled.error(),
             )?;
         }
         Ok(())

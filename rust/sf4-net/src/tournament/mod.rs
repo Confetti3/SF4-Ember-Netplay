@@ -5,24 +5,28 @@
 //! bridge HTTP on its own bounded task set, then answers with a `tournament`
 //! event. A failure here is reported and never ends the helper, and nothing
 //! here waits on, or is waited on by, room or gameplay work (spec 18.3).
+mod archive;
 mod bridges;
 mod browser;
 mod builtin;
 mod client;
 mod desk;
 mod discord;
+mod friends;
+mod levels;
 mod play;
 mod ranking;
+mod refusal;
 mod replays;
 mod rooms;
 mod sign_in;
-mod sites;
 mod spool;
 #[cfg(test)]
 mod test_support;
 mod watch;
 
 use std::{
+    borrow::Cow,
     future::Future,
     path::{Path, PathBuf},
     sync::{
@@ -33,7 +37,13 @@ use std::{
 };
 
 use ember_protocol::{
-    EmberId, encoding::Counter, play::PublishRoom, report::Outcome as GameOutcome,
+    EmberId,
+    area::Area,
+    encoding::Counter,
+    friends::{FriendAction, FriendsSync as FriendsSyncBody},
+    levels::{CardSave, CardSelector},
+    play::PublishRoom,
+    report::Outcome as GameOutcome,
     skill::RankingChoice,
 };
 use serde::{Deserialize, Serialize};
@@ -47,6 +57,7 @@ use crate::{
 };
 
 pub use builtin::Builtin;
+pub use refusal::Refusal;
 
 /// Bridge requests in flight at once (spec 25.1).
 const HTTP_CONCURRENCY: usize = 4;
@@ -131,32 +142,6 @@ pub enum Request {
     DiscordCancel {
         bridge_id: String,
     },
-    /// A sign-in site's requests, for the site the bridge lists under `site`.
-    /// With `organizer`, the first three are for the organizer sign-in
-    /// instead: its grant, a sign-in asking for the site's organizer scopes,
-    /// and dropping the grant (the account stays).
-    SiteStatus {
-        bridge_id: String,
-        site: String,
-        #[serde(default)]
-        organizer: bool,
-    },
-    SiteConnect {
-        bridge_id: String,
-        site: String,
-        #[serde(default)]
-        organizer: bool,
-    },
-    SiteRemove {
-        bridge_id: String,
-        site: String,
-        #[serde(default)]
-        organizer: bool,
-    },
-    SiteCancel {
-        bridge_id: String,
-        site: String,
-    },
     /// The player's matches of `game` (`rooms::GAMES`): SF4 Ember's when
     /// absent, so its request is what it always was.
     AssignmentList {
@@ -167,57 +152,34 @@ pub enum Request {
         )]
         game: String,
     },
-    /// The tournament desk: the organizer's events, or `event`'s sets.
+    /// The tournament desk on the bracket site the bridge names: the
+    /// organizer's tournaments, or `event`'s sets, with `set`'s games.
     DeskRead {
         bridge_id: String,
         #[serde(default)]
         event: Option<String>,
-    },
-    /// The player's web desk sessions; with `seen`, noting the game has
-    /// told the player about them, and with `end`, signing them all out.
-    DeskWeb {
-        bridge_id: String,
         #[serde(default)]
-        seen: bool,
-        #[serde(default)]
-        end: bool,
+        set: Option<String>,
     },
-    /// A one-time link that opens the web desk in this PC's browser.
-    DeskHandoff {
+    /// Opens the bracket site in this PC's browser.
+    DeskOpen {
         bridge_id: String,
     },
-    /// Approves the code another device's browser shows, signing that
-    /// browser in to the web desk.
-    DeskApprove {
-        bridge_id: String,
-        code: String,
-        /// The number the other device shows (from `DeskCodeInfo`).
-        #[serde(default)]
-        number: u8,
-    },
-    /// What asked for another device's code and when, and the numbers to
-    /// pick from before approving it.
-    DeskCodeInfo {
-        bridge_id: String,
-        code: String,
-    },
-    /// Redeems an invite to Tournament Mode on a bridge that takes
-    /// organizers by invitation.
+    /// Redeems an invite to organize on the bracket site.
     DeskRedeem {
         bridge_id: String,
         code: String,
     },
-    /// An event's state on its site and the moves the site allows now.
-    DeskSiteState {
-        bridge_id: String,
-        site: String,
-        tournament: String,
-    },
-    /// A desk action on one of an event's sets or matches, at `path`.
+    /// A desk action at `path`, one of the site's routes, with `command`.
     DeskAct {
         bridge_id: String,
         path: String,
         command: Value,
+    },
+    /// Deletes the organizer's tournament `event` on the site.
+    DeskStop {
+        bridge_id: String,
+        event: String,
     },
     MatchClaim {
         bridge_id: String,
@@ -255,6 +217,10 @@ pub enum Request {
         /// life. Sent only when true.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         own_delay: bool,
+        /// Where the creator plays from, which the room list shows as the
+        /// room's place. Absent while their area is hidden or not set.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        area: Option<Area>,
         #[serde(
             default = "ember_protocol::rooms::default_game",
             skip_serializing_if = "ember_protocol::rooms::is_default_game"
@@ -302,6 +268,38 @@ pub enum Request {
         )]
         game: String,
     },
+    /// The player's own fighter levels.
+    PointsMe {
+        bridge_id: String,
+    },
+    /// Other players' cards, by card token or by friend.
+    CardsLookup {
+        bridge_id: String,
+        cards: Vec<CardSelector>,
+    },
+    /// Saves what the player's card shows, replacing the whole of it.
+    CardSave {
+        bridge_id: String,
+        card: CardSave,
+    },
+    /// Players by name or by friend code: exactly one of `name` and `code`.
+    CardsSearch {
+        bridge_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        code: Option<String>,
+    },
+    /// Sends the player's presence and reads the friends state.
+    FriendsSync {
+        bridge_id: String,
+        sync: FriendsSyncBody,
+    },
+    /// One friends action, such as a request or a block.
+    FriendsAct {
+        bridge_id: String,
+        act: FriendAction,
+    },
     GamePrepare {
         bridge_id: String,
         match_id: String,
@@ -341,6 +339,20 @@ pub enum Request {
     ReplayPack {
         bridge_id: String,
         match_id: String,
+        path: String,
+    },
+    /// A page of the public replay archive's listing, for the game's browser:
+    /// the filter and order in `query`, and the cursor of the page to go on
+    /// from.
+    ArchiveList {
+        bridge_id: String,
+        #[serde(default)]
+        query: ember_protocol::archive::Query,
+    },
+    /// A game of that listing, written to `path` for the game to play.
+    ArchiveFetch {
+        bridge_id: String,
+        url: String,
         path: String,
     },
     /// Asks to watch a match this player does not play in: the room and its
@@ -421,19 +433,12 @@ requests! {
     DiscordConnect => "discord_connect", Bridge;
     DiscordRemove => "discord_remove", Bridge;
     DiscordCancel => "discord_cancel", Bridge;
-    SiteStatus => "site_status", Bridge;
-    SiteConnect => "site_connect", Bridge;
-    SiteRemove => "site_remove", Bridge;
-    SiteCancel => "site_cancel", Bridge;
     AssignmentList => "assignment_list", Bridge;
     DeskRead => "desk_read", Bridge;
     DeskAct => "desk_act", Bridge;
-    DeskWeb => "desk_web", Bridge;
-    DeskHandoff => "desk_handoff", Bridge;
-    DeskApprove => "desk_approve", Bridge;
-    DeskCodeInfo => "desk_code_info", Bridge;
+    DeskStop => "desk_stop", Bridge;
+    DeskOpen => "desk_open", Bridge;
     DeskRedeem => "desk_redeem", Bridge;
-    DeskSiteState => "desk_site_state", Bridge;
     MatchClaim => "match_claim", Bridge;
     RoomPublish => "room_publish", Bridge;
     RoomList => "room_list", Bridge;
@@ -442,12 +447,20 @@ requests! {
     RankingStanding => "ranking_standing", Bridge;
     RankingChoose => "ranking_choose", Bridge;
     RankingBoard => "ranking_board", Bridge;
+    PointsMe => "points_me", Bridge;
+    CardsLookup => "cards_lookup", Bridge;
+    CardSave => "card_save", Bridge;
+    CardsSearch => "cards_search", Bridge;
+    FriendsSync => "friends_sync", Bridge;
+    FriendsAct => "friends_act", Bridge;
     GamePrepare => "game_prepare", Bridge;
     GameReport => "game_report", Bridge;
     MatchLeave => "match_leave", Local;
     ReplaySend => "replay_send", Bridge;
     ReplayArchive => "replay_archive", Bridge;
     ReplayPack => "replay_pack", Bridge;
+    ArchiveList => "archive_list", Bridge;
+    ArchiveFetch => "archive_fetch", Bridge;
     MatchWatch => "match_watch", Bridge;
     MatchUnwatch => "match_unwatch", Bridge;
 }
@@ -467,10 +480,9 @@ pub enum Code {
     BrowserUnavailable,
     ChallengeMismatch,
     Corrupt,
-    DeskCodeRefused,
-    DeskNumberWrong,
     DiscordRequired,
     FileUnreadable,
+    FriendsUnavailable,
     IdentityBusy,
     IdentityUnavailable,
     Internal,
@@ -481,8 +493,8 @@ pub enum Code {
     InvalidReplay,
     InvalidRequest,
     InviteInvalid,
-    InvitesUnsupported,
     Io,
+    LevelsUnavailable,
     MatchLeft,
     NotABridge,
     NotBound,
@@ -490,6 +502,7 @@ pub enum Code {
     OwnDelayUnsupported,
     PermitMismatch,
     PinnedBridgeMismatch,
+    ProfilesUnavailable,
     RankingUnavailable,
     ReplaysUnsupported,
     ReportNotSaved,
@@ -497,7 +510,7 @@ pub enum Code {
     ServiceUnavailable,
     SignInOff,
     TooManyBridges,
-        UnknownPermit,
+    UnknownPermit,
     Unsupported,
     UnsupportedBridge,
     UntrustedSignature,
@@ -519,10 +532,9 @@ impl Code {
             Self::BrowserUnavailable => "browser_unavailable",
             Self::ChallengeMismatch => "challenge_mismatch",
             Self::Corrupt => "corrupt",
-            Self::DeskCodeRefused => "desk_code_refused",
-            Self::DeskNumberWrong => "desk_number_wrong",
             Self::DiscordRequired => "discord_required",
             Self::FileUnreadable => "file_unreadable",
+            Self::FriendsUnavailable => "friends_unavailable",
             Self::IdentityBusy => "identity_busy",
             Self::IdentityUnavailable => "identity_unavailable",
             Self::Internal => "internal",
@@ -533,8 +545,8 @@ impl Code {
             Self::InvalidReplay => "invalid_replay",
             Self::InvalidRequest => "invalid_request",
             Self::InviteInvalid => "invite_invalid",
-            Self::InvitesUnsupported => "invites_unsupported",
             Self::Io => "io",
+            Self::LevelsUnavailable => "points_unavailable",
             Self::MatchLeft => "match_left",
             Self::NotABridge => "not_a_bridge",
             Self::NotBound => "not_bound",
@@ -542,6 +554,7 @@ impl Code {
             Self::OwnDelayUnsupported => "own_delay_unsupported",
             Self::PermitMismatch => "permit_mismatch",
             Self::PinnedBridgeMismatch => "pinned_bridge_mismatch",
+            Self::ProfilesUnavailable => "profiles_unavailable",
             Self::RankingUnavailable => "ranking_unavailable",
             Self::ReplaysUnsupported => "replays_unsupported",
             Self::ReportNotSaved => "report_not_saved",
@@ -566,9 +579,9 @@ impl Code {
 pub enum Failure {
     Local(Code),
     Identity(identity::Failure),
-    /// A bridge's error code, or the reason it gives that a caller words
-    /// apart, or `http_<status>` when its answer names neither.
-    Bridge(String),
+    /// A bridge's refusal: the reason it gives that a caller words apart, its
+    /// error code, or its status when its answer names neither.
+    Bridge(Refusal),
 }
 
 impl From<identity::Failure> for Failure {
@@ -583,19 +596,16 @@ impl Failure {
     }
 
     /// The code on the IPC wire.
-    pub fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> Cow<'_, str> {
         match self {
-            Self::Local(code) => code.as_str(),
-            Self::Identity(failure) => failure.as_str(),
-            Self::Bridge(code) => code,
+            Self::Local(code) => Cow::Borrowed(code.as_str()),
+            Self::Identity(failure) => Cow::Borrowed(failure.as_str()),
+            Self::Bridge(refusal) => refusal.text(),
         }
     }
 
     fn into_reason(self) -> String {
-        match self {
-            Self::Bridge(code) => code,
-            other => other.as_str().to_owned(),
-        }
+        self.as_str().into_owned()
     }
 }
 
@@ -941,22 +951,54 @@ async fn respond(
         carried
     });
     let status = status.and_then(|status| serde_json::to_value(status).ok());
+    // Waits for queue room instead of dropping: answers are rare and the
+    // native side must see each one.
+    let _ = events.send(answer_event(request_id, op, outcome, status)).await;
+}
+
+/// The most a `tournament` event may weigh as JSON. An IPC frame holds at most
+/// `wire::MAX_IPC_PAYLOAD` (512 KiB), and one that does not fit cannot be
+/// written: the writer task ends, and the game loses the helper, rooms and
+/// gameplay included. A desk read passes on a bracket site's answer of up to
+/// 1 MiB, so every answer is measured; 64 KiB under the frame's limit leaves
+/// room for the frame and the event's other members.
+const MAX_ANSWER_BYTES: usize = crate::wire::MAX_IPC_PAYLOAD - 64 * 1024;
+
+/// The `tournament` event answering `request_id` with `outcome`, or the same
+/// answer refused as `bridge_response_too_large` when its JSON would weigh more
+/// than `MAX_ANSWER_BYTES` (or could not be written at all).
+fn answer_event(request_id: u64, op: &str, outcome: Outcome, identity: Option<Value>) -> Event {
     let (ok, reason, data) = match outcome {
         Ok(data) => (true, None, data),
         Err(failure) => (false, Some(failure.into_reason()), None),
     };
-    // Waits for queue room instead of dropping: answers are rare and the
-    // native side must see each one.
-    let _ = events
-        .send(Event::Tournament {
+    let event = Event::Tournament {
+        request_id,
+        op: op.into(),
+        ok,
+        reason,
+        identity,
+        data,
+    };
+    if serde_json::to_vec(&event).is_ok_and(|json| json.len() <= MAX_ANSWER_BYTES) {
+        return event;
+    }
+    match event {
+        Event::Tournament {
             request_id,
-            op: op.into(),
-            ok,
-            reason,
-            identity: status,
-            data,
-        })
-        .await;
+            op,
+            identity,
+            ..
+        } => Event::Tournament {
+            request_id,
+            op,
+            ok: false,
+            reason: Some(Failure::new(Code::BridgeResponseTooLarge).into_reason()),
+            identity,
+            data: None,
+        },
+        event => event,
+    }
 }
 
 fn check_path(path: &str) -> Result<&Path, Failure> {
@@ -1100,9 +1142,7 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
     match request {
         Request::BridgeInspect { origin } => {
             let (profile, offered) = shared.client.inspect(&origin).await?;
-            Ok(Some(
-                json!({ "profile": profile, "capabilities": offered.to_json() }),
-            ))
+            Ok(Some(json!({ "profile": profile, "capabilities": offered })))
         }
         Request::BridgeApprove { origin, bridge_id } => {
             let (profile, _) = shared.client.inspect(&origin).await?;
@@ -1149,53 +1189,22 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
         Request::DiscordCancel { bridge_id } => {
             sign_in::cancel(shared, &bridge_id, &discord::routes()).await
         }
-        Request::SiteStatus {
-            bridge_id,
-            site,
-            organizer,
-        } => sites::status(shared, &bridge_id, &site, organizer).await,
-        Request::SiteConnect {
-            bridge_id,
-            site,
-            organizer,
-        } => sites::connect(shared, &bridge_id, &site, organizer).await,
-        Request::SiteRemove {
-            bridge_id,
-            site,
-            organizer,
-        } => sites::remove(shared, &bridge_id, &site, organizer).await,
-        Request::SiteCancel { bridge_id, site } => sites::cancel(shared, &bridge_id, &site).await,
         Request::AssignmentList { bridge_id, game } => {
             play::assignments(shared, &bridge_id, &game).await
         }
-        Request::DeskRead { bridge_id, event } => {
-            desk::read(shared, &bridge_id, event.as_deref()).await
-        }
+        Request::DeskRead {
+            bridge_id,
+            event,
+            set,
+        } => desk::read(shared, &bridge_id, event.as_deref(), set.as_deref()).await,
         Request::DeskAct {
             bridge_id,
             path,
             command,
         } => desk::act(shared, &bridge_id, &path, command).await,
-        Request::DeskWeb {
-            bridge_id,
-            seen,
-            end,
-        } => desk::web(shared, &bridge_id, seen, end).await,
-        Request::DeskHandoff { bridge_id } => desk::handoff(shared, &bridge_id).await,
-        Request::DeskApprove {
-            bridge_id,
-            code,
-            number,
-        } => desk::approve(shared, &bridge_id, &code, number).await,
-        Request::DeskCodeInfo { bridge_id, code } => {
-            desk::code_info(shared, &bridge_id, &code).await
-        }
+        Request::DeskStop { bridge_id, event } => desk::stop(shared, &bridge_id, &event).await,
+        Request::DeskOpen { bridge_id } => desk::open(shared, &bridge_id).await,
         Request::DeskRedeem { bridge_id, code } => desk::redeem(shared, &bridge_id, &code).await,
-        Request::DeskSiteState {
-            bridge_id,
-            site,
-            tournament,
-        } => desk::site_state(shared, &bridge_id, &site, &tournament).await,
         Request::MatchClaim {
             bridge_id,
             match_id,
@@ -1218,12 +1227,18 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             capacity,
             build,
             own_delay,
+            area,
             game,
         } => {
-            rooms::create(
-                shared, &bridge_id, &name, capacity, &build, own_delay, &game,
-            )
-            .await
+            let room = rooms::Room {
+                name: &name,
+                capacity,
+                build: &build,
+                own_delay,
+                area,
+                game: &game,
+            };
+            rooms::create(shared, &bridge_id, room).await
         }
         Request::RoomTicket {
             bridge_id,
@@ -1242,6 +1257,16 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
         Request::RankingBoard { bridge_id, game } => {
             ranking::board(shared, &bridge_id, &game).await
         }
+        Request::PointsMe { bridge_id } => levels::own(shared, &bridge_id).await,
+        Request::CardsLookup { bridge_id, cards } => levels::lookup(shared, &bridge_id, cards).await,
+        Request::CardSave { bridge_id, card } => levels::save(shared, &bridge_id, card).await,
+        Request::CardsSearch {
+            bridge_id,
+            name,
+            code,
+        } => levels::search(shared, &bridge_id, name, code).await,
+        Request::FriendsSync { bridge_id, sync } => friends::sync(shared, &bridge_id, sync).await,
+        Request::FriendsAct { bridge_id, act } => friends::act(shared, &bridge_id, act).await,
         Request::GamePrepare {
             bridge_id,
             match_id,
@@ -1279,6 +1304,14 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             match_id,
             path,
         } => replays::pack(shared, &bridge_id, &match_id, &path).await,
+        Request::ArchiveList { bridge_id, query } => {
+            archive::list(shared, &bridge_id, &query).await
+        }
+        Request::ArchiveFetch {
+            bridge_id,
+            url,
+            path,
+        } => archive::fetch(shared, &bridge_id, &url, &path).await,
         Request::MatchWatch {
             bridge_id,
             match_id,
@@ -1295,6 +1328,8 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
 #[cfg(test)]
 mod tests {
     use std::{collections::HashSet, time::Duration};
+
+    use ember_protocol::api::ErrorCode;
 
     use super::*;
 
@@ -1318,7 +1353,7 @@ mod tests {
                 ),
             }
         }
-        assert_eq!(seen.len(), 48);
+        assert_eq!(seen.len(), 49);
         let local: Vec<_> = REQUESTS
             .iter()
             .filter(|(_, lane)| *lane == Lane::Local)
@@ -1535,6 +1570,57 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
     }
 
+    // An answer whose JSON would weigh more than an IPC frame takes, less a
+    // margin, goes as the same answer refused as `bridge_response_too_large`;
+    // one up to the limit goes as it is. Either fits a frame, so the writer
+    // never fails on it and the game keeps its helper.
+    #[test]
+    fn an_answer_too_large_for_a_frame_is_refused() {
+        let with = |text: String| {
+            answer_event(
+                7,
+                "desk_read",
+                Ok(Some(json!({ "sets": text }))),
+                Some(json!({ "ember_id": "emb1_x" })),
+            )
+        };
+        let size = |event: &Event| serde_json::to_vec(event).unwrap().len();
+        let empty = size(&with(String::new()));
+        let fitting = with("x".repeat(MAX_ANSWER_BYTES - empty));
+        assert_eq!(size(&fitting), MAX_ANSWER_BYTES);
+        assert!(matches!(fitting, Event::Tournament { ok: true, data: Some(_), .. }));
+        for text in [
+            "x".repeat(MAX_ANSWER_BYTES - empty + 1),
+            "x".repeat(1024 * 1024),
+        ] {
+            let refused = with(text);
+            assert!(size(&refused) < 1024);
+            assert_eq!(
+                serde_json::to_value(&refused).unwrap(),
+                json!({
+                    "type": "tournament", "request_id": 7, "op": "desk_read", "ok": false,
+                    "reason": "bridge_response_too_large", "identity": { "ember_id": "emb1_x" },
+                })
+            );
+        }
+        let payload = crate::service::encode_event(fitting).unwrap();
+        assert!(payload.len() <= crate::wire::MAX_IPC_PAYLOAD);
+        // A refusal is measured the same way and goes as it is.
+        let refusal = answer_event(
+            8,
+            "points_me",
+            Err(Failure::new(Code::LevelsUnavailable)),
+            None,
+        );
+        assert_eq!(
+            serde_json::to_value(&refusal).unwrap(),
+            json!({
+                "type": "tournament", "request_id": 8, "op": "points_me", "ok": false,
+                "reason": "points_unavailable",
+            })
+        );
+    }
+
     // The codes the game reads are spelled as they always were, and a bridge's
     // own code or a key-storage failure is worded as it was.
     #[test]
@@ -1551,10 +1637,9 @@ mod tests {
             (Code::BrowserUnavailable, "browser_unavailable"),
             (Code::ChallengeMismatch, "challenge_mismatch"),
             (Code::Corrupt, "corrupt"),
-            (Code::DeskCodeRefused, "desk_code_refused"),
-            (Code::DeskNumberWrong, "desk_number_wrong"),
             (Code::DiscordRequired, "discord_required"),
             (Code::FileUnreadable, "file_unreadable"),
+            (Code::FriendsUnavailable, "friends_unavailable"),
             (Code::IdentityBusy, "identity_busy"),
             (Code::IdentityUnavailable, "identity_unavailable"),
             (Code::Internal, "internal"),
@@ -1565,8 +1650,8 @@ mod tests {
             (Code::InvalidReplay, "invalid_replay"),
             (Code::InvalidRequest, "invalid_request"),
             (Code::InviteInvalid, "invite_invalid"),
-            (Code::InvitesUnsupported, "invites_unsupported"),
             (Code::Io, "io"),
+            (Code::LevelsUnavailable, "points_unavailable"),
             (Code::MatchLeft, "match_left"),
             (Code::NotABridge, "not_a_bridge"),
             (Code::NotBound, "not_bound"),
@@ -1574,6 +1659,7 @@ mod tests {
             (Code::OwnDelayUnsupported, "own_delay_unsupported"),
             (Code::PermitMismatch, "permit_mismatch"),
             (Code::PinnedBridgeMismatch, "pinned_bridge_mismatch"),
+            (Code::ProfilesUnavailable, "profiles_unavailable"),
             (Code::RankingUnavailable, "ranking_unavailable"),
             (Code::ReplaysUnsupported, "replays_unsupported"),
             (Code::ReportNotSaved, "report_not_saved"),
@@ -1592,9 +1678,13 @@ mod tests {
         }
         let from_identity: Failure = identity::Failure::WrongPassphrase.into();
         assert_eq!(from_identity.as_str(), "wrong_passphrase");
-        let bridge = Failure::Bridge("http_502".into());
+        let bridge = Failure::Bridge(Refusal::Status(502));
         assert_eq!(bridge.as_str(), "http_502");
         assert_eq!(bridge.into_reason(), "http_502");
+        let coded = Failure::Bridge(Refusal::Error(ErrorCode::Forbidden));
+        assert_eq!(coded.into_reason(), "forbidden");
+        let worded = Failure::Bridge(Refusal::Reason("room_full".into()));
+        assert_eq!(worded.into_reason(), "room_full");
     }
 
     /// The identity member of the next answer, whether it has one.

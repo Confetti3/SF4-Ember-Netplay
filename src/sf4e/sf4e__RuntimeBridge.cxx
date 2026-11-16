@@ -63,7 +63,7 @@ void CloseCommands() {
 	if (const auto closed = Exchange(State().commands, std::shared_ptr<CommandMailbox>())) closed->Close();
 }
 
-bool PushCommand(RuntimeCommand command, std::size_t bytes) {
+bool PushCommand(RuntimeRequest command, std::size_t bytes) {
 	const auto mailbox = Load(State().commands);
 	return mailbox && mailbox->TryPush(std::move(command), bytes);
 }

@@ -24,4 +24,8 @@ loc::Locale ResolveUiLocale(std::string_view preference);
 // GEO_ISO2), which Automatic shows. None when Windows names none, or names one
 // the country table lacks.
 CountryCode WindowsCountry();
+// The key name of Windows' time zone, such as "Pacific Standard Time", which the
+// area Automatic stands for is worked out from (AreaFromWindows). Empty when
+// Windows gives none.
+std::string WindowsTimeZone();
 } }

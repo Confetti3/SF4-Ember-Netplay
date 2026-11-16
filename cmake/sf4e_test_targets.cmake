@@ -6,6 +6,23 @@ if(NOT BUILD_TESTING)
 endif()
 sf4e_add_unit_test(NAME CheckpointTransfer SOURCES "src/tests/checkpoint_transfer_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json bcrypt)
 sf4e_add_unit_test(NAME RoomLoadWindow SOURCES "src/tests/room_load_window_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json LABELS room)
+# Includes nlohmann/json, found after sf4e_core_tests.cmake.
+sf4e_add_unit_test(NAME TrainingRemoteProtocol SOURCES "src/tests/training_remote_protocol_test.cxx" STD 17
+    LIBS nlohmann_json::nlohmann_json LABELS training)
+sf4e_add_unit_test(NAME HudLayout SOURCES "src/tests/hud_layout_test.cxx" STD 17 LIBS sf4e_hud_layout TIMEOUT 15 LABELS training)
+if(WIN32)
+    sf4e_add_unit_test(NAME HudBundleCheck SOURCES "src/tests/hud_bundle_check_test.cxx"
+        STD 17 LIBS sf4e_hud_bundle_check ZLIB::ZLIB TIMEOUT 30)
+    sf4e_add_unit_test(NAME GameThemeGuard SOURCES "src/tests/game_theme_guard_test.cxx"
+        STD 17 LIBS sf4e_game_theme_guard TIMEOUT 15)
+    sf4e_add_unit_test(NAME TrainingRemoteHud SOURCES "src/tests/training_remote_hud_test.cxx" "src/training/RemoteHud.cxx" STD 17
+        LIBS sf4e_hud_layout sf4e_game_themes sf4e_durable_file TIMEOUT 15 LABELS training)
+endif()
+sf4e_add_unit_test(NAME TrainingCameraRig SOURCES "src/tests/training_camera_rig_test.cxx" STD 17
+    LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> LABELS training)
+sf4e_add_unit_test(NAME ComboFile SOURCES "src/tests/combo_file_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json LABELS training)
+sf4e_add_unit_test(NAME ComboStore SOURCES "src/tests/combo_store_test.cxx" STD 17
+    LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> LABELS training)
 sf4e_add_unit_test(NAME ReplayFiles SOURCES "src/tests/replay_files_test.cxx" STD 17
     LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> TIMEOUT 15 LABELS replay)
 
@@ -68,6 +85,7 @@ sf4e_add_unit_test(NAME RoomWiredOnly SOURCES "src/tests/room_wired_only_test.cx
 sf4e_add_unit_test(NAME RoomTinyFighters SOURCES "src/tests/room_tiny_fighters_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomSkipScenes SOURCES "src/tests/room_skip_scenes_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomBannedStages SOURCES "src/tests/room_banned_stages_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+sf4e_add_unit_test(NAME RoomFriendsHidden SOURCES "src/tests/room_friends_hidden_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomArcade SOURCES "src/tests/room_arcade_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME RoomTournament SOURCES "src/tests/room_tournament_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME TournamentPlay SOURCES "src/tests/tournament_play_test.cxx" LIBS sf4e_tournament_play LABELS room)
@@ -78,7 +96,24 @@ sf4e_add_unit_test(NAME RoomWatch SOURCES "src/tests/room_watch_test.cxx" LIBS s
 sf4e_add_unit_test(NAME RoomFollow SOURCES "src/tests/room_follow_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME PublicRoomFilter SOURCES "src/tests/public_room_filter_test.cxx" LIBS sf4e_room_model STD 17 LABELS room)
 sf4e_add_unit_test(NAME RankingRequests SOURCES "src/tests/ranking_requests_test.cxx" STD 17)
-sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
+sf4e_add_unit_test(NAME LevelRequests SOURCES "src/tests/level_requests_test.cxx" STD 17)
+sf4e_add_unit_test(NAME Awards SOURCES "src/tests/awards_test.cxx" STD 17)
+sf4e_add_unit_test(NAME CardRequests SOURCES "src/tests/card_requests_test.cxx" STD 17)
+sf4e_add_unit_test(NAME ArchiveRequests SOURCES "src/tests/archive_requests_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/ArchiveAnswers.cxx"
+    LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS replay)
+sf4e_add_unit_test(NAME ArchiveSets SOURCES "src/tests/archive_sets_test.cxx" STD 17 LABELS ui replay)
+sf4e_add_unit_test(NAME BridgeFlights SOURCES "src/tests/bridge_flights_test.cxx" LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17)
+sf4e_add_unit_test(NAME FriendRequests SOURCES "src/tests/friend_requests_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17)
+sf4e_add_unit_test(NAME FriendVisits SOURCES "src/tests/friend_visits_test.cxx" STD 17)
+sf4e_add_unit_test(NAME FriendPresence SOURCES "src/tests/friend_presence_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17 LABELS room)
+sf4e_add_unit_test(NAME FriendsAnswers SOURCES "src/tests/friends_answers_test.cxx" "src/session/SocialAnswers.cxx" "src/session/TournamentAnswers.cxx"
+    LIBS sf4e_room_model sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS room)
+sf4e_add_unit_test(NAME ProfileAnswers SOURCES "src/tests/profile_answers_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/LevelsAnswers.cxx"
+    LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS room)
+sf4e_add_unit_test(NAME Profiles SOURCES "src/tests/profiles_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17 LABELS room)
+sf4e_add_unit_test(NAME LevelsAnswers SOURCES "src/tests/levels_answers_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/LevelsAnswers.cxx"
+    LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json LABELS room)
+sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/LevelsAnswers.cxx"
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300 LABELS room)
 sf4e_add_unit_test(NAME RoomLifecycle SOURCES "src/tests/room_lifecycle_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomServerOwned SOURCES "src/tests/room_server_owned_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
@@ -94,6 +129,7 @@ sf4e_add_unit_test(NAME ReadyChime SOURCES "src/tests/ready_chime_test.cxx" LIBS
 sf4e_add_unit_test(NAME RandomFighter SOURCES "src/tests/random_fighter_test.cxx" LIBS sf4e_room_model sf4e_selection TIMEOUT 15 LABELS room)
 sf4e_add_unit_test(NAME TrainingCall SOURCES "src/tests/training_call_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room training)
 sf4e_add_unit_test(NAME RoomTrainingFlag SOURCES "src/tests/room_training_flag_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+sf4e_add_unit_test(NAME RoomPostMatchAnswer SOURCES "src/tests/room_post_match_answer_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 add_executable(SessionRecoveryGateTest "src/tests/session_recovery_gate_test.cxx")
 target_compile_features(SessionRecoveryGateTest PRIVATE cxx_std_14)
 target_link_libraries(SessionRecoveryGateTest PRIVATE sf4e_room_model sf4e_catalog)
@@ -109,6 +145,7 @@ sf4e_add_unit_test(NAME NextBattleRequest SOURCES "src/tests/next_battle_request
 sf4e_add_unit_test(NAME SpectatorSync SOURCES "src/tests/spectator_sync_test.cxx" STD 14 LIBS sf4e_room_model TIMEOUT 15 LABELS room)
 sf4e_add_unit_test(NAME GameDisplayConfig SOURCES "src/tests/game_display_config_test.cxx" STD 17)
 sf4e_add_unit_test(NAME FrameRateWindow SOURCES "src/tests/frame_rate_window_test.cxx" STD 17)
+sf4e_add_unit_test(NAME ExportSoundClock SOURCES "src/tests/export_sound_clock_test.cxx" STD 17)
 
 sf4e_add_unit_test(NAME SelectionValue SOURCES "src/tests/selection_value_test.cxx" LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
 sf4e_add_unit_test(NAME MoveNotation SOURCES "src/tests/move_notation_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
@@ -131,6 +168,8 @@ sf4e_add_unit_test(NAME GameLanguage SOURCES "src/tests/game_language_test.cxx" 
 add_executable(CountriesTest "src/tests/countries_test.cxx")
 target_link_libraries(CountriesTest PRIVATE sf4e_product sf4e_localization nlohmann_json::nlohmann_json)
 add_test(NAME Countries COMMAND CountriesTest "${CMAKE_SOURCE_DIR}" "$<TARGET_FILE_DIR:Sidecar>")
+# The areas: their table, neighbours and the saved choice.
+sf4e_add_unit_test(NAME Area SOURCES "src/tests/area_test.cxx" TIMEOUT 15)
 
 sf4e_add_unit_test(NAME LobbyMusic SOURCES "src/tests/lobby_music_test.cxx" LIBS sf4e_selection STD 17 TIMEOUT 15)
 
@@ -144,9 +183,9 @@ sf4e_add_unit_test(NAME ProblemReport SOURCES "src/tests/problem_report_test.cxx
 
 # The scenario fragments' non-template parts compile on their own; the
 # scenarios still run in the order ui_render_test.cxx calls them.
-add_executable(UiRenderTest "src/tests/ui_render_test.cxx" "src/tests/ui_render_match_hud.cxx" "src/tests/ui_render_overlay.cxx")
+add_executable(UiRenderTest "src/tests/ui_render_test.cxx" "src/tests/ui_render_match_hud.cxx" "src/tests/ui_render_overlay.cxx" "src/ui/lab/UiLabSocial.cxx")
 target_compile_definitions(UiRenderTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
-sf4e_add_unit_test(NAME ControllerNavigation SOURCES src/tests/controller_navigation_test.cxx src/tests/menu_dialog_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
+sf4e_add_unit_test(NAME ControllerNavigation SOURCES src/tests/controller_navigation_test.cxx src/tests/controller_navigation_home_test.cxx src/tests/menu_dialog_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME MenuButtons SOURCES src/tests/menu_buttons_test.cxx LIBS sf4e_ui Dimps sf4e_settings STD 17 LABELS ui)
 sf4e_add_unit_test(NAME GamepadPrompts SOURCES src/tests/gamepad_prompts_test.cxx LIBS sf4e_ui STD 17 LABELS ui)
 sf4e_add_unit_test(NAME ButtonLayout SOURCES src/tests/button_layout_test.cxx LIBS sf4e_settings STD 17)
@@ -161,7 +200,7 @@ sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx sr
     src/tests/shell_room_journey_test.cxx src/tests/shell_follow_journey_test.cxx src/tests/shell_selection_journey_test.cxx
     src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx src/tests/shell_button_layout_journey_test.cxx
     src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx src/tests/shell_update_journey_test.cxx src/tests/shell_settings_journey_test.cxx
-    src/tests/shell_wired_only_journey_test.cxx
+    src/tests/shell_wired_only_journey_test.cxx src/tests/shell_archive_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 # The shell's product rules (Branding::roomFacesArePicks, answersFromInput):
 # ProductRules under SF4 Ember's identity, where they are off, and
@@ -179,7 +218,9 @@ sf4e_add_unit_test(NAME WatchJourney SOURCES src/tests/watch_journey_test.cxx LI
 sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journey_test.cxx src/tests/public_rooms_setup_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
 sf4e_add_unit_test(NAME RankingsJourney SOURCES src/tests/rankings_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
+sf4e_add_unit_test(NAME ProfileJourney SOURCES src/tests/profile_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME RoomPanelNavigation SOURCES src/tests/room_panel_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
+sf4e_add_unit_test(NAME ThemeAtlasReset SOURCES src/tests/theme_atlas_reset_test.cxx LIBS sf4e_ui TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME TableCardShape SOURCES src/tests/table_card_shape_test.cxx TIMEOUT 15 LABELS ui room)
 sf4e_add_unit_test(NAME WatchedMatchExit SOURCES src/tests/watched_match_exit_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
 sf4e_add_unit_test(NAME LatencyMark SOURCES src/tests/latency_mark_test.cxx LIBS sf4e_ui Dimps TIMEOUT 15 LABELS ui)
@@ -190,6 +231,18 @@ sf4e_add_unit_test(NAME WineBuiltin SOURCES src/tests/wine_builtin_test.cxx STD 
 sf4e_add_unit_test(NAME Win32Cursor SOURCES src/tests/win32_cursor_test.cxx LIBS sf4e_ui LABELS ui)
 sf4e_add_unit_test(NAME CountryPicker SOURCES src/tests/country_picker_test.cxx LIBS sf4e_ui TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME V2Layout SOURCES src/tests/v2_layout_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME LevelMark SOURCES src/tests/level_mark_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME Inflate SOURCES src/tests/inflate_test.cxx LIBS ZLIB::ZLIB TIMEOUT 15)
+sf4e_add_unit_test(NAME GameLettering SOURCES src/tests/game_lettering_test.cxx LIBS sf4e_game_lettering TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME PlayerCard SOURCES src/tests/player_card_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME CardEdit SOURCES src/tests/card_edit_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME FriendsPanel SOURCES src/tests/friends_panel_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME PlayerPage SOURCES src/tests/player_page_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME Notifications SOURCES src/tests/notifications_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME DiscordLink SOURCES src/tests/discord_link_test.cxx STD 17 TIMEOUT 15)
+sf4e_add_unit_test(NAME FriendsJourney SOURCES src/tests/friends_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
+sf4e_add_unit_test(NAME RoomFriendsJourney SOURCES src/tests/room_friends_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
+sf4e_add_unit_test(NAME RoomPoints SOURCES src/tests/room_points_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui room)
 sf4e_add_unit_test(NAME AppearanceGrid SOURCES src/tests/appearance_grid_test.cxx TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME MenuSpeech SOURCES src/tests/menu_speech_test.cxx LIBS sf4e_localization STD 17 LABELS ui)
 sf4e_add_unit_test(NAME SpeechLinux SOURCES src/tests/speech_linux_test.cxx STD 17)
@@ -199,10 +252,18 @@ find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
     add_test(NAME SpeechRelay COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/speech_relay_test.py" "${CMAKE_SOURCE_DIR}/src/platform/speech_relay.py")
     sf4e_test_labels(LABELS ui TESTS SpeechRelay)
+    # The frame data the phone remote shows: its shape and numbers that cannot be right (docs/development/FRAME_DATA.md).
+    add_test(NAME FrameData COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/scripts/framedata/validate.py" "${CMAKE_SOURCE_DIR}/assets/framedata/usf4.json")
+    add_test(NAME FrameDataScripts COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/framedata_scripts_test.py" "${CMAKE_SOURCE_DIR}/scripts/framedata")
+    add_test(NAME RemotePage COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/remote_page_test.py" "${CMAKE_SOURCE_DIR}/src/training/RemotePage.hxx" "${CMAKE_SOURCE_DIR}/assets/framedata/usf4.json")
+    # Needs node; skipped without one.
+    add_test(NAME RemotePageSyntax COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/remote_page_test.py" "${CMAKE_SOURCE_DIR}/src/training/RemotePage.hxx" --syntax)
+    set_tests_properties(RemotePageSyntax PROPERTIES SKIP_RETURN_CODE 77)
+    sf4e_test_labels(LABELS training TESTS FrameData FrameDataScripts RemotePage RemotePageSyntax)
 endif()
 target_link_libraries(UiRenderTest PRIVATE sf4e_product sf4e_catalog sf4e_ui "d3d9" "dbghelp" "psapi")
 # The UI lab (src/ui/lab/UiLab.cxx): the shell in a window of its own, for working on layouts.
-add_executable(UiLab WIN32 "src/ui/lab/UiLab.cxx")
+add_executable(UiLab WIN32 "src/ui/lab/UiLab.cxx" "src/ui/lab/UiLabSocial.cxx")
 target_compile_definitions(UiLab PRIVATE SF4E_LAB_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
 target_link_libraries(UiLab PRIVATE sf4e_product sf4e_catalog sf4e_ui "d3d9" "xinput" "shell32")
 # The same lab as another product draws it (SFV Ember's look, from its own
@@ -225,10 +286,19 @@ add_test(NAME UiRender COMMAND UiRenderTest)
 # budgets cover an adapter without hardware transform, where the CPU does
 # it and a sweep takes several minutes.
 set_tests_properties(UiRender PROPERTIES TIMEOUT 600)
-# Each translation at three sizes, in its own run so neither sweep nears
-# its timeout as languages are added.
-add_test(NAME UiRenderLocales COMMAND UiRenderTest)
-set_tests_properties(UiRenderLocales PROPERTIES TIMEOUT 600 ENVIRONMENT "SF4E_UI_RENDER_LOCALES=translations")
+# Each translation at three sizes, in three runs of a third of the languages
+# each. One process rebuilding the atlas texture for every language at every
+# size ran the D3D9 driver out of this 32-bit process's address space (each new
+# texture size leaves a reservation behind), and no run nears its timeout as
+# languages are added.
+set(SF4E_UI_RENDER_LOCALE_SHARDS 3)
+set(SF4E_UI_RENDER_LOCALE_TESTS)
+foreach(shard RANGE 1 ${SF4E_UI_RENDER_LOCALE_SHARDS})
+    add_test(NAME UiRenderLocales${shard} COMMAND UiRenderTest)
+    set_tests_properties(UiRenderLocales${shard} PROPERTIES TIMEOUT 600
+        ENVIRONMENT "SF4E_UI_RENDER_LOCALES=translations:${shard}/${SF4E_UI_RENDER_LOCALE_SHARDS}")
+    list(APPEND SF4E_UI_RENDER_LOCALE_TESTS UiRenderLocales${shard})
+endforeach()
 # The atlas rebuild on its own: every language and scale within the atlas
 # budget, then random player text through many rebuilds.
 add_test(NAME UiRenderAtlas COMMAND UiRenderTest)
@@ -241,7 +311,7 @@ add_test(NAME UiRenderGallery COMMAND UiRenderTest - "${CMAKE_BINARY_DIR}/no-gam
 set_tests_properties(UiRenderGallery PROPERTIES TIMEOUT 600 ENVIRONMENT "SF4E_UI_RENDER_GALLERY=1;SF4E_UI_RENDER_QUICK=1")
 add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
 target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
-target_link_libraries(SelectionArtTest PRIVATE sf4e_product sf4e_ui "d3d9")
+target_link_libraries(SelectionArtTest PRIVATE sf4e_product sf4e_ui ZLIB::ZLIB "d3d9")
 add_test(NAME SelectionArt COMMAND SelectionArtTest)
 set_tests_properties(SelectionArt PROPERTIES TIMEOUT 60)
 
@@ -290,6 +360,7 @@ sf4e_add_unit_test(NAME SessionServerTransportLobby SOURCES "src/tests/session_s
 sf4e_add_unit_test(NAME SessionServerTransportBarriers SOURCES "src/tests/session_server_transport_barriers_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportTerminal SOURCES "src/tests/session_server_transport_terminal_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportCommit SOURCES "src/tests/session_server_transport_commit_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
+sf4e_add_unit_test(NAME RoomEffectBurst SOURCES "src/tests/room_effect_burst_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportDepartures SOURCES "src/tests/session_server_transport_departures_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 # The room model, the room host's status and the session server under game
 # catalogs the test defines itself from the fake game's (fake_catalog.cxx). It
@@ -408,7 +479,10 @@ sf4e_test_labels(LABELS unit TESTS Localization Countries AbortNotice Presentati
 sf4e_test_labels(LABELS ggpo TESTS GgpoSpectatorCapacity GgpoSpectatorHandleControl GgpoSpectatorBacklog
     GgpoDelayRollbackZeroZero GgpoDelayRollbackZeroOne GgpoDelayRollbackFiveZero GgpoDelayRollbackCorruptRestore)
 sf4e_test_labels(LABELS room TESTS SessionRecoveryGate)
-sf4e_test_labels(LABELS ui TESTS UiRender UiRenderLocales UiRenderAtlas UiRenderGallery SelectionArt)
+sf4e_test_labels(LABELS ui TESTS UiRender ${SF4E_UI_RENDER_LOCALE_TESTS} UiRenderAtlas UiRenderGallery SelectionArt)
+foreach(test UiRender ${SF4E_UI_RENDER_LOCALE_TESTS} UiRenderAtlas UiRenderGallery)
+    sf4e_test_locks(${test} d3d9_device)
+endforeach()
 sf4e_test_labels(LABELS script TESTS UpdaterDownloadValidation NetworkCompletion UpgradeRecoveryPowerShell)
 
 # The publisher's PowerShell suites. They mock git, gh, ssh, scp and WSL and write only under TEMP, so

@@ -41,4 +41,7 @@ SelectionImage SelectionArt::Ultra(int, int) { return None(); }
 SelectionImage SelectionArt::UltraIcon(int) { return None(); }
 SelectionImage SelectionArt::Stage(int) { return None(); }
 SelectionImage SelectionArt::RankingEmblem(const std::string&) { return None(); }
+// No point digits or lettering of the game's own: points in Ember's font.
+SelectionArt::GameSheet SelectionArt::PointDigitFiles() const { return {}; }
+SelectionArt::GameSheet SelectionArt::LetterFiles() const { return {}; }
 } }

@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 1.5.6
+    VERSION 1.6.0
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
@@ -38,6 +38,10 @@ if(WIN32)
     target_compile_features(sf4e_durable_file PUBLIC cxx_std_17)
     add_library(sf4e_custom_content_files STATIC "src/platform/CustomContentFiles.cxx")
     target_link_libraries(sf4e_custom_content_files PUBLIC sf4e_selection)
+    # Themes (platform/GameThemes.hxx): the folders of replacement menu files.
+    add_library(sf4e_game_themes STATIC "src/platform/GameThemes.cxx")
+    target_compile_features(sf4e_game_themes PRIVATE cxx_std_17)
+    target_link_libraries(sf4e_game_themes PUBLIC sf4e_durable_file)
 endif()
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_core_tests.cmake")
 if(SF4E_CORE_TESTS_ONLY)
@@ -60,6 +64,20 @@ find_package(CLI11 CONFIG REQUIRED)
 find_package(ggpo CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+# HUD layout editing (platform/HudLayout.hxx): moves the elements of a theme's battle HUD.
+add_library(sf4e_hud_layout STATIC "src/platform/HudLayout.cxx" "src/platform/HudTextures.cxx")
+target_compile_features(sf4e_hud_layout PRIVATE cxx_std_17)
+target_link_libraries(sf4e_hud_layout PUBLIC ZLIB::ZLIB nlohmann_json::nlohmann_json)
+# The in-game themes' crash guard (platform/GameThemeGuard.hxx): which theme the game was loading when it closed.
+if(WIN32)
+    add_library(sf4e_game_theme_guard STATIC "src/platform/GameThemeGuard.cxx")
+    target_compile_features(sf4e_game_theme_guard PRIVATE cxx_std_17)
+    target_link_libraries(sf4e_game_theme_guard PUBLIC nlohmann_json::nlohmann_json PRIVATE sf4e_durable_file)
+    # The check that a theme's battle HUD layouts and picture sheets belong together (platform/HudBundleCheck.hxx).
+    add_library(sf4e_hud_bundle_check STATIC "src/platform/HudBundleCheck.cxx")
+    target_compile_features(sf4e_hud_bundle_check PRIVATE cxx_std_17)
+    target_link_libraries(sf4e_hud_bundle_check PUBLIC sf4e_game_themes PRIVATE ZLIB::ZLIB)
+endif()
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_discord.cmake")
 find_package(spdlog CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
@@ -109,16 +127,19 @@ target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_loc
 # (Sf4SelectionLabels.cxx, Sf4SelectionArt.cxx) are the game's, defined once
 # per game, so whatever links the shell here has SF4's; the x64 library build
 # gives the runtime's test the fake game's (cmake/ember-x64-probe).
+add_library(sf4e_game_lettering STATIC src/common/GameLettering.cxx)
+target_compile_features(sf4e_game_lettering PUBLIC cxx_std_17)
 add_library(sf4e_ui STATIC
-    src/ui/ApplicationShell.cxx src/ui/ControllersScreen.cxx src/ui/ReplaysPanel.cxx src/ui/RoomPanel.cxx src/ui/RoomPanelArcade.cxx src/ui/RoomPanelTables.cxx src/ui/RoomPanelColumn.cxx src/ui/RoomActions.cxx src/ui/RoomControls.cxx
+    src/ui/ApplicationShell.cxx src/ui/PlayerCard.cxx src/ui/CardModel.cxx src/ui/CardParts.cxx src/ui/CardSets.cxx src/ui/FightersTab.cxx src/ui/AwardsWall.cxx src/ui/PlayerPage.cxx src/ui/PlayerPage__Panel.cxx src/ui/PlayerPage__Draw.cxx src/ui/PlayerOpening.cxx src/ui/FindPlayer.cxx src/ui/PostMatchFriend.cxx src/ui/PostMatchRows.cxx src/ui/ProfilePanel.cxx src/ui/ControllersScreen.cxx src/ui/ReplaysPanel.cxx src/ui/ArchiveTab.cxx src/ui/RoomPanel.cxx src/ui/RoomPanelArcade.cxx src/ui/RoomPanelTables.cxx src/ui/RoomPanelColumn.cxx src/ui/RoomActions.cxx src/ui/RoomControls.cxx
     src/ui/Theme.cxx src/ui/MatchHud.cxx src/ui/SelectionArt.cxx src/ui/Sf4SelectionArt.cxx src/ui/SelectionArtD3D9.cxx src/ui/FighterSelector.cxx src/ui/AppearanceGallery.cxx src/ui/Sf4SelectionLabels.cxx
     src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx
     src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatFilter.cxx src/ui/ChatPanel.cxx
     src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp
-    src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/FrameMeterWindow.cxx src/ui/HitboxOverlay.cxx src/ui/TrainingData.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityPanel__Watch.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/IdentityDesk.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/RankingsPanel.cxx src/ui/RankingsCards.cxx src/ui/MatchAnnouncements.cxx
-    src/ui/OverlayLayers.cxx src/ui/PassiveHint.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx src/ui/ApplicationShell__Screens.cxx
-    src/ui/ProblemReportPanel.cxx src/ui/PadSetupScreen.cxx src/ui/ApplicationShell__PadSetup.cxx src/ui/ButtonLayoutScreen.cxx src/ui/ApplicationShell__ButtonLayout.cxx src/ui/ApplicationShell__Create.cxx src/ui/ApplicationShell__PostMatch.cxx src/ui/ApplicationShell__Training.cxx src/ui/ApplicationShell__Links.cxx src/ui/RoomCards.cxx src/ui/ApplicationShell__Updates.cxx src/ui/UpdatePrompt.cxx src/ui/CountryFlag.cxx src/ui/CountryPicker.cxx src/ui/NameMarks.cxx
-    src/ui/V2.cxx src/ui/LineIcons.cxx src/ui/GameMenuDraw.cxx src/ui/MenuWalk.cxx src/ui/WatchedPicture.cxx src/ui/ApplicationShell__Settings.cxx src/ui/ApplicationShell__ShellScreens.cxx src/ui/ApplicationShell__Values.cxx src/ui/ApplicationShell__Accessibility.cxx src/ui/ApplicationShell__Toasts.cxx src/ui/ApplicationShell__FirstRun.cxx src/ui/ApplicationShell__Awards.cxx src/platform/Speech.cxx)
+    src/ui/TrainingPanel.cxx src/ui/TrainingRemote.cxx src/third_party/qrcodegen/qrcodegen.cpp src/ui/TrainingMeter.cxx src/ui/FrameMeterWindow.cxx src/ui/HitboxOverlay.cxx src/ui/TrainingData.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityPanel__Watch.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/IdentityDesk.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/RankingsPanel.cxx src/ui/RankingsCards.cxx src/ui/MatchAnnouncements.cxx
+    src/ui/OverlayLayers.cxx src/ui/PassiveHint.cxx src/ui/CameraPanel.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx src/ui/ApplicationShell__Screens.cxx
+    src/ui/ProblemReportPanel.cxx src/ui/PadSetupScreen.cxx src/ui/ApplicationShell__PadSetup.cxx src/ui/ButtonLayoutScreen.cxx src/ui/ApplicationShell__ButtonLayout.cxx src/ui/ApplicationShell__Create.cxx src/ui/ApplicationShell__PostMatch.cxx src/ui/ApplicationShell__Training.cxx src/ui/ApplicationShell__Links.cxx src/ui/ApplicationShell__StreamHost.cxx src/ui/RoomCards.cxx src/ui/ApplicationShell__Updates.cxx src/ui/UpdatePrompt.cxx src/ui/CountryFlag.cxx src/ui/CountryPicker.cxx src/ui/NameMarks.cxx
+    src/ui/LevelMark.cxx src/ui/RoomPoints.cxx src/ui/FriendsPanel.cxx src/ui/FriendsBoard.cxx
+    src/ui/V2.cxx src/ui/LineIcons.cxx src/ui/GameMenuDraw.cxx src/ui/MenuWalk.cxx src/ui/WatchedPicture.cxx src/ui/ApplicationShell__Settings.cxx src/ui/ApplicationShell__ShellScreens.cxx src/ui/ApplicationShell__Values.cxx src/ui/ApplicationShell__Accessibility.cxx src/ui/ApplicationShell__Toasts.cxx src/ui/ApplicationShell__FirstRun.cxx src/ui/ApplicationShell__Awards.cxx src/ui/CardEditRows.cxx src/platform/Speech.cxx)
 install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.png")
 install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.png" PATTERN "*.txt")
 install(DIRECTORY "assets/flags" DESTINATION "assets" FILES_MATCHING PATTERN "flags.png" PATTERN "flags.json" PATTERN "LICENSE" PATTERN "README.md")
@@ -134,7 +155,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_speech_relay.cmake")
 # The three write the fonts, the chat filter's lists and the speech relay
 # into generated/; the UI is what includes them.
 target_include_directories(sf4e_ui PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
-target_link_libraries(sf4e_ui PUBLIC imgui::imgui sf4e_selection sf4e_room_model sf4e_localization sf4e_settings PRIVATE ZLIB::ZLIB spdlog::spdlog "windowscodecs" "ole32" "d3d9" "winmm")
+target_link_libraries(sf4e_ui PUBLIC imgui::imgui sf4e_game_lettering sf4e_selection sf4e_room_model sf4e_localization sf4e_settings PRIVATE ZLIB::ZLIB spdlog::spdlog "windowscodecs" "ole32" "d3d9" "winmm")
 target_compile_definitions(sf4e_ui PRIVATE SF4E_BUILD_VERSION="${PROJECT_VERSION}")
 
 add_library(Dimps STATIC
@@ -244,16 +265,26 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Overlay.hxx"
     "src/sf4e/sf4e__Overlay.cxx"
     "src/training/TrainingRuntime.cxx"
+    "src/training/CameraHook.cxx"
+    "src/training/RemoteServer.cxx"
+    "src/training/RemoteMdns.cxx"
+    "src/training/RemoteHud.cxx"
     "src/training/TrainingCapture.cxx"
     "src/sf4e/sf4e__OverlayPrefs.hxx"
     "src/sf4e/sf4e__OverlayPrefs.cxx"
     "src/sf4e/sf4e__OverlayRandomFighter.hxx"
     "src/sf4e/sf4e__OverlayRandomFighter.cxx"
+    "src/sf4e/sf4e__WatchedPicture.hxx"
+    "src/sf4e/sf4e__WatchedPicture.cxx"
     "src/sf4e/sf4e__Pad.hxx"
     "src/sf4e/sf4e__Pad.cxx"
     "src/sf4e/sf4e__BackgroundPlay.hxx"
     "src/sf4e/sf4e__BackgroundPlay.cxx"
+    "src/sf4e/sf4e__ExportSound.hxx"
+    "src/sf4e/sf4e__ExportSound.cxx"
     "src/sf4e/sf4e__MenuMusic.hxx"
+    "src/sf4e/sf4e__GameThemes.hxx"
+    "src/sf4e/sf4e__GameThemes.cxx"
     "src/sf4e/sf4e__MenuMusic.cxx"
     "src/sf4e/sf4e__Borderless.hxx"
     "src/sf4e/sf4e__Borderless.cxx"
@@ -291,7 +322,7 @@ if(SF4E_SELFTEST)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__RoomLayout.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx" "src/sf4e/sf4e__SelfTest__Export.cxx" "src/sf4e/sf4e__SelfTest__Online.cxx" "src/sf4e/sf4e__SelfTest__Tournament.cxx" "src/sf4e/sf4e__SelfTest__Menu.cxx" "src/sf4e/sf4e__SelfTest__ComboCheck.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_SELFTEST=1)
 endif()
-target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
+target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_game_themes sf4e_game_theme_guard sf4e_hud_bundle_check sf4e_hud_layout sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
 target_link_libraries(
     sf4e
     PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp" "Winmm"
@@ -320,6 +351,10 @@ add_library(Session STATIC
     "src/session/IrohMatchSession.cxx"
     "src/session/IrohRoom.hxx"
     "src/session/SessionTransport.hxx"
+    # The game's own answer decoders beside TournamentAnswers.cxx (in sf4e_iroh_room): the room host reads none of these.
+    "src/session/AnswerReading.hxx"
+    "src/session/LevelsAnswers.cxx"
+    "src/session/ArchiveAnswers.cxx"
 )
 target_compile_features(Session PUBLIC cxx_std_17)
 target_link_libraries(
@@ -337,7 +372,7 @@ target_compile_features(sf4e-room-host PRIVATE cxx_std_17)
 target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room sf4e_product sf4e_catalog)
 
 
-add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/platform/UpdatePolicy.cxx src/platform/ReportWorkflow.cxx src/platform/ReportHistory.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
+add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/platform/ReplayPicker.cxx src/platform/UpdatePolicy.cxx src/platform/ReportWorkflow.cxx src/platform/ReportHistory.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
 target_compile_features(sf4e_app_services PUBLIC cxx_std_17)
 target_compile_definitions(sf4e_app_services PRIVATE SF4E_APP_VERSION="${PROJECT_VERSION}")
 target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization sf4e_problem_report PRIVATE sf4e_common sf4e_selection sf4e_package_installer sf4e_durable_file spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt ole32)
@@ -373,7 +408,8 @@ add_library(sf4e_recovery STATIC src/ui/RecoverySurface.cxx src/ui/RecoveryContr
 target_compile_features(sf4e_recovery PUBLIC cxx_std_17)
 # XInput is loaded at run time; DirectInput 8 is on every supported Windows.
 target_link_libraries(sf4e_recovery PUBLIC sf4e_ui sf4e_app_services sf4e_localization PRIVATE sf4e_settings d3d9 ole32 shell32 dinput8 dxguid)
-add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/Sf4Launch.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx)
+add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/Sf4Launch.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx src/launcher/StreamHostFiles.cxx)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_stream_host.cmake")
 target_link_libraries(Launcher PRIVATE sf4e_product sf4e_catalog sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video_encoder)
 # As the video export's encoder (platform/VideoLink.hxx) it holds a second of 4K frames: 4 GB of addresses instead of 2.
 target_link_options(Launcher PRIVATE "/LARGEADDRESSAWARE")
@@ -468,6 +504,7 @@ add_custom_target(SelectionAssets
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/flags" "$<TARGET_FILE_DIR:Sidecar>/assets/flags"
     VERBATIM)
 add_dependencies(Sidecar SelectionAssets)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_frame_data.cmake")
 add_custom_command(TARGET Sidecar POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Sidecar>/notices"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts/OFL.txt"

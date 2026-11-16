@@ -8,26 +8,24 @@
 // The sentences about the player's own network and about where a connection
 // failed. Pure functions of what the helper reported, so the settings row, the
 // connection check, the failure messages and their tests share one wording.
-// Only region codes, never relay addresses, come in here.
+// Only relay codes, never relay addresses, come in here. A relay is named as
+// a relay ("Ember US (Kansas)"), never as a place: where a player is, is
+// their area (AreaNames.hxx).
 namespace sf4e { namespace ui {
 
-// A relay region's name, or null when the code is empty or unknown.
-inline const char* RelayRegionName(const std::string& code) {
-    if (code == "use1") return loc::T("network.region_use1");
-    if (code == "usw1") return loc::T("network.region_usw1");
-    if (code == "euc1") return loc::T("network.region_euc1");
-    if (code == "aps1") return loc::T("network.region_aps1");
-    if (code == "other") return loc::T("network.region_other");
-    return nullptr;
+// A relay's name, or null when the code is empty or unknown.
+inline const char* RelayName(const std::string& code) {
+    const char* key = RelayNameKey(code);
+    return key ? loc::T(key) : nullptr;
 }
 
-// "US East (connected)". Before the helper's first report the relay is being
-// checked; with no home relay chosen it is not connected.
+// "Ember US (Kansas) · connected". Before the helper's first report the relay
+// is being checked; with no home relay chosen it is not connected.
 inline std::string DescribeRelay(const NetworkSummary& network) {
     if (!network.reported) return loc::T("connection.checking");
-    const char* region = RelayRegionName(network.relay);
-    if (!region) return loc::T("network.relay_none");
-    return network.relayConnected ? loc::Tf("network.relay_connected", region) : loc::Tf("network.relay_connecting", region);
+    const char* relay = RelayName(network.relay);
+    if (!relay) return loc::T("network.relay_none");
+    return network.relayConnected ? loc::Tf("network.relay_connected", relay) : loc::Tf("network.relay_connecting", relay);
 }
 
 // "Open", "Strict NAT", "UDP blocked", or "Checking..." until the first net report.
@@ -52,9 +50,9 @@ inline std::string DescribeNatDetail(const NetworkSummary& network) {
     return text;
 }
 
-// "Relayed", or "Relayed via US East" when the region of the relay is known.
-inline std::string DescribeRelayedRoute(const std::string& region) {
-    const char* name = RelayRegionName(region);
+// "Relayed", or "Relayed via Ember Europe" when the relay is known.
+inline std::string DescribeRelayedRoute(const std::string& relay) {
+    const char* name = RelayName(relay);
     return name ? loc::Tf("connection.route_relayed_via", name) : std::string(loc::T("connection.route_relayed"));
 }
 
@@ -72,19 +70,21 @@ inline std::string DescribeDirectBlock(NatClass local, NatClass peer, const std:
     }
 }
 
-// The sentence for a room that failed while opening. `region` is this PC's
-// home relay, named when the relay was the problem.
-inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage stage, const std::string& region) {
+// The sentence for a room that failed while opening. `relay` is this PC's
+// home relay's code, named when the relay was the problem. `updateAvailable` is
+// whether this PC knows of a newer Ember: a join refused for another build
+// cannot tell which build is older, but then this one is.
+inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage stage, const std::string& relay, bool updateAvailable = false) {
     switch (stage) {
     case session::FailureStage::RelayUnreachable: {
-        const char* name = RelayRegionName(region);
-        return name ? loc::Tf("runtime.relay_unreachable_region", name) : std::string(loc::T("runtime.relay_unreachable"));
+        const char* name = RelayName(relay);
+        return name ? loc::Tf("runtime.relay_unreachable_named", name) : std::string(loc::T("runtime.relay_unreachable"));
     }
     case session::FailureStage::HostUnreachable: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.host_unreachable");
     case session::FailureStage::ControlLost: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.join_control_lost");
     // Only a join reads an invitation; a host never hears about one.
     case session::FailureStage::InviteExpired: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_expired");
-    case session::FailureStage::InviteOtherBuild: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_other_build");
+    case session::FailureStage::InviteOtherBuild: return hosting ? loc::T("runtime.room_host_failed") : loc::T(updateAvailable ? "runtime.build_mismatch_update" : "runtime.invite_other_build");
     case session::FailureStage::InviteMalformed: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_malformed");
     case session::FailureStage::InviteOwnRoom: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_own_room");
     case session::FailureStage::ShortUnavailable: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_short_unavailable");
@@ -95,8 +95,8 @@ inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage st
 
 // The same for a join of a public room: a stage the helper did not name says what
 // that likely means for such a room, and every named one reads as for any join.
-inline std::string DescribePublicOpeningFailure(session::FailureStage stage, const std::string& region) {
-    return stage == session::FailureStage::Unknown ? std::string(loc::T("public.failure.join_failed")) : DescribeOpeningFailure(false, stage, region);
+inline std::string DescribePublicOpeningFailure(session::FailureStage stage, const std::string& relay, bool updateAvailable = false) {
+    return stage == session::FailureStage::Unknown ? std::string(loc::T("public.failure.join_failed")) : DescribeOpeningFailure(false, stage, relay, updateAvailable);
 }
 
 } }

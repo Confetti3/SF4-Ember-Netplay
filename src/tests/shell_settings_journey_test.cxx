@@ -52,7 +52,7 @@ void Drag(Harness& h, ImVec2 from, float dx, float dy) {
 }
 void Click(Harness& h, ImVec2 at) { Drag(h, at, 0, 0); }
 std::size_t RoomSaves(const Harness& h, std::size_t from) {
- return static_cast<std::size_t>(std::count_if(h.actions.begin() + static_cast<std::ptrdiff_t>(from), h.actions.end(), [](const ShellAction& a) { return a.roomSettings; }));
+ return static_cast<std::size_t>(std::count_if(h.actions.begin() + static_cast<std::ptrdiff_t>(from), h.actions.end(), [](const ShellAction& a) { return Is<commands::RoomSettings>(a); }));
 }
 // A room this player has joined, healthy, with its own member.
 void InRoom(Harness& h, std::uint64_t epoch) {
@@ -98,7 +98,7 @@ void RoomSettingsFollowOneRule() {
  h.Press(MenuInput::Right); h.Wait(1); h.Frame();
  const std::string stepped = drawn.Value("arrange-column");
  Check(stepped != column && RoomSaves(h, second) == 1, "Right on Room layout's column did not change and save it after the fight");
- h.view.preferences = h.actions.back().preferences; h.Frame();
+ h.view.preferences = std::get<commands::RoomSettings>(h.actions.back()).preferences; h.Frame();
  const auto third = h.actions.size();
  Drag(h, drawn.Centre("##room-column"), -120, 0); h.Wait(1); h.Frame();
  Check(drawn.Value("arrange-column") != stepped && RoomSaves(h, third) == 1, "The picture's grip did not drag and save the column after the fight");
@@ -127,7 +127,7 @@ void RetrySaveOnPanelScreens() {
   Check(drawn.Shown("retry-save") && drawn.Open("retry-save"), ("Retry saving was not drawn, or not open," + where).c_str());
   const auto mark = h.actions.size();
   h.Press(MenuInput::Select); h.Frame();
-  const bool saved = std::any_of(h.actions.begin() + static_cast<std::ptrdiff_t>(mark), h.actions.end(), [](const ShellAction& a) { return a.command.kind == Kind::SavePreferences; });
+  const bool saved = std::any_of(h.actions.begin() + static_cast<std::ptrdiff_t>(mark), h.actions.end(), [](const ShellAction& a) { return Is<commands::SavePreferences>(a); });
   Check(saved && h.shell.Navigation().Screen() == screen, ("Retry saving did not retry the save" + where).c_str());
  }
  // A room's own settings: their save failed, the retry is open in the room and goes out as the room's request.
@@ -145,7 +145,7 @@ void RetrySaveOnPanelScreens() {
  Check(reach(h), "Down from the panel's rows did not return to Retry saving");
  const auto mark = h.actions.size();
  h.Press(MenuInput::Select); h.Frame();
- Check(RoomSaves(h, mark) == 1 && h.actions.back().preferences.roomColumn == netplay::DefaultRoomColumn + netplay::RoomColumnStep,
+ Check(RoomSaves(h, mark) == 1 && Is<commands::RoomSettings>(h.actions.back(), [](const commands::RoomSettings& s) { return s.preferences.roomColumn == netplay::DefaultRoomColumn + netplay::RoomColumnStep; }),
   "Retry saving did not send the room setting again in the room's own request");
 }
 
@@ -187,14 +187,15 @@ void SaveWhileHidden() {
  h.Press(MenuInput::Select);
  Check(h.actions.size() == mark && h.shell.Navigation().Screen() == "main-character", "The main was saved before Ember hid");
  hidden(1); hidden(1.f / 60);
- const auto sent = std::find_if(h.actions.begin() + static_cast<std::ptrdiff_t>(mark), h.actions.end(), [](const ShellAction& a) { return a.command.kind == Kind::SavePreferences; });
- Check(sent != h.actions.end() && sent->preferences.mainFighter == main, "A setting left unsaved was not saved while Ember was hidden");
+ const auto sent = std::find_if(h.actions.begin() + static_cast<std::ptrdiff_t>(mark), h.actions.end(), [](const ShellAction& a) { return Is<commands::SavePreferences>(a); });
+ const auto* save = sent != h.actions.end() ? As<commands::SavePreferences>(*sent) : nullptr;
+ Check(save && save->preferences.mainFighter == main, "A setting left unsaved was not saved while Ember was hidden");
  Check(h.shell.Navigation().Screen() == "main-character", "The main-character screen closed before the save was acknowledged");
- h.view.preferences = sent->preferences; hidden(1.f / 60);
+ h.view.preferences = save->preferences; hidden(1.f / 60);
  Check(h.shell.Navigation().Screen() == "profile", "The save's acknowledgment was not taken while Ember was hidden");
  const auto after = h.actions.size();
  h.Frame(0, 40);
- Check(std::none_of(h.actions.begin() + static_cast<std::ptrdiff_t>(after), h.actions.end(), [](const ShellAction& a) { return a.command.kind == Kind::SavePreferences; }),
+ Check(std::none_of(h.actions.begin() + static_cast<std::ptrdiff_t>(after), h.actions.end(), [](const ShellAction& a) { return Is<commands::SavePreferences>(a); }),
   "The save went out again once Ember showed");
 }
 
@@ -280,13 +281,12 @@ void MenuArtworkRow() {
  h.Press(MenuInput::Right);
  Check(h.actions.size() == before, "Right on Background artwork already shown asked again");
  h.Press(MenuInput::Left);
- Check(h.actions.size() == before + 1 && h.actions.back().showMenuArtwork && !*h.actions.back().showMenuArtwork &&
-  h.actions.back().command.kind != netplay::CommandKind::SavePreferences, "Left on Background artwork did not ask the game to hide it");
+ Check(h.actions.size() == before + 1 && test::Is<ui::ShowMenuArtwork>(h.actions.back(), [](const ui::ShowMenuArtwork& a) { return !a.shown; }), "Left on Background artwork did not ask the game to hide it");
  h.Frame();
  Check(drawn.Value("menu-artwork") == loc::T("common.on"), "The Background artwork row changed before the game kept the choice");
  h.view.menuArtworkShown = false; h.Frame();
  h.Press(MenuInput::Right);
- Check(h.actions.size() == before + 2 && h.actions.back().showMenuArtwork && *h.actions.back().showMenuArtwork, "Right on Background artwork did not ask the game to show it");
+ Check(h.actions.size() == before + 2 && test::Is<ui::ShowMenuArtwork>(h.actions.back(), [](const ui::ShowMenuArtwork& a) { return a.shown; }), "Right on Background artwork did not ask the game to show it");
  h.view.offersMenuArtwork = false; h.Frame();
  Check(!drawn.Row("menu-artwork"), "The Background artwork row stayed for a game that does not draw its own");
 }
@@ -318,17 +318,36 @@ void ScreenModeRow() {
  h.Press(MenuInput::Right);
  Check(h.actions.size() == before, "Right on Screen mode at Borderless asked again");
  h.Press(MenuInput::Left);
- Check(h.actions.size() == before + 1 && h.actions.back().setScreenMode && *h.actions.back().setScreenMode == 1 &&
-  h.actions.back().command.kind != netplay::CommandKind::SavePreferences, "Left on Screen mode did not ask the game for Window");
+ Check(h.actions.size() == before + 1 && test::Is<ui::SetScreenMode>(h.actions.back(), [](const ui::SetScreenMode& a) { return a.mode == 1; }), "Left on Screen mode did not ask the game for Window");
  h.Frame();
  Check(drawn.Value("screen-mode") == loc::T("player.borderless"), "The Screen mode row changed before the game kept the choice");
  h.view.screenMode = 0; h.Frame();
  h.Press(MenuInput::Left);
  Check(h.actions.size() == before + 1, "Left on Screen mode at Game's setting asked again");
  h.Press(MenuInput::Right);
- Check(h.actions.size() == before + 2 && h.actions.back().setScreenMode && *h.actions.back().setScreenMode == 1, "Right on Screen mode did not ask the game for Window");
+ Check(h.actions.size() == before + 2 && test::Is<ui::SetScreenMode>(h.actions.back(), [](const ui::SetScreenMode& a) { return a.mode == 1; }), "Right on Screen mode did not ask the game for Window");
  h.view.offersScreenMode = false; h.Frame();
  Check(!drawn.Row("screen-mode"), "The Screen mode row stayed for a game that does not offer it");
+// Interface size steps below 1.00x with Left (pad or keys) down to 0.70x, where it stops; every step shows as
+// its value, and the size saved is the one the preferences accept.
+void InterfaceSizeBelowOne() {
+ using namespace sf4e;
+ Harness h; h.Frame();
+ Drawn drawn;
+ h.Screen("tab-access/text"); h.FocusOn("scale");
+ Check(drawn.Value("scale") == "1.00x", "Interface size does not start at 1.00x");
+ h.Press(MenuInput::Left);
+ Check(drawn.Value("scale") == "0.95x", "Left from 1.00x did not step to 0.95x");
+ for (int i = 0; i < 8; ++i) h.Press(MenuInput::Left);
+ Check(drawn.Value("scale") == "0.70x", "Interface size did not stop at 0.70x");
+ h.Frame(0, 45);
+ Check(Is<commands::SavePreferences>(h.actions.back(), [](const commands::SavePreferences& s) { return s.preferences.interfaceScale == netplay::MinInterfaceScale && s.preferences.Valid(); }),
+  "The least Interface size was not saved as a valid preference");
+ // Right steps it back up.
+ h.view.preferences = std::get<commands::SavePreferences>(h.actions.back()).preferences; h.Frame();
+ h.Press(MenuInput::Right);
+ Check(drawn.Value("scale") == "0.75x", "Right from 0.70x did not step to 0.75x");
+ Check(drawn.Row("scale") && drawn.Row("scale")->detail.find(loc::T("settings.interface_size_detail")) != std::string::npos, "Interface size does not say that below 1.00x fits more");
 }
 }
 // Each journey owns a Harness and with it the ImGui context, so they run one after another.
@@ -340,4 +359,5 @@ void SettingsJourneys() {
  RowsFollowTheGame();
  MenuArtworkRow();
  ScreenModeRow();
+ InterfaceSizeBelowOne();
 }

@@ -123,6 +123,8 @@ constexpr bool Usable(const GameCatalog& catalog) {
 const GameCatalog& Catalog();
 
 inline bool ValidFighter(std::int64_t id) { return id >= 0 && id < Catalog().fighterCount; }
+// A player's main: one of the fighters, or -1 before they choose one (ember::UnsetMain).
+inline bool ValidMain(std::int64_t id) { return id == -1 || ValidFighter(id); }
 
 // The fighter's name, or `fallback` for an id the catalog does not have.
 inline const char* FighterNameOr(int fighter, const char* fallback) {

@@ -793,7 +793,7 @@ and players (by their account on the event's site):
   names (`POST .../matches/{match}/adjudications`).
 - `GET /v1/public/events/{id}`, to anyone, only while the organizer has set
   `"public": true` on the event and has not stopped it: its title, start,
-  links and sets without Ember IDs or match IDs, and `sign_ups_open`.
+  links and sets without Ember IDs, match IDs or the winner's site ID (`status` says a set is decided), and `sign_ups_open`.
 
 `/t/{id}` is that event's public page, a phone viewer of its live sets and
 bracket that also lets a signed-in player sign up while sign-ups are open.
@@ -860,34 +860,9 @@ Any other match answers 404, as one that does not exist.
 
 ## Testing the desk
 
-Three layers, from fastest:
-
-- **The page's own logic** (Discord post, tiers, bracket grouping, counts,
-  title length), without a browser:
-  `node --test 'server/ember/bridge/desk/test/*.test.js'`.
-- **Local end to end**, with fakes and no real site: start the stack (a real
-  bridge and connector, the fake Challonge, a stand-in Discord webhook, an
-  organizer and four players), then drive Chrome through the whole desk:
-
-  ```sh
-  cd server/ember
-  EMBER_E2E_OUT=/mnt/d/ember-build/e2e-out \
-    cargo test -p ember-brackets --test desk_e2e_stack -- --ignored --nocapture &
-  cargo build -p ember-bridge --example desk_game
-  node ../../scripts/e2e-desk.mjs
-  ```
-
-  It signs in from Ember (a wrong number turned down, the right one signed
-  in), creates a Challonge tournament in the four steps with tiers, sets the
-  webhook and sign-ups, readies it, starts the bracket, decides a disputed game
-  as a draw, gives one to player 1 and voids it, opens the bracket and the
-  public page, stops it and deletes it on Challonge, and checks at 390 and 1440 px that nothing scrolls sideways
-  and every button is at least 44 px. Pictures go to the out folder. Start a
-  fresh stack for each run: sign-in rate limits are per bridge.
-  `examples/desk_game.rs` plays the game's side: an Ember ID from a seed file
-  signing what Ember signs, against any bridge.
-- **A running bridge**: `scripts/e2e-tournament.mjs` plays a whole event on
-  two PCs against it and the real Challonge (docs/guides/TOURNAMENT_TEST.md).
+The page's own logic (Discord post, tiers, bracket grouping, counts, title
+length) has unit tests, without a browser:
+`node --test 'server/ember/bridge/desk/test/*.test.js'`.
 
 ## Bracket sites (Challonge, start.gg, your own)
 

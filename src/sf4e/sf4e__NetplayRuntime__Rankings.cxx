@@ -11,17 +11,9 @@ namespace sf4e { namespace NetplayFacade {
 namespace {
 using netplay::tournament::Command;
 using nlohmann::json;
-using internal::SendBridgeRequest;
-using Kind = netplay::rankings::Requests::Kind;
+using internal::SendFlight;
 
 std::string CurrentId() { return runtime->room ? runtime->room->Identity().emberId : std::string(); }
-
-// Each request is the product's game's ranking (internal::WithGame): SFV
-// Ember's standing, choice and board are its own, and SF4 Ember's requests
-// name no game, as before games were named.
-std::uint64_t SendIf(bool helperReady, const json& request) {
-	return helperReady ? SendBridgeRequest(internal::WithGame(request)) : 0;
-}
 
 json Choice(const Command& command) {
 	json choice = {{"ranked", command.ranked}};
@@ -34,8 +26,31 @@ json Choice(const Command& command) {
 
 // The helper's code for a refusal, or why a successful answer gave no value.
 std::string Failure(const session::TournamentAnswer& answer, bool decoded) {
-	if (!answer.ok) return answer.reason.empty() ? "unavailable" : answer.reason;
+	if (!answer.ok) return netplay::BridgeFlights::Reason(answer);
 	return decoded ? std::string() : "bridge_invalid_response";
+}
+
+// The answers to the requests that went as `flight`.
+void TakeStanding(std::uint64_t flight, const session::TournamentAnswer& answer) {
+	auto standing = answer.ok ? session::DecodeStanding(answer.data) : std::nullopt;
+	runtime->rankings.FinishStanding(flight, Failure(answer, standing.has_value()), std::move(standing), GetTickCount64());
+}
+
+void TakeChoice(std::uint64_t flight, const session::TournamentAnswer& answer) {
+	auto standing = answer.ok ? session::DecodeStanding(answer.data) : std::nullopt;
+	const auto failure = Failure(answer, standing.has_value());
+	if (!failure.empty()) spdlog::info("Rankings: choice refused: {}", failure);
+	runtime->rankings.FinishChoice(flight, failure, std::move(standing), GetTickCount64());
+}
+
+void TakeBoard(std::uint64_t flight, const session::TournamentAnswer& answer) {
+	auto board = answer.ok ? session::DecodeBoard(answer.data) : std::nullopt;
+	runtime->rankings.FinishBoard(flight, Failure(answer, board.has_value()), std::move(board), GetTickCount64());
+}
+
+// Sends `request` as `flight`, whose answer `take` handles.
+void Send(const json& request, bool helperReady, std::uint64_t flight, void (*take)(std::uint64_t, const session::TournamentAnswer&)) {
+	SendFlight(request, helperReady, [flight, take](const session::TournamentAnswer& answer) { take(flight, answer); });
 }
 }
 
@@ -44,57 +59,29 @@ void DispatchRankings(const Command& command, bool helperReady) {
 	if (command.bridgeId.empty()) return;
 	auto& requests = runtime->rankings;
 	requests.Scope(command.bridgeId, CurrentId());
-	const auto now = GetTickCount64();
 	switch (command.op) {
 	case Command::Op::RankingStanding:
 		if (requests.MayReadStanding())
-			requests.SentStanding(SendIf(helperReady, {{"op", "ranking_standing"}, {"bridge_id", command.bridgeId}}), now);
+			Send({{"op", "ranking_standing"}, {"bridge_id", command.bridgeId}}, helperReady, requests.BeginStanding(), TakeStanding);
 		return;
 	case Command::Op::RankingBoard:
 		if (requests.MayReadBoard())
-			requests.SentBoard(SendIf(helperReady, {{"op", "ranking_board"}, {"bridge_id", command.bridgeId}}), now);
+			Send({{"op", "ranking_board"}, {"bridge_id", command.bridgeId}}, helperReady, requests.BeginBoard(), TakeBoard);
 		return;
 	case Command::Op::RankingChoose:
 		if (!command.request) return;
-		requests.SentChoice(command.request, SendIf(helperReady, Choice(command)), now);
 		spdlog::info("Rankings: {} requested", command.ranked ? "taking part" : "opting out");
+		Send(Choice(command), helperReady, requests.BeginChoice(command.request), TakeChoice);
 		return;
 	default:
 		return;
 	}
 }
 
-bool TakeRankingsAnswer(const session::TournamentAnswer& answer) {
-	auto& requests = runtime->rankings;
-	const auto now = GetTickCount64();
-	switch (requests.Awaiting(answer.requestId)) {
-	case Kind::Standing: {
-		auto standing = answer.ok ? session::DecodeStanding(answer.data) : std::nullopt;
-		requests.FinishStanding(Failure(answer, standing.has_value()), std::move(standing), now);
-		return true;
-	}
-	case Kind::Choice: {
-		auto standing = answer.ok ? session::DecodeStanding(answer.data) : std::nullopt;
-		const auto failure = Failure(answer, standing.has_value());
-		if (!failure.empty()) spdlog::info("Rankings: choice refused: {}", failure);
-		requests.FinishChoice(failure, std::move(standing), now);
-		return true;
-	}
-	case Kind::Board: {
-		auto board = answer.ok ? session::DecodeBoard(answer.data) : std::nullopt;
-		requests.FinishBoard(Failure(answer, board.has_value()), std::move(board), now);
-		return true;
-	}
-	default:
-		return false;
-	}
-}
-
-void ExpireRankings(std::uint64_t nowMs) {
+void TickRankings() {
 	auto& requests = runtime->rankings;
 	// Another Ember ID's class is not shown, not even on Online play.
 	if (!requests.Bridge().empty() && requests.EmberId() != CurrentId()) requests.Scope({}, {});
-	requests.Expire(nowMs);
 }
 } // namespace internal
 } } // namespace sf4e::NetplayFacade

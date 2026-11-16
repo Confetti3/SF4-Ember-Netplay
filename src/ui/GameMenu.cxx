@@ -7,6 +7,7 @@
 #include "SelectionArt.hxx"
 #include "SelectionLabels.hxx"
 #include "MenuGlyphs.hxx"
+#include "PromptDevice.hxx"
 #include "MenuPresentation.hxx"
 #include "MenuDialogs.hxx"
 #include "../platform/Speech.hxx"
@@ -142,14 +143,14 @@ SelectionImage FighterImage(const FighterPicture& picture,float drawnHeight){
     return menuArt->PortraitFor(fighter,drawnHeight);
 }
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing){DrawCharacterPortrait(FighterPicture{fighter},min,max,backing);}
-void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing){
+void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing,PictureAnchor anchor){
     ReportFighterPicture(picture,min,max);
     auto* d=ImGui::GetWindowDrawList();
     d->AddRectFilled(min,max,backing);
     if(const auto art=FighterImage(picture,max.y-min.y);art.texture){
         const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y)/art.height);
-        const float w=art.width*factor,h=art.height*factor;
-        d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);return;
+        const float w=art.width*factor,h=art.height*factor,top=anchor==PictureAnchor::Foot?max.y-h:min.y;
+        d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,top),ImVec2(min.x+(max.x-min.x+w)*.5f,top+h),art.uvMin,art.uvMax);return;
     }
     const auto size=ImGui::CalcTextSize("?");
     d->AddText(ImVec2((min.x+max.x-size.x)*.5f,(min.y+max.y-size.y)*.5f),palette::Muted,"?");
@@ -157,11 +158,12 @@ void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,I
 // The legend follows whatever last moved the menu: a player with a pad
 // assigned who types on the keyboard sees keys, and the other way round.
 // The pad's glyphs are copied, so a caller's text need not outlive the call.
+unsigned HeldMenuKeys(bool lettersToo);
 std::string padSelectGlyph="LK",padBackGlyph="MK";
-bool keyboardLast=false;unsigned previousKeys=0,previousPad=0;
+PromptDevice promptDevice;
 void ApplyMenuGlyphs(){
     const bool pad=menuDeviceType==input::PadXInput||menuDeviceType==input::PadDirectInput;
-    const bool keys=!pad||keyboardLast;
+    const bool keys=!pad||promptDevice.Keyboard();
     selectGlyph=keys?"Enter":padSelectGlyph.c_str();
     backGlyph=keys?"Esc":padBackGlyph.c_str();
 }
@@ -188,12 +190,9 @@ const gamepads::FightNames* MenuPromptNames(){ return &promptNames; }
 void SetMenuPromptBrand(gamepads::PromptBrand brand,const gamepads::FightNames& names){ promptBrand=brand;promptNames=names; }
 bool KeyboardPrompts(){ return !std::strcmp(selectGlyph,"Enter"); }
 void NoteMenuDevice(unsigned padHeld){
-    const unsigned keys=KeyboardMenuBits();
     bool functionKey=false;
     for(int key=ImGuiKey_F1;key<=ImGuiKey_F12;++key) functionKey|=ImGui::IsKeyPressed(static_cast<ImGuiKey>(key),false);
-    if((keys&~previousKeys)||functionKey) keyboardLast=true;
-    if(padHeld&~previousPad) keyboardLast=false;
-    previousKeys=keys; previousPad=padHeld;
+    promptDevice.Note(HeldMenuKeys(true),functionKey,padHeld);
     ApplyMenuGlyphs();
 }
 int MenuPromptDevice(){ return KeyboardPrompts()?input::PadKeyboard:menuDeviceType; }
@@ -216,7 +215,9 @@ const EmbeddedReturn& EmbeddedReturnContext() { return embeddedReturn; }
 bool TakeEmbeddedFresh() { return std::exchange(embeddedReturn.fresh,false); }
 MenuAction TakeForwardedMenuAction() { return std::exchange(forwarded,MenuAction{}); }
 void SetMenuInput(MenuInput value) { input=value; }
-unsigned KeyboardMenuBits(bool typesText) {
+// The menu's keys held: Space, Backspace and the shortcuts' keys only with `lettersToo`, since a text field being typed in owns
+// them. The prompts always ask for all of them (PromptDevice), so a text field opening or closing never reads as a key press.
+unsigned HeldMenuKeys(bool lettersToo) {
     struct Mapping { ImGuiKey key; unsigned bit; };
     static const Mapping always[]={
         {ImGuiKey_UpArrow,MenuInput::Up},{ImGuiKey_DownArrow,MenuInput::Down},{ImGuiKey_LeftArrow,MenuInput::Left},
@@ -226,22 +227,19 @@ unsigned KeyboardMenuBits(bool typesText) {
     static const Mapping menuOnly[]={{ImGuiKey_Space,MenuInput::Select},{ImGuiKey_Backspace,MenuInput::Back}};
     unsigned bits=0;
     for(const auto& mapping:always) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
-    if(!typesText&&!ImGui::GetIO().WantTextInput) {
+    if(lettersToo) {
         for(const auto& mapping:menuOnly) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
         for(const auto& shortcut:MenuShortcuts) if(ImGui::IsKeyDown(shortcut.key)) bits|=shortcut.press;
     }
     return bits;
 }
+unsigned KeyboardMenuBits(bool typesText) { return HeldMenuKeys(!typesText&&!ImGui::GetIO().WantTextInput); }
 MenuInput ReadMenuInput(bool textEditing,bool typesText,unsigned additionalPad) {
     auto value=input; value.time=ImGui::GetTime();
     const unsigned padHeld=input.held|additionalPad; value.held=padHeld;
     const unsigned keys=KeyboardMenuBits(typesText);
     // Typing counts as using the keyboard, though its keys press no menu bit.
-    const auto& io=ImGui::GetIO();
-    const bool typed=!io.InputQueueCharacters.empty()||ImGui::IsKeyPressed(ImGuiKey_Backspace,false)||ImGui::IsKeyPressed(ImGuiKey_Delete,false);
-    if((keys&~previousKeys)||typed) keyboardLast=true;
-    if(padHeld&~previousPad) keyboardLast=false;
-    previousKeys=keys; previousPad=padHeld;
+    promptDevice.Note(HeldMenuKeys(true),!ImGui::GetIO().InputQueueCharacters.empty(),padHeld);
     ApplyMenuGlyphs();
     value.held|=textEditing?keys&~MenuInput::Select:keys; value.keyboard=keys;
     return value;

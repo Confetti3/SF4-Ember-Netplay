@@ -34,7 +34,7 @@ static std::vector<std::int64_t> BannedStagesNow() {
 // and Random with none left becomes the Training stage too. The stage P1's
 // Ready sends decides the game on every copy, so the copies cannot disagree.
 // A fallback the opponent lacks is the existing stage_not_shared refusal.
-static int ResolveChoice(const commands::Room& command, std::uint32_t roll, const std::vector<std::int64_t>& unavailable,
+static int ResolveChoice(const commands::Ready& command, std::uint32_t roll, const std::vector<std::int64_t>& unavailable,
 	const std::vector<std::int64_t>& banned = {}) {
 	const auto& catalog = ember::Catalog();
 	const auto resolve = [&](const std::vector<std::int64_t>& excluded) {
@@ -47,7 +47,7 @@ std::vector<std::int64_t> UnavailableStagesNow() {
 	return UnavailableWith(Game().state.MissingStages());
 }
 
-int StageToSend(const commands::Room& command, std::uint32_t roll) {
+int StageToSend(const commands::Ready& command, std::uint32_t roll) {
 	const auto banned = BannedStagesNow();
 	const int sent = ResolveChoice(command, roll, UnavailableStagesNow(), banned);
 	if (!banned.empty() && sent != ResolveChoice(command, roll, UnavailableStagesNow()))
@@ -56,7 +56,7 @@ int StageToSend(const commands::Room& command, std::uint32_t roll) {
 	return sent;
 }
 
-const char* StageReadyRefusal(const commands::Room& command) {
+const char* StageReadyRefusal(const commands::Ready& command) {
 	const auto own = Game().state.MissingStages();
 	const auto unavailable = UnavailableWith(own);
 	const int sent = ResolveChoice(command, 0, unavailable, BannedStagesNow());

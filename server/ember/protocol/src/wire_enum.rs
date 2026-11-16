@@ -36,6 +36,9 @@ macro_rules! wire_enum {
             /// Every variant, in declaration order.
             pub const ALL: [$name; [$($text),+].len()] = [$( $name::$variant ),+];
 
+            /// Every wire name, in declaration order.
+            pub const NAMES: [&'static str; [$($text),+].len()] = [$($text),+];
+
             /// The variant's wire name.
             pub fn as_str(self) -> &'static str {
                 match self {
@@ -64,8 +67,10 @@ mod tests {
 
     use crate::{
         api::ErrorCode,
+        area::Area,
         challenge::{Action, Method},
         event::Kind,
+        friends::FriendRefusal,
         lobby::Rotation,
         matches::{DeliveryState, Game, MatchState},
         tournament::{Format, Side, Status},
@@ -95,6 +100,7 @@ mod tests {
     #[test]
     fn every_wire_enum_spells_each_variant_once() {
         names_agree(&Format::ALL, Format::as_str, Format::parse);
+        names_agree(&Area::ALL, Area::as_str, Area::parse);
         names_agree(&Side::ALL, Side::as_str, Side::parse);
         names_agree(&Status::ALL, Status::as_str, Status::parse);
         names_agree(&Rotation::ALL, Rotation::as_str, Rotation::parse);
@@ -108,6 +114,11 @@ mod tests {
         names_agree(&ErrorCode::ALL, ErrorCode::as_str, ErrorCode::parse);
         names_agree(&Action::ALL, Action::as_str, Action::parse);
         names_agree(&Method::ALL, Method::as_str, Method::parse);
+        names_agree(
+            &FriendRefusal::ALL,
+            FriendRefusal::as_str,
+            FriendRefusal::parse,
+        );
     }
 
     #[test]

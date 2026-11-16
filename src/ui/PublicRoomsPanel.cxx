@@ -1,8 +1,8 @@
 #include "PublicRoomsPanel.hxx"
 #include "ApplicationShell.hxx"
+#include "AreaNames.hxx"
 #include "IdentityRows.hxx"
 #include "MenuRows.hxx"
-#include "NetworkFeedback.hxx"
 #include "PublicRoomsCards.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
@@ -31,13 +31,19 @@ constexpr float CardHeight = 100, NarrowCardHeight = 72;
 
 unsigned FreeSeats(const Room& room) { return room.capacity > room.members ? room.capacity - room.members : 0; }
 
-// Rooms that can be joined come first, near ones before far ones when the
-// region is known, then the most free seats, the most players, the oldest, and
-// finally the ID so the order never wobbles. The bridge's own order breaks no
-// ties that survive these, so it is the input only for a stable sort.
-bool Before(const Room& a, const Room& b, const std::string& region) {
+// How near a room is to the player in `home`: 2 in the same area, 1 next to it,
+// 0 farther, without an area, or while the player's own is not set.
+int Closeness(Area home, const Room& room) {
+    return !AreaNear(home, room.area) ? 0 : room.area == home ? 2 : 1;
+}
+
+// Rooms that can be joined come first, then those in the player's own area,
+// then those next to it, then the most free seats, the most players, the
+// oldest, and finally the ID so the order never wobbles. The bridge's own order
+// breaks no ties that survive these, so it is the input only for a stable sort.
+bool Before(const Room& a, const Room& b, Area home) {
     if (a.Joinable() != b.Joinable()) return a.Joinable();
-    if (!region.empty() && (a.region == region) != (b.region == region)) return a.region == region;
+    if (Closeness(home, a) != Closeness(home, b)) return Closeness(home, a) > Closeness(home, b);
     if (FreeSeats(a) != FreeSeats(b)) return FreeSeats(a) > FreeSeats(b);
     if (a.members != b.members) return a.members > b.members;
     if (a.createdAt != b.createdAt) return a.createdAt < b.createdAt;
@@ -45,32 +51,32 @@ bool Before(const Room& a, const Room& b, const std::string& region) {
 }
 
 // The order the last list was sorted into, as positions in its rooms, kept
-// while the same panel asks again for the same refresh and region: the screen
+// while the same panel asks again for the same refresh and area: the screen
 // asks every frame, and the list changes once per refresh. `listed` is the
 // refresh count; the size and a pass over the neighbours (no allocation, one
 // comparison per room) guard against a list that was replaced without it.
 struct SortedOrder {
     const void* owner = nullptr;
     std::uint64_t listed = 0;
-    std::string region;
+    Area home = Area::None;
     std::vector<std::size_t> order;
 };
 SortedOrder sortedOrder;
 
-std::vector<const Room*> Sorted(const void* owner, const PublicList& list, const std::string& region) {
+std::vector<const Room*> Sorted(const void* owner, const PublicList& list, Area home) {
     const auto& rooms = list.rooms;
     auto& cached = sortedOrder;
-    bool current = cached.owner == owner && cached.listed == list.listed && cached.region == region && cached.order.size() == rooms.size();
+    bool current = cached.owner == owner && cached.listed == list.listed && cached.home == home && cached.order.size() == rooms.size();
     for (std::size_t i = 1; current && i < cached.order.size(); ++i)
-        if (Before(rooms[cached.order[i]], rooms[cached.order[i - 1]], region)) current = false;
+        if (Before(rooms[cached.order[i]], rooms[cached.order[i - 1]], home)) current = false;
     if (!current) {
         cached.owner = owner;
         cached.listed = list.listed;
-        cached.region = region;
+        cached.home = home;
         cached.order.resize(rooms.size());
         std::iota(cached.order.begin(), cached.order.end(), std::size_t(0));
         std::stable_sort(cached.order.begin(), cached.order.end(), [&](std::size_t a, std::size_t b) {
-            return Before(rooms[a], rooms[b], region);
+            return Before(rooms[a], rooms[b], home);
         });
     }
     std::vector<const Room*> sorted;
@@ -79,21 +85,21 @@ std::vector<const Room*> Sorted(const void* owner, const PublicList& list, const
     return sorted;
 }
 
-std::vector<const Room*> Listing(const void* owner, const PublicList& list, const std::string& region, const RoomFilter& filter) {
-    auto listing = Sorted(owner, list, region);
-    listing.erase(std::remove_if(listing.begin(), listing.end(), [&](const Room* room) { return !Matches(filter, *room, region); }), listing.end());
+std::vector<const Room*> Listing(const void* owner, const PublicList& list, Area home, const RoomFilter& filter) {
+    auto listing = Sorted(owner, list, home);
+    listing.erase(std::remove_if(listing.begin(), listing.end(), [&](const Room* room) { return !Matches(filter, *room, home); }), listing.end());
     return listing;
 }
 
 // The filters page's value rows, which Left and Right step; the list's Filters row opens the page,
 // and Clear filters is a row on the page and a card on a list the filter has emptied.
-constexpr const char *FilterRegionRow = "pr-filter-region", *FilterTypeRow = "pr-filter-type", *FilterSeatsRow = "pr-filter-seats",
+constexpr const char *FilterAreaRow = "pr-filter-area", *FilterTypeRow = "pr-filter-type", *FilterSeatsRow = "pr-filter-seats",
     *FilterWiredRow = "pr-filter-wired", *ClearFiltersCard = "pr-clear-filters", *ClearFiltersRow = "pr-filters-clear", *FiltersRow = "pr-filters";
 constexpr float FiltersRowHeight = 40;
 
-std::string RegionValue(const RoomFilter& filter) {
-    return filter.scope == RoomFilter::Region::All ? std::string(loc::T("public.filter_region_all")) :
-        filter.scope == RoomFilter::Region::Near ? std::string(loc::T("public.filter_region_near")) : PublicRoomsPanel::RegionLabel(filter.region);
+std::string PlaceValue(const RoomFilter& filter) {
+    return filter.scope == RoomFilter::Place::All ? std::string(loc::T("public.filter_area_all")) :
+        filter.scope == RoomFilter::Place::Near ? std::string(loc::T("public.filter_region_near")) : AreaName(filter.area);
 }
 
 std::string RoomTypeValue(const RoomFilter& filter) {
@@ -106,7 +112,7 @@ std::string FilterSummary(const RoomFilter& filter) {
     if (!filter.Active()) return loc::T("public.filter_summary_all");
     std::string text;
     const auto add = [&](const std::string& part) { text += (text.empty() ? "" : " \xC2\xB7 ") + part; };
-    if (filter.scope != RoomFilter::Region::All) add(RegionValue(filter));
+    if (filter.scope != RoomFilter::Place::All) add(PlaceValue(filter));
     if (filter.type != RoomFilter::Type::All) add(RoomTypeValue(filter));
     if (filter.openSeats) add(loc::T("public.filter_summary_seats"));
     if (filter.wiredOnly) add(loc::T("public.filter_wired_only"));
@@ -124,13 +130,16 @@ std::string PublicRoomsPanel::UpdatedText(double seconds) {
 
 namespace {
 
-// What a room's row says when its details are known: who hosts it, where, and how full.
+// What a room's row says: who hosts it and how full it is, where its creator
+// plays from when they said, and whether a match is on.
 std::string RoomDetail(const Room& room) {
+    const std::string area = room.area == Area::None ? std::string() : " " + loc::Tf("public.room_detail_area", AreaName(room.area));
     if (room.hostName.empty()) {
-        return room.playing > 0 ? loc::Tf("public.room_detail_playing", room.name, room.members, room.capacity, room.region, room.playing) :
-            loc::Tf("public.room_detail", room.name, room.members, room.capacity, room.region);
+        std::string text = loc::Tf("public.room_detail_seats", room.name, room.members, room.capacity) + area;
+        if (room.playing > 0) text += "\n" + loc::Tf("public.room_detail_matches", room.playing);
+        return text;
     }
-    std::string text = loc::Tf("public.room_detail2", room.hostName, PublicRoomsPanel::RegionLabel(room.region), room.members, room.capacity);
+    std::string text = loc::Tf("public.room_detail_host", room.hostName, room.members, room.capacity) + area;
     if (room.playing > 0) text += loc::T("public.room_detail_match");
     if (room.locked) text += loc::T("public.room_detail_locked");
     else if (room.Full()) text += loc::T("public.room_detail_full");
@@ -179,19 +188,20 @@ std::string PublicRoomsPanel::FailureText(const std::string& code) {
     return IdentityPanel::TournamentFailure(code);
 }
 
-std::string PublicRoomsPanel::RegionLabel(const std::string& code) {
-    if (const char* name = RelayRegionName(code)) return name;
-    std::string label = code;
-    for (auto& c : label) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-    return label;
+Area PublicRoomsPanel::HomeArea(const ShellView& v) {
+    return OwnArea(v.preferences.area, v.automaticArea);
 }
 
-std::string PublicRoomsPanel::KnownRegion(const ShellView& v) {
-    const std::string& relay = v.netReport.relay;
-    return relay == "other" ? std::string() : relay;
+bool PublicRoomsPanel::AreasListed(const ShellView& v) {
+    const auto& rooms = v.publicRooms.rooms;
+    return std::any_of(rooms.begin(), rooms.end(), [](const Room& room) { return room.area != Area::None; });
 }
 
-void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy, room::RoomType type, bool wiredOnly) {
+Area PublicRoomsPanel::FilterHome(const ShellView& v) {
+    return AreasListed(v) ? HomeArea(v) : Area::None;
+}
+
+void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy, room::RoomType type, bool wiredOnly, std::uint8_t tableCount) {
     if (pending_) return;
     Command command;
     command.op = Command::Op::RoomCreate;
@@ -201,6 +211,7 @@ void PublicRoomsPanel::Create(const std::string& name, int capacity, const netpl
     pending_->createdRules = tables;
     pending_->createdType = type;
     pending_->createdWiredOnly = wiredOnly;
+    pending_->createdTableCount = tableCount;
 }
 
 void PublicRoomsPanel::Begin(netplay::tournament::Command command) {
@@ -295,8 +306,7 @@ void PublicRoomsPanel::Update(const ShellView& v, const std::string& screen, con
     // a refresh is already on its way.
     if (Owns(screen) && !bridge_.empty() && !Busy() && !link_ && !list.loading && v.session.room == netplay::RoomState::Idle &&
         now >= nextAuto_) wantList_ = true;
-    ShellAction action;
-    action.command.generation = v.session.generation;
+    commands::Tournament action;
     if (pending_ && !pending_->sent) {
         // Beyond every identity the runtime has seen, so no earlier answer can pass for this one's.
         lastRequest_ = (std::max)({lastRequest_, list.answered, list.admitting}) + 1;
@@ -325,13 +335,14 @@ void PublicRoomsPanel::Joined(const ShellView& v, const Submit& submit, const Pe
         Say(FailureText(answer.failure));
         return;
     }
-    ShellAction join;
-    join.command.kind = netplay::CommandKind::JoinInvite;
-    join.command.generation = v.session.generation;
-    join.command.invitation = answer.admission.invitation;
+    commands::JoinRoom join;
+    join.generation = v.session.generation;
+    join.invitation = answer.admission.invitation;
     join.publicTicket = answer.admission.ticket;
     if (done.op == Command::Op::RoomCreate) {
-        join.createdRules = answered.createdRules; join.arcadeRoom = answered.createdType; join.wiredOnly = answered.createdWiredOnly;
+        join.createdRules = answered.createdRules;
+        join.charter.type = answered.createdType; join.charter.wiredOnly = answered.createdWiredOnly;
+        join.charter.tableCount = answered.createdTableCount;
     }
     if (!submit(std::move(join))) { Say(loc::T("error.queue_failed")); return; }
     Current joined;
@@ -394,7 +405,7 @@ bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std
     if (list.loading && manualRefresh_) { status = loc::T("public.updating"); tone = Tone::Pending; return true; }
     // A failed refresh leaves the list as it was, so the age still says how stale it is.
     if (!status.empty() || !listed || list.rooms.empty()) return false;
-    const auto shown = Listing(this, list, KnownRegion(v), filter).size();
+    const auto shown = Listing(this, list, FilterHome(v), filter).size();
     const std::string updated = UpdatedText(now - listedAt_);
     status = shown == list.rooms.size() ? loc::Tf("public.status_listed", list.rooms.size(), updated) :
         loc::Tf("public.status_filtered", shown, list.rooms.size(), updated);
@@ -402,18 +413,21 @@ bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std
     return true;
 }
 
-std::optional<std::string> PublicRoomsPanel::QuickPick(const ShellView& v, const std::string& region, const RoomFilter& filter) const {
+std::optional<std::string> PublicRoomsPanel::QuickPick(const ShellView& v, Area home, const RoomFilter& filter) const {
     if (v.publicRooms.bridge != bridge_) return std::nullopt;
-    const RoomFilter wanted = filter.ForQuickJoin();
-    for (const Room* room : Sorted(this, v.publicRooms, region)) {
-        if (!room->Joinable() || refused_.count(room->id) || !Matches(wanted, *room, region)) continue;
-        return room->id;
+    // A room near the player first; a room that names no area is near no one, so the filter's own rooms follow.
+    const RoomFilter nearFirst = filter.ForQuickJoin();
+    const auto sorted = Sorted(this, v.publicRooms, home);
+    for (const RoomFilter& wanted : {nearFirst, filter}) {
+        for (const Room* room : sorted)
+            if (room->Joinable() && !refused_.count(room->id) && Matches(wanted, *room, home)) return room->id;
+        if (nearFirst == filter) break;
     }
     return std::nullopt;
 }
 
 std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::string& bridge, bool identityPending, const PublicSetupView& setup,
-    float listWidth, const RoomFilter& filter) const {
+    float listWidth, const RoomFilter& filter, bool unranked) const {
     std::vector<MenuEntry> rows;
     const float cardHeight = listWidth < 480 * Scale() ? NarrowCardHeight : CardHeight;
     // A room being joined or created keeps its Stop row until it is open.
@@ -456,7 +470,7 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     }
     const auto& list = v.publicRooms;
     const bool free = v.canOpenRoom && !Busy();
-    const std::string region = KnownRegion(v);
+    const Area home = FilterHome(v);
     // The list on screen is this service's, and has been heard from.
     const bool listed = list.bridge == service && loadedFor_ == service;
     // The toolbar: three cells in a row (or two rows), then the filter's rows and everything else full width.
@@ -472,11 +486,17 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     // The filter is one row; its page has the values.
     rows.push_back(Wide(Row(FiltersRow, loc::T("public.filters"), loc::T("public.filters_detail"), free), FiltersRowHeight));
     rows.back().value = FilterSummary(filter);
+    // Above the rooms, and when there are none: games count for rank only with a Discord account linked.
+    if (unranked) {
+        auto notice = Row(RankedNoticeRow, loc::T("public.ranked_needs_discord"), loc::T("public.ranked_needs_discord_detail"));
+        notice.hint = loc::T("screen.connect_discord");
+        rows.push_back(Wide(std::move(notice), listWidth < 480 * Scale() ? 120 : 96));
+    }
     if (!listed) {
         rows.push_back(Wide(InfoRow("pr-loading", loc::T("public.loading_card"), {}, {}), 3 * CardHeight + 16));
         return rows;
     }
-    const auto shown = Listing(this, list, region, filter);
+    const auto shown = Listing(this, list, home, filter);
     for (const Room* room : shown) {
         auto row = Row("pr-room:" + room->id, room->name, RoomDetail(*room), free && room->Joinable());
         row.userText = true; row.detailText = DetailText::Name; row.hint = loc::T("online.join"); row.quiet = true;
@@ -500,11 +520,12 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     return rows;
 }
 
-std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, const std::string& home, bool enabled) {
-    const bool nearUnknown = filter.scope == RoomFilter::Region::Near && home.empty();
+std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, Area home, bool areasListed, bool enabled) {
+    const bool nearUnknown = filter.scope == RoomFilter::Place::Near && home == Area::None;
+    const bool nearUnlisted = filter.scope == RoomFilter::Place::Near && home != Area::None && !areasListed;
     std::vector<MenuEntry> rows;
-    rows.push_back(Value(FilterRegionRow, loc::T("public.filter_region"), RegionValue(filter),
-        loc::T(nearUnknown ? "public.filter_near_unknown" : "public.filter_region_detail"), enabled));
+    rows.push_back(Value(FilterAreaRow, loc::T("public.filter_area"), PlaceValue(filter),
+        loc::T(nearUnknown ? "public.filter_near_unset" : nearUnlisted ? "public.filter_near_unlisted" : "public.filter_area_detail"), enabled));
     rows.push_back(Value(FilterTypeRow, loc::T("public.filter_type"), RoomTypeValue(filter), loc::T("public.filter_type_detail"), enabled));
     rows.push_back(Value(FilterSeatsRow, loc::T("public.filter_seats"), loc::T(filter.openSeats ? "common.on" : "common.off"),
         loc::T("public.filter_seats_detail"), enabled));
@@ -514,10 +535,10 @@ std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, co
     return rows;
 }
 
-bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, const std::string& home, RoomFilter& filter) {
+bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, Area home, RoomFilter& filter) {
     if (a.kind == MenuAction::Activate && (a.id == ClearFiltersCard || a.id == ClearFiltersRow)) { filter = RoomFilter(); return true; }
     if (a.kind != MenuAction::Adjust) return false;
-    if (a.id == FilterRegionRow) filter.StepRegion(a.delta, home);
+    if (a.id == FilterAreaRow) filter.StepPlace(a.delta, home);
     else if (a.id == FilterTypeRow) filter.StepType(a.delta);
     else if (a.id == FilterSeatsRow) filter.openSeats = a.delta > 0;
     else if (a.id == FilterWiredRow) filter.wiredOnly = a.delta > 0;

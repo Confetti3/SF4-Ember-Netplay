@@ -1,20 +1,22 @@
 // The public rooms filter (netplay/PublicRoomFilter.hxx): which rooms it lists
-// by region, type, free seats and connection, how its settings step, and what
+// by area, type, free seats and connection, how its settings step, and what
 // Quick join takes from it.
 #include "../netplay/PublicRoomFilterMatch.hxx"
 
 #include <string>
+#include <vector>
 
 #include "test_support.hxx"
 
+using namespace sf4e;
 using namespace sf4e::netplay::publicrooms;
 using namespace sf4e::room;
 
 namespace {
-// A room with a free seat in `region`; Classic unless `type` says none or other.
-Room Make(const std::string& region, std::optional<RoomType> type = ClassicRoom) {
+// A room with a free seat whose creator is in `area`; Classic unless `type` says none or other.
+Room Make(Area area, std::optional<RoomType> type = RoomType::Classic) {
 	Room room;
-	room.id = "r"; room.name = "Open room"; room.region = region;
+	room.id = "r"; room.name = "Open room"; room.area = area;
 	room.members = 2; room.capacity = 8;
 	room.type = type;
 	return room;
@@ -23,73 +25,83 @@ Room Make(const std::string& region, std::optional<RoomType> type = ClassicRoom)
 void DefaultListsEverything() {
 	const RoomFilter filter;
 	EXPECT(!filter.Active() && filter.Valid());
-	Room full = Make("euc1", std::nullopt); full.members = 8; full.locked = true; full.wiredOnly = true;
-	EXPECT(Matches(filter, full, "") && Matches(filter, full, "use1") && Matches(filter, Make("aps1", ArcadeRoom), "use1"));
+	Room full = Make(Area::EuropeWest, std::nullopt); full.members = 8; full.locked = true; full.wiredOnly = true;
+	EXPECT(Matches(filter, full, Area::None) && Matches(filter, full, Area::NaEast) && Matches(filter, Make(Area::EastAsia, RoomType::Arcade), Area::NaEast));
+	EXPECT(Matches(filter, Make(Area::None), Area::NaEast));
 }
 
-void RegionNearAndOne() {
-	RoomFilter near; near.scope = RoomFilter::Region::Near;
+void NearIsTheSameAreaOrANeighbour() {
+	RoomFilter near; near.scope = RoomFilter::Place::Near;
 	EXPECT(near.Active() && near.Valid());
-	EXPECT(Matches(near, Make("use1"), "use1") && !Matches(near, Make("euc1"), "use1"));
-	// Near with no home region cannot say which rooms are near: every region is listed.
-	EXPECT(Matches(near, Make("euc1"), ""));
-	RoomFilter one; one.scope = RoomFilter::Region::One; one.region = "euc1";
-	EXPECT(one.Valid() && Matches(one, Make("euc1"), "use1") && Matches(one, Make("euc1"), "") && !Matches(one, Make("use1"), "use1"));
-	// A region that is not one to filter by is invalid, and a region without the One scope too.
-	one.region = "mars"; EXPECT(!one.Valid());
-	one.region = ""; EXPECT(!one.Valid());
-	RoomFilter stray; stray.region = "use1"; EXPECT(!stray.Valid());
-	for (const char* code : FilterRegions()) EXPECT(KnownFilterRegion(code));
-	EXPECT(!KnownFilterRegion("other") && !KnownFilterRegion(""));
+	EXPECT(Matches(near, Make(Area::NaWest), Area::NaWest) && Matches(near, Make(Area::NaCentral), Area::NaWest));
+	EXPECT(!Matches(near, Make(Area::NaEast), Area::NaWest) && !Matches(near, Make(Area::EuropeWest), Area::NaWest));
+	EXPECT(Matches(near, Make(Area::CentralAmerica), Area::SouthAmerica) && Matches(near, Make(Area::MiddleEastAfrica), Area::EuropeEast));
+	// A room whose creator gave no area is never near.
+	EXPECT(!Matches(near, Make(Area::None), Area::NaWest));
+	// Near with no area of the player's own cannot say which rooms are near: every room is listed.
+	EXPECT(Matches(near, Make(Area::EuropeWest), Area::None) && Matches(near, Make(Area::None), Area::None));
+}
+
+void OneAreaIsThatAreaAlone() {
+	RoomFilter one; one.scope = RoomFilter::Place::One; one.area = Area::EuropeWest;
+	EXPECT(one.Valid() && Matches(one, Make(Area::EuropeWest), Area::NaEast) && Matches(one, Make(Area::EuropeWest), Area::None));
+	// Not its neighbours, and not a room without an area.
+	EXPECT(!Matches(one, Make(Area::EuropeEast), Area::EuropeWest) && !Matches(one, Make(Area::None), Area::EuropeWest));
+	// One without an area is invalid, and an area without One too.
+	one.area = Area::None; EXPECT(!one.Valid());
+	RoomFilter stray; stray.area = Area::NaEast; EXPECT(!stray.Valid());
 }
 
 void TypeNeedsASentType() {
 	RoomFilter filter;
 	filter.type = RoomFilter::Type::Arcade;
-	EXPECT(Matches(filter, Make("use1", ArcadeRoom), "") && !Matches(filter, Make("use1", ClassicRoom), "") && !Matches(filter, Make("use1", KingRoom), ""));
+	EXPECT(Matches(filter, Make(Area::NaEast, RoomType::Arcade), Area::None) && !Matches(filter, Make(Area::NaEast, RoomType::Classic), Area::None) &&
+		!Matches(filter, Make(Area::NaEast, RoomType::King), Area::None));
 	// A room that sent no type passes under All only.
-	EXPECT(!Matches(filter, Make("use1", std::nullopt), ""));
+	EXPECT(!Matches(filter, Make(Area::NaEast, std::nullopt), Area::None));
 	filter.type = RoomFilter::Type::Classic;
-	EXPECT(Matches(filter, Make("use1", ClassicRoom), "") && !Matches(filter, Make("use1", std::nullopt), ""));
+	EXPECT(Matches(filter, Make(Area::NaEast, RoomType::Classic), Area::None) && !Matches(filter, Make(Area::NaEast, std::nullopt), Area::None));
 	filter.type = RoomFilter::Type::King;
-	EXPECT(Matches(filter, Make("use1", KingRoom), "") && !Matches(filter, Make("use1", ArcadeRoom), ""));
+	EXPECT(Matches(filter, Make(Area::NaEast, RoomType::King), Area::None) && !Matches(filter, Make(Area::NaEast, RoomType::Arcade), Area::None));
 	filter.type = RoomFilter::Type::All;
-	EXPECT(Matches(filter, Make("use1", std::nullopt), ""));
+	EXPECT(Matches(filter, Make(Area::NaEast, std::nullopt), Area::None));
 }
 
 void SeatsAndWired() {
 	RoomFilter seats; seats.openSeats = true;
-	Room full = Make("use1"); full.members = 8;
-	Room locked = Make("use1"); locked.locked = true;
-	EXPECT(Matches(seats, Make("use1"), "") && !Matches(seats, full, "") && !Matches(seats, locked, ""));
+	Room full = Make(Area::NaEast); full.members = 8;
+	Room locked = Make(Area::NaEast); locked.locked = true;
+	EXPECT(Matches(seats, Make(Area::NaEast), Area::None) && !Matches(seats, full, Area::None) && !Matches(seats, locked, Area::None));
 	RoomFilter wired; wired.wiredOnly = true;
-	Room only = Make("use1"); only.wiredOnly = true;
-	EXPECT(Matches(wired, only, "") && !Matches(wired, Make("use1"), ""));
-	RoomFilter all; all.scope = RoomFilter::Region::One; all.region = "use1"; all.type = RoomFilter::Type::Classic; all.openSeats = true; all.wiredOnly = true;
-	EXPECT(Matches(all, only, "") && !Matches(all, Make("use1"), "") && !Matches(all, Make("euc1"), ""));
+	Room only = Make(Area::NaEast); only.wiredOnly = true;
+	EXPECT(Matches(wired, only, Area::None) && !Matches(wired, Make(Area::NaEast), Area::None));
+	RoomFilter all; all.scope = RoomFilter::Place::One; all.area = Area::NaEast; all.type = RoomFilter::Type::Classic; all.openSeats = true; all.wiredOnly = true;
+	EXPECT(Matches(all, only, Area::None) && !Matches(all, Make(Area::NaEast), Area::None) && !Matches(all, Make(Area::EuropeWest), Area::None));
 	Room onlyFull = only; onlyFull.members = 8;
-	EXPECT(!Matches(all, onlyFull, ""));
+	EXPECT(!Matches(all, onlyFull, Area::None));
 }
 
-void RegionStepsInOrder() {
+void PlaceStepsInOrder() {
 	RoomFilter filter;
-	const char* order[] = {"all", "near", "use1", "usw1", "euc1", "aps1"};
+	// All, Near me, then the twelve areas in the table's order, and round.
 	const auto at = [&] {
-		return filter.scope == RoomFilter::Region::All ? std::string("all") : filter.scope == RoomFilter::Region::Near ? std::string("near") : filter.region;
+		return filter.scope == RoomFilter::Place::All ? std::string("all") : filter.scope == RoomFilter::Place::Near ? std::string("near") : AreaCode(filter.area);
 	};
-	for (int i = 1; i <= 6; ++i) { filter.StepRegion(1, "use1"); EXPECT(at() == order[i % 6] && filter.Valid()); }
-	filter.StepRegion(-1, "use1"); EXPECT(at() == "aps1");
-	filter.StepRegion(-1, "use1"); EXPECT(at() == "euc1");
-	// Near is not offered while the home region is unknown.
+	std::vector<std::string> order = {"all", "near"};
+	for (const auto& row : areas::Table) order.push_back(row.code);
+	const int count = static_cast<int>(order.size());
+	EXPECT(count == 14);
+	for (int i = 1; i <= count; ++i) { filter.StepPlace(1, Area::NaWest); EXPECT(at() == order[i % count] && filter.Valid()); }
+	filter.StepPlace(-1, Area::NaWest); EXPECT(at() == "oce");
+	filter.StepPlace(-1, Area::NaWest); EXPECT(at() == "sea");
+	// Near is not offered while the player's area is not set.
 	filter = RoomFilter();
-	filter.StepRegion(1, ""); EXPECT(at() == "use1");
-	filter.StepRegion(-1, ""); EXPECT(at() == "all");
-	filter.StepRegion(-1, ""); EXPECT(at() == "aps1");
-	// A saved Near with no region known steps off it, and an unknown region steps from All.
-	filter = RoomFilter(); filter.scope = RoomFilter::Region::Near;
-	filter.StepRegion(1, ""); EXPECT(at() == "use1");
-	filter.scope = RoomFilter::Region::One; filter.region = "mars";
-	filter.StepRegion(1, "use1"); EXPECT(at() == "near" && filter.Valid());
+	filter.StepPlace(1, Area::None); EXPECT(at() == "naw");
+	filter.StepPlace(-1, Area::None); EXPECT(at() == "all");
+	filter.StepPlace(-1, Area::None); EXPECT(at() == "oce");
+	// A saved Near with no area set steps off it.
+	filter = RoomFilter(); filter.scope = RoomFilter::Place::Near;
+	filter.StepPlace(1, Area::None); EXPECT(at() == "naw");
 }
 
 void TypeSteps() {
@@ -100,23 +112,34 @@ void TypeSteps() {
 	filter.StepType(-1); EXPECT(filter.type == RoomFilter::Type::Arcade);
 }
 
+// A room with no area is listed under All and never under Near, so Quick join has to try the filter itself after
+// the near rooms (PublicRoomsPanel::QuickPick) to reach it.
+void ARoomWithNoAreaIsListedUnderAllOnly() {
+	const Room placeless = Make(Area::None);
+	RoomFilter filter;
+	EXPECT(Matches(filter, placeless, Area::NaEast) && !Matches(filter.ForQuickJoin(), placeless, Area::NaEast));
+	EXPECT(Matches(filter, placeless, Area::None) && Matches(filter.ForQuickJoin(), placeless, Area::None));
+}
+
 void QuickJoinStaysNearUnlessAskedOtherwise() {
 	RoomFilter filter;
-	EXPECT(filter.ForQuickJoin().scope == RoomFilter::Region::Near && filter.ForQuickJoin().type == RoomFilter::Type::All);
-	EXPECT(filter.scope == RoomFilter::Region::All);
-	// The player's own region choice, and every other setting, is kept.
-	filter.scope = RoomFilter::Region::One; filter.region = "aps1"; filter.type = RoomFilter::Type::Classic; filter.openSeats = true; filter.wiredOnly = true;
+	EXPECT(filter.ForQuickJoin().scope == RoomFilter::Place::Near && filter.ForQuickJoin().type == RoomFilter::Type::All);
+	EXPECT(filter.scope == RoomFilter::Place::All);
+	// The player's own choice of area, and every other setting, is kept.
+	filter.scope = RoomFilter::Place::One; filter.area = Area::EastAsia; filter.type = RoomFilter::Type::Classic; filter.openSeats = true; filter.wiredOnly = true;
 	EXPECT(filter.ForQuickJoin() == filter);
 }
 }
 
 int main() {
 	DefaultListsEverything();
-	RegionNearAndOne();
+	NearIsTheSameAreaOrANeighbour();
+	OneAreaIsThatAreaAlone();
 	TypeNeedsASentType();
 	SeatsAndWired();
-	RegionStepsInOrder();
+	PlaceStepsInOrder();
 	TypeSteps();
+	ARoomWithNoAreaIsListedUnderAllOnly();
 	QuickJoinStaysNearUnlessAskedOtherwise();
 	if (!TEST_FAILURES()) std::printf("Public room filter tests passed\n");
 	return TEST_EXIT_CODE();

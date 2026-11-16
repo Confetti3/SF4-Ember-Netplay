@@ -128,12 +128,11 @@ struct Branding {
 	const wchar_t* menuBackdrop;  // the menu's backdrop art, under the install's assets folder
 	const ShellTheme* theme;      // the shell's colours and shapes; none is EmberShellTheme
 	const BattleHud* battleHud;   // the game's battle HUD; none is USF4's
-	// The room draws a fighter only where its player shared a pick: a seat, a
-	// cabinet and a Members row show the picked fighter, else the "?" a missing
-	// picture draws. Off (SF4 Ember), the Members rows show each player's
-	// profile main and an unpicked seat the main, by design: a main is a
-	// choice every SF4 Ember player makes. A product whose players have no
-	// main to show turns it on, so no face stands for a fighter nobody chose.
+	// A seat and a cabinet draw a fighter only where its player shared a
+	// pick, else the "?" a missing picture draws. Off (SF4 Ember), an unpicked
+	// seat shows the player's profile main, by design: a main is a choice
+	// every SF4 Ember player makes. The Members rows show the main in every
+	// product (RoomPanel's member card).
 	bool roomFacesArePicks;
 	// The post-match prompt shows the opponent's answer as soon as the
 	// battle's input carries it (Battle::RematchChoices, RematchDeclines),
@@ -166,6 +165,11 @@ struct Branding {
 	// declines nothing, and the pair's rematch in place still stands. 0 (SF4
 	// Ember): every answer counts at once.
 	double leaveGuardSeconds = 0;
+	// A new player has no main until they choose one (Profile's Fighters tab):
+	// the profile and the room carry none (-1) until then, so no fighter stands
+	// for them that they did not choose. Off (SF4 Ember), a new player's main
+	// is the roster's first fighter, as SF4 Ember has always given it.
+	bool mainStartsUnset = false;
 };
 
 // A product's own text for a few msgids of one locale's shared catalog: a PO
@@ -256,11 +260,10 @@ inline const ShellTheme& ProductTheme() {
 	return Product().branding.theme ? *Product().branding.theme : EmberShellTheme;
 }
 
-// The product's players have a main fighter: one whose room shows only picks
-// (Branding::roomFacesArePicks) has none, so the shell neither asks for one
-// (Profile's Main character) nor shows one (the profile card).
-inline bool PlayersHaveMain() {
-	return !Product().branding.roomFacesArePicks;
+// The main a player has before choosing one (Branding::mainStartsUnset): -1
+// for none, else the roster's first fighter.
+inline int UnsetMain() {
+	return Product().branding.mainStartsUnset ? -1 : 0;
 }
 
 // "Local\\" + objectStem + role.

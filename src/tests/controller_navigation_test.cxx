@@ -11,11 +11,17 @@
 #include "../training/TrainingSession.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/PublishCadence.hxx"
+#include "../netplay/Revisioned.hxx"
+#include "../ui/MenuSummons.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "imgui_test_support.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <array>
+#include <initializer_list>
+#include <string>
+#include <utility>
+#include <vector>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -361,6 +367,70 @@ void PracticeFightPresses(){
    "A press between scheduled publications was lost or held over a fight the menu is shown over");
   else Check(publications==3,"A fight without menu navigation was no longer throttled");
  }
+}
+// What the throttled fight republishes on for the preferences: one revision,
+// moved by every Edit() and by nothing else, so a field the match HUD reads
+// cannot be missed by a hand-written list.
+void PreferencesRevisionCounts(){
+ struct Settings{int size=1;bool hud=true;};
+ sf4e::netplay::Revisioned<Settings> settings;
+ const auto& read=settings.Get();
+ Check(settings.Revision()==0&&read.size==1,"A new preferences cell was not at revision 0 with its defaults");
+ settings.Edit().size=2;
+ Check(settings.Revision()==1&&read.size==2,"An edit did not move the revision or show through the reference");
+ const std::uint64_t before=settings.Revision();
+ Check(read.hud&&settings.Revision()==before,"Reading moved the revision");
+ settings.Edit()=Settings{};settings.Edit().hud=false;
+ Check(settings.Revision()==before+2&&!read.hud,"Each edit was not counted once");
+ // The throttle publishes a fight again when the revision moved, and not before.
+ sf4e::netplay::PublishCadence cadence;unsigned publications=0;
+ const auto due=[&]{if(cadence.Due(false,[&]{return settings.Revision();}))++publications;};
+ // A cadence starts from revision 0 and these cells are past it, so the first
+ // tick publishes what the edits above made; the ticks after it do not.
+ due();due();
+ Check(publications==1,"The edits made before the first tick were not published once");
+ settings.Edit().size=3;due();due();
+ Check(publications==2,"A preferences edit was not published, or an unchanged revision was");
+}
+// The menu opens by itself for each reason once per event, and an event that
+// is not ready waits for the moment it is.
+void MenuSummonsOncePerEvent(){
+ using namespace sf4e::ui;
+ MenuSummons summons;std::vector<std::string> opened;
+ const auto step=[&](std::initializer_list<std::pair<SummonsReason,SummonsAsk>> given){
+  std::array<SummonsAsk,static_cast<std::size_t>(SummonsReason::Count)> asks;
+  for(const auto&g:given)asks[static_cast<std::size_t>(g.first)]=g.second;
+  summons.Update(asks,[&](const char*why){opened.push_back(why);});
+ };
+ const auto ask=[](const std::string&key,bool ready,bool opens=true){SummonsAsk a;a.key=key;a.ready=ready;a.opens=opens;return a;};
+ const auto only=[&](const char*name){return opened.size()==1&&opened[0]==name;};
+ // A reason with no event asks nothing, and a sequence of 0 is no event.
+ step({});step({{SummonsReason::JoinLink,ask(SummonsSequenceKey(0),true)}});
+ Check(opened.empty(),"The menu opened for an event that had not happened");
+ // An event not ready waits, then opens once when it is, and not again at the same key.
+ step({{SummonsReason::JoinLink,ask(SummonsSequenceKey(1),false)}});
+ Check(opened.empty(),"The menu opened for an event that was not ready");
+ step({{SummonsReason::JoinLink,ask(SummonsSequenceKey(1),true)}});
+ Check(only("a room link"),"A waiting event did not open the menu when it was ready");
+ step({{SummonsReason::JoinLink,ask(SummonsSequenceKey(1),true)}});
+ Check(opened.size()==1,"The same event opened the menu twice");
+ step({{SummonsReason::JoinLink,ask(SummonsSequenceKey(2),true)}});
+ Check(opened.size()==2,"A new event of the same reason did not open the menu");
+ // A link not followed freely is only taken as seen.
+ opened.clear();
+ step({{SummonsReason::PublicRoomLink,ask(SummonsSequenceKey(1),true,false)}});
+ step({{SummonsReason::PublicRoomLink,ask(SummonsSequenceKey(1),true,true)}});
+ Check(opened.empty(),"A link that did not open the menu opened it later");
+ // An event that ends is forgotten, even while not ready, so its return opens the menu again.
+ step({{SummonsReason::DiscordInvite,ask("1",true)}});
+ Check(only("a Discord invite"),"A Discord invite did not open the menu");
+ step({{SummonsReason::DiscordInvite,ask("",false)}});
+ step({{SummonsReason::DiscordInvite,ask("1",true)}});
+ Check(opened.size()==2&&opened[1]=="a Discord invite","A second Discord invite did not open the menu");
+ // Each reason keeps its own memory.
+ opened.clear();
+ step({{SummonsReason::TrainingCall,ask(SummonsSequenceKey(1),true)},{SummonsReason::ReplayLink,ask("replay.sf4r",true)}});
+ Check(opened.size()==2&&opened[0]=="a Training call"&&opened[1]=="a replay link","Two reasons together did not each open the menu");
 }
 // The pad in offline Training: Back tapped resets, held saves, and Start
 // pressed while Back is held opens the controls or closes them. None of the
@@ -887,31 +957,6 @@ void BoardTiesAndScrolls(){
  Check(from("leave",MenuInput::Right)=="leave","Right from the bar's end reached a member scrolled out of sight");
  Check(from("member-1",MenuInput::Down)=="member-2"&&from("member-2",MenuInput::Down)=="member-3","The list's own rows lost their hidden next one");
 }
-// A list wraps only on a fresh press: Down held from the top walks to the
-// last entry and stays there, however long it is held, and Up held from the
-// bottom stays at the first. A grid never wraps. A list's wrap passes over an
-// entry that stands beside it, named as another's Left or Right (Home's card).
-void ListWrap(){
- std::vector<MenuEntry> rows={Row("a","A",""),Row("b","B",""),Row("c","C",""),Row("d","D","")};
- MenuNavigation nav;double time=0;
- const auto hold=[&](unsigned held,double seconds){for(double end=time+seconds;time<end;){time+=.016;nav.Update({held,time},rows);}time+=.016;nav.Update({0,time},rows);};
- time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({0,time},rows);
- hold(MenuInput::Down,3);Check(nav.Focus()=="d","A held Down went round the end of a list");
- hold(MenuInput::Up,3);Check(nav.Focus()=="a","A held Up went round the top of a list");
- hold(MenuInput::Up,.05);Check(nav.Focus()=="d","A fresh Up at the top did not go round");
- hold(MenuInput::Down,.05);Check(nav.Focus()=="a","A fresh Down at the bottom did not go round");
- // A grid three across stays at its edges.
- nav.Focus("a",rows);time+=.016;nav.Update({0,time},rows,3);time+=.016;nav.Update({MenuInput::Up,time},rows,3);
- Check(nav.Focus()=="a","A grid went round its top");
- // Home: the rows name the card on their Right; Up from the first goes to the
- // last row, not to the card.
- for(auto& r:rows)r.right="card";
- rows.push_back(Row("card","Card",""));rows.back().left="a";
- nav.Focus("a",rows);time+=.016;nav.Update({0,time},rows);hold(MenuInput::Up,.05);
- Check(nav.Focus()=="d","A list's wrap landed on the card beside it");
- nav.Focus("card",rows);hold(MenuInput::Down,.05);
- Check(nav.Focus()=="a","Down from the list's last entry did not go round to its first");
-}
 // Tabs wrap at both ends, from no tab too, and only an LB or RB Shortcut is a step.
 void TabStepping(){
  Check(StepTab(5,1,6)==0&&StepTab(0,-1,6)==5&&StepTab(2,1,6)==3&&StepTab(2,-1,6)==1,"Tabs do not wrap");
@@ -929,29 +974,8 @@ void TakenPress(){
  Check(nav.Update({0,time+=.016},rows).kind==MenuAction::None&&nav.Update({MenuInput::Back,time+=.016},rows).kind==MenuAction::Close,"The next press did not go back");
 }
 void ScreenNames(){
- for(const char* screen:{"home","online","create","join","profile","main-character","selection","player","controllers","button-layout","button-layout-button","sent-reports","developer","discord-invitation","public-rooms","rankings","rankings-board","identity","identity-backup","linked-accounts","tournament-matches","tournament-desk","desk-event","desk-set","discord-connect","sign-in-site","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report","awards","awards-icons","welcome"})
+ for(const char* screen:{"home","online","create","join","profile","main-character","selection","player","controllers","button-layout","button-layout-button","sent-reports","developer","discord-invitation","public-rooms","rankings","rankings-board","identity","identity-backup","linked-accounts","tournament-matches","tournament-desk","desk-event","desk-set","desk-draft","discord-connect","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report","awards","card","card-edit","card-pins","card-looking","fighters","friends","sets","player-card","player-fighters","player-sets","player-awards","player-pick","player-sets-filter","player-sets-fighter","welcome"})
   if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);
-}
-void ProfileRecords(){
- using namespace sf4e;netplay::ProfileRecord record;netplay::RandomRoomId roomA{};netplay::RandomRoomId roomB{};roomA[0]=1;roomB[0]=2;
- Check(record.Record(roomA,0,1,0,room::MatchResult::P1Win)&&record.wins==1,"Confirmed win not counted");
- Check(!record.Record(roomA,0,1,0,room::MatchResult::P1Win),"Duplicate result counted");
- Check(record.Record(roomB,0,1,0,room::MatchResult::P2Win)&&record.losses==1,"Distinct rooms with the same table/generation collided");
- for(auto result:{room::MatchResult::Draw,room::MatchResult::Abort,room::MatchResult::Cancel})Check(!record.Record(roomA,0,3,0,result),"Non-decision counted");
- Check(!record.Record(roomA,0,3,2,room::MatchResult::P1Win),"Spectator game counted");
- netplay::ProfileRecord restored;Check(netplay::ReadProfileRecord(nlohmann::json::parse(netplay::ProfileRecordJson(record).dump()),restored)&&restored.wins==1&&restored.losses==1,"Record did not round trip");
- Check(!restored.Record(roomA,0,1,0,room::MatchResult::P1Win),"Reload lost deduplication");
- Check(netplay::ReadProfileRecord({{"wins",std::uint64_t(2)},{"losses",std::uint64_t(1)},{"recent",{"1:0:1",netplay::ProfileResultKeyV2(roomB,0,1)}}},restored),"Legacy recent key was not readable");
- Check(!netplay::ReadProfileRecord({{"wins",std::uint64_t(0)},{"losses",std::uint64_t(0)},{"recent",{std::string(65,'x')}}},restored)&&!restored.available,"Recent key bound was not enforced");
- Check(!netplay::ReadProfileRecord({{"wins",-1},{"losses",0},{"recent",nlohmann::json::array()}},restored)&&!restored.available,"Invalid record accepted");
- netplay::ProfileRecord atLimit;atLimit.wins=netplay::ProfileRecord::MaximumGames/2;atLimit.losses=netplay::ProfileRecord::MaximumGames/2-1;
- Check(atLimit.Record(roomA,0,9,0,room::MatchResult::P1Win)&&atLimit.wins+atLimit.losses==netplay::ProfileRecord::MaximumGames,
-  "Cap-minus-one record did not reach the exact total limit");
-  Check(netplay::ReadProfileRecord(netplay::ProfileRecordJson(atLimit),restored)&&
-  restored.wins==netplay::ProfileRecord::MaximumGames/2+1&&restored.losses==netplay::ProfileRecord::MaximumGames/2-1,
-  "Exact persisted game limit was not readable");
- Check(!atLimit.Record(roomA,0,10,0,room::MatchResult::P1Win)&&atLimit.wins+atLimit.losses==netplay::ProfileRecord::MaximumGames,
-  "Record after the exact total limit was accepted");
 }
 }
 // The rendered dialogs' journeys (menu_dialog_test.cxx).
@@ -959,5 +983,9 @@ void DialogContract();
 void HintPresses();
 void DialogRepeat();
 void BackdropDrawer();
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();BackdropDrawer();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+// The list-wrapping and Home-aside cases and the profile record (controller_navigation_home_test.cxx).
+void ListWrap();
+void AsideEntry();
+void ProfileRecords();
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();PreferencesRevisionCounts();MenuSummonsOncePerEvent();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();BackdropDrawer();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();AsideEntry();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

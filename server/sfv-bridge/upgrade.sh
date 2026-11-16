@@ -162,7 +162,7 @@ phase_bridge() {
     sfv_id > "$NOTES/bridge-id"
     echo "SFV's bridge ID: $(cat "$NOTES/bridge-id")"
 
-    echo "== bridge 3. public rooms: SF4's rooms settings (supervisor, badges, developers)"
+    echo "== bridge 3. public rooms: SF4's rooms settings (supervisor, badges, developers), game sfv"
     local rooms
     rooms=$(python3 -c 'import json, sys; r = json.load(open(sys.argv[1])).get("rooms"); print(json.dumps(r) if r else "")' "$SF4_STATE/bridge.json")
     if [ -z "$rooms" ]; then
@@ -172,6 +172,9 @@ phase_bridge() {
 import json, os, sys, tempfile
 path = sys.argv[1]
 rooms = json.load(sys.stdin)
+# The game the players of this bridge play: cards, friends and points are of
+# SFV when an Ember does not say (bridge config rooms.game, library line only).
+rooms["game"] = "sfv"
 with open(path) as file:
     config = json.load(file)
 if config.get("rooms") == rooms:
@@ -269,6 +272,22 @@ with db:
         names = ", ".join(columns("main", table))
         moved = db.execute(f"INSERT INTO main.{table} ({names}) SELECT {names} FROM sf4.{table} WHERE game = 'sfv'").rowcount
         print(f"  {table}: {moved} row(s)")
+    # What migrations 063 and 064 seed from USF4's rows, seeded from the SFV rows
+    # just copied: they ran on this database before the rows were here. Only
+    # where this bridge has those tables (1.6.0's points and cards).
+    tables = {row[0] for row in db.execute("SELECT name FROM main.sqlite_master WHERE type = 'table'")}
+    if "award_counters" in tables:
+        seeded = db.execute("""INSERT OR IGNORE INTO main.award_counters (discord_user_id, streak, best_streak, peak_band)
+            SELECT discord_user_id, 0, 0, band FROM main.skill_ratings WHERE game = 'sfv' AND band > 0""").rowcount
+        print(f"  award_counters: {seeded} peak class(es)")
+    if "player_cards" in tables:
+        seeded = db.execute("""INSERT OR IGNORE INTO main.player_cards (discord_user_id, name, country, since, updated_at)
+            SELECT r.discord_user_id, r.name, r.country,
+                COALESCE((SELECT d.connected_at FROM main.discord_accounts d WHERE d.user_id = r.discord_user_id),
+                         CAST(strftime('%s','now') AS INTEGER)),
+                COALESCE(r.changed_at, CAST(strftime('%s','now') AS INTEGER))
+            FROM main.ranking_choices r WHERE r.game = 'sfv' AND r.name IS NOT NULL""").rowcount
+        print(f"  player_cards: {seeded} card(s)")
 listed = db.execute("SELECT COUNT(*) FROM main.ranking_choices WHERE game = 'sfv' AND ranked = 1").fetchone()[0]
 print(f"  {listed} SFV player(s) chose to be ranked")
 # What stays with SF4's bridge: rooms are live state, and an organised match,

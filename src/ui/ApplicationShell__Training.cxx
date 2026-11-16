@@ -20,8 +20,7 @@ std::vector<MenuEntry> ApplicationShell::TrainingSelectRows(const ShellView& v,s
 }
 void ApplicationShell::TrainingSelectActivate(const MenuAction& a,const ShellView& v,const Submit& submit) {
  if(a.id=="training-start"){
-  ShellAction training;training.startTraining=true;
-  if(!submit(std::move(training)))error_=loc::T("error.queue_failed");
+  if(!submit(StartTraining{}))error_=loc::T("error.queue_failed");
   return;
  }
  if(a.id=="training-hitboxes"){if(v.offersHitboxes)ShowHitboxes(!v.hitboxesShown,submit);return;}
@@ -30,7 +29,6 @@ void ApplicationShell::TrainingSelectActivate(const MenuAction& a,const ShellVie
  menu_.navigation.Push("selection");
 }
 void ApplicationShell::ShowHitboxes(bool shown,const Submit& submit) {
- ShellAction hitboxes;hitboxes.showHitboxes=shown;
- if(!submit(std::move(hitboxes)))error_=loc::T("error.queue_failed");
+ if(!submit(ui::ShowHitboxes{shown}))error_=loc::T("error.queue_failed");
 }
 } }

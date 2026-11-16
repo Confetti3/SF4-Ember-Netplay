@@ -145,7 +145,16 @@ pub struct SignInSite {
     /// out by bridges older than organizer sign-in, which offer none.
     #[serde(default)]
     pub organizer: bool,
+    /// Whether an organizer's event is created on the site from Ember, and
+    /// what that creation sets: each field's name and the values it takes
+    /// (Challonge's `format`, the bracket site's `check_in`). None for a site
+    /// whose events the organizer makes there; left out by older bridges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub create: Option<CreateChoices>,
 }
+
+/// A create form's fields, each with the values it takes.
+pub type CreateChoices = std::collections::BTreeMap<String, Vec<serde_json::Value>>;
 
 /// An account a lookup asks for: on site `site`, the one `id` names
 /// (`SignInSite::lookup_by`).

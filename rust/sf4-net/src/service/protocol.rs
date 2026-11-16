@@ -397,6 +397,11 @@ pub enum Event {
         /// The skill badge in that ticket, when the bridge gave one.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         badge: Option<ember_protocol::skill::SkillBadge>,
+        /// The card token in that ticket, when the bridge gave one
+        /// (`RoomTicket::card`, docs/design/FIGHTER_LEVELS.md). The room
+        /// shows it to its members.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        card: Option<String>,
         /// As in `Hosted`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         latency: Option<EndpointId>,

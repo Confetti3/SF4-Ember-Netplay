@@ -67,7 +67,9 @@ async fn the_supervisor_must_be_a_loopback_address() {
         config.rooms = Some(config::Rooms {
             supervisor_url: refused.into(),
             skill_badges: false,
+            friends: false,
             developers: Vec::new(),
+            game: "usf4".into(),
         });
         assert!(config.validate().is_err(), "{refused}");
     }
@@ -79,9 +81,18 @@ async fn the_supervisor_must_be_a_loopback_address() {
         config.rooms = Some(config::Rooms {
             supervisor_url: accepted.into(),
             skill_badges: false,
+            friends: false,
             developers: Vec::new(),
+            game: "usf4".into(),
         });
         assert!(config.validate().is_ok(), "{accepted}");
+    }
+    // The game its players play is one public rooms are for.
+    for (game, valid) in [("usf4", true), ("sfv", true), ("sf6", false), ("", false)] {
+        if let Some(rooms) = &mut config.rooms {
+            rooms.game = game.into();
+        }
+        assert_eq!(config.validate().is_ok(), valid, "{game}");
     }
 }
 

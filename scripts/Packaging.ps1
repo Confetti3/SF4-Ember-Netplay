@@ -22,7 +22,7 @@ function New-EmberPackage([string]$BuildDir = '', [string]$InstallDir = '',
     $BuildDir = [IO.Path]::GetFullPath($BuildDir)
     $InstallDir = [IO.Path]::GetFullPath($InstallDir)
     if ($BuildDir -ne (Join-Path $repo $designation.buildDirectory) -or $InstallDir -ne (Join-Path $repo $designation.installDirectory)) { throw 'Use the designated build and stage directories from build-target.json' }
-    $receipt = Assert-BuildReceipt $repo $BuildDir $InstallDir
+    $receipt = Assert-BuildReceipt $repo $BuildDir $InstallDir -EmberService $designation.emberService
     # Both channels package through this function; the receipt must still belong to this checkout's channel.
     Assert-ReceiptChannel $receipt $designation.channel
     if (!$receipt.testsPassed) { throw 'The current build has no passing test receipt' }

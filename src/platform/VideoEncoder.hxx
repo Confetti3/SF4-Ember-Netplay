@@ -36,12 +36,17 @@ public:
 	Encoder& operator=(const Encoder&) = delete;
 
 	// Opens the file and starts capturing the sound of the process soundPid.
-	// Width and height are even.
-	bool Begin(const std::wstring& file, unsigned width, unsigned height, unsigned long soundPid);
+	// Width and height are even. fed: a fast export's file instead, whose
+	// sound comes through Sound and whose pictures are stamped from the
+	// first, none dropped: Frame waits for the encoder.
+	bool Begin(const std::wstring& file, unsigned width, unsigned height, unsigned long soundPid, bool fed = false);
 	// One NV12 picture (BT.709, 16 to 235) drawn at the Clock time at
-	// (VideoLinkProtocol.hxx): height rows of width luma bytes, then height / 2
-	// rows of width chroma bytes.
+	// (VideoLinkProtocol.hxx), or at that time from the first picture when
+	// fed: height rows of width luma bytes, then height / 2 rows of width
+	// chroma bytes.
 	void Frame(const void* luma, int lumaPitch, const void* chroma, int chromaPitch, long long at);
+	// Fed: the next sound, 48 kHz stereo float interleaved, after the sound before.
+	void Sound(const float* stereo, unsigned frames);
 	// Closes the file. True when it holds at least one picture.
 	bool End();
 	// What was opened and how it closed, for the caller's log.

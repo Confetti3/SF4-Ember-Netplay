@@ -4,6 +4,7 @@
 // that frame is laid out in before it is drawn. The shell keeps one prompt
 // (ApplicationShell::postMatch_) and draws it on its own screen, "post-match".
 #include "MenuNavigation.hxx"
+#include "PostMatchFriend.hxx"
 #include "../session/RoomModel.hxx"
 #include <imgui.h>
 #include <cstddef>
@@ -25,6 +26,9 @@ struct PostMatchPrompt {
     int table = -1;
     room::MemberId opponent = 0;
     std::uint64_t generation = 0;
+    // Its place in the battle (ShellView::gamesInPlace when it opened), which a
+    // rematch in place leaves on the same generation.
+    std::uint32_t game = 0;
     // The game's result, once the runtime has it (FoughtGame::result).
     room::MatchResult result = room::MatchResult::Abort;
     double until = 0;
@@ -34,6 +38,9 @@ struct PostMatchPrompt {
     double opened = 0;
     bool leaveGuarded = false;
     bool chose = false, starting = false;
+    // The room shows this fighter's Ready for the game (or the press just made),
+    // as of the last update: what the answer told to the room is read from.
+    bool readied = false;
     // An Arcade pair's Rematch chosen here (Table::deciding): once both
     // chose it the room asks no more, and the prompt readies the player.
     bool pairRematch = false;
@@ -58,7 +65,18 @@ struct PostMatchPrompt {
     // the answers over the WIN no longer stand, the room's Readies do. shown:
     // the prompt has been put in front on the results screen.
     bool onResults = false, resultsShown = false;
+    // Add friend (or Accept request) was pressed here and went out: its box says Request sent (or Friends) from then on,
+    // unless the friends' refusals moved on from `friendRefusals`, the count when it was pressed (the button comes back).
+    bool friendAsked = false;
+    std::uint64_t friendRefusals = 0;
 };
+
+// What the opponent has answered over this WIN, from the one place each way the
+// room shows it: the next game starting, their Ready, an Arcade pair's Rematch
+// (Rematch), or the word they told for this game (Rematch, Character select or
+// Back to room); None while they are still choosing. `theirs` is their seat, or
+// -1 when they have none.
+room::PostMatchWord TheirAnswer(const room::Table& table, int theirs, bool deciding, const room::Member* opponent, const PostMatchPrompt& prompt);
 
 // The prompt's focused button last frame, where it stood in the panel's
 // content (not scrolled) and the panel's size: a change scrolls the button
@@ -81,8 +99,12 @@ struct PostMatchModel {
     // The opponent declined over the WIN (PostMatchPrompt::theyDeclined, while
     // not starting): their row reads Back to room and the countdown stops.
     bool theyDeclined = false;
+    // Over the WIN with this PC's Ready given: Back and Character select are not offered.
+    bool committed = false;
     const room::Member* local = nullptr;
     const room::Member* opponent = nullptr;
+    // The box at the opponent's right edge (PostMatchFriend.hxx); its row is among `rows` only while it can be pressed.
+    post_match_friend::State addFriend;
     std::string title, eyebrow, mineWord, theirWord;
     std::vector<MenuEntry> rows;
     std::size_t buttons = 0;

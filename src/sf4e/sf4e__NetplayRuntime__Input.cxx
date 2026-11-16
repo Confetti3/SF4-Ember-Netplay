@@ -120,7 +120,8 @@ void CaptureMenuInput() {
     } else runtime->input.Cancel();
     if (!AtMainMenu() || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle) Game().input.ControlSetup(gamepads::SetupCommand::LeftMenu, 0);
     const auto layer = Game().input.ReadPadLayer();
-    if (layer.mode == gamepads::Layer::Active) runtime->preferences.buttonLayouts = layer.layouts;
+    // Every tick: counted as a change only when the layouts differ.
+    if (layer.mode == gamepads::Layer::Active && runtime->preferences.buttonLayouts != layer.layouts) runtime->EditPreferences().buttonLayouts = layer.layouts;
     runtime->padLayer = layer.mode; runtime->runningControllerLayer = layer.requested;
     const auto savedIdentity = Game().preferences.SavedDeviceIdentity();
     const auto native = Game().input.NativeControllers();
@@ -233,7 +234,7 @@ void SaveRoomSettings(const netplay::PlayerPreferences& from) {
     preferences.CopyRoomSettings(from);
     if (!preferences.Valid()) return;
     if (!Game().preferences.Save(preferences)) { runtime->error = loc::T("runtime.preferences_queue_failed"); return; }
-    runtime->preferences = std::move(preferences);
+    runtime->EditPreferences() = std::move(preferences);
     Game().input.SetLayouts(runtime->preferences.buttonLayouts);
 }
 
@@ -250,7 +251,7 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
         }
         const auto before = Game().input.ReadPadLayer().setup;
         if (const auto mapping = Game().input.SaveSetup()) {
-            runtime->preferences.controllerMappings[before.identity.guid] = *mapping;
+            runtime->EditPreferences().controllerMappings[before.identity.guid] = *mapping;
             Game().preferences.Save(runtime->preferences);
             if (runtime->setupAdoption) runtime->setupAdoption = before.identity;
         }
@@ -265,10 +266,10 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
             (pad.state != gamepads::RowState::Recognised && pad.state != gamepads::RowState::Steam)) return;
         if (request.kind == Kind::Layout) {
             if (!gamepads::ValidLayout(request.buttons) || !gamepads::ValidBoundButtons(request.bound) || !gamepads::ValidExtraCopies(request.extras)) return;
-            const auto dropped = gamepads::UpsertLayout(runtime->preferences.buttonLayouts,
+            const auto dropped = gamepads::UpsertLayout(runtime->EditPreferences().buttonLayouts,
                 {pad.identity, request.buttons, static_cast<std::int64_t>(std::time(nullptr)), request.bound, request.extras});
             if (dropped) spdlog::info("Input: layout for id {} dropped, oldest of 33", gamepads::IdentityHash(*dropped));
-        } else gamepads::RemoveLayout(runtime->preferences.buttonLayouts, pad.identity);
+        } else gamepads::RemoveLayout(runtime->EditPreferences().buttonLayouts, pad.identity);
         Game().input.SetLayouts(runtime->preferences.buttonLayouts);
         if (!request.log.empty()) spdlog::info("Input: {}", request.log);
         return;
@@ -288,7 +289,7 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
         if (!gates.canEditPreferences || runtime->padLayer != gamepads::Layer::Active || !runtime->preferences.controllerMappings.count(pad.identity.guid)) return;
         auto preferences = runtime->preferences; preferences.controllerMappings.erase(pad.identity.guid);
         if (!Game().preferences.Save(preferences)) return;
-        runtime->preferences = std::move(preferences);
+        runtime->EditPreferences() = std::move(preferences);
         spdlog::info("Input: setup for guid {} forgotten; applies next start", pad.identity.guid);
         runtime->padHint = loc::T("controllers.forgotten"); runtime->padHintUntil = GetTickCount64() + 4000;
         return;
@@ -332,10 +333,10 @@ bool BindRuntimeInput(int localSlot) {
 // place (rematch::GoesOnInPlace).
 static bool ParkedRematchChangesPick() {
     const auto* parked=runtime->readyIntent.Parked();
-    const auto* press=parked?std::get_if<commands::Room>(parked):nullptr;
+    const auto* press=parked?std::get_if<commands::Ready>(parked):nullptr;
     const int side=runtime->matchBinding.matchInputSide;
     if(!press||!RuntimeSession::netplay||side<0||side>1)return false;
-    return !rematch::GoesOnInPlace(selection::FromNative(RuntimeSession::netplay->client._matchData.chara[side]),selection::FromNative(press->character));
+    return !rematch::GoesOnInPlace(selection::FromNative(RuntimeSession::netplay->client._matchData.chara[side]),press->pick);
 }
 
 bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {

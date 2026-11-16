@@ -31,7 +31,7 @@ private:
 // Player 1's combo as it was done: its frames for a fighter facing right
 // (as a slot holds them), where both fighters stood on the frame before its
 // first press, and the hits it landed then.
-struct Combo { std::vector<Input> frames; float x[2] = {0, 0}; int hits = 0; };
+struct Combo { std::vector<Input> frames; float x[2] = {0, 0}; int hits = 0; int fighter = -1; };  // fighter: Player 1's, -1 unknown
 
 // Records Player 1 from the first press until IdleStop frames without one,
 // or MaxFrames; the frames after the last press are dropped. Each frame is
@@ -96,7 +96,7 @@ inline std::vector<Run> PlanRuns(const Settings& settings) {
 // fighters free. recording: a Recorder is armed. comboId moves on with each
 // recording that ends (the combo itself: TrainingRuntime LastCombo).
 struct FightView {
-    int dummy = -1, best = 0;
+    int dummy = -1, p1 = -1, best = 0;
     bool free = false, recording = false;
     std::uint64_t comboId = 0;
     // The last combo's hits and frames as recorded; a check runs, and its runs so far.

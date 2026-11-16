@@ -1,0 +1,782 @@
+//! Points (docs/design/FIGHTER_LEVELS.md): for each fighter a Discord account
+//! has played in counted public room games, its games and wins (FP), and for
+//! the account itself every counted game whether or not it named fighters
+//! (BP). The points are a grind value, never skill, and only go up: a counted
+//! game is 1 point for each player, and the winner earns 1 more only against
+//! an opponent of the same class or a higher one (`class_bonus`), so beating
+//! weaker players is worth no more than playing them. The two classes are all
+//! that is read of the rating, and a player without one is nobody's lower.
+//! `record_games` decides which games count; this module stores them and
+//! serves them.
+//!
+//! Games and wins are stored exactly, as the awards read them, and beside
+//! them the wins that earned no bonus (`lower_wins`): the points are games
+//! plus wins less those. The tier thresholds (`TIER_STARTS` for a fighter,
+//! `ACCOUNT_TIER_STARTS` for the account) live here alone and are applied
+//! when points are served, so they can be retuned without a data change or a
+//! client update. A card is public: it shows these points to
+//! anyone with the player's card token, whether or not the player takes part
+//! in ranking.
+//!
+//! The milestone awards (`src/netplay/Awards.hxx`) read the same counts, as
+//! one `AwardCounts`. What they need beyond them, the best run of wins and the
+//! highest class ever shown, is kept in `award_counters` and only goes up; the
+//! rival and opponent counts are read from the pair records. A player's own
+//! answer carries all of them exactly, and their card as `AwardCounts::shown`
+//! has them.
+use ember_protocol::{
+    EmberId,
+    levels::{
+        AwardCounts, CardAccount, CardFighter, MAX_TIER, OwnAccount, OwnFighter, OwnLevels,
+        PlayerCard, Relation,
+    },
+};
+use std::collections::{HashMap, HashSet};
+
+use rusqlite::{OptionalExtension, Row, Transaction, params};
+
+use super::{Standings, account};
+use crate::{db::select_in, error::Result};
+
+/// The points where each fighter tier begins, Ash to Ember: the frame colours
+/// of `v2::TierColor`.
+const TIER_STARTS: [u64; MAX_TIER as usize + 1] = [0, 200, 700, 1500, 2500];
+
+/// The account's own thresholds, for the points of every counted game.
+const ACCOUNT_TIER_STARTS: [u64; MAX_TIER as usize + 1] = [0, 500, 2000, 5000, 10000];
+
+/// Where the tiers of one kind of points begin.
+struct Tiers([u64; MAX_TIER as usize + 1]);
+
+// The protocol names the last tier and clients draw one frame colour for each,
+// so a table has one start per tier (its type), begins at 0 and only goes up.
+// A table that does not is a build error, not a points answer every client
+// refuses.
+const fn tiers(starts: [u64; MAX_TIER as usize + 1]) -> Tiers {
+    assert!(starts[0] == 0);
+    let mut at = 1;
+    while at < starts.len() {
+        assert!(starts[at - 1] < starts[at]);
+        at += 1;
+    }
+    Tiers(starts)
+}
+
+const FIGHTER_TIERS: Tiers = tiers(TIER_STARTS);
+const ACCOUNT_TIERS: Tiers = tiers(ACCOUNT_TIER_STARTS);
+
+impl Tiers {
+    /// The tier `points` reach, 0 to `MAX_TIER`.
+    fn tier(&self, points: u64) -> u8 {
+        self.0
+            .iter()
+            .rposition(|start| points >= *start)
+            .unwrap_or(0) as u8
+    }
+
+    /// The points where `tier`, a result of `tier()`, begins.
+    fn floor(&self, tier: u8) -> u64 {
+        self.0[usize::from(tier)]
+    }
+
+    /// The points where the tier after `tier` begins; none at the last tier.
+    fn next(&self, tier: u8) -> Option<u64> {
+        self.0.get(usize::from(tier) + 1).copied()
+    }
+}
+
+/// What a counted game was for one of its two players.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Played {
+    Lost,
+    /// `bonus`: the win earned the class bonus (`class_bonus`).
+    Won {
+        bonus: bool,
+    },
+}
+
+impl Played {
+    /// The wins the game adds, and those of them without a bonus.
+    fn wins(self) -> (u32, u32) {
+        match self {
+            Self::Lost => (0, 0),
+            Self::Won { bonus } => (1, u32::from(!bonus)),
+        }
+    }
+}
+
+/// One count of games and wins: a fighter's or the account's.
+struct Counted {
+    games: u64,
+    wins: u64,
+    /// The wins that earned no bonus, at most `wins`.
+    lower_wins: u64,
+    /// When the first game was counted; none before one.
+    first_at: Option<u64>,
+}
+
+impl Counted {
+    /// No game counted yet.
+    fn none() -> Self {
+        Self {
+            games: 0,
+            wins: 0,
+            lower_wins: 0,
+            first_at: None,
+        }
+    }
+
+    /// A game is 1 point and a win with the bonus 1 more.
+    fn points(&self) -> u64 {
+        self.games
+            .saturating_add(self.wins.saturating_sub(self.lower_wins))
+    }
+
+    /// The account's own answer: its points and frame, with `awards`, which
+    /// hold the games and wins these points sum.
+    fn own_account(&self, awards: AwardCounts) -> OwnAccount {
+        let points = self.points();
+        let tier = ACCOUNT_TIERS.tier(points);
+        OwnAccount {
+            points,
+            awards,
+            tier,
+            floor: ACCOUNT_TIERS.floor(tier),
+            next: ACCOUNT_TIERS.next(tier),
+            since: self.first_at,
+        }
+    }
+
+    /// The points and the frame; the games and wins behind them are in the
+    /// card's `awards`.
+    fn card_account(&self) -> CardAccount {
+        let points = self.points();
+        CardAccount {
+            points,
+            tier: ACCOUNT_TIERS.tier(points),
+        }
+    }
+
+    fn own_fighter(&self, fighter: u8) -> OwnFighter {
+        let points = self.points();
+        let tier = FIGHTER_TIERS.tier(points);
+        OwnFighter {
+            fighter,
+            points,
+            games: self.games,
+            wins: self.wins,
+            tier,
+            floor: FIGHTER_TIERS.floor(tier),
+            next: FIGHTER_TIERS.next(tier),
+            since: self.first_at.unwrap_or_default(),
+        }
+    }
+
+    fn card_fighter(&self, fighter: u8) -> CardFighter {
+        let points = self.points();
+        CardFighter {
+            fighter,
+            points,
+            tier: FIGHTER_TIERS.tier(points),
+        }
+    }
+}
+
+/// Whether a game `winner` won against `loser` earns the winner the bonus
+/// point: the loser's class is the winner's or a higher one. A player without
+/// a class (no rating yet, or one still placing) is nobody's lower and has
+/// nobody lower, so the bonus is earned whenever either has none. The classes
+/// are the ones last shown in the game's own rating (`game`, the room's), as
+/// they stand when the game is counted.
+pub(super) fn class_bonus(
+    tx: &Transaction<'_>,
+    game: &str,
+    winner: &str,
+    loser: &str,
+) -> Result<bool> {
+    let (won, lost) = (class(tx, game, winner)?, class(tx, game, loser)?);
+    Ok(won == 0 || lost == 0 || lost >= won)
+}
+
+/// The class `account`'s rating in `game` last showed, 1 to the top; 0
+/// without one.
+fn class(tx: &Transaction<'_>, game: &str, account: &str) -> Result<u8> {
+    Ok(tx
+        .query_row(
+            "SELECT band FROM skill_ratings WHERE game = ?1 AND discord_user_id = ?2",
+            params![game, account],
+            |row| row.get(0),
+        )
+        .optional()?
+        .unwrap_or(0))
+}
+
+/// The highest class `account`'s ratings last showed in any game, 1 to the
+/// top; 0 without one. The award counters' peak is the account's, like
+/// `note_class`, whichever game showed it.
+fn highest_class(tx: &Transaction<'_>, account: &str) -> Result<u8> {
+    Ok(tx.query_row(
+        "SELECT COALESCE(MAX(band), 0) FROM skill_ratings WHERE discord_user_id = ?1",
+        [account],
+        |row| row.get(0),
+    )?)
+}
+
+/// Counts a game for `account` on `fighter`.
+pub(super) fn count(
+    tx: &Transaction<'_>,
+    account: &str,
+    fighter: u8,
+    played: Played,
+    now: u64,
+) -> Result<()> {
+    let (wins, lower_wins) = played.wins();
+    tx.execute(
+        "INSERT INTO fighter_levels
+             (discord_user_id, fighter, games, wins, lower_wins, first_at, played_at)
+         VALUES (?1, ?2, 1, ?3, ?4, ?5, ?5)
+         ON CONFLICT (discord_user_id, fighter) DO UPDATE SET games = games + 1,
+             wins = wins + ?3, lower_wins = lower_wins + ?4, played_at = ?5",
+        params![account, fighter, wins, lower_wins, now],
+    )?;
+    Ok(())
+}
+
+/// Counts a game for the account itself, whether or not the game named
+/// fighters.
+pub(super) fn count_account(
+    tx: &Transaction<'_>,
+    account: &str,
+    played: Played,
+    now: u64,
+) -> Result<()> {
+    let (wins, lower_wins) = played.wins();
+    tx.execute(
+        "INSERT INTO account_points (discord_user_id, games, wins, lower_wins, first_at, played_at)
+         VALUES (?1, 1, ?2, ?3, ?4, ?4)
+         ON CONFLICT (discord_user_id) DO UPDATE SET games = games + 1,
+             wins = wins + ?2, lower_wins = lower_wins + ?3, played_at = ?4",
+        params![account, wins, lower_wins, now],
+    )?;
+    Ok(())
+}
+
+/// Counts the result of a game in `account`'s run of wins: a win goes on with
+/// it, a loss ends it, and the best run so far only ever rises.
+pub(super) fn count_streak(tx: &Transaction<'_>, account: &str, won: bool) -> Result<()> {
+    tx.execute(
+        "INSERT INTO award_counters (discord_user_id, streak, best_streak)
+         VALUES (?1, ?2, ?2)
+         ON CONFLICT (discord_user_id) DO UPDATE SET
+             streak = CASE WHEN ?2 = 1 THEN streak + 1 ELSE 0 END,
+             best_streak = MAX(best_streak, CASE WHEN ?2 = 1 THEN streak + 1 ELSE 0 END)",
+        params![account, u32::from(won)],
+    )?;
+    Ok(())
+}
+
+/// Remembers that `account` showed class `band` (1 to the top): its peak only
+/// rises, so an award for a class is not taken away when the class drops.
+pub(super) fn note_class(tx: &Transaction<'_>, account: &str, band: u8) -> Result<()> {
+    if band == 0 {
+        return Ok(());
+    }
+    tx.execute(
+        "INSERT INTO award_counters (discord_user_id, peak_band) VALUES (?1, ?2)
+         ON CONFLICT (discord_user_id) DO UPDATE SET peak_band = MAX(peak_band, ?2)",
+        params![account, band],
+    )?;
+    Ok(())
+}
+
+/// Every award counter of `account`, exactly, with the games and wins of
+/// `counted`: its best run of wins, its highest class ever shown, the most
+/// games against one opponent and the opponents faced (from the pair records,
+/// kept from migration 060 on). The class now is read too, so a peak the
+/// counters missed (a bridge from before them showed it) is not lower than the
+/// class itself.
+fn award_counts(tx: &Transaction<'_>, account: &str, counted: &Counted) -> Result<AwardCounts> {
+    let (best_streak, peak): (u32, u8) = tx
+        .query_row(
+            "SELECT best_streak, peak_band FROM award_counters WHERE discord_user_id = ?1",
+            [account],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?
+        .unwrap_or((0, 0));
+    let shown = highest_class(tx, account)?;
+    let (rival, opponents) = tx.query_row(
+        "SELECT COALESCE(MAX(first_wins + second_wins), 0), COUNT(*) FROM pair_records
+         WHERE first = ?1 OR second = ?1",
+        [account],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    Ok(AwardCounts {
+        games: counted.games,
+        wins: counted.wins,
+        best_streak,
+        peak_class: peak.max(shown),
+        rival,
+        opponents,
+    })
+}
+
+/// The points of the player as `ember_id`, for themselves, as they are
+/// earned: the account's and every fighter's.
+pub fn own(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<OwnLevels> {
+    let Some(account) = account(tx, ember_id)? else {
+        return Ok(OwnLevels::NoAccount {});
+    };
+    let counted = account_count(tx, &account)?;
+    Ok(OwnLevels::Counted {
+        account: counted.own_account(award_counts(tx, &account, &counted)?),
+        fighters: fighter_counts(tx, &account)?
+            .into_iter()
+            .map(|(fighter, count)| count.own_fighter(fighter))
+            .collect(),
+        // The route that knows the keys and the classes fills it in.
+        rival: None,
+    })
+}
+
+/// How many of `account`'s pairs the most played opponent is picked from.
+pub const RIVAL_CANDIDATES: usize = 5;
+
+/// One pair `account` is in, from its own side.
+pub struct Pair {
+    /// The other Discord account.
+    pub other: String,
+    /// The games `account` won against it.
+    pub won: u64,
+    /// The games it won against `account`.
+    pub lost: u64,
+}
+
+/// Up to `limit` of `account`'s pairs that played a counted game, the most
+/// games first and, among as many, the latest played first. A pair row keeps
+/// `account` as its first or its second, so the two are read through their own
+/// keys (the primary key, and `pair_records_second` from migration 063) and
+/// turned to `account`'s side.
+pub fn pairs_by_games(tx: &Transaction<'_>, account: &str, limit: usize) -> Result<Vec<Pair>> {
+    let mut statement = tx.prepare_cached(
+        "SELECT other, won, lost FROM (
+             SELECT second AS other, first_wins AS won, second_wins AS lost, played_at
+             FROM pair_records WHERE first = ?1
+             UNION ALL
+             SELECT first, second_wins, first_wins, played_at
+             FROM pair_records WHERE second = ?1)
+         WHERE won + lost > 0 AND other <> ?1
+         ORDER BY won + lost DESC, played_at DESC, other
+         LIMIT ?2",
+    )?;
+    let rows = statement
+        .query_map(params![account, limit as i64], |row| {
+            Ok(Pair {
+                other: row.get(0)?,
+                won: row.get(1)?,
+                lost: row.get(2)?,
+            })
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(rows)
+}
+
+/// The card of Discord account `account`, one account at a time: the test
+/// oracle `cards` is checked against. Its points, and None once it has no
+/// Discord account connected.
+#[cfg(test)]
+pub fn card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
+    card_with(tx, account, false)
+}
+
+/// `card` with the award counters a card shows, one account at a time: the
+/// test oracle of `cards` with `Standings`.
+#[cfg(test)]
+pub fn awarded_card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
+    card_with(tx, account, true)
+}
+
+#[cfg(test)]
+fn card_with(tx: &Transaction<'_>, account: &str, awards: bool) -> Result<Option<PlayerCard>> {
+    let connected: bool = tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM discord_accounts WHERE user_id = ?1)",
+        [account],
+        |row| row.get(0),
+    )?;
+    if !connected {
+        return Ok(None);
+    }
+    let counted = account_count(tx, account)?;
+    let awards = if awards {
+        award_counts(tx, account, &counted)?.shown(super::takes_part(tx, account)?)
+    } else {
+        AwardCounts::default()
+    };
+    Ok(Some(counted_card(
+        &counted,
+        &fighter_counts(tx, account)?,
+        awards,
+    )))
+}
+
+/// A card made of an account's count and its fighters' counts.
+fn counted_card(counted: &Counted, fighters: &[(u8, Counted)], awards: AwardCounts) -> PlayerCard {
+    PlayerCard {
+        fighters: fighters
+            .iter()
+            .map(|(fighter, count)| count.card_fighter(*fighter))
+            .collect(),
+        awards,
+        ..PlayerCard::bare(counted.card_account(), Relation::None)
+    }
+}
+
+/// The cards of `accounts` as another player sees them, all at once: three
+/// reads however many there are, and two more with `awards`. Each has its
+/// points, always (FIGHTER_LEVELS.md, "Cards are public"), and only an
+/// account with a Discord account connected has one. Its relation is `none`;
+/// `cards::Reader` sets the caller's own. With `awards` (the ranking tables
+/// of the same accounts), each carries the award counters a card shows
+/// (`AwardCounts::shown`): the class only while the player takes part in
+/// ranking. A friends state, which wants the points and fighters alone, reads
+/// them without.
+pub fn cards(
+    tx: &Transaction<'_>,
+    accounts: &[&str],
+    awards: Option<&Standings>,
+) -> Result<HashMap<String, PlayerCard>> {
+    let connected: HashSet<String> = select_in(
+        tx,
+        "SELECT user_id FROM discord_accounts WHERE user_id IN ({ids})",
+        &[],
+        accounts,
+        |row| row.get::<_, String>(0),
+    )?
+    .into_iter()
+    .collect();
+    let mut totals: HashMap<String, Counted> = select_in(
+        tx,
+        "SELECT discord_user_id, games, wins, lower_wins, first_at FROM account_points
+         WHERE discord_user_id IN ({ids})",
+        &[],
+        accounts,
+        |row| Ok((row.get::<_, String>(0)?, counted_in(row, 1)?)),
+    )?
+    .into_iter()
+    .collect();
+    let mut fighters: HashMap<String, Vec<(u8, Counted)>> = HashMap::new();
+    for (account, fighter, count) in select_in(
+        tx,
+        "SELECT discord_user_id, fighter, games, wins, lower_wins, first_at FROM fighter_levels
+         WHERE discord_user_id IN ({ids}) ORDER BY discord_user_id, fighter",
+        &[],
+        accounts,
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, u8>(1)?,
+                counted_in(row, 2)?,
+            ))
+        },
+    )? {
+        fighters.entry(account).or_default().push((fighter, count));
+    }
+    let mut kept = match awards {
+        Some(_) => kept_counts(tx, accounts)?,
+        None => HashMap::new(),
+    };
+    Ok(connected
+        .into_iter()
+        .map(|account| {
+            let counted = totals.remove(&account).unwrap_or_else(Counted::none);
+            let played = fighters.remove(&account).unwrap_or_default();
+            let shown = match awards {
+                Some(standings) => {
+                    let kept = kept.remove(&account).unwrap_or_default();
+                    AwardCounts {
+                        games: counted.games,
+                        wins: counted.wins,
+                        best_streak: kept.best_streak,
+                        peak_class: kept.peak.max(standings.band(&account)),
+                        rival: kept.rival,
+                        opponents: kept.opponents,
+                    }
+                    .shown(standings.takes_part(&account))
+                }
+                None => AwardCounts::default(),
+            };
+            let card = counted_card(&counted, &played, shown);
+            (account, card)
+        })
+        .collect())
+}
+
+/// What an account's award counters keep beyond its games and wins
+/// (`award_counts`): its best run, its peak class, and from the pair records
+/// its most games against one opponent and the opponents faced.
+#[derive(Default)]
+struct Kept {
+    best_streak: u32,
+    peak: u8,
+    rival: u32,
+    opponents: u32,
+}
+
+/// `Kept` of each of `accounts`, in two reads however many there are. An
+/// account with no row of either kind has none, which reads as all 0, as
+/// `award_counts` reads it. A pair row is counted for each of its two
+/// accounts in the set, and once for a row whose two accounts are the same.
+fn kept_counts(tx: &Transaction<'_>, accounts: &[&str]) -> Result<HashMap<String, Kept>> {
+    let mut kept: HashMap<String, Kept> = HashMap::new();
+    for (account, best_streak, peak) in select_in(
+        tx,
+        "SELECT discord_user_id, best_streak, peak_band FROM award_counters
+         WHERE discord_user_id IN ({ids})",
+        &[],
+        accounts,
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, u32>(1)?,
+                row.get::<_, u8>(2)?,
+            ))
+        },
+    )? {
+        let entry = kept.entry(account).or_default();
+        entry.best_streak = best_streak;
+        entry.peak = peak;
+    }
+    for (account, rival, opponents) in select_in(
+        tx,
+        "SELECT account, MAX(games), COUNT(*) FROM (
+             SELECT first AS account, first_wins + second_wins AS games
+             FROM pair_records WHERE first IN ({ids})
+             UNION ALL
+             SELECT second, first_wins + second_wins
+             FROM pair_records WHERE second IN ({ids}) AND second <> first)
+         GROUP BY account",
+        &[],
+        accounts,
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, u32>(1)?,
+                row.get::<_, u32>(2)?,
+            ))
+        },
+    )? {
+        let entry = kept.entry(account).or_default();
+        entry.rival = rival;
+        entry.opponents = opponents;
+    }
+    Ok(kept)
+}
+
+/// `account`'s own count; none counted yet reads as no games.
+fn account_count(tx: &Transaction<'_>, account: &str) -> Result<Counted> {
+    let stored = tx
+        .query_row(
+            "SELECT games, wins, lower_wins, first_at FROM account_points
+             WHERE discord_user_id = ?1",
+            [account],
+            |row| counted_in(row, 0),
+        )
+        .optional()?;
+    Ok(stored.unwrap_or_else(Counted::none))
+}
+
+/// The count in columns `at` to `at + 3` of a row: games, wins, wins without
+/// the bonus and when the first game was counted.
+fn counted_in(row: &Row<'_>, at: usize) -> rusqlite::Result<Counted> {
+    Ok(Counted {
+        games: row.get(at)?,
+        wins: row.get(at + 1)?,
+        lower_wins: row.get(at + 2)?,
+        first_at: Some(row.get(at + 3)?),
+    })
+}
+
+/// `account`'s played fighters with their counts, ascending.
+fn fighter_counts(tx: &Transaction<'_>, account: &str) -> Result<Vec<(u8, Counted)>> {
+    let mut statement = tx.prepare(
+        "SELECT fighter, games, wins, lower_wins, first_at FROM fighter_levels
+         WHERE discord_user_id = ?1 ORDER BY fighter",
+    )?;
+    let rows = statement
+        .query_map([account], |row| Ok((row.get(0)?, counted_in(row, 1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(rows)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_tier_starts_at_its_threshold_and_ends_one_point_before_the_next() {
+        for (points, want) in [
+            (0, 0),
+            (199, 0),
+            (200, 1),
+            (699, 1),
+            (700, 2),
+            (1499, 2),
+            (1500, 3),
+            (2499, 3),
+            (2500, 4),
+            (1_000_000, 4),
+            (u64::MAX, 4),
+        ] {
+            assert_eq!(FIGHTER_TIERS.tier(points), want, "{points} points");
+        }
+    }
+
+    #[test]
+    fn an_account_tier_starts_at_its_own_threshold() {
+        for (points, want) in [
+            (0, 0),
+            (499, 0),
+            (500, 1),
+            (1999, 1),
+            (2000, 2),
+            (4999, 2),
+            (5000, 3),
+            (9999, 3),
+            (10_000, 4),
+            (u64::MAX, 4),
+        ] {
+            assert_eq!(ACCOUNT_TIERS.tier(points), want, "{points} points");
+        }
+    }
+
+    #[test]
+    fn a_tier_floor_is_its_threshold_and_never_above_the_points() {
+        for tiers in [&FIGHTER_TIERS, &ACCOUNT_TIERS] {
+            for (tier, start) in tiers.0.into_iter().enumerate() {
+                assert_eq!(tiers.floor(tier as u8), start);
+            }
+            for points in tiers
+                .0
+                .into_iter()
+                .flat_map(|start| [start.saturating_sub(1), start, start + 1])
+                .chain([1_000_000])
+            {
+                let tier = tiers.tier(points);
+                assert!(tiers.floor(tier) <= points, "{points} points");
+                assert!(
+                    tiers.next(tier).is_none_or(|next| points < next),
+                    "{points} points"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_next_tier_is_the_next_threshold_and_the_top_has_none() {
+        for (tiers, thresholds) in [
+            (&FIGHTER_TIERS, [200, 700, 1500, 2500]),
+            (&ACCOUNT_TIERS, [500, 2000, 5000, 10_000]),
+        ] {
+            for (tier, start) in thresholds.into_iter().enumerate() {
+                assert_eq!(tiers.next(tier as u8), Some(start));
+            }
+            assert_eq!(tiers.next(4), None);
+        }
+    }
+
+    /// The games and wins of `counted` as an account's award counts.
+    fn awards_of(counted: &Counted) -> AwardCounts {
+        AwardCounts {
+            games: counted.games,
+            wins: counted.wins,
+            ..AwardCounts::default()
+        }
+    }
+
+    #[test]
+    fn a_game_is_a_point_and_only_a_win_with_the_bonus_is_one_more() {
+        assert_eq!(Played::Lost.wins(), (0, 0));
+        assert_eq!(Played::Won { bonus: true }.wins(), (1, 0));
+        assert_eq!(Played::Won { bonus: false }.wins(), (1, 1));
+        let counted = |games, wins, lower_wins| Counted {
+            games,
+            wins,
+            lower_wins,
+            first_at: Some(1_729_468_800),
+        };
+        // Ten games, six of them won, two of those against a lower class.
+        assert_eq!(counted(10, 6, 2).points(), 14);
+        // Every win against a lower class: the points are the games.
+        assert_eq!(counted(10, 6, 6).points(), 10);
+        assert_eq!(counted(10, 6, 0).points(), 16);
+        // The player's own answer says the games and wins behind the points.
+        let earned = counted(10, 6, 2).own_fighter(7);
+        assert_eq!((earned.points, earned.games, earned.wins), (14, 10, 6));
+    }
+
+    #[test]
+    fn what_is_served_passes_the_protocols_own_checks() {
+        let row = |games: u64, wins: u64, lower_wins: u64| Counted {
+            games,
+            wins,
+            lower_wins,
+            first_at: Some(1_729_468_800),
+        };
+        for games in 1..=1_400 {
+            for wins in [0, games / 2, games] {
+                for lower_wins in [0, wins / 3, wins] {
+                    let counted = row(games, wins, lower_wins);
+                    let own = counted.own_fighter(7);
+                    assert!(own.check().is_ok(), "{own:?}");
+                    assert!(counted.card_fighter(7).check().is_ok());
+                    let account = counted.own_account(awards_of(&counted));
+                    assert!(account.check().is_ok(), "{account:?}");
+                    assert!(counted.card_account().check().is_ok());
+                }
+            }
+        }
+        // The top tier has no next tier.
+        let top = row(2_500, 1_300, 0).own_fighter(7);
+        assert_eq!(
+            (top.points, top.tier, top.floor, top.next),
+            (3_800, 4, 2_500, None)
+        );
+        let first = row(1, 0, 0).own_fighter(7);
+        assert_eq!(
+            (first.points, first.tier, first.floor, first.next),
+            (1, 0, 0, Some(200))
+        );
+        let edge = row(100, 100, 0).own_fighter(7);
+        assert_eq!(
+            (edge.points, edge.tier, edge.floor, edge.next),
+            (200, 1, 200, Some(700))
+        );
+        // A win without the bonus is a point short of the tier.
+        let short = row(100, 100, 1).own_fighter(7);
+        assert_eq!(
+            (short.points, short.tier, short.floor, short.next),
+            (199, 0, 0, Some(200))
+        );
+        // An account with no game has no `since`, and passes the checks.
+        let none = Counted::none();
+        let account = none.own_account(awards_of(&none));
+        assert!(account.check().is_ok(), "{account:?}");
+        assert_eq!(
+            (
+                account.points,
+                account.tier,
+                account.floor,
+                account.next,
+                account.since
+            ),
+            (0, 0, 0, Some(500), None)
+        );
+        let top_row = row(8_000, 3_000, 500);
+        let account_top = top_row.own_account(awards_of(&top_row));
+        assert!(account_top.check().is_ok());
+        assert_eq!(
+            (account_top.tier, account_top.floor, account_top.next),
+            (4, 10_000, None)
+        );
+    }
+}

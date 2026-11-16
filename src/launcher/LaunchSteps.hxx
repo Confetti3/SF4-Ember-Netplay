@@ -10,6 +10,7 @@
 
 #include <windows.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,11 @@ void AddOptions(CLI::App& app);
 // arguments. Empty scope: the one lock per user.
 std::wstring LauncherLogName();
 std::wstring InstanceScope();
+
+// What the product's own options ask for in place of a start (SF4 Ember's
+// --write-stream-host), once the command line is read: done, with the
+// launcher's exit code; nothing when the launcher goes on to start the game.
+std::optional<int> RunInsteadOfStart();
 
 // The settings the launcher loaded and whether --console asked for the
 // game's diagnostic console, before the first start (SF4 Ember builds
@@ -68,10 +74,23 @@ struct StartFailure {
 	std::string message; // shown in place of the shared message when set
 };
 
+// How the game's start-up went, for telling a start that failed from a crash
+// (common/CrashReport.hxx, ClassifyStartFailure): whether the game ended
+// before the product's module said it was up, or when it said so. A product
+// whose module says nothing leaves both false, and no exit is a failed start.
+struct StartWatch {
+	bool endedBeforeSignal = false;
+	bool signalled = false;
+	ULONGLONG signalTick = 0;
+	// What the product found that can explain a failed start (the crash
+	// report's startHint), comma separated; empty for nothing.
+	std::string hints;
+};
+
 // Starts the game with the module inside it, before any of the game's own
 // code runs. Returns the game's process, or null with why in failure. Logs
-// its own steps.
-HANDLE StartGame(const StartRequest& request, StartFailure& failure);
+// its own steps, and how the start-up went in `watch`.
+HANDLE StartGame(const StartRequest& request, StartFailure& failure, StartWatch& watch);
 
 // What the launcher offers a product's steps: the localized message `key`
 // in a message box with OK and Cancel, before the game starts. True for OK;

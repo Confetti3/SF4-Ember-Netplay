@@ -17,8 +17,8 @@ struct Room {
 	MemberId host = 0, p1 = 0, p2 = 0;
 	std::uint64_t nextAction = 1;
 
-	explicit Room(std::uint8_t tables = static_cast<std::uint8_t>(ClassicTableCount), RoomType type = ClassicRoom)
-		: authority("Table count", 16, 41, Rules(), false, DelayPolicy::Shared, type, tables) {
+	explicit Room(std::uint8_t tables = static_cast<std::uint8_t>(ClassicTableCount), RoomType type = RoomType::Classic)
+		: authority("Table count", 16, 41, Rules(), Charter{type, false, DelayPolicy::Shared, tables}) {
 		authority.AdvanceTime(1000);
 		host = Join("Host", 0, true);
 		p1 = Join("P1", 1); p2 = Join("P2", 2);
@@ -116,13 +116,12 @@ int main() {
 		EXPECT(room.SetTables(room.host, 8).accepted && room.View().tables[7].rules == Rules());
 	}
 	{
-		// An Arcade or King of the hill room plays at every table and has no count to change.
-		for (const RoomType type : {ArcadeRoom, KingRoom}) {
-			Room room(static_cast<std::uint8_t>(ClassicTableCount), type);
-			EXPECT(TablesInPlay(room.View()) == TableCount && !TableCountChangeable(room.View()));
-			const auto revision = room.View().revision;
-			EXPECT(room.SetTables(room.host, 2).reason == RejectReason::Unauthorized && TablesInPlay(room.View()) == TableCount);
-			EXPECT(room.View().revision == revision && room.View().tableCount == ClassicTableCount);
+		// A private Arcade or King of the hill room plays at the tables it opened
+		// with, and its host changes them as in a Classic room.
+		for (const RoomType type : {RoomType::Arcade, RoomType::King}) {
+			Room room(1, type);
+			EXPECT(TablesInPlay(room.View()) == 1 && TableCountChangeable(room.View()));
+			EXPECT(room.SetTables(room.host, 3).accepted && TablesInPlay(room.View()) == 3);
 		}
 	}
 	{

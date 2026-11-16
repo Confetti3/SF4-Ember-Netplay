@@ -117,7 +117,7 @@ void OpponentAnswer() {
  // This PC chose Rematch, the opponent declined: in the room the Rematch is
  // this player's Ready, and the prompt has nothing left to wait for.
  win();h.Choose("again");
- Check(h.actions.back().command.kind==Kind::Rematch,"Rematch did not send the room's Ready");
+ Check(test::ReadyIs(h.actions.back(),true),"Rematch did not send the room's Ready");
  h.view.rematchChoices=1;h.Frame();
  Check(words["pm-you"]==ready&&words["pm-opponent"]==choosing,"This PC's own Rematch was read as the opponent's");
  h.view.rematchChoices=1;h.view.rematchDeclines=2;h.Frame();
@@ -183,7 +183,7 @@ void ResultsRematch() {
   onResults?"A game whose WIN asked nothing did not ask on its results":"SF4 Ember asked on the results");
  if(onResults){
   h.Choose("again");
-  Check(h.actions.back().command.kind==Kind::Rematch,"Rematch on the results did not send the room's Ready");
+  Check(test::ReadyIs(h.actions.back(),true),"Rematch on the results did not send the room's Ready");
   Check(!unqueued(sent),"Rematch on the results gave up the seat");
  }
  // A cancelled game (no result) asks nothing.

@@ -1,31 +1,47 @@
 //! The hidden rating behind a player's public room class
-//! (docs/design/SKILL_BADGE.md).
+//! (docs/design/SKILL_BADGE.md), and the fighter levels counted beside it
+//! (docs/design/FIGHTER_LEVELS.md, `points`).
 //!
-//! Public room hosts report each game they saw won; the bridge rates it
+//! Public room hosts report each game they saw won; the bridge counts it
 //! here, once, between the two players' Discord accounts. An Ember ID costs
-//! nothing to replace, a Discord account does, so the rating belongs to the
-//! account and follows it to whichever Ember ID it is connected to. A game
-//! with a fighter who has no Discord account counts for neither, and so
-//! does one with a fighter whose account does not take part (`ranking`).
-//! Only the class (`SkillBadge`) ever leaves the bridge: inside room tickets,
-//! on the player's own standing and on the ranking board.
+//! nothing to replace, a Discord account does, so the rating and the levels
+//! belong to the account and follow it to whichever Ember ID it is connected
+//! to. A game with a fighter who has no Discord account counts for neither.
+//! A game with a fighter whose account does not take part (`ranking`) still
+//! counts toward the pair's sitting and record and earns points; it moves no
+//! rating. Only the class (`SkillBadge`) ever leaves the bridge: inside room
+//! tickets, on the player's own standing and on the ranking board. The points
+//! read the two classes of a game and nothing else of the rating: a win earns
+//! its bonus point only against the same class or a higher one
+//! (`levels::class_bonus`).
 //!
 //! Each game a public room can be for (`ember_protocol::rooms::GAMES`) has
 //! its own ratings, sittings and choices (migration 058): a room's games are
 //! rated in its game's rating, and a class, a standing and a board are one
-//! game's. The rules and the class ranges are the same for every game.
+//! game's. The rules and the class ranges are the same for every game. The
+//! points, the pair records and the award counters carry no game: a bridge
+//! counts them for the games it rates, which is one game per bridge today
+//! (SFV Ember has a bridge and database of its own, docs/design/SFV_BRIDGE.md).
+//! A database that rates two games would need `game` on those tables first,
+//! since a fighter id is one game's.
 mod glicko;
+pub mod levels;
 pub mod ranking;
 
 use ember_protocol::{
     EmberId,
-    rooms::{DEFAULT_GAME, is_game},
+    rooms::{DEFAULT_GAME, is_game, roster},
     skill::{SKILL_BANDS, SkillBadge},
 };
-use rusqlite::{OptionalExtension, Transaction, params};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::atomic::{AtomicU64, Ordering},
+};
+
+use rusqlite::{OptionalExtension, Row, Transaction, params};
 use serde::Deserialize;
 
-use crate::error::Result;
+use crate::{db::select_in, error::Result};
 use glicko::Rating;
 
 /// The lowest rating of each class above the first: D below 1200, D+ from
@@ -58,26 +74,86 @@ const FULL_WEIGHT_GAP: f64 = 150.0;
 const MIN_WEIGHT_GAP: f64 = 450.0;
 const MIN_WEIGHT: f64 = 0.1;
 const UPSET_WEIGHT: f64 = 0.5;
+// An unsure rating takes its games in full, and by Glicko alone one loss to
+// a much lower-rated player then costs it hundreds of points. So the loser of
+// an upset is spared the same way while unsure, once the gap is clear: what
+// is left of it with each rating moved CLEAR_DEVIATIONS of its own deviation
+// toward the other (`clear_gap_weight`). Two deviations is about the range a
+// rating is 95% sure of, so ratings that are still finding their place are
+// never spared a loss that tells something, and nobody is rated higher for
+// it.
+const CLEAR_DEVIATIONS: f64 = 2.0;
 // Long sets between two friends: past FULL_REPEATS games against each other in
-// one sitting, a game counts at REPEAT_WEIGHT. A sitting ends after
-// SITTING_SECS without a game between them.
+// one sitting, a game counts at REPEAT_WEIGHT for the rating and earns no
+// level. A sitting ends after SITTING_SECS without a game between them.
 const FULL_REPEATS: u32 = 8;
 const REPEAT_WEIGHT: f64 = 0.25;
 const SITTING_SECS: u64 = 3 * 60 * 60;
 
+/// Whether the games after the first of a battle played on in place (a
+/// rematch that keeps the table's generation) move ratings. Room hosts before
+/// 1.6.0 did not say which game of its battle a game was, so these games took
+/// their first game's key and were never rated. FIGHTER_LEVELS.md (Open
+/// questions) recommends rating them. False
+/// rates only each battle's first game, as before; every game still counts
+/// toward its sitting and record and earns levels either way.
+const RATE_GAMES_AFTER_THE_FIRST: bool = true;
+
 /// One game a room host saw won. The bridge reads each the supervisor passes
-/// on by itself, so one it cannot read is skipped alone.
+/// on by itself, so one it cannot read is skipped alone. Unknown members are
+/// ignored, so a newer host's additions never stop a game counting.
 #[derive(Deserialize)]
 struct Game {
     table: u8,
     generation: u64,
     winner: EmberId,
     loser: EmberId,
+    /// The games before this one in its battle. Absent from a battle's first
+    /// game and from every game of a host from before 1.6.0.
+    #[serde(default)]
+    game: u32,
+    /// Absent from a host from before 1.6.0: the game then earns no level.
+    fighters: Option<Fighters>,
 }
 
-/// Rates `room_id`'s reported games that are not rated yet. A host reports
-/// its recent games on every poll; each counts the first time only, in the
-/// rating of the room's game (`rooms.game`), never another's.
+impl Game {
+    fn moves_ratings(&self) -> bool {
+        self.game == 0 || RATE_GAMES_AFTER_THE_FIRST
+    }
+}
+
+/// The fighters of a game, written `[winner, loser]`. Each must be a fighter
+/// of the room's game (`within`): a pair with a fighter outside that roster
+/// skips its game like any game the bridge cannot read.
+#[derive(Clone, Copy, Deserialize)]
+#[serde(from = "[u8; 2]")]
+struct Fighters {
+    winner: u8,
+    loser: u8,
+}
+
+impl From<[u8; 2]> for Fighters {
+    fn from([winner, loser]: [u8; 2]) -> Self {
+        Self { winner, loser }
+    }
+}
+
+impl Fighters {
+    /// Whether both fighters are in the roster of `game` (`rooms::roster`).
+    fn within(self, game: &str) -> bool {
+        let fighters = roster(game);
+        self.winner < fighters && self.loser < fighters
+    }
+}
+
+/// Counts `room_id`'s reported games that are not counted yet, in the room's
+/// game (`rooms.game`), never another's. A host reports its recent games on
+/// every poll; each counts the first time only, in this order: the pair's
+/// sitting and record, the points (within the sitting's full games: each
+/// account's, and each fighter's when the game named them), then the ratings
+/// (both accounts taking part in the room's game). The points read the two
+/// classes in the room's game as they stand before the game moves a rating,
+/// and none of the ratings' rules.
 pub fn record_games(
     tx: &Transaction<'_>,
     room_id: &str,
@@ -98,56 +174,139 @@ pub fn record_games(
     let games = games
         .and_then(serde_json::Value::as_array)
         .into_iter()
-        .flatten();
-    for game in games.filter_map(|game| Game::deserialize(game).ok()) {
+        .flatten()
+        .filter_map(|game| Game::deserialize(game).ok())
+        .filter(|game| {
+            game.fighters
+                .is_none_or(|fighters| fighters.within(&rated_game))
+        });
+    for game in games {
         let first = tx.execute(
-            "INSERT OR IGNORE INTO rated_games (room_id, table_id, generation)
-             VALUES (?1, ?2, ?3)",
-            params![room_id, game.table, game.generation],
+            "INSERT OR IGNORE INTO rated_games (room_id, table_id, generation, game)
+             SELECT room_id, ?2, ?3, ?4 FROM rooms WHERE room_id = ?1",
+            params![room_id, game.table, game.generation, game.game],
         )? == 1;
         if !first {
             continue;
         }
-        let (Some(winner), Some(loser)) = (
-            rated_account(tx, &rated_game, &game.winner)?,
-            rated_account(tx, &rated_game, &game.loser)?,
-        ) else {
+        let (Some(winner), Some(loser)) = (account(tx, &game.winner)?, account(tx, &game.loser)?)
+        else {
             continue;
         };
         if winner == loser {
             continue;
         }
-        let (won, lost) = (
-            load(tx, &rated_game, &winner, now)?.0,
-            load(tx, &rated_game, &loser, now)?.0,
-        );
-        let sitting = sitting_weight(tx, &rated_game, &winner, &loser, now)?;
-        let (winner_weight, loser_weight) = weights(won, lost);
-        store(
-            tx,
-            &rated_game,
-            &winner,
-            won.after(lost, 1.0, winner_weight * sitting),
-            now,
-        )?;
-        store(
-            tx,
-            &rated_game,
-            &loser,
-            lost.after(won, 0.0, loser_weight * sitting),
-            now,
-        )?;
+        let full = played(tx, &rated_game, &winner, &loser, now)? <= FULL_REPEATS;
+        if full {
+            // One answer for the account's points and the fighter's, so the
+            // two never disagree about a game.
+            let won = levels::Played::Won {
+                bonus: levels::class_bonus(tx, &rated_game, &winner, &loser)?,
+            };
+            levels::count_account(tx, &winner, won, now)?;
+            levels::count_account(tx, &loser, levels::Played::Lost, now)?;
+            levels::count_streak(tx, &winner, true)?;
+            levels::count_streak(tx, &loser, false)?;
+            if let Some(fighters) = game.fighters {
+                levels::count(tx, &winner, fighters.winner, won, now)?;
+                levels::count(tx, &loser, fighters.loser, levels::Played::Lost, now)?;
+            }
+        }
+        if game.moves_ratings()
+            && takes_part(tx, &rated_game, &winner)?
+            && takes_part(tx, &rated_game, &loser)?
+        {
+            let sitting = if full { 1.0 } else { REPEAT_WEIGHT };
+            rate(tx, &rated_game, &winner, &loser, sitting, now)?;
+        }
     }
     Ok(())
 }
 
+/// `record_games` in a savepoint of its own inside the poll's transaction for
+/// every room (`routes::rooms::poll`): a game that fails (a row the schema
+/// refuses, a broken record) rolls back this room's games alone, and the poll
+/// goes on listing, closing and banning every room. Nothing of the room's
+/// games is kept then, so the next poll, which reports them again, tries them
+/// all again. The failure that was rolled back is answered, for the poll to
+/// log; an `Err` is the savepoint's own, which fails the poll as before.
+pub fn record_room_games(
+    tx: &Transaction<'_>,
+    room_id: &str,
+    games: Option<&serde_json::Value>,
+    now: u64,
+) -> Result<Option<crate::error::ApiFailure>> {
+    tx.execute_batch("SAVEPOINT room_games")?;
+    match record_games(tx, room_id, games, now) {
+        Ok(()) => {
+            tx.execute_batch("RELEASE room_games")?;
+            Ok(None)
+        }
+        Err(failure) => {
+            tx.execute_batch("ROLLBACK TO room_games; RELEASE room_games")?;
+            Ok(Some(failure))
+        }
+    }
+}
+
+/// Counts the writes that can move the public rankings board
+/// (`ranking::public_classes`): a rating, the band last shown, a ranking
+/// choice, a Discord account connected or disconnected. The archive's class
+/// refresh reads it to run only when the board can have moved
+/// (`archive::classes::Refreshed`). In memory and process-wide: a write the
+/// database rolls back, or another bridge in the same process, only costs a
+/// refresh more.
+static BOARD: AtomicU64 = AtomicU64::new(0);
+
+/// Notes a write that can move the public rankings board (`BOARD`).
+pub fn board_moved() {
+    BOARD.fetch_add(1, Ordering::SeqCst);
+}
+
+/// How many writes that can move the board there have been (`BOARD`).
+pub fn board_version() -> u64 {
+    BOARD.load(Ordering::SeqCst)
+}
+
+/// Moves both ratings in `game` for a game `winner` won against `loser`, at
+/// `sitting` times what their ratings make it count.
+fn rate(
+    tx: &Transaction<'_>,
+    game: &str,
+    winner: &str,
+    loser: &str,
+    sitting: f64,
+    now: u64,
+) -> Result<()> {
+    let (won, lost) = (load(tx, game, winner, now)?.0, load(tx, game, loser, now)?.0);
+    let (winner_weight, loser_weight) = weights(won, lost);
+    store(
+        tx,
+        game,
+        winner,
+        won.after(lost, 1.0, winner_weight * sitting),
+        now,
+    )?;
+    store(
+        tx,
+        game,
+        loser,
+        lost.after(won, 0.0, loser_weight * sitting),
+        now,
+    )
+}
+
 /// How much a game counts for its winner and for its loser, by their ratings:
 /// the gap's weight for both, except that an upset counts at least
-/// `UPSET_WEIGHT` for the winner.
+/// `UPSET_WEIGHT` for the winner, and no more for its loser than the clear
+/// part of the gap allows, however unsure either rating is.
 fn weights(winner: Rating, loser: Rating) -> (f64, f64) {
     let gap = gap_weight(winner, loser);
     let upset = winner.rating < loser.rating;
-    (if upset { gap.max(UPSET_WEIGHT) } else { gap }, gap)
+    (
+        if upset { gap.max(UPSET_WEIGHT) } else { gap },
+        gap.min(clear_gap_weight(winner, loser)),
+    )
 }
 
 /// How much a game between `one` and `other` counts for their rating gap.
@@ -157,40 +316,60 @@ fn gap_weight(one: Rating, other: Rating) -> f64 {
     if one.deviation > UNSURE_DEVIATION || other.deviation > UNSURE_DEVIATION {
         return 1.0;
     }
-    let gap = (one.rating - other.rating).abs();
+    lopsided_weight((one.rating - other.rating).abs())
+}
+
+/// How much a game counts across a gap of `gap` rating points: in full up to
+/// `FULL_WEIGHT_GAP`, then less, down to `MIN_WEIGHT` from `MIN_WEIGHT_GAP`.
+fn lopsided_weight(gap: f64) -> f64 {
     let past = ((gap - FULL_WEIGHT_GAP) / (MIN_WEIGHT_GAP - FULL_WEIGHT_GAP)).clamp(0.0, 1.0);
     1.0 - past * (1.0 - MIN_WEIGHT)
 }
 
-/// Counts this game in the two accounts' current sitting in `game` and says
-/// how much it counts for that. Sittings that have ended, in any game, are
-/// forgotten.
-fn sitting_weight(
-    tx: &Transaction<'_>,
-    game: &str,
-    one: &str,
-    other: &str,
-    now: u64,
-) -> Result<f64> {
-    let (first, second) = if one < other {
-        (one, other)
+/// How much a lost game counts for `loser` by the part of its lead over
+/// `winner` that is clear of both deviations: the loser's rating lowered and
+/// the winner's raised by `CLEAR_DEVIATIONS` of its own. Between settled
+/// ratings that is never less than the gap's own weight; for an unsure one
+/// it is what keeps a loss to a far lower-rated player light.
+fn clear_gap_weight(winner: Rating, loser: Rating) -> f64 {
+    let lowest = loser.rating - CLEAR_DEVIATIONS * loser.deviation;
+    let highest = winner.rating + CLEAR_DEVIATIONS * winner.deviation;
+    lopsided_weight(lowest - highest)
+}
+
+/// Counts a game `winner` won against `loser` in the pair's record and in
+/// their current sitting in `game`, and answers how many games that sitting
+/// has had with this one. Sittings that have ended, in any game, are
+/// forgotten; records are kept.
+fn played(tx: &Transaction<'_>, game: &str, winner: &str, loser: &str, now: u64) -> Result<u32> {
+    let first_won = winner < loser;
+    let (first, second) = if first_won {
+        (winner, loser)
     } else {
-        (other, one)
+        (loser, winner)
     };
+    tx.execute(
+        "INSERT INTO pair_records (first, second, first_wins, second_wins, played_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT (first, second) DO UPDATE SET first_wins = first_wins + ?3,
+             second_wins = second_wins + ?4, played_at = ?5",
+        params![
+            first,
+            second,
+            u32::from(first_won),
+            u32::from(!first_won),
+            now
+        ],
+    )?;
     let ended = now.saturating_sub(SITTING_SECS);
     tx.execute("DELETE FROM rated_pairs WHERE played_at < ?1", [ended])?;
-    let games: u32 = tx.query_row(
+    Ok(tx.query_row(
         "INSERT INTO rated_pairs (game, first, second, games, played_at) VALUES (?1, ?2, ?3, 1, ?4)
          ON CONFLICT (game, first, second) DO UPDATE SET games = games + 1, played_at = ?4
          RETURNING games",
         params![game, first, second, now],
         |row| row.get(0),
-    )?;
-    Ok(if games > FULL_REPEATS {
-        REPEAT_WEIGHT
-    } else {
-        1.0
-    })
+    )?)
 }
 
 /// Ember's developers, by Discord account, and whether the build asking
@@ -216,13 +395,124 @@ pub fn show(
     developers: &Developers<'_>,
     now: u64,
 ) -> Result<Option<SkillBadge>> {
-    let Some(account) = rated_account(tx, game, ember_id)? else {
+    let Some(account) = account(tx, ember_id)? else {
         return Ok(None);
     };
+    if !takes_part(tx, game, &account)? {
+        return Ok(None);
+    }
     if developers.mark(&account) {
         return Ok(Some(SkillBadge::DEVELOPER));
     }
     badge_of(tx, game, &account, now).map(Some)
+}
+
+/// The class last shown in `game` for Discord account `account`, one account
+/// at a time: the test oracle `Standings::last_shown` is checked against.
+/// None when it does not take part there, the developer mark for a
+/// developer, and otherwise the band last shown, settled while its aged
+/// rating is.
+#[cfg(test)]
+pub fn last_shown(
+    tx: &Transaction<'_>,
+    game: &str,
+    account: &str,
+    developers: &[String],
+    now: u64,
+) -> Result<Option<SkillBadge>> {
+    if !takes_part(tx, game, account)? {
+        return Ok(None);
+    }
+    let developer = Developers {
+        accounts: developers,
+        shown: true,
+    };
+    if developer.mark(account) {
+        return Ok(Some(SkillBadge::DEVELOPER));
+    }
+    let (rating, band) = load(tx, game, account, now)?;
+    Ok(Some(class_shown(&rating, band)))
+}
+
+/// What the ranking tables hold of a set of Discord accounts in one game,
+/// read at once (two reads however many there are): which of them do not
+/// take part there, and the rating and band last shown of each that has one.
+/// Read only: nothing is remembered as shown.
+pub struct Standings {
+    opted_out: HashSet<String>,
+    ratings: HashMap<String, (Rating, u8)>,
+}
+
+impl Standings {
+    /// `accounts`' standings in `game`. Taking part is `takes_part`'s rule:
+    /// the choice in `game`, else the choice in USF4's, else taking part.
+    pub fn read(tx: &Transaction<'_>, game: &str, accounts: &[&str], now: u64) -> Result<Self> {
+        let opted_out = select_in(
+            tx,
+            "SELECT ids.value FROM ({ids}) ids
+             WHERE NOT COALESCE(
+                 (SELECT ranked FROM ranking_choices WHERE game = ?1 AND discord_user_id = ids.value),
+                 (SELECT ranked FROM ranking_choices WHERE game = ?2 AND discord_user_id = ids.value),
+                 1)",
+            &[&game, &DEFAULT_GAME],
+            accounts,
+            |row| row.get::<_, String>(0),
+        )?
+        .into_iter()
+        .collect();
+        let ratings = select_in(
+            tx,
+            "SELECT discord_user_id, rating, deviation, volatility, band, played_at
+             FROM skill_ratings WHERE game = ?1 AND discord_user_id IN ({ids})",
+            &[&game],
+            accounts,
+            |row| Ok((row.get::<_, String>(0)?, rating_at(row, 1, now)?)),
+        )?
+        .into_iter()
+        .collect();
+        Ok(Self { opted_out, ratings })
+    }
+
+    /// Whether `account` takes part in ranking in the game read (`takes_part`).
+    pub fn takes_part(&self, account: &str) -> bool {
+        !self.opted_out.contains(account)
+    }
+
+    /// The class `account`'s rating last showed, 1 to the top; 0 without one
+    /// (`levels::class`).
+    pub fn band(&self, account: &str) -> u8 {
+        self.ratings.get(account).map_or(0, |(_, band)| *band)
+    }
+
+    /// The class `account` shows its friends and on its card, as last shown
+    /// (docs/design/FRIENDS.md): none when it does not take part, the
+    /// developer mark for one of `developers`, and otherwise the band last
+    /// shown, settled while its aged rating is.
+    pub fn last_shown(&self, account: &str, developers: &[String]) -> Option<SkillBadge> {
+        if !self.takes_part(account) {
+            return None;
+        }
+        let developer = Developers {
+            accounts: developers,
+            shown: true,
+        };
+        if developer.mark(account) {
+            return Some(SkillBadge::DEVELOPER);
+        }
+        let (rating, band) = self
+            .ratings
+            .get(account)
+            .copied()
+            .unwrap_or((Rating::NEW, 0));
+        Some(class_shown(&rating, band))
+    }
+}
+
+/// The class to show for a `rating` with `band` shown last: the band once the
+/// rating stands behind it.
+fn class_shown(rating: &Rating, band: u8) -> SkillBadge {
+    let settled = band != 0 && rating.deviation <= SETTLED_DEVIATION;
+    SkillBadge::class(band, settled)
 }
 
 /// The class to show for `account` in `game` now, band 0 while it is still
@@ -242,37 +532,33 @@ fn badge_of(tx: &Transaction<'_>, game: &str, account: &str, now: u64) -> Result
             "UPDATE skill_ratings SET band = ?3 WHERE game = ?1 AND discord_user_id = ?2",
             params![game, account, band],
         )?;
+        board_moved();
+        levels::note_class(tx, account, band)?;
     }
     Ok(SkillBadge::class(band, band != 0 && settled))
 }
 
 /// The Discord account connected to `ember_id`.
-fn account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
+pub fn account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
     Ok(tx
-        .query_row(
-            "SELECT user_id FROM discord_accounts WHERE ember_id = ?1",
-            [ember_id.as_str()],
-            |row| row.get(0),
-        )
+        .prepare_cached("SELECT user_id FROM discord_accounts WHERE ember_id = ?1")?
+        .query_row([ember_id.as_str()], |row| row.get(0))
         .optional()?)
 }
 
-/// The Discord account connected to `ember_id`, if it takes part in ranking
-/// in `game`: by its choice in that game, or, with none there, by its choice
-/// in USF4's (`ranking::Choice::load`), so a player who stopped taking part
-/// in USF4 is not rated in another game until they choose there; with
-/// neither, it takes part.
-fn rated_account(tx: &Transaction<'_>, game: &str, ember_id: &EmberId) -> Result<Option<String>> {
-    Ok(tx
-        .query_row(
-            "SELECT d.user_id FROM discord_accounts d
-             LEFT JOIN ranking_choices c ON c.game = ?2 AND c.discord_user_id = d.user_id
-             LEFT JOIN ranking_choices u ON u.game = ?3 AND u.discord_user_id = d.user_id
-             WHERE d.ember_id = ?1 AND COALESCE(c.ranked, u.ranked, 1)",
-            params![ember_id.as_str(), game, DEFAULT_GAME],
-            |row| row.get(0),
-        )
-        .optional()?)
+/// Whether Discord account `account` takes part in ranking in `game`: by its
+/// choice in that game, or, with none there, by its choice in USF4's
+/// (`ranking::Choice::load`), so a player who stopped taking part in USF4 is
+/// not rated in another game until they choose there; with neither, it does.
+fn takes_part(tx: &Transaction<'_>, game: &str, account: &str) -> Result<bool> {
+    Ok(tx.query_row(
+        "SELECT COALESCE(
+             (SELECT ranked FROM ranking_choices WHERE game = ?1 AND discord_user_id = ?3),
+             (SELECT ranked FROM ranking_choices WHERE game = ?2 AND discord_user_id = ?3),
+             1)",
+        params![game, DEFAULT_GAME, account],
+        |row| row.get(0),
+    )?)
 }
 
 /// `account`'s rating in `game`, grown less sure by the time since its last
@@ -283,20 +569,22 @@ fn load(tx: &Transaction<'_>, game: &str, account: &str, now: u64) -> Result<(Ra
             "SELECT rating, deviation, volatility, band, played_at
              FROM skill_ratings WHERE game = ?1 AND discord_user_id = ?2",
             params![game, account],
-            |row| {
-                let rating = Rating {
-                    rating: row.get(0)?,
-                    deviation: row.get(1)?,
-                    volatility: row.get(2)?,
-                };
-                Ok((rating, row.get(3)?, row.get::<_, u64>(4)?))
-            },
+            |row| rating_at(row, 0, now),
         )
         .optional()?;
-    Ok(match stored {
-        Some((rating, band, played_at)) => (aged(rating, played_at, now), band),
-        None => (Rating::NEW, 0),
-    })
+    Ok(stored.unwrap_or((Rating::NEW, 0)))
+}
+
+/// The rating, band and last game in columns `at` to `at + 4` of a
+/// `skill_ratings` row: the rating aged to `now`, and the band last shown.
+fn rating_at(row: &Row<'_>, at: usize, now: u64) -> rusqlite::Result<(Rating, u8)> {
+    let rating = Rating {
+        rating: row.get(at)?,
+        deviation: row.get(at + 1)?,
+        volatility: row.get(at + 2)?,
+    };
+    let played_at: u64 = row.get(at + 4)?;
+    Ok((aged(rating, played_at, now), row.get(at + 3)?))
 }
 
 /// `rating` from a game at `played_at`, grown less sure by the days since.
@@ -322,6 +610,7 @@ fn store(tx: &Transaction<'_>, game: &str, account: &str, rating: Rating, now: u
             now
         ],
     )?;
+    board_moved();
     Ok(())
 }
 
@@ -444,6 +733,57 @@ mod tests {
         // Between near peers an upset is an ordinary game.
         let (winner, loser) = weights(settled(1500.0), settled(1600.0));
         assert!(close(winner, 1.0) && close(loser, 1.0), "{winner} {loser}");
+    }
+
+    #[test]
+    fn an_unsure_ratings_loss_to_a_far_lower_player_is_light() {
+        let unsure = |rating: f64, deviation: f64| Rating {
+            rating,
+            deviation,
+            volatility: 0.06,
+        };
+        let newer = settled(1150.0);
+        // A Grand Master back after some months, or in their first games:
+        // the rating is unsure and by Glicko alone one loss to a D player
+        // costs a class or two. (deviation, the loss alone, at most now)
+        for (deviation, alone, most) in [
+            (111.0, 60.0, 8.0),
+            (150.0, 120.0, 15.0),
+            (200.0, 215.0, 65.0),
+        ] {
+            let master = unsure(2100.0, deviation);
+            let by_glicko = master.rating - master.after(newer, 0.0, 1.0).rating;
+            assert!(by_glicko > alone, "{deviation}: {by_glicko}");
+            let (winner, loser) = weights(newer, master);
+            // The D player's win counts in full.
+            assert_eq!(winner, 1.0, "{deviation}");
+            let cost = master.rating - master.after(newer, 0.0, loser).rating;
+            assert!(cost > 0.0 && cost < most, "{deviation}: {cost}");
+        }
+        // The clear part of the lead is what counts: 2100 less two deviations
+        // of 200 against 1150 plus two of 80 is 390 points clear.
+        let (_, loser) = weights(newer, unsure(2100.0, 200.0));
+        assert!(close(loser, lopsided_weight(390.0)), "{loser}");
+        assert!(close(weights(newer, unsure(2100.0, 150.0)).1, MIN_WEIGHT));
+
+        // A rating still finding its place is spared nothing: a new player's
+        // loss to anyone, a loss to another unsure rating, and a loss that
+        // two deviations could explain all count in full.
+        for (winner, loser) in [
+            (settled(1000.0), Rating::NEW),
+            (unsure(1400.0, 250.0), unsure(1800.0, 250.0)),
+            (Rating::NEW, settled(2100.0)),
+            (settled(1500.0), unsure(1900.0, 200.0)),
+            (settled(1150.0), unsure(2100.0, 350.0)),
+        ] {
+            assert_eq!(weights(winner, loser), (1.0, 1.0), "{winner:?} {loser:?}");
+        }
+        // Between settled ratings nothing changes: the gap's own weight.
+        for gap in [0.0, 100.0, 150.0, 200.0, 300.0, 450.0, 950.0] {
+            let (winner, loser) = (settled(1150.0), settled(1150.0 + gap));
+            assert_eq!(weights(winner, loser).1, gap_weight(winner, loser), "{gap}");
+            assert_eq!(weights(loser, winner).1, gap_weight(winner, loser), "{gap}");
+        }
     }
 
     #[test]

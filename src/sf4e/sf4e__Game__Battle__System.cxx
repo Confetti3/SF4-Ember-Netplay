@@ -12,6 +12,8 @@
 #include "sf4e__CustomContent.hxx"
 #include "sf4e__MenuMusic.hxx"
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__GameThemes.hxx"
+#include "../training/CameraHook.hxx"
 
 static_assert(sf4e::NativePauseOrHoldFlag == rSystem::SSF_PAUSE_OR_HOLD, "BattlePause.hxx flag differs from the native one");
 
@@ -307,6 +309,8 @@ static void CatchUpSpectator(rSystem* system) {
 void fSystem::BattleUpdate() {
     sf4e::memento::DrainAbort();
     rSystem* _this = (rSystem*)this;
+    // The phone's camera is taken off before the update and laid over after it.
+    sf4e::training::camera::Scope cameraScope(_this);
     rSystem::__publicMethods& sysMethods = rSystem::publicMethods;
     rPadSystem* p = rPadSystem::staticMethods.GetSingleton();
     rPadSystem::__publicMethods& padMethods = rPadSystem::publicMethods;
@@ -364,10 +368,19 @@ void fSystem::BattleUpdate() {
                         else inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
                         inputs.rawOn = sf4e::training::ClearReservedInputBits(inputs.rawOn);
                     }
+                    // A press made while GGPO refuses the local input rides on
+                    // the next accepted frame (StallPresses.hxx).
+                    const sf4e::StallPresses::Word sampled{inputs.mappedOn, inputs.rawOn};
+                    const sf4e::StallPresses::Word sent = s_stallPresses.Send(sampled);
+                    inputs.mappedOn = sent.mapped;
+                    inputs.rawOn = sent.raw;
                     {
                         diag::ScopedTimer _t(diag::OP_ADD_LOCAL_INPUT);
                         result = ggpo_add_local_input(ggpo, players[i].handle, &inputs, sizeof(fPadSystem::Inputs));
                     }
+                    if (GGPO_SUCCEEDED(result)) s_window.stallPresses += s_stallPresses.Accepted(sampled, sent);
+                    // Every refusal drops the sample; a fatal one ends the match.
+                    else if (sf4e::gate::ClassifyGgpoResult((int)result) != sf4e::gate::POLICY_FATAL) s_stallPresses.Refused(sampled);
                     if (diag::Enabled()) {
                         diag::G().RecordGgpoResult(diag::CALL_ADD_LOCAL_INPUT, (int)result);
                     }
@@ -426,6 +439,7 @@ void fSystem::BattleUpdate() {
         // rollback replays frames (training::FastUpdates).
         int updates = 0;
         do {
+            sf4e::replayplayback::BeforeUpdate(_this);
             sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
             // The stress harness owns the memento keys while it runs. This branch
             // is also taken with a live session during initial bootstrap, so it
@@ -434,7 +448,7 @@ void fSystem::BattleUpdate() {
                 (_this->*rSystem::publicMethods.BattleUpdate)();
             }
             sf4e::training::AfterUpdate(_this);
-        } while (++updates < sf4e::training::FastUpdates && sf4e::training::Fast());
+        } while ((++updates < sf4e::training::FastUpdates && sf4e::training::Fast()) || sf4e::replayplayback::SeekMore(_this, updates));
         // A replay's playback observes the recorder as this update left it
         // (the strip, the lanes and an export's progress read it). Shown with
         // the frame meter, the frame just played goes to the meter as a
@@ -523,6 +537,7 @@ void fSystem::CloseBattle() {
     sf4e::training::CloseBattle();
     sf4e::replayplayback::CloseBattle();
     sf4e::InputLag::CloseBattle();
+    sf4e::GameThemes::BattleClosed();
     sf4e::custom::EndBattle();
     sf4e::MenuMusic::Pick();
     bool summaryEmitted = false;

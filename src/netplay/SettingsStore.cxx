@@ -30,7 +30,7 @@ void RetireLegacy(Json& document) {
     for (const char* key : {"host", "join", "mainMenu", "windows", "debug"}) overlay.erase(key);
 }
 // With the on/off preferences (BoolPreferences), the keys kept in the netplay section.
-const char* NetplayKeys[] = { "inputDelay", "buttonPrompts", "controllerMappings", "buttonLayouts", "autoInputDelay", "autoDelayStyle", "editionSelect", "roundCount", "roundTimeIntegral", "matchHudSize", "matchHudAnchor", "pictureSpot", "pictureMode", "wornTitle", "wornIcon", "roomColumn", "roomSplit", "matchHudLayout", "matchHudNameOffset", "readySoundVolume", "interfaceScale", "roomDefaults", "country", "speech", "roomFilter" };
+const char* NetplayKeys[] = { "inputDelay", "buttonPrompts", "controllerMappings", "buttonLayouts", "autoInputDelay", "autoDelayStyle", "editionSelect", "roundCount", "roundTimeIntegral", "matchHudSize", "matchHudAnchor", "pictureSpot", "pictureMode", "wornTitle", "wornIcon", "gameThemeMenus", "gameThemeBattleHud", "roomColumn", "roomSplit", "matchHudLayout", "matchHudNameOffset", "readySoundVolume", "interfaceScale", "roomDefaults", "country", "area", "speech", "roomFilter", "cardDevice", "cardShowLink", "cardLooking", "cardPins" };
 
 void MergeLauncher(Json& document, const Json& launcher) {
     // Only durable preferences enter the new store. Originals/backups retain
@@ -46,6 +46,9 @@ void MergeLauncher(Json& document, const Json& launcher) {
     for (const char* key : NetplayKeys) netplay(key);
     for (const auto& preference : BoolPreferences) netplay(preference.key);
     document["legacyLauncher"].update(legacy);
+    // The card's own switch for the area was folded into the area choice (ReadAreaPreference reads an old one as
+    // Hidden); once a save carries the choice, the old key must not outvote it.
+    if (launcher.contains("area")) { document["netplay"].erase("cardShowRegion"); document["legacyLauncher"].erase("cardShowRegion"); }
 }
 
 bool ValidDocument(const Json& document, std::string& error) {

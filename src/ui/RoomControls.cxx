@@ -155,7 +155,7 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
         const auto* option = FindSeatOption(id);
         if (WatchingClosed(v, option->kind, option->seat)) continue;
         // In an Arcade room, joining is sitting down at whichever cabinet the room gives.
-        const bool sit = v.room.arcade && option->kind == room::ActionKind::Queue;
+        const bool sit = room::RulesOf(v.room).cabinets && option->kind == room::ActionKind::Queue;
         MenuChoice choice{id, loc::T(sit ? "room.arcade_sit" : option->label), loc::T(sit ? "room.arcade_sit_detail" : option->detail) + WatchingNote(v, option->kind)};
         if (!RoomTakesNow(v, option->kind, t.id)) { choice.enabled = false; choice.detail = RoomWaitReason(v); }
         else if (TerminalFenced(v, option->kind, t.id)) { choice.enabled = false; choice.detail = TerminalPendingReason(); }
@@ -171,7 +171,7 @@ PlaceExit ExitFromPlace(const ShellView& v) {
     if (place.kind == room::Place::Kind::Seat) {
         const auto& t = v.room.tables[place.table];
         exit.table = place.table; exit.seat = true; exit.label = loc::T("room.leave_seat");
-        if (v.room.arcade) exit.row = "cabinet-" + std::to_string(room::CabinetOf(v.room, v.room.localMember));
+        if (room::RulesOf(v.room).cabinets) exit.row = "cabinet-" + std::to_string(room::CabinetOf(v.room, v.room.localMember));
         const auto hold = room::LeavingSeatHold(t, place.seat, GameLive(v), PostMatch(v));
         if (hold == room::SeatHold::None) { exit.allowed = true; exit.cost = room::CostOfLeavingSeat(t); }
         else if (hold == room::SeatHold::UnreadyFirst) {
@@ -183,6 +183,11 @@ PlaceExit ExitFromPlace(const ShellView& v) {
         if (v.room.tournament.Active() && place.table == room::TournamentTable && !exit.unready) return PlaceExit{};
     } else if (place.kind == room::Place::Kind::Queue) {
         exit.table = place.table; exit.allowed = true; exit.label = loc::T("room.leave_queue");
+    } else if (place.kind == room::Place::Kind::Line) {
+        // Standing up from the cabinet, which Unqueue names as Queue does.
+        const int cabinet = room::CabinetOf(v.room, v.room.localMember);
+        exit.table = cabinet % static_cast<int>(room::TableCount); exit.allowed = true; exit.label = loc::T("room.leave_seat");
+        exit.row = "cabinet-" + std::to_string(cabinet);
     }
     return exit;
 }
