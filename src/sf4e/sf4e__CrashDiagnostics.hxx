@@ -50,6 +50,11 @@ void OnGgpoAssertion(const char* message);
 // lines), and puts the crash filter back if something replaced it.
 void NoteMatchBoundary(const char* label);
 
+// Log lines about the address space now: totals by kind, the largest free
+// blocks and the largest allocations (common/AddressSpaceReport.hxx). Sizes,
+// counts and module file names only. Any thread.
+void NoteAddressSpace();
+
 // The largest free range of the process's address space now, in bytes: what
 // decides whether the next big allocation can still be placed.
 unsigned long long LargestFreeRange();
