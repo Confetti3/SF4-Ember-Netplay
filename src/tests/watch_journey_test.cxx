@@ -266,7 +266,7 @@ void WatcherRoom() {
   Check(h.row("member-3") && h.row("member-3")->detail == loc::Tf("room.member_status", std::string(loc::T("room.member.watcher")) + " / j25zrhe6-pmdhvlja"),
    "A watcher is not tagged with its Ember ID");
   Check(h.row("member-1")->detail == loc::Tf("room.member_status_host", loc::T("room.status.seated")), "A fighter's row changed");
-  Check(!h.has("copy") && !h.has("copy-short"), "A bound room offers its invitation");
+  Check(!h.has("invite"), "A bound room offers its invitation");
   // An identifier with no key shape is shown whole.
   Check(ShortEmberId("emb1_watcher1") == "emb1_watcher1" && ShortEmberId("emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja") == "j25zrhe6-pmdhvlja",
    "An Ember ID is not shortened as its fingerprint is");
@@ -336,18 +336,18 @@ void NoInvitationForAMatchRoom() {
  h.view.invitation = "sf4e3:invitation";
  h.Screen("room");
  h.Frame(0, 2);
- Check(h.has("copy") && h.has("copy-short"), "A casual room lost its invitation rows");
+ Check(h.has("invite"), "A casual room lost its Invite button");
  for (const auto phase : {netplay::tournament::Phase::Claiming, netplay::tournament::Phase::Opening, netplay::tournament::Phase::InRoom}) {
   h.view.tournament.phase = phase;
   h.Frame(0, 2);
-  Check(!h.has("copy") && !h.has("copy-short"), "A match room offers its invitation before it is bound");
+  Check(!h.has("invite"), "A match room offers its invitation before it is bound");
  }
  h.view.tournament.phase = netplay::tournament::Phase::Finished;
  h.Frame(0, 2);
- Check(h.has("copy"), "A finished match hides a casual room's invitation");
+ Check(h.has("invite"), "A finished match hides a casual room's invitation");
  h.view.tournament.watch.phase = WatchPhase::Watching;
  h.Frame(0, 2);
- Check(!h.has("copy") && !h.has("copy-short"), "A watched room offers its invitation");
+ Check(!h.has("invite"), "A watched room offers its invitation");
 }
 }
 

@@ -129,7 +129,7 @@ Standing StandingOf(const Shown& shown, const nf::State& friends, const Links& l
         if (entry) {
             s.joinable = friends_panel::Joinable(*entry);
             s.online = entry->presence.kind != nf::Presence::Kind::Offline;
-            s.friendChoices = friends_panel::FriendChoices(friends, *entry, links.canInvite, links.gate);
+            s.friendChoices = friends_panel::FriendChoices(friends, *entry, links.canInvite, links.cannotInvite, links.gate);
         } else s.friendChoices = Unlisted(links.gate);
     }
     if (s.relation == Relation::Blocked)

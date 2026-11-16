@@ -8737,12 +8737,6 @@ msgstr "Mostra"
 msgid "room.v2.show_detail"
 msgstr "Lo riapre a grandezza piena."
 
-msgid "room.v2.copy_invite"
-msgstr "Invito"
-
-msgid "room.v2.copy_link"
-msgstr "Link breve"
-
 msgid "settings.room_show_members_detail"
 msgstr "Il pannello Membri della stanza. Se nascosto, la chat prende la colonna, o i tavoli tutta la larghezza."
 

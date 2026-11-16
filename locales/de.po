@@ -8737,12 +8737,6 @@ msgstr "Anzeigen"
 msgid "room.v2.show_detail"
 msgstr "Klappt es wieder ganz auf."
 
-msgid "room.v2.copy_invite"
-msgstr "Einladung"
-
-msgid "room.v2.copy_link"
-msgstr "Kurzlink"
-
 msgid "settings.room_show_members_detail"
 msgstr "Das Mitglieder-Feld der Raumansicht. Ausgeblendet nimmt der Chat die Spalte ein oder die Tische die ganze Breite."
 

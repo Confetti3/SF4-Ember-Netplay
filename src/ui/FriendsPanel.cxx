@@ -175,7 +175,7 @@ Counts CountsOf(const nf::View& view, std::uint64_t now) {
 }
 
 Press PressOf(const nf::Friend& entry, bool canInvite) {
-    if (entry.presence.kind == nf::Presence::Kind::Offline || OtherGame(entry)) return Press::Card;
+    if (!nf::Reachable(entry)) return Press::Card;
     if (Joinable(entry)) return Press::Join;
     return canInvite ? Press::Invite : Press::Card;
 }
@@ -236,15 +236,15 @@ std::string CodeShown(const std::string& typed) {
     return symbols.size() > 4 ? symbols.substr(0, 4) + "-" + symbols.substr(4) : symbols;
 }
 
-std::vector<MenuChoice> FriendChoices(const nf::State& state, const nf::Friend& entry, bool canInvite, Gate gate) {
+std::vector<MenuChoice> FriendChoices(const nf::State& state, const nf::Friend& entry, bool canInvite, nf::OfferBlock block, Gate gate) {
     const auto reason = [](const char* key) { return key ? std::string(loc::T(key)) : std::string(); };
     const auto join = nf::ToFriend(state, entry.id, false), watch = nf::ToFriend(state, entry.id, true);
     // Join follows Joinable, which also takes a private room the bridge offered; the refusal's own words are ToFriend's, else a plain no.
     const char* joinWhy = !gate.go ? gate.goWhy : Joinable(entry) ? nullptr : WhyNotThere(join, false) ? WhyNotThere(join, false) : "friends.cannot_join";
     // Watch stays with public rooms: ToFriend refuses it for a private room, offered or not, and for another game.
     const char* watchWhy = !gate.go ? gate.goWhy : WhyNotThere(watch, true);
-    const bool online = entry.presence.kind != nf::Presence::Kind::Offline && !OtherGame(entry);
-    const char* inviteWhy = !gate.act ? gate.actWhy : !online ? "friends.invite_unavailable" : !canInvite ? "friends.nothing_to_offer" : nullptr;
+    const bool online = nf::Reachable(entry);
+    const char* inviteWhy = !gate.act ? gate.actWhy : !online ? "friends.invite_unavailable" : !canInvite ? NothingToOfferKey(block) : nullptr;
     // Inviting while appearing offline tells the friend where this player is.
     const std::string inviteDetail = inviteWhy ? reason(inviteWhy) : state.appearOffline ? reason("friends.invite_reveals") : std::string();
     return {Choice(ChoiceId(FriendChoice::Card), "room.member_card", true, {}), Choice(ChoiceId(FriendChoice::Join), "friends.join_room", !joinWhy, reason(joinWhy)),
@@ -784,7 +784,7 @@ void FriendsPanel::Attach(std::vector<MenuEntry>& rows, const ShellView& v) {
     const auto& state = StateOf(f);
     const Gate gate = GateOf(f, service_, pending_.active);
     if (const auto* entry = state.FindFriend(IdOf(row->id, FriendPrefix)); entry && HasPrefix(row->id, FriendPrefix)) {
-        row->choices = raise_.ask.empty() ? FriendChoices(state, *entry, f.canInvite, gate) : AskChoices(raise_.ask, entry->name);
+        row->choices = raise_.ask.empty() ? FriendChoices(state, *entry, f.canInvite, f.cannotInvite, gate) : AskChoices(raise_.ask, entry->name);
     } else if (HasPrefix(row->id, RequestPrefix)) {
         const std::string id = IdOf(row->id, RequestPrefix);
         const auto request = std::find_if(state.incoming.begin(), state.incoming.end(), [&](const nf::Incoming& r) { return r.id == id; });

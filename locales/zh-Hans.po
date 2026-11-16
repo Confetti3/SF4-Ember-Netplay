@@ -8737,12 +8737,6 @@ msgstr "显示"
 msgid "room.v2.show_detail"
 msgstr "展开为完整大小。"
 
-msgid "room.v2.copy_invite"
-msgstr "邀请"
-
-msgid "room.v2.copy_link"
-msgstr "短链接"
-
 msgid "settings.room_show_members_detail"
 msgstr "房间界面的成员面板。隐藏后由聊天占用该列，两者都隐藏时对战台占满整个宽度。"
 

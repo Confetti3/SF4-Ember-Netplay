@@ -16,6 +16,7 @@
 #include "RaiseTimer.hxx"
 #include "ShellAction.hxx"
 #include "Notifications.hxx"
+#include "../netplay/FriendInvitees.hxx"
 #include "../netplay/FriendsView.hxx"
 #include <cstdint>
 #include <functional>
@@ -80,6 +81,10 @@ bool Joinable(const nf::Friend& entry);
 // room, or open their Player card. Offline friends, friends of another game and friends with nothing to offer have only the card.
 enum class Press { Card, Join, Invite };
 Press PressOf(const nf::Friend& entry, bool canInvite);
+// The words for a room that cannot be offered: the cause where it is one the player can change (Admission Locked, Full), else the plain sentence.
+inline const char* NothingToOfferKey(nf::OfferBlock block) {
+    return block == nf::OfferBlock::Locked ? "friends.nothing_to_offer.locked" : block == nf::OfferBlock::Full ? "friends.nothing_to_offer.full" : "friends.nothing_to_offer";
+}
 
 // Row ids: a request, a friend (named by the id their state row carries), a
 // Sent request, a Blocked player; and the rows and pages that have a name.
@@ -123,7 +128,7 @@ constexpr std::size_t CodeLength = 8;
 // reason in its detail when it cannot be done now, and the one question that
 // asks again before the choice `ask` ("remove", "remove-block", "decline",
 // "decline-block") goes ahead. "card" opens their profile and needs nothing of the list.
-std::vector<MenuChoice> FriendChoices(const nf::State& state, const nf::Friend& entry, bool canInvite, Gate gate);
+std::vector<MenuChoice> FriendChoices(const nf::State& state, const nf::Friend& entry, bool canInvite, nf::OfferBlock block, Gate gate);
 std::vector<MenuChoice> RequestChoices(Gate gate);
 // More on an invite in Notifications: Join (takes the invite, then drops it, as its toast's Join does) and Dismiss.
 std::vector<MenuChoice> InviteChoices(Gate gate);

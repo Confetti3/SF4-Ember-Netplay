@@ -6,6 +6,7 @@
 #include "public_rooms_journey_support.hxx"
 #include "../ui/FriendsPanel.hxx"
 #include "../ui/PostMatchFriend.hxx"
+#include "../ui/RoomInvite.hxx"
 #include <map>
 #include <memory>
 namespace {
@@ -573,10 +574,121 @@ void MoreFriendsJourney() {
  Check(j.screen() == "room", "Back from Friends did not return to the room");
 }
 
+std::string g_clipboard;
+// A friend as the bridge lists them: online, in a room or offline; `played` is when they last played this player.
+nf::Friend Pal(const char* name, nf::Presence::Kind kind, std::uint64_t played = 0) {
+ nf::Friend f; f.id = std::string("fr_") + name; f.name = name; f.presence.kind = kind;
+ f.hasRecord = played != 0; f.record.lastAt = played;
+ return f;
+}
+std::shared_ptr<nf::State> Roster(std::vector<nf::Friend> friends, nf::State::Kind kind = nf::State::Kind::Listed) {
+ auto state = std::make_shared<nf::State>();
+ state->kind = kind; state->code = "4F2A-91CX"; state->friends = std::move(friends);
+ return state;
+}
+// A choice of the Invite button's menu, as a player makes it: open the button, step down to the choice, select.
+void PickInvite(RoomJourney& j, const char* choice) {
+ const auto* invite = j.row("invite");
+ Check(invite, "The room has no Invite button");
+ std::size_t at = 0;
+ while (at < invite->choices.size() && invite->choices[at].id != choice) ++at;
+ Check(at < invite->choices.size(), "Invite does not offer the choice");
+ j.h.Choose("invite");
+ for (std::size_t i = 0; i < at; ++i) j.h.Press(MenuInput::Down);
+ j.h.Press(MenuInput::Select); j.h.Frame(0, 2);
+}
+// A private room of three, its invitation made and its friends read.
+std::unique_ptr<RoomJourney> PrivateRoom(std::shared_ptr<nf::State> state) {
+ auto j = std::make_unique<RoomJourney>(Relation::None, false, false);
+ j->h.view.invitation = "sf4e3:invitation";
+ j->h.Screen("room"); j->h.Frame(0, 2);
+ if (state) j->Give(std::move(state));
+ return j;
+}
+
+// The Invite button of a private room replaces the two copy buttons: the friends who can be invited now, most recently played
+// first and at most six, More friends when others were left out or none is shown, then Copy short link and Copy invitation.
+void InviteJourney() {
+ using Kind = nf::Presence::Kind;
+ // The header says what the room admits: its friends, unless it is Hidden or a match's, a public room being listed.
+ {
+  room::Snapshot here;
+  Check(std::string(ui::room_invite::AccessKey(here)) == "room.v2.friends_can_join", "A private room open to friends does not say friends can join");
+  here.friendsHidden = true;
+  Check(std::string(ui::room_invite::AccessKey(here)) == "room.v2.invitation_only", "A Hidden room does not say invitation only");
+  here.friendsHidden = false; here.tournament.matchId = "emt_1";
+  Check(std::string(ui::room_invite::AccessKey(here)) == "room.v2.invitation_only", "A match room does not say invitation only");
+  here.tournament = room::TournamentBinding(); here.serverOwned = true;
+  Check(std::string(ui::room_invite::AccessKey(here)) == "room.v2.listed", "A public room does not say it is listed");
+ }
+ // Online friends in this game, the one played with last first; an offline friend and one in another game are not listed.
+ {
+  auto other = Pal("Other", Kind::Online); other.presence.game = "sfv";
+  auto j = PrivateRoom(Roster({Pal("Amy", Kind::Online, 50), Pal("Zed", Kind::InRoom, 100), Pal("Away", Kind::Offline, 200), other}));
+  const auto* invite = j->row("invite");
+  Check(invite && invite->label == loc::T("friends.invite") && invite->popout && invite->enabled, "A private room has no Invite button");
+  Check(!j->row("copy") && !j->row("copy-short"), "The bar still has the two copy buttons");
+  Check(Choices(invite) == std::vector<std::string>({"friend:fr_Zed", "friend:fr_Amy", "copy-short", "copy"}), "Invite is not the friends played last, Copy short link and Copy invitation");
+  Check(invite->choices[0].label == "Zed" && invite->choices[0].enabled && invite->choices[2].label == loc::T("room.copy_short_invitation") && invite->choices[3].label == loc::T("room.copy_invitation"), "Invite does not name the friends and the copies");
+  // Choosing a friend sends the invite the Friends screen sends, and says so once it went through.
+  PickInvite(*j, "friend:fr_Zed");
+  const auto invites = j->sent<commands::FriendInvite>();
+  Check(invites.size() == 1 && invites[0]->bridge == "brg_1" && invites[0]->friendId == "fr_Zed", "A friend chosen from Invite was not sent an invite");
+  Check(j->screen() == "room", "Inviting a friend left the room");
+  ++j->view().state.finished; j->h.Frame(0, 3);
+  Check(Said(*j) == std::string(loc::Tf("friends.invite_sent", "Zed")) + "|", "An invite that went through did not say who it was sent to");
+ }
+ // More than six: six, then More friends, which opens the Friends screen as More's Friends does.
+ {
+  std::vector<nf::Friend> many;
+  for (int i = 1; i <= 8; ++i) many.push_back(Pal(("Pal" + std::to_string(i)).c_str(), Kind::Online));
+  auto j = PrivateRoom(Roster(many));
+  Check(Choices(j->row("invite")) == std::vector<std::string>({"friend:fr_Pal1", "friend:fr_Pal2", "friend:fr_Pal3", "friend:fr_Pal4", "friend:fr_Pal5", "friend:fr_Pal6", "room-friends", "copy-short", "copy"}),
+   "Invite does not stop at six friends and offer More friends");
+  PickInvite(*j, "room-friends");
+  Check(j->screen() == "friends", "More friends did not open the Friends screen");
+ }
+ // None to invite: More friends leads on, so the menu has a way to add some.
+ {
+  auto j = PrivateRoom(Roster({Pal("Away", Kind::Offline, 5)}));
+  Check(Choices(j->row("invite")) == std::vector<std::string>({"room-friends", "copy-short", "copy"}), "Invite with no friend to invite is not More friends and the copies");
+ }
+ // A room that cannot be offered lists no friend and says why, in the cause's own words; the copies stay.
+ const struct { nf::OfferBlock block; const char* words; } blocked[] = {
+  {nf::OfferBlock::Locked, "friends.nothing_to_offer.locked"}, {nf::OfferBlock::Full, "friends.nothing_to_offer.full"}, {nf::OfferBlock::Other, "friends.nothing_to_offer"}};
+ for (const auto& cause : blocked) {
+  auto j = PrivateRoom(Roster({Pal("Amy", Kind::Online)}));
+  j->view().canInvite = false; j->view().cannotInvite = cause.block; j->h.Frame(0, 2);
+  const auto* invite = j->row("invite");
+  Check(Choices(invite) == std::vector<std::string>({"invite-why", "copy-short", "copy"}), "Invite for a room that cannot be offered is not its reason and the copies");
+  Check(!invite->choices[0].enabled && invite->choices[0].detail == loc::T(cause.words) && invite->choices[1].enabled && invite->choices[2].enabled && invite->enabled, "The reason is not a disabled line in the cause's words");
+ }
+ // No Discord account, friends turned off, or nothing read: the two copies and no reason.
+ for (const auto kind : {nf::State::Kind::NoAccount, nf::State::Kind::Off, nf::State::Kind::Unavailable}) {
+  auto j = PrivateRoom(Roster({}, kind));
+  j->view().canInvite = false; j->h.Frame(0, 2);
+  Check(Choices(j->row("invite")) == std::vector<std::string>({"copy-short", "copy"}), "Invite without friends is not just the two copies");
+ }
+ Check(Choices(PrivateRoom(nullptr)->row("invite")) == std::vector<std::string>({"copy-short", "copy"}), "Invite before the friends are read is not just the two copies");
+ // The copies are the ones the bar had: Copy invitation puts the invitation on the clipboard, Copy short link asks for the link.
+ {
+  auto j = PrivateRoom(nullptr);
+  auto& platform = ImGui::GetPlatformIO();
+  platform.Platform_SetClipboardTextFn = [](ImGuiContext*, const char* text) { g_clipboard = text ? text : ""; };
+  platform.Platform_GetClipboardTextFn = [](ImGuiContext*) { return g_clipboard.c_str(); };
+  PickInvite(*j, "copy");
+  Check(g_clipboard == "sf4e3:invitation", "Copy invitation did not put the invitation on the clipboard");
+  const auto asked = j->h.actions.size();
+  PickInvite(*j, "copy-short");
+  Check(j->h.actions.size() == asked + 1 && Is<commands::ShortInvitation>(j->h.actions.back()), "Copy short link did not ask for the link");
+  platform.Platform_SetClipboardTextFn = nullptr; platform.Platform_GetClipboardTextFn = nullptr;
+ }
+}
+
 int main() {
  try {
   PopoutJourney(); PlayerCardJourney(); PageJourney(); RelationRowsJourney(); BlockJourney(); ToastJourney();
-  AnsweredWhileHiddenJourney(); RequestOverPromptJourney(); PostMatchFriendJourney(); ToastAnsweredJourney(); NotificationsJourney(); MoreFriendsJourney();
+  AnsweredWhileHiddenJourney(); RequestOverPromptJourney(); PostMatchFriendJourney(); ToastAnsweredJourney(); NotificationsJourney(); MoreFriendsJourney(); InviteJourney();
   std::cout << "Room friends journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

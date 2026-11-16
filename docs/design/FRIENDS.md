@@ -496,6 +496,11 @@ case, spaces or dash, `O` read as 0 and `I`, `L` as 1.
   - **Invite to my room**: a public room's id, or the private room's
     `DiscordInvitation()` under the rule `discord::Describe` offers it by
     (not a bound match, healthy, not locked, not full).
+    A room that cannot be offered says why in `OfferOf`'s typed reason (Admission Locked, Full, else none named); a Hidden
+    room can be offered, since an invite is how its friends join it. The room's action bar has one Invite button for it
+    (`src/ui/RoomInvite.hxx`): the friends the Friends screen would invite (`netplay/FriendInvitees.hxx`), at most six,
+    More friends, then Copy short link and Copy invitation. A friend's private-room invite is announced as theirs
+    ("{0} invites you to a room"), not as Discord's.
   - **Join a friend's private room**: Join on a friend whose presence carries
     a joinable `private_room` (`ToFriend` answers `Destination::Kind::
     PrivateOffer`). The runtime sends the `join` action (`FriendAskJoin`)

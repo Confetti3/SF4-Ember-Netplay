@@ -759,6 +759,8 @@ PostPublishState Publish() {
     snapshot.discordPending = runtime->discordInvite.Active();
     snapshot.discordConfirm = runtime->discordInvite.NeedsConfirmation();
     snapshot.discordRevision = runtime->discordInvite.Revision();
+    snapshot.discordFriend = runtime->discordInvite.From() == discord::PendingInvite::Origin::Friend;
+    snapshot.discordFriendName = runtime->discordInvite.FriendName();
     snapshot.discordStatus = loc::T(runtime->discordStatusId);
 	PublishDiscordPresence(snapshot);
 	TraceSnapshot(snapshot);

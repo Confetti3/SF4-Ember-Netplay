@@ -1504,9 +1504,9 @@ int main() try {
     };
     view.session.room = netplay::RoomState::Joined; view.canEditSelection = true;
     shell.Navigation().Home(); frame(); shell.Navigation().Push("room"); frame(); frame();
-    Check(offers("copy") && !offers("copy-room-link"), "A private room offers a room link or lost its invitation row");
+    Check(offers("invite") && !offers("copy-room-link"), "A private room offers a room link or lost its Invite button");
     view.room.serverOwned = true; frame(); frame();
-    Check(!offers("copy") && !offers("copy-short") && !offers("copy-room-link") && offers("leave"),
+    Check(!offers("invite") && !offers("copy-room-link") && offers("leave"),
         "A server-owned room not joined from the list offers an invitation or a room link");
     view.room.serverOwned = false;
 
@@ -1719,7 +1719,7 @@ int main() try {
         };
         const auto at = [&] { return shell.Navigation().Focus(); };
         const auto onBar = [&] {
-            for (const char* id : {"ready", "new-opponent", "room-ultra", "options", "room-training", "copy", "copy-short", "room-more", "leave"}) if (at() == id) return true;
+            for (const char* id : {"ready", "new-opponent", "room-ultra", "options", "room-training", "invite", "room-more", "leave"}) if (at() == id) return true;
             return false;
         };
         // ArcadeBoardReachesActionBarByGeometry: from cabinet 7 three Downs reach

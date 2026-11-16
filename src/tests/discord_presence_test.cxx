@@ -89,19 +89,23 @@ int main() {
         CHECK(inRoom.where==discord::Presence::Where::Room && inRoom.status==room::MemberStatus::Ready && inRoom.training && inRoom.offerable);
         // Whether the room could be offered does not depend on having an invitation to offer.
         CHECK(inRoom.secret.empty());
-        typedRoom.locked=true; CHECK(!discord::Describe(typed).offerable); typedRoom.locked=false;
-        typedRoom.capacity=1; CHECK(!discord::Describe(typed).offerable); typedRoom.capacity=16;
-        typedSession.control=netplay::Health::Lost; CHECK(!discord::Describe(typed).offerable); typedSession.control=netplay::Health::Healthy;
-        typedRoom.tournament.matchId="emt_1"; CHECK(!discord::Describe(typed).offerable);
+        CHECK(inRoom.held==discord::Presence::Held::None);
+        typedRoom.locked=true; CHECK(!discord::Describe(typed).offerable && discord::Describe(typed).held==discord::Presence::Held::Locked); typedRoom.locked=false;
+        typedRoom.capacity=1; CHECK(!discord::Describe(typed).offerable && discord::Describe(typed).held==discord::Presence::Held::Full); typedRoom.capacity=16;
+        typedSession.control=netplay::Health::Lost; CHECK(!discord::Describe(typed).offerable && discord::Describe(typed).held==discord::Presence::Held::Unhealthy); typedSession.control=netplay::Health::Healthy;
+        typedRoom.tournament.matchId="emt_1"; CHECK(!discord::Describe(typed).offerable && discord::Describe(typed).held==discord::Presence::Held::Match);
     }
     // A friend's invitation has no companion count to be ordered by; its revision follows the last one's and never goes back.
     {
         discord::PendingInvite pending;
         CHECK(pending.Offer("a","party",300,5,6,false) && pending.Revision()==5);
-        CHECK(pending.OfferFromFriend("b","other",300,6,true) && pending.Revision()==6 && pending.NeedsConfirmation());
-        CHECK(!pending.OfferFromFriend("b","other",300,6,true));
+        CHECK(pending.From()==discord::PendingInvite::Origin::Discord && pending.FriendName().empty());
+        CHECK(pending.OfferFromFriend("b","other",300,6,true,"Player 2") && pending.Revision()==6 && pending.NeedsConfirmation());
+        CHECK(pending.From()==discord::PendingInvite::Origin::Friend && pending.FriendName()=="Player 2");
+        CHECK(!pending.OfferFromFriend("b","other",300,6,true,"Player 2"));
         CHECK(!pending.Matches(5) && pending.Matches(6));
         CHECK(pending.Offer("c","party",300,6,6,false) && pending.Revision()==7);
+        CHECK(pending.From()==discord::PendingInvite::Origin::Discord && pending.FriendName().empty());
         CHECK(!pending.Offer("d","party",300,6,6,false));
         CHECK(pending.Offer("d","party",300,7,6,false) && pending.Revision()==8);
     }

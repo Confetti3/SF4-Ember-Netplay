@@ -121,6 +121,7 @@ struct Standing {
 struct Links {
     friends_panel::Gate gate, member;
     bool canInvite = false;
+    nf::OfferBlock cannotInvite = nf::OfferBlock::Other;
     bool steam = false;
 };
 Standing StandingOf(const Shown& shown, const nf::State& friends, const Links& links);

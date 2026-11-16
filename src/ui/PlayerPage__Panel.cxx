@@ -70,6 +70,7 @@ Links PlayerPage::PlainLinks(const ShellView& v, const Shown& shown) const {
     links.gate = friends_panel::GateOf(v.friends, !bridge_.empty(), false);
     links.member = friends_panel::MemberGateOf(v.friends, !bridge_.empty(), false);
     links.canInvite = v.friends.canInvite;
+    links.cannotInvite = v.friends.cannotInvite;
     links.steam = shown.known.steam.Present();
     return links;
 }

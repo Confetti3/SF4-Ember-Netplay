@@ -888,9 +888,9 @@ void RoomJourney(){
  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;h.view.room.members.push_back(local);
  h.view.invitation="sf4e3:host-invitation";
  h.Screen("room");h.Frame(0,2);
- Check(j.status==loc::T("room.private_status")&&j.row("copy")&&j.row("copy-short"),"A private room lost its invitation rows");
+ Check(j.status==loc::T("room.private_status")&&j.row("invite")&&j.row("invite")->enabled,"A private room lost its Invite button");
  h.view.room.serverOwned=true;h.Frame(0,2);
- Check(j.status==std::string(loc::T("room.type.classic"))+" · "+loc::T("room.public_status")&&!j.row("copy")&&!j.row("copy-short")&&j.row("leave"),"A public room reads like a private one");
+ Check(j.status==std::string(loc::T("room.type.classic"))+" · "+loc::T("room.public_status")&&!j.row("invite")&&j.row("leave"),"A public room reads like a private one");
  // A public room's line starts with its type.
  h.view.room.type=room::RoomType::Arcade;h.Frame(0,2);
  Check(j.status==std::string(loc::T("room.type.arcade"))+" · "+loc::T("room.public_status"),"A public Arcade room's status line does not say Arcade");

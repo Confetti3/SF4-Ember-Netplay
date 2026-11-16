@@ -31,6 +31,8 @@ struct Presence {
     // not full.
     enum class Where : std::uint8_t { Starting, Menus, Offline, Room } where = Where::Starting;
     room::MemberStatus status = room::MemberStatus::Idle;
+    // What keeps the room from being offered, first match first; None when `offerable`.
+    enum class Held : std::uint8_t { None, Match, Unhealthy, Locked, Full } held = Held::None;
     bool training = false, offerable = false;
 };
 inline Presence Describe(const PresenceInput& in) {
@@ -64,8 +66,9 @@ inline Presence Describe(const PresenceInput& in) {
     out.capacity = in.room.capacity;
     // A bound match's room is never offered, whichever way the player came into it
     // (before it is bound, the runtime passes no secret).
-    out.offerable = !in.room.tournament.Active() && in.session.control == netplay::Health::Healthy && !in.room.locked &&
-        out.size < out.capacity;
+    out.held = in.room.tournament.Active() ? Presence::Held::Match : in.session.control != netplay::Health::Healthy ? Presence::Held::Unhealthy :
+        in.room.locked ? Presence::Held::Locked : out.size >= out.capacity ? Presence::Held::Full : Presence::Held::None;
+    out.offerable = out.held == Presence::Held::None;
     if (in.invites && out.offerable && (!in.honorsPrivacy || in.room.OpenToFriends()) && !out.party.empty() && in.expires > in.now && in.secret.size() == 127) {
         out.secret = in.secret;
         out.expires = in.expires;
@@ -84,15 +87,19 @@ public:
                std::uint64_t sequence, std::uint64_t generation, bool busy) {
         if (sequence <= sequence_) return false;
         sequence_ = sequence;
-        return Accept(secret, party, expires, generation, busy);
+        return Accept(secret, party, expires, generation, busy, Origin::Discord, std::string());
     }
-    // A friend's invitation (netplay/FriendVisits.hxx), which the companion's count does not order.
-    // Its revision follows the last one's, so a command made for an earlier invitation still misses.
+    // A friend's invitation (netplay/FriendVisits.hxx), which the companion's count does not order, from the friend
+    // named `friendName`. Its revision follows the last one's, so a command made for an earlier invitation still misses.
     bool OfferFromFriend(const std::string& secret, const std::string& party, std::uint64_t expires,
-                         std::uint64_t generation, bool busy) {
-        return Accept(secret, party, expires, generation, busy);
+                         std::uint64_t generation, bool busy, const std::string& friendName) {
+        return Accept(secret, party, expires, generation, busy, Origin::Friend, friendName);
     }
-    void Cancel() { secret_.clear(); party_.clear(); confirm_ = switching_ = false; }
+    void Cancel() { secret_.clear(); party_.clear(); friend_.clear(); origin_ = Origin::Discord; confirm_ = switching_ = false; }
+    // Who sent it: the companion (Discord), or a friend on the Friends screen, whose name it keeps.
+    enum class Origin : std::uint8_t { Discord, Friend };
+    Origin From() const { return origin_; }
+    const std::string& FriendName() const { return friend_; }
     bool Matches(std::uint64_t revision) const { return Active() && revision == revision_; }
     bool Expired(std::uint64_t now) const { return Active() && expires_ <= now; }
     std::uint64_t Revision() const { return revision_; }
@@ -119,14 +126,16 @@ public:
     const std::string& Secret() const { return secret_; }
 private:
     bool Accept(const std::string& secret, const std::string& party, std::uint64_t expires,
-                std::uint64_t generation, bool busy) {
+                std::uint64_t generation, bool busy, Origin origin, const std::string& friendName) {
         if (secret == secret_) return false;
         revision_ = std::max(revision_ + 1, sequence_);
         secret_ = secret; party_ = party; expires_ = expires; generation_ = generation;
+        origin_ = origin; friend_ = friendName;
         confirm_ = busy; switching_ = false;
         return true;
     }
-    std::string secret_, party_;
+    std::string secret_, party_, friend_;
+    Origin origin_ = Origin::Discord;
     std::uint64_t expires_ = 0, sequence_ = 0, generation_ = 0, revision_ = 0;
     bool confirm_ = false, switching_ = false;
 };

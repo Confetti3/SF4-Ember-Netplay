@@ -224,21 +224,26 @@ void WhatCanBeOffered() {
 	world.Join(room::MemberStatus::Idle);
 	auto offer = world.Offered();
 	EXPECT(offer.kind == friends::Offer::Kind::PrivateRoom && offer.value == Invitation);
+	EXPECT(offer.why == friends::OfferBlock::None);
+	// A Hidden room is offered by invite, which is how its friends join it.
+	world.room.friendsHidden = true;
+	EXPECT(world.Offered().Any() && world.Offered().why == friends::OfferBlock::None);
+	world.room.friendsHidden = false;
 	// A room with no invitation (a match's room, which the runtime passes none for) offers none.
 	world.input.secret.clear();
-	EXPECT(!world.Offered().Any());
+	EXPECT(!world.Offered().Any() && world.Offered().why == friends::OfferBlock::Other);
 	world.input.secret = Invitation;
 	world.room.locked = true;
-	EXPECT(!world.Offered().Any());
+	EXPECT(!world.Offered().Any() && world.Offered().why == friends::OfferBlock::Locked);
 	world.room.locked = false;
 	world.room.capacity = 1;
-	EXPECT(!world.Offered().Any());
+	EXPECT(!world.Offered().Any() && world.Offered().why == friends::OfferBlock::Full);
 	world.room.capacity = 16;
 	world.session.control = netplay::Health::Lost;
-	EXPECT(!world.Offered().Any());
+	EXPECT(!world.Offered().Any() && world.Offered().why == friends::OfferBlock::Other);
 	world.session.control = netplay::Health::Healthy;
 	world.room.tournament.matchId = "emt_1";
-	EXPECT(world.room.tournament.Active() && !world.Offered().Any());
+	EXPECT(world.room.tournament.Active() && !world.Offered().Any() && world.Offered().why == friends::OfferBlock::Other);
 	world.room.tournament = room::TournamentBinding();
 	EXPECT(world.Offered().Any());
 

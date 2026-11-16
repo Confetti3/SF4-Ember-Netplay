@@ -8737,12 +8737,6 @@ msgstr "표시"
 msgid "room.v2.show_detail"
 msgstr "원래 크기로 펼칩니다."
 
-msgid "room.v2.copy_invite"
-msgstr "초대"
-
-msgid "room.v2.copy_link"
-msgstr "짧은 링크"
-
 msgid "settings.room_show_members_detail"
 msgstr "방 화면의 참가자 패널입니다. 숨기면 채팅이 열을 차지하고, 둘 다 숨기면 테이블이 전체 너비를 차지합니다."
 

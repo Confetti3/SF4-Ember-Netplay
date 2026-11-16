@@ -8737,12 +8737,6 @@ msgstr "Mostrar"
 msgid "room.v2.show_detail"
 msgstr "Lo despliega a su tamaño completo."
 
-msgid "room.v2.copy_invite"
-msgstr "Invitación"
-
-msgid "room.v2.copy_link"
-msgstr "Enlace corto"
-
 msgid "settings.room_show_members_detail"
 msgstr "El panel Miembros de la sala. Si se oculta, el chat ocupa la columna, o las mesas todo el ancho."
 

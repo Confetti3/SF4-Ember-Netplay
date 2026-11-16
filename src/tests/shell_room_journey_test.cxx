@@ -44,7 +44,7 @@ void BoardAreasAreWhereDrawn() {
  using namespace sf4e;
  Check(BoardAreaOf("table-2")==BoardArea::Floor&&BoardAreaOf("cabinet-9")==BoardArea::Floor&&BoardAreaOf("matchup-1")==BoardArea::Floor&&
   BoardAreaOf("room-hide-picture")==BoardArea::Floor,"A floor row is not in the floor's area");
- Check(BoardAreaOf("room-status")==BoardArea::Bar&&BoardAreaOf("ready")==BoardArea::Bar&&BoardAreaOf("copy-short")==BoardArea::Bar&&
+ Check(BoardAreaOf("room-status")==BoardArea::Bar&&BoardAreaOf("ready")==BoardArea::Bar&&BoardAreaOf("invite")==BoardArea::Bar&&
   BoardAreaOf("leave")==BoardArea::Bar,"The room's status or a bar button is not on the bar");
  Check(BoardAreaOf("member-7")==BoardArea::Members&&BoardAreaOf("room-members")==BoardArea::Members&&BoardAreaOf("room-show-members")==BoardArea::Members&&
   BoardAreaOf("room-chat")==BoardArea::Chat&&BoardAreaOf("room-hide-chat")==BoardArea::Chat,"A panel's row is not in its panel's area");

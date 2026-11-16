@@ -8737,12 +8737,6 @@ msgstr "Zobrazit"
 msgid "room.v2.show_detail"
 msgstr "Rozbalí ho na plnou velikost."
 
-msgid "room.v2.copy_invite"
-msgstr "Pozvánka"
-
-msgid "room.v2.copy_link"
-msgstr "Krátký odkaz"
-
 msgid "settings.room_show_members_detail"
 msgstr "Panel Členové v místnosti. Když je skrytý, sloupec zabere chat, nebo stoly celou šířku."
 

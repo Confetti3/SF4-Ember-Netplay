@@ -110,37 +110,37 @@ void MoreOnAFriend() {
     state.friends = {InRoom("Fighter", true, nf::Status::Fighting, 0), InRoom("Waiting", true), InRoom("Closed", false, nf::Status::Fighting, 0), Online("Menus"), Offline("Away", 1)};
     state.kind = nf::State::Kind::Listed;
     const fp::Gate open{true, true, nullptr, nullptr};
-    const auto fighter = fp::FriendChoices(state, state.friends[0], true, open);
+    const auto fighter = fp::FriendChoices(state, state.friends[0], true, nf::OfferBlock::Other, open);
     Check(fighter.size() == 6 && fighter[0].id == "card" && fighter[0].enabled && fighter[1].id == "join" && fighter[2].id == "watch" && fighter[3].id == "invite" && fighter[4].id == "remove" && fighter[5].id == "remove-block", "More on a friend is not Player card, Join, Watch, Invite, Remove, Remove and block");
     Check(Pick(fighter, "join")->enabled && Pick(fighter, "watch")->enabled && Pick(fighter, "invite")->enabled && Pick(fighter, "remove")->enabled, "a friend fighting in a room cannot be joined, watched or invited");
     // Waiting in a room: not a game to watch, with the reason.
-    const auto waiting = fp::FriendChoices(state, state.friends[1], true, open);
+    const auto waiting = fp::FriendChoices(state, state.friends[1], true, nf::OfferBlock::Other, open);
     Check(Pick(waiting, "join")->enabled && !Pick(waiting, "watch")->enabled && Pick(waiting, "watch")->detail == loc::T("friends.cannot_watch"), "a friend not fighting can be watched, or says no reason");
     // A room that cannot be joined (full, locked, another build).
-    const auto closed = fp::FriendChoices(state, state.friends[2], true, open);
+    const auto closed = fp::FriendChoices(state, state.friends[2], true, nf::OfferBlock::Other, open);
     Check(!Pick(closed, "join")->enabled && Pick(closed, "join")->detail == loc::T("friends.cannot_join") && !Pick(closed, "watch")->enabled, "a room that cannot be joined can be joined or watched");
     // Nothing to offer, and an offline friend.
-    const auto menus = fp::FriendChoices(state, state.friends[3], false, open);
+    const auto menus = fp::FriendChoices(state, state.friends[3], false, nf::OfferBlock::Other, open);
     Check(!Pick(menus, "join")->enabled && !Pick(menus, "invite")->enabled && Pick(menus, "invite")->detail == loc::T("friends.nothing_to_offer"), "an invite without a room to offer is possible, or says no reason");
-    const auto away = fp::FriendChoices(state, state.friends[4], true, open);
+    const auto away = fp::FriendChoices(state, state.friends[4], true, nf::OfferBlock::Other, open);
     Check(!Pick(away, "invite")->enabled && Pick(away, "invite")->detail == loc::T("friends.invite_unavailable"), "an offline friend can be invited");
     // Inviting while appearing offline says what it shows.
     state.appearOffline = true;
-    const auto hiding = fp::FriendChoices(state, state.friends[0], true, open);
+    const auto hiding = fp::FriendChoices(state, state.friends[0], true, nf::OfferBlock::Other, open);
     Check(Pick(hiding, "invite")->enabled && Pick(hiding, "invite")->detail == loc::T("friends.invite_reveals"), "an invite while appearing offline does not say it shows where the player is");
     // An action in flight holds the bridge's actions but not Join or Watch; a stale list holds all.
     const fp::Gate busy{false, true, "friends.busy", nullptr};
-    const auto held = fp::FriendChoices(state, state.friends[0], true, busy);
+    const auto held = fp::FriendChoices(state, state.friends[0], true, nf::OfferBlock::Other, busy);
     Check(Pick(held, "join")->enabled && Pick(held, "watch")->enabled && !Pick(held, "invite")->enabled && !Pick(held, "remove")->enabled && !Pick(held, "remove-block")->enabled &&
         Pick(held, "remove")->detail == loc::T("friends.busy"), "an action in flight does not hold the bridge's actions only");
     const fp::Gate stale{false, false, "friends.unreachable", "friends.unreachable"};
-    const auto old = fp::FriendChoices(state, state.friends[0], true, stale);
+    const auto old = fp::FriendChoices(state, state.friends[0], true, nf::OfferBlock::Other, stale);
     Check(!Pick(old, "join")->enabled && !Pick(old, "watch")->enabled && Pick(old, "join")->detail == loc::T("friends.unreachable"), "a list that is not current can be joined");
     // A friend in a private room is joined by invitation only.
     auto privateRoom = InRoom("Private", true);
     privateRoom.presence.privateRoom = true;
     state.friends.push_back(privateRoom);
-    const auto hidden = fp::FriendChoices(state, state.friends.back(), true, open);
+    const auto hidden = fp::FriendChoices(state, state.friends.back(), true, nf::OfferBlock::Other, open);
     Check(!Pick(hidden, "join")->enabled && Pick(hidden, "join")->detail == loc::T("friends.private_invite_only"), "a private room can be joined, or says no reason");
 }
 
@@ -553,18 +553,47 @@ void PrivateOffers() {
     nf::State state;
     state.friends = {joinable, PrivateRoomOf("Full", true, false), PrivateRoomOf("Bare", false, false)};
     state.kind = nf::State::Kind::Listed;
-    const auto choices = fp::FriendChoices(state, state.friends[0], true, open);
+    const auto choices = fp::FriendChoices(state, state.friends[0], true, nf::OfferBlock::Other, open);
     Check(Pick(choices, "join")->enabled && !Pick(choices, "watch")->enabled && !Pick(choices, "watch")->detail.empty(), "More on a joinable private offer does not enable Join and disable Watch");
     const auto full = PrivateRoomOf("Full", true, false);
     Check(!fp::Joinable(full) && fp::PressOf(full, true) == Press::Invite && fp::PressOf(full, false) == Press::Card, "a private offer that is full can be joined");
     Check(fp::Status(full, Now) == loc::Tf("friends.waiting_room", "Secret room"), "a full private offer does not name its room");
-    const auto fullChoices = fp::FriendChoices(state, state.friends[1], true, open);
+    const auto fullChoices = fp::FriendChoices(state, state.friends[1], true, nf::OfferBlock::Other, open);
     Check(!Pick(fullChoices, "join")->enabled && !Pick(fullChoices, "join")->detail.empty(), "a full private offer can be joined from More");
     const auto bare = PrivateRoomOf("Bare", false, false);
     Check(!fp::Joinable(bare) && fp::Status(bare, Now) == loc::T("friends.private_room") && !fp::RoomOf(bare), "a private room with no offer is not left as it was");
     // Joinable friends are listed first in a room.
     state.friends = {PrivateRoomOf("Aaa", true, false), PrivateRoomOf("Zed", true, true), InRoom("Mid", true)};
     Check(Names(fp::Arrange(state).inRoom) == std::vector<std::string>({"Mid", "Zed", "Aaa"}), "a joinable private offer is not listed with the joinable rooms");
+}
+
+// Whom the room's Invite menu lists: the friends the Friends screen would invite (not Card), never one already in the room, the
+// ones played most recently first, at most as many as asked for.
+void WhoCanBeInvited() {
+    using fp::Press;
+    auto sfv = Online("Sfv");
+    sfv.presence.game = "sfv";
+    auto here = PrivateRoomOf("Here", true, true);
+    nf::State state;
+    state.friends = {Online("Zed"), Online("Amy"), Offline("Away", 5), sfv, here, InRoom("Public", true), PrivateRoomOf("Elsewhere", false, false)};
+    state.friends[0].hasRecord = true; state.friends[0].record.lastAt = 100;
+    state.friends[1].hasRecord = true; state.friends[1].record.lastAt = 50;
+    room::Snapshot mine;
+    room::Member member; member.id = 1; member.name = "Here";
+    mine.members = {member};
+    for (const auto& entry : state.friends) Check(nf::Reachable(entry) == (fp::PressOf(entry, true) != Press::Card), "the Friends screen and the room disagree on who can be invited");
+    const auto all = nf::InviteesOf(state, mine, 6);
+    Check(Names(all.shown) == std::vector<std::string>({"Zed", "Amy", "Elsewhere", "Public"}) && !all.more, "the room lists the friends it can invite, played most recently first");
+    const auto two = nf::InviteesOf(state, mine, 2);
+    Check(Names(two.shown) == std::vector<std::string>({"Zed", "Amy"}) && two.more, "the room lists more friends than it was asked for");
+    Check(nf::InviteesOf(nf::State(), mine, 6).shown.empty() && !nf::InviteesOf(nf::State(), mine, 6).more, "a room with no friends lists some");
+    // The cause is named where the room's own setting is it.
+    const fp::Gate open{true, true, nullptr, nullptr};
+    const auto locked = fp::FriendChoices(state, state.friends[0], false, nf::OfferBlock::Locked, open);
+    const auto full = fp::FriendChoices(state, state.friends[0], false, nf::OfferBlock::Full, open);
+    const auto other = fp::FriendChoices(state, state.friends[0], false, nf::OfferBlock::Other, open);
+    Check(Pick(locked, "invite")->detail == loc::T("friends.nothing_to_offer.locked") && Pick(full, "invite")->detail == loc::T("friends.nothing_to_offer.full") &&
+        Pick(other, "invite")->detail == loc::T("friends.nothing_to_offer"), "an invite that cannot be offered does not name why");
 }
 
 // A friend in another game has no Join, no Invite and no count, and says which game.
@@ -591,7 +620,7 @@ void OtherGames() {
     nf::State state;
     state.friends = {sfv};
     state.kind = nf::State::Kind::Listed;
-    const auto choices = fp::FriendChoices(state, state.friends[0], true, open);
+    const auto choices = fp::FriendChoices(state, state.friends[0], true, nf::OfferBlock::Other, open);
     Check(!Pick(choices, "join")->enabled && Pick(choices, "join")->detail == loc::T("friends.join_unavailable") && !Pick(choices, "invite")->enabled, "More on a friend of another game offers Join or Invite");
 }
 
@@ -613,6 +642,7 @@ void HomeCounts() {
 int main() {
     PrivateOffers();
     OtherGames();
+    WhoCanBeInvited();
     HomeCounts();
     WaitingInNotifications();
     Outcomes();

@@ -80,18 +80,12 @@ std::string SeatCaption(const SeatLook& look,bool brief) {
 namespace {
 // The room's action bar: the board's Bar rows, every row the floor and the
 // column do not draw (BoardAreaOf), as buttons on as few lines as their labels allow (v2::BarLines),
-// each place at least 140 px. The invitation's copy buttons share one place,
-// each with its short name, where the bar is wide enough for both.
+// each place at least 140 px.
 class RoomActionBar {
 public:
- RoomActionBar(const RoomBoardFrame& f,float width):f_(f){
-  for(const auto& e:f.rows){
-   if(BoardAreaOf(e.id)!=BoardArea::Bar)continue;
-   const bool copy=HasPrefix(e.id,"copy");
-   if(copy&&!slots_.empty()&&HasPrefix(slots_.back().front()->id,"copy")&&SlotNeed({slots_.back().front(),&e})<=width)slots_.back().push_back(&e);
-   else slots_.push_back({&e});
-  }
-  for(const auto& slot:slots_)places_.push_back((std::max)(140*f.s,SlotNeed(slot)));
+ RoomActionBar(const RoomBoardFrame& f):f_(f){
+  for(const auto& e:f.rows)if(BoardAreaOf(e.id)==BoardArea::Bar)buttons_.push_back(&e);
+  for(const auto* e:buttons_)places_.push_back((std::max)(140*f.s,Need(*e)));
  }
  // The bar's height `width` wide.
  float Height(float width) const {return (v2::BarLines(width,places_,12*f_.s)*60-12)*f_.s;}
@@ -100,32 +94,19 @@ public:
   const float s=f_.s;
   const int lines=v2::BarLines(width,places_,12*s);
   const auto places=v2::BarPlaces({at,ImVec2(at.x+width,at.y+Height(width))},places_,12*s,lines,48*s);
-  for(std::size_t i=0;i<slots_.size();++i){
-   // A shared place goes to its buttons as a bar of its own.
-   const auto parts=v2::BarPlaces(places[i],Needs(slots_[i]),8*s,1,48*s);
-   for(std::size_t k=0;k<slots_[i].size();++k){
-    const auto& e=*slots_[i][k];const v2::Box& b=parts[k];
-    const bool hovered=f_.Press(e,b),focused=e.id==f_.focus,leave=e.id=="leave"||e.id=="stop-watching";
-    // Ready is the one filled button; Leave room is drawn in the danger tone.
-    v2::Button(d,b,Label(e),e.id=="ready"?v2::ButtonKind::Primary:leave?v2::ButtonKind::Danger:v2::ButtonKind::Secondary,focused,hovered,f_.feedback.Enabled(e));
-    if(focused&&e.popout)f_.choices={b,column};
-   }
+  for(std::size_t i=0;i<buttons_.size();++i){
+   const auto& e=*buttons_[i];const v2::Box& b=places[i];
+   const bool hovered=f_.Press(e,b),focused=e.id==f_.focus,leave=e.id=="leave"||e.id=="stop-watching";
+   // Ready is the one filled button; Leave room is drawn in the danger tone.
+   v2::Button(d,b,e.label,e.id=="ready"?v2::ButtonKind::Primary:leave?v2::ButtonKind::Danger:v2::ButtonKind::Secondary,focused,hovered,f_.feedback.Enabled(e));
+   if(focused&&e.popout)f_.choices={b,column};
   }
  }
 private:
- static std::string Label(const MenuEntry& e){
-  return e.id=="copy"?std::string(loc::T("room.v2.copy_invite")):e.id=="copy-short"?std::string(loc::T("room.v2.copy_link")):e.label;
- }
- // What a button's label needs: a split button only v2::Button's own 12 px each side.
- float Need(const MenuEntry& e,bool split) const {return HeadingFont()->CalcTextSizeA(17*f_.s,FLT_MAX,0,Label(e).c_str()).x+(split?24:36)*f_.s;}
- std::vector<float> Needs(const std::vector<const MenuEntry*>& slot) const {
-  std::vector<float> each;for(const auto* e:slot)each.push_back(Need(*e,slot.size()>1));return each;
- }
- float SlotNeed(const std::vector<const MenuEntry*>& slot) const {
-  float w=(slot.size()-1)*8*f_.s;for(const float n:Needs(slot))w+=n;return w;
- }
+ // What a button's label needs: v2::Button's own 18 px each side.
+ float Need(const MenuEntry& e) const {return HeadingFont()->CalcTextSizeA(17*f_.s,FLT_MAX,0,e.label.c_str()).x+36*f_.s;}
  const RoomBoardFrame& f_;
- std::vector<std::vector<const MenuEntry*>> slots_;
+ std::vector<const MenuEntry*> buttons_;
  std::vector<float> places_;
 };
 
@@ -442,7 +423,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   d->AddLine(ImVec2(tables.min.x+headingWidth+12*s,tables.min.y+9*s),ImVec2(tables.max.x-summaryWidth-12*s,tables.min.y+9*s),c.border,s);
   v2::CutTop(tables,20*s,12*s);
   // The room's actions along the bottom, then the focused row's line over them.
-  const RoomActionBar bar(f,tables.W());
+  const RoomActionBar bar(f);
   const auto cards=ShapeTableCards(tables.W(),ultra||logical>=1640?3:narrow&&tables.W()<640*s?1:2,preferences_.roomTableGrid,banners,s);
   const float cardHeight=cards.height;
   // The bar stays along the bottom while the floor fits over it and the

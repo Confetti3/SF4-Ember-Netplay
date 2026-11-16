@@ -192,8 +192,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  }
  // A seat chooser's option, exactly as the player saw it.
  if(a.kind==MenuAction::Chosen){
-  // More…'s choice is the row it stands for.
-  if(a.id=="room-more"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
+  // More…'s and Invite's choice is the row it stands for.
+  if(a.id=="room-more"||a.id=="invite"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
   const auto table=RowKey<int>(a.id,"table-");if(!table||*table>=static_cast<int>(v.room.tables.size()))return;
   selectedTable_=*table;
   if(a.text=="options"){OpenTableOptions(v,selectedTable_);return;}
@@ -247,6 +247,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"){nav.Push(a.id);return;}
  if(a.id=="room-controls"){nav.Push("player");return;}
  if(a.id=="room-friends"){nav.Push(FriendsPanel::Screen);return;}
+ // A friend chosen from Invite: the invite the Friends screen sends.
+ if(const auto invitee=friends_panel::IdOf(a.id,friends_panel::FriendPrefix);!invitee.empty()){friends_.ActOnFriend(v,friends_panel::ChoiceId(friends_panel::FriendChoice::Invite),invitee,submit);return;}
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;ShowNotice(loc::T("room.invitation_copied"),Tone::Success,ImGui::GetTime()+3);return;}
   if(a.id=="copy-short"){CopyShortInvitation(v,submit);return;}
   if(a.id=="copy-room-link"){

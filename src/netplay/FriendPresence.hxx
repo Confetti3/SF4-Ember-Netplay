@@ -186,18 +186,25 @@ struct Offer {
 	enum class Kind : std::uint8_t { None, PublicRoom, PrivateRoom } kind = Kind::None;
 	// The room id, or the invitation.
 	std::string value;
+	// Why there is none (None when something can be offered).
+	OfferBlock why = OfferBlock::None;
 	bool Any() const { return kind != Kind::None; }
 };
 
 inline Offer OfferOf(const discord::Presence& described, const RoomIdentity& identity) {
 	Offer offer;
-	if (described.where != discord::Presence::Where::Room || !described.offerable) return offer;
+	offer.why = OfferBlock::Other;
+	if (described.where != discord::Presence::Where::Room) return offer;
+	if (described.held == discord::Presence::Held::Locked) { offer.why = OfferBlock::Locked; return offer; }
+	if (described.held == discord::Presence::Held::Full) { offer.why = OfferBlock::Full; return offer; }
+	if (!described.offerable) return offer;
 	if (identity.isPublic) {
 		if (IsRoomId(identity.publicId)) { offer.kind = Offer::Kind::PublicRoom; offer.value = identity.publicId; }
 	} else if (!described.secret.empty()) {
 		offer.kind = Offer::Kind::PrivateRoom;
 		offer.value = described.secret;
 	}
+	if (offer.Any()) offer.why = OfferBlock::None;
 	return offer;
 }
 
