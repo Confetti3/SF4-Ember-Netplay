@@ -449,7 +449,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="offline"||a.id=="game-buttons")Send(commands::StartOffline{v.session.generation},submit);
  // Training: the game's main menu goes straight to Training mode, if the runtime finds no room or match.
  else if(a.id=="training"){if(!submit(commands::Training{v.session.generation,TrainingEntry::Home}))error_=loc::T("home.training_unavailable");}
- else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
+ else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){strcpy_s(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
  else if(a.id=="capture"||a.id=="keyboard")submit(commands::Input{v.session.generation,a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard});
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){
   if(!submit(commands::DiscordInvite{v.session.generation,a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch,v.discordRevision}))error_=loc::T("error.invitation_changed");}

@@ -317,7 +317,7 @@ void IdentityPanel::Collect(const ShellView& v, double now) {
     }
 }
 
-void IdentityPanel::Send(const ShellView& v, const Submit& submit, double now) {
+void IdentityPanel::Send(const ShellView&, const Submit& submit, double now) {
     if (sent_) return;
     // Ending a cancelled sign-in on its service goes first, whatever cleared
     // the queue since, so it also comes before a new Connect.

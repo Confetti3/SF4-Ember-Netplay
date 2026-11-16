@@ -64,7 +64,7 @@ void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit
 // while the player was free also waits, for as long as a dialog, a notice or
 // an Ember ID screen, whose drafts the move would discard, is open.
 void ApplicationShell::UpdatePublicRoomLink(const ShellView& v,double now) {
- using namespace netplay; auto& nav=menu_.navigation;
+ using namespace netplay;
  const auto& link=v.tournament.roomLink;
  if(link.sequence!=roomLinkSeen_){
   roomLinkSeen_=link.sequence;

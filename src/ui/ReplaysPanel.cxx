@@ -538,7 +538,7 @@ std::vector<std::pair<std::string,std::string>> ReplaysPanel::Tabs(const ShellVi
  if(!sets_.empty())tabs.push_back({"replay-sets",loc::T("replays.tab.sets")});
  // The public archive's sets, where the game's bridge keeps one (ShellView::offersArchive).
  if(v.offersArchive)tabs.push_back({"replay-archive",loc::T("replays.tab.archive")});
- if(v.replayVideo&&(!exportPath_.empty()||(v.replays.archive&&!v.replays.archive->empty()))tabs.push_back({"replay-export",loc::T("export.title")});
+ if(v.replayVideo&&(!exportPath_.empty()||(v.replays.archive&&!v.replays.archive->empty())))tabs.push_back({"replay-export",loc::T("export.title")});
  return tabs;
 }
 void ReplaysPanel::ExportFrom(const ShellView& v,const netplay::PlayerPreferences& saved,const std::string& focus) {
