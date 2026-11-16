@@ -260,7 +260,7 @@ struct UnloadEventTrace32 {
 	uint16_t imageName[32];
 	uint32_t version[2];
 };
-static_assert(offsetof(UnloadEventTrace32, imageName) == 20 && sizeof(UnloadEventTrace32) == 88, "RTL_UNLOAD_EVENT_TRACE layout");
+static_assert(offsetof(UnloadEventTrace32, imageName) == 20 && sizeof(UnloadEventTrace32) == 92, "RTL_UNLOAD_EVENT_TRACE layout");
 
 constexpr size_t UnloadEntryNeeded = offsetof(UnloadEventTrace32, imageName) + sizeof(uint16_t) * 32;
 constexpr uint32_t UnloadTraceMaxElements = 64;   // RTL_UNLOAD_EVENT_TRACE_NUMBER
