@@ -118,7 +118,7 @@ target_link_libraries(sf4e_localization PUBLIC fmt::fmt PRIVATE "advapi32")
 # value, so it lives with the settings and depends on localization, not both
 # ways around.
 add_library(sf4e_settings STATIC "src/netplay/JsonFileStore.cxx" "src/netplay/SettingsStore.cxx"
-    "src/netplay/SettingsWriter.cxx" "src/platform/UiPreferencesStore.cxx"
+    "src/netplay/SavedRead.cxx" "src/netplay/SettingsWriter.cxx" "src/platform/UiPreferencesStore.cxx"
     "src/platform/GameDisplaySettings.cxx")
 target_compile_features(sf4e_settings PUBLIC cxx_std_17)
 target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE sf4e_durable_file "shell32" "ole32")

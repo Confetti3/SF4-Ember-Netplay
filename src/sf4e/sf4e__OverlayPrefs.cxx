@@ -200,6 +200,22 @@ namespace OverlayPrefs {
 		}
 	}
 
+	Data MergedUnder(const Data& saved, const Data& mine, const Data& untouched) {
+		Data merged = saved;
+		const auto take = [](auto& into, const auto& pick, const auto& original) { if (!(pick == original)) into = pick; };
+		take(merged.lobby, mine.lobby, untouched.lobby);
+		take(merged.lobbyRandom, mine.lobbyRandom, untouched.lobbyRandom);
+		take(merged.trainingDummy, mine.trainingDummy, untouched.trainingDummy);
+		take(merged.stageID, mine.stageID, untouched.stageID);
+		take(merged.randomPool, mine.randomPool, untouched.randomPool);
+		take(merged.lobbyRoundCountIdx, mine.lobbyRoundCountIdx, untouched.lobbyRoundCountIdx);
+		take(merged.lobbyRoundTimeIdx, mine.lobbyRoundTimeIdx, untouched.lobbyRoundTimeIdx);
+		take(merged.lobbyEditionSelect, mine.lobbyEditionSelect, untouched.lobbyEditionSelect);
+		take(merged.controllerLayer, mine.controllerLayer, untouched.controllerLayer);
+		for (std::size_t id = 0; id < merged.fighters.size(); ++id) take(merged.fighters[id], mine.fighters[id], untouched.fighters[id]);
+		return merged;
+	}
+
 	nlohmann::json ToJson(const Data& data) {
 		nlohmann::json j;
 		netplay::WriteBoolPreferences(data, j, boolPreferences);
@@ -360,8 +376,12 @@ namespace OverlayPrefs {
         }
     }
 
+    // A save before the profile has been read would write defaults over every pick
+    // saved: the caller's picks are not saved until it has read them (MergedUnder),
+    // and the profile is tried every few seconds while it cannot be read.
     bool Save(const Data& in) {
         std::lock_guard<std::mutex> lock(cacheMutex);
+        if (!haveCached) { Data saved; if (!LoadLocked(saved, true)) return false; }
         Data data = in;
         // The runtime owns device choice; a stale render snapshot cannot replace it.
         if (haveCached) {
@@ -374,6 +394,9 @@ namespace OverlayPrefs {
 
     bool SaveGameplayDevice(int type, int index, const std::optional<gamepads::Identity>& identity) {
         std::lock_guard<std::mutex> lock(cacheMutex);
+        // On top of defaults this would write every pick as the default: read the profile first; a
+        // device that cannot be saved yet is saved when the caller asks again.
+        if (!haveCached) { Data saved; if (!LoadLocked(saved, true)) return false; }
         if (cached.deviceType == type && cached.deviceIdx == index && cached.deviceIdentity == identity) return true;
         Data data = cached;
         data.deviceType = static_cast<uint8_t>(type);

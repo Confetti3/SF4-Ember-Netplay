@@ -4734,7 +4734,10 @@ msgid "runtime.session_server_error"
 msgstr "세션 서버 오류입니다. 인터넷 연결을 확인하고 다시 시도하세요."
 
 msgid "runtime.settings_unreadable"
-msgstr "저장된 설정을 읽지 못해 기본값을 사용합니다."
+msgstr "저장된 설정을 읽을 수 없습니다. 이번 세션에서 변경한 내용은 저장되지 않습니다."
+
+msgid "runtime.settings_damaged"
+msgstr "저장된 설정 파일이 손상되었습니다. {0}(으)로 보관하고 새 파일을 만들었습니다."
 
 msgid "screen.identity"
 msgstr "Ember ID"

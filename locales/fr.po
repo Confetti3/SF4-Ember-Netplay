@@ -4732,7 +4732,10 @@ msgid "runtime.session_server_error"
 msgstr "Erreur du serveur de session. Vérifiez votre connexion Internet et réessayez."
 
 msgid "runtime.settings_unreadable"
-msgstr "Impossible de lire les réglages enregistrés ; réglages par défaut utilisés."
+msgstr "Les réglages enregistrés n'ont pas pu être lus. Les modifications de cette session ne seront pas conservées."
+
+msgid "runtime.settings_damaged"
+msgstr "Le fichier des réglages enregistrés était endommagé. Il a été conservé sous le nom {0} et un nouveau fichier a été créé."
 
 msgid "screen.identity"
 msgstr "Ember ID"

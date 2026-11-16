@@ -4321,7 +4321,10 @@ msgid "runtime.session_server_error"
 msgstr "Session server error. Check your internet and try again."
 
 msgid "runtime.settings_unreadable"
-msgstr "The saved settings could not be read, so defaults are in use."
+msgstr "The saved settings could not be read. Changes made this session will not be kept."
+
+msgid "runtime.settings_damaged"
+msgstr "The saved settings file was damaged. It was kept as {0} and a new one was started."
 
 msgid "screen.identity"
 msgstr "Ember ID"

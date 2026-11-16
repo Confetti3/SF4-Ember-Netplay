@@ -15,6 +15,9 @@ namespace launcher {
 		int roundTimeIntegral = 99;
 		// The game folder picked in launch recovery, as UTF-8. Empty until one is picked.
 		std::string gameDirectory;
+		// The saved settings were read into this. Until they are, it holds only
+		// defaults, which are never saved over the player's own (EnsureUniqueDisplayName).
+		bool read = false;
 	};
 
 	bool LoadPersistedSettings(PersistedSettings& out);
@@ -22,7 +25,8 @@ namespace launcher {
 	// Saves only the game folder, so preferences the game changed after this
 	// launcher loaded them are not overwritten.
 	bool SaveGameDirectory(const std::string& gameDirectory);
-	// Replaces an empty or default "Player" name with a unique one and saves it.
+	// Replaces an empty or default "Player" name with a unique one and saves it,
+	// unless the saved settings were not read: the "Player" is then only the default.
 	void EnsureUniqueDisplayName(PersistedSettings& settings);
 	bool GetConfigFilePath(wchar_t* outPath, int outPathChars);
 

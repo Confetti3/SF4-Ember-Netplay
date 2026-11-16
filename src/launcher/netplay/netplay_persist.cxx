@@ -34,9 +34,16 @@ namespace launcher {
 		nlohmann::json j;
 		std::string error;
 		netplay::SettingsStore store(netplay::SettingsStore::DefaultDirectory());
-		if (!store.LoadLauncher(j, error)) {
-			spdlog::warn("{}", error);
-			return false;
+		// The settings can be busy (the game or a scan has them for a moment): a few short waits, since the
+		// launcher has nothing else to do yet. One that is damaged or too new does not come right.
+		for (int attempt = 0;; ++attempt) {
+			netplay::ReadFailure why = netplay::ReadFailure::None;
+			if (store.LoadLauncher(j, error, &why)) break;
+			if (attempt >= 3 || (why != netplay::ReadFailure::Busy && why != netplay::ReadFailure::Unreadable)) {
+				spdlog::warn("{}", error);
+				return false;
+			}
+			Sleep(150u << attempt);
 		}
 
 		try {
@@ -48,6 +55,7 @@ namespace launcher {
 			out.roundTimeIntegral = j.value("roundTimeIntegral", 99);
 			const auto gameDirectory = j.find("gameDirectory");
 			if (gameDirectory != j.end() && gameDirectory->is_string()) out.gameDirectory = gameDirectory->get<std::string>();
+			out.read = true;
 			return true;
 		}
 		catch (...) {
@@ -64,7 +72,12 @@ namespace launcher {
 		std::random_device random;
 		const std::string name = "Player " + std::to_string(std::uniform_int_distribution<int>(1000, 9999)(random));
 		strncpy_s(settings.displayName, name.c_str(), _TRUNCATE);
-		// Unsaved, the name still differs from other players for this launch.
+		// Unsaved, the name still differs from other players for this launch. With the saved settings unread,
+		// the "Player" was only the default and the player's own name may be in them: it is never replaced.
+		if (!settings.read) {
+			spdlog::warn("The saved settings were not read; the name {} is for this launch only", name);
+			return;
+		}
 		std::string error;
 		if (!netplay::SettingsStore(netplay::SettingsStore::DefaultDirectory()).SaveLauncher({{"displayName", name}}, error))
 			spdlog::warn("{}", error);

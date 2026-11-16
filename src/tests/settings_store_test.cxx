@@ -2,6 +2,7 @@
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/SettingsWriter.hxx"
+#include "../netplay/SavedRead.hxx"
 #include "../netplay/RoomPreferences.hxx"
 #include "../netplay/InputDelayPreference.hxx"
 #include "../netplay/MatchHudPreference.hxx"
@@ -519,6 +520,140 @@ static void ShareReplaysConsent(const Path& root) {
         loaded["shareReplays"] == true && loaded["displayName"] == "Sharer");
 }
 
+// Holds the settings lock the way another process does, until released.
+struct HeldLock {
+    HANDLE handle;
+    explicit HeldLock(const Path& directory) {
+        std::filesystem::create_directories(directory);
+        handle = CreateFileW((directory / L"settings.lock").c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+            OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        CHECK(handle != INVALID_HANDLE_VALUE);
+    }
+    void Release() { if (handle != INVALID_HANDLE_VALUE) CloseHandle(handle); handle = INVALID_HANDLE_VALUE; }
+    ~HeldLock() { Release(); }
+};
+
+// Polls as the game's tick does, until the read settles; false if it does not in time.
+static bool Settle(sf4e::netplay::SavedRead& read) {
+    const auto deadline = GetTickCount64() + 5000;
+    while (GetTickCount64() < deadline) {
+        if (read.Poll(sf4e::netplay::SavedRead::Clock::now())) return true;
+        Sleep(1);
+    }
+    return false;
+}
+
+// Why a read failed, a damaged file kept aside, and the read that tries again
+// without waiting on the caller (SavedRead).
+static void SavedReadChecks(const Path& root) {
+    using namespace sf4e::netplay;
+    using Clock = SavedRead::Clock;
+    using std::chrono::milliseconds;
+    const std::vector<Clock::duration> quick(4, milliseconds(10));
+    std::string error;
+    Json value;
+    ReadFailure why = ReadFailure::None;
+
+    // The causes: a held lock is Busy, with the system's error; a file that is not JSON is Damaged; one of
+    // another version is Unsupported; a read that works says so.
+    const auto busy = root / L"read-busy";
+    SettingsStore busyStore(busy.wstring());
+    CHECK(busyStore.SaveLauncher({{"displayName", "Kept"}, {"mainFighter", 5}}, error, &why) && why == ReadFailure::None);
+    {
+        HeldLock held(busy);
+        CHECK(!busyStore.LoadLauncher(value, error, &why) && why == ReadFailure::Busy && error.find("system error 32") != std::string::npos);
+        const auto holder = busyStore.LockHolder();
+        CHECK(holder.empty() || holder.find("process") != std::string::npos);
+    }
+    CHECK(busyStore.LoadLauncher(value, error, &why) && why == ReadFailure::None && value["displayName"] == "Kept");
+    const auto damaged = root / L"read-damaged";
+    SettingsStore damagedStore(damaged.wstring());
+    CHECK(damagedStore.SaveLauncher({{"displayName", "Gone"}}, error));
+    Write(damaged / L"settings.json", "{\"displayName\": ");
+    CHECK(!damagedStore.LoadLauncher(value, error, &why) && why == ReadFailure::Damaged);
+    Write(damaged / L"settings.json", "{\"schemaVersion\":2}");
+    CHECK(!damagedStore.LoadLauncher(value, error, &why) && why == ReadFailure::Unsupported);
+    // Valid JSON is never set aside, and a missing file has nothing to set aside.
+    std::wstring keptAs;
+    CHECK(!damagedStore.KeepDamagedAside(keptAs, error) && keptAs.empty() && Read(damaged / L"settings.json") == "{\"schemaVersion\":2}");
+    Write(damaged / L"settings.json", "[1, 2");
+    CHECK(damagedStore.KeepDamagedAside(keptAs, error) && keptAs.rfind(L"settings.json.damaged-", 0) == 0);
+    CHECK(Read(damaged / keptAs) == "[1, 2");
+    CHECK(damagedStore.LoadLauncher(value, error, &why) && value.empty());
+    CHECK(damagedStore.SaveLauncher({{"displayName", "Fresh"}}, error) && damagedStore.LoadLauncher(value, error) && value["displayName"] == "Fresh");
+    // The older files are not read again after the damaged one is set aside.
+    const auto older = root / L"read-damaged-older";
+    std::filesystem::create_directories(older);
+    SettingsStore olderStore(older.wstring());
+    Write(older / L"config.json", "{\"displayName\": \"Old\"}");
+    CHECK(olderStore.LoadLauncher(value, error) && value["displayName"] == "Old");
+    Write(older / L"settings.json", "not json");
+    CHECK(olderStore.KeepDamagedAside(keptAs, error) && olderStore.LoadLauncher(value, error) && !value.contains("displayName"));
+
+    // A busy lock, then released: the read settles as Read on a later poll, with what was saved.
+    const auto retried = root / L"read-retried";
+    SettingsStore retriedStore(retried.wstring());
+    CHECK(retriedStore.SaveLauncher({{"displayName", "Player 1"}, {"mainFighter", 5}}, error));
+    {
+        HeldLock held(retried);
+        SavedRead read(retriedStore, Clock::now(), quick);
+        CHECK(read.state() == SavedRead::State::Pending && read.failedTries() == 1 && read.failure() == ReadFailure::Busy);
+        CHECK(read.error().find("busy") != std::string::npos);
+        CHECK(!read.Poll(Clock::now()));
+        held.Release();
+        CHECK(Settle(read) && read.state() == SavedRead::State::Read);
+        CHECK(read.saved()["displayName"] == "Player 1" && read.saved()["mainFighter"] == 5 && read.failedTries() >= 1);
+        CHECK(!read.Poll(Clock::now())); // settles once
+    }
+
+    // A lock never released: it gives up after the tries it has, once.
+    const auto stuck = root / L"read-stuck";
+    SettingsStore stuckStore(stuck.wstring());
+    CHECK(stuckStore.SaveLauncher({{"displayName", "Player 1"}}, error));
+    {
+        HeldLock held(stuck);
+        SavedRead read(stuckStore, Clock::now(), quick);
+        CHECK(Settle(read) && read.state() == SavedRead::State::GaveUp);
+        CHECK(read.failedTries() == 5 && read.failure() == ReadFailure::Busy && read.saved().empty());
+        CHECK(!read.Poll(Clock::now()) && read.state() == SavedRead::State::GaveUp);
+    }
+    CHECK(stuckStore.LoadLauncher(value, error) && value["displayName"] == "Player 1");
+
+    // Damaged: set aside once, a fresh file in place, no waiting.
+    const auto torn = root / L"read-torn";
+    std::filesystem::create_directories(torn);
+    Write(torn / L"settings.json", "{\"displayName\": \"Torn");
+    SavedRead tornRead(SettingsStore(torn.wstring()), Clock::now(), quick);
+    CHECK(tornRead.state() == SavedRead::State::Damaged && !tornRead.keptAside().empty() && tornRead.saved().empty());
+    CHECK(Read(torn / tornRead.keptAside()) == "{\"displayName\": \"Torn");
+    CHECK(SettingsStore(torn.wstring()).SaveLauncher({{"displayName", "New"}}, error));
+
+    // Another version's file does not come right by waiting: given up at once, and left as it is.
+    const auto newer = root / L"read-newer";
+    std::filesystem::create_directories(newer);
+    Write(newer / L"settings.json", "{\"schemaVersion\":9}");
+    SavedRead newerRead(SettingsStore(newer.wstring()), Clock::now(), quick);
+    CHECK(newerRead.state() == SavedRead::State::GaveUp && newerRead.failedTries() == 1 && newerRead.failure() == ReadFailure::Unsupported);
+    CHECK(Read(newer / L"settings.json") == "{\"schemaVersion\":9}");
+
+    // A snapshot with nothing to write counts as saved without touching a file that cannot be written now.
+    const auto quiet = root / L"read-quiet";
+    SettingsStore quietStore(quiet.wstring());
+    CHECK(quietStore.SaveLauncher({{"displayName", "Quiet"}}, error));
+    const auto before = Read(quiet / L"settings.json");
+    {
+        HeldLock held(quiet);
+        SettingsWriter writer(quiet.wstring());
+        const auto revision = writer.QueueLauncher(Json::object());
+        CHECK(revision != 0);
+        const auto deadline = GetTickCount64() + 3000;
+        while (writer.SavedLauncherRevision() < revision && GetTickCount64() < deadline) Sleep(1);
+        CHECK(writer.SavedLauncherRevision() >= revision && writer.GetStatus().error.empty());
+        writer.Stop();
+    }
+    CHECK(Read(quiet / L"settings.json") == before);
+}
+
 int main() {
     // Each run owns a fresh temporary subtree; never consult real AppData.
     const auto root = MakeTempRoot(L"sf4e-settings-test-");
@@ -982,6 +1117,7 @@ int main() {
     InterfaceScaleRange(root);
     ControllerLayerRoundTrip(root);
     ShareReplaysConsent(root);
+    SavedReadChecks(root);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";
 }
