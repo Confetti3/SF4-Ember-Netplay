@@ -223,8 +223,9 @@ void InterfaceSizeBelowOne() {
 // Each journey owns a Harness and with it the ImGui context, so they run one after another.
 // Ember's links (platform::Links): Help & About lists them in the table's order after the problem report, and
 // each asks for its own link; Home's corner draws them as icons at the right of the brand's band where the window
-// has the room, the pad reaches them from the list's top by Up, Right walks along them and Down returns, and a
-// narrow window draws none, so neither the pad nor the pointer has a row the other lacks.
+// has the room. The list wraps as it always did with them drawn; they belong to the aside with the player's card,
+// so Up from the card reaches them, Left and Right stay among them and Down returns to the card. A narrow window
+// draws none, so neither the pad nor the pointer has a row the other lacks.
 void EmberLinks() {
  namespace loc = sf4e::loc;
  using sf4e::platform::Links;
@@ -260,22 +261,33 @@ void EmberLinks() {
   bool placed = true;
   for (std::size_t i = 0; i < Links.size(); ++i) {
    const auto id = row(Links[i]);
-   placed = placed && drawn.Shown(id.c_str()) && drawn.Row(id.c_str())->corner;
+   placed = placed && drawn.Shown(id.c_str()) && drawn.Row(id.c_str());
    if (i) placed = placed && drawn.boxes[id].first.x > drawn.boxes[row(Links[i - 1])].second.x && drawn.Centre(id.c_str()).y == drawn.Centre(row(Links[0]).c_str()).y;
   }
   Check(placed && drawn.Row("online") && drawn.boxes[row(Links.back())].second.y <= drawn.boxes["online"].first.y, "Home does not draw the links as a row of icons over the list");
   Check(drawn.boxes[row(Links.back())].second.x > ImGui::GetIO().DisplaySize.x * .6f, "Home's links are not at the right of the band");
+  // The list wraps as it always did: Up from the top to the last row, Down from it to the top.
   h.shell.Navigation().Prefer("online"); h.Frame(0, 2);
   h.Press(MenuInput::Up);
-  Check(h.shell.Navigation().Focus() == row(Links[0]), "Up from Home's first row did not reach the links");
+  Check(h.shell.Navigation().Focus() == "news", "Up from Home's first row did not wrap to its last, with the links drawn");
+  h.Press(MenuInput::Down);
+  Check(h.shell.Navigation().Focus() == "online", "Down from Home's last row did not wrap to its first, with the links drawn");
+  // The card and the links are one aside, moved by where they are drawn.
+  h.shell.Navigation().Prefer("card"); h.Frame(0, 2);
+  h.Press(MenuInput::Down);
+  Check(h.shell.Navigation().Focus() == "card", "Down from the card left it");
+  h.Press(MenuInput::Up);
+  Check(h.shell.Navigation().Focus() == row(Links[0]), "Up from the card did not reach the first link");
   h.Press(MenuInput::Up);
   Check(h.shell.Navigation().Focus() == row(Links[0]), "Up from a link left the links");
+  h.Press(MenuInput::Left);
+  Check(h.shell.Navigation().Focus() == row(Links[0]), "Left from the first link left the links");
   h.Press(MenuInput::Right); h.Press(MenuInput::Right);
   Check(h.shell.Navigation().Focus() == row(Links[2]), "Right did not walk along the links");
   for (int i = 0; i < 5; ++i) h.Press(MenuInput::Right);
   Check(h.shell.Navigation().Focus() == row(Links.back()), "Right left the links at their end");
   h.Press(MenuInput::Down);
-  Check(h.shell.Navigation().Focus() == "online", "Down from a link did not return to the list's top");
+  Check(h.shell.Navigation().Focus() == "card", "Down from a link did not return to the card");
   const auto before = h.actions.size();
   h.FocusOn("link-kofi"); h.Press(MenuInput::Select); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
   Check(h.actions.size() == before + 1 && asked(h, "kofi") == 1, "A link on Home's corner did not ask the question Help & About's row asks");

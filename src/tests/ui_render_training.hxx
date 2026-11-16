@@ -31,7 +31,7 @@ void CheckHomeRendering(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& v
             homeCards.clear();view.controllerReady=controllerReady;draw();
             const auto* list=FindWindow("List");
             KnownV2Gap(list->ScrollMax.y==0,"Home requires scrolling at 1080p");
-            // Ember's links stand last: the corner's icons in the header's band, in the table's order.
+            // Ember's links stand last: the icons in the header's band, in the table's order.
             std::vector<std::string> expected=controllerReady
                 ?std::vector<std::string>{"online","friends","profile","settings","training","offline","replays","news","card"}
                 :std::vector<std::string>{"player","online","friends","profile","settings","training","offline","replays","news","card"};
@@ -42,7 +42,7 @@ void CheckHomeRendering(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& v
                 // The card row is the player's card beside the list.
                 if(row.id=="card")continue;
                 const auto& rect=homeCards.at(row.id);
-                if(row.corner)continue;
+                if(row.id.compare(0,5,"link-")==0)continue;
                 KnownV2Gap(rect.first.y>=list->InnerRect.Min.y&&rect.second.y<=list->InnerRect.Max.y,"Home row is outside the list");
             }
         }

@@ -860,7 +860,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // Home's corner says which version this is and which channel it follows.
  menu_.footerNote=screen=="home"?VersionLine(InstalledVersion(v)):std::string();
  if(screen=="home"){
-  // Ember's links, as icons in the header's corner (the menu draws those it has the room for).
+  // Ember's links, as icons in the header over the player's card (the menu draws them where the card is shown).
   for(const auto& link:platform::Links){
    auto row=LinkRow(link,v.services);row.hint=row.label;
    menu_.headerLinks.push_back({std::move(row),link.mark});
