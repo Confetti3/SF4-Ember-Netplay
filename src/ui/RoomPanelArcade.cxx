@@ -405,9 +405,9 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   if(pictured)DrawCabinetFighter(d,screen,picture,glass,ultra,s);
   // Their points in the screen's top right corner, where the screen's words (at its foot) are not.
   if(m)if(const auto points=PointsOf(v,*m,look.fighter)){
-   const float h=(std::min)(10*s,screen.H()*.12f),x=(std::max)(screen.min.x+2*s,screen.max.x-3*s-v2::LevelWidth(points->points,h,"points.label"));
+   const float level=(std::min)(10*s,screen.H()*.12f),x=(std::max)(screen.min.x+2*s,screen.max.x-3*s-v2::LevelWidth(points->points,level,"points.label"));
    d->PushClipRect(screen.min,screen.max,true);
-   v2::Level(d,ImVec2(x,screen.min.y+3*s),h,points->points,"points.label");
+   v2::Level(d,ImVec2(x,screen.min.y+3*s),level,points->points,"points.label");
    d->PopClipRect();
   }
   const float ss=(std::min)(15*s,screen.H()*.34f);

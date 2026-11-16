@@ -221,7 +221,7 @@ std::string RecordOf(const nf::Friend& entry) {
 
 // The focused friend's or request's panel: for a friend their card (main, flag, name, class, the main's points), where
 // they are, the record, and the row's action beside More; for a request the name and the played line with Accept and More.
-void DrawPersonPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool compact) {
+void DrawPersonPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool) {
     const auto& c = v2::Colors();
     const float s = f.s, pad = 16 * s;
     const nf::Friend* entry = HasPrefix(e.id, FriendPrefix) ? f.state.FindFriend(IdOf(e.id, FriendPrefix)) : nullptr;

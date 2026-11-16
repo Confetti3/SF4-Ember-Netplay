@@ -37,7 +37,8 @@ public:
     static bool InStrip(const std::string& screen) { return Owns(screen) || screen == FriendsScreen || screen == SetsScreen || screen == "awards"; }
     // The strip over `screen` and the eyebrow "Profile · name". Friends says
     // how many requests wait (the published card's count).
-    static void Dress(GameMenu& menu, const std::string& screen, const std::string& name);
+    // `sets`: the Sets tab is there (ShellView::offersArchive).
+    static void Dress(GameMenu& menu, const std::string& screen, const std::string& name, bool sets);
     // Every frame: the levels read on opening and at start, and the Card tab's card built once for the frame (the rows and
     // the drawing both read it). `bridge` is the usable service, empty without one.
     void Update(const ShellView& view, const netplay::PlayerPreferences& preferences, const std::string& screen, const std::string& bridge, const Submit& submit);

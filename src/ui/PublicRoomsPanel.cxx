@@ -490,7 +490,7 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     if (unranked) {
         auto notice = Row(RankedNoticeRow, loc::T("public.ranked_needs_discord"), loc::T("public.ranked_needs_discord_detail"));
         notice.hint = loc::T("screen.connect_discord");
-        rows.push_back(Wide(std::move(notice), listWidth < 480 * Scale() ? 120 : 96));
+        rows.push_back(Wide(std::move(notice), listWidth < 480 * Scale() ? 120.f : 96.f));
     }
     if (!listed) {
         rows.push_back(Wide(InfoRow("pr-loading", loc::T("public.loading_card"), {}, {}), 3 * CardHeight + 16));

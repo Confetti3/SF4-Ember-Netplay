@@ -77,9 +77,9 @@ inline bool ReplayShown(const platform::replays::ArchivedReplay& replay,ReplaySh
   (show==ReplayShow::Video&&!replay.video)||(show==ReplayShow::Kept&&!replay.kept))return false;
  if(fighters&&!ReplayHasFighter(replay,fighters,side))return false;
  if(search.empty())return true;
- for(int side=0;side<2;side++){
-  if(LoweredText(replay.names[side]).find(search)!=std::wstring::npos)return true;
-  if(ember::ValidFighter(replay.fighters[side])&&LoweredText(ember::Catalog().fighterName(replay.fighters[side])).find(search)!=std::wstring::npos)return true;
+ for(int at=0;at<2;at++){
+  if(LoweredText(replay.names[at]).find(search)!=std::wstring::npos)return true;
+  if(ember::ValidFighter(replay.fighters[at])&&LoweredText(ember::Catalog().fighterName(replay.fighters[at])).find(search)!=std::wstring::npos)return true;
  }
  return false;
 }

@@ -1,9 +1,9 @@
 // Rankings (docs/design/SKILL_BADGE.md, "Rankings"): the player's own standing,
 // their choice to take part, and the board of classes, in the product's own
-// game ("Games" there). Requests go to the
-// helper on the tournament channel and are answered by request id, like the
-// public room ones; netplay::rankings::Requests decides what each answer
-// does, and the interface reads the result from the published status.
+// game ("Games" there). Requests go to the helper on the tournament channel
+// and their answers come back through flights, like the public room ones;
+// netplay::rankings::Requests decides what each answer does, and the
+// interface reads the result from the published status.
 #include "sf4e__NetplayRuntime.hxx"
 #include "../session/TournamentAnswers.hxx"
 
@@ -48,9 +48,12 @@ void TakeBoard(std::uint64_t flight, const session::TournamentAnswer& answer) {
 	runtime->rankings.FinishBoard(flight, Failure(answer, board.has_value()), std::move(board), GetTickCount64());
 }
 
-// Sends `request` as `flight`, whose answer `take` handles.
+// Sends `request` as `flight`, whose answer `take` handles. Each request is
+// the product's game's ranking (internal::WithGame): SFV Ember's standing,
+// choice and board are its own, and SF4 Ember's requests name no game, as
+// before games were named.
 void Send(const json& request, bool helperReady, std::uint64_t flight, void (*take)(std::uint64_t, const session::TournamentAnswer&)) {
-	SendFlight(request, helperReady, [flight, take](const session::TournamentAnswer& answer) { take(flight, answer); });
+	SendFlight(internal::WithGame(request), helperReady, [flight, take](const session::TournamentAnswer& answer) { take(flight, answer); });
 }
 }
 

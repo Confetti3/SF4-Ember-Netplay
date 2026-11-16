@@ -3,11 +3,13 @@
 // A link that asks Ember to play an archived replay:
 //   ember://replay/open?file=<percent-encoded path>
 // Another program on this PC (usf4-replay-saver) opens it; the launcher hands
-// it to the running game, or starts the game with it. Only a plain path to a
-// .emberreplay, .usf4replay or .emberpack file on a drive of this PC is accepted
+// it to the running game, or starts the game with it. Only a plain path to one
+// of the product's replay files (ProductIdentity::replayFiles: SF4 Ember's
+// .emberreplay, .usf4replay and .emberpack) on a drive of this PC is accepted
 // ("C:\\..."). ParseReplayLink checks syntax; ResolveReplayPath checks the
 // actual target before delivery and import. The player is asked before play.
 
+#include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <string>
@@ -37,9 +39,17 @@ inline bool IsReplayPath(const std::string& path) {
   if(c<0x20||c=='"'||c=='*'||c=='?'||c=='<'||c=='>'||c=='|'||(c==':'&&i!=1)) return false;
  }
  const auto dot=path.rfind('.');
- std::string ext=dot==std::string::npos?std::string():path.substr(dot);
+ if(dot==std::string::npos)return false;
+ std::string ext=path.substr(dot);
  for(char& c:ext)c=static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
- return ext==".emberreplay"||ext==".usf4replay"||ext==".emberpack";
+ // Each "*.<extension>" of the product's list, ";" between them.
+ const std::string files=ember::Product().replayFiles?ember::Product().replayFiles:"";
+ for(std::size_t at=0;at<files.size();){
+  const auto end=(std::min)(files.find(';',at),files.size());
+  if(files.compare(at,end-at,"*"+ext)==0)return true;
+  at=end+1;
+ }
+ return false;
 }
 // A set's pack (platform/ReplaySetPack.hxx), which is imported rather than played.
 inline bool IsSetPack(const std::string& path) {

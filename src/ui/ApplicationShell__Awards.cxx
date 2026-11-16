@@ -152,7 +152,7 @@ public:
         return a.id.compare(0, 6, AwardPrefix) == 0;
     }
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
-        ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName);
+        ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName, f.view.offersArchive);
         menu.headerChips.push_back({EarnedCount(f.view), v2::Colors().accentLight});
     }
     ScreenGrid Grid(const ScreenFrame&) const override { return {AwardColumns(), 100}; }
@@ -235,15 +235,15 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
         bottom = tile.max.y;
         if (++column == columns) { column = 0; y += tileHeight + gap; }
         const bool hovered = PressEntry(nav, rows, e, tile, action, changed).hovered;
-        awards_wall::Tile shown;
-        shown.family = family;
-        shown.level = aw::LevelOf(counters, *family);
-        shown.next = aw::Next(counters, *family);
-        shown.name = e.label;
-        shown.counted = counted;
-        shown.worn = e.valueHighlighted;
-        shown.live = feedback.Enabled(e);
-        awards_wall::DrawTile(d, tile, shown, e.id == focus, hovered);
+        awards_wall::Tile tileShown;
+        tileShown.family = family;
+        tileShown.level = aw::LevelOf(counters, *family);
+        tileShown.next = aw::Next(counters, *family);
+        tileShown.name = e.label;
+        tileShown.counted = counted;
+        tileShown.worn = e.valueHighlighted;
+        tileShown.live = feedback.Enabled(e);
+        awards_wall::DrawTile(d, tile, tileShown, e.id == focus, hovered);
     }
     ImGui::SetCursorScreenPos(origin);
     ImGui::Dummy(ImVec2(width, (std::max)(bottom - origin.y, sideHeight) + gap));

@@ -128,7 +128,11 @@ void TestObserverJoin(bool offered) {
 	Home home;
 	FakeCapabilities().spectators = offered;
 	const auto before = home.runtime->controller.GetSnapshot().generation;
-	const auto outcome = internal::DispatchTournamentRoomCommand({netplay::CommandKind::JoinInvite, {}, "invitation"}, facade::JoinKind::Observer);
+	commands::JoinRoom join;
+	join.generation = home.runtime->controller.GetSnapshot().generation;
+	join.invitation = "invitation";
+	join.join = facade::JoinKind::Observer;
+	const auto outcome = internal::DispatchTournamentRoomCommand(std::move(join));
 	CHECK(outcome == netplay::DispatchOutcome::Dropped);
 	CHECK(home.runtime->controller.GetSnapshot().generation == before);
 	CHECK(home.runtime->controller.GetSnapshot().room == netplay::RoomState::Idle);

@@ -212,7 +212,7 @@ public:
         };
     }
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
-        ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName);
+        ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName, f.view.offersArchive);
         // In a room X is the room's own shortcut on every screen (RoomShortcut).
         if (f.screen == ProfilePanel::CardScreen && f.view.session.room == netplay::RoomState::Idle) menu.shortcutHints = ShortcutHints({{MenuInput::Fighter, loc::T("home.fighter_select")}, {MenuInput::Options, loc::T("card.edit")}});
     }
@@ -257,7 +257,7 @@ public:
         };
     }
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
-        if (f.screen == FriendsPanel::Screen) ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName);
+        if (f.screen == FriendsPanel::Screen) ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName, f.view.offersArchive);
         else if (FriendsPanel::Shown(f.screen)) menu.eyebrow = loc::Tf("profile.eyebrow", f.shell.preferences_.displayName);
         if (f.rows) f.shell.friends_.Dress(f.view, f.screen, *f.rows, menu);
     }

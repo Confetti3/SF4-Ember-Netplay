@@ -65,6 +65,7 @@ constexpr ember::ProductIdentity RulesOn = {
 	L"sf4e-product-rules-test-crash.log",
 	L"sf4e-product-rules-test-crash-",
 	NoLocaleOverlays,
+	"*.emberreplay;*.usf4replay;*.emberpack",
 };
 }
 

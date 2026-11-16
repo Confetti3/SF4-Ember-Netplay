@@ -179,6 +179,8 @@ enum class PictureAnchor { Top, Foot };
 // fighter. A picture is the game's portrait or the fighter's whole figure.
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=palette::Rgb(ember::ProductTheme().portrait));
 void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing=palette::Rgb(ember::ProductTheme().portrait),PictureAnchor anchor=PictureAnchor::Top);
+// A main fighter's card: the portrait, the name under it, and the Main badge when `saved`.
+void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);
 // The picture's image at the size it is drawn, for a place that lays it out
 // itself; a figure the art lacks is the portrait. Empty before the art loads.
 SelectionImage FighterImage(const FighterPicture& picture,float drawnHeight);

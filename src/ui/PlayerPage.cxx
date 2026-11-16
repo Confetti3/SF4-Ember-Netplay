@@ -103,8 +103,15 @@ std::vector<std::pair<std::string, std::string>> TabsOf(const Shown& shown) {
     return {};
 }
 
+// A page's tabs without Sets where there are no sets to list (Shown::sets).
+std::vector<std::pair<std::string, std::string>> TabsWithSets(const Shown& shown) {
+    auto tabs = TabsOf(shown);
+    if (!shown.sets) tabs.erase(std::remove_if(tabs.begin(), tabs.end(), [](const auto& tab) { return tab.first == SetsScreen; }), tabs.end());
+    return tabs;
+}
+
 bool HasTab(const Shown& shown, const std::string& screen) {
-    const auto tabs = TabsOf(shown);
+    const auto tabs = TabsWithSets(shown);
     return std::any_of(tabs.begin(), tabs.end(), [&](const auto& tab) { return tab.first == screen; });
 }
 
@@ -113,6 +120,7 @@ Standing StandingOf(const Shown& shown, const nf::State& friends, const Links& l
     s.page = shown.page;
     s.relation = shown.card ? shown.card->relation : shown.page == Page::Blocked ? Relation::Blocked : Relation::None;
     s.named = !shown.name.empty();
+    s.sets = shown.sets;
     s.token = !shown.token.empty();
     s.byRequest = shown.key.kind == Key::Kind::Request;
     s.byCode = shown.key.kind == Key::Kind::Code;
@@ -149,6 +157,11 @@ Primary PrimaryOf(const Standing& s) {
         primary.does = does;
         return primary;
     };
+    // View sets, or no button where there are no sets to list.
+    const auto viewSets = [&] {
+        if (!s.sets) { Primary none; none.kind = Kind::None; return none; }
+        return make(Kind::ViewSets, "profile.view_sets", std::string(), s.named, "sets");
+    };
     switch (s.page) {
     case Page::Reading: return make(Kind::Reading, "profile.reading_button", std::string(), false, "");
     case Page::Unreachable: return make(Kind::TryAgain, "profile.try_again", std::string(), true, "retry");
@@ -156,7 +169,7 @@ Primary PrimaryOf(const Standing& s) {
         // Asks first (PlayerPage); without the block's id in the list there is nothing to lift from here.
         return make(Kind::Unblock, "friends.unblock", s.blockId.empty() ? std::string(loc::T("friends.blocked_member_detail")) : Reason(s.gate.actWhy), !s.blockId.empty() && s.gate.act, "unblock");
     case Page::NoCard: case Page::Nobody: case Page::Unsupported: case Page::Several:
-        return make(Kind::ViewSets, "profile.view_sets", std::string(), s.named, "sets");
+        return viewSets();
     case Page::Card: break;
     }
     switch (s.relation) {
@@ -168,7 +181,7 @@ Primary PrimaryOf(const Standing& s) {
     case Relation::Friend:
         if (s.joinable) return make(Kind::JoinRoom, "friends.join_room", Reason(s.gate.goWhy), s.gate.go, "join");
         if (s.online && s.canInvite) return make(Kind::Invite, "friends.invite_room", Reason(s.gate.actWhy), s.gate.act, "invite");
-        return make(Kind::ViewSets, "profile.view_sets", std::string(), s.named, "sets");
+        return viewSets();
     case Relation::Blocked: case Relation::None: break;
     }
     return make(Kind::AddFriend, "friends.add_member", Reason(s.member.actWhy), s.member.act && (s.token || s.byCode), "add");
@@ -187,7 +200,7 @@ std::vector<MenuChoice> MoreOf(const Standing& s) {
     if (isFriend)
         for (const char* id : {"join", "watch", "invite"})
             if (const auto* choice = Find(s.friendChoices, id)) more.push_back(*choice);
-    more.push_back({"sets", loc::T("profile.view_sets"), std::string(), s.named});
+    if (s.sets) more.push_back({"sets", loc::T("profile.view_sets"), std::string(), s.named});
     more.push_back({"steam", loc::T("room.steam_profile"), loc::T(s.steam ? "room.steam_profile.detail" : "room.steam_profile.none"), s.steam});
     if (isFriend)
         for (const char* id : {"remove", "remove-block"})
@@ -239,18 +252,21 @@ player_card::Subject SubjectOf(const Shown& shown, const Standing& standing, con
         subject.presence = loc::T("profile.in_this_room");
     }
     subject.sets = sets;
-    if (shown.page == Page::Blocked) subject.sets.shown = false;
+    if (shown.page == Page::Blocked || !shown.sets) subject.sets.shown = false;
     subject.notes = NotesOf(shown.page, shown.name);
     // The Primary has no glyph, and More takes Y: the hero's two buttons, in the boxes of Edit card and Fighter select.
-    subject.buttons = {{PrimaryRow, nullptr, v2::ButtonKind::Primary}, {MoreRow, "Y", v2::ButtonKind::Secondary}};
+    if (PrimaryOf(standing).kind != Primary::Kind::None) subject.buttons.push_back({PrimaryRow, nullptr, v2::ButtonKind::Primary});
+    subject.buttons.push_back({MoreRow, "Y", v2::ButtonKind::Secondary});
     return subject;
 }
 
 std::vector<MenuEntry> CardRows(const player_card::FullCardView& view, const Primary& primary, const Standing& standing, const std::string& ask, const std::string& name) {
     auto rows = player_card::CardRows(view);
-    auto main = Row(PrimaryRow, primary.label, primary.detail, primary.enabled);
-    main.hint = primary.label;
-    rows.push_back(std::move(main));
+    if (primary.kind != Primary::Kind::None) {
+        auto main = Row(PrimaryRow, primary.label, primary.detail, primary.enabled);
+        main.hint = primary.label;
+        rows.push_back(std::move(main));
+    }
     auto more = Row(MoreRow, loc::T("friends.more"), std::string());
     more.hint = loc::T("friends.more");
     more.choices = ask.empty() ? MoreOf(standing) : QuestionOf(ask, name);

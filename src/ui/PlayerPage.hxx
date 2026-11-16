@@ -78,6 +78,9 @@ struct Shown {
     bool profiled = true;
     // The name the page says: the card's, else what the opener knew; empty when neither.
     std::string name;
+    // The game's bridge keeps the public archive its Sets list reads (ShellView::offersArchive):
+    // without it the page has no Sets tab, View sets or recent sets.
+    bool sets = true;
 };
 // The page's reading of `profile` for the open the page asked (`key`, `known`: what the opener held; a null key means the
 // view's profile as it stands). `service`: there is a service to ask. `offering`: whether it offers profiles. `friends`:
@@ -92,6 +95,8 @@ bool OpensOwn(const profiles::Key& key, const profiles::Known& known, const std:
 // without profiles has no Awards; no card, nobody by the name and a service without profiles have Card and Sets; a
 // blocked player has Card; Several has none (the pick list).
 std::vector<std::pair<std::string, std::string>> TabsOf(const Shown& shown);
+// The tabs the page shows: TabsOf without Sets where there are no sets to list (Shown::sets).
+std::vector<std::pair<std::string, std::string>> TabsWithSets(const Shown& shown);
 // Whether `screen` (a tab) is one `shown` has.
 bool HasTab(const Shown& shown, const std::string& screen);
 
@@ -102,6 +107,8 @@ struct Standing {
     Relation relation = Relation::None;
     // There is a name to list sets by.
     bool named = false;
+    // There are sets to list (Shown::sets).
+    bool sets = true;
     // How they can be named to the friends paths.
     bool token = false, byRequest = false, byCode = false;
     // A friend's id and whether the list shows them, in a joinable public room, online; whether the viewer has a room to offer.
@@ -128,7 +135,8 @@ Standing StandingOf(const Shown& shown, const nf::State& friends, const Links& l
 // The one thing most worth doing now (docs/design/PROFILE.md, "The Primary action and More"). `does` is the choice id the
 // press carries out, empty when it does nothing (Reading, Request sent).
 struct Primary {
-    enum class Kind : std::uint8_t { Reading, TryAgain, AddFriend, AcceptRequest, RequestSent, JoinRoom, Invite, ViewSets, Unblock } kind = Kind::Reading;
+    // None: no button, where the only one would be View sets and there are no sets (Standing::sets).
+    enum class Kind : std::uint8_t { Reading, TryAgain, AddFriend, AcceptRequest, RequestSent, JoinRoom, Invite, ViewSets, Unblock, None } kind = Kind::Reading;
     std::string label, detail, does;
     bool enabled = false;
 };

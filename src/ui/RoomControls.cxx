@@ -210,7 +210,7 @@ bool RoomTakesNow(const ShellView& v, room::ActionKind kind, std::size_t table) 
         (RoomCheckpointPending(v) && kind == room::ActionKind::Unwatch && LeavesWatchedGame(v, table));
 }
 bool WatchingClosed(const ShellView& v, room::ActionKind kind, int seat) {
-    return !v.canWatch && (kind == room::ActionKind::Watch || (kind == room::ActionKind::Queue && seat < 0 && !v.room.arcade));
+    return !v.canWatch && (kind == room::ActionKind::Watch || (kind == room::ActionKind::Queue && seat < 0 && !room::RulesOf(v.room).cabinets));
 }
 std::string WatchingNote(const ShellView& v, room::ActionKind kind) {
     if (!v.watchedGame.Active()) return {};

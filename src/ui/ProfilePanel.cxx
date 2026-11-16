@@ -31,11 +31,12 @@ const netplay::levels::Own& OwnOf(const ShellView& v, const PlayerCardView& card
 }
 }
 
-void ProfilePanel::Dress(GameMenu& menu, const std::string& screen, const std::string& name) {
+void ProfilePanel::Dress(GameMenu& menu, const std::string& screen, const std::string& name, bool sets) {
     menu.eyebrow = name.empty() ? std::string(loc::T("home.profile")) : loc::Tf("profile.eyebrow", name);
     const int requests = MenuPlayerCard().requests;
     menu.tabs = {{CardScreen, loc::T("profile.tab.card")}, {FightersScreen, loc::T("profile.tab.fighters")}, {SetsScreen, loc::T("profile.tab.sets")},
         {FriendsScreen, requests ? loc::Tf("friends.tab_count", requests) : std::string(loc::T("profile.tab.friends"))}, {"awards", loc::T("screen.awards")}};
+    if (!sets) menu.tabs.erase(std::remove_if(menu.tabs.begin(), menu.tabs.end(), [](const auto& tab) { return tab.first == SetsScreen; }), menu.tabs.end());
     for (std::size_t i = 0; i < menu.tabs.size(); ++i)
         if (menu.tabs[i].first == screen) menu.tab = static_cast<int>(i);
 }
@@ -65,7 +66,7 @@ void ProfilePanel::Update(const ShellView& v, const netplay::PlayerPreferences& 
 
 void ProfilePanel::Conceal() { visiting_ = want_ = false; }
 
-std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const netplay::PlayerPreferences& prefs, const std::string& screen, const PlayerCardView& card, bool editable, bool connect, std::string& title) const {
+std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const netplay::PlayerPreferences&, const std::string& screen, const PlayerCardView& card, bool editable, bool connect, std::string& title) const {
     const bool fighters = screen == FightersScreen;
     title = loc::T(fighters ? "profile.tab.fighters" : "profile.tab.card");
     std::vector<MenuEntry> rows;
@@ -131,6 +132,8 @@ player_card::Subject ProfilePanel::OwnSubjectOf(const ShellView& v, const netpla
 player_card::Subject ProfilePanel::SubjectOf(const ShellView& v, const netplay::PlayerPreferences& prefs) const {
     auto subject = OwnSubjectOf(v, prefs);
     subject.sets = sets_.View(v);
+    // Without the archive there are no sets to list (ShellView::offersArchive).
+    subject.sets.shown = subject.sets.shown && v.offersArchive;
     subject.now = v.unixNow;
     subject.buttons = {{CardEditRow, "Y", v2::ButtonKind::Secondary}, {FighterSelectRow, "X", v2::ButtonKind::Secondary}};
     return subject;

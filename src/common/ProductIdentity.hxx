@@ -251,6 +251,11 @@ struct ProductIdentity {
 
 	// Catalogs layered over the shared ones, ending with {nullptr, nullptr}.
 	const LocaleOverlay* localeOverlays;
+
+	// The replay files a player hands Import replay (its file picker, a file
+	// dropped on the game, a replay link), as the picker's patterns:
+	// "*.<extension>" joined by ";", lower case.
+	const char* replayFiles;
 };
 
 const ProductIdentity& Product();

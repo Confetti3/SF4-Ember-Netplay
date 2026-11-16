@@ -155,9 +155,6 @@ public:
     // Character select. The runtime does not hear it (common/RematchInput.hxx);
     // a game that runs the WIN's wait itself may read it here.
     bool PostMatchLeft() const { return postMatch_ && postMatch_->left; }
-    // A notice from outside the shell (the lab's toasts): the status line's
-    // for `seconds`, and a toast.
-    // A kind and up to two actions go on its toast.
     // A notice told into Notifications as a toast, with a kind and up to two
     // actions, and on the status line for `seconds` (the lab's toasts too).
     void Say(std::string text, Tone tone, double seconds, ToastKind kind = ToastKind::None, std::vector<ToastAction> actions = {}) {
@@ -445,9 +442,6 @@ private:
     void TrainingSelectActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
     // Training select's Hitboxes row: Select turns it over, Left off and Right on.
     void ShowHitboxes(bool shown,const Submit& submit);
-    // The awards wall (ApplicationShell__Awards.cxx): "awards" for titles, "awards-icons" for icons.
-    static bool AwardsScreen(const std::string& screen) { return screen == "awards" || screen == "awards-icons"; }
-    static const v2::Award* WornAward(const ShellView& v, const std::string& id);
     // The awards wall, Profile's last tab (ApplicationShell__Awards.cxx).
     // The player's counters from the points answer and the friends list (the
     // one source the wall, the card and the notices read), the award a saved

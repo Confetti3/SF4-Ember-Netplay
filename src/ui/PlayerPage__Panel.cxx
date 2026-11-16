@@ -82,7 +82,9 @@ Links PlayerPage::LinksOf(const ShellView& v, const FriendsPanel& friends, const
 }
 
 Shown PlayerPage::ShownNow(const ShellView& v) const {
-    return ShownOf(v.profile, key_, known_, !bridge_.empty(), v.profilesService, friends_panel::StateOf(v.friends));
+    auto shown = ShownOf(v.profile, key_, known_, !bridge_.empty(), v.profilesService, friends_panel::StateOf(v.friends));
+    shown.sets = v.offersArchive;
+    return shown;
 }
 
 Standing PlayerPage::StandingNow(const ShellView& v, const Shown& shown, const Links& links) const {
@@ -291,13 +293,13 @@ void PlayerPage::Shortcut(const ShellView& v, const MenuAction& a, const std::st
 
 void PlayerPage::Dress(const ShellView& v, const std::string& screen, const std::string& ownName, const std::vector<MenuEntry>& rows, GameMenu& menu) {
     const bool sets = sets_.IsList(screen);
-    if (screen == ProfilePanel::SetsScreen) ProfilePanel::Dress(menu, screen, ownName);
+    if (screen == ProfilePanel::SetsScreen) ProfilePanel::Dress(menu, screen, ownName, v.offersArchive);
     else if (OnProfile(screen) && screen != SetsFilterScreen && screen != SetsFighterScreen) {
         const Shown shown = ShownNow(v);
         NoteUserText(shown.name);
         menu.eyebrow = loc::Tf("profile.eyebrow", shown.name.empty() ? std::string(loc::T("profile.this_player")) : shown.name);
         if (screen != PickScreen) {
-            menu.tabs = TabsOf(shown);
+            menu.tabs = TabsWithSets(shown);
             for (std::size_t i = 0; i < menu.tabs.size(); ++i)
                 if (menu.tabs[i].first == screen) menu.tab = static_cast<int>(i);
         }

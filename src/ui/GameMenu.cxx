@@ -1,4 +1,5 @@
 #include "GameMenu.hxx"
+#include "../common/GameCatalog.hxx"
 #include "V2.hxx"
 #include "ControllerNavigation.hxx"
 #include "RowId.hxx"
@@ -154,6 +155,17 @@ void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,I
     }
     const auto size=ImGui::CalcTextSize("?");
     d->AddText(ImVec2((min.x+max.x-size.x)*.5f,(min.y+max.y-size.y)*.5f),palette::Muted,"?");
+}
+void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
+    auto* d=ImGui::GetWindowDrawList();const float footer=22*Scale();
+    if(menuArt){const auto art=menuArt->Portrait(fighter);if(art.texture){const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y-footer)/art.height);
+        const float w=art.width*factor,h=art.height*factor;d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);}}
+    // The name shrinks to the card, as the roster's captions do, so narrow cards keep it whole.
+    const char* name=ember::FighterNameOr(fighter,"?");
+    const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-8*Scale())*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(name).x));
+    d->AddRectFilled(ImVec2(min.x,max.y-footer),max,palette::ShadeAt(235));
+    d->AddText(ImGui::GetFont(),font,ImVec2(min.x+4*Scale(),max.y-footer+(ImGui::GetFontSize()-font)*.5f),saved?palette::Ember:palette::Ivory,name);
+    if(saved)DrawCardBadge(ImVec2(min.x+4*Scale(),min.y+4*Scale()),max.x-min.x-8*Scale(),loc::T("profile.main_badge"),"main-badge");
 }
 // The legend follows whatever last moved the menu: a player with a pad
 // assigned who types on the keyboard sees keys, and the other way round.

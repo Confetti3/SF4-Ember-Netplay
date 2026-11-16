@@ -303,7 +303,7 @@ float DrawWords(const Ctx& c, float x, float y, float room) {
 // its shade, "Main" on the main's, and under it the name and, on the player's own card, the games.
 void DrawStripTile(const Ctx& c, v2::Box box, const player_card::StripTile& tile, float textBlock, bool focused, bool hovered) {
     const auto& colors = v2::Colors();
-    const float s = c.s, pad = 8 * s, side = box.W() - 2 * pad;
+    const float s = c.s, pad = 8 * s;
     v2::CardGround(c.d, box, focused, hovered);
     const v2::Box picture{ImVec2(box.min.x + pad, box.min.y + pad), ImVec2(box.max.x - pad, box.max.y - pad - textBlock)};
     c.d->AddRectFilled(picture.min, picture.max, colors.frame);

@@ -45,6 +45,7 @@ constexpr ember::ProductIdentity Sf4Ember = {
 	L"sf4e-crash.log",
 	L"sf4e-crash-",
 	NoLocaleOverlays,
+	"*.emberreplay;*.usf4replay;*.emberpack",
 };
 }
 

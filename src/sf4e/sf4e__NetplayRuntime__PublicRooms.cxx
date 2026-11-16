@@ -50,10 +50,8 @@ std::uint64_t SendAdmission(const json& request, bool helperReady, internal::Adm
 }
 
 json TicketRequest(const std::string& bridgeId, const std::string& roomId) {
-	return {{"op", "room_ticket"}, {"bridge_id", bridgeId}, {"room_id", roomId}, {"build", Game().state.BuildId()}};
+	return internal::WithGame({{"op", "room_ticket"}, {"bridge_id", bridgeId}, {"room_id", roomId}, {"build", Game().state.BuildId()}});
 }
-std::string Reason(const session::TournamentAnswer& answer) { return answer.reason.empty() ? "unavailable" : answer.reason; }
-using internal::WithGame;
 
 void DispatchList(const Command& command, bool helperReady) {
 	auto& rooms = runtime->publicRooms;
@@ -63,7 +61,7 @@ void DispatchList(const Command& command, bool helperReady) {
 	rooms.loading = true;
 	rooms.error.clear();
 	// A request the helper cannot take ends at once, through the same handler.
-	internal::SendFlight({{"op", "room_list"}, {"bridge_id", command.bridgeId}, {"build", Game().state.BuildId()}}, helperReady, TakeList);
+	internal::SendFlight(internal::WithGame({{"op", "room_list"}, {"bridge_id", command.bridgeId}, {"build", Game().state.BuildId()}}), helperReady, TakeList);
 }
 
 // The one create or ticket request there is: a new one supersedes the one in
@@ -84,8 +82,8 @@ void DispatchAdmission(const Command& command, bool helperReady) {
 		return;
 	}
 	auto request = create ?
-		json{{"op", "room_create"}, {"bridge_id", command.bridgeId}, {"name", command.roomName},
-			{"capacity", command.capacity}, {"build", Game().state.BuildId()}} :
+		internal::WithGame({{"op", "room_create"}, {"bridge_id", command.bridgeId}, {"name", command.roomName},
+			{"capacity", command.capacity}, {"build", Game().state.BuildId()}}) :
 		TicketRequest(command.bridgeId, command.roomId);
 	// Only a room that asks for each player's own delay says so; the helper reads an absent key as the shared one.
 	if (create && command.ownDelay) request["own_delay"] = true;
@@ -110,6 +108,8 @@ json WithGame(json request) {
 	const std::string game = ember::Product().roomGame ? ember::Product().roomGame : "";
 	if (!game.empty() && game != "usf4") request["game"] = game;
 	return request;
+}
+
 std::uint64_t SendFlight(const json& request, bool helperReady, netplay::BridgeFlights::Handler handler) {
 	return runtime->flights.Begin(helperReady ? SendBridgeRequest(request) : 0, std::move(handler), GetTickCount64());
 }

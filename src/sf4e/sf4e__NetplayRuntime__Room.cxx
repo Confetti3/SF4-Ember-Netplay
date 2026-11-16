@@ -405,7 +405,7 @@ static DispatchOutcome Handle(commands::SavePreferences& command, bool, Attempt)
 		runtime->EditPreferences() = command.preferences;
 		Game().input.SetLayouts(runtime->preferences.buttonLayouts);
 		Game().services.UseLobbyMusic(runtime->preferences.endlessLobbyMusic);
-		Game().services.UseGameThemes(runtime->preferences.gameThemes);
+		Game().themes.Use(runtime->preferences.gameThemes);
 		runtime->displayName = command.preferences.displayName;
 		runtime->error.clear();
 	} else runtime->error = loc::T("runtime.preferences_queue_failed");

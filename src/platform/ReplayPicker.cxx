@@ -1,4 +1,5 @@
 #include "ReplayPicker.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "Utf8.hxx"
 #include "../common/Localization.hxx"
 #include "../common/ReplayImportQueue.hxx"
@@ -39,7 +40,9 @@ std::vector<std::wstring> ChooseReplayFiles(const std::wstring& title, const std
         if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog)))) {
             dialog->SetOptions(FOS_ALLOWMULTISELECT | FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST);
             dialog->SetTitle(title.c_str());
-            const COMDLG_FILTERSPEC filter[] = {{kind.c_str(), L"*.emberreplay;*.usf4replay;*.emberpack"}};
+            const std::string patterns = ember::Product().replayFiles ? ember::Product().replayFiles : "";
+            const std::wstring wide(patterns.begin(), patterns.end());  // ASCII
+            const COMDLG_FILTERSPEC filter[] = {{kind.c_str(), wide.c_str()}};
             dialog->SetFileTypes(1, filter);
             PWSTR downloads = nullptr;
             if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Downloads, KF_FLAG_DEFAULT, nullptr, &downloads))) {
