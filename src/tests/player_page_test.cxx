@@ -487,7 +487,7 @@ void TabRows() {
     shown.page = Page::Card;
     shown.card = &card;
     const auto fighters = pp::FighterRows(shown);
-    Check(fighters.size() == static_cast<std::size_t>(selection::FighterCount) && fighters.front().id == "main-12" && fighters[1].id == "main-5", "their fighters are not every fighter, the main first, then by points");
+    Check(fighters.size() == static_cast<std::size_t>(ember::Catalog().fighterCount) && fighters.front().id == "main-12" && fighters[1].id == "main-5", "their fighters are not every fighter, the main first, then by points");
     Check(fighters.front().info && fighters[2].info, "a fighter's tile does something when pressed");
     // The wall: every family but Friends, at the level their marks reach.
     const auto wall = pp::AwardRows(shown);

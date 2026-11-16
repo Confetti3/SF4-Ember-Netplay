@@ -393,7 +393,7 @@ Snapshot KingOfTheHillRoom() {
 	room.name = "King of the hill";
 	room.capacity = 16;
 	room.serverOwned = true;
-	room.arcade = sf4e::room::KingRoom;
+	room.type = sf4e::room::RoomType::King;
 	room.host = 1;
 	room.localMember = 3;
 	room.members = {MakeMember(1, "Player 1", MemberStatus::Seated, 0, 0), MakeMember(2, "Player 2", MemberStatus::Seated, 0, 1),
@@ -543,7 +543,7 @@ std::vector<Fixture> RoomFixtures() {
 	unwatch.matchGeneration = 6; unwatch.keepWatching = true;
 	add("room_action_unwatch", Json(unwatch), Reread<Action>());
 	auto roomType = MakeAction(ActionKind::SetRoomType);
-	roomType.roomType = sf4e::room::KingRoom;
+	roomType.roomType = sf4e::room::RoomType::King;
 	roomType.rules = MakeRules(SetFormat::Ft2, RotationMode::WinnerStays, true, 3, 99, true, true);
 	add("room_action_set_room_type", Json(roomType), Reread<Action>());
 	auto tables = MakeAction(ActionKind::SetTableCount);

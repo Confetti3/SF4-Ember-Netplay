@@ -172,12 +172,12 @@ void Groups() {
     auto groups = ui::player_card::Grouped(own, -1);
     Check(groups.played == std::vector<int>({4, 7, 9}), "the played group is not by points, then fighter");
     Check(groups.played.size() + groups.unplayed.size() == own.fighters.size(), "a fighter is in no group or in both");
-    const int first = selection::RosterDisplayOrder[0];
+    const int first = *ember::RosterOrder().begin();
     Check(groups.unplayed.front() == first, "the unplayed group does not start in roster order");
     // The main leads its group: a played main ahead of the higher-pointed, an unplayed one ahead of the roster's first.
     groups = ui::player_card::Grouped(own, 9);
     Check(groups.played == std::vector<int>({9, 4, 7}) && groups.unplayed.front() == first, "a played main does not lead the played group");
-    const int last = selection::RosterDisplayOrder[selection::FighterCount - 1];
+    const int last = *(ember::RosterOrder().end() - 1);
     groups = ui::player_card::Grouped(own, last);
     Check(groups.unplayed.front() == last && groups.played.size() == 3, "an unplayed main does not lead the unplayed group");
     groups = ui::player_card::Grouped(Own{}, 5);
@@ -400,7 +400,7 @@ void Record() {
     auto counters = Reached(2840, 1164, 12, 7);
     counters.fightersPlayed = 12;
     const auto own = pc::RecordCells(counters, true), theirs = pc::RecordCells(counters, false);
-    Check(own.size() == 4 && own[0].value == "2840" && own[1].key == loc::T("card.win_rate") && own[1].value == "41%" && own[2].value == "12" && own[3].value == loc::Tf("card.of", 12, selection::FighterCount),
+    Check(own.size() == 4 && own[0].value == "2840" && own[1].key == loc::T("card.win_rate") && own[1].value == "41%" && own[2].value == "12" && own[3].value == loc::Tf("card.of", 12, ember::Catalog().fighterCount),
         "the own record cells are wrong");
     Check(theirs[1].key == loc::T("card.wins") && theirs[1].value == "1164", "another's record has a win rate");
     Check(pc::RecordLine(counters) == loc::Tf("card.record_line", 2840, 1164, 12), "the Panel's record line is wrong");
