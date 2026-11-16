@@ -15,7 +15,8 @@ rows = []
 for r in csv.DictReader(open(tsv, encoding='utf-8'), delimiter='\t'):
     code, key = codes.get(r['fighter']), r['game_key'].strip()
     name, strength = r['move'].strip(), r['strength'].strip()
-    # A follow-up or a later part is not a reply; one row per input, under its first name.
+    # A row holding only a later part of a move is not a reply (a chain from neutral that types its first
+    # part is); one row per input, under its first name.
     if not code or not key or key.count('+') > 1 or universal.match(key) or 'Followup' in name or 'Part ' in name or any(c == code and k == key for c, _, _, k in rows): continue
     rows.append((code, name, 'EX' if name.startswith('EX ') else strength, key))
 # A move's rows with a strength come out weakest to strongest, EX last, in the places those rows had: no other row shifts, and
@@ -47,6 +48,9 @@ for i, (code, name, key) in enumerate(rows):
 # The game's own inputs (.bcm, as the atlas writes them) where the join finds none or a wrong one: a row with that key
 # is renamed, else added. Teleports: one wiki row, four inputs. Release moves: the dummy holds the button through the
 # stun and lets go on its first free frame; the EX Q-bomb's 210 frames of charge outlast a knockdown, so it holds first.
+# Rolento's EX Mekong Delta Attack is the flip (5PPP) and then three punches again: the .bcm lists DELTAATTACK_EX (250 meter)
+# in cancel lists 14-17 only, so the neutral fixture has no row for it. The flip's script (.bac 440) opens list 14 on frames
+# 20-42, so the second press waits 16 frames beyond the default 10 and lands near frame 26 (read from the .bac, not yet tried in game).
 TELEPORT = [(d, m, b) for d, m in (('Forward', '623'), ('Back', '421')) for b in ('PPP', 'KKK')]
 HAND = [(code, f'{move} {d} {b}', air + m + b) for code, move, air in (('GKI', 'Ashura Senku', ''), ('RYX', 'Ashura Senku', ''),
         ('DSM', 'Yoga Teleport', ''), ('DSM', 'Air Yoga Teleport', 'j.'), ('BOS', 'Yoga Teleport', ''), ('VEG', 'Bison Warp', ''))
@@ -54,7 +58,9 @@ HAND = [(code, f'{move} {d} {b}', air + m + b) for code, move, air in (('GKI', '
     ('BLK', 'Shout of Earth (Anti-Air)', '[1]318PPP'), ('BLK', 'Shout of Earth (Anti-Ground)', '[1]318KKK'),
     ('AGL', 'Burning Dance', 'j.214214KKK'), ('VEG', 'Psycho Punisher', '[4]646PPP'), ('VEG', 'Devil Reverse', '[2]8LP'),
     ('VEG', 'EX Devil Reverse', '[2]8PP'), ('GUY', 'EX Bushin Izuna Otoshi', '236PP'), ('GKX', 'Anti-Air Meido Gohado', '236236KKK'),
-    ('RLN', 'Patriot Sweeper', '236236PPP'), ('RLN', 'Back Roll LP', '214LP'), ('RLN', 'Back Roll MP', '214MP'),
+    ('RLN', 'Patriot Sweeper', '236236PPP'),
+    ('RLN', 'EX Mekong Delta Attack (Flip)', '5PPP > ~ PPP@+16'),
+    ('RLN', 'Back Roll LP', '214LP'), ('RLN', 'Back Roll MP', '214MP'),
     ('RLN', 'Back Roll HP', '214HP'), ('RLN', 'EX Back Roll', '214PP'), ('HWK', 'EX Condor Dive', 'j.KKK'),
     ('JRI', 'Fuhajin Store LK', '236LK'), ('JRI', 'Fuhajin Store MK', '236MK'), ('JRI', 'Fuhajin Store HK', '236HK'),
     ('JRI', 'Fuhajin Release LK', ']LK['), ('JRI', 'Fuhajin Release MK', ']MK['), ('JRI', 'Fuhajin Release HK', ']HK['),

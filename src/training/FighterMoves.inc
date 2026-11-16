@@ -1106,6 +1106,7 @@
     {"RLN", "Take No Prisoners", "236236KKK"},
     {"RLN", "Spike Rod MK", "j.2MK"},
     {"RLN", "Patriot Sweeper", "236236PPP"},
+    {"RLN", "EX Mekong Delta Attack (Flip)", "5PPP > ~ PPP@+16"},
     {"RLN", "Back Roll LP", "214LP"},
     {"RLN", "Back Roll MP", "214MP"},
     {"RLN", "Back Roll HP", "214HP"},
