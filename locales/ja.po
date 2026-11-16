@@ -4023,6 +4023,9 @@ msgstr "先に準備解除をしてから席を離れてください。"
 msgid "room.leave_seat.keep"
 msgstr "席に残る。"
 
+msgid "room.watching_keeps"
+msgstr "観戦を続ける。もう一方を選ぶと、観戦中の対戦が終わります。"
+
 msgid "room.leave_seat.costs_score"
 msgstr "席を離れるとセットが終了し、スコアがリセットされます（{0}）。"
 
@@ -4562,6 +4565,9 @@ msgstr "この対戦席を観戦していません。"
 
 msgid "room.reject.seat_taken"
 msgstr "その席は先に埋まりました。もう一度選んでください。"
+
+msgid "room.reject.table_changed"
+msgstr "このテーブルは変更されました。もう一度選んでください。"
 
 msgid "room.reject.invalid_rules"
 msgstr "対戦席のルールが無効です。"

@@ -122,6 +122,16 @@ void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color);
 // With no label the caller draws its own (Header's Back: a chevron and a word).
 enum class ButtonKind { Primary, Secondary, Danger };
 void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, bool focused, bool hovered, bool enabled = true);
+// A button inside a card (Kit: compact button, the kit's one size under the
+// board button): a table card's seat to take, an offer or a question's answer
+// on its line, as tall as the card gives it. Lit (what the pad's Select takes
+// now, or the chosen answer) on the hover fill in the text's ink; under a
+// pointer that has not lit it, a brighter edge; at rest the button's fill in
+// muted ink; flat while it cannot be pressed. Lit is fill and ink alone: the
+// card's focus ring is the only ring. `plus` puts a plus before the label (a
+// seat to take); the label is `size`, fitted and centred. A label cut to the button is no overflow for
+// the text probe (a card shares one narrow line among its buttons); `cut` says it was, so the card can show it whole.
+void CardButton(ImDrawList* draw, Box b, const std::string& label, float size, bool lit, bool over, bool enabled, bool plus = false, bool* cut = nullptr);
 // An icon button (Kit: buttons): a 48 px square, the least a hit box is, with the icon 22 px in its middle. `icon`
 // draws it at `at`, `size` square, in the ink the button gives it: muted at rest, the accent under the pointer or
 // focus, half as bright when disabled. A bitmap mark takes the ink's alpha. Focus's marks go over a focused one
@@ -130,8 +140,8 @@ using IconDraw = std::function<void(ImDrawList* draw, ImVec2 at, float size, ImU
 constexpr float IconButtonSize = 48;
 void IconButton(ImDrawList* draw, Box b, const IconDraw& icon, bool focused, bool hovered, bool enabled = true);
 // A bar of buttons (the room's actions) in `width`: BarLines is the fewest
-// lines over which the places, shared out evenly in order, each get the width
-// their labels `need` with `gap` between; BarPlaces lays them out in `bar`,
+// lines over which the places, in order and shared out evenly (else as many to a line as it holds),
+// each get the width their labels `need` with `gap` between; BarPlaces lays them out in `bar`,
 // each line `height` tall and the next `gap` under it. Along a line the places
 // share it evenly, a place that needs more taking that and the rest sharing
 // what is left.

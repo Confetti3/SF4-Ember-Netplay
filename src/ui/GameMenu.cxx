@@ -325,7 +325,7 @@ void GameMenu::ReadFrame(Frame& f) {
     const auto focusedEntry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
     MenuEntry presentationEntry;
     if(focusedEntry!=entries.end()) { presentationEntry=*focusedEntry; presentationEntry.enabled=feedback_.Enabled(*focusedEntry); }
-    const bool adjustable=!dialog&&focusedEntry!=entries.end()&&presentationEntry.adjustable&&presentationEntry.enabled;
+    const bool adjustable=!dialog&&focusedEntry!=entries.end()&&MenuSteps(presentationEntry)&&presentationEntry.enabled;
     const char* primary=!listEnabled?nullptr:dialog?(dialogSelect.empty()?nullptr:dialogSelect.c_str()):MenuPrimaryHint(focusedEntry==entries.end()?nullptr:&presentationEntry);
     // The on-screen keyboard's key the pad is on is its highlighted button.
     const std::string key=SpokenKey(entries);

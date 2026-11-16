@@ -134,7 +134,7 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, const MenuRow
 
 bool MenuValueIsToggle(const MenuEntry& e) { return e.adjustable && (e.value == loc::T("common.on") || e.value == loc::T("common.off")); }
 std::string MenuAdjustHint(const MenuEntry& e) {
-    if (!e.adjustable || !e.enabled || MenuValueIsToggle(e)) return {};
+    if (!MenuSteps(e) || !e.enabled || MenuValueIsToggle(e)) return {};
     return e.adjustHint.empty() ? std::string(loc::T("menu.adjust")) : e.adjustHint;
 }
 void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text) {

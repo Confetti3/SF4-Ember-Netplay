@@ -4023,6 +4023,9 @@ msgstr "Cancela Listo primero y luego deja el asiento."
 msgid "room.leave_seat.keep"
 msgstr "Mantener el asiento."
 
+msgid "room.watching_keeps"
+msgstr "Seguir viendo. La otra opción termina la partida que estás viendo."
+
 msgid "room.leave_seat.costs_score"
 msgstr "Al irte termina tu serie y el marcador se reinicia ({0})."
 
@@ -4562,6 +4565,9 @@ msgstr "No estás viendo esta mesa."
 
 msgid "room.reject.seat_taken"
 msgstr "Ese puesto se acaba de ocupar. Elige de nuevo."
+
+msgid "room.reject.table_changed"
+msgstr "Esta mesa cambió. Elige de nuevo."
 
 msgid "room.reject.invalid_rules"
 msgstr "Esas reglas de mesa no son válidas."

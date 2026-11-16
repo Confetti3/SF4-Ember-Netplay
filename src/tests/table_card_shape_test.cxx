@@ -121,26 +121,52 @@ void TestLayOutNeverOverlaps() {
                 for (std::size_t i = 0; i < count; ++i) {
                     EXPECT_MSG(Inside(at.buttons[i], at.head) && at.buttons[i].x0 >= card::Pad + in.lead - .01f,
                         "width %.0f buttons %zu want %.0f: a button left its line or stood over its lead", width, count, want);
+                    // Pressed on the line's whole height (drawn inside it).
+                    EXPECT_MSG(Near(at.buttons[i].y0, at.head.y0) && Near(at.buttons[i].y1, at.head.y1), "width %.0f: a button is not as tall as its line", width);
                     if (i) EXPECT_MSG(Apart(at.buttons[i - 1], at.buttons[i]), "width %.0f: buttons overlap", width);
                     EXPECT_MSG(Apart(at.buttons[i], at.words) && Apart(at.buttons[i], at.score), "width %.0f: a button stood over the words or the score", width);
                 }
                 if (!shape.versus) EXPECT_MSG(Apart(at.score, at.words), "width %.0f: the score stood over the words", width);
             }
-    // A quiet card has no line buttons: its seats are its offers, beside its
-    // lead and words on one line, or under them on a narrow card.
-    for (const float width : {760.f, 300.f}) {
-        const auto shape = ShapeTableCards(width, 1, false, 1);
-        TableCardInput in;
-        in.card = {0, 0, width, shape.Height({true})};
-        in.content = {true};
-        in.lead = 130; in.words = 200;
-        in.buttons = {90, 90};
-        const auto at = LayOutTableCard(shape, in);
-        EXPECT(at.buttons.empty());
-        EXPECT(Apart(at.seats[0], at.seats[1]) && Apart(at.words, at.seats[0]) && Apart(at.head, at.seats[0]));
-        EXPECT(at.seats[0].x1 - at.seats[0].x0 >= (shape.quietLine ? card::OfferLeast : 0) - .01f);
-        EXPECT(Inside(at.seats[1], {0, 0, width, in.card.y1}));
-    }
+    // A quiet card's seats are its offers, beside its lead and words on one
+    // line, or under them on a narrow card; words that want more than the line
+    // has give way before either seat goes under its least.
+    for (const float width : {760.f, 300.f})
+        for (const float words : {200.f, 600.f}) {
+            const auto shape = ShapeTableCards(width, 1, false, 1);
+            TableCardInput in;
+            in.card = {0, 0, width, shape.Height({true})};
+            in.content = {true};
+            in.lead = 130; in.words = words;
+            const auto at = LayOutTableCard(shape, in);
+            EXPECT(at.buttons.empty());
+            EXPECT(Apart(at.seats[0], at.seats[1]) && Apart(at.words, at.seats[0]) && Apart(at.head, at.seats[0]));
+            EXPECT_MSG(at.seats[0].x1 - at.seats[0].x0 >= (shape.quietLine ? card::OfferLeast : 0) - .01f &&
+                at.seats[1].x1 - at.seats[1].x0 >= (shape.quietLine ? card::OfferLeast : 0) - .01f, "width %.0f words %.0f: a seat under its least", width, words);
+            EXPECT(Inside(at.seats[1], {0, 0, width, in.card.y1}));
+        }
+    // A question on a quiet card (a watcher's seat that would end the view):
+    // two or three answers share the seats' span, apart, inside the card and
+    // clear of its words, the seats standing aside; on one line and on two.
+    for (const float width : {760.f, 300.f})
+        for (const std::size_t count : {std::size_t{2}, std::size_t{3}}) {
+            const auto shape = ShapeTableCards(width, 1, false, 1);
+            TableCardInput in;
+            in.card = {0, 0, width, shape.Height({true})};
+            in.content = {true};
+            in.lead = 130; in.words = 60;
+            const auto seated = LayOutTableCard(shape, in);
+            in.buttons.assign(count, 90);
+            const auto at = LayOutTableCard(shape, in);
+            EXPECT_MSG(at.buttons.size() == count, "width %.0f answers %zu: answers lost", width, count);
+            for (std::size_t i = 0; i < count; ++i) {
+                EXPECT_MSG(Inside(at.buttons[i], {seated.seats[0].x0, seated.seats[0].y0, seated.seats[1].x1, seated.seats[1].y1}) &&
+                    Apart(at.buttons[i], at.words) && Inside(at.buttons[i], {card::Pad, 0, width - card::Pad, in.card.y1}),
+                    "width %.0f answers %zu: an answer left the seats' span or stood over the words", width, count);
+                if (i) EXPECT_MSG(Apart(at.buttons[i - 1], at.buttons[i]), "width %.0f answers %zu: answers overlap", width, count);
+            }
+            EXPECT(Near(at.seats[0].x1, at.seats[0].x0) && Near(at.seats[1].x1, at.seats[1].x0));
+        }
 }
 }
 

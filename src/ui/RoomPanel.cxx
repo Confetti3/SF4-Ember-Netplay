@@ -122,7 +122,7 @@ ReadyControl OwnSeatRow(MenuEntry& row,const ShellView& v,const room::Table& tab
  row.hint=control.label;row.info=control.kind==ReadyControl::None;
  if(const auto cost=room::CostOfLeavingSeat(table);asked&&cost)row.choices={
   {"stay",loc::T("common.cancel"),loc::T("room.leave_seat.keep")},
-  {"leave-seat",loc::T("room.leave_seat"),LeavingCostText(cost,table)}};
+  {TableAsk::LeaveSeat,loc::T("room.leave_seat"),LeavingCostText(cost,table)}};
  return control;
 }
 // An Arcade room's floor: its sixteen cabinets. Select on a free one sits
@@ -174,10 +174,11 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
 // is offered the table's open seats, else its queue, and watching it
 // (SeatChoices), as places on the card the navigation lights in turn: A sends
 // the lit one (RoomAction), one that would end the game this PC watches asked
-// about first on the card (offer `viewAsk` of table `viewAskTable`). On your
-// own seat A readies; on the table you queue at, A opens its options. Each
-// row's detail ends with the rules its table plays by, which speech reads.
-void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,const MenuNavigation& nav,int leaveAsk,int viewAskTable,const std::string& viewAsk){
+// about first on the card (`ask`) while it still would. On your own seat A
+// readies, leaving it asked about the same way; on the table you queue at, A
+// opens its options. Each row's detail ends with the rules its table plays
+// by, which speech reads.
+void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,const MenuNavigation& nav,const TableAsk& ask){
  using room::Place;
  const auto& s=v.room;
  const auto mine=room::PlaceOf(s,s.localMember);
@@ -197,14 +198,15 @@ void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,const MenuNav
    const auto lit=std::find_if(offers.begin(),offers.end(),[&](const MenuChoice& o){return o.id==nav.Lit(row.id);});
    if(lit==offers.end())row.hint=loc::T("menu.choose");
    else{row.value=lit->label;if(lit->enabled)row.hint=lit->label;}
-   row.adjustable=true;row.adjustHint=loc::T("menu.choose");
-   if(viewAskTable==static_cast<int>(table.id))
-    if(const auto asked=std::find_if(offers.begin(),offers.end(),[&](const MenuChoice& o){return o.id==viewAsk;});asked!=offers.end())
-     row.choices={{"stay",loc::T("common.cancel"),{}},*asked};
+   row.adjustHint=loc::T("menu.choose");
+   if(ask.table==static_cast<int>(table.id))
+    if(const auto asked=std::find_if(offers.begin(),offers.end(),[&](const MenuChoice& o){return o.id==ask.offer;});
+     asked!=offers.end()&&EndsWatchedView(v,FindSeatOption(asked->id)->kind))
+     row.choices={{"stay",loc::T("common.cancel"),loc::T("room.watching_keeps")},*asked};
    row.segments=std::move(offers);row.segmentKind=SegmentKind::Places;
   }
   else if(mine.kind==Place::Kind::Seat&&ownTable){
-   const auto control=OwnSeatRow(row,v,table,mine.seat,leaveAsk==static_cast<int>(table.id));
+   const auto control=OwnSeatRow(row,v,table,mine.seat,ask.Leaving()==static_cast<int>(table.id));
    // During a held start the card says what it waits for, and that B,
    // Cancel the start, calls it off.
    if(table.spectatorHold&&control.kind==ReadyControl::Unready)row.detail=control.detail;
@@ -318,7 +320,7 @@ struct ApplicationShell::RoomScreenRows {
 std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  using namespace room;
  auto& nav=menu_.navigation; const auto& s=v.room;
- if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;chat_[0]=0;selectedTable_=0;rulesDirty_=false;leaveAsk_=-1;leaveAsked_=false;
+ if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;chat_[0]=0;selectedTable_=0;rulesDirty_=false;tableAsk_={};
   std::snprintf(roomName_,sizeof(roomName_),"%s",s.name.c_str());roomCapacity_=s.capacity;roomTableCount_=static_cast<int>(TablesInPlay(s));
   if(const auto* local=Member(s,s.localMember))if(local->table>=0&&local->table<static_cast<int>(s.tables.size()))selectedTable_=local->table;
  }
@@ -337,7 +339,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  const auto& t=s.tables[selectedTable_];
  const auto screen=nav.Screen();
  // A question about leaving a seat belongs to the board it was asked on.
- if(screen!="room"){leaveAsk_=-1;leaveAsked_=false;}
+ if(screen!="room")tableAsk_={};
  // A new game at the same table closes a dialog about the last one; moving to
  // another table (a click opens its question a frame before this catches up)
  // does not. Text being typed is not about a game, and only the board and the
@@ -412,7 +414,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // The board's rows in the order it draws them: the floor, the Members
  // panel, the Chat panel, the picture's Hide, then the action bar (Room.dc.html).
  if(s.roomEpoch){
-  if(room::RulesOf(s).cabinets)CabinetRows(rows,v,c.mutableRoom,leaveAsk_);else TableCardRows(rows,v,nav,leaveAsk_,viewAsk_.table,viewAsk_.offer);
+  if(room::RulesOf(s).cabinets)CabinetRows(rows,v,c.mutableRoom,tableAsk_.Leaving());else TableCardRows(rows,v,nav,tableAsk_);
   MembersPanelRows(rows,s,preferences_.roomShowMembers,v.CanEditRoomSettings());
   ChatPanelRows(rows,transcript_.Unread(muted_),preferences_.roomShowChat,v.CanEditRoomSettings());
  }else rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
@@ -513,15 +515,13 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  rows.push_back(ConfirmRow("leave",loc::T(v.session.room==netplay::RoomState::Closing?"room.leaving":"room.leave"),
   LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
  // The questions the board asks of its own rows, once they are all there.
- // A table card's offer that would end the watched game asks on the card.
- if(s.roomEpoch&&viewAsk_.table>=0){
-  if(!viewAsk_.asked){if(nav.Ask("table-"+std::to_string(viewAsk_.table),rows))viewAsk_.asked=true;else viewAsk_={};}
-  else if(!nav.Choosing())viewAsk_={};
- }
- if(s.roomEpoch&&leaveAsk_>=0){
-  const auto asked=room::RulesOf(s).cabinets?"cabinet-"+std::to_string(room::CabinetOf(s,s.localMember)):"table-"+std::to_string(leaveAsk_);
-  if(!leaveAsked_){if(nav.Ask(asked,rows))leaveAsked_=true;else leaveAsk_=-1;}
-  else if(!nav.Choosing()){leaveAsk_=-1;leaveAsked_=false;}
+ // A table card's question (TableAsk) opens on its card, or on the cabinet
+ // an Arcade player leaves; answered, cancelled, or no longer offered by the
+ // row (the watched game ended), it is dropped.
+ if(s.roomEpoch&&tableAsk_.table>=0){
+  const auto asked=tableAsk_.Leaving()>=0&&room::RulesOf(s).cabinets?"cabinet-"+std::to_string(room::CabinetOf(s,s.localMember)):"table-"+std::to_string(tableAsk_.table);
+  if(!tableAsk_.asked){if(nav.Ask(asked,rows))tableAsk_.asked=true;else tableAsk_={};}
+  else if(!nav.Choosing())tableAsk_={};
  }
  if(moreAsk_){moreAsk_=false;nav.Ask("room-more",rows);}
  SettleRoomBoard(v,rows,nav);

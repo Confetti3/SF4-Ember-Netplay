@@ -154,8 +154,10 @@ void DrawFocusedLine(const RoomBoardFrame& f,float size) {
 // The tables' heading: TABLES, then at its right the rules every table plays
 // by (the room's own and the first table's) and how many play and watch,
 // saying nothing of a count that is none. The counts give way first; rules
-// that do not fit beside the heading alone take a line of their own under it,
-// cut there only if even that is too short. Returns the heading's height.
+// that do not fit beside the heading alone take a paragraph of their own
+// under it, at the board's small size, wrapping rather than cut. Returns the
+// height the heading takes with the space under it: a paragraph takes its
+// room from that space, so a table fits under it as under one line.
 float DrawTablesHeading(ImDrawList* d,const ShellView& v,const v2::Box& tables,float s) {
  const auto& c=v2::Colors();
  std::size_t playing=0,watching=0;
@@ -172,9 +174,11 @@ float DrawTablesHeading(ImDrawList* d,const ShellView& v,const v2::Box& tables,f
  const float besideWidth=(std::min)(room,widthOf(beside));
  if(besideWidth>0)v2::Text(d,ImVec2(tables.max.x-besideWidth,tables.min.y),besideWidth,beside,15*s,c.muted);
  d->AddLine(ImVec2(tables.min.x+headingWidth+12*s,tables.min.y+9*s),ImVec2(tables.max.x-(besideWidth>0?besideWidth+12*s:0),tables.min.y+9*s),c.border,s);
- if(!ownLine)return 20*s;
- v2::Text(d,ImVec2(tables.min.x,tables.min.y+24*s),tables.W(),rules,(std::max)(12*s,(std::min)(15*s,15*s*tables.W()/widthOf(rules))),c.muted);
- return 44*s;
+ if(!ownLine)return 32*s;
+ const ImVec2 at(tables.min.x,tables.min.y+24*s);
+ const float height=v2::Paragraph(d,at,tables.W(),rules,13*s,c.muted);
+ ReportMenuCard("tables-rules",at,ImVec2(at.x+tables.W(),at.y+height));
+ return 30*s+height;
 }
 }
 
@@ -247,7 +251,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  if(columnPicture_){f.Panel(d,picture);const v2::Box in=v2::Inset(picture,12*s,12*s);showPicture(in.min,in.max);}
  if(!narrow||part==0){
   // The tables, under their heading.
-  v2::CutTop(tables,DrawTablesHeading(d,v,tables,s),12*s);
+  v2::CutTop(tables,DrawTablesHeading(d,v,tables,s),0);
   // The room's actions along the bottom, then the focused row's line over them.
   const RoomActionBar bar(f);
   const int gridColumns=ultra||logical>=1640?3:narrow&&tables.W()<640*s?1:2;

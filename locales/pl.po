@@ -4023,6 +4023,9 @@ msgstr "Najpierw cofnij gotowość, potem opuść miejsce."
 msgid "room.leave_seat.keep"
 msgstr "Zostań na miejscu."
 
+msgid "room.watching_keeps"
+msgstr "Oglądaj dalej. Druga opcja kończy grę, którą oglądasz."
+
 msgid "room.leave_seat.costs_score"
 msgstr "Wyjście kończy serię i zeruje wynik ({0})."
 
@@ -4562,6 +4565,9 @@ msgstr "Nie oglądasz tego stołu."
 
 msgid "room.reject.seat_taken"
 msgstr "To miejsce zostało właśnie zajęte. Wybierz ponownie."
+
+msgid "room.reject.table_changed"
+msgstr "Ten stół się zmienił. Wybierz ponownie."
 
 msgid "room.reject.invalid_rules"
 msgstr "Zasady tego stołu są nieprawidłowe."

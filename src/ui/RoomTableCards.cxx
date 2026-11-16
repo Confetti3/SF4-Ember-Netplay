@@ -24,16 +24,6 @@ int SeatOf(const MenuChoice& offer) {
  return option?option->seat:-1;
 }
 
-// A quiet card's question: its answers share the two seats' span, the seats stand aside.
-void AnswerInSeats(TableCardLayout& at,std::size_t count,float s) {
- if(!count)return;
- const MenuRect span{at.seats[0].x0,at.seats[0].y0,at.seats[1].x1,at.seats[1].y1};
- const float gap=table_card::Between*s,each=(span.x1-span.x0-(count-1)*gap)/count;
- at.buttons.assign(count,span);
- for(std::size_t i=0;i<count;++i){at.buttons[i].x0=span.x0+i*(each+gap);at.buttons[i].x1=at.buttons[i].x0+each;}
- at.seats[0]=at.seats[1]={span.x1,span.y0,span.x1,span.y1};
-}
-
 // The buttons on a card's line: its offers that are not seats (Join queue,
 // Watch); on your own place what leaves it; while the card asks a question
 // (leaving a seat, ending the watched game), the question's answers.
@@ -134,28 +124,6 @@ void TakePointer(const RoomBoardFrame& f,const MenuEntry& e,const CardPointer& p
  }
 }
 
-// A button a card draws: lit (what the pad's Select takes, or a question's
-// chosen answer) on the hover fill in the text's ink; under a pointer that
-// has not lit it, the button's fill with a brighter edge; at rest the
-// button's fill in muted ink; flat while it cannot be pressed. Lit is told by
-// fill and ink alone: the card's ring is the focus's only one. With `plus`, a
-// plus before the label (an open seat).
-void DrawCardButton(const RoomBoardFrame& f,ImDrawList* d,const v2::Box& b,const MenuChoice& choice,bool lit,bool over,bool plus,float size,std::string& elided) {
- const float s=f.s;const auto& c=v2::Colors();
- const bool live=choice.enabled;
- const ImU32 fill=!live?c.frame:lit?c.hover:c.button,edge=!live?c.border:v2::color::Alpha(c.accent,over&&!lit?.8f:.35f);
- const ImU32 ink=live&&(lit||over)?c.text:c.muted;
- f.Ground(d,b,fill,edge);
- const float mark=plus?18*s:0,room=b.W()-16*s-mark;
- const float w=(std::min)(room,ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,choice.label.c_str()).x);
- const float x=b.min.x+(b.W()-w-mark)*.5f,mid=(b.min.y+b.max.y)*.5f;
- if(plus){
-  const float arm=5*s,cx=x+arm;
-  d->AddLine(ImVec2(cx-arm,mid),ImVec2(cx+arm,mid),ink,2*s);d->AddLine(ImVec2(cx,mid-arm),ImVec2(cx,mid+arm),ink,2*s);
- }
- DrawCardText(elided,ImVec2(x+mark,mid-size*.5f),w,choice.label,size,ink);
-}
-
 // A taken seat in `box`: the fighter's picture, as tall as the box, at its
 // outer end (the right one for a versus card's second seat), and in the rest
 // the player's tag over their fighter, costume and Ultra, with Ready on its
@@ -244,13 +212,20 @@ void DrawCard(const RoomBoardFrame& f,ImDrawList* d,const TableFloor& floor,cons
    continue;
   }
   const int index=static_cast<int>(offered-seats.begin());
-  DrawCardButton(f,d,seat,*offered->first,offered->first->id==lit,pointer.seatOver==index,true,15*s,elided);
+  bool cut=false;
+  v2::CardButton(d,seat,offered->first->label,15*s,offered->first->id==lit,pointer.seatOver==index,offered->first->enabled,true,&cut);
+  if(cut)elided+=(elided.empty()?"":"\n")+offered->first->label;
  }
  for(std::size_t i=0;i<buttons.choices.size();++i){
   const auto& r=at.buttons[i];
   if(r.x1<=r.x0)continue;
   const bool chosen=buttons.kind==CardButtons::Kind::Question?i==f.nav.ChoiceIndex():buttons.kind==CardButtons::Kind::Offers&&buttons.choices[i].id==lit;
-  DrawCardButton(f,d,box(r),buttons.choices[i],chosen,pointer.buttonOver==static_cast<int>(i),false,13*s,elided);
+  // Pressed on the line's whole height, drawn inside it; a quiet card's answers fill their own place.
+  const float inset=card.content.quiet?0:table_card::HeadInset*s;
+  bool cut=false;
+  v2::CardButton(d,v2::Box{ImVec2(r.x0,r.y0+inset),ImVec2(r.x1,r.y1-inset)},buttons.choices[i].label,13*s,chosen,
+   pointer.buttonOver==static_cast<int>(i),buttons.choices[i].enabled,false,&cut);
+  if(cut)elided+=(elided.empty()?"":"\n")+buttons.choices[i].label;
  }
  if(at.banner.y1>at.banner.y0)DrawCardText(elided,ImVec2(at.banner.x0,(at.banner.y0+at.banner.y1-13*s)*.5f),at.banner.x1-at.banner.x0,card.banner.text,13*s,
   ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
@@ -329,9 +304,7 @@ void DrawTableCards(const RoomBoardFrame& f,const v2::Box& tables,const TableFlo
   const v2::Box b{at,ImVec2(at.x+cardWidth,at.y+floor.places.heights[n])};
   const auto buttons=CardButtonsOf(f,card,place);
   const auto words=CardWordsOf(f,card,buttons,b);
-  auto layout=LayOutTableCard(floor.shape,words.input);
-  // A quiet card has no line for buttons: a question on it (a watcher's seat that would end the view) is answered where its seats stand.
-  if(words.input.content.quiet&&buttons.kind==CardButtons::Kind::Question)AnswerInSeats(layout,buttons.choices.size(),f.s);
+  const auto layout=LayOutTableCard(floor.shape,words.input);
   // The offers that are seats, each in its seat's box.
   std::vector<std::pair<const MenuChoice*,v2::Box>> seats;
   for(const auto& offer:e.segments)

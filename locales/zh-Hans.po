@@ -4025,6 +4025,9 @@ msgstr "请先取消准备，再离开席位。"
 msgid "room.leave_seat.keep"
 msgstr "保留席位"
 
+msgid "room.watching_keeps"
+msgstr "继续观战。另一个选择会结束你正在观战的对局。"
+
 msgid "room.leave_seat.costs_score"
 msgstr "离开将结束本组对战并重置比分（{0}）。"
 
@@ -4564,6 +4567,9 @@ msgstr "您未观看此对战席。"
 
 msgid "room.reject.seat_taken"
 msgstr "该席位刚被占用。请重新选择。"
+
+msgid "room.reject.table_changed"
+msgstr "该对战台已变化。请重新选择。"
 
 msgid "room.reject.invalid_rules"
 msgstr "对战席规则无效。"

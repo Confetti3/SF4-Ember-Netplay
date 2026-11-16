@@ -392,6 +392,24 @@ void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color) {
     const ImVec2 points[] = {{at.x, at.y - size}, {at.x + size * .6f, at.y}, {at.x, at.y + size}};
     draw->AddPolyline(points, 3, color, 0, 2 * Scale());
 }
+void CardButton(ImDrawList* draw, Box b, const std::string& label, float size, bool lit, bool over, bool enabled, bool plus, bool* cut) {
+    const float s = Scale();
+    const auto& c = Colors();
+    const ImU32 fill = !enabled ? c.frame : lit ? c.hover : c.button, edge = !enabled ? c.border : color::Alpha(c.accent, over && !lit ? .8f : .35f);
+    const ImU32 ink = enabled && (lit || over) ? c.text : c.muted;
+    draw->AddRectFilled(b.min, b.max, fill, 4 * s);
+    draw->AddRect(b.min, b.max, edge, 4 * s, 0, Hairline());
+    const float mark = plus ? 18 * s : 0;
+    const std::string shown = Fit(label, (std::max)(0.f, b.W() - 16 * s - mark), size, ImGui::GetFont(), false);
+    if (cut) *cut = shown != label;
+    const float w = TextWidth(shown, size), x = b.min.x + (b.W() - w - mark) * .5f, mid = (b.min.y + b.max.y) * .5f;
+    if (plus) {
+        const float arm = 5 * s, cx = x + arm;
+        draw->AddLine(ImVec2(cx - arm, mid), ImVec2(cx + arm, mid), ink, 2 * s);
+        draw->AddLine(ImVec2(cx, mid - arm), ImVec2(cx, mid + arm), ink, 2 * s);
+    }
+    draw->AddText(ImGui::GetFont(), size, ImVec2(x + mark, mid - size * .5f), ink, shown.c_str());
+}
 void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, bool focused, bool hovered, bool enabled) {
     const float s = Scale(), size = 17 * s;
     const auto& c = Colors();
@@ -415,30 +433,49 @@ void IconButton(ImDrawList* draw, Box b, const IconDraw& icon, bool focused, boo
     if (focused) Focus(draw, b.min, b.max, false);
 }
 namespace {
-// The places on line `line` of `lines`: the first and how many, shared out evenly in order.
-std::pair<std::size_t, std::size_t> BarLine(std::size_t places, int lines, int line) {
-    const std::size_t per = places / lines, extra = places % lines, at = static_cast<std::size_t>(line);
-    return {at * per + (std::min)(at, extra), per + (at < extra)};
+using BarSplit = std::vector<std::pair<std::size_t, std::size_t>>;
+bool BarFits(const BarSplit& split, const std::vector<float>& need, float width, float gap) {
+    for (const auto& [first, count] : split) {
+        float used = count ? (count - 1) * gap : 0;
+        for (std::size_t i = first; i < first + count; ++i) used += need[i];
+        if (used > width) return false;
+    }
+    return true;
+}
+// The places on each of `lines` lines, in order: shared out evenly; where that does not fit, as many to a line as
+// it holds. Empty when neither fits.
+BarSplit BarLinesOf(const std::vector<float>& need, float width, float gap, int lines) {
+    const std::size_t places = need.size(), per = places / lines, extra = places % lines;
+    BarSplit even;
+    for (std::size_t at = 0; at < static_cast<std::size_t>(lines); ++at) even.push_back({at * per + (std::min)(at, extra), per + (at < extra)});
+    if (BarFits(even, need, width, gap)) return even;
+    BarSplit packed;
+    std::size_t first = 0;
+    while (first < places && packed.size() < static_cast<std::size_t>(lines)) {
+        std::size_t count = 1;
+        float used = need[first];
+        while (first + count < places && used + gap + need[first + count] <= width) { used += gap + need[first + count]; ++count; }
+        packed.push_back({first, count});
+        first += count;
+    }
+    return first == places && BarFits(packed, need, width, gap) ? packed : BarSplit();
 }
 }
 int BarLines(float width, const std::vector<float>& need, float gap) {
     const int places = static_cast<int>(need.size());
-    for (int lines = 1; lines < places; ++lines) {
-        bool fits = true;
-        for (int line = 0; line < lines && fits; ++line) {
-            const auto [first, count] = BarLine(need.size(), lines, line);
-            float used = (count - 1) * gap;
-            for (std::size_t i = first; i < first + count; ++i) used += need[i];
-            fits = used <= width;
-        }
-        if (fits) return lines;
-    }
+    for (int lines = 1; lines < places; ++lines)
+        if (!BarLinesOf(need, width, gap, lines).empty()) return lines;
     return (std::max)(1, places);
 }
 std::vector<Box> BarPlaces(Box bar, const std::vector<float>& need, float gap, int lines, float height) {
     std::vector<Box> places(need.size());
+    auto split = BarLinesOf(need, bar.W(), gap, lines);
+    if (split.empty()) {
+        const std::size_t per = need.size() / lines, extra = need.size() % lines;
+        for (std::size_t at = 0; at < static_cast<std::size_t>(lines); ++at) split.push_back({at * per + (std::min)(at, extra), per + (at < extra)});
+    }
     for (int line = 0; line < lines; ++line) {
-        const auto [first, count] = BarLine(need.size(), lines, line);
+        const auto [first, count] = split[static_cast<std::size_t>(line)];
         if (!count) continue;
         // The even share, raised past what the places that need more take.
         std::vector<float> wants(need.begin() + first, need.begin() + first + count);

@@ -4023,6 +4023,9 @@ msgstr "Kies eerst Niet klaar en verlaat dan je plek."
 msgid "room.leave_seat.keep"
 msgstr "Plek behouden."
 
+msgid "room.watching_keeps"
+msgstr "Blijf kijken. De andere keuze beëindigt het spel waar je naar kijkt."
+
 msgid "room.leave_seat.costs_score"
 msgstr "Als je vertrekt eindigt je reeks en wordt de stand gereset ({0})."
 
@@ -4562,6 +4565,9 @@ msgstr "Je kijkt niet mee aan deze tafel."
 
 msgid "room.reject.seat_taken"
 msgstr "Die plek is net bezet. Kies opnieuw."
+
+msgid "room.reject.table_changed"
+msgstr "Deze tafel is veranderd. Kies opnieuw."
 
 msgid "room.reject.invalid_rules"
 msgstr "Deze tafelregels zijn ongeldig."

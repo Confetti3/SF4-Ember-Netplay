@@ -4023,6 +4023,9 @@ msgstr "Nejdřív zrušte připravenost, pak opusťte místo."
 msgid "room.leave_seat.keep"
 msgstr "Ponechat si místo."
 
+msgid "room.watching_keeps"
+msgstr "Dál sledovat. Druhá volba ukončí hru, kterou sledujete."
+
 msgid "room.leave_seat.costs_score"
 msgstr "Odchodem skončí vaše série a skóre se vynuluje ({0})."
 
@@ -4562,6 +4565,9 @@ msgstr "Tento stůl nesledujete."
 
 msgid "room.reject.seat_taken"
 msgstr "Toto místo bylo právě obsazeno. Vyberte znovu."
+
+msgid "room.reject.table_changed"
+msgstr "Tento stůl se změnil. Vyberte znovu."
 
 msgid "room.reject.invalid_rules"
 msgstr "Pravidla stolu jsou neplatná."
