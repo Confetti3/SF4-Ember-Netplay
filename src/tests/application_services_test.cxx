@@ -50,7 +50,7 @@ int main() {
         CHECK(!service.Request(ServiceAction::ReportCrash));
         {
             // Ember's links: Discord, Ko-fi, the website and Twitter, in that order, each a plain https address with no
-            // tracking parameters and with its words in the catalog; only a link of the table opens.
+            // tracking parameters and with its words in the catalog.
             const char* const order[] = {"discord", "kofi", "website", "twitter"};
             CHECK(Links.size() == 4);
             for (std::size_t i = 0; i < Links.size(); ++i) {
@@ -66,8 +66,9 @@ int main() {
             CHECK(std::string(Links[1].address) == "ko-fi.com/confetti3" && std::string(Links[2].address) == "embernetplay.link" &&
                 std::string(Links[3].address) == "x.com/kabiefox");
             CHECK(FindLink("") == nullptr && FindLink("discord ") == nullptr && FindLink("https://discord.gg") == nullptr);
-            CHECK(!service.Request(ServiceAction::OpenLink) && !service.Request(ServiceAction::OpenLink, {}, L"missing") && !service.Request(ServiceAction::OpenLink, {}, L"https://x.com/kabiefox"));
-            CHECK(service.Snapshot().lastAction == ServiceAction::None && service.Snapshot().lastLink.empty());
+            // A link opens only through OpenLink with a link of the table; a request by name or address is refused.
+            CHECK(!service.Request(ServiceAction::OpenLink) && !service.Request(ServiceAction::OpenLink, {}, L"discord") && !service.Request(ServiceAction::OpenLink, {}, L"https://x.com/kabiefox"));
+            CHECK(service.Snapshot().lastAction == ServiceAction::None && service.Snapshot().lastLink == nullptr);
             // The three messages are shared: the address is the only part that names the link.
             CHECK(sf4e::loc::Tf("services.opening_link", "x.com/kabiefox") == "Opening x.com/kabiefox in your browser...");
             CHECK(sf4e::loc::Tf("services.link_failed", "x.com/kabiefox") == "Could not open a browser. Visit x.com/kabiefox.");

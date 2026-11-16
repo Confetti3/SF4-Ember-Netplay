@@ -5,7 +5,6 @@
 // in a panel on its card. GameMenu::ReadFrame (GameMenu.cxx) reads the input
 // first; the dialogs come last (Finish).
 #include "GameMenu.hxx"
-#include "LineIcons.hxx"
 #include "MenuGlyphs.hxx"
 #include "MenuPresentation.hxx"
 #include "V2.hxx"
@@ -47,18 +46,6 @@ void Brand(ImDrawList* d, ImVec2 p, float mark) {
     const float x = p.x + v2::BrandMark(d, p, mark) + 16 * s;
     d->AddText(HeadingFont(), size, ImVec2(x, p.y + (mark - size - 18 * s) * .5f), v2::Colors().text, "EMBER");
     d->AddText(HeadingFont(), 13 * s, ImVec2(x + 2 * s, p.y + (mark + size - 18 * s) * .5f + 4 * s), v2::Colors().accent, loc::T("brand.subtitle"));
-}
-// Whether Home's list and its pane stand side by side, in a content `width` wide. The pane holds the player's card,
-// and the links stand over the card, so they are drawn and among the entries only where it is shown.
-bool SideBySide(bool narrow, float width, float s) { return !narrow && width >= 820 * s; }
-// The line icon a link's mark is drawn with; the Ember mark is the brand's own and has none.
-LineIcon LinkIcon(platform::LinkMark mark) {
-    switch (mark) {
-    case platform::LinkMark::Discord: return LineIcon::Discord;
-    case platform::LinkMark::Coffee: return LineIcon::Coffee;
-    case platform::LinkMark::Twitter: return LineIcon::Twitter;
-    default: return LineIcon::World;
-    }
 }
 // A card's two portraits (a match's), as tall as its first line's box.
 float CardFace(const MenuEntry& e, float height) { return e.Match() ? height - 12 * Scale() : 0; }
@@ -287,18 +274,8 @@ BoardRowHit GameMenu::DrawBoardRow(const std::vector<MenuEntry>& rows, const Men
     return {row, hit};
 }
 
-MenuAction GameMenu::Draw(const char* title, const std::vector<MenuEntry>& rows, const char* status, const Detail& detail, int columns,
+MenuAction GameMenu::Draw(const char* title, const std::vector<MenuEntry>& entries, const char* status, const Detail& detail, int columns,
     const Card& card, const Body& body, bool flyout, float cardHeight, Tone statusTone, bool home) {
-    // Home's links are drawn, and so are among the entries, only where the card they stand over is shown
-    // (SideBySide, as DrawCards decides it): a row that is not drawn is not placed.
-    const float width = ImGui::GetWindowSize().x;
-    const bool linked = home && !flyout && !headerLinks.empty() && SideBySide(v2::Narrow(width, Scale()), width - 2 * v2::SideMargin(width, Scale()), Scale());
-    std::vector<MenuEntry> withLinks;
-    if (linked) {
-        withLinks = rows;
-        for (const auto& link : headerLinks) withLinks.push_back(link.row);
-    }
-    const std::vector<MenuEntry>& entries = linked ? withLinks : rows;
     Frame f{title, entries, status, detail, (std::max)(1, columns), card, body, flyout, cardHeight, statusTone, home};
     ReadFrame(f);
     const float s = Scale();
@@ -320,12 +297,14 @@ MenuAction GameMenu::Draw(const char* title, const std::vector<MenuEntry>& rows,
     v2::Box screen{win, ImVec2(win.x + size.x, win.y + size.y)};
     const v2::Box hintBar = v2::CutBottom(screen, v2::HintBarHeight(narrow || flyout, s), v2::HintBarGap(flyout, s));
     v2::Box content{ImVec2(screen.min.x + side, screen.min.y + pad), ImVec2(screen.max.x - side, screen.max.y)};
+    // The list and its pane stand side by side (Home's card, a screen's detail): worked out once, here.
+    f.split = v2::SideBySide(size.x, side, s);
     DrawHeader(f, content, narrow);
     if (body && !navigation.Reading()) DrawBody(f, content);
     else if (navigation.Reading()) {
         ImGui::SetCursorScreenPos(content.min);
         DrawReader(entries, detail, content.H(), f.held);
-    } else DrawCards(f, content, narrow);
+    } else DrawCards(f, content);
     if (f.action.kind == MenuAction::Back) { f.backRequested = true; f.action = {}; }
     // The right mouse button is Back, as B and Escape: it closes an open value
     // panel or question first, and answers a focused toast as B does.
@@ -380,29 +359,30 @@ void GameMenu::DrawHeader(Frame& f, v2::Box& content, bool narrow) {
 }
 
 void GameMenu::DrawHeaderLinks(Frame& f, v2::Box band) {
-    const float s = Scale(), box = 36 * s, icon = 22 * s, gap = 8 * s;
-    const auto& c = v2::Colors();
+    // The links whose rows are among the entries, the first leftmost; the row ends at the band's right edge.
+    std::vector<std::pair<const HeaderLink*, const MenuEntry*>> shown;
+    for (const auto& link : headerLinks) if (const MenuEntry* row = FocusedIn(f.entries, link.id)) shown.emplace_back(&link, row);
+    if (shown.empty()) return;
+    const float s = Scale(), box = v2::IconButtonSize * s, gap = 8 * s;
     auto* d = ImGui::GetWindowDrawList();
-    // The first link is the leftmost; the row ends at the band's right edge.
-    float x = band.max.x - (box + gap) * static_cast<float>(headerLinks.size()) + gap;
-    const float top = band.min.y + (band.H() - box) * .5f;
+    const float width = (box + gap) * static_cast<float>(shown.size()) - gap, left = band.max.x - width, top = band.min.y + (band.H() - box) * .5f;
     const bool inert = !listEnabled || (f.modalAtStart && !f.choosingAtStart) || navigation.Editing() || navigation.Confirming();
+    const MenuEntry* hovered = nullptr;
     ImGui::BeginDisabled(inert);
-    for (const auto& link : headerLinks) {
-        const MenuEntry* row = FocusedIn(f.entries, link.row.id);
+    for (std::size_t i = 0; i < shown.size(); ++i) {
+        const MenuEntry& row = *shown[i].second;
+        const float x = left + (box + gap) * static_cast<float>(i);
         const v2::Box at{ImVec2(x, top), ImVec2(x + box, top + box)};
-        x = at.max.x + gap;
-        if (!row) continue;
-        ReportMenuCard(row->id.c_str(), at.min, at.max);
-        const bool hovered = PressEntry(navigation, f.entries, *row, at, f.action).hovered, focused = row->id == navigation.Focus();
-        const ImVec2 corner(at.min.x + (box - icon) * .5f, at.min.y + (box - icon) * .5f);
-        if (link.mark == platform::LinkMark::Ember) v2::BrandMark(d, corner, icon);
-        else DrawLineIcon(d, LinkIcon(link.mark), corner, icon, focused || hovered ? c.accent : c.muted);
-        if (focused) v2::Focus(d, at.min, at.max, false);
-        // The icon has no words of its own: its name is the tip, for the pointer and for the focus alike.
-        if (hovered || focused) ImGui::SetTooltip("%s", row->label.c_str());
+        ReportMenuCard(row.id.c_str(), at.min, at.max);
+        const bool over = PressEntry(navigation, f.entries, row, at, f.action).hovered;
+        v2::IconButton(d, at, shown[i].first->icon, row.id == navigation.Focus(), over, feedback_.Enabled(row));
+        if (over && !inert) { hovered = &row; ImGui::SetTooltip("%s", row.label.c_str()); }
     }
     ImGui::EndDisabled();
+    // The icons have no words of their own: the one under the pointer, else the focused one, is named under the row.
+    const MenuEntry* named = hovered ? hovered : FocusedIn(f.entries, navigation.Focus());
+    if (named && std::any_of(shown.begin(), shown.end(), [&](const auto& link) { return link.second->id == named->id; }))
+        v2::TextEnd(d, ImVec2(left, top + box + 2 * s), width, named->label, 13 * s, v2::Colors().muted);
 }
 
 void GameMenu::DrawBody(Frame& f, v2::Box content) {
@@ -452,10 +432,10 @@ void GameMenu::DrawBody(Frame& f, v2::Box content) {
     f.valuePanel = DrawValuePanel(f, bodyChoices.card, bodyChoices.column);
 }
 
-void GameMenu::DrawCards(Frame& f, v2::Box content, bool narrow) {
+void GameMenu::DrawCards(Frame& f, v2::Box content) {
     const float s = Scale();
     // Home: the cards and a column with the player. Elsewhere: the cards and the focused one's detail.
-    const bool split = SideBySide(narrow, content.W(), s);
+    const bool split = f.split;
     v2::Box list = content, pane{};
     if (split) {
         const float w = f.home ? (std::min)(460 * s, content.W() * .42f) : listWidth > 0 ? content.W() - (std::min)(listWidth * s, content.W() * .55f) - 24 * s :
@@ -469,7 +449,7 @@ void GameMenu::DrawCards(Frame& f, v2::Box content, bool narrow) {
         std::vector<std::string> aside;
         if (split) {
             aside.push_back("card");
-            for (const auto& link : headerLinks) if (FocusedIn(f.entries, link.row.id)) aside.push_back(link.row.id);
+            for (const auto& link : headerLinks) if (FocusedIn(f.entries, link.id)) aside.push_back(link.id);
         }
         navigation.SetAside(std::move(aside));
     }

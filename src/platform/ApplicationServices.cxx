@@ -41,8 +41,6 @@ bool ShellOpen(const wchar_t* target) {
     if (SUCCEEDED(com)) CoUninitialize();
     return opened;
 }
-// The table's link a request names by its id, or null.
-const sf4e::platform::Link* RequestedLink(const std::wstring& target) { return sf4e::platform::FindLink(sf4e::platform::WideToUtf8(target)); }
 }
 
 namespace sf4e { namespace platform {
@@ -127,14 +125,12 @@ void ApplicationServices::Observe(const DiagnosticsView& diagnostics) {
 bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& diagnostics, std::wstring target) {
     if (action == ServiceAction::CancelReport) { Cancel(); return true; }
     if (action == ServiceAction::SendReport || action == ServiceAction::PrepareCrashReport || action == ServiceAction::ReportCrash ||
-        action == ServiceAction::OpenSteamProfile) return false;
+        action == ServiceAction::OpenSteamProfile || action == ServiceAction::OpenLink) return false;
     if (action == ServiceAction::LaunchUpdateCheck) return RequestLaunchCheck();
     // These two carry the offer the player saw: UpdateNow and SkipUpdate.
     if (action == ServiceAction::UpdateNow || action == ServiceAction::SkipUpdate) return false;
     // The picker is not part of the worker's one-at-a-time rule: it waits on the player.
     if (action == ServiceAction::PickReplays) return picker_.Open();
-    // Only a link of the table opens; anything else the caller names is refused.
-    if (action == ServiceAction::OpenLink && !RequestedLink(target)) return false;
     std::lock_guard<std::mutex> lock(mutex_);
     if (stop_ || state_.pending) return false;
     if (action == ServiceAction::PrepareProblemReport)
@@ -147,6 +143,12 @@ bool ApplicationServices::OpenSteamProfilePage(const SteamId& id) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (stop_ || state_.pending) return false;
     return Start(ServiceAction::OpenSteamProfile, {}, state_.channel, std::wstring(digits.begin(), digits.end()));
+}
+bool ApplicationServices::OpenLink(const Link& link) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending) return false;
+    state_.lastLink = &link;
+    return Start(ServiceAction::OpenLink, {}, state_.channel);
 }
 bool ApplicationServices::SwitchUpdateChannel(launcher::UpdateChannel channel) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -198,9 +200,9 @@ bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& dia
     cancelled_ = false;
     state_.updateStage = launcher::UpdateStage::Downloading; state_.stageDone = state_.stageTotal = 0;
     request_ = action; requestChannel_ = channel; diagnostics_ = diagnostics; target_ = std::move(target); state_.pending = true; state_.succeeded = false; state_.lastAction = action;
-    state_.lastLink = action == ServiceAction::OpenLink ? WideToUtf8(target_) : std::string();
+    if (action != ServiceAction::OpenLink) state_.lastLink = nullptr;
     state_.message = reportOperation_ ? state_.reporting.message :
-        action == ServiceAction::OpenLink ? loc::Tf("services.opening_link", RequestedLink(target_)->address) :
+        action == ServiceAction::OpenLink ? loc::Tf("services.opening_link", state_.lastLink->address) :
         action == ServiceAction::OpenSteamProfile ? loc::T("services.opening_steam_profile") :
         action == ServiceAction::OpenReplayFolder || action == ServiceAction::ShowReplayFile ? loc::T("services.opening_replay_folder") :
         action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel || action == ServiceAction::LaunchUpdateCheck ? loc::T("services.checking") :
@@ -306,9 +308,8 @@ void ApplicationServices::Run() {
                     next.closeGame = next.succeeded = true; next.message = loc::T("services.game_closing");
                 }
             } else if (action == ServiceAction::OpenLink) {
-                const Link* link = RequestedLink(target);
-                const std::string address = link ? link->address : "";
-                const bool opened = link && ShellOpen((L"https://" + std::wstring(address.begin(), address.end())).c_str());  // ASCII
+                const std::string address = next.lastLink->address;
+                const bool opened = ShellOpen((L"https://" + std::wstring(address.begin(), address.end())).c_str());  // ASCII
                 next.succeeded = opened;
                 next.message = opened ? loc::T("services.link_opened") : loc::Tf("services.link_failed", address);
             } else if (action == ServiceAction::OpenSteamProfile) {

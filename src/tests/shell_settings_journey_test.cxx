@@ -233,7 +233,7 @@ void EmberLinks() {
  const auto row = [](const sf4e::platform::Link& link) { return std::string("link-") + link.id; };
  const auto asked = [](const Harness& h, const char* id) {
   return std::count_if(h.actions.begin(), h.actions.end(), [&](const ShellAction& a) {
-   return Is<commands::Service>(a, [&](const commands::Service& s) { return s.service == ServiceAction::OpenLink && s.servicePath == id; }); });
+   return Is<commands::Service>(a, [&](const commands::Service& s) { return s.service == ServiceAction::OpenLink && s.link && std::string(s.link->id) == id; }); });
  };
  {
   Harness h; Drawn drawn; h.Screen("tab-about"); h.Frame(0, 3);
@@ -249,9 +249,9 @@ void EmberLinks() {
    h.FocusOn(row(link).c_str()); h.Press(MenuInput::Select);
    Check(h.actions.size() == before, "A link opened before it was confirmed");
    h.Press(MenuInput::Right); h.Press(MenuInput::Select);
-   Check(h.actions.size() == before + 1 && asked(h, link.id) == 1 + (&link - Links.data()), "A link in Help & About did not ask for its own link");
+   Check(h.actions.size() == before + 1 && asked(h, link.id) == 1, "A link in Help & About did not ask for its own link");
   }
-  h.view.services.lastAction = ServiceAction::OpenLink; h.view.services.lastLink = "kofi"; h.view.services.message = "Opened in your browser. Switch to it.";
+  h.view.services.lastAction = ServiceAction::OpenLink; h.view.services.lastLink = sf4e::platform::FindLink("kofi"); h.view.services.message = "Opened in your browser. Switch to it.";
   h.Frame(0, 2);
   Check(drawn.Row("link-kofi")->detail == h.view.services.message && drawn.Row("link-twitter")->detail == loc::Tf("about.twitter_detail", "x.com/kabiefox"),
    "The service's message did not show on the one link it was about");
