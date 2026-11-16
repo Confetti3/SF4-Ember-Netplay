@@ -516,9 +516,6 @@ msgstr "도움말 및 정보"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Discord 초대"
-
 msgid "screen.assignment"
 msgstr "컨트롤러 지정"
 
@@ -2151,9 +2148,6 @@ msgstr "Ember ID에 연결된 Discord 계정입니다. 랭크 경기, 포인트,
 msgid "discord.server"
 msgstr "Ember Discord 서버"
 
-msgid "discord.invitation_title"
-msgstr "DISCORD 초대"
-
 msgid "discord.cancel_invitation"
 msgstr "초대 취소"
 
@@ -3743,9 +3737,6 @@ msgstr "방 링크로 열었습니다. 확인한 다음 방 참가를 선택하�
 
 msgid "room.link_waiting"
 msgstr "방 링크가 열렸습니다. 이 방을 나가면 참가 화면에 표시됩니다."
-
-msgid "room.replacement_opening"
-msgstr "새 방을 여는 중입니다. 초대 복사를 선택해 새 링크를 보내세요. 이전 링크는 더 이상 사용할 수 없습니다."
 
 msgid "room.action_rejected"
 msgstr "방이 변경되었거나 작업을 거부했습니다. 현재 상태를 확인하고 다시 시도하세요."

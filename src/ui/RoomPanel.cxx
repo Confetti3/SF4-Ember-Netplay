@@ -433,10 +433,11 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // admits by the service's ticket, so its invitation would admit nobody.
  // The tournament's own room is never shared, from its first claim: the window
  // before its binding lands has no tournament snapshot yet.
- if(!c.tournamentRoom&&!s.serverOwned&&!v.tournament.MatchRoomActive()){
+ if(room_invite::Invitable(v)){
   // One button: the friends to invite now, and the two ways to hand a link out (room_invite::ChoicesOf).
   MenuEntry invite=Row("invite",loc::T("friends.invite"),loc::T("room.invite.detail"));invite.popout=true;
   invite.choices=room_invite::ChoicesOf(v,friends_.Gates(v));
+  invite.chosen=room_invite::FirstEnabled(invite.choices);
   invite.enabled=std::any_of(invite.choices.begin(),invite.choices.end(),[](const MenuChoice& choice){return choice.enabled;});
   rows.push_back(std::move(invite));
  }

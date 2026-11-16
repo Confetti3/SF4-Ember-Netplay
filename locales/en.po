@@ -526,8 +526,8 @@ msgstr "Help & about"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Discord invitation"
+msgid "screen.room_invitation"
+msgstr "Room invitation"
 
 msgid "screen.assignment"
 msgstr "Assign controller"
@@ -1651,6 +1651,9 @@ msgstr "Your room can't be offered right now."
 msgid "friends.nothing_to_offer.locked"
 msgstr "Admission is Locked in this room. Set it to Open in Room settings to invite friends."
 
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "Admission is Locked in this room."
+
 msgid "friends.nothing_to_offer.full"
 msgstr "This room is full."
 
@@ -2171,9 +2174,6 @@ msgstr "The Discord account connected to your Ember ID. Rated games, points, fri
 
 msgid "discord.server"
 msgstr "Ember Discord server"
-
-msgid "discord.invitation_title"
-msgstr "DISCORD INVITATION"
 
 msgid "discord.cancel_invitation"
 msgstr "Cancel invitation"
@@ -3630,8 +3630,8 @@ msgid "room.link_opened"
 msgstr "Opened from a room link. Check it, then choose Join room."
 msgid "room.link_waiting"
 msgstr "A room link was opened. It will be on the Join room screen once you leave this room."
-msgid "room.replacement_opening"
-msgstr "Replacement room opening. Choose Copy invitation and send the new link. The old one no longer works."
+msgid "room.replacement_invite"
+msgstr "Replacement room opening. Choose Invite, then Copy invitation, and send the new invitation. The old one no longer works."
 msgid "room.action_rejected"
 msgstr "The room changed or rejected this action. Review the current state and try again."
 
@@ -4052,6 +4052,8 @@ msgid "runtime.steam_profile_failed"
 msgstr "Could not open the Steam profile."
 msgid "discord.invitation_expired"
 msgstr "The Discord invitation expired. Ask for a new invitation."
+msgid "room.invitation_expired"
+msgstr "The invitation expired. Ask for a new one."
 msgid "runtime.spectator_action_retrying"
 msgstr "The spectator action could not be sent; retrying."
 msgid "runtime.return_main_menu"

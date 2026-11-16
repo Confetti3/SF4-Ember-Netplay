@@ -151,7 +151,7 @@ bool Friends(ui::ShellView& view, const std::string& which) {
     auto& f = view.friends;
     f.bridge = "brg_1";
     if (which == "offline") state->appearOffline = true;
-    f.canInvite = which != "requests";
+    f.offer = which != "requests" ? nf::OfferBlock::None : nf::OfferBlock::Other;
     f.state.value = state;
     if (!state->friends.empty()) view.memberCards = FriendCards(*state);
     f.state.loaded = which != "loading";

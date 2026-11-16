@@ -516,9 +516,6 @@ msgstr "Aide et infos"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Invitation Discord"
-
 msgid "screen.assignment"
 msgstr "Attribuer une manette"
 
@@ -2151,9 +2148,6 @@ msgstr "Le compte Discord connecté à votre Ember ID. Les parties classées, le
 msgid "discord.server"
 msgstr "Serveur Discord d'Ember"
 
-msgid "discord.invitation_title"
-msgstr "INVITATION DISCORD"
-
 msgid "discord.cancel_invitation"
 msgstr "Refuser l'invitation"
 
@@ -3743,9 +3737,6 @@ msgstr "Ouvert depuis un lien de salon. Vérifiez-le, puis choisissez Rejoindre.
 
 msgid "room.link_waiting"
 msgstr "Un lien de salon a été ouvert. Il sera sur l'écran pour rejoindre dès que vous quitterez ce salon."
-
-msgid "room.replacement_opening"
-msgstr "Ouverture du nouveau salon. Copiez l'invitation et envoyez le nouveau lien : l'ancien ne fonctionne plus."
 
 msgid "room.action_rejected"
 msgstr "Le salon a changé ou refusé cette action. Vérifiez son état et réessayez."

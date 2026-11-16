@@ -34,7 +34,7 @@
 //   FriendTurnOn         Make friends again for a player who turned them off.
 //   FriendInvite         Offer a friend this player's room (public or private):
 //                        the runtime works out what can be offered, and refuses
-//                        when nothing can (ShellView::friends.canInvite says).
+//                        when nothing can (ShellView::friends.offer says).
 //   FriendDismiss        Drop an invite received.
 //   FriendAskJoin        Ask for the invitation of a friend's private room. The
 //                        interface never sends it: FriendJoin on such a room

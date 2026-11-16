@@ -52,7 +52,7 @@ struct Social : Journey {
  // The runtime installs a new state.
  void Give(std::shared_ptr<nf::State> state, bool loaded = true) {
   auto& f = view();
-  f.bridge = "brg_1"; f.state.value = std::move(state); f.state.loaded = loaded; ++f.state.revision; ++f.state.finished; f.canInvite = true;
+  f.bridge = "brg_1"; f.state.value = std::move(state); f.state.loaded = loaded; ++f.state.revision; ++f.state.finished; f.offer = nf::OfferBlock::None;
   h.Frame(0, 2);
  }
  // The commands of that kind sent so far.
@@ -161,7 +161,7 @@ void RowsJourney() {
  Check(j.row("friends-sent")->label == loc::Tf("friends.sent", 1) && j.row("friends-blocked")->label == loc::Tf("friends.blocked", 1) &&
   j.row("friends-appear-offline")->value == loc::T("common.off"), "Sent, Blocked and Appear offline are not listed with their counts and state");
  // Nothing to offer: the same rows say Player card where they said Invite.
- j.view().canInvite = false; j.h.Frame(0, 2);
+ j.view().offer = nf::OfferBlock::Other; j.h.Frame(0, 2);
  Check(j.row("friend:fr_5")->hint == loc::T("room.member_card") && j.row("friend:fr_3")->hint == loc::T("friends.join"), "Without a room to offer a friend's row still says Invite");
  // The tab's label counts the requests.
  Check(ui::MenuPlayerCard().requests == 2, "The Friends tab does not count the requests");
@@ -215,7 +215,7 @@ void ActionsJourney() {
  Check(j.sent<commands::FriendJoin>().size() == 2 && j.sent<commands::FriendAccept>().size() == 1, "An action went out on a list that is not current");
  // A friend who cannot be joined or invited opens their Player card on A, by their friend id, shown with what the row knew;
  // Back returns to the tab.
- j.view().state.error.clear(); j.view().canInvite = false; j.h.Frame(0, 3);
+ j.view().state.error.clear(); j.view().offer = nf::OfferBlock::Other; j.h.Frame(0, 3);
  j.select("friend:fr_5");
  Check(!j.choosing() && j.screen() == "player-card" && j.sent<commands::FriendInvite>().size() == 1, "A on a friend with nothing to do did not open their Player card");
  const auto opens = j.sent<commands::ProfileOpen>();
@@ -237,7 +237,7 @@ void MorePopoutJourney() {
  j.h.Frame();
  Check(!j.choosing() && !ChoicesPanelDrawn(), "Back left the friend's popout drawn");
  // With nothing to offer the friend (no room to invite to), A opens their Player card.
- j.view().canInvite = false; j.h.Frame(0, 3);
+ j.view().offer = nf::OfferBlock::Other; j.h.Frame(0, 3);
  j.focus("friend:fr_5");
  j.h.Press(MenuInput::Select);
  Check(j.screen() == "player-card", "A on a friend did not open their Player card");

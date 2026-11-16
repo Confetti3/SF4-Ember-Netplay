@@ -136,10 +136,9 @@ enum class StickyError { None, StartFailed, HelperUnavailable };
 
 // What the player is doing, as Discord's presence and friends' presence are both described from it
 // (sf4e__NetplayRuntime__Status.cxx): the key moves when anything the description is made from does. `shown`: whether the
-// presence and its invitation are given out (Discord's follow the player's settings, friends' are always on), and
-// `honorsPrivacy` whether a Hidden room's invitation is withheld (discord::PresenceInput::honorsPrivacy; Discord's only).
+// presence and its invitation are given out (Discord's follow the player's settings, friends' are always on).
 using PresenceKey = std::array<std::uint64_t, 11>;
-struct PresenceShown { bool presence = true, invites = true, honorsPrivacy = false; };
+struct PresenceShown { bool presence = true, invites = true; };
 
 struct Runtime {
     StickyError stickyError = StickyError::None;
@@ -331,7 +330,6 @@ struct Runtime {
     // can be offered a friend now (sf4e__NetplayRuntime__Social.cxx).
     netplay::friends::Requests friends;
     netplay::friends::Visit friendVisit;
-    bool friendsCanInvite = false;
     // What friends are told, described again only when the key of what it is made from moves (or the invitation
     // offered runs out, at `refreshAt`, unix seconds); `revision` moves when the report itself changes.
     struct FriendsPresence {

@@ -98,7 +98,6 @@ discord::PresenceInput PresenceInputOf(const netplay::Snapshot& session, const r
     input.offline = PresenceOffline(session, atMainMenu);
     input.show = shown.presence;
     input.invites = shown.invites;
-    input.honorsPrivacy = shown.honorsPrivacy;
     input.now = static_cast<std::uint64_t>(std::time(nullptr));
     if (OffersInvitation(current)) {
         input.secret = runtime->room->DiscordInvitation();
@@ -248,7 +247,7 @@ static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
     if (runtime->discordClient && runtime->discordClient->State() == platform::HelperState::Connected) {
         const auto nowTick=GetTickCount64();
         const room::Snapshot& current = snapshot.Room();
-        const internal::PresenceShown shown{runtime->preferences.discordPresence, runtime->preferences.discordInvites, true};
+        const internal::PresenceShown shown{runtime->preferences.discordPresence, runtime->preferences.discordInvites};
         const auto key = internal::PresenceKeyOf(snapshot.session, current, snapshot.atMainMenu, shown);
         const bool publishDue=nowTick-runtime->discordLastPublish>=1000;
         if (runtime->discordPresenceKeyValid && key==runtime->discordPresenceKey) {
@@ -258,7 +257,9 @@ static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
             return;
         }
         const auto input = internal::PresenceInputOf(snapshot.session, current, snapshot.atMainMenu, shown);
-        const auto value = discord::Describe(input);
+        auto value = discord::Describe(input);
+        // A Hidden room is not joined from Discord: its secret stays out of this presence (friends' offer, built apart, still carries it).
+        if (!current.OpenToFriends()) { value.secret.clear(); value.expires = 0; }
         const auto message = nlohmann::json{{"type","presence"},{"epoch",snapshot.session.generation.room},
             {"show",value.show},{"activity",value.activity},{"party",value.party},{"size",value.size},
             {"capacity",value.capacity},{"secret",value.secret},{"expires",value.expires}}.dump();
@@ -759,8 +760,7 @@ PostPublishState Publish() {
     snapshot.discordPending = runtime->discordInvite.Active();
     snapshot.discordConfirm = runtime->discordInvite.NeedsConfirmation();
     snapshot.discordRevision = runtime->discordInvite.Revision();
-    snapshot.discordFriend = runtime->discordInvite.From() == discord::PendingInvite::Origin::Friend;
-    snapshot.discordFriendName = runtime->discordInvite.FriendName();
+    snapshot.inviteOrigin = runtime->discordInvite.From();
     snapshot.discordStatus = loc::T(runtime->discordStatusId);
 	PublishDiscordPresence(snapshot);
 	TraceSnapshot(snapshot);
@@ -854,10 +854,11 @@ void PublishAndTickDiscordInvite() {
     std::string currentParty; std::uint64_t expiry=0;
     if (view.session.room==netplay::RoomState::Joined && runtime->room)
         discord::TicketMetadata(runtime->room->DiscordInvitation(),currentParty,expiry);
+    const auto origin=runtime->discordInvite.From();
     const auto next=runtime->discordInvite.Tick(static_cast<std::uint64_t>(std::time(nullptr)),
         view.session.generation.room,currentParty,view.discordCanSwitch,
         view.session.room==netplay::RoomState::Idle,view.canOpenRoom);
-    if (next==discord::Next::Expired) { runtime->error=loc::T("discord.invitation_expired"); spdlog::info("Discord: invitation expired before it could be used"); }
+    if (next==discord::Next::Expired) { runtime->error=loc::T(discord::ExpiredWords(origin)); spdlog::info("Discord: invitation expired before it could be used"); }
     else if (next==discord::Next::Leave || next==discord::Next::Join) {
         spdlog::info("Discord: submitting {} for the pending invitation", next==discord::Next::Leave ? "leave" : "join");
         // Another room replaces the one being watched, as Leave does.

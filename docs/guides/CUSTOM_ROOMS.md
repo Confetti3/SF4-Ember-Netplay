@@ -17,9 +17,9 @@ release.
 
    ![Create room settings](../images/guides/user_netplay/create-room.webp)
 
-3. Use **Copy invitation** to share the private invitation with your players.
+3. Use **Invite**, then **Copy invitation**, to share the private invitation with your players. **Invite** also lists friends you can invite directly.
 
-   ![The room board with Copy invitation among the room's actions](../images/ember-room.png)
+   ![The room board with Invite among the room's actions](../images/ember-room.png)
 
 4. Guests open **Online play > Join room**, select **Paste invitation**, then
    **Join room**. Joining a room leaves them idle until they explicitly choose a

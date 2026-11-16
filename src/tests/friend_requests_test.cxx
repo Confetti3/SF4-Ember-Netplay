@@ -310,8 +310,8 @@ void Wire() {
 	EXPECT(act(FriendDismiss{"brg_1", "iv_1"}) == wrapped({{"action", "dismiss"}, {"invite", "iv_1"}}));
 	// A join names the friend and nothing else, and needs no offer of this player's own.
 	EXPECT(act(FriendAskJoin{{}, "brg_1", FriendId}) == wrapped({{"action", "join"}, {"friend", FriendId}}));
-	Offer publicRoom; publicRoom.kind = Offer::Kind::PublicRoom; publicRoom.value = RoomId;
-	Offer privateRoom; privateRoom.kind = Offer::Kind::PrivateRoom; privateRoom.value = SecretText;
+	Offer publicRoom; publicRoom.kind = Offer::Kind::PublicRoom; publicRoom.value = RoomId; publicRoom.why = OfferBlock::None;
+	Offer privateRoom; privateRoom.kind = Offer::Kind::PrivateRoom; privateRoom.value = SecretText; privateRoom.why = OfferBlock::None;
 	EXPECT(act(FriendInvite{"brg_1", FriendId}, publicRoom) == wrapped({{"action", "invite"}, {"friend", FriendId}, {"room", {{"room_id", RoomId}}}}));
 	EXPECT(act(FriendInvite{"brg_1", FriendId}, privateRoom) == wrapped({{"action", "invite"}, {"friend", FriendId}, {"room", {{"secret", SecretText}}}}));
 	// Nothing to offer is not sent.

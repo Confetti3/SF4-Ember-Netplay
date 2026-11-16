@@ -303,8 +303,8 @@ static bool InvitationHolds(std::uint64_t revision) {
 	if (!runtime->discordInvite.Matches(revision) || !AtMainMenu() ||
 		!CurrentGates().discordCanSwitch || Game::Battle::System::ggpo) return false;
 	if (runtime->discordInvite.Expired(static_cast<std::uint64_t>(std::time(nullptr)))) {
+		runtime->error = loc::T(discord::ExpiredWords(runtime->discordInvite.From()));
 		runtime->discordInvite.Cancel();
-		runtime->error = loc::T("discord.invitation_expired");
 		return false;
 	}
 	return true;

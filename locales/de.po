@@ -516,9 +516,6 @@ msgstr "Hilfe & Info"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Discord-Einladung"
-
 msgid "screen.assignment"
 msgstr "Controller zuweisen"
 
@@ -2151,9 +2148,6 @@ msgstr "Das mit Ihrer Ember ID verbundene Discord-Konto. Gewertete Spiele, Punkt
 msgid "discord.server"
 msgstr "Ember-Discord-Server"
 
-msgid "discord.invitation_title"
-msgstr "DISCORD-EINLADUNG"
-
 msgid "discord.cancel_invitation"
 msgstr "Einladung ablehnen"
 
@@ -3743,9 +3737,6 @@ msgstr "Aus einem Raumlink geöffnet. Prüfen Sie ihn und wählen Sie dann Raum 
 
 msgid "room.link_waiting"
 msgstr "Ein Raumlink wurde geöffnet. Er steht auf der Beitrittsseite bereit, sobald Sie diesen Raum verlassen."
-
-msgid "room.replacement_opening"
-msgstr "Ersatzraum wird geöffnet. Wählen Sie Einladung kopieren und senden Sie den neuen Link. Der alte gilt nicht mehr."
 
 msgid "room.action_rejected"
 msgstr "Raum geändert oder Aktion abgelehnt. Prüfen Sie den aktuellen Zustand und versuchen Sie es erneut."
