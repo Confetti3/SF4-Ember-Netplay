@@ -40,7 +40,7 @@ struct RoomJourney : Journey {
  nf::View& view() { return h.view.friends; }
  void Give(std::shared_ptr<nf::State> state) {
   auto& f = view();
-  f.bridge = "brg_1"; f.state.value = std::move(state); f.state.loaded = true; ++f.state.revision; ++f.state.finished; f.canInvite = true;
+  f.bridge = "brg_1"; f.state.value = std::move(state); f.state.loaded = true; ++f.state.revision; ++f.state.finished; f.offer = nf::OfferBlock::None;
   h.Frame(0, 2);
  }
  template <class Command> std::vector<const Command*> sent() const {
@@ -609,16 +609,24 @@ std::unique_ptr<RoomJourney> PrivateRoom(std::shared_ptr<nf::State> state) {
 // first and at most six, More friends when others were left out or none is shown, then Copy short link and Copy invitation.
 void InviteJourney() {
  using Kind = nf::Presence::Kind;
- // The header says what the room admits: its friends, unless it is Hidden or a match's, a public room being listed.
+ // The header says what the room admits: its friends, unless it is locked, Hidden or a match's (claimed or bound); a public
+ // room is listed. A full room keeps its privacy's chip.
  {
-  room::Snapshot here;
-  Check(std::string(ui::room_invite::AccessKey(here)) == "room.v2.friends_can_join", "A private room open to friends does not say friends can join");
-  here.friendsHidden = true;
-  Check(std::string(ui::room_invite::AccessKey(here)) == "room.v2.invitation_only", "A Hidden room does not say invitation only");
-  here.friendsHidden = false; here.tournament.matchId = "emt_1";
-  Check(std::string(ui::room_invite::AccessKey(here)) == "room.v2.invitation_only", "A match room does not say invitation only");
-  here.tournament = room::TournamentBinding(); here.serverOwned = true;
-  Check(std::string(ui::room_invite::AccessKey(here)) == "room.v2.listed", "A public room does not say it is listed");
+  ShellView v;
+  const auto key = [&] { return std::string(ui::room_invite::AccessKey(v)); };
+  Check(key() == "room.v2.friends_can_join", "A private room open to friends does not say friends can join");
+  v.room.capacity = 1; v.room.members.resize(1);
+  Check(key() == "room.v2.friends_can_join", "A full room does not keep its privacy's chip");
+  v.room.locked = true;
+  Check(key() == "room.locked_status", "A locked room does not say it is locked");
+  v.room.locked = false; v.room.friendsHidden = true;
+  Check(key() == "room.v2.invitation_only", "A Hidden room does not say invitation only");
+  v.room.friendsHidden = false; v.tournament.phase = netplay::tournament::Phase::Claiming;
+  Check(key() == "room.v2.invitation_only" && !ui::room_invite::Invitable(v), "A match room being claimed does not say invitation only");
+  v.tournament.phase = netplay::tournament::Phase::Idle; v.room.tournament.matchId = "emt_1";
+  Check(key() == "room.v2.invitation_only", "A match room does not say invitation only");
+  v.room.tournament = room::TournamentBinding(); v.room.serverOwned = true;
+  Check(key() == "room.v2.listed", "A public room does not say it is listed");
  }
  // Online friends in this game, the one played with last first; an offline friend and one in another game are not listed.
  {
@@ -650,22 +658,35 @@ void InviteJourney() {
  // None to invite: More friends leads on, so the menu has a way to add some.
  {
   auto j = PrivateRoom(Roster({Pal("Away", Kind::Offline, 5)}));
-  Check(Choices(j->row("invite")) == std::vector<std::string>({"room-friends", "copy-short", "copy"}), "Invite with no friend to invite is not More friends and the copies");
+  Check(Choices(j->row("invite")) == std::vector<std::string>({"room-friends", "copy-short", "copy"}) && j->row("invite")->choices[0].label == loc::T("home.friends"), "Invite with no friend to invite is not Friends and the copies");
  }
  // A room that cannot be offered lists no friend and says why, in the cause's own words; the copies stay.
  const struct { nf::OfferBlock block; const char* words; } blocked[] = {
-  {nf::OfferBlock::Locked, "friends.nothing_to_offer.locked"}, {nf::OfferBlock::Full, "friends.nothing_to_offer.full"}, {nf::OfferBlock::Other, "friends.nothing_to_offer"}};
+  {nf::OfferBlock::Locked, "friends.nothing_to_offer.locked"}, {nf::OfferBlock::LockedForMember, "friends.nothing_to_offer.locked_member"}, {nf::OfferBlock::Full, "friends.nothing_to_offer.full"}, {nf::OfferBlock::Other, "friends.nothing_to_offer"}};
  for (const auto& cause : blocked) {
   auto j = PrivateRoom(Roster({Pal("Amy", Kind::Online)}));
-  j->view().canInvite = false; j->view().cannotInvite = cause.block; j->h.Frame(0, 2);
+  j->view().offer = cause.block; j->h.Frame(0, 2);
   const auto* invite = j->row("invite");
   Check(Choices(invite) == std::vector<std::string>({"invite-why", "copy-short", "copy"}), "Invite for a room that cannot be offered is not its reason and the copies");
   Check(!invite->choices[0].enabled && invite->choices[0].detail == loc::T(cause.words) && invite->choices[1].enabled && invite->choices[2].enabled && invite->enabled, "The reason is not a disabled line in the cause's words");
  }
+ // The menu opens on a choice that can be chosen: the first friend, else More friends while a request is in flight, else the
+ // first copy under a reason line; Select there does something.
+ {
+  auto j = PrivateRoom(Roster({Pal("Amy", Kind::Online)}));
+  Check(j->row("invite")->chosen == "friend:fr_Amy", "Invite does not open on the first friend");
+  j->view().busy = true; j->h.Frame(0, 2);
+  Check(!j->row("invite")->choices[0].enabled && j->row("invite")->chosen == "room-friends", "Invite opens on a friend it cannot send to while a request is in flight");
+  j->view().busy = false; j->view().offer = nf::OfferBlock::Full; j->h.Frame(0, 2);
+  Check(j->row("invite")->chosen == "copy-short", "Invite opens on the reason line");
+  const auto before = j->h.actions.size();
+  j->h.Choose("invite"); j->h.Press(MenuInput::Select);
+  Check(j->h.actions.size() == before + 1 && Is<commands::ShortInvitation>(j->h.actions.back()), "Select on an open Invite under a reason did nothing");
+ }
  // No Discord account, friends turned off, or nothing read: the two copies and no reason.
  for (const auto kind : {nf::State::Kind::NoAccount, nf::State::Kind::Off, nf::State::Kind::Unavailable}) {
   auto j = PrivateRoom(Roster({}, kind));
-  j->view().canInvite = false; j->h.Frame(0, 2);
+  j->view().offer = nf::OfferBlock::Other; j->h.Frame(0, 2);
   Check(Choices(j->row("invite")) == std::vector<std::string>({"copy-short", "copy"}), "Invite without friends is not just the two copies");
  }
  Check(Choices(PrivateRoom(nullptr)->row("invite")) == std::vector<std::string>({"copy-short", "copy"}), "Invite before the friends are read is not just the two copies");

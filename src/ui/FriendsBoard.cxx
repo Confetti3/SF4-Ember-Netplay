@@ -107,7 +107,7 @@ float DrawPerson(const BoardFrame& f, const MenuEntry& e, ImVec2 at, float width
     else DrawRequestMark(f.d, centre, 6 * s);
     if (entry) DrawMainPicture(f, v2::Box{ImVec2(at.x + 48 * s, box.min.y + 8 * s), ImVec2(at.x + 96 * s, box.min.y + 56 * s)}, *entry);
     // The word dims while its action cannot be taken: Join waits on the list being current, the rest on no action in flight.
-    const bool dim = entry && PressOf(*entry, f.view.canInvite) == Press::Join ? !f.gate.go : !f.gate.act;
+    const bool dim = entry && PressOf(*entry, f.view.offer) == Press::Join ? !f.gate.go : !f.gate.act;
     DrawValue(f, box, e, dim);
     const CountryCode country = entry ? entry->country : request ? request->country : CountryCode();
     DrawNameLine(f.d, x, box.min.y + 8 * s, room, 22 * s, 16 * s, e.label, country, entry ? entry->badge : SkillBadge{});
@@ -270,7 +270,7 @@ void DrawPersonPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool 
         y += v2::Paragraph(f.d, ImVec2(x, y), room, e.detail, 15 * s, c.muted) + 12 * s;
     }
     // The row's action and More beside it; where More is the action it stands alone.
-    const Press press = entry ? PressOf(*entry, f.view.canInvite) : Press::Join;
+    const Press press = entry ? PressOf(*entry, f.view.offer) : Press::Join;
     const bool card = entry && press == Press::Card;
     const std::string word = request ? loc::T("friends.accept") : card ? loc::T("room.member_card") : loc::T(press == Press::Join ? "friends.join_room" : "friends.invite_room");
     const bool gated = card ? false : request || press != Press::Join ? !f.gate.act : !f.gate.go;

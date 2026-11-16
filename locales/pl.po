@@ -516,9 +516,6 @@ msgstr "Pomoc i informacje"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Zaproszenie Discord"
-
 msgid "screen.assignment"
 msgstr "Przypisz kontroler"
 
@@ -2151,9 +2148,6 @@ msgstr "Konto Discord połączone z Twoim Ember ID. Korzystają z niego gry rank
 msgid "discord.server"
 msgstr "Serwer Discord Embera"
 
-msgid "discord.invitation_title"
-msgstr "ZAPROSZENIE DISCORD"
-
 msgid "discord.cancel_invitation"
 msgstr "Odrzuć zaproszenie"
 
@@ -3746,9 +3740,6 @@ msgstr "Otwarto z linku do pokoju. Sprawdź go, a potem wybierz Dołącz."
 
 msgid "room.link_waiting"
 msgstr "Otwarto link do pokoju. Pojawi się na ekranie dołączania, gdy opuścisz ten pokój."
-
-msgid "room.replacement_opening"
-msgstr "Otwieranie nowego pokoju. Wybierz Kopiuj zaproszenie i wyślij nowy link. Stary już nie działa."
 
 msgid "room.action_rejected"
 msgstr "Pokój się zmienił lub odrzucił działanie. Sprawdź aktualny stan i spróbuj ponownie."

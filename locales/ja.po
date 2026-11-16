@@ -516,9 +516,6 @@ msgstr "ヘルプ・情報"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Discordの招待"
-
 msgid "screen.assignment"
 msgstr "コントローラーの割り当て"
 
@@ -2151,9 +2148,6 @@ msgstr "Ember IDに連携しているDiscordアカウントです。ランク試
 msgid "discord.server"
 msgstr "Ember Discordサーバー"
 
-msgid "discord.invitation_title"
-msgstr "Discordの招待"
-
 msgid "discord.cancel_invitation"
 msgstr "招待をキャンセル"
 
@@ -3746,9 +3740,6 @@ msgstr "ルームのリンクから開きました。内容を確認してから
 
 msgid "room.link_waiting"
 msgstr "ルームのリンクが開かれました。このルームから退出すると参加画面に表示されます。"
-
-msgid "room.replacement_opening"
-msgstr "代わりのルームを開設中です。「招待をコピー」で新しいリンクを送ってください。古いリンクは使えません。"
 
 msgid "room.action_rejected"
 msgstr "ルームの状態が変わったか、操作が拒否されました。現在の状態を確認して再試行してください。"

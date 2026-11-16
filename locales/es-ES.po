@@ -516,9 +516,6 @@ msgstr "Ayuda / info"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Invitación de Discord"
-
 msgid "screen.assignment"
 msgstr "Asignar mando"
 
@@ -2151,9 +2148,6 @@ msgstr "La cuenta de Discord conectada a tu Ember ID. Las partidas con ranking, 
 msgid "discord.server"
 msgstr "Servidor de Discord de Ember"
 
-msgid "discord.invitation_title"
-msgstr "INVITACIÓN DE DISCORD"
-
 msgid "discord.cancel_invitation"
 msgstr "Cancelar invitación"
 
@@ -3746,9 +3740,6 @@ msgstr "Se ha abierto desde un enlace de sala. Revísalo y elige Unirse a sala."
 
 msgid "room.link_waiting"
 msgstr "Se ha abierto un enlace de sala. Estará en la pantalla para unirse cuando salgas de esta sala."
-
-msgid "room.replacement_opening"
-msgstr "Abriendo una sala nueva. Copia la invitación y envía el enlace nuevo; el anterior ya no funciona."
 
 msgid "room.action_rejected"
 msgstr "La sala cambió o rechazó esta acción. Revisa el estado actual e inténtalo de nuevo."

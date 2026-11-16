@@ -516,9 +516,6 @@ msgstr "Справка и сведения"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Приглашение Discord"
-
 msgid "screen.assignment"
 msgstr "Назначить контроллер"
 
@@ -2151,9 +2148,6 @@ msgstr "Аккаунт Discord, подключённый к вашему Ember I
 msgid "discord.server"
 msgstr "Сервер Discord Ember"
 
-msgid "discord.invitation_title"
-msgstr "ПРИГЛАШЕНИЕ DISCORD"
-
 msgid "discord.cancel_invitation"
 msgstr "Отменить приглашение"
 
@@ -3746,9 +3740,6 @@ msgstr "Открыто по ссылке на лобби. Проверьте е�
 
 msgid "room.link_waiting"
 msgstr "Открыта ссылка на лобби. Она появится на экране входа, когда вы покинете это лобби."
-
-msgid "room.replacement_opening"
-msgstr "Открывается новое лобби. Выберите «Копировать приглашение» и отправьте новую ссылку. Старая больше не работает."
 
 msgid "room.action_rejected"
 msgstr "Лобби изменилось или отклонило действие. Проверьте текущее состояние и попробуйте снова."

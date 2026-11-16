@@ -516,9 +516,6 @@ msgstr "Ajuda e informações"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Convite do Discord"
-
 msgid "screen.assignment"
 msgstr "Atribuir controle"
 
@@ -2151,9 +2148,6 @@ msgstr "A conta do Discord conectada ao seu Ember ID. Partidas ranqueadas, ponto
 msgid "discord.server"
 msgstr "Servidor do Discord do Ember"
 
-msgid "discord.invitation_title"
-msgstr "CONVITE DO DISCORD"
-
 msgid "discord.cancel_invitation"
 msgstr "Cancelar convite"
 
@@ -3746,9 +3740,6 @@ msgstr "Aberto a partir de um link de sala. Confira e escolha Entrar na sala."
 
 msgid "room.link_waiting"
 msgstr "Um link de sala foi aberto. Ele estará na tela de entrada assim que você sair desta sala."
-
-msgid "room.replacement_opening"
-msgstr "Abrindo sala substituta. Copie o convite e envie o novo link. O antigo não funciona mais."
 
 msgid "room.action_rejected"
 msgstr "A sala mudou ou rejeitou esta ação. Revise o estado atual e tente novamente."

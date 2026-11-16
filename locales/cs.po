@@ -516,9 +516,6 @@ msgstr "Nápověda"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Pozvánka Discord"
-
 msgid "screen.assignment"
 msgstr "Přiřadit ovladač"
 
@@ -2151,9 +2148,6 @@ msgstr "Účet Discord připojený k vašemu Ember ID. Využívají ho hodnocen�
 msgid "discord.server"
 msgstr "Server Discord Emberu"
 
-msgid "discord.invitation_title"
-msgstr "POZVÁNKA DISCORD"
-
 msgid "discord.cancel_invitation"
 msgstr "Zrušit pozvánku"
 
@@ -3746,9 +3740,6 @@ msgstr "Otevřeno z odkazu na místnost. Zkontrolujte ho a zvolte Připojit se."
 
 msgid "room.link_waiting"
 msgstr "Byl otevřen odkaz na místnost. Až opustíte tuto místnost, najdete ho na obrazovce připojení."
-
-msgid "room.replacement_opening"
-msgstr "Otevírá se náhradní místnost. Zvolte Kopírovat pozvánku a pošlete nový odkaz. Starý už nefunguje."
 
 msgid "room.action_rejected"
 msgstr "Místnost se změnila nebo akci odmítla. Zkontrolujte aktuální stav a zkuste to znovu."

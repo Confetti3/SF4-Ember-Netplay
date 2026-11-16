@@ -50,7 +50,7 @@ pp::Standing Friend(bool joinable, bool online, bool canInvite) {
     s.friendId = "fr_3";
     s.joinable = joinable;
     s.online = online;
-    s.canInvite = canInvite;
+    s.offer = canInvite ? nf::OfferBlock::None : nf::OfferBlock::Other;
     return s;
 }
 
@@ -184,7 +184,7 @@ void MoreEntries() {
         card.friendId = "fr_3";
         shown.card = &card;
         return shown;
-    }(), nf::State(), pp::Links{Open(), Open(), true, nf::OfferBlock::Other, false});
+    }(), nf::State(), pp::Links{Open(), Open(), nf::OfferBlock::None, false});
     const auto unread = pp::MoreOf(listed);
     Check(Pick(unread, "join") && !Pick(unread, "join")->enabled && Pick(unread, "remove") && !Pick(unread, "remove")->enabled && !Pick(unread, "remove")->detail.empty(),
         "a friend the list does not show yet is offered Join or Remove friend");
@@ -230,7 +230,7 @@ void StandingFromFriends() {
     shown.card = &card;
     const pp::Links links{Open(), Open(), true, nf::OfferBlock::Other, false};
     auto standing = pp::StandingOf(shown, state, links);
-    Check(standing.friendId == "fr_3" && standing.joinable && standing.online && standing.canInvite, "a friend in a joinable room is not read as one");
+    Check(standing.friendId == "fr_3" && standing.joinable && standing.online && standing.offer == nf::OfferBlock::None, "a friend in a joinable room is not read as one");
     Check(pp::PrimaryOf(standing).kind == Kind::JoinRoom, "a friend in a joinable room does not get Join their room");
     Check(Pick(standing.friendChoices, "join") && Pick(standing.friendChoices, "join")->enabled, "the Friends tab's Join is not offered");
     // A friend with no id from the bridge is found by name.

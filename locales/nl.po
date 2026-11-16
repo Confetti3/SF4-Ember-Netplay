@@ -516,9 +516,6 @@ msgstr "Hulp en info"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Discord-uitnodiging"
-
 msgid "screen.assignment"
 msgstr "Controller toewijzen"
 
@@ -2151,9 +2148,6 @@ msgstr "Het Discord-account dat aan je Ember ID is gekoppeld. Potjes met ranglij
 msgid "discord.server"
 msgstr "Ember Discord-server"
 
-msgid "discord.invitation_title"
-msgstr "DISCORD-UITNODIGING"
-
 msgid "discord.cancel_invitation"
 msgstr "Uitnodiging annuleren"
 
@@ -3746,9 +3740,6 @@ msgstr "Geopend via een kamerlink. Controleer hem en kies dan Kamer betreden."
 
 msgid "room.link_waiting"
 msgstr "Er is een kamerlink geopend. Zodra je deze kamer verlaat, staat hij klaar op het scherm om mee te doen."
-
-msgid "room.replacement_opening"
-msgstr "Nieuwe kamer wordt geopend. Kopieer de uitnodiging en stuur de nieuwe link. De oude werkt niet meer."
 
 msgid "room.action_rejected"
 msgstr "De kamer is veranderd of heeft deze actie geweigerd. Bekijk de huidige status en probeer opnieuw."

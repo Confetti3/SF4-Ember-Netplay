@@ -261,7 +261,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
     // The old invitation dies with the old room epoch. Say so while the row is
     // still on screen, rather than letting friends fail to rejoin silently.
     // This is a caution, not a success.
-    notice_=loc::T("room.replacement_opening");
+    notice_=loc::T("room.replacement_invite");
     noticeTone_=Tone::Pending;noticeUntil_=ImGui::GetTime()+8;}
    return;}
   if(a.id=="check-connection"){sendDelay(commands::CheckConnection{v.session.generation},true);return;}

@@ -516,9 +516,6 @@ msgstr "帮助与关于"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Discord 邀请"
-
 msgid "screen.assignment"
 msgstr "分配控制器"
 
@@ -2151,9 +2148,6 @@ msgstr "已关联到你的 Ember ID 的 Discord 账号。排位对战、积分�
 msgid "discord.server"
 msgstr "Ember Discord 服务器"
 
-msgid "discord.invitation_title"
-msgstr "DISCORD 邀请"
-
 msgid "discord.cancel_invitation"
 msgstr "取消邀请"
 
@@ -3746,9 +3740,6 @@ msgstr "已通过房间链接打开。确认后请选择加入房间。"
 
 msgid "room.link_waiting"
 msgstr "已打开一个房间链接。离开当前房间后，它会出现在加入房间界面。"
-
-msgid "room.replacement_opening"
-msgstr "新房间正在打开。请选择复制邀请并发送新链接，旧链接已失效。"
 
 msgid "room.action_rejected"
 msgstr "房间已变化或拒绝了此操作。请查看当前状态后重试。"

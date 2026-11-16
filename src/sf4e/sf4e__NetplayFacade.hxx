@@ -250,9 +250,8 @@ namespace sf4e {
             platform::ServiceSnapshot services;
             std::string controller;
     bool discordPending = false, discordConfirm = false, discordCanSwitch = false;
-    // The pending invitation came from a friend, named by `discordFriendName` (a Discord one has neither).
-    bool discordFriend = false;
-    std::string discordFriendName;
+    // Where the pending invitation came from.
+    discord::InviteOrigin inviteOrigin = discord::InviteOrigin::Discord;
     std::uint64_t discordRevision = 0;
     std::string discordStatus;
             input::Capture inputCapture = input::Capture::Idle;

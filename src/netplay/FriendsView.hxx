@@ -6,7 +6,7 @@
 //
 // Nothing here is asked of the interface to keep: every frame it reads
 // `state` for the lists, `busy` for whether another action may be sent,
-// `refusal` for the words of the last action's failure, `canInvite` for whether
+// `refusal` for the words of the last action's failure, `offer` for whether
 // "Invite to my room" can be offered, and `visit` for the question a Join, a
 // Watch or an invite asks when the player is in a room or a game.
 #include "Friends.hxx"
@@ -35,9 +35,8 @@ struct View {
 	std::string refusal, refusalText;
 	std::uint64_t refusals = 0;
 	// The player's room can be offered to a friend now (public or private).
-	bool canInvite = false;
-	// What keeps it from being offered; read only while `canInvite` is off.
-	OfferBlock cannotInvite = OfferBlock::Other;
+	// Whether the room can be offered, and what keeps it from being: None when it can (an invite is possible).
+	OfferBlock offer = OfferBlock::Other;
 	// Syncing at the tab's cadence (Visit sent, Leave not).
 	bool visiting = false;
 

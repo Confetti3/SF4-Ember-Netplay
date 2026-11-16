@@ -106,7 +106,8 @@ struct Standing {
     bool token = false, byRequest = false, byCode = false;
     // A friend's id and whether the list shows them, in a joinable public room, online; whether the viewer has a room to offer.
     std::string friendId;
-    bool joinable = false, online = false, canInvite = false;
+    bool joinable = false, online = false;
+    nf::OfferBlock offer = nf::OfferBlock::Other;
     // The id of the block of this player, when the blocks list holds one.
     std::string blockId;
     // The member opened from shares a Steam profile.
@@ -120,8 +121,7 @@ struct Standing {
 // The friends and room facts the Standing needs besides the page's reading.
 struct Links {
     friends_panel::Gate gate, member;
-    bool canInvite = false;
-    nf::OfferBlock cannotInvite = nf::OfferBlock::Other;
+    nf::OfferBlock offer = nf::OfferBlock::Other;
     bool steam = false;
 };
 Standing StandingOf(const Shown& shown, const nf::State& friends, const Links& links);
