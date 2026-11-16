@@ -228,7 +228,7 @@ void StandingFromFriends() {
     shown.page = Page::Card;
     shown.name = "Player 3";
     shown.card = &card;
-    const pp::Links links{Open(), Open(), true, nf::OfferBlock::Other, false};
+    const pp::Links links{Open(), Open(), nf::OfferBlock::None, false};
     auto standing = pp::StandingOf(shown, state, links);
     Check(standing.friendId == "fr_3" && standing.joinable && standing.online && standing.offer == nf::OfferBlock::None, "a friend in a joinable room is not read as one");
     Check(pp::PrimaryOf(standing).kind == Kind::JoinRoom, "a friend in a joinable room does not get Join their room");
