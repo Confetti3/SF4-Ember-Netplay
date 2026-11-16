@@ -40,7 +40,7 @@ and four busy tables stand their strips aside and are four cards of 89.
 A card's buttons stand in a strip at its foot, under its seats, where 1.6.0
 had them (`TableCardContent::strip`, `LayOutTableCard`): another table's Join
 queue and Watch, and on the card of the table where you have a place its own
-three. They stand at the strip's end, equal, as wide as the widest label
+three. They stand centred in the card, equal, as wide as the widest label
 wants and at least 148 px (`StripButton`), a `Between` (6 px) apart, 32 px
 tall at scale 1 (scaled with the card); on a card too narrow for that they
 share its inner width. The strip is a `Between` under the seats and their

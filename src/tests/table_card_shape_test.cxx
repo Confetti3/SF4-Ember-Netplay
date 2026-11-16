@@ -422,7 +422,7 @@ void TestCardLineHoldsTwoButtons() {
 // queue and Table options in the queue; another table's Join queue and
 // Watch): its band is part of the card's least height, a Between under the
 // banner and a Foot above the card's end; its buttons are equal, a Between
-// apart, at the strip's end, as tall as the strip, and the card's line holds none. Nothing else stands over the strip: not the
+// apart, centred in the card, as tall as the strip, and the card's line holds none. Nothing else stands over the strip: not the
 // seats, their pictures, the score, the banner or the words, at any step, on
 // the versus card and the stacked one, scaled.
 void TestOwnCardStrip() {
@@ -513,8 +513,9 @@ void TestOwnCardStrip() {
                                 "scale %.1f width %.0f: a strip button is %.1f wide, not %.1f, or not as tall as the strip", s, logical, Width(at.buttons[i]), each);
                             if (i) EXPECT_MSG(Near(at.buttons[i].x0 - at.buttons[i - 1].x1, card::Between * s), "scale %.1f width %.0f: strip buttons are not a Between apart", s, logical);
                         }
-                        // At the strip's end, never before its start.
-                        EXPECT_MSG(at.buttons.front().x0 >= at.strip.x0 - .01f && Near(at.buttons.back().x1, at.strip.x1), "scale %.1f width %.0f: strip buttons do not end at the strip's end", s, logical);
+                        // Centred in the card: as far from its start as from its end, never outside the strip.
+                        EXPECT_MSG(at.buttons.front().x0 >= at.strip.x0 - .01f && at.buttons.back().x1 <= at.strip.x1 + .01f &&
+                            Near(at.buttons.front().x0 - in.card.x0, in.card.x1 - at.buttons.back().x1), "scale %.1f width %.0f: strip buttons are not centred in the card", s, logical);
                         // A label wider than a strip button widens them all, while the strip has the room.
                         {
                             auto wide = in;
