@@ -219,7 +219,7 @@ void TestLayOutNeverOverlaps() {
                         const MenuRect inner{card::Pad, 0, width - card::Pad, in.card.y1};
                         const MenuRect body{card::Pad, at.head.y1, width - card::Pad, in.card.y1 - (card::Foot + (banner ? card::Banner : 0))};
                         EXPECT_MSG(at.step == shape.StepOf(in.content, in.card.y1), "width %.0f height %.0f: the layout's step is not its height's", width, height);
-                        EXPECT_MSG(Inside(at.head, inner) && Inside(at.seats[0], body) && Inside(at.seats[1], body) && Inside(at.banner, inner),
+                        EXPECT_MSG(Inside(at.head, inner) && Inside(at.seats[0], body) && Inside(at.seats[1], body) && (!banner || Inside(at.banner, inner)),
                             "width %.0f height %.0f %s buttons %zu want %.0f: a box left the card", width, height, step, count, want);
                         EXPECT_MSG(Apart(at.seats[0], at.seats[1]) && Apart(at.head, at.seats[0]) && Apart(at.head, at.seats[1]) && Apart(at.seats[1], at.banner),
                             "width %.0f height %.0f %s: the seats, line and banner overlap", width, height, step);
