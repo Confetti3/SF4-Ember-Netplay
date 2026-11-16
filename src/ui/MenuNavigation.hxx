@@ -457,6 +457,15 @@ public:
         if (entry == entries.end() || !entry->enabled || !entry->choices[index].enabled) return {};
         MenuAction a{MenuAction::Chosen, modalId_, choiceIds_[index]}; Cancel(); return a;
     }
+    // A pane's button takes a choice of the row it stands beside, with no
+    // chooser opened: the Chosen action Pick gives, handed out by the next
+    // Update. Nothing is taken while a question is open or for a choice the
+    // row does not offer enabled.
+    bool Press(const std::string& id,const std::string& choice,const std::vector<MenuEntry>& entries) {
+        Reconcile(entries);
+        if (mode_ != Modal::None || !Offers(id,choice,entries)) return false;
+        pressed_={MenuAction::Chosen,id,choice}; return true;
+    }
     MenuAction AcceptText(const std::vector<MenuEntry>& entries) {
         Reconcile(entries); if(!Editing()) return {};
         auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==modalId_;});
@@ -465,6 +474,11 @@ public:
     }
     MenuAction Update(MenuInput in,const std::vector<MenuEntry>& entries,int columns=1,bool deferBack=false,bool deferText=false) {
         Reconcile(entries);
+        if (pressed_.kind != MenuAction::None) {
+            // The pane's press stands only while its row still offers the choice.
+            const MenuAction taken = std::exchange(pressed_, MenuAction{});
+            if (Offers(taken.id,taken.text,entries)) return taken;
+        }
         columns = (std::max)(1, columns);
         unsigned held=0, pressed=0;
         if(!Read(in.held,held,pressed)) return {};
@@ -521,6 +535,12 @@ public:
     }
 private:
     static const std::string& NoId() { static const std::string none; return none; }
+    // Row `id` is there and enabled, and offers `choice` enabled.
+    static bool Offers(const std::string& id,const std::string& choice,const std::vector<MenuEntry>& entries) {
+        const auto entry = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == id; });
+        if (entry == entries.end() || !entry->enabled) return false;
+        return std::any_of(entry->choices.begin(), entry->choices.end(), [&](const MenuChoice& c) { return c.id == choice && c.enabled; });
+    }
     static bool IsPlaces(const MenuEntry& e) { return e.segmentKind==SegmentKind::Places&&!e.segments.empty(); }
     // Select on a row of places: the lit place as Chosen with its id, for the
     // screen to send or to refuse with its reason (one it cannot take now);
@@ -727,6 +747,8 @@ private:
     // ids as they were when a choice opened; draft_ is an editor's text.
     Modal mode_=Modal::None;
     std::string modalId_,draft_;
+    // What a pane's button pressed, for the next Update (Press).
+    MenuAction pressed_;
     std::vector<std::string> choiceIds_;
     bool confirmSelected_=false, editAccept_=true, secret_=false;
     PressGate gate_{true};

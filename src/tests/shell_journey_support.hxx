@@ -92,6 +92,20 @@ struct Harness {
   if(at==entry->choices.size())throw std::runtime_error(std::string("Journey choice not offered: ")+choice+" by "+row);
   Choose(row);for(std::size_t i=0;i<at;++i)Press(MenuInput::Down);Press(MenuInput::Select);
  }
+ // A click on the focused row's pane button (PaneButton.hxx), after a frame to read where it is drawn. Says whether it
+ // was drawn and the reason it gave under itself, if any.
+ struct PaneClick{bool drawn=false;std::string reason;};
+ PaneClick ClickPaneButton(){
+  PaneClick out;ImVec2 min,max;
+  SetMenuCardProbe([&](const char* id,ImVec2 a,ImVec2 b){if(std::strcmp(id,"pane-choice")==0){out.drawn=true;min=a;max=b;}});
+  SetMenuCardTextProbe([&](const std::string& id,const std::string& text){if(id=="pane-choice")out.reason=text;});
+  Frame();SetMenuCardProbe({});SetMenuCardTextProbe({});
+  if(!out.drawn)return out;
+  auto& io=ImGui::GetIO();io.AddMousePosEvent((min.x+max.x)*.5f,(min.y+max.y)*.5f);Frame();
+  io.AddMouseButtonEvent(0,true);Frame();io.AddMouseButtonEvent(0,false);Frame(0,2);
+  io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);Frame();
+  return out;
+ }
  void Screen(const char* id){shell.Navigation().Home();if(std::string(id)!="home")shell.Navigation().Push(id);Frame();}
 };
 // A room this player (member 1) has joined, with its tables numbered, and no
