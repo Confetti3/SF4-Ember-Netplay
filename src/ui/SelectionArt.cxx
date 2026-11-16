@@ -389,6 +389,10 @@ struct SelectionArt::Impl {
 SelectionArt::SelectionArt(std::unique_ptr<TextureUploader> uploader, std::wstring game, std::wstring assets, Logger log)
     : gameRoot_(std::move(game)), assetRoot_(std::move(assets)), impl_(new Impl(std::move(uploader), std::move(log))) {}
 SelectionArt::~SelectionArt() = default;
+SelectionImage SelectionArt::Request(const std::string& key, const Files& files, unsigned side) {
+    return Request(key, files, side, Policy{});
+}
+
 SelectionImage SelectionArt::Request(const std::string& key, const Files& files, unsigned side, Policy policy, const std::string& archiveEntry) {
     return impl_->Request(key, files, side, policy, archiveEntry);
 }

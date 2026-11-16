@@ -129,8 +129,10 @@ private:
     // The picture cached as `key`, decoded to at most `side` pixels. An EMZ
     // archive candidate yields its image named `archiveEntry`, or with none
     // its first.
-    SelectionImage Request(const std::string& key, const Files& files, unsigned side = 256, Policy policy = {},
-        const std::string& archiveEntry = {});
+    // Two overloads, not a default Policy: a nested type with default member
+    // initializers cannot be defaulted inside its own class (clang-cl rejects it).
+    SelectionImage Request(const std::string& key, const Files& files, unsigned side = 256);
+    SelectionImage Request(const std::string& key, const Files& files, unsigned side, Policy policy, const std::string& archiveEntry = {});
     // Ember's packaged picture for `key` under assetRoot: its cutout, then
     // .png, then .jpg.
     std::vector<std::wstring> PackagedFiles(const std::string& key) const;
