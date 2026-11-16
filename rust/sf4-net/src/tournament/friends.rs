@@ -375,7 +375,8 @@ mod tests {
         let shared = shared_pinning(&dir, &[]);
         let sync_of = |text: Value| -> FriendsSync { serde_json::from_value(text).unwrap() };
         let mut bad_main = sync_request()["sync"].clone();
-        bad_main["main"] = json!(44);
+        // Past every game's roster (protocol MAX_FIGHTERS); a game's own roster is the bridge's check.
+        bad_main["main"] = json!(64);
         let refused_sync = |sync: FriendsSync| {
             let shared = shared.clone();
             async move {

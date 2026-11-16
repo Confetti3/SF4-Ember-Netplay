@@ -665,7 +665,7 @@ mod tests {
             r#"{"cards":[{"account":{"points":0,"tier":0},"relation":"none","pins":["Rank"]}]}"#,
             r#"{"cards":[{"account":{"points":0,"tier":0},"relation":"none","worn":{"icon":"a b"}}]}"#,
             r#"{"cards":[{"account":{"points":0,"tier":0},"relation":"none","friend":"rq_x"}]}"#,
-            r#"{"cards":[{"account":{"points":0,"tier":0},"relation":"none","main":44}]}"#,
+            r#"{"cards":[{"account":{"points":0,"tier":0},"relation":"none","main":64}]}"#,
             r#"{"cards":[{"account":{"points":0,"tier":0},"relation":"none","versus":{"won":0,"lost":0,"last_at":1}}]}"#,
         ] {
             assert!(read::<CardAnswers>(bad.as_bytes()).unwrap().check().is_err(), "{bad}");
