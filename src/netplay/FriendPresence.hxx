@@ -167,7 +167,7 @@ inline Report ReportOf(const discord::Presence& described, const room::Snapshot&
 	// A private room friends may join: offered under the rule Discord's Join follows (described.offerable), once it
 	// has an invitation, unless its host hid it from friends, and while its name is one the bridge takes (OfferName).
 	const std::string offeredName = identity.isPublic ? std::string() : OfferName(room.name);
-	if (!identity.isPublic && described.offerable && !described.secret.empty() && !room.friendsHidden && !offeredName.empty()) {
+	if (!identity.isPublic && described.offerable && !described.secret.empty() && room.OpenToFriends() && !offeredName.empty()) {
 		report.offered = true;
 		report.name = offeredName;
 		report.members = described.size;
