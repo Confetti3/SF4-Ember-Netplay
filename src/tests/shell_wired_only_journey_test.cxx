@@ -61,7 +61,7 @@ void WiredOnlyJourney() {
  {const auto offers=room_controls::SeatChoices(h.view,h.view.room.tables[0]);
   Check(offers.size()==2&&!offers[0].enabled&&offers[0].detail.find(loc::T("room.reject.wired_only"))==0,
    "A seat of a wired room was offered to a player on Wi-Fi");}
- const auto refused=h.actions.size();h.Press(MenuInput::Select);
+ const auto refused=h.actions.size();h.Press(MenuInput::Select);h.Press(MenuInput::Select);
  Check(h.actions.size()==refused,"A on a wired room's seat sent it for a player on Wi-Fi");
  SetMenuEntriesProbe({});
 }

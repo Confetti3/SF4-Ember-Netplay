@@ -2271,9 +2271,6 @@ msgstr "Entrando a la sala. Esperando la red..."
 msgid "room.locked_status"
 msgstr "Sala bloqueada / solo con invitación"
 
-msgid "room.private_status"
-msgstr "Sala privada / solo con invitación"
-
 msgid "room.tournament_status"
 msgstr "Partida de torneo, primero a {0}. Solo pueden jugar sus dos jugadores."
 
@@ -6354,18 +6351,6 @@ msgstr "Los jugadores hacen cola en una mesa y juegan en ella."
 msgid "room.type.arcade_detail"
 msgstr "Dieciséis máquinas: siéntate en cualquiera libre y juega contra quien lleve más tiempo esperando. Tras un set, si ambos eligen Revancha jugáis otra vez; si no, cada uno juega con el siguiente que espera."
 
-msgid "room.arcade_status"
-msgstr "Sala recreativa / solo por invitación"
-
-msgid "room.arcade_locked_status"
-msgstr "Sala recreativa cerrada / solo por invitación"
-
-msgid "room.king_status"
-msgstr "Rey de la colina / solo por invitación"
-
-msgid "room.king_locked_status"
-msgstr "Rey de la colina cerrado / solo por invitación"
-
 msgid "room.arcade_sit"
 msgstr "Sentarse"
 
@@ -6437,12 +6422,6 @@ msgstr "Sala de práctica"
 
 msgid "room.practice.detail"
 msgstr "Cada partida de la sala es una partida de práctica: la salud y las barras se rellenan, nadie queda fuera de combate y el tiempo del asalto es {0}. Esto se mantiene mientras la sala esté abierta. Para jugar partidas normales, cierra la sala y crea una nueva."
-
-msgid "room.practice_status"
-msgstr "Sala de práctica / solo con invitación"
-
-msgid "room.practice_locked_status"
-msgstr "Sala de práctica bloqueada / solo con invitación"
 
 msgid "inputs.presses_value"
 msgstr "{0} pulsaciones"
@@ -8685,9 +8664,6 @@ msgstr "MESAS"
 
 msgid "room.v2.table"
 msgstr "MESA {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} jugando · {1} mirando"
 
 msgid "room.v2.group_playing"
 msgstr "JUGANDO"

@@ -2271,9 +2271,6 @@ msgstr "Dołączanie do pokoju. Czekanie na sieć..."
 msgid "room.locked_status"
 msgstr "Pokój zamknięty / tylko zaproszenia"
 
-msgid "room.private_status"
-msgstr "Pokój prywatny / tylko zaproszenia"
-
 msgid "room.tournament_status"
 msgstr "Mecz turniejowy, do {0} wygranych. Grać mogą tylko jego dwaj gracze."
 
@@ -6354,18 +6351,6 @@ msgstr "Gracze ustawiają się w kolejce do stołu i grają przy nim."
 msgid "room.type.arcade_detail"
 msgstr "Szesnaście automatów: usiądź przy dowolnym wolnym i graj z tym, kto czeka najdłużej. Po secie, jeśli obaj wybiorą Rewanż, gracie dalej; inaczej każdy gra z następnym czekającym."
 
-msgid "room.arcade_status"
-msgstr "Pokój salonu gier / tylko z zaproszeniem"
-
-msgid "room.arcade_locked_status"
-msgstr "Pokój salonu gier zamknięty / tylko z zaproszeniem"
-
-msgid "room.king_status"
-msgstr "Król wzgórza / tylko z zaproszeniem"
-
-msgid "room.king_locked_status"
-msgstr "Król wzgórza zamknięty / tylko z zaproszeniem"
-
 msgid "room.arcade_sit"
 msgstr "Usiądź"
 
@@ -6437,12 +6422,6 @@ msgstr "Pokój treningowy"
 
 msgid "room.practice.detail"
 msgstr "Każda gra w pokoju to mecz treningowy: zdrowie i paski się odnawiają, nikt nie zostaje znokautowany, a czas rundy wynosi {0}. Tak pozostaje, dopóki pokój jest otwarty. Aby grać zwykłe mecze, zamknij pokój i utwórz nowy."
-
-msgid "room.practice_status"
-msgstr "Pokój treningowy / tylko zaproszenia"
-
-msgid "room.practice_locked_status"
-msgstr "Pokój treningowy zamknięty / tylko zaproszenia"
 
 msgid "inputs.presses_value"
 msgstr "{0} naciśnięć"
@@ -8685,9 +8664,6 @@ msgstr "STOŁY"
 
 msgid "room.v2.table"
 msgstr "STÓŁ {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "Grają: {0} · oglądają: {1}"
 
 msgid "room.v2.group_playing"
 msgstr "GRAJĄ"

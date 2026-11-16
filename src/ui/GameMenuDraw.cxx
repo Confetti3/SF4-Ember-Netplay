@@ -143,8 +143,8 @@ void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled,
         float x = box.max.x;
         const float top = box.min.y + (h - v2::ChipFont() - 8 * s) * .5f;
         for (auto word = e.segments.rbegin(); word != e.segments.rend(); ++word) {
-            x -= v2::ChipWidth(*word);
-            v2::Chip(d, ImVec2(x, top), *word, *word == e.value ? col.accent : enabled ? col.muted : v2::color::Alpha(col.muted, .5f));
+            x -= v2::ChipWidth(word->label);
+            v2::Chip(d, ImVec2(x, top), word->label, word->label == e.value ? col.accent : enabled ? col.muted : v2::color::Alpha(col.muted, .5f));
             x -= 6 * s;
         }
         return;
@@ -183,9 +183,9 @@ int StepAtPointer(const MenuEntry& e, const MenuRowLayout& at) {
         if (mouse.y < v.y0 || mouse.y > v.y1) return 0;
         float x = v.x1; int lit = 0, under = -1;
         for (int i = static_cast<int>(e.segments.size()) - 1; i >= 0; --i) {
-            const float left = x - v2::ChipWidth(e.segments[i]);
+            const float left = x - v2::ChipWidth(e.segments[i].label);
             if (mouse.x >= left && mouse.x <= x) under = i;
-            if (e.segments[i] == e.value) lit = i;
+            if (e.segments[i].label == e.value) lit = i;
             x = left - 6 * Scale();
         }
         return under < 0 ? 0 : under - lit;
@@ -195,7 +195,7 @@ int StepAtPointer(const MenuEntry& e, const MenuRowLayout& at) {
 }
 }
 float MenuValueWidth(const MenuEntry& e) {
-    if (!e.segments.empty()) { float width = -6 * Scale(); for (const auto& word : e.segments) width += v2::ChipWidth(word) + 6 * Scale(); return width; }
+    if (!e.segments.empty()) { float width = -6 * Scale(); for (const auto& word : e.segments) width += v2::ChipWidth(word.label) + 6 * Scale(); return width; }
     if (MenuValueIsToggle(e)) return 36 * Scale();
     float words = ImGui::CalcTextSize(ValueWord(e)).x;
     for (const auto& c : e.choices) words = (std::max)(words, ImGui::CalcTextSize(c.label.c_str()).x);

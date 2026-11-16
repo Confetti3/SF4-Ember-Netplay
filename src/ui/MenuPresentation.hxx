@@ -46,6 +46,8 @@ inline const char* MenuPrimaryHint(const MenuEntry* entry) {
     const auto opens=MenuSelectOpens(*entry);
     if(opens==SelectOpens::Nothing)return nullptr;
     if(!entry->hint.empty())return entry->hint.c_str();
+    // A row of places names what Select takes, or nothing while it would take none.
+    if(entry->segmentKind==SegmentKind::Places)return nullptr;
     switch(opens){
     case SelectOpens::Reader:return loc::T("menu.read");
     case SelectOpens::Edit:return loc::T("menu.edit");

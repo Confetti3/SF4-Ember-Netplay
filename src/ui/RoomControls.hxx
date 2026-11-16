@@ -33,8 +33,8 @@ std::string LeaveRoomDetail(const ShellView& v);
 // button, and its full wording.
 struct SeatOption { const char* id; room::ActionKind kind; int seat; const char* label; const char* detail; };
 const SeatOption* FindSeatOption(const std::string& id);
-// Left to right: the table's open seats, else its queue and watching. None
-// for a member with a place (watching elsewhere is no place: sitting down
+// Left to right: the table's open seats, else its queue; then watching it
+// while anyone sits there. None for a member with a place (watching elsewhere is no place: sitting down
 // ends it), or in a room bound to a tournament match, which seats its
 // fighters itself and refuses every seat change. A seat is offered only where
 // the authority would grant it now: open, between games, with nobody queued
@@ -42,14 +42,14 @@ const SeatOption* FindSeatOption(const std::string& id);
 // outstanding, Wi-Fi in a wired-only room) is shown dimmed with its reason,
 // as the table options list shows it.
 std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t);
-// Which of `offers` (SeatChoices of `t`) the card lights: `light`'s while it
-// is this table's and the card still offers it, else the first, P1 or the
-// only open seat.
-std::size_t LitOffer(const std::vector<MenuChoice>& offers, const TableLight& light, const room::Table& t);
 // A table's round rules in a few words: "3 rounds / 99 sec", or a set's
 // length and rotation, which stand where the round settings would be.
 std::string TableRulesText(const ShellView& v, const room::Table& t);
-// Who waits at a table and who watches it, "Queue 2 · 1 watching", saying
+// The rules a table plays by, in full: the room's own (Practice match, Own
+// delay, Wired only), then its round rules. The board's heading says the first
+// table's once, and speech reads each table's in its row's detail.
+std::string RoomRulesText(const ShellView& v, const room::Table& t);
+// Who waits at a table and who watches it, "Queue 2 · Watching 1", saying
 // nothing of either while it is none.
 std::string TableCountsText(const room::Table& t);
 // What B does on the board for a member with a place at a table: leave it when
@@ -95,6 +95,10 @@ bool LeavesWatchedGame(const ShellView& v, std::size_t table);
 // watching row and the table cards' offers read it; the table page keeps its own
 // wait wording for the whole page.
 bool RoomTakesNow(const ShellView& v, room::ActionKind kind, std::size_t table);
+// Whether a press of `kind` ends the view of the game this PC watches: Queue
+// and Watch take it back to the room first, and a game under way is not
+// joined again. A table card asks before sending one (RoomAction).
+bool EndsWatchedView(const ShellView& v, room::ActionKind kind);
 // What a press of `kind` means for the game this PC watches, as a sentence
 // added to its row: Queue and Watch take the game back to the room first,
 // which ends the view, and leaving the queue keeps the view until the game
@@ -153,8 +157,9 @@ struct TableBanner {
     int seat = -1;
 };
 TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t);
-// The table the options open without a card to say otherwise: your own
-// place's, else `selected`, the last table card the player was on.
+// The table the options open without a card to say otherwise: your own seat's
+// or queue's, else `selected`, the last table card the player was on (a
+// watched table is no place, so a watcher reaches any table's options).
 int OptionsTable(const ShellView& v, int selected);
 // A draft with something in it besides spaces.
 bool HasChatText(const char* text);

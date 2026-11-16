@@ -2277,9 +2277,6 @@ msgstr "Joining room. Waiting for the network..."
 msgid "room.locked_status"
 msgstr "Room locked / invitation only"
 
-msgid "room.private_status"
-msgstr "Private room / invitation only"
-
 msgid "room.tournament_status"
 msgstr "Tournament match, first to {0}. Only its two players can play."
 
@@ -5971,18 +5968,6 @@ msgstr "Players queue at a table and play there."
 msgid "room.type.arcade_detail"
 msgstr "Sixteen cabinets: sit at any free one. After a set the winner plays whoever has waited longest and the loser waits. When nobody waits, the two choose Rematch or New opponent."
 
-msgid "room.arcade_status"
-msgstr "Arcade room / invitation only"
-
-msgid "room.arcade_locked_status"
-msgstr "Arcade room locked / invitation only"
-
-msgid "room.king_status"
-msgstr "King of the hill / invitation only"
-
-msgid "room.king_locked_status"
-msgstr "King of the hill locked / invitation only"
-
 msgid "room.arcade_sit"
 msgstr "Sit down"
 
@@ -6054,12 +6039,6 @@ msgstr "Practice room"
 
 msgid "room.practice.detail"
 msgstr "Every game in the room is a Practice match: health and gauges refill, nobody is knocked out, and the round time is {0}. This stays for as long as the room is open. To play normal matches, close the room and create a new one."
-
-msgid "room.practice_status"
-msgstr "Practice room / invitation only"
-
-msgid "room.practice_locked_status"
-msgstr "Practice room locked / invitation only"
 
 msgid "inputs.presses_value"
 msgstr "{0} presses"
@@ -7173,13 +7152,13 @@ msgid "room.table_footer_wired_only"
 msgstr "Wired only"
 
 msgid "room.table_rules_line"
-msgstr "{0} rounds / {1} sec"
+msgstr "Rounds {0} / {1} sec"
 
 msgid "room.table_queue"
 msgstr "Queue {0}"
 
 msgid "room.table_watching"
-msgstr "{0} watching"
+msgstr "Watching {0}"
 
 msgid "room.input_delay.own"
 msgstr "Your delay: {0}"
@@ -8304,11 +8283,11 @@ msgstr "Areas"
 msgid "room.v2.tables"
 msgstr "TABLES"
 
+msgid "room.v2.tables_playing"
+msgstr "Playing {0}"
+
 msgid "room.v2.table"
 msgstr "TABLE {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} playing · {1} watching"
 
 msgid "room.v2.group_playing"
 msgstr "PLAYING"

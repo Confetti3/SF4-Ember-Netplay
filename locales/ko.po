@@ -2271,9 +2271,6 @@ msgstr "방에 참가하는 중입니다. 네트워크를 기다립니다..."
 msgid "room.locked_status"
 msgstr "잠긴 방 / 초대 전용"
 
-msgid "room.private_status"
-msgstr "비공개 방 / 초대 전용"
-
 msgid "room.tournament_status"
 msgstr "대회 경기, {0}선승. 이 경기의 두 플레이어만 플레이할 수 있습니다."
 
@@ -6354,18 +6351,6 @@ msgstr "플레이어가 테이블마다 줄을 서서 그 테이블에서 대전
 msgid "room.type.arcade_detail"
 msgstr "16대의 기기: 빈 자리에 앉으면 가장 오래 기다린 사람과 대전합니다. 세트가 끝나면 둘 다 재대결을 고르면 다시 하고, 아니면 각자 다음 대기자와 대전합니다."
 
-msgid "room.arcade_status"
-msgstr "아케이드 방 / 초대 전용"
-
-msgid "room.arcade_locked_status"
-msgstr "아케이드 방 잠김 / 초대 전용"
-
-msgid "room.king_status"
-msgstr "킹 오브 더 힐 / 초대 전용"
-
-msgid "room.king_locked_status"
-msgstr "킹 오브 더 힐 잠김 / 초대 전용"
-
 msgid "room.arcade_sit"
 msgstr "자리에 앉기"
 
@@ -6437,12 +6422,6 @@ msgstr "연습 방"
 
 msgid "room.practice.detail"
 msgstr "방의 모든 게임이 연습 대전입니다. 체력과 게이지가 다시 차고 누구도 KO되지 않으며 라운드 시간은 {0}입니다. 방이 열려 있는 동안 바뀌지 않습니다. 일반 대전을 하려면 방을 닫고 새로 만드세요."
-
-msgid "room.practice_status"
-msgstr "연습 방 / 초대 전용"
-
-msgid "room.practice_locked_status"
-msgstr "잠긴 연습 방 / 초대 전용"
 
 msgid "inputs.presses_value"
 msgstr "버튼 입력 {0}회"
@@ -8685,9 +8664,6 @@ msgstr "테이블"
 
 msgid "room.v2.table"
 msgstr "테이블 {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "대전 중 {0} · 관전 중 {1}"
 
 msgid "room.v2.group_playing"
 msgstr "대전 중"

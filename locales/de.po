@@ -2271,9 +2271,6 @@ msgstr "Raumbeitritt läuft. Warten auf Netzwerk..."
 msgid "room.locked_status"
 msgstr "Raum gesperrt / nur mit Einladung"
 
-msgid "room.private_status"
-msgstr "Privater Raum / nur mit Einladung"
-
 msgid "room.tournament_status"
 msgstr "Turnierspiel, Ziel {0} Siege. Nur seine zwei Spieler können spielen."
 
@@ -6354,18 +6351,6 @@ msgstr "Spieler stellen sich an einem Tisch an und spielen dort."
 msgid "room.type.arcade_detail"
 msgstr "Sechzehn Automaten: Setz dich an einen freien und spiel gegen den, der am längsten wartet. Nach einem Set wählen beide Revanche und spielen erneut, sonst spielt jeder gegen den Nächsten, der wartet."
 
-msgid "room.arcade_status"
-msgstr "Arcade-Raum / nur mit Einladung"
-
-msgid "room.arcade_locked_status"
-msgstr "Arcade-Raum gesperrt / nur mit Einladung"
-
-msgid "room.king_status"
-msgstr "King of the Hill / nur mit Einladung"
-
-msgid "room.king_locked_status"
-msgstr "King of the Hill gesperrt / nur mit Einladung"
-
 msgid "room.arcade_sit"
 msgstr "Hinsetzen"
 
@@ -6437,12 +6422,6 @@ msgstr "Übungsraum"
 
 msgid "room.practice.detail"
 msgstr "Jedes Spiel im Raum ist ein Übungskampf: Gesundheit und Leisten werden aufgefüllt, niemand wird K. o. geschlagen und die Rundenzeit ist {0}. Das bleibt so, solange der Raum offen ist. Für normale Kämpfe den Raum schließen und einen neuen erstellen."
-
-msgid "room.practice_status"
-msgstr "Übungsraum / nur mit Einladung"
-
-msgid "room.practice_locked_status"
-msgstr "Übungsraum gesperrt / nur mit Einladung"
 
 msgid "inputs.presses_value"
 msgstr "{0} Tastendrücke"
@@ -8685,9 +8664,6 @@ msgstr "TISCHE"
 
 msgid "room.v2.table"
 msgstr "TISCH {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} spielen · {1} schauen zu"
 
 msgid "room.v2.group_playing"
 msgstr "SPIELEN"
