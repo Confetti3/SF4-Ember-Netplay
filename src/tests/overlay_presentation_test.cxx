@@ -87,6 +87,26 @@ int main() {
     for (unsigned i = 0; i < OverlayPresentation::AwayFrames; ++i) menu.Update(MenuContext::Unavailable, MatchState::None, true, true);
     CHECK(!menu.Visible());
     menu.Update(MenuContext::MainMenu, MatchState::None, true, true); CHECK(menu.Visible());
+    // A room's Training left for the room (F10, "Back to room"): the menu was
+    // closed for Training and comes back once the main menu is in front, saying
+    // why, once, and not while the game is still in Training.
+    {
+        OverlayPresentation back;
+        back.Update(MenuContext::MainMenu, MatchState::None, false, true); CHECK(back.Visible());
+        back.Close("Training");
+        for (unsigned i = 0; i < OverlayPresentation::AwayFrames; ++i) back.Update(MenuContext::OfflineTraining, MatchState::None, false, true);
+        CHECK(!back.Available() && !back.Visible());
+        back.ReopenWhenBack("back from Training");
+        back.Update(MenuContext::OfflineTraining, MatchState::None, false, true); CHECK(!back.Visible() && !back.Reopened());
+        back.Update(MenuContext::MainMenu, MatchState::None, false, true);
+        CHECK(back.Visible() && back.Reopened() && std::string(back.Why()) == "back from Training");
+        back.Update(MenuContext::MainMenu, MatchState::None, false, true); CHECK(back.Visible() && !back.Reopened());
+        // Without the return asked for, the main menu after Training keeps the menu closed, as before.
+        OverlayPresentation plain;
+        plain.Update(MenuContext::MainMenu, MatchState::None, false, true); plain.Close("Training");
+        for (unsigned i = 0; i < OverlayPresentation::AwayFrames; ++i) plain.Update(MenuContext::OfflineTraining, MatchState::None, false, true);
+        plain.Update(MenuContext::MainMenu, MatchState::None, false, true); CHECK(!plain.Visible() && !plain.Reopened());
+    }
     // A grant withdrawn before the fight (a late spectator link) goes straight
     // from Preparing to PostMatch, and the shell must come back all the same.
     OverlayPresentation late;

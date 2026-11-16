@@ -691,7 +691,15 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     sf4e::training::KeepOilFull(meterOptions.oilFull);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
-    sf4e::ui::ServeTrainingPhone(training, sf4e::training::Submit);
+    // Every Training command goes through here. The player's own return to the
+    // room (F10, "Back to room", the pad or the phone) goes through the game's
+    // main menu, and Ember's menu comes back on the room there, as after a game.
+    const sf4e::ui::TrainingSubmit submit = [](sf4e::training::Command command) {
+        const bool taken = sf4e::training::Submit(command);
+        if (taken && command.action == sf4e::training::Action::LeaveToRoom) presentation.ReopenWhenBack("back from Training");
+        return taken;
+    };
+    sf4e::ui::ServeTrainingPhone(training, submit);
     const bool nativePaused = sf4e::battlePause.Paused();
     // A replay the game plays, not for a video: its keys are Ember's, read as
     // the training keys are, and training's own keys stay off.
@@ -744,7 +752,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             // Each is applied only under the owner it was pressed under, which
             // may have changed since the batch was taken.
             if (pad.generation != training.generation || !s_trainingControls.Current(pad)) continue;
-            sf4e::ui::ApplyTrainingPadEvent(training, sf4e::training::Submit, s_trainingControls, pad, called);
+            sf4e::ui::ApplyTrainingPadEvent(training, submit, s_trainingControls, pad, called);
         }
         // Record from rest on a recorded slot: the session asked about overwriting it, so the recordings open under the owner that press went down with.
         if (sf4e::input::TrainingControls::Token asked; sf4e::ui::TakeOverwriteAsk(training, asked) && !called) sf4e::ui::OpenTrainingRecordings(s_trainingControls, asked);
@@ -753,7 +761,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         auto practice = [&](sf4e::training::Action action) {
             sf4e::training::Submit({action, training.generation});
         };
-        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit, trainingRoom.InRoom() && !called);
+        sf4e::ui::TrainingHotkeys(training, submit, trainingRoom.InRoom() && !called);
         // Not under the call either: F7 could otherwise open the recordings there.
         if (sf4e::ui::TrainingPressesAct(s_trainingControls, called) && !ImGui::GetIO().WantTextInput) {
             // F7: standby, then record, then stop. From rest on a recorded
@@ -774,7 +782,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (s_trainingControls.Open()) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
-            sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit, trainingRoom);
+            sf4e::ui::DrawTrainingFlyout(training, submit, trainingRoom);
             sf4e::ui::DrawGameThemesFloat(true, true, true);
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_trainingControls.Close();
         }
