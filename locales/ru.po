@@ -303,6 +303,15 @@ msgstr "Операция не удалась. Повторите попытку.
 msgid "services.operation_cancelled"
 msgstr "Операция отменена."
 
+msgid "services.opening_link"
+msgstr "Открытие {0} в браузере..."
+
+msgid "services.link_opened"
+msgstr "Страница открыта в браузере. Перейдите туда."
+
+msgid "services.link_failed"
+msgstr "Не удалось открыть браузер. Перейдите по адресу {0}."
+
 msgid "services.opening_steam_profile"
 msgstr "Открытие профиля Steam в браузере..."
 
@@ -515,6 +524,9 @@ msgstr "Справка и сведения"
 
 msgid "screen.discord"
 msgstr "Discord"
+
+msgid "screen.room_invitation"
+msgstr "Приглашение в лобби"
 
 msgid "screen.assignment"
 msgstr "Назначить контроллер"
@@ -1632,6 +1644,15 @@ msgstr "Это приглашение уже недействительно."
 msgid "friends.nothing_to_offer"
 msgstr "Ваше лобби сейчас нельзя предложить."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "Доступ в этом лобби: «Закрыто». Чтобы пригласить друзей, выберите «Открыто» в разделе «Настройки лобби»."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "Доступ в этом лобби: «Закрыто»."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Это лобби заполнено."
+
 msgid "friends.busy"
 msgstr "Дождитесь завершения последнего запроса."
 
@@ -2213,6 +2234,24 @@ msgstr "Вступить в Ember Discord"
 
 msgid "about.discord_detail"
 msgstr "Игроки, матчи и поддержка: {0}. Страница откроется в браузере за окном игры."
+
+msgid "about.kofi"
+msgstr "Поддержать Ember на Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Поддержка разработки Ember: {0}. Страница откроется в браузере за окном игры."
+
+msgid "about.website"
+msgstr "Сайт Ember"
+
+msgid "about.website_detail"
+msgstr "Лобби, рейтинги и записи: {0}. Страница откроется в браузере за окном игры."
+
+msgid "about.twitter"
+msgstr "Разработчик в Twitter"
+
+msgid "about.twitter_detail"
+msgstr "Новости от разработчика Ember: {0}. Страница откроется в браузере за окном игры."
 
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
@@ -3651,6 +3690,12 @@ msgstr "Копировать ссылку"
 msgid "room.copy_short_invitation.detail"
 msgstr "Короткая ссылка для чата. Сервис ссылок Ember хранит её, пока лобби открыто."
 
+msgid "room.invite.detail"
+msgstr "Пригласите друга или скопируйте ссылку или приглашение, чтобы поделиться."
+
+msgid "room.invite.more_friends"
+msgstr "Другие друзья…"
+
 msgid "room.leaving"
 msgstr "Выход из лобби..."
 
@@ -3734,6 +3779,9 @@ msgstr "Открыто по ссылке на лобби. Проверьте е�
 
 msgid "room.link_waiting"
 msgstr "Открыта ссылка на лобби. Она появится на экране входа, когда вы покинете это лобби."
+
+msgid "room.replacement_invite"
+msgstr "Открывается новое лобби. Выберите «Пригласить», затем «Копировать приглашение» и отправьте новое приглашение. Старое больше не работает."
 
 msgid "room.action_rejected"
 msgstr "Лобби изменилось или отклонило действие. Проверьте текущее состояние и попробуйте снова."
@@ -4328,6 +4376,9 @@ msgstr "Не удалось открыть профиль Steam."
 
 msgid "discord.invitation_expired"
 msgstr "Срок приглашения Discord истёк. Попросите новое."
+
+msgid "room.invitation_expired"
+msgstr "Срок приглашения истёк. Попросите новое."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "Не удалось отправить действие зрителя; повторная попытка."
@@ -7479,6 +7530,15 @@ msgstr "Своя задержка"
 msgid "room.table_footer_wired_only"
 msgstr "Только кабель"
 
+msgid "room.table_rules_line"
+msgstr "Раундов: {0} / {1} с"
+
+msgid "room.table_queue"
+msgstr "Очередь: {0}"
+
+msgid "room.table_watching"
+msgstr "Зрители: {0}"
+
 msgid "room.input_delay.own"
 msgstr "Ваша задержка: {0}"
 
@@ -8602,6 +8662,9 @@ msgstr "Области"
 msgid "room.v2.tables"
 msgstr "СТОЛЫ"
 
+msgid "room.v2.tables_playing"
+msgstr "Играют: {0}"
+
 msgid "room.v2.table"
 msgstr "СТОЛ {0}"
 
@@ -8625,6 +8688,9 @@ msgstr "EMBER · ОНЛАЙН · ОТКРЫТАЯ КОМНАТА"
 
 msgid "room.v2.invitation_only"
 msgstr "Только по приглашению"
+
+msgid "room.v2.friends_can_join"
+msgstr "Друзья могут войти"
 
 msgid "room.v2.listed"
 msgstr "В списке открытых комнат"

@@ -303,6 +303,15 @@ msgstr "Échec de l'opération. Réessayez. Les copies de récupération sont da
 msgid "services.operation_cancelled"
 msgstr "Opération annulée."
 
+msgid "services.opening_link"
+msgstr "Ouverture de {0} dans votre navigateur..."
+
+msgid "services.link_opened"
+msgstr "Page ouverte dans votre navigateur. Passez-y."
+
+msgid "services.link_failed"
+msgstr "Impossible d'ouvrir un navigateur. Rendez-vous sur {0}."
+
 msgid "services.opening_steam_profile"
 msgstr "Ouverture du profil Steam dans votre navigateur..."
 
@@ -515,6 +524,9 @@ msgstr "Aide et infos"
 
 msgid "screen.discord"
 msgstr "Discord"
+
+msgid "screen.room_invitation"
+msgstr "Invitation au salon"
 
 msgid "screen.assignment"
 msgstr "Attribuer une manette"
@@ -1632,6 +1644,15 @@ msgstr "Cette invitation est terminée."
 msgid "friends.nothing_to_offer"
 msgstr "Votre salon ne peut pas être proposé pour le moment."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "L'Accès est Verrouillé dans ce salon. Passez-le sur Ouvert dans Paramètres du salon pour inviter des amis."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "L'Accès est Verrouillé dans ce salon."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Ce salon est complet."
+
 msgid "friends.busy"
 msgstr "Attendez la fin de la dernière demande."
 
@@ -2213,6 +2234,24 @@ msgstr "Rejoindre le Discord Ember"
 
 msgid "about.discord_detail"
 msgstr "Joueurs, matchs et aide sur {0}. S'ouvre dans votre navigateur derrière le jeu."
+
+msgid "about.kofi"
+msgstr "Soutenir Ember sur Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Soutenez le développement d'Ember sur {0}. S'ouvre dans votre navigateur derrière le jeu."
+
+msgid "about.website"
+msgstr "Site web d'Ember"
+
+msgid "about.website_detail"
+msgstr "Salons, classements et replays sur {0}. S'ouvre dans votre navigateur derrière le jeu."
+
+msgid "about.twitter"
+msgstr "Développeur sur Twitter"
+
+msgid "about.twitter_detail"
+msgstr "Actualités du développeur d'Ember sur {0}. S'ouvre dans votre navigateur derrière le jeu."
 
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
@@ -3651,6 +3690,12 @@ msgstr "Copier le lien court"
 msgid "room.copy_short_invitation.detail"
 msgstr "Un lien court pour le chat, conservé par le service de liens Ember tant que le salon est ouvert."
 
+msgid "room.invite.detail"
+msgstr "Invitez un ami, ou copiez un lien ou une invitation à partager."
+
+msgid "room.invite.more_friends"
+msgstr "Plus d'amis…"
+
 msgid "room.leaving"
 msgstr "Sortie du salon..."
 
@@ -3734,6 +3779,9 @@ msgstr "Ouvert depuis un lien de salon. Vérifiez-le, puis choisissez Rejoindre.
 
 msgid "room.link_waiting"
 msgstr "Un lien de salon a été ouvert. Il sera sur l'écran pour rejoindre dès que vous quitterez ce salon."
+
+msgid "room.replacement_invite"
+msgstr "Ouverture du nouveau salon. Choisissez Inviter, puis Copier l'invitation, et envoyez la nouvelle invitation. L'ancienne ne fonctionne plus."
 
 msgid "room.action_rejected"
 msgstr "Le salon a changé ou refusé cette action. Vérifiez son état et réessayez."
@@ -4328,6 +4376,9 @@ msgstr "Impossible d'ouvrir le profil Steam."
 
 msgid "discord.invitation_expired"
 msgstr "L'invitation Discord a expiré. Demandez-en une nouvelle."
+
+msgid "room.invitation_expired"
+msgstr "L'invitation a expiré. Demandez-en une nouvelle."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "Impossible d'envoyer l'action spectateur ; nouvelle tentative."
@@ -7479,6 +7530,15 @@ msgstr "Délai propre"
 msgid "room.table_footer_wired_only"
 msgstr "Filaire uniquement"
 
+msgid "room.table_rules_line"
+msgstr "Rounds {0} / {1} s"
+
+msgid "room.table_queue"
+msgstr "File {0}"
+
+msgid "room.table_watching"
+msgstr "Spect. {0}"
+
 msgid "room.input_delay.own"
 msgstr "Votre délai : {0}"
 
@@ -8602,6 +8662,9 @@ msgstr "Zones"
 msgid "room.v2.tables"
 msgstr "TABLES"
 
+msgid "room.v2.tables_playing"
+msgstr "En jeu {0}"
+
 msgid "room.v2.table"
 msgstr "TABLE {0}"
 
@@ -8625,6 +8688,9 @@ msgstr "EMBER · EN LIGNE · SALON PUBLIC"
 
 msgid "room.v2.invitation_only"
 msgstr "Sur invitation"
+
+msgid "room.v2.friends_can_join"
+msgstr "Ouvert aux amis"
 
 msgid "room.v2.listed"
 msgstr "Listé dans Salons publics"

@@ -303,6 +303,15 @@ msgstr "La operación falló. Vuelve a intentarlo. Las copias de recuperación s
 msgid "services.operation_cancelled"
 msgstr "Operación cancelada."
 
+msgid "services.opening_link"
+msgstr "Abriendo {0} en el navegador..."
+
+msgid "services.link_opened"
+msgstr "Se abrió en el navegador. Cambia a él."
+
+msgid "services.link_failed"
+msgstr "No se pudo abrir el navegador. Visita {0}."
+
 msgid "services.opening_steam_profile"
 msgstr "Abriendo el perfil de Steam en el navegador..."
 
@@ -515,6 +524,9 @@ msgstr "Ayuda e información"
 
 msgid "screen.discord"
 msgstr "Discord"
+
+msgid "screen.room_invitation"
+msgstr "Invitación a la sala"
 
 msgid "screen.assignment"
 msgstr "Asignar control"
@@ -1632,6 +1644,15 @@ msgstr "Esa invitación terminó."
 msgid "friends.nothing_to_offer"
 msgstr "Tu sala no se puede ofrecer ahora."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "La Admisión de esta sala está en Bloqueada. Cámbiala a Abierta en Ajustes de la sala para invitar amigos."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "La Admisión de esta sala está en Bloqueada."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Esta sala está llena."
+
 msgid "friends.busy"
 msgstr "Espera a que termine la última solicitud."
 
@@ -2213,6 +2234,24 @@ msgstr "Unirse al Discord de Ember"
 
 msgid "about.discord_detail"
 msgstr "Jugadores, partidas y soporte en {0}. Se abre en el navegador detrás del juego."
+
+msgid "about.kofi"
+msgstr "Apoya a Ember en Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Apoya el desarrollo de Ember en {0}. Se abre en el navegador detrás del juego."
+
+msgid "about.website"
+msgstr "Sitio web de Ember"
+
+msgid "about.website_detail"
+msgstr "Salas, clasificaciones y repeticiones en {0}. Se abre en el navegador detrás del juego."
+
+msgid "about.twitter"
+msgstr "Desarrollador en Twitter"
+
+msgid "about.twitter_detail"
+msgstr "Novedades del desarrollador de Ember en {0}. Se abre en el navegador detrás del juego."
 
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
@@ -3651,6 +3690,12 @@ msgstr "Copiar enlace corto"
 msgid "room.copy_short_invitation.detail"
 msgstr "Un enlace corto para el chat. El servicio de enlaces de Ember lo guarda mientras la sala esté abierta."
 
+msgid "room.invite.detail"
+msgstr "Invita a un amigo, o copia un enlace o una invitación para compartir."
+
+msgid "room.invite.more_friends"
+msgstr "Más amigos…"
+
 msgid "room.leaving"
 msgstr "Saliendo de la sala..."
 
@@ -3734,6 +3779,9 @@ msgstr "Se abrió desde un enlace de sala. Revísalo y elige Entrar a sala."
 
 msgid "room.link_waiting"
 msgstr "Se abrió un enlace de sala. Estará en la pantalla para unirse cuando salgas de esta sala."
+
+msgid "room.replacement_invite"
+msgstr "Abriendo sala de reemplazo. Elige Invitar, luego Copiar invitación, y envía la invitación nueva. La anterior ya no funciona."
 
 msgid "room.action_rejected"
 msgstr "La sala cambió o rechazó esta acción. Revisa el estado actual e inténtalo de nuevo."
@@ -4328,6 +4376,9 @@ msgstr "No se pudo abrir el perfil de Steam."
 
 msgid "discord.invitation_expired"
 msgstr "La invitación de Discord expiró. Pide una nueva invitación."
+
+msgid "room.invitation_expired"
+msgstr "La invitación expiró. Pide una nueva."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "No se pudo enviar la acción de espectador; reintentando."
@@ -7479,6 +7530,15 @@ msgstr "Retardo propio"
 msgid "room.table_footer_wired_only"
 msgstr "Solo cable"
 
+msgid "room.table_rules_line"
+msgstr "Rounds {0} / {1} s"
+
+msgid "room.table_queue"
+msgstr "Cola {0}"
+
+msgid "room.table_watching"
+msgstr "Observando {0}"
+
 msgid "room.input_delay.own"
 msgstr "Tu retardo: {0}"
 
@@ -8602,6 +8662,9 @@ msgstr "Áreas"
 msgid "room.v2.tables"
 msgstr "MESAS"
 
+msgid "room.v2.tables_playing"
+msgstr "Jugando {0}"
+
 msgid "room.v2.table"
 msgstr "MESA {0}"
 
@@ -8625,6 +8688,9 @@ msgstr "EMBER · EN LÍNEA · SALA PÚBLICA"
 
 msgid "room.v2.invitation_only"
 msgstr "Solo con invitación"
+
+msgid "room.v2.friends_can_join"
+msgstr "Amigos pueden entrar"
 
 msgid "room.v2.listed"
 msgstr "En Salas públicas"

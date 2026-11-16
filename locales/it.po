@@ -303,6 +303,15 @@ msgstr "Operazione fallita. Riprova. Le copie di ripristino sono conservate in .
 msgid "services.operation_cancelled"
 msgstr "Operazione annullata."
 
+msgid "services.opening_link"
+msgstr "Apertura di {0} nel browser..."
+
+msgid "services.link_opened"
+msgstr "Aperto nel browser. Passa al browser."
+
+msgid "services.link_failed"
+msgstr "Impossibile aprire il browser. Visita {0}."
+
 msgid "services.opening_steam_profile"
 msgstr "Apertura del profilo Steam nel browser..."
 
@@ -515,6 +524,9 @@ msgstr "Guida e info"
 
 msgid "screen.discord"
 msgstr "Discord"
+
+msgid "screen.room_invitation"
+msgstr "Invito alla sala"
 
 msgid "screen.assignment"
 msgstr "Assegna controller"
@@ -1632,6 +1644,15 @@ msgstr "Quell'invito è terminato."
 msgid "friends.nothing_to_offer"
 msgstr "La tua sala non può essere offerta ora."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "L'Accesso a questa sala è su Bloccata. Impostalo su Aperta in Impostazioni sala per invitare amici."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "L'Accesso a questa sala è su Bloccata."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Questa sala è piena."
+
 msgid "friends.busy"
 msgstr "Aspetta che l'ultima richiesta finisca."
 
@@ -2213,6 +2234,24 @@ msgstr "Entra nell'Ember Discord"
 
 msgid "about.discord_detail"
 msgstr "Giocatori, partite e assistenza su {0}. Si apre nel browser dietro al gioco."
+
+msgid "about.kofi"
+msgstr "Sostieni Ember su Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Sostieni lo sviluppo di Ember su {0}. Si apre nel browser dietro al gioco."
+
+msgid "about.website"
+msgstr "Sito web di Ember"
+
+msgid "about.website_detail"
+msgstr "Sale, classifiche e replay su {0}. Si apre nel browser dietro al gioco."
+
+msgid "about.twitter"
+msgstr "Sviluppatore su Twitter"
+
+msgid "about.twitter_detail"
+msgstr "Novità dallo sviluppatore di Ember su {0}. Si apre nel browser dietro al gioco."
 
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
@@ -3651,6 +3690,12 @@ msgstr "Copia link breve"
 msgid "room.copy_short_invitation.detail"
 msgstr "Un link breve per la chat, conservato dal servizio link di Ember finché la sala è aperta."
 
+msgid "room.invite.detail"
+msgstr "Invita un amico, oppure copia un link o un invito da condividere."
+
+msgid "room.invite.more_friends"
+msgstr "Altri amici…"
+
 msgid "room.leaving"
 msgstr "Uscita dalla sala..."
 
@@ -3734,6 +3779,9 @@ msgstr "Aperto da un link della sala. Controllalo, poi scegli Entra in sala."
 
 msgid "room.link_waiting"
 msgstr "È stato aperto un link della sala. Lo troverai nella schermata per entrare quando lasci questa sala."
+
+msgid "room.replacement_invite"
+msgstr "Apertura nuova sala. Scegli Invita, poi Copia invito, e invia il nuovo invito. Il vecchio non funziona più."
 
 msgid "room.action_rejected"
 msgstr "La sala è cambiata o ha rifiutato l'azione. Controlla lo stato e riprova."
@@ -4328,6 +4376,9 @@ msgstr "Impossibile aprire il profilo Steam."
 
 msgid "discord.invitation_expired"
 msgstr "L'invito Discord è scaduto. Chiedine un altro."
+
+msgid "room.invitation_expired"
+msgstr "L'invito è scaduto. Chiedine un altro."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "Impossibile inviare l'azione spettatore; nuovo tentativo."
@@ -7479,6 +7530,15 @@ msgstr "Ritardo proprio"
 msgid "room.table_footer_wired_only"
 msgstr "Solo cavo"
 
+msgid "room.table_rules_line"
+msgstr "Round {0} / {1} sec"
+
+msgid "room.table_queue"
+msgstr "Coda {0}"
+
+msgid "room.table_watching"
+msgstr "Spettatori {0}"
+
 msgid "room.input_delay.own"
 msgstr "Il tuo ritardo: {0}"
 
@@ -8602,6 +8662,9 @@ msgstr "Aree"
 msgid "room.v2.tables"
 msgstr "TAVOLI"
 
+msgid "room.v2.tables_playing"
+msgstr "In gioco {0}"
+
 msgid "room.v2.table"
 msgstr "TAVOLO {0}"
 
@@ -8625,6 +8688,9 @@ msgstr "EMBER · ONLINE · STANZA PUBBLICA"
 
 msgid "room.v2.invitation_only"
 msgstr "Solo su invito"
+
+msgid "room.v2.friends_can_join"
+msgstr "Aperta agli amici"
 
 msgid "room.v2.listed"
 msgstr "In Stanze pubbliche"

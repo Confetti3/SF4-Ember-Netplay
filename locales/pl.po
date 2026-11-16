@@ -303,6 +303,15 @@ msgstr "Operacja nie powiodła się. Spróbuj ponownie. Kopie odzyskiwania aktua
 msgid "services.operation_cancelled"
 msgstr "Operacja anulowana."
 
+msgid "services.opening_link"
+msgstr "Otwieranie {0} w przeglądarce..."
+
+msgid "services.link_opened"
+msgstr "Otwarto w przeglądarce. Przejdź do niej."
+
+msgid "services.link_failed"
+msgstr "Nie można otworzyć przeglądarki. Odwiedź {0}."
+
 msgid "services.opening_steam_profile"
 msgstr "Otwieranie profilu Steam w przeglądarce..."
 
@@ -515,6 +524,9 @@ msgstr "Pomoc i informacje"
 
 msgid "screen.discord"
 msgstr "Discord"
+
+msgid "screen.room_invitation"
+msgstr "Zaproszenie do pokoju"
 
 msgid "screen.assignment"
 msgstr "Przypisz kontroler"
@@ -1632,6 +1644,15 @@ msgstr "To zaproszenie wygasło."
 msgid "friends.nothing_to_offer"
 msgstr "Twojego pokoju nie można teraz zaproponować."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "Dostęp jest w tym pokoju ustawiony na Zamknięty. Ustaw Otwarty w Ustawieniach pokoju, aby zapraszać znajomych."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "Dostęp jest w tym pokoju ustawiony na Zamknięty."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Ten pokój jest pełny."
+
 msgid "friends.busy"
 msgstr "Poczekaj na zakończenie ostatniej prośby."
 
@@ -2213,6 +2234,24 @@ msgstr "Dołącz do Discord Ember"
 
 msgid "about.discord_detail"
 msgstr "Gracze, walki i pomoc na {0}. Otwiera się w przeglądarce za oknem gry."
+
+msgid "about.kofi"
+msgstr "Wesprzyj Ember na Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Wesprzyj rozwój Ember na {0}. Otwiera się w przeglądarce za oknem gry."
+
+msgid "about.website"
+msgstr "Strona Ember"
+
+msgid "about.website_detail"
+msgstr "Pokoje, rankingi i powtórki na {0}. Otwiera się w przeglądarce za oknem gry."
+
+msgid "about.twitter"
+msgstr "Twitter twórcy"
+
+msgid "about.twitter_detail"
+msgstr "Nowości od twórcy Ember na {0}. Otwiera się w przeglądarce za oknem gry."
 
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
@@ -3651,6 +3690,12 @@ msgstr "Kopiuj krótki link"
 msgid "room.copy_short_invitation.detail"
 msgstr "Krótki link do czatu. Usługa linków Ember przechowuje go, dopóki pokój jest otwarty."
 
+msgid "room.invite.detail"
+msgstr "Zaproś znajomego albo skopiuj link lub zaproszenie, aby je udostępnić."
+
+msgid "room.invite.more_friends"
+msgstr "Więcej znajomych…"
+
 msgid "room.leaving"
 msgstr "Opuszczanie pokoju..."
 
@@ -3734,6 +3779,9 @@ msgstr "Otwarto z linku do pokoju. Sprawdź go, a potem wybierz Dołącz."
 
 msgid "room.link_waiting"
 msgstr "Otwarto link do pokoju. Pojawi się na ekranie dołączania, gdy opuścisz ten pokój."
+
+msgid "room.replacement_invite"
+msgstr "Otwieranie nowego pokoju. Wybierz Zaproś, potem Kopiuj zaproszenie, i wyślij nowe zaproszenie. Stare już nie działa."
 
 msgid "room.action_rejected"
 msgstr "Pokój się zmienił lub odrzucił działanie. Sprawdź aktualny stan i spróbuj ponownie."
@@ -4328,6 +4376,9 @@ msgstr "Nie można otworzyć profilu Steam."
 
 msgid "discord.invitation_expired"
 msgstr "Zaproszenie Discord wygasło. Poproś o nowe."
+
+msgid "room.invitation_expired"
+msgstr "Zaproszenie wygasło. Poproś o nowe."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "Nie udało się wysłać działania widza; ponawianie próby."
@@ -7479,6 +7530,15 @@ msgstr "Własne opóźnienie"
 msgid "room.table_footer_wired_only"
 msgstr "Tylko kabel"
 
+msgid "room.table_rules_line"
+msgstr "Rundy: {0} / {1} s"
+
+msgid "room.table_queue"
+msgstr "Kolejka: {0}"
+
+msgid "room.table_watching"
+msgstr "Widzowie: {0}"
+
 msgid "room.input_delay.own"
 msgstr "Twoje opóźnienie: {0}"
 
@@ -8602,6 +8662,9 @@ msgstr "Obszary"
 msgid "room.v2.tables"
 msgstr "STOŁY"
 
+msgid "room.v2.tables_playing"
+msgstr "Grają: {0}"
+
 msgid "room.v2.table"
 msgstr "STÓŁ {0}"
 
@@ -8625,6 +8688,9 @@ msgstr "EMBER · ONLINE · POKÓJ PUBLICZNY"
 
 msgid "room.v2.invitation_only"
 msgstr "Tylko z zaproszeniem"
+
+msgid "room.v2.friends_can_join"
+msgstr "Znajomi mogą dołączyć"
 
 msgid "room.v2.listed"
 msgstr "Na liście Pokoje publiczne"
