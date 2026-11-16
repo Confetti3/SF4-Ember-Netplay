@@ -250,10 +250,10 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // The room's actions along the bottom, then the focused row's line over them.
   const RoomActionBar bar(f);
   const int gridColumns=ultra||logical>=1640?3:narrow&&tables.W()<640*s?1:2;
-  // The floor at the board's whole width: its tallest row is the least it needs.
+  // The floor at the board's whole width: its tallest row at its least is the least it needs.
   const auto whole=ShapeFloor(f,place,tables.W(),FLT_MAX,0,gridColumns,preferences_.roomTableGrid);
-  // A row of cards: the tallest one standing, else a seated card's height.
-  const float cardHeight=whole.cards.empty()?whole.shape.Height({}):whole.places.tallest;
+  // A row of cards at their least: the tallest one, else a seated card's least.
+  const float cardHeight=whole.cards.empty()?whole.shape.Least({}):whole.places.leastRow;
   // The bar stays along the bottom while the floor fits over it and the
   // focused row's line: a row of cards, or an Arcade room's whole floor. On a
   // shorter board it follows the floor in its scroll.
@@ -263,7 +263,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // or shrink (a banner, a pair sitting down) can leave the focused row out
   // of sight with the focus unchanged: it scrolls back into view as it does
   // when the focus moves. A scroll of the player's own stays put between.
-  const RoomTablesShape shape{follows,tables.W(),tables.H(),whole.places.height};
+  const RoomTablesShape shape{follows,tables.W(),tables.H(),whole.places.leastHeight};
   if(!(shape==roomTablesShape_)){f.focusChanged=true;roomTablesShape_=shape;}
   if(!follows){const float width=tables.W();bar.Draw(d,v2::CutBottom(tables,bar.Height(width),12*s).min,width,tables);}
   ImGui::SetCursorScreenPos(v2::CutBottom(tables,18*s,8*s).min);

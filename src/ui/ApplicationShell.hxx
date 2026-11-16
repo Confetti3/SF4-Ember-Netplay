@@ -593,8 +593,8 @@ private:
     std::string roomAreaFocus_[static_cast<int>(BoardArea::Count)];
     std::uint64_t roomFocusGeneration_ = 0, roomFocusEpoch_ = 0;
     // Whether the room's action bar followed the tables in their scroll last
-    // frame, the tables' size and their cards' whole height: a change shows
-    // the focused row again.
+    // frame, the tables' size and their cards' whole height at their least
+    // (what they hold): a change shows the focused row again.
     struct RoomTablesShape {
         bool follows = false;
         float width = 0, height = 0, cards = 0;
