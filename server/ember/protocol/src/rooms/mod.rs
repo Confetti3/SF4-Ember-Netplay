@@ -832,6 +832,7 @@ te"
             build_id: "build".into(),
             skill_badge: false,
             developer_badge: false,
+            game: DEFAULT_GAME.into(),
             card: false,
         };
         assert_eq!(
@@ -976,6 +977,7 @@ te"
             capacity: 8,
             build_id: SFV_BUILD.into(),
             region: None,
+            area: None,
             own_delay: false,
             game: SFV_GAME.into(),
         };
@@ -995,6 +997,7 @@ te"
             skill_badge: false,
             developer_badge: false,
             game: SFV_GAME.into(),
+            card: false,
         };
         request.check().unwrap();
         let text = serde_json::to_string(&request).unwrap();
@@ -1022,6 +1025,7 @@ te"
                 capacity: 8,
                 build_id: "build".into(),
                 region: None,
+                area: None,
                 own_delay: false,
                 game: game.into(),
             };
@@ -1032,6 +1036,7 @@ te"
                 skill_badge: false,
                 developer_badge: false,
                 game: game.into(),
+                card: false,
             };
             assert_eq!(request.check(), Err(Error::InvalidField("game")), "{game}");
             let room = RoomSummary {
