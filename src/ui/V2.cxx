@@ -250,6 +250,11 @@ float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, fl
     draw->AddText(font, size, ImVec2(centred ? at.x + (width - w) * .5f : at.x, at.y), color, shown.c_str());
     return w;
 }
+float TextEnd(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color) {
+    const std::string shown = Fit(text, width, size, ImGui::GetFont(), true);
+    draw->AddText(ImGui::GetFont(), size, ImVec2(at.x + width - TextWidth(shown, size), at.y), color, shown.c_str());
+    return TextWidth(shown, size);
+}
 float TextShrunk(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, float least, ImU32 color, ImFont* font) {
     if (!font) font = ImGui::GetFont();
     const float measured = font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x;
@@ -302,6 +307,13 @@ void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, 
     if (!label.empty()) Text(draw, ImVec2(b.min.x + 12 * s, b.min.y + (b.H() - size) * .5f), b.W() - 24 * s, label, size, ink, HeadingFont(), true);
     if (focused && primary && enabled) draw->AddRect(b.min, b.max, c.text, 4 * s, 0, 3 * s);
     else if (focused) Focus(draw, b.min, b.max);
+}
+void IconButton(ImDrawList* draw, Box b, const IconDraw& icon, bool focused, bool hovered, bool enabled) {
+    const float size = 22 * Scale();
+    const auto& c = Colors();
+    icon(draw, ImVec2(b.min.x + (b.W() - size) * .5f, b.min.y + (b.H() - size) * .5f), size,
+        !enabled ? color::Alpha(c.muted, .5f) : focused || hovered ? c.accent : c.muted);
+    if (focused) Focus(draw, b.min, b.max, false);
 }
 namespace {
 // The places on line `line` of `lines`: the first and how many, shared out evenly in order.
@@ -376,11 +388,11 @@ void Fact(const std::string& key, const std::string& value) {
     ImGui::Dummy(ImVec2(w, h));
 }
 
-float BrandMark(ImDrawList* draw, ImVec2 at, float height) {
+float BrandMark(ImDrawList* draw, ImVec2 at, float height, ImU32 tint) {
     auto* atlas = ImGui::GetIO().Fonts;
     ImVec2 uv0, uv1;
     atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(0), &uv0, &uv1);
-    draw->AddImage(atlas->TexID, at, ImVec2(at.x + height, at.y + height), uv0, uv1);
+    draw->AddImage(atlas->TexID, at, ImVec2(at.x + height, at.y + height), uv0, uv1, tint);
     return height;
 }
 
