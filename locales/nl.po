@@ -2562,6 +2562,12 @@ msgstr "Dit slot leegmaken"
 msgid "training.reply.clear_slot.detail"
 msgstr "Verwijdert de move van dit slot."
 
+msgid "training.reply.clear_all"
+msgstr "Alle slots leegmaken"
+
+msgid "training.reply.clear_all.detail"
+msgstr "Verwijdert de moves van elk antwoordslot. De antwoordinstellingen blijven zoals ze zijn."
+
 msgid "training.reply.every_fighter"
 msgstr "Elke vechter"
 
@@ -2681,6 +2687,12 @@ msgstr "Trainingsbesturing sluiten"
 
 msgid "training.close_controls.detail"
 msgstr "Sluit Ember en daarna eventueel het SF4-pauzemenu om verder te spelen."
+
+msgid "training.back_to_room"
+msgstr "Terug naar de room"
+
+msgid "training.back_to_room.detail"
+msgstr "Verlaat Training en ga terug naar {0}. Je plaats in de kamer blijft behouden."
 
 msgid "training.slot"
 msgstr "Slot {0}"
@@ -4329,6 +4341,9 @@ msgstr "Discord-hulp gestopt. Spel blijft werken."
 msgid "runtime.room_connection_failed"
 msgstr "Kamerverbinding mislukt. De kamer wordt gesloten; onbevestigde uitslagen worden niet vastgelegd."
 
+msgid "runtime.public_room_connection_failed"
+msgstr "Je hebt de verbinding met de kamer verloren. Onbevestigde uitslagen worden niet vastgelegd. Ga er opnieuw in via Openbare kamers. Als de kamer je weigert, wacht dan een minuut en probeer het opnieuw."
+
 msgid "runtime.operation_busy"
 msgstr "De bewerking is bezig. Probeer opnieuw."
 
@@ -4394,6 +4409,9 @@ msgstr "De match werd niet op tijd afgesloten. De toeschouwersweergave is gestop
 
 msgid "runtime.room_closed"
 msgstr "De kamer is gesloten."
+
+msgid "runtime.room_unreachable"
+msgstr "Je hebt de verbinding met de kamer verloren, of de kamer is gesloten. Staat hij nog in Openbare kamers, ga er dan opnieuw in."
 
 msgid "runtime.removed_from_room"
 msgstr "Je bent uit de kamer verwijderd."
@@ -5919,8 +5937,14 @@ msgstr "Deze kamer is net vol geraakt of vergrendeld. Kies een andere."
 msgid "public.failure.turned_away"
 msgstr "De kamer weigerde je toegang. Je bent er misschien uit verwijderd."
 
+msgid "public.failure.name_taken"
+msgstr "Die naam is al in deze kamer. Als je net bent losgekoppeld, wordt je oude plaats misschien nog vastgehouden: wacht een minuut en probeer het opnieuw. Wijzig anders je naam bij Instellingen."
+
 msgid "public.failure.join_failed"
 msgstr "Kon de kamer niet in. Misschien is hij net gesloten. Vernieuw en kies een andere."
+
+msgid "public.failure.refused"
+msgstr "De kamer liet je niet binnen. Als je er net in zat, houdt hij je oude plaats misschien nog vast: wacht een minuut en probeer het opnieuw. Je bent er mogelijk ook uit verwijderd."
 
 msgid "legend.refresh"
 msgstr "Vernieuwen"

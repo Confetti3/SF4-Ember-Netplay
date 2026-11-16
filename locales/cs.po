@@ -2562,6 +2562,12 @@ msgstr "Vyprázdnit tuto pozici"
 msgid "training.reply.clear_slot.detail"
 msgstr "Odebere úder této pozice."
 
+msgid "training.reply.clear_all"
+msgstr "Vyprázdnit všechny pozice"
+
+msgid "training.reply.clear_all.detail"
+msgstr "Odebere údery ze všech pozic odpovědi. Nastavení odpovědi zůstane beze změny."
+
 msgid "training.reply.every_fighter"
 msgstr "Každý bojovník"
 
@@ -2681,6 +2687,12 @@ msgstr "Zavřít ovládání tréninku"
 
 msgid "training.close_controls.detail"
 msgstr "Zavřete Ember a pak případně i nabídku pauzy SF4, aby hra pokračovala."
+
+msgid "training.back_to_room"
+msgstr "Zpět do místnosti"
+
+msgid "training.back_to_room.detail"
+msgstr "Opusťte trénink a vraťte se do {0}. Vaše místo v místnosti zůstane zachováno."
 
 msgid "training.slot"
 msgstr "Pozice {0}"
@@ -4329,6 +4341,9 @@ msgstr "Pomocná aplikace Discord se zastavila. Hraní tím není ovlivněno."
 msgid "runtime.room_connection_failed"
 msgstr "Spojení s místností selhalo. Místnost se zavírá; nepotvrzené výsledky se nezaznamenají."
 
+msgid "runtime.public_room_connection_failed"
+msgstr "Spojení s místností se přerušilo. Nepotvrzené výsledky se nezaznamenají. Připojte se k ní znovu přes Veřejné místnosti. Pokud vás odmítne, počkejte minutu a zkuste to znovu."
+
 msgid "runtime.operation_busy"
 msgstr "Operace právě probíhá. Zkuste to znovu."
 
@@ -4394,6 +4409,9 @@ msgstr "Zápas se nestihl uzavřít. Sledování bylo zastaveno."
 
 msgid "runtime.room_closed"
 msgstr "Místnost byla zavřena."
+
+msgid "runtime.room_unreachable"
+msgstr "Spojení s místností se přerušilo, nebo se místnost zavřela. Pokud je stále v seznamu Veřejné místnosti, připojte se k ní znovu."
 
 msgid "runtime.removed_from_room"
 msgstr "Byli jste odebráni z místnosti."
@@ -5919,8 +5937,14 @@ msgstr "Tato místnost se právě zaplnila nebo byla uzamčena. Vyberte jinou."
 msgid "public.failure.turned_away"
 msgstr "Místnost odmítla vaše připojení. Možná jste z ní byli odebráni."
 
+msgid "public.failure.name_taken"
+msgstr "Toto jméno už v této místnosti je. Pokud jste byli právě odpojeni, vaše staré místo může být ještě drženo: počkejte minutu a zkuste to znovu. Jinak změňte jméno v Nastavení."
+
 msgid "public.failure.join_failed"
 msgstr "Do místnosti se nepodařilo vstoupit. Možná se právě zavřela. Aktualizujte seznam a vyberte jinou."
+
+msgid "public.failure.refused"
+msgstr "Místnost vás nepřijala. Pokud jste v ní právě byli, může ještě držet vaše staré místo: počkejte minutu a zkuste to znovu. Možná jste také byli z místnosti odebráni."
 
 msgid "legend.refresh"
 msgstr "Aktualizovat"

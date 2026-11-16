@@ -2562,6 +2562,12 @@ msgstr "清空此槽位"
 msgid "training.reply.clear_slot.detail"
 msgstr "移除此槽位的招式。"
 
+msgid "training.reply.clear_all"
+msgstr "清空所有槽位"
+
+msgid "training.reply.clear_all.detail"
+msgstr "移除所有反击槽位中的招式。反击设置保持不变。"
+
 msgid "training.reply.every_fighter"
 msgstr "所有角色"
 
@@ -2681,6 +2687,12 @@ msgstr "关闭训练操作"
 
 msgid "training.close_controls.detail"
 msgstr "关闭 Ember。如 SF4 暂停菜单仍打开，请将其关闭以继续。"
+
+msgid "training.back_to_room"
+msgstr "返回房间"
+
+msgid "training.back_to_room.detail"
+msgstr "离开训练并返回 {0}。您在房间中的座位会保留。"
 
 msgid "training.slot"
 msgstr "槽位 {0}"
@@ -4329,6 +4341,9 @@ msgstr "Discord 辅助程序已停止，不影响对战。"
 msgid "runtime.room_connection_failed"
 msgstr "房间连接失败。房间即将关闭；未确认的结果不会计入记录。"
 
+msgid "runtime.public_room_connection_failed"
+msgstr "您与房间的连接已断开。未确认的结果不会计入记录。请从公开房间重新加入。如果被拒绝，请等待一分钟后再试。"
+
 msgid "runtime.operation_busy"
 msgstr "操作繁忙，请重试。"
 
@@ -4394,6 +4409,9 @@ msgstr "对战未能及时关闭，观战已停止。"
 
 msgid "runtime.room_closed"
 msgstr "房间已关闭。"
+
+msgid "runtime.room_unreachable"
+msgstr "您与房间的连接已断开，或房间已关闭。如果它仍在公开房间中列出，请重新加入。"
 
 msgid "runtime.removed_from_room"
 msgstr "您已被移出房间。"
@@ -5919,8 +5937,14 @@ msgstr "此房间刚刚已满或被锁定，请选择其他房间。"
 msgid "public.failure.turned_away"
 msgstr "房间拒绝了加入请求。您可能已被移出该房间。"
 
+msgid "public.failure.name_taken"
+msgstr "该名称已在此房间中使用。如果您刚刚断开连接，您原来的座位可能仍被保留：请等待一分钟后再试。否则，请在设置中更改名称。"
+
 msgid "public.failure.join_failed"
 msgstr "无法进入房间，它可能刚刚关闭。请刷新后选择其他房间。"
+
+msgid "public.failure.refused"
+msgstr "房间没有接纳您。如果您刚刚还在房间中，房间可能仍保留着您原来的座位：请等待一分钟后再试。您也可能已被移出该房间。"
 
 msgid "legend.refresh"
 msgstr "刷新"
