@@ -37,6 +37,7 @@
 // --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk), a created room joined at once,
 //   and writes each step there; exits when it is done, 3 when a step failed
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
+// --lang tag: the interface language (en, ja, ru, ...) instead of the system's
 // --seats watch|none with --room: FRaccie watches table 2's game, or has no place in the Classic room
 // UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--points public|private] [--rankings] [--profile state] [--friends state] [--find state] [--relation word] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
@@ -596,7 +597,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool newsStress = false;  // --news stress: News also lists a release with a very long title, tag and notes
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string points;  // --points public|private
-    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState, setsState, playerState, findState, relationState;
+    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState, setsState, playerState, findState, relationState, lang;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
@@ -642,6 +643,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--faint") faint = true;
         else if (args[i] == "--classes") classes = true;
         else if (args[i] == "--screen" && more) screen = args[++i];
+        else if (args[i] == "--lang" && more) lang = args[++i];
         else if (args[i] == "--update") update = true;
         else if (args[i] == "--news" && more) newsStress = args[++i] == "stress";
         else if (args[i] == "--recovery" && more) recovery = args[++i];
@@ -676,6 +678,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
     ui::ApplicationShell shell;
     ui::ShellView view = FakeView();
+    if (!lang.empty()) view.languagePreference = lang;
     view.preferences.pictureMode = pictureMode;
     view.preferences.roomShowMembers = hidePanes != "members" && hidePanes != "both";
     view.preferences.roomShowChat = hidePanes != "chat" && hidePanes != "both";

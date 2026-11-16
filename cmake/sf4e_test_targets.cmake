@@ -273,9 +273,18 @@ target_link_libraries(UiLab PRIVATE sf4e_product sf4e_catalog sf4e_ui "d3d9" "xi
 # 128 x 128 RGBA mark. Off unless both are set; SF4 Ember's lab is unchanged.
 set(SF4E_LAB_PRODUCT_SOURCE "" CACHE FILEPATH "Another product's identity source for UiLabProduct")
 set(SF4E_LAB_PRODUCT_MARK "" CACHE FILEPATH "That product's 128x128 RGBA mark")
+# The folder UiLabProduct reads its pictures from (its selection art; the menu
+# ground, input glyphs and flags are read from its siblings). Empty: SF4 Ember's
+# assets/selection. A folder with no fighter pictures draws the shell's
+# placeholder, so a product whose art comes from its game never shows SF4's.
+set(SF4E_LAB_PRODUCT_ASSET_ROOT "" CACHE PATH "The product's assets/selection folder for UiLabProduct")
 if(SF4E_LAB_PRODUCT_SOURCE AND SF4E_LAB_PRODUCT_MARK)
-    add_executable(UiLabProduct WIN32 "src/ui/lab/UiLab.cxx" "${SF4E_LAB_PRODUCT_SOURCE}")
-    target_compile_definitions(UiLabProduct PRIVATE SF4E_LAB_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
+    add_executable(UiLabProduct WIN32 "src/ui/lab/UiLab.cxx" "src/ui/lab/UiLabSocial.cxx" "${SF4E_LAB_PRODUCT_SOURCE}")
+    set(sf4e_lab_product_assets "${CMAKE_SOURCE_DIR}/assets/selection")
+    if(SF4E_LAB_PRODUCT_ASSET_ROOT)
+        set(sf4e_lab_product_assets "${SF4E_LAB_PRODUCT_ASSET_ROOT}")
+    endif()
+    target_compile_definitions(UiLabProduct PRIVATE SF4E_LAB_ASSET_ROOT="${sf4e_lab_product_assets}")
     sf4e_hex_bytes("${SF4E_LAB_PRODUCT_MARK}" lab_mark_bytes)
     file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/generated/lab-product/EmbeddedBrand.hxx" CONTENT
         "#pragma once\nnamespace sf4e { namespace ui { namespace brand {\nconstexpr int Size = 128;\nstatic const unsigned char Pixels[] = {\n${lab_mark_bytes}\n};\n} } }\n")
