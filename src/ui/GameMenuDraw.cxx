@@ -583,42 +583,42 @@ void GameMenu::DrawDetailPane(Frame& f, v2::Box pane) {
     ImGui::PopStyleColor();
 }
 
-bool GameMenu::BeginChoices() {
+GameMenu::ChoicesFrame GameMenu::BeginChoices() {
     if (valuesClose_ && navigation.Choosing()) navigation.Cancel();
     valuesClose_ = false;
     valuesAcross_ = 0;
-    return navigation.Choosing() && notice_.empty();
+    const ChoicesFrame choices{navigation.Choosing() && notice_.empty(), !valuesOpen_};
+    valuesOpen_ = choices.open;
+    return choices;
 }
 
-void GameMenu::EndChoices(bool opening, bool hovered) {
+void GameMenu::EndChoices(ChoicesFrame choices, bool hovered) {
     // The board under the choices was drawn while they were still open, so the click does nothing else.
     // They close on the next frame, after the hint bar's Back has had this click.
-    valuesClose_ = !opening && navigation.Choosing() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !hovered;
+    valuesClose_ = choices.open && !choices.opening && navigation.Choosing() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !hovered;
 }
 
 bool GameMenu::HoldChoicesInPlace(const BodyChoices::InPlace& in) {
-    if (!BeginChoices()) { valuesOpen_ = false; return false; }
-    const bool opening = !valuesOpen_;
-    valuesOpen_ = true;
-    valuesAcross_ = in.across;
-    EndChoices(opening, in.hovered);
-    return true;
+    const ChoicesFrame choices = BeginChoices();
+    if (choices.open) valuesAcross_ = in.across;
+    EndChoices(choices, in.hovered);
+    return choices.open;
 }
 
 bool GameMenu::DrawValuePanel(Frame& f, v2::Box focusCard, v2::Box list) {
     const float s = Scale();
     const auto win = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
-    const bool open = BeginChoices();
+    const ChoicesFrame choices = BeginChoices();
     const MenuEntry* focused = FocusedIn(f.entries, navigation.Focus());
-    if (!open || !focused || focusCard.W() <= 0) { valuesOpen_ = false; return false; }
+    // Open with nowhere to draw them is not open: the frame a place appears is the frame they open on.
+    if (!choices.open || !focused || focusCard.W() <= 0) { valuesOpen_ = false; return false; }
     const auto& e = *focused;
     // Select on a switch flips it: no popup for two words.
-    if (MenuValueIsToggle(e)) { navigation.Cancel(); f.action = {MenuAction::Adjust, e.id, {}, e.value == loc::T("common.on") ? -1 : 1}; return false; }
+    if (MenuValueIsToggle(e)) { navigation.Cancel(); valuesOpen_ = false; f.action = {MenuAction::Adjust, e.id, {}, e.value == loc::T("common.on") ? -1 : 1}; return false; }
     // As many across as fit inside the column, less the panel's padding and its edge's.
     const auto grid = MenuChoiceLayout(e.choices, list.W() - 24 * s);
     // The click that opened it is not a click outside it.
-    const bool opening = !valuesOpen_;
-    valuesOpen_ = true;
+    const bool opening = choices.opening;
     const std::size_t count = e.choices.size(), across = e.popout ? 1 : grid.across, lines = (count + across - 1) / across;
     valuesAcross_ = across;
     const float row = (e.popout ? 44 : 48) * s, inner = (e.popout ? 8 : 6) * s, foot = e.popout ? 0 : 30 * s;
@@ -701,7 +701,7 @@ bool GameMenu::DrawValuePanel(Frame& f, v2::Box focusCard, v2::Box list) {
     }
     lastChoice_ = navigation.ChoiceIndex();
     // A click outside an open popout or value panel closes it.
-    EndChoices(opening, ImGui::IsWindowHovered());
+    EndChoices(choices, ImGui::IsWindowHovered());
     ImGui::PopStyleVar();
     if (!e.popout && navigation.Choosing()) {
         ImGui::Dummy(ImVec2(0, 2 * s));

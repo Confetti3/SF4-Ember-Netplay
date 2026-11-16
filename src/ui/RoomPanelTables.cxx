@@ -304,14 +304,17 @@ void DrawTableCards(const RoomBoardFrame& f,const v2::Box& tables,const TableCar
   }
   const bool hovered=f.Press(e,b,!OnOwnPlace(place,e.id));
   if(choosing){
-   // The strip is the chooser: the menu draws no panel of the same choices over the board.
-   f.choices.inPlace={options.size(),over>=0};
    // The chosen side follows the mouse, but only a moving one takes the choice.
    if(over>=0&&pointerMoved)f.nav.ChoiceIndex(static_cast<std::size_t>(over));
    if(pressed>=0)f.action=f.nav.Pick(static_cast<std::size_t>(pressed),f.rows);
   }else if(pressed==0){f.nav.Focus(e.id,f.rows);f.action=f.nav.Choose(f.rows);}
   else if(pressed==1)f.action={MenuAction::Activate,"leave-place"};
-  if(!ImGui::IsItemVisible())continue;
+  // The strip is the chooser, as it stands after this frame's presses (a click may have just opened it): the menu
+  // draws no panel of the same choices over the board.
+  const bool chooserOpen=nav.Choosing()&&nav.DialogId()==e.id&&!e.choices.empty();
+  if(chooserOpen)f.choices.inPlace={e.choices.size(),over>=0};
+  // An open chooser keeps its card in sight: scrolled away, its strip would take a press unseen.
+  if(!ImGui::IsItemVisible()){if(chooserOpen)ImGui::SetScrollHereY(.5f);continue;}
   v2::CardGround(td,b,focused,hovered,place.table==static_cast<int>(t.id));
   // The score: a versus card's in the middle between the seats, at the
   // height of the players' names; a stacked card's at the header's right.

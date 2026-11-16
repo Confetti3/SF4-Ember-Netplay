@@ -372,12 +372,16 @@ static void RoomBoardJourneys() {
  // chooser even though its game count differs.
  std::map<std::string,ImVec2> centres;
  SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){centres[id]=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);});
+ // Whether any frame of a click drew the menu's own panel of choices.
+ bool panelDrawn=false;
+ const auto frame=[&]{h.Frame();panelDrawn=panelDrawn||ChoicesPanelDrawn();};
  const auto click=[&](const std::string& id){
-  h.Frame();const auto at=centres.at(id);auto& io=ImGui::GetIO();io.AddMousePosEvent(at.x,at.y);h.Frame();
-  io.AddMouseButtonEvent(0,true);h.Frame();io.AddMouseButtonEvent(0,false);h.Frame();h.Frame();
+  frame();const auto at=centres.at(id);auto& io=ImGui::GetIO();io.AddMousePosEvent(at.x,at.y);frame();
+  io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();frame();
  };
  h.view.room.tables[3].matchGeneration=5;h.Choose("table-2");h.Press(MenuInput::Back);
  click("table-3");Check(h.shell.Navigation().Choosing()&&h.shell.Navigation().DialogId()=="table-3","Clicking another table did not keep its chooser open");
+ Check(!panelDrawn,"A click that opened the seat chooser drew a panel over the board on some frame");
  h.view.readyFailure="Notice over the chooser.";h.view.readyFailureSequence=7;raced=h.actions.size();
  click("table-3/1");Check(h.actions.size()==raced&&h.shell.Navigation().Choosing(),"A click reached the chooser under a notice");
  h.Press(MenuInput::Select);

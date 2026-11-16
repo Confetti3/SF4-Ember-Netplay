@@ -385,10 +385,12 @@ private:
     // inside `column`, or a popout. False while none is open.
     bool DrawValuePanel(Frame& f, v2::Box card, v2::Box column);
     // Open choices close on a click off them, a frame late, wherever they are drawn.
-    // BeginChoices takes last frame's click and is true while they stay open;
-    // EndChoices notes this frame's (`opening`: the click that opened them is not one).
-    bool BeginChoices();
-    void EndChoices(bool opening, bool hovered);
+    // BeginChoices takes last frame's click and says whether they stay open, and
+    // whether this is the frame they opened on; EndChoices notes this frame's click
+    // (the click that opened them is not one).
+    struct ChoicesFrame { bool open, opening; };
+    ChoicesFrame BeginChoices();
+    void EndChoices(ChoicesFrame choices, bool hovered);
     // The frame's part for choices a body draws itself: no panel, the same closing.
     bool HoldChoicesInPlace(const BodyChoices::InPlace& in);
     // The hint bar on the window's bottom edge: what the buttons do now, each
