@@ -605,7 +605,7 @@ PostPublishState Publish() {
     snapshot.archive = runtime->archive.Published();
     snapshot.archiveFetch = runtime->archiveFetch.Published();
     snapshot.levels = runtime->levels.Published();
-    snapshot.memberCards = runtime->cards.Published();
+    snapshot.memberCards = internal::ShownCards();
     snapshot.profile = runtime->profiles.Published();
     snapshot.playerSearch = runtime->profiles.SearchPublished();
     snapshot.recentOpponents = runtime->recentOpponents.Fresh(static_cast<std::uint64_t>(std::time(nullptr)));

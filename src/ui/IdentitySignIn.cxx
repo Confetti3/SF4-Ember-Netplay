@@ -7,6 +7,7 @@
 #include "IdentityPanel.hxx"
 #include "IdentityRows.hxx"
 #include "../common/Localization.hxx"
+#include "../common/ProductIdentity.hxx"
 #include <algorithm>
 
 namespace sf4e { namespace ui {
@@ -131,6 +132,11 @@ MenuEntry IdentityPanel::DiscordIdentityRow(const ShellView& v) const {
     auto row = Row(DiscordConnectScreen, loc::T("identity.discord"), loc::T(Site(SignInSource::Discord).words.rowDetail));
     if (const auto* ember = EmberBridge(v)) ShowAccount(row, discord, ember->id);
     else row.value = loc::T("identity.discord_none");
+    // Connected for rooms, not known connected where friends live: the row says so, and its Connect goes on to it.
+    if (const auto* own = EmberBridge(v); ember::SeparateAccount() && own && ConnectedOn(own->id)) {
+        const auto* account = FindOrigin(v, AccountService());
+        if (!account || !ConnectedOn(account->id)) row.detail = loc::T("discord.account_friends_missing");
+    }
     return row;
 }
 
@@ -213,6 +219,8 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
         if (waitedFor && signIn_->until > 0 && read.ConnectedSince(signIn_->before)) {
             signIn_.reset();
             Say(loc::Tf(info.words.done, read.name), Tone::Success, 20);
+            // One flow for a product whose friends keep their own Discord link: the next service's page comes now.
+            ConnectOnward(v);
         }
         break;
     }

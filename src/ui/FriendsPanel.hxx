@@ -16,6 +16,7 @@
 #include "RaiseTimer.hxx"
 #include "ShellAction.hxx"
 #include "Notifications.hxx"
+#include "../netplay/AccountRoutes.hxx"
 #include "../netplay/FriendsView.hxx"
 #include <cstdint>
 #include <functional>
@@ -255,8 +256,17 @@ public:
     // A room member's Add friend (and Accept request, `accepts`: the bridge accepts a mutual request) and Block, by
     // the card token their ticket carried and their room name. A refusal or what went through is said as a notice.
     // True when the request was sent (it is then in flight); false when it was held (said as a notice) or could not be queued.
-    bool RequestMember(const ShellView& view, const std::string& card, const std::string& name, bool accepts, const Submit& submit);
-    void BlockMember(const ShellView& view, const std::string& card, const std::string& name, const Submit& submit);
+    // `from`: the bridge that sealed the token (netplay/AccountRoutes.hxx). One the friends' bridge cannot open (the
+    // game's, where friends live on an account bridge apart from it) asks by the friend code the player's card shows,
+    // or says to add them by code; such a player is not blocked from here.
+    bool RequestMember(const ShellView& view, const std::string& card, const std::string& name, bool accepts, const Submit& submit,
+        netplay::Service from = netplay::Service::Game);
+    void BlockMember(const ShellView& view, const std::string& card, const std::string& name, const Submit& submit,
+        netplay::Service from = netplay::Service::Game);
+    // The friends' bridge opens a card token the bridge `from` sealed.
+    static bool TokenOpensHere(netplay::Service from);
+    // The friend code the card of the player with token `card` shows (a room member's, or the profile open's); empty for none.
+    static std::string SharedCodeOf(const ShellView& view, const std::string& card);
     // What another player's profile page (PlayerPage) asks of the same paths the tab's rows take. `ActOnFriend` does a
     // choice FriendChoices lists ("join", "watch", "invite", "remove", "remove-block") on a friend by their id, "accept"
     // on a request by its id, "decline", "decline-block", and "unblock" on a block by its id; each is gated, sent and

@@ -55,6 +55,10 @@ struct Destination {
 		NotFighting,
 		// The friend is in another game.
 		OtherGame,
+		// The friend is in a public room of this game that the friends' bridge does not list: a product whose friends live
+		// on an account bridge apart from the game's (netplay/AccountRoutes.hxx) is never shown its own game's public rooms
+		// there, so there is nothing to join from the list. An invite from the friend still leads in.
+		RoomElsewhere,
 	} refusal = Refusal::None;
 	// PublicRoom: the room's id, and for a Watch the friend's table (-1: only join).
 	std::string roomId;
@@ -67,8 +71,9 @@ struct Destination {
 	bool Any() const { return kind != Kind::None; }
 };
 
-// A friend's room, joined or, with `watch`, watched at their table (a public room's only).
-inline Destination ToFriend(const State& state, const std::string& friendId, bool watch) {
+// A friend's room, joined or, with `watch`, watched at their table (a public room's only). `publicRoomsListed`: the
+// bridge friends live on lists this game's public rooms (false for an account bridge apart from the game's).
+inline Destination ToFriend(const State& state, const std::string& friendId, bool watch, bool publicRoomsListed = true) {
 	Destination destination;
 	const Friend* entry = state.FindFriend(friendId);
 	if (!entry) { destination.refusal = Destination::Refusal::Gone; return destination; }
@@ -83,7 +88,7 @@ inline Destination ToFriend(const State& state, const std::string& friendId, boo
 		else destination.kind = Destination::Kind::PrivateOffer;
 		return destination;
 	}
-	else if (!presence.hasRoom) destination.refusal = Destination::Refusal::NotInRoom;
+	else if (!presence.hasRoom) destination.refusal = publicRoomsListed ? Destination::Refusal::NotInRoom : Destination::Refusal::RoomElsewhere;
 	else if (!presence.room.joinable) destination.refusal = Destination::Refusal::NotJoinable;
 	else if (watch && (presence.status != Status::Fighting || presence.table < 0)) destination.refusal = Destination::Refusal::NotFighting;
 	if (destination.refusal != Destination::Refusal::None) return destination;

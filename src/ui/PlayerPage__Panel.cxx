@@ -15,6 +15,9 @@
 namespace sf4e { namespace ui {
 using namespace player_page;
 namespace {
+// The bridge that sealed the token the page acts by: the one its key was opened on, or a name was searched on.
+netplay::Service TokenFrom(const Shown& shown) { return netplay::profiles::Requests::ServiceOfKey(shown.key); }
+
 ArchivePlace SetsPlace() {
     ArchivePlace place;
     place.profile = true;
@@ -189,17 +192,17 @@ void PlayerPage::Do(const ShellView& v, const std::string& what, const Shown& sh
     using friends_panel::FriendChoice;
     const FriendChoice choice = friends_panel::ChoiceOf(what);
     if (choice == FriendChoice::Add) {
-        if (!shown.token.empty()) friends.RequestMember(v, shown.token, shown.name, false, h.submit);
+        if (!shown.token.empty()) friends.RequestMember(v, shown.token, shown.name, false, h.submit, TokenFrom(shown));
         else if (standing.byCode) friends.RequestByCode(v, shown.key.value, shown.name, h.submit);
     } else if (choice == FriendChoice::Accept) {
         if (standing.byRequest) friends.ActOnFriend(v, what, shown.key.value, h.submit);
-        else if (!shown.token.empty()) friends.RequestMember(v, shown.token, shown.name, true, h.submit);
+        else if (!shown.token.empty()) friends.RequestMember(v, shown.token, shown.name, true, h.submit, TokenFrom(shown));
     } else if (choice == FriendChoice::Join || choice == FriendChoice::Watch || choice == FriendChoice::Invite || choice == FriendChoice::Remove || choice == FriendChoice::RemoveBlock) {
         friends.ActOnFriend(v, what, standing.friendId, h.submit);
     } else if (choice == FriendChoice::Unblock) {
         friends.ActOnFriend(v, what, standing.blockId, h.submit);
     } else if (choice == FriendChoice::Block) {
-        if (!shown.token.empty()) friends.BlockMember(v, shown.token, shown.name, h.submit);
+        if (!shown.token.empty()) friends.BlockMember(v, shown.token, shown.name, h.submit, TokenFrom(shown));
     } else if (what == "sets") {
         h.navigation.Replace(SetsScreen);
     } else if (what == "steam") {

@@ -29,6 +29,14 @@ struct Listing {
 	int main = -1;
 };
 
+// The listing as a friends' bridge takes it: the main only to the game's own bridge (`gameBridge`). A fighter index
+// names a fighter of the bridge's game, so an account bridge apart from the game's would read another game's index as
+// one of its own (or refuse the sync for it); friends there see the name, the flag, the game and what the player does.
+inline Listing ListingFor(Listing listing, bool gameBridge) {
+	if (!gameBridge) listing.main = -1;
+	return listing;
+}
+
 inline nlohmann::json SyncRequest(const std::string& bridgeId, const std::string& buildId, const Listing& listing, const Report& report) {
 	using nlohmann::json;
 	json shown = json::object();

@@ -104,6 +104,10 @@ static DispatchOutcome Handle(commands::FriendCardWanted& command, bool, Attempt
 	DispatchCards(command);
 	return DispatchOutcome::Dropped;
 }
+static DispatchOutcome Handle(commands::AccountService& command, bool, Attempt) {
+	DispatchAccount(command);
+	return DispatchOutcome::Dropped;
+}
 static DispatchOutcome Handle(commands::Tournament& command, bool helperReady, Attempt) {
 	DispatchTournament(command.tournament, helperReady);
 	return DispatchOutcome::Dropped;

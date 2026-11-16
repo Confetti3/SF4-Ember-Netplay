@@ -4,6 +4,7 @@
 #include "MenuRows.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
+#include "../common/ProductIdentity.hxx"
 #include <imgui.h>
 #include <algorithm>
 #include <cstring>
@@ -126,6 +127,8 @@ void IdentityPanel::DropQueue() {
 void IdentityPanel::NewJourney() {
     RetireSignIn();
     ++journey_;
+    // A look-up of the account service is a read the new journey retires: the next read of the services asks again.
+    trustingAccount_ = false;
     discordService_.clear();
     // The public rooms setup's requests are not the journey's.
     queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) {
@@ -151,7 +154,30 @@ std::string IdentityPanel::TournamentFailure(const std::string& code) {
 }
 
 std::string IdentityPanel::UsableBridge(const ShellView& v) const {
-    return v.identity.state == "ready" && FindBridge(v, bridge_) ? bridge_ : std::string();
+    const auto* selected = v.identity.state == "ready" ? FindBridge(v, bridge_) : nullptr;
+    if (!selected) return {};
+    // The account service keeps friends, not the game's rooms: Connect Discord selects it while it connects Discord there.
+    if (ember::SeparateAccount() && selected->origin == AccountService()) {
+        const auto* ember = EmberBridge(v);
+        return ember ? ember->id : std::string();
+    }
+    return bridge_;
+}
+
+const char* IdentityPanel::AccountService() {
+    return ember::SeparateAccount() ? ember::Product().accountService : EmberService;
+}
+
+std::string IdentityPanel::AccountBridge(const ShellView& v) const {
+    if (!ember::SeparateAccount()) return UsableBridge(v);
+    const auto* account = v.identity.state == "ready" ? FindOrigin(v, AccountService()) : nullptr;
+    return account ? account->id : std::string();
+}
+
+void IdentityPanel::NameAccountService(const ShellView& v, const Submit& submit) {
+    if (!ember::SeparateAccount()) return;
+    auto bridge = AccountBridge(v);
+    if (bridge != namedAccount_ && submit(commands::AccountService{bridge})) namedAccount_ = std::move(bridge);
 }
 
 netplay::DiscordLink IdentityPanel::Discord(const ShellView& v) const {
@@ -170,7 +196,8 @@ netplay::DiscordLink IdentityPanel::Discord(const ShellView& v) const {
         reads.standing = standing.value.kind != netplay::rankings::Standing::Kind::NoAccount;
     if (v.levels.loaded && v.levels.value.kind == netplay::levels::Own::Kind::Counted) reads.points = true;
     if (v.levels.loaded && v.levels.value.kind == netplay::levels::Own::Kind::NoAccount) reads.points = false;
-    if (const auto& friends = v.friends.state.value) {
+    // Friends tell of the usable service's Discord only where they live on it (not on an account bridge apart).
+    if (const auto& friends = v.friends.state.value; friends && (!ember::SeparateAccount() || v.friends.bridge == bridge)) {
         using Kind = netplay::friends::State::Kind;
         if (friends->kind == Kind::Listed || friends->kind == Kind::Off) reads.friends = true;
         else if (friends->kind == Kind::NoAccount) reads.friends = false;
@@ -203,7 +230,17 @@ void IdentityPanel::SetupFinish(const ShellView& v) {
     if (!id.ok) { setup_.Failed(id.failure, FailureText(id.failure)); return; }
     if (sentOp_ == IdentityOp::BridgeList) servicesKnown_ = true;
     if (auto next = setup_.Answered(v, sentOp_)) QueueSetup(std::move(*next));
-    if (setup_.View().step == PublicSetupStep::Done) bridge_ = setup_.Service();
+    if (setup_.View().step == PublicSetupStep::Done) {
+        bridge_ = setup_.Service();
+        // The rooms are set up; friends' account service follows on its own, so nothing about it delays a room.
+        TrustAccountService(v);
+    }
+}
+
+void IdentityPanel::TrustAccountService(const ShellView& v) {
+    if (!ember::SeparateAccount() || trustingAccount_ || v.identity.state != "ready" || !EmberBridge(v) || FindOrigin(v, AccountService())) return;
+    trustingAccount_ = true;
+    IdentityRequest look; look.op = IdentityOp::BridgeInspect; look.origin = AccountService(); Queue(std::move(look), true);
 }
 
 bool IdentityPanel::Answered(const ShellView& v) const {
@@ -311,6 +348,7 @@ void IdentityPanel::Collect(const ShellView& v, double now) {
         sent_ = 0;
     }
     else if (sent_ && now - sentAt_ > AnswerSeconds) {
+        if (sentOrigin_ == AccountService()) trustingAccount_ = false;
         const bool current = !Superseded();
         if (current && sentOwner_ == Owner::PublicSetup) setup_.Fail(loc::T("identity.failure.timeout"));
         else if (current && !IsCleanup(sentOp_)) {
@@ -376,6 +414,11 @@ void IdentityPanel::Finish(const ShellView& v) {
     // Ending a sign-in on the service is tidying up after Cancel, which the
     // player already saw: a service that cannot does not hold anything back.
     if (IsCleanup(sentOp_)) return;
+    // The account service's trust in the background ends with a failure of its own; the next read of the services
+    // tries again (TrustAccountService).
+    const bool accountStep = trustingAccount_ && sentOrigin_ == AccountService() &&
+        (sentOp_ == IdentityOp::BridgeInspect || sentOp_ == IdentityOp::BridgeApprove);
+    if (accountStep && (!v.identityRequest || !id.ok)) trustingAccount_ = false;
     if (!v.identityRequest) {
         const std::string refusal = RefusalText(v);
         if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(refusal, Tone::Error);
@@ -436,20 +479,31 @@ void IdentityPanel::Finish(const ShellView& v) {
         if (lastScreen_ == DiscordConnectScreen) { ConnectNext(v); break; }
         // Away from these screens only the service is chosen: Ember's own, or the first.
         if (!Owns(lastScreen_)) {
-            if (!FindBridge(v, bridge_)) {
+            // The account service apart, which Connect Discord selects while it connects it, gives way to Ember's own.
+            const auto* chosen = FindBridge(v, bridge_);
+            if (!chosen || (::ember::SeparateAccount() && chosen->origin == AccountService())) {
                 const auto* ember = EmberBridge(v);
                 const auto* first = FirstService(v);
                 bridge_ = ember ? ember->id : first ? first->id : std::string();
             }
+            // Friends' account service apart follows Ember's own once that is trusted.
+            TrustAccountService(v);
             // Settings > Discord shows the Discord account on the one selected.
             if (const auto* selected = FindBridge(v, bridge_); selected && AccountScreen(lastScreen_) && id.state == "ready")
                 ReadAccount(*selected, AccountReads::Discord());
+            // And the one on the account service apart, which the row also tells of.
+            if (const auto* account = FindOrigin(v, AccountService());
+                ember::SeparateAccount() && account && account->id != bridge_ && AccountScreen(lastScreen_) && id.state == "ready")
+                ReadAccount(*account, AccountReads::Discord());
             break;
         }
         // The Ember ID screen shows the Discord account on Ember's own
         // service: its profile, whose answer asks for the account.
         if (lastScreen_ == "identity") {
             if (const auto* ember = EmberBridge(v); ember && id.state == "ready") ReadAccount(*ember, AccountReads::Discord());
+            // The Discord row also tells of the account service apart (DiscordIdentityRow).
+            if (const auto* account = FindOrigin(v, AccountService()); ember::SeparateAccount() && account && id.state == "ready")
+                ReadAccount(*account, AccountReads::Discord());
             break;
         }
         if (!FindBridge(v, bridge_)) {
@@ -460,6 +514,14 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     case IdentityOp::BridgeInspect:
         if (sentLookUp_) found_ = id.inspected;
+        // The account service looked up in the background is approved, unless the player removed it. A running Connect
+        // approves what it looked up itself, below.
+        if (accountStep && sentLookUp_) {
+            const bool connecting = signIn_ && signIn_->phase == SignInAttempt::Phase::Steps && lastScreen_ == DiscordConnectScreen;
+            if (!connecting && id.inspected.origin == AccountService() && !id.inspected.id.empty() && !Removed(v, id.inspected.id)) {
+                IdentityRequest r; r.op = IdentityOp::BridgeApprove; r.origin = id.inspected.origin; r.bridge = id.inspected.id; Queue(std::move(r));
+            } else trustingAccount_ = false;
+        }
         // A running Connect trusts Ember's own service, unless the player removed it.
         if (sentLookUp_ && signIn_ && signIn_->phase == SignInAttempt::Phase::Steps && lastScreen_ == DiscordConnectScreen) {
             if (EmberOffered() && !Removed(v, found_.id)) {
@@ -503,7 +565,11 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     case IdentityOp::BridgeApprove: {
         Say(loc::Tf("identity.done.trusted", found_.name), Tone::Success);
-        bridge_ = found_.id; found_ = {}; WipeText(origin_);
+        // The account service apart keeps friends, not the game's rooms: it is selected only while none is.
+        const bool account = ember::SeparateAccount() && found_.origin == AccountService();
+        if (!account || bridge_.empty()) bridge_ = found_.id;
+        if (account) trustingAccount_ = false;
+        found_ = {}; WipeText(origin_);
         IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
         break;
     }

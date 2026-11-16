@@ -28,7 +28,8 @@ Opening OpeningOf(const netplay::friends::Incoming& request);
 // A row of the rankings board: by name and flag, with the class the board lists them in.
 Opening OpeningOf(const netplay::rankings::BoardEntry& entry);
 // A player Find a player found, by the card token the search gave.
-Opening OpeningOf(const netplay::profiles::Hit& hit);
+// A search hit, whose card token is the bridge's it was found on (rom, netplay/AccountRoutes.hxx).
+Opening OpeningOf(const netplay::profiles::Hit& hit, netplay::Service from = netplay::Service::Game);
 // A player this PC met lately, by the card token kept for them, shown with the fighter they played.
 Opening OpeningOf(const netplay::profiles::Recent& recent);
 // A side of a game a list shows (a replay on this PC, a set of the public archive), by its exact name and flag. `fighter` is

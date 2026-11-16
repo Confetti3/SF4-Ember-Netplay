@@ -59,14 +59,7 @@ CountryCode Country(const json& object) {
 	return CountryCode::Parsed(text);
 }
 
-// XXXX-XXXX: the shape of the code the bridge shows the player. Which symbols it draws them from is the bridge's
-// alphabet, which it alone checks (a code typed here goes to it as typed, and is refused there if unknown).
-bool IsFriendCode(const std::string& code) {
-	if (code.size() != 9 || code[4] != '-') return false;
-	for (std::size_t i = 0; i < code.size(); ++i)
-		if (i != 4 && !((code[i] >= '0' && code[i] <= '9') || (code[i] >= 'A' && code[i] <= 'Z'))) return false;
-	return true;
-}
+using netplay::friends::IsFriendCode;
 
 // A status a later bridge adds reads as the neutral one in a room, so the friend is still listed where they are.
 friends::Status ReadStatus(const json& object) {

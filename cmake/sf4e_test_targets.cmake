@@ -105,6 +105,7 @@ sf4e_add_unit_test(NAME ArchiveSets SOURCES "src/tests/archive_sets_test.cxx" ST
 sf4e_add_unit_test(NAME BridgeFlights SOURCES "src/tests/bridge_flights_test.cxx" LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17)
 sf4e_add_unit_test(NAME FriendRequests SOURCES "src/tests/friend_requests_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17)
 sf4e_add_unit_test(NAME FriendVisits SOURCES "src/tests/friend_visits_test.cxx" STD 17)
+sf4e_add_unit_test(NAME AccountRoutes SOURCES "src/tests/account_routes_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17)
 sf4e_add_unit_test(NAME FriendPresence SOURCES "src/tests/friend_presence_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17 LABELS room)
 sf4e_add_unit_test(NAME FriendsAnswers SOURCES "src/tests/friends_answers_test.cxx" "src/session/SocialAnswers.cxx" "src/session/TournamentAnswers.cxx"
     LIBS sf4e_room_model sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS room)

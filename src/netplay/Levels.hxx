@@ -124,6 +124,10 @@ struct Card {
 	profiles::Versus versus;
 	// The friendship's id ("fr_") when `relation` is Friend and the bridge said it; empty otherwise.
 	std::string friendId;
+	// The player's friend code on the account bridge, XXXX-XXXX, when their card here shows it (a game bridge whose
+	// friends live on another one: docs/design/PROFILE.md, "The friend code on a card"); empty otherwise. Another
+	// player met here asks them to be friends by it.
+	std::string friendCode;
 };
 
 // Cards by card token, for the tokens the bridge has a card for.

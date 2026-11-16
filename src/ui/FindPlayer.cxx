@@ -114,7 +114,7 @@ std::vector<MenuEntry> ResultRows(const Page& page) {
 std::optional<player_opening::Opening> OpeningOfRow(const Page& page, const std::string& row) {
     if (const auto at = RowKey<std::size_t>(row, HitPrefix)) {
         const auto* answer = AnswerOf(page);
-        if (answer && *at < answer->players.size()) return player_opening::OpeningOf(answer->players[*at]);
+        if (answer && *at < answer->players.size()) return player_opening::OpeningOf(answer->players[*at], page.search->from);
     } else if (const auto place = RowKey<std::size_t>(row, RecentPrefix)) {
         if (page.recent && *place < page.recent->size()) return player_opening::OpeningOf((*page.recent)[*place]);
     }

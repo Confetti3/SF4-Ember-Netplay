@@ -37,6 +37,9 @@ inline nlohmann::json CardSaveRequest(const std::string& bridgeId, const Bundle&
 	card["worn"] = std::move(worn);
 	card["pins"] = bundle.pins;
 	card["style"] = std::move(style);
+	// Only where friends live on another bridge, and only while the player shares it (Bundle::friendCode); the helper
+	// leaves it out for a bridge that does not list card_friend_code.
+	if (!bundle.friendCode.empty()) card["friend_code"] = bundle.friendCode;
 	json request = json::object();
 	request["op"] = "card_save";
 	request["bridge_id"] = bridgeId;

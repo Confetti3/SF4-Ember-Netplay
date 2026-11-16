@@ -5,7 +5,9 @@
 #include "IdentityPanel.hxx"
 #include "IdentityRows.hxx"
 #include "../common/Localization.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../common/TournamentLink.hxx"
+#include "../netplay/AccountRoutes.hxx"
 #include <imgui.h>
 #include <algorithm>
 
@@ -28,7 +30,7 @@ void IdentityPanel::OpenDiscord(const std::string& bridge, bool automatic) {
     lastScreen_.clear();
 }
 
-MenuEntry IdentityPanel::DiscordAccountRow(const netplay::DiscordLink& link) const {
+MenuEntry IdentityPanel::DiscordAccountRow(const netplay::DiscordLink& link, const ShellView& v) const {
     auto row = Row("discord-account", loc::T("discord.account"), loc::T("discord.account_detail"));
     using State = netplay::DiscordLink::State;
     // An account read by name is shown linked by it; none says Not linked; one only known of, or unknown, says nothing.
@@ -37,23 +39,58 @@ MenuEntry IdentityPanel::DiscordAccountRow(const netplay::DiscordLink& link) con
         row.userText = true;
         row.detail = loc::T("discord.account_linked_detail");
     } else if (link.state == State::None) row.value = loc::T("discord.account_none");
+    // Friends keep their own link on an account service apart: while it is not known connected there, the row says so,
+    // and its press connects it (Connect Discord connects whichever still needs it).
+    if (ember::SeparateAccount() && link.state == State::Linked) {
+        const auto* account = FindOrigin(v, AccountService());
+        if (!account || !ConnectedOn(account->id)) row.detail = loc::T("discord.account_friends_missing");
+    }
     return row;
 }
 
 void IdentityPanel::OpenDiscordAccount(const ShellView& v, MenuNavigation& navigation) {
-    OpenDiscord(UsableBridge(v));
+    // A product with an account service apart connects both, as Connect Discord from the menu does (no service named).
+    OpenDiscord(ember::SeparateAccount() ? std::string() : UsableBridge(v));
     navigation.Push(DiscordConnectScreen);
 }
 
 const netplay::IdentityBridge* IdentityPanel::EmberBridge(const ShellView& v) const { return FindOrigin(v, EmberService); }
 
 const netplay::IdentityBridge* IdentityPanel::ConnectTarget(const ShellView& v) const {
-    return connectBridge_.empty() ? EmberBridge(v) : FindBridge(v, connectBridge_);
+    return connectBridge_.empty() ? FindOrigin(v, ConnectOrigin(v)) : FindBridge(v, connectBridge_);
+}
+
+bool IdentityPanel::ConnectedOn(const std::string& bridge) const {
+    const auto* account = FindAccount(SignInTarget::Discord(), bridge);
+    return account && account->read && !account->failed && !account->user.empty();
+}
+
+std::string IdentityPanel::ConnectOrigin(const ShellView& v) const {
+    if (!ember::SeparateAccount()) return EmberService;
+    const char* const origins[] = {EmberService, AccountService()};
+    netplay::ServiceLink links[2];
+    for (std::size_t i = 0; i < 2; ++i) {
+        const auto* bridge = FindOrigin(v, origins[i]);
+        links[i] = {bridge != nullptr, bridge && ConnectedOn(bridge->id)};
+    }
+    const auto next = netplay::NextToConnect(links, 2);
+    return next < 2 ? origins[next] : EmberService;
+}
+
+void IdentityPanel::ConnectOnward(const ShellView& v) {
+    if (!ember::SeparateAccount() || !connectBridge_.empty() || lastScreen_ != DiscordConnectScreen) return;
+    const auto* next = FindOrigin(v, ConnectOrigin(v));
+    if (next && ConnectedOn(next->id)) return;
+    // The next service: trusted by the look-up the steps make, then Discord's page for it.
+    StartSteps();
+    connectLookedUp_ = false;
+    Say(loc::T("connect.next_service"), Tone::Success, 30);
+    ConnectNext(v);
 }
 
 // Connect Discord asks only what its steps need: its trusted service's
-// profile, whose answer asks for the Discord account, or Ember's own service
-// looked up once for the player to trust.
+// profile, whose answer asks for the Discord account, or the service it works
+// on (ConnectOrigin) looked up once for the player to trust.
 void IdentityPanel::ConnectNext(const ShellView& v) {
     if (v.identity.state != "ready") return;
     if (const auto* target = ConnectTarget(v)) {
@@ -61,12 +98,13 @@ void IdentityPanel::ConnectNext(const ShellView& v) {
         IdentityRequest inspect; inspect.op = IdentityOp::BridgeInspect; inspect.origin = target->origin; Queue(std::move(inspect));
     } else if (!connectLookedUp_) {
         connectLookedUp_ = true; found_ = {};
-        IdentityRequest look; look.op = IdentityOp::BridgeInspect; look.origin = EmberService; Queue(std::move(look), true);
+        lookOrigin_ = ConnectOrigin(v);
+        IdentityRequest look; look.op = IdentityOp::BridgeInspect; look.origin = lookOrigin_; Queue(std::move(look), true);
     }
 }
 
 bool IdentityPanel::EmberOffered() const {
-    return !found_.id.empty() && found_.origin == EmberService && (connectBridge_.empty() || found_.id == connectBridge_);
+    return !found_.id.empty() && found_.origin == lookOrigin_ && (connectBridge_.empty() || found_.id == connectBridge_);
 }
 
 bool IdentityPanel::Removed(const ShellView& v, const std::string& bridge) const {
@@ -105,13 +143,35 @@ void IdentityPanel::ConnectAccountRead(const ShellView& v) {
     // connected account is only shown.
     const auto& id = v.identity;
     if (id.discordUser.empty() && id.inspected.id == target->id && id.inspectedDiscord) OpenSignIn(SignInTarget::Discord(), sentBridge_);
-    else signIn_.reset();
+    else {
+        signIn_.reset();
+        // Connected here already: the press goes on to a service that still needs Discord, if any.
+        if (!id.discordUser.empty()) ConnectOnward(v);
+    }
 }
 
 // Steps 2 and 3 of Connect Discord, with the Ember ID ready: trust the
 // service, then connect Discord on it.
+void IdentityPanel::ServiceRows(const ShellView& v, std::vector<MenuEntry>& rows) const {
+    const auto line = [&](const char* id, std::string label, std::string detail, const char* origin) {
+        auto row = InfoRow(id, std::move(label), {}, std::move(detail));
+        const auto* bridge = FindOrigin(v, origin);
+        const auto* account = bridge ? FindAccount(SignInTarget::Discord(), bridge->id) : nullptr;
+        // Connected by name, none, or nothing while it is not trusted or not read.
+        if (account && account->read && !account->failed) {
+            row.value = account->user.empty() ? std::string(loc::T("identity.discord_none")) : account->name;
+            row.userText = !account->user.empty();
+        }
+        rows.push_back(std::move(row));
+    };
+    line("dc-rooms", loc::T("connect.rooms_service"), loc::T("connect.rooms_service_detail"), EmberService);
+    line("dc-friends", loc::T("connect.friends_service"), loc::T("connect.friends_service_detail"), AccountService());
+}
+
 void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows, bool busy) const {
     const auto& ids = Site(SignInSource::Discord).rows;
+    // A product with an account service apart connects Discord on both: each one's state, then the one worked on.
+    if (ember::SeparateAccount() && connectBridge_.empty()) ServiceRows(v, rows);
     const auto* target = ConnectTarget(v);
     if (!target) {
         const bool offered = EmberOffered();

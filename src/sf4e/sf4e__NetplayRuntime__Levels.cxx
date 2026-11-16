@@ -8,6 +8,7 @@
 // Other players' cards in a public room are looked up here too (TickCards); their profiles, the Find a player search
 // and the player's own card are in sf4e__NetplayRuntime__Profiles.cxx.
 #include "sf4e__NetplayRuntime.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../session/TournamentAnswers.hxx"
 
 namespace sf4e { namespace NetplayFacade {
@@ -42,15 +43,33 @@ void TakeLevels(std::uint64_t flight, const session::TournamentAnswer& answer) {
 	requests.Finish(flight, own ? std::string() : "bridge_invalid_response", std::move(own), now);
 }
 
-// The answer to the look-up of cards that went as `flight`.
-void TakeCards(std::uint64_t flight, const session::TournamentAnswer& answer) {
-	auto& cards = runtime->cards;
+// The answer to the look-up of `cards` that went as `flight`.
+void TakeCards(netplay::levels::Cards& cards, std::uint64_t flight, const session::TournamentAnswer& answer) {
 	if (!answer.ok) {
 		cards.Finish(flight, netplay::BridgeFlights::Reason(answer), std::nullopt);
 		return;
 	}
 	auto decoded = session::DecodeCards(answer.data);
 	cards.Finish(flight, decoded ? std::string() : "bridge_invalid_response", std::move(decoded));
+}
+
+// Sends the look-up `cards` has due, to the bridge it is scoped to: a room member's token as a card, a friend id as a
+// friend. `TakeCards` gets the answer back to `cards`.
+void SendCards(netplay::levels::Cards& cards, bool helperReady, std::uint64_t nowMs) {
+	const auto batch = cards.Take(nowMs);
+	if (batch.empty()) return;
+	json selectors = json::array();
+	for (const auto& key : batch) selectors.push_back({{netplay::levels::Cards::IsFriendKey(key) ? "friend" : "card", key}});
+	const json request = {{"op", "cards_lookup"}, {"bridge_id", cards.Bridge()}, {"cards", selectors}};
+	const auto flight = cards.Begin(batch, nowMs);
+	internal::SendFlight(request, helperReady, [&cards, flight](const session::TournamentAnswer& answer) { TakeCards(cards, flight, answer); });
+}
+
+// The cards friends' look-ups are kept in: the room's own when friends' cards go to the same bridge as members' (they
+// ride in the same look-up), else their own, on the account bridge.
+netplay::levels::Cards& FriendCardsOf(const netplay::Bridges& bridges) {
+	using netplay::Ask;
+	return bridges.Together(Ask::FriendCard, Ask::MemberCard) ? runtime->cards : runtime->friendCards;
 }
 }
 
@@ -88,9 +107,14 @@ void TickLevels(bool helperReady, std::uint64_t nowMs) {
 
 // The cards of a public room's members, to the service own levels are read
 // from. A room that is not public shows none: its tokens are not the bridge's.
+// Friends' cards go where netplay::ServiceOf sends them: with the members' when
+// that is the same bridge, else to the account bridge in a look-up of their own.
 void TickCards(bool helperReady, std::uint64_t nowMs) {
+	using netplay::Ask;
+	const auto bridges = RuntimeBridges(runtime->levels.Bridge());
 	auto& cards = runtime->cards;
-	cards.Scope(runtime->levels.Bridge());
+	cards.Scope(bridges.Of(Ask::MemberCard));
+	runtime->friendCards.Scope(bridges.Together(Ask::FriendCard, Ask::MemberCard) ? std::string() : bridges.Of(Ask::FriendCard));
 	std::uint64_t epoch = 0;
 	std::vector<std::string> tokens;
 	std::vector<netplay::levels::LastSet> sets;
@@ -111,19 +135,40 @@ void TickCards(bool helperReady, std::uint64_t nowMs) {
 	cards.Observe(epoch, tokens, sets, nowMs);
 	// The profile open is looked up again after a set its player fought ends, as their card in the room is.
 	runtime->profiles.Observe(epoch, sets, nowMs);
+	// The account bridge's friends' cards have no room: its epoch stays 0, and only the friends wanted are kept.
+	runtime->friendCards.Observe(0, {}, {}, nowMs);
 	if (!helperReady) return;
-	const auto batch = cards.Take(nowMs);
-	if (batch.empty()) return;
 	// A card token names a room member; a friend id the friend the Friends tab has focused.
-	json selectors = json::array();
-	for (const auto& key : batch) selectors.push_back({{netplay::levels::Cards::IsFriendKey(key) ? "friend" : "card", key}});
-	const json request = {{"op", "cards_lookup"}, {"bridge_id", cards.Bridge()}, {"cards", selectors}};
-	const auto flight = cards.Begin(batch, nowMs);
-	SendFlight(request, helperReady, [flight](const session::TournamentAnswer& answer) { TakeCards(flight, answer); });
+	SendCards(cards, helperReady, nowMs);
+	SendCards(runtime->friendCards, helperReady, nowMs);
 }
 
 void DispatchCards(const commands::FriendCardWanted& command) {
-	runtime->cards.WantFriend(command.id);
+	FriendCardsOf(RuntimeBridges(runtime->levels.Bridge())).WantFriend(command.id);
+}
+
+std::shared_ptr<const netplay::levels::CardMap> ShownCards() {
+	auto& shown = runtime->shownCards;
+	const auto& members = runtime->cards.Published();
+	const auto& friends = runtime->friendCards.Published();
+	// Friends' cards of their own are none while they ride with the members': the members' map is the view's as it is.
+	if (friends->empty()) return members;
+	if (shown.members != members || shown.friends != friends || !shown.both) {
+		auto both = std::make_shared<netplay::levels::CardMap>(*members);
+		both->insert(friends->begin(), friends->end());
+		shown = {members, friends, std::move(both)};
+	}
+	return shown.both;
+}
+
+netplay::Bridges RuntimeBridges(const std::string& game) {
+	return {game, ember::SeparateAccount() ? runtime->accountBridge : game};
+}
+
+void DispatchAccount(const commands::AccountService& command) {
+	if (!ember::SeparateAccount() || command.bridge == runtime->accountBridge) return;
+	spdlog::info("Account service {}", command.bridge.empty() ? "not trusted" : "named");
+	runtime->accountBridge = command.bridge;
 }
 } // namespace internal
 } } // namespace sf4e::NetplayFacade

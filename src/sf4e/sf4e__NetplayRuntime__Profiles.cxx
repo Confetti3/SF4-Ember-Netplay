@@ -47,7 +47,9 @@ void TakeSearch(profiles::Requests::Ticket ticket, const session::TournamentAnsw
 
 void SendAsk(const profiles::Requests::Ask& ask, bool helperReady) {
 	using Ask = profiles::Requests::Ask;
-	const auto& bridge = runtime->profiles.Bridge();
+	// The profiles' scope is the game's bridge; an ask that belongs on the account bridge goes there (AccountRoutes.hxx).
+	const auto bridges = internal::RuntimeBridges(runtime->profiles.Bridge());
+	const auto& bridge = bridges.Of(ask.service);
 	const bool search = ask.kind == Ask::Kind::Search;
 	const json request = search ? profiles::SearchRequest(bridge, ask.value, ask.selector == profiles::Key::Kind::Code) :
 		profiles::LookupRequest(bridge, ask.selector, ask.value);
@@ -56,13 +58,14 @@ void SendAsk(const profiles::Requests::Ask& ask, bool helperReady) {
 		if (search) TakeSearch(ticket, answer);
 		else TakeLookup(ticket, answer);
 	};
-	if (!request.is_null()) {
+	if (!request.is_null() && !bridge.empty()) {
 		internal::SendFlight(request, helperReady, handler);
 		return;
 	}
-	// A request that cannot be made (no selector to look up by) ends at once, as a refusal.
+	// A request that cannot be made (no selector to look up by, or an account bridge the player does not trust) ends at
+	// once, as a refusal.
 	session::TournamentAnswer refused;
-	refused.reason = "invalid_request";
+	refused.reason = bridge.empty() ? netplay::BridgeFlights::Unavailable : "invalid_request";
 	handler(refused);
 }
 
@@ -111,8 +114,14 @@ void TickCardSave(bool helperReady, std::uint64_t nowMs) {
 	auto& signals = runtime->cardSignals;
 	const auto style = OwnStyleNow(nowMs);
 	const auto revision = runtime->preferencesStore.Revision();
-	if (!signals.built || revision != signals.builtRevision || !(runtime->automaticCountry == signals.builtCountry) || !(style == signals.builtStyle)) {
+	// The friend code goes on the card only where friends live on another bridge (netplay/AccountRoutes.hxx).
+	const auto& friendsState = runtime->friends.Published();
+	const bool friendsElsewhere = !internal::RuntimeBridges(bridge).Together(netplay::Ask::OwnCard, netplay::Ask::FriendsSync);
+	const auto code = profiles::SharedCode(friendsElsewhere, friendsState.value ? &*friendsState.value : nullptr);
+	if (!signals.built || revision != signals.builtRevision || !(runtime->automaticCountry == signals.builtCountry) || !(style == signals.builtStyle) ||
+		code != signals.bundle.friendCode) {
 		signals.bundle = profiles::BundleOf(runtime->preferences, runtime->automaticCountry, style);
+		signals.bundle.friendCode = code;
 		signals.built = true;
 		signals.builtRevision = revision;
 		signals.builtCountry = runtime->automaticCountry;

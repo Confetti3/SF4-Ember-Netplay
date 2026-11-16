@@ -46,9 +46,9 @@ Opening OpeningOf(const netplay::rankings::BoardEntry& entry) {
     return opening;
 }
 
-Opening OpeningOf(const profiles::Hit& hit) {
+Opening OpeningOf(const profiles::Hit& hit, netplay::Service from) {
     Opening opening;
-    opening.key = profiles::Key::OfCard(hit.card);
+    opening.key = profiles::Key::OfCard(hit.card, from);
     opening.known.name = hit.name;
     opening.known.country = hit.country;
     opening.known.badge = hit.badge;

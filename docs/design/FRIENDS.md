@@ -737,7 +737,32 @@ as it is and changes one file.
 - **Changed**: `src/netplay/GameIdentity.hxx`: `GameId`, and a line in
   `GameTitle` for a game whose id it does not list (it lists `usf4`, `sfv` and
   `umvc3`).
-- **Not done by copying**: friends that span games (Open questions).
+- **Not done by copying**: friends that span games; see below.
+
+### Friends on an account bridge apart
+
+A product can keep its friends on another game's bridge, the **account
+service** (`ProductIdentity::accountService`): SFV Ember keeps them on SF4
+Ember's production bridge, so one list, one block list, one Appear offline and
+one friend code serve both games (SFV Ember's `docs/design/beta10/friends.md`).
+
+- `netplay/AccountRoutes.hxx` is the one table of which bridge each kind of
+  request goes to: the sync, every action, a card by friend, request or code,
+  and a search by code to the account service; room tickets, room members'
+  cards, a search by name, the player's own card and points to the game's.
+  `profiles::Key::from` says which bridge sealed a card token.
+- The interface names the account bridge to the runtime once the player trusts
+  it (`commands::AccountService`); the Ember ID panel trusts it once Ember's
+  own is, and Connect Discord connects Discord on both, one after the other.
+- The sync names the game and sends no main (`friends::ListingFor`).
+- The account service lists only its own game's public rooms, so a friend in
+  one of the product's own is not joined from the list
+  (`Refusal::RoomElsewhere`); a private room's offer and an invite still lead
+  in, the invite's ticket from the game's bridge.
+- A room member is added by the friend code their card shows on the game's
+  bridge (`card_friend_code`, `PROFILE.md` "The friend code on a card").
+- A product without an account service apart (SF4 Ember) resolves every kind
+  to its one bridge, as before.
 
 ## Work packages
 

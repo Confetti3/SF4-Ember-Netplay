@@ -90,6 +90,14 @@ struct FriendCardWanted {
     bool Valid() const { return !id.empty() && id.size() <= profile_limits::Value; }
     std::size_t Bytes() const { return id.size(); }
 };
+//   AccountService  The product's account bridge (ember::ProductIdentity::accountService) as the player trusts it now,
+//                  by id, or empty while they do not: friends, the friend code and friends' cards go there
+//                  (netplay/AccountRoutes.hxx). Sent when it changes, and only by a product that has one.
+struct AccountService {
+    std::string bridge;
+    bool Valid() const { return bridge.size() <= profile_limits::Bridge; }
+    std::size_t Bytes() const { return bridge.size(); }
+};
 
 // Every command below is made for the controller generation the press saw
 // (netplay::Snapshot::generation), and is dropped once that has moved on.
@@ -209,7 +217,7 @@ using RuntimeRequestWith = std::variant<commands::Identity, commands::Tournament
     commands::FriendNewCode, commands::FriendAppearOffline, commands::FriendTurnOff, commands::FriendTurnOn, commands::FriendInvite,
     commands::FriendDismiss, commands::FriendJoin, commands::FriendWatch, commands::FriendTakeInvite, commands::FriendAnswerVisit,
     commands::ProfileOpen, commands::ProfileClose, commands::PlayerSearch, commands::FriendCardWanted,
-    commands::Training, commands::LeaveWatchedGame,
+    commands::AccountService, commands::Training, commands::LeaveWatchedGame,
     commands::DiscordInvite, commands::PreviewSound, commands::Replay, commands::ShortInvitation, commands::Pad,
     commands::RoomSettings, commands::Input, commands::Service,
     commands::HostRoom, commands::JoinRoom, commands::LeaveRoom, commands::ReplaceRoom, commands::StartOffline,

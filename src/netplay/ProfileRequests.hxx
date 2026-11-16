@@ -87,6 +87,8 @@ struct SearchView {
 	// The text asked about, and whether it was asked as a friend code. Empty with no search.
 	std::string text;
 	bool byCode = false;
+	// The bridge it was asked of (Requests::ServiceOfSearch): its hits' card tokens open only there.
+	netplay::Service from = netplay::Service::Game;
 	// loading: on its way for `text`. loaded: `value` answers `text` (an empty list is "nobody goes by that name").
 	// error: the helper's code when it failed (rate_limited, no_discord_account, profiles_unavailable ...).
 	Answered<SearchAnswer> answer;
@@ -115,8 +117,26 @@ public:
 		Ticket ticket = 0;
 		Key::Kind selector = Key::Kind::None;
 		std::string value;
+		// The bridge it goes to (ServiceOfKey, netplay/AccountRoutes.hxx).
+		netplay::Service service = netplay::Service::Game;
 		explicit operator bool() const { return kind != Kind::None; }
 	};
+	// The bridge a look-up by `key` goes to: a card token to the one that sealed it, a friend, request or code to the
+	// account bridge, a name to the game's (where it is searched).
+	static netplay::Service ServiceOfKey(const Key& key) {
+		switch (key.kind) {
+		case Key::Kind::Card: return key.from;
+		case Key::Kind::Friend: return netplay::ServiceOf(netplay::Ask::FriendCard);
+		case Key::Kind::Request: return netplay::ServiceOf(netplay::Ask::RequestCard);
+		case Key::Kind::Code: return netplay::ServiceOf(netplay::Ask::CodeCard);
+		case Key::Kind::Name: case Key::Kind::None: break;
+		}
+		return netplay::ServiceOf(netplay::Ask::NameSearch);
+	}
+	// The bridge Find a player asks, by name or by code; its hits' tokens are that bridge's.
+	static netplay::Service ServiceOfSearch(bool byCode) {
+		return netplay::ServiceOf(byCode ? netplay::Ask::CodeSearch : netplay::Ask::NameSearch);
+	}
 
 	Profile Published() const { return profile_; }
 	SearchView SearchPublished() const { return search_; }
@@ -244,6 +264,7 @@ public:
 		SearchView fresh;
 		fresh.text = text;
 		fresh.byCode = byCode;
+		fresh.from = ServiceOfSearch(byCode);
 		fresh.answer.finished = search_.answer.finished;
 		fresh.answer.revision = search_.answer.revision;
 		search_ = std::move(fresh);
@@ -273,6 +294,7 @@ public:
 			ask.kind = Ask::Kind::Search;
 			ask.selector = Key::Kind::Name;
 			ask.value = profile_.key.value;
+			ask.service = ServiceOfKey(profile_.key);
 			ask.ticket = profileTicket_ = ++ticket_;
 			return ask;
 		}
@@ -284,6 +306,7 @@ public:
 			ask.kind = Ask::Kind::Lookup;
 			ask.selector = resolved_.kind;
 			ask.value = resolved_.value;
+			ask.service = ServiceOfKey(resolved_);
 			ask.ticket = profileTicket_ = ++ticket_;
 			return ask;
 		}
@@ -292,6 +315,7 @@ public:
 			ask.kind = Ask::Kind::Search;
 			ask.selector = search_.byCode ? Key::Kind::Code : Key::Kind::Name;
 			ask.value = search_.text;
+			ask.service = ServiceOfSearch(search_.byCode);
 			ask.ticket = searchTicket_ = ++ticket_;
 		}
 		return ask;
@@ -334,7 +358,8 @@ public:
 				const auto& hit = named[static_cast<std::size_t>(chosen)];
 				profile_.token = hit.card;
 				Learn(hit);
-				resolved_ = Key::OfCard(hit.card);
+				// The hit's token is the bridge's the name was searched on.
+				resolved_ = Key::OfCard(hit.card, ServiceOfKey(profile_.key));
 				stage_ = Stage::WantLookup;
 			}
 			return true;

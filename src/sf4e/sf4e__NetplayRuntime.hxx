@@ -36,6 +36,7 @@
 #include "../netplay/OwedAbort.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/BridgeFlights.hxx"
+#include "../netplay/AccountRoutes.hxx"
 #include "../netplay/CardRequests.hxx"
 #include "../netplay/FriendPresence.hxx"
 #include "../netplay/FriendRequests.hxx"
@@ -319,6 +320,16 @@ struct Runtime {
     netplay::levels::Requests levels;
     // Other players' cards in a public room: the look-up in flight and the answers.
     netplay::levels::Cards cards;
+    // A product with an account bridge of its own (ember::SeparateAccount): that bridge as the interface last named it
+    // (commands::AccountService; empty while the player does not trust it), and the cards of the friends the Friends
+    // tab focused, which are looked up there apart from the room's (sf4e__NetplayRuntime__Levels.cxx). Unused by a
+    // product whose game bridge is its account bridge: its friends' cards ride with the room's in `cards`.
+    std::string accountBridge;
+    netplay::levels::Cards friendCards;
+    // The two card maps as one for the view, made again only when either is replaced (ShownCards).
+    struct ShownCards {
+        std::shared_ptr<const netplay::levels::CardMap> members, friends, both;
+    } shownCards;
     // The player's friends: the sync or action in flight and the last state, the
     // visit to a friend's public room under way, and whether the player's room
     // can be offered a friend now (sf4e__NetplayRuntime__Social.cxx).
@@ -645,8 +656,17 @@ void TickLevels(bool helperReady, std::uint64_t nowMs);
 // Other players' cards (same file): the public room's members' tokens are
 // looked up when one joins, and a set's two fighters' 8 s after it ends.
 void TickCards(bool helperReady, std::uint64_t nowMs);
-// The friend the Friends tab has focused: their card is looked up with the members' (Cards::WantFriend).
+// The friend the Friends tab has focused: their card is looked up with the members' (Cards::WantFriend), or on the
+// account bridge apart from them when that is another bridge.
 void DispatchCards(const commands::FriendCardWanted& command);
+// The cards the view shows: the members' and, on a product with an account bridge of its own, the friends'.
+std::shared_ptr<const netplay::levels::CardMap> ShownCards();
+// The bridges a request goes to by its kind (netplay/AccountRoutes.hxx): `game` is the game's own as the caller knows
+// it (the bridge a command named, or the one levels are read from); the account bridge is the one the interface named
+// (commands::AccountService) on a product with its own, else `game` itself.
+netplay::Bridges RuntimeBridges(const std::string& game);
+// The interface named the product's account bridge (empty: none trusted). A product without one never sends it.
+void DispatchAccount(const commands::AccountService& command);
 // Other players' profiles and the player's own card (sf4e__NetplayRuntime__Profiles.cxx). The interface's commands; the profile and
 // search the helper answers through flights; and the tick that sends what is due: the look-ups of the profile
 // open, the search, and the player's card when it changed (netplay/ProfileRequests.hxx, netplay/CardBundle.hxx).

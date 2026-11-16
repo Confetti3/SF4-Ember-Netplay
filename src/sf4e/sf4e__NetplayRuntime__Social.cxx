@@ -16,6 +16,7 @@
 // Visit holds the waiting.
 #include "sf4e__NetplayRuntime.hxx"
 #include "../common/HexText.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../netplay/FriendWire.hxx"
 #include "../session/SocialAnswers.hxx"
 #include "../platform/UiPreferencesStore.hxx"
@@ -86,14 +87,22 @@ void ReadPresence(std::uint64_t nowSeconds) {
 	cached.refreshAt = presented.expires;
 }
 
-// What friends see of the player: the name and flag the board lists, and the main fighter.
+// The game's own bridge, for a friends command that named `named`: that bridge itself where friends live on the game's
+// bridge, else the one levels are read from (the friends command names the account bridge).
+std::string GameBridgeFor(const std::string& named) { return ember::SeparateAccount() ? runtime->levels.Bridge() : named; }
+
+// The friends' bridge lists this game's public rooms: it is the game's own.
+bool PublicRoomsListed() { return !ember::SeparateAccount(); }
+
+// What friends see of the player: the name and flag the board lists, and the main fighter where friends live on the
+// game's own bridge (friends::ListingFor).
 friends::Listing OwnListing() {
 	const auto& preferences = runtime->preferences;
 	friends::Listing listing;
 	listing.name = netplay::rankings::ListingName(preferences.displayName);
 	listing.country = ShownCountry(preferences.country, runtime->automaticCountry).ToString();
 	listing.main = preferences.mainFighter;
-	return listing;
+	return friends::ListingFor(listing, internal::RuntimeBridges(runtime->levels.Bridge()).Together(netplay::Ask::FriendsSync, netplay::Ask::OwnCard));
 }
 
 // The words for a code the helper or the bridge refused with, in the player's language. Also the codes this runtime
@@ -157,8 +166,9 @@ const char* DestinationKey(friends::Destination::Refusal refusal, bool invite) {
 	case Refusal::Gone: return invite ? "friends.invite_gone" : "friends.cannot_join";
 	case Refusal::PrivateRoom: return "friends.private_invite_only";
 	case Refusal::NotFighting: return "friends.cannot_watch";
-	// The friend is in another game: no room of theirs is joined from this one.
-	case Refusal::OtherGame: return "friends.join_unavailable";
+	// The friend is in another game: no room of theirs is joined from this one. Or in a public room of this game that
+	// the friends' bridge does not list: an invite from them still leads there.
+	case Refusal::OtherGame: case Refusal::RoomElsewhere: return "friends.join_unavailable";
 	default: return "friends.cannot_join";
 	}
 }
@@ -201,6 +211,7 @@ void LogFlight(const Flight& flight, const session::TournamentAnswer& answer, co
 void RelateCards(const Flight& flight, const std::string& failure) {
 	if (!flight.action || (!failure.empty() && failure != friends::Requests::Off)) return;
 	runtime->cards.Refresh();
+	runtime->friendCards.Refresh();
 	if (failure.empty() && !flight.change.card.empty()) runtime->cards.Relate(flight.change.card, flight.change.relation);
 	// The profile open, if any, stands with the player the same way.
 	internal::NoteProfileAction(failure.empty() ? flight.change.card : std::string(), flight.change.relation);
@@ -291,7 +302,8 @@ void GoToFriend(const std::string& bridge, const friends::Destination& where, bo
 		return;
 	}
 	runtime->discordInvite.Cancel();
-	runtime->friendVisit.Start(bridge, where, generation, busy, GetTickCount64());
+	// The room's ticket is the game bridge's to give, wherever friends live.
+	runtime->friendVisit.Start(internal::RuntimeBridges(GameBridgeFor(bridge)).Of(netplay::Ask::RoomTicket), where, generation, busy, GetTickCount64());
 	spdlog::info("Friends: {} a public room, {}", watch ? "watching at" : "joining", busy ? "asking first" : "free to go");
 }
 
@@ -447,7 +459,7 @@ bool Pressed(const netplay::Generation& pressed) { return runtime->controller.Ge
 void DispatchFriends(const commands::FriendJoin& command, bool helperReady) {
 	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
 	ScopeFriends(command.bridge, CurrentId());
-	const auto where = friends::ToFriend(*runtime->friends.Published().value, command.friendId, false);
+	const auto where = friends::ToFriend(*runtime->friends.Published().value, command.friendId, false, PublicRoomsListed());
 	if (!Resolve(where, false)) return;
 	// A private room that friends may join has no invitation yet: the bridge hands it out for this press, and the
 	// answer goes where a taken invite goes (TakeJoining). One action is in flight at a time, so a second press
@@ -462,7 +474,7 @@ void DispatchFriends(const commands::FriendJoin& command, bool helperReady) {
 void DispatchFriends(const commands::FriendWatch& command) {
 	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
 	ScopeFriends(command.bridge, CurrentId());
-	const auto where = friends::ToFriend(*runtime->friends.Published().value, command.friendId, true);
+	const auto where = friends::ToFriend(*runtime->friends.Published().value, command.friendId, true, PublicRoomsListed());
 	if (Resolve(where, false)) GoToFriend(command.bridge, where, true, command.generation.room);
 }
 
@@ -511,8 +523,13 @@ void TickSocial(bool helperReady, std::uint64_t nowMs) {
 	const auto id = CurrentId();
 	// Another Ember ID's friends are not shown.
 	if (!requests.Bridge().empty() && requests.EmberId() != id) ScopeFriends({}, {});
-	// The service is the one the interface names with its first command; until then the one levels are read from.
-	if (requests.Bridge().empty() && !id.empty() && !runtime->levels.Bridge().empty()) ScopeFriends(runtime->levels.Bridge(), id);
+	// The service is the one the interface names with its first command; until then the one friends go to by their kind:
+	// the one levels are read from, or the product's account bridge as the interface named it.
+	const auto bridges = RuntimeBridges(runtime->levels.Bridge());
+	const auto& fallback = bridges.Of(netplay::Ask::FriendsSync);
+	if (requests.Bridge().empty() && !id.empty() && !fallback.empty()) ScopeFriends(fallback, id);
+	// An account bridge the player no longer trusts (or another one) holds none of their friends from here.
+	if (ember::SeparateAccount() && !requests.Bridge().empty() && requests.Bridge() != fallback) ScopeFriends(fallback, fallback.empty() ? std::string() : id);
 	requests.LapseVisit(nowMs);
 	ReadPresence(static_cast<std::uint64_t>(std::time(nullptr)));
 	const auto& presented = runtime->friendsPresence;

@@ -256,6 +256,17 @@ struct ProductIdentity {
 	// dropped on the game, a replay link), as the picker's patterns:
 	// "*.<extension>" joined by ";", lower case.
 	const char* replayFiles;
+
+	// The bridge that keeps the player's account across Ember's games, as an
+	// origin ("https://bridge.embernetplay.link"), when it is not the game's
+	// own: the friend list, requests, blocks, appear offline, the friend code
+	// and friends' cards go there, so a player has one list in every game
+	// (netplay/AccountRoutes.hxx says which request goes where). Rooms,
+	// rankings, points, room members' cards and the player's own card stay on
+	// the game's own bridge. Null (SF4 Ember): the game's own bridge is both.
+	// A product's build sets it (SFV Ember's: cmake/ember-x64-probe
+	// EMBER_ACCOUNT_SERVICE), so a test build can name a staging or local one.
+	const char* accountService = nullptr;
 };
 
 const ProductIdentity& Product();
@@ -263,6 +274,13 @@ const ProductIdentity& Product();
 // The product's shell theme: its own table, or Ember's.
 inline const ShellTheme& ProductTheme() {
 	return Product().branding.theme ? *Product().branding.theme : EmberShellTheme;
+}
+
+// The product keeps the player's account on a bridge apart from the game's
+// own (ProductIdentity::accountService).
+inline bool SeparateAccount() {
+	const char* account = Product().accountService;
+	return account && *account;
 }
 
 // The main a player has before choosing one (Branding::mainStartsUnset): -1

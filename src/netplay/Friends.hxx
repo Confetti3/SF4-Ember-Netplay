@@ -147,6 +147,15 @@ struct Joining {
 	std::string friendId, secret;
 };
 
+// XXXX-XXXX: the shape of the code the bridge shows the player. Which symbols it draws them from is the bridge's
+// alphabet, which it alone checks (a code typed here goes to it as typed, and is refused there if unknown).
+inline bool IsFriendCode(const std::string& code) {
+	if (code.size() != 9 || code[4] != '-') return false;
+	for (std::size_t i = 0; i < code.size(); ++i)
+		if (i != 4 && !((code[i] >= '0' && code[i] <= '9') || (code[i] >= 'A' && code[i] <= 'Z'))) return false;
+	return true;
+}
+
 // The player's friends as the bridge last answered.
 struct State {
 	enum class Kind : std::uint8_t {

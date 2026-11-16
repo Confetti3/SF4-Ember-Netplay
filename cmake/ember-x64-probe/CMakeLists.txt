@@ -200,6 +200,27 @@ if(NOT EMBER_SERVICE MATCHES "^https?://[a-z0-9.-]+(:[0-9]+)?$")
 endif()
 target_compile_definitions(ember_neutral_x64 PUBLIC "SF4E_EMBER_SERVICE=\"${EMBER_SERVICE}\"")
 
+# The account service (common/ProductIdentity.hxx accountService): the bridge
+# that keeps the player's friend list, requests, blocks, appear offline and
+# friend code across Ember's games. SFV Ember's is SF4 Ember's production
+# bridge, so one friend list serves both games. The library reads it only from
+# the product's table, which the game's own build fills from
+# EMBER_ACCOUNT_ORIGIN, handed to it here (SFV Ember's sfve_product defines
+# SF4E_ACCOUNT_SERVICE from it). A test build names a staging or local bridge
+# here, and an empty value makes EMBER_SERVICE serve both, with friends on
+# SFV's own bridge (its kit's FRIENDS=sfv).
+set(EMBER_ACCOUNT_SERVICE "https://bridge.embernetplay.link" CACHE STRING
+    "Origin of the bridge that keeps the player's friends across Ember's games (empty: EMBER_SERVICE serves both)")
+if(EMBER_ACCOUNT_SERVICE AND NOT EMBER_ACCOUNT_SERVICE MATCHES "^https?://[a-z0-9.-]+(:[0-9]+)?$")
+    message(FATAL_ERROR "EMBER_ACCOUNT_SERVICE must be an origin such as https://<host>, or empty, got '${EMBER_ACCOUNT_SERVICE}'")
+endif()
+# The game's own bridge named again is no account service apart.
+set(ember_account_service "${EMBER_ACCOUNT_SERVICE}")
+if(ember_account_service STREQUAL EMBER_SERVICE)
+    set(ember_account_service "")
+endif()
+set(EMBER_ACCOUNT_ORIGIN "${ember_account_service}" PARENT_SCOPE)
+
 # The runtime (sf4e_runtime), compiled as SFV Ember would build it, and the
 # runtime's test under the fake game (RuntimeCapabilitiesTest) linked against
 # it; scripts/probe-x64.ps1 runs the test. It links with nothing of SF4's

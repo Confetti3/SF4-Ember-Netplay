@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "AccountRoutes.hxx"
 #include "../common/Area.hxx"
 #include "../common/ButtonPrompts.hxx"
 #include "../common/Country.hxx"
@@ -152,11 +153,18 @@ inline bool SameNameAnyCase(const std::string& a, const std::string& b) {
 // friend request received ("rq_"); Code: a friend code as typed; Name: the
 // exact name a list showed (a ranking, an archived set), with `country` to
 // choose by when more than one player goes by it.
+// A card token opens only on the bridge that sealed it, so a Card key also says which that was (`from`,
+// netplay/AccountRoutes.hxx): a room member's, a recent opponent's, a rival's and a name search's hit are the game
+// bridge's; a friend code search's hit is the account bridge's. One bridge serves both where there is no account bridge
+// apart from the game's, and `from` then changes nothing.
 struct Key {
 	enum class Kind : std::uint8_t { None, Card, Friend, Request, Code, Name } kind = Kind::None;
 	std::string value;
 	CountryCode country;
-	static Key OfCard(const std::string& token) { Key key; key.kind = Kind::Card; key.value = token; return key; }
+	netplay::Service from = netplay::Service::Game;
+	static Key OfCard(const std::string& token, netplay::Service from = netplay::Service::Game) {
+		Key key; key.kind = Kind::Card; key.value = token; key.from = from; return key;
+	}
 	static Key OfFriend(const std::string& id) { Key key; key.kind = Kind::Friend; key.value = id; return key; }
 	static Key OfRequest(const std::string& id) { Key key; key.kind = Kind::Request; key.value = id; return key; }
 	static Key OfCode(const std::string& code) { Key key; key.kind = Kind::Code; key.value = code; return key; }
@@ -164,7 +172,7 @@ struct Key {
 		Key key; key.kind = Kind::Name; key.value = name; key.country = country; return key;
 	}
 	bool Present() const { return kind != Kind::None && !value.empty(); }
-	bool operator==(const Key& other) const { return kind == other.kind && value == other.value && country == other.country; }
+	bool operator==(const Key& other) const { return kind == other.kind && value == other.value && country == other.country && from == other.from; }
 	bool operator!=(const Key& other) const { return !(*this == other); }
 };
 

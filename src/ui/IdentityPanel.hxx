@@ -67,7 +67,21 @@ public:
     void OpenDiscord(const std::string& bridge, bool automatic = false);
     // The service the Ember ID screens have selected, when the ID is ready and
     // the service is one the player trusts; empty otherwise. Public rooms use it.
+    // A product's account service apart from its game's own (AccountService)
+    // is never it: Ember's own stands for it while it is selected.
     std::string UsableBridge(const ShellView& view) const;
+    // Where the player's account across Ember's games lives
+    // (ember::ProductIdentity::accountService): that origin for a product with
+    // one apart from its game's own, else Ember's own service.
+    static const char* AccountService();
+    // The trusted bridge friends, the friend code and friends' cards go to:
+    // the usable service, for a product whose game bridge is its account
+    // bridge; else the trusted bridge at AccountService(), with the ID ready;
+    // empty while the player does not trust it.
+    std::string AccountBridge(const ShellView& view) const;
+    // Names AccountBridge to the runtime as it changes (commands::AccountService).
+    // Nothing for a product without an account bridge apart.
+    void NameAccountService(const ShellView& view, const Submit& submit);
     // Whether a Discord account is linked to the Ember ID on the usable service: this panel's read of the account,
     // else the ranking standing, the player's points and the friends, by netplay::LinkOf's one rule. Every screen
     // that needs it asks here.
@@ -96,7 +110,9 @@ public:
     // opens ("Linked · name"), or Not linked without a ready Ember ID or a
     // service. It opens Connect Discord for that service, or for Ember's own
     // without one, which switches the account or unlinks it.
-    MenuEntry DiscordAccountRow(const netplay::DiscordLink& link) const;
+    // A product with an account service apart also says when friends have no
+    // Discord account known connected there.
+    MenuEntry DiscordAccountRow(const netplay::DiscordLink& link, const ShellView& view) const;
     void OpenDiscordAccount(const ShellView& view, MenuNavigation& navigation);
     // Tournament matches ready to play on the service the matches are read
     // from; 0 without a ready ID and a service. Home shows a row while any are.
@@ -237,9 +253,33 @@ private:
     void ConnectNext(const ShellView& view);
     // The press of Connect Discord: runs the steps from wherever they stand.
     void ConnectGo(const ShellView& view);
-    // Ember's own service, found by its look-up, may be trusted now; the
-    // player has not removed it (the helper remembers removals).
+    // The service Connect Discord looked up, found by its look-up, may be
+    // trusted now; the player has not removed it (the helper remembers removals).
     bool EmberOffered() const;
+    // The origin Connect Discord works on now: a link's service is its own
+    // target (ConnectTarget). Else Ember's own service and, for a product with
+    // an account service apart, that one after it: the first that is not
+    // trusted yet or has no Discord account known connected, or Ember's own
+    // once both have.
+    std::string ConnectOrigin(const ShellView& view) const;
+    // A Discord account was read connected on the trusted bridge `bridge`.
+    bool ConnectedOn(const std::string& bridge) const;
+    // A sign-in finished on one of the services Connect Discord connects: the
+    // steps go on to the next that still needs Discord, on the Connect screen
+    // only. Discord asks once for each, since each keeps its own link.
+    void ConnectOnward(const ShellView& view);
+    // The Connect screen's line for each service a product with an account
+    // service apart connects: rooms (the game's) and friends (the account's).
+    void ServiceRows(const ShellView& view, std::vector<MenuEntry>& rows) const;
+    // A product with an account service apart trusts it once Ember's own is
+    // trusted (by the public rooms setup, Connect Discord or a player from an
+    // earlier version): looked up, then approved, unless the player removed
+    // it. In the background and after the rooms' own steps, so nothing about
+    // it delays a room; a failure leaves friends unavailable, and tries again
+    // when the services are read next.
+    void TrustAccountService(const ShellView& view);
+    // That look-up or its approval is under way.
+    bool trustingAccount_ = false;
     bool Removed(const ShellView& view, const std::string& bridge) const;
     // Connect Discord's own rows: true when `a` was one of them.
     bool ConnectActivate(const MenuAction& a, const ShellView& view);
@@ -345,6 +385,9 @@ private:
     // already looked Ember's own service up.
     std::string connectBridge_, discordService_;
     bool connectLookedUp_ = false;
+    // The origin this visit's look-up asked (found_ is its answer), and the
+    // account bridge last named to the runtime (NameAccountService).
+    std::string lookOrigin_, namedAccount_;
     // The sign-in under way, one at a time (IdentitySignIn.cxx): the
     // sign-in and service it is for, the account
     // connected when its page was opened (only a connection since then

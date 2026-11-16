@@ -217,6 +217,15 @@ static void TestLevels() {
 	const auto pastClass = session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"awards", {{"peak_class", 11u}}}}})}});
 	CHECK(pastClass && (*pastClass)[0] && (*pastClass)[0]->awards.peakClass == SkillBadge::Classes);
 	for (const char* relation : {"sent", "received"}) CHECK(session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", relation}}})}}));
+	// The friend code a game bridge shows on a card whose friends live on another (card_friend_code): read when it is
+	// one, none when it is absent or is not one, and the card stands either way.
+	CHECK((*cards)[0]->friendCode.empty());
+	const auto coded = session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"friend_code", "4F2A-91CX"}}})}});
+	CHECK(coded && (*coded)[0] && (*coded)[0]->friendCode == "4F2A-91CX");
+	for (const json& odd : {json("4f2a-91cx"), json("4F2A91CX"), json("4F2A-91CXX"), json(5u), json(nullptr)}) {
+		const auto read = session::DecodeCards({{"cards", json::array({json{{"account", cardAccount}, {"relation", "none"}, {"friend_code", odd}}})}});
+		CHECK(read && (*read)[0] && (*read)[0]->friendCode.empty());
+	}
 	json seventeen = json::array();
 	for (std::size_t i = 0; i <= netplay::levels::MaxLookup; ++i) seventeen.push_back(json{{"account", cardAccount}, {"relation", "none"}});
 	const auto card = [&](const json& fighter) { return json{{"cards", json::array({json{{"account", cardAccount}, {"fighters", json::array({fighter})}, {"relation", "none"}}})}}; };

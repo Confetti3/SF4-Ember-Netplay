@@ -5,6 +5,7 @@
 #include "Theme.hxx"
 #include "../common/LocalTime.hxx"
 #include "../common/Localization.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../netplay/FriendVisits.hxx"
 #include "../netplay/GameIdentity.hxx"
 #include "FindPlayer.hxx"
@@ -37,7 +38,7 @@ const char* WhyNotThere(const nf::Destination& destination, bool watch) {
     using Refusal = nf::Destination::Refusal;
     switch (destination.refusal) {
     case Refusal::PrivateRoom: return "friends.private_invite_only";
-    case Refusal::OtherGame: return "friends.join_unavailable";
+    case Refusal::OtherGame: case Refusal::RoomElsewhere: return "friends.join_unavailable";
     case Refusal::None: return nullptr;
     default: return watch ? "friends.cannot_watch" : "friends.cannot_join";
     }
@@ -238,7 +239,9 @@ std::string CodeShown(const std::string& typed) {
 
 std::vector<MenuChoice> FriendChoices(const nf::State& state, const nf::Friend& entry, bool canInvite, Gate gate) {
     const auto reason = [](const char* key) { return key ? std::string(loc::T(key)) : std::string(); };
-    const auto join = nf::ToFriend(state, entry.id, false), watch = nf::ToFriend(state, entry.id, true);
+    // A product whose friends live on an account bridge apart from the game's is never shown its own public rooms there.
+    const bool roomsListed = !ember::SeparateAccount();
+    const auto join = nf::ToFriend(state, entry.id, false, roomsListed), watch = nf::ToFriend(state, entry.id, true, roomsListed);
     // Join follows Joinable, which also takes a private room the bridge offered; the refusal's own words are ToFriend's, else a plain no.
     const char* joinWhy = !gate.go ? gate.goWhy : Joinable(entry) ? nullptr : WhyNotThere(join, false) ? WhyNotThere(join, false) : "friends.cannot_join";
     // Watch stays with public rooms: ToFriend refuses it for a private room, offered or not, and for another game.
@@ -460,15 +463,37 @@ std::vector<MenuEntry> FriendsPanel::SettingsRows(const ShellView& v) {
     return {appear, code, off};
 }
 
-bool FriendsPanel::RequestMember(const ShellView& v, const std::string& card, const std::string& name, bool accepts, const Submit& submit) {
-    const Gate gate = MemberGateOf(v.friends, service_, pending_.active);
-    if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return false; }
-    return Send(v, commands::FriendRequest{Bridge(v), card, name, accepts}, submit, {}, loc::Tf(accepts ? "friends.now_friends" : "friends.request_sent_to", name));
+bool FriendsPanel::TokenOpensHere(netplay::Service from) {
+    return !ember::SeparateAccount() || from == netplay::Service::Account;
 }
 
-void FriendsPanel::BlockMember(const ShellView& v, const std::string& card, const std::string& name, const Submit& submit) {
+std::string FriendsPanel::SharedCodeOf(const ShellView& v, const std::string& card) {
+    if (v.memberCards) {
+        const auto found = v.memberCards->find(card);
+        if (found != v.memberCards->end() && !found->second.friendCode.empty()) return found->second.friendCode;
+    }
+    if (v.profile.token == card && v.profile.card.loaded) return v.profile.card.value.friendCode;
+    return {};
+}
+
+bool FriendsPanel::RequestMember(const ShellView& v, const std::string& card, const std::string& name, bool accepts, const Submit& submit, netplay::Service from) {
+    const Gate gate = MemberGateOf(v.friends, service_, pending_.active);
+    if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return false; }
+    if (TokenOpensHere(from))
+        return Send(v, commands::FriendRequest{Bridge(v), card, name, accepts}, submit, {}, loc::Tf(accepts ? "friends.now_friends" : "friends.request_sent_to", name));
+    // The token is the game bridge's, which the friends' bridge cannot open: the friend code their card here shows
+    // asks them there. The friends' bridge accepts a request that crosses one of theirs, as it does a card's.
+    const auto code = SharedCodeOf(v, card);
+    if (code.empty()) { Say(loc::T("friends.add_needs_code"), Tone::Error); return false; }
+    return Send(v, commands::FriendRequestByCode{Bridge(v), code}, submit, {}, loc::Tf("friends.request_sent_to", name));
+}
+
+void FriendsPanel::BlockMember(const ShellView& v, const std::string& card, const std::string& name, const Submit& submit, netplay::Service from) {
     const Gate gate = MemberGateOf(v.friends, service_, pending_.active);
     if (!gate.act) { Say(loc::T(gate.actWhy), Tone::Error); return; }
+    // A block names its player by a card token the friends' bridge opens; one met on the game's bridge alone is blocked
+    // from their request or the friend list there.
+    if (!TokenOpensHere(from)) { Say(loc::T("friends.block_from_list"), Tone::Error); return; }
     Send(v, commands::FriendBlock{Bridge(v), card, name}, submit, {}, loc::Tf("friends.blocked_name", name));
 }
 
@@ -721,7 +746,10 @@ std::vector<MenuEntry> FriendsPanel::Rows(const ShellView& v, const std::string&
         return {connect};
     }
     case Mode::Off: return {NoteRowOf("friends.off"), TurnOnRowOf(f, pending_.active)};
-    case Mode::Unavailable: return {NoteRowOf("friends.unavailable")};
+    case Mode::Unavailable:
+        // Friends kept on an account bridge the player does not trust yet: Connect Discord sets it up with Discord there.
+        if (ember::SeparateAccount() && Bridge(v).empty()) return {NoteRowOf("friends.account_service"), ConnectDiscordRow()};
+        return {NoteRowOf("friends.unavailable")};
     case Mode::Unreachable: return {NoteRowOf("friends.unreachable")};
     case Mode::Loading: {
         auto add = Row(AddRow, loc::T("find.title"), loc::T("find.text_detail"), false);

@@ -682,7 +682,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
  // Friends first: a Join or Watch question that ends over a card returns to it here, so the card panels build for the screen this frame shows.
- friends_.Update(v,nav,identity_.UsableBridge(v),submit);
+ // Friends live on the product's account bridge (the game's own unless it has one apart), named to the runtime first.
+ identity_.NameAccountService(v,submit);
+ friends_.Update(v,nav,identity_.AccountBridge(v),submit);
  profile_.Update(v,preferences_,nav.Screen(),identity_.UsableBridge(v),submit);
  player_.Update(v,nav.Screen(),nav,friends_,identity_.UsableBridge(v),preferences_.displayName,ShownCountry(preferences_.country,v.automaticCountry),submit);
  UpdateAwardNotices(v);

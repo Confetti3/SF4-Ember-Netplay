@@ -12,6 +12,7 @@
 //   rate limit) waits ten minutes before it is tried again; any other failure
 //   tries again after the minute.
 #include "Awards.hxx"
+#include "Friends.hxx"
 #include "../common/GameCatalog.hxx"
 #include "PlayerPreferences.hxx"
 #include "Profiles.hxx"
@@ -54,11 +55,25 @@ struct Bundle {
 	Worn worn;
 	std::vector<std::string> pins;
 	Style style;
+	// The player's friend code on the account bridge, shown on their card here so another player who meets them in a
+	// room can ask them by it (docs/design/PROFILE.md, "The friend code on a card"): only where friends live on an
+	// account bridge apart from the game's, while friends are on and the player does not appear offline (SharedCode).
+	// Empty: none, and a save without it clears it.
+	std::string friendCode;
 	bool operator==(const Bundle& other) const {
-		return name == other.name && country == other.country && main == other.main && worn == other.worn && pins == other.pins && style == other.style;
+		return name == other.name && country == other.country && main == other.main && worn == other.worn && pins == other.pins && style == other.style &&
+			friendCode == other.friendCode;
 	}
 	bool operator!=(const Bundle& other) const { return !(*this == other); }
 };
+
+// The friend code the player's card shows (Bundle::friendCode): the code of the friends state while it lists friends,
+// when friends live on another bridge than the card (`friendsElsewhere`) and the player does not appear offline. None
+// otherwise: friends off, not read yet, unreachable, or appearing offline, so a player who hides is not asked by it.
+inline std::string SharedCode(bool friendsElsewhere, const friends::State* state) {
+	if (!friendsElsewhere || !state || state->kind != friends::State::Kind::Listed || state->appearOffline) return {};
+	return state->code;
+}
 
 inline Bundle BundleOf(const PlayerPreferences& preferences, const CountryCode& automaticCountry, const Style& style) {
 	Bundle bundle;

@@ -9,6 +9,7 @@
 #include <stdexcept>
 
 #include "../common/SkillBadgeJson.hxx"
+#include "../netplay/Friends.hxx"
 #include "AnswerReading.hxx"
 
 namespace sf4e { namespace session {
@@ -131,6 +132,8 @@ void DecodeProfileFields(const json& object, netplay::levels::Card& card) {
 	}
 	if (card.relation == netplay::levels::Relation::Friend)
 		if (const auto id = ReadText(object, "friend", 39); IsFriendId(id)) card.friendId = id;
+	// A code that is not one reads as none, and the card stands.
+	if (const auto code = ReadText(object, "friend_code", 9); netplay::friends::IsFriendCode(code)) card.friendCode = code;
 }
 
 // The most played opponent of the own points answer. An object that is not a whole one (no card token, no name, no
