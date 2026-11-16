@@ -242,6 +242,10 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   if(developer)rows.push_back(Row("developer","Developer","Development tools."));
   // Right on the list reaches the card beside it, Left goes back to the list's top.
   for(auto& r:rows)if(r.id=="card")r.left=rows.front().id;else r.right="card";
+  // Ember's links are rows too, drawn as icons over the card (GameMenu::headerLinks), so they are here only where the
+  // card is shown: a row that is not drawn is not there for the pad to reach.
+  const float window=ImGui::GetWindowSize().x,scale=Scale();
+  if(v2::SideBySide(window,v2::SideMargin(window,scale),scale))for(const auto& link:platform::Links)rows.push_back(LinkRow(link,v.services));
  }else if(screen=="training"){
   rows=TrainingSelectRows(v,title);
  }else if(screen=="discord-invitation"){
@@ -480,7 +484,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  }
  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
  else if(const auto* link=LinkOfRow(a.id)){
-  commands::Service r;r.service=platform::ServiceAction::OpenLink;r.servicePath=link->id;r.generation=v.session.generation;
+  commands::Service r;r.service=platform::ServiceAction::OpenLink;r.link=link;r.generation=v.session.generation;
   Send(std::move(r),submit);
  }
  else if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
@@ -862,11 +866,8 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // Home's corner says which version this is and which channel it follows.
  menu_.footerNote=screen=="home"?VersionLine(InstalledVersion(v)):std::string();
  if(screen=="home"){
-  // Ember's links, as icons in the header over the player's card (the menu draws them where the card is shown).
-  for(const auto& link:platform::Links){
-   auto row=LinkRow(link,v.services);row.hint=row.label;
-   menu_.headerLinks.push_back({std::move(row),link.mark});
-  }
+  // The icons of the links among the rows (the header draws them over the card).
+  for(const auto& row:rows)if(const auto* link=LinkOfRow(row.id))menu_.headerLinks.push_back({row.id,LinkIcon(link->mark)});
   // In a room Back does nothing here (the game's own menu is locked behind
   // Ember), so Home offers no way out and the legend no Back.
   if(opening||input::HomeBackHidesShell(v.session.room)){

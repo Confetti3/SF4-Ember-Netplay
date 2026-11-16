@@ -131,6 +131,8 @@ struct Service {
     launcher::InstallOffer updateOffer;
     // With SwitchUpdateChannel: the channel the player confirmed.
     updates::UpdateChannel updateChannel = updates::UpdateChannel::Stable;
+    // With OpenLink: the link of platform::Links to open (null is refused).
+    const platform::Link* link = nullptr;
     // With OpenSteamProfile: the member's profile to open.
     SteamId steamProfile;
     // With SendReport.

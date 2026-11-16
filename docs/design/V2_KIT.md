@@ -58,6 +58,7 @@ not fit is shortened in its catalog.
 | Part | Use it for | Call |
 | --- | --- | --- |
 | Button | A board button, 48 px: Primary (one per screen), Secondary, Danger (Leave) | `v2::Button(d, box, label, v2::ButtonKind::Primary, focused, hovered, enabled)` |
+| IconButton | A button that is only an icon, 48 px square with the icon 22 px in it (Home's links); name it in words beside it (`v2::TextEnd`), never by the icon alone | `v2::IconButton(d, box, icon, focused, hovered, enabled)` |
 | Chevron | A row whose Select opens something | `v2::Chevron(d, at, size, color)` |
 | Glow | A seat lit up: dim when free, brighter when taken, the pair's colour when playing | `v2::Glow(d, min, max, color, strength, reach, rounding)` |
 | Header | A screen's brand, eyebrow, title, chips and Back | `v2::Header(title, eyebrow, chips, back)` |
@@ -109,7 +110,11 @@ read as one column), goes on to the next placed row in row order (Down,
 Right) or the previous (Up, Left), and past its last row a fresh Down goes
 round to its first, a fresh Up from its first to its last. A
 GameMenu list draws its own cards and places nothing, so lists, grids and
-their footers keep moving by row order. A list, but not a grid, goes round
+their footers keep moving by row order. Home places its aside (`SetAside`): the
+player's card and, over it, the links (`IconButton`s in the header's band, there
+only where the card is shown, `v2::SideBySide`). The list's Up and Down pass
+over the aside and wrap as in every list; among themselves the aside's rows move
+by where they are drawn, and stay at its edges. A list, but not a grid, goes round
 on a fresh Up or Down at its ends; held repeats stop there. A flyout list
 too tall for its height is drawn in two columns and still moves in reading
 order. The
@@ -118,8 +123,8 @@ shell's own rows (`MenuEntry::footer`: Retry saving) belong to no body:
 under it, placed, so Down from the body's lowest row reaches them; a screen
 whose only placed row is one of them (a body that places nothing) moves by
 row order. Before the geometry come a row's
-explicit `left/right/up/down` (only on a screen that places nothing: a
-GameMenu list, Home's player card, Rankings) and a value row's Left/Right,
+explicit `left/right/up/down` (only on a screen that places nothing but its
+aside: a GameMenu list, Home's player card, Rankings) and a value row's Left/Right,
 which adjust it; a board whose row steps something drawn on it (a table
 card's offers) hands a step past its last on with
 `MenuNavigation::MoveByPlace`, so it moves as from any row. A row that is

@@ -184,7 +184,7 @@ void MoreEntries() {
         card.friendId = "fr_3";
         shown.card = &card;
         return shown;
-    }(), nf::State(), pp::Links{Open(), Open(), true, false});
+    }(), nf::State(), pp::Links{Open(), Open(), true, nf::OfferBlock::Other, false});
     const auto unread = pp::MoreOf(listed);
     Check(Pick(unread, "join") && !Pick(unread, "join")->enabled && Pick(unread, "remove") && !Pick(unread, "remove")->enabled && !Pick(unread, "remove")->detail.empty(),
         "a friend the list does not show yet is offered Join or Remove friend");
@@ -228,7 +228,7 @@ void StandingFromFriends() {
     shown.page = Page::Card;
     shown.name = "Player 3";
     shown.card = &card;
-    const pp::Links links{Open(), Open(), true, false};
+    const pp::Links links{Open(), Open(), true, nf::OfferBlock::Other, false};
     auto standing = pp::StandingOf(shown, state, links);
     Check(standing.friendId == "fr_3" && standing.joinable && standing.online && standing.canInvite, "a friend in a joinable room is not read as one");
     Check(pp::PrimaryOf(standing).kind == Kind::JoinRoom, "a friend in a joinable room does not get Join their room");

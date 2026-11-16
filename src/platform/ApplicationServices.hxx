@@ -23,8 +23,8 @@
 
 namespace sf4e { namespace platform {
 // SwitchUpdateChannel saves the channel ApplicationServices::SwitchUpdateChannel
-// names, then checks for an update on it. OpenLink opens the link of Links
-// (Links.hxx) that the request's target names by id, in the browser.
+// names, then checks for an update on it. OpenLink opens a link of Links
+// (Links.hxx) in the browser; only ApplicationServices::OpenLink starts it.
 // ShowReplayFile opens, in Explorer, the folder that holds the archived
 // replay the request names; only a folder of the archive is opened.
 // LaunchUpdateCheck is the check the game makes once per launch when its
@@ -102,8 +102,8 @@ struct ServiceSnapshot {
     // The action `message` describes, so the interface can show it on the
     // row that requested it rather than on whichever row happens to bind it.
     ServiceAction lastAction = ServiceAction::None;
-    // With OpenLink: the id of the link of the table that action opened, so only its rows show `message`.
-    std::string lastLink;
+    // With OpenLink: the link of the table that action opens (or opened), so only its rows show `message`.
+    const Link* lastLink = nullptr;
     std::string message;
     // The step an update being fetched is at, and how far: bytes while
     // downloading and verifying, files after. A total of 0 is not known.
@@ -162,6 +162,8 @@ public:
     ~ApplicationServices();
     // target: the file a ShowReplayFile request names; nothing else reads it.
     bool Request(ServiceAction action, const DiagnosticsView& diagnostics = {}, std::wstring target = {});
+    // `link` in the default browser; `link` is one of Links (its address is opened as https://<address>).
+    bool OpenLink(const Link& link);
     // The member's Steam profile page in the default browser (SteamProfileUrl).
     bool OpenSteamProfilePage(const SteamId& id);
     // Saves `channel` as the update channel, then checks for an update on it.

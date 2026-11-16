@@ -10,7 +10,6 @@
 #include "FighterArt.hxx"
 #include "../common/Country.hxx"
 #include "../netplay/Levels.hxx"
-#include "../platform/Links.hxx"
 #include <functional>
 #include <optional>
 #include <imgui.h>
@@ -258,13 +257,14 @@ public:
     // chips at the header's right end. Empty for none.
     std::string eyebrow;
     std::vector<v2::HeaderChip> headerChips;
-    // Home's links: a row each, drawn as an icon at the right end of the
-    // brand's band (DrawHeaderLinks), over the player's card, when the window
-    // shows the card, and placed there. They are part of Home's aside
-    // (MenuNavigation::SetAside). A row that is not drawn is not among the
-    // entries, so the pad reaches exactly what the mouse can. Empty on every
-    // other screen.
-    struct HeaderLink { MenuEntry row; platform::LinkMark mark; };
+    // Home's links: an icon each for the row of the entries with this id,
+    // drawn at the right end of the brand's band (DrawHeaderLinks), over the
+    // player's card, and placed there. They are part of Home's aside
+    // (MenuNavigation::SetAside). The screen puts a link's row among the
+    // entries only where the card is shown (v2::SideBySide), so a row that
+    // is not drawn is not there, and the pad reaches exactly what the mouse
+    // can. Empty on every other screen.
+    struct HeaderLink { std::string id; v2::IconDraw icon; };
     std::vector<HeaderLink> headerLinks;
     // The cards' width (unscaled) beside the detail pane, each card with the
     // first line of its detail and its value as a chip (Online play, Join); 0 for the usual split.
@@ -361,6 +361,9 @@ private:
         const char* title; const std::vector<MenuEntry>& entries; const char* status; const Detail& detail;
         int columns; const Card& card; const Body& body; bool flyout; float cardHeight; Tone statusTone; bool home;
         MenuAction action{};
+        // The list and its pane stand side by side (v2::SideBySide), worked out once in Draw: Home's card and
+        // the links over it, or the focused row's detail, are drawn in the pane.
+        bool split = false;
         // The menu buttons held (none while a notice owns them).
         unsigned held = 0;
         // As the frame began: an editor or question open, a choice open, a
@@ -387,7 +390,7 @@ private:
     void DrawBody(Frame& f, v2::Box content);
     // The cards and, beside them, the focused card's detail or Home's player
     // card and news; then the value panel and the list card over them.
-    void DrawCards(Frame& f, v2::Box content, bool narrow);
+    void DrawCards(Frame& f, v2::Box content);
     // The cards in `list`; returns the focused card's box.
     v2::Box DrawCardList(Frame& f, v2::Box list, bool split);
     void DrawHomePane(Frame& f, v2::Box pane);

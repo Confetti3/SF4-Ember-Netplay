@@ -269,9 +269,10 @@ static DispatchOutcome Handle(commands::Service& command, bool helperReady, Atte
             diagnostics.predictionStalls=performance.predictionStalls;
             diagnostics.predictionSkippedFrames=performance.skipReasons[diag::SKIP_PREDICTION_THRESHOLD];
         }
-        const std::wstring target = command.service == platform::ServiceAction::ShowReplayFile || command.service == platform::ServiceAction::OpenLink ? platform::Utf8ToWide(command.servicePath.c_str()) : std::wstring();
+        const std::wstring target = command.service == platform::ServiceAction::ShowReplayFile ? platform::Utf8ToWide(command.servicePath.c_str()) : std::wstring();
         const bool accepted = command.service == platform::ServiceAction::SendReport ?
-            runtime->services.SendReport(command.reportSubmission) : runtime->services.Request(command.service, diagnostics, target);
+            runtime->services.SendReport(command.reportSubmission) : command.service == platform::ServiceAction::OpenLink ?
+            runtime->services.OpenLink(*command.link) : runtime->services.Request(command.service, diagnostics, target);
         if (!accepted) runtime->error = loc::T("runtime.operation_busy");
         else if (command.service == platform::ServiceAction::SendReport || command.service == platform::ServiceAction::PrepareProblemReport ||
             command.service == platform::ServiceAction::CancelReport) runtime->error.clear();

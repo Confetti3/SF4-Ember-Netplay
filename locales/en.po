@@ -2245,7 +2245,7 @@ msgid "about.kofi"
 msgstr "Support Ember on Ko-fi"
 
 msgid "about.kofi_detail"
-msgstr "Tips keep the relays and servers running, at {0}. Opens in your browser behind the game."
+msgstr "Support Ember's development at {0}. Opens in your browser behind the game."
 
 msgid "about.website"
 msgstr "Ember website"
@@ -2254,7 +2254,7 @@ msgid "about.website_detail"
 msgstr "Rooms, rankings and replays at {0}. Opens in your browser behind the game."
 
 msgid "about.twitter"
-msgstr "Ember on Twitter"
+msgstr "Ember's developer on Twitter"
 
 msgid "about.twitter_detail"
 msgstr "News from Ember's developer at {0}. Opens in your browser behind the game."

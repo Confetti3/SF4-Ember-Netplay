@@ -527,6 +527,7 @@ Footprint FootprintOf(const commands::RoomSettings& command) { return Preference
 Footprint FootprintOf(const commands::SavePreferences& command) { return PreferencesFootprint(command.preferences); }
 Footprint FootprintOf(const commands::Service& command) {
 	if (command.servicePath.size() > 4096 || (command.service == platform::ServiceAction::OpenSteamProfile && !command.steamProfile.Present()) ||
+		(command.service == platform::ServiceAction::OpenLink && !command.link) ||
 		command.reportSubmission.comment.size() > 8000 || command.updateOffer.tag.size() > 64 || command.updateOffer.sha256.size() > 64)
 		return std::nullopt;
 	return command.servicePath.size() + command.updateOffer.tag.size() + command.updateOffer.sha256.size() + command.reportSubmission.comment.size();
