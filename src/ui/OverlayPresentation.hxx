@@ -84,6 +84,10 @@ public:
     void Toggle(const char* why = "F10") { if (available_ && focused_) { requested_ = !requested_; why_ = why; } }
     void Open(const char* why = "opened") { if (available_) { requested_ = true; why_ = why; } }
     void Close(const char* why = "closed") { requested_ = false; why_ = why; }
+    // The menu comes back once the main menu is in front again, as after a
+    // game: the player left a room's Training for the room (F10, "Back to
+    // room"), which goes through the game's main menu.
+    void ReopenWhenBack(const char* why) { reopen_ = why; }
     const char* Why() const { return why_; }
     // Consecutive updates away from the main menu before the shell hides: ~0.5 s at 60 fps.
     static constexpr unsigned AwayFrames = 30;
