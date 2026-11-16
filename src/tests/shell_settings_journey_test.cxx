@@ -236,7 +236,7 @@ void EmberLinks() {
    return Is<commands::Service>(a, [&](const commands::Service& s) { return s.service == ServiceAction::OpenLink && s.servicePath == id; }); });
  };
  {
-  Harness h; Drawn drawn; h.Screen("tab-about"); h.Frame(0, 3);
+  Harness h; Drawn drawn; h.Screen("tab-about/about"); h.Frame(0, 3);
   const auto at = std::find_if(drawn.rows.begin(), drawn.rows.end(), [](const MenuEntry& e) { return e.id == "problem-report"; }) - drawn.rows.begin();
   bool ordered = at + static_cast<std::ptrdiff_t>(Links.size()) + 1 < static_cast<std::ptrdiff_t>(drawn.rows.size());
   for (std::size_t i = 0; ordered && i < Links.size(); ++i) {
@@ -249,7 +249,7 @@ void EmberLinks() {
    h.FocusOn(row(link).c_str()); h.Press(MenuInput::Select);
    Check(h.actions.size() == before, "A link opened before it was confirmed");
    h.Press(MenuInput::Right); h.Press(MenuInput::Select);
-   Check(h.actions.size() == before + 1 && asked(h, link.id) == 1 + (&link - Links.data()), "A link in Help & About did not ask for its own link");
+   Check(h.actions.size() == before + 1 && asked(h, link.id) == 1, "A link in Help & About did not ask for its own link");
   }
   h.view.services.lastAction = ServiceAction::OpenLink; h.view.services.lastLink = "kofi"; h.view.services.message = "Opened in your browser. Switch to it.";
   h.Frame(0, 2);
