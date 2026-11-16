@@ -70,8 +70,9 @@ std::vector<Group> Groups(const training::View& view, bool shortcuts, const std:
     }
     // What a position key just did takes the place of the hints.
     if (!notice.empty()) { groups.push_back({{{Piece::Notice, notice, Between * unit}}, true}); return groups; }
-    // The pad's Back is its one way to reset or save, so it is shortened to stay.
-    if (pad) hint(Piece::Button, back, loc::T("training.pad_hint"), true);
+    // The pad's Back is its one way to reset or save, so it is shortened to
+    // stay; a lab without position save has no such hint.
+    if (pad && TrainingFeaturesShown().position) hint(Piece::Button, back, loc::T("training.pad_hint"), true);
     const auto press = [&](std::uint32_t button, const std::string& name, int key, const char* label) {
         if (pad && button) hint(Piece::Button, name, label);
         else hint(Piece::Key, TrainingKeyName(key), label);

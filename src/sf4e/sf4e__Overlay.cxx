@@ -23,6 +23,8 @@
 #include "../ui/Win32Input.hxx"
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
+#include "../ui/TrainingPanelSf4.hxx"
+#include "sf4e__GameAdapter.hxx"
 #include "../ui/CameraPanel.hxx"
 #include "../training/RemoteServer.hxx"
 #include "../training/RemoteHud.hxx"
@@ -497,7 +499,11 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // The setter keeps only its first call, and the lookup asks the shell each time.
     // Before the HUD, the match meter and the hotkeys, which read the lab's settings.
     static bool trainingDirectorySet=false;
-    if(!trainingDirectorySet) { sf4e::ui::SetTrainingDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); trainingDirectorySet=true; }
+    // SF4's own pages of the lab and what its lab offers, before the folder is read.
+    if(!trainingDirectorySet) {
+        sf4e::ui::InstallSf4TrainingPages(); sf4e::ui::SetTrainingFeatures(ember::game::Game().caps.trainingFeatures);
+        sf4e::ui::SetTrainingDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); trainingDirectorySet=true;
+    }
     // The meter in a match is a Practice match's own, or the player's choice
     // for a match they watch, in private rooms only; the runtime reads nothing
     // for it otherwise. The seat is the last tick's; the runtime observes a

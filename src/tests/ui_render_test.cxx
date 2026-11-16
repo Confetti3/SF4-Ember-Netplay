@@ -2,6 +2,7 @@
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/Theme.hxx"
 #include "../ui/TrainingPanel.hxx"
+#include "../ui/TrainingPanelSf4.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/OverlayLayers.hxx"
 #include "../ui/FighterSelector.hxx"
@@ -663,6 +664,8 @@ int main(int argc, char** argv) {
         const bool headless = std::getenv("SF4E_UI_RENDER_HEADLESS") != nullptr;
         Require(!headless || argc == 1, "Headless UI checks cannot capture images");
         CheckBackgroundExpectation();
+        // SF4's lab, whose pages the render checks draw.
+        sf4e::ui::InstallSf4TrainingPages();
         // The draw sites still name palette::Ember; it has to be the product's accent.
         const unsigned accent = ember::Product().branding.accent;
         Require(sf4e::ui::palette::Ember == IM_COL32(accent >> 16 & 255, accent >> 8 & 255, accent & 255, 255), "palette::Ember is not the product accent");

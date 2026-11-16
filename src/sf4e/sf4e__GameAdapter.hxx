@@ -28,6 +28,7 @@
 #include "../common/ControllerView.hxx"
 #include "../common/SelectionPick.hxx"
 #include "../common/SettingsFeatures.hxx"
+#include "../common/TrainingFeatures.hxx"
 #include "../common/GamePing.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/MenuButtons.hxx"
@@ -105,6 +106,10 @@ struct Capabilities {
     // The game features whose Settings rows only some games have
     // (SettingsFeatures.hxx): a game without one is not offered its rows.
     SettingsFeatures settingsFeatures;
+    // What the Training lab's controls and HUD offer over the game's Training
+    // battle (TrainingFeatures.hxx); the overlay that draws them hands this on
+    // (ui::SetTrainingFeatures).
+    TrainingFeatures trainingFeatures;
 };
 
 // Where the game is. Game thread.

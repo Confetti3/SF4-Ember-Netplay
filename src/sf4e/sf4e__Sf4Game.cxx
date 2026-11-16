@@ -290,6 +290,7 @@ constexpr Capabilities Sf4Capabilities() {
     // hitboxes stays off: SF4's Training lab has its own Hitboxes page
     // (TrainingPanel), which draws the same overlay (ui/HitboxOverlay).
     caps.settingsFeatures = ember::SettingsFeatures::All();
+    caps.trainingFeatures = ember::TrainingFeatures::All();
     return caps;
 }
 const Adapter s_game = {

@@ -7,7 +7,7 @@
 #include "TextPill.hxx"
 #include "InputGlyphs.hxx"
 #include "../common/ButtonLayoutTypes.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
@@ -38,7 +38,7 @@ void ChallengerBanner(const training::View& view, const ChallengerCall& call) {
     const float goWidth = goNow ? glyph + small * .35f + font->CalcTextSizeA(small, FLT_MAX, 0, goNow).x : 0;
     if (goNow) ReportMenuText("challenger-go-now", small, glyph, goWidth, vp->Size.x * .9f);
     std::string who = call.opponent;
-    if (const auto* fighter = who.empty() ? nullptr : selection::FindFighter(call.fighter)) who += "  \xC2\xB7  " + std::string(fighter->name);
+    if (!who.empty() && ember::ValidFighter(call.fighter)) who += "  \xC2\xB7  " + std::string(ember::Catalog().fighterName(call.fighter));
     // Only the name gives way, so go now is never pushed off the screen.
     const float whoRoom = vp->Size.x * .9f - goWidth - (goNow ? gap : 0);
     if (!who.empty() && font->CalcTextSizeA(small, FLT_MAX, 0, who.c_str()).x > whoRoom) {

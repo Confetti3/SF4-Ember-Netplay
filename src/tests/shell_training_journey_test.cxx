@@ -6,6 +6,7 @@
 #include "../netplay/RoomPreferences.hxx"
 #include "../ui/MenuRows.hxx"
 #include "../ui/TrainingInRoom.hxx"
+#include "../ui/TrainingPanelSf4.hxx"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -442,6 +443,7 @@ void TableCountCreate() {
  SetMenuEntriesProbe({});
 }
 void TrainingJourneys() {
+ sf4e::ui::InstallSf4TrainingPages();
  using namespace sf4e;
  HeadlessImGui imgui;auto& io=imgui.io;
  training::View v;v.available=v.ready=v.checkpoint=true;v.generation=77;v.lengths[0]=20;v.on[0]=true;v.playable=v.replyable=1;

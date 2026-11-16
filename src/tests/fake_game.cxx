@@ -137,6 +137,7 @@ Capabilities Everything() {
     caps.customContent = true;
     caps.frameMeter = true;
     caps.settingsFeatures = ember::SettingsFeatures::All();
+    caps.trainingFeatures = ember::TrainingFeatures::All();
     return caps;
 }
 

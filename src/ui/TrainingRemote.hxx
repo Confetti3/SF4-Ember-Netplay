@@ -26,7 +26,4 @@ struct TrainingLabParts {
     training::ReplySlots& slots; const std::filesystem::path& directory;
 };
 TrainingLabParts TrainingLab();
-// Writes training.json; sends the dummy's plan with its reply (false, and said, when it cannot go).
-void SaveTrainingLab();
-bool SendTrainingPlan(const training::View& view, const TrainingSubmit& submit);
 } }

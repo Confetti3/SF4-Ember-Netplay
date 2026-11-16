@@ -54,6 +54,7 @@
 #include "../SelectionArt.hxx"
 #include "../SelectionArtD3D9.hxx"
 #include "../TrainingPanel.hxx"
+#include "../TrainingPanelSf4.hxx"
 #include "../Theme.hxx"
 #include "../V2.hxx"
 #include "../../common/Localization.hxx"
@@ -583,6 +584,8 @@ void DrawLevels() {
 }
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
+    // SF4's lab, whose pages the lab's Training shots show.
+    sf4e::ui::InstallSf4TrainingPages();
     int argc = 0;
     LPWSTR* wide = CommandLineToArgvW(GetCommandLineW(), &argc);
     std::vector<std::string> args;

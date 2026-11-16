@@ -60,7 +60,7 @@ set(EMBER_SF4_SIDE
     # Language, display and pads: the game's files and its pad layer.
     common/GameLanguage.cxx common/GameLanguage.hxx
     common/GameDisplayConfig.hxx common/DirectInputState.hxx
-    common/GamepadBrand.hxx common/ControllerView.hxx common/TrainingPad.hxx common/TrainingStage.hxx
+    common/GamepadBrand.hxx common/ControllerView.hxx common/TrainingStage.hxx
     # Layouts of the 32-bit engine's keyboard list and replay recorder, held
     # by static_asserts that only the 32-bit game meets (section 7).
     common/KeyboardSlots.hxx common/ReplayRecorder.hxx
@@ -76,10 +76,12 @@ set(EMBER_SF4_SIDE
     # Platform: the game's picture, display settings and custom content.
     platform/FrameGrab.cxx platform/FrameGrab.hxx platform/GameDisplaySettings.cxx
     platform/GameDisplaySettings.hxx platform/CustomContentFiles.cxx platform/CustomContentFiles.hxx
-    # Training's UI over SF4's Training mode, its camera panel and its phone
-    # remote (with the HUD editor the remote serves).
-    ui/TrainingPanel.cxx ui/TrainingPanel.hxx ui/TrainingMeter.cxx ui/TrainingData.cxx
-    ui/TrainingShortcuts.cxx ui/CameraPanel.cxx ui/CameraPanel.hxx ui/TrainingRemote.cxx ui/TrainingRemote.hxx
+    # Training's pages only SF4's lab fills (TrainingPanelSf4: the dummy's
+    # settings, typed replies' moves list, Combo check), its camera panel and
+    # its phone remote (with the HUD editor the remote serves). The lab's
+    # controls, HUD and Data panel are neutral (TrainingFeatures).
+    ui/TrainingPanelSf4.cxx ui/TrainingPanelSf4.hxx
+    ui/CameraPanel.cxx ui/CameraPanel.hxx ui/TrainingRemote.cxx ui/TrainingRemote.hxx
     # In-game themes: SF4's theme folders, its battle HUD's files and their
     # checks (game::Themes, SettingsFeatures::gameThemes).
     platform/GameThemes.cxx platform/GameThemes.hxx platform/GameThemeGuard.cxx platform/GameThemeGuard.hxx

@@ -1,11 +1,18 @@
 #pragma once
 #include "../training/TrainingSession.hxx"
+#include "../training/PracticeSettings.hxx"
 #include "../common/TrainingPad.hxx"
 #include "../common/ButtonPrompts.hxx"
+#include "../common/TrainingFeatures.hxx"
+#include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <initializer_list>
+#include <optional>
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
+#include "GameMenu.hxx"
 #include "MenuNavigation.hxx"
 #include "TrainingInRoom.hxx"
 #include "TrainingHudLayout.hxx"
@@ -13,6 +20,58 @@
 
 namespace sf4e { namespace ui {
 using TrainingSubmit = std::function<bool(training::Command)>;
+// What the game's lab offers (game::Capabilities::trainingFeatures), as the
+// overlay that draws the controls hands it on; SF4's (All) until then.
+void SetTrainingFeatures(const ember::TrainingFeatures& features);
+const ember::TrainingFeatures& TrainingFeaturesShown();
+// What an action on one of a game's own pages asks of the controls: taken,
+// and a command for them to send and follow (its request id is theirs), and
+// whether the controls close for the fight once the game accepts it.
+struct TrainingPageAnswer { bool taken = false; std::optional<training::Command> send; bool returnAfter = false; };
+// The lab's pages that only one game's Training fills (SF4's: the dummy's
+// settings, the typed replies' moves list, Combo check, the phone remote),
+// which that game's overlay installs (TrainingPanelSf4.hxx). The controls ask
+// it for the rows of a page they do not know and hand it what is done there,
+// and it keeps its own part of training.json. On the overlay thread only.
+class TrainingExtraPages {
+public:
+    virtual ~TrainingExtraPages() = default;
+    // Whether it offers the page now (the remote only where the overlay offers it).
+    virtual bool Offers(const std::string& screen) const = 0;
+    // The page's rows, false for a page that is not its.
+    virtual bool Rows(const training::View& view, const std::string& screen, bool ready, std::vector<MenuEntry>& rows) = 0;
+    // An action on its page, or one of its rows on the reply page; error is the status line's.
+    virtual TrainingPageAnswer Handle(const MenuAction& action, const training::View& view, const std::string& screen,
+        const TrainingSubmit& submit, std::string& error) = 0;
+    // A value row of its in the words Left and Right step through; false for a row not its.
+    virtual bool Values(const MenuEntry& row, std::vector<std::string>& labels) = 0;
+    // What the page draws over its list (the remote's QR code); none elsewhere.
+    virtual GameMenu::ListCard ListCard(const std::string& screen) = 0;
+    // Its part of training.json: read once with the rest, written with it.
+    virtual void Read(const nlohmann::json& practice) = 0;
+    virtual void Write(nlohmann::json& practice) const = 0;
+};
+// The game's own pages, or none (null). Kept for the process's life.
+void SetTrainingExtraPages(TrainingExtraPages* pages);
+// The lab's settings as training.json holds them, read once its folder is
+// known: what the pages, the phone remote and the HUD read and change in place.
+struct TrainingLabSettings {
+    training::DummyPlan& plan; training::ReplySlots& slots; training::MeterOptions& meter; const std::filesystem::path& directory;
+};
+TrainingLabSettings TrainingLabState();
+// The status line's notice for what a page did, for a few seconds.
+void TrainingLabNotice(std::string text, bool failed = false);
+// Writes training.json; sends the dummy's plan with its reply (false, and said, when it cannot go).
+void SaveTrainingLab();
+bool SendTrainingPlan(const training::View& view, const TrainingSubmit& submit);
+// The recordings kept by name in the recordings folder beside training.json, as the
+// recording page's Save as and Load do them: the selected slot under a name,
+// written once the game hands it over (ServeTrainingRecordings, which the
+// overlay calls each frame), or a file into the selected slot. False, and
+// said on the status line, when it cannot be done.
+bool SaveTrainingRecording(const training::View& view, const TrainingSubmit& submit, const std::string& name);
+bool LoadTrainingRecording(const training::View& view, const TrainingSubmit& submit, const std::string& name);
+void ServeTrainingRecordings(const training::View& view);
 // The phone remote the live overlay offers (training::remote); unset in the UI lab, which hides its page.
 struct TrainingRemote { std::function<bool()> start; std::function<void()> stop; std::function<std::string()> url, pin, link; std::function<bool()> open; std::function<bool()> hudAllowed; std::function<void(bool)> allowHud; };  // link: the address with the PIN, what the QR code holds
 void SetTrainingRemote(TrainingRemote remote);
