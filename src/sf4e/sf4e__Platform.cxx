@@ -19,6 +19,7 @@
 #include "sf4e.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Game.hxx"
+#include "sf4e__BattleLoad.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "BuildIdentity.hxx"
 #include "sf4e__Platform.hxx"
@@ -222,6 +223,7 @@ void fD3D::CancelFrameShift() {
 }
 
 int fD3D::LimitFrame(float frameDelta) {
+    sf4e::battleload::Tick();
     const unsigned long long previousExit = *rD3D::GetLastLimiterExit(this);
     // A fast export (sf4e__ReplayCapture.hxx: Fast) plays as fast as the
     // encoder takes its pictures, which holds the game (VideoLink.cxx: Send);

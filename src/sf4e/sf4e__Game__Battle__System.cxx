@@ -5,6 +5,7 @@
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "sf4e__ReplayPlayback.hxx"
+#include "sf4e__BattleLoad.hxx"
 #include "sf4e__InputLag.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
@@ -318,6 +319,7 @@ void fSystem::BattleUpdate() {
 
     diag::ScopedTimer _updateTimer(diag::OP_DETOURED_BATTLE_UPDATE);
     sf4e::InputLag::BeforeBattleFrame(sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.lowerInputLag);
+    sf4e::battleload::FirstFrame();
 
     if (!MayAdvanceDeterministicFrame()) {
         if (ggpo && diag::Enabled()) {
@@ -541,6 +543,7 @@ void fSystem::CloseBattle() {
     sf4e::MenuMusic::Pick();
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
+    sf4e::battleload::Closed();
     sf4e::crash::NoteMatchBoundary("battle_close");
     if (ggpo) NoteHeapParticleNames(_this);
     if (ggpo) {

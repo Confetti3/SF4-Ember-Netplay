@@ -4,7 +4,9 @@
 #include <atomic>
 #include <exception>
 #include <map>
+#include <mutex>
 #include <string>
+#include <vector>
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,6 +22,7 @@
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/sinks/base_sink.h>
 
+#include "../common/AddressSpaceReport.hxx"
 #include "../common/CrashDump.hxx"
 #include "../common/CrashReport.hxx"
 #include "../common/CrashUnloaded.hxx"
@@ -472,18 +475,51 @@ unsigned CountThreads() {
 	return count;
 }
 
-sf4e::crash::AddressSpaceSummary WalkAddressSpace() {
-	sf4e::crash::AddressSpaceSummary summary;
+// The one VirtualQuery walk over the address space: `visit` is called with
+// each region in address order.
+template <typename Visit>
+void ForEachRegion(Visit visit) {
 	SYSTEM_INFO system;
 	GetSystemInfo(&system);
 	MEMORY_BASIC_INFORMATION region;
 	const char* cursor = (const char*)system.lpMinimumApplicationAddress;
 	while (cursor < (const char*)system.lpMaximumApplicationAddress &&
 		VirtualQuery(cursor, &region, sizeof(region)) == sizeof(region)) {
-		if (region.State == MEM_FREE) summary.AddFreeRegion(region.RegionSize);
+		visit(region);
 		cursor = (const char*)region.BaseAddress + region.RegionSize;
 	}
+}
+
+sf4e::crash::AddressSpaceSummary WalkAddressSpace() {
+	sf4e::crash::AddressSpaceSummary summary;
+	ForEachRegion([&](const MEMORY_BASIC_INFORMATION& region) {
+		if (region.State == MEM_FREE) summary.AddFreeRegion(region.RegionSize);
+	});
 	return summary;
+}
+
+sf4e::crash::Region ToRegion(const MEMORY_BASIC_INFORMATION& region) {
+	using sf4e::crash::RegionState;
+	using sf4e::crash::RegionType;
+	sf4e::crash::Region out;
+	out.base = reinterpret_cast<uintptr_t>(region.BaseAddress);
+	out.size = region.RegionSize;
+	out.state = region.State == MEM_FREE ? RegionState::Free : region.State == MEM_RESERVE ? RegionState::Reserved : RegionState::Committed;
+	if (region.State != MEM_FREE) {
+		out.type = region.Type == MEM_IMAGE ? RegionType::Image : region.Type == MEM_MAPPED ? RegionType::Mapped : RegionType::Private;
+		out.allocationBase = reinterpret_cast<uintptr_t>(region.AllocationBase);
+	}
+	return out;
+}
+
+// The base file name of the module loaded at `allocationBase`, or empty.
+std::string ModuleFileName(std::uint64_t allocationBase) {
+	char path[MAX_PATH] = {};
+	HMODULE module = reinterpret_cast<HMODULE>(static_cast<uintptr_t>(allocationBase));
+	const DWORD length = GetModuleFileNameA(module, path, sizeof(path));
+	if (!length || length >= sizeof(path)) return std::string();
+	const char* name = strrchr(path, '\\');
+	return name ? name + 1 : path;
 }
 
 struct HeapCheck {
@@ -599,6 +635,15 @@ unsigned long long LargestFreeRange() {
 	return WalkAddressSpace().largestFree;
 }
 
+void NoteAddressSpace() {
+	std::vector<Region> regions;
+	ForEachRegion([&](const MEMORY_BASIC_INFORMATION& region) { regions.push_back(ToRegion(region)); });
+	AddressSpaceReport report = SummarizeAddressSpace(regions);
+	for (Allocation& allocation : report.largestAllocations)
+		if (allocation.type == RegionType::Image) allocation.image = ModuleFileName(allocation.base);
+	for (const std::string& line : FormatAddressSpace(report)) spdlog::info("{}", line);
+}
+
 void NoteMatchBoundary(const char* label) {
 	CheckHeaps(label, -1, true);
 	PROCESS_MEMORY_COUNTERS_EX memory = {};
@@ -614,11 +659,17 @@ void NoteMatchBoundary(const char* label) {
 	if (restored && current) s_previousFilter = current;
 	const double mb = 1024.0 * 1024.0;
 	// Growth since the last boundary of the same kind, so a leak across
-	// matches reads from one line per match.
+	// matches reads from one line per match. The load watch's reports can
+	// come from another thread than the game's, so the table has a lock.
 	static std::map<std::string, SIZE_T> previous;
-	auto& last = previous[label];
-	const double growth = last ? (static_cast<double>(memory.PrivateUsage) - static_cast<double>(last)) / mb : 0.0;
-	last = memory.PrivateUsage;
+	static std::mutex previousLock;
+	double growth = 0.0;
+	{
+		std::lock_guard<std::mutex> guard(previousLock);
+		auto& last = previous[label];
+		growth = last ? (static_cast<double>(memory.PrivateUsage) - static_cast<double>(last)) / mb : 0.0;
+		last = memory.PrivateUsage;
+	}
 	spdlog::info("Process [{}]: private={:.0f}MB ({:+.0f}MB since the last) working={:.0f}MB largest_free={:.0f}MB free={:.0f}MB "
 		"free_regions={} handles={} threads={} log_dropped={} crash_filter={}",
 		label, memory.PrivateUsage / mb, growth, memory.WorkingSetSize / mb, space.largestFree / mb, space.totalFree / mb,
