@@ -3993,6 +3993,9 @@ msgstr "Сначала отмените готовность, затем вст�
 msgid "room.leave_seat.keep"
 msgstr "Остаться"
 
+msgid "room.watching_keeps"
+msgstr "Продолжить просмотр. Другой вариант завершит игру, которую вы смотрите."
+
 msgid "room.leave_seat.costs_score"
 msgstr "Если встать, поединок закончится и счёт сбросится ({0})."
 
@@ -4487,6 +4490,9 @@ msgstr "Вы не смотрите эту ячейку."
 
 msgid "room.reject.seat_taken"
 msgstr "Это место только что заняли. Выберите снова."
+
+msgid "room.reject.table_changed"
+msgstr "Этот стол изменился. Выберите снова."
 
 msgid "room.reject.invalid_rules"
 msgstr "Правила этой ячейки недопустимы."

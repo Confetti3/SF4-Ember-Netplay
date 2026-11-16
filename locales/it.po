@@ -3993,6 +3993,9 @@ msgstr "Prima scegli Non pronto, poi lascia il posto."
 msgid "room.leave_seat.keep"
 msgstr "Mantieni il posto."
 
+msgid "room.watching_keeps"
+msgstr "Continua a guardare. L'altra scelta termina la partita che stai guardando."
+
 msgid "room.leave_seat.costs_score"
 msgstr "Andando via la serie termina e il punteggio si azzera ({0})."
 
@@ -4487,6 +4490,9 @@ msgstr "Non stai guardando questo tavolo."
 
 msgid "room.reject.seat_taken"
 msgstr "Quel posto è appena stato occupato. Scegli di nuovo."
+
+msgid "room.reject.table_changed"
+msgstr "Questo tavolo è cambiato. Scegli di nuovo."
 
 msgid "room.reject.invalid_rules"
 msgstr "Regole del tavolo non valide."
