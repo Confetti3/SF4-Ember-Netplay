@@ -999,7 +999,8 @@ int main(int argc, char** argv) {
                     if(even)Require((last<=foot+.5f&&last>=foot-card::Between*s-.5f)||height(0)>=card::Cap*s-.5f,"Four table cards of one height neither filled the column nor stopped at the cap");
                     else{
                         const float full=(std::min)(height(0),height(1));
-                        Require(std::fabs(height(1)-height(0))<=card::Banner*s+.5f&&height(2)<=full+.5f&&height(3)<=full+.5f&&
+                        // Your own card (table 1) keeps its strip's 38 px on top of a banner's 18.
+                        Require(std::fabs(height(1)-height(0))<=(card::Banner+card::Between+card::Strip)*s+.5f&&height(2)<=full+.5f&&height(3)<=full+.5f&&
                             full>=(card::Head+card::Face+card::Foot)*s-.5f,"Table cards of different heights were not each at its least");
                     }
                 }
