@@ -454,6 +454,8 @@ void TestSeekProgress() {
 	SeekOrder o = seek.Plan(Command::JumpBack, 900, bounds);
 	seek.Begin(o.target, 900);
 	CHECK(seek.Seeking() && seek.Target() == 600);
+	// Until the restore is made the position is the one it goes back from: not there yet.
+	CHECK(!seek.Reached(900));
 	CHECK(seek.TakeRestore() && !seek.TakeRestore());
 	CHECK(seek.Progress(400) && !seek.Reached(599) && seek.Reached(600) && seek.Reached(640));
 	seek.Land();

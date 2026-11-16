@@ -240,7 +240,9 @@ public:
 	}
 	bool Seeking() const { return seeking_; }
 	int Target() const { return target_; }
-	bool Reached(int position) const { return seeking_ && position >= target_; }
+	// The seek is at its target; not while its restore is still to be made
+	// (the position is then where it went back from).
+	bool Reached(int position) const { return seeking_ && !restore_ && position >= target_; }
 	void Land() { seeking_ = restore_ = false; ++landed_; }
 	void Cancel() { seeking_ = restore_ = false; }
 	// The playback left the span the loop's marks are in.
