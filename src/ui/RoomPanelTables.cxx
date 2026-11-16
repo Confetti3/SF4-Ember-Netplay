@@ -127,8 +127,12 @@ void DrawFocusedLine(const RoomBoardFrame& f,float size) {
  }
  const bool card=RowKey<std::size_t>(e->id,"table-").has_value();
  const std::string choice=option&&option->detail!=option->label?option->detail:std::string();
- const auto newline=e->detail.find('\n');
- std::string line=!choice.empty()||card?choice:e->detail.substr(0,newline);
+ // One line of whichever speaks: a place's detail runs to several lines as a
+ // row's does (Ready's on your own card is the bar's Ready's), and the line
+ // has the height of one.
+ const std::string& said=!choice.empty()||card?choice:e->detail;
+ const auto newline=e->detail.find('\n'),saidEnd=said.find('\n');
+ std::string line=said.substr(0,saidEnd);
  // The board renders in place of the menu list, so it uses the same smoothed
  // verdict and the same wording. Presentation only: nav.Choose still gates on
  // the live entry and SendRoom still re-checks room authority at dispatch.
@@ -139,9 +143,9 @@ void DrawFocusedLine(const RoomBoardFrame& f,float size) {
  // An offer the room refuses says why in the same tone as a refused row.
  const bool refused=!reason.empty()||(option&&!option->enabled);
  const auto p=ImGui::GetCursorScreenPos();const float lineWidth=ImGui::GetContentRegionAvail().x;
- ReportMenuCard("room-line",p,ImVec2(p.x+lineWidth,p.y+size));
+ ReportMenuCard("room-line",p,ImVec2(p.x+lineWidth,p.y+size));ReportMenuCardText("room-line",line);
  DrawCardText(elided,p,lineWidth,line,size,refused?ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)):v2::Colors().muted);
- if(newline!=std::string::npos)elided+=(elided.empty()?"":"\n")+e->detail;
+ if(saidEnd!=std::string::npos)elided+=(elided.empty()?"":"\n")+said;
  ImGui::Dummy(ImVec2(lineWidth,ImGui::GetFontSize()));
  FlushCardTip(elided);
 }
