@@ -574,7 +574,6 @@ void MoreFriendsJourney() {
  Check(j.screen() == "room", "Back from Friends did not return to the room");
 }
 
-std::string g_clipboard;
 // A friend as the bridge lists them: online, in a room or offline; `played` is when they last played this player.
 nf::Friend Pal(const char* name, nf::Presence::Kind kind, std::uint64_t played = 0) {
  nf::Friend f; f.id = std::string("fr_") + name; f.name = name; f.presence.kind = kind;
