@@ -284,6 +284,19 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
     }
     return control;
 }
+ReadyButton ReadyButtonOf(const ReadyControl& control) {
+    return {control.kind == ReadyControl::Unready ? std::string(loc::T("room.unready.short")) : std::string(control.label),
+        control.refusal.empty() ? control.detail : control.refusal, control.kind != ReadyControl::None};
+}
+std::vector<MenuChoice> OwnPlaceChoices(const ShellView& v, const room::Table& t, const PlaceExit& place) {
+    std::vector<MenuChoice> choices;
+    if (place.seat) {
+        const auto ready = ReadyButtonOf(DescribeReady(v, t, room::PlaceOf(v.room, v.room.localMember).seat));
+        choices.push_back({OwnPlace::Ready, ready.label, ready.detail, ready.enabled});
+    }
+    choices.push_back({OwnPlace::Leave, place.label, place.blocker, place.allowed});
+    return choices;
+}
 std::string ReadyWithText(const ShellView& v, const room::Table& t, int seat) {
     const auto* opponent = room::FindMember(v.room, seat == 0 ? t.p2 : seat == 1 ? t.p1 : 0);
     const auto* against = opponent ? selection::FindFighter(opponent->fighter) : nullptr;

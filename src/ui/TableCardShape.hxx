@@ -74,7 +74,8 @@ struct TableCardContent { bool quiet = false, banner = false; };
 
 // What a card shows at its height, least first. Line: a quiet table's one
 // line (its head and two seat buttons). Compact: pictures 48 px and more, the
-// player's name and fighter, a win streak beside the name where it fits.
+// player's name and fighter, a win streak (else the idle time) beside the name
+// where it fits.
 // Medium: the streak (else the idle time or record) on a line of its own.
 // Roomy: the name in the heading size, and both lines under the fighter.
 enum class TableCardStep { Line, Compact, Medium, Roomy };
@@ -191,6 +192,34 @@ inline TableCardPlaces PlaceTableCards(const TableCardShape& shape, const std::v
     return places;
 }
 
+// A seat's picture, square: as tall as the seat's place (`height`) allows,
+// leaving the player's lines (a seat `width` wide, less the picture and its
+// gap) SeatTextLeast, but never under a Compact picture. A versus card's seat
+// and a stacked card's row share this one rule.
+inline float FaceSize(float width, float height, float s) {
+    namespace card = table_card;
+    return (std::min)(height, (std::max)((std::min)(card::Face * s, height), width - (card::FaceGap + card::SeatTextLeast) * s));
+}
+
+// Where the x of a Compact seat's tag line puts its name's tag and the note
+// beside it (a streak chip, else the idle time): both when they fit the seat's
+// lines `room` wide from `left` with a space between, else the tag alone. A
+// versus card centres the pair between the picture and the score; the second
+// seat's pair mirrors, its note on the tag's inner side (towards the score).
+struct SeatTag {
+    float tag = 0, note = 0;
+    bool noted = false;
+};
+inline SeatTag PlaceSeatTag(float left, float room, float tagWidth, float noteWidth, bool versus, bool mirrored, float s) {
+    const float beside = noteWidth > 0 ? noteWidth + table_card::Space * s : 0;
+    SeatTag at;
+    at.noted = beside > 0 && tagWidth + beside <= room;
+    const float total = tagWidth + (at.noted ? beside : 0), start = left + (versus ? (std::max)(0.f, room - total) * .5f : 0.f);
+    at.tag = mirrored && at.noted ? start + beside : start;
+    at.note = mirrored ? start : start + tagWidth + table_card::Space * s;
+    return at;
+}
+
 // What a card's boxes are laid out from, in screen pixels: its box (whose
 // height decides its step), what it holds, the width its head's lead takes
 // (TABLE n, its state and their spaces), the words that follow want (its
@@ -272,12 +301,13 @@ inline TableCardLayout LayOutTableCard(const TableCardShape& shape, const TableC
         at.seats[1] = {right - half, top, right, top + body};
         if (in.score > 0) at.score = {at.seats[0].x1, top, at.seats[1].x0, top + body};
         // As tall as the body, leaving each player's lines their least; never under a Compact picture.
-        const float face = (std::min)(body, (std::max)((std::min)(card::Face * s, body), half - (card::FaceGap + card::SeatTextLeast) * s));
+        const float face = FaceSize(half, body, s);
         const float faceTop = top + (body - face) * .5f;
         at.faces[0] = {left, faceTop, left + face, faceTop + face};
         at.faces[1] = {right - face, faceTop, right, faceTop + face};
     } else {
-        const float row = (std::max)(0.f, (body - card::SeatRowGap * s) * .5f), face = (std::min)(row, inner * .5f);
+        // Its picture beside the lines, at most half the card, leaving them their least as a versus card does.
+        const float row = (std::max)(0.f, (body - card::SeatRowGap * s) * .5f), face = (std::min)(FaceSize(inner, row, s), inner * .5f);
         for (std::size_t side = 0; side < 2; ++side) {
             const float y = top + side * (row + card::SeatRowGap * s);
             at.seats[side] = {left, y, right, y + row};

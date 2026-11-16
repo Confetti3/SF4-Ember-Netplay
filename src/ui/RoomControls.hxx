@@ -116,6 +116,22 @@ struct ReadyControl {
     std::string detail, refusal;
 };
 ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat);
+// The Ready control as a button reads: the board's bar and your own table card
+// show this one answer. A bar button is a few words wide, so Unready drops its
+// "unlock fighter"; a button that cannot be sent says why in its detail.
+struct ReadyButton {
+    std::string label, detail;
+    bool enabled = false;
+};
+ReadyButton ReadyButtonOf(const ReadyControl& control);
+// What your own place's card offers on its line, as places the navigation lights
+// (a seat's default is Ready): on a seat Ready (Unready, Rematch) then Leave seat
+// (Cancel the start); in the queue Leave queue. `place` is ExitFromPlace.
+struct OwnPlace {
+    static constexpr const char* Ready = "ready";
+    static constexpr const char* Leave = "leave-place";
+};
+std::vector<MenuChoice> OwnPlaceChoices(const ShellView& v, const room::Table& t, const PlaceExit& place);
 // The first line of Ready's detail: the pick it locks in, the Ultra by its own
 // name, and the opponent's fighter once they picked one, so the Ultra is
 // chosen with the matchup in view: "Ready with Ryu, Metsu Hadoken, against Ken."
