@@ -2568,6 +2568,12 @@ msgstr "Empty this slot"
 msgid "training.reply.clear_slot.detail"
 msgstr "Removes this slot's move."
 
+msgid "training.reply.clear_all"
+msgstr "Empty all slots"
+
+msgid "training.reply.clear_all.detail"
+msgstr "Removes the moves from every reply slot. The reply settings stay as they are."
+
 msgid "training.reply.every_fighter"
 msgstr "Every fighter"
 
