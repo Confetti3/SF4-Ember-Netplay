@@ -439,7 +439,7 @@ void ApplyTrainingPadEvent(const training::View& view,const TrainingSubmit& subm
     case Kind::Play: if(TrainingPressesAct(controls,called)) TrainingPlayPress(view,submit); break;
     }
 }
-void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
+void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,bool backToRoom) {
     // Called every frame training is available, so a key's save is told even with the controls closed.
     TakePositionResult(view);
     if(!view.available||ImGui::GetIO().WantTextInput||ImGui::GetIO().KeyAlt) return;
@@ -450,6 +450,8 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
     const auto pressed=[](int which) { return lab.keys[which]>=0&&ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1+lab.keys[which]),false); };
     if(pressed(ResetKey)) ResetPosition(view,submit);
     if(pressed(SaveKey)) SavePosition(view,submit);
+    // As F10 opens Ember's screen everywhere else, and in a room that screen is the room.
+    if(backToRoom&&ImGui::IsKeyPressed(ImGuiKey_F10,false)) TrainingBackToRoomPress(view,submit);
 }
 TrainingLabParts TrainingLab() { LoadPractice(); return {lab.meter,lab.plan,lab.check,lab.slots,lab.directory}; }
 void SaveTrainingLab() { SavePractice(); }

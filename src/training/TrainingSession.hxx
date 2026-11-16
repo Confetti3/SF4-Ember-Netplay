@@ -439,7 +439,15 @@ public:
     int Left() const { return left_; }
     // The call the count is for; 0 when none is counting.
     std::uint64_t Call() const { return left_ ? call_ : 0; }
-    void Reset() { left_ = 0; call_ = 0; asked_ = false; }
+    // The battle closed. rebuilt: Training goes on in a new battle, as through
+    // the load Combo check asked for. A return the player asked for and the
+    // old battle was not yet told about is then still theirs to have; every
+    // other count and call ends with the battle.
+    void Reset(bool rebuilt = false) {
+        const bool kept = rebuilt && asked_ && left_;
+        call_ = 0;
+        if (!kept) { left_ = 0; asked_ = false; }
+    }
 private:
     int left_ = 0;
     // The call last followed, counting or already told to leave.

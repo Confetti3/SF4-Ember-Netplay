@@ -48,7 +48,7 @@ float Width(const Piece& piece, const Layout& layout) {
 // then the position keys the player picked and F5. F7 and F8 read Stop while
 // they record and play. A member waiting in a room's Training is told the way
 // back to it first among the keys, as nothing else on the screen says it.
-std::vector<Group> Groups(const training::View& view, bool shortcuts, const std::string& notice, int device, float unit, bool inRoom) {
+std::vector<Group> Groups(const training::View& view, bool shortcuts, const std::string& notice, int device, float unit, bool backToRoom) {
     std::vector<Group> groups;
     const bool pad = device == input::PadXInput || device == input::PadDirectInput;
     // A DirectInput pad's labels are unknown, so its Back is named Select.
@@ -72,7 +72,7 @@ std::vector<Group> Groups(const training::View& view, bool shortcuts, const std:
     // What a position key just did takes the place of the hints.
     if (!notice.empty()) { groups.push_back({{{Piece::Notice, notice, Between * unit}}, true}); return groups; }
     // A pad has no key for it: its controls panel has the row.
-    if (inRoom && !pad) hint(Piece::Key, "F10", loc::T("training.back_to_room"));
+    if (backToRoom && !pad) hint(Piece::Key, "F10", loc::T("training.back_to_room"));
     // The pad's Back is its one way to reset or save, so it is shortened to stay.
     if (pad) hint(Piece::Button, back, loc::T("training.pad_hint"), true);
     const auto press = [&](std::uint32_t button, const std::string& name, int key, const char* label) {
@@ -135,7 +135,7 @@ void DrawCap(const Piece& piece, const Layout& layout) {
 TrainingStripShown shown;
 }
 const TrainingStripShown& LastTrainingStrip() { return shown; }
-TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, const TrainingRoomStatus& waiting, float left, float meterTop, float width, float hudScale) {
+TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, bool backToRoom, float left, float meterTop, float width, float hudScale) {
     shown = {};
     TrainingHudInput input;
     bool failed = false;
@@ -160,7 +160,7 @@ TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, 
         const Layout layout{unit, ImGui::CalcTextSize("WW...").x + 1};
         const float room = width - 2 * padding.x;
         float used = 0;
-        const auto line = Fit(Groups(view, shortcuts, notice, MenuPromptDevice(), unit, waiting.InRoom()), room, layout, used);
+        const auto line = Fit(Groups(view, shortcuts, notice, MenuPromptDevice(), unit, backToRoom), room, layout, used);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ChipPadding * unit, 0));
         for (std::size_t i = 0; i < line.size(); ++i) {
             const auto& piece = line[i];

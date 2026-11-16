@@ -979,7 +979,7 @@ void CloseBattle() {
         // ended, the dummy's settings are put back while the battle still holds them.
         if (!comboRunner.BattleClosed()) EndCheck();
     }
-    gapResets = 0; unfedUpdates = unfedNotReady = unfedMultiFrame = 0; leaving.Reset();
+    gapResets = 0; unfedUpdates = unfedNotReady = unfedMultiFrame = 0; leaving.Reset(comboRunner.Running());
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
     if (dummyControl.Release()) if (Native* system = Native::staticMethods.GetSingleton()) ReturnDummyControl(system);
