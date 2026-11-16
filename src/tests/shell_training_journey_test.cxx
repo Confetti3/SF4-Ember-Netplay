@@ -192,7 +192,8 @@ void TrainingInRoom() {
   Check(ui::TrainingRoomLine(status,status.room,status.opponent)==[&]{std::string joined;for(const auto& part:all)joined+=(joined.empty()?"":"  \xC2\xB7  ")+part;return joined;}(),
    "The room line's parts were not joined in order");
   return all;};
- Check(ui::DescribeTrainingRoom(room::Snapshot{},2).Empty(),"Training showed a room line with no room");
+ Check(ui::DescribeTrainingRoom(room::Snapshot{},2).Empty()&&!ui::DescribeTrainingRoom(room::Snapshot{},2).InRoom(),"Training showed a room line with no room");
+ Check(ui::DescribeTrainingRoom(s,0).InRoom(),"A member of the room was not in a room's Training");
  Check(line(0)==Line({"Friday Night",T("training.room.not_queued")}),"A member with no place was not told so");
  // Second of three in table 2's queue, with chat waiting.
  s.tables[1].queue={3,1,2};
@@ -219,7 +220,7 @@ void TrainingInRoom() {
  Check(!ui::DescribeChallenger(s,called).called,"A call from another room showed its banner");
  called.roomEpoch=5;s.tables[1].p2=2;
  s.localMember=9;
- Check(ui::DescribeTrainingRoom(s,1).Empty(),"A client no longer in the room saw its line");
+ Check(ui::DescribeTrainingRoom(s,1).Empty()&&!ui::DescribeTrainingRoom(s,1).InRoom(),"A client no longer in the room saw its line");
  // Go now's prompt names the device the training HUD's prompts show: View
  // for an Xbox pad, Enter for the keyboard and for a DirectInput pad, whose
  // buttons have no prompt art. The pad's press itself is the training pad
@@ -439,11 +440,12 @@ void TrainingJourneys() {
  Check(TrainingHotkeyBound(10)&&TrainingHotkeyBound(1),"Loaded colliding position keys did not resolve the fallback pair");
  ImGui::Render();
  // Keys only: the pad's own journey is below.
+ ui::TrainingRoomStatus here;
  auto frame=[&](unsigned held=0){io.DeltaTime=1.f/60;SetMenuInput({0,0});
   const ImGuiKey keys[]={ImGuiKey_UpArrow,ImGuiKey_DownArrow,ImGuiKey_LeftArrow,ImGuiKey_RightArrow,ImGuiKey_Enter,ImGuiKey_Escape};
   for(unsigned i=0;i<6;++i)io.AddKeyEvent(keys[i],(held&(1u<<i))!=0);
   ImGui::NewFrame();
-  DrawTrainingFlyout(v,submit);ImGui::Render();};
+  DrawTrainingFlyout(v,submit,here);ImGui::Render();};
  auto press=[&](unsigned held){frame();frame(held);frame();};
  auto reach=[&](const char* id){frame();for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Up);
   for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Down);
@@ -467,6 +469,33 @@ void TrainingJourneys() {
   TakeForwardedMenuAction();padPress(MenuInput::Back);
   Check(TakeForwardedMenuAction().kind==MenuAction::Close,"Pad Back at the root did not close the training controls");
   SetMenuGlyphs(1,0,0);
+ }
+ // Back to the room: in a room's Training the controls have a row for it just
+ // above Close, and outside one they have none. The row sends the same request
+ // as F10 (TrainingBackToRoomPress) and closes the controls.
+ {
+  std::vector<MenuEntry> shown;
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){shown=rows;});
+  const auto ids=[&]{std::vector<std::string> all;for(const auto& row:shown)all.push_back(row.id);return all;};
+  const auto position=[&](const char* id){const auto all=ids();return static_cast<int>(std::find(all.begin(),all.end(),id)-all.begin());};
+  frame();
+  Check(position("back-to-room")==static_cast<int>(shown.size()),"Training outside a room offered the way back to a room");
+  room::Snapshot joined;joined.roomEpoch=5;joined.name="Friday Night";joined.localMember=1;
+  room::Member member;member.id=1;member.name="Me";joined.members={member};
+  here=ui::DescribeTrainingRoom(joined,0);frame();
+  Check(position("back-to-room")==static_cast<int>(shown.size())-2&&shown.back().id=="return","The way back to the room was not the row above Close");
+  const auto& back=shown[position("back-to-room")];
+  Check(back.label==loc::T("training.back_to_room")&&back.detail.find("Friday Night")!=std::string::npos,"The way back did not name the room");
+  commands.clear();TakeForwardedMenuAction();
+  choose("back-to-room");
+  Check(commands.size()==1&&commands[0].action==training::Action::LeaveToRoom&&commands[0].generation==v.generation,"The row did not send the return to the room");
+  Check(TakeForwardedMenuAction().kind==MenuAction::Close,"The row did not close the controls");
+  // F10 sends the same request; a full queue is told, as the other presses are.
+  commands.clear();TrainingBackToRoomPress(v,submit);
+  Check(commands.size()==1&&commands[0].action==training::Action::LeaveToRoom&&commands[0].generation==v.generation,"F10 did not send the return to the room");
+  queueOpen=false;commands.clear();TrainingBackToRoomPress(v,submit);queueOpen=true;
+  bool refused=false;Check(commands.empty()&&!TrainingNotice(refused).empty()&&refused,"A refused return was not told");
+  here={};SetMenuEntriesProbe({});frame();
  }
  // A tab clicked over a page's reader (Frame data, a player's) replaces that
  // page, reader and all, so one Back reaches the lab.
