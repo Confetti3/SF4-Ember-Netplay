@@ -6,6 +6,8 @@
 // start (NetplayRuntime's InitFromPayload).
 
 #include "../common/ButtonLayoutJson.hxx"
+#include "../common/GameCatalog.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "BoolPreferenceJson.hxx"
 #include "ButtonPromptPreference.hxx"
 #include "CardPreferenceJson.hxx"
@@ -38,6 +40,13 @@ inline nlohmann::json PlayerPreferencesJson(const PlayerPreferences& preferences
     values["buttonLayouts"] = gamepads::LayoutsToJson(preferences.buttonLayouts);
     if (preferences.record.available) values["onlineRecord"] = ProfileRecordJson(preferences.record);
     return values;
+}
+
+// The saved main ("mainFighter"): one of the catalog's fighters, else the
+// main a player has before choosing one (ember::UnsetMain).
+inline int ReadMainFighter(const nlohmann::json& saved) {
+    const auto main = saved.find("mainFighter");
+    return main != saved.end() && main->is_number_integer() && ember::ValidFighter(main->get<std::int64_t>()) ? main->get<int>() : ember::UnsetMain();
 }
 
 } } // namespace sf4e::netplay

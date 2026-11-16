@@ -1,5 +1,6 @@
 #include <atomic>
 #include "sf4e__NetplayRuntime.hxx"
+#include "../netplay/PlayerPreferencesJson.hxx"
 #include "../common/AreaZones.hxx"
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/ControllerMappings.hxx"
@@ -296,8 +297,7 @@ void StartHelper() {
             preferences.roomFilter = netplay::ReadRoomFilter(saved);
             const int volume = saved.value("readySoundVolume", 100);
             preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
-            const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():ember::UnsetMain();
-            preferences.mainFighter=ember::ValidFighter(main)?main:ember::UnsetMain();
+            preferences.mainFighter=netplay::ReadMainFighter(saved);
             const float scale = saved.value("interfaceScale", 1.f);
             preferences.interfaceScale = netplay::InterfaceScaleOrDefault(scale);
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }

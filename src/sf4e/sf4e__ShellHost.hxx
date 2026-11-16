@@ -11,6 +11,8 @@
 
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/ControllerNavigation.hxx"
+#include "../ui/MenuSummons.hxx"
+#include <functional>
 #include "sf4e__NetplayFacade.hxx"
 
 namespace ember {
@@ -68,6 +70,11 @@ public:
     // Hidden, the shell still takes identity answers, ends a cancelled Discord
     // sign-in on its service, keeps the room chat and follows the room.
     void Background(const ShellGame::RuntimeSnapshot& snapshot, ShellGame& game);
+    // The events the game opens Ember's menu for by itself, once each
+    // (ui::MenuSummons): calls open(name) for each new one. `menuAvailable`:
+    // the menu could open now. Away from the main menu an event waits until
+    // the player is back; the shell turns the menu to the screen each is about.
+    void Summon(const ShellGame::RuntimeSnapshot& snapshot, bool menuAvailable, const std::function<void(const char*)>& open);
 
 private:
     // Hands a menu command to the runtime, a Ready with the game's pick.
@@ -75,6 +82,7 @@ private:
     sf4e::ui::ApplicationShell shell_;
     // The room the drawn shell shows, kept across frames (Draw).
     sf4e::ui::RoomCarry roomCarry_;
+    sf4e::ui::MenuSummons summons_;
 };
 
 } // namespace ember

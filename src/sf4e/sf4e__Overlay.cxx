@@ -15,7 +15,6 @@
 #include "../ui/FighterSelector.hxx"
 #include "../ui/MenuRows.hxx"
 #include "../ui/OverlayLifecycle.hxx"
-#include "../ui/MenuSummons.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/OverlayLayers.hxx"
 #include "../ui/SelectionArtD3D9.hxx"
@@ -71,7 +70,6 @@ static sf4e::ui::FighterSelector s_fighterSelectors[3];
 static ember::ShellHost s_shellHost;
 static sf4e::ui::ApplicationShell& shell = s_shellHost.Shell();
 static sf4e::ui::OverlayPresentation presentation;
-static sf4e::ui::MenuSummons summons;
 // The picks as this session has them (the per-fighter memory included), and
 // as the settings writer last accepted them. A save the writer refuses is
 // tried again the next frame; the session keeps its picks meanwhile.
@@ -431,32 +429,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         }
         break;
     }
-    // The menu opens by itself for each of these, once per event
-    // (MenuSummons.hxx). Away from the main menu an event waits there until the
-    // player is back; the shell turns the menu to the screen each one is about.
-    {
-        using sf4e::ui::SummonsAsk; using sf4e::ui::SummonsReason; using sf4e::ui::SummonsSequenceKey;
-        const bool atMenu = snapshot.atMainMenu, menuFree = atMenu && presentation.Available();
-        std::array<SummonsAsk, static_cast<std::size_t>(SummonsReason::Count)> asks;
-        const auto ask = [&asks](SummonsReason reason, std::string key, bool ready, bool opens = true) {
-            asks[static_cast<std::size_t>(reason)] = SummonsAsk{std::move(key), ready, opens};
-        };
-        // The WIN screen of a room game this PC fought: the post-match prompt opens over it, once per game.
-        ask(SummonsReason::MatchResult, snapshot.menuContext == sf4e::input::MenuContext::MatchResult ? "1" : "", true);
-        ask(SummonsReason::DiscordInvite, snapshot.discordPending ? "1" : "", atMenu);
-        // A room link from the browser opens the menu at the main menu, where the shell puts it on the Join screen.
-        ask(SummonsReason::JoinLink, SummonsSequenceKey(snapshot.pendingJoinSequence), menuFree);
-        // Called out of Training: back at the main menu the menu opens on the player's table, which the shell turns to.
-        ask(SummonsReason::TrainingCall, SummonsSequenceKey(snapshot.trainingCallSequence), menuFree);
-        // A Discord connect link likewise, at the main menu only: during play it waits until the player opens Ember, which then asks before going on.
-        ask(SummonsReason::DiscordConnectLink, SummonsSequenceKey(snapshot.tournament.connect.sequence), menuFree);
-        // A replay link opens the menu at the main menu with no room, where the shell puts its question on the Replays screen.
-        ask(SummonsReason::ReplayLink, snapshot.replays.link, menuFree && snapshot.session.room == sf4e::netplay::RoomState::Idle);
-        // A public room link the player was free to follow opens the menu, where the shell takes them to Public rooms;
-        // one that was not waits until the player opens Ember, and the shell says so.
-        ask(SummonsReason::PublicRoomLink, SummonsSequenceKey(snapshot.tournament.roomLink.sequence), menuFree, snapshot.tournament.roomLink.free);
-        summons.Update(asks, [](const char* why) { presentation.Open(why); });
-    }
+    // The menu opens by itself for each event the shell host names (ShellHost::Summon).
+    s_shellHost.Summon(snapshot, presentation.Available(), [](const char* why) { presentation.Open(why); });
     const bool assigning = snapshot.inputCapture != sf4e::input::Capture::Idle;
     // Player navigation is semantic, not ImGui spatial scoring. Text input is
     // still provided by the Win32 backend after explicit field activation.
