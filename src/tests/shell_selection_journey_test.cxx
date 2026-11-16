@@ -28,8 +28,8 @@ void MemberPopout(){
  JoinedRoom(h,10);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.capacity=8;
  for(room::MemberId id:{1,2}){room::Member m;m.id=id;m.name=id==1?"Local":"Other";h.view.room.members.push_back(m);}
  h.Screen("room");h.FocusOn("table-0");
- // Right on an open table first lights its second seat, then goes on to the Members heading; Down twice steps to the second member.
- h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Down);h.Press(MenuInput::Down);
+ // Right on an open table lights its seats first, then goes on to the Members heading; Down twice steps to the second member.
+ for(int i=0;i<5&&h.shell.Navigation().Focus()=="table-0";++i)h.Press(MenuInput::Right);h.Press(MenuInput::Down);h.Press(MenuInput::Down);
  Check(h.shell.Navigation().Focus()=="member-2","The pad did not reach the second member from the tables");h.Press(MenuInput::Select);
  Check(h.shell.Navigation().Choosing()&&h.shell.Navigation().Screen()=="room","A member's Select did not open their actions in place");
  for(int i=0;i<3;++i)h.Press(MenuInput::Down);

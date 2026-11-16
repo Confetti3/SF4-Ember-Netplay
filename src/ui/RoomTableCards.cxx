@@ -226,6 +226,7 @@ void DrawCard(const RoomBoardFrame& f,ImDrawList* d,const TableFloor& floor,cons
  const std::string& lit=f.nav.Lit(e.id);
  for(int side=0;side<2;++side){
   const auto seat=box(at.seats[static_cast<std::size_t>(side)]);
+  if(seat.max.x<=seat.min.x)continue;
   if(const auto* m=room::FindMember(v.room,side?t.p2:t.p1)){DrawSeat(f,d,seat,t,*m,side,floor.shape.versus,card.banner.seat==side,elided);continue;}
   const auto offered=std::find_if(seats.begin(),seats.end(),[&](const std::pair<const MenuChoice*,v2::Box>& o){return SeatOf(*o.first)==side;});
   if(offered==seats.end()){
@@ -322,7 +323,7 @@ void DrawTableCards(const RoomBoardFrame& f,const v2::Box& tables,const TableFlo
   // The offers that are seats, each in its seat's box.
   std::vector<std::pair<const MenuChoice*,v2::Box>> seats;
   for(const auto& offer:e.segments)
-   if(const int side=SeatOf(offer);side>=0){
+   if(const int side=SeatOf(offer);side>=0&&layout.seats[static_cast<std::size_t>(side)].x1>layout.seats[static_cast<std::size_t>(side)].x0){
     const auto& r=layout.seats[static_cast<std::size_t>(side)];
     seats.push_back({&offer,v2::Box{ImVec2(r.x0,r.y0),ImVec2(r.x1,r.y1)}});
    }

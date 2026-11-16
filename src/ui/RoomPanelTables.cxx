@@ -168,7 +168,7 @@ float DrawTablesHeading(ImDrawList* d,const ShellView& v,const v2::Box& tables,f
  if(besideWidth>0)v2::Text(d,ImVec2(tables.max.x-besideWidth,tables.min.y),besideWidth,beside,15*s,c.muted);
  d->AddLine(ImVec2(tables.min.x+headingWidth+12*s,tables.min.y+9*s),ImVec2(tables.max.x-(besideWidth>0?besideWidth+12*s:0),tables.min.y+9*s),c.border,s);
  if(!ownLine)return 20*s;
- v2::Text(d,ImVec2(tables.min.x,tables.min.y+24*s),tables.W(),rules,15*s,c.muted);
+ v2::TextShrunk(d,ImVec2(tables.min.x,tables.min.y+24*s),tables.W(),rules,15*s,12*s,c.muted);
  return 44*s;
 }
 }

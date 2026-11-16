@@ -140,6 +140,16 @@ inline TableCardLayout LayOutTableCard(const TableCardShape& shape, const TableC
         at.seats[1] = {x + half + card::Between * s, top, right, top + card::QuietButton * s};
         at.head = {left, b.y0, line ? x - card::Space * s : right, b.y0 + height};
         at.words = {(std::min)(left + in.lead, at.head.x1), at.head.y0, at.head.x1, at.head.y1};
+        // A question on a quiet card (a watcher's seat that would end the view): its answers take the seats' place.
+        if (const std::size_t count = in.buttons.size()) {
+            const float gap = card::Between * s, each = (right - x - (count - 1) * gap) / count;
+            at.buttons.resize(count);
+            for (std::size_t i = 0; i < count; ++i) {
+                const float x0 = x + i * (each + gap);
+                at.buttons[i] = {x0, top, x0 + each, top + card::QuietButton * s};
+            }
+            at.seats[0] = at.seats[1] = {right, top, right, top};
+        }
         return at;
     }
     at.head = {left, b.y0, right, b.y0 + card::Head * s};
