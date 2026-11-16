@@ -2,6 +2,7 @@
 #include "../training/PracticeSettings.hxx"
 #include "test_support.hxx"
 #include <cctype>
+#include <cstring>
 #include <map>
 #include <string>
 #include <vector>
@@ -108,6 +109,12 @@ int main() {
     for (const auto& move : FighterMoves) {
         ReplyChoice reply; error.clear();
         CHECK(BuildReply(move.moves, reply, error) && !reply.moves.empty());
+    }
+    // Rolento's EX Mekong Delta Attack is the flip (5PPP) followed by three punches again (.bcm DELTAATTACK_EX, 250 meter).
+    {
+        bool found = false;
+        for (const auto* move : MovesOf("RLN")) if (std::strcmp(move->name, "EX Mekong Delta Attack (Flip)") == 0) found = std::strcmp(move->moves, "5PPP > ~ PPP@+16") == 0;
+        CHECK(found);
     }
     CHECK(MovesOf("CDY").size() >= 20 && MovesOf("RYU").size() >= 10 && MovesOf("XXX").empty() && MovesOf(nullptr).empty());
     {
