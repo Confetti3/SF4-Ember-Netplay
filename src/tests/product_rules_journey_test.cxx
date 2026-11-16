@@ -40,8 +40,9 @@ void RoomFaces() {
  h.view.preferences.mainFighter=8;h.view.room.members[1].mainFighter=9;
  h.view.selectedPick=selection::Pick{};h.view.room.members[1].fighter=-1;
  h.Frame();h.Screen("room-members");
- Check(Fighters(Drawn(h))==(picks?std::vector<int>{0,-1}:std::vector<int>{8,9}),
-  picks?"With picks only, an unpicked member's row drew a fighter":"An unpicked member's row did not show their main");
+ {const auto faces=Fighters(Drawn(h));std::string drawn;for(int f:faces)drawn+=std::to_string(f)+" ";
+ Check(faces==(picks?std::vector<int>{0,-1}:std::vector<int>{8,9}),
+  (std::string(picks?"With picks only, an unpicked member's row drew a fighter: ":"An unpicked member's row did not show their main: ")+drawn).c_str());}
  h.Screen("room");
  {const auto seats=Fighters(Drawn(h));
   const auto has=[&](int fighter){return std::find(seats.begin(),seats.end(),fighter)!=seats.end();};
@@ -230,7 +231,7 @@ void ProductLinks() {
  Check(shown==expected,"Home's links are not the product's table, in its order");
  h.Screen("tab-about/about");h.Frame(0,3);
  Check(shown==expected,"Help & About's links are not the product's table, in its order");
- h.Screen("tab-discord");h.Frame(0,3);
+ h.Screen("tab-online/discord");h.Frame(0,3);
  Check(shown==(discord?std::vector<std::string>{"link-discord"}:std::vector<std::string>{}),"Settings > Discord does not end with the product's Discord link, or has one the product does not name");
  SetMenuEntriesProbe({});
 }
