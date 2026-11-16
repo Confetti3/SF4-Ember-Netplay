@@ -27,20 +27,31 @@ bool WiredFenced(const ShellView& v, room::ActionKind kind);
 const char* WiredOnlyReason();
 // One description of Leave room for both screens, stating what it costs.
 std::string LeaveRoomDetail(const ShellView& v);
-// The seat chooser's options. A choice carries the option's id, so dispatch
-// never re-derives what the player picked from a newer snapshot.
-// Each has a button label short enough for three to a card, and its full
-// wording.
+// What a table card offers a member with no place. An offer carries its
+// option's id, so dispatch never re-derives what the player picked from a
+// newer snapshot. Each has a button label short enough for a seat or a head's
+// button, and its full wording.
 struct SeatOption { const char* id; room::ActionKind kind; int seat; const char* label; const char* detail; };
 const SeatOption* FindSeatOption(const std::string& id);
-// Left to right: both seats when the table is empty, otherwise play (the
-// open seat, or the queue) and watch; then the table's options, so looking
-// at a table never means joining it.
-// A sit option is offered only where the authority would grant that seat now:
-// open, between games, with nobody queued first. An option the room would
-// refuse anyway (updating, or a receipt still outstanding) is shown dimmed with
-// its reason, as the table options list shows it.
+// Left to right: the table's open seats, else its queue and watching. None
+// for a member with a place (watching elsewhere is no place: sitting down
+// ends it), or in a room bound to a tournament match, which seats its
+// fighters itself and refuses every seat change. A seat is offered only where
+// the authority would grant it now: open, between games, with nobody queued
+// first. An offer the room would refuse anyway (updating, a receipt still
+// outstanding, Wi-Fi in a wired-only room) is shown dimmed with its reason,
+// as the table options list shows it.
 std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t);
+// Which of `offers` (SeatChoices of `t`) the card lights: `light`'s while it
+// is this table's and the card still offers it, else the first, P1 or the
+// only open seat.
+std::size_t LitOffer(const std::vector<MenuChoice>& offers, const TableLight& light, const room::Table& t);
+// A table's round rules in a few words: "3 rounds / 99 sec", or a set's
+// length and rotation, which stand where the round settings would be.
+std::string TableRulesText(const ShellView& v, const room::Table& t);
+// Who waits at a table and who watches it, "Queue 2 · 1 watching", saying
+// nothing of either while it is none.
+std::string TableCountsText(const room::Table& t);
 // What B does on the board for a member with a place at a table: leave it when
 // the table allows, take Ready back while a start is held for a locked-in
 // spectator, otherwise say why not. table < 0: no place, so B is the ordinary
@@ -81,7 +92,7 @@ bool LeavesWatchedGame(const ShellView& v, std::size_t table);
 // its Unwatch straight to the live link, and the authority scopes it by the
 // game's generation rather than the table's revision, so a room still
 // catching up on its checkpoint takes it too. SendRoom, the board's Stop
-// watching row and the seat chooser read it; the table page keeps its own
+// watching row and the table cards' offers read it; the table page keeps its own
 // wait wording for the whole page.
 bool RoomTakesNow(const ShellView& v, room::ActionKind kind, std::size_t table);
 // What a press of `kind` means for the game this PC watches, as a sentence

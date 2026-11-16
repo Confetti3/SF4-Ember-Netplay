@@ -45,12 +45,14 @@ struct RoomBoardFrame {
     float s;
     // How the board draws its fighters (RoomFighterArt).
     FighterArt art;
+    // The offer the focused table card lights (TableLight), kept between frames.
+    TableLight& light;
 
     // The row `id`, or null when the board has none this frame.
     const MenuEntry* Find(const char* id) const;
     // A row's box: a press is Select on it, the moving pointer focuses it.
-    // True while hovered. With `choose` false a press only focuses it: your
-    // own card, whose actions are its strip's buttons.
+    // True while hovered. With `choose` false a press only focuses it: a card
+    // whose actions are its own buttons (your own place's strip, the offers).
     bool Press(const MenuEntry& e, const v2::Box& b, bool choose = true) const;
     // A box's ground and edge on the board.
     void Ground(ImDrawList* d, const v2::Box& b, ImU32 fill, ImU32 edge) const;

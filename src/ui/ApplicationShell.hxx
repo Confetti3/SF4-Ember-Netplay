@@ -600,6 +600,8 @@ private:
         bool operator==(const RoomTablesShape& o) const { return follows == o.follows && width == o.width && height == o.height; }
     };
     RoomTablesShape roomTablesShape_;
+    // The offer the focused table card lit when last drawn (TableLight).
+    TableLight tableLight_;
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_, awardsFocus_;
     netplay::awards::Watch awardWatch_;

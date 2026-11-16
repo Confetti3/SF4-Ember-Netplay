@@ -150,13 +150,17 @@ board.
   end of one line to the start of the next, and stop at its ends.
 - In a Classic room each table is one line, as before 1.5.0: TABLE 1 with
   its state and the host's name for it, the two players with a fighter at
-  each end and the set's score (vs before a pair sits) small between them,
-  and the rules, queue and watchers along the bottom. A player on a win
-  streak at the table has it under their fighter; otherwise a player who
-  has waited a while shows how long. On a narrow screen, or with Settings,
-  Interface, Room layout, Tables: Grid, the two seats stack.
-- A table card's own buttons (Ready up, Leave seat) are on the card, along
-  its bottom. Select the card with A for the seat chooser.
+  each end and the set's score (vs before a pair sits) small between them;
+  an empty table is a single short line. The rules every table shares stand
+  once beside TABLES; a card says only its queue and watchers, when there
+  are any, and its rules where they differ. A player on a win streak at the
+  table has it under their fighter; otherwise a player who has waited a
+  while shows how long. On a narrow screen, or with Settings, Interface,
+  Room layout, Tables: Grid, the two seats stack.
+- A table card's own buttons are on the card: an open seat is itself the
+  button (Play as P1), a full table's Join queue and Watch stand at the right
+  of its line while it is focused, and your own seat's Ready up and Leave
+  seat run along its bottom.
 - Each seat shows the player's fighter, with its costume and Ultra under
   their name, such as Ryu · Original · Ultra I. By default the picture is the
   whole fighter in the costume and colour they picked; Settings, Interface,

@@ -2,6 +2,7 @@
 #include "shell_additional_journeys.hxx"
 #include "../ui/PostMatchPrompt.hxx"
 #include "../ui/RoomPanelBoard.hxx"
+#include "../ui/MenuSpeech.hxx"
 #include <algorithm>
 #include <iterator>
 #include <map>
@@ -118,7 +119,7 @@ void BoardOpensOnReadyAndStepsAreas() {
  h.view.room.members[1].table=0;h.view.room.members[1].seat=0;h.view.room.tables[1].p2=0;
  // The board is already up, so nothing pushes it: the frame the opening rule
  // moves the focus counts nothing, and A pressed then and held on counts only
- // once released, never opening the seat chooser on the row it moved to.
+ // once released, never taking a seat on the row it moved to.
  const auto sent=h.actions.size();
  h.Frame(MenuInput::Select,3);
  Check(h.shell.Navigation().Screen()=="room"&&focus()=="table-1","The next room's board did not open on its first free table");
@@ -316,12 +317,14 @@ static void RoomBoardJourneys() {
  room::Member peer;peer.id=2;peer.name="Peer";h.view.room.members.push_back(peer);
  // One table per line: Down goes to the next table.
  h.Frame();h.Screen("room");h.Press(MenuInput::Down);Check(h.shell.Navigation().Focus()=="table-1","Down did not reach the next table");
- // With Tables set to Grid the cards move as the grid they are drawn in:
- // Right goes to the card beside, and past the last column to the members.
+ // With Tables set to Grid the cards move as the grid they are drawn in: on
+ // an open table Right first lights its P2 seat, then goes to the card
+ // beside, and past the last column to the members.
  h.Press(MenuInput::Up);Check(h.shell.Navigation().Focus()=="table-0","Up did not return to the first table");
  h.view.preferences.roomTableGrid=true;h.Frame();h.Frame();
- h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="table-1","Right did not reach the card beside");
- h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="member-1","Right did not enter member pane");
+ h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="table-0","Right on an open table's P1 left it instead of lighting P2");
+ h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="table-1","Right past P2 did not reach the card beside");
+ h.Press(MenuInput::Right);h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="member-1","Right did not enter member pane");
  h.Press(MenuInput::Down);Check(h.shell.Navigation().Focus()=="member-2","Member focus order changed");
  h.view.room.members.pop_back();h.Frame();Check(h.shell.Navigation().Focus()=="room-members","Disappeared member did not choose nearest entry");
  h.view.room.members.push_back(peer);h.Press(MenuInput::Left);h.Screen("room");
@@ -349,65 +352,105 @@ static void RoomBoardJourneys() {
   "Your own Random seat did not name the fighter it rolled");
  h.view.selectedRandom=false;h.view.selectedPick=selection::Pick{};
  h.view.room.tables[0].p1=h.view.room.tables[0].p2=0;
- // A on an empty table opens the seat chooser: P1 left, P2 right, B cancels.
- h.Choose("table-2");Check(h.shell.Navigation().Choosing(),"A on an empty table did not open the seat chooser");
- // The card's own strip is the chooser: no panel of the same choices is drawn over the board.
- h.Frame();Check(h.shell.Navigation().Choosing()&&!ChoicesPanelDrawn(),"The seat chooser drew a panel over its card's strip");
- auto before=h.actions.size();h.Press(MenuInput::Back);
- Check(!h.shell.Navigation().Choosing()&&h.actions.size()==before&&h.shell.Navigation().Screen()=="room","B did not cancel the seat chooser");
- h.Choose("table-2");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.table==2&&
-  sent.roomAction.seat==1;}),"Seat chooser did not take the P2 seat");
- // P1 taken under a chooser highlighting P2: the chooser closes, the A pressed
- // on that same frame does nothing, and the next A offers the new options.
- h.Choose("table-1");h.Press(MenuInput::Right);h.view.room.tables[1].p1=2;
- auto raced=h.actions.size();h.Frame(MenuInput::Select);h.Frame();
- Check(h.actions.size()==raced&&!h.shell.Navigation().Choosing(),"A changed chooser sent an option the player never saw");
- h.Press(MenuInput::Select);h.Press(MenuInput::Select);
- Check(h.actions.size()==raced+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.seat==1;}),
-  "The reopened chooser did not offer the open P2 seat first");
+ // A member with no place sits in one press, on the seat itself: the focused
+ // card lights P1, Right lights P2, A takes the lit seat. No question opens,
+ // and no panel of choices is drawn over the board.
+ const auto tookSeat=[&](std::size_t from,int table,int seat){
+  return h.actions.size()==from+1&&Is<commands::RoomAction>(h.actions.back(),[&](const commands::RoomAction& sent){
+   return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.table==table&&sent.roomAction.seat==seat;});
+ };
+ auto before=h.actions.size();h.Choose("table-2");
+ Check(tookSeat(before,2,0)&&!h.shell.Navigation().Choosing()&&!ChoicesPanelDrawn(),"A on an empty table did not take P1 in one press");
+ before=h.actions.size();h.Press(MenuInput::Right);
+ Check(h.shell.Navigation().Focus()=="table-2"&&h.actions.size()==before,"Right on an empty table's P1 left the card or sent something");
+ h.Press(MenuInput::Select);Check(tookSeat(before,2,1),"Right then A did not take the P2 seat");
+ // Past the last open seat Right goes on as from any row: in the grid, to the card beside.
+ h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="table-3","Right past P2 did not go on to the card beside");
+ // A table with one open seat lights it, and names it: Left and Right are not
+ // the seat's but the board's.
+ h.view.room.tables[1].p1=2;
+ std::vector<MenuEntry> boardShown;
+ const auto shownRow=[&](const char* id)->MenuEntry{
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){boardShown=rows;});h.Frame();SetMenuEntriesProbe({});
+  return *std::find_if(boardShown.begin(),boardShown.end(),[&](const MenuEntry& e){return e.id==id;});
+ };
+ // What speech says on moving to a row.
+ const auto spoken=[](const MenuEntry& e){
+  netplay::SpeechPreferences speech;speech.remind=netplay::SpeechPreferences::Never;
+  MenuNarrator narrator;SpokenFrame frame{"Room",&e};
+  return narrator.Update(frame,0,speech).Text();
+ };
+ h.FocusOn("table-1");
+ {const auto one=shownRow("table-1");
+  Check(!one.adjustable&&one.hint==loc::T("room.take_p2_seat")&&spoken(one).find(loc::T("room.take_p2_seat"))!=std::string::npos,
+   "A table with one open seat did not light it, or speech did not name it");}
+ h.Press(MenuInput::Left);Check(h.shell.Navigation().Focus()=="table-0","Left on a one-seat table was not the board's Left");
+ h.FocusOn("table-1");before=h.actions.size();h.Press(MenuInput::Select);Check(tookSeat(before,1,1),"A on a table with only P2 open did not take P2");
  h.view.room.tables[1].p1=0;
- // The mouse picks from the chooser with real buttons: a notice over it
- // blocks them, and a click on another table's card opens that table's
- // chooser even though its game count differs.
- std::map<std::string,ImVec2> centres;
- SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){centres[id]=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);});
+ // Speech names the lit seat as the row's value, which Left and Right step;
+ // the light stays on P2 while the card still offers it.
+ {const auto two=shownRow("table-1");
+  Check(two.adjustable&&two.value==loc::T("room.take_p2_seat")&&two.hint==two.value&&spoken(two).find(two.value)!=std::string::npos,
+   "A table's row, or speech on it, did not name the seat A takes");}
+ h.Press(MenuInput::Left);
+ Check(h.shell.Navigation().Focus()=="table-1"&&shownRow("table-1").value==loc::T("room.take_p1_seat"),"Left did not move the named seat to P1");
+ h.Press(MenuInput::Right);
+ Check(shownRow("table-1").value==loc::T("room.take_p2_seat"),"Right did not move the named seat to P2");
+ // The seat lit taken under the player: the A pressed on that same frame sends
+ // nothing, the card lights what is left, and the next A takes that.
+ h.view.room.tables[1].p2=2;
+ auto raced=h.actions.size();h.Frame(MenuInput::Select);h.Frame();
+ Check(h.actions.size()==raced&&!h.shell.Navigation().Choosing(),"A seat taken under the light sent a seat the player never saw lit");
+ h.Press(MenuInput::Select);Check(tookSeat(raced,1,0),"After P2 was taken, A did not take the P1 the card then lit");
+ h.view.room.tables[1].p2=0;
+ // The mouse sits with the seats themselves: a notice over the board blocks
+ // them, a click elsewhere on another card only moves there (whatever its game
+ // count), a resting cursor leaves the pad's light, and the right button is
+ // Back, never a seat.
+ std::map<std::string,ImVec2> centres,corners;
+ SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){centres[id]=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);corners[id]=min;});
  // Whether any frame of a click drew the menu's own panel of choices.
  bool panelDrawn=false;
  const auto frame=[&]{h.Frame();panelDrawn=panelDrawn||ChoicesPanelDrawn();};
- const auto click=[&](const std::string& id){
-  frame();const auto at=centres.at(id);auto& io=ImGui::GetIO();io.AddMousePosEvent(at.x,at.y);frame();
+ const auto clickAt=[&](ImVec2 at){
+  auto& io=ImGui::GetIO();io.AddMousePosEvent(at.x,at.y);frame();
   io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();frame();
  };
- h.view.room.tables[3].matchGeneration=5;h.Choose("table-2");h.Press(MenuInput::Back);
- click("table-3");Check(h.shell.Navigation().Choosing()&&h.shell.Navigation().DialogId()=="table-3","Clicking another table did not keep its chooser open");
- Check(!panelDrawn,"A click that opened the seat chooser drew a panel over the board on some frame");
- h.view.readyFailure="Notice over the chooser.";h.view.readyFailureSequence=7;raced=h.actions.size();
- click("table-3/1");Check(h.actions.size()==raced&&h.shell.Navigation().Choosing(),"A click reached the chooser under a notice");
+ const auto click=[&](const std::string& id){frame();clickAt(centres.at(id));};
+ h.view.room.tables[3].matchGeneration=5;raced=h.actions.size();
+ // The card's own head, over its seats.
+ frame();clickAt(ImVec2(corners.at("table-3").x+20,corners.at("table-3").y+10));
+ Check(h.shell.Navigation().Focus()=="table-3"&&h.actions.size()==raced&&!h.shell.Navigation().Choosing(),"A click on another table's card did not just move there");
+ h.view.readyFailure="Notice over the board.";h.view.readyFailureSequence=7;
+ click("table-3/sit-p2");Check(h.actions.size()==raced,"A click reached a seat under a notice");
  h.Press(MenuInput::Select);
- // A cursor resting on P1 does not undo P2 picked on the pad.
- {const auto at=centres.at("table-3/0");ImGui::GetIO().AddMousePosEvent(at.x,at.y);h.Frame();h.Frame();}
+ // A cursor resting on P1 does not undo P2 lit on the pad.
+ {const auto at=centres.at("table-3/sit-p1");ImGui::GetIO().AddMousePosEvent(at.x,at.y);h.Frame();h.Frame();}
  h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(h.actions.size()==raced+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.seat==1;}),"A resting cursor overrode the pad's choice");
- // The right mouse button cancels a choice, sending nothing.
- click("table-3");Check(h.shell.Navigation().Choosing(),"Clicking a table did not open its chooser");
+ Check(tookSeat(raced,3,1),"A resting cursor overrode the pad's light");
  raced=h.actions.size();
  {auto& io=ImGui::GetIO();io.AddMouseButtonEvent(1,true);h.Frame();io.AddMouseButtonEvent(1,false);h.Frame();h.Frame();}
- Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced&&h.shell.Navigation().Screen()=="room","The right mouse button did not cancel the chooser");
- // A click off the open strip closes it and does nothing else.
- click("table-3");raced=h.actions.size();click("table-2");
- Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced,"A click off the seat chooser left it open or acted");
- click("table-3");click("table-3/1");
- Check(h.actions.size()==raced+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.table==3&&sent.roomAction.seat==1;}),"Clicking P2 in the chooser did not take it");
+ Check(h.actions.size()==raced,"The right mouse button over a seat took it");
+ h.Screen("room");
+ click("table-3/sit-p2");Check(tookSeat(raced,3,1),"Clicking P2 did not take it in one press");
+ raced=h.actions.size();click("table-2/sit-p1");Check(tookSeat(raced,2,0),"Clicking P1 did not take it in one press");
+ Check(!panelDrawn,"A seat click drew a panel of choices over the board on some frame");
  ImGui::GetIO().AddMousePosEvent(-1,-1);
  SetMenuCardProbe({});h.view.room.tables[3].matchGeneration=0;
- // A full table offers the queue or watching instead.
+ // A full table offers the queue and watching instead, lit the same way, and
+ // while focused as two buttons at its head's right that the mouse presses.
  h.view.room.tables[3].p1=3;h.view.room.tables[3].p2=4;h.view.room.tables[3].phase=room::TablePhase::Playing;
- h.Choose("table-3");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Watch&&sent.roomAction.table==3;}),"Full-table chooser did not watch");
+ h.FocusOn("table-3");
+ Check(shownRow("table-3").value==loc::T("room.join_queue"),"A full table did not light Join queue first");
+ h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Watch&&sent.roomAction.table==3;}),"Watch on a full table did not watch");
+ SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){centres[id]=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);corners[id]=min;});
+ raced=h.actions.size();click("table-3/queue");SetMenuCardProbe({});ImGui::GetIO().AddMousePosEvent(-1,-1);
+ Check(h.actions.size()==raced+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){
+  return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.table==3&&sent.roomAction.seat<0;}),"Join queue on a full table's head did not queue");
  h.view.room.tables[3].p1=h.view.room.tables[3].p2=0;h.view.room.tables[3].phase=room::TablePhase::Idle;
- // Y opens the table's options; the list still queues and watches.
- h.Screen("room");h.Choose("table-2");h.Press(MenuInput::Back);h.Press(MenuInput::Options);
+ // Y opens the focused table's options; the list still queues and watches.
+ h.Screen("room");h.FocusOn("table-2");h.Press(MenuInput::Options);
  Check(h.shell.Navigation().Screen()=="room-table","Y did not open the table options");
  h.Choose("queue");Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.table==2;}),"Table queue journey");
  h.Choose("watch");Check(RoomActionIs(h.actions.back(),room::ActionKind::Watch),"Watch journey");
@@ -442,7 +485,7 @@ static void RoomBoardJourneys() {
  Check(h.open&&h.shell.Navigation().Screen()=="home"&&h.actions.size()==raced&&h.view.session.room==netplay::RoomState::Joined,
   "B at Home in a room hid Ember, left Home, or sent a command");
  h.Screen("room");
- h.Choose("table-2");h.Press(MenuInput::Back);h.Press(MenuInput::Options);
+ h.FocusOn("table-2");h.Press(MenuInput::Options);
  h.view.room.members[0].table=2;h.view.room.members[0].seat=0;h.view.room.tables[2].p1=1;h.view.room.tables[2].p2=2;
   h.view.room.tables[2].phase=room::TablePhase::Waiting;h.view.canReady=true;
  std::vector<MenuEntry> tableRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){tableRows=rows;});
@@ -601,12 +644,10 @@ static void RoomBoardJourneys() {
  click("table-0");SetMenuCardProbe({});ImGui::GetIO().AddMousePosEvent(-1,-1);
  Check(h.shell.Navigation().Screen()=="room-table"&&h.actions.size()==raced,"Clicking another table did not open its options");
  h.view.room.tables[0].phase=room::TablePhase::Idle;
- // A watcher reaches another table's options through the chooser's last
- // option, keeping the watch.
+ // A watcher reaches another table's options with Y on its card, keeping the watch.
  h.view.room.members[0].seat=-1;h.view.room.tables[2].p1=0;h.view.room.tables[2].spectators={1};
  h.view.room.tables[0].phase=room::TablePhase::Paused;h.Screen("room");raced=h.actions.size();
- h.Choose("table-0");Check(h.shell.Navigation().Choosing(),"A watcher's A on another table did not open its chooser");
- h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ h.FocusOn("table-0");h.Press(MenuInput::Options);
  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){optionRows=rows;});h.Frame();SetMenuEntriesProbe({});
  Check(h.shell.Navigation().Screen()=="room-table"&&hasRow("rounds")&&hasRow("cancel-result")&&h.actions.size()==raced,
   "A watcher could not look at another table's options");
@@ -1325,9 +1366,9 @@ void PostMatchJourneys() {
   h.Frame();const auto at=cards.at(id);auto& io=ImGui::GetIO();
   io.AddMousePosEvent(at.x,at.y);h.Frame();io.AddMouseButtonEvent(0,true);h.Frame();io.AddMouseButtonEvent(0,false);h.Frame();
  };
- click("table-0");Check(h.shell.Navigation().Choosing(),"After the prompt a click on the table did not open the seat chooser");
- const auto sat=h.actions.size();click("table-0/0");
- Check(h.actions.size()==sat+1&&RoomActionIs(h.actions.back(),room::ActionKind::Queue),"After the prompt a click on Play as P1 did nothing");
+ const auto sat=h.actions.size();click("table-0/sit-p1");
+ Check(h.actions.size()==sat+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){
+  return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.seat==0;}),"After the prompt a click on Play as P1 did nothing");
  // Rematch chosen, then the room goes away before the room shows the Ready
  // (the host closed it, a kick, a Discord invite): the prompt closes without
  // reading the table it no longer has.

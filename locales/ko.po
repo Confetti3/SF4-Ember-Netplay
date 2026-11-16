@@ -3696,9 +3696,6 @@ msgstr "Wi-Fi 연결"
 msgid "room.link_unknown"
 msgstr "연결 방식 알 수 없음"
 
-msgid "room.table_footer"
-msgstr "{0}라운드 / {1}초     대기 {2}     관전 {3}"
-
 msgid "room.board_status_host_slot"
 msgstr "방장 / {0} / 슬롯 {1}"
 
@@ -5549,9 +5546,6 @@ msgstr "{0}, {1}"
 
 msgid "room.table_set"
 msgstr "세트"
-
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     대기 {2}     관전 {3}"
 
 msgid "room.streak"
 msgstr "{0}세트 연속"
@@ -7514,9 +7508,6 @@ msgstr "각자 지연"
 
 msgid "room.table_footer_wired_only"
 msgstr "유선만"
-
-msgid "room.table_counts"
-msgstr "대기 {0}     관전 {1}"
 
 msgid "room.input_delay.own"
 msgstr "내 지연: {0}"

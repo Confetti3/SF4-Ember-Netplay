@@ -262,7 +262,8 @@ void WatcherRoom() {
   h.Screen("room");
   h.Frame(0, 2);
   Check(h.status == loc::T("room.tournament_watching"), "A watcher's room does not say it is watching");
-  Check(h.row("table-0") && h.row("table-0")->choices.empty(), "A bound room offers a watcher the seat chooser");
+  Check(h.row("table-0") && room_controls::SeatChoices(h.view, h.view.room.tables[0]).empty() && !h.row("table-0")->adjustable,
+   "A bound room offers a watcher a seat");
   Check(h.row("member-3") && h.row("member-3")->detail == loc::Tf("room.member_status", std::string(loc::T("room.member.watcher")) + " / j25zrhe6-pmdhvlja"),
    "A watcher is not tagged with its Ember ID");
   Check(h.row("member-1")->detail == loc::Tf("room.member_status_host", loc::T("room.status.seated")), "A fighter's row changed");
@@ -301,7 +302,8 @@ void WatcherRoom() {
   h.Screen("room");
   h.Frame(0, 2);
   Check(h.status == loc::Tf("room.tournament_status_watched", 2, 1), "A fighter's room does not count its watchers");
-  Check(h.row("table-0") && h.row("table-0")->choices.empty(), "A fighter is offered the seat chooser");
+  Check(h.row("table-0") && room_controls::SeatChoices(h.view, h.view.room.tables[0]).empty() && !h.row("table-0")->adjustable,
+   "A fighter is offered a seat");
   Check(ChatGateOf(h.view) == ChatGate::Writable && ChatTypable(h.view), "A fighter cannot type in the chat");
   // A member's actions are the choices on their row.
   h.Choose("room-members");

@@ -3696,9 +3696,6 @@ msgstr "Conexão Wi-Fi"
 msgid "room.link_unknown"
 msgstr "Conexão desconhecida"
 
-msgid "room.table_footer"
-msgstr "{0} rounds / {1} s     Fila {2}     Assistindo {3}"
-
 msgid "room.board_status_host_slot"
 msgstr "ANFITRIÃO / {0} / Espaço {1}"
 
@@ -5549,9 +5546,6 @@ msgstr "{0}, {1}"
 
 msgid "room.table_set"
 msgstr "Set"
-
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     Fila {2}     Assistindo {3}"
 
 msgid "room.streak"
 msgstr "{0} sets seguidos"
@@ -7514,9 +7508,6 @@ msgstr "Atraso próprio"
 
 msgid "room.table_footer_wired_only"
 msgstr "Só cabo"
-
-msgid "room.table_counts"
-msgstr "Fila {0}     Assistindo {1}"
 
 msgid "room.input_delay.own"
 msgstr "Seu atraso: {0}"

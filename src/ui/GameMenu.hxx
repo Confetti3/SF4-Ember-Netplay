@@ -276,7 +276,7 @@ public:
     // Where a body shows the focused row's open choices. The body sets it each frame.
     // card, column: a value panel on `card` inside `column`, as on the cards; with no card
     // named the panel opens at the focused row's own box. inPlace: the body draws the
-    // choices itself (a table card's strip), so the menu draws no panel of them.
+    // choices itself (your own table card's strip), so the menu draws no panel of them.
     struct BodyChoices {
         // How many choices stand on a line (what Up and Down step by), and whether the pointer is on one.
         struct InPlace { std::size_t across = 1; bool hovered = false; };

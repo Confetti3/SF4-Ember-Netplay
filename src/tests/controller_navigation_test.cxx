@@ -920,6 +920,11 @@ void BoardGeometry(){
  // that is not placed walks the list.
  rows[0].right="leave";Check(from("cabinet-0",MenuInput::Right)=="leave","An explicit neighbour lost to the geometry");rows[0].right.clear();
  rows[20]=Value("member-0","Volume","3","");nav.Focus("member-0",rows);Check(frame(MenuInput::Right).kind==MenuAction::Adjust,"A placed value row stopped adjusting");frame(0);
+ // A body hands a step its row had nothing more for on by place (a table
+ // card's last offer): it moves as the direction would, and keeps the focus at
+ // the board's edge.
+ nav.Focus("cabinet-2",rows);Check(nav.MoveByPlace(1,0,rows)&&nav.Focus()=="cabinet-3","A step handed on did not reach the row beside");
+ nav.Focus("cabinet-8",rows);Check(!nav.MoveByPlace(-1,0,rows)&&nav.Focus()=="cabinet-8","A step handed on past the board's edge moved the focus");
  Check(from("unplaced",MenuInput::Up)=="leave","A row that is not drawn left the list's movement");
  // A screen that opens has no places until its board draws once: the list moves.
  nav.Push("list");nav.Focus("cabinet-0",rows);time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({MenuInput::Right,time},rows);

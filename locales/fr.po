@@ -3696,9 +3696,6 @@ msgstr "Connexion Wi-Fi"
 msgid "room.link_unknown"
 msgstr "Connexion inconnue"
 
-msgid "room.table_footer"
-msgstr "{0} rounds / {1} s     File {2}     Spect. {3}"
-
 msgid "room.board_status_host_slot"
 msgstr "HÔTE / {0} / Place {1}"
 
@@ -5549,9 +5546,6 @@ msgstr "{0}, {1}"
 
 msgid "room.table_set"
 msgstr "Set"
-
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     File {2}     Spect. {3}"
 
 msgid "room.streak"
 msgstr "{0} sets d'affilée"
@@ -7514,9 +7508,6 @@ msgstr "Délai propre"
 
 msgid "room.table_footer_wired_only"
 msgstr "Filaire uniquement"
-
-msgid "room.table_counts"
-msgstr "File {0}     Spect. {1}"
 
 msgid "room.input_delay.own"
 msgstr "Votre délai : {0}"
