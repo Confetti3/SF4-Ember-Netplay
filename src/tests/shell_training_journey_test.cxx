@@ -632,6 +632,17 @@ void TrainingJourneys() {
   press(MenuInput::Right);Check(value("pick-11")=="MP","Right did not light the next strength");
   press(MenuInput::Select);
   Check(TrainingNavigation().Screen()=="reply"&&saved()["reply"]["slots"][2]["moves"]=="cl.MP","Select did not put the lit strength in the slot");
+  // Empty all slots is the last row. It asks first; once confirmed every slot is empty and the reply stays on its slots.
+  frame();
+  Check(!replyRows.empty()&&replyRows.back().id=="reply-clear"&&replyRows.back().enabled,"Empty all slots was not the last reply row, or was off with moves in two slots");
+  commands.clear();reach("reply-clear");press(MenuInput::Select);
+  Check(TrainingNavigation().Confirming()&&commands.empty(),"Empty all slots did not ask before acting");
+  press(MenuInput::Right);press(MenuInput::Select);
+  Check(TrainingNavigation().Screen()=="reply"&&!TrainingNavigation().Confirming(),"Confirmed Empty all slots left the reply slots");
+  Check(saved()["reply"]["slots"][0].value("moves",std::string()).empty()&&saved()["reply"]["slots"][1].value("moves",std::string()).empty()&&
+   saved()["reply"]["slots"][2].value("moves",std::string()).empty(),"Empty all slots left a move in a slot");
+  frame();
+  Check([&]{for(const auto& row:replyRows)if(row.id=="reply-clear")return !row.enabled;return false;}(),"Empty all slots stayed enabled with no moves in any slot");
   SetMenuEntriesProbe({});
  }
  // A position is told saved or reset only once the game has done it: a

@@ -308,6 +308,7 @@ std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& sc
         rows.push_back(Value("reply-timing",loc::T("training.reply.timing"),(lab.plan.timing>0?"+":"")+std::to_string(lab.plan.timing)+" f",loc::T("training.reply.timing.detail"),lab.plan.when!=0));
         rows.push_back(Value("reply-chance",loc::T("training.reply.chance"),std::to_string(lab.plan.chance)+"%",loc::T("training.reply.chance.detail"),lab.plan.when!=0));
         rows.push_back(Value("reply-stance",loc::T("training.reply.vary_stance"),loc::T(lab.plan.varyStance?"common.on":"common.off"),loc::T("training.reply.vary_stance.detail")));
+        rows.push_back(ConfirmRow("reply-clear",loc::T("training.reply.clear_all"),loc::T("training.reply.clear_all.detail"),std::any_of(lab.slots.begin(),lab.slots.end(),[](const auto& slot){return !slot.moves.empty();})));
         return rows;
     }
     if(screen=="reply-slot") {
@@ -408,6 +409,7 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
     if(a.kind!=MenuAction::Activate) return;
     if(a.id.compare(0,11,"reply-slot-")==0) { lab.slotAt=std::atoi(a.id.c_str()+11); lab.lit.clear(); TrainingNavigation().Push("reply-slot"); }
     else if(a.id=="slot-clear") { lab.slots[lab.slotAt]={}; SavePractice(); SendPlan(view,submit); TrainingNavigation().Replace("reply"); }
+    else if(a.id=="reply-clear") { for(auto& slot:lab.slots) slot={}; SavePractice(); SendPlan(view,submit); }
     else if(a.id.compare(0,5,"pick-")==0||a.id.compare(0,7,"charge-")==0) {
         const auto picks=Pickables(view); const auto at=static_cast<std::size_t>(std::atoi(a.id.c_str()+a.id.find('-')+1));
         if(at>=picks.size()) return;
