@@ -218,6 +218,16 @@ void OwnSeatCardOffersReadyThenLeave() {
  sameAsBar("waiting");
  Check(row("table-1").segments[0].label==loc::T("room.ready_up")&&row("table-1").segments[1].label==loc::T("room.leave_seat")&&
   row("table-1").segments[2].label==loc::T("room.table_options"),"The own card did not offer Ready, Leave seat, then Table options");
+ // Ready lit on your own card: the board's line for it is one line, the first of what Ready says (the bar's Ready's
+ // three: who you ready with, what Select does, your fighter), never the three drawn over the bar under it.
+ {
+  std::string line;SetMenuCardTextProbe([&](const std::string& id,const std::string& text){if(id=="room-line")line=text;});
+  nav.Light("table-1","ready",rows);h.Frame(0,2);SetMenuCardTextProbe({});
+  const std::string said=row("table-1").segments[0].detail;
+  Check(nav.Lit("table-1")=="ready"&&line.find('\n')==std::string::npos&&line.rfind(said.substr(0,said.find('\n')),0)==0,
+   "The line under the tables is not the first line of what Ready says on your own card");
+  unlit();
+ }
  // A takes Ready with nothing lit, as it always did on your own seat, once.
  auto raced=h.actions.size();h.Press(MenuInput::Select);
  Check(h.actions.size()==raced+1&&ReadyIs(h.actions.back()),"A on your own card did not ready");
@@ -1463,6 +1473,8 @@ void PostMatchLiveAnswerJourney() {
   Check(sf4e::ui::TheirAnswer(at,1,true,&their,prompt)==room::PostMatchWord::Rematch&&answer()==room::PostMatchWord::FighterSelect,"An Arcade pair's Rematch counted outside a deciding pair");
   Check(sf4e::ui::TheirAnswer(at,-1,true,nullptr,prompt)==room::PostMatchWord::None,"An opponent with no seat or record answered");
  }
+ // `words` ends here: a probe left installed would be written through by the next journey's first card text.
+ SetMenuCardTextProbe({});
 }
 // The post-match prompt over the WIN screen: Rematch sends the room's Ready
 // and the prompt stays until the next game starts; no answer after a game
