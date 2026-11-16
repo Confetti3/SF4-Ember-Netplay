@@ -171,7 +171,7 @@ void Groups() {
     Play(own, 7, 100, 40, 0, 200);
     auto groups = ui::player_card::Grouped(own, -1);
     Check(groups.played == std::vector<int>({4, 7, 9}), "the played group is not by points, then fighter");
-    Check(groups.played.size() + groups.unplayed.size() == own.fighters.size(), "a fighter is in no group or in both");
+    Check(groups.played.size() + groups.unplayed.size() == static_cast<std::size_t>(ember::Catalog().fighterCount), "a fighter is in no group or in both");
     const int first = *ember::RosterOrder().begin();
     Check(groups.unplayed.front() == first, "the unplayed group does not start in roster order");
     // The main leads its group: a played main ahead of the higher-pointed, an unplayed one ahead of the roster's first.
@@ -181,7 +181,7 @@ void Groups() {
     groups = ui::player_card::Grouped(own, last);
     Check(groups.unplayed.front() == last && groups.played.size() == 3, "an unplayed main does not lead the unplayed group");
     groups = ui::player_card::Grouped(Own{}, 5);
-    Check(groups.played.empty() && groups.unplayed.size() == own.fighters.size() && groups.unplayed.front() == 5, "nothing played is not all unplayed");
+    Check(groups.played.empty() && groups.unplayed.size() == static_cast<std::size_t>(ember::Catalog().fighterCount) && groups.unplayed.front() == 5, "nothing played is not all unplayed");
 }
 
 // The Card tab's progress rows: a played fighter's frame and the way to the next, the top frame, a fighter not played,
