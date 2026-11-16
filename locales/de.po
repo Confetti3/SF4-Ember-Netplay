@@ -7531,13 +7531,13 @@ msgid "room.table_footer_wired_only"
 msgstr "Nur Kabel"
 
 msgid "room.table_rules_line"
-msgstr "{0} Runden / {1} Sek."
+msgstr "Runden {0} / {1} Sek."
 
 msgid "room.table_queue"
 msgstr "Schlange {0}"
 
 msgid "room.table_watching"
-msgstr "{0} Zuschauer"
+msgstr "Zuschauer {0}"
 
 msgid "room.input_delay.own"
 msgstr "Ihre Verzögerung: {0}"
@@ -8661,6 +8661,9 @@ msgstr "Bereiche"
 
 msgid "room.v2.tables"
 msgstr "TISCHE"
+
+msgid "room.v2.tables_playing"
+msgstr "Im Spiel {0}"
 
 msgid "room.v2.table"
 msgstr "TISCH {0}"

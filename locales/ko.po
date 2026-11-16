@@ -7531,7 +7531,7 @@ msgid "room.table_footer_wired_only"
 msgstr "유선만"
 
 msgid "room.table_rules_line"
-msgstr "{0}라운드 / {1}초"
+msgstr "라운드 {0} / {1}초"
 
 msgid "room.table_queue"
 msgstr "대기 {0}"
@@ -8661,6 +8661,9 @@ msgstr "영역"
 
 msgid "room.v2.tables"
 msgstr "테이블"
+
+msgid "room.v2.tables_playing"
+msgstr "대전 중 {0}"
 
 msgid "room.v2.table"
 msgstr "테이블 {0}"

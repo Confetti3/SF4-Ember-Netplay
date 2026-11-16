@@ -8662,6 +8662,9 @@ msgstr "Obszary"
 msgid "room.v2.tables"
 msgstr "STOŁY"
 
+msgid "room.v2.tables_playing"
+msgstr "Grają: {0}"
+
 msgid "room.v2.table"
 msgstr "STÓŁ {0}"
 

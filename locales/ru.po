@@ -8662,6 +8662,9 @@ msgstr "Области"
 msgid "room.v2.tables"
 msgstr "СТОЛЫ"
 
+msgid "room.v2.tables_playing"
+msgstr "Играют: {0}"
+
 msgid "room.v2.table"
 msgstr "СТОЛ {0}"
 

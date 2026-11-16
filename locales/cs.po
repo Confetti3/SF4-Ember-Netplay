@@ -8662,6 +8662,9 @@ msgstr "Oblasti"
 msgid "room.v2.tables"
 msgstr "STOLY"
 
+msgid "room.v2.tables_playing"
+msgstr "Hraje: {0}"
+
 msgid "room.v2.table"
 msgstr "STŮL {0}"
 

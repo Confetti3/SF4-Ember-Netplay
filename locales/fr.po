@@ -7531,13 +7531,13 @@ msgid "room.table_footer_wired_only"
 msgstr "Filaire uniquement"
 
 msgid "room.table_rules_line"
-msgstr "{0} rounds / {1} s"
+msgstr "Rounds {0} / {1} s"
 
 msgid "room.table_queue"
 msgstr "File {0}"
 
 msgid "room.table_watching"
-msgstr "{0} spect."
+msgstr "Spect. {0}"
 
 msgid "room.input_delay.own"
 msgstr "Votre délai : {0}"
@@ -8661,6 +8661,9 @@ msgstr "Zones"
 
 msgid "room.v2.tables"
 msgstr "TABLES"
+
+msgid "room.v2.tables_playing"
+msgstr "En jeu {0}"
 
 msgid "room.v2.table"
 msgstr "TABLE {0}"

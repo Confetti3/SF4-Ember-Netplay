@@ -7531,7 +7531,7 @@ msgid "room.table_footer_wired_only"
 msgstr "仅限有线"
 
 msgid "room.table_rules_line"
-msgstr "{0} 回合／{1} 秒"
+msgstr "回合 {0}／{1} 秒"
 
 msgid "room.table_queue"
 msgstr "排队 {0}"
@@ -8661,6 +8661,9 @@ msgstr "区域"
 
 msgid "room.v2.tables"
 msgstr "对战台"
+
+msgid "room.v2.tables_playing"
+msgstr "对战 {0}"
 
 msgid "room.v2.table"
 msgstr "对战台 {0}"
