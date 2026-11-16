@@ -379,7 +379,7 @@ void TestClientWithoutChannelDeclines() {
 	CHECK(!client.Available());
 	CHECK(!client.Configure(nullptr, nullptr, nullptr));
 	EXCEPTION_POINTERS pointers = {};
-	CHECK(!client.Request(&pointers));
+	CHECK(client.Request(&pointers) == DumpAnswer::Unavailable);
 }
 
 void TestReportDumpsStayPaired() {

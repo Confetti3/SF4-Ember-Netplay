@@ -24,10 +24,20 @@
 
 namespace {
 // ShellExecute may hand the target to a COM-based handler; give it an apartment.
+// This thread leaves that apartment right after the call, so the call must
+// finish its work first: without SEE_MASK_NOASYNC the shell may go on in helper
+// threads of shell extension DLLs, and CoUninitialize can unload those DLLs
+// under them.
 bool ShellOpen(const wchar_t* target) {
     if (!target || !target[0]) return false;
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-    const bool opened = reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", target, nullptr, nullptr, SW_SHOWNORMAL)) > 32;
+    SHELLEXECUTEINFOW request = {};
+    request.cbSize = sizeof(request);
+    request.fMask = SEE_MASK_NOASYNC;
+    request.lpVerb = L"open";
+    request.lpFile = target;
+    request.nShow = SW_SHOWNORMAL;
+    const bool opened = ShellExecuteExW(&request) != FALSE;
     if (SUCCEEDED(com)) CoUninitialize();
     return opened;
 }
