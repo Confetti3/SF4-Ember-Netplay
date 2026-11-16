@@ -32,6 +32,13 @@ FighterPicture SeatPicture(const SeatLook& look,FighterArt art);
 // rest is not shared, or "Fighter not shared"; `brief` names the Ultra as
 // "U1", for a narrow place.
 std::string SeatCaption(const SeatLook& look,bool brief=false);
+// A cabinet's screen with no cabinet round it (RoomPanelArcade.cxx), for a
+// table card's seat: the bezel filling `b`, and on its glass `picture`
+// standing on its foot in front of the screen's `tone`, the player's Ultra
+// (`ultra`, 0 to 2, else none) in its corner and the scanlines over both, as
+// an Arcade room's cabinets show their players. Bare glass while the art has
+// no image. Returns the glass.
+v2::Box DrawSeatScreen(ImDrawList* d,const v2::Box& b,const FighterPicture& picture,ImU32 tone,int ultra,float s);
 
 // One frame of the board: its rows, the focus, the press being handled and
 // where a focused popout row's choices open.
