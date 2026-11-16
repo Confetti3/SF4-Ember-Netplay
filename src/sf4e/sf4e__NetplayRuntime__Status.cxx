@@ -571,7 +571,7 @@ RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool 
 	gates.canChangeUltra = gates.canEditSelection || (attached && gates.localSlot >= 0 && gates.localSlot < 2 &&
 		internal::PostMatchPromptDue() && !runtime->readyIntent.Active() && !runtime->teardown.pendingAbort &&
 		RuntimeSession::netplay->client._outstandingReadyRequestNumber == -1);
-	gates.canChangeController = gates.canEditSelection && !runtime->readyIntent.Parked() &&
+	gates.canChangeController = Game().caps.gameplayDeviceChoice && gates.canEditSelection && !runtime->readyIntent.Parked() &&
 		!state.readyPending && !runtime->lobbyEditIntent.Parked() && !runtime->teardown.pendingAbort;
 	gates.readyGate = gates.readyGate && controllerReady;
 	gates.canReady = gates.canReady && gates.readyGate;

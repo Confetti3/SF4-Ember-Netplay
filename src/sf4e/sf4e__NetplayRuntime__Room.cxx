@@ -167,6 +167,8 @@ static DispatchOutcome Handle(commands::RoomSettings& command, bool, Attempt) {
 }
 static DispatchOutcome Handle(commands::Input& command, bool, Attempt) {
 	if (!Current(command.generation)) return DispatchOutcome::Dropped;
+	// The game names its own device (Capabilities::gameplayDeviceChoice): nothing to choose.
+	if (!Game().caps.gameplayDeviceChoice && command.inputAction != input::Action::Cancel) return DispatchOutcome::Dropped;
     if (command.inputAction == input::Action::BeginCapture || command.inputAction == input::Action::UseKeyboard) runtime->setupAdoption.reset();
     if (command.inputAction == input::Action::Cancel) { runtime->input.Cancel(); runtime->inputInitialized=true; return DispatchOutcome::Dropped; }
     if (!CanChooseControllerNow()) return DispatchOutcome::Dropped;

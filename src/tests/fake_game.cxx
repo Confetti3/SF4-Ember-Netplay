@@ -132,6 +132,7 @@ Capabilities Everything() {
     caps.replayInputs = true;
     caps.spectators = true;
     caps.padSetup = true;
+    caps.gameplayDeviceChoice = true;
     caps.steamProfile = true;
     caps.customContent = true;
     caps.frameMeter = true;

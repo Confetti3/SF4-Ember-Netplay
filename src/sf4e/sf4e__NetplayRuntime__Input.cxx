@@ -69,6 +69,20 @@ void RestoreMenuController() {
     LogGameplayController(device, migration ? "migration" : restored.provisional && device.type != input::PadKeyboard ? "only pad" : "restore");
     if (device.type != input::PadKeyboard && !Game().input.AssignToSide(device, 0, false)) runtime->input.Begin();
 }
+// A game without a gameplay-device choice (Capabilities::gameplayDeviceChoice)
+// plays the device it names: that one is taken whenever it changes, with no
+// capture and nothing saved. Until the game names a connected one, Ready waits.
+void AdoptGameDevice() {
+    const auto device = Game().input.MenuDevice(runtime->inputDevices);
+    if (!device.connected) { runtime->inputInitialized = false; return; }
+    const auto& previous = runtime->input.Selected();
+    if (runtime->inputInitialized && previous.connected && previous.Same(device)) return;
+    runtime->input.Cancel();
+    runtime->input.Adopt(device);
+    runtime->inputInitialized = true;
+    LogGameplayController(device, "the game's");
+    if (!Game().input.AssignToSide(device, 0, false)) spdlog::warn("Input: the game refused its own device '{}' for P1", DeviceName(device));
+}
 }
 
 void CaptureMenuInput() {
@@ -94,7 +108,8 @@ void CaptureMenuInput() {
         }
         // A DirectInput pad in setup reads disconnected to the game (LendToSetup);
         // a provisional choice is not replaced or captured over meanwhile.
-        if (!runtime->inputInitialized && !setup.state.active && runtime->input.State()==input::Capture::Idle &&
+        if (!Game().caps.gameplayDeviceChoice) AdoptGameDevice();
+        else if (!runtime->inputInitialized && !setup.state.active && runtime->input.State()==input::Capture::Idle &&
             runtime->controller.GetSnapshot().room==netplay::RoomState::Idle) RestoreMenuController();
         // RestoreMenuController can begin a capture after the read above.
         if (!keyboardScanned && runtime->input.State() != input::Capture::Idle) Game().input.ScanKeyboard(runtime->inputDevices);

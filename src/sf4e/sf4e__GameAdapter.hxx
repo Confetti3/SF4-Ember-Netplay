@@ -71,6 +71,11 @@ struct Capabilities {
     // only watch (queued or watching), which it sits out.
     bool spectators = false;
     bool padSetup = false;       // the pad wizard (a pad's Setup request)
+    // The player chooses the gameplay device (Change controller, Use keyboard,
+    // the saved device restored at start). Off, the game's battle plays the
+    // device the game names (Input::MenuDevice): the runtime takes that one,
+    // never captures or saves another, and drops a request to choose.
+    bool gameplayDeviceChoice = false;
     bool steamProfile = false;   // opening a member's Steam profile (the OpenSteamProfile service)
     bool customContent = false;  // installed custom costumes, colours and stages (InstalledContent)
     // The game can draw a fighter small on screen (selection::Pick::size 1):
