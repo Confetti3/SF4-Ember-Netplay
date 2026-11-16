@@ -37,7 +37,7 @@ void MergeLauncher(Json& document, const Json& launcher) {
     // legacy data, but room credentials are never copied into active settings.
     auto legacy = launcher;
     for (const char* key : ObsoleteKeys) legacy.erase(key);
-    for(const char* key:{"displayName","mainFighter","onlineRecord"})if(legacy.contains(key)) {
+    for(const char* key:{"displayName","mainFighter","mainChosen","onlineRecord"})if(legacy.contains(key)) {
         document["profile"][key]=legacy[key];legacy.erase(key);
     }
     const auto netplay = [&](const char* key) {

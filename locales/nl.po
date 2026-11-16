@@ -1506,6 +1506,12 @@ msgstr "BESTE VECHTERS"
 msgid "card.choose_main"
 msgstr "Kies een hoofd"
 
+msgid "card.no_main"
+msgstr "Nog geen hoofd"
+
+msgid "card.no_main_detail"
+msgstr "Kies er hieronder een of op het tabblad Vechters."
+
 msgid "card.edit_detail"
 msgstr "Je naam, vlag, hoofd, titel, onderscheidingen en hoe je speelt."
 

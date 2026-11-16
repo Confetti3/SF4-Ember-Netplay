@@ -344,6 +344,9 @@ private:
     // built by Draw to size its window, for the post-match screen.
     bool DrawScreen(const ShellView& view,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer,double now,bool healthyRoom,const PostMatchFrame& postMatch);
     void PublishPlayerCard(const ShellView& view);
+    // The player's own points as every card of theirs reads them (player_card::LevelsShown): none counted where no read
+    // will be sent (ProfilePanel::ReadsPoints, with the usable service).
+    const netplay::Answered<netplay::levels::Own>& ShownLevels(const ShellView& view) const;
     void HandleActivate(const MenuAction& action,const ShellView& view,const std::string& screen,bool idle,const Submit& submit);
     void HandleAdjust(const MenuAction& action,const ShellView& view,const std::string& screen,const Submit& submit);
     void SetLanguage(std::string preference);

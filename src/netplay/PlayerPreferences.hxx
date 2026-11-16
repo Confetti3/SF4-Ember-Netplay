@@ -9,6 +9,7 @@
 #include "../common/Country.hxx"
 #include "../common/GameCatalog.hxx"
 #include "../common/InputDelay.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../common/RoomRules.hxx"
 #include "ProfileRecord.hxx"
 #include "SpeechPreferences.hxx"
@@ -100,7 +101,9 @@ constexpr const char* GameThemeLabels[GameThemePartCount] = {
 
 struct PlayerPreferences {
     std::string displayName = "Player";
-    int mainFighter = 0;
+    // Before the player chooses one, the product's unset main (ember::UnsetMain): also what a start that could not read the
+    // saved settings has, so a product whose main starts unset never shows a main nobody chose.
+    int mainFighter = ember::UnsetMain();
     ProfileRecord record;
     int inputDelay = DefaultInputDelay;
     // Auto readies with the connection check's delay (AutoInputDelay) instead of

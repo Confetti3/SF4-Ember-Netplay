@@ -173,12 +173,19 @@ float UltraBadgeWidth(float height,const char* badge);
 // GameMenu::Draw takes it.
 struct RosterGrid { int columns; float cardHeight; };
 RosterGrid LayOutRosterGrid(float windowWidth);
-// Where a picture stands in a box taller than it: hung from the top, or on the foot as a figure in a tall box stands.
-enum class PictureAnchor { Top, Foot };
 // `backing` fills the tile behind the art, which is transparent around the
-// fighter. A picture is the game's portrait or the fighter's whole figure.
+// fighter. A picture is the game's portrait or the fighter's whole figure,
+// hung from the tile's top; a fighter the catalog does not have (-1: none) is
+// the "?" a missing picture draws.
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=palette::Rgb(ember::ProductTheme().portrait));
-void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing=palette::Rgb(ember::ProductTheme().portrait),PictureAnchor anchor=PictureAnchor::Top);
+void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing=palette::Rgb(ember::ProductTheme().portrait));
+// A frame that shows a fighter large (the card's hero and its strip's tiles), on no backing of its own: the figure as
+// large as the frame lets it, standing on the frame's foot. Where the art has no figure the portrait stands in, and a
+// portrait that is a small face (ember::PictureShapes::portraitIsFace) is drawn no larger than twice its own pixels,
+// in the frame's middle, rather than blown up to the frame.
+void DrawFigure(const FighterPicture& picture,ImVec2 min,ImVec2 max);
+// The most a face standing in for a figure is enlarged, in screen pixels to the picture's.
+constexpr float FaceMostEnlargement=2.f;
 // A main fighter's card: the portrait, the name under it, and the Main badge when `saved`.
 void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);
 // The picture's image at the size it is drawn, for a place that lays it out

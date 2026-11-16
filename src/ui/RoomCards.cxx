@@ -52,7 +52,8 @@ OtherCardView MemberOtherCard(const ShellView& view,const room::Member& member,F
   netplay::profiles::Known known;known.name=member.name;known.country=member.country;known.badge=member.badge;known.fighter=look.fighter;
   card=PanelOf(player_card::CardSubject(*looked,known,look.fighter,true,view.profilesService!=netplay::profiles::Service::Missing),art);
  }else if(member.id==view.room.localMember&&view.room.serverOwned){
-  card=ProfilePanel::OwnPanel(view,view.preferences);
+  // A public room's own card: the room's service is the one its points are read from.
+  card=ProfilePanel::OwnPanel(view,view.preferences,view.levels);
   card.fighterPoints=0;card.fighterTier=0;
   if(const auto played=points.Of(look.fighter)){card.fighterPoints=played->points;card.fighterTier=played->tier;}
  }

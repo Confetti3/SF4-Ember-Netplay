@@ -4,6 +4,7 @@
 #include "../ui/CardSets.hxx"
 #include "../ui/PlayerCard.hxx"
 #include "../common/Localization.hxx"
+#include "../netplay/PlayerPreferencesJson.hxx"
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -262,6 +263,79 @@ void Sizes() {
         "the recent sets are not as many as the right column has room for");
 }
 
+// A frame that shows a figure takes the product's picture shapes: as tall as the room, never taller than its figure needs
+// at its width with what stands under it, never shorter than its floor.
+void FigureFrames() {
+    const auto about = [](float a, float b) { return a > b - .01f && a < b + .01f; };
+    const auto& packaged = ember::PackagedPictures;
+    Check(about(pc::FigureHeight(224, packaged), 352) && about(pc::FigureHeight(248, packaged), 389.71f), "a figure is not the packaged box's shape");
+    Check(about(pc::FigureFrameHeight(224, 40, 1000, 0, packaged), 392), "a frame with room to spare is taller than its figure needs");
+    Check(about(pc::FigureFrameHeight(224, 40, 300, 0, packaged), 300) && about(pc::FigureFrameHeight(224, 40, 50, 108, packaged), 108),
+        "a frame is not held to its room and its floor");
+    // SF4's Wide card (1920x1080, played): a 264 px tile's picture is 248 wide over a 52 px band, 49 px of words and 8 px
+    // margins, and the column leaves it 489: the room is less than the figure needs, so the tile is as tall as ever.
+    Check(about(pc::FigureFrameHeight(248, 16 + 52 + 49, 489, 109, packaged), 489), "SF4's Wide card's strip is no longer the column's height");
+    // A card with no points band (SFV's without points) and one fighter in a tall column: the tile stops at its figure.
+    Check(about(pc::FigureFrameHeight(231, 16 + 31, 560, 91, packaged), 410.0f), "a lone tile in a tall column still stretches to its foot");
+    // The hero at 1080 (440 wide over its 56 px shade, 661 px to its buttons) keeps its room; a very tall room does not stretch it.
+    Check(pc::FigureHeight(440, packaged) + 56 > 717 && about(pc::FigureFrameHeight(440, 56, 1400, 0, packaged), 747.43f), "the hero is not held to its figure");
+    constexpr ember::PictureShapes face{224.f, 352.f, true};
+    Check(about(pc::FigureHeight(224, face), 352) && !packaged.portraitIsFace && face.portraitIsFace, "a face portrait changes the figure's shape");
+}
+
+// Where no read of the points will be sent the card says the service counts none: never "Reading your points." and
+// nothing that looks as if it were loading; where one will be, the answer is the card's as before.
+void NoPointsService() {
+    const Answered<Own> unread{};
+    Check(&pc::LevelsShown(unread, true) == &unread, "a readable answer was replaced");
+    const auto& none = pc::LevelsShown(unread, false);
+    Check(none.loaded && !none.loading && none.error.empty() && none.value.kind == Own::Kind::Unavailable, "no service is not a service that counts none");
+    ui::PlayerCardView view;
+    pc::Fill(view, none, 3);
+    Check(view.levels == ui::CardLevels::Unavailable && std::string(pc::NoLevelWords(view)) == "level.unavailable", "no service says it is reading");
+    pc::OwnInputs in;
+    in.levels = &none; in.name = "Player 1"; in.main = 3;
+    const auto card = pc::FullOf(pc::OwnSubject(in), pc::Size::Wide);
+    Check(card.levels == ui::CardLevels::Unavailable && std::string(card.levelWords) == "level.unavailable" && !card.points.shown, "the Full card without a service says it is reading");
+    Check(card.record.size() == 4 && card.record[0].value == "-" && card.record[1].value == "-", "a service that counts no points draws 0 and 0 % as counts");
+    Check(card.strip.size() == 1 && card.strip[0].fighter == 3 && card.strip[0].games.empty(), "a service that counts no points draws 0 games under the main");
+    Check(pc::CountsKnown(ui::CardLevels::Counted) && pc::CountsKnown(ui::CardLevels::NoAccount) && !pc::CountsKnown(ui::CardLevels::Pending) &&
+        !pc::CountsKnown(ui::CardLevels::Unreachable) && !pc::CountsKnown(ui::CardLevels::Unavailable), "the states with counts are wrong");
+    // A read on its way is still reading.
+    in.levels = &unread;
+    Check(std::string(pc::FullOf(pc::OwnSubject(in), pc::Size::Wide).levelWords) == "level.loading", "a read on its way does not say it is reading");
+}
+
+// No main: the card has no hero, no tile marked Main and names none; a saved main is read as the save says it was chosen.
+void EmptyMain() {
+    Own own;
+    Play(own, 5, 30, 12, 0, 200);
+    auto answer = Counted(own);
+    pc::OwnInputs in;
+    in.levels = &answer; in.name = "Player 1"; in.main = -1;
+    const auto card = pc::FullOf(pc::OwnSubject(in), pc::Size::Wide);
+    Check(card.hero == -1 && card.heroName.empty(), "a card without a main has a hero");
+    Check(card.strip.size() == 1 && card.strip[0].fighter == 5 && !card.strip[0].isMain, "a card without a main marks a tile Main");
+    ui::PlayerCardView view;
+    pc::Fill(view, answer, -1);
+    Check(view.mainFighter == -1 && view.fighters.size() == 1 && pc::ProgressRows(view).size() == 1, "the Fighters tab shows a main nobody chose");
+    using netplay::MainFighterOf;
+    using Json = nlohmann::json;
+    // Where the main starts unset: a 0 from before "mainChosen" is the old default, not a choice; anything else stands.
+    Check(MainFighterOf(Json{{"mainFighter", 0}}, true) == -1 && MainFighterOf(Json{{"mainFighter", 0}}, false) == 0, "an old default main is read as chosen");
+    Check(MainFighterOf(Json{{"mainFighter", 0}, {"mainChosen", true}}, true) == 0 && MainFighterOf(Json{{"mainFighter", 42}}, true) == 42,
+        "a chosen main is not read");
+    Check(MainFighterOf(Json{{"mainFighter", -1}, {"mainChosen", false}}, true) == -1 && MainFighterOf(Json::object(), true) == -1 &&
+        MainFighterOf(Json{{"mainFighter", "7"}}, false) == 0 && MainFighterOf(Json{{"mainFighter", 9999}}, true) == -1, "no main, or a bad one, is not the unset main");
+    netplay::PlayerPreferences prefs;
+    Check(prefs.mainFighter == ember::UnsetMain(), "the preferences' default main is not the product's unset main");
+    prefs.mainFighter = 0;
+    Check(netplay::PlayerPreferencesJson(prefs)["mainChosen"] == true, "a saved main does not say it was chosen");
+    prefs.mainFighter = -1;
+    Check(netplay::PlayerPreferencesJson(prefs)["mainChosen"] == false, "no main says it was chosen");
+    Check(MainFighterOf(netplay::PlayerPreferencesJson(prefs), true) == -1, "no main saved reads as one");
+}
+
 // Plays and Looking for are two groups of chips; the Panel gives Region way first, then Connection, never the device or Looking for.
 void Chips() {
     netplay::profiles::Style style;
@@ -480,6 +554,9 @@ void Sets() {
 
 int main() {
     Metrics();
+    FigureFrames();
+    NoPointsService();
+    EmptyMain();
     Sizes();
     Chips();
     Families();

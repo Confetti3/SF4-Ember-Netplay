@@ -134,27 +134,47 @@ void SetMenuEntriesProbe(MenuEntriesProbe probe){entriesProbe=std::move(probe);}
 void SetMenuSpeechProbe(MenuSpeechProbe probe){speechProbe=std::move(probe);}
 void SetPortraitProbe(PortraitProbe probe){portraitProbe=std::move(probe);}
 void ReportFighterPicture(const FighterPicture& picture,ImVec2 min,ImVec2 max){if(portraitProbe)portraitProbe(picture,min,max);}
-SelectionImage FighterImage(const FighterPicture& picture,float drawnHeight){
-    if(!menuArt)return {};
-    const int fighter=picture.fighter;
+namespace {
+// The picture's image at the size it is drawn, and whether it is the portrait (asked for, or standing in for a figure
+// the art lacks). Nothing for a fighter the catalog does not have: no art is asked for one.
+struct ShownImage { SelectionImage image; bool portrait=false; };
+ShownImage ShownImageOf(const FighterPicture& picture,float drawnHeight){
+    if(!menuArt||!ember::ValidFighter(picture.fighter))return {};
     if(picture.art==FighterArt::Character){
-        const auto figure=menuArt->CharacterFor(fighter,picture.costume,picture.color,drawnHeight);
-        if(!figure.missing)return figure;
+        const auto figure=menuArt->CharacterFor(picture.fighter,picture.costume,picture.color,drawnHeight);
+        if(!figure.missing)return {figure,false};
     }
-    return menuArt->PortraitFor(fighter,drawnHeight);
+    return {menuArt->PortraitFor(picture.fighter,drawnHeight),true};
 }
+void DrawMissingPicture(ImDrawList* d,ImVec2 min,ImVec2 max){
+    const auto size=ImGui::CalcTextSize("?");
+    d->AddText(ImVec2((min.x+max.x-size.x)*.5f,(min.y+max.y-size.y)*.5f),palette::Muted,"?");
+}
+}
+SelectionImage FighterImage(const FighterPicture& picture,float drawnHeight){return ShownImageOf(picture,drawnHeight).image;}
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing){DrawCharacterPortrait(FighterPicture{fighter},min,max,backing);}
-void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing,PictureAnchor anchor){
+void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing){
     ReportFighterPicture(picture,min,max);
     auto* d=ImGui::GetWindowDrawList();
     d->AddRectFilled(min,max,backing);
     if(const auto art=FighterImage(picture,max.y-min.y);art.texture){
         const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y)/art.height);
-        const float w=art.width*factor,h=art.height*factor,top=anchor==PictureAnchor::Foot?max.y-h:min.y;
-        d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,top),ImVec2(min.x+(max.x-min.x+w)*.5f,top+h),art.uvMin,art.uvMax);return;
+        const float w=art.width*factor,h=art.height*factor;
+        d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);return;
     }
-    const auto size=ImGui::CalcTextSize("?");
-    d->AddText(ImVec2((min.x+max.x-size.x)*.5f,(min.y+max.y-size.y)*.5f),palette::Muted,"?");
+    DrawMissingPicture(d,min,max);
+}
+void DrawFigure(const FighterPicture& picture,ImVec2 min,ImVec2 max){
+    ReportFighterPicture(picture,min,max);
+    auto* d=ImGui::GetWindowDrawList();
+    const auto shown=ShownImageOf(picture,max.y-min.y);
+    const auto& art=shown.image;
+    if(!art.texture){DrawMissingPicture(d,min,max);return;}
+    const bool face=shown.portrait&&ember::ProductPictures().portraitIsFace;
+    float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y)/art.height);
+    if(face)factor=(std::min)(factor,FaceMostEnlargement);
+    const float w=art.width*factor,h=art.height*factor,top=face?(min.y+max.y-h)*.5f:max.y-h;
+    d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,top),ImVec2(min.x+(max.x-min.x+w)*.5f,top+h),art.uvMin,art.uvMax);
 }
 void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
     auto* d=ImGui::GetWindowDrawList();const float footer=22*Scale();

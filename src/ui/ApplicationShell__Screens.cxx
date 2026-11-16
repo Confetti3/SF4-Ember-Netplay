@@ -177,7 +177,7 @@ public:
     std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override {
         // The levels part of the card, as of this frame (the published card is last frame's).
         PlayerCardView levels;
-        player_card::Fill(levels, f.view.levels, f.shell.preferences_.mainFighter);
+        player_card::Fill(levels, f.shell.ShownLevels(f.view), f.shell.preferences_.mainFighter);
         const bool connect = f.shell.identity_.Discord(f.view).state == netplay::DiscordLink::State::None;
         return f.shell.profile_.Rows(f.view, f.shell.preferences_, f.screen, levels, f.view.canEditPreferences, connect, title);
     }

@@ -117,6 +117,26 @@ struct RankingClass {
 	const char* msgid;
 };
 
+// What a product's fighter pictures are (ui::SelectionArt's Character and
+// Portrait), which a frame that shows one takes its proportions from (the
+// player's card, PlayerCard.cxx).
+struct PictureShapes {
+	// The box every figure is fitted into at its own proportions, in its
+	// picture's pixels. Ember's packaged cutouts fit the figure inside a 16 px
+	// margin of a 256 x 384 canvas: 224 x 352 (assets/selection/README.md,
+	// cutouts.json's `canvas` and `margin`). A frame of this shape shows each
+	// figure as large as its picture has it, a tall one to the frame's height
+	// and a wide one to its width.
+	float figureWidth, figureHeight;
+	// The portrait is a small face (SFV's head square from its select grid),
+	// which a frame showing a figure never enlarges past twice its own pixels.
+	// Off, it is a picture of the fighter (USF4's select-screen portrait),
+	// which fits its frame as a figure does.
+	bool portraitIsFace;
+};
+// The packaged cutouts, and a portrait that is a picture of the fighter.
+constexpr PictureShapes PackagedPictures = {224.f, 352.f, false};
+
 // What the shell draws as the product's own.
 struct Branding {
 	const char* productName;      // window titles, About, the version line
@@ -170,6 +190,9 @@ struct Branding {
 	// for them that they did not choose. Off (SF4 Ember), a new player's main
 	// is the roster's first fighter, as SF4 Ember has always given it.
 	bool mainStartsUnset = false;
+	// The product's fighter pictures' shapes; none is PackagedPictures (SF4
+	// Ember's: its cutouts, and the game's select-screen portraits).
+	const PictureShapes* pictures = nullptr;
 };
 
 // A product's own text for a few msgids of one locale's shared catalog: a PO
@@ -274,6 +297,11 @@ const ProductIdentity& Product();
 // The product's shell theme: its own table, or Ember's.
 inline const ShellTheme& ProductTheme() {
 	return Product().branding.theme ? *Product().branding.theme : EmberShellTheme;
+}
+
+// The product's fighter pictures' shapes: its own, or the packaged ones.
+inline const PictureShapes& ProductPictures() {
+	return Product().branding.pictures ? *Product().branding.pictures : PackagedPictures;
 }
 
 // The product keeps the player's account on a bridge apart from the game's

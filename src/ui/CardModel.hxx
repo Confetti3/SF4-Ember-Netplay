@@ -64,6 +64,15 @@ struct Metrics {
 };
 Metrics MetricsOf(Size size);
 
+// ---- Frames that show a figure --------------------------------------------
+
+// How tall the figure the product's pictures fit (ember::PictureShapes) stands at `width`, in the same unit.
+float FigureHeight(float width, const ember::PictureShapes& shapes);
+// The height of a frame that shows a figure `figureWidth` wide with `under` below the figure inside the frame (the hero's
+// shade; a tile's margins, points band and words): as tall as `room` lets it and no taller than its figure needs, so no
+// empty band stands over the fighter, and never shorter than `least`. Any one unit.
+float FigureFrameHeight(float figureWidth, float under, float room, float least, const ember::PictureShapes& shapes);
+
 // ---- Chips ----------------------------------------------------------------
 
 struct Chip {
@@ -115,6 +124,11 @@ struct AwardsView {
 AwardsView AwardsOf(const netplay::awards::Counters& counters, const std::vector<std::string>& pins, bool friends);
 
 // ---- Points and record ----------------------------------------------------
+
+// Whether a card has counts to draw in `levels`: the service counted them (a player with no account has 0 of each).
+// While they are read, when the service cannot be reached and when it counts no points, a count is a dash, a picture has
+// no points band and a tile no games: never a 0 that reads as a record.
+bool CountsKnown(CardLevels levels);
 
 // One points line: its number, and, on the player's own card, the meter and the
 // words after it ("Gold · 514 points to Ember").

@@ -1506,6 +1506,12 @@ msgstr "ЛУЧШИЕ БОЙЦЫ"
 msgid "card.choose_main"
 msgstr "Выбрать основного"
 
+msgid "card.no_main"
+msgstr "Основной не выбран"
+
+msgid "card.no_main_detail"
+msgstr "Выберите его ниже или на вкладке «Бойцы»."
+
 msgid "card.edit_detail"
 msgstr "Ваше имя, флаг, основной, титул, награды и стиль игры."
 

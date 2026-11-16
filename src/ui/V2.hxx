@@ -271,6 +271,9 @@ float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain);
 // dims the line as Level does. Returns the band's height, 0 when it is left out
 // (a picture too small for a number that reads).
 float LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, float alpha = 1.f);
+// The height LevelBand's shade takes across a picture `width` wide and at least as tall (where its line fits): what a
+// frame leaves under a figure for it.
+float LevelBandHeight(float width);
 // A progress bar on the frame's ground: `part` of it (0 to 1) in the accent,
 // and the last `fresh` of that part (the same measure) in the light accent.
 void Meter(ImDrawList* draw, Box box, float part, float fresh);

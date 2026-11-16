@@ -12,8 +12,9 @@
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --archive full|more|loading|failed|unsupported|empty|nobridge: Replays' Archive tab with the public archive's listing in
 //   that state (--screen replay-archive, replay-archive-filter or replay-archive-fighter)
-// --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's levels (--screen card, fighters,
-//   card-edit, card-looking, card-pins, awards or home; awards without it reads played)
+// --profile played|fresh|sixty|one|five|noaccount|unavailable|noservice|loading|unreachable: the player's levels (--screen card,
+//   fighters, card-edit, card-looking, card-pins, awards or home; awards without it reads played); --main none|<id>: the main
+//   (Ryu, 0, without it), none for a player who has not chosen one
 // --friends full|requests|notifications|privateoffer|othergame|empty|noaccount|unavailable|loading|unreachable|offline: the player's friends in
 //   that state (--screen friends, friends-add, friends-sent or friends-blocked; UiLabSocial.hxx); with --toasts the
 //   requests and an invite arrive as toasts (--friends full --toasts); --screen tab-online/friends is the Settings panel;
@@ -466,13 +467,15 @@ void Rankings(ui::ShellView& view) {
         board->push_back({{std::get<0>(p), CountryCode::Parsed(std::get<1>(p))}, static_cast<std::uint8_t>(std::get<2>(p)), std::string(std::get<0>(p)) == "FRaccie"});
     r.board.value = board; r.board.loaded = true; r.board.revision = r.board.finished = 1;
 }
-// --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's
-// points as the card and the Fighters tab show them (--screen card or fighters).
-// played: twelve fighters, the main (Ryu) at 1986 points; fresh: counted, none played yet;
-// sixty: the main in the top tier (the name is kept from the levels); loading: the first
-// read in flight; unreachable: the first read failed.
+// --profile played|fresh|sixty|one|five|noaccount|unavailable|noservice|loading|unreachable: the
+// player's points as the card and the Fighters tab show them (--screen card or fighters).
+// played: twelve fighters, the main (Ryu) at 1986 points; one: the main alone; five: the main and
+// four others; fresh: counted, none played yet; sixty: the main in the top tier (the name is kept
+// from the levels); noservice: an Ember ID with no service to read points from, so none is ever
+// read; loading: the first read in flight; unreachable: the first read failed.
 void Profile(ui::ShellView& view, const std::string& state) {
     view.preferences.displayName = "Player 1";
+    view.preferences.mainFighter = 0;
     // How the card says the player plays (Edit card's choices and what the game measures) and what it shows: Stick, wired in
     // Europe, looking for long sets and a teacher, the Wins family worn as title and Matches as icon, two families chosen.
     view.preferences.cardDevice = 2; view.preferences.cardLooking = netplay::profiles::LookingLongSets | netplay::profiles::LookingTeach;
@@ -483,8 +486,9 @@ void Profile(ui::ShellView& view, const std::string& state) {
     view.automaticCountry = CountryCode::Parsed("DE");
     auto& answer = view.levels;
     answer.loading = state == "loading";
-    answer.loaded = !answer.loading && state != "unreachable";
+    answer.loaded = !answer.loading && state != "unreachable" && state != "noservice";
     if (state == "unreachable") answer.error = "bridge_unreachable";
+    if (state == "noservice") { auto& id = view.identity; id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; }
     answer.revision = answer.finished = 1;
     if (!answer.loaded) return;
     auto& own = answer.value;
@@ -516,7 +520,8 @@ void Profile(ui::ShellView& view, const std::string& state) {
     };
     set(0, state == "sixty" ? 12840 : 1986);
     const std::uint64_t others[][2] = {{5, 3480}, {12, 860}, {7, 412}, {20, 230}, {3, 86}, {30, 41}, {40, 19}, {17, 7}, {9, 3}, {26, 2}, {33, 1}};
-    for (const auto& pair : others) set(static_cast<int>(pair[0]), pair[1]);
+    const std::size_t played = state == "one" ? 0 : state == "five" ? 4 : std::size(others);
+    for (std::size_t i = 0; i < played; ++i) set(static_cast<int>(others[i][0]), others[i][1]);
     // The account's points are every game of every fighter.
     for (const auto& level : own.fighters) {
         own.account.points += level.points;
@@ -597,7 +602,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool newsStress = false;  // --news stress: News also lists a release with a very long title, tag and notes
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string points;  // --points public|private
-    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState, setsState, playerState, findState, relationState, lang;
+    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState, archiveState, setsState, playerState, findState, relationState, lang, mainChoice;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
@@ -630,6 +635,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--rankings") rankings = true;
         else if (args[i] == "--levels") levels = true;
         else if (args[i] == "--profile" && more) profile = args[++i];
+        else if (args[i] == "--main" && more) mainChoice = args[++i];
         else if (args[i] == "--friends" && more) friendsState = args[++i];
         else if (args[i] == "--player" && more) playerState = args[++i];
         else if (args[i] == "--find" && more) findState = args[++i];
@@ -719,6 +725,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (!archiveState.empty()) Archive(view, archiveState);
     if (!profile.empty()) Profile(view, profile);
     else if (screen == "awards" || screen == "sets") Profile(view, "played");
+    if (!mainChoice.empty()) view.preferences.mainFighter = mainChoice == "none" ? -1 : std::atoi(mainChoice.c_str());
     if (!profile.empty() || screen == "awards" || screen == "card" || screen == "sets") ProfileSets(view, setsState.empty() ? "full" : setsState);
     if (!friendsState.empty() && !uilab::Friends(view, friendsState)) return 4;
     if (!playerState.empty() && !uilab::Player(view, playerState)) return 4;

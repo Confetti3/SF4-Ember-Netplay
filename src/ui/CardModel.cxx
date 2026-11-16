@@ -71,6 +71,12 @@ Metrics MetricsOf(Size size) {
     return m;
 }
 
+float FigureHeight(float width, const ember::PictureShapes& shapes) { return width * shapes.figureHeight / shapes.figureWidth; }
+
+float FigureFrameHeight(float figureWidth, float under, float room, float least, const ember::PictureShapes& shapes) {
+    return (std::max)(least, (std::min)(room, FigureHeight(figureWidth, shapes) + under));
+}
+
 namespace {
 // The tallest right column, the player's own card's with every part there, holding `sets` recent sets, as DrawColumns
 // (PlayerCard.cxx) stacks it: AWARDS over its tiles, MOST PLAYED over its row, RECENT SETS over its rows, and All sets.
@@ -204,6 +210,8 @@ PointsLine MeterLine(const netplay::levels::Level& level, bool account) {
     return line;
 }
 
+bool CountsKnown(CardLevels levels) { return levels == CardLevels::Counted || levels == CardLevels::NoAccount; }
+
 std::vector<v2::TagView::Fact> RecordCells(const aw::Counters& c, bool winRate, bool known) {
     const std::uint64_t percent = c.games ? (c.wins * 100 + c.games / 2) / c.games : 0;
     // Counts not read yet (or not reachable) are a dash, never a 0 that reads as a record.
@@ -290,7 +298,7 @@ FullCardView FullOf(const Subject& s, Size room) {
         v.worn = WornOnCard(s.counters, s.worn);
         v.plays = PlaysChips(s.style);
         v.looking = LookingChips(s.style);
-        v.record = RecordCells(s.counters, s.detailed, s.levels != CardLevels::Pending && s.levels != CardLevels::Unreachable);
+        v.record = RecordCells(s.counters, s.detailed, CountsKnown(s.levels));
         v.awards = AwardsOf(s.counters, s.pins, s.friendsCounted);
     }
     const bool counted = s.levels == CardLevels::Counted;
@@ -309,7 +317,7 @@ FullCardView FullOf(const Subject& s, Size room) {
         for (const auto& played : s.played)
             if (played.fighter == fighter) { tile.points = played.points; tile.tier = played.tier; if (s.detailed) tile.games = GamesWords(played.games); }
         // A game count not read yet is no count: the tile says none, rather than "0 games".
-        if (s.detailed && tile.games.empty() && s.levels != CardLevels::Pending && s.levels != CardLevels::Unreachable) tile.games = GamesWords(0);
+        if (s.detailed && tile.games.empty() && CountsKnown(s.levels)) tile.games = GamesWords(0);
         v.strip.push_back(std::move(tile));
     }
     if (s.detailed) {

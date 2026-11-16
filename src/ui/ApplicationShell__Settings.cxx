@@ -672,7 +672,7 @@ public:
         // Edit card and its pages show the card as others see it, with each change before it is saved.
         if (card_edit::OnCardScreen(screen))
             return [s, v](const std::string&) {
-                const auto card = ProfilePanel::OwnPanel(*v, s->preferences_);
+                const auto card = ProfilePanel::OwnPanel(*v, s->preferences_, s->ShownLevels(*v));
                 const auto p = ImGui::GetCursorScreenPos();
                 const float width = ImGui::GetContentRegionAvail().x;
                 const float height = DrawOtherCard(ImGui::GetWindowDrawList(), {p, ImVec2(p.x + width, p.y)}, card);

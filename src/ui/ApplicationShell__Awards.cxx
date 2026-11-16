@@ -99,7 +99,7 @@ std::vector<MenuEntry> ApplicationShell::AwardRows(const ShellView& v, std::stri
     title = loc::T("screen.awards");
     const auto counters = AwardCounters(v);
     PlayerCardView card;
-    player_card::Fill(card, v.levels, preferences_.mainFighter);
+    player_card::Fill(card, ShownLevels(v), preferences_.mainFighter);
     const bool counted = card.levels == CardLevels::Counted;
     std::vector<MenuEntry> rows;
     for (const auto& family : aw::Catalog) {
@@ -195,7 +195,7 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
     const auto& profile = player.profile;
     heading(loc::T("awards.card_heading"));
     // The Panel as others see it, with the player's own chips, record and families.
-    const auto card = ProfilePanel::OwnPanel(v, preferences_);
+    const auto card = ProfilePanel::OwnPanel(v, preferences_, ShownLevels(v));
     DrawOtherCard(d, v2::CutTop(side, OtherCardHeight(card, side.W()), 16 * s), card);
     // The focused family's words: its name, then every level and where the player stands.
     const auto shown = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == focus && FamilyOfRow(e); });

@@ -1506,6 +1506,12 @@ msgstr "MIGLIORI COMBATTENTI"
 msgid "card.choose_main"
 msgstr "Scegli un principale"
 
+msgid "card.no_main"
+msgstr "Nessun principale"
+
+msgid "card.no_main_detail"
+msgstr "Scegline uno qui sotto o nella scheda Combattenti."
+
 msgid "card.edit_detail"
 msgstr "Il tuo nome, bandiera, principale, titolo, riconoscimenti e come giochi."
 

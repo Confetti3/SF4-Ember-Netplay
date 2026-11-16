@@ -218,6 +218,7 @@
   "overlay": {},
   "profile": {
     "displayName": "Player 1",
+    "mainChosen": true,
     "mainFighter": 12,
     "onlineRecord": {
       "losses": 4,

@@ -101,6 +101,7 @@
   "overlay": {},
   "profile": {
     "displayName": "Player",
+    "mainChosen": true,
     "mainFighter": 0,
     "onlineRecord": {
       "losses": 0,

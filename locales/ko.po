@@ -1506,6 +1506,12 @@ msgstr "상위 파이터"
 msgid "card.choose_main"
 msgstr "주 캐릭터 선택"
 
+msgid "card.no_main"
+msgstr "주 캐릭터 없음"
+
+msgid "card.no_main_detail"
+msgstr "아래에서 또는 파이터 탭에서 고르세요."
+
 msgid "card.edit_detail"
 msgstr "이름, 국기, 주 캐릭터, 칭호, 어워드, 플레이 스타일."
 

@@ -42,6 +42,10 @@ public:
     // Every frame: the levels read on opening and at start, and the Card tab's card built once for the frame (the rows and
     // the drawing both read it). `bridge` is the usable service, empty without one.
     void Update(const ShellView& view, const netplay::PlayerPreferences& preferences, const std::string& screen, const std::string& bridge, const Submit& submit);
+    // Whether the player's own points will be read (Update sends the read): while the Ember ID's state is not known yet they
+    // may be, and once it is, only with a usable service (`bridge`) and an Ember ID. Where they will not, the cards read
+    // player_card::LevelsShown's answer that the service counts none.
+    static bool ReadsPoints(const ShellView& view, const std::string& bridge);
     // The shell is hidden: a read not sent yet is dropped, and showing it again reads afresh.
     void Conceal();
     // The screen's rows, from the card the shell published (`card`), the
@@ -56,10 +60,11 @@ public:
     // How the profile of the most played opponent is opened: by the card token the points answer carries, knowing the
     // name, flag and class it names. False when the answer names none.
     static bool MostPlayedOf(const ShellView& view, netplay::profiles::Key& key, netplay::profiles::Known& known);
-    // The player's own subject for a card (CardModel.hxx) from the view and the preferences being edited, and the Panel it
-    // makes as others see it (Edit card's and the Awards tab's preview).
-    static player_card::Subject OwnSubjectOf(const ShellView& view, const netplay::PlayerPreferences& preferences);
-    static OtherCardView OwnPanel(const ShellView& view, const netplay::PlayerPreferences& preferences);
+    // The player's own subject for a card (CardModel.hxx) from the view, the preferences being edited and the points as the
+    // cards read them (player_card::LevelsShown), and the Panel it makes as others see it (Edit card's and the Awards tab's
+    // preview).
+    static player_card::Subject OwnSubjectOf(const ShellView& view, const netplay::PlayerPreferences& preferences, const netplay::Answered<netplay::levels::Own>& levels);
+    static OtherCardView OwnPanel(const ShellView& view, const netplay::PlayerPreferences& preferences, const netplay::Answered<netplay::levels::Own>& levels);
     // The screen's board at the cursor, in a body `height` tall: the Card tab
     // (PlayerCard.cxx) or the Fighters tab.
     void Draw(const ShellView& view, const netplay::PlayerPreferences& preferences, const std::string& screen, const std::vector<MenuEntry>& rows, MenuNavigation& navigation, MenuAction& action, float height);
@@ -72,5 +77,7 @@ private:
     CardSets sets_;
     std::string read_, focus_;
     bool visiting_ = false, want_ = false;
+    // ReadsPoints as of this frame's Update.
+    bool readable_ = true;
 };
 } }

@@ -364,6 +364,9 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   {status=RoomWaitReason(v);statusTone=Tone::Pending;}
  return {status,statusTone};
 }
+const netplay::Answered<netplay::levels::Own>& ApplicationShell::ShownLevels(const ShellView& v) const {
+ return player_card::LevelsShown(v.levels,ProfilePanel::ReadsPoints(v,identity_.UsableBridge(v)));
+}
 void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  using namespace netplay;
  PlayerCardView card;card.name=preferences_.displayName;
@@ -385,7 +388,7 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  if(hasMain)tag.facts.push_back({loc::T("profile.main_badge"),ember::Catalog().fighterName(preferences_.mainFighter)});
  if(record.available)tag.facts.push_back({loc::T("profile.record"),RecordValue(record)});
  // The levels the Card tab draws, and the two points lines under Home's card.
- player_card::Fill(card,v.levels,preferences_.mainFighter);
+ player_card::Fill(card,ShownLevels(v),preferences_.mainFighter);
  tag.points={true,card.main.points,card.account.points};
  card.requests=static_cast<int>(friends_panel::WaitingOf(v.friends,v.unixNow).requests.size());
  SetMenuPlayerCard(std::move(card));

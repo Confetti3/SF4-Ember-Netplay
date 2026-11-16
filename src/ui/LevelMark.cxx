@@ -291,9 +291,19 @@ float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain) {
     return advance + number.width;
 }
 
+namespace {
+// The band's height over a picture whose shorter side is `side`, before it is rounded and held to the picture's height.
+float BandOver(float side) {
+    const float s = Scale();
+    return (std::min)(BandMost * s, (std::max)(side * BandShare, BandLeast * s));
+}
+}
+
+float LevelBandHeight(float width) { return std::round(BandOver(width)); }
+
 float LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, float alpha) {
     if (tile.H() <= 0) return 0;
-    const float s = Scale(), band = std::round((std::min)({tile.H(), BandMost * s, (std::max)((std::min)(tile.W(), tile.H()) * BandShare, BandLeast * s)}));
+    const float s = Scale(), band = std::round((std::min)(tile.H(), BandOver((std::min)(tile.W(), tile.H()))));
     const Box foot{ImVec2(tile.min.x, tile.max.y - band), tile.max};
     // The line shrinks until it fits the picture's width less a margin each side, down to the text floor (13 px).
     const float room = (std::max)(1.f, foot.W() - 2 * std::round(band * BandMargin));

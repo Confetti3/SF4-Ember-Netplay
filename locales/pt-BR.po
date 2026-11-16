@@ -1506,6 +1506,12 @@ msgstr "MELHORES LUTADORES"
 msgid "card.choose_main"
 msgstr "Escolher um principal"
 
+msgid "card.no_main"
+msgstr "Sem principal ainda"
+
+msgid "card.no_main_detail"
+msgstr "Escolha um abaixo ou na aba Lutadores."
+
 msgid "card.edit_detail"
 msgstr "Seu nome, bandeira, principal, título, conquistas e como você joga."
 

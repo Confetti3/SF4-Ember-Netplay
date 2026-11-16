@@ -1506,6 +1506,12 @@ msgstr "NEJLEPŠÍ BOJOVNÍCI"
 msgid "card.choose_main"
 msgstr "Vybrat hlavního"
 
+msgid "card.no_main"
+msgstr "Zatím bez hlavního"
+
+msgid "card.no_main_detail"
+msgstr "Vyberte ho níže nebo na kartě Bojovníci."
+
 msgid "card.edit_detail"
 msgstr "Vaše jméno, vlajka, hlavní, titul, ocenění a styl hry."
 

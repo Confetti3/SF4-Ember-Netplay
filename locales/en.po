@@ -1510,6 +1510,12 @@ msgstr "TOP FIGHTERS"
 msgid "card.choose_main"
 msgstr "Choose a main"
 
+msgid "card.no_main"
+msgstr "No main yet"
+
+msgid "card.no_main_detail"
+msgstr "Choose one below or on the Fighters tab."
+
 msgid "card.edit_detail"
 msgstr "Your name, flag, main, title, awards and how you play."
 

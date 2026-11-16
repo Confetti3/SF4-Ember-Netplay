@@ -29,6 +29,10 @@ Groups Grouped(const Own& own, int main);
 // How far the fighter's points are to the next tier's start, 0 to 1 (the
 // bridge sends no earlier start); 1 at the top.
 float Part(const Level& level);
+// The player's own points as the cards read them: the answer, or, where no read of them will be sent (`readable` false:
+// ProfilePanel::ReadsPoints), an answer that the service counts none, so no card says it is reading a read that never
+// comes and nothing on it looks as if it were loading.
+const netplay::Answered<Own>& LevelsShown(const netplay::Answered<Own>& answer, bool readable);
 // The card's points from the answer: the main first, then the two highest
 // others played, the main's and the account's counts and the facts. `main` is
 // the fighter the player picked as their main (-1 for none). A read in

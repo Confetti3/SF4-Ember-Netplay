@@ -1506,6 +1506,12 @@ msgstr "上位ファイター"
 msgid "card.choose_main"
 msgstr "メインを選ぶ"
 
+msgid "card.no_main"
+msgstr "メイン未設定"
+
+msgid "card.no_main_detail"
+msgstr "下のボタンか、ファイタータブで選べます。"
+
 msgid "card.edit_detail"
 msgstr "名前、国旗、メイン、称号、アワード、プレイスタイル。"
 

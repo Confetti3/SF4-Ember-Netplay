@@ -1506,6 +1506,12 @@ msgstr "NAJLEPSI WOJOWNICY"
 msgid "card.choose_main"
 msgstr "Wybierz głównego"
 
+msgid "card.no_main"
+msgstr "Brak głównego"
+
+msgid "card.no_main_detail"
+msgstr "Wybierz go poniżej lub na karcie Wojownicy."
+
 msgid "card.edit_detail"
 msgstr "Twoja nazwa, flaga, główny, tytuł, wyróżnienia i styl gry."
 

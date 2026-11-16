@@ -1506,6 +1506,12 @@ msgstr "BESTE KÄMPFER"
 msgid "card.choose_main"
 msgstr "Haupt wählen"
 
+msgid "card.no_main"
+msgstr "Noch kein Haupt"
+
+msgid "card.no_main_detail"
+msgstr "Wähle ihn unten oder im Tab Kämpfer."
+
 msgid "card.edit_detail"
 msgstr "Dein Name, Flagge, Haupt, Titel, Auszeichnungen und Spielweise."
 

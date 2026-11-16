@@ -1506,6 +1506,12 @@ msgstr "常用角色"
 msgid "card.choose_main"
 msgstr "选择主角"
 
+msgid "card.no_main"
+msgstr "尚未设置主角"
+
+msgid "card.no_main_detail"
+msgstr "在下方或“角色”标签页中选择。"
+
 msgid "card.edit_detail"
 msgstr "名称、国旗、主角、称号、奖励和玩法。"
 

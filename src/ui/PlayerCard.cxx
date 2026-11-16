@@ -45,6 +45,16 @@ float Part(const Level& level) {
     return (std::min)(1.f, static_cast<float>(done) / static_cast<float>(level.next - level.floor));
 }
 
+const netplay::Answered<Own>& LevelsShown(const netplay::Answered<Own>& answer, bool readable) {
+    static const netplay::Answered<Own> none = [] {
+        netplay::Answered<Own> uncounted;
+        uncounted.loaded = true;
+        uncounted.value.kind = Own::Kind::Unavailable;
+        return uncounted;
+    }();
+    return readable ? answer : none;
+}
+
 void Fill(PlayerCardView& view, const netplay::Answered<Own>& answer, int main) {
     view.fighters.clear();
     view.main = view.account = {};
@@ -200,22 +210,34 @@ float DrawButtons(const Ctx& c, float x, float y, float width) {
     return y;
 }
 
+// The hero's shade across its foot, which holds its word and name, and the margin round a strip tile's picture.
+constexpr float HeroFoot = 56, TilePad = 8;
+
 // The player's fighter large, the tier a 1 px line, a shade across its foot with its word and name and no number; with no
-// fighter, the ground and the way to choose a main.
+// fighter, the ground, "No main" and, on the player's own card, where one is chosen and the way to choose it here.
 void DrawHero(const Ctx& c, v2::Box hero) {
     const auto& colors = v2::Colors();
     const float s = c.s;
     if (c.v.hero < 0) {
         c.d->AddRectFilled(hero.min, hero.max, colors.frame);
-        const float w = (std::min)(hero.W() - 32 * s, 280 * s), h = 48 * s, left = hero.min.x + (hero.W() - w) * .5f, top = hero.min.y + (hero.H() - h) * .5f;
-        ButtonRow(c, v2::Box{ImVec2(left, top), ImVec2(left + w, top + h)}, ChooseMainRow, v2::ButtonKind::Primary, nullptr);
+        const float w = (std::min)(hero.W() - 32 * s, 280 * s), h = 48 * s, left = hero.min.x + (hero.W() - w) * .5f;
+        const bool choose = c.Find(ChooseMainRow) != nullptr;
+        const std::string detail = choose ? loc::T("card.no_main_detail") : std::string();
+        const float title = c.m.heroNameText * s, words = c.m.noteText * s, gap = 8 * s;
+        const float detailHeight = detail.empty() ? 0 : gap + v2::Paragraph(nullptr, ImVec2(0, 0), w, detail, words, colors.muted);
+        const float block = title + detailHeight + (choose ? 2 * gap + h : 0);
+        float y = hero.min.y + (hero.H() - block) * .5f;
+        v2::Text(c.d, ImVec2(left, y), w, loc::T("card.no_main"), title, colors.text, HeadingFont());
+        y += title;
+        if (!detail.empty()) { v2::Paragraph(c.d, ImVec2(left, y + gap), w, detail, words, colors.muted); y += detailHeight; }
+        if (choose) ButtonRow(c, v2::Box{ImVec2(left, y + 2 * gap), ImVec2(left + w, y + 2 * gap + h)}, ChooseMainRow, v2::ButtonKind::Primary, nullptr);
         return;
     }
     // The fighter stands on the shade, the ground over its head: never hung from the top of a hero taller than its art.
     // The art's box stops at the shade, so the ground under both is the hero's own and the picture brings none.
-    const v2::Box foot{ImVec2(hero.min.x, hero.max.y - 56 * s), hero.max};
+    const v2::Box foot{ImVec2(hero.min.x, hero.max.y - HeroFoot * s), hero.max};
     c.d->AddRectFilled(hero.min, hero.max, colors.frame);
-    DrawCharacterPortrait(FighterPicture{c.v.hero, c.art, 0, 0}, hero.min, ImVec2(hero.max.x, foot.min.y), IM_COL32(0, 0, 0, 0), PictureAnchor::Foot);
+    DrawFigure(FighterPicture{c.v.hero, c.art, 0, 0}, hero.min, ImVec2(hero.max.x, foot.min.y));
     c.d->AddRectFilled(foot.min, foot.max, v2::color::Alpha(colors.ink, .82f));
     v2::Text(c.d, ImVec2(foot.min.x + 14 * s, foot.min.y + 8 * s), foot.W() - 28 * s, c.v.heroWord, c.m.heroWordText * s, colors.muted, HeadingFont());
     v2::Text(c.d, ImVec2(foot.min.x + 14 * s, foot.min.y + 26 * s), foot.W() - 28 * s, c.v.heroName, c.m.heroNameText * s, colors.text, HeadingFont());
@@ -303,14 +325,13 @@ float DrawWords(const Ctx& c, float x, float y, float room) {
 // its shade, "Main" on the main's, and under it the name and, on the player's own card, the games.
 void DrawStripTile(const Ctx& c, v2::Box box, const player_card::StripTile& tile, float textBlock, bool focused, bool hovered) {
     const auto& colors = v2::Colors();
-    const float s = c.s, pad = 8 * s;
+    const float s = c.s, pad = TilePad * s;
     v2::CardGround(c.d, box, focused, hovered);
     const v2::Box picture{ImVec2(box.min.x + pad, box.min.y + pad), ImVec2(box.max.x - pad, box.max.y - pad - textBlock)};
     c.d->AddRectFilled(picture.min, picture.max, colors.frame);
-    // Points not read yet (or not reachable) are not drawn as "0 FP".
-    const bool counted = c.v.levels != CardLevels::Pending && c.v.levels != CardLevels::Unreachable;
-    const float band = counted ? v2::LevelBand(c.d, picture, tile.points, c.alpha) : 0.f;
-    DrawCharacterPortrait(FighterPicture{tile.fighter, c.art, 0, 0}, picture.min, ImVec2(picture.max.x, picture.max.y - band), IM_COL32(0, 0, 0, 0), PictureAnchor::Foot);
+    // Points not counted (read, unreachable, a service without them) are not drawn as "0 FP".
+    const float band = player_card::CountsKnown(c.v.levels) ? v2::LevelBand(c.d, picture, tile.points, c.alpha) : 0.f;
+    DrawFigure(FighterPicture{tile.fighter, c.art, 0, 0}, picture.min, ImVec2(picture.max.x, picture.max.y - band));
     DrawFighterEdge(c.d, picture, tile.points, tile.tier);
     if (tile.isMain) v2::Chip(c.d, ImVec2(picture.min.x + 6 * s, picture.min.y + 6 * s), loc::T("fighters.main"), colors.accentLight);
     // The words under the picture start as far in as the picture does, clear of the focus frame's 2 px edge.
@@ -321,17 +342,20 @@ void DrawStripTile(const Ctx& c, v2::Box box, const player_card::StripTile& tile
     if (focused) v2::Focus(c.d, box.min, box.max);
 }
 
-// "TOP FIGHTERS" and the tiles: wide, as tall as the column leaves down to `limit`; narrow, three across the width with
-// square pictures. Returns the y under them.
+// "TOP FIGHTERS" and the tiles: wide, as tall as the column leaves down to `limit` but no taller than the figure each
+// shows needs at the tile's width (the product's picture shapes), however few tiles there are; narrow, three across the
+// width with square pictures. Returns the y under them.
 float DrawStrip(const Ctx& c, float x, float y, float room, float limit, bool narrow) {
     if (c.v.strip.empty()) return y;
-    const float s = c.s, between = c.m.tileGap * s;
+    const float s = c.s, between = c.m.tileGap * s, pad = TilePad * s;
     v2::SectionHeading(c.d, ImVec2(x, y), loc::T("card.top_fighters"));
     y += c.m.heading * s;
     const float width = narrow ? (room - 2 * between) / 3 : c.m.tileWidth * s;
     const bool games = !c.v.strip.front().games.empty();
     const float textBlock = 8 * s + c.m.tileNameText * s + (games ? 5 * s + c.m.tileGamesText * s : 0) + 8 * s;
-    const float height = narrow ? width + textBlock : (std::max)(textBlock + 60 * s, limit - y);
+    const float figure = width - 2 * pad, band = player_card::CountsKnown(c.v.levels) ? v2::LevelBandHeight(figure) : 0.f;
+    const float height = narrow ? width + textBlock
+                                : player_card::FigureFrameHeight(figure, 2 * pad + band + textBlock, limit - y, textBlock + 60 * s, ember::ProductPictures());
     int shown = 0;
     for (const auto& tile : c.v.strip) {
         const float left = x + shown++ * (width + between);
@@ -351,9 +375,8 @@ float DrawAwards(const Ctx& c, float x, float y, float room) {
     if (awards.total == 0) return y;
     const float s = c.s;
     v2::SectionHeading(c.d, ImVec2(x, y), loc::T("card.awards"));
-    // Awards not counted yet (the points are being read, or cannot be reached) are a dash, not "0 of 40".
-    const bool unread = c.v.levels == CardLevels::Pending || c.v.levels == CardLevels::Unreachable;
-    const std::string count = unread ? std::string("-") : loc::Tf("card.of", awards.earned, awards.total);
+    // Awards not counted (the points are being read, cannot be reached, or the service counts none) are a dash, not "0 of 40".
+    const std::string count = player_card::CountsKnown(c.v.levels) ? loc::Tf("card.of", awards.earned, awards.total) : std::string("-");
     const float countWidth = card_parts::Across(count, 14 * s);
     v2::Text(c.d, ImVec2(x + room - countWidth, y), countWidth + 1, count, 14 * s, colors.muted);
     y += c.m.heading * s;
@@ -435,7 +458,9 @@ float DrawRecord(const Ctx& c, float x, float y, float room, std::size_t across)
 float DrawColumns(const Ctx& c, ImVec2 origin, float height) {
     const float s = c.s, bottom = origin.y + height - s, gutter = c.m.gutter * s, gap = c.m.buttonGap * s;
     const float hero = c.m.hero * s, right = c.m.right * s, middle = c.m.middle * s;
-    const v2::Box heroBox{origin, ImVec2(origin.x + hero, bottom - ButtonsHeight(c))};
+    // The hero to the buttons over the body's foot, no taller than its figure needs at its width; the buttons stand under it.
+    const float buttonsTop = bottom - ButtonsHeight(c), figureFoot = origin.y + player_card::FigureHeight(hero, ember::ProductPictures()) + HeroFoot * s;
+    const v2::Box heroBox{origin, ImVec2(origin.x + hero, c.v.hero < 0 ? buttonsTop : (std::min)(buttonsTop, figureFoot))};
     DrawHero(c, heroBox);
     DrawButtons(c, origin.x, heroBox.max.y, hero);
 

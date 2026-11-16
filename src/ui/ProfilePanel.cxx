@@ -41,8 +41,13 @@ void ProfilePanel::Dress(GameMenu& menu, const std::string& screen, const std::s
         if (menu.tabs[i].first == screen) menu.tab = static_cast<int>(i);
 }
 
+bool ProfilePanel::ReadsPoints(const ShellView& v, const std::string& bridge) {
+    return !v.identity.known || (!bridge.empty() && !v.identity.emberId.empty());
+}
+
 void ProfilePanel::Update(const ShellView& v, const netplay::PlayerPreferences& prefs, const std::string& screen, const std::string& bridge, const Submit& submit) {
     card_.built = false;
+    readable_ = ReadsPoints(v, bridge);
     // The recent sets are asked for while the Card tab is on show: once when it comes on show and when the name or service
     // changes, never every frame and never while another page shows.
     sets_.Update(v, bridge, v.preferences.displayName, screen == CardScreen, submit);
@@ -110,9 +115,9 @@ std::vector<MenuEntry> ProfilePanel::Rows(const ShellView& v, const netplay::Pla
     return rows;
 }
 
-player_card::Subject ProfilePanel::OwnSubjectOf(const ShellView& v, const netplay::PlayerPreferences& prefs) {
+player_card::Subject ProfilePanel::OwnSubjectOf(const ShellView& v, const netplay::PlayerPreferences& prefs, const netplay::Answered<netplay::levels::Own>& levels) {
     player_card::OwnInputs in;
-    in.levels = &v.levels;
+    in.levels = &levels;
     in.name = prefs.displayName;
     in.country = ShownCountry(prefs.country, v.automaticCountry);
     const auto& standing = v.rankings.standing;
@@ -130,7 +135,7 @@ player_card::Subject ProfilePanel::OwnSubjectOf(const ShellView& v, const netpla
 }
 
 player_card::Subject ProfilePanel::SubjectOf(const ShellView& v, const netplay::PlayerPreferences& prefs) const {
-    auto subject = OwnSubjectOf(v, prefs);
+    auto subject = OwnSubjectOf(v, prefs, player_card::LevelsShown(v.levels, readable_));
     subject.sets = sets_.View(v);
     // Without the archive there are no sets to list (ShellView::offersArchive).
     subject.sets.shown = subject.sets.shown && v.offersArchive;
@@ -139,8 +144,8 @@ player_card::Subject ProfilePanel::SubjectOf(const ShellView& v, const netplay::
     return subject;
 }
 
-OtherCardView ProfilePanel::OwnPanel(const ShellView& v, const netplay::PlayerPreferences& prefs) {
-    return PanelOf(OwnSubjectOf(v, prefs), v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait);
+OtherCardView ProfilePanel::OwnPanel(const ShellView& v, const netplay::PlayerPreferences& prefs, const netplay::Answered<netplay::levels::Own>& levels) {
+    return PanelOf(OwnSubjectOf(v, prefs, levels), v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait);
 }
 
 bool ProfilePanel::MostPlayedOf(const ShellView& v, netplay::profiles::Key& key, netplay::profiles::Known& known) {
