@@ -168,6 +168,16 @@ private:
     size_t size_ = 0;
 };
 
+// What a guard check that failed does. A restore reports into Load's return;
+// a closing battle or a drain already belongs to an abort. A save that is
+// optional (a replay's snapshot) only fails itself: the match goes on.
+enum class Response { FailRestore, Ignore, Abort };
+inline Response RespondToFailure(bool restoring, unsigned restoreDepth, unsigned optionalDepth, bool closing, bool draining) {
+    if (restoring || restoreDepth) return Response::FailRestore;
+    if (optionalDepth || closing || draining) return Response::Ignore;
+    return Response::Abort;
+}
+
 inline bool ValidTaskCount(int count, int capacity) { return count >= 0 && count <= capacity; }
 
 } }

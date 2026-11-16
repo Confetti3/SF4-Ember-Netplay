@@ -6,7 +6,7 @@ namespace sf4e { namespace memento {
 static_assert(sizeof(Key::Metadata) == kMetadataBytes, "the engine metadata layout is 12 bytes");
 namespace {
 PayloadOwners<SaveState> owners;
-unsigned restoreDepth = 0;
+unsigned restoreDepth = 0, optionalDepth = 0;
 bool abortPending = false;
 // Set while DrainAbort retires the session, whose free callbacks may trip
 // another check; that one belongs to the same abort.
@@ -40,18 +40,20 @@ uintptr_t BaseVtable() {
 }
 
 void Fail(bool restoring) {
-    if (restoring || restoreDepth) {
+    // A closing battle is already over: the skipped write or leaked payload is
+    // the whole remedy, and an abort now would only show a false error.
+    const bool closing = fSystem::simGate.phase == sf4e::gate::PHASE_BATTLE_CLOSING;
+    switch (RespondToFailure(restoring, restoreDepth, optionalDepth, closing, draining)) {
+    case Response::FailRestore:
         Game::MementoFailure::restore = true;
-    } else if (fSystem::simGate.phase == sf4e::gate::PHASE_BATTLE_CLOSING) {
-        // The match is already over; the skipped write or leaked payload is
-        // the whole remedy, and an abort now would only show a false error.
-        return;
-    } else if (draining) {
-        return;
-    } else {
+        break;
+    case Response::Ignore:
+        break;
+    case Response::Abort:
         abortPending = true;
         Game::MementoFailure::record = true;
         if (fSystem::ggpo) fSystem::simGate.OnFatal();
+        break;
     }
 }
 }
@@ -113,6 +115,8 @@ void NoteRelease() { ++counters.releases; }
 
 RestoreScope::RestoreScope() { ++restoreDepth; }
 RestoreScope::~RestoreScope() { --restoreDepth; }
+OptionalScope::OptionalScope() { ++optionalDepth; }
+OptionalScope::~OptionalScope() { --optionalDepth; }
 // Battle close ends the match anyway, so a pending abort is dropped with the counters.
 void ResetCounters() { counters = {}; abortPending = false; }
 void RequestAbort() { Fail(false); }

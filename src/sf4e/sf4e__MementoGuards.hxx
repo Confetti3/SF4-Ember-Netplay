@@ -34,4 +34,14 @@ struct RestoreScope {
     RestoreScope& operator=(const RestoreScope&) = delete;
 };
 
+// A save or release whose failure is that state's own: a failed check logs and
+// fails the call, and no netplay abort or notice follows. A replay's snapshots
+// run under it, since the replay plays on without them.
+struct OptionalScope {
+    OptionalScope();
+    ~OptionalScope();
+    OptionalScope(const OptionalScope&) = delete;
+    OptionalScope& operator=(const OptionalScope&) = delete;
+};
+
 } }
