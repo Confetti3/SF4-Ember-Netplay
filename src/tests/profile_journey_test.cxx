@@ -463,12 +463,13 @@ void SpatialJourney() {
   j.h.Screen("awards"); j.h.Frame(0, 2);
   const auto award = [&](std::size_t i) { return j.rows.at(i).id; };
   Check(Moved(j, award(0), MenuInput::Right) == award(1) && Moved(j, award(1), MenuInput::Down) == award(5) && Moved(j, award(5), MenuInput::Up) == award(1), "The awards wall does not move as a grid");
-  // Home: the card beside the list is a column of its own.
+  // Home: the card beside the list is a column of its own, with the links over it (not the list's rows).
   j.h.Screen("home"); j.h.Frame(0, 2);
   std::vector<std::string> list;
-  for (const auto& row : j.rows) if (row.id != "card") list.push_back(row.id);
+  for (const auto& row : j.rows) if (row.id != "card" && row.id.compare(0, 5, "link-") != 0) list.push_back(row.id);
   Check(Moved(j, list[1], MenuInput::Right) == "card" && Moved(j, "card", MenuInput::Left) == list.front(), "Left and Right do not go between Home's list and its card");
-  Check(Moved(j, "card", MenuInput::Up) == "card" && Moved(j, "card", MenuInput::Down) == "card", "Up or Down on Home's card steps into the list");
+  // The links drawn over the card are part of its aside: Up from the card reaches the first, Down from it and from a link stays in the aside.
+  Check(Moved(j, "card", MenuInput::Up) == "link-discord" && Moved(j, "card", MenuInput::Down) == "card" && Moved(j, "link-discord", MenuInput::Down) == "card", "Up or Down on Home's card steps into the list or misses the links over it");
   Check(Moved(j, list.back(), MenuInput::Down) == list.front() && Moved(j, list.front(), MenuInput::Up) == list.back(), "Home's list does not go round past the card beside it");
  }
 }

@@ -335,7 +335,6 @@ struct Runtime {
     // can be offered a friend now (sf4e__NetplayRuntime__Social.cxx).
     netplay::friends::Requests friends;
     netplay::friends::Visit friendVisit;
-    bool friendsCanInvite = false;
     // What friends are told, described again only when the key of what it is made from moves (or the invitation
     // offered runs out, at `refreshAt`, unix seconds); `revision` moves when the report itself changes.
     struct FriendsPresence {

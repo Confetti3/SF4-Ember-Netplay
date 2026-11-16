@@ -278,6 +278,15 @@ public:
     // chips at the header's right end. Empty for none.
     std::string eyebrow;
     std::vector<v2::HeaderChip> headerChips;
+    // Home's links: an icon each for the row of the entries with this id,
+    // drawn at the right end of the brand's band (DrawHeaderLinks), over the
+    // player's card, and placed there. They are part of Home's aside
+    // (MenuNavigation::SetAside). The screen puts a link's row among the
+    // entries only where the card is shown (v2::SideBySide), so a row that
+    // is not drawn is not there, and the pad reaches exactly what the mouse
+    // can. Empty on every other screen.
+    struct HeaderLink { std::string id; v2::IconDraw icon; };
+    std::vector<HeaderLink> headerLinks;
     // The cards' width (unscaled) beside the detail pane, each card with the
     // first line of its detail and its value as a chip (Online play, Join); 0 for the usual split.
     float listWidth=0;
@@ -285,9 +294,16 @@ public:
     float paneWidth=0;
     // The detail pane on the cards' left, on the screen's own ground (launch recovery).
     bool paneLeft=false;
-    // A body's focused card and the column it sits in, where a value's
-    // choices open as they do on the cards. The body sets them each frame.
-    struct { v2::Box card, column; } bodyChoices;
+    // Where a body shows the focused row's open choices. The body sets it each frame.
+    // card, column: a value panel on `card` inside `column`, as on the cards; with no card
+    // named the panel opens at the focused row's own box. inPlace: the body draws the
+    // choices itself (your own table card's strip), so the menu draws no panel of them.
+    struct BodyChoices {
+        // How many choices stand on a line (what Up and Down step by), and whether the pointer is on one.
+        struct InPlace { std::size_t across = 1; bool hovered = false; };
+        v2::Box card, column;
+        std::optional<InPlace> inPlace;
+    } bodyChoices;
     int tab=-1;
     bool listEnabled=true, ownsBack=false, customDetail=false;
     unsigned additionalInput=0;
@@ -366,6 +382,9 @@ private:
         const char* title; const std::vector<MenuEntry>& entries; const char* status; const Detail& detail;
         int columns; const Card& card; const Body& body; bool flyout; float cardHeight; Tone statusTone; bool home;
         MenuAction action{};
+        // The list and its pane stand side by side (v2::SideBySide), worked out once in Draw: Home's card and
+        // the links over it, or the focused row's detail, are drawn in the pane.
+        bool split = false;
         // The menu buttons held (none while a notice owns them).
         unsigned held = 0;
         // As the frame began: an editor or question open, a choice open, a
@@ -385,12 +404,14 @@ private:
     // Parts of Draw (GameMenuDraw.cxx), each in its box cut from the window.
     // The title or Home's brand, and the tabs; `content` loses what they take.
     void DrawHeader(Frame& f, v2::Box& content, bool narrow);
+    // Home's links, right-aligned in `band` and centred on its height.
+    void DrawHeaderLinks(Frame& f, v2::Box band);
     // A screen's own body in place of the cards, the footer of the shell's
     // own rows (MenuEntry::footer) under it, and its value panel.
     void DrawBody(Frame& f, v2::Box content);
     // The cards and, beside them, the focused card's detail or Home's player
     // card and news; then the value panel and the list card over them.
-    void DrawCards(Frame& f, v2::Box content, bool narrow);
+    void DrawCards(Frame& f, v2::Box content);
     // The cards in `list`; returns the focused card's box.
     v2::Box DrawCardList(Frame& f, v2::Box list, bool split);
     void DrawHomePane(Frame& f, v2::Box pane);
@@ -398,6 +419,15 @@ private:
     // The focused row's choices, while they are open: a panel on its card
     // inside `column`, or a popout. False while none is open.
     bool DrawValuePanel(Frame& f, v2::Box card, v2::Box column);
+    // Open choices close on a click off them, a frame late, wherever they are drawn.
+    // BeginChoices takes last frame's click and says whether they stay open, and
+    // whether this is the frame they opened on; EndChoices notes this frame's click
+    // (the click that opened them is not one).
+    struct ChoicesFrame { bool open, opening; };
+    ChoicesFrame BeginChoices();
+    void EndChoices(ChoicesFrame choices, bool hovered);
+    // The frame's part for choices a body draws itself: no panel, the same closing.
+    bool HoldChoicesInPlace(const BodyChoices::InPlace& in);
     // The hint bar on the window's bottom edge: what the buttons do now, each
     // also a button, and the status.
     void DrawHintBar(Frame& f, v2::Box bar);
@@ -437,9 +467,9 @@ private:
     // Closes the notice with the result of the button, or Back, that did it.
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
     // Where an open popout sits (Values), set on the frame it opens; whether
-    // a popout or value panel is open, and closes on this frame's outside click.
+    // choices are open (a popout, a value panel or a body's own), and close on this frame's outside click.
     ImVec2 popoutAt_{};bool valuesOpen_=false,valuesClose_=false;
-    // How many choices across the open value panel shows (DrawValuePanel), 0 while none is open.
+    // How many choices across the open choices show (DrawValuePanel, HoldChoicesInPlace), 0 while none is open.
     std::size_t valuesAcross_=0;
 std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeEyebrow_;
 v2::HeaderChip noticeChip_{};

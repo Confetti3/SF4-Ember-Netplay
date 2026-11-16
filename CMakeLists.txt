@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 1.6.0
+    VERSION 1.6.1
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
@@ -130,7 +130,7 @@ target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_loc
 add_library(sf4e_game_lettering STATIC src/common/GameLettering.cxx)
 target_compile_features(sf4e_game_lettering PUBLIC cxx_std_17)
 add_library(sf4e_ui STATIC
-    src/ui/ApplicationShell.cxx src/ui/PlayerCard.cxx src/ui/CardModel.cxx src/ui/CardParts.cxx src/ui/CardSets.cxx src/ui/FightersTab.cxx src/ui/AwardsWall.cxx src/ui/PlayerPage.cxx src/ui/PlayerPage__Panel.cxx src/ui/PlayerPage__Draw.cxx src/ui/PlayerOpening.cxx src/ui/FindPlayer.cxx src/ui/PostMatchFriend.cxx src/ui/PostMatchRows.cxx src/ui/ProfilePanel.cxx src/ui/ControllersScreen.cxx src/ui/ReplaysPanel.cxx src/ui/ArchiveTab.cxx src/ui/RoomPanel.cxx src/ui/RoomPanelArcade.cxx src/ui/RoomPanelTables.cxx src/ui/RoomPanelColumn.cxx src/ui/RoomActions.cxx src/ui/RoomControls.cxx
+    src/ui/ApplicationShell.cxx src/ui/PlayerCard.cxx src/ui/CardModel.cxx src/ui/CardParts.cxx src/ui/CardSets.cxx src/ui/FightersTab.cxx src/ui/AwardsWall.cxx src/ui/PlayerPage.cxx src/ui/PlayerPage__Panel.cxx src/ui/PlayerPage__Draw.cxx src/ui/PlayerOpening.cxx src/ui/FindPlayer.cxx src/ui/PostMatchFriend.cxx src/ui/PostMatchRows.cxx src/ui/ProfilePanel.cxx src/ui/ControllersScreen.cxx src/ui/ReplaysPanel.cxx src/ui/ArchiveTab.cxx src/ui/RoomPanel.cxx src/ui/RoomPanelArcade.cxx src/ui/RoomPanelTables.cxx src/ui/RoomTableCards.cxx src/ui/RoomPanelColumn.cxx src/ui/RoomActions.cxx src/ui/RoomControls.cxx
     src/ui/Theme.cxx src/ui/MatchHud.cxx src/ui/SelectionArt.cxx src/ui/Sf4SelectionArt.cxx src/ui/SelectionArtD3D9.cxx src/ui/FighterSelector.cxx src/ui/AppearanceGallery.cxx src/ui/Sf4SelectionLabels.cxx
     src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx
     src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatFilter.cxx src/ui/ChatPanel.cxx

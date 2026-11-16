@@ -50,7 +50,9 @@ static void TestPublicJoinRejectionWording() {
 	CHECK(std::string(SessionClient::PublicJoinRejectionKey(Error::SCE_JOIN_REJECTED_LOBBY_FULL)) == "public.failure.full_or_locked");
 	CHECK(std::string(SessionClient::PublicJoinRejectionKey(Error::SCE_JOIN_REJECTED_REQUEST_INVALID)) == "public.failure.turned_away");
 	CHECK(std::string(SessionClient::PublicJoinRejectionKey(Error::SCE_JOIN_REJECTED_HASH_INVALID)) == "runtime.build_mismatch");
-	CHECK(std::string(SessionClient::PublicJoinRejectionKey(Error::SCE_JOIN_REJECTED_NAME_TAKEN)) == "room.reject.name_taken");
+	// A public room's name taken is often the player's own seat, still held after a drop; a private room's is a name to change.
+	CHECK(std::string(SessionClient::PublicJoinRejectionKey(Error::SCE_JOIN_REJECTED_NAME_TAKEN)) == "public.failure.name_taken");
+	CHECK(std::string(SessionClient::JoinRejectionKey(Error::SCE_JOIN_REJECTED_NAME_TAKEN)) == "room.reject.name_taken");
 	// A PC that knows of an update is the older build; only the build refusal says so.
 	CHECK(std::string(SessionClient::JoinRejectionKey(Error::SCE_JOIN_REJECTED_HASH_INVALID, true)) == "runtime.build_mismatch_update");
 	CHECK(std::string(SessionClient::PublicJoinRejectionKey(Error::SCE_JOIN_REJECTED_HASH_INVALID, true)) == "runtime.build_mismatch_update");

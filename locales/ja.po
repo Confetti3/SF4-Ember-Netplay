@@ -312,14 +312,14 @@ msgstr "操作に失敗しました。再試行してください。復旧用の
 msgid "services.operation_cancelled"
 msgstr "操作をキャンセルしました。"
 
-msgid "services.opening_community"
-msgstr "ブラウザーでEmberのDiscordを開いています..."
+msgid "services.opening_link"
+msgstr "ブラウザーで{0}を開いています..."
 
-msgid "services.community_opened"
-msgstr "ブラウザーで開きました。切り替えてサーバーに参加してください。"
+msgid "services.link_opened"
+msgstr "ブラウザーで開きました。切り替えてください。"
 
-msgid "services.community_failed"
-msgstr "ブラウザーを開けませんでした。{0}にアクセスして参加してください。"
+msgid "services.link_failed"
+msgstr "ブラウザーを開けませんでした。{0}にアクセスしてください。"
 
 msgid "services.opening_steam_profile"
 msgstr "ブラウザーでSteamプロフィールを開いています..."
@@ -534,8 +534,8 @@ msgstr "ヘルプ・情報"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Discordの招待"
+msgid "screen.room_invitation"
+msgstr "ルームの招待"
 
 msgid "screen.assignment"
 msgstr "コントローラーの割り当て"
@@ -1671,6 +1671,15 @@ msgstr "その招待は終了しました。"
 msgid "friends.nothing_to_offer"
 msgstr "今はあなたのルームを案内できません。"
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "このルームの「参加制限」は「ロック中」です。フレンドを招待するには「ルーム設定」で「公開」にしてください。"
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "このルームの「参加制限」は「ロック中」です。"
+
+msgid "friends.nothing_to_offer.full"
+msgstr "このルームは満員です。"
+
 msgid "friends.busy"
 msgstr "前のリクエストが終わるまでお待ちください。"
 
@@ -2190,9 +2199,6 @@ msgstr "フレンドはEmberのアカウントサービスで専用のDiscord連
 msgid "discord.server"
 msgstr "Ember Discordサーバー"
 
-msgid "discord.invitation_title"
-msgstr "Discordの招待"
-
 msgid "discord.cancel_invitation"
 msgstr "招待をキャンセル"
 
@@ -2259,6 +2265,24 @@ msgstr "EmberのDiscordに参加"
 msgid "about.discord_detail"
 msgstr "プレイヤー、対戦、サポート：{0}。ゲームの背後でブラウザーを開きます。"
 
+msgid "about.kofi"
+msgstr "Ko-fiでEmberを応援"
+
+msgid "about.kofi_detail"
+msgstr "Emberの開発を応援：{0}。ゲームの背後でブラウザーを開きます。"
+
+msgid "about.website"
+msgstr "Emberのウェブサイト"
+
+msgid "about.website_detail"
+msgstr "ルーム、ランキング、リプレイ：{0}。ゲームの背後でブラウザーを開きます。"
+
+msgid "about.twitter"
+msgstr "開発者のTwitter"
+
+msgid "about.twitter_detail"
+msgstr "Ember開発者の最新情報：{0}。ゲームの背後でブラウザーを開きます。"
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 
@@ -2276,9 +2300,6 @@ msgstr "ルームに参加中。通信を待っています..."
 
 msgid "room.locked_status"
 msgstr "ルームはロック中 / 招待者のみ"
-
-msgid "room.private_status"
-msgstr "プライベートルーム / 招待者のみ"
 
 msgid "room.tournament_status"
 msgstr "大会の試合、{0}本先取。プレイできるのはこの試合の2人だけです。"
@@ -2592,6 +2613,12 @@ msgstr "このスロットを空にする"
 msgid "training.reply.clear_slot.detail"
 msgstr "このスロットの技を削除します。"
 
+msgid "training.reply.clear_all"
+msgstr "すべてのスロットを空にする"
+
+msgid "training.reply.clear_all.detail"
+msgstr "すべての反撃スロットから技を削除します。反撃の設定はそのままです。"
+
 msgid "training.reply.every_fighter"
 msgstr "全ファイター共通"
 
@@ -2711,6 +2738,12 @@ msgstr "トレーニング操作を閉じる"
 
 msgid "training.close_controls.detail"
 msgstr "Emberを閉じ、SF4のポーズメニューが開いていたら閉じて再開してください。"
+
+msgid "training.back_to_room"
+msgstr "ルームに戻る"
+
+msgid "training.back_to_room.detail"
+msgstr "トレーニングを終了して {0} に戻ります。ルームでの席は保持されます。"
 
 msgid "training.slot"
 msgstr "スロット{0}"
@@ -3687,6 +3720,12 @@ msgstr "短縮リンクをコピー"
 msgid "room.copy_short_invitation.detail"
 msgstr "チャット用の短いリンクです。ルームが開いている間、Emberのリンクサービスが保持します。"
 
+msgid "room.invite.detail"
+msgstr "フレンドを招待するか、リンクや招待をコピーして共有します。"
+
+msgid "room.invite.more_friends"
+msgstr "ほかのフレンド…"
+
 msgid "room.leaving"
 msgstr "ルームから退出中..."
 
@@ -3722,9 +3761,6 @@ msgstr "Wi-Fi接続"
 
 msgid "room.link_unknown"
 msgstr "接続方式不明"
-
-msgid "room.table_footer"
-msgstr "{0}ラウンド / {1}秒     順番待ち{2}     観戦{3}"
 
 msgid "room.board_status_host_slot"
 msgstr "ホスト / {0} / 対戦席{1}"
@@ -3774,8 +3810,8 @@ msgstr "ルームのリンクから開きました。内容を確認してから
 msgid "room.link_waiting"
 msgstr "ルームのリンクが開かれました。このルームから退出すると参加画面に表示されます。"
 
-msgid "room.replacement_opening"
-msgstr "代わりのルームを開設中です。「招待をコピー」で新しいリンクを送ってください。古いリンクは使えません。"
+msgid "room.replacement_invite"
+msgstr "代わりのルームを開設中です。「招待」、「招待をコピー」の順に選び、新しい招待を送ってください。古い招待は使えません。"
 
 msgid "room.action_rejected"
 msgstr "ルームの状態が変わったか、操作が拒否されました。現在の状態を確認して再試行してください。"
@@ -3992,6 +4028,9 @@ msgstr "先に準備解除をしてから席を離れてください。"
 
 msgid "room.leave_seat.keep"
 msgstr "席に残る。"
+
+msgid "room.watching_keeps"
+msgstr "観戦を続ける。もう一方を選ぶと、観戦中の対戦が終わります。"
 
 msgid "room.leave_seat.costs_score"
 msgstr "席を離れるとセットが終了し、スコアがリセットされます（{0}）。"
@@ -4410,6 +4449,9 @@ msgstr "Discordの連携プログラムが停止しました。対戦には影�
 msgid "runtime.room_connection_failed"
 msgstr "ルームへの接続に失敗しました。ルームを閉じます。未確定の結果は記録されません。"
 
+msgid "runtime.public_room_connection_failed"
+msgstr "ルームとの接続が切れました。未確定の結果は記録されません。公開ルームからもう一度参加してください。拒否された場合は、1分ほど待ってからもう一度お試しください。"
+
 msgid "runtime.operation_busy"
 msgstr "操作を実行中です。再試行してください。"
 
@@ -4418,6 +4460,9 @@ msgstr "Steamプロフィールを開けませんでした。"
 
 msgid "discord.invitation_expired"
 msgstr "Discordの招待は期限切れです。新しい招待を依頼してください。"
+
+msgid "room.invitation_expired"
+msgstr "招待は期限切れです。新しい招待を依頼してください。"
 
 msgid "runtime.spectator_action_retrying"
 msgstr "観戦の操作を送信できませんでした。再試行中です。"
@@ -4476,6 +4521,9 @@ msgstr "対戦が時間内に終了しませんでした。観戦を停止しま
 msgid "runtime.room_closed"
 msgstr "ルームが閉じられました。"
 
+msgid "runtime.room_unreachable"
+msgstr "ルームとの接続が切れたか、ルームが閉じられました。公開ルームにまだ表示されている場合は、もう一度参加してください。"
+
 msgid "runtime.removed_from_room"
 msgstr "ルームから退出させられました。"
 
@@ -4523,6 +4571,9 @@ msgstr "この対戦席を観戦していません。"
 
 msgid "room.reject.seat_taken"
 msgstr "その席は先に埋まりました。もう一度選んでください。"
+
+msgid "room.reject.table_changed"
+msgstr "このテーブルは変更されました。もう一度選んでください。"
 
 msgid "room.reject.invalid_rules"
 msgstr "対戦席のルールが無効です。"
@@ -5655,9 +5706,6 @@ msgstr "{0}、{1}"
 msgid "room.table_set"
 msgstr "セット"
 
-msgid "room.table_footer_set"
-msgstr "{0}、{1}     順番待ち{2}     観戦{3}"
-
 msgid "room.streak"
 msgstr "{0}セット連続"
 
@@ -6033,8 +6081,14 @@ msgstr "このルームはたった今満員になったか、ロックされま
 msgid "public.failure.turned_away"
 msgstr "ルームに参加を断られました。ルームから退出させられた可能性があります。"
 
+msgid "public.failure.name_taken"
+msgstr "その名前はこのルームですでに使用されています。切断された直後の場合、以前の席がまだ確保されている可能性があります。1分ほど待ってからもう一度お試しください。それ以外の場合は、設定で名前を変更してください。"
+
 msgid "public.failure.join_failed"
 msgstr "ルームに入れませんでした。閉じたばかりかもしれません。更新して、ほかのルームを選んでください。"
+
+msgid "public.failure.refused"
+msgstr "ルームに入れませんでした。直前までそのルームにいた場合は、以前の席がまだ確保されている可能性があります。1分ほど待ってからもう一度お試しください。ルームから退出させられた可能性もあります。"
 
 msgid "legend.refresh"
 msgstr "更新"
@@ -6420,18 +6474,6 @@ msgstr "テーブルごとに順番を待ち、そのテーブルで対戦しま
 msgid "room.type.arcade_detail"
 msgstr "16台の筐体：空いている台に座ると、いちばん長く待っている人と対戦します。セット後、二人ともリマッチを選べば再戦、そうでなければそれぞれ次に待っている人と対戦します。"
 
-msgid "room.arcade_status"
-msgstr "アーケードルーム / 招待のみ"
-
-msgid "room.arcade_locked_status"
-msgstr "アーケードルーム（ロック中） / 招待のみ"
-
-msgid "room.king_status"
-msgstr "キング・オブ・ザ・ヒル / 招待のみ"
-
-msgid "room.king_locked_status"
-msgstr "キング・オブ・ザ・ヒル（ロック中） / 招待のみ"
-
 msgid "room.arcade_sit"
 msgstr "席に着く"
 
@@ -6503,12 +6545,6 @@ msgstr "練習ルーム"
 
 msgid "room.practice.detail"
 msgstr "ルーム内の対戦はすべて練習対戦です。体力とゲージが回復し、KOは発生せず、タイムは{0}です。ルームが開いている間は変わりません。通常の対戦をするには、ルームを閉じて新しく作成してください。"
-
-msgid "room.practice_status"
-msgstr "練習ルーム / 招待者のみ"
-
-msgid "room.practice_locked_status"
-msgstr "練習ルームはロック中 / 招待者のみ"
 
 msgid "inputs.presses_value"
 msgstr "{0}回のボタン入力"
@@ -7629,8 +7665,14 @@ msgstr "各自の遅延"
 msgid "room.table_footer_wired_only"
 msgstr "有線のみ"
 
-msgid "room.table_counts"
-msgstr "順番待ち{0}     観戦{1}"
+msgid "room.table_rules_line"
+msgstr "ラウンド{0} / {1}秒"
+
+msgid "room.table_queue"
+msgstr "順番待ち{0}"
+
+msgid "room.table_watching"
+msgstr "観戦{0}"
 
 msgid "room.input_delay.own"
 msgstr "あなたの遅延：{0}"
@@ -8773,11 +8815,11 @@ msgstr "エリア"
 msgid "room.v2.tables"
 msgstr "テーブル"
 
+msgid "room.v2.tables_playing"
+msgstr "対戦中{0}"
+
 msgid "room.v2.table"
 msgstr "テーブル {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "対戦中 {0} · 観戦中 {1}"
 
 msgid "room.v2.group_playing"
 msgstr "対戦中"
@@ -8799,6 +8841,9 @@ msgstr "EMBER · オンライン · 公開ルーム"
 
 msgid "room.v2.invitation_only"
 msgstr "招待のみ"
+
+msgid "room.v2.friends_can_join"
+msgstr "フレンドも参加可"
 
 msgid "room.v2.listed"
 msgstr "公開ルームに掲載"
@@ -8859,12 +8904,6 @@ msgstr "表示"
 
 msgid "room.v2.show_detail"
 msgstr "元の大きさに広げます。"
-
-msgid "room.v2.copy_invite"
-msgstr "招待"
-
-msgid "room.v2.copy_link"
-msgstr "短縮リンク"
 
 msgid "settings.room_show_members_detail"
 msgstr "ルーム画面のメンバー欄です。隠すとチャットが列を使い、両方隠すとテーブルが全幅を使います。"

@@ -285,7 +285,7 @@ void TournamentRoom(){
  // On the board: the room says it is a tournament match, offers no
  // invitation, and B on the fighter's own seat does not try to leave it.
  h.view.tournament=netplay::tournament::Status{};h.Screen("room");h.Frame(0,2);
- Check(h.status==loc::Tf("room.tournament_status",2)&&!h.has("copy")&&!h.has("copy-short"),"A tournament room reads like a casual one");
+ Check(h.status==loc::Tf("room.tournament_status",2)&&!h.has("invite"),"A tournament room reads like a casual one");
  const auto sent=h.actions.size();h.FocusOn("table-0");h.Press(MenuInput::Back);
  for(std::size_t i=sent;i<h.actions.size();++i)
   Check(!RoomActionIs(h.actions[i],room::ActionKind::Unqueue),"B on a tournament seat tried to leave it");
@@ -306,7 +306,7 @@ void DiscordAccount(){
  const auto account=[&]{return h.row("discord-account");};
  const auto open=[&]{h.Screen("tab-online/discord");};
  open();
- Check(account()&&h.index("discord-account")<h.index("presence")&&h.index("community")==h.index("invites")+1,"Settings > Discord has no Discord account row before its settings, or no server row after them");
+ Check(account()&&h.index("discord-account")<h.index("presence")&&h.index("link-discord")==h.index("invites")+1,"Settings > Discord has no Discord account row before its settings, or no server row after them");
  Check(account()->value==loc::T("discord.account_none")&&!account()->adjustable&&!account()->info,"Without an Ember ID the Discord account is not Not linked");
  const auto before=h.actions.size();
  h.FocusOn("discord-account");h.Press(MenuInput::Right);h.Press(MenuInput::Left);
@@ -360,16 +360,16 @@ void RoomLinks(){
  const std::string full="sf4e3:full-invitation",link="https://embernetplay.link/j#7K3M-0X1R-T9PZ";
  h.view.session.room=netplay::RoomState::Joined;h.view.invitation=full;
  h.Screen("room");
- auto before=h.actions.size();g_clipboard.clear();h.Choose("copy-short");
+ auto before=h.actions.size();g_clipboard.clear();h.Pick("invite","copy-short");
  Check(h.actions.size()==before+1&&Is<commands::ShortInvitation>(h.actions.back()),"Copy short link did not ask for the link");
  Check(g_clipboard.empty(),"Copy short link copied before the link existed");
  h.view.shortInvitation=link;h.Frame();
  Check(g_clipboard==link,"The short link was not copied when it arrived");
  // Once known, it is copied at once and nothing is asked.
- before=h.actions.size();g_clipboard.clear();h.Choose("copy-short");
+ before=h.actions.size();g_clipboard.clear();h.Pick("invite","copy-short");
  Check(h.actions.size()==before&&g_clipboard==link,"A known short link was not copied at once");
  // A failure copies the full invitation instead.
- h.view.shortInvitation.clear();g_clipboard.clear();h.Choose("copy-short");
+ h.view.shortInvitation.clear();g_clipboard.clear();h.Pick("invite","copy-short");
  h.Frame();Check(g_clipboard.empty(),"Copy short link gave up before any answer");
  ++h.view.shortInvitationFailures;h.Frame();
  Check(g_clipboard==full,"A failed short link did not copy the full invitation");

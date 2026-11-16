@@ -164,10 +164,10 @@ inline Report ReportOf(const discord::Presence& described, const room::Snapshot&
 	}
 	if (described.training) report.status = Status::Training;
 	else report.table = TableOf(room);
-	// A private room friends may join: offered under the rule Discord's Join follows (described.offerable), once it
+	// A private room friends may join: offered under the rule Discord's Join follows (described.Offerable()), once it
 	// has an invitation, unless its host hid it from friends, and while its name is one the bridge takes (OfferName).
 	const std::string offeredName = identity.isPublic ? std::string() : OfferName(room.name);
-	if (!identity.isPublic && described.offerable && !described.secret.empty() && !room.friendsHidden && !offeredName.empty()) {
+	if (!identity.isPublic && described.Offerable() && !described.secret.empty() && room.OpenToFriends() && !offeredName.empty()) {
 		report.offered = true;
 		report.name = offeredName;
 		report.members = described.size;
@@ -177,27 +177,44 @@ inline Report ReportOf(const discord::Presence& described, const room::Snapshot&
 	return report;
 }
 
+// What a description says keeps its room from being offered, as the one reason carried on: the causes the player can act on
+// are named, a bound match or an unhealthy room is Other.
+inline OfferBlock BlockOf(discord::Presence::Held held) {
+	switch (held) {
+	case discord::Presence::Held::None: return OfferBlock::None;
+	case discord::Presence::Held::Locked: return OfferBlock::Locked;
+	case discord::Presence::Held::Full: return OfferBlock::Full;
+	default: return OfferBlock::Other;
+	}
+}
+
 // The room the player can offer a friend now, if any: a public room by its id,
 // a private room by its own invitation, under the rule discord::Describe
 // offers a room to Discord friends by (not a bound match, healthy, not locked,
 // not full). `described.secret` is the invitation when that rule holds and the
-// runtime found one (it passes none for a match's room).
+// runtime found one (it passes none for a match's room). `why` is None exactly
+// when there is a room to offer, else what keeps it from being (the default: no room).
 struct Offer {
 	enum class Kind : std::uint8_t { None, PublicRoom, PrivateRoom } kind = Kind::None;
 	// The room id, or the invitation.
 	std::string value;
-	bool Any() const { return kind != Kind::None; }
+	OfferBlock why = OfferBlock::Other;
+	bool Any() const { return why == OfferBlock::None; }
 };
 
 inline Offer OfferOf(const discord::Presence& described, const RoomIdentity& identity) {
 	Offer offer;
-	if (described.where != discord::Presence::Where::Room || !described.offerable) return offer;
+	if (described.where != discord::Presence::Where::Room) return offer;
+	offer.why = BlockOf(described.held);
+	if (offer.why != OfferBlock::None) return offer;
+	offer.why = OfferBlock::Other;
 	if (identity.isPublic) {
 		if (IsRoomId(identity.publicId)) { offer.kind = Offer::Kind::PublicRoom; offer.value = identity.publicId; }
 	} else if (!described.secret.empty()) {
 		offer.kind = Offer::Kind::PrivateRoom;
 		offer.value = described.secret;
 	}
+	if (offer.kind != Offer::Kind::None) offer.why = OfferBlock::None;
 	return offer;
 }
 

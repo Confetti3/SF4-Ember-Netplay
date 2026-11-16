@@ -3,6 +3,7 @@
 #include "ButtonPromptSetting.hxx"
 #include "ControllersScreen.hxx"
 #include "Theme.hxx"
+#include "LinkRows.hxx"
 #include "MenuRows.hxx"
 #include "RowId.hxx"
 #include "RoomFeedback.hxx"
@@ -69,18 +70,21 @@ std::string SessionProblem(const netplay::Snapshot& session) {
 bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
  return v.canEditPreferences||(v.CanEditRoomSettings()&&OnlyRoomSettingsChanged(v.preferences,edited));
 }
-// The room's own status line: the kind of room it is, whether it is locked, and
-// whether it is for wired players only. A public room's starts with its type, as
-// the list showed it, so a player who came in from there still sees which kind of
-// room they are in.
-std::string RoomKindText(const room::Snapshot& room) {
-    if(room.serverOwned)return std::string(RoomTypeName(room.type))+" · "+loc::T(room.locked?"room.public_locked_status":"room.public_status");
-    if(room.practice)return loc::T(room.locked?"room.practice_locked_status":"room.practice_status");
-    const auto& words=WordsOf(room.type);
-    return loc::T(room.locked?words.lockedStatus:words.status);
-}
+// The room's own status line: what the header's chips do not say. A public
+// room's starts with its type, as the list showed it, so a player who came in
+// from there still sees which kind of room they are in, and says it is open or
+// locked. A private room's names only what sets it apart (Arcade or King of the
+// hill, a Practice room): who may join is the header's access chip alone
+// (room_invite::AccessKey), so the two never disagree. Either says when it is
+// for wired players only; a plain private room's line is empty.
 std::string RoomStatusText(const room::Snapshot& room) {
-    return room.wiredOnly?RoomKindText(room)+" · "+loc::T("room.wired_only"):RoomKindText(room);
+    std::string text;
+    const auto add=[&](const std::string& part){text+=(text.empty()?"":" \xC2\xB7 ")+part;};
+    if(room.serverOwned)add(std::string(RoomTypeName(room.type))+" \xC2\xB7 "+loc::T(room.locked?"room.public_locked_status":"room.public_status"));
+    else if(room.type!=room::RoomType::Classic)add(RoomTypeName(room.type));
+    if(room.practice&&!room.serverOwned)add(loc::T("room.practice"));
+    if(room.wiredOnly)add(loc::T("room.wired_only"));
+    return text;
 }
 }
 float ApplicationShell::PublicListWidth() {
@@ -242,10 +246,14 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   if(developer)rows.push_back(Row("developer","Developer","Development tools."));
   // Right on the list reaches the card beside it, Left goes back to the list's top.
   for(auto& r:rows)if(r.id=="card")r.left=rows.front().id;else r.right="card";
+  // Ember's links are rows too, drawn as icons over the card (GameMenu::headerLinks), so they are here only where the
+  // card is shown: a row that is not drawn is not there for the pad to reach.
+  const float window=ImGui::GetWindowSize().x,scale=Scale();
+  if(v2::SideBySide(window,v2::SideMargin(window,scale),scale))for(const auto& link:platform::Links)rows.push_back(LinkRow(link,v.services));
  }else if(screen=="training"){
   rows=TrainingSelectRows(v,title);
  }else if(screen=="discord-invitation"){
-  title=loc::T("discord.invitation_title");rows={Row("invite-cancel",loc::T("discord.cancel_invitation"),loc::T("discord.cancel_invitation_detail"))};
+  title=loc::T("screen.room_invitation");rows={Row("invite-cancel",loc::T("discord.cancel_invitation"),loc::T("discord.cancel_invitation_detail"))};
   if(v.discordConfirm)rows.push_back(ConfirmRow("invite-switch",loc::T("discord.switch_room"),v.discordCanSwitch?loc::T("discord.switch_room_detail"):loc::T("discord.wait_game"),v.discordCanSwitch));
   else rows.push_back(Row("invite-wait",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail"),false));
  }else if(screen=="developer"&&developer){
@@ -485,7 +493,10 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
  }
  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
- else if(a.id=="community")Service(platform::ServiceAction::OpenCommunity,v,submit);
+ else if(const auto* link=LinkOfRow(a.id)){
+  commands::Service r;r.service=platform::ServiceAction::OpenLink;r.link=link;r.generation=v.session.generation;
+  Send(std::move(r),submit);
+ }
  else if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
 }
 void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const std::string& screen,const Submit& submit) {
@@ -671,8 +682,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowError(v.readyFailure);
  }
  // An invitation is a toast (Join opens its screen), and a row on Home while it waits: it never takes the player off what they were doing.
+ // A friend's invite or the player's own Join was answered by pressing it, so it asks nothing in a toast: when it must ask before leaving a room or a game, the question opens.
  if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;
-  Say(loc::T("discord.invitation_notice"),Tone::Pending,30,ToastKind::Invitation,{{loc::T("toast.join"),"discord-invitation","invite-switch"},{loc::T("updates.launch_later")}});}
+  if(v.inviteOrigin==discord::InviteOrigin::Discord)Say(loc::T("discord.invitation_notice"),Tone::Pending,30,ToastKind::Invitation,{{loc::T("toast.join"),"discord-invitation","invite-switch"},{loc::T("updates.launch_later")}});
+  else if(v.discordConfirm&&nav.Screen()!="discord-invitation")nav.Push("discord-invitation");}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  // A replay link takes the menu to its question only with no room: in a room the menu is the room's, and the link waits until it is left.
  replays_.Update(v,preferences_,nav,submit);
@@ -801,7 +814,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // Each screen sets its header (eyebrow, chips), tabs, bell, detail pane and
  // typing below, every frame; the screens drawn first (Button layout, Pad
  // setup) set their own.
- menu_.eyebrow.clear();menu_.headerChips.clear();menu_.tabs.clear();menu_.tab=-1;menu_.statusLeads.clear();menu_.customDetail=false;menu_.typesText=false;
+ menu_.eyebrow.clear();menu_.headerChips.clear();menu_.headerLinks.clear();menu_.tabs.clear();menu_.tab=-1;menu_.statusLeads.clear();menu_.customDetail=false;menu_.typesText=false;
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit))return false;
  // The room board shows a Big picture in its tables' place instead (this frame's word, boardPicture_).
  if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot,v.CanEditRoomSettings())){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
@@ -883,6 +896,8 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // Home's corner says which version this is and which channel it follows.
  menu_.footerNote=screen=="home"?VersionLine(InstalledVersion(v)):std::string();
  if(screen=="home"){
+  // The icons of the links among the rows (the header draws them over the card).
+  for(const auto& row:rows)if(const auto* link=LinkOfRow(row.id))menu_.headerLinks.push_back({row.id,LinkIcon(link->mark)});
   // In a room Back does nothing here (the game's own menu is locked behind
   // Ember), so Home offers no way out and the legend no Back.
   if(opening||input::HomeBackHidesShell(v.session.room)){

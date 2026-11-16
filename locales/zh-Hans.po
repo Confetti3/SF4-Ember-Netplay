@@ -312,14 +312,14 @@ msgstr "操作失败，请重试。更新恢复备份保存在 .ember-update-bac
 msgid "services.operation_cancelled"
 msgstr "操作已取消。"
 
-msgid "services.opening_community"
-msgstr "正在浏览器中打开 Ember Discord..."
+msgid "services.opening_link"
+msgstr "正在浏览器中打开 {0}..."
 
-msgid "services.community_opened"
-msgstr "已在浏览器中打开。请切换到浏览器加入服务器。"
+msgid "services.link_opened"
+msgstr "已在浏览器中打开。请切换到浏览器。"
 
-msgid "services.community_failed"
-msgstr "无法打开浏览器。请访问 {0} 加入。"
+msgid "services.link_failed"
+msgstr "无法打开浏览器。请访问 {0}。"
 
 msgid "services.opening_steam_profile"
 msgstr "正在浏览器中打开 Steam 个人资料..."
@@ -534,8 +534,8 @@ msgstr "帮助与关于"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Discord 邀请"
+msgid "screen.room_invitation"
+msgstr "房间邀请"
 
 msgid "screen.assignment"
 msgstr "分配控制器"
@@ -1671,6 +1671,15 @@ msgstr "该邀请已结束。"
 msgid "friends.nothing_to_offer"
 msgstr "你的房间目前无法发出邀请。"
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "此房间的加入权限为已锁定。要邀请好友，请在房间设置中改为开放。"
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "此房间的加入权限为已锁定。"
+
+msgid "friends.nothing_to_offer.full"
+msgstr "此房间已满。"
+
 msgid "friends.busy"
 msgstr "请等待上一个请求完成。"
 
@@ -2190,9 +2199,6 @@ msgstr "好友功能在 Ember 的账号服务上使用单独的 Discord 关联�
 msgid "discord.server"
 msgstr "Ember Discord 服务器"
 
-msgid "discord.invitation_title"
-msgstr "DISCORD 邀请"
-
 msgid "discord.cancel_invitation"
 msgstr "取消邀请"
 
@@ -2259,6 +2265,24 @@ msgstr "加入 Ember Discord"
 msgid "about.discord_detail"
 msgstr "在 {0} 查找玩家、对战和支持。浏览器将在游戏后方打开。"
 
+msgid "about.kofi"
+msgstr "在 Ko-fi 支持 Ember"
+
+msgid "about.kofi_detail"
+msgstr "在 {0} 支持 Ember 的开发。浏览器将在游戏后方打开。"
+
+msgid "about.website"
+msgstr "Ember 网站"
+
+msgid "about.website_detail"
+msgstr "在 {0} 查看房间、排行榜和回放。浏览器将在游戏后方打开。"
+
+msgid "about.twitter"
+msgstr "开发者的 Twitter"
+
+msgid "about.twitter_detail"
+msgstr "在 {0} 查看 Ember 开发者的动态。浏览器将在游戏后方打开。"
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 
@@ -2276,9 +2300,6 @@ msgstr "正在加入房间，等待网络..."
 
 msgid "room.locked_status"
 msgstr "房间已锁定／仅限邀请"
-
-msgid "room.private_status"
-msgstr "私人房间／仅限邀请"
 
 msgid "room.tournament_status"
 msgstr "赛事对局，先胜{0}局。只有本局的两名玩家可以对战。"
@@ -2592,6 +2613,12 @@ msgstr "清空此槽位"
 msgid "training.reply.clear_slot.detail"
 msgstr "移除此槽位的招式。"
 
+msgid "training.reply.clear_all"
+msgstr "清空所有槽位"
+
+msgid "training.reply.clear_all.detail"
+msgstr "移除所有反击槽位中的招式。反击设置保持不变。"
+
 msgid "training.reply.every_fighter"
 msgstr "所有角色"
 
@@ -2711,6 +2738,12 @@ msgstr "关闭训练操作"
 
 msgid "training.close_controls.detail"
 msgstr "关闭 Ember。如 SF4 暂停菜单仍打开，请将其关闭以继续。"
+
+msgid "training.back_to_room"
+msgstr "返回房间"
+
+msgid "training.back_to_room.detail"
+msgstr "离开训练并返回 {0}。您在房间中的座位会保留。"
 
 msgid "training.slot"
 msgstr "槽位 {0}"
@@ -3689,6 +3722,12 @@ msgstr "复制短链接"
 msgid "room.copy_short_invitation.detail"
 msgstr "用于聊天的短链接。房间开放期间由 Ember 链接服务保存。"
 
+msgid "room.invite.detail"
+msgstr "邀请好友，或复制链接或邀请以便分享。"
+
+msgid "room.invite.more_friends"
+msgstr "更多好友…"
+
 msgid "room.leaving"
 msgstr "正在离开房间..."
 
@@ -3724,9 +3763,6 @@ msgstr "Wi-Fi 连接"
 
 msgid "room.link_unknown"
 msgstr "连接方式未知"
-
-msgid "room.table_footer"
-msgstr "{0} 回合／{1} 秒     排队 {2}     观战 {3}"
 
 msgid "room.board_status_host_slot"
 msgstr "房主／{0}／对战席 {1}"
@@ -3776,8 +3812,8 @@ msgstr "已通过房间链接打开。确认后请选择加入房间。"
 msgid "room.link_waiting"
 msgstr "已打开一个房间链接。离开当前房间后，它会出现在加入房间界面。"
 
-msgid "room.replacement_opening"
-msgstr "新房间正在打开。请选择复制邀请并发送新链接，旧链接已失效。"
+msgid "room.replacement_invite"
+msgstr "新房间正在打开。请依次选择邀请和复制邀请，并发送新邀请。旧邀请已失效。"
 
 msgid "room.action_rejected"
 msgstr "房间已变化或拒绝了此操作。请查看当前状态后重试。"
@@ -3994,6 +4030,9 @@ msgstr "请先取消准备，再离开席位。"
 
 msgid "room.leave_seat.keep"
 msgstr "保留席位"
+
+msgid "room.watching_keeps"
+msgstr "继续观战。另一个选择会结束你正在观战的对局。"
 
 msgid "room.leave_seat.costs_score"
 msgstr "离开将结束本组对战并重置比分（{0}）。"
@@ -4412,6 +4451,9 @@ msgstr "Discord 辅助程序已停止，不影响对战。"
 msgid "runtime.room_connection_failed"
 msgstr "房间连接失败。房间即将关闭；未确认的结果不会计入记录。"
 
+msgid "runtime.public_room_connection_failed"
+msgstr "您与房间的连接已断开。未确认的结果不会计入记录。请从公开房间重新加入。如果被拒绝，请等待一分钟后再试。"
+
 msgid "runtime.operation_busy"
 msgstr "操作繁忙，请重试。"
 
@@ -4420,6 +4462,9 @@ msgstr "无法打开 Steam 个人资料。"
 
 msgid "discord.invitation_expired"
 msgstr "Discord 邀请已过期。请索取新邀请。"
+
+msgid "room.invitation_expired"
+msgstr "邀请已过期。请索取新邀请。"
 
 msgid "runtime.spectator_action_retrying"
 msgstr "观战操作发送失败，正在重试。"
@@ -4478,6 +4523,9 @@ msgstr "对战未能及时关闭，观战已停止。"
 msgid "runtime.room_closed"
 msgstr "房间已关闭。"
 
+msgid "runtime.room_unreachable"
+msgstr "您与房间的连接已断开，或房间已关闭。如果它仍在公开房间中列出，请重新加入。"
+
 msgid "runtime.removed_from_room"
 msgstr "您已被移出房间。"
 
@@ -4525,6 +4573,9 @@ msgstr "您未观看此对战席。"
 
 msgid "room.reject.seat_taken"
 msgstr "该席位刚被占用。请重新选择。"
+
+msgid "room.reject.table_changed"
+msgstr "该对战台已变化。请重新选择。"
 
 msgid "room.reject.invalid_rules"
 msgstr "对战席规则无效。"
@@ -5657,9 +5708,6 @@ msgstr "{0}，{1}"
 msgid "room.table_set"
 msgstr "对战组"
 
-msgid "room.table_footer_set"
-msgstr "{0}，{1}     排队 {2}     观战 {3}"
-
 msgid "room.streak"
 msgstr "连胜 {0} 组"
 
@@ -6035,8 +6083,14 @@ msgstr "此房间刚刚已满或被锁定，请选择其他房间。"
 msgid "public.failure.turned_away"
 msgstr "房间拒绝了加入请求。您可能已被移出该房间。"
 
+msgid "public.failure.name_taken"
+msgstr "该名称已在此房间中使用。如果您刚刚断开连接，您原来的座位可能仍被保留：请等待一分钟后再试。否则，请在设置中更改名称。"
+
 msgid "public.failure.join_failed"
 msgstr "无法进入房间，它可能刚刚关闭。请刷新后选择其他房间。"
+
+msgid "public.failure.refused"
+msgstr "房间没有接纳您。如果您刚刚还在房间中，房间可能仍保留着您原来的座位：请等待一分钟后再试。您也可能已被移出该房间。"
 
 msgid "legend.refresh"
 msgstr "刷新"
@@ -6422,18 +6476,6 @@ msgstr "玩家在桌前排队，并在该桌对战。"
 msgid "room.type.arcade_detail"
 msgstr "十六台街机：坐到任意空位，与等待最久的玩家对战。一局结束后，双方都选“再战”就再打一局，否则各自与下一位等待的玩家对战。"
 
-msgid "room.arcade_status"
-msgstr "街机房间 / 仅限邀请"
-
-msgid "room.arcade_locked_status"
-msgstr "街机房间已锁定 / 仅限邀请"
-
-msgid "room.king_status"
-msgstr "擂台赛 / 仅限邀请"
-
-msgid "room.king_locked_status"
-msgstr "擂台赛已锁定 / 仅限邀请"
-
 msgid "room.arcade_sit"
 msgstr "坐下"
 
@@ -6505,12 +6547,6 @@ msgstr "练习房间"
 
 msgid "room.practice.detail"
 msgstr "房间内的每场对战都是练习对战：体力和能量槽会恢复，双方都不会被击倒，回合时间为 {0}。房间开启期间不会改变。要进行普通对战，请关闭房间并重新创建。"
-
-msgid "room.practice_status"
-msgstr "练习房间／仅限邀请"
-
-msgid "room.practice_locked_status"
-msgstr "练习房间已锁定／仅限邀请"
 
 msgid "inputs.presses_value"
 msgstr "{0} 次按键"
@@ -7631,8 +7667,14 @@ msgstr "各自延迟"
 msgid "room.table_footer_wired_only"
 msgstr "仅限有线"
 
-msgid "room.table_counts"
-msgstr "排队 {0}     观战 {1}"
+msgid "room.table_rules_line"
+msgstr "回合 {0}／{1} 秒"
+
+msgid "room.table_queue"
+msgstr "排队 {0}"
+
+msgid "room.table_watching"
+msgstr "观战 {0}"
 
 msgid "room.input_delay.own"
 msgstr "你的延迟：{0}"
@@ -8775,11 +8817,11 @@ msgstr "区域"
 msgid "room.v2.tables"
 msgstr "对战台"
 
+msgid "room.v2.tables_playing"
+msgstr "对战 {0}"
+
 msgid "room.v2.table"
 msgstr "对战台 {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} 人对战 · {1} 人观战"
 
 msgid "room.v2.group_playing"
 msgstr "对战中"
@@ -8801,6 +8843,9 @@ msgstr "EMBER · 在线 · 公开房间"
 
 msgid "room.v2.invitation_only"
 msgstr "仅限邀请"
+
+msgid "room.v2.friends_can_join"
+msgstr "好友可加入"
 
 msgid "room.v2.listed"
 msgstr "已列入公开房间"
@@ -8861,12 +8906,6 @@ msgstr "显示"
 
 msgid "room.v2.show_detail"
 msgstr "展开为完整大小。"
-
-msgid "room.v2.copy_invite"
-msgstr "邀请"
-
-msgid "room.v2.copy_link"
-msgstr "短链接"
 
 msgid "settings.room_show_members_detail"
 msgstr "房间界面的成员面板。隐藏后由聊天占用该列，两者都隐藏时对战台占满整个宽度。"

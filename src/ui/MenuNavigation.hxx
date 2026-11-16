@@ -39,6 +39,12 @@ struct MenuChoice { std::string id, label, detail; bool enabled = true; };
 // Whose words an entry's detail carries. The renderer asks the atlas for the
 // glyphs of player-written detail when it draws it, and only then.
 enum class DetailText { Interface, Name, Chat };
+// What a row's segments are. Value: the words of its value, which the screen
+// steps on Adjust (Training's chips). Places: places on the row that the
+// navigation lights in turn (a table card's offers): Left and Right move the
+// light and, past either end, go on by placement as from any row; Select
+// takes the lit one as Chosen with its id (MenuNavigation::Lit).
+enum class SegmentKind { Value, Places };
 struct MenuEntry {
     std::string id, label, detail, value;
     bool enabled = true, adjustable = false, text = false, confirm = false;
@@ -100,9 +106,11 @@ struct MenuEntry {
     // when the line is too short for both, rather than being cut beside it.
     bool wholeValue = false;
     // An adjustable value's words all shown on the row as chips, the value
-    // among them lit ("LP MP HP EX"): Left and Right move along them, and
-    // Select (with opens) takes the lit one. No arrows.
-    std::vector<std::string> segments;
+    // (a segment's label) among them lit ("LP MP HP EX"): Left and Right move
+    // along them, and Select (with opens) takes the lit one. No arrows. Each
+    // carries an id, its words and whether it can be taken now.
+    std::vector<MenuChoice> segments;
+    SegmentKind segmentKind = SegmentKind::Value;
     // The heading this row sits under; a new one starts a group of cards.
     std::string group;
     // A match's row (a replay): each side's fighter as a small native
@@ -121,6 +129,7 @@ struct MenuEntry {
 // What Select does on an entry, decided in one place so navigation and the
 // legend agree. A reader wins over text, text over choices, choices over a
 // confirmation (a confirmation that also carries choices asks by choosing).
+// On a row of places Select takes the lit one (MenuNavigation::TakeLit).
 // A value row that is also text (a number that can be typed) steps with
 // Left/Right and opens its editor on Select, empty, so what is typed (on a
 // keyboard or the on-screen one) is the whole number.
@@ -130,9 +139,15 @@ inline bool MenuValueIsNumber(const MenuEntry& e) {
     const char c = e.value.empty() ? 0 : e.value[0];
     return e.adjustable && ((c >= '0' && c <= '9') || ((c == '+' || c == '-') && e.value.size() > 1));
 }
+// Whether Left and Right do something on the row itself: step its value, or
+// light its places (SegmentKind::Places). The legend and speech read it.
+inline bool MenuSteps(const MenuEntry& e) {
+    return e.adjustable || (e.segmentKind == SegmentKind::Places && !e.segments.empty());
+}
 inline SelectOpens MenuSelectOpens(const MenuEntry& e) {
     if (!e.enabled || e.info) return SelectOpens::Nothing;
     if (e.reading) return SelectOpens::Reader;
+    if (e.segmentKind == SegmentKind::Places && !e.segments.empty()) return SelectOpens::Activate;
     if (e.adjustable && e.choices.empty() && !e.opens && !e.text) return SelectOpens::Nothing;
     if (e.text) return SelectOpens::Edit;
     if (!e.choices.empty()) return SelectOpens::Choice;
@@ -274,8 +289,8 @@ public:
     }
     // A screen opening (pushed, returned to, a modal closing): what is held
     // now counts once released, see PressGate. The rows placed so far were
-    // the old screen's.
-    void Rearm() { gate_.Rearm(); repeat_.Reset(); placing_.clear(); placed_.clear(); }
+    // the old screen's, and nothing is lit on a row of places.
+    void Rearm() { gate_.Rearm(); repeat_.Reset(); placing_.clear(); placed_.clear(); light_ = {}; }
     // This frame's presses through the screen's gate, for a reader that
     // answers them in the screen's place (a focused toast). What it takes
     // stays held for the screen, so the next frame does not see it again:
@@ -299,15 +314,20 @@ public:
     // What the board on this screen does at its edges (MenuEdge); Stay unless set.
     void SetEdge(MenuEdge edge) { states_[Screen()].edge = edge; }
     MenuEdge Edge() const { return states_.at(Screen()).edge; }
-    // The list entry its menu draws beside the list rather than in it, on this
-    // screen (Home's card in its pane; none when the card is drawn as a row).
-    // It is a column of its own: Up and Down on it keep the focus there, and
-    // the list's Up and Down pass over it, so the bottom row goes round to the
-    // top rather than across to the card. Left and Right reach it as before.
-    // It is the one rule: Move and ListEnd read it, and so does the menu's
-    // layout (Aside), instead of guessing from how the rows name each other.
-    void SetAside(const std::string& id) { states_[Screen()].aside = id; }
-    const std::string& Aside() const { return states_.at(Screen()).aside; }
+    // The entries its menu draws beside the list rather than in it, on this
+    // screen (Home's card in its pane and the links over it; none when the card
+    // is drawn as a row). They are a region of their own: the list's Up and
+    // Down pass over them, so the bottom row goes round to the top rather than
+    // across to the card, and a neighbour a row names (Right on the list) leads
+    // in. Among themselves they move by where they were drawn (Place) and stay
+    // at the region's edges. It is the one rule: Move and ListEnd read it, and
+    // so does the menu's layout (IsAside), instead of guessing from how the
+    // rows name each other.
+    void SetAside(std::vector<std::string> ids) { states_[Screen()].aside = std::move(ids); }
+    bool IsAside(const std::string& id) const {
+        const auto state=states_.find(Screen());
+        return state!=states_.end()&&std::find(state->second.aside.begin(),state->second.aside.end(),id)!=state->second.aside.end();
+    }
     const std::string& Focus() const { return states_.at(Screen()).id; }
     // The one open modal, if any; it belongs to the entry named by modalId_.
     // Confirming, Choosing, Editing and Reading each name exactly one mode.
@@ -367,14 +387,29 @@ public:
                 [&](const MenuEntry& e) { return e.id == modalId_; });
             state.id = modalId_; state.index = static_cast<std::size_t>(target - entries.begin());
         }
+        ReconcileLight(entries);
     }
     // The entry to focus on this screen once its entries exist, for a screen
     // just pushed whose rows are built on its first frame.
-    void Prefer(const std::string& id) { states_[Screen()].id = id; }
+    void Prefer(const std::string& id) { if (states_[Screen()].id != id) light_ = {}; states_[Screen()].id = id; }
+    // A focus moved here other than by a direction (the pointer, a screen's own
+    // rule) starts with nothing lit on a row of places: its first Select lights.
     void Focus(const std::string& id,const std::vector<MenuEntry>& entries) {
         if (mode_ != Modal::None && id != modalId_) return;
         auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==id;});
-        if(it!=entries.end()) { auto& s=states_[Screen()]; s.id=id; s.index=it-entries.begin(); }
+        if(it!=entries.end()) { auto& s=states_[Screen()]; if(s.id!=id) light_={}; s.id=id; s.index=it-entries.begin(); }
+    }
+    // The segment lit on row `id`, a row of places (SegmentKind::Places), or
+    // empty while none is: until a direction arrives on the row, its first
+    // Select, or the pointer moving onto one (Light). It may name a place the
+    // row no longer offers, which Select then sends once to be refused.
+    const std::string& Lit(const std::string& id) const { return light_.row == id ? light_.segment : NoId(); }
+    // The pointer moved onto segment `segment` of row `id`: the row takes the
+    // focus and the segment the light, as no question is open.
+    void Light(const std::string& id, const std::string& segment, const std::vector<MenuEntry>& entries) {
+        if (mode_ != Modal::None) return;
+        Focus(id, entries);
+        if (Focus() == id) light_ = {id, segment};
     }
     MenuAction Return() {
         if (mode_ != Modal::None) { Cancel(); return {}; }
@@ -470,14 +505,68 @@ public:
             if(pressed&MenuInput::Select) return Confirm(confirmSelected_,entries);
             return {};
         }
-        if(pressed&MenuInput::Select) return Choose(entries);
+        // A row of places takes Select for the place it lights (TakeLit).
+        if(pressed&MenuInput::Select) return entries.empty()?MenuAction{}:IsPlaces(entries[states_[Screen()].index])?TakeLit(entries[states_[Screen()].index]):Choose(entries);
         if(!stepped||entries.empty()) return {};
-        const unsigned direction=stepped;
+        // A direction that lands on a row of places lights the place nearest the
+        // side it came from: the last coming leftwards, else the first.
+        const std::string from=states_[Screen()].id;
+        const auto moved=Move(stepped,pressed,entries,columns);
+        const auto& s=states_[Screen()];
+        if(s.id!=from) {
+            const auto& e=entries[s.index];
+            light_=IsPlaces(e)?LitSegment{e.id,(stepped&MenuInput::Left?e.segments.back():e.segments.front()).id}:LitSegment{};
+        }
+        return moved;
+    }
+private:
+    static const std::string& NoId() { static const std::string none; return none; }
+    static bool IsPlaces(const MenuEntry& e) { return e.segmentKind==SegmentKind::Places&&!e.segments.empty(); }
+    // Select on a row of places: the lit place as Chosen with its id, for the
+    // screen to send or to refuse with its reason (one it cannot take now);
+    // with none lit, the first lights. A place lit and gone since (a seat
+    // taken under the light) is sent once as it was, for the screen to refuse
+    // rather than take what is offered now, and the light goes out: the next
+    // Select lights again.
+    MenuAction TakeLit(const MenuEntry& e) {
+        if(Lit(e.id).empty()) { light_={e.id,e.segments.front().id}; return {}; }
+        const MenuAction lit{MenuAction::Chosen,e.id,light_.segment};
+        if(std::none_of(e.segments.begin(),e.segments.end(),[&](const MenuChoice& c){return c.id==light_.segment;})) light_={};
+        return e.enabled?lit:MenuAction{};
+    }
+    // A focused row of places keeps its light, even on a place it no longer
+    // offers, which is then drawn lit nowhere (TakeLit). A row no longer
+    // focused, or no longer of places, has none.
+    void ReconcileLight(const std::vector<MenuEntry>& entries) {
+        if(light_.row.empty()) return;
+        const auto row=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==light_.row;});
+        if(light_.row!=Focus()||row==entries.end()||!IsPlaces(*row)) light_={};
+    }
+    // What a direction does from the focused row: its explicit neighbour, the
+    // aside's own moves, a value row's Adjust, a row of places' light, else a
+    // move by where the rows were drawn or by their order.
+    MenuAction Move(unsigned direction, unsigned pressed, const std::vector<MenuEntry>& entries, int columns) {
         auto& s=states_[Screen()]; const auto& e=entries[s.index];
         int delta=(direction&MenuInput::Left)?-1:(direction&MenuInput::Right)?1:0;
         const auto& neighbor=delta<0?e.left:delta>0?e.right:direction&MenuInput::Up?e.up:e.down;
         if(!neighbor.empty()){Focus(neighbor,entries);return {};}
         int index=static_cast<int>(s.index), count=static_cast<int>(entries.size());
+        // The aside's rows move among themselves by where they were drawn, and stay at its edges;
+        // only the list's rows (or a neighbour a row names) lead out of it.
+        if(IsAside(e.id)) {
+            if(const Placement* at=Placed(e.id)) {
+                const auto to=Nearest(*at,delta,direction&MenuInput::Up?-1:direction&MenuInput::Down?1:0,entries);
+                if(to<entries.size()&&IsAside(entries[to].id)) { s.index=to; s.id=entries[to].id; }
+            }
+            return {};
+        }
+        // A row of places: Left and Right light its places in turn (with none
+        // lit, the one at that end); past either end they move on below.
+        if(delta&&IsPlaces(e)) {
+            const auto lit=std::find_if(e.segments.begin(),e.segments.end(),[&](const MenuChoice& c){return c.id==Lit(e.id);});
+            const int at=lit==e.segments.end()?(delta>0?-1:static_cast<int>(e.segments.size())):static_cast<int>(lit-e.segments.begin());
+            if(at+delta>=0&&at+delta<static_cast<int>(e.segments.size())) { light_={e.id,e.segments[static_cast<std::size_t>(at+delta)].id}; return {}; }
+        }
         // A grid's footer rows sit under its cards, one per line.
         const int cells=columns>1?static_cast<int>(MenuGridCells(entries)):count;
         if(delta&&e.adjustable&&(columns==1||index>=cells)) return e.enabled ? MenuAction{MenuAction::Adjust,e.id,{},delta} : MenuAction{};
@@ -502,26 +591,23 @@ public:
             else if((direction&MenuInput::Down)&&index+1<count) ++index;
         }
         else if(columns==1&&!s.aside.empty()&&(direction&(MenuInput::Up|MenuInput::Down))) {
-            if(e.id==s.aside) return {};
             const int way=direction&MenuInput::Up?-1:1;
             int to=index+way;
-            if(to>=0&&to<count&&entries[to].id==s.aside) to+=way;
-            if(to<0||to>=count) { if(!wrap) return {}; to=ListEnd(entries,way>0,s.aside); }
+            while(to>=0&&to<count&&IsAside(entries[to].id)) to+=way;
+            if(to<0||to>=count) { if(!wrap) return {}; to=ListEnd(entries,way>0); }
             index=to;
         }
-        else if(direction&MenuInput::Up) { if(index>=columns)index-=columns; else if(columns==1&&wrap)index=ListEnd(entries,false,s.aside); }
+        else if(direction&MenuInput::Up) { if(index>=columns)index-=columns; else if(columns==1&&wrap)index=ListEnd(entries,false); }
         else if(direction&MenuInput::Down) {
             if(index/columns<(cells-1)/columns)index=(std::min)(cells-1,index+columns);
             else if(cells<count)index=cells;
-            else if(columns==1&&wrap)index=ListEnd(entries,true,s.aside);
+            else if(columns==1&&wrap)index=ListEnd(entries,true);
         }
         else if(columns>1 && delta && index/columns==(index+delta)/columns && index+delta>=0 && index+delta<cells) index+=delta;
         if(index<0) index=0;
         s.index=index; s.id=entries[index].id;
         return {};
     }
-private:
-    static const std::string& NoId() { static const std::string none; return none; }
     // A row where its board drew it (Place), and what its scroll shows.
     struct Placement {
         std::string id;
@@ -556,7 +642,7 @@ private:
     bool BodyPlaced(const std::vector<MenuEntry>& entries) const {
         return std::any_of(placed_.begin(),placed_.end(),[&](const Placement& p) {
             const auto e=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& entry){return entry.id==p.id;});
-            return e!=entries.end()&&!e->footer;
+            return e!=entries.end()&&!e->footer&&!IsAside(e->id);
         });
     }
     // The entry placed nearest past `from` in the direction (dx, dy). Past:
@@ -614,11 +700,11 @@ private:
     // over the entry the menu draws beside the list (`aside`, SetAside). Nothing
     // is inferred from how the rows name each other: a partner on a row's line
     // (Frame data's two fighters) is in the list, and so is a card drawn as a row.
-    static int ListEnd(const std::vector<MenuEntry>& entries, bool first, const std::string& aside) {
+    int ListEnd(const std::vector<MenuEntry>& entries, bool first) const {
         const int count=static_cast<int>(entries.size());
         for(int k=0;k<count;++k) {
             const int i=first?k:count-1-k;
-            if(aside.empty()||entries[i].id!=aside) return i;
+            if(!IsAside(entries[i].id)) return i;
         }
         return first?0:count-1;
     }
@@ -634,7 +720,7 @@ private:
             std::equal(choiceIds_.begin(), choiceIds_.end(), e.choices.begin(),
                 [](const std::string& id, const MenuChoice& c) { return id == c.id; });
     }
-    struct State { std::string id, aside; std::size_t index=0; float scroll=0; MenuEdge edge=MenuEdge::Stay; };
+    struct State { std::string id; std::vector<std::string> aside; std::size_t index=0; float scroll=0; MenuEdge edge=MenuEdge::Stay; };
     std::vector<std::string> stack_;
     std::map<std::string,State> states_;
     // The open modal and the entry it belongs to. choiceIds_ holds the option
@@ -649,5 +735,7 @@ private:
     // frame's directions read.
     std::vector<Placement> placing_, placed_;
     DirectionRepeat repeat_;
+    // The place lit on the focused row of places (Lit), by id.
+    struct LitSegment { std::string row, segment; } light_;
 };
 } }

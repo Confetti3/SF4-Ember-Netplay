@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -165,10 +166,12 @@ inline int GameFrames(const Script& script, float at, int to) {
     int frames = 0;
     for (; at < to; ++frames) {
         if (frames >= 4096) return -1;
+        // Each pass ends the frame or moves on to the next speed change, and past the last one
+        // the next is infinity, which any step reaches: a huge speed cannot stall short of it.
         for (float left = 1; left > 0;) {
             const float step = SpeedAt(script, at);
             if (!(step > 0)) return -1;
-            float next = 1e9f;
+            float next = std::numeric_limits<float>::infinity();
             for (const auto& speed : script.speeds) if (speed.from > at && speed.from < next) next = static_cast<float>(speed.from);
             if (at + step * left <= next) { at += step * left; break; }
             left -= (next - at) / step;

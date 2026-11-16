@@ -14,6 +14,11 @@
 namespace sf4e { namespace ui {
 using namespace room_controls;
 namespace {
+// After a table card's offer was sent, a press of it again, or an A on that
+// table's card, is the same press for a moment (SamePressSeconds) and while
+// the table has not changed, up to OfferResendSeconds: a request the room
+// refused without a word can then be sent again.
+constexpr double SamePressSeconds=.5,OfferResendSeconds=2;
 bool Has(const std::vector<MenuEntry>& rows,const std::string& id){
  return !id.empty()&&std::any_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
 }
@@ -95,11 +100,12 @@ void ApplicationShell::SettleRoomBoard(const ShellView& v,std::vector<MenuEntry>
   for(std::size_t t=0;t<room::TablesInPlay(s)&&to.empty();++t)
    if((!s.tables[t].p1||!s.tables[t].p2)&&Has(rows,"table-"+std::to_string(s.tables[t].id)))to="table-"+std::to_string(s.tables[t].id);
  }
- // A focus it moves opens like a screen (MenuNavigation::Rearm): that frame
- // counts nothing and a button held into it counts once released, so a press
- // made as a room changes under an open board never lands on the row moved to.
+ // The opening focus opens like a screen (MenuNavigation::Rearm): that frame
+ // counts nothing, a button held into it counts once released, and a table
+ // card lights nothing until a direction or a first A, so a press made as a
+ // room changes under an open board never lands on the row it focuses.
  const std::string& start=Has(rows,to)?to:rows.front().id;
- if(start!=nav.Focus()){nav.Focus(start,rows);nav.Rearm();}
+ nav.Focus(start,rows);nav.Rearm();
 }
 
 // X, Y and View open the fighter, table options and chat; the same button
@@ -129,6 +135,14 @@ void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
 void ApplicationShell::StepPick(SelectionStep step,const Submit& submit) { submit(step); }
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {
  using namespace room;auto& nav=menu_.navigation;
+ const double pressTime=ImGui::GetTime();
+ // Whether a press at `table` (of `offer`, or any A on its card when empty)
+ // is the offer just sent there pressed again (OfferSent).
+ const auto samePress=[&](int table,const std::string& offer){
+  if(offerSent_.table!=table||(!offer.empty()&&offer!=offerSent_.offer))return false;
+  const bool changed=v.room.tables[static_cast<std::size_t>(table)].revision!=offerSent_.revision;
+  return pressTime-offerSent_.at<SamePressSeconds||(!changed&&pressTime-offerSent_.at<OfferResendSeconds);
+ };
  // Check connection, and a delay to apply (check false).
  const auto sendDelay=[&](ShellAction request,bool check){
   if(!RoomActionsAvailable(v) || v.delayLocked || (check && (!v.canProbe || v.probeStatus=="checking"))) {
@@ -187,21 +201,37 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  }
  // A cabinet's choice is the row it stands for; Leave seat answers its question.
  if(a.kind==MenuAction::Chosen&&RowKey(a.id,"cabinet-")){
-  if(a.text=="leave-seat")LeavePlace(v,submit);else if(a.text!="stay")RoomAction({MenuAction::Activate,a.text},v,submit);
+  if(a.text==TableAsk::LeaveSeat)LeavePlace(v,submit);else if(a.text!="stay")RoomAction({MenuAction::Activate,a.text},v,submit);
   return;
  }
- // A seat chooser's option, exactly as the player saw it.
+ // A table card's offer, exactly as the player saw it lit, or the answer to
+ // its question (leaving a seat, or ending the watched game).
  if(a.kind==MenuAction::Chosen){
-  // More…'s choice is the row it stands for.
-  if(a.id=="room-more"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
+  // More…'s and Invite's choice is the row it stands for.
+  if(a.id=="room-more"||a.id=="invite"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
   const auto table=RowKey<int>(a.id,"table-");if(!table||*table>=static_cast<int>(v.room.tables.size()))return;
   selectedTable_=*table;
-  if(a.text=="options"){OpenTableOptions(v,selectedTable_);return;}
-  if(a.text=="leave-seat"){LeavePlace(v,submit);return;}
+  if(a.text==TableAsk::LeaveSeat){LeavePlace(v,submit);return;}
   const auto* option=FindSeatOption(a.text);
   if(!option)return;
+  // A mashed A or a double click is the same press.
+  if(samePress(*table,a.text))return;
+  // An offer the card no longer has (a seat taken under the light) is said,
+  // never traded for what the card offers now; one the room would refuse
+  // says why.
+  const auto& t=v.room.tables[selectedTable_];
+  const auto offers=SeatChoices(v,t);
+  const auto offer=std::find_if(offers.begin(),offers.end(),[&](const MenuChoice& o){return o.id==a.text;});
+  if(offer==offers.end()){Refuse(loc::T(option->seat>=0?"room.reject.seat_taken":"room.reject.table_changed"));return;}
+  if(!offer->enabled){Refuse(offer->detail);return;}
+  // An offer that ends the game this PC watches asks first, on its card; the
+  // question's own answer sends it.
+  const bool confirmed=tableAsk_.asked&&tableAsk_.table==*table&&tableAsk_.offer==a.text;
+  if(EndsWatchedView(v,option->kind)&&!confirmed){tableAsk_={*table,a.text,false};return;}
+  tableAsk_={};
   Action request;request.table=static_cast<std::uint8_t>(selectedTable_);request.kind=option->kind;request.seat=static_cast<std::int8_t>(option->seat);
-  if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
+  if(SendRoom(std::move(request),v,submit))offerSent_={*table,a.text,t.revision,pressTime};
+  else if(error_.empty())error_=loc::T("room.action_rejected");
   return;
  }
  if(const auto index=RowKey<std::size_t>(a.id,"cabinet-");index&&*index<room::CabinetCount){
@@ -221,6 +251,9 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(const auto table=RowKey<int>(a.id,"matchup-");table&&*table<static_cast<int>(v.room.tables.size())){OpenTableOptions(v,*table);return;}
  if(const auto table=RowKey<int>(a.id,"table-");table&&*table<static_cast<int>(v.room.tables.size())){
   selectedTable_=*table;
+  // An A that follows an offer just sent here is that press again: the seat it
+  // took is not readied by it.
+  if(samePress(*table,{}))return;
   const auto mine=room::PlaceOf(v.room,v.room.localMember);
   // A on your own seat readies; on any other card it opens that table's
   // options, which is looking, not joining: Queue and Watch there keep their
@@ -239,7 +272,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   selectedTable_=exit.table;
   // A seat that would lose a score or pass to the queue is asked about first;
   // the board opens the question on the next frame, with the answer in Chosen.
-  if(exit.seat&&exit.allowed&&exit.cost){leaveAsk_=exit.table;leaveAsked_=false;return;}
+  if(exit.seat&&exit.allowed&&exit.cost){tableAsk_={exit.table,TableAsk::LeaveSeat,false};return;}
   LeavePlace(v,submit);
   return;
  }
@@ -247,6 +280,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"||a.id=="room-banned-stages"){nav.Push(a.id);return;}
  if(a.id=="room-controls"){nav.Push("player");return;}
  if(a.id=="room-friends"){nav.Push(FriendsPanel::Screen);return;}
+ // A friend chosen from Invite: the invite the Friends screen sends.
+ if(const auto invitee=friends_panel::IdOf(a.id,friends_panel::FriendPrefix);!invitee.empty()){friends_.ActOnFriend(v,friends_panel::ChoiceId(friends_panel::FriendChoice::Invite),invitee,submit);return;}
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;ShowNotice(loc::T("room.invitation_copied"),Tone::Success,ImGui::GetTime()+3);return;}
   if(a.id=="copy-short"){CopyShortInvitation(v,submit);return;}
   if(a.id=="copy-room-link"){
@@ -259,7 +294,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
     // The old invitation dies with the old room epoch. Say so while the row is
     // still on screen, rather than letting friends fail to rejoin silently.
     // This is a caution, not a success.
-    notice_=loc::T("room.replacement_opening");
+    notice_=loc::T("room.replacement_invite");
     noticeTone_=Tone::Pending;noticeUntil_=ImGui::GetTime()+8;}
    return;}
   if(a.id=="check-connection"){sendDelay(commands::CheckConnection{v.session.generation},true);return;}

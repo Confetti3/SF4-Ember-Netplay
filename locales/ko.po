@@ -312,14 +312,14 @@ msgstr "작업에 실패했습니다. 다시 시도하세요. 업데이트 복�
 msgid "services.operation_cancelled"
 msgstr "작업을 취소했습니다."
 
-msgid "services.opening_community"
-msgstr "브라우저에서 Ember Discord를 여는 중..."
+msgid "services.opening_link"
+msgstr "{0} 주소를 브라우저에서 여는 중..."
 
-msgid "services.community_opened"
-msgstr "브라우저에서 열었습니다. 브라우저로 전환해 서버에 참가하세요."
+msgid "services.link_opened"
+msgstr "브라우저에서 열었습니다. 브라우저로 전환하세요."
 
-msgid "services.community_failed"
-msgstr "브라우저를 열지 못했습니다. {0}에서 참가하세요."
+msgid "services.link_failed"
+msgstr "브라우저를 열지 못했습니다. {0}에 접속하세요."
 
 msgid "services.opening_steam_profile"
 msgstr "브라우저에서 Steam 프로필을 여는 중..."
@@ -534,8 +534,8 @@ msgstr "도움말 및 정보"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Discord 초대"
+msgid "screen.room_invitation"
+msgstr "방 초대"
 
 msgid "screen.assignment"
 msgstr "컨트롤러 지정"
@@ -1671,6 +1671,15 @@ msgstr "그 초대는 종료되었습니다."
 msgid "friends.nothing_to_offer"
 msgstr "지금은 내 방을 제안할 수 없습니다."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "이 방의 참가 허용이 잠김입니다. 친구를 초대하려면 방 설정에서 열림으로 바꾸세요."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "이 방의 참가 허용이 잠김입니다."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "이 방은 가득 찼습니다."
+
 msgid "friends.busy"
 msgstr "이전 요청이 끝날 때까지 기다리세요."
 
@@ -2190,9 +2199,6 @@ msgstr "친구 기능은 Ember 계정 서비스에서 별도의 Discord 연결�
 msgid "discord.server"
 msgstr "Ember Discord 서버"
 
-msgid "discord.invitation_title"
-msgstr "DISCORD 초대"
-
 msgid "discord.cancel_invitation"
 msgstr "초대 취소"
 
@@ -2259,6 +2265,24 @@ msgstr "Ember Discord 참가"
 msgid "about.discord_detail"
 msgstr "플레이어, 대전 및 지원: {0}. 게임 뒤에서 브라우저로 엽니다."
 
+msgid "about.kofi"
+msgstr "Ko-fi에서 Ember 후원"
+
+msgid "about.kofi_detail"
+msgstr "Ember 개발 후원: {0}. 게임 뒤에서 브라우저로 엽니다."
+
+msgid "about.website"
+msgstr "Ember 웹사이트"
+
+msgid "about.website_detail"
+msgstr "방, 랭킹, 리플레이: {0}. 게임 뒤에서 브라우저로 엽니다."
+
+msgid "about.twitter"
+msgstr "개발자 Twitter"
+
+msgid "about.twitter_detail"
+msgstr "Ember 개발자 소식: {0}. 게임 뒤에서 브라우저로 엽니다."
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 
@@ -2276,9 +2300,6 @@ msgstr "방에 참가하는 중입니다. 네트워크를 기다립니다..."
 
 msgid "room.locked_status"
 msgstr "잠긴 방 / 초대 전용"
-
-msgid "room.private_status"
-msgstr "비공개 방 / 초대 전용"
 
 msgid "room.tournament_status"
 msgstr "대회 경기, {0}선승. 이 경기의 두 플레이어만 플레이할 수 있습니다."
@@ -2592,6 +2613,12 @@ msgstr "이 슬롯 비우기"
 msgid "training.reply.clear_slot.detail"
 msgstr "이 슬롯의 기술을 제거합니다."
 
+msgid "training.reply.clear_all"
+msgstr "모든 슬롯 비우기"
+
+msgid "training.reply.clear_all.detail"
+msgstr "모든 반격 슬롯에서 기술을 제거합니다. 반격 설정은 그대로 유지됩니다."
+
 msgid "training.reply.every_fighter"
 msgstr "모든 파이터"
 
@@ -2711,6 +2738,12 @@ msgstr "트레이닝 조작 닫기"
 
 msgid "training.close_controls.detail"
 msgstr "Ember를 닫고, SF4 일시정지 메뉴가 열려 있다면 닫아 재개하세요."
+
+msgid "training.back_to_room"
+msgstr "방으로 돌아가기"
+
+msgid "training.back_to_room.detail"
+msgstr "트레이닝을 종료하고 {0}(으)로 돌아갑니다. 방에서의 자리는 유지됩니다."
 
 msgid "training.slot"
 msgstr "슬롯 {0}"
@@ -3689,6 +3722,12 @@ msgstr "짧은 링크 복사"
 msgid "room.copy_short_invitation.detail"
 msgstr "채팅용 짧은 링크입니다. 방이 열려 있는 동안 Ember 링크 서비스가 보관합니다."
 
+msgid "room.invite.detail"
+msgstr "친구를 초대하거나 링크나 초대를 복사해 공유하세요."
+
+msgid "room.invite.more_friends"
+msgstr "친구 더 보기…"
+
 msgid "room.leaving"
 msgstr "방 나가는 중..."
 
@@ -3724,9 +3763,6 @@ msgstr "Wi-Fi 연결"
 
 msgid "room.link_unknown"
 msgstr "연결 방식 알 수 없음"
-
-msgid "room.table_footer"
-msgstr "{0}라운드 / {1}초     대기 {2}     관전 {3}"
 
 msgid "room.board_status_host_slot"
 msgstr "방장 / {0} / 테이블 {1}"
@@ -3776,8 +3812,8 @@ msgstr "방 링크로 열었습니다. 확인한 다음 방 참가를 선택하�
 msgid "room.link_waiting"
 msgstr "방 링크가 열렸습니다. 이 방을 나가면 참가 화면에 표시됩니다."
 
-msgid "room.replacement_opening"
-msgstr "새 방을 여는 중입니다. 초대 복사를 선택해 새 링크를 보내세요. 이전 링크는 더 이상 사용할 수 없습니다."
+msgid "room.replacement_invite"
+msgstr "새 방을 여는 중입니다. 초대, 초대 복사를 차례로 선택해 새 초대를 보내세요. 이전 초대는 더 이상 사용할 수 없습니다."
 
 msgid "room.action_rejected"
 msgstr "방이 변경되었거나 작업을 거부했습니다. 현재 상태를 확인하고 다시 시도하세요."
@@ -3994,6 +4030,9 @@ msgstr "먼저 준비를 취소한 뒤 자리를 비우세요."
 
 msgid "room.leave_seat.keep"
 msgstr "자리 유지"
+
+msgid "room.watching_keeps"
+msgstr "계속 관전. 다른 선택은 관전 중인 게임을 종료합니다."
 
 msgid "room.leave_seat.costs_score"
 msgstr "자리를 비우면 세트가 끝나고 점수가 초기화됩니다({0})."
@@ -4412,6 +4451,9 @@ msgstr "Discord 보조 프로그램이 중지되었습니다. 게임플레이에
 msgid "runtime.room_connection_failed"
 msgstr "방 연결에 실패했습니다. 방을 닫는 중이며 미확정 결과는 기록되지 않습니다."
 
+msgid "runtime.public_room_connection_failed"
+msgstr "방과의 연결이 끊어졌습니다. 미확정 결과는 기록되지 않습니다. 공개 방에서 다시 참가하세요. 거부되면 1분 기다린 후 다시 시도하세요."
+
 msgid "runtime.operation_busy"
 msgstr "작업이 진행 중입니다. 다시 시도하세요."
 
@@ -4420,6 +4462,9 @@ msgstr "Steam 프로필을 열지 못했습니다."
 
 msgid "discord.invitation_expired"
 msgstr "Discord 초대가 만료되었습니다. 새 초대를 요청하세요."
+
+msgid "room.invitation_expired"
+msgstr "초대가 만료되었습니다. 새 초대를 요청하세요."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "관전 작업을 보내지 못해 다시 시도합니다."
@@ -4478,6 +4523,9 @@ msgstr "대전이 제때 종료되지 않아 관전을 중지했습니다."
 msgid "runtime.room_closed"
 msgstr "방이 닫혔습니다."
 
+msgid "runtime.room_unreachable"
+msgstr "방과의 연결이 끊어졌거나 방이 닫혔습니다. 아직 공개 방 목록에 있다면 다시 참가하세요."
+
 msgid "runtime.removed_from_room"
 msgstr "방에서 내보내졌습니다."
 
@@ -4525,6 +4573,9 @@ msgstr "이 테이블을 관전 중이지 않습니다."
 
 msgid "room.reject.seat_taken"
 msgstr "그 자리는 방금 찼습니다. 다시 선택하세요."
+
+msgid "room.reject.table_changed"
+msgstr "이 테이블이 변경되었습니다. 다시 선택하세요."
 
 msgid "room.reject.invalid_rules"
 msgstr "테이블 규칙이 잘못되었습니다."
@@ -5657,9 +5708,6 @@ msgstr "{0}, {1}"
 msgid "room.table_set"
 msgstr "세트"
 
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     대기 {2}     관전 {3}"
-
 msgid "room.streak"
 msgstr "{0}세트 연속"
 
@@ -6035,8 +6083,14 @@ msgstr "이 방이 방금 가득 찼거나 잠겼습니다. 다른 방을 고르
 msgid "public.failure.turned_away"
 msgstr "방에서 참가를 거부했습니다. 이 방에서 내보내졌을 수 있습니다."
 
+msgid "public.failure.name_taken"
+msgstr "이 방에 이미 같은 이름이 있습니다. 방금 연결이 끊어졌다면 이전 자리가 아직 유지되고 있을 수 있으니 1분 기다린 후 다시 시도하세요. 그렇지 않으면 설정에서 이름을 변경하세요."
+
 msgid "public.failure.join_failed"
 msgstr "방에 들어가지 못했습니다. 방금 닫혔을 수 있습니다. 새로 고침하고 다른 방을 고르세요."
+
+msgid "public.failure.refused"
+msgstr "방이 입장을 받아 주지 않았습니다. 방금 이 방에 있었다면 이전 자리가 아직 유지되고 있을 수 있으니 1분 기다린 후 다시 시도하세요. 방에서 내보내졌을 수도 있습니다."
 
 msgid "legend.refresh"
 msgstr "새로 고침"
@@ -6422,18 +6476,6 @@ msgstr "플레이어가 테이블마다 줄을 서서 그 테이블에서 대전
 msgid "room.type.arcade_detail"
 msgstr "16대의 기기: 빈 자리에 앉으면 가장 오래 기다린 사람과 대전합니다. 세트가 끝나면 둘 다 재대결을 고르면 다시 하고, 아니면 각자 다음 대기자와 대전합니다."
 
-msgid "room.arcade_status"
-msgstr "아케이드 방 / 초대 전용"
-
-msgid "room.arcade_locked_status"
-msgstr "아케이드 방 잠김 / 초대 전용"
-
-msgid "room.king_status"
-msgstr "킹 오브 더 힐 / 초대 전용"
-
-msgid "room.king_locked_status"
-msgstr "킹 오브 더 힐 잠김 / 초대 전용"
-
 msgid "room.arcade_sit"
 msgstr "자리에 앉기"
 
@@ -6505,12 +6547,6 @@ msgstr "연습 방"
 
 msgid "room.practice.detail"
 msgstr "방의 모든 게임이 연습 대전입니다. 체력과 게이지가 다시 차고 누구도 KO되지 않으며 라운드 시간은 {0}입니다. 방이 열려 있는 동안 바뀌지 않습니다. 일반 대전을 하려면 방을 닫고 새로 만드세요."
-
-msgid "room.practice_status"
-msgstr "연습 방 / 초대 전용"
-
-msgid "room.practice_locked_status"
-msgstr "잠긴 연습 방 / 초대 전용"
 
 msgid "inputs.presses_value"
 msgstr "버튼 입력 {0}회"
@@ -7631,8 +7667,14 @@ msgstr "각자 지연"
 msgid "room.table_footer_wired_only"
 msgstr "유선만"
 
-msgid "room.table_counts"
-msgstr "대기 {0}     관전 {1}"
+msgid "room.table_rules_line"
+msgstr "라운드 {0} / {1}초"
+
+msgid "room.table_queue"
+msgstr "대기 {0}"
+
+msgid "room.table_watching"
+msgstr "관전 {0}"
 
 msgid "room.input_delay.own"
 msgstr "내 지연: {0}"
@@ -8775,11 +8817,11 @@ msgstr "영역"
 msgid "room.v2.tables"
 msgstr "테이블"
 
+msgid "room.v2.tables_playing"
+msgstr "대전 중 {0}"
+
 msgid "room.v2.table"
 msgstr "테이블 {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "대전 중 {0} · 관전 중 {1}"
 
 msgid "room.v2.group_playing"
 msgstr "대전 중"
@@ -8801,6 +8843,9 @@ msgstr "EMBER · 온라인 · 공개 방"
 
 msgid "room.v2.invitation_only"
 msgstr "초대 전용"
+
+msgid "room.v2.friends_can_join"
+msgstr "친구 참가 가능"
 
 msgid "room.v2.listed"
 msgstr "공개 방에 표시됨"
@@ -8861,12 +8906,6 @@ msgstr "표시"
 
 msgid "room.v2.show_detail"
 msgstr "원래 크기로 펼칩니다."
-
-msgid "room.v2.copy_invite"
-msgstr "초대"
-
-msgid "room.v2.copy_link"
-msgstr "짧은 링크"
 
 msgid "settings.room_show_members_detail"
 msgstr "방 화면의 참가자 패널입니다. 숨기면 채팅이 열을 차지하고, 둘 다 숨기면 테이블이 전체 너비를 차지합니다."

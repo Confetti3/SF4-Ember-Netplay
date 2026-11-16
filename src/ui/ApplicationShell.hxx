@@ -614,11 +614,12 @@ private:
     std::string roomAreaFocus_[static_cast<int>(BoardArea::Count)];
     std::uint64_t roomFocusGeneration_ = 0, roomFocusEpoch_ = 0;
     // Whether the room's action bar followed the tables in their scroll last
-    // frame, and the tables' size: a change shows the focused row again.
+    // frame, the tables' size and their cards' whole height: a change shows
+    // the focused row again.
     struct RoomTablesShape {
         bool follows = false;
-        float width = 0, height = 0;
-        bool operator==(const RoomTablesShape& o) const { return follows == o.follows && width == o.width && height == o.height; }
+        float width = 0, height = 0, cards = 0;
+        bool operator==(const RoomTablesShape& o) const { return follows == o.follows && width == o.width && height == o.height && cards == o.cards; }
     };
     RoomTablesShape roomTablesShape_;
     // The Create board's focus last frame: a new one scrolls into view.
@@ -750,14 +751,19 @@ std::string memberAsk_;
     std::string lastError_, errorScreen_, errorBlockedText_;
     double errorSince_=0;
     std::function<bool(const ShellView&)> errorBlocked_;
-    // B on a seat that would lose a score or hand the seat over asks first: the
-    // table whose card carries the question, and whether it is open yet.
-    int leaveAsk_=-1;
+    // The question a table card (or an Arcade player's cabinet) asks before
+    // acting (TableAsk): leaving a seat that costs something, or an offer
+    // that would end the game this PC watches.
+    TableAsk tableAsk_;
+    // The last offer a table card sent: the table, the offer, that table's
+    // revision then and when. Another press of it, or an A on that table's
+    // card, before the table changes and for a moment after (a mashed A, a
+    // double click) is the same press, never a second request.
+    struct OfferSent { int table=-1; std::string offer; std::uint64_t revision=0; double at=0; } offerSent_;
     // More… asked again by the room's rows: after a switch it holds (moreChosen_
     // is the option it opens on), or as the picture's Small, Big and Off (morePicture_).
     bool moreAsk_=false,morePicture_=false;
     std::string moreChosen_;
-    bool leaveAsked_=false;
     // When each table's live game was first seen, for the host's stuck-game row.
     struct LiveGame { std::uint64_t generation=0; double since=-1; };
     std::array<LiveGame,room::TableCount> liveGames_;

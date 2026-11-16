@@ -107,9 +107,8 @@ static std::atomic<DWORD> s_drawThread{0};
 // from happening under a frame or a message (OverlayLifecycle.hxx).
 static sf4e::ui::Win32InputBridge s_inputBridge;
 static sf4e::ui::OverlayLifecycle s_lifecycle;
-// Whether the menu can open now, published by the drawing thread for the
-// window procedure (F10 is the game's key otherwise).
-static std::atomic<bool> s_menuAvailable{false};
+// Who F10 is for now, published by the drawing thread for the window procedure.
+static std::atomic<sf4e::ui::F10Owner> s_f10{sf4e::ui::F10Owner::Game};
 static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 // Training's other side, chosen on Training select (saved as trainingDummy).
 static rVsMode::ConfirmedCharaConditions trainingDummy = {0,0,0,0,0,0,0,0,14};
@@ -411,7 +410,6 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // the game it watches (input::MenuContext).
     const bool exporting = snapshot.replays.exportStage != sf4e::replay::ExportStage::None;
     presentation.Update(snapshot.menuContext, snapshot.session.match, snapshot.offlineRequested, focused);
-    s_menuAvailable = presentation.Available();
     const auto openRequest = s_menuPads.Take();
     // The Network and Training items open the menu on their pages; Start's
     // request (Controls) opens it, or over a fight closes it (input::AnswerStart).
@@ -559,6 +557,12 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool padBehind = !focused && snapshot.inputDevice.connected && snapshot.inputDevice.type == sf4e::input::PadXInput;
     const bool offerGoNow = called && (focused || padBehind) && !presentation.Visible() && !nativePaused;
     if (called) s_trainingControls.Close();
+    // Waiting in Training from a room: where the player stands there, and on
+    // the call who sat down. The room is the snapshot's; the unread count is
+    // the room screen's own.
+    const bool inRoom = snapshot.session.room == sf4e::netplay::RoomState::Joined;
+    const auto trainingRoom = training.available && inRoom ? sf4e::ui::DescribeTrainingRoom(snapshot.Room(), shell.UnreadChat()) : sf4e::ui::TrainingRoomStatus{};
+    s_f10 = presentation.Available() ? sf4e::ui::F10Owner::Menu : trainingRoom.InRoom() ? sf4e::ui::F10Owner::RoomTraining : sf4e::ui::F10Owner::Game;
     // Training's keys and pad stay off during any replay, an export's too.
     if (focused && training.available && !playback.playback && !presentation.Visible()) {
         // The pad drives the controls while they are open, through the same
@@ -578,7 +582,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         auto practice = [&](sf4e::training::Action action) {
             sf4e::training::Submit({action, training.generation});
         };
-        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit);
+        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit, trainingRoom.InRoom() && !called);
         // Not under the call either: F7 could otherwise open the recordings there.
         if (sf4e::ui::TrainingPressesAct(s_trainingControls, called) && !ImGui::GetIO().WantTextInput) {
             // F7: standby, then record, then stop. From rest on a recorded
@@ -599,7 +603,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (s_trainingControls.Open()) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
-            sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
+            sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit, trainingRoom);
             sf4e::ui::DrawGameThemesFloat(true, true, true);
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_trainingControls.Close();
         }
@@ -616,11 +620,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     layers.focused = focused; layers.trainingHud = trainingHud;
     layers.matchActive = frame->ggpoSessionActive; layers.matchWaitsForMenu = snapshot.matchWaitsForMenu;
     layers.showMatchHud = snapshot.preferences.showMatchHud;
-    // Waiting in Training from a room: where the player stands there, and on
-    // the call who sat down. The room is the snapshot's; the unread count is
-    // the room screen's own.
-    const bool inRoom = snapshot.session.room == sf4e::netplay::RoomState::Joined;
-    if (training.available && inRoom) layers.trainingRoom = sf4e::ui::DescribeTrainingRoom(snapshot.Room(), shell.UnreadChat());
+    layers.trainingRoom = trainingRoom;
     if (called && inRoom) layers.challenger = sf4e::ui::DescribeChallenger(snapshot.Room(), call);
     if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(focused ? sf4e::ui::MenuPromptDevice() : sf4e::input::PadXInput);
     layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown &&
@@ -809,7 +809,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     // menu or the game sees it, for the call that stands now. Taken, it is
     // the call's alone; otherwise it goes on as any key does.
     if (s_goNowKey.Take(message, w, l, sf4e::input::TrainingGoNow(), focused && !CapturesInput() && !sf4e::battlePause.Paused())) return 1;
-    const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, CapturesInput(), s_menuAvailable, pointerCapture);
+    const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, CapturesInput(), s_f10, pointerCapture);
     // The position hotkeys only as plain keys, so Alt+F4 still reaches the game.
     const bool plainKey = message == WM_KEYDOWN || message == WM_KEYUP, systemKey = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
     if (sf4e::replaytransport::KeepsKey(replayPlayback, message, static_cast<unsigned>(w))) return 1;

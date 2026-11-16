@@ -591,6 +591,8 @@ struct Snapshot {
 	// changed by its host (SetFriendsHidden), never in a room its server owns or
 	// a match room. Serialized only when true.
 	bool friendsHidden = false;
+	// Privacy is Friends: what is shown of the room to friends (its offer, a join secret) is theirs to see. Hidden shows nothing.
+	bool OpenToFriends() const { return !friendsHidden; }
 	// The room's type (RoomType), fixed for its life. In an Arcade or King of
 	// the hill room a member sits at any free cabinet and plays the player who
 	// has waited longest, at whichever table is free: a table is a pair, not a

@@ -198,13 +198,13 @@ private:
             const auto moves=PickedMoves(pick,i);
             auto e=Row("pick-"+std::to_string(i),pick.name,pick.group+": "+pick.name+", "+(lit.first.empty()?"":lit.first+", ")+moves);
             if(pick.strengths.size()==1) e.value=moves;
-            else { e.value=lit.first; e.adjustable=e.opens=true; for(const auto& strength:pick.strengths) e.segments.push_back(strength.first); }
+            else { e.value=lit.first; e.adjustable=e.opens=true; for(const auto& strength:pick.strengths) e.segments.push_back({strength.first,strength.first}); }
             rows.push_back(e);
             // Its charge's ways to hold, as chips the same way.
             const auto holds=ChargeHolds(lit.second);
             if(holds.empty()) continue;
             auto c=Row("charge-"+std::to_string(i),loc::T("training.reply.charge"),pick.name+", "+loc::T("training.reply.charge")+", "+moves);
-            c.value=moves; c.adjustable=c.opens=true; for(const auto& hold:holds) c.segments.push_back(combo::Canonical(hold));
+            c.value=moves; c.adjustable=c.opens=true; for(const auto& hold:holds) { const auto word=combo::Canonical(hold); c.segments.push_back({word,word}); }
             rows.push_back(c);
         }
         return rows;

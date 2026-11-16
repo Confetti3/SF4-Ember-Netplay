@@ -27,6 +27,10 @@ int main() {
     roomView.locked=true; CHECK(discord::Describe(in).secret.empty()); roomView.locked=false;
     roomView.capacity=1; CHECK(discord::Describe(in).secret.empty()); roomView.capacity=16;
     in.invites=false; CHECK(discord::Describe(in).secret.empty()); in.invites=true;
+    // Describe does not know Privacy: a Hidden room is still offerable by invite. Discord's publisher withholds its secret by OpenToFriends.
+    roomView.friendsHidden=true;
+    CHECK(discord::Describe(in).secret==in.secret && discord::Describe(in).Offerable() && !roomView.OpenToFriends());
+    roomView.friendsHidden=false; CHECK(roomView.OpenToFriends());
     // A room whose snapshot is bound to a tournament match is never offered to friends.
     roomView.tournament.matchId="emt_1";
     CHECK(roomView.tournament.Active() && discord::Describe(in).secret.empty() && discord::Describe(in).activity=="Ready");
@@ -80,24 +84,33 @@ int main() {
         room::Member self; self.id=2; self.status=room::MemberStatus::Ready; self.training=true;
         typedRoom.members.push_back(self); typedRoom.localMember=2; typedRoom.capacity=16;
         auto inRoom=discord::Describe(typed);
-        CHECK(inRoom.where==discord::Presence::Where::Room && inRoom.status==room::MemberStatus::Ready && inRoom.training && inRoom.offerable);
+        CHECK(inRoom.where==discord::Presence::Where::Room && inRoom.status==room::MemberStatus::Ready && inRoom.training && inRoom.Offerable());
         // Whether the room could be offered does not depend on having an invitation to offer.
         CHECK(inRoom.secret.empty());
-        typedRoom.locked=true; CHECK(!discord::Describe(typed).offerable); typedRoom.locked=false;
-        typedRoom.capacity=1; CHECK(!discord::Describe(typed).offerable); typedRoom.capacity=16;
-        typedSession.control=netplay::Health::Lost; CHECK(!discord::Describe(typed).offerable); typedSession.control=netplay::Health::Healthy;
-        typedRoom.tournament.matchId="emt_1"; CHECK(!discord::Describe(typed).offerable);
+        CHECK(inRoom.held==discord::Presence::Held::None);
+        typedRoom.locked=true; CHECK(!discord::Describe(typed).Offerable() && discord::Describe(typed).held==discord::Presence::Held::Locked); typedRoom.locked=false;
+        typedRoom.capacity=1; CHECK(!discord::Describe(typed).Offerable() && discord::Describe(typed).held==discord::Presence::Held::Full); typedRoom.capacity=16;
+        typedSession.control=netplay::Health::Lost; CHECK(!discord::Describe(typed).Offerable() && discord::Describe(typed).held==discord::Presence::Held::Unhealthy); typedSession.control=netplay::Health::Healthy;
+        typedRoom.tournament.matchId="emt_1"; CHECK(!discord::Describe(typed).Offerable() && discord::Describe(typed).held==discord::Presence::Held::Match);
     }
     // A friend's invitation has no companion count to be ordered by; its revision follows the last one's and never goes back.
     {
         discord::PendingInvite pending;
         CHECK(pending.Offer("a","party",300,5,6,false) && pending.Revision()==5);
-        CHECK(pending.OfferFromFriend("b","other",300,6,true) && pending.Revision()==6 && pending.NeedsConfirmation());
-        CHECK(!pending.OfferFromFriend("b","other",300,6,true));
+        CHECK(pending.From()==discord::InviteOrigin::Discord);
+        CHECK(pending.OfferFromFriend("b","other",300,6,true,discord::InviteOrigin::Friend) && pending.Revision()==6 && pending.NeedsConfirmation());
+        CHECK(pending.From()==discord::InviteOrigin::Friend);
+        CHECK(!pending.OfferFromFriend("b","other",300,6,true,discord::InviteOrigin::Friend));
         CHECK(!pending.Matches(5) && pending.Matches(6));
         CHECK(pending.Offer("c","party",300,6,6,false) && pending.Revision()==7);
+        CHECK(pending.From()==discord::InviteOrigin::Discord);
         CHECK(!pending.Offer("d","party",300,6,6,false));
         CHECK(pending.Offer("d","party",300,7,6,false) && pending.Revision()==8);
+        // The player's own Join on a friend's room is its own origin, which a friend's invite is not; neither is told as Discord's.
+        CHECK(pending.OfferFromFriend("e","other",300,6,false,discord::InviteOrigin::OwnJoin) && pending.From()==discord::InviteOrigin::OwnJoin);
+        CHECK(std::string(discord::ExpiredWords(discord::InviteOrigin::Discord))=="discord.invitation_expired" && std::string(discord::ExpiredWords(discord::InviteOrigin::Friend))=="room.invitation_expired" &&
+            std::string(discord::ExpiredWords(discord::InviteOrigin::OwnJoin))=="room.invitation_expired");
+        pending.Cancel(); CHECK(pending.From()==discord::InviteOrigin::Discord);
     }
     return 0;
 }

@@ -168,6 +168,8 @@ struct ShellView {
     // The local unsaved setting can resolve against gameplayBrand immediately.
     gamepads::PromptBrand gameplayBrand, promptBrand;
     bool discordPending = false, discordConfirm = false, discordCanSwitch = false;
+    // Where the pending invitation came from.
+    discord::InviteOrigin inviteOrigin = discord::InviteOrigin::Discord;
     std::uint64_t discordRevision = 0;
     std::string discordStatus;
             input::Capture inputCapture = input::Capture::Idle;

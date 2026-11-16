@@ -190,15 +190,14 @@ inline MenuEntry PracticeRoomRow(bool on,bool enabled) {
 }
 // A room type's words, the text keys of each room::RoomType: its name (Classic,
 // Arcade, King of the hill) and how it plays, wherever a room's type is shown
-// (Create's row, the public room list and a public room's status line), and a
-// private room's status line, open and locked. Out of range, which no room
-// holds, Arcade's, as any type but Classic read before.
-struct RoomTypeWords { const char* name; const char* detail; const char* status; const char* lockedStatus; };
+// (Create's row, the public room list and the room's status line). Out of
+// range, which no room holds, Arcade's, as any type but Classic read before.
+struct RoomTypeWords { const char* name; const char* detail; };
 inline const RoomTypeWords& WordsOf(room::RoomType type) {
     static const RoomTypeWords words[]={
-        {"room.type.classic","room.type.classic_detail","room.private_status","room.locked_status"},
-        {"room.type.arcade","room.type.arcade_detail","room.arcade_status","room.arcade_locked_status"},
-        {"room.type.king","room.type.king_detail","room.king_status","room.king_locked_status"}};
+        {"room.type.classic","room.type.classic_detail"},
+        {"room.type.arcade","room.type.arcade_detail"},
+        {"room.type.king","room.type.king_detail"}};
     return words[room::ValidRoomType(static_cast<int>(type))?static_cast<std::size_t>(type):static_cast<std::size_t>(room::RoomType::Arcade)];
 }
 inline const char* RoomTypeName(room::RoomType type) { return loc::T(WordsOf(type).name); }
