@@ -1,9 +1,11 @@
 #pragma once
-// The Invite button of a private room's action bar: one menu at the button with
-// the friends who can be invited now, then the room's two ways to hand a link
-// out. The friends are the ones the Friends screen would invite
+// The Invite button of a room's action bar: one menu at the button with the
+// friends who can be invited now, then the room's ways to hand a link out: a
+// private room's short link and invitation, a public room's page link (its
+// invitation would admit nobody; a friend is invited to it by its id). The
+// friends are the ones the Friends screen would invite
 // (netplay/FriendInvitees.hxx); choosing one sends the same invite it sends.
-// Without friends (no Discord account, or turned off) it is just the two copies.
+// Without friends (no Discord account, or turned off) it is just the copies.
 #include "FriendsPanel.hxx"
 #include "MenuNavigation.hxx"
 #include "ShellView.hxx"
@@ -23,6 +25,12 @@ inline bool Invitable(const ShellView& v) {
     return !v.room.serverOwned && !v.room.tournament.Active() && !v.tournament.MatchRoomActive();
 }
 
+// The bar has an Invite button: every room but a match's (bound, or still being claimed), which admits only its two
+// fighters. A public room's holds its friends and its page link.
+inline bool OnBar(const ShellView& v) {
+    return !v.room.tournament.Active() && !v.tournament.MatchRoomActive();
+}
+
 // The header chip that says who may join without an invitation: a public room is listed; a locked room admits nobody; a
 // private room open to its members' friends says so; a Hidden one or a match's is by invitation only. A full room keeps
 // its privacy's chip (the Members chip says it is full).
@@ -37,13 +45,16 @@ constexpr std::size_t MostFriends = 6;
 constexpr const char* MoreRow = "room-friends";
 constexpr const char* ShortRow = "copy-short";
 constexpr const char* FullRow = "copy";
+// A public room's page link (RoomActions copies it; More… lists it too).
+constexpr const char* PublicLinkRow = "copy-room-link";
 // Nothing to offer: a disabled line that says why.
 constexpr const char* WhyRow = "invite-why";
 
 // The menu's choices, in order: each friend who can be invited (a Friends row id, which answers it), then the Friends
 // screen (More friends once some are listed) or the reason the room cannot be offered, then Copy short link and Copy
-// invitation. `gate` is what the friends are held to now.
-inline std::vector<MenuChoice> ChoicesOf(const ShellView& v, const friends_panel::Gate& gate) {
+// invitation, or in a public room Copy room link (`publicLink`, its page's; none while the room has none). `gate` is
+// what the friends are held to now.
+inline std::vector<MenuChoice> ChoicesOf(const ShellView& v, const friends_panel::Gate& gate, const std::string& publicLink = {}) {
     namespace nf = netplay::friends;
     std::vector<MenuChoice> choices;
     const auto& state = friends_panel::StateOf(v.friends);
@@ -60,6 +71,10 @@ inline std::vector<MenuChoice> ChoicesOf(const ShellView& v, const friends_panel
             }
             choices.push_back({MoreRow, loc::T(invitees.shown.empty() ? "home.friends" : "room.invite.more_friends"), loc::T("room.v2.friends_detail")});
         }
+    }
+    if (v.room.serverOwned) {
+        if (!publicLink.empty()) choices.push_back({PublicLinkRow, loc::T("public.copy_link"), loc::Tf("public.copy_link_detail", publicLink)});
+        return choices;
     }
     // Once made, the short link's detail shows the link itself so it can be read out.
     const auto& link = v.shortInvitation;

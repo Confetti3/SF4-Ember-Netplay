@@ -453,16 +453,18 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  }
  // A tournament room admits only its two fighters, who reach it through the
  // tournament service, so there is no invitation to hand out. A public room
- // admits by the service's ticket, so its invitation would admit nobody.
- // The tournament's own room is never shared, from its first claim: the window
- // before its binding lands has no tournament snapshot yet.
- if(room_invite::Invitable(v)){
-  // One button: the friends to invite now, and the two ways to hand a link out (room_invite::ChoicesOf).
+ // admits by the service's ticket, so its invitation would admit nobody: its
+ // Invite holds its friends, who are invited by the room's id, and its page
+ // link. The tournament's own room is never shared, from its first claim: the
+ // window before its binding lands has no tournament snapshot yet.
+ if(room_invite::OnBar(v)){
+  // One button: the friends to invite now, and the ways to hand a link out (room_invite::ChoicesOf).
   MenuEntry invite=Row("invite",loc::T("friends.invite"),loc::T("room.invite.detail"));invite.popout=true;
-  invite.choices=room_invite::ChoicesOf(v,friends_.Gates(v));
+  invite.choices=room_invite::ChoicesOf(v,friends_.Gates(v),s.serverOwned?publicRooms_.RoomLink():std::string());
   invite.chosen=room_invite::FirstEnabled(invite.choices);
   invite.enabled=std::any_of(invite.choices.begin(),invite.choices.end(),[](const MenuChoice& choice){return choice.enabled;});
-  rows.push_back(std::move(invite));
+  // A public room with no friends list and no link yet has nothing to hand out.
+  if(!invite.choices.empty())rows.push_back(std::move(invite));
  }
  // More… (a popout): a public room's link, the controllers and the room's
  // settings, then the board's parts as switches, which Select flips and More…

@@ -397,7 +397,17 @@ void CopyLinkJourney(){
  };
  Check(roomLink()&&roomLink()->enabled&&roomLink()->label==loc::T("public.copy_link")&&roomLink()->detail==loc::Tf("public.copy_link_detail",link)&&
   j.row("room-more")->choices.front().id=="copy-room-link"&&!j.row("copy-room-link"),"A public room joined from the list offers no room link in More");
- Check(!j.row("invite")&&j.row("leave"),"A public room offered an invitation to copy");
+ // The bar's Invite holds the same link (and the friends to invite, once listed), never an invitation, which would admit nobody.
+ {
+  const auto* invite=j.row("invite");
+  const auto has=[&](const char* id){return invite&&std::any_of(invite->choices.begin(),invite->choices.end(),[&](const MenuChoice& c){return c.id==id;});};
+  Check(invite&&invite->popout&&invite->enabled&&has("copy-room-link")&&!has("copy")&&!has("copy-short")&&j.row("leave"),
+   "A public room's Invite does not hold its room link, or offered an invitation to copy");
+  g_clipboard="before";const auto sent=h.actions.size();
+  // With no friends listed the link is Invite's first choice, the one it opens on.
+  h.Choose("invite");h.Press(MenuInput::Select);
+  Check(g_clipboard==link&&h.actions.size()==sent,"Invite's Copy room link did not put the page link on the clipboard");
+ }
  g_clipboard="before";const auto actions=h.actions.size();
  h.Choose("room-more");h.Press(MenuInput::Select);
  Check(g_clipboard==link,"Copy room link did not put the page link on the clipboard");

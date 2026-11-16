@@ -890,7 +890,10 @@ void RoomJourney(){
  h.Screen("room");h.Frame(0,2);
  Check(j.status.empty()&&j.row("invite")&&j.row("invite")->enabled,"A private room lost its Invite button, or its line repeated the access chip");
  h.view.room.serverOwned=true;h.Frame(0,2);
- Check(j.status==std::string(loc::T("room.type.classic"))+" · "+loc::T("room.public_status")&&!j.row("invite")&&j.row("leave"),"A public room reads like a private one");
+ Check(j.status==std::string(loc::T("room.type.classic"))+" · "+loc::T("room.public_status")&&j.row("leave"),"A public room reads like a private one");
+ // Its Invite hands out no invitation (which would admit nobody): its friends and its page link only.
+ if(const auto* invite=j.row("invite"))Check(std::none_of(invite->choices.begin(),invite->choices.end(),[](const MenuChoice& c){return c.id=="copy"||c.id=="copy-short";}),
+  "A public room offered an invitation to copy");
  // A public room's line starts with its type.
  h.view.room.type=room::RoomType::Arcade;h.Frame(0,2);
  Check(j.status==std::string(loc::T("room.type.arcade"))+" · "+loc::T("room.public_status"),"A public Arcade room's status line does not say Arcade");
