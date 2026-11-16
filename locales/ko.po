@@ -1632,6 +1632,9 @@ msgstr "친구 기능에는 Discord 계정이 필요합니다."
 msgid "friends.unavailable"
 msgstr "이 서비스는 아직 친구를 지원하지 않습니다."
 
+msgid "friends.account_service"
+msgstr "친구는 Ember 계정 서비스에 저장되므로 모든 Ember 게임에서 같은 친구가 함께합니다. 사용하려면 그곳에서 Discord를 연결하세요."
+
 msgid "friends.off"
 msgstr "친구 기능이 꺼져 있습니다."
 
@@ -1640,6 +1643,12 @@ msgstr "지금은 그 방에 참가할 수 없습니다."
 
 msgid "friends.join_unavailable"
 msgstr "그 방에는 지금 참가할 수 없습니다."
+
+msgid "friends.add_needs_code"
+msgstr "이 플레이어는 여기서 친구 코드를 공유하지 않습니다. 친구 코드를 물어본 뒤 친구 코드로 추가하세요."
+
+msgid "friends.block_from_list"
+msgstr "여기서 만난 플레이어는 그 플레이어의 친구 요청이나 내 친구 목록에서 차단할 수 있습니다."
 
 msgid "friends.cannot_watch"
 msgstr "그 친구는 관전할 수 있는 게임 중이 아닙니다."
@@ -2168,6 +2177,9 @@ msgstr "Discord 계정을 연결하면 랭크 경기, 포인트, 친구, 공유 
 
 msgid "discord.account_linked_detail"
 msgstr "Ember ID에 연결된 Discord 계정입니다. 랭크 경기, 포인트, 친구, 공유한 리플레이, BluMint 같은 대회 사이트가 이 계정을 사용합니다. Discord 앱의 계정과 다를 수 있습니다. 선택하면 계정을 바꾸거나 연결을 끊을 수 있습니다."
+
+msgid "discord.account_friends_missing"
+msgstr "친구 기능은 Ember 계정 서비스에서 별도의 Discord 연결을 사용하는데, 그곳에는 아직 연결되지 않았습니다. 누르면 연결합니다."
 
 msgid "discord.server"
 msgstr "Ember Discord 서버"
@@ -4933,6 +4945,21 @@ msgstr "브라우저에서 승인하세요. Discord가 연결되면 이 화면�
 
 msgid "connect.done"
 msgstr "Discord를 {0}(으)로 연결했습니다. 계속하려면 대회 사이트로 돌아가세요."
+
+msgid "connect.next_service"
+msgstr "방에 Discord를 연결했습니다. 친구 기능을 위해 Discord가 한 번 더 열립니다. 그곳에서도 승인하세요."
+
+msgid "connect.rooms_service"
+msgstr "방"
+
+msgid "connect.rooms_service_detail"
+msgstr "이 게임 서비스의 Discord: 랭크 경기, 포인트, 공개 방."
+
+msgid "connect.friends_service"
+msgstr "친구"
+
+msgid "connect.friends_service_detail"
+msgstr "Ember 계정 서비스의 Discord: 모든 Ember 게임이 함께 쓰는 친구 목록."
 
 msgid "connect.go_detail"
 msgstr "Discord를 연결하면 BluMint 같은 대회 사이트가 내 Ember ID를 찾을 수 있습니다. 필요하면 Ember가 이 PC에서 Ember ID를 설정한 뒤 브라우저에서 Discord를 엽니다. 거기서 대회 사이트가 알고 있는 Discord 계정으로 승인하세요."

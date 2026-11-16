@@ -1636,6 +1636,9 @@ msgstr "Friends need a Discord account."
 msgid "friends.unavailable"
 msgstr "This service does not offer friends yet."
 
+msgid "friends.account_service"
+msgstr "Friends are kept on Ember's account service, so the same friends follow you in every Ember game. Connect Discord there to use them."
+
 msgid "friends.off"
 msgstr "Friends are off."
 
@@ -1644,6 +1647,12 @@ msgstr "You can't join that room right now."
 
 msgid "friends.join_unavailable"
 msgstr "That room cannot be joined now."
+
+msgid "friends.add_needs_code"
+msgstr "This player does not share a friend code here. Ask them for it, then add them by friend code."
+
+msgid "friends.block_from_list"
+msgstr "A player met here is blocked from their friend request or your friend list."
 
 msgid "friends.cannot_watch"
 msgstr "That friend is not in a game you can watch."
@@ -2174,6 +2183,9 @@ msgstr "Connect a Discord account for rated games, points, friends and shared re
 
 msgid "discord.account_linked_detail"
 msgstr "The Discord account connected to your Ember ID. Rated games, points, friends, shared replays and tournament sites such as BluMint use it. It can differ from the one in the Discord app. Select to switch account or disconnect it."
+
+msgid "discord.account_friends_missing"
+msgstr "Friends keep their own Discord link on Ember's account service, and it is not connected there yet. Press to connect it."
 
 msgid "discord.server"
 msgstr "Ember Discord server"
@@ -4526,6 +4538,21 @@ msgstr "Approve in your browser. This screen updates when Discord is connected."
 
 msgid "connect.done"
 msgstr "Discord connected as {0}. Go back to your tournament site to continue."
+
+msgid "connect.next_service"
+msgstr "Discord connected for rooms. Discord opens once more for friends: approve it there too."
+
+msgid "connect.rooms_service"
+msgstr "Rooms"
+
+msgid "connect.rooms_service_detail"
+msgstr "Discord on this game's service: rated games, points and public rooms."
+
+msgid "connect.friends_service"
+msgstr "Friends"
+
+msgid "connect.friends_service_detail"
+msgstr "Discord on Ember's account service: your friend list, shared by every Ember game."
 
 msgid "connect.go_detail"
 msgstr "Connecting Discord lets tournament sites such as BluMint find your Ember ID. Ember sets up your Ember ID on this PC if needed, then opens Discord in your browser: approve there with the Discord account your tournament site knows."

@@ -1632,6 +1632,9 @@ msgstr "Gli amici richiedono un account Discord."
 msgid "friends.unavailable"
 msgstr "Questo servizio non offre ancora gli amici."
 
+msgid "friends.account_service"
+msgstr "Gli amici sono conservati sul servizio account di Ember, così ritrovi gli stessi amici in ogni gioco Ember. Collega Discord lì per usarli."
+
 msgid "friends.off"
 msgstr "Gli amici sono disattivati."
 
@@ -1640,6 +1643,12 @@ msgstr "Non puoi entrare in quella sala ora."
 
 msgid "friends.join_unavailable"
 msgstr "Non è possibile entrare in quella sala ora."
+
+msgid "friends.add_needs_code"
+msgstr "Questo giocatore non condivide un codice amico qui. Chiediglielo, poi aggiungilo con il codice amico."
+
+msgid "friends.block_from_list"
+msgstr "Un giocatore incontrato qui si blocca dalla sua richiesta di amicizia o dalla tua lista amici."
 
 msgid "friends.cannot_watch"
 msgstr "Quell'amico non è in una partita che puoi guardare."
@@ -2168,6 +2177,9 @@ msgstr "Collega un account Discord per partite classificate, punti, amici e repl
 
 msgid "discord.account_linked_detail"
 msgstr "L'account Discord collegato al tuo Ember ID. Partite classificate, punti, amici, replay condivisi e siti di tornei come BluMint lo usano. Può essere diverso da quello dell'app Discord. Seleziona per cambiare account o scollegarlo."
+
+msgid "discord.account_friends_missing"
+msgstr "Gli amici hanno un proprio collegamento Discord sul servizio account di Ember, e lì non è ancora attivo. Premi per collegarlo."
 
 msgid "discord.server"
 msgstr "Server Discord di Ember"
@@ -4931,6 +4943,21 @@ msgstr "Approva nel browser. Questa schermata si aggiorna quando Discord è coll
 
 msgid "connect.done"
 msgstr "Discord collegato come {0}. Torna al tuo sito di tornei per continuare."
+
+msgid "connect.next_service"
+msgstr "Discord collegato per le sale. Discord si apre ancora una volta per gli amici: approva anche lì."
+
+msgid "connect.rooms_service"
+msgstr "Sale"
+
+msgid "connect.rooms_service_detail"
+msgstr "Discord sul servizio di questo gioco: partite classificate, punti e sale pubbliche."
+
+msgid "connect.friends_service"
+msgstr "Amici"
+
+msgid "connect.friends_service_detail"
+msgstr "Discord sul servizio account di Ember: la tua lista amici, condivisa da tutti i giochi Ember."
 
 msgid "connect.go_detail"
 msgstr "Collegando Discord, i siti di tornei come BluMint possono trovare il tuo Ember ID. Ember configura il tuo Ember ID su questo PC se serve, poi apre Discord nel browser: approva lì con l'account Discord che il tuo sito di tornei conosce."

@@ -1632,6 +1632,9 @@ msgstr "フレンド機能にはDiscordアカウントが必要です。"
 msgid "friends.unavailable"
 msgstr "このサービスはまだフレンドに対応していません。"
 
+msgid "friends.account_service"
+msgstr "フレンドはEmberのアカウントサービスに保存されるため、どのEmberのゲームでも同じフレンドが表示されます。使うには、そこでDiscordを連携してください。"
+
 msgid "friends.off"
 msgstr "フレンドはオフです。"
 
@@ -1640,6 +1643,12 @@ msgstr "今はそのルームに参加できません。"
 
 msgid "friends.join_unavailable"
 msgstr "そのルームには今は参加できません。"
+
+msgid "friends.add_needs_code"
+msgstr "このプレイヤーはここでフレンドコードを公開していません。相手にコードを聞いてから、フレンドコードで追加してください。"
+
+msgid "friends.block_from_list"
+msgstr "ここで会ったプレイヤーは、相手のフレンドリクエストか、あなたのフレンドリストからブロックできます。"
 
 msgid "friends.cannot_watch"
 msgstr "そのフレンドは観戦できる対戦中ではありません。"
@@ -2168,6 +2177,9 @@ msgstr "ランク試合、ポイント、フレンド、共有リプレイのた
 
 msgid "discord.account_linked_detail"
 msgstr "Ember IDに連携しているDiscordアカウントです。ランク試合、ポイント、フレンド、共有リプレイ、BluMintなどの大会サイトがこのアカウントを使います。Discordアプリのアカウントと異なる場合があります。選択するとアカウントの切り替えや連携解除ができます。"
+
+msgid "discord.account_friends_missing"
+msgstr "フレンドはEmberのアカウントサービスで専用のDiscord連携を使いますが、そちらはまだ連携されていません。押すと連携します。"
 
 msgid "discord.server"
 msgstr "Ember Discordサーバー"
@@ -4931,6 +4943,21 @@ msgstr "ブラウザーで承認してください。Discordが連携される�
 
 msgid "connect.done"
 msgstr "Discordを{0}として連携しました。続けるには大会サイトに戻ってください。"
+
+msgid "connect.next_service"
+msgstr "ルーム用にDiscordを連携しました。フレンド用にもう一度Discordが開きます。そちらでも承認してください。"
+
+msgid "connect.rooms_service"
+msgstr "ルーム"
+
+msgid "connect.rooms_service_detail"
+msgstr "このゲームのサービスでのDiscord連携：ランク試合、ポイント、公開ルーム。"
+
+msgid "connect.friends_service"
+msgstr "フレンド"
+
+msgid "connect.friends_service_detail"
+msgstr "EmberのアカウントサービスでのDiscord連携：フレンドリスト。すべてのEmberのゲームで共有されます。"
 
 msgid "connect.go_detail"
 msgstr "Discordを連携すると、BluMintなどの大会サイトがあなたのEmber IDを見つけられるようになります。必要に応じてEmberがこのPCでEmber IDを設定し、ブラウザーでDiscordを開きます。そこで、大会サイトが認識しているDiscordアカウントで承認してください。"

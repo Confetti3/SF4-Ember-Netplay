@@ -1632,6 +1632,9 @@ msgstr "Для друзей нужен аккаунт Discord."
 msgid "friends.unavailable"
 msgstr "Эта служба пока не поддерживает друзей."
 
+msgid "friends.account_service"
+msgstr "Друзья хранятся в сервисе аккаунтов Ember, поэтому в каждой игре с Ember у вас одни и те же друзья. Подключите там Discord, чтобы пользоваться друзьями."
+
 msgid "friends.off"
 msgstr "Друзья отключены."
 
@@ -1640,6 +1643,12 @@ msgstr "Сейчас нельзя войти в это лобби."
 
 msgid "friends.join_unavailable"
 msgstr "Это лобби сейчас недоступно для входа."
+
+msgid "friends.add_needs_code"
+msgstr "Этот игрок не делится здесь кодом друга. Попросите у него код, а затем добавьте его по коду друга."
+
+msgid "friends.block_from_list"
+msgstr "Игрока, встреченного здесь, можно заблокировать из его запроса в друзья или из вашего списка друзей."
 
 msgid "friends.cannot_watch"
 msgstr "Этот друг не в игре, которую можно смотреть."
@@ -2168,6 +2177,9 @@ msgstr "Подключите аккаунт Discord для рейтинговы�
 
 msgid "discord.account_linked_detail"
 msgstr "Аккаунт Discord, подключённый к вашему Ember ID. Его используют рейтинговые игры, очки, друзья, общие реплеи и турнирные сайты вроде BluMint. Он может отличаться от аккаунта в приложении Discord. Выбор позволяет сменить аккаунт или отключить его."
+
+msgid "discord.account_friends_missing"
+msgstr "У друзей своя привязка Discord в сервисе аккаунтов Ember, и там она ещё не подключена. Нажмите, чтобы подключить её."
 
 msgid "discord.server"
 msgstr "Сервер Discord Ember"
@@ -4931,6 +4943,21 @@ msgstr "Подтвердите в браузере. Этот экран обно
 
 msgid "connect.done"
 msgstr "Discord подключён как {0}. Вернитесь на свой турнирный сайт, чтобы продолжить."
+
+msgid "connect.next_service"
+msgstr "Discord подключён для лобби. Для друзей Discord откроется ещё раз: подтвердите и там."
+
+msgid "connect.rooms_service"
+msgstr "Лобби"
+
+msgid "connect.rooms_service_detail"
+msgstr "Discord в сервисе этой игры: рейтинговые игры, очки и открытые лобби."
+
+msgid "connect.friends_service"
+msgstr "Друзья"
+
+msgid "connect.friends_service_detail"
+msgstr "Discord в сервисе аккаунтов Ember: ваш список друзей, общий для всех игр с Ember."
 
 msgid "connect.go_detail"
 msgstr "Подключив Discord, вы позволите турнирным сайтам, например BluMint, находить ваш Ember ID. При необходимости Ember настроит ваш Ember ID на этом ПК, а затем откроет Discord в браузере: подтвердите там вход аккаунтом Discord, который известен вашему турнирному сайту."

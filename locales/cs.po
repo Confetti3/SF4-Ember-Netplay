@@ -1632,6 +1632,9 @@ msgstr "Přátelé vyžadují účet Discord."
 msgid "friends.unavailable"
 msgstr "Tato služba zatím přátele nenabízí."
 
+msgid "friends.account_service"
+msgstr "Přátelé jsou uloženi ve službě účtů Ember, takže vás stejní přátelé provázejí v každé hře s Emberem. Připojte tam Discord, abyste je mohli používat."
+
 msgid "friends.off"
 msgstr "Přátelé jsou vypnuti."
 
@@ -1640,6 +1643,12 @@ msgstr "Do této místnosti se teď nelze připojit."
 
 msgid "friends.join_unavailable"
 msgstr "K této místnosti se teď nelze připojit."
+
+msgid "friends.add_needs_code"
+msgstr "Tento hráč tu nesdílí kód přítele. Požádejte ho o něj a pak si ho přidejte podle kódu přítele."
+
+msgid "friends.block_from_list"
+msgstr "Hráče, kterého jste potkali tady, zablokujete z jeho žádosti o přátelství nebo ze svého seznamu přátel."
 
 msgid "friends.cannot_watch"
 msgstr "Tento přítel není ve hře, kterou lze sledovat."
@@ -2168,6 +2177,9 @@ msgstr "Připojte účet Discord pro hodnocené zápasy, body, přátele a sdíl
 
 msgid "discord.account_linked_detail"
 msgstr "Účet Discord připojený k vašemu Ember ID. Využívají ho hodnocené zápasy, body, přátelé, sdílené záznamy a turnajové weby jako BluMint. Může se lišit od účtu v aplikaci Discord. Výběrem účet změníte nebo odpojíte."
+
+msgid "discord.account_friends_missing"
+msgstr "Přátelé mají ve službě účtů Ember vlastní propojení s Discordem a tam zatím není připojeno. Stisknutím ho připojíte."
 
 msgid "discord.server"
 msgstr "Server Discord Emberu"
@@ -4931,6 +4943,21 @@ msgstr "Schvalte to v prohlížeči. Tato obrazovka se aktualizuje, jakmile bude
 
 msgid "connect.done"
 msgstr "Discord připojen jako {0}. Pro pokračování se vraťte na svůj turnajový web."
+
+msgid "connect.next_service"
+msgstr "Discord připojen pro místnosti. Pro přátele se Discord otevře ještě jednou: schvalte to i tam."
+
+msgid "connect.rooms_service"
+msgstr "Místnosti"
+
+msgid "connect.rooms_service_detail"
+msgstr "Discord ve službě této hry: hodnocené zápasy, body a veřejné místnosti."
+
+msgid "connect.friends_service"
+msgstr "Přátelé"
+
+msgid "connect.friends_service_detail"
+msgstr "Discord ve službě účtů Ember: váš seznam přátel, společný pro všechny hry s Emberem."
 
 msgid "connect.go_detail"
 msgstr "Po připojení Discordu mohou turnajové weby, například BluMint, najít vaše Ember ID. Ember podle potřeby nastaví vaše Ember ID na tomto počítači a poté otevře Discord ve vašem prohlížeči: tam schvalte účet Discord, který váš turnajový web zná."

@@ -1632,6 +1632,9 @@ msgstr "好友功能需要 Discord 账号。"
 msgid "friends.unavailable"
 msgstr "该服务暂不支持好友。"
 
+msgid "friends.account_service"
+msgstr "好友保存在 Ember 的账号服务上，因此所有 Ember 游戏中都是同一批好友。请在那里关联 Discord 后使用。"
+
 msgid "friends.off"
 msgstr "好友功能已关闭。"
 
@@ -1640,6 +1643,12 @@ msgstr "现在无法加入该房间。"
 
 msgid "friends.join_unavailable"
 msgstr "该房间目前无法加入。"
+
+msgid "friends.add_needs_code"
+msgstr "该玩家未在此分享好友码。请向对方索要，然后通过好友码添加。"
+
+msgid "friends.block_from_list"
+msgstr "在此遇到的玩家，可从其好友请求或你的好友列表中拉黑。"
 
 msgid "friends.cannot_watch"
 msgstr "该好友不在可观战的对局中。"
@@ -2168,6 +2177,9 @@ msgstr "关联一个 Discord 账号，用于排位对战、积分、好友和共
 
 msgid "discord.account_linked_detail"
 msgstr "已关联到你的 Ember ID 的 Discord 账号。排位对战、积分、好友、共享回放，以及 BluMint 等赛事网站都会使用它。它可能与 Discord 应用中的账号不同。选择即可切换账号或解除关联。"
+
+msgid "discord.account_friends_missing"
+msgstr "好友功能在 Ember 的账号服务上使用单独的 Discord 关联，目前尚未在那里关联。按下即可关联。"
 
 msgid "discord.server"
 msgstr "Ember Discord 服务器"
@@ -4933,6 +4945,21 @@ msgstr "请在浏览器中批准。Discord 关联后，此界面会更新。"
 
 msgid "connect.done"
 msgstr "已将 Discord 关联为 {0}。请返回你的赛事网站继续。"
+
+msgid "connect.next_service"
+msgstr "已为房间关联 Discord。Discord 将为好友再打开一次：请在那里也进行批准。"
+
+msgid "connect.rooms_service"
+msgstr "房间"
+
+msgid "connect.rooms_service_detail"
+msgstr "此游戏服务上的 Discord：排位对战、积分和公开房间。"
+
+msgid "connect.friends_service"
+msgstr "好友"
+
+msgid "connect.friends_service_detail"
+msgstr "Ember 账号服务上的 Discord：你的好友列表，所有 Ember 游戏共用。"
 
 msgid "connect.go_detail"
 msgstr "关联 Discord 后，BluMint 等赛事网站就能找到你的 Ember ID。如有需要，Ember 会先在此电脑上设置你的 Ember ID，然后在浏览器中打开 Discord：请在那里使用你的赛事网站所认识的 Discord 账号进行批准。"

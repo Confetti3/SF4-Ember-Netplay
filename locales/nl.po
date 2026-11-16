@@ -1632,6 +1632,9 @@ msgstr "Vrienden hebben een Discord-account nodig."
 msgid "friends.unavailable"
 msgstr "Deze dienst biedt nog geen vrienden aan."
 
+msgid "friends.account_service"
+msgstr "Vrienden staan bij de accountdienst van Ember, dus dezelfde vrienden gaan met je mee in elk Ember-spel. Koppel daar Discord om ze te gebruiken."
+
 msgid "friends.off"
 msgstr "Vrienden staan uit."
 
@@ -1640,6 +1643,12 @@ msgstr "Je kunt nu niet in die kamer komen."
 
 msgid "friends.join_unavailable"
 msgstr "Die kamer kan nu niet worden betreden."
+
+msgid "friends.add_needs_code"
+msgstr "Deze speler deelt hier geen vriendcode. Vraag erom en voeg diegene daarna toe met de vriendcode."
+
+msgid "friends.block_from_list"
+msgstr "Een speler die je hier tegenkomt, blokkeer je via diens vriendschapsverzoek of je vriendenlijst."
 
 msgid "friends.cannot_watch"
 msgstr "Die vriend zit niet in een spel dat je kunt bekijken."
@@ -2168,6 +2177,9 @@ msgstr "Koppel een Discord-account voor potjes met ranglijst, punten, vrienden e
 
 msgid "discord.account_linked_detail"
 msgstr "Het Discord-account dat aan je Ember ID is gekoppeld. Potjes met ranglijst, punten, vrienden, gedeelde replays en toernooisites zoals BluMint gebruiken het. Het kan verschillen van het account in de Discord-app. Selecteer om van account te wisselen of het te ontkoppelen."
+
+msgid "discord.account_friends_missing"
+msgstr "Vrienden hebben een eigen Discord-koppeling bij de accountdienst van Ember, en die is daar nog niet gekoppeld. Druk om die te koppelen."
 
 msgid "discord.server"
 msgstr "Ember Discord-server"
@@ -4931,6 +4943,21 @@ msgstr "Keur het goed in je browser. Dit scherm wordt bijgewerkt zodra Discord g
 
 msgid "connect.done"
 msgstr "Discord gekoppeld als {0}. Ga terug naar je toernooisite om verder te gaan."
+
+msgid "connect.next_service"
+msgstr "Discord gekoppeld voor kamers. Discord opent nog een keer voor vrienden: keur daar ook goed."
+
+msgid "connect.rooms_service"
+msgstr "Kamers"
+
+msgid "connect.rooms_service_detail"
+msgstr "Discord bij de dienst van dit spel: potjes met ranglijst, punten en openbare kamers."
+
+msgid "connect.friends_service"
+msgstr "Vrienden"
+
+msgid "connect.friends_service_detail"
+msgstr "Discord bij de accountdienst van Ember: je vriendenlijst, gedeeld door elk Ember-spel."
 
 msgid "connect.go_detail"
 msgstr "Als je Discord koppelt, kunnen toernooisites zoals BluMint je Ember ID vinden. Ember stelt zo nodig je Ember ID op deze pc in en opent daarna Discord in je browser: keur daar goed met het Discord-account dat je toernooisite kent."
