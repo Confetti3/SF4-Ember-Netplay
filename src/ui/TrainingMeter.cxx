@@ -250,8 +250,8 @@ static TrainingHudArea DrawInputDisplay(const training::View& view, InputDisplay
                 for (const auto& run : history) {
                     const ImVec2 way = Way(run.buttons);
                     const float reach = (way.x && way.y ? .7071f : 1.f) * g * .8f;
-                    const ImVec2 at(centre.x + way.x * reach, centre.y + way.y * reach);
-                    if (!points || at.x != trail[points - 1].x || at.y != trail[points - 1].y) trail[points++] = at;
+                    const ImVec2 tip(centre.x + way.x * reach, centre.y + way.y * reach);
+                    if (!points || tip.x != trail[points - 1].x || tip.y != trail[points - 1].y) trail[points++] = tip;
                     if ((frames += run.frames) >= InputTrail) break;
                 }
                 for (int i = 1; i < points; ++i)

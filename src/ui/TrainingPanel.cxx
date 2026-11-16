@@ -502,11 +502,11 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows.back().opens=true;
   // A file that comes out the wrong way round is turned in one press.
   rows.push_back(Row("mirror",loc::T("training.mirror"),loc::T("training.mirror.detail"),ready&&v.mode==Mode::Idle&&v.lengths[v.selected]>0));
-  for(std::size_t i=0;i<rows.size();++i){rows[i].wide=i>=SlotCount;rows[i].height=compactSlots?30:0;}
+  for(std::size_t i=0;i<rows.size();++i){rows[i].wide=i>=SlotCount;rows[i].height=compactSlots?30.f:0.f;}
  }else if(screen=="tools"||screen=="reply"){
   rows=ToolRows(v,screen);
   // The typed reply slots are laid out as the recording slots are.
-  if(screen=="reply")for(auto& row:rows){row.wide=row.id.compare(0,11,"reply-slot-")!=0;row.height=compactSlots?30:0;}
+  if(screen=="reply")for(auto& row:rows){row.wide=row.id.compare(0,11,"reply-slot-")!=0;row.height=compactSlots?30.f:0.f;}
  }else if(screen=="frame-data"){
   LoadPractice();
   const auto onOff=[](bool on){return std::string(loc::T(on?"common.on":"common.off"));};
@@ -592,7 +592,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
   }
   if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(lab.meter.style!=MeterStyle::Flat);
- },1,{},GameMenu::Body{},true,compactSlots?30:100,statusTone);
+ },1,{},GameMenu::Body{},true,compactSlots?30.f:100.f,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
  // A tab names its page; the pages are the lab's, one level under it, so
  // one replaces another, whatever is open on it (a reader).
