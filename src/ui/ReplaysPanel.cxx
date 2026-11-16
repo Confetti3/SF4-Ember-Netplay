@@ -2,6 +2,7 @@
 #include "ApplicationShell.hxx"
 #include "GameMenu.hxx"
 #include "MenuRows.hxx"
+#include "PaneButton.hxx"
 #include "ReplaySummaryText.hxx"
 #include "MenuDialogs.hxx"
 #include "Theme.hxx"
@@ -622,14 +623,7 @@ void ReplaysPanel::DrawDetail(const ShellView& v,const std::string& screen,const
  else v2::Fact(loc::T("replays.fact.fighters"),FightersText(*r));
  v2::Fact(loc::T("replays.fact.played"),r->label);
  if(!set&&r->summary)v2::Fact(loc::T("replays.fact.length"),MatchText(*r->summary));
- // Watch now opens the row's choices, as Select does.
- ImGui::Dummy(ImVec2(0,6*s));
- ImGui::PushStyleColor(ImGuiCol_Button,ImGui::ColorConvertU32ToFloat4(c.accent));
- ImGui::PushStyleColor(ImGuiCol_ButtonHovered,ImGui::ColorConvertU32ToFloat4(c.accentLight));
- ImGui::PushStyleColor(ImGuiCol_Text,ImGui::ColorConvertU32ToFloat4(c.ink));
- ImGui::PushFont(HeadingFont());
- if(ImGui::Button(loc::T("replays.watch"),ImVec2(-1,52*s)))nav.Ask(id,rows);
- ImGui::PopFont();
- ImGui::PopStyleColor(3);
+ // The big button watches now: the row's first choice, with Select still opening them all.
+ DrawPrimaryChoice(nav,*row,rows);
 }
 } }
