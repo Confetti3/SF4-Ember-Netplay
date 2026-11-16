@@ -14,11 +14,11 @@
 #include <utility>
 #include <vector>
 
+// RegionState and RegionType are CrashReport.hxx's.
+#include "CrashReport.hxx"
+
 namespace sf4e {
 namespace crash {
-
-enum class RegionState { Free, Reserved, Committed };
-enum class RegionType { None, Image, Mapped, Private };
 
 // A run of pages the walk found alike. allocationBase is the base of the
 // allocation the region belongs to (0 for free space).
