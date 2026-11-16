@@ -989,9 +989,10 @@ int main() try {
         io.AddMouseButtonEvent(0, true); frame();
         io.AddMouseButtonEvent(0, false); frame();
     };
-    // FullTableOffersAtItsHead: a full table's Join queue and Watch stand
-    // inside its head, side by side, focused or not, and the mouse presses
-    // each, at a game's screen sizes and interface scales.
+    // FullTableOffersAtItsFoot: a full table's Join queue and Watch stand in
+    // the strip at its foot, under its seats, as 1.6.0's did, side by side,
+    // focused or not, and the mouse presses each, at a game's screen sizes and
+    // interface scales.
     const std::pair<float, ImVec2> screens[] = {{1.f, {1280, 800}}, {1.f, {1920, 1080}}, {1.5f, {1920, 1080}},
         {1.34f, {2560, 1440}}, {2.f, {3840, 2160}}};
     for (const auto& [scale, size] : screens) {
@@ -1003,11 +1004,13 @@ int main() try {
             const auto& card = boxes["table-0"];
             const auto& queue = boxes["table-0/queue"];
             const auto& watch = boxes["table-0/watch"];
-            const float head = table_card::Head * scale;
-            if (!shown || !(queue.second.x <= watch.first.x && watch.second.x <= card.second.x && queue.first.y >= card.first.y &&
-                    queue.second.y <= card.first.y + head && watch.second.y <= card.first.y + head)) {
+            const float head = table_card::Head * scale, stripTop = card.second.y - (table_card::Foot + table_card::Strip) * scale - .5f,
+                stripEnd = card.second.y - table_card::Foot * scale + .5f;
+            if (!shown || !(queue.second.x <= watch.first.x && watch.second.x <= card.second.x && queue.first.x >= card.first.x &&
+                    queue.first.y >= card.first.y + head && queue.first.y >= stripTop && watch.first.y >= stripTop &&
+                    queue.second.y <= stripEnd && watch.second.y <= stripEnd)) {
                 std::fprintf(stderr, "scale %.2f size %.0fx%.0f offer %s\n", scale, size.x, size.y, offer);
-                Check(false, "A full table's offers did not stand side by side in its head");
+                Check(false, "A full table's offers did not stand side by side in the strip at its foot");
             }
             const auto before = actions.size();
             click(targets.at(id));
@@ -1696,10 +1699,9 @@ int main() try {
         }
         // TablesFitTheColumn: at 1280x720 and at 2438x1330 (scale 1.218) four
         // tables in their common states fit the column with no scroll bar,
-        // every card whole inside it, and all four cards are one height,
-        // whatever each holds (`even`: a banner's card may keep its 18 px more, and
-        // your own card with its strip its 38 px more, where four at its height do
-        // not fit, at 1280x720; at 2438x1330 they are always one height).
+        // every card whole inside it; the quiet tables are one height and none
+        // is taller than a table in play (the fill rule gives the tables in
+        // play the room: TableCardShape.hxx).
         // TablesFillTheColumn: at 2438x1330 the four fill the column: the last
         // card ends within one gap of the column's foot.
         const auto tablesWindow = [&]() -> ImGuiWindow* {
@@ -1707,7 +1709,7 @@ int main() try {
             return nullptr;
         };
         const auto height = [&](const std::string& id) { return boxes.at(id).second.y - boxes.at(id).first.y; };
-        const auto fits = [&](const char* state, bool even = true) {
+        const auto fits = [&](const char* state) {
             for (const auto& [scale, size] : {std::pair<float, ImVec2>{1.f, {1280, 720}}, std::pair<float, ImVec2>{1.218f, {2438, 1330}}}) {
                 ApplyTheme(scale); io.DisplaySize = size; ++view.room.revision;
                 shell.Navigation().Home(); shell.Navigation().Push("room"); boxes.clear(); frame(); frame(); frame();
@@ -1723,12 +1725,19 @@ int main() try {
                     continue;
                 }
                 const bool wide = scale > 1;
-                bool same = true;
-                for (int i = 1; i < 4; ++i) same = same && std::fabs(height("table-" + std::to_string(i)) - height("table-0")) < .5f;
-                if ((even || wide) && !same) {
+                // Quiet tables are one height, and none is taller than a table in play.
+                float quietHeight = 0, busyLeast = FLT_MAX; bool same = true;
+                for (int i = 0; i < 4; ++i) {
+                    const auto& t = view.room.tables[static_cast<std::size_t>(i)];
+                    const float h = height("table-" + std::to_string(i));
+                    if (t.p1 || t.p2 || !t.queue.empty() || !t.spectators.empty()) { busyLeast = (std::min)(busyLeast, h); continue; }
+                    if (quietHeight > 0 && std::fabs(h - quietHeight) >= .5f) same = false;
+                    quietHeight = h;
+                }
+                if (!same || quietHeight > busyLeast + .5f) {
                     std::cerr << state << " at scale " << scale << " size " << size.x << "x" << size.y << " heights " << height("table-0") << ' ' << height("table-1")
                               << ' ' << height("table-2") << ' ' << height("table-3") << '\n';
-                    Check(false, "Four tables' cards were not one height");
+                    Check(false, "Quiet tables were not one height, or one was taller than a table in play");
                 }
                 const float gap = table_card::Between * scale, foot = w->Pos.y + w->Size.y, last = boxes.at("table-3").second.y;
                 if (wide && (last > foot + .5f || last < foot - gap - .5f)) {
@@ -1753,6 +1762,7 @@ int main() try {
         quiet();
         fits("a quiet room");
         seat(0, 2, 3, room::TablePhase::Playing); seat(1, 4, 0, room::TablePhase::Waiting);
+        // A busy table's strip (Join queue, Watch) keeps its 38 px at 1280x720, as your own card's does.
         fits("a game, a pair waiting and two quiet tables");
         // ZeroCountsSayNothing: a table's queue and watchers show only when there are any.
         {
@@ -1773,7 +1783,8 @@ int main() try {
         focus("room-more"); targets.clear(); frame(); frame();
         Check(targets.count("room-line") == 1, "The line under the list did not explain a row away from the cards");
         // Four games, as a watcher of one of them: each card offers the queue
-        // and watching at its head.
+        // and watching, in its strip where the column has the room and on its
+        // line where it has not (1280x720).
         seat(0, 2, 3, room::TablePhase::Playing); seat(1, 4, 5, room::TablePhase::Playing);
         seat(2, 6, 7, room::TablePhase::Playing); seat(3, 8, 9, room::TablePhase::Playing);
         view.room.tables[0].spectators = {1};
@@ -1786,13 +1797,13 @@ int main() try {
         // Your own seat, two games and a quiet table; your own seat, a game and
         // two quiet tables.
         seat(0, 1, 2, room::TablePhase::Waiting); seat(3, 0, 0, room::TablePhase::Idle);
-        fits("your own seat, two games and a quiet table", false);
+        fits("your own seat, two games and a quiet table");
         seat(2, 0, 0, room::TablePhase::Idle);
-        fits("your own seat, a game and two quiet tables", false);
+        fits("your own seat, a game and two quiet tables");
         // Your own seat with a banner (the opponent's new fighter) and three busy tables.
         seat(2, 6, 7, room::TablePhase::Playing); seat(3, 8, 9, room::TablePhase::Playing);
         view.opponentChangedFighter = 5; ++view.opponentChangeSequence;
-        fits("your own seat with a banner and three busy tables", false);
+        fits("your own seat with a banner and three busy tables");
         view.opponentChangedFighter = -1;
         // Four games, the rules too long for the heading's line (every room rule,
         // a set, a long language): they take a paragraph under it, and the four

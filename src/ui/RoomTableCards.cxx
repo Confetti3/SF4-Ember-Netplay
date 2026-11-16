@@ -24,10 +24,10 @@ int SeatOf(const MenuChoice& offer) {
  return option?option->seat:-1;
 }
 
-// The buttons on a card's line: its offers that are not seats (Join queue,
-// Watch); on your own place, in its strip, Ready (a seat), what leaves it and
-// Table options; while the card asks a question (leaving a seat, ending the
-// watched game), the question's answers (in the strip on your own card).
+// A card's buttons, in the strip at its foot (on its line where the strips
+// stand aside): its offers that are not seats (Join queue, Watch); on your own
+// place Ready (a seat), what leaves it and Table options; while the card asks
+// a question (leaving a seat, ending the watched game), the question's answers.
 struct CardButtons {
  enum class Kind { Offers, Place, Question } kind=Kind::Offers;
  std::vector<MenuChoice> choices;
@@ -66,7 +66,9 @@ CardWords CardWordsOf(const RoomBoardFrame& f,const TableCardShape& shape,const 
  in.words=nameWidth+differsWidth+(nameWidth>0&&differsWidth>0?c::Space*s:0);
  in.score=width(w.score,TypeOf(shape.StepOf(card.content,b.H())).score*s,HeadingFont());
  // A hair over the button's own padding (v2::CardButton keeps Space each side), so a label that fits exactly is not cut by rounding.
- for(const auto& choice:buttons.choices)in.buttons.push_back(std::ceil(width(choice.label,13*s,ImGui::GetFont()))+2*c::Space*s+2*s);
+ // A strip's labels are drawn at the seat buttons' size (DrawCard), a line's at 13 px.
+ const float labelSize=(card.content.strip?TypeOf(shape.StepOf(card.content,b.H())).offer:13)*s;
+ for(const auto& choice:buttons.choices)in.buttons.push_back(std::ceil(width(choice.label,labelSize,ImGui::GetFont()))+2*c::Space*s+2*s);
  return w;
 }
 
@@ -154,18 +156,19 @@ SeatNote BesideName(const ShellView& v,const room::Table& t,const room::Member& 
 // they are ready; on a Compact card their win streak at this table, else
 // their idle time, on the tag's inner side where it fits (PlaceSeatTag), on a
 // taller one the lines its step shows
-// under the fighter (SeatNotes). A versus card centres the lines between the
-// picture and the score, so the pair stands even about it; a stacked seat
-// starts them beside the picture. The picture is the fighter they picked,
-// else their main (SeatLookOf), standing on the card's ground with no tile.
+// under the fighter (SeatNotes). The lines stand beside the picture, so a
+// player reads as one with their fighter: from its end on the first seat and
+// a stacked one, up to its start on a versus card's second seat. The picture is the fighter they picked,
+// else their main (SeatLookOf), on a cabinet's screen as an Arcade room shows
+// its players (DrawSeatScreen), the screen filling the tile.
 void DrawSeat(const RoomBoardFrame& f,ImDrawList* d,const v2::Box& box,const v2::Box& tile,const room::Table& t,const room::Member& m,int side,bool versus,
               const TableCardType& type,bool marked,std::string& elided) {
  const auto& v=f.v;const float s=f.s,gap=table_card::FaceGap*s;const auto& c=v2::Colors();
  const bool mirrored=versus&&side==1;
  const float left=mirrored?box.min.x:tile.max.x+gap,right=mirrored?tile.min.x-gap:box.max.x,room=(std::max)(0.f,right-left);
  const auto widthOf=[](const std::string& value,float size){return ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,value.c_str()).x;};
- // Where a line `width` wide starts: centred on a versus card, else at the start.
- const auto lineAt=[&](float width){return left+(versus?(std::max)(0.f,room-width)*.5f:0.f);};
+ // Where a line `width` wide starts: beside the picture, so at the lines' start, or for a versus card's second seat ending at their end.
+ const auto lineAt=[&](float width){return mirrored?left+(std::max)(0.f,room-width):left;};
  const v2::TagSize tagSize=type.largeName?v2::TagSize::M:v2::TagSize::S;
  // As v2::Tag lays its one line out: the name's size or a chip's, whichever is taller.
  const float chipLine=v2::ChipFont()+8*s,tagLine=(std::max)(type.largeName?22*s:ImGui::GetFontSize(),chipLine);
@@ -181,8 +184,11 @@ void DrawSeat(const RoomBoardFrame& f,ImDrawList* d,const v2::Box& box,const v2:
  };
  while(shown>0&&block(shown)>box.H())--shown;
  const float top=box.min.y+(std::max)(0.f,(box.H()-block(shown))*.5f);
- DrawCharacterPortrait(SeatPicture(look,f.art),tile.min,tile.max,v2::color::Alpha(c.frame,0.f),PictureAnchor::Foot);
- if(const auto points=PointsOf(v,m,look.fighter))v2::LevelBand(d,tile,points->points);
+ // One tone for every table: the accent while its game is played, quiet otherwise. The Ultra's mark only on a
+ // screen with the room for it (a Medium card's and up); the fighter's line names it on every card.
+ const bool marksUltra=look.picked&&tile.H()>=table_card::MediumSeat*s-.5f;
+ const v2::Box glass=DrawSeatScreen(d,tile,SeatPicture(look,f.art),t.phase==room::TablePhase::Playing?c.accent:c.muted,marksUltra?look.ultra:-1,s);
+ if(const auto points=PointsOf(v,m,look.fighter))v2::LevelBand(d,glass,points->points);
  if(marked)d->AddRect(ImVec2(tile.min.x-2*s,tile.min.y-2*s),ImVec2(tile.max.x+2*s,tile.max.y+2*s),ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)),3*s,0,2*s);
  const auto tag=MemberTag(v,m);
  // A Compact card's streak, else their idle time, stands beside the name where it fits; a taller card's are notes.
@@ -281,8 +287,10 @@ void DrawCard(const RoomBoardFrame& f,ImDrawList* d,const TableFloor& floor,cons
   const bool large=card.content.quiet||card.content.strip;
   const float inset=large?0:table_card::HeadInset*s;
   bool cut=false;
+  // Ready on your own place is the bar's Ready: the same filled button.
+  const bool primary=buttons.kind==CardButtons::Kind::Place&&buttons.choices[i].id==OwnPlace::Ready;
   v2::CardButton(d,v2::Box{ImVec2(r.x0,r.y0+inset),ImVec2(r.x1,r.y1-inset)},buttons.choices[i].label,large?offerSize:13*s,chosen,
-   pointer.buttonOver==static_cast<int>(i),buttons.choices[i].enabled,false,&cut);
+   pointer.buttonOver==static_cast<int>(i),buttons.choices[i].enabled,false,&cut,primary);
   if(cut)elided+=(elided.empty()?"":"\n")+buttons.choices[i].label;
  }
  if(at.banner.y1>at.banner.y0)DrawCardText(elided,ImVec2(at.banner.x0,(at.banner.y0+at.banner.y1-13*s)*.5f),at.banner.x1-at.banner.x0,card.banner.text,13*s,
@@ -330,17 +338,18 @@ TableFloor ShapeFloor(const RoomBoardFrame& f,const PlaceExit& place,float width
   const bool quiet=!t.p1&&!t.p2&&t.queue.empty()&&t.spectators.empty()&&t.watchingNext.empty()&&!own&&seatsOnly;
   TableFloor::Card card{&e,&t,{quiet,false},quiet?TableBanner{}:DescribeTableBanner(f.v,t),own};
   card.content.banner=!card.banner.text.empty();
-  // Your own place's card keeps its buttons in a strip, whatever they are asked or offer
-  // (PlaceTableCards may stand it aside).
-  card.content.strip=own;
+  // A card's buttons stand in a strip at its foot, under the seats: your own
+  // place's, whatever they are asked or offer, and another table's offers that
+  // are not seats (Join queue, Watch). PlaceTableCards may stand the strips aside.
+  card.content.strip=own||!seatsOnly;
   contents.push_back(card.content);
   floor.cards.push_back(std::move(card));
  }
  const float area=height-after;
  const auto shapeAt=[&](float w){
   floor.width=w;floor.shape=ShapeTableCards(w,gridColumns,grid,f.s);floor.places=PlaceTableCards(floor.shape,contents,area);
-  // Where the strip stands aside (the column is too short for it) the card's buttons are on its line.
-  for(auto& card:floor.cards)card.content.strip=card.own&&!floor.places.stripAside;
+  // Where the strips stand aside (the column is too short for them) each card's buttons are on its line.
+  for(std::size_t i=0;i<floor.cards.size();++i)floor.cards[i].content.strip=contents[i].strip&&!floor.places.stripAside;
  };
  shapeAt(width);
  // Cards that do not fit the scroll stand beside its bar, at the width they are drawn at.
@@ -350,13 +359,17 @@ TableFloor ShapeFloor(const RoomBoardFrame& f,const PlaceExit& place,float width
 
 // A Classic room's floor in `tables`, its cards where `floor` stands them, in
 // their own scroll when they do not fit; `follows` after them in that scroll.
-//  A versus card:  TABLE 1 [phase] name     rules  Queue 1 · Watching 2  [Join queue] [Watch]
-//                  [face] name, fighter (notes)     2 - 1     name, fighter (notes) [face]
+//  A versus card:  TABLE 1 [phase] name                        rules  Queue 1 · Watching 2
+//                  [screen] name, fighter (notes)   2 - 1   name, fighter (notes) [screen]
+//                  [        Join queue        ]  [          Watch          ]
 //  A stacked card: TABLE 1 [phase] name                              counts        2 - 1
-//                  [face] name, fighter
-//                  [face] name, fighter
-//  Your own card:  as a versus card, its head holding no buttons, and under the seats
+//                  [screen] name, fighter
+//                  [screen] name, fighter
+//                  [        Join queue        ]  [          Watch          ]
+//  Your own card:  as a versus card, and under the seats
 //                  [   Ready up   ]  [  Leave seat  ]  [ Table options ]
+//  Too short a column for the strips: every card's buttons on its line instead
+//                  TABLE 1 [phase] name      rules  counts  [Join queue] [Watch]
 //  A quiet card:   TABLE 3 [Open]
 //                  [      + Play as P1      ]  [      + Play as P2      ]
 //  Its line:       TABLE 3 [Open]   [+ Play as P1]   [+ Play as P2]
