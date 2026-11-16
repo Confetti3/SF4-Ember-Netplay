@@ -137,9 +137,10 @@ void DrawFocusedLine(const RoomBoardFrame& f,float size) {
  const auto* e=f.Find(f.nav.Focus().c_str());
  if(!e)return;
  std::string elided;
- // The highlighted option of the entry's open choice, in full.
+ // What the entry's open choice says of its highlighted option beyond the option's own label, which the strip shows.
  const auto& nav=f.nav;
- const std::string choice=nav.Choosing()&&nav.DialogId()==e->id&&nav.ChoiceIndex()<e->choices.size()?e->choices[nav.ChoiceIndex()].detail:std::string();
+ const MenuChoice* option=nav.Choosing()&&nav.DialogId()==e->id&&nav.ChoiceIndex()<e->choices.size()?&e->choices[nav.ChoiceIndex()]:nullptr;
+ const std::string choice=option&&option->detail!=option->label?option->detail:std::string();
  const auto newline=e->detail.find('\n');
  std::string line=choice.empty()?e->detail.substr(0,newline):choice;
  // The board renders in place of the menu list, so it uses the same smoothed
@@ -303,6 +304,8 @@ void DrawTableCards(const RoomBoardFrame& f,const v2::Box& tables,const TableCar
   }
   const bool hovered=f.Press(e,b,!OnOwnPlace(place,e.id));
   if(choosing){
+   // The strip is the chooser: the menu draws no panel of the same choices over the board.
+   f.choices.inPlace={options.size(),over>=0};
    // The chosen side follows the mouse, but only a moving one takes the choice.
    if(over>=0&&pointerMoved)f.nav.ChoiceIndex(static_cast<std::size_t>(over));
    if(pressed>=0)f.action=f.nav.Pick(static_cast<std::size_t>(pressed),f.rows);

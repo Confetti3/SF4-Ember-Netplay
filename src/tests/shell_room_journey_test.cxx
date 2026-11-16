@@ -351,6 +351,8 @@ static void RoomBoardJourneys() {
  h.view.room.tables[0].p1=h.view.room.tables[0].p2=0;
  // A on an empty table opens the seat chooser: P1 left, P2 right, B cancels.
  h.Choose("table-2");Check(h.shell.Navigation().Choosing(),"A on an empty table did not open the seat chooser");
+ // The card's own strip is the chooser: no panel of the same choices is drawn over the board.
+ h.Frame();Check(h.shell.Navigation().Choosing()&&!ChoicesPanelDrawn(),"The seat chooser drew a panel over its card's strip");
  auto before=h.actions.size();h.Press(MenuInput::Back);
  Check(!h.shell.Navigation().Choosing()&&h.actions.size()==before&&h.shell.Navigation().Screen()=="room","B did not cancel the seat chooser");
  h.Choose("table-2");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
@@ -388,6 +390,9 @@ static void RoomBoardJourneys() {
  raced=h.actions.size();
  {auto& io=ImGui::GetIO();io.AddMouseButtonEvent(1,true);h.Frame();io.AddMouseButtonEvent(1,false);h.Frame();h.Frame();}
  Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced&&h.shell.Navigation().Screen()=="room","The right mouse button did not cancel the chooser");
+ // A click off the open strip closes it and does nothing else.
+ click("table-3");raced=h.actions.size();click("table-2");
+ Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced,"A click off the seat chooser left it open or acted");
  click("table-3");click("table-3/1");
  Check(h.actions.size()==raced+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.table==3&&sent.roomAction.seat==1;}),"Clicking P2 in the chooser did not take it");
  ImGui::GetIO().AddMousePosEvent(-1,-1);

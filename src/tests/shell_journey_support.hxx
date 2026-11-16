@@ -29,6 +29,8 @@ namespace commands=sf4e::commands;
 using Button=ControllerSample;
 namespace {
 void Check(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
+// Whether the menu's own window of choices (GameMenu::DrawValuePanel: a value panel or a popout) was drawn in the frame just run.
+bool ChoicesPanelDrawn(){const ImGuiWindow* window=ImGui::FindWindowByName("###Values");return window&&(window->Active||window->WasActive);}
 // The fighter drawn right of `fighter` in USFIV's select order, which is where Right goes.
 int DisplayedAfter(int fighter){const int* at=std::find(std::begin(sf4e::selection::RosterDisplayOrder),std::end(sf4e::selection::RosterDisplayOrder),fighter);return at[1];}
 struct Harness {

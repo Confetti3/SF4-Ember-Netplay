@@ -264,9 +264,16 @@ public:
     float paneWidth=0;
     // The detail pane on the cards' left, on the screen's own ground (launch recovery).
     bool paneLeft=false;
-    // A body's focused card and the column it sits in, where a value's
-    // choices open as they do on the cards. The body sets them each frame.
-    struct { v2::Box card, column; } bodyChoices;
+    // Where a body shows the focused row's open choices. The body sets it each frame.
+    // card, column: a value panel on `card` inside `column`, as on the cards; with no card
+    // named the panel opens at the focused row's own box. inPlace: the body draws the
+    // choices itself (a table card's strip), so the menu draws no panel of them.
+    struct BodyChoices {
+        // How many choices stand on a line (what Up and Down step by), and whether the pointer is on one.
+        struct InPlace { std::size_t across = 1; bool hovered = false; };
+        v2::Box card, column;
+        std::optional<InPlace> inPlace;
+    } bodyChoices;
     int tab=-1;
     bool listEnabled=true, ownsBack=false, customDetail=false;
     unsigned additionalInput=0;
@@ -377,6 +384,13 @@ private:
     // The focused row's choices, while they are open: a panel on its card
     // inside `column`, or a popout. False while none is open.
     bool DrawValuePanel(Frame& f, v2::Box card, v2::Box column);
+    // Open choices close on a click off them, a frame late, wherever they are drawn.
+    // BeginChoices takes last frame's click and is true while they stay open;
+    // EndChoices notes this frame's (`opening`: the click that opened them is not one).
+    bool BeginChoices();
+    void EndChoices(bool opening, bool hovered);
+    // The frame's part for choices a body draws itself: no panel, the same closing.
+    bool HoldChoicesInPlace(const BodyChoices::InPlace& in);
     // The hint bar on the window's bottom edge: what the buttons do now, each
     // also a button, and the status.
     void DrawHintBar(Frame& f, v2::Box bar);
@@ -416,9 +430,9 @@ private:
     // Closes the notice with the result of the button, or Back, that did it.
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
     // Where an open popout sits (Values), set on the frame it opens; whether
-    // a popout or value panel is open, and closes on this frame's outside click.
+    // choices are open (a popout, a value panel or a body's own), and close on this frame's outside click.
     ImVec2 popoutAt_{};bool valuesOpen_=false,valuesClose_=false;
-    // How many choices across the open value panel shows (DrawValuePanel), 0 while none is open.
+    // How many choices across the open choices show (DrawValuePanel, HoldChoicesInPlace), 0 while none is open.
     std::size_t valuesAcross_=0;
 std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeEyebrow_;
 v2::HeaderChip noticeChip_{};

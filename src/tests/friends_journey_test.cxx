@@ -224,12 +224,6 @@ void ActionsJourney() {
  Check(j.screen() == "friends", "Back from a friend's card did not return to the tab");
 }
 
-// Whether the choices popout (GameMenu::DrawValuePanel) was drawn in the frame just run.
-bool PopoutDrawn() {
- const ImGuiWindow* window = ImGui::FindWindowByName("###Values");
- return window && (window->Active || window->WasActive);
-}
-
 // More is Y on the Friends tab's friend and on another player's Card tab: each opens its choices, and the popout is drawn where a
 // player sees it, the Card tab's from the hero's More button (a card is no board row that draws its own choices).
 void MorePopoutJourney() {
@@ -238,10 +232,10 @@ void MorePopoutJourney() {
  j.focus("friend:fr_3");
  j.h.Press(MenuInput::Options);
  j.h.Frame();
- Check(j.choosing() && PopoutDrawn(), "Y on a friend opened no popout that is drawn");
+ Check(j.choosing() && ChoicesPanelDrawn(), "Y on a friend opened no popout that is drawn");
  j.h.Press(MenuInput::Back);
  j.h.Frame();
- Check(!j.choosing() && !PopoutDrawn(), "Back left the friend's popout drawn");
+ Check(!j.choosing() && !ChoicesPanelDrawn(), "Back left the friend's popout drawn");
  // With nothing to offer the friend (no room to invite to), A opens their Player card.
  j.view().canInvite = false; j.h.Frame(0, 3);
  j.focus("friend:fr_5");
@@ -250,10 +244,10 @@ void MorePopoutJourney() {
  j.h.Frame(0, 2);
  j.h.Press(MenuInput::Options);
  j.h.Frame();
- Check(j.choosing() && PopoutDrawn(), "Y on another player's Card tab opened no popout that is drawn");
+ Check(j.choosing() && ChoicesPanelDrawn(), "Y on another player's Card tab opened no popout that is drawn");
  j.h.Press(MenuInput::Back);
  j.h.Frame();
- Check(!j.choosing() && j.screen() == "player-card" && !PopoutDrawn(), "Back from More on the Card tab left it open or left the page");
+ Check(!j.choosing() && j.screen() == "player-card" && !ChoicesPanelDrawn(), "Back from More on the Card tab left it open or left the page");
 }
 
 // More's Player card, first on a friend and on a request, opens their profile by their friend id or request id.
