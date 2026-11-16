@@ -4239,6 +4239,12 @@ msgstr "Match ended: the two games diverged (desync). Export diagnostics from bo
 msgid "runtime.desync_spectator"
 msgstr "Your spectator view diverged from the fight. Leave and watch again."
 
+msgid "runtime.game_data_differs"
+msgstr "Match ended before it began: the game data differs. Verify the game's files in Steam, or remove mods, on the PC that differs."
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "Match ended before it began: the game data differs (fighter {0}). Verify the game's files in Steam, or remove mods, on the PC that differs."
+
 msgid "runtime.room_link_lost"
 msgstr "Lost connection to the game room. Check your internet and try again."
 
@@ -6116,6 +6122,18 @@ msgstr "Round {0}"
 
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
+
+msgid "replays.controls.step_back"
+msgstr "Step back"
+
+msgid "replays.controls.jump"
+msgstr "Jump {0} s"
+
+msgid "replays.controls.restart"
+msgstr "Restart"
+
+msgid "replays.controls.loop"
+msgstr "Loop"
 
 msgid "replays.controls.unavailable"
 msgstr "Controls work during the fight"

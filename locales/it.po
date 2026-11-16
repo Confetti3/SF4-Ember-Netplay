@@ -4644,6 +4644,12 @@ msgstr "Partita terminata: i due giochi si sono disallineati (desync). Usa Espor
 msgid "runtime.desync_spectator"
 msgstr "La tua visuale da spettatore si è disallineata dallo scontro. Esci e guarda di nuovo."
 
+msgid "runtime.game_data_differs"
+msgstr "Partita terminata prima di iniziare: i dati di gioco sono diversi. Sul PC che differisce, verifica i file del gioco su Steam o rimuovi le mod."
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "Partita terminata prima di iniziare: i dati di gioco sono diversi (personaggio {0}). Sul PC che differisce, verifica i file del gioco su Steam o rimuovi le mod."
+
 msgid "runtime.room_link_lost"
 msgstr "Connessione alla sala di gioco persa. Controlla internet e riprova."
 
@@ -6512,6 +6518,18 @@ msgstr "Round {0}"
 
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
+
+msgid "replays.controls.step_back"
+msgstr "Indietro"
+
+msgid "replays.controls.jump"
+msgstr "Salta {0} s"
+
+msgid "replays.controls.restart"
+msgstr "Ricomincia"
+
+msgid "replays.controls.loop"
+msgstr "Ripeti"
 
 msgid "replays.controls.unavailable"
 msgstr "I comandi funzionano durante l'incontro"

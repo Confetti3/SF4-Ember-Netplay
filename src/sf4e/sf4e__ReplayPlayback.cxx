@@ -192,7 +192,8 @@ void Cadence::Run() {
 			s_transport.Apply(queued.command);
 		}
 		else if (queued.command == Command::Meter) s_meterFlipped = !s_meterFlipped;
-		else s_lanesOn = !s_lanesOn;
+		else if (queued.command == Command::Inputs) s_lanesOn = !s_lanesOn;
+		else continue; // a seek command: SF4 offers none (SeekView::offered stays false)
 		++s_view.taken; s_view.device = queued.device;
 	}
 	// The timeline's jump (training/CameraControl.hxx: Seek): a frame ahead is played to at speed; a frame behind

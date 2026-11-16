@@ -4644,6 +4644,12 @@ msgstr "Walka zakończona: obie gry się rozjechały (desynchronizacja). Użyj E
 msgid "runtime.desync_spectator"
 msgstr "Twój widok widza rozjechał się z walką. Wyjdź i obejrzyj ją ponownie."
 
+msgid "runtime.game_data_differs"
+msgstr "Walka zakończona przed rozpoczęciem: dane gry się różnią. Na komputerze, który się różni, zweryfikuj pliki gry w Steam lub usuń mody."
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "Walka zakończona przed rozpoczęciem: dane gry się różnią (postać {0}). Na komputerze, który się różni, zweryfikuj pliki gry w Steam lub usuń mody."
+
 msgid "runtime.room_link_lost"
 msgstr "Utracono połączenie z pokojem gry. Sprawdź internet i spróbuj ponownie."
 
@@ -6512,6 +6518,18 @@ msgstr "Runda {0}"
 
 msgid "replays.controls.frame"
 msgstr "Klatka {0}"
+
+msgid "replays.controls.step_back"
+msgstr "Krok wstecz"
+
+msgid "replays.controls.jump"
+msgstr "Skok {0} s"
+
+msgid "replays.controls.restart"
+msgstr "Od nowa"
+
+msgid "replays.controls.loop"
+msgstr "Pętla"
 
 msgid "replays.controls.unavailable"
 msgstr "Sterowanie działa w trakcie walki"

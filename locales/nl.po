@@ -4644,6 +4644,12 @@ msgstr "Match beëindigd: de twee spellen liepen uiteen (desync). Gebruik Diagno
 msgid "runtime.desync_spectator"
 msgstr "Je toeschouwersweergave week af van het gevecht. Verlaat de kamer en kijk opnieuw."
 
+msgid "runtime.game_data_differs"
+msgstr "Match beëindigd voordat hij begon: de spelgegevens verschillen. Controleer op de afwijkende pc de spelbestanden in Steam of verwijder mods."
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "Match beëindigd voordat hij begon: de spelgegevens verschillen (personage {0}). Controleer op de afwijkende pc de spelbestanden in Steam of verwijder mods."
+
 msgid "runtime.room_link_lost"
 msgstr "Verbinding met de spelkamer verbroken. Controleer je internet en probeer opnieuw."
 
@@ -6512,6 +6518,18 @@ msgstr "Ronde {0}"
 
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
+
+msgid "replays.controls.step_back"
+msgstr "Stap terug"
+
+msgid "replays.controls.jump"
+msgstr "Spring {0} s"
+
+msgid "replays.controls.restart"
+msgstr "Opnieuw"
+
+msgid "replays.controls.loop"
+msgstr "Herhalen"
 
 msgid "replays.controls.unavailable"
 msgstr "Bediening werkt tijdens het gevecht"

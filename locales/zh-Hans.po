@@ -4646,6 +4646,12 @@ msgstr "对战已结束：双方游戏状态不一致（不同步）。请双方
 msgid "runtime.desync_spectator"
 msgstr "你的观战画面与对战不一致。请退出后重新观战。"
 
+msgid "runtime.game_data_differs"
+msgstr "对战在开始前已结束：游戏数据不一致。请在不一致的电脑上通过 Steam 验证游戏文件完整性，或移除模组。"
+
+msgid "runtime.game_data_differs_fighter"
+msgstr "对战在开始前已结束：游戏数据不一致（角色 {0}）。请在不一致的电脑上通过 Steam 验证游戏文件完整性，或移除模组。"
+
 msgid "runtime.room_link_lost"
 msgstr "与游戏房间的连接已断开。请检查网络后重试。"
 
@@ -6514,6 +6520,18 @@ msgstr "第 {0} 回合"
 
 msgid "replays.controls.frame"
 msgstr "第 {0} 帧"
+
+msgid "replays.controls.step_back"
+msgstr "逐帧后退"
+
+msgid "replays.controls.jump"
+msgstr "跳转 {0} 秒"
+
+msgid "replays.controls.restart"
+msgstr "从头开始"
+
+msgid "replays.controls.loop"
+msgstr "循环"
 
 msgid "replays.controls.unavailable"
 msgstr "仅在对战中可用"
