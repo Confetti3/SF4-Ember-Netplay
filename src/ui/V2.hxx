@@ -126,8 +126,8 @@ using IconDraw = std::function<void(ImDrawList* draw, ImVec2 at, float size, ImU
 constexpr float IconButtonSize = 48;
 void IconButton(ImDrawList* draw, Box b, const IconDraw& icon, bool focused, bool hovered, bool enabled = true);
 // A bar of buttons (the room's actions) in `width`: BarLines is the fewest
-// lines over which the places, shared out evenly in order, each get the width
-// their labels `need` with `gap` between; BarPlaces lays them out in `bar`,
+// lines over which the places, in order and shared out evenly (else as many to a line as it holds),
+// each get the width their labels `need` with `gap` between; BarPlaces lays them out in `bar`,
 // each line `height` tall and the next `gap` under it. Along a line the places
 // share it evenly, a place that needs more taking that and the rest sharing
 // what is left.
