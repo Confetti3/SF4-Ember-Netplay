@@ -1124,10 +1124,10 @@ Elena	Handstand Kick	MP	6MP
 Elena	Handstand Whip	MK	6MK
 Elena	Round Arch	HK	4HK
 Elena	Sliding	HK	3HK
-Elena	Mallet Smash	LP	63214LP
-Elena	Mallet Smash	MP	63214MP
+Elena	Mallet Smash		63214PP
 Elena	Mallet Smash	HP	63214HP
-Elena	EX Mallet Smash	EX	63214PP
+Elena	Mallet Smash	MP	63214MP
+Elena	Mallet Smash	LP	63214LP
 Elena	Scratch Wheel	LK	623LK
 Elena	Scratch Wheel	MK	623MK
 Elena	Scratch Wheel	HK	623HK

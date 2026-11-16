@@ -16,9 +16,23 @@ for r in csv.DictReader(open(tsv, encoding='utf-8'), delimiter='\t'):
     code, key = codes.get(r['fighter']), r['game_key'].strip()
     name, strength = r['move'].strip(), r['strength'].strip()
     # A follow-up or a later part is not a reply; one row per input, under its first name.
-    if not code or not key or key.count('+') > 1 or universal.match(key) or 'Followup' in name or 'Part ' in name or any(c == code and k == key for c, _, k in rows): continue
-    if strength and strength not in name and strength != 'EX' and not name.startswith('EX '): name += ' ' + strength
-    rows.append((code, name, key))
+    if not code or not key or key.count('+') > 1 or universal.match(key) or 'Followup' in name or 'Part ' in name or any(c == code and k == key for c, _, _, k in rows): continue
+    rows.append((code, name, 'EX' if name.startswith('EX ') else strength, key))
+# A move's rows with a strength come out weakest to strongest, EX last, in the places those rows had: no other row shifts, and
+# the pick list (TrainingPanel AddPick) shows the strengths in the order the rows come. A move with punch and kick rows
+# (Dhalsim's Back) is one run of each. A row with no strength and the EX buttons of a move whose other rows are LP/MP/HP
+# (or LK/MK/HK) is that move's EX, which the fixture leaves unlabelled.
+RANK = {'LP': 0, 'LK': 0, 'MP': 1, 'MK': 1, 'HP': 2, 'HK': 2, 'EX': 3}
+moves = {}
+for i, (code, name, _, key) in enumerate(rows): moves.setdefault((code, name.removeprefix('EX '), re.sub(r'[^PK]', '', key)[-1:]), []).append(i)
+for places in moves.values():
+    plain = any(RANK.get(rows[i][2], 3) < 3 for i in places)
+    for i in places:
+        code, name, strength, key = rows[i]
+        if plain and not strength and key[-2:] in ('PP', 'KK'): rows[i] = (code, 'EX ' + name, 'EX', key)
+    ranked = [i for i in places if rows[i][2] in RANK]
+    for i, row in zip(ranked, sorted((rows[i] for i in ranked), key=lambda r: RANK[r[2]])): rows[i] = row
+rows = [(code, name + ' ' + strength if strength and strength not in name and strength != 'EX' else name, key) for code, name, strength, key in rows]
 # An EX move the game gives each button pair its own version of (Juri's Fuhajin, Decapre's Scramble) is named by its pair; a pair
 # alone (Guy's Senpukyaku, one move for any two kicks) is the plain two-button EX.
 PAIR = re.compile(r'([LMH])([PK])\+[LMH]\2')
