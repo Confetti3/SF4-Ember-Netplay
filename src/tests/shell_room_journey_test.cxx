@@ -160,7 +160,7 @@ void AreaStepScrollsIntoView() {
  // Shorter, the bar follows the tables in their scroll, out of sight under
  // the cards (Up goes further from it, if need be), and RB back to Ready
  // brings it into view.
- ImGui::GetIO().DisplaySize=ImVec2(1280,480);h.Frame(0,3);
+ ImGui::GetIO().DisplaySize=ImVec2(1280,400);h.Frame(0,3);
  for(int i=0;i<6&&inView["ready"];++i)h.Press(MenuInput::Up);
  Check(focus().compare(0,6,"table-")==0&&!inView["ready"],"The fixture's bar did not follow the tables out of sight");
  h.Press(MenuInput::NextTab);

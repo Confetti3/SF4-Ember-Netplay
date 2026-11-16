@@ -70,6 +70,8 @@ struct Harness {
    for(unsigned direction:{MenuInput::Up,MenuInput::Down,MenuInput::Left,MenuInput::Right}){
     shell.Navigation().Prefer(reached[i]);Frame();
     Press(direction);
+    // A card lights its offers one by one (Left and Right move the light first): a press that left the focus where it was is repeated once.
+    if(!at()&&shell.Navigation().Focus()==reached[i])Press(direction);
     if(at())break;
     const std::string now=shell.Navigation().Focus();
     if(std::find(reached.begin(),reached.end(),now)==reached.end())reached.push_back(now);

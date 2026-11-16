@@ -2254,7 +2254,7 @@ msgid "about.website_detail"
 msgstr "Rooms, rankings and replays at {0}. Opens in your browser behind the game."
 
 msgid "about.twitter"
-msgstr "Ember's developer on Twitter"
+msgstr "Developer on Twitter"
 
 msgid "about.twitter_detail"
 msgstr "News from Ember's developer at {0}. Opens in your browser behind the game."
