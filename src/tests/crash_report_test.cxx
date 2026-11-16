@@ -1,6 +1,7 @@
 // Pure unit tests for the crash record model (F-015).
 
 #include "../common/CrashReport.hxx"
+#include "../common/CrashUnloaded.hxx"
 
 #include <string>
 #include <vector>
@@ -222,6 +223,7 @@ static void TestCodeBytesLine() {
 
 // A fake of ntdll's unload array: `slots` elements of `elementSize` bytes, which
 // may be more than the struct, with the entries written into the slots named.
+// The real element is 92 bytes on x86.
 struct FakeTrace {
 	std::vector<uint8_t> bytes;
 	uint32_t elementSize;
@@ -239,23 +241,32 @@ struct FakeTrace {
 	UnloadedImages Parse() const { return ParseUnloadTrace(bytes.data(), elementSize, slots); }
 };
 
-// Three unloads in a 16-slot array of 96-byte elements, out of slot order.
+// Three unloads in a 16-slot array of 92-byte elements, out of slot order.
 static UnloadedImages ThreeUnloads() {
-	FakeTrace trace(96, 16);
+	FakeTrace trace(92, 16);
 	trace.Set(0, 0x70000000u, 0x10000u, 2, "old.dll");
 	trace.Set(3, 0x64A10000u, 0x40000u, 5, "shellext.dll");
 	trace.Set(7, 0x69FF0000u, 0x30000u, 9, "other.dll");
 	return trace.Parse();
 }
 
+// The game and Sidecar, as the host knows them, then the three unloads.
+static ImageTable GameAndUnloads() {
+	ImageTable table;
+	table.Add("SSFIV.exe", 0x00400000u, 0x100000u, false);
+	table.Add("Sidecar.dll", 0x10000000u, 0x200000u, false);
+	table.AddUnloaded(ThreeUnloads());
+	return table;
+}
+
 static void TestUnloadTraceBytes() {
-	CHECK(UnloadTraceBytes(88, 64) == 88u * 64u);
+	CHECK(UnloadTraceBytes(92, 64) == 92u * 64u);
 	CHECK(UnloadTraceBytes(96, 1) == 96u);
 	CHECK(UnloadTraceBytes((uint32_t)UnloadEntryNeeded, 1) == UnloadEntryNeeded);
 	// A report that cannot be right reads nothing.
 	CHECK(UnloadTraceBytes(10, 1) == 0);
-	CHECK(UnloadTraceBytes(88, 0) == 0);
-	CHECK(UnloadTraceBytes(88, UnloadTraceMaxElements + 1) == 0);
+	CHECK(UnloadTraceBytes(92, 0) == 0);
+	CHECK(UnloadTraceBytes(92, UnloadTraceMaxElements + 1) == 0);
 	CHECK(UnloadTraceBytes(UnloadTraceMaxElementSize + 1, 1) == 0);
 	CHECK(UnloadTraceMaxBytes == (size_t)UnloadTraceMaxElements * UnloadTraceMaxElementSize);
 }
@@ -269,31 +280,37 @@ static void TestUnloadTraceParsing() {
 	CHECK(std::string(images.items[1].name) == "shellext.dll");
 	CHECK(std::string(images.items[2].name) == "old.dll");
 
-	// Elements of exactly the needed size, without the trailing Version field.
+	// A larger element than the struct is stepped by its own size.
+	FakeTrace larger(112, 8);
+	larger.Set(2, 0x64A10000u, 0x40000u, 1, "shellext.dll");
+	larger.Set(5, 0x69FF0000u, 0x30000u, 2, "other.dll");
+	CHECK(larger.Parse().count == 2 && std::string(larger.Parse().items[0].name) == "other.dll");
+
+	// Elements of exactly the needed size, without the trailing Version words.
 	FakeTrace shortElements((uint32_t)UnloadEntryNeeded, 4);
 	shortElements.Set(1, 0x64A10000u, 0x40000u, 1, "shellext.dll");
 	CHECK(shortElements.Parse().count == 1);
 
 	// More unloads than are kept: the newest remain.
-	FakeTrace many(88, 20);
+	FakeTrace many(92, 20);
 	for (uint32_t i = 0; i < 20; ++i) many.Set(i, 0x10000000u + i * 0x10000u, 0x1000u, 100 + i, "m.dll");
 	const UnloadedImages newest = many.Parse();
 	CHECK(newest.count == UnloadedKept);
 	CHECK(newest.items[0].sequence == 119 && newest.items[UnloadedKept - 1].sequence == 112);
 
 	// Nothing unloaded, no array, and memory that is not the array.
-	CHECK(FakeTrace(88, 16).Parse().count == 0);
-	CHECK(ParseUnloadTrace(nullptr, 88, 16).count == 0);
-	FakeTrace unaligned(88, 2);
+	CHECK(FakeTrace(92, 16).Parse().count == 0);
+	CHECK(ParseUnloadTrace(nullptr, 92, 16).count == 0);
+	FakeTrace unaligned(92, 2);
 	unaligned.Set(0, 0x64A10123u, 0x40000u, 1, "shellext.dll");   // not a 64 KB base
 	unaligned.Set(1, 0x64A10000u, 0, 2, "shellext.dll");          // no size
 	CHECK(unaligned.Parse().count == 0);
-	FakeTrace unnamed(88, 1);
+	FakeTrace unnamed(92, 1);
 	unnamed.Set(0, 0x64A10000u, 0x40000u, 1, "");
 	CHECK(unnamed.Parse().count == 0);
 
 	// A name outside ASCII is narrowed, not dropped.
-	FakeTrace wide(88, 1);
+	FakeTrace wide(92, 1);
 	wide.Set(0, 0x64A10000u, 0x40000u, 1, "ab");
 	UnloadEventTrace32 entry;
 	memcpy(&entry, wide.bytes.data(), sizeof(entry));
@@ -306,14 +323,14 @@ static void TestUnloadTraceParsing() {
 static void TestUnloadedModuleIsNamedWithItsOffset() {
 	const UnloadedImages images = ThreeUnloads();
 	char out[512];
-	// The fault in other.dll, with esi and edi into it and ebx a heap pointer.
+	// The fault in other.dll, with esi and edi into its former range and ebx a heap pointer.
 	const CrashRegisters registers = { 2, 0x0F5A9650u, 0, 0, 0x69FFA670u, 0x69FFA670u, 0, 0x0012FE98u, 0x69FFA5E0u };
 	size_t written = FormatUnloadedHits(out, sizeof(out), images, 0x69FFA5E0u, registers);
 	CHECK(written == strlen(out));
 	CHECK(std::string(out) ==
 		"unloaded module: other.dll+0xA5E0\n"
-		"unloaded module: other.dll+0xA670 (esi)\n"
-		"unloaded module: other.dll+0xA670 (edi)\n");
+		"esi is in the former range of other.dll+0xA670\n"
+		"edi is in the former range of other.dll+0xA670\n");
 
 	// The first and the last byte of a range are in it; the byte after is not.
 	const CrashRegisters none = {};
@@ -324,10 +341,10 @@ static void TestUnloadedModuleIsNamedWithItsOffset() {
 	written = FormatUnloadedHits(out, sizeof(out), images, 0x64A50000u, none);
 	CHECK(written == 0 && out[0] == '\0');
 
-	// A data pointer alone is named, without a line for the address.
+	// A data pointer alone is worded as a lead, without a line for the address.
 	const CrashRegisters dataOnly = { 0, 0, 0, 0, 0, 0x64A10040u, 0, 0, 0 };
 	written = FormatUnloadedHits(out, sizeof(out), images, 0x00401000u, dataOnly);
-	CHECK(std::string(out) == "unloaded module: shellext.dll+0x40 (edi)\n");
+	CHECK(std::string(out) == "edi is in the former range of shellext.dll+0x40\n");
 
 	// Outside every range, and with no trace at all: nothing printed.
 	const CrashRegisters elsewhere = { 2, 0x0F5A9650u, 0, 0, 0x00401000u, 0x7FFE0000u, 0, 0, 0 };
@@ -352,22 +369,38 @@ static void TestUnloadedModuleIsNamedWithItsOffset() {
 	CHECK(FormatUnloadedHits(nullptr, 0, images, 0, none) == 0);
 }
 
-static void TestImageDescription() {
-	const UnloadedImages images = ThreeUnloads();
+static void TestImageTable() {
+	const ImageTable table = GameAndUnloads();
 	char out[96];
-	size_t written = DescribeImage(out, sizeof(out), 0x00401234u, "SSFIV.exe", 0x00400000u, images);
+	size_t written = DescribeImage(out, sizeof(out), 0x00401234u, table);
 	CHECK(written == strlen(out));
 	CHECK(std::string(out) == "SSFIV.exe+0x1234");
-	written = DescribeImage(out, sizeof(out), 0x69FFA670u, "", 0, images);
+	written = DescribeImage(out, sizeof(out), 0x69FFA670u, table);
 	CHECK(written == strlen(out));
 	CHECK(std::string(out) == "other.dll+0xA670 (unloaded)");
-	// A loaded module wins over an unloaded one that held the same address.
-	DescribeImage(out, sizeof(out), 0x69FFA670u, "reloaded.dll", 0x69FF0000u, images);
-	CHECK(std::string(out) == "reloaded.dll+0xA670");
 	// Neither: empty.
-	CHECK(DescribeImage(out, sizeof(out), 0x12345678u, "", 0, images) == 0);
+	CHECK(DescribeImage(out, sizeof(out), 0x12345678u, table) == 0);
 	CHECK(out[0] == '\0');
-	CHECK(DescribeImage(nullptr, 0, 0, "", 0, images) == 0);
+	CHECK(table.Find(0x500000u) == nullptr);       // the first byte past the game
+	CHECK(table.Find(0x4FFFFFu) != nullptr);
+	CHECK(DescribeImage(nullptr, 0, 0, table) == 0);
+
+	// A loaded image wins where an unloaded one held the same range.
+	ImageTable reloaded;
+	reloaded.Add("reloaded.dll", 0x69FF0000u, 0x10000u, false);
+	reloaded.AddUnloaded(ThreeUnloads());
+	DescribeImage(out, sizeof(out), 0x69FF0010u, reloaded);
+	CHECK(std::string(out) == "reloaded.dll+0x10");
+
+	// A full table refuses more, and an empty range is not added.
+	ImageTable full;
+	for (unsigned i = 0; i < ImageTable::Capacity; ++i) CHECK(full.Add("a.dll", 0x10000u * (i + 1), 0x1000u, false));
+	CHECK(!full.Add("b.dll", 0x7000000u, 0x1000u, false));
+	CHECK(!ImageTable().Add("c.dll", 0, 0x1000u, false));
+	CHECK(!ImageTable().Add("c.dll", 0x10000u, 0, false));
+
+	written = FormatImageOffset(out, sizeof(out), "start.dll", 0x20u, false);
+	CHECK(std::string(out) == "start.dll+0x20" && written == strlen(out));
 }
 
 static void TestLocatedAddressLine() {
@@ -382,31 +415,34 @@ static void TestLocatedAddressLine() {
 	CHECK(written == 0 && small[0] == '\0');
 }
 
-static void TestStackWordsAreAnnotated() {
-	const UnloadedImages images = ThreeUnloads();
-	const uint32_t words[] = { 0x00000000u, 0x0040C0DEu, 0x69FFA5E0u, 0x12345678u };
-	const auto describe = [&](uint32_t word, char* out, size_t size) {
-		const bool inGame = word >= 0x00400000u && word < 0x00500000u;
-		DescribeImage(out, size, word, "SSFIV.exe", inGame ? 0x00400000u : 0, images);
-	};
+static void TestStackWordsKeepOnlyImageWords() {
+	const ImageTable table = GameAndUnloads();
+	// A UTF-16 path as it sits on a stack: "C:\U" as two words, and a pointer into the heap.
+	const uint32_t words[] = { 0x0000003Au, 0x0055005Cu, 0x0040C0DEu, 0x69FFA5E0u, 0x12345678u, 0x00600000u };
 	char out[512];
-	const size_t written = FormatStackWords(out, sizeof(out), 0x0012FE98u, words, 4, describe);
+	const size_t written = FormatStackWords(out, sizeof(out), 0x0012FE98u, words, 6, table);
 	CHECK(written == strlen(out));
 	CHECK(std::string(out) ==
-		"stack from esp=0x0012FE98:\n"
-		"stack+0x00: 0x00000000\n"
-		"stack+0x04: 0x0040C0DE SSFIV.exe+0xC0DE\n"
-		"stack+0x08: 0x69FFA5E0 other.dll+0xA5E0 (unloaded)\n"
-		"stack+0x0C: 0x12345678\n");
+		"stack from esp=0x0012FE98: 6 words, 2 in images, 4 left out\n"
+		"stack+0x08: 0x0040C0DE SSFIV.exe+0xC0DE\n"
+		"stack+0x0C: 0x69FFA5E0 other.dll+0xA5E0 (unloaded)\n");
+	// Words that are not in an image are never printed, whatever they hold.
+	CHECK(std::string(out).find("0055005C") == std::string::npos);
+	CHECK(std::string(out).find("12345678") == std::string::npos);
+
+	// No word in an image: the count alone.
+	const uint32_t plain[] = { 1, 2, 3 };
+	FormatStackWords(out, sizeof(out), 0x0012FE98u, plain, 3, table);
+	CHECK(std::string(out) == "stack from esp=0x0012FE98: 3 words, 0 in images, 3 left out\n");
 
 	// Nothing to show: nothing printed.
-	CHECK(FormatStackWords(out, sizeof(out), 0x0012FE98u, words, 0, describe) == 0);
+	CHECK(FormatStackWords(out, sizeof(out), 0x0012FE98u, words, 0, table) == 0);
 	CHECK(out[0] == '\0');
-	CHECK(FormatStackWords(out, sizeof(out), 0x0012FE98u, nullptr, 4, describe) == 0);
+	CHECK(FormatStackWords(out, sizeof(out), 0x0012FE98u, nullptr, 4, table) == 0);
 
 	// A buffer that holds some lines keeps whole lines only.
 	char small[90];
-	const size_t cut = FormatStackWords(small, sizeof(small), 0x0012FE98u, words, 4, describe);
+	const size_t cut = FormatStackWords(small, sizeof(small), 0x0012FE98u, words, 6, table);
 	CHECK(cut == strlen(small) && cut < sizeof(small));
 	CHECK(small[cut - 1] == '\n');
 	CHECK(std::string(small).find("stack+0x0C") == std::string::npos);
@@ -462,9 +498,9 @@ int main() {
 	TestUnloadTraceBytes();
 	TestUnloadTraceParsing();
 	TestUnloadedModuleIsNamedWithItsOffset();
-	TestImageDescription();
+	TestImageTable();
 	TestLocatedAddressLine();
-	TestStackWordsAreAnnotated();
+	TestStackWordsKeepOnlyImageWords();
 	TestAddressRegionLine();
 	printf("crash_report_test: all tests passed\n");
 	return 0;

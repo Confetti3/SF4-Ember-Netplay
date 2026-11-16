@@ -31,10 +31,11 @@ constexpr DWORD DumpRequestWaitMs = 30000;
 
 // How the game's request for a dump ended, so a crash record can say why a
 // dump is missing instead of leaving it to be guessed.
-enum class DumpAnswer { Unavailable, NotSent, Unanswered, Declined, Written };
+enum class DumpAnswer { NotAsked, Unavailable, NotSent, Unanswered, Declined, Written };
 
 inline const char* DumpAnswerName(DumpAnswer answer) {
 	switch (answer) {
+	case DumpAnswer::NotAsked: return "none was asked for";
 	case DumpAnswer::Unavailable: return "no launcher channel, so none was asked for";
 	case DumpAnswer::NotSent: return "the request could not be signalled to the launcher";
 	case DumpAnswer::Unanswered: return "the launcher did not answer within the wait";
@@ -297,11 +298,8 @@ struct DumpChannel {
 	bool reportEnabled = false;
 	DWORD exceptionCode = 0;
 	uint64_t crashAddress = 0;
-	// Crash requests the game made, and how many left a dump or report
-	// dump: with the exit code they tell a crash that never asked from one
-	// whose dump could not be written.
-	unsigned requestsServed = 0;
-	unsigned requestsWritten = 0;
+	// Whether the game made a crash request at all.
+	bool asked = false;
 
 	bool Create(bool inheritable = false) {
 		SECURITY_ATTRIBUTES attributes = { sizeof(attributes), nullptr, inheritable ? TRUE : FALSE };
@@ -368,7 +366,7 @@ struct DumpChannel {
         written[0] = L'\0';
         reportWritten.clear(); exceptionCode = 0; crashAddress = 0;
         if (asked.magic == DumpRequestMagic) {
-            ++requestsServed;
+            asked = true;
             const auto deadline = GetTickCount64() + budgetMs;
             auto* remotePointers = reinterpret_cast<EXCEPTION_POINTERS*>(static_cast<uintptr_t>(asked.exceptionPointers));
             // Keep exception structures in launcher memory before any slow write.
@@ -390,7 +388,6 @@ struct DumpChannel {
         // Either artifact means the request captured evidence. Track the paths
         // independently; a full failure does not discard a completed report.
         view->written = ok || !reportWritten.empty() ? 1 : 0;
-        if (view->written) ++requestsWritten;
         SetEvent(done);
         return ok;
     }

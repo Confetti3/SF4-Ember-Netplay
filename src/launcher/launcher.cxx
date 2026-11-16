@@ -866,10 +866,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         // Windows' own dump is looked for when Ember kept none, a freeze's included.
         if (crashed && !dumps.written[0] && dumps.reportWritten.empty()) {
-            // With the game's own record (sf4e-crash.log, "dump:" line) this says whether
-            // the game never asked or asked and got nothing.
-            spdlog::warn("No dump of this crash: the game asked the launcher for {} dump(s), {} written{}", dumps.requestsServed, dumps.requestsWritten,
-                dumps.requestsServed ? "" : "; its crash handler did not reach the request, or the process ended first");
+            // The game's own record (sf4e-crash.log, "dump:" line) says why when it asked.
+            // It also does not ask for every kind of exit, and not without a logs folder.
+            spdlog::warn("No dump of this crash: the game {} asked the launcher for one", dumps.asked ? "did" : "did not");
             NoteWindowsCrashDump(gameId);
         }
         discord.Stop(); helper.Stop(); CloseHandle(game);

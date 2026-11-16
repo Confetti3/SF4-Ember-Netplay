@@ -22,6 +22,7 @@
 
 #include "../common/CrashDump.hxx"
 #include "../common/CrashReport.hxx"
+#include "../common/CrashUnloaded.hxx"
 #include "../common/EnvFlag.hxx"
 
 // sf4e__Platform.hxx, declared here so the crash record builds without the
@@ -48,17 +49,15 @@ char s_detail[256];
 char s_callers[640];
 char s_registers[256];
 char s_code[128];
-// What a fault in no loaded module adds: the lines before the stack words, and
-// the words. The stack block stays out of the log so it cannot crowd the ring.
-char s_unmapped[1536];
-char s_stack[3072];
-// The open record, so an exit on another thread can still leave a line in it.
-std::atomic<HANDLE> s_recordFile(INVALID_HANDLE_VALUE);
+// What a fault in no loaded module adds. The stack words come last and stay
+// out of the log, so they cannot crowd the ring.
+char s_unmapped[2560];
+// One line and its newline, so they go out in a single write.
+char s_line[704];
 
-// The modules whose return addresses the callers line names, found at
-// Install so the crash path only compares numbers.
-struct CodeRange { uintptr_t base = 0, end = 0; char name[32] = {}; };
-CodeRange s_codeRanges[2];
+// The game's and Sidecar's images, found at Install so the crash path only
+// compares numbers. The callers line and the stack words read the same table.
+sf4e::crash::ImageTable s_loadedImages;
 
 // ntdll's own readers, resolved at Install so the crash path calls no loader
 // function. A null pointer leaves its part out of the record.
@@ -128,16 +127,23 @@ sf4e::crash::CrashFacts FactsFor(const char* kind, EXCEPTION_POINTERS* pointers,
 	return facts;
 }
 
-void NoteCodeRange(CodeRange& range, HMODULE module) {
+void NoteImage(HMODULE module) {
 	if (!module) return;
 	const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(module);
 	const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(reinterpret_cast<const uint8_t*>(module) + dos->e_lfanew);
 	char path[MAX_PATH];
 	if (!GetModuleFileNameA(module, path, MAX_PATH)) return;
 	const char* name = strrchr(path, '\\');
-	snprintf(range.name, sizeof(range.name), "%s", name ? name + 1 : path);
-	range.base = reinterpret_cast<uintptr_t>(module);
-	range.end = range.base + nt->OptionalHeader.SizeOfImage;
+	s_loadedImages.Add(name ? name + 1 : path, reinterpret_cast<uintptr_t>(module), nt->OptionalHeader.SizeOfImage, false);
+}
+
+// A line and its newline in one write, so a line another thread appends to the
+// record cannot land between them.
+void WriteLine(HANDLE file, const char* text, size_t length) {
+	if (length > sizeof(s_line) - 1) length = sizeof(s_line) - 1;
+	memcpy(s_line, text, length);
+	s_line[length] = '\n';
+	WriteText(file, s_line, length + 1);
 }
 
 // Return addresses on the faulting thread's stack, so a report sent without
@@ -159,12 +165,11 @@ const char* FormatCallers(const EXCEPTION_POINTERS* pointers, uintptr_t scanFrom
 	unsigned found = 0;
 	for (unsigned words = 0; words < 2048 && sp + sizeof(uintptr_t) <= top && found < 16; ++words, sp += sizeof(uintptr_t)) {
 		const uintptr_t value = *reinterpret_cast<const uintptr_t*>(sp);
-		for (const CodeRange& range : s_codeRanges) {
-			if (!range.base || value < range.base + 0x1000 + 7 || value >= range.end) continue;
-			if (!sf4e::crash::EndsInCall(reinterpret_cast<const uint8_t*>(value - 7))) continue;
-			if (!sf4e::crash::AppendCaller(s_callers, sizeof(s_callers), length, range.name, value - range.base)) return s_callers;
-			++found;
-		}
+		const sf4e::crash::ImageRange* range = s_loadedImages.Find(value);
+		if (!range || value < range->base + 0x1000 + 7) continue;
+		if (!sf4e::crash::EndsInCall(reinterpret_cast<const uint8_t*>(value - 7))) continue;
+		if (!sf4e::crash::AppendCaller(s_callers, sizeof(s_callers), length, range->name, value - range->base)) return s_callers;
+		++found;
 	}
 	if (!found) s_callers[0] = '\0';
 	return s_callers;
@@ -202,44 +207,24 @@ size_t FormatCodeLine(const EXCEPTION_POINTERS* pointers) {
 	return sf4e::crash::FormatCodeBytes(s_code, sizeof(s_code), address, bytes, read);
 }
 
-// The modules ntdll last unloaded, newest first. The array's address comes
-// back either as the value itself or as the address of the variable that holds
-// it; whichever reads as plausible entries is taken, and memory that is neither
-// parses to nothing.
+// The modules ntdll last unloaded, newest first. The getter's last value is
+// the address of ntdll's variable that holds the array pointer, which stays
+// null until a module has been unloaded.
 UnloadedImages ReadUnloadedImages() {
 	UnloadedImages none;
 	if (!s_ntdll.unloadTrace) return none;
 	ULONG* sizeAt = nullptr;
 	ULONG* countAt = nullptr;
-	PVOID traceAt = nullptr;
-	s_ntdll.unloadTrace(&sizeAt, &countAt, &traceAt);
+	PVOID holder = nullptr;
+	s_ntdll.unloadTrace(&sizeAt, &countAt, &holder);
 	ULONG elementSize = 0, elementCount = 0;
+	uintptr_t array = 0;
 	if (ReadOwnMemory(sizeAt, &elementSize, sizeof(elementSize)) != sizeof(elementSize) ||
-		ReadOwnMemory(countAt, &elementCount, sizeof(elementCount)) != sizeof(elementCount)) return none;
+		ReadOwnMemory(countAt, &elementCount, sizeof(elementCount)) != sizeof(elementCount) ||
+		ReadOwnMemory(holder, &array, sizeof(array)) != sizeof(array) || !array) return none;
 	const size_t bytes = sf4e::crash::UnloadTraceBytes(elementSize, elementCount);
-	if (!bytes) return none;
-	uintptr_t held = 0;
-	ReadOwnMemory(traceAt, &held, sizeof(held));
-	const uintptr_t candidates[] = { reinterpret_cast<uintptr_t>(traceAt), held };
-	for (const uintptr_t candidate : candidates) {
-		if (!candidate || ReadOwnMemory(reinterpret_cast<const void*>(candidate), s_unloadTrace, bytes) != bytes) continue;
-		const UnloadedImages images = sf4e::crash::ParseUnloadTrace(s_unloadTrace, elementSize, elementCount);
-		if (images.count) return images;
-	}
-	return none;
-}
-
-// "name+0xOffset" for an address in a loaded module or an unloaded image, into
-// `out`; empty for neither. A stack word can be any number, so a loaded module
-// is looked up only where VirtualQuery says an image is mapped.
-void DescribeAddress(uintptr_t address, const UnloadedImages& unloaded, char* out, size_t size) {
-	char name[MAX_PATH];
-	name[0] = '\0';
-	uintptr_t base = 0;
-	MEMORY_BASIC_INFORMATION memory;
-	if (VirtualQuery(reinterpret_cast<LPCVOID>(address), &memory, sizeof(memory)) == sizeof(memory) && memory.Type == MEM_IMAGE)
-		base = ModuleBaseOf(address, name);
-	sf4e::crash::DescribeImage(out, size, address, name, base, unloaded);
+	if (!bytes || ReadOwnMemory(reinterpret_cast<const void*>(array), s_unloadTrace, bytes) != bytes) return none;
+	return sf4e::crash::ParseUnloadTrace(s_unloadTrace, elementSize, elementCount);
 }
 
 sf4e::crash::AddressRegion RegionOf(const MEMORY_BASIC_INFORMATION& memory) {
@@ -258,35 +243,43 @@ sf4e::crash::AddressRegion RegionOf(const MEMORY_BASIC_INFORMATION& memory) {
 }
 
 struct UnmappedLines {
-	size_t summary = 0; // bytes in s_unmapped
-	size_t stack = 0;   // bytes in s_stack
+	size_t logged = 0; // the bytes in s_unmapped that also go to the log
+	size_t total = 0;  // all of them, the stack words included
 };
 
 // What a fault in no loaded module leaves to name its cause: the region the
 // address is in now, the images ntdll recently unloaded and whether the fault
-// or a register points into one, the thread's Win32 start address, and its
-// first stack words. Everything is a kernel read, a VirtualQuery or an ntdll
-// reader resolved at Install; nothing allocates.
+// or a register points into one, the thread's Win32 start address, and the
+// first stack words that point into a known image. Addresses are annotated by
+// comparing numbers against the table; the only loader lookup is the start
+// address, and only when no table range holds it.
 UnmappedLines FormatUnmappedLines(const EXCEPTION_POINTERS* pointers) {
 	UnmappedLines lines;
-	s_unmapped[0] = s_stack[0] = '\0';
+	s_unmapped[0] = '\0';
 	if (!pointers || !pointers->ExceptionRecord || !pointers->ContextRecord) return lines;
 	const CONTEXT& context = *pointers->ContextRecord;
 	const uintptr_t address = reinterpret_cast<uintptr_t>(pointers->ExceptionRecord->ExceptionAddress);
 	const UnloadedImages unloaded = ReadUnloadedImages();
+	sf4e::crash::ImageTable images = s_loadedImages;
+	images.AddUnloaded(unloaded);
 	MEMORY_BASIC_INFORMATION memory = {};
 	sf4e::crash::AddressRegion region;
 	if (VirtualQuery(reinterpret_cast<LPCVOID>(address), &memory, sizeof(memory)) == sizeof(memory)) region = RegionOf(memory);
-	size_t& length = lines.summary;
+	size_t& length = lines.logged;
 	length += sf4e::crash::FormatAddressRegion(s_unmapped + length, sizeof(s_unmapped) - length, address, region);
 	length += sf4e::crash::FormatUnloadedHits(s_unmapped + length, sizeof(s_unmapped) - length, unloaded, address, RegistersOf(context));
 	length += sf4e::crash::FormatUnloadedList(s_unmapped + length, sizeof(s_unmapped) - length, unloaded);
 	uintptr_t start = 0;
 	if (s_ntdll.queryThread && s_ntdll.queryThread(GetCurrentThread(), Win32StartAddressClass, &start, sizeof(start), nullptr) >= 0 && start) {
 		char description[96];
-		DescribeAddress(start, unloaded, description, sizeof(description));
+		if (!sf4e::crash::DescribeImage(description, sizeof(description), start, images)) {
+			char name[MAX_PATH];
+			const uintptr_t base = ModuleBaseOf(start, name);
+			if (base) sf4e::crash::FormatImageOffset(description, sizeof(description), name, start - base, false);
+		}
 		length += sf4e::crash::FormatLocatedAddress(s_unmapped + length, sizeof(s_unmapped) - length, "start address", start, description);
 	}
+	lines.total = length;
 	// Only this thread's committed stack, between the limits its TIB gives.
 	const NT_TIB* tib = reinterpret_cast<const NT_TIB*>(NtCurrentTeb());
 	const uintptr_t esp = context.Esp;
@@ -294,28 +287,27 @@ UnmappedLines FormatUnmappedLines(const EXCEPTION_POINTERS* pointers) {
 		uint32_t words[StackWordsKept];
 		const size_t room = (reinterpret_cast<uintptr_t>(tib->StackBase) - esp) / sizeof(uint32_t);
 		const size_t read = ReadOwnMemory(reinterpret_cast<const void*>(esp), words, (room < StackWordsKept ? room : StackWordsKept) * sizeof(uint32_t));
-		lines.stack = sf4e::crash::FormatStackWords(s_stack, sizeof(s_stack), static_cast<uint32_t>(esp), words, read / sizeof(uint32_t),
-			[&](uint32_t word, char* out, size_t size) { DescribeAddress(word, unloaded, out, size); });
+		lines.total += sf4e::crash::FormatStackWords(s_unmapped + length, sizeof(s_unmapped) - length, static_cast<uint32_t>(esp), words,
+			read / sizeof(uint32_t), images);
 	}
 	return lines;
 }
 
-// Each line of `text` as a Crash log line.
-void LogRecordLines(const char* text) {
-	for (const char* line = text; *line;) {
-		const char* end = strchr(line, '\n');
-		const size_t length = end ? (size_t)(end - line) : strlen(line);
-		spdlog::critical("Crash {:.{}}", line, length);
-		line += length + (end ? 1 : 0);
+// Each line of the first `length` bytes of `text` as a Crash log line.
+void LogRecordLines(const char* text, size_t length) {
+	for (const char* line = text; line < text + length;) {
+		const char* end = static_cast<const char*>(memchr(line, '\n', (size_t)(text + length - line)));
+		const size_t lineLength = end ? (size_t)(end - line) : (size_t)(text + length - line);
+		spdlog::critical("Crash {:.{}}", line, lineLength);
+		line += lineLength + 1;
 	}
 }
 
-// Adds a line to the record: through the open handle while the record is
-// being written, or by reopening it once written.
+// Adds one whole line to the record from any thread. It opens its own append
+// handle, so it neither shares the recording thread's handle nor lands inside
+// one of that thread's lines, which are written whole.
 void AppendRecordLine(const char* text, size_t length) {
-	const HANDLE held = s_recordFile.load();
-	if (held != INVALID_HANDLE_VALUE) { WriteText(held, text, length); return; }
-	const HANDLE file = CreateFileW(s_recordPath, FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	const HANDLE file = CreateFileW(s_recordPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (file == INVALID_HANDLE_VALUE) return;
 	WriteText(file, text, length);
 	CloseHandle(file);
@@ -340,8 +332,7 @@ void NoteDumpOutcome(sf4e::crash::DumpAnswer answer, InProcessDump inProcess) {
 void NoteExitAfterRecord(UINT code, const void* caller) {
 	char label[96], description[96], line[256];
 	snprintf(label, sizeof(label), "ExitProcess(%u) on thread %lu after the crash record began, called from", code, GetCurrentThreadId());
-	UnloadedImages none;
-	DescribeAddress(reinterpret_cast<uintptr_t>(caller), none, description, sizeof(description));
+	sf4e::crash::DescribeImage(description, sizeof(description), reinterpret_cast<uintptr_t>(caller), s_loadedImages);
 	const size_t length = sf4e::crash::FormatLocatedAddress(line, sizeof(line), label, reinterpret_cast<uintptr_t>(caller), description);
 	if (length) AppendRecordLine(line, length);
 }
@@ -356,13 +347,16 @@ bool WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	// the process before the dump, so ask the launcher for it first; the
 	// request allocates nothing.
 	const bool heapCorrupt = sf4e::crash::IsHeapCorruption(pointers);
-	sf4e::crash::DumpAnswer answer = heapCorrupt ? s_dumpClient.Request(pointers) : sf4e::crash::DumpAnswer::Unavailable;
+	sf4e::crash::DumpAnswer answer = heapCorrupt ? s_dumpClient.Request(pointers) : sf4e::crash::DumpAnswer::NotAsked;
 	const sf4e::crash::CrashFacts facts = FactsFor(kind, pointers, message);
 	const size_t headerLength = sf4e::crash::FormatCrashHeader(s_header, sizeof(s_header), facts);
 	// The record holds this crash only: a crash report sends it, and one that
-	// carried earlier crashes would be grouped with them.
-	HANDLE file = CreateFileW(s_recordPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-	s_recordFile.store(file);
+	// carried earlier crashes would be grouped with them. It is emptied first
+	// and then written through an append handle, so a line another thread adds
+	// later goes after ours instead of being written over.
+	const HANDLE emptied = CreateFileW(s_recordPath, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (emptied != INVALID_HANDLE_VALUE) CloseHandle(emptied);
+	HANDLE file = CreateFileW(s_recordPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (file != INVALID_HANDLE_VALUE) WriteText(file, s_header, headerLength);
 	const size_t registersLength = FormatRegistersLine(pointers);
 	const size_t codeLength = FormatCodeLine(pointers);
@@ -372,15 +366,13 @@ bool WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	}
 	const char* callers = FormatCallers(pointers, scanFrom);
 	if (file != INVALID_HANDLE_VALUE && callers[0]) {
-		WriteText(file, callers, strlen(callers));
-		WriteText(file, "\n", 1);
+		WriteLine(file, callers, strlen(callers));
 	}
 	// A fault in no loaded module is code that is gone: what the address is
 	// now and which unloaded image it was in say what took it away.
 	const UnmappedLines unmapped = facts.module[0] ? UnmappedLines() : FormatUnmappedLines(pointers);
 	if (file != INVALID_HANDLE_VALUE) {
-		if (unmapped.summary) WriteText(file, s_unmapped, unmapped.summary);
-		if (unmapped.stack) WriteText(file, s_stack, unmapped.stack);
+		if (unmapped.total) WriteText(file, s_unmapped, unmapped.total);
 	}
 	// The asynchronous logger may still hold the last lines: give its worker
 	// a moment, then take the ring, which now also carries this line. After
@@ -391,17 +383,15 @@ bool WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 		if (registersLength) spdlog::critical("Crash {:.{}}", s_registers, registersLength - 1);
 		if (codeLength) spdlog::critical("Crash {:.{}}", s_code, codeLength - 1);
 		if (callers[0]) spdlog::critical("Crash {}", callers);
-		if (unmapped.summary) LogRecordLines(s_unmapped);
+		if (unmapped.logged) LogRecordLines(s_unmapped, unmapped.logged);
 		spdlog::default_logger()->flush();
 		Sleep(250);
 	}
 	if (file != INVALID_HANDLE_VALUE) {
 		WriteText(file, "last log lines:\n", 16);
 		s_ring.ForEach([&](const char* line) {
-			WriteText(file, line, strnlen(line, Ring::LineWidth));
-			WriteText(file, "\n", 1);
+			WriteLine(file, line, strnlen(line, Ring::LineWidth));
 		});
-		s_recordFile.store(INVALID_HANDLE_VALUE);
 		CloseHandle(file);
 	}
 	if (!pointers) return true;
@@ -554,7 +544,7 @@ spdlog::sink_ptr RingSink() {
 void Install(const wchar_t* logsDirectory) {
 	PathCombineW(s_recordPath, logsDirectory, L"sf4e-crash.log");
 	wcsncpy_s(s_logsDirectory, logsDirectory, _TRUNCATE);
-	NoteCodeRange(s_codeRanges[0], GetModuleHandleW(nullptr));
+	NoteImage(GetModuleHandleW(nullptr));
 	const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
 	s_ntdll.queryThread = reinterpret_cast<QueryThreadFn>(GetProcAddress(ntdll, "NtQueryInformationThread"));
 	s_ntdll.unloadTrace = reinterpret_cast<UnloadTraceFn>(GetProcAddress(ntdll, "RtlGetUnloadEventTraceEx"));
@@ -562,7 +552,7 @@ void Install(const wchar_t* logsDirectory) {
 	HMODULE sidecar = nullptr;
 	if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
 		reinterpret_cast<LPCWSTR>(&Install), &sidecar) && sidecar != GetModuleHandleW(nullptr))
-		NoteCodeRange(s_codeRanges[1], sidecar);
+		NoteImage(sidecar);
 	// Room to write the record from a stack overflow on this thread.
 	ULONG reserve = 16 * 1024;
 	SetThreadStackGuarantee(&reserve);
