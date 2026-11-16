@@ -59,6 +59,7 @@ not fit is shortened in its catalog.
 | --- | --- | --- |
 | Button | A board button, 48 px: Primary (one per screen), Secondary, Danger (Leave) | `v2::Button(d, box, label, v2::ButtonKind::Primary, focused, hovered, enabled)` |
 | IconButton | A button that is only an icon, 48 px square with the icon 22 px in it (Home's links); name it in words beside it (`v2::TextEnd`), never by the icon alone | `v2::IconButton(d, box, icon, focused, hovered, enabled)` |
+| CardButton | The compact button: inside a card, as tall as the card gives it (a table card's seat to take, 32 px; an offer or answer on a card's 28 px line, drawn 3 px inside the line it is pressed on). Lit by fill and ink, never a ring | `v2::CardButton(d, box, label, size, lit, over, enabled, plus)` |
 | Chevron | A row whose Select opens something | `v2::Chevron(d, at, size, color)` |
 | Glow | A seat lit up: dim when free, brighter when taken, the pair's colour when playing | `v2::Glow(d, min, max, color, strength, reach, rounding)` |
 | Header | A screen's brand, eyebrow, title, chips and Back | `v2::Header(title, eyebrow, chips, back)` |
@@ -163,6 +164,7 @@ opened on another's rail lands on its own head.
 5. One narrow test: `v2::Narrow(ImGui::GetWindowWidth(), s)`.
 6. Sizes follow Kit.dc.html: buttons 48 px with a 17 px heading label, rows
    48 px with the label 14 px in, headings 14 px muted, the words card 16/15 px.
+   Inside a card's line the compact button (CardButton) stands in for them.
 7. Check it: `lab/uilab-v2-check.sh <worktree> <name> <out-dir>` renders
    every V2 screen at four sizes and fails on cut text, text taller than its
    row and overlapping cards. Add the screen to its case list.

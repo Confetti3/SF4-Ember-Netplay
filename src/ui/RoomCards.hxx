@@ -29,6 +29,20 @@ void DrawCardText(std::string& elided,ImVec2 p,float width,const std::string& va
 void FlushCardTip(std::string& elided);
 
 
+// A question a table card asks before it acts, answered on the card:
+// whether to do `offer` at `table`, or "stay". Leaving a seat that costs
+// something asks LeaveSeat; an offer that would end the game this PC
+// watches asks that offer. `asked`: the question is open (MenuNavigation::Ask).
+// A new room, or leaving the board, drops it.
+struct TableAsk {
+    static constexpr const char* LeaveSeat="leave-seat";
+    int table=-1;
+    std::string offer;
+    bool asked=false;
+    // The table whose card asks whether to leave its seat, or -1.
+    int Leaving() const { return offer==LeaveSeat?table:-1; }
+};
+
 struct MemberCardView {
     std::string id,name,label,status;
     // Their sets won and lost in the room ("2 W / 1 L"), none before the first:

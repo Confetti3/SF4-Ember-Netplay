@@ -122,7 +122,7 @@ public:
     }
 private:
     // A setting the player changes in place or picks from a list.
-    static bool Changes(const MenuEntry& entry) { return entry.adjustable || !entry.choices.empty(); }
+    static bool Changes(const MenuEntry& entry) { return MenuSteps(entry) || !entry.choices.empty(); }
     static void Add(std::vector<std::string>& parts, const std::string& part) {
         if (!part.empty() && std::find(parts.begin(), parts.end(), part) == parts.end()) parts.push_back(part);
     }

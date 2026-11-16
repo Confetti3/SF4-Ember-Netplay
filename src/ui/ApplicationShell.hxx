@@ -728,22 +728,19 @@ std::string memberAsk_;
     std::string lastError_, errorScreen_, errorBlockedText_;
     double errorSince_=0;
     std::function<bool(const ShellView&)> errorBlocked_;
-    // B on a seat that would lose a score or hand the seat over asks first: the
-    // table whose card carries the question, and whether it is open yet.
-    int leaveAsk_=-1;
-    // A table card's offer that would end the game this PC watches
-    // (room_controls::EndsWatchedView) asks first, on its card: the table, the
-    // offer, and whether the question is open yet (RoomAction answers it).
-    struct ViewAsk { int table=-1; std::string offer; bool asked=false; } viewAsk_;
-    // The last offer a table card sent, the room's revision then and when:
-    // another press on that table before the room answers (a mashed A, a
-    // double click) is the same request, never a second one.
-    struct OfferSent { int table=-1; std::uint64_t revision=0; double at=0; } offerSent_;
+    // The question a table card (or an Arcade player's cabinet) asks before
+    // acting (TableAsk): leaving a seat that costs something, or an offer
+    // that would end the game this PC watches.
+    TableAsk tableAsk_;
+    // The last offer a table card sent: the table, the offer, that table's
+    // revision then and when. Another press of it, or an A on that table's
+    // card, before the table changes and for a moment after (a mashed A, a
+    // double click) is the same press, never a second request.
+    struct OfferSent { int table=-1; std::string offer; std::uint64_t revision=0; double at=0; } offerSent_;
     // More… asked again by the room's rows: after a switch it holds (moreChosen_
     // is the option it opens on), or as the picture's Small, Big and Off (morePicture_).
     bool moreAsk_=false,morePicture_=false;
     std::string moreChosen_;
-    bool leaveAsked_=false;
     // When each table's live game was first seen, for the host's stuck-game row.
     struct LiveGame { std::uint64_t generation=0; double since=-1; };
     std::array<LiveGame,room::TableCount> liveGames_;
