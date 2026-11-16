@@ -6117,6 +6117,18 @@ msgstr "Round {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.controls.step_back"
+msgstr "Step back"
+
+msgid "replays.controls.jump"
+msgstr "Jump {0} s"
+
+msgid "replays.controls.restart"
+msgstr "Restart"
+
+msgid "replays.controls.loop"
+msgstr "Loop"
+
 msgid "replays.controls.unavailable"
 msgstr "Controls work during the fight"
 

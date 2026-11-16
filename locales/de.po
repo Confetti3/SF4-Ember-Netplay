@@ -6513,6 +6513,18 @@ msgstr "Runde {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.controls.step_back"
+msgstr "Schritt zurück"
+
+msgid "replays.controls.jump"
+msgstr "Sprung {0} s"
+
+msgid "replays.controls.restart"
+msgstr "Neustart"
+
+msgid "replays.controls.loop"
+msgstr "Schleife"
+
 msgid "replays.controls.unavailable"
 msgstr "Steuerung wirkt nur im Kampf"
 

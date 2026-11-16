@@ -6513,6 +6513,18 @@ msgstr "Round {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.controls.step_back"
+msgstr "Indietro"
+
+msgid "replays.controls.jump"
+msgstr "Salta {0} s"
+
+msgid "replays.controls.restart"
+msgstr "Ricomincia"
+
+msgid "replays.controls.loop"
+msgstr "Ripeti"
+
 msgid "replays.controls.unavailable"
 msgstr "I comandi funzionano durante l'incontro"
 

@@ -6513,6 +6513,18 @@ msgstr "Round {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.controls.step_back"
+msgstr "Reculer"
+
+msgid "replays.controls.jump"
+msgstr "Saut {0} s"
+
+msgid "replays.controls.restart"
+msgstr "Recommencer"
+
+msgid "replays.controls.loop"
+msgstr "Boucle"
+
 msgid "replays.controls.unavailable"
 msgstr "Les commandes marchent pendant le combat"
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include "../common/ReplayInputLane.hxx"
+#include "../common/ReplayTransport.hxx"
 
 namespace sf4e { namespace ui {
 // The passive HUD over a replay the game plays: the control strip at the
@@ -35,9 +36,14 @@ struct ReplayHudView {
     // for it; and a game whose replays end only from Ember (no pause menu of
     // its own over them) offers Stop watching on View and Esc.
     bool meterOffered = true, stopOffered = false;
+    // A game that seeks (seek.offered) gets a thin timeline in the strip, the
+    // loop's marks on it, and a chip for each seek control; SF4 offers none.
+    replaytransport::SeekView seek;
 };
 // The strip: a button per control, its keys over what it does, then the
-// place in the round, at the bottom centre.
+// place in the round, at the bottom centre; with seek.offered a timeline over
+// the buttons: the position in the playback, the earliest point a seek can
+// reach and the loop's marks.
 void DrawReplayStrip(const ReplayHudView& view);
 // Where the frame meter's bottom edge is, as a fraction of the viewport's
 // height (TrainingHudLayout.hxx), which the strip keeps below: the Training

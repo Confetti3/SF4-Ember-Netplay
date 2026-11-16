@@ -6513,6 +6513,18 @@ msgstr "ラウンド{0}"
 msgid "replays.controls.frame"
 msgstr "{0}フレーム"
 
+msgid "replays.controls.step_back"
+msgstr "コマ戻し"
+
+msgid "replays.controls.jump"
+msgstr "{0}秒ジャンプ"
+
+msgid "replays.controls.restart"
+msgstr "最初から"
+
+msgid "replays.controls.loop"
+msgstr "ループ"
+
 msgid "replays.controls.unavailable"
 msgstr "操作はファイト中のみ有効"
 
