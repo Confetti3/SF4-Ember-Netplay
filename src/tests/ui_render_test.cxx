@@ -6,6 +6,7 @@
 #include "../ui/OverlayLayers.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/RecoveryMenu.hxx"
+#include "../ui/TableCardShape.hxx"
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
 #include "ui_render_support.hxx"
@@ -23,6 +24,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -978,6 +980,31 @@ int main(int argc, char** argv) {
             ShootMemberLatency(view,draw,page);
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
             page("room");
+            // TableCardsFillTheColumn: the room's four tables (a pair waiting, a
+            // game, two quiet) are one height and fill the column to within a
+            // gap, or stop at the cap; only where four at one height do not fit
+            // does each keep its own least (a banner's card its line more), the
+            // quiet ones no taller than a full card.
+            {
+                std::map<std::string,std::pair<ImVec2,ImVec2>> cards;
+                SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){cards[id]={min,max};});
+                draw();SetMenuCardProbe({});
+                if(WindowDrawn("Room tables")&&cards.count("table-0")&&cards.count("table-3")){
+                    namespace card=ui::table_card;
+                    const auto* tables=FindWindow("Room tables");
+                    const float s=ui::Scale(),foot=tables->Pos.y+tables->Size.y;
+                    const auto height=[&](int i){const auto& b=cards.at("table-"+std::to_string(i));return b.second.y-b.first.y;};
+                    const bool even=std::fabs(height(1)-height(0))<.5f&&std::fabs(height(2)-height(0))<.5f&&std::fabs(height(3)-height(0))<.5f;
+                    const float last=cards.at("table-3").second.y;
+                    if(even)Require((last<=foot+.5f&&last>=foot-card::Between*s-.5f)||height(0)>=card::Cap*s-.5f,"Four table cards of one height neither filled the column nor stopped at the cap");
+                    else{
+                        const float full=(std::min)(height(0),height(1));
+                        // Your own card (table 1) keeps its strip's 38 px on top of a banner's 18.
+                        Require(std::fabs(height(1)-height(0))<=(card::Banner+card::Between+card::Strip)*s+.5f&&height(2)<=full+.5f&&height(3)<=full+.5f&&
+                            full>=(card::Head+card::Face+card::Foot)*s-.5f,"Table cards of different heights were not each at its least");
+                    }
+                }
+            }
             ShootRoomPictures(view,draw,page);
             ShootRoomPoints(view,draw,page);
             ShootRoomPromptBrands(view,draw,page);
@@ -997,25 +1024,23 @@ int main(int argc, char** argv) {
                         if(std::find(seen.begin(),seen.end(),at)==seen.end())seen.push_back(at);
                     }
             };
-            // The seat chooser on an empty table, for a member with no seat.
+            // An empty table's seats, for a member with no seat: the focused
+            // card lights P1, Right lights P2; nothing opens.
             view.room.tables[0].p1=5;view.room.members[0].table=-1;view.room.members[0].seat=-1;
             page("room");
             reach("table-2");
             Require(shell.Navigation().Focus()=="table-2","An empty table is unreachable at this viewport/DPI");
-            draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser");
-            Require(shell.Navigation().Choosing(),"A on an empty table did not open the seat chooser");
-            draw(nullptr,MenuInput::Right,1);draw("room-seat-chooser-p2");
-            draw(nullptr,MenuInput::Back,1);draw();
-            // A full table offers the queue, watching and the table's options;
-            // a watcher sees Stop watching instead.
+            draw("room-seats-p1");
+            draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw("room-seats-p2");
+            Require(shell.Navigation().Focus()=="table-2"&&!shell.Navigation().Choosing(),"Right on an empty table left it or opened a choice");
+            // A full table offers the queue and watching at its head while
+            // focused; a watcher sees Unwatch instead.
             reach("table-1");
             Require(shell.Navigation().Focus()=="table-1","A full table is unreachable at this viewport/DPI");
-            draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser-full");
-            Require(shell.Navigation().Choosing(),"A on a full table did not open the chooser");
-            draw(nullptr,MenuInput::Back,1);draw();
+            draw("room-seats-full");
             view.room.tables[1].spectators={1};
-            draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser-watching");
-            draw(nullptr,MenuInput::Back,1);draw();view.room.tables[1].spectators.clear();
+            draw("room-seats-watching");
+            view.room.tables[1].spectators.clear();
             reach("table-0");
             view.room.tables[0].p1=1;view.room.members[0].table=0;view.room.members[0].seat=0;
             page("room-members");

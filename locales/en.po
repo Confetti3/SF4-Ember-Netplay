@@ -304,14 +304,14 @@ msgstr "The operation failed. Try again. Update recovery copies are kept in .emb
 msgid "services.operation_cancelled"
 msgstr "Operation cancelled."
 
-msgid "services.opening_community"
-msgstr "Opening the Ember Discord in your browser..."
+msgid "services.opening_link"
+msgstr "Opening {0} in your browser..."
 
-msgid "services.community_opened"
-msgstr "Opened in your browser. Switch to it to join the server."
+msgid "services.link_opened"
+msgstr "Opened in your browser. Switch to it."
 
-msgid "services.community_failed"
-msgstr "Could not open a browser. Visit {0} to join."
+msgid "services.link_failed"
+msgstr "Could not open a browser. Visit {0}."
 
 msgid "services.opening_steam_profile"
 msgstr "Opening the Steam profile in your browser..."
@@ -526,8 +526,8 @@ msgstr "Help & about"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Discord invitation"
+msgid "screen.room_invitation"
+msgstr "Room invitation"
 
 msgid "screen.assignment"
 msgstr "Assign controller"
@@ -1648,6 +1648,15 @@ msgstr "That invite has ended."
 msgid "friends.nothing_to_offer"
 msgstr "Your room can't be offered right now."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "Admission is Locked in this room. Set it to Open in Room settings to invite friends."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "Admission is Locked in this room."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "This room is full."
+
 msgid "friends.busy"
 msgstr "Wait for the last request to finish."
 
@@ -2166,9 +2175,6 @@ msgstr "The Discord account connected to your Ember ID. Rated games, points, fri
 msgid "discord.server"
 msgstr "Ember Discord server"
 
-msgid "discord.invitation_title"
-msgstr "DISCORD INVITATION"
-
 msgid "discord.cancel_invitation"
 msgstr "Cancel invitation"
 
@@ -2235,6 +2241,24 @@ msgstr "Join the Ember Discord"
 msgid "about.discord_detail"
 msgstr "Players, matches and support at {0}. Opens in your browser behind the game."
 
+msgid "about.kofi"
+msgstr "Support Ember on Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Support Ember's development at {0}. Opens in your browser behind the game."
+
+msgid "about.website"
+msgstr "Ember website"
+
+msgid "about.website_detail"
+msgstr "Rooms, rankings and replays at {0}. Opens in your browser behind the game."
+
+msgid "about.twitter"
+msgstr "Developer on Twitter"
+
+msgid "about.twitter_detail"
+msgstr "News from Ember's developer at {0}. Opens in your browser behind the game."
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 
@@ -2252,9 +2276,6 @@ msgstr "Joining room. Waiting for the network..."
 
 msgid "room.locked_status"
 msgstr "Room locked / invitation only"
-
-msgid "room.private_status"
-msgstr "Private room / invitation only"
 
 msgid "room.tournament_status"
 msgstr "Tournament match, first to {0}. Only its two players can play."
@@ -2568,6 +2589,12 @@ msgstr "Empty this slot"
 msgid "training.reply.clear_slot.detail"
 msgstr "Removes this slot's move."
 
+msgid "training.reply.clear_all"
+msgstr "Empty all slots"
+
+msgid "training.reply.clear_all.detail"
+msgstr "Removes the moves from every reply slot. The reply settings stay as they are."
+
 msgid "training.reply.every_fighter"
 msgstr "Every fighter"
 
@@ -2687,6 +2714,12 @@ msgstr "Close training controls"
 
 msgid "training.close_controls.detail"
 msgstr "Close Ember, then close SF4's pause menu to resume if it is open."
+
+msgid "training.back_to_room"
+msgstr "Back to room"
+
+msgid "training.back_to_room.detail"
+msgstr "Leave Training and return to {0}. Your place in the room is kept."
 
 msgid "training.slot"
 msgstr "Slot {0}"
@@ -3534,6 +3567,10 @@ msgid "room.copy_short_invitation"
 msgstr "Copy short link"
 msgid "room.copy_short_invitation.detail"
 msgstr "A short link for chat, kept by the Ember link service while the room is open."
+msgid "room.invite.detail"
+msgstr "Invite a friend, or copy a link or invitation to share."
+msgid "room.invite.more_friends"
+msgstr "More friends…"
 msgid "room.leaving"
 msgstr "Leaving room..."
 msgid "room.leave"
@@ -3558,8 +3595,6 @@ msgid "room.link_wireless"
 msgstr "Wi-Fi connection"
 msgid "room.link_unknown"
 msgstr "Connection unknown"
-msgid "room.table_footer"
-msgstr "{0} rounds / {1} sec     Queue {2}     Watching {3}"
 msgid "room.board_status_host_slot"
 msgstr "HOST / {0} / Slot {1}"
 msgid "room.board_status_slot"
@@ -3592,8 +3627,8 @@ msgid "room.link_opened"
 msgstr "Opened from a room link. Check it, then choose Join room."
 msgid "room.link_waiting"
 msgstr "A room link was opened. It will be on the Join room screen once you leave this room."
-msgid "room.replacement_opening"
-msgstr "Replacement room opening. Choose Copy invitation and send the new link. The old one no longer works."
+msgid "room.replacement_invite"
+msgstr "Replacement room opening. Choose Invite, then Copy invitation, and send the new invitation. The old one no longer works."
 msgid "room.action_rejected"
 msgstr "The room changed or rejected this action. Review the current state and try again."
 
@@ -3756,6 +3791,8 @@ msgid "room.leave_seat.unready_first"
 msgstr "Unready first, then leave your seat."
 msgid "room.leave_seat.keep"
 msgstr "Keep your seat."
+msgid "room.watching_keeps"
+msgstr "Keep watching. The other choice ends the game you are watching."
 msgid "room.leave_seat.costs_score"
 msgstr "Leaving ends your set and resets the score ({0})."
 msgid "room.leave_seat.hands_over"
@@ -4006,12 +4043,16 @@ msgid "discord.companion_stopped"
 msgstr "Discord companion stopped. Gameplay is unaffected."
 msgid "runtime.room_connection_failed"
 msgstr "Room connection failed. The room is closing; unconfirmed results will not be recorded."
+msgid "runtime.public_room_connection_failed"
+msgstr "You lost your connection to the room. Unconfirmed results will not be recorded. Join it again from Public rooms. If it turns you away, wait a minute and try again."
 msgid "runtime.operation_busy"
 msgstr "The operation is busy. Try again."
 msgid "runtime.steam_profile_failed"
 msgstr "Could not open the Steam profile."
 msgid "discord.invitation_expired"
 msgstr "The Discord invitation expired. Ask for a new invitation."
+msgid "room.invitation_expired"
+msgstr "The invitation expired. Ask for a new one."
 msgid "runtime.spectator_action_retrying"
 msgstr "The spectator action could not be sent; retrying."
 msgid "runtime.return_main_menu"
@@ -4050,6 +4091,8 @@ msgid "runtime.spectator_close_timeout"
 msgstr "The match did not finish closing in time. Spectator view was stopped."
 msgid "runtime.room_closed"
 msgstr "The room was closed."
+msgid "runtime.room_unreachable"
+msgstr "You lost your connection to the room, or it closed. If it is still listed in Public rooms, join it again."
 msgid "runtime.removed_from_room"
 msgstr "You were removed from the room."
 msgid "room.reject.closed"
@@ -4082,6 +4125,8 @@ msgid "room.reject.not_watching"
 msgstr "You are not watching this table."
 msgid "room.reject.seat_taken"
 msgstr "That seat was just taken. Choose again."
+msgid "room.reject.table_changed"
+msgstr "This table changed. Choose again."
 msgid "room.reject.invalid_rules"
 msgstr "Those table rules are not valid."
 msgid "room.reject.invalid_capacity"
@@ -5162,9 +5207,6 @@ msgstr "{0}, {1}"
 msgid "room.table_set"
 msgstr "Set"
 
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     Queue {2}     Watching {3}"
-
 msgid "room.streak"
 msgstr "{0} sets in a row"
 
@@ -5540,8 +5582,14 @@ msgstr "This room filled up or was locked just now. Pick another one."
 msgid "public.failure.turned_away"
 msgstr "The room turned the join away. You may have been removed from it."
 
+msgid "public.failure.name_taken"
+msgstr "That name is already in this room. If you were just disconnected, your old seat may still be held: wait a minute and try again. Otherwise change your name in Settings."
+
 msgid "public.failure.join_failed"
 msgstr "Couldn't get into the room. It may have just closed. Refresh and pick another."
+
+msgid "public.failure.refused"
+msgstr "The room would not take you in. If you were just in it, it may still hold your old seat: wait a minute and try again. You may also have been removed from it."
 
 msgid "legend.refresh"
 msgstr "Refresh"
@@ -5924,18 +5972,6 @@ msgstr "Players queue at a table and play there."
 msgid "room.type.arcade_detail"
 msgstr "Sixteen cabinets: sit at any free one. After a set the winner plays whoever has waited longest and the loser waits. When nobody waits, the two choose Rematch or New opponent."
 
-msgid "room.arcade_status"
-msgstr "Arcade room / invitation only"
-
-msgid "room.arcade_locked_status"
-msgstr "Arcade room locked / invitation only"
-
-msgid "room.king_status"
-msgstr "King of the hill / invitation only"
-
-msgid "room.king_locked_status"
-msgstr "King of the hill locked / invitation only"
-
 msgid "room.arcade_sit"
 msgstr "Sit down"
 
@@ -6007,12 +6043,6 @@ msgstr "Practice room"
 
 msgid "room.practice.detail"
 msgstr "Every game in the room is a Practice match: health and gauges refill, nobody is knocked out, and the round time is {0}. This stays for as long as the room is open. To play normal matches, close the room and create a new one."
-
-msgid "room.practice_status"
-msgstr "Practice room / invitation only"
-
-msgid "room.practice_locked_status"
-msgstr "Practice room locked / invitation only"
 
 msgid "inputs.presses_value"
 msgstr "{0} presses"
@@ -7125,8 +7155,14 @@ msgstr "Own delay"
 msgid "room.table_footer_wired_only"
 msgstr "Wired only"
 
-msgid "room.table_counts"
-msgstr "Queue {0}     Watching {1}"
+msgid "room.table_rules_line"
+msgstr "Rounds {0} / {1} sec"
+
+msgid "room.table_queue"
+msgstr "Queue {0}"
+
+msgid "room.table_watching"
+msgstr "Watching {0}"
 
 msgid "room.input_delay.own"
 msgstr "Your delay: {0}"
@@ -8251,11 +8287,11 @@ msgstr "Areas"
 msgid "room.v2.tables"
 msgstr "TABLES"
 
+msgid "room.v2.tables_playing"
+msgstr "Playing {0}"
+
 msgid "room.v2.table"
 msgstr "TABLE {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} playing · {1} watching"
 
 msgid "room.v2.group_playing"
 msgstr "PLAYING"
@@ -8277,6 +8313,9 @@ msgstr "EMBER · ONLINE · PUBLIC ROOM"
 
 msgid "room.v2.invitation_only"
 msgstr "Invitation only"
+
+msgid "room.v2.friends_can_join"
+msgstr "Friends can join"
 
 msgid "room.v2.listed"
 msgstr "Listed in Public rooms"
@@ -8337,12 +8376,6 @@ msgstr "Show"
 
 msgid "room.v2.show_detail"
 msgstr "Unfolds it to its full size."
-
-msgid "room.v2.copy_invite"
-msgstr "Invitation"
-
-msgid "room.v2.copy_link"
-msgstr "Short link"
 
 msgid "settings.room_show_members_detail"
 msgstr "The room board's Members panel. Hidden, Chat takes the column, or the tables the full width."

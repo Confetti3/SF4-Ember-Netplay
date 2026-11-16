@@ -112,8 +112,11 @@ static void TestFailureStageFromReason() {
 	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "") == FailureStage::Unknown);
 	CHECK(FailureStageFromHelper("join_failed", "expired") == FailureStage::Unknown);
 	CHECK(std::string(FailureStageLabel(FailureStage::ControlLost)) == "control_lost");
-	// A policy refusal and a stalled handshake read as Unknown to the player but keep their own labels.
-	CHECK(FailureStageFromHelper("join_failed", "refused") == FailureStage::Unknown);
+	// A refusal at a public host's door has its own stage, so a player who was just in the room is told what usually causes it;
+	// a stalled handshake reads as Unknown to the player but keeps its label.
+	CHECK(FailureStageFromHelper("join_failed", "refused") == FailureStage::Refused);
+	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "refused") == FailureStage::Unknown);
+	CHECK(std::string(FailureStageLabel(FailureStage::Refused)) == "refused");
 	CHECK(FailureStageFromHelper("join_failed", "timeout") == FailureStage::Unknown);
 	CHECK(std::string(sf4e::session::FailureReasonLabel("join_failed", "refused")) == "refused");
 	CHECK(std::string(sf4e::session::FailureReasonLabel("join_failed", "timeout")) == "timeout");

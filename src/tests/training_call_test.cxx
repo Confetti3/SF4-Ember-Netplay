@@ -309,6 +309,35 @@ int main() {
 			}
 		}
 	}
+	{
+		// The player's own way back (F10) beside the room's call, for the same battle:
+		// during the call's count it is ignored and the count runs on; asked before the
+		// call reaches the battle, it leaves on the next tick and the call changes nothing.
+		using sf4e::training::CallControl;
+		using sf4e::training::LeaveCountdown;
+		const std::uint64_t battle = 40;
+		for (const bool askedFirst : {false, true}) {
+			CallOwner owner; sf4e::input::GoNowGate gate; LeaveCountdown countdown;
+			auto room = Room(2, 1, 2); room.roomEpoch = 7;
+			auto in = In(true, false); in.generation = battle;
+			const auto result = owner.Reconcile(room, in, 16, gate);
+			CallControl called;
+			called.call = result.state.call.serial; called.generation = result.state.call.generation; called.hurry = result.state.hurry;
+			EXPECT(called.call != 0);
+			if (askedFirst) {
+				countdown.Follow(CallControl{}, battle, 120);
+				EXPECT(countdown.LeaveNow());
+			}
+			const bool started = countdown.Follow(called, battle, 120);
+			if (askedFirst) {
+				EXPECT(!started && countdown.Left() == 1 && countdown.Call() == 0);
+				EXPECT(countdown.Tick(true) && !countdown.Tick(true));
+			} else {
+				EXPECT(started && countdown.Left() == 120 && countdown.Call() == called.call);
+				EXPECT(!countdown.LeaveNow() && countdown.Left() == 120 && countdown.Call() == called.call);
+			}
+		}
+	}
 	if (TEST_FAILURES()) { std::printf("%d failures\n", TEST_FAILURES()); return 1; }
 	std::printf("Training call rules passed.\n");
 	return 0;

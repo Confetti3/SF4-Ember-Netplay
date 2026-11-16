@@ -29,6 +29,8 @@ namespace commands=sf4e::commands;
 using Button=ControllerSample;
 namespace {
 void Check(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
+// Whether the menu's own window of choices (GameMenu::DrawValuePanel: a value panel or a popout) was drawn in the frame just run.
+bool ChoicesPanelDrawn(){const ImGuiWindow* window=ImGui::FindWindowByName("###Values");return window&&(window->Active||window->WasActive);}
 // The fighter drawn right of `fighter` in USFIV's select order, which is where Right goes.
 int DisplayedAfter(int fighter){const int* at=std::find(std::begin(sf4e::selection::RosterDisplayOrder),std::end(sf4e::selection::RosterDisplayOrder),fighter);return at[1];}
 struct Harness {
@@ -67,7 +69,13 @@ struct Harness {
   for(std::size_t i=0;i<reached.size()&&i<400&&!at();++i)
    for(unsigned direction:{MenuInput::Up,MenuInput::Down,MenuInput::Left,MenuInput::Right}){
     shell.Navigation().Prefer(reached[i]);Frame();
+    std::string lit=shell.Navigation().Lit(reached[i]);
     Press(direction);
+    // A table card lights its places one by one before Left and Right leave
+    // it: a press that only moved the card's light is pressed again.
+    for(int k=0;k<4&&!at()&&reached[i].compare(0,6,"table-")==0&&shell.Navigation().Focus()==reached[i]&&shell.Navigation().Lit(reached[i])!=lit;++k){
+     lit=shell.Navigation().Lit(reached[i]);Press(direction);
+    }
     if(at())break;
     const std::string now=shell.Navigation().Focus();
     if(std::find(reached.begin(),reached.end(),now)==reached.end())reached.push_back(now);
@@ -75,6 +83,29 @@ struct Harness {
   if(!at()){std::string all;for(const auto& r:reached)all+=" "+r;throw std::runtime_error(std::string("Journey item not reachable: ")+id+" on "+shell.Navigation().Screen()+" focused "+shell.Navigation().Focus()+"; reached:"+all);}
  }
  void Choose(const char* id){FocusOn(id);Press(MenuInput::Select);}
+ // A choice of a popout row, as a player makes it: open the row, step down to the choice, select it.
+ void Pick(const char* row,const char* choice){
+  std::vector<MenuEntry> shown;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){shown=r;});Frame();SetMenuEntriesProbe({});
+  const auto entry=std::find_if(shown.begin(),shown.end(),[&](const MenuEntry& e){return e.id==row;});
+  if(entry==shown.end())throw std::runtime_error(std::string("Journey popout not offered: ")+row);
+  std::size_t at=0;while(at<entry->choices.size()&&entry->choices[at].id!=choice)++at;
+  if(at==entry->choices.size())throw std::runtime_error(std::string("Journey choice not offered: ")+choice+" by "+row);
+  Choose(row);for(std::size_t i=0;i<at;++i)Press(MenuInput::Down);Press(MenuInput::Select);
+ }
+ // A click on the focused row's pane button (PaneButton.hxx), after a frame to read where it is drawn. Says whether it
+ // was drawn and the reason it gave under itself, if any.
+ struct PaneClick{bool drawn=false;std::string reason;};
+ PaneClick ClickPaneButton(){
+  PaneClick out;ImVec2 min,max;
+  SetMenuCardProbe([&](const char* id,ImVec2 a,ImVec2 b){if(std::strcmp(id,"pane-choice")==0){out.drawn=true;min=a;max=b;}});
+  SetMenuCardTextProbe([&](const std::string& id,const std::string& text){if(id=="pane-choice")out.reason=text;});
+  Frame();SetMenuCardProbe({});SetMenuCardTextProbe({});
+  if(!out.drawn)return out;
+  auto& io=ImGui::GetIO();io.AddMousePosEvent((min.x+max.x)*.5f,(min.y+max.y)*.5f);Frame();
+  io.AddMouseButtonEvent(0,true);Frame();io.AddMouseButtonEvent(0,false);Frame(0,2);
+  io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);Frame();
+  return out;
+ }
  void Screen(const char* id){shell.Navigation().Home();if(std::string(id)!="home")shell.Navigation().Push(id);Frame();}
 };
 // A room this player (member 1) has joined, with its tables numbered, and no

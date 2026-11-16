@@ -3,11 +3,14 @@
 // The facts a crash must leave behind, kept in a form that can be written
 // from the crashing thread: a fixed ring of the last log lines, a name for
 // each exit code the launcher can see, a header line for the crash record,
-// and a fold over the process address space. Nothing here allocates or
-// takes a lock. The host (sf4e__CrashDiagnostics) owns the Win32 side.
+// a fold over the process address space, and the region line a fault in
+// unmapped code leaves (CrashUnloaded.hxx has the rest of what it leaves).
+// Nothing here allocates or takes a lock. The host (sf4e__CrashDiagnostics)
+// owns the Win32 side.
 //
 // Pure component: no game or platform dependencies, unit tested (F-015).
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -191,14 +194,69 @@ inline bool EndsInCall(const uint8_t before[7]) {
 	return false;
 }
 
+// Moves `length` past what snprintf just wrote at out + length; false, with
+// that line dropped, when it did not fit in `size`.
+inline bool Advance(char* out, size_t size, size_t& length, int printed) {
+	if (printed < 0 || (size_t)printed >= size - length) { out[length] = '\0'; return false; }
+	length += (size_t)printed;
+	return true;
+}
+
 // Appends " Module+0xOffset" to a callers line of `size` bytes; false when
 // it no longer fits.
 inline bool AppendCaller(char* out, size_t size, size_t& length, const char* module, uint64_t offset) {
 	if (!out || length >= size) return false;
-	const int written = snprintf(out + length, size - length, " %s+0x%llX", module && module[0] ? module : "?", (unsigned long long)offset);
-	if (written < 0 || (size_t)written >= size - length) { out[length] = '\0'; return false; }
-	length += (size_t)written;
-	return true;
+	return Advance(out, size, length, snprintf(out + length, size - length, " %s+0x%llX", module && module[0] ? module : "?", (unsigned long long)offset));
+}
+
+// Where an address lies in the address space, as VirtualQuery says, kept as
+// numbers so the line is formatted and tested without Windows.
+enum class RegionState { Unknown, Free, Reserved, Committed };
+enum class RegionType { None, Image, Mapped, Private };
+
+struct AddressRegion {
+	RegionState state = RegionState::Unknown;
+	RegionType type = RegionType::None;
+	uint32_t protect = 0;
+	uint64_t allocationBase = 0;
+	uint64_t regionBase = 0;
+	uint64_t regionSize = 0;
+};
+
+// One terminated line: "address 0x64A1A5E0: free region=0x64A1A000+0x5E000
+// protect=0x1". A region in use adds its type and allocation base, which a free
+// one does not have.
+inline size_t FormatAddressRegion(char* out, size_t size, uint64_t address, const AddressRegion& region) {
+	if (!out || !size) return 0;
+	out[0] = '\0';
+	size_t length = 0;
+	if (region.state == RegionState::Unknown) {
+		Advance(out, size, length, snprintf(out, size, "address 0x%08llX: not queryable\n", (unsigned long long)address));
+		return length;
+	}
+	const bool isFree = region.state == RegionState::Free;
+	const char* state = isFree ? "free" : region.state == RegionState::Reserved ? "reserved" : "committed";
+	const char* type = isFree ? "" : region.type == RegionType::Image ? " image" : region.type == RegionType::Mapped ? " mapped" :
+		region.type == RegionType::Private ? " private" : "";
+	bool whole = Advance(out, size, length, snprintf(out, size, "address 0x%08llX: %s%s region=0x%08llX+0x%llX protect=0x%X",
+		(unsigned long long)address, state, type, (unsigned long long)region.regionBase, (unsigned long long)region.regionSize, region.protect));
+	if (whole && !isFree)
+		whole = Advance(out, size, length, snprintf(out + length, size - length, " allocation_base=0x%08llX", (unsigned long long)region.allocationBase));
+	if (!whole || length + 1 >= size) { out[0] = '\0'; return 0; }
+	out[length++] = '\n';
+	out[length] = '\0';
+	return length;
+}
+
+// "label: 0xAddress description" as one terminated line, without the
+// description when it is empty. Nothing when it does not fit.
+inline size_t FormatLocatedAddress(char* out, size_t size, const char* label, uint64_t address, const char* description) {
+	if (!out || !size) return 0;
+	out[0] = '\0';
+	size_t length = 0;
+	const bool described = description && description[0];
+	Advance(out, size, length, snprintf(out, size, "%s: 0x%08llX%s%s\n", label, (unsigned long long)address, described ? " " : "", described ? description : ""));
+	return length;
 }
 
 // Free virtual memory seen by a walk over the address space. For the

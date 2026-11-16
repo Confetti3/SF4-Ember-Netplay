@@ -94,9 +94,20 @@ inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage st
 }
 
 // The same for a join of a public room: a stage the helper did not name says what
-// that likely means for such a room, and every named one reads as for any join.
+// that likely means for such a room, a refusal at the door says what usually causes it
+// for a player who was just in the room, and every other named one reads as for any join.
 inline std::string DescribePublicOpeningFailure(session::FailureStage stage, const std::string& relay, bool updateAvailable = false) {
-    return stage == session::FailureStage::Unknown ? std::string(loc::T("public.failure.join_failed")) : DescribeOpeningFailure(false, stage, relay, updateAvailable);
+    switch (stage) {
+    case session::FailureStage::Unknown: return loc::T("public.failure.join_failed");
+    case session::FailureStage::Refused: return loc::T("public.failure.refused");
+    default: return DescribeOpeningFailure(false, stage, relay, updateAvailable);
+    }
+}
+
+// The sentence for a room whose connection failed on this PC. A public room does not close
+// with its member: the player can join it again, so the sentence says how and what to expect.
+inline std::string DescribeRoomConnectionFailure(bool serverOwned) {
+    return loc::T(serverOwned ? "runtime.public_room_connection_failed" : "runtime.room_connection_failed");
 }
 
 } }

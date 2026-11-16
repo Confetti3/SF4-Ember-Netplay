@@ -303,14 +303,14 @@ msgstr "Operazione fallita. Riprova. Le copie di ripristino sono conservate in .
 msgid "services.operation_cancelled"
 msgstr "Operazione annullata."
 
-msgid "services.opening_community"
-msgstr "Apertura di Ember Discord nel browser..."
+msgid "services.opening_link"
+msgstr "Apertura di {0} nel browser..."
 
-msgid "services.community_opened"
-msgstr "Aperto nel browser. Passa al browser per unirti al server."
+msgid "services.link_opened"
+msgstr "Aperto nel browser. Passa al browser."
 
-msgid "services.community_failed"
-msgstr "Impossibile aprire il browser. Visita {0} per unirti."
+msgid "services.link_failed"
+msgstr "Impossibile aprire il browser. Visita {0}."
 
 msgid "services.opening_steam_profile"
 msgstr "Apertura del profilo Steam nel browser..."
@@ -525,8 +525,8 @@ msgstr "Guida e info"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Invito Discord"
+msgid "screen.room_invitation"
+msgstr "Invito alla sala"
 
 msgid "screen.assignment"
 msgstr "Assegna controller"
@@ -1644,6 +1644,15 @@ msgstr "Quell'invito è terminato."
 msgid "friends.nothing_to_offer"
 msgstr "La tua sala non può essere offerta ora."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "L'Accesso a questa sala è su Bloccata. Impostalo su Aperta in Impostazioni sala per invitare amici."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "L'Accesso a questa sala è su Bloccata."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Questa sala è piena."
+
 msgid "friends.busy"
 msgstr "Aspetta che l'ultima richiesta finisca."
 
@@ -2160,9 +2169,6 @@ msgstr "L'account Discord collegato al tuo Ember ID. Partite classificate, punti
 msgid "discord.server"
 msgstr "Server Discord di Ember"
 
-msgid "discord.invitation_title"
-msgstr "INVITO DISCORD"
-
 msgid "discord.cancel_invitation"
 msgstr "Annulla invito"
 
@@ -2229,6 +2235,24 @@ msgstr "Entra nell'Ember Discord"
 msgid "about.discord_detail"
 msgstr "Giocatori, partite e assistenza su {0}. Si apre nel browser dietro al gioco."
 
+msgid "about.kofi"
+msgstr "Sostieni Ember su Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Sostieni lo sviluppo di Ember su {0}. Si apre nel browser dietro al gioco."
+
+msgid "about.website"
+msgstr "Sito web di Ember"
+
+msgid "about.website_detail"
+msgstr "Sale, classifiche e replay su {0}. Si apre nel browser dietro al gioco."
+
+msgid "about.twitter"
+msgstr "Sviluppatore su Twitter"
+
+msgid "about.twitter_detail"
+msgstr "Novità dallo sviluppatore di Ember su {0}. Si apre nel browser dietro al gioco."
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 
@@ -2246,9 +2270,6 @@ msgstr "Ingresso nella sala. In attesa della rete..."
 
 msgid "room.locked_status"
 msgstr "Sala bloccata / solo inviti"
-
-msgid "room.private_status"
-msgstr "Sala privata / solo inviti"
 
 msgid "room.tournament_status"
 msgstr "Partita del torneo, vince chi arriva a {0}. Solo i suoi due giocatori possono giocare."
@@ -2562,6 +2583,12 @@ msgstr "Svuota questo slot"
 msgid "training.reply.clear_slot.detail"
 msgstr "Rimuove la mossa di questo slot."
 
+msgid "training.reply.clear_all"
+msgstr "Svuota tutti gli slot"
+
+msgid "training.reply.clear_all.detail"
+msgstr "Rimuove le mosse da tutti gli slot di risposta. Le impostazioni della risposta restano invariate."
+
 msgid "training.reply.every_fighter"
 msgstr "Ogni lottatore"
 
@@ -2681,6 +2708,12 @@ msgstr "Chiudi comandi allenamento"
 
 msgid "training.close_controls.detail"
 msgstr "Chiudi Ember, poi chiudi il menu di pausa di SF4 per riprendere, se aperto."
+
+msgid "training.back_to_room"
+msgstr "Torna alla stanza"
+
+msgid "training.back_to_room.detail"
+msgstr "Esci dall'allenamento e torna in {0}. Il tuo posto nella sala resta riservato."
 
 msgid "training.slot"
 msgstr "Slot {0}"
@@ -3657,6 +3690,12 @@ msgstr "Copia link breve"
 msgid "room.copy_short_invitation.detail"
 msgstr "Un link breve per la chat, conservato dal servizio link di Ember finché la sala è aperta."
 
+msgid "room.invite.detail"
+msgstr "Invita un amico, oppure copia un link o un invito da condividere."
+
+msgid "room.invite.more_friends"
+msgstr "Altri amici…"
+
 msgid "room.leaving"
 msgstr "Uscita dalla sala..."
 
@@ -3692,9 +3731,6 @@ msgstr "Connessione Wi-Fi"
 
 msgid "room.link_unknown"
 msgstr "Connessione sconosciuta"
-
-msgid "room.table_footer"
-msgstr "{0} round / {1} sec     Coda {2}     Spettatori {3}"
 
 msgid "room.board_status_host_slot"
 msgstr "HOST / {0} / Posto {1}"
@@ -3744,8 +3780,8 @@ msgstr "Aperto da un link della sala. Controllalo, poi scegli Entra in sala."
 msgid "room.link_waiting"
 msgstr "È stato aperto un link della sala. Lo troverai nella schermata per entrare quando lasci questa sala."
 
-msgid "room.replacement_opening"
-msgstr "Apertura nuova sala. Scegli Copia invito e invia il nuovo link: il vecchio non funziona più."
+msgid "room.replacement_invite"
+msgstr "Apertura nuova sala. Scegli Invita, poi Copia invito, e invia il nuovo invito. Il vecchio non funziona più."
 
 msgid "room.action_rejected"
 msgstr "La sala è cambiata o ha rifiutato l'azione. Controlla lo stato e riprova."
@@ -3956,6 +3992,9 @@ msgstr "Prima scegli Non pronto, poi lascia il posto."
 
 msgid "room.leave_seat.keep"
 msgstr "Mantieni il posto."
+
+msgid "room.watching_keeps"
+msgstr "Continua a guardare. L'altra scelta termina la partita che stai guardando."
 
 msgid "room.leave_seat.costs_score"
 msgstr "Andando via la serie termina e il punteggio si azzera ({0})."
@@ -4329,6 +4368,9 @@ msgstr "Componente Discord arrestato. Il gioco non ne risente."
 msgid "runtime.room_connection_failed"
 msgstr "Connessione alla sala fallita. La sala si chiuderà; i risultati non confermati non saranno registrati."
 
+msgid "runtime.public_room_connection_failed"
+msgstr "Hai perso la connessione alla sala. I risultati non confermati non saranno registrati. Rientra da Sale pubbliche. Se vieni rifiutato, aspetta un minuto e riprova."
+
 msgid "runtime.operation_busy"
 msgstr "Operazione occupata. Riprova."
 
@@ -4337,6 +4379,9 @@ msgstr "Impossibile aprire il profilo Steam."
 
 msgid "discord.invitation_expired"
 msgstr "L'invito Discord è scaduto. Chiedine un altro."
+
+msgid "room.invitation_expired"
+msgstr "L'invito è scaduto. Chiedine un altro."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "Impossibile inviare l'azione spettatore; nuovo tentativo."
@@ -4395,6 +4440,9 @@ msgstr "La partita non si è chiusa in tempo. Vista spettatore interrotta."
 msgid "runtime.room_closed"
 msgstr "La sala è stata chiusa."
 
+msgid "runtime.room_unreachable"
+msgstr "Hai perso la connessione alla sala, oppure si è chiusa. Se è ancora elencata in Sale pubbliche, rientra."
+
 msgid "runtime.removed_from_room"
 msgstr "Sei stato rimosso dalla sala."
 
@@ -4442,6 +4490,9 @@ msgstr "Non stai guardando questo tavolo."
 
 msgid "room.reject.seat_taken"
 msgstr "Quel posto è appena stato occupato. Scegli di nuovo."
+
+msgid "room.reject.table_changed"
+msgstr "Questo tavolo è cambiato. Scegli di nuovo."
 
 msgid "room.reject.invalid_rules"
 msgstr "Regole del tavolo non valide."
@@ -5541,9 +5592,6 @@ msgstr "{0}, {1}"
 msgid "room.table_set"
 msgstr "Set"
 
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     Coda {2}     Spettatori {3}"
-
 msgid "room.streak"
 msgstr "{0} set di fila"
 
@@ -5919,8 +5967,14 @@ msgstr "Questa sala si è appena riempita o è stata bloccata. Scegline un'altra
 msgid "public.failure.turned_away"
 msgstr "La sala ha rifiutato il tuo ingresso. Potresti essere stato rimosso."
 
+msgid "public.failure.name_taken"
+msgstr "Questo nome è già presente nella sala. Se ti sei appena disconnesso, il tuo vecchio posto potrebbe essere ancora riservato: aspetta un minuto e riprova. Altrimenti cambia il nome nelle Impostazioni."
+
 msgid "public.failure.join_failed"
 msgstr "Impossibile entrare nella sala. Potrebbe essersi appena chiusa. Aggiorna e scegline un'altra."
+
+msgid "public.failure.refused"
+msgstr "La sala non ti ha accolto. Se eri appena dentro, potrebbe tenere ancora il tuo vecchio posto: aspetta un minuto e riprova. Potresti anche essere stato rimosso."
 
 msgid "legend.refresh"
 msgstr "Aggiorna"
@@ -6303,18 +6357,6 @@ msgstr "I giocatori si mettono in coda a un tavolo e giocano lì."
 msgid "room.type.arcade_detail"
 msgstr "Sedici cabinati: siediti a uno libero e gioca contro chi aspetta da più tempo. Dopo un set, se entrambi scelgono Rivincita giocate di nuovo, altrimenti ognuno gioca con il prossimo in attesa."
 
-msgid "room.arcade_status"
-msgstr "Stanza arcade / solo su invito"
-
-msgid "room.arcade_locked_status"
-msgstr "Stanza arcade chiusa / solo su invito"
-
-msgid "room.king_status"
-msgstr "Re della collina / solo su invito"
-
-msgid "room.king_locked_status"
-msgstr "Re della collina chiuso / solo su invito"
-
 msgid "room.arcade_sit"
 msgstr "Siediti"
 
@@ -6386,12 +6428,6 @@ msgstr "Sala di pratica"
 
 msgid "room.practice.detail"
 msgstr "Ogni partita nella sala è una partita di pratica: salute e barre si ricaricano, nessuno va K.O. e il tempo del round è {0}. Resta così finché la sala è aperta. Per giocare partite normali, chiudi la sala e creane una nuova."
-
-msgid "room.practice_status"
-msgstr "Sala di pratica / solo inviti"
-
-msgid "room.practice_locked_status"
-msgstr "Sala di pratica bloccata / solo inviti"
 
 msgid "inputs.presses_value"
 msgstr "{0} pressioni"
@@ -7500,8 +7536,14 @@ msgstr "Ritardo proprio"
 msgid "room.table_footer_wired_only"
 msgstr "Solo cavo"
 
-msgid "room.table_counts"
-msgstr "Coda {0}     Spettatori {1}"
+msgid "room.table_rules_line"
+msgstr "Round {0} / {1} sec"
+
+msgid "room.table_queue"
+msgstr "Coda {0}"
+
+msgid "room.table_watching"
+msgstr "Spettatori {0}"
 
 msgid "room.input_delay.own"
 msgstr "Il tuo ritardo: {0}"
@@ -8626,11 +8668,11 @@ msgstr "Aree"
 msgid "room.v2.tables"
 msgstr "TAVOLI"
 
+msgid "room.v2.tables_playing"
+msgstr "In gioco {0}"
+
 msgid "room.v2.table"
 msgstr "TAVOLO {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "{0} giocano · {1} guardano"
 
 msgid "room.v2.group_playing"
 msgstr "GIOCANO"
@@ -8652,6 +8694,9 @@ msgstr "EMBER · ONLINE · STANZA PUBBLICA"
 
 msgid "room.v2.invitation_only"
 msgstr "Solo su invito"
+
+msgid "room.v2.friends_can_join"
+msgstr "Aperta agli amici"
 
 msgid "room.v2.listed"
 msgstr "In Stanze pubbliche"
@@ -8712,12 +8757,6 @@ msgstr "Mostra"
 
 msgid "room.v2.show_detail"
 msgstr "Lo riapre a grandezza piena."
-
-msgid "room.v2.copy_invite"
-msgstr "Invito"
-
-msgid "room.v2.copy_link"
-msgstr "Link breve"
 
 msgid "settings.room_show_members_detail"
 msgstr "Il pannello Membri della stanza. Se nascosto, la chat prende la colonna, o i tavoli tutta la larghezza."

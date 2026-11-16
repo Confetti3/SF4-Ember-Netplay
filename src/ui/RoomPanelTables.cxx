@@ -2,24 +2,20 @@
 // room's action bar on the left; Members over Chat in a column on the right
 // (either side of the tables on a 32:9 screen, RoomPanelColumn.cxx); on a
 // narrow screen one of the three at a time, under tabs that follow the focus.
-// A Classic room's floor is its table cards, drawn here; an Arcade or King of
-// the hill room's is its cabinets (RoomPanelArcade.cxx). The rows are built
-// in RoomPanel.cxx (RoomBoardRows).
+// A Classic room's floor is its table cards (RoomTableCards.cxx); an Arcade
+// or King of the hill room's is its cabinets (RoomPanelArcade.cxx). Here: the
+// board's layout, the tables' heading, the action bar and the focused row's
+// line. The rows are built in RoomPanel.cxx (RoomBoardRows).
 #include "RoomPanelBoard.hxx"
-#include "TableCardShape.hxx"
 #include "Theme.hxx"
-#include "RoomControls.hxx"
 #include "RoomCards.hxx"
-#include "MenuRows.hxx"
 #include "RowId.hxx"
-#include "LatencyMark.hxx"
 #include "MenuProbes.hxx"
 #include "FighterSelector.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
-#include <cstring>
 
 namespace sf4e { namespace ui {
 using namespace room_controls;
@@ -80,18 +76,12 @@ std::string SeatCaption(const SeatLook& look,bool brief) {
 namespace {
 // The room's action bar: the board's Bar rows, every row the floor and the
 // column do not draw (BoardAreaOf), as buttons on as few lines as their labels allow (v2::BarLines),
-// each place at least 140 px. The invitation's copy buttons share one place,
-// each with its short name, where the bar is wide enough for both.
+// each place at least 140 px.
 class RoomActionBar {
 public:
- RoomActionBar(const RoomBoardFrame& f,float width):f_(f){
-  for(const auto& e:f.rows){
-   if(BoardAreaOf(e.id)!=BoardArea::Bar)continue;
-   const bool copy=HasPrefix(e.id,"copy");
-   if(copy&&!slots_.empty()&&HasPrefix(slots_.back().front()->id,"copy")&&SlotNeed({slots_.back().front(),&e})<=width)slots_.back().push_back(&e);
-   else slots_.push_back({&e});
-  }
-  for(const auto& slot:slots_)places_.push_back((std::max)(140*f.s,SlotNeed(slot)));
+ RoomActionBar(const RoomBoardFrame& f):f_(f){
+  for(const auto& e:f.rows)if(BoardAreaOf(e.id)==BoardArea::Bar)buttons_.push_back(&e);
+  for(const auto* e:buttons_)places_.push_back((std::max)(140*f.s,Need(*e)));
  }
  // The bar's height `width` wide.
  float Height(float width) const {return (v2::BarLines(width,places_,12*f_.s)*60-12)*f_.s;}
@@ -100,261 +90,90 @@ public:
   const float s=f_.s;
   const int lines=v2::BarLines(width,places_,12*s);
   const auto places=v2::BarPlaces({at,ImVec2(at.x+width,at.y+Height(width))},places_,12*s,lines,48*s);
-  for(std::size_t i=0;i<slots_.size();++i){
-   // A shared place goes to its buttons as a bar of its own.
-   const auto parts=v2::BarPlaces(places[i],Needs(slots_[i]),8*s,1,48*s);
-   for(std::size_t k=0;k<slots_[i].size();++k){
-    const auto& e=*slots_[i][k];const v2::Box& b=parts[k];
-    const bool hovered=f_.Press(e,b),focused=e.id==f_.focus,leave=e.id=="leave"||e.id=="stop-watching";
-    // Ready is the one filled button; Leave room is drawn in the danger tone.
-    v2::Button(d,b,Label(e),e.id=="ready"?v2::ButtonKind::Primary:leave?v2::ButtonKind::Danger:v2::ButtonKind::Secondary,focused,hovered,f_.feedback.Enabled(e));
-    if(focused&&e.popout)f_.choices={b,column};
-   }
+  for(std::size_t i=0;i<buttons_.size();++i){
+   const auto& e=*buttons_[i];const v2::Box& b=places[i];
+   const bool hovered=f_.Press(e,b),focused=e.id==f_.focus,leave=e.id=="leave"||e.id=="stop-watching";
+   // Ready is the one filled button; Leave room is drawn in the danger tone.
+   v2::Button(d,b,e.label,e.id=="ready"?v2::ButtonKind::Primary:leave?v2::ButtonKind::Danger:v2::ButtonKind::Secondary,focused,hovered,f_.feedback.Enabled(e));
+   if(focused&&e.popout)f_.choices={b,column};
   }
  }
 private:
- static std::string Label(const MenuEntry& e){
-  return e.id=="copy"?std::string(loc::T("room.v2.copy_invite")):e.id=="copy-short"?std::string(loc::T("room.v2.copy_link")):e.label;
- }
- // What a button's label needs: a split button only v2::Button's own 12 px each side.
- float Need(const MenuEntry& e,bool split) const {return HeadingFont()->CalcTextSizeA(17*f_.s,FLT_MAX,0,Label(e).c_str()).x+(split?24:36)*f_.s;}
- std::vector<float> Needs(const std::vector<const MenuEntry*>& slot) const {
-  std::vector<float> each;for(const auto* e:slot)each.push_back(Need(*e,slot.size()>1));return each;
- }
- float SlotNeed(const std::vector<const MenuEntry*>& slot) const {
-  float w=(slot.size()-1)*8*f_.s;for(const float n:Needs(slot))w+=n;return w;
- }
+ // What a button's label needs: v2::Button's own 18 px each side.
+ float Need(const MenuEntry& e) const {return HeadingFont()->CalcTextSizeA(17*f_.s,FLT_MAX,0,e.label.c_str()).x+36*f_.s;}
  const RoomBoardFrame& f_;
- std::vector<std::vector<const MenuEntry*>> slots_;
+ std::vector<const MenuEntry*> buttons_;
  std::vector<float> places_;
 };
 
-// The board's one line for the focused row's explanation. Lines after the
-// first (the fighter summary under Ready, for example) and any elided text
-// are reachable on hover.
+// The board's one line for the focused row's explanation, where it says
+// something the board does not show: never a table card's own first line (who
+// sits, its state, its counts), which the card is. Lines after the first (the
+// fighter summary under Ready, for example) and any elided text are reachable
+// on hover.
 void DrawFocusedLine(const RoomBoardFrame& f,float size) {
  // The focus now: the narrow board's tabs may have just moved it.
  const auto* e=f.Find(f.nav.Focus().c_str());
  if(!e)return;
  std::string elided;
- // The highlighted option of the entry's open choice, in full.
+ // What the entry's open choice says of its highlighted option beyond the
+ // option's own label, which the card shows; on a card that offers places,
+ // the same of the place it lights.
  const auto& nav=f.nav;
- const std::string choice=nav.Choosing()&&nav.DialogId()==e->id&&nav.ChoiceIndex()<e->choices.size()?e->choices[nav.ChoiceIndex()].detail:std::string();
+ const MenuChoice* option=nav.Choosing()&&nav.DialogId()==e->id&&nav.ChoiceIndex()<e->choices.size()?&e->choices[nav.ChoiceIndex()]:nullptr;
+ if(!option){
+  const auto lit=std::find_if(e->segments.begin(),e->segments.end(),[&](const MenuChoice& o){return o.id==nav.Lit(e->id);});
+  if(lit!=e->segments.end())option=&*lit;
+ }
+ const bool card=RowKey<std::size_t>(e->id,"table-").has_value();
+ const std::string choice=option&&option->detail!=option->label?option->detail:std::string();
  const auto newline=e->detail.find('\n');
- std::string line=choice.empty()?e->detail.substr(0,newline):choice;
+ std::string line=!choice.empty()||card?choice:e->detail.substr(0,newline);
  // The board renders in place of the menu list, so it uses the same smoothed
  // verdict and the same wording. Presentation only: nav.Choose still gates on
  // the live entry and SendRoom still re-checks room authority at dispatch.
  const std::string reason=f.feedback.Enabled(*e)?"":loc::T(f.feedback.Pending(*e)?"room.updating":"common.unavailable");
- NoteDetailText(e->detail.substr(0,newline),e->detailText);
  if(!reason.empty())line=line.empty()?reason:line+"  -  "+reason;
+ if(line.empty())return;
+ NoteDetailText(e->detail.substr(0,newline),e->detailText);
+ // An offer the room refuses says why in the same tone as a refused row.
+ const bool refused=!reason.empty()||(option&&!option->enabled);
  const auto p=ImGui::GetCursorScreenPos();const float lineWidth=ImGui::GetContentRegionAvail().x;
- DrawCardText(elided,p,lineWidth,line,size,reason.empty()?v2::Colors().muted:ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
+ ReportMenuCard("room-line",p,ImVec2(p.x+lineWidth,p.y+size));
+ DrawCardText(elided,p,lineWidth,line,size,refused?ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)):v2::Colors().muted);
  if(newline!=std::string::npos)elided+=(elided.empty()?"":"\n")+e->detail;
  ImGui::Dummy(ImVec2(lineWidth,ImGui::GetFontSize()));
  FlushCardTip(elided);
 }
 
-// A table card's footer: a first-to-N table names its set and rotation where
-// the round settings would be; those stay on the table's rules rows.
-std::string TableFooter(const ShellView& v,const room::Table& t) {
- const auto watching=t.spectators.size()+t.watchingNext.size();
- return (v.room.practice?std::string(loc::T("room.table_footer_practice"))+"     ":std::string())+
-  (v.room.delayPolicy==room::DelayPolicy::Own?std::string(loc::T("room.table_footer_own_delay"))+"     ":std::string())+
-  (v.room.wiredOnly?std::string(loc::T("room.table_footer_wired_only"))+"     ":std::string())+(t.rules.format==room::SetFormat::Unlimited
-  ?loc::Tf("room.table_footer",t.rules.roundCount,room::MatchRoundTime(v.room,t),t.queue.size(),watching)
-  :loc::Tf("room.table_footer_set",SetLengthText(t.rules.format),RotationText(t.rules.rotation),t.queue.size(),watching));
-}
-// The footer's queue and watchers alone, for a versus card's header while the strip covers its foot.
-std::string TableCounts(const room::Table& t) {
- return loc::Tf("room.table_counts",t.queue.size(),t.spectators.size()+t.watchingNext.size());
-}
-
-// A card's strip: the open seat chooser's options, or on your own focused
-// place Ready and Leave. A strip option is half a card wide, so Unready drops
-// its "unlock fighter".
-std::vector<TableCardOption> StripOptions(const RoomBoardFrame& f,const MenuEntry& e,const room::Table& t,bool choosing,bool ownPlace,const PlaceExit& place) {
- std::vector<TableCardOption> options;
- if(choosing)for(const auto& c:e.choices){const auto* option=FindSeatOption(c.id);options.push_back({c.label,c.enabled,option?option->seat:-1});}
- else if(ownPlace){
-  const auto mine=room::PlaceOf(f.v.room,f.v.room.localMember);
-  const bool seated=mine.kind==room::Place::Kind::Seat;
-  const auto ready=seated?DescribeReady(f.v,t,mine.seat):ReadyControl{};
-  options={{ready.kind==ReadyControl::Unready?std::string(loc::T("room.unready.short")):e.hint,f.feedback.Enabled(e)&&(!seated||ready.kind!=ReadyControl::None)},
-   {place.label,place.allowed}};
- }
- return options;
-}
-
-// A seat in `box`: the fighter's picture, as tall as the box, at its outer
-// end (the right one for a versus card's second seat), and in the rest the
-// player's tag over their fighter, costume and Ultra, with Ready on its inner
-// side while they are ready. Where the box is tall enough a third line says
-// the player's win streak at this table, else how long they have been idle,
-// as the Classic card did. A versus card centres the lines between the
-// picture and the score, so the pair stands even about it; a stacked seat
-// starts them beside the picture. The picture is the fighter they picked,
-// else their main (SeatLookOf). An empty seat is an empty frame and "Open seat".
-void DrawSeat(const RoomBoardFrame& f,ImDrawList* d,const v2::Box& box,const room::Table& t,int side,bool versus,bool marked,std::string& elided) {
- const auto& v=f.v;const float s=f.s,face=box.H(),gap=table_card::FaceGap*s;const auto& c=v2::Colors();
- const bool mirrored=versus&&side==1;
- const v2::Box tile=mirrored?v2::Box{ImVec2(box.max.x-face,box.min.y),box.max}:v2::Box{box.min,ImVec2(box.min.x+face,box.max.y)};
- const float left=mirrored?box.min.x:tile.max.x+gap,right=mirrored?tile.min.x-gap:box.max.x,room=right-left;
- const auto widthOf=[](const std::string& value,float size){return ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,value.c_str()).x;};
- // Where a line `width` wide starts: centred on a versus card, else at the start.
- const auto lineAt=[&](float width){return left+(versus?(std::max)(0.f,room-width)*.5f:0.f);};
- const float tagLine=v2::ChipFont()+8*s,lineSize=13*s;
- const auto* m=room::FindMember(v.room,side?t.p2:t.p1);
- if(!m){
-  // An open seat is a place to sit: a dim tile with a plus.
-  d->AddRectFilled(tile.min,tile.max,v2::color::Alpha(c.frame,.55f),4*s);d->AddRect(tile.min,tile.max,c.border,4*s,0,s);
-  const ImVec2 mid((tile.min.x+tile.max.x)*.5f,(tile.min.y+tile.max.y)*.5f);const float arm=face*.14f;
-  d->AddLine(ImVec2(mid.x-arm,mid.y),ImVec2(mid.x+arm,mid.y),c.muted,2*s);d->AddLine(ImVec2(mid.x,mid.y-arm),ImVec2(mid.x,mid.y+arm),c.muted,2*s);
-  const std::string open=loc::T("room.open_seat");
-  const float w=(std::min)(room,widthOf(open,15*s));
-  DrawCardText(elided,ImVec2(lineAt(w),box.min.y+(face-15*s)*.5f),room,open,15*s,c.muted);
-  return;
- }
- const auto look=SeatLookOf(v,*m);
- // The third line: a streak takes it from idle time.
- const std::string streak=StreakText(t,m->id),note=streak.empty()?IdleText(*m,v.roomElapsedMs):streak;
- const bool third=!note.empty()&&face>=tagLine+2*lineSize+16*s;
- // The lines together, centred on the picture.
- const float block=tagLine+4*s+lineSize+(third?4*s+lineSize:0),top=box.min.y+(std::max)(0.f,(face-block)*.5f);
- DrawCharacterPortrait(SeatPicture(look,f.art),tile.min,tile.max,c.frame);
- if(const auto points=PointsOf(v,*m,look.fighter))v2::LevelBand(d,tile,points->points);
- if(marked)d->AddRect(ImVec2(tile.min.x-2*s,tile.min.y-2*s),ImVec2(tile.max.x+2*s,tile.max.y+2*s),ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)),3*s,0,2*s);
- const auto tag=MemberTag(v,*m);
- const float tagWidth=(std::min)(room,v2::TagWidth(tag,v2::TagSize::S));
- v2::Tag(d,ImVec2(lineAt(tagWidth),top),tagWidth,tag,v2::TagSize::S);
- // The fighter, costume and Ultra, and Ready on their inner side (towards
- // the score) while the seat is ready. The Ultra's short name where the long
- // one does not fit.
- const bool ready=t.ready[side]&&(t.phase==room::TablePhase::Waiting||t.phase==room::TablePhase::Ready);
- const std::string readyWord=ready?loc::T("room.status.ready"):"";
- const float chip=ready?v2::ChipWidth(readyWord)+8*s:0,y=top+tagLine+4*s;
- std::string name=SeatCaption(look);
- if(widthOf(name,lineSize)>room-chip)name=SeatCaption(look,true);
- const float nameWidth=(std::min)(room-chip,widthOf(name,lineSize)),x=lineAt(nameWidth+chip);
- DrawCardText(elided,ImVec2(mirrored?x+chip:x,y),room-chip,name,lineSize,c.muted);
- if(ready)v2::Chip(d,ImVec2(mirrored?x:x+nameWidth+8*s,y+(lineSize-v2::ChipFont()-8*s)*.5f),readyWord,palette::Ready);
- if(third){
-  const float w=(std::min)(room,widthOf(note,lineSize));
-  DrawCardText(elided,ImVec2(lineAt(w),y+lineSize+4*s),room,note,lineSize,streak.empty()?c.muted:c.accent);
- }
-}
-
-// A Classic room's floor in `tables`: its cards as `shape` lays them out
-// (TableCardShape.hxx), in their own scroll when there are more than fit;
-// with `follows`, the action bar after them in that scroll.
-//  A versus card:  TABLE 1 [phase] name
-//                  [face]   name, fighter, streak   2 - 1   name, fighter, streak   [face]
-//                  rules, queue, watching (or the strip)
-//  A stacked card: TABLE 1 [phase] name                                    2 - 1
-//                  [face] name, fighter
-//                  [face] name, fighter
-//                  rules, queue, watching (or the strip)
-void DrawTableCards(const RoomBoardFrame& f,const v2::Box& tables,const TableCardShape& shape,const PlaceExit& place,const RoomActionBar* follows) {
- namespace card=table_card;
- const auto& v=f.v;const auto& nav=f.nav;const float s=f.s;const auto& c=v2::Colors();
- const bool onOwnPlace=OnOwnPlace(place,f.focus);
- const auto pointer=ImGui::GetIO().MouseDelta;const bool pointerMoved=pointer.x!=0||pointer.y!=0;
- const int columns=shape.columns;const bool versus=shape.versus;const float cardHeight=shape.height;
- const float cardWidth=(tables.W()-(columns-1)*card::Between*s)/columns;
- std::string elided;
- const auto text=[&](ImVec2 p,float width,const std::string& value,float size,ImU32 color,bool centred=false){DrawCardText(elided,p,width,value,size,color,centred);};
- ImGui::SetCursorScreenPos(tables.min);
- ImGui::BeginChild("Room tables",ImVec2(tables.W(),tables.H()),0,ImGuiWindowFlags_NoNavInputs);
- auto* td=ImGui::GetWindowDrawList();
- const auto start=ImGui::GetCursorScreenPos();int n=0;
- for(const auto& e:f.rows){
-  const auto index=RowKey<std::size_t>(e.id,"table-");
-  if(!index||*index>=v.room.tables.size())continue;
-  const auto& t=v.room.tables[*index];
-  const ImVec2 at(start.x+(n%columns)*(cardWidth+card::Between*s),start.y+(n/columns)*(cardHeight+card::Between*s));++n;
-  const v2::Box b{at,ImVec2(at.x+cardWidth,at.y+cardHeight)};
-  const bool focused=e.id==f.focus,choosing=nav.Choosing()&&nav.DialogId()==e.id&&!e.choices.empty();
-  const auto options=StripOptions(f,e,t,choosing,!nav.Asking()&&onOwnPlace&&focused,place);
-  // The set's score once both seats are taken, else vs; a closed table neither.
-  const bool paired=t.p1&&t.p2;
-  const std::string score=t.phase==room::TablePhase::Closed?std::string():paired?SetScoreText(t.score):"vs";
-  const float scoreSize=22*s,scoreWidth=HeadingFont()->CalcTextSizeA(scoreSize,FLT_MAX,0,score.c_str()).x;
-  // The seats: a versus card's at its two ends with the score between them,
-  // a stacked card's one over the other.
-  const float seatTop=b.min.y+card::Header*s;
-  v2::Box seats[2];
-  if(versus){
-   const float middle=(std::max)(card::Middle*s,scoreWidth+32*s),half=(b.W()-2*card::Pad*s-middle)*.5f;
-   seats[0]={ImVec2(b.min.x+card::Pad*s,seatTop),ImVec2(b.min.x+card::Pad*s+half,seatTop+card::Face*s)};
-   seats[1]={ImVec2(b.max.x-card::Pad*s-half,seatTop),ImVec2(b.max.x-card::Pad*s,seatTop+card::Face*s)};
-  }else for(int side=0;side<2;++side){const float y=seatTop+side*(card::SeatRow+card::SeatRowGap)*s;seats[side]={ImVec2(b.min.x+card::Pad*s,y),ImVec2(b.max.x-card::Pad*s,y+card::SeatRow*s)};}
-  // The strip covers the footer. Its buttons go in first: the first item
-  // under the pointer is the one it is over.
-  const v2::Box strip{ImVec2(b.min.x+card::Pad*s,b.max.y-card::Footer*s),ImVec2(b.max.x-card::Pad*s,b.max.y-12*s)};
-  const float ow=options.empty()?0:(strip.W()-(options.size()-1)*8*s)/options.size();
-  int over=-1,pressed=-1;
-  for(std::size_t i=0;i<options.size();++i){
-   ImGui::SetCursorScreenPos(ImVec2(strip.min.x+i*(ow+8*s),strip.min.y));ImGui::PushID(e.id.c_str());ImGui::PushID(static_cast<int>(i));
-   // The open chooser is itself a question, so its own options answer it.
-   if(ImGui::InvisibleButton("##option",ImVec2(ow,strip.H()))&&(choosing||!nav.Asking())&&!nav.Editing())pressed=static_cast<int>(i);
-   if(ImGui::IsItemHovered())over=static_cast<int>(i);
-   ImGui::PopID();ImGui::PopID();
-   ReportMenuCard((e.id+"/"+std::to_string(i)).c_str(),ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
-  }
-  const bool hovered=f.Press(e,b,!OnOwnPlace(place,e.id));
-  if(choosing){
-   // The chosen side follows the mouse, but only a moving one takes the choice.
-   if(over>=0&&pointerMoved)f.nav.ChoiceIndex(static_cast<std::size_t>(over));
-   if(pressed>=0)f.action=f.nav.Pick(static_cast<std::size_t>(pressed),f.rows);
-  }else if(pressed==0){f.nav.Focus(e.id,f.rows);f.action=f.nav.Choose(f.rows);}
-  else if(pressed==1)f.action={MenuAction::Activate,"leave-place"};
-  if(!ImGui::IsItemVisible())continue;
-  v2::CardGround(td,b,focused,hovered,place.table==static_cast<int>(t.id));
-  // The score: a versus card's in the middle between the seats, at the
-  // height of the players' names; a stacked card's at the header's right.
-  const ImU32 scoreTone=paired?c.accent:c.muted;
-  const float y=b.min.y+12*s,w=b.W()-2*card::Pad*s;
-  float nameEnd=b.max.x-card::Pad*s;
-  if(versus)td->AddText(HeadingFont(),scoreSize,ImVec2(seats[0].max.x+(seats[1].min.x-seats[0].max.x-scoreWidth)*.5f,seatTop+(card::Face*s-scoreSize)*.5f),scoreTone,score.c_str());
-  else{nameEnd-=scoreWidth+12*s;td->AddText(HeadingFont(),scoreSize,ImVec2(b.max.x-card::Pad*s-scoreWidth,y),scoreTone,score.c_str());}
-  // While the strip covers a versus card's foot, its queue and watchers stay
-  // in sight at the header's right, where a stacked card has its score.
-  if(versus&&!options.empty()){
-   const std::string counts=TableCounts(t);
-   const float countsWidth=ImGui::GetFont()->CalcTextSizeA(13*s,FLT_MAX,0,counts.c_str()).x;
-   text(ImVec2(nameEnd-countsWidth,y+4*s),countsWidth,counts,13*s,c.muted);
-   nameEnd-=countsWidth+12*s;
-  }
-  // TABLE n, its state, and the host's name for it.
-  float x=b.min.x+card::Pad*s;
-  x+=v2::SectionHeading(td,ImVec2(x,y+4*s),loc::Tf("room.v2.table",t.id+1),c.muted)+8*s;
-  const ImU32 tone=t.phase==room::TablePhase::Playing?c.accent:t.phase==room::TablePhase::Idle||t.phase==room::TablePhase::Closed?c.muted:
-   ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
-  x+=v2::Chip(td,ImVec2(x,y),PhaseName(t),tone)+10*s;
-  if(!t.name.empty()){NoteUserText(t.name);text(ImVec2(x,y+3*s),nameEnd-x,t.name,15*s,c.text);}
-  const auto banner=DescribeTableBanner(v,t);
-  for(int side=0;side<2;++side)DrawSeat(f,td,seats[side],t,side,versus,banner.seat==side,elided);
-  // The seat the open chooser's option would take.
-  if(choosing&&nav.ChoiceIndex()<options.size())
-   if(const int seat=options[nav.ChoiceIndex()].seat;seat==0||seat==1)v2::Focus(td,ImVec2(seats[seat].min.x-6*s,seats[seat].min.y-4*s),ImVec2(seats[seat].max.x+6*s,seats[seat].max.y+4*s),false);
-  if(!banner.text.empty())text(ImVec2(b.min.x+card::Pad*s,seats[1].max.y+6*s),w,banner.text,13*s,ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
-  // The rules, queue and watchers along the foot, where the strip does not cover them.
-  if(options.empty())text(ImVec2(b.min.x+card::Pad*s,b.max.y-12*s-14*s),w,TableFooter(v,t),13*s,c.muted);
-  for(std::size_t i=0;i<options.size();++i){
-   const v2::Box o{ImVec2(strip.min.x+i*(ow+8*s),strip.min.y),ImVec2(strip.min.x+i*(ow+8*s)+ow,strip.max.y)};
-   const bool chosen=choosing&&i==nav.ChoiceIndex();
-   f.Ground(td,o,chosen?c.header:over==static_cast<int>(i)?c.hover:c.button,v2::color::Alpha(c.accent,.35f));
-   text(ImVec2(o.min.x+8*s,o.min.y+8*s),ow-16*s,options[i].label,15*s,options[i].live?c.text:c.muted,true);
-   if(chosen)v2::Focus(td,o.min,o.max,false);
-  }
-  // Flushed once per card, while the card's button is still the hovered item.
-  FlushCardTip(elided);
-  if(focused)v2::Focus(td,b.min,b.max);
- }
- float bottom=start.y+((n+columns-1)/columns)*(cardHeight+card::Between*s)-card::Between*s;
- if(follows){const float width=ImGui::GetContentRegionAvail().x;follows->Draw(td,ImVec2(start.x,bottom+12*s),width,tables);bottom+=12*s+follows->Height(width);}
- ImGui::SetCursorScreenPos(start);ImGui::Dummy(ImVec2(tables.W(),bottom-start.y));
- ImGui::EndChild();
+// The tables' heading: TABLES, then at its right the rules every table plays
+// by (the room's own and the first table's) and how many play and watch,
+// saying nothing of a count that is none. The counts give way first; rules
+// that do not fit beside the heading alone take a paragraph of their own
+// under it, at the board's small size, wrapping rather than cut. Returns the
+// height the heading takes with the space under it: a paragraph takes its
+// room from that space, so a table fits under it as under one line.
+float DrawTablesHeading(ImDrawList* d,const ShellView& v,const v2::Box& tables,float s) {
+ const auto& c=v2::Colors();
+ std::size_t playing=0,watching=0;
+ for(const auto& t:v.room.tables){playing+=t.phase==room::TablePhase::Playing;watching+=t.spectators.size()+t.watchingNext.size();}
+ std::string counts=playing?loc::Tf("room.v2.tables_playing",playing):std::string();
+ if(watching)counts+=(counts.empty()?"":"  \xC2\xB7  ")+loc::Tf("room.table_watching",watching);
+ const std::string rules=room::RulesOf(v.room).cabinets?std::string():RoomRulesText(v,v.room.tables[0]);
+ const float headingWidth=v2::SectionHeading(d,tables.min,loc::T("room.v2.tables"),c.muted);
+ const auto widthOf=[&](const std::string& text){return text.empty()?0.f:ImGui::GetFont()->CalcTextSizeA(15*s,FLT_MAX,0,text.c_str()).x;};
+ const float room=(std::max)(0.f,tables.W()-headingWidth-24*s);
+ const std::string both=rules.empty()?counts:counts.empty()?rules:rules+"  \xC2\xB7  "+counts;
+ const bool ownLine=!rules.empty()&&widthOf(rules)>room;
+ const std::string beside=widthOf(both)<=room?both:ownLine?(widthOf(counts)<=room?counts:std::string()):rules;
+ const float besideWidth=(std::min)(room,widthOf(beside));
+ if(besideWidth>0)v2::Text(d,ImVec2(tables.max.x-besideWidth,tables.min.y),besideWidth,beside,15*s,c.muted);
+ d->AddLine(ImVec2(tables.min.x+headingWidth+12*s,tables.min.y+9*s),ImVec2(tables.max.x-(besideWidth>0?besideWidth+12*s:0),tables.min.y+9*s),c.border,s);
+ if(!ownLine)return 32*s;
+ const ImVec2 at(tables.min.x,tables.min.y+24*s);
+ const float height=v2::Paragraph(d,at,tables.W(),rules,13*s,c.muted);
+ ReportMenuCard("tables-rules",at,ImVec2(at.x+tables.W(),at.y+height));
+ return 30*s+height;
 }
 }
 
@@ -384,7 +203,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  // does what B does on your card.
  const auto place=ExitFromPlace(v);
  const bool leaveKey=action.kind==MenuAction::Shortcut&&action.delta==MenuInput::Leave;
- if(OnOwnPlace(place,focus)&&((action.kind==MenuAction::Back&&!action.keyboard)||leaveKey))action={MenuAction::Activate,"leave-place"};
+ if(OnOwnPlace(place,focus)&&((action.kind==MenuAction::Back&&!action.keyboard)||leaveKey))action={MenuAction::Activate,OwnPlace::Leave};
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
  ImGui::PushStyleColor(ImGuiCol_ChildBg,v2::BoardGround(v.SeeThrough()));
  const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
@@ -426,29 +245,25 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  if(!ultra&&!narrow)ArrangeRoom(area,tables,members,chat,&picture);
  if(columnPicture_){f.Panel(d,picture);const v2::Box in=v2::Inset(picture,12*s,12*s);showPicture(in.min,in.max);}
  if(!narrow||part==0){
-  // The tables, under their heading and how many play and watch.
-  std::size_t playing=0,watching=0;bool banners=false;
-  for(const auto& t:v.room.tables){playing+=t.phase==room::TablePhase::Playing;watching+=t.spectators.size()+t.watchingNext.size();banners|=!DescribeTableBanner(v,t).text.empty();}
-  const float headingWidth=v2::SectionHeading(d,tables.min,loc::T("room.v2.tables"),c.muted);
-  const std::string summary=loc::Tf("room.v2.tables_summary",playing,watching);
-  const float summaryWidth=ImGui::GetFont()->CalcTextSizeA(15*s,FLT_MAX,0,summary.c_str()).x;
-  d->AddText(ImGui::GetFont(),15*s,ImVec2(tables.max.x-summaryWidth,tables.min.y),c.muted,summary.c_str());
-  d->AddLine(ImVec2(tables.min.x+headingWidth+12*s,tables.min.y+9*s),ImVec2(tables.max.x-summaryWidth-12*s,tables.min.y+9*s),c.border,s);
-  v2::CutTop(tables,20*s,12*s);
+  // The tables, under their heading.
+  v2::CutTop(tables,DrawTablesHeading(d,v,tables,s),0);
   // The room's actions along the bottom, then the focused row's line over them.
-  const RoomActionBar bar(f,tables.W());
-  const auto cards=ShapeTableCards(tables.W(),ultra||logical>=1640?3:narrow&&tables.W()<640*s?1:2,preferences_.roomTableGrid,banners,s);
-  const float cardHeight=cards.height;
+  const RoomActionBar bar(f);
+  const int gridColumns=ultra||logical>=1640?3:narrow&&tables.W()<640*s?1:2;
+  // The floor at the board's whole width: its tallest row at its least is the least it needs.
+  const auto whole=ShapeFloor(f,place,tables.W(),FLT_MAX,0,gridColumns,preferences_.roomTableGrid);
+  // A row of cards at their least: the tallest one, else a seated card's least.
+  const float cardHeight=whole.cards.empty()?whole.shape.Least({}):whole.places.leastRow;
   // The bar stays along the bottom while the floor fits over it and the
   // focused row's line: a row of cards, or an Arcade room's whole floor. On a
   // shorter board it follows the floor in its scroll.
   const float floorHeight=room::RulesOf(v.room).cabinets?ArcadeBoardHeight(v,rows,tables.W()):cardHeight;
   const bool follows=tables.H()-bar.Height(tables.W())-38*s<floorHeight;
-  // A board that starts or stops scrolling, or changes size, can leave the
-  // focused row out of sight with the focus unchanged: it scrolls back into
-  // view as it does when the focus moves. A scroll of the player's own stays
-  // put between.
-  const RoomTablesShape shape{follows,tables.W(),tables.H()};
+  // A board that starts or stops scrolling, changes size, or whose cards grow
+  // or shrink (a banner, a pair sitting down) can leave the focused row out
+  // of sight with the focus unchanged: it scrolls back into view as it does
+  // when the focus moves. A scroll of the player's own stays put between.
+  const RoomTablesShape shape{follows,tables.W(),tables.H(),whole.places.leastHeight};
   if(!(shape==roomTablesShape_)){f.focusChanged=true;roomTablesShape_=shape;}
   if(!follows){const float width=tables.W();bar.Draw(d,v2::CutBottom(tables,bar.Height(width),12*s).min,width,tables);}
   ImGui::SetCursorScreenPos(v2::CutBottom(tables,18*s,8*s).min);
@@ -476,7 +291,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
     ImGui::EndChild();
    }
   }
-  else DrawTableCards(f,tables,cards,place,follows?&bar:nullptr);
+  else{
+   // Shaped again at the height the cards have now, beside the scroll's bar where they need it.
+   const float after=follows?12*s+bar.Height(tables.W()):0;
+   const auto floor=ShapeFloor(f,place,tables.W(),tables.H(),after,gridColumns,preferences_.roomTableGrid);
+   DrawTableCards(f,tables,floor,place,follows?FloorFollow([&](ImDrawList* drawn,ImVec2 at,float width){bar.Draw(drawn,at,width,tables);return bar.Height(width);}):FloorFollow());
+  }
  }
  // In the narrow tabs a folded panel is its heading alone.
  if(!narrow||part==1){

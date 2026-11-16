@@ -31,15 +31,18 @@ void CheckHomeRendering(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& v
             homeCards.clear();view.controllerReady=controllerReady;draw();
             const auto* list=FindWindow("List");
             KnownV2Gap(list->ScrollMax.y==0,"Home requires scrolling at 1080p");
-            const std::vector<std::string> expected=controllerReady
+            // Ember's links stand last: the icons in the header's band, in the table's order.
+            std::vector<std::string> expected=controllerReady
                 ?std::vector<std::string>{"online","friends","profile","settings","training","offline","replays","news","card"}
                 :std::vector<std::string>{"player","online","friends","profile","settings","training","offline","replays","news","card"};
+            for(const auto& link:platform::Links)expected.push_back(std::string("link-")+link.id);
             Require(homeRows.size()==expected.size(),"Home row count wrong");
             for(std::size_t i=0;i<expected.size();++i)Require(homeRows[i].id==expected[i],"Home row order wrong");
             for(const auto& row:homeRows) {
                 // The card row is the player's card beside the list.
                 if(row.id=="card")continue;
                 const auto& rect=homeCards.at(row.id);
+                if(row.id.compare(0,5,"link-")==0)continue;
                 KnownV2Gap(rect.first.y>=list->InnerRect.Min.y&&rect.second.y<=list->InnerRect.Max.y,"Home row is outside the list");
             }
         }
@@ -92,7 +95,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         if(std::string(screen)=="dummy")Require(choicesOf("dummy-counter")==3,"Counter hit offered fewer values than it has");
         if(std::string(screen)=="reply"){Require(choicesOf("reply")==5,"The reply's timing offered fewer values than it has");Require(choicesOf("reply-order")==2,"The reply's order offered fewer values than it has");}
         if(std::string(screen)=="hud")Require(choicesOf("hud-inputs")==static_cast<std::size_t>(training::InputDisplays),"Inputs shown offered fewer values than it has");
-        if(std::string(screen)=="reply")Require(trainingRows.size()==13,"Reply page lost one of its own rows");
+        if(std::string(screen)=="reply")Require(trainingRows.size()==14,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==5,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==7&&trainingRows[6].id=="meter-settings","Frame data page lost one of its own rows or the Meter settings link");
         if(std::string(screen)=="hud")Require(trainingRows.size()==9&&trainingRows[0].id=="hud-size"&&trainingRows[7].id=="hitboxes"&&trainingRows[8].id=="data","HUD page lost its size, one of its parts, Hitboxes or the Data panel");

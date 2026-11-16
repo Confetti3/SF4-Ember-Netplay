@@ -8,6 +8,7 @@
 #include <imgui.h>
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -37,6 +38,9 @@ inline float Pad(float width, float scale) {
 }
 inline bool Narrow(float width, float scale) { return width / scale < NarrowWidth; }
 inline float SideMargin(float width, float scale) { return (std::max)(Pad(width, scale), (width - ContentCap * scale) * .5f); }
+// Whether a list and its pane stand side by side in a window `width` wide with `side` either side of its content:
+// not narrow, and content at least 820 px wide. Home's pane (the player's card and the links over it) shows by it.
+inline bool SideBySide(float width, float side, float scale) { return !Narrow(width, scale) && width - 2 * side >= 820 * scale; }
 
 // A screen is laid out by cutting boxes off a box, as the design boards stack
 // their panes: the hint bar off the bottom, the header off the top, a side
@@ -72,6 +76,8 @@ float SectionHeading(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32
 // with Fit, so the text probe sees it; `centred` centres it in `width`.
 // Returns the width drawn.
 float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font = nullptr, bool centred = false, bool probe = true);
+// The same in the current font, ending at `at.x + width` instead of starting at `at.x`.
+float TextEnd(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color);
 // A line `size` tall that gives way down to `least` when it would not fit `width`, centred on the line it
 // would have had at `size`, and cut with "..." only beyond that. Its words are shown whole elsewhere (a tile's
 // games are on the Fighters tab), so the text probe is not told.
@@ -102,9 +108,26 @@ void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color);
 // With no label the caller draws its own (Header's Back: a chevron and a word).
 enum class ButtonKind { Primary, Secondary, Danger };
 void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, bool focused, bool hovered, bool enabled = true);
+// A button inside a card (Kit: compact button, the kit's one size under the
+// board button): a table card's seat to take (its seat's whole place), an
+// offer or a question's answer on its line, as tall as the card gives it. Lit (what the pad's Select takes
+// now, or the chosen answer) on the hover fill in the text's ink; under a
+// pointer that has not lit it, a brighter edge; at rest the button's fill in
+// muted ink; flat while it cannot be pressed. Lit is fill and ink alone: the
+// card's focus ring is the only ring. `plus` puts a plus before the label (a
+// seat to take); the label is `size`, fitted and centred. A label cut to the button is no overflow for
+// the text probe (a card shares one narrow line among its buttons); `cut` says it was, so the card can show it whole.
+void CardButton(ImDrawList* draw, Box b, const std::string& label, float size, bool lit, bool over, bool enabled, bool plus = false, bool* cut = nullptr);
+// An icon button (Kit: buttons): a 48 px square, the least a hit box is, with the icon 22 px in its middle. `icon`
+// draws it at `at`, `size` square, in the ink the button gives it: muted at rest, the accent under the pointer or
+// focus, half as bright when disabled. A bitmap mark takes the ink's alpha. Focus's marks go over a focused one
+// (without the bar, which a small square would be all of). The caller names the icon in words (a tip, a label).
+using IconDraw = std::function<void(ImDrawList* draw, ImVec2 at, float size, ImU32 ink)>;
+constexpr float IconButtonSize = 48;
+void IconButton(ImDrawList* draw, Box b, const IconDraw& icon, bool focused, bool hovered, bool enabled = true);
 // A bar of buttons (the room's actions) in `width`: BarLines is the fewest
-// lines over which the places, shared out evenly in order, each get the width
-// their labels `need` with `gap` between; BarPlaces lays them out in `bar`,
+// lines over which the places, in order and shared out evenly (else as many to a line as it holds),
+// each get the width their labels `need` with `gap` between; BarPlaces lays them out in `bar`,
 // each line `height` tall and the next `gap` under it. Along a line the places
 // share it evenly, a place that needs more taking that and the rest sharing
 // what is left.
@@ -166,8 +189,8 @@ void Wrapped(const std::string& text);
 // A soft glow round a box (a seat lit up): rings fading out over `reach`, starting at `strength` alpha.
 void Glow(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 color, float strength, float reach, float rounding = 0);
 
-// Ember's mark `height` tall at `at`. Returns its width.
-float BrandMark(ImDrawList* draw, ImVec2 at, float height);
+// Ember's mark `height` tall at `at`, drawn through `tint`. Returns its width.
+float BrandMark(ImDrawList* draw, ImVec2 at, float height, ImU32 tint = IM_COL32_WHITE);
 // A screen's header: the brand's mark (BrandMark), an optional muted eyebrow (the path), the
 // title, and the rule with its 72 px Ember start under the title. Takes the cursor's line.
 // `chips` sit at its right end: a state word each, in its tone. With `back`
@@ -297,7 +320,7 @@ float FactCellsHeight(float width, const std::vector<TagView::Fact>& facts, std:
 float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across, float valueSize = 17);
 // Draws at `at` within `width`; returns the height it took.
 float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize size);
-// The width an XS or S tag needs on its one line for nothing in it to give
-// way, in whole pixels: Tag at this width draws the whole name.
+// The width an XS, S or M tag needs on its (first) line for nothing in it to
+// give way, in whole pixels: Tag at this width draws the whole name.
 float TagWidth(const TagView& tag, TagSize size);
 } } }

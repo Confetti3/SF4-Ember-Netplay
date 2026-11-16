@@ -128,6 +128,16 @@ int main() try {
         publicFailure(FailureStage::HostUnreachable) == failure(false, FailureStage::HostUnreachable) &&
         publicFailure(FailureStage::ControlLost) == failure(false, FailureStage::ControlLost),
         "A public join changed the wording of a failure with a named stage");
+    // A refusal at the door says the room may still hold the player's old seat; a private join never meets it and reads as generic.
+    Check(publicFailure(FailureStage::Refused) == sf4e::loc::T("public.failure.refused") &&
+        publicFailure(FailureStage::Refused) != publicFailure(FailureStage::Unknown) &&
+        failure(false, FailureStage::Refused) == failure(false, FailureStage::Unknown),
+        "A refusal at a public room's door lost its own sentence");
+    // A public room does not close with its member, so its connection failure does not say the room is closing.
+    Check(DescribeRoomConnectionFailure(false) == sf4e::loc::T("runtime.room_connection_failed") &&
+        DescribeRoomConnectionFailure(true) == sf4e::loc::T("runtime.public_room_connection_failed") &&
+        DescribeRoomConnectionFailure(true) != DescribeRoomConnectionFailure(false),
+        "A public room's connection failure reads as a closing room");
 
     std::cout << "Connection check, blocked-path and opening-failure wording passed.\n";
     return 0;

@@ -117,7 +117,7 @@ Standing StandingOf(const Shown& shown, const nf::State& friends, const Links& l
     s.byCode = shown.key.kind == Key::Kind::Code;
     s.gate = links.gate;
     s.member = links.member;
-    s.canInvite = links.canInvite;
+    s.offer = links.offer;
     s.steam = links.steam;
     if (s.relation == Relation::Friend) {
         // The friendship's id as the card or the opener gave it, else the friend of that name.
@@ -129,7 +129,7 @@ Standing StandingOf(const Shown& shown, const nf::State& friends, const Links& l
         if (entry) {
             s.joinable = friends_panel::Joinable(*entry);
             s.online = entry->presence.kind != nf::Presence::Kind::Offline;
-            s.friendChoices = friends_panel::FriendChoices(friends, *entry, links.canInvite, links.gate);
+            s.friendChoices = friends_panel::FriendChoices(friends, *entry, links.offer, links.gate);
         } else s.friendChoices = Unlisted(links.gate);
     }
     if (s.relation == Relation::Blocked)
@@ -166,7 +166,7 @@ Primary PrimaryOf(const Standing& s) {
     case Relation::Sent: return make(Kind::RequestSent, "friends.request_sent", loc::T("profile.request_sent_detail"), false, "");
     case Relation::Friend:
         if (s.joinable) return make(Kind::JoinRoom, "friends.join_room", Reason(s.gate.goWhy), s.gate.go, "join");
-        if (s.online && s.canInvite) return make(Kind::Invite, "friends.invite_room", Reason(s.gate.actWhy), s.gate.act, "invite");
+        if (s.online && s.offer == nf::OfferBlock::None) return make(Kind::Invite, "friends.invite_room", Reason(s.gate.actWhy), s.gate.act, "invite");
         return make(Kind::ViewSets, "profile.view_sets", std::string(), s.named, "sets");
     case Relation::Blocked: case Relation::None: break;
     }

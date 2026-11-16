@@ -254,6 +254,28 @@ void V2AuditJourneys() {
   Check(std::none_of(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return Is<commands::DiscordInvite>(a,[](const commands::DiscordInvite& d){return d.discordAction==discord::InviteAction::Cancel;});}),
    "A held for the toast's Join also cancelled the invitation");
  }
+ // A friend's invite and the player's own Join on a friend's room were answered by pressing them, so neither is announced as
+ // Discord's or as a toast: they open their question when they must ask before leaving a room or a game, and say nothing otherwise.
+ {
+  const auto news=[](Harness& h){
+   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+   h.shell.Navigation().Home();h.Frame(0,2);SetMenuEntriesProbe({});
+   const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="news";});
+   return row==rows.end()?std::string():row->detail;
+  };
+  for(const auto origin:{discord::InviteOrigin::Friend,discord::InviteOrigin::OwnJoin}){
+   Harness waiting;waiting.Frame();
+   waiting.view.discordPending=true;waiting.view.discordRevision=3;waiting.view.inviteOrigin=origin;waiting.Frame();
+   Check(waiting.shell.Navigation().Screen()=="home"&&news(waiting)!=loc::T("discord.invitation_notice"),"A room that only waits was announced");
+   Harness asking;asking.Frame();
+   asking.view.discordPending=asking.view.discordConfirm=true;asking.view.discordRevision=3;asking.view.inviteOrigin=origin;asking.Frame();
+   Check(asking.shell.Navigation().Screen()=="discord-invitation"&&news(asking)!=loc::T("discord.invitation_notice")&&news(asking).find(" invites you")==std::string::npos,
+    "A room that asks first did not open its question without a toast");
+  }
+  Harness discord;discord.Frame();
+  discord.view.discordPending=discord.view.discordConfirm=true;discord.view.discordRevision=3;discord.Frame();
+  Check(discord.shell.Navigation().Screen()=="home"&&news(discord)==loc::T("discord.invitation_notice"),"A Discord invitation lost its toast");
+ }
  // A toast that comes while the menu is not free (a notice is open) never
  // takes focus, then or later: once the notice is gone, B goes back.
  {
