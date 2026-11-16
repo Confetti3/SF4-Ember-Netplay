@@ -42,11 +42,14 @@ struct TrainingFeatures {
     // The player's own Record, Play and controls buttons from the button
     // layout page (input::TrainingButtons), on the HUD's strip.
     bool padButtons = false;
+    // Invincibility in the meter's samples (FighterSample::invincibility): the
+    // classic meter's legend lists the marks only for a game that supplies it.
+    bool invincibility = false;
 
     static constexpr TrainingFeatures All() {
         TrainingFeatures all;
         all.inputHistory = all.classicInputs = all.dummySettings = all.typedReplies = all.position = true;
-        all.comboCheck = all.remote = all.data = all.hitboxParts = all.padButtons = true;
+        all.comboCheck = all.remote = all.data = all.hitboxParts = all.padButtons = all.invincibility = true;
         return all;
     }
 };

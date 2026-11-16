@@ -473,6 +473,15 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             training.meter=invincible;
             training::MeterOptions options;options.style=training::MeterStyle::Classic;options.shown=60;
             SetTrainingMeterOptions(options);draw("training-hud-classic-invincible");
+            // The legend lists the invincible marks only for a game that supplies invincibility.
+            Require(TrainingInvincibilityKey(options).size()==2,"The classic legend left out the invincible marks for a game that has them");
+            auto shown=ember::TrainingFeatures::All();shown.invincibility=false;SetTrainingFeatures(shown);
+            Require(TrainingInvincibilityKey(options).empty(),"The classic legend listed invincible marks for a game without invincibility");
+            draw();
+            SetTrainingFeatures(ember::TrainingFeatures::All());
+            options.classicColors=false;
+            Require(TrainingInvincibilityKey(options).empty(),"The legend listed invincible marks without the classic colours");
+            options.classicColors=true;
         }
         // The next exchange is being measured: the last reading stays, dimmed,
         // and Frame data still gives it.

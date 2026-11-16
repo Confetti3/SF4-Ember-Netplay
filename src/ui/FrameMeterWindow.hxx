@@ -33,6 +33,10 @@ float TrainingMeterWidth(float hudScale);
 // result and the last advantage, and the meaty timing.
 std::string TrainingFrameData(const training::MeterView& meter, int side);
 void DrawTrainingColorKey(bool angled);
+// The invincible marks the classic meter's legend lists: both in Street
+// Fighter 6's colours when the game supplies invincibility (TrainingFeatures),
+// none otherwise.
+std::vector<training::Invincibility> TrainingInvincibilityKey(const training::MeterOptions& options);
 // One row of the F6 colour key: a locale key, what it names and the exact
 // colour (ImU32) the frame meter bars draw for it. Flat bars colour a cell by
 // its phase; angled bars by its resolved kind (training::MeterCell; an entry

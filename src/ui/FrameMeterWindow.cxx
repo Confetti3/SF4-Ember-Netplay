@@ -1,4 +1,5 @@
 #include "FrameMeterWindow.hxx"
+#include "TrainingPanel.hxx"
 #include "Theme.hxx"
 #include "MenuDialogs.hxx"
 #include "MenuProbes.hxx"
@@ -622,12 +623,10 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
             const ImVec2 at = place(loc::T(entry.label));
             draw->AddRectFilled(at, ImVec2(at.x + box, at.y + box), options.classicColors ? ClassicColor(entry.kind) : entry.color);
         }
-        if (options.classicColors) {
-            for (const auto invincibility : {Invincibility::Projectile, Invincibility::Full}) {
-                const ImVec2 at = place(loc::T(invincibility == Invincibility::Full ? "training.meter.invincible" : "training.meter.projectile_invincible"));
-                draw->AddRectFilled(at, ImVec2(at.x + box, at.y + box), InvincibleColor(invincibility));
-                InvincibleLines(draw, invincibility, at, box, box, 0, 2 * hudScale);
-            }
+        for (const auto invincibility : TrainingInvincibilityKey(options)) {
+            const ImVec2 at = place(loc::T(invincibility == Invincibility::Full ? "training.meter.invincible" : "training.meter.projectile_invincible"));
+            draw->AddRectFilled(at, ImVec2(at.x + box, at.y + box), InvincibleColor(invincibility));
+            InvincibleLines(draw, invincibility, at, box, box, 0, 2 * hudScale);
         }
         const ImVec2 at = place(loc::T("training.meter.hitstop"));
         StopLine(draw, ImVec2(at.x + box * .25f, at.y), box, options.classicSlant ? box * .35f : 0.f);
@@ -665,6 +664,10 @@ std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled) {
     if (angled) for (const auto& named : angledKinds) add(named);
     else for (const auto& named : plain) add(named);
     return entries;
+}
+std::vector<Invincibility> TrainingInvincibilityKey(const MeterOptions& options) {
+    if (!options.classicColors || !TrainingFeaturesShown().invincibility) return {};
+    return {Invincibility::Projectile, Invincibility::Full};
 }
 void DrawTrainingColorKey(bool angled) {
     const float h = ImGui::GetTextLineHeight();
