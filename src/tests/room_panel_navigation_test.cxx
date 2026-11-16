@@ -1038,8 +1038,9 @@ int main() try {
     focus("queue"); const auto beforeQueue = actions.size(); press(MenuInput::Select);
     Check(actions.size() == beforeQueue + 1 && test::RoomActionIs(actions.back(), room::ActionKind::Queue),
         "Queue entry submitted zero or duplicate actions");
-    view.room.tables[0].queue = {1}; ++view.room.revision; frame();
-    for (int i = 0; i < 20; ++i) frame();
+    // The queue changed the table (its own revision), and the same-press window (half a second) passes before the next press.
+    view.room.tables[0].queue = {1}; ++view.room.tables[0].revision; ++view.room.revision; frame();
+    for (int i = 0; i < 32; ++i) frame();
     Check(row("rounds").enabled, "The host lost the table's rules when not seated");
 
     // Keyboard Escape goes through the same input adapter as the real shell.

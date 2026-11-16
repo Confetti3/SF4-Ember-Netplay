@@ -294,7 +294,7 @@ void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color) {
     const ImVec2 points[] = {{at.x, at.y - size}, {at.x + size * .6f, at.y}, {at.x, at.y + size}};
     draw->AddPolyline(points, 3, color, 0, 2 * Scale());
 }
-void CardButton(ImDrawList* draw, Box b, const std::string& label, float size, bool lit, bool over, bool enabled, bool plus) {
+void CardButton(ImDrawList* draw, Box b, const std::string& label, float size, bool lit, bool over, bool enabled, bool plus, bool* cut) {
     const float s = Scale();
     const auto& c = Colors();
     const ImU32 fill = !enabled ? c.frame : lit ? c.hover : c.button, edge = !enabled ? c.border : color::Alpha(c.accent, over && !lit ? .8f : .35f);
@@ -302,7 +302,8 @@ void CardButton(ImDrawList* draw, Box b, const std::string& label, float size, b
     draw->AddRectFilled(b.min, b.max, fill, 4 * s);
     draw->AddRect(b.min, b.max, edge, 4 * s, 0, Hairline());
     const float mark = plus ? 18 * s : 0;
-    const std::string shown = Fit(label, (std::max)(0.f, b.W() - 16 * s - mark), size, ImGui::GetFont());
+    const std::string shown = Fit(label, (std::max)(0.f, b.W() - 16 * s - mark), size, ImGui::GetFont(), false);
+    if (cut) *cut = shown != label;
     const float w = TextWidth(shown, size), x = b.min.x + (b.W() - w - mark) * .5f, mid = (b.min.y + b.max.y) * .5f;
     if (plus) {
         const float arm = 5 * s, cx = x + arm;

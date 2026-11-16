@@ -212,7 +212,9 @@ void DrawCard(const RoomBoardFrame& f,ImDrawList* d,const TableFloor& floor,cons
    continue;
   }
   const int index=static_cast<int>(offered-seats.begin());
-  v2::CardButton(d,seat,offered->first->label,15*s,offered->first->id==lit,pointer.seatOver==index,offered->first->enabled,true);
+  bool cut=false;
+  v2::CardButton(d,seat,offered->first->label,15*s,offered->first->id==lit,pointer.seatOver==index,offered->first->enabled,true,&cut);
+  if(cut)elided+=(elided.empty()?"":"\n")+offered->first->label;
  }
  for(std::size_t i=0;i<buttons.choices.size();++i){
   const auto& r=at.buttons[i];
@@ -220,8 +222,10 @@ void DrawCard(const RoomBoardFrame& f,ImDrawList* d,const TableFloor& floor,cons
   const bool chosen=buttons.kind==CardButtons::Kind::Question?i==f.nav.ChoiceIndex():buttons.kind==CardButtons::Kind::Offers&&buttons.choices[i].id==lit;
   // Pressed on the line's whole height, drawn inside it; a quiet card's answers fill their own place.
   const float inset=card.content.quiet?0:table_card::HeadInset*s;
+  bool cut=false;
   v2::CardButton(d,v2::Box{ImVec2(r.x0,r.y0+inset),ImVec2(r.x1,r.y1-inset)},buttons.choices[i].label,13*s,chosen,
-   pointer.buttonOver==static_cast<int>(i),buttons.choices[i].enabled);
+   pointer.buttonOver==static_cast<int>(i),buttons.choices[i].enabled,false,&cut);
+  if(cut)elided+=(elided.empty()?"":"\n")+buttons.choices[i].label;
  }
  if(at.banner.y1>at.banner.y0)DrawCardText(elided,ImVec2(at.banner.x0,(at.banner.y0+at.banner.y1-13*s)*.5f),at.banner.x1-at.banner.x0,card.banner.text,13*s,
   ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
