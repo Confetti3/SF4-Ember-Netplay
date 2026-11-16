@@ -26,6 +26,9 @@ float HudScale() { return (std::max)(1.f, (std::min)(1.5f, ImGui::GetMainViewpor
 // The strip's height, and how far its bottom edge sits above the screen's
 // (the Playback board), in pixels at HudScale 1.
 constexpr float StripHeight = 68, StripLift = 64;
+// The timeline over the buttons of a game that seeks: its band, at HudScale 1.
+constexpr float TimelineBand = 16;
+float StripHeightOf(const ReplayHudView& view) { return StripHeight + (view.seek.offered ? TimelineBand : 0); }
 ImU32 Faded(ImU32 color, float alpha) {
     const float a = static_cast<float>((color >> IM_COL32_A_SHIFT) & 0xFF) * alpha;
     return (color & ~IM_COL32_A_MASK) | (static_cast<ImU32>(a) << IM_COL32_A_SHIFT);
@@ -45,6 +48,38 @@ void DrawDirection(ImDrawList* d, ImVec2 c, float r, unsigned held, ImU32 color,
 }
 std::string SpeedWord(int divisor) {
     return loc::T(divisor == 4 ? "replays.controls.speed_quarter" : divisor == 2 ? "replays.controls.speed_half" : "replays.controls.speed_full");
+}
+// The pad's D-pad as the legend names it: a direction, no art for it here.
+std::string DPadKey(const char* direction) { return std::string("D-pad ") + direction + " \xC2\xB7 "; }
+// The loop chip: its name and what the marks say.
+std::string LoopLabel(const ReplayHudView& view) {
+    const char* state = view.seek.loop == replaytransport::LoopPhase::Looping ? "A-B" : view.seek.loop == replaytransport::LoopPhase::MarkedA ? "A" : nullptr;
+    return loc::T("replays.controls.loop") + " " + (state ? std::string(state) : loc::T("common.off"));
+}
+// The timeline: the track, what no seek reaches dimmed, the played part, the
+// loop's marks and span, and the position over the whole length beside it.
+void DrawTimeline(ImDrawList* d, const ReplayHudView& view, float alpha, ImVec2 from, float width, float s) {
+    const auto& c = v2::Colors();
+    const auto& k = view.seek;
+    char at[16], total[16];
+    replaytransport::FormatClock(k.position, at); replaytransport::FormatClock(k.total, total);
+    const std::string text = std::string(at) + " / " + total;
+    const float textWidth = TextWidth(11 * s, text), gap = 10 * s;
+    const float x0 = from.x, x1 = from.x + (std::max)(8 * s, width - textWidth - gap), y = from.y, h = 6 * s;
+    const float length = static_cast<float>((std::max)(k.total, 1u));
+    const auto at01 = [&](std::uint32_t frame) { return x0 + (x1 - x0) * (std::min)(1.f, static_cast<float>(frame) / length); };
+    d->AddRectFilled(ImVec2(x0, y), ImVec2(x1, y + h), Faded(c.button, alpha), 2 * s);
+    // Before the earliest point, nothing can be reached.
+    d->AddRectFilled(ImVec2(x0, y), ImVec2(at01(k.floor), y + h), Faded(c.border, alpha), 2 * s);
+    d->AddRectFilled(ImVec2(at01(k.floor), y), ImVec2((std::max)(at01(k.floor), at01(k.position)), y + h), Faded(c.accent, alpha * (k.seeking ? .6f : 1.f)), 2 * s);
+    if (k.loop == replaytransport::LoopPhase::Looping)
+        d->AddRectFilled(ImVec2(at01(k.markA), y - 2 * s), ImVec2(at01(k.markB), y + h + 2 * s), Faded(v2::color::Alpha(c.accentLight, .35f), alpha), 2 * s);
+    if (k.loop != replaytransport::LoopPhase::Off) {
+        d->AddRectFilled(ImVec2(at01(k.markA) - s, y - 3 * s), ImVec2(at01(k.markA) + s, y + h + 3 * s), Faded(c.text, alpha));
+        if (k.loop == replaytransport::LoopPhase::Looping) d->AddRectFilled(ImVec2(at01(k.markB) - s, y - 3 * s), ImVec2(at01(k.markB) + s, y + h + 3 * s), Faded(c.text, alpha));
+    }
+    d->AddCircleFilled(ImVec2(at01(k.position), y + h * .5f), 4 * s, Faded(c.text, alpha));
+    d->AddText(ImGui::GetFont(), 11 * s, ImVec2(x1 + gap, y + h * .5f - 6 * s), Faded(c.muted, alpha), text.c_str());
 }
 // The strip (the Playback board): a button per control, its pad and
 // keyboard keys over what it does, lit while that is on, then the place in
@@ -66,6 +101,14 @@ void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place,
     if (view.inputsKnown) controls.push_back({padKey("LT") + "F9", loc::T("replays.controls.inputs") + onOff(view.lanes), view.lanes, c.text});
     // The pad has no meter button.
     if (view.meterOffered) controls.push_back({"F5", loc::T("replays.controls.meter") + onOff(view.meter), view.meter, c.text});
+    if (view.seek.offered) {
+        // Dimmed outside the fight, like the speed: a seek needs the fight's frames.
+        const ImU32 ink = view.armed ? c.text : c.muted;
+        controls.push_back({padKey("X") + ",", loc::T("replays.controls.step_back"), false, ink});
+        controls.push_back({DPadKey("L/R") + "Left Right", loc::Tf("replays.controls.jump", 5), false, ink});
+        controls.push_back({DPadKey("Down") + "Home", loc::T("replays.controls.restart"), false, ink});
+        controls.push_back({DPadKey("Up") + "L", LoopLabel(view), view.seek.loop != replaytransport::LoopPhase::Off, ink});
+    }
     if (view.stopOffered) controls.push_back({padKey("View") + "Esc", loc::T("room.stop_watching"), false, c.text});
     // The board's sizes, shrunk to fit a narrow window.
     float s = HudScale();
@@ -76,7 +119,7 @@ void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place,
     };
     const float room = vp->Size.x - 32 * s;
     if (measure(s) > room) s *= room / measure(s);
-    const float width = measure(s), height = StripHeight * s;
+    const float width = measure(s), height = StripHeightOf(view) * s;
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, top), ImGuiCond_Always, ImVec2(.5f, 0));
     ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
@@ -90,7 +133,9 @@ void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place,
         d->AddRectFilled(p, ImVec2(p.x + width, p.y + height), Faded(v2::color::Alpha(c.ink, .92f), alpha), 4 * s);
         d->AddRect(p, ImVec2(p.x + width, p.y + height), Faded(v2::color::Alpha(c.accent, .45f), alpha), 4 * s, 0, s);
         float x = p.x + 8 * s;
-        const float keyTop = p.y + 8 * s, keyBottom = p.y + height - 8 * s;
+        const float band = view.seek.offered ? TimelineBand * s : 0;
+        const float keyTop = p.y + 8 * s + band, keyBottom = p.y + height - 8 * s;
+        if (view.seek.offered) DrawTimeline(d, view, alpha, ImVec2(p.x + 10 * s, p.y + 10 * s), width - 20 * s, s);
         for (const auto& control : controls) {
             const float w = (std::max)(92 * s, (std::max)(TextWidth(11 * s, control.keys), TextWidth(16 * s, control.label)) + 20 * s);
             d->AddRectFilled(ImVec2(x, keyTop), ImVec2(x + w, keyBottom), Faded(control.lit ? c.header : c.button, alpha), 4 * s);
@@ -110,13 +155,13 @@ void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place,
 
 void DrawReplayStrip(const ReplayHudView& view) {
     const auto* vp = ImGui::GetMainViewport();
-    const float s = HudScale(), height = StripHeight * s, bottom = vp->Pos.y + vp->Size.y;
+    const float s = HudScale(), height = StripHeightOf(view) * s, bottom = vp->Pos.y + vp->Size.y;
     // At the bottom centre, as the board has it, unless the frame meter
     // reaches lower (a 720p window, or a meter the player moved down): then
     // just under the meter, but never past the screen's edge.
     const auto meterFraction = s_meterBottom.load();
     const float meterBottom = vp->Pos.y + vp->Size.y * (meterFraction ? meterFraction() : TrainingHudBottom);
-    const float stripTop = (std::min)((std::max)(bottom - (StripLift + StripHeight) * s, meterBottom + 4 * s), bottom - height);
+    const float stripTop = (std::min)((std::max)(bottom - (StripLift + StripHeightOf(view)) * s, meterBottom + 4 * s), bottom - height);
     if (view.unavailable) {
         // Under the strip's place (the strip may be faded out), so it meets
         // neither the strip nor the frame meter above it.

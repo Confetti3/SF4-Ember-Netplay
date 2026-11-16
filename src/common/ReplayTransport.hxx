@@ -12,6 +12,10 @@
 // does. Ember replaces that function during playback: Hold() says, once a
 // call, whether the bit is set. A call without it plays one frame.
 //
+// A game that can also seek (SFV Ember: Seek, below) offers its commands
+// through the same transport: step back, jump five seconds either way,
+// restart and an A-B loop. SF4 offers none of them and never sends one.
+//
 // ReplayTransportTest covers every rule here.
 
 #include <algorithm>
@@ -36,9 +40,15 @@ constexpr unsigned kPauseOrHold = 0x1, kReplayFreeze = 0x8;
 
 // What the player can ask for. The first five act on the transport and
 // only in the fight; Meter and Inputs show or hide a layer at any point
-// of the playback.
-enum class Command : std::uint8_t { TogglePause, Step, Slower, Faster, CycleSpeed, Meter, Inputs };
-inline bool MovesTransport(Command command) { return command != Command::Meter && command != Command::Inputs; }
+// of the playback; the last five seek (Seek, below) and are only sent by a
+// game that offers them (SeekView::offered).
+enum class Command : std::uint8_t { TogglePause, Step, Slower, Faster, CycleSpeed, Meter, Inputs,
+	StepBack, JumpBack, JumpForward, Restart, Loop };
+inline bool MovesTransport(Command command) {
+	return command == Command::TogglePause || command == Command::Step || command == Command::Slower ||
+		command == Command::Faster || command == Command::CycleSpeed;
+}
+inline bool Seeks(Command command) { return command >= Command::StepBack; }
 // Where a command came from, for the glyphs the strip shows.
 enum class Device : std::uint8_t { Keyboard, Pad };
 
@@ -94,6 +104,9 @@ public:
 	// it is what the game's flag still holds.
 	void Reset() { paused_ = false; divisor_ = 1; steps_ = 0; phase_ = 0; }
 
+	// Pauses a playing replay (a step back lands paused).
+	void Pause() { if (!paused_) { paused_ = true; steps_ = 0; phase_ = 0; } }
+
 	// Step pauses a playing replay; paused, it queues one frame.
 	void Apply(Command command) {
 		switch (command) {
@@ -141,6 +154,122 @@ private:
 	bool paused_ = false, written_ = false;
 	int divisor_ = 1;
 	unsigned steps_ = 0, phase_ = 0;
+};
+
+// What a game that seeks publishes for the strip's timeline and chips. Frames
+// of the playback's own timeline (Seek, below).
+enum class LoopPhase : std::uint8_t { Off, MarkedA, Looping };
+struct SeekView {
+	bool offered = false;    // the game takes the seek commands: the strip shows their chips
+	bool seeking = false;    // a seek is on its way to its landing
+	std::uint32_t position = 0, total = 0;
+	std::uint32_t floor = 0, last = 0;   // the earliest and the latest landing now
+	LoopPhase loop = LoopPhase::Off;
+	std::uint32_t markA = 0, markB = 0;  // the loop's marks (A set, then both)
+	std::uint32_t seeks = 0;             // seeks that landed
+};
+
+// Seeking, game-neutral: positions are frames of the playback's own timeline
+// (SFV: the number of frames the session has played). The game says where a
+// landing is legal, between a floor and a last, and which positions inside
+// them are (the Rounding of an order: a frame the game cannot land on is
+// rounded the way the order says); this keeps what the player asked for: the
+// target of a seek on its way, and an A-B loop's marks.
+//
+// A step back lands paused (SeekOrder::pause); the other seeks keep the
+// transport as it is. Commands that arrive while a seek is on its way count
+// from its target, so two quick step backs are two frames.
+constexpr int kJumpFrames = 300;          // five seconds at 60 a second
+constexpr unsigned kMostSeekFrames = 30;  // battle frames played per engine frame while seeking
+constexpr int kSeekGiveUpTicks = 600;     // engine frames a seek may stand still before it is dropped
+enum class Rounding : std::uint8_t { Exact, Earlier, Later };
+
+struct SeekBounds { int floor = 0, last = 0; };
+struct SeekOrder {
+	bool made = false;       // a seek to `target` is asked for
+	int target = 0;          // within the bounds, to be rounded by `rounding`
+	Rounding rounding = Rounding::Exact;
+	bool pause = false;      // the transport pauses first, whether or not a seek is made
+};
+
+class Seek {
+public:
+	void Reset() { *this = Seek(); }
+
+	// A seek command (Command, Seeks) at `position` within `bounds`. Loop makes
+	// no order: it cycles the marks (A here, then B here and the loop on, then off).
+	SeekOrder Plan(Command command, int position, const SeekBounds& bounds) {
+		SeekOrder order;
+		const int base = seeking_ ? target_ : position;
+		switch (command) {
+		case Command::StepBack: order.pause = true; Aim(order, base - 1, Rounding::Earlier, base, bounds); break;
+		case Command::JumpBack: Aim(order, base - kJumpFrames, Rounding::Earlier, base, bounds); break;
+		case Command::JumpForward: Aim(order, base + kJumpFrames, Rounding::Later, base, bounds); break;
+		case Command::Restart: Aim(order, bounds.floor, Rounding::Exact, base, bounds); break;
+		case Command::Loop: CycleLoop(Clamp(base, bounds)); break;
+		default: break;
+		}
+		return order;
+	}
+	// Once each engine frame: a loop that has reached its B asks for A.
+	SeekOrder Wrap(int position) const {
+		SeekOrder order;
+		if (loop_ == LoopPhase::Looping && !seeking_ && position >= b_) { order.made = true; order.target = a_; }
+		return order;
+	}
+	// The game rounded an order to a legal landing: the seek is on its way.
+	void Begin(int landing, int position) {
+		target_ = landing; seeking_ = true; restore_ = landing < position;
+		lastPosition_ = position; stalled_ = 0;
+	}
+	// A seek that goes back first needs a state restored: true once.
+	bool TakeRestore() { const bool wanted = restore_; restore_ = false; return wanted; }
+	// The playback is at `position`: false when a seek has stood still too long.
+	bool Progress(int position) {
+		if (!seeking_) return true;
+		if (position != lastPosition_) { lastPosition_ = position; stalled_ = 0; }
+		return ++stalled_ < kSeekGiveUpTicks;
+	}
+	bool Seeking() const { return seeking_; }
+	int Target() const { return target_; }
+	bool Reached(int position) const { return seeking_ && position >= target_; }
+	void Land() { seeking_ = restore_ = false; ++landed_; }
+	void Cancel() { seeking_ = restore_ = false; }
+	// The playback left the span the loop's marks are in.
+	void ClearLoop() { loop_ = LoopPhase::Off; }
+
+	LoopPhase Loop() const { return loop_; }
+	int MarkA() const { return a_; }
+	int MarkB() const { return b_; }
+	unsigned Landed() const { return landed_; }
+	// The fields the strip shows that are the model's.
+	void Show(SeekView& out) const {
+		out.seeking = seeking_; out.loop = loop_;
+		out.markA = static_cast<std::uint32_t>(a_); out.markB = static_cast<std::uint32_t>(b_);
+		out.seeks = landed_;
+	}
+
+private:
+	static int Clamp(int at, const SeekBounds& bounds) { return (std::min)((std::max)(at, bounds.floor), (std::max)(bounds.floor, bounds.last)); }
+	// An order for `target` held in the bounds, made when it moves from `base`
+	// the way the order's rounding goes.
+	static void Aim(SeekOrder& order, int target, Rounding rounding, int base, const SeekBounds& bounds) {
+		order.target = Clamp(target, bounds); order.rounding = rounding;
+		order.made = rounding == Rounding::Earlier ? order.target < base : rounding == Rounding::Later ? order.target > base : order.target != base;
+	}
+	void CycleLoop(int at) {
+		switch (loop_) {
+		case LoopPhase::Off: loop_ = LoopPhase::MarkedA; a_ = at; break;
+		// B here; marked the other way round, the marks swap. On the same frame there is no loop yet.
+		case LoopPhase::MarkedA: if (at != a_) { b_ = (std::max)(a_, at); a_ = (std::min)(a_, at); loop_ = LoopPhase::Looping; } break;
+		case LoopPhase::Looping: loop_ = LoopPhase::Off; break;
+		}
+	}
+	bool seeking_ = false, restore_ = false;
+	int target_ = 0, lastPosition_ = 0, stalled_ = 0;
+	LoopPhase loop_ = LoopPhase::Off;
+	int a_ = 0, b_ = 0;
+	unsigned landed_ = 0;
 };
 
 // The frame meter is shown a frame only when the battle moved on: a held
@@ -218,11 +347,37 @@ inline Observation ObserveUpdate(AdvanceGate& gate, int round, std::uint32_t cur
 // The pad's controls, from its physical XInput buttons sampled once a game
 // tick: RB pause or play, RT step (held, again after kRepeatDelay ticks and
 // every kRepeatEvery after), LB the next speed, LT the input lanes. Start and
-// Select stay the game's.
+// Select stay the game's. A game that seeks also offers (Offer) X, the step
+// back, which repeats as RT does, and the D-pad: Left and Right jump five
+// seconds back and forward, Down restarts, Up cycles the loop.
 constexpr unsigned kRepeatDelay = 18, kRepeatEvery = 6; // 300 ms, then 10 a second
+// The most commands one sample asks for: RB, RT, LB, LT, and with the seek
+// controls offered X and the four D-pad directions.
+constexpr int kMostSampled = 9;
+
+// A button that repeats while held: once on the press, then after
+// kRepeatDelay ticks and every kRepeatEvery after.
+class HoldRepeat {
+public:
+	// `pressed`: the button went down this tick; `held`: it is down.
+	bool Sample(bool held, bool pressed) {
+		if (!held) return false;
+		if (pressed) { count_ = 0; repeating_ = true; return true; }
+		return repeating_ && ++count_ >= kRepeatDelay && (count_ - kRepeatDelay) % kRepeatEvery == 0;
+	}
+	void Reset() { count_ = 0; repeating_ = false; }
+private:
+	unsigned count_ = 0;
+	// The button went down since the last Reset, so holding it repeats.
+	bool repeating_ = false;
+};
+
 class PadControls {
 public:
-	// Writes what this sample asks for to `out` (room for 4); the count.
+	// The game offers the seek controls (SeekView::offered); SF4 never does.
+	void Offer(bool seek) { seek_ = seek; }
+	// Writes what this sample asks for to `out` (room for kMostSampled, 4
+	// without the seek controls); the count.
 	// blocked: the game's pause menu is open, whose input the buttons are.
 	// They ask for nothing then, and what is held when it closes counts as
 	// already pressed, so neither a press made under the menu nor a held RT
@@ -233,34 +388,43 @@ public:
 		previous_ = physical;
 		int count = 0;
 		if (down & input::xinput::RB) out[count++] = Command::TogglePause;
-		if (physical & input::xinput::RT) {
-			if (down & input::xinput::RT) { held_ = 0; repeating_ = true; out[count++] = Command::Step; }
-			else if (repeating_ && ++held_ >= kRepeatDelay && (held_ - kRepeatDelay) % kRepeatEvery == 0) out[count++] = Command::Step;
-		}
+		if (step_.Sample((physical & input::xinput::RT) != 0, (down & input::xinput::RT) != 0)) out[count++] = Command::Step;
 		if (down & input::xinput::LB) out[count++] = Command::CycleSpeed;
 		if (down & input::xinput::LT) out[count++] = Command::Inputs;
+		if (!seek_) return count;
+		if (back_.Sample((physical & input::xinput::X) != 0, (down & input::xinput::X) != 0)) out[count++] = Command::StepBack;
+		if (down & input::xinput::DPadLeft) out[count++] = Command::JumpBack;
+		if (down & input::xinput::DPadRight) out[count++] = Command::JumpForward;
+		if (down & input::xinput::DPadDown) out[count++] = Command::Restart;
+		if (down & input::xinput::DPadUp) out[count++] = Command::Loop;
 		return count;
 	}
-	// The buttons held now count as already pressed, and a held RT does not
-	// repeat until it is pressed again.
-	void Reset(std::uint32_t held = 0) { previous_ = held; held_ = 0; repeating_ = false; }
+	// The buttons held now count as already pressed, and a held RT or X does
+	// not repeat until it is pressed again.
+	void Reset(std::uint32_t held = 0) { previous_ = held; step_.Reset(); back_.Reset(); }
 private:
 	std::uint32_t previous_ = 0;
-	unsigned held_ = 0;
-	// RT went down since the last Reset, so holding it steps again.
-	bool repeating_ = false;
+	HoldRepeat step_, back_;
+	bool seek_ = false;
 };
 
 // The keyboard's controls during playback: F1 pause or play, F2 step, F3
 // slower, F4 faster, F5 the frame meter, F9 the input lanes. Virtual key codes.
 constexpr unsigned kKeyF1 = 0x70, kKeyF2 = 0x71, kKeyF3 = 0x72, kKeyF4 = 0x73, kKeyF5 = 0x74, kKeyF9 = 0x78;
 inline bool PlaybackKey(unsigned key) { return (key >= kKeyF1 && key <= kKeyF5) || key == kKeyF9; }
+// A game that seeks adds: the comma steps back (held, it repeats), Left and
+// Right jump five seconds, Home restarts and L cycles the loop.
+constexpr unsigned kKeyComma = 0xBC, kKeyLeft = 0x25, kKeyRight = 0x27, kKeyHome = 0x24, kKeyL = 0x4C;
+inline bool SeekKey(unsigned key) {
+	return key == kKeyComma || key == kKeyLeft || key == kKeyRight || key == kKeyHome || key == kKeyL;
+}
 // Whether the window procedure keeps a key message from the game: the
-// playback keys as plain key presses and releases while a replay plays.
+// playback keys as plain key presses and releases while a replay plays, and,
+// for a game that seeks, the seek keys.
 // With Alt they are system keys and reach the game, so Alt+F4 still closes it.
 constexpr unsigned kKeyDown = 0x100, kKeyUp = 0x101; // WM_KEYDOWN, WM_KEYUP
-inline bool KeepsKey(bool playback, unsigned message, unsigned key) {
-	return playback && (message == kKeyDown || message == kKeyUp) && PlaybackKey(key);
+inline bool KeepsKey(bool playback, unsigned message, unsigned key, bool seek = false) {
+	return playback && (message == kKeyDown || message == kKeyUp) && (PlaybackKey(key) || (seek && SeekKey(key)));
 }
 
 // What the game thread publishes for the overlay each tick.
@@ -287,6 +451,8 @@ struct View {
 	// refused outside the fight. The overlay times the strip and the
 	// "works during the fight" chip from their changes.
 	std::uint32_t taken = 0, refused = 0;
+	// What a game that seeks adds (SeekView); not offered by SF4.
+	SeekView seek;
 };
 
 // The strip's opacity. Paused or slower it stays; at 1x it shows for

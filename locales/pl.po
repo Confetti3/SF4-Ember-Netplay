@@ -5693,6 +5693,18 @@ msgstr "Runda {0}"
 msgid "replays.controls.frame"
 msgstr "Klatka {0}"
 
+msgid "replays.controls.step_back"
+msgstr "Krok wstecz"
+
+msgid "replays.controls.jump"
+msgstr "Skok {0} s"
+
+msgid "replays.controls.restart"
+msgstr "Od nowa"
+
+msgid "replays.controls.loop"
+msgstr "Pętla"
+
 msgid "replays.controls.unavailable"
 msgstr "Sterowanie działa w trakcie walki"
 

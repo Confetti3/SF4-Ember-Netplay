@@ -5694,6 +5694,18 @@ msgstr "라운드 {0}"
 msgid "replays.controls.frame"
 msgstr "{0}프레임"
 
+msgid "replays.controls.step_back"
+msgstr "프레임 뒤로"
+
+msgid "replays.controls.jump"
+msgstr "{0}초 이동"
+
+msgid "replays.controls.restart"
+msgstr "처음부터"
+
+msgid "replays.controls.loop"
+msgstr "반복"
+
 msgid "replays.controls.unavailable"
 msgstr "조작은 대전 중에만 가능"
 

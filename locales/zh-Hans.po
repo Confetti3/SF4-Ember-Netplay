@@ -5694,6 +5694,18 @@ msgstr "第 {0} 回合"
 msgid "replays.controls.frame"
 msgstr "第 {0} 帧"
 
+msgid "replays.controls.step_back"
+msgstr "逐帧后退"
+
+msgid "replays.controls.jump"
+msgstr "跳转 {0} 秒"
+
+msgid "replays.controls.restart"
+msgstr "从头开始"
+
+msgid "replays.controls.loop"
+msgstr "循环"
+
 msgid "replays.controls.unavailable"
 msgstr "仅在对战中可用"
 

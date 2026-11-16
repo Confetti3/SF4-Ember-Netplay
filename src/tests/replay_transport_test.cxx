@@ -385,6 +385,203 @@ void TestStrip() {
 	FormatClock(0xFFFFFFFFu, clock); CHECK(std::strlen(clock) < sizeof(clock));
 }
 
+
+// The commands: only the first five act on the transport, the seeks are
+// their own kind.
+void TestCommandKinds() {
+	for (Command c : {Command::TogglePause, Command::Step, Command::Slower, Command::Faster, Command::CycleSpeed}) CHECK(MovesTransport(c) && !Seeks(c));
+	for (Command c : {Command::Meter, Command::Inputs}) CHECK(!MovesTransport(c) && !Seeks(c));
+	for (Command c : {Command::StepBack, Command::JumpBack, Command::JumpForward, Command::Restart, Command::Loop}) CHECK(!MovesTransport(c) && Seeks(c));
+	// A step back pauses a playing replay, and leaves a paused one paused.
+	Transport t;
+	t.Pause(); CHECK(t.Paused() && t.Hold());
+	t.Pause(); CHECK(t.Paused());
+	t.Apply(Command::Step); t.Pause();
+	CHECK(t.Steps() == 1);
+	// The first seven keep their numbers, and a view offers no seek until a game says so.
+	CHECK(static_cast<int>(Command::Inputs) == 6 && static_cast<int>(Command::StepBack) == 7);
+	CHECK(!View().seek.offered && !View().seek.seeking && View().seek.loop == LoopPhase::Off);
+}
+
+void TestSeekOrders() {
+	const SeekBounds bounds{101, 5000};
+	Seek seek;
+	// A step back is one frame earlier and pauses; a jump is five seconds.
+	SeekOrder o = seek.Plan(Command::StepBack, 600, bounds);
+	CHECK(o.made && o.target == 599 && o.rounding == Rounding::Earlier && o.pause);
+	o = seek.Plan(Command::JumpBack, 600, bounds);
+	CHECK(o.made && o.target == 300 && o.rounding == Rounding::Earlier && !o.pause);
+	o = seek.Plan(Command::JumpForward, 600, bounds);
+	CHECK(o.made && o.target == 900 && o.rounding == Rounding::Later && !o.pause);
+	o = seek.Plan(Command::Restart, 600, bounds);
+	CHECK(o.made && o.target == 101 && o.rounding == Rounding::Exact);
+	// Held inside the bounds: a jump back from near the floor goes to the floor,
+	// one from the floor goes nowhere (a step back there still pauses).
+	o = seek.Plan(Command::JumpBack, 250, bounds);
+	CHECK(o.made && o.target == 101);
+	o = seek.Plan(Command::JumpBack, 101, bounds);
+	CHECK(!o.made);
+	o = seek.Plan(Command::StepBack, 101, bounds);
+	CHECK(!o.made && o.pause);
+	o = seek.Plan(Command::Restart, 101, bounds);
+	CHECK(!o.made);
+	// And a jump forward to the last landing, none from it.
+	o = seek.Plan(Command::JumpForward, 4900, bounds);
+	CHECK(o.made && o.target == 5000);
+	o = seek.Plan(Command::JumpForward, 5000, bounds);
+	CHECK(!o.made);
+	// Commands the seek does not know make no order.
+	o = seek.Plan(Command::Step, 600, bounds);
+	CHECK(!o.made && !o.pause);
+	// Bounds that cross (nothing to land on) still make nothing impossible.
+	o = seek.Plan(Command::JumpForward, 600, SeekBounds{700, 650});
+	CHECK(o.made && o.target == 700);
+}
+
+void TestSeekProgress() {
+	const SeekBounds bounds{101, 5000};
+	Seek seek;
+	CHECK(!seek.Seeking() && !seek.Reached(9999) && seek.Landed() == 0);
+	// A seek back: its restore is asked for once; it lands when the position reaches the target.
+	SeekOrder o = seek.Plan(Command::JumpBack, 900, bounds);
+	seek.Begin(o.target, 900);
+	CHECK(seek.Seeking() && seek.Target() == 600);
+	CHECK(seek.TakeRestore() && !seek.TakeRestore());
+	CHECK(seek.Progress(400) && !seek.Reached(599) && seek.Reached(600) && seek.Reached(640));
+	seek.Land();
+	CHECK(!seek.Seeking() && seek.Landed() == 1);
+	// A seek forward needs no restore.
+	o = seek.Plan(Command::JumpForward, 600, bounds);
+	seek.Begin(o.target, 600);
+	CHECK(!seek.TakeRestore());
+	seek.Land();
+	CHECK(seek.Landed() == 2);
+	// Commands made on the way count from the target: two step backs are two frames.
+	o = seek.Plan(Command::StepBack, 700, bounds);
+	seek.Begin(o.target, 700);
+	CHECK(seek.Target() == 699);
+	o = seek.Plan(Command::StepBack, 650, bounds);
+	CHECK(o.made && o.target == 698);
+	seek.Begin(o.target, 650);
+	CHECK(seek.Target() == 698 && !seek.TakeRestore());
+	seek.Cancel();
+	CHECK(!seek.Seeking() && !seek.TakeRestore() && seek.Landed() == 2);
+	// A seek that stands still is given up on; one that moves is not.
+	seek.Begin(900, 700);
+	for (int tick = 0; tick < kSeekGiveUpTicks - 2; tick++) CHECK(seek.Progress(700));
+	CHECK(seek.Progress(701));
+	for (int tick = 0; tick < kSeekGiveUpTicks - 2; tick++) CHECK(seek.Progress(701));
+	CHECK(!seek.Progress(701));
+	// Outside a seek there is nothing to give up on.
+	seek.Cancel();
+	for (int tick = 0; tick < kSeekGiveUpTicks * 2; tick++) CHECK(seek.Progress(701));
+	seek.Reset();
+	CHECK(seek.Landed() == 0 && seek.Loop() == LoopPhase::Off);
+}
+
+void TestSeekLoop() {
+	const SeekBounds bounds{101, 5000};
+	Seek seek;
+	// One command cycles: A here, B here and the loop on, off.
+	seek.Plan(Command::Loop, 800, bounds);
+	CHECK(seek.Loop() == LoopPhase::MarkedA && seek.MarkA() == 800);
+	CHECK(!seek.Wrap(9000).made);
+	// B on the same frame is no loop yet.
+	seek.Plan(Command::Loop, 800, bounds);
+	CHECK(seek.Loop() == LoopPhase::MarkedA);
+	seek.Plan(Command::Loop, 1100, bounds);
+	CHECK(seek.Loop() == LoopPhase::Looping && seek.MarkA() == 800 && seek.MarkB() == 1100);
+	// Reaching B asks for A, exactly; not before, and not while a seek is on its way.
+	CHECK(!seek.Wrap(1099).made);
+	SeekOrder o = seek.Wrap(1100);
+	CHECK(o.made && o.target == 800 && o.rounding == Rounding::Exact && !o.pause);
+	CHECK(seek.Wrap(1103).made);
+	seek.Begin(800, 1100);
+	CHECK(!seek.Wrap(1100).made);
+	seek.Land();
+	// The loop outlives seeks, even a restart that goes before A.
+	seek.Plan(Command::Restart, 900, bounds);
+	CHECK(seek.Loop() == LoopPhase::Looping);
+	SeekView view;
+	seek.Show(view);
+	CHECK(view.loop == LoopPhase::Looping && view.markA == 800 && view.markB == 1100 && view.seeks == 1 && !view.seeking);
+	seek.Plan(Command::Loop, 900, bounds);
+	CHECK(seek.Loop() == LoopPhase::Off && !seek.Wrap(5000).made);
+	// B marked before A: the marks swap.
+	seek.Plan(Command::Loop, 1500, bounds);
+	seek.Plan(Command::Loop, 1200, bounds);
+	CHECK(seek.Loop() == LoopPhase::Looping && seek.MarkA() == 1200 && seek.MarkB() == 1500);
+	// A mark outside the bounds is held in them.
+	seek.ClearLoop();
+	CHECK(seek.Loop() == LoopPhase::Off);
+	seek.Plan(Command::Loop, 20, bounds);
+	CHECK(seek.MarkA() == 101);
+}
+
+void TestSeekPad() {
+	PadControls pad;
+	Command out[kMostSampled];
+	// Not offered (SF4): X and the D-pad ask for nothing, alone or with the rest.
+	pad.Reset(0);
+	CHECK(pad.Sample(xinput::X | xinput::DPadUp | xinput::DPadDown | xinput::DPadLeft | xinput::DPadRight, out) == 0);
+	CHECK(pad.Sample(0, out) == 0);
+	CHECK(pad.Sample(xinput::RB | xinput::RT | xinput::LB | xinput::LT | xinput::X | xinput::DPadLeft, out) == 4);
+	pad.Offer(true);
+	pad.Reset(0);
+	// Presses: X steps back, the D-pad jumps, restarts and loops.
+	CHECK(pad.Sample(xinput::X, out) == 1 && out[0] == Command::StepBack);
+	CHECK(pad.Sample(xinput::X, out) == 0);
+	CHECK(pad.Sample(0, out) == 0);
+	CHECK(pad.Sample(xinput::DPadLeft, out) == 1 && out[0] == Command::JumpBack);
+	CHECK(pad.Sample(xinput::DPadLeft, out) == 0);
+	CHECK(pad.Sample(xinput::DPadRight, out) == 1 && out[0] == Command::JumpForward);
+	CHECK(pad.Sample(xinput::DPadDown, out) == 1 && out[0] == Command::Restart);
+	CHECK(pad.Sample(xinput::DPadUp, out) == 1 && out[0] == Command::Loop);
+	// Held, only X repeats: after 300 ms, ten times a second, as RT does.
+	CHECK(pad.Sample(0, out) == 0);
+	CHECK(pad.Sample(xinput::X, out) == 1);
+	int repeats = 0, first = -1;
+	for (int tick = 1; tick <= 60; tick++) {
+		const int n = pad.Sample(xinput::X, out);
+		for (int i = 0; i < n; i++) if (out[i] == Command::StepBack) { repeats++; if (first < 0) first = tick; }
+	}
+	CHECK(first == static_cast<int>(kRepeatDelay));
+	CHECK(repeats == (60 - static_cast<int>(kRepeatDelay)) / static_cast<int>(kRepeatEvery) + 1);
+	// A held X does not repeat into the next session.
+	pad.Reset(xinput::X);
+	for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(pad.Sample(xinput::X, out) == 0);
+	// Under the game's pause menu nothing is asked, and what is held then is not a press once it closes.
+	pad.Reset(0);
+	CHECK(pad.Sample(xinput::X | xinput::DPadUp, out, true) == 0);
+	CHECK(pad.Sample(xinput::X | xinput::DPadUp, out) == 0);
+	CHECK(pad.Sample(0, out) == 0 && pad.Sample(xinput::DPadUp, out) == 1 && out[0] == Command::Loop);
+	// Everything at once, in the order the controls are listed, within the room given.
+	pad.Reset(0);
+	const int n = pad.Sample(xinput::RB | xinput::RT | xinput::LB | xinput::LT | xinput::X | xinput::DPadUp | xinput::DPadDown | xinput::DPadLeft | xinput::DPadRight, out);
+	CHECK(n == kMostSampled);
+	CHECK(out[4] == Command::StepBack && out[5] == Command::JumpBack && out[6] == Command::JumpForward && out[7] == Command::Restart && out[8] == Command::Loop);
+	// The D-pad bits are not any button's, and come from the pad's wButtons.
+	CHECK(xinput::Directions(0x000F) == (xinput::DPadUp | xinput::DPadDown | xinput::DPadLeft | xinput::DPadRight));
+	CHECK(xinput::Directions(0x0001) == xinput::DPadUp && xinput::Directions(0x0004) == xinput::DPadLeft);
+	CHECK(xinput::Directions(0xFFF0) == 0 && xinput::Physical(0x000F) == 0);
+	for (std::uint32_t d : {xinput::DPadUp, xinput::DPadDown, xinput::DPadLeft, xinput::DPadRight})
+		for (std::uint32_t b : {xinput::View, xinput::Start, xinput::Y, xinput::B, xinput::A, xinput::X, xinput::LB, xinput::RB, xinput::LT, xinput::RT, xinput::LS, xinput::RS}) CHECK((d & b) == 0);
+}
+
+void TestSeekKeys() {
+	for (unsigned key : {kKeyComma, kKeyLeft, kKeyRight, kKeyHome, kKeyL}) {
+		CHECK(SeekKey(key) && !PlaybackKey(key));
+		// A game that does not seek keeps none of them from the game.
+		CHECK(!KeepsKey(true, kKeyDown, key) && !KeepsKey(true, kKeyUp, key));
+		CHECK(KeepsKey(true, kKeyDown, key, true) && KeepsKey(true, kKeyUp, key, true));
+		CHECK(!KeepsKey(false, kKeyDown, key, true));
+		CHECK(!KeepsKey(true, 0x104, key, true) && !KeepsKey(true, 0x105, key, true));
+	}
+	// The playback keys stay kept either way, and nothing else is.
+	CHECK(KeepsKey(true, kKeyDown, kKeyF1, true) && KeepsKey(true, kKeyDown, kKeyF1));
+	for (unsigned key : {0x41u, 0x26u, 0x28u, 0x0Du, 0xBDu}) CHECK(!KeepsKey(true, kKeyDown, key, true));
+}
+
 }
 
 int main() {
@@ -401,5 +598,11 @@ int main() {
 	TestPad();
 	TestKeys();
 	TestStrip();
+	TestCommandKinds();
+	TestSeekOrders();
+	TestSeekProgress();
+	TestSeekLoop();
+	TestSeekPad();
+	TestSeekKeys();
 	return 0;
 }

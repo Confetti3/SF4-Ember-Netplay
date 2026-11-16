@@ -5694,6 +5694,18 @@ msgstr "Asalto {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.controls.step_back"
+msgstr "Retroceder"
+
+msgid "replays.controls.jump"
+msgstr "Saltar {0} s"
+
+msgid "replays.controls.restart"
+msgstr "Reiniciar"
+
+msgid "replays.controls.loop"
+msgstr "Repetir"
+
 msgid "replays.controls.unavailable"
 msgstr "Los controles funcionan durante el combate"
 

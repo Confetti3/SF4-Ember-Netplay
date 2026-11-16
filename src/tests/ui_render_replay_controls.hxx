@@ -42,6 +42,16 @@ void ShootReplayControls(sf4e::training::View& training,sf4e::ui::OverlayLayersV
     replay.divisor=4;draw("replay-strip-quarter-pad");checkStrip("Replay strip missing at 1/4");
     replay.pad=false;draw("replay-strip-quarter-keyboard");checkStrip("Replay strip missing at 1/4 with keys");
     replay.paused=true;replay.pad=true;draw("replay-strip-paused-pad");checkStrip("Replay strip missing while paused with a pad");
+    // A game that seeks: the timeline, the loop's marks and a chip for each seek control, in every state of the loop.
+    replay.paused=false;replay.divisor=1;replay.seek.offered=true;replay.seek.position=2477;replay.seek.total=5400;replay.seek.floor=300;replay.seek.last=5300;
+    for(const auto loop:{replaytransport::LoopPhase::Off,replaytransport::LoopPhase::MarkedA,replaytransport::LoopPhase::Looping}){
+        replay.seek.loop=loop;replay.seek.markA=1800;replay.seek.markB=3000;
+        replay.pad=loop!=replaytransport::LoopPhase::Off;
+        draw(loop==replaytransport::LoopPhase::Off?"replay-strip-seek-keyboard":loop==replaytransport::LoopPhase::MarkedA?"replay-strip-seek-marked":"replay-strip-seek-loop");
+        checkStrip("Replay strip with the seek controls missing");
+    }
+    replay.seek.seeking=true;replay.seek.position=0;replay.paused=true;draw("replay-strip-seek-start");checkStrip("Replay strip missing at the timeline's start");
+    replay.seek=replaytransport::SeekView{};replay.paused=false;replay.pad=false;
     // Out of the fight: the chosen speed dimmed, and a control pressed there says when they work.
     replay.paused=false;replay.armed=false;replay.unavailable=true;draw("replay-strip-unavailable");
     Require(WindowDrawn("Replay notice"),"Controls pressed outside the fight did not say so");

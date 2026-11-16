@@ -5693,6 +5693,18 @@ msgstr "Kolo {0}"
 msgid "replays.controls.frame"
 msgstr "Snímek {0}"
 
+msgid "replays.controls.step_back"
+msgstr "Krok zpět"
+
+msgid "replays.controls.jump"
+msgstr "Skok {0} s"
+
+msgid "replays.controls.restart"
+msgstr "Od začátku"
+
+msgid "replays.controls.loop"
+msgstr "Smyčka"
+
 msgid "replays.controls.unavailable"
 msgstr "Ovládání funguje během boje"
 
