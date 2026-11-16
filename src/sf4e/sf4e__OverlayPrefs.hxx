@@ -105,6 +105,11 @@ namespace OverlayPrefs {
 	// fighter. Neither clamps; Load and Save do.
 	void FromJson(const nlohmann::json& section, Data& out);
 	nlohmann::json ToJson(const Data& data);
+	// The saved picks read after the session began, under the picks it made
+	// meanwhile: each pick that differs from `untouched` (the session's picks
+	// before it made any) is the session's and wins, every other is the saved.
+	// The gameplay device is always the saved one: the runtime owns it.
+	Data MergedUnder(const Data& saved, const Data& mine, const Data& untouched);
 
 	// A one-shot read: it reads the disk whenever nothing is cached, even
 	// right after a failed read.

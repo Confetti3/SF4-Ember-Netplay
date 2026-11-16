@@ -16,13 +16,15 @@
 #include "ProfileRecordJson.hxx"
 #include "PublicRoomFilterJson.hxx"
 #include "RoomPreferences.hxx"
+#include "SettingsGuardJson.hxx"
 #include "SpeechPreferenceJson.hxx"
 
 #include <nlohmann/json.hpp>
 
 namespace sf4e { namespace netplay {
 
-inline nlohmann::json PlayerPreferencesJson(const PlayerPreferences& preferences) {
+// Every preference as the program holds it, whatever the guard says.
+inline nlohmann::json PlayerPreferencesValues(const PlayerPreferences& preferences) {
     nlohmann::json values={{"displayName", preferences.displayName}, {"mainFighter",preferences.mainFighter}, {"mainChosen", ember::ValidFighter(preferences.mainFighter)}, {"inputDelay", preferences.inputDelay}, {"autoInputDelay", preferences.autoInputDelay}, {"autoDelayStyle", preferences.autoDelayStyle},
         {"editionSelect", preferences.lobby.editionSelect ? 1 : 0}, {"roundCount", preferences.lobby.roundCount},
         {"roundTimeIntegral", preferences.lobby.roundTime},
@@ -39,6 +41,14 @@ inline nlohmann::json PlayerPreferencesJson(const PlayerPreferences& preferences
     values["controllerMappings"] = preferences.controllerMappings;
     values["buttonLayouts"] = gamepads::LayoutsToJson(preferences.buttonLayouts);
     if (preferences.record.available) values["onlineRecord"] = ProfileRecordJson(preferences.record);
+    return values;
+}
+
+// What a save carries: the preferences without the settings the program did not
+// read (PlayerPreferences::guard), so the file's own value for those stands.
+inline nlohmann::json PlayerPreferencesJson(const PlayerPreferences& preferences) {
+    auto values = PlayerPreferencesValues(preferences);
+    ApplyGuard(preferences.guard, values);
     return values;
 }
 

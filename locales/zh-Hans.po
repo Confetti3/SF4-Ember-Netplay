@@ -4677,7 +4677,10 @@ msgid "runtime.session_server_error"
 msgstr "会话服务器出错。请检查网络后重试。"
 
 msgid "runtime.settings_unreadable"
-msgstr "无法读取已保存的设置，正在使用默认设置。"
+msgstr "无法读取已保存的设置。本次会话中所做的更改不会被保留。"
+
+msgid "runtime.settings_damaged"
+msgstr "已保存的设置文件已损坏。已将其保留为 {0}，并创建了新文件。"
 
 msgid "screen.identity"
 msgstr "Ember ID"

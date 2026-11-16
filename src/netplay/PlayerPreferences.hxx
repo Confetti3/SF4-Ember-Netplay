@@ -12,6 +12,7 @@
 #include "../common/ProductIdentity.hxx"
 #include "../common/RoomRules.hxx"
 #include "ProfileRecord.hxx"
+#include "SettingsGuard.hxx"
 #include "SpeechPreferences.hxx"
 #include "Profiles.hxx"
 #include "PublicRoomFilter.hxx"
@@ -288,6 +289,10 @@ struct PlayerPreferences {
     room::RoomType publicRoomType = room::RoomType::Classic;
     int publicArcadeTables = static_cast<int>(room::TableCount);
     std::string publicRoomTemplate;
+    // The saved settings this run did not read faithfully, which no save writes
+    // over (SettingsGuard.hxx). The runtime owns it: an edited copy is taken
+    // with the guard it started from, and AcceptedPreferences keeps the runtime's.
+    SettingsGuard guard;
     bool Valid() const {
         if (roomTemplates.size() > MaxRoomTemplates || !std::all_of(roomTemplates.begin(), roomTemplates.end(), [](const RoomTemplate& saved) { return saved.Valid(); })) return false;
         if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidBoundButtons(layout.bound) && gamepads::ValidExtraCopies(layout.extras); })) return false;
@@ -319,6 +324,7 @@ inline std::uint64_t ShareReplaysSince(bool sharing, std::uint64_t since, std::u
 // sharing cutoff follows Share my replays, never the edited copy's.
 inline PlayerPreferences AcceptedPreferences(const PlayerPreferences& current, PlayerPreferences wanted, std::uint64_t now) {
     wanted.record = current.record;
+    wanted.guard = current.guard;
     wanted.shareReplaysSince = ShareReplaysSince(wanted.shareReplays, current.shareReplays ? current.shareReplaysSince : 0, now);
     return wanted;
 }

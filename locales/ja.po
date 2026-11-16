@@ -4675,7 +4675,10 @@ msgid "runtime.session_server_error"
 msgstr "セッションサーバーでエラーが発生しました。インターネット接続を確認して、もう一度お試しください。"
 
 msgid "runtime.settings_unreadable"
-msgstr "保存された設定を読み取れません。初期設定を使用します。"
+msgstr "保存された設定を読み込めませんでした。このセッションでの変更は保存されません。"
+
+msgid "runtime.settings_damaged"
+msgstr "保存された設定ファイルが破損していました。{0} として残し、新しいファイルを作成しました。"
 
 msgid "screen.identity"
 msgstr "Ember ID"

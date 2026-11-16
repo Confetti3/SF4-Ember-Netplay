@@ -50,6 +50,7 @@
 #include "../netplay/RankingRequests.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../netplay/SettingsStore.hxx"
+#include "../netplay/SavedRead.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/RoomPreferences.hxx"
 #include "../netplay/InputDelayPreference.hxx"
@@ -437,6 +438,11 @@ struct Runtime {
 	// The area Windows' time zone and region give, read once at start: what the area's Automatic shows.
 	Area automaticArea = Area::None;
 	std::string error;
+	// Whether this run has read the player's saved settings, and what they were.
+	// It settles once (StartHelper reads, TickRuntime waits on a read that failed):
+	// the preferences are never saved over settings that were not read
+	// (PlayerPreferences::guard).
+	std::unique_ptr<netplay::SavedRead> savedSettings;
 	bool ready = false;
 	bool eventSystemReady = false;
 	bool attached = false;

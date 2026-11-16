@@ -60,6 +60,9 @@ void SettingsWriter::Run() {
             // Capture the exact revision copied, including an edit arriving
             // while the other section was being written.
             const auto copiedRevision = submitted_[section];
+            // A snapshot with nothing to write (every setting in it is one the
+            // saved settings keep: SettingsGuard.hxx) leaves the file untouched.
+            if (value.empty()) { saved_[section] = copiedRevision; continue; }
             lock.unlock();
             std::string error;
             const bool saved = section == 0 ? store_.SaveOverlay(value, error) : store_.SaveLauncher(value, error);

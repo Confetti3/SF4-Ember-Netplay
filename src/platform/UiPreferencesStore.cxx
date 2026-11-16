@@ -123,8 +123,14 @@ bool SaveTo(const Path& directory, const Json& patch, std::string& error) noexce
         if (exists) {
             std::string bytes, readError, existingPreference;
             bool missing = false;
-            valid = netplay::json_file::ReadBytes(current, bytes, missing, readError) && !missing &&
-                netplay::json_file::Parse(bytes, old, readError) && ValidDocument(old, existingPreference);
+            // A file that cannot be read for now (a scan has it, another copy is
+            // writing it) is not an invalid one: it is left as it is and the
+            // save tried again, never replaced by a new file.
+            if (!netplay::json_file::ReadBytes(current, bytes, missing, readError) && readError.find("size limit") == std::string::npos) {
+                error = "UI preferences could not be read just now. Try saving again.";
+                return false;
+            }
+            valid = !missing && !bytes.empty() && netplay::json_file::Parse(bytes, old, readError) && ValidDocument(old, existingPreference);
             if (!valid && !PreserveInvalid(current, directory / L"ui-preferences.json.malformed.bak", error))
                 return false;
         }

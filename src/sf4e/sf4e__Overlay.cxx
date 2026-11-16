@@ -76,6 +76,11 @@ static sf4e::ui::OverlayPresentation presentation;
 // as the settings writer last accepted them. A save the writer refuses is
 // tried again the next frame; the session keeps its picks meanwhile.
 static sf4e::OverlayPrefs::Data s_prefs, s_savedPrefs;
+// Whether the saved picks have been read into s_prefs, and until then the picks as
+// the session held them before it made any: the picks it makes before they are read
+// win over them, and none is saved before (TakeSavedPicks).
+static bool s_picksLoaded = false;
+static std::optional<sf4e::OverlayPrefs::Data> s_untouchedPicks;
 // The menu takes the keys and the mouse: shown, with the focus.
 static std::atomic<bool> capture{false};
 // The menu's opens and its hold on the pads, focus or not (OverlayPresentation.hxx).
@@ -169,6 +174,20 @@ static void NoteLifecycleThread(const char* what) {
     else spdlog::info("Overlay: {} on thread {}", what, self);
 }
 
+// The saved picks into the session. Read at once they are the session's picks;
+// read after it made some, those win and the rest are the saved ones.
+static void TakeSavedPicks(const sf4e::OverlayPrefs::Data& saved) {
+	s_picksLoaded = true;
+	const auto merged = sf4e::OverlayPrefs::MergedUnder(saved, s_prefs, s_untouchedPicks.value_or(sf4e::OverlayPrefs::Data{}));
+	s_prefs = merged;
+	s_savedPrefs = saved;
+	s_untouchedPicks.reset();
+	sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, merged.lobby);
+	sf4e::OverlayPrefs::ToConfirmed(trainingDummy, merged.trainingDummy);
+	lobbyMenuCharaID = merged.lobby.charaID; lobbyStageID = merged.stageID;
+	lobbyRandomPool = merged.randomPool;
+}
+
 void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	NoteLifecycleThread("initialize");
 	// No device, no overlay: with no context every other overlay entry point
@@ -234,17 +253,10 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	fMainMenu::OnModeSelectedOverride = OnMainMenuModeSelected;
 
 	// The picks are read once: a display Reset initializes the overlay again,
-	// and the session's own picks (s_prefs) outlive it.
-	static bool picksLoaded = false;
+	// and the session's own picks (s_prefs) outlive it. A read that fails is
+	// tried again from the frame (DrawOverlay).
 	sf4e::OverlayPrefs::Data prefs{};
-	if (!picksLoaded && sf4e::OverlayPrefs::Load(prefs)) {
-		picksLoaded = true;
-		s_prefs = s_savedPrefs = prefs;
-        sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, prefs.lobby);
-        sf4e::OverlayPrefs::ToConfirmed(trainingDummy, prefs.trainingDummy);
-        lobbyMenuCharaID = prefs.lobby.charaID; lobbyStageID = prefs.stageID;
-        lobbyRandomPool = prefs.randomPool;
-	}
+	if (!s_picksLoaded && sf4e::OverlayPrefs::Load(prefs)) TakeSavedPicks(prefs);
 }
 
 // The edition rule the lobby pick plays by: the room's (its table's) in a room,
@@ -733,7 +745,14 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // Every edit is remembered for the fighter it was made on (OverlayPrefs::Remember).
     if (pickEditable) sf4e::OverlayPrefs::Remember(prefs, pickEditionSelect);
     s_prefs = prefs;
-    if (prefs != s_savedPrefs && sf4e::OverlayPrefs::Save(prefs)) s_savedPrefs = prefs;
+    if (!s_picksLoaded) {
+        // The saved picks could not be read at start: tried again every few seconds, and nothing is
+        // saved before they are, or every pick saved would be replaced by this session's defaults.
+        if (!s_untouchedPicks) s_untouchedPicks = s_prefs;
+        sf4e::OverlayPrefs::Data saved;
+        if (sf4e::OverlayPrefs::LoadEachTick(saved)) TakeSavedPicks(saved);
+    }
+    if (s_picksLoaded && s_prefs != s_savedPrefs && sf4e::OverlayPrefs::Save(s_prefs)) s_savedPrefs = s_prefs;
     // An export takes its picture between the layers its video holds and
     // the rest of Ember, so the menu and the HUD are never in it.
     ImGui::Render();

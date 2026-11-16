@@ -4675,7 +4675,10 @@ msgid "runtime.session_server_error"
 msgstr "Error del servidor de sesión. Comprueba tu conexión a internet e inténtalo de nuevo."
 
 msgid "runtime.settings_unreadable"
-msgstr "No se pudieron leer los ajustes guardados; se usan los predeterminados."
+msgstr "No se han podido leer los ajustes guardados. Los cambios de esta sesión no se conservarán."
+
+msgid "runtime.settings_damaged"
+msgstr "El archivo de ajustes guardados estaba dañado. Se ha conservado como {0} y se ha creado uno nuevo."
 
 msgid "screen.identity"
 msgstr "Ember ID"
