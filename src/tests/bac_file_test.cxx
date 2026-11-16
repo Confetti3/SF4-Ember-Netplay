@@ -2,6 +2,7 @@
 #include "../training/FighterData.hxx"
 #include "game_file_test_support.hxx"
 #include "test_support.hxx"
+#include <limits>
 #include <map>
 
 using namespace sf4e;
@@ -264,6 +265,18 @@ int main() {
         // the change would take two.
         cammy.speeds = {{0, 0.5f}, {57, 2.0f}};
         CHECK(bac::GameFrames(cammy, 56.75f, 58) == 1);
+        // A speed too large to count a frame down (a damaged file) is one frame to the end, not a walk that never returns;
+        // one that is not above 0 or not a number is no way there.
+        cammy.speeds = {{0, 1e30f}};
+        CHECK(bac::GameFrames(cammy, 0, 10) == 1);
+        cammy.speeds = {{0, std::numeric_limits<float>::infinity()}};
+        CHECK(bac::GameFrames(cammy, 0, 10) == 1);
+        cammy.speeds = {{0, 1.0f}, {5, 1e30f}};
+        CHECK(bac::GameFrames(cammy, 0, 10) == 6);
+        cammy.speeds = {{0, std::numeric_limits<float>::quiet_NaN()}};
+        CHECK(bac::GameFrames(cammy, 0, 10) == -1);
+        cammy.speeds = {{0, -2.0f}};
+        CHECK(bac::GameFrames(cammy, 0, 10) == -1);
     }
     // A reaction as the game played Balrog's to Ryu's 5LP, 5MP, 5HP and 2MK,
     // first frame after hitstop, and 5LP's at speed 1 again: frames to free less one.

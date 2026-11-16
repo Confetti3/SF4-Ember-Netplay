@@ -397,7 +397,7 @@ void CopyLinkJourney(){
  };
  Check(roomLink()&&roomLink()->enabled&&roomLink()->label==loc::T("public.copy_link")&&roomLink()->detail==loc::Tf("public.copy_link_detail",link)&&
   j.row("room-more")->choices.front().id=="copy-room-link"&&!j.row("copy-room-link"),"A public room joined from the list offers no room link in More");
- Check(!j.row("copy")&&!j.row("copy-short")&&j.row("leave"),"A public room offered an invitation to copy");
+ Check(!j.row("invite")&&j.row("leave"),"A public room offered an invitation to copy");
  g_clipboard="before";const auto actions=h.actions.size();
  h.Choose("room-more");h.Press(MenuInput::Select);
  Check(g_clipboard==link,"Copy room link did not put the page link on the clipboard");
@@ -407,7 +407,7 @@ void CopyLinkJourney(){
  Check(round.bridgeId==LinkBridge&&round.roomId==LinkRoom,"The copied link does not read back as the room");
  // A private room has no such row.
  h.view.room.serverOwned=false;h.Frame(0,2);
- Check(!roomLink()&&j.row("copy"),"A private room offered a room link");
+ Check(!roomLink()&&j.row("invite"),"A private room offered a room link");
  h.view.room.serverOwned=true;h.Frame(0,2);Check(roomLink(),"The room link did not come back");
  // The room ends: the link goes with it.
  h.view.session.room=netplay::RoomState::Idle;h.view.session.generation.room=0;h.view.room=room::Snapshot{};h.Frame(0,3);

@@ -17,9 +17,9 @@ release.
 
    ![Create room settings](../images/guides/user_netplay/create-room.webp)
 
-3. Use **Copy invitation** to share the private invitation with your players.
+3. Use **Invite**, then **Copy invitation**, to share the private invitation with your players. **Invite** also lists friends you can invite directly.
 
-   ![The room board with Copy invitation among the room's actions](../images/ember-room.png)
+   ![The room board with Invite among the room's actions](../images/ember-room.png)
 
 4. Guests open **Online play > Join room**, select **Paste invitation**, then
    **Join room**. Joining a room leaves them idle until they explicitly choose a
@@ -39,17 +39,21 @@ play at any table, or watch.
 
 ## Play and rematch
 
-Select a table's card. With no seat or queue place yet, it opens a seat chooser:
+With no seat or queue place yet, a table's open seats are its buttons:
 **Play as P1** or **Play as P2** while that seat is open and nobody is queued
-ahead (an empty table offers both seats), otherwise **Join queue**; then
-**Watch**; and **Table options**. Open seats fill in queue order. If you already
-hold a seat or queue place at another table, the card opens that table's Table
-options instead, and joining there waits until you leave your current place.
+ahead. Click one, or move to the card (it lights the seat nearest the side
+you came from), light the other with Left or Right and press A. A full table
+offers **Join queue** the same way, and any table with a player **Watch**, at
+the right of its line. While you watch a game, an offer that would end the
+view asks first, on the card. Open seats fill
+in queue order. If you already hold a seat or queue place at another table, A
+on its card opens that table's Table options instead, and joining there waits
+until you leave your current place.
 Seated fighters choose their characters and both select **Ready up** (A on your
 own card) before each game. Before preparation begins, a fighter can withdraw
 readiness with **Unready / unlock fighter**.
 
-![Seat chooser on an open battle slot](../images/guides/user_netplay/seat-chooser.webp)
+![An open table's seats on its card: Play as P1 and Play as P2](../images/guides/user_netplay/seat-chooser.webp)
 
 Battle setup, opened from **Table options** (Y on an Xbox pad, T on the
 keyboard), starts with Ready, then your **Change fighter** and **Ultra Combo**
@@ -175,7 +179,7 @@ game** stops watching that game and keeps the queue place.
 
 ## Watch
 
-**Watch next game** (**Watch** in the seat chooser) reserves a spectator place
+**Watch next game** (**Watch** on a full table's card) reserves a spectator place
 without joining the queue. A game already in progress cannot be joined halfway
 through. **Stop watching** returns the spectator to the room; the fighters
 continue playing. During a game, Start or F10 opens Ember over it on the room
@@ -184,7 +188,7 @@ happens to the view. Your view runs a little behind the room, so the room may
 have finished the game while you still watch it: Stop watching then only ends
 the rest of the view, and your place at the table stays as it is.
 
-![Seat chooser for a table you watch: Join queue, Unwatch, Options](../images/guides/custom_rooms/watching.webp)
+![A table you watch: Join queue and Unwatch on its card](../images/guides/custom_rooms/watching.webp)
 
 A spectator by choice can also use **Lock in to watch** in Table options
 (**Release lock-in** undoes it). If both fighters ready while a locked-in

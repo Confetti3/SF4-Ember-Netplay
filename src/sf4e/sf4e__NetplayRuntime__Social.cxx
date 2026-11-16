@@ -206,7 +206,7 @@ void RelateCards(const Flight& flight, const std::string& failure) {
 	internal::NoteProfileAction(failure.empty() ? flight.change.card : std::string(), flight.change.relation);
 }
 
-void GoToFriend(const std::string& bridge, const friends::Destination& where, bool watch, std::uint64_t generation);
+void GoToFriend(const std::string& bridge, const friends::Destination& where, bool watch, std::uint64_t generation, discord::InviteOrigin origin);
 
 // A private room's invitation arrived, for the press that asked for it: taken through the same path as an invite
 // received (GoToFriend), and only while it is for the friend asked about and the room the press was made in is still the
@@ -226,7 +226,7 @@ void TakeJoining(const Flight& flight, const session::TournamentAnswer& answer) 
 	where.kind = friends::Destination::Kind::PrivateInvite;
 	where.secret = std::move(joining.secret);
 	if (const auto* entry = runtime->friends.Published().value->FindFriend(flight.joinFriend)) where.name = entry->name;
-	GoToFriend(runtime->friends.Bridge(), where, false, flight.joinGeneration);
+	GoToFriend(runtime->friends.Bridge(), where, false, flight.joinGeneration, discord::InviteOrigin::OwnJoin);
 }
 
 // A sync's or an action's answer, for the flight it began (netplay::friends::Requests::Finish): logged, its effect on
@@ -278,15 +278,15 @@ void ScopeFriends(const std::string& bridge, const std::string& emberId) {
 	if (runtime->friends.Scope(bridge, emberId)) spdlog::info("Friends: an action dropped: scope changed");
 }
 
-// A Join, a Watch or an invite: a private room's invitation goes the way a Discord one does, a public room's by a visit.
-void GoToFriend(const std::string& bridge, const friends::Destination& where, bool watch, std::uint64_t generation) {
+// A Join, a Watch or an invite: a private room's invitation goes the way a Discord one does (kept with where it came from, `origin`), a public room's by a visit.
+void GoToFriend(const std::string& bridge, const friends::Destination& where, bool watch, std::uint64_t generation, discord::InviteOrigin origin) {
 	const bool busy = BusyForInvitation(runtime->controller.GetSnapshot());
 	if (where.kind == friends::Destination::Kind::PrivateInvite) {
 		runtime->friendVisit.Cancel();
 		std::string party;
 		std::uint64_t expires = 0;
 		if (!discord::TicketMetadata(where.secret, party, expires)) { runtime->error = loc::T("discord.invitation_invalid"); return; }
-		runtime->discordInvite.OfferFromFriend(where.secret, party, expires, generation, busy);
+		runtime->discordInvite.OfferFromFriend(where.secret, party, expires, generation, busy, origin);
 		spdlog::info("Friends: invitation {}", busy ? "waits for an answer" : "pending");
 		return;
 	}
@@ -456,21 +456,21 @@ void DispatchFriends(const commands::FriendJoin& command, bool helperReady) {
 		DispatchFriends(commands::FriendAction(commands::FriendAskJoin{command.generation, command.bridge, command.friendId}), helperReady);
 		return;
 	}
-	GoToFriend(command.bridge, where, false, command.generation.room);
+	GoToFriend(command.bridge, where, false, command.generation.room, discord::InviteOrigin::OwnJoin);
 }
 
 void DispatchFriends(const commands::FriendWatch& command) {
 	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
 	ScopeFriends(command.bridge, CurrentId());
 	const auto where = friends::ToFriend(*runtime->friends.Published().value, command.friendId, true);
-	if (Resolve(where, false)) GoToFriend(command.bridge, where, true, command.generation.room);
+	if (Resolve(where, false)) GoToFriend(command.bridge, where, true, command.generation.room, discord::InviteOrigin::OwnJoin);
 }
 
 void DispatchFriends(const commands::FriendTakeInvite& command) {
 	if (command.bridge.empty() || CurrentId().empty() || !Pressed(command.generation)) return;
 	ScopeFriends(command.bridge, CurrentId());
 	const auto where = friends::ToInvite(*runtime->friends.Published().value, command.invite, static_cast<std::uint64_t>(std::time(nullptr)));
-	if (Resolve(where, true)) GoToFriend(command.bridge, where, false, command.generation.room);
+	if (Resolve(where, true)) GoToFriend(command.bridge, where, false, command.generation.room, discord::InviteOrigin::Friend);
 }
 
 void DispatchFriends(const commands::FriendAnswerVisit& command) {
@@ -516,7 +516,6 @@ void TickSocial(bool helperReady, std::uint64_t nowMs) {
 	requests.LapseVisit(nowMs);
 	ReadPresence(static_cast<std::uint64_t>(std::time(nullptr)));
 	const auto& presented = runtime->friendsPresence;
-	runtime->friendsCanInvite = presented.offer.Any();
 	requests.NotePresence(presented.revision);
 	if (auto held = requests.TakeHeld()) SendAction(*held, helperReady);
 	else if (helperReady && requests.SyncDue(nowMs)) {
@@ -547,7 +546,12 @@ friends::View FriendsStatus() {
 	view.refusal = requests.Refusal();
 	if (!view.refusal.empty()) view.refusalText = loc::T(RefusalKey(view.refusal));
 	view.refusals = requests.Refusals();
-	view.canInvite = runtime->friendsCanInvite;
+	view.offer = runtime->friendsPresence.offer.why;
+	// Only the host can open a Locked room again; the words differ for anyone else.
+	if (view.offer == friends::OfferBlock::Locked) {
+		const auto& current = CurrentRoom();
+		if (!current.localMember || current.localMember != room::ActingHost(current)) view.offer = friends::OfferBlock::LockedForMember;
+	}
 	view.visiting = requests.Visiting();
 	const auto& visit = runtime->friendVisit;
 	view.visit.active = visit.Active();

@@ -46,10 +46,13 @@ const char* SessionClient::JoinRejectionKey(ErrorType type, bool updateAvailable
 
 // A public room's host locks the room by refusing as full, and removes or
 // turns away a player by an invalid request: both say so in the room's own words.
+// A name taken there is often the player's own account, still held for a player
+// the room has not yet seen leave, so the words say to wait as well as to rename.
 const char* SessionClient::PublicJoinRejectionKey(ErrorType type, bool updateAvailable) {
 	switch (type) {
 	case SCE_JOIN_REJECTED_LOBBY_FULL: return "public.failure.full_or_locked";
 	case SCE_JOIN_REJECTED_REQUEST_INVALID: return "public.failure.turned_away";
+	case SCE_JOIN_REJECTED_NAME_TAKEN: return "public.failure.name_taken";
 	default: return JoinRejectionKey(type, updateAvailable);
 	}
 }

@@ -250,6 +250,11 @@ float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, fl
     draw->AddText(font, size, ImVec2(centred ? at.x + (width - w) * .5f : at.x, at.y), color, shown.c_str());
     return w;
 }
+float TextEnd(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color) {
+    const std::string shown = Fit(text, width, size, ImGui::GetFont(), true);
+    draw->AddText(ImGui::GetFont(), size, ImVec2(at.x + width - TextWidth(shown, size), at.y), color, shown.c_str());
+    return TextWidth(shown, size);
+}
 float TextShrunk(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, float least, ImU32 color, ImFont* font) {
     if (!font) font = ImGui::GetFont();
     const float measured = font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x;
@@ -289,6 +294,24 @@ void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color) {
     const ImVec2 points[] = {{at.x, at.y - size}, {at.x + size * .6f, at.y}, {at.x, at.y + size}};
     draw->AddPolyline(points, 3, color, 0, 2 * Scale());
 }
+void CardButton(ImDrawList* draw, Box b, const std::string& label, float size, bool lit, bool over, bool enabled, bool plus, bool* cut) {
+    const float s = Scale();
+    const auto& c = Colors();
+    const ImU32 fill = !enabled ? c.frame : lit ? c.hover : c.button, edge = !enabled ? c.border : color::Alpha(c.accent, over && !lit ? .8f : .35f);
+    const ImU32 ink = enabled && (lit || over) ? c.text : c.muted;
+    draw->AddRectFilled(b.min, b.max, fill, 4 * s);
+    draw->AddRect(b.min, b.max, edge, 4 * s, 0, Hairline());
+    const float mark = plus ? 18 * s : 0;
+    const std::string shown = Fit(label, (std::max)(0.f, b.W() - 16 * s - mark), size, ImGui::GetFont(), false);
+    if (cut) *cut = shown != label;
+    const float w = TextWidth(shown, size), x = b.min.x + (b.W() - w - mark) * .5f, mid = (b.min.y + b.max.y) * .5f;
+    if (plus) {
+        const float arm = 5 * s, cx = x + arm;
+        draw->AddLine(ImVec2(cx - arm, mid), ImVec2(cx + arm, mid), ink, 2 * s);
+        draw->AddLine(ImVec2(cx, mid - arm), ImVec2(cx, mid + arm), ink, 2 * s);
+    }
+    draw->AddText(ImGui::GetFont(), size, ImVec2(x + mark, mid - size * .5f), ink, shown.c_str());
+}
 void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, bool focused, bool hovered, bool enabled) {
     const float s = Scale(), size = 17 * s;
     const auto& c = Colors();
@@ -303,31 +326,57 @@ void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, 
     if (focused && primary && enabled) draw->AddRect(b.min, b.max, c.text, 4 * s, 0, 3 * s);
     else if (focused) Focus(draw, b.min, b.max);
 }
+void IconButton(ImDrawList* draw, Box b, const IconDraw& icon, bool focused, bool hovered, bool enabled) {
+    const float size = 22 * Scale();
+    const auto& c = Colors();
+    icon(draw, ImVec2(b.min.x + (b.W() - size) * .5f, b.min.y + (b.H() - size) * .5f), size,
+        !enabled ? color::Alpha(c.muted, .5f) : focused || hovered ? c.accent : c.muted);
+    if (focused) Focus(draw, b.min, b.max, false);
+}
 namespace {
-// The places on line `line` of `lines`: the first and how many, shared out evenly in order.
-std::pair<std::size_t, std::size_t> BarLine(std::size_t places, int lines, int line) {
-    const std::size_t per = places / lines, extra = places % lines, at = static_cast<std::size_t>(line);
-    return {at * per + (std::min)(at, extra), per + (at < extra)};
+using BarSplit = std::vector<std::pair<std::size_t, std::size_t>>;
+bool BarFits(const BarSplit& split, const std::vector<float>& need, float width, float gap) {
+    for (const auto& [first, count] : split) {
+        float used = count ? (count - 1) * gap : 0;
+        for (std::size_t i = first; i < first + count; ++i) used += need[i];
+        if (used > width) return false;
+    }
+    return true;
+}
+// The places on each of `lines` lines, in order: shared out evenly; where that does not fit, as many to a line as
+// it holds. Empty when neither fits.
+BarSplit BarLinesOf(const std::vector<float>& need, float width, float gap, int lines) {
+    const std::size_t places = need.size(), per = places / lines, extra = places % lines;
+    BarSplit even;
+    for (std::size_t at = 0; at < static_cast<std::size_t>(lines); ++at) even.push_back({at * per + (std::min)(at, extra), per + (at < extra)});
+    if (BarFits(even, need, width, gap)) return even;
+    BarSplit packed;
+    std::size_t first = 0;
+    while (first < places && packed.size() < static_cast<std::size_t>(lines)) {
+        std::size_t count = 1;
+        float used = need[first];
+        while (first + count < places && used + gap + need[first + count] <= width) { used += gap + need[first + count]; ++count; }
+        packed.push_back({first, count});
+        first += count;
+    }
+    return first == places && BarFits(packed, need, width, gap) ? packed : BarSplit();
 }
 }
 int BarLines(float width, const std::vector<float>& need, float gap) {
     const int places = static_cast<int>(need.size());
-    for (int lines = 1; lines < places; ++lines) {
-        bool fits = true;
-        for (int line = 0; line < lines && fits; ++line) {
-            const auto [first, count] = BarLine(need.size(), lines, line);
-            float used = (count - 1) * gap;
-            for (std::size_t i = first; i < first + count; ++i) used += need[i];
-            fits = used <= width;
-        }
-        if (fits) return lines;
-    }
+    for (int lines = 1; lines < places; ++lines)
+        if (!BarLinesOf(need, width, gap, lines).empty()) return lines;
     return (std::max)(1, places);
 }
 std::vector<Box> BarPlaces(Box bar, const std::vector<float>& need, float gap, int lines, float height) {
     std::vector<Box> places(need.size());
+    auto split = BarLinesOf(need, bar.W(), gap, lines);
+    if (split.empty()) {
+        const std::size_t per = need.size() / lines, extra = need.size() % lines;
+        for (std::size_t at = 0; at < static_cast<std::size_t>(lines); ++at) split.push_back({at * per + (std::min)(at, extra), per + (at < extra)});
+    }
     for (int line = 0; line < lines; ++line) {
-        const auto [first, count] = BarLine(need.size(), lines, line);
+        const auto [first, count] = split[static_cast<std::size_t>(line)];
         if (!count) continue;
         // The even share, raised past what the places that need more take.
         std::vector<float> wants(need.begin() + first, need.begin() + first + count);
@@ -376,11 +425,11 @@ void Fact(const std::string& key, const std::string& value) {
     ImGui::Dummy(ImVec2(w, h));
 }
 
-float BrandMark(ImDrawList* draw, ImVec2 at, float height) {
+float BrandMark(ImDrawList* draw, ImVec2 at, float height, ImU32 tint) {
     auto* atlas = ImGui::GetIO().Fonts;
     ImVec2 uv0, uv1;
     atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(0), &uv0, &uv1);
-    draw->AddImage(atlas->TexID, at, ImVec2(at.x + height, at.y + height), uv0, uv1);
+    draw->AddImage(atlas->TexID, at, ImVec2(at.x + height, at.y + height), uv0, uv1, tint);
     return height;
 }
 
@@ -692,13 +741,17 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
 float TagWidth(const TagView& tag, TagSize size) {
     const float s = Scale(), gap = 8 * s;
     const float font = size == TagSize::XS ? ImGui::GetFontSize() * .85f : ImGui::GetFontSize();
-    // As Tag lays the line out: the ping with its route above XS.
+    // As Tag lays the line out: M's name in the heading font at 22 px, its title and status on a second line.
+    const float nameSize = size == TagSize::M ? 22 * s : font;
+    ImFont* nameFont = size == TagSize::M ? HeadingFont() : ImGui::GetFont();
+    const bool twoLines = size == TagSize::M && !(tag.title.empty() && tag.status.empty());
+    // The ping with its route above XS.
     const std::string& ping = size != TagSize::XS && !tag.ping.routed.empty() ? tag.ping.routed : tag.ping.text;
     // Rounded up to a whole pixel: Tag takes the other parts from the width in
     // its own order, and the float error must not leave the name a hair short
     // of its measure, which would cut it ("FRac...").
-    return std::ceil(NameMarksWidth(tag.marks, font) + TextWidth(tag.name, font, ImGui::GetFont()) + (tag.title.empty() ? 0 : gap + TextWidth(tag.title, font)) +
-        (tag.status.empty() ? 0 : gap + ChipWidth(tag.status)) + (ping.empty() ? 0 : gap + ChipWidth(ping)) +
-        (tag.link ? gap + LinkGlyph() : 0));
+    return std::ceil(NameMarksWidth(tag.marks, nameSize) + TextWidth(tag.name, nameSize, nameFont) +
+        (tag.title.empty() || twoLines ? 0 : gap + TextWidth(tag.title, font)) + (tag.status.empty() || twoLines ? 0 : gap + ChipWidth(tag.status)) +
+        (ping.empty() ? 0 : gap + ChipWidth(ping)) + (tag.link ? gap + LinkGlyph() : 0));
 }
 } } }

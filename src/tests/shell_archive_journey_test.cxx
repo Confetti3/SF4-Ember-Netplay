@@ -163,6 +163,21 @@ void WatchJourney() {
  Check(ChoiceOf(*m.row("archive:emt_a"),"find-1")->enabled&&m.row("archive:emt_a")->chosen=="find-1","Find this player's sets was not what A picks while Watch now cannot start");
 }
 
+// The pane's Watch now button asks for the set's first game at once, with no chooser; with the game not at the
+// main menu it is disabled, says why, and sends nothing.
+void PaneWatchJourney() {
+ Journey j;OpenArchive(j);
+ const auto game1=InSet(1800000300,"emt_a"),game0=InSet(1800000100,"emt_a");
+ Hear(j,{},ListedGames({game1,game0}));
+ j.h.FocusOn("archive:emt_a");
+ auto click=j.h.ClickPaneButton();
+ const auto watches=Watches(j);
+ Check(click.drawn&&click.reason.empty()&&watches.size()==1&&watches[0]->digest==game0.digest&&!j.h.shell.Navigation().Choosing(),"The Archive pane's Watch now did not ask for the set's first game");
+ j.h.view.replays.ready=false;j.h.Frame();
+ click=j.h.ClickPaneButton();
+ Check(click.drawn&&click.reason==loc::T("replays.not_ready")&&Watches(j).size()==1&&!j.h.shell.Navigation().Choosing(),"The Archive pane's disabled Watch now did not say why, or sent a request");
+}
+
 // Find this player's sets sets the filter to that name alone and asks for its first page.
 void FindJourney() {
  Journey j;OpenArchive(j);
@@ -393,6 +408,7 @@ void ArchiveJourneys() {
  PlayerCardJourney();
  ListingJourney();
  WatchJourney();
+ PaneWatchJourney();
  FindJourney();
  FiltersJourney();
  PagingJourney();

@@ -308,6 +308,7 @@ std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& sc
         rows.push_back(Value("reply-timing",loc::T("training.reply.timing"),(lab.plan.timing>0?"+":"")+std::to_string(lab.plan.timing)+" f",loc::T("training.reply.timing.detail"),lab.plan.when!=0));
         rows.push_back(Value("reply-chance",loc::T("training.reply.chance"),std::to_string(lab.plan.chance)+"%",loc::T("training.reply.chance.detail"),lab.plan.when!=0));
         rows.push_back(Value("reply-stance",loc::T("training.reply.vary_stance"),loc::T(lab.plan.varyStance?"common.on":"common.off"),loc::T("training.reply.vary_stance.detail")));
+        rows.push_back(ConfirmRow("reply-clear",loc::T("training.reply.clear_all"),loc::T("training.reply.clear_all.detail"),std::any_of(lab.slots.begin(),lab.slots.end(),[](const auto& slot){return !slot.moves.empty();})));
         return rows;
     }
     if(screen=="reply-slot") {
@@ -325,13 +326,13 @@ std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& sc
             const auto moves=PickedMoves(pick,i);
             auto e=Row("pick-"+std::to_string(i),pick.name,pick.group+": "+pick.name+", "+(lit.first.empty()?"":lit.first+", ")+moves);
             if(pick.strengths.size()==1) e.value=moves;
-            else { e.value=lit.first; e.adjustable=e.opens=true; for(const auto& strength:pick.strengths) e.segments.push_back(strength.first); }
+            else { e.value=lit.first; e.adjustable=e.opens=true; for(const auto& strength:pick.strengths) e.segments.push_back({strength.first,strength.first}); }
             rows.push_back(e);
             // Its charge's ways to hold, as chips the same way.
             const auto holds=ChargeHolds(lit.second);
             if(holds.empty()) continue;
             auto c=Row("charge-"+std::to_string(i),loc::T("training.reply.charge"),pick.name+", "+loc::T("training.reply.charge")+", "+moves);
-            c.value=moves; c.adjustable=c.opens=true; for(const auto& hold:holds) c.segments.push_back(combo::Canonical(hold));
+            c.value=moves; c.adjustable=c.opens=true; for(const auto& hold:holds) { const auto word=combo::Canonical(hold); c.segments.push_back({word,word}); }
             rows.push_back(c);
         }
         return rows;
@@ -408,6 +409,7 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
     if(a.kind!=MenuAction::Activate) return;
     if(a.id.compare(0,11,"reply-slot-")==0) { lab.slotAt=std::atoi(a.id.c_str()+11); lab.lit.clear(); TrainingNavigation().Push("reply-slot"); }
     else if(a.id=="slot-clear") { lab.slots[lab.slotAt]={}; SavePractice(); SendPlan(view,submit); TrainingNavigation().Replace("reply"); }
+    else if(a.id=="reply-clear") { for(auto& slot:lab.slots) slot={}; SavePractice(); SendPlan(view,submit); }
     else if(a.id.compare(0,5,"pick-")==0||a.id.compare(0,7,"charge-")==0) {
         const auto picks=Pickables(view); const auto at=static_cast<std::size_t>(std::atoi(a.id.c_str()+a.id.find('-')+1));
         if(at>=picks.size()) return;
@@ -437,7 +439,7 @@ void ApplyTrainingPadEvent(const training::View& view,const TrainingSubmit& subm
     case Kind::Play: if(TrainingPressesAct(controls,called)) TrainingPlayPress(view,submit); break;
     }
 }
-void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
+void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,bool backToRoom) {
     // Called every frame training is available, so a key's save is told even with the controls closed.
     TakePositionResult(view);
     if(!view.available||ImGui::GetIO().WantTextInput||ImGui::GetIO().KeyAlt) return;
@@ -448,6 +450,8 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
     const auto pressed=[](int which) { return lab.keys[which]>=0&&ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1+lab.keys[which]),false); };
     if(pressed(ResetKey)) ResetPosition(view,submit);
     if(pressed(SaveKey)) SavePosition(view,submit);
+    // As F10 opens Ember's screen everywhere else, and in a room that screen is the room.
+    if(backToRoom&&ImGui::IsKeyPressed(ImGuiKey_F10,false)) TrainingBackToRoomPress(view,submit);
 }
 TrainingLabParts TrainingLab() { LoadPractice(); return {lab.meter,lab.plan,lab.check,lab.slots,lab.directory}; }
 void SaveTrainingLab() { SavePractice(); }
@@ -650,7 +654,11 @@ void TrainingPlayPress(const training::View& view,const TrainingSubmit& submit) 
  Command command; command.action=Action::AdvancePlayback; command.generation=view.generation;
  if(!submit||!submit(command)) Notice(loc::T("training.command_rejected"),true);
 }
-void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit) {
+void TrainingBackToRoomPress(const training::View& view,const TrainingSubmit& submit) {
+ Command command; command.action=Action::LeaveToRoom; command.generation=view.generation;
+ if(!submit||!submit(command)) Notice(loc::T("training.command_rejected"),true);
+}
+void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit,const TrainingRoomStatus& room) {
     if(!view.available)return;
     const auto* vp=ImGui::GetMainViewport();
     const ImVec2 size((std::min)(820*Scale(),vp->Size.x*.8f),(std::min)(600*Scale(),vp->Size.y*.8f));
@@ -673,12 +681,12 @@ void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit)
         // Capture remains global even though presentation is only a flyout.
         ImGui::SetNextFrameWantCaptureKeyboard(true);
         ImGui::SetNextFrameWantCaptureMouse(true);
-        DrawTrainingPanel(view,submit);
+        DrawTrainingPanel(view,submit,room);
         ImGui::SetWindowFontScale(1);
     }
     ImGui::End();ImGui::PopStyleVar(5);ImGui::PopStyleColor(2);
 }
-void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
+void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit,const TrainingRoomStatus& room) {
  using namespace training;if(!v.available)return;
  auto& nav=trainingMenu.navigation;
  static std::uint64_t generation=0,pending=0;
@@ -715,6 +723,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
    Row("combo-check",loc::T("training.combo_check"),loc::T("training.combo_check.detail")),
    Row("return",loc::T("training.close_controls"),loc::T("training.close_controls.detail"))};
   if(TrainingRemoteOffered())rows.insert(rows.end()-1,Row("remote",loc::T("training.remote"),loc::T("training.remote.detail")));
+  if(room.InRoom())rows.insert(rows.end()-1,Row("back-to-room",loc::T("training.back_to_room"),loc::Tf("training.back_to_room.detail",room.room)));
  }else if(screen=="remote"&&TrainingRemoteOffered()){
   rows=TrainingRemoteRows();
  }else if(screen=="recording"){
@@ -839,6 +848,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(lab.meter.style!=MeterStyle::Flat);
  },1,{},GameMenu::Body{},true,compactSlots?30:100,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
+ if(a.kind==MenuAction::Activate&&screen=="home"&&a.id=="back-to-room"){TrainingBackToRoomPress(v,submit);ForwardMenuAction({MenuAction::Close});return;}
  // A tab names its page; the pages are the lab's, one level under it, so
  // one replaces another, whatever is open on it (a reader).
  if(a.kind==MenuAction::Shortcut&&!a.id.empty()){if(a.id=="recording")ListRecordings();nav.Replace(a.id);return;}

@@ -43,7 +43,7 @@ enum class Mode { Idle, Standby, Recording, Playback };
 // check it against other dummies (check) or stop that, and play frames once
 // on Player 1, leaving the slots alone (the check's own runs).
 enum class Action { Select, AdvanceRecording, Record, AdvancePlayback, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, Mirror, DummyPlan,
-    Interrupt, SlotOn, PlayOrder, ComboRecord, ComboStart, ComboStop, ComboPlay };
+    Interrupt, SlotOn, PlayOrder, ComboRecord, ComboStart, ComboStop, ComboPlay, LeaveToRoom };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu, human (Player 2's pad), then the menu's own record and
@@ -404,14 +404,17 @@ struct CallControl {
 // whole count of its own (a new opponent or another room starts over, without
 // the old call's go now); the call ending stops it, unless the battle was
 // already told to leave; the call's go now shortens it to the next tick that
-// may leave, once. So a battle leaves by one path, once, for the call that
-// stands, whichever ended the wait.
+// may leave, once. The player's own return to the room (LeaveNow) is that
+// same cut with no call behind it. So a battle leaves by one path, once,
+// whichever ended the wait.
 class LeaveCountdown {
 public:
     // control: what was published; battle: this battle's generation; frames:
     // the count a new call starts with. True when a new count started, for
     // the caller to play the call's announcer.
     bool Follow(const CallControl& control, std::uint64_t battle, int frames) {
+        // The player's return stands whatever the room does meanwhile.
+        if (asked_) return false;
         const std::uint64_t call = control.generation == battle ? control.call : 0;
         bool started = false;
         if (!call) left_ = 0;
@@ -420,6 +423,15 @@ public:
         if (call && control.hurry && left_ > 1) left_ = 1;
         return started;
     }
+    // The player chose to go back to their room (F10, or the controls' row):
+    // the next update that may leave does, as with go now. Nothing while a
+    // call's count runs or ran, or after the player asked: the battle is
+    // already on its way out. True when it was taken.
+    bool LeaveNow() {
+        if (left_ || call_ || asked_) return false;
+        left_ = 1; asked_ = true;
+        return true;
+    }
     // Once per battle update. fighting: the fight is running, the only time
     // the pause menu's exit could be used too; the last frame waits for it.
     // True on the one update the battle is to be told to leave.
@@ -427,11 +439,21 @@ public:
     int Left() const { return left_; }
     // The call the count is for; 0 when none is counting.
     std::uint64_t Call() const { return left_ ? call_ : 0; }
-    void Reset() { left_ = 0; call_ = 0; }
+    // The battle closed. rebuilt: Training goes on in a new battle, as through
+    // the load Combo check asked for. A return the player asked for and the
+    // old battle was not yet told about is then still theirs to have; every
+    // other count and call ends with the battle.
+    void Reset(bool rebuilt = false) {
+        const bool kept = rebuilt && asked_ && left_;
+        call_ = 0;
+        if (!kept) { left_ = 0; asked_ = false; }
+    }
 private:
     int left_ = 0;
     // The call last followed, counting or already told to leave.
     std::uint64_t call_ = 0;
+    // The player asked to leave, counting or already told to.
+    bool asked_ = false;
 };
 struct View {
     bool available = false, ready = false, checkpoint = false, loop = true;
@@ -577,7 +599,7 @@ public:
     bool Apply(const Command& command) {
         if (!view_.available || command.generation != view_.generation) return false;
         switch (command.action) {
-        case Action::Place: case Action::ExportSlot: return true;
+        case Action::Place: case Action::ExportSlot: case Action::LeaveToRoom: return true;
         // Recorded and started only while nothing plays and the fight runs.
         case Action::ComboRecord: case Action::ComboStart: return view_.ready && view_.mode == Mode::Idle;
         case Action::ComboStop: Stop(); return true;

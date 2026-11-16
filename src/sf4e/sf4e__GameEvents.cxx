@@ -15,6 +15,7 @@
 #include "../common/InstalledContent.hxx"
 #include "../common/NativeMenuLock.hxx"
 #include "../common/TrainingStage.hxx"
+#include "sf4e__BattleLoad.hxx"
 #include "sf4e__CodePages.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "sf4e__Event.hxx"
@@ -480,6 +481,7 @@ bool fVsPreBattle::SetSides(const rVsMode::ConfirmedCharaConditions (&sides)[2],
 	}
 	(rVsMode::GetStageName(mode)->*Dimps::Platform::dString::publicMethods.assign)(Dimps::stageCodes[stage], 4);
 	*rVsMode::GetStageCode(mode) = stage;
+	sf4e::battleload::Note(sf4e::loadwatch::LoadSource::EmberVersus, sides, stage);
 	return true;
 }
 
@@ -566,6 +568,7 @@ void fTrainingMode::ReplaceCharaSelect(char*& eventName) {
 		side->cursorCharaID = sides.sides[i].charaID;
 		side->chosen = TRUE;
 	}
+	sf4e::battleload::Note(sf4e::loadwatch::LoadSource::EmberTraining, sides.sides, sides.stage);
 	eventName = "VersusFromChr";
 }
 

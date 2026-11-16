@@ -7,6 +7,7 @@
 #include "NetworkFeedback.hxx"
 #include "PlayerCard.hxx"
 #include "RoomFeedback.hxx"
+#include "RoomInvite.hxx"
 #include "RoomPanelBoard.hxx"
 #include "RowId.hxx"
 #include "Theme.hxx"
@@ -138,11 +139,13 @@ public:
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
         const ShellView& v = f.view;
         if (!v.room.roomEpoch) return;
-        // A room's header says what kind of room it is, who it admits and how full it is.
-        if (f.screen == "room") {
+        // A room's header says what kind of room it is, who it admits and how
+        // full it is; the chat's says who it admits too, since its status line
+        // shares the board's, which leaves that to the chip.
+        if (f.screen == "room" || f.screen == "room-chat") {
             const bool listed = v.room.serverOwned;
-            menu.eyebrow = loc::T(listed ? "room.v2.eyebrow_public" : "room.v2.eyebrow_private");
-            menu.headerChips = {{loc::T(listed ? "room.v2.listed" : "room.v2.invitation_only"), ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending))},
+            if (f.screen == "room") menu.eyebrow = loc::T(listed ? "room.v2.eyebrow_public" : "room.v2.eyebrow_private");
+            menu.headerChips = {{loc::T(room_invite::AccessKey(v)), ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending))},
                 {std::string(loc::T("room.members")) + " " + std::to_string(v.room.members.size()) + "/" + std::to_string(v.room.capacity), palette::Ready}};
         }
         // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.

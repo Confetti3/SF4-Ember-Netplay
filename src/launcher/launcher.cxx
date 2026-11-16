@@ -865,7 +865,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             }
         }
         // Windows' own dump is looked for when Ember kept none, a freeze's included.
-        if (crashed && !dumps.written[0] && dumps.reportWritten.empty()) NoteWindowsCrashDump(gameId);
+        if (crashed && !dumps.written[0] && dumps.reportWritten.empty()) {
+            // The game's own record (sf4e-crash.log, "dump:" line) says why when it asked.
+            // It also does not ask for every kind of exit, and not without a logs folder.
+            spdlog::warn("No dump of this crash: the game {} asked the launcher for one", dumps.gameAsked ? "did" : "did not");
+            NoteWindowsCrashDump(gameId);
+        }
         discord.Stop(); helper.Stop(); CloseHandle(game);
         ArchiveReplays();
         // A loader failure never reaches Sidecar's crash record, so the exit

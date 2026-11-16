@@ -303,14 +303,14 @@ msgstr "Operace selhala. Zkuste to znovu. Záložní kopie aktualizace jsou v .e
 msgid "services.operation_cancelled"
 msgstr "Operace zrušena."
 
-msgid "services.opening_community"
-msgstr "Ve vašem prohlížeči se otevírá Discord Ember..."
+msgid "services.opening_link"
+msgstr "Ve vašem prohlížeči se otevírá {0}..."
 
-msgid "services.community_opened"
-msgstr "Otevřeno v prohlížeči. Přepněte na něj a připojte se k serveru."
+msgid "services.link_opened"
+msgstr "Otevřeno v prohlížeči. Přepněte na něj."
 
-msgid "services.community_failed"
-msgstr "Prohlížeč se nepodařilo otevřít. Připojte se na {0}."
+msgid "services.link_failed"
+msgstr "Prohlížeč se nepodařilo otevřít. Navštivte {0}."
 
 msgid "services.opening_steam_profile"
 msgstr "Profil na Steamu se otevírá v prohlížeči..."
@@ -525,8 +525,8 @@ msgstr "Nápověda"
 msgid "screen.discord"
 msgstr "Discord"
 
-msgid "screen.discord_invitation"
-msgstr "Pozvánka Discord"
+msgid "screen.room_invitation"
+msgstr "Pozvánka do místnosti"
 
 msgid "screen.assignment"
 msgstr "Přiřadit ovladač"
@@ -1644,6 +1644,15 @@ msgstr "Tato pozvánka už skončila."
 msgid "friends.nothing_to_offer"
 msgstr "Vaši místnost teď nelze nabídnout."
 
+msgid "friends.nothing_to_offer.locked"
+msgstr "Vstup je v této místnosti nastaven na Uzamčeno. Pro pozvání přátel ho v Nastavení místnosti změňte na Otevřeno."
+
+msgid "friends.nothing_to_offer.locked_member"
+msgstr "Vstup je v této místnosti nastaven na Uzamčeno."
+
+msgid "friends.nothing_to_offer.full"
+msgstr "Tato místnost je plná."
+
 msgid "friends.busy"
 msgstr "Počkejte, až skončí předchozí požadavek."
 
@@ -2160,9 +2169,6 @@ msgstr "Účet Discord připojený k vašemu Ember ID. Využívají ho hodnocen�
 msgid "discord.server"
 msgstr "Server Discord Emberu"
 
-msgid "discord.invitation_title"
-msgstr "POZVÁNKA DISCORD"
-
 msgid "discord.cancel_invitation"
 msgstr "Zrušit pozvánku"
 
@@ -2229,6 +2235,24 @@ msgstr "Připojit se k Discord Ember"
 msgid "about.discord_detail"
 msgstr "Hráči, zápasy a podpora na {0}. Otevře se v prohlížeči za hrou."
 
+msgid "about.kofi"
+msgstr "Podpořte Ember na Ko-fi"
+
+msgid "about.kofi_detail"
+msgstr "Podpořte vývoj Ember na {0}. Otevře se v prohlížeči za hrou."
+
+msgid "about.website"
+msgstr "Web Ember"
+
+msgid "about.website_detail"
+msgstr "Místnosti, žebříčky a záznamy na {0}. Otevře se v prohlížeči za hrou."
+
+msgid "about.twitter"
+msgstr "Twitter vývojáře"
+
+msgid "about.twitter_detail"
+msgstr "Novinky od vývojáře Ember na {0}. Otevře se v prohlížeči za hrou."
+
 msgid "about.version_line"
 msgstr "Ember {0} · {1}"
 
@@ -2246,9 +2270,6 @@ msgstr "Připojování k místnosti. Čeká se na síť..."
 
 msgid "room.locked_status"
 msgstr "Uzamčená místnost / jen s pozvánkou"
-
-msgid "room.private_status"
-msgstr "Soukromá místnost / jen s pozvánkou"
 
 msgid "room.tournament_status"
 msgstr "Turnajový zápas, hraje se na {0} výhry. Hrát mohou jen jeho dva hráči."
@@ -2562,6 +2583,12 @@ msgstr "Vyprázdnit tuto pozici"
 msgid "training.reply.clear_slot.detail"
 msgstr "Odebere úder této pozice."
 
+msgid "training.reply.clear_all"
+msgstr "Vyprázdnit všechny pozice"
+
+msgid "training.reply.clear_all.detail"
+msgstr "Odebere údery ze všech pozic odpovědi. Nastavení odpovědi zůstane beze změny."
+
 msgid "training.reply.every_fighter"
 msgstr "Každý bojovník"
 
@@ -2681,6 +2708,12 @@ msgstr "Zavřít ovládání tréninku"
 
 msgid "training.close_controls.detail"
 msgstr "Zavřete Ember a pak případně i nabídku pauzy SF4, aby hra pokračovala."
+
+msgid "training.back_to_room"
+msgstr "Zpět do místnosti"
+
+msgid "training.back_to_room.detail"
+msgstr "Opusťte trénink a vraťte se do {0}. Vaše místo v místnosti zůstane zachováno."
 
 msgid "training.slot"
 msgstr "Pozice {0}"
@@ -3657,6 +3690,12 @@ msgstr "Kopírovat krátký odkaz"
 msgid "room.copy_short_invitation.detail"
 msgstr "Krátký odkaz do chatu. Drží ho odkazová služba Ember, dokud je místnost otevřená."
 
+msgid "room.invite.detail"
+msgstr "Pozvěte přítele, nebo zkopírujte odkaz či pozvánku ke sdílení."
+
+msgid "room.invite.more_friends"
+msgstr "Další přátelé…"
+
 msgid "room.leaving"
 msgstr "Odcházení..."
 
@@ -3692,9 +3731,6 @@ msgstr "Připojení Wi-Fi"
 
 msgid "room.link_unknown"
 msgstr "Připojení neznámé"
-
-msgid "room.table_footer"
-msgstr "Kola: {0} / čas: {1} s     Fronta: {2}     Sleduje: {3}"
 
 msgid "room.board_status_host_slot"
 msgstr "HOSTITEL / {0} / Místo {1}"
@@ -3744,8 +3780,8 @@ msgstr "Otevřeno z odkazu na místnost. Zkontrolujte ho a zvolte Připojit se."
 msgid "room.link_waiting"
 msgstr "Byl otevřen odkaz na místnost. Až opustíte tuto místnost, najdete ho na obrazovce připojení."
 
-msgid "room.replacement_opening"
-msgstr "Otevírá se náhradní místnost. Zvolte Kopírovat pozvánku a pošlete nový odkaz. Starý už nefunguje."
+msgid "room.replacement_invite"
+msgstr "Otevírá se náhradní místnost. Zvolte Pozvat, potom Kopírovat pozvánku a pošlete novou pozvánku. Stará už nefunguje."
 
 msgid "room.action_rejected"
 msgstr "Místnost se změnila nebo akci odmítla. Zkontrolujte aktuální stav a zkuste to znovu."
@@ -3956,6 +3992,9 @@ msgstr "Nejdřív zrušte připravenost, pak opusťte místo."
 
 msgid "room.leave_seat.keep"
 msgstr "Ponechat si místo."
+
+msgid "room.watching_keeps"
+msgstr "Dál sledovat. Druhá volba ukončí hru, kterou sledujete."
 
 msgid "room.leave_seat.costs_score"
 msgstr "Odchodem skončí vaše série a skóre se vynuluje ({0})."
@@ -4329,6 +4368,9 @@ msgstr "Pomocná aplikace Discord se zastavila. Hraní tím není ovlivněno."
 msgid "runtime.room_connection_failed"
 msgstr "Spojení s místností selhalo. Místnost se zavírá; nepotvrzené výsledky se nezaznamenají."
 
+msgid "runtime.public_room_connection_failed"
+msgstr "Spojení s místností se přerušilo. Nepotvrzené výsledky se nezaznamenají. Připojte se k ní znovu přes Veřejné místnosti. Pokud vás odmítne, počkejte minutu a zkuste to znovu."
+
 msgid "runtime.operation_busy"
 msgstr "Operace právě probíhá. Zkuste to znovu."
 
@@ -4337,6 +4379,9 @@ msgstr "Profil na Steamu se nepodařilo otevřít."
 
 msgid "discord.invitation_expired"
 msgstr "Pozvánka Discord vypršela. Požádejte o novou."
+
+msgid "room.invitation_expired"
+msgstr "Pozvánka vypršela. Požádejte o novou."
 
 msgid "runtime.spectator_action_retrying"
 msgstr "Akci diváka se nepodařilo odeslat; zkouší se znovu."
@@ -4395,6 +4440,9 @@ msgstr "Zápas se nestihl uzavřít. Sledování bylo zastaveno."
 msgid "runtime.room_closed"
 msgstr "Místnost byla zavřena."
 
+msgid "runtime.room_unreachable"
+msgstr "Spojení s místností se přerušilo, nebo se místnost zavřela. Pokud je stále v seznamu Veřejné místnosti, připojte se k ní znovu."
+
 msgid "runtime.removed_from_room"
 msgstr "Byli jste odebráni z místnosti."
 
@@ -4442,6 +4490,9 @@ msgstr "Tento stůl nesledujete."
 
 msgid "room.reject.seat_taken"
 msgstr "Toto místo bylo právě obsazeno. Vyberte znovu."
+
+msgid "room.reject.table_changed"
+msgstr "Tento stůl se změnil. Vyberte znovu."
 
 msgid "room.reject.invalid_rules"
 msgstr "Pravidla stolu jsou neplatná."
@@ -5541,9 +5592,6 @@ msgstr "{0}, {1}"
 msgid "room.table_set"
 msgstr "Set"
 
-msgid "room.table_footer_set"
-msgstr "{0}, {1}     Fronta: {2}     Sleduje: {3}"
-
 msgid "room.streak"
 msgstr "Sety v řadě: {0}"
 
@@ -5919,8 +5967,14 @@ msgstr "Tato místnost se právě zaplnila nebo byla uzamčena. Vyberte jinou."
 msgid "public.failure.turned_away"
 msgstr "Místnost odmítla vaše připojení. Možná jste z ní byli odebráni."
 
+msgid "public.failure.name_taken"
+msgstr "Toto jméno už v této místnosti je. Pokud jste byli právě odpojeni, vaše staré místo může být ještě drženo: počkejte minutu a zkuste to znovu. Jinak změňte jméno v Nastavení."
+
 msgid "public.failure.join_failed"
 msgstr "Do místnosti se nepodařilo vstoupit. Možná se právě zavřela. Aktualizujte seznam a vyberte jinou."
+
+msgid "public.failure.refused"
+msgstr "Místnost vás nepřijala. Pokud jste v ní právě byli, může ještě držet vaše staré místo: počkejte minutu a zkuste to znovu. Možná jste také byli z místnosti odebráni."
 
 msgid "legend.refresh"
 msgstr "Aktualizovat"
@@ -6303,18 +6357,6 @@ msgstr "Hráči čekají ve frontě u stolu a hrají u něj."
 msgid "room.type.arcade_detail"
 msgstr "Šestnáct automatů: sedněte si k libovolnému volnému a hrajte s tím, kdo čeká nejdéle. Po setu oba zvolí Odvetu a hrají znovu, jinak každý hraje s dalším čekajícím."
 
-msgid "room.arcade_status"
-msgstr "Místnost herny / jen na pozvání"
-
-msgid "room.arcade_locked_status"
-msgstr "Místnost herny zamčená / jen na pozvání"
-
-msgid "room.king_status"
-msgstr "Král kopce / jen na pozvání"
-
-msgid "room.king_locked_status"
-msgstr "Král kopce zamčený / jen na pozvání"
-
 msgid "room.arcade_sit"
 msgstr "Posadit se"
 
@@ -6386,12 +6428,6 @@ msgstr "Tréninková místnost"
 
 msgid "room.practice.detail"
 msgstr "Každá hra v místnosti je cvičný zápas: zdraví a ukazatele se doplňují, nikdo není vyřazen a čas kola je {0}. Platí to, dokud je místnost otevřená. Chcete-li hrát běžné zápasy, zavřete místnost a vytvořte novou."
-
-msgid "room.practice_status"
-msgstr "Tréninková místnost / jen s pozvánkou"
-
-msgid "room.practice_locked_status"
-msgstr "Uzamčená tréninková místnost / jen s pozvánkou"
 
 msgid "inputs.presses_value"
 msgstr "{0} stisknutí"
@@ -7500,8 +7536,14 @@ msgstr "Vlastní zpoždění"
 msgid "room.table_footer_wired_only"
 msgstr "Jen kabel"
 
-msgid "room.table_counts"
-msgstr "Fronta: {0}     Sleduje: {1}"
+msgid "room.table_rules_line"
+msgstr "Kola: {0} / {1} s"
+
+msgid "room.table_queue"
+msgstr "Fronta: {0}"
+
+msgid "room.table_watching"
+msgstr "Sleduje: {0}"
 
 msgid "room.input_delay.own"
 msgstr "Vaše zpoždění: {0}"
@@ -8626,11 +8668,11 @@ msgstr "Oblasti"
 msgid "room.v2.tables"
 msgstr "STOLY"
 
+msgid "room.v2.tables_playing"
+msgstr "Hraje: {0}"
+
 msgid "room.v2.table"
 msgstr "STŮL {0}"
-
-msgid "room.v2.tables_summary"
-msgstr "Hraje: {0} · sleduje: {1}"
 
 msgid "room.v2.group_playing"
 msgstr "HRAJÍ"
@@ -8652,6 +8694,9 @@ msgstr "EMBER · ONLINE · VEŘEJNÁ MÍSTNOST"
 
 msgid "room.v2.invitation_only"
 msgstr "Jen na pozvánku"
+
+msgid "room.v2.friends_can_join"
+msgstr "Otevřeno přátelům"
 
 msgid "room.v2.listed"
 msgstr "Uvedeno ve Veřejných místnostech"
@@ -8712,12 +8757,6 @@ msgstr "Zobrazit"
 
 msgid "room.v2.show_detail"
 msgstr "Rozbalí ho na plnou velikost."
-
-msgid "room.v2.copy_invite"
-msgstr "Pozvánka"
-
-msgid "room.v2.copy_link"
-msgstr "Krátký odkaz"
 
 msgid "settings.room_show_members_detail"
 msgstr "Panel Členové v místnosti. Když je skrytý, sloupec zabere chat, nebo stoly celou šířku."

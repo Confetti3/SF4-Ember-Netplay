@@ -24,10 +24,20 @@
 
 namespace {
 // ShellExecute may hand the target to a COM-based handler; give it an apartment.
+// This thread leaves that apartment right after the call, so the call must
+// finish its work first: without SEE_MASK_NOASYNC the shell may go on in helper
+// threads of shell extension DLLs, and CoUninitialize can unload those DLLs
+// under them. The callers show their own failure text, so the shell shows none.
 bool ShellOpen(const wchar_t* target) {
     if (!target || !target[0]) return false;
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-    const bool opened = reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", target, nullptr, nullptr, SW_SHOWNORMAL)) > 32;
+    SHELLEXECUTEINFOW request = {};
+    request.cbSize = sizeof(request);
+    request.fMask = SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
+    request.lpVerb = L"open";
+    request.lpFile = target;
+    request.nShow = SW_SHOWNORMAL;
+    const bool opened = ShellExecuteExW(&request) != FALSE;
     if (SUCCEEDED(com)) CoUninitialize();
     return opened;
 }
@@ -115,7 +125,7 @@ void ApplicationServices::Observe(const DiagnosticsView& diagnostics) {
 bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& diagnostics, std::wstring target) {
     if (action == ServiceAction::CancelReport) { Cancel(); return true; }
     if (action == ServiceAction::SendReport || action == ServiceAction::PrepareCrashReport || action == ServiceAction::ReportCrash ||
-        action == ServiceAction::OpenSteamProfile) return false;
+        action == ServiceAction::OpenSteamProfile || action == ServiceAction::OpenLink) return false;
     if (action == ServiceAction::LaunchUpdateCheck) return RequestLaunchCheck();
     // These two carry the offer the player saw: UpdateNow and SkipUpdate.
     if (action == ServiceAction::UpdateNow || action == ServiceAction::SkipUpdate) return false;
@@ -133,6 +143,12 @@ bool ApplicationServices::OpenSteamProfilePage(const SteamId& id) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (stop_ || state_.pending) return false;
     return Start(ServiceAction::OpenSteamProfile, {}, state_.channel, std::wstring(digits.begin(), digits.end()));
+}
+bool ApplicationServices::OpenLink(const Link& link) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending) return false;
+    state_.lastLink = &link;
+    return Start(ServiceAction::OpenLink, {}, state_.channel);
 }
 bool ApplicationServices::SwitchUpdateChannel(launcher::UpdateChannel channel) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -184,8 +200,9 @@ bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& dia
     cancelled_ = false;
     state_.updateStage = launcher::UpdateStage::Downloading; state_.stageDone = state_.stageTotal = 0;
     request_ = action; requestChannel_ = channel; diagnostics_ = diagnostics; target_ = std::move(target); state_.pending = true; state_.succeeded = false; state_.lastAction = action;
+    if (action != ServiceAction::OpenLink) state_.lastLink = nullptr;
     state_.message = reportOperation_ ? state_.reporting.message :
-        action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
+        action == ServiceAction::OpenLink ? loc::Tf("services.opening_link", state_.lastLink->address) :
         action == ServiceAction::OpenSteamProfile ? loc::T("services.opening_steam_profile") :
         action == ServiceAction::OpenReplayFolder || action == ServiceAction::ShowReplayFile ? loc::T("services.opening_replay_folder") :
         action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel || action == ServiceAction::LaunchUpdateCheck ? loc::T("services.checking") :
@@ -290,11 +307,11 @@ void ApplicationServices::Run() {
                 } else {
                     next.closeGame = next.succeeded = true; next.message = loc::T("services.game_closing");
                 }
-            } else if (action == ServiceAction::OpenCommunity) {
-                const std::wstring url = L"https://" + std::wstring(CommunityInvite, CommunityInvite + std::strlen(CommunityInvite));  // ASCII
-                const bool opened = ShellOpen(url.c_str());
+            } else if (action == ServiceAction::OpenLink) {
+                const std::string address = next.lastLink->address;
+                const bool opened = ShellOpen((L"https://" + std::wstring(address.begin(), address.end())).c_str());  // ASCII
                 next.succeeded = opened;
-                next.message = opened ? loc::T("services.community_opened") : loc::Tf("services.community_failed", CommunityInvite);
+                next.message = opened ? loc::T("services.link_opened") : loc::Tf("services.link_failed", address);
             } else if (action == ServiceAction::OpenSteamProfile) {
                 // The target is the text OpenSteamProfilePage made from a SteamId; it is read back as one.
                 const SteamId id = SteamId::Parsed(WideToUtf8(target));

@@ -496,6 +496,13 @@ case, spaces or dash, `O` read as 0 and `I`, `L` as 1.
   - **Invite to my room**: a public room's id, or the private room's
     `DiscordInvitation()` under the rule `discord::Describe` offers it by
     (not a bound match, healthy, not locked, not full).
+    A room that cannot be offered says why in `OfferOf`'s typed reason (Admission Locked, Full, else none named); a Hidden
+    room can be offered, since an invite is how its friends join it. The room's action bar has one Invite button for it
+    (`src/ui/RoomInvite.hxx`): the friends the Friends screen would invite (`netplay/FriendInvitees.hxx`), at most six,
+    Friends (More friends once some are listed), then Copy short link and Copy invitation.
+    A friend's private-room invite and the player's own Join on a friend's room are kept as their own origin
+    (`discord::InviteOrigin`): neither is announced as Discord's, and each opens its question directly when it must ask
+    before leaving a room or a game.
   - **Join a friend's private room**: Join on a friend whose presence carries
     a joinable `private_room` (`ToFriend` answers `Destination::Kind::
     PrivateOffer`). The runtime sends the `join` action (`FriendAskJoin`)
@@ -610,6 +617,8 @@ shows them only "In a private room", and no invitation is handed out for it.
   host only, and only in a room the host opened itself. A room its service
   owns, or one bound to a tournament match, has no row and refuses the action.
   It changes what the friends of members are shown and nothing about play.
+- **Who honours it.** Each updated client honours Hidden for its own presence: a 1.6.0 member of a Hidden room still shows
+  the room on Discord, and switching to Hidden does not withdraw an invitation already handed out.
 - **What is saved.** The room snapshot writes `friends_hidden` only when it is
   true, so the default writes nothing. The saved defaults and a template keep
   `friendsHidden` under `roomDefaults` in the player's preferences, again only

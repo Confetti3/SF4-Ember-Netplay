@@ -2,7 +2,9 @@
 #include "../training/PracticeSettings.hxx"
 #include "test_support.hxx"
 #include <cctype>
+#include <map>
 #include <string>
+#include <vector>
 
 using namespace sf4e::training;
 using nlohmann::json;
@@ -108,6 +110,28 @@ int main() {
         CHECK(BuildReply(move.moves, reply, error) && !reply.moves.empty());
     }
     CHECK(MovesOf("CDY").size() >= 20 && MovesOf("RYU").size() >= 10 && MovesOf("XXX").empty() && MovesOf(nullptr).empty());
+    {
+        // The pick list shows a move's strengths in the order its rows come (TrainingPanel AddPick), so every move's
+        // rows go weakest to strongest, EX last: LP/LK, MP/MK, HP/HK, EX, for the punches and for the kicks apart. A row with
+        // no strength is not in the order.
+        std::map<std::string, int> last;
+        for (const auto& move : FighterMoves) {
+            std::string name = move.name; int rank = -1;
+            if (name.compare(0, 3, "EX ") == 0) { name.erase(0, 3); rank = 3; }
+            const auto space = name.rfind(' ');
+            if (space != std::string::npos && space + 1 < name.size() && name.find_first_not_of("LMHPK+", space + 1) == std::string::npos) {
+                const auto buttons = name.substr(space + 1); name.erase(space);
+                if (rank < 0 && buttons.size() == 2 && buttons.find('+') == std::string::npos) rank = static_cast<int>(std::string("LMH").find(buttons[0]));
+            }
+            if (rank < 0) continue;
+            const auto at = last.try_emplace(std::string(move.code) + ' ' + name + ' ' + std::string(1, move.moves[std::string(move.moves).find_last_of("PK")]), rank).first;
+            CHECK(at->second <= rank);
+            at->second = rank;
+        }
+        std::vector<std::string> mallet;
+        for (const auto* move : MovesOf("ELN")) if (std::string(move->name).find("Mallet Smash") != std::string::npos) mallet.push_back(std::string(move->name) + " " + move->moves);
+        CHECK((mallet == std::vector<std::string>{"Mallet Smash LP 63214LP", "Mallet Smash MP 63214MP", "Mallet Smash HP 63214HP", "EX Mallet Smash 63214PP"}));
+    }
     {
         // The slots that are on make the plan's choices, with their weights and the settings' order.
         ReplySlots slots;

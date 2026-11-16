@@ -1,14 +1,18 @@
 #pragma once
 // The room board's parts (Room.dc.html), drawn by ApplicationShell::DrawRoomBoard
-// in RoomPanelTables.cxx: the tables with the room's action bar at their foot
-// (RoomPanelTables.cxx), an Arcade room's cabinets in their place
+// in RoomPanelTables.cxx: the tables' heading, the room's action bar and the
+// focused row's line (RoomPanelTables.cxx), a Classic room's table cards
+// (RoomTableCards.cxx), an Arcade room's cabinets in their place
 // (RoomPanelArcade.cxx), and the Members over Chat column with the layout
 // that sizes it (RoomPanelColumn.cxx: ApplicationShell::DrawRoomMembersPanel,
 // DrawRoomChatPanel). The rows are built in RoomPanel.cxx.
 // Every box that is a row goes through RoomBoardFrame::Press, so the pad
 // reaches exactly what the pointer can (V2_KIT.md, Moving on a board).
 #include "ApplicationShell.hxx"
+#include "RoomControls.hxx"
+#include "TableCardShape.hxx"
 #include "V2.hxx"
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -49,8 +53,8 @@ struct RoomBoardFrame {
     // The row `id`, or null when the board has none this frame.
     const MenuEntry* Find(const char* id) const;
     // A row's box: a press is Select on it, the moving pointer focuses it.
-    // True while hovered. With `choose` false a press only focuses it: your
-    // own card, whose actions are its strip's buttons.
+    // True while hovered. With `choose` false a press only focuses it: a card
+    // whose actions are its own buttons (your own place's strip, the offers).
     bool Press(const MenuEntry& e, const v2::Box& b, bool choose = true) const;
     // A box's ground and edge on the board.
     void Ground(ImDrawList* d, const v2::Box& b, ImU32 fill, ImU32 edge) const;
@@ -60,5 +64,26 @@ struct RoomBoardFrame {
     // corner is at `corner`. Returns its width.
     float HideButton(ImDrawList* d, const MenuEntry& e, ImVec2 corner) const;
 };
+
+// A Classic room's floor this frame (RoomTableCards.cxx): each card's row,
+// table, what it holds and its banner, and whether it is the member's own
+// place; how the cards lie at the width they are drawn at, and where they stand.
+struct TableFloor {
+    struct Card { const MenuEntry* e; const room::Table* t; TableCardContent content; room_controls::TableBanner banner; bool own; };
+    std::vector<Card> cards;
+    float width = 0;
+    TableCardShape shape{1, false, false, 1};
+    TableCardPlaces places;
+};
+// The floor of the board's table rows `width` wide, `gridColumns` across with
+// the Grid, its cards filling `height` less `after` (the action bar following
+// them in the scroll) by the fill rule (PlaceTableCards): shaped beside the
+// scroll's bar where even at their least they do not fit it.
+TableFloor ShapeFloor(const RoomBoardFrame& f, const room_controls::PlaceExit& place, float width, float height, float after, int gridColumns, bool grid);
+// What follows the cards in their scroll: draws it `width` wide at `at` and
+// returns its height. Empty for nothing.
+using FloorFollow = std::function<float(ImDrawList*, ImVec2, float)>;
+// The floor in `tables`, in its own scroll, `follows` after its cards.
+void DrawTableCards(const RoomBoardFrame& f, const v2::Box& tables, const TableFloor& floor, const room_controls::PlaceExit& place, const FloorFollow& follows);
 
 } }

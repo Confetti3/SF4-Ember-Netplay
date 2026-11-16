@@ -132,7 +132,7 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, const MenuRow
 
 bool MenuValueIsToggle(const MenuEntry& e) { return e.adjustable && (e.value == loc::T("common.on") || e.value == loc::T("common.off")); }
 std::string MenuAdjustHint(const MenuEntry& e) {
-    if (!e.adjustable || !e.enabled || MenuValueIsToggle(e)) return {};
+    if (!MenuSteps(e) || !e.enabled || MenuValueIsToggle(e)) return {};
     return e.adjustHint.empty() ? std::string(loc::T("menu.adjust")) : e.adjustHint;
 }
 void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text) {
@@ -143,8 +143,8 @@ void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled,
         float x = box.max.x;
         const float top = box.min.y + (h - v2::ChipFont() - 8 * s) * .5f;
         for (auto word = e.segments.rbegin(); word != e.segments.rend(); ++word) {
-            x -= v2::ChipWidth(*word);
-            v2::Chip(d, ImVec2(x, top), *word, *word == e.value ? col.accent : enabled ? col.muted : v2::color::Alpha(col.muted, .5f));
+            x -= v2::ChipWidth(word->label);
+            v2::Chip(d, ImVec2(x, top), word->label, word->label == e.value ? col.accent : enabled ? col.muted : v2::color::Alpha(col.muted, .5f));
             x -= 6 * s;
         }
         return;
@@ -183,9 +183,9 @@ int StepAtPointer(const MenuEntry& e, const MenuRowLayout& at) {
         if (mouse.y < v.y0 || mouse.y > v.y1) return 0;
         float x = v.x1; int lit = 0, under = -1;
         for (int i = static_cast<int>(e.segments.size()) - 1; i >= 0; --i) {
-            const float left = x - v2::ChipWidth(e.segments[i]);
+            const float left = x - v2::ChipWidth(e.segments[i].label);
             if (mouse.x >= left && mouse.x <= x) under = i;
-            if (e.segments[i] == e.value) lit = i;
+            if (e.segments[i].label == e.value) lit = i;
             x = left - 6 * Scale();
         }
         return under < 0 ? 0 : under - lit;
@@ -195,7 +195,7 @@ int StepAtPointer(const MenuEntry& e, const MenuRowLayout& at) {
 }
 }
 float MenuValueWidth(const MenuEntry& e) {
-    if (!e.segments.empty()) { float width = -6 * Scale(); for (const auto& word : e.segments) width += v2::ChipWidth(word) + 6 * Scale(); return width; }
+    if (!e.segments.empty()) { float width = -6 * Scale(); for (const auto& word : e.segments) width += v2::ChipWidth(word.label) + 6 * Scale(); return width; }
     if (MenuValueIsToggle(e)) return 36 * Scale();
     float words = ImGui::CalcTextSize(ValueWord(e)).x;
     for (const auto& c : e.choices) words = (std::max)(words, ImGui::CalcTextSize(c.label.c_str()).x);
@@ -297,12 +297,14 @@ MenuAction GameMenu::Draw(const char* title, const std::vector<MenuEntry>& entri
     v2::Box screen{win, ImVec2(win.x + size.x, win.y + size.y)};
     const v2::Box hintBar = v2::CutBottom(screen, v2::HintBarHeight(narrow || flyout, s), v2::HintBarGap(flyout, s));
     v2::Box content{ImVec2(screen.min.x + side, screen.min.y + pad), ImVec2(screen.max.x - side, screen.max.y)};
+    // The list and its pane stand side by side (Home's card, a screen's detail): worked out once, here.
+    f.split = v2::SideBySide(size.x, side, s);
     DrawHeader(f, content, narrow);
     if (body && !navigation.Reading()) DrawBody(f, content);
     else if (navigation.Reading()) {
         ImGui::SetCursorScreenPos(content.min);
         DrawReader(entries, detail, content.H(), f.held);
-    } else DrawCards(f, content, narrow);
+    } else DrawCards(f, content);
     if (f.action.kind == MenuAction::Back) { f.backRequested = true; f.action = {}; }
     // The right mouse button is Back, as B and Escape: it closes an open value
     // panel or question first, and answers a focused toast as B does.
@@ -328,6 +330,7 @@ void GameMenu::DrawHeader(Frame& f, v2::Box& content, bool narrow) {
         // A short window (TV size, 150% at 1080p) takes the small mark, so Home's rows keep the height.
         const float mark = (narrow || content.H() < 760 * s ? 44 : 72) * s;
         Brand(ImGui::GetWindowDrawList(), content.min, mark);
+        DrawHeaderLinks(f, {content.min, ImVec2(content.max.x, content.min.y + mark)});
         v2::CutTop(content, mark, 24 * s);
         return;
     }
@@ -353,6 +356,33 @@ void GameMenu::DrawHeader(Frame& f, v2::Box& content, bool narrow) {
     }
     ImGui::EndGroup();
     content.min.y = ImGui::GetCursorScreenPos().y;
+}
+
+void GameMenu::DrawHeaderLinks(Frame& f, v2::Box band) {
+    // The links whose rows are among the entries, the first leftmost; the row ends at the band's right edge.
+    std::vector<std::pair<const HeaderLink*, const MenuEntry*>> shown;
+    for (const auto& link : headerLinks) if (const MenuEntry* row = FocusedIn(f.entries, link.id)) shown.emplace_back(&link, row);
+    if (shown.empty()) return;
+    const float s = Scale(), box = v2::IconButtonSize * s, gap = 8 * s;
+    auto* d = ImGui::GetWindowDrawList();
+    const float width = (box + gap) * static_cast<float>(shown.size()) - gap, left = band.max.x - width, top = band.min.y + (band.H() - box) * .5f;
+    const bool inert = !listEnabled || (f.modalAtStart && !f.choosingAtStart) || navigation.Editing() || navigation.Confirming();
+    const MenuEntry* hovered = nullptr;
+    ImGui::BeginDisabled(inert);
+    for (std::size_t i = 0; i < shown.size(); ++i) {
+        const MenuEntry& row = *shown[i].second;
+        const float x = left + (box + gap) * static_cast<float>(i);
+        const v2::Box at{ImVec2(x, top), ImVec2(x + box, top + box)};
+        ReportMenuCard(row.id.c_str(), at.min, at.max);
+        const bool over = PressEntry(navigation, f.entries, row, at, f.action).hovered;
+        v2::IconButton(d, at, shown[i].first->icon, row.id == navigation.Focus(), over, feedback_.Enabled(row));
+        if (over && !inert) { hovered = &row; ImGui::SetTooltip("%s", row.label.c_str()); }
+    }
+    ImGui::EndDisabled();
+    // The icons have no words of their own: the one under the pointer, else the focused one, is named under the row.
+    const MenuEntry* named = hovered ? hovered : FocusedIn(f.entries, navigation.Focus());
+    if (named && std::any_of(shown.begin(), shown.end(), [&](const auto& link) { return link.second->id == named->id; }))
+        v2::TextEnd(d, ImVec2(left, top + box + 2 * s), width, named->label, 13 * s, v2::Colors().muted);
 }
 
 void GameMenu::DrawBody(Frame& f, v2::Box content) {
@@ -393,6 +423,8 @@ void GameMenu::DrawBody(Frame& f, v2::Box content) {
         if (focused) v2::Focus(d, box.min, box.max);
     }
     ImGui::EndDisabled();
+    // Choices the body drew in its own row need no panel.
+    if (bodyChoices.inPlace) { f.valuePanel = HoldChoicesInPlace(*bodyChoices.inPlace); return; }
     // A body that placed the focused row but named no place for its choices (a card's More button) has them open at that row,
     // so a choice the pad asked for is always drawn.
     if (bodyChoices.card.W() <= 0)
@@ -400,10 +432,10 @@ void GameMenu::DrawBody(Frame& f, v2::Box content) {
     f.valuePanel = DrawValuePanel(f, bodyChoices.card, bodyChoices.column);
 }
 
-void GameMenu::DrawCards(Frame& f, v2::Box content, bool narrow) {
+void GameMenu::DrawCards(Frame& f, v2::Box content) {
     const float s = Scale();
     // Home: the cards and a column with the player. Elsewhere: the cards and the focused one's detail.
-    const bool split = !narrow && content.W() >= 820 * s;
+    const bool split = f.split;
     v2::Box list = content, pane{};
     if (split) {
         const float w = f.home ? (std::min)(460 * s, content.W() * .42f) : listWidth > 0 ? content.W() - (std::min)(listWidth * s, content.W() * .55f) - 24 * s :
@@ -412,7 +444,15 @@ void GameMenu::DrawCards(Frame& f, v2::Box content, bool narrow) {
     }
     if (f.home && split) list.max.x = list.min.x + (std::min)(600 * s, list.W());
     // Home's card in the pane stands beside the list; narrow, it is the list's last card.
-    if (f.home) navigation.SetAside(split ? "card" : "");
+    // The aside is the card and, over it, the links drawn in the header.
+    if (f.home) {
+        std::vector<std::string> aside;
+        if (split) {
+            aside.push_back("card");
+            for (const auto& link : headerLinks) if (FocusedIn(f.entries, link.id)) aside.push_back(link.id);
+        }
+        navigation.SetAside(std::move(aside));
+    }
     const v2::Box focusCard = DrawCardList(f, list, split);
     if (split && f.home) DrawHomePane(f, pane);
     else if (split && FocusedIn(f.entries, navigation.Focus())) DrawDetailPane(f, pane);
@@ -428,7 +468,7 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
     // one (52), so all of them show without a scroll where they can.
     float homeRow = 64 * s;
     if (home) {
-        const float rows = static_cast<float>(std::count_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return !(split && e.id == navigation.Aside()); }));
+        const float rows = static_cast<float>(std::count_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return !(split && navigation.IsAside(e.id)); }));
         if (rows > 0) homeRow = (std::max)(52 * s, (std::min)(64 * s, (list.H() - 8 * s * (rows - 1)) / rows));
     }
     // A flyout keeps to one line a card past its first page, so more of its settings show at once.
@@ -478,7 +518,7 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
         if (i == half && halves) { ImGui::SetCursorScreenPos(top); ImGui::Indent(full + gap); }
         const auto& e = entries[i];
         // Home's aside row (the player's card) is drawn in the pane.
-        if (home && split && e.id == navigation.Aside()) continue;
+        if (home && split && navigation.IsAside(e.id)) continue;
         const bool focused = e.id == navigation.Focus(), enabled = feedback_.Enabled(e), cell = i < cells;
         if (cell && i % f.columns) ImGui::SameLine(0, gap);
         // A group's heading over its first card.
@@ -532,6 +572,8 @@ void GameMenu::DrawHomePane(Frame& f, v2::Box pane) {
     // The card is the "card" row: Select, or a click, opens Profile.
     if (const MenuEntry* row = FocusedIn(f.entries, "card")) {
         const v2::Box card{pane.min, ImVec2(pane.max.x, pane.min.y + cardHeight)};
+        // Placed, so the links over it and the card are reached by where they are drawn.
+        navigation.Place(row->id, RectOf(card), WindowClip());
         ImGui::SetCursorScreenPos(card.min);
         const bool pressed = ImGui::InvisibleButton("##player-card", ImVec2(card.W(), card.H())), hovered = ImGui::IsItemHovered();
         if (pressed && listEnabled && !f.modalAtStart && !navigation.Editing() && !navigation.Asking()) { navigation.Focus(row->id, f.entries); f.action = navigation.Choose(f.entries); }
@@ -581,22 +623,42 @@ void GameMenu::DrawDetailPane(Frame& f, v2::Box pane) {
     ImGui::PopStyleColor();
 }
 
+GameMenu::ChoicesFrame GameMenu::BeginChoices() {
+    if (valuesClose_ && navigation.Choosing()) navigation.Cancel();
+    valuesClose_ = false;
+    valuesAcross_ = 0;
+    const ChoicesFrame choices{navigation.Choosing() && notice_.empty(), !valuesOpen_};
+    valuesOpen_ = choices.open;
+    return choices;
+}
+
+void GameMenu::EndChoices(ChoicesFrame choices, bool hovered) {
+    // The board under the choices was drawn while they were still open, so the click does nothing else.
+    // They close on the next frame, after the hint bar's Back has had this click.
+    valuesClose_ = choices.open && !choices.opening && navigation.Choosing() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !hovered;
+}
+
+bool GameMenu::HoldChoicesInPlace(const BodyChoices::InPlace& in) {
+    const ChoicesFrame choices = BeginChoices();
+    if (choices.open) valuesAcross_ = in.across;
+    EndChoices(choices, in.hovered);
+    return choices.open;
+}
+
 bool GameMenu::DrawValuePanel(Frame& f, v2::Box focusCard, v2::Box list) {
     const float s = Scale();
     const auto win = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
-    if (valuesClose_ && navigation.Choosing()) navigation.Cancel();
-    valuesClose_ = false;
+    const ChoicesFrame choices = BeginChoices();
     const MenuEntry* focused = FocusedIn(f.entries, navigation.Focus());
-    valuesAcross_ = 0;
-    if (!navigation.Choosing() || !focused || focusCard.W() <= 0 || !notice_.empty()) { valuesOpen_ = false; return false; }
+    // Open with nowhere to draw them is not open: the frame a place appears is the frame they open on.
+    if (!choices.open || !focused || focusCard.W() <= 0) { valuesOpen_ = false; return false; }
     const auto& e = *focused;
     // Select on a switch flips it: no popup for two words.
-    if (MenuValueIsToggle(e)) { navigation.Cancel(); f.action = {MenuAction::Adjust, e.id, {}, e.value == loc::T("common.on") ? -1 : 1}; return false; }
+    if (MenuValueIsToggle(e)) { navigation.Cancel(); valuesOpen_ = false; f.action = {MenuAction::Adjust, e.id, {}, e.value == loc::T("common.on") ? -1 : 1}; return false; }
     // As many across as fit inside the column, less the panel's padding and its edge's.
     const auto grid = MenuChoiceLayout(e.choices, list.W() - 24 * s);
     // The click that opened it is not a click outside it.
-    const bool opening = !valuesOpen_;
-    valuesOpen_ = true;
+    const bool opening = choices.opening;
     const std::size_t count = e.choices.size(), across = e.popout ? 1 : grid.across, lines = (count + across - 1) / across;
     valuesAcross_ = across;
     const float row = (e.popout ? 44 : 48) * s, inner = (e.popout ? 8 : 6) * s, foot = e.popout ? 0 : 30 * s;
@@ -678,10 +740,8 @@ bool GameMenu::DrawValuePanel(Frame& f, v2::Box focusCard, v2::Box list) {
         if (selected && lastChoice_ != i) ImGui::SetScrollHereY(.5f);
     }
     lastChoice_ = navigation.ChoiceIndex();
-    // A click outside an open popout or value panel closes it. The board under it was drawn
-    // while it was still open, so that click does nothing else.
-    // It closes on the next frame, after the hint bar's Back has had this click.
-    valuesClose_ = !opening && navigation.Choosing() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !ImGui::IsWindowHovered();
+    // A click outside an open popout or value panel closes it.
+    EndChoices(choices, ImGui::IsWindowHovered());
     ImGui::PopStyleVar();
     if (!e.popout && navigation.Choosing()) {
         ImGui::Dummy(ImVec2(0, 2 * s));

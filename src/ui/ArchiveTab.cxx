@@ -5,6 +5,7 @@
 #include "MenuDialogs.hxx"
 #include "MenuRows.hxx"
 #include "NameMarks.hxx"
+#include "PaneButton.hxx"
 #include "PublicRoomsPanel.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
@@ -536,7 +537,6 @@ void ArchiveTab::DrawDetail(const ShellView&, const std::string& id, MenuNavigat
     const auto row = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == id; });
     if (!entry || row == rows.end()) return;
     const float s = Scale();
-    const auto& c = v2::Colors();
     const Game& first = entry->First();
     ImGui::PushFont(HeadingFont());
     for (const auto& name : first.names) NoteUserText(name);
@@ -557,14 +557,7 @@ void ArchiveTab::DrawDetail(const ShellView&, const std::string& id, MenuNavigat
         const Game& game = *entry->games[i];
         v2::Fact(loc::Tf("archive.game_n", i + 1), loc::Tf("replays.fighters", FighterName(game.fighters[0]), FighterName(game.fighters[1])));
     }
-    // Watch now opens the row's choices, as Select does.
-    ImGui::Dummy(ImVec2(0, 6 * s));
-    ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(c.accent));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(c.accentLight));
-    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(c.ink));
-    ImGui::PushFont(HeadingFont());
-    if (ImGui::Button(loc::T("replays.watch"), ImVec2(-1, 52 * s))) nav.Ask(id, rows);
-    ImGui::PopFont();
-    ImGui::PopStyleColor(3);
+    // The big button watches now: the row's first choice, with Select still opening them all.
+    DrawPrimaryChoice(nav, *row, rows);
 }
 } }

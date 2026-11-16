@@ -14,12 +14,18 @@ namespace sf4e { namespace ui {
 // Decided once per frame after the layers, dropped on focus loss. Ember owns the
 // cursor while its menu or the chip takes the mouse, and during a fight to hide it.
 void SetOverlayCursorOwnership(bool capture);
+// Who the F10 key is for, published once a frame for the window procedure:
+// Ember's menu when it can open, the way back to the room in a room's
+// Training, else the game. Where it is Ember's the game never sees it; left
+// to the game it is Windows' menu key, which could put the window in menu
+// mode and swallow the next key.
+enum class F10Owner { Game, Menu, RoomTraining };
 // Nonzero means the native game must not process this message again.
 // `capture` takes every input (an open menu); `pointer` takes only the mouse
 // and cursor (the pointer over the training HUD's chip), leaving keys and
 // the pads to the game.
 LRESULT HandleOverlayMessage(HWND window, UINT message, WPARAM w, LPARAM l,
-                             bool capture, bool menuAvailable, bool pointer = false);
+                             bool capture, F10Owner f10, bool pointer = false);
 
 // The click that brings an inactive window forward is only a request to
 // focus it. The shell stays drawn while the game is behind another window, so

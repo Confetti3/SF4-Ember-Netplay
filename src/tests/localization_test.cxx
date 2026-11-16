@@ -238,7 +238,8 @@ int main(int argc, char** argv) {
         struct Reference { const char* label; std::vector<const char*> uses; std::vector<Locale> exempt; };
         const std::vector<Locale> inflected = {Locale::Pl, Locale::Cs, Locale::Ru};
         const std::vector<Reference> references = {
-            {"home.settings", {"room.controller_required", "room.reject.name_taken"}, inflected},
+            {"home.settings", {"room.controller_required", "room.reject.name_taken", "public.failure.name_taken"}, inflected},
+            {"screen.public_rooms", {"runtime.public_room_connection_failed", "runtime.room_unreachable"}, inflected},
             {"screen.player", {"room.controller_required"}, inflected},
             {"home.fighter_select", {"runtime.selection_unavailable", "runtime.ready.stage_unavailable",
                 "runtime.ready.fighter_unavailable"}, inflected},

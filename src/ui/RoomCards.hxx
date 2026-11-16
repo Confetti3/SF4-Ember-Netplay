@@ -28,12 +28,19 @@ void DrawCardText(std::string& elided,ImVec2 p,float width,const std::string& va
 // Shows `elided` as a tooltip while the last item is hovered, then clears it.
 void FlushCardTip(std::string& elided);
 
-// A button on a table card's footer strip: the seat chooser's options, or Ready and Leave on your own place.
-// `seat` is the side a sit option would take (-1 when it takes none).
-struct TableCardOption {
-    std::string label;
-    bool live=true;
-    int seat=-1;
+
+// A question a table card asks before it acts, answered on the card:
+// whether to do `offer` at `table`, or "stay". Leaving a seat that costs
+// something asks LeaveSeat; an offer that would end the game this PC
+// watches asks that offer. `asked`: the question is open (MenuNavigation::Ask).
+// A new room, or leaving the board, drops it.
+struct TableAsk {
+    static constexpr const char* LeaveSeat="leave-seat";
+    int table=-1;
+    std::string offer;
+    bool asked=false;
+    // The table whose card asks whether to leave its seat, or -1.
+    int Leaving() const { return offer==LeaveSeat?table:-1; }
 };
 
 struct MemberCardView {

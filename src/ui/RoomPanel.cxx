@@ -9,6 +9,7 @@
 #include "RoomFeedback.hxx"
 #include "RoomControls.hxx"
 #include "RoomCards.hxx"
+#include "RoomInvite.hxx"
 #include "RowId.hxx"
 #include "LatencyMark.hxx"
 #include "FighterSelector.hxx"
@@ -52,15 +53,6 @@ const char* StatusName(room::MemberStatus status) {
     case room::MemberStatus::WatchingNext: return loc::T("room.status.watching_next");
     default: return loc::T("room.status.idle");
     }
-}
-// A member with no seat and no queue place anywhere gets the chooser from a
-// table card. Watching elsewhere is no obstacle: sitting down ends it.
-// A room bound to a tournament match seats its fighters itself and refuses
-// every seat change, so nobody there is offered the chooser.
-bool ChoosesSeat(const room::Snapshot& s, const room::Table& t) {
-    if (s.tournament.Active() || !Member(s, s.localMember)) return false;
-    const auto place = room::PlaceOf(s, s.localMember);
-    return place.kind == room::Place::Kind::None;
 }
 // The board's member groups, in their order: playing, at a table, watching, in the room.
 int MemberGroup(room::MemberStatus status) {
@@ -126,7 +118,7 @@ ReadyControl OwnSeatRow(MenuEntry& row,const ShellView& v,const room::Table& tab
  row.hint=control.label;row.info=control.kind==ReadyControl::None;
  if(const auto cost=room::CostOfLeavingSeat(table);asked&&cost)row.choices={
   {"stay",loc::T("common.cancel"),loc::T("room.leave_seat.keep")},
-  {"leave-seat",loc::T("room.leave_seat"),LeavingCostText(cost,table)}};
+  {TableAsk::LeaveSeat,loc::T("room.leave_seat"),LeavingCostText(cost,table)}};
  return control;
 }
 // An Arcade room's floor: its sixteen cabinets. Select on a free one sits
@@ -174,28 +166,59 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
   rows.back().value=SetScoreText(table.score);rows.back().hint=loc::T("room.table_options");rows.back().userText=true;
  }
 }
+// A card's places, which the navigation lights in turn: speech says the lit
+// one as the row's value, and the hint bar names what A does: `idle` while
+// none is lit, the lit one's label, nothing while the room refuses it.
+void OfferPlaces(MenuEntry& row,std::vector<MenuChoice> places,const MenuNavigation& nav,std::string idle){
+ const auto lit=std::find_if(places.begin(),places.end(),[&](const MenuChoice& o){return o.id==nav.Lit(row.id);});
+ if(lit==places.end())row.hint=std::move(idle);
+ else{row.value=lit->label;row.hint=lit->enabled?lit->label:std::string();}
+ row.adjustHint=loc::T("menu.choose");
+ row.segments=std::move(places);row.segmentKind=SegmentKind::Places;
+}
 // A Classic room's floor: a card per table in play. A member with no place
-// gets the seat chooser from it; on your own seat A readies; on the table you
-// queue at, A opens its options.
-void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,int leaveAsk){
+// is offered the table's open seats, else its queue, and watching it
+// (SeatChoices), as places on the card the navigation lights in turn: A sends
+// the lit one (RoomAction), one that would end the game this PC watches asked
+// about first on the card (`ask`) while it still would. On your own seat the
+// places are Ready, Leave seat and Table options (OwnPlaceChoices), Ready the
+// one A takes until another is lit, leaving asked about the same way; on the
+// table you queue at, A opens its options (the strip's Leave queue and Table
+// options are the pointer's). Each row's detail ends with the rules its
+// table plays by, which speech reads.
+void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,const MenuNavigation& nav,const TableAsk& ask){
  using room::Place;
  const auto& s=v.room;
  const auto mine=room::PlaceOf(s,s.localMember);
+ const auto exit=ExitFromPlace(v);
  const auto* local=Member(s,s.localMember);
  for(std::size_t i=0;i<room::TablesInPlay(s);++i){
   const auto& table=s.tables[i];
   const auto occupied=(table.p1?1:0)+(table.p2?1:0);
   std::string detail=loc::Tf("room.table_detail",Name(s,table.p1),Name(s,table.p2),PhaseName(table),
-   table.queue.size(),table.spectators.size()+table.watchingNext.size(),local?StatusName(local->status):loc::T("room.connecting"));
+   table.queue.size(),table.spectators.size()+table.watchingNext.size(),local?StatusName(local->status):loc::T("room.connecting"))+"\n"+RoomRulesText(v,table);
   rows.push_back(Row("table-"+std::to_string(table.id),loc::Tf("room.table_occupancy",table.id+1,occupied),detail));
   auto& row=rows.back();row.detailText=DetailText::Name;row.key=table.id;
   const bool ownTable=mine.table==static_cast<int>(table.id);
-  if(ChoosesSeat(s,table))row.choices=SeatChoices(v,table);
+  if(auto offers=SeatChoices(v,table);!offers.empty()){
+   // A lights one while none is, sends the lit one.
+   if(ask.table==static_cast<int>(table.id))
+    if(const auto asked=std::find_if(offers.begin(),offers.end(),[&](const MenuChoice& o){return o.id==ask.offer;});
+     asked!=offers.end()&&EndsWatchedView(v,FindSeatOption(asked->id)->kind))
+     row.choices={{"stay",loc::T("common.cancel"),loc::T("room.watching_keeps")},*asked};
+   OfferPlaces(row,std::move(offers),nav,loc::T("menu.choose"));
+  }
   else if(mine.kind==Place::Kind::Seat&&ownTable){
-   const auto control=OwnSeatRow(row,v,table,mine.seat,leaveAsk==static_cast<int>(table.id));
+   const auto control=OwnSeatRow(row,v,table,mine.seat,ask.Leaving()==static_cast<int>(table.id));
    // During a held start the card says what it waits for, and that B,
    // Cancel the start, calls it off.
    if(table.spectatorHold&&control.kind==ReadyControl::Unready)row.detail=control.detail;
+   // The card's strip offers Ready, Leave seat and Table options, A readying until one is lit. A
+   // tournament seat has no Leave to offer (ExitFromPlace), so A readies as the row.
+   if(exit.seat&&exit.table==static_cast<int>(table.id)){
+    OfferPlaces(row,OwnPlaceChoices(v,table,exit),nav,row.hint);
+    row.defaultPlace=OwnPlace::Ready;
+   }
   }
   else if(mine.kind==Place::Kind::Queue&&ownTable)row.hint=loc::T("room.table_options");
  }
@@ -306,7 +329,7 @@ struct ApplicationShell::RoomScreenRows {
 std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  using namespace room;
  auto& nav=menu_.navigation; const auto& s=v.room;
- if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;chat_[0]=0;selectedTable_=0;rulesDirty_=false;leaveAsk_=-1;leaveAsked_=false;
+ if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;chat_[0]=0;selectedTable_=0;rulesDirty_=false;tableAsk_={};
   std::snprintf(roomName_,sizeof(roomName_),"%s",s.name.c_str());roomCapacity_=s.capacity;roomTableCount_=static_cast<int>(TablesInPlay(s));
   if(const auto* local=Member(s,s.localMember))if(local->table>=0&&local->table<static_cast<int>(s.tables.size()))selectedTable_=local->table;
  }
@@ -325,9 +348,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  const auto& t=s.tables[selectedTable_];
  const auto screen=nav.Screen();
  // A question about leaving a seat belongs to the board it was asked on.
- if(screen!="room"){leaveAsk_=-1;leaveAsked_=false;}
+ if(screen!="room")tableAsk_={};
  // A new game at the same table closes a dialog about the last one; moving to
- // another table (a click opens its chooser a frame before this catches up)
+ // another table (a click opens its question a frame before this catches up)
  // does not. Text being typed is not about a game, and only the board and the
  // table's options hold dialogs about one.
  if(generationTable_!=selectedTable_){generationTable_=selectedTable_;tableGeneration_=t.matchGeneration;}
@@ -340,7 +363,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  const bool seated=place.kind==room::Place::Kind::Seat&&place.table==selectedTable_;
  // A seat or queue place at another table blocks joining this one. Watching
  // elsewhere does not, because Queue and Watch both end it (the authority's
- // StopWatching); the board's seat chooser applies the same rule.
+ // StopWatching); the board's table cards apply the same rule (SeatChoices).
  const bool elsewhere=place.kind!=room::Place::Kind::None&&place.table!=selectedTable_;
  const bool queued=std::find(t.queue.begin(),t.queue.end(),s.localMember)!=t.queue.end();
  // A queued member is listed as a spectator of the game it waits out without
@@ -398,18 +421,17 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // The board's rows in the order it draws them: the floor, the Members
  // panel, the Chat panel, the picture's Hide, then the action bar (Room.dc.html).
  if(s.roomEpoch){
-  if(room::RulesOf(s).cabinets)CabinetRows(rows,v,c.mutableRoom,leaveAsk_);else TableCardRows(rows,v,leaveAsk_);
+  if(room::RulesOf(s).cabinets)CabinetRows(rows,v,c.mutableRoom,tableAsk_.Leaving());else TableCardRows(rows,v,nav,tableAsk_);
   MembersPanelRows(rows,s,preferences_.roomShowMembers,v.CanEditRoomSettings());
   ChatPanelRows(rows,transcript_.Unread(muted_),preferences_.roomShowChat,v.CanEditRoomSettings());
  }else rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
  if(pictureOnBoard_)rows.push_back(Row("room-hide-picture",loc::T("room.v2.hide_picture"),loc::T("room.v2.hide_detail"),v.CanEditRoomSettings()));
  // The action bar: Ready and the Ultra when seated, the table options (Y),
- // Training, the invitation's two copy buttons side by side, More…, the
- // asking rows, then Leave room last.
+ // Training, Invite, More…, the asking rows, then Leave room last.
  if(s.roomEpoch&&c.place.kind==Place::Kind::Seat){
-  const auto ready=DescribeReady(v,s.tables[c.place.table],c.place.seat);
-  // A bar button is a few words wide, so Unready drops its "unlock fighter", as on the card's strip.
-  rows.push_back(Row("ready",ready.kind==ReadyControl::Unready?loc::T("room.unready.short"):ready.label,ready.refusal.empty()?ready.detail:ready.refusal,ready.kind!=ReadyControl::None));
+  // The same button as your own card's strip (OwnPlaceChoices).
+  const auto ready=ReadyButtonOf(DescribeReady(v,s.tables[c.place.table],c.place.seat));
+  rows.push_back(Row("ready",ready.label,ready.detail,ready.enabled));
   // An Arcade pair deciding after a set: Ready is its Rematch, and New
   // opponent stands beside it, the cabinet's two choices (CabinetRows) on the
   // bar, so neither needs the player to find their own cabinet.
@@ -425,7 +447,8 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  opponentChangeSeen_=v.opponentChangeSequence;
  if(s.roomEpoch){
   // Players open them between almost every game, so they are a button, not a choice of More….
-  rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
+  const auto options=TableOptionsButton(v,selectedTable_);
+  rows.push_back(Row("options",options.label,options.detail,options.enabled));
   rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
  }
  // A tournament room admits only its two fighters, who reach it through the
@@ -433,11 +456,13 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // admits by the service's ticket, so its invitation would admit nobody.
  // The tournament's own room is never shared, from its first claim: the window
  // before its binding lands has no tournament snapshot yet.
- if(!c.tournamentRoom&&!s.serverOwned&&!v.tournament.MatchRoomActive()){
-  rows.push_back(Row("copy",loc::T("room.copy_invitation"),loc::T("room.copy_invitation.detail"),!v.invitation.empty()));
-  // Once made, the detail shows the link itself so it can be read out.
-  rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
-   v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
+ if(room_invite::Invitable(v)){
+  // One button: the friends to invite now, and the two ways to hand a link out (room_invite::ChoicesOf).
+  MenuEntry invite=Row("invite",loc::T("friends.invite"),loc::T("room.invite.detail"));invite.popout=true;
+  invite.choices=room_invite::ChoicesOf(v,friends_.Gates(v));
+  invite.chosen=room_invite::FirstEnabled(invite.choices);
+  invite.enabled=std::any_of(invite.choices.begin(),invite.choices.end(),[](const MenuChoice& choice){return choice.enabled;});
+  rows.push_back(std::move(invite));
  }
  // More… (a popout): a public room's link, the controllers and the room's
  // settings, then the board's parts as switches, which Select flips and More…
@@ -495,10 +520,13 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  rows.push_back(ConfirmRow("leave",loc::T(v.session.room==netplay::RoomState::Closing?"room.leaving":"room.leave"),
   LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
  // The questions the board asks of its own rows, once they are all there.
- if(s.roomEpoch&&leaveAsk_>=0){
-  const auto asked=room::RulesOf(s).cabinets?"cabinet-"+std::to_string(room::CabinetOf(s,s.localMember)):"table-"+std::to_string(leaveAsk_);
-  if(!leaveAsked_){if(nav.Ask(asked,rows))leaveAsked_=true;else leaveAsk_=-1;}
-  else if(!nav.Choosing()){leaveAsk_=-1;leaveAsked_=false;}
+ // A table card's question (TableAsk) opens on its card, or on the cabinet
+ // an Arcade player leaves; answered, cancelled, or no longer offered by the
+ // row (the watched game ended), it is dropped.
+ if(s.roomEpoch&&tableAsk_.table>=0){
+  const auto asked=tableAsk_.Leaving()>=0&&room::RulesOf(s).cabinets?"cabinet-"+std::to_string(room::CabinetOf(s,s.localMember)):"table-"+std::to_string(tableAsk_.table);
+  if(!tableAsk_.asked){if(nav.Ask(asked,rows))tableAsk_.asked=true;else tableAsk_={};}
+  else if(!nav.Choosing())tableAsk_={};
  }
  if(moreAsk_){moreAsk_=false;nav.Ask("room-more",rows);}
  SettleRoomBoard(v,rows,nav);
@@ -750,7 +778,7 @@ void ApplicationShell::OpenTableOptions(const ShellView& v,int table) {
  selectedTable_=table;rulesDirty_=false;rulesRevision_=v.room.tables[table].revision;tableRules_=v.room.tables[table].rules;
  nav.Home();nav.Push("room");nav.Push("room-table");
 }
-void ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {
+bool ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {
  // Ready is this PC's own seat, whatever table or cabinet the board has
  // focused (selectedTable_ follows the focus); unseated, the focused table
  // says why not.
@@ -761,15 +789,21 @@ void ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {
  if(control.kind==ReadyControl::Unready){
   room::Action request;request.table=static_cast<std::uint8_t>(table);
   request.kind=room::ActionKind::Unready;request.seat=static_cast<std::int8_t>(seat);
-  if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
- }else if(control.kind==ReadyControl::Rematch&&v.room.tables[table].deciding){
+  const bool sent=SendRoom(std::move(request),v,submit);
+  if(!sent&&error_.empty())error_=loc::T("room.action_rejected");
+  return sent;
+ }
+ if(control.kind==ReadyControl::Rematch&&v.room.tables[table].deciding){
   room::Action request;request.table=static_cast<std::uint8_t>(table);request.kind=room::ActionKind::Rematch;
-  if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
- }else if(control.kind!=ReadyControl::None)
-  SendReady(v,control.kind==ReadyControl::Rematch,submit);
- else if(!control.refusal.empty())
+  const bool sent=SendRoom(std::move(request),v,submit);
+  if(!sent&&error_.empty())error_=loc::T("room.action_rejected");
+  return sent;
+ }
+ if(control.kind!=ReadyControl::None)return SendReady(v,control.kind==ReadyControl::Rematch,submit);
+ if(!control.refusal.empty())
   Refuse(control.refusal,[table,seat](const ShellView& now){
    return DescribeReady(now,now.room.tables[table],seat).kind==ReadyControl::None;});
+ return false;
 }
 void ApplicationShell::LeavePlace(const ShellView& v,const Submit& submit) {
  const auto exit=ExitFromPlace(v);if(exit.table<0)return;
