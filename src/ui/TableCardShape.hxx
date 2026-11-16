@@ -300,7 +300,7 @@ struct TableCardInput {
 // none); its buttons' press boxes, left to right: on its line between its
 // words and its line's end, never over its lead, the line's whole height
 // (drawn HeadInset inside it), as wide as they want or sharing what is left;
-// on a card with a strip its buttons instead, side by side at the strip's end,
+// on a card with a strip its buttons instead, side by side, centred in the card,
 // equal (the widest label's width, at least StripButton; the card's inner
 // width shared where that does not fit), a Between apart (its line then holds none);
 // on a quiet card a question's answers across its seats' place, the seats
@@ -402,14 +402,14 @@ inline TableCardLayout LayOutTableCard(const TableCardShape& shape, const TableC
     if (in.content.strip) {
         at.strip = {left, b.y1 - (card::Foot + card::Strip) * s, right, b.y1 - card::Foot * s};
         // Equal buttons, as wide as the widest label wants and at least
-        // StripButton, at the strip's end; where the card is too narrow for
+        // StripButton, centred in the card; where the card is too narrow for
         // that they share its whole width.
         const std::size_t n = in.buttons.size();
         const float gap = card::Between * s, share = n ? (std::max)(0.f, (inner - (n - 1) * gap) / n) : 0.f;
         float each = card::StripButton * s;
         for (const float want : in.buttons) each = (std::max)(each, want);
         each = (std::min)(each, share);
-        const float start = right - (n ? n * each + (n - 1) * gap : 0.f);
+        const float start = left + (inner - (n ? n * each + (n - 1) * gap : 0.f)) * .5f;
         at.buttons.resize(n);
         for (std::size_t i = 0; i < n; ++i) {
             const float x0 = start + i * (each + gap);
