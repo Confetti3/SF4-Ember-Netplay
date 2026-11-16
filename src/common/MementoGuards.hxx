@@ -168,13 +168,22 @@ private:
     size_t size_ = 0;
 };
 
+// What a saved state is to the match: its loss ends it (netplay's slots), or the match goes on without it
+// (a replay's snapshot).
+enum class Stake { Match, Optional };
+// Whether a failure is about states that are all optional: one or two states, none is the live battle.
+template <class State>
+bool OnlyOptional(const State* a, const State* b = nullptr) {
+    return (a || b) && (!a || a->stake == Stake::Optional) && (!b || b->stake == Stake::Optional);
+}
 // What a guard check that failed does. A restore reports into Load's return;
-// a closing battle or a drain already belongs to an abort. A save that is
-// optional (a replay's snapshot) only fails itself: the match goes on.
+// a closing battle or a drain already belongs to an abort. A failure that is
+// about states that are all optional is theirs only; one that is about another
+// state, or about the live battle (no state), is the match's.
 enum class Response { FailRestore, Ignore, Abort };
-inline Response RespondToFailure(bool restoring, unsigned restoreDepth, unsigned optionalDepth, bool closing, bool draining) {
+inline Response RespondToFailure(bool restoring, unsigned restoreDepth, bool ownersOptional, bool closing, bool draining) {
     if (restoring || restoreDepth) return Response::FailRestore;
-    if (optionalDepth || closing || draining) return Response::Ignore;
+    if (ownersOptional || closing || draining) return Response::Ignore;
     return Response::Abort;
 }
 

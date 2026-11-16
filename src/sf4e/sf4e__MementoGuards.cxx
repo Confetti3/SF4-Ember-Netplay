@@ -6,7 +6,7 @@ namespace sf4e { namespace memento {
 static_assert(sizeof(Key::Metadata) == kMetadataBytes, "the engine metadata layout is 12 bytes");
 namespace {
 PayloadOwners<SaveState> owners;
-unsigned restoreDepth = 0, optionalDepth = 0;
+unsigned restoreDepth = 0;
 bool abortPending = false;
 // Set while DrainAbort retires the session, whose free callbacks may trip
 // another check; that one belongs to the same abort.
@@ -39,11 +39,12 @@ uintptr_t BaseVtable() {
     return vtable;
 }
 
-void Fail(bool restoring) {
+// The states the failure is about: none when it is the live battle's.
+void Fail(bool restoring, const SaveState* about = nullptr, const SaveState* also = nullptr) {
     // A closing battle is already over: the skipped write or leaked payload is
     // the whole remedy, and an abort now would only show a false error.
     const bool closing = fSystem::simGate.phase == sf4e::gate::PHASE_BATTLE_CLOSING;
-    switch (RespondToFailure(restoring, restoreDepth, optionalDepth, closing, draining)) {
+    switch (RespondToFailure(restoring, restoreDepth, OnlyOptional(about, also), closing, draining)) {
     case Response::FailRestore:
         Game::MementoFailure::restore = true;
         break;
@@ -62,11 +63,14 @@ void RegisterPayloads(SaveState* state) {
     for (size_t i = 0; i < state->keys.size(); ++i) {
         const Claimed claimed = owners.Insert(state, i);
         if (claimed == Claimed::Inserted) continue;
+        const SaveState* other = nullptr;
         auto& entry = state->keys[i];
         // A payload this snapshot cannot own exclusively is abandoned (leaked)
         // and the capture fails, so it is never loaded or released.
         if (claimed == Claimed::Duplicate) {
             Log(state, entry.first, entry.second, "save.claim", "duplicate payload ownership");
+            const auto* held = owners.Find(entry.second.mementos);
+            other = held ? held->owner : nullptr;
             owners.Revoke(entry.second.mementos);
         } else {
             Log(state, entry.first, entry.second, "save.claim", "ownership table full");
@@ -74,7 +78,7 @@ void RegisterPayloads(SaveState* state) {
         entry.second = {};
         state->keyFailure = true;
         Game::MementoFailure::record = true;
-        Fail(false);
+        Fail(false, state, other);
     }
 }
 
@@ -90,15 +94,16 @@ void NoteEngineClear(Key* key, const char* operation) {
     Log(claim->owner, key, *key, operation, "engine clearing slot-owned payload");
     // Native ClearKey owns this release. Remove the snapshot's descriptor
     // before native code frees it, so retirement cannot release it twice.
+    const SaveState* owner = claim->owner;
     owners.Revoke(key->mementos);
-    Fail(false);
+    Fail(false, owner);
 }
 
 bool CheckKeyWrite(SaveState* state, Key* address, const Key& saved, const char* operation, bool restoring) {
     if (fKey::trackedKeys.find(address) != fKey::trackedKeys.end()) return true;
     uint64_t& count = restoring ? counters.loadWrites : counters.freeWrites;
     if (++count == 1) Log(state, address, saved, operation, "write skipped for untracked key; payload leaked");
-    Fail(restoring);
+    Fail(restoring, state);
     return false;
 }
 
@@ -107,7 +112,7 @@ bool CheckRelease(SaveState* state, Key* address, const Key& saved, const char* 
     if (!reason) return true;
     ++counters.badDescriptors;
     Log(state, address, saved, operation, reason);
-    Fail(false);
+    Fail(false, state);
     return false;
 }
 
@@ -115,8 +120,6 @@ void NoteRelease() { ++counters.releases; }
 
 RestoreScope::RestoreScope() { ++restoreDepth; }
 RestoreScope::~RestoreScope() { --restoreDepth; }
-OptionalScope::OptionalScope() { ++optionalDepth; }
-OptionalScope::~OptionalScope() { --optionalDepth; }
 // Battle close ends the match anyway, so a pending abort is dropped with the counters.
 void ResetCounters() { counters = {}; abortPending = false; }
 void RequestAbort() { Fail(false); }
