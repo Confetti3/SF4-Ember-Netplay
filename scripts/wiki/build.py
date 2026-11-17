@@ -21,6 +21,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path, PurePosixPath
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[2]
 UPSTREAM = "Confetti3/SF4-Ember-Netplay"
@@ -30,22 +31,37 @@ BRANCH = "nightly"
 PR_LABEL = "wiki"
 
 SECTIONS = ["Getting started", "Playing online", "Training", "Frame Data", "Tournaments", "Integrations", "Troubleshooting"]
-# Source file, wiki page and sidebar section. A guide missing here still gets
-# a page, under "More guides", and the build warns about it.
+
+
+class Page(NamedTuple):
+    """A wiki page: its source file, its name and its sidebar section."""
+    path: str
+    title: str
+    section: str
+
+
+# Every guide's page. A guide missing here still gets a page, under "More guides", and the build warns about it.
 PAGES = [
-    ("README.md", "Install", "Getting started"),
-    ("docs/guides/SCOPE_AND_LIMITATIONS.md", "Scope and Limitations", "Getting started"),
-    ("docs/guides/USER_NETPLAY.md", "Player Guide", "Playing online"),
-    ("docs/guides/CUSTOM_ROOMS.md", "Custom Rooms", "Playing online"),
-    ("docs/guides/CONTROLLER_MENUS.md", "Controllers and Menus", "Playing online"),
-    ("docs/guides/DISCORD.md", "Discord", "Playing online"),
-    ("docs/guides/TRAINING_LAB.md", "Training Lab", "Training"),
-    ("docs/guides/INTEGRATIONS.md", "Integrations", "Integrations"),
-    ("docs/guides/BLUMINT_QUICKSTART.md", "BluMint Quickstart", "Integrations"),
-    ("docs/guides/TROUBLESHOOTING.md", "Troubleshooting", "Troubleshooting"),
-    ("docs/guides/INPUT_LAG.md", "Input Lag", "Troubleshooting"),
-    ("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting"),
-    ("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting"),
+    Page("README.md", "Install", "Getting started"),
+    Page("docs/guides/STEAM_DECK.md", "Steam Deck", "Getting started"),
+    Page("docs/guides/LINUX.md", "Linux", "Getting started"),
+    Page("docs/guides/SCOPE_AND_LIMITATIONS.md", "Scope and Limitations", "Getting started"),
+    Page("docs/guides/USER_NETPLAY.md", "Player Guide", "Playing online"),
+    Page("docs/guides/CUSTOM_ROOMS.md", "Custom Rooms", "Playing online"),
+    Page("docs/guides/CONTROLLER_MENUS.md", "Controllers and Menus", "Playing online"),
+    Page("docs/guides/V2_MENUS.md", "Ember Menus", "Playing online"),
+    Page("docs/guides/ACCESSIBILITY.md", "Accessibility", "Playing online"),
+    Page("docs/guides/GAME_THEMES.md", "In-game Themes", "Playing online"),
+    Page("docs/guides/DISCORD.md", "Discord", "Playing online"),
+    Page("docs/guides/TRAINING_LAB.md", "Training Lab", "Training"),
+    Page("docs/guides/TOURNAMENT_MODE.md", "Tournament Mode", "Tournaments"),
+    Page("docs/guides/TOURNAMENT_TEST.md", "Tournament Test", "Tournaments"),
+    Page("docs/guides/INTEGRATIONS.md", "Integrations", "Integrations"),
+    Page("docs/guides/BLUMINT_QUICKSTART.md", "BluMint Quickstart", "Integrations"),
+    Page("docs/guides/TROUBLESHOOTING.md", "Troubleshooting", "Troubleshooting"),
+    Page("docs/guides/INPUT_LAG.md", "Input Lag", "Troubleshooting"),
+    Page("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting"),
+    Page("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting"),
 ]
 # The README's player part, from the downloads to its guides table; the table, community and licenses are
 # for the repository page.
