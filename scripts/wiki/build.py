@@ -34,39 +34,48 @@ SECTIONS = ["Getting started", "Playing online", "Training", "Frame Data", "Tour
 
 
 class Page(NamedTuple):
-    """A wiki page: its source file, its name and its sidebar section."""
+    """A wiki page: its source file, its name, its sidebar section and what Home says it covers."""
     path: str
     title: str
     section: str
+    about: str = ""
 
 
 # Every guide's page. A guide missing here still gets a page, under "More guides", and the build warns about it.
 # The sidebar, Home and Previous/Next read the pages by section, then in this order.
 PAGES = [
-    Page("README.md", "Install", "Getting started"),
-    Page("docs/guides/STEAM_DECK.md", "Steam Deck", "Getting started"),
-    Page("docs/guides/LINUX.md", "Linux", "Getting started"),
-    Page("docs/guides/SCOPE_AND_LIMITATIONS.md", "Scope and Limitations", "Getting started"),
-    Page("docs/guides/USER_NETPLAY.md", "Player Guide", "Playing online"),
-    Page("docs/guides/CUSTOM_ROOMS.md", "Custom Rooms", "Playing online"),
-    Page("docs/guides/CONTROLLER_MENUS.md", "Controllers and Menus", "Playing online"),
-    Page("docs/guides/V2_MENUS.md", "Ember Menus", "Playing online"),
-    Page("docs/guides/ACCESSIBILITY.md", "Accessibility", "Playing online"),
-    Page("docs/guides/GAME_THEMES.md", "In-game Themes", "Playing online"),
-    Page("docs/guides/DISCORD.md", "Discord", "Playing online"),
-    Page("docs/guides/TRAINING_LAB.md", "Training Lab", "Training"),
-    Page("docs/guides/TOURNAMENT_MODE.md", "Tournament Mode", "Tournaments"),
-    Page("docs/guides/TOURNAMENT_TEST.md", "Tournament Test", "Tournaments"),
-    Page("docs/guides/INTEGRATIONS.md", "Integrations", "Integrations"),
-    Page("docs/guides/BLUMINT_QUICKSTART.md", "BluMint Quickstart", "Integrations"),
-    Page("docs/guides/TROUBLESHOOTING.md", "Troubleshooting", "Troubleshooting"),
-    Page("docs/guides/INPUT_LAG.md", "Input Lag", "Troubleshooting"),
-    Page("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting"),
-    Page("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting"),
+    Page("README.md", "Install", "Getting started", "Which download to take, installing Ember and your first launch"),
+    Page("docs/guides/STEAM_DECK.md", "Steam Deck", "Getting started",
+         "Installing through Proton, updating, uninstalling and where the logs are"),
+    Page("docs/guides/LINUX.md", "Linux", "Getting started", "Installing through Proton on a Linux PC that is not a Steam Deck"),
+    Page("docs/guides/SCOPE_AND_LIMITATIONS.md", "Scope and Limitations", "Getting started",
+         "What is experimental, and what to expect"),
+    Page("docs/guides/USER_NETPLAY.md", "Player Guide", "Playing online", "Hosting, joining, updates and day-to-day play"),
+    Page("docs/guides/CUSTOM_ROOMS.md", "Custom Rooms", "Playing online", "Tables, queues, spectators and room rules"),
+    Page("docs/guides/CONTROLLER_MENUS.md", "Controllers and Menus", "Playing online",
+         "Moving around Ember with a pad, stick or keyboard"),
+    Page("docs/guides/V2_MENUS.md", "Ember Menus", "Playing online",
+         "Home, Settings, the room board and how to move around them"),
+    Page("docs/guides/ACCESSIBILITY.md", "Accessibility", "Playing online", "Speech, TV mode and the accessibility button"),
+    Page("docs/guides/GAME_THEMES.md", "In-game Themes", "Playing online",
+         "Changing how the menus and battle HUD look and sound"),
+    Page("docs/guides/DISCORD.md", "Discord", "Playing online", "Invitations, your Discord status and privacy"),
+    Page("docs/guides/TRAINING_LAB.md", "Training Lab", "Training",
+         "Frame meter, dummy recording and dummy replies, with a notation cheat sheet"),
+    Page("docs/guides/TOURNAMENT_MODE.md", "Tournament Mode", "Tournaments", "Ember ID and playing organized tournaments"),
+    Page("docs/guides/TOURNAMENT_TEST.md", "Tournament Test", "Tournaments", "Trying a tournament on two PCs"),
+    Page("docs/guides/INTEGRATIONS.md", "Integrations", "Integrations",
+         "Ember's tournament bridge for platforms, organizers and bots"),
+    Page("docs/guides/BLUMINT_QUICKSTART.md", "BluMint Quickstart", "Integrations",
+         "Getting the Ember bridge working with BluMint"),
+    Page("docs/guides/TROUBLESHOOTING.md", "Troubleshooting", "Troubleshooting", "Startup, connections and diagnostics"),
+    Page("docs/guides/INPUT_LAG.md", "Input Lag", "Troubleshooting", "Input delay and the game's own settings"),
+    Page("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting", "Saving logs from both players for a bug report"),
+    Page("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting", "When antivirus flags Ember"),
 ]
 # The frame data index, after Training. Its pages are generated on a lab PC, so a build without them still lists
 # it in the reading order, and the publisher keeps the published pages (KEPT, which check.py accepts as links).
-FRAME_DATA = Page("Frame-Data.md", "Frame Data", "Frame Data")
+FRAME_DATA = Page("Frame-Data.md", "Frame Data", "Frame Data", "Move data for every fighter")
 KEPT = {"Frame-Data"}
 # The README's player part, from the downloads to its guides table; the table, community and licenses are
 # for the repository page.
@@ -420,6 +429,8 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
         if lines is not None:
             write_page(out, page.title, title, page.section, lines, colors, before, after)
         sidebar.setdefault(page.section, []).append(page)
+        if not page.about:
+            report.append(f"{page.path} has no about in PAGES; Home does not say what it covers")
 
     for image in sorted(images):
         target = out / "images" / image.removeprefix("docs/images/")
@@ -435,13 +446,15 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
     text = ["![SF4 Ember Netplay](images/banner-Home.svg)", "",
             "Guides for playing Ultra Street Fighter IV online with Ember: installing it, playing in rooms, "
             "training, running tournaments and fixing problems.", ""]
+    table = ("| Page | What it covers |", "| --- | --- |")
 
-    def listing(heading):
-        return [line for s, found in sidebar.items()
-                for line in [heading % s, "", *(f"- [{p.title}]({slug(p.title)})" for p in found), ""]]
+    def listing(heading, row, header=()):
+        return [line for s, found in sidebar.items() for line in [heading % s, "", *header, *map(row, found), ""]]
 
-    (out / "Home.md").write_text("\n".join(text + listing("## %s")), encoding="utf-8")
-    (out / "_Sidebar.md").write_text("\n".join(["**[Home](Home)**", ""] + listing("**%s**")), encoding="utf-8")
+    home = listing("## %s", lambda p: f"| [{p.title}]({slug(p.title)}) | {p.about} |", table)
+    (out / "Home.md").write_text("\n".join(text + home), encoding="utf-8")
+    sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p.title}]({slug(p.title)})")
+    (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
 
     sha = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     text = f"Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); edit the docs, not this page."
