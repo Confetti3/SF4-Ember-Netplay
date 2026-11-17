@@ -359,12 +359,16 @@ function CheckClosed([string]$Root) {
             # A 32-bit PowerShell cannot read a 64-bit process's module path, and
             # sf4-net is 64-bit. WMI reports it for either. A process WMI no
             # longer lists has exited and holds no files; one that is listed
-            # without a path still fails closed.
+            # without a path still fails closed, unless it runs in session 0:
+            # only services run there, never an interactive program such as
+            # Ember, and a SYSTEM service's updater.exe (Dropbox, Google) has a
+            # path the player's PowerShell cannot read.
             if (!$path) {
                 try { $listed = Get-CimInstance Win32_Process -Filter "ProcessId=$($process.Id)" -ErrorAction Stop }
                 catch { throw 'Close Ember and its helper processes before upgrading.' }
                 if (!$listed) { continue }
                 $path = $listed.ExecutablePath
+                if (!$path -and $process.SessionId -eq 0) { continue }
             }
             if (!$path -or $path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
                 throw 'Close Ember and its helper processes before upgrading.'
