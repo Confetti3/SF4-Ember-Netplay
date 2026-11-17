@@ -88,20 +88,14 @@ jobs:
       - name: Install nlohmann-json
         # The runner's package lists usually have it; refresh them only if not.
         run: sudo apt-get install -y nlohmann-json3-dev || { sudo apt-get update && sudo apt-get install -y nlohmann-json3-dev; }
-      - name: Build and run the room and tournament suites
-        run: |
-          set -euo pipefail
-          RM="src/session/RoomModel.cxx src/session/RoomModelActions.cxx src/session/RoomModelJson.cxx src/session/RoomModelTournament.cxx src/session/RoomModelArcade.cxx src/session/RoomModelServerOwned.cxx src/session/RoomModelTerminal.cxx src/session/RoomModelTimers.cxx src/session/RoomDigest.cxx"
-          mkdir -p build/room
-          g++ -std=c++17 -O1 -pthread -o build/room/room_tournament_test src/tests/room_tournament_test.cxx $RM &
-          room=$!
-          g++ -std=c++17 -O1 -pthread -o build/room/tournament_fuzz_test src/tests/tournament_fuzz_test.cxx src/session/TournamentAnswers.cxx src/netplay/TournamentPlay.cxx src/netplay/WatchPlay.cxx $RM &
-          fuzz=$!
-          g++ -std=c++17 -O1 -pthread -o build/room/tournament_play_test src/tests/tournament_play_test.cxx src/netplay/TournamentPlay.cxx $RM &
-          play=$!
-          wait "$room"
-          wait "$fuzz"
-          wait "$play"
-          build/room/room_tournament_test
-          build/room/tournament_fuzz_test
-          build/room/tournament_play_test
+      # CMake's game-independent build, without vcpkg or the Windows
+      # dependencies, so the tests build from their CMake registrations. With
+      # nlohmann_json it holds the room model's tests; the requirement turns a
+      # missing nlohmann_json into a failure here instead of a build without
+      # them. It runs every test it builds.
+      - name: Configure the game-independent tests
+        run: cmake -S . -B build/room -DSF4E_CORE_TESTS_ONLY=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_REQUIRE_FIND_PACKAGE_nlohmann_json=ON
+      - name: Build the game-independent tests
+        run: cmake --build build/room --parallel
+      - name: Run the game-independent tests
+        run: ctest --test-dir build/room --output-on-failure
