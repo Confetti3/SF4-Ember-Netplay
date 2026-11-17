@@ -88,6 +88,13 @@ function CopyOne([string]$Source, [string]$Destination) {
     Copy-Item -LiteralPath $Source -Destination $Destination -Force
 }
 
+# A read-only product file or lock cannot be opened for writing or replaced.
+# Ember's files carry no mark of their own, so it is dropped, as the Updater does.
+function DropReadOnly([string]$Path) {
+    if ([IO.File]::Exists($Path) -and ([IO.File]::GetAttributes($Path) -band [IO.FileAttributes]::ReadOnly)) {
+        [IO.File]::SetAttributes($Path, [IO.File]::GetAttributes($Path) -band -bnot [IO.FileAttributes]::ReadOnly)
+    }
+}
 function ReplaceOne([string]$Source, [string]$Destination, [string]$ExpectedHash) {
     $null = [IO.Directory]::CreateDirectory((Split-Path $Destination -Parent))
     $temporary = $Destination + '.ember-' + [Guid]::NewGuid().ToString('N') + '.tmp'
@@ -99,6 +106,7 @@ function ReplaceOne([string]$Source, [string]$Destination, [string]$ExpectedHash
     if ((Get-FileHash -LiteralPath $temporary -Algorithm SHA256).Hash -ine $ExpectedHash) {
         throw "Temporary update file failed verification: $Destination"
     }
+    DropReadOnly $Destination
     if ([IO.File]::Exists($Destination)) { [IO.File]::Replace($temporary,$Destination,[NullString]::Value) }
     else { [IO.File]::Move($temporary,$Destination) }
     if ((Get-FileHash -LiteralPath $Destination -Algorithm SHA256).Hash -ine $ExpectedHash) {
@@ -429,7 +437,7 @@ $lockPath = SafePath $install '.ember-update.lock'
 $transactionPath = SafePath $install '.ember-update-transaction-v1.json'
 $lock = $null
 try {
-    if (!$CheckOnly) { $lock = [IO.File]::Open($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None) }
+    if (!$CheckOnly) { DropReadOnly $lockPath; $lock = [IO.File]::Open($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None) }
 } catch { throw 'Another Ember update or recovery is using this installation.' }
 try {
 if (RecoverTransaction $install $transactionPath -InspectOnly:$CheckOnly) {
@@ -450,8 +458,8 @@ foreach ($relative in @($changed + $removed)) {
     $path = SafePath $install $relative
     if (Test-Path -LiteralPath $path -PathType Container) { throw "A package file collides with a directory: $relative" }
     if (Test-Path -LiteralPath $path -PathType Leaf) {
-        $access = if ($CheckOnly) { [IO.FileAccess]::Read } else { [IO.FileAccess]::ReadWrite }
-        $stream = [IO.File]::Open($path, [IO.FileMode]::Open, $access, [IO.FileShare]::None)
+        # Shared with nobody, a file in use fails here; ReplaceOne drops a read-only mark later.
+        $stream = [IO.File]::Open($path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
         $stream.Dispose()
     }
 }

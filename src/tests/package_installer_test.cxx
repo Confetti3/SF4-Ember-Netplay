@@ -296,6 +296,23 @@ static void LinkedParentInstalls() {
     CHECK_WITH_ERROR(sf4e::launcher::UninstallPackage(root/L"alias",error) && fs::exists(fs::symlink_status(root/L"alias")));
     fs::remove(root/L"alias"); fs::remove(linked); fs::remove_all(root);
 }
+// A product file marked read-only (by the player, a sync tool or a copy from
+// a read-only medium), and the lock an earlier update left with the same mark,
+// do not stop an update or an uninstall.
+static void ReadOnlyFilesUpdate() {
+    std::string error;
+    const auto root=MakeTempRoot(L"ember-upgrade-readonly-");
+    const auto install=root/L"install", staging=root/L"staging";
+    const auto markReadOnly=[&]{ for(const auto* name:{L"Launcher.exe",L".ember-update.lock"})
+        CHECK(SetFileAttributesW((install/name).c_str(),FILE_ATTRIBUTE_READONLY)); };
+    Write(install/L"Launcher.exe","old"); Write(install/L".ember-update.lock","");
+    markReadOnly();
+    Package(staging,"new");
+    CHECK_WITH_ERROR(sf4e::launcher::InstallPackage(staging,install,error) && Read(install/L"Launcher.exe")=="new");
+    markReadOnly();
+    CHECK_WITH_ERROR(sf4e::launcher::UninstallPackage(install,error) && !fs::exists(install/L"Launcher.exe"));
+    RemoveTempRoot(root);
+}
 // Glyph and flag art is allowed by a strict pattern as well as by name, so a
 // later version can add a file there without this build refusing its update.
 static void ArtPatterns() {
@@ -378,6 +395,7 @@ int wmain(int argc, wchar_t** argv) {
     ArtPatterns();
     SourceArtListed();
     LinkedParentInstalls();
+    ReadOnlyFilesUpdate();
     const auto root = MakeTempRoot(L"ember-upgrade-test-");
     const auto staging = root/L"staging", install = root/L"install";
     fs::create_directories(staging); fs::create_directories(install);
