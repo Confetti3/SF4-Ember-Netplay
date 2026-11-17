@@ -26,6 +26,7 @@
 #include "../training/RemoteServer.hxx"
 #include "sf4e__Borderless.hxx"
 #include "sf4e__StartupLog.hxx"
+#include "../platform/ModulePin.hxx"
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
@@ -399,6 +400,14 @@ int fMain::Initialize(void* a, void* b, void* c) {
 	rMain::staticMethods.GetFocusStateSingleton();
 	// This hook is outside DllMain: worker creation and named-pipe IPC are safe.
 	sf4e::NetplayFacade::StartHelper();
+	// XAudio2_7.dll reports that it can unload while an engine is alive, so a COM
+	// cleanup sweep can free it under the game's sound thread (seen in EMBER-110,
+	// -114 and -116). Pin it. Logged through StartupLog: Sidecar's logger does
+	// not exist yet.
+	if (const HMODULE audio = sf4e::platform::PinSystemModule(L"XAudio2_7.dll"))
+		sf4e::StartupLog::Log(spdlog::level::info, fmt::format("Audio: XAudio2_7.dll pinned at {}", static_cast<void*>(audio)));
+	else
+		sf4e::StartupLog::Log(spdlog::level::warn, fmt::format("Audio: XAudio2_7.dll could not be pinned (error {})", GetLastError()));
 	// Order matters: Main::Initialize (0x77E3E0) asks for the multithreaded
 	// apartment and gives up with -3 when its CoInitializeEx returns
 	// RPC_E_CHANGED_MODE, and SDL's Windows backends, started by
