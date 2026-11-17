@@ -390,6 +390,7 @@ sf4e_add_unit_test(NAME OverlayLifecycle SOURCES src/tests/overlay_lifecycle_tes
 # Its stress test keeps three threads busy throughout.
 set_tests_properties(OverlayLifecycle PROPERTIES PROCESSORS 3)
 sf4e_add_unit_test(NAME SoundPoolRestore SOURCES src/tests/sound_pool_restore_test.cxx LIBS Session sf4e Dimps sf4e_helper_platform d3d9 TIMEOUT 15)
+sf4e_add_unit_test(NAME ModulePin SOURCES src/tests/module_pin_test.cxx STD 17 TIMEOUT 15)
 sf4e_add_unit_test(NAME PackageInstaller SOURCES src/tests/package_installer_test.cxx LIBS sf4e_package_installer shell32)
 add_test(NAME UpdaterDownloadValidation COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-updater-download-validation.ps1 -Validator $<TARGET_FILE:PackageInstallerTest>)
 # The record the network fixtures print, produced by the same header, is what
