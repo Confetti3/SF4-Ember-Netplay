@@ -7,7 +7,6 @@ difference without committing. The token comes from GH_TOKEN, GITHUB_TOKEN or
 """
 import argparse
 import base64
-import re
 import shutil
 import subprocess
 import sys
@@ -17,14 +16,6 @@ from pathlib import Path
 import build
 
 BRANCH = "master"
-
-
-def carry(old, new, prefix):
-    """Copy the Frame Data section of an old sidebar or home page into the new one, after Training."""
-    split = lambda text: re.split(rf"(?m)^(?={re.escape(prefix)})", text)
-    frame, parts = [p for p in split(old) if p.startswith(prefix + "Frame Data")], split(new)
-    at = next((i + 1 for i, p in enumerate(parts) if p.startswith(prefix + "Training")), len(parts))
-    return "".join(parts[:at] + frame + parts[at:])
 
 
 def main():
@@ -52,16 +43,10 @@ def main():
         keep = set()
         if not (args.out / "Frame-Data.md").exists():
             keep = {*wiki.glob("Frame-Data*.md"), *wiki.glob("images/banner-Frame-Data*.svg")}
-        old = {name: (wiki / name).read_text(encoding="utf-8") for name in ("_Sidebar.md", "Home.md")
-               if keep and (wiki / name).exists()}
         for item in wiki.rglob("*"):
             if item.is_file() and ".git" not in item.relative_to(wiki).parts and item not in keep:
                 item.unlink()
         shutil.copytree(args.out, wiki, dirs_exist_ok=True)
-        for name, prefix in (("_Sidebar.md", "**"), ("Home.md", "## ")):
-            if name in old:
-                (wiki / name).write_text(carry(old[name], (wiki / name).read_text(encoding="utf-8"), prefix),
-                                         encoding="utf-8")
         git("add", "-A")
         if subprocess.run(["git", "-C", wiki, "diff", "--cached", "--quiet"]).returncode == 0:
             print("the wiki is already up to date")
