@@ -694,18 +694,21 @@ PostPublishState Publish() {
     snapshot.installedContent = custom::Installed();
     // The explicit gameplay-device assignment stays authoritative, including
     // keyboard selection, capture, disconnects and local P1/P2 handoff.
+    // One read of the gameplay device for the menu sample and the pointer's pad.
+    const auto& device = snapshot.inputDevice;
+    unsigned held = 0, physical = 0;
+    const bool read = device.connected && Dimps::Pad::ReadController(device.type, device.index, held, &physical);
     if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&
         !input::FightKeepsMenuAway(netplay::Fighting(snapshot.session.match), snapshot.menuContext)) {
         auto& sample = snapshot.menuController;
-        sample.deviceType = snapshot.inputDevice.type;
-        sample.deviceIndex = snapshot.inputDevice.index;
-        unsigned held = 0, physical = 0;
-        sample.connected = snapshot.inputDevice.connected &&
-            Dimps::Pad::ReadController(sample.deviceType, sample.deviceIndex, held, &physical);
+        sample.deviceType = device.type;
+        sample.deviceIndex = device.index;
+        sample.connected = read;
         // Asked whether or not the read worked, so the prompts stay right.
         sample.menu = MenuButtonsFor(sample.deviceType, sample.deviceIndex);
         sample.buttons = sample.connected ? ui::ControllerButtons(held,sample.deviceType,physical,sample.menu) : 0;
     }
+    snapshot.padHeld = gamepads::PadHeld(runtime->pads, device.type, held | physical);
     snapshot.trainingButtons = TrainingButtonsFor(snapshot.inputDevice.type, snapshot.inputDevice.index);
 	snapshot.canReplaceRoom = CanBeginReplacement();
 	snapshot.displayName = runtime->displayName;

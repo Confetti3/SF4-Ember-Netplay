@@ -844,15 +844,21 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool fight = layers.matchActive && focused && passive;
     const bool visible = focused && shown;
     pointerCapture = focused && !visible && hud.pointer;
-    // A Training table keeps its pointer for the F6 chip.
+    // A Training table keeps its pointer for the F6 chip until a pad press.
     const bool table = frame->localFighter && snapshot.practiceMatch;
     // A game this PC only watches has no pointer to keep out of the picture:
-    // the cursor stays shown and free, so it can leave for another monitor.
+    // the cursor stays shown and free, so it can leave for another monitor, and
+    // no pad press hides it either.
     const bool watched = fight && snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch;
-    // A fought game hides it when the game starts and the mouse moving shows it again (HiddenPointer).
+    // A fought game hides it when it starts (HiddenPointer) and a pad press hides it anywhere
+    // else Ember draws (PadPointer), shown again by the mouse moving.
     static sf4e::ui::HiddenPointer fightPointer;
+    static sf4e::ui::PadPointer padPointer;
     const ImVec2 mouse = ImGui::GetIO().MousePos;
-    const bool hideCursor = fightPointer.Hidden(fight && !table && !watched, ImGui::IsMousePosValid(&mouse) ? std::optional<sf4e::ui::HiddenPointer::Point>({mouse.x, mouse.y}) : std::nullopt);
+    const auto at = ImGui::IsMousePosValid(&mouse) ? std::optional<sf4e::ui::HiddenPointer::Point>({mouse.x, mouse.y}) : std::nullopt;
+    const bool fightHides = fightPointer.Hidden(fight && !table && !watched, at);
+    const bool padHides = padPointer.Hidden(focused && !watched && snapshot.padHeld, at);
+    const bool hideCursor = focused && (padHides || fightHides);
     if (watched) sf4e::ui::ShowFreeCursor();
     else sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture || hideCursor);
     if (hideCursor) ImGui::SetMouseCursor(ImGuiMouseCursor_None);
