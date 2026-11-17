@@ -105,6 +105,8 @@ namespace sf4e {
 
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
+            // Any pad row pressed this tick, or the gameplay pad's game-read buttons; never the keyboard (gamepads::PadHeld).
+            bool padHeld = false;
             // The gameplay pad's Training record and play buttons (sf4e__Pad.cxx).
             input::TrainingButtons trainingButtons;
             // Retain the detected brand to preview Automatic before autosave.

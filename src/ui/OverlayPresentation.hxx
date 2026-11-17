@@ -31,28 +31,60 @@ private:
     bool active_ = false;
 };
 
-// The pointer hidden for a state (a fight): hidden when the
-// state begins, shown again once the mouse moves more than Slack render pixels
-// (8: past a bumped desk, short of a deliberate move), and shown for the rest of
-// that state and whenever it is not active, so menus and an unfocused window
-// have it. One call a frame on the drawing thread; `pointer` is the mouse in
-// render pixels, none while it is off the window.
-class HiddenPointer {
+// A hidden pointer and where it was hidden: shown again once the mouse moves
+// more than Slack render pixels from there (8: past a bumped desk, short of a
+// deliberate move). A pointer first seen after the hiding is where the move is
+// measured from. `at` is the mouse in render pixels, none while it is off the
+// window.
+class MovedPointer {
 public:
     struct Point { float x = 0, y = 0; };
     static constexpr float Slack = 8.f;
-    // Whether the pointer is hidden this frame.
-    bool Hidden(bool active, std::optional<Point> pointer) {
-        if (active && !active_) { hidden_ = true; start_ = pointer; }
-        else if (hidden_ && pointer && !start_) start_ = pointer;
-        else if (hidden_ && pointer && Squared(*pointer, *start_) > Slack * Slack) hidden_ = false;
-        active_ = active;
-        return active && hidden_;
+    void Hide(std::optional<Point> at) { hidden_ = true; start_ = at; }
+    // Whether it is still hidden this frame; call once a frame.
+    bool Hidden(std::optional<Point> at) {
+        if (hidden_ && at && !start_) start_ = at;
+        else if (hidden_ && at && Squared(*at, *start_) > Slack * Slack) hidden_ = false;
+        return hidden_;
     }
 private:
     static float Squared(Point a, Point b) { return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y); }
-    bool active_ = false, hidden_ = false;
+    bool hidden_ = false;
     std::optional<Point> start_;
+};
+
+// The pointer hidden for a state (a fight): hidden when the
+// state begins, shown again once the mouse moves (MovedPointer), and shown for
+// the rest of that state and whenever it is not active, so menus and an
+// unfocused window have it. One call a frame on the drawing thread.
+class HiddenPointer {
+public:
+    using Point = MovedPointer::Point;
+    // Whether the pointer is hidden this frame.
+    bool Hidden(bool active, std::optional<Point> at) {
+        if (active && !active_) latch_.Hide(at);
+        active_ = active;
+        return latch_.Hidden(at) && active;
+    }
+private:
+    MovedPointer latch_;
+    bool active_ = false;
+};
+
+// The pointer hidden while a pad is played: a fresh pad press hides it wherever
+// Ember draws, and the mouse moving (MovedPointer) shows it until the next
+// press, so a held or released button keeps it hidden. Keys do neither, since
+// keyboard players still use the mouse. One call a frame on the drawing thread.
+class PadPointer {
+public:
+    bool Hidden(bool pad, std::optional<MovedPointer::Point> at) {
+        if (pad && !pad_) latch_.Hide(at);
+        pad_ = pad;
+        return latch_.Hidden(at);
+    }
+private:
+    MovedPointer latch_;
+    bool pad_ = false;
 };
 
 // "F10 or Start" shows this long each time it applies again, such as when
