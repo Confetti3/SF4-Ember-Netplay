@@ -11,8 +11,8 @@ use ember_protocol::{
     EmberId,
     api::ErrorCode,
     skill::{
-        Board, BoardEntry, CHOICE_TOO_SOON, Listing, MAX_BOARD, NO_ACCOUNT, RankingChoice,
-        SkillBadge, Standing,
+        Board, BoardEntry, CHOICE_TOO_SOON, Listing, NO_ACCOUNT, RankingChoice, SkillBadge,
+        Standing,
     },
 };
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -150,14 +150,16 @@ pub fn choose(
 /// without one (no entry is `own`): every listed account that takes part and has a settled class, the highest first. The class is the
 /// one their next ticket would show (`shown_band`), so a player who settled
 /// since their last ticket is on it already. Within a class the most recent
-/// to play comes first, so the board is about who plays and its cap drops
-/// whoever played longest ago. No rating, position or number is on it, and
+/// to play comes first, so the board is about who plays. It lists at most
+/// `most` players, so a cap drops the lowest classes first; the caller's own
+/// entry is always on it. No rating, position or number is on it, and
 /// no developer: their mark stands in place of a class.
 pub fn board(
     tx: &Transaction<'_>,
     ember_id: Option<&EmberId>,
     developers: &[String],
     now: u64,
+    most: usize,
 ) -> Result<Board> {
     let mut statement = tx.prepare(
         "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, c.name, c.country,
@@ -198,11 +200,21 @@ pub fn board(
             .then(other_at.cmp(one_at))
             .then_with(|| one.listing.name.cmp(&other.listing.name))
     });
-    let players = listed
-        .into_iter()
-        .take(MAX_BOARD)
-        .map(|(_, entry)| entry)
-        .collect();
+    // Lower classes come last, so a cap leaves them off. The caller's own
+    // entry stays in place of the last one: it is no higher than that one,
+    // so the board is still in class order.
+    let own = listed.iter().position(|(_, entry)| entry.own);
+    let mut players: Vec<BoardEntry> = Vec::with_capacity(listed.len().min(most));
+    for (index, (_, entry)) in listed.into_iter().enumerate() {
+        if index < most {
+            players.push(entry);
+        } else if Some(index) == own {
+            if let Some(last) = players.last_mut() {
+                *last = entry;
+            }
+            break;
+        }
+    }
     Ok(Board { players })
 }
 
