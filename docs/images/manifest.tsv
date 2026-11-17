@@ -46,22 +46,22 @@ guides/integrations/play-button.webp	render home-tournament-match
 guides/controller_menus/main-character.webp	render main-character
 guides/controller_menus/online.webp	render online
 guides/controller_menus/stage.webp	game
-guides/controller_menus/training-flyout.webp	game
-guides/custom_rooms/room-two-players.webp	game
+guides/controller_menus/training-flyout.webp	uilab --training
+guides/custom_rooms/room-two-players.webp	uilab --room --seats duo
 guides/input_lag/game-options.webp	game
-guides/training_lab/dummy.webp	game
+guides/training_lab/dummy.webp	render training-dummy
 guides/training_lab/frame-data.webp	game
-guides/training_lab/meter-settings.webp	game
+guides/training_lab/meter-settings.webp	render training-meter-settings
 guides/training_lab/meter.webp	game
 guides/training_lab/playing.webp	game
-guides/training_lab/position.webp	game
+guides/training_lab/position.webp	render training-tools
 guides/training_lab/recording.webp	game
-guides/training_lab/reply.webp	game
-guides/user_netplay/match-hud.webp	game
-guides/user_netplay/rematch.webp	game
-guides/user_netplay/replay-controls.webp	game
-guides/user_netplay/update-channel.webp	game
-guides/user_netplay/updates-window.webp	game
+guides/training_lab/reply.webp	render training-reply
+guides/user_netplay/match-hud.webp	render match-hud
+guides/user_netplay/rematch.webp	uilab --postmatch choose
+guides/user_netplay/replay-controls.webp	render replay-strip-keyboard
+guides/user_netplay/update-channel.webp	render update-channel-nightly
+guides/user_netplay/updates-window.webp	render update-available
 steamdeck-1-download.png	deck
 steamdeck-2-downloads.png	deck
 steamdeck-3-trust.png	deck

@@ -37,14 +37,17 @@ picture changed). The newest such commit dates every picture from before it,
 and a rebase keeps it, so the pictures keep the date of their capture. A picture
 changed after it dates from its own last commit.
 
-The guide pictures the manifest marks `game` are screenshots of Ember
-1.4.0-nightly20261018 running in the game on a Steam Deck: the training lab over
-a fight, Online play, the game's own Graphics settings, the stage previews, the
-main character roster, the Updates window, and a room with a second PC as guest
-(the room board, a match's HUD, the table after it and a battle log replay's
-strip). Each is cropped to the game's 1280 x 720 picture, or to the Updates
-window, and written with the same `cwebp -q 85`. Retake them by hand when those
-screens change.
+The training pages, the match HUD, the replay strip and the updater are scenes
+of the same sweep. The three pictures the manifest marks `uilab` are screens the
+sweep has no scene for: the training panel over the menu, the room board with a
+guest and the post-match prompt. The same run takes them from `UiLab.exe`
+(src/ui/lab), the shell in a window with made-up data, at 1280 x 720.
+
+The pictures it marks `game` are screenshots of Ember 1.4.0-nightly20261018
+running in the game on a Steam Deck: the frame meter, frame data and dummy
+recording over a fight, the game's own Graphics settings and the stage previews.
+Each is cropped to the game's 1280 x 720 picture and written with the same
+`cwebp -q 85`. Retake them by hand when those screens change.
 
 `guides/controller_menus/colors.webp` is marked `still`: the sweep has no scene of
 the stock color gallery, so it keeps the picture it had until one is added.

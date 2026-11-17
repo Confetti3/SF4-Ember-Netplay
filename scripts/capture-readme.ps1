@@ -23,14 +23,31 @@ if ($LASTEXITCODE) { throw 'README UI rendering failed.' }
 Add-Type -AssemblyName System.Drawing
 $destination = Join-Path $repo 'docs/images'
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
-# docs/images/manifest.tsv names the render each picture is made from. The guides'
-# step pictures are WebP to keep the repository small; cwebp reads PNG, not BMP.
+# docs/images/manifest.tsv names the render each picture is made from: one of the
+# sweep's, or the UI lab started with those arguments, for the few screens the sweep
+# has no scene for (the training panel over the menu, a room with a guest and the
+# post-match prompt). The guides' step pictures are WebP to keep the repository
+# small; cwebp reads PNG, not BMP.
+$lab = Join-Path $build 'UiLab.exe'
 $rows = Import-Csv -LiteralPath (Join-Path $destination 'manifest.tsv') -Delimiter "`t"
-foreach ($row in $rows | Where-Object source -like 'render *') {
-    $render = $row.source.Substring(7)
+foreach ($row in $rows | Where-Object { $_.source -like 'render *' -or $_.source -like 'uilab *' }) {
+    $kind, $rest = $row.source -split ' ', 2
     $name = $row.picture -replace '[/.]', '-'
-    $bmp = Join-Path $captures "$render-en-1280-100.bmp"
-    if (-not (Test-Path -LiteralPath $bmp)) { throw "the render test wrote no '$render' for $($row.picture)" }
+    if ($kind -eq 'render') {
+        $bmp = Join-Path $captures "$rest-en-1280-100.bmp"
+        if (-not (Test-Path -LiteralPath $bmp)) { throw "the render test wrote no '$rest' for $($row.picture)" }
+    } else {
+        $bmp = Join-Path $captures "$name.bmp"
+        # UiLab is a windowed program, which `&` would not wait for. Start-Process joins the arguments
+        # with spaces and quotes none, so the path is quoted here for a build folder with a space.
+        # The lab reads the portraits from SF4E_GAME_DIR, set for it alone.
+        $gameDir = $env:SF4E_GAME_DIR; $env:SF4E_GAME_DIR = $GameRoot
+        try {
+            $run = Start-Process -FilePath $lab -ArgumentList (@($rest -split ' ') + @('--size', '1280x720', '--shot', "`"$bmp`"")) `
+                -Wait -PassThru -NoNewWindow
+        } finally { $env:SF4E_GAME_DIR = $gameDir }
+        if ($run.ExitCode) { throw "UiLab failed on $($row.picture)" }
+    }
     $output = Join-Path $destination $row.picture
     New-Item -ItemType Directory -Path (Split-Path $output -Parent) -Force | Out-Null
     $png = Join-Path $captures "$name.png"
