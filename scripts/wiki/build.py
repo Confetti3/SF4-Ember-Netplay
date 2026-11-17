@@ -302,6 +302,12 @@ def theme():
     return {name: "#" + value for name, value in re.findall(r"(\w+) = 0x([0-9A-F]{6})\b", text)}
 
 
+def links():
+    """Ember's outbound links by id, from the table the interface reads, so the wiki never copies one."""
+    text = (ROOT / "src/platform/Links.hxx").read_text(encoding="utf-8")
+    return {name: "https://" + address for name, address in re.findall(r'\{"(\w+)", "([^"]+)"', text)}
+
+
 def banner(title, section, colors):
     """The page header as an image: GitHub wikis drop styles, so the brand block is drawn.
 
@@ -453,7 +459,10 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
 
     home = listing("## %s", lambda p: f"| [{p.title}]({slug(p.title)}) | {p.about} |", table)
     (out / "Home.md").write_text("\n".join(text + home), encoding="utf-8")
-    sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p.title}]({slug(p.title)})")
+    outbound = [("Download", f"https://github.com/{UPSTREAM}/releases"), ("Discord", links()["discord"]),
+                ("Report a bug", f"https://github.com/{UPSTREAM}/issues")]
+    sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p.title}]({slug(p.title)})") \
+        + ["**Links**", "", *(f"- [{name}]({url})" for name, url in outbound), ""]
     (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
 
     sha = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()

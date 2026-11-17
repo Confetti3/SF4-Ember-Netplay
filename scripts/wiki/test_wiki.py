@@ -62,8 +62,9 @@ with tempfile.TemporaryDirectory() as folder:
     Path(folder, "Home.md").write_text("[x](Missing) ![y](images/none.png)\n\n## Steps\n\n1. Do it.\n")
     errors, warnings = check.check(Path(folder))
     assert len(errors) == 2 and len(warnings) == 1, (errors, warnings)
-# Every page says what it covers.
+# Every page says what it covers, and the outbound links come from the interface's own table.
 assert all(page.about for page in build.PAGES), [page.path for page in build.PAGES if not page.about]
+assert build.links()["discord"].startswith("https://discord.gg/"), build.links()
 # A page with four sections gets a collapsed list of them, with GitHub's ids; a short page gets none.
 long = ["## One", "", "## Two [x](y)!", "```", "## Not a heading", "```", "## Three", "## Four"]
 assert build.contents(long)[3:7] == ["- [One](#one)", "- [Two x!](#two-x)", "- [Three](#three)", "- [Four](#four)"], \
