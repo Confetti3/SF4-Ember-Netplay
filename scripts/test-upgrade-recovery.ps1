@@ -13,6 +13,9 @@ function VerifyRestored([string]$Install,$Transaction) {
   } elseif(Test-Path -LiteralPath $path){throw "New operation file was not removed: $($operation.path)"}
  }
 }
+# Marks Launcher.exe and the lock an earlier update left read-only, as a sync
+# tool or a copy from a read-only medium would.
+function MarkReadOnly([string]$Install){foreach($name in 'Launcher.exe','.ember-update.lock'){$at=Join-Path $Install $name;if(!(Test-Path -LiteralPath $at)){WriteText $at ''};[IO.File]::SetAttributes($at,'ReadOnly')}}
 function Sha([string]$Text){[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($Text))).Replace('-','')}
 function WriteText([string]$Path,[string]$Text){$null=New-Item -ItemType Directory -Path (Split-Path $Path -Parent) -Force;[IO.File]::WriteAllText($Path,$Text)}
 # A fixture's journal override, with each "@sha:<text>" string as the hash of
@@ -157,6 +160,7 @@ try {
  WriteText $damagedJournal '{ damaged'
  $failed=$false;try{& (Join-Path $package 'Install-Upgrade.ps1') -InstallDir $damaged -RecoverOnly *>$null}catch{$failed=$true}
  if(!$failed-or(Test-Path -LiteralPath $damagedJournal)-or!(Test-Path -LiteralPath ($damagedJournal+'.failed'))){throw 'Damaged journal was not set aside'}
+ MarkReadOnly $install
  $start=New-Object Diagnostics.ProcessStartInfo
  # Use the same PowerShell host as the fixture. Launching Windows PowerShell
  # from pwsh through ProcessStartInfo inherits pwsh's PSModulePath verbatim,
@@ -230,7 +234,7 @@ try {
  } elseif($NativeFixture -and $boundary-eq 1) {
   & $NativeFixture --recover $install
   if($LASTEXITCODE){throw 'Native recovery rejected PowerShell transaction'}
- } else { & (Join-Path $package 'Install-Upgrade.ps1') -InstallDir $install -RecoverOnly }
+ } else { MarkReadOnly $install; & (Join-Path $package 'Install-Upgrade.ps1') -InstallDir $install -RecoverOnly }
  if($boundary-eq 4) {
   foreach($relative in $changed){if((Hash (Join-Path $install $relative))-ine(Hash (Join-Path $payload $relative))){throw "Finished update was undone: $relative"}}
  } else {
