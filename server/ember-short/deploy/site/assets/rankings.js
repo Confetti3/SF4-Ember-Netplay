@@ -10,10 +10,33 @@
   // While the tab is shown the board is asked for again this often; nginx and
   // the bridge each keep it 15 s, so a change shows within about a minute.
   var REFRESH_MS = 30000;
-  // USF4's classes, band 1 to 10 (src/ui/NameMarks.cxx), and the colour
-  // family each pill takes.
-  var CLASSES = ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'Master', 'Grand Master'];
-  var TIERS = ['d', 'd', 'c', 'c', 'b', 'b', 'a', 'a', 'm', 'gm'];
+  // The games the page lists, one board at a time (the bridge's `game`, as
+  // Ember's own Rankings is its game's): Ultra Street Fighter IV's from
+  // /rankings.json and Street Fighter V's from /rankings-sfv.json, chosen by
+  // the Game buttons and kept in the address as ?game=sfv. Every game is rated
+  // in the same ten bands; each names them as its own ranks, band 1 to 10:
+  // USF4's classes (src/ui/NameMarks.cxx) and SFV's league tiers (SFV Ember's
+  // SfvProduct.cxx), each with its chart's short label, the colour each
+  // band's pill and column take (the tier-* rules in site.css: USF4's colour
+  // families, SFV's own league colours), what the game calls a rank and the
+  // Ember that plays it.
+  var GAMES = {
+    usf4: {
+      key: 'usf4', board: '/rankings.json', app: 'Ember', rank: 'class', ranks: 'Classes',
+      classes: ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'Master', 'Grand Master'],
+      short: ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'M', 'GM'],
+      tiers: ['d', 'd', 'c', 'c', 'b', 'b', 'a', 'a', 'm', 'gm']
+    },
+    sfv: {
+      key: 'sfv', board: '/rankings-sfv.json', app: 'SFV Ember', rank: 'league', ranks: 'Leagues',
+      classes: ['Rookie', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grand Master', 'Ultimate Grand Master', 'Warlord'],
+      short: ['R', 'B', 'S', 'G', 'P', 'D', 'M', 'GM', 'UGM', 'W'],
+      tiers: ['rookie', 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'master', 'grand', 'ultimate', 'warlord']
+    }
+  };
+  var game = /(?:^|[?&])game=sfv(?:&|$)/.test(location.search) ? GAMES.sfv : GAMES.usf4;
+  // The shown game's rank names and colours.
+  var CLASSES = game.classes, SHORT = game.short, TIERS = game.tiers;
   var BANDS = CLASSES.length;
   // Regions for the region filter, by the country codes the game sends.
   var REGIONS = [
@@ -39,6 +62,7 @@
   var NO_COUNTRY = 'none';
   var COUNTRY = /^[A-Z]{2}$/;
 
+  var games = document.getElementById('games');
   var classesBox = document.getElementById('classes');
   var toolbar = document.getElementById('toolbar');
   var bar = document.getElementById('bar');
@@ -124,7 +148,7 @@
 
   function pill(band) {
     var node = el('span', 'rank-class tier-' + TIERS[band - 1], CLASSES[band - 1]);
-    node.title = 'Class ' + CLASSES[band - 1];
+    node.title = (game.rank === 'league' ? 'League ' : 'Class ') + CLASSES[band - 1];
     return node;
   }
   // A country's flag from the atlas, or its code where the atlas has none.
@@ -250,7 +274,6 @@
   // counts for keyboards and screen readers, so the drawing itself is hidden
   // from them and the plot is described in one line instead.
   var SVG = 'http://www.w3.org/2000/svg';
-  var SHORT = ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'M', 'GM'];
   var CHART_HEIGHT = 170, CHART_TOP = 12, CHART_BOTTOM = 24, CHART_LEFT = 30, BAR_MAX = 24, SMOOTHING = 0.85, OUTLINE_STEPS = 80;
   var chartCounts = null;
 
@@ -339,7 +362,7 @@
       });
       hit.addEventListener('click', function () { toggleClass(index + 1); });
     });
-    chartPlot.setAttribute('aria-label', 'Players by class: ' + counts.map(function (count, index) {
+    chartPlot.setAttribute('aria-label', 'Players by ' + game.rank + ': ' + counts.map(function (count, index) {
       return CLASSES[index] + ' ' + count;
     }).join(', ') + '.');
   }
@@ -378,7 +401,7 @@
     var active = document.activeElement;
     var focused = active && classesBox.contains(active) ? active.getAttribute('data-band') : null;
     while (classesBox.firstChild) classesBox.removeChild(classesBox.firstChild);
-    var all = el('button', 'rank-chip all', 'All classes');
+    var all = el('button', 'rank-chip all', 'All ' + game.ranks.toLowerCase());
     all.type = 'button';
     all.setAttribute('data-band', '');
     all.setAttribute('aria-pressed', selectedBands().length ? 'false' : 'true');
@@ -540,21 +563,27 @@
     shareButton.hidden = copyListButton.hidden = !ready;
     summary.textContent = '';
 
+    // Only after a change of game: the page's first board loads under its own
+    // placeholder.
+    if (data.phase === 'loading') {
+      board.appendChild(el('p', 'room-summary', 'Loading players...'));
+      return;
+    }
     if (data.phase === 'off') {
-      board.appendChild(message('This service does not offer rankings right now.', 'Rankings come from public room games. In Ember, open Online play, Public rooms to play.'));
+      board.appendChild(message('This service does not offer rankings right now.', 'Rankings come from public room games. In ' + game.app + ', open Online play, Public rooms to play.'));
       return;
     }
     if (data.phase === 'hidden') {
-      board.appendChild(message('Classes are not shown yet.', 'Public room games still count. The board opens here and in Ember once classes are shown.'));
+      board.appendChild(message(game.ranks + ' are not shown yet.', 'Public room games still count. The board opens here and in ' + game.app + ' once ' + game.ranks.toLowerCase() + ' are shown.'));
       return;
     }
     if (!players) {
-      board.appendChild(message('The board is not available right now.', 'Try again in a minute, or look in Ember under Online play, Rankings.'));
+      board.appendChild(message('The board is not available right now.', 'Try again in a minute, or look in ' + game.app + ' under Online play, Rankings.'));
       return;
     }
     if (players.length === 0) {
       summary.textContent = summaryText(players, 0);
-      board.appendChild(message('Nobody is on the board yet.', 'Players appear once their class settles after a few public room games, and they have opened Rankings in Ember.'));
+      board.appendChild(message('Nobody is on the board yet.', 'Players appear once their ' + game.rank + ' settles after a few public room games, and they have opened Rankings in ' + game.app + '.'));
       return;
     }
 
@@ -657,13 +686,17 @@
     if (loading) return;
     loading = true;
     refreshButton.disabled = true;
-    fetch('/rankings.json', { cache: 'no-store', credentials: 'omit' })
+    var asked = game;
+    fetch(asked.board, { cache: 'no-store', credentials: 'omit' })
       .then(function (response) {
         if (response.status === 404) return { off: true };
         if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.json();
       })
       .then(function (body) {
+        // The other game was chosen while this board was on its way: it is
+        // not this page's board any more (the finally below loads that one).
+        if (asked !== game) return;
         if (body.off) {
           data.phase = 'off';
           data.players = null;
@@ -678,12 +711,17 @@
         data.failed = false;
       })
       .catch(function () {
+        if (asked !== game) return;
         data.failed = true;
         if (!data.players) data.phase = 'failed';
       })
       .then(function () {
         loading = false;
         refreshButton.disabled = false;
+        if (asked !== game) {
+          load(false);
+          return;
+        }
         var key = keyOf(data.phase, data.players);
         if (!quiet || key !== data.key) {
           data.key = key;
@@ -727,7 +765,7 @@
   orderSelect.addEventListener('change', function () { view.order = orderSelect.value; update(); });
   clearButton.addEventListener('click', clearFilters);
   shareButton.addEventListener('click', function () {
-    copy('https://embernetplay.link/rankings' + hashOf(), 'Link to this view copied.', 'Copy failed. Copy the address from the address bar.');
+    copy('https://embernetplay.link/rankings' + gameQuery() + hashOf(), 'Link to this view copied.', 'Copy failed. Copy the address from the address bar.');
   });
   copyListButton.addEventListener('click', function () {
     var text = listText();
@@ -776,6 +814,34 @@
       if (flagAtlas && data.players) render();
     })
     .catch(function () {});
+
+  // The shown game in the address: nothing for USF4's, as before games.
+  function gameQuery() { return game.key === 'usf4' ? '' : '?game=' + game.key; }
+  // The shown game's look, words and links, and the switch's mark (game.js).
+  function gameButtons() {
+    if (window.EmberGame) window.EmberGame.set(game.key);
+    groupSelect.options[0].textContent = 'By ' + game.rank;
+    classesBox.setAttribute('aria-label', 'Show ' + game.ranks.toLowerCase());
+    jump.setAttribute('aria-label', 'Jump to a ' + game.rank);
+  }
+  // Another game: its board from the start, under the same filters (the
+  // bands are the same in every game).
+  games.addEventListener('click', function (event) {
+    var button = event.target.closest ? event.target.closest('button') : null;
+    if (!button || !games.contains(button)) return;
+    var chosen = GAMES[button.getAttribute('data-game')];
+    if (!chosen || chosen === game) return;
+    game = chosen;
+    CLASSES = game.classes;
+    SHORT = game.short;
+    TIERS = game.tiers;
+    data = { players: null, listedAt: 0, loadedAt: 0, phase: 'loading', failed: false, key: '' };
+    try { history.replaceState(null, '', location.pathname + gameQuery() + hashOf()); } catch (error) { /* file: pages */ }
+    gameButtons();
+    render();
+    load(false);
+  });
+  gameButtons();
   readHash();
   load(false);
 }());

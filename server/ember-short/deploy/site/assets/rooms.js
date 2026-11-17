@@ -4,6 +4,15 @@
 // Join in Ember is a plain ember://room/open link the player clicks; the page
 // never opens Ember by itself (see open.js). Room and host names are the
 // players' own words, so they only ever go in as text.
+//
+// The page lists one game's rooms at a time (the bridge's `game`, as the room
+// list in each game does): Ultra Street Fighter IV's from /rooms.json, Street
+// Fighter V's from /rooms-sfv.json, chosen by the Game buttons and kept in the
+// address as ?game=sfv, the page then in SFV Ember's look (assets/game.js).
+// An SFV room's fighters are SFV's own numbers, which the face sheet does not
+// draw, so its cards show none. Its Join opens SFV Ember's own link
+// (ember-sfv://room/open), and its Copy link is the same /r page, which knows
+// the room is SFV's from /rooms-sfv.json (open.js).
 (function () {
   'use strict';
   var site = window.EmberSite;
@@ -33,6 +42,11 @@
     { code: 2, key: 'king', label: 'King of the hill', title: 'King of the hill', about: 'Arcade cabinets, and the winner stays on for the next challenger.' }
   ];
   var VERSIONS = site.VERSIONS;
+  // The games the page lists, by the bridge's key.
+  var GAMES = {
+    usf4: { key: 'usf4', list: '/rooms.json', faces: true, app: 'Ember', scheme: 'ember' },
+    sfv: { key: 'sfv', list: '/rooms-sfv.json', faces: false, app: 'SFV Ember', scheme: 'ember-sfv' }
+  };
   var BRIDGE = /^brg_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
   var ROOM = /^[0-9a-f]{32}$/;
 
@@ -41,9 +55,11 @@
   var status = document.getElementById('status');
   var areas = document.getElementById('areas');
   var types = document.getElementById('types');
+  var games = document.getElementById('games');
   var openOnly = document.getElementById('open-only');
   var refreshButton = document.getElementById('refresh');
-  var state = { rooms: null, bridge: '', listedAt: 0, skew: 0, key: null, area: '', type: '', failed: false };
+  var state = { rooms: null, bridge: '', listedAt: 0, skew: 0, key: null, area: '', type: '', failed: false,
+    game: /(?:^|[?&])game=sfv(?:&|$)/.test(location.search) ? GAMES.sfv : GAMES.usf4 };
   // What the cards on screen were drawn from: the body without listed_at, and
   // whether the "could not refresh" note was showing. A refresh that changes
   // neither only updates the ages, so the cards, and the focus on them, stay.
@@ -103,7 +119,7 @@
 
   function card(room) {
     var isFull = full(room), open = joinable(room);
-    var version = versionOf(room.build_id);
+    var version = state.game.key === 'usf4' ? versionOf(room.build_id) : { label: null, rank: 0 };
     var type = typeOf(room);
     var node = el('article', 'room-card ' + type.key + (open ? '' : ' dimmed'));
     node.setAttribute('aria-label', room.name);
@@ -130,7 +146,7 @@
 
     var line = el('div', 'room-line');
     var faces = el('div', 'room-faces');
-    var fighters = Array.isArray(room.fighters) ? room.fighters : [];
+    var fighters = state.game.faces && Array.isArray(room.fighters) ? room.fighters : [];
     var shown = Math.min(fighters.length, 6);
     for (var i = 0; i < shown; i++) faces.appendChild(face(fighters[i]));
     if (room.members > shown && shown > 0) faces.appendChild(el('span', 'room-more', '+' + (room.members - shown)));
@@ -164,16 +180,17 @@
     else if (isFull) standing.appendChild(chip('Full', 'status'));
     foot.appendChild(standing);
     var actions = el('div', 'room-actions');
+    var app = state.game.app;
     var link = 'https://embernetplay.link/r#' + state.bridge + '/' + room.room_id;
     var share = el('button', 'room-action', 'Copy link');
     share.type = 'button';
-    share.addEventListener('click', function () { copy(link, 'Room link copied. Paste it in Ember under Public rooms.'); });
+    share.addEventListener('click', function () { copy(link, 'Room link copied. Paste it in ' + app + ' under Public rooms.'); });
     actions.appendChild(share);
     if (open) {
-      var join = el('a', 'room-action primary', 'Join in Ember');
-      join.href = 'ember://room/open?bridge=' + state.bridge + '&room=' + room.room_id;
+      var join = el('a', 'room-action primary', 'Join in ' + app);
+      join.href = state.game.scheme + '://room/open?bridge=' + state.bridge + '&room=' + room.room_id;
       join.addEventListener('click', function () {
-        status.textContent = 'Opening Ember for “' + room.name + '”. If nothing happens, start Ember once, or use Copy link.';
+        status.textContent = 'Opening ' + app + ' for “' + room.name + '”. If nothing happens, start ' + app + ' once, or use Copy link.';
       });
       actions.appendChild(join);
     }
@@ -257,7 +274,7 @@
     list.setAttribute('aria-busy', 'false');
     while (list.firstChild) list.removeChild(list.firstChild);
     if (!state.rooms) {
-      list.appendChild(message('The room list is not available right now.', 'Try again in a minute, or look in Ember under Online play, Public rooms.'));
+      list.appendChild(message('The room list is not available right now.', 'Try again in a minute, or look in ' + state.game.app + ' under Online play, Public rooms.'));
       summary.textContent = '';
       return;
     }
@@ -266,7 +283,9 @@
     typeButtons(rooms);
     var players = rooms.reduce(function (sum, room) { return sum + room.members; }, 0);
     // The bridge's order (unlocked first, most free seats first), newest Ember first.
-    rooms = rooms.map(function (room, index) { return { room: room, index: index, rank: versionOf(room.build_id).rank }; })
+    rooms = rooms.map(function (room, index) {
+      return { room: room, index: index, rank: state.game.key === 'usf4' ? versionOf(room.build_id).rank : 0 };
+    })
       .sort(function (a, b) { return a.rank - b.rank || a.index - b.index; })
       .map(function (entry) { return entry.room; });
     var shown = rooms.filter(function (room) {
@@ -278,7 +297,7 @@
       (state.failed ? '. Could not refresh; showing the last list.' : '');
     if (rooms.length === 0) {
       list.appendChild(message('No public rooms are open right now.',
-        'Open one in Ember: Online play, Public rooms, Create room. This page shows it as soon as you are in it.'));
+        'Open one in ' + state.game.app + ': Online play, Public rooms, Create room. This page shows it as soon as you are in it.'));
     } else if (shown.length === 0) {
       list.appendChild(message('No rooms match these filters.', 'Choose All areas or All types, or turn off Open seats only.'));
     } else {
@@ -294,24 +313,34 @@
     }
   }
 
+  // A room of another game than the one asked for is not listed: the bridge
+  // writes `game` only for a game other than usf4.
   function valid(body) {
     if (!body || !BRIDGE.test(body.bridge_id) || !Array.isArray(body.rooms)) return null;
     return body.rooms.filter(function (room) {
       return room && ROOM.test(room.room_id) && typeof room.name === 'string' && typeof room.members === 'number' &&
-        typeof room.capacity === 'number';
+        typeof room.capacity === 'number' && (room.game || 'usf4') === state.game.key;
     });
+  }
+
+  // The shown game's look, words and links, and the switch's mark (game.js).
+  function gameButtons() {
+    if (window.EmberGame) window.EmberGame.set(state.game.key);
   }
 
   function load() {
     if (loading) return;
     loading = true;
     refreshButton.disabled = true;
-    fetch('/rooms.json', { cache: 'no-store', credentials: 'omit' })
+    var game = state.game;
+    fetch(game.list, { cache: 'no-store', credentials: 'omit' })
       .then(function (response) {
         if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.json();
       })
       .then(function (body) {
+        // The player chose the other game while this list was on its way.
+        if (game !== state.game) return;
         var rooms = valid(body);
         if (!rooms) throw new Error('unexpected list');
         var key = JSON.stringify(body, function (name, value) {
@@ -344,6 +373,19 @@
     timer = document.hidden ? null : setTimeout(load, REFRESH_MS);
   }
 
+  games.addEventListener('click', function (event) {
+    var button = event.target.closest ? event.target.closest('button') : null;
+    if (!button || !games.contains(button)) return;
+    var chosen = GAMES[button.getAttribute('data-game')];
+    if (!chosen || chosen === state.game) return;
+    state.game = chosen;
+    state.rooms = null; state.key = null; state.area = ''; state.type = '';
+    drawn.key = null;
+    if (history.replaceState) history.replaceState(null, '', chosen.key === 'usf4' ? location.pathname : '?game=' + chosen.key);
+    gameButtons();
+    loading = false;
+    load();
+  });
   areas.addEventListener('click', function (event) {
     var button = event.target.closest ? event.target.closest('button') : null;
     if (!button || !areas.contains(button)) return;
@@ -358,6 +400,7 @@
   });
   openOnly.addEventListener('change', render);
   refreshButton.addEventListener('click', load);
+  gameButtons();
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) { clearTimeout(timer); timer = null; } else { load(); }
   });
