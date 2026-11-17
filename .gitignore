@@ -54,6 +54,6 @@ scripts/vps-port-diag-remote.py
 scripts/vps-ggpo-health-test.py
 scripts/vps-ggpo-start-test.py
 scripts/vps-relay-health-all.py
-scripts/__pycache__/
+__pycache__/
 
 # Pinned third-party runtime binaries are fetched and hash-verified locally.

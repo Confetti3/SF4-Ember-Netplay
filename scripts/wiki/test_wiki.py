@@ -137,6 +137,13 @@ with tempfile.TemporaryDirectory() as folder:
     commit(second, "docs/images/d.webp", "pictures\n\nPictures-from: 0123456789abcdef0123456789abcdef01234567")
     found = stale.stale(rows, second)
     assert len(found) == 3 and all("capture source unknown" in line for line in found), found
+    # A guide is stale the same way, from the sources its page names; a source that is gone is a warning too.
+    commit(first, "g.md", "guide"), commit(first, "src/ui/a.cxx", "ui, third")
+    sample = [build.Page("g.md", "G", "Training", "x", ("src/ui", "src/gone")), build.Page("h.md", "H", "Training", "y")]
+    assert stale.guides(sample, first) == ["g.md names src/gone as a source, which is gone",
+                                           f"g.md: src/ui, src/gone changed after it, 1 commits, last "
+                                           f"{run(first, 'rev-parse', '--short', 'HEAD')} (read the guide against it; "
+                                           "the warning ends with its next edit)"], stale.guides(sample, first)
 # A picture without a manifest row and a row whose picture is gone are reported, not fatal.
 assert stale.unlisted([{"picture": "a.webp"}, {"picture": "gone.webp"}], {"a.webp", "new.webp"}) == [
     f"new.webp has no row in {stale.MANIFEST}", f"{stale.MANIFEST} lists gone.webp, which is gone"]

@@ -34,44 +34,73 @@ SECTIONS = ["Getting started", "Playing online", "Training", "Frame Data", "Tour
 
 
 class Page(NamedTuple):
-    """A wiki page: its source file, its name, its sidebar section and what Home says it covers."""
+    """A wiki page: its source file, its name, its sidebar section, what Home says it covers, and the
+    files whose change calls for reading the guide again (stale.py)."""
     path: str
     title: str
     section: str
     about: str = ""
+    sources: tuple = ()
 
 
 # Every guide's page. A guide missing here still gets a page, under "More guides", and the build warns about it.
 # The sidebar, Home and Previous/Next read the pages by section, then in this order.
 PAGES = [
-    Page("README.md", "Install", "Getting started", "Which download to take, installing Ember and your first launch"),
+    Page("README.md", "Install", "Getting started", "Which download to take, installing Ember and your first launch",
+         ("src/launcher", "scripts/installer")),
     Page("docs/guides/STEAM_DECK.md", "Steam Deck", "Getting started",
-         "Installing through Proton, updating, uninstalling and where the logs are"),
-    Page("docs/guides/LINUX.md", "Linux", "Getting started", "Installing through Proton on a Linux PC that is not a Steam Deck"),
+         "Installing through Proton, updating, uninstalling and where the logs are",
+         ("scripts/steamdeck",)),
+    Page("docs/guides/LINUX.md", "Linux", "Getting started",
+         "Installing through Proton on a Linux PC that is not a Steam Deck",
+         ("scripts/wine-dxvk",)),
     Page("docs/guides/SCOPE_AND_LIMITATIONS.md", "Scope and Limitations", "Getting started",
          "What is experimental, and what to expect"),
-    Page("docs/guides/USER_NETPLAY.md", "Player Guide", "Playing online", "Hosting, joining, updates and day-to-day play"),
-    Page("docs/guides/CUSTOM_ROOMS.md", "Custom Rooms", "Playing online", "Tables, queues, spectators and room rules"),
+    Page("docs/guides/USER_NETPLAY.md", "Player Guide", "Playing online",
+         "Hosting, joining, updates and day-to-day play",
+         ("src/ui/ApplicationShell.cxx", "src/ui/RoomPanel.cxx", "src/ui/ReplaysPanel.cxx",
+          "src/ui/UpdatePrompt.cxx", "src/launcher/update")),
+    Page("docs/guides/CUSTOM_ROOMS.md", "Custom Rooms", "Playing online", "Tables, queues, spectators and room rules",
+         ("src/ui/RoomPanelTables.cxx", "src/ui/RoomActions.cxx", "src/ui/RoomControls.cxx",
+          "src/ui/PublicRoomsPanel.cxx")),
     Page("docs/guides/CONTROLLER_MENUS.md", "Controllers and Menus", "Playing online",
-         "Moving around Ember with a pad, stick or keyboard"),
+         "Moving around Ember with a pad, stick or keyboard",
+         ("src/ui/ControllersScreen.cxx", "src/ui/ButtonLayoutScreen.cxx", "src/ui/PadSetupScreen.cxx",
+          "src/ui/ControllerNavigation.cxx")),
     Page("docs/guides/V2_MENUS.md", "Ember Menus", "Playing online",
-         "Home, Settings, the room board and how to move around them"),
-    Page("docs/guides/ACCESSIBILITY.md", "Accessibility", "Playing online", "Speech, TV mode and the accessibility button"),
+         "Home, Settings, the room board and how to move around them",
+         ("src/ui/V2.cxx", "src/ui/ApplicationShell__Settings.cxx", "src/ui/ApplicationShell__Screens.cxx")),
+    Page("docs/guides/ACCESSIBILITY.md", "Accessibility", "Playing online",
+         "Speech, TV mode and the accessibility button",
+         ("src/ui/ApplicationShell__Accessibility.cxx",)),
     Page("docs/guides/GAME_THEMES.md", "In-game Themes", "Playing online",
-         "Changing how the menus and battle HUD look and sound"),
-    Page("docs/guides/DISCORD.md", "Discord", "Playing online", "Invitations, your Discord status and privacy"),
+         "Changing how the menus and battle HUD look and sound",
+         ("src/sf4e/sf4e__GameThemes.cxx",)),
+    Page("docs/guides/DISCORD.md", "Discord", "Playing online", "Invitations, your Discord status and privacy",
+         ("src/discord",)),
     Page("docs/guides/TRAINING_LAB.md", "Training Lab", "Training",
-         "Frame meter, dummy recording and dummy replies, with a notation cheat sheet"),
-    Page("docs/guides/TOURNAMENT_MODE.md", "Tournament Mode", "Tournaments", "Ember ID and playing organized tournaments"),
+         "Frame meter, dummy recording and dummy replies, with a notation cheat sheet",
+         ("src/training", "src/ui/TrainingPanel.cxx", "src/ui/TrainingMeter.cxx")),
+    Page("docs/guides/TOURNAMENT_MODE.md", "Tournament Mode", "Tournaments",
+         "Ember ID and playing organized tournaments",
+         ("src/ui/IdentityPanel.cxx", "src/ui/IdentityMatches.cxx")),
     Page("docs/guides/TOURNAMENT_TEST.md", "Tournament Test", "Tournaments", "Trying a tournament on two PCs"),
     Page("docs/guides/INTEGRATIONS.md", "Integrations", "Integrations",
-         "Ember's tournament bridge for platforms, organizers and bots"),
+         "Ember's tournament bridge for platforms, organizers and bots",
+         ("server/ember/bridge/src/routes",)),
     Page("docs/guides/BLUMINT_QUICKSTART.md", "BluMint Quickstart", "Integrations",
-         "Getting the Ember bridge working with BluMint"),
-    Page("docs/guides/TROUBLESHOOTING.md", "Troubleshooting", "Troubleshooting", "Startup, connections and diagnostics"),
-    Page("docs/guides/INPUT_LAG.md", "Input Lag", "Troubleshooting", "Input delay and the game's own settings"),
-    Page("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting", "Saving logs from both players for a bug report"),
-    Page("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting", "When antivirus flags Ember"),
+         "Getting the Ember bridge working with BluMint",
+         ("server/ember/bridge/src/routes/blumint",)),
+    Page("docs/guides/TROUBLESHOOTING.md", "Troubleshooting", "Troubleshooting",
+         "Startup, connections and diagnostics",
+         ("src/launcher/launcher.cxx",)),
+    Page("docs/guides/INPUT_LAG.md", "Input Lag", "Troubleshooting", "Input delay and the game's own settings",
+         ("src/sf4e/sf4e__DirectInputFilter.cxx",)),
+    Page("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting",
+         "Saving logs from both players for a bug report",
+         ("src/ui/ProblemReportPanel.cxx",)),
+    Page("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting", "When antivirus flags Ember",
+         ("scripts/prepare-defender-submission.ps1",)),
 ]
 # The frame data index, after Training. Its pages are generated on a lab PC, so a build without them still lists
 # it in the reading order, and the publisher keeps the published pages (KEPT, which check.py accepts as links).
