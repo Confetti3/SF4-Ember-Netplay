@@ -5,13 +5,15 @@ with the `--readme-shots` option. The room names, members, chat and profile are 
 Portraits are decoded from an owned Steam installation; selection artwork comes
 from the repository's credited assets. See [attribution](../../ATTRIBUTION.md).
 
-Generate after building the current source:
+Generate after building the current source with `scripts/build-current.ps1`, whose
+receipt the script reads:
 
 ```powershell
 pwsh -NoProfile -File ./scripts/capture-readme.ps1 -GameRoot 'C:/Games/Steam/steamapps/common/Super Street Fighter IV - Arcade Edition'
 ```
 
-The script renders every screen once, in English at 1280 x 720, into `build/current/readme-captures-<time>`; delete that folder afterwards.
+The script renders every screen once, in English at 1280 x 720, converts the
+pictures it needs and removes the renders.
 
 Home, room, fighter and costume selection retain the full 1280 x 720 viewport.
 Only BMP-to-PNG conversion is applied; UI text, geometry and artwork are not
@@ -24,16 +26,31 @@ the README option substitutes readable sample names and chat for presentation.
 
 The step pictures under `guides/` are captured by the same run, from the same
 English 1280 x 720 renders, and written as WebP with libwebp's `cwebp -q 85`
-(`cwebp` must be on `PATH`). `capture-readme.ps1` lists which render each one is.
+(`cwebp` must be on `PATH`). `manifest.tsv` lists which render each one is, and
+`scripts/wiki/stale.py` names in the wiki build's summary each picture whose
+interface changed in a commit after the one it was captured from. The script
+ends by printing a `Pictures-from: <commit>` line, the revision the build's
+receipt (`build-provenance.json`, written by `scripts/build-current.ps1`, which
+the script needs) says the renderer was built from; put it at the end of the
+message of the commit that records the run (`git commit --allow-empty` when no
+picture changed). The newest such commit dates every picture from before it,
+and a rebase keeps it, so the pictures keep the date of their capture. A picture
+changed after it dates from its own last commit.
 
-The guide pictures it does not list are screenshots of Ember
-1.4.0-nightly20261018 running in the game on a Steam Deck: the training lab over
-a fight, Online play, the game's own Graphics settings, the stage previews, the
-main character roster, the Updates window, and a room with a second PC as guest
-(the room board, a match's HUD, the table after it and a battle log replay's
-strip). Each is cropped to the game's 1280 x 720 picture, or to the Updates
-window, and written with the same `cwebp -q 85`. Retake them by hand when those
-screens change.
+The training pages, the match HUD, the replay strip and the updater are scenes
+of the same sweep. The three pictures the manifest marks `uilab` are screens the
+sweep has no scene for: the training panel over the menu, the room board with a
+guest and the post-match prompt. The same run takes them from `UiLab.exe`
+(src/ui/lab), the shell in a window with made-up data, at 1280 x 720.
+
+The pictures it marks `game` are screenshots of Ember 1.4.0-nightly20261018
+running in the game on a Steam Deck: the frame meter, frame data and dummy
+recording over a fight, the game's own Graphics settings and the stage previews.
+Each is cropped to the game's 1280 x 720 picture and written with the same
+`cwebp -q 85`. Retake them by hand when those screens change.
+
+`guides/controller_menus/colors.webp` is marked `still`: the sweep has no scene of
+the stock color gallery, so it keeps the picture it had until one is added.
 
 ## In-game frame meter
 

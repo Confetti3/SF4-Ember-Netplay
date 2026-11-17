@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Checks for the wiki build that need no network: python3 scripts/wiki/test_wiki.py"""
+import subprocess
 import tempfile
 from pathlib import Path
 
 import build
 import check
+import stale
 import publish
 
 # A changed paragraph keeps the current text and shows the new one below it, marked.
@@ -109,6 +111,35 @@ with tempfile.TemporaryDirectory() as folder:
 # A page or a heading that links point to may not disappear unnoticed; an anchor kept for a moved heading counts.
 assert publish.lost({"A": "## One\n## Two", "B": "x"}, {"A": "## One\n## Three"}) == (["B"], ["A#two"])
 assert publish.lost({"A": "## Two"}, {"A": '<a name="two"></a>'}) == ([], [])
+# A picture is stale once what its kind shows changed after the commit it was captured from. The newest commit
+# with a Pictures-from trailer dates every picture from before it, the ones it left unchanged too, so a picture
+# rebased past a later change of the interface is still stale; a picture changed after it dates from itself, a
+# picture taken by hand is not checked, and a trailer naming a commit that is not here dates nothing.
+with tempfile.TemporaryDirectory() as folder:
+    first, second = Path(folder, "1"), Path(folder, "2")
+    run = lambda root, *a: subprocess.run(["git", "-C", root, *a], check=True, capture_output=True, text=True).stdout.strip()
+    def commit(root, name, message):
+        (root / name).parent.mkdir(parents=True, exist_ok=True), (root / name).write_text(message)
+        run(root, "add", "."), run(root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", message)
+    first.mkdir(), run(first, "init", "-q")
+    commit(first, "docs/images/a.webp", "a picture"), commit(first, "docs/images/g.webp", "a game picture")
+    commit(first, "src/ui/a.cxx", "ui")
+    captured = run(first, "rev-parse", "--short", "HEAD")
+    commit(first, "src/ui/a.cxx", "ui again")
+    changed = run(first, "rev-parse", "--short", "HEAD")
+    commit(first, "docs/images/b.webp", f"pictures\n\nPictures-from: {captured}")
+    commit(first, "docs/images/c.webp", "by hand")
+    rows = [{"picture": f"{name}.webp", "source": "render home"} for name in "abc"] + [{"picture": "g.webp", "source": "game"}]
+    found = stale.stale(rows, first)
+    assert [line[:6] for line in found] == ["a.webp", "b.webp"] and f"last {changed}" in found[0], found
+    run(folder, "clone", "-q", first, second)
+    commit(second, "docs/images/d.webp", "pictures\n\nPictures-from: 0123456789abcdef0123456789abcdef01234567")
+    found = stale.stale(rows, second)
+    assert len(found) == 3 and all("capture source unknown" in line for line in found), found
+# A picture without a manifest row and a row whose picture is gone are reported, not fatal.
+assert stale.unlisted([{"picture": "a.webp"}, {"picture": "gone.webp"}], {"a.webp", "new.webp"}) == [
+    f"new.webp has no row in {stale.MANIFEST}", f"{stale.MANIFEST} lists gone.webp, which is gone"]
+assert {row["source"].split()[0] for row in stale.read(build.ROOT)} <= set(stale.WATCHED)
 
 # The README still has both headings the wiki takes its install part between.
 readme = (build.ROOT / "README.md").read_text(encoding="utf-8").splitlines()

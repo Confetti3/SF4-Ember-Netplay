@@ -28,7 +28,7 @@
 // --levels: fighter points in the game's digits, bands on pictures and meters
 //   (all of it shows in --size 3840x2160)
 // --points public|private with --room or --arcade: every member's card as the bridge would have it, in a public room
-//   or a private one (which shows none). Akira keeps their points private and Riley has no card yet; FRaccie's
+//   or a private one (which shows none). Akira keeps their points private and Riley has no card yet; Ember Player's
 //   own points are --profile's (played). On a wide window --screen room-members --keys enter opens a member's popout, and a
 //   second enter their page; the relations go round the members (none, friend, request sent, received, blocked).
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
@@ -37,7 +37,7 @@
 // --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk), a created room joined at once,
 //   and writes each step there; exits when it is done, 3 when a step failed
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
-// --seats watch|none with --room: FRaccie watches table 2's game, or has no place in the Classic room
+// --seats watch|none with --room: Ember Player watches table 2's game, or has no place in the Classic room
 // UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--points public|private] [--rankings] [--profile state] [--friends state] [--find state] [--relation word] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 // --trace trace.txt (with --shot): writes the screen and the focused row before the first key and after each one,
@@ -166,10 +166,10 @@ ui::ShellView FakeView() {
     ui::ShellView view;
     view.controllerReady = view.canChangeController = view.canEditPreferences = view.canEditSelection = view.canChangeUltra = view.canOpenRoom = view.helperReady = true;
     view.controller = "Xbox pad";
-    view.preferences.displayName = "FRaccie";
+    view.preferences.displayName = "Ember Player";
     // This PC's own confirmed online games: fewer than the account's rated games, which the bridge counts from every PC.
     view.preferences.record.wins = 312; view.preferences.record.losses = 198;
-    view.automaticCountry = CountryCode::Parsed("BE");
+    view.automaticCountry = CountryCode::Parsed("US");
     view.automaticArea = Area::EuropeWest;
     view.selectionSummary = "Ryu / Original / Color 01 / Ultra I";
     // The pick the room's Ultra button and Table options' Ultra row step and open.
@@ -189,9 +189,9 @@ ui::ShellView FakeView() {
         r.provenance = spectated ? replayfiles::Provenance::Spectated : replayfiles::Provenance::Played; r.watched = seen; r.summary = replayinputs::Summary{}; r.summary->scored = true; r.summary->score[0] = sa; r.summary->score[1] = sb;
         r.summary->rounds = static_cast<std::uint32_t>(sa + sb); r.summary->frames = 60 * 75 * r.summary->rounds; archive->push_back(r);
     };
-    replay("C:/replays/4.replay", "2026-10-21 21:14", 5000, "FRaccie", "Katie", 0, 16, 2, 1, false, false);
-    replay("C:/replays/3.replay", "2026-10-21 21:02", 4300, "FRaccie", "Katie", 0, 16, 0, 2, false, true);
-    replay("C:/replays/2.replay", "2026-10-21 20:51", 3600, "Katie", "FRaccie", 16, 0, 1, 2, false, false);
+    replay("C:/replays/4.replay", "2026-10-21 21:14", 5000, "Ember Player", "Katie", 0, 16, 2, 1, false, false);
+    replay("C:/replays/3.replay", "2026-10-21 21:02", 4300, "Ember Player", "Katie", 0, 16, 0, 2, false, true);
+    replay("C:/replays/2.replay", "2026-10-21 20:51", 3600, "Katie", "Ember Player", 16, 0, 1, 2, false, false);
     replay("C:/replays/1.replay", "2026-10-21 20:30", 1000, "Katie", "Jimbo", 16, 13, 2, 0, true, false);
     replay("C:/replays/0.replay", "2026-10-20 22:10", 100, "Mo", "Ash", 6, 1, 1, 2, true, true);
     view.replays.archive = archive; view.replays.ready = true;
@@ -207,8 +207,8 @@ void JoinRoom(ui::ShellView& view) {
         t.phase = i == 0 ? room::TablePhase::Waiting : i == 1 ? room::TablePhase::Playing : room::TablePhase::Idle;
         if (i < 2) { t.p1 = i * 2 + 1; t.p2 = i * 2 + 2; t.score[0] = i * 2; t.score[1] = i; }
     }
-    const char* names[] = {"FRaccie","Akira","Jamie","Alex","Morgan","Riley","Sam","Jordan","Casey","Taylor","Robin","Ash","Sky","Reese","Avery","Drew"};
-    const char* countries[] = {"BE","JP","GB","US","FR","DE","NL","BR","KR","ES","IT","PL","CA","MX","SE","AU"};
+    const char* names[] = {"Ember Player","Akira","Jamie","Alex","Morgan","Riley","Sam","Jordan","Casey","Taylor","Robin","Ash","Sky","Reese","Avery","Drew"};
+    const char* countries[] = {"US","JP","GB","US","FR","DE","NL","BR","KR","ES","IT","PL","CA","MX","SE","AU"};
     for (int i = 1; i <= 16; ++i) {
         room::Member m; m.id = i; m.name = names[i - 1]; m.host = i == 1; m.fighter = (i - 1) * 2; m.mainFighter = (i + 7) % 44;
         m.country = CountryCode::Parsed(countries[i - 1]);
@@ -219,7 +219,7 @@ void JoinRoom(ui::ShellView& view) {
         // Sets won and lost in the room, on the cards of those who have played one.
         if (i <= 6) { m.setsWon = static_cast<std::uint16_t>(i % 4); m.setsLost = static_cast<std::uint16_t>(i % 3); }
         // Class marks and pings, as a public room shows them.
-        m.badge = i == 2 ? SkillBadge::Developer() : i == 3 ? SkillBadge::Placing() : i < 9 ? SkillBadge::OfClass(static_cast<std::uint8_t>(i), i % 2 == 0) : SkillBadge{};
+        m.badge = i == 3 ? SkillBadge::Placing() : i < 9 ? SkillBadge::OfClass(static_cast<std::uint8_t>(i), i % 2 == 0) : SkillBadge{};
         // Member 2 is the opponent, checked below; member 3 is measured through a relay, member 5 not measured yet.
         if (i > 1) { session::MemberLatency l; l.incarnation = m.incarnation; l.state = i == 5 ? session::MemberLatency::State::Measuring : session::MemberLatency::State::Value; l.rttMs = i == 5 ? 0 : 20 + i * 13 % 190; l.relay = i % 3 == 0; view.memberLatency[m.id] = l; }
         view.room.members.push_back(m);
@@ -237,8 +237,8 @@ void JoinRoom(ui::ShellView& view) {
 void ArcadeRoom(ui::ShellView& view, room::RoomType type, const std::string& seats) {
     JoinRoom(view);
     const bool full = seats == "full";
-    view.room.type = type; view.room.name = type == room::RoomType::King ? "King of the hill" : "FRaccie's arcade"; view.room.members.resize(full ? 16 : 9);
-    const char* names[] = {"FRaccie", "Katie", "Jimbo", "Deck01", "Ash", "Mo", "Lena", "TJ", "Rook", "Sven", "Marn", "Kaz", "Nia", "Otto", "Yui", "Bram"};
+    view.room.type = type; view.room.name = type == room::RoomType::King ? "King of the hill" : "Ember Player's arcade"; view.room.members.resize(full ? 16 : 9);
+    const char* names[] = {"Ember Player", "Katie", "Jimbo", "Deck01", "Ash", "Mo", "Lena", "TJ", "Rook", "Sven", "Marn", "Kaz", "Nia", "Otto", "Yui", "Bram"};
     for (auto& m : view.room.members) { m.id = static_cast<room::MemberId>(&m - view.room.members.data() + 1); m.name = names[m.id - 1]; m.table = m.seat = -1; m.status = room::MemberStatus::Idle; }
     for (std::size_t i = 0; i < room::TableCount; ++i) view.room.tables[i] = {}, view.room.tables[i].id = static_cast<std::uint8_t>(i), view.room.tables[i].revision = 1;
     const bool king = type == room::RoomType::King;
@@ -453,7 +453,7 @@ void ProfileSets(ui::ShellView& view, const std::string& state, const std::strin
     status.listing = listing;
 }
 // An Ember ID on a trusted service (lab --rankings), and Rankings' answers from
-// it: FRaccie at B+ and listed, and a board of sixteen by class, as the design board.
+// it: Ember Player at B+ and listed, and a board of sixteen by class, as the design board.
 void Rankings(ui::ShellView& view) {
     auto& id = view.identity;
     id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.fingerprint = "lab";
@@ -462,14 +462,14 @@ void Rankings(ui::ShellView& view) {
     r.bridge = "brg_1"; r.emberId = id.emberId;
     auto& s = r.standing.value;
     s.kind = netplay::rankings::Standing::Kind::Ranked; s.classesShown = true; s.badge = SkillBadge::OfClass(8, true);
-    s.listed = true; s.listing = {"FRaccie", CountryCode::Parsed("BE")};
+    s.listed = true; s.listing = {"Ember Player", CountryCode::Parsed("US")};
     r.standing.loaded = true; r.standing.revision = r.standing.finished = 1;
     const std::tuple<const char*, const char*, int> players[] = {{"Shoryu_Ken","JP",10},{"Vulpecula","FR",10},{"MrPalm","US",9},{"Kaido","KR",9},
         {"TigerKnee","GB",9},{"NightOwl","MX",8},{"Rekka","BR",8},{"Pudding","NL",8},{"Gief4Life","PL",7},{"Tandem","DE",7},{"Ochre","CA",6},
-        {"FRaccie","BE",6},{"Sonic Hurricane","ES",6},{"Aegis","IT",6},{"Bunbun","SE",5},{"Ninety9","US",5}};
+        {"Ember Player","US",6},{"Sonic Hurricane","ES",6},{"Aegis","IT",6},{"Bunbun","SE",5},{"Ninety9","US",5}};
     auto board = std::make_shared<std::vector<netplay::rankings::BoardEntry>>();
     for (const auto& p : players)
-        board->push_back({{std::get<0>(p), CountryCode::Parsed(std::get<1>(p))}, static_cast<std::uint8_t>(std::get<2>(p)), std::string(std::get<0>(p)) == "FRaccie"});
+        board->push_back({{std::get<0>(p), CountryCode::Parsed(std::get<1>(p))}, static_cast<std::uint8_t>(std::get<2>(p)), std::string(std::get<0>(p)) == "Ember Player"});
     r.board.value = board; r.board.loaded = true; r.board.revision = r.board.finished = 1;
 }
 // --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's
@@ -689,7 +689,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (arcade > 0) ArcadeRoom(view, static_cast<room::RoomType>(arcade), seats);
     else if (inRoom || arcade == 0) {
         JoinRoom(view);
-        // --seats watch|none in a Classic room: FRaccie gives table 1's seat to Morgan
+        // --seats watch|none in a Classic room: Ember Player gives table 1's seat to Morgan
         // and watches table 2's game, or has no place at all.
         if ((seats == "watch" || seats == "none") && view.room.members.size() > 4) {
             auto& t = view.room.tables[0]; auto& me = view.room.members[0]; auto& morgan = view.room.members[4];
@@ -698,7 +698,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             if (seats == "watch") view.room.tables[1].spectators.push_back(me.id);
         }
     }
-    // Table 1's game just ended on the WIN screen: FRaccie (P1) against Akira, game 1 of a first to 2.
+    // Table 1's game just ended on the WIN screen: Ember Player (P1) against Akira, game 1 of a first to 2.
     if (!postMatch.empty()) {
         auto& t = view.room.tables[0];
         t.phase = room::TablePhase::Playing; t.matchGeneration = 1; t.rules.format = room::SetFormat::Ft2; t.score[0] = t.score[1] = 0;

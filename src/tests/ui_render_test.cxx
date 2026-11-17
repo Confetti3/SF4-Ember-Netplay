@@ -394,6 +394,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_news.hxx"
 #include "ui_render_replay_controls.hxx"
 #include "ui_render_camera_panel.hxx"
+#include "../ui/AppearanceGrid.hxx"
 #include "ui_render_reports.hxx"
 #include "ui_render_prompts.hxx"
 #include "ui_render_controllers.hxx"
@@ -895,6 +896,9 @@ int main(int argc, char** argv) {
                             if(img.missing)throw std::runtime_error("Appearance preview asset is missing: "+shot+" "+std::to_string(color));
                             loaded=loaded&&img.texture!=0;
                         }
+                        // The costume grid's cards show each costume in its gallery colour, at either size.
+                        if(selector.Navigation().Screen()=="costumes")for(int costume:selection::AllowedCostumes(pick.fighter,availability(pick.fighter)))
+                            for(bool large:{false,true}){const auto img=art->Character(pick.fighter,costume,GalleryColor(selection::AllowedColors(pick.fighter,costume,availability(pick.fighter)),pick.color),large);loaded=loaded&&(img.missing||img.texture!=0);}
                         if(!loaded)std::this_thread::sleep_for(std::chrono::milliseconds(5));
                     }while(!loaded&&std::chrono::steady_clock::now()<deadline);
                     if(!loaded)throw std::runtime_error("Appearance preview loading timed out: "+shot);
