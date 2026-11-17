@@ -43,6 +43,36 @@ class Page(NamedTuple):
     sources: tuple = ()
 
 
+class Sheet(NamedTuple):
+    """A page as collect() reads it, before the wiki's banner, contents list and nav: what the docs site renders.
+    lines is None for the Frame Data index of a build without frame data, which writes no page for it."""
+    page: Page
+    title: str
+    lines: list
+    before: str = None
+    after: str = None
+
+
+class Built(NamedTuple):
+    """What collect() read and write_wiki() writes, and the docs site renders: the pages in reading order (chain)
+    and those outside the sidebar (a fighter's frame data), the chain's pages by section, the pictures they show
+    by their path under images/, the sidebar's links, the release tag, the release tags of the wiki (in wiki) and
+    the footer."""
+    sha: str
+    tag: str
+    included: dict
+    report: list
+    version: str
+    chain: list
+    others: list
+    sections: dict
+    images: dict
+    links: list
+    wiki: str
+    tags: dict
+    footer: str
+
+
 # Every guide's page. A guide missing here still gets a page, under "More guides", and the build warns about it.
 # The sidebar, Home and Previous/Next read the pages by section, then in this order.
 PAGES = [
@@ -109,6 +139,8 @@ KEPT = {"Frame-Data"}
 # The README's player part, from the downloads to its guides table; the table, community and licenses are
 # for the repository page.
 README_PART = ("## Which download do I need?", "## Guides")
+HOME_LEAD = ("Guides for playing Ultra Street Fighter IV online with Ember: installing it, playing in rooms, "
+             "training, running tournaments and fixing problems.")
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 ITEM = re.compile(r"(\d+\.|[-*+]) ")
 LINK_TEXT = re.compile(r"\[([^\]]*)\]\([^)]*\)")
@@ -430,19 +462,27 @@ def contents(lines):
     return ["<details>", "<summary><b>On this page</b></summary>", ""] + items + ["", "</details>", ""]
 
 
-def write_page(out, page, title, section, lines, colors, before=None, after=None):
-    banner_name = f"images/banner-{slug(page)}.svg"
-    (out / banner_name).write_text(banner(title, section, colors), encoding="utf-8")
-    nav = [f"[Previous: {before}]({slug(before)})" if before else None, "[Home](Home)",
-           f"[Next: {after}]({slug(after)})" if after else None]
-    body = [f"![{title}]({banner_name})", ""] + contents(lines) + ["\n".join(lines).strip(), "", "---", "",
-                                                                 " | ".join(n for n in nav if n)]
-    (out / f"{slug(page)}.md").write_text("\n".join(body) + "\n", encoding="utf-8")
+def write_page(out, sheet, colors):
+    name = slug(sheet.page.title)
+    banner_name = f"images/banner-{name}.svg"
+    (out / banner_name).write_text(banner(sheet.title, sheet.page.section, colors), encoding="utf-8")
+    nav = [f"[Previous: {sheet.before}]({slug(sheet.before)})" if sheet.before else None, "[Home](Home)",
+           f"[Next: {sheet.after}]({slug(sheet.after)})" if sheet.after else None]
+    body = [f"![{sheet.title}]({banner_name})", ""] + contents(sheet.lines) + ["\n".join(sheet.lines).strip(), "", "---",
+                                                                             "", " | ".join(n for n in nav if n)]
+    (out / f"{name}.md").write_text("\n".join(body) + "\n", encoding="utf-8")
 
 
-def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None, tags=None, wiki=UPSTREAM):
-    """Write the wiki of the docs in src into out. tags are the release tags of the wiki repository wiki, which main()
-    reads, so a build reaches the network only for the pull requests."""
+def write_images(images, folder):
+    for name, data in images.items():
+        (folder / name).parent.mkdir(parents=True, exist_ok=True)
+        (folder / name).write_bytes(data)
+
+
+def collect(src, repo, auth, label=PR_LABEL, overlay_prs=True, framedata=None, tags=None, wiki=UPSTREAM):
+    """Read the docs of the checkout src, and the pull requests' changes to them, into the pages to write. tags are
+    the release tags of the wiki repository wiki, which main() reads, so this reaches the network only for the pull
+    requests."""
     report, tag = [], release_tag(src)
     docs = {"README.md": Doc((src / "README.md").read_text(encoding="utf-8"))}
     for path in sorted((src / "docs/guides").glob("*.md")):
@@ -467,87 +507,96 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
             report.append(f"{path} has no entry in PAGES; it is listed under More guides")
     pages = {path: known[path].title for path in docs}
 
-    if out.exists():
-        shutil.rmtree(out)
-    (out / "images").mkdir(parents=True)
-    colors, images, chain = theme(), set(), []
+    images, chain, others = set(), [], []
     for path, doc in docs.items():
         lines = doc.lines[1:] if doc.lines and doc.lines[0].startswith("# ") else doc.lines
         owners = doc.owners[len(doc.owners) - len(lines):]
-        chain.append((known[path], known[path].title, mark(rewrite(lines, path, pages, images, repo), owners)))
+        chain.append(Sheet(known[path], known[path].title, mark(rewrite(lines, path, pages, images, repo), owners)))
 
     # Frame data pages are generated elsewhere and come as they are: an index and a page per fighter.
-    index = FRAME_DATA.title, None
+    index = Sheet(FRAME_DATA, FRAME_DATA.title, None)
     if framedata and framedata.is_dir():
         for path in sorted(framedata.glob("*.md")):
             lines = path.read_text(encoding="utf-8").splitlines()
             title, lines = (lines[0][2:], lines[1:]) if lines and lines[0].startswith("# ") \
                 else (path.stem.replace("-", " "), lines)
             if path.stem == "Frame-Data":
-                index = title, lines
+                index = Sheet(FRAME_DATA, title, lines)
             else:
-                write_page(out, path.stem, title, "Frame Data", lines, colors)
+                # No source path: these pages are not in the repository.
+                others.append(Sheet(Page("", path.stem.replace("-", " "), "Frame Data"), title, lines))
     elif framedata:
         report.append(f"no frame data at {framedata}; the wiki is built without it")
-    chain.append((FRAME_DATA, *index))
+    chain.append(index)
 
-    # One reading order: by section, then as PAGES lists them. The sidebar, Home and Previous/Next all follow it.
+    # One reading order: by section, then as PAGES lists them. The sidebar, Home, Previous/Next and the docs
+    # site all follow it.
     order, rank = SECTIONS + ["More guides"], {page.path: i for i, page in enumerate(PAGES)}
-    chain.sort(key=lambda entry: (order.index(entry[0].section), rank.get(entry[0].path, len(rank))))
-    sidebar = {}
-    for i, (page, title, lines) in enumerate(chain):
-        before, after = chain[i - 1][0].title if i else None, chain[i + 1][0].title if i + 1 < len(chain) else None
-        if lines is not None:
-            write_page(out, page.title, title, page.section, lines, colors, before, after)
-        sidebar.setdefault(page.section, []).append(page)
-        if not page.about:
-            report.append(f"{page.path} has no about in PAGES; Home does not say what it covers")
+    chain.sort(key=lambda sheet: (order.index(sheet.page.section), rank.get(sheet.page.path, len(rank))))
+    titles = [None] + [sheet.page.title for sheet in chain] + [None]
+    chain = [sheet._replace(before=titles[i], after=titles[i + 2]) for i, sheet in enumerate(chain)]
+    sections = {}
+    for sheet in chain:
+        sections.setdefault(sheet.page.section, []).append(sheet.page)
+        if not sheet.page.about:
+            report.append(f"{sheet.page.path} has no about in PAGES; Home does not say what it covers")
 
+    found = {}
     for image in sorted(images):
-        target = out / "images" / image.removeprefix("docs/images/")
-        target.parent.mkdir(parents=True, exist_ok=True)
         if (src / image).exists():
-            shutil.copyfile(src / image, target)
+            found[image.removeprefix("docs/images/")] = (src / image).read_bytes()
         elif image in pr_images and (data := raw(UPSTREAM, pr_images[image], image, auth)):
-            target.write_bytes(data)
+            found[image.removeprefix("docs/images/")] = data
         else:
             report.append(f"missing image {image}")
 
-    (out / "images/banner-Home.svg").write_text(banner("SF4 Ember Netplay", "Player guides", colors), encoding="utf-8")
-    text = ["![SF4 Ember Netplay](images/banner-Home.svg)", "",
-            "Guides for playing Ultra Street Fighter IV online with Ember: installing it, playing in rooms, "
-            "training, running tournaments and fixing problems.", ""]
-    table = ("| Page | What it covers |", "| --- | --- |")
-
-    def listing(heading, row, header=()):
-        return [line for s, found in sidebar.items() for line in [heading % s, "", *header, *map(row, found), ""]]
-
-    home = listing("## %s", lambda p: f"| [{p.title}]({slug(p.title)}) | {p.about} |", table)
-    (out / "Home.md").write_text("\n".join(text + home), encoding="utf-8")
     outbound = [("Download", f"https://github.com/{UPSTREAM}/releases"), ("Discord", links()["discord"]),
                 ("Report a bug", f"https://github.com/{UPSTREAM}/issues")]
-    sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p.title}]({slug(p.title)})") \
-        + ["**Links**", "", *(f"- [{name}]({url})" for name, url in outbound)]
-    # The tags are on the wiki publish.py pushes to, which a fork's run is its own.
-    if tags:
-        (out / "Versions.md").write_text(versions(wiki, tags), encoding="utf-8")
-        sidebar_lines.append("- [Versions](Versions)")
-    sidebar_lines.append("")
-    (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
-
     sha = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-    text = (f"{version(src, tag)}. Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); "
-            "edit the docs, not this page.")
+    named = version(src, tag)
+    footer = (f"{named}. Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); "
+              "edit the docs, not this page.")
     if included:
         # Titles are other people's text: escape what Markdown would read as links or markup.
         titles = {n: re.sub(r"([\\[\]<>*_`])", r"\\\1", pr["title"]) for n, pr in included.items()}
-        text += "\n\nComing soon, from open pull requests:\n\n" + "\n".join(
+        footer += "\n\nComing soon, from open pull requests:\n\n" + "\n".join(
             f"- [#{n}](https://github.com/{UPSTREAM}/pull/{n}) {titles[n]}" for n in sorted(titles))
-    (out / "_Footer.md").write_text(text + "\n", encoding="utf-8")
+    return Built(sha=sha, tag=tag, included=included, report=report, version=named, chain=chain, others=others,
+                 sections=sections, images=found, links=outbound, wiki=wiki, tags=tags or {}, footer=footer)
+
+
+def write_wiki(built, out):
+    """Write the wiki's pages into out, and beside it the docs commit and release tag publish.py reads."""
+    if out.exists():
+        shutil.rmtree(out)
+    (out / "images").mkdir(parents=True)
+    colors = theme()
+    for sheet in built.chain + built.others:
+        if sheet.lines is not None:
+            write_page(out, sheet, colors)
+    write_images(built.images, out / "images")
+
+    (out / "images/banner-Home.svg").write_text(banner("SF4 Ember Netplay", "Player guides", colors), encoding="utf-8")
+    text = ["![SF4 Ember Netplay](images/banner-Home.svg)", "", HOME_LEAD, ""]
+    table = ("| Page | What it covers |", "| --- | --- |")
+
+    def listing(heading, row, header=()):
+        return [line for s, found in built.sections.items() for line in [heading % s, "", *header, *map(row, found), ""]]
+
+    home = listing("## %s", lambda p: f"| [{p.title}]({slug(p.title)}) | {p.about} |", table)
+    (out / "Home.md").write_text("\n".join(text + home), encoding="utf-8")
+    sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p.title}]({slug(p.title)})") \
+        + ["**Links**", "", *(f"- [{name}]({url})" for name, url in built.links)]
+    # The tags are on the wiki publish.py pushes to, which a fork's run is its own.
+    if built.tags:
+        (out / "Versions.md").write_text(versions(built.wiki, built.tags), encoding="utf-8")
+        sidebar_lines.append("- [Versions](Versions)")
+    sidebar_lines.append("")
+    (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
+    (out / "_Footer.md").write_text(built.footer + "\n", encoding="utf-8")
     # Beside the wiki, not in it: the docs commit publish.py names in its commit message, and the release
     # tag, if the docs are a release's, which publish.py pushes the wiki to instead of its pages.
-    out.with_suffix(".sha").write_text(sha + "\n" + (tag + "\n" if tag else ""), encoding="utf-8")
-    return sha, included, report
+    out.with_suffix(".sha").write_text(built.sha + "\n" + (built.tag + "\n" if built.tag else ""), encoding="utf-8")
 
 
 def main():
@@ -563,10 +612,12 @@ def main():
     prs.add_argument("--all-prs", action="store_true", help=f"include open pull requests without the {PR_LABEL} label")
     args = parser.parse_args()
     src, repo = (nightly_repo(), NIGHTLY_REPO) if args.nightly_repo else (args.src, UPSTREAM)
-    sha, included, report = build(src, repo, Path(args.out), token(), None if args.all_prs else PR_LABEL,
-                                  not args.no_prs, args.framedata, wiki_tags(args.wiki), args.wiki)
-    print(f"docs at {sha[:9]}, coming soon from {', '.join(f'#{n}' for n in sorted(included)) or 'no pull requests'}")
-    print("\n".join(report))
+    built = collect(src, repo, token(), None if args.all_prs else PR_LABEL, not args.no_prs, args.framedata,
+                    wiki_tags(args.wiki), args.wiki)
+    write_wiki(built, Path(args.out))
+    print(f"docs at {built.sha[:9]}, coming soon from "
+          f"{', '.join(f'#{n}' for n in sorted(built.included)) or 'no pull requests'}")
+    print("\n".join(built.report))
 
 
 if __name__ == "__main__":
