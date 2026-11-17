@@ -132,10 +132,12 @@ int main() {
     CHECK(game_themes::Use(f.root.wstring(), game_themes::MainMenu, "Many", why, tiny) == Outcome::Used && why.empty() && f.Menus("sub/c.emz"));
     // The limits of a real part are far above these.
     CHECK(game_themes::Limits().files >= 1000 && game_themes::Limits().bytes >= (std::uintmax_t(256) << 20));
-    // Names with a drive or stream in them are no plain file names.
+    // Names with a drive or stream in them are no plain file names, nor names rooted at the drive (refused
+    // as such, not only where the drive root happens to be read-only).
     CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "CMN/x:y", "x", error));
     CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "C:\\x.emz", "x", error));
-    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "\\x.emz", "x", error));
+    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "\\x.emz", "x", error) && error == "not a plain file name");
+    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "/x.emz", "x", error) && error == "not a plain file name");
     // The battle HUD's own check is asked for the battle HUD only, and its verdict decides: a refused HUD
     // leaves the game's own, with the kind of refusal for the player.
     int asked = 0;

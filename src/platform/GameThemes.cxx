@@ -95,7 +95,8 @@ Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::s
 bool WriteActive(const std::wstring& gameDirectory, const wchar_t* part, const std::string& file, const std::string& bytes, std::string& error) {
     error.clear();
     const fs::path relative = fs::u8path(file);
-    bool plain = !file.empty() && file.find(':') == std::string::npos && relative.is_relative() && !relative.has_root_name();
+    // "\x" is not absolute on Windows, but joined to the game folder it is the drive's root.
+    bool plain = !file.empty() && file.find(':') == std::string::npos && !relative.has_root_path();
     for (const auto& piece : relative) plain = plain && piece != ".." && piece != ".";
     if (!plain) { error = "not a plain file name"; return false; }
     const fs::path target = fs::path(gameDirectory) / ActiveFolder / part / relative;
