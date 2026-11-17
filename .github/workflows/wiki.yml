@@ -5,6 +5,7 @@ name: Wiki
 on:
   push:
     branches: [nightly]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
     paths: [README.md, docs/**, scripts/wiki/**, .github/workflows/wiki.yml]
   pull_request:
     paths: [README.md, docs/**, scripts/wiki/**, .github/workflows/wiki.yml]
@@ -29,19 +30,29 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       # Scheduled runs start on the default branch, but the wiki follows nightly.
-      REF: ${{ github.event_name == 'push' && github.sha || 'refs/heads/nightly' }}
+      # A tag run, pushed or started by hand from the tag, builds the tag's commit: the release snapshot must be
+      # that release's docs. A run started by hand from a release tag catches up a release missed while
+      # WIKI_PUBLISH was off, but only for a tag whose commit has this workflow; older tags run their own.
+      REF: ${{ (github.event_name == 'push' || github.ref_type == 'tag') && github.sha || 'refs/heads/nightly' }}
     steps:
       - name: Check out nightly or the pushed commit
         run: |
+          # Only a release tag has a snapshot; any other tag's commit would replace nightly's pages with old ones.
+          if [ "$GITHUB_REF_TYPE" = tag ] && ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$GITHUB_REF_NAME is not a release tag (vX.Y.Z); start the run from nightly instead"
+            exit 1
+          fi
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           # The whole history, without file contents: the stale check reads it.
           git -c protocol.version=2 fetch --filter=blob:none origin "$REF"
           git checkout --detach FETCH_HEAD
+          # Fetching one commit brings no tag; the footer names a release by the tag at HEAD.
+          if [ "$GITHUB_REF_TYPE" = tag ]; then git tag "$GITHUB_REF_NAME" FETCH_HEAD; fi
       - name: Build and check the wiki
         run: |
           python3 scripts/wiki/test_wiki.py
-          python3 scripts/wiki/build.py | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 scripts/wiki/build.py --wiki "$GITHUB_REPOSITORY" | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/wiki/check.py | tee -a "$GITHUB_STEP_SUMMARY"
           # Only reports: an older picture is better than no wiki.
           python3 scripts/wiki/stale.py | tee -a "$GITHUB_STEP_SUMMARY"
@@ -73,7 +84,7 @@ jobs:
       - name: Build the wiki from the base and from the change and show what changes
         run: |
           python3 scripts/wiki/test_wiki.py
-          python3 scripts/wiki/build.py | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 scripts/wiki/build.py --wiki "$GITHUB_REPOSITORY" | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/wiki/check.py | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/wiki/stale.py | tee -a "$GITHUB_STEP_SUMMARY"
           mkdir -p build/wiki-base

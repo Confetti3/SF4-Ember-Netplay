@@ -151,12 +151,37 @@ assert {row["source"].split()[0] for row in stale.read(build.ROOT)} <= set(stale
 # The footer names the version from CMakeLists, as a nightly unless HEAD is a release tag.
 with tempfile.TemporaryDirectory() as folder:
     Path(folder, "CMakeLists.txt").write_text("project(x\n  VERSION 1.2.3)\n")
+    Path(folder, "README.md").write_text("# Ember\n\n" + "\n\n".join(build.README_PART) + "\n")
+    (Path(folder) / "docs/guides").mkdir(parents=True)
     git = lambda *command: subprocess.run(["git", "-C", folder, "-c", "user.name=x", "-c", "user.email=x@y", *command],
                                           check=True)
     git("init", "-q"), git("add", "."), git("commit", "-q", "-m", "x"), git("tag", "v1.2.3-nightly20260101")
     assert build.release_tag(Path(folder)) is None and build.version(Path(folder), None) == "Ember 1.2.3 nightly"
     git("tag", "v1.2.3")
     assert build.release_tag(Path(folder)) == "v1.2.3" and build.version(Path(folder), "v1.2.3") == "Ember 1.2.3"
+    # A release's build asks no pull request for "Coming soon", lists the tags it is given on the wiki it is told,
+    # and names the tag beside the commit for publish.py.
+    kept = build.overlay
+    build.overlay = lambda *_: (_ for _ in ()).throw(AssertionError("a release build read the pull requests"))
+    try:
+        build.build(Path(folder), build.UPSTREAM, Path(folder, "out"), None, tags={"refs/tags/v1.0.0": "abc"},
+                    wiki="me/fork")
+    finally:
+        build.overlay = kept
+    assert "(https://github.com/me/fork/wiki/Home/abc)" in Path(folder, "out/Versions.md").read_text()
+    assert "- [Versions](Versions)" in Path(folder, "out/_Sidebar.md").read_text()
+    footer = Path(folder, "out/_Footer.md").read_text()
+    assert footer.startswith("Ember 1.2.3. ") and "Coming soon" not in footer, footer
+    head = subprocess.run(["git", "-C", folder, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    assert Path(folder, "out.sha").read_text().splitlines() == [head, "v1.2.3"]
+    assert publish.side(Path(folder, "out")) == (head[:9], "v1.2.3")
+    Path(folder, "out.sha").write_text(head + "\n")
+    assert publish.side(Path(folder, "out")) == (head[:9], None)
+# The Versions page lists each release's Home at the wiki commit its tag marks, newest first.
+page = build.versions("o/r", {"refs/tags/v1.4.0": "abc", "refs/tags/v1.5.0": "def", "refs/tags/v1.10.0": "g"})
+assert page.splitlines()[2:] == \
+    ["- [v1.10.0](https://github.com/o/r/wiki/Home/g)", "- [v1.5.0](https://github.com/o/r/wiki/Home/def)",
+     "- [v1.4.0](https://github.com/o/r/wiki/Home/abc)"]
 
 # The README still has both headings the wiki takes its install part between.
 readme = (build.ROOT / "README.md").read_text(encoding="utf-8").splitlines()

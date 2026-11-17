@@ -400,6 +400,26 @@ def version(src, tag):
     return f"Ember {number}" + ("" if tag else " nightly")
 
 
+def versions(repo, tags):
+    """The Versions page: each release's Home as it was when it came out, newest first; tags maps a ref to its commit."""
+    key = lambda ref: [int(n) for n in ref.removeprefix("refs/tags/v").split(".")]
+    lines = ["Each release's guides as they were when it came out. Links inside an old page lead to the current pages.", ""]
+    lines += [f"- [{ref.removeprefix('refs/tags/')}](https://github.com/{repo}/wiki/Home/{tags[ref]})"
+              for ref in sorted(tags, key=key, reverse=True)]
+    return "\n".join(lines) + "\n"
+
+
+def wiki_tags(repo):
+    """The release tags of the repository's wiki, each with its commit: each release's wiki is a tag there."""
+    listed = subprocess.run(["git", "ls-remote", "--refs", "--tags", f"https://github.com/{repo}.wiki.git", "v*"],
+                            capture_output=True, text=True, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+    # A repository whose wiki was never created has no tags; any other failure would drop the Versions page.
+    if listed.returncode and "Repository not found" not in listed.stderr:
+        sys.exit(f"could not list the release tags of {repo}'s wiki: {listed.stderr.strip()}")
+    found = listed.stdout.split()
+    return dict(zip(found[1::2], found[::2]))
+
+
 def contents(lines):
     """A collapsed "On this page" list of a page's sections, for a page long enough to want one."""
     titles = [LINK_TEXT.sub(r"\1", line[3:]).strip() for line, code in zip(lines, fenced(lines))
@@ -420,13 +440,16 @@ def write_page(out, page, title, section, lines, colors, before=None, after=None
     (out / f"{slug(page)}.md").write_text("\n".join(body) + "\n", encoding="utf-8")
 
 
-def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None):
+def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None, tags=None, wiki=UPSTREAM):
+    """Write the wiki of the docs in src into out. tags are the release tags of the wiki repository wiki, which main()
+    reads, so a build reaches the network only for the pull requests."""
     report, tag = [], release_tag(src)
     docs = {"README.md": Doc((src / "README.md").read_text(encoding="utf-8"))}
     for path in sorted((src / "docs/guides").glob("*.md")):
         if is_guide(path.relative_to(src).as_posix()):
             docs[path.relative_to(src).as_posix()] = Doc(path.read_text(encoding="utf-8"))
-    included, pr_images = overlay(docs, auth, report, label) if overlay_prs else ({}, {})
+    # A release's pages are its docs as they are: no "Coming soon" from pull requests still open.
+    included, pr_images = overlay(docs, auth, report, label) if overlay_prs and not tag else ({}, {})
 
     readme = docs["README.md"]
     missing = [h for h in README_PART if h not in readme.lines]
@@ -504,7 +527,12 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
     outbound = [("Download", f"https://github.com/{UPSTREAM}/releases"), ("Discord", links()["discord"]),
                 ("Report a bug", f"https://github.com/{UPSTREAM}/issues")]
     sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p.title}]({slug(p.title)})") \
-        + ["**Links**", "", *(f"- [{name}]({url})" for name, url in outbound), ""]
+        + ["**Links**", "", *(f"- [{name}]({url})" for name, url in outbound)]
+    # The tags are on the wiki publish.py pushes to, which a fork's run is its own.
+    if tags:
+        (out / "Versions.md").write_text(versions(wiki, tags), encoding="utf-8")
+        sidebar_lines.append("- [Versions](Versions)")
+    sidebar_lines.append("")
     (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
 
     sha = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -516,8 +544,9 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
         text += "\n\nComing soon, from open pull requests:\n\n" + "\n".join(
             f"- [#{n}](https://github.com/{UPSTREAM}/pull/{n}) {titles[n]}" for n in sorted(titles))
     (out / "_Footer.md").write_text(text + "\n", encoding="utf-8")
-    # Beside the wiki, not in it: the docs commit publish.py names in its commit message.
-    out.with_suffix(".sha").write_text(sha + "\n", encoding="utf-8")
+    # Beside the wiki, not in it: the docs commit publish.py names in its commit message, and the release
+    # tag, if the docs are a release's, which publish.py pushes the wiki to instead of its pages.
+    out.with_suffix(".sha").write_text(sha + "\n" + (tag + "\n" if tag else ""), encoding="utf-8")
     return sha, included, report
 
 
@@ -528,13 +557,14 @@ def main():
     source.add_argument("--nightly-repo", action="store_true", help="take the docs from the Nightly repository")
     parser.add_argument("--out", default=str(ROOT / "build/wiki"))
     parser.add_argument("--framedata", type=Path, help="a folder of generated frame data pages to include")
+    parser.add_argument("--wiki", default=UPSTREAM, help="the repository whose wiki lists the release tags, as owner/name")
     prs = parser.add_mutually_exclusive_group()
     prs.add_argument("--no-prs", action="store_true", help="leave out open pull requests")
     prs.add_argument("--all-prs", action="store_true", help=f"include open pull requests without the {PR_LABEL} label")
     args = parser.parse_args()
     src, repo = (nightly_repo(), NIGHTLY_REPO) if args.nightly_repo else (args.src, UPSTREAM)
     sha, included, report = build(src, repo, Path(args.out), token(), None if args.all_prs else PR_LABEL,
-                                  not args.no_prs, args.framedata)
+                                  not args.no_prs, args.framedata, wiki_tags(args.wiki), args.wiki)
     print(f"docs at {sha[:9]}, coming soon from {', '.join(f'#{n}' for n in sorted(included)) or 'no pull requests'}")
     print("\n".join(report))
 
