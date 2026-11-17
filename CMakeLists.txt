@@ -31,6 +31,23 @@ if(WIN32)
     target_compile_features(sf4e_game_themes PRIVATE cxx_std_17)
     target_link_libraries(sf4e_game_themes PUBLIC sf4e_durable_file)
 endif()
+# The room model and the tournament state machines need only nlohmann_json, so
+# the core-only build has them, and their tests, wherever it is found.
+find_package(nlohmann_json CONFIG QUIET)
+if(TARGET nlohmann_json::nlohmann_json)
+    add_library(sf4e_room_model STATIC ${SF4E_ROOMHOST_room_model})
+    target_compile_features(sf4e_room_model PUBLIC cxx_std_14)
+    target_link_libraries(sf4e_room_model PUBLIC nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:bcrypt>)
+    # Playing a bridge-run tournament match: a pure state machine the runtime ticks.
+    add_library(sf4e_tournament_play STATIC "src/netplay/TournamentPlay.cxx")
+    target_compile_features(sf4e_tournament_play PUBLIC cxx_std_17)
+    target_link_libraries(sf4e_tournament_play PUBLIC sf4e_room_model)
+    # Watching one: the same, a pure state machine the runtime ticks beside it. It
+    # reads the room through TournamentPlay's RoomView.
+    add_library(sf4e_watch_play STATIC "src/netplay/WatchPlay.cxx")
+    target_compile_features(sf4e_watch_play PUBLIC cxx_std_17)
+    target_link_libraries(sf4e_watch_play PUBLIC sf4e_tournament_play)
+endif()
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_core_tests.cmake")
 if(SF4E_CORE_TESTS_ONLY)
     sf4e_check_test_labels()
@@ -73,22 +90,10 @@ find_package(wil CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 
-add_library(sf4e_room_model STATIC ${SF4E_ROOMHOST_room_model})
-target_compile_features(sf4e_room_model PUBLIC cxx_std_14)
-target_link_libraries(sf4e_room_model PUBLIC nlohmann_json::nlohmann_json "bcrypt")
 # The game's Steam client through steam_api.dll (profile overlay, remote storage).
 add_library(sf4e_steam STATIC "src/sf4e/sf4e__Steam.cxx")
 target_compile_features(sf4e_steam PUBLIC cxx_std_11)
 target_link_libraries(sf4e_steam PUBLIC spdlog::spdlog)
-# Playing a bridge-run tournament match: a pure state machine the runtime ticks.
-add_library(sf4e_tournament_play STATIC "src/netplay/TournamentPlay.cxx")
-target_compile_features(sf4e_tournament_play PUBLIC cxx_std_17)
-target_link_libraries(sf4e_tournament_play PUBLIC sf4e_room_model)
-# Watching one: the same, a pure state machine the runtime ticks beside it. It
-# reads the room through TournamentPlay's RoomView.
-add_library(sf4e_watch_play STATIC "src/netplay/WatchPlay.cxx")
-target_compile_features(sf4e_watch_play PUBLIC cxx_std_17)
-target_link_libraries(sf4e_watch_play PUBLIC sf4e_tournament_play)
 
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_locales.cmake")

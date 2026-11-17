@@ -71,7 +71,8 @@ sf4e_add_unit_test(NAME StallPresses SOURCES "src/tests/stall_presses_test.cxx" 
 sf4e_add_unit_test(NAME AutoDelayCheck SOURCES "src/tests/auto_delay_check_test.cxx" STD 11 TIMEOUT 15)
 sf4e_add_unit_test(NAME GamePing SOURCES "src/tests/game_ping_test.cxx" STD 11 TIMEOUT 15)
 sf4e_add_unit_test(NAME ReplaySlots SOURCES "src/tests/replay_slots_test.cxx" STD 17 TIMEOUT 15 LABELS replay)
-# ReplayFiles links nlohmann_json, found later: registered in sf4e_test_targets.cmake.
+# ReplayFiles uses wide-character file names that do not convert on Linux, so
+# it stays in the full build (sf4e_test_targets.cmake).
 sf4e_add_unit_test(NAME ReplayArchiveIndex SOURCES "src/tests/replay_archive_index_test.cxx" STD 17
     LIBS Threads::Threads $<$<PLATFORM_ID:Windows>:bcrypt> TIMEOUT 15 LABELS replay)
 sf4e_add_unit_test(NAME ReplayArchivePass SOURCES "src/tests/replay_archive_pass_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 60 LABELS replay)
@@ -87,4 +88,73 @@ sf4e_add_unit_test(NAME ReplayInputLane SOURCES "src/tests/replay_input_lane_tes
 # The recorder layout is the 32-bit engine's.
 if(CMAKE_SIZEOF_VOID_P EQUAL 4)
     sf4e_add_unit_test(NAME ReplayRecorder SOURCES "src/tests/replay_recorder_test.cxx" STD 14 TIMEOUT 15 LABELS replay)
+endif()
+sf4e_add_unit_test(NAME SpectatorPolicy SOURCES "src/tests/spectator_policy_test.cxx" LABELS room)
+# The tests that need nlohmann_json, where CMakeLists.txt found it and built
+# the room model with it.
+if(TARGET nlohmann_json::nlohmann_json)
+    sf4e_add_unit_test(NAME TrainingRemoteProtocol SOURCES "src/tests/training_remote_protocol_test.cxx" STD 17
+        LIBS nlohmann_json::nlohmann_json LABELS training)
+    sf4e_add_unit_test(NAME RoomLoadWindow SOURCES "src/tests/room_load_window_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json LABELS room)
+    sf4e_add_unit_test(NAME IdentityEvents SOURCES "src/tests/identity_events_test.cxx" "src/session/IdentityEvents.cxx"
+        LIBS nlohmann_json::nlohmann_json STD 17 LABELS room)
+    sf4e_add_unit_test(NAME MatchResultOutbox SOURCES "src/tests/match_result_outbox_test.cxx" LIBS sf4e_netplay_core sf4e_room_model TIMEOUT 15 LABELS room)
+    sf4e_add_unit_test(NAME RandomFighter SOURCES "src/tests/random_fighter_test.cxx" LIBS sf4e_room_model sf4e_selection TIMEOUT 15 LABELS room)
+    add_executable(SessionRecoveryGateTest "src/tests/session_recovery_gate_test.cxx")
+    target_compile_features(SessionRecoveryGateTest PRIVATE cxx_std_14)
+    target_link_libraries(SessionRecoveryGateTest PRIVATE sf4e_room_model)
+    if(MSVC)
+        target_compile_options(SessionRecoveryGateTest PRIVATE /UNDEBUG)
+    else()
+        target_compile_options(SessionRecoveryGateTest PRIVATE -UNDEBUG)
+    endif()
+    add_test(NAME SessionRecoveryGate COMMAND SessionRecoveryGateTest)
+    sf4e_test_labels(LABELS unit room TESTS SessionRecoveryGate)
+    # Its protocol header uses NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT, new in 3.11.
+    if(nlohmann_json_VERSION VERSION_GREATER_EQUAL 3.11)
+        sf4e_add_unit_test(NAME RoomCountry SOURCES "src/tests/room_country_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    endif()
+    sf4e_add_unit_test(NAME RoomMessageQueue SOURCES "src/tests/room_message_queue_test.cxx" LIBS sf4e_room_model LABELS room)
+    sf4e_add_unit_test(NAME DiscordPresence SOURCES src/tests/discord_presence_test.cxx LIBS sf4e_room_model LABELS room)
+    sf4e_add_unit_test(NAME RoomAuthority SOURCES "src/tests/room_authority_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomDelayLimits SOURCES "src/tests/room_delay_limits_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomSnapshot SOURCES "src/tests/room_snapshot_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomSteamProfile SOURCES "src/tests/room_steam_profile_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomSets SOURCES "src/tests/room_sets_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomTableCount SOURCES "src/tests/room_table_count_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomWiredOnly SOURCES "src/tests/room_wired_only_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomFriendsHidden SOURCES "src/tests/room_friends_hidden_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomArcade SOURCES "src/tests/room_arcade_test.cxx" LIBS sf4e_room_model LABELS room)
+    sf4e_add_unit_test(NAME RoomTournament SOURCES "src/tests/room_tournament_test.cxx" LIBS sf4e_room_model LABELS room)
+    sf4e_add_unit_test(NAME TournamentPlay SOURCES "src/tests/tournament_play_test.cxx" LIBS sf4e_tournament_play LABELS room)
+    sf4e_add_unit_test(NAME WatchPlay SOURCES "src/tests/watch_play_test.cxx" LIBS sf4e_watch_play LABELS room)
+    sf4e_add_unit_test(NAME RoomWatch SOURCES "src/tests/room_watch_test.cxx" LIBS sf4e_room_model LABELS room)
+    sf4e_add_unit_test(NAME RoomFollow SOURCES "src/tests/room_follow_test.cxx" LIBS sf4e_room_model LABELS room)
+    sf4e_add_unit_test(NAME PublicRoomFilter SOURCES "src/tests/public_room_filter_test.cxx" LIBS sf4e_room_model STD 17 LABELS room)
+    sf4e_add_unit_test(NAME ArchiveRequests SOURCES "src/tests/archive_requests_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/ArchiveAnswers.cxx"
+        LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS replay)
+    sf4e_add_unit_test(NAME BridgeFlights SOURCES "src/tests/bridge_flights_test.cxx" LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17)
+    sf4e_add_unit_test(NAME FriendRequests SOURCES "src/tests/friend_requests_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17)
+    sf4e_add_unit_test(NAME FriendPresence SOURCES "src/tests/friend_presence_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17 LABELS room)
+    sf4e_add_unit_test(NAME FriendsAnswers SOURCES "src/tests/friends_answers_test.cxx" "src/session/SocialAnswers.cxx" "src/session/TournamentAnswers.cxx"
+        LIBS sf4e_room_model sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS room)
+    sf4e_add_unit_test(NAME ProfileAnswers SOURCES "src/tests/profile_answers_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/LevelsAnswers.cxx"
+        LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json STD 17 LABELS room)
+    sf4e_add_unit_test(NAME Profiles SOURCES "src/tests/profiles_test.cxx" LIBS sf4e_room_model nlohmann_json::nlohmann_json STD 17 LABELS room)
+    sf4e_add_unit_test(NAME LevelsAnswers SOURCES "src/tests/levels_answers_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/LevelsAnswers.cxx"
+        LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json LABELS room)
+    sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx" "src/session/LevelsAnswers.cxx"
+        LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300 LABELS room)
+    sf4e_add_unit_test(NAME RoomLifecycle SOURCES "src/tests/room_lifecycle_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomServerOwned SOURCES "src/tests/room_server_owned_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomPrivateGolden SOURCES "src/tests/room_private_golden_test.cxx" LIBS sf4e_room_model LABELS room)
+    sf4e_add_unit_test(NAME RoomSpectatorLock SOURCES "src/tests/room_spectator_lock_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomReadyTimeout SOURCES "src/tests/room_ready_timeout_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME CreatedRules SOURCES "src/tests/created_rules_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME ReadyChime SOURCES "src/tests/ready_chime_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME TrainingCall SOURCES "src/tests/training_call_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room training)
+    sf4e_add_unit_test(NAME RoomTrainingFlag SOURCES "src/tests/room_training_flag_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME RoomPostMatchAnswer SOURCES "src/tests/room_post_match_answer_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME CheckpointDecodeWorker SOURCES "src/tests/checkpoint_decode_worker_test.cxx" STD 14 LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+    sf4e_add_unit_test(NAME SpectatorSync SOURCES "src/tests/spectator_sync_test.cxx" STD 14 LIBS sf4e_room_model TIMEOUT 15 LABELS room)
 endif()
