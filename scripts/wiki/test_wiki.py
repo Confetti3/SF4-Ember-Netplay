@@ -6,8 +6,9 @@ from pathlib import Path
 
 import build
 import check
-import stale
+import pages
 import publish
+import stale
 
 # A changed paragraph keeps the current text and shows the new one below it, marked.
 doc = build.Doc("Intro.\n\nOld step.\nSecond line.\n\nOutro.")
@@ -77,7 +78,7 @@ with tempfile.TemporaryDirectory() as folder:
     (Path(folder) / "docs/guides").mkdir(parents=True)
     (Path(folder) / "README.md").write_text("# Ember\n\n## Get started\n")
     try:
-        build.build(Path(folder), build.UPSTREAM, Path(folder) / "out", None, overlay_prs=False)
+        build.collect(Path(folder), build.UPSTREAM, None, overlay_prs=False)
     except SystemExit as stop:
         assert build.README_PART[0] in str(stop), stop
     else:
@@ -94,15 +95,23 @@ with tempfile.TemporaryDirectory() as folder:
     (frames / "Frame-Data.md").write_text("# Frame Data\n\nMoves.\n")
     written, build.PAGES = build.PAGES, build.PAGES[::-1]
     try:
-        build.build(src, build.UPSTREAM, Path(folder, "out"), None, overlay_prs=False, framedata=frames)
+        built = build.collect(src, build.UPSTREAM, None, overlay_prs=False, framedata=frames)
+        build.write_wiki(built, Path(folder, "out"))
         # The build that publishes has no frame data: the index keeps its place, and the published page is kept.
-        build.build(src, build.UPSTREAM, Path(folder, "bare"), None, overlay_prs=False)
+        build.write_wiki(build.collect(src, build.UPSTREAM, None, overlay_prs=False), Path(folder, "bare"))
     finally:
         build.PAGES = written
     last = lambda page: Path(folder, "out", f"{page}.md").read_text().splitlines()[-1]
     assert last("Install") == "[Home](Home) | [Next: Training Lab](Training-Lab)", last("Install")
     assert last("Training-Lab") == "[Previous: Install](Install) | [Home](Home) | [Next: Frame Data](Frame-Data)"
     assert last("Frame-Data") == "[Previous: Training Lab](Training-Lab) | [Home](Home) | [Next: Troubleshooting](Troubleshooting)"
+    # The docs site renders the same pages, in the same order, with the same neighbours.
+    assert [(sheet.before, sheet.page.title, sheet.after) for sheet in built.chain][1:3] == \
+        [("Install", "Training Lab", "Frame Data"), ("Training Lab", "Frame Data", "Troubleshooting")], built.chain
+    assert built.chain[2].page == build.FRAME_DATA and built.chain[2].lines == ["", "Moves."], built.chain[2]
+    assert {name: [p.title for p in found] for name, found in built.sections.items()} == {
+        "Getting started": ["Install"], "Training": ["Training Lab"], "Frame Data": ["Frame Data"],
+        "Troubleshooting": ["Troubleshooting"]}, built.sections
     sidebar = Path(folder, "out", "_Sidebar.md").read_text()
     assert sidebar.index("Install") < sidebar.index("Training Lab") < sidebar.index("Frame Data") < sidebar.index("Trouble")
     bare = Path(folder, "bare")
@@ -164,8 +173,8 @@ with tempfile.TemporaryDirectory() as folder:
     kept = build.overlay
     build.overlay = lambda *_: (_ for _ in ()).throw(AssertionError("a release build read the pull requests"))
     try:
-        build.build(Path(folder), build.UPSTREAM, Path(folder, "out"), None, tags={"refs/tags/v1.0.0": "abc"},
-                    wiki="me/fork")
+        build.write_wiki(build.collect(Path(folder), build.UPSTREAM, None, tags={"refs/tags/v1.0.0": "abc"},
+                                       wiki="me/fork"), Path(folder, "out"))
     finally:
         build.overlay = kept
     assert "(https://github.com/me/fork/wiki/Home/abc)" in Path(folder, "out/Versions.md").read_text()
@@ -187,4 +196,11 @@ assert page.splitlines()[2:] == \
 readme = (build.ROOT / "README.md").read_text(encoding="utf-8").splitlines()
 assert all(h in readme for h in build.README_PART), [h for h in build.README_PART if h not in readme]
 
+# The site's pages sit side by side under the wiki's names, so its links and images pass through as they are;
+# GitHub's alerts are callouts, tables can scroll.
+out, toc = pages.render("## Two\n\n[a](Install#x) ![b](images/p.png) [c](https://x/)\n\n> [!NOTE]\n> Mind this.\n\n"
+                        "| A |\n| - |\n| 1 |\n")
+assert 'href="Install#x"' in out and 'src="images/p.png"' in out and 'href="https://x/"' in out, out
+assert '<blockquote class="callout note"><p class="callout-title">Note</p><p>Mind this.' in out, out
+assert '<div class="table"><table>' in out and toc[0]["id"] == "two", (out, toc)
 print("wiki checks passed")
