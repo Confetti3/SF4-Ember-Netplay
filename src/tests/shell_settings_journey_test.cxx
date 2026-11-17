@@ -5,6 +5,8 @@
 #include "shell_journey_support.hxx"
 #include "shell_additional_journeys.hxx"
 #include <algorithm>
+#include <cfloat>
+#include <cstring>
 #include <map>
 #include <string>
 #include <utility>
@@ -332,7 +334,69 @@ void EmberLinks() {
  }
 }
 
+// B142: at 1280x720 a long panel scrolls, and the pointer moving onto a lower
+// row focuses it without scrolling the list, or the list would slide under a
+// still pointer and the next small move would focus another row. Down on the
+// pad still brings the focus into view.
+void PointerFocusKeepsScroll() {
+ const char* panels[] = {"tab-interface/look", "tab-interface/match-hud", "tab-interface/sounds", "tab-access/text", "tab-player/controls", "tab-matches/defaults"};
+ const auto rows = [] {
+  ImGuiWindow* found = nullptr;
+  for (auto* w : GImGui->Windows) if (w->Active && std::strstr(w->Name, "settings rows")) found = w;
+  return found;
+ };
+ Harness h; h.imgui.io.DisplaySize = ImVec2(1280, 720);
+ ImGuiWindow* list = nullptr;
+ for (const char* panel : panels) {
+  h.Screen(panel); h.Frame(0, 3);
+  if ((list = rows()) && list->ScrollMax.y > 0) break;
+  list = nullptr;
+ }
+ Check(list != nullptr, "No settings panel scrolls at 1280x720");
+ if (!list) return;
+ auto& io = ImGui::GetIO();
+ const std::string first = h.shell.Navigation().Focus();
+ const ImVec2 low(list->InnerRect.GetCenter().x, list->InnerRect.Max.y - 12);
+ // The first position gives ImGui no movement; the second moves.
+ io.AddMousePosEvent(low.x, low.y - 2); h.Frame();
+ io.AddMousePosEvent(low.x, low.y); h.Frame(0, 3);
+ Check(h.shell.Navigation().Focus() != first, "The pointer on a lower row did not focus it");
+ Check(list->Scroll.y == 0, "The pointer focusing a row scrolled the list");
+ io.AddMousePosEvent(low.x + 2, low.y); h.Frame(0, 3);
+ Check(list->Scroll.y == 0, "A small pointer move scrolled the list");
+ io.AddMousePosEvent(-FLT_MAX, -FLT_MAX); h.Frame();
+ for (int i = 0; i < 30 && list->Scroll.y == 0; ++i) h.Press(MenuInput::Down);
+ Check(list->Scroll.y > 0, "Down on the pad did not scroll the focus into view");
+}
+
+// B142 review: the flag is how the focus last moved. Hover a card, then
+// type a letter: the focus jumps by code to a country below the fold, and the
+// list scrolls to it.
+void TypedLetterScrollsAfterPointer() {
+ // Narrow, the countries stand under the letters, below the fold.
+ Harness h; h.imgui.io.DisplaySize = ImVec2(560, 420);
+ h.Screen("tab-player/country"); h.Choose("country"); h.Frame(0, 3);
+ Check(h.shell.Navigation().Screen() == "country", "The country picker did not open");
+ ImGuiWindow* list = nullptr;
+ for (auto* w : GImGui->Windows) if (w->Active && w->ScrollMax.y > 0 && std::strstr(w->Name, "EmberShell/")) list = w;
+ Check(list != nullptr, "The narrow country picker does not scroll");
+ if (!list) return;
+ auto& io = ImGui::GetIO();
+ const ImVec2 high(list->InnerRect.Min.x + 60, list->InnerRect.Min.y + 30);
+ io.AddMousePosEvent(high.x, high.y + 2); h.Frame();
+ io.AddMousePosEvent(high.x, high.y); h.Frame(0, 3);
+ const std::string hovered = h.shell.Navigation().Focus();
+ Check(list->Scroll.y == 0, "Hovering a country scrolled the list");
+ io.AddInputCharactersUTF8("Z"); h.Frame(0, 3);
+ Check(h.shell.Navigation().Focus() != hovered && h.shell.Navigation().Focus().compare(0, 9, "country-Z") == 0, "Typing Z did not jump to a Z country");
+ const MenuRect* at = h.shell.Navigation().PlacedNow(h.shell.Navigation().Focus());
+ Check(at && at->y0 >= list->InnerRect.Min.y - 1 && at->y1 <= list->InnerRect.Max.y + 1, "A typed letter after the pointer did not scroll its country into view");
+ io.AddMousePosEvent(-FLT_MAX, -FLT_MAX); h.Frame();
+}
+
 void SettingsJourneys() {
+ TypedLetterScrollsAfterPointer();
+ PointerFocusKeepsScroll();
  RoomSettingsFollowOneRule();
  RetrySaveOnPanelScreens();
  PanelFromRailFocusesHead();
