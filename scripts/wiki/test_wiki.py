@@ -88,6 +88,7 @@ with tempfile.TemporaryDirectory() as folder:
     src, frames = Path(folder, "src"), Path(folder, "frames")
     (src / "docs/guides").mkdir(parents=True), frames.mkdir()
     (src / "README.md").write_text("# Ember\n\n" + "\n\n".join(build.README_PART) + "\n")
+    (src / "CMakeLists.txt").write_text("project(x\n  VERSION 1.2.3)\n")
     for name in ("TRAINING_LAB", "TROUBLESHOOTING"):
         (src / f"docs/guides/{name}.md").write_text(f"# {name}\n\nText.\n")
     (frames / "Frame-Data.md").write_text("# Frame Data\n\nMoves.\n")
@@ -140,6 +141,15 @@ with tempfile.TemporaryDirectory() as folder:
 assert stale.unlisted([{"picture": "a.webp"}, {"picture": "gone.webp"}], {"a.webp", "new.webp"}) == [
     f"new.webp has no row in {stale.MANIFEST}", f"{stale.MANIFEST} lists gone.webp, which is gone"]
 assert {row["source"].split()[0] for row in stale.read(build.ROOT)} <= set(stale.WATCHED)
+# The footer names the version from CMakeLists, as a nightly unless HEAD is a release tag.
+with tempfile.TemporaryDirectory() as folder:
+    Path(folder, "CMakeLists.txt").write_text("project(x\n  VERSION 1.2.3)\n")
+    git = lambda *command: subprocess.run(["git", "-C", folder, "-c", "user.name=x", "-c", "user.email=x@y", *command],
+                                          check=True)
+    git("init", "-q"), git("add", "."), git("commit", "-q", "-m", "x"), git("tag", "v1.2.3-nightly20260101")
+    assert build.release_tag(Path(folder)) is None and build.version(Path(folder), None) == "Ember 1.2.3 nightly"
+    git("tag", "v1.2.3")
+    assert build.release_tag(Path(folder)) == "v1.2.3" and build.version(Path(folder), "v1.2.3") == "Ember 1.2.3"
 
 # The README still has both headings the wiki takes its install part between.
 readme = (build.ROOT / "README.md").read_text(encoding="utf-8").splitlines()
