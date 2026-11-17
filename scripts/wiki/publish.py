@@ -7,7 +7,7 @@ difference without committing. The token comes from GH_TOKEN, GITHUB_TOKEN or
 """
 import argparse
 import base64
-import re
+import os
 import shutil
 import subprocess
 import sys
@@ -19,18 +19,19 @@ import build
 BRANCH = "master"
 
 
-def carry(old, new, prefix):
-    """Copy the Frame Data section of an old sidebar or home page into the new one, after Training."""
-    split = lambda text: re.split(rf"(?m)^(?={re.escape(prefix)})", text)
-    frame, parts = [p for p in split(old) if p.startswith(prefix + "Frame Data")], split(new)
-    at = next((i + 1 for i, p in enumerate(parts) if p.startswith(prefix + "Training")), len(parts))
-    return "".join(parts[:at] + frame + parts[at:])
+def lost(old, new):
+    """The pages and heading links an old wiki had that a new one lacks, since players have linked to them."""
+    pages = sorted(set(old) - set(new))
+    anchors = sorted(f"{page}#{name}" for page in set(old) & set(new)
+                     for name in build.headings(old[page]) - build.headings(new[page]))
+    return pages, anchors
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, default=build.ROOT / "build/wiki", help="the built wiki")
     parser.add_argument("--repo", required=True, help="the repository whose wiki to publish, as owner/name")
+    parser.add_argument("--allow-removal", action="store_true", help="publish although pages that were linked to are gone")
     parser.add_argument("--dry-run", action="store_true", help="show what would change, do not commit or push")
     args = parser.parse_args()
     if not (args.out / "Home.md").is_file():
@@ -42,26 +43,37 @@ def main():
 
     with tempfile.TemporaryDirectory() as folder:
         wiki = Path(folder)
-        # The token goes in a header, as actions/checkout does, so it is never saved or printed with the URL.
+        # The token goes in a header, as actions/checkout does, and in the environment, so it is in no URL, no
+        # saved config and no command line that a failing git command prints.
         basic = base64.b64encode(f"x-access-token:{auth}".encode()).decode()
-        header = ["-c", f"http.https://github.com/.extraheader=AUTHORIZATION: basic {basic}"]
-        git = lambda *command: subprocess.run(["git", *header, "-C", wiki, *command], check=True)
-        subprocess.run(["git", *header, "clone", "-q", "--depth", "1", "-b", BRANCH,
-                        f"https://github.com/{args.repo}.wiki.git", wiki], check=True)
+        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_CONFIG_COUNT": "1",
+               "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
+               "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {basic}"}
+        git = lambda *command: subprocess.run(["git", "-C", wiki, *command], check=True, env=env)
+        clone = subprocess.run(["git", "clone", "-q", "--depth", "1", "-b", BRANCH,
+                                f"https://github.com/{args.repo}.wiki.git", wiki], capture_output=True, text=True, env=env)
+        if clone.returncode:
+            # A repository whose wiki was never created has no page a pull request could drop.
+            if args.dry_run and "Repository not found" in clone.stderr:
+                print(f"{args.repo} has no wiki yet; no published page can be lost")
+                return
+            sys.exit(f"could not clone the wiki of {args.repo}: {clone.stderr.strip()}")
         # Frame data is generated on a lab PC, so a build without it (in CI) keeps the published pages.
         keep = set()
         if not (args.out / "Frame-Data.md").exists():
             keep = {*wiki.glob("Frame-Data*.md"), *wiki.glob("images/banner-Frame-Data*.svg")}
-        old = {name: (wiki / name).read_text(encoding="utf-8") for name in ("_Sidebar.md", "Home.md")
-               if keep and (wiki / name).exists()}
+        read = lambda: {path.stem: path.read_text(encoding="utf-8") for path in wiki.glob("[!_]*.md")}
+        before = read()
         for item in wiki.rglob("*"):
             if item.is_file() and ".git" not in item.relative_to(wiki).parts and item not in keep:
                 item.unlink()
         shutil.copytree(args.out, wiki, dirs_exist_ok=True)
-        for name, prefix in (("_Sidebar.md", "**"), ("Home.md", "## ")):
-            if name in old:
-                (wiki / name).write_text(carry(old[name], (wiki / name).read_text(encoding="utf-8"), prefix),
-                                         encoding="utf-8")
+        pages, anchors = lost(before, read())
+        for line in anchors:
+            print(f"warning: the link {line} no longer has a heading")
+        if pages and not args.allow_removal:
+            sys.exit("these pages would be removed, which breaks links to them: " + ", ".join(pages)
+                     + "; keep them (a short page pointing to the new one) or pass --allow-removal")
         git("add", "-A")
         if subprocess.run(["git", "-C", wiki, "diff", "--cached", "--quiet"]).returncode == 0:
             print("the wiki is already up to date")

@@ -54,3 +54,9 @@ Ember's settings and logs are in the game's Proton folder; [Saving logs](SAVING_
 - **SF4 Ember Netplay starts the game without Ember:** check that USF4's **Launch Options** still has the quoted `.../Ember/steam-launch.sh` before `%command%`, or run the installer again.
 
 For everything else, see [Troubleshooting](TROUBLESHOOTING.md).
+
+<a name="typing-without-a-keyboard"></a>
+*Typing without a keyboard* is now under [Ember Menus](V2_MENUS.md#the-on-screen-keyboard).
+
+<a name="ember-id-passphrase"></a>
+*Ember ID passphrase* is now under [Linux](LINUX.md#4-ember-id-passphrase).

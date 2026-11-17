@@ -21,6 +21,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path, PurePosixPath
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[2]
 UPSTREAM = "Confetti3/SF4-Ember-Netplay"
@@ -30,27 +31,58 @@ BRANCH = "nightly"
 PR_LABEL = "wiki"
 
 SECTIONS = ["Getting started", "Playing online", "Training", "Frame Data", "Tournaments", "Integrations", "Troubleshooting"]
-# Source file, wiki page and sidebar section. A guide missing here still gets
-# a page, under "More guides", and the build warns about it.
+
+
+class Page(NamedTuple):
+    """A wiki page: its source file, its name, its sidebar section and what Home says it covers."""
+    path: str
+    title: str
+    section: str
+    about: str = ""
+
+
+# Every guide's page. A guide missing here still gets a page, under "More guides", and the build warns about it.
+# The sidebar, Home and Previous/Next read the pages by section, then in this order.
 PAGES = [
-    ("README.md", "Install", "Getting started"),
-    ("docs/guides/SCOPE_AND_LIMITATIONS.md", "Scope and Limitations", "Getting started"),
-    ("docs/guides/USER_NETPLAY.md", "Player Guide", "Playing online"),
-    ("docs/guides/CUSTOM_ROOMS.md", "Custom Rooms", "Playing online"),
-    ("docs/guides/CONTROLLER_MENUS.md", "Controllers and Menus", "Playing online"),
-    ("docs/guides/DISCORD.md", "Discord", "Playing online"),
-    ("docs/guides/TRAINING_LAB.md", "Training Lab", "Training"),
-    ("docs/guides/INTEGRATIONS.md", "Integrations", "Integrations"),
-    ("docs/guides/BLUMINT_QUICKSTART.md", "BluMint Quickstart", "Integrations"),
-    ("docs/guides/TROUBLESHOOTING.md", "Troubleshooting", "Troubleshooting"),
-    ("docs/guides/INPUT_LAG.md", "Input Lag", "Troubleshooting"),
-    ("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting"),
-    ("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting"),
+    Page("README.md", "Install", "Getting started", "Which download to take, installing Ember and your first launch"),
+    Page("docs/guides/STEAM_DECK.md", "Steam Deck", "Getting started",
+         "Installing through Proton, updating, uninstalling and where the logs are"),
+    Page("docs/guides/LINUX.md", "Linux", "Getting started", "Installing through Proton on a Linux PC that is not a Steam Deck"),
+    Page("docs/guides/SCOPE_AND_LIMITATIONS.md", "Scope and Limitations", "Getting started",
+         "What is experimental, and what to expect"),
+    Page("docs/guides/USER_NETPLAY.md", "Player Guide", "Playing online", "Hosting, joining, updates and day-to-day play"),
+    Page("docs/guides/CUSTOM_ROOMS.md", "Custom Rooms", "Playing online", "Tables, queues, spectators and room rules"),
+    Page("docs/guides/CONTROLLER_MENUS.md", "Controllers and Menus", "Playing online",
+         "Moving around Ember with a pad, stick or keyboard"),
+    Page("docs/guides/V2_MENUS.md", "Ember Menus", "Playing online",
+         "Home, Settings, the room board and how to move around them"),
+    Page("docs/guides/ACCESSIBILITY.md", "Accessibility", "Playing online", "Speech, TV mode and the accessibility button"),
+    Page("docs/guides/GAME_THEMES.md", "In-game Themes", "Playing online",
+         "Changing how the menus and battle HUD look and sound"),
+    Page("docs/guides/DISCORD.md", "Discord", "Playing online", "Invitations, your Discord status and privacy"),
+    Page("docs/guides/TRAINING_LAB.md", "Training Lab", "Training",
+         "Frame meter, dummy recording and dummy replies, with a notation cheat sheet"),
+    Page("docs/guides/TOURNAMENT_MODE.md", "Tournament Mode", "Tournaments", "Ember ID and playing organized tournaments"),
+    Page("docs/guides/TOURNAMENT_TEST.md", "Tournament Test", "Tournaments", "Trying a tournament on two PCs"),
+    Page("docs/guides/INTEGRATIONS.md", "Integrations", "Integrations",
+         "Ember's tournament bridge for platforms, organizers and bots"),
+    Page("docs/guides/BLUMINT_QUICKSTART.md", "BluMint Quickstart", "Integrations",
+         "Getting the Ember bridge working with BluMint"),
+    Page("docs/guides/TROUBLESHOOTING.md", "Troubleshooting", "Troubleshooting", "Startup, connections and diagnostics"),
+    Page("docs/guides/INPUT_LAG.md", "Input Lag", "Troubleshooting", "Input delay and the game's own settings"),
+    Page("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting", "Saving logs from both players for a bug report"),
+    Page("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting", "When antivirus flags Ember"),
 ]
-# Only the README's install part is for players; the rest is for the repository page.
-README_PART = ("## Which download do I need?", "## What's inside")
+# The frame data index, after Training. Its pages are generated on a lab PC, so a build without them still lists
+# it in the reading order, and the publisher keeps the published pages (KEPT, which check.py accepts as links).
+FRAME_DATA = Page("Frame-Data.md", "Frame Data", "Frame Data", "Move data for every fighter")
+KEPT = {"Frame-Data"}
+# The README's player part, from the downloads to its guides table; the table, community and licenses are
+# for the repository page.
+README_PART = ("## Which download do I need?", "## Guides")
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 ITEM = re.compile(r"(\d+\.|[-*+]) ")
+LINK_TEXT = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 LINK = re.compile(r'(\]\(|(?:src|href)=")([^)"\s]+)')
 
 
@@ -270,6 +302,12 @@ def theme():
     return {name: "#" + value for name, value in re.findall(r"(\w+) = 0x([0-9A-F]{6})\b", text)}
 
 
+def links():
+    """Ember's outbound links by id, from the table the interface reads, so the wiki never copies one."""
+    text = (ROOT / "src/platform/Links.hxx").read_text(encoding="utf-8")
+    return {name: "https://" + address for name, address in re.findall(r'\{"(\w+)", "([^"]+)"', text)}
+
+
 def banner(title, section, colors):
     """The page header as an image: GitHub wikis drop styles, so the brand block is drawn.
 
@@ -309,11 +347,35 @@ def nightly_repo():
     return checkout
 
 
-def write_page(out, page, title, section, lines, colors):
+def anchor(heading):
+    """GitHub's id for a heading, near enough to catch a renamed one."""
+    text = LINK_TEXT.sub(r"\1", heading).strip().lower()
+    return re.sub(r"[^\w\- ]", "", text).replace(" ", "-")
+
+
+def headings(text):
+    """The ids of a page's headings, for links to check; an `<a name>` kept for a heading that moved counts."""
+    return {anchor(h) for h in re.findall(r"^(?:> )*#{1,6} (.+)$", text, re.M)} | set(re.findall(r'<a name="([^"]+)">', text))
+
+
+def contents(lines):
+    """A collapsed "On this page" list of a page's sections, for a page long enough to want one."""
+    titles = [LINK_TEXT.sub(r"\1", line[3:]).strip() for line, code in zip(lines, fenced(lines))
+              if line.startswith("## ") and not code]
+    if len(titles) < 4:
+        return []
+    items = [f"- [{title}](#{anchor(title)})" for title in titles]
+    return ["<details>", "<summary><b>On this page</b></summary>", ""] + items + ["", "</details>", ""]
+
+
+def write_page(out, page, title, section, lines, colors, before=None, after=None):
     banner_name = f"images/banner-{slug(page)}.svg"
     (out / banner_name).write_text(banner(title, section, colors), encoding="utf-8")
-    (out / f"{slug(page)}.md").write_text(f"![{title}]({banner_name})\n\n" + "\n".join(lines).strip() + "\n",
-                                         encoding="utf-8")
+    nav = [f"[Previous: {before}]({slug(before)})" if before else None, "[Home](Home)",
+           f"[Next: {after}]({slug(after)})" if after else None]
+    body = [f"![{title}]({banner_name})", ""] + contents(lines) + ["\n".join(lines).strip(), "", "---", "",
+                                                                 " | ".join(n for n in nav if n)]
+    (out / f"{slug(page)}.md").write_text("\n".join(body) + "\n", encoding="utf-8")
 
 
 def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None):
@@ -325,43 +387,56 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
     included, pr_images = overlay(docs, auth, report, label) if overlay_prs else ({}, {})
 
     readme = docs["README.md"]
+    missing = [h for h in README_PART if h not in readme.lines]
+    if missing:
+        sys.exit(f"README.md has no {' or '.join(missing)} heading; update README_PART in scripts/wiki/build.py")
     start, end = (readme.lines.index(h) for h in README_PART)
     readme.lines, readme.owners = readme.lines[start:end], readme.owners[start:end]
     shown = frozenset().union(*(owner for doc in docs.values() for owner in doc.owners))
     included = {n: pr for n, pr in included.items() if n in shown}
 
-    known = {path: (page, section) for path, page, section in PAGES}
+    known = {page.path: page for page in PAGES}
     for path in docs:
         if path not in known:
-            name = PurePosixPath(path).stem.replace("_", " ").title()
-            known[path] = (name, "More guides")
+            known[path] = Page(path, PurePosixPath(path).stem.replace("_", " ").title(), "More guides")
             report.append(f"{path} has no entry in PAGES; it is listed under More guides")
-    rank = {path: i for i, (path, _, _) in enumerate(PAGES)}
-    docs = dict(sorted(docs.items(), key=lambda item: rank.get(item[0], len(rank))))
-    pages = {path: known[path][0] for path in docs}
+    pages = {path: known[path].title for path in docs}
 
     if out.exists():
         shutil.rmtree(out)
     (out / "images").mkdir(parents=True)
-    colors, images, sidebar = theme(), set(), {}
+    colors, images, chain = theme(), set(), []
     for path, doc in docs.items():
-        page, section = known[path]
         lines = doc.lines[1:] if doc.lines and doc.lines[0].startswith("# ") else doc.lines
         owners = doc.owners[len(doc.owners) - len(lines):]
-        write_page(out, page, page, section, mark(rewrite(lines, path, pages, images, repo), owners), colors)
-        sidebar.setdefault(section, []).append(page)
+        chain.append((known[path], known[path].title, mark(rewrite(lines, path, pages, images, repo), owners)))
 
     # Frame data pages are generated elsewhere and come as they are: an index and a page per fighter.
+    index = FRAME_DATA.title, None
     if framedata and framedata.is_dir():
         for path in sorted(framedata.glob("*.md")):
             lines = path.read_text(encoding="utf-8").splitlines()
             title, lines = (lines[0][2:], lines[1:]) if lines and lines[0].startswith("# ") \
                 else (path.stem.replace("-", " "), lines)
-            write_page(out, path.stem, title, "Frame Data", lines, colors)
             if path.stem == "Frame-Data":
-                sidebar["Frame Data"] = ["Frame Data"]
+                index = title, lines
+            else:
+                write_page(out, path.stem, title, "Frame Data", lines, colors)
     elif framedata:
         report.append(f"no frame data at {framedata}; the wiki is built without it")
+    chain.append((FRAME_DATA, *index))
+
+    # One reading order: by section, then as PAGES lists them. The sidebar, Home and Previous/Next all follow it.
+    order, rank = SECTIONS + ["More guides"], {page.path: i for i, page in enumerate(PAGES)}
+    chain.sort(key=lambda entry: (order.index(entry[0].section), rank.get(entry[0].path, len(rank))))
+    sidebar = {}
+    for i, (page, title, lines) in enumerate(chain):
+        before, after = chain[i - 1][0].title if i else None, chain[i + 1][0].title if i + 1 < len(chain) else None
+        if lines is not None:
+            write_page(out, page.title, title, page.section, lines, colors, before, after)
+        sidebar.setdefault(page.section, []).append(page)
+        if not page.about:
+            report.append(f"{page.path} has no about in PAGES; Home does not say what it covers")
 
     for image in sorted(images):
         target = out / "images" / image.removeprefix("docs/images/")
@@ -373,15 +448,22 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
         else:
             report.append(f"missing image {image}")
 
-    order = [s for s in SECTIONS + ["More guides"] if s in sidebar]
     (out / "images/banner-Home.svg").write_text(banner("SF4 Ember Netplay", "Player guides", colors), encoding="utf-8")
     text = ["![SF4 Ember Netplay](images/banner-Home.svg)", "",
             "Guides for playing Ultra Street Fighter IV online with Ember: installing it, playing in rooms, "
             "training, running tournaments and fixing problems.", ""]
-    listing = lambda heading: [line for s in order for line in [heading % s, ""]
-                               + [f"- [{p}]({slug(p)})" for p in sidebar[s]] + [""]]
-    (out / "Home.md").write_text("\n".join(text + listing("## %s")), encoding="utf-8")
-    (out / "_Sidebar.md").write_text("\n".join(["**[Home](Home)**", ""] + listing("**%s**")), encoding="utf-8")
+    table = ("| Page | What it covers |", "| --- | --- |")
+
+    def listing(heading, row, header=()):
+        return [line for s, found in sidebar.items() for line in [heading % s, "", *header, *map(row, found), ""]]
+
+    home = listing("## %s", lambda p: f"| [{p.title}]({slug(p.title)}) | {p.about} |", table)
+    (out / "Home.md").write_text("\n".join(text + home), encoding="utf-8")
+    outbound = [("Download", f"https://github.com/{UPSTREAM}/releases"), ("Discord", links()["discord"]),
+                ("Report a bug", f"https://github.com/{UPSTREAM}/issues")]
+    sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p.title}]({slug(p.title)})") \
+        + ["**Links**", "", *(f"- [{name}]({url})" for name, url in outbound), ""]
+    (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
 
     sha = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     text = f"Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); edit the docs, not this page."

@@ -62,9 +62,53 @@ with tempfile.TemporaryDirectory() as folder:
     Path(folder, "Home.md").write_text("[x](Missing) ![y](images/none.png)\n\n## Steps\n\n1. Do it.\n")
     errors, warnings = check.check(Path(folder))
     assert len(errors) == 2 and len(warnings) == 1, (errors, warnings)
-# A build without frame data keeps the published Frame Data section after Training.
-old = "**[Home](Home)**\n\n**Training**\n\n- a\n\n**Frame Data**\n\n- b\n\n**Tournaments**\n\n- c\n"
-assert publish.carry(old, old.replace("**Frame Data**\n\n- b\n\n", ""), "**") == old
+# Every page says what it covers, and the outbound links come from the interface's own table.
+assert all(page.about for page in build.PAGES), [page.path for page in build.PAGES if not page.about]
+assert build.links()["discord"].startswith("https://discord.gg/"), build.links()
+# A page with four sections gets a collapsed list of them, with GitHub's ids; a short page gets none.
+long = ["## One", "", "## Two [x](y)!", "```", "## Not a heading", "```", "## Three", "## Four"]
+assert build.contents(long)[3:7] == ["- [One](#one)", "- [Two x!](#two-x)", "- [Three](#three)", "- [Four](#four)"], \
+    build.contents(long)
+assert build.contents(long[:3]) == []
+# A build from a README that lost a part-heading says which, instead of a traceback.
+with tempfile.TemporaryDirectory() as folder:
+    (Path(folder) / "docs/guides").mkdir(parents=True)
+    (Path(folder) / "README.md").write_text("# Ember\n\n## Get started\n")
+    try:
+        build.build(Path(folder), build.UPSTREAM, Path(folder) / "out", None, overlay_prs=False)
+    except SystemExit as stop:
+        assert build.README_PART[0] in str(stop), stop
+    else:
+        raise AssertionError("a README without its part-headings built")
+# Previous and Next follow the sidebar: by section, then PAGES, whatever order PAGES is written in, with
+# the frame data index after Training.
+with tempfile.TemporaryDirectory() as folder:
+    src, frames = Path(folder, "src"), Path(folder, "frames")
+    (src / "docs/guides").mkdir(parents=True), frames.mkdir()
+    (src / "README.md").write_text("# Ember\n\n" + "\n\n".join(build.README_PART) + "\n")
+    for name in ("TRAINING_LAB", "TROUBLESHOOTING"):
+        (src / f"docs/guides/{name}.md").write_text(f"# {name}\n\nText.\n")
+    (frames / "Frame-Data.md").write_text("# Frame Data\n\nMoves.\n")
+    written, build.PAGES = build.PAGES, build.PAGES[::-1]
+    try:
+        build.build(src, build.UPSTREAM, Path(folder, "out"), None, overlay_prs=False, framedata=frames)
+        # The build that publishes has no frame data: the index keeps its place, and the published page is kept.
+        build.build(src, build.UPSTREAM, Path(folder, "bare"), None, overlay_prs=False)
+    finally:
+        build.PAGES = written
+    last = lambda page: Path(folder, "out", f"{page}.md").read_text().splitlines()[-1]
+    assert last("Install") == "[Home](Home) | [Next: Training Lab](Training-Lab)", last("Install")
+    assert last("Training-Lab") == "[Previous: Install](Install) | [Home](Home) | [Next: Frame Data](Frame-Data)"
+    assert last("Frame-Data") == "[Previous: Training Lab](Training-Lab) | [Home](Home) | [Next: Troubleshooting](Troubleshooting)"
+    sidebar = Path(folder, "out", "_Sidebar.md").read_text()
+    assert sidebar.index("Install") < sidebar.index("Training Lab") < sidebar.index("Frame Data") < sidebar.index("Trouble")
+    bare = Path(folder, "bare")
+    assert Path(bare, "Training-Lab.md").read_text().splitlines()[-1].endswith("[Next: Frame Data](Frame-Data)")
+    assert not Path(bare, "Frame-Data.md").exists() and "[Frame Data](Frame-Data)" in Path(bare, "_Sidebar.md").read_text()
+    assert check.check(bare)[0] == [], check.check(bare)[0]
+# A page or a heading that links point to may not disappear unnoticed; an anchor kept for a moved heading counts.
+assert publish.lost({"A": "## One\n## Two", "B": "x"}, {"A": "## One\n## Three"}) == (["B"], ["A#two"])
+assert publish.lost({"A": "## Two"}, {"A": '<a name="two"></a>'}) == ([], [])
 
 # The README still has both headings the wiki takes its install part between.
 readme = (build.ROOT / "README.md").read_text(encoding="utf-8").splitlines()

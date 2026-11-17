@@ -9,22 +9,14 @@ import re
 import sys
 from pathlib import Path
 
-from build import LINK, fenced
-
-
-def anchor(heading):
-    """GitHub's id for a heading, near enough to catch a renamed one."""
-    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", heading).strip().lower()
-    return re.sub(r"[^\w\- ]", "", text).replace(" ", "-")
-
-
-def headings(text):
-    return {anchor(h) for h in re.findall(r"^(?:> )*#{1,6} (.+)$", text, re.M)}
+from build import KEPT, LINK, fenced, headings
 
 
 def check(out):
     errors, warnings = [], []
     texts = {path.stem: path.read_text(encoding="utf-8") for path in out.glob("*.md")}
+    # A page the publisher keeps from the published wiki is there to link to, though this build lacks it.
+    texts.update({page: "" for page in KEPT if page not in texts})
     for page, text in texts.items():
         lines = text.splitlines()
         body = "\n".join(line for line, code in zip(lines, fenced(lines)) if not code)
