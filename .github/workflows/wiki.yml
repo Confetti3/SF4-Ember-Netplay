@@ -6,9 +6,9 @@ on:
   push:
     branches: [nightly]
     tags: ["v[0-9]+.[0-9]+.[0-9]+"]
-    paths: [README.md, docs/**, scripts/wiki/**, .github/workflows/wiki.yml]
+    paths: [README.md, docs/**, scripts/wiki/**, server/ember-short/deploy/site/**, .github/workflows/wiki.yml]
   pull_request:
-    paths: [README.md, docs/**, scripts/wiki/**, .github/workflows/wiki.yml]
+    paths: [README.md, docs/**, scripts/wiki/**, server/ember-short/deploy/site/**, .github/workflows/wiki.yml]
   schedule:
     - cron: "40 5 * * *"
   workflow_dispatch:
@@ -51,6 +51,7 @@ jobs:
           if [ "$GITHUB_REF_TYPE" = tag ]; then git tag "$GITHUB_REF_NAME" FETCH_HEAD; fi
       - name: Build and check the wiki
         run: |
+          pip install --quiet markdown==3.11.3
           python3 scripts/wiki/test_wiki.py
           python3 scripts/wiki/build.py --wiki "$GITHUB_REPOSITORY" | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/wiki/check.py | tee -a "$GITHUB_STEP_SUMMARY"
@@ -66,6 +67,37 @@ jobs:
           GIT_COMMITTER_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: python3 scripts/wiki/publish.py --repo "$GITHUB_REPOSITORY"
+      # The docs site is its own step after the wiki's publish, so a site that fails to build never stops
+      # the wiki; it is built only where it is deployed.
+      - name: Build the docs site
+        if: github.ref_type == 'branch' && vars.DOCS_PAGES == 'true'
+        run: python3 scripts/wiki/pages.py --repo "$GITHUB_REPOSITORY"
+      - name: Keep the docs site for the Pages job
+        if: github.ref_type == 'branch' && vars.DOCS_PAGES == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/pages
+  # The docs site at <owner>.github.io/<repository>: the same pages as the wiki in the
+  # website's look. The repository's Pages setting must be "GitHub Actions"; the job
+  # waits for the variable DOCS_PAGES like the wiki waits for WIKI_PUBLISH. A release
+  # tag publishes the wiki's snapshot only; the site always shows nightly.
+  pages:
+    needs: build
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    if: github.ref_type == 'branch' && vars.DOCS_PAGES == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
   dry-run:
     if: github.event_name == 'pull_request'
     runs-on: ${{ github.repository == 'Confetti3/sf4-ember-builds' && 'namespace-profile-emberbuilds' || 'ubuntu-latest' }}
@@ -83,10 +115,12 @@ jobs:
           git worktree add --detach build/base "$BASE"
       - name: Build the wiki from the base and from the change and show what changes
         run: |
+          pip install --quiet markdown==3.11.3
           python3 scripts/wiki/test_wiki.py
           python3 scripts/wiki/build.py --wiki "$GITHUB_REPOSITORY" | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/wiki/check.py | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/wiki/stale.py | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 scripts/wiki/pages.py --repo "$GITHUB_REPOSITORY"
           mkdir -p build/wiki-base
           # The base is only there for the diff; a base that does not build is noted, not a failure.
           if [ -f build/base/scripts/wiki/build.py ]; then
