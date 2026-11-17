@@ -27,6 +27,12 @@ def lost(old, new):
     return pages, anchors
 
 
+def side(out):
+    """The docs commit and the release tag (None for nightly docs) that build.py wrote beside the wiki in out."""
+    words = out.with_suffix(".sha").read_text(encoding="utf-8").split()
+    return words[0][:9], words[1] if len(words) > 1 else None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, default=build.ROOT / "build/wiki", help="the built wiki")
@@ -39,7 +45,13 @@ def main():
     auth = build.token()
     if not auth:
         sys.exit("no GitHub token: set GH_TOKEN or sign in with gh")
-    sha = args.out.with_suffix(".sha").read_text(encoding="utf-8").strip()[:9]
+    # The docs commit, and the release tag build.py found at it: a release goes to a tag of the wiki and leaves
+    # the pages alone, so it may lack what nightly has since gained.
+    sha, tag = side(args.out)
+    # A release's wiki is written once; a run made again for it finds its tag there and stops.
+    if tag and f"refs/tags/{tag}" in build.wiki_tags(args.repo):
+        print(f"the wiki already has {tag}")
+        return
 
     with tempfile.TemporaryDirectory() as folder:
         wiki = Path(folder)
@@ -71,7 +83,7 @@ def main():
         pages, anchors = lost(before, read())
         for line in anchors:
             print(f"warning: the link {line} no longer has a heading")
-        if pages and not args.allow_removal:
+        if pages and not (args.allow_removal or tag):
             sys.exit("these pages would be removed, which breaks links to them: " + ", ".join(pages)
                      + "; keep them (a short page pointing to the new one) or pass --allow-removal")
         git("add", "-A")
@@ -81,8 +93,9 @@ def main():
         git("diff", "--cached", "--stat")
         if args.dry_run:
             return
-        git("commit", "-q", "-m", f"Update from the docs at {sha}")
-        git("push", "-q", "origin", f"HEAD:{BRANCH}")
+        git("commit", "-q", "-m", f"{'Release ' + tag if tag else 'Update'} from the docs at {sha}")
+        # A release is a tag only: the pages stay nightly's, and the next build lists the tag on Versions.
+        git("push", "-q", "origin", f"HEAD:refs/tags/{tag}" if tag else f"HEAD:{BRANCH}")
         print("published")
 
 

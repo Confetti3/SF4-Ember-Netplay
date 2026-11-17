@@ -88,6 +88,7 @@ with tempfile.TemporaryDirectory() as folder:
     src, frames = Path(folder, "src"), Path(folder, "frames")
     (src / "docs/guides").mkdir(parents=True), frames.mkdir()
     (src / "README.md").write_text("# Ember\n\n" + "\n\n".join(build.README_PART) + "\n")
+    (src / "CMakeLists.txt").write_text("project(x\n  VERSION 1.2.3)\n")
     for name in ("TRAINING_LAB", "TROUBLESHOOTING"):
         (src / f"docs/guides/{name}.md").write_text(f"# {name}\n\nText.\n")
     (frames / "Frame-Data.md").write_text("# Frame Data\n\nMoves.\n")
@@ -136,10 +137,51 @@ with tempfile.TemporaryDirectory() as folder:
     commit(second, "docs/images/d.webp", "pictures\n\nPictures-from: 0123456789abcdef0123456789abcdef01234567")
     found = stale.stale(rows, second)
     assert len(found) == 3 and all("capture source unknown" in line for line in found), found
+    # A guide is stale the same way, from the sources its page names; a source that is gone is a warning too.
+    commit(first, "g.md", "guide"), commit(first, "src/ui/a.cxx", "ui, third")
+    sample = [build.Page("g.md", "G", "Training", "x", ("src/ui", "src/gone")), build.Page("h.md", "H", "Training", "y")]
+    assert stale.guides(sample, first) == ["g.md names src/gone as a source, which is gone",
+                                           f"g.md: src/ui, src/gone changed after it, 1 commits, last "
+                                           f"{run(first, 'rev-parse', '--short', 'HEAD')} (read the guide against it; "
+                                           "the warning ends with its next edit)"], stale.guides(sample, first)
 # A picture without a manifest row and a row whose picture is gone are reported, not fatal.
 assert stale.unlisted([{"picture": "a.webp"}, {"picture": "gone.webp"}], {"a.webp", "new.webp"}) == [
     f"new.webp has no row in {stale.MANIFEST}", f"{stale.MANIFEST} lists gone.webp, which is gone"]
 assert {row["source"].split()[0] for row in stale.read(build.ROOT)} <= set(stale.WATCHED)
+# The footer names the version from CMakeLists, as a nightly unless HEAD is a release tag.
+with tempfile.TemporaryDirectory() as folder:
+    Path(folder, "CMakeLists.txt").write_text("project(x\n  VERSION 1.2.3)\n")
+    Path(folder, "README.md").write_text("# Ember\n\n" + "\n\n".join(build.README_PART) + "\n")
+    (Path(folder) / "docs/guides").mkdir(parents=True)
+    git = lambda *command: subprocess.run(["git", "-C", folder, "-c", "user.name=x", "-c", "user.email=x@y", *command],
+                                          check=True)
+    git("init", "-q"), git("add", "."), git("commit", "-q", "-m", "x"), git("tag", "v1.2.3-nightly20260101")
+    assert build.release_tag(Path(folder)) is None and build.version(Path(folder), None) == "Ember 1.2.3 nightly"
+    git("tag", "v1.2.3")
+    assert build.release_tag(Path(folder)) == "v1.2.3" and build.version(Path(folder), "v1.2.3") == "Ember 1.2.3"
+    # A release's build asks no pull request for "Coming soon", lists the tags it is given on the wiki it is told,
+    # and names the tag beside the commit for publish.py.
+    kept = build.overlay
+    build.overlay = lambda *_: (_ for _ in ()).throw(AssertionError("a release build read the pull requests"))
+    try:
+        build.build(Path(folder), build.UPSTREAM, Path(folder, "out"), None, tags={"refs/tags/v1.0.0": "abc"},
+                    wiki="me/fork")
+    finally:
+        build.overlay = kept
+    assert "(https://github.com/me/fork/wiki/Home/abc)" in Path(folder, "out/Versions.md").read_text()
+    assert "- [Versions](Versions)" in Path(folder, "out/_Sidebar.md").read_text()
+    footer = Path(folder, "out/_Footer.md").read_text()
+    assert footer.startswith("Ember 1.2.3. ") and "Coming soon" not in footer, footer
+    head = subprocess.run(["git", "-C", folder, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    assert Path(folder, "out.sha").read_text().splitlines() == [head, "v1.2.3"]
+    assert publish.side(Path(folder, "out")) == (head[:9], "v1.2.3")
+    Path(folder, "out.sha").write_text(head + "\n")
+    assert publish.side(Path(folder, "out")) == (head[:9], None)
+# The Versions page lists each release's Home at the wiki commit its tag marks, newest first.
+page = build.versions("o/r", {"refs/tags/v1.4.0": "abc", "refs/tags/v1.5.0": "def", "refs/tags/v1.10.0": "g"})
+assert page.splitlines()[2:] == \
+    ["- [v1.10.0](https://github.com/o/r/wiki/Home/g)", "- [v1.5.0](https://github.com/o/r/wiki/Home/def)",
+     "- [v1.4.0](https://github.com/o/r/wiki/Home/abc)"]
 
 # The README still has both headings the wiki takes its install part between.
 readme = (build.ROOT / "README.md").read_text(encoding="utf-8").splitlines()

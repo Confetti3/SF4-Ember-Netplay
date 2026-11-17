@@ -34,44 +34,73 @@ SECTIONS = ["Getting started", "Playing online", "Training", "Frame Data", "Tour
 
 
 class Page(NamedTuple):
-    """A wiki page: its source file, its name, its sidebar section and what Home says it covers."""
+    """A wiki page: its source file, its name, its sidebar section, what Home says it covers, and the
+    files whose change calls for reading the guide again (stale.py)."""
     path: str
     title: str
     section: str
     about: str = ""
+    sources: tuple = ()
 
 
 # Every guide's page. A guide missing here still gets a page, under "More guides", and the build warns about it.
 # The sidebar, Home and Previous/Next read the pages by section, then in this order.
 PAGES = [
-    Page("README.md", "Install", "Getting started", "Which download to take, installing Ember and your first launch"),
+    Page("README.md", "Install", "Getting started", "Which download to take, installing Ember and your first launch",
+         ("src/launcher", "scripts/installer")),
     Page("docs/guides/STEAM_DECK.md", "Steam Deck", "Getting started",
-         "Installing through Proton, updating, uninstalling and where the logs are"),
-    Page("docs/guides/LINUX.md", "Linux", "Getting started", "Installing through Proton on a Linux PC that is not a Steam Deck"),
+         "Installing through Proton, updating, uninstalling and where the logs are",
+         ("scripts/steamdeck",)),
+    Page("docs/guides/LINUX.md", "Linux", "Getting started",
+         "Installing through Proton on a Linux PC that is not a Steam Deck",
+         ("scripts/wine-dxvk",)),
     Page("docs/guides/SCOPE_AND_LIMITATIONS.md", "Scope and Limitations", "Getting started",
          "What is experimental, and what to expect"),
-    Page("docs/guides/USER_NETPLAY.md", "Player Guide", "Playing online", "Hosting, joining, updates and day-to-day play"),
-    Page("docs/guides/CUSTOM_ROOMS.md", "Custom Rooms", "Playing online", "Tables, queues, spectators and room rules"),
+    Page("docs/guides/USER_NETPLAY.md", "Player Guide", "Playing online",
+         "Hosting, joining, updates and day-to-day play",
+         ("src/ui/ApplicationShell.cxx", "src/ui/RoomPanel.cxx", "src/ui/ReplaysPanel.cxx",
+          "src/ui/UpdatePrompt.cxx", "src/launcher/update")),
+    Page("docs/guides/CUSTOM_ROOMS.md", "Custom Rooms", "Playing online", "Tables, queues, spectators and room rules",
+         ("src/ui/RoomPanelTables.cxx", "src/ui/RoomActions.cxx", "src/ui/RoomControls.cxx",
+          "src/ui/PublicRoomsPanel.cxx")),
     Page("docs/guides/CONTROLLER_MENUS.md", "Controllers and Menus", "Playing online",
-         "Moving around Ember with a pad, stick or keyboard"),
+         "Moving around Ember with a pad, stick or keyboard",
+         ("src/ui/ControllersScreen.cxx", "src/ui/ButtonLayoutScreen.cxx", "src/ui/PadSetupScreen.cxx",
+          "src/ui/ControllerNavigation.cxx")),
     Page("docs/guides/V2_MENUS.md", "Ember Menus", "Playing online",
-         "Home, Settings, the room board and how to move around them"),
-    Page("docs/guides/ACCESSIBILITY.md", "Accessibility", "Playing online", "Speech, TV mode and the accessibility button"),
+         "Home, Settings, the room board and how to move around them",
+         ("src/ui/V2.cxx", "src/ui/ApplicationShell__Settings.cxx", "src/ui/ApplicationShell__Screens.cxx")),
+    Page("docs/guides/ACCESSIBILITY.md", "Accessibility", "Playing online",
+         "Speech, TV mode and the accessibility button",
+         ("src/ui/ApplicationShell__Accessibility.cxx",)),
     Page("docs/guides/GAME_THEMES.md", "In-game Themes", "Playing online",
-         "Changing how the menus and battle HUD look and sound"),
-    Page("docs/guides/DISCORD.md", "Discord", "Playing online", "Invitations, your Discord status and privacy"),
+         "Changing how the menus and battle HUD look and sound",
+         ("src/sf4e/sf4e__GameThemes.cxx",)),
+    Page("docs/guides/DISCORD.md", "Discord", "Playing online", "Invitations, your Discord status and privacy",
+         ("src/discord",)),
     Page("docs/guides/TRAINING_LAB.md", "Training Lab", "Training",
-         "Frame meter, dummy recording and dummy replies, with a notation cheat sheet"),
-    Page("docs/guides/TOURNAMENT_MODE.md", "Tournament Mode", "Tournaments", "Ember ID and playing organized tournaments"),
+         "Frame meter, dummy recording and dummy replies, with a notation cheat sheet",
+         ("src/training", "src/ui/TrainingPanel.cxx", "src/ui/TrainingMeter.cxx")),
+    Page("docs/guides/TOURNAMENT_MODE.md", "Tournament Mode", "Tournaments",
+         "Ember ID and playing organized tournaments",
+         ("src/ui/IdentityPanel.cxx", "src/ui/IdentityMatches.cxx")),
     Page("docs/guides/TOURNAMENT_TEST.md", "Tournament Test", "Tournaments", "Trying a tournament on two PCs"),
     Page("docs/guides/INTEGRATIONS.md", "Integrations", "Integrations",
-         "Ember's tournament bridge for platforms, organizers and bots"),
+         "Ember's tournament bridge for platforms, organizers and bots",
+         ("server/ember/bridge/src/routes",)),
     Page("docs/guides/BLUMINT_QUICKSTART.md", "BluMint Quickstart", "Integrations",
-         "Getting the Ember bridge working with BluMint"),
-    Page("docs/guides/TROUBLESHOOTING.md", "Troubleshooting", "Troubleshooting", "Startup, connections and diagnostics"),
-    Page("docs/guides/INPUT_LAG.md", "Input Lag", "Troubleshooting", "Input delay and the game's own settings"),
-    Page("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting", "Saving logs from both players for a bug report"),
-    Page("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting", "When antivirus flags Ember"),
+         "Getting the Ember bridge working with BluMint",
+         ("server/ember/bridge/src/routes/blumint",)),
+    Page("docs/guides/TROUBLESHOOTING.md", "Troubleshooting", "Troubleshooting",
+         "Startup, connections and diagnostics",
+         ("src/launcher/launcher.cxx",)),
+    Page("docs/guides/INPUT_LAG.md", "Input Lag", "Troubleshooting", "Input delay and the game's own settings",
+         ("src/sf4e/sf4e__DirectInputFilter.cxx",)),
+    Page("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting",
+         "Saving logs from both players for a bug report",
+         ("src/ui/ProblemReportPanel.cxx",)),
+    Page("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting", "When antivirus flags Ember",
+         ("scripts/prepare-defender-submission.ps1",)),
 ]
 # The frame data index, after Training. Its pages are generated on a lab PC, so a build without them still lists
 # it in the reading order, and the publisher keeps the published pages (KEPT, which check.py accepts as links).
@@ -358,6 +387,39 @@ def headings(text):
     return {anchor(h) for h in re.findall(r"^(?:> )*#{1,6} (.+)$", text, re.M)} | set(re.findall(r'<a name="([^"]+)">', text))
 
 
+def release_tag(src):
+    """The release tag at HEAD, such as v1.5.4, or None: nightly builds are tagged v1.5.1-nightly20261102."""
+    tag = subprocess.run(["git", "-C", src, "describe", "--tags", "--exact-match", "--match", "v*", "--exclude", "v*-*"],
+                         capture_output=True, text=True)
+    return tag.stdout.strip() if tag.returncode == 0 else None
+
+
+def version(src, tag):
+    """The Ember version the docs describe: CMakeLists' project version, "nightly" unless HEAD is the release `tag`."""
+    number = re.search(r"^\s*VERSION\s+([\d.]+)", (src / "CMakeLists.txt").read_text(encoding="utf-8"), re.M)[1]
+    return f"Ember {number}" + ("" if tag else " nightly")
+
+
+def versions(repo, tags):
+    """The Versions page: each release's Home as it was when it came out, newest first; tags maps a ref to its commit."""
+    key = lambda ref: [int(n) for n in ref.removeprefix("refs/tags/v").split(".")]
+    lines = ["Each release's guides as they were when it came out. Links inside an old page lead to the current pages.", ""]
+    lines += [f"- [{ref.removeprefix('refs/tags/')}](https://github.com/{repo}/wiki/Home/{tags[ref]})"
+              for ref in sorted(tags, key=key, reverse=True)]
+    return "\n".join(lines) + "\n"
+
+
+def wiki_tags(repo):
+    """The release tags of the repository's wiki, each with its commit: each release's wiki is a tag there."""
+    listed = subprocess.run(["git", "ls-remote", "--refs", "--tags", f"https://github.com/{repo}.wiki.git", "v*"],
+                            capture_output=True, text=True, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+    # A repository whose wiki was never created has no tags; any other failure would drop the Versions page.
+    if listed.returncode and "Repository not found" not in listed.stderr:
+        sys.exit(f"could not list the release tags of {repo}'s wiki: {listed.stderr.strip()}")
+    found = listed.stdout.split()
+    return dict(zip(found[1::2], found[::2]))
+
+
 def contents(lines):
     """A collapsed "On this page" list of a page's sections, for a page long enough to want one."""
     titles = [LINK_TEXT.sub(r"\1", line[3:]).strip() for line, code in zip(lines, fenced(lines))
@@ -378,13 +440,16 @@ def write_page(out, page, title, section, lines, colors, before=None, after=None
     (out / f"{slug(page)}.md").write_text("\n".join(body) + "\n", encoding="utf-8")
 
 
-def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None):
-    report = []
+def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None, tags=None, wiki=UPSTREAM):
+    """Write the wiki of the docs in src into out. tags are the release tags of the wiki repository wiki, which main()
+    reads, so a build reaches the network only for the pull requests."""
+    report, tag = [], release_tag(src)
     docs = {"README.md": Doc((src / "README.md").read_text(encoding="utf-8"))}
     for path in sorted((src / "docs/guides").glob("*.md")):
         if is_guide(path.relative_to(src).as_posix()):
             docs[path.relative_to(src).as_posix()] = Doc(path.read_text(encoding="utf-8"))
-    included, pr_images = overlay(docs, auth, report, label) if overlay_prs else ({}, {})
+    # A release's pages are its docs as they are: no "Coming soon" from pull requests still open.
+    included, pr_images = overlay(docs, auth, report, label) if overlay_prs and not tag else ({}, {})
 
     readme = docs["README.md"]
     missing = [h for h in README_PART if h not in readme.lines]
@@ -462,19 +527,26 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
     outbound = [("Download", f"https://github.com/{UPSTREAM}/releases"), ("Discord", links()["discord"]),
                 ("Report a bug", f"https://github.com/{UPSTREAM}/issues")]
     sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p.title}]({slug(p.title)})") \
-        + ["**Links**", "", *(f"- [{name}]({url})" for name, url in outbound), ""]
+        + ["**Links**", "", *(f"- [{name}]({url})" for name, url in outbound)]
+    # The tags are on the wiki publish.py pushes to, which a fork's run is its own.
+    if tags:
+        (out / "Versions.md").write_text(versions(wiki, tags), encoding="utf-8")
+        sidebar_lines.append("- [Versions](Versions)")
+    sidebar_lines.append("")
     (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
 
     sha = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-    text = f"Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); edit the docs, not this page."
+    text = (f"{version(src, tag)}. Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); "
+            "edit the docs, not this page.")
     if included:
         # Titles are other people's text: escape what Markdown would read as links or markup.
         titles = {n: re.sub(r"([\\[\]<>*_`])", r"\\\1", pr["title"]) for n, pr in included.items()}
         text += "\n\nComing soon, from open pull requests:\n\n" + "\n".join(
             f"- [#{n}](https://github.com/{UPSTREAM}/pull/{n}) {titles[n]}" for n in sorted(titles))
     (out / "_Footer.md").write_text(text + "\n", encoding="utf-8")
-    # Beside the wiki, not in it: the docs commit publish.py names in its commit message.
-    out.with_suffix(".sha").write_text(sha + "\n", encoding="utf-8")
+    # Beside the wiki, not in it: the docs commit publish.py names in its commit message, and the release
+    # tag, if the docs are a release's, which publish.py pushes the wiki to instead of its pages.
+    out.with_suffix(".sha").write_text(sha + "\n" + (tag + "\n" if tag else ""), encoding="utf-8")
     return sha, included, report
 
 
@@ -485,13 +557,14 @@ def main():
     source.add_argument("--nightly-repo", action="store_true", help="take the docs from the Nightly repository")
     parser.add_argument("--out", default=str(ROOT / "build/wiki"))
     parser.add_argument("--framedata", type=Path, help="a folder of generated frame data pages to include")
+    parser.add_argument("--wiki", default=UPSTREAM, help="the repository whose wiki lists the release tags, as owner/name")
     prs = parser.add_mutually_exclusive_group()
     prs.add_argument("--no-prs", action="store_true", help="leave out open pull requests")
     prs.add_argument("--all-prs", action="store_true", help=f"include open pull requests without the {PR_LABEL} label")
     args = parser.parse_args()
     src, repo = (nightly_repo(), NIGHTLY_REPO) if args.nightly_repo else (args.src, UPSTREAM)
     sha, included, report = build(src, repo, Path(args.out), token(), None if args.all_prs else PR_LABEL,
-                                  not args.no_prs, args.framedata)
+                                  not args.no_prs, args.framedata, wiki_tags(args.wiki), args.wiki)
     print(f"docs at {sha[:9]}, coming soon from {', '.join(f'#{n}' for n in sorted(included)) or 'no pull requests'}")
     print("\n".join(report))
 

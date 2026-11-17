@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Say which pictures in the docs are older than the interface they show.
+"""Say which pictures and guides in the docs are older than the interface they show.
 
 docs/images/manifest.tsv says how each picture is made. A picture is stale when
 a path its kind of capture shows (WATCHED) changed in a commit after the commit
@@ -9,7 +9,10 @@ the newest commit with that trailer names the commit all of them show, those
 whose bytes did not change too, and a rebase or cherry-pick keeps it. A picture
 changed after that commit dates from its own last commit. A trailer naming a
 commit this checkout lacks is reported as an unknown capture source, never as
-fresh. The check needs the history, not the file contents.
+fresh. A guide is stale the same way when a file its page names as its sources
+(build.PAGES) changed after the guide's own last commit; a guide that was read
+and found right is touched to say so. The check needs the history, not the file
+contents.
 
 It reports and never blocks: the lines go to the output (the workflow adds them
 to the run's summary) and it exits 0, since an older picture beats no wiki. A
@@ -73,6 +76,17 @@ def stale(rows, root):
     return found
 
 
+def guides(pages, root):
+    """The guides of pages whose sources changed after them in the checkout root, and the sources that are gone."""
+    found = []
+    for page in pages:
+        found += [f"{page.path} names {path} as a source, which is gone" for path in page.sources if not any(root.glob(path))]
+        if page.sources and (commits := newer(root, last(root, page.path), page.sources)):
+            found.append(f"{page.path}: {', '.join(page.sources)} changed after it, {len(commits)} commits, "
+                         f"last {commits[0]} (read the guide against it; the warning ends with its next edit)")
+    return found
+
+
 def git(root, *arguments):
     return subprocess.run(["git", "-C", root, *arguments], capture_output=True, text=True, check=True).stdout
 
@@ -96,11 +110,17 @@ def capture(root):
 def source(root, path):
     """The commit a picture shows, and whether the checkout has it: the last capture's, unless the picture
     changed after it. (None, True) for a picture never committed."""
-    commit = git(root, "log", "-1", "--format=%h", "--", path).strip() or None
+    commit = last(root, path)
     recorded, named = capture(root)
     if not commit or not recorded or not holds(root, "merge-base", "--is-ancestor", commit, recorded):
         return commit, True
     return named, holds(root, "cat-file", "-e", f"{named}^{{commit}}")
+
+
+@functools.cache
+def last(root, path):
+    """A file's last commit in the checkout root; None for a file never committed."""
+    return git(root, "log", "-1", "--format=%h", "--", path).strip() or None
 
 
 @functools.cache
@@ -118,9 +138,12 @@ def main():
     found = stale(rows, ROOT)
     for line in unlisted(rows, present):
         print("warning:", line)
+    behind = guides(build.PAGES, ROOT)
     for line in found:
         print("warning: stale picture", line)
-    print(f"{len(found)} pictures older than what they show")
+    for line in behind:
+        print("warning: guide", line)
+    print(f"{len(found)} pictures older than what they show, {len(behind)} reasons to read a guide again")
     return 1 if args.due and found else 0
 
 
