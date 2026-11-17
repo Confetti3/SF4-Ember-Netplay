@@ -106,6 +106,8 @@ with tempfile.TemporaryDirectory() as folder:
     assert Path(bare, "Training-Lab.md").read_text().splitlines()[-1].endswith("[Next: Frame Data](Frame-Data)")
     assert not Path(bare, "Frame-Data.md").exists() and "[Frame Data](Frame-Data)" in Path(bare, "_Sidebar.md").read_text()
     assert check.check(bare)[0] == [], check.check(bare)[0]
+# A page or a heading that links point to may not disappear unnoticed.
+assert publish.lost({"A": "## One\n## Two", "B": "x"}, {"A": "## One\n## Three"}) == (["B"], ["A#two"])
 
 # The README still has both headings the wiki takes its install part between.
 readme = (build.ROOT / "README.md").read_text(encoding="utf-8").splitlines()
