@@ -7,6 +7,7 @@ namespace sf4e { namespace ui {
 // A shared flag rather than io.ConfigFlags: the window procedure sets it on
 // the message thread, which may not be the drawing thread.
 void SetOverlayCursorOwnership(bool capture) { SetWin32CursorOwned(capture); }
+void ShowFreeCursor() { SetWin32CursorOwned(true); ClipCursor(nullptr); }
 namespace {
 // The button-up that ends a press, or 0 when the message is not a button press.
 UINT ReleaseOf(UINT message) {

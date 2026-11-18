@@ -14,6 +14,10 @@ namespace sf4e { namespace ui {
 // Decided once per frame after the layers, dropped on focus loss. Ember owns the
 // cursor while its menu or the chip takes the mouse, and during a fight to hide it.
 void SetOverlayCursorOwnership(bool capture);
+// For a game this PC only watches: Ember owns the cursor and shows it, and
+// the clip the game put on it is released, so it can leave for another monitor.
+// Called each frame, as the game may clip it again.
+void ShowFreeCursor();
 // Who the F10 key is for, published once a frame for the window procedure:
 // Ember's menu when it can open, the way back to the room in a room's
 // Training, else the game. Where it is Ember's the game never sees it; left
