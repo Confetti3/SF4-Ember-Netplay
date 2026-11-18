@@ -726,7 +726,7 @@ void ApplicationShell::RoomChatRows(std::vector<MenuEntry>& rows,const RoomScree
   // Done sends (RoomAction).
   const bool draft=HasChatText(chat_);
   rows.push_back(Row("compose",loc::T("room.compose_message"),loc::T("chat.detail"),
-   ChatTypable(v)&&(!draft||(!queuedChat_&&!(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_)))));
+   ChatTypable(v)&&(!draft||(!queuedChat_&&!(ChatInFlight(clock_.Now())&&pendingChat_->text==chat_)))));
   rows.back().value=chat_;
   if(draft)rows.back().hint=loc::T("chat.send");else{rows.back().text=true;rows.back().textLimit=room::MaximumChatBytes;}
 }
@@ -825,7 +825,7 @@ bool ApplicationShell::LeaveWatchedGame(const ShellView& v,const Submit& submit)
  if(!submit(commands::LeaveWatchedGame{v.session.generation,v.watchedGame})){error_=loc::T("error.queue_failed");return false;}
  // Stop watching of the table, not only the rest of a finished stream or a
  // queued member's game, is the member's watching intent.
- if(leave==netplay::WatchedLeave::Unwatch)follow_.StoppedWatching(v.room,v.watchedGame.table,static_cast<std::uint64_t>(ImGui::GetTime()*1000));
+ if(leave==netplay::WatchedLeave::Unwatch)follow_.StoppedWatching(v.room,v.watchedGame.table,static_cast<std::uint64_t>(clock_.Now()*1000));
  error_.clear();
  return true;
 }
@@ -856,6 +856,6 @@ void ApplicationShell::TrackLockIn(const ShellView& v,double now) {
  lockedInTable_=lockedAt;lockInEpoch_=v.room.roomEpoch;lockInDropsSeen_=v.lockInDrops;
 }
 bool ApplicationShell::GameIsStale(std::size_t table) const {
- return table<liveGames_.size()&&liveGames_[table].since>=0&&ImGui::GetTime()-liveGames_[table].since>=room::StaleGameSeconds;
+ return table<liveGames_.size()&&liveGames_[table].since>=0&&clock_.Now()-liveGames_[table].since>=room::StaleGameSeconds;
 }
 } }

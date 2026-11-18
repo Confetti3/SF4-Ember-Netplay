@@ -41,7 +41,7 @@ void ApplicationShell::RoomGrips(v2::Box area,bool editable) {
  auto next=preferences_;
  if(!std::isnan(x))next.roomColumn=snap((area.max.x-x)/area.W()*100,netplay::MinRoomColumn,netplay::MaxRoomColumn,netplay::DefaultRoomColumn,netplay::RoomColumnStep);
  if(!std::isnan(y))next.roomSplit=snap((y-members.min.y)/(chat.max.y-members.min.y)*100,netplay::MinRoomSplit,netplay::MaxRoomSplit,netplay::DefaultRoomSplit,netplay::RoomSplitStep);
- if(next.roomColumn!=preferences_.roomColumn||next.roomSplit!=preferences_.roomSplit){preferences_=next;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ if(next.roomColumn!=preferences_.roomColumn||next.roomSplit!=preferences_.roomSplit){preferences_=next;preferencesDirty_=true;saveAt_=clock_.Now()+.45;}
 }
 namespace {
 constexpr int PreviewTables=4;

@@ -55,7 +55,7 @@ void ToneMark(ImDrawList* d,ImVec2 c,float r,Tone tone,ImU32 ink) {
 }
 
 void ApplicationShell::Tell(Notifications::Item item,double seconds) {
- const double now=ImGui::GetTime();
+ const double now=clock_.Now();
  notice_=item.text;noticeTone_=item.tone;noticeUntil_=now+seconds;
  // The status line now says what is told here: it is this toast, not another.
  noticeSeen_=notice_;
@@ -227,7 +227,7 @@ void ApplicationShell::AnswerToast(const ShellView& v,double now,const Submit& s
 class ApplicationShell::NotificationScreens final : public ScreenPanel {
 public:
     bool Owns(const std::string& screen) const override { return screen == FriendsPanel::NotificationsScreen; }
-    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.NotificationRows(f.view, ImGui::GetTime(), title); }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.NotificationRows(f.view, f.shell.clock_.Now(), title); }
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
         // Friends opens the screen, so Back returns here.
         if (a.id == "notifications-friends") { f.shell.menu_.navigation.Push(FriendsPanel::Screen); return true; }

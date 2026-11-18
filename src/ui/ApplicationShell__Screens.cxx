@@ -37,7 +37,7 @@ public:
     // The panel's own line, when it has one, replaces the shell's.
     void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override {
         std::string own; Tone ownTone = Tone::Neutral;
-        if (f.shell.identity_.Status(own, ownTone, ImGui::GetTime())) { status = own; tone = ownTone; }
+        if (f.shell.identity_.Status(own, ownTone, f.shell.clock_.Now())) { status = own; tone = ownTone; }
     }
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
         f.shell.identity_.Activate(a, f.view, f.shell.menu_.navigation);
@@ -72,7 +72,7 @@ public:
     // Also asked on Create (UpdateStatus), with that screen.
     void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override {
         std::string own = status; Tone ownTone = tone;
-        if (f.shell.publicRooms_.Status(f.view, f.screen, own, ownTone, ImGui::GetTime(), f.shell.preferences_.roomFilter)) { status = own; tone = ownTone; }
+        if (f.shell.publicRooms_.Status(f.view, f.screen, own, ownTone, f.shell.clock_.Now(), f.shell.preferences_.roomFilter)) { status = own; tone = ownTone; }
     }
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
         auto& shell = f.shell; auto& nav = shell.menu_.navigation;
@@ -99,7 +99,7 @@ public:
     }
     GameMenu::Detail Detail(const ScreenFrame& f) const override {
         ApplicationShell* shell = &f.shell; const ShellView* view = &f.view;
-        return [shell, view](const std::string& id) { DrawPublicPreview(*view, shell->publicRooms_, id); };
+        return [shell, view](const std::string& id) { DrawPublicPreview(*view, shell->publicRooms_, id, shell->clock_.Now()); };
     }
     // The filter is a saved preference, so the filters page says how its save stands.
     bool ReportsSave(const std::string& screen) const override { return screen == PublicRoomsPanel::FiltersScreen; }
@@ -117,7 +117,7 @@ private:
         if (!PublicRoomsPanel::ChangeFilter(a, PublicRoomsPanel::FilterHome(f.view), filter)) return false;
         if (f.view.canEditPreferences && filter != shell.preferences_.roomFilter) {
             shell.preferences_.roomFilter = filter;
-            shell.preferencesDirty_ = true; shell.saveAt_ = ImGui::GetTime() + .45; shell.error_.clear();
+            shell.preferencesDirty_ = true; shell.saveAt_ = shell.clock_.Now() + .45; shell.error_.clear();
         }
         return true;
     }
@@ -369,7 +369,7 @@ public:
         const auto saved = f.shell.replays_.Accept(a);
         if (saved && f.view.canEditPreferences && f.shell.preferences_.*saved != (a.delta > 0)) {
             f.shell.preferences_.*saved = a.delta > 0;
-            f.shell.preferencesDirty_ = true; f.shell.saveAt_ = ImGui::GetTime() + .45; f.shell.error_.clear();
+            f.shell.preferencesDirty_ = true; f.shell.saveAt_ = f.shell.clock_.Now() + .45; f.shell.error_.clear();
         }
         return true;
     }

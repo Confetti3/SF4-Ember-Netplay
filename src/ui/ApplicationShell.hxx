@@ -629,7 +629,7 @@ private:
     // looked for.
     struct PendingChat { std::string text; std::uint64_t after = 0; double since = 0; };
     std::optional<PendingChat> pendingChat_;
-    bool ChatInFlight(double now) const { return pendingChat_ && now >= pendingChat_->since && now - pendingChat_->since <= 8; }
+    bool ChatInFlight(double now) const { return pendingChat_ && now - pendingChat_->since <= 8; }
     // A message entered while the room could not take it, apart from the draft the player keeps editing and
     // from pendingChat_, whose receipt is still looked for. It goes out once, when the room can (FlushChat),
     // and no other is accepted until then. A retry of text that arrives first is not sent. It stays held
@@ -654,7 +654,10 @@ private:
     std::string chatBoxText_;
     std::size_t chatShown_=0;
     double saveAt_ = 0;
-    double lastUiTime_ = -1;
+    // The shell's one clock, fed ImGui's time at the start of each Draw and
+    // Background. Every deadline and timestamp here and in the panels is in
+    // its time, so a device reset that restarts ImGui's clock moves none.
+    UiClock clock_;
     bool saveFailed_ = false;
     bool saveQueued_ = false, retrySave_ = false;
     bool profileSavePending_ = false;

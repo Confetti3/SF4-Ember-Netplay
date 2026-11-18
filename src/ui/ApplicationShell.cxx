@@ -172,11 +172,11 @@ bool ApplicationShell::UpdateRoomFeedback(const ShellView& v) {
   v.session.recovery==Recovery::None&&!v.room.closed;
  if(!healthyRoom){roomUpdateUntil_=0;roomUpdateStarted_=-1;roomDetails_.clear();}
  else if(RoomCheckpointPending(v)) {
-  if(roomUpdateStarted_<0)roomUpdateStarted_=ImGui::GetTime();
-  if(ImGui::GetTime()-roomUpdateStarted_>=.25||ImGui::GetTime()<roomUpdateUntil_)
-   roomUpdateUntil_=ImGui::GetTime()+.5;
+  if(roomUpdateStarted_<0)roomUpdateStarted_=clock_.Now();
+  if(clock_.Now()-roomUpdateStarted_>=.25||clock_.Now()<roomUpdateUntil_)
+   roomUpdateUntil_=clock_.Now()+.5;
  }else roomUpdateStarted_=-1;
- roomUpdateVisible_=healthyRoom&&ImGui::GetTime()<roomUpdateUntil_;
+ roomUpdateVisible_=healthyRoom&&clock_.Now()<roomUpdateUntil_;
  return healthyRoom;
 }
 void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& submit) {
@@ -185,17 +185,17 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
   if(SamePreferences(v.preferences,savingPreferences_)&&v.settingsError.empty()){
    saveQueued_=false;retrySave_=false;preferencesDirty_=!SamePreferences(preferences_,savingPreferences_);
    if(profileSavePending_&&!preferencesDirty_){
-    profileSavePending_=false;error_.clear();ShowNotice(loc::Tf("notice.profile_saved",selection::FindFighter(v.preferences.mainFighter)->name),Tone::Success,ImGui::GetTime()+3);
+    profileSavePending_=false;error_.clear();ShowNotice(loc::Tf("notice.profile_saved",selection::FindFighter(v.preferences.mainFighter)->name),Tone::Success,clock_.Now()+3);
     if(nav.Screen()=="main-character")nav.Return();
    }
-  }else if(ImGui::GetTime()>saveAt_+2){saveQueued_=false;saveFailed_=true;retrySave_=false;error_=loc::T("error.settings_not_saved");}
+  }else if(clock_.Now()>saveAt_+2){saveQueued_=false;saveFailed_=true;retrySave_=false;error_=loc::T("error.settings_not_saved");}
  }
  if(!preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending)preferences_=v.preferences;
  SyncLayoutPaths(v);
  if(!v.settingsError.empty()&&!retrySave_&&!saveQueued_)saveFailed_=true;
- if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&MaySave(v,preferences_)&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
+ if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&MaySave(v,preferences_)&&preferences_.Valid()&&clock_.Now()>=saveAt_){
   DropStaleAwards(v);
-  if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
+  if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=clock_.Now();}else saveFailed_=true;
  }
 }
 std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title) {
@@ -333,11 +333,11 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   if(v.tournament.waitingForPermit){status=loc::T("tournament.state.waiting_permit");statusTone=Tone::Pending;}
   else if(v.tournament.waitingForOpponent){status=loc::T("tournament.state.waiting_opponent");statusTone=Tone::Pending;}
  }
- if(ImGui::GetTime()>=noticeUntil_)notice_.clear();
- if(error_!=lastError_){lastError_=error_;errorSince_=ImGui::GetTime();errorScreen_=screen;}
+ if(clock_.Now()>=noticeUntil_)notice_.clear();
+ if(error_!=lastError_){lastError_=error_;errorSince_=clock_.Now();errorScreen_=screen;}
  // A refusal belongs to the screen it was raised on and to the condition it
  // named; otherwise it lapses on its own.
- if(!error_.empty()&&(screen!=errorScreen_||ImGui::GetTime()-errorSince_>=ErrorSeconds||
+ if(!error_.empty()&&(screen!=errorScreen_||clock_.Now()-errorSince_>=ErrorSeconds||
    (errorBlocked_&&error_==errorBlockedText_&&!errorBlocked_(v)))){error_.clear();lastError_.clear();}
  // A notice outranks routine save feedback: "Invitation copied." must not
  // vanish because a preference write happens to be in flight. Save failures
@@ -422,8 +422,8 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  // A letter on the board goes to its first country, whose code it carries.
  else if(screen==CountryPicker::Screen&&a.id.compare(0,7,"letter-")==0)nav.Prefer("country-"+a.id.substr(7));
  // A choice is saved like any setting, and the picker closes on it.
- else if(const auto choice=screen==CountryPicker::Screen?countryPicker_.Choose(a.id):std::nullopt){if(v.canEditPreferences){preferences_.country=*choice;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();nav.Return();}}
- else if(const auto main=RowKey<int>(a.id,"main-");main&&v.canEditPreferences){preferences_.mainFighter=*main;preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
+ else if(const auto choice=screen==CountryPicker::Screen?countryPicker_.Choose(a.id):std::nullopt){if(v.canEditPreferences){preferences_.country=*choice;preferencesDirty_=true;saveAt_=clock_.Now()+.45;error_.clear();nav.Return();}}
+ else if(const auto main=RowKey<int>(a.id,"main-");main&&v.canEditPreferences){preferences_.mainFighter=*main;preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=clock_.Now()+.45;}
  else if(screen=="training"&&a.id.compare(0,9,"training-")==0)TrainingSelectActivate(a,v,submit);
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?RoomSelectionStart(v.room):SelectionStart::Board;nav.Push(a.id);}
  else if(a.id=="news")nav.Push(notices_.Waiting()?"notifications":"news");
@@ -464,7 +464,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="arrange-reset"){const netplay::PlayerPreferences fresh;preferences_.roomColumn=fresh.roomColumn;preferences_.roomSplit=fresh.roomSplit;
   preferences_.roomShowMembers=fresh.roomShowMembers;preferences_.roomShowChat=fresh.roomShowChat;preferences_.roomTableGrid=fresh.roomTableGrid;
   preferences_.roomCharacterPictures=fresh.roomCharacterPictures;preferences_.pictureMode=fresh.pictureMode;preferences_.pictureSpot=fresh.pictureSpot;
-  preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+  preferencesDirty_=true;saveAt_=clock_.Now()+.45;}
  else if(a.id=="ready-test"){
   // The volume on screen, which may not be saved yet.
   if(!submit(commands::PreviewSound{v.session.generation,preferences_.readySoundVolume}))error_=loc::T("error.queue_failed");
@@ -522,7 +522,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="privacy")preferences_.roomFriendsHidden=a.delta>0;
   else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
-  else{preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}
+  else{preferencesDirty_=true;saveAt_=clock_.Now()+.45;error_.clear();}
  }
 }
 
@@ -561,9 +561,10 @@ void ApplicationShell::SetLanguage(std::string preference) {
  if(!loc::ValidPreference(preference))return;
  languagePreference_=std::move(preference);
  loc::SetActive(platform::ResolveUiLocale(languagePreference_));
- languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
+ languageDirty_=true;languageSaveError_.clear();languageSaveAt_=clock_.Now()+.45;
 }
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
+ const double now=clock_.Update(ImGui::GetTime());
  CancelLayoutCapture(v,submit);
  // The save goes on while Ember is hidden, as it does while it shows: any
  // edit left unsaved (a room's open settings, or any setting at an idle main
@@ -575,16 +576,16 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  // What the screens asked of the runtime while they showed is closed first: a hidden Ember must not keep the friends sync or a profile open through a match.
  friends_.Hide(v,submit);player_.Hide(submit);
  Conceal();hidden_=true;
- UpdatePostMatch(v,room,ImGui::GetTime(),submit,nullptr);
+ UpdatePostMatch(v,room,now,submit,nullptr);
  // Following goes on while Ember is hidden: a streamer hides it to show the games.
- UpdateFollow(v,ImGui::GetTime(),submit);
+ UpdateFollow(v,now,submit);
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
- identity_.Hidden(v,submit,ImGui::GetTime());
+ identity_.Hidden(v,submit,now);
  // The game is on screen: notices go into Notifications without a card over
  // it, and a card the game covered before its time is owed a showing.
- TakeNotices(ImGui::GetTime());
- notices_.Conceal(ImGui::GetTime());
+ TakeNotices(now);
+ notices_.Conceal(now);
 }
 
 v2::Box ApplicationShell::ShellArea() const {
@@ -595,7 +596,7 @@ v2::Box ApplicationShell::ShellArea() const {
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
  boardDrawn_=false;selectionDrawn_=false;
- const double now = ImGui::GetTime();
+ const double now = clock_.Update(ImGui::GetTime());
  UpdatePadSetup(v,submit,true);
  if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}
  // Called out of Training: the player's own table is shown, where the Ready
@@ -610,19 +611,6 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(!seated||v.trainingReadySeconds<=0)trainingReadySeen_=v.trainingReadySequence;
   else if(v.trainingReadySequence!=trainingReadySeen_&&v.canReady){selectedTable_=place.table;if(SendReady(v,false,submit))trainingReadySeen_=v.trainingReadySequence;}
  }
- if(lastUiTime_ >= 0 && now < lastUiTime_) {
-  // DX9 reset recreates ImGui, but these deadlines belong to the surviving shell.
-  // Keep raw-clock users in RoomAction in the same epoch, including queued saves.
-  saveAt_ = RebaseUiTimestamp(saveAt_, lastUiTime_, now);
-  languageSaveAt_ = RebaseUiTimestamp(languageSaveAt_, lastUiTime_, now);
-  noticeUntil_ = RebaseUiTimestamp(noticeUntil_, lastUiTime_, now);
-  shortCopyUntil_ = RebaseUiTimestamp(shortCopyUntil_, lastUiTime_, now);
-  roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
-  if(postMatch_)postMatch_->until = RebaseUiTimestamp(postMatch_->until, lastUiTime_, now);
-  roomUpdateStarted_ = -1;
-  notices_.Rebase([&](double t){return RebaseUiTimestamp(t,lastUiTime_,now);});
- }
- lastUiTime_ = now;
  // Player-written text can need glyphs the atlas has not baked yet. The
  // renderer tells the theme about each string it draws, where it draws it, so
  // text that is scrolled out of view, muted or on another screen holds none.
@@ -790,7 +778,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  menu_.eyebrow.clear();menu_.headerChips.clear();menu_.headerLinks.clear();menu_.tabs.clear();menu_.tab=-1;menu_.statusLeads.clear();menu_.customDetail=false;menu_.typesText=false;
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit))return false;
  // The room board shows a Big picture in its tables' place instead (this frame's word, boardPicture_).
- if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot,v.CanEditRoomSettings())){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot,v.CanEditRoomSettings())){preferencesDirty_=true;saveAt_=clock_.Now()+.45;}
  pictureOnBoard_=boardPicture_;boardPicture_=false;
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.

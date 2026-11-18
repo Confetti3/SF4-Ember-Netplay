@@ -237,7 +237,7 @@ public:
         if (change.refusal) { s.Refuse(loc::T(change.refusal)); return; }
         if (!change.changed) return;
         if (!s.preferences_.Valid()) { s.preferences_ = prior; s.error_ = loc::T("error.invalid_value"); return; }
-        s.preferencesDirty_ = true; s.saveAt_ = ImGui::GetTime() + .45; s.error_.clear();
+        s.preferencesDirty_ = true; s.saveAt_ = s.clock_.Now() + .45; s.error_.clear();
     }
     static Entries MainCharacters(Shell&, const ShellView& v) {
         Entries rows;
@@ -451,7 +451,7 @@ public:
         if (!v.canEditPreferences) return;
         ImGui::Dummy(ImVec2(0, 8 * Scale()));
         const int picked = v2::SpotMap("##hud-spot", {{.5f, .88f}, {.16f, .88f}, {.84f, .88f}, {.16f, .12f}, {.84f, .12f}, {.5f, .12f}}, p.matchHudAnchor, {.26f, .1f});
-        if (picked >= 0 && picked != p.matchHudAnchor) { p.matchHudAnchor = picked; s.preferencesDirty_ = true; s.saveAt_ = ImGui::GetTime() + .45; }
+        if (picked >= 0 && picked != p.matchHudAnchor) { p.matchHudAnchor = picked; s.preferencesDirty_ = true; s.saveAt_ = s.clock_.Now() + .45; }
     }
     // Where the watched game's picture sits and how big, on a small screen. The
     // corners in pictureSpot's order: top right, top left, bottom right, bottom left.
@@ -460,7 +460,7 @@ public:
         const float share = WatchedPictureShareFor(p.pictureSpot), c = share * .5f + .03f;
         const int corner = p.pictureSpot % 4;
         const int picked = v2::SpotMap("##picture-spot", {{1 - c, c}, {c, c}, {1 - c, 1 - c}, {c, 1 - c}}, corner, {share, share});
-        if (picked >= 0 && picked != corner && v.CanEditRoomSettings()) { p.pictureSpot = p.pictureSpot / 4 * 4 + picked; s.preferencesDirty_ = true; s.saveAt_ = ImGui::GetTime() + .45; }
+        if (picked >= 0 && picked != corner && v.CanEditRoomSettings()) { p.pictureSpot = p.pictureSpot / 4 * 4 + picked; s.preferencesDirty_ = true; s.saveAt_ = s.clock_.Now() + .45; }
     }
     // The room board as the layout arranges it, with the grips that drag it
     // while its rows are open.
