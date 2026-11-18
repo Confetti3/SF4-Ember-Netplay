@@ -43,7 +43,7 @@
   var types = document.getElementById('types');
   var openOnly = document.getElementById('open-only');
   var refreshButton = document.getElementById('refresh');
-  var state = { rooms: null, bridge: '', listedAt: 0, skew: 0, key: null, area: '', type: '', failed: false };
+  var state = { rooms: null, bridge: '', listedAt: 0, skew: 0, key: null, areas: {}, type: '', failed: false };
   // What the cards on screen were drawn from: the body without listed_at, and
   // whether the "could not refresh" note was showing. A refresh that changes
   // neither only updates the ages, so the cards, and the focus on them, stay.
@@ -201,12 +201,17 @@
     return node;
   }
 
+  // Whether any area is ticked.
+  function areasTicked() { return Object.keys(state.areas).length > 0; }
+
   // The area buttons: All areas, then each area that has a room, in AREAS
-  // order. A room without an area is listed under All areas only.
+  // order; each area button ticks or unticks that area, and the rooms of the
+  // ticked areas are listed (none ticked is All areas, which a tap on it
+  // returns to). A room without an area is listed under All areas only.
   function areaButtons(rooms) {
     var seen = {};
     rooms.forEach(function (room) { seen[areaOf(room)] = true; });
-    if (state.area) seen[state.area] = true;
+    Object.keys(state.areas).forEach(function (code) { seen[code] = true; });
     while (areas.children.length > 1) areas.removeChild(areas.lastChild);
     Object.keys(AREAS).forEach(function (code) {
       if (!seen[code]) return;
@@ -217,7 +222,8 @@
     });
     for (var i = 0; i < areas.children.length; i++) {
       var child = areas.children[i];
-      child.setAttribute('aria-pressed', child.getAttribute('data-area') === state.area ? 'true' : 'false');
+      var code = child.getAttribute('data-area');
+      child.setAttribute('aria-pressed', (code ? state.areas[code] === true : !areasTicked()) ? 'true' : 'false');
     }
   }
 
@@ -270,7 +276,7 @@
       .sort(function (a, b) { return a.rank - b.rank || a.index - b.index; })
       .map(function (entry) { return entry.room; });
     var shown = rooms.filter(function (room) {
-      return (!state.area || areaOf(room) === state.area) && (!openOnly.checked || joinable(room)) &&
+      return (!areasTicked() || state.areas[areaOf(room)] === true) && (!openOnly.checked || joinable(room)) &&
         (state.type === '' || String(typeOf(room).code) === state.type);
     });
     summary.textContent = rooms.length === 0 ? 'No rooms open' :
@@ -280,7 +286,7 @@
       list.appendChild(message('No public rooms are open right now.',
         'Open one in Ember: Online play, Public rooms, Create room. This page shows it as soon as you are in it.'));
     } else if (shown.length === 0) {
-      list.appendChild(message('No rooms match these filters.', 'Choose All areas or All types, or turn off Open seats only.'));
+      list.appendChild(message('No rooms match these filters.', 'Tick more areas or choose All areas, choose All types, or turn off Open seats only.'));
     } else {
       // Each type's rooms together under its own heading, once there is more
       // than one type to tell apart.
@@ -347,7 +353,10 @@
   areas.addEventListener('click', function (event) {
     var button = event.target.closest ? event.target.closest('button') : null;
     if (!button || !areas.contains(button)) return;
-    state.area = button.getAttribute('data-area') || '';
+    var code = button.getAttribute('data-area') || '';
+    if (!code) state.areas = {};
+    else if (state.areas[code]) delete state.areas[code];
+    else state.areas[code] = true;
     render();
   });
   types.addEventListener('click', function (event) {

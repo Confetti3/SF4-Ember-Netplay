@@ -5402,13 +5402,37 @@ msgid "public.filter_area"
 msgstr "Area"
 
 msgid "public.filter_area_detail"
-msgstr "Show rooms from every area, only rooms in or next to your area, or one area. Left and Right change it."
+msgstr "Show rooms from every area, only rooms in or next to your area, or the areas you tick. Select picks areas; Left and Right switch between all areas and near me. A room that names no area shows only under All areas."
 
 msgid "public.filter_area_all"
 msgstr "All areas"
 
 msgid "public.filter_region_near"
 msgstr "Near me"
+
+msgid "public.filter_areas_title"
+msgstr "Show rooms from"
+
+msgid "public.filter_areas_count"
+msgstr "{0} areas"
+
+msgid "public.filter_areas_pick"
+msgstr "Pick areas"
+
+msgid "public.filter_areas_quick"
+msgstr "All / Near me"
+
+msgid "public.filter_near_detail"
+msgstr "Show only rooms in or next to your area. Switching it on clears the areas you ticked."
+
+msgid "public.filter_area_one_detail"
+msgstr "Show rooms from {0}. Tick as many areas as you like; a room that names no area is not shown."
+
+msgid "public.filter_areas_all"
+msgstr "Show every area"
+
+msgid "public.filter_areas_all_detail"
+msgstr "Untick every area and Near me, so rooms from everywhere are listed."
 
 msgid "public.filter_type"
 msgstr "Room type"

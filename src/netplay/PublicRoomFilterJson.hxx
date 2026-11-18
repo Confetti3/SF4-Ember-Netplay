@@ -4,12 +4,16 @@
 
 namespace sf4e { namespace netplay {
 // The public rooms filter is one object in the netplay section:
-// {"region": "all" | "near" | an area's code, "type": "all" | "classic" |
-// "arcade" | "king", "seats": bool, "wired": bool}. A profile from before the
+// {"region": "all" | "near" | "areas", "areas": [area codes], "type": "all" |
+// "classic" | "arcade" | "king", "seats": bool, "wired": bool}. "areas" is read
+// only under "areas". Builds that saved one area wrote its code as the region
+// ("sam"), which still loads as that one area. A profile from before the
 // filter has none. A field that is missing or of another type, a region that is
-// not an area (the relay codes builds before areas saved, "usw1" among them)
-// and a type this build does not know load as All (a flag as off), and the
-// other fields load as saved.
+// neither of those (the relay codes builds before areas saved, "usw1" among
+// them), codes in "areas" that are not areas (they are dropped, and none left is
+// All) and a type this build does not know load as All (a flag as off), and the
+// other fields load as saved. A build from before several areas reads the new
+// shape's region as unknown: its place is All, the other fields as saved.
 inline publicrooms::RoomFilter ReadRoomFilter(const nlohmann::json& saved) {
 	using publicrooms::RoomFilter;
 	RoomFilter value;
@@ -25,8 +29,12 @@ inline publicrooms::RoomFilter ReadRoomFilter(const nlohmann::json& saved) {
 		return it != found->end() && it->is_boolean() && it->get<bool>();
 	};
 	const std::string region = text("region"), type = text("type");
-	if (region == "near") value.scope = RoomFilter::Place::Near;
-	else if (AreaFromCode(region) != Area::None) { value.scope = RoomFilter::Place::One; value.area = AreaFromCode(region); }
+	if (region == "near") value.SetNear(true);
+	else if (region == "areas") {
+		const auto codes = found->find("areas");
+		if (codes != found->end() && codes->is_array())
+			for (const auto& code : *codes) if (code.is_string()) value.SetArea(AreaFromCode(code.get<std::string>()), true);
+	} else value.SetArea(AreaFromCode(region), true);
 	value.type = type == "classic" ? RoomFilter::Type::Classic : type == "arcade" ? RoomFilter::Type::Arcade :
 		type == "king" ? RoomFilter::Type::King : RoomFilter::Type::All;
 	value.openSeats = flag("seats");
@@ -38,7 +46,8 @@ inline void WriteRoomFilter(const PlayerPreferences& value, nlohmann::json& save
 	const auto& filter = value.roomFilter;
 	const char* types[] = {"all", "classic", "arcade", "king"};
 	saved["roomFilter"] = {
-		{"region", filter.scope == RoomFilter::Place::All ? std::string("all") : filter.scope == RoomFilter::Place::Near ? std::string("near") : AreaCode(filter.area)},
+		{"region", filter.scope == RoomFilter::Place::All ? "all" : filter.scope == RoomFilter::Place::Near ? "near" : "areas"},
+		{"areas", filter.areas.Codes()},
 		{"type", types[static_cast<int>(filter.type)]}, {"seats", filter.openSeats}, {"wired", filter.wiredOnly}};
 }
 } }
