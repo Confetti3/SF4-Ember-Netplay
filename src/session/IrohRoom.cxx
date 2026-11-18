@@ -437,6 +437,10 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         room_.coordination.writable=event.at("writable"); room_.coordination.leaderLocal=event.at("leader_local");
         room_.coordination.voterCount=event.value("voter_count",std::size_t(0));
         room_.coordination.learnerCount=event.value("learner_count",std::size_t(0));
+        const auto readDeadline=event.value("read_deadline_ms",std::uint32_t(0)), readRtt=event.value("read_rtt_ms",std::uint32_t(0));
+        if (readDeadline!=room_.coordination.readDeadlineMs)
+            spdlog::info("Room: coordination read deadline {} ms from a worst route rtt of {} ms", readDeadline, readRtt);
+        room_.coordination.readDeadlineMs=readDeadline; room_.coordination.readRttMs=readRtt;
         if (room_.coordination.writable && !IsEndpointIdentity(room_.coordination.leader)) {
             room_.coordination.writable=false; room_.error="invalid_coordination_leader";
         }

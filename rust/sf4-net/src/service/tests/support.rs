@@ -676,5 +676,6 @@ pub(super) fn leads(actor: &mut Actor, term: u64) {
         leader_local: true,
         voter_count: 1,
         learner_count: 0,
+        read_deadline_ms: 2000,
     });
 }

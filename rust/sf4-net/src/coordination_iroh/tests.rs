@@ -564,3 +564,56 @@ async fn unanswering_target_cannot_starve_calls_to_others() {
     live.close().await;
     silent.close().await;
 }
+
+#[tokio::test]
+async fn worst_rtt_is_read_from_open_connections_to_the_named_targets_only() {
+    let room = [14; 16];
+    let server = IrohRpc::bind(room, 1, false).await.unwrap();
+    let client = IrohRpc::bind(room, 2, false).await.unwrap();
+    server.admit(2, client.address()).await.unwrap();
+    client.admit(1, server.address()).await.unwrap();
+    let coordinator = Arc::new(
+        Coordinator::new_for_room(room, 1, server.clone())
+            .await
+            .unwrap(),
+    );
+    coordinator
+        .raft()
+        .initialize(BTreeMap::from([(
+            1,
+            BasicNode::new(server.identity().to_string()),
+        )]))
+        .await
+        .unwrap();
+    coordinator
+        .raft()
+        .wait(Some(Duration::from_secs(5)))
+        .current_leader(1, "single leader")
+        .await
+        .unwrap();
+    let serving = tokio::spawn(server.clone().serve(coordinator.clone()));
+    let leader = std::collections::BTreeSet::from([1]);
+    let others = std::collections::BTreeSet::from([7]);
+
+    // Nothing is open before the first call, so no round trip is guessed.
+    assert_eq!(client.worst_rtt(&leader).await, None);
+    <IrohRpc as RpcTransport>::call(
+        client.as_ref(),
+        1,
+        server.identity().to_string(),
+        Method::Authority,
+        vec![0],
+    )
+    .await
+    .unwrap();
+    assert!(client.worst_rtt(&leader).await.is_some());
+    assert_eq!(client.worst_rtt(&others).await, None);
+    // A closed connection says nothing about the route any more.
+    client.connections.read().await[&1].close(0u32.into(), b"closed");
+    assert_eq!(client.worst_rtt(&leader).await, None);
+
+    serving.abort();
+    coordinator.raft().shutdown().await.unwrap();
+    server.close().await;
+    client.close().await;
+}

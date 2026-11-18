@@ -295,6 +295,9 @@ struct CoordinationMarker {
     leader_local: bool,
     voter_count: usize,
     learner_count: usize,
+    // A slower route moves the quorum read's deadline (`ReadDeadline`); the
+    // native side logs the change.
+    read_deadline_ms: u64,
 }
 
 struct Actor {
