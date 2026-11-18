@@ -11,6 +11,7 @@ RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint6
 	snapshot_.protocolVersion = ProtocolVersion;
 	snapshot_.practice = charter.practice;
 	snapshot_.wiredOnly = charter.wiredOnly;
+	snapshot_.maxPingMs = MaxPingValid(charter.maxPingMs) ? charter.maxPingMs : 0;
 	snapshot_.friendsHidden = charter.friendsHidden;
 	snapshot_.type = charter.type;
 	snapshot_.tableCount = InRange<std::uint8_t>(charter.tableCount, 1, static_cast<std::uint8_t>(TableCount))
@@ -45,6 +46,7 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member, bool withChat) const {
 		result.practice = snapshot_.practice;
 		result.delayPolicy = snapshot_.delayPolicy;
 		result.wiredOnly = snapshot_.wiredOnly;
+		result.maxPingMs = snapshot_.maxPingMs;
 		result.friendsHidden = snapshot_.friendsHidden;
 		result.type = snapshot_.type;
 		result.tableCount = snapshot_.tableCount;
@@ -331,6 +333,12 @@ void RoomAuthority::NormalizeTableMembers(const Table& table) {
 bool RoomAuthority::MaySit(MemberId member) const {
 	const Member* item = Find(member);
 	return !item || LinkMaySit(snapshot_, item->link);
+}
+
+RejectReason RoomAuthority::SeatRefusal(MemberId member, const Action& action) const {
+	if (!MaySit(member)) return RejectReason::WiredOnly;
+	if (PingOverLimit(snapshot_, PingOpponents(snapshot_, member, action.table), action.pings).Over()) return RejectReason::PingOverLimit;
+	return RejectReason::None;
 }
 
 void RoomAuthority::FillVacancy(Table& table, int seat) {

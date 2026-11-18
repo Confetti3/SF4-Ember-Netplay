@@ -152,7 +152,7 @@ int main() {
 		action.friendsHidden = true;
 		const nlohmann::json sent = action;
 		EXPECT(sent.at("friends_hidden") == true && sent.get<Action>().friendsHidden && sent.get<Action>().kind == ActionKind::SetFriendsHidden);
-		EXPECT(LastActionKind == ActionKind::SetFriendsHidden);
+		EXPECT(static_cast<int>(ActionKind::SetFriendsHidden) <= static_cast<int>(LastActionKind));
 		action.friendsHidden = false;
 		const nlohmann::json off = action;
 		EXPECT(!off.contains("friends_hidden") && !off.get<Action>().friendsHidden);

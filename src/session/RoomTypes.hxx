@@ -143,9 +143,12 @@ enum class ActionKind : std::uint8_t {
 	// (Action::friendsHidden) or shows it to them again. Appended so older
 	// authorities reject it as an unknown kind.
 	SetFriendsHidden,
+	// The host sets the room's Max ping (Action::maxPingMs, 0 for off).
+	// Appended so older authorities reject it as an unknown kind.
+	SetMaxPing,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::SetFriendsHidden;
+constexpr ActionKind LastActionKind = ActionKind::SetMaxPing;
 
 // A presence word: a member's own state, said by the runtime and compared with
 // what the room's snapshot shows of the member, so a word that was lost or
@@ -203,9 +206,12 @@ enum class RejectReason : std::uint8_t {
 	// A member on Wi-Fi asked for a seat in a room for wired players
 	// (Snapshot::wiredOnly).
 	WiredOnly,
+	// A member's measured ping to someone the seat could pair them with is
+	// over the room's Max ping (Snapshot::maxPingMs, PingOverLimit).
+	PingOverLimit,
 };
 // The last reason, the wire's upper bound: a reason appended after it moves this too.
-constexpr RejectReason LastRejectReason = RejectReason::WiredOnly;
+constexpr RejectReason LastRejectReason = RejectReason::PingOverLimit;
 
 // What a member brings to the room when it joins.
 struct MemberProfile {
@@ -462,7 +468,8 @@ struct ChatMessage {
 // with them. type, practice and delayPolicy are the room's for its life;
 // tableCount (out of range: the type's DefaultTableCount) and wiredOnly are
 // where it starts, which its host can change (SetTableCount, SetWiredOnly);
-// friendsHidden is where a private room starts (SetFriendsHidden).
+// friendsHidden is where a private room starts (SetFriendsHidden), and
+// maxPingMs where any room's does (SetMaxPing).
 struct Charter {
 	RoomType type = RoomType::Classic;
 	bool practice = false;
@@ -470,6 +477,7 @@ struct Charter {
 	std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount);
 	bool wiredOnly = false;
 	bool friendsHidden = false;
+	std::uint16_t maxPingMs = 0;
 };
 
 struct Snapshot {
@@ -498,6 +506,13 @@ struct Snapshot {
 	// by its host (SetWiredOnly); a fighter seated before it came on keeps the
 	// seat. Serialized only when true.
 	bool wiredOnly = false;
+	// Max ping, in milliseconds (MaxPingChoices), 0 for off: a member whose
+	// measured ping to someone a seat could pair them with is over it does not
+	// take that seat, a queue place or a cabinet (PingOverLimit); a ping that
+	// was not measured never counts. They still join, watch and chat. Chosen
+	// when the room is created and changed by its host (SetMaxPing); nobody
+	// seated or queued before it came on loses their place. Serialized only when on.
+	std::uint16_t maxPingMs = 0;
 	// A private room its members' friends are not shown: they see "In a private
 	// room" and are handed no invitation. Chosen when the room is created and
 	// changed by its host (SetFriendsHidden), never in a room its server owns or
@@ -555,6 +570,15 @@ struct Snapshot {
 	TournamentBinding tournament;
 };
 
+// A member's round trip as the sender's helper measured it (MEMBER_LATENCY.md),
+// in whole milliseconds, 1 to MaximumPingFigureMs.
+struct PingFigure {
+	MemberId member = 0;
+	std::uint16_t ms = 0;
+	bool operator==(const PingFigure& o) const { return member == o.member && ms == o.ms; }
+};
+constexpr std::uint16_t MaximumPingFigureMs = 999;
+
 struct Action {
 	ActionKind kind = ActionKind::Queue;
 	std::uint32_t protocolVersion = ProtocolVersion;
@@ -601,6 +625,12 @@ struct Action {
 	bool wiredOnly = false;
 	// SetFriendsHidden: the setting on. Written only when set.
 	bool friendsHidden = false;
+	// SetMaxPing: the limit, 0 for off. Written only when set.
+	std::uint16_t maxPingMs = 0;
+	// Queue: the sender's measured ping to each member the seat could pair
+	// them with (PingOpponents), measured ones only, at most one per member.
+	// Written only when there is one.
+	std::vector<PingFigure> pings;
 };
 
 struct Event {

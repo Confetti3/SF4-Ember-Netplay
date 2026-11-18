@@ -181,6 +181,7 @@ private:
 	Result ApplySetTableCount(MemberId member, const Action& action);
 	Result ApplyLock(MemberId member, const Action& action);
 	Result ApplySetWiredOnly(MemberId member, const Action& action);
+	Result ApplySetMaxPing(MemberId member, const Action& action);
 	Result ApplySetFriendsHidden(MemberId member, const Action& action);
 	Result ApplyKick(MemberId member, const Action& action);
 	Result ApplyChat(MemberId member, const Action& action);
@@ -302,6 +303,10 @@ private:
 	void FillVacancy(Table& table, int seat);
 	// The member's link may take a seat in this room (LinkMaySit).
 	bool MaySit(MemberId member) const;
+	// Why the room's seat rules refuse `member` the seat, queue place or
+	// cabinet `action` asks for: Wired players only (MaySit), then Max ping
+	// (PingOverLimit) over the figures it carries; None when they do not.
+	RejectReason SeatRefusal(MemberId member, const Action& action) const;
 	// A first-to-N table whose score just reached N: records the set, moves the
 	// streak, and sends the rotated fighters to the back of the queue.
 	void CompleteSet(Table& table, int winnerSeat);
