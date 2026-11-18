@@ -44,8 +44,9 @@ std::string Buttons(unsigned bits) {
 struct Lab {
     std::filesystem::path directory;
     bool loaded=false, failed=false;
-    // What the last command did, and when, so the HUD can let it fade.
-    std::string notice; double noticeAt=0;
+    // What the last command did, and when, so the HUD can let it fade. The
+    // clock is read wherever the notice is (UiClock: a device reset restarts ImGui's).
+    std::string notice; double noticeAt=0; UiClock clock;
     // What the dummy does by itself, and the keys that reset and save the
     // position as offsets from F1 (-1 unbound): the player's, kept in training.json.
     training::DummyPlan plan;
@@ -73,7 +74,7 @@ struct Lab {
 std::uint64_t nextRequest=1;
 enum { ResetKey, SaveKey };
 constexpr const wchar_t* PracticeFile=L"training.json";
-void Notice(std::string text,bool failed=false) { lab.notice=std::move(text); lab.failed=failed; lab.noticeAt=ImGui::GetTime(); }
+void Notice(std::string text,bool failed=false) { lab.notice=std::move(text); lab.failed=failed; lab.noticeAt=lab.clock.Update(ImGui::GetTime()); }
 nlohmann::json SlotsJson() {
     nlohmann::json list=nlohmann::json::array();
     for(const auto& slot:lab.slots) list.push_back({{"moves",slot.moves},{"on",slot.on},{"weight",slot.weight}});
@@ -509,7 +510,7 @@ std::vector<TrainingKeyHint> TrainingPositionKeys() {
 }
 std::string TrainingNotice(bool& failed) {
     failed=lab.failed;
-    return ImGui::GetTime()-lab.noticeAt<3?lab.notice:std::string();
+    return lab.clock.Update(ImGui::GetTime())-lab.noticeAt<3?lab.notice:std::string();
 }
 // The recording library: slots saved by name beside training.json.
 std::vector<std::string> recordings; std::size_t recordingChoice=0;

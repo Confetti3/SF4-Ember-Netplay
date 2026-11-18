@@ -812,7 +812,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         // after one pressed outside the fight; both timed from the counts.
         static std::uint32_t takenSeen = 0, refusedSeen = 0;
         static double takenAt = -1, refusedAt = -1;
-        const double now = ImGui::GetTime();
+        static sf4e::ui::UiClock clock; // ImGui's restarts with a device reset
+        const double now = clock.Update(ImGui::GetTime());
         if (!replayKeys) { takenAt = refusedAt = -1; }
         else {
             if (playback.taken != takenSeen) takenAt = now;

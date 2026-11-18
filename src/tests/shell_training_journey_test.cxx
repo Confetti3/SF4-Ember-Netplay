@@ -688,6 +688,13 @@ void TrainingJourneys() {
  Check(told("training.command_rejected",true),"A failed save did not say so");
  choose("save-pos");v.acks.Note(commands.back().requestId,true);frame();
  Check(told("training.position.saved",false),"A save the game made was not told");
+ // Ten minutes on, a device reset restarts ImGui's clock just after a notice: it still fades 3 seconds after it was told.
+ io.DeltaTime=600;ImGui::NewFrame();DrawTrainingFlyout(v,submit,here);ImGui::Render();
+ choose("save-pos");v.acks.Note(commands.back().requestId,true);frame();
+ ImGui::GetCurrentContext()->Time=0;frame();
+ Check(told("training.position.saved",false),"The interface clock restarting ended a training notice early");
+ io.DeltaTime=3.5f;ImGui::NewFrame();DrawTrainingFlyout(v,submit,here);ImGui::Render();
+ Check(!told("training.position.saved",false),"A training notice outlived its 3 seconds across an interface clock restart");
  choose("reset-pos");Check(commands.back().action==training::Action::Restore&&commands.back().requestId!=0,"Reset position was not sent as a tracked command");
  v.acks.Note(commands.back().requestId,false);frame();
  Check(told("training.command_rejected",true),"A refused reset read as done");
