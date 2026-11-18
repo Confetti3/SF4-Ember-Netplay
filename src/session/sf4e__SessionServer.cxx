@@ -245,11 +245,12 @@ int SessionServer::Step()
 				const auto departedMember = roomMember->second;
 				CaptureFrozenMember(departedMember, priorSnapshot);
 				auto leave = _roomAuthority->Leave(departedMember);
-				roomPeerIdentities.erase(departedMember);
 				roomMembers.erase(roomMember);
 				roomSelectedTables.erase(connection);
 				if (leave.accepted) {
-					// A rejected Leave keeps the member on the roster, which still reads its incarnation.
+					// A rejected Leave keeps the member on the roster, which still reads its
+					// identity, incarnation and record: every checkpoint carries them.
+					roomPeerIdentities.erase(departedMember);
 					roomIncarnations.erase(departedMember);
 					roomMemberRecords.erase(departedMember);
 					// A dropped member may come back: this departure keeps the room's grace.
