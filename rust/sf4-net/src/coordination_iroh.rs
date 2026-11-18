@@ -5,11 +5,11 @@ use crate::coordination::{
     MAX_SNAPSHOT_REQUEST, MAX_VOTE_REQUEST, Method, Ownership, RpcTransport,
     SNAPSHOT_FRAGMENT_BYTES,
 };
-use retired::RetiredFilter;
 use iroh::{
     Endpoint, EndpointAddr, EndpointId,
     endpoint::{Connection, PortmapperConfig},
 };
+use routes::{Access, Routes};
 use std::{
     collections::BTreeMap,
     future::Future,
@@ -57,6 +57,7 @@ const CHUNK: usize = SNAPSHOT_FRAGMENT_BYTES;
 /// they were sent and the new leader lost its quorum proof.
 const MAX_TARGET_IN_FLIGHT: usize = MAX_CONNECTION_STREAMS;
 mod retired;
+mod routes;
 fn failure() -> io::Error {
     io::Error::other("room coordination transport unavailable")
 }
@@ -65,13 +66,8 @@ pub struct IrohRpc {
     endpoint: Endpoint,
     room: [u8; 16],
     incarnation: u64,
-    // Populated by authenticated admission, never by an incoming RPC. Routes
-    // bind the Raft process incarnation to the exact endpoint public key.
-    members: RwLock<BTreeMap<u64, MemberBinding>>,
-    // A fixed-size tombstone filter lets expired route records be evicted
-    // without ever making the exact retired incarnation admissible again.
-    // False positives fail closed; the filter has no false negatives.
-    retired_filter: RwLock<RetiredFilter>,
+    /// Member routes and retirement tombstones, under one lock.
+    routes: RwLock<Routes>,
     /// The room's size limit applies to the connections and bindings this
     /// endpoint holds; see `Ownership::max_nodes`.
     limit: usize,
@@ -184,17 +180,6 @@ fn request_ceiling(method: Method) -> usize {
     }
 }
 
-#[derive(Clone, Debug)]
-struct MemberBinding {
-    coordination: EndpointAddr,
-    primary: Option<EndpointId>,
-    /// A committed departure keeps a short-lived, read-only route so the
-    /// departing helper can query the successor's voter set after retain=false
-    /// stops replicating membership to it. All Raft-mutating methods remain
-    /// rejected while this marker is present.
-    retired_until: Option<Instant>,
-}
-
 struct ConnectionUseGuard(Option<Connection>);
 
 impl ConnectionUseGuard {
@@ -274,8 +259,7 @@ impl IrohRpc {
             endpoint,
             room,
             incarnation,
-            members: RwLock::new(BTreeMap::new()),
-            retired_filter: RwLock::new(RetiredFilter::new(room, ownership)),
+            routes: RwLock::new(Routes::new(room, ownership)),
             limit: ownership.max_nodes(),
             connections: RwLock::new(BTreeMap::new()),
             dials: std::sync::Mutex::new(BTreeMap::new()),
@@ -313,28 +297,13 @@ impl IrohRpc {
         let primary = primary.into();
         // This process never routes RPCs to itself, so its own incarnation
         // and coordination key are never bound to a route.
-        if incarnation == self.incarnation
-            || address.id == self.endpoint.id()
-            || self.retired_filter_contains(incarnation).await
-        {
+        if incarnation == self.incarnation || address.id == self.endpoint.id() {
             return Err(failure());
         }
-        let now = Instant::now();
-        let expired: Vec<u64> = {
-            let mut members = self.members.write().await;
-            let expired: Vec<_> = members
-                .iter()
-                .filter_map(|(id, known)| {
-                    known
-                        .retired_until
-                        .is_some_and(|retired_until| retired_until <= now)
-                        .then_some(*id)
-                })
-                .collect();
-            for id in &expired {
-                members.remove(id);
-            }
-            expired
+        let (expired, admitted) = {
+            let mut routes = self.routes.write().await;
+            let expired = routes.sweep(Instant::now());
+            (expired, routes.admit(incarnation, address, primary, self.limit))
         };
         for id in expired {
             self.forget_dial(id);
@@ -342,79 +311,16 @@ impl IrohRpc {
                 connection.close(1u32.into(), b"retired room route expired");
             }
         }
-        let mut members = self.members.write().await;
-        if incarnation == 0
-            || (members
-                .values()
-                .filter(|known| known.retired_until.is_none())
-                .count()
-                >= self.limit
-                && !members.contains_key(&incarnation))
-            || members
-                .iter()
-                .any(|(id, known)| {
-                    *id != incarnation
-                        && known.retired_until.is_none()
-                        && known.coordination.id == address.id
-                })
-            // A primary game endpoint is an authenticated, process-local
-            // binding.  Reusing it for a second live incarnation would let
-            // a stale process receive the new member's gameplay/control
-            // routing, so the binding must remain one-to-one until the old
-            // incarnation is explicitly revoked.
-            || primary.as_ref().is_some_and(|candidate| {
-                members.iter().any(|(id, known)| {
-                    *id != incarnation
-                        && known.retired_until.is_none()
-                        && known.primary.as_ref() == Some(candidate)
-                })
-            })
-        {
-            return Err(failure());
-        }
-        if let Some(known) = members.get_mut(&incarnation) {
-            // A retired incarnation is a permanent tombstone. A restarted
-            // process receives a fresh random incarnation; replaying an old
-            // Admission must never reopen its Raft mutation route.
-            if known.retired_until.is_some() {
-                return Err(failure());
-            }
-            if known.coordination.id != address.id
-                || primary.is_some_and(|candidate| {
-                    known.primary.is_some_and(|existing| existing != candidate)
-                })
-            {
-                return Err(failure());
-            }
-            known.coordination = address;
-            if primary.is_some() {
-                known.primary = primary;
-            }
-            return Ok(());
-        }
-        members.insert(
-            incarnation,
-            MemberBinding {
-                coordination: address,
-                primary,
-                retired_until: None,
-            },
-        );
-        Ok(())
+        admitted
     }
     /// Preserve an authenticated route for a bounded departure proof. The
     /// route is accepted only for the authority read in `serve`; vote,
     /// append, snapshot, and proposal RPCs remain fenced immediately.
     pub async fn retire(&self, incarnation: u64) {
-        self.retired_filter_insert(incarnation).await;
-        if let Some(binding) = self.members.write().await.get_mut(&incarnation) {
-            binding
-                .retired_until
-                .get_or_insert(Instant::now() + Duration::from_secs(30));
-        }
+        self.routes.write().await.retire(incarnation, Instant::now());
     }
     pub async fn revoke(&self, incarnation: u64) {
-        self.members.write().await.remove(&incarnation);
+        self.routes.write().await.revoke(incarnation);
         self.forget_dial(incarnation);
         if let Some(connection) = self.connections.write().await.remove(&incarnation) {
             connection.close(1u32.into(), b"room membership ended");
@@ -468,29 +374,15 @@ impl IrohRpc {
         Ok(connection)
     }
 
-    async fn retired_filter_contains(&self, incarnation: u64) -> bool {
-        self.retired_filter.read().await.contains(incarnation)
-    }
-
-    async fn retired_filter_insert(&self, incarnation: u64) {
-        self.retired_filter.write().await.insert(incarnation);
-    }
-
     pub async fn primary_members(&self) -> Vec<EndpointId> {
-        self.members
-            .read()
-            .await
-            .values()
-            .filter(|binding| binding.retired_until.is_none())
-            .filter_map(|binding| binding.primary)
-            .collect()
+        self.routes.read().await.live_primaries()
     }
 
     pub async fn is_retired(&self, incarnation: u64) -> bool {
-        self.members
+        self.routes
             .read()
             .await
-            .get(&incarnation)
+            .binding(incarnation)
             .is_some_and(|binding| binding.retired_until.is_some())
     }
 
@@ -500,7 +392,7 @@ impl IrohRpc {
     /// old process but the former leader died before broadcasting its local
     /// retirement tombstone.
     pub async fn has_binding(&self, incarnation: u64) -> bool {
-        self.members.read().await.contains_key(&incarnation)
+        self.routes.read().await.binding(incarnation).is_some()
     }
 
     /// Query a successor over the already authenticated incarnation binding.
@@ -508,10 +400,10 @@ impl IrohRpc {
     /// stale term advertisement cannot satisfy a retiring helper.
     pub async fn authority_claim(&self, target: u64) -> io::Result<AuthorityClaim> {
         let expected = self
-            .members
+            .routes
             .read()
             .await
-            .get(&target)
+            .binding(target)
             .map(|binding| binding.coordination.id.to_string())
             .ok_or_else(failure)?;
         let bytes =
@@ -523,10 +415,10 @@ impl IrohRpc {
     /// receiver authenticates that this route is still its current leader.
     pub async fn request_election(&self, target: u64) -> io::Result<()> {
         let expected = self
-            .members
+            .routes
             .read()
             .await
-            .get(&target)
+            .binding(target)
             .map(|binding| binding.coordination.id.to_string())
             .ok_or_else(failure)?;
         let bytes =
@@ -543,10 +435,10 @@ impl IrohRpc {
     /// roster departures continue to use the checkpoint reconciliation path.
     pub async fn request_self_removal(&self, target: u64) -> io::Result<()> {
         let expected = self
-            .members
+            .routes
             .read()
             .await
-            .get(&target)
+            .binding(target)
             .map(|binding| binding.coordination.id.to_string())
             .ok_or_else(failure)?;
         let bytes =
@@ -570,11 +462,9 @@ impl IrohRpc {
                     let owner = self.clone(); let coordinator = coordinator.clone();
                     tasks.spawn(async move {
                         let Ok(Ok(connection)) = timeout(RPC_TIMEOUT, incoming).await else { return; };
-                        let now = Instant::now();
-                        if connection.alpn() != ALPN || !owner.members.read().await.values().any(|a| {
-                            a.coordination.id == connection.remote_id()
-                                && !a.retired_until.is_some_and(|until| until <= now)
-                        }) {
+                        if connection.alpn() != ALPN
+                            || !owner.routes.read().await.serves(connection.remote_id(), Instant::now())
+                        {
                             connection.close(1u32.into(), b"room member required"); return;
                         }
                         // Each endpoint holds at most a couple of served
@@ -620,16 +510,11 @@ impl IrohRpc {
                                 let source = recv.read_u64().await?;
                                 let target = recv.read_u64().await?;
                                 let method = recv.read_u8().await?;
-                                let retired = owner.members.read().await.get(&source).and_then(|a| {
-                                    (a.coordination.id == connection.remote_id()).then_some(a.retired_until)
-                                });
-                                let Some(retired) = retired else { return Err(failure()); };
-                                if retired.is_some_and(|until| until <= Instant::now()) {
-                                    return Err(failure());
-                                }
+                                let access = owner.routes.read().await.access(source, connection.remote_id(), Instant::now());
+                                let Some(access) = access else { return Err(failure()); };
                                 if room != owner.room || target != owner.incarnation { return Err(failure()); }
                                 let Some(method) = Method::from_byte(method) else { return Err(failure()) };
-                                if retired.is_some() && method != Method::Authority { return Err(failure()); }
+                                if access == Access::Departing && method != Method::Authority { return Err(failure()); }
                                 // The announced size is held against the endpoint's
                                 // and the shared allowance before any of it is read,
                                 // and the body grows only as its bytes arrive.
@@ -715,10 +600,10 @@ impl RpcTransport for IrohRpc {
             let _permit = self.in_flight.try_acquire().map_err(|_| failure())?;
             match timeout(RPC_TIMEOUT, async {
                 let address = self
-                    .members
+                    .routes
                     .read()
                     .await
-                    .get(&target)
+                    .binding(target)
                     .map(|binding| binding.coordination.clone())
                     .ok_or_else(failure)?;
                 if address.id.to_string() != expected {
