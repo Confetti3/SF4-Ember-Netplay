@@ -351,11 +351,6 @@ int SessionClient::Step()
 		else if (type == SessionProtocol::MT_BATTLE_HASH) {
 			if (!HandleBattleHash(msg)) return -1;
 		}
-
-
-		else if (type == SessionProtocol::MT_FORWARD) {
-			spdlog::debug("Received forwarded message: {}", DumpJson(msg));
-		}
 		else {
 			spdlog::warn("Client: got unrecognized message type: {}", (int)type);
 		}

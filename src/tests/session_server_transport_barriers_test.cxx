@@ -388,10 +388,25 @@ static void TestSpectatorLeavesBeforeP1Prepared() {
 	CHECK(fixture.Got("game_start", 1) && fixture.Got("game_start", 2) && !fixture.Got("game_start", 3));
 }
 
+// Nothing sends `forward` or `battle_ggpo_frame`: the server drops both, even
+// from a fighter at a live table, rather than relay and journal what a peer
+// chose to send.
+static void TestUnsentRelaysDropped() {
+	ParticipantRoom fixture(SetupStage::Started);
+	auto& server = fixture.server;
+	const json src = server.cidMap.at(2), dest = server.cidMap.at(3);
+	fixture.transport->outgoing.clear();
+	fixture.transport->Push(2, {{"type", "forward"}, {"src", src}, {"dest", dest}, {"msg", {{"chosen", true}}}});
+	fixture.transport->Push(2, {{"type", "battle_ggpo_frame"}, {"src", src}, {"dest", dest}, {"data", {1, 2, 3}}});
+	fixture.Step();
+	CHECK(fixture.transport->outgoing.empty());
+}
+
 int main() {
 	TestOptionalSpectatorBarrier();
 	TestRetiringSpectatorProjection();
 	TestRoomBattleBarrier();
 	TestSpectatorLeavesBeforeP1Prepared();
+	TestUnsentRelaysDropped();
 	std::cout << "Session server mock transport barriers tests passed\n";
 }

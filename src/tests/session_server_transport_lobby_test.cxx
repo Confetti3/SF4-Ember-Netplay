@@ -168,19 +168,6 @@ static void TestLobbyAndSelection() {
 	transport->Push(3, json(results)); step();
 	CHECK(server.clients[0].conn == 10000000001ULL);
 
-	// A forwarding source must match the authenticated connection even when
-	// it claims a different host. The old path logged some forgeries then sent.
-	protocol::ForwardMessage forward;
-	forward.src = {"other-room", "2"};
-	forward.dest = server.cidMap.at(10000000001ULL);
-	transport->outgoing.clear();
-	transport->Push(2, json(forward)); step();
-	CHECK(transport->outgoing.empty());
-	forward.src = server.cidMap.at(2);
-	transport->Push(2, json(forward)); step();
-	CHECK(transport->outgoing.size() == 1);
-	CHECK(transport->outgoing[0].first == 10000000001ULL);
-
 	transport->disconnected.push_back(2); step();
 	CHECK(server.ConnectedClientCount() == 3 && server.cidMap.count(2) == 0);
 	hello(2); join(2, "Returned");
