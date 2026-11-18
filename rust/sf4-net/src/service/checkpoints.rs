@@ -243,6 +243,8 @@ impl Actor {
         length: u32,
         digest: String,
     ) -> io::Result<()> {
+        // Read as Begin read it; a digest that does not parse matches nothing.
+        let digest = recovery::parse_digest(&digest).ok();
         if let Some(pending) = self.pending_checkpoint_proposal.as_ref() {
             let retry_complete = self
                 .pending_checkpoint_retry
@@ -255,7 +257,7 @@ impl Actor {
                 && pending.base_revision == base_revision
                 && pending.revision == revision
                 && pending.length == length as usize
-                && recovery::hex_digest(&pending.digest) == digest;
+                && Some(pending.digest) == digest;
             if exact && retry_complete {
                 self.pending_checkpoint_retry = None;
                 return Ok(());
@@ -276,7 +278,7 @@ impl Actor {
             || incoming.base_revision != base_revision
             || incoming.revision != revision
             || incoming.length != length as usize
-            || recovery::hex_digest(&incoming.digest) != digest
+            || Some(incoming.digest) != digest
         {
             return self.error(0, "invalid_checkpoint_end");
         }
