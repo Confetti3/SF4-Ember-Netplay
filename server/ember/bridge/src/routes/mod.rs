@@ -18,6 +18,7 @@ pub mod play;
 pub mod policy;
 pub mod profiles;
 pub mod ranking;
+pub mod reason;
 pub mod records;
 pub mod replays;
 pub mod reports;

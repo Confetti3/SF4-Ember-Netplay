@@ -69,7 +69,7 @@ void ApplicationShell::UpdateChat(const ShellView& v, const Submit& submit) {
     chatTyping_ = false;
     ObserveChat(v, v.room);
     if (onChat) transcript_.MarkRead();
-    NoteChatGate(ChatGateOf(v), ImGui::GetTime());
+    NoteChatGate(ChatGateOf(v), clock_.Now());
     FlushChat(v, submit);
 }
 
@@ -80,9 +80,8 @@ void ApplicationShell::FlushChat(const ShellView& v, const Submit& submit) {
     if (!queuedChat_) return;
     const ChatGate gate = ChatGateOf(v);
     if (gate == ChatGate::NotJoined || gate == ChatGate::ReadOnly) { queuedChat_.reset(); return; }
-    const double now = ImGui::GetTime();
-    // A clock that went back (the device was reset) does not hold a retry for longer than its wait.
-    if (gate != ChatGate::Writable || (now < queuedChat_->retryAt && queuedChat_->retryAt - now <= MaximumChatRetrySeconds)) return;
+    const double now = clock_.Now();
+    if (gate != ChatGate::Writable || now < queuedChat_->retryAt) return;
     room::Action request;
     request.table = static_cast<std::uint8_t>(selectedTable_);
     request.kind = room::ActionKind::Chat;
@@ -100,7 +99,7 @@ void ApplicationShell::FlushChat(const ShellView& v, const Submit& submit) {
 // a second, with how many changes it stands for. The state that last settled is still written.
 void ApplicationShell::NoteChatGate(ChatGate gate, double now) {
     if (gate != chatGate_) { chatGate_ = gate; ++chatGateChanges_; }
-    if (!chatGateChanges_ || (now >= chatGateLoggedAt_ && now - chatGateLoggedAt_ < 1)) return;
+    if (!chatGateChanges_ || now - chatGateLoggedAt_ < 1) return;
     if (chatLog_)
         chatLog_(std::string("Chat: sending is ") + ChatGateName(chatGate_) + " (was " + ChatGateName(chatGateLogged_) +
             "), changes since the last line: " + std::to_string(chatGateChanges_));
@@ -207,7 +206,7 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     Tone noteTone = Tone::Neutral;
     // The box takes typing whatever the fence does. What it says follows the status line's held feedback
     // (roomUpdateVisible_), so a brief catch-up says nothing and a fence flickering open does not flicker it.
-    const bool sending = queuedChat_ || ChatInFlight(ImGui::GetTime());
+    const bool sending = queuedChat_ || ChatInFlight(clock_.Now());
     const bool waiting = gate == ChatGate::Recovering || roomUpdateVisible_;
     if (!box) note = loc::T("room.tournament_watching");
     else if (gate == ChatGate::NotJoined || (waiting && !sending)) { note = RoomWaitReason(v); noteTone = Tone::Pending; }
@@ -296,9 +295,9 @@ void ApplicationShell::DrawChatBox(float x, float width, bool typable, float not
     if (ImGui::IsItemActive()) ImGui::GetWindowDrawList()->AddRect(boxMin, boxMax, palette::Ember, 4 * s, 0, 2 * s);
     ImGui::EndDisabled();
     ReportMenuCard("chat-box", boxMin, boxMax);
-    if (edited && !ImGui::IsKeyPressed(ImGuiKey_Escape, false)) { std::snprintf(chat_, sizeof(chat_), "%s", buffer); chatEditedAt_ = ImGui::GetTime(); }
+    if (edited && !ImGui::IsKeyPressed(ImGuiKey_Escape, false)) { std::snprintf(chat_, sizeof(chat_), "%s", buffer); chatEditedAt_ = clock_.Now(); }
     // Typing is a draft edited in the last 4 seconds and not already on its way.
-    chatTyping_ = typable && HasText(chat_) && !pendingChat_ && !queuedChat_ && ImGui::GetTime() - chatEditedAt_ < 4;
+    chatTyping_ = typable && HasText(chat_) && !pendingChat_ && !queuedChat_ && clock_.Now() - chatEditedAt_ < 4;
     chatBoxText_ = chat_;
     NoteUserText(chat_, UserTextRole::Draft);
     // The counter, at the right of the note line under the box; the cursor stays at that line.

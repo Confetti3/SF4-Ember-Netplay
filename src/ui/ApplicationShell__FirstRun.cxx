@@ -46,11 +46,11 @@ bool ApplicationShell::WelcomeActivate(const MenuAction& a) {
     // Speech is the player's setting from their answer on, saved like any other.
     if (a.id == "welcome-speech_on" || a.id == "welcome-speech_off") {
         preferences_.speech.enabled = a.id == "welcome-speech_on";
-        preferencesDirty_ = true; saveAt_ = ImGui::GetTime() + .45;
+        preferencesDirty_ = true; saveAt_ = clock_.Now() + .45;
     }
     // An answer goes on to the next step, as Next does; Skip and the last step's answer end it.
     if (a.id != "welcome-skip" && ++welcomeStep_ < WelcomeSteps) { nav.Prefer(FirstRows[welcomeStep_]); return true; }
-    preferences_.welcomed = true; preferencesDirty_ = true; saveAt_ = ImGui::GetTime() + .45;
+    preferences_.welcomed = true; preferencesDirty_ = true; saveAt_ = clock_.Now() + .45;
     welcomeStep_ = 0; nav.Home();
     return true;
 }

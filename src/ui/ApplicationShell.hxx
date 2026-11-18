@@ -629,7 +629,7 @@ private:
     // looked for.
     struct PendingChat { std::string text; std::uint64_t after = 0; double since = 0; };
     std::optional<PendingChat> pendingChat_;
-    bool ChatInFlight(double now) const { return pendingChat_ && now >= pendingChat_->since && now - pendingChat_->since <= 8; }
+    bool ChatInFlight(double now) const { return pendingChat_ && now - pendingChat_->since <= 8; }
     // A message entered while the room could not take it, apart from the draft the player keeps editing and
     // from pendingChat_, whose receipt is still looked for. It goes out once, when the room can (FlushChat),
     // and no other is accepted until then. A retry of text that arrives first is not sent. It stays held
@@ -654,7 +654,10 @@ private:
     std::string chatBoxText_;
     std::size_t chatShown_=0;
     double saveAt_ = 0;
-    double lastUiTime_ = -1;
+    // The shell's one clock, fed ImGui's time at the start of each Draw and
+    // Background. Every deadline and timestamp here and in the panels is in
+    // its time, so a device reset that restarts ImGui's clock moves none.
+    UiClock clock_;
     bool saveFailed_ = false;
     bool saveQueued_ = false, retrySave_ = false;
     bool profileSavePending_ = false;
@@ -736,7 +739,8 @@ std::string memberAsk_;
     // The last offer a table card sent: the table, the offer, that table's
     // revision then and when. Another press of it, or an A on that table's
     // card, before the table changes and for a moment after (a mashed A, a
-    // double click) is the same press, never a second request.
+    // double click) is the same press, never a second request. A new room
+    // starts without one (RoomEntries), as it starts without a question.
     struct OfferSent { int table=-1; std::string offer; std::uint64_t revision=0; double at=0; } offerSent_;
     // More… asked again by the room's rows: after a switch it holds (moreChosen_
     // is the option it opens on), or as the picture's Small, Big and Off (morePicture_).

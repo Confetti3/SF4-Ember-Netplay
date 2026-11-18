@@ -113,7 +113,7 @@ bool ConfigureDllSearch() {
 	if (FAILED(PathCchCombine(dllDir, MAX_PATH, root, kDllDirName))) {
 		return false;
 	}
-	if (!DirExists(dllDir)) {
+	if (!UsesDllSubdirectory()) {
 		SetDllDirectoryW(root);
 		PrependPath(root);
 		return true;

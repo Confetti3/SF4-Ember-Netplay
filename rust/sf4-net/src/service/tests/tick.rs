@@ -32,6 +32,16 @@ async fn leaving_a_room_lets_go_of_its_cached_checkpoint() {
 }
 
 #[tokio::test]
+async fn leaving_a_room_forgets_that_its_coordination_was_writable() {
+    let (events, _native) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(endpoint().await, events);
+    actor.room = Some([45; 16]);
+    actor.coordination_writable = true;
+    actor.clear_room();
+    assert!(!actor.coordination_writable);
+}
+
+#[tokio::test]
 async fn the_tick_slows_only_when_nothing_is_left_for_it() {
     let (events, mut native) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = test_actor(endpoint().await, events);

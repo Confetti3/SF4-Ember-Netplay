@@ -470,7 +470,8 @@ export function bracketSite(options: Options): Server {
         const body = await readJson(request);
         const [match, bridge] = played(request, id!, setId!);
         const revision = text(body.expected_revision, /^\d{1,20}$/, "expected_revision is the match's revision");
-        const reason = text(body.reason, /^.{1,500}$/su, "reason is 1 to 500 characters");
+        const reason = text(body.reason, /^.+$/su, "reason is 1 to 512 bytes");
+        if (Buffer.byteLength(reason) > 512) fail(400, "reason is 1 to 512 bytes");
         const attempt = body.attempt_id === undefined ? undefined : text(body.attempt_id, SLUG, "attempt_id is a game's ID");
         const header = request.headers["idempotency-key"];
         const key = typeof header === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(header) ? header : randomUUID();
@@ -543,11 +544,14 @@ export function bracketSite(options: Options): Server {
         if (!manages(signedIn(request), league)) fail(403, "only its organizers may");
         const season = league.seasons.find((each) => each.id === seasonId) ?? fail(404, `no season ${seasonId}`);
         if (season.closed_at) fail(409, "the season is closed");
-        season.closed_at = now();
-        store.putLeague(league, false);
-        const given = store.addAwards(seasonAwards(season, standings(season, store.all()), season.closed_at));
-        for (const award of given) push(league, { at: season.closed_at, kind: "award", text: `${award.name}: ${award.title} of ${league.title}, ${award.of} (${award.detail}).` });
-        store.putLeague(league, false);
+        const closedAt = (season.closed_at = now());
+        // One write, so a crash cannot leave a closed season with no awards.
+        const given = store.transaction(() => {
+          const awards = store.addAwards(seasonAwards(season, standings(season, store.all()), closedAt));
+          for (const award of awards) push(league, { at: closedAt, kind: "award", text: `${award.name}: ${award.title} of ${league.title}, ${award.of} (${award.detail}).` });
+          store.putLeague(league, false);
+          return awards;
+        });
         return [200, { season, awards: given }];
       },
     ],

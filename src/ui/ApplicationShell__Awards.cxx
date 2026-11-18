@@ -143,7 +143,7 @@ public:
         if (a.text != "icon") s.preferences_.wornTitle = id;
         if (a.text != "title") s.preferences_.wornIcon = id;
         s.preferencesDirty_ = true;
-        s.saveAt_ = ImGui::GetTime() + .45;
+        s.saveAt_ = s.clock_.Now() + .45;
         return true;
     }
     // Select on a locked award reads it: nothing to do. Connect Discord is the Ember ID panel's.
