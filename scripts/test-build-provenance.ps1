@@ -208,18 +208,18 @@ function Expect-TestFailure([string]$Expected, [scriptblock]$Run) {
 }
 $failAgain = $null
 $omit = $null
-$passedOnRerun = @(Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 -RerunFailed 3>$null 6>$null)
+$passedOnRerun = @(Invoke-DefaultTests $fakeCtest $tests 'network' 2 -RerunFailed 3>$null 6>$null)
 if (($passedOnRerun -join ',') -ne 'HelperRust') { throw "Rerun reported '$($passedOnRerun -join ',')'" }
-Expect-TestFailure 'Tests failed' { Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 6>$null }
+Expect-TestFailure 'Tests failed' { Invoke-DefaultTests $fakeCtest $tests 'network' 2 6>$null }
 $failAgain = 'HelperRust'
-Expect-TestFailure 'Tests failed, and again*' { Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 -RerunFailed 6>$null }
+Expect-TestFailure 'Tests failed, and again*' { Invoke-DefaultTests $fakeCtest $tests 'network' 2 -RerunFailed 6>$null }
 $global:LASTEXITCODE = 0
 Write-Output 'PASS a failed test passes on one rerun only with -RerunFailed, and a second failure stops the build'
 # A run that leaves out any one of the tests the components name is refused, whichever one it is.
 $failAgain = $null
 foreach ($name in 'HelperRust', 'EmberRust', 'BridgeSdk', 'BuildProvenance', 'NightlyPublication', 'NightlyPaths', 'PackageFiles') {
     $omit = $name
-    Expect-TestFailure "Default CTest did not run: $name" { Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 6>$null }
+    Expect-TestFailure "Default CTest did not run: $name" { Invoke-DefaultTests $fakeCtest $tests 'network' 2 6>$null }
 }
 $omit = $null
 $global:LASTEXITCODE = 0
@@ -359,7 +359,7 @@ try {
 }
 Write-Output 'PASS the compiler environment is entered once per installation and architecture'
 # The receipt names what the default test run leaves out; build-current.ps1 and run-package-tests.ps1 share this string.
-if ($EmberExcludedTests -cne 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke') { throw 'The default test exclusions changed; the build receipt and docs name them' }
+if ($EmberExcludedTestLabel -cne 'network' -or $EmberExcludedTests -cne 'label network') { throw 'The default test exclusions changed; the build receipt and docs name them' }
 Write-Output 'PASS the default test exclusions are the ones the receipt names'
 # The packaged guides drop every picture, and one they cannot drop stops the build.
 $repo = Split-Path $PSScriptRoot -Parent
