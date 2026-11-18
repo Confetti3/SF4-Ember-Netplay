@@ -116,8 +116,8 @@ int wmain(int argc, wchar_t** argv) {
 	// The raw gameplay bridge still runs independently of SessionServer, but
 	// both helper-backed room routers must have observed the committed native
 	// authority and control rebound before accepting a game mapping.
-	CHECK(host->Coordination().active && host->Coordination().rebound);
-	CHECK(guest->Coordination().active && guest->Coordination().rebound);
+	CHECK(host->Coordination().rebound);
+	CHECK(guest->Coordination().rebound);
 	const auto hostId = host->LocalIdentity(), guestId = guest->LocalIdentity();
 	CHECK(hostId.size() == 64 && guestId.size() == 64 && hostId != guestId);
 	using GameState = session::IrohRoom::GameState;

@@ -27,7 +27,6 @@ bool SameTransfer(const coordination::TransferIdentity& left, const coordination
 bool IrohRoom::ProposeCheckpointBytes(std::uint64_t request, std::uint64_t term,
     std::uint64_t baseRevision, std::string bytes) {
     if (!request) { sender_.status="invalid_request"; return false; }
-    if (!room_.coordination.active) { sender_.status="coordination_inactive"; return false; }
     if (!room_.coordination.writable) { sender_.status="coordination_not_writable"; return false; }
     if (!room_.coordination.leaderLocal) { sender_.status="coordination_not_local_leader"; return false; }
     if (term != room_.coordination.term) { sender_.status="term_mismatch"; return false; }
@@ -154,7 +153,7 @@ bool IrohRoom::BuildTerminalReplayEffects(const StagedCheckpoint& staged,
     const auto roomState=checkpoint.value("room",json::object());
     if (!roomState.is_object() || !roomState.contains("terminal_receipts")) return true;
     const auto receipts=roomState.at("terminal_receipts");
-    if (!receipts.is_array() || receipts.size()>64 || !room_.coordination.active || !room_.coordination.rebound ||
+    if (!receipts.is_array() || receipts.size()>64 || !room_.coordination.rebound ||
         identity.term==0 || identity.revision==0 || localIdentity_.empty()) return false;
     if (!checkpoint.contains("members")) return false;
     RosterRow local;
@@ -341,7 +340,6 @@ bool IrohRoom::DiscardCommittedCheckpoint(const coordination::TransferIdentity& 
 }
 bool IrohRoom::ReadyForMatch() const {
     if(room_.state != State::Ready) return false;
-    if(!room_.coordination.active) return true;
     return room_.coordination.writable && room_.coordination.rebound &&
         replica_.effectsRevision >= room_.coordination.revision && replica_.committedCheckpoints.empty() && replica_.decoding.empty();
 }

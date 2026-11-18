@@ -90,7 +90,6 @@ bool IrohRoom::Begin(bool host) {
 	replica_ = CommittedReplica{};
 	departure_.BeginEpoch();
 	room_.hosting = host;
-	room_.coordination.active = true;
 	decodeOffThread_ = EnvFlag("SF4E_ROOM_WORKER", true);
 	latency_.Stop();
 	room_.state = host ? State::Hosting : State::Joining;
@@ -428,7 +427,7 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
             room_.probe={};
             if(room_.coordination.term) {room_.invitation.clear(); room_.discordInvitation.clear();}
         }
-        room_.coordination.active=true; room_.coordination.term=term; room_.coordination.revision=revision;
+        room_.coordination.term=term; room_.coordination.revision=revision;
         room_.coordination.incarnation=event.at("incarnation"); room_.coordination.leader=event.at("leader");
         room_.coordination.writable=event.at("writable"); room_.coordination.leaderLocal=event.at("leader_local");
         room_.coordination.voterCount=event.value("voter_count",std::size_t(0));
@@ -441,7 +440,7 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         return true;
     }
     if (type=="control_rebound") {
-        if (event.at("leader")!=room_.coordination.leader || !room_.coordination.active) return true;
+        if (event.at("leader")!=room_.coordination.leader) return true;
         const auto incarnations=event.at("member_incarnations").get<std::map<std::string,std::uint64_t>>();
         // A server-owned room's host is a coordination node but not a member.
         if(incarnations.size()>room::MaxMembers+(ServerOwned()?1:0)) return true;
@@ -615,7 +614,6 @@ IrohRoom::EffectVerdict IrohRoom::DeliverCommitted(Message& message, const Effec
 }
 
 IrohRoom::EffectVerdict IrohRoom::AuthorizedEffect(Message& message) {
-    if(!room_.coordination.active) return EffectVerdict::Deliver;
     try {
         // Parked on an earlier poll: its token was decoded and its digest
         // checked against these same bytes on first sight. Only the
@@ -760,7 +758,7 @@ bool IrohRoom::HandleHelperError(const json& event) {
 	const auto failedPeer = event.value("peer", std::string());
 	const bool failedPeerIsNotLeader = !failedPeer.empty() && IsEndpointIdentity(failedPeer) &&
 		failedPeer != room_.coordination.leader;
-	const auto verdict = ClassifyHelperError(code, room_.coordination.active, failedPeerIsNotLeader);
+	const auto verdict = ClassifyHelperError(code, failedPeerIsNotLeader);
 	spdlog::warn("Room: helper error {} scope={} peer={} reason={}", code, HelperErrorScopeName(verdict.scope),
 		failedPeer.empty() ? std::string("-") : PeerTag(failedPeer), event.value("reason", std::string("-")));
 	switch (verdict.scope) {

@@ -44,18 +44,17 @@ inline const char* HelperErrorScopeName(HelperErrorScope scope) {
 	return "?";
 }
 
-// `coordinationActive`: the room runs committed coordination, so checkpoint
-// and control errors are recoverable there. `failedPeerIsNotLeader`: the
-// helper named the peer that failed and it is not the committed leader.
-inline HelperErrorVerdict ClassifyHelperError(const std::string& code, bool coordinationActive,
-	bool failedPeerIsNotLeader) {
+// Every room runs committed coordination, so checkpoint and control errors are
+// recoverable. `failedPeerIsNotLeader`: the helper named the peer that failed
+// and it is not the committed leader.
+inline HelperErrorVerdict ClassifyHelperError(const std::string& code, bool failedPeerIsNotLeader) {
 	const auto startsWith = [&](const char* prefix) { return code.compare(0, std::string(prefix).size(), prefix) == 0; };
 	if (code == "probe_unavailable") return { HelperErrorScope::Probe, true };
 	if (code == "gameplay_prepare_failed") return { HelperErrorScope::Gameplay, true };
-	if (coordinationActive && (startsWith("checkpoint_") || startsWith("invalid_checkpoint_") ||
-		code == "stale_checkpoint_ack" || code == "unexpected_checkpoint_ack"))
+	if (startsWith("checkpoint_") || startsWith("invalid_checkpoint_") ||
+		code == "stale_checkpoint_ack" || code == "unexpected_checkpoint_ack")
 		return { HelperErrorScope::Checkpoint, true };
-	if (coordinationActive && (code == "control_send_failed" || code == "coordination_unavailable"))
+	if (code == "control_send_failed" || code == "coordination_unavailable")
 		return { failedPeerIsNotLeader ? HelperErrorScope::ControlPeer : HelperErrorScope::ControlLeader, true };
 	// The helper answers a command for a match it no longer holds, or a game
 	// registration it cannot honour. The match's own deadlines end that
@@ -63,7 +62,7 @@ inline HelperErrorVerdict ClassifyHelperError(const std::string& code, bool coor
 	if (code == "stale_match" || code == "invalid_game_registration") return { HelperErrorScope::Match, true };
 	const bool protocolLabel = code == "invalid_or_incompatible_invitation" || code == "join_failed" ||
 		code == "host_unavailable" || code == "invalid_room_state" || code == "leave_in_progress" ||
-		code == "control_send_failed" || code == "invalid_control_size";
+		code == "invalid_control_size";
 	return { HelperErrorScope::RoomFatal, protocolLabel };
 }
 

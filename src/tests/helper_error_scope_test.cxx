@@ -11,22 +11,20 @@ using sf4e::session::ClassifyHelperError;
 using sf4e::session::HelperErrorScope;
 using sf4e::session::HelperErrorScopeName;
 
-static HelperErrorScope Scope(const char* code, bool coordination = true, bool otherPeer = false) {
-	return ClassifyHelperError(code, coordination, otherPeer).scope;
+static HelperErrorScope Scope(const char* code, bool otherPeer = false) {
+	return ClassifyHelperError(code, otherPeer).scope;
 }
 
-static bool Labelled(const char* code, bool coordination = true) {
-	return ClassifyHelperError(code, coordination, false).codeIsProtocolLabel;
+static bool Labelled(const char* code) {
+	return ClassifyHelperError(code, false).codeIsProtocolLabel;
 }
 
 static void TestProbeAndGameplayStayLocal() {
 	CHECK(Scope("probe_unavailable") == HelperErrorScope::Probe);
-	CHECK(Scope("probe_unavailable", false) == HelperErrorScope::Probe);
 	CHECK(Scope("gameplay_prepare_failed") == HelperErrorScope::Gameplay);
-	CHECK(Scope("gameplay_prepare_failed", false) == HelperErrorScope::Gameplay);
 }
 
-static void TestCheckpointErrorsRetryUnderCoordination() {
+static void TestCheckpointErrorsRetry() {
 	const char* codes[] = {
 		"checkpoint_ack_rejected", "checkpoint_begin_rejected", "checkpoint_chunk_rejected",
 		"checkpoint_not_committed", "checkpoint_receive_timeout", "checkpoint_send_timeout",
@@ -36,27 +34,20 @@ static void TestCheckpointErrorsRetryUnderCoordination() {
 	};
 	for (const char* code : codes) {
 		CHECK(Scope(code) == HelperErrorScope::Checkpoint);
-		// Without committed coordination there is nothing to retry.
-		CHECK(Scope(code, false) == HelperErrorScope::RoomFatal);
-		CHECK(!Labelled(code, false));
+		CHECK(Labelled(code));
 	}
 }
 
 static void TestControlErrorsFollowThePeer() {
-	CHECK(Scope("control_send_failed", true, true) == HelperErrorScope::ControlPeer);
-	CHECK(Scope("control_send_failed", true, false) == HelperErrorScope::ControlLeader);
-	CHECK(Scope("coordination_unavailable", true, true) == HelperErrorScope::ControlPeer);
-	CHECK(Scope("coordination_unavailable", true, false) == HelperErrorScope::ControlLeader);
-	// A legacy room has no committed leader to fall back on.
-	CHECK(Scope("control_send_failed", false) == HelperErrorScope::RoomFatal);
-	CHECK(Labelled("control_send_failed", false));
-	CHECK(Scope("coordination_unavailable", false) == HelperErrorScope::RoomFatal);
-	CHECK(!Labelled("coordination_unavailable", false));
+	CHECK(Scope("control_send_failed", true) == HelperErrorScope::ControlPeer);
+	CHECK(Scope("control_send_failed", false) == HelperErrorScope::ControlLeader);
+	CHECK(Scope("coordination_unavailable", true) == HelperErrorScope::ControlPeer);
+	CHECK(Scope("coordination_unavailable", false) == HelperErrorScope::ControlLeader);
+	CHECK(Labelled("control_send_failed") && Labelled("coordination_unavailable"));
 }
 
 static void TestMatchErrorsEndOnlyTheMatch() {
 	CHECK(Scope("stale_match") == HelperErrorScope::Match);
-	CHECK(Scope("stale_match", false) == HelperErrorScope::Match);
 	CHECK(Scope("invalid_game_registration") == HelperErrorScope::Match);
 	CHECK(Labelled("stale_match"));
 }
@@ -131,7 +122,7 @@ static void TestFailureStageFromReason() {
 
 int main() {
 	TestProbeAndGameplayStayLocal();
-	TestCheckpointErrorsRetryUnderCoordination();
+	TestCheckpointErrorsRetry();
 	TestControlErrorsFollowThePeer();
 	TestMatchErrorsEndOnlyTheMatch();
 	TestRoomFatalCodesAndTheirLabels();

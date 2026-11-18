@@ -3252,12 +3252,6 @@ msgstr "选择已锁定－返回对战席查看状态。"
 msgid "runtime.room_recovering"
 msgstr "正在恢复房间控制，对战连接仍保持。"
 
-msgid "runtime.room_lost_fight_continues"
-msgstr "房间连接已断开。对战继续，但无法再战或记录结果。"
-
-msgid "runtime.returned_room_lost"
-msgstr "已返回菜单：对战期间房间连接断开。"
-
 msgid "runtime.room_request_failed"
 msgstr "房间请求失败。请离开房间后重试。"
 

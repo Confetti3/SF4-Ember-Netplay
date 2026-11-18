@@ -3252,12 +3252,6 @@ msgstr "Selezione bloccata: torna al tavolo per lo stato."
 msgid "runtime.room_recovering"
 msgstr "Controllo sala in ripristino. La connessione alla partita resta attiva."
 
-msgid "runtime.room_lost_fight_continues"
-msgstr "Connessione alla sala persa. L'incontro continua, ma rivincita e risultati sono disattivati."
-
-msgid "runtime.returned_room_lost"
-msgstr "Ritorno al menu: connessione alla sala persa durante la partita."
-
 msgid "runtime.room_request_failed"
 msgstr "Richiesta alla sala fallita. Esci e riprova."
 

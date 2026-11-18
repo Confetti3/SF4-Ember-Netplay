@@ -3252,12 +3252,6 @@ msgstr "Auswahl gesperrt: Status am Tisch prüfen."
 msgid "runtime.room_recovering"
 msgstr "Raumsteuerung wird wiederhergestellt. Ihre Kampfverbindung bleibt erhalten."
 
-msgid "runtime.room_lost_fight_continues"
-msgstr "Raumverbindung verloren. Der Kampf läuft weiter, aber Revanche und Ergebnisse sind deaktiviert."
-
-msgid "runtime.returned_room_lost"
-msgstr "Zurück im Menü: Die Raumverbindung ging während des Kampfes verloren."
-
 msgid "runtime.room_request_failed"
 msgstr "Raumanfrage fehlgeschlagen. Raum verlassen und erneut versuchen."
 

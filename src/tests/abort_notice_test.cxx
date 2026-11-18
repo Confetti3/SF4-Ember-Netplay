@@ -99,11 +99,12 @@ int main() {
 		CHECK(Notice(&severity) == "Returning to the room." && severity == sf4e::NoticeSeverity::Info);
 	}
 
-	// Shutting the netplay session down keeps the Error too, which is what the
-	// failure reason handed to HandleNetplayFailure relies on.
+	// Shutting the netplay session down keeps the Error too, so the player
+	// still reads why the session ended.
 	facade::ClearMatchNotice();
 	StartSession();
-	facade::HandleNetplayFailure("The room was lost.", true);
+	facade::SetLastError("The room was lost.");
+	facade::ShutdownNetplay(true);
 	CHECK(!fSystem::ggpo);
 	CHECK(Notice(&severity) == "The room was lost." && severity == sf4e::NoticeSeverity::Error);
 	// ...but a passing note does not follow it out.

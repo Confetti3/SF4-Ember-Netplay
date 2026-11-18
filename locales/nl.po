@@ -3252,12 +3252,6 @@ msgstr "Keuze vergrendeld - ga terug naar je tafel."
 msgid "runtime.room_recovering"
 msgstr "Kamerbeheer wordt hersteld. Je matchverbinding blijft bestaan."
 
-msgid "runtime.room_lost_fight_continues"
-msgstr "Kamerverbinding verbroken. Het gevecht gaat door, maar rematches en uitslagen zijn uitgeschakeld."
-
-msgid "runtime.returned_room_lost"
-msgstr "Terug in het menu: de kamerverbinding viel weg tijdens de match."
-
 msgid "runtime.room_request_failed"
 msgstr "Het kamerverzoek is mislukt. Verlaat de kamer en probeer opnieuw."
 

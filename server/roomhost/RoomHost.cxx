@@ -168,7 +168,7 @@ void RoomHost::Attach() {
 		return;
 	}
 	const auto& authority = room_->Coordination();
-	if (authority.active) server_->SetAuthority(authority.term, authority.revision,
+	server_->SetAuthority(authority.term, authority.revision,
 		authority.writable && authority.leaderLocal && authority.rebound);
 	spdlog::info("RoomHost: authority attached room={} capacity={}", HexLower(config_.roomId).substr(0, 8), config_.capacity);
 }

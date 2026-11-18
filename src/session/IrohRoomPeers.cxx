@@ -175,12 +175,11 @@ bool IrohRoom::HandleConnected(const json& event) {
 	const auto room = event.at("room").get<std::array<std::uint8_t, 16>>();
 	const auto control = event.at("control").get<std::uint64_t>();
 	if (room_.hosting && room != room_.id) { Fail("wrong_room"); return false; }
-	if (!room_.hosting && room_.state != State::Joining && !room_.coordination.active) { Fail("unexpected_peer"); return false; }
 	// The route belongs to one room: a joiner's own join completion carries it.
 	if (room != room_.id) room_.localLatency = {};
 	ReadLocalLatency(event);
 	const auto known = FindPeer(identity);
-	if (room_.coordination.active && (known != room_.peers.end() || (!localIdentity_.empty() && identity == localIdentity_))) {
+	if (known != room_.peers.end() || (!localIdentity_.empty() && identity == localIdentity_)) {
 		if (known != room_.peers.end()) {
 			ControlOpened(known->second, control); // Its control is back.
 			auto admission = ReadAdmission(event);
@@ -188,7 +187,6 @@ bool IrohRoom::HandleConnected(const json& event) {
 		}
 		return true;
 	}
-	if (known != room_.peers.end()) { Fail("duplicate_peer"); return false; }
 	PruneRetiredPeers();
 	auto* peer = AllocatePeer(identity);
 	if (!peer) { Fail("peer_limit"); return false; }
@@ -210,35 +208,23 @@ bool IrohRoom::HandleControlTraffic(const json& event, const std::string& type, 
 	// the one this record holds now.
 	const auto control = event.at("control").get<std::uint64_t>();
 	if (peer->second.control && *peer->second.control != control) return true;
-	if (room_.coordination.active) {
-		// A control socket is not a membership decision. Retain its
-		// stable mapping while committed coordination reconnects it.
-		// A member whose game was killed never sends Leave. Its control
-		// gets a grace period to reconnect; after that the committed
-		// leader treats it as departed (ExpireDepartedPeers). That holds
-		// for the leader too: once another member takes over, the former
-		// leader's record is pruned or expired like any other.
-		ControlClosed(peer->second, DepartureGraceMs);
-		if (identity == room_.coordination.leader) {
-			room_.coordination.writable = false; room_.coordination.rebound = false;
-			room_.state = State::Degraded;
-			room_.probe = {};
-			// Make the freeze observable for one owner tick even if a
-			// queued authority watch and rebound follow immediately. This
-			// prevents the UI or SessionServer from issuing a mutation in
-			// the same poll that detected loss of its leader control.
-			return false;
-		}
-		return true;
-	}
-	if (room_.closed.size() >= MaximumQueuedMessages) { Fail("room_close_queue"); return false; }
-	RetirePeer(peer);
-	if (!room_.hosting) {
-		// Keep the loss visible to the room controller while retaining
-		// independently authorized gameplay mappings. New match
-		// preparation is blocked by the degraded state.
+	// A control socket is not a membership decision. Retain its stable
+	// mapping while committed coordination reconnects it. A member whose
+	// game was killed never sends Leave. Its control gets a grace period to
+	// reconnect; after that the committed leader treats it as departed
+	// (ExpireDepartedPeers). That holds for the leader too: once another
+	// member takes over, the former leader's record is pruned or expired
+	// like any other.
+	ControlClosed(peer->second, DepartureGraceMs);
+	if (identity == room_.coordination.leader) {
+		room_.coordination.writable = false; room_.coordination.rebound = false;
 		room_.state = State::Degraded;
-		room_.error = "room_control_closed";
+		room_.probe = {};
+		// Make the freeze observable for one owner tick even if a queued
+		// authority watch and rebound follow immediately. This prevents the
+		// UI or SessionServer from issuing a mutation in the same poll that
+		// detected loss of its leader control.
+		return false;
 	}
 	return true;
 }
@@ -311,7 +297,7 @@ bool IrohRoom::ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, 
 	// leader enters the local client queue.  Other untagged
 	// peer payloads remain server intents.
 	const auto messageType = decoded.value("type", std::string());
-	const bool fromLeader = !effect && room_.coordination.active && room_.coordination.writable &&
+	const bool fromLeader = !effect && room_.coordination.writable &&
 		peer->second.identity == room_.coordination.leader;
 	const bool leaderHandshake = fromLeader && room_.pendingAdmission &&
 		(messageType == "hello_resp" || messageType == "join_rej");

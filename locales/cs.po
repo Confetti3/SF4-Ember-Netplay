@@ -3252,12 +3252,6 @@ msgstr "Výběr uzamčen: stav najdete u svého stolu."
 msgid "runtime.room_recovering"
 msgstr "Správa místnosti se obnovuje. Spojení pro zápas zůstává zachováno."
 
-msgid "runtime.room_lost_fight_continues"
-msgstr "Spojení s místností se ztratilo. Souboj pokračuje, ale odveta a výsledky nejsou dostupné."
-
-msgid "runtime.returned_room_lost"
-msgstr "Návrat do nabídky: spojení s místností se během zápasu ztratilo."
-
 msgid "runtime.room_request_failed"
 msgstr "Požadavek místnosti selhal. Opusťte místnost a zkuste to znovu."
 

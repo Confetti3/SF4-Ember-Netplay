@@ -3252,12 +3252,6 @@ msgstr "Wybór zablokowany: wróć do stołu po stan."
 msgid "runtime.room_recovering"
 msgstr "Przywracanie sterowania pokojem. Połączenie walki pozostaje aktywne."
 
-msgid "runtime.room_lost_fight_continues"
-msgstr "Utracono połączenie z pokojem. Walka trwa dalej, ale rewanż i wyniki są niedostępne."
-
-msgid "runtime.returned_room_lost"
-msgstr "Powrót do menu: podczas walki utracono połączenie z pokojem."
-
 msgid "runtime.room_request_failed"
 msgstr "Żądanie pokoju nie powiodło się. Opuść pokój i spróbuj ponownie."
 

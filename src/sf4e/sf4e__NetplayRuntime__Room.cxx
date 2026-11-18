@@ -388,7 +388,7 @@ static DispatchOutcome Handle(commands::LeaveRoom& command, bool, Attempt attemp
 	const auto decision = Decide(netplay::CommandKind::LeaveRoom, command.generation);
 	if (!decision.accepted) return Refused(decision);
 	if (command.discordRevision) runtime->discordInvite.LeaveQueued();
-	if (IsRuntimeRecoveryEnabled() && runtime->attached && UserApp::netplay &&
+	if (runtime->attached && UserApp::netplay &&
 		UserApp::netplay->client.GetRoomSnapshot().localMember) {
 		runtime->leave.leaveRequested = true;
 		CancelLocalMatch(GgpoEnd::Retire("leave_room"));
@@ -732,10 +732,9 @@ static void TakeFinishedGame() {
 // one that ends without a recommendation is asked for once more.
 void TickAutoDelay(bool helperReady) {
     std::uint64_t revision=0; int tableIndex=-1;
-    // A room without coordination cannot reserve a check, so Auto readies at
-    // once with two frames there.
-    const bool coordinated=runtime->room && runtime->room->Coordination().active;
-    const auto peer=coordinated ? CurrentProbePeer(revision,&tableIndex) : std::string();
+    // Before the first room opens there is no table to check.
+    const bool opened=runtime->room && runtime->room->Epoch();
+    const auto peer=opened ? CurrentProbePeer(revision,&tableIndex) : std::string();
     const auto now=GetTickCount64();
     auto& check=runtime->autoDelayCheck;
     TakeFinishedGame();

@@ -31,7 +31,6 @@ using Dimps::Math::FixedPoint;
 using fSystem = sf4e::Game::Battle::System;
 using fUserApp = sf4e::UserApp;
 using fVsBattle = sf4e::GameEvents::VsBattle;
-using rSystem = Dimps::Game::Battle::System;
 
 namespace sf4e {
 
@@ -122,70 +121,13 @@ namespace sf4e {
 		(cause == ControlPlaneCause::Coordination ? s_coordinationHealthy : s_sessionClientHealthy) = healthy;
 		// Only the edge into loss is handled. Recovery just clears the state,
 		// because it cannot retroactively verify frames from the lost interval.
-		// A loss outside a running fight ends in HandleNetplayFailure, whose
-		// shutdown resets both causes to healthy.
+		// Every room runs committed coordination, which recovers the control
+		// plane itself, so the loss only tells the player.
 		if (wasLost || !IsControlPlaneLost()) return;
-
-        if (IsRuntimeRecoveryEnabled()) {
-            s_verificationLostAtFrame = fSystem::ggpoTimeline.Held();
-            // Only a live match has a connection to keep.
-            PushAlert(loc::T(IsRuntimeMatchLive() ? "runtime.room_recovering" : "runtime.room_control_recovering"),
-                NoticeSeverity::Warning);
-            return;
-        }
-
-		rSystem* system = rSystem::staticMethods.GetSingleton();
-		const bool fightRunning =
-			fSystem::ggpo &&
-			fSystem::simGate.phase == sf4e::gate::PHASE_RUNNING &&
-			!fSystem::simGate.fatalError &&
-			system &&
-			*rSystem::staticVars.CurrentBattleFlow != rSystem::BF__IDLE;
-
-		if (!fightRunning) {
-			HandleNetplayFailure(reason, true);
-			return;
-		}
-
-		s_verificationLostAtFrame =
-			rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
-		spdlog::warn(
-			"Netplay: control plane lost at frame {}, continuing fight on GGPO UDP; "
-			"verification, results, rematch, and spectator coordination disabled",
-			s_verificationLostAtFrame
-		);
-		// One clear warning. The SessionClient connection is already closed
-		// (Step() no-ops, snapshot/hash sends stop); the netplay objects are
-		// kept alive until the fight ends so nothing dangles, and no
-		// reconnection is attempted, because room identity and lobby IDs are
-		// ephemeral and a new client could not safely resume this lobby.
-		PushAlert(loc::T("runtime.room_lost_fight_continues"), NoticeSeverity::Warning);
-	}
-
-	void NetplayFacade::FinalizeControlPlaneLossAfterBattle() {
-		if (IsRuntimeRecoveryEnabled()) return;
-		if (!IsControlPlaneLost()) {
-			return;
-		}
-		spdlog::warn(
-			"Netplay: match ended after control-plane loss; snapshot/hash verification "
-			"was unavailable from frame {} to match end; that interval is UNVERIFIED",
-			s_verificationLostAtFrame
-		);
-		PushAlert(loc::T("runtime.returned_room_lost"));
-		// Full teardown to a safe disconnected state (also resets the
-		// degraded flags via ShutdownNetplay).
-		ShutdownNetplay(true);
-	}
-
-	void NetplayFacade::HandleNetplayFailure(const char* reason, bool closeGgpo) {
-		if (reason && reason[0]) {
-			SetLastError(reason);
-		}
-		// Retiring the session is what ends the fight: a netplay battle
-		// without its session is orphaned and leaves on its own.
-		if (fSystem::ggpo) fSystem::simGate.OnFatal();
-		ShutdownNetplay(closeGgpo);
+		s_verificationLostAtFrame = fSystem::ggpoTimeline.Held();
+		// Only a live match has a connection to keep.
+		PushAlert(loc::T(IsRuntimeMatchLive() ? "runtime.room_recovering" : "runtime.room_control_recovering"),
+			NoticeSeverity::Warning);
 	}
 
 

@@ -12,7 +12,7 @@ public:
     bool Tick(SessionServer& server, IrohRoom& room) {
         room.Poll();
         const auto authority=room.Coordination();
-        if(!authority.active) return true;
+        if(!room.Epoch()) return true;
         bool deferredLocalCommit=false;
         IrohRoom::CommittedCheckpoint committed;
         // Whether a commit predates this session is decided against the

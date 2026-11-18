@@ -3252,12 +3252,6 @@ msgstr "선택 잠김 - 상태를 보려면 테이블로 이동"
 msgid "runtime.room_recovering"
 msgstr "방 제어를 복구 중입니다. 대전 연결은 유지됩니다."
 
-msgid "runtime.room_lost_fight_continues"
-msgstr "방 연결이 끊겼습니다. 대전은 계속되지만 재대전과 결과 기록은 사용할 수 없습니다."
-
-msgid "runtime.returned_room_lost"
-msgstr "메뉴로 돌아왔습니다. 대전 중 방 연결이 끊겼습니다."
-
 msgid "runtime.room_request_failed"
 msgstr "방 요청에 실패했습니다. 방을 나가 다시 시도하세요."
 
