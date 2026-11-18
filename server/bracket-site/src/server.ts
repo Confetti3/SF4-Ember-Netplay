@@ -544,11 +544,14 @@ export function bracketSite(options: Options): Server {
         if (!manages(signedIn(request), league)) fail(403, "only its organizers may");
         const season = league.seasons.find((each) => each.id === seasonId) ?? fail(404, `no season ${seasonId}`);
         if (season.closed_at) fail(409, "the season is closed");
-        season.closed_at = now();
-        store.putLeague(league, false);
-        const given = store.addAwards(seasonAwards(season, standings(season, store.all()), season.closed_at));
-        for (const award of given) push(league, { at: season.closed_at, kind: "award", text: `${award.name}: ${award.title} of ${league.title}, ${award.of} (${award.detail}).` });
-        store.putLeague(league, false);
+        const closedAt = (season.closed_at = now());
+        // One write, so a crash cannot leave a closed season with no awards.
+        const given = store.transaction(() => {
+          const awards = store.addAwards(seasonAwards(season, standings(season, store.all()), closedAt));
+          for (const award of awards) push(league, { at: closedAt, kind: "award", text: `${award.name}: ${award.title} of ${league.title}, ${award.of} (${award.detail}).` });
+          store.putLeague(league, false);
+          return awards;
+        });
         return [200, { season, awards: given }];
       },
     ],
