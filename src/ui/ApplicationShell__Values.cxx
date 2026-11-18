@@ -7,7 +7,6 @@
 #include "ReplaySummaryText.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
-#include <cstdio>
 
 namespace sf4e { namespace ui {
 namespace {
@@ -34,7 +33,7 @@ std::vector<std::string> ValueLabels(const std::string& id, const std::string& v
     if (id == "arrange-column") for (int v = netplay::MinRoomColumn; v <= netplay::MaxRoomColumn; v += netplay::RoomColumnStep) labels.push_back(std::to_string(v) + "%");
     if (id == "arrange-split") for (int v = netplay::MinRoomSplit; v <= netplay::MaxRoomSplit; v += netplay::RoomSplitStep) labels.push_back(std::to_string(v) + " / " + std::to_string(100 - v));
     if (id == "ready-volume") for (int v = 10; v <= 100; v += 10) labels.push_back(std::to_string(v) + "%");
-    if (id == "scale") for (int i = 0; i <= 10; ++i) { char size[16]; std::snprintf(size, sizeof(size), "%.2fx", 1 + i * .05f); labels.push_back(size); }
+    if (id == "scale") return InterfaceSizeTexts();
     if (id == "button-prompts") for (int i = 0; i <= 3; ++i) labels.push_back(ButtonPromptValue(static_cast<gamepads::ButtonPrompts>(i)));
     if (id == "rounds") for (int n : {1, 3, 5, 7, 15, 99}) labels.push_back(std::to_string(n));
     if (id == "time") for (int t : room::RoundTimes) labels.push_back(std::to_string(t));
