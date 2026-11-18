@@ -170,8 +170,11 @@ impl Actor {
         data: crate::wire::IpcBytes,
     ) -> io::Result<()> {
         let mut retry = false;
+        // An import never outlives its epoch, so its chunks carry that epoch.
+        let current_epoch = self.matches(epoch);
         let next_offset = if let Some(incoming) = self.incoming_transfer.as_mut() {
-            if incoming.room != room
+            if !current_epoch
+                || incoming.room != room
                 || incoming.transfer != transfer
                 || incoming.term != term
                 || incoming.base_revision != base_revision
