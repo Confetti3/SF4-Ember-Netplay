@@ -121,6 +121,7 @@ public:
     int DisconnectCountdownMs() const override { return fSystem::DisconnectCountdownMs(); }
     unsigned RecentRollbackFrames() const override { return fSystem::RecentRollbackFrames(); }
     sf4e::GamePing::Summary PingSummary() const override { return fSystem::matchTelemetry.pings.Summarize(); }
+    sf4e::RollbackHud::Totals RollbackTotals() const override { return fSystem::RollbackTotals(); }
     void PollTelemetry() override { fSystem::PollMatchTelemetry(); }
     void ResetPacing() override { fSystem::ResetPacing(); }
 

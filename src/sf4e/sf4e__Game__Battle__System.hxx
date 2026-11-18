@@ -18,6 +18,7 @@
 #include "../common/GgpoTimeline.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/MatchTelemetry.hxx"
+#include "../common/RollbackHud.hxx"
 #include "../common/ReusableRecords.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../common/SpectatorPolicy.hxx"
@@ -402,6 +403,8 @@ namespace sf4e {
 				static bool ggpo_on_event_callback(GGPOEvent* info);
 				static bool ggpo_begin_game_callback(const char*);
 				static unsigned RecentRollbackFrames();
+				// The session's rollbacks so far (RollbackHud::Session).
+				static sf4e::RollbackHud::Totals RollbackTotals();
 				// Publishes a GGPO-confirmed native outcome if one is waiting.
 				// Safe to call outside GGPO callbacks at any time.
 				static void PollNativeMatchResult();

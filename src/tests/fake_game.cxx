@@ -49,6 +49,7 @@ public:
     int DisconnectCountdownMs() const override { return -1; }
     unsigned RecentRollbackFrames() const override { return 0; }
     sf4e::GamePing::Summary PingSummary() const override { return {}; }
+    sf4e::RollbackHud::Totals RollbackTotals() const override { return {}; }
     void PollTelemetry() override {}
     void ResetPacing() override {}
     std::size_t SpectatorStreams() const override { return 0; }

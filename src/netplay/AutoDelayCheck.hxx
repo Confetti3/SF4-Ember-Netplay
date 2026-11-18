@@ -2,6 +2,7 @@
 
 #include "../common/GamePing.hxx"
 #include "../common/InputDelay.hxx"
+#include "../common/RollbackHud.hxx"
 
 #include <cstdint>
 #include <string>
@@ -10,12 +11,14 @@ namespace sf4e { namespace netplay {
 
 // One game just played, as the match left it: who the opponent was (the peer
 // identity the match's grant linked, kept after the link closed), the match's
-// generation, and its ping. It travels from the end of the match to the tick
-// that consumes it, by which time the table may have seated someone else.
+// generation, its ping and its rollbacks. It travels from the end of the match
+// to the tick that consumes it, by which time the table may have seated
+// someone else.
 struct PlayedGame {
     std::uint64_t generation = 0;
     std::string opponent;
     GamePing::Summary ping = {};
+    RollbackHud::Totals rollbacks = {};
 };
 
 // What Auto's recommendation against the seated opponent stands on: nothing

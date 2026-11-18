@@ -31,10 +31,12 @@ int RecommendedDelay(const session::IrohRoom::ProbeSnapshot& probe) {
     return probe.measured ? RecommendedInputDelay(Game().delayBands,probe.Rtt()) : -1;
 }
 
+static AutoDelayStyle PlayerAutoStyle() { return static_cast<AutoDelayStyle>(runtime->preferences.autoDelayStyle); }
+
 int ReadyDelay() {
     if(!runtime->preferences.autoInputDelay) return runtime->selectedDelay;
     std::uint64_t revision=0;
-    return runtime->autoDelayCheck.Delay(CurrentProbePeer(revision),static_cast<AutoDelayStyle>(runtime->preferences.autoDelayStyle));
+    return runtime->autoDelayCheck.Delay(CurrentProbePeer(revision),PlayerAutoStyle());
 }
 
 // A Ready sent mid-check would start the match's own link beside the
@@ -70,22 +72,69 @@ static bool RequestAutoCheck(const std::string& peer, std::uint64_t revision) {
     return true;
 }
 
-// The game that just ended, taken once and logged once per game: old -> new
-// delay Auto readies with. It stays local to this PC, like the check's: the
-// room commits the higher of the two seats' Ready delays. The game names its
-// own opponent, so it cannot be credited to whoever sits down after it.
+static const char* AutoStyleName(AutoDelayStyle style) {
+    return style==AutoDelayStyle::Responsive ? "Responsive" : style==AutoDelayStyle::Smooth ? "Smooth" : "Balanced";
+}
+
+// Why this PC readied with its delay against `opponent`: a chosen delay, or
+// Auto's, with what it stood on and the game's bands.
+static std::string ReadyDelayReason(const std::string& opponent) {
+    if(!runtime->preferences.autoInputDelay) return "a chosen delay, not Auto";
+    const auto& check=runtime->autoDelayCheck;
+    const auto basis=check.Basis(opponent);
+    const auto style=PlayerAutoStyle();
+    if(basis.source==netplay::AutoDelayBasis::Source::None)
+        return fmt::format("Auto {} {} frames, nothing measured",AutoStyleName(style),check.Delay(opponent,style));
+    const auto& bands=Game().delayBands;
+    return fmt::format("Auto {} {} frames from {} median={} ms p95={} ms, recommended {} (bands: 1 frame to {} ms, 1 more per {} ms)",
+        AutoStyleName(style),check.Delay(opponent,style),
+        basis.source==netplay::AutoDelayBasis::Source::Check ? "the connection check's" : "the last game's ping",
+        basis.rtt.medianMs,basis.rtt.p95Ms,check.Recommended(opponent),bands.firstBandMs,bands.bandStepMs);
+}
+
+// Once per game, as its session starts, for a fighter: the delay the game
+// plays at, what each seat readied with, and why this one did, so a triage
+// reads the round trip and the choice from the log instead of from the
+// rollbacks.
+void LogMatchDelay(std::size_t localSlot) {
+    if(!runtime || !runtime->match || !RuntimeSession::netplay || localSlot>1) return;
+    const auto& seats=RuntimeSession::netplay->client._matchData.inputDelay;
+    const bool own=RuntimeSession::netplay->client.GetRoomSnapshot().delayPolicy==room::DelayPolicy::Own;
+    const int mine=seats[localSlot], theirs=seats[1-localSlot];
+    spdlog::info("Match delay: game {} plays at {} frames ({} delays; this seat readied {}, the other {}); {}",
+        runtime->match->Generation(),own ? mine : room::MatchDelay(mine,theirs),own ? "own" : "shared",mine,theirs,
+        ReadyDelayReason(runtime->match->OpponentPeer()));
+}
+
+// The game that just ended, taken once and logged once per game: its ping, its
+// rollbacks, and the delay Auto readies with next, old -> new. It stays local
+// to this PC, like the check's: the room commits the higher of the two seats'
+// Ready delays. The game names its own opponent, so it cannot be credited to
+// whoever sits down after it.
 static void TakeFinishedGame() {
     if(!runtime->finishedGame) return;
     const auto game=*runtime->finishedGame;
     runtime->finishedGame.reset();
     auto& check=runtime->autoDelayCheck;
-    const int before=check.Delay(game.opponent);
-    if(check.Played(runtime->preferences.autoInputDelay,game))
-        spdlog::info("Auto delay: game {} ping median={} ms p95={} ms samples={}: delay {} -> {}",
-            game.generation,game.ping.medianMs,game.ping.p95Ms,game.ping.samples,before,check.Delay(game.opponent));
-    else
-        spdlog::info("Auto delay: game {} ping median={} ms p95={} ms samples={}: delay kept",
-            game.generation,game.ping.medianMs,game.ping.p95Ms,game.ping.samples);
+    const auto style=PlayerAutoStyle();
+    const int before=check.Delay(game.opponent,style);
+    const bool followed=check.Played(runtime->preferences.autoInputDelay,game);
+    const auto& rollbacks=game.rollbacks;
+    spdlog::info("Match end: game {} ping median={} ms p95={} ms samples={}; rollbacks={} mean depth={:.2f} deepest={} frames; "
+        "Auto delay {} -> {} ({})",
+        game.generation,game.ping.medianMs,game.ping.p95Ms,game.ping.samples,rollbacks.rollbacks,
+        rollbacks.rollbacks ? static_cast<double>(rollbacks.frames)/rollbacks.rollbacks : 0.0,rollbacks.deepest,
+        before,check.Delay(game.opponent,style),followed ? "follows this game's ping" : "kept");
+}
+
+// A connection check result Auto took, once: the measured path and what it
+// recommends in this game's bands.
+static void LogCheckTaken(const session::IrohRoom::ProbeSnapshot& probe) {
+    const auto rtt=probe.Rtt();
+    spdlog::info("Auto delay: connection check request={} route={} median={} ms p95={} ms p99={} ms jitter={} ms replies={}/{}: "
+        "recommends {} frames",
+        probe.request,probe.route,rtt.medianMs,rtt.p95Ms,RoundTripMs(probe.p99RttUs),RoundTripMs(probe.jitterUs),
+        probe.samples,probe.samples+probe.lost,RecommendedDelay(probe));
 }
 
 // Follows the seated opponent and their check results. With Auto on, a due
@@ -104,7 +153,8 @@ void TickAutoDelay(bool helperReady) {
     if(peer.empty()) return;
     const auto& probe=runtime->room->Probe();
     using Source=netplay::AutoDelayBasis::Source;
-    check.Observe(probe.peer,probe.request,probe.status,{probe.measured ? Source::Check : Source::None,probe.Rtt()},now);
+    if(check.Observe(probe.peer,probe.request,probe.status,{probe.measured ? Source::Check : Source::None,probe.Rtt()},now))
+        LogCheckTaken(probe);
     if(!helperReady || !runtime->preferences.autoInputDelay || !check.Due(now) || probe.status=="checking" ||
         !CurrentGates().canProbe || !AutoCheckClear(peer,tableIndex)) return;
     const auto request=runtime->nextProbeRequest;

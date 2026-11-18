@@ -554,6 +554,8 @@ int RecommendedDelay(const session::IrohRoom::ProbeSnapshot& probe);
 bool AutoDelayMeasured();
 // Auto is still measuring the seated opponent, so a Ready holds for it.
 bool AutoDelayMeasuring();
+// Logs, once as a fighter's game starts, its delay and what Auto stood on.
+void LogMatchDelay(std::size_t localSlot);
 void TickAutoDelay(bool helperReady);
 void TickCreatedRules(bool helperReady);
 

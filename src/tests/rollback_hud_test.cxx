@@ -25,7 +25,16 @@ int main() {
     CHECK(hud.Recent(1009) == 5);
     CHECK(hud.Recent(1010) == 2);
     CHECK(hud.Recent(1500) == 0);
+    // The session's totals outlive the last second: every restore, every
+    // frame replayed after one, and the most after one.
+    CHECK(hud.Session().rollbacks == 2 && hud.Session().frames == 7 && hud.Session().deepest == 5);
     hud.Begin(1600); CHECK(hud.Recent(1600) == 0);
-    hud.Replayed(1600); hud.Reset(); CHECK(hud.Recent(1600) == 0);
-    std::cout << "Rollback depth, expiry, empty loads and session reset passed\n";
+    CHECK(hud.Session().rollbacks == 3 && hud.Session().frames == 7);
+    hud.Replayed(1600);
+    CHECK(hud.Session().frames == 8 && hud.Session().deepest == 5);
+    hud.Reset(); CHECK(hud.Recent(1600) == 0);
+    CHECK(hud.Session().rollbacks == 0 && hud.Session().frames == 0 && hud.Session().deepest == 0);
+    // A replayed frame with no restore before it is not counted.
+    hud.Replayed(1700); CHECK(hud.Session().frames == 0);
+    std::cout << "Rollback depth, expiry, empty loads, session totals and session reset passed\n";
 }

@@ -34,6 +34,7 @@
 #include "../common/MatchResult.hxx"
 #include "../common/MenuButtons.hxx"
 #include "../common/NoticeSeverity.hxx"
+#include "../common/RollbackHud.hxx"
 #include "../common/SteamId.hxx"
 #include "../netplay/InputAssignment.hxx"
 #include "../netplay/PlayerPreferences.hxx"
@@ -246,6 +247,9 @@ public:
     virtual unsigned RecentRollbackFrames() const = 0;
     // The game's pings, for the delay advice after it.
     virtual sf4e::GamePing::Summary PingSummary() const = 0;
+    // The session's rollbacks (RollbackHud::Session), which the runtime logs
+    // as the match ends. Asked with the pings, before the session is reset.
+    virtual sf4e::RollbackHud::Totals RollbackTotals() const = 0;
     virtual void PollTelemetry() = 0;
     virtual void ResetPacing() = 0;
 

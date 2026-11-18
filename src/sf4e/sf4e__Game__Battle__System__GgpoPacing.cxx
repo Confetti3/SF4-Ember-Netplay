@@ -82,6 +82,7 @@ void LogPacerSummary(const char* label) {
 }
 
 unsigned fSystem::RecentRollbackFrames() { return rollbackHud.Recent(GetTickCount64()); }
+sf4e::RollbackHud::Totals fSystem::RollbackTotals() { return rollbackHud.Session(); }
 sf4e::MatchTelemetry fSystem::matchTelemetry;
 void fSystem::PollMatchTelemetry() {
     if (!ggpo) return;

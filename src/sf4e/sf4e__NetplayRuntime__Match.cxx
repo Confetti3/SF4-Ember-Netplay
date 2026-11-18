@@ -208,11 +208,11 @@ void NotifyRuntimeMatchEnded() {
 	// Called from battle teardown: defer owning-object changes until TickRuntime.
 	if (!runtime || !runtime->match) return;
 	runtime->teardown.matchEnded = true;
-	// Retiring the session next resets the telemetry the ping comes from. The
-	// opponent is the match's own, not whoever the table seats by the time the
-	// tick takes this.
+	// Retiring the session next resets the telemetry the ping and the rollbacks
+	// come from. The opponent is the match's own, not whoever the table seats
+	// by the time the tick takes this.
 	runtime->finishedGame = netplay::PlayedGame{runtime->match->Generation(), runtime->match->OpponentPeer(),
-		Game().battle.PingSummary()};
+		Game().battle.PingSummary(), Game().battle.RollbackTotals()};
 	if (!RuntimeSession::netplay || runtime->match->Generation() == 0) return;
 	const auto& snapshot = RuntimeSession::netplay->client.GetRoomSnapshot();
 	if (!snapshot.roomEpoch || !snapshot.localMember) return;
@@ -337,6 +337,7 @@ void NoteRuntimeMatchStart(const RuntimeMatchEndpoints& endpoints) {
 	const room::Snapshot* shownRoom = shown ? shown->room.get() : nullptr;
 	CaptureMatchSides(netplay->client._lobbyData.members, room.members, shownRoom ? &shownRoom->members : nullptr, netplay->matchSides);
 	netplay->spectating = endpoints.localSlot >= 2;
+	LogMatchDelay(endpoints.localSlot);
 	netplay->watchedScore[0] = netplay->watchedScore[1] = 0;
 	const auto* table = room::LocalTable(room);
 	netplay->watchedScoreKnown = table != nullptr;
