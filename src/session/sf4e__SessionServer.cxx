@@ -323,10 +323,7 @@ int SessionServer::Step()
 				HandleMatchAcknowledgement(conn, msg, deferredRoomEvents);
 				continue;
 			}
-			if (type == SessionProtocol::MT_FORWARD) {
-				HandleForward(conn, msg, cid);
-			}
-			else if (type == SessionProtocol::MT_SESSION_JOINREQ) {
+			if (type == SessionProtocol::MT_SESSION_JOINREQ) {
 				HandleJoinRequest(conn, msg, incoming, cid);
 			}
 			else if (type == SessionProtocol::MT_PREBATTLE_SETCHARA) {
@@ -355,9 +352,6 @@ int SessionServer::Step()
 			}
 			else if (type == SessionProtocol::MT_PUNCH_READY) {
 				HandlePunchReady(conn);
-			}
-			else if (type == SessionProtocol::MT_BATTLE_GGPO_FRAME) {
-				HandleGgpoFrame(conn, msg, cid);
 			}
 			else {
 				spdlog::warn("Server: got unrecognized message type: {}", (int)type);

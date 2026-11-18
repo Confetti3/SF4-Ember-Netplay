@@ -292,48 +292,6 @@ void SessionServer::HandleMatchAcknowledgement(session::Connection conn, const j
 	} catch (const json::exception&) { /* Malformed acknowledgment has no authority. */ }
 }
 
-void SessionServer::HandleForward(session::Connection conn, const json& msg, const SessionProtocol::ConnectionID& cid) {
-	SessionProtocol::ForwardMessage fwdMsg;
-	try {
-		msg.get_to(fwdMsg);
-	}
-	catch (const json::exception&) {
-		spdlog::debug("Server: could not deserialize forwarding message");
-		return;
-	}
-
-	// If this is a connection ID managed by this server, we can apply
-	// additional security- messages with this source address should
-	// only be coming from the connection that the address is assigned
-	// to.
-	if (!(fwdMsg.src == cid)) {
-		spdlog::debug("Server: dropping fraudulent forwarding source");
-		return;
-	}
-	const auto sourceTable = _roomAuthority ? RoomTableFor(conn) : static_cast<std::uint8_t>(room::TableCount);
-	if (_roomAuthority && (!RoomMatchAuthority(sourceTable) || RoomMatchAuthority(sourceTable)->GetPhase() == session::MatchAuthority::Phase::Idle ||
-		!IsRoomTableParticipant(conn, sourceTable))) return;
-
-	if (fwdMsg.dest.host != _identity) {
-		spdlog::info("Server: cannot forward to nonlocal identity {}@{}, clustering not yet implemented", fwdMsg.dest.user, fwdMsg.dest.host);
-		return;
-	}
-
-	// Check that the destination is in fact the lobby
-	auto clientIter = clients.begin();
-	for (; clientIter != clients.end(); clientIter++) {
-		if (clientIter->data.connId == fwdMsg.dest) {
-			break;
-		}
-	}
-	if (clientIter != clients.end() && (!_roomAuthority || IsRoomTableParticipant(clientIter->conn, sourceTable))) {
-				Respond(clientIter->conn, msg);
-	}
-	else {
-		spdlog::debug("Server: Could not forward to {}@{}: not in known lobby", fwdMsg.dest.user, fwdMsg.dest.host);
-	}
-}
-
 void SessionServer::HandleJoinRequest(session::Connection conn, const json& msg, const session::Message& incoming, SessionProtocol::ConnectionID cid) {
 	SessionProtocol::SessionJoinRequest request;
 	const auto main=msg.find("mainFighter");
@@ -634,31 +592,5 @@ void SessionServer::HandlePunchReady(session::Connection conn) {
 		BroadcastMessage(goMsg);
 		_punchReady[0] = false;
 		_punchReady[1] = false;
-	}
-}
-
-void SessionServer::HandleGgpoFrame(session::Connection conn, const json& msg, const SessionProtocol::ConnectionID& cid) {
-	SessionProtocol::BattleGgpoFrame frame;
-	try {
-		msg.get_to(frame);
-	}
-	catch (const json::exception&) {
-		spdlog::debug("Server: could not deserialize GGPO frame");
-		return;
-	}
-
-	if (!(frame.src == cid)) {
-		spdlog::debug("Server: dropping fraudulent GGPO frame");
-		return;
-	}
-	const auto sourceTable = _roomAuthority ? RoomTableFor(conn) : static_cast<std::uint8_t>(room::TableCount);
-	if (_roomAuthority && (!RoomMatchAuthority(sourceTable) || RoomMatchAuthority(sourceTable)->GetPhase() == session::MatchAuthority::Phase::Idle ||
-		!IsRoomTableParticipant(conn, sourceTable))) return;
-
-	for (auto clientIter = clients.begin(); clientIter != clients.end(); clientIter++) {
-		if (clientIter->data.connId == frame.dest && (!_roomAuthority || IsRoomTableParticipant(clientIter->conn, sourceTable))) {
-			Respond(clientIter->conn, msg);
-			break;
-		}
 	}
 }
