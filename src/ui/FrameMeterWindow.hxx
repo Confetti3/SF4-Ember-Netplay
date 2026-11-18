@@ -32,7 +32,8 @@ float TrainingMeterWidth(float hudScale);
 // A fighter's readings as text, one per line: startup, active, recovery, the
 // result and the last advantage, and the meaty timing.
 std::string TrainingFrameData(const training::MeterView& meter, int side);
-void DrawTrainingColorKey(bool angled);
+// proximity: list the guard pose before a hit too (a game whose meter has it).
+void DrawTrainingColorKey(bool angled, bool proximity = false);
 // The invincible marks the classic meter's legend lists: both in Street
 // Fighter 6's colours when the game supplies invincibility (TrainingFeatures),
 // none otherwise.
@@ -42,7 +43,7 @@ std::vector<training::Invincibility> TrainingInvincibilityKey(const training::Me
 // its phase; angled bars by its resolved kind (training::MeterCell; an entry
 // names one kind; Knockdown covers Down and Rise).
 struct TrainingKeyEntry { const char* label; training::Phase phase; training::MeterKind kind; unsigned color; };
-std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled);
+std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled, bool proximity = false);
 // The colour a bar cell draws, angled or flat: the one function the bars and
 // the key both take their colours from.
 unsigned TrainingCellColor(const training::MeterCell& cell, bool angled);

@@ -2955,6 +2955,12 @@ msgstr "Pokračovat"
 msgid "training.meter.after_pause.detail"
 msgstr "Co měřič udělá, když se po klidu obou bojovníků znovu něco pohne. Začít znovu vyprázdní pruhy pro novou výměnu jako Street Fighter 6. Pokračovat naváže na předchozí, takže historie sahá přes několik."
 
+msgid "training.meter.proximity"
+msgstr "Blok na blízkost"
+
+msgid "training.meter.proximity.detail"
+msgstr "Zobrazí postoj obrany, který bojovník zaujme, když je útok blízko, ještě před zásahem, jako zvláštní ztlumené políčko. Vypnuto se tyto snímky počítají jako volné, takže mezery v sérii bloků vynikají oproti blockstunu."
+
 msgid "training.meter.scroll"
 msgstr "Posun měřiče"
 

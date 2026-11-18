@@ -2955,6 +2955,12 @@ msgstr "Kontynuuj"
 msgid "training.meter.after_pause.detail"
 msgstr "Co robi wskaźnik, gdy coś znów się rusza po tym, jak obaj zawodnicy stali w miejscu. Zacznij od nowa czyści paski dla nowej wymiany, jak w Street Fighter 6. Kontynuuj idzie dalej po poprzedniej, więc historia cofa się przez kilka."
 
+msgid "training.meter.proximity"
+msgstr "Gard zbliżeniowy"
+
+msgid "training.meter.proximity.detail"
+msgstr "Pokazuje postawę obronną, którą zawodnik przyjmuje, gdy atak jest blisko, jeszcze przed trafieniem, jako osobne przyciemnione pole. Po wyłączeniu te klatki liczą się jako wolne, więc przerwy w serii zablokowanych ataków odróżniają się od blockstunu."
+
 msgid "training.meter.scroll"
 msgstr "Przewijanie wskaźnika"
 

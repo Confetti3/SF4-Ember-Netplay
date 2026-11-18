@@ -345,6 +345,14 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     {
         const auto keyEntries=TrainingColorKeyEntries(true);
         Require(keyEntries.size()==9,"Angled colour key does not list what the angled bars draw");
+        // A game whose meter has the guard pose before a hit lists it after the block, in the colour the bars draw for it.
+        {
+            const auto withPose=TrainingColorKeyEntries(true,true);
+            Require(withPose.size()==10&&withPose[5].kind==training::MeterKind::Guard&&withPose[6].kind==training::MeterKind::Proximity&&
+                withPose[6].color!=withPose[5].color&&*loc::T(withPose[6].label)!=0,"The colour key did not list the guard pose before a hit after the block");
+            training::MeterCell pose;pose.kind=training::MeterKind::Proximity;
+            Require(TrainingCellColor(pose,true)==withPose[6].color,"The key's guard pose is not the colour the bars draw");
+        }
         std::set<unsigned> keyColors;
         std::vector<training::FighterSample> candidates;
         for(unsigned status=0;status<30;++status) {

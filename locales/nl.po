@@ -2955,6 +2955,12 @@ msgstr "Doorgaan"
 msgid "training.meter.after_pause.detail"
 msgstr "Wat de meter doet als er weer iets beweegt nadat beide vechters stil stonden. Opnieuw beginnen maakt de balken leeg voor de nieuwe uitwisseling, zoals Street Fighter 6. Doorgaan gaat verder na de vorige, zodat de geschiedenis door meerdere terugbladert."
 
+msgid "training.meter.proximity"
+msgstr "Nabijheidsguard"
+
+msgid "training.meter.proximity.detail"
+msgstr "Toont de verdedigingshouding die een vechter aanneemt als een aanval dichtbij is, vóór een treffer, als een eigen gedimde cel. Uit: die frames tellen als vrij, zodat de gaten in een geblokkeerde reeks afsteken tegen de blockstun."
+
 msgid "training.meter.scroll"
 msgstr "Meter scrollen"
 

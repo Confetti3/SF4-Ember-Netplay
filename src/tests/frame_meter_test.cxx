@@ -236,6 +236,39 @@ int main() {
         exchange(0, 22, 10, 15); meter.Observe(18, fighters);
         Require(!ShownAdvantage(meter.View()).valid && meter.View().frames.empty(), "The last reading crossed a simulation gap");
         {
+            // The guard pose before a hit (FighterSample::proximity: SFV's guard
+            // state, with no blockstun) is a kind of cell of its own, apart
+            // from the blockstun, and is a free frame when its option is off;
+            // a guard sample that does not carry it (SF4's) is the block as it was.
+            FighterSample pose; pose.valid = true; pose.status = ActorStatus::GuardCrouch; pose.posture = 1; pose.timeScale = 1;
+            Require(ClassifyMeter(pose) == MeterKind::Guard, "A guard sample without the proximity mark did not read as the block");
+            pose.proximity = true;
+            Require(ClassifyMeter(pose) == MeterKind::Proximity, "The guard pose before a hit was not its own kind");
+            Require(MeterCellOf(pose).kind == MeterKind::Proximity && MeterCellOf(pose).phase == Phase::Guard,
+                "The guard pose before a hit lost its kind or its guard phase in the cell");
+            const MeterCell hidden = ResolveMeterCell(pose, nullptr, MeterCell{}, false);
+            Require(hidden.kind == MeterKind::Neutral && hidden.phase == Phase::Neutral, "The guard pose before a hit stayed drawn with its option off");
+            FighterSample airborne = pose; airborne.posture = 2;
+            Require(MeterCellOf(airborne).kind == MeterKind::Neutral, "A guard pose in the air read as guarding");
+            Require(QuietKind(MeterKind::Proximity) && QuietKind(MeterKind::Neutral) && !QuietKind(MeterKind::Guard), "The free kinds are wrong");
+            // The pose does not keep an exchange open: the attacker's move ends,
+            // the defender keeps the pose, and the bars are held.
+            for (const bool shown : {true, false}) {
+                FrameMeter held; held.SetProximityGuard(shown);
+                std::array<FighterSample, 2> both;
+                for (auto& fighter : both) { fighter = FighterSample{}; fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.actionFrame = 1; }
+                both[1].status = ActorStatus::GuardCrouch; both[1].posture = 1; both[1].proximity = true; both[1].action = 2;
+                both[0].status = ActorStatus::Stand; both[0].action = 1;
+                int at = 0;
+                held.Observe(at++, both);
+                both[0].status = ActorStatus::Skill; both[0].action = 100;
+                for (int attacking = 0; attacking < 3; ++attacking) held.Observe(at++, both);
+                both[0].status = ActorStatus::Stand; both[0].action = 1;
+                for (int quiet = 0; quiet < static_cast<int>(MeterIdleFrames) + 2; ++quiet) held.Observe(at++, both);
+                Require(held.View().frozen && !held.View().frames.empty(), "The guard pose before a hit kept the bars from being held");
+            }
+        }
+        {
             // The meter resolves each cell as its frame arrives: a guard held
             // from a jump guards nothing in the air and reads as nothing, and
             // stays so after the jump has left the kept frames; a grounded

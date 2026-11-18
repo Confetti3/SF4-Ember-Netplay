@@ -2955,6 +2955,12 @@ msgstr "继续"
 msgid "training.meter.after_pause.detail"
 msgstr "双方静止后再次行动时计量表的处理方式。重新开始会像街头霸王6一样为新的攻防清空条形。继续会接在上一次之后，可在历史中回看多次攻防。"
 
+msgid "training.meter.proximity"
+msgstr "接近防御"
+
+msgid "training.meter.proximity.detail"
+msgstr "将攻击接近时、命中之前角色摆出的防御姿态显示为单独的暗淡格子。关闭后这些帧按空闲帧计算，连续防御之间的空档会与防御硬直区分开。"
+
 msgid "training.meter.scroll"
 msgstr "计量表滚动"
 

@@ -2961,6 +2961,12 @@ msgstr "Continue"
 msgid "training.meter.after_pause.detail"
 msgstr "What the meter does when something moves again after both fighters were quiet. Start over clears the bars for the new exchange, as Street Fighter 6 does. Continue goes on after the last exchange, so the history scrolls back through several."
 
+msgid "training.meter.proximity"
+msgstr "Proximity guard"
+
+msgid "training.meter.proximity.detail"
+msgstr "Shows the guard pose a fighter takes when an attack is near, before any hit, as its own dim cell. Off, those frames count as free, so the gaps of a blockstring stand out from the blockstun."
+
 msgid "training.meter.scroll"
 msgstr "Meter scrolling"
 
