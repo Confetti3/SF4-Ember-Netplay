@@ -103,6 +103,8 @@ export interface RoomSummary {
   tables_playing: number;
   /** The host's relay region code, such as `use1`. */
   region: string;
+  /** The country or area the host plays from, as the rooms page names it. Present only when the room has one. */
+  area?: string;
   created_at: number;
   /** Each fighter plays at the input delay they chose. Present only when true. */
   own_delay?: boolean;
@@ -125,6 +127,8 @@ export interface RoomSummary {
    * predates types says nothing, and its rooms are Classic.
    */
   room_type?: number;
+  /** The room takes wired connections only. Present only when true. */
+  wired_only?: boolean;
 }
 
 /** Every key of a `RoomSummary`. Listing it as a `Record` makes the compiler hold it to the interface; test/contract.test.ts holds it to the protocol. */
@@ -136,6 +140,7 @@ export const ROOM_SUMMARY_KEYS = Object.keys({
   capacity: true,
   tables_playing: true,
   region: true,
+  area: true,
   created_at: true,
   own_delay: true,
   host_name: true,
@@ -144,6 +149,7 @@ export const ROOM_SUMMARY_KEYS = Object.keys({
   set_format: true,
   rotation: true,
   room_type: true,
+  wired_only: true,
 } satisfies Record<keyof RoomSummary, true>);
 
 /** `waiting` until the creator is in, then `open`, then `closed`. */

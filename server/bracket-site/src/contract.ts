@@ -111,12 +111,16 @@ export function record(store: Store, tournament: Tournament, setId: string, resu
   Object.assign(set, games);
   setDone(tournament, set, at);
   settle(tournament, at);
-  if (tournament.state === "finished" && tournament.report) {
-    for (const award of store.addAwards(tournamentAwards(tournament, tournament.report))) {
-      push(tournament, { at, kind: "award", text: `${award.name}: ${award.title} of ${award.of} (${award.detail}).` });
+  // Awards and the tournament are one write: a crash between them must not
+  // leave awards given whose announcements a redelivery then never posts.
+  store.transaction(() => {
+    if (tournament.state === "finished" && tournament.report) {
+      for (const award of store.addAwards(tournamentAwards(tournament, tournament.report))) {
+        push(tournament, { at, kind: "award", text: `${award.name}: ${award.title} of ${award.of} (${award.detail}).` });
+      }
     }
-  }
-  store.save(tournament);
+    store.save(tournament);
+  });
 }
 
 type Played = Pick<BracketSet, "games" | "facts" | "ember_match">;

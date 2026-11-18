@@ -12,19 +12,3 @@ pub(crate) use adjudicate::{AdjudicationCommand, adjudicate_for};
 pub use cancel::cancel;
 pub use create::create;
 pub use read::{assignments, get, link, visible};
-
-use crate::error::{ApiFailure, Result};
-
-const MAX_REASON: usize = 512;
-
-fn check_reason(reason: &str) -> Result<()> {
-    if reason.trim().is_empty()
-        || reason.len() > MAX_REASON
-        || reason.chars().any(|c| c.is_control() && c != '\n')
-    {
-        return Err(ApiFailure::invalid(
-            "A reason of 1 to 512 bytes is required.",
-        ));
-    }
-    Ok(())
-}
