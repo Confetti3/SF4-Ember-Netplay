@@ -1,5 +1,6 @@
 #include "room_authority_support.hxx"
 #include "../common/SkillBadgeJson.hxx"
+#include "terminal_ledger_support.hxx"
 
 // A server-owned room: no player hosts it, the first joiner moderates, and an
 // Ember ID (the account) is the identity a kick and a duplicate join key on.
@@ -176,20 +177,8 @@ static void TestKickBansOnlyAfterTheMemberIsRemoved() {
 	StartMatchRoom(room);
 	auto& authority = room.authority;
 	auto checkpoint = authority.Checkpoint();
-	auto recipients = checkpoint.at("active_match_recipients").at(0);
-	EXPECT(recipients.is_array() && recipients.size() == 2);
-	for (auto& row : recipients) row["acknowledged"] = false;
-	auto receipts = nlohmann::json::array();
-	std::size_t generation = 1;
-	std::uint8_t table = 1;
-	while (receipts.size() < 64) {
-		receipts.push_back({{"table", table}, {"generation", generation}, {"result", 0},
-			{"fighters", {room.p1, room.p2}}, {"recipients", recipients}, {"acknowledged", false}});
-		if (++table == 4) { table = 1; ++generation; }
-	}
-	for (std::size_t i = 1; i < 4; ++i) checkpoint["snapshot"]["tables"][i]["match_generation"] = generation;
-	checkpoint["next_match"] = generation + 10;
-	checkpoint["terminal_receipts"] = receipts;
+	EXPECT(checkpoint.at("active_match_recipients").at(0).size() == 2);
+	FillTerminalLedger(checkpoint, room.p1, room.p2);
 	RoomAuthority full("Other");
 	EXPECT(full.RestoreCheckpoint(checkpoint));
 	EXPECT(FindMember(full.SnapshotView(), room.p1) != nullptr);

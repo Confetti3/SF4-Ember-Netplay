@@ -9,13 +9,15 @@ using sf4e::SessionServer;
 using nlohmann::json;
 
 void SessionServer::ForgetRoomMember(room::MemberId member) {
+	// A member whose connection already closed (its Leave was refused) has no
+	// connection left, but its identity still goes with it.
+	roomPeerIdentities.erase(member);
 	roomIncarnations.erase(member);
 	roomMemberRecords.erase(member);
 	for (auto entry = roomMembers.begin(); entry != roomMembers.end(); ++entry) {
 		if (entry->second != member) continue;
 		const auto connection = entry->first;
 		roomSelectedTables.erase(connection);
-		roomPeerIdentities.erase(member);
 		roomMembers.erase(entry);
 		cidMap.erase(connection);
 		clients.erase(std::remove_if(clients.begin(), clients.end(), [&](const SessionMember& client) {
