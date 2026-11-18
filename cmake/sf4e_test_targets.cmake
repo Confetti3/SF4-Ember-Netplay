@@ -160,6 +160,7 @@ sf4e_add_unit_test(NAME LobbyMusic SOURCES "src/tests/lobby_music_test.cxx" LIBS
 # It takes 2 s alone. Its saves are flushed writes, which take up to ten
 # times as long while other tests and builds use the disk.
 sf4e_add_unit_test(NAME SettingsStore SOURCES "src/tests/settings_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
+sf4e_add_unit_test(NAME PublicRoomFilterJson SOURCES "src/tests/public_room_filter_json_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
 sf4e_add_unit_test(NAME UiPreferencesStore SOURCES "src/tests/ui_preferences_store_test.cxx" LIBS sf4e_settings)
 sf4e_add_unit_test(NAME RecordingFileStore SOURCES "src/tests/recording_file_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
 
@@ -190,7 +191,7 @@ sf4e_add_unit_test(NAME IdentityJourney SOURCES src/tests/identity_journey_test.
     src/tests/builtin_service_journey_test.cxx src/tests/sign_in_site_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME WatchJourney SOURCES src/tests/watch_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
-sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journey_test.cxx src/tests/public_rooms_setup_journey_test.cxx
+sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journey_test.cxx src/tests/public_rooms_setup_journey_test.cxx src/tests/public_rooms_filter_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
 sf4e_add_unit_test(NAME RankingsJourney SOURCES src/tests/rankings_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME ProfileJourney SOURCES src/tests/profile_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)

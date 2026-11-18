@@ -64,6 +64,10 @@ public:
             title = loc::T("public.filters");
             return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::HomeArea(f.view), PublicRoomsPanel::AreasListed(f.view), f.view.canEditPreferences);
         }
+        if (f.screen == PublicRoomsPanel::AreasScreen) {
+            title = loc::T("public.filter_areas_title");
+            return PublicRoomsPanel::AreaRows(shell.preferences_.roomFilter, PublicRoomsPanel::HomeArea(f.view), PublicRoomsPanel::AreasListed(f.view), f.view.canEditPreferences);
+        }
         title = loc::T("screen.public_rooms");
         const std::string bridge = shell.identity_.UsableBridge(f.view);
         return shell.publicRooms_.Rows(f.view, bridge, shell.identity_.Waiting(), shell.identity_.PublicSetup(), PublicListWidth(),
@@ -102,7 +106,7 @@ public:
         return [shell, view](const std::string& id) { DrawPublicPreview(*view, shell->publicRooms_, id); };
     }
     // The filter is a saved preference, so the filters page says how its save stands.
-    bool ReportsSave(const std::string& screen) const override { return screen == PublicRoomsPanel::FiltersScreen; }
+    bool ReportsSave(const std::string& screen) const override { return screen == PublicRoomsPanel::FiltersScreen || screen == PublicRoomsPanel::AreasScreen; }
     // The list leads with a toolbar of three cells, in one row on a wide list and two on a narrow one.
     ScreenGrid Grid(const ScreenFrame& f) const override {
         if (!f.rows || f.rows->empty() || f.rows->front().id != "pr-quick") return {};
