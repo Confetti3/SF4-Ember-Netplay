@@ -402,8 +402,8 @@ int fMain::Initialize(void* a, void* b, void* c) {
 	sf4e::NetplayFacade::StartHelper();
 	// XAudio2_7.dll reports that it can unload while an engine is alive, so a COM
 	// cleanup sweep can free it under the game's sound thread (seen in EMBER-110,
-	// -114 and -116). Pin it. Logged through StartupLog: Sidecar's logger does
-	// not exist yet.
+	// -114 and -116). Pin it before the game's Main::Initialize creates the
+	// engine. Logged through StartupLog: Sidecar's logger does not exist yet.
 	if (const HMODULE audio = sf4e::platform::PinSystemModule(L"XAudio2_7.dll"))
 		sf4e::StartupLog::Log(spdlog::level::info, fmt::format("Audio: XAudio2_7.dll pinned at {}", static_cast<void*>(audio)));
 	else
