@@ -476,6 +476,9 @@ void TestHitboxesCapability() {
 		void DrawSelection(bool, const RuntimeSnapshot&) override {}
 	} lacking;
 	CHECK(!lacking.ShowHitboxes(true) && !lacking.ShowHitboxes(false));
+	// Nor does a game that takes no picture of a watched game give one: its
+	// menu shows the game through itself (ShellView::SeeThrough).
+	CHECK(!lacking.WatchedPicture(1190, 670));
 	std::cout << "TestHitboxesCapability passed\n";
 }
 

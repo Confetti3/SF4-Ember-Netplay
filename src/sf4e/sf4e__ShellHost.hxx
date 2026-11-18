@@ -23,10 +23,16 @@ public:
     using RuntimeSnapshot = sf4e::NetplayFacade::RuntimeSnapshot;
     // The game's part of the view, filled after the runtime's: the player's
     // pick and what the shell says of it, whether that pick can be readied,
-    // the watched game's picture, the display advice and the build.
+    // the display advice and the build.
     // view.canReady arrives holding the runtime's answer: the game ANDs its
     // own into it (canReady = canReady && ...) and never sets it.
     virtual void FillView(const RuntimeSnapshot& snapshot, sf4e::ui::ShellView& view) = 0;
+    // The watched game's picture (ShellView::watchedPicture), asked while a
+    // game is watched and its picture is wanted (ui::WatchedPictureToTake),
+    // before Ember draws anything in the frame: the game's own frame at
+    // `width` x `height`, opaque. The empty id when the game cannot take it;
+    // the menu then shows the game through itself, dimmed (ShellView::SeeThrough).
+    virtual ImTextureID WatchedPicture(unsigned /*width*/, unsigned /*height*/) { return {}; }
     // The table page's Ultra and Appearance rows step the pick; nothing is
     // sent. False when the pick cannot change now.
     virtual bool StepSelection(const sf4e::ui::SelectionStep& step, const RuntimeSnapshot& snapshot) = 0;

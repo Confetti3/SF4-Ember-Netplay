@@ -13,9 +13,11 @@
 #include "../ui/MenuRows.hxx"
 #include "../ui/RoomControls.hxx"
 #include "../ui/Theme.hxx"
+#include "../ui/WatchedPicture.hxx"
 #include "imgui_test_support.hxx"
 #include "shell_action_support.hxx"
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
@@ -359,6 +361,42 @@ void FinishedGameEndsOnlyTheView() {
     }
     std::cout << "FinishedGameEndsOnlyTheView passed\n";
 }
+
+// The watched game's picture is asked of the game only while a game is
+// watched and its picture is not Off, at the largest share it is shown.
+void PictureIsAskedWhileWatched() {
+    const ImVec2 screen(1920, 1080);
+    for (const int mode : {netplay::PictureSmall, netplay::PictureBig}) {
+        const auto size = WatchedPictureToTake(true, mode, screen);
+        Check(size && size->width == static_cast<unsigned>(1920 * WatchedPictureTaken) &&
+            size->height == static_cast<unsigned>(1080 * WatchedPictureTaken), "The watched game's picture was not asked at its largest share");
+    }
+    Check(!WatchedPictureToTake(true, netplay::PictureOff, screen), "A picture turned Off was still asked");
+    Check(!WatchedPictureToTake(false, netplay::PictureSmall, screen), "A picture was asked with no game watched");
+    Check(!WatchedPictureToTake(true, netplay::PictureSmall, ImVec2(0, 0)), "A picture was asked of an empty screen");
+    std::cout << "PictureIsAskedWhileWatched passed\n";
+}
+
+// Ember over a watched game with its picture: the menu is opaque and the
+// picture is on the board (Hide picture on it) or in its corner window; with
+// the picture Off the game takes none and the menu shows the game through it.
+void PictureOverTheWatchedBoard() {
+    for (const int mode : {netplay::PictureSmall, netplay::PictureBig, netplay::PictureOff}) {
+        WatchedBoard board;
+        board.view.preferences.pictureMode = mode;
+        if (WatchedPictureToTake(true, mode, ImGui::GetIO().DisplaySize)) board.view.watchedPicture = ImGui::GetIO().Fonts->TexID;
+        board.OpenOverGame();
+        board.Frame();
+        Check(board.view.SeeThrough() == (mode == netplay::PictureOff), "The menu over a watched game was not opaque exactly when it had the picture");
+        const ImGuiWindow* corner = ImGui::FindWindowByName("Watched game");
+        const bool inCorner = corner && corner->LastFrameActive == ImGui::GetFrameCount();
+        const bool onBoard = board.Has("room-hide-picture");
+        Check((inCorner || onBoard) == (mode != netplay::PictureOff) && !(inCorner && onBoard),
+            "The watched game's picture was not drawn once, on the board or in its corner");
+        Check(board.shell.Navigation().Focus() == "stop-watching", "The picture took Ember's landing on Stop watching");
+    }
+    std::cout << "PictureOverTheWatchedBoard passed\n";
+}
 }
 
 int main() try {
@@ -374,6 +412,8 @@ int main() try {
     LeavingTheTableIsTold();
     CatchingUpRoomTakesTheLeave();
     FinishedGameEndsOnlyTheView();
+    PictureIsAskedWhileWatched();
+    PictureOverTheWatchedBoard();
     std::cout << "Watched match exit tests passed\n";
     return 0;
 } catch (const std::exception& error) {

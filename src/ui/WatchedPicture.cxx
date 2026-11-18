@@ -1,12 +1,20 @@
 #include "WatchedPicture.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
+#include "../netplay/PlayerPreferences.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <algorithm>
 #include <cmath>
 
 namespace sf4e { namespace ui {
+std::optional<PictureSize> WatchedPictureToTake(bool watching,int pictureMode,ImVec2 screen) {
+ if(!watching||pictureMode==netplay::PictureOff)return std::nullopt;
+ const PictureSize size{static_cast<unsigned>(screen.x*WatchedPictureTaken),static_cast<unsigned>(screen.y*WatchedPictureTaken)};
+ if(!size.width||!size.height)return std::nullopt;
+ return size;
+}
+
 // The watched game's picture in a small window of its own in the top right
 // corner: over the menu's panels there, under its dialogs. It takes the
 // mouse, so the rows it hides are never hovered or clicked through it; NoNav

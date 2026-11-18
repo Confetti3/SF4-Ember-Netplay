@@ -5,6 +5,7 @@
 #include <windows.h>
 
 #include "sf4e__GameAdapter.hxx"
+#include "../ui/WatchedPicture.hxx"
 
 namespace ember {
 
@@ -180,6 +181,8 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     if (replayWants.listing) game::Game().replays.WantListing();
     if (replayWants.detail) game::Game().replays.WantDetail(replayWants.detailFile, replayWants.detailRevision);
     view.replays = snapshot.replays;
+    if (const auto size = sf4e::ui::WatchedPictureToTake(snapshot.watchedGame.Active(), snapshot.preferences.pictureMode, ImGui::GetMainViewport()->Size))
+        view.watchedPicture = game.WatchedPicture(size->width, size->height);
     game.FillView(snapshot, view);
     // Outside a fight the shell status line carries the notice; transient
     // info ("Connection restored.") belongs to the match HUD only.

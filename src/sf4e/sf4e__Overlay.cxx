@@ -315,13 +315,6 @@ struct Sf4ShellGame final : ember::ShellGame {
     void FillView(const RuntimeSnapshot& snapshot, sf4e::ui::ShellView& view) override {
         view.canReady = snapshot.atMainMenu && view.canReady && sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
             EditionSelectNow(snapshot), snapshot.fighterAvailability[lobbyConditions.charaID], snapshot.installedContent.get());
-        // Taken before Ember draws anything this frame, so it holds the game's picture alone.
-        if (view.watchedGame.Active() && snapshot.preferences.pictureMode != sf4e::netplay::PictureOff) {
-            const auto& size = ImGui::GetMainViewport()->Size;
-            // The texture is made once, at the largest size the picture can be shown, so any size stays sharp.
-            const float share = sf4e::ui::WatchedPictureTaken;
-            view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * share), static_cast<unsigned>(size.y * share));
-        }
         // Both read their file once; the card's own outcome decides whether to ask.
         static const bool showGameSettingsCard = !sf4e::platform::GameSettingsCardHidden();
         view.gameSettings = sf4e::platform::GameDisplaySettings();
@@ -353,6 +346,10 @@ struct Sf4ShellGame final : ember::ShellGame {
             snapshot.fighterAvailability[trainingDummy.charaID], snapshot.installedContent.get()))
             view.dummyError = sf4e::loc::T("runtime.selection_unavailable");
     }
+
+    // From the render target before Ember draws anything this frame, so it holds the game's picture alone.
+    // The texture is made once, at the size asked: the largest the picture is shown at.
+    ImTextureID WatchedPicture(unsigned width, unsigned height) override { return sf4e::overlay::WatchedPicture(width, height); }
 
     bool StepSelection(const sf4e::ui::SelectionStep& step, const RuntimeSnapshot& snapshot) override {
         const bool ultra = step.field == sf4e::ui::SelectionStep::Field::Ultra;
