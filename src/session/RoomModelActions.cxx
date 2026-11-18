@@ -240,7 +240,8 @@ Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* t
 		if (other.p1 == member || other.p2 == member) return Reject(RejectReason::AlreadySeated);
 		if (std::find(other.queue.begin(), other.queue.end(), member) != other.queue.end()) return Reject(RejectReason::AlreadyQueued);
 	}
-	if (const auto refused = SeatRefusal(member, action); refused != RejectReason::None) return Reject(refused);
+	const auto refused = SeatRefusal(member, action);
+	if (refused != RejectReason::None) return Reject(refused);
 	// A named seat is that seat or nothing: it must be open, with nobody
 	// queued first. A Queue with no seat takes the first open one, or waits.
 	if (asked && !SeatOpenNow(*table, action.seat)) return Reject(RejectReason::InvalidSeat);
