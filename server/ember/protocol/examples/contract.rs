@@ -14,8 +14,11 @@
 //!
 //! A struct's keys come from a sample written as a struct literal with every
 //! field and every optional field set, so adding a field to the protocol
-//! stops this example compiling until the sample names it. A new room state
-//! stops it the same way (the match in state_name names every variant).
+//! stops this example compiling until the sample names it. Each optional field
+//! is set to a value that is written: one left at the value its
+//! `skip_serializing_if` drops would be missing from the printed keys, and the
+//! SDK's test could not notice. A new room state stops it the same way (the
+//! match in state_name names every variant).
 //!
 //! ```text
 //! cargo run -p ember-protocol --example contract
@@ -68,7 +71,7 @@ fn main() {
         capacity: 2,
         tables_playing: 0,
         region: "use1".into(),
-        area: None,
+        area: Some("GB".into()),
         created_at: 1,
         own_delay: true,
         host_name: Some("Host".into()),
@@ -77,7 +80,7 @@ fn main() {
         set_format: Some(0),
         rotation: Some(0),
         room_type: Some(0),
-        wired_only: false,
+        wired_only: true,
     };
     let room = ConnectionRoom {
         room: summary.clone(),

@@ -28,7 +28,7 @@ use crate::{
     error::{ApiFailure, Result},
     events::Viewer,
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
-    routes::{idempotency::ServiceCall, ledger, policy, records},
+    routes::{idempotency::ServiceCall, ledger, policy, reason, records},
 };
 
 fn closed() -> ApiFailure {
@@ -285,14 +285,7 @@ pub async fn close(
     let viewer = Viewer::of_service(&service)?;
     let key = idempotency_key(&headers)?;
     let command: CloseCommand = body.parse()?;
-    if command.reason.trim().is_empty()
-        || command.reason.len() > 512
-        || command.reason.chars().any(char::is_control)
-    {
-        return Err(ApiFailure::invalid(
-            "A reason of 1 to 512 bytes is required.",
-        ));
-    }
+    reason::check(&command.reason)?;
     let expected = expected_revision(
         &headers,
         command.expected_revision.map(|revision| revision.0),

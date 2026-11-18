@@ -58,7 +58,10 @@ pub(crate) fn check_helper(
 }
 
 pub(crate) fn check_build(build_id: &str) -> Result<()> {
-    if build_id.is_empty() || build_id.len() > MAX_BUILD || !build_id.is_ascii() {
+    if build_id.is_empty()
+        || build_id.len() > MAX_BUILD
+        || !build_id.bytes().all(|byte| byte.is_ascii_graphic())
+    {
         return Err(Error::InvalidField("build_id"));
     }
     Ok(())
@@ -561,6 +564,17 @@ mod tests {
 
     fn rules() -> Rules {
         Rules::standard(2, PROFILE)
+    }
+
+    #[test]
+    fn a_build_id_is_printable_ascii_without_spaces() {
+        // The room supervisor refuses anything else, so the bridge must too.
+        assert!(check_build("0123456789abcdef").is_ok());
+        assert!(check_build(&"a".repeat(MAX_BUILD)).is_ok());
+        for bad in ["", "a b", "a\tb", "a\nb", "a\u{7f}", "b\u{e9}"] {
+            assert!(check_build(bad).is_err(), "{bad:?}");
+        }
+        assert!(check_build(&"a".repeat(MAX_BUILD + 1)).is_err());
     }
 
     fn permit(p1: &EmberId, p2: &EmberId) -> Permit {

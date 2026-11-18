@@ -114,6 +114,7 @@ __declspec(dllexport) BOOL WINAPI DllMain(
 		DetourTransactionBegin();
 		sf4e::Install(hinstDLL, payload);
 		SecureZeroMemory(payload->helper.nonce, sizeof(payload->helper.nonce));
+		SecureZeroMemory(payload->discord.nonce, sizeof(payload->discord.nonce));
 		payload = NULL;
 		error = DetourTransactionCommit();
 		if (error != NO_ERROR) {

@@ -204,6 +204,9 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   const adjudicate = (body: object, who = organizer) => who("POST", "/tournaments/weekly/sets/r1-1/adjudications", body);
   assert.equal((await adjudicate({ kind: "void_game", attempt_id: "ega_1", expected_revision: "7", reason: "lag" }, as("player-2"))).status, 403);
   assert.equal((await adjudicate({ kind: "void_game", expected_revision: "7", reason: "lag" })).status, 400);
+  const bytes = (reason: string) => adjudicate({ kind: "void_game", attempt_id: "ega_1", expected_revision: "6", reason });
+  assert.equal((await bytes("あ".repeat(171))).status, 400, "513 bytes is over the bridge's limit");
+  assert.notEqual((await bytes("あ".repeat(170))).status, 400, "510 bytes goes on to the bridge");
   assert.equal((await adjudicate({ kind: "void_game", attempt_id: "ega_1", expected_revision: "6", reason: "lag" })).status, 409, "the bridge's refusal");
   assert.equal((await adjudicate({ kind: "void_game", attempt_id: "ega_1", expected_revision: "7", reason: "lag" })).status, 200);
   assert.equal((await adjudicate({ kind: "game_result", draw: true, expected_revision: "8", reason: "double KO" })).status, 200);

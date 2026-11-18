@@ -29,6 +29,20 @@ export class Store {
     return (this.db.prepare("SELECT doc FROM tournaments ORDER BY id").all() as { doc: string }[]).map((row) => JSON.parse(row.doc) as Tournament);
   }
 
+  /** Runs `work` as one write: all of its changes land, or none do if it throws. Joins a write already open. */
+  transaction<T>(work: () => T): T {
+    if (this.db.isTransaction) return work();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const done = work();
+      this.db.exec("COMMIT");
+      return done;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   /** Adds a new tournament; false when the ID is taken. */
   add(tournament: Tournament): boolean {
     return this.db.prepare("INSERT OR IGNORE INTO tournaments (id, doc) VALUES (?, ?)").run(tournament.id, JSON.stringify(tournament)).changes === 1;
