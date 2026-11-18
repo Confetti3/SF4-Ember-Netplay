@@ -257,6 +257,17 @@ void RowsFollowTheGame() {
  Check(!steamChoice(), "A game without Steam profiles offered a member's Steam profile");
  offer(h, true);
  Check(steamChoice(), "With Steam profiles, a member's Steam profile was not offered");
+ // A room's More… opens the controllers only for a game with a button layout
+ // to show; SFV's buttons are the game's own Options.
+ const auto controllersChoice = [&] {
+  h.Screen("room"); h.Frame(0, 2);
+  const auto* more = drawn.Row("room-more");
+  return more && std::any_of(more->choices.begin(), more->choices.end(), [](const MenuChoice& c) { return c.id == "room-controls"; });
+ };
+ offer(h, false);
+ Check(!controllersChoice(), "A game without a pad layer offered the controllers in a room's More");
+ offer(h, true);
+ Check(controllersChoice(), "With a pad layer, a room's More did not offer the controllers");
 }
 // Look's Background artwork row is the game's (ShellView::offersMenuArtwork):
 // SF4's Look keeps TV mode alone, and a game that draws its own artwork gets

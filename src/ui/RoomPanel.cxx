@@ -494,8 +494,8 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
     // browser or Discord; it is wanted now and then, not between games.
     if(const auto link=s.serverOwned?publicRooms_.RoomLink():std::string();!link.empty())
      more.choices.push_back({"copy-room-link",loc::T("public.copy_link"),loc::Tf("public.copy_link_detail",link)});
-    // The controller and its buttons, one press from the board.
-    more.choices.push_back({"room-controls",loc::T("player.controllers"),loc::T("room.controls_detail")});
+    // The controller and its buttons, one press from the board; a game that leaves its buttons to its own options (SFV) has no layout here to open.
+    if(v.settingsFeatures.padLayer)more.choices.push_back({"room-controls",loc::T("player.controllers"),loc::T("room.controls_detail")});
     more.choices.push_back({"room-admin",loc::T("room.settings"),loc::T(c.host?"room.settings.detail":"room.settings.host_only"),c.host});
     // The friends list, one press from the room: to invite friends here or join theirs (Back returns to the room).
     more.choices.push_back({"room-friends",loc::T("home.friends"),loc::T("room.v2.friends_detail")});
