@@ -3,7 +3,7 @@
 
 static void TestCustomRoomDepartures() {
 	auto* transport = new MockTransport();
-	SessionServer server("custom-room", "build", true, 3, {0, 99},
+	SessionServer server("custom-room", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> room = {};
 	room[0] = 1;
@@ -164,7 +164,7 @@ static void TestCustomRoomDepartures() {
 	// fighters can continue without regenerating private capabilities.
 	const auto portableCheckpoint = server.RecoveryCheckpoint();
 	auto* portableTransport = new MockTransport();
-	SessionServer portable("custom-room", "build", true, 3, {0, 99},
+	SessionServer portable("custom-room", "build",
 		std::unique_ptr<session::ServerTransport>(portableTransport));
 	portable.EnableMatchAuthorization(room, [](session::Connection connection) {
 		std::string identity(64, '0'); identity[63] = "0123456789abcdef"[connection & 15]; return identity;
@@ -225,7 +225,7 @@ static void TestCustomRoomDepartures() {
 	// only the UI roster. Restoring it must not send grants or touch a socket.
 	const auto checkpoint = json::parse(server.Checkpoint().dump());
 	auto* recoveryTransport = new MockTransport();
-	SessionServer recovery("custom-room", "build", true, 3, {0, 99},
+	SessionServer recovery("custom-room", "build",
 		std::unique_ptr<session::ServerTransport>(recoveryTransport));
 	recovery.EnableMatchAuthorization(room, [](session::Connection connection) {
 		std::string identity(64, '0'); identity[63] = "0123456789abcdef"[connection & 15]; return identity;
@@ -328,7 +328,7 @@ static void TestCustomRoomDepartures() {
 // the account rather than the connection.
 static void TestServerOwnedRoom() {
 	auto* transport = new MockTransport();
-	SessionServer server("public-room", "build", true, 3, {0, 99},
+	SessionServer server("public-room", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	CHECK(server.EnableServerOwnedRooms("Public", 8, 95));
 	CHECK(!server.EnableServerOwnedRooms("Again"));
@@ -546,7 +546,7 @@ static void TestRejoinAfterPreStartDeparture() {
 // acted at, or their game starts with the default fighter.
 static void TestArcadeFighterFollowsSeat() {
 	auto* transport = new MockTransport();
-	SessionServer server("arcade-room", "build", true, 3, {0, 99},
+	SessionServer server("arcade-room", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> room = {};
 	room[0] = 1;
@@ -633,7 +633,7 @@ static void TestArcadeFighterFollowsSeat() {
 // (here cleared to the default, as a new pairing's data is).
 static void TestArcadeKeeperReady() {
 	auto* transport = new MockTransport();
-	SessionServer server("arcade-keeper", "build", true, 3, {0, 99},
+	SessionServer server("arcade-keeper", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> room = {};
 	room[0] = 1;

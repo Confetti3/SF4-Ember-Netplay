@@ -132,7 +132,7 @@ static void TestOptionalSpectatorBarrier() {
 // or the fighters' AcceptGrant rejects the rematch as invalid_match_roster.
 static void TestRetiringSpectatorProjection() {
 	auto* transport = new MockTransport();
-	SessionServer server("retiring-spectator", "build", true, 3, {0, 99},
+	SessionServer server("retiring-spectator", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> authorizationRoom = {};
 	authorizationRoom[0] = 75;
@@ -223,7 +223,7 @@ struct BarrierRoom {
 	std::uint64_t nextAction = 0;
 
 	BarrierRoom(const char* name, std::uint8_t seed, int members)
-		: server(name, "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)) {
+		: server(name, "build", std::unique_ptr<session::ServerTransport>(transport)) {
 		std::array<std::uint8_t, 16> authorizationRoom = {};
 		authorizationRoom[0] = seed;
 		server.EnableMatchAuthorization(authorizationRoom, [](session::Connection connection) {

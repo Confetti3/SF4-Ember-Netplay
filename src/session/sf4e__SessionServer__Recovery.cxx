@@ -155,7 +155,6 @@ void SessionServer::CancelPrecommittedGenerations() {
 		// uncommitted candidates have no pending record and can be discarded.
 		if (authority && !IsInterruptedPreparation(table, authority->Generation())) authority->CancelPreparation();
 	}
-	if (_matchAuthority) _matchAuthority->CancelPreparation();
 }
 
 void SessionServer::JournalEffect(session::Connection client, const json& payload, bool retainPublicReplay) {
@@ -489,7 +488,6 @@ bool SessionServer::RebindMembers(const std::vector<StableRebind>& bindings) {
 	// rolled back without regenerating private capabilities or changing phase.
 	std::vector<json> oldPortable;
 	for (const auto& authority : _roomMatchAuthorities) oldPortable.push_back(authority ? authority->PortableCheckpoint() : json(nullptr));
-	const json oldLegacy = _matchAuthority ? _matchAuthority->PortableCheckpoint() : json(nullptr);
 	const auto oldHandleFor = [&](const SessionProtocol::ConnectionID& endpoint) -> session::Connection {
 		for (const auto& pair : cidMap) if (pair.second == endpoint) return pair.first;
 		for (const auto& member : snapshot.members) if (member.connection.host == endpoint.host && member.connection.user == endpoint.user) return static_cast<session::Connection>(member.id);
@@ -502,16 +500,11 @@ bool SessionServer::RebindMembers(const std::vector<StableRebind>& bindings) {
 		for (std::size_t i = 0; i < _roomMatchAuthorities.size(); ++i) {
 			if (_roomMatchAuthorities[i] && i < oldPortable.size()) _roomMatchAuthorities[i]->RestorePortableCheckpoint(oldPortable[i], oldResolver);
 		}
-		if (_matchAuthority && !oldLegacy.is_null()) _matchAuthority->RestorePortableCheckpoint(oldLegacy, oldResolver);
 	};
 	for (auto& authoritySlot : _roomMatchAuthorities) {
 		auto* authority = authoritySlot.get();
 		if (!authority || authority->GetPhase() == session::MatchAuthority::Phase::Idle) continue;
 		if (!authority->RebindConnections(fullMapping)) { rollbackAuthorities(); return false; }
-	}
-	if (_matchAuthority && _matchAuthority->GetPhase() != session::MatchAuthority::Phase::Idle &&
-		!_matchAuthority->RebindConnections(fullMapping)) {
-		rollbackAuthorities(); return false;
 	}
 
 	std::map<room::MemberId, SessionMember> oldRows;

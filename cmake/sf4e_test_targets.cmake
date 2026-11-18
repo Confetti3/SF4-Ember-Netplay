@@ -298,7 +298,7 @@ add_test(NAME PresentationSnapshot COMMAND PresentationSnapshotTest)
 set_tests_properties(PresentationSnapshot PROPERTIES TIMEOUT 30 PROCESSORS 2 PASS_REGULAR_EXPRESSION "Presentation snapshot passed")
 sf4e_test_locks(PresentationSnapshot ember_runtime)
 
-sf4e_add_unit_test(NAME SessionServerTransportLobby SOURCES "src/tests/session_server_transport_lobby_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
+sf4e_add_unit_test(NAME SessionServerTransportSelection SOURCES "src/tests/session_server_transport_selection_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportBarriers SOURCES "src/tests/session_server_transport_barriers_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportTerminal SOURCES "src/tests/session_server_transport_terminal_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportCommit SOURCES "src/tests/session_server_transport_commit_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)

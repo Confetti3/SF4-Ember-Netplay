@@ -296,9 +296,6 @@ namespace sf4e {
 			int32_t loserSide;
 		};
 
-		struct LobbyReset {
-			MessageType type = MT_LOBBY_RESET;
-		};
 
 		// Sent by the host (member 0) after joining its lobby, so that the
 		// lobby's battle settings reflect the host's launcher configuration
@@ -501,7 +498,7 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyAllReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReportResults, type, loserSide);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReset, type);
+
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbySetSettings, type, editionSelect, roundCount, roundTime);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetChara, type, chara);

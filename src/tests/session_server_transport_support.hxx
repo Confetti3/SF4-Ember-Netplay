@@ -42,11 +42,12 @@ inline void CheckIdleRecoveryWork(SessionServer& server, const char* phase) {
 // Two fighters and a spectator at table 0 of a room whose replicas import
 // every recovery checkpoint. Connections 16 apart share an authenticated
 // endpoint, as one player rejoining does; each has its own incarnation.
-enum class SetupStage { Preparing, P1Prepared, FightersPrepared, AllPrepared, Started };
+// Seated stops before either fighter is Ready.
+enum class SetupStage { Seated, Preparing, P1Prepared, FightersPrepared, AllPrepared, Started };
 
 struct ParticipantRoom {
 	MockTransport* transport = new MockTransport();
-	SessionServer server{"custom-room", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)};
+	SessionServer server{"custom-room", "build", std::unique_ptr<session::ServerTransport>(transport)};
 	std::array<std::uint8_t, 16> room{{1}};
 	std::uint64_t actionId = 0, generation = 0;
 	static std::string IdentityOf(session::Connection connection) {
@@ -60,6 +61,7 @@ struct ParticipantRoom {
 		CHECK(server.Listen(0) == 0);
 		for (session::Connection connection = 1; connection <= 4; ++connection) Join(connection);
 		Act(2, room::ActionKind::Queue); Act(3, room::ActionKind::Queue); Act(4, room::ActionKind::Watch);
+		if (stage == SetupStage::Seated) return;
 		Act(2, room::ActionKind::Ready); Act(3, room::ActionKind::Ready);
 		generation = server.RoomSnapshot()->tables[0].matchGeneration;
 		if (stage >= SetupStage::P1Prepared) Acknowledge(2, "game_prepared", {{"spectators_optional", true}});
@@ -110,7 +112,7 @@ struct ParticipantRoom {
 		return replica.RebindMembers(bindings);
 	}
 	std::unique_ptr<SessionServer> Replica() const {
-		auto replica = std::make_unique<SessionServer>("custom-room", "build", true, 3, Dimps::Math::FixedPoint{0, 99},
+		auto replica = std::make_unique<SessionServer>("custom-room", "build",
 			std::unique_ptr<session::ServerTransport>(new MockTransport()));
 		replica->EnableMatchAuthorization(room, IdentityOf, IncarnationOf);
 		return replica;

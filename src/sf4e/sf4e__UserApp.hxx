@@ -51,7 +51,7 @@ namespace sf4e {
         enum class MatchEntry { Deferred, Entered, Rejected };
         static MatchEntry EnterAuthorizedMatch();
         static void ShutdownNetplay(bool closeGgpo = true);
-        static void ResetLobbyForRematch();
+
         static void TryStartPendingMatch();
         static void _OnVsPreBattleTasksRegistered();
         static void _OnVsBattleTasksRegistered();

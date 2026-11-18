@@ -41,7 +41,7 @@ static std::size_t FastZlibSize(const std::string& text) {
 // watchers join as connections 3 and up. Every change is committed.
 struct WatchRoom {
 	MockTransport* transport = new MockTransport();
-	SessionServer server{"tournament", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)};
+	SessionServer server{"tournament", "build", std::unique_ptr<session::ServerTransport>(transport)};
 	const std::uint64_t term = 3;
 	std::uint64_t request = 1, revision = 0, actionId = 0;
 	std::shared_ptr<const session::SessionProposal> committed;

@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
 		else { std::fprintf(stderr, "usage: RoomHostBench [--iterations N] [--legacy-clients]\n"); return 2; }
 	}
 	auto* transport = new BenchTransport();
-	SessionServer server("room-host-bench", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport));
+	SessionServer server("room-host-bench", "build", std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> roomId = {}; roomId[0] = 42;
 	const auto identity = [](session::Connection connection) {
 		std::string value(64, '0'); value[62] = "0123456789abcdef"[connection >> 4 & 15]; value[63] = "0123456789abcdef"[connection & 15]; return value;
@@ -181,7 +181,7 @@ int main(int argc, char** argv) {
 		auto decoded = session::CheckpointDecodeWorker::Decode(1, encoded);
 		importDecode.Add(diag::NowMs() - t0);
 		CHECK(decoded.ok);
-		SessionServer replica("room-host-bench", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(new BenchTransport()));
+		SessionServer replica("room-host-bench", "build", std::unique_ptr<session::ServerTransport>(new BenchTransport()));
 		replica.EnableMatchAuthorization(roomId, identity);
 		t0 = diag::NowMs();
 		CHECK(replica.RestoreRecoveryCheckpoint(decoded.proposal.checkpoint, decoded.journal,

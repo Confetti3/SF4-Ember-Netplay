@@ -39,7 +39,6 @@ namespace sf4e {
 		std::string _sidecarHash;
 		std::unique_ptr<session::ServerTransport> _transport;
 		bool _transportFailed = false;
-		std::unique_ptr<session::MatchAuthority> _matchAuthority;
 		std::array<std::unique_ptr<session::MatchAuthority>, room::TableCount> _roomMatchAuthorities{};
 		std::array<std::uint8_t, 16> _matchAuthorizationRoom{};
 		session::MatchAuthority::Identity _matchAuthorizationIdentity;
@@ -66,7 +65,6 @@ namespace sf4e {
 		// participant that arrives after the fighters is released at once.
 		void ArriveAtRoomBarrier(session::Connection connection, bool loadBarrier, const nlohmann::json& release);
 
-		void BroadcastMessage(const nlohmann::json& msg);
 		// One handler per message type, called from Step().
 		void HandleSessionHello(session::Connection conn, const nlohmann::json& msg, const session::Message& incoming);
 		void HandleRoomAction(session::Connection conn, const nlohmann::json& msg, std::vector<room::Event>& deferredRoomEvents);
@@ -76,12 +74,6 @@ namespace sf4e {
 		void HandleSetChara(session::Connection conn, const nlohmann::json& msg);
 		void HandleSetEnv(session::Connection conn, const nlohmann::json& msg);
 		void HandleSetStage(session::Connection conn, const nlohmann::json& msg);
-		void HandleLobbySetSettings(session::Connection conn, const nlohmann::json& msg);
-		void HandleBattleLoaded(session::Connection conn, bool& bSendBattleSynced);
-		void HandleLobbyReady(session::Connection conn, const nlohmann::json& msg, const session::Message& incoming, bool& bSendLobbyAllReady);
-		void HandleLobbyReportResults(session::Connection conn, const nlohmann::json& msg);
-		void HandleLobbyReset(session::Connection conn, const nlohmann::json& msg);
-		void HandlePunchReady(session::Connection conn);
 		void Respond(session::Connection client, const nlohmann::json& msg, bool retainPublicReplay = true);
 
 		// Direct lobby data manipulation utilities
@@ -90,25 +82,21 @@ namespace sf4e {
 			SessionProtocol::ConnectionID& cid,
 			const SessionProtocol::AdmissionRequest& request
 		);
-		void HandleResults(int loserSide);
 
 	public:
 		SessionServer(std::string identity, std::string sidecarHash,
-			bool editionSelect, int roundCount, Dimps::Math::FixedPoint roundTime,
 			std::unique_ptr<session::ServerTransport> transport);
 		~SessionServer();
 
 		int Listen(uint16_t nPort);
+		// Serves the room's members. Until a room is enabled or restored
+		// (EnableCustomRooms, EnableServerOwnedRooms, RestoreCheckpoint) there
+		// is nothing to serve and the transport is not polled.
 		int Step();
 		int Close();
-		void PrepareForCallbacks();
-		void ResetBattleSync();
-		void ResetLobbyForRematch();
 		void EnableMatchAuthorization(std::array<std::uint8_t, 16> room, session::MatchAuthority::Identity identity,
 			std::function<std::uint64_t(session::Connection)> incarnation = {});
-		// Enables the multi-table room authority while retaining the legacy
-		// two-player path until this method is called by the room bootstrap.
-		// The room is created as `charter` says (room::Charter).
+		// Creates the room this server serves, as `charter` says (room::Charter).
 		void EnableCustomRooms(const std::string& name = "Private room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
 			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), room::Charter charter = room::Charter());
@@ -333,11 +321,8 @@ namespace sf4e {
 		void PruneFrozenMembers();
 		std::vector<SessionMember> clients;
 
-		// Lobby data: Public for visibility into tests only.
-		bool _dataDirty;
-		SessionProtocol::LobbyData _lobbyData;
-		SessionProtocol::MatchData _matchData;
-		bool _punchReady[2] = { false, false };
+		// The room changed in a way every member's snapshot must show.
+		bool _dataDirty = false;
 		std::unique_ptr<room::RoomAuthority> _roomAuthority;
 		// The last departure from a server-owned room was a Leave that emptied it.
 		bool _serverOwnedLeftEmpty = false;

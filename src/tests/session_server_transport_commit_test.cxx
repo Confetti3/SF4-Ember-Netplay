@@ -42,7 +42,7 @@ static void TestAtomicMatchRebind() {
 // stale; an older client always gets the full chat.
 static void TestRoomChatDelta() {
 	auto* transport = new MockTransport();
-	SessionServer server("chat-delta", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport));
+	SessionServer server("chat-delta", "build", std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> room = {};
 	room[0] = 31;
 	server.EnableMatchAuthorization(room, [](session::Connection connection) {
@@ -106,7 +106,7 @@ static void TestRoomChatDelta() {
 
 static void TestSameTermProposalPause() {
 	auto* transport = new MockTransport();
-	SessionServer server("same-term-pause", "build", true, 3, {0, 99},
+	SessionServer server("same-term-pause", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> room = {};
 	room[0] = 29;
@@ -203,7 +203,7 @@ static void TestSameTermProposalPause() {
 
 static void TestCommittedSessionGate() {
 	auto* transport = new MockTransport();
-	SessionServer server("gated-room", "build", true, 3, {0, 99},
+	SessionServer server("gated-room", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> room = {};
 	room[0] = 17;

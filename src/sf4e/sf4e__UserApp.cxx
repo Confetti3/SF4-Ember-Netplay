@@ -355,25 +355,6 @@ void fUserApp::ShutdownNetplay(bool closeGgpo) {
     sf4e::NetplayFacade::ShutdownNetplay(closeGgpo);
 }
 
-void fUserApp::ResetLobbyForRematch() {
-    if (sf4e::NetplayFacade::IsControlPlaneLost()) {
-        // Degraded mode: the room is gone; no rematch coordination and no
-        // stale messages toward a dead connection.
-        spdlog::info("Netplay: skipping rematch reset: control plane lost");
-        return;
-    }
-    // A room clears both fighters' Ready itself when it ends the match, and a
-    // spectator has no seat to unready; an Unready from here only races that.
-    if (netplay && netplay->client.IsCustomRoom()) {
-        return;
-    }
-    if (server) {
-        server->ResetLobbyForRematch();
-    }
-    else if (netplay) {
-        netplay->client.Lobby_ResetRematch();
-    }
-}
 
 void fUserApp::TryStartPendingMatch() {
     if (!s_pendingMatchStart || !netplay) {
@@ -413,9 +394,6 @@ void fUserApp::Steam_PostUpdate() {
 
     if (netplay) {
         netplay->client.PrepareForCallbacks();
-    }
-    if (server) {
-        server->PrepareForCallbacks();
     }
 
 

@@ -406,13 +406,6 @@ session::SendResult SessionClient::Lobby_ReportResults(int loserSide)
 	return SendLogged(msg, "report results");
 }
 
-session::SendResult SessionClient::Lobby_ResetRematch()
-{
-	SessionProtocol::LobbyReset msg;
-	json j = msg;
-	if (_matchAuthorizationRequired) j["generation"] = _gameplayGeneration;
-	return SendLogged(j, "reset lobby for rematch");
-}
 
 session::SendResult SessionClient::Lobby_SetSettings(
 	bool editionSelect,

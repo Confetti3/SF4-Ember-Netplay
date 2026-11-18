@@ -2,7 +2,7 @@
 
 static void TestMaximumRoomResultBurst() {
 	auto* transport = new MockTransport();
-	SessionServer server("maximum-result-burst", "build", true, 3, {0, 99},
+	SessionServer server("maximum-result-burst", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> authorizationRoom = {};
 	authorizationRoom[0] = 61;
@@ -122,7 +122,7 @@ static void TestMaximumRoomResultBurst() {
 // game_end the fighter may still be waiting for.
 static void TestTerminalReceiptReplay() {
 	auto* transport = new MockTransport();
-	SessionServer server("terminal-replay", "build", true, 3, {0, 99},
+	SessionServer server("terminal-replay", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> authorizationRoom = {};
 	authorizationRoom[0] = 74;
@@ -248,7 +248,7 @@ static void TestTerminalReceiptReplay() {
 
 static void TestTerminalAcknowledgmentBatch() {
 	auto* transport = new MockTransport();
-	SessionServer server("terminal-ack-batch", "build", true, 3, {0, 99},
+	SessionServer server("terminal-ack-batch", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> authorizationRoom = {};
 	authorizationRoom[0] = 73;
@@ -483,7 +483,7 @@ static void TestTerminalAcknowledgmentBatch() {
 	imported["effect_journal"] = history;
 	imported["authority"] = {{"term", term}, {"revision", acknowledgmentProposal->baseRevision + 1}, {"writable", false}};
 	auto* replicaTransport = new MockTransport();
-	SessionServer replica("terminal-ack-batch", "build", true, 3, {0, 99},
+	SessionServer replica("terminal-ack-batch", "build",
 		std::unique_ptr<session::ServerTransport>(replicaTransport));
 	replica.EnableMatchAuthorization(authorizationRoom, [](session::Connection connection) {
 		std::string identity(64, '0');
@@ -495,7 +495,7 @@ static void TestTerminalAcknowledgmentBatch() {
 		// The recovery bridge imports the leader's untouched checkpoint with the
 		// compacted journal and authority passed beside it. That must produce
 		// the same replica as splicing both into a JSON copy first.
-		SessionServer direct("terminal-ack-batch", "build", true, 3, {0, 99},
+		SessionServer direct("terminal-ack-batch", "build",
 			std::unique_ptr<session::ServerTransport>(new MockTransport()));
 		direct.EnableMatchAuthorization(authorizationRoom, [](session::Connection) { return std::string(64, '0'); });
 		CHECK(direct.RestoreRecoveryCheckpoint(acknowledgmentProposal->checkpoint, history,

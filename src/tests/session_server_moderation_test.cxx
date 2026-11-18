@@ -16,7 +16,7 @@ using nlohmann::json;
 
 static void TestUncommittedKicksStayOutOfTheModerationView() {
 	auto* transport = new MockTransport();
-	SessionServer server("moderation", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport));
+	SessionServer server("moderation", "build", std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> roomId = {};
 	roomId[0] = 53;
 	server.EnableMatchAuthorization(roomId, [](session::Connection connection) {
@@ -90,7 +90,7 @@ static void TestUncommittedKicksStayOutOfTheModerationView() {
 static void TestOnlyACleanLastLeaveEndsTheRoom() {
 	struct Room {
 		MockTransport* transport = new MockTransport();
-		SessionServer server{"leave", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)};
+		SessionServer server{"leave", "build", std::unique_ptr<session::ServerTransport>(transport)};
 		std::uint64_t request = 1, revision = 0, actionId = 0;
 		const std::uint64_t term = 5;
 		explicit Room(bool serverOwned) {
@@ -370,7 +370,7 @@ static void TestDetailsOfSnapshot() {
 // own into the join request gets nothing for them.
 static void TestAdmissionCarriesTheClassAndCard() {
 	auto* transport = new MockTransport();
-	SessionServer server("classes", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport));
+	SessionServer server("classes", "build", std::unique_ptr<session::ServerTransport>(transport));
 	CHECK(server.EnableServerOwnedRooms("Classes", 8, 61));
 	std::uint64_t request = 1, revision = 0;
 	constexpr std::uint64_t term = 5;
@@ -437,7 +437,7 @@ static void TestAdmissionCarriesTheClassAndCard() {
 // The room host opens a public room with the public rules, and the list's
 // card reads them from table 0.
 static void TestPublicRoomListsFirstToTwo() {
-	SessionServer server("public", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(new MockTransport()));
+	SessionServer server("public", "build", std::unique_ptr<session::ServerTransport>(new MockTransport()));
 	CHECK(server.EnableServerOwnedRooms("Public", 8, 71, room::PublicRoomRules()));
 	const auto details = roomhost::DetailsOf(*server.RoomSnapshot());
 	CHECK(details.setFormat == 2 && details.rotation == 0);

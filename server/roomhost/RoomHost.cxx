@@ -157,7 +157,7 @@ void RoomHost::Attach() {
 	if (!transport) return;
 	std::unique_ptr<session::ServerTransport> accounts(new AccountTransport(std::move(transport), room_, server_));
 	// The build id is the sidecar hash a joining client must present.
-	server_.reset(new SessionServer("iroh:" + HexLower(config_.roomId), config_.buildId, true, 3, {0, 99}, std::move(accounts)));
+	server_.reset(new SessionServer("iroh:" + HexLower(config_.roomId), config_.buildId, std::move(accounts)));
 	const auto room = room_;
 	server_->EnableMatchAuthorization(config_.roomId,
 		[room](session::Connection connection) { return connection == 1 ? std::string() : room->PeerIdentity(connection); },

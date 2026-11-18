@@ -15,7 +15,7 @@ namespace {
 // A custom room with two admitted members on connections 1 and 2.
 struct Room {
 	MockTransport* transport = new MockTransport();
-	SessionServer server{"practice", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)};
+	SessionServer server{"practice", "build", std::unique_ptr<session::ServerTransport>(transport)};
 	explicit Room(bool practice) {
 		room::Rules rules;
 		rules.roundTime = 60;

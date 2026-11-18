@@ -310,8 +310,8 @@ void SessionServer::ProjectRoomTable(session::Connection connection, std::uint8_
 	const auto& table = snapshot.tables[tableId];
 	SessionProtocol::SessionDataUpdate update;
 	update.matchGeneration = table.matchGeneration;
-	update.lobbyData = _lobbyData;
-	update.lobbyData.members.clear();
+	// One native lobby per room; the table's pair and rules fill it in.
+	update.lobbyData.id = {_identity, "1"};
 	update.lobbyData.editionSelect = table.rules.editionSelect;
 	update.lobbyData.roundCount = table.rules.roundCount;
 	update.lobbyData.roundTime.integral = room::MatchRoundTime(snapshot, table);

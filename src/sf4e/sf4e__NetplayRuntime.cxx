@@ -176,14 +176,11 @@ bool CanBeginReplacement() {
 namespace {
 bool Joined() {
 	if (!runtime->attached || !UserApp::netplay) return false;
-	const auto& client = UserApp::netplay->client;
-	if (client.GetRoomSnapshot().roomEpoch) {
-		const auto& room = client.GetRoomSnapshot();
-		return !room.closed && room.localMember && std::any_of(room.members.begin(), room.members.end(),
-			[&](const room::Member& member) { return member.id == room.localMember; });
-	}
-	return std::any_of(client._lobbyData.members.begin(), client._lobbyData.members.end(),
-		[&](const SessionProtocol::MemberData& member) { return member.connId == client._cid; });
+	// The room snapshot arrives before any table projection, so until it does
+	// this PC is not in the room.
+	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	return room.roomEpoch && !room.closed && room.localMember && std::any_of(room.members.begin(), room.members.end(),
+		[&](const room::Member& member) { return member.id == room.localMember; });
 }
 
 void AttachRoom() {
@@ -193,9 +190,7 @@ void AttachRoom() {
     const auto deviceIndex = static_cast<uint8_t>(device.index), deviceType = static_cast<uint8_t>(device.type);
 	const auto id = runtime->room->RoomId();
 	const std::string identity = "iroh:" + HexLower(id);
-	UserApp::server.reset(new SessionServer(identity, sf4e::sidecarHash,
-		runtime->preferences.lobby.editionSelect, runtime->preferences.lobby.roundCount,
-		{0, static_cast<short>(runtime->preferences.lobby.roundTime)}, runtime->room->Server()));
+	UserApp::server.reset(new SessionServer(identity, sf4e::sidecarHash, runtime->room->Server()));
 	const auto room = runtime->room;
 	UserApp::server->EnableMatchAuthorization(id, [room](session::Connection connection) {
 		return connection == 1 ? room->LocalIdentity() : room->PeerIdentity(connection);
