@@ -139,7 +139,7 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
   if(!m){
    const bool between=ownCabinet>=0?mine.table<0||!room::GameUnderWay(s.tables[mine.table]):mine.kind==Place::Kind::None;
    row.hint=loc::T("room.arcade_sit");row.enabled=between&&mutableRoom;
-   if(WiredFenced(v,room::ActionKind::Queue)){row.enabled=false;row.detail=WiredOnlyReason();}
+   if(auto fence=SeatFence(v,room::ActionKind::Queue,c%room::TableCount);!fence.empty()){row.enabled=false;row.detail=std::move(fence);}
    continue;
   }
   // What a table card's banner says about this seat leads, as on the cabinet's screen.
@@ -274,8 +274,8 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
         });
         return false;
     }
-    if (WiredFenced(view, action.kind)) {
-        Refuse(WiredOnlyReason(), [kind = action.kind](const ShellView& now) { return WiredFenced(now, kind); });
+    if (auto fence = SeatFence(view, action.kind, action.table); !fence.empty()) {
+        Refuse(std::move(fence), [kind = action.kind, index = action.table](const ShellView& now) { return !SeatFence(now, kind, index).empty(); });
         return false;
     }
     const bool localSeated = mine.kind == room::Place::Kind::Seat && mine.table == static_cast<int>(action.table);
@@ -301,6 +301,10 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
 		if (!action.matchGeneration && generationScoped)
 			action.matchGeneration = table.matchGeneration;
     }
+    // A seat carries this PC's measured ping to the room's members, the last
+    // one measured while it measures nothing; the room weighs the ones it
+    // could pair them with against its Max ping.
+    if (action.kind == room::ActionKind::Queue) action.pings = session::MeasuredPings(view.memberLatency, view.knownPings, view.room);
     action.actionId = nextActionId_++;
     // Sent, it is the member's watching intent, before the room answers.
     const auto sent = action;
@@ -647,9 +651,10 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
     // Enablement asks the same fence SendRoom dispatches through, so the row
     // and the dispatch guard cannot drift apart.
     const auto tableRow=[&](room::ActionKind kind,const char* id,const char* label){
-     const bool fenced=TerminalFenced(v,kind,selectedTable_),wired=WiredFenced(v,kind);
-     rows.push_back(Row(id,loc::T(label),(fenced?TerminalPendingReason():wired?WiredOnlyReason():reason)+WatchingNote(v,kind),
-      mutableRoom&&!elsewhere&&!fenced&&!wired));
+     const bool fenced=TerminalFenced(v,kind,selectedTable_);
+     const auto seatFence=SeatFence(v,kind,static_cast<std::size_t>(selectedTable_));
+     rows.push_back(Row(id,loc::T(label),(fenced?std::string(TerminalPendingReason()):!seatFence.empty()?seatFence:reason)+WatchingNote(v,kind),
+      mutableRoom&&!elsewhere&&!fenced&&seatFence.empty()));
     };
     if(!boundTable)tableRow(queued?room::ActionKind::Unqueue:room::ActionKind::Queue,queued?"unqueue":"queue",
      queued?"room.leave_queue":room::RulesOf(s).cabinets?"room.arcade_sit":"room.join_queue");
@@ -746,6 +751,7 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
    loc::Tf("room.tables.detail",static_cast<int>(TableCount)),host));
   rows.push_back(Value("lock",loc::T("room.admission"),loc::T(s.locked?"room.locked":"room.open"),loc::T("room.admission.detail"),host));
   rows.push_back(WiredOnlyRow("room-wired-only",s.wiredOnly,std::string(loc::T("room.wired_only.detail"))+"\n"+loc::T("room.wired_only.settings_detail"),host));
+  rows.push_back(MaxPingRow("room-max-ping",s.maxPingMs,std::string(loc::T("room.max_ping.detail"))+"\n"+loc::T("room.max_ping.settings_detail"),host));
   // Only a private room the host opened itself can be hidden: a public room is listed by its service and a tournament's is bound to its match.
   if(!s.serverOwned&&!s.tournament.Active())rows.push_back(PrivacyRow("room-privacy",s.friendsHidden,loc::T("room.privacy.settings_detail"),host));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));

@@ -20,11 +20,13 @@ const char* LeaveBlockerKey(room::SeatHold hold);
 // outstanding, so neither is fenced here.
 bool TerminalFenced(const ShellView& v, room::ActionKind kind, std::size_t table);
 const char* TerminalPendingReason();
-// The room's Wired players only rule keeps this PC on Wi-Fi from sitting
-// down: a seat, the queue or a cabinet (room::LinkMaySit). One already
-// seated is not fenced, so moving between Arcade cabinets still works.
-bool WiredFenced(const ShellView& v, room::ActionKind kind);
-const char* WiredOnlyReason();
+// Why the room's seat rules keep this member from the seat, queue place or
+// cabinet a Queue at `table` asks for, or empty when they do not: Wired
+// players only on Wi-Fi (room::LinkMaySit), a measured ping over Max ping to
+// someone it could pair them with (room::PingOverLimit, the same verdict the
+// room gives), or that ping still being measured. One already seated is not
+// fenced, and moving between Arcade cabinets is compared with nobody.
+std::string SeatFence(const ShellView& v, room::ActionKind kind, std::size_t table);
 // One description of Leave room for both screens, stating what it costs.
 std::string LeaveRoomDetail(const ShellView& v);
 // What a table card offers a member with no place. An offer carries its

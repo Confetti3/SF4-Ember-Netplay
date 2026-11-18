@@ -4206,6 +4206,27 @@ msgstr "Spieler im WLAN können beitreten, zuschauen und chatten, aber keinen Pl
 msgid "room.wired_only.settings_detail"
 msgstr "Gilt ab dem nächsten Platz, der genommen wird. Wer jetzt sitzt, behält seinen Platz."
 
+msgid "room.max_ping"
+msgstr "Max. Ping"
+
+msgid "room.max_ping.detail"
+msgstr "Spieler, deren Ping zu den Spielern, mit denen sie gepaart werden könnten, über diesem Wert liegt, können keinen Platz nehmen. Sie können weiterhin beitreten, zuschauen und chatten. Ein Ping, der sich nicht messen lässt, etwa zu einem Spieler in einer Partie, zählt nicht."
+
+msgid "room.max_ping.settings_detail"
+msgstr "Gilt ab dem nächsten Platz, der genommen wird. Wer jetzt sitzt oder in der Warteschlange steht, behält seinen Platz."
+
+msgid "room.max_ping.rule"
+msgstr "Max. Ping {0} ms"
+
+msgid "room.max_ping.over"
+msgstr "Dein Ping zu {0} beträgt {1} ms. In diesem Raum sitzen Spieler bis {2} ms."
+
+msgid "room.max_ping.measuring"
+msgstr "Dein Ping zu den Spielern hier wird gemessen. Der Platz ist verfügbar, sobald der Ping gemessen wurde."
+
+msgid "room.max_ping.after_watching"
+msgstr "Dein Ping zu den Spielern hier wird beim Zuschauen nicht gemessen. Wähle Zuschauen beenden, dann ist der Platz verfügbar, sobald der Ping gemessen wurde."
+
 msgid "room.privacy"
 msgstr "Privatsphäre"
 
@@ -4502,6 +4523,9 @@ msgstr "Warten, bis alle vom vorigen Kampf zurück sind."
 
 msgid "room.reject.wired_only"
 msgstr "Dieser Raum ist für Spieler mit Kabel. Dein PC ist im WLAN."
+
+msgid "room.reject.ping_over"
+msgstr "Dein Ping zu einem Spieler an diesem Platz liegt über dem Max. Ping dieses Raums."
 
 msgid "room.reject.other"
 msgstr "Der Raum hat diese Aktion abgelehnt."
@@ -5767,13 +5791,37 @@ msgid "public.filter_area"
 msgstr "Gebiet"
 
 msgid "public.filter_area_detail"
-msgstr "Räume aus allen Gebieten zeigen, nur Räume in oder neben Ihrem Gebiet oder ein bestimmtes Gebiet. Links und Rechts ändern die Auswahl."
+msgstr "Räume aus allen Gebieten zeigen, nur Räume im eigenen oder in einem angrenzenden Gebiet oder die angehakten Gebiete. Mit Auswählen werden Gebiete gewählt; Links und Rechts wechseln zwischen allen Gebieten und In meiner Nähe. Ein Raum ohne Gebietsangabe erscheint nur unter Alle Gebiete."
 
 msgid "public.filter_area_all"
 msgstr "Alle Gebiete"
 
 msgid "public.filter_region_near"
 msgstr "In meiner Nähe"
+
+msgid "public.filter_areas_title"
+msgstr "Räume anzeigen aus"
+
+msgid "public.filter_areas_count"
+msgstr "{0} Gebiete"
+
+msgid "public.filter_areas_pick"
+msgstr "Gebiete wählen"
+
+msgid "public.filter_areas_quick"
+msgstr "Alle / In meiner Nähe"
+
+msgid "public.filter_near_detail"
+msgstr "Nur Räume im eigenen oder in einem angrenzenden Gebiet zeigen. Beim Einschalten werden die angehakten Gebiete abgewählt."
+
+msgid "public.filter_area_one_detail"
+msgstr "Räume aus {0} zeigen. Es lassen sich beliebig viele Gebiete anhaken; ein Raum ohne Gebietsangabe wird nicht gezeigt."
+
+msgid "public.filter_areas_all"
+msgstr "Alle Gebiete zeigen"
+
+msgid "public.filter_areas_all_detail"
+msgstr "Alle Gebiete und In meiner Nähe abwählen, damit Räume von überall aufgelistet werden."
 
 msgid "public.filter_type"
 msgstr "Room type"

@@ -61,6 +61,11 @@ static void TestSnapshotWithoutChat() {
 	EXPECT(authority.Apply(host, hide).accepted && authority.SnapshotView().friendsHidden);
 	EXPECT(authority.SnapshotFor(p1, false).friendsHidden && authority.SnapshotFor(p1, true).friendsHidden);
 	same(authority);
+	// And the room's Max ping.
+	Action limit = TableAction(authority, host, 0, ActionKind::SetMaxPing);
+	limit.maxPingMs = 120;
+	EXPECT(authority.Apply(host, limit).accepted && authority.SnapshotFor(p1, false).maxPingMs == 120);
+	same(authority);
 	for (const auto member : {p1, p2, queuer}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	Action chat = TableAction(authority, p1, 0, ActionKind::Chat);
 	chat.text = "hello";

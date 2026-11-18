@@ -58,6 +58,7 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
   std::to_string(CreateTableCount()),
   loc::Tf(createType_!=room::RoomType::Classic?"room.tables_arcade_detail":"room.tables_detail",static_cast<int>(room::TableCount)),can));
  rows.push_back(WiredOnlyRow("wired-only",preferences_.roomWiredOnly,loc::T("room.wired_only.detail"),can));
+ rows.push_back(MaxPingRow("max-ping",preferences_.roomMaxPingMs,loc::T("room.max_ping.detail"),can));
  // The defaults keep the choice for the private rooms created later, beside Wired players only.
  if(screen=="defaults")rows.push_back(PrivacyRow("privacy",preferences_.roomFriendsHidden,loc::T("room.privacy.detail"),can));
  rows.push_back(DelayPolicyRow(preferences_.roomDelayPolicy,can));
@@ -90,6 +91,7 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
   commands::HostRoom host;host.generation=v.session.generation;host.preferences=PreferencesToSend();
   host.charter.type=createType_;host.charter.practice=createPractice_;host.charter.delayPolicy=preferences_.roomDelayPolicy;
   host.charter.tableCount=static_cast<std::uint8_t>(CreateTableCount());host.charter.wiredOnly=preferences_.roomWiredOnly;host.charter.friendsHidden=preferences_.roomFriendsHidden;
+  host.charter.maxPingMs=static_cast<std::uint16_t>(preferences_.roomMaxPingMs);
   // Opened from a template: the runtime sets its tables once the room is up.
   if(createTables_)host.createdRules=CreateTables(preferences_.tableRules);
   // A room opened here is not the public one the panel joined.
@@ -117,7 +119,7 @@ void ApplicationShell::ApplyRoomTemplate(int index) {
  // A copy: preferences_ is replaced below.
  const auto saved=preferences_.roomTemplates[index];
  auto next=preferences_;
- next.roomName=saved.roomName;next.roomCapacity=saved.capacity;next.roomPublic=saved.isPublic;next.roomDelayPolicy=saved.delayPolicy;next.roomTableCount=saved.tableCount;next.roomWiredOnly=saved.wiredOnly;next.roomFriendsHidden=saved.friendsHidden;
+ next.roomName=saved.roomName;next.roomCapacity=saved.capacity;next.roomPublic=saved.isPublic;next.roomDelayPolicy=saved.delayPolicy;next.roomTableCount=saved.tableCount;next.roomWiredOnly=saved.wiredOnly;next.roomMaxPingMs=saved.maxPingMs;next.roomFriendsHidden=saved.friendsHidden;
  (saved.isPublic?next.publicTableRules:next.tableRules)=saved.tables.rules[0];
  if(!next.Valid()){error_=loc::T("error.invalid_value");return;}
  preferences_=std::move(next);preferencesDirty_=true;saveAt_=clock_.Now()+.45;error_.clear();
@@ -138,12 +140,14 @@ void ApplicationShell::CreatePublicRoom(room::RoomType type) {
  if(preferences_.publicRoomType!=type||preferences_.publicRoomTemplate!=made||preferences_.publicArcadeTables!=createArcadeTables_){
   preferences_.publicRoomType=type;preferences_.publicRoomTemplate=made;preferences_.publicArcadeTables=createArcadeTables_;preferencesDirty_=true;saveAt_=clock_.Now()+.45;
  }
- publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy,type,preferences_.roomWiredOnly,
-  static_cast<std::uint8_t>(createArcadeTables_));
+ room::Charter charter;
+ charter.type=type;charter.delayPolicy=preferences_.roomDelayPolicy;charter.tableCount=static_cast<std::uint8_t>(createArcadeTables_);
+ charter.wiredOnly=preferences_.roomWiredOnly;charter.maxPingMs=static_cast<std::uint16_t>(preferences_.roomMaxPingMs);
+ publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),charter);
 }
 void ApplicationShell::SaveRoomTemplate(const room::Snapshot& room,const std::string& name) {
  netplay::RoomTemplate saved;
- saved.name=CutUtf8(name,32);saved.roomName=room.name;saved.capacity=room.capacity;saved.isPublic=room.serverOwned;saved.practice=room.practice;saved.delayPolicy=room.delayPolicy;saved.wiredOnly=room.wiredOnly;saved.friendsHidden=room.friendsHidden;
+ saved.name=CutUtf8(name,32);saved.roomName=room.name;saved.capacity=room.capacity;saved.isPublic=room.serverOwned;saved.practice=room.practice;saved.delayPolicy=room.delayPolicy;saved.wiredOnly=room.wiredOnly;saved.maxPingMs=room.maxPingMs;saved.friendsHidden=room.friendsHidden;
  saved.tableCount=room.type!=room::RoomType::Classic?static_cast<int>(room::ClassicTableCount):static_cast<int>(room::TablesInPlay(room));
  for(const auto& table:room.tables)if(table.id<room::TableCount){saved.tables.rules[table.id]=table.rules;saved.tables.names[table.id]=table.name;}
  if(!saved.Valid()){error_=loc::T("error.invalid_value");return;}

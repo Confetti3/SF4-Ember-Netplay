@@ -42,14 +42,23 @@ void NearIsTheSameAreaOrANeighbour() {
 	EXPECT(Matches(near, Make(Area::EuropeWest), Area::None) && Matches(near, Make(Area::None), Area::None));
 }
 
-void OneAreaIsThatAreaAlone() {
-	RoomFilter one; one.scope = RoomFilter::Place::One; one.area = Area::EuropeWest;
-	EXPECT(one.Valid() && Matches(one, Make(Area::EuropeWest), Area::NaEast) && Matches(one, Make(Area::EuropeWest), Area::None));
+void TickedAreasAreThoseAreasAlone() {
+	RoomFilter one; one.SetArea(Area::EuropeWest, true);
+	EXPECT(one.scope == RoomFilter::Place::Areas && one.Valid() && one.Active());
+	EXPECT(Matches(one, Make(Area::EuropeWest), Area::NaEast) && Matches(one, Make(Area::EuropeWest), Area::None));
 	// Not its neighbours, and not a room without an area.
 	EXPECT(!Matches(one, Make(Area::EuropeEast), Area::EuropeWest) && !Matches(one, Make(Area::None), Area::EuropeWest));
-	// One without an area is invalid, and an area without One too.
-	one.area = Area::None; EXPECT(!one.Valid());
-	RoomFilter stray; stray.area = Area::NaEast; EXPECT(!stray.Valid());
+	// Several: a room in any of them is listed, one outside them is not, wherever the player is.
+	RoomFilter several = one;
+	several.SetArea(Area::NaEast, true); several.SetArea(Area::NaCentral, true); several.SetArea(Area::SouthAmerica, true);
+	EXPECT(several.areas.Count() == 4 && several.Valid());
+	EXPECT(Matches(several, Make(Area::EuropeWest), Area::Oceania) && Matches(several, Make(Area::NaEast), Area::Oceania));
+	EXPECT(Matches(several, Make(Area::NaCentral), Area::None) && Matches(several, Make(Area::SouthAmerica), Area::None));
+	EXPECT(!Matches(several, Make(Area::NaWest), Area::NaEast) && !Matches(several, Make(Area::CentralAmerica), Area::SouthAmerica));
+	EXPECT(!Matches(several, Make(Area::None), Area::NaEast));
+	// Areas with no ticked area is invalid, and a ticked area without Areas too.
+	RoomFilter bare; bare.scope = RoomFilter::Place::Areas; EXPECT(!bare.Valid());
+	RoomFilter stray; stray.areas = stray.areas.With(Area::NaEast, true); EXPECT(!stray.Valid());
 }
 
 void TypeNeedsASentType() {
@@ -75,33 +84,51 @@ void SeatsAndWired() {
 	RoomFilter wired; wired.wiredOnly = true;
 	Room only = Make(Area::NaEast); only.wiredOnly = true;
 	EXPECT(Matches(wired, only, Area::None) && !Matches(wired, Make(Area::NaEast), Area::None));
-	RoomFilter all; all.scope = RoomFilter::Place::One; all.area = Area::NaEast; all.type = RoomFilter::Type::Classic; all.openSeats = true; all.wiredOnly = true;
+	RoomFilter all; all.SetArea(Area::NaEast, true); all.type = RoomFilter::Type::Classic; all.openSeats = true; all.wiredOnly = true;
 	EXPECT(Matches(all, only, Area::None) && !Matches(all, Make(Area::NaEast), Area::None) && !Matches(all, Make(Area::EuropeWest), Area::None));
 	Room onlyFull = only; onlyFull.members = 8;
 	EXPECT(!Matches(all, onlyFull, Area::None));
 }
 
-void PlaceStepsInOrder() {
+void TickingMovesBetweenAllNearAndAreas() {
 	RoomFilter filter;
-	// All, Near me, then the twelve areas in the table's order, and round.
-	const auto at = [&] {
-		return filter.scope == RoomFilter::Place::All ? std::string("all") : filter.scope == RoomFilter::Place::Near ? std::string("near") : AreaCode(filter.area);
-	};
-	std::vector<std::string> order = {"all", "near"};
-	for (const auto& row : areas::Table) order.push_back(row.code);
-	const int count = static_cast<int>(order.size());
-	EXPECT(count == 14);
-	for (int i = 1; i <= count; ++i) { filter.StepPlace(1, Area::NaWest); EXPECT(at() == order[i % count] && filter.Valid()); }
-	filter.StepPlace(-1, Area::NaWest); EXPECT(at() == "oce");
-	filter.StepPlace(-1, Area::NaWest); EXPECT(at() == "sea");
-	// Near is not offered while the player's area is not set.
-	filter = RoomFilter();
-	filter.StepPlace(1, Area::None); EXPECT(at() == "naw");
-	filter.StepPlace(-1, Area::None); EXPECT(at() == "all");
-	filter.StepPlace(-1, Area::None); EXPECT(at() == "oce");
-	// A saved Near with no area set steps off it.
-	filter = RoomFilter(); filter.scope = RoomFilter::Place::Near;
-	filter.StepPlace(1, Area::None); EXPECT(at() == "naw");
+	filter.SetArea(Area::EastAsia, true); filter.SetArea(Area::Oceania, true);
+	EXPECT(filter.scope == RoomFilter::Place::Areas && filter.areas.Count() == 2 && filter.Valid());
+	// Unticking one keeps the other; unticking the last is All, and an area never ticked changes nothing.
+	filter.SetArea(Area::EastAsia, false); filter.SetArea(Area::NaWest, false);
+	EXPECT(filter.areas.Has(Area::Oceania) && !filter.areas.Has(Area::EastAsia) && filter.scope == RoomFilter::Place::Areas);
+	filter.SetArea(Area::Oceania, false);
+	EXPECT(filter == RoomFilter() && filter.Valid());
+	// Ticking an area leaves Near me, and Near me clears the ticked areas.
+	filter.SetNear(true); EXPECT(filter.scope == RoomFilter::Place::Near && filter.Valid());
+	filter.SetArea(Area::NaWest, true); EXPECT(filter.scope == RoomFilter::Place::Areas && filter.areas.Count() == 1 && filter.areas.Has(Area::NaWest));
+	filter.SetNear(true); EXPECT(filter.scope == RoomFilter::Place::Near && filter.areas.Empty());
+	filter.SetNear(false); EXPECT(filter == RoomFilter());
+	// None is no area: it cannot be ticked.
+	filter.SetArea(Area::None, true); EXPECT(filter == RoomFilter());
+}
+
+void LeftAndRightSwitchAllAndNear() {
+	RoomFilter filter;
+	filter.StepNear(Area::NaWest); EXPECT(filter.scope == RoomFilter::Place::Near);
+	filter.StepNear(Area::NaWest); EXPECT(filter == RoomFilter());
+	// Ticked areas step to All, whichever way.
+	filter.SetArea(Area::NaWest, true); filter.SetArea(Area::EuropeEast, true);
+	filter.StepNear(Area::NaWest); EXPECT(filter == RoomFilter());
+	// Near is not offered while the player's area is not set, and a saved Near steps off it.
+	filter.StepNear(Area::None); EXPECT(filter == RoomFilter());
+	filter.SetNear(true); filter.StepNear(Area::None); EXPECT(filter == RoomFilter());
+}
+
+void AreaSetsKeepTheirOrderAndIgnoreNone() {
+	AreaSet set;
+	EXPECT(set.Empty() && set.Count() == 0 && !set.Has(Area::None) && set.Codes().empty());
+	set = set.With(Area::Oceania, true).With(Area::NaWest, true).With(Area::None, true);
+	EXPECT(set.Count() == 2 && !set.Has(Area::None) && set.Codes() == (std::vector<std::string>{"naw", "oce"}));
+	// Every area at once, and each one's bit is its own.
+	for (const auto& row : areas::Table) set = set.With(row.area, true);
+	EXPECT(set.Count() == areas::Count);
+	set = set.With(Area::SouthAmerica, false); EXPECT(set.Count() == areas::Count - 1 && !set.Has(Area::SouthAmerica) && set.Has(Area::CentralAmerica));
 }
 
 void TypeSteps() {
@@ -125,19 +152,26 @@ void QuickJoinStaysNearUnlessAskedOtherwise() {
 	RoomFilter filter;
 	EXPECT(filter.ForQuickJoin().scope == RoomFilter::Place::Near && filter.ForQuickJoin().type == RoomFilter::Type::All);
 	EXPECT(filter.scope == RoomFilter::Place::All);
-	// The player's own choice of area, and every other setting, is kept.
-	filter.scope = RoomFilter::Place::One; filter.area = Area::EastAsia; filter.type = RoomFilter::Type::Classic; filter.openSeats = true; filter.wiredOnly = true;
+	// The player's own choice of areas, and every other setting, is kept.
+	filter.SetArea(Area::EastAsia, true); filter.SetArea(Area::NaWest, true); filter.type = RoomFilter::Type::Classic; filter.openSeats = true; filter.wiredOnly = true;
 	EXPECT(filter.ForQuickJoin() == filter);
+	// With areas ticked Quick join lists those areas, never the near rooms of a player elsewhere.
+	// A wired-only room is what the wired filter lists.
+	Room ticked = Make(Area::NaWest), elsewhere = Make(Area::EuropeWest);
+	ticked.wiredOnly = elsewhere.wiredOnly = true;
+	EXPECT(Matches(filter.ForQuickJoin(), ticked, Area::EuropeWest) && !Matches(filter.ForQuickJoin(), elsewhere, Area::EuropeWest));
 }
 }
 
 int main() {
 	DefaultListsEverything();
 	NearIsTheSameAreaOrANeighbour();
-	OneAreaIsThatAreaAlone();
+	TickedAreasAreThoseAreasAlone();
 	TypeNeedsASentType();
 	SeatsAndWired();
-	PlaceStepsInOrder();
+	TickingMovesBetweenAllNearAndAreas();
+	LeftAndRightSwitchAllAndNear();
+	AreaSetsKeepTheirOrderAndIgnoreNone();
 	TypeSteps();
 	ARoomWithNoAreaIsListedUnderAllOnly();
 	QuickJoinStaysNearUnlessAskedOtherwise();

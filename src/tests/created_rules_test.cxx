@@ -19,10 +19,10 @@ room::Rules Chosen() {
 	return rules;
 }
 
-// A room created as `type`, at every table, with or without its Wired players only rule.
-room::Charter Created(room::RoomType type, bool wiredOnly = false) {
+// A room created as `type`, at every table, with or without its seat rules.
+room::Charter Created(room::RoomType type, bool wiredOnly = false, std::uint16_t maxPingMs = 0) {
 	room::Charter charter;
-	charter.type = type; charter.wiredOnly = wiredOnly; charter.tableCount = static_cast<std::uint8_t>(room::TableCount);
+	charter.type = type; charter.wiredOnly = wiredOnly; charter.maxPingMs = maxPingMs; charter.tableCount = static_cast<std::uint8_t>(room::TableCount);
 	return charter;
 }
 
@@ -290,9 +290,45 @@ static void TestWiredOnly() {
 	}
 }
 
+// A Max ping chosen on Create: one SetMaxPing, after Wired players only when
+// both were chosen and without waiting out that one's retry, sent again until
+// the room shows it.
+static void TestMaxPing() {
+	{
+		Room room;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, Created(room::RoomType::Arcade, true, 120));
+		room::Action sent;
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRoomType && room.Apply(sent));
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetWiredOnly && room.Apply(sent));
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetMaxPing && sent.maxPingMs == 120 && !sent.wiredOnly);
+		CHECK(room.Run(CreatedRules::RetryMs - 16).empty());
+		const auto again = room.Run(32);
+		CHECK(again.size() == 1 && again[0].kind == room::ActionKind::SetMaxPing);
+		CHECK(!again.empty() && room.Apply(again[0]) && room.authority.SnapshotView().maxPingMs == 120 && room.authority.SnapshotView().wiredOnly);
+		CHECK(room.Run(32).empty() && !room.rules.Active() && std::string(room.rules.Ended()) == "done");
+	}
+	{
+		// A Classic room's tables follow it.
+		Room room;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, Created(room::RoomType::Classic, false, 80));
+		room::Action sent;
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetMaxPing && room.Apply(sent));
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRules && sent.table == 0);
+	}
+	{
+		// The host's own SetMaxPing makes the rule theirs.
+		Room room;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, Created(room::RoomType::Classic, false, 80));
+		room.rules.ObservePlayer(room.Made(room.creator, 0, room::ActionKind::SetMaxPing));
+		room::Action sent;
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRules && room.rules.Active());
+	}
+}
+
 int main() {
 	TestRoomType();
 	TestWiredOnly();
+	TestMaxPing();
 	TestOneTableAtATime();
 	TestEachTableAndItsName();
 	TestStaleAndFenced();

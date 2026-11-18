@@ -93,13 +93,19 @@ std::vector<const Room*> Listing(const void* owner, const PublicList& list, Area
 
 // The filters page's value rows, which Left and Right step; the list's Filters row opens the page,
 // and Clear filters is a row on the page and a card on a list the filter has emptied.
-constexpr const char *FilterAreaRow = "pr-filter-area", *FilterTypeRow = "pr-filter-type", *FilterSeatsRow = "pr-filter-seats",
+constexpr const char *FilterAreaRow = "pr-filter-area", *AreaNearRow = "pr-area-near", *AreaAllRow = "pr-area-all",  *FilterTypeRow = "pr-filter-type", *FilterSeatsRow = "pr-filter-seats",
     *FilterWiredRow = "pr-filter-wired", *ClearFiltersCard = "pr-clear-filters", *ClearFiltersRow = "pr-filters-clear", *FiltersRow = "pr-filters";
+const std::string AreaRowPrefix = "pr-area:";
 constexpr float FiltersRowHeight = 40;
 
+// The area filter in a few words: "All areas", "Near me", the one area's name or "3 areas".
 std::string PlaceValue(const RoomFilter& filter) {
-    return filter.scope == RoomFilter::Place::All ? std::string(loc::T("public.filter_area_all")) :
-        filter.scope == RoomFilter::Place::Near ? std::string(loc::T("public.filter_region_near")) : AreaName(filter.area);
+    if (filter.scope == RoomFilter::Place::All) return loc::T("public.filter_area_all");
+    if (filter.scope == RoomFilter::Place::Near) return loc::T("public.filter_region_near");
+    if (filter.areas.Count() > 1) return loc::Tf("public.filter_areas_count", filter.areas.Count());
+    for (const auto& row : areas::Table)
+        if (filter.areas.Has(row.area)) return AreaName(row.area);
+    return {};
 }
 
 std::string RoomTypeValue(const RoomFilter& filter) {
@@ -201,17 +207,15 @@ Area PublicRoomsPanel::FilterHome(const ShellView& v) {
     return AreasListed(v) ? HomeArea(v) : Area::None;
 }
 
-void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy, room::RoomType type, bool wiredOnly, std::uint8_t tableCount) {
+void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, const room::Charter& charter) {
     if (pending_) return;
     Command command;
     command.op = Command::Op::RoomCreate;
     command.bridgeId = bridge_; command.roomName = name; command.capacity = capacity;
-    command.ownDelay = delayPolicy == room::DelayPolicy::Own;
+    command.ownDelay = charter.delayPolicy == room::DelayPolicy::Own;
     Begin(std::move(command));
     pending_->createdRules = tables;
-    pending_->createdType = type;
-    pending_->createdWiredOnly = wiredOnly;
-    pending_->createdTableCount = tableCount;
+    pending_->createdCharter = charter;
 }
 
 void PublicRoomsPanel::Begin(netplay::tournament::Command command) {
@@ -341,8 +345,7 @@ void PublicRoomsPanel::Joined(const ShellView& v, const Submit& submit, const Pe
     join.publicTicket = answer.admission.ticket;
     if (done.op == Command::Op::RoomCreate) {
         join.createdRules = answered.createdRules;
-        join.charter.type = answered.createdType; join.charter.wiredOnly = answered.createdWiredOnly;
-        join.charter.tableCount = answered.createdTableCount;
+        join.charter = answered.createdCharter;
     }
     if (!submit(std::move(join))) { Say(loc::T("error.queue_failed")); return; }
     Current joined;
@@ -526,6 +529,7 @@ std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, Ar
     std::vector<MenuEntry> rows;
     rows.push_back(Value(FilterAreaRow, loc::T("public.filter_area"), PlaceValue(filter),
         loc::T(nearUnknown ? "public.filter_near_unset" : nearUnlisted ? "public.filter_near_unlisted" : "public.filter_area_detail"), enabled));
+    rows.back().opens = true; rows.back().hint = loc::T("public.filter_areas_pick"); rows.back().adjustHint = loc::T("public.filter_areas_quick");
     rows.push_back(Value(FilterTypeRow, loc::T("public.filter_type"), RoomTypeValue(filter), loc::T("public.filter_type_detail"), enabled));
     rows.push_back(Value(FilterSeatsRow, loc::T("public.filter_seats"), loc::T(filter.openSeats ? "common.on" : "common.off"),
         loc::T("public.filter_seats_detail"), enabled));
@@ -535,10 +539,25 @@ std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, Ar
     return rows;
 }
 
+std::vector<MenuEntry> PublicRoomsPanel::AreaRows(const RoomFilter& filter, Area home, bool areasListed, bool enabled) {
+    const auto onOff = [](bool on) { return loc::T(on ? "common.on" : "common.off"); };
+    std::vector<MenuEntry> rows;
+    rows.push_back(Value(AreaNearRow, loc::T("public.filter_region_near"), onOff(filter.scope == RoomFilter::Place::Near),
+        loc::T(home == Area::None ? "public.filter_near_unset" : !areasListed ? "public.filter_near_unlisted" : "public.filter_near_detail"), enabled));
+    for (const auto& row : areas::Table)
+        rows.push_back(Value(AreaRowPrefix + row.code, AreaName(row.area), onOff(filter.areas.Has(row.area)),
+            loc::Tf("public.filter_area_one_detail", AreaName(row.area)), enabled));
+    rows.push_back(Row(AreaAllRow, loc::T("public.filter_areas_all"), loc::T("public.filter_areas_all_detail"), enabled && filter.scope != RoomFilter::Place::All));
+    return rows;
+}
+
 bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, Area home, RoomFilter& filter) {
     if (a.kind == MenuAction::Activate && (a.id == ClearFiltersCard || a.id == ClearFiltersRow)) { filter = RoomFilter(); return true; }
+    if (a.kind == MenuAction::Activate && a.id == AreaAllRow) { filter.SetNear(false); return true; }
     if (a.kind != MenuAction::Adjust) return false;
-    if (a.id == FilterAreaRow) filter.StepPlace(a.delta, home);
+    if (a.id == FilterAreaRow) filter.StepNear(home);
+    else if (a.id == AreaNearRow) filter.SetNear(a.delta > 0);
+    else if (a.id.compare(0, AreaRowPrefix.size(), AreaRowPrefix) == 0) filter.SetArea(AreaFromCode(a.id.substr(AreaRowPrefix.size())), a.delta > 0);
     else if (a.id == FilterTypeRow) filter.StepType(a.delta);
     else if (a.id == FilterSeatsRow) filter.openSeats = a.delta > 0;
     else if (a.id == FilterWiredRow) filter.wiredOnly = a.delta > 0;
@@ -549,6 +568,7 @@ bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, Area home, RoomFilter& 
 bool PublicRoomsPanel::Activate(const MenuAction& a, MenuNavigation& nav) {
     if (a.id == "identity") { nav.Push("identity"); return true; }
     if (a.id == FiltersRow) { nav.Push(FiltersScreen); return true; }
+    if (a.id == FilterAreaRow) { nav.Push(AreasScreen); return true; }
     if (a.id == "pr-error") { Refresh(); return true; }
     if (a.id == "pr-stop") { Abandon(); return true; }
     if (a.id == "pr-link") { if (link_ && !Busy()) link_->direct = true; return true; }

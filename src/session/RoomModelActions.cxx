@@ -58,6 +58,15 @@ Result RoomAuthority::ApplySetWiredOnly(MemberId member, const Action& action) {
 	return Accept();
 }
 
+// Like Wired players only, the limit binds the next seat taken (SeatRefusal):
+// nobody seated or queued is moved, and a game under way plays on.
+Result RoomAuthority::ApplySetMaxPing(MemberId member, const Action& action) {
+	if (!IsHost(member)) return Reject(RejectReason::NotHost);
+	if (!MaxPingValid(action.maxPingMs)) return Reject(RejectReason::InvalidRules);
+	if (snapshot_.maxPingMs != action.maxPingMs) { snapshot_.maxPingMs = action.maxPingMs; TouchRoom(); }
+	return Accept();
+}
+
 // Only a room its players own, and that is not a match room, has friends to
 // hide it from. The setting changes what the friends of its members are shown
 // and nothing about play.
@@ -231,7 +240,8 @@ Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* t
 		if (other.p1 == member || other.p2 == member) return Reject(RejectReason::AlreadySeated);
 		if (std::find(other.queue.begin(), other.queue.end(), member) != other.queue.end()) return Reject(RejectReason::AlreadyQueued);
 	}
-	if (!MaySit(member)) return Reject(RejectReason::WiredOnly);
+	const auto refused = SeatRefusal(member, action);
+	if (refused != RejectReason::None) return Reject(refused);
 	// A named seat is that seat or nothing: it must be open, with nobody
 	// queued first. A Queue with no seat takes the first open one, or waits.
 	if (asked && !SeatOpenNow(*table, action.seat)) return Reject(RejectReason::InvalidSeat);
@@ -518,7 +528,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (snapshot_.closed && action.kind != ActionKind::Leave) return Reject(RejectReason::Closed);
 	if (action.roomEpoch != snapshot_.roomEpoch) return Reject(RejectReason::StaleRoom);
 	const bool roomAction = action.kind == ActionKind::SetCapacity || action.kind == ActionKind::SetTableCount || action.kind == ActionKind::Lock ||
-		action.kind == ActionKind::SetWiredOnly || action.kind == ActionKind::SetFriendsHidden || action.kind == ActionKind::Kick || action.kind == ActionKind::Close || action.kind == ActionKind::Rename ||
+		action.kind == ActionKind::SetWiredOnly || action.kind == ActionKind::SetMaxPing || action.kind == ActionKind::SetFriendsHidden || action.kind == ActionKind::Kick || action.kind == ActionKind::Close || action.kind == ActionKind::Rename ||
 		action.kind == ActionKind::TransferHost;
 	if (roomAction && action.revision != snapshot_.revision) return Reject(RejectReason::StaleRoom);
 	const bool generationScopedUnwatch = action.kind == ActionKind::Unwatch && action.matchGeneration != 0;
@@ -562,6 +572,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::SetTableCount) return ApplySetTableCount(member, action);
 	if (action.kind == ActionKind::Lock) return ApplyLock(member, action);
 	if (action.kind == ActionKind::SetWiredOnly) return ApplySetWiredOnly(member, action);
+	if (action.kind == ActionKind::SetMaxPing) return ApplySetMaxPing(member, action);
 	if (action.kind == ActionKind::SetFriendsHidden) return ApplySetFriendsHidden(member, action);
 	// The bound fighters keep their seats; nobody is kicked from a match room.
 	if (action.kind == ActionKind::Kick && snapshot_.tournament.Active()) return Reject(RejectReason::Unauthorized);

@@ -210,7 +210,204 @@ void TestWanted() {
 }
 }
 
+namespace {
+// What a seat request carries for Max ping (ROOM_PING_RULE.md): a figure for
+// each other member measured for their current incarnation, through a relay
+// or not, or else the last one kept for that incarnation; one still being
+// measured, in a game, with no row or measured for an earlier incarnation
+// gives none without one kept, and only the first is still measuring.
+void TestSeatPings() {
+	room::Snapshot room;
+	for (const room::MemberId id : {1, 2, 3, 4, 5, 6}) {
+		room::Member member;
+		member.id = id; member.incarnation = id * 11;
+		room.members.push_back(member);
+	}
+	room.localMember = 1;
+	session::MemberLatencyTable table;
+	const auto entry = [](std::uint64_t incarnation, session::MemberLatency::State state, unsigned rtt) {
+		session::MemberLatency latency;
+		latency.incarnation = incarnation; latency.state = state; latency.rttMs = rtt; latency.relay = true;
+		return latency;
+	};
+	table[1] = entry(11, session::MemberLatency::State::Value, 5);
+	table[2] = entry(22, session::MemberLatency::State::Value, 62);
+	table[3] = entry(33, session::MemberLatency::State::Measuring, 0);
+	table[4] = entry(44, session::MemberLatency::State::Unavailable, 0);
+	table[6] = entry(65, session::MemberLatency::State::Value, 40);
+	const auto measuring = [&](const session::KnownPings& known, const std::vector<room::MemberId>& opponents) {
+		return session::PendingPing(table, known, room, opponents, false) == session::PingPending::Measuring;
+	};
+	const auto figures = session::MeasuredPings(table, {}, room);
+	CHECK(figures.size() == 1 && figures[0].member == 2 && figures[0].ms == 62);
+	CHECK(measuring({}, {2, 3}) && !measuring({}, {2, 4, 5, 6}));
+	// Someone who left the room is measured by nobody.
+	CHECK(!measuring({}, {9}) && !measuring({}, {}));
+	CHECK(session::CurrentLatency(table, room.members[1]) && !session::CurrentLatency(table, room.members[5]));
+	// A figure kept for the member's incarnation stands in for the one the
+	// helper has none of now; the live value wins, and one kept for an
+	// earlier incarnation or for the local member is not carried.
+	const session::KnownPings known{{1, {11, 7}}, {2, {22, 90}}, {3, {33, 120}}, {4, {44, 150}}, {6, {65, 30}}};
+	const auto kept = session::MeasuredPings(table, known, room);
+	CHECK((kept == std::vector<room::PingFigure>{{2, 62}, {3, 120}, {4, 150}}));
+	// A member with a kept figure is weighed with it, not waited for.
+	CHECK(!measuring(known, {2, 3}));
+}
+
+// Watching, this PC's helper measures nobody: what the board does about an
+// opponent it has no figure for. One in a game cannot be measured by anyone
+// and holds nothing; one out of a game waits for this PC to leave its game,
+// unless the helper is measuring it or cannot reach it.
+void TestPendingWhileWatching() {
+	room::Snapshot room;
+	for (const room::MemberId id : {1, 2, 3, 4, 5}) {
+		room::Member member;
+		member.id = id; member.incarnation = id * 11;
+		room.members.push_back(member);
+	}
+	room.localMember = 1;
+	// Table 1 plays 3 against 4, watched by 1; 2 waits at table 0, 5 is idle.
+	room.tables[1].phase = room::TablePhase::Playing; room.tables[1].p1 = 3; room.tables[1].p2 = 4; room.tables[1].spectators = {1};
+	room.tables[0].phase = room::TablePhase::Waiting; room.tables[0].p1 = 2;
+	CHECK(room::InGame(room, 1) && room::InGame(room, 3) && room::InGame(room, 4));
+	CHECK(!room::InGame(room, 2) && !room::InGame(room, 5) && !room::InGame(room, 0));
+	// A queued member listed to watch the game it waits out is in it too; a
+	// table between games holds nobody in one.
+	room.tables[1].queue = {5}; room.tables[1].spectators = {1, 5};
+	CHECK(room::InGame(room, 5));
+	room.tables[1].phase = room::TablePhase::Waiting;
+	CHECK(!room::InGame(room, 1) && !room::InGame(room, 3));
+	room.tables[1].phase = room::TablePhase::Playing;
+	room.tables[1].queue.clear(); room.tables[1].spectators = {1};
+
+	session::MemberLatencyTable table;
+	const auto unavailable = [](std::uint64_t incarnation, const char* reason) {
+		session::MemberLatency latency;
+		latency.incarnation = incarnation; latency.state = session::MemberLatency::State::Unavailable; latency.reason = reason;
+		return latency;
+	};
+	const auto pending = [&](const session::KnownPings& known, const std::vector<room::MemberId>& opponents, bool inGame) {
+		return session::PendingPing(table, known, room, opponents, inGame);
+	};
+	// No table at all (the board closed while watching), then every member
+	// room_unavailable, as the helper names them while this PC is in a game.
+	for (int rows = 0; rows < 2; ++rows) {
+		if (rows) for (const room::MemberId id : {2, 3, 4, 5}) table[id] = unavailable(id * 11, "room_unavailable");
+		CHECK(pending({}, {2}, true) == session::PingPending::AfterGame);
+		CHECK(pending({}, {3, 4}, true) == session::PingPending::None);
+		CHECK(pending({{2, {22, 40}}}, {2, 3, 4}, true) == session::PingPending::None);
+		// One kept for an earlier incarnation of them is no figure.
+		CHECK(pending({{2, {21, 40}}}, {2}, true) == session::PingPending::AfterGame);
+		// Out of a game, nothing waits: a board without figures yet never blocks.
+		CHECK(pending({}, {2}, false) == session::PingPending::None);
+	}
+	// A member the helper cannot reach, or in a game by its roster, holds nothing.
+	table[2] = unavailable(22, "unreachable");
+	CHECK(pending({}, {2}, true) == session::PingPending::None);
+	table[2] = unavailable(22, "in_match");
+	CHECK(pending({}, {2}, true) == session::PingPending::None);
+}
+
+// Watch, then Queue in a Max ping room (ROOM_PING_RULE.md): the figure
+// measured before the watched game began is still carried once the helper
+// measures nobody, so the room refuses the seat it is over the limit for, and
+// takes it within the limit. Without any figure the board waits instead.
+void TestWatchThenQueue() {
+	room::Charter charter;
+	charter.maxPingMs = 100;
+	room::RoomAuthority authority("Watched", 16, 70, room::Rules(), charter);
+	const auto join = [&](int index, bool host) {
+		const auto result = authority.Join("Player" + std::to_string(index), room::ConnectionRef{"host", std::to_string(index)}, host);
+		CHECK(result.accepted);
+		return result.snapshot.members.back().id;
+	};
+	room::ActionId nextAction = 1;
+	const auto act = [&](room::MemberId member, std::uint8_t table, room::ActionKind kind, int seat = -1, std::vector<room::PingFigure> pings = {}) {
+		room::Action action;
+		action.kind = kind;
+		action.roomEpoch = authority.SnapshotView().roomEpoch;
+		action.revision = authority.SnapshotView().revision;
+		action.table = table;
+		action.tableRevision = authority.SnapshotView().tables[table].revision;
+		action.actionId = nextAction++;
+		action.seat = static_cast<std::int8_t>(seat);
+		action.pings = std::move(pings);
+		return authority.Apply(member, action);
+	};
+	join(0, true);
+	const auto distant = join(1, false), p1 = join(2, false), p2 = join(3, false), me = join(4, false);
+	CHECK(act(distant, 0, room::ActionKind::Queue, 0).accepted);
+	for (const auto fighter : {p1, p2}) CHECK(act(fighter, 1, room::ActionKind::Queue).accepted);
+
+	// On the board before watching, the helper measured `distant` at 140 ms.
+	const auto incarnationOf = [&](room::MemberId member) { return room::FindMember(authority.SnapshotView(), member)->incarnation; };
+	const auto row = [&](room::MemberId member, json state) {
+		state["member"] = member; state["incarnation"] = incarnationOf(member);
+		return state;
+	};
+	session::LatencySubscription subscription;
+	const auto open = [&](std::uint64_t epoch) {
+		const auto view = subscription.Due(epoch, kRoom, 1000);
+		subscription.Sent(view, epoch, kRoom, 1000);
+		return view;
+	};
+	auto view = open(1);
+	CHECK(subscription.Read(Table(1, kRoom, view, json::array({row(distant, {{"state", "value"}, {"rtt_ms", 140}, {"route", "relay"}}),
+		row(p1, {{"state", "measuring"}}), row(p2, {{"state", "measuring"}})})), 1, kRoom));
+
+	// Watching: the game begins, the board closes, and the board opened over
+	// the game finds every member room_unavailable.
+	CHECK(act(me, 1, room::ActionKind::Watch).accepted);
+	for (const auto fighter : {p1, p2}) CHECK(act(fighter, 1, room::ActionKind::Ready).accepted);
+	CHECK(authority.BeginMatch(1, p1, p2).accepted);
+	subscription.Stop();
+	CHECK(subscription.Table().empty() && subscription.Known().at(distant).ms == 140);
+	view = open(1);
+	const json unavailable{{"state", "unavailable"}, {"reason", "room_unavailable"}};
+	CHECK(subscription.Read(Table(1, kRoom, view, json::array({row(distant, unavailable), row(p1, unavailable), row(p2, unavailable)})), 1, kRoom));
+	const auto watched = authority.SnapshotFor(me);
+	CHECK(room::InGame(watched, me) && !room::InGame(watched, distant));
+
+	// Queue at distant's table: the kept figure is carried, and the board and the
+	// room both refuse it; within the limit the room seats them.
+	const auto opponents = room::PingOpponents(watched, me, 0);
+	const auto pings = session::MeasuredPings(subscription.Table(), subscription.Known(), watched);
+	CHECK((pings == std::vector<room::PingFigure>{{distant, 140}}));
+	CHECK(room::PingOverLimit(watched, opponents, pings).Over());
+	CHECK(session::PendingPing(subscription.Table(), subscription.Known(), watched, opponents, true) == session::PingPending::None);
+	CHECK(act(me, 0, room::ActionKind::Queue, 1, pings).reason == room::RejectReason::PingOverLimit);
+
+	// A room epoch of its own forgets every figure: with none for distant, the
+	// board waits until this PC leaves the game rather than offer the seat.
+	subscription.Reset();
+	view = open(2);
+	CHECK(subscription.Known().empty());
+	CHECK(subscription.Read(Table(2, kRoom, view, json::array({row(distant, unavailable), row(p1, unavailable), row(p2, unavailable)})), 2, kRoom));
+	CHECK(session::MeasuredPings(subscription.Table(), subscription.Known(), watched).empty());
+	CHECK(session::PendingPing(subscription.Table(), subscription.Known(), watched, opponents, true) == session::PingPending::AfterGame);
+	// The fighters at the watched table are in a game: nobody can measure them.
+	CHECK(session::PendingPing(subscription.Table(), subscription.Known(), watched, room::PingOpponents(watched, me, 1), true) ==
+		session::PingPending::None);
+
+	// A table that no longer lists a member, or lists another incarnation of
+	// them, drops their kept figure.
+	CHECK(subscription.Read(Table(2, kRoom, view, json::array({row(distant, {{"state", "value"}, {"rtt_ms", 60}, {"route", "direct"}})})), 2, kRoom));
+	CHECK(subscription.Known().at(distant).ms == 60);
+	auto other = row(distant, unavailable);
+	other["incarnation"] = incarnationOf(distant) + 1;
+	CHECK(subscription.Read(Table(2, kRoom, view, json::array({other})), 2, kRoom) && subscription.Known().empty());
+	CHECK(subscription.Read(Table(2, kRoom, view, json::array({row(distant, {{"state", "value"}, {"rtt_ms", 60}, {"route", "direct"}})})), 2, kRoom));
+	CHECK(subscription.Read(Table(2, kRoom, view, json::array()), 2, kRoom) && subscription.Known().empty());
+
+	// Within the limit, the watcher's Queue sits them.
+	CHECK(act(me, 0, room::ActionKind::Queue, 1, {{distant, 60}}).accepted && authority.SnapshotView().tables[0].p2 == me);
+}
+}
+
 int main() {
+	TestSeatPings();
+	TestPendingWhileWatching();
+	TestWatchThenQueue();
 	TestSubscription();
 	TestJoinWire();
 	TestIrohRoom();

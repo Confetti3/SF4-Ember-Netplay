@@ -124,3 +124,4 @@ inline bool lastTicketIs(const Journey& j,const char* bridge,const char* room){
 }
 // The setup and room link scenarios, in public_rooms_setup_journey_test.cxx.
 void RunPublicRoomsSetupJourneys();
+void RunPublicRoomsFilterJourneys();

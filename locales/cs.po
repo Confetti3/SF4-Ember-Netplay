@@ -4206,6 +4206,27 @@ msgstr "Hráči na Wi-Fi se mohou připojit, dívat se a chatovat, ale nemohou o
 msgid "room.wired_only.settings_detail"
 msgstr "Platí od dalšího obsazeného místa. Nikdo, kdo teď sedí, o místo nepřijde."
 
+msgid "room.max_ping"
+msgstr "Maximální ping"
+
+msgid "room.max_ping.detail"
+msgstr "Hráči, jejichž ping k hráčům, se kterými by mohli být spárováni, je vyšší než tato hodnota, nemohou obsadit místo. Stále se mohou připojit, dívat se a chatovat. Ping, který nelze změřit, například k hráči ve hře, se nepočítá."
+
+msgid "room.max_ping.settings_detail"
+msgstr "Platí od dalšího obsazeného místa. Nikdo, kdo teď sedí nebo čeká ve frontě, o své místo nepřijde."
+
+msgid "room.max_ping.rule"
+msgstr "Maximální ping {0} ms"
+
+msgid "room.max_ping.over"
+msgstr "Váš ping k hráči {0} je {1} ms. V této místnosti mohou sedět hráči s pingem do {2} ms."
+
+msgid "room.max_ping.measuring"
+msgstr "Měří se váš ping k hráčům zde. Místo bude k dispozici, jakmile se ping změří."
+
+msgid "room.max_ping.after_watching"
+msgstr "Během sledování se váš ping k hráčům zde neměří. Zvolte Přestat sledovat a místo bude k dispozici, jakmile se ping změří."
+
 msgid "room.privacy"
 msgstr "Soukromí"
 
@@ -4502,6 +4523,9 @@ msgstr "Čeká se, až se všichni vrátí z předchozího zápasu."
 
 msgid "room.reject.wired_only"
 msgstr "Tato místnost je pro hráče na kabelu. Vaše PC je na Wi-Fi."
+
+msgid "room.reject.ping_over"
+msgstr "Váš ping k hráči na tomto místě je vyšší než maximální ping této místnosti."
 
 msgid "room.reject.other"
 msgstr "Místnost tuto akci odmítla."
@@ -5767,13 +5791,37 @@ msgid "public.filter_area"
 msgstr "Oblast"
 
 msgid "public.filter_area_detail"
-msgstr "Zobrazit místnosti ze všech oblastí, jen místnosti ve vaší oblasti nebo vedle ní, nebo z jedné oblasti. Vlevo a Vpravo ji mění."
+msgstr "Zobrazit místnosti ze všech oblastí, jen místnosti ve vaší oblasti nebo vedle ní, nebo z oblastí, které zaškrtnete. Tlačítkem Vybrat vyberete oblasti; Vlevo a Vpravo přepínají mezi všemi oblastmi a Poblíž. Místnost bez uvedené oblasti se zobrazí jen v možnosti Všechny oblasti."
 
 msgid "public.filter_area_all"
 msgstr "Všechny oblasti"
 
 msgid "public.filter_region_near"
 msgstr "Poblíž"
+
+msgid "public.filter_areas_title"
+msgstr "Zobrazit místnosti z"
+
+msgid "public.filter_areas_count"
+msgstr "Oblastí: {0}"
+
+msgid "public.filter_areas_pick"
+msgstr "Vybrat oblasti"
+
+msgid "public.filter_areas_quick"
+msgstr "Vše / Poblíž"
+
+msgid "public.filter_near_detail"
+msgstr "Zobrazit jen místnosti ve vaší oblasti nebo vedle ní. Zapnutím se zruší vybrané oblasti."
+
+msgid "public.filter_area_one_detail"
+msgstr "Zobrazit místnosti z oblasti {0}. Zaškrtnout můžete libovolný počet oblastí; místnost bez uvedené oblasti se nezobrazí."
+
+msgid "public.filter_areas_all"
+msgstr "Zobrazit všechny oblasti"
+
+msgid "public.filter_areas_all_detail"
+msgstr "Zruší výběr všech oblastí i Poblíž, takže se zobrazí místnosti odkudkoli."
 
 msgid "public.filter_type"
 msgstr "Room type"

@@ -35,6 +35,8 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
     if (value.roomTableCount != static_cast<int>(room::ClassicTableCount)) json["tableCount"] = value.roomTableCount;
     // Only on is written; a document without the key reads as off.
     if (value.roomWiredOnly) json["wiredOnly"] = true;
+    // Only a limit is written; a document without the key reads as off.
+    if (value.roomMaxPingMs) json["maxPingMs"] = value.roomMaxPingMs;
     // Only Hidden is written; a document without the key reads as Friends.
     if (value.roomFriendsHidden) json["friendsHidden"] = true;
     if (value.publicRoomType != room::RoomType::Classic) json["publicType"] = static_cast<int>(value.publicRoomType);
@@ -53,6 +55,7 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
                 {"practice", saved.practice}, {"delay", saved.delayPolicy == room::DelayPolicy::Own ? "own" : "shared"}, {"tables", std::move(tables)}});
             if (saved.tableCount != static_cast<int>(room::ClassicTableCount)) templates.back()["tableCount"] = saved.tableCount;
             if (saved.wiredOnly) templates.back()["wiredOnly"] = true;
+            if (saved.maxPingMs) templates.back()["maxPingMs"] = saved.maxPingMs;
             if (saved.friendsHidden) templates.back()["friendsHidden"] = true;
         }
     }
@@ -104,6 +107,7 @@ inline std::vector<RoomTemplate> ReadRoomTemplates(const nlohmann::json& default
             saved.delayPolicy = DelayPolicyOr(item);
             saved.tableCount = item.value("tableCount", static_cast<int>(room::ClassicTableCount));
             saved.wiredOnly = item.value("wiredOnly", false);
+            saved.maxPingMs = item.value("maxPingMs", 0);
             saved.friendsHidden = item.value("friendsHidden", false);
             const auto& tables = item.at("tables");
             if (!tables.is_array() || tables.size() != room::TableCount) continue;
@@ -132,6 +136,7 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
         if (defaults.contains("capacity") && !defaults["capacity"].is_number_integer()) return false;
         if (defaults.contains("public") && !defaults["public"].is_boolean()) return false;
         if (defaults.contains("wiredOnly") && !defaults["wiredOnly"].is_boolean()) return false;
+        if (defaults.contains("maxPingMs") && !defaults["maxPingMs"].is_number_integer()) return false;
         if (defaults.contains("friendsHidden") && !defaults["friendsHidden"].is_boolean()) return false;
         if (defaults.contains("delay") && (!defaults["delay"].is_string() ||
             (defaults["delay"].get<std::string>() != "own" && defaults["delay"].get<std::string>() != "shared"))) return false;
@@ -147,6 +152,10 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
         candidate.roomPublic = defaults.value("public", candidate.roomPublic);
         candidate.roomDelayPolicy = DelayPolicyOr(defaults);
         candidate.roomWiredOnly = defaults.value("wiredOnly", false);
+        // A limit no room offers does not read, as a table count out of range does not.
+        const auto maxPing = defaults.value("maxPingMs", static_cast<std::int64_t>(0));
+        if (!room::MaxPingValid(maxPing)) return false;
+        candidate.roomMaxPingMs = static_cast<int>(maxPing);
         candidate.roomFriendsHidden = defaults.value("friendsHidden", false);
         const auto publicType = defaults.value("publicType", static_cast<std::int64_t>(room::RoomType::Classic));
         if (!room::ValidRoomType(publicType)) return false;

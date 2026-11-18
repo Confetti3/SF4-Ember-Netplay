@@ -147,15 +147,17 @@ details: a value that is not a boolean is ignored.
 
 The Public rooms list is filtered on the client, from the rooms the listing
 returns: by area (every area, Near me: the player's own area and the ones next
-to it, or one area; a room without an area shows only under every area), by
+to it, or any set of areas the player ticks; a room without an area shows only when no area is ticked), by
 room type (Classic, Arcade or King of the hill; a room that sent no
 type shows only when every type is allowed), by open seats, and by wired-only
 rooms. The list shows one Filters row that summarises what is on; Select opens a page
-(`public-filters`) with the four values and Clear filters. The filter is saved with the player's preferences (`roomFilter` in the
-netplay section); a saved place that is not an area (a relay code saved
-before areas, or the US West no build could report) loads as every area.
+(`public-filters`) with the four values and Clear filters; the Area row opens a second page (`public-filter-areas`) with Near me and a switch per area. The filter is saved with the player's preferences (`roomFilter` in the
+netplay section) as `region` (`all`, `near` or `areas`) and `areas` (the ticked codes); a build from
+before several areas saved one area's code as the region, and that loads as the one area. A saved place that
+is not an area (a relay code saved before areas, or the US West no build could report) loads as every area.
+A build from before several areas reads `areas` as an unknown region and lists every room, keeping the other fields.
 Quick join takes the first room the filter lists, a room near the player's area
-first unless the filter names one, then any room the filter lists (a room with no
+first unless the filter ticks areas, then any room the filter lists (a room with no
 area is near no one: the bridge may not list areas, or its creator hid it). Near me is
 not offered while no listed room names an area, and then lists every room. Nothing is
 sent to the bridge.

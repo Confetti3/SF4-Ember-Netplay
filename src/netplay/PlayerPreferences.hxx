@@ -89,19 +89,21 @@ struct RoomTemplate {
     int tableCount = static_cast<int>(room::ClassicTableCount);
     // The room's Wired players only rule (room::Snapshot::wiredOnly).
     bool wiredOnly = false;
+    // The room's Max ping, 0 for off (room::Snapshot::maxPingMs).
+    int maxPingMs = 0;
     // Whether the room, a private one, is hidden from its members' friends (room::Snapshot::friendsHidden).
     bool friendsHidden = false;
     TableSetup tables;
     bool Valid() const {
         if (name.empty() || name.size() > 32 || roomName.empty() || roomName.size() > 64 || capacity < 2 || capacity > static_cast<int>(room::MaxMembers) ||
-            (isPublic && practice) || tableCount < 1 || tableCount > static_cast<int>(room::TableCount) || !tables.Valid()) return false;
+            (isPublic && practice) || tableCount < 1 || tableCount > static_cast<int>(room::TableCount) || !room::MaxPingValid(maxPingMs) || !tables.Valid()) return false;
         for (unsigned char c : name + roomName) if (c < 32 || c == 127) return false;
         return true;
     }
     bool operator==(const RoomTemplate& rhs) const {
         return name == rhs.name && roomName == rhs.roomName && capacity == rhs.capacity && isPublic == rhs.isPublic &&
             practice == rhs.practice && delayPolicy == rhs.delayPolicy && tableCount == rhs.tableCount && wiredOnly == rhs.wiredOnly &&
-            friendsHidden == rhs.friendsHidden && tables == rhs.tables;
+            maxPingMs == rhs.maxPingMs && friendsHidden == rhs.friendsHidden && tables == rhs.tables;
     }
 };
 constexpr std::size_t MaxRoomTemplates = 12;
@@ -302,6 +304,8 @@ struct PlayerPreferences {
     int roomTableCount = static_cast<int>(room::ClassicTableCount);
     // Whether a room created here, public or private, is for wired players only (room::Snapshot::wiredOnly).
     bool roomWiredOnly = false;
+    // The Max ping of a room created here, public or private, 0 for off (room::Snapshot::maxPingMs).
+    int roomMaxPingMs = 0;
     // Whether a private room created here is hidden from its members' friends instead of joinable by them (room::Snapshot::friendsHidden).
     bool roomFriendsHidden = false;
     room::Rules tableRules;
@@ -322,7 +326,7 @@ struct PlayerPreferences {
             matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || pictureMode < PictureSmall || pictureMode > PictureOff || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= MinInterfaceScale && interfaceScale <= MaxInterfaceScale) ||
             !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers) ||
-            roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount) || publicRoomType > room::RoomType::King || publicArcadeTables < 1 || publicArcadeTables > static_cast<int>(room::TableCount) || publicRoomTemplate.size() > 32) return false;
+            roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount) || !room::MaxPingValid(roomMaxPingMs) || publicRoomType > room::RoomType::King || publicArcadeTables < 1 || publicArcadeTables > static_cast<int>(room::TableCount) || publicRoomTemplate.size() > 32) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
         if (cardDevice < 0 || cardDevice > 5 || (cardLooking & ~profiles::LookingBitsAll) != 0 || profiles::LookingCount(cardLooking) > profiles::MaxLooking ||

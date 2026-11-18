@@ -4206,6 +4206,27 @@ msgstr "Wi-Fiのプレイヤーも参加、観戦、チャットはできます�
 msgid "room.wired_only.settings_detail"
 msgstr "次に席に着くときから適用されます。今座っている人は席を失いません。"
 
+msgid "room.max_ping"
+msgstr "最大Ping"
+
+msgid "room.max_ping.detail"
+msgstr "対戦相手になりうるプレイヤーとのPingがこの値を超えるプレイヤーは、席に着けません。参加、観戦、チャットはできます。対戦中のプレイヤーとのPingなど、測定できないPingは対象外です。"
+
+msgid "room.max_ping.settings_detail"
+msgstr "次に席に着くときから適用されます。今座っている人や順番待ちの人は、その場所を失いません。"
+
+msgid "room.max_ping.rule"
+msgstr "最大Ping {0} ms"
+
+msgid "room.max_ping.over"
+msgstr "{0}とのPingは{1} msです。このルームでは{2} msまでのプレイヤーが席に着けます。"
+
+msgid "room.max_ping.measuring"
+msgstr "ここにいるプレイヤーとのPingを測定しています。測定が終わると席に着けます。"
+
+msgid "room.max_ping.after_watching"
+msgstr "観戦中は、ここにいるプレイヤーとのPingを測定しません。「観戦をやめる」を選ぶと測定が始まり、測定が終わると席に着けます。"
+
 msgid "room.privacy"
 msgstr "プライバシー"
 
@@ -4502,6 +4523,9 @@ msgstr "全員が前の対戦から戻るのを待っています。"
 
 msgid "room.reject.wired_only"
 msgstr "このルームは有線プレイヤー専用です。お使いのPCはWi-Fi接続です。"
+
+msgid "room.reject.ping_over"
+msgstr "その席のプレイヤーとのPingが、このルームの最大Pingを超えています。"
 
 msgid "room.reject.other"
 msgstr "ルームが操作を拒否しました。"
@@ -5767,13 +5791,37 @@ msgid "public.filter_area"
 msgstr "エリア"
 
 msgid "public.filter_area_detail"
-msgstr "すべてのエリアのルーム、自分のエリアとその隣のルームだけ、または1つのエリアのルームを表示します。左右で切り替えられます。"
+msgstr "すべてのエリアのルーム、自分のエリアとその隣のルームだけ、または選んだエリアのルームを表示します。「選択」でエリアを選び、左右ですべてのエリアと近くを切り替えます。エリアが未設定のルームは「すべてのエリア」でのみ表示されます。"
 
 msgid "public.filter_area_all"
 msgstr "すべてのエリア"
 
 msgid "public.filter_region_near"
 msgstr "近く"
+
+msgid "public.filter_areas_title"
+msgstr "表示するルーム"
+
+msgid "public.filter_areas_count"
+msgstr "{0}エリア"
+
+msgid "public.filter_areas_pick"
+msgstr "エリアを選ぶ"
+
+msgid "public.filter_areas_quick"
+msgstr "すべて / 近く"
+
+msgid "public.filter_near_detail"
+msgstr "自分のエリアとその隣のルームだけを表示します。オンにすると、選んだエリアはすべて解除されます。"
+
+msgid "public.filter_area_one_detail"
+msgstr "{0}のルームを表示します。エリアはいくつでも選べます。エリアが未設定のルームは表示されません。"
+
+msgid "public.filter_areas_all"
+msgstr "すべてのエリアを表示"
+
+msgid "public.filter_areas_all_detail"
+msgstr "すべてのエリアと「近く」を解除して、どこのルームも表示します。"
 
 msgid "public.filter_type"
 msgstr "Room type"

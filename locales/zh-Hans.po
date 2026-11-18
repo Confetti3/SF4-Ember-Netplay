@@ -4206,6 +4206,27 @@ msgstr "使用 Wi-Fi 的玩家仍可加入、观战和聊天，但不能入座�
 msgid "room.wired_only.settings_detail"
 msgstr "从下一次入座开始生效。已入座的人不会失去席位。"
 
+msgid "room.max_ping"
+msgstr "最大网络延迟"
+
+msgid "room.max_ping.detail"
+msgstr "与可能匹配的玩家之间的网络延迟高于此值的玩家不能入座，但仍可加入、观战和聊天。无法测量的网络延迟（例如与对局中的玩家之间的延迟）不计入。"
+
+msgid "room.max_ping.settings_detail"
+msgstr "从下一次入座开始生效。已入座或在排队的人不会失去席位。"
+
+msgid "room.max_ping.rule"
+msgstr "最大网络延迟 {0} ms"
+
+msgid "room.max_ping.over"
+msgstr "你与 {0} 之间的网络延迟为 {1} ms。此房间只允许网络延迟不超过 {2} ms 的玩家入座。"
+
+msgid "room.max_ping.measuring"
+msgstr "正在测量你与这里玩家之间的网络延迟。测量完成后即可入座。"
+
+msgid "room.max_ping.after_watching"
+msgstr "观战时不会测量你与这里玩家之间的网络延迟。选择“停止观战”后，测量完成即可入座。"
+
 msgid "room.privacy"
 msgstr "隐私"
 
@@ -4502,6 +4523,9 @@ msgstr "等待所有人从上一场对战返回。"
 
 msgid "room.reject.wired_only"
 msgstr "此房间仅限有线玩家。你的电脑正在使用 Wi-Fi。"
+
+msgid "room.reject.ping_over"
+msgstr "你与该席位玩家之间的网络延迟超过了此房间的最大网络延迟。"
 
 msgid "room.reject.other"
 msgstr "房间拒绝了此操作。"
@@ -5767,13 +5791,37 @@ msgid "public.filter_area"
 msgstr "大区"
 
 msgid "public.filter_area_detail"
-msgstr "显示所有大区的房间、仅显示你所在大区及相邻大区的房间，或仅显示某一个大区的房间。可用左右切换。"
+msgstr "显示所有大区的房间、仅显示你所在大区及相邻大区的房间，或仅显示你勾选的大区的房间。按选择键可挑选大区；左右键可在所有大区和附近之间切换。未标明大区的房间只会在“所有大区”中显示。"
 
 msgid "public.filter_area_all"
 msgstr "所有大区"
 
 msgid "public.filter_region_near"
 msgstr "附近"
+
+msgid "public.filter_areas_title"
+msgstr "显示以下大区的房间"
+
+msgid "public.filter_areas_count"
+msgstr "{0} 个大区"
+
+msgid "public.filter_areas_pick"
+msgstr "选择大区"
+
+msgid "public.filter_areas_quick"
+msgstr "全部 / 附近"
+
+msgid "public.filter_near_detail"
+msgstr "仅显示你所在大区及相邻大区的房间。开启后会清除已勾选的大区。"
+
+msgid "public.filter_area_one_detail"
+msgstr "显示 {0} 的房间。可勾选任意多个大区；未标明大区的房间不会显示。"
+
+msgid "public.filter_areas_all"
+msgstr "显示所有大区"
+
+msgid "public.filter_areas_all_detail"
+msgstr "取消勾选所有大区和“附近”，即可列出各地的房间。"
 
 msgid "public.filter_type"
 msgstr "Room type"

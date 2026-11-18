@@ -241,6 +241,8 @@ public:
 	void WatchLatency(bool wanted);
 	// The ping to each other member for the active subscription; empty without one.
 	const MemberLatencyTable& MemberLatencies() const { return latency_.Table(); }
+	// The last ping measured to each member, kept while nothing is measured; for this room epoch.
+	const KnownPings& KnownMemberPings() const { return latency_.Known(); }
 	// The shared endpoint ID predicate (src/common/EndpointIdentity.hxx).
 	static bool IsEndpointIdentity(const std::string& identity);
 

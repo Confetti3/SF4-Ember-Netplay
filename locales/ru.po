@@ -4206,6 +4206,27 @@ msgstr "Игроки на Wi-Fi могут войти, смотреть и пи�
 msgid "room.wired_only.settings_detail"
 msgstr "Действует со следующего занятого места. Те, кто уже сидит, места не теряют."
 
+msgid "room.max_ping"
+msgstr "Макс. пинг"
+
+msgid "room.max_ping.detail"
+msgstr "Игроки, чей пинг до игроков, с которыми они могут оказаться в паре, выше этого значения, не могут занять место. Они по-прежнему могут войти, смотреть и писать в чат. Пинг, который нельзя измерить, например до игрока в матче, не учитывается."
+
+msgid "room.max_ping.settings_detail"
+msgstr "Действует со следующего занятого места. Те, кто уже сидит или стоит в очереди, места не теряют."
+
+msgid "room.max_ping.rule"
+msgstr "Макс. пинг {0} ms"
+
+msgid "room.max_ping.over"
+msgstr "Ваш пинг до {0}: {1} ms. В этой комнате места занимают игроки с пингом до {2} ms."
+
+msgid "room.max_ping.measuring"
+msgstr "Измеряется ваш пинг до игроков здесь. Место откроется, как только пинг будет измерен."
+
+msgid "room.max_ping.after_watching"
+msgstr "Пока вы смотрите, пинг до игроков здесь не измеряется. Выберите «Не смотреть», и место откроется, как только пинг будет измерен."
+
 msgid "room.privacy"
 msgstr "Приватность"
 
@@ -4502,6 +4523,9 @@ msgstr "Ожидание возвращения всех участников и
 
 msgid "room.reject.wired_only"
 msgstr "Эта комната для игроков по кабелю. Ваш ПК подключён по Wi-Fi."
+
+msgid "room.reject.ping_over"
+msgstr "Ваш пинг до игрока на этом месте выше максимального пинга этой комнаты."
 
 msgid "room.reject.other"
 msgstr "Лобби отклонило это действие."
@@ -5767,13 +5791,37 @@ msgid "public.filter_area"
 msgstr "Зона"
 
 msgid "public.filter_area_detail"
-msgstr "Показывать лобби из всех зон, только лобби в вашей зоне или рядом, или из одной зоны. Влево и Вправо меняют выбор."
+msgstr "Показывать лобби из всех зон, только лобби в вашей зоне или рядом, или из отмеченных зон. Кнопка «Выбрать» отмечает зоны; Влево и Вправо переключают между всеми зонами и «Рядом». Лобби без указанной зоны видно только в режиме «Все зоны»."
 
 msgid "public.filter_area_all"
 msgstr "Все зоны"
 
 msgid "public.filter_region_near"
 msgstr "Рядом"
+
+msgid "public.filter_areas_title"
+msgstr "Показывать лобби из"
+
+msgid "public.filter_areas_count"
+msgstr "Зон: {0}"
+
+msgid "public.filter_areas_pick"
+msgstr "Выбрать зоны"
+
+msgid "public.filter_areas_quick"
+msgstr "Все / Рядом"
+
+msgid "public.filter_near_detail"
+msgstr "Показывать только лобби в вашей зоне или рядом. При включении снимаются отмеченные зоны."
+
+msgid "public.filter_area_one_detail"
+msgstr "Показывать лобби из зоны {0}. Отметьте сколько угодно зон; лобби без указанной зоны не показывается."
+
+msgid "public.filter_areas_all"
+msgstr "Показывать все зоны"
+
+msgid "public.filter_areas_all_detail"
+msgstr "Снимите отметки со всех зон и с «Рядом», чтобы видеть лобби отовсюду."
 
 msgid "public.filter_type"
 msgstr "Room type"

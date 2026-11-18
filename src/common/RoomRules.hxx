@@ -47,6 +47,23 @@ inline bool ValidRoundCount(long long count) {
     for (const auto offered : RoundCounts) if (count == offered) return true;
     return false;
 }
+// A room's Max ping (room::Snapshot::maxPingMs): off, then each limit its host
+// can choose, in milliseconds.
+constexpr std::uint16_t MaxPingChoices[] = {0, 80, 100, 120, 150, 200};
+constexpr int MaxPingChoiceCount = static_cast<int>(sizeof(MaxPingChoices) / sizeof(MaxPingChoices[0]));
+inline bool MaxPingValid(long long ms) {
+    for (const auto offered : MaxPingChoices) if (ms == offered) return true;
+    return false;
+}
+// The choice `delta` steps from `ms` (a value that is not one steps from off):
+// held at either end, or round from the last to off when `wrap`.
+inline std::uint16_t StepMaxPing(long long ms, int delta, bool wrap) {
+    int index = 0;
+    for (int i = 0; i < MaxPingChoiceCount; ++i) if (ms == MaxPingChoices[i]) index = i;
+    const int next = wrap ? ((index + delta) % MaxPingChoiceCount + MaxPingChoiceCount) % MaxPingChoiceCount :
+        (index + delta < 0 ? 0 : index + delta >= MaxPingChoiceCount ? MaxPingChoiceCount - 1 : index + delta);
+    return MaxPingChoices[next];
+}
 struct Rules {
     SetFormat format = SetFormat::Unlimited;
     RotationMode rotation = RotationMode::WinnerStays;

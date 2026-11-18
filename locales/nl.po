@@ -4206,6 +4206,27 @@ msgstr "Spelers op wifi kunnen meedoen, kijken en chatten, maar geen plek inneme
 msgid "room.wired_only.settings_detail"
 msgstr "Geldt vanaf de volgende plek die wordt ingenomen. Wie nu zit, houdt zijn plek."
 
+msgid "room.max_ping"
+msgstr "Max. ping"
+
+msgid "room.max_ping.detail"
+msgstr "Spelers van wie de ping naar de spelers met wie ze gekoppeld kunnen worden hoger is dan dit, kunnen geen plek innemen. Ze kunnen nog wel meedoen, kijken en chatten. Een ping die niet te meten is, zoals naar een speler in een potje, telt niet mee."
+
+msgid "room.max_ping.settings_detail"
+msgstr "Geldt vanaf de volgende plek die wordt ingenomen. Wie nu zit of in de wachtrij staat, houdt zijn plek."
+
+msgid "room.max_ping.rule"
+msgstr "Max. ping {0} ms"
+
+msgid "room.max_ping.over"
+msgstr "Je ping naar {0} is {1} ms. In deze kamer kunnen spelers tot {2} ms zitten."
+
+msgid "room.max_ping.measuring"
+msgstr "Je ping naar de spelers hier wordt gemeten. De plek komt vrij zodra die is gemeten."
+
+msgid "room.max_ping.after_watching"
+msgstr "Je ping naar de spelers hier wordt niet gemeten terwijl je kijkt. Kies Stoppen met kijken; de plek komt vrij zodra die is gemeten."
+
 msgid "room.privacy"
 msgstr "Privacy"
 
@@ -4502,6 +4523,9 @@ msgstr "Wachten tot iedereen terug is van de vorige match."
 
 msgid "room.reject.wired_only"
 msgstr "Deze kamer is voor spelers met kabel. Je pc zit op wifi."
+
+msgid "room.reject.ping_over"
+msgstr "Je ping naar een speler op die plek is hoger dan de max. ping van deze kamer."
 
 msgid "room.reject.other"
 msgstr "De kamer heeft die actie geweigerd."
@@ -5767,13 +5791,37 @@ msgid "public.filter_area"
 msgstr "Gebied"
 
 msgid "public.filter_area_detail"
-msgstr "Toon kamers uit alle gebieden, alleen kamers in of naast je gebied, of uit één gebied. Links en Rechts wijzigen het."
+msgstr "Toon kamers uit alle gebieden, alleen kamers in of naast je gebied, of uit de gebieden die je aanvinkt. Met Kiezen kies je gebieden; Links en Rechts schakelen tussen alle gebieden en in de buurt. Een kamer zonder gebied staat alleen onder Alle gebieden."
 
 msgid "public.filter_area_all"
 msgstr "Alle gebieden"
 
 msgid "public.filter_region_near"
 msgstr "In de buurt"
+
+msgid "public.filter_areas_title"
+msgstr "Toon kamers uit"
+
+msgid "public.filter_areas_count"
+msgstr "{0} gebieden"
+
+msgid "public.filter_areas_pick"
+msgstr "Kies gebieden"
+
+msgid "public.filter_areas_quick"
+msgstr "Alle / In de buurt"
+
+msgid "public.filter_near_detail"
+msgstr "Toon alleen kamers in of naast je gebied. Als je dit aanzet, worden de aangevinkte gebieden gewist."
+
+msgid "public.filter_area_one_detail"
+msgstr "Toon kamers uit {0}. Vink zoveel gebieden aan als je wilt; een kamer zonder gebied wordt niet getoond."
+
+msgid "public.filter_areas_all"
+msgstr "Toon alle gebieden"
+
+msgid "public.filter_areas_all_detail"
+msgstr "Vink alle gebieden en In de buurt uit, zodat kamers van overal worden getoond."
 
 msgid "public.filter_type"
 msgstr "Room type"

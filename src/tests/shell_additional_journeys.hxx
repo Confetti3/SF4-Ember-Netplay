@@ -24,6 +24,8 @@ void DelayPolicyCreate();
 void DelayPolicyInRoom();
 void TableCountCreate();
 void WiredOnlyJourney();
+void MaxPingJourney();
+void MaxPingWatchingJourney();
 void PrivacyJourney();
 void TrainingInRoom();
 void TrainingJourneys();

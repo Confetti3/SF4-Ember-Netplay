@@ -27,10 +27,11 @@ namespace sf4e { namespace netplay {
 // An Arcade room's type and rules (the first table's) go in one SetRoomType
 // instead, while the creator is alone in it; a room that shows the type is done.
 //
-// A Wired players only rule chosen on Create goes in one SetWiredOnly once the
-// type is the room's and before the tables, until the room shows it. A
-// private room is created with it (room::RoomAuthority), so there it is
-// already done. The host's own SetWiredOnly makes the rule theirs.
+// The seat rules chosen on Create, Wired players only and Max ping, go in one
+// SetWiredOnly and one SetMaxPing once the type is the room's and before the
+// tables, each until the room shows it. A private room is created with them
+// (room::RoomAuthority), so there they are already done. The host's own
+// SetWiredOnly or SetMaxPing makes that rule theirs.
 class CreatedRules {
 public:
     // How long the room may take to admit the creator after the create.
@@ -40,11 +41,12 @@ public:
     // A SetRules with no answer by then is sent again.
     static constexpr std::uint64_t RetryMs = 1500;
 
-    // `charter`: the room as it was created; its type, its Wired players only
-    // rule and how many tables an Arcade type plays at are what is set here.
+    // `charter`: the room as it was created; its type, its seat rules and how
+    // many tables an Arcade type plays at are what is set here.
     void Start(const TableSetup& setup, std::uint64_t nowMs, const room::Charter& charter = room::Charter()) {
         *this = CreatedRules();
-        active_ = true; setup_ = setup; type_ = charter.type; wiredOnly_ = charter.wiredOnly; tableCount_ = charter.tableCount; armedAtMs_ = nowMs;
+        active_ = true; setup_ = setup; type_ = charter.type; tableCount_ = charter.tableCount; armedAtMs_ = nowMs;
+        wiredOnly_ = charter.wiredOnly; maxPingMs_ = charter.maxPingMs;
     }
     void Cancel(const char* why) { if (active_) { active_ = false; ended_ = why; } }
     bool Active() const { return active_; }
@@ -55,6 +57,7 @@ public:
     void ObservePlayer(const room::Action& action) {
         if (action.kind == room::ActionKind::SetRules || action.kind == room::ActionKind::NameTable) Cancel("edited");
         if (action.kind == room::ActionKind::SetWiredOnly) wiredOnly_ = false;
+        if (action.kind == room::ActionKind::SetMaxPing) maxPingMs_ = 0;
     }
     // The committed room as this member sees it. True, with `action` filled
     // in, when a table's rules or name are to be sent now; `canSend` says the room
@@ -86,13 +89,16 @@ public:
             return true;
         }
         if (wiredOnly_ && room.wiredOnly) wiredOnly_ = false;
-        if (wiredOnly_) {
-            if (!canSend || (wiredSentAtMs_ && nowMs - wiredSentAtMs_ < RetryMs)) return false;
+        if (maxPingMs_ && room.maxPingMs == maxPingMs_) maxPingMs_ = 0;
+        if (wiredOnly_ || maxPingMs_) {
+            const auto kind = wiredOnly_ ? room::ActionKind::SetWiredOnly : room::ActionKind::SetMaxPing;
+            if (!canSend || (seatRuleSentAtMs_ && seatRuleSent_ == kind && nowMs - seatRuleSentAtMs_ < RetryMs)) return false;
             action = room::Action();
-            action.kind = room::ActionKind::SetWiredOnly;
+            action.kind = kind;
             action.roomEpoch = room.roomEpoch;
             action.revision = room.revision;
-            action.wiredOnly = true;
+            action.wiredOnly = wiredOnly_;
+            if (!wiredOnly_) action.maxPingMs = maxPingMs_;
             return true;
         }
         // An Arcade room's tables are the room's: nothing is left once it has its type.
@@ -133,7 +139,7 @@ public:
     }
     void Sent(const room::Action& action, std::uint64_t nowMs) {
         if (active_ && action.kind == room::ActionKind::SetRoomType) sentAtMs_ = nowMs;
-        if (active_ && action.kind == room::ActionKind::SetWiredOnly) wiredSentAtMs_ = nowMs;
+        if (active_ && (action.kind == room::ActionKind::SetWiredOnly || action.kind == room::ActionKind::SetMaxPing)) { seatRuleSent_ = action.kind; seatRuleSentAtMs_ = nowMs; }
         if (!active_ || (action.kind != room::ActionKind::SetRules && action.kind != room::ActionKind::NameTable) || action.table >= room::TableCount) return;
         sentTable_ = action.table; sentRevision_ = action.tableRevision; sentAtMs_ = nowMs;
     }
@@ -144,9 +150,13 @@ private:
     TableSetup setup_;
     room::RoomType type_ = room::RoomType::Classic;
     std::uint8_t tableCount_ = room::TableCount;
-    // The rule still to be sent; false once the room shows it or the host sets it.
+    // The seat rules still to be sent; off once the room shows them or the
+    // host sets them.
     bool wiredOnly_ = false;
-    std::uint64_t wiredSentAtMs_ = 0;
+    std::uint16_t maxPingMs_ = 0;
+    // The last of them sent and when, which is sent again after RetryMs.
+    room::ActionKind seatRuleSent_ = room::ActionKind::SetWiredOnly;
+    std::uint64_t seatRuleSentAtMs_ = 0;
     std::uint64_t armedAtMs_ = 0;
     // Set at the creator's first sight of the room as its host.
     std::uint64_t roomEpoch_ = 0;

@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <vector>
 
 namespace sf4e {
 
@@ -87,6 +88,29 @@ inline bool AreaNear(Area own, Area other) {
 		if ((pair.a == own && pair.b == other) || (pair.a == other && pair.b == own)) return true;
 	return false;
 }
+
+// Some of the areas, one bit each in the table's order: the places a player ticks to see
+// rooms from. None is never in a set, so a room that names no area is in no set. Empty
+// is nothing ticked.
+class AreaSet {
+public:
+	AreaSet() = default;
+	bool Empty() const { return bits_ == 0; }
+	bool Has(Area area) const { return (bits_ & Bit(area)) != 0; }
+	AreaSet With(Area area, bool in) const { AreaSet set; set.bits_ = static_cast<unsigned short>(in ? bits_ | Bit(area) : bits_ & ~Bit(area)); return set; }
+	int Count() const { int count = 0; for (const auto& row : areas::Table) count += Has(row.area) ? 1 : 0; return count; }
+	// The areas' wire codes in the table's order, as they are saved.
+	std::vector<std::string> Codes() const {
+		std::vector<std::string> codes;
+		for (const auto& row : areas::Table) if (Has(row.area)) codes.push_back(row.code);
+		return codes;
+	}
+	bool operator==(const AreaSet& rhs) const { return bits_ == rhs.bits_; }
+	bool operator!=(const AreaSet& rhs) const { return bits_ != rhs.bits_; }
+private:
+	static unsigned short Bit(Area area) { return area == Area::None ? 0 : static_cast<unsigned short>(1u << (static_cast<int>(area) - 1)); }
+	unsigned short bits_ = 0;
+};
 
 // The player's choice of area, as the country's: Automatic follows Windows
 // (AreaFromWindows), Chosen is one they picked, Hidden shows none. Saved as

@@ -113,6 +113,9 @@ struct ShellView {
     bool ConnectionMeasured() const { return probeStatus != "checking" && recommendedDelay >= 0 && recommendedDelay <= MaximumInputDelay; }
     // The ping to each other member while the room board is open, by member.
     session::MemberLatencyTable memberLatency;
+    // The last ping measured to each member, kept while nothing is measured
+    // (this PC in a game, or the board closed): what a seat carries then.
+    session::KnownPings knownPings;
     int localSlot = -1;
     std::string invitation, error, settingsError, build;
     // The room's short link, empty until the helper has one. A failure bumps

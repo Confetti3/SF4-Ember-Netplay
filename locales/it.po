@@ -4206,6 +4206,27 @@ msgstr "I giocatori in Wi-Fi possono entrare, guardare e chattare, ma non prende
 msgid "room.wired_only.settings_detail"
 msgstr "Vale dal prossimo posto occupato. Chi è seduto ora mantiene il posto."
 
+msgid "room.max_ping"
+msgstr "Ping massimo"
+
+msgid "room.max_ping.detail"
+msgstr "I giocatori il cui ping verso i giocatori con cui potrebbero essere accoppiati supera questo valore non possono prendere un posto. Possono comunque entrare, guardare e chattare. Un ping che non si può misurare, ad esempio verso un giocatore in partita, non conta."
+
+msgid "room.max_ping.settings_detail"
+msgstr "Vale dal prossimo posto occupato. Chi è seduto o in coda ora mantiene il posto."
+
+msgid "room.max_ping.rule"
+msgstr "Ping massimo {0} ms"
+
+msgid "room.max_ping.over"
+msgstr "Il tuo ping verso {0} è {1} ms. Questa stanza ammette giocatori fino a {2} ms."
+
+msgid "room.max_ping.measuring"
+msgstr "Misurazione del tuo ping verso i giocatori presenti. Il posto si apre non appena il ping è misurato."
+
+msgid "room.max_ping.after_watching"
+msgstr "Il tuo ping verso i giocatori presenti non viene misurato mentre guardi. Scegli Smetti di guardare: il posto si apre non appena il ping è misurato."
+
 msgid "room.privacy"
 msgstr "Privacy"
 
@@ -4502,6 +4523,9 @@ msgstr "In attesa che tutti tornino dalla partita precedente."
 
 msgid "room.reject.wired_only"
 msgstr "Questa stanza è per giocatori via cavo. Il tuo PC è in Wi-Fi."
+
+msgid "room.reject.ping_over"
+msgstr "Il tuo ping verso un giocatore a quel posto supera il ping massimo di questa stanza."
 
 msgid "room.reject.other"
 msgstr "La sala ha rifiutato l'azione."
@@ -5767,13 +5791,37 @@ msgid "public.filter_area"
 msgstr "Area"
 
 msgid "public.filter_area_detail"
-msgstr "Mostra le sale di tutte le aree, solo quelle nella tua area o accanto, oppure di una sola area. Sinistra e Destra la cambiano."
+msgstr "Mostra le sale di tutte le aree, solo quelle nella tua area o accanto, oppure delle aree che spunti. Con Seleziona scegli le aree; Sinistra e Destra passano da tutte le aree a vicino a me. Una sala che non indica un'area compare solo in Tutte le aree."
 
 msgid "public.filter_area_all"
 msgstr "Tutte le aree"
 
 msgid "public.filter_region_near"
 msgstr "Vicino a me"
+
+msgid "public.filter_areas_title"
+msgstr "Mostra le sale di"
+
+msgid "public.filter_areas_count"
+msgstr "{0} aree"
+
+msgid "public.filter_areas_pick"
+msgstr "Scegli le aree"
+
+msgid "public.filter_areas_quick"
+msgstr "Tutte / Vicino a me"
+
+msgid "public.filter_near_detail"
+msgstr "Mostra solo le sale nella tua area o accanto. Attivandolo si deselezionano le aree scelte."
+
+msgid "public.filter_area_one_detail"
+msgstr "Mostra le sale di {0}. Puoi spuntare quante aree vuoi; una sala che non indica un'area non viene mostrata."
+
+msgid "public.filter_areas_all"
+msgstr "Mostra tutte le aree"
+
+msgid "public.filter_areas_all_detail"
+msgstr "Deseleziona tutte le aree e Vicino a me, così si vedono le sale di ogni luogo."
 
 msgid "public.filter_type"
 msgstr "Room type"

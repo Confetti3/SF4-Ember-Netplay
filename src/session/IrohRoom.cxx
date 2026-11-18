@@ -91,7 +91,7 @@ bool IrohRoom::Begin(bool host) {
 	departure_.BeginEpoch();
 	room_.hosting = host;
 	decodeOffThread_ = EnvFlag("SF4E_ROOM_WORKER", true);
-	latency_.Stop();
+	latency_.Reset();
 	room_.state = host ? State::Hosting : State::Joining;
 	return Command("{\"type\":\"status\"}");
 }

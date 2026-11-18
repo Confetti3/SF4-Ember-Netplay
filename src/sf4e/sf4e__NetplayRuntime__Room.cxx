@@ -342,8 +342,8 @@ static void BeginOpening(const room::Charter& charter, JoinKind join) {
 static void ArmCreatedRules(const netplay::TableSetup* rules, const room::Charter& charter) {
 	if (!rules) { runtime->createdRules.Cancel("other_room"); return; }
 	runtime->createdRules.Start(*rules, GetTickCount64(), charter);
-	spdlog::info("Room: created room tables armed format={} rotation={} type={} wired_only={} named={}",
-		static_cast<int>(rules->rules[0].format), static_cast<int>(rules->rules[0].rotation), static_cast<int>(charter.type), charter.wiredOnly,
+	spdlog::info("Room: created room tables armed format={} rotation={} type={} wired_only={} max_ping_ms={} named={}",
+		static_cast<int>(rules->rules[0].format), static_cast<int>(rules->rules[0].rotation), static_cast<int>(charter.type), charter.wiredOnly, charter.maxPingMs,
 		std::count_if(rules->names.begin(), rules->names.end(), [](const std::string& name) { return !name.empty(); }));
 }
 static DispatchOutcome Handle(commands::HostRoom& command, bool helperReady, Attempt attempt) {

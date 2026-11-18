@@ -397,6 +397,12 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(on==v.room.wiredOnly)return;
   request.kind=ActionKind::SetWiredOnly;request.wiredOnly=on;
  }
+ else if(a.id=="room-max-ping"){
+  // Left and Right step through the limits; Select goes on to the next, round to Off.
+  const auto ms=a.kind==MenuAction::Adjust?room::StepMaxPing(v.room.maxPingMs,a.delta,false):room::StepMaxPing(v.room.maxPingMs,1,true);
+  if(ms==v.room.maxPingMs)return;
+  request.kind=ActionKind::SetMaxPing;request.maxPingMs=ms;
+ }
  else if(a.id=="room-privacy"){
   // Left is Friends and Right Hidden; Select turns it the other way.
   const bool hidden=a.kind==MenuAction::Adjust?a.delta>0:!v.room.friendsHidden;

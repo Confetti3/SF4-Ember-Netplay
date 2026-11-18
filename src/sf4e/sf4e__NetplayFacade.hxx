@@ -214,6 +214,8 @@ namespace sf4e {
             unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;
             // The ping to each other member while the room board is open.
             session::MemberLatencyTable memberLatency;
+            // The last ping measured to each member, kept while nothing is measured.
+            session::KnownPings knownPings;
 			netplay::PlayerPreferences preferences;
 			netplay::LobbySettings lobbySettings;
 			std::string settingsError;
