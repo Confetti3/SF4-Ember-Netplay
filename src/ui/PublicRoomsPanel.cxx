@@ -201,17 +201,15 @@ Area PublicRoomsPanel::FilterHome(const ShellView& v) {
     return AreasListed(v) ? HomeArea(v) : Area::None;
 }
 
-void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy, room::RoomType type, bool wiredOnly, std::uint8_t tableCount) {
+void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, const room::Charter& charter) {
     if (pending_) return;
     Command command;
     command.op = Command::Op::RoomCreate;
     command.bridgeId = bridge_; command.roomName = name; command.capacity = capacity;
-    command.ownDelay = delayPolicy == room::DelayPolicy::Own;
+    command.ownDelay = charter.delayPolicy == room::DelayPolicy::Own;
     Begin(std::move(command));
     pending_->createdRules = tables;
-    pending_->createdType = type;
-    pending_->createdWiredOnly = wiredOnly;
-    pending_->createdTableCount = tableCount;
+    pending_->createdCharter = charter;
 }
 
 void PublicRoomsPanel::Begin(netplay::tournament::Command command) {
@@ -341,8 +339,7 @@ void PublicRoomsPanel::Joined(const ShellView& v, const Submit& submit, const Pe
     join.publicTicket = answer.admission.ticket;
     if (done.op == Command::Op::RoomCreate) {
         join.createdRules = answered.createdRules;
-        join.charter.type = answered.createdType; join.charter.wiredOnly = answered.createdWiredOnly;
-        join.charter.tableCount = answered.createdTableCount;
+        join.charter = answered.createdCharter;
     }
     if (!submit(std::move(join))) { Say(loc::T("error.queue_failed")); return; }
     Current joined;

@@ -7,6 +7,9 @@ open. The number is the smoothed round trip of that connection's selected
 path, in whole milliseconds, with the route it was measured over (`direct` or
 `relay`).
 
+The board counts as open on a table's options page too, so a seat taken there
+carries the same figures to the room's Max ping rule (`ROOM_PING_RULE.md`).
+
 ## What the list shows, and why
 
 The latency endpoint is not the match's endpoint. In a public room it uses

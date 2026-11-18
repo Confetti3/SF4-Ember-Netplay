@@ -7,6 +7,7 @@
 #include <exception>
 #include <map>
 #include <string>
+#include <vector>
 #include <nlohmann/json.hpp>
 
 #include "RoomModel.hxx"
@@ -30,6 +31,27 @@ struct MemberLatency {
 	bool operator!=(const MemberLatency& other) const { return !(*this == other); }
 };
 using MemberLatencyTable = std::map<room::MemberId, MemberLatency>;
+
+// What `table` holds of `opponents` (room::PingOpponents), as a seat request
+// carries it (room::Action::pings): a figure for each one measured for their
+// current incarnation, and whether any is still being measured. A member in a
+// game, one the helper cannot reach, and one with no row give neither.
+struct SeatPings {
+	std::vector<room::PingFigure> figures;
+	bool measuring = false;
+};
+inline SeatPings SeatPingsOf(const MemberLatencyTable& table, const room::Snapshot& room, const std::vector<room::MemberId>& opponents) {
+	SeatPings pings;
+	for (const auto opponent : opponents) {
+		const auto* member = room::FindMember(room, opponent);
+		const auto found = table.find(opponent);
+		if (!member || found == table.end() || found->second.incarnation != member->incarnation) continue;
+		// Read() takes a value only from 1 to 999 ms, the figure's own range.
+		if (found->second.state == MemberLatency::State::Value) pings.figures.push_back({opponent, static_cast<std::uint16_t>(found->second.rttMs)});
+		else if (found->second.state == MemberLatency::State::Measuring) pings.measuring = true;
+	}
+	return pings;
+}
 
 // One board subscription at a time. View numbers never repeat; a view counts
 // as active only once its latency_watch was queued, and a table is taken only

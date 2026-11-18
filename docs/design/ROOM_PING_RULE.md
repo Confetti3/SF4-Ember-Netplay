@@ -117,7 +117,9 @@ in-game check below looks at it.
 - `RoomAuthority::SeatRefusal`: Wired players only and Max ping, the one seat
   gate for a Queue and a cabinet.
 - `session::SeatPings` (`MemberLatency.hxx`): the figures this PC's helper has
-  for those opponents, and whether any is still being measured.
+  for those opponents, and whether any is still being measured. The helper
+  measures while the board or a table's options page is drawn, the two places
+  a seat is taken.
 - The board's `SeatFence` (`RoomControls`) says why a seat is not offered,
   for either rule.
 

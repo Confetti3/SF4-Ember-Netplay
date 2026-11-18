@@ -210,7 +210,40 @@ void TestWanted() {
 }
 }
 
+namespace {
+// What a seat request carries for Max ping (ROOM_PING_RULE.md): a figure for
+// each opponent measured for their current incarnation, through a relay or
+// not; one still being measured says so; one in a game, with no row or
+// measured for an earlier incarnation gives nothing.
+void TestSeatPings() {
+	room::Snapshot room;
+	for (const room::MemberId id : {2, 3, 4, 5, 6}) {
+		room::Member member;
+		member.id = id; member.incarnation = id * 11;
+		room.members.push_back(member);
+	}
+	session::MemberLatencyTable table;
+	const auto entry = [](std::uint64_t incarnation, session::MemberLatency::State state, unsigned rtt) {
+		session::MemberLatency latency;
+		latency.incarnation = incarnation; latency.state = state; latency.rttMs = rtt; latency.relay = true;
+		return latency;
+	};
+	table[2] = entry(22, session::MemberLatency::State::Value, 62);
+	table[3] = entry(33, session::MemberLatency::State::Measuring, 0);
+	table[4] = entry(44, session::MemberLatency::State::Unavailable, 0);
+	table[6] = entry(65, session::MemberLatency::State::Value, 40);
+	const auto all = session::SeatPingsOf(table, room, {2, 3, 4, 5, 6});
+	CHECK(all.figures.size() == 1 && all.figures[0].member == 2 && all.figures[0].ms == 62 && all.measuring);
+	const auto measured = session::SeatPingsOf(table, room, {2, 4, 5, 6});
+	CHECK(measured.figures.size() == 1 && !measured.measuring);
+	// Someone who left the room is nobody's opponent.
+	CHECK(session::SeatPingsOf(table, room, {9}).figures.empty());
+	CHECK(session::SeatPingsOf(table, room, {}).figures.empty());
+}
+}
+
 int main() {
+	TestSeatPings();
 	TestSubscription();
 	TestJoinWire();
 	TestIrohRoom();

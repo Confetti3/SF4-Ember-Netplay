@@ -868,7 +868,7 @@ void CurrentRoomJourney(){
  v.session.room=netplay::RoomState::Idle;update();
  Check(!panel.OpeningKind()&&panel.RoomLink().empty(),"The room was kept after the session ended");
  // A created room is the same, of its own kind, and the link names the room the admission gave.
- panel.Create("Open Mic",6,netplay::TableSetup::Same(room::PublicRoomRules()),room::DelayPolicy::Shared);update();admit(LinkRoom,"Open Mic");
+ panel.Create("Open Mic",6,netplay::TableSetup::Same(room::PublicRoomRules()),room::Charter());update();admit(LinkRoom,"Open Mic");
  Check(panel.OpeningKind()==PublicRoomsPanel::OpenKind::Create&&panel.RoomLink()==tournament_link::RoomPageUrl(LinkBridge,LinkRoom),"A created room is not the panel's room");
  // A room another way of opening replaces it; a join that never started lapses.
  panel.ForgetCurrent();Check(!panel.OpeningKind(),"The room was kept after another room was opened");

@@ -1,5 +1,6 @@
 #include "RoomControls.hxx"
 #include "RoomFeedback.hxx"
+#include "../session/MemberLatency.hxx"
 #include "../session/RoomQueries.hxx"
 #include "Theme.hxx"
 #include "FighterSelector.hxx"
@@ -120,13 +121,19 @@ bool TerminalFenced(const ShellView& v, room::ActionKind kind, std::size_t table
 const char* TerminalPendingReason() {
     return loc::T("room.terminal_pending");
 }
-bool WiredFenced(const ShellView& v, room::ActionKind kind) {
-    if (kind != room::ActionKind::Queue) return false;
+std::string SeatFence(const ShellView& v, room::ActionKind kind, std::size_t table) {
+    if (kind != room::ActionKind::Queue) return {};
     const auto* local = room::FindMember(v.room, v.room.localMember);
-    return local && !room::LinkMaySit(v.room, local->link) && room::PlaceOf(v.room, local->id).kind != room::Place::Kind::Seat;
-}
-const char* WiredOnlyReason() {
-    return loc::T("room.reject.wired_only");
+    if (!local || room::PlaceOf(v.room, local->id).kind == room::Place::Kind::Seat) return {};
+    if (!room::LinkMaySit(v.room, local->link)) return loc::T("room.reject.wired_only");
+    if (!v.room.maxPingMs) return {};
+    const auto opponents = room::PingOpponents(v.room, local->id, table);
+    const auto pings = session::SeatPingsOf(v.memberLatency, v.room, opponents);
+    if (const auto over = room::PingOverLimit(v.room, opponents, pings.figures); over.Over()) {
+        const auto* opponent = room::FindMember(v.room, over.opponent);
+        return loc::Tf("room.max_ping.over", opponent ? opponent->name : std::string(loc::T("room.player")), over.ms, v.room.maxPingMs);
+    }
+    return pings.measuring ? std::string(loc::T("room.max_ping.measuring")) : std::string();
 }
 std::string LeaveRoomDetail(const ShellView& v) {
     std::string detail = loc::T("room.leave.detail");
@@ -161,7 +168,7 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
         MenuChoice offer{id, loc::T(option->label), loc::T(option->detail) + WatchingNote(v, option->kind)};
         if (!RoomTakesNow(v, option->kind, t.id)) { offer.enabled = false; offer.detail = RoomWaitReason(v); }
         else if (TerminalFenced(v, option->kind, t.id)) { offer.enabled = false; offer.detail = TerminalPendingReason(); }
-        else if (WiredFenced(v, option->kind)) { offer.enabled = false; offer.detail = WiredOnlyReason(); }
+        else if (auto fence = SeatFence(v, option->kind, t.id); !fence.empty()) { offer.enabled = false; offer.detail = std::move(fence); }
         offers.push_back(std::move(offer));
     }
     return offers;
@@ -176,6 +183,7 @@ std::string RoomRulesText(const ShellView& v, const room::Table& t) {
     if (v.room.practice) add(loc::T("room.table_footer_practice"));
     if (v.room.delayPolicy == room::DelayPolicy::Own) add(loc::T("room.table_footer_own_delay"));
     if (v.room.wiredOnly) add(loc::T("room.table_footer_wired_only"));
+    if (v.room.maxPingMs) add(loc::Tf("room.max_ping.rule", v.room.maxPingMs));
     add(TableRulesText(v, t));
     return text;
 }

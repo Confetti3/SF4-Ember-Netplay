@@ -68,6 +68,70 @@ void WiredOnlyJourney() {
  SetMenuEntriesProbe({});
 }
 
+// Max ping: off on Create to begin with, stepped through its limits, kept with
+// the defaults and carried by Create room; the host changes it in Room
+// settings; a player whose measured ping to someone at the table is over it
+// finds the seat closed and is told the figure, one still being measured is
+// told so, and a seat taken carries the figures the room weighs.
+void MaxPingJourney() {
+ using namespace sf4e;
+ Harness h;h.Frame();
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
+ h.Screen("online");h.Choose("create");
+ Check(row("max-ping")!=rows.end()&&row("max-ping")->value==loc::T("common.off")&&row("max-ping")->label==loc::T("room.max_ping")&&
+  row("max-ping")==row("wired-only")+1,"Create did not offer Max ping, off, after Wired players only");
+ h.FocusOn("max-ping");h.Press(MenuInput::Left);
+ Check(row("max-ping")->value==loc::T("common.off"),"Max ping went below Off");
+ h.Press(MenuInput::Right);h.Press(MenuInput::Right);
+ Check(row("max-ping")->value==loc::Tf("room.latency.value",100),"Max ping did not step to 100 ms");
+ h.Choose("host");
+ const auto* hosted=h.actions.empty()?nullptr:As<commands::HostRoom>(h.actions.back());
+ Check(hosted&&hosted->charter.maxPingMs==100,"Create room did not ask for a Max ping of 100 ms");
+ Check(hosted&&netplay::RoomPreferences(hosted->preferences).at("maxPingMs")==100,"Max ping did not reach the saved defaults");
+ h.Screen("tab-matches/defaults");
+ Check(row("max-ping")!=rows.end()&&row("max-ping")->value==loc::Tf("room.latency.value",100),"Gameplay defaults did not offer Max ping, as saved");
+ // In the room: the host changes it in Room settings.
+ room::Member me,other;me.id=1;me.name="Me";me.host=true;other.id=2;other.name="Other";
+ JoinedRoom(h,15);h.view.session.control=netplay::Health::Healthy;
+ h.view.room.members={me,other};h.view.room.host=1;
+ h.Frame();h.Screen("room-admin");
+ Check(row("room-max-ping")!=rows.end()&&row("room-max-ping")->value==loc::T("common.off")&&row("room-max-ping")->enabled,
+  "Room settings did not offer the host Max ping");
+ const auto before=h.actions.size();
+ h.FocusOn("room-max-ping");h.Press(MenuInput::Right);
+ Check(h.actions.size()==before+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){
+  return sent.roomAction.kind==room::ActionKind::SetMaxPing&&sent.roomAction.maxPingMs==80;}),"Room settings did not set Max ping to 80 ms");
+ // With 100 ms on and Other seated: over it the queue is closed, with the figure.
+ h.view.room.maxPingMs=100;
+ h.view.room.tables[0].p1=2;h.view.room.members[1].table=0;h.view.room.members[1].seat=0;h.view.room.members[1].status=room::MemberStatus::Seated;
+ session::MemberLatency ping;ping.incarnation=h.view.room.members[1].incarnation;ping.state=session::MemberLatency::State::Value;ping.rttMs=140;ping.relay=true;
+ h.view.memberLatency[2]=ping;
+ h.Frame();h.Screen("room-table");
+ Check(row("queue")!=rows.end()&&!row("queue")->enabled&&row("queue")->detail.find(loc::Tf("room.max_ping.over","Other",140,100))==0,
+  "A player over Max ping was offered the queue, or not told the figure");
+ Check(row("watch")!=rows.end()&&row("watch")->enabled,"A player over Max ping could not watch");
+ Check(room_controls::RoomRulesText(h.view,h.view.room.tables[0]).find(loc::Tf("room.max_ping.rule",100))!=std::string::npos,
+  "The table's rules line did not say Max ping");
+ // Still being measured: closed for now, and told so.
+ h.view.memberLatency[2].state=session::MemberLatency::State::Measuring;h.Frame();
+ Check(!row("queue")->enabled&&row("queue")->detail.find(loc::T("room.max_ping.measuring"))==0,"A ping still being measured did not wait");
+ // Not measurable, as in a game: the seat is open, and it carries no figure.
+ h.view.memberLatency[2].state=session::MemberLatency::State::Unavailable;h.view.memberLatency[2].reason="in_match";h.Frame();
+ Check(row("queue")->enabled,"A ping that cannot be measured kept the player out");
+ h.FocusOn("queue");h.Press(MenuInput::Select);
+ Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){
+  return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.pings.empty();}),"A seat carried a figure that was not measured");
+ // Within it: the seat is open and carries the figure.
+ h.view.memberLatency[2]=ping;h.view.memberLatency[2].rttMs=60;h.Frame();
+ Check(row("queue")->enabled,"A player within Max ping was kept out");
+ h.FocusOn("queue");h.Press(MenuInput::Select);
+ Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){
+  return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.pings.size()==1&&
+   sent.roomAction.pings[0].member==2&&sent.roomAction.pings[0].ms==60;}),"A seat did not carry the measured ping");
+ SetMenuEntriesProbe({});
+}
+
 // Privacy: a private room's Friends or Hidden, on Create right after Visibility and not for a public room, kept with the
 // defaults once changed and carried by Create room; the host changes it in Room settings, which a public room leaves out.
 void PrivacyJourney() {

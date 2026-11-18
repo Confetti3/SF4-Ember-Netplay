@@ -75,7 +75,7 @@ bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
 // locked. A private room's names only what sets it apart (Arcade or King of the
 // hill, a Practice room): who may join is the header's access chip alone
 // (room_invite::AccessKey), so the two never disagree. Either says when it is
-// for wired players only; a plain private room's line is empty.
+// for wired players only and what its Max ping is; a plain private room's line is empty.
 std::string RoomStatusText(const room::Snapshot& room) {
     std::string text;
     const auto add=[&](const std::string& part){text+=(text.empty()?"":" \xC2\xB7 ")+part;};
@@ -83,6 +83,7 @@ std::string RoomStatusText(const room::Snapshot& room) {
     else if(room.type!=room::RoomType::Classic)add(RoomTypeName(room.type));
     if(room.practice&&!room.serverOwned)add(loc::T("room.practice"));
     if(room.wiredOnly)add(loc::T("room.wired_only"));
+    if(room.maxPingMs)add(loc::Tf("room.max_ping.rule",room.maxPingMs));
     return text;
 }
 }
@@ -519,6 +520,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
   else if(a.id=="delay-policy")preferences_.roomDelayPolicy=a.delta>0?room::DelayPolicy::Own:room::DelayPolicy::Shared;
   else if(a.id=="wired-only")preferences_.roomWiredOnly=a.delta>0;
+  else if(a.id=="max-ping")preferences_.roomMaxPingMs=room::StepMaxPing(preferences_.roomMaxPingMs,a.delta,false);
   else if(a.id=="privacy")preferences_.roomFriendsHidden=a.delta>0;
   else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
@@ -815,6 +817,9 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // A fresh install opens on the welcome, once (ApplicationShell__FirstRun.cxx).
  if(!preferences_.welcomed&&!welcomeOffered_&&v.canEditPreferences&&v.session.room==RoomState::Idle&&nav.Screen()=="home"){welcomeOffered_=true;welcomeStep_=0;nav.Push("welcome");}
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
+ // A table's options seat the player as the board does, so the ping a seat
+ // carries stays measured there too (ROOM_PING_RULE.md).
+ if(screen=="room-table")boardDrawn_=true;
  if(screen=="post-match"){DrawPostMatch(v,postMatch,now,submit,open);return false;}
  if(screen=="report") {
   const auto intent=reportPanel_.Draw(v.services,error_.empty()?v.error:error_);

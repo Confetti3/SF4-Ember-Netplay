@@ -209,6 +209,12 @@ inline MenuEntry DelayPolicyRow(room::DelayPolicy policy,bool enabled) {
 inline MenuEntry WiredOnlyRow(const char* id,bool on,const std::string& detail,bool enabled) {
     return Value(id,loc::T("room.wired_only"),loc::T(on?"common.on":"common.off"),detail,enabled);
 }
+// The room's Max ping (room::Snapshot::maxPingMs), Off or one of
+// room::MaxPingChoices, beside Wired players only: Create's choice, kept with
+// the room defaults (id "max-ping"), and the host's in Room settings (id "room-max-ping").
+inline MenuEntry MaxPingRow(const char* id,int ms,const std::string& detail,bool enabled) {
+    return Value(id,loc::T("room.max_ping"),ms?loc::Tf("room.latency.value",ms):std::string(loc::T("common.off")),detail,enabled);
+}
 // A private room's Privacy (room::Snapshot::friendsHidden): Friends lets the
 // friends of anyone in the room join it, Hidden shows them only that it is
 // private. Create's choice, kept with the room defaults (id "privacy"), and

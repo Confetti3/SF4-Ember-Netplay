@@ -104,11 +104,11 @@ public:
     // Gives up waiting for the ticket or room in flight: its answer joins nothing.
     void Abandon();
     // Opens a public room: the new room's admission is joined when it arrives.
-    // `rules` go with the new room's join, for the runtime to set on its tables,
-    // and so do its type, its Wired players only rule and how many tables an
-    // Arcade room plays at.
-    void Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy,
-        room::RoomType type = room::RoomType::Classic, bool wiredOnly = false, std::uint8_t tableCount = room::TableCount);
+    // The service opens it with `charter`'s delay policy; `rules` go with the
+    // new room's join, for the runtime to set on its tables, and so does the
+    // rest of `charter`: its type, its seat rules and how many tables an Arcade
+    // room plays at (netplay::CreatedRules).
+    void Create(const std::string& name, int capacity, const netplay::TableSetup& tables, const room::Charter& charter);
     // A create or ticket request is waiting to be sent or answered.
     bool Busy() const { return pending_.has_value(); }
     // What a pending request or refresh says on `screen`, and the list's own
@@ -152,11 +152,9 @@ private:
         netplay::tournament::Command command;
         bool sent = false;
         double sentAt = 0;
-        // A create's chosen tables, room type and Wired players only rule.
+        // A create's chosen tables, and the room it is created as.
         std::optional<netplay::TableSetup> createdRules;
-        room::RoomType createdType = room::RoomType::Classic;
-        bool createdWiredOnly = false;
-        std::uint8_t createdTableCount = room::TableCount;
+        room::Charter createdCharter;
     };
     // The room joined with an admission, kept while it is being opened and while
     // the player is in it. `seen`: the session has left Idle for it.
