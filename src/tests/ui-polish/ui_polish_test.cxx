@@ -108,16 +108,16 @@ static void TestFeedback() {
     feedback.Update("other-room",entries,6.04); CHECK(!feedback.Enabled(entries[0]));
 }
 static void TestClock() {
-    CHECK(RebaseUiTimestamp(100.45,100.1,.1) > .4);
-    CHECK(RebaseUiTimestamp(97,100,.1) < .1-2); // Already-overdue save stays overdue.
-    UiClock clock; CHECK(clock.Update(100)==100);
+    UiClock clock; CHECK(clock.Update(100)==100&&clock.Now()==100);
     const double deadline=100.45;
     CHECK(clock.Update(100.1)<deadline);
     CHECK(clock.Update(.1)>100.1); // Context recreation must not restart save/notice deadlines.
+    CHECK(clock.Now()<deadline); // ...nor end them early: a deadline keeps its time left.
+    CHECK(clock.Update(.1)==clock.Now()); // Read twice in one frame, it has not moved.
     CHECK(clock.Update(.5)>deadline);
     const auto before=clock.Update(1);
     CHECK(clock.Update(std::numeric_limits<double>::quiet_NaN())==before);
-    CHECK(clock.Update(-1)==before);
+    CHECK(clock.Update(-1)==before&&clock.Now()==before);
 }
 
 // Regression for the reported "room options glitch ... frantic clicking or

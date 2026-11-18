@@ -73,7 +73,7 @@ void ApplicationShell::UpdateSpeech() {
  // three times; the first menu with speech on says how it works, once.
  const int described=(std::min)(3-speech.describeUsed,TakeMenuDescribes());
  const bool introDue=speech.enabled&&!speech.introHeard&&!menu_.NoticeOpen();
- if(described>0||introDue){speech.describeUsed+=described;speech.introHeard|=introDue;speechIntro_|=introDue;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ if(described>0||introDue){speech.describeUsed+=described;speech.introHeard|=introDue;speechIntro_|=introDue;preferencesDirty_=true;saveAt_=clock_.Now()+.45;}
  // The welcome's first step asks aloud whether to speak, before the player has said.
  auto spoken=speech;spoken.enabled|=menu_.navigation.Screen()=="welcome"&&welcomeStep_==0;
  SetMenuSpeech(spoken);

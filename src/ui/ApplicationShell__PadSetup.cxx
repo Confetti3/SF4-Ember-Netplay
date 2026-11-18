@@ -65,7 +65,7 @@ void ApplicationShell::UpdatePadSetup(const ShellView& view, const Submit& submi
                 }
                 else if (outcome == SetupEnd::Disconnect) menu_.ShowNotice(loc::Tf("pad_setup.stopped_disconnect", name));
                 else if (outcome == SetupEnd::Idle) menu_.ShowNotice(loc::T("pad_setup.stopped_idle"));
-                else if (outcome != SetupEnd::LeftMenu) { notice_ = loc::T("pad_setup.cancelled"); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4; }
+                else if (outcome != SetupEnd::LeftMenu) { notice_ = loc::T("pad_setup.cancelled"); noticeTone_ = Tone::Neutral; noticeUntil_ = clock_.Now() + 4; }
             }
         }
         return;

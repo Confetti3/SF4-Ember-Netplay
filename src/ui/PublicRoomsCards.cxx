@@ -417,7 +417,7 @@ bool DrawPublicCard(const ShellView& v, const PublicRoomsPanel& panel, const Pub
     return false;
 }
 
-void DrawPublicPreview(const ShellView& v, const PublicRoomsPanel& panel, const std::string& id) {
+void DrawPublicPreview(const ShellView& v, const PublicRoomsPanel& panel, const std::string& id, double now) {
     if (id.compare(0, 8, "pr-room:") != 0) return;
     const Room* room = FindRoom(v, id.substr(8));
     if (!room) return;
@@ -465,7 +465,7 @@ void DrawPublicPreview(const ShellView& v, const PublicRoomsPanel& panel, const 
         ImGui::Dummy(ImVec2(space.x, height + 8 * s));
     }
     // The room's type and how it plays, the rules, and how long the room has been open.
-    const double open = panel.OpenSeconds(v, *room, ImGui::GetTime());
+    const double open = panel.OpenSeconds(v, *room, now);
     const bool rules = room->setFormat >= 0;
     const float line = 18 * s, chipRow = 20 * s, inner = space.x - 2 * pad, detailSize = 14 * s;
     const auto look = LookOf(*room);
