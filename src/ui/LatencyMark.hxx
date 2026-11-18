@@ -121,9 +121,7 @@ inline std::optional<CheckedPing> CheckedPingOf(const ShellView& view, room::Mem
 inline LatencyMark LatencyMarkFor(const session::MemberLatencyTable& table, const room::Member& member, room::MemberId local,
 	const std::optional<CheckedPing>& checked) {
 	if (member.id == local) return {};
-	const auto found = table.find(member.id);
-	const bool current = found != table.end() && found->second.incarnation == member.incarnation;
-	return MarkOf(DecidePing(current ? &found->second : nullptr, checked));
+	return MarkOf(DecidePing(session::CurrentLatency(table, member), checked));
 }
 
 // A room member's player tag wherever the room draws one: name, flag and

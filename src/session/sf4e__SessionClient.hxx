@@ -240,6 +240,9 @@ namespace sf4e {
 			// matchup.
 			room::MemberId opponent = 0;
 			int opponentFighter = -1;
+			// A Queue's measured figures (room::Action::pings): a resend
+			// carries them again for the room's Max ping.
+			std::vector<room::PingFigure> pings;
 		};
 		std::deque<SentRoomAction> _sentRoomActions;
 		// Retried actions keep their id; log each id/reason pair once.

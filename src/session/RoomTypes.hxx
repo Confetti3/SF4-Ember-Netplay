@@ -627,9 +627,9 @@ struct Action {
 	bool friendsHidden = false;
 	// SetMaxPing: the limit, 0 for off. Written only when set.
 	std::uint16_t maxPingMs = 0;
-	// Queue: the sender's measured ping to each member the seat could pair
-	// them with (PingOpponents), measured ones only, at most one per member.
-	// Written only when there is one.
+	// Queue: the sender's measured ping to the room's members, measured ones
+	// only, at most one per member; the room weighs those the seat could pair
+	// them with (PingOpponents). Written only when there is one.
 	std::vector<PingFigure> pings;
 };
 

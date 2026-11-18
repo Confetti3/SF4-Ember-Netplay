@@ -128,12 +128,11 @@ std::string SeatFence(const ShellView& v, room::ActionKind kind, std::size_t tab
     if (!room::LinkMaySit(v.room, local->link)) return loc::T("room.reject.wired_only");
     if (!v.room.maxPingMs) return {};
     const auto opponents = room::PingOpponents(v.room, local->id, table);
-    const auto pings = session::SeatPingsOf(v.memberLatency, v.room, opponents);
-    if (const auto over = room::PingOverLimit(v.room, opponents, pings.figures); over.Over()) {
+    if (const auto over = room::PingOverLimit(v.room, opponents, session::MeasuredPings(v.memberLatency, v.room)); over.Over()) {
         const auto* opponent = room::FindMember(v.room, over.opponent);
         return loc::Tf("room.max_ping.over", opponent ? opponent->name : std::string(loc::T("room.player")), over.ms, v.room.maxPingMs);
     }
-    return pings.measuring ? std::string(loc::T("room.max_ping.measuring")) : std::string();
+    return session::PingMeasuring(v.memberLatency, v.room, opponents) ? std::string(loc::T("room.max_ping.measuring")) : std::string();
 }
 std::string LeaveRoomDetail(const ShellView& v) {
     std::string detail = loc::T("room.leave.detail");

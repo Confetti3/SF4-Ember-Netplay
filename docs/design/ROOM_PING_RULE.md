@@ -53,14 +53,14 @@ that figure could not be measured then (below).
 
 ## Measured, and enforced by the room
 
-The requester's game attaches its measured figures to the seat request
-(`Action::pings`: member and milliseconds, only measured values, only for the
-players above, computed from the same room snapshot whose table revision the
-request carries). The room's authority works out the opponents from its own
-state and refuses the request with `RejectReason::PingOverLimit` when a figure
-for one of them is over the limit. A request stamped against another table
-revision is already refused as stale, so the authority and the requester
-agree on who was measured.
+The requester's game attaches its measured figures to every seat request
+(`Action::pings`: member and milliseconds, only measured values, for every
+member it has one for). The room's authority works out the opponents from its
+own state and refuses the request with `RejectReason::PingOverLimit` when a
+figure for one of them is over the limit, so someone who sat down after the
+press is weighed too when the requester had measured them. A Queue that the
+session client sends again after a stale table revision carries the same
+figures.
 
 The figure comes from the helper's measurement of the live connection, never
 from anything the player types or chooses. The authority cannot verify it any
@@ -116,10 +116,10 @@ in-game check below looks at it.
   shared by the authority and the board so the two cannot disagree.
 - `RoomAuthority::SeatRefusal`: Wired players only and Max ping, the one seat
   gate for a Queue and a cabinet.
-- `session::SeatPings` (`MemberLatency.hxx`): the figures this PC's helper has
-  for those opponents, and whether any is still being measured. The helper
-  measures while the board or a table's options page is drawn, the two places
-  a seat is taken.
+- `session::MeasuredPings` and `PingMeasuring` (`MemberLatency.hxx`): the
+  figures this PC's helper has, and whether it is still measuring a given
+  opponent. The helper measures while the board or a table's options page is
+  drawn, the two places a seat is taken.
 - The board's `SeatFence` (`RoomControls`) says why a seat is not offered,
   for either rule.
 

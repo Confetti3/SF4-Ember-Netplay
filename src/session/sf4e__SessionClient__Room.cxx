@@ -303,6 +303,7 @@ void SessionClient::RememberSentRoomAction(const room::Action& action) {
 	if (_sentRoomActions.size() >= 32) _sentRoomActions.pop_front();
 	_sentRoomActions.push_back({action.actionId, action.kind, action.table, action.matchGeneration,
 		action.inputDelay, action.lowerLag, action.seat, action.actionId});
+	_sentRoomActions.back().pings = action.pings;
 	if (action.kind == room::ActionKind::Ready)
 		if (const auto* opponent = room::SeatOpponent(_roomSnapshot, action.table, _roomSnapshot.localMember)) {
 			_sentRoomActions.back().opponent = opponent->id;
@@ -525,6 +526,7 @@ bool SessionClient::HandleRoomResult(json& msg) {
 		const std::uint8_t attempt = sent->staleRetries + 1;
 		auto again = TableAction(kind, sent->table, sent->inputDelay, sent->seat);
 		again.lowerLag = sent->lowerLag;
+		again.pings = sent->pings;
 		const auto resent = SendRoomAction(again);
 		if (resent == session::SendResult::Queued) {
 			// SendRoomAction just remembered the resend as the newest entry.

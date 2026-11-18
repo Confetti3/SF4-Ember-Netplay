@@ -2,6 +2,7 @@
 // The ping to each room member, as the helper reports it while the room board
 // is open (MEMBER_LATENCY.md 3.2 and 3.9), and the board subscription that asks
 // for it. Header only: the Iroh room, the runtime and the board share it.
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <exception>
@@ -32,25 +33,34 @@ struct MemberLatency {
 };
 using MemberLatencyTable = std::map<room::MemberId, MemberLatency>;
 
-// What `table` holds of `opponents` (room::PingOpponents), as a seat request
-// carries it (room::Action::pings): a figure for each one measured for their
-// current incarnation, and whether any is still being measured. A member in a
-// game, one the helper cannot reach, and one with no row give neither.
-struct SeatPings {
+// `table`'s entry for `member`, none when it has none or measured another
+// incarnation of them.
+inline const MemberLatency* CurrentLatency(const MemberLatencyTable& table, const room::Member& member) {
+	const auto found = table.find(member.id);
+	return found != table.end() && found->second.incarnation == member.incarnation ? &found->second : nullptr;
+}
+
+// This PC's measured ping to every other member of `room` it has a value for,
+// as a seat request carries it (room::Action::pings): the room weighs the ones
+// the seat could pair it with (room::PingOverLimit). A member in a game, one
+// the helper cannot reach and one still being measured have none.
+inline std::vector<room::PingFigure> MeasuredPings(const MemberLatencyTable& table, const room::Snapshot& room) {
 	std::vector<room::PingFigure> figures;
-	bool measuring = false;
-};
-inline SeatPings SeatPingsOf(const MemberLatencyTable& table, const room::Snapshot& room, const std::vector<room::MemberId>& opponents) {
-	SeatPings pings;
-	for (const auto opponent : opponents) {
-		const auto* member = room::FindMember(room, opponent);
-		const auto found = table.find(opponent);
-		if (!member || found == table.end() || found->second.incarnation != member->incarnation) continue;
+	for (const auto& member : room.members) {
+		const auto* latency = member.id != room.localMember ? CurrentLatency(table, member) : nullptr;
 		// Read() takes a value only from 1 to 999 ms, the figure's own range.
-		if (found->second.state == MemberLatency::State::Value) pings.figures.push_back({opponent, static_cast<std::uint16_t>(found->second.rttMs)});
-		else if (found->second.state == MemberLatency::State::Measuring) pings.measuring = true;
+		if (latency && latency->state == MemberLatency::State::Value) figures.push_back({member.id, static_cast<std::uint16_t>(latency->rttMs)});
 	}
-	return pings;
+	return figures;
+}
+
+// Whether the helper is still measuring its ping to any of `opponents`.
+inline bool PingMeasuring(const MemberLatencyTable& table, const room::Snapshot& room, const std::vector<room::MemberId>& opponents) {
+	return std::any_of(opponents.begin(), opponents.end(), [&](room::MemberId opponent) {
+		const auto* member = room::FindMember(room, opponent);
+		const auto* latency = member ? CurrentLatency(table, *member) : nullptr;
+		return latency && latency->state == MemberLatency::State::Measuring;
+	});
 }
 
 // One board subscription at a time. View numbers never repeat; a view counts
