@@ -156,7 +156,10 @@ void QuickJoinStaysNearUnlessAskedOtherwise() {
 	filter.SetArea(Area::EastAsia, true); filter.SetArea(Area::NaWest, true); filter.type = RoomFilter::Type::Classic; filter.openSeats = true; filter.wiredOnly = true;
 	EXPECT(filter.ForQuickJoin() == filter);
 	// With areas ticked Quick join lists those areas, never the near rooms of a player elsewhere.
-	EXPECT(Matches(filter.ForQuickJoin(), Make(Area::NaWest), Area::EuropeWest) && !Matches(filter.ForQuickJoin(), Make(Area::EuropeWest), Area::EuropeWest));
+	// A wired-only room is what the wired filter lists.
+	Room ticked = Make(Area::NaWest), elsewhere = Make(Area::EuropeWest);
+	ticked.wiredOnly = elsewhere.wiredOnly = true;
+	EXPECT(Matches(filter.ForQuickJoin(), ticked, Area::EuropeWest) && !Matches(filter.ForQuickJoin(), elsewhere, Area::EuropeWest));
 }
 }
 

@@ -280,7 +280,8 @@ void FilterJourney(){
  relist();
  Check(j.status==loc::Tf("public.status_filtered",std::size_t(2),std::size_t(4),loc::T("public.updated_now")),"The status does not say how many of the rooms are shown");
  step("pr-filter-area",MenuInput::Left);
- Check(value("pr-filter-area")==loc::T("public.filter_area_all")&&Shown(j)=="dabc","Left on Near me did not return to every area");
+ Check(value("pr-filter-area")==loc::T("public.filter_area_all")&&Shown(j)=="adbc","Left on Near me did not return to every area");
+ // (The player now has an area, so the near room a lists before the roomier d.)
  // Near me as a switch on the areas page, and ticking an area leaves it.
  pick("pr-area-near");
  Check(value("pr-area-near")==on&&summary()==loc::T("public.filter_region_near")&&Shown(j)=="ac","The Near me switch did not list the near rooms");
