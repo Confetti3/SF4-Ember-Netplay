@@ -161,6 +161,7 @@ sf4e_add_unit_test(NAME LobbyMusic SOURCES "src/tests/lobby_music_test.cxx" LIBS
 # It takes 2 s alone. Its saves are flushed writes, which take up to ten
 # times as long while other tests and builds use the disk.
 sf4e_add_unit_test(NAME SettingsStore SOURCES "src/tests/settings_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
+sf4e_add_unit_test(NAME RoomDefaultsPing SOURCES "src/tests/room_defaults_ping_test.cxx" LIBS sf4e_settings STD 17 TIMEOUT 30)
 sf4e_add_unit_test(NAME UiPreferencesStore SOURCES "src/tests/ui_preferences_store_test.cxx" LIBS sf4e_settings)
 sf4e_add_unit_test(NAME RecordingFileStore SOURCES "src/tests/recording_file_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
 
