@@ -82,3 +82,17 @@ async fn an_uppercase_digest_reads_the_same_at_begin_and_end() {
     ));
     endpoint.close().await;
 }
+
+#[tokio::test]
+async fn a_chunk_of_another_epoch_ends_the_import() {
+    let (endpoint, mut actor, mut receiver, transfer) = importer().await;
+    begin(&mut actor, &transfer, transfer.digest_hex()).await;
+    chunk(&mut actor, &transfer, 2).await;
+    assert!(matches!(
+        receiver.recv().await,
+        Some(Event::Error { code, .. }) if code == "invalid_checkpoint_chunk"
+    ));
+    assert!(actor.incoming_transfer.is_none());
+    assert!(receiver.try_recv().is_err(), "no credit for the stale chunk");
+    endpoint.close().await;
+}
