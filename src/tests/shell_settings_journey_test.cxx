@@ -199,7 +199,7 @@ void SaveWhileHidden() {
 }
 
 // Interface size steps below 1.00x with Left (pad or keys) down to 0.70x, where it stops; every step shows as
-// its value, and the size saved is the one the preferences accept.
+// its value, the size saved is the one the preferences accept, and its value panel offers every size.
 void InterfaceSizeBelowOne() {
  using namespace sf4e;
  Harness h; h.Frame();
@@ -218,6 +218,15 @@ void InterfaceSizeBelowOne() {
  h.Press(MenuInput::Right);
  Check(drawn.Value("scale") == "0.75x", "Right from 0.70x did not step to 0.75x");
  Check(drawn.Row("scale") && drawn.Row("scale")->detail.find(loc::T("settings.interface_size_detail")) != std::string::npos, "Interface size does not say that below 1.00x fits more");
+ // Its value panel lists every size, 0.70x to 1.50x, and opens on the one shown, below 1.00x too; a pick is that size.
+ const auto* scale = drawn.Row("scale");
+ Check(scale && scale->choices.size() == 17 && scale->choices.front().label == "0.70x" && scale->choices.back().label == "1.50x" && scale->chosen == "#1",
+  "Interface size's value panel does not list 0.70x to 1.50x from the size shown");
+ h.Press(MenuInput::Select);
+ Check(h.shell.Navigation().Choosing() && h.shell.Navigation().ChoiceIndex() == 1, "Select on Interface size below 1.00x did not open its value panel on 0.75x");
+ for (int i = 0; i < 5; ++i) h.Press(MenuInput::Right);
+ h.Press(MenuInput::Select); h.Frame();
+ Check(!h.shell.Navigation().Choosing() && drawn.Value("scale") == "1.00x", "1.00x picked from the value panel at 0.75x is not the size shown");
 }
 }
 // Each journey owns a Harness and with it the ImGui context, so they run one after another.

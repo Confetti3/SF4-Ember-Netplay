@@ -31,7 +31,6 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
-#include <cstdio>
 #include <ctime>
 
 namespace sf4e { namespace ui {
@@ -337,9 +336,7 @@ public:
         return {OnOffValue(s.preferences_, "class-emblems", loc::T("settings.class_emblems"), loc::T("settings.class_emblems_detail"), v.canEditPreferences)};
     }
     static Entries Text(Shell& s, const ShellView& v) {
-        char size[32];
-        std::snprintf(size, sizeof(size), "%.2fx", s.preferences_.interfaceScale);
-        return {Value("scale", loc::T("settings.interface_size"), size, std::string(loc::T("settings.interface_size_detail")) + "\n" + Reason(v), v.canEditPreferences), Tv(s, v), s.LanguageRow()};
+        return {Value("scale", loc::T("settings.interface_size"), InterfaceSizeText(s.preferences_.interfaceScale), std::string(loc::T("settings.interface_size_detail")) + "\n" + Reason(v), v.canEditPreferences), Tv(s, v), s.LanguageRow()};
     }
     // The room board's layout, which its grips also drag (RoomGrips). Its parts:
     // hiding one gives its place to the other, or both to the tables. With the
