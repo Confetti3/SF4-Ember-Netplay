@@ -1907,6 +1907,18 @@ int main() try {
         // the action bar under it and Right goes on to Leave room; Left from a
         // member reaches a cabinet; the board's edges are its only dead ends.
         board(room::RoomType::Arcade, 1.f, ImVec2(1920, 1080));
+        // The pair's line leaves a top-row cabinet at its body's bottom edge, not
+        // under the gap the cabinet's reach (1.1 of its height) leaves below it.
+        {
+            const auto& spot = boxes.at("cabinet-0");
+            const float centre = (spot.first.x + spot.second.x) * .5f, bodyBottom = spot.first.y + (spot.second.y - spot.first.y) / 1.1f;
+            float stubTop = 1e9f;
+            for (const ImDrawList* list : std::vector<ImDrawList*>(ImGui::GetDrawData()->CmdLists.begin(), ImGui::GetDrawData()->CmdLists.end()))
+                for (const ImDrawVert& v : list->VtxBuffer)
+                    if (v.col == IM_COL32(127, 176, 224, 255) && std::fabs(v.pos.x - centre) < 2.5f && v.pos.y > (spot.first.y + bodyBottom) * .5f)
+                        stubTop = (std::min)(stubTop, v.pos.y);
+            Check(stubTop < 1e9f && stubTop <= bodyBottom + .5f, "A pair's line started below its top-row cabinet, not at its bottom edge");
+        }
         focus("cabinet-6"); frame();
         for (int i = 0; i < 3; ++i) press(MenuInput::Down);
         Check(onBar(), "Down, Down, Down from cabinet 7 did not reach the action bar");
