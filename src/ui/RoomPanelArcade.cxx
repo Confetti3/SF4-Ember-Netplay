@@ -322,7 +322,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const int a=room::CabinetOf(v.room,t.p1),b=room::CabinetOf(v.room,t.p2);
   if(!t.p1||!t.p2||a<0||b<0)continue;
   const float y=aisle+(t.id-3.5f)*3*s;
-  const auto stub=[&](int cabinet){const ImVec2 p=at(cabinet);return ImVec2(p.x+w*.5f,cabinet<8?p.y+unit:p.y);};
+  const auto stub=[&](int cabinet){const ImVec2 p=at(cabinet);return ImVec2(p.x+w*.5f,cabinet<8?p.y+h:p.y);};
   const ImVec2 points[]={stub(a),ImVec2(stub(a).x,y),ImVec2(stub(b).x,y),stub(b)};
   d->AddPolyline(points,4,PairColor(t.id),0,2*s);
  }
