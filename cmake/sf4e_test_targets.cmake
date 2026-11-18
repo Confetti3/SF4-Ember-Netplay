@@ -26,6 +26,8 @@ sf4e_add_unit_test(NAME ComboStore SOURCES "src/tests/combo_store_test.cxx" STD 
 sf4e_add_unit_test(NAME ReplayFiles SOURCES "src/tests/replay_files_test.cxx" STD 17
     LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> TIMEOUT 15 LABELS replay)
 
+sf4e_add_unit_test(NAME SteamAccounts SOURCES src/tests/steam_accounts_test.cxx src/common/SteamAccounts.cxx src/common/SteamKeyValues.cxx STD 17 TIMEOUT 15 LABELS replay)
+
 # Links Sidecar's own crash record, so the test runs the production handler.
 # It needs spdlog and GGPO, so it stays out of the core-only build.
 add_executable(HeapCorruptionCaptureTest "src/tests/heap_corruption_capture_test.cxx" "src/sf4e/sf4e__CrashDiagnostics.cxx" "src/sf4e/sf4e__ImportPatch.cxx")
