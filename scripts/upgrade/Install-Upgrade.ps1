@@ -458,8 +458,12 @@ foreach ($relative in @($changed + $removed)) {
     $path = SafePath $install $relative
     if (Test-Path -LiteralPath $path -PathType Container) { throw "A package file collides with a directory: $relative" }
     if (Test-Path -LiteralPath $path -PathType Leaf) {
-        # Shared with nobody, a file in use fails here; ReplaceOne drops a read-only mark later.
-        $stream = [IO.File]::Open($path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
+        # Shared with nobody, a file in use fails here. A real run drops a read-only mark first
+        # and opens for writing, so a file the player cannot write fails here too, before
+        # anything is staged; a check leaves the mark and only reads.
+        if (!$CheckOnly) { DropReadOnly $path }
+        $access = if ($CheckOnly) { [IO.FileAccess]::Read } else { [IO.FileAccess]::ReadWrite }
+        $stream = [IO.File]::Open($path, [IO.FileMode]::Open, $access, [IO.FileShare]::None)
         $stream.Dispose()
     }
 }
