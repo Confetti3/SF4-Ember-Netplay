@@ -18,10 +18,10 @@ constexpr std::uint64_t kAccountBase = 76561197960265728ULL;
 
 bool SameFolder(const fs::path& a, const fs::path& b) {
 	std::wstring x = a.wstring(), y = b.wstring();
-	const auto trim = [](std::wstring& s) { while (!s.empty() && (s.back() == L'\' || s.back() == L'/')) s.pop_back(); };
+	const auto trim = [](std::wstring& s) { while (!s.empty() && (s.back() == L'\\' || s.back() == L'/')) s.pop_back(); };
 	trim(x); trim(y);
 	return std::equal(x.begin(), x.end(), y.begin(), y.end(), [](wchar_t l, wchar_t r) {
-		const auto fold = [](wchar_t c) { return c == L'/' ? L'\' : static_cast<wchar_t>(std::towlower(c)); };
+		const auto fold = [](wchar_t c) { return c == L'/' ? L'\\' : static_cast<wchar_t>(std::towlower(c)); };
 		return fold(l) == fold(r);
 	});
 }
@@ -30,7 +30,7 @@ bool SameFolder(const fs::path& a, const fs::path& b) {
 fs::path WinePath(const std::wstring& path) {
 	if (path.size() >= 2 && path[1] == L':') return fs::path(path);
 	std::wstring windows = L"Z:";
-	for (const wchar_t c : path) windows.push_back(c == L'/' ? L'\' : c);
+	for (const wchar_t c : path) windows.push_back(c == L'/' ? L'\\' : c);
 	return fs::path(windows);
 }
 
