@@ -124,6 +124,16 @@ fs::path TemporarySibling(const fs::path& path) {
     static std::atomic<unsigned> serial{0};
     return path.wstring()+L".ember-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64())+L"-"+std::to_wstring(++serial)+L".tmp";
 }
+// A read-only product file (marked by the player, a sync tool or a copy from
+// a read-only medium) cannot be opened for writing or replaced, is not always
+// removed, and its copy keeps the mark. Ember's files carry none of their own,
+// so it is dropped, and a rollback does not put it back either. Install-Upgrade.ps1
+// drops it the same way.
+void DropReadOnly(const fs::path& path) {
+    const DWORD attributes=GetFileAttributesW(path.c_str());
+    if(attributes!=INVALID_FILE_ATTRIBUTES && (attributes&FILE_ATTRIBUTE_READONLY))
+        SetFileAttributesW(path.c_str(),attributes&~FILE_ATTRIBUTE_READONLY);
+}
 void FlushFile(const fs::path& path) {
     HANDLE file=CreateFileW(path.c_str(),GENERIC_WRITE,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file==INVALID_HANDLE_VALUE) throw std::runtime_error("Cannot flush update file");
@@ -255,16 +265,18 @@ std::error_code UnlessInUse(const fs::path& file, const InUsePolicy& policy, con
     }
 }
 void RemoveFile(const fs::path& path, const InUsePolicy& policy) {
-    if(const auto code=UnlessInUse(path,policy,[&]{ std::error_code error; fs::remove(path,error); return error; }))
+    if(const auto code=UnlessInUse(path,policy,[&]{ std::error_code error; DropReadOnly(path); fs::remove(path,error); return error; }))
         throw fs::filesystem_error("Cannot remove update file",path,code);
 }
 void ReplaceFileVerified(const fs::path& source,const fs::path& destination,const std::string& expected,const InUsePolicy& policy) {
     const auto temporary=TemporarySibling(destination);
     fs::create_directories(destination.parent_path());
     fs::copy_file(source,temporary); // Never overwrite an occupied temporary sibling.
+    DropReadOnly(temporary);
     try {
         if(!SameHash(HashFile(temporary),expected)) throw std::runtime_error("Temporary update file failed verification");
         FlushFile(temporary);
+        DropReadOnly(destination);
         if(UnlessInUse(destination,policy,[&]{ return MoveFileExW(temporary.c_str(),destination.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH) ?
             std::error_code() : std::error_code(static_cast<int>(GetLastError()),std::system_category()); }))
             throw std::runtime_error("Atomic update replacement failed");
@@ -281,7 +293,9 @@ struct InstallLock {
 };
 InstallLock Lock(const fs::path& install) {
     CheckPath(install,LockName);
-    InstallLock lock; lock.path=install/LockName; lock.handle=CreateFileW(lock.path.c_str(),GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
+    InstallLock lock; lock.path=install/LockName;
+    DropReadOnly(lock.path);
+    lock.handle=CreateFileW(lock.path.c_str(),GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(lock.handle==INVALID_HANDLE_VALUE) throw std::runtime_error("Another Ember update or recovery is using this installation"); return lock;
 }
 // Once an install commits, older backup sets are no longer recovery evidence.
@@ -561,7 +575,7 @@ bool UninstallPackage(const fs::path& installInput, std::string& error) {
                 owned.push_back(rel);
             }
             const auto removeOwned=[&](const fs::path& rel){
-                std::error_code code; fs::remove(install/rel,code);
+                std::error_code code; DropReadOnly(install/rel); fs::remove(install/rel,code);
                 if(code && failed.empty()) failed="Cannot remove "+rel.u8string()+": "+code.message();
                 parents.push_back((install/rel).parent_path());
             };
@@ -755,6 +769,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
                 if (!fs::is_regular_file(install/rel)) throw std::runtime_error("Destination is not a file");
                 fs::create_directories((backup/rel).parent_path());
                 fs::copy_file(install/rel,backup/rel);
+                DropReadOnly(backup/rel);
                 if(testing::BackupCopied) testing::BackupCopied(install/rel);
                 change.prior=HashFile(backup/rel);
                 if(!SameHash(HashFile(install/rel),*change.prior)) throw std::runtime_error("Backup verification failed");
