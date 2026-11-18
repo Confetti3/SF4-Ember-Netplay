@@ -870,9 +870,13 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     pointerCapture = focused && !visible && hud.pointer;
     // A Training table keeps its pointer for the F6 chip.
     const bool table = frame->localFighter && snapshot.practiceMatch;
-    const bool hideCursor = fight && !table;
-    sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture || hideCursor);
+    // A game this PC only watches has no pointer to keep out of the picture:
+    // the cursor stays shown and free, so it can leave for another monitor.
+    const bool watched = fight && snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch;
+    const bool hideCursor = fight && !table && !watched;
+    sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture || hideCursor || watched);
     if (hideCursor) ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+    if (watched) ClipCursor(nullptr);
     // This frame publishes only the menu's part of the capture; the training
     // controls' part is their controller's own (CapturesInput).
     capture = focused && presentation.Visible();
