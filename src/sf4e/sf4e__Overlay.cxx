@@ -807,34 +807,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     layers.padHint = snapshot.padHint;
     if (snapshot.replays.captionShown)
         layers.caption = sf4e::ui::ExportCaptionViewOf(snapshot.replays.caption, snapshot.preferences.matchHudNameOffset);
-    {
-        // The strip shows for a while after each control, and the chip
-        // after one pressed outside the fight; both timed from the counts.
-        static std::uint32_t takenSeen = 0, refusedSeen = 0;
-        static double takenAt = -1, refusedAt = -1;
-        static sf4e::ui::UiClock clock; // ImGui's restarts with a device reset
-        const double now = clock.Update(ImGui::GetTime());
-        if (!replayKeys) { takenAt = refusedAt = -1; }
-        else {
-            if (playback.taken != takenSeen) takenAt = now;
-            if (playback.refused != refusedSeen) refusedAt = now;
-        }
-        takenSeen = playback.taken; refusedSeen = playback.refused;
-        auto& replay = layers.replay;
-        replay.shown = replayKeys;
-        replay.meter = snapshot.replays.meterShown;
-        replay.armed = playback.armed; replay.paused = playback.paused; replay.divisor = playback.divisor;
-        replay.round = playback.round; replay.cursor = playback.cursor;
-        replay.pad = playback.device == sf4e::replaytransport::Device::Pad;
-        replay.inputsKnown = snapshot.replays.lanes != nullptr;
-        replay.stripAlpha = sf4e::ui::CameraEditorShown() ? 0.f : sf4e::replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt < 0 ? -1 : now - takenAt);
-        replay.unavailable = refusedAt >= 0 && now - refusedAt < sf4e::replaytransport::kChipSeconds;
-        replay.lanes = replayKeys && playback.lanes && snapshot.replays.lanes;
-        std::uint32_t played = 0;
-        if (replay.lanes && sf4e::replaylane::PlayedFrame(playback.cursor, played))
-            for (int side = 0; side < 2; ++side)
-                replay.rowCount[side] = sf4e::replaylane::Rows(*snapshot.replays.lanes, side, playback.round, played, replay.rows[side]);
-    }
+    // The strip and the chip are timed on the process clock, as the hints below
+    // are: ImGui's restarts with a device reset.
+    static sf4e::ui::ReplayHudFeed replayHud;
+    replayHud.Fill(layers.replay, snapshot.replays, replayKeys, GetTickCount64() / 1000.0);
     if (layers.matchActive) {
         auto& strip = layers.match;
         // Each fighter's rank as rooms show it; Class emblems off hides it mid-match too.
@@ -874,9 +850,9 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // the cursor stays shown and free, so it can leave for another monitor.
     const bool watched = fight && snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch;
     const bool hideCursor = fight && !table && !watched;
-    sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture || hideCursor || watched);
+    if (watched) sf4e::ui::ShowFreeCursor();
+    else sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture || hideCursor);
     if (hideCursor) ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-    if (watched) ClipCursor(nullptr);
     // This frame publishes only the menu's part of the capture; the training
     // controls' part is their controller's own (CapturesInput).
     capture = focused && presentation.Visible();
