@@ -329,6 +329,73 @@ async fn the_board_lists_settled_classes_of_listed_players_highest_first() {
 }
 
 #[tokio::test]
+async fn a_full_board_keeps_the_lowest_classes_on_the_web_page() {
+    let (bridge, _fake) = start(true).await;
+    // A D player who last played a while ago: last on any board.
+    let low = player(&bridge, 1).await;
+    connect_discord(&bridge, "1", &low).await;
+    rate(&bridge, "1", 60.0, 1, 30).await;
+    let (status, chosen) = choose(&bridge, &low, listed("Low", "US")).await;
+    assert_eq!(status, StatusCode::OK, "{chosen}");
+    // As many Masters as Ember's own board can hold, all listed.
+    let now = bridge.state().now() as i64;
+    bridge
+        .state()
+        .db
+        .write(move |tx| {
+            for index in 0..ember_protocol::skill::MAX_BOARD {
+                let account = format!("m{index}");
+                let ember_id = format!("ember-board-{index}");
+                tx.execute(
+                    "INSERT INTO identities (ember_id, public_key, created_at) VALUES (?1, ?2, ?3)",
+                    rusqlite::params![ember_id, format!("key-{index}"), now],
+                )?;
+                tx.execute(
+                    "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at)
+                     VALUES (?1, ?2, ?1, ?3)",
+                    rusqlite::params![account, ember_id, now],
+                )?;
+                tx.execute(
+                    "INSERT INTO skill_ratings
+                         (discord_user_id, rating, deviation, volatility, band, played_at)
+                     VALUES (?1, 1950.0, 60.0, 0.06, 9, ?2)",
+                    rusqlite::params![account, now - DAY],
+                )?;
+                tx.execute(
+                    "INSERT INTO ranking_choices (discord_user_id, ranked, name, country)
+                     VALUES (?1, 1, ?2, 'US')",
+                    rusqlite::params![account, format!("Master {index}")],
+                )?;
+            }
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let max = ember_protocol::skill::MAX_BOARD;
+
+    // The web page lists everyone, the D player last.
+    let (status, public) = public_board(&bridge).await;
+    assert_eq!(status, StatusCode::OK, "{public}");
+    let players = public["players"].as_array().unwrap();
+    assert_eq!(players.len(), max + 1);
+    assert_eq!(
+        players[max],
+        json!({ "listing": { "name": "Low", "country": "US" }, "band": 1 })
+    );
+
+    // Ember's own board stays within what games accept, and the D player
+    // still finds themselves on it, in place of the last Master.
+    let own = board(&bridge, &low).await;
+    let own = own.as_array().unwrap();
+    assert_eq!(own.len(), max);
+    assert_eq!(
+        own[max - 1],
+        json!({ "listing": { "name": "Low", "country": "US" }, "band": 1, "own": true })
+    );
+    assert!(own[..max - 1].iter().all(|entry| entry["band"] == json!(9)));
+}
+
+#[tokio::test]
 async fn while_classes_are_hidden_nothing_shows_but_the_choice_holds() {
     let (bridge, _fake) = start(false).await;
     let first = player(&bridge, 1).await;

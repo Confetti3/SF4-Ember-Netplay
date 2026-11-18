@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use axum::{extract::State, http::HeaderMap, response::Response};
-use ember_protocol::skill::{Board, BoardEntry, RankingChoice};
+use ember_protocol::skill::{Board, BoardEntry, MAX_BOARD, RankingChoice};
 
 use crate::{
     AppState,
@@ -63,13 +63,17 @@ pub async fn board(State(state): State<AppState>, headers: HeaderMap) -> Result<
     let developers = developers(&state);
     let board = state
         .db
-        .read(move |tx| ranking::board(tx, Some(&player.ember_id), &developers, now))
+        .read(move |tx| ranking::board(tx, Some(&player.ember_id), &developers, now, MAX_BOARD))
         .await?;
     Ok(ok(&board))
 }
 
 /// How long a public board is answered again before it is read again.
 const PUBLIC_BOARD_SECS: u64 = 15;
+/// The most players the public board lists. Ember's own board stops at
+/// `MAX_BOARD`, which games already installed hold it to; the page has no
+/// such limit, and stopping there left the lowest classes off it.
+const MAX_PUBLIC_BOARD: usize = 5000;
 
 /// The board on the embernetplay.link rankings page. `shown` is false while
 /// classes are hidden, so the page can tell that from a board nobody is on yet.
@@ -105,7 +109,7 @@ pub async fn public_board(State(state): State<AppState>) -> Result<Response> {
         let developers = developers(&state);
         state
             .db
-            .read(move |tx| ranking::board(tx, None, &developers, now))
+            .read(move |tx| ranking::board(tx, None, &developers, now, MAX_PUBLIC_BOARD))
             .await?
             .players
     } else {
