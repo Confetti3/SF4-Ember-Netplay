@@ -70,8 +70,9 @@ void Mouse() {
 // One toggle at a time: the playback's view of "paused" lags a frame or two, and a second toggle would play it again.
 void Pause(const ReplayBar& bar) {
     static int last = -100;
+    // A frame count that started again (a device reset recreates ImGui) holds nothing back.
     const int now = ImGui::GetFrameCount();
-    if (bar.paused || !bar.send || now - last < 6) return;
+    if (bar.paused || !bar.send || (now >= last && now - last < 6)) return;
     last = now; bar.send(replaytransport::Command::TogglePause);
 }
 void Jump(const ReplayBar& bar, int frame) { Pause(bar); camera::Phone().AskSeek(frame); }
