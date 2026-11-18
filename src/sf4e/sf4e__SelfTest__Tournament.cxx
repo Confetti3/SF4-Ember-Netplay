@@ -300,6 +300,7 @@ void TickTournament() {
 }
 
 void MatchInput(int side, unsigned& mapped, unsigned& raw) {
+	if (RoomMatchInput(side, mapped, raw)) return;
 	if (Requested() != Test::TournamentHost && Requested() != Test::TournamentGuest) return;
 	// The guest's fighter stands still, whatever the keyboard does; the host's
 	// attacks once the game is live, from the side it starts on.

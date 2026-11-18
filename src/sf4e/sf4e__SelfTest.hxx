@@ -11,7 +11,7 @@
 namespace sf4e { namespace ui { class MenuNavigation; } }
 namespace sf4e { namespace selftest {
 
-enum class Test { None, Training, RoomHost, RoomGuest, RoomLayout, Replay, TournamentHost, TournamentGuest, Menu, ComboCheck, Export };
+enum class Test { None, Training, RoomHost, RoomGuest, RoomGameHost, RoomGameGuest, RoomLayout, Replay, TournamentHost, TournamentGuest, Menu, ComboCheck, Export };
 // The tests that play replays, so start only once the game's replay table is read.
 inline bool NeedsReplayTable(Test test) { return test == Test::Replay || test == Test::Export; }
 
@@ -21,6 +21,8 @@ inline Test Parse(const std::wstring& name) {
 	if (name == L"training") return Test::Training;
 	if (name == L"room-host") return Test::RoomHost;
 	if (name == L"room-guest") return Test::RoomGuest;
+	if (name == L"room-game-host") return Test::RoomGameHost;
+	if (name == L"room-game-guest") return Test::RoomGameGuest;
 	if (name == L"room-layout") return Test::RoomLayout;
 	if (name == L"replay") return Test::Replay;
 	if (name == L"tournament-host") return Test::TournamentHost;
@@ -95,6 +97,8 @@ void TickTraining();
 // The room test (sf4e__SelfTest__Room.cxx), both of its sides.
 bool StartRoom();
 void TickRoom();
+// The room game test's fighters, from MatchInput: true when it played `side`.
+bool RoomMatchInput(int side, unsigned& mapped, unsigned& raw);
 
 // The room layout test (sf4e__SelfTest__RoomLayout.cxx), on one PC.
 bool StartRoomLayout();

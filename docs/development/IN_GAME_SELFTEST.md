@@ -93,6 +93,15 @@ to go live. The host then ends the game and both leave the room. Hosting,
 the names the two sides take and the controller a room needs write Ember's
 settings, so the script copies them first and puts them back after the run.
 
+`-Test room-game-host` and `-Test room-game-guest` play the same room
+through. The host sets Max ping to 150 ms once the guest is in, so both
+seats are taken under the rule. The host's fighter attacks and the guest's
+stands still, so the game ends by itself. The host then leaves first: the
+guest has to be left in the room as its host, and the room has to take a
+change from it (Max ping 100 ms) before it leaves too. A finished game
+writes the saves, so the script puts them back as it does after a
+tournament test.
+
 ## The room layout test
 
 One PC checks that the room board's layout (the column's width, the

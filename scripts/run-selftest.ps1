@@ -21,7 +21,7 @@
 param(
     [string]$PackageDir = "",
     # The names sf4e__SelfTest.hxx knows (selftest::Test).
-    [ValidateSet("training", "room-host", "room-guest", "room-layout", "replay", "tournament-host", "tournament-guest", "menu", "combo-check", "export")]
+    [ValidateSet("training", "room-host", "room-guest", "room-game-host", "room-game-guest", "room-layout", "replay", "tournament-host", "tournament-guest", "menu", "combo-check", "export")]
     [string]$Test = "training",
     # The room tests: the file the host writes its invitation to, and the
     # guest reads it from once the runner has copied it across.
@@ -96,7 +96,7 @@ Get-ChildItem (Split-Path $backup -Parent) -Directory | Where-Object FullName -n
 # an ordinary change.
 # An export imports each replay into the game's slots as Watch does, so its
 # saves are put back too; the videos it writes beside the replays stay.
-$playsToTheEnd = $Test -like "tournament-*"
+$playsToTheEnd = $Test -like "tournament-*" -or $Test -like "room-game-*"
 $restoresSaves = $playsToTheEnd -or $Test -eq "export"
 $archives = @((Join-Path $env:APPDATA "sf4e\replays"), (Join-Path $env:LOCALAPPDATA "sf4e\replay-outbox"))
 $archiveBefore = @(if ($playsToTheEnd) { foreach ($folder in $archives) { Get-FileTree $folder } })
@@ -154,7 +154,7 @@ if ($Test -eq "export") {
     if (-not $Job -or -not (Test-Path $Job -PathType Leaf)) { throw "-Job is needed for export: the job file" }
     $env:SF4E_SELFTEST_EXPORT = (Resolve-Path $Job).Path
 }
-if ($Test -eq "room-host" -or $Test -eq "room-guest") {
+if ($Test -in "room-host", "room-guest", "room-game-host", "room-game-guest") {
     if (-not $Invite) { throw "-Invite is needed for $Test" }
     $env:SF4E_SELFTEST_INVITE = $Invite
 }
