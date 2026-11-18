@@ -47,17 +47,17 @@ static void WriteLoginUsers(const fs::path& client, const std::string& text) {
 
 static void TestClientFolders() {
 	// Windows: the registry's folder only.
-	auto folders = ClientFolders(L"C:\Program Files (x86)\Steam", L"");
-	EXPECT(folders.size() == 1 && folders[0] == fs::path(L"C:\Program Files (x86)\Steam"));
+	auto folders = ClientFolders(L"C:\\Program Files (x86)\\Steam", L"");
+	EXPECT(folders.size() == 1 && folders[0] == fs::path(L"C:\\Program Files (x86)\\Steam"));
 	// Proton: the prefix's stand-in folder, then the real client through Z:.
-	folders = ClientFolders(L"C:\Program Files (x86)\Steam", L"/home/deck/.local/share/Steam");
-	EXPECT(folders.size() == 2 && folders[1] == fs::path(L"Z:\home\deck\.local\share\Steam"));
+	folders = ClientFolders(L"C:\\Program Files (x86)\\Steam", L"/home/deck/.local/share/Steam");
+	EXPECT(folders.size() == 2 && folders[1] == fs::path(L"Z:\\home\\deck\\.local\\share\\Steam"));
 	// A client the registry already names is listed once, in either spelling.
-	folders = ClientFolders(L"Z:\home\deck\.local\share\steam\\", L"/home/deck/.local/share/Steam");
+	folders = ClientFolders(L"Z:\\home\\deck\\.local\\share\\steam\\\\", L"/home/deck/.local/share/Steam");
 	EXPECT(folders.size() == 1);
 	// A launching client that names a drive is taken as written.
-	folders = ClientFolders(L"", L"D:\Steam");
-	EXPECT(folders.size() == 1 && folders[0] == fs::path(L"D:\Steam"));
+	folders = ClientFolders(L"", L"D:\\Steam");
+	EXPECT(folders.size() == 1 && folders[0] == fs::path(L"D:\\Steam"));
 	EXPECT(ClientFolders(L"", L"").empty());
 }
 
