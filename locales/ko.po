@@ -4212,6 +4212,24 @@ msgstr "Wi-Fi 플레이어도 참가, 관전, 채팅은 할 수 있지만 자리
 msgid "room.wired_only.settings_detail"
 msgstr "다음에 자리에 앉을 때부터 적용됩니다. 지금 앉아 있는 사람은 자리를 잃지 않습니다."
 
+msgid "room.max_ping"
+msgstr "최대 핑"
+
+msgid "room.max_ping.detail"
+msgstr "대전 상대가 될 수 있는 플레이어와의 핑이 이 값보다 높은 플레이어는 자리에 앉을 수 없습니다. 참가, 관전, 채팅은 할 수 있습니다. 대전 중인 플레이어와의 핑처럼 측정할 수 없는 핑은 계산하지 않습니다."
+
+msgid "room.max_ping.settings_detail"
+msgstr "다음에 자리에 앉을 때부터 적용됩니다. 지금 앉아 있거나 대기 중인 사람은 자리를 잃지 않습니다."
+
+msgid "room.max_ping.rule"
+msgstr "최대 핑 {0} ms"
+
+msgid "room.max_ping.over"
+msgstr "{0}님과의 핑은 {1} ms입니다. 이 방은 {2} ms까지의 플레이어가 앉을 수 있습니다."
+
+msgid "room.max_ping.measuring"
+msgstr "여기 있는 플레이어와의 핑을 측정하는 중입니다. 측정이 끝나면 자리에 앉을 수 있습니다."
+
 msgid "room.privacy"
 msgstr "공개 범위"
 
@@ -4508,6 +4526,9 @@ msgstr "모두가 이전 대전에서 돌아오기를 기다립니다."
 
 msgid "room.reject.wired_only"
 msgstr "이 방은 유선 플레이어 전용입니다. PC가 Wi-Fi에 연결되어 있습니다."
+
+msgid "room.reject.ping_over"
+msgstr "그 자리 플레이어와의 핑이 이 방의 최대 핑을 넘습니다."
 
 msgid "room.reject.other"
 msgstr "방에서 이 작업을 거부했습니다."
@@ -5773,13 +5794,37 @@ msgid "public.filter_area"
 msgstr "권역"
 
 msgid "public.filter_area_detail"
-msgstr "모든 권역의 방, 내 권역과 인접한 권역의 방만, 또는 한 권역의 방만 표시합니다. 좌우로 바꿀 수 있습니다."
+msgstr "모든 권역의 방, 내 권역과 인접한 권역의 방만, 또는 선택한 권역의 방을 표시합니다. 선택 버튼으로 권역을 고르고, 좌우로 모든 권역과 가까운 방을 전환합니다. 권역이 지정되지 않은 방은 모든 권역에서만 보입니다."
 
 msgid "public.filter_area_all"
 msgstr "모든 권역"
 
 msgid "public.filter_region_near"
 msgstr "가까운 방"
+
+msgid "public.filter_areas_title"
+msgstr "표시할 방"
+
+msgid "public.filter_areas_count"
+msgstr "권역 {0}개"
+
+msgid "public.filter_areas_pick"
+msgstr "권역 선택"
+
+msgid "public.filter_areas_quick"
+msgstr "전체 / 가까운 방"
+
+msgid "public.filter_near_detail"
+msgstr "내 권역과 인접한 권역의 방만 표시합니다. 켜면 선택한 권역이 해제됩니다."
+
+msgid "public.filter_area_one_detail"
+msgstr "{0}의 방을 표시합니다. 권역은 원하는 만큼 선택할 수 있으며, 권역이 지정되지 않은 방은 표시되지 않습니다."
+
+msgid "public.filter_areas_all"
+msgstr "모든 권역 표시"
+
+msgid "public.filter_areas_all_detail"
+msgstr "모든 권역과 가까운 방을 해제해 어디에 있든 방을 표시합니다."
 
 msgid "public.filter_type"
 msgstr "Room type"

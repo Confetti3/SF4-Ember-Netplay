@@ -4212,6 +4212,24 @@ msgstr "Les joueurs en Wi-Fi peuvent rejoindre, regarder et discuter, mais pas p
 msgid "room.wired_only.settings_detail"
 msgstr "S'applique à la prochaine place prise. Personne ne perd la place qu'il occupe."
 
+msgid "room.max_ping"
+msgstr "Ping max."
+
+msgid "room.max_ping.detail"
+msgstr "Les joueurs dont le ping vers les joueurs avec lesquels ils pourraient être appariés dépasse cette valeur ne peuvent pas prendre une place. Ils peuvent toujours rejoindre, regarder et discuter. Un ping impossible à mesurer, par exemple vers un joueur en match, n'est pas pris en compte."
+
+msgid "room.max_ping.settings_detail"
+msgstr "S'applique à la prochaine place prise. Personne, assis ou en file d'attente, ne perd sa place."
+
+msgid "room.max_ping.rule"
+msgstr "Ping max. {0} ms"
+
+msgid "room.max_ping.over"
+msgstr "Votre ping vers {0} est de {1} ms. Ce salon accepte les joueurs jusqu'à {2} ms."
+
+msgid "room.max_ping.measuring"
+msgstr "Mesure de votre ping vers les joueurs présents. La place s'ouvre dès qu'il est mesuré."
+
 msgid "room.privacy"
 msgstr "Confidentialité"
 
@@ -4508,6 +4526,9 @@ msgstr "Attente du retour de tous les participants du combat précédent."
 
 msgid "room.reject.wired_only"
 msgstr "Ce salon est réservé aux joueurs filaires. Votre PC est en Wi-Fi."
+
+msgid "room.reject.ping_over"
+msgstr "Votre ping vers un joueur à cette place dépasse le ping max. de ce salon."
 
 msgid "room.reject.other"
 msgstr "Le salon a refusé cette action."
@@ -5773,13 +5794,37 @@ msgid "public.filter_area"
 msgstr "Zone"
 
 msgid "public.filter_area_detail"
-msgstr "Afficher les salons de toutes les zones, seulement ceux de votre zone ou voisins, ou d'une seule zone. Gauche et Droite la modifient."
+msgstr "Afficher les salons de toutes les zones, seulement ceux de votre zone ou voisins, ou des zones que vous cochez. Sélectionner permet de choisir des zones ; Gauche et Droite alternent entre toutes les zones et près de moi. Un salon sans zone indiquée n'apparaît que sous Toutes les zones."
 
 msgid "public.filter_area_all"
 msgstr "Toutes les zones"
 
 msgid "public.filter_region_near"
 msgstr "Près de moi"
+
+msgid "public.filter_areas_title"
+msgstr "Afficher les salons de"
+
+msgid "public.filter_areas_count"
+msgstr "{0} zones"
+
+msgid "public.filter_areas_pick"
+msgstr "Choisir des zones"
+
+msgid "public.filter_areas_quick"
+msgstr "Toutes / Près de moi"
+
+msgid "public.filter_near_detail"
+msgstr "Afficher seulement les salons de votre zone ou voisins. L'activer décoche les zones choisies."
+
+msgid "public.filter_area_one_detail"
+msgstr "Afficher les salons de {0}. Cochez autant de zones que vous voulez ; un salon sans zone indiquée n'est pas affiché."
+
+msgid "public.filter_areas_all"
+msgstr "Afficher toutes les zones"
+
+msgid "public.filter_areas_all_detail"
+msgstr "Décochez toutes les zones et Près de moi pour lister les salons de partout."
 
 msgid "public.filter_type"
 msgstr "Room type"

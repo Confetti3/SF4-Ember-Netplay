@@ -4212,6 +4212,24 @@ msgstr "Jogadores no Wi-Fi podem entrar, assistir e conversar, mas não podem oc
 msgid "room.wired_only.settings_detail"
 msgstr "Vale a partir do próximo lugar ocupado. Quem já está sentado mantém o lugar."
 
+msgid "room.max_ping"
+msgstr "Ping máximo"
+
+msgid "room.max_ping.detail"
+msgstr "Jogadores cujo ping com os jogadores com quem poderiam ser pareados esteja acima desse valor não podem ocupar um lugar. Eles ainda podem entrar, assistir e conversar. Um ping que não pode ser medido, como o de um jogador em partida, não conta."
+
+msgid "room.max_ping.settings_detail"
+msgstr "Vale a partir do próximo lugar ocupado. Quem já está sentado ou na fila mantém o lugar."
+
+msgid "room.max_ping.rule"
+msgstr "Ping máximo {0} ms"
+
+msgid "room.max_ping.over"
+msgstr "Seu ping com {0} é de {1} ms. Esta sala aceita jogadores até {2} ms."
+
+msgid "room.max_ping.measuring"
+msgstr "Medindo seu ping com os jogadores daqui. O lugar abre assim que o ping for medido."
+
 msgid "room.privacy"
 msgstr "Privacidade"
 
@@ -4508,6 +4526,9 @@ msgstr "Aguardando todos terminarem de voltar da partida anterior."
 
 msgid "room.reject.wired_only"
 msgstr "Esta sala é para jogadores com cabo. Seu PC está no Wi-Fi."
+
+msgid "room.reject.ping_over"
+msgstr "Seu ping com um jogador nesse lugar está acima do ping máximo desta sala."
 
 msgid "room.reject.other"
 msgstr "A sala recusou essa ação."
@@ -5773,13 +5794,37 @@ msgid "public.filter_area"
 msgstr "Área"
 
 msgid "public.filter_area_detail"
-msgstr "Mostrar salas de todas as áreas, só as da sua área ou vizinhas, ou de uma única área. Esquerda e Direita a alteram."
+msgstr "Mostrar salas de todas as áreas, só as da sua área ou vizinhas, ou das áreas que você marcar. Com Selecionar você escolhe as áreas; Esquerda e Direita alternam entre todas as áreas e perto de mim. Uma sala sem área informada só aparece em Todas as áreas."
 
 msgid "public.filter_area_all"
 msgstr "Todas as áreas"
 
 msgid "public.filter_region_near"
 msgstr "Perto de mim"
+
+msgid "public.filter_areas_title"
+msgstr "Mostrar salas de"
+
+msgid "public.filter_areas_count"
+msgstr "{0} áreas"
+
+msgid "public.filter_areas_pick"
+msgstr "Escolher áreas"
+
+msgid "public.filter_areas_quick"
+msgstr "Todas / Perto de mim"
+
+msgid "public.filter_near_detail"
+msgstr "Mostra só as salas da sua área ou vizinhas. Ao ativar, as áreas marcadas são desmarcadas."
+
+msgid "public.filter_area_one_detail"
+msgstr "Mostra as salas de {0}. Marque quantas áreas quiser; uma sala sem área informada não aparece."
+
+msgid "public.filter_areas_all"
+msgstr "Mostrar todas as áreas"
+
+msgid "public.filter_areas_all_detail"
+msgstr "Desmarque todas as áreas e Perto de mim para listar salas de qualquer lugar."
 
 msgid "public.filter_type"
 msgstr "Room type"
