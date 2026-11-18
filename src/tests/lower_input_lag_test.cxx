@@ -17,7 +17,7 @@ namespace {
 // A custom room of `members` admitted members on connections 1 to `members`.
 struct Room {
 	MockTransport* transport = new MockTransport();
-	SessionServer server{"lower-lag", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)};
+	SessionServer server{"lower-lag", "build", std::unique_ptr<session::ServerTransport>(transport)};
 	std::uint64_t actionId = 0;
 	explicit Room(int members) {
 		// Both fighters readying starts the match, which needs each member's endpoint.

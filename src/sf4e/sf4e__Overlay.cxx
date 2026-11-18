@@ -691,7 +691,15 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     sf4e::training::KeepOilFull(meterOptions.oilFull);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
-    sf4e::ui::ServeTrainingPhone(training, sf4e::training::Submit);
+    // Every Training command goes through here. The player's own return to the
+    // room (F10, "Back to room", the pad or the phone) goes through the game's
+    // main menu, and Ember's menu comes back on the room there, as after a game.
+    const sf4e::ui::TrainingSubmit submit = [](sf4e::training::Command command) {
+        const bool taken = sf4e::training::Submit(command);
+        if (taken && command.action == sf4e::training::Action::LeaveToRoom) presentation.ReopenWhenBack("back from Training");
+        return taken;
+    };
+    sf4e::ui::ServeTrainingPhone(training, submit);
     const bool nativePaused = sf4e::battlePause.Paused();
     // A replay the game plays, not for a video: its keys are Ember's, read as
     // the training keys are, and training's own keys stay off.
@@ -744,7 +752,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             // Each is applied only under the owner it was pressed under, which
             // may have changed since the batch was taken.
             if (pad.generation != training.generation || !s_trainingControls.Current(pad)) continue;
-            sf4e::ui::ApplyTrainingPadEvent(training, sf4e::training::Submit, s_trainingControls, pad, called);
+            sf4e::ui::ApplyTrainingPadEvent(training, submit, s_trainingControls, pad, called);
         }
         // Record from rest on a recorded slot: the session asked about overwriting it, so the recordings open under the owner that press went down with.
         if (sf4e::input::TrainingControls::Token asked; sf4e::ui::TakeOverwriteAsk(training, asked) && !called) sf4e::ui::OpenTrainingRecordings(s_trainingControls, asked);
@@ -753,7 +761,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         auto practice = [&](sf4e::training::Action action) {
             sf4e::training::Submit({action, training.generation});
         };
-        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit, trainingRoom.InRoom() && !called);
+        sf4e::ui::TrainingHotkeys(training, submit, trainingRoom.InRoom() && !called);
         // Not under the call either: F7 could otherwise open the recordings there.
         if (sf4e::ui::TrainingPressesAct(s_trainingControls, called) && !ImGui::GetIO().WantTextInput) {
             // F7: standby, then record, then stop. From rest on a recorded
@@ -774,7 +782,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (s_trainingControls.Open()) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
-            sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit, trainingRoom);
+            sf4e::ui::DrawTrainingFlyout(training, submit, trainingRoom);
             sf4e::ui::DrawGameThemesFloat(true, true, true);
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_trainingControls.Close();
         }
@@ -799,33 +807,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     layers.padHint = snapshot.padHint;
     if (snapshot.replays.captionShown)
         layers.caption = sf4e::ui::ExportCaptionViewOf(snapshot.replays.caption, snapshot.preferences.matchHudNameOffset);
-    {
-        // The strip shows for a while after each control, and the chip
-        // after one pressed outside the fight; both timed from the counts.
-        static std::uint32_t takenSeen = 0, refusedSeen = 0;
-        static double takenAt = -1, refusedAt = -1;
-        const double now = ImGui::GetTime();
-        if (!replayKeys) { takenAt = refusedAt = -1; }
-        else {
-            if (playback.taken != takenSeen) takenAt = now;
-            if (playback.refused != refusedSeen) refusedAt = now;
-        }
-        takenSeen = playback.taken; refusedSeen = playback.refused;
-        auto& replay = layers.replay;
-        replay.shown = replayKeys;
-        replay.meter = snapshot.replays.meterShown;
-        replay.armed = playback.armed; replay.paused = playback.paused; replay.divisor = playback.divisor;
-        replay.round = playback.round; replay.cursor = playback.cursor;
-        replay.pad = playback.device == sf4e::replaytransport::Device::Pad;
-        replay.inputsKnown = snapshot.replays.lanes != nullptr;
-        replay.stripAlpha = sf4e::ui::CameraEditorShown() ? 0.f : sf4e::replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt < 0 ? -1 : now - takenAt);
-        replay.unavailable = refusedAt >= 0 && now - refusedAt < sf4e::replaytransport::kChipSeconds;
-        replay.lanes = replayKeys && playback.lanes && snapshot.replays.lanes;
-        std::uint32_t played = 0;
-        if (replay.lanes && sf4e::replaylane::PlayedFrame(playback.cursor, played))
-            for (int side = 0; side < 2; ++side)
-                replay.rowCount[side] = sf4e::replaylane::Rows(*snapshot.replays.lanes, side, playback.round, played, replay.rows[side]);
-    }
+    // The strip and the chip are timed on the process clock, as the hints below
+    // are: ImGui's restarts with a device reset.
+    static sf4e::ui::ReplayHudFeed replayHud;
+    replayHud.Fill(layers.replay, snapshot.replays, replayKeys, GetTickCount64() / 1000.0);
     if (layers.matchActive) {
         auto& strip = layers.match;
         // Each fighter's rank as rooms show it; Class emblems off hides it mid-match too.
@@ -861,8 +846,12 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     pointerCapture = focused && !visible && hud.pointer;
     // A Training table keeps its pointer for the F6 chip.
     const bool table = frame->localFighter && snapshot.practiceMatch;
-    const bool hideCursor = fight && !table;
-    sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture || hideCursor);
+    // A game this PC only watches has no pointer to keep out of the picture:
+    // the cursor stays shown and free, so it can leave for another monitor.
+    const bool watched = fight && snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch;
+    const bool hideCursor = fight && !table && !watched;
+    if (watched) sf4e::ui::ShowFreeCursor();
+    else sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture || hideCursor);
     if (hideCursor) ImGui::SetMouseCursor(ImGuiMouseCursor_None);
     // This frame publishes only the menu's part of the capture; the training
     // controls' part is their controller's own (CapturesInput).

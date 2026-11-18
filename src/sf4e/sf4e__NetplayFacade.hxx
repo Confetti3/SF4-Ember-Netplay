@@ -386,7 +386,6 @@ namespace sf4e {
 		// The room being opened is a public one joined with a ticket, so the host's
 		// refusals are worded for it.
 		bool IsRuntimePublicJoin();
-        bool IsRuntimeRecoveryEnabled();
 		void NotifyRuntimeMatchEnded();
 		// A netplay battle closed after its GGPO session was already retired, so
 		// NotifyRuntimeMatchEnded had no session to come from.
@@ -463,18 +462,12 @@ namespace sf4e {
 		// replaces it or a new session starts (NoticeSeverity), so retiring a
 		// session keeps the reason it ended.
 		void ClearTransientMatchNotice();
-		void HandleNetplayFailure(const char* reason, bool closeGgpo);
 
 		// Phase 7: room and control-plane failure handling. The room
 		// coordination and the session client each report their health, and
 		// the control plane counts as lost while either one is unhealthy.
-		// With runtime recovery enabled the loss raises the recovering
-		// notice. Otherwise, during an active, healthy, non-tunneled GGPO
-		// fight it degrades instead of killing the match: the fight
-		// continues on GGPO UDP, room sends stop, verification is marked
-		// unavailable, and rematch, results and spectator coordination are
-		// disabled. In every other situation it falls back to full
-		// HandleNetplayFailure.
+		// The loss raises the recovering notice; committed coordination
+		// recovers the room.
 		// Callers report a cause's health whenever they observe it. The loss
 		// handling runs once on the edge into loss; the edge out of it only
 		// clears the state.
@@ -484,10 +477,7 @@ namespace sf4e {
 		// Frame at which snapshot/hash verification became unavailable
 		// (-1 when the control plane is healthy).
 		int GetVerificationLostFrame();
-		// Called after the battle fully closes while degraded: logs the
-		// unverified interval and returns to a safe disconnected state
-		// (never a fake healthy lobby).
-		void FinalizeControlPlaneLossAfterBattle();
+
 		void ShutdownNetplay(bool closeGgpo);
 		void ClearBattleState();
 		void CancelDeferredGgpoClose();

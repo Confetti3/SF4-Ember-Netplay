@@ -39,7 +39,6 @@ namespace sf4e {
 		std::string _sidecarHash;
 		std::unique_ptr<session::ServerTransport> _transport;
 		bool _transportFailed = false;
-		std::unique_ptr<session::MatchAuthority> _matchAuthority;
 		std::array<std::unique_ptr<session::MatchAuthority>, room::TableCount> _roomMatchAuthorities{};
 		std::array<std::uint8_t, 16> _matchAuthorizationRoom{};
 		session::MatchAuthority::Identity _matchAuthorizationIdentity;
@@ -66,24 +65,15 @@ namespace sf4e {
 		// participant that arrives after the fighters is released at once.
 		void ArriveAtRoomBarrier(session::Connection connection, bool loadBarrier, const nlohmann::json& release);
 
-		void BroadcastMessage(const nlohmann::json& msg);
 		// One handler per message type, called from Step().
 		void HandleSessionHello(session::Connection conn, const nlohmann::json& msg, const session::Message& incoming);
 		void HandleRoomAction(session::Connection conn, const nlohmann::json& msg, std::vector<room::Event>& deferredRoomEvents);
 		void HandleMatchAcknowledgement(session::Connection conn, const nlohmann::json& msg,
 			std::vector<room::Event>& events);
-		void HandleForward(session::Connection conn, const nlohmann::json& msg, const SessionProtocol::ConnectionID& cid);
 		void HandleJoinRequest(session::Connection conn, const nlohmann::json& msg, const session::Message& incoming, SessionProtocol::ConnectionID cid);
 		void HandleSetChara(session::Connection conn, const nlohmann::json& msg);
 		void HandleSetEnv(session::Connection conn, const nlohmann::json& msg);
 		void HandleSetStage(session::Connection conn, const nlohmann::json& msg);
-		void HandleLobbySetSettings(session::Connection conn, const nlohmann::json& msg);
-		void HandleBattleLoaded(session::Connection conn, bool& bSendBattleSynced);
-		void HandleLobbyReady(session::Connection conn, const nlohmann::json& msg, const session::Message& incoming, bool& bSendLobbyAllReady);
-		void HandleLobbyReportResults(session::Connection conn, const nlohmann::json& msg);
-		void HandleLobbyReset(session::Connection conn, const nlohmann::json& msg);
-		void HandlePunchReady(session::Connection conn);
-		void HandleGgpoFrame(session::Connection conn, const nlohmann::json& msg, const SessionProtocol::ConnectionID& cid);
 		void Respond(session::Connection client, const nlohmann::json& msg, bool retainPublicReplay = true);
 
 		// Direct lobby data manipulation utilities
@@ -92,25 +82,21 @@ namespace sf4e {
 			SessionProtocol::ConnectionID& cid,
 			const SessionProtocol::AdmissionRequest& request
 		);
-		void HandleResults(int loserSide);
 
 	public:
 		SessionServer(std::string identity, std::string sidecarHash,
-			bool editionSelect, int roundCount, Dimps::Math::FixedPoint roundTime,
 			std::unique_ptr<session::ServerTransport> transport);
 		~SessionServer();
 
 		int Listen(uint16_t nPort);
+		// Serves the room's members. Until a room is enabled or restored
+		// (EnableCustomRooms, EnableServerOwnedRooms, RestoreCheckpoint) there
+		// is nothing to serve and the transport is not polled.
 		int Step();
 		int Close();
-		void PrepareForCallbacks();
-		void ResetBattleSync();
-		void ResetLobbyForRematch();
 		void EnableMatchAuthorization(std::array<std::uint8_t, 16> room, session::MatchAuthority::Identity identity,
 			std::function<std::uint64_t(session::Connection)> incarnation = {});
-		// Enables the multi-table room authority while retaining the legacy
-		// two-player path until this method is called by the room bootstrap.
-		// The room is created as `charter` says (room::Charter).
+		// Creates the room this server serves, as `charter` says (room::Charter).
 		void EnableCustomRooms(const std::string& name = "Private room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
 			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), room::Charter charter = room::Charter());
@@ -221,6 +207,17 @@ namespace sf4e {
 			ChatVersion chatVersion;
 		} SessionMember;
 		ChatVersion CurrentChatVersion() const;
+		// What the room's members are known by outside this server: a member's
+		// authenticated endpoint (empty when none is recorded) and its process
+		// incarnation (0 when none is recorded).
+		std::string PeerIdentity(room::MemberId member) const {
+			const auto identity = roomPeerIdentities.find(member);
+			return identity == roomPeerIdentities.end() ? std::string() : identity->second;
+		}
+		std::uint64_t MemberIncarnation(room::MemberId member) const {
+			const auto incarnation = roomIncarnations.find(member);
+			return incarnation == roomIncarnations.end() ? 0 : incarnation->second;
+		}
 		void EnableChatDelta(session::Connection connection, bool enabled);
 
 		std::map<session::Connection, SessionProtocol::ConnectionID> cidMap;
@@ -330,16 +327,20 @@ namespace sf4e {
 		void AdmitMemberRecord(room::MemberId member, SessionMember& row);
 		// Whether any match authority still names this endpoint as a participant.
 		bool MatchAuthorityNames(const SessionProtocol::ConnectionID& endpoint) const;
-		// Drops a member the room removed: its connection, identity and slots.
+		// Forgets a member the room removed: its identity, incarnation and
+		// record, and its connection when it still has one.
 		void ForgetRoomMember(room::MemberId member);
+		// Drops a connection's state: its CID, member mapping, selected table,
+		// client row and barrier arrivals. True when it had a client row. The
+		// member it carried, if any, is untouched (ForgetRoomMember).
+		bool DropConnection(session::Connection connection);
+		// DropConnection for every connection.
+		void DropConnections();
 		void PruneFrozenMembers();
 		std::vector<SessionMember> clients;
 
-		// Lobby data: Public for visibility into tests only.
-		bool _dataDirty;
-		SessionProtocol::LobbyData _lobbyData;
-		SessionProtocol::MatchData _matchData;
-		bool _punchReady[2] = { false, false };
+		// The room changed in a way every member's snapshot must show.
+		bool _dataDirty = false;
 		std::unique_ptr<room::RoomAuthority> _roomAuthority;
 		// The last departure from a server-owned room was a Leave that emptied it.
 		bool _serverOwnedLeftEmpty = false;

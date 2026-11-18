@@ -23,12 +23,12 @@ class IrohRoom::ServerAdapter final : public ServerTransport {
 		std::size_t maximum, const BatchPredicate* batchable) {
 		room->Poll();
 		if (room->epoch_ != epoch || room->room_.state == State::Failed || room->room_.state == State::Idle || room->room_.state == State::Closing) return false;
-		if (room->room_.coordination.active && (!room->room_.coordination.writable || !room->room_.coordination.leaderLocal || !room->room_.coordination.rebound)) return true;
+		if (!room->room_.coordination.writable || !room->room_.coordination.leaderLocal || !room->room_.coordination.rebound) return true;
 		closed.swap(room->room_.closed);
 		const auto queued = room->room_.serverMessages.size();
 		bool prefixBatchable = false;
 		for (std::size_t examined = 0; examined < queued && messages.size() < maximum && !room->room_.serverMessages.empty(); ++examined) {
-			if (room->room_.coordination.active && !room->PeerIncarnation(room->room_.serverMessages.front().connection)) {
+			if (!room->PeerIncarnation(room->room_.serverMessages.front().connection)) {
 				// Preserve the batch boundary once an authenticated prefix has begun;
 				// the deferred binding remains ahead of every later intent.
 				if (batchable && !messages.empty()) break;
@@ -48,7 +48,7 @@ class IrohRoom::ServerAdapter final : public ServerTransport {
 public:
 	explicit ServerAdapter(std::shared_ptr<IrohRoom> owner) : room(std::move(owner)), epoch(room->epoch_) {}
 	~ServerAdapter() override { Close(); }
-	bool Listen(std::uint16_t) override { return (room->room_.hosting || room->room_.coordination.active) && room->epoch_ == epoch; }
+	bool Listen(std::uint16_t) override { return room->epoch_ == epoch; }
 	bool Attach(Connection) override { return false; }
 	bool Poll(std::vector<Message>& messages, std::vector<Connection>& closed, std::size_t maximum) override {
 		return Drain(messages, closed, maximum, nullptr);
@@ -74,10 +74,7 @@ public:
 		return room->QueueEffect({1, room->room_.serverLocalNextId++, payload, "", ClassifyRoomMessage(payload)});
 	}
 	void Close() override {
-		if (room->epoch_==epoch) {
-			room->room_.serverOpen=false;
-			if (!room->room_.coordination.active) room->Leave();
-		}
+		if (room->epoch_==epoch) room->room_.serverOpen=false;
 	}
 };
 
@@ -147,7 +144,7 @@ public:
 		if (!reliable || payload.empty() || payload.size() > MaximumPayload) return SendResult::InvalidPayload;
 		if (!room->room_.hosting) {
 			if (room->room_.peers.empty()) return SendResult::NotConnected;
-			const auto owner=room->room_.coordination.active ? room->ConnectionForIdentity(room->room_.coordination.leader) : room->room_.peers.begin()->first;
+			const auto owner=room->ConnectionForIdentity(room->room_.coordination.leader);
 			return owner ? room->SendRemote(owner,payload,id) : SendResult::NotConnected;
 		}
 		if (room->room_.localNextId == (std::numeric_limits<std::int64_t>::max)()) return SendResult::Failed;
@@ -168,7 +165,7 @@ public:
 };
 
 std::unique_ptr<ServerTransport> IrohRoom::Server() {
-	if ((!room_.hosting && !room_.coordination.active) || room_.state == State::Idle || room_.serverOpen) return {};
+	if (room_.state == State::Idle || room_.serverOpen) return {};
 	room_.serverOpen = true;
 	return std::unique_ptr<ServerTransport>(new ServerAdapter(shared_from_this()));
 }

@@ -32,8 +32,9 @@ bool DrawPublicCard(const ShellView& view, const PublicRoomsPanel& panel, const 
 
 // GameMenu's Detail hook: under a room's name and sentence, the players' faces,
 // its rules and how long it has been open. Draws at the cursor, inside the
-// detail pane; nothing for any other row.
-void DrawPublicPreview(const ShellView& view, const PublicRoomsPanel& panel, const std::string& id);
+// detail pane; nothing for any other row. `now` is the shell's clock, as the
+// panel's Update had it.
+void DrawPublicPreview(const ShellView& view, const PublicRoomsPanel& panel, const std::string& id, double now);
 
 // An interface string on one line at `at`, shrunk from `natural` to fit `width`
 // and reported to the overflow probe as `probe` within `interior`; returns the width it took.

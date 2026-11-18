@@ -1,8 +1,9 @@
 #include "session_server_transport_support.hxx"
+#include "terminal_ledger_support.hxx"
 
 static void TestCustomRoomDepartures() {
 	auto* transport = new MockTransport();
-	SessionServer server("custom-room", "build", true, 3, {0, 99},
+	SessionServer server("custom-room", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> room = {};
 	room[0] = 1;
@@ -163,7 +164,7 @@ static void TestCustomRoomDepartures() {
 	// fighters can continue without regenerating private capabilities.
 	const auto portableCheckpoint = server.RecoveryCheckpoint();
 	auto* portableTransport = new MockTransport();
-	SessionServer portable("custom-room", "build", true, 3, {0, 99},
+	SessionServer portable("custom-room", "build",
 		std::unique_ptr<session::ServerTransport>(portableTransport));
 	portable.EnableMatchAuthorization(room, [](session::Connection connection) {
 		std::string identity(64, '0'); identity[63] = "0123456789abcdef"[connection & 15]; return identity;
@@ -224,7 +225,7 @@ static void TestCustomRoomDepartures() {
 	// only the UI roster. Restoring it must not send grants or touch a socket.
 	const auto checkpoint = json::parse(server.Checkpoint().dump());
 	auto* recoveryTransport = new MockTransport();
-	SessionServer recovery("custom-room", "build", true, 3, {0, 99},
+	SessionServer recovery("custom-room", "build",
 		std::unique_ptr<session::ServerTransport>(recoveryTransport));
 	recovery.EnableMatchAuthorization(room, [](session::Connection connection) {
 		std::string identity(64, '0'); identity[63] = "0123456789abcdef"[connection & 15]; return identity;
@@ -327,7 +328,7 @@ static void TestCustomRoomDepartures() {
 // the account rather than the connection.
 static void TestServerOwnedRoom() {
 	auto* transport = new MockTransport();
-	SessionServer server("public-room", "build", true, 3, {0, 99},
+	SessionServer server("public-room", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	CHECK(server.EnableServerOwnedRooms("Public", 8, 95));
 	CHECK(!server.EnableServerOwnedRooms("Again"));
@@ -412,6 +413,35 @@ static void TestParticipantDepartureCheckpoint(SetupStage stage, bool disconnect
 	// A fighter leaving ends the generation before the start, and the row with it.
 	fixture.Depart(3, true);
 	CHECK(server.roomFrozenMembers.empty());
+	CHECK(fixture.Imports(server.RecoveryCheckpoint()));
+}
+
+// A fighter whose connection drops while the terminal ledger is full stays on
+// the roster: its Leave cannot store the game's receipt. Every checkpoint must
+// still carry its identity, or no follower could import one, and a later kick
+// must take that identity with it.
+static void TestRefusedLeaveOnDrop() {
+	ParticipantRoom fixture(SetupStage::Started);
+	auto& server = fixture.server;
+	const auto fighter = server.roomMembers.at(2);
+	auto full = server._roomAuthority->Checkpoint();
+	FillTerminalLedger(full, fighter, server.roomMembers.at(3));
+	CHECK(server._roomAuthority->RestoreCheckpoint(full));
+	fixture.Depart(2, true);
+	const auto onRoster = [&] {
+		const auto& members = server.RoomSnapshot()->members;
+		return std::any_of(members.begin(), members.end(), [&](const room::Member& member) { return member.id == fighter; });
+	};
+	CHECK(onRoster());
+	CHECK(server.roomPeerIdentities.count(fighter) == 1 && server.roomIncarnations.count(fighter) == 1);
+	CHECK(fixture.Imports(server.RecoveryCheckpoint()));
+	// Once the ledger has room the host can kick the member left behind.
+	auto drained = server._roomAuthority->Checkpoint();
+	drained["terminal_receipts"] = json::array();
+	CHECK(server._roomAuthority->RestoreCheckpoint(drained));
+	fixture.Act(1, room::ActionKind::Kick, fighter);
+	CHECK(!onRoster());
+	CHECK(server.roomPeerIdentities.count(fighter) == 0 && server.roomIncarnations.count(fighter) == 0);
 	CHECK(fixture.Imports(server.RecoveryCheckpoint()));
 }
 
@@ -516,7 +546,7 @@ static void TestRejoinAfterPreStartDeparture() {
 // acted at, or their game starts with the default fighter.
 static void TestArcadeFighterFollowsSeat() {
 	auto* transport = new MockTransport();
-	SessionServer server("arcade-room", "build", true, 3, {0, 99},
+	SessionServer server("arcade-room", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> room = {};
 	room[0] = 1;
@@ -603,7 +633,7 @@ static void TestArcadeFighterFollowsSeat() {
 // (here cleared to the default, as a new pairing's data is).
 static void TestArcadeKeeperReady() {
 	auto* transport = new MockTransport();
-	SessionServer server("arcade-keeper", "build", true, 3, {0, 99},
+	SessionServer server("arcade-keeper", "build",
 		std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> room = {};
 	room[0] = 1;
@@ -712,6 +742,7 @@ int main() {
 	for (const auto stage : {SetupStage::Preparing, SetupStage::P1Prepared, SetupStage::FightersPrepared,
 		SetupStage::AllPrepared, SetupStage::Started})
 		for (const bool disconnect : {true, false}) TestParticipantDepartureCheckpoint(stage, disconnect);
+	TestRefusedLeaveOnDrop();
 	TestRejoinAfterPreStartDeparture();
 	TestServerOwnedRoom();
 	TestCustomRoomDepartures();

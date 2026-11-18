@@ -422,9 +422,6 @@ void fVsBattle::RegisterTasks() {
 void fVsBattle::ExitForeground() {
 	rVsBattle* _this = (rVsBattle*)this;
 	(_this->*rVsBattle::publicMethods.ExitForeground)();
-	if (fUserApp::netplay) {
-		fUserApp::ResetLobbyForRematch();
-	}
 	bSessionSentLoaded = false;
 	bSessionSynced = false;
 }

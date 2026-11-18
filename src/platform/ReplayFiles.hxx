@@ -31,8 +31,9 @@ constexpr int kFirstMatchSlot = 280, kLastMatchSlot = replayslots::kSlots - 1;
 // archive is empty when Windows has no settings folder for this user, saves
 // when there is no Steam path or no settings folder.
 // active is the one of saves that belongs to the account signed in to the
-// running Steam client (its ActiveUser), empty when Steam is not running or
-// that account has no saves here. outbox holds replays on their way into the
+// running Steam client (its ActiveUser, or under Proton the client's
+// MostRecent login), empty when Steam is not running or that account has no
+// saves here. outbox holds replays on their way into the
 // archive (%LOCALAPPDATA%, so a failing archive folder does not stop it),
 // empty when Windows has no local settings folder.
 struct Folders {

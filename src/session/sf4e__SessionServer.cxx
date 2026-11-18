@@ -60,19 +60,12 @@ bool IsRecoveryBatchableMessage(const session::Message& message) {
 
 const int sf4e::SESSION_SERVER_MAX_MESSAGES_PER_POLL = 200;
 
-SessionServer::SessionServer(std::string identity, std::string sidecarHash, bool editionSelect, int roundCount, FixedPoint roundTime,
+SessionServer::SessionServer(std::string identity, std::string sidecarHash,
 	std::unique_ptr<session::ServerTransport> transport) :
 	_identity(identity),
 	_sidecarHash(sidecarHash),
-	_transport(std::move(transport)),
-	_dataDirty(false),
-	_lobbyData(SessionProtocol::LobbyData::NULL_LOBBY)
+	_transport(std::move(transport))
 {
-	_lobbyData.id = { _identity, "1" };
-	_lobbyData.editionSelect = editionSelect;
-	_lobbyData.roundCount = roundCount;
-	_lobbyData.roundTime = roundTime;
-	clients.reserve(MAX_SF4E_PROTOCOL_USERS + 1);
 	_transportFailed = !_transport;
 }
 
@@ -115,10 +108,8 @@ void SessionServer::CaptureFrozenMember(room::MemberId member, const room::Snaps
 }
 
 bool SessionServer::MatchAuthorityNames(const SessionProtocol::ConnectionID& endpoint) const {
-	const auto names = [&](const std::unique_ptr<session::MatchAuthority>& authority) {
-		return authority && authority->HasParticipant(endpoint);
-	};
-	return names(_matchAuthority) || std::any_of(_roomMatchAuthorities.begin(), _roomMatchAuthorities.end(), names);
+	return std::any_of(_roomMatchAuthorities.begin(), _roomMatchAuthorities.end(),
+		[&](const std::unique_ptr<session::MatchAuthority>& authority) { return authority && authority->HasParticipant(endpoint); });
 }
 
 // A row goes once no authority names its endpoint, or once the endpoint is on
@@ -148,15 +139,14 @@ bool SessionServer::IsStaleMatchAck(const session::Message& message) const {
 		const auto payload = json::parse(message.payload);
 		const auto type = payload.value("type", std::string());
 		if (type != "game_prepared" && type != "game_ready") return false;
-		const auto* authority = _roomAuthority
-			? RoomMatchAuthority(RoomTableForGeneration(payload.value("generation", std::uint64_t(0))))
-			: _matchAuthority.get();
+		const auto* authority = RoomMatchAuthority(RoomTableForGeneration(payload.value("generation", std::uint64_t(0))));
 		return !authority || !authority->Expects(message.connection, payload);
 	} catch (const std::exception&) { return false; }
 }
 
 int SessionServer::Step()
 {
+	if (!_roomAuthority) return _transportFailed ? -1 : 0;
 	if (_recovery.Enabled()) {
 		if (!_recovery.Writable()) return 0;
 		// A timer tick may already have opened a private candidate.  Continue
@@ -184,12 +174,12 @@ int SessionServer::Step()
 	for (auto it = messages.begin(); it != messages.end();) {
 		if (!session::IsRoomVerificationMessage(*it)) { ++it; continue; }
 		const auto conn = it->connection;
-		const auto table = _roomAuthority ? RoomTableFor(conn) : static_cast<std::uint8_t>(room::TableCount);
-		const bool live = cidMap.find(conn) != cidMap.end() && (!_roomAuthority || (RoomMatchAuthority(table) &&
-			RoomMatchAuthority(table)->GetPhase() != session::MatchAuthority::Phase::Idle && IsRoomTableFighter(conn, table)));
+		const auto table = RoomTableFor(conn);
+		const bool live = cidMap.find(conn) != cidMap.end() && RoomMatchAuthority(table) &&
+			RoomMatchAuthority(table)->GetPhase() != session::MatchAuthority::Phase::Idle && IsRoomTableFighter(conn, table);
 		if (live && _transport)
 			for (const auto& client : clients)
-				if (client.conn != conn && (!_roomAuthority || IsRoomTableParticipant(client.conn, table)))
+				if (client.conn != conn && IsRoomTableParticipant(client.conn, table))
 					_transport->Send(client.conn, it->payload);
 		it = messages.erase(it);
 	}
@@ -214,70 +204,53 @@ int SessionServer::Step()
 	}
 	for (auto connection : closed) {
 		_departingConnections.insert(connection);
-		cidMap.erase(connection);
 		_connectionAdmissions.erase(connection);
-		if (_roomAuthority) {
-			const auto roomMember = roomMembers.find(connection);
-			const auto priorSnapshot = _roomAuthority->SnapshotCopy();
-			std::vector<room::Event> departureEvents;
-			for (std::uint8_t table = 0; table < room::TableCount; ++table) {
-				auto* authority = RoomMatchAuthority(table);
-				if (authority) {
-					if (!authority->MemberDeparted(connection, MatchSender())) _transportFailed = true;
-				}
-				// MatchAuthority tears down the native generation first. End the
-				// corresponding room generation before Leave clears the seat, so a
-				// fighter disconnect cannot strand the table in Paused.
-				// A private room's host leaving ends the room; a server-owned room's
-				// host is an ordinary player whose game ends like anyone else's.
-				if (roomMember != roomMembers.end() && (priorSnapshot.host != roomMember->second || priorSnapshot.serverOwned)) {
-					const auto& oldTable = priorSnapshot.tables[table];
-					const bool fighter = oldTable.p1 == roomMember->second || oldTable.p2 == roomMember->second;
-					const bool matchEnded = authority == nullptr || authority->GetPhase() == session::MatchAuthority::Phase::Idle;
-					if (matchEnded && (fighter || oldTable.spectators.end() != std::find(oldTable.spectators.begin(), oldTable.spectators.end(), roomMember->second)) &&
-						(oldTable.phase == room::TablePhase::Playing || oldTable.phase == room::TablePhase::Paused)) {
-						auto ended = _roomAuthority->EndMatch(table, oldTable.matchGeneration, room::MatchResult::Abort);
-						if (ended.accepted) departureEvents.insert(departureEvents.end(), ended.events.begin(), ended.events.end());
-					}
-				}
+		const auto mapping = roomMembers.find(connection);
+		const room::MemberId departedMember = mapping == roomMembers.end() ? 0 : mapping->second;
+		const auto priorSnapshot = _roomAuthority->SnapshotCopy();
+		std::vector<room::Event> departureEvents;
+		for (std::uint8_t table = 0; table < room::TableCount; ++table) {
+			auto* authority = RoomMatchAuthority(table);
+			if (authority) {
+				if (!authority->MemberDeparted(connection, MatchSender())) _transportFailed = true;
 			}
-			if (roomMember != roomMembers.end()) {
-				const auto departedMember = roomMember->second;
-				CaptureFrozenMember(departedMember, priorSnapshot);
-				auto leave = _roomAuthority->Leave(departedMember);
-				roomPeerIdentities.erase(departedMember);
-				roomMembers.erase(roomMember);
-				roomSelectedTables.erase(connection);
-				if (leave.accepted) {
-					// A rejected Leave keeps the member on the roster, which still reads its incarnation.
-					roomIncarnations.erase(departedMember);
-					roomMemberRecords.erase(departedMember);
-					// A dropped member may come back: this departure keeps the room's grace.
-					_serverOwnedLeftEmpty = false;
-					departureEvents.insert(departureEvents.end(), leave.events.begin(), leave.events.end());
-					// A departed locked-in spectator can release a held start.
-					const auto started = StartReadyTables(leave.events);
-					departureEvents.insert(departureEvents.end(), started.begin(), started.end());
-					ForgetReseatedMatchData(SeatedPairsOf(priorSnapshot));
-					BroadcastRoomState(departureEvents);
+			// MatchAuthority tears down the native generation first. End the
+			// corresponding room generation before Leave clears the seat, so a
+			// fighter disconnect cannot strand the table in Paused.
+			// A private room's host leaving ends the room; a server-owned room's
+			// host is an ordinary player whose game ends like anyone else's.
+			if (departedMember && (priorSnapshot.host != departedMember || priorSnapshot.serverOwned)) {
+				const auto& oldTable = priorSnapshot.tables[table];
+				const bool fighter = oldTable.p1 == departedMember || oldTable.p2 == departedMember;
+				const bool matchEnded = authority == nullptr || authority->GetPhase() == session::MatchAuthority::Phase::Idle;
+				if (matchEnded && (fighter || oldTable.spectators.end() != std::find(oldTable.spectators.begin(), oldTable.spectators.end(), departedMember)) &&
+					(oldTable.phase == room::TablePhase::Playing || oldTable.phase == room::TablePhase::Paused)) {
+					auto ended = _roomAuthority->EndMatch(table, oldTable.matchGeneration, room::MatchResult::Abort);
+					if (ended.accepted) departureEvents.insert(departureEvents.end(), ended.events.begin(), ended.events.end());
 				}
 			}
 		}
-		for (auto member = clients.begin(); member != clients.end(); ++member) {
-			if (member->conn == connection) {
-				clients.erase(member);
-				if (_matchAuthority) _matchAuthority->MemberDeparted(MatchSender());
-				_matchData.ClearReady(); ResetBattleSync(); _dataDirty = true;
-				_punchReady[0] = _punchReady[1] = false;
-				break;
-			}
+		room::Result leave;
+		if (departedMember) {
+			CaptureFrozenMember(departedMember, priorSnapshot);
+			leave = _roomAuthority->Leave(departedMember);
 		}
-		for (auto& loaded : _roomBattleLoaded) loaded.erase(connection);
-		for (auto& punch : _roomPunchReady) punch.erase(connection);
+		if (DropConnection(connection)) _dataDirty = true;
+		// A refused Leave keeps the member on the roster, which still reads its
+		// identity, incarnation and record: every checkpoint carries them.
+		if (departedMember && leave.accepted) {
+			ForgetRoomMember(departedMember);
+			// A dropped member may come back: this departure keeps the room's grace.
+			_serverOwnedLeftEmpty = false;
+			departureEvents.insert(departureEvents.end(), leave.events.begin(), leave.events.end());
+			// A departed locked-in spectator can release a held start.
+			const auto started = StartReadyTables(leave.events);
+			departureEvents.insert(departureEvents.end(), started.begin(), started.end());
+			ForgetReseatedMatchData(SeatedPairsOf(priorSnapshot));
+			BroadcastRoomState(departureEvents);
+		}
 		_departingConnections.erase(connection);
 	}
-	bool bSendLobbyAllReady = false;
-	bool bSendBattleSynced = false;
 	std::vector<room::Event> deferredRoomEvents;
 	for (const auto& incoming : messages) {
 		const auto conn = incoming.connection;
@@ -314,7 +287,7 @@ int SessionServer::Step()
 		else {
 			SessionProtocol::ConnectionID cid = cidMap[conn];
 			const auto name = msg.value("type", std::string());
-			if (type == SessionProtocol::MT_ROOM_ACTION && _roomAuthority) {
+			if (type == SessionProtocol::MT_ROOM_ACTION) {
 				HandleRoomAction(conn, msg, deferredRoomEvents);
 				continue;
 			}
@@ -322,10 +295,7 @@ int SessionServer::Step()
 				HandleMatchAcknowledgement(conn, msg, deferredRoomEvents);
 				continue;
 			}
-			if (type == SessionProtocol::MT_FORWARD) {
-				HandleForward(conn, msg, cid);
-			}
-			else if (type == SessionProtocol::MT_SESSION_JOINREQ) {
+			if (type == SessionProtocol::MT_SESSION_JOINREQ) {
 				HandleJoinRequest(conn, msg, incoming, cid);
 			}
 			else if (type == SessionProtocol::MT_PREBATTLE_SETCHARA) {
@@ -337,26 +307,11 @@ int SessionServer::Step()
 			else if (type == SessionProtocol::MT_PREBATTLE_SETSTAGE) {
 				HandleSetStage(conn, msg);
 			}
-			else if (type == SessionProtocol::MT_LOBBY_SETSETTINGS) {
-				HandleLobbySetSettings(conn, msg);
-			}
 			else if (type == SessionProtocol::MT_BATTLE_LOADED) {
-				HandleBattleLoaded(conn, bSendBattleSynced);
-			}
-			else if (type == SessionProtocol::MT_LOBBY_READY) {
-				HandleLobbyReady(conn, msg, incoming, bSendLobbyAllReady);
-			}
-			else if (type == SessionProtocol::MT_LOBBY_REPORTRESULTS) {
-				HandleLobbyReportResults(conn, msg);
-			}
-			else if (type == SessionProtocol::MT_LOBBY_RESET) {
-				HandleLobbyReset(conn, msg);
+				ArriveAtRoomBarrier(conn, true, json(SessionProtocol::BattleSynced()));
 			}
 			else if (type == SessionProtocol::MT_PUNCH_READY) {
-				HandlePunchReady(conn);
-			}
-			else if (type == SessionProtocol::MT_BATTLE_GGPO_FRAME) {
-				HandleGgpoFrame(conn, msg, cid);
+				ArriveAtRoomBarrier(conn, false, json(SessionProtocol::PunchGo()));
 			}
 			else {
 				spdlog::warn("Server: got unrecognized message type: {}", (int)type);
@@ -364,29 +319,11 @@ int SessionServer::Step()
 		}
 	}
 
-	bool roomStateBroadcast = false;
-	if (_roomAuthority && !deferredRoomEvents.empty()) {
-		BroadcastRoomState(deferredRoomEvents);
-		roomStateBroadcast = true;
-	}
-	if (_dataDirty) {
-		if (_roomAuthority) {
-			if (!roomStateBroadcast) BroadcastRoomState();
-			_dataDirty = false;
-			// Custom snapshots carry the complete room roster; the legacy
-			// update below would incorrectly expose all tables as one match.
-		} else {
-		SessionProtocol::SessionDataUpdate updateMsg;
-		updateMsg.lobbyData = _lobbyData;
-		updateMsg.matchData = _matchData;
-		updateMsg.lobbyData.members.clear();
-		for (auto clientIter = clients.begin(); clientIter != clients.end(); clientIter++) {
-			updateMsg.lobbyData.members.push_back(clientIter->data);
-		}
-		BroadcastMessage(json(updateMsg));
-		_dataDirty = false;
-		}
-	}
+	// Room actions observed in this poll share one snapshot/projection burst,
+	// which also covers any other change that marked the room dirty.
+	if (!deferredRoomEvents.empty()) BroadcastRoomState(deferredRoomEvents);
+	else if (_dataDirty) BroadcastRoomState();
+	_dataDirty = false;
 
 	// Roster/settings updates precede match-end acknowledgments. A client may
 	// enable Ready only after it knows which role it owns in the next match.
@@ -395,17 +332,6 @@ int SessionServer::Step()
 		Respond(pending.first, pending.second);
 	}
 	_afterDataMessages.clear();
-	if (bSendLobbyAllReady) {
-		if (_matchAuthority) {
-			std::vector<session::MatchAuthority::Participant> participants;
-			for (const auto& member : clients) participants.push_back({member.conn, member.data.connId});
-			if (!_matchAuthority->Begin(participants, MatchSender())) _transportFailed = true;
-		} else BroadcastMessage(json(SessionProtocol::LobbyAllReady()));
-	}
-
-	if (bSendBattleSynced) {
-		BroadcastMessage(json(SessionProtocol::BattleSynced()));
-	}
 
 	// Room actions and connection closes can end the last authority reference
 	// during this poll.  Keep frozen members while any authority still names
@@ -426,7 +352,6 @@ void SessionServer::EnableMatchAuthorization(std::array<std::uint8_t, 16> room, 
 	_matchAuthorizationIdentity = std::move(identity);
 	_memberIncarnation = std::move(incarnation);
 	_matchAuthorizationConfigured = true;
-	_matchAuthority.reset(new session::MatchAuthority(_matchAuthorizationRoom, _matchAuthorizationIdentity));
 	if (_roomAuthority) {
 		for (auto& authority : _roomMatchAuthorities) {
 			authority.reset(new session::MatchAuthority(_matchAuthorizationRoom, _matchAuthorizationIdentity));
@@ -442,8 +367,7 @@ sf4e::session::MatchAuthority::Send SessionServer::MatchSender() {
 		if (std::none_of(clients.begin(), clients.end(), [&](const SessionMember& member) { return member.conn == connection; })) return true;
 		if (message.at("type") == "game_end") {
 			if (_recovery.Enabled() && !_recoveryFlushing) { JournalEffect(connection, message); return true; }
-			const auto queueLimit = _roomAuthority ? room::MaxMembers * room::TableCount : MAX_SF4E_PROTOCOL_USERS;
-			if (_afterDataMessages.size() >= queueLimit) { _transportFailed = true; return false; }
+			if (_afterDataMessages.size() >= room::MaxMembers * room::TableCount) { _transportFailed = true; return false; }
 			_afterDataMessages.emplace_back(connection, message); return true;
 		}
 		if (_recovery.Enabled() && !_recoveryFlushing) { JournalEffect(connection, message); return true; }
@@ -453,19 +377,11 @@ sf4e::session::MatchAuthority::Send SessionServer::MatchSender() {
 	};
 }
 
-void SessionServer::BroadcastMessage(const nlohmann::json& msg) {
-	for (const auto& client : clients) {
-		Respond(client.conn, msg);
-	}
-}
 
 int SessionServer::Close()
 {
 	if (_transport) _transport->Close();
-	clients.clear();
-	cidMap.clear();
-	roomMembers.clear();
-	roomSelectedTables.clear();
+	DropConnections();
 	roomPeerIdentities.clear();
 	roomIncarnations.clear();
 	roomMemberRecords.clear();
@@ -476,29 +392,39 @@ int SessionServer::Close()
 	return 0;
 }
 
-void SessionServer::PrepareForCallbacks()
-{
-	// Legacy adapters own callback routing; the lobby has no global instance.
+// Every departure goes through these three: a closed connection drops its
+// state (DropConnection), a member the room removed is forgotten with its
+// connection (ForgetRoomMember), and a restore or Close drops every
+// connection at once (DropConnections). Member-level state (identity,
+// incarnation, record) goes only with the member.
+bool SessionServer::DropConnection(session::Connection connection) {
+	cidMap.erase(connection);
+	roomMembers.erase(connection);
+	roomSelectedTables.erase(connection);
+	for (auto& loaded : _roomBattleLoaded) loaded.erase(connection);
+	for (auto& punch : _roomPunchReady) punch.erase(connection);
+	const auto row = std::find_if(clients.begin(), clients.end(), [&](const SessionMember& client) { return client.conn == connection; });
+	if (row == clients.end()) return false;
+	clients.erase(row);
+	return true;
 }
 
-void SessionServer::ResetBattleSync()
-{
-	for (int i = 0; i < clients.size(); i++) {
-		clients.at(i).data.flags &= (~SessionProtocol::MF_BATTLE_LOADED);
-	}
+void SessionServer::ForgetRoomMember(room::MemberId member) {
+	roomPeerIdentities.erase(member);
+	roomIncarnations.erase(member);
+	roomMemberRecords.erase(member);
+	const auto mapping = std::find_if(roomMembers.begin(), roomMembers.end(),
+		[&](const std::pair<const session::Connection, room::MemberId>& entry) { return entry.second == member; });
+	if (mapping != roomMembers.end()) DropConnection(mapping->first);
 }
 
-void SessionServer::ResetLobbyForRematch()
-{
-	// Custom rooms are driven by committed RoomAction records. The legacy
-	// callback must never mutate a passive/custom authority outside Step().
-	if (_roomAuthority) return;
-	if (_matchAuthority && !_matchAuthority->End(MatchSender())) _transportFailed = true;
-	_matchData.ClearReady();
-	ResetBattleSync();
-	_punchReady[0] = false;
-	_punchReady[1] = false;
-	_dataDirty = true;
+void SessionServer::DropConnections() {
+	clients.clear();
+	cidMap.clear();
+	roomMembers.clear();
+	roomSelectedTables.clear();
+	for (auto& loaded : _roomBattleLoaded) loaded.clear();
+	for (auto& punch : _roomPunchReady) punch.clear();
 }
 
 SessionProtocol::JoinResult SessionServer::RegisterToWait(
@@ -526,60 +452,51 @@ SessionProtocol::JoinResult SessionServer::RegisterToWait(
 		}
 		if (iter.data.name == name) return SessionProtocol::JR_NAME_TAKEN;
 	}
-	if (_roomAuthority) {
-		const bool serverOwned = _roomAuthority->ServerOwned();
-		// Connection 1 is the hosting player's own client, except where no player
-		// hosts: a server-owned room's first joiner becomes host in the model.
-		const bool isHost = !serverOwned && conn == 1;
-		room::MemberProfile joinProfile = profile;
-		if (serverOwned) {
-			const auto admission = _connectionAdmissions.find(conn);
-			if (admission == _connectionAdmissions.end()) return SessionProtocol::JR_REQUEST_INVALID;
-			joinProfile.admission = admission->second;
-		}
-		std::string peerIdentity = cid.user;
-		if (_matchAuthorizationConfigured && _matchAuthorizationIdentity) {
-			const auto stable = _matchAuthorizationIdentity(conn);
-			if (!stable.empty()) peerIdentity = stable;
-		}
-		if (roomBannedIdentities.count(peerIdentity)) return SessionProtocol::JR_REQUEST_INVALID;
-		const auto incarnation = _memberIncarnation ? _memberIncarnation(conn) : _incarnation;
-		if (!incarnation) return SessionProtocol::JR_REQUEST_INVALID;
-		// Member.connection remains the protocol CID. The stable peer identity
-		// above is only an admission/kick ban key.
-		const room::ConnectionRef connectionRef{cid.host, cid.user};
-		auto joined = _roomAuthority->Join(name, connectionRef, isHost, joinProfile);
-		if (!joined.accepted) {
-			switch (joined.reason) {
-			case room::RejectReason::RoomFull: return SessionProtocol::JR_LOBBY_FULL;
-			case room::RejectReason::NameTaken: return SessionProtocol::JR_NAME_TAKEN;
-			case room::RejectReason::AdmissionLocked: return SessionProtocol::JR_LOBBY_FULL;
-			default: return SessionProtocol::JR_REQUEST_INVALID;
-			}
-		}
-		room::MemberId memberId = 0;
-		for (const auto& item : joined.snapshot.members) if (item.connection == connectionRef) { memberId = item.id; break; }
-		if (!memberId) return SessionProtocol::JR_REQUEST_INVALID;
-		roomMembers[conn] = memberId;
-		roomPeerIdentities[memberId] = std::move(peerIdentity);
-		roomIncarnations[memberId] = incarnation;
-		_roomAuthority->SetMemberIncarnation(memberId, incarnation);
-		roomSelectedTables[conn] = 0;
+	const bool serverOwned = _roomAuthority->ServerOwned();
+	// Connection 1 is the hosting player's own client, except where no player
+	// hosts: a server-owned room's first joiner becomes host in the model.
+	const bool isHost = !serverOwned && conn == 1;
+	room::MemberProfile joinProfile = profile;
+	if (serverOwned) {
+		const auto admission = _connectionAdmissions.find(conn);
+		if (admission == _connectionAdmissions.end()) return SessionProtocol::JR_REQUEST_INVALID;
+		joinProfile.admission = admission->second;
 	}
-
-	if (clients.size() >= MAX_SF4E_PROTOCOL_USERS) {
-		if (!_roomAuthority) return SessionProtocol::JR_LOBBY_FULL;
+	std::string peerIdentity = cid.user;
+	if (_matchAuthorizationConfigured && _matchAuthorizationIdentity) {
+		const auto stable = _matchAuthorizationIdentity(conn);
+		if (!stable.empty()) peerIdentity = stable;
 	}
+	if (roomBannedIdentities.count(peerIdentity)) return SessionProtocol::JR_REQUEST_INVALID;
+	const auto incarnation = _memberIncarnation ? _memberIncarnation(conn) : _incarnation;
+	if (!incarnation) return SessionProtocol::JR_REQUEST_INVALID;
+	// Member.connection remains the protocol CID. The stable peer identity
+	// above is only an admission/kick ban key.
+	const room::ConnectionRef connectionRef{cid.host, cid.user};
+	auto joined = _roomAuthority->Join(name, connectionRef, isHost, joinProfile);
+	if (!joined.accepted) {
+		switch (joined.reason) {
+		case room::RejectReason::RoomFull: return SessionProtocol::JR_LOBBY_FULL;
+		case room::RejectReason::NameTaken: return SessionProtocol::JR_NAME_TAKEN;
+		case room::RejectReason::AdmissionLocked: return SessionProtocol::JR_LOBBY_FULL;
+		default: return SessionProtocol::JR_REQUEST_INVALID;
+		}
+	}
+	room::MemberId memberId = 0;
+	for (const auto& item : joined.snapshot.members) if (item.connection == connectionRef) { memberId = item.id; break; }
+	if (!memberId) return SessionProtocol::JR_REQUEST_INVALID;
+	roomMembers[conn] = memberId;
+	roomPeerIdentities[memberId] = std::move(peerIdentity);
+	roomIncarnations[memberId] = incarnation;
+	_roomAuthority->SetMemberIncarnation(memberId, incarnation);
+	roomSelectedTables[conn] = 0;
 
 	SessionMember newMember{ {cid, name, peerAddr, port}, conn };
-	if (_roomAuthority) {
-		const auto id = roomMembers.at(conn);
-		newMember.data.roomMember = id;
-		newMember.data.authenticatedEndpoint = roomPeerIdentities.at(id);
-		newMember.data.incarnation = roomIncarnations.at(id);
-		newMember.data.latency = request.latency;
-		AdmitMemberRecord(id, newMember);
-	}
+	newMember.data.roomMember = memberId;
+	newMember.data.authenticatedEndpoint = roomPeerIdentities.at(memberId);
+	newMember.data.incarnation = incarnation;
+	newMember.data.latency = request.latency;
+	AdmitMemberRecord(memberId, newMember);
 	clients.push_back(std::move(newMember));
 	return SessionProtocol::JOIN_OK;
 }
@@ -596,12 +513,4 @@ void SessionServer::AdmitMemberRecord(room::MemberId member, SessionMember& row)
 			[&](const auto& identity) { return identity.second == route.endpoint; });
 	if (taken) route = {};
 	roomMemberRecords[member] = row.data;
-}
-
-void SessionServer::HandleResults(int loserIndex) {
-	if (_matchAuthority && !_matchAuthority->End(MatchSender())) _transportFailed = true;
-	auto loser = clients.begin() + loserIndex;
-	clients.push_back(*loser);
-	clients.erase(loser);
-	_matchData.Clear();
 }

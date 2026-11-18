@@ -20,7 +20,7 @@ namespace {
 // holds it.
 struct Room {
 	MockTransport* transport = new MockTransport();
-	SessionServer server{"ready-timeout", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)};
+	SessionServer server{"ready-timeout", "build", std::unique_ptr<session::ServerTransport>(transport)};
 	const bool recovery;
 	const std::uint64_t term = 5;
 	std::uint64_t request = 1, revision = 0, actionId = 0;

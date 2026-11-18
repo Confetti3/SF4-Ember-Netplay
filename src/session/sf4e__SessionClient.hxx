@@ -141,7 +141,7 @@ namespace sf4e {
 
 		session::SendResult Lobby_Ready();
 		session::SendResult Lobby_ReportResults(int loserSide);
-		session::SendResult Lobby_ResetRematch();
+
 		session::SendResult Lobby_SetSettings(
 			bool editionSelect,
 			int roundCount,

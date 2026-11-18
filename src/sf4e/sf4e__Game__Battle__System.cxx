@@ -605,10 +605,6 @@ void fSystem::CloseBattle() {
     sf4e::memento::LogCounters("battle_close_exit");
     sf4e::memento::ResetCounters();
     ResetNativeResultMatch();
-
-    // If the room was lost mid-fight (degraded mode), the fight is now
-    // over: exit to a safe disconnected state instead of a fake lobby.
-    sf4e::NetplayFacade::FinalizeControlPlaneLossAfterBattle();
 }
 
 void fSystem::OnBattleFlow_BattleStart(System* s) {

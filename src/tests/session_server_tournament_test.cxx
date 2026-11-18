@@ -20,7 +20,7 @@ static std::string Endpoint(session::Connection connection) {
 
 static void TestBindingThroughTheServer() {
 	auto* transport = new MockTransport();
-	SessionServer server("tournament", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport));
+	SessionServer server("tournament", "build", std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> roomId = {};
 	roomId[0] = 77;
 	server.EnableMatchAuthorization(roomId, [](session::Connection connection) { return Endpoint(connection); });
@@ -90,7 +90,7 @@ static void TestBindingThroughTheServer() {
 // connections 1 and 2. Every change is committed unless a test says not to.
 struct BoundServer {
 	MockTransport* transport = new MockTransport();
-	SessionServer server{"tournament", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)};
+	SessionServer server{"tournament", "build", std::unique_ptr<session::ServerTransport>(transport)};
 	const std::uint64_t term = 3;
 	std::uint64_t request = 1, revision = 0, actionId = 0;
 

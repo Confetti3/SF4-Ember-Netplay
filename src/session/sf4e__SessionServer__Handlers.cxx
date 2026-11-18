@@ -42,7 +42,7 @@ void SessionServer::HandleSessionHello(session::Connection conn, const json& msg
 	// authenticated endpoint for this connection, while the numeric
 	// handle is only a local socket slot and can be reused after a
 	// takeover.
-	if (_roomAuthority && _matchAuthorizationConfigured && _matchAuthorizationIdentity) {
+	if (_matchAuthorizationConfigured && _matchAuthorizationIdentity) {
 		const auto stable = _matchAuthorizationIdentity(conn);
 		if (!stable.empty()) cidMsg.cid.user = stable;
 	}
@@ -52,14 +52,13 @@ void SessionServer::HandleSessionHello(session::Connection conn, const json& msg
 	if (!hello.admission.is_null() && !hello.admission.empty()) {
 		try {
 			SessionProtocol::SessionJoinRequest admission = hello.admission.get<SessionProtocol::SessionJoinRequest>();
-			if ((_roomAuthority && (!admission.customRooms || admission.roomProtocol != room::ProtocolVersion)) ||
-				(!_roomAuthority && admission.customRooms)) admissionResult = SessionProtocol::JR_REQUEST_INVALID;
+			if (!admission.customRooms || admission.roomProtocol != room::ProtocolVersion) admissionResult = SessionProtocol::JR_REQUEST_INVALID;
 			else admissionResult = RegisterToWait(conn, cidMsg.cid, admission.Admission(incoming.peerAddress));
 			admitted = admissionResult == SessionProtocol::JOIN_OK;
 			if (admitted) EnableChatDelta(conn, admission.roomChatDelta);
 		} catch (const std::exception&) { admissionResult = SessionProtocol::JR_REQUEST_INVALID; }
 	}
-	if (admitted && _roomAuthority) {
+	if (admitted) {
 		cidMsg.roomMember = roomMembers[conn];
 		cidMsg.authenticatedEndpoint = roomPeerIdentities[cidMsg.roomMember];
 		cidMsg.incarnation = roomIncarnations[cidMsg.roomMember];
@@ -165,7 +164,7 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 			// effect journal. Replay the exact fighter generation directly
 			// from the durable room ledger when native teardown was already
 			// retired, so Ending cannot wait forever for an evicted game_end.
-			if (event.terminalReplay && !nativeEndSent && _roomAuthority) {
+			if (event.terminalReplay && !nativeEndSent) {
 				bool sent = true;
 				for (const auto member : _roomAuthority->TerminalMembers(event.table, event.matchGeneration)) {
 					for (const auto& mapping : roomMembers) {
@@ -224,20 +223,9 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 		result.reason == room::RejectReason::WrongGeneration)
 		ReplayPendingTerminalEvents(conn, roomMember->second);
 	if (result.accepted && actionMessage.action.kind == room::ActionKind::Leave) {
-		const auto leavingConnection = conn;
-		const auto leavingMember = roomMember->second;
 		_serverOwnedLeftEmpty = _roomAuthority->ServerOwned() && _roomAuthority->SnapshotView().members.empty();
-		roomPeerIdentities.erase(leavingMember);
-		roomIncarnations.erase(leavingMember);
-		roomMemberRecords.erase(leavingMember);
-		roomSelectedTables.erase(conn);
-		roomMembers.erase(roomMember);
-		cidMap.erase(leavingConnection);
-		clients.erase(std::remove_if(clients.begin(), clients.end(), [&](const SessionMember& client) {
-			return client.conn == leavingConnection;
-		}), clients.end());
-		for (auto& loaded : _roomBattleLoaded) loaded.erase(leavingConnection);
-		for (auto& punch : _roomPunchReady) punch.erase(leavingConnection);
+		const auto leavingMember = roomMember->second;
+		ForgetRoomMember(leavingMember);
 	}
 	if (result.accepted) {
 		ForgetReseatedMatchData(SeatedPairsOf(priorSnapshot));
@@ -257,81 +245,35 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 void SessionServer::HandleMatchAcknowledgement(session::Connection conn, const json& msg,
 	std::vector<room::Event>& events) {
 	try {
-		if (_roomAuthority) {
-			const auto generation = msg.value("generation", std::uint64_t(0));
-			const auto table = RoomTableForGeneration(generation);
-			auto* authority = RoomMatchAuthority(table);
-			if (!authority) return;
-			// A bound game whose permit window ran out during its preparation
-			// is called off at the next step toward its start, so game_start
-			// never goes out for it. A bound room seats its two fighters only,
-			// so no departure can start the game instead. A game_start proposed
-			// inside the window can still be committed after a same-term outage
-			// and start then: that delay is bounded only by the commit latency
-			// of its proposal. If no report arrives by start_by plus SILENT_SECS
-			// (30 minutes), the bridge's maintenance moves the attempt to
-			// review; reports after that are kept as evidence rather than
-			// reconciled automatically.
-			if (authority->Expects(conn, msg) && _roomAuthority->NativeStartExpired(table, generation)) {
-				if (!authority->End(MatchSender())) _transportFailed = true;
-				const auto ended = _roomAuthority->EndMatch(table, generation, room::MatchResult::Cancel);
-				if (!ended.accepted) { _transportFailed = true; return; }
-				_roomBattleLoaded[table].clear();
-				_roomPunchReady[table].clear();
-				_roomMatchData[table].Clear();
-				_dataDirty = true;
-				events.insert(events.end(), ended.events.begin(), ended.events.end());
-				return;
-			}
-			if (!authority->Acknowledge(conn, msg, MatchSender())) _transportFailed = true;
-			if (authority->GetPhase() == session::MatchAuthority::Phase::Started)
-				_roomAuthority->NativeStarted(table, generation);
-		} else if (_matchAuthority && !_matchAuthority->Acknowledge(conn, msg, MatchSender())) {
-			_transportFailed = true;
+		const auto generation = msg.value("generation", std::uint64_t(0));
+		const auto table = RoomTableForGeneration(generation);
+		auto* authority = RoomMatchAuthority(table);
+		if (!authority) return;
+		// A bound game whose permit window ran out during its preparation
+		// is called off at the next step toward its start, so game_start
+		// never goes out for it. A bound room seats its two fighters only,
+		// so no departure can start the game instead. A game_start proposed
+		// inside the window can still be committed after a same-term outage
+		// and start then: that delay is bounded only by the commit latency
+		// of its proposal. If no report arrives by start_by plus SILENT_SECS
+		// (30 minutes), the bridge's maintenance moves the attempt to
+		// review; reports after that are kept as evidence rather than
+		// reconciled automatically.
+		if (authority->Expects(conn, msg) && _roomAuthority->NativeStartExpired(table, generation)) {
+			if (!authority->End(MatchSender())) _transportFailed = true;
+			const auto ended = _roomAuthority->EndMatch(table, generation, room::MatchResult::Cancel);
+			if (!ended.accepted) { _transportFailed = true; return; }
+			_roomBattleLoaded[table].clear();
+			_roomPunchReady[table].clear();
+			_roomMatchData[table].Clear();
+			_dataDirty = true;
+			events.insert(events.end(), ended.events.begin(), ended.events.end());
+			return;
 		}
+		if (!authority->Acknowledge(conn, msg, MatchSender())) _transportFailed = true;
+		if (authority->GetPhase() == session::MatchAuthority::Phase::Started)
+			_roomAuthority->NativeStarted(table, generation);
 	} catch (const json::exception&) { /* Malformed acknowledgment has no authority. */ }
-}
-
-void SessionServer::HandleForward(session::Connection conn, const json& msg, const SessionProtocol::ConnectionID& cid) {
-	SessionProtocol::ForwardMessage fwdMsg;
-	try {
-		msg.get_to(fwdMsg);
-	}
-	catch (const json::exception&) {
-		spdlog::debug("Server: could not deserialize forwarding message");
-		return;
-	}
-
-	// If this is a connection ID managed by this server, we can apply
-	// additional security- messages with this source address should
-	// only be coming from the connection that the address is assigned
-	// to.
-	if (!(fwdMsg.src == cid)) {
-		spdlog::debug("Server: dropping fraudulent forwarding source");
-		return;
-	}
-	const auto sourceTable = _roomAuthority ? RoomTableFor(conn) : static_cast<std::uint8_t>(room::TableCount);
-	if (_roomAuthority && (!RoomMatchAuthority(sourceTable) || RoomMatchAuthority(sourceTable)->GetPhase() == session::MatchAuthority::Phase::Idle ||
-		!IsRoomTableParticipant(conn, sourceTable))) return;
-
-	if (fwdMsg.dest.host != _identity) {
-		spdlog::info("Server: cannot forward to nonlocal identity {}@{}, clustering not yet implemented", fwdMsg.dest.user, fwdMsg.dest.host);
-		return;
-	}
-
-	// Check that the destination is in fact the lobby
-	auto clientIter = clients.begin();
-	for (; clientIter != clients.end(); clientIter++) {
-		if (clientIter->data.connId == fwdMsg.dest) {
-			break;
-		}
-	}
-	if (clientIter != clients.end() && (!_roomAuthority || IsRoomTableParticipant(clientIter->conn, sourceTable))) {
-				Respond(clientIter->conn, msg);
-	}
-	else {
-		spdlog::debug("Server: Could not forward to {}@{}: not in known lobby", fwdMsg.dest.user, fwdMsg.dest.host);
-	}
 }
 
 void SessionServer::HandleJoinRequest(session::Connection conn, const json& msg, const session::Message& incoming, SessionProtocol::ConnectionID cid) {
@@ -355,8 +297,7 @@ void SessionServer::HandleJoinRequest(session::Connection conn, const json& msg,
 		Respond(conn, rejectMsg);
 		return;
 	}
-	if ((_roomAuthority && (!request.customRooms || request.roomProtocol != room::ProtocolVersion)) ||
-		(!_roomAuthority && request.customRooms)) {
+	if (!request.customRooms || request.roomProtocol != room::ProtocolVersion) {
 		SessionProtocol::SessionJoinReject reject;
 		reject.result = SessionProtocol::JR_REQUEST_INVALID;
 		Respond(conn, json(reject));
@@ -379,14 +320,10 @@ void SessionServer::HandleJoinRequest(session::Connection conn, const json& msg,
 
 void SessionServer::HandleSetChara(session::Connection conn, const json& msg) {
 	const std::uint8_t tableId = RoomTableFor(conn);
-    if(_roomAuthority&&tableId>=room::TableCount)return;
-	if ((!_roomAuthority && _matchAuthority && _matchAuthority->GetPhase() != session::MatchAuthority::Phase::Idle) ||
-		(_roomAuthority && RoomMatchAuthority(tableId) && RoomMatchAuthority(tableId)->GetPhase() != session::MatchAuthority::Phase::Idle)) return;
-	const auto table = _roomAuthority ? _roomAuthority->SnapshotView().tables[tableId] : room::Table{};
-	int side = _roomAuthority ? RoomSideFor(conn, tableId) : -1;
-	if (!_roomAuthority) for (int i = 0; i < 2; i++) {
-		if (clients.size() > i && clients.at(i).conn == conn) { side = i; break; }
-	}
+	if (tableId >= room::TableCount) return;
+	if (RoomMatchAuthority(tableId) && RoomMatchAuthority(tableId)->GetPhase() != session::MatchAuthority::Phase::Idle) return;
+	const auto table = _roomAuthority->SnapshotView().tables[tableId];
+	const int side = RoomSideFor(conn, tableId);
 	if (side == -1) {
 		spdlog::info("Server: sender {} tried to set chara, but is not playing", conn);
 		return;
@@ -400,34 +337,29 @@ void SessionServer::HandleSetChara(session::Connection conn, const json& msg) {
 		spdlog::info("Server: could not deserialize SetConditionsRequest");
 		return;
 	}
-	auto& matchData = _roomAuthority ? _roomMatchData[tableId] : _matchData;
+	auto& matchData = _roomMatchData[tableId];
 	const room::MemberId sender = side == 0 ? table.p1 : table.p2;
 	const auto pick = selection::FromNative(request.chara);
-	if (_roomAuthority && !_roomAuthority->FighterAllowed(sender, pick.fighter, pick.edition)) {
+	if (!_roomAuthority->FighterAllowed(sender, pick.fighter, pick.edition)) {
 		spdlog::info("Server: table {} seat {} keeps the fighter it won with; refused fighter {}", tableId, side, request.chara.charaID);
 		return;
 	}
-	if ((_roomAuthority ? table.ready[side] : matchData.readyMessageNum[side] != -1) ||
-		!selection::Valid(pick, _roomAuthority ? table.rules.editionSelect : _lobbyData.editionSelect)) {
+	if (table.ready[side] || !selection::Valid(pick, table.rules.editionSelect)) {
 		spdlog::info("Server: rejected unavailable or locked character selection from {}", conn);
 		return;
 	}
 	matchData.chara[side] = request.chara;
-    bool withdrew=false;
-    if(_roomAuthority&&_roomAuthority->SetMemberChara(sender,{pick.fighter,pick.edition,pick.costume,pick.color,pick.ultra},&withdrew)){
-        if(withdrew)spdlog::info("Server: table {} seat {} changed fighter to {}; the other seat's Ready was taken back",tableId,side,request.chara.charaID);
-        BroadcastRoomState({});
-    }
+	bool withdrew = false;
+	if (_roomAuthority->SetMemberChara(sender, {pick.fighter, pick.edition, pick.costume, pick.color, pick.ultra}, &withdrew)) {
+		if (withdrew) spdlog::info("Server: table {} seat {} changed fighter to {}; the other seat's Ready was taken back", tableId, side, request.chara.charaID);
+		BroadcastRoomState({});
+	}
 	_dataDirty = true;
 }
 
 void SessionServer::HandleSetEnv(session::Connection conn, const json& msg) {
 	const std::uint8_t tableId = RoomTableFor(conn);
-	int side = _roomAuthority ? RoomSideFor(conn, tableId) : -1;
-	if (!_roomAuthority) for (int i = 0; i < 2; i++) {
-		if (clients.size() > i && clients.at(i).conn == conn) { side = i; break; }
-	}
-	if (side != 0) {
+	if (RoomSideFor(conn, tableId) != 0) {
 		spdlog::info("Server: sender {} tried to set env, but is not P1", conn);
 		return;
 	}
@@ -439,25 +371,18 @@ void SessionServer::HandleSetEnv(session::Connection conn, const json& msg) {
 		spdlog::info("Server: could not deserialize SetConditionsRequest");
 		return;
 	}
-	if (_roomAuthority && (_roomAuthority->SnapshotView().tables[tableId].ready[0] ||
-		_roomAuthority->SnapshotView().tables[tableId].phase != room::TablePhase::Waiting)) return;
-	(_roomAuthority ? _roomMatchData[tableId] : _matchData).rngSeed = request.rngSeed;
+	const auto& table = _roomAuthority->SnapshotView().tables[tableId];
+	if (table.ready[0] || table.phase != room::TablePhase::Waiting) return;
+	_roomMatchData[tableId].rngSeed = request.rngSeed;
 	_dataDirty = true;
 }
 
 void SessionServer::HandleSetStage(session::Connection conn, const json& msg) {
 	const std::uint8_t tableId = RoomTableFor(conn);
-	if ((!_roomAuthority && _matchAuthority && _matchAuthority->GetPhase() != session::MatchAuthority::Phase::Idle) ||
-		(_roomAuthority && RoomMatchAuthority(tableId) && RoomMatchAuthority(tableId)->GetPhase() != session::MatchAuthority::Phase::Idle)) return;
+	if (RoomMatchAuthority(tableId) && RoomMatchAuthority(tableId)->GetPhase() != session::MatchAuthority::Phase::Idle) return;
 	// P1 submits the stage before its Ready message. P2 may already be ready.
-	if ((_roomAuthority && _roomAuthority->SnapshotView().tables[tableId].ready[0]) ||
-		(!_roomAuthority && _matchData.readyMessageNum[0] != -1)) return;
-	int side = -1;
-	side = _roomAuthority ? RoomSideFor(conn, tableId) : -1;
-	if (!_roomAuthority) for (int i = 0; i < 2; i++) {
-		if (clients.size() > i && clients.at(i).conn == conn) { side = i; break; }
-	}
-	if (side != 0) {
+	if (_roomAuthority->SnapshotView().tables[tableId].ready[0]) return;
+	if (RoomSideFor(conn, tableId) != 0) {
 		spdlog::info("Server: sender {} tried to set stage, but is not P1", conn);
 		return;
 	}
@@ -470,195 +395,6 @@ void SessionServer::HandleSetStage(session::Connection conn, const json& msg) {
 		return;
 	}
 
-	(_roomAuthority ? _roomMatchData[tableId] : _matchData).stageID = request.stageID;
+	_roomMatchData[tableId].stageID = request.stageID;
 	_dataDirty = true;
-}
-
-void SessionServer::HandleLobbySetSettings(session::Connection conn, const json& msg) {
-	if (_roomAuthority) return;
-	int side = -1;
-	for (int i = 0; i < 2; i++) {
-		if (clients.size() > i && clients.at(i).conn == conn) {
-			side = i;
-			break;
-		}
-	}
-	if (side != 0) {
-		spdlog::info("Server: sender {} tried to set lobby settings, but is not P1", conn);
-		return;
-	}
-	SessionProtocol::LobbySetSettings request;
-	try {
-		if (_matchAuthority) {
-			const auto& rounds = msg.at("roundCount");
-			const auto& time = msg.at("roundTime");
-			// Validate before get_to narrows JSON numbers into game fields.
-			if (!rounds.is_number_integer() || rounds < 1 || rounds > 99 ||
-				!msg.at("editionSelect").is_boolean() ||
-				!time.at("integral").is_number_integer() || time.at("integral") < 30 || time.at("integral") > 9999 ||
-				!time.at("fractional").is_number_integer() || time.at("fractional") != 0) return;
-		}
-		msg.get_to(request);
-	}
-	catch (const json::exception&) {
-		spdlog::info("Server: could not deserialize LobbySetSettings");
-		return;
-	}
-
-	// Once readiness begins, changing settings would invalidate the
-	// conditions the other player has accepted. Keep legacy comparison
-	// behavior while enforcing this gate on authorized Iroh rooms.
-	if (_matchAuthority) {
-		netplay::LobbySettings settings;
-		settings.editionSelect = request.editionSelect;
-		settings.roundCount = request.roundCount;
-		settings.roundTime = request.roundTime.integral;
-		if (!settings.Valid() || request.roundTime.fractional != 0 ||
-			_matchAuthority->GetPhase() != session::MatchAuthority::Phase::Idle ||
-			_matchData.readyMessageNum[0] != -1 || _matchData.readyMessageNum[1] != -1) return;
-	}
-	_lobbyData.editionSelect = request.editionSelect;
-	_lobbyData.roundCount = request.roundCount;
-	_lobbyData.roundTime = request.roundTime;
-	spdlog::info(
-		"Server: lobby settings set by host: edition={} rounds={} time={}",
-		request.editionSelect,
-		request.roundCount,
-		request.roundTime.integral
-	);
-	_dataDirty = true;
-}
-
-void SessionServer::HandleBattleLoaded(session::Connection conn, bool& bSendBattleSynced) {
-	if (_roomAuthority) {
-		ArriveAtRoomBarrier(conn, true, json(SessionProtocol::BattleSynced()));
-	} else {
-		bSendBattleSynced = true;
-		for (int i = 0; i < clients.size(); i++) {
-			if (clients.at(i).conn == conn) clients.at(i).data.flags |= SessionProtocol::MF_BATTLE_LOADED;
-			bSendBattleSynced = bSendBattleSynced && (clients.at(i).data.flags & SessionProtocol::MF_BATTLE_LOADED);
-		}
-		_dataDirty = true;
-	}
-}
-
-void SessionServer::HandleLobbyReady(session::Connection conn, const json& msg, const session::Message& incoming, bool& bSendLobbyAllReady) {
-	if (_roomAuthority) return;
-	if (_matchAuthority && _matchAuthority->GetPhase() != session::MatchAuthority::Phase::Idle) return;
-	int side = -1;
-	for (int i = 0; i < 2; i++) {
-		if (clients.size() > i && clients.at(i).conn == conn) {
-			side = i;
-			break;
-		}
-	}
-	if (side == -1) {
-		spdlog::info("Server: sender {} tried to ready, but is not playing", conn);
-		return;
-	}
-
-	SessionProtocol::LobbyReady request;
-	try {
-		msg.get_to(request);
-	}
-	catch (const json::exception&) {
-		spdlog::info("Server: could not deserialize ReportResultsRequest");
-		return;
-	}
-	if (!selection::Valid(selection::FromNative(_matchData.chara[side]), _lobbyData.editionSelect)) return;
-	_matchData.readyMessageNum[side] = incoming.messageId;
-	bSendLobbyAllReady = bSendLobbyAllReady || _matchData.IsAllReady();
-	_dataDirty = true;
-}
-
-void SessionServer::HandleLobbyReportResults(session::Connection conn, const json& msg) {
-	if (_roomAuthority) return;
-	if (_matchAuthority && (_matchAuthority->GetPhase() != session::MatchAuthority::Phase::Started ||
-		!msg.contains("generation") || !msg["generation"].is_number_unsigned() ||
-		msg["generation"].get<std::uint64_t>() != _matchAuthority->Generation())) return;
-	SessionProtocol::LobbyReportResults request;
-	try {
-		msg.get_to(request);
-	}
-	catch (const json::exception&) {
-		spdlog::info("Server: could not deserialize ReportResultsRequest");
-		return;
-	}
-
-	// Results can rotate only a player that actually exists, and
-	// only either active player may report them.
-	if (clients.size() < 2 || request.loserSide < 0 || request.loserSide > 1 ||
-		(clients[0].conn != conn && clients[1].conn != conn)) return;
-	HandleResults(request.loserSide);
-	_dataDirty = true;
-}
-
-void SessionServer::HandleLobbyReset(session::Connection conn, const json& msg) {
-	if (_roomAuthority) return;
-	if (_matchAuthority && (!msg.contains("generation") || !msg["generation"].is_number_unsigned() ||
-		msg["generation"].get<std::uint64_t>() != _matchAuthority->Generation())) return;
-	int side = -1;
-	for (int i = 0; i < 2; i++) {
-		if (clients.size() > i && clients.at(i).conn == conn) {
-			side = i;
-			break;
-		}
-	}
-	if (side == -1) {
-		spdlog::info("Server: sender {} tried to reset lobby, but is not playing", conn);
-		return;
-	}
-	ResetLobbyForRematch();
-}
-
-void SessionServer::HandlePunchReady(session::Connection conn) {
-	if (_roomAuthority) {
-		ArriveAtRoomBarrier(conn, false, json(SessionProtocol::PunchGo()));
-		return;
-	}
-	int side = -1;
-	for (int i = 0; i < 2 && i < (int)clients.size(); i++) {
-		if (clients.at(i).conn == conn) {
-			side = i;
-			break;
-		}
-	}
-	if (side == -1) {
-		spdlog::info("Server: sender {} sent punch_ready but is not playing", conn);
-		return;
-	}
-	_punchReady[side] = true;
-	if (_punchReady[0] && _punchReady[1]) {
-		SessionProtocol::PunchGo go;
-		json goMsg = go;
-		BroadcastMessage(goMsg);
-		_punchReady[0] = false;
-		_punchReady[1] = false;
-	}
-}
-
-void SessionServer::HandleGgpoFrame(session::Connection conn, const json& msg, const SessionProtocol::ConnectionID& cid) {
-	SessionProtocol::BattleGgpoFrame frame;
-	try {
-		msg.get_to(frame);
-	}
-	catch (const json::exception&) {
-		spdlog::debug("Server: could not deserialize GGPO frame");
-		return;
-	}
-
-	if (!(frame.src == cid)) {
-		spdlog::debug("Server: dropping fraudulent GGPO frame");
-		return;
-	}
-	const auto sourceTable = _roomAuthority ? RoomTableFor(conn) : static_cast<std::uint8_t>(room::TableCount);
-	if (_roomAuthority && (!RoomMatchAuthority(sourceTable) || RoomMatchAuthority(sourceTable)->GetPhase() == session::MatchAuthority::Phase::Idle ||
-		!IsRoomTableParticipant(conn, sourceTable))) return;
-
-	for (auto clientIter = clients.begin(); clientIter != clients.end(); clientIter++) {
-		if (clientIter->data.connId == frame.dest && (!_roomAuthority || IsRoomTableParticipant(clientIter->conn, sourceTable))) {
-			Respond(clientIter->conn, msg);
-			break;
-		}
-	}
 }

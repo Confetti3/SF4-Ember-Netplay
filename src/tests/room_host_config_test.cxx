@@ -56,7 +56,7 @@ void TestRoomFollowsTheConfiguration() {
 		roomhost::Config config;
 		std::string error;
 		CHECK(roomhost::ParseConfig(Line(own ? R"(,"own_delay":true)" : ""), config, error));
-		SessionServer server("room-host", "b1", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(new MockTransport()));
+		SessionServer server("room-host", "b1", std::unique_ptr<session::ServerTransport>(new MockTransport()));
 		CHECK(roomhost::EnableConfiguredRoom(server, config, 91));
 		const auto* snapshot = server.RoomSnapshot();
 		CHECK(snapshot && snapshot->serverOwned && snapshot->name == "Friday night" && snapshot->capacity == 8);
@@ -156,7 +156,7 @@ struct SplitReport {
 // for the same bans in the same order, on the same ticks, as the one-step report.
 void TestReportStepsMatchTheOneStepReport() {
 	auto* transport = new MockTransport();
-	SessionServer server("room-host", "b1", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport));
+	SessionServer server("room-host", "b1", std::unique_ptr<session::ServerTransport>(transport));
 	std::array<std::uint8_t, 16> roomId = {};
 	roomId[0] = 71;
 	server.EnableMatchAuthorization(roomId, [](session::Connection connection) {

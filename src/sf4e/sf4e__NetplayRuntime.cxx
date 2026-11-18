@@ -3,6 +3,7 @@
 #include "../common/AreaZones.hxx"
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/ControllerMappings.hxx"
+#include "../netplay/PlayerPreferencesLoad.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__GameThemes.hxx"
 #include "sf4e__MenuMusic.hxx"
@@ -108,8 +109,7 @@ void CloseRoom() {
 	spdlog::info("Room: closing error='{}' match_error='{}' match_phase={} spectator={} ggpo={}", runtime->error,
 		runtime->match ? runtime->match->Error() : std::string(), runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1,
 		LocalIsSpectator(), Game::Battle::System::ggpo != nullptr);
-    const bool abandon=runtime->replacementPending || (runtime->room && runtime->room->Coordination().active &&
-        !runtime->room->Coordination().writable);
+    const bool abandon=runtime->replacementPending || (runtime->room && !runtime->room->Coordination().writable);
     runtime->recovery=session::RoomRecoveryRuntime{};
     runtime->recoveryProgress=session::RecoveryProgress{};
     runtime->observedAuthorityTerm=0;
@@ -177,14 +177,11 @@ bool CanBeginReplacement() {
 namespace {
 bool Joined() {
 	if (!runtime->attached || !UserApp::netplay) return false;
-	const auto& client = UserApp::netplay->client;
-	if (client.GetRoomSnapshot().roomEpoch) {
-		const auto& room = client.GetRoomSnapshot();
-		return !room.closed && room.localMember && std::any_of(room.members.begin(), room.members.end(),
-			[&](const room::Member& member) { return member.id == room.localMember; });
-	}
-	return std::any_of(client._lobbyData.members.begin(), client._lobbyData.members.end(),
-		[&](const SessionProtocol::MemberData& member) { return member.connId == client._cid; });
+	// The room snapshot arrives before any table projection, so until it does
+	// this PC is not in the room.
+	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	return room.roomEpoch && !room.closed && room.localMember && std::any_of(room.members.begin(), room.members.end(),
+		[&](const room::Member& member) { return member.id == room.localMember; });
 }
 
 void AttachRoom() {
@@ -192,23 +189,19 @@ void AttachRoom() {
     if (!runtime->input.Ready()) return;
     const auto& device = runtime->input.Selected();
     const auto deviceIndex = static_cast<uint8_t>(device.index), deviceType = static_cast<uint8_t>(device.type);
-	if (runtime->controller.GetSnapshot().isHost || runtime->room->Coordination().active) {
-		const auto id = runtime->room->RoomId();
-		const std::string identity = "iroh:" + HexLower(id);
-		UserApp::server.reset(new SessionServer(identity, sf4e::sidecarHash,
-			runtime->preferences.lobby.editionSelect, runtime->preferences.lobby.roundCount,
-			{0, static_cast<short>(runtime->preferences.lobby.roundTime)}, runtime->room->Server()));
-		const auto room = runtime->room;
-		UserApp::server->EnableMatchAuthorization(id, [room](session::Connection connection) {
-			return connection == 1 ? room->LocalIdentity() : room->PeerIdentity(connection);
-		}, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
-		auto rules = runtime->preferences.tableRules;
-		UserApp::server->EnableCustomRooms(runtime->preferences.roomName,
-			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->charter);
-        const auto& authority=runtime->room->Coordination();
-        if(authority.active) UserApp::server->SetAuthority(authority.term,authority.revision,
-            authority.writable && authority.leaderLocal && authority.rebound);
-	}
+	const auto id = runtime->room->RoomId();
+	const std::string identity = "iroh:" + HexLower(id);
+	UserApp::server.reset(new SessionServer(identity, sf4e::sidecarHash, runtime->room->Server()));
+	const auto room = runtime->room;
+	UserApp::server->EnableMatchAuthorization(id, [room](session::Connection connection) {
+		return connection == 1 ? room->LocalIdentity() : room->PeerIdentity(connection);
+	}, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
+	auto rules = runtime->preferences.tableRules;
+	UserApp::server->EnableCustomRooms(runtime->preferences.roomName,
+		static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->charter);
+    const auto& authority=runtime->room->Coordination();
+    UserApp::server->SetAuthority(authority.term,authority.revision,
+        authority.writable && authority.leaderLocal && authority.rebound);
     input::ReleaseFromSide(0); // Preserve native menu -> match ownership handoff.
 	UserApp::StartIrohSession(runtime->room->Client(), config.ggpoPort, runtime->displayName,
 		deviceType, deviceIndex, static_cast<uint8_t>(runtime->preferences.inputDelay));
@@ -277,44 +270,7 @@ void StartHelper() {
         // The delay and Auto load from settings here, never from the
         // launcher's config copy of the delay (InputDelayPreference.hxx).
         netplay::ReadInputDelayPreference(saved,preferences);
-        try {
-            netplay::ReadBoolPreferences(saved, preferences);
-            preferences.buttonPrompts = netplay::ReadButtonPrompts(saved);
-            preferences.controllerMappings = netplay::ReadControllerMappings(saved);
-            preferences.buttonLayouts = gamepads::ReadLayouts(saved, [](unsigned, gamepads::LayoutLoadError) {});
-            const int hudSize = saved.value("matchHudSize", 1);
-            preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
-            const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;
-            preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= netplay::MaxMatchHudAnchor ? hudAnchor : 0;
-            const int pictureSpot = saved.contains("pictureSpot") && saved["pictureSpot"].is_number_integer() ? saved["pictureSpot"].get<int>() : 0;
-            preferences.pictureSpot = pictureSpot >= 0 && pictureSpot <= 11 ? pictureSpot : 0;
-            // Before pictureMode there was the bool watchedPicture, off by default: everyone starts on Small now.
-            const int pictureMode = saved.contains("pictureMode") && saved["pictureMode"].is_number_integer() ? saved["pictureMode"].get<int>() : netplay::PictureSmall;
-            preferences.pictureMode = pictureMode >= netplay::PictureSmall && pictureMode <= netplay::PictureOff ? pictureMode : netplay::PictureSmall;
-            const auto text = [&](const char* key) { return saved.contains(key) && saved[key].is_string() ? saved[key].get<std::string>() : std::string(); };
-            preferences.wornTitle = text("wornTitle"); preferences.wornIcon = text("wornIcon");
-            for (int part = 0; part < netplay::GameThemePartCount; ++part) preferences.gameThemes[part] = text(netplay::GameThemeKeys[part]);
-            const auto percent = [&](const char* key, int fallback) { return saved.contains(key) && saved[key].is_number_integer() ? saved[key].get<int>() : fallback; };
-            const int roomColumn = percent("roomColumn", netplay::DefaultRoomColumn), roomSplit = percent("roomSplit", netplay::DefaultRoomSplit);
-            preferences.roomColumn = roomColumn >= netplay::MinRoomColumn && roomColumn <= netplay::MaxRoomColumn ? roomColumn : netplay::DefaultRoomColumn;
-            preferences.roomSplit = roomSplit >= netplay::MinRoomSplit && roomSplit <= netplay::MaxRoomSplit ? roomSplit : netplay::DefaultRoomSplit;
-            const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
-            preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
-            preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
-            preferences.country = netplay::ReadCountryPreference(saved);
-            preferences.area = netplay::ReadAreaPreference(saved);
-            const auto since = saved.find("shareReplaysSince");
-            preferences.shareReplaysSince = since != saved.end() && since->is_number_unsigned() ? since->get<std::uint64_t>() : 0;
-            preferences.speech = netplay::ReadSpeechPreferences(saved);
-            netplay::ReadCardPreferences(saved, preferences);
-            preferences.roomFilter = netplay::ReadRoomFilter(saved);
-            const int volume = saved.value("readySoundVolume", 100);
-            preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
-            const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
-            preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
-            const float scale = saved.value("interfaceScale", 1.f);
-            preferences.interfaceScale = netplay::InterfaceScaleOrDefault(scale);
-        } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
+        if (!netplay::LoadPlayerPreferences(saved, preferences)) runtime->error = loc::T("runtime.interface_preferences_failed");
     }
     {
         // Sharing covers games saved since it came on: on with no cutoff (the
@@ -558,7 +514,6 @@ bool SubmitRuntimeCommand(RuntimeRequest command) {
 
 bool IsRuntimeRoomActive() { return runtime && runtime->attached; }
 bool IsRuntimePublicJoin() { return runtime && runtime->join == JoinKind::Public; }
-bool IsRuntimeRecoveryEnabled() { return runtime && runtime->room && runtime->room->Coordination().active; }
 
 // TickRuntime runs these phases in order on the game thread. Each one reads and
 // writes `runtime`; the order is part of the behaviour.
@@ -567,7 +522,8 @@ static void ObserveCoordination() {
     if (runtime->room) {
         runtime->room->Poll();
         const auto authority=runtime->room->Coordination();
-        if (authority.active) {
+        // Nothing to observe until the first room has opened on this helper.
+        if (runtime->room->Epoch()) {
             const bool changed=runtime->observedAuthorityTerm && runtime->observedAuthorityTerm!=authority.term;
             runtime->observedAuthorityTerm=authority.term;
             if((changed || !authority.writable) && runtime->match) {

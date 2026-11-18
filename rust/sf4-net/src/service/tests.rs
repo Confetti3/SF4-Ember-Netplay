@@ -9,6 +9,7 @@ use tokio::net::UdpSocket;
 
 mod admission;
 mod checkpoint_export;
+mod checkpoint_import;
 mod checkpoint_pipe;
 mod departures;
 mod dials;

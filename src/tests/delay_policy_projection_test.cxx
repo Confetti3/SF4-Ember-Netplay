@@ -18,7 +18,7 @@ namespace {
 // A custom room of three admitted members on connections 1 to 3.
 struct Room {
 	MockTransport* transport = new MockTransport();
-	SessionServer server{"delay-policy", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)};
+	SessionServer server{"delay-policy", "build", std::unique_ptr<session::ServerTransport>(transport)};
 	std::uint64_t actionId = 0;
 	explicit Room(room::DelayPolicy policy, bool serverOwned = false) {
 		// Both fighters readying starts the match, which needs each member's endpoint.

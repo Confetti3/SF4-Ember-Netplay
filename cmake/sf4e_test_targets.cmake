@@ -26,6 +26,8 @@ sf4e_add_unit_test(NAME ComboStore SOURCES "src/tests/combo_store_test.cxx" STD 
 sf4e_add_unit_test(NAME ReplayFiles SOURCES "src/tests/replay_files_test.cxx" STD 17
     LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> TIMEOUT 15 LABELS replay)
 
+sf4e_add_unit_test(NAME SteamAccounts SOURCES src/tests/steam_accounts_test.cxx src/common/SteamAccounts.cxx src/common/SteamKeyValues.cxx STD 17 TIMEOUT 15 LABELS replay)
+
 # Links Sidecar's own crash record, so the test runs the production handler.
 # It needs spdlog and GGPO, so it stays out of the core-only build.
 add_executable(HeapCorruptionCaptureTest "src/tests/heap_corruption_capture_test.cxx" "src/sf4e/sf4e__CrashDiagnostics.cxx" "src/sf4e/sf4e__ImportPatch.cxx")
@@ -160,6 +162,8 @@ sf4e_add_unit_test(NAME LobbyMusic SOURCES "src/tests/lobby_music_test.cxx" LIBS
 # It takes 2 s alone. Its saves are flushed writes, which take up to ten
 # times as long while other tests and builds use the disk.
 sf4e_add_unit_test(NAME SettingsStore SOURCES "src/tests/settings_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
+# Each interface preference loads on its own: a wrong-typed value costs only its own setting.
+sf4e_add_unit_test(NAME PlayerPreferencesLoad SOURCES "src/tests/player_preferences_load_test.cxx" LIBS sf4e_settings TIMEOUT 15)
 sf4e_add_unit_test(NAME UiPreferencesStore SOURCES "src/tests/ui_preferences_store_test.cxx" LIBS sf4e_settings)
 sf4e_add_unit_test(NAME RecordingFileStore SOURCES "src/tests/recording_file_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
 
@@ -181,7 +185,7 @@ sf4e_add_unit_test(NAME ControllersScreen SOURCES src/tests/controllers_screen_t
 sf4e_add_unit_test(NAME GamepadSlotsImportPatch SOURCES src/tests/import_patch_test.cxx src/sf4e/sf4e__ImportPatch.cxx STD 17)
 sf4e_add_unit_test(NAME DirectInputFilter SOURCES src/tests/directinput_filter_test.cxx LIBS sf4e dxguid STD 17)
 sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx src/tests/shell_replay_journey_test.cxx
-    src/tests/shell_room_journey_test.cxx src/tests/shell_follow_journey_test.cxx src/tests/shell_selection_journey_test.cxx
+    src/tests/shell_room_journey_test.cxx src/tests/shell_timing_journey_test.cxx src/tests/shell_follow_journey_test.cxx src/tests/shell_selection_journey_test.cxx
     src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx src/tests/shell_button_layout_journey_test.cxx
     src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx src/tests/shell_update_journey_test.cxx src/tests/shell_settings_journey_test.cxx
     src/tests/shell_wired_only_journey_test.cxx src/tests/shell_archive_journey_test.cxx
@@ -298,7 +302,7 @@ add_test(NAME PresentationSnapshot COMMAND PresentationSnapshotTest)
 set_tests_properties(PresentationSnapshot PROPERTIES TIMEOUT 30 PROCESSORS 2 PASS_REGULAR_EXPRESSION "Presentation snapshot passed")
 sf4e_test_locks(PresentationSnapshot ember_runtime)
 
-sf4e_add_unit_test(NAME SessionServerTransportLobby SOURCES "src/tests/session_server_transport_lobby_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
+sf4e_add_unit_test(NAME SessionServerTransportSelection SOURCES "src/tests/session_server_transport_selection_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportBarriers SOURCES "src/tests/session_server_transport_barriers_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportTerminal SOURCES "src/tests/session_server_transport_terminal_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportCommit SOURCES "src/tests/session_server_transport_commit_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)

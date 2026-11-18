@@ -40,7 +40,7 @@ inline bool ConfigureIrohIntegrationServer(IrohServerPeer& peer,
         identity += digits[byte >> 4];
         identity += digits[byte & 15];
     }
-    peer.server.reset(new SessionServer(identity, sidecar, true, 3, {0, 99}, peer.room->Server()));
+    peer.server.reset(new SessionServer(identity, sidecar, peer.room->Server()));
     if (!peer.server) return false;
     const auto room = peer.room;
     peer.server->EnableMatchAuthorization(roomId, [room](session::Connection connection) {

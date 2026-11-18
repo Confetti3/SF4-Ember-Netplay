@@ -3252,12 +3252,6 @@ msgstr "Выбор заблокирован: вернитесь в свою яч
 msgid "runtime.room_recovering"
 msgstr "Управление лобби восстанавливается. Соединение матча сохранено."
 
-msgid "runtime.room_lost_fight_continues"
-msgstr "Связь с лобби потеряна. Бой продолжается, но реванш и запись результата недоступны."
-
-msgid "runtime.returned_room_lost"
-msgstr "Вы вернулись в меню: во время матча связь с лобби пропала."
-
 msgid "runtime.room_request_failed"
 msgstr "Не удалось отправить запрос лобби. Выйдите из лобби и попробуйте снова."
 

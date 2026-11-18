@@ -66,7 +66,7 @@ public:
     };
     const HelperLoadSnapshot& HelperLoad() const { return helperLoad_; }
     struct CoordinationSnapshot {
-        bool active=false, writable=false, leaderLocal=false, rebound=false;
+        bool writable=false, leaderLocal=false, rebound=false;
         std::uint64_t term=0, revision=0, incarnation=0;
         std::size_t voterCount=0, learnerCount=0;
         std::string leader;

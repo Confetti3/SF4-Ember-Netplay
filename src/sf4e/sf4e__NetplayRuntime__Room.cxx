@@ -25,11 +25,11 @@ std::string CurrentProbePeer(std::uint64_t& revision, int* tableIndex=nullptr) {
     if (local==snapshot.members.end() || local->table<0 || local->table>=room::TableCount || local->seat<0 || local->seat>1) return {};
     const auto& table=snapshot.tables[local->table];
     const auto opponent=local->seat==0 ? table.p2 : table.p1;
-    const auto peer=UserApp::server->roomPeerIdentities.find(opponent);
-    if (peer==UserApp::server->roomPeerIdentities.end()) return {};
+    auto peer=UserApp::server->PeerIdentity(opponent);
+    if (peer.empty()) return {};
     revision=table.revision;
     if (tableIndex) *tableIndex=local->table;
-    return peer->second;
+    return peer;
 }
 
 // A command is dispatched fresh from the interface, retried from its parked
@@ -388,7 +388,7 @@ static DispatchOutcome Handle(commands::LeaveRoom& command, bool, Attempt attemp
 	const auto decision = Decide(netplay::CommandKind::LeaveRoom, command.generation);
 	if (!decision.accepted) return Refused(decision);
 	if (command.discordRevision) runtime->discordInvite.LeaveQueued();
-	if (IsRuntimeRecoveryEnabled() && runtime->attached && UserApp::netplay &&
+	if (runtime->attached && UserApp::netplay &&
 		UserApp::netplay->client.GetRoomSnapshot().localMember) {
 		runtime->leave.leaveRequested = true;
 		CancelLocalMatch(GgpoEnd::Retire("leave_room"));
@@ -732,10 +732,9 @@ static void TakeFinishedGame() {
 // one that ends without a recommendation is asked for once more.
 void TickAutoDelay(bool helperReady) {
     std::uint64_t revision=0; int tableIndex=-1;
-    // A room without coordination cannot reserve a check, so Auto readies at
-    // once with two frames there.
-    const bool coordinated=runtime->room && runtime->room->Coordination().active;
-    const auto peer=coordinated ? CurrentProbePeer(revision,&tableIndex) : std::string();
+    // Before the first room opens there is no table to check.
+    const bool opened=runtime->room && runtime->room->Epoch();
+    const auto peer=opened ? CurrentProbePeer(revision,&tableIndex) : std::string();
     const auto now=GetTickCount64();
     auto& check=runtime->autoDelayCheck;
     TakeFinishedGame();

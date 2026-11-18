@@ -1,6 +1,6 @@
 # SF4 Ember Netplay v1.6.1
 
-v1.6.1 is a hotfix for 1.6.0. Replays play to the end again, sitting down at a table takes one press, a private room has one Invite button, and Training has a way back to the room.
+v1.6.1 is a hotfix for 1.6.0. Replays play to the end again and "Watch now" watches, the room's tables are redesigned and sitting down takes one press, a private room has one Invite button, and Training has a way back to the room.
 
 Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [sf4e by Anthony Danducci and contributors](https://codeberg.org/adanducci/sf4e). Preserve upstream attribution and bundled licenses.
 
@@ -25,7 +25,7 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 - **Join queue and Watch are on the table.** A table with players shows both at its top right.
 - **A press cannot send twice.** A double click or a second press before the room answers is ignored.
 - **Watching a game? Ember asks first** before a press that would end what you are watching.
-- **"Leave seat" is on your own table; Ready up is on the bar.**
+- **Your own table ends in three buttons:** Ready up, Leave seat and Table options. Select on your own table still readies, and the bar keeps Ready up and Table options.
 
 ### Private rooms
 
@@ -51,6 +51,7 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 ### Crash reports
 
 - **A crash in code that is no longer loaded now names the module it was in,** and the report says whether a dump was asked for and what became of it.
+- **The log records what each fight is loading and the memory state when it loads,** writes a report when a fight has not started 20 seconds after loading began, and records memory around each return from Alt+Tab in exclusive fullscreen.
 
 ## Known issues
 
@@ -62,4 +63,4 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 
 ## Thanks
 
-Sir LarpsALot for the replay, Training freeze, reply slot and move order reports; Bunkei for the way back from Training; Exis for the lobby drop reports and logs; HouseWD, G and Bogart Willey for their reports.
+Sir LarpsALot for the replay, Training freeze, reply slot and move order reports; Bunkei for the way back from Training; Exis for the lobby drop reports and logs; Cham for the replay report; HouseWD, G and Bogart Willey for their reports.

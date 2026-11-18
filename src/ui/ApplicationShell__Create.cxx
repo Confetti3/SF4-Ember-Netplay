@@ -84,7 +84,7 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="delete-template"&&createTemplate_>=0&&createTemplate_<static_cast<int>(preferences_.roomTemplates.size())){
   if(preferences_.publicRoomTemplate==preferences_.roomTemplates[createTemplate_].name)preferences_.publicRoomTemplate.clear();
   preferences_.roomTemplates.erase(preferences_.roomTemplates.begin()+createTemplate_);
-  createTemplate_=-1;createTables_.reset();preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
+  createTemplate_=-1;createTables_.reset();preferencesDirty_=true;saveAt_=clock_.Now()+.45;
  }
  else if(a.id=="host"){
   commands::HostRoom host;host.generation=v.session.generation;host.preferences=PreferencesToSend();
@@ -120,7 +120,7 @@ void ApplicationShell::ApplyRoomTemplate(int index) {
  next.roomName=saved.roomName;next.roomCapacity=saved.capacity;next.roomPublic=saved.isPublic;next.roomDelayPolicy=saved.delayPolicy;next.roomTableCount=saved.tableCount;next.roomWiredOnly=saved.wiredOnly;next.roomFriendsHidden=saved.friendsHidden;
  (saved.isPublic?next.publicTableRules:next.tableRules)=saved.tables.rules[0];
  if(!next.Valid()){error_=loc::T("error.invalid_value");return;}
- preferences_=std::move(next);preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();
+ preferences_=std::move(next);preferencesDirty_=true;saveAt_=clock_.Now()+.45;error_.clear();
  createTemplate_=index;createTables_=saved.tables;createPractice_=saved.practice;
 }
 // The template's tables while the rows still show its rules; rules changed
@@ -136,7 +136,7 @@ void ApplicationShell::CreatePublicRoom(room::RoomType type) {
  const auto& templates=preferences_.roomTemplates;
  const std::string made=createTemplate_>=0&&createTemplate_<static_cast<int>(templates.size())?templates[createTemplate_].name:std::string();
  if(preferences_.publicRoomType!=type||preferences_.publicRoomTemplate!=made||preferences_.publicArcadeTables!=createArcadeTables_){
-  preferences_.publicRoomType=type;preferences_.publicRoomTemplate=made;preferences_.publicArcadeTables=createArcadeTables_;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
+  preferences_.publicRoomType=type;preferences_.publicRoomTemplate=made;preferences_.publicArcadeTables=createArcadeTables_;preferencesDirty_=true;saveAt_=clock_.Now()+.45;
  }
  publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy,type,preferences_.roomWiredOnly,
   static_cast<std::uint8_t>(createArcadeTables_));
@@ -153,8 +153,8 @@ void ApplicationShell::SaveRoomTemplate(const room::Snapshot& room,const std::st
  if(same!=templates.end())*same=saved;
  else if(templates.size()>=netplay::MaxRoomTemplates){error_=loc::Tf("room.template.full",static_cast<int>(netplay::MaxRoomTemplates));return;}
  else templates.push_back(saved);
- preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();
- notice_=loc::Tf("room.template.saved",saved.name);noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+4;
+ preferencesDirty_=true;saveAt_=clock_.Now()+.45;error_.clear();
+ notice_=loc::Tf("room.template.saved",saved.name);noticeTone_=Tone::Success;noticeUntil_=clock_.Now()+4;
 }
 
 // The public-room service is the one the Ember ID panel selects when its
@@ -178,7 +178,7 @@ void ApplicationShell::OpenCreate() {
  createPractice_=false;createType_=room::RoomType::Classic;createArcadeTables_=static_cast<int>(room::TableCount);createTemplate_=-1;createTables_.reset();menu_.navigation.Push("create");
 }
 void ApplicationShell::OpenPublicCreate() {
- if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=clock_.Now()+.45;}
  ApplyPublicDefaultName();
  error_.clear();OpenCreate();
 }
@@ -190,7 +190,7 @@ void ApplicationShell::ApplyPublicDefaultName() {
  const std::string name=CutUtf8(preferences_.displayName,overhead<64?64-overhead:0);
  if(name.empty())return;
  preferences_.roomName=loc::Tf("public.default_name",name);
- preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
+ preferencesDirty_=true;saveAt_=clock_.Now()+.45;
 }
 
 // Create, as the design's board: the room's settings and the table's rules

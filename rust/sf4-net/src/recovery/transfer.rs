@@ -223,7 +223,9 @@ pub fn hex_digest(bytes: &[u8; 32]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn parse_digest(value: &str) -> io::Result<[u8; 32]> {
+/// A SHA-256 digest from its hex text, in either case. Every checkpoint
+/// message that names a digest reads it through here.
+pub fn parse_digest(value: &str) -> io::Result<[u8; 32]> {
     if value.len() != 64 || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(io::Error::other("invalid SHA-256 digest"));
     }
@@ -240,6 +242,16 @@ fn parse_digest(value: &str) -> io::Result<[u8; 32]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_digest_reads_the_same_in_either_case() {
+        let digest = sha256(b"checkpoint");
+        let lower = hex_digest(&digest);
+        assert_eq!(parse_digest(&lower).unwrap(), digest);
+        assert_eq!(parse_digest(&lower.to_ascii_uppercase()).unwrap(), digest);
+        assert!(parse_digest(&lower[1..]).is_err());
+        assert!(parse_digest(&format!("{}g", &lower[1..])).is_err());
+    }
 
     #[test]
     fn transfer_is_contiguous_and_sha256_bound() {

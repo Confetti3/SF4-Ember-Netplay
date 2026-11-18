@@ -207,9 +207,9 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
                 snapshot.opponentDelay=table->ready[otherSeat] ? table->inputDelay[otherSeat] : -1;
                 if (runtime->room && UserApp::server) {
                     const auto opponent=localMember->seat ? table->p1 : table->p2;
-                    const auto peer=UserApp::server->roomPeerIdentities.find(opponent);
+                    const auto peer=UserApp::server->PeerIdentity(opponent);
                     const auto& probe=runtime->room->Probe();
-                    if (peer!=UserApp::server->roomPeerIdentities.end() && probe.peer==peer->second &&
+                    if (!peer.empty() && probe.peer==peer &&
                         probe.pairRevision==table->revision) {
                         snapshot.probeRoute=ClassifyRoute(probe.route);
                         snapshot.probeRelay=RelayRegion(probe.route);
@@ -554,9 +554,9 @@ RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool 
 				gates.canProbe = !gates.delayLocked && table->p1 && table->p2;
 				if (runtime->room && UserApp::server) {
 					const auto opponent = localMember->seat ? table->p1 : table->p2;
-					const auto peer = UserApp::server->roomPeerIdentities.find(opponent);
+					const auto peer = UserApp::server->PeerIdentity(opponent);
 					const auto& probe = runtime->room->Probe();
-					if (peer != UserApp::server->roomPeerIdentities.end() && probe.peer == peer->second &&
+					if (!peer.empty() && probe.peer == peer &&
 						probe.pairRevision == table->revision) {
 						gates.canApplyDelay = !gates.delayLocked && probe.recommended >= 0;
 						if (probe.status == "checking") gates.canProbe = false;

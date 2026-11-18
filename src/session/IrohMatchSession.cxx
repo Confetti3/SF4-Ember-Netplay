@@ -105,7 +105,7 @@ bool IrohMatchSession::StartQueuedSetup() {
 		pendingConnect_ = pendingStart_ = false;
 		return true;
 	}
-    if (room_ && room_->Coordination().active && pendingGrantTerm_ &&
+    if (room_ && pendingGrantTerm_ &&
         room_->Coordination().term != pendingGrantTerm_) {
         // A private grant which has not been accepted belongs to the old
         // authority term and must not be replayed by a newly rebound room.
@@ -223,7 +223,7 @@ bool IrohMatchSession::AcceptGrant(const json& message) {
 	const auto opponent = std::find_if(links_.begin(), links_.end(), [&](const Link& link) { return slot < 2 && link.slot == 1 - slot; });
 	opponentPeer_ = opponent == links_.end() ? std::string() : opponent->peer;
 	client_.SetGameplayGeneration(generation_);
-	pendingGrantTerm_ = room_ && room_->Coordination().active ? room_->Coordination().term : 0;
+	pendingGrantTerm_ = room_ ? room_->Coordination().term : 0;
 	readySent_ = mappingsPrepared_ = endSent_ = false;
 	roomEndReceived_ = false;
 	spectatorEnds_.clear();
@@ -326,7 +326,7 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 					if (!pendingGrant_.is_null() && pendingGrant_.at("generation") != message.at("generation")) return Fail("overlapping_match_permission");
 					if (pendingGrant_.is_null()) {
 						pendingGrant_ = std::move(message);
-						pendingGrantTerm_ = room_ && room_->Coordination().active ? room_->Coordination().term : 0;
+						pendingGrantTerm_ = room_ ? room_->Coordination().term : 0;
 						waitingForProjection_ = false;
 					}
 				} else {

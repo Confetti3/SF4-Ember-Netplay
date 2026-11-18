@@ -3252,12 +3252,6 @@ msgstr "Selección bloqueada: vuelve a tu mesa."
 msgid "runtime.room_recovering"
 msgstr "Recuperando control de sala. Se conserva la conexión de partida."
 
-msgid "runtime.room_lost_fight_continues"
-msgstr "Se perdió la conexión con la sala. La partida continúa, pero no habrá revancha ni resultados."
-
-msgid "runtime.returned_room_lost"
-msgstr "De vuelta al menú: se perdió la conexión con la sala durante la partida."
-
 msgid "runtime.room_request_failed"
 msgstr "Falló la solicitud de la sala. Sal de la sala e inténtalo de nuevo."
 

@@ -3252,12 +3252,6 @@ msgstr "選択はロック中。状態を確認するには対戦席へ戻って
 msgid "runtime.room_recovering"
 msgstr "ルーム操作を復旧中です。対戦の接続は維持されます。"
 
-msgid "runtime.room_lost_fight_continues"
-msgstr "ルームとの接続が切れました。対戦は続きますが、再戦と結果の記録はできません。"
-
-msgid "runtime.returned_room_lost"
-msgstr "メニューに戻りました。対戦中にルーム接続が切れました。"
-
 msgid "runtime.room_request_failed"
 msgstr "ルームへの要求に失敗しました。退出して再試行してください。"
 

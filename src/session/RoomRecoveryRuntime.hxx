@@ -12,7 +12,7 @@ public:
     bool Tick(SessionServer& server, IrohRoom& room) {
         room.Poll();
         const auto authority=room.Coordination();
-        if(!authority.active) return true;
+        if(!room.Epoch()) return true;
         bool deferredLocalCommit=false;
         IrohRoom::CommittedCheckpoint committed;
         // Whether a commit predates this session is decided against the
@@ -151,11 +151,11 @@ private:
         if(snapshot->members.empty()) return true;
         std::vector<SessionServer::StableRebind> bindings;
         for(const auto& member:snapshot->members) {
-            const auto peer=server.roomPeerIdentities.find(member.id);
-            if(peer==server.roomPeerIdentities.end()) return false;
-            const auto connection=room.ConnectionForIdentity(peer->second);
+            const auto peer=server.PeerIdentity(member.id);
+            if(peer.empty()) return false;
+            const auto connection=room.ConnectionForIdentity(peer);
             if(!connection) return false;
-            const auto incarnation=server.roomIncarnations.count(member.id)?server.roomIncarnations.at(member.id):0;
+            const auto incarnation=server.MemberIncarnation(member.id);
             const auto authenticated=room.PeerIncarnation(connection);
             if(!incarnation || (authenticated && authenticated!=incarnation)) return false;
             bindings.emplace_back(member.id,connection,SessionProtocol::ConnectionID{member.connection.host,member.connection.user},

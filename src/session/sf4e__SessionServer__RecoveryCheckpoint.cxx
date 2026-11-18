@@ -1,4 +1,4 @@
-// SessionServer: the legacy and portable recovery checkpoints and their restore.
+// SessionServer: the local and portable recovery checkpoints and their restore.
 
 #include <string>
 #include <utility>
@@ -44,19 +44,14 @@ json SessionServer::Checkpoint() const {
 		members.push_back({{"connection", member.conn}, {"data", member.data}, {"flags", member.data.flags}});
 	for (const auto& authority : _roomMatchAuthorities)
 		authorities.push_back(authority ? authority->Checkpoint() : json(nullptr));
-	json lobby = _lobbyData;
-	for (std::size_t i = 0; i < _lobbyData.members.size(); ++i)
-		lobby["members"][i]["flags"] = _lobbyData.members[i].flags;
 	json value = {{"version", 1}, {"identity", _identity}, {"build", _sidecarHash},
 		{"room", _roomAuthority->Checkpoint()}, {"members", members}, {"cids", cidMap},
 		{"room_members", roomMembers}, {"selected_tables", roomSelectedTables},
 		{"peer_identities", roomPeerIdentities}, {"bans", roomBannedIdentities},
-		{"lobby", lobby}, {"match", _matchData}, {"table_matches", _roomMatchData},
-		{"battle_loaded", _roomBattleLoaded}, {"punch_ready", _roomPunchReady},
-		{"legacy_punch_ready", _punchReady}, {"dirty", _dataDirty},
+		{"table_matches", _roomMatchData},
+		{"battle_loaded", _roomBattleLoaded}, {"punch_ready", _roomPunchReady}, {"dirty", _dataDirty},
 		{"authorized", _matchAuthorizationConfigured}, {"authorization_room", _matchAuthorizationRoom},
-		{"match_authorities", authorities},
-		{"legacy_authority", _matchAuthority ? _matchAuthority->Checkpoint() : json(nullptr)}};
+		{"match_authorities", authorities}};
 	if (DumpJson(value).size() > room::RoomAuthority::MaximumCheckpointBytes)
 		throw std::length_error("room checkpoint exceeds replication limit");
 	return value;
@@ -71,7 +66,7 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 			return RefuseRestore("header");
 		// The temporary owns no transport. Rejected imports cannot partially
 		// replace live state, disconnect peers, or publish native match effects.
-		SessionServer candidate(_identity, _sidecarHash, true, 3, {0, 99}, nullptr);
+		SessionServer candidate(_identity, _sidecarHash, nullptr);
 		candidate._roomAuthority.reset(new room::RoomAuthority("Recovering room"));
 		if (!candidate._roomAuthority->RestoreCheckpoint(value.at("room"))) return RefuseRestore("room");
 		const auto& snapshot = candidate._roomAuthority->SnapshotView();
@@ -170,12 +165,6 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 		};
 		if (!readSets("battle_loaded", candidate._roomBattleLoaded) ||
 			!readSets("punch_ready", candidate._roomPunchReady)) return false;
-		candidate._lobbyData = value.at("lobby").get<SessionProtocol::LobbyData>();
-		if (candidate._lobbyData.id.host != _identity || candidate._lobbyData.members.size() > room::MaxMembers) return RefuseRestore("lobby");
-		for (std::size_t i = 0; i < candidate._lobbyData.members.size(); ++i)
-			candidate._lobbyData.members[i].flags = value.at("lobby").at("members")[i].at("flags").get<std::uint64_t>();
-		candidate._matchData = value.at("match").get<SessionProtocol::MatchData>();
-		const auto punch = value.at("legacy_punch_ready").get<std::array<bool, 2>>();
 		candidate._dataDirty = value.at("dirty").get<bool>();
 		const auto& authorities = value.at("match_authorities");
 		if (!authorities.is_array() || authorities.size() != room::TableCount) return RefuseRestore("match_authorities");
@@ -185,7 +174,6 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 			authority.reset(new session::MatchAuthority(_matchAuthorizationRoom, _matchAuthorizationIdentity));
 			return authority->RestoreCheckpoint(data);
 		};
-		if (!restoreAuthority(value.at("legacy_authority"), candidate._matchAuthority)) return RefuseRestore("legacy_authority");
 		for (std::size_t i = 0; i < room::TableCount; ++i)
 			if (!restoreAuthority(authorities[i], candidate._roomMatchAuthorities[i]))
 				return RefuseRestore("match_authority " + std::to_string(i));
@@ -195,11 +183,10 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 		roomPeerIdentities = std::move(candidate.roomPeerIdentities); roomBannedIdentities = std::move(candidate.roomBannedIdentities);
 		roomIncarnations = std::move(candidate.roomIncarnations); roomMemberRecords = std::move(candidate.roomMemberRecords);
 		roomFrozenMembers.clear();
-		_lobbyData = std::move(candidate._lobbyData); _matchData = candidate._matchData;
 		_roomMatchData = std::move(candidate._roomMatchData);
 		_roomBattleLoaded = std::move(candidate._roomBattleLoaded); _roomPunchReady = std::move(candidate._roomPunchReady);
-		_matchAuthority = std::move(candidate._matchAuthority); _roomMatchAuthorities = std::move(candidate._roomMatchAuthorities);
-		_punchReady[0] = punch[0]; _punchReady[1] = punch[1]; _dataDirty = candidate._dataDirty;
+		_roomMatchAuthorities = std::move(candidate._roomMatchAuthorities);
+		_dataDirty = candidate._dataDirty;
 		_departingConnections.clear(); _afterDataMessages.clear();
 		return true;
 	} catch (const std::exception& error) { return RefuseRestore(std::string("checkpoint: ") + error.what()); }
@@ -274,18 +261,6 @@ json SessionServer::RecoveryCheckpoint() const {
 	for (const auto& authority : _roomMatchAuthorities)
 		portableAuthorities.push_back(authority ? authority->PortableCheckpoint() : json(nullptr));
 	value["match_authorities"] = std::move(portableAuthorities);
-	value["legacy_authority"] = _matchAuthority ? _matchAuthority->PortableCheckpoint() : json(nullptr);
-	for (auto& row : value["lobby"]["members"]) {
-		const auto endpoint = row.value("connId", SessionProtocol::ConnectionID{});
-		for (const auto& member : _roomAuthority->SnapshotView().members) {
-			if (member.connection.host == endpoint.host && member.connection.user == endpoint.user) {
-				row["roomMember"] = member.id;
-				row["authenticatedEndpoint"] = roomPeerIdentities.count(member.id) ? roomPeerIdentities.at(member.id) : member.connection.user;
-				row["incarnation"] = roomIncarnations.count(member.id) ? roomIncarnations.at(member.id) : 1;
-				break;
-			}
-		}
-	}
 	value["authority"] = {{"term", _recovery.Authority().term}, {"revision", _recovery.Authority().revision}, {"writable", _recovery.Authority().writable}};
 	// Uncommitted effects travel once, in SessionProposal.effects.
 	value["effect_journal"] = _committedEffectHistory;
@@ -321,11 +296,11 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 				return RefuseRestore("effect_journal");
 		// Everything but the recovery envelope. The journal is the bulk of a
 		// checkpoint and RestoreCheckpoint does not read it, so it is not copied.
-		json legacy = json::object();
+		json local = json::object();
 		for (auto field = value.begin(); field != value.end(); ++field)
 			if (field.key() != "schema" && field.key() != "authority" && field.key() != "effect_journal" && field.key() != "incarnation")
-				legacy[field.key()] = field.value();
-		json legacyMembers = json::array(), cids = json::array(), roomMemberRows = json::array(), selected = json::array();
+				local[field.key()] = field.value();
+		json localMembers = json::array(), cids = json::array(), roomMemberRows = json::array(), selected = json::array();
 		std::map<room::MemberId, session::Connection> synthetic;
 		std::map<room::MemberId, SessionProtocol::ConnectionID> endpoints;
 		std::array<std::set<room::MemberId>, room::TableCount> pendingBattleLoaded{};
@@ -343,19 +318,19 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 			data.incarnation = frozen ? row.value("incarnation", data.incarnation ? data.incarnation : 1ULL)
 				: row.value("incarnation", data.incarnation);
 			if (!frozen) {
-				legacyMembers.push_back({{"connection", synthetic.at(member)}, {"data", data}, {"flags", data.flags}});
+				localMembers.push_back({{"connection", synthetic.at(member)}, {"data", data}, {"flags", data.flags}});
 				cids.push_back({synthetic.at(member), data.connId});
 				roomMemberRows.push_back({synthetic.at(member), member});
 			}
 			endpoints.emplace(member, data.connId);
 		}
-		legacy["members"] = std::move(legacyMembers); legacy["cids"] = std::move(cids); legacy["room_members"] = std::move(roomMemberRows);
+		local["members"] = std::move(localMembers); local["cids"] = std::move(cids); local["room_members"] = std::move(roomMemberRows);
 		for (const auto& row : value.value("selected_members", json::array())) {
 			const auto member = row.at("member").get<room::MemberId>();
 			if (!synthetic.count(member) || row.at("table").get<std::uint64_t>() >= room::TableCount) return RefuseRestore("selected_members");
 			selected.push_back({synthetic.at(member), row.at("table")});
 		}
-		legacy["selected_tables"] = std::move(selected);
+		local["selected_tables"] = std::move(selected);
 		const auto readPendingSets = [&](const char* key, auto& target) {
 			const auto rows = value.value(key, json::array());
 			if (!rows.is_array() || rows.size() != room::TableCount) return RefuseRestore(key);
@@ -380,7 +355,7 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 				}
 				result.push_back(std::move(row));
 			}
-			legacy[output] = std::move(result); return legacy[output];
+			local[output] = std::move(result); return local[output];
 		};
 		if (decodeSets("battle_loaded_members", "battle_loaded").is_null() || decodeSets("punch_ready_members", "punch_ready").is_null())
 			return RefuseRestore("pending_sets");
@@ -393,9 +368,7 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 		};
 		json authorities = json::array();
 		for (const auto& authority : value.at("match_authorities")) { auto converted = convertAuthority(authority); if (converted.is_discarded()) return RefuseRestore("match_authorities"); authorities.push_back(std::move(converted)); }
-		legacy["match_authorities"] = std::move(authorities);
-		legacy["legacy_authority"] = convertAuthority(value.value("legacy_authority", json(nullptr)));
-		if (legacy["legacy_authority"].is_discarded()) return RefuseRestore("legacy_authority");
+		local["match_authorities"] = std::move(authorities);
 		const auto previousAuthorityTerm = _recovery.Authority().term;
 		// A commit made before an outage must not take back the time a
 		// permit's window has already run here. While a candidate is open its
@@ -403,7 +376,7 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 		// generation, so only the baseline's timers carry over.
 		const auto permitAges = !_roomAuthority ? room::RoomAuthority::PermitTimers{}
 			: _recoveryCandidateReady ? _recoveryBaselinePermits : _roomAuthority->PermitAges();
-		if (!RestoreCheckpoint(legacy)) return false;
+		if (!RestoreCheckpoint(local)) return false;
 		if (_roomAuthority && !_roomAuthority->RecoveryPaused()) _roomAuthority->PauseForRecovery();
 		if (_roomAuthority) _roomAuthority->KeepPermitAges(permitAges);
 		_committedEffectHistory = std::move(incomingHistory);
@@ -436,8 +409,7 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 		_recoveryPendingPunchReady = std::move(pendingPunchReady);
 		// Synthetic handles exist only while converting the schema; a passive
 		// follower must wait for authenticated RebindMember calls.
-		clients.clear(); cidMap.clear(); roomMembers.clear(); roomSelectedTables.clear();
-		for (auto& set : _roomBattleLoaded) set.clear(); for (auto& set : _roomPunchReady) set.clear();
+		DropConnections();
 		_hasRecoveryProjection = false;
 		// A portable checkpoint may contain a committed native preparation. Keep
 		// its stable table/generation cancellation record until the new writable

@@ -157,7 +157,7 @@ void RoomHost::Attach() {
 	if (!transport) return;
 	std::unique_ptr<session::ServerTransport> accounts(new AccountTransport(std::move(transport), room_, server_));
 	// The build id is the sidecar hash a joining client must present.
-	server_.reset(new SessionServer("iroh:" + HexLower(config_.roomId), config_.buildId, true, 3, {0, 99}, std::move(accounts)));
+	server_.reset(new SessionServer("iroh:" + HexLower(config_.roomId), config_.buildId, std::move(accounts)));
 	const auto room = room_;
 	server_->EnableMatchAuthorization(config_.roomId,
 		[room](session::Connection connection) { return connection == 1 ? std::string() : room->PeerIdentity(connection); },
@@ -168,7 +168,7 @@ void RoomHost::Attach() {
 		return;
 	}
 	const auto& authority = room_->Coordination();
-	if (authority.active) server_->SetAuthority(authority.term, authority.revision,
+	server_->SetAuthority(authority.term, authority.revision,
 		authority.writable && authority.leaderLocal && authority.rebound);
 	spdlog::info("RoomHost: authority attached room={} capacity={}", HexLower(config_.roomId).substr(0, 8), config_.capacity);
 }

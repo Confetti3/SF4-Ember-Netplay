@@ -1,5 +1,6 @@
 #pragma once
 void RoomJourneys();
+void TimingJourneys();
 void FollowJourneys();
 void PostMatchJourneys();
 void PostMatchLiveAnswerJourney();

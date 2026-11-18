@@ -8,25 +8,6 @@
 using sf4e::SessionServer;
 using nlohmann::json;
 
-void SessionServer::ForgetRoomMember(room::MemberId member) {
-	roomIncarnations.erase(member);
-	roomMemberRecords.erase(member);
-	for (auto entry = roomMembers.begin(); entry != roomMembers.end(); ++entry) {
-		if (entry->second != member) continue;
-		const auto connection = entry->first;
-		roomSelectedTables.erase(connection);
-		roomPeerIdentities.erase(member);
-		roomMembers.erase(entry);
-		cidMap.erase(connection);
-		clients.erase(std::remove_if(clients.begin(), clients.end(), [&](const SessionMember& client) {
-			return client.conn == connection;
-		}), clients.end());
-		for (auto& loaded : _roomBattleLoaded) loaded.erase(connection);
-		for (auto& punch : _roomPunchReady) punch.erase(connection);
-		return;
-	}
-}
-
 bool SessionServer::BindTournament(const room::TournamentBinding& binding) {
 	if (!_roomAuthority) return false;
 	// Only the writable owner changes the room, one quorum round at a time;

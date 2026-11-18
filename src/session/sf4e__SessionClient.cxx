@@ -351,11 +351,6 @@ int SessionClient::Step()
 		else if (type == SessionProtocol::MT_BATTLE_HASH) {
 			if (!HandleBattleHash(msg)) return -1;
 		}
-
-
-		else if (type == SessionProtocol::MT_FORWARD) {
-			spdlog::debug("Received forwarded message: {}", DumpJson(msg));
-		}
 		else {
 			spdlog::warn("Client: got unrecognized message type: {}", (int)type);
 		}
@@ -411,13 +406,6 @@ session::SendResult SessionClient::Lobby_ReportResults(int loserSide)
 	return SendLogged(msg, "report results");
 }
 
-session::SendResult SessionClient::Lobby_ResetRematch()
-{
-	SessionProtocol::LobbyReset msg;
-	json j = msg;
-	if (_matchAuthorizationRequired) j["generation"] = _gameplayGeneration;
-	return SendLogged(j, "reset lobby for rematch");
-}
 
 session::SendResult SessionClient::Lobby_SetSettings(
 	bool editionSelect,

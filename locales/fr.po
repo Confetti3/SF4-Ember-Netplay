@@ -3252,12 +3252,6 @@ msgstr "Sélection verrouillée : retournez à votre table."
 msgid "runtime.room_recovering"
 msgstr "Le contrôle du salon se rétablit. Votre connexion au combat est maintenue."
 
-msgid "runtime.room_lost_fight_continues"
-msgstr "Connexion au salon perdue. Le combat continue, mais revanche et résultats sont désactivés."
-
-msgid "runtime.returned_room_lost"
-msgstr "Retour au menu : connexion au salon perdue pendant le combat."
-
 msgid "runtime.room_request_failed"
 msgstr "Échec de la requête au salon. Quittez-le et réessayez."
 

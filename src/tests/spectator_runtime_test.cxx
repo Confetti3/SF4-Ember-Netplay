@@ -751,11 +751,10 @@ void TestEnteredBattleRequestCancelled() {
 		game.r.Match().FailPortReservationForTest(false);
 	}
 	{
-		// The player leaves a coordinated room during the game: the room is
-		// left after the session retires, but the game is cancelled at once.
+		// The player leaves the room during the game: the room is left after
+		// the session retires, but the game is cancelled at once.
 		WatchedGame game(true);
 		auto* runtime = game.r.runtime;
-		game.r.room->Coordinate();
 		runtime->room = game.r.room;
 		arm();
 		CHECK(facade::SubmitRuntimeCommand(sf4e::commands::LeaveRoom{runtime->controller.GetSnapshot().generation}));

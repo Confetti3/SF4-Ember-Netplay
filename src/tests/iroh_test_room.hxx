@@ -69,8 +69,6 @@ public:
 	void LinkUp(std::uint64_t generation) {
 		for (auto& snapshot : snapshots_) if (snapshot.second.generation == generation) snapshot.second.state = GameState::Ready;
 	}
-	// The room's control is coordinated, so a leave waits for the session to retire.
-	void Coordinate() { coordination_.active = true; }
 private:
 	CoordinationSnapshot coordination_;
 	std::map<std::string, GameSnapshot> snapshots_;

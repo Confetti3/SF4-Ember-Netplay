@@ -135,7 +135,7 @@ void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
 void ApplicationShell::StepPick(SelectionStep step,const Submit& submit) { submit(step); }
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {
  using namespace room;auto& nav=menu_.navigation;
- const double pressTime=ImGui::GetTime();
+ const double pressTime=clock_.Now();
  // Whether a press at `table` (of `offer`, or any A on its card when empty)
  // is the offer just sent there pressed again (OfferSent).
  const auto samePress=[&](int table,const std::string& offer){
@@ -188,7 +188,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    // A panel's Hide or Show gives the focus to the button that takes its place.
    else if(a.kind==MenuAction::Activate&&id.compare(0,5,"room-")==0&&id!="room-hide-picture")
     menu_.navigation.Prefer(id.compare(0,10,"room-show-")==0?"room-hide-"+id.substr(10):"room-show-"+id.substr(10));
-   preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;return;
+   preferencesDirty_=true;saveAt_=clock_.Now()+.45;return;
   }
  }
  // An Arcade pair's answer after a set, Rematch or New opponent: one of its
@@ -293,11 +293,11 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.id=="room-friends"){nav.Push(FriendsPanel::Screen);return;}
  // A friend chosen from Invite: the invite the Friends screen sends.
  if(const auto invitee=friends_panel::IdOf(a.id,friends_panel::FriendPrefix);!invitee.empty()){friends_.ActOnFriend(v,friends_panel::ChoiceId(friends_panel::FriendChoice::Invite),invitee,submit);return;}
-  if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;ShowNotice(loc::T("room.invitation_copied"),Tone::Success,ImGui::GetTime()+3);return;}
+  if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;ShowNotice(loc::T("room.invitation_copied"),Tone::Success,clock_.Now()+3);return;}
   if(a.id=="copy-short"){CopyShortInvitation(v,submit);return;}
   if(a.id=="copy-room-link"){
    const auto link=publicRooms_.RoomLink();
-   if(!link.empty()){ImGui::SetClipboardText(link.c_str());error_.clear();ShowNotice(loc::T("public.link_copied"),Tone::Success,ImGui::GetTime()+3);}
+   if(!link.empty()){ImGui::SetClipboardText(link.c_str());error_.clear();ShowNotice(loc::T("public.link_copied"),Tone::Success,clock_.Now()+3);}
    return;
   }
   if(a.id=="replace-room"){
@@ -306,7 +306,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
     // still on screen, rather than letting friends fail to rejoin silently.
     // This is a caution, not a success.
     notice_=loc::T("room.replacement_invite");
-    noticeTone_=Tone::Pending;noticeUntil_=ImGui::GetTime()+8;}
+    noticeTone_=Tone::Pending;noticeUntil_=clock_.Now()+8;}
    return;}
   if(a.id=="check-connection"){sendDelay(commands::CheckConnection{v.session.generation},true);return;}
   if(a.id=="input-delay"){
@@ -406,7 +406,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  else if(a.id=="compose"){
   // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.
   // A room that cannot take it yet holds it, and FlushChat sends it then; one held is the only one accepted.
-  if(!HasChatText(chat_)||queuedChat_||(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_))return;
+  if(!HasChatText(chat_)||queuedChat_||(ChatInFlight(clock_.Now())&&pendingChat_->text==chat_))return;
   queuedChat_=QueuedChat{chat_};FlushChat(v,submit);return;
  }
  else if(a.id=="ready"){ToggleReady(v,submit);return;}
@@ -444,7 +444,7 @@ void ApplicationShell::ToggleFollow(const ShellView& v,const Submit& submit) {
 // Stop watching ends following at once and holds, whatever move is still on
 // its way, until the room shows the member watching nothing.
 void ApplicationShell::NoteWatching(const room::Action& sent,const room::Snapshot& room) {
- const auto nowMs=static_cast<std::uint64_t>(ImGui::GetTime()*1000);
+ const auto nowMs=static_cast<std::uint64_t>(clock_.Now()*1000);
  if(sent.kind==room::ActionKind::Watch)follow_.Watched(sent.table,nowMs);
  else if(sent.kind==room::ActionKind::Unwatch)follow_.StoppedWatching(room,sent.table,nowMs);
  else if(sent.kind==room::ActionKind::LockSpectating&&sent.locked)follow_.Stop();
