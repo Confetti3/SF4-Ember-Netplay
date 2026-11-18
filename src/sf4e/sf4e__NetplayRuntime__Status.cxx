@@ -736,6 +736,7 @@ PostPublishState Publish() {
 		snapshot.shortInvitationPending = runtime->room->ShortInvitationPending();
 		snapshot.shortInvitationFailures = runtime->room->ShortInvitationFailures();
 		snapshot.memberLatency = runtime->room->MemberLatencies();
+		snapshot.knownPings = runtime->room->KnownMemberPings();
 	}
 	FillRoomView(snapshot);
     {

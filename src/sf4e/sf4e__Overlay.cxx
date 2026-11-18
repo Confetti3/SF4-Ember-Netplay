@@ -392,7 +392,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.probeP99Us=snapshot.probeP99Us; view.probeJitterUs=snapshot.probeJitterUs; view.probeBenchmark=snapshot.probeBenchmark;
     view.probeStatus=snapshot.probeStatus; view.probeSamples=snapshot.probeSamples; view.probeLost=snapshot.probeLost;
     view.probeSent=snapshot.probeSent; view.probeExpected=snapshot.probeExpected;
-    view.memberLatency=snapshot.memberLatency;
+    view.memberLatency=snapshot.memberLatency;view.knownPings=snapshot.knownPings;
 	view.localSlot = snapshot.localSlot;
 	view.invitation = snapshot.invitation;
 	view.shortInvitation = snapshot.shortInvitation;

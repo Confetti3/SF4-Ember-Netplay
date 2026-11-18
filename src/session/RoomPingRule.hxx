@@ -33,6 +33,19 @@ inline std::vector<MemberId> PingOpponents(const Snapshot& room, MemberId member
 	return opponents;
 }
 
+// Whether `member` is in a game: fighting at a table whose game is under way,
+// or listed to watch it, as a queued member is too. Neither side's helper
+// measures a ping to or from a member in a game (MEMBER_LATENCY.md).
+inline bool InGame(const Snapshot& room, MemberId member) {
+	if (!member) return false;
+	for (std::size_t index = 0; index < TablesInPlay(room); ++index) {
+		const auto& table = room.tables[index];
+		if (GameUnderWay(table) && (table.p1 == member || table.p2 == member ||
+			std::find(table.spectators.begin(), table.spectators.end(), member) != table.spectators.end())) return true;
+	}
+	return false;
+}
+
 // The first of `opponents` whose figure is over the room's limit, and that
 // figure; none while the rule is off. An opponent with no figure, whose ping
 // was not measured, never counts.

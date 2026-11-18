@@ -4230,6 +4230,9 @@ msgstr "Seu ping com {0} é de {1} ms. Esta sala aceita jogadores até {2} ms."
 msgid "room.max_ping.measuring"
 msgstr "Medindo seu ping com os jogadores daqui. O lugar abre assim que o ping for medido."
 
+msgid "room.max_ping.after_watching"
+msgstr "Seu ping com os jogadores daqui não é medido enquanto você assiste. Escolha Parar de assistir e o lugar abre assim que o ping for medido."
+
 msgid "room.privacy"
 msgstr "Privacidade"
 

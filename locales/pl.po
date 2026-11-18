@@ -4230,6 +4230,9 @@ msgstr "Twój ping do gracza {0} wynosi {1} ms. W tym pokoju mogą siedzieć gra
 msgid "room.max_ping.measuring"
 msgstr "Mierzenie twojego pingu do graczy tutaj. Miejsce będzie dostępne, gdy ping zostanie zmierzony."
 
+msgid "room.max_ping.after_watching"
+msgstr "Podczas oglądania twój ping do graczy tutaj nie jest mierzony. Wybierz Przestań oglądać, a miejsce będzie dostępne, gdy ping zostanie zmierzony."
+
 msgid "room.privacy"
 msgstr "Prywatność"
 

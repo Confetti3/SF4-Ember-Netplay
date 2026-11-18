@@ -55,7 +55,14 @@ that figure could not be measured then (below).
 
 The requester's game attaches its measured figures to every seat request
 (`Action::pings`: member and milliseconds, only measured values, for every
-member it has one for). The room's authority works out the opponents from its
+member it has one for). A figure is the helper's value now or, while it has
+none, the last value it measured to that member's incarnation in this room
+(`session::KnownPings`, kept by the board subscription when the board closes
+and when the helper stops measuring, dropped when the helper's table no longer
+lists the member or lists another incarnation of them, and forgotten with the
+room epoch). It does not expire: an expiry would lock a long-time watcher out
+of every seat until they stopped watching, and a rejoin or restart is a new
+incarnation, which drops it anyway. The room's authority works out the opponents from its
 own state and refuses the request with `RejectReason::PingOverLimit` when a
 figure for one of them is over the limit, so someone who sat down after the
 press is weighed too when the requester had measured them. A Queue that the
@@ -74,20 +81,33 @@ pairs this design cannot measure either (players in games measure nothing).
 
 ## When the ping is not known
 
+A kept figure counts as a measured one in every case below: only an opponent
+this PC has no figure for at all is unknown.
+
 - Measuring (a member just joined or the board just opened): the board does
   not offer the seat yet and says the ping is being measured. It lasts
   seconds: the helper either measures a value or gives up on the member, and
   then the seat is offered.
-- Not measurable: a player in a game, playing or watching (the latency
-  endpoint stands down for both sides of a game), a member the helper cannot
-  reach, or a board that has no figures yet. The pair counts as within the limit,
-  as an Unknown link sits under Wired players only. Refusing it would keep
-  everyone out of a busy Classic table, whose fighters and queue are all in
-  the game, until it emptied.
+- This PC is in a game, watching one (the only way to press Queue from a
+  game): its helper measures nobody, and names every member
+  `room_unavailable`. An opponent out of a game could be measured once this
+  PC leaves it, so the board does not offer the seat and says the ping is
+  measured after Stop watching (`PingPending::AfterGame`). Without this,
+  "watch, then Queue" would seat anyone at any ping.
+- Not measurable: an opponent in a game, fighting or listed to watch one under
+  way, as a queued member is (`room::InGame`; the latency endpoint stands down
+  for both sides of a game), a member the helper cannot reach, or a board that
+  has no figures yet while this PC is out of a game. The pair counts as within
+  the limit, as an Unknown link sits under Wired players only. Refusing it
+  would keep everyone out of a busy Classic table, whose fighters and queue are
+  all in the game, until it emptied.
 
-So a newcomer queueing behind a game in progress is checked only against the
-players there who are out of a game. This is the rule's known gap, and the
-in-game check below looks at it.
+So a player queueing behind a game in progress is checked against the players
+there it measured before they went into the game, and against everyone there
+out of a game. The rule's known gap is an opponent who has been in a game
+since before this PC first measured them (a newcomer joining a busy table, or
+a watcher who joined while everyone was playing): nobody can measure that
+pair, and it is not checked. The in-game check below looks at it.
 
 ## Rooms and the wire
 
@@ -116,10 +136,13 @@ in-game check below looks at it.
   shared by the authority and the board so the two cannot disagree.
 - `RoomAuthority::SeatRefusal`: Wired players only and Max ping, the one seat
   gate for a Queue and a cabinet.
-- `session::MeasuredPings` and `PingMeasuring` (`MemberLatency.hxx`): the
-  figures this PC's helper has, and whether it is still measuring a given
-  opponent. The helper measures while the board or a table's options page is
-  drawn, the two places a seat is taken.
+- `session::MeasuredPings` and `PendingPing` (`MemberLatency.hxx`): the
+  figures this PC has (live, or kept in `KnownPings` by
+  `LatencySubscription`), and why a seat cannot be weighed yet: an opponent
+  still being measured, or one out of a game while this PC watches one. The
+  helper measures while the board or a table's options page is drawn, the two
+  places a seat is taken. `room::InGame` (`RoomPingRule.hxx`) says who is in
+  a game from the room's own state.
 - The board's `SeatFence` (`RoomControls`) says why a seat is not offered,
   for either rule.
 
@@ -138,3 +161,9 @@ in-game check below looks at it.
    before offering a seat.
 5. Arcade with Max ping: a player over the limit to anyone at a cabinet is not
    offered a free cabinet; one already at a cabinet still moves between them.
+6. Max ping 80, two PCs over 80 ms to each other, one seated at a table: the
+   other opens the board (the ping is measured), then watches a game at
+   another table, and Queue at the first PC's table from the watched game is
+   refused with the figure. A PC that has watched since it joined, and never
+   measured the seated one, is told the ping is measured after Stop watching;
+   once it stops, the board measures and then refuses or offers the seat.

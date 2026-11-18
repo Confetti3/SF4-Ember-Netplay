@@ -4230,6 +4230,9 @@ msgstr "{0}とのPingは{1} msです。このルームでは{2} msまでのプ�
 msgid "room.max_ping.measuring"
 msgstr "ここにいるプレイヤーとのPingを測定しています。測定が終わると席に着けます。"
 
+msgid "room.max_ping.after_watching"
+msgstr "観戦中は、ここにいるプレイヤーとのPingを測定しません。「観戦をやめる」を選ぶと測定が始まり、測定が終わると席に着けます。"
+
 msgid "room.privacy"
 msgstr "プライバシー"
 

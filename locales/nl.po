@@ -4230,6 +4230,9 @@ msgstr "Je ping naar {0} is {1} ms. In deze kamer kunnen spelers tot {2} ms zitt
 msgid "room.max_ping.measuring"
 msgstr "Je ping naar de spelers hier wordt gemeten. De plek komt vrij zodra die is gemeten."
 
+msgid "room.max_ping.after_watching"
+msgstr "Je ping naar de spelers hier wordt niet gemeten terwijl je kijkt. Kies Stoppen met kijken; de plek komt vrij zodra die is gemeten."
+
 msgid "room.privacy"
 msgstr "Privacy"
 

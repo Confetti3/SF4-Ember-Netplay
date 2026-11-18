@@ -301,9 +301,10 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
 		if (!action.matchGeneration && generationScoped)
 			action.matchGeneration = table.matchGeneration;
     }
-    // A seat carries this PC's measured ping to the room's members; the room
-    // weighs the ones it could pair them with against its Max ping.
-    if (action.kind == room::ActionKind::Queue) action.pings = session::MeasuredPings(view.memberLatency, view.room);
+    // A seat carries this PC's measured ping to the room's members, the last
+    // one measured while it measures nothing; the room weighs the ones it
+    // could pair them with against its Max ping.
+    if (action.kind == room::ActionKind::Queue) action.pings = session::MeasuredPings(view.memberLatency, view.knownPings, view.room);
     action.actionId = nextActionId_++;
     // Sent, it is the member's watching intent, before the room answers.
     const auto sent = action;

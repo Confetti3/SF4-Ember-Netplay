@@ -128,11 +128,18 @@ std::string SeatFence(const ShellView& v, room::ActionKind kind, std::size_t tab
     if (!room::LinkMaySit(v.room, local->link)) return loc::T("room.reject.wired_only");
     if (!v.room.maxPingMs) return {};
     const auto opponents = room::PingOpponents(v.room, local->id, table);
-    if (const auto over = room::PingOverLimit(v.room, opponents, session::MeasuredPings(v.memberLatency, v.room)); over.Over()) {
+    if (const auto over = room::PingOverLimit(v.room, opponents, session::MeasuredPings(v.memberLatency, v.knownPings, v.room)); over.Over()) {
         const auto* opponent = room::FindMember(v.room, over.opponent);
         return loc::Tf("room.max_ping.over", opponent ? opponent->name : std::string(loc::T("room.player")), over.ms, v.room.maxPingMs);
     }
-    return session::PingMeasuring(v.memberLatency, v.room, opponents) ? std::string(loc::T("room.max_ping.measuring")) : std::string();
+    // A watcher's helper measures nobody until the watched game is left.
+    const bool inGame = v.watchedGame.Active() || room::InGame(v.room, local->id);
+    switch (session::PendingPing(v.memberLatency, v.knownPings, v.room, opponents, inGame)) {
+    case session::PingPending::Measuring: return loc::T("room.max_ping.measuring");
+    case session::PingPending::AfterGame: return loc::T("room.max_ping.after_watching");
+    case session::PingPending::None: break;
+    }
+    return {};
 }
 std::string LeaveRoomDetail(const ShellView& v) {
     std::string detail = loc::T("room.leave.detail");

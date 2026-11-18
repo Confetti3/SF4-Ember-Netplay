@@ -4230,6 +4230,9 @@ msgstr "{0}님과의 핑은 {1} ms입니다. 이 방은 {2} ms까지의 플레�
 msgid "room.max_ping.measuring"
 msgstr "여기 있는 플레이어와의 핑을 측정하는 중입니다. 측정이 끝나면 자리에 앉을 수 있습니다."
 
+msgid "room.max_ping.after_watching"
+msgstr "관전 중에는 여기 있는 플레이어와의 핑을 측정하지 않습니다. 관전 중지를 선택하면 측정이 끝난 뒤 자리에 앉을 수 있습니다."
+
 msgid "room.privacy"
 msgstr "공개 범위"
 
