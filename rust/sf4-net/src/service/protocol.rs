@@ -262,6 +262,12 @@ pub enum Event {
         leader_local: bool,
         voter_count: usize,
         learner_count: usize,
+        /// The deadline of the quorum read behind `writable`, and the worst
+        /// round trip it was set from (0: none measured); `ReadDeadline`.
+        #[serde(default)]
+        read_deadline_ms: u64,
+        #[serde(default)]
+        read_rtt_ms: u64,
     },
     CheckpointBegin {
         epoch: u64,

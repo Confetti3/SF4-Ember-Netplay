@@ -2955,6 +2955,12 @@ msgstr "続ける"
 msgid "training.meter.after_pause.detail"
 msgstr "両者が止まった後に再び動いたときのメーターの動作。「最初から」はストリートファイター6と同じく新しい攻防のためにバーを消去します。「続ける」は前の攻防の後に続け、履歴で複数の攻防を遡れます。"
 
+msgid "training.meter.proximity"
+msgstr "接近ガード"
+
+msgid "training.meter.proximity.detail"
+msgstr "攻撃が近づいたときにヒット前にとるガード姿勢を、別の薄いマスとして表示します。オフにすると、そのフレームは自由な状態として数え、連続ガードの隙間がガード硬直と区別しやすくなります。"
+
 msgid "training.meter.scroll"
 msgstr "メーターのスクロール"
 

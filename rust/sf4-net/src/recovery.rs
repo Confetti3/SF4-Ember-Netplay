@@ -18,8 +18,10 @@ use crate::{
     coordination_iroh::IrohRpc,
 };
 
+mod deadline;
 mod departure;
 mod transfer;
+pub use deadline::{AUTHORITY_READ_CAP, AUTHORITY_READ_FLOOR, ReadDeadline};
 pub use crate::probe::{
     ProbeResult, recommended_delay, summarize_datagram_probe, summarize_probe,
 };
@@ -32,11 +34,6 @@ pub const MAX_VOTERS: usize = 5;
 pub const PROBE_DURATION: Duration = Duration::from_secs(5);
 pub const PROBE_INTERVAL: Duration = Duration::from_millis(50);
 pub const PROBE_MIN_SAMPLES: u32 = 80;
-/// A quorum read only authorizes native writes while it is fresh. Timing out
-/// this read is therefore a safe negative result; it never says that a Raft
-/// write did or did not commit.
-pub const AUTHORITY_READ_TIMEOUT: Duration = Duration::from_secs(2);
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RecoveryPhase {
     Starting,
@@ -59,6 +56,10 @@ pub struct AuthorityState {
     pub applied_digest: String,
     pub voter_count: usize,
     pub learner_count: usize,
+    /// The deadline this read was given, and the round trip it followed
+    /// (zero when none was known): see `ReadDeadline`.
+    pub read_deadline_ms: u64,
+    pub read_rtt_ms: u64,
 }
 
 #[derive(Clone)]
@@ -432,12 +433,19 @@ impl RecoverySession {
         // barrier against every follower's authenticated claim after an
         // election. Followers still verify the claim over their own admitted
         // coordination route and compare it with their locally applied state.
+        //
+        // A quorum read only authorizes native writes while it is fresh, so a
+        // timeout is a safe negative result: it never says that a Raft write
+        // did or did not commit. How long the read may take follows the
+        // room's measured round trips, since a slow route is not a lost
+        // quorum.
+        let read = self.read_deadline().await;
         let quorum = if leader_local {
-            tokio::time::timeout(AUTHORITY_READ_TIMEOUT, self.coordinator.authority_claim())
+            tokio::time::timeout(read.deadline, self.coordinator.authority_claim())
                 .await
                 .is_ok_and(|result| result.is_ok())
         } else {
-            tokio::time::timeout(AUTHORITY_READ_TIMEOUT, self.coordinator.read_barrier())
+            tokio::time::timeout(read.deadline, self.coordinator.read_barrier())
                 .await
                 .is_ok_and(|result| result.is_ok())
         };
@@ -453,7 +461,18 @@ impl RecoverySession {
             applied_digest: hex_digest(&digest),
             voter_count: metrics.membership_config.membership().voter_ids().count(),
             learner_count: metrics.membership_config.membership().learner_ids().count(),
+            read_deadline_ms: read.deadline_ms(),
+            read_rtt_ms: read.rtt_ms(),
         }
+    }
+
+    /// The deadline for the next quorum read, from the worst round trip on
+    /// the routes to the voters and the leader.
+    pub async fn read_deadline(&self) -> ReadDeadline {
+        let mut peers = self.coordinator.voter_ids();
+        peers.extend(self.coordinator.current_leader());
+        peers.remove(&self.incarnation);
+        ReadDeadline::from_rtt(self.rpc.worst_rtt(&peers).await)
     }
 
     pub fn propose(&self, transfer: &CheckpointTransfer) -> io::Result<Proposal> {

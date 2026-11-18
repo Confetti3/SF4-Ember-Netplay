@@ -2955,6 +2955,12 @@ msgstr "Continuar"
 msgid "training.meter.after_pause.detail"
 msgstr "Qué hace el medidor cuando algo se mueve otra vez después de que ambos luchadores quedaron quietos. Empezar de nuevo vacía las barras para el nuevo intercambio, como Street Fighter 6. Continuar sigue después del anterior, para recorrer varios en el historial."
 
+msgid "training.meter.proximity"
+msgstr "Guardia por proximidad"
+
+msgid "training.meter.proximity.detail"
+msgstr "Muestra la postura de guardia que toma un luchador cuando un ataque está cerca, antes de cualquier golpe, como una celda tenue propia. Desactivado, esos cuadros cuentan como libres y los huecos de una cadena de bloqueos se distinguen del blockstun."
+
 msgid "training.meter.scroll"
 msgstr "Desplazamiento del medidor"
 

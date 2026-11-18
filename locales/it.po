@@ -2955,6 +2955,12 @@ msgstr "Continua"
 msgid "training.meter.after_pause.detail"
 msgstr "Cosa fa il misuratore quando qualcosa si muove di nuovo dopo che entrambi i lottatori sono rimasti fermi. Ricomincia svuota le barre per il nuovo scambio, come Street Fighter 6. Continua prosegue dopo il precedente, così la cronologia ne ripercorre diversi."
 
+msgid "training.meter.proximity"
+msgstr "Guardia di prossimità"
+
+msgid "training.meter.proximity.detail"
+msgstr "Mostra la posizione di guardia che un combattente assume quando un attacco è vicino, prima di qualsiasi colpo, come una cella attenuata a sé. Disattivato, quei frame contano come liberi e gli spazi di una sequenza bloccata si distinguono dal blockstun."
+
 msgid "training.meter.scroll"
 msgstr "Scorrimento del misuratore"
 

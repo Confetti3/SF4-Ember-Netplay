@@ -45,6 +45,10 @@ struct TrainingFeatures {
     // Invincibility in the meter's samples (FighterSample::invincibility): the
     // classic meter's legend lists the marks only for a game that supplies it.
     bool invincibility = false;
+    // The guard pose before a hit in the meter's samples (FighterSample::proximity),
+    // drawn apart from blockstun, and the Meter page's row that turns that off.
+    // All() leaves it off: SF4's meter has no such sample and stays as it was.
+    bool proximityGuard = false;
 
     static constexpr TrainingFeatures All() {
         TrainingFeatures all;

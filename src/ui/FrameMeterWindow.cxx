@@ -43,13 +43,14 @@ ImU32 KindColor(MeterKind kind) {
     case MeterKind::Attack: return palette::Muted;
     case MeterKind::Neutral: return PhaseColor(Phase::Neutral);
     case MeterKind::Movement: return PhaseColor(Phase::Movement);
-    case MeterKind::Guard: return PhaseColor(Phase::Guard);
+    // The guard pose before a hit has the block's colour, drawn dim like a free frame.
+    case MeterKind::Guard: case MeterKind::Proximity: return PhaseColor(Phase::Guard);
     case MeterKind::Hit: return PhaseColor(Phase::Hit);
     case MeterKind::Down: case MeterKind::Rise: return PhaseColor(Phase::Down);
     default: return PhaseColor(Phase::Unknown);
     }
 }
-ImU32 AngledColor(MeterKind kind) { return CellAlpha(KindColor(kind), kind == MeterKind::Neutral); }
+ImU32 AngledColor(MeterKind kind) { return CellAlpha(KindColor(kind), QuietKind(kind)); }
 // Text with a dark edge, to read on any fill.
 void Edged(ImDrawList* draw, float size, ImVec2 at, ImU32 colour, const char* text) {
     for (const ImVec2 offset : {ImVec2(-1, 0), ImVec2(1, 0), ImVec2(0, -1), ImVec2(0, 1)})
@@ -158,10 +159,10 @@ void DrawStops(ImDrawList* draw, const MeterView& meter, int side, BarWindow win
         StopLine(draw, ImVec2(origin.x + i * cell, origin.y), height, slant);
     }
 }
-// A run's length, centred over its cells where the number fits. A neutral run
-// or a single cell carries none.
+// A run's length, centred over its cells where the number fits. A free run
+// (neutral or the guard pose before a hit) or a single cell carries none.
 void RunLength(ImDrawList* draw, ImVec2 origin, float slant, float cell, float height, float digits, int from, int to, MeterKind kind, ImU32 colour) {
-    if (kind == MeterKind::Neutral || to - from < 2) return;
+    if (QuietKind(kind) || to - from < 2) return;
     const auto text = std::to_string(to - from);
     const ImVec2 extent = ImGui::GetFont()->CalcTextSizeA(digits, FLT_MAX, 0, text.c_str());
     if (extent.x + 2 > (to - from) * cell) return;
@@ -185,7 +186,7 @@ void WalkRuns(const MeterView& meter, int side, BarWindow window, int cells, Cel
         const auto& shown = meter.frames[index].cells[side];
         const MeterKind kind = cell(i, shown);
         const bool split = runStart >= 0 && shown.split;
-        if (split && kind == runKind && kind != MeterKind::Neutral) edge(i);
+        if (split && kind == runKind && !QuietKind(kind)) edge(i);
         if (runStart < 0) { runStart = i; runKind = kind; }
         else if (kind != runKind || split) { run(runStart, i, runKind); runStart = i; runKind = kind; }
         runEnd = i + 1;
@@ -416,6 +417,8 @@ ImU32 ClassicColor(MeterKind kind) {
     case MeterKind::Recovery: return IM_COL32(60, 120, 232, 245);
     case MeterKind::Attack: return (palette::Ember & ~IM_COL32_A_MASK) | (245u << IM_COL32_A_SHIFT);
     case MeterKind::Guard: return IM_COL32(244, 222, 96, 245);
+    // The pose before a hit: the block's yellow, faded to the free frames' weight.
+    case MeterKind::Proximity: return IM_COL32(244, 222, 96, 110);
     case MeterKind::Hit: return IM_COL32(246, 176, 48, 245);
     case MeterKind::Down: return IM_COL32(150, 92, 196, 245);
     case MeterKind::Rise: return IM_COL32(216, 184, 240, 245);
@@ -607,7 +610,7 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
         const float left = ImGui::GetCursorScreenPos().x, box = line * .55f;
         float x = left, yKey = ImGui::GetCursorScreenPos().y;
         int lines = 1;
-        auto entries = TrainingColorKeyEntries(true);
+        auto entries = TrainingColorKeyEntries(true, options.proximityGuard && TrainingFeaturesShown().proximityGuard);
         // Meaty frames are pink only in Street Fighter 6's colours.
         if (options.classicColors) entries.push_back({"training.meter.meaty", Phase::Attack, MeterKind::Meaty, ClassicColor(MeterKind::Meaty)});
         // Places an entry's name and returns where its swatch goes.
@@ -648,7 +651,7 @@ unsigned TrainingCellColor(const training::MeterCell& cell, bool angled) {
 }
 // The key lists what the bars draw, with the colour they draw it in. Idle has
 // no entry: it is the dim gap between moves and has no label.
-std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled) {
+std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled, bool proximity) {
     struct Named { Phase phase; MeterKind kind; const char* label; };
     static const Named plain[] = {{Phase::Attack, MeterKind::Attack, "training.meter.attack"}, {Phase::Hit, MeterKind::Hit, "training.meter.hit"},
         {Phase::Guard, MeterKind::Guard, "training.meter.block"}, {Phase::Down, MeterKind::Down, "training.meter.knockdown"},
@@ -663,15 +666,21 @@ std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled) {
     const auto add = [&](const Named& named) { MeterCell cell; cell.kind = named.kind; cell.phase = named.phase; entries.push_back({named.label, named.phase, named.kind, TrainingCellColor(cell, angled)}); };
     if (angled) for (const auto& named : angledKinds) add(named);
     else for (const auto& named : plain) add(named);
+    // After the block's own entry: the guard pose before a hit, for a game that has one.
+    if (proximity) {
+        const auto block = std::find_if(entries.begin(), entries.end(), [](const TrainingKeyEntry& entry) { return entry.kind == MeterKind::Guard; });
+        MeterCell cell; cell.kind = MeterKind::Proximity; cell.phase = Phase::Guard;
+        entries.insert(block == entries.end() ? entries.end() : block + 1, TrainingKeyEntry{"training.meter.proximity", Phase::Guard, MeterKind::Proximity, TrainingCellColor(cell, angled)});
+    }
     return entries;
 }
 std::vector<Invincibility> TrainingInvincibilityKey(const MeterOptions& options) {
     if (!options.classicColors || !TrainingFeaturesShown().invincibility) return {};
     return {Invincibility::Projectile, Invincibility::Full};
 }
-void DrawTrainingColorKey(bool angled) {
+void DrawTrainingColorKey(bool angled, bool proximity) {
     const float h = ImGui::GetTextLineHeight();
-    for (const auto& entry : TrainingColorKeyEntries(angled)) {
+    for (const auto& entry : TrainingColorKeyEntries(angled, proximity)) {
         const ImVec2 at = ImGui::GetCursorScreenPos();
         ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(at.x, at.y + h * .2f), ImVec2(at.x + h * .6f, at.y + h * .8f), entry.color);
         ImGui::Dummy(ImVec2(h * .6f, h)); ImGui::SameLine(0, 4 * Scale());

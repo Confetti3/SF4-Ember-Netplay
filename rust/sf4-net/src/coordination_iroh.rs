@@ -428,6 +428,27 @@ impl IrohRpc {
             .remove(&target);
     }
 
+    /// The longest round trip on the open connections to `targets`, as the
+    /// selected path of each measures it. `None` while none of them is open,
+    /// so a room that has not talked yet is not given a guess.
+    pub async fn worst_rtt(&self, targets: &std::collections::BTreeSet<u64>) -> Option<Duration> {
+        self.connections
+            .read()
+            .await
+            .iter()
+            .filter(|(target, connection)| {
+                targets.contains(target) && connection.close_reason().is_none()
+            })
+            .filter_map(|(_, connection)| {
+                let paths = connection.paths();
+                paths
+                    .iter()
+                    .find(|path| path.is_selected())
+                    .map(|path| path.rtt())
+            })
+            .max()
+    }
+
     async fn cached_connection(&self, target: u64) -> Option<Connection> {
         self.connections
             .read()
@@ -729,7 +750,7 @@ impl RpcTransport for IrohRpc {
                 // timeout, Drop still closes the cached route. A retry must
                 // never reuse a connection whose response stream was abandoned.
                 // The authority read is the exception: it is polled every second
-                // under a two-second deadline and shares this connection, so
+                // under a deadline of seconds and shares this connection, so
                 // closing on its cancellation would tear down a checkpoint
                 // append still in flight beside it. Dropping its stream halves
                 // resets that stream alone.

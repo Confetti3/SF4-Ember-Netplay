@@ -2955,6 +2955,12 @@ msgstr "Continuar"
 msgid "training.meter.after_pause.detail"
 msgstr "O que o medidor faz quando algo se move de novo depois que os dois lutadores ficaram parados. Recomeçar limpa as barras para a nova troca, como no Street Fighter 6. Continuar segue após a anterior, para o histórico voltar por várias."
 
+msgid "training.meter.proximity"
+msgstr "Guarda de proximidade"
+
+msgid "training.meter.proximity.detail"
+msgstr "Mostra a postura de guarda que um lutador assume quando um ataque está perto, antes de qualquer golpe, como uma célula esmaecida própria. Desligado, esses quadros contam como livres e as lacunas de uma sequência bloqueada se destacam do blockstun."
+
 msgid "training.meter.scroll"
 msgstr "Rolagem do medidor"
 

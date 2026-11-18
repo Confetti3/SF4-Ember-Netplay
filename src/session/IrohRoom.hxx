@@ -69,6 +69,8 @@ public:
         bool active=false, writable=false, leaderLocal=false, rebound=false;
         std::uint64_t term=0, revision=0, incarnation=0;
         std::size_t voterCount=0, learnerCount=0;
+        // The deadline of the helper's quorum read and the worst route round trip it follows (0: none measured).
+        std::uint32_t readDeadlineMs=0, readRttMs=0;
         std::string leader;
     };
     // The head commit as decoded and digest-verified once, at receipt. The

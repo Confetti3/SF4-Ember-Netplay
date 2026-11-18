@@ -153,7 +153,7 @@ impl Actor {
     /// writable again as soon as the successor is elected, not at the next
     /// once-a-second refresh. A read begun before the change can only come
     /// back stale, and a follower's waits on the leader it began with, for
-    /// up to `AUTHORITY_READ_TIMEOUT` when that leader has gone, holding the
+    /// up to `ReadDeadline` when that leader has gone, holding the
     /// single refresh slot: it is dropped for the new one. While no leader
     /// is known (an election under way) nothing changes here.
     pub(super) async fn raft_changed(&mut self) -> io::Result<()> {
@@ -421,6 +421,7 @@ impl Actor {
             leader_local: state.leader_local,
             voter_count: state.voter_count,
             learner_count: state.learner_count,
+            read_deadline_ms: state.read_deadline_ms,
         };
         if self.last_coordination_state != Some(marker) {
             let event = Event::CoordinationState {
@@ -434,6 +435,8 @@ impl Actor {
                 leader_local: state.leader_local,
                 voter_count: state.voter_count,
                 learner_count: state.learner_count,
+                read_deadline_ms: state.read_deadline_ms,
+                read_rtt_ms: state.read_rtt_ms,
             };
             // A new term, or a change of writability or locality, is a
             // lifecycle event, as the old leader's control_closed is: under

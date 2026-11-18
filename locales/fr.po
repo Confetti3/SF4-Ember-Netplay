@@ -2955,6 +2955,12 @@ msgstr "Continuer"
 msgid "training.meter.after_pause.detail"
 msgstr "Ce que fait le compteur quand quelque chose bouge à nouveau après que les deux combattants sont restés immobiles. Recommencer vide les barres pour le nouvel échange, comme Street Fighter 6. Continuer reprend après le précédent, pour remonter l'historique sur plusieurs."
 
+msgid "training.meter.proximity"
+msgstr "Garde de proximité"
+
+msgid "training.meter.proximity.detail"
+msgstr "Affiche la posture de garde qu'un combattant prend quand une attaque approche, avant tout coup, comme une case atténuée à part. Désactivé, ces frames comptent comme libres et les trous d'une chaîne bloquée se distinguent du blockstun."
+
 msgid "training.meter.scroll"
 msgstr "Défilement du compteur"
 
