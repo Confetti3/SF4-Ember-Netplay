@@ -23,7 +23,7 @@ mod transfer;
 pub use crate::probe::{
     ProbeResult, recommended_delay, summarize_datagram_probe, summarize_probe,
 };
-pub use transfer::{CheckpointTransfer, IncomingTransfer, hex_digest, sha256};
+pub use transfer::{CheckpointTransfer, IncomingTransfer, hex_digest, parse_digest, sha256};
 
 pub const MAX_CHECKPOINT_BYTES: usize = crate::coordination::MAX_CHECKPOINT;
 pub const CHECKPOINT_CHUNK_BYTES: usize = 16 * 1024;
