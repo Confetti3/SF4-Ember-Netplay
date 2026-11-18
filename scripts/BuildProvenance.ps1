@@ -1,8 +1,12 @@
 $ErrorActionPreference = 'Stop'
 # Public-network and live Discord checks require a separate explicit run. The build receipt names them
 # (testsExcluded), so testsPassed never implies they ran (ledger A-015). build-current.ps1 and
-# run-package-tests.ps1 both exclude exactly these.
-$EmberExcludedTests = 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
+# run-package-tests.ps1 both exclude exactly the tests with this CTest label, which
+# cmake/sf4e_network_tests.cmake gives every public-network test (they are registered only with
+# SF4E_NETWORK_TESTS, which build-current.ps1 pins OFF). The live Discord check (DiscordSmokeTest)
+# is not a CTest entry, so it never runs here.
+$EmberExcludedTestLabel = 'network'
+$EmberExcludedTests = "label $EmberExcludedTestLabel"
 function Get-SourceFingerprint([string]$SourceRoot) {
     $paths = [string[]]@(& git -C $SourceRoot ls-files --cached --others --exclude-standard)
     if ($LASTEXITCODE) { throw 'Source inventory failed' }
@@ -45,11 +49,11 @@ function Get-DependencyReceipt([string]$SourceRoot, [string]$BuildRoot) {
 # tests that time their work can fail on a busy publishing PC. Without it (Stable)
 # every test must pass the first time. A test that still fails throws, so the build
 # writes no receipt. CTest's output goes to the host, and so into a transcript.
-function Invoke-DefaultTests([object]$Ctest, [string]$BuildRoot, [string]$Excluded, [int]$Parallel, [switch]$RerunFailed) {
+function Invoke-DefaultTests([object]$Ctest, [string]$BuildRoot, [string]$ExcludedLabel, [int]$Parallel, [switch]$RerunFailed) {
     $junit = Join-Path $BuildRoot 'ctest-junit.xml'
     $rerunJunit = Join-Path $BuildRoot 'ctest-rerun-junit.xml'
     Remove-Item -LiteralPath $junit, $rerunJunit -ErrorAction SilentlyContinue
-    $arguments = @('--test-dir', $BuildRoot, '--output-on-failure', '--no-tests=error', '-E', $Excluded)
+    $arguments = @('--test-dir', $BuildRoot, '--output-on-failure', '--no-tests=error', '-LE', $ExcludedLabel)
     $passedOnRerun = @()
     & $Ctest @arguments --parallel $Parallel --output-junit $junit | Out-Host
     if ($LASTEXITCODE) {

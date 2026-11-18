@@ -15,7 +15,7 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use super::{check_reason, read::visible};
+use super::read::visible;
 use crate::{
     AppState,
     audit::audit,
@@ -26,6 +26,7 @@ use crate::{
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key},
     routes::{
         idempotency::ServiceCall,
+        reason,
         ledger::{Cause, Match, load, participants, scores, settle, stale, unready_before},
     },
 };
@@ -95,7 +96,7 @@ pub async fn adjudicate(
 }
 
 fn check_command(command: &AdjudicationCommand) -> Result<()> {
-    check_reason(&command.reason)?;
+    reason::check(&command.reason)?;
     if command.evidence.len() > MAX_EVIDENCE
         || command
             .evidence

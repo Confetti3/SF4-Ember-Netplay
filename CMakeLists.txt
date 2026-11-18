@@ -452,10 +452,18 @@ install(
   TARGETS Launcher Sidecar Updater
   RUNTIME DESTINATION "."
 )
-install(FILES "src/ui/fonts/OFL.txt" DESTINATION "notices" RENAME "Inter-OFL.txt")
-install(FILES "src/ui/fonts/NotoSansCJK-OFL.txt" DESTINATION "notices")
-install(FILES "src/ui/backends/LICENSE.txt" DESTINATION "notices" RENAME "Dear-ImGui-MIT.txt")
-install(FILES "assets/flags/LICENSE" DESTINATION "notices" RENAME "flag-icons-MIT.txt")
+# The licence notices, as source file|name in notices; the install step and the build folder both take them from here.
+set(SF4E_NOTICES
+    "src/ui/fonts/OFL.txt|Inter-OFL.txt"
+    "src/ui/fonts/NotoSansCJK-OFL.txt|NotoSansCJK-OFL.txt"
+    "src/ui/backends/LICENSE.txt|Dear-ImGui-MIT.txt"
+    "assets/flags/LICENSE|flag-icons-MIT.txt")
+foreach(notice IN LISTS SF4E_NOTICES)
+    string(REPLACE "|" ";" notice_parts "${notice}")
+    list(GET notice_parts 0 notice_source)
+    list(GET notice_parts 1 notice_name)
+    install(FILES "${notice_source}" DESTINATION "notices" RENAME "${notice_name}")
+endforeach()
 # Preserved photographs are masking inputs; the runtime draws their cutouts.
 install(DIRECTORY "assets/selection" DESTINATION "assets" COMPONENT SelectionReferences OPTIONAL
     FILES_MATCHING PATTERN "*.png" PATTERN "*.jpg" PATTERN "*.json" PATTERN "*.md"
@@ -480,13 +488,16 @@ add_dependencies(Sidecar SelectionAssets)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_frame_data.cmake")
 add_custom_command(TARGET Sidecar POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Sidecar>/notices"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts/OFL.txt"
-        "$<TARGET_FILE_DIR:Sidecar>/notices/Inter-OFL.txt"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts/NotoSansCJK-OFL.txt"
-        "$<TARGET_FILE_DIR:Sidecar>/notices/NotoSansCJK-OFL.txt"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/assets/flags/LICENSE"
-        "$<TARGET_FILE_DIR:Sidecar>/notices/flag-icons-MIT.txt"
     VERBATIM)
+foreach(notice IN LISTS SF4E_NOTICES)
+    string(REPLACE "|" ";" notice_parts "${notice}")
+    list(GET notice_parts 0 notice_source)
+    list(GET notice_parts 1 notice_name)
+    add_custom_command(TARGET Sidecar POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${notice_source}"
+            "$<TARGET_FILE_DIR:Sidecar>/notices/${notice_name}"
+        VERBATIM)
+endforeach()
 
 set(SF4E_RUNTIME_DLLS
   spdlog.dll

@@ -160,6 +160,8 @@ sf4e_add_unit_test(NAME LobbyMusic SOURCES "src/tests/lobby_music_test.cxx" LIBS
 # It takes 2 s alone. Its saves are flushed writes, which take up to ten
 # times as long while other tests and builds use the disk.
 sf4e_add_unit_test(NAME SettingsStore SOURCES "src/tests/settings_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
+# Each interface preference loads on its own: a wrong-typed value costs only its own setting.
+sf4e_add_unit_test(NAME PlayerPreferencesLoad SOURCES "src/tests/player_preferences_load_test.cxx" LIBS sf4e_settings TIMEOUT 15)
 sf4e_add_unit_test(NAME UiPreferencesStore SOURCES "src/tests/ui_preferences_store_test.cxx" LIBS sf4e_settings)
 sf4e_add_unit_test(NAME RecordingFileStore SOURCES "src/tests/recording_file_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
 
