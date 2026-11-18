@@ -189,10 +189,10 @@ ui::ShellView FakeView() {
         r.provenance = spectated ? replayfiles::Provenance::Spectated : replayfiles::Provenance::Played; r.watched = seen; r.summary = replayinputs::Summary{}; r.summary->scored = true; r.summary->score[0] = sa; r.summary->score[1] = sb;
         r.summary->rounds = static_cast<std::uint32_t>(sa + sb); r.summary->frames = 60 * 75 * r.summary->rounds; archive->push_back(r);
     };
-    replay("C:/replays/4.replay", "2026-10-21 21:14", 5000, "FRaccie", "Katie", 0, 16, 2, 1, false, false);
-    replay("C:/replays/3.replay", "2026-10-21 21:02", 4300, "FRaccie", "Katie", 0, 16, 0, 2, false, true);
-    replay("C:/replays/2.replay", "2026-10-21 20:51", 3600, "Katie", "FRaccie", 16, 0, 1, 2, false, false);
-    replay("C:/replays/1.replay", "2026-10-21 20:30", 1000, "Katie", "Jimbo", 16, 13, 2, 0, true, false);
+    replay("C:/replays/4.replay", "2026-10-21 21:14", 5000, "FRaccie", "Player 2", 0, 16, 2, 1, false, false);
+    replay("C:/replays/3.replay", "2026-10-21 21:02", 4300, "FRaccie", "Player 2", 0, 16, 0, 2, false, true);
+    replay("C:/replays/2.replay", "2026-10-21 20:51", 3600, "Player 2", "FRaccie", 16, 0, 1, 2, false, false);
+    replay("C:/replays/1.replay", "2026-10-21 20:30", 1000, "Player 2", "Jimbo", 16, 13, 2, 0, true, false);
     replay("C:/replays/0.replay", "2026-10-20 22:10", 100, "Mo", "Ash", 6, 1, 1, 2, true, true);
     view.replays.archive = archive; view.replays.ready = true;
     return view;
@@ -232,13 +232,13 @@ void JoinRoom(ui::ShellView& view) {
 // An Arcade or King of the hill room (Arcade.dc.html): nine members at
 // cabinets in four pairs that need not be neighbours, and one waiting. In
 // Arcade this PC's pair has finished a set and its opponent chose Rematch; in
-// King of the hill every pair plays and Katie holds the top slot.
+// King of the hill every pair plays and Player 2 holds the top slot.
 // --seats picks another state instead: empty, alone, duo, apart, rematch, full.
 void ArcadeRoom(ui::ShellView& view, room::RoomType type, const std::string& seats) {
     JoinRoom(view);
     const bool full = seats == "full";
     view.room.type = type; view.room.name = type == room::RoomType::King ? "King of the hill" : "FRaccie's arcade"; view.room.members.resize(full ? 16 : 9);
-    const char* names[] = {"FRaccie", "Katie", "Jimbo", "Deck01", "Ash", "Mo", "Lena", "TJ", "Rook", "Sven", "Marn", "Kaz", "Nia", "Otto", "Yui", "Bram"};
+    const char* names[] = {"FRaccie", "Player 2", "Jimbo", "Deck01", "Ash", "Mo", "Lena", "TJ", "Rook", "Sven", "Marn", "Kaz", "Nia", "Otto", "Yui", "Bram"};
     for (auto& m : view.room.members) { m.id = static_cast<room::MemberId>(&m - view.room.members.data() + 1); m.name = names[m.id - 1]; m.table = m.seat = -1; m.status = room::MemberStatus::Idle; }
     for (std::size_t i = 0; i < room::TableCount; ++i) view.room.tables[i] = {}, view.room.tables[i].id = static_cast<std::uint8_t>(i), view.room.tables[i].revision = 1;
     const bool king = type == room::RoomType::King;
@@ -346,7 +346,7 @@ void PublicRooms(ui::ShellView& view) {
     auto& list = view.publicRooms;
     list.bridge = "brg_1"; list.loading = false; list.listedAt = 1300; ++list.listed;
     // Rooms in the player's area (Europe West), next to it, far from it, and one whose creator hid theirs.
-    list.rooms = {room("a", "EU Monday Night Fights", "Katie", Area::EuropeWest, 6, 8, 2), room("b", "Ultra only, AE2012 welcome", "Daigo-fan", Area::EuropeEast, 3, 4, 1),
+    list.rooms = {room("a", "EU Monday Night Fights", "Player 2", Area::EuropeWest, 6, 8, 2), room("b", "Ultra only, AE2012 welcome", "Daigo-fan", Area::EuropeEast, 3, 4, 1),
         room("c", "Beginners, ask anything", "Sven", Area::None, 2, 12, 0), room("d", "East coast casuals", "Marn", Area::NaEast, 8, 8, 3), room("e", "Tokyo late night", "Kaz", Area::EastAsia, 5, 10, 2)};
     // Each type of room on the board: Arcade cabinets and a King of the hill among the Classic tables.
     list.rooms[0].type = room::RoomType::Arcade; list.rooms[4].type = room::RoomType::King;

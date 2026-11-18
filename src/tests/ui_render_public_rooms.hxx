@@ -35,13 +35,13 @@ void ShootPublicRooms(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& vie
         room.hasDetails=true;room.hostName=std::move(host);room.fighters=std::move(fighters);room.setFormat=format;room.rotation=rotation;return room;};
     const auto allRooms=[&]{
         std::vector<netplay::publicrooms::Room> rooms;
-        rooms.push_back(detailed(listed("a","Friday Night Fights",3,8,1),"Kate",{1,6,11},2,0));
+        rooms.push_back(detailed(listed("a","Friday Night Fights",3,8,1),"Player 1",{1,6,11},2,0));
         rooms.push_back(detailed(listed("b","金曜ルーム",2,4,0),"山田",{3,-1},0,0));
         rooms.push_back(detailed(listed("c",std::string(64,'W'),16,16,2),"A moderator with a very long name",{0,5,9,14,20,25},3,1));
-        rooms.push_back(detailed(listed("d","Locked Dojo",2,8,0),"Kate",{4,8},5,2));
+        rooms.push_back(detailed(listed("d","Locked Dojo",2,8,0),"Player 1",{4,8},5,2));
         rooms.back().locked=true;
         rooms.push_back(detailed(listed("e","Full House",8,8,0),"Gouken",{2,7,12,17,22,27,32,37},1,0));
-        rooms.push_back(detailed(listed("f","Big Lobby",9,16,0),"Kate",{1,2,3,4,5,6,7,8,9},0,0));
+        rooms.push_back(detailed(listed("f","Big Lobby",9,16,0),"Player 1",{1,2,3,4,5,6,7,8,9},0,0));
         rooms.push_back(detailed(listed("g","Euro Night",4,8,0,Area::EuropeWest),"Hugo",{10,15,20,25},2,1));
         // Each fighter plays at their own input delay: a chip on the card and in the preview.
         rooms.back().ownDelay=true;
@@ -131,7 +131,7 @@ void ShootPublicRooms(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& vie
     id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
     {
         // Inside a public room joined from the list, More… offers the room's link to copy.
-        settleList({detailed(listed("0123456789abcdef0123456789abcdef","Friday Night Fights",3,8,1),"Kate",{1,6,11},2,0)});
+        settleList({detailed(listed("0123456789abcdef0123456789abcdef","Friday Night Fights",3,8,1),"Player 1",{1,6,11},2,0)});
         visit();draw(nullptr,0,8);
         for(int i=0;i<12&&shell.Navigation().Focus().compare(0,8,"pr-room:")!=0;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
         answerTickets=true;draw(nullptr,MenuInput::Select,1);draw(nullptr,0,6);answerTickets=false;
