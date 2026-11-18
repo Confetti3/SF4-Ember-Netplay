@@ -30,6 +30,7 @@
 #include "../common/SettingsFeatures.hxx"
 #include "../common/TrainingFeatures.hxx"
 #include "../common/GamePing.hxx"
+#include "../common/InputDelay.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/MenuButtons.hxx"
 #include "../common/NoticeSeverity.hxx"
@@ -430,6 +431,10 @@ protected:
 
 struct Adapter {
     Capabilities caps;
+    // Where Auto's recommendation steps up a frame by round trip
+    // (InputDelay.hxx): the rollback each delay leaves at a round trip, and
+    // how much of it the game's players see, are the game's own.
+    sf4e::InputDelayBands delayBands;
     GameState& state;
     Battle& battle;
     Input& input;

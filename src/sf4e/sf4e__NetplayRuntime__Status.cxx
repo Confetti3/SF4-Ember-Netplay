@@ -215,7 +215,7 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
                         snapshot.probeJitterUs=probe.jitterUs; snapshot.probeBenchmark=probe.benchmark;
                         snapshot.probeStatus=probe.status; snapshot.probeSamples=probe.samples; snapshot.probeLost=probe.lost;
                         snapshot.probeSent=probe.sent; snapshot.probeExpected=probe.expected;
-                        snapshot.recommendedDelay=probe.recommended;
+                        snapshot.recommendedDelay=RecommendedDelay(probe);
                     }
                 }
             }
@@ -550,7 +550,7 @@ RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool 
 					const auto& probe = runtime->room->Probe();
 					if (peer != RuntimeSession::server->roomPeerIdentities.end() && probe.peer == peer->second &&
 						probe.pairRevision == table->revision) {
-						gates.canApplyDelay = !gates.delayLocked && probe.recommended >= 0;
+						gates.canApplyDelay = !gates.delayLocked && probe.measured;
 						if (probe.status == "checking") gates.canProbe = false;
 					}
 				}

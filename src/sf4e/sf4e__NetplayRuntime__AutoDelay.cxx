@@ -27,6 +27,10 @@ bool AutoDelayMeasured() {
     return runtime->autoDelayCheck.Measured(CurrentProbePeer(revision));
 }
 
+int RecommendedDelay(const session::IrohRoom::ProbeSnapshot& probe) {
+    return probe.measured ? RecommendedInputDelay(Game().delayBands,probe.Rtt()) : -1;
+}
+
 int ReadyDelay() {
     if(!runtime->preferences.autoInputDelay) return runtime->selectedDelay;
     std::uint64_t revision=0;
@@ -99,7 +103,8 @@ void TickAutoDelay(bool helperReady) {
     check.Seat(peer,revision,runtime->nextProbeRequest,now);
     if(peer.empty()) return;
     const auto& probe=runtime->room->Probe();
-    check.Observe(probe.peer,probe.request,probe.status,probe.recommended,now);
+    using Source=netplay::AutoDelayBasis::Source;
+    check.Observe(probe.peer,probe.request,probe.status,{probe.measured ? Source::Check : Source::None,probe.Rtt()},now);
     if(!helperReady || !runtime->preferences.autoInputDelay || !check.Due(now) || probe.status=="checking" ||
         !CurrentGates().canProbe || !AutoCheckClear(peer,tableIndex)) return;
     const auto request=runtime->nextProbeRequest;

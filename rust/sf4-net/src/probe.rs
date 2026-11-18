@@ -287,10 +287,13 @@ fn percentile(sorted: &[u64], percent: usize) -> u64 {
     sorted[((sorted.len() - 1) * percent).div_ceil(100)]
 }
 
-// RTT bands from players' experience: one frame through 80 ms, then one
+// RTT bands from SF4 players' experience: one frame through 80 ms, then one
 // more frame per 70 ms, capped at five (InputDelay.hxx: MaximumInputDelay).
 // Never 0: that is only a player's own choice (InputDelay.hxx:
-// RecommendedInputDelayMinimum).
+// RecommendedInputDelayMinimum). The game takes a recommendation from here
+// only as the sign that the check measured: it recommends from the p50 and
+// p95 this result carries, with its own game's bands (InputDelay.hxx:
+// InputDelayBands; SF4's are these, Sf4InputDelayBands).
 const DELAY_FIRST_BAND_MS: u64 = 80;
 const DELAY_BAND_STEP_MS: u64 = 70;
 const DELAY_BAND_MAX: u64 = 5;

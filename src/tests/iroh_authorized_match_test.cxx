@@ -343,7 +343,7 @@ int wmain(int argc, wchar_t** argv) {
 		};
 		const auto measured = [&](std::size_t side) {
 			const auto& probe = rooms[side]->Probe();
-			return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.recommended >= 0;
+			return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.measured;
 		};
 		ask(0); ask(1);
 		for (int round = 0; round < 2; ++round) {
@@ -364,7 +364,7 @@ int wmain(int argc, wchar_t** argv) {
 		}
 		for (std::size_t side = 0; side < 2; ++side)
 			std::cout << "Auto check " << side << " attempts=" << attempts[side] << " measured=" << measured(side)
-				<< " recommended=" << rooms[side]->Probe().recommended << " route=" << rooms[side]->Probe().route
+				<< " p50_rtt_us=" << rooms[side]->Probe().p50RttUs << " route=" << rooms[side]->Probe().route
 				<< (failures[side].empty() ? std::string() : " failed:" + failures[side]) << '\n';
 		CHECK(measured(0) && measured(1));
 		std::cout << "Both seated players on Auto measured each other before Ready\n";
@@ -374,7 +374,7 @@ int wmain(int argc, wchar_t** argv) {
 		const auto& probe = rooms[0]->Probe();
 		return (probe.status == "ready" || probe.status == "complete") && probe.samples >= (benchmark ? 480U : 80U) &&
             probe.sent == (benchmark ? 600U : 100U) &&
-			probe.samples + probe.lost == (benchmark ? 600 : 100) && probe.route != "" && probe.recommended >= 0;
+			probe.samples + probe.lost == (benchmark ? 600 : 100) && probe.route != "" && probe.measured;
 	};
 	auto checkRevision = pairRevision;
 	CHECK(rooms[0]->RequestProbe(probePeer, 1, checkRevision, benchmark));
@@ -397,8 +397,8 @@ int wmain(int argc, wchar_t** argv) {
 	}
 	const auto probeRoute = rooms[0]->Probe().route;
 	std::cout << "Probe route=" << probeRoute << " valid=" << rooms[0]->Probe().samples
-		<< " lost=" << rooms[0]->Probe().lost << " p95_rtt_us=" << rooms[0]->Probe().p95RttUs
-		<< " recommended_delay=" << rooms[0]->Probe().recommended << '\n';
+		<< " lost=" << rooms[0]->Probe().lost << " p50_rtt_us=" << rooms[0]->Probe().p50RttUs << " p95_rtt_us=" << rooms[0]->Probe().p95RttUs
+		<< " measured=" << rooms[0]->Probe().measured << '\n';
 	const auto probeControl = rooms[0]->ConnectionForIdentity(probePeer);
 	CHECK(probeControl != 0);
     const auto& measured=rooms[0]->Probe();
@@ -413,7 +413,7 @@ int wmain(int argc, wchar_t** argv) {
 		pump();
 		const auto& probe = rooms[1]->Probe();
 		CHECK(rooms[0]->Probe().status != "invalidated");
-		return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.recommended >= 0;
+		return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.measured;
 	});
 
 	std::cout << "Both seated players completed the connection check before Ready\n";
@@ -426,8 +426,8 @@ int wmain(int argc, wchar_t** argv) {
     wait([&](){pump();CHECK(rooms[0]->Probe().status!="invalidated");return GetTickCount64()>=settledAt;});
     const auto& retained=rooms[0]->Probe();
     CHECK(retained.status=="ready" || retained.status=="complete");
-    CHECK(retained.samples>=(benchmark?480U:80U) && retained.recommended>=0 && retained.route==probeRoute);
-    CHECK(rooms[1]->Probe().samples>=80 && rooms[1]->Probe().recommended>=0);
+    CHECK(retained.samples>=(benchmark?480U:80U) && retained.measured && retained.route==probeRoute);
+    CHECK(rooms[1]->Probe().samples>=80 && rooms[1]->Probe().measured);
 	// The pair reservation is bound to the committed native table, including
 	// both selected fighters and the exact table revision.  Exercise the same
 	// pre-battle path the game uses before asking the helper to reserve QUIC.

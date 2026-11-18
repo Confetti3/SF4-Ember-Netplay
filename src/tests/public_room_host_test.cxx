@@ -414,8 +414,8 @@ bool Probe(Player& from, Player& to, std::uint64_t request, std::string& detail)
 	const auto& probe = from.Room().Probe();
 	detail = "status=" + probe.status + " route=" + probe.route + " replies=" + std::to_string(probe.samples) + "/" +
 		std::to_string(probe.samples + probe.lost) + " p95_us=" + std::to_string(probe.p95RttUs) +
-		" delay=" + std::to_string(probe.recommended) + " failure=" + std::to_string(probe.failureReason);
-	return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.recommended >= 0;
+		" measured=" + std::to_string(probe.measured) + " failure=" + std::to_string(probe.failureReason);
+	return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.measured;
 }
 
 // A and B, seated at table 0, ready up, with input delays of `delayA` and

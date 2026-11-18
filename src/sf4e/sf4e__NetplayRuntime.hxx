@@ -365,7 +365,7 @@ struct Runtime {
     // Public room links (ember://room/open) likewise: the service and the room.
     platform::PublicRoomLinkMailbox publicRoomLinks;
     netplay::tournament::OpenedRoomLink openedRoomLink;
-    netplay::AutoDelayCheck autoDelayCheck;
+    netplay::AutoDelayCheck autoDelayCheck{ember::game::Game().delayBands};
     // The game that just ended, until TickAutoDelay takes it.
     std::optional<netplay::PlayedGame> finishedGame;
     // The table rules chosen when creating a public room, set on its tables
@@ -547,6 +547,9 @@ std::string CurrentProbePeer(std::uint64_t& revision, int* tableIndex = nullptr)
 // The delay a Ready sends: the chosen one, or Auto's. The Auto functions are
 // in sf4e__NetplayRuntime__AutoDelay.cxx.
 int ReadyDelay();
+// The delay a connection check recommends in this game's bands, or -1 when
+// it measured nothing.
+int RecommendedDelay(const session::IrohRoom::ProbeSnapshot& probe);
 // Auto has a recommendation measured against the seated opponent.
 bool AutoDelayMeasured();
 // Auto is still measuring the seated opponent, so a Ready holds for it.

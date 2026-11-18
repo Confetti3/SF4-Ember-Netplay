@@ -388,14 +388,14 @@ int wmain(int argc, wchar_t** argv) {
                 const auto& probe=source->room->Probe();
                 CHECK(probe.sent==(benchmark?600U:100U));
                 CHECK(probe.samples>=(benchmark?480U:80U));
-                CHECK(probe.recommended>=0);
+                CHECK(probe.measured);
             }
             // An invalid revision must remain rejected, with a readable reason
             // transported from the real helper and no damage to room control.
             CHECK(host->RequestProbe(guest->LocalIdentity(),2,
                 hostClient().GetRoomSnapshot().tables[0].revision+1000));
             wait([&]() { pump(); return host->Probe().status=="unavailable"; });
-            CHECK(host->Probe().failureReason==8 && host->Probe().sent==0 && host->Probe().recommended==-1);
+            CHECK(host->Probe().failureReason==8 && host->Probe().sent==0 && !host->Probe().measured);
             CHECK(host->GetState()==session::IrohRoom::State::Ready);
             std::cout << "Stale probe rejected with reason 8; room control remains ready\n";
         }

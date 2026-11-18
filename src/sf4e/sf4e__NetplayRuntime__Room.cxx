@@ -595,7 +595,7 @@ static DispatchOutcome Handle(commands::ApplyDelay& command, bool, Attempt) {
 		std::uint64_t revision = 0; const auto peer = CurrentProbePeer(revision);
 		const auto& probe = runtime->room->Probe();
 		if (peer.empty() || probe.peer != peer || probe.pairRevision != revision) return DispatchOutcome::Dispatched;
-		selected = probe.recommended;
+		selected = RecommendedDelay(probe);
 	}
 	const bool automatic = selected == AutoInputDelayChoice;
 	if (!automatic) {

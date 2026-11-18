@@ -295,6 +295,7 @@ constexpr Capabilities Sf4Capabilities() {
 }
 const Adapter s_game = {
     Sf4Capabilities(),
+    sf4e::Sf4InputDelayBands,
     s_state, s_battle, s_input, s_preferences, s_services, s_training, s_replays, s_themes,
 };
 }

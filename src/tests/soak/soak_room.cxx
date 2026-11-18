@@ -57,7 +57,7 @@ int Room::ProbeLeg(Flow& flow, Member& from, Member& to, Clock now) {
 	}
 	flow.detail = "status=" + probe.status + " route=" + probe.route + " replies=" + std::to_string(probe.samples) + "/" +
 		std::to_string(probe.samples + probe.lost) + " failure=" + std::to_string(probe.failureReason);
-	return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.recommended >= 0 ? 1 : 2;
+	return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.measured ? 1 : 2;
 }
 
 int Room::AdvanceFlow(Flow& flow, Clock now) {

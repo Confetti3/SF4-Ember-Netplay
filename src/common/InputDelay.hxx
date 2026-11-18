@@ -51,25 +51,43 @@ constexpr int AutoInputDelay(int recommended, AutoDelayStyle style = AutoDelaySt
         ClampAutoDelay(recommended + AutoInputDelayRange(style).shift, AutoInputDelayRange(style));
 }
 
-// The delay a round trip of `rttMs` asks for: one frame through 80 ms, then
-// one more frame per 70 ms, up to MaximumInputDelay. This is the connection
-// check's band function in whole milliseconds (recovery.rs: delay_band). The
-// game runs apart from the helper that owns that function, so the edges are
-// kept in both places and pinned by the same table in each one's tests.
-constexpr int InputDelayFirstBandMs = 80;
-constexpr int InputDelayBandStepMs = 70;
-constexpr int InputDelayFramesFor(int rttMs) {
-    return rttMs <= InputDelayFirstBandMs ? RecommendedInputDelayMinimum :
-        RecommendedInputDelayMinimum + (rttMs - InputDelayFirstBandMs + InputDelayBandStepMs - 1) / InputDelayBandStepMs;
+// A measured round trip as the bands read it: its median and its 95th
+// percentile, in whole milliseconds.
+struct RoundTrip { int medianMs, p95Ms; };
+// A round trip in microseconds, as the connection check reports it, in the
+// whole milliseconds the bands read, with half a millisecond rounding up
+// (recovery.rs: delay_band): 80.499 ms is 80, 80.500 ms is 81. Anything past
+// a million milliseconds is one, far beyond the last band.
+constexpr int RoundTripMs(std::uint64_t us) {
+    return us >= 1000000000ULL ? 1000000 : static_cast<int>(us / 1000 + (us % 1000 >= 500 ? 1 : 0));
 }
-constexpr int InputDelayBand(int rttMs) {
-    return InputDelayFramesFor(rttMs) > MaximumInputDelay ? MaximumInputDelay : InputDelayFramesFor(rttMs);
+
+// Where Auto's recommendation steps up, by round trip: one frame through
+// firstBandMs, then one more frame per bandStepMs, up to MaximumInputDelay.
+// The rollback a recommendation leaves is the game's to judge, since games show
+// a late input differently, so each game hands its own (GameAdapter.hxx:
+// Adapter::delayBands), and its connection checks and played games both read
+// it. The styles below hold every game's recommendation alike.
+struct InputDelayBands { int firstBandMs, bandStepMs; };
+// SF4's, from its players' experience, and the connection check's own
+// (recovery.rs: delay_band). The helper still recommends with these, and the
+// room takes its recommendation only as the sign that the check measured
+// (IrohRoom::ProbeSnapshot::measured); the game's delay comes from its own
+// bands. The edges are pinned by the same table in both places' tests.
+constexpr InputDelayBands Sf4InputDelayBands = {80, 70};
+constexpr int InputDelayFramesFor(InputDelayBands bands, int rttMs) {
+    return rttMs <= bands.firstBandMs ? RecommendedInputDelayMinimum :
+        RecommendedInputDelayMinimum + (rttMs - bands.firstBandMs + bands.bandStepMs - 1) / bands.bandStepMs;
 }
-// The recommendation for a median and a 95th percentile round trip: the
-// median's band, raised to one below the tail's when the tail is more than
-// one band worse (recovery.rs: recommended_delay).
-constexpr int RecommendedInputDelay(int medianMs, int p95Ms) {
-    return InputDelayBand(medianMs) > InputDelayBand(p95Ms) - 1 ? InputDelayBand(medianMs) : InputDelayBand(p95Ms) - 1;
+constexpr int InputDelayBand(InputDelayBands bands, int rttMs) {
+    return InputDelayFramesFor(bands, rttMs) > MaximumInputDelay ? MaximumInputDelay : InputDelayFramesFor(bands, rttMs);
+}
+// The recommendation for a round trip: the median's band, raised to one below
+// the tail's when the tail is more than one band worse (recovery.rs:
+// recommended_delay).
+constexpr int RecommendedInputDelay(InputDelayBands bands, RoundTrip rtt) {
+    return InputDelayBand(bands, rtt.medianMs) > InputDelayBand(bands, rtt.p95Ms) - 1 ? InputDelayBand(bands, rtt.medianMs) :
+        InputDelayBand(bands, rtt.p95Ms) - 1;
 }
 
 // Where a delay command carries a number, this asks for Auto. It is never

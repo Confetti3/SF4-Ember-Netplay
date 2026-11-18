@@ -149,7 +149,7 @@ FakeServices s_services;
 FakeTraining s_training;
 NoReplays s_replays;
 NoThemes s_themes;
-Adapter s_game = {Everything(), s_state, s_battle, s_input, s_preferences, s_services, s_training, s_replays, s_themes};
+Adapter s_game = {Everything(), sf4e::Sf4InputDelayBands, s_state, s_battle, s_input, s_preferences, s_services, s_training, s_replays, s_themes};
 }
 
 namespace ember {

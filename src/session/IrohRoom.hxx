@@ -6,6 +6,7 @@
 #include "SessionRecovery.hxx"
 #include "RoomLoadWindow.hxx"
 #include "CheckpointDecodeWorker.hxx"
+#include "../common/InputDelay.hxx"
 #include "../common/NetworkNat.hxx"
 #include "../common/NetworkRoute.hxx"
 #include "RoomFailure.hxx"
@@ -86,7 +87,11 @@ public:
         bool benchmark=false;
         std::string peer, route, status;
         unsigned samples=0, lost=0, sent=0, expected=0, packetBytes=0;
-        int recommended=-1;
+        // The check measured the path: enough replies, and the helper's
+        // recommendation (SF4's bands, InputDelay.hxx) says it measured. A
+        // game recommends from Rtt() with its own bands.
+        bool measured=false;
+        sf4e::RoundTrip Rtt() const { return {sf4e::RoundTripMs(p50RttUs), sf4e::RoundTripMs(p95RttUs)}; }
         unsigned failureReason=0;
     };
     struct RecoverySnapshot {

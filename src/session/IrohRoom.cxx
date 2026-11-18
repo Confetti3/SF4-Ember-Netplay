@@ -559,8 +559,8 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
             room_.probe.sent=metrics.value("sent",0U); room_.probe.expected=metrics.value("expected",0U); room_.probe.packetBytes=metrics.value("packet_bytes",0U); }
         const unsigned expected=room_.probe.benchmark?600:100;
         const int recommendation=event.at("recommended_delay");
-        room_.probe.recommended=(room_.probe.status=="complete" || room_.probe.status=="ready") && room_.probe.samples>=expected*4/5 &&
-            room_.probe.samples<=expected && room_.probe.samples+room_.probe.lost==expected && recommendation>=RecommendedInputDelayMinimum && recommendation<=InputDelayWireCeiling ? (std::min)(recommendation,MaximumInputDelay) : -1;
+        room_.probe.measured=event.contains("metrics") && (room_.probe.status=="complete" || room_.probe.status=="ready") && room_.probe.samples>=expected*4/5 &&
+            room_.probe.samples<=expected && room_.probe.samples+room_.probe.lost==expected && recommendation>=RecommendedInputDelayMinimum && recommendation<=InputDelayWireCeiling;
         return true;
     }
     return true;
@@ -774,7 +774,7 @@ bool IrohRoom::HandleHelperError(const json& event) {
 	switch (verdict.scope) {
 	case HelperErrorScope::Probe:
 		room_.probe.failureReason=event.value("probe_failure",0U);
-		room_.probe.status="unavailable"; room_.probe.recommended=-1; return true;
+		room_.probe.status="unavailable"; room_.probe.measured=false; return true;
 	case HelperErrorScope::Gameplay:
 		room_.error="Gameplay connection failed; room control remains available.";
 		return true;
@@ -821,7 +821,7 @@ void IrohRoom::Poll() {
     // Stage whatever finished decoding since the last poll, before anything
     // below looks at the staging queue. Never waits.
     CompleteCommittedCheckpoints();
-    if(room_.probe.status=="checking" && GetTickCount64()>=room_.probe.deadlineMs) { room_.probe.status="timed_out";room_.probe.recommended=-1; }
+    if(room_.probe.status=="checking" && GetTickCount64()>=room_.probe.deadlineMs) { room_.probe.status="timed_out";room_.probe.measured=false; }
     PruneRetiredPeers();
     ExpireDepartedPeers();
 	if (helper_.State() == platform::HelperState::Failed || helper_.State() == platform::HelperState::Stopped) {
