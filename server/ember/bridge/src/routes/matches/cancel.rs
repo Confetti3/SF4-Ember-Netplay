@@ -8,7 +8,7 @@ use ember_protocol::{api::ErrorCode, encoding::Counter};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use super::{check_reason, read::visible};
+use super::read::visible;
 use crate::{
     AppState,
     audit::audit,
@@ -18,6 +18,7 @@ use crate::{
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key},
     routes::{
         idempotency::ServiceCall,
+        reason,
         ledger::{cancel_and_release, load, stale},
     },
 };
@@ -42,7 +43,7 @@ pub async fn cancel(
     let viewer = Viewer::of_service(&service)?;
     let key = idempotency_key(&headers)?;
     let command: CancelCommand = body.parse()?;
-    check_reason(&command.reason)?;
+    reason::check(&command.reason)?;
     let expected = expected_revision(
         &headers,
         command.expected_revision.map(|revision| revision.0),

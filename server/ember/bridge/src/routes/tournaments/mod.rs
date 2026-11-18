@@ -23,7 +23,7 @@ use crate::{
     error::{ApiFailure, Result},
     events::Viewer,
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
-    routes::{idempotency::ServiceCall, policy, records},
+    routes::{idempotency::ServiceCall, policy, reason, records},
     tournament::{self, Applied, Tournament},
 };
 
@@ -45,15 +45,6 @@ fn stale(current: u64) -> ApiFailure {
         "The tournament changed. Refresh it and try again.",
     )
     .detail("current_revision", current.to_string())
-}
-
-fn check_reason(reason: &str) -> Result<()> {
-    if reason.trim().is_empty() || reason.len() > 512 || reason.chars().any(char::is_control) {
-        return Err(ApiFailure::invalid(
-            "A reason of 1 to 512 bytes is required.",
-        ));
-    }
-    Ok(())
 }
 
 fn actor(role: Role) -> &'static str {
@@ -294,7 +285,7 @@ pub async fn cancel(
     let viewer = Viewer::of_service(&service)?;
     let key = idempotency_key(&headers)?;
     let command: CancelCommand = body.parse()?;
-    check_reason(&command.reason)?;
+    reason::check(&command.reason)?;
     let expected = expected_revision(
         &headers,
         command.expected_revision.map(|revision| revision.0),
