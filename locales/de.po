@@ -2955,6 +2955,12 @@ msgstr "Fortsetzen"
 msgid "training.meter.after_pause.detail"
 msgstr "Was die Anzeige tut, wenn sich nach einer Ruhephase beider Kämpfer wieder etwas bewegt. Neu beginnen leert die Balken für den neuen Schlagabtausch wie in Street Fighter 6. Fortsetzen macht nach dem letzten weiter, sodass der Verlauf mehrere zurückreicht."
 
+msgid "training.meter.proximity"
+msgstr "Näheblock"
+
+msgid "training.meter.proximity.detail"
+msgstr "Zeigt die Deckungshaltung, die ein Kämpfer einnimmt, wenn ein Angriff nah ist und noch kein Treffer erfolgt ist, als eigene abgedunkelte Zelle. Aus: Diese Frames zählen als frei, sodass sich die Lücken einer Blockfolge vom Blockstun abheben."
+
 msgid "training.meter.scroll"
 msgstr "Anzeige scrollen"
 

@@ -2955,6 +2955,12 @@ msgstr "이어서"
 msgid "training.meter.after_pause.detail"
 msgstr "두 파이터가 멈춘 뒤 다시 움직일 때 미터의 동작. 새로 시작은 스트리트 파이터 6처럼 새 교전을 위해 막대를 비웁니다. 이어서는 이전 교전 뒤에 이어 기록으로 여러 교전을 되돌아볼 수 있습니다."
 
+msgid "training.meter.proximity"
+msgstr "접근 방어"
+
+msgid "training.meter.proximity.detail"
+msgstr "공격이 가까워졌을 때 적중 전에 취하는 방어 자세를 별도의 흐린 칸으로 표시합니다. 끄면 그 프레임은 자유로운 것으로 계산되어, 연속 방어의 틈이 방어 경직과 구별됩니다."
+
 msgid "training.meter.scroll"
 msgstr "미터 스크롤"
 

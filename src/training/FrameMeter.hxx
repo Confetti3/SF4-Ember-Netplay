@@ -130,6 +130,11 @@ struct FighterSample {
     int projectileDelay = 0;
     // From the game's strike and projectile body masks (0 while no part can be hit).
     Invincibility invincibility = Invincibility::None;
+    // The guard pose the game takes when an attack comes near, before any
+    // hit: a guard status with no blockstun. SFV's adapter sets it (its guard
+    // state against its blockstun state); SF4's samples never do, so a guard
+    // there is one kind of cell as it always was.
+    bool proximity = false;
 };
 // The frame a move's recovery ends on: where the script says the fighter is
 // free again, its interruptible frame, else its end; -1 when neither is known.
@@ -159,7 +164,12 @@ inline bool RecoveryCutShort(const FighterSample& move) {
 // what the thrower has left of it once the other is let go is its recovery.
 // Down is bouncing or lying, Rise getting up. Meaty is the bars' own, never
 // ClassifyMeter's: the frame a fighter is first up, and an attack active on it.
-enum class MeterKind { Neutral, Movement, Startup, Active, Recovery, Attack, Guard, Hit, Down, Rise, Sequence, Meaty, Unknown };
+// Proximity is the guard pose before a hit (FighterSample::proximity), drawn
+// apart from Guard's blockstun so a blockstring's gaps read off the bars.
+enum class MeterKind { Neutral, Movement, Startup, Active, Recovery, Attack, Guard, Hit, Down, Rise, Sequence, Meaty, Unknown, Proximity };
+// A frame in which the fighter is free: nothing to count, which the bars draw
+// dim, give no run length and end an exchange when both are in one.
+inline bool QuietKind(MeterKind kind) { return kind == MeterKind::Neutral || kind == MeterKind::Proximity; }
 // The attack's phase on this frame: its hitboxes where the file times them,
 // else the script's attack boundary; Untimed when neither tells.
 inline bac::HitPhase AttackPhase(const FighterSample& sample) {
@@ -193,7 +203,7 @@ inline MeterKind ClassifyMeter(const FighterSample& sample) {
     // A jump shows as nothing: its frames are the same every time. Walks and dashes show.
     case Phase::Movement:
         return sample.status == S::Jump || sample.status == S::StandToJump || sample.status == S::JumpToStand ? MeterKind::Neutral : MeterKind::Movement;
-    case Phase::Guard: return MeterKind::Guard;
+    case Phase::Guard: return sample.proximity ? MeterKind::Proximity : MeterKind::Guard;
     case Phase::Hit: return MeterKind::Hit;
     case Phase::Down: return sample.status == S::Rise ? MeterKind::Rise : MeterKind::Down;
     case Phase::Attack:
@@ -239,6 +249,10 @@ struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = fal
     // The fighters' boxes are drawn over the fight, and of those the boxes
     // where a strike or a throw lands and the skeleton.
     bool hitboxes = false, hurtBoxes = true, throwBoxes = true, skeleton = true;
+    // The guard pose before a hit is drawn as its own kind of cell
+    // (MeterKind::Proximity); off, it is a free frame like standing. Only a
+    // game whose samples carry it (FighterSample::proximity) offers the row.
+    bool proximityGuard = true;
     // The Data panel (TrainingData.cxx): shown, whose (DataFighters), how solid
     // its ground is (DataOpacities, percent) and which of its parts show.
     bool data = false; DataFighter dataFighters = DataFighter::Both; int dataOpacity = 80;
@@ -403,15 +417,18 @@ inline bool Replayed(const FighterSample& previous, const FighterSample& sample)
 }
 // sample's cell after previous, the sample before it in the bars whose cell
 // was before; no previous for the first cell of the bars.
-inline MeterCell ResolveMeterCell(const FighterSample& sample, const FighterSample* previous, const MeterCell& before) {
+inline MeterCell ResolveMeterCell(const FighterSample& sample, const FighterSample* previous, const MeterCell& before, bool showProximity = true) {
     using S = ActorStatus;
     MeterCell cell;
     cell.phase = sample.valid ? ClassifyStatus(sample.status) : Phase::Unknown;
     cell.kind = ClassifyMeter(sample);
     const auto guarding = [](const FighterSample& s) { return s.valid && (s.status == S::GuardStand || s.status == S::GuardCrouch); };
     if (guarding(sample)) cell.guardFrom = previous && guarding(*previous) ? before.guardFrom : previous && previous->valid ? previous->status : sample.status;
-    if (cell.kind == MeterKind::Guard && sample.status != S::DamageGuard &&
+    if ((cell.kind == MeterKind::Guard || cell.kind == MeterKind::Proximity) && sample.status != S::DamageGuard &&
         (sample.posture > 1 || cell.guardFrom == S::Jump || cell.guardFrom == S::StandToJump)) cell.kind = MeterKind::Neutral;
+    // Switched off, the pose before a hit is a free frame, so the gaps of a
+    // blockstring are the only guard the bars show between its blocked hits.
+    if (cell.kind == MeterKind::Proximity && !showProximity) cell.kind = MeterKind::Neutral, cell.phase = Phase::Neutral;
     // Only the fighter's own frames: a knocked-down or thrown fighter is out of reach anyway.
     if (cell.kind == MeterKind::Startup || cell.kind == MeterKind::Recovery || cell.kind == MeterKind::Movement) cell.invincibility = sample.invincibility;
     if (!previous) return cell;
@@ -491,6 +508,9 @@ public:
     // Whether an exchange after a held meter goes on after what the bars hold
     // (the classic way) instead of starting on clear bars, as SF6's does.
     void SetContinuous(bool continuous) { continuous_ = continuous; }
+    // Whether the guard pose before a hit is drawn as its own kind of cell
+    // (MeterOptions::proximityGuard); for the frames observed from now on.
+    void SetProximityGuard(bool shown) { proximityGuard_ = shown; }
     // The frames kept from now on; a shorter length drops the oldest at once.
     void SetHistory(std::size_t frames) {
         history_ = (std::max)(MeterShown, frames);
@@ -640,7 +660,7 @@ public:
             }
             // The cell is resolved now, with the frame before it and the guard
             // it continues, which the history may no longer hold later.
-            cells[side] = ResolveMeterCell(sample, previous.valid ? &previous : nullptr, lastCells_[side]);
+            cells[side] = ResolveMeterCell(sample, previous.valid ? &previous : nullptr, lastCells_[side], proximityGuard_);
             lastCells_[side] = cells[side];
             view_.current[side] = sample;
         }
@@ -660,7 +680,7 @@ public:
         // Both fighters quiet, as their cells show them: standing, crouching,
         // a jump or a guard in the air, or missing.
         bool neutral = true;
-        for (const auto& cell : cells) neutral = neutral && (cell.kind == MeterKind::Neutral || cell.kind == MeterKind::Unknown);
+        for (const auto& cell : cells) neutral = neutral && (QuietKind(cell.kind) || cell.kind == MeterKind::Unknown);
         idleFrames_ = neutral ? idleFrames_ + 1 : 0;
         // Hitstop, or a super's freeze: neither fighter's animation moved on
         // in an exchange. Such a frame is measured, but left out of the bars,
@@ -700,7 +720,7 @@ public:
             // projectile on its way) goes on with the exchange kept aside.
             const int attacker = armed_[0] ? 0 : 1;
             const auto other = cells[1 - attacker].kind;
-            const bool reaction = cells[attacker].kind == MeterKind::Neutral && (other == MeterKind::Guard || other == MeterKind::Hit ||
+            const bool reaction = cells[attacker].kind == MeterKind::Neutral && (other == MeterKind::Guard || other == MeterKind::Proximity || other == MeterKind::Hit ||
                 other == MeterKind::Down || other == MeterKind::Sequence);
             if (reaction && attacking && !aside_.empty()) {
                 Append(aside_, asideLength_, latest);
@@ -888,6 +908,7 @@ private:
     std::size_t asideLength_ = 0;
     std::size_t history_ = MeterHistory, asideKept_ = 0;
     bool continuous_ = false;
+    bool proximityGuard_ = true;
     // When the armed exchange began, on the clock of accepted observations.
     std::int64_t exchangeAt_ = 0;
     // The side whose newest hit mark waits for a count to run out (Observe); -1 none.

@@ -219,6 +219,13 @@ int main() {
         CHECK(!ReadMeterOptions(json::object()).oilFull && !ReadMeterOptions(json{{"oil_full", "yes"}}).oilFull &&
             ReadMeterOptions(json::parse(MeterOptionsJson(oil).dump())).oilFull);
     }
+    // The guard pose before a hit is drawn unless it is saved as a literal false.
+    {
+        MeterOptions off; off.proximityGuard = false;
+        CHECK(ReadMeterOptions(json::object()).proximityGuard && ReadMeterOptions(json{{"proximity_guard", "false"}}).proximityGuard &&
+            !ReadMeterOptions(json{{"proximity_guard", false}}).proximityGuard && !ReadMeterOptions(json::parse(MeterOptionsJson(off).dump())).proximityGuard &&
+            ReadMeterOptions(json::parse(MeterOptionsJson(MeterOptions{}).dump())).proximityGuard);
+    }
     // No input display unless one is saved by name, and a round trip keeps each.
     for (const json& inputs : {json(), json("Stick"), json(1), json(true)}) CHECK(ReadMeterOptions(json{{"hud_inputs", inputs}}).inputs == InputDisplay::Off);
     for (const auto inputs : {InputDisplay::Off, InputDisplay::Stick, InputDisplay::Arrows, InputDisplay::Both}) {

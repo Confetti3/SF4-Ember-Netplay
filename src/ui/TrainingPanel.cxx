@@ -552,6 +552,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit,cons
         Value("meter-history",loc::T("training.meter.history"),loc::Tf("training.meter.history_seconds",lab.meter.history/60),loc::T("training.meter.history.detail")),
         Value("meter-after-pause",loc::T("training.meter.after_pause"),loc::T(lab.meter.continuous?"training.meter.after_pause.continue":"training.meter.after_pause.start_over"),loc::T("training.meter.after_pause.detail")),
         Value("meter-scroll",loc::T("training.meter.scroll"),loc::T(lab.meter.smooth?"training.meter.scroll.smooth":"training.meter.scroll.pages"),loc::T("training.meter.scroll.detail"))};
+  if(features.proximityGuard)rows.push_back(Value("meter-proximity",loc::T("training.meter.proximity"),loc::T(lab.meter.proximityGuard?"common.on":"common.off"),loc::T("training.meter.proximity.detail")));
   if(lab.meter.style==MeterStyle::Classic)rows.push_back(Row("meter-classic",loc::T("training.meter.classic"),loc::T("training.meter.classic.detail")));
  }else if(screen=="meter-classic"){
   LoadPractice();
@@ -600,7 +601,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit,cons
   if(screen=="history"&&(id=="p1"||id=="p2")){
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
   }
-  if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(lab.meter.style!=MeterStyle::Flat);
+  if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(lab.meter.style!=MeterStyle::Flat,features.proximityGuard&&lab.meter.proximityGuard);
  },1,{},GameMenu::Body{},true,compactSlots?30.f:100.f,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
  if(a.kind==MenuAction::Activate&&screen=="home"&&a.id=="back-to-room"){TrainingBackToRoomPress(v,submit);ForwardMenuAction({MenuAction::Close});return;}
@@ -625,6 +626,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit,cons
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-history"){Step(lab.meter.history,{std::begin(MeterHistoryChoices),std::end(MeterHistoryChoices)},a.delta);SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-scroll"){lab.meter.smooth=a.delta>0;SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-after-pause"){lab.meter.continuous=a.delta>0;SavePractice();return;}
+ if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-proximity"){lab.meter.proximityGuard=a.delta>0;SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-position"){Step(lab.meter.position,{std::begin(MeterPositions),std::end(MeterPositions)},a.delta);SavePractice();return;}
  if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&a.id=="bar-height"){Step(lab.meter.barHeight,{std::begin(ClassicBarHeights),std::end(ClassicBarHeights)},a.delta);SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-size"){lab.meter.size=(std::max)(0,(std::min)(HudSizes-1,lab.meter.size+a.delta));SavePractice();return;}
