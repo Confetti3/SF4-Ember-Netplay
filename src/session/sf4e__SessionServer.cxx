@@ -204,9 +204,9 @@ int SessionServer::Step()
 	}
 	for (auto connection : closed) {
 		_departingConnections.insert(connection);
-		cidMap.erase(connection);
 		_connectionAdmissions.erase(connection);
-		const auto roomMember = roomMembers.find(connection);
+		const auto mapping = roomMembers.find(connection);
+		const room::MemberId departedMember = mapping == roomMembers.end() ? 0 : mapping->second;
 		const auto priorSnapshot = _roomAuthority->SnapshotCopy();
 		std::vector<room::Event> departureEvents;
 		for (std::uint8_t table = 0; table < room::TableCount; ++table) {
@@ -219,43 +219,36 @@ int SessionServer::Step()
 			// fighter disconnect cannot strand the table in Paused.
 			// A private room's host leaving ends the room; a server-owned room's
 			// host is an ordinary player whose game ends like anyone else's.
-			if (roomMember != roomMembers.end() && (priorSnapshot.host != roomMember->second || priorSnapshot.serverOwned)) {
+			if (departedMember && (priorSnapshot.host != departedMember || priorSnapshot.serverOwned)) {
 				const auto& oldTable = priorSnapshot.tables[table];
-				const bool fighter = oldTable.p1 == roomMember->second || oldTable.p2 == roomMember->second;
+				const bool fighter = oldTable.p1 == departedMember || oldTable.p2 == departedMember;
 				const bool matchEnded = authority == nullptr || authority->GetPhase() == session::MatchAuthority::Phase::Idle;
-				if (matchEnded && (fighter || oldTable.spectators.end() != std::find(oldTable.spectators.begin(), oldTable.spectators.end(), roomMember->second)) &&
+				if (matchEnded && (fighter || oldTable.spectators.end() != std::find(oldTable.spectators.begin(), oldTable.spectators.end(), departedMember)) &&
 					(oldTable.phase == room::TablePhase::Playing || oldTable.phase == room::TablePhase::Paused)) {
 					auto ended = _roomAuthority->EndMatch(table, oldTable.matchGeneration, room::MatchResult::Abort);
 					if (ended.accepted) departureEvents.insert(departureEvents.end(), ended.events.begin(), ended.events.end());
 				}
 			}
 		}
-		if (roomMember != roomMembers.end()) {
-			const auto departedMember = roomMember->second;
+		room::Result leave;
+		if (departedMember) {
 			CaptureFrozenMember(departedMember, priorSnapshot);
-			auto leave = _roomAuthority->Leave(departedMember);
-			roomMembers.erase(roomMember);
-			roomSelectedTables.erase(connection);
-			if (leave.accepted) {
-				// A rejected Leave keeps the member on the roster, which still reads its
-				// identity, incarnation and record: every checkpoint carries them.
-				roomPeerIdentities.erase(departedMember);
-				roomIncarnations.erase(departedMember);
-				roomMemberRecords.erase(departedMember);
-				// A dropped member may come back: this departure keeps the room's grace.
-				_serverOwnedLeftEmpty = false;
-				departureEvents.insert(departureEvents.end(), leave.events.begin(), leave.events.end());
-				// A departed locked-in spectator can release a held start.
-				const auto started = StartReadyTables(leave.events);
-				departureEvents.insert(departureEvents.end(), started.begin(), started.end());
-				ForgetReseatedMatchData(SeatedPairsOf(priorSnapshot));
-				BroadcastRoomState(departureEvents);
-			}
+			leave = _roomAuthority->Leave(departedMember);
 		}
-		const auto row = std::find_if(clients.begin(), clients.end(), [&](const SessionMember& member) { return member.conn == connection; });
-		if (row != clients.end()) { clients.erase(row); _dataDirty = true; }
-		for (auto& loaded : _roomBattleLoaded) loaded.erase(connection);
-		for (auto& punch : _roomPunchReady) punch.erase(connection);
+		if (DropConnection(connection)) _dataDirty = true;
+		// A refused Leave keeps the member on the roster, which still reads its
+		// identity, incarnation and record: every checkpoint carries them.
+		if (departedMember && leave.accepted) {
+			ForgetRoomMember(departedMember);
+			// A dropped member may come back: this departure keeps the room's grace.
+			_serverOwnedLeftEmpty = false;
+			departureEvents.insert(departureEvents.end(), leave.events.begin(), leave.events.end());
+			// A departed locked-in spectator can release a held start.
+			const auto started = StartReadyTables(leave.events);
+			departureEvents.insert(departureEvents.end(), started.begin(), started.end());
+			ForgetReseatedMatchData(SeatedPairsOf(priorSnapshot));
+			BroadcastRoomState(departureEvents);
+		}
 		_departingConnections.erase(connection);
 	}
 	std::vector<room::Event> deferredRoomEvents;
@@ -388,10 +381,7 @@ sf4e::session::MatchAuthority::Send SessionServer::MatchSender() {
 int SessionServer::Close()
 {
 	if (_transport) _transport->Close();
-	clients.clear();
-	cidMap.clear();
-	roomMembers.clear();
-	roomSelectedTables.clear();
+	DropConnections();
 	roomPeerIdentities.clear();
 	roomIncarnations.clear();
 	roomMemberRecords.clear();
@@ -400,6 +390,41 @@ int SessionServer::Close()
 	_departingConnections.clear();
 	_connectionAdmissions.clear();
 	return 0;
+}
+
+// Every departure goes through these three: a closed connection drops its
+// state (DropConnection), a member the room removed is forgotten with its
+// connection (ForgetRoomMember), and a restore or Close drops every
+// connection at once (DropConnections). Member-level state (identity,
+// incarnation, record) goes only with the member.
+bool SessionServer::DropConnection(session::Connection connection) {
+	cidMap.erase(connection);
+	roomMembers.erase(connection);
+	roomSelectedTables.erase(connection);
+	for (auto& loaded : _roomBattleLoaded) loaded.erase(connection);
+	for (auto& punch : _roomPunchReady) punch.erase(connection);
+	const auto row = std::find_if(clients.begin(), clients.end(), [&](const SessionMember& client) { return client.conn == connection; });
+	if (row == clients.end()) return false;
+	clients.erase(row);
+	return true;
+}
+
+void SessionServer::ForgetRoomMember(room::MemberId member) {
+	roomPeerIdentities.erase(member);
+	roomIncarnations.erase(member);
+	roomMemberRecords.erase(member);
+	const auto mapping = std::find_if(roomMembers.begin(), roomMembers.end(),
+		[&](const std::pair<const session::Connection, room::MemberId>& entry) { return entry.second == member; });
+	if (mapping != roomMembers.end()) DropConnection(mapping->first);
+}
+
+void SessionServer::DropConnections() {
+	clients.clear();
+	cidMap.clear();
+	roomMembers.clear();
+	roomSelectedTables.clear();
+	for (auto& loaded : _roomBattleLoaded) loaded.clear();
+	for (auto& punch : _roomPunchReady) punch.clear();
 }
 
 SessionProtocol::JoinResult SessionServer::RegisterToWait(

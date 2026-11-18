@@ -223,20 +223,9 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 		result.reason == room::RejectReason::WrongGeneration)
 		ReplayPendingTerminalEvents(conn, roomMember->second);
 	if (result.accepted && actionMessage.action.kind == room::ActionKind::Leave) {
-		const auto leavingConnection = conn;
-		const auto leavingMember = roomMember->second;
 		_serverOwnedLeftEmpty = _roomAuthority->ServerOwned() && _roomAuthority->SnapshotView().members.empty();
-		roomPeerIdentities.erase(leavingMember);
-		roomIncarnations.erase(leavingMember);
-		roomMemberRecords.erase(leavingMember);
-		roomSelectedTables.erase(conn);
-		roomMembers.erase(roomMember);
-		cidMap.erase(leavingConnection);
-		clients.erase(std::remove_if(clients.begin(), clients.end(), [&](const SessionMember& client) {
-			return client.conn == leavingConnection;
-		}), clients.end());
-		for (auto& loaded : _roomBattleLoaded) loaded.erase(leavingConnection);
-		for (auto& punch : _roomPunchReady) punch.erase(leavingConnection);
+		const auto leavingMember = roomMember->second;
+		ForgetRoomMember(leavingMember);
 	}
 	if (result.accepted) {
 		ForgetReseatedMatchData(SeatedPairsOf(priorSnapshot));

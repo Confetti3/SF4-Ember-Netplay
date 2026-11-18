@@ -409,8 +409,7 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 		_recoveryPendingPunchReady = std::move(pendingPunchReady);
 		// Synthetic handles exist only while converting the schema; a passive
 		// follower must wait for authenticated RebindMember calls.
-		clients.clear(); cidMap.clear(); roomMembers.clear(); roomSelectedTables.clear();
-		for (auto& set : _roomBattleLoaded) set.clear(); for (auto& set : _roomPunchReady) set.clear();
+		DropConnections();
 		_hasRecoveryProjection = false;
 		// A portable checkpoint may contain a committed native preparation. Keep
 		// its stable table/generation cancellation record until the new writable

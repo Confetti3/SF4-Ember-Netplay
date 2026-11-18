@@ -25,11 +25,11 @@ std::string CurrentProbePeer(std::uint64_t& revision, int* tableIndex=nullptr) {
     if (local==snapshot.members.end() || local->table<0 || local->table>=room::TableCount || local->seat<0 || local->seat>1) return {};
     const auto& table=snapshot.tables[local->table];
     const auto opponent=local->seat==0 ? table.p2 : table.p1;
-    const auto peer=UserApp::server->roomPeerIdentities.find(opponent);
-    if (peer==UserApp::server->roomPeerIdentities.end()) return {};
+    auto peer=UserApp::server->PeerIdentity(opponent);
+    if (peer.empty()) return {};
     revision=table.revision;
     if (tableIndex) *tableIndex=local->table;
-    return peer->second;
+    return peer;
 }
 
 // A command is dispatched fresh from the interface, retried from its parked

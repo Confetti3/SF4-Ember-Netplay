@@ -207,6 +207,17 @@ namespace sf4e {
 			ChatVersion chatVersion;
 		} SessionMember;
 		ChatVersion CurrentChatVersion() const;
+		// What the room's members are known by outside this server: a member's
+		// authenticated endpoint (empty when none is recorded) and its process
+		// incarnation (0 when none is recorded).
+		std::string PeerIdentity(room::MemberId member) const {
+			const auto identity = roomPeerIdentities.find(member);
+			return identity == roomPeerIdentities.end() ? std::string() : identity->second;
+		}
+		std::uint64_t MemberIncarnation(room::MemberId member) const {
+			const auto incarnation = roomIncarnations.find(member);
+			return incarnation == roomIncarnations.end() ? 0 : incarnation->second;
+		}
 		void EnableChatDelta(session::Connection connection, bool enabled);
 
 		std::map<session::Connection, SessionProtocol::ConnectionID> cidMap;
@@ -316,8 +327,15 @@ namespace sf4e {
 		void AdmitMemberRecord(room::MemberId member, SessionMember& row);
 		// Whether any match authority still names this endpoint as a participant.
 		bool MatchAuthorityNames(const SessionProtocol::ConnectionID& endpoint) const;
-		// Drops a member the room removed: its connection, identity and slots.
+		// Forgets a member the room removed: its identity, incarnation and
+		// record, and its connection when it still has one.
 		void ForgetRoomMember(room::MemberId member);
+		// Drops a connection's state: its CID, member mapping, selected table,
+		// client row and barrier arrivals. True when it had a client row. The
+		// member it carried, if any, is untouched (ForgetRoomMember).
+		bool DropConnection(session::Connection connection);
+		// DropConnection for every connection.
+		void DropConnections();
 		void PruneFrozenMembers();
 		std::vector<SessionMember> clients;
 
