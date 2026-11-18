@@ -96,11 +96,13 @@ void ApplicationShell::DrawRoomMembersPanel(const RoomBoardFrame& f,v2::Box box,
  ImGui::BeginChild("Room members",ImVec2(b.W(),b.H()),0,ImGuiWindowFlags_NoNavInputs);
  auto* md=ImGui::GetWindowDrawList();
  const auto start=ImGui::GetCursorScreenPos();float y=start.y;std::string group;
+ // Rows end where the scrollbar begins, so a selected member's frame stays whole.
+ const float rowWidth=ImGui::GetContentRegionAvail().x;
  for(const auto& e:f.rows){
   if(e.id.compare(0,7,"member-"))continue;
   if(e.group!=group){group=e.group;v2::SectionHeading(md,ImVec2(start.x+4*s,y+8*s),group,c.accent);y+=30*s;}
   // A member is their main's face, their tag, and their status under it (DrawMemberRow).
-  const v2::Box r{ImVec2(start.x,y),ImVec2(start.x+b.W(),y+50*s)};y+=54*s;
+  const v2::Box r{ImVec2(start.x,y),ImVec2(start.x+rowWidth,y+50*s)};y+=54*s;
   const bool hovered=f.Press(e,r),focused=e.id==f.focus;
   if(!ImGui::IsItemVisible())continue;
   v2::RowGround(md,r,focused,hovered);
@@ -109,7 +111,7 @@ void ApplicationShell::DrawRoomMembersPanel(const RoomBoardFrame& f,v2::Box box,
   if(focused)v2::Focus(md,r.min,r.max);
   if(focused&&e.popout)f.choices={r,b};
  }
- ImGui::SetCursorScreenPos(start);ImGui::Dummy(ImVec2(b.W(),y-start.y));
+ ImGui::SetCursorScreenPos(start);ImGui::Dummy(ImVec2(rowWidth,y-start.y));
  ImGui::EndChild();
 }
 
