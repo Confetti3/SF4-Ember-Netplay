@@ -736,7 +736,8 @@ std::string memberAsk_;
     // The last offer a table card sent: the table, the offer, that table's
     // revision then and when. Another press of it, or an A on that table's
     // card, before the table changes and for a moment after (a mashed A, a
-    // double click) is the same press, never a second request.
+    // double click) is the same press, never a second request. A new room
+    // starts without one (RoomEntries), as it starts without a question.
     struct OfferSent { int table=-1; std::string offer; std::uint64_t revision=0; double at=0; } offerSent_;
     // More… asked again by the room's rows: after a switch it holds (moreChosen_
     // is the option it opens on), or as the picture's Small, Big and Off (morePicture_).
