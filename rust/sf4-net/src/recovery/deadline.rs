@@ -37,7 +37,10 @@ impl ReadDeadline {
             let wanted = rtt
                 .saturating_mul(AUTHORITY_READ_ROUND_TRIPS)
                 .saturating_add(AUTHORITY_READ_MARGIN);
-            let wanted_ms = u64::try_from(wanted.as_millis()).unwrap_or(u64::MAX);
+            // Capped before the step, so a round trip near `Duration::MAX`
+            // cannot overflow the rounding.
+            let cap_ms = u64::try_from(AUTHORITY_READ_CAP.as_millis()).unwrap_or(u64::MAX);
+            let wanted_ms = u64::try_from(wanted.as_millis()).unwrap_or(u64::MAX).min(cap_ms);
             let stepped = wanted_ms.div_ceil(AUTHORITY_READ_STEP_MS) * AUTHORITY_READ_STEP_MS;
             Duration::from_millis(stepped).clamp(AUTHORITY_READ_FLOOR, AUTHORITY_READ_CAP)
         });
