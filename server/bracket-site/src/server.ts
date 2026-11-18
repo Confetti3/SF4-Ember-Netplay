@@ -470,7 +470,8 @@ export function bracketSite(options: Options): Server {
         const body = await readJson(request);
         const [match, bridge] = played(request, id!, setId!);
         const revision = text(body.expected_revision, /^\d{1,20}$/, "expected_revision is the match's revision");
-        const reason = text(body.reason, /^.{1,500}$/su, "reason is 1 to 500 characters");
+        const reason = text(body.reason, /^.+$/su, "reason is 1 to 512 bytes");
+        if (Buffer.byteLength(reason) > 512) fail(400, "reason is 1 to 512 bytes");
         const attempt = body.attempt_id === undefined ? undefined : text(body.attempt_id, SLUG, "attempt_id is a game's ID");
         const header = request.headers["idempotency-key"];
         const key = typeof header === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(header) ? header : randomUUID();
