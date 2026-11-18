@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace sf4e {
 // Three limits are kept apart.
 //
