@@ -92,6 +92,10 @@ int main(int argc, char** argv) {
     CHECK(before("1.1.0-rc1", "v1.1.0") && before("1.0.2", "1.1.0-rc1") && before("v1.1.0", "1.1.1"));
     CHECK(before("1.1.0-rc1", "1.1.0-rc2") && before("1.1.0-rc9", "1.1.0-rc10") && before("1.1.0-beta3", "1.1.0-rc1"));
     CHECK(before("1.1.0-rc1", "1.1.0-rc1junk") && CompareVersions(*ParseVersion("v1.1.0-RC1"), *ParseVersion("1.1.0-rc1")) == 0);
+    // A beta numbered after a dot (SFV Ember's 0.1.0-beta.N): beta.10 is after beta.9, not before it
+    // as a string comparison of ".10" and ".9" ordered them.
+    CHECK(before("0.1.0-beta.9", "0.1.0-beta.10") && before("0.1.0-beta.2", "0.1.0-beta.10") && before("0.1.0-beta.10", "0.1.0-beta.11"));
+    CHECK(before("0.1.0-beta.10", "0.1.0") && before("0.1.0-beta.9", "0.1.0-rc.1"));
     CHECK(ParseVersion("1.1.0-links-sets-test1") && ParseVersion("1.1.0-links-sets-test1")->prerelease);
     for (const char* bad : {"latest", "v1.1.0-", "1.1", "1.1.0.0", "1.1.0 ", "v1.1.0-rc 1", "1234567890.0.0", "", "rc1"}) CHECK(!ParseVersion(bad));
     CHECK(!ParseVersion(nullptr));

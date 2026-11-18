@@ -7,9 +7,13 @@
 
 namespace sf4e {
 namespace launcher {
-	// Nightly revision components may exceed an int. Compare their digit
+	// The dotted part of a pre-release (a Nightly's revision, a beta's ".10") is
+	// compared a component at a time, numbers by value: as one string, beta.10
+	// sorted before beta.9 and the updater offered the older build as the newer
+	// (SFV Ember 0.1.0-beta.9 and -beta.10, 2026-11-17). Components may exceed
+	// an int. Compare their digit
 	// counts and contents after leading zeroes, without numeric conversion.
-	static int CompareNightlyRest(std::string_view a, std::string_view b) {
+	static int CompareDottedRest(std::string_view a, std::string_view b) {
 		for (;;) {
 			const auto dotA = a.find('.'), dotB = b.find('.');
 			auto partA = a.substr(0, dotA), partB = b.substr(0, dotB);
@@ -47,14 +51,14 @@ namespace launcher {
 		// Nightlies go by their date stamp and revision, the number line last.
 		if (a.prerelease && b.prerelease && a.word == "nightly" && b.word == "nightly") {
 			if (int c = Order(a.number, b.number)) return c;
-			if (int c = CompareNightlyRest(a.rest, b.rest)) return c;
+			if (int c = CompareDottedRest(a.rest, b.rest)) return c;
 			return CompareNumbers(a, b);
 		}
 		if (int c = CompareNumbers(a, b)) return c;
 		if (a.prerelease != b.prerelease) return a.prerelease ? -1 : 1;
 		if (int c = a.word.compare(b.word)) return c < 0 ? -1 : 1;
 		if (int c = Order(a.number, b.number)) return c;
-		if (int c = a.rest.compare(b.rest)) return c < 0 ? -1 : 1;
+		if (int c = CompareDottedRest(a.rest, b.rest)) return c;
 		return 0;
 	}
 
