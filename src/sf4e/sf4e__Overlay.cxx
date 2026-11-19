@@ -849,7 +849,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // A game this PC only watches has no pointer to keep out of the picture:
     // the cursor stays shown and free, so it can leave for another monitor.
     const bool watched = fight && snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch;
-    const bool hideCursor = fight && !table && !watched;
+    // A fought game hides it when the game starts and the mouse moving shows it again (HiddenPointer).
+    static sf4e::ui::HiddenPointer fightPointer;
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    const bool hideCursor = fightPointer.Hidden(fight && !table && !watched, ImGui::IsMousePosValid(&mouse) ? std::optional<sf4e::ui::HiddenPointer::Point>({mouse.x, mouse.y}) : std::nullopt);
     if (watched) sf4e::ui::ShowFreeCursor();
     else sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture || hideCursor);
     if (hideCursor) ImGui::SetMouseCursor(ImGuiMouseCursor_None);

@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <mutex>
+#include <optional>
 #include "../common/BattlePause.hxx"
 #include "../netplay/SessionController.hxx"
 #include "../common/MenuInputCapture.hxx"
@@ -28,6 +29,30 @@ public:
 private:
     double seconds_, since_ = 0;
     bool active_ = false;
+};
+
+// The pointer hidden for a state (a fight): hidden when the
+// state begins, shown again once the mouse moves more than Slack render pixels
+// (8: past a bumped desk, short of a deliberate move), and shown for the rest of
+// that state and whenever it is not active, so menus and an unfocused window
+// have it. One call a frame on the drawing thread; `pointer` is the mouse in
+// render pixels, none while it is off the window.
+class HiddenPointer {
+public:
+    struct Point { float x = 0, y = 0; };
+    static constexpr float Slack = 8.f;
+    // Whether the pointer is hidden this frame.
+    bool Hidden(bool active, std::optional<Point> pointer) {
+        if (active && !active_) { hidden_ = true; start_ = pointer; }
+        else if (hidden_ && pointer && !start_) start_ = pointer;
+        else if (hidden_ && pointer && Squared(*pointer, *start_) > Slack * Slack) hidden_ = false;
+        active_ = active;
+        return active && hidden_;
+    }
+private:
+    static float Squared(Point a, Point b) { return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y); }
+    bool active_ = false, hidden_ = false;
+    std::optional<Point> start_;
 };
 
 // "F10 or Start" shows this long each time it applies again, such as when
