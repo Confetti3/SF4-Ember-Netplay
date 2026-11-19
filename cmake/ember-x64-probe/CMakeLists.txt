@@ -165,7 +165,15 @@ target_include_directories(ember_neutral_x64 PRIVATE "${CMAKE_CURRENT_BINARY_DIR
 if(NOT DEFINED EMBER_APP_VERSION)
     set(EMBER_APP_VERSION "0.0.0-x64-probe")
 endif()
-target_compile_definitions(ember_neutral_x64 PRIVATE SF4E_APP_VERSION="${EMBER_APP_VERSION}")
+# Only the files that name the version get it, so a version bump recompiles
+# them alone instead of every file of the three libraries (a define on a
+# target changes every compile command in it, which no compiler cache serves).
+set_property(SOURCE
+    "${EMBER_SOURCE_ROOT}/launcher/launcher.cxx"
+    "${EMBER_SOURCE_ROOT}/launcher/update/github_release_client.cxx"
+    "${EMBER_SOURCE_ROOT}/platform/ApplicationServices.cxx"
+    "${EMBER_SOURCE_ROOT}/platform/ReportWorkflow.cxx"
+    APPEND PROPERTY COMPILE_DEFINITIONS "SF4E_APP_VERSION=\"${EMBER_APP_VERSION}\"")
 target_link_libraries(ember_neutral_x64 PRIVATE
     fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB)
 # The SDL pad source (common/SdlPadSource), with SDL linked statically as in
@@ -235,7 +243,6 @@ list(TRANSFORM SF4E_RUNTIME_SOURCES PREPEND "${EMBER_SOURCE_ROOT}/" OUTPUT_VARIA
 add_library(ember_runtime_x64 STATIC ${_ember_runtime_units})
 target_include_directories(ember_runtime_x64 PRIVATE "${EMBER_SOURCE_ROOT}/common"
     "${CMAKE_CURRENT_BINARY_DIR}/generated" "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
-target_compile_definitions(ember_runtime_x64 PRIVATE SF4E_APP_VERSION="${EMBER_APP_VERSION}")
 target_link_libraries(ember_runtime_x64 PUBLIC ember_neutral_x64
     fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB
     Kernel32 ws2_32 Shlwapi pathcch shell32 Bcrypt iphlpapi winmm ole32 windowscodecs)
@@ -265,7 +272,7 @@ set(_ember_launcher_ui ${EMBER_LAUNCHER_UI})
 list(FILTER _ember_launcher_ui INCLUDE REGEX "\\.cxx$")
 list(TRANSFORM _ember_launcher_ui PREPEND "${EMBER_SOURCE_ROOT}/")
 add_library(ember_launcher_x64 STATIC "${EMBER_SOURCE_ROOT}/launcher/launcher.cxx" ${_ember_launcher_ui})
-target_compile_definitions(ember_launcher_x64 PRIVATE UNICODE _UNICODE SF4E_APP_VERSION="${EMBER_APP_VERSION}")
+target_compile_definitions(ember_launcher_x64 PRIVATE UNICODE _UNICODE)
 target_include_directories(ember_launcher_x64 PRIVATE "${EMBER_SOURCE_ROOT}/common" "${EMBER_SOURCE_ROOT}/launcher"
     "${CMAKE_CURRENT_BINARY_DIR}/generated" "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
 target_link_libraries(ember_launcher_x64 PUBLIC ember_neutral_x64
