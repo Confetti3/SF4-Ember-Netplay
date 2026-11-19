@@ -3,6 +3,7 @@
 #include "Dimps__Eva.hxx"
 
 namespace Eva = Dimps::Eva;
+using Dimps::Eva::EmEffectManager;
 using Dimps::Eva::IEmSpriteAction;
 using Dimps::Eva::IEmSpriteNode;
 using Dimps::Eva::IEmTaskFunctor;
@@ -10,16 +11,22 @@ using Dimps::Eva::Task;
 using Dimps::Eva::TaskCore;
 using Dimps::Eva::TaskCoreRegistry;
 
+EmEffectManager::__staticVars EmEffectManager::staticVars;
 IEmSpriteAction::__publicMethods IEmSpriteAction::publicMethods;
 IEmSpriteNode::__publicMethods IEmSpriteNode::publicMethods;
 TaskCore::__publicMethods TaskCore::publicMethods;
 TaskCoreRegistry::__staticMethods TaskCoreRegistry::staticMethods;
 
 void Eva::Locate(HMODULE peRoot) {
+	EmEffectManager::Locate(peRoot);
 	IEmSpriteAction::Locate(peRoot);
 	IEmSpriteNode::Locate(peRoot);
 	TaskCore::Locate(peRoot);
 	TaskCoreRegistry::Locate(peRoot);
+}
+
+void EmEffectManager::Locate(HMODULE peRoot) {
+	staticVars.Instance = (EmEffectManager*)((unsigned int)peRoot + 0x6ade80);
 }
 
 void IEmSpriteAction::Locate(HMODULE peRoot) {

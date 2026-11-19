@@ -259,6 +259,40 @@ static ImageTable GameAndUnloads() {
 	return table;
 }
 
+static void TestPoolsLine() {
+	char out[256];
+	const PoolCounts pools[3] = {
+		{ "effects", true, 3, 256, 40 },
+		{ "effect nodes", false, 0, 0, 0 },
+		{ "effect elements", true, 2048, 2048, 2048 },
+	};
+	size_t written = FormatPools(out, sizeof(out), pools, 3);
+	CHECK(written == strlen(out));
+	CHECK(std::string(out) == "pools: effects 3/256 peak 40, effect nodes unreadable, effect elements 2048/2048 peak 2048 full\n");
+
+	// A pool boot has not made yet is not full.
+	const PoolCounts unmade[2] = { { "effects", true, 0, 0, 0 }, { "effect elements", true, 5, 2048, 9 } };
+	FormatPools(out, sizeof(out), unmade, 2);
+	CHECK(std::string(out) == "pools: effects 0/0 peak 0, effect elements 5/2048 peak 9\n");
+
+	// Every pool at 0/0, before boot or after shutdown, reads as none made.
+	const PoolCounts noneMade[2] = { { "effects", true, 0, 0, 0 }, { "effect nodes", true, 0, 0, 0 } };
+	written = FormatPools(out, sizeof(out), noneMade, 2);
+	CHECK(std::string(out) == "pools: none made\n");
+	CHECK(written == strlen(out));
+
+	// No pools watched yet leaves the line out.
+	CHECK(FormatPools(out, sizeof(out), pools, 0) == 0);
+	CHECK(out[0] == '\0');
+	CHECK(FormatPools(nullptr, 0, pools, 3) == 0);
+
+	// A pool that does not fit is left out whole, and the line stays one line.
+	char small[40];
+	written = FormatPools(small, sizeof(small), pools, 3);
+	CHECK(std::string(small) == "pools: effects 3/256 peak 40\n");
+	CHECK(written == strlen(small));
+}
+
 static void TestUnloadTraceBytes() {
 	CHECK(UnloadTraceBytes(92, 64) == 92u * 64u);
 	CHECK(UnloadTraceBytes(96, 1) == 96u);
@@ -495,6 +529,7 @@ int main() {
 	TestCallersLine();
 	TestRegistersLine();
 	TestCodeBytesLine();
+	TestPoolsLine();
 	TestUnloadTraceBytes();
 	TestUnloadTraceParsing();
 	TestUnloadedModuleIsNamedWithItsOffset();

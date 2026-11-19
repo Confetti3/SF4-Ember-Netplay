@@ -52,6 +52,9 @@ char s_detail[256];
 char s_callers[640];
 char s_registers[256];
 char s_code[128];
+char s_pools[256];
+sf4e::crash::PoolWatch s_watchedPools[sf4e::crash::MaxWatchedPools];
+size_t s_watchedPoolCount = 0;
 // What a fault in no loaded module adds. The stack words come last and stay
 // out of the log, so they cannot crowd the ring.
 char s_unmapped[2560];
@@ -210,6 +213,21 @@ size_t FormatCodeLine(const EXCEPTION_POINTERS* pointers) {
 	return sf4e::crash::FormatCodeBytes(s_code, sizeof(s_code), address, bytes, read);
 }
 
+// The watched pools' counts as one line in s_pools, read through the kernel
+// so a pool that is gone reads as unreadable. Returns the line's length.
+size_t FormatPoolsLine() {
+	sf4e::crash::PoolCounts counts[sf4e::crash::MaxWatchedPools] = {};
+	for (size_t i = 0; i < s_watchedPoolCount; ++i) {
+		const sf4e::crash::PoolWatch& watch = s_watchedPools[i];
+		sf4e::crash::PoolCounts& pool = counts[i];
+		pool.name = watch.name;
+		pool.read = ReadOwnMemory(watch.used, &pool.used, sizeof(pool.used)) == sizeof(pool.used) &&
+			ReadOwnMemory(watch.capacity, &pool.capacity, sizeof(pool.capacity)) == sizeof(pool.capacity) &&
+			ReadOwnMemory(watch.peak, &pool.peak, sizeof(pool.peak)) == sizeof(pool.peak);
+	}
+	return sf4e::crash::FormatPools(s_pools, sizeof(s_pools), counts, s_watchedPoolCount);
+}
+
 // The modules ntdll last unloaded, newest first. The getter's last value is
 // the address of ntdll's variable that holds the array pointer, which stays
 // null until a module has been unloaded.
@@ -363,9 +381,11 @@ bool WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	if (file != INVALID_HANDLE_VALUE) WriteText(file, s_header, headerLength);
 	const size_t registersLength = FormatRegistersLine(pointers);
 	const size_t codeLength = FormatCodeLine(pointers);
+	const size_t poolsLength = FormatPoolsLine();
 	if (file != INVALID_HANDLE_VALUE) {
 		if (registersLength) WriteText(file, s_registers, registersLength);
 		if (codeLength) WriteText(file, s_code, codeLength);
+		if (poolsLength) WriteText(file, s_pools, poolsLength);
 	}
 	const char* callers = FormatCallers(pointers, scanFrom);
 	if (file != INVALID_HANDLE_VALUE && callers[0]) {
@@ -385,6 +405,7 @@ bool WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 		spdlog::critical("Crash: {:.{}}", s_header, headerLength ? headerLength - 1 : 0); // without the newline
 		if (registersLength) spdlog::critical("Crash {:.{}}", s_registers, registersLength - 1);
 		if (codeLength) spdlog::critical("Crash {:.{}}", s_code, codeLength - 1);
+		if (poolsLength) spdlog::critical("Crash {:.{}}", s_pools, poolsLength - 1);
 		if (callers[0]) spdlog::critical("Crash {}", callers);
 		if (unmapped.logged) LogRecordLines(s_unmapped, unmapped.logged);
 		spdlog::default_logger()->flush();
@@ -600,6 +621,12 @@ void Install(const wchar_t* logsDirectory) {
 	// A GGPO assertion exits the process; it used to show only a message box.
 	ggpo_set_assert_handler(OnGgpoAssertion);
 	spdlog::info("Crash record: sf4e-crash.log and sf4e-crash-*.dmp beside sf4e.log");
+}
+
+void WatchPools(const PoolWatch* pools, size_t count) {
+	const size_t kept = !pools ? 0 : count < MaxWatchedPools ? count : MaxWatchedPools;
+	for (size_t i = 0; i < kept; ++i) s_watchedPools[i] = pools[i];
+	s_watchedPoolCount = kept;
 }
 
 void WatchGameExit() {
