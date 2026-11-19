@@ -17,6 +17,20 @@ namespace crash {
 // A logger sink that keeps the last lines in memory for the record.
 spdlog::sink_ptr RingSink();
 
+// A game object pool the record reports, as the addresses of its counts.
+struct PoolWatch {
+	const char* name;
+	const DWORD* used;
+	const DWORD* capacity;
+	const DWORD* peak;
+};
+constexpr size_t MaxWatchedPools = 4;
+
+// The pools a crash record lists with their used, capacity and peak counts;
+// past MaxWatchedPools are left out. The names and the counts must outlive
+// the process's last fault. Call once after Install.
+void WatchPools(const PoolWatch* pools, size_t count);
+
 // Installs the handlers and sets where the record and the dump go. Call
 // once, after the logger exists, on the game thread.
 void Install(const wchar_t* logsDirectory);
