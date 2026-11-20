@@ -16,7 +16,7 @@ inline RouteKind ClassifyRoute(const std::string& route) {
 }
 
 // The helper's names for the relays it pins (rust/sf4-net src/invite.rs,
-// NAMES), each with the catalog key of the relay's name: Ember's relay in
+// RELAYS' name field), each with the catalog key of the relay's name: Ember's relay in
 // Kansas is "use1" and Ember's for Europe "euc1"; n0's are "n0use1" (US
 // East), "usw1" (US West), "n0euc1" (Europe) and "aps1" (Asia). This build
 // uses all six.
