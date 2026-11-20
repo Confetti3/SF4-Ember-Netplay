@@ -273,7 +273,7 @@ pub async fn respond(
 }
 
 /// The selected path as it may leave the helper (`invite::public_route`): a
-/// class and a relay region, never an address.
+/// class and a relay name, never an address.
 pub fn route(connection: &Connection) -> String {
     let paths = connection.paths();
     let selected = paths.iter().find(|p| p.is_selected());

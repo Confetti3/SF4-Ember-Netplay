@@ -59,8 +59,8 @@ int main() try {
     Check(DescribeRelay(own) == sf4e::loc::T("network.relay_none"), "No home relay does not read Not connected");
     own.reported = false;
     Check(DescribeRelay(own) == sf4e::loc::T("connection.checking"), "Before the first report the relay is not being checked");
-    for (const auto& relay : sf4e::Relays) Check(sf4e::IsRelayRegionCode(relay.code) && RelayName(relay.code), "A pinned relay has no name");
-    Check(!sf4e::IsRelayRegionCode("other") && RelayName("other") && !RelayName("") && !RelayName("naw"), "Another relay, no relay or an area was taken for a pinned relay");
+    for (const auto& relay : sf4e::Relays) Check(sf4e::IsRelayName(relay.code) && RelayName(relay.code), "A pinned relay has no name");
+    Check(!sf4e::IsRelayName("other") && !sf4e::IsRelayRegionCode("n0use1") && sf4e::IsRelayRegionCode("euc1") && RelayName("other") && !RelayName("") && !RelayName("naw"), "Another relay, no relay or an area was taken for a pinned relay");
     const auto block = [&](NatClass local, NatClass peer, bool reported = true) {
         measured.netReport.reported = reported; measured.netReport.nat = local; measured.probeOpponentNat = peer;
         return DescribeConnectionCheck(measured);

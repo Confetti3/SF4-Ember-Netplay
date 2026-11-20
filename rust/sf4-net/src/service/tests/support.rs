@@ -24,7 +24,9 @@ pub(super) fn assert_public_route(route: &str) {
     assert!(
         route == "direct"
             || route == "unavailable"
-            || region.is_some_and(|code| ["use1", "usw1", "euc1", "aps1", "n0use1", "n0euc1", "other"].contains(&code)),
+            || region.is_some_and(|code| {
+                code == "other" || crate::invite::relay_names().any(|name| name == code)
+            }),
         "route {route:?} is not a public route"
     );
 }
