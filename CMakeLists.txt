@@ -204,6 +204,7 @@ add_library(sf4e_common STATIC
 target_link_libraries(sf4e_common PUBLIC "iphlpapi" "ws2_32" "winhttp")
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_replays.cmake")
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_video.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/sf4e_menu_backdrop.cmake")
 
 add_library(sf4e STATIC
     "src/sf4e/sf4e__Gamepads.cxx"
