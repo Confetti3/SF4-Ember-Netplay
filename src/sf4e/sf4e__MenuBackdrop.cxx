@@ -41,7 +41,6 @@ struct Load {
     Step step = Step::Reading;
     std::uint32_t request = 0;
     double since = 0;
-    bool cached = false; // a frame file an earlier decode left
 };
 
 // Frame, the drawer and ArtGone run on the overlay's thread, and ArtGone
@@ -123,20 +122,25 @@ void Finish(bool ok, const std::string& why) {
     Release(load.entry);
     spdlog::info("Menu backdrop: {} skipped: {}", NameOf(load.entry), why);
     if (!frame) return;
-    // A cached frame that does not read goes, so a later session decodes it again.
-    if (load.cached) DeleteFileW(FileOf(load.entry).c_str());
+    // A frame file that does not read goes, whether an earlier session or
+    // this one wrote it, so a later session decodes it again.
+    DeleteFileW(FileOf(load.entry).c_str());
     s_health.Failed();
     if (s_health.GivenUp()) GiveUpFrames("frames failed one after another");
+}
+
+// The load under way, if any, is dropped; the cycle asks for it again later.
+void AbandonLoad() {
+    if (!s_load) return;
+    s_cycle.Abandon(s_load->entry);
+    Release(s_load->entry);
+    s_load.reset();
 }
 
 // Everything let go: a load under way and both pictures.
 void LetGo(const char* why) {
     const bool held = s_load || s_cycle.Current() >= 0 || s_cycle.NextReady();
-    if (s_load) {
-        s_cycle.Abandon(s_load->entry);
-        Release(s_load->entry);
-        s_load.reset();
-    }
+    AbandonLoad();
     s_cycle.Reset();
     Settle();
     if (held) spdlog::info("Menu backdrop: pictures let go ({})", why);
@@ -184,7 +188,6 @@ void StartLoad() {
     if (s_cache.empty()) s_cache = mailbox::CacheFolder();
     const std::wstring file = FileOf(load.entry);
     if (!file.empty() && GetFileAttributesW(file.c_str()) != INVALID_FILE_ATTRIBUTES) {
-        load.cached = true;
         s_load = load;
         return;
     }
@@ -294,6 +297,10 @@ void Frame(const backdrop::Surface& surface, bool wanted, const std::string& scr
     s_art = art;
     s_allowed = art && backdrop::Allowed(surface);
     s_screen = screen;
+    // A match, replay or watched game began: a picture still loading would
+    // upload (or, for the still, inflate) in its first seconds. Drop it; the
+    // pictures already shown go with the idle release below.
+    if (!s_allowed) AbandonLoad();
     // Turned off: everything goes at once, and Ember's own art shows.
     if (!wanted && s_wanted) LetGo("Background artwork turned off");
     s_wanted = wanted;

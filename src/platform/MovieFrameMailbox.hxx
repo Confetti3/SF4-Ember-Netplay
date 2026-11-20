@@ -11,9 +11,10 @@
 // wants a frame that is not in the cache yet; a game started without Ember's
 // launcher finds none and shows its other pictures. One request at a time:
 // the game writes the frame's movie and time and raises the request number,
-// then reads the answer for that number on later frames without waiting. All
-// three are created with the default security of the player's own token, so
-// only the player's own processes can open them; the launcher decodes only a
+// then reads the answer for that number on later frames without waiting. The
+// launcher refuses a name another process created first, so all three it
+// uses carry the default security of the player's own token; another process
+// of the player's can still open them, but the launcher decodes only a
 // frame of its own list (movie_frames::Find), and the game reads only a
 // picture from the cache folder, so whatever another process writes into the
 // slot can neither name a file nor reach the decoder with a path.
@@ -78,9 +79,13 @@ public:
         // before, still held): not this game's.
         if (section_ && GetLastError() == ERROR_ALREADY_EXISTS) { Close(); return false; }
         if (section_) slot_ = static_cast<Slot*>(MapViewOfFile(section_, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(Slot)));
+        // The event and the lock must be new too: one another process made
+        // first (with its own security, or held) is refused like the section.
         ready_ = CreateEventW(nullptr, FALSE, FALSE, MailboxEventName(name).c_str());
+        const bool readyFound = ready_ && GetLastError() == ERROR_ALREADY_EXISTS;
         lock_ = CreateMutexW(nullptr, FALSE, MailboxLockName(name).c_str());
-        if (!slot_ || !ready_ || !lock_) { Close(); return false; }
+        const bool lockFound = lock_ && GetLastError() == ERROR_ALREADY_EXISTS;
+        if (!slot_ || !ready_ || !lock_ || readyFound || lockFound) { Close(); return false; }
         SecureZeroMemory(slot_, sizeof(Slot));
         slot_->version = SlotVersion;
         return true;

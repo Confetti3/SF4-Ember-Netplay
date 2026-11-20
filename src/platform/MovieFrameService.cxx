@@ -30,12 +30,13 @@ std::string Hex(HRESULT value) {
 }
 
 // What says no frame of any movie can be decoded here, rather than that this
-// one could not: no source for the container, no decoder for WMV3, no
-// conversion to RGB32. Every listed movie is the same container and codec.
+// one could not: no decoder for WMV3, no registered component, no COM. A
+// truncated or replaced (modded) movie fails with codes of its own
+// (unsupported byte stream or format, invalid media type); those count as
+// one frame's failure, and the game gives up after three in a row.
 bool NothingDecodes(HRESULT hr) {
-    return hr == MF_E_TOPO_CODEC_NOT_FOUND || hr == MF_E_UNSUPPORTED_BYTESTREAM_TYPE || hr == MF_E_UNSUPPORTED_SCHEME ||
-        hr == MF_E_INVALIDMEDIATYPE || hr == MF_E_UNSUPPORTED_FORMAT || hr == REGDB_E_CLASSNOTREG || hr == E_NOTIMPL ||
-        hr == E_NOINTERFACE || hr == CO_E_NOTINITIALIZED;
+    return hr == MF_E_TOPO_CODEC_NOT_FOUND || hr == MF_E_UNSUPPORTED_SCHEME || hr == REGDB_E_CLASSNOTREG ||
+        hr == E_NOTIMPL || hr == CO_E_NOTINITIALIZED;
 }
 
 // The frame's pixels, top-down BGRA (alpha set), from a sample of the
@@ -272,9 +273,8 @@ void Serve(MovieFrameService::Shared& shared) {
             shared.host.Reply(request, Answer::Unavailable);
             continue;
         }
-        std::wstring path = shared.gameFolder + L"\\" + std::wstring(movie.begin(), movie.end());
-        for (auto& c : path)
-            if (c == L'/') c = L'\';
+        const std::wstring path =
+            (std::filesystem::path(shared.gameFolder) / std::filesystem::path(movie).make_preferred()).wstring();
         const auto began = std::chrono::steady_clock::now();
         std::string why;
         const Decoded decoded = DecodeFrame(path, ms, file, &shared.cancel, why);
