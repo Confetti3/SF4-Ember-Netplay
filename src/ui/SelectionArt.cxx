@@ -260,7 +260,8 @@ struct SelectionArt::Impl {
     // `measured` is kept when there is no `measure`.
     using Source = std::function<Pixels(const std::string& key, const std::vector<std::wstring>& candidates)>;
     using Measure = std::function<bool(Pixels&, std::string& why)>;
-    struct Policy { bool cropToContent = false, reportAbsence = false; UINT exactWidth = 0, exactHeight = 0, maxSide = 0; Source source; Measure measure; };
+    // `pinned`: kept until released (ReleaseBackdrop), never evicted for the budget.
+    struct Policy { bool cropToContent = false, reportAbsence = false, pinned = false; UINT exactWidth = 0, exactHeight = 0, maxSide = 0; Source source; Measure measure; };
     // `entry` names the image inside an archive candidate; empty takes its first.
     struct Job { std::string key; std::vector<std::wstring> paths; UINT side; std::string entry; UINT maxSide; Source source; };
     // Queued: a decode is in flight. Waiting: the last attempt failed and a
@@ -410,6 +411,26 @@ SelectionArt::~SelectionArt() = default;
 SelectionImage SelectionArt::MenuBackdrop() {
     return impl_->Request("ember-menu-background",[&]{ return std::vector<std::wstring>{impl_->assetRoot+L"/../brand/ember-menu-background.png"}; },2048);
 }
+SelectionImage SelectionArt::BackdropStill() {
+    // The painted jungle waterfall and rooftops of the game's player data
+    // screen: 2048x1024, DXT1, read at run time and never repackaged.
+    Impl::Policy still; still.pinned = true; still.maxSide = 2048;
+    return impl_->Request(BackdropStillKey, [&] {
+        return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/main_menu/vfx/player_data.emz"};
+    }, BackdropSide, still, "all_bg.dds");
+}
+SelectionImage SelectionArt::BackdropFrame(const std::string& key, const std::wstring& file) {
+    // The launcher's JPEG; one larger than any movie frame is not one of them.
+    Impl::Policy frame; frame.pinned = true; frame.maxSide = 4096;
+    return impl_->Request(key, [&] { return std::vector<std::wstring>{file}; }, BackdropSide, frame);
+}
+void SelectionArt::ReleaseBackdrop(const std::string& key) {
+    auto& state = *impl_;
+    const auto found = state.entries.find(key);
+    if (found == state.entries.end()) return;
+    if (found->second.texture) state.textureBytes -= found->second.width * found->second.height * 4;
+    state.entries.erase(found);
+}
 SelectionImage SelectionArt::InputPrompt(const std::string& name) {
     return impl_->Request("input-"+name,[&]{ return std::vector<std::wstring>{impl_->assetRoot+L"/../input/"+std::wstring(name.begin(),name.end())+L".png"}; },128);
 }
@@ -438,7 +459,13 @@ void SelectionArt::Pump() {
           if (state.completed.empty()) break;
           pixels = std::move(state.completed.front()); state.completed.pop_front(); }
         state.wake.notify_one();
-        auto& entry = state.entries[pixels.key];
+        // An entry released while it decoded (ReleaseBackdrop) takes nothing.
+        const auto found = state.entries.find(pixels.key);
+        if (found == state.entries.end()) continue;
+        auto& entry = found->second;
+        // Released and asked for again while the first decode was on its way:
+        // the picture is here already, and its texture is counted once.
+        if (entry.state == Impl::State::Ready) continue;
         if (pixels.outcome != Outcome::Decoded) { state.Failed(entry, pixels.key, pixels.outcome, pixels.failure); continue; }
         if (entry.policy.exactWidth && (pixels.width != entry.policy.exactWidth || pixels.height != entry.policy.exactHeight)) {
             state.Failed(entry, pixels.key, Outcome::Failed, std::to_string(pixels.width) + "x" + std::to_string(pixels.height) + ", not " +
@@ -487,7 +514,7 @@ void SelectionArt::Pump() {
     while (state.textureBytes > MaximumTextureBytes) {
         auto oldest = state.entries.end();
         for (auto it = state.entries.begin(); it != state.entries.end(); ++it)
-            if (it->second.texture && it->second.lastUse + 2 < state.frame &&
+            if (it->second.texture && !it->second.policy.pinned && it->second.lastUse + 2 < state.frame &&
                 (oldest == state.entries.end() || it->second.lastUse < oldest->second.lastUse)) oldest = it;
         if (oldest == state.entries.end()) break;
         state.textureBytes -= oldest->second.width * oldest->second.height * 4;
