@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 1.6.1
+    VERSION 1.6.2
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
@@ -138,7 +138,6 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_brand.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_chat_filter.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_speech_relay.cmake")
 target_link_libraries(sf4e_ui PUBLIC imgui::imgui sf4e_game_lettering sf4e_selection sf4e_room_model sf4e_localization sf4e_settings PRIVATE ZLIB::ZLIB spdlog::spdlog "windowscodecs" "ole32" "d3d9" "winmm")
-target_compile_definitions(sf4e_ui PRIVATE SF4E_BUILD_VERSION="${PROJECT_VERSION}")
 
 add_library(Dimps STATIC
     "src/Dimps/Dimps__Selection.cxx"
@@ -204,6 +203,7 @@ add_library(sf4e_common STATIC
 target_link_libraries(sf4e_common PUBLIC "iphlpapi" "ws2_32" "winhttp")
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_replays.cmake")
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_video.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/sf4e_menu_backdrop.cmake")
 
 add_library(sf4e STATIC
     "src/sf4e/sf4e__Gamepads.cxx"
@@ -267,6 +267,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__GameThemes.hxx"
     "src/sf4e/sf4e__GameThemes.cxx"
     "src/sf4e/sf4e__MenuMusic.cxx"
+    "src/sf4e/sf4e__MenuBackdrop.hxx"
+    "src/sf4e/sf4e__MenuBackdrop.cxx"
     "src/sf4e/sf4e__Borderless.hxx"
     "src/sf4e/sf4e__Borderless.cxx"
     "src/sf4e/sf4e__StartupLog.hxx"
@@ -323,7 +325,7 @@ if(SF4E_SELFTEST)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__RoomLayout.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx" "src/sf4e/sf4e__SelfTest__Export.cxx" "src/sf4e/sf4e__SelfTest__Online.cxx" "src/sf4e/sf4e__SelfTest__Tournament.cxx" "src/sf4e/sf4e__SelfTest__Menu.cxx" "src/sf4e/sf4e__SelfTest__ComboCheck.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_SELFTEST=1)
 endif()
-target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_game_themes sf4e_game_theme_guard sf4e_hud_bundle_check sf4e_hud_layout sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
+target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_game_themes sf4e_game_theme_guard sf4e_hud_bundle_check sf4e_hud_layout sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization sf4e_menu_backdrop_rules)
 target_link_libraries(
     sf4e
     PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp" "Winmm"
@@ -374,7 +376,12 @@ target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room)
 
 add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/platform/ReplayPicker.cxx src/platform/UpdatePolicy.cxx src/platform/ReportWorkflow.cxx src/platform/ReportHistory.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
 target_compile_features(sf4e_app_services PUBLIC cxx_std_17)
-target_compile_definitions(sf4e_app_services PRIVATE SF4E_APP_VERSION="${PROJECT_VERSION}")
+# The version is a define on the four files that read it, never on a whole
+# target: a version bump then recompiles those files, not every file of the
+# targets, and the compiler cache keeps serving the rest.
+set_property(SOURCE src/platform/ApplicationServices.cxx src/platform/ReportWorkflow.cxx
+    src/launcher/update/github_release_client.cxx src/launcher/launcher.cxx
+    APPEND PROPERTY COMPILE_DEFINITIONS "SF4E_APP_VERSION=\"${PROJECT_VERSION}\"")
 target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization sf4e_replay_files sf4e_problem_report PRIVATE sf4e_common sf4e_selection sf4e_package_installer sf4e_durable_file spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt ole32)
 target_link_libraries(sf4e PRIVATE sf4e_app_services)
 add_library(sf4e_recovery STATIC src/ui/RecoverySurface.cxx src/ui/RecoveryController.cxx)
@@ -383,7 +390,7 @@ target_compile_features(sf4e_recovery PUBLIC cxx_std_17)
 target_link_libraries(sf4e_recovery PUBLIC sf4e_ui sf4e_app_services sf4e_localization PRIVATE sf4e_settings d3d9 ole32 shell32 dinput8 dxguid)
 add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx src/launcher/StreamHostFiles.cxx)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_stream_host.cmake")
-target_link_libraries(Launcher PRIVATE sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video_encoder)
+target_link_libraries(Launcher PRIVATE sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video_encoder sf4e_movie_frame_service)
 # As the video export's encoder (platform/VideoLink.hxx) it holds a second of 4K frames: 4 GB of addresses instead of 2.
 target_link_options(Launcher PRIVATE "/LARGEADDRESSAWARE")
 set(_SF4E_LAUNCHER_EXE_TARGET Launcher)
@@ -413,7 +420,7 @@ target_link_libraries(Sidecar PRIVATE ${LIB_DETOURS} Dimps sf4e)
 sf4e_configure_windows_version(Sidecar "SF4 Ember Netplay Sidecar" "Sidecar.dll" "VFT_DLL")
 sf4e_embed_manifest(Sidecar "Sidecar.dll.manifest")
 
-target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE "SF4E_APP_VERSION=\"${PROJECT_VERSION}\"")
+target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE)
 set_target_properties(Launcher PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 sf4e_configure_windows_version(Launcher "SF4 Ember Netplay" "Launcher.exe" "VFT_APP")
 sf4e_embed_manifest(Launcher "Launcher.exe.manifest")

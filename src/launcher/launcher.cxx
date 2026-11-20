@@ -24,6 +24,7 @@
 #include "../platform/LauncherInstance.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/VideoLinkServe.hxx"
+#include "../platform/MovieFrameService.hxx"
 #include "../platform/WineBuiltin.hxx"
 
 #include <CLI/CLI.hpp>
@@ -835,12 +836,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // writes its own after the request fails.
         if (!g_logsDir[0]) dumps.Close();
         const DWORD gameId = GetProcessId(game);
+        // The menu backdrop's movie frames, decoded here on the game's request
+        // and never in the game (platform/MovieFrameService.hxx). Without the
+        // mailbox the game's menu shows its other pictures.
+        sf4e::platform::movie_frames::MovieFrameService movieFrames;
+        if (!movieFrames.Start(gameId, location.directory, [](const std::string& line) { spdlog::info("{}", line); }))
+            spdlog::warn("Movie frames: no mailbox for the game (Win32 {}); its menu shows its other pictures", GetLastError());
         dumps.ServeUntilExit(game, g_logsDir, [&](bool written, bool freeze) {
             const wchar_t* kind = freeze ? L"freeze" : L"crash";
             if (written) spdlog::info(L"Wrote the game's {} dump to {}", kind, dumps.written[0] ? dumps.written : dumps.reportWritten.c_str());
             else spdlog::warn(L"Could not write the game's {} dump (Win32 {})", kind, GetLastError());
         }, [&] { return GameWindowState(gameId); });
         dumps.Close();
+        movieFrames.Stop();
         if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5, dumps.reportWritten.c_str());
         const ULONGLONG endedTick = GetTickCount64();
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);

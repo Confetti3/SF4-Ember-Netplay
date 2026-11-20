@@ -654,6 +654,12 @@ msgstr "Ember Evropa"
 msgid "network.relay_aps1"
 msgstr "n0 Asie"
 
+msgid "network.relay_n0use1"
+msgstr "n0 USA východ"
+
+msgid "network.relay_n0euc1"
+msgstr "n0 Evropa"
+
 msgid "network.relay_other"
 msgstr "Jiný server"
 
@@ -8553,6 +8559,12 @@ msgstr "Režim TV"
 
 msgid "settings.tv_mode_detail"
 msgstr "Pro televizi na druhé straně místnosti: vše o čtvrtinu větší, uvnitř bezpečného okraje 5 %."
+
+msgid "settings.menu_artwork"
+msgstr "Obrázky na pozadí"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Zobrazuje za menu Emberu vlastní obrázky ze hry, přibližně každou půlminutu nový. Vypnutí ponechá vlastní pozadí Emberu."
 
 msgid "settings.group.game_themes"
 msgstr "Herní motivy"

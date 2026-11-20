@@ -18,13 +18,15 @@ pub(super) fn address(endpoint: &Endpoint) -> EndpointAddr {
     EndpointAddr::new(endpoint.id()).with_ip_addr(endpoint.bound_sockets()[0])
 }
 
-/// The only route strings an event may carry: a class and a relay region.
+/// The only route strings an event may carry: a class and a relay name.
 pub(super) fn assert_public_route(route: &str) {
     let region = route.strip_prefix("relay:");
     assert!(
         route == "direct"
             || route == "unavailable"
-            || region.is_some_and(|code| ["use1", "usw1", "euc1", "aps1", "other"].contains(&code)),
+            || region.is_some_and(|code| {
+                code == "other" || crate::invite::relay_names().any(|name| name == code)
+            }),
         "route {route:?} is not a public route"
     );
 }

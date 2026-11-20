@@ -42,6 +42,22 @@ namespace OverlayPrefs {
 		std::string startupError;
 		constexpr netplay::BoolPreferenceMember<Data> boolPreferences[] = {{"controllerLayer", &Data::controllerLayer}, {"randomFighter", &Data::lobbyRandom}};
 
+		// Reads that keep the fallback for a missing key or a value of another
+		// type, so one damaged value cannot fail the whole load (after which
+		// the next save would write defaults over every saved pick).
+		int IntOr(const nlohmann::json& j, const char* key, int fallback) {
+			const auto at = j.find(key);
+			return at != j.end() && at->is_number_integer() ? at->get<int>() : fallback;
+		}
+		bool BoolOr(const nlohmann::json& j, const char* key, bool fallback) {
+			const auto at = j.find(key);
+			return at != j.end() && at->is_boolean() ? at->get<bool>() : fallback;
+		}
+		std::string TextOr(const nlohmann::json& j, const char* key) {
+			const auto at = j.find(key);
+			return at != j.end() && at->is_string() ? at->get<std::string>() : std::string{};
+		}
+
 		void CharaToJson(nlohmann::json& j, const CharaPick& c) {
 			j["charaID"] = c.charaID;
 			j["costume"] = c.costume;
@@ -188,21 +204,20 @@ namespace OverlayPrefs {
 
 		if (j.contains("lobbySettings") && j["lobbySettings"].is_object()) {
 			const auto& ls = j["lobbySettings"];
-			out.lobbyRoundCountIdx = ls.value("roundCountIdx", out.lobbyRoundCountIdx);
-			out.lobbyRoundTimeIdx = ls.value("roundTimeIdx", out.lobbyRoundTimeIdx);
-			out.lobbyEditionSelect = ls.value("editionSelect", out.lobbyEditionSelect);
+			out.lobbyRoundCountIdx = IntOr(ls, "roundCountIdx", out.lobbyRoundCountIdx);
+			out.lobbyRoundTimeIdx = IntOr(ls, "roundTimeIdx", out.lobbyRoundTimeIdx);
+			out.lobbyEditionSelect = BoolOr(ls, "editionSelect", out.lobbyEditionSelect);
 		}
 
 		if (j.contains("device") && j["device"].is_object()) {
 			const auto& dev = j["device"];
-			out.deviceIdx = (uint8_t)dev.value("idx", (int)out.deviceIdx);
-			out.deviceType = (uint8_t)dev.value("type", (int)out.deviceType);
+			out.deviceIdx = (uint8_t)IntOr(dev, "idx", (int)out.deviceIdx);
+			out.deviceType = (uint8_t)IntOr(dev, "type", (int)out.deviceType);
 			// Migration: a missing identity object means no saved controller.
 			if (dev.contains("identity") && dev["identity"].is_object()) {
 				const auto& identity = dev["identity"];
-				out.deviceIdentity = gamepads::Identity{identity.value("guid", std::string{}),
-					identity.value("serial", std::string{}), identity.value("path", std::string{}),
-					identity.value("name", std::string{})};
+				out.deviceIdentity = gamepads::Identity{TextOr(identity, "guid"),
+					TextOr(identity, "serial"), TextOr(identity, "path"), TextOr(identity, "name")};
 			}
 		}
 	}

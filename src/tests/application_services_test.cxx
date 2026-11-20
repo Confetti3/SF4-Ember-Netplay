@@ -35,6 +35,8 @@ int main() {
         CHECK(sf4e::RelayRegion("relay:usw1")=="usw1");
         CHECK(sf4e::RelayRegion("relay:euc1")=="euc1");
         CHECK(sf4e::RelayRegion("relay:aps1")=="aps1");
+        CHECK(sf4e::RelayRegion("relay:n0use1")=="n0use1" && sf4e::RelayRegion("relay:n0euc1")=="n0euc1");
+        CHECK(std::string(sf4e::RelayNameKey("n0use1"))=="network.relay_n0use1" && std::string(sf4e::RelayNameKey("n0euc1"))=="network.relay_n0euc1");
         CHECK(sf4e::RelayRegion("relay:other")=="other");
         CHECK(sf4e::RelayRegion("relay:https://use1-1.relay.n0.iroh.link./")=="other");
         CHECK(sf4e::RelayRegion("relay:use1 ")=="other" && sf4e::RelayRegion("relay:USE1")=="other");

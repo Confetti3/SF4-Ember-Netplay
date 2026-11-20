@@ -197,9 +197,9 @@ a server-wide room cap from supervisor configuration. Bans are rows
 ### Where a room is
 
 A relay code is how a PC connects, not where its player is: relays are chosen
-for reachability and are sticky, and Ember's only relay in the Americas is in
-Kansas, so a player in Seattle and one in Montevideo both connect through
-`use1`. A room's place is its creator's area instead (`ember_protocol::area`,
+for reachability and are sticky, and the Americas have only three relays
+(Ember's in Kansas and n0's US East, both coded `use1`, and n0's US West,
+`usw1`), so a player in Montevideo connects through a US relay. A room's place is its creator's area instead (`ember_protocol::area`,
 `src/common/Area.hxx`): one of twelve coarse areas (NA West, NA Central, NA
 East, Central America & Caribbean, South America, Europe West, Europe East,
 Middle East & Africa, South Asia, East Asia, South-East Asia, Oceania), the

@@ -95,65 +95,47 @@ fn a_refused_invitation_names_why() {
 
 #[test]
 fn relay_regions_are_stable_codes_and_never_a_url() {
-    // Wire IDs never move: each one names exactly this relay.
+    let pinned = |index: usize| RELAYS[index].relay();
+    // Wire IDs never move: each one names exactly this relay, region and name.
     let wire = [
-        ("https://use1-1.relay.n0.iroh.link./", "use1"),
-        ("https://usw1-1.relay.n0.iroh.link./", "usw1"),
-        ("https://euc1-1.relay.n0.iroh.link./", "euc1"),
-        ("https://aps1-1.relay.n0.iroh.link./", "aps1"),
-        ("https://relay.embernetplay.link./", "use1"),
-        ("https://relay-eu.embernetplay.link./", "euc1"),
+        ("https://use1-1.relay.n0.iroh.link./", "use1", "n0use1"),
+        ("https://usw1-1.relay.n0.iroh.link./", "usw1", "usw1"),
+        ("https://euc1-1.relay.n0.iroh.link./", "euc1", "n0euc1"),
+        ("https://aps1-1.relay.n0.iroh.link./", "aps1", "aps1"),
+        ("https://relay.embernetplay.link./", "use1", "use1"),
+        ("https://relay-eu.embernetplay.link./", "euc1", "euc1"),
     ];
-    assert_eq!(RELAYS, wire);
+    assert_eq!(
+        RELAYS.map(|relay| (relay.url, relay.region, relay.name)),
+        wire
+    );
     let n0 = iroh::defaults::prod::default_relay_map();
     for (index, code) in relay::REGIONS.iter().enumerate() {
-        assert_eq!(RELAYS[index].1, *code);
+        assert_eq!(RELAYS[index].region, *code);
         assert!(n0.contains(&pinned(index)), "{code}");
     }
-    // Exactly these relays are active; of n0's, only Asia's is.
-    let expected: std::collections::BTreeSet<RelayUrl> = [
-        "https://relay.embernetplay.link./",
-        "https://relay-eu.embernetplay.link./",
-        "https://aps1-1.relay.n0.iroh.link./",
-    ]
-    .iter()
-    .map(|url| url.parse().unwrap())
-    .collect();
-    assert_eq!(
-        relay_map().urls::<Vec<_>>().into_iter().collect::<std::collections::BTreeSet<_>>(),
-        expected
-    );
-    for url in [
-        "https://use1-1.relay.n0.iroh.link./",
-        "https://usw1-1.relay.n0.iroh.link./",
-        "https://euc1-1.relay.n0.iroh.link./",
-    ] {
-        assert!(!expected.contains(&url.parse().unwrap()), "{url}");
-    }
-    for (url, code) in RELAYS {
-        assert!(relay::is_region(code), "{code}");
-        assert_eq!(relay_region(&url.parse().unwrap()), code);
-    }
-    // Every region has exactly one active relay, which maps back to it.
+    // Every pinned relay is active (2026-11-20: the ISP filters that blocked
+    // n0's relays let them through again).
     let active = relay_map().urls::<Vec<_>>();
-    assert_eq!(active.len(), ACTIVE.len());
-    let mut seen = std::collections::BTreeSet::new();
-    for relay in &active {
-        let code = relay_region(relay);
-        assert!(seen.insert(code), "{code}");
-        assert_eq!(relay_for_region(code).as_ref(), Some(relay));
+    assert_eq!(active.len(), RELAYS.len());
+    for index in 0..RELAYS.len() {
+        assert!(RELAYS[index].active && active.contains(&pinned(index)), "{index}");
+        assert_eq!(pinned_index(&pinned(index)), Some(index));
     }
-    // Neither of n0's US relays is active: both are blocked by some US
-    // providers' router filters. Ember's relay, coded use1, covers both
-    // US regions, so no relay of this build reports usw1. Europe is on
-    // Ember's relay as well, in place of n0's.
-    assert_eq!(relay_for_region("use1"), Some(pinned(4)));
-    assert_eq!(relay_for_region("euc1"), Some(pinned(5)));
+    // Regions are the bridge's codes; names are unique and map back to one
+    // relay each.
+    let mut names = std::collections::BTreeSet::new();
+    for (index, entry) in RELAYS.iter().enumerate() {
+        assert!(relay::is_region(entry.region), "{}", entry.region);
+        assert_eq!(relay_region(&pinned(index)), entry.region);
+        assert!(names.insert(entry.name), "{}", entry.name);
+        assert_eq!(relay_name(&pinned(index)), entry.name);
+    }
+    // A dial hint only where one active relay has the region: n0 and Ember
+    // share use1 and euc1, so those dials rely on ActiveRelays alone.
+    assert_eq!(relay_for_region("usw1"), Some(pinned(1)));
     assert_eq!(relay_for_region("aps1"), Some(pinned(3)));
-    for index in [0, 1, 2] {
-        assert!(!active.contains(&pinned(index)));
-    }
-    for code in ["usw1", "other", "", "USE1", "euc2"] {
+    for code in ["use1", "euc1", "n0use1", "other", "", "USE1", "euc2"] {
         assert!(relay_for_region(code).is_none(), "{code}");
     }
     for other in [
@@ -162,6 +144,7 @@ fn relay_regions_are_stable_codes_and_never_a_url() {
         "https://use1-1.relay.n0.iroh.link./extra",
     ] {
         assert_eq!(relay_region(&other.parse().unwrap()), "other");
+        assert_eq!(relay_name(&other.parse().unwrap()), "other");
     }
 }
 
@@ -170,9 +153,9 @@ fn a_public_route_is_a_class_and_a_region_never_an_address() {
     let ip = |addr: &str| TransportAddr::Ip(addr.parse().unwrap());
     assert_eq!(public_route(Some(&ip("203.0.113.7:45760"))), "direct");
     assert_eq!(public_route(Some(&ip("[2001:db8::1]:57845"))), "direct");
-    for (url, code) in RELAYS {
-        let relay = TransportAddr::Relay(url.parse().unwrap());
-        assert_eq!(public_route(Some(&relay)), format!("relay:{code}"));
+    for pinned in RELAYS {
+        let relay = TransportAddr::Relay(pinned.relay());
+        assert_eq!(public_route(Some(&relay)), format!("relay:{}", pinned.name));
     }
     for other in [
         "https://relay.example.com/",
@@ -186,8 +169,8 @@ fn a_public_route_is_a_class_and_a_region_never_an_address() {
 
 #[test]
 fn discord_ticket_preserves_capability_and_host_checks_build_and_expiry() {
-    for (url, _) in RELAYS {
-        let relay: RelayUrl = url.parse().unwrap();
+    for pinned in RELAYS {
+        let relay: RelayUrl = pinned.relay();
         let mut original = invite();
         original.relay = relay;
         original.build = "a".repeat(64);
@@ -268,8 +251,8 @@ fn clipboard_invites_accept_outer_whitespace_without_relaxing_validation() {
 
 #[test]
 fn compact_invites_preserve_every_field_and_accept_legacy() {
-    for (url, _) in RELAYS {
-        let relay: RelayUrl = url.parse().unwrap();
+    for pinned in RELAYS {
+        let relay: RelayUrl = pinned.relay();
         let mut original = invite();
         original.relay = relay;
         original.build = "a".repeat(64); // Production sidecar SHA-256 string.
@@ -406,7 +389,7 @@ fn golden(recovery: bool) -> Invite {
     Invite {
         version: VERSION,
         endpoint: iroh::SecretKey::from_bytes(&[7; 32]).public(),
-        relay: pinned(1),
+        relay: RELAYS[1].relay(),
         room: [0x11; 16],
         capability: [0x22; 32],
         expires: 1_000_000,
