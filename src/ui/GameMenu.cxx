@@ -49,11 +49,16 @@ bool DrawMenuBackdrop(){
         d->PushClipRect(vp->Pos,end);const bool drawn=backdropDrawer(d,vp->Pos,end);d->PopClipRect();
         if(drawn)return true;
     }
-    const SelectionImage art=menuArt?menuArt->MenuBackdrop():SelectionImage{};
-    if(!art.texture)return false;
     // The whole screen, also around a window kept inside TV mode's safe area.
-    const auto* vp=ImGui::GetMainViewport();const auto p=vp->Pos,size=vp->Size,end=ImVec2(p.x+size.x,p.y+size.y);auto* d=ImGui::GetWindowDrawList();
-    d->PushClipRect(p,end);
+    const auto* vp=ImGui::GetMainViewport();const auto p=vp->Pos,end=ImVec2(p.x+vp->Size.x,p.y+vp->Size.y);auto* d=ImGui::GetWindowDrawList();
+    d->PushClipRect(p,end);const bool drawn=DrawMenuArt(d,p,end);d->PopClipRect();
+    return drawn;
+}
+bool DrawMenuArt(ImDrawList* d,ImVec2 p,ImVec2 end){
+    const SelectionImage art=menuArt?menuArt->MenuBackdrop():SelectionImage{};
+    if(!art.texture||art.width<=0||art.height<=0)return false;
+    const ImVec2 size(end.x-p.x,end.y-p.y);
+    if(size.x<=0||size.y<=0)return false;
     ImVec2 uv0(0,0),uv1(1,1);
     const float sourceAspect=float(art.width)/art.height,targetAspect=size.x/size.y;
     if(targetAspect<sourceAspect){const float span=targetAspect/sourceAspect;uv0.x=1-span;}
@@ -61,7 +66,6 @@ bool DrawMenuBackdrop(){
     d->AddImage(art.texture,p,end,uv0,uv1);
     // The website's left-heavy tint, so the cards on the left read and the art shows on the right.
     d->AddRectFilledMultiColor(p,end,IM_COL32(20,19,18,245),IM_COL32(20,19,18,128),IM_COL32(20,19,18,160),IM_COL32(20,19,18,250));
-    d->PopClipRect();
     return true;
 }
 float DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe,bool rightAligned){

@@ -153,10 +153,15 @@ void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);
 // A game's own backdrop, drawn by DrawMenuBackdrop into `draw` over the whole
 // screen (`min` to `max`, the main viewport) before the menu's art: true when
 // it drew one, which then stands alone; false leaves the menu art and its
-// tint, as without a drawer. Render thread. Unset (the default, and SF4's),
+// tint, as without a drawer. Render thread. Unset (the default),
 // DrawMenuBackdrop is as it always was. Empty clears it.
 using MenuBackdropDrawer=std::function<bool(ImDrawList* draw,ImVec2 min,ImVec2 max)>;
 void SetMenuBackdropDrawer(MenuBackdropDrawer drawer);
+// The menu's own art (SetMenuArt's MenuBackdrop) under its tint, fitted to
+// `min` to `max` in `draw`: what DrawMenuBackdrop shows without a game's
+// backdrop, and what a game's backdrop fades its first picture in from.
+// False without art.
+bool DrawMenuArt(ImDrawList* draw,ImVec2 min,ImVec2 max);
 // A card's corner marker (SAVED, MAIN), fitted to the card's width. `at` is its
 // top-left corner, or its top-right when rightAligned. Returns the badge's drawn width.
 float DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe,bool rightAligned=false);
