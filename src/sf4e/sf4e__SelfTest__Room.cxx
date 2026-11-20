@@ -166,7 +166,7 @@ void TickRoom() {
 		break;
 	case Stage::Leaving:
 		if (now->session.room == netplay::RoomState::Idle) { Say(true, "left the room"); run.Enter(Stage::Done); Finish(); break; }
-		if (run.Every(3)) NetplayFacade::SubmitRuntimeCommand(commands::LeaveRoom{Generation()});
+		if (run.Every(3)) NetplayFacade::SubmitRuntimeCommand(commands::LeaveRoom{Generation(), commands::CloseCause::SelfTest});
 		if (run.Late(30)) run.Fail("leave", "the room never let go");
 		break;
 	case Stage::Done:

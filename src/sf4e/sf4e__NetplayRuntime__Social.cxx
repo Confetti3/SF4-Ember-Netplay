@@ -360,7 +360,7 @@ void TickVisit(bool helperReady, std::uint64_t nowMs) {
 	case friends::Visit::Step::Leave:
 		// Another room replaces the one being watched, as Leave does.
 		runtime->watch.Stop();
-		SubmitRuntimeCommand(commands::LeaveRoom{control.generation, 0});
+		SubmitRuntimeCommand(commands::LeaveRoom{control.generation, commands::CloseCause::FriendVisit});
 		visit.LeaveQueued();
 		break;
 	case friends::Visit::Step::Ticket:

@@ -107,8 +107,8 @@ static void NoteNativeScreen() {
 	last = now;
 }
 
-void CloseRoom() {
-	spdlog::info("Room: closing error='{}' match_error='{}' match_phase={} spectator={} ggpo={}", runtime->error,
+void CloseRoom(commands::CloseCause cause) {
+	spdlog::info("Room: closing cause={} error='{}' match_error='{}' match_phase={} spectator={} ggpo={}", commands::CloseCauseName(cause), runtime->error,
 		runtime->match ? runtime->match->Error() : std::string(), runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1,
 		LocalIsSpectator(), Game::Battle::System::ggpo != nullptr);
     const bool abandon=runtime->replacementPending || (runtime->room && !runtime->room->Coordination().writable);
@@ -138,6 +138,13 @@ void CloseRoom() {
 	if (runtime->room) runtime->room->Leave(abandon);
 }
 
+// The room is over for this player without a leave to wait for: the controller
+// leaves it and the runtime closes it, naming why.
+void LeaveRoomNow(commands::CloseCause cause) {
+	runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
+	CloseRoom(cause);
+}
+
 void Apply(netplay::EventKind kind, const std::string& error) {
 	netplay::Event event{kind, runtime->controller.GetSnapshot().generation, error};
 	const auto decision = runtime->controller.Apply(event);
@@ -145,15 +152,12 @@ void Apply(netplay::EventKind kind, const std::string& error) {
 		decision.effect == netplay::Effect::FinishDegradedMatch;
 	if (closesRoom) {
 		spdlog::warn("Room: event {} closes the room (effect {}): {}", static_cast<int>(kind), static_cast<int>(decision.effect), error);
-		CloseRoom();
+		CloseRoom(commands::CloseCause::SessionEffect);
 	}
 	else if (decision.accepted && kind == netplay::EventKind::ControlLost &&
 		runtime->controller.GetSnapshot().room == netplay::RoomState::Lost) {
 		ObserveControlPlane(ControlPlaneCause::Coordination, false, error.c_str());
-		if (!UserApp::netplay) {
-			runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
-			CloseRoom();
-		}
+		if (!UserApp::netplay) LeaveRoomNow(commands::CloseCause::ClientRetired);
 	}
 }
 
@@ -435,7 +439,7 @@ void StopHelper() {
         runtime->discordClient->Stop();
     }
 	bridge::CloseCommands();
-	CloseRoom();
+	CloseRoom(commands::CloseCause::Shutdown);
 	if (runtime->room && runtime->helper) {
 		// Closing the game must mean the same thing to the room as Leave room.
 		// Shutdown cancels an in-flight graceful leave in the helper, so give the
@@ -592,10 +596,9 @@ static void ObserveCoordination() {
 }
 
 // The room is over for this player: say so, leave, and tear the session down.
-static void EndClosedRoom(const netplay::Snapshot& state, const char* text) {
+static void EndClosedRoom(const char* text, commands::CloseCause cause) {
 	if (!EndWatchedRoom(netplay::tournament::WatchRoomEnd::Closed)) runtime->error=loc::T(text);
-	runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
-	CloseRoom();
+	LeaveRoomNow(cause);
 }
 
 static void SettleRoomState(bool helperReady) {
@@ -613,7 +616,7 @@ static void SettleRoomState(bool helperReady) {
         if(leaveTimedOut && !runtime->leave.leaveAcknowledged && snapshot.localMember)
             spdlog::warn("Room: leave not confirmed after {} ms; leaving locally", session::IrohRoom::LeaveTimeoutMs);
         if(runtime->leave.leaveAcknowledged || !snapshot.localMember || !runtime->room->Coordination().writable ||
-            leaveTimedOut) CloseRoom();
+            leaveTimedOut) CloseRoom(commands::CloseCause::LeaveSettled);
         else if(GetTickCount64()>=runtime->leave.leaveRetryAt) {
             room::Action leave; leave.kind=room::ActionKind::Leave;
             leave.roomEpoch=snapshot.roomEpoch; leave.revision=snapshot.revision;
@@ -623,7 +626,7 @@ static void SettleRoomState(bool helperReady) {
     }
     if(runtime->replacementPending && runtime->attached &&
 		(!runtime->match ? !Game::Battle::System::ggpo :
-			runtime->match->CanReplace(Game::Battle::System::ggpo != nullptr))) CloseRoom();
+			runtime->match->CanReplace(Game::Battle::System::ggpo != nullptr))) CloseRoom(commands::CloseCause::Replacement);
 	if (helperFailed && !runtime->helperLossReported) {
 		runtime->helperLossReported = true;
 		Apply(netplay::EventKind::HelperLost, loc::T("runtime.networking_unavailable"));
@@ -652,19 +655,18 @@ static void SettleRoomState(bool helperReady) {
 		// The helper gave up on a server-owned room's host (room_closed after its
 		// grace): nothing replaces that host, so the room is over for this player.
 		// The helper cannot tell a closed room from a host it lost, so the words say both.
-		if (runtime->room->ServerOwned() && runtime->room->GetState() == session::IrohRoom::State::Idle) EndClosedRoom(state, "runtime.room_unreachable");
+		if (runtime->room->ServerOwned() && runtime->room->GetState() == session::IrohRoom::State::Idle) EndClosedRoom("runtime.room_unreachable", commands::CloseCause::RoomUnreachable);
 		else Apply(netplay::EventKind::ControlLost, loc::T("runtime.room_connection_lost"));
 	}
 	state = runtime->controller.GetSnapshot();
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
-		UserApp::netplay->client.GetRoomSnapshot().closed) EndClosedRoom(state, "runtime.room_closed");
+		UserApp::netplay->client.GetRoomSnapshot().closed) EndClosedRoom("runtime.room_closed", commands::CloseCause::RoomClosed);
 	state = runtime->controller.GetSnapshot();
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
 		UserApp::netplay->client.GetRoomSnapshot().roomEpoch &&
 		!UserApp::netplay->client.GetRoomSnapshot().localMember) {
         if (!EndWatchedRoom(netplay::tournament::WatchRoomEnd::Removed)) runtime->error=loc::T("runtime.removed_from_room");
-        runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
-        CloseRoom();
+        LeaveRoomNow(commands::CloseCause::Removed);
     }
 	state = runtime->controller.GetSnapshot();
 	if (state.room == netplay::RoomState::Closing && (helperFailed || !runtime->room ||
@@ -903,18 +905,14 @@ void TickRuntime() {
 	SettleTurnedOffThemes();
 	// Legacy error/teardown hooks can retire the client between owner ticks.
 	// Dispose its coordinator before dereferencing that client again.
-	if (runtime->attached && !UserApp::netplay) {
-		runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
-		CloseRoom();
-	}
+	if (runtime->attached && !UserApp::netplay) LeaveRoomNow(commands::CloseCause::HookRetired);
 	// A failed router cannot deliver result, game_end, or Leave acknowledgments.
 	// Do not retry match teardown against it forever. Native ownership fences
 	// retirement; the helper's room_closed event still fences a subsequent room.
 	if (runtime->attached && runtime->room &&
 		runtime->room->CloseFailedRoom(Game::Battle::System::ggpo != nullptr)) {
 		runtime->error = ui::DescribeRoomConnectionFailure(runtime->room->ServerOwned());
-		runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
-		CloseRoom();
+		LeaveRoomNow(commands::CloseCause::RouterFailed);
 	}
 	if (runtime->services.Snapshot().closeGame && !runtime->updateClosing) {
 		runtime->updateClosing = true;

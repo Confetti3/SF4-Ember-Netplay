@@ -129,7 +129,7 @@ bool ApplicationShell::SendJoin(const ShellView& view, const Submit& submit) {
     return true;
 }
 bool ApplicationShell::SendLeave(const ShellView& view, const Submit& submit) {
-    if (!Send(commands::LeaveRoom{view.session.generation}, submit)) return false;
+    if (!Send(commands::LeaveRoom{view.session.generation, commands::CloseCause::Menu}, submit)) return false;
     std::fill(std::begin(invitation_), std::end(invitation_), '\0');
     return true;
 }

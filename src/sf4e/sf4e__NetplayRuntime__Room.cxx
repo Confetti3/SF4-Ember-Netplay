@@ -387,12 +387,13 @@ static DispatchOutcome Handle(commands::LeaveRoom& command, bool, Attempt attemp
 	}
 	const auto decision = Decide(netplay::CommandKind::LeaveRoom, command.generation);
 	if (!decision.accepted) return Refused(decision);
+	spdlog::info("Room: leave asked cause={}", commands::CloseCauseName(command.cause));
 	if (command.discordRevision) runtime->discordInvite.LeaveQueued();
 	if (runtime->attached && UserApp::netplay &&
 		UserApp::netplay->client.GetRoomSnapshot().localMember) {
 		runtime->leave.leaveRequested = true;
 		CancelLocalMatch(GgpoEnd::Retire("leave_room"));
-	} else CloseRoom();
+	} else CloseRoom(command.cause);
 	return DispatchOutcome::Dispatched;
 }
 static DispatchOutcome Handle(commands::ReplaceRoom& command, bool, Attempt) {

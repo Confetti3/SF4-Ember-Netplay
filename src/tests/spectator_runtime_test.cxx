@@ -757,7 +757,7 @@ void TestEnteredBattleRequestCancelled() {
 		auto* runtime = game.r.runtime;
 		runtime->room = game.r.room;
 		arm();
-		CHECK(facade::SubmitRuntimeCommand(sf4e::commands::LeaveRoom{runtime->controller.GetSnapshot().generation}));
+		CHECK(facade::SubmitRuntimeCommand(sf4e::commands::LeaveRoom{runtime->controller.GetSnapshot().generation, sf4e::commands::CloseCause::Menu}));
 		sf4e::NetplayFacade::internal::DrainCommands(true);
 		CHECK(runtime->leave.leaveRequested && game.r.room->leaveCalls == 0);
 		CHECK(!prepared());
@@ -774,7 +774,7 @@ void TestEnteredBattleRequestCancelled() {
 		// Closing the room shuts netplay down (room close, failure, Start offline).
 		WatchedGame game(true);
 		arm();
-		sf4e::NetplayFacade::internal::CloseRoom();
+		sf4e::NetplayFacade::internal::CloseRoom(sf4e::commands::CloseCause::Unknown);
 		CHECK(!prepared());
 	}
 	arm();
