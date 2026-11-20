@@ -30,79 +30,93 @@ const RECOVERY_DISCORD_PREFIX: &str = "emd2:";
 const HEADER: usize = 91;
 /// The same for an sf4e3 record, which adds the coordination route.
 const RECOVERY_HEADER: usize = HEADER + 32 + 8 + 8;
-// Stable wire IDs, independent of relay-map iteration order, each with its
-// region code (`relay::REGIONS`), which a room's creator gives the bridge.
-// The native side names each relay by its `NAMES` code instead.
-// Append only: never reorder, remove or reuse an entry. A peer of another
-// build never reads these invitations (the build check refuses them first),
-// so an appended entry needs no new invite version.
-const RELAYS: [(&str, &str); 6] = [
-    ("https://use1-1.relay.n0.iroh.link./", "use1"),
-    ("https://usw1-1.relay.n0.iroh.link./", "usw1"),
-    ("https://euc1-1.relay.n0.iroh.link./", "euc1"),
-    ("https://aps1-1.relay.n0.iroh.link./", "aps1"),
-    // Ember's own relay, on the VPS in Kansas: both US regions reach it.
-    ("https://relay.embernetplay.link./", "use1"),
+/// A relay this build pins. `region` is the code a room's creator gives the
+/// bridge (`relay::REGIONS`); n0 and Ember share use1 and euc1, so `name` is
+/// what the native side shows (src/common/NetworkRoute.hxx) and keeps them
+/// apart. Names stay inside the PC.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Pinned {
+    url: &'static str,
+    region: &'static str,
+    name: &'static str,
+    active: bool,
+}
+
+// Stable wire IDs: an invitation carries the array index, independent of
+// relay-map iteration order. Append only: never reorder, remove or reuse an
+// entry. A peer of another build never reads these invitations (the build
+// check refuses them first), so an appended entry needs no new invite
+// version.
+//
+// Every entry is active. From 2026-11-08 some US internet providers' router
+// filters (Xfinity, Spectrum, Cox) blocked n0's relays over HTTPS, and 1.5.5
+// to 1.6.1 left n0's US and Europe relays out; on 2026-11-20 those
+// providers' home lines reached all of n0's relays again. iroh picks a home
+// relay by latency alone, so a player lands on whichever answers first.
+const RELAYS: [Pinned; 6] = [
+    Pinned { url: "https://use1-1.relay.n0.iroh.link./", region: "use1", name: "n0use1", active: true },
+    Pinned { url: "https://usw1-1.relay.n0.iroh.link./", region: "usw1", name: "usw1", active: true },
+    Pinned { url: "https://euc1-1.relay.n0.iroh.link./", region: "euc1", name: "n0euc1", active: true },
+    Pinned { url: "https://aps1-1.relay.n0.iroh.link./", region: "aps1", name: "aps1", active: true },
+    // Ember's own relay, on the VPS in Kansas.
+    Pinned { url: "https://relay.embernetplay.link./", region: "use1", name: "use1", active: true },
     // Ember's relay for Europe, run by a community host (server/relay). The
     // name is Ember's, so the relay can move to another host without a new
     // build.
-    ("https://relay-eu.embernetplay.link./", "euc1"),
+    Pinned { url: "https://relay-eu.embernetplay.link./", region: "euc1", name: "euc1", active: true },
 ];
 
-/// The name the native side shows for each RELAYS entry, in RELAYS order. Two
-/// relays share a region code where n0 and Ember both have one, so the name
-/// keeps them apart; the region code alone is what leaves the PC.
-const NAMES: [&str; 6] = ["n0use1", "usw1", "n0euc1", "aps1", "use1", "euc1"];
-
-/// The RELAYS entries this build's endpoints use: all of them. From
-/// 2026-11-08 some US internet providers' router filters (Xfinity, Spectrum,
-/// Cox) blocked n0's relays over HTTPS, and 1.5.5 to 1.6.1 left n0's US and
-/// Europe relays out; on 2026-11-20 those providers' home lines reached all
-/// of n0's relays again. iroh picks a home relay by latency alone, so a
-/// player lands on whichever answers first.
-const ACTIVE: [usize; 6] = [0, 1, 2, 3, 4, 5];
-
-fn pinned(index: usize) -> RelayUrl {
-    RELAYS[index].0.parse().expect("pinned relay URL")
+impl Pinned {
+    fn relay(&self) -> RelayUrl {
+        self.url.parse().expect("pinned relay URL")
+    }
 }
 
+/// Every relay name this build may report, for tests elsewhere in the crate.
+#[cfg(test)]
+pub(crate) fn relay_names() -> impl Iterator<Item = &'static str> {
+    RELAYS.iter().map(|pinned| pinned.name)
+}
+
+/// The wire ID of a pinned relay. Matches entire normalized URLs: suffix
+/// checks would admit credentials, arbitrary paths, ports, and look-alike
+/// hosts.
 fn pinned_index(relay: &RelayUrl) -> Option<usize> {
-    RELAYS
-        .iter()
-        .position(|(url, _)| url.parse::<RelayUrl>().is_ok_and(|pinned| pinned == *relay))
+    RELAYS.iter().position(|pinned| pinned.relay() == *relay)
+}
+
+fn active() -> impl Iterator<Item = &'static Pinned> {
+    RELAYS.iter().filter(|pinned| pinned.active)
 }
 
 /// The relays every endpoint of this build uses, in place of iroh's default
 /// map. Each one also answers QUIC address discovery on iroh's default port.
 pub fn relay_map() -> iroh::RelayMap {
-    ACTIVE
-        .iter()
-        .map(|&index| iroh::RelayConfig::from(pinned(index)))
-        .collect()
+    active().map(|pinned| iroh::RelayConfig::from(pinned.relay())).collect()
 }
 
 /// The region code of a pinned relay, or "other" for any other URL: what a
 /// room's creator gives the bridge (`ember_protocol::relay::REGIONS`).
 pub fn relay_region(relay: &RelayUrl) -> &'static str {
-    pinned_index(relay).map_or("other", |index| RELAYS[index].1)
+    pinned_index(relay).map_or("other", |index| RELAYS[index].region)
 }
 
-/// The name code of a pinned relay (`NAMES`), or "other" for any other URL.
-/// The native side shows these instead of a relay address
-/// (src/common/NetworkRoute.hxx); they stay inside the PC.
+/// The name code of a pinned relay, or "other" for any other URL. The native
+/// side shows these instead of a relay address.
 pub fn relay_name(relay: &RelayUrl) -> &'static str {
-    pinned_index(relay).map_or("other", |index| NAMES[index])
+    pinned_index(relay).map_or("other", |index| RELAYS[index].name)
 }
 
-/// A relay this build uses for a region code, Ember's first where n0 and
-/// Ember share the code. Only a dial hint: `ActiveRelays` also names every
-/// active relay. None for "other" or any code no active relay covers.
+/// The one active relay with this region code, as a dial hint. None for a
+/// code two active relays share (n0's and Ember's use1 and euc1), for
+/// "other", and for any code no active relay covers: the dial then relies on
+/// `ActiveRelays`, which names every active relay.
 pub fn relay_for_region(code: &str) -> Option<RelayUrl> {
-    ACTIVE
-        .iter()
-        .rev()
-        .find(|&&index| RELAYS[index].1 == code)
-        .map(|&index| pinned(index))
+    let mut matching = active().filter(|pinned| pinned.region == code);
+    match (matching.next(), matching.next()) {
+        (Some(only), None) => Some(only.relay()),
+        _ => None,
+    }
 }
 
 /// The route a selected path reports outside the helper: `direct` for an IP
@@ -159,11 +173,7 @@ fn discord_payload(text: &str) -> Option<&str> {
 }
 
 fn relay_allowed(relay: &RelayUrl) -> bool {
-    // Match entire normalized URLs from the pinned dictionary. Suffix checks
-    // would admit credentials, arbitrary paths, ports, and look-alike hosts.
-    RELAYS
-        .iter()
-        .any(|(url, _)| url.parse::<RelayUrl>().is_ok_and(|pinned| pinned == *relay))
+    pinned_index(relay).is_some()
 }
 
 impl Invite {
@@ -361,12 +371,7 @@ impl Invite {
         Ok(Self {
             version: u16::from_le_bytes(bytes[0..2].try_into().map_err(|_| invalid())?),
             endpoint: endpoint_at(2)?,
-            relay: RELAYS
-                .get(bytes[34] as usize)
-                .ok_or_else(invalid)?
-                .0
-                .parse()
-                .map_err(|_| invalid())?,
+            relay: RELAYS.get(bytes[34] as usize).ok_or_else(invalid)?.relay(),
             room: bytes[35..51].try_into().map_err(|_| invalid())?,
             capability: bytes[51..83].try_into().map_err(|_| invalid())?,
             expires: u64_at(83)?,
@@ -396,13 +401,7 @@ impl Invite {
 
     /// The compact record `decode_record` reads.
     fn compact_bytes(&self) -> io::Result<Vec<u8>> {
-        let relay = RELAYS
-            .iter()
-            .position(|(url, _)| {
-                url.parse::<RelayUrl>()
-                    .is_ok_and(|relay| relay == self.relay)
-            })
-            .ok_or_else(invalid)?;
+        let relay = pinned_index(&self.relay).ok_or_else(invalid)?;
         if self.build.is_empty() || self.build.len() > 128 {
             return Err(invalid());
         }
