@@ -35,6 +35,24 @@
   /* Public room types: Arcade and King of the hill beside the ember Classic. */
   --arcade: #6cc4d4;
   --king: #f0c75a;
+  /* The other tones the rules below share, so a game's view (Street Fighter
+     V's, at the end) can set its own. */
+  --accent-wash: rgba(255, 135, 56, 0.08);
+  --accent-wash-strong: rgba(255, 135, 56, 0.1);
+  --strong: #fff;
+  --meta: #9e9386;
+  --well: rgba(16, 15, 14, 0.9);
+  --chip: #38332e;
+  --count: #26221e;
+  --track: #3c3630;
+  --face: #585048;
+  --card-dim: rgba(26, 24, 22, 0.94);
+  --skeleton: #786c60;
+  --placeholder: #8d8276;
+  --option: #211e1b;
+  --grid: #3a332d;
+  --tip: #2c2723;
+  --ready: #a4cea0;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -99,7 +117,7 @@ main { flex: 1; }
   text-decoration: none;
   border-radius: 4px;
 }
-.site-nav a:hover { color: var(--ember-light); background: rgba(255, 135, 56, 0.08); }
+.site-nav a:hover { color: var(--ember-light); background: var(--accent-wash); }
 .site-nav a[aria-current="page"] { color: var(--ember); box-shadow: inset 0 -2px 0 var(--ember); border-radius: 4px 4px 0 0; }
 .brand-home {
   display: inline-flex;
@@ -127,9 +145,45 @@ h1 {
   border-bottom: 1px solid var(--ember);
 }
 h2 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 600; line-height: 1.3; color: var(--ember); }
+
+/* The rooms and rankings pages: the title with the Game switch at its end,
+   over one shared rule. */
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ember);
+}
+.page-head h1 { margin: 0; padding: 0; border: 0; }
+/* SF4 or SFV: one segmented switch, the shown game filled with the accent. */
+.game-switch { display: inline-flex; gap: 2px; padding: 3px; background: var(--well); border: 1px solid var(--button-border); border-radius: 7px; }
+.game-switch button {
+  min-height: 34px;
+  min-width: 4.75rem;
+  padding: 4px 14px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+}
+.game-switch button:hover { color: var(--ivory); background: var(--button-hover); }
+.game-switch button[aria-pressed="true"] { color: var(--ink); background: var(--ember); cursor: default; }
+
+/* Words, marks and pictures that are one game's: assets/game.js marks the
+   page's game on html before the first paint, and SF4's is the default. */
+.mark-sfv { display: none !important; }
+html:not([data-game="sfv"]) [data-game-text="sfv"] { display: none !important; }
+html[data-game="sfv"] [data-game-text="usf4"], html[data-game="sfv"] .mark-usf4 { display: none !important; }
+html[data-game="sfv"] .mark-sfv { display: block !important; }
 p { margin: 0 0 12px; }
 .lead { font-size: 1.1rem; color: var(--ivory); margin-bottom: 20px; }
-strong { font-weight: 600; color: #fff; }
+strong { font-weight: 600; color: var(--strong); }
 
 a { color: var(--ember); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 a:visited { color: var(--ember); }
@@ -162,7 +216,7 @@ li::marker { color: var(--ember); font-weight: 600; }
   user-select: all;
   overflow-wrap: anywhere;
 }
-code { font-family: inherit; font-weight: 600; color: #fff; overflow-wrap: anywhere; }
+code { font-family: inherit; font-weight: 600; color: var(--strong); overflow-wrap: anywhere; }
 
 .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; }
 .panel .actions:first-child, #link .actions { justify-content: center; }
@@ -258,7 +312,7 @@ footer a:hover { color: var(--ivory); }
   border-radius: 4px;
 }
 .room-card:focus-within { box-shadow: inset 0 0 0 2px var(--ember); }
-.room-card.dimmed { background: rgba(26, 24, 22, 0.94); }
+.room-card.dimmed { background: var(--card-dim); }
 .room-card.dimmed .room-name { color: var(--muted); }
 
 .room-head { display: flex; align-items: flex-start; gap: 12px; }
@@ -273,7 +327,7 @@ footer a:hover { color: var(--ivory); }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.room-meta { margin: 4px 0 0; color: #9e9386; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.room-meta { margin: 4px 0 0; color: var(--meta); font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* The seat count in a pill, and how full the room is under it. */
 .room-seats { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
@@ -281,7 +335,7 @@ footer a:hover { color: var(--ivory); }
   min-width: 3.4rem;
   padding: 2px 10px;
   color: var(--ivory);
-  background: #26221e;
+  background: var(--count);
   border-radius: 11px;
   font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
@@ -289,7 +343,7 @@ footer a:hover { color: var(--ivory); }
   line-height: 18px;
 }
 .dimmed .room-count { color: var(--muted); }
-.room-bar { position: relative; width: 64px; height: 3px; background: #3c3630; border-radius: 1.5px; overflow: hidden; }
+.room-bar { position: relative; width: 64px; height: 3px; background: var(--track); border-radius: 1.5px; overflow: hidden; }
 .room-bar-fill { position: absolute; inset: 0 auto 0 0; background: var(--ember); border-radius: 1.5px; }
 .dimmed .room-bar-fill { background: var(--muted); }
 
@@ -301,7 +355,7 @@ footer a:hover { color: var(--ivory); }
   justify-content: center;
   width: 32px;
   height: 32px;
-  background-color: #585048;
+  background-color: var(--face);
   background-image: url("/assets/faces.webp");
   background-size: calc(44 * 32px) 32px;
   background-repeat: no-repeat;
@@ -319,16 +373,16 @@ footer a:hover { color: var(--ivory); }
   display: inline-block;
   padding: 0 7px;
   color: var(--muted);
-  background: rgba(16, 15, 14, 0.9);
+  background: var(--well);
   border-radius: 10px;
   font-size: 0.8125rem;
   line-height: 20px;
   white-space: nowrap;
 }
 .room-chip.set { color: var(--ember); }
-.room-chip.match { color: var(--ink); background: #a4cea0; }
-.room-chip.status { background: #38332e; }
-.room-chip.version { color: var(--ember-light); border: 1px solid #76502f; line-height: 18px; }
+.room-chip.match { color: var(--ink); background: var(--ready); }
+.room-chip.status { background: var(--chip); }
+.room-chip.version { color: var(--ember-light); border: 1px solid var(--button-border); line-height: 18px; }
 .room-chip.type { color: var(--ink); font-weight: 600; }
 .room-chip.type.arcade { background: var(--arcade); }
 .room-chip.type.king { background: var(--king); }
@@ -375,7 +429,7 @@ footer a:hover { color: var(--ivory); }
   text-decoration: none;
 }
 .room-action:visited { color: var(--ember); }
-.room-action:hover { color: var(--ember-light); background: rgba(255, 135, 56, 0.1); border-color: var(--ember-light); }
+.room-action:hover { color: var(--ember-light); background: var(--accent-wash-strong); border-color: var(--ember-light); }
 .room-action.primary, .room-action.primary:visited { color: var(--ink); background: var(--ember); }
 .room-action.primary:hover { color: var(--ink); background: var(--ember-light); }
 
@@ -386,7 +440,7 @@ footer a:hover { color: var(--ivory); }
 
 /* The list on its way: pulsing shapes where the cards will be. */
 .room-skeleton { min-height: 118px; }
-.room-skeleton span { display: block; height: 14px; background: #786c60; border-radius: 7px; animation: room-pulse 1.6s ease-in-out infinite; }
+.room-skeleton span { display: block; height: 14px; background: var(--skeleton); border-radius: 7px; animation: room-pulse 1.6s ease-in-out infinite; }
 .room-skeleton span:nth-child(1) { width: 40%; height: 18px; }
 .room-skeleton span:nth-child(2) { width: 25%; }
 .room-skeleton span:nth-child(3) { width: 30%; height: 32px; border-radius: 3px; }
@@ -420,7 +474,7 @@ footer a:hover { color: var(--ivory); }
   gap: 6px;
   padding: 2px 9px;
   color: var(--ink);
-  background: #a4cea0;
+  background: var(--ready);
   border-radius: 10px;
   font-size: 0.8rem;
   line-height: 18px;
@@ -441,7 +495,7 @@ footer a:hover { color: var(--ivory); }
   border-top: 3px solid var(--ember);
   border-radius: 4px;
 }
-.feature h3 { margin: 0 0 8px; font-size: 1.05rem; font-weight: 600; color: #fff; }
+.feature h3 { margin: 0 0 8px; font-size: 1.05rem; font-weight: 600; color: var(--strong); }
 .feature p { margin: 0; color: var(--muted); font-size: 0.95rem; }
 .feature code { color: var(--ivory); font-weight: 400; }
 
@@ -519,7 +573,7 @@ footer a:hover { color: var(--ivory); }
   min-width: 1.6rem;
   padding: 0 6px;
   color: var(--muted);
-  background: rgba(16, 15, 14, 0.9);
+  background: var(--well);
   border-radius: 9px;
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
@@ -537,19 +591,19 @@ footer a:hover { color: var(--ivory); }
   min-height: 40px;
   padding: 8px 12px;
   color: var(--ivory);
-  background: rgba(16, 15, 14, 0.9);
+  background: var(--well);
   border: 1px solid var(--button-border);
   border-radius: 4px;
   font: inherit;
   font-size: 0.95rem;
 }
-.rank-search input::placeholder { color: #8d8276; }
+.rank-search input::placeholder { color: var(--placeholder); }
 .rank-search input:focus-visible, .rank-field select:focus-visible { outline: 2px solid var(--ivory); outline-offset: 1px; border-color: var(--ember); }
 .rank-field { display: flex; flex-direction: column; gap: 2px; flex: 1 1 8.5rem; min-width: 7.5rem; max-width: 13rem; }
 .rank-field span { color: var(--muted); font-size: 0.8rem; }
 .rank-field select { padding-right: 8px; cursor: pointer; }
-.rank-field option { color: var(--ivory); background: #211e1b; }
-.rank-field option.empty { color: #8d8276; }
+.rank-field option { color: var(--ivory); background: var(--option); }
+.rank-field option.empty { color: var(--placeholder); }
 
 .rank-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 0 0 10px; }
 .rank-summary { margin: 0; }
@@ -565,7 +619,7 @@ footer a:hover { color: var(--ivory); }
   border-color: transparent;
   font-size: 0.85rem;
 }
-.rank-jump-link:hover { color: var(--ember-light); background: rgba(255, 135, 56, 0.08); border-color: transparent; }
+.rank-jump-link:hover { color: var(--ember-light); background: var(--accent-wash); border-color: transparent; }
 
 .rank-board { margin: 0 0 12px; }
 .rank-board > .room-message { margin: 0 0 12px; }
@@ -616,7 +670,7 @@ footer a:hover { color: var(--ivory); }
   width: 2.1rem;
   padding: 0 4px;
   color: var(--ivory);
-  background: #38332e;
+  background: var(--chip);
   border-radius: 3px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -643,7 +697,7 @@ footer a:hover { color: var(--ivory); }
 .rank-chart-note { color: var(--muted); font-size: 0.8rem; }
 .rank-chart-plot { height: 170px; }
 .rank-chart-plot svg { display: block; overflow: visible; }
-.rank-chart-grid { stroke: #3a332d; stroke-width: 1; }
+.rank-chart-grid { stroke: var(--grid); stroke-width: 1; }
 .rank-chart-tick, .rank-chart-label { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .rank-chart-bar { fill: currentColor; transition: opacity 0.12s, filter 0.12s; }
 .rank-chart-bar.dim { opacity: 0.25; }
@@ -656,7 +710,7 @@ footer a:hover { color: var(--ivory); }
   display: flex;
   flex-direction: column;
   padding: 6px 10px;
-  background: #2c2723;
+  background: var(--tip);
   border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 0.85rem;
@@ -668,7 +722,7 @@ footer a:hover { color: var(--ivory); }
 @media (prefers-reduced-motion: reduce) { .rank-chart-bar { transition: none; } }
 
 .rank-skeleton { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr)); gap: 6px; }
-.rank-skeleton span { display: block; height: 36px; background: #786c60; border-radius: 4px; animation: room-pulse 1.6s ease-in-out infinite; }
+.rank-skeleton span { display: block; height: 36px; background: var(--skeleton); border-radius: 4px; animation: room-pulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .rank-skeleton span { animation: none; opacity: 0.35; } }
 
 @media (max-width: 700px) {
@@ -677,3 +731,67 @@ footer a:hover { color: var(--ivory); }
   .rank-actions { width: 100%; }
   .rank-actions .room-refresh { flex: 1 1 auto; }
 }
+
+/* Street Fighter V's view (?game=sfv, assets/game.js): SFV Ember's own look,
+   its Band theme (SFV Ember's src/ember/SfvProduct.cxx). Charcoal grounds at
+   one neutral hue, SFV's menu gold as the accent, a flat ground in place of
+   SF4's menu art, square corners, titles in capitals and the gold bar on the
+   left of what has focus. Arcade and King of the hill keep their colours. */
+html[data-game="sfv"] {
+  --ink: #100f0d;
+  --panel: rgba(30, 29, 26, 0.96);
+  --border: #373530;
+  --ivory: #edece0;
+  --muted: #c0beb4;
+  --ember: #ddb961;
+  --ember-light: #f2dd9d;
+  --button: #2f2e2a;
+  --button-border: #57554f;
+  --button-hover: #45433d;
+  --accent-wash: rgba(221, 185, 97, 0.08);
+  --accent-wash-strong: rgba(221, 185, 97, 0.12);
+  --strong: #f7f6ee;
+  --meta: #999892;
+  --well: rgba(8, 7, 6, 0.9);
+  --chip: #31302c;
+  --count: #282824;
+  --track: #34332f;
+  --face: #45433d;
+  --card-dim: rgba(22, 21, 19, 0.96);
+  --skeleton: #57554f;
+  --placeholder: #73726b;
+  --option: #1e1d1a;
+  --grid: #34332f;
+  --tip: #282824;
+  --ready: #a2d3a2;
+}
+html[data-game="sfv"] body::before {
+  background-image: linear-gradient(180deg, #1e1d1a 0, #100f0d 22rem);
+  background-position: 0 0;
+  background-size: auto;
+}
+html[data-game="sfv"] :is(.panel, .button, button, .game-switch, .room-filter, .room-refresh, .room-card, .room-action,
+  .room-chip, .room-count, .room-bar, .room-bar-fill, .rank-row, .rank-chart, .rank-chart-tip, .rank-chip,
+  .rank-chip-count, .rank-class, .rank-search input, .rank-field select, .rank-flag, .rank-name mark, .site-nav a,
+  .room-skeleton span, .rank-skeleton span) {
+  border-radius: 0;
+}
+html[data-game="sfv"] h1 { text-transform: uppercase; letter-spacing: 0.06em; }
+html[data-game="sfv"] :is(.panel h2, .room-group-title) { text-transform: uppercase; letter-spacing: 0.05em; font-size: 1rem; }
+html[data-game="sfv"] .room-card:focus-within { box-shadow: inset 3px 0 0 var(--ember); }
+html[data-game="sfv"] .game-switch button { text-transform: uppercase; }
+
+/* SFV's leagues, Rookie to Warlord (rankings.js GAMES.sfv.tiers): the metal
+   leagues in their metals, Master to Ultimate Grand Master in colours of their
+   own, and Warlord filled, as Grand Master is in SF4's view. */
+.tier-rookie { color: #a8a69c; }
+.tier-bronze { color: #cf966a; }
+.tier-silver { color: #c6cad0; }
+.tier-gold { color: #e0bb55; }
+.tier-platinum { color: #9fd8cc; }
+.tier-diamond { color: #8cc4ee; }
+.tier-master { color: #ee8a7f; }
+.tier-grand { color: #c9a2ef; }
+.tier-ultimate { color: #f2dd9d; }
+.tier-warlord { color: #ff7a59; }
+.rank-class.tier-warlord { color: var(--ink); background: #ff7a59; border-color: #ff7a59; }
