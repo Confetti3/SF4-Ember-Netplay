@@ -78,7 +78,8 @@ void RestoreMenuController() {
 
 void CaptureMenuInput() {
     if (GetTickCount64() >= runtime->padHintUntil) runtime->padHint.clear();
-    if (AtMainMenu()) {
+    const bool devicesRead = AtMainMenu();
+    if (devicesRead) {
         // The keyboard's held bit is read only by a capture waiting for every
         // key to be released. Pad rows never show the keyboard, so the
         // Controllers page has no use for it either.
@@ -130,7 +131,7 @@ void CaptureMenuInput() {
     runtime->padLayer = layer.mode; runtime->runningControllerLayer = layer.requested;
     const auto savedIdentity = OverlayPrefs::DeviceIdentity();
     const auto native = DirectInputFilter::ReadControllers();
-    runtime->pads = runtime->padInventory.Build(layer.mode, layer.pads, runtime->inputDevices, native, runtime->input.Selected(), savedIdentity);
+    runtime->pads = runtime->padInventory.Build(layer.mode, layer.pads, runtime->inputDevices, native, runtime->input.Selected(), savedIdentity, devicesRead);
     for (auto& pad : runtime->pads) {
         if (pad.state == gamepads::RowState::Absent) {
             const auto match = std::find_if(runtime->preferences.buttonLayouts.begin(), runtime->preferences.buttonLayouts.end(), [&](const gamepads::StoredLayout& layout) { return gamepads::Same(layout.identity, pad.identity); });

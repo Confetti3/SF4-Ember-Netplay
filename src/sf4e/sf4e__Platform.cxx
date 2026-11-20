@@ -26,6 +26,7 @@
 #include "../training/RemoteServer.hxx"
 #include "sf4e__Borderless.hxx"
 #include "sf4e__StartupLog.hxx"
+#include "../platform/ModulePin.hxx"
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
@@ -86,6 +87,21 @@ void fD3D::Install() {
 }
 
 namespace {
+// A rollback restore takes effect elements from the effect engine's pools and
+// faults inside the game when the element pool is full (EMBER-77). The pools
+// are fields of one static object, so their counts have fixed addresses the
+// crash record can read at any fault. They read 0/0 when not made yet or
+// already freed at shutdown.
+void WatchEffectPools() {
+    using Dimps::Eva::EmEffectManager;
+    static const char* const names[EmEffectManager::PK_COUNT] = { "effects", "effect nodes", "effect elements" };
+    EmEffectManager* effects = EmEffectManager::staticVars.Instance;
+    sf4e::crash::PoolWatch pools[EmEffectManager::PK_COUNT];
+    for (int i = 0; i < EmEffectManager::PK_COUNT; ++i)
+        pools[i] = { names[i], &effects->pools[i].used, &effects->pools[i].capacity, &effects->pools[i].peak };
+    sf4e::crash::WatchPools(pools, EmEffectManager::PK_COUNT);
+}
+
 // The pacing tick's request and the limiter's applied shift. Reset fences a
 // limiter call already in its spin (FrameShiftMailbox).
 sf4e::pacing::FrameShiftMailbox s_frameShift;
@@ -399,6 +415,14 @@ int fMain::Initialize(void* a, void* b, void* c) {
 	rMain::staticMethods.GetFocusStateSingleton();
 	// This hook is outside DllMain: worker creation and named-pipe IPC are safe.
 	sf4e::NetplayFacade::StartHelper();
+	// XAudio2_7.dll reports that it can unload while an engine is alive, so a COM
+	// cleanup sweep can free it under the game's sound thread (seen in EMBER-110,
+	// -114 and -116). Pin it before the game's Main::Initialize creates the
+	// engine. Logged through StartupLog: Sidecar's logger does not exist yet.
+	if (const HMODULE audio = sf4e::platform::PinSystemModule(L"XAudio2_7.dll"))
+		sf4e::StartupLog::Log(spdlog::level::info, fmt::format("Audio: XAudio2_7.dll pinned at {}", static_cast<void*>(audio)));
+	else
+		sf4e::StartupLog::Log(spdlog::level::warn, fmt::format("Audio: XAudio2_7.dll could not be pinned (error {})", GetLastError()));
 	// Order matters: Main::Initialize (0x77E3E0) asks for the multithreaded
 	// apartment and gives up with -3 when its CoInitializeEx returns
 	// RPC_E_CHANGED_MODE, and SDL's Windows backends, started by
@@ -466,6 +490,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             PathCombineW(logsDirectory, path, L"sf4e/logs");
             sf4e::crash::Install(logsDirectory);
             sf4e::crash::WatchGameExit();
+            WatchEffectPools();
             LogVSyncForced();
             LogRenderingThread();
             sf4e::StartupLog::Flush();

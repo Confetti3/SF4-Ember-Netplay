@@ -1,16 +1,27 @@
 #pragma once
 #include "InputAssignment.hxx"
 #include "../common/ControllerView.hxx"
+#include <algorithm>
 #include <optional>
 
 namespace sf4e { namespace gamepads {
+// Any pad held this tick, for the pointer it hides (ui::PadPointer in OverlayPresentation.hxx): a row's
+// press, or the gameplay pad's buttons as the game read them (`read`, 0 for
+// none); never the keyboard. With the layer off away from the main menu the
+// rows press nothing (devicesRead), so only the gameplay pad counts there.
+inline bool PadHeld(const std::vector<PadView>& rows, int gameplayType, unsigned read) {
+    return std::any_of(rows.begin(), rows.end(), [](const PadView& row) { return row.pressed; }) ||
+        (gameplayType != input::PadKeyboard && read != 0);
+}
 // Only the game thread builds rows. Retained identities keep pad-N stable
 // through disconnects, slot changes, and the saved-controller placeholder.
+// devicesRead: `devices` were read this tick. The runtime reads them at the
+// main menu only; elsewhere their buttons are old and press no row.
 class ControllerInventory {
 public:
     std::vector<PadView> Build(Layer layer, const std::vector<PadFrame>& frames,
         const std::vector<input::Device>& devices, const std::vector<NativeController>& native,
-        const input::Device& gameplay, const std::optional<Identity>& saved) {
+        const input::Device& gameplay, const std::optional<Identity>& saved, bool devicesRead) {
         std::vector<PadView> result;
         if (layer == Layer::Active) {
             std::vector<int> usedNative;
@@ -47,7 +58,7 @@ public:
                         // Only a matching native name and index identifies gameplay input.
                         for (const auto& d : devices) if (d.connected && d.type == input::PadDirectInput && d.index == n->index &&
                             (d.name == n->instanceName || d.name == n->productName)) {
-                            row.gameplay = gameplay.Same(d); row.pressed = d.buttons != 0 || row.pressed; break;
+                            row.gameplay = gameplay.Same(d); row.pressed = (devicesRead && d.buttons != 0) || row.pressed; break;
                         }
                     }
                 } else row.gameplay = gameplay.type == input::PadXInput && !gameplay.identity.guid.empty() && Same(gameplay.identity, pad.identity);
@@ -64,7 +75,7 @@ public:
             row.directInputIndex = device.index; row.gameplay = gameplay.Same(device);
             row.brand = GameplayBrand(device.type);
             row.picture = device.type == input::PadXInput ? "controller_xboxseries" : "controller_generic";
-            row.pressed = device.buttons != 0;
+            row.pressed = devicesRead && device.buttons != 0;
             remembered_[row.id - 1] = row;
             result.push_back(std::move(row));
         }

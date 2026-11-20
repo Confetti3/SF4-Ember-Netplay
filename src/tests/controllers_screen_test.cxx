@@ -174,50 +174,60 @@ static void InventoryProjection() {
     ps.pad.type = Type::PS5; ps.pad.identity = {"guid", "serial", "path", "DualSense"};
     ps.state.buttons[static_cast<unsigned>(Button::South)] = true;
     input::Device gameplay; gameplay.type = input::PadXInput; gameplay.identity = ps.pad.identity;
-    auto pads = inventory.Build(Layer::Active, {ps}, {}, {}, gameplay, ps.pad.identity);
+    auto pads = inventory.Build(Layer::Active, {ps}, {}, {}, gameplay, ps.pad.identity, true);
     CHECK(pads.size() == 1 && pads[0].id == 1 && pads[0].gameplay && pads[0].picture == "controller_playstation5");
     CHECK(pads[0].brand == PromptBrand(Brand::PlayStation, PlayStationArt::PS5) && pads[0].held == std::vector<std::string>({"A"}));
     // Held as the game reads it: the touchpad also holds the button it copies.
     PadFrame touch = ps; touch.state = {}; touch.state.extras[static_cast<unsigned>(Extra::Touchpad)] = true;
     touch.extras[static_cast<unsigned>(Extra::Touchpad)] = 2;
-    pads = inventory.Build(Layer::Active, {touch}, {}, {}, gameplay, ps.pad.identity);
+    pads = inventory.Build(Layer::Active, {touch}, {}, {}, gameplay, ps.pad.identity, true);
     CHECK(pads.size() == 1 && pads[0].held == std::vector<std::string>({"X", "touchpad"}));
-    pads = inventory.Build(Layer::Active, {}, {}, {}, gameplay, ps.pad.identity);
+    pads = inventory.Build(Layer::Active, {}, {}, {}, gameplay, ps.pad.identity, true);
     CHECK(pads.size() == 1 && pads[0].id == 1 && pads[0].state == RowState::Absent && pads[0].picture == "controller_disconnected");
     ps.pad.id = 99; ps.pad.slot = 2; ps.pad.identity.guid = "bluetooth";
-    pads = inventory.Build(Layer::Active, {ps}, {}, {}, gameplay, gameplay.identity);
+    pads = inventory.Build(Layer::Active, {ps}, {}, {}, gameplay, gameplay.identity, true);
     CHECK(pads.size() == 1 && pads[0].id == 1 && pads[0].slot == 2);
     PadFrame steam = ps; steam.pad.id = 100;
     steam.pad.identity = {"0300fa67de280000ff11000000007801", "", "steam", "Virtual"}; ps.pad.steamPad = 100;
-    pads = inventory.Build(Layer::Active, {ps, steam}, {}, {}, {}, {});
+    pads = inventory.Build(Layer::Active, {ps, steam}, {}, {}, {}, {}, true);
     CHECK(pads.size() == 1 && pads[0].name == "DualSense" && pads[0].state == RowState::Steam);
     // The 2026-10-13 pad: Steam's GUID with the physical Xbox 360 pad's VID:PID.
     PadFrame xbox; xbox.pad.id = 102; xbox.pad.slot = 0; xbox.pad.status = Status::Slotted; xbox.pad.mapped = xbox.pad.sdlMapping = true;
     xbox.pad.vid = 0x045E; xbox.pad.pid = 0x028E; xbox.pad.type = Type::Xbox360;
     xbox.pad.identity = {"0300fa67de280000ff11000000007801", "", "steam-xbox", "Xbox 360 controller"};
-    pads = inventory.Build(Layer::Active, {xbox}, {}, {}, {}, {});
+    pads = inventory.Build(Layer::Active, {xbox}, {}, {}, {}, {}, true);
     CHECK(pads.size() == 1 && pads[0].state == RowState::Steam && pads[0].picture == "controller_xbox360");
     CHECK(pads[0].brand == PromptBrand{Brand::Xbox} && pads[0].name == "Xbox 360 controller");
     auto row = ControllerRow(pads[0], true, true);
     CHECK(row.value == "Steam Input" && !row.choices[2].enabled && row.choices[2].detail == loc::T("controllers.choice_setup_steam"));
     xbox.pad.type = Type::Unknown;
-    pads = inventory.Build(Layer::Active, {xbox}, {}, {}, {}, {});
+    pads = inventory.Build(Layer::Active, {xbox}, {}, {}, {}, {}, true);
     CHECK(pads[0].picture == "controller_steam" && pads[0].name.empty());
     // After an Ember setup a pad SDL knew keeps its brand and picture; one only Ember maps is a stick.
     PadFrame setUp; setUp.pad.id = 103; setUp.pad.slot = 0; setUp.pad.status = Status::Slotted; setUp.pad.type = Type::Xbox360;
     setUp.pad.identity = {"030000005e0400008e02000000007801", "", "xbox", "Xbox pad"};
     setUp.pad.mapped = setUp.pad.hasEmberMapping = setUp.pad.sdlMapping = true;
-    pads = inventory.Build(Layer::Active, {setUp}, {}, {}, {}, {});
+    pads = inventory.Build(Layer::Active, {setUp}, {}, {}, {}, {}, true);
     CHECK(pads[0].brand == PromptBrand{Brand::Xbox} && pads[0].picture == "controller_xbox360" && pads[0].customMapping);
     setUp.pad.sdlMapping = false; setUp.pad.type = Type::Standard;
-    pads = inventory.Build(Layer::Active, {setUp}, {}, {}, {}, {});
+    pads = inventory.Build(Layer::Active, {setUp}, {}, {}, {}, {}, true);
     CHECK(pads[0].brand == PromptBrand{Brand::Stick} && pads[0].picture == "generic_joystick_red" && pads[0].customMapping);
     input::Device game; game.type = input::PadDirectInput; game.index = 7; game.name = "Native stick"; game.connected = true;
-    pads = inventory.Build(Layer::Failed, {}, {game}, {}, game, {});
+    pads = inventory.Build(Layer::Failed, {}, {game}, {}, game, {}, true);
     CHECK(pads.size() == 1 && pads[0].state == RowState::GameRead && pads[0].gameplay && pads[0].picture == "controller_generic");
     PadFrame raw; raw.pad.id = 101; raw.pad.status = Status::Unmapped; raw.pad.vid = 4; raw.pad.pid = 6;
     raw.pad.identity = {"raw", "", "PATH", "SDL stick"};
-    pads = inventory.Build(Layer::Active, {raw}, {game}, {{7, "Native stick", "SDL stick", "path"}}, game, {});
+    pads = inventory.Build(Layer::Active, {raw}, {game}, {{7, "Native stick", "SDL stick", "path"}}, game, {}, true);
     CHECK(pads.size() == 1 && pads[0].directInputIndex == 7 && pads[0].gameplay && pads[0].name == "SDL stick");
+    // Away from the main menu the devices are not read again: a button held when they last were presses no row.
+    game.buttons = 1;
+    CHECK(inventory.Build(Layer::Failed, {}, {game}, {}, game, {}, true)[0].pressed);
+    CHECK(!inventory.Build(Layer::Failed, {}, {game}, {}, game, {}, false)[0].pressed);
+    CHECK(!inventory.Build(Layer::Active, {raw}, {game}, {{7, "Native stick", "SDL stick", "path"}}, game, {}, false)[0].pressed);
+    // The pointer's pad: a row's press or the gameplay pad's read buttons, never the keyboard's.
+    std::vector<PadView> rows(1);
+    CHECK(!PadHeld(rows, input::PadXInput, 0) && PadHeld(rows, input::PadDirectInput, 4) && !PadHeld(rows, input::PadKeyboard, 4));
+    rows[0].pressed = true;
+    CHECK(PadHeld(rows, input::PadKeyboard, 0));
 }
 int main() { Rows(); LayoutEntryStates(); Held(); Hints(); InventoryProjection(); }

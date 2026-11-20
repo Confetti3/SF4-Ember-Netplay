@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include <windows.h>
 
 #include "Dimps__Math.hxx"
@@ -62,6 +64,57 @@ namespace Dimps {
 			static void Locate(HMODULE peRoot);
 			static __publicMethods publicMethods;
 		};
+
+		// One of the effect engine's object pools. initPools (0x6C4B8D..0x6C4BAA)
+		// carves it, EmEffectElementPool::alloc (0x7161A0) pops freeStack[used]
+		// and raises used and peak (0x7161D8..0x7161F0), or returns NULL once used
+		// reaches capacity (0x7161BB); its free (0x716210) lowers used again.
+		struct EmEffectPool {
+			void* heapBlock;
+			void* elements;
+			void** freeStack;
+			DWORD capacity;
+			DWORD used;
+			// The most ever in use, from boot until shutdown, not per battle: only
+			// EmEffectManager::reset (0x6C4F20) and freePools (0x6C47D0, through
+			// 0x6C4FB0, which also zeroes capacity and used) clear it.
+			DWORD peak;
+			DWORD pad_0x18;
+			DWORD pad_0x1c;
+		};
+		static_assert(sizeof(EmEffectPool) == 0x20, "an effect pool is 32 bytes");
+		static_assert(offsetof(EmEffectPool, capacity) == 0xc && offsetof(EmEffectPool, used) == 0x10 &&
+			offsetof(EmEffectPool, peak) == 0x14, "an effect pool's counts");
+
+		// The effect engine, one static object (0xAADE80) that getInstance
+		// (0x6C4EB0) builds on first use and never returns null for. EvaApp::onInit
+		// (0x4053CF) makes its pools with capacities 256, 1024 and 2048 and
+		// EvaApp::onShutdown (0x40542A) frees them, so they live for the process.
+		struct EmEffectManager {
+			enum PoolKind {
+				PK_EFFECT,  // 0xF0-byte effect instances (createEffect 0x6C4CD8)
+				PK_NODE,    // 0x50-byte nodes (EmEffectPools::freeNode 0x715850)
+				// 0x120-byte EmEffectElementEx. A rollback restore takes them in
+				// EmEffectEmitterNode::loadState (0x74D930), which reads the result
+				// of alloc unchecked at 0x74DBBE.
+				PK_ELEMENT,
+				PK_COUNT
+			};
+
+			void* vtbl;
+			DWORD poolCounts[PK_COUNT]; // the capacities initPools was given (0x6C4BB6)
+			EmEffectPool pools[PK_COUNT];
+
+			// The object itself, read as data: getInstance would run its lazy
+			// constructor (0x6C4900) if called before the game does.
+			typedef struct __staticVars {
+				EmEffectManager* Instance;
+			} __staticVars;
+
+			static void Locate(HMODULE peRoot);
+			static __staticVars staticVars;
+		};
+		static_assert(offsetof(EmEffectManager, pools) == 0x10, "the effect pools follow their counts");
 
 		struct IEmTaskFunctor {
 			// This location makes very little sense, but no location makes

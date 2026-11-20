@@ -176,6 +176,42 @@ inline size_t FormatCodeBytes(char* out, size_t size, uint64_t address, const ui
 	return length;
 }
 
+// A game object pool's counts as the crash record read them. `read` is false
+// when its words could not be read.
+struct PoolCounts {
+	const char* name;
+	bool read;
+	uint32_t used, capacity, peak;
+};
+
+// The pools as one terminated line, cut to `size`: "pools: effects 3/256
+// peak 40, effect elements 2048/2048 peak 2048 full", so a fault after a
+// failed allocation reads as one; "pools: none made" when every pool reads
+// capacity 0, before boot makes them or after shutdown frees them. Empty
+// without pools. Returns the length.
+inline size_t FormatPools(char* out, size_t size, const PoolCounts* pools, size_t count) {
+	if (!out || !size) return 0;
+	out[0] = '\0';
+	if (!pools || !count) return 0;
+	bool noneMade = true;
+	for (size_t i = 0; i < count; ++i) noneMade = noneMade && pools[i].read && !pools[i].capacity;
+	int written = snprintf(out, size, noneMade ? "pools: none made" : "pools:");
+	if (written < 0) { out[0] = '\0'; return 0; }
+	size_t length = (size_t)written < size ? (size_t)written : size - 1;
+	for (size_t i = 0; !noneMade && i < count; ++i) {
+		const PoolCounts& pool = pools[i];
+		const char* separator = i ? "," : "";
+		written = !pool.read ? snprintf(out + length, size - length, "%s %s unreadable", separator, pool.name) :
+			snprintf(out + length, size - length, "%s %s %u/%u peak %u%s", separator, pool.name, pool.used, pool.capacity,
+				pool.peak, pool.capacity && pool.used >= pool.capacity ? " full" : "");
+		if (written < 0 || (size_t)written >= size - length) break;
+		length += (size_t)written;
+	}
+	if (length + 1 < size) { out[length++] = '\n'; out[length] = '\0'; }
+	else { out[size - 1] = '\0'; length = size - 1; }
+	return length;
+}
+
 // True when the 7 bytes before a return address end in an x86 call: E8
 // rel32, or FF /2 through a register, [register], [register+disp] or
 // [disp32], with or without a SIB byte. A stack word that passes is

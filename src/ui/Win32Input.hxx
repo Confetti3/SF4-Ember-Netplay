@@ -12,7 +12,9 @@ IMGUI_API void ImGui_ImplWin32_SetRenderSize(float width, float height);
 
 namespace sf4e { namespace ui {
 // Decided once per frame after the layers, dropped on focus loss. Ember owns the
-// cursor while its menu or the chip takes the mouse, and during a fight to hide it.
+// cursor while its menu or the chip takes the mouse, and, while focused, to hide it in a fight
+// (HiddenPointer) or after a pad press (PadPointer) until the mouse moves. A watched game
+// shows it instead (ShowFreeCursor).
 void SetOverlayCursorOwnership(bool capture);
 // For a game this PC only watches: Ember owns the cursor and shows it, and
 // the clip the game put on it is released, so it can leave for another monitor.

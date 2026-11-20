@@ -287,6 +287,43 @@ int main() {
         CHECK(alpha(true, 100) == 1 && alpha(true, 103.5) == 1 && alpha(true, 103.75) == .5f && alpha(true, 104) == 0 && alpha(true, 900) == 0);
         CHECK(alpha(false, 901) == 0 && alpha(true, 902) == 1);
     }
+    // A fight hides the pointer when it starts; the mouse moving shows it for the rest of that game, and it is shown whenever no game is on.
+    {
+        sf4e::ui::HiddenPointer pointer;
+        const auto at = [](float x, float y) { return std::optional<sf4e::ui::HiddenPointer::Point>({x, y}); };
+        CHECK(!pointer.Hidden(false, at(100, 100)));
+        CHECK(pointer.Hidden(true, at(100, 100)));
+        CHECK(pointer.Hidden(true, at(103, 104)));
+        CHECK(!pointer.Hidden(true, at(125, 105)));
+        CHECK(!pointer.Hidden(true, at(125, 105)) && !pointer.Hidden(true, at(300, 300)));
+        CHECK(!pointer.Hidden(false, at(300, 300)) && pointer.Hidden(true, at(300, 300)));
+        // The game ends, or the window loses focus: the pointer is shown, and a game on again hides it again.
+        CHECK(!pointer.Hidden(false, at(300, 300)));
+        CHECK(pointer.Hidden(true, at(300, 300)));
+        CHECK(pointer.Hidden(true, std::nullopt));
+        CHECK(!pointer.Hidden(true, at(40, 40)));
+        // A pointer first seen after the game began is where the move is measured from, not a move.
+        sf4e::ui::HiddenPointer late;
+        CHECK(late.Hidden(true, std::nullopt) && late.Hidden(true, at(500, 500)) && late.Hidden(true, at(503, 500)));
+        CHECK(!late.Hidden(true, at(520, 500)));
+    }
+    // A pad press hides the pointer until the mouse really moves; a held or released button and a nudge keep it hidden.
+    {
+        sf4e::ui::PadPointer pointer;
+        const auto at = [](float x, float y) { return std::optional<sf4e::ui::HiddenPointer::Point>({x, y}); };
+        CHECK(!pointer.Hidden(false, at(100, 100)));
+        CHECK(pointer.Hidden(true, at(100, 100)));
+        CHECK(pointer.Hidden(true, at(103, 104)) && pointer.Hidden(false, at(105, 105)));
+        // A move shows it even under a held button; only the next press hides it again, also on the very next frame.
+        CHECK(pointer.Hidden(true, at(105, 105)) && !pointer.Hidden(true, at(125, 105)) && !pointer.Hidden(true, at(125, 105)));
+        CHECK(!pointer.Hidden(false, at(125, 105)) && pointer.Hidden(true, at(125, 105)));
+        CHECK(!pointer.Hidden(false, at(200, 105)) && pointer.Hidden(true, at(200, 105)));
+        // The pointer away keeps it hidden; it comes back elsewhere shown.
+        CHECK(pointer.Hidden(false, std::nullopt));
+        CHECK(!pointer.Hidden(false, at(300, 300)));
+        // A press with the pointer away: where it comes back is the start, a move from there shows it.
+        CHECK(pointer.Hidden(true, std::nullopt) && pointer.Hidden(false, at(1, 1)) && !pointer.Hidden(false, at(30, 1)));
+    }
     CheckHandoff();
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";
 }
