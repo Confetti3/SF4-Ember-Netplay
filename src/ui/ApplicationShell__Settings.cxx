@@ -280,7 +280,11 @@ public:
     static MenuEntry Tv(Shell& s, const ShellView& v) {
         return Value("tv", loc::T("settings.tv_mode"), s.preferences_.tvMode ? loc::T("common.on") : loc::T("common.off"), loc::T("settings.tv_mode_detail"), v.canEditPreferences);
     }
-    static Entries Look(Shell& s, const ShellView& v) { return {Tv(s, v)}; }
+    // TV mode, and Background artwork: the game's own pictures behind the menu.
+    static Entries Look(Shell& s, const ShellView& v) {
+        return {Tv(s, v), OnOffValue(s.preferences_, "menu-artwork", loc::T("settings.menu_artwork"), loc::T("settings.menu_artwork_detail"),
+            v.canEditPreferences)};
+    }
     // A part's theme (PlayerPreferences::gameThemes), from the themes Ember found with that
     // part. A saved theme that is gone shows as the game's own, which is what the game loads.
     static MenuEntry GameTheme(Shell& s, const ShellView& v, netplay::GameThemePart part) {
