@@ -138,7 +138,6 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_brand.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_chat_filter.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_speech_relay.cmake")
 target_link_libraries(sf4e_ui PUBLIC imgui::imgui sf4e_game_lettering sf4e_selection sf4e_room_model sf4e_localization sf4e_settings PRIVATE ZLIB::ZLIB spdlog::spdlog "windowscodecs" "ole32" "d3d9" "winmm")
-target_compile_definitions(sf4e_ui PRIVATE SF4E_BUILD_VERSION="${PROJECT_VERSION}")
 
 add_library(Dimps STATIC
     "src/Dimps/Dimps__Selection.cxx"
@@ -377,7 +376,12 @@ target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room)
 
 add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/platform/ReplayPicker.cxx src/platform/UpdatePolicy.cxx src/platform/ReportWorkflow.cxx src/platform/ReportHistory.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
 target_compile_features(sf4e_app_services PUBLIC cxx_std_17)
-target_compile_definitions(sf4e_app_services PRIVATE SF4E_APP_VERSION="${PROJECT_VERSION}")
+# The version is a define on the four files that read it, never on a whole
+# target: a version bump then recompiles those files, not every file of the
+# targets, and the compiler cache keeps serving the rest.
+set_property(SOURCE src/platform/ApplicationServices.cxx src/platform/ReportWorkflow.cxx
+    src/launcher/update/github_release_client.cxx src/launcher/launcher.cxx
+    APPEND PROPERTY COMPILE_DEFINITIONS "SF4E_APP_VERSION=\"${PROJECT_VERSION}\"")
 target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization sf4e_replay_files sf4e_problem_report PRIVATE sf4e_common sf4e_selection sf4e_package_installer sf4e_durable_file spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt ole32)
 target_link_libraries(sf4e PRIVATE sf4e_app_services)
 add_library(sf4e_recovery STATIC src/ui/RecoverySurface.cxx src/ui/RecoveryController.cxx)
@@ -416,7 +420,7 @@ target_link_libraries(Sidecar PRIVATE ${LIB_DETOURS} Dimps sf4e)
 sf4e_configure_windows_version(Sidecar "SF4 Ember Netplay Sidecar" "Sidecar.dll" "VFT_DLL")
 sf4e_embed_manifest(Sidecar "Sidecar.dll.manifest")
 
-target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE "SF4E_APP_VERSION=\"${PROJECT_VERSION}\"")
+target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE)
 set_target_properties(Launcher PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 sf4e_configure_windows_version(Launcher "SF4 Ember Netplay" "Launcher.exe" "VFT_APP")
 sf4e_embed_manifest(Launcher "Launcher.exe.manifest")
