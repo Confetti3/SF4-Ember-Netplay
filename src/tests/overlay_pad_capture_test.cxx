@@ -129,5 +129,30 @@ int main() {
         std::error_code ignored;
         std::filesystem::remove_all(directory, ignored);
     }
+    {
+        // A value of the wrong type keeps that setting's default; the rest of
+        // the file still loads, so the next save cannot write defaults over it.
+        namespace prefs = sf4e::OverlayPrefs;
+        const auto directory = std::filesystem::temp_directory_path() /
+            (L"sf4e-overlay-damaged-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
+        std::filesystem::create_directories(directory);
+        {
+            std::ofstream file(directory / L"overlay_prefs.json", std::ios::binary);
+            file << R"({"lobbySettings":{"roundCountIdx":3,"roundTimeIdx":"long","editionSelect":1},)"
+                    R"("device":{"idx":"two","type":3,"identity":{"guid":7,"serial":"s","path":null,"name":"Saved pad"}}})";
+        }
+        prefs::UseDirectoryForTest(directory.wstring());
+        prefs::Data loaded;
+        CHECK(prefs::Load(loaded));
+        const prefs::Data defaults;
+        CHECK(loaded.lobbyRoundCountIdx == 3 && loaded.lobbyRoundTimeIdx == defaults.lobbyRoundTimeIdx &&
+            loaded.lobbyEditionSelect == defaults.lobbyEditionSelect);
+        CHECK(loaded.deviceIdx == defaults.deviceIdx && loaded.deviceType == 3);
+        CHECK(loaded.deviceIdentity && loaded.deviceIdentity->guid.empty() && loaded.deviceIdentity->serial == "s" &&
+            loaded.deviceIdentity->path.empty() && loaded.deviceIdentity->name == "Saved pad");
+        prefs::UseDirectoryForTest({});
+        std::error_code ignored;
+        std::filesystem::remove_all(directory, ignored);
+    }
     return 0;
 }

@@ -86,14 +86,16 @@ std::uint32_t MostRecentAccount(const std::string& loginUsersVdf) {
 
 AccountSaves SaveFolders(const std::vector<fs::path>& clients, std::uint32_t registryActive, bool launched) {
 	AccountSaves found;
-	std::error_code ignored;
 	for (const auto& client : clients) {
 		const fs::path userdata = client / L"userdata";
-		for (fs::directory_iterator at(userdata, ignored), end; !ignored && at != end; at.increment(ignored)) {
+		std::error_code listing;
+		for (fs::directory_iterator at(userdata, listing), end; !listing && at != end; at.increment(listing)) {
+			// An account folder that cannot be read is skipped, not the end of
+			// the scan: the accounts after it still count.
+			std::error_code unreadable;
 			const fs::path saves = SavesIn(at->path());
-			if (fs::exists(saves / L"replays-swan.dat", ignored)) found.saves.push_back(saves);
+			if (fs::exists(saves / L"replays-swan.dat", unreadable)) found.saves.push_back(saves);
 		}
-		ignored.clear();
 		if (found.saves.empty()) continue;
 		const auto has = [&](std::uint32_t account) {
 			if (!account) return fs::path();
