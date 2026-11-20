@@ -110,50 +110,31 @@ fn relay_regions_are_stable_codes_and_never_a_url() {
         assert_eq!(RELAYS[index].1, *code);
         assert!(n0.contains(&pinned(index)), "{code}");
     }
-    // Exactly these relays are active; of n0's, only Asia's is.
-    let expected: std::collections::BTreeSet<RelayUrl> = [
-        "https://relay.embernetplay.link./",
-        "https://relay-eu.embernetplay.link./",
-        "https://aps1-1.relay.n0.iroh.link./",
-    ]
-    .iter()
-    .map(|url| url.parse().unwrap())
-    .collect();
-    assert_eq!(
-        relay_map().urls::<Vec<_>>().into_iter().collect::<std::collections::BTreeSet<_>>(),
-        expected
-    );
-    for url in [
-        "https://use1-1.relay.n0.iroh.link./",
-        "https://usw1-1.relay.n0.iroh.link./",
-        "https://euc1-1.relay.n0.iroh.link./",
-    ] {
-        assert!(!expected.contains(&url.parse().unwrap()), "{url}");
+    // Every pinned relay is active again (2026-11-20: the ISP filters that
+    // blocked n0's relays let them through).
+    let active = relay_map().urls::<Vec<_>>();
+    assert_eq!(active.len(), RELAYS.len());
+    for index in 0..RELAYS.len() {
+        assert!(active.contains(&pinned(index)), "{index}");
     }
     for (url, code) in RELAYS {
         assert!(relay::is_region(code), "{code}");
         assert_eq!(relay_region(&url.parse().unwrap()), code);
     }
-    // Every region has exactly one active relay, which maps back to it.
-    let active = relay_map().urls::<Vec<_>>();
-    assert_eq!(active.len(), ACTIVE.len());
+    // Names tell n0's and Ember's relays apart where they share a region
+    // code; each name maps back to exactly one relay.
+    assert_eq!(NAMES, ["n0use1", "usw1", "n0euc1", "aps1", "use1", "euc1"]);
     let mut seen = std::collections::BTreeSet::new();
-    for relay in &active {
-        let code = relay_region(relay);
-        assert!(seen.insert(code), "{code}");
-        assert_eq!(relay_for_region(code).as_ref(), Some(relay));
+    for (index, name) in NAMES.iter().enumerate() {
+        assert!(seen.insert(*name), "{name}");
+        assert_eq!(relay_name(&pinned(index)), *name);
     }
-    // Neither of n0's US relays is active: both are blocked by some US
-    // providers' router filters. Ember's relay, coded use1, covers both
-    // US regions, so no relay of this build reports usw1. Europe is on
-    // Ember's relay as well, in place of n0's.
+    // A region's dial hint is Ember's relay where both have one.
     assert_eq!(relay_for_region("use1"), Some(pinned(4)));
     assert_eq!(relay_for_region("euc1"), Some(pinned(5)));
+    assert_eq!(relay_for_region("usw1"), Some(pinned(1)));
     assert_eq!(relay_for_region("aps1"), Some(pinned(3)));
-    for index in [0, 1, 2] {
-        assert!(!active.contains(&pinned(index)));
-    }
-    for code in ["usw1", "other", "", "USE1", "euc2"] {
+    for code in ["n0use1", "other", "", "USE1", "euc2"] {
         assert!(relay_for_region(code).is_none(), "{code}");
     }
     for other in [
@@ -162,6 +143,7 @@ fn relay_regions_are_stable_codes_and_never_a_url() {
         "https://use1-1.relay.n0.iroh.link./extra",
     ] {
         assert_eq!(relay_region(&other.parse().unwrap()), "other");
+        assert_eq!(relay_name(&other.parse().unwrap()), "other");
     }
 }
 
@@ -170,9 +152,9 @@ fn a_public_route_is_a_class_and_a_region_never_an_address() {
     let ip = |addr: &str| TransportAddr::Ip(addr.parse().unwrap());
     assert_eq!(public_route(Some(&ip("203.0.113.7:45760"))), "direct");
     assert_eq!(public_route(Some(&ip("[2001:db8::1]:57845"))), "direct");
-    for (url, code) in RELAYS {
+    for ((url, _), name) in RELAYS.iter().zip(NAMES) {
         let relay = TransportAddr::Relay(url.parse().unwrap());
-        assert_eq!(public_route(Some(&relay)), format!("relay:{code}"));
+        assert_eq!(public_route(Some(&relay)), format!("relay:{name}"));
     }
     for other in [
         "https://relay.example.com/",

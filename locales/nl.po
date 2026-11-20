@@ -654,6 +654,12 @@ msgstr "Ember Europa"
 msgid "network.relay_aps1"
 msgstr "n0 Azië"
 
+msgid "network.relay_n0use1"
+msgstr "n0 VS-oost"
+
+msgid "network.relay_n0euc1"
+msgstr "n0 Europa"
+
 msgid "network.relay_other"
 msgstr "Ander relais"
 

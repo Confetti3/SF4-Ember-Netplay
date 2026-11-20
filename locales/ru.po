@@ -654,6 +654,12 @@ msgstr "Ember Европа"
 msgid "network.relay_aps1"
 msgstr "n0 Азия"
 
+msgid "network.relay_n0use1"
+msgstr "n0 США (восток)"
+
+msgid "network.relay_n0euc1"
+msgstr "n0 Европа"
+
 msgid "network.relay_other"
 msgstr "Другой ретранслятор"
 

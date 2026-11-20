@@ -654,6 +654,12 @@ msgstr "Ember 欧州"
 msgid "network.relay_aps1"
 msgstr "n0 アジア"
 
+msgid "network.relay_n0use1"
+msgstr "n0 米国東部"
+
+msgid "network.relay_n0euc1"
+msgstr "n0 欧州"
+
 msgid "network.relay_other"
 msgstr "別の中継サーバー"
 

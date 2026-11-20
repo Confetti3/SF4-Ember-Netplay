@@ -36,7 +36,7 @@ inline const char* NatClassLabel(NatClass nat) {
 }
 
 // The local endpoint's network as the helper last reported it. `relay` is a
-// region code ("use1", "usw1", "euc1", "aps1", "other") or empty while no home
+// relay name code (NetworkRoute.hxx Relays, or "other") or empty while no home
 // relay is chosen; `nat` stays Unknown until the first net report.
 struct NetworkSummary {
     bool reported = false;

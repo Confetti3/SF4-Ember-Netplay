@@ -31,8 +31,8 @@ const HEADER: usize = 91;
 /// The same for an sf4e3 record, which adds the coordination route.
 const RECOVERY_HEADER: usize = HEADER + 32 + 8 + 8;
 // Stable wire IDs, independent of relay-map iteration order, each with its
-// relay code (`relay::REGIONS`), which the native side names as a relay
-// (src/common/NetworkRoute.hxx) and a room's creator gives the bridge.
+// region code (`relay::REGIONS`), which a room's creator gives the bridge.
+// The native side names each relay by its `NAMES` code instead.
 // Append only: never reorder, remove or reuse an entry. A peer of another
 // build never reads these invitations (the build check refuses them first),
 // so an appended entry needs no new invite version.
@@ -49,17 +49,27 @@ const RELAYS: [(&str, &str); 6] = [
     ("https://relay-eu.embernetplay.link./", "euc1"),
 ];
 
-/// The RELAYS entries this build's endpoints use, one per region they cover.
-/// Some US internet providers' router filters (Xfinity, Spectrum, Cox) block
-/// n0's US and Asia relays over HTTPS since 2026-11-08, and iroh picks a home
-/// relay by latency alone, so a US player must not be able to land on one:
-/// Ember's relay replaces both n0 US relays. Europe has Ember's relay too, so
-/// a block that spreads to n0's Europe relay cannot cut it off. Asia stays on
-/// n0's.
-const ACTIVE: [usize; 3] = [4, 5, 3];
+/// The name the native side shows for each RELAYS entry, in RELAYS order. Two
+/// relays share a region code where n0 and Ember both have one, so the name
+/// keeps them apart; the region code alone is what leaves the PC.
+const NAMES: [&str; 6] = ["n0use1", "usw1", "n0euc1", "aps1", "use1", "euc1"];
+
+/// The RELAYS entries this build's endpoints use: all of them. From
+/// 2026-11-08 some US internet providers' router filters (Xfinity, Spectrum,
+/// Cox) blocked n0's relays over HTTPS, and 1.5.5 to 1.6.1 left n0's US and
+/// Europe relays out; on 2026-11-20 those providers' home lines reached all
+/// of n0's relays again. iroh picks a home relay by latency alone, so a
+/// player lands on whichever answers first.
+const ACTIVE: [usize; 6] = [0, 1, 2, 3, 4, 5];
 
 fn pinned(index: usize) -> RelayUrl {
     RELAYS[index].0.parse().expect("pinned relay URL")
+}
+
+fn pinned_index(relay: &RelayUrl) -> Option<usize> {
+    RELAYS
+        .iter()
+        .position(|(url, _)| url.parse::<RelayUrl>().is_ok_and(|pinned| pinned == *relay))
 }
 
 /// The relays every endpoint of this build uses, in place of iroh's default
@@ -71,32 +81,38 @@ pub fn relay_map() -> iroh::RelayMap {
         .collect()
 }
 
-/// The region code of a pinned relay, or "other" for any other URL. The
-/// native side shows these instead of a relay address.
+/// The region code of a pinned relay, or "other" for any other URL: what a
+/// room's creator gives the bridge (`ember_protocol::relay::REGIONS`).
 pub fn relay_region(relay: &RelayUrl) -> &'static str {
-    RELAYS
-        .iter()
-        .find(|(url, _)| url.parse::<RelayUrl>().is_ok_and(|pinned| pinned == *relay))
-        .map_or("other", |(_, code)| code)
+    pinned_index(relay).map_or("other", |index| RELAYS[index].1)
 }
 
-/// The relay this build uses for a region code: `relay_region`'s inverse
-/// over `relay_map`. None for "other" or any code no active relay covers.
+/// The name code of a pinned relay (`NAMES`), or "other" for any other URL.
+/// The native side shows these instead of a relay address
+/// (src/common/NetworkRoute.hxx); they stay inside the PC.
+pub fn relay_name(relay: &RelayUrl) -> &'static str {
+    pinned_index(relay).map_or("other", |index| NAMES[index])
+}
+
+/// A relay this build uses for a region code, Ember's first where n0 and
+/// Ember share the code. Only a dial hint: `ActiveRelays` also names every
+/// active relay. None for "other" or any code no active relay covers.
 pub fn relay_for_region(code: &str) -> Option<RelayUrl> {
     ACTIVE
         .iter()
+        .rev()
         .find(|&&index| RELAYS[index].1 == code)
         .map(|&index| pinned(index))
 }
 
 /// The route a selected path reports outside the helper: `direct` for an IP
-/// path, `relay:<region>` for a relay path (the code of `relay_region`), and
+/// path, `relay:<name>` for a relay path (the code of `relay_name`), and
 /// `unavailable` when no path is selected. It never carries an address, a port
 /// or a relay URL, so no event, log or export built from it can either.
 pub fn public_route(remote: Option<&TransportAddr>) -> String {
     match remote {
         Some(TransportAddr::Ip(_)) => "direct".into(),
-        Some(TransportAddr::Relay(relay)) => format!("relay:{}", relay_region(relay)),
+        Some(TransportAddr::Relay(relay)) => format!("relay:{}", relay_name(relay)),
         _ => "unavailable".into(),
     }
 }
