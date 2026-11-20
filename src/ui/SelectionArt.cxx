@@ -463,6 +463,9 @@ void SelectionArt::Pump() {
         const auto found = state.entries.find(pixels.key);
         if (found == state.entries.end()) continue;
         auto& entry = found->second;
+        // Released and asked for again while the first decode was on its way:
+        // the picture is here already, and its texture is counted once.
+        if (entry.state == Impl::State::Ready) continue;
         if (pixels.outcome != Outcome::Decoded) { state.Failed(entry, pixels.key, pixels.outcome, pixels.failure); continue; }
         if (entry.policy.exactWidth && (pixels.width != entry.policy.exactWidth || pixels.height != entry.policy.exactHeight)) {
             state.Failed(entry, pixels.key, Outcome::Failed, std::to_string(pixels.width) + "x" + std::to_string(pixels.height) + ", not " +

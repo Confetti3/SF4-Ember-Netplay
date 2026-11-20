@@ -155,8 +155,8 @@ void PumpLoad() {
             break;
         case mailbox::Answer::Unavailable:
             s_health.Unavailable();
+            GiveUpFrames("the launcher has no decoder for the movies");
             Finish(false, "the launcher cannot decode the movies here");
-            GiveUpFrames("no decoder for the movies");
             return;
         case mailbox::Answer::Failed:
             Finish(false, "the launcher could not decode it");
@@ -192,8 +192,8 @@ void StartLoad() {
     // Not in the cache yet: Ember's launcher decodes it.
     if (!s_mailbox.Opened() && !s_mailbox.Open(mailbox::MailboxName(GetCurrentProcessId()))) {
         s_health.Unavailable();
-        Finish(false, "no launcher to decode it");
         GiveUpFrames("the game was not started by this version of Ember's launcher");
+        Finish(false, "no launcher to decode it");
         return;
     }
     const auto& f = frames::Curated()[static_cast<std::size_t>(frame)];
