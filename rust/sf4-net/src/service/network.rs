@@ -30,7 +30,7 @@ impl NetFacts {
 /// The wire form of the summary; see `Event::NetworkReport`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct NetworkSummary {
-    /// A region code from `invite::relay_region`, or "" without a home relay.
+    /// A name code from `invite::relay_name`, or "" without a home relay.
     pub relay: &'static str,
     pub relay_connected: bool,
     pub udp: bool,
@@ -75,20 +75,15 @@ pub(super) fn summarize(relay: Option<(&'static str, bool)>, facts: Option<NetFa
     }
 }
 
-/// The region and connection of the home relay. A connected relay wins when
+/// The home relay and whether it is connected. A connected relay wins when
 /// several are listed.
-fn home_relay(endpoint: &Endpoint) -> Option<(&'static str, bool)> {
+fn home_relay(endpoint: &Endpoint) -> Option<(iroh::RelayUrl, bool)> {
     let statuses = endpoint.home_relay_status().get();
     statuses
         .iter()
         .find(|status| status.is_connected())
         .or(statuses.first())
-        .map(|status| {
-            (
-                crate::invite::relay_region(status.url()),
-                status.is_connected(),
-            )
-        })
+        .map(|status| (status.url().clone(), status.is_connected()))
 }
 
 pub(super) fn home_relay_connected(endpoint: &Endpoint) -> bool {
@@ -99,13 +94,15 @@ pub(super) fn home_relay_connected(endpoint: &Endpoint) -> bool {
 /// room's creator gives the bridge as the room's region.
 pub(super) fn known_home_region(endpoint: &Endpoint) -> Option<&'static str> {
     home_relay(endpoint)
-        .map(|(region, _)| region)
+        .map(|(relay, _)| crate::invite::relay_region(&relay))
         .filter(|region| ember_protocol::relay::is_region(region))
 }
 
 pub(super) fn network_summary(endpoint: &Endpoint) -> NetworkSummary {
     let facts = endpoint.net_report().get().as_ref().map(NetFacts::of);
-    summarize(home_relay(endpoint), facts)
+    let relay = home_relay(endpoint)
+        .map(|(relay, connected)| (crate::invite::relay_name(&relay), connected));
+    summarize(relay, facts)
 }
 
 impl From<NetworkSummary> for Event {

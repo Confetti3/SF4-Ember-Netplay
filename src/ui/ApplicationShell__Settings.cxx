@@ -31,7 +31,6 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
-#include <cstdio>
 #include <ctime>
 
 namespace sf4e { namespace ui {
@@ -238,7 +237,7 @@ public:
         if (change.refusal) { s.Refuse(loc::T(change.refusal)); return; }
         if (!change.changed) return;
         if (!s.preferences_.Valid()) { s.preferences_ = prior; s.error_ = loc::T("error.invalid_value"); return; }
-        s.preferencesDirty_ = true; s.saveAt_ = ImGui::GetTime() + .45; s.error_.clear();
+        s.preferencesDirty_ = true; s.saveAt_ = s.clock_.Now() + .45; s.error_.clear();
     }
     static Entries MainCharacters(Shell&, const ShellView& v) {
         Entries rows;
@@ -280,7 +279,11 @@ public:
     static MenuEntry Tv(Shell& s, const ShellView& v) {
         return Value("tv", loc::T("settings.tv_mode"), s.preferences_.tvMode ? loc::T("common.on") : loc::T("common.off"), loc::T("settings.tv_mode_detail"), v.canEditPreferences);
     }
-    static Entries Look(Shell& s, const ShellView& v) { return {Tv(s, v)}; }
+    // TV mode, and Background artwork: the game's own pictures behind the menu.
+    static Entries Look(Shell& s, const ShellView& v) {
+        return {Tv(s, v), OnOffValue(s.preferences_, "menu-artwork", loc::T("settings.menu_artwork"), loc::T("settings.menu_artwork_detail"),
+            v.canEditPreferences)};
+    }
     // A part's theme (PlayerPreferences::gameThemes), from the themes Ember found with that
     // part. A saved theme that is gone shows as the game's own, which is what the game loads.
     static MenuEntry GameTheme(Shell& s, const ShellView& v, netplay::GameThemePart part) {
@@ -337,9 +340,7 @@ public:
         return {OnOffValue(s.preferences_, "class-emblems", loc::T("settings.class_emblems"), loc::T("settings.class_emblems_detail"), v.canEditPreferences)};
     }
     static Entries Text(Shell& s, const ShellView& v) {
-        char size[32];
-        std::snprintf(size, sizeof(size), "%.2fx", s.preferences_.interfaceScale);
-        return {Value("scale", loc::T("settings.interface_size"), size, std::string(loc::T("settings.interface_size_detail")) + "\n" + Reason(v), v.canEditPreferences), Tv(s, v), s.LanguageRow()};
+        return {Value("scale", loc::T("settings.interface_size"), InterfaceSizeText(s.preferences_.interfaceScale), std::string(loc::T("settings.interface_size_detail")) + "\n" + Reason(v), v.canEditPreferences), Tv(s, v), s.LanguageRow()};
     }
     // The room board's layout, which its grips also drag (RoomGrips). Its parts:
     // hiding one gives its place to the other, or both to the tables. With the
@@ -454,7 +455,7 @@ public:
         if (!v.canEditPreferences) return;
         ImGui::Dummy(ImVec2(0, 8 * Scale()));
         const int picked = v2::SpotMap("##hud-spot", {{.5f, .88f}, {.16f, .88f}, {.84f, .88f}, {.16f, .12f}, {.84f, .12f}, {.5f, .12f}}, p.matchHudAnchor, {.26f, .1f});
-        if (picked >= 0 && picked != p.matchHudAnchor) { p.matchHudAnchor = picked; s.preferencesDirty_ = true; s.saveAt_ = ImGui::GetTime() + .45; }
+        if (picked >= 0 && picked != p.matchHudAnchor) { p.matchHudAnchor = picked; s.preferencesDirty_ = true; s.saveAt_ = s.clock_.Now() + .45; }
     }
     // Where the watched game's picture sits and how big, on a small screen. The
     // corners in pictureSpot's order: top right, top left, bottom right, bottom left.
@@ -463,7 +464,7 @@ public:
         const float share = WatchedPictureShareFor(p.pictureSpot), c = share * .5f + .03f;
         const int corner = p.pictureSpot % 4;
         const int picked = v2::SpotMap("##picture-spot", {{1 - c, c}, {c, c}, {1 - c, 1 - c}, {c, 1 - c}}, corner, {share, share});
-        if (picked >= 0 && picked != corner && v.CanEditRoomSettings()) { p.pictureSpot = p.pictureSpot / 4 * 4 + picked; s.preferencesDirty_ = true; s.saveAt_ = ImGui::GetTime() + .45; }
+        if (picked >= 0 && picked != corner && v.CanEditRoomSettings()) { p.pictureSpot = p.pictureSpot / 4 * 4 + picked; s.preferencesDirty_ = true; s.saveAt_ = s.clock_.Now() + .45; }
     }
     // The room board as the layout arranges it, with the grips that drag it
     // while its rows are open.

@@ -329,7 +329,7 @@ struct ApplicationShell::RoomScreenRows {
 std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  using namespace room;
  auto& nav=menu_.navigation; const auto& s=v.room;
- if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;chat_[0]=0;selectedTable_=0;rulesDirty_=false;tableAsk_={};
+ if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;chat_[0]=0;selectedTable_=0;rulesDirty_=false;tableAsk_={};offerSent_={};
   std::snprintf(roomName_,sizeof(roomName_),"%s",s.name.c_str());roomCapacity_=s.capacity;roomTableCount_=static_cast<int>(TablesInPlay(s));
   if(const auto* local=Member(s,s.localMember))if(local->table>=0&&local->table<static_cast<int>(s.tables.size()))selectedTable_=local->table;
  }
@@ -453,16 +453,18 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  }
  // A tournament room admits only its two fighters, who reach it through the
  // tournament service, so there is no invitation to hand out. A public room
- // admits by the service's ticket, so its invitation would admit nobody.
- // The tournament's own room is never shared, from its first claim: the window
- // before its binding lands has no tournament snapshot yet.
- if(room_invite::Invitable(v)){
-  // One button: the friends to invite now, and the two ways to hand a link out (room_invite::ChoicesOf).
+ // admits by the service's ticket, so its invitation would admit nobody: its
+ // Invite holds its friends, who are invited by the room's id, and its page
+ // link. The tournament's own room is never shared, from its first claim: the
+ // window before its binding lands has no tournament snapshot yet.
+ if(room_invite::OnBar(v)){
+  // One button: the friends to invite now, and the ways to hand a link out (room_invite::ChoicesOf).
   MenuEntry invite=Row("invite",loc::T("friends.invite"),loc::T("room.invite.detail"));invite.popout=true;
-  invite.choices=room_invite::ChoicesOf(v,friends_.Gates(v));
+  invite.choices=room_invite::ChoicesOf(v,friends_.Gates(v),s.serverOwned?publicRooms_.RoomLink():std::string());
   invite.chosen=room_invite::FirstEnabled(invite.choices);
   invite.enabled=std::any_of(invite.choices.begin(),invite.choices.end(),[](const MenuChoice& choice){return choice.enabled;});
-  rows.push_back(std::move(invite));
+  // A public room with no friends list and no link yet has nothing to hand out.
+  if(!invite.choices.empty())rows.push_back(std::move(invite));
  }
  // More… (a popout): a public room's link, the controllers and the room's
  // settings, then the board's parts as switches, which Select flips and More…
@@ -726,7 +728,7 @@ void ApplicationShell::RoomChatRows(std::vector<MenuEntry>& rows,const RoomScree
   // Done sends (RoomAction).
   const bool draft=HasChatText(chat_);
   rows.push_back(Row("compose",loc::T("room.compose_message"),loc::T("chat.detail"),
-   ChatTypable(v)&&(!draft||(!queuedChat_&&!(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_)))));
+   ChatTypable(v)&&(!draft||(!queuedChat_&&!(ChatInFlight(clock_.Now())&&pendingChat_->text==chat_)))));
   rows.back().value=chat_;
   if(draft)rows.back().hint=loc::T("chat.send");else{rows.back().text=true;rows.back().textLimit=room::MaximumChatBytes;}
 }
@@ -825,7 +827,7 @@ bool ApplicationShell::LeaveWatchedGame(const ShellView& v,const Submit& submit)
  if(!submit(commands::LeaveWatchedGame{v.session.generation,v.watchedGame})){error_=loc::T("error.queue_failed");return false;}
  // Stop watching of the table, not only the rest of a finished stream or a
  // queued member's game, is the member's watching intent.
- if(leave==netplay::WatchedLeave::Unwatch)follow_.StoppedWatching(v.room,v.watchedGame.table,static_cast<std::uint64_t>(ImGui::GetTime()*1000));
+ if(leave==netplay::WatchedLeave::Unwatch)follow_.StoppedWatching(v.room,v.watchedGame.table,static_cast<std::uint64_t>(clock_.Now()*1000));
  error_.clear();
  return true;
 }
@@ -856,6 +858,6 @@ void ApplicationShell::TrackLockIn(const ShellView& v,double now) {
  lockedInTable_=lockedAt;lockInEpoch_=v.room.roomEpoch;lockInDropsSeen_=v.lockInDrops;
 }
 bool ApplicationShell::GameIsStale(std::size_t table) const {
- return table<liveGames_.size()&&liveGames_[table].since>=0&&ImGui::GetTime()-liveGames_[table].since>=room::StaleGameSeconds;
+ return table<liveGames_.size()&&liveGames_[table].since>=0&&clock_.Now()-liveGames_[table].since>=room::StaleGameSeconds;
 }
 } }

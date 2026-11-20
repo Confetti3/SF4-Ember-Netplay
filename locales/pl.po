@@ -654,6 +654,12 @@ msgstr "Ember Europa"
 msgid "network.relay_aps1"
 msgstr "n0 Azja"
 
+msgid "network.relay_n0use1"
+msgstr "n0 USA (wschód)"
+
+msgid "network.relay_n0euc1"
+msgstr "n0 Europa"
+
 msgid "network.relay_other"
 msgstr "Inny serwer"
 
@@ -8511,6 +8517,12 @@ msgstr "Tryb TV"
 
 msgid "settings.tv_mode_detail"
 msgstr "Do telewizora po drugiej stronie pokoju: wszystko o jedną czwartą większe, w bezpiecznym marginesie 5%."
+
+msgid "settings.menu_artwork"
+msgstr "Grafiki w tle"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Pokazuje własne grafiki gry za menu Ember, nową mniej więcej co pół minuty. Wyłączenie zostawia własne tło Ember."
 
 msgid "settings.group.game_themes"
 msgstr "Motywy w grze"

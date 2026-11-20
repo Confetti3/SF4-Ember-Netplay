@@ -198,11 +198,6 @@ public:
         return found == items_.end() ? nullptr : &*found;
     }
 
-    // The interface's clock was set back (a device reset): every time it holds is moved with it.
-    template <class Moved> void Rebase(Moved moved) {
-        for (auto& item : items_) { item.at = moved(item.at); item.until = moved(item.until); }
-    }
-
 private:
     static bool Newer(const Item* a, const Item* b) { return a->at != b->at ? a->at > b->at : a->id > b->id; }
     static bool Owed(const Item& item) { return item.again && !item.retold && item.state == State::Waiting; }

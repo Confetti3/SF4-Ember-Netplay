@@ -654,6 +654,12 @@ msgstr "Ember Европа"
 msgid "network.relay_aps1"
 msgstr "n0 Азия"
 
+msgid "network.relay_n0use1"
+msgstr "n0 США (восток)"
+
+msgid "network.relay_n0euc1"
+msgstr "n0 Европа"
+
 msgid "network.relay_other"
 msgstr "Другой ретранслятор"
 
@@ -8511,6 +8517,12 @@ msgstr "Режим ТВ"
 
 msgid "settings.tv_mode_detail"
 msgstr "Для телевизора в другом конце комнаты: всё на четверть крупнее, внутри безопасной зоны 5% по краям."
+
+msgid "settings.menu_artwork"
+msgstr "Иллюстрации на фоне"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Показывает иллюстрации самой игры за меню Ember, новую примерно каждые полминуты. Если выключено, остаётся собственный фон Ember."
 
 msgid "settings.group.game_themes"
 msgstr "Темы игры"

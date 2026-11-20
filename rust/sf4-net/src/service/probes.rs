@@ -878,7 +878,7 @@ pub(super) async fn serve_probe(
 }
 
 /// The connection's selected route as an event may carry it: `direct`,
-/// `relay:<region>` or `unavailable`, never an address.
+/// `relay:<name>` or `unavailable`, never an address.
 pub(super) fn selected_probe_route(connection: &Connection) -> String {
     crate::probe::route(connection)
 }

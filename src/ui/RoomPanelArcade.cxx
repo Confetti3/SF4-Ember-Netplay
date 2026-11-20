@@ -105,8 +105,9 @@ SelectionImage GlassPicture(const v2::Box& glass,const FighterPicture& picture,f
 // `image` on the cabinet's glass, as big as the glass holds, standing on its
 // foot, in front of the screen's own colour (a pair's, so each pair's screens
 // read apart), then the player's Ultra, the scanlines over both and a shade at
-// its foot for the screen's words.
-void DrawCabinetFighter(ImDrawList* d,const v2::Box& glass,const SelectionImage& image,ImU32 tone,int ultra,float s) {
+// its foot for the screen's words (`words`: a screen that says nothing keeps
+// the fighter's feet in the light).
+void DrawCabinetFighter(ImDrawList* d,const v2::Box& glass,const SelectionImage& image,ImU32 tone,int ultra,float s,bool words=true) {
     const v2::Box g=v2::Inset(glass,1.5f*s,1.5f*s);
     d->AddRectFilledMultiColor(g.min,g.max,v2::color::Alpha(tone,.55f),v2::color::Alpha(tone,.55f),v2::color::Alpha(tone,.2f),v2::color::Alpha(tone,.2f));
     const float factor=(std::min)(g.W()/image.width,g.H()/image.height),w=image.width*factor,h=image.height*factor;
@@ -117,7 +118,22 @@ void DrawCabinetFighter(ImDrawList* d,const v2::Box& glass,const SelectionImage&
     if(g.H()>ScanlinedGlass*s)GlassScanlines(d,v2::Box{ImVec2(g.min.x,g.min.y+.5f*s),g.max},.22f,s);
     const auto& c=v2::Colors();
     const float shade=g.min.y+g.H()*.45f;
-    d->AddRectFilledMultiColor(ImVec2(g.min.x,shade),g.max,v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,.85f),v2::color::Alpha(c.ink,.85f));
+    if(words)d->AddRectFilledMultiColor(ImVec2(g.min.x,shade),g.max,v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,.85f),v2::color::Alpha(c.ink,.85f));
+}
+// A screen: its `bezel` and in it the glass `g`, glowing from the top in
+// `glow`, with scanlines over it where it is tall enough for them to read as
+// such; on bare glass the player's Ultra (`ultra`, DrawScreenUltra) under them.
+void DrawGlass(ImDrawList* d,const v2::Box& bezel,const v2::Box& g,ImU32 glow,float glowStrength,int ultra,float s) {
+    const auto& c=v2::Colors();
+    d->AddRectFilled(bezel.min,bezel.max,c.ink,3*s);
+    d->AddRectFilled(g.min,g.max,Mix(c.ink,glow,.05f*glowStrength),4*s);
+    const v2::Box shine=v2::Inset(g,1.5f*s,1.5f*s);
+    d->AddRectFilledMultiColor(shine.min,shine.max,v2::color::Alpha(glow,.2f*glowStrength),v2::color::Alpha(glow,.2f*glowStrength),
+                               v2::color::Alpha(glow,.04f*glowStrength),v2::color::Alpha(glow,.04f*glowStrength));
+    DrawScreenUltra(d,g,ultra,s);
+    if(g.H()>ScanlinedGlass*s)GlassScanlines(d,v2::Inset(g,2*s,2*s),.35f,s);
+    d->AddRect(g.min,g.max,v2::color::Alpha(glow,.18f*glowStrength+.08f),4*s,0,s);
+    d->AddLine(ImVec2(g.min.x+4*s,g.min.y+2*s),ImVec2(g.min.x+g.W()*.4f,g.min.y+2*s),v2::color::Alpha(c.text,.12f),s);
 }
 // The cabinet's shell and its fixed parts: body, marquee ground, bezel and
 // glass glowing in `glow`, control panel with its stick and six buttons, coin
@@ -147,16 +163,7 @@ void DrawCabinet(ImDrawList* d,v2::Box b,const Cabinet& k,float s,ImU32 marqueeG
     }
     // The bezel and the glass: a glow from the top in the screen's tone, and
     // scanlines over it where the screen is tall enough for them to read as such.
-    d->AddRectFilled(k.bezel.min,k.bezel.max,c.ink,3*s);
-    const v2::Box& g=k.screen;
-    d->AddRectFilled(g.min,g.max,Mix(c.ink,glow,.05f*glowStrength),4*s);
-    const v2::Box shine=v2::Inset(g,1.5f*s,1.5f*s);
-    d->AddRectFilledMultiColor(shine.min,shine.max,v2::color::Alpha(glow,.2f*glowStrength),v2::color::Alpha(glow,.2f*glowStrength),
-                               v2::color::Alpha(glow,.04f*glowStrength),v2::color::Alpha(glow,.04f*glowStrength));
-    DrawScreenUltra(d,g,ultra,s);
-    if(g.H()>ScanlinedGlass*s)GlassScanlines(d,v2::Inset(g,2*s,2*s),.35f,s);
-    d->AddRect(g.min,g.max,v2::color::Alpha(glow,.18f*glowStrength+.08f),4*s,0,s);
-    d->AddLine(ImVec2(g.min.x+4*s,g.min.y+2*s),ImVec2(g.min.x+g.W()*.4f,g.min.y+2*s),v2::color::Alpha(c.text,.12f),s);
+    DrawGlass(d,k.bezel,k.screen,glow,glowStrength,ultra,s);
     // The name plate's ground; the board puts the player's tag on it.
     d->AddRectFilled(k.plate.min,k.plate.max,c.frame,2*s);
     // The control panel: its sloped top widening toward the player, the face under it.
@@ -208,6 +215,17 @@ void DrawCabinet(ImDrawList* d,v2::Box b,const Cabinet& k,float s,ImU32 marqueeG
         ImVec2(ir,b.max.y)};
     d->AddPolyline(outline,static_cast<int>(sizeof outline/sizeof*outline),edge,0,(std::max)(1.f,1.5f*s));
 }
+}
+
+v2::Box DrawSeatScreen(ImDrawList* d,const v2::Box& b,const FighterPicture& picture,ImU32 tone,int ultra,float s) {
+    // The bezel a cabinet's screen has round its glass (LayOutCabinet).
+    const float edge=(std::max)(2*s,b.W()*.035f);
+    const v2::Box glass=v2::Inset(b,edge,edge);
+    const SelectionImage image=GlassPicture(glass,picture,s);
+    const bool pictured=image.texture?true:false;
+    DrawGlass(d,b,glass,tone,1.f,pictured?-1:ultra,s);
+    if(pictured)DrawCabinetFighter(d,glass,image,tone,ultra,s,false);
+    return glass;
 }
 
 float ApplicationShell::ArcadeBoardHeight(const ShellView& v,const std::vector<MenuEntry>& rows,float width) {
@@ -322,7 +340,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const int a=room::CabinetOf(v.room,t.p1),b=room::CabinetOf(v.room,t.p2);
   if(!t.p1||!t.p2||a<0||b<0)continue;
   const float y=aisle+(t.id-3.5f)*3*s;
-  const auto stub=[&](int cabinet){const ImVec2 p=at(cabinet);return ImVec2(p.x+w*.5f,cabinet<8?p.y+unit:p.y);};
+  const auto stub=[&](int cabinet){const ImVec2 p=at(cabinet);return ImVec2(p.x+w*.5f,cabinet<8?p.y+h:p.y);};
   const ImVec2 points[]={stub(a),ImVec2(stub(a).x,y),ImVec2(stub(b).x,y),stub(b)};
   d->AddPolyline(points,4,PairColor(t.id),0,2*s);
  }

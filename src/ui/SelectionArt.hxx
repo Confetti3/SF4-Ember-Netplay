@@ -79,6 +79,19 @@ public:
     PointDigitSheet PointDigits();
     GameLetterSheet GameLetters();
     SelectionImage MenuBackdrop();
+    // The menu backdrop's pictures (sf4e__MenuBackdrop.hxx), at most
+    // BackdropSide wide: the game's own painted still (`all_bg` in
+    // player_data.emz), and a movie frame Ember's launcher decoded into
+    // `file` (MovieFrameMailbox.hxx), kept under `key`. Each is kept until
+    // ReleaseBackdrop, never let go for the art's memory budget, so the
+    // backdrop alone decides how many are alive (two at most).
+    static constexpr int BackdropSide = 1280;
+    static constexpr const char* BackdropStillKey = "backdrop/still";
+    SelectionImage BackdropStill();
+    SelectionImage BackdropFrame(const std::string& key, const std::wstring& file);
+    // Lets the picture kept under `key` go now, its texture included; one
+    // still decoding is dropped when it arrives.
+    void ReleaseBackdrop(const std::string& key);
     SelectionImage InputPrompt(const std::string& name);
     // A country's flag: its cell of the flag atlas (assets/flags/flags.png),
     // which is decoded at its own size and never resized. Empty for none;

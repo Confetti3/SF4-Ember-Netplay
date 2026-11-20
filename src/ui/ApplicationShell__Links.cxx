@@ -9,14 +9,14 @@ void ApplicationShell::CopyShortInvitation(const ShellView& v,const Submit& subm
  error_.clear();
  if(!v.shortInvitation.empty()){
   ImGui::SetClipboardText(v.shortInvitation.c_str());
-  ShowNotice(loc::T("room.short_invitation_copied"),Tone::Success,ImGui::GetTime()+3);shortCopyPending_=false;
+  ShowNotice(loc::T("room.short_invitation_copied"),Tone::Success,clock_.Now()+3);shortCopyPending_=false;
   return;
  }
  shortFailuresSeen_=v.shortInvitationFailures;
- shortCopyPending_=true;shortCopyUntil_=ImGui::GetTime()+12;
+ shortCopyPending_=true;shortCopyUntil_=clock_.Now()+12;
  // A request that cannot be queued falls back at once, in UpdateShortCopy.
  if(!submit(commands::ShortInvitation{v.session.generation}))shortCopyUntil_=0;
- ShowNotice(loc::T("room.short_invitation_pending"),Tone::Pending,ImGui::GetTime()+12);
+ ShowNotice(loc::T("room.short_invitation_pending"),Tone::Pending,clock_.Now()+12);
 }
 // The short link answers within a few seconds. Without one, the full
 // invitation goes to the clipboard so the press still shares the room.

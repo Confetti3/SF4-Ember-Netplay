@@ -178,6 +178,10 @@ struct PlayerPreferences {
     bool classEmblems = true;
     // TV mode (Settings > Interface): a quarter larger, inside a 5% safe area.
     bool tvMode = false;
+    // Background artwork (Settings > Interface > Look): the game's own
+    // pictures behind Ember's full-window menus (sf4e__MenuBackdrop.hxx).
+    // Off keeps Ember's own background.
+    bool menuArtwork = true;
     // The first-run welcome (speech, language, controller) was shown or
     // skipped. A profile saved before it existed counts as welcomed; a fresh
     // install is set false when the runtime loads it (StartHelper).

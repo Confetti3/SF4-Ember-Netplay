@@ -15,17 +15,19 @@ inline RouteKind ClassifyRoute(const std::string& route) {
     return RouteKind::Unknown;
 }
 
-// The helper's codes for the relays it pins (rust/sf4-net src/invite.rs,
-// RELAYS), each with the catalog key of the relay's name. This build's
-// endpoints use Ember's relay in Kansas for "use1", Ember's for Europe for
-// "euc1" and n0's for Asia for "aps1"; "usw1" is n0's US West relay, which
-// builds from before Ember's own relays used.
+// The helper's names for the relays it pins (rust/sf4-net src/invite.rs,
+// RELAYS' name field), each with the catalog key of the relay's name: Ember's relay in
+// Kansas is "use1" and Ember's for Europe "euc1"; n0's are "n0use1" (US
+// East), "usw1" (US West), "n0euc1" (Europe) and "aps1" (Asia). This build
+// uses all six.
 struct RelayRow { const char* code; const char* key; };
 constexpr RelayRow Relays[] = {
     {"use1", "network.relay_use1"},
     {"usw1", "network.relay_usw1"},
     {"euc1", "network.relay_euc1"},
     {"aps1", "network.relay_aps1"},
+    {"n0use1", "network.relay_n0use1"},
+    {"n0euc1", "network.relay_n0euc1"},
 };
 
 // The catalog key of a relay's name: a pinned relay's, "network.relay_other"
@@ -35,23 +37,31 @@ inline const char* RelayNameKey(const std::string& code) {
     return code == "other" ? "network.relay_other" : nullptr;
 }
 
-// Whether `code` is one of the pinned relays' codes ("other" is not).
-inline bool IsRelayRegionCode(const std::string& code) {
+// Whether `code` is one of the pinned relays' names ("other" is not).
+inline bool IsRelayName(const std::string& code) {
     return RelayNameKey(code) != nullptr && code != "other";
 }
 
-// Only a known code or "other" may reach the interface and logs: a relay
-// address, or any text a helper sent that is not a code, reads as "other".
+// Whether `code` is a region code a room member's latency route may carry
+// (ember_protocol::relay::REGIONS): n0 and Ember share use1 and euc1, so a
+// relay's name is not a region ("n0use1" is not one).
+inline bool IsRelayRegionCode(const std::string& code) {
+    return code == "use1" || code == "usw1" || code == "euc1" || code == "aps1";
+}
+
+// Only a known relay name or "other" may reach the interface and logs: a
+// relay address, or any text a helper sent that is not a name, reads as
+// "other".
 inline std::string NormalizeRelayRegion(const std::string& code) {
-    return code.empty() ? std::string() : IsRelayRegionCode(code) ? code : std::string("other");
+    return code.empty() ? std::string() : IsRelayName(code) ? code : std::string("other");
 }
 
 // "relay:use1" reads as "use1". Any other text after "relay:", including "other",
-// reads as "other"; a route that is not a relay has no region and reads as empty.
+// reads as "other"; a route that is not a relay has no relay and reads as empty.
 inline std::string RelayRegion(const std::string& route) {
     if (ClassifyRoute(route) != RouteKind::Relayed) return {};
     const auto code = route.substr(std::string("relay:").size());
-    return IsRelayRegionCode(code) ? code : std::string("other");
+    return IsRelayName(code) ? code : std::string("other");
 }
 
 // Untranslated names for logs and diagnostics exports.

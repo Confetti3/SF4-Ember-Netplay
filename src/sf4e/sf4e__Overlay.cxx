@@ -8,6 +8,8 @@
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__Pad.hxx"
+#include "sf4e__MenuBackdrop.hxx"
+#include "../common/MenuBackdropRules.hxx"
 #include "sf4e.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
 #include "../ui/ApplicationShell.hxx"
@@ -233,6 +235,8 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 		moduleFile.substr(0, moduleFile.find_last_of(L"\\/")) + L"/assets/selection",
 		[](const std::string& line) { spdlog::warn("{}", line); }));
     sf4e::ui::SetMenuArt(s_selectionArt.get());
+    // The game's own pictures behind the menu (sf4e__MenuBackdrop.hxx), loaded through the art above.
+    sf4e::menu_backdrop::Install();
     shell.SetChatLog([](const std::string& line) { spdlog::info("{}", line); });
 	fMainMenu::OnModeSelectedOverride = OnMainMenuModeSelected;
 
@@ -664,6 +668,17 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, lobby);
     }
     sf4e::overlay::FollowRandomFighter(snapshot, s_prefs, lobbyConditions, lobbyMenuCharaID, pickEditionSelect);
+    // The game's own pictures behind the menu's pages (sf4e__MenuBackdrop.hxx): only
+    // with the menu over the game's main menu and nothing played, watched or replayed.
+    {
+        sf4e::backdrop::Surface surface;
+        surface.shellShown = presentation.Visible();
+        surface.mainMenu = snapshot.menuContext == sf4e::input::MenuContext::MainMenu;
+        surface.fighting = sf4e::netplay::Fighting(snapshot.session.match) || frame->ggpoSessionActive;
+        surface.watching = snapshot.watchedGame.Active();
+        surface.replaying = snapshot.replays.playback.playback || exporting;
+        sf4e::menu_backdrop::Frame(surface, snapshot.preferences.menuArtwork, shell.Navigation().Screen(), s_selectionArt.get());
+    }
     if (presentation.Visible()) DrawApplicationHome(snapshot, status);
     else ConcealApplicationHome(snapshot);
     if (!presentation.Visible() && assigning) {
@@ -807,33 +822,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     layers.padHint = snapshot.padHint;
     if (snapshot.replays.captionShown)
         layers.caption = sf4e::ui::ExportCaptionViewOf(snapshot.replays.caption, snapshot.preferences.matchHudNameOffset);
-    {
-        // The strip shows for a while after each control, and the chip
-        // after one pressed outside the fight; both timed from the counts.
-        static std::uint32_t takenSeen = 0, refusedSeen = 0;
-        static double takenAt = -1, refusedAt = -1;
-        const double now = ImGui::GetTime();
-        if (!replayKeys) { takenAt = refusedAt = -1; }
-        else {
-            if (playback.taken != takenSeen) takenAt = now;
-            if (playback.refused != refusedSeen) refusedAt = now;
-        }
-        takenSeen = playback.taken; refusedSeen = playback.refused;
-        auto& replay = layers.replay;
-        replay.shown = replayKeys;
-        replay.meter = snapshot.replays.meterShown;
-        replay.armed = playback.armed; replay.paused = playback.paused; replay.divisor = playback.divisor;
-        replay.round = playback.round; replay.cursor = playback.cursor;
-        replay.pad = playback.device == sf4e::replaytransport::Device::Pad;
-        replay.inputsKnown = snapshot.replays.lanes != nullptr;
-        replay.stripAlpha = sf4e::ui::CameraEditorShown() ? 0.f : sf4e::replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt < 0 ? -1 : now - takenAt);
-        replay.unavailable = refusedAt >= 0 && now - refusedAt < sf4e::replaytransport::kChipSeconds;
-        replay.lanes = replayKeys && playback.lanes && snapshot.replays.lanes;
-        std::uint32_t played = 0;
-        if (replay.lanes && sf4e::replaylane::PlayedFrame(playback.cursor, played))
-            for (int side = 0; side < 2; ++side)
-                replay.rowCount[side] = sf4e::replaylane::Rows(*snapshot.replays.lanes, side, playback.round, played, replay.rows[side]);
-    }
+    // The strip and the chip are timed on the process clock, as the hints below
+    // are: ImGui's restarts with a device reset.
+    static sf4e::ui::ReplayHudFeed replayHud;
+    replayHud.Fill(layers.replay, snapshot.replays, replayKeys, GetTickCount64() / 1000.0);
     if (layers.matchActive) {
         auto& strip = layers.match;
         // Each fighter's rank as rooms show it; Class emblems off hides it mid-match too.
@@ -869,8 +861,12 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     pointerCapture = focused && !visible && hud.pointer;
     // A Training table keeps its pointer for the F6 chip.
     const bool table = frame->localFighter && snapshot.practiceMatch;
-    const bool hideCursor = fight && !table;
-    sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture || hideCursor);
+    // A game this PC only watches has no pointer to keep out of the picture:
+    // the cursor stays shown and free, so it can leave for another monitor.
+    const bool watched = fight && snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch;
+    const bool hideCursor = fight && !table && !watched;
+    if (watched) sf4e::ui::ShowFreeCursor();
+    else sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture || hideCursor);
     if (hideCursor) ImGui::SetMouseCursor(ImGuiMouseCursor_None);
     // This frame publishes only the menu's part of the capture; the training
     // controls' part is their controller's own (CapturesInput).
@@ -935,6 +931,8 @@ void Overlay::FreeOverlay() {
     if (!ImGui::GetCurrentContext()) return;
     controllerNavigation.Reset();
     sf4e::ui::SetMenuArt(nullptr);
+    // Its pictures are the art's textures, which go now.
+    sf4e::menu_backdrop::ArtGone();
     s_selectionArt.reset();
     sf4e::overlay::ReleaseWatchedPicture();
     // The window no longer takes drops once Ember's hooks are gone.

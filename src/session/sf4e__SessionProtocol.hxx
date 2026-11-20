@@ -384,26 +384,12 @@ namespace sf4e {
 			bool fromPlayer = false;
 		};
 
-		struct BattleGgpoFrame {
-			MessageType type = MT_BATTLE_GGPO_FRAME;
-			ConnectionID src;
-			ConnectionID dest;
-			std::vector<uint8_t> data;
-		};
-
 		struct PunchReady {
 			MessageType type = MT_PUNCH_READY;
 		};
 
 		struct PunchGo {
 			MessageType type = MT_PUNCH_GO;
-		};
-
-		struct ForwardMessage {
-			MessageType type = MT_FORWARD;
-			ConnectionID src;
-			ConnectionID dest;
-			nlohmann::json msg;
 		};
 
 		struct RoomSnapshotMessage {
@@ -529,10 +515,8 @@ namespace sf4e {
 			parsed.stageID = selection::ReadStage(j.at("stageID"));
 			value = parsed;
 		}
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BattleGgpoFrame, type, src, dest, data);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PunchReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PunchGo, type);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ForwardMessage, type, src, dest, msg);
 		inline void to_json(nlohmann::json& value, const RoomSnapshotMessage& message) {
 			value = {{"type", message.type}, {"snapshot", message.snapshot}};
 			if (message.chatUnchanged) { value["snapshot"].erase("chat"); value["snapshot"]["chat_unchanged"] = true; }

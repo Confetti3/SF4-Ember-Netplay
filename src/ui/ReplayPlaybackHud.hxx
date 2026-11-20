@@ -32,6 +32,18 @@ struct ReplayHudView {
     // The frame meter over the replay; drawn during an export as well.
     bool meter = false;
 };
+struct ReplaysView;
+// Fills the view from the published controls each frame, timing the strip
+// (shown for a while after each control) and the "unavailable" chip (after
+// one pressed outside the fight) from the counts' changes. `now` is seconds
+// on a clock that outlives ImGui's, which restarts with a device reset.
+class ReplayHudFeed {
+public:
+    void Fill(ReplayHudView& view, const ReplaysView& replays, bool keys, double now);
+private:
+    std::uint32_t takenSeen_ = 0, refusedSeen_ = 0;
+    double takenAt_ = -1, refusedAt_ = -1;
+};
 // The strip: a button per control, its keys over what it does, then the
 // place in the round, at the bottom centre.
 void DrawReplayStrip(const ReplayHudView& view);

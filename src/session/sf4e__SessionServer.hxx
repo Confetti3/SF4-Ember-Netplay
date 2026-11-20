@@ -72,7 +72,6 @@ namespace sf4e {
 		void HandleRoomAction(session::Connection conn, const nlohmann::json& msg, std::vector<room::Event>& deferredRoomEvents);
 		void HandleMatchAcknowledgement(session::Connection conn, const nlohmann::json& msg,
 			std::vector<room::Event>& events);
-		void HandleForward(session::Connection conn, const nlohmann::json& msg, const SessionProtocol::ConnectionID& cid);
 		void HandleJoinRequest(session::Connection conn, const nlohmann::json& msg, const session::Message& incoming, SessionProtocol::ConnectionID cid);
 		void HandleSetChara(session::Connection conn, const nlohmann::json& msg);
 		void HandleSetEnv(session::Connection conn, const nlohmann::json& msg);
@@ -83,7 +82,6 @@ namespace sf4e {
 		void HandleLobbyReportResults(session::Connection conn, const nlohmann::json& msg);
 		void HandleLobbyReset(session::Connection conn, const nlohmann::json& msg);
 		void HandlePunchReady(session::Connection conn);
-		void HandleGgpoFrame(session::Connection conn, const nlohmann::json& msg, const SessionProtocol::ConnectionID& cid);
 		void Respond(session::Connection client, const nlohmann::json& msg, bool retainPublicReplay = true);
 
 		// Direct lobby data manipulation utilities

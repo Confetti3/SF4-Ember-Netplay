@@ -141,19 +141,10 @@ void Again() {
     }
 }
 
-// A clock set back moves every time the list holds.
-void Rebase() {
-    Notifications n;
-    const auto id = n.Say(Words("Link copied"), 100);
-    n.Rebase([](double t) { return t - 90; });
-    EXPECT(n.Find(id)->at == 10 && n.Find(id)->Card(10) && !n.Find(id)->Card(10 + ToastSeconds));
-}
-
 int main() {
     OneOffs();
     Sourced();
     Again();
-    Rebase();
     if (TEST_FAILURES()) std::printf("%d failure(s)\n", TEST_FAILURES());
     else std::printf("notifications tests passed\n");
     return TEST_EXIT_CODE();

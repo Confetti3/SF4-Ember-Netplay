@@ -22,6 +22,7 @@
 #include <spdlog/spdlog.h>
 
 #include "Utf8.hxx"
+#include "../common/SteamAccounts.hxx"
 #include "ReplayPath.hxx"
 #include "DurableFile.hxx"
 #include "ReplayRecordingChanges.hxx"
@@ -41,6 +42,7 @@
 
 namespace fs = std::filesystem;
 namespace slots = sf4e::replayslots;
+namespace steam = sf4e::steam;
 
 namespace sf4e { namespace platform { namespace replays {
 namespace {
@@ -243,8 +245,6 @@ const std::string kSavePrefix = "capcom/superstreetfighteriv/ssf4_savedata/";
 
 Folders FindFolders() {
 	Folders folders;
-	wchar_t steamPath[1024] = { 0 };
-	DWORD steamPathBytes = sizeof(steamPath);
 	PWSTR appData = NULL, localAppData = NULL;
 	// Where replays go does not depend on Steam, so an outbox is drained even
 	// when no game's saves can be found.
@@ -252,19 +252,19 @@ Folders FindFolders() {
 	CoTaskMemFree(appData);
 	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) == S_OK) folders.outbox = fs::path(localAppData) / L"sf4e" / L"replay-outbox";
 	CoTaskMemFree(localAppData);
-	if (folders.archive.empty() ||
-		RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", RRF_RT_REG_SZ, NULL, steamPath, &steamPathBytes) != ERROR_SUCCESS) return folders;
+	if (folders.archive.empty()) return folders;
+	wchar_t steamPath[1024] = { 0 }, launchingClient[1024] = { 0 };
+	DWORD steamPathBytes = sizeof(steamPath);
+	if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", RRF_RT_REG_SZ, NULL, steamPath, &steamPathBytes) != ERROR_SUCCESS) steamPath[0] = 0;
+	// Set by the Steam client that started a Proton prefix's game, and only there.
+	const DWORD launchingLength = GetEnvironmentVariableW(L"STEAM_COMPAT_CLIENT_INSTALL_PATH", launchingClient, ARRAYSIZE(launchingClient));
+	const bool launched = launchingLength > 0 && launchingLength < ARRAYSIZE(launchingClient);
 	// The account signed in to the running Steam client, which is the one a
 	// running game reads and writes as.
 	DWORD active = 0, activeBytes = sizeof(active);
 	RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam\\ActiveProcess", L"ActiveUser", RRF_RT_REG_DWORD, NULL, &active, &activeBytes);
-	std::error_code ignored;
-	for (fs::directory_iterator at(fs::path(steamPath) / L"userdata", ignored), end; !ignored && at != end; at.increment(ignored)) {
-		const fs::path saves = at->path() / L"45760" / L"remote" / L"capcom" / L"superstreetfighteriv" / L"ssf4_savedata";
-		if (!fs::exists(saves / L"replays-swan.dat", ignored)) continue;
-		folders.saves.push_back(saves);
-		if (active && at->path().filename().wstring() == std::to_wstring(active)) folders.active = saves;
-	}
+	const auto found = steam::SaveFolders(steam::ClientFolders(steamPath, launched ? launchingClient : L""), active, launched);
+	folders.saves = found.saves; folders.active = found.active;
 	return folders;
 }
 

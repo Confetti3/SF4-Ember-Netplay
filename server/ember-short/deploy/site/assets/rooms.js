@@ -31,7 +31,8 @@
   // The relay a room's creator connects through, by the code every room carries
   // as `region`: how they connect, never where they are. A room without an area
   // (its creator hid it, or Ember before 1.6.0 made it) names only its relay.
-  var RELAYS = { use1: 'Ember US (Kansas)', usw1: 'n0 US West', euc1: 'Ember Europe', aps1: 'n0 Asia' };
+  // From 1.6.2 n0's and Ember's relays share the US East and Europe codes.
+  var RELAYS = { use1: 'US relay (Ember or n0)', usw1: 'n0 US West', euc1: 'Europe relay (Ember or n0)', aps1: 'n0 Asia' };
   var ROTATIONS = ['Winner stays', 'Loser stays', 'Both rotate'];
   // Room types as the room model numbers them (room::RoomType), in the order
   // the page lists them. A room whose host does not say is Classic: room hosts

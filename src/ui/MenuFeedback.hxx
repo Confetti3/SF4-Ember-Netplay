@@ -5,12 +5,10 @@
 #include <set>
 
 namespace sf4e { namespace ui {
-inline double RebaseUiTimestamp(double timestamp, double previousNow, double now) {
-    return now + (timestamp - previousNow);
-}
-
 // ImGui time restarts when the DX9 reset path recreates its context. Keep UI
 // deadlines monotonic without changing game, transport or simulation clocks.
+// Fed ImGui's time once a frame (Update); every deadline and timestamp its
+// owner keeps is in its time (Now), so none needs moving after a reset.
 class UiClock {
 public:
     double Update(double raw) {
@@ -20,6 +18,8 @@ public:
         previous_ = raw;
         return time_;
     }
+    // The time the last Update gave.
+    double Now() const { return time_; }
 private:
     bool initialized_ = false;
     double previous_ = 0, time_ = 0;

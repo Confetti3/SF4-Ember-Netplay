@@ -4,9 +4,12 @@
 #include "../netplay/BoolPreferences.hxx"
 #include "../common/InputDelay.hxx"
 #include "../common/Localization.hxx"
+#include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <algorithm>
 #include <string>
+#include <vector>
 namespace sf4e { namespace ui {
 // Auto's style by name, and the delay row's line for Auto in that style.
 inline const char* AutoDelayStyleName(int style) {
@@ -24,6 +27,18 @@ inline std::string RecordValue(const netplay::ProfileRecord& r) {
     std::string value = loc::Tf("profile.record_value", r.wins, r.losses);
     if (games) value += " \xC2\xB7 " + loc::Tf("profile.win_rate", (r.wins * 200 + games) / (2 * games));
     return value;
+}
+// The Interface size as its row shows it ("0.95x"), and every size Left and
+// Right step through, least first: the value panel matches one to the other.
+inline std::string InterfaceSizeText(float scale) {
+    char text[16]; std::snprintf(text, sizeof(text), "%.2fx", scale); return text;
+}
+inline std::vector<std::string> InterfaceSizeTexts() {
+    using namespace netplay;
+    const long steps = std::lround((MaxInterfaceScale - MinInterfaceScale) / InterfaceScaleStep);
+    std::vector<std::string> texts;
+    for (long i = 0; i <= steps; ++i) texts.push_back(InterfaceSizeText(MinInterfaceScale + i * InterfaceScaleStep));
+    return texts;
 }
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
@@ -67,6 +82,7 @@ struct OnOffRow { const char* id; bool netplay::PlayerPreferences::* member; boo
 inline constexpr OnOffRow OnOffRows[] = {
     {"hud",&netplay::PlayerPreferences::showMatchHud,false},{"ready-sound",&netplay::PlayerPreferences::readySound,false},
     {"shortcut-hint",&netplay::PlayerPreferences::showShortcutHint,false},{"class-emblems",&netplay::PlayerPreferences::classEmblems,false},
+    {"menu-artwork",&netplay::PlayerPreferences::menuArtwork,false},
     {"match-frame-meter",&netplay::PlayerPreferences::matchFrameMeter,false},{"training-auto-ready",&netplay::PlayerPreferences::trainingAutoReady,false},
     {"replay-save-watched",&netplay::PlayerPreferences::recordWatched,false},{"replay-share",&netplay::PlayerPreferences::shareReplays,false},
     {"presence",&netplay::PlayerPreferences::discordPresence,false},{"invites",&netplay::PlayerPreferences::discordInvites,false},

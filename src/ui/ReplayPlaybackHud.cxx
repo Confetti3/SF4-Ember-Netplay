@@ -1,5 +1,7 @@
 #include "ReplayPlaybackHud.hxx"
+#include "CameraPanel.hxx"
 #include "GameMenu.hxx"
+#include "ReplaysView.hxx"
 #include "MenuGlyphs.hxx"
 #include "Theme.hxx"
 #include "TrainingPanel.hxx"
@@ -15,6 +17,28 @@
 
 // The replay controls' strip and input lanes (ReplayPlaybackHud.hxx).
 namespace sf4e { namespace ui {
+void ReplayHudFeed::Fill(ReplayHudView& view, const ReplaysView& replays, bool keys, double now) {
+    const auto& playback = replays.playback;
+    if (!keys) { takenAt_ = refusedAt_ = -1; }
+    else {
+        if (playback.taken != takenSeen_) takenAt_ = now;
+        if (playback.refused != refusedSeen_) refusedAt_ = now;
+    }
+    takenSeen_ = playback.taken; refusedSeen_ = playback.refused;
+    view.shown = keys;
+    view.meter = replays.meterShown;
+    view.armed = playback.armed; view.paused = playback.paused; view.divisor = playback.divisor;
+    view.round = playback.round; view.cursor = playback.cursor;
+    view.pad = playback.device == replaytransport::Device::Pad;
+    view.inputsKnown = replays.lanes != nullptr;
+    view.stripAlpha = CameraEditorShown() ? 0.f : replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt_ < 0 ? -1 : now - takenAt_);
+    view.unavailable = refusedAt_ >= 0 && now - refusedAt_ < replaytransport::kChipSeconds;
+    view.lanes = keys && playback.lanes && replays.lanes;
+    std::uint32_t played = 0;
+    if (view.lanes && replaylane::PlayedFrame(playback.cursor, played))
+        for (int side = 0; side < 2; ++side)
+            view.rowCount[side] = replaylane::Rows(*replays.lanes, side, playback.round, played, view.rows[side]);
+}
 namespace {
 constexpr ImGuiWindowFlags Passive = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings |
     ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoBringToFrontOnFocus;

@@ -1,4 +1,5 @@
 #include "session_server_transport_support.hxx"
+#include "terminal_ledger_support.hxx"
 
 static void TestCustomRoomDepartures() {
 	auto* transport = new MockTransport();
@@ -415,6 +416,35 @@ static void TestParticipantDepartureCheckpoint(SetupStage stage, bool disconnect
 	CHECK(fixture.Imports(server.RecoveryCheckpoint()));
 }
 
+// A fighter whose connection drops while the terminal ledger is full stays on
+// the roster: its Leave cannot store the game's receipt. Every checkpoint must
+// still carry its identity, or no follower could import one, and a later kick
+// must take that identity with it.
+static void TestRefusedLeaveOnDrop() {
+	ParticipantRoom fixture(SetupStage::Started);
+	auto& server = fixture.server;
+	const auto fighter = server.roomMembers.at(2);
+	auto full = server._roomAuthority->Checkpoint();
+	FillTerminalLedger(full, fighter, server.roomMembers.at(3));
+	CHECK(server._roomAuthority->RestoreCheckpoint(full));
+	fixture.Depart(2, true);
+	const auto onRoster = [&] {
+		const auto& members = server.RoomSnapshot()->members;
+		return std::any_of(members.begin(), members.end(), [&](const room::Member& member) { return member.id == fighter; });
+	};
+	CHECK(onRoster());
+	CHECK(server.roomPeerIdentities.count(fighter) == 1 && server.roomIncarnations.count(fighter) == 1);
+	CHECK(fixture.Imports(server.RecoveryCheckpoint()));
+	// Once the ledger has room the host can kick the member left behind.
+	auto drained = server._roomAuthority->Checkpoint();
+	drained["terminal_receipts"] = json::array();
+	CHECK(server._roomAuthority->RestoreCheckpoint(drained));
+	fixture.Act(1, room::ActionKind::Kick, fighter);
+	CHECK(!onRoster());
+	CHECK(server.roomPeerIdentities.count(fighter) == 0 && server.roomIncarnations.count(fighter) == 0);
+	CHECK(fixture.Imports(server.RecoveryCheckpoint()));
+}
+
 // The rejoined member's own game applies `commits` (revisions 1, 2, ...) the
 // way production does: the scripted helper hands them over through IrohRoom's
 // event handling (transfer, commit marker, decode, staging), and
@@ -712,6 +742,7 @@ int main() {
 	for (const auto stage : {SetupStage::Preparing, SetupStage::P1Prepared, SetupStage::FightersPrepared,
 		SetupStage::AllPrepared, SetupStage::Started})
 		for (const bool disconnect : {true, false}) TestParticipantDepartureCheckpoint(stage, disconnect);
+	TestRefusedLeaveOnDrop();
 	TestRejoinAfterPreStartDeparture();
 	TestServerOwnedRoom();
 	TestCustomRoomDepartures();

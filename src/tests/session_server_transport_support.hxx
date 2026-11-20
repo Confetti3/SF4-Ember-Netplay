@@ -76,10 +76,11 @@ struct ParticipantRoom {
 		transport->Push(connection, json(request)); Step();
 		CHECK(server.roomMembers.count(connection) == 1);
 	}
-	void Act(session::Connection connection, room::ActionKind kind) {
+	void Act(session::Connection connection, room::ActionKind kind, room::MemberId target = 0) {
 		const auto* snapshot = server.RoomSnapshot();
 		protocol::RoomActionMessage message;
-		message.action.kind = kind; message.action.roomEpoch = snapshot->roomEpoch; message.action.revision = snapshot->revision;
+		message.action.kind = kind; message.action.target = target;
+		message.action.roomEpoch = snapshot->roomEpoch; message.action.revision = snapshot->revision;
 		message.action.table = 0; message.action.tableRevision = snapshot->tables[0].revision; message.action.actionId = ++actionId;
 		transport->Push(connection, json(message)); Step();
 	}

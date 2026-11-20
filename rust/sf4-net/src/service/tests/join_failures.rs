@@ -219,7 +219,8 @@ async fn the_actor_reports_its_network_without_a_room() {
             };
             assert!(
                 relay.is_empty()
-                    || ["use1", "usw1", "euc1", "aps1", "other"].contains(&relay.as_str())
+                    || relay == "other"
+                    || crate::invite::relay_names().any(|name| name == relay)
             );
             assert!(["checking", "open", "strict", "no_udp"].contains(&nat.as_str()));
             local.close().await;

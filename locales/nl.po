@@ -654,6 +654,12 @@ msgstr "Ember Europa"
 msgid "network.relay_aps1"
 msgstr "n0 Azië"
 
+msgid "network.relay_n0use1"
+msgstr "n0 VS-oost"
+
+msgid "network.relay_n0euc1"
+msgstr "n0 Europa"
+
 msgid "network.relay_other"
 msgstr "Ander relais"
 
@@ -8511,6 +8517,12 @@ msgstr "Tv-modus"
 
 msgid "settings.tv_mode_detail"
 msgstr "Voor een tv aan de andere kant van de kamer: alles een kwart groter, binnen een veilige rand van 5%."
+
+msgid "settings.menu_artwork"
+msgstr "Achtergrondafbeeldingen"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Toont de eigen illustraties van de game achter het menu van Ember, ongeveer elke halve minuut een nieuwe. Uit houdt de eigen achtergrond van Ember."
 
 msgid "settings.group.game_themes"
 msgstr "Thema's in de game"

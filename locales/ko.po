@@ -654,6 +654,12 @@ msgstr "Ember 유럽"
 msgid "network.relay_aps1"
 msgstr "n0 아시아"
 
+msgid "network.relay_n0use1"
+msgstr "n0 미국 동부"
+
+msgid "network.relay_n0euc1"
+msgstr "n0 유럽"
+
 msgid "network.relay_other"
 msgstr "다른 중계 서버"
 
@@ -8511,6 +8517,12 @@ msgstr "TV 모드"
 
 msgid "settings.tv_mode_detail"
 msgstr "방 건너편 TV용: 모든 것을 4분의 1 더 크게 하고, 가장자리 5% 안전 영역 안에 둡니다."
+
+msgid "settings.menu_artwork"
+msgstr "배경 일러스트"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Ember 메뉴 뒤에 게임의 일러스트를 표시하며, 약 30초마다 다른 그림으로 바뀝니다. 끄면 Ember 자체 배경이 유지됩니다."
 
 msgid "settings.group.game_themes"
 msgstr "게임 내 테마"

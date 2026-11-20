@@ -654,6 +654,12 @@ msgstr "Ember Europe"
 msgid "network.relay_aps1"
 msgstr "n0 Asie"
 
+msgid "network.relay_n0use1"
+msgstr "n0 États-Unis Est"
+
+msgid "network.relay_n0euc1"
+msgstr "n0 Europe"
+
 msgid "network.relay_other"
 msgstr "Autre relais"
 
@@ -8511,6 +8517,12 @@ msgstr "Mode TV"
 
 msgid "settings.tv_mode_detail"
 msgstr "Pour une TV à l'autre bout de la pièce : tout est un quart plus grand, à l'intérieur d'une marge de sécurité de 5 %."
+
+msgid "settings.menu_artwork"
+msgstr "Illustrations en fond"
+
+msgid "settings.menu_artwork_detail"
+msgstr "Affiche les illustrations du jeu derrière le menu d'Ember, une nouvelle environ toutes les trente secondes. Désactivé, Ember garde son propre fond."
 
 msgid "settings.group.game_themes"
 msgstr "Thèmes du jeu"

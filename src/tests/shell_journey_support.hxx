@@ -51,7 +51,7 @@ struct Harness {
     actions.push_back(a);return accept;},selection,developer);
    ImGui::Render();}
  }
- // One frame that lets `seconds` of interface time pass (the shell's clock is ImGui's).
+ // One frame that lets `seconds` of interface time pass (the shell's clock follows ImGui's).
  void Wait(float seconds){Frame(0,1,seconds);}
  void Press(unsigned b){Frame();Frame(b);Frame();}
  void FocusOn(const char* id){

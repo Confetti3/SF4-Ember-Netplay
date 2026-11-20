@@ -294,11 +294,13 @@ void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color) {
     const ImVec2 points[] = {{at.x, at.y - size}, {at.x + size * .6f, at.y}, {at.x, at.y + size}};
     draw->AddPolyline(points, 3, color, 0, 2 * Scale());
 }
-void CardButton(ImDrawList* draw, Box b, const std::string& label, float size, bool lit, bool over, bool enabled, bool plus, bool* cut) {
+void CardButton(ImDrawList* draw, Box b, const std::string& label, float size, bool lit, bool over, bool enabled, bool plus, bool* cut, bool primary) {
     const float s = Scale();
     const auto& c = Colors();
-    const ImU32 fill = !enabled ? c.frame : lit ? c.hover : c.button, edge = !enabled ? c.border : color::Alpha(c.accent, over && !lit ? .8f : .35f);
-    const ImU32 ink = enabled && (lit || over) ? c.text : c.muted;
+    ImU32 fill = !enabled ? c.frame : lit ? c.hover : c.button, edge = !enabled ? c.border : color::Alpha(c.accent, lit ? 1.f : over ? .8f : .35f);
+    ImU32 ink = enabled ? c.text : c.muted;
+    // The board's one filled button (v2::Button's Primary), lighter while lit or under the pointer.
+    if (primary && enabled) { fill = lit || over ? c.accentLight : c.accent; edge = c.accent; ink = c.ink; }
     draw->AddRectFilled(b.min, b.max, fill, 4 * s);
     draw->AddRect(b.min, b.max, edge, 4 * s, 0, Hairline());
     const float mark = plus ? 18 * s : 0;
