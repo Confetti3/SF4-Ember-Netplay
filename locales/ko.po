@@ -663,6 +663,12 @@ msgstr "Ember 유럽"
 msgid "network.relay_aps1"
 msgstr "n0 아시아"
 
+msgid "network.relay_n0use1"
+msgstr "n0 미국 동부"
+
+msgid "network.relay_n0euc1"
+msgstr "n0 유럽"
+
 msgid "network.relay_other"
 msgstr "다른 중계 서버"
 

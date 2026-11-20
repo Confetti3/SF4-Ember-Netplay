@@ -663,6 +663,12 @@ msgstr "Ember Evropa"
 msgid "network.relay_aps1"
 msgstr "n0 Asie"
 
+msgid "network.relay_n0use1"
+msgstr "n0 USA východ"
+
+msgid "network.relay_n0euc1"
+msgstr "n0 Evropa"
+
 msgid "network.relay_other"
 msgstr "Jiný server"
 

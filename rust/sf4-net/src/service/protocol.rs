@@ -367,8 +367,9 @@ pub enum Event {
     /// not to a room, so it has no epoch. It carries no address, port or relay
     /// URL.
     NetworkReport {
-        /// Home relay region: `use1`, `usw1`, `euc1`, `aps1`, `other`, or
-        /// empty while no home relay is chosen.
+        /// Home relay name (`invite::relay_name`): `use1` (Ember US), `euc1`
+        /// (Ember Europe), `n0use1`, `usw1`, `n0euc1`, `aps1` (n0), `other`,
+        /// or empty while no home relay is chosen.
         relay: String,
         relay_connected: bool,
         /// A UDP round trip to a relay completed.

@@ -219,7 +219,7 @@ async fn the_actor_reports_its_network_without_a_room() {
             };
             assert!(
                 relay.is_empty()
-                    || ["use1", "usw1", "euc1", "aps1", "other"].contains(&relay.as_str())
+                    || ["use1", "usw1", "euc1", "aps1", "n0use1", "n0euc1", "other"].contains(&relay.as_str())
             );
             assert!(["checking", "open", "strict", "no_udp"].contains(&nat.as_str()));
             local.close().await;
