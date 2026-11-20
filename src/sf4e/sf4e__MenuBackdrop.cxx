@@ -297,10 +297,12 @@ void Frame(const backdrop::Surface& surface, bool wanted, const std::string& scr
     s_art = art;
     s_allowed = art && backdrop::Allowed(surface);
     s_screen = screen;
-    // A match, replay or watched game began: a picture still loading would
-    // upload (or, for the still, inflate) in its first seconds. Drop it; the
-    // pictures already shown go with the idle release below.
-    if (!s_allowed) AbandonLoad();
+    // A match, replay or watched game began, or the menu closed: a picture
+    // still loading would upload in its first seconds. Drop it; the pictures
+    // already shown go with the idle release below. Not when only the game's
+    // main menu flickers (it drops for a frame or two in menu transitions):
+    // that would queue the same read again.
+    if (!art || !surface.shellShown || surface.fighting || surface.watching || surface.replaying) AbandonLoad();
     // Turned off: everything goes at once, and Ember's own art shows.
     if (!wanted && s_wanted) LetGo("Background artwork turned off");
     s_wanted = wanted;
