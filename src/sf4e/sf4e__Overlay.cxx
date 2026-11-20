@@ -8,6 +8,8 @@
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__Pad.hxx"
+#include "sf4e__MenuBackdrop.hxx"
+#include "../common/MenuBackdropRules.hxx"
 #include "sf4e.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
 #include "../ui/ApplicationShell.hxx"
@@ -233,6 +235,8 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 		moduleFile.substr(0, moduleFile.find_last_of(L"\\/")) + L"/assets/selection",
 		[](const std::string& line) { spdlog::warn("{}", line); }));
     sf4e::ui::SetMenuArt(s_selectionArt.get());
+    // The game's own pictures behind the menu (sf4e__MenuBackdrop.hxx), loaded through the art above.
+    sf4e::menu_backdrop::Install();
     shell.SetChatLog([](const std::string& line) { spdlog::info("{}", line); });
 	fMainMenu::OnModeSelectedOverride = OnMainMenuModeSelected;
 
@@ -664,6 +668,17 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, lobby);
     }
     sf4e::overlay::FollowRandomFighter(snapshot, s_prefs, lobbyConditions, lobbyMenuCharaID, pickEditionSelect);
+    // The game's own pictures behind the menu's pages (sf4e__MenuBackdrop.hxx): only
+    // with the menu over the game's main menu and nothing played, watched or replayed.
+    {
+        sf4e::backdrop::Surface surface;
+        surface.shellShown = presentation.Visible();
+        surface.mainMenu = snapshot.menuContext == sf4e::input::MenuContext::MainMenu;
+        surface.fighting = sf4e::netplay::Fighting(snapshot.session.match) || frame->ggpoSessionActive;
+        surface.watching = snapshot.watchedGame.Active();
+        surface.replaying = snapshot.replays.playback.playback || exporting;
+        sf4e::menu_backdrop::Frame(surface, snapshot.preferences.menuArtwork, shell.Navigation().Screen(), s_selectionArt.get());
+    }
     if (presentation.Visible()) DrawApplicationHome(snapshot, status);
     else ConcealApplicationHome(snapshot);
     if (!presentation.Visible() && assigning) {
@@ -935,6 +950,8 @@ void Overlay::FreeOverlay() {
     if (!ImGui::GetCurrentContext()) return;
     controllerNavigation.Reset();
     sf4e::ui::SetMenuArt(nullptr);
+    // Its pictures are the art's textures, which go now.
+    sf4e::menu_backdrop::ArtGone();
     s_selectionArt.reset();
     sf4e::overlay::ReleaseWatchedPicture();
     // The window no longer takes drops once Ember's hooks are gone.
