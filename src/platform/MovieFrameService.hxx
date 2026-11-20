@@ -16,6 +16,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <thread>
 
@@ -48,14 +49,15 @@ public:
     // game's own name (MailboxName); `cache` likewise (CacheFolder).
     bool Start(DWORD gamePid, std::wstring gameFolder, Logger log, std::wstring mailbox = std::wstring(),
         std::wstring cache = std::wstring());
-    // Ends the thread; a decode under way stops at its next sample.
+    // Ends the thread; a decode under way stops at its next sample. One
+    // that does not end within 5 s is left to the process's exit.
     void Stop();
 
+    // What the serving thread shares with the service (MovieFrameService.cxx).
+    struct Shared;
+
 private:
-    std::wstring name_, gameFolder_, cache_;
-    Logger log_;
-    HANDLE stop_ = nullptr;
-    std::atomic<bool> cancel_{false};
+    std::shared_ptr<Shared> shared_;
     std::thread thread_;
 };
 
