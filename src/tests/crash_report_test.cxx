@@ -48,6 +48,9 @@ static void TestExitCodeNames() {
 	CHECK(std::string(ExitCodeName(1)).find("GGPO assertion") != std::string::npos);
 	CHECK(std::string(ExitCodeName(3)) == "abort()");
 	CHECK(std::string(ExitCodeName(0xC0000005u)) == "access violation");
+	CHECK(std::string(ExitCodeName(0xC0000006u)).find("in-page error") == 0);
+	CHECK(std::string(ExitCodeName(0xC0000006u)).find("file the game had open") != std::string::npos);
+	CHECK(IsCrashExit(0xC0000006u));
 	CHECK(std::string(ExitCodeName(0xC0000374u)) == "heap corruption");
 	CHECK(std::string(ExitCodeName(0xC0000409u)).find("fail-fast") == 0);
 	CHECK(std::string(ExitCodeName(0xC00000FDu)) == "stack overflow");

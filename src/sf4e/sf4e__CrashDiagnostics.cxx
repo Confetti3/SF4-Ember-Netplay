@@ -657,6 +657,11 @@ void NoteMatchBoundary(const char* label) {
 	const LPTOP_LEVEL_EXCEPTION_FILTER current = SetUnhandledExceptionFilter(OnUnhandledException);
 	const bool restored = current != OnUnhandledException;
 	if (restored && current) s_previousFilter = current;
+	// The system's commit limit and what is left of it, so a stall from commit
+	// exhaustion reads differently from one with the address space still free.
+	MEMORYSTATUSEX system = {};
+	system.dwLength = sizeof(system);
+	const bool haveCommit = GlobalMemoryStatusEx(&system) != FALSE;
 	const double mb = 1024.0 * 1024.0;
 	// Growth since the last boundary of the same kind, so a leak across
 	// matches reads from one line per match. The load watch's reports can
@@ -671,9 +676,10 @@ void NoteMatchBoundary(const char* label) {
 		last = memory.PrivateUsage;
 	}
 	spdlog::info("Process [{}]: private={:.0f}MB ({:+.0f}MB since the last) working={:.0f}MB largest_free={:.0f}MB free={:.0f}MB "
-		"free_regions={} handles={} threads={} log_dropped={} crash_filter={}",
+		"free_regions={} handles={} threads={} commit_limit={:.0f}MB commit_free={:.0f}MB log_dropped={} crash_filter={}",
 		label, memory.PrivateUsage / mb, growth, memory.WorkingSetSize / mb, space.largestFree / mb, space.totalFree / mb,
-		space.freeRegions, handles, CountThreads(), sf4e::Platform::AsyncLogDropped(), restored ? "restored" : "ours");
+		space.freeRegions, handles, CountThreads(), haveCommit ? system.ullTotalPageFile / mb : -1.0,
+		haveCommit ? system.ullAvailPageFile / mb : -1.0, sf4e::Platform::AsyncLogDropped(), restored ? "restored" : "ours");
 }
 
 } // namespace crash
