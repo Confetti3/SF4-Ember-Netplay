@@ -6384,6 +6384,9 @@ msgstr "Hlas je zapnutý, ale Windows nemají žádný hlas, kterým by mluvily.
 msgid "speech.no_speech_dispatcher"
 msgstr "Hlas je zapnutý, ale speech-dispatcher není dostupný. V Linuxu a na Steam Decku mluví Ember přes speech-dispatcher, který potřebuje také python3."
 
+msgid "speech.crashed_off"
+msgstr "Hlas byl vypnut, protože hlas systému Windows způsobil pád hry. Chcete-li jej znovu zapnout, otevřete Nastavení, Přístupnost a zapněte Hlas."
+
 msgid "room.table_footer_practice"
 msgstr "Cvičný zápas"
 
@@ -7262,6 +7265,9 @@ msgstr "Zrušit nastavení"
 
 msgid "pad_setup.cancel_detail"
 msgstr "Odejít bez uložení."
+
+msgid "pad_setup.keep_setup"
+msgstr "Pokračovat v nastavení"
 
 msgid "pad_setup.cancelled"
 msgstr "Nastavení zrušeno. Nic nebylo uloženo."

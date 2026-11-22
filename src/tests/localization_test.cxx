@@ -245,6 +245,12 @@ int main(int argc, char** argv) {
                 "runtime.ready.fighter_unavailable"}, inflected},
             {"connection.check", {"room.apply_recommendation.check_first"}, {Locale::Pl, Locale::Cs, Locale::Ru, Locale::Fr, Locale::De}},
             {"room.abandon_result", {"room.result_unresolved.detail"}, inflected},
+            // Where to turn speech back on, as Settings names the tab and the row.
+            {"settings.tab.accessibility", {"speech.crashed_off"}, inflected},
+            {"speech.setting", {"speech.crashed_off"}, inflected},
+            // German says the value with the label's own word. The other catalogs word it without the value's label.
+            {"common.on", {"speech.crashed_off"}, {Locale::Cs, Locale::Es419, Locale::EsES, Locale::Fr, Locale::It, Locale::Ko,
+                Locale::Nl, Locale::Pl, Locale::PtBR, Locale::Ru}},
         };
         for (const auto& reference : references)
             for (std::size_t i = 0; i < count; ++i) {

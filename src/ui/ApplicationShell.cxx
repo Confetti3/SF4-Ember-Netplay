@@ -116,11 +116,15 @@ bool ApplicationShell::SendReady(const ShellView& view, bool rematch, const Subm
     commands::Ready ready; ready.generation = view.session.generation; ready.rematch = rematch;
     return Send(std::move(ready), submit);
 }
-bool ApplicationShell::SendJoin(const ShellView& view, const Submit& submit) {
-    commands::JoinRoom join; join.generation = view.session.generation; join.invitation = pasted_link::Tidied(invitation_);
+bool ApplicationShell::SendJoin(const ShellView& view, const std::string& text, const Submit& submit) {
+    commands::JoinRoom join; join.generation = view.session.generation; join.invitation = pasted_link::Tidied(text);
     // A room opened here is not the public one the panel joined.
     publicRooms_.ForgetCurrent();
-    if (!Send(std::move(join), submit)) return false;
+    return Send(std::move(join), submit);
+}
+// Joins what the Join Room screen's text box holds, and empties the box once sent.
+bool ApplicationShell::SendJoin(const ShellView& view, const Submit& submit) {
+    if (!SendJoin(view, std::string(invitation_), submit)) return false;
     std::fill(std::begin(invitation_), std::end(invitation_), '\0');
     return true;
 }
@@ -876,6 +880,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
+ TellSpeechCrash(v);
  UpdateSpeech();
  // The newest action toast holds focus from when it came over a free menu
  // (DrawToasts): Select takes its first action, Back its last (Later), and

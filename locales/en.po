@@ -5993,6 +5993,9 @@ msgstr "Speech is on, but Windows has no voice to speak with. Add one in Windows
 msgid "speech.no_speech_dispatcher"
 msgstr "Speech is on, but speech-dispatcher could not be reached. On Linux and the Steam Deck, Ember speaks through speech-dispatcher, which needs python3 too."
 
+msgid "speech.crashed_off"
+msgstr "Speech was turned off because the Windows voice crashed the game. To turn it back on, open Settings, Accessibility and set Speech to On."
+
 msgid "room.table_footer_practice"
 msgstr "Practice match"
 
@@ -6875,6 +6878,9 @@ msgstr "Cancel setup"
 
 msgid "pad_setup.cancel_detail"
 msgstr "Leave without saving."
+
+msgid "pad_setup.keep_setup"
+msgstr "Keep setting up"
 
 msgid "pad_setup.cancelled"
 msgstr "Setup cancelled. Nothing was saved."

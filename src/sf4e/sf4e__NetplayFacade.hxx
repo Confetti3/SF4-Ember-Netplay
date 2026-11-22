@@ -228,6 +228,8 @@ namespace sf4e {
 			CountryCode automaticCountry;
 			// The area Automatic shows: from Windows' time zone and region, or none.
 			Area automaticArea = Area::None;
+			// Speech was turned off at this start after a crash in a Windows speech engine.
+			bool speechCrashedOff = false;
 			int localSlot = -1;
 			bool offlineRequested = false;
 			bool hostPublicRoom = false;

@@ -572,14 +572,6 @@ bool PublicRoomsPanel::Activate(const MenuAction& a, MenuNavigation& nav) {
     if (a.id == "pr-error") { Refresh(); return true; }
     if (a.id == "pr-stop") { Abandon(); return true; }
     if (a.id == "pr-link") { if (link_ && !Busy()) link_->direct = true; return true; }
-    if (a.id == "pr-paste") {
-        // The room link a bot or site gave: its page or the ember: link.
-        const char* text = ImGui::GetClipboardText();
-        const auto link = tournament_link::ParseRoomPasted(text ? text : "");
-        if (!link.Valid()) Say(loc::T("public.failure.link"));
-        else if (!Busy()) OpenLink(link.bridgeId, link.roomId, true);
-        return true;
-    }
     if (a.id.compare(0, 8, "pr-room:") != 0) return false;
     Join(a.id.substr(8));
     return true;

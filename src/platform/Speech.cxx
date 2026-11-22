@@ -28,6 +28,7 @@ std::condition_variable wake;
 std::vector<Request> pending;
 bool started = false;
 std::atomic<Missing> missing{Missing::Nothing};
+std::atomic<bool> quarantined{false};
 std::atomic<Voice> voice{Voice::System};
 std::atomic<int> percent{0};
 std::atomic<Pack> pack{Pack::None};
@@ -158,7 +159,10 @@ void RunLinux(UnixSpawn spawn) {
 void Run() {
     if (Ntdll("wine_get_version")) return RunLinux(reinterpret_cast<UnixSpawn>(Ntdll("__wine_unix_spawnvp")));
     ISpVoice* sapi = nullptr;
-    if (FAILED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)) ||
+    if (quarantined) {
+        spdlog::warn("Speech: the Windows voice is not started, since it crashed the game last time");
+        missing = Missing::WindowsVoice;
+    } else if (FAILED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)) ||
         FAILED(CoCreateInstance(__uuidof(SpVoice), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&sapi)))) {
         spdlog::warn("Speech: SAPI could not be started");
         missing = Missing::WindowsVoice;
@@ -207,6 +211,10 @@ void Stop() { Queue({{}, true, false, 0, 0, {}, false, false, 0}); }
 void Chime(int volume) { Queue({{}, false, false, 0, volume, {}, false, true, 0}); }
 void UpdatePack() { Queue({{}, false, false, 0, 0, loc::Tag(loc::Active()), false, false, 1}); }
 void RemovePack() { Queue({{}, false, false, 0, 0, loc::Tag(loc::Active()), false, false, 2}); }
+// A crash in a Windows speech engine left a marker (SpeechCrash.hxx): the engine
+// is not started again this session, whoever asks to speak (the welcome speaks
+// whatever the setting says), and Unavailable() tells the player.
+void Quarantine() { quarantined = true; missing = Missing::WindowsVoice; }
 Missing Unavailable() { return missing; }
 VoiceStatus NaturalVoice() { return {voice, percent, pack, packBytes}; }
 } }

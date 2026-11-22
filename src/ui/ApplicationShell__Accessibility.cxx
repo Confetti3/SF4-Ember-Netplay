@@ -62,6 +62,15 @@ bool ApplicationShell::AdjustSpeech(const MenuAction& a) {
  else return false;
  return true;
 }
+// The runtime turned speech off at this start because a Windows speech engine
+// crashed the game (SpeechCrash.hxx); this says so once, and the player turns it
+// back on in Settings, Accessibility. A notice that is already open, such as the
+// game-settings card, is not replaced: the flag waits for a frame without one.
+void ApplicationShell::TellSpeechCrash(const ShellView& v) {
+ if(speechCrashTold_||!v.speechCrashedOff||menu_.NoticeOpen())return;
+ speechCrashTold_=true;
+ menu_.ShowNotice(loc::T("speech.crashed_off"),loc::T("speech.setting"));
+}
 // Every menu speaks with the row on screen, which may not be saved yet.
 // Turning speech on says once how it works, naming the accessibility button
 // as the player's device prints it; speech that cannot be heard is said on

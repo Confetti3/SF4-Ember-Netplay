@@ -1,5 +1,8 @@
 #include "ApplicationShell.hxx"
 #include "../common/Localization.hxx"
+#include "../common/JoinLink.hxx"
+#include "../common/PastedLink.hxx"
+#include "../common/TournamentLink.hxx"
 #include <imgui.h>
 #include <cstdio>
 #include <utility>
@@ -57,6 +60,22 @@ void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit
  error_.clear();noticeTone_=Tone::Neutral;noticeUntil_=now+8;
  if(direct&&SendJoin(v,submit)){notice_=loc::T("room.link_joining");noticeTone_=Tone::Pending;}
  else notice_=loc::T("room.link_opened");
+}
+// Paste room link on Public rooms. A public room link opens that room; an
+// invitation link goes to the helper as Join Room's paste does, text in hand,
+// so the Join screen's own draft is left alone; anything else, a bare code
+// included, is said not to be a room link.
+void ApplicationShell::PasteRoomLink(const ShellView& v,const Submit& submit) {
+ const char* clip=ImGui::GetClipboardText();
+ const std::string text=clip?clip:"";
+ const auto room=tournament_link::ParseRoomPasted(text);
+ const std::string tidied=pasted_link::Tidied(text);
+ const double now=clock_.Now();
+ if(room.Valid()){if(!publicRooms_.Busy())publicRooms_.OpenLink(room.bridgeId,room.roomId,true);}
+ else if(!join_link::ParsePastedInvitation(tidied).empty()){
+  if(!publicRooms_.Busy()&&SendJoin(v,tidied,submit))ShowNotice(loc::T("room.link_joining"),Tone::Pending,now+8);
+ }
+ else ShowNotice(loc::T("public.failure.link"),Tone::Error,now+6);
 }
 // A public room link opens Public rooms on its service and asks for its room
 // (PublicRoomsPanel). Like a match link it never moves a player who is in a

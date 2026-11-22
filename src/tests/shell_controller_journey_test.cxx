@@ -1,5 +1,6 @@
 #include "shell_journey_support.hxx"
 #include "../ui/ControllersScreen.hxx"
+#include "../ui/PadSetupScreen.hxx"
 namespace {
 // A controller request carrying the setup wizard's `command`.
 bool SetupCommandIs(const ShellAction& action, sf4e::gamepads::SetupCommand command) {
@@ -118,6 +119,12 @@ void SetupJourneys() {
     for (int i = 0; i < SetupStepCount; ++i) state.recorded[i] = RawInput{RawKind::Button, i};
     h.Frame(); state.summaryInput.action = SetupMenuAction::Back; ++state.summaryInput.sequence; h.Frame();
     Check(h.shell.Navigation().Focus() == "cancel" && h.shell.Navigation().Confirming(), "Summary MK did not open cancel confirmation");
+    {   // The two answers read differently: one keeps setting up, one leaves.
+        const auto rows = PadSetupRows(state);
+        const auto cancel = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& row) { return row.id == "cancel"; });
+        Check(cancel != rows.end() && !cancel->cancelLabel.empty() && cancel->cancelLabel != cancel->label && cancel->cancelLabel != loc::T("common.cancel"),
+            "The cancel confirmation's two buttons read the same");
+    }
     state.summaryInput.up = state.summaryInput.down = false; h.Frame(); h.Press(MenuInput::Back);
     Check(!h.shell.Navigation().Confirming() && h.shell.Navigation().Screen() == "pad-setup", "Summary confirmation Back left setup");
     h.Choose("save"); Check(SetupCommandIs(h.actions.back(), SetupCommand::Save), "Summary Save did not submit save");

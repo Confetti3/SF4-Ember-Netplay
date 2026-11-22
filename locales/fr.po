@@ -6384,6 +6384,9 @@ msgstr "La voix est activée, mais Windows n'a aucune voix pour parler. Ajoutez-
 msgid "speech.no_speech_dispatcher"
 msgstr "La voix est activée, mais speech-dispatcher est injoignable. Sous Linux et sur Steam Deck, Ember parle via speech-dispatcher, qui a aussi besoin de python3."
 
+msgid "speech.crashed_off"
+msgstr "La voix a été désactivée, car la voix de Windows a fait planter le jeu. Pour la réactiver, ouvrez Paramètres, Accessibilité et activez Voix."
+
 msgid "room.table_footer_practice"
 msgstr "Match d'entraînement"
 
@@ -7262,6 +7265,9 @@ msgstr "Annuler la configuration"
 
 msgid "pad_setup.cancel_detail"
 msgstr "Quitter sans enregistrer."
+
+msgid "pad_setup.keep_setup"
+msgstr "Continuer la configuration"
 
 msgid "pad_setup.cancelled"
 msgstr "Configuration annulée. Rien n'a été enregistré."

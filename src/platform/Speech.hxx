@@ -47,4 +47,8 @@ VoiceStatus NaturalVoice();
 // a failed download), or removes it. Only under Proton for now.
 void UpdatePack();
 void RemovePack();
+// After a crash in a Windows speech engine (sapi.dll or the voice it loaded):
+// the engine is never started for the rest of this session. Call it before any
+// speech is queued.
+void Quarantine();
 } }

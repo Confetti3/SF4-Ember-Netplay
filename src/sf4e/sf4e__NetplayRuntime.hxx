@@ -430,6 +430,8 @@ struct Runtime {
 	CountryCode automaticCountry;
 	// The area Windows' time zone and region give, read once at start: what the area's Automatic shows.
 	Area automaticArea = Area::None;
+	// A crash in a Windows speech engine turned menu speech off at this start: the menu says so once.
+	bool speechCrashedOff = false;
 	std::string error;
 	bool ready = false;
 	bool eventSystemReady = false;

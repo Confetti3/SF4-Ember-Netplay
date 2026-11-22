@@ -717,6 +717,7 @@ PostPublishState Publish() {
 	snapshot.checkUpdatesAtLaunch = runtime->checkUpdatesAtLaunch;
 	snapshot.automaticCountry = runtime->automaticCountry;
 	snapshot.automaticArea = runtime->automaticArea;
+	snapshot.speechCrashedOff = runtime->speechCrashedOff;
 	snapshot.lobbySettings = runtime->preferences.lobby;
 	snapshot.settingsPending = OverlayPrefs::PersistencePending() || runtime->pendingLobbySettings != nullptr || runtime->lobbyEditIntent.Parked() != nullptr;
 	snapshot.settingsError = OverlayPrefs::PersistenceError();

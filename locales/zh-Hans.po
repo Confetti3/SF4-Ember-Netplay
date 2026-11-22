@@ -6384,6 +6384,9 @@ msgstr "语音已开启，但Windows没有可用于朗读的语音。请在Windo
 msgid "speech.no_speech_dispatcher"
 msgstr "语音已开启，但无法连接speech-dispatcher。在Linux和Steam Deck上，Ember通过speech-dispatcher朗读，还需要python3。"
 
+msgid "speech.crashed_off"
+msgstr "语音已关闭，因为Windows语音导致游戏崩溃。要重新开启，请在“设置”>“无障碍”中打开“语音”。"
+
 msgid "room.table_footer_practice"
 msgstr "练习对战"
 
@@ -7262,6 +7265,9 @@ msgstr "取消设置"
 
 msgid "pad_setup.cancel_detail"
 msgstr "不保存并退出。"
+
+msgid "pad_setup.keep_setup"
+msgstr "继续设置"
 
 msgid "pad_setup.cancelled"
 msgstr "设置已取消，未保存任何内容。"

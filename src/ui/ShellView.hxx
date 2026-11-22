@@ -142,6 +142,9 @@ struct ShellView {
     // already dismissed the card for good.
     gameconfig::DisplaySettings gameSettings;
     bool showGameSettingsCard = false;
+    // Menu speech was turned off at this start after a crash in a Windows speech
+    // engine (the runtime did it); the menu says so once.
+    bool speechCrashedOff = false;
     std::vector<netplay::MemberView> members;
     netplay::NetworkAvailability network = netplay::NetworkAvailability::Starting;
     platform::ServiceSnapshot services;

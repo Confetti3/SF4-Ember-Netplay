@@ -27,6 +27,7 @@
 #include "../common/CrashReport.hxx"
 #include "../common/CrashUnloaded.hxx"
 #include "../common/EnvFlag.hxx"
+#include "../common/SpeechCrash.hxx"
 
 // sf4e__Platform.hxx, declared here so the crash record builds without the
 // game's headers (HeapCorruptionCaptureTest links it on its own).
@@ -40,6 +41,7 @@ using Ring = sf4e::crash::LogRing<64, 256>;
 Ring s_ring;
 wchar_t s_recordPath[MAX_PATH] = {};
 wchar_t s_logsDirectory[MAX_PATH] = {};
+wchar_t s_speechMarkerPath[MAX_PATH] = {};
 wchar_t s_dumpPath[sf4e::crash::DumpPathSize] = {};
 LPTOP_LEVEL_EXCEPTION_FILTER s_previousFilter = nullptr;
 sf4e::crash::DumpClient s_dumpClient;
@@ -113,6 +115,31 @@ uintptr_t ModuleBaseOf(uintptr_t address, char (&name)[MAX_PATH]) {
 		snprintf(name, MAX_PATH, "%s", file ? file + 1 : path);
 	}
 	return (uintptr_t)module;
+}
+
+// A fault inside Windows' speech stack leaves a marker beside the record, so the
+// next start can turn menu speech off instead of crashing the same way again.
+// File calls only, and the text in a static buffer: this runs inside the crash
+// handler, where the stack may be nearly gone. CreateFileW takes the process
+// heap for the path, as the record's own CreateFileW does.
+char s_speechMarker[160];
+void NoteSpeechCrash(const char* module) {
+	const size_t length = sf4e::crash::FormatSpeechCrashMarker(s_speechMarker, sizeof(s_speechMarker), module);
+	if (!length || !s_speechMarkerPath[0]) return;
+	const HANDLE file = CreateFileW(s_speechMarkerPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (file == INVALID_HANDLE_VALUE) return;
+	WriteText(file, s_speechMarker, length);
+	CloseHandle(file);
+}
+
+// Whether the faulting thread was started inside a speech module, for a fault
+// the engine causes from ntdll, the C runtime or combase, whose own module is
+// not a speech one. `name` gets the module the thread started in.
+bool SpeechThreadFaulted(char (&name)[MAX_PATH]) {
+	name[0] = '\0';
+	uintptr_t start = 0;
+	if (!s_ntdll.queryThread || s_ntdll.queryThread(GetCurrentThread(), Win32StartAddressClass, &start, sizeof(start), nullptr) < 0 || !start) return false;
+	return ModuleBaseOf(start, name) && sf4e::crash::IsSpeechEngineModule(name);
 }
 
 sf4e::crash::CrashFacts FactsFor(const char* kind, EXCEPTION_POINTERS* pointers, const char* message) {
@@ -370,6 +397,13 @@ bool WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	const bool heapCorrupt = sf4e::crash::IsHeapCorruption(pointers);
 	sf4e::crash::DumpAnswer answer = heapCorrupt ? s_dumpClient.Request(pointers) : sf4e::crash::DumpAnswer::NotAsked;
 	const sf4e::crash::CrashFacts facts = FactsFor(kind, pointers, message);
+	// Before the record, which does more and could fault itself. The fault's own
+	// module decides; failing that, the module the faulting thread started in.
+	if (pointers) {
+		char started[MAX_PATH];
+		if (sf4e::crash::IsSpeechEngineModule(facts.module)) NoteSpeechCrash(facts.module);
+		else if (SpeechThreadFaulted(started)) NoteSpeechCrash(started);
+	}
 	const size_t headerLength = sf4e::crash::FormatCrashHeader(s_header, sizeof(s_header), facts);
 	// The record holds this crash only: a crash report sends it, and one that
 	// carried earlier crashes would be grouped with them. It is emptied first
@@ -601,6 +635,7 @@ spdlog::sink_ptr RingSink() {
 void Install(const wchar_t* logsDirectory) {
 	PathCombineW(s_recordPath, logsDirectory, L"sf4e-crash.log");
 	wcsncpy_s(s_logsDirectory, logsDirectory, _TRUNCATE);
+	PathCombineW(s_speechMarkerPath, logsDirectory, sf4e::crash::SpeechCrashMarkerFile);
 	NoteImage(GetModuleHandleW(nullptr));
 	const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
 	s_ntdll.queryThread = reinterpret_cast<QueryThreadFn>(GetProcAddress(ntdll, "NtQueryInformationThread"));
@@ -684,6 +719,11 @@ void NoteMatchBoundary(const char* label) {
 	const LPTOP_LEVEL_EXCEPTION_FILTER current = SetUnhandledExceptionFilter(OnUnhandledException);
 	const bool restored = current != OnUnhandledException;
 	if (restored && current) s_previousFilter = current;
+	// The system's commit limit and what is left of it, so a stall from commit
+	// exhaustion reads differently from one with the address space still free.
+	MEMORYSTATUSEX system = {};
+	system.dwLength = sizeof(system);
+	const bool haveCommit = GlobalMemoryStatusEx(&system) != FALSE;
 	const double mb = 1024.0 * 1024.0;
 	// Growth since the last boundary of the same kind, so a leak across
 	// matches reads from one line per match. The load watch's reports can
@@ -698,9 +738,10 @@ void NoteMatchBoundary(const char* label) {
 		last = memory.PrivateUsage;
 	}
 	spdlog::info("Process [{}]: private={:.0f}MB ({:+.0f}MB since the last) working={:.0f}MB largest_free={:.0f}MB free={:.0f}MB "
-		"free_regions={} handles={} threads={} log_dropped={} crash_filter={}",
+		"free_regions={} handles={} threads={} commit_limit={:.0f}MB commit_free={:.0f}MB log_dropped={} crash_filter={}",
 		label, memory.PrivateUsage / mb, growth, memory.WorkingSetSize / mb, space.largestFree / mb, space.totalFree / mb,
-		space.freeRegions, handles, CountThreads(), sf4e::Platform::AsyncLogDropped(), restored ? "restored" : "ours");
+		space.freeRegions, handles, CountThreads(), haveCommit ? system.ullTotalPageFile / mb : -1.0,
+		haveCommit ? system.ullAvailPageFile / mb : -1.0, sf4e::Platform::AsyncLogDropped(), restored ? "restored" : "ours");
 }
 
 } // namespace crash

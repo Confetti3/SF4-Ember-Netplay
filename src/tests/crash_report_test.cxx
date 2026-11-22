@@ -2,7 +2,11 @@
 
 #include "../common/CrashReport.hxx"
 #include "../common/CrashUnloaded.hxx"
+#include "../common/SpeechCrashFile.hxx"
 
+#include <filesystem>
+#include <fstream>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -43,11 +47,91 @@ static void TestRingCutsLongLines() {
 	CHECK(Lines(ring).back().empty());
 }
 
+static void TestSpeechEngineModules() {
+	CHECK(IsSpeechEngineModule("sapi.dll"));
+	CHECK(IsSpeechEngineModule("SAPI.DLL"));
+	CHECK(IsSpeechEngineModule("MSTTSEngine_OneCore.dll"));
+	CHECK(IsSpeechEngineModule("msttsengine.dll"));
+	CHECK(!IsSpeechEngineModule("sapi.dll.bak"));
+	CHECK(!IsSpeechEngineModule("SSFIV.exe"));
+	CHECK(!IsSpeechEngineModule("Sidecar.dll"));
+	CHECK(!IsSpeechEngineModule("ntdll.dll"));
+	CHECK(!IsSpeechEngineModule(""));
+	CHECK(!IsSpeechEngineModule(nullptr));
+}
+
+static void TestSpeechCrashMarker() {
+	char text[160];
+	const size_t length = FormatSpeechCrashMarker(text, sizeof(text), "MSTTSEngine_OneCore.dll");
+	CHECK(length > 0);
+	std::string module;
+	CHECK(ParseSpeechCrashMarker(text, length, &module));
+	CHECK(module == "MSTTSEngine_OneCore.dll");
+	// Too small a buffer writes nothing rather than half a marker.
+	char small[8];
+	CHECK(FormatSpeechCrashMarker(small, sizeof(small), "MSTTSEngine_OneCore.dll") == 0);
+	// An empty or foreign file is not a marker, so it never turns speech off.
+	const auto parses = [&](const char* line) { return ParseSpeechCrashMarker(line, strlen(line), &module); };
+	CHECK(!parses(""));
+	CHECK(!parses("kind=unhandled_exception\n"));
+	CHECK(!parses("speech-crash"));
+	// A marker with no module still reads, and one with trailing lines keeps the first.
+	CHECK(parses("speech-crash module=\n") && module.empty());
+	CHECK(parses("speech-crash module=sapi.dll\r\nmore\n") && module == "sapi.dll");
+	CHECK(ParseSpeechCrashMarker(text, length, nullptr));
+}
+
+// The start-up half runs in a scratch folder: the real marker is never opened.
+static void TestSpeechCrashRecovery() {
+	namespace fs = std::filesystem;
+	const fs::path folder = fs::temp_directory_path() / "sf4e-speech-crash-recovery-test";
+	std::error_code ignored;
+	fs::remove_all(folder, ignored);
+	fs::create_directories(folder);
+	const fs::path marker = folder / SpeechCrashMarkerFile;
+	const auto leave = [&](const char* text) { std::ofstream(marker, std::ios::binary) << text; };
+	int saves = 0;
+	bool saveWorks = true;
+	const std::function<bool()> save = [&] { ++saves; return saveWorks; };
+
+	// No marker: nothing changes, nothing is saved.
+	bool enabled = true;
+	auto recovery = RecoverFromSpeechCrash(folder, enabled, save);
+	CHECK(!recovery.found && !recovery.turnedOff && enabled && saves == 0);
+
+	// Speech on: turned off, saved first, then the marker goes.
+	leave("speech-crash module=MSTTSEngine_OneCore.dll\n");
+	recovery = RecoverFromSpeechCrash(folder, enabled, save);
+	CHECK(recovery.found && recovery.turnedOff && !enabled && saves == 1 && recovery.module == "MSTTSEngine_OneCore.dll");
+	CHECK(!fs::exists(marker));
+
+	// Speech already off (a fresh install): found, so the engine stays quarantined, but no save and no notice.
+	leave("speech-crash module=sapi.dll\n");
+	enabled = false;
+	recovery = RecoverFromSpeechCrash(folder, enabled, save);
+	CHECK(recovery.found && !recovery.turnedOff && saves == 1 && !fs::exists(marker));
+
+	// A save that fails keeps the marker for the next start; speech is off for this one.
+	leave("speech-crash module=sapi.dll\n");
+	enabled = true; saveWorks = false;
+	recovery = RecoverFromSpeechCrash(folder, enabled, save);
+	CHECK(recovery.found && recovery.turnedOff && !enabled && saves == 2 && fs::exists(marker));
+
+	// A file that is no marker is removed and changes nothing.
+	leave("kind=unhandled_exception\n");
+	enabled = true;
+	recovery = RecoverFromSpeechCrash(folder, enabled, save);
+	CHECK(!recovery.found && enabled && saves == 2 && !fs::exists(marker));
+	fs::remove_all(folder, ignored);
+}
+
 static void TestExitCodeNames() {
 	CHECK(std::string(ExitCodeName(0)) == "clean exit");
 	CHECK(std::string(ExitCodeName(1)).find("GGPO assertion") != std::string::npos);
 	CHECK(std::string(ExitCodeName(3)) == "abort()");
 	CHECK(std::string(ExitCodeName(0xC0000005u)) == "access violation");
+	CHECK(std::string(ExitCodeName(0xC0000006u)).find("in-page error") == 0);
+	CHECK(IsCrashExit(0xC0000006u));
 	CHECK(std::string(ExitCodeName(0xC0000374u)) == "heap corruption");
 	CHECK(std::string(ExitCodeName(0xC0000409u)).find("fail-fast") == 0);
 	CHECK(std::string(ExitCodeName(0xC00000FDu)) == "stack overflow");
@@ -521,6 +605,9 @@ int main() {
 	TestRingKeepsTheLastLinesInOrder();
 	TestRingCutsLongLines();
 	TestExitCodeNames();
+	TestSpeechEngineModules();
+	TestSpeechCrashMarker();
+	TestSpeechCrashRecovery();
 	TestStartFailureClassification();
 	TestHeaderNamesTheFault();
 	TestHeaderToleratesMissingFacts();
