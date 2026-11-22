@@ -47,4 +47,8 @@ VoiceStatus NaturalVoice();
 // a failed download), or removes it. Only under Proton for now.
 void UpdatePack();
 void RemovePack();
+// True once after a crash in a Windows speech engine (sapi.dll or the voice it
+// loaded): the crash handler left a marker, which this removes. module names
+// the faulting DLL. Windows only; nothing else leaves a marker.
+bool TakeCrashMarker(std::string& module);
 } }

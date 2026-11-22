@@ -2,6 +2,7 @@
 
 #include "../common/CrashReport.hxx"
 #include "../common/CrashUnloaded.hxx"
+#include "../common/SpeechCrash.hxx"
 
 #include <string>
 #include <vector>
@@ -41,6 +42,40 @@ static void TestRingCutsLongLines() {
 	CHECK(Lines(ring) == (std::vector<std::string>{"0123456789abcde"}));
 	ring.Push("", 0);
 	CHECK(Lines(ring).back().empty());
+}
+
+static void TestSpeechEngineModules() {
+	CHECK(IsSpeechEngineModule("sapi.dll"));
+	CHECK(IsSpeechEngineModule("SAPI.DLL"));
+	CHECK(IsSpeechEngineModule("MSTTSEngine_OneCore.dll"));
+	CHECK(IsSpeechEngineModule("msttsengine.dll"));
+	CHECK(!IsSpeechEngineModule("sapi.dll.bak"));
+	CHECK(!IsSpeechEngineModule("SSFIV.exe"));
+	CHECK(!IsSpeechEngineModule("Sidecar.dll"));
+	CHECK(!IsSpeechEngineModule("ntdll.dll"));
+	CHECK(!IsSpeechEngineModule(""));
+	CHECK(!IsSpeechEngineModule(nullptr));
+}
+
+static void TestSpeechCrashMarker() {
+	char text[160];
+	const size_t length = FormatSpeechCrashMarker(text, sizeof(text), "MSTTSEngine_OneCore.dll");
+	CHECK(length > 0);
+	std::string module;
+	CHECK(ParseSpeechCrashMarker(text, length, &module));
+	CHECK(module == "MSTTSEngine_OneCore.dll");
+	// Too small a buffer writes nothing rather than half a marker.
+	char small[8];
+	CHECK(FormatSpeechCrashMarker(small, sizeof(small), "MSTTSEngine_OneCore.dll") == 0);
+	// An empty or foreign file is not a marker, so it never turns speech off.
+	const auto parses = [&](const char* line) { return ParseSpeechCrashMarker(line, strlen(line), &module); };
+	CHECK(!parses(""));
+	CHECK(!parses("kind=unhandled_exception\n"));
+	CHECK(!parses("speech-crash"));
+	// A marker with no module still reads, and one with trailing lines keeps the first.
+	CHECK(parses("speech-crash module=\n") && module.empty());
+	CHECK(parses("speech-crash module=sapi.dll\r\nmore\n") && module == "sapi.dll");
+	CHECK(ParseSpeechCrashMarker(text, length, nullptr));
 }
 
 static void TestExitCodeNames() {
@@ -490,6 +525,8 @@ int main() {
 	TestRingKeepsTheLastLinesInOrder();
 	TestRingCutsLongLines();
 	TestExitCodeNames();
+	TestSpeechEngineModules();
+	TestSpeechCrashMarker();
 	TestStartFailureClassification();
 	TestHeaderNamesTheFault();
 	TestHeaderToleratesMissingFacts();

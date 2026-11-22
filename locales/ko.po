@@ -6342,6 +6342,9 @@ msgstr "음성이 켜져 있지만 Windows에 말할 음성이 없습니다. Win
 msgid "speech.no_speech_dispatcher"
 msgstr "음성이 켜져 있지만 speech-dispatcher에 연결할 수 없습니다. Linux와 Steam Deck에서는 Ember가 speech-dispatcher로 말하며, python3도 필요합니다."
 
+msgid "speech.crashed_off"
+msgstr "Windows 음성 때문에 게임이 충돌하여 음성을 꺼 두었습니다. 다시 켜려면 설정, 접근성에서 음성을 켜세요."
+
 msgid "room.table_footer_practice"
 msgstr "연습 대전"
 

@@ -4,6 +4,7 @@
 #include "SpeechRelayScript.hxx"
 #include "../common/AwayAlert.hxx"
 #include "../common/Localization.hxx"
+#include "../common/SpeechCrash.hxx"
 #include <sapi.h>
 #include <mmsystem.h>
 #include <spdlog/spdlog.h>
@@ -207,6 +208,25 @@ void Stop() { Queue({{}, true, false, 0, 0, {}, false, false, 0}); }
 void Chime(int volume) { Queue({{}, false, false, 0, volume, {}, false, true, 0}); }
 void UpdatePack() { Queue({{}, false, false, 0, 0, loc::Tag(loc::Active()), false, false, 1}); }
 void RemovePack() { Queue({{}, false, false, 0, 0, loc::Tag(loc::Active()), false, false, 2}); }
+// The marker the crash handler leaves when the game died inside a speech engine
+// (SpeechCrash.hxx), beside sf4e-crash.log. It is read and deleted in one go, so
+// one crash turns speech off once, and the player may turn it on again.
+bool TakeCrashMarker(std::string& module) {
+    wchar_t appData[MAX_PATH] = {};
+    if (!GetEnvironmentVariableW(L"APPDATA", appData, MAX_PATH)) return false;
+    const std::wstring marker = std::wstring(appData) + L"\\sf4e\\logs\\" + crash::SpeechCrashMarkerFile;
+    const HANDLE file = CreateFileW(marker.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return false;
+    char text[256] = {};
+    DWORD read = 0;
+    ReadFile(file, text, sizeof(text) - 1, &read, nullptr);
+    CloseHandle(file);
+    // Gone either way: a marker that cannot be removed would turn speech off at every start.
+    DeleteFileW(marker.c_str());
+    if (!crash::ParseSpeechCrashMarker(text, read, &module)) return false;
+    spdlog::warn("Speech: the Windows voice ({}) crashed the game last time, so menu speech is turned off", module.empty() ? "unknown module" : module);
+    return true;
+}
 Missing Unavailable() { return missing; }
 VoiceStatus NaturalVoice() { return {voice, percent, pack, packBytes}; }
 } }

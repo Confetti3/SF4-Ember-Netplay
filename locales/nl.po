@@ -6342,6 +6342,9 @@ msgstr "Spraak staat aan, maar Windows heeft geen stem om mee te spreken. Voeg e
 msgid "speech.no_speech_dispatcher"
 msgstr "Spraak staat aan, maar speech-dispatcher was niet bereikbaar. Op Linux en de Steam Deck spreekt Ember via speech-dispatcher, dat ook python3 nodig heeft."
 
+msgid "speech.crashed_off"
+msgstr "Spraak is uitgezet omdat de Windows-stem het spel liet crashen. Zet het weer aan via Instellingen, Toegankelijkheid, en zet Spraak aan."
+
 msgid "room.table_footer_practice"
 msgstr "Oefenwedstrijd"
 

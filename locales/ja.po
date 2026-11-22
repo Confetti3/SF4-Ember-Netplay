@@ -6342,6 +6342,9 @@ msgstr "音声読み上げはオンですが、Windowsに読み上げ用の音�
 msgid "speech.no_speech_dispatcher"
 msgstr "音声読み上げはオンですが、speech-dispatcherに接続できませんでした。LinuxとSteam Deckでは、Emberはspeech-dispatcherで読み上げます。python3も必要です。"
 
+msgid "speech.crashed_off"
+msgstr "Windowsの音声がゲームをクラッシュさせたため、音声読み上げをオフにしました。再びオンにするには、設定のアクセシビリティを開き、音声読み上げをオンにしてください。"
+
 msgid "room.table_footer_practice"
 msgstr "練習対戦"
 

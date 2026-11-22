@@ -6342,6 +6342,9 @@ msgstr "Озвучивание включено, но в Windows нет голо
 msgid "speech.no_speech_dispatcher"
 msgstr "Озвучивание включено, но speech-dispatcher недоступен. В Linux и на Steam Deck Ember говорит через speech-dispatcher, которому также нужен python3."
 
+msgid "speech.crashed_off"
+msgstr "Озвучивание выключено, потому что голос Windows вызвал сбой игры. Чтобы включить его снова, откройте Настройки, Доступность и включите Озвучивание."
+
 msgid "room.table_footer_practice"
 msgstr "Тренировочный матч"
 

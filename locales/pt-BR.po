@@ -6342,6 +6342,9 @@ msgstr "A voz está ativada, mas o Windows não tem nenhuma voz para falar. Adic
 msgid "speech.no_speech_dispatcher"
 msgstr "A voz está ativada, mas não foi possível acessar o speech-dispatcher. No Linux e no Steam Deck, o Ember fala pelo speech-dispatcher, que também precisa do python3."
 
+msgid "speech.crashed_off"
+msgstr "A voz foi desativada porque a voz do Windows fez o jogo travar. Para ativá-la de novo, abra Configurações, Acessibilidade e ative Voz."
+
 msgid "room.table_footer_practice"
 msgstr "Partida de prática"
 

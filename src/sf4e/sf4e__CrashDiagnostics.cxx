@@ -27,6 +27,7 @@
 #include "../common/CrashReport.hxx"
 #include "../common/CrashUnloaded.hxx"
 #include "../common/EnvFlag.hxx"
+#include "../common/SpeechCrash.hxx"
 
 // sf4e__Platform.hxx, declared here so the crash record builds without the
 // game's headers (HeapCorruptionCaptureTest links it on its own).
@@ -40,6 +41,7 @@ using Ring = sf4e::crash::LogRing<64, 256>;
 Ring s_ring;
 wchar_t s_recordPath[MAX_PATH] = {};
 wchar_t s_logsDirectory[MAX_PATH] = {};
+wchar_t s_speechMarkerPath[MAX_PATH] = {};
 wchar_t s_dumpPath[sf4e::crash::DumpPathSize] = {};
 LPTOP_LEVEL_EXCEPTION_FILTER s_previousFilter = nullptr;
 sf4e::crash::DumpClient s_dumpClient;
@@ -110,6 +112,19 @@ uintptr_t ModuleBaseOf(uintptr_t address, char (&name)[MAX_PATH]) {
 		snprintf(name, MAX_PATH, "%s", file ? file + 1 : path);
 	}
 	return (uintptr_t)module;
+}
+
+// A fault inside Windows' speech stack leaves a marker beside the record, so the
+// next start can turn menu speech off instead of crashing the same way again.
+// Plain file calls and a stack buffer only: this runs inside the crash handler.
+void NoteSpeechCrash(const char* module) {
+	char text[160];
+	const size_t length = sf4e::crash::FormatSpeechCrashMarker(text, sizeof(text), module);
+	if (!length || !s_speechMarkerPath[0]) return;
+	const HANDLE file = CreateFileW(s_speechMarkerPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (file == INVALID_HANDLE_VALUE) return;
+	WriteText(file, text, length);
+	CloseHandle(file);
 }
 
 sf4e::crash::CrashFacts FactsFor(const char* kind, EXCEPTION_POINTERS* pointers, const char* message) {
@@ -352,6 +367,8 @@ bool WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	const bool heapCorrupt = sf4e::crash::IsHeapCorruption(pointers);
 	sf4e::crash::DumpAnswer answer = heapCorrupt ? s_dumpClient.Request(pointers) : sf4e::crash::DumpAnswer::NotAsked;
 	const sf4e::crash::CrashFacts facts = FactsFor(kind, pointers, message);
+	// Before the record, which does more and could fault itself.
+	if (pointers && sf4e::crash::IsSpeechEngineModule(facts.module)) NoteSpeechCrash(facts.module);
 	const size_t headerLength = sf4e::crash::FormatCrashHeader(s_header, sizeof(s_header), facts);
 	// The record holds this crash only: a crash report sends it, and one that
 	// carried earlier crashes would be grouped with them. It is emptied first
@@ -580,6 +597,7 @@ spdlog::sink_ptr RingSink() {
 void Install(const wchar_t* logsDirectory) {
 	PathCombineW(s_recordPath, logsDirectory, L"sf4e-crash.log");
 	wcsncpy_s(s_logsDirectory, logsDirectory, _TRUNCATE);
+	PathCombineW(s_speechMarkerPath, logsDirectory, sf4e::crash::SpeechCrashMarkerFile);
 	NoteImage(GetModuleHandleW(nullptr));
 	const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
 	s_ntdll.queryThread = reinterpret_cast<QueryThreadFn>(GetProcAddress(ntdll, "NtQueryInformationThread"));

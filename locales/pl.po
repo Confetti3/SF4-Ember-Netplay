@@ -6342,6 +6342,9 @@ msgstr "Głos jest włączony, ale system Windows nie ma żadnego głosu do mów
 msgid "speech.no_speech_dispatcher"
 msgstr "Głos jest włączony, ale nie udało się połączyć ze speech-dispatcher. W systemie Linux i na Steam Decku Ember mówi przez speech-dispatcher, który wymaga też python3."
 
+msgid "speech.crashed_off"
+msgstr "Głos został wyłączony, ponieważ głos systemu Windows spowodował awarię gry. Aby go włączyć ponownie, otwórz Ustawienia, Dostępność i włącz Głos."
+
 msgid "room.table_footer_practice"
 msgstr "Mecz treningowy"
 

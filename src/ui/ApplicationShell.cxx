@@ -871,6 +871,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
+ TurnSpeechOffAfterCrash(v);
  UpdateSpeech();
  // The newest action toast holds focus from when it came over a free menu
  // (DrawToasts): Select takes its first action, Back its last (Later), and

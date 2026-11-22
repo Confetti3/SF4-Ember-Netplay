@@ -372,6 +372,7 @@ private:
     bool AdjustSpeech(const MenuAction& action);
     bool ActivateSpeech(const MenuAction& action);
     void UpdateSpeech();
+    void TurnSpeechOffAfterCrash(const ShellView& v);
     UpdatePrompt updatePrompt_;
     netplay::Generation updateGeneration_;
     // The failed skips the service had counted when the view was last drawn.
@@ -385,6 +386,8 @@ private:
     // just turned on, to be told how it works; and the natural voice's
     // download state last told.
     bool speechNoticeShown_=false,speechIntro_=false;
+    // The crash marker is looked for once, when the saved preferences are in hand.
+    bool speechCrashChecked_=false;
     speech::Voice voiceTold_=speech::Voice::System;
     // The update offer last raised as a toast.
     std::string updateToastTag_;
