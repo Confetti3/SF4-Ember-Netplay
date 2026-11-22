@@ -7224,6 +7224,9 @@ msgstr "設定をキャンセル"
 msgid "pad_setup.cancel_detail"
 msgstr "保存せずに終了します。"
 
+msgid "pad_setup.keep_setup"
+msgstr "設定を続ける"
+
 msgid "pad_setup.cancelled"
 msgstr "設定をキャンセルしました。何も保存していません。"
 

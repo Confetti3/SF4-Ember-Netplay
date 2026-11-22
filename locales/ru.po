@@ -7224,6 +7224,9 @@ msgstr "Отменить настройку"
 msgid "pad_setup.cancel_detail"
 msgstr "Выйти без сохранения."
 
+msgid "pad_setup.keep_setup"
+msgstr "Продолжить настройку"
+
 msgid "pad_setup.cancelled"
 msgstr "Настройка отменена. Ничего не сохранено."
 

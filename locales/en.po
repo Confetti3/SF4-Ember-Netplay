@@ -6843,6 +6843,9 @@ msgstr "Cancel setup"
 msgid "pad_setup.cancel_detail"
 msgstr "Leave without saving."
 
+msgid "pad_setup.keep_setup"
+msgstr "Keep setting up"
+
 msgid "pad_setup.cancelled"
 msgstr "Setup cancelled. Nothing was saved."
 
