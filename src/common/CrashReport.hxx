@@ -68,7 +68,7 @@ inline const char* ExitCodeName(uint32_t code) {
 	case 3: return "abort()";
 	case 255: return "_exit(255), how the game's C runtime ends after a fatal runtime error";
 	case 0xC0000005u: return "access violation";
-	case 0xC0000006u: return "in-page error (STATUS_IN_PAGE_ERROR): Windows could not read part of a file the game had open, from a failing or sleeping disk, a network drive, or a file removed while the game ran";
+	case 0xC0000006u: return "in-page error (STATUS_IN_PAGE_ERROR)";
 	case 0xC0000374u: return "heap corruption";
 	case 0xC0000409u: return "fail-fast (stack buffer overrun or __fastfail)";
 	case 0xC00000FDu: return "stack overflow";

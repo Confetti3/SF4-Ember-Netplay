@@ -345,6 +345,17 @@ void PasteJourney(){
  h.Choose("pr-paste");h.Frame(0,2);
  Check(tickets(j)==2&&lastTicketIs(j,LinkBridge,LinkRoom),"The pasted ember: link did not ask for its room");
  j.Admit();Check(j.joins()==1&&Is<commands::JoinRoom>(h.actions.back(),[](const commands::JoinRoom& join){return join.invitation=="sf4e3:host-invitation";}),"The pasted link's admission did not join");
+ // An invitation link is Join Room's: it goes to the helper from here, with its
+ // spaces and quotes tidied. A bare code, or a word that only reads as one, is no room link.
+ const auto invites=[&]{int n=0;for(const auto& a:h.actions)if(Is<commands::JoinRoom>(a))++n;return n;};
+ const int before=invites();
+ for(const char* text:{"personalized","7K3M-0X1R-T9PZ"}){
+  Clipboard(text);h.Choose("pr-paste");h.Frame(0,2);
+  Check(j.status==loc::T("public.failure.link")&&invites()==before,"A bare code was taken for an invitation link");
+ }
+ Clipboard(" \"https://embernetplay.link/j#7K3M 0X1R T9PZ\" ");h.Choose("pr-paste");h.Frame(0,2);
+ Check(invites()==before+1&&Is<commands::JoinRoom>(h.actions.back(),[](const commands::JoinRoom& join){return join.invitation=="https://embernetplay.link/j#7K3M 0X1R T9PZ";}),"A pasted invitation link did not join");
+ Check(j.status==loc::T("room.link_joining"),"A pasted invitation link did not say it is joining");
  // An untrusted service, pasted: said, and nothing asked.
  h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);
  Clipboard(std::string("ember://room/open?bridge=")+OtherBridge+"&room="+LinkRoom);

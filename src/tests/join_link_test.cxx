@@ -48,16 +48,19 @@ static void TestOnlyTheJoinLinkIsAccepted() {
 	CHECK(ParseUri("ember://join/" + std::string(52, '-') + "7K3M0X1RT9PZ").empty());
 }
 
-static void TestAPastedShortLinkOrCodeIsRoutedToJoin() {
+static void TestAPastedInvitationLinkIsRoutedToJoin() {
 	const std::string code = "7K3M0X1RT9PZ";
+	// The forms the helper reads (short_invite.rs), spaces inside the code included.
 	const char* accepted[] = { "https://embernetplay.link/j#7K3M-0X1R-T9PZ", "https://embernetplay.link/j/7K3M-0X1R-T9PZ",
 		"https://embernetplay.link/j/#7k3m0x1rt9pz", "HTTPS://WWW.EMBERNETPLAY.LINK/j#7K3M-0X1R-T9PZ", "embernetplay.link/j#7K3M-0X1R-T9PZ",
-		"http://embernetplay.link/j/7K3M0X1RT9PZ/", "7K3M-0X1R-T9PZ", "7k3m0x1rt9pz", "7K3M-OXIR-T9PZ" };
-	for (const char* text : accepted) CHECK(ParsePasted(text) == code);
+		"http://embernetplay.link/j/7K3M0X1RT9PZ/", "https://embernetplay.link/j#7K3M-OXIR-T9PZ",
+		"https://embernetplay.link/j#7K3M 0X1R T9PZ", "embernetplay.link/j# 7k3m 0x1r t9pz", "https://embernetplay.link/j#7K3M - 0X1R - T9PZ" };
+	for (const char* text : accepted) CHECK(ParsePastedInvitation(text) == code);
+	// A bare code is Join Room's: any 12-letter word reads as one, so it never joins from here.
 	const char* refused[] = { "", "hello", "https://example.com/j#7K3M-0X1R-T9PZ", "https://embernetplay.link.evil/j#7K3M-0X1R-T9PZ",
 		"https://embernetplay.link/x#7K3M-0X1R-T9PZ", "https://embernetplay.link/j#7K3M-0X1R-T9P", "https://embernetplay.link/r#brg_1/0123456789abcdef0123456789abcdef",
-		"0123456789abcdef0123456789abcdef", "ember://join/7K3M-0X1R-T9PZ" };
-	for (const char* text : refused) CHECK(ParsePasted(text).empty());
+		"0123456789abcdef0123456789abcdef", "ember://join/7K3M-0X1R-T9PZ", "7K3M-0X1R-T9PZ", "7k3m0x1rt9pz", "7K3M 0X1R T9PZ", "personalized" };
+	for (const char* text : refused) CHECK(ParsePastedInvitation(text).empty());
 }
 
 static void TestTheJoinScreenGetsTheShortLink() {
@@ -428,7 +431,7 @@ int main() {
  TestResolvedReplayTargets();
 	TestCodesNormalizeLikeTheHelper();
 	TestOnlyTheJoinLinkIsAccepted();
-	TestAPastedShortLinkOrCodeIsRoutedToJoin();
+	TestAPastedInvitationLinkIsRoutedToJoin();
 	TestTheJoinScreenGetsTheShortLink();
 	TestOnlyTheTournamentLinkIsAccepted();
 	TestOnlyThePublicRoomLinkIsAccepted();

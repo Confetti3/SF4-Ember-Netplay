@@ -6343,7 +6343,7 @@ msgid "speech.no_speech_dispatcher"
 msgstr "Die Sprachausgabe ist an, aber speech-dispatcher war nicht erreichbar. Unter Linux und auf dem Steam Deck spricht Ember über speech-dispatcher, wofür auch python3 nötig ist."
 
 msgid "speech.crashed_off"
-msgstr "Die Sprachausgabe wurde ausgeschaltet, weil die Windows-Stimme das Spiel zum Absturz gebracht hat. Zum Wiedereinschalten öffne Einstellungen, Barrierefreiheit und stelle Sprachausgabe auf An."
+msgstr "Die Sprachausgabe wurde ausgeschaltet, weil die Windows-Stimme das Spiel zum Absturz gebracht hat. Zum Wiedereinschalten öffne Einstellungen, Barrierefreiheit und stelle Sprachausgabe auf Ein."
 
 msgid "room.table_footer_practice"
 msgstr "Übungskampf"

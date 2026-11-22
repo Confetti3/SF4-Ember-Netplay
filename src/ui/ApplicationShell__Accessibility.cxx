@@ -62,17 +62,13 @@ bool ApplicationShell::AdjustSpeech(const MenuAction& a) {
  else return false;
  return true;
 }
-// A Windows speech engine that crashed the game leaves a marker (SpeechCrash.hxx).
-// With speech still on, the next start would crash the same way, so it is turned
-// off here once, saved, and said on screen. The player turns it back on in
-// Settings, Accessibility. Taken once the saved preferences are in hand, so the
-// change is made to them and not to defaults.
-void ApplicationShell::TurnSpeechOffAfterCrash(const ShellView& v) {
- if(speechCrashChecked_||!v.canEditPreferences||preferencesDirty_)return;
- speechCrashChecked_=true;
- std::string module;
- if(!speech::TakeCrashMarker(module)||!preferences_.speech.enabled)return;
- preferences_.speech.enabled=false;preferencesDirty_=true;saveAt_=clock_.Now()+.45;
+// The runtime turned speech off at this start because a Windows speech engine
+// crashed the game (SpeechCrash.hxx); this says so once, and the player turns it
+// back on in Settings, Accessibility. A notice that is already open, such as the
+// game-settings card, is not replaced: the flag waits for a frame without one.
+void ApplicationShell::TellSpeechCrash(const ShellView& v) {
+ if(speechCrashTold_||!v.speechCrashedOff||menu_.NoticeOpen())return;
+ speechCrashTold_=true;
  menu_.ShowNotice(loc::T("speech.crashed_off"),loc::T("speech.setting"));
 }
 // Every menu speaks with the row on screen, which may not be saved yet.

@@ -159,6 +159,18 @@ void UpdateLaunchJourneys() {
   h.Press(MenuInput::Left); h.Press(MenuInput::Select);
   Check(ServiceIs(h.actions.back(), ServiceAction::UpdateNow), "The answer after the settings notice was lost");
  }
+ // The speech-crash notice (the runtime turned speech off): said once, and it
+ // waits for the launch-time settings notice instead of replacing it.
+ {
+  Harness h;
+  h.view.showGameSettingsCard = true; h.view.gameSettings.frameRate = "VARIABLE"; h.view.speechCrashedOff = true;
+  h.Screen("home"); h.Frame(0, 3);
+  Check(h.shell.NoticeOpen(), "The settings notice did not open");
+  h.Press(MenuInput::Select); h.Frame(0, 3);
+  Check(h.shell.NoticeOpen(), "The speech notice did not follow the settings notice");
+  h.Press(MenuInput::Select); h.Frame(0, 30);
+  Check(!h.shell.NoticeOpen(), "The speech notice came back after it was dismissed");
+ }
  {
   Harness other; Found(other);
   other.view.readyFailure = "The ready press failed."; other.view.readyFailureSequence = 1;

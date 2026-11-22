@@ -74,8 +74,9 @@ public:
         std::string own = status; Tone ownTone = tone;
         if (f.shell.publicRooms_.Status(f.view, f.screen, own, ownTone, f.shell.clock_.Now(), f.shell.preferences_.roomFilter)) { status = own; tone = ownTone; }
     }
-    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
         auto& shell = f.shell; auto& nav = shell.menu_.navigation;
+        if (a.id == "pr-paste") { shell.PasteRoomLink(f.view, submit); return true; }
         if (a.id == "pr-quick") { shell.QuickJoin(f.view); return true; }
         // The confirmed setup runs in the Ember ID panel; a locked ID is unlocked on its own screen first.
         if (a.id == "pr-setup") { shell.identity_.SetUpPublicRooms(f.view); shell.error_.clear(); return true; }

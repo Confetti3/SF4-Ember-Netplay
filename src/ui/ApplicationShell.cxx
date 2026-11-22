@@ -115,11 +115,15 @@ bool ApplicationShell::SendReady(const ShellView& view, bool rematch, const Subm
     commands::Ready ready; ready.generation = view.session.generation; ready.rematch = rematch;
     return Send(std::move(ready), submit);
 }
-bool ApplicationShell::SendJoin(const ShellView& view, const Submit& submit) {
-    commands::JoinRoom join; join.generation = view.session.generation; join.invitation = pasted_link::Tidied(invitation_);
+bool ApplicationShell::SendJoin(const ShellView& view, const std::string& text, const Submit& submit) {
+    commands::JoinRoom join; join.generation = view.session.generation; join.invitation = pasted_link::Tidied(text);
     // A room opened here is not the public one the panel joined.
     publicRooms_.ForgetCurrent();
-    if (!Send(std::move(join), submit)) return false;
+    return Send(std::move(join), submit);
+}
+// Joins what the Join Room screen's text box holds, and empties the box once sent.
+bool ApplicationShell::SendJoin(const ShellView& view, const Submit& submit) {
+    if (!SendJoin(view, std::string(invitation_), submit)) return false;
     std::fill(std::begin(invitation_), std::end(invitation_), '\0');
     return true;
 }
@@ -664,8 +668,6 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  publicRooms_.Update(v,nav.Screen(),identity_.UsableBridge(v),identity_.Waiting(),submit,now);
  UpdatePublicBridge(v,nav.Screen());
  {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
- // An invitation pasted under Paste room link joins as the Join Room paste does.
- {std::string invitation;if(publicRooms_.TakeInvitation(invitation)&&invitation.size()<sizeof(invitation_)){std::strcpy(invitation_,invitation.c_str());error_.clear();SendJoin(v,submit);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
  // Friends first: a Join or Watch question that ends over a card returns to it here, so the card panels build for the screen this frame shows.
  friends_.Update(v,nav,identity_.UsableBridge(v),submit);
@@ -873,7 +875,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
- TurnSpeechOffAfterCrash(v);
+ TellSpeechCrash(v);
  UpdateSpeech();
  // The newest action toast holds focus from when it came over a free menu
  // (DrawToasts): Select takes its first action, Back its last (Later), and

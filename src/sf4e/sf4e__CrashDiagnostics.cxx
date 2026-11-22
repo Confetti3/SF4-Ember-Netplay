@@ -116,15 +116,27 @@ uintptr_t ModuleBaseOf(uintptr_t address, char (&name)[MAX_PATH]) {
 
 // A fault inside Windows' speech stack leaves a marker beside the record, so the
 // next start can turn menu speech off instead of crashing the same way again.
-// Plain file calls and a stack buffer only: this runs inside the crash handler.
+// File calls only, and the text in a static buffer: this runs inside the crash
+// handler, where the stack may be nearly gone. CreateFileW takes the process
+// heap for the path, as the record's own CreateFileW does.
+char s_speechMarker[160];
 void NoteSpeechCrash(const char* module) {
-	char text[160];
-	const size_t length = sf4e::crash::FormatSpeechCrashMarker(text, sizeof(text), module);
+	const size_t length = sf4e::crash::FormatSpeechCrashMarker(s_speechMarker, sizeof(s_speechMarker), module);
 	if (!length || !s_speechMarkerPath[0]) return;
 	const HANDLE file = CreateFileW(s_speechMarkerPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (file == INVALID_HANDLE_VALUE) return;
-	WriteText(file, text, length);
+	WriteText(file, s_speechMarker, length);
 	CloseHandle(file);
+}
+
+// Whether the faulting thread was started inside a speech module, for a fault
+// the engine causes from ntdll, the C runtime or combase, whose own module is
+// not a speech one. `name` gets the module the thread started in.
+bool SpeechThreadFaulted(char (&name)[MAX_PATH]) {
+	name[0] = '\0';
+	uintptr_t start = 0;
+	if (!s_ntdll.queryThread || s_ntdll.queryThread(GetCurrentThread(), Win32StartAddressClass, &start, sizeof(start), nullptr) < 0 || !start) return false;
+	return ModuleBaseOf(start, name) && sf4e::crash::IsSpeechEngineModule(name);
 }
 
 sf4e::crash::CrashFacts FactsFor(const char* kind, EXCEPTION_POINTERS* pointers, const char* message) {
@@ -367,8 +379,13 @@ bool WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	const bool heapCorrupt = sf4e::crash::IsHeapCorruption(pointers);
 	sf4e::crash::DumpAnswer answer = heapCorrupt ? s_dumpClient.Request(pointers) : sf4e::crash::DumpAnswer::NotAsked;
 	const sf4e::crash::CrashFacts facts = FactsFor(kind, pointers, message);
-	// Before the record, which does more and could fault itself.
-	if (pointers && sf4e::crash::IsSpeechEngineModule(facts.module)) NoteSpeechCrash(facts.module);
+	// Before the record, which does more and could fault itself. The fault's own
+	// module decides; failing that, the module the faulting thread started in.
+	if (pointers) {
+		char started[MAX_PATH];
+		if (sf4e::crash::IsSpeechEngineModule(facts.module)) NoteSpeechCrash(facts.module);
+		else if (SpeechThreadFaulted(started)) NoteSpeechCrash(started);
+	}
 	const size_t headerLength = sf4e::crash::FormatCrashHeader(s_header, sizeof(s_header), facts);
 	// The record holds this crash only: a crash report sends it, and one that
 	// carried earlier crashes would be grouped with them. It is emptied first

@@ -12,6 +12,8 @@
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
+#include "../common/SpeechCrashFile.hxx"
+#include "../platform/Speech.hxx"
 #include "../common/NativeMenuLock.hxx"
 #include "../ui/NetworkFeedback.hxx"
 #include "sf4e__AwayAlert.hxx"
@@ -288,6 +290,25 @@ void StartHelper() {
         preferences.shareReplaysSince = netplay::ShareReplaysSince(preferences.shareReplays, loaded, static_cast<std::uint64_t>(_time64(nullptr)));
         if (preferences.shareReplaysSince != loaded && !store.SaveLauncher({{"shareReplaysSince", preferences.shareReplaysSince}}, settingsError))
             spdlog::warn("Replays: when sharing came on could not be saved: {}", settingsError);
+    }
+    {
+        // A crash in a Windows speech engine left a marker beside the crash log
+        // (SpeechCrash.hxx). With speech on, every start would crash the same
+        // way, so it is turned off here, where the settings load: saved off
+        // first, and only then is the marker removed. The engine stays down for
+        // this session whatever asks for it (the welcome speaks regardless),
+        // and the menu tells the player once.
+        const auto recovery = crash::RecoverFromSpeechCrash(std::filesystem::path(netplay::SettingsStore::DefaultDirectory()) / L"logs", preferences.speech.enabled, [&] {
+            nlohmann::json off; netplay::WriteSpeechPreferences(preferences, off);
+            const bool saved = store.SaveLauncher(off, settingsError);
+            if (!saved) spdlog::warn("Speech: turning menu speech off could not be saved: {}", settingsError);
+            return saved;
+        });
+        if (recovery.found) {
+            speech::Quarantine();
+            spdlog::warn("Speech: the Windows voice ({}) crashed the game last time, so menu speech is turned off", recovery.module.empty() ? "unknown module" : recovery.module);
+        }
+        runtime->speechCrashedOff = recovery.turnedOff;
     }
     // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.
     if (!saved.contains("inputDelay")) preferences.welcomed = false;

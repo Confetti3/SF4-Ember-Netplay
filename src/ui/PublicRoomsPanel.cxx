@@ -5,9 +5,7 @@
 #include "MenuRows.hxx"
 #include "PublicRoomsCards.hxx"
 #include "Theme.hxx"
-#include "../common/JoinLink.hxx"
 #include "../common/Localization.hxx"
-#include "../common/PastedLink.hxx"
 #include "../common/TournamentLink.hxx"
 #include <imgui.h>
 #include <algorithm>
@@ -359,12 +357,6 @@ void PublicRoomsPanel::Joined(const ShellView& v, const Submit& submit, const Pe
     current_ = std::move(joined);
 }
 
-bool PublicRoomsPanel::TakeInvitation(std::string& text) {
-    if (invitation_.empty()) return false;
-    text = std::move(invitation_); invitation_.clear();
-    return true;
-}
-
 bool PublicRoomsPanel::TakeSaid(std::string& text) {
     if (said_.empty()) return false;
     text = std::move(said_); said_.clear();
@@ -560,17 +552,6 @@ bool PublicRoomsPanel::Activate(const MenuAction& a, MenuNavigation& nav) {
     if (a.id == "pr-error") { Refresh(); return true; }
     if (a.id == "pr-stop") { Abandon(); return true; }
     if (a.id == "pr-link") { if (link_ && !Busy()) link_->direct = true; return true; }
-    if (a.id == "pr-paste") {
-        // The room link a bot or site gave: its page or the ember: link.
-        const char* text = ImGui::GetClipboardText();
-        const auto link = tournament_link::ParseRoomPasted(text ? text : "");
-        // An invitation short link is Join Room's: the shell joins it.
-        const auto tidied = pasted_link::Tidied(text ? text : "");
-        if (!link.Valid() && !join_link::ParsePasted(tidied).empty()) { if (!Busy()) invitation_ = tidied; }
-        else if (!link.Valid()) Say(loc::T("public.failure.link"));
-        else if (!Busy()) OpenLink(link.bridgeId, link.roomId, true);
-        return true;
-    }
     if (a.id.compare(0, 8, "pr-room:") != 0) return false;
     Join(a.id.substr(8));
     return true;

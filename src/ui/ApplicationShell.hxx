@@ -372,7 +372,7 @@ private:
     bool AdjustSpeech(const MenuAction& action);
     bool ActivateSpeech(const MenuAction& action);
     void UpdateSpeech();
-    void TurnSpeechOffAfterCrash(const ShellView& v);
+    void TellSpeechCrash(const ShellView& v);
     UpdatePrompt updatePrompt_;
     netplay::Generation updateGeneration_;
     // The failed skips the service had counted when the view was last drawn.
@@ -386,8 +386,8 @@ private:
     // just turned on, to be told how it works; and the natural voice's
     // download state last told.
     bool speechNoticeShown_=false,speechIntro_=false;
-    // The crash marker is looked for once, when the saved preferences are in hand.
-    bool speechCrashChecked_=false;
+    // The speech-crash notice (ShellView::speechCrashedOff) is said once.
+    bool speechCrashTold_=false;
     speech::Voice voiceTold_=speech::Voice::System;
     // The update offer last raised as a toast.
     std::string updateToastTag_;
@@ -867,6 +867,10 @@ std::string memberAsk_;
     // The room commands sent from more than one place.
     bool SendReady(const ShellView& view, bool rematch, const Submit& submit);
     bool SendJoin(const ShellView& view, const Submit& submit);
+    bool SendJoin(const ShellView& view, const std::string& text, const Submit& submit);
+    // Paste room link on Public rooms: a public room link opens that room, an
+    // invitation link joins as Join Room does, anything else is said not to be a link.
+    void PasteRoomLink(const ShellView& view, const Submit& submit);
     bool SendLeave(const ShellView& view, const Submit& submit);
     // The preferences being edited, as a save or a new room sends them.
     netplay::PlayerPreferences PreferencesToSend() const;
