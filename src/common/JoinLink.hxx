@@ -63,6 +63,33 @@ inline std::string ParseUri(const std::string& text) {
 	return ParseCode(rest);
 }
 
+// The code in a pasted short link or bare code, or "": the forms the helper
+// reads (rust/sf4-net/src/short_invite.rs parse), with `#` or `/` after /j,
+// with or without the scheme or www., in any case. Tidy the paste first
+// (pasted_link::Tidied). Only the shape is checked, to route the paste; the
+// helper still resolves it.
+inline std::string ParsePasted(const std::string& text) {
+	if (text.empty() || text.size() > 96) return std::string();
+	std::string rest;
+	for (std::size_t i = 0; i < text.size(); ++i) {
+		const char symbol = text[i];
+		rest.push_back(symbol >= 'A' && symbol <= 'Z' ? static_cast<char>(symbol - 'A' + 'a') : symbol);
+	}
+	const auto strip = [&rest](const char* prefix) {
+		const std::string head(prefix);
+		if (rest.compare(0, head.size(), head) != 0) return false;
+		rest.erase(0, head.size());
+		return true;
+	};
+	if (!strip("https://")) strip("http://");
+	strip("www.");
+	if (strip("embernetplay.link")) {
+		if (!strip("/j#") && !strip("/j/#") && !strip("/j/")) return std::string();
+		while (!rest.empty() && rest[rest.size() - 1] == '/') rest.erase(rest.size() - 1);
+	} else if (text.find(':') != std::string::npos || text.find('/') != std::string::npos) return std::string();
+	return ParseCode(rest);
+}
+
 // XXXX-XXXX-XXXX.
 inline std::string DisplayCode(const std::string& code) {
 	if (code.size() != CodeSymbols) return std::string();

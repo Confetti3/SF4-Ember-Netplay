@@ -118,6 +118,9 @@ public:
                 const netplay::publicrooms::RoomFilter& filter) const;
     // What the panel has to say, once, wherever the player is.
     bool TakeSaid(std::string& text);
+    // An invitation short link or code pasted under Paste room link, once: the
+    // shell joins it as Join Room does, since only the helper can resolve it.
+    bool TakeInvitation(std::string& text);
     // The shell is hidden: an admission that arrives meanwhile must not join
     // later, so the request in flight is abandoned. A room link nobody has
     // followed yet is kept: it is the player's, until followed or replaced.
@@ -174,7 +177,7 @@ private:
     // Asks for the list again for the player: Updating... shows while it is in flight.
     void Refresh() { wantList_ = true; manualRefresh_ = true; said_.clear(); }
 
-    std::string bridge_, lastScreen_, said_, listError_;
+    std::string bridge_, lastScreen_, said_, invitation_, listError_;
     // The service the last finished refresh listed; the list on screen is for it only when it is the current one.
     std::string loadedFor_;
     // The service a trusted room link named, in place of the selected one on

@@ -48,6 +48,18 @@ static void TestOnlyTheJoinLinkIsAccepted() {
 	CHECK(ParseUri("ember://join/" + std::string(52, '-') + "7K3M0X1RT9PZ").empty());
 }
 
+static void TestAPastedShortLinkOrCodeIsRoutedToJoin() {
+	const std::string code = "7K3M0X1RT9PZ";
+	const char* accepted[] = { "https://embernetplay.link/j#7K3M-0X1R-T9PZ", "https://embernetplay.link/j/7K3M-0X1R-T9PZ",
+		"https://embernetplay.link/j/#7k3m0x1rt9pz", "HTTPS://WWW.EMBERNETPLAY.LINK/j#7K3M-0X1R-T9PZ", "embernetplay.link/j#7K3M-0X1R-T9PZ",
+		"http://embernetplay.link/j/7K3M0X1RT9PZ/", "7K3M-0X1R-T9PZ", "7k3m0x1rt9pz", "7K3M-OXIR-T9PZ" };
+	for (const char* text : accepted) CHECK(ParsePasted(text) == code);
+	const char* refused[] = { "", "hello", "https://example.com/j#7K3M-0X1R-T9PZ", "https://embernetplay.link.evil/j#7K3M-0X1R-T9PZ",
+		"https://embernetplay.link/x#7K3M-0X1R-T9PZ", "https://embernetplay.link/j#7K3M-0X1R-T9P", "https://embernetplay.link/r#brg_1/0123456789abcdef0123456789abcdef",
+		"0123456789abcdef0123456789abcdef", "ember://join/7K3M-0X1R-T9PZ" };
+	for (const char* text : refused) CHECK(ParsePasted(text).empty());
+}
+
 static void TestTheJoinScreenGetsTheShortLink() {
 	CHECK(DisplayCode("7K3M0X1RT9PZ") == "7K3M-0X1R-T9PZ");
 	CHECK(ShortLink("7K3M0X1RT9PZ") == "https://embernetplay.link/j#7K3M-0X1R-T9PZ");
@@ -416,6 +428,7 @@ int main() {
  TestResolvedReplayTargets();
 	TestCodesNormalizeLikeTheHelper();
 	TestOnlyTheJoinLinkIsAccepted();
+	TestAPastedShortLinkOrCodeIsRoutedToJoin();
 	TestTheJoinScreenGetsTheShortLink();
 	TestOnlyTheTournamentLinkIsAccepted();
 	TestOnlyThePublicRoomLinkIsAccepted();

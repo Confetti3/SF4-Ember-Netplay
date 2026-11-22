@@ -664,6 +664,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  publicRooms_.Update(v,nav.Screen(),identity_.UsableBridge(v),identity_.Waiting(),submit,now);
  UpdatePublicBridge(v,nav.Screen());
  {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
+ // An invitation pasted under Paste room link joins as the Join Room paste does.
+ {std::string invitation;if(publicRooms_.TakeInvitation(invitation)&&invitation.size()<sizeof(invitation_)){std::strcpy(invitation_,invitation.c_str());error_.clear();SendJoin(v,submit);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
  // Friends first: a Join or Watch question that ends over a card returns to it here, so the card panels build for the screen this frame shows.
  friends_.Update(v,nav,identity_.UsableBridge(v),submit);
