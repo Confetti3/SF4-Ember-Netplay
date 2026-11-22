@@ -7221,6 +7221,9 @@ msgstr "Cancelar configuração"
 msgid "pad_setup.cancel_detail"
 msgstr "Sair sem salvar."
 
+msgid "pad_setup.keep_setup"
+msgstr "Continuar configurando"
+
 msgid "pad_setup.cancelled"
 msgstr "Configuração cancelada. Nada foi salvo."
 

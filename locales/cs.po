@@ -7221,6 +7221,9 @@ msgstr "Zrušit nastavení"
 msgid "pad_setup.cancel_detail"
 msgstr "Odejít bez uložení."
 
+msgid "pad_setup.keep_setup"
+msgstr "Pokračovat v nastavení"
+
 msgid "pad_setup.cancelled"
 msgstr "Nastavení zrušeno. Nic nebylo uloženo."
 

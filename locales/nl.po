@@ -7221,6 +7221,9 @@ msgstr "Instelling annuleren"
 msgid "pad_setup.cancel_detail"
 msgstr "Verlaten zonder op te slaan."
 
+msgid "pad_setup.keep_setup"
+msgstr "Verder instellen"
+
 msgid "pad_setup.cancelled"
 msgstr "Instelling geannuleerd. Er is niets opgeslagen."
 

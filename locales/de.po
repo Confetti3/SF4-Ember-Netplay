@@ -7221,6 +7221,9 @@ msgstr "Einrichtung abbrechen"
 msgid "pad_setup.cancel_detail"
 msgstr "Ohne Speichern verlassen."
 
+msgid "pad_setup.keep_setup"
+msgstr "Weiter einrichten"
+
 msgid "pad_setup.cancelled"
 msgstr "Einrichtung abgebrochen. Nichts wurde gespeichert."
 

@@ -7221,6 +7221,9 @@ msgstr "Annuler la configuration"
 msgid "pad_setup.cancel_detail"
 msgstr "Quitter sans enregistrer."
 
+msgid "pad_setup.keep_setup"
+msgstr "Continuer la configuration"
+
 msgid "pad_setup.cancelled"
 msgstr "Configuration annulée. Rien n'a été enregistré."
 

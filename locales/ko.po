@@ -7221,6 +7221,9 @@ msgstr "설정 취소"
 msgid "pad_setup.cancel_detail"
 msgstr "저장하지 않고 나갑니다."
 
+msgid "pad_setup.keep_setup"
+msgstr "계속 설정"
+
 msgid "pad_setup.cancelled"
 msgstr "설정이 취소되었습니다. 저장되지 않았습니다."
 

@@ -19,6 +19,8 @@ std::vector<MenuEntry> PadSetupRows(const SetupState& state) {
         rows.push_back(Row("save", loc::T("pad_setup.save"), loc::T("pad_setup.save_detail"), state.CanSave() && state.feedback != SetupFeedback::Reconnect));
         rows.push_back(Row("restart", loc::T("pad_setup.start_over"), loc::T("pad_setup.start_over_detail")));
         rows.push_back(ConfirmRow("cancel", loc::T("pad_setup.cancel"), loc::T("pad_setup.cancel_detail")));
+        // Back asks this; its left button must not read as the right one.
+        rows.back().cancelLabel = loc::T("pad_setup.keep_setup");
     }
     return rows;
 }
