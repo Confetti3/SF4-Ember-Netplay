@@ -60,6 +60,10 @@ outside the tree:
     cd rust/vendor/iroh
     CARGO_TARGET_DIR=<outside the checkout> cargo test --locked --features test-utils --lib net_report
 
+Dependabot ignores iroh (a bump would leave this patch unused), so it raises
+no iroh pull requests: check iroh's releases and security advisories by hand
+when touching the helper's dependencies.
+
 iroh 1.5.0 has the same `MAX_RELAYS = 5` and the same preferred-relay code
 (read in its published crate on 2026-11-23). When upgrading iroh: vendor the
 new release unchanged in one commit, re-apply these changes if upstream has
