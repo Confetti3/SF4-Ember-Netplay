@@ -131,6 +131,10 @@ impl Default for NetReportConfig {
 
 const FULL_REPORT_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const ENOUGH_ENDPOINTS: usize = 3;
+/// Ember patch: the most relays a report starts QUIC address discovery
+/// probes against (upstream: 5). Ember's helper pins 6 relays and checks in
+/// its own tests (sf4-net invite.rs) that they fit under this.
+const QAD_PROBE_RELAYS: usize = 8;
 
 /// Client to run net_reports.
 #[derive(Debug)]
@@ -238,6 +242,12 @@ struct Reports {
     prev: BTreeMap<Instant, Report>,
     /// Most recent report.
     last: Option<Report>,
+    /// Ember patch: the preferred relay of the most recent report. A full
+    /// report clears `last` to make a full probe plan; upstream that also
+    /// dropped the previous relay, so every full report (each 5 minutes)
+    /// chose without hysteresis and two relays a few milliseconds apart
+    /// swapped the home relay back and forth. This keeps it across that.
+    last_preferred: Option<RelayUrl>,
     /// Time of last full (non-incremental) report.
     last_full: Instant,
 }
@@ -248,6 +258,7 @@ impl Default for Reports {
             next_full: true,
             prev: Default::default(),
             last: Default::default(),
+            last_preferred: None,
             last_full: Instant::now(),
         }
     }
@@ -493,16 +504,16 @@ impl Client {
 
         trace!("spawning QAD probes");
 
-        // TODO: randomize choice?
-        const MAX_RELAYS: usize = 5;
-
         let mut v4_buf = JoinSet::new();
         let cancel_v4 = shutdown_token.child_token();
         let mut v6_buf = JoinSet::new();
         let cancel_v6 = shutdown_token.child_token();
 
+        // Ember patch: upstream probed only the first 5 relays of the map,
+        // which iterates in URL order, so a sixth relay never got a latency
+        // and could never be the home relay.
         let relays = self.relay_map.relays::<Vec<_>>();
-        for relay in relays.into_iter().take(MAX_RELAYS) {
+        for relay in relays.into_iter().take(QAD_PROBE_RELAYS) {
             if if_state.have_v4 && needs_v4_probe {
                 trace!(?relay.url, "v4 QAD probe starting");
                 let relay = relay.clone();
@@ -747,10 +758,10 @@ impl Client {
 
     /// Adds `r` to the set of recent Reports and mutates `r.preferred_relay` to contain the best recent one.
     fn add_report_history_and_set_preferred_relay(&mut self, r: &mut Report) {
-        let mut prev_relay = None;
+        // Ember patch: the previous relay survives a full report, which
+        // clears `last` (see `Reports::last_preferred`).
+        let prev_relay = self.reports.last_preferred.clone();
         if let Some(ref last) = self.reports.last {
-            prev_relay.clone_from(&last.preferred_relay);
-
             // If we don't have new information, copy this from the last report
             if r.mapping_varies_by_dest_ipv4.is_none() {
                 r.mapping_varies_by_dest_ipv4 = last.mapping_varies_by_dest_ipv4;
@@ -818,6 +829,7 @@ impl Client {
         }
 
         self.reports.prev.insert(now, r.clone());
+        self.reports.last_preferred.clone_from(&r.preferred_relay);
         self.reports.last = Some(r.clone());
     }
 }
@@ -1250,6 +1262,58 @@ mod tests {
             assert_eq!(got, want, "preferred_relay");
         }
 
+        Ok(())
+    }
+
+    /// Ember patch: a full report (which clears `reports.last` for its probe
+    /// plan) keeps the previous relay and its hysteresis.
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn test_full_report_keeps_preferred_relay_hysteresis() -> Result {
+        fn relay_url(i: u16) -> RelayUrl {
+            format!("http://{i}.com").parse().unwrap()
+        }
+        fn report(a: &[(u16, u64)]) -> Report {
+            let mut report = Report::default();
+            for &(id, ms) in a {
+                report.relay_latency.update_relay(
+                    relay_url(id),
+                    Duration::from_millis(ms),
+                    Probe::QadIpv4,
+                );
+            }
+            report
+        }
+        // (latencies of the full report after a first report of d1 40 ms and
+        // d2 50 ms, relay wanted)
+        let cases: [(&str, &[(u16, u64)], u16); 4] = [
+            // d2 only a little faster: stay on d1 (upstream switched here)
+            ("twin_stays", &[(1, 40), (2, 39)], 1),
+            ("not_fast_enough", &[(1, 40), (2, 27)], 1),
+            // under two thirds of d1: switch
+            ("much_faster", &[(1, 40), (2, 20)], 2),
+            // d1 did not answer this time: the best that did
+            ("previous_missing", &[(2, 50), (3, 60)], 2),
+        ];
+        let resolver = DnsResolver::new();
+        let tls_config = CaTlsConfig::insecure_skip_verify()
+            .client_config(default_provider())
+            .expect("infallible");
+        for (name, full, want) in cases {
+            let opts = Options::new(tls_config.clone());
+            let mut client =
+                Client::new(resolver.clone(), RelayMap::empty(), opts, Default::default());
+            let mut first = report(&[(1, 40), (2, 50)]);
+            client.add_report_history_and_set_preferred_relay(&mut first);
+            assert_eq!(first.preferred_relay, Some(relay_url(1)), "{name}: first");
+
+            // What get_report does for a full report, minutes later so the
+            // first report's latencies no longer count as recent.
+            tokio::time::advance(Duration::from_secs(6 * 60)).await;
+            client.reports.last = None;
+            let mut full = report(full);
+            client.add_report_history_and_set_preferred_relay(&mut full);
+            assert_eq!(full.preferred_relay, Some(relay_url(want)), "{name}");
+        }
         Ok(())
     }
 }
