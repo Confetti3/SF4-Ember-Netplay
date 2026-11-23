@@ -48,7 +48,7 @@ inline const std::vector<DummyKind>& DummyKinds() {
         {"action", "training.dummy.action", &DummyState::action, {{0, "training.dummy.stand", {}}, {1, "training.dummy.crouch", {}}, {2, "training.dummy.jump", {}}, {3, "training.dummy.cpu", {}}}},
         {"guard", "training.dummy.guard", &DummyState::guard, {{0, "training.dummy.guard_none", {}}, {1, "training.dummy.guard_first", {}}, {2, "training.dummy.guard_all", {}}, {3, "training.dummy.guard_random", {}}}},
         {"counterHit", "training.dummy.counter", &DummyState::counterHit, {{0, "training.dummy.counter_off", {}}, {1, "training.dummy.counter_on", {}}, {2, "training.dummy.counter_random", {}}}},
-        {"quickStand", "training.dummy.quick", &DummyState::quickStand, {{0, "training.dummy.quick_quick", {}}, {1, "training.dummy.quick_normal", {}}, {2, "training.dummy.quick_delayed", {}}, {3, "training.dummy.quick_random", {}}}},
+        {"quickStand", "training.dummy.quick", &DummyState::quickStand, {{0, "training.dummy.quick_normal", {}}, {1, "training.dummy.quick_quick", {}}, {2, "training.dummy.quick_delayed", {}}, {3, "training.dummy.quick_random", {}}}},
         {"stun", "training.dummy.stun", &DummyState::stun, {{0, "training.dummy.stun_normal", {}}, {1, "training.dummy.stun_constant", {}}, {2, "training.dummy.stun_none", {}}}},
         {"super", "training.dummy.super", &DummyState::super, gauge},
         {"revenge", "training.dummy.revenge", &DummyState::revenge, gauge}};

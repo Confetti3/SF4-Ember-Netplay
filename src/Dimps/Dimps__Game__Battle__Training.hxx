@@ -49,7 +49,7 @@ namespace Dimps {
 						OPT_ACTION = 0,
 						// no block, after first hit, all, random
 						OPT_GUARD = 1,
-						// quick, normal, delayed, random
+						// normal, quick, delayed, random (read by SSFIV.exe 0x598a00)
 						OPT_QUICK_STAND = 2,
 						// off, on, random
 						OPT_COUNTER_HIT = 3,

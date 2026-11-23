@@ -115,6 +115,11 @@ int main() {
         Require(!box.Push("style", 2) && box.Take().size() == Mailbox::Capacity && box.Take().empty(), "The mailbox kept more than it should");
         // The dummy kinds the menu uses are the table's: its numbering stays what the game's menu has.
         Require(DummyKindOf("super").choices.size() == 4 && DummyKindOf("super").choices[1].value == 5 && DummyKindOf("action").choices.size() == 4, "A dummy kind changed");
+        // Quick stand: the game's own 0 is a normal rise and 1 the quick one, so each label names the value it sets.
+        const auto& quickStand = DummyKindOf("quickStand").choices;
+        Require(quickStand.size() == 4 && quickStand[0].value == 0 && std::string(quickStand[0].key) == "training.dummy.quick_normal" &&
+            quickStand[1].value == 1 && std::string(quickStand[1].key) == "training.dummy.quick_quick" &&
+            std::string(quickStand[2].key) == "training.dummy.quick_delayed" && std::string(quickStand[3].key) == "training.dummy.quick_random", "Quick stand named the wrong game value");
         // Saved combos: the list the phone shows, the commands that play one, the names it may send.
         const auto combos = CombosJson({{"1-1", "Ken combo", 3, 4, 60, 100}}, [](int id) { return id == 3 ? std::string("Ken") : std::string(); });
         Require(combos["combos"].size() == 1 && combos["combos"][0]["fighter"] == "Ken" && combos["combos"][0]["length"] == 60 && combos["combos"][0]["id"] == "1-1", "The combo list was wrong");
