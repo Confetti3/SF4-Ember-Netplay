@@ -512,6 +512,15 @@ set(SF4E_RUNTIME_DLLS
   GGPO.dll
   zlib1.dll
 )
+# vcpkg's applocal step puts these beside Sidecar on a Windows host. The cross build (cmake/cross,
+# docs/release/LAPTOP_BUILD.md) has no such step, so it copies them there from the installed packages itself.
+if(NOT CMAKE_HOST_WIN32 AND VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+  foreach(_dll IN LISTS SF4E_RUNTIME_DLLS)
+    add_custom_command(TARGET Sidecar POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/${_dll}" "$<TARGET_FILE_DIR:Sidecar>/${_dll}"
+      VERBATIM)
+  endforeach()
+endif()
 foreach(_dll IN LISTS SF4E_RUNTIME_DLLS)
   install(
     FILES "$<TARGET_FILE_DIR:Sidecar>/${_dll}"

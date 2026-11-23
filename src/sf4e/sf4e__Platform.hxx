@@ -146,14 +146,14 @@ namespace sf4e {
 				dst->active.clear();
 				Dimps::Platform::SoundObjectPoolEntry<N>* cursor;
 				for (cursor = pool->inactiveHead; cursor != NULL; cursor = cursor->next) {
-					SoundObjectPoolEntry<N>::SaveState entryState;
+					typename SoundObjectPoolEntry<N>::SaveState entryState;
 					entryState.handle = cursor->handle;
 					entryState.field_0x4 = cursor->field_0x4;
 					memcpy(entryState.data, cursor->data, N);
 					dst->inactive.push_back(entryState);
 				}
 				for (cursor = pool->activeHead; cursor != NULL; cursor = cursor->next) {
-					SoundObjectPoolEntry<N>::SaveState entryState;
+					typename SoundObjectPoolEntry<N>::SaveState entryState;
 					entryState.handle = cursor->handle;
 					entryState.field_0x4 = cursor->field_0x4;
 					memcpy(entryState.data, cursor->data, N);

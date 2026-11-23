@@ -168,7 +168,7 @@ void fHud::Announce::Round::RestoreFromAdditionalMemento(rHud::Announce::Round* 
 }
 
 void fHud::Announce::Unit::Install() {
-    void (Unit:: * _fHudAnnounce_Update)(Task** task) = &HudAnnounce_Update;
+    void (Unit:: * _fHudAnnounce_Update)(Task** task) = &Unit::HudAnnounce_Update;
     DetourAttach(
         (PVOID*)&rHud::Announce::Unit::publicMethods.HudAnnounce_Update,
         *(PVOID*)&_fHudAnnounce_Update
@@ -230,7 +230,7 @@ void fHud::Announce::Unit::HudAnnounce_Update(Task** task) {
 }
 
 void fHud::Cockpit::Unit::Install() {
-    void (Unit:: * _fHudCockpit_Update)(Task** task) = &HudCockpit_Update;
+    void (Unit:: * _fHudCockpit_Update)(Task** task) = &Unit::HudCockpit_Update;
     DetourAttach(
         (PVOID*)&rHud::Cockpit::Unit::publicMethods.HudCockpit_Update,
         *(PVOID*)&_fHudCockpit_Update
@@ -244,7 +244,7 @@ void fHud::Cockpit::Unit::HudCockpit_Update(Task** task) {
 }
 
 void fHud::Cockpit::View::Install() {
-    void (View::* _fRestoreFromInternalMementoKey)(GameMementoKey::MementoID* id) = &RestoreFromInternalMementoKey;
+    void (View::* _fRestoreFromInternalMementoKey)(GameMementoKey::MementoID* id) = &View::RestoreFromInternalMementoKey;
     DetourAttach(
         (PVOID*)&rHud::Cockpit::View::publicMethods.RestoreFromInternalMementoKey,
         *(PVOID*)&_fRestoreFromInternalMementoKey
@@ -294,7 +294,7 @@ void fHud::Cockpit::View::RestoreFromInternalMementoKey(GameMementoKey::MementoI
 }
 
 void fHud::Cursor::Unit::Install() {
-    void (Unit:: * _fHudCursor_Update)(Task** task) = &HudCursor_Update;
+    void (Unit:: * _fHudCursor_Update)(Task** task) = &Unit::HudCursor_Update;
     DetourAttach(
         (PVOID*)&rHud::Cursor::Unit::publicMethods.HudCursor_Update,
         *(PVOID*)&_fHudCursor_Update
@@ -400,7 +400,7 @@ void fHud::Notice::Player::RestoreFromAdditionalMemento(
 }
 
 void fHud::Notice::Unit::Install() {
-    void (Unit:: * _fRestoreFromInternalMementoKey)() = &RestoreFromInternalMementoKey;
+    void (Unit:: * _fRestoreFromInternalMementoKey)() = &Unit::RestoreFromInternalMementoKey;
     DetourAttach(
         (PVOID*)&rHud::Notice::Unit::publicMethods.RestoreFromInternalMementoKey,
         *(PVOID*)&_fRestoreFromInternalMementoKey
@@ -416,7 +416,7 @@ void fHud::Notice::Unit::RestoreFromInternalMementoKey() {
 }
 
 void fHud::Result::Unit::Install() {
-    void (Unit:: * _fHudResult_Update)(Task** task) = &HudResult_Update;
+    void (Unit:: * _fHudResult_Update)(Task** task) = &Unit::HudResult_Update;
     DetourAttach(
         (PVOID*)&rHud::Result::Unit::publicMethods.HudResult_Update,
         *(PVOID*)&_fHudResult_Update
@@ -430,7 +430,7 @@ void fHud::Result::Unit::HudResult_Update(Task** task) {
 }
 
 void fHud::Subtitle::Unit::Install() {
-    void (Unit:: * _fHudSubtitle_Update)(Task** task) = &HudSubtitle_Update;
+    void (Unit:: * _fHudSubtitle_Update)(Task** task) = &Unit::HudSubtitle_Update;
     DetourAttach(
         (PVOID*)&rHud::Subtitle::Unit::publicMethods.HudSubtitle_Update,
         *(PVOID*)&_fHudSubtitle_Update
@@ -444,7 +444,7 @@ void fHud::Subtitle::Unit::HudSubtitle_Update(Task** task) {
 }
 
 void fHud::Training::Unit::Install() {
-    void (Unit:: * _fHudTraining_Update)(Task** task) = &HudTraining_Update;
+    void (Unit:: * _fHudTraining_Update)(Task** task) = &Unit::HudTraining_Update;
     DetourAttach(
         (PVOID*)&rHud::Training::Unit::publicMethods.HudTraining_Update,
         *(PVOID*)&_fHudTraining_Update

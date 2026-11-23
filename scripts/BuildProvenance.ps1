@@ -7,6 +7,14 @@ $ErrorActionPreference = 'Stop'
 # is not a CTest entry, so it never runs here.
 $EmberExcludedTestLabel = 'network'
 $EmberExcludedTests = "label $EmberExcludedTestLabel"
+# The suites a default run must show (Invoke-DefaultTests). The Linux build PC's cross build (docs/release/LAPTOP_BUILD.md)
+# leaves the windows_host label out (EmberCrossExcludedTestLabel) and requires the rest here; scripts/import-build.ps1
+# runs that label on the Windows PC and requires the publisher suites there.
+$EmberRequiredTests = @('HelperRust','EmberRust','BridgeSdk','BuildProvenance','NightlyPublication','NightlyPaths','PackageFiles')
+$EmberWindowsHostTestLabel = 'windows_host'
+$EmberCrossExcludedTestLabel = "^($EmberExcludedTestLabel|$EmberWindowsHostTestLabel)$"
+$EmberCrossRequiredTests = @('HelperRust','EmberRust','BridgeSdk')
+$EmberWindowsHostRequiredTests = @('BuildProvenance','NightlyPublication','NightlyPaths','PackageFiles')
 function Get-SourceFingerprint([string]$SourceRoot) {
     $paths = [string[]]@(& git -C $SourceRoot ls-files --cached --others --exclude-standard)
     if ($LASTEXITCODE) { throw 'Source inventory failed' }
@@ -49,7 +57,8 @@ function Get-DependencyReceipt([string]$SourceRoot, [string]$BuildRoot) {
 # tests that time their work can fail on a busy publishing PC. Without it (Stable)
 # every test must pass the first time. A test that still fails throws, so the build
 # writes no receipt. CTest's output goes to the host, and so into a transcript.
-function Invoke-DefaultTests([object]$Ctest, [string]$BuildRoot, [string]$ExcludedLabel, [int]$Parallel, [switch]$RerunFailed) {
+function Invoke-DefaultTests([object]$Ctest, [string]$BuildRoot, [string]$ExcludedLabel, [int]$Parallel, [switch]$RerunFailed,
+                             [string[]]$Required = $EmberRequiredTests) {
     $junit = Join-Path $BuildRoot 'ctest-junit.xml'
     $rerunJunit = Join-Path $BuildRoot 'ctest-rerun-junit.xml'
     Remove-Item -LiteralPath $junit, $rerunJunit -ErrorAction SilentlyContinue
@@ -71,7 +80,7 @@ function Invoke-DefaultTests([object]$Ctest, [string]$BuildRoot, [string]$Exclud
     # The helper and Ember Rust suites, the SDK and the publisher's PowerShell suites (cmake/sf4e_test_targets.cmake;
     # build-current.ps1 no longer runs those scripts itself). A CMake edit cannot drop one silently, and
     # scripts/test-build-provenance.ps1 names the same set in its fake CTest.
-    $missing = @('HelperRust','EmberRust','BridgeSdk','BuildProvenance','NightlyPublication','NightlyPaths','PackageFiles') | Where-Object { $_ -notin $ran }
+    $missing = @($Required | Where-Object { $_ -notin $ran })
     if ($missing) { throw "Default CTest did not run: $($missing -join ', ')" }
     $passedOnRerun
 }
@@ -103,6 +112,17 @@ function Assert-EmberDumpSymsVersion([string]$Reported) {
     }
 }
 function Get-EmberDumpSyms {
+    if ($IsLinux) {
+        # The cross build (docs/release/LAPTOP_BUILD.md) runs on Linux, where dump_syms is a native program.
+        $tool = (Get-Command dump_syms -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+        if (!$tool) { throw "dump_syms is not on PATH (cargo install dump_syms --locked --version $EmberDumpSymsVersion)." }
+        $runner = {
+            & $tool @args
+            if ($LASTEXITCODE) { throw "dump_syms failed: $($args -join ' ')" }
+        }.GetNewClosure()
+        Assert-EmberDumpSymsVersion "$(& $runner '--version')"
+        return $runner
+    }
     $linuxHome = "$(& wsl -d Ubuntu --exec printenv HOME)".Trim()
     if ($LASTEXITCODE -or !$linuxHome.StartsWith('/')) { throw 'Symbols need WSL Ubuntu, which did not start.' }
     $tool = "$linuxHome/.cargo/bin/dump_syms"
@@ -189,6 +209,12 @@ function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$S
     if (!$SkipFingerprint -and $receipt.sourceFingerprint -ne (Get-SourceFingerprint $SourceRoot)) { throw 'Source changed since verified build; rebuild with scripts/build-current.ps1' }
     foreach ($binary in $receipt.binaries) {
         if ((Get-FileHash -LiteralPath (Join-Path $StageRoot $binary.path)).Hash -ne $binary.sha256) { throw "Staged binary changed: $($binary.path)" }
+    }
+    # A cross build (docs/release/LAPTOP_BUILD.md) left its windows_host tests to Windows: only an import that ran
+    # them all there (scripts/import-build.ps1) packages.
+    if ($receipt.PSObject.Properties['toolchain'] -and $receipt.toolchain -and $receipt.toolchain.splat -and
+        (!$receipt.PSObject.Properties['import'] -or !$receipt.import.windowsHostTests -or $receipt.import.windowsHostTests.status -cne 'passed')) {
+        throw 'This cross build''s windows_host tests have not passed on Windows; import it with scripts/import-build.ps1.'
     }
     if (Test-Path -LiteralPath (Join-Path $SourceRoot 'vcpkg-overlays/ports/ggpo')) {
         if (!$receipt.dependencies) { throw 'Dependency provenance missing; rebuild current target' }

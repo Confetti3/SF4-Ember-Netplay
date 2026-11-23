@@ -1,0 +1,4 @@
+detours provides the detours library:
+
+  find_library(LIB_DETOURS detours)
+  #include <detours/detours.h>

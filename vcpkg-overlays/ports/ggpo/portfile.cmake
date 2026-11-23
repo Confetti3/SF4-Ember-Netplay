@@ -23,6 +23,10 @@ vcpkg_from_github(
         "event-queue-size.patch"
 )
 
+# clang (the laptop's cross build) rejects the extra class qualification of this
+# constructor declaration; MSVC accepts either spelling.
+vcpkg_replace_string("${SOURCE_PATH}/src/lib/ggpo/network/udp_proto.h" "UdpProtocol::Event(Type t" "Event(Type t")
+
 # One canonical policy is compiled by both GGPO and the portable tests.
 configure_file("${CMAKE_CURRENT_LIST_DIR}/input-repair.h"
     "${SOURCE_PATH}/src/lib/ggpo/network/input-repair.h" COPYONLY)

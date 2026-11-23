@@ -342,7 +342,13 @@ struct SelectionArt::Impl {
     // `paths` builds the candidate files, and runs only when a decode is
     // queued: screens request every visible image on every frame.
     template <class Paths>
-    SelectionImage Request(const std::string& key, Paths paths, UINT side = 256, Policy policy = {}, const std::string& archiveEntry = {}) {
+    SelectionImage Request(const std::string& key, Paths paths) { return Request(key, std::move(paths), 256, Policy{}, std::string{}); }
+    template <class Paths>
+    SelectionImage Request(const std::string& key, Paths paths, UINT side) { return Request(key, std::move(paths), side, Policy{}, std::string{}); }
+    template <class Paths>
+    SelectionImage Request(const std::string& key, Paths paths, UINT side, Policy policy) { return Request(key, std::move(paths), side, std::move(policy), std::string{}); }
+    template <class Paths>
+    SelectionImage Request(const std::string& key, Paths paths, UINT side, Policy policy, const std::string& archiveEntry) {
         requested = true;
         auto found = entries.find(key);
         const bool due = found != entries.end() && found->second.state == State::Waiting && frame >= found->second.retryFrame;
