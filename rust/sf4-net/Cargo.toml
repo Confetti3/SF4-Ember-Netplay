@@ -67,3 +67,7 @@ inherits = "release"
 strip = true
 lto = "fat"
 codegen-units = 1
+
+# iroh 1.1.0 with Ember's patch to its home relay choice (rust/vendor/README.md).
+[patch.crates-io]
+iroh = { path = "../vendor/iroh" }

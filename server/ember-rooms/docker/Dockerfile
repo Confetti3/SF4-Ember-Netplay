@@ -20,11 +20,13 @@ ARG RUST_VERSION=1.98
 # --- The supervisor and the helper.
 FROM rust:${RUST_VERSION}-${DEBIAN_RELEASE} AS rust
 WORKDIR /src
-# The helper's path dependencies (server/ember, server/ember-short) come along.
+# The helper's path dependencies (server/ember, server/ember-short) and the
+# crates it patches in (rust/vendor) come along.
 COPY server/ember server/ember
 COPY server/ember-short server/ember-short
 COPY server/ember-rooms server/ember-rooms
 COPY rust/sf4-net rust/sf4-net
+COPY rust/vendor rust/vendor
 # The image's own toolchain: rust/sf4-net/rust-toolchain.toml would have
 # rustup fetch the Windows target and lint components the client build needs.
 RUN export RUSTUP_TOOLCHAIN="$(rustup default | cut -d' ' -f1)" \

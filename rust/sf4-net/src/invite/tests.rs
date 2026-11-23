@@ -93,6 +93,20 @@ fn a_refused_invitation_names_why() {
     assert_eq!(Invite::rejection_reason(&discord, 3700, &build), "expired");
 }
 
+/// The home relay choice relies on the patched iroh in rust/vendor
+/// (rust/vendor/README.md). A version bump in Cargo.toml leaves the
+/// `[patch.crates-io]` entry unused, which cargo only warns about; the lock
+/// then names crates.io for iroh again.
+#[test]
+fn iroh_is_the_vendored_copy() {
+    let lock = include_str!("../../Cargo.lock");
+    let entry = lock
+        .split("[[package]]")
+        .find(|package| package.lines().any(|line| line == r#"name = "iroh""#))
+        .expect("iroh in Cargo.lock");
+    assert!(!entry.lines().any(|line| line.starts_with("source")), "{entry}");
+}
+
 #[test]
 fn relay_regions_are_stable_codes_and_never_a_url() {
     let pinned = |index: usize| RELAYS[index].relay();

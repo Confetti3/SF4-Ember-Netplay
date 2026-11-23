@@ -51,8 +51,10 @@ struct Pinned {
 // Every entry is active. From 2026-11-08 some US internet providers' router
 // filters (Xfinity, Spectrum, Cox) blocked n0's relays over HTTPS, and 1.5.5
 // to 1.6.1 left n0's US and Europe relays out; on 2026-11-20 those
-// providers' home lines reached all of n0's relays again. iroh picks a home
-// relay by latency alone, so a player lands on whichever answers first.
+// providers' home lines reached all of n0's relays again.
+//
+// iroh picks the home relay by probe latency; rust/vendor/README.md has how,
+// and Ember's patch to it (without which usw1 was never probed).
 const RELAYS: [Pinned; 6] = [
     Pinned { url: "https://use1-1.relay.n0.iroh.link./", region: "use1", name: "n0use1", active: true },
     Pinned { url: "https://usw1-1.relay.n0.iroh.link./", region: "usw1", name: "usw1", active: true },
