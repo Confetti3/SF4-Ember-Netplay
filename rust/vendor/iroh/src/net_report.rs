@@ -1333,6 +1333,20 @@ mod tests {
             client.add_report_history_and_set_preferred_relay(&mut full);
             assert_eq!(full.preferred_relay, Some(relay_url(want)), "{name}");
         }
+
+        // A report in which no relay answered keeps the relay for the next one.
+        let opts = Options::new(tls_config.clone());
+        let mut client = Client::new(resolver.clone(), RelayMap::empty(), opts, Default::default());
+        let mut first = report(&[(1, 40), (2, 50)]);
+        client.add_report_history_and_set_preferred_relay(&mut first);
+        let mut empty = report(&[]);
+        client.add_report_history_and_set_preferred_relay(&mut empty);
+        assert_eq!(empty.preferred_relay, None, "empty report");
+        tokio::time::advance(Duration::from_secs(6 * 60)).await;
+        client.reports.last = None;
+        let mut full = report(&[(1, 40), (2, 39)]);
+        client.add_report_history_and_set_preferred_relay(&mut full);
+        assert_eq!(full.preferred_relay, Some(relay_url(1)), "after an empty report");
         Ok(())
     }
 
