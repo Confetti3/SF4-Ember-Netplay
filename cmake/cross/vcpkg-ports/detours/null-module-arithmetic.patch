@@ -1,0 +1,30 @@
+The module walks start from hModuleLast == NULL and add an offset to it.
+Arithmetic on a null pointer is undefined in C++; clang (21, /O2) proves
+the first iteration undefined and folds DetourUpdateProcessWithDll (and on
+x64 DetourFindPayloadEx and DetourRestoreAfterWith) to a trap, so
+DetourCreateProcessWithDlls* fails and leaves the target suspended. MSVC
+does not use the rule, which is why its builds work. Do the offset in
+ULONG_PTR, as the address it is.
+
+--- a/src/creatwth.cpp
++++ b/src/creatwth.cpp
+@@ -106,7 +106,7 @@
+                                                 HMODULE hModuleLast,
+                                                 PIMAGE_NT_HEADERS32 pNtHeader)
+ {
+-    PBYTE pbLast = (PBYTE)hModuleLast + MM_ALLOCATION_GRANULARITY;
++    PBYTE pbLast = (PBYTE)((ULONG_PTR)hModuleLast + MM_ALLOCATION_GRANULARITY);
+
+     MEMORY_BASIC_INFORMATION mbi;
+     ZeroMemory(&mbi, sizeof(mbi));
+--- a/src/modules.cpp
++++ b/src/modules.cpp
+@@ -268,7 +268,7 @@
+
+ HMODULE WINAPI DetourEnumerateModules(_In_opt_ HMODULE hModuleLast)
+ {
+-    PBYTE pbLast = (PBYTE)hModuleLast + MM_ALLOCATION_GRANULARITY;
++    PBYTE pbLast = (PBYTE)((ULONG_PTR)hModuleLast + MM_ALLOCATION_GRANULARITY);
+
+     MEMORY_BASIC_INFORMATION mbi;
+     ZeroMemory(&mbi, sizeof(mbi));

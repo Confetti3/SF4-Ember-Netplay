@@ -11,7 +11,14 @@ $repo = Split-Path $PSScriptRoot -Parent
 $target = Get-EmberBuildTarget $repo
 if (!$PSBoundParameters.ContainsKey('EmberService')) { $EmberService = $target.emberService }
 if ($EmberService -and $EmberService -notmatch '^https?://[^\s"]+$') { throw "-EmberService must be an http(s) origin, not '$EmberService'." }
-$tools = Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot
+# On Linux this is the cross build (docs/release/LAPTOP_BUILD.md): clang-cl and lld-link against the Microsoft CRT
+# and Windows SDK in an xwin splat (cmake/cross), the tests through a Windows-program runner (SF4E_TEST_EMULATOR,
+# Wine), the same options, staging, tests and receipt; the receipt names the toolchain.
+$cross = [bool]$IsLinux
+$tools = if ($cross) { Get-EmberCrossTools $VcpkgRoot } else { Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot }
+# Compile jobs: NUMBER_OF_PROCESSORS, which Windows sets and a Linux caller may; test jobs: SF4E_TEST_JOBS, else the same.
+$jobs = if ($env:NUMBER_OF_PROCESSORS) { [int]$env:NUMBER_OF_PROCESSORS } else { [Environment]::ProcessorCount }
+$testJobs = if ($env:SF4E_TEST_JOBS) { [int]$env:SF4E_TEST_JOBS } else { $jobs }
 . (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
 # -Symbols, which only the publish paths pass, writes the release's Breakpad symbols to <build>\symbols after
 # staging and records them in the receipt (New-EmberSymbols). Every other build stays free of dump_syms and of
@@ -25,13 +32,6 @@ $stage = Join-Path $repo $target.installDirectory
 # earlier run's passing receipt for this one.
 Remove-Item -LiteralPath (Join-Path $build 'build-provenance.json') -ErrorAction SilentlyContinue
 if (!$DiscordSdkArchive) { throw 'Set -DiscordSdkArchive or SF4E_DISCORD_SDK_ARCHIVE to the official archive matching cmake/discord-sdk-pin.json.' }
-& (Join-Path $PSScriptRoot 'build-current-dependencies.ps1') -VisualStudioPath $tools.VisualStudioPath -VcpkgRoot $tools.VcpkgRoot
-$dependencies = Join-Path $build 'dependencies'
-$before = Get-SourceFingerprint $repo
-$vs = $tools.VisualStudioPath
-Enter-EmberVcEnvironment $vs
-$cmake = Join-Path $vs 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
-$ctest = Join-Path (Split-Path $cmake -Parent) 'ctest.exe'
 # Nightly builds trust Ember's staging bridge. Every other channel says OFF, so
 # a build directory once configured for Nightly never keeps it. The receipt
 # records which the helper was built with.
@@ -46,15 +46,48 @@ $selfTestOption = if ($SelfTest) { 'ON' } else { 'OFF' }
 # these options, so a build directory never keeps them; turning the switch on or
 # off in one build directory recompiles everything once. The receipt records the
 # ccache version a build used.
+# The cross build's cache is sccache (the receipt records "sccache <version>"): it also serves the vcpkg ports'
+# compiles (SF4E_COMPILER_LAUNCHER, cmake/cross/clang-cl.cmake) and the Rust helper's (RUSTC_WRAPPER).
 $ccacheVersion = $null
-$compilerCacheOptions = if ($CompilerCache) {
+$compilerCacheOptions = if ($CompilerCache -and $cross) {
+    $ccache = (Get-Command sccache -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+    if (!$ccache) { throw '-CompilerCache needs sccache on PATH for the cross build.' }
+    $ccacheVersion = "$(& $ccache --version | Select-Object -First 1)".Trim()
+    $env:SF4E_COMPILER_LAUNCHER = $ccache
+    $env:RUSTC_WRAPPER = $ccache
+    "-DCMAKE_C_COMPILER_LAUNCHER=$ccache", "-DCMAKE_CXX_COMPILER_LAUNCHER=$ccache", '-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded'
+} elseif ($CompilerCache) {
     $ccache = (Get-Command ccache -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
     if (!$ccache) { throw '-CompilerCache needs ccache on PATH.' }
     $ccacheVersion = [regex]::Match((& $ccache --version | Select-Object -First 1), '\d+(\.\d+)+').Value
     if (!$ccacheVersion -or [version]$ccacheVersion -lt [version]'4.6') { throw "-CompilerCache needs ccache 4.6 or newer; $ccache is '$ccacheVersion'." }
     "-DCMAKE_C_COMPILER_LAUNCHER=$ccache", "-DCMAKE_CXX_COMPILER_LAUNCHER=$ccache", '-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded'
-} else { '-UCMAKE_C_COMPILER_LAUNCHER', '-UCMAKE_CXX_COMPILER_LAUNCHER', '-UCMAKE_MSVC_DEBUG_INFORMATION_FORMAT' }
-& $cmake -S $repo -B $build -G Ninja '-U*_DIR' '-UZLIB_*' '-ULIB_DETOURS' '-USF4E_JSON_INCLUDE' '-UFIND_PACKAGE_MESSAGE_DETAILS_*' "-DCMAKE_MAKE_PROGRAM=$vs/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSF4E_DEVELOPER_UI=OFF "-DCMAKE_TOOLCHAIN_FILE=$($tools.VcpkgRoot)/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x86-windows-wchar-filenames "-DVCPKG_INSTALLED_DIR=$dependencies" -DVCPKG_MANIFEST_INSTALL=OFF -DSF4E_BUILD_IROH_HELPER=ON -DSF4E_NETWORK_TESTS=OFF "-DSF4E_STAGING_BRIDGE=$stagingBridge" "-DSF4E_SELFTEST=$selfTestOption" "-DSF4E_EMBER_SERVICE=$EmberService" -DSF4E_BUILD_DISCORD=ON "-DSF4E_DISCORD_SDK_ARCHIVE=$DiscordSdkArchive" "-DCMAKE_INSTALL_PREFIX=$stage" @compilerCacheOptions
+} else {
+    Remove-Item Env:SF4E_COMPILER_LAUNCHER, Env:RUSTC_WRAPPER -ErrorAction SilentlyContinue
+    '-UCMAKE_C_COMPILER_LAUNCHER', '-UCMAKE_CXX_COMPILER_LAUNCHER', '-UCMAKE_MSVC_DEBUG_INFORMATION_FORMAT'
+}
+& (Join-Path $PSScriptRoot 'build-current-dependencies.ps1') -VisualStudioPath $tools.VisualStudioPath -VcpkgRoot $tools.VcpkgRoot
+$dependencies = Join-Path $build 'dependencies'
+$before = Get-SourceFingerprint $repo
+if ($cross) {
+    Enter-EmberCrossEnvironment $tools $repo $build (Join-Path $dependencies 'x86-windows-wchar-filenames/bin')
+    $cmake = $tools.Cmake
+    $ctest = $tools.Ctest
+    # The cross toolchain under vcpkg's, and the test emulator: everything else is the Windows configure's.
+    $platformOptions = @('-G', 'Ninja', "-DCMAKE_MAKE_PROGRAM=$($tools.Ninja)",
+        "-DCMAKE_TOOLCHAIN_FILE=$(Join-Path $tools.VcpkgRoot 'scripts/buildsystems/vcpkg.cmake')",
+        "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(Join-Path $repo 'cmake/cross/clang-cl-x86.cmake')",
+        '-DVCPKG_HOST_TRIPLET=x64-linux', '-DVCPKG_APPLOCAL_DEPS=OFF',
+        "-DCMAKE_CROSSCOMPILING_EMULATOR=$($tools.Emulator)")
+} else {
+    $vs = $tools.VisualStudioPath
+    Enter-EmberVcEnvironment $vs
+    $cmake = Join-Path $vs 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
+    $ctest = Join-Path (Split-Path $cmake -Parent) 'ctest.exe'
+    $platformOptions = @('-G', 'Ninja', "-DCMAKE_MAKE_PROGRAM=$vs/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe",
+        "-DCMAKE_TOOLCHAIN_FILE=$($tools.VcpkgRoot)/scripts/buildsystems/vcpkg.cmake")
+}
+& $cmake -S $repo -B $build @platformOptions '-U*_DIR' '-UZLIB_*' '-ULIB_DETOURS' '-USF4E_JSON_INCLUDE' '-UFIND_PACKAGE_MESSAGE_DETAILS_*' -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSF4E_DEVELOPER_UI=OFF -DVCPKG_TARGET_TRIPLET=x86-windows-wchar-filenames "-DVCPKG_INSTALLED_DIR=$dependencies" -DVCPKG_MANIFEST_INSTALL=OFF -DSF4E_BUILD_IROH_HELPER=ON -DSF4E_NETWORK_TESTS=OFF "-DSF4E_STAGING_BRIDGE=$stagingBridge" "-DSF4E_SELFTEST=$selfTestOption" "-DSF4E_EMBER_SERVICE=$EmberService" -DSF4E_BUILD_DISCORD=ON "-DSF4E_DISCORD_SDK_ARCHIVE=$DiscordSdkArchive" "-DCMAKE_INSTALL_PREFIX=$stage" @compilerCacheOptions
 if ($LASTEXITCODE) { throw 'Configure failed' }
 Assert-CMakeSource $repo $build
 # SF4E_EMBER_SERVICE (cmake/sf4e_helper.cmake) points Linked accounts and public-room tickets at another bridge. Every
@@ -64,15 +97,25 @@ $emberService = [string](Get-Content -LiteralPath (Join-Path $build 'CMakeCache.
 if (Get-Content -LiteralPath (Join-Path $build 'CMakeCache.txt') | Where-Object { $_ -match '^([^#/:]+):[^=]+=.*sf4-display-dxvk' }) {
     throw 'Stale dependency cache references a different checkout'
 }
-& $cmake --build $build --parallel $env:NUMBER_OF_PROCESSORS
+& $cmake --build $build --parallel $jobs
 if ($LASTEXITCODE) { throw 'Build failed' }
+if ($CompilerCache -and $cross) { & $ccache --show-stats | Out-Host }
+# The cross build's windows_host tests (cmake/sf4e_test_targets.cmake) as CTest describes them, for
+# scripts/import-build.ps1 to run on the Windows PC against these programs.
+$windowsHostTests = $null
+if ($cross) {
+    $windowsHostTests = Join-Path $build 'windows-host-tests.json'
+    $listed = & $ctest --test-dir $build --show-only=json-v1 -L "^$EmberWindowsHostTestLabel$"
+    if ($LASTEXITCODE) { throw 'Could not list the windows_host tests' }
+    [IO.File]::WriteAllText($windowsHostTests, ($listed -join "`n"))
+}
 # Public-network and live Discord checks require a separate explicit run (BuildProvenance.ps1 names them).
-$excludedTests = $EmberExcludedTests
+$excludedTests = if ($cross) { "$EmberExcludedTests; label $EmberWindowsHostTestLabel (run on Windows by scripts/import-build.ps1)" } else { $EmberExcludedTests }
 # A failed test runs once more, alone (Invoke-DefaultTests), on every channel: timing tests can miss their
 # window on a busy machine. The receipt names any that passed only then (testsPassedOnRerun).
 $passedOnRerun = @()
 if (!$SkipTests) {
-    $passedOnRerun = @(Invoke-DefaultTests $ctest $build $EmberExcludedTestLabel $env:NUMBER_OF_PROCESSORS -RerunFailed)
+    $passedOnRerun = @(Invoke-DefaultTests $ctest $build $(if ($cross) { $EmberCrossExcludedTestLabel } else { $EmberExcludedTestLabel }) $testJobs -RerunFailed -Required $(if ($cross) { $EmberCrossRequiredTests } else { $EmberRequiredTests }))
 }
 & $cmake --install $build *> (Join-Path $build 'stage.log')
 if ($LASTEXITCODE) { throw 'Local staging failed' }
@@ -84,10 +127,11 @@ $binaries = foreach ($file in Get-ChildItem -LiteralPath $stage -Recurse -File |
     [pscustomobject]@{path=$file.FullName.Substring($stage.Length+1);sha256=(Get-FileHash -LiteralPath $file.FullName).Hash}
 }
 $symbolStore = if ($Symbols) { New-EmberSymbols $build @($binaries) $dumpSyms }
+$buildPlatform = if ($cross) { 'linux (clang-cl cross build; tests through Wine)' } else { 'windows' }
 $components = @(
-    [ordered]@{name='Windows native build and local staging';platform='windows';status='passed'},
-    [ordered]@{name='Default CTest including helper Rust, Ember Rust, BridgeSdk and the publisher script suites (BuildProvenance, NightlyPublication, NightlyPaths, PackageFiles)';platform='windows';status=$(if ($SkipTests) {'unexecuted'} else {'passed'})},
+    [ordered]@{name=$(if ($cross) { 'Windows cross build and local staging' } else { 'Windows native build and local staging' });platform=$buildPlatform;status='passed'},
+    [ordered]@{name='Default CTest including helper Rust, Ember Rust, BridgeSdk and the publisher script suites (BuildProvenance, NightlyPublication, NightlyPaths, PackageFiles)';platform=$buildPlatform;status=$(if ($SkipTests) {'unexecuted'} else {'passed'})},
     [ordered]@{name='Supplemental service, lint and Linux checks (scripts/test-full-quality.ps1)';platform='windows/linux';status='unexecuted'},
     [ordered]@{name='Public network matrix (scripts/test-current-network.ps1)';platform='windows';status='unexecuted'},
     [ordered]@{name='Live Discord and gameplay acceptance';platform='live';status='unexecuted'})
-[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;stagingBridge=($stagingBridge -eq 'ON');selfTest=($selfTestOption -eq 'ON');emberService=$emberService;compilerCache=$ccacheVersion;testsPassed=(!$SkipTests);testsPassedOnRerun=$passedOnRerun;testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt;symbols=$symbolStore} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
+[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;stagingBridge=($stagingBridge -eq 'ON');selfTest=($selfTestOption -eq 'ON');emberService=$emberService;compilerCache=$ccacheVersion;testsPassed=(!$SkipTests);testsPassedOnRerun=$passedOnRerun;testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt;symbols=$symbolStore;windowsHostTests=$(if ($cross) { [ordered]@{status='pending';list=$windowsHostTests;sha256=(Get-FileHash -LiteralPath $windowsHostTests).Hash} } else { $null });toolchain=$(if ($cross) { $tools.Toolchain } else { [ordered]@{compiler='MSVC';msvc=$env:VCToolsVersion;sdk=$env:WindowsSDKVersion} })} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')

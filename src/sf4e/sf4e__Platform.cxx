@@ -74,11 +74,11 @@ void fPlatform::Install() {
 }
 
 void fD3D::Install() {
-    void (fD3D:: * _fDestroy)() = &Destroy;
-    DWORD(fD3D:: * _fReset)() = &Reset;
-    void(fD3D:: * _fRunScene_Render)(void*) = &RunScene_Render;
-    int(fD3D:: * _fLimitFrame)(float) = &LimitFrame;
-    void(fD3D:: * _fBuildPresentParameters)() = &BuildPresentParameters;
+    void (fD3D:: * _fDestroy)() = &fD3D::Destroy;
+    DWORD(fD3D:: * _fReset)() = &fD3D::Reset;
+    void(fD3D:: * _fRunScene_Render)(void*) = &fD3D::RunScene_Render;
+    int(fD3D:: * _fLimitFrame)(float) = &fD3D::LimitFrame;
+    void(fD3D:: * _fBuildPresentParameters)() = &fD3D::BuildPresentParameters;
     DetourAttach((PVOID*)&rD3D::privateMethods.Destroy, *(PVOID*)&_fDestroy);
     DetourAttach((PVOID*)&rD3D::privateMethods.Reset, *(PVOID*)&_fReset);
     DetourAttach((PVOID*)&rD3D::privateMethods.RunScene_Render, *(PVOID*)&_fRunScene_Render);
@@ -396,10 +396,10 @@ void fGFxApp::RestoreFromAdditionalMemento(rGFxApp* a, const AdditionalMemento& 
 }
 
 void fMain::Install() {
-    int (fMain:: * _fInitialize)(void*, void*, void*) = &Initialize;
-    void (fMain:: * _fDestroy)() = &Destroy;
-    void (fMain:: * _fWriteDisplayConfig)() = &WriteDisplayConfig;
-    int (fMain:: * _fApplyStartupParams)(void*) = &ApplyStartupParams;
+    int (fMain:: * _fInitialize)(void*, void*, void*) = &fMain::Initialize;
+    void (fMain:: * _fDestroy)() = &fMain::Destroy;
+    void (fMain:: * _fWriteDisplayConfig)() = &fMain::WriteDisplayConfig;
+    int (fMain:: * _fApplyStartupParams)(void*) = &fMain::ApplyStartupParams;
     DetourAttach((PVOID*)&rMain::publicMethods.Initialize, *(PVOID*)&_fInitialize);
     DetourAttach((PVOID*)&rMain::privateMethods.ApplyStartupParams, *(PVOID*)&_fApplyStartupParams);
     DetourAttach((PVOID*)&rMain::publicMethods.Destroy, *(PVOID*)&_fDestroy);

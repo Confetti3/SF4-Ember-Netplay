@@ -105,7 +105,7 @@ const std::string& fBattle::MatchReplayListNote() { return s_matchReplayListNote
 bool fBattle::MatchReplayListWidened() { return s_matchReplayListWidened; }
 
 void sf4e::Game::Battle::ReplayCodec::Install() {
-	std::uint8_t* (ReplayCodec::* _fAppend)(std::uint32_t) = &Append;
+	std::uint8_t* (ReplayCodec::* _fAppend)(std::uint32_t) = &ReplayCodec::Append;
 	DetourAttach((PVOID*)&Dimps::Game::Battle::ReplaySystem::codecMethods.Append, *(PVOID*)&_fAppend);
 }
 
@@ -123,7 +123,7 @@ std::uint8_t* sf4e::Game::Battle::ReplayCodec::Append(std::uint32_t value) {
 }
 
 void fJobManager::Install() {
-	BOOL (fJobManager::* _fStart)(int, int, int) = &Start;
+	BOOL (fJobManager::* _fStart)(int, int, int) = &fJobManager::Start;
 	DetourAttach((PVOID*)&rJobManager::publicMethods.Start, *(PVOID*)&_fStart);
 }
 
@@ -146,14 +146,14 @@ void fIUnit::SharedHudUpdate(Task** task) {
 }
 
 void fSoundPlayerManager::Install() {
-	void (fSoundPlayerManager:: * _fDestructor)(BOOL) = &destructor;
+	void (fSoundPlayerManager:: * _fDestructor)(BOOL) = &fSoundPlayerManager::destructor;
 	SoundHandle(fSoundPlayerManager:: * _fPlaySound)(SoundHandle,
 		uint32_t,
 		SoundType,
 		SoundFlags,
-		Dimps::Math::Vec4F*) = &PlaySound;
-	void (fSoundPlayerManager:: * _fStopSound)(SoundHandle, BOOL) = &StopSound;
-	void (fSoundPlayerManager:: * _fStopAll)(BOOL) = &StopAll;
+		Dimps::Math::Vec4F*) = &fSoundPlayerManager::PlaySound;
+	void (fSoundPlayerManager:: * _fStopSound)(SoundHandle, BOOL) = &fSoundPlayerManager::StopSound;
+	void (fSoundPlayerManager:: * _fStopAll)(BOOL) = &fSoundPlayerManager::StopAll;
 
 	DetourAttach((PVOID*)&rSoundPlayerManager::publicMethods.destructor, *(PVOID*)&_fDestructor);
 	DetourAttach((PVOID*)&rSoundPlayerManager::publicMethods.PlaySound, *(PVOID*)&_fPlaySound);
@@ -505,7 +505,7 @@ void fSoundPlayerManager::SyncState() {
 }
 
 void fSoundPlayerManager::CriPlayerAdapter::Install() {
-	BOOL(CriPlayerAdapter:: * _fIsStillPlaying)() = &IsStillPlaying;
+	BOOL(CriPlayerAdapter:: * _fIsStillPlaying)() = &CriPlayerAdapter::IsStillPlaying;
 	DetourAttach((PVOID*)&rSoundPlayerManager::CriPlayerAdapter::publicMethods.IsStillPlaying, *(PVOID*)&_fIsStillPlaying);
 }
 

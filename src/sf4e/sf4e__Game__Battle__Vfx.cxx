@@ -48,7 +48,7 @@ void fVfx::Install() {
 }
 
 void fColorFade::Install() {
-    list_entry<rVfx::ColorFadeData>* (fColorFade::* _fSpawn)(void* sourceData) = &Spawn;
+    list_entry<rVfx::ColorFadeData>* (fColorFade::* _fSpawn)(void* sourceData) = &fColorFade::Spawn;
     DetourAttach((PVOID*)&rColorFade::publicMethods.Spawn, *(PVOID*)&_fSpawn);
 }
 

@@ -48,14 +48,13 @@ sf4e_add_unit_test(NAME ParkedIntent SOURCES "src/tests/parked_intent_test.cxx" 
 
 sf4e_add_unit_test(NAME DiscordPresence SOURCES src/tests/discord_presence_test.cxx LIBS sf4e_room_model LABELS room)
 include(ExternalProject)
-string(REGEX REPLACE "/VC/.*$" "" discord_vs_instance "${CMAKE_CXX_COMPILER}")
+include("${CMAKE_SOURCE_DIR}/cmake/sf4e_x64_subbuild.cmake")
+sf4e_x64_subbuild_args(fixture_x64_args "${CMAKE_BINARY_DIR}/discord-bridge-fixture")
 ExternalProject_Add(DiscordBridgeFixture
     BUILD_ALWAYS TRUE
     SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/tests/discord-fixture"
     BINARY_DIR "${CMAKE_BINARY_DIR}/discord-bridge-fixture"
-    CMAKE_GENERATOR "Visual Studio 18 2026"
-    CMAKE_GENERATOR_PLATFORM x64
-    CMAKE_GENERATOR_INSTANCE "${discord_vs_instance}"
+    ${fixture_x64_args}
     BUILD_COMMAND "${CMAKE_COMMAND}" --build <BINARY_DIR> --config Release
     INSTALL_COMMAND "")
 add_executable(DiscordBridgeTest src/tests/discord_bridge_test.cxx)
@@ -232,14 +231,14 @@ sf4e_add_unit_test(NAME SpeechWine SOURCES src/tests/speech_wine_test.cxx LIBS s
 # The relay runs on the player's Linux host, so its own test needs a Python 3; skipped without one.
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
-    add_test(NAME SpeechRelay COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/speech_relay_test.py" "${CMAKE_SOURCE_DIR}/src/platform/speech_relay.py")
+    add_test(NAME SpeechRelay COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/src/tests/speech_relay_test.py" "${CMAKE_SOURCE_DIR}/src/platform/speech_relay.py")
     sf4e_test_labels(LABELS ui TESTS SpeechRelay)
     # The frame data the phone remote shows: its shape and numbers that cannot be right (docs/development/FRAME_DATA.md).
-    add_test(NAME FrameData COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/scripts/framedata/validate.py" "${CMAKE_SOURCE_DIR}/assets/framedata/usf4.json")
-    add_test(NAME FrameDataScripts COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/framedata_scripts_test.py" "${CMAKE_SOURCE_DIR}/scripts/framedata")
-    add_test(NAME RemotePage COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/remote_page_test.py" "${CMAKE_SOURCE_DIR}/src/training/RemotePage.hxx" "${CMAKE_SOURCE_DIR}/assets/framedata/usf4.json")
+    add_test(NAME FrameData COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/framedata/validate.py" "${CMAKE_SOURCE_DIR}/assets/framedata/usf4.json")
+    add_test(NAME FrameDataScripts COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/src/tests/framedata_scripts_test.py" "${CMAKE_SOURCE_DIR}/scripts/framedata")
+    add_test(NAME RemotePage COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/src/tests/remote_page_test.py" "${CMAKE_SOURCE_DIR}/src/training/RemotePage.hxx" "${CMAKE_SOURCE_DIR}/assets/framedata/usf4.json")
     # Needs node; skipped without one.
-    add_test(NAME RemotePageSyntax COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/remote_page_test.py" "${CMAKE_SOURCE_DIR}/src/training/RemotePage.hxx" --syntax)
+    add_test(NAME RemotePageSyntax COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/src/tests/remote_page_test.py" "${CMAKE_SOURCE_DIR}/src/training/RemotePage.hxx" --syntax)
     set_tests_properties(RemotePageSyntax PROPERTIES SKIP_RETURN_CODE 77)
     sf4e_test_labels(LABELS training TESTS FrameData FrameDataScripts RemotePage RemotePageSyntax)
 endif()
@@ -395,16 +394,24 @@ sf4e_add_unit_test(NAME ModulePin SOURCES src/tests/module_pin_test.cxx STD 17 L
 add_library(ComProbeServer SHARED src/tests/com_probe_server.cxx src/tests/com_probe_server.def)
 set_target_properties(ComProbeServer PROPERTIES PREFIX "" RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:ModulePinTest>")
 add_dependencies(ModulePinTest ComProbeServer)
+# Windows PowerShell 5.1, which runs the package's own scripts on players' PCs. A cross build's CTest cannot find
+# it; naming it through env keeps the whole command in CTest's list for scripts/import-build.ps1, which runs these
+# tests (label windows_host) on Windows.
+if(CMAKE_HOST_WIN32)
+    set(SF4E_WINDOWS_POWERSHELL powershell.exe)
+else()
+    set(SF4E_WINDOWS_POWERSHELL /usr/bin/env powershell.exe)
+endif()
 sf4e_add_unit_test(NAME PackageInstaller SOURCES src/tests/package_installer_test.cxx LIBS sf4e_package_installer shell32)
-add_test(NAME UpdaterDownloadValidation COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-updater-download-validation.ps1 -Validator $<TARGET_FILE:PackageInstallerTest>)
+add_test(NAME UpdaterDownloadValidation COMMAND ${SF4E_WINDOWS_POWERSHELL} -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-updater-download-validation.ps1 -Validator $<TARGET_FILE:PackageInstallerTest>)
 # The record the network fixtures print, produced by the same header, is what
 # the runner's validator is tested against.
 add_executable(NetworkCompletionEmitter src/tests/network_completion_emitter.cxx)
 target_compile_features(NetworkCompletionEmitter PRIVATE cxx_std_17)
-add_test(NAME NetworkCompletion COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-network-completion.ps1 -Emitter $<TARGET_FILE:NetworkCompletionEmitter>)
+add_test(NAME NetworkCompletion COMMAND ${SF4E_WINDOWS_POWERSHELL} -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-network-completion.ps1 -Emitter $<TARGET_FILE:NetworkCompletionEmitter>)
 sf4e_add_unit_test(NAME ProgressWindow SOURCES src/tests/progress_window_test.cxx LIBS comctl32 user32 STD 17 TIMEOUT 30)
 sf4e_add_unit_test(NAME UpdaterRun SOURCES src/tests/updater_run_test.cxx LIBS sf4e_updater_run STD 17 TIMEOUT 60)
-add_test(NAME UpgradeRecoveryPowerShell COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-upgrade-recovery.ps1 -NativeFixture $<TARGET_FILE:PackageInstallerTest>)
+add_test(NAME UpgradeRecoveryPowerShell COMMAND ${SF4E_WINDOWS_POWERSHELL} -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-upgrade-recovery.ps1 -NativeFixture $<TARGET_FILE:PackageInstallerTest>)
 set_tests_properties(UpgradeRecoveryPowerShell PROPERTIES TIMEOUT 120)
 sf4e_test_locks(UpgradeRecoveryPowerShell ember_processes)
 
@@ -464,3 +471,17 @@ add_test(NAME NightlyPaths COMMAND "${SF4E_PWSH}" -NoProfile -File scripts/test-
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 set_tests_properties(NightlyPaths PROPERTIES TIMEOUT 300)
 sf4e_test_labels(LABELS publisher script TESTS BuildProvenance NightlyPublication NightlyPaths PackageFiles)
+
+# Tests that need Windows itself rather than Wine: the publisher's PowerShell suites and the Windows PowerShell
+# checks (they test the Windows publishing scripts), and programs whose subject Wine implements differently (file
+# access that Windows denies, WinHTTP cancel timing, minidump streams, file names and file locks, Media Foundation's
+# encoder, which Wine lacks so the test skips, and COM servers registered per user). On the Linux
+# build PC (docs/release/LAPTOP_BUILD.md) build-current.ps1 leaves them out, and scripts/import-build.ps1 runs them on
+# the Windows PC against the same programs before anything is packaged; the receipt records both runs.
+foreach(test BuildProvenance NightlyPublication NightlyPaths PackageFiles UpdaterDownloadValidation NetworkCompletion
+        UpgradeRecoveryPowerShell PackageInstaller HttpPostCancel HttpUpdateMetadata HeapCorruptionCapture GameThemes
+        ReplayFiles TrainingRemoteHud VideoEncoder ModulePin)
+    if(TEST ${test})
+        sf4e_test_labels(LABELS windows_host TESTS ${test})
+    endif()
+endforeach()

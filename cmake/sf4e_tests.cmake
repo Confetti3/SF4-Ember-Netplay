@@ -42,7 +42,7 @@ set(SF4E_TEST_LOCKS loopback_udp_ports ember_processes ember_runtime d3d9_device
 # touches it. HelperRust and PublicRoomsChain build into rust-test-target in the
 # build folder, EmberRust and BridgeSdk into rust-ember-target: a targeted cargo
 # run must not write into either folder while ctest runs a suite that uses it.
-set(SF4E_TEST_LABELS unit ui room ggpo replay training discord helper rust sdk publisher script network)
+set(SF4E_TEST_LABELS unit ui room ggpo replay training discord helper rust sdk publisher script network windows_host)
 #   sf4e_test_labels(LABELS <label...> TESTS <test...>)
 # Adds the labels to tests that exist already, whatever registered them.
 function(sf4e_test_labels)

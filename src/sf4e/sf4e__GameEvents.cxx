@@ -190,11 +190,11 @@ bool fMainMenu::LeaveLocalBattleLog() {
 }
 
 void fMainMenu::Install() {
-	int (fMainMenu:: * _fGetItemObserverState)() = &GetItemObserverState;
-	void (fMainMenu:: * _fOnModeSelected)(int) = &OnModeSelected;
+	int (fMainMenu:: * _fGetItemObserverState)() = &fMainMenu::GetItemObserverState;
+	void (fMainMenu:: * _fOnModeSelected)(int) = &fMainMenu::OnModeSelected;
 	DetourAttach((PVOID*)&rMainMenu::itemObserverMethods.GetItemObserverState, *(PVOID*)&_fGetItemObserverState);
 	DetourAttach((PVOID*)&rMainMenu::itemObserverMethods.OnModeSelected, *(PVOID*)&_fOnModeSelected);
-	void (fMainMenu:: * _fIdleTask)(int) = &IdleTask;
+	void (fMainMenu:: * _fIdleTask)(int) = &fMainMenu::IdleTask;
 	DetourAttach((PVOID*)&rMainMenu::taskMethods.IdleTask, *(PVOID*)&_fIdleTask);
 }
 
@@ -287,11 +287,11 @@ void fRootEvent::Install() {
 }
 
 void fVsBattle::Install() {
-	int (fVsBattle:: * _fCheckAndMaybeExitBasedOnBattleType)() = &CheckAndMaybeExitBasedOnExitType;
-	int (fVsBattle:: * _fHasInitialized)() = &HasInitialized;
-	void (fVsBattle:: * _fPrepareBattleRequest)() = &PrepareBattleRequest;
-	void (fVsBattle:: * _fRegisterTasks)() = &RegisterTasks;
-	void (fVsBattle:: * _fExitForeground)() = &ExitForeground;
+	int (fVsBattle:: * _fCheckAndMaybeExitBasedOnBattleType)() = &fVsBattle::CheckAndMaybeExitBasedOnExitType;
+	int (fVsBattle:: * _fHasInitialized)() = &fVsBattle::HasInitialized;
+	void (fVsBattle:: * _fPrepareBattleRequest)() = &fVsBattle::PrepareBattleRequest;
+	void (fVsBattle:: * _fRegisterTasks)() = &fVsBattle::RegisterTasks;
+	void (fVsBattle:: * _fExitForeground)() = &fVsBattle::ExitForeground;
 
 	DetourAttach(
 		(PVOID*)&rVsBattle::privateMethods.CheckAndMaybeExitBasedOnExitType,
@@ -321,7 +321,7 @@ void fVsBattle::Install() {
 		PAGE_EXECUTE_READWRITE,
 		&dwOld
 	)) {
-		*rVsBattle::vt_IsTerminationComplete = (BOOL(rVsBattle::*)()) & IsTerminationComplete;
+		*rVsBattle::vt_IsTerminationComplete = (BOOL(rVsBattle::*)()) & fVsBattle::IsTerminationComplete;
 		VirtualProtect(rVsBattle::vt_IsTerminationComplete, sizeof(void*), dwOld, &dwOld);
 	}
 	else {
@@ -427,7 +427,7 @@ void fVsBattle::ExitForeground() {
 }
 
 void fVsPreBattle::Install() {
-	void (fVsPreBattle:: * _fRegisterTasks)() = &RegisterTasks;
+	void (fVsPreBattle:: * _fRegisterTasks)() = &fVsPreBattle::RegisterTasks;
 	DetourAttach((PVOID*)&fVsPreBattle::publicMethods.RegisterTasks, *(PVOID*)&_fRegisterTasks);
 }
 

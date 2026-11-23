@@ -52,8 +52,8 @@ void fGame::Install() {
 }
 
 void fKey::Install() {
-    void (fKey::* _fInitialize)(void*, int) = &Initialize;
-    void (fKey:: * _fClearKey)() = &ClearKey;
+    void (fKey::* _fInitialize)(void*, int) = &fKey::Initialize;
+    void (fKey:: * _fClearKey)() = &fKey::ClearKey;
     DetourAttach((PVOID*)&rKey::publicMethods.Initialize, *(PVOID*)&_fInitialize);
     DetourAttach((PVOID*)&rKey::publicMethods.ClearKey, *(PVOID*)&_fClearKey);
 }

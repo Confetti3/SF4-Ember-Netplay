@@ -51,7 +51,7 @@ void fPad::Install() {
 }
 
 void fPad::Keyboards::Install() {
-	int (Keyboards::* scan)() = &ScanDevices;
+	int (Keyboards::* scan)() = &Keyboards::ScanDevices;
 	// Before logging is up, so a failure is only kept for LogFirstScan.
 	keyboardHookFailed = DetourAttach((PVOID*)&rPad::System_RawInput::publicMethods.ScanDevices, *(PVOID*)&scan) != NO_ERROR;
 }
@@ -86,13 +86,13 @@ void fPad::Keyboards::LogFirstScan() {
 }
 
 void fSystem::Install() {
-    void (fSystem::* update)() = &UpdateInputs;
+    void (fSystem::* update)() = &fSystem::UpdateInputs;
     DetourAttach((PVOID*)&rSystem::publicMethods.UpdateInputs, *(PVOID*)&update);
-    unsigned int (fSystem:: * _fGetButtons_MappedOn)(int) = &GetButtons_MappedOn;
-    unsigned int (fSystem:: * _fGetButtons_RawOn)(int) = &GetButtons_RawOn;
+    unsigned int (fSystem:: * _fGetButtons_MappedOn)(int) = &fSystem::GetButtons_MappedOn;
+    unsigned int (fSystem:: * _fGetButtons_RawOn)(int) = &fSystem::GetButtons_RawOn;
     DetourAttach((PVOID*)&rSystem::publicMethods.GetButtons_MappedOn, *(PVOID*)&_fGetButtons_MappedOn);
     DetourAttach((PVOID*)&rSystem::publicMethods.GetButtons_RawOn, *(PVOID*)&_fGetButtons_RawOn);
-    void (fSystem::* load)() = &LoadButtonConfig;
+    void (fSystem::* load)() = &fSystem::LoadButtonConfig;
     DetourAttach((PVOID*)&rSystem::publicMethods.LoadButtonConfig, *(PVOID*)&load);
 }
 

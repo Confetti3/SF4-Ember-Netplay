@@ -95,9 +95,9 @@ void fChara::Install() {
 }
 
 void fAfterimage::Install() {
-	size_t (fAfterimage::* _fGetMementoSize)() = &GetMementoSize;
-	int (fAfterimage::* _fRecordToMemento)(void*, rKey::MementoID*) = &RecordToMemento;
-	int (fAfterimage::* _fRestoreFromMemento)(void*, rKey::MementoID*) = &RestoreFromMemento;
+	size_t (fAfterimage::* _fGetMementoSize)() = &fAfterimage::GetMementoSize;
+	int (fAfterimage::* _fRecordToMemento)(void*, rKey::MementoID*) = &fAfterimage::RecordToMemento;
+	int (fAfterimage::* _fRestoreFromMemento)(void*, rKey::MementoID*) = &fAfterimage::RestoreFromMemento;
 	DetourAttach((PVOID*)&rAfterimage::mementoableMethods.GetMementoSize, *(PVOID*)&_fGetMementoSize);
 	DetourAttach((PVOID*)&rAfterimage::mementoableMethods.RecordToMemento, *(PVOID*)&_fRecordToMemento);
 	DetourAttach((PVOID*)&rAfterimage::mementoableMethods.RestoreFromMemento, *(PVOID*)&_fRestoreFromMemento);

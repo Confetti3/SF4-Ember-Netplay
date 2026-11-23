@@ -19,8 +19,8 @@ void fEvent::Install() {
 }
 
 void fEventController::Install() {
-	void (fEventController:: * _fQueueEvent)(char*, DWORD, DWORD, DWORD) = &QueueEvent;
-	void (fEventController:: * _fRunUpdate)() = &RunUpdate;
+	void (fEventController:: * _fQueueEvent)(char*, DWORD, DWORD, DWORD) = &fEventController::QueueEvent;
+	void (fEventController:: * _fRunUpdate)() = &fEventController::RunUpdate;
 	DetourAttach((PVOID*)&rEventController::publicMethods.QueueEvent, *(PVOID*)&_fQueueEvent);
 	DetourAttach((PVOID*)&rEventController::publicMethods.RunUpdate, *(PVOID*)&_fRunUpdate);
 }
