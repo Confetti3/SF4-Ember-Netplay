@@ -4,6 +4,9 @@
 //! whether it is connected to the internet via IPv4 and/or IPv6, what the NAT situation is
 //! etc and reachability to the configured relays.
 // Based on <https://github.com/tailscale/tailscale/blob/main/net/netcheck/netcheck.go>
+//
+// Modified by SF4 Ember Netplay (2026-11-23): see rust/vendor/README.md. Every change
+// is marked "Ember patch".
 
 #![cfg_attr(wasm_browser, allow(unused))]
 
@@ -131,10 +134,6 @@ impl Default for NetReportConfig {
 
 const FULL_REPORT_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const ENOUGH_ENDPOINTS: usize = 3;
-/// Ember patch: the most relays a report starts QUIC address discovery
-/// probes against (upstream: 5). Ember's helper pins 6 relays and checks in
-/// its own tests (sf4-net invite.rs) that they fit under this.
-const QAD_PROBE_RELAYS: usize = 8;
 
 /// Client to run net_reports.
 #[derive(Debug)]
@@ -173,6 +172,24 @@ impl QadConns {
         if let Some((_, conn)) = self.v6.take() {
             conn.conn
                 .close(QUIC_ADDR_DISC_CLOSE_CODE, QUIC_ADDR_DISC_CLOSE_REASON);
+        }
+    }
+
+    /// Ember patch: closes a stored connection whose relay the report did not
+    /// choose. Upstream stores the first probe to answer; once its observed
+    /// address changes (a NAT rebinding), a report holds that relay alone and
+    /// it became the home relay without any comparison.
+    fn keep_only(&mut self, preferred: Option<&RelayUrl>) {
+        let Some(preferred) = preferred else {
+            return;
+        };
+        for slot in [&mut self.v4, &mut self.v6] {
+            if slot.as_ref().is_some_and(|(url, _)| url != preferred)
+                && let Some((_, conn)) = slot.take()
+            {
+                conn.conn
+                    .close(QUIC_ADDR_DISC_CLOSE_CODE, QUIC_ADDR_DISC_CLOSE_REASON);
+            }
         }
     }
 
@@ -242,11 +259,9 @@ struct Reports {
     prev: BTreeMap<Instant, Report>,
     /// Most recent report.
     last: Option<Report>,
-    /// Ember patch: the preferred relay of the most recent report. A full
-    /// report clears `last` to make a full probe plan; upstream that also
-    /// dropped the previous relay, so every full report (each 5 minutes)
-    /// chose without hysteresis and two relays a few milliseconds apart
-    /// swapped the home relay back and forth. This keeps it across that.
+    /// Ember patch: the last relay a report chose. A full report clears
+    /// `last` for its probe plan; this keeps the current relay, and so the
+    /// switching rule, across it.
     last_preferred: Option<RelayUrl>,
     /// Time of last full (non-incremental) report.
     last_full: Instant,
@@ -441,6 +456,8 @@ impl Client {
             }
         }
         self.add_report_history_and_set_preferred_relay(&mut report);
+        #[cfg(not(wasm_browser))]
+        self.qad_conns.keep_only(report.preferred_relay.as_ref());
         debug!(
             ?report,
             duration = ?now.elapsed(),
@@ -509,11 +526,10 @@ impl Client {
         let mut v6_buf = JoinSet::new();
         let cancel_v6 = shutdown_token.child_token();
 
-        // Ember patch: upstream probed only the first 5 relays of the map,
-        // which iterates in URL order, so a sixth relay never got a latency
-        // and could never be the home relay.
+        // Ember patch: every relay, not the first 5 in URL order. The early
+        // stop at `enough_relays` answers below still bounds the work.
         let relays = self.relay_map.relays::<Vec<_>>();
-        for relay in relays.into_iter().take(QAD_PROBE_RELAYS) {
+        for relay in relays {
             if if_state.have_v4 && needs_v4_probe {
                 trace!(?relay.url, "v4 QAD probe starting");
                 let relay = relay.clone();
@@ -829,7 +845,10 @@ impl Client {
         }
 
         self.reports.prev.insert(now, r.clone());
-        self.reports.last_preferred.clone_from(&r.preferred_relay);
+        // Ember patch: a report in which no relay answered keeps the relay.
+        if r.preferred_relay.is_some() {
+            self.reports.last_preferred.clone_from(&r.preferred_relay);
+        }
         self.reports.last = Some(r.clone());
     }
 }
@@ -1313,6 +1332,40 @@ mod tests {
             let mut full = report(full);
             client.add_report_history_and_set_preferred_relay(&mut full);
             assert_eq!(full.preferred_relay, Some(relay_url(want)), "{name}");
+        }
+        Ok(())
+    }
+
+    /// Ember patch: after every report, a stored QUIC address discovery
+    /// connection goes only to the relay that report chose (`keep_only`).
+    #[tokio::test(flavor = "multi_thread")]
+    #[traced_test]
+    async fn test_stored_qad_conn_only_to_preferred_relay() -> Result<()> {
+        let (_servers, relay_map) = test_utils::relay_map(6).await;
+        let client_config = iroh_relay::tls::make_dangerous_client_config();
+        let ep = noq::Endpoint::client(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0)).anyerr()?;
+        let quic_addr_disc = QuicConfig {
+            ep,
+            client_config,
+            ipv4: true,
+            ipv6: true,
+        };
+        let tls_config = CaTlsConfig::insecure_skip_verify()
+            .client_config(default_provider())
+            .expect("infallible");
+        let opts = Options::new(tls_config).quic_config(Some(quic_addr_disc));
+        let mut client = Client::new(DnsResolver::new(), relay_map, opts, Default::default());
+        for round in 0..4 {
+            // Round 2 is a major change, so a full report again.
+            let r = client
+                .get_report(IfStateDetails::fake(), round == 2, CancellationToken::new())
+                .await;
+            let preferred = r.preferred_relay.clone().expect("a relay answered");
+            for (family, slot) in [("v4", &client.qad_conns.v4), ("v6", &client.qad_conns.v6)] {
+                if let Some((url, _)) = slot {
+                    assert_eq!(url, &preferred, "round {round}, {family}");
+                }
+            }
         }
         Ok(())
     }

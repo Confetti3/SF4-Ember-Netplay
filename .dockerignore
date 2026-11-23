@@ -4,6 +4,7 @@
 # stays out so a build sends a few megabytes.
 *
 !rust/sf4-net/
+!rust/vendor/
 !server/ember/
 !server/ember-rooms/
 !server/ember-short/
