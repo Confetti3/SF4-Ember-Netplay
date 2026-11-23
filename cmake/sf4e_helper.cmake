@@ -23,8 +23,10 @@ if(WIN32)
         find_program(SF4E_CARGO_EXECUTABLE cargo REQUIRED)
         set(SF4E_HELPER_SOURCE "${CMAKE_SOURCE_DIR}/rust/sf4-net")
         set(SF4E_HELPER_EXECUTABLE "${CMAKE_BINARY_DIR}/sf4-net.exe")
+        # rust/vendor holds crates the helper patches in (rust/vendor/README.md).
         file(GLOB_RECURSE SF4E_HELPER_RUST_SOURCES CONFIGURE_DEPENDS "${SF4E_HELPER_SOURCE}/src/*.rs"
-            "${CMAKE_SOURCE_DIR}/server/ember/protocol/src/*.rs")
+            "${CMAKE_SOURCE_DIR}/server/ember/protocol/src/*.rs"
+            "${CMAKE_SOURCE_DIR}/rust/vendor/*.rs" "${CMAKE_SOURCE_DIR}/rust/vendor/*/Cargo.toml")
         set(SF4E_HELPER_FEATURE_LIST "")
         if(SF4E_STAGING_BRIDGE)
             list(APPEND SF4E_HELPER_FEATURE_LIST staging-bridge)
@@ -87,6 +89,18 @@ if(WIN32)
             set_tests_properties(HelperRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
             sf4e_test_locks(HelperRust loopback_udp_ports ember_processes)
             sf4e_test_labels(LABELS helper rust TESTS HelperRust)
+            # The vendored iroh's relay-choice tests, Ember's patch included
+            # (rust/vendor/README.md), on the toolchain the helper pins.
+            file(STRINGS "${SF4E_HELPER_SOURCE}/rust-toolchain.toml" SF4E_HELPER_CHANNEL REGEX "^channel *=")
+            string(REGEX REPLACE "^channel *= *\"([^\"]+)\".*" "\\1" SF4E_HELPER_CHANNEL "${SF4E_HELPER_CHANNEL}")
+            add_test(NAME IrohPatchRust
+                COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-iroh-target"
+                    "RUSTUP_TOOLCHAIN=${SF4E_HELPER_CHANNEL}"
+                    "${SF4E_CARGO_EXECUTABLE}" test --locked -j ${SF4E_CARGO_TEST_JOBS} --features test-utils --lib net_report
+                WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/vendor/iroh")
+            set_tests_properties(IrohPatchRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
+            sf4e_test_locks(IrohPatchRust loopback_udp_ports)
+            sf4e_test_labels(LABELS helper rust TESTS IrohPatchRust)
             # The identity protocol and tournament bridge workspace. The bridge
             # is not shipped to players; its tests still gate the build. The SDK
             # test builds into the same target directory and runs that bridge.

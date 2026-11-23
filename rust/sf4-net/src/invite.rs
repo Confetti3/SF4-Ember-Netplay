@@ -53,12 +53,8 @@ struct Pinned {
 // to 1.6.1 left n0's US and Europe relays out; on 2026-11-20 those
 // providers' home lines reached all of n0's relays again.
 //
-// iroh picks the home relay by QUIC probe latency among the relays that
-// answer first, and keeps the current one unless another is a third faster.
-// The vendored iroh (rust/vendor/README.md) probes every relay here (upstream
-// probed the first five in URL order, which left usw1 out) and keeps that
-// rule across its 5-minute full reports (upstream dropped it there, so n0's
-// and Ember's relays of one region swapped the home relay every 5 minutes).
+// iroh picks the home relay by probe latency; rust/vendor/README.md has how,
+// and Ember's patch to it (without which usw1 was never probed).
 const RELAYS: [Pinned; 6] = [
     Pinned { url: "https://use1-1.relay.n0.iroh.link./", region: "use1", name: "n0use1", active: true },
     Pinned { url: "https://usw1-1.relay.n0.iroh.link./", region: "usw1", name: "usw1", active: true },

@@ -93,6 +93,20 @@ fn a_refused_invitation_names_why() {
     assert_eq!(Invite::rejection_reason(&discord, 3700, &build), "expired");
 }
 
+/// The home relay choice relies on the patched iroh in rust/vendor
+/// (rust/vendor/README.md). A version bump in Cargo.toml leaves the
+/// `[patch.crates-io]` entry unused, which cargo only warns about; the lock
+/// then names crates.io for iroh again.
+#[test]
+fn iroh_is_the_vendored_copy() {
+    let lock = include_str!("../../Cargo.lock");
+    let entry = lock
+        .split("[[package]]")
+        .find(|package| package.lines().any(|line| line == r#"name = "iroh""#))
+        .expect("iroh in Cargo.lock");
+    assert!(!entry.lines().any(|line| line.starts_with("source")), "{entry}");
+}
+
 #[test]
 fn relay_regions_are_stable_codes_and_never_a_url() {
     let pinned = |index: usize| RELAYS[index].relay();
@@ -118,10 +132,6 @@ fn relay_regions_are_stable_codes_and_never_a_url() {
     // n0's relays let them through again).
     let active = relay_map().urls::<Vec<_>>();
     assert_eq!(active.len(), RELAYS.len());
-    // Each active relay must get a QUIC latency probe to be eligible as a home
-    // relay. The vendored iroh probes at most QAD_PROBE_RELAYS (8) of them
-    // (rust/vendor/iroh/src/net_report.rs); upstream's 5 left usw1 out.
-    assert!(active.len() <= 8, "raise QAD_PROBE_RELAYS in the vendored iroh");
     for index in 0..RELAYS.len() {
         assert!(RELAYS[index].active && active.contains(&pinned(index)), "{index}");
         assert_eq!(pinned_index(&pinned(index)), Some(index));

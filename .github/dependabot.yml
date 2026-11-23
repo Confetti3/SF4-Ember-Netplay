@@ -15,6 +15,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # A patched copy in rust/vendor replaces it; a bump here would leave the
+      # patch unused. Upgrade by hand (rust/vendor/README.md).
+      - dependency-name: iroh
   - package-ecosystem: npm
     directory: /sdk/typescript
     schedule:
