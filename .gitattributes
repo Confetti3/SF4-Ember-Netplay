@@ -7,3 +7,5 @@
 *.timer text eol=lf
 server/**/deploy/** text eol=lf
 server/*/docker/** text eol=lf
+# Vendored crates stay byte-for-byte as published (rust/vendor/README.md).
+rust/vendor/** -text
