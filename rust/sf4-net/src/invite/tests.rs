@@ -118,6 +118,10 @@ fn relay_regions_are_stable_codes_and_never_a_url() {
     // n0's relays let them through again).
     let active = relay_map().urls::<Vec<_>>();
     assert_eq!(active.len(), RELAYS.len());
+    // Each active relay must get a QUIC latency probe to be eligible as a home
+    // relay. The vendored iroh probes at most QAD_PROBE_RELAYS (8) of them
+    // (rust/vendor/iroh/src/net_report.rs); upstream's 5 left usw1 out.
+    assert!(active.len() <= 8, "raise QAD_PROBE_RELAYS in the vendored iroh");
     for index in 0..RELAYS.len() {
         assert!(RELAYS[index].active && active.contains(&pinned(index)), "{index}");
         assert_eq!(pinned_index(&pinned(index)), Some(index));

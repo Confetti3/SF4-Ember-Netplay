@@ -67,3 +67,9 @@ inherits = "release"
 strip = true
 lto = "fat"
 codegen-units = 1
+
+# iroh 1.1.0 with Ember's patch to its home relay choice: every pinned relay
+# gets a latency probe, and the 5-minute full report keeps the current relay
+# unless another is a third faster. See rust/vendor/README.md.
+[patch.crates-io]
+iroh = { path = "../vendor/iroh" }
