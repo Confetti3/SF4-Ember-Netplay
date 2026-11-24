@@ -187,7 +187,7 @@ void DrawSeat(const RoomBoardFrame& f,ImDrawList* d,const v2::Box& box,const v2:
  // One tone for every table: the accent while its game is played, quiet otherwise. The Ultra's mark only on a
  // screen with the room for it (a Medium card's and up); the fighter's line names it on every card.
  const bool marksUltra=look.picked&&tile.H()>=table_card::MediumSeat*s-.5f;
- const v2::Box glass=DrawSeatScreen(d,tile,SeatPicture(look,f.art),t.phase==room::TablePhase::Playing?c.accent:c.muted,marksUltra?look.ultra:-1,s);
+ const v2::Box glass=DrawSeatScreen(d,tile,SeatPicture(look,f.art),t.phase==room::TablePhase::Playing?c.accent:c.muted,marksUltra?look.ultra:-1,s,SeatFacing(versus,side));
  if(const auto points=PointsOf(v,m,look.fighter))v2::LevelBand(d,glass,points->points);
  if(marked)d->AddRect(ImVec2(tile.min.x-2*s,tile.min.y-2*s),ImVec2(tile.max.x+2*s,tile.max.y+2*s),ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)),3*s,0,2*s);
  const auto tag=MemberTag(v,m);
