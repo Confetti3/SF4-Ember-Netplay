@@ -3544,7 +3544,7 @@ msgid "room.phase.open"
 msgstr "Offen"
 
 msgid "room.terminal_pending"
-msgstr "Warten, bis alle Spieler und Zuschauer vom vorigen Kampf zurückgekehrt sind."
+msgstr "Warten, bis der vorige Kampf ganz beendet ist."
 
 msgid "room.leave.detail"
 msgstr "Verbindung zum Raum trennen und zur Startseite zurückkehren. Ember auszublenden hält Sie im Raum."
@@ -3826,7 +3826,7 @@ msgid "room.choose_action"
 msgstr "Wählen Sie eine Aktion für diesen Tisch."
 
 msgid "room.result_unresolved.detail"
-msgstr "Voriges Ergebnis ungeklärt. Wählen Sie Ungeklärtes Spiel verwerfen oder bitten Sie den Host um Abbruch; kein Sieg wird vergeben."
+msgstr "Voriges Ergebnis ungeklärt. Wählen Sie unter Tischoptionen Ungeklärtes Spiel verwerfen oder bitten Sie den Host um Abbruch; kein Sieg wird vergeben."
 
 msgid "room.awaiting_result"
 msgstr "Warten auf Ergebnisberichte beider Spieler. Bereit wird nach Bestätigung zurückgesetzt; für den nächsten Kampf sind Sie noch nicht bereit."
@@ -3976,7 +3976,7 @@ msgid "room.leave_seat"
 msgstr "Platz verlassen"
 
 msgid "room.leave_seat.abandon_first"
-msgstr "Verwerfen Sie zuerst das ungeklärte Spiel."
+msgstr "Verwerfen Sie zuerst das ungeklärte Spiel unter Tischoptionen."
 
 msgid "room.leave_seat.finish_first"
 msgstr "Beenden oder klären Sie zuerst das aktuelle Spiel."

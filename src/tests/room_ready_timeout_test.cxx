@@ -221,8 +221,10 @@ static void TestReadyTimeoutExclusions() {
 	EXPECT(base.Apply(p1, TableAction(base, p1, 0, ActionKind::Ready)).accepted);
 	EXPECT(base.SnapshotFor(p2).terminalPending[0]);
 	EXPECT(base.SnapshotFor(p2).tables[0].readyRemainingMs == 0);
-	EXPECT(!base.HasDueTimerTransition(ReadyTimeoutMs * 7));
-	EXPECT(base.AdvanceTime(ReadyTimeoutMs * 7).empty());
+	// Until the receipt's own deadline, the next one due.
+	const auto receiptDue = ReadyTimeoutMs * 6 + TerminalReceiptTimeoutMs;
+	EXPECT(!base.HasDueTimerTransition(receiptDue - 1));
+	EXPECT(base.AdvanceTime(receiptDue - 1).empty());
 	EXPECT(base.SnapshotView().tables[0].p2 == p2);
 	for (const auto member : {p1, p2}) {
 		auto ack = TableAction(base, member, 0, ActionKind::AcknowledgeTerminal); ack.matchGeneration = generation;
@@ -265,9 +267,17 @@ static void TestReadyTimeoutMemberReceipt() {
 	EXPECT(authority.EndMatch(0, generation, MatchResult::Draw).accepted);
 	EXPECT(authority.SnapshotFor(returning).localTerminalPending);
 	EXPECT(authority.SnapshotFor(returning).tables[1].readyRemainingMs == 0);
-	EXPECT(!authority.HasDueTimerTransition(ReadyTimeoutMs * 2));
-	EXPECT(authority.AdvanceTime(ReadyTimeoutMs * 2).empty());
+	EXPECT(!authority.HasDueTimerTransition(TerminalReceiptTimeoutMs - 1));
+	EXPECT(authority.AdvanceTime(TerminalReceiptTimeoutMs - 1).empty());
 	EXPECT(authority.SnapshotView().tables[1].p2 == returning);
+	// The receipt lapses unacknowledged, and only then does the returning
+	// fighter's Ready deadline start.
+	const auto lapsed = authority.AdvanceTime(TerminalReceiptTimeoutMs);
+	EXPECT(lapsed.size() == 1 && lapsed[0].kind == Event::Kind::SnapshotChanged && lapsed[0].matchGeneration == generation);
+	EXPECT(!authority.SnapshotFor(returning).localTerminalPending);
+	EXPECT(authority.SnapshotFor(returning).tables[1].readyRemainingMs == ReadyTimeoutMs);
+	EXPECT(authority.AdvanceTime(TerminalReceiptTimeoutMs + ReadyTimeoutMs - 1).empty());
+	EXPECT(TimedOut(authority.AdvanceTime(TerminalReceiptTimeoutMs + ReadyTimeoutMs), returning, 1));
 }
 
 int main() {

@@ -24,9 +24,11 @@ nlohmann::json RoomAuthority::Checkpoint() const {
         for (const auto& recipient : receipt.recipients)
             recipients.push_back({{"member", recipient.member}, {"endpoint", recipient.endpoint},
                 {"incarnation", recipient.incarnation}, {"acknowledged", recipient.acknowledged}});
-        terminalReceipts.push_back({{"table", receipt.table}, {"generation", receipt.generation},
+        json row = {{"table", receipt.table}, {"generation", receipt.generation},
             {"result", static_cast<int>(receipt.result)}, {"fighters", receipt.fighters},
-            {"recipients", std::move(recipients)}, {"acknowledged", receipt.acknowledged}});
+            {"recipients", std::move(recipients)}, {"acknowledged", receipt.acknowledged}};
+        if (!receipt.acknowledged) row["age"] = TimerAge(receipt.since);
+        terminalReceipts.push_back(std::move(row));
     }
     json terminalAckTombstones = json::array();
     for (const auto& tombstone : terminalAckTombstones_)
@@ -275,6 +277,12 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
             if (row.contains("acknowledged") && !row.at("acknowledged").is_boolean()) return false;
             receipt.acknowledged = std::all_of(receipt.recipients.begin(), receipt.recipients.end(),
                 [](const TerminalRecipient& recipient) { return recipient.acknowledged; });
+            // An older checkpoint carries no age: the deadline counts from here.
+            if (!receipt.acknowledged) {
+                const auto age = row.contains("age") ? ReadU64(row, "age") : 0;
+                if (!restored.recoveryPaused_ && age > restored.nowMs_) return false;
+                receipt.since = restored.TimerFromAge(age);
+            }
             restored.terminalReceipts_.push_back(std::move(receipt));
         }
         restored.terminalAckTombstones_.clear();

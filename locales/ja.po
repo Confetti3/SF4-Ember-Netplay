@@ -3544,7 +3544,7 @@ msgid "room.phase.open"
 msgstr "公開中"
 
 msgid "room.terminal_pending"
-msgstr "全プレイヤーと観戦者が前の対戦から戻るのを待っています。"
+msgstr "前の対戦の終了を待っています。"
 
 msgid "room.leave.detail"
 msgstr "このルームから切断してホームに戻ります。Emberを隠すだけでは退出しません。"
@@ -3826,7 +3826,7 @@ msgid "room.choose_action"
 msgstr "この対戦席での操作を選んでください。"
 
 msgid "room.result_unresolved.detail"
-msgstr "前の結果が未確定です。「未確定の対戦を破棄」を選ぶか、ホストにキャンセルを依頼してください。勝利は記録されません。"
+msgstr "前の結果が未確定です。「対戦席の設定」の「未確定の対戦を破棄」を選ぶか、ホストにキャンセルを依頼してください。勝利は記録されません。"
 
 msgid "room.awaiting_result"
 msgstr "両対戦者からの結果報告を待っています。結果確定後に準備状態は解除されます。次の対戦の準備完了にはなっていません。"
@@ -3976,7 +3976,7 @@ msgid "room.leave_seat"
 msgstr "席を離れる"
 
 msgid "room.leave_seat.abandon_first"
-msgstr "先に未確定の対戦を破棄してください。"
+msgstr "先に「対戦席の設定」で未確定の対戦を破棄してください。"
 
 msgid "room.leave_seat.finish_first"
 msgstr "先に現在の対戦を終了または解決してください。"

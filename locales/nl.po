@@ -3544,7 +3544,7 @@ msgid "room.phase.open"
 msgstr "Open"
 
 msgid "room.terminal_pending"
-msgstr "Wachten tot alle spelers en toeschouwers terug zijn van de vorige match."
+msgstr "Wachten tot de vorige match helemaal is afgesloten."
 
 msgid "room.leave.detail"
 msgstr "Verlaat deze kamer en ga naar Start. Als je Ember verbergt, blijf je hier."
@@ -3826,7 +3826,7 @@ msgid "room.choose_action"
 msgstr "Kies een actie voor deze tafel."
 
 msgid "room.result_unresolved.detail"
-msgstr "De vorige uitslag is onbeslist. Kies Onbesliste partij opgeven of vraag de host om annulering; niemand krijgt een overwinning."
+msgstr "De vorige uitslag is onbeslist. Kies Onbesliste partij opgeven via Tafelopties of vraag de host om annulering; niemand krijgt een overwinning."
 
 msgid "room.awaiting_result"
 msgstr "Wachten tot beide spelers de uitslag melden. Klaar wordt gewist na bevestiging; je bent nog niet klaar voor een nieuwe match."
@@ -3976,7 +3976,7 @@ msgid "room.leave_seat"
 msgstr "Plek verlaten"
 
 msgid "room.leave_seat.abandon_first"
-msgstr "Geef eerst de onbesliste partij op."
+msgstr "Geef eerst de onbesliste partij op via Tafelopties."
 
 msgid "room.leave_seat.finish_first"
 msgstr "Rond de huidige partij eerst af of los de uitslag op."

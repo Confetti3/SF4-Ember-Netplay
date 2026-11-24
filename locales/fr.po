@@ -3544,7 +3544,7 @@ msgid "room.phase.open"
 msgstr "Ouverte"
 
 msgid "room.terminal_pending"
-msgstr "Attente du retour de tous les joueurs et spectateurs du combat précédent."
+msgstr "Attente de la fin du combat précédent."
 
 msgid "room.leave.detail"
 msgstr "Quitter ce salon et revenir à l'accueil. Masquer Ember vous laisse dans le salon."
@@ -3826,7 +3826,7 @@ msgid "room.choose_action"
 msgstr "Choisissez une action pour cette table."
 
 msgid "room.result_unresolved.detail"
-msgstr "Résultat précédent non résolu. Choisissez Abandonner sans résultat ou demandez à l'hôte de l'annuler ; aucune victoire ne sera accordée."
+msgstr "Résultat précédent non résolu. Choisissez Abandonner sans résultat dans Options de la table ou demandez à l'hôte de l'annuler ; aucune victoire ne sera accordée."
 
 msgid "room.awaiting_result"
 msgstr "Attente du résultat des deux combattants. Prêt se réinitialise après confirmation ; vous n'êtes pas prêt pour un autre combat."
@@ -3976,7 +3976,7 @@ msgid "room.leave_seat"
 msgstr "Quitter la place"
 
 msgid "room.leave_seat.abandon_first"
-msgstr "Abandonnez d'abord le combat non résolu."
+msgstr "Abandonnez d'abord le combat non résolu dans Options de la table."
 
 msgid "room.leave_seat.finish_first"
 msgstr "Terminez ou résolvez d'abord le combat actuel."

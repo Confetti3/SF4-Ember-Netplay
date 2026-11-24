@@ -1,6 +1,7 @@
 // Private rooms are byte-identical to the revision before server-owned rooms
-// (f95cef2), but for the eight tables room protocol 4 gives every room. A
-// scripted private room runs from creation to a host transfer; after each step
+// (f95cef2), but for the eight tables room protocol 4 gives every room and the
+// age a finished game's receipt carries until it is acknowledged (steps "result
+// b" to "acknowledge a"). A scripted private room runs from creation to a host transfer; after each step
 // the SHA-256 of the room snapshot's JSON and of the authority's Checkpoint()
 // JSON are compared with the values the protocol 4 sources produced for this
 // same script. `--print` writes the table in the form kGolden below. The
@@ -66,13 +67,13 @@ const Step kGolden[] = {
 		"499176e27e6dfb731b6065cd689e217414527b5fab57afa0d159d0c746f1d712"},
 	{"result b", true,
 		"b0f7f0c35ddf2fb4c9d284100c907de7195b27a119b78fb90878aa85b29c2186",
-		"c5f6ebf6935c3b12bbde8e18b311767c88b71cff22c61b053311905ae03700e8"},
+		"272099d3482eda29f4f4c0c31cd89dc24c348310ca97e0940484d445da080e79"},
 	{"end match", false,
 		"b0f7f0c35ddf2fb4c9d284100c907de7195b27a119b78fb90878aa85b29c2186",
-		"c5f6ebf6935c3b12bbde8e18b311767c88b71cff22c61b053311905ae03700e8"},
+		"272099d3482eda29f4f4c0c31cd89dc24c348310ca97e0940484d445da080e79"},
 	{"acknowledge a", true,
 		"23a9c17898be07487114c85f802857b405f5537792078a22b622ea804f8f3923",
-		"a4b38d7aa95ee508e1bed98f5a7eca7be548a23804f99c8c8db7c3cbe70f4383"},
+		"f28d63eb9a7f18e0b373049ae03bb822cb43e9dbc3370cfd6aadfccb2fc5fdad"},
 	{"acknowledge b", true,
 		"35c733e5d42b6cfab36c1811866f48ae885998aebc7ec3bd61e2bc6b0117eee0",
 		"46da744f08686a86e8178f573a541a1e7d82c0057ea74aaee690c9358cee33e8"},

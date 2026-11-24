@@ -3544,7 +3544,7 @@ msgid "room.phase.open"
 msgstr "열림"
 
 msgid "room.terminal_pending"
-msgstr "모든 플레이어와 관전자가 이전 대전에서 돌아오기를 기다립니다."
+msgstr "이전 대전이 끝나기를 기다립니다."
 
 msgid "room.leave.detail"
 msgstr "이 방의 연결을 끊고 홈으로 돌아갑니다. Ember를 숨겨도 방에는 남아 있습니다."
@@ -3826,7 +3826,7 @@ msgid "room.choose_action"
 msgstr "이 테이블에서 할 작업을 선택하세요."
 
 msgid "room.result_unresolved.detail"
-msgstr "이전 대전 결과가 확정되지 않았습니다. 미확정 대전 포기를 선택하거나 방장에게 취소를 요청하세요. 승리는 기록되지 않습니다."
+msgstr "이전 대전 결과가 확정되지 않았습니다. 테이블 옵션에서 미확정 대전 포기를 선택하거나 방장에게 취소를 요청하세요. 승리는 기록되지 않습니다."
 
 msgid "room.awaiting_result"
 msgstr "두 플레이어의 결과 보고를 기다립니다. 결과가 확정되면 준비 상태가 초기화됩니다. 다음 대전은 아직 준비되지 않았습니다."
@@ -3976,7 +3976,7 @@ msgid "room.leave_seat"
 msgstr "자리 비우기"
 
 msgid "room.leave_seat.abandon_first"
-msgstr "먼저 미확정 대전을 포기하세요."
+msgstr "먼저 테이블 옵션에서 미확정 대전을 포기하세요."
 
 msgid "room.leave_seat.finish_first"
 msgstr "먼저 현재 대전을 끝내거나 결과를 확정하세요."

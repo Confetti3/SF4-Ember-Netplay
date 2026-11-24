@@ -3544,7 +3544,7 @@ msgid "room.phase.open"
 msgstr "Aperto"
 
 msgid "room.terminal_pending"
-msgstr "In attesa che giocatori e spettatori tornino dalla partita precedente."
+msgstr "In attesa che la partita precedente finisca di chiudersi."
 
 msgid "room.leave.detail"
 msgstr "Esci da questa sala e torna a Home. Nascondere Ember ti lascia nella sala."
@@ -3826,7 +3826,7 @@ msgid "room.choose_action"
 msgstr "Scegli un'azione per questo tavolo."
 
 msgid "room.result_unresolved.detail"
-msgstr "Il risultato precedente è irrisolto. Scegli Abbandona partita irrisolta o chiedi all'host di annullarla; non verrà assegnata alcuna vittoria."
+msgstr "Il risultato precedente è irrisolto. Scegli Abbandona partita irrisolta in Opzioni del tavolo o chiedi all'host di annullarla; non verrà assegnata alcuna vittoria."
 
 msgid "room.awaiting_result"
 msgstr "In attesa che entrambi i giocatori segnalino il risultato. Pronto si azzera dopo la conferma; non sei pronto per un'altra partita."
@@ -3976,7 +3976,7 @@ msgid "room.leave_seat"
 msgstr "Lascia posto"
 
 msgid "room.leave_seat.abandon_first"
-msgstr "Abbandona prima la partita irrisolta."
+msgstr "Abbandona prima la partita irrisolta in Opzioni del tavolo."
 
 msgid "room.leave_seat.finish_first"
 msgstr "Termina o risolvi prima la partita in corso."

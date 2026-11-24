@@ -36,6 +36,8 @@ template <typename Visit> void RoomAuthority::ForEachTimer(Visit&& visit) {
 		if (snapshot_.tables[i].spectatorHold) visit(startHeldSince_[i], SpectatorStartHoldMs);
 		if (readyWaitingFor_[i]) visit(readyWaitingSince_[i], ReadyTimeoutMs);
 	}
+	for (auto& receipt : terminalReceipts_)
+		if (!receipt.acknowledged) visit(receipt.since, TerminalReceiptTimeoutMs);
 	for (auto& entry : lastChatMs_) visit(entry.second, 1000);
 	for (auto& entry : lastActiveMs_) visit(entry.second, MaximumIdleSeconds * 1000ull);
 }
@@ -98,7 +100,9 @@ bool RoomAuthority::HasDueTimerTransition(std::uint64_t nowMs) const {
 		if (table.resultPending && table.phase == TablePhase::Playing &&
 			TimerDue(resultPendingSince_[i], ResultDisputeTimeoutMs, nowMs)) return true;
 	}
-	return false;
+	return std::any_of(terminalReceipts_.begin(), terminalReceipts_.end(), [&](const TerminalReceipt& receipt) {
+		return !receipt.acknowledged && TimerDue(receipt.since, TerminalReceiptTimeoutMs, nowMs);
+	});
 }
 
 std::uint64_t RoomAuthority::NextDueMs(std::uint64_t nowMs) const {
@@ -111,7 +115,7 @@ std::uint64_t RoomAuthority::NextDueMs(std::uint64_t nowMs) const {
 	};
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		const auto& table = snapshot_.tables[i];
-		// The same four conditions as HasDueTimerTransition, in the same order.
+		// The same conditions as HasDueTimerTransition, in the same order.
 		if (readyWaitingFor_[i] && WaitingForReady(table) == readyWaitingFor_[i]) left(readyWaitingSince_[i], ReadyTimeoutMs);
 		if (table.spectatorHold) left(startHeldSince_[i], SpectatorStartHoldMs);
 		if (table.permitGeneration) {
@@ -126,6 +130,8 @@ std::uint64_t RoomAuthority::NextDueMs(std::uint64_t nowMs) const {
 		}
 		if (table.resultPending && table.phase == TablePhase::Playing) left(resultPendingSince_[i], ResultDisputeTimeoutMs);
 	}
+	for (const auto& receipt : terminalReceipts_)
+		if (!receipt.acknowledged) left(receipt.since, TerminalReceiptTimeoutMs);
 	return next;
 }
 
@@ -169,6 +175,9 @@ std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 		NormalizeTableMembers(table);
 		events.push_back(Event{Event::Kind::SnapshotChanged, table.id, 0, 0, MatchResult::Abort});
 	}
+	// Before the held starts: a locked-in spectator holds one only while its
+	// receipt is outstanding.
+	ExpireTerminalReceipts(events);
 	ReleaseHeldStarts(events);
 	RefreshReadyTimers();
 	for (auto& table : snapshot_.tables) {

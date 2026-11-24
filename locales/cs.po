@@ -3544,7 +3544,7 @@ msgid "room.phase.open"
 msgstr "Otevřeno"
 
 msgid "room.terminal_pending"
-msgstr "Čeká se na návrat všech hráčů a diváků z předchozího zápasu."
+msgstr "Čeká se na ukončení předchozího zápasu."
 
 msgid "room.leave.detail"
 msgstr "Odpojit se od této místnosti a vrátit se Domů. Skrytím Ember v místnosti zůstanete."
@@ -3826,7 +3826,7 @@ msgid "room.choose_action"
 msgstr "Vyberte akci pro tento stůl."
 
 msgid "room.result_unresolved.detail"
-msgstr "Předchozí výsledek není vyřešen. Zvolte Vzdát nevyřešený zápas, nebo požádejte hostitele o zrušení; výhra se nikomu nepřipíše."
+msgstr "Předchozí výsledek není vyřešen. Zvolte Vzdát nevyřešený zápas v Možnostech stolu, nebo požádejte hostitele o zrušení; výhra se nikomu nepřipíše."
 
 msgid "room.awaiting_result"
 msgstr "Čeká se, až oba hráči nahlásí výsledek. Po potvrzení výsledku se stav Připraven vynuluje; na další zápas ještě připraveni nejste."
@@ -3976,7 +3976,7 @@ msgid "room.leave_seat"
 msgstr "Uvolnit místo"
 
 msgid "room.leave_seat.abandon_first"
-msgstr "Nejprve vzdejte nevyřešený zápas."
+msgstr "Nejprve vzdejte nevyřešený zápas v Možnostech stolu."
 
 msgid "room.leave_seat.finish_first"
 msgstr "Nejprve dokončete nebo vyřešte aktuální zápas."
