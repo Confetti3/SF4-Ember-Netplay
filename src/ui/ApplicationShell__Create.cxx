@@ -51,11 +51,10 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  const room::TypeRules& typeRules=room::RulesOf(screen=="create"?createType_:room::RoomType::Classic);
  if(screen=="create")rows.push_back(RoomTypeRow(createType_,can));
  if(privateCreate)rows.push_back(PracticeRoomRow(practice,can));
- // A private Classic room's tables, kept with the room defaults; an Arcade
- // or King of the hill room's, private or public, chosen here each time. A
- // public Classic room opens at the default.
- if(screen=="create"&&room::TableCountChosen(createType_,publicRoom))rows.push_back(Value("tables",loc::T("room.tables"),
-  std::to_string(CreateTableCount()),
+ // A Classic room's tables, kept with the room defaults; an Arcade or King
+ // of the hill room's chosen here each time. Private or public alike.
+ if(screen=="create")rows.push_back(Value("tables",loc::T("room.tables"),
+  std::to_string(CreateTableCount(createType_)),
   loc::Tf(createType_!=room::RoomType::Classic?"room.tables_arcade_detail":"room.tables_detail",static_cast<int>(room::TableCount)),can));
  rows.push_back(WiredOnlyRow("wired-only",preferences_.roomWiredOnly,loc::T("room.wired_only.detail"),can));
  // The defaults keep the choice for the private rooms created later, beside Wired players only.
@@ -89,7 +88,7 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="host"){
   commands::HostRoom host;host.generation=v.session.generation;host.preferences=PreferencesToSend();
   host.charter.type=createType_;host.charter.practice=createPractice_;host.charter.delayPolicy=preferences_.roomDelayPolicy;
-  host.charter.tableCount=static_cast<std::uint8_t>(CreateTableCount());host.charter.wiredOnly=preferences_.roomWiredOnly;host.charter.friendsHidden=preferences_.roomFriendsHidden;
+  host.charter.tableCount=static_cast<std::uint8_t>(CreateTableCount(createType_));host.charter.wiredOnly=preferences_.roomWiredOnly;host.charter.friendsHidden=preferences_.roomFriendsHidden;
   // Opened from a template: the runtime sets its tables once the room is up.
   if(createTables_)host.createdRules=CreateTables(preferences_.tableRules);
   // A room opened here is not the public one the panel joined.
@@ -139,7 +138,7 @@ void ApplicationShell::CreatePublicRoom(room::RoomType type) {
   preferences_.publicRoomType=type;preferences_.publicRoomTemplate=made;preferences_.publicArcadeTables=createArcadeTables_;preferencesDirty_=true;saveAt_=clock_.Now()+.45;
  }
  publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy,type,preferences_.roomWiredOnly,
-  static_cast<std::uint8_t>(createArcadeTables_));
+  static_cast<std::uint8_t>(CreateTableCount(type)));
 }
 void ApplicationShell::SaveRoomTemplate(const room::Snapshot& room,const std::string& name) {
  netplay::RoomTemplate saved;

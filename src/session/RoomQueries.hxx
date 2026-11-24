@@ -320,15 +320,14 @@ inline bool TableEmpty(const Table& table) {
 		table.endingWatchers.empty() && table.phase != TablePhase::Playing && table.phase != TablePhase::Paused &&
 		!table.resultPending && !table.permitGeneration;
 }
-// Whether the room has a table count its host may change (SetTableCount): a
-// private room. A public or tournament room keeps the tables it opened with.
+// Whether the room has a table count its host may change (SetTableCount):
+// any room but a tournament's, which keeps the tables its match was bound to.
+// A public room's creator sets the count chosen on Create this way
+// (netplay::CreatedRules), and the room returns to its type's default once
+// it is empty (RoomAuthority::ReopenEmptyRoom).
 inline bool TableCountChangeable(const Snapshot& room) {
-	return !room.serverOwned && !room.tournament.Active();
+	return !room.tournament.Active();
 }
-// Whether Create offers the count for the room it is about to open: a private
-// room, and a public Arcade or King of the hill one (sent with its type,
-// netplay::CreatedRules).
-inline bool TableCountChosen(RoomType type, bool isPublic) { return !isPublic || type != RoomType::Classic; }
 // `member`'s place in an Arcade room's line, from 1 for the player seated
 // next; 0 when they are not in line.
 inline int ArcadeLinePlace(const Snapshot& room, MemberId member) {
