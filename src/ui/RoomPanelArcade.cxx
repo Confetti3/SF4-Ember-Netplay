@@ -107,12 +107,15 @@ SelectionImage GlassPicture(const v2::Box& glass,const FighterPicture& picture,f
 // read apart), then the player's Ultra, the scanlines over both and a shade at
 // its foot for the screen's words (`words`: a screen that says nothing keeps
 // the fighter's feet in the light).
-void DrawCabinetFighter(ImDrawList* d,const v2::Box& glass,const SelectionImage& image,ImU32 tone,int ultra,float s,bool words=true) {
+// `facing` Left mirrors the fighter (the art faces right).
+void DrawCabinetFighter(ImDrawList* d,const v2::Box& glass,const SelectionImage& image,ImU32 tone,int ultra,float s,Facing facing,bool words=true) {
     const v2::Box g=v2::Inset(glass,1.5f*s,1.5f*s);
     d->AddRectFilledMultiColor(g.min,g.max,v2::color::Alpha(tone,.55f),v2::color::Alpha(tone,.55f),v2::color::Alpha(tone,.2f),v2::color::Alpha(tone,.2f));
     const float factor=(std::min)(g.W()/image.width,g.H()/image.height),w=image.width*factor,h=image.height*factor;
     const float x=(g.min.x+g.max.x-w)*.5f;
-    d->AddImage(image.texture,ImVec2(x,g.max.y-h),ImVec2(x+w,g.max.y),image.uvMin,image.uvMax);
+    const bool left=facing==Facing::Left;
+    const ImVec2 uv0=left?ImVec2(image.uvMax.x,image.uvMin.y):image.uvMin,uv1=left?ImVec2(image.uvMin.x,image.uvMax.y):image.uvMax;
+    d->AddImage(image.texture,ImVec2(x,g.max.y-h),ImVec2(x+w,g.max.y),uv0,uv1);
     DrawScreenUltra(d,glass,ultra,s);
     // On the lines of the bare glass under it (DrawCabinet), a little fainter.
     if(g.H()>ScanlinedGlass*s)GlassScanlines(d,v2::Box{ImVec2(g.min.x,g.min.y+.5f*s),g.max},.22f,s);
@@ -217,14 +220,14 @@ void DrawCabinet(ImDrawList* d,v2::Box b,const Cabinet& k,float s,ImU32 marqueeG
 }
 }
 
-v2::Box DrawSeatScreen(ImDrawList* d,const v2::Box& b,const FighterPicture& picture,ImU32 tone,int ultra,float s) {
+v2::Box DrawSeatScreen(ImDrawList* d,const v2::Box& b,const FighterPicture& picture,ImU32 tone,int ultra,float s,Facing facing) {
     // The bezel a cabinet's screen has round its glass (LayOutCabinet).
     const float edge=(std::max)(2*s,b.W()*.035f);
     const v2::Box glass=v2::Inset(b,edge,edge);
     const SelectionImage image=GlassPicture(glass,picture,s);
     const bool pictured=image.texture?true:false;
     DrawGlass(d,b,glass,tone,1.f,pictured?-1:ultra,s);
-    if(pictured)DrawCabinetFighter(d,glass,image,tone,ultra,s,false);
+    if(pictured)DrawCabinetFighter(d,glass,image,tone,ultra,s,facing,false);
     return glass;
 }
 
@@ -409,10 +412,10 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
    v2::Text(d,ImVec2(marquee.max.x-4*s-cw,marquee.min.y+(mh-ms)*.5f),cw,count,ms,ink,HeadingFont());
    v2::Icon(d,v2::IconCount-1,ImVec2(marquee.max.x-8*s-cw-ms,marquee.min.y+(mh-ms)*.5f),ms,ink);
   }
-  if(pictured)DrawCabinetFighter(d,screen,picture,glass,ultra,s);
-  // Their points in the screen's top right corner, where the screen's words (at its foot) are not.
+  if(pictured)DrawCabinetFighter(d,screen,picture,glass,ultra,s,SeatFacing(paired,side));
+  // Their points in the screen's top-left corner: the Ultra's mark holds the top right, the screen's words its foot.
   if(m)if(const auto points=PointsOf(v,*m,look.fighter)){
-   const float h=(std::min)(10*s,screen.H()*.12f),x=(std::max)(screen.min.x+2*s,screen.max.x-3*s-v2::LevelWidth(points->points,h,"points.label"));
+   const float h=(std::min)(10*s,screen.H()*.12f),x=screen.min.x+3*s;
    d->PushClipRect(screen.min,screen.max,true);
    v2::Level(d,ImVec2(x,screen.min.y+3*s),h,points->points,"points.label");
    d->PopClipRect();
