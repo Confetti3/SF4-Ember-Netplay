@@ -325,7 +325,50 @@ static void TestMaxPing() {
 	}
 }
 
+// A public Classic room chosen at eight tables: the four it opened with get
+// their rules, then one SetTableCount, then the four it added. A room host
+// that refuses the count (one that predates it) still has the first four set.
+static void TestPublicTableCount() {
+	room::Charter eight; eight.tableCount = static_cast<std::uint8_t>(room::TableCount);
+	const auto setTables = [](Room& room, int from, int to) {
+		for (int table = from; table < to; ++table) {
+			const auto sent = room.Run(100);
+			CHECK(sent.size() == 1 && sent.front().kind == room::ActionKind::SetRules && sent.front().table == table);
+			if (sent.size() == 1) CHECK(room.Apply(sent.front()));
+		}
+	};
+	{
+		Room room;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, eight);
+		setTables(room, 0, static_cast<int>(room::ClassicTableCount));
+		auto sent = room.Run(100);
+		CHECK(sent.size() == 1 && sent.front().kind == room::ActionKind::SetTableCount && sent.front().tableCount == room::TableCount);
+		CHECK(!sent.empty() && room.Apply(sent.front()) && room::TablesInPlay(room.authority.SnapshotView()) == room::TableCount);
+		setTables(room, static_cast<int>(room::ClassicTableCount), static_cast<int>(room::TableCount));
+		CHECK(room.Run(100).empty() && std::string(room.rules.Ended()) == "done");
+	}
+	{
+		Room room;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, eight);
+		setTables(room, 0, static_cast<int>(room::ClassicTableCount));
+		// Refused each time: sent again after RetryMs, until the deadline.
+		const auto sent = room.Run(CreatedRules::RetryMs + 100);
+		CHECK(sent.size() == 2 && sent[0].kind == room::ActionKind::SetTableCount && sent[1].kind == room::ActionKind::SetTableCount);
+		room.Run(CreatedRules::DeadlineMs);
+		CHECK(room.AllChosen() && std::string(room.rules.Ended()) == "deadline");
+	}
+	{
+		// The host's own SetTableCount makes the count theirs.
+		Room room;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, eight);
+		room.rules.ObservePlayer(room.Made(room.creator, 0, room::ActionKind::SetTableCount));
+		setTables(room, 0, static_cast<int>(room::ClassicTableCount));
+		CHECK(room.Run(100).empty() && std::string(room.rules.Ended()) == "done");
+	}
+}
+
 int main() {
+	TestPublicTableCount();
 	TestRoomType();
 	TestWiredOnly();
 	TestMaxPing();

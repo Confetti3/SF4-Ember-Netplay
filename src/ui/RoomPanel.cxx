@@ -743,9 +743,8 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
  const bool host=c.host;
   rows.push_back(TextRow("rename",loc::T("room.name"),roomName_,64,host));
   rows.push_back(Value("room-capacity",loc::T("room.capacity"),std::to_string(roomCapacity_),loc::T("room.capacity.detail"),host));
-  // A private room's host adds tables, or takes away empty ones
-  // (room::TableCountAllowed); a public or tournament room keeps the tables
-  // it opened with.
+  // The host adds tables, or takes away empty ones (room::TableCountAllowed);
+  // a tournament room keeps the tables it opened with.
   const bool tables=TableCountChangeable(s);
   if(tables)rows.push_back(Value("room-tables",loc::T("room.tables"),std::to_string(roomTableCount_),
    loc::Tf("room.tables.detail",static_cast<int>(TableCount)),host));

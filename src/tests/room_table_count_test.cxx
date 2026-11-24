@@ -125,20 +125,21 @@ int main() {
 		}
 	}
 	{
-		// A public (server-owned) Classic room keeps its four tables: its acting
-		// host's SetTableCount is refused and changes nothing.
+		// A public (server-owned) Classic room opens at four tables. Its host
+		// changes them as in a private room, and the room returns to four once
+		// it is empty, for whoever opens it next.
 		RoomAuthority authority("Public", 16, 41);
 		EXPECT(authority.SetServerOwned());
 		MemberProfile profile; profile.admission.account = "ember-a";
 		const auto joined = authority.Join("Host", ConnectionRef{"room", "a"}, false, profile);
-		EXPECT(joined.accepted && authority.SnapshotView().host == joined.snapshot.members.back().id);
-		EXPECT(!TableCountChangeable(authority.SnapshotView()));
+		const auto host = joined.snapshot.members.back().id;
+		EXPECT(joined.accepted && authority.SnapshotView().host == host);
+		EXPECT(authority.SnapshotView().tableCount == ClassicTableCount && TableCountChangeable(authority.SnapshotView()));
 		Action action;
-		action.kind = ActionKind::SetTableCount; action.tableCount = 6; action.actionId = 1;
+		action.kind = ActionKind::SetTableCount; action.tableCount = static_cast<std::uint8_t>(TableCount); action.actionId = 1;
 		action.roomEpoch = authority.SnapshotView().roomEpoch; action.revision = authority.SnapshotView().revision;
-		const auto revision = authority.SnapshotView().revision;
-		EXPECT(authority.Apply(authority.SnapshotView().host, action).reason == RejectReason::Unauthorized);
-		EXPECT(authority.SnapshotView().revision == revision && authority.SnapshotView().tableCount == ClassicTableCount);
+		EXPECT(authority.Apply(host, action).accepted && TablesInPlay(authority.SnapshotView()) == TableCount);
+		EXPECT(authority.Leave(host).accepted && authority.SnapshotView().tableCount == ClassicTableCount);
 	}
 	{
 		// A room bound to a tournament match keeps its tables too, whoever holds host powers.
