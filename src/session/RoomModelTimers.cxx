@@ -90,19 +90,7 @@ void RoomAuthority::RefreshReadyTimers() {
 }
 
 bool RoomAuthority::HasDueTimerTransition(std::uint64_t nowMs) const {
-	for (std::size_t i = 0; i < TableCount; ++i) {
-		const auto& table = snapshot_.tables[i];
-		if (readyWaitingFor_[i] && WaitingForReady(table) == readyWaitingFor_[i] &&
-			TimerDue(readyWaitingSince_[i], ReadyTimeoutMs, nowMs)) return true;
-		if (table.spectatorHold && TimerDue(startHeldSince_[i], SpectatorStartHoldMs, nowMs)) return true;
-		// AdvanceTime(nowMs) brings the permit to this same age first.
-		if (PermitCalledOff(table, PermitAgeAt(i, nowMs))) return true;
-		if (table.resultPending && table.phase == TablePhase::Playing &&
-			TimerDue(resultPendingSince_[i], ResultDisputeTimeoutMs, nowMs)) return true;
-	}
-	return std::any_of(terminalReceipts_.begin(), terminalReceipts_.end(), [&](const TerminalReceipt& receipt) {
-		return !receipt.acknowledged && TimerDue(receipt.since, TerminalReceiptTimeoutMs, nowMs);
-	});
+	return NextDueMs(nowMs) == 0;
 }
 
 std::uint64_t RoomAuthority::NextDueMs(std::uint64_t nowMs) const {
@@ -115,10 +103,10 @@ std::uint64_t RoomAuthority::NextDueMs(std::uint64_t nowMs) const {
 	};
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		const auto& table = snapshot_.tables[i];
-		// The same conditions as HasDueTimerTransition, in the same order.
 		if (readyWaitingFor_[i] && WaitingForReady(table) == readyWaitingFor_[i]) left(readyWaitingSince_[i], ReadyTimeoutMs);
 		if (table.spectatorHold) left(startHeldSince_[i], SpectatorStartHoldMs);
 		if (table.permitGeneration) {
+			// AdvanceTime(nowMs) brings the permit to this same age first.
 			const auto age = PermitAgeAt(i, nowMs);
 			if (PermitCalledOff(table, age)) return 0;
 			// Not called off: the age is under both limits, which are the hold

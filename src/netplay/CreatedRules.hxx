@@ -83,7 +83,7 @@ public:
         if (type_ != room::RoomType::Classic && room.type != type_) {
             if (room.type != room::RoomType::Classic) { Cancel("edited"); return false; }
             if (!RoomRuleDue(room::ActionKind::SetRoomType, canSend, nowMs)) return false;
-            action = RoomRule(room, room::ActionKind::SetRoomType);
+            action = ActionAt(room, room::ActionKind::SetRoomType);
             action.rules = setup_.rules[0];
             action.roomType = type_;
             action.tableCount = tableCount_;
@@ -94,7 +94,7 @@ public:
         if (wiredOnly_ || maxPingMs_) {
             const auto kind = wiredOnly_ ? room::ActionKind::SetWiredOnly : room::ActionKind::SetMaxPing;
             if (!RoomRuleDue(kind, canSend, nowMs)) return false;
-            action = RoomRule(room, kind);
+            action = ActionAt(room, kind);
             action.wiredOnly = wiredOnly_;
             if (!wiredOnly_) action.maxPingMs = maxPingMs_;
             return true;
@@ -119,7 +119,7 @@ public:
         if (next < 0) {
             if (!tableCount_ || room.tableCount == tableCount_) { Cancel("done"); return false; }
             if (!RoomRuleDue(room::ActionKind::SetTableCount, canSend, nowMs)) return false;
-            action = RoomRule(room, room::ActionKind::SetTableCount);
+            action = ActionAt(room, room::ActionKind::SetTableCount);
             action.tableCount = tableCount_;
             return true;
         }
@@ -131,7 +131,7 @@ public:
         if (!canSend) return false;
         const auto& table = room.tables[next];
         const bool rules = !(table.rules == setup_.rules[table.id]);
-        action = RoomRule(room, rules ? room::ActionKind::SetRules : room::ActionKind::NameTable);
+        action = ActionAt(room, rules ? room::ActionKind::SetRules : room::ActionKind::NameTable);
         action.table = table.id;
         action.tableRevision = table.revision;
         if (rules) action.rules = setup_.rules[table.id];
@@ -139,12 +139,12 @@ public:
         return true;
     }
     void Sent(const room::Action& action, std::uint64_t nowMs) {
-        if (active_ && (action.kind == room::ActionKind::SetRoomType || action.kind == room::ActionKind::SetWiredOnly ||
-            action.kind == room::ActionKind::SetMaxPing || action.kind == room::ActionKind::SetTableCount)) {
+        if (!active_) return;
+        if (action.kind != room::ActionKind::SetRules && action.kind != room::ActionKind::NameTable) {
             roomRuleSent_ = action.kind; roomRuleSentAtMs_ = nowMs;
+        } else if (action.table < room::TableCount) {
+            sentTable_ = action.table; sentRevision_ = action.tableRevision; sentAtMs_ = nowMs;
         }
-        if (!active_ || (action.kind != room::ActionKind::SetRules && action.kind != room::ActionKind::NameTable) || action.table >= room::TableCount) return;
-        sentTable_ = action.table; sentRevision_ = action.tableRevision; sentAtMs_ = nowMs;
     }
 
 private:
@@ -154,7 +154,8 @@ private:
     bool RoomRuleDue(room::ActionKind kind, bool canSend, std::uint64_t nowMs) const {
         return canSend && !(roomRuleSentAtMs_ && roomRuleSent_ == kind && nowMs - roomRuleSentAtMs_ < RetryMs);
     }
-    static room::Action RoomRule(const room::Snapshot& room, room::ActionKind kind) {
+    // An action of `kind` at the room's current revision.
+    static room::Action ActionAt(const room::Snapshot& room, room::ActionKind kind) {
         room::Action action;
         action.kind = kind;
         action.roomEpoch = room.roomEpoch;
