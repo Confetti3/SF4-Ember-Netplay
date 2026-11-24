@@ -76,13 +76,13 @@ public:
 	// `game` is the ending game's place in its battle (Action::game of the
 	// agreed result), which a server-owned room's won game keeps.
 	Result EndMatch(std::uint8_t table, std::uint64_t generation, MatchResult result, std::uint32_t game = 0);
-	// True only when AdvanceTime(nowMs) can emit a timer-driven room event.
-	// Pending results which have not reached their deadline, and unresolved
-	// results already paused for host review, are not timer work.
+	// True only when AdvanceTime(nowMs) can emit a timer-driven room event:
+	// NextDueMs is zero. Pending results which have not reached their deadline,
+	// and unresolved results already paused for host review, are not timer work.
 	bool HasDueTimerTransition(std::uint64_t nowMs) const;
-	// Milliseconds from nowMs until HasDueTimerTransition first turns true if
-	// nothing else changes: zero when one is due now, the largest value when no
-	// timer is running. A caller that sleeps between ticks wakes by then. A
+	// Milliseconds from nowMs until a room deadline is due if nothing else
+	// changes: zero when one is due now, the largest value when no timer is
+	// running. A caller that sleeps between ticks wakes by then. A
 	// permit's age counts on from the sample AgePermitHolds took, so a caller
 	// that stops ticking for long should not rely on a permit's figure.
 	std::uint64_t NextDueMs(std::uint64_t nowMs) const;
