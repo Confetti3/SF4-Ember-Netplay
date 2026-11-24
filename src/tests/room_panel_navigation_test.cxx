@@ -612,7 +612,7 @@ int main() try {
     view.room.tables[0].p1 = 2; view.room.tables[0].p2 = 0; view.room.tables[0].phase = room::TablePhase::Waiting;
     shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
     Check(!row("queue").enabled && !row("watch").enabled &&
-        row("queue").detail.find("finish returning") != std::string::npos,
+        row("queue").detail.find("finish closing") != std::string::npos,
         "Terminal receipt did not disable Queue/Watch with the committed teardown reason");
 
     // The fence gates admission to a table, never departure from it. A
@@ -620,7 +620,7 @@ int main() try {
     // be able to leave, or it waits on itself.
     view.room.members[0].table = 0; view.room.tables[0].spectators = {1};
     frame();
-    Check(row("unwatch").enabled && row("unwatch").detail.find("finish returning") == std::string::npos,
+    Check(row("unwatch").enabled && row("unwatch").detail.find("finish closing") == std::string::npos,
         "Terminal receipt disabled Stop watching, stranding the spectator in the finished match");
     const auto beforeUnwatch = actions.size();
     focus("unwatch"); press(MenuInput::Select);
@@ -646,7 +646,7 @@ int main() try {
     view.room.tables[0].queue.clear();
     view.room.tables[0].spectators.clear(); view.room.tables[0].queue = {1};
     frame();
-    Check(row("unqueue").enabled && row("unqueue").detail.find("finish returning") == std::string::npos,
+    Check(row("unqueue").enabled && row("unqueue").detail.find("finish closing") == std::string::npos,
         "Terminal receipt disabled Leave queue");
     // A queued member is offered no watch choice at all: the authority refuses
     // it, and the game it waits out is not its choice.
@@ -714,8 +714,8 @@ int main() try {
     // The receipt fence is invisible to Ready (the runtime parks the press);
     // fighter changes still wait, with the committed reason.
     Check(row("ready").enabled && !row("selection").enabled &&
-        row("ready").detail.find("finish returning") == std::string::npos &&
-        row("selection").detail.find("finish returning") != std::string::npos,
+        row("ready").detail.find("finish closing") == std::string::npos &&
+        row("selection").detail.find("finish closing") != std::string::npos,
         "Seated terminal receipt blocked Ready or hid the selection fence");
     press(MenuInput::Select);
     Check(actions.size() == beforeBlockedReady + 1 && test::ReadyIs(actions.back()) &&
@@ -975,7 +975,7 @@ int main() try {
     {
         const auto offers = room_controls::SeatChoices(view, view.room.tables[0]);
         Check(offers.size() == 2 && offers[0].id == "queue" && !offers[0].enabled && !offers[1].enabled &&
-            offers[0].detail.find("finish returning") != std::string::npos,
+            offers[0].detail.find("finish closing") != std::string::npos,
             "A full table offered what the terminal fence refuses");
     }
     focus("table-0"); frame();
@@ -1114,12 +1114,12 @@ int main() try {
         view.room.terminalPending[0] = true; ++view.room.revision;
         shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
         focus("table-0"); press(MenuInput::Options);
-        Check(shell.Navigation().Screen() == "room-table" && row("queue").detail.find("finish returning") != std::string::npos,
+        Check(shell.Navigation().Screen() == "room-table" && row("queue").detail.find("finish closing") != std::string::npos,
             "Table 0's fenced queue row lost its reason");
         shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
         view.session.coordinated = true; view.session.authorityWritable = false; frame();
         focus("table-1"); press(MenuInput::Options);
-        Check(shell.Navigation().Screen() == "room-table" && row("queue").detail.find("finish returning") == std::string::npos,
+        Check(shell.Navigation().Screen() == "room-table" && row("queue").detail.find("finish closing") == std::string::npos,
             "Table 0's queue explanation showed on table 1 during a checkpoint");
         view.room.terminalPending[0] = false; view.session.coordinated = false; view.session.authorityWritable = true;
         ++view.room.revision; frame();

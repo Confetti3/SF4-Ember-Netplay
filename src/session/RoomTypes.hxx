@@ -56,6 +56,11 @@ constexpr std::uint64_t SpectatorStartHoldMs = 10000;
 // A waiting fighter's inactivity limit. room.ready_timeout.you and
 // room.ready_timeout.other quote its remaining seconds; the last 30 s are shown.
 constexpr std::uint64_t ReadyTimeoutMs = 90000;
+// How long a finished game's receipt waits for its members to acknowledge it
+// (Snapshot::terminalPending, Snapshot::localTerminalPending). One whose
+// teardown stalls, or whose helper restarted under a new incarnation, would
+// otherwise hold the table and its own place in the room until it left.
+constexpr std::uint64_t TerminalReceiptTimeoutMs = 15000;
 // How long "is typing" stands after a member last said so.
 constexpr std::uint64_t TypingMs = 5000;
 

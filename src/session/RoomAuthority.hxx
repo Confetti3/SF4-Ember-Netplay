@@ -335,6 +335,10 @@ private:
 		std::array<MemberId, 2> fighters = {};
 		std::vector<TerminalRecipient> recipients;
 		bool acknowledged = false;
+		// When it was stored, held as the table deadlines are (ForEachTimer)
+		// while it is unacknowledged: TerminalReceiptTimeoutMs from then, the
+		// room stops waiting for its recipients (ExpireTerminalReceipts).
+		std::uint64_t since = 0;
 	};
 	// Acknowledged terminal receipts may leave the bounded receipt journal, but
 	// an in-flight client ACK can still be retried after its action reply was
@@ -352,6 +356,7 @@ private:
 	bool StoreTerminalReceipt(std::uint8_t table, const Table& value, MatchResult result);
 	void RememberTerminalAck(const TerminalReceipt& receipt, const TerminalRecipient& recipient);
 	void RetireTerminalReceipts(MemberId member);
+	void ExpireTerminalReceipts(std::vector<Event>& events);
 	// A table is held only while one of a receipt's fighters has not
 	// acknowledged it. Snapshot::terminalPending reports the same rule.
 	static bool FightersOutstanding(const TerminalReceipt& receipt);

@@ -3550,7 +3550,7 @@ msgid "room.phase.open"
 msgstr "Otwarty"
 
 msgid "room.terminal_pending"
-msgstr "Czekanie, aż gracze i widzowie wrócą z poprzedniej walki."
+msgstr "Czekanie na zamknięcie poprzedniej walki."
 
 msgid "room.leave.detail"
 msgstr "Rozłącz się z tym pokojem i wróć na ekran startowy. Ukrycie Ember nie opuszcza pokoju."
@@ -3832,7 +3832,7 @@ msgid "room.choose_action"
 msgstr "Wybierz działanie dla tego stołu."
 
 msgid "room.result_unresolved.detail"
-msgstr "Poprzedni wynik jest nierozstrzygnięty. Wybierz Porzuć walkę lub poproś hosta o jej anulowanie; nikt nie otrzyma zwycięstwa."
+msgstr "Poprzedni wynik jest nierozstrzygnięty. Wybierz Porzuć walkę w Opcjach stołu lub poproś hosta o jej anulowanie; nikt nie otrzyma zwycięstwa."
 
 msgid "room.awaiting_result"
 msgstr "Czekanie na wyniki od obu graczy. Gotowość zresetuje się po ich potwierdzeniu; nie zgłoszono jeszcze gotowości do następnej walki."
@@ -3982,7 +3982,7 @@ msgid "room.leave_seat"
 msgstr "Opuść miejsce"
 
 msgid "room.leave_seat.abandon_first"
-msgstr "Najpierw porzuć nierozstrzygniętą walkę."
+msgstr "Najpierw porzuć nierozstrzygniętą walkę w Opcjach stołu."
 
 msgid "room.leave_seat.finish_first"
 msgstr "Najpierw zakończ lub rozstrzygnij bieżącą walkę."

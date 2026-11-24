@@ -467,7 +467,63 @@ static void TestLeavingTheSeatEndsItsReady() {
 	EXPECT(!sf4e::netplay::DropReadyWithoutSeat(legacy, Snapshot{}) && legacy.AwaitingCommit());
 }
 
+// A finished game's receipt holds its table and its members only
+// TerminalReceiptTimeoutMs: a fighter whose acknowledgement never comes no
+// longer keeps the next game from starting. Recovery carries the deadline.
+static void TestUnacknowledgedReceiptLapses() {
+	RoomAuthority authority("Lapsed receipt", 8, 1);
+	const MemberId p1 = Join(authority, 0, true), p2 = Join(authority, 1);
+	authority.AdvanceTime(1000);
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
+	EXPECT(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
+	auto ack = TableAction(authority, p1, 0, ActionKind::AcknowledgeTerminal);
+	ack.matchGeneration = generation;
+	EXPECT(authority.Apply(p1, ack).accepted);
+	// p2 never acknowledges: the table, and p2 itself, are held.
+	EXPECT(authority.SnapshotFor(p1).terminalPending[0] && authority.SnapshotFor(p2).localTerminalPending);
+	EXPECT(!authority.Apply(p2, TableAction(authority, p2, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.NextDueMs(1000) == TerminalReceiptTimeoutMs);
+
+	// Paused for recovery 5 s before the deadline, the receipt keeps its age.
+	authority.AdvanceTime(1000 + TerminalReceiptTimeoutMs - 5000);
+	authority.PauseForRecovery();
+	const auto paused = authority.Checkpoint();
+	EXPECT(paused.at("terminal_receipts").at(0).at("age").get<std::uint64_t>() == TerminalReceiptTimeoutMs - 5000);
+	RoomAuthority follower("Follower");
+	EXPECT(follower.RestoreCheckpoint(paused));
+	follower.AdvancePausedTimers(4999);
+	EXPECT(!follower.HasDueTimerTransition(0));
+	follower.AdvancePausedTimers(1);
+	EXPECT(follower.HasDueTimerTransition(0));
+	const auto lapsed = follower.AdvanceTime(0);
+	EXPECT(std::any_of(lapsed.begin(), lapsed.end(), [&](const Event& event) {
+		return event.kind == Event::Kind::SnapshotChanged && event.matchGeneration == generation;
+	}));
+	EXPECT(!follower.SnapshotFor(p1).terminalPending[0] && !follower.SnapshotFor(p2).localTerminalPending);
+	EXPECT(!follower.HasDueTimerTransition(0));
+	// A late acknowledgement is still taken, and the table starts again.
+	auto late = TableAction(follower, p2, 0, ActionKind::AcknowledgeTerminal);
+	late.matchGeneration = generation;
+	EXPECT(follower.Apply(p2, late).accepted);
+	for (const auto member : {p1, p2}) EXPECT(follower.Apply(member, TableAction(follower, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(follower.BeginMatch(0, p1, p2).accepted);
+
+	// A checkpoint written before receipts had a deadline counts it from the restore.
+	auto legacy = paused;
+	legacy["terminal_receipts"][0].erase("age");
+	RoomAuthority old("Old");
+	EXPECT(old.RestoreCheckpoint(legacy));
+	old.AdvancePausedTimers(TerminalReceiptTimeoutMs - 1);
+	EXPECT(!old.HasDueTimerTransition(0));
+	old.AdvancePausedTimers(1);
+	EXPECT(old.HasDueTimerTransition(0));
+}
+
 int main() {
+	TestUnacknowledgedReceiptLapses();
 	TestLeavingTheSeatEndsItsReady();
 	TestQueueTakesAskedSeatAndEndsWatching();
 	TestQueueWatchAndReplay();

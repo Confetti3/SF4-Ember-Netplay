@@ -72,6 +72,7 @@ bool RoomAuthority::StoreTerminalReceipt(std::uint8_t table, const Table& value,
 	if (terminalReceipts_.size() >= MaximumTerminalReceipts) return false;
 	TerminalReceipt receipt;
 	receipt.table = table; receipt.generation = value.matchGeneration; receipt.result = result;
+	receipt.since = TimerStart();
 	const auto addRecipient = [&](MemberId member) {
 		if (!member || std::any_of(receipt.recipients.begin(), receipt.recipients.end(),
 			[&](const TerminalRecipient& prior) { return prior.member == member; })) return;
@@ -109,6 +110,20 @@ void RoomAuthority::RetireTerminalReceipts(MemberId member) {
 			if (recipient.member == member) recipient.acknowledged = true;
 		receipt.acknowledged = std::all_of(receipt.recipients.begin(), receipt.recipients.end(),
 			[](const TerminalRecipient& recipient) { return recipient.acknowledged; });
+	}
+}
+
+// A recipient that has not acknowledged by the deadline may never do so: its
+// teardown stalled, or its helper restarted and the authority refuses the old
+// incarnation's acknowledgement. The room stops waiting for it. Its own runtime
+// still keeps that PC out of a new game until its teardown has finished.
+void RoomAuthority::ExpireTerminalReceipts(std::vector<Event>& events) {
+	for (auto& receipt : terminalReceipts_) {
+		if (receipt.acknowledged || !TimerDue(receipt.since, TerminalReceiptTimeoutMs, nowMs_)) continue;
+		for (auto& recipient : receipt.recipients) recipient.acknowledged = true;
+		receipt.acknowledged = true;
+		TouchRoom();
+		events.push_back(Event{Event::Kind::SnapshotChanged, receipt.table, receipt.generation, 0, receipt.result});
 	}
 }
 

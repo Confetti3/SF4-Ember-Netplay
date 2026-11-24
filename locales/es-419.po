@@ -3550,7 +3550,7 @@ msgid "room.phase.open"
 msgstr "Abierta"
 
 msgid "room.terminal_pending"
-msgstr "Esperando que todos los jugadores y espectadores terminen de volver de la partida anterior."
+msgstr "Esperando a que termine de cerrarse la partida anterior."
 
 msgid "room.leave.detail"
 msgstr "Desconéctate de esta sala y vuelve a Inicio. Ocultar Ember te mantiene en la sala."
@@ -3832,7 +3832,7 @@ msgid "room.choose_action"
 msgstr "Elige una acción para esta mesa."
 
 msgid "room.result_unresolved.detail"
-msgstr "El resultado anterior no se resolvió. Elige Abandonar juego sin resolver o pide al anfitrión que lo cancele; no se otorgará una victoria."
+msgstr "El resultado anterior no se resolvió. Elige Abandonar juego sin resolver en Opciones de la mesa o pide al anfitrión que lo cancele; no se otorgará una victoria."
 
 msgid "room.awaiting_result"
 msgstr "Esperando que ambos luchadores informen el resultado. Listo se restablecerá al confirmarlo."
@@ -3982,7 +3982,7 @@ msgid "room.leave_seat"
 msgstr "Dejar asiento"
 
 msgid "room.leave_seat.abandon_first"
-msgstr "Abandona primero el juego sin resolver."
+msgstr "Abandona primero el juego sin resolver en Opciones de la mesa."
 
 msgid "room.leave_seat.finish_first"
 msgstr "Termina o resuelve primero el juego actual."

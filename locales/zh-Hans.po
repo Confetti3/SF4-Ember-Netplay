@@ -3550,7 +3550,7 @@ msgid "room.phase.open"
 msgstr "开放"
 
 msgid "room.terminal_pending"
-msgstr "等待所有玩家和观战者从上一场对战返回。"
+msgstr "等待上一场对战结束。"
 
 msgid "room.leave.detail"
 msgstr "断开此房间连接并返回主页。隐藏 Ember 不会离开房间。"
@@ -3832,7 +3832,7 @@ msgid "room.choose_action"
 msgstr "请选择此对战席的操作。"
 
 msgid "room.result_unresolved.detail"
-msgstr "上一场结果未定。请选择放弃结果未定的对战，或请房主取消；不会计入胜场。"
+msgstr "上一场结果未定。请在对战席选项中选择放弃结果未定的对战，或请房主取消；不会计入胜场。"
 
 msgid "room.awaiting_result"
 msgstr "等待双方报告结果。确认结果后准备状态会重置；您尚未准备下一场对战。"
@@ -3982,7 +3982,7 @@ msgid "room.leave_seat"
 msgstr "离开席位"
 
 msgid "room.leave_seat.abandon_first"
-msgstr "请先放弃结果未定的对战。"
+msgstr "请先在对战席选项中放弃结果未定的对战。"
 
 msgid "room.leave_seat.finish_first"
 msgstr "请先结束或解决当前对战。"
