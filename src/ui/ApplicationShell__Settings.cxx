@@ -344,7 +344,7 @@ public:
     }
     // The room board's layout, which its grips also drag (RoomGrips). Its parts:
     // hiding one gives its place to the other, or both to the tables. With the
-    // chat panel, its filter. A room leaves all of it open
+    // chat panel, its filter and its result lines. A room leaves all of it open
     // (ShellView::CanEditRoomSettings).
     static Entries RoomLayout(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
@@ -358,6 +358,7 @@ public:
             Value("arrange-tables", loc::T("settings.room_tables"), loc::T(p.roomTableGrid ? "settings.room_tables_grid" : "settings.room_tables_list"), loc::T("settings.room_tables_detail"), open),
             Value("arrange-pictures", loc::T("settings.room_pictures"), loc::T(p.roomCharacterPictures ? "settings.room_pictures_characters" : "settings.room_pictures_portraits"), loc::T("settings.room_pictures_detail"), open),
             OnOffValue(p, "chat-filter", loc::T("settings.chat_filter"), loc::T("settings.chat_filter_detail"), open),
+            OnOffValue(p, "chat-results", loc::T("settings.chat_results"), loc::T("settings.chat_results_detail"), open),
             PictureMode(s, v, "arrange-picture"),
             Row("arrange-reset", loc::T("settings.room_layout_reset"), loc::T("settings.room_layout_reset_detail"), open)};
     }

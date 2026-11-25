@@ -128,6 +128,8 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
     room::MemberId above = 0;
     for (const auto& line : transcript_.Lines()) {
         if (line.kind != ChatLine::Kind::Message) {
+            // A hidden result is kept, so turning Results in chat back on shows it again.
+            if (line.Result() && !preferences_.chatResults) continue;
             any = true; above = 0;
             const std::string text = ChatEventText(line);
             const float room = (std::max)(1.f, ImGui::GetContentRegionAvail().x - 8 * s);

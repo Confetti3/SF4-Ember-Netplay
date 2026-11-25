@@ -207,6 +207,9 @@ struct PlayerPreferences {
     // Room chat is shown with listed words hidden (ui::FilterChat). Only this
     // player's screen changes; the room still holds what was written.
     bool chatFilter = true;
+    // Room chat shows its lines for games and sets won (ui::ChatLine::Result).
+    // Off, the transcript still keeps them, so turning it on shows them again.
+    bool chatResults = true;
     // The training frame meter over the player's own matches and those they
     // watch. It only reads the game and shows confirmed frames.
     bool matchFrameMeter = false;
@@ -289,7 +292,7 @@ struct PlayerPreferences {
         buttonLayouts = from.buttonLayouts;
         roomColumn = from.roomColumn; roomSplit = from.roomSplit;
         roomShowMembers = from.roomShowMembers; roomShowChat = from.roomShowChat; roomTableGrid = from.roomTableGrid;
-        roomCharacterPictures = from.roomCharacterPictures; chatFilter = from.chatFilter;
+        roomCharacterPictures = from.roomCharacterPictures; chatFilter = from.chatFilter; chatResults = from.chatResults;
         pictureMode = from.pictureMode; pictureSpot = from.pictureSpot;
     }
     SpeechPreferences speech;

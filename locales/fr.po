@@ -8857,6 +8857,12 @@ msgstr "Filtre du chat"
 msgid "settings.chat_filter_detail"
 msgstr "Masque les grossièretés et les insultes du chat du salon par des astérisques, sur votre écran uniquement. Les messages sont toujours envoyés tels qu'ils ont été écrits."
 
+msgid "settings.chat_results"
+msgstr "Résultats dans le chat"
+
+msgid "settings.chat_results_detail"
+msgstr "Affiche dans le chat du salon les lignes des combats et des sets gagnés. Désactivé, elles sont masquées sur votre écran uniquement ; activé, elles reviennent."
+
 msgid "room.v2.unread"
 msgstr "{0} non lu(s)"
 

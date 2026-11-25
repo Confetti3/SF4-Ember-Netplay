@@ -238,7 +238,7 @@ public room, in the list.
 ![Room settings](../images/guides/custom_rooms/room-settings.webp)
 
 Room chat retains the latest 100 messages, with a limit of 256 UTF-8 bytes per
-message. The room removes a member's messages when they leave, but your own Chat screen keeps the messages it has already received (the latest 200 lines, with the room's join, leave, host and result lines among them) under the name the member had. **Mute member** hides that member's messages on your screen only.
+message. The room removes a member's messages when they leave, but your own Chat screen keeps the messages it has already received (the latest 200 lines, with the room's join, leave, host and result lines among them) under the name the member had. **Mute member** hides that member's messages on your screen only. **Results in chat**, in More… and under Settings > Interface > Room layout, shows or hides the lines for games and sets won, on your screen only; the lines are kept, so turning it back on shows them again.
 
 ![Room chat](../images/guides/custom_rooms/chat.webp)
 
@@ -317,7 +317,8 @@ Watching and In the room, each with a ping such as Direct 46 ms or Relay
   to share the column. With a pad or the keyboard, use Settings > Interface >
   Room layout: Column width, Members and chat, Ready-made layout, Tables,
   Pictures (each player's fighter in their costume, or the game's
-  portraits), Picture and Restore defaults. These, each panel's Hide and
+  portraits), Results in chat, Picture and Restore defaults.
+  These, each panel's Hide and
   Show, and the watched game's picture (Picture here or in More…, and its
   corner and size under Settings > Matches) are saved while you are in the
   room and not fighting, watching a game included; the rest of Settings is

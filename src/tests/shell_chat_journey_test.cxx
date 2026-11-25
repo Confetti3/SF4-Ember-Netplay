@@ -216,11 +216,63 @@ void FilterLogic(){
  sf4e::ui::ChatTranscript t;t.Update(s,{});
  Check(t.Lines().back().text=="oh shit"&&t.Lines().back().filtered=="oh ****","A chat line did not keep its text and its filtered text");
 }
+// Results in chat, off, draws no line for a game or a set won and leaves the rest; the transcript keeps
+// them, so On draws them again. More…'s switch turns it from the board, in the room's own request.
+void ResultLines(){
+ using namespace sf4e;
+ Harness h;h.Frame();
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ JoinChatRoom(h,40);h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;
+ h.view.room.chat.push_back({1,2,"Good games"});
+ // The height of what the Chat screen's conversation draws.
+ const auto drawn=[&]{
+  h.Screen("room-chat");h.Frame(0,4);
+  const auto* log=ActiveWindow("Chat transcript");
+  Check(log,"The Chat screen drew no conversation");
+  return log->ContentSize.y;
+ };
+ h.Screen("room");h.Frame(0,2);
+ room::Member fourth;fourth.id=4;fourth.name="Fourth";h.view.room.members.push_back(fourth);h.Frame();
+ const float quiet=drawn();
+ h.view.room.tables[0].score[0]=1;h.Frame();
+ h.view.room.tables[0].score[1]=1;h.Frame();
+ auto& set=h.view.room.tables[0].lastSet;set.generation=1;set.winnerSeat=0;set.p1=1;set.p2=2;set.score[0]=2;set.score[1]=1;h.Frame();
+ const float all=drawn();
+ const auto kept=[&]{
+  using ui::ChatLine;
+  const auto& lines=h.shell.Transcript().Lines();
+  return lines.size()==5&&lines[0].kind==ChatLine::Kind::Message&&lines[1].kind==ChatLine::Kind::Joined&&lines[2].kind==ChatLine::Kind::GameWon&&lines[3].kind==ChatLine::Kind::GameWon&&lines[4].kind==ChatLine::Kind::SetWon;
+ };
+ Check(kept()&&all>quiet+1,"The chat did not draw its result lines");
+ // More…'s switch, by its place among the choices.
+ const auto turn=[&]{
+  h.Screen("room");h.Frame(0,2);
+  const auto more=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& r){return r.id=="room-more";});
+  Check(more!=rows.end(),"The room has no More");
+  const auto choice=std::find_if(more->choices.begin(),more->choices.end(),[](const MenuChoice& c){return c.id=="room-show-results";});
+  Check(choice!=more->choices.end()&&choice->enabled,"More does not offer Results in chat");
+  const auto place=choice-more->choices.begin();
+  h.Choose("room-more");
+  for(auto i=place;i>0;--i)h.Press(MenuInput::Down);
+  h.Press(MenuInput::Select);h.Wait(1);h.Frame();
+  const auto* saved=Last<commands::RoomSettings>(h.actions);
+  Check(saved,"More's Results in chat saved nothing");
+  h.view.preferences=saved->preferences;h.Frame();
+ };
+ turn();
+ Check(!h.view.preferences.chatResults,"More's Results in chat did not turn it off");
+ Check(std::fabs(drawn()-quiet)<.5f,"Results in chat, off, did not draw the conversation without its result lines alone");
+ Check(kept(),"Hiding the result lines lost them from the transcript");
+ turn();
+ Check(h.view.preferences.chatResults&&std::fabs(drawn()-all)<.5f,"Results in chat, on again, did not bring the result lines back");
+ SetMenuEntriesProbe({});
+}
 }
 void ChatJourneys(){
  using namespace sf4e;
  TranscriptLogic();
  FilterLogic();
+ ResultLines();
  Harness h;h.Frame();
  auto& io=ImGui::GetIO();
  const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};

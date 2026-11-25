@@ -8857,6 +8857,12 @@ msgstr "채팅 필터"
 msgid "settings.chat_filter_detail"
 msgstr "방 채팅의 욕설과 혐오 표현을 내 화면에서만 별표로 가립니다. 메시지는 쓴 그대로 전송됩니다."
 
+msgid "settings.chat_results"
+msgstr "채팅의 대전 결과"
+
+msgid "settings.chat_results_detail"
+msgstr "방 채팅에 한 판이나 세트를 이긴 줄을 표시합니다. 끄면 내 화면에서만 숨겨지고, 다시 켜면 다시 표시됩니다."
+
 msgid "room.v2.unread"
 msgstr "읽지 않음 {0}"
 

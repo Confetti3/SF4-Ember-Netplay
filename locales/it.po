@@ -8857,6 +8857,12 @@ msgstr "Filtro chat"
 msgid "settings.chat_filter_detail"
 msgstr "Nasconde parolacce e insulti nella chat della sala con asterischi, solo sul tuo schermo. I messaggi vengono comunque inviati così come sono stati scritti."
 
+msgid "settings.chat_results"
+msgstr "Risultati in chat"
+
+msgid "settings.chat_results_detail"
+msgstr "Mostra nella chat della sala le righe delle partite e dei set vinti. Disattivandolo vengono nascoste solo sul tuo schermo, riattivandolo tornano."
+
 msgid "room.v2.unread"
 msgstr "{0} da leggere"
 
