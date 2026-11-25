@@ -55,6 +55,7 @@
   --track: #3c3630;
   --face: #585048;
   --card-dim: #1a1816;
+  --row-alt: #1a1816;
   --skeleton: #786c60;
   --placeholder: #8d8276;
   --option: #211e1b;
@@ -140,7 +141,7 @@ ol > li::marker { color: var(--ember); font-weight: 600; }
   align-items: center;
   gap: 8px 28px;
   max-width: calc(var(--max) + 2 * var(--gutter));
-  min-height: var(--header);
+  min-height: 60px;
   margin: 0 auto;
   padding: 0 var(--gutter);
 }
@@ -154,7 +155,7 @@ ol > li::marker { color: var(--ember); font-weight: 600; }
 .site-nav a, .site-nav a:visited {
   display: inline-flex;
   align-items: center;
-  height: var(--header);
+  height: 60px;
   padding: 0 12px;
   color: var(--muted);
   font-size: 0.95rem;
@@ -320,7 +321,9 @@ body.narrow h1 { margin-bottom: 20px; }
 /* A narrow window: the brand and the download on one line, the places in a
    row under them that scrolls sideways when it does not fit. */
 @media (max-width: 860px) {
-  :root { --header: 104px; }
+  /* Two rows of header are too much of a phone's window to keep in view: it scrolls with the page. */
+  :root { --header: 0px; }
+  .site-header { position: static; }
   .site-bar { flex-wrap: wrap; justify-content: space-between; gap: 0 16px; padding-top: 10px; }
   .site-nav { order: 3; flex: 1 0 100%; margin: 0 -9px; overflow-x: auto; scrollbar-width: none; }
   .site-nav::-webkit-scrollbar { display: none; }
@@ -358,8 +361,9 @@ html[data-game="sfv"] {
   --track: #34332f;
   --face: #45433d;
   --card-dim: #161513;
+  --row-alt: #161513;
   --skeleton: #57554f;
-  --placeholder: #73726b;
+  --placeholder: #85847c;
   --option: #1e1d1a;
   --grid: #34332f;
   --tip: #282824;

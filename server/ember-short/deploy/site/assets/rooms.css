@@ -120,7 +120,7 @@
 .room-group-about { margin: 2px 0 0; color: var(--muted); font-size: 0.875rem; }
 
 .room-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.room-age { color: var(--muted); font-size: 0.875rem; }
+.room-age { color: var(--muted); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
 .room-actions { display: flex; gap: 8px; margin-left: auto; }
 .room-action {
   display: inline-flex;
@@ -133,16 +133,17 @@
   min-height: 34px;
   padding: 6px 16px;
   font-size: 0.9rem;
-  border-radius: 17px;
-  color: var(--ember);
+  border-radius: 4px;
+  color: var(--ivory);
   background: transparent;
-  border: 1.5px solid var(--ember);
+  border: 1px solid var(--button-border);
   text-decoration: none;
 }
-.room-action:visited { color: var(--ember); }
-.room-action:hover { color: var(--ember-light); background: var(--accent-wash-strong); border-color: var(--ember-light); }
-.room-action.primary, .room-action.primary:visited { color: var(--ink); background: var(--ember); }
-.room-action.primary:hover { color: var(--ink); background: var(--ember-light); }
+.room-action:visited { color: var(--ivory); }
+.room-action:hover { color: var(--ivory); background: var(--button-hover); border-color: var(--ember); }
+/* The one thing to do on a card is the one filled with the accent. */
+.room-action.primary, .room-action.primary:visited { color: var(--ink); background: var(--ember); border-color: var(--ember); }
+.room-action.primary:hover { color: var(--ink); background: var(--ember-light); border-color: var(--ember-light); }
 
 .room-message { padding: 16px; grid-column: 1 / -1; }
 .room-message p { margin: 0; }

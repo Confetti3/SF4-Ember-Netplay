@@ -24,6 +24,31 @@ MEDIA = wiki.IMAGES | {".ogg"}
 # Screenshots saved as PNG are several times the size they need to be on a page.
 AS_WEBP = {".png", ".jpg", ".jpeg"}
 OTHER_SECTION = "More guides"
+# What the list of guides and a search result's preview say of each guide, in one line. A guide's own
+# first paragraph is written for someone already reading it, and cut short it says little; a guide
+# without a line here still gets that.
+SUMMARIES = {
+    "README.md": "Which download you need, and the steps from installing Ember to your first room.",
+    "docs/guides/SCOPE_AND_LIMITATIONS.md": "What Ember covers and what is outside it.",
+    "docs/guides/USER_NETPLAY.md": "Installing, starting the game, rooms, matches, replays and updates, step by step.",
+    "docs/guides/CUSTOM_ROOMS.md": "How a room works: up to 16 members, four tables, spectators, chat and the host's settings.",
+    "docs/guides/CONTROLLER_MENUS.md": "Getting around Ember's menus with a controller, a stick or the keyboard.",
+    "docs/guides/DISCORD.md": "Showing your activity in Discord and letting friends join your room through Discord invitations.",
+    "docs/guides/TRAINING_LAB.md": "The frame meter, dummy recording and positions in Training mode.",
+    "docs/guides/INTEGRATIONS.md": "For tournament platforms, organizers and bots: the bridge's HTTP and event contract.",
+    "docs/guides/BLUMINT_QUICKSTART.md": "For BluMint: connecting its game integration to the Ember bridge.",
+    "docs/guides/TROUBLESHOOTING.md": "Fixes for the common problems, starting with an Ember that will not start.",
+    "docs/guides/INPUT_LAG.md": "The Ember, game and PC settings that keep input delay as low as a PC allows.",
+    "docs/guides/SAVING_LOGS.md": "How to save your logs and send a report after a problem.",
+    "docs/guides/WINDOWS_DEFENDER.md": "Why Defender flags Sidecar.dll, and what to do about it.",
+    "docs/guides/ACCESSIBILITY.md": "Having Ember read its menus aloud: turning speech on, and what it reads.",
+    "docs/guides/GAME_THEMES.md": "Replacing the look and sound of the game's menus and battle HUD with theme folders.",
+    "docs/guides/LINUX.md": "Installing Ember by hand under Proton on Linux.",
+    "docs/guides/STEAM_DECK.md": "Installing Ember on a Steam Deck, with its own tile in the library.",
+    "docs/guides/TOURNAMENT_MODE.md": "Running an online event on Challonge or start.gg from the tournament desk.",
+    "docs/guides/TOURNAMENT_TEST.md": "For developers: the tournament desk's tests and the tournament self-test.",
+    "docs/guides/V2_MENUS.md": "A tour of Ember's menus, screen by screen.",
+}
 
 
 @dataclass
@@ -37,6 +62,10 @@ class Guide:
     @property
     def url(self):
         return f"/docs/{slug(self.title)}"
+
+    def summary(self, body):
+        """The guide in one line: its written line, else the start of its rendered `body`."""
+        return SUMMARIES.get(self.source) or shorten(body.summary)
 
 
 def collect(src):
@@ -132,10 +161,12 @@ class Site:
         turn = lambda other, way: (f'<a class="doc-turn {way}" href="{other.url}"><span>{"Previous" if way == "back" else "Next"}</span>'
                                    f'{html.escape(other.title)}</a>') if other else "<span></span>"
         toc = "".join(f'<li class="l{h.level}"><a href="#{h.id}">{html.escape(h.text)}</a></li>' for h in body.headings)
-        content = f"""<div class="doc">
+        # A section that has one guide of its own name says nothing the title does not.
+        section = f"<span>{html.escape(guide.section)}</span>" if guide.section != guide.title else ""
+        content = f"""<div class="doc{'' if toc else ' no-toc'}">
 {self._nav(guide)}
 <article class="prose">
-<p class="crumbs"><a href="/docs">Guides</a><span>{html.escape(guide.section)}</span></p>
+<p class="crumbs"><a href="/docs">Guides</a>{section}</p>
 <h1>{html.escape(guide.title)}</h1>
 {body.html}
 <div class="doc-turns">{turn(earlier, "back")}{turn(later, "on")}</div>
@@ -144,23 +175,23 @@ class Site:
 {f'<aside class="doc-toc" aria-label="On this page"><h2>On this page</h2><ul>{toc}</ul></aside>' if toc else ''}
 </div>"""
         return Page(file=f"{guide.url[1:]}.html", title=f"{guide.title} - Ember guides", content=content,
-                    description=body.summary[:200], path=guide.url, nav="docs", styles=["docs"], scripts=["docs"])
+                    description=guide.summary(body), path=guide.url, nav="docs", styles=["docs"], scripts=["docs"])
 
     def _index(self, rendered):
-        summaries = {guide.source: body.summary for guide, body in rendered}
+        summaries = {guide.source: guide.summary(body) for guide, body in rendered}
         out = ['<div class="page-head"><div><h1>Guides</h1>',
                '<p class="lead">Installing Ember, playing in rooms, training, tournaments, and what to do when something goes wrong.</p></div></div>',
                '<label class="doc-search wide"><span class="offscreen">Search the guides</span>'
                '<input type="search" id="doc-search" placeholder="Search the guides, for example: input delay" autocomplete="off" spellcheck="false"></label>',
                '<ul class="doc-results" id="doc-results" hidden></ul>']
         for section, guides in sections(self.guides):
-            out.append(f'<section class="doc-section"><h2>{html.escape(section)}</h2><div class="doc-cards">')
-            out += [f'<a class="doc-card" href="{g.url}"><strong>{html.escape(g.title)}</strong>'
-                    f'<span>{html.escape(shorten(summaries[g.source]))}</span></a>' for g in guides]
-            out.append("</div></section>")
-        out.append('<section class="doc-section"><h2>Frame data</h2><div class="doc-cards">'
-                   '<a class="doc-card" href="/frame-data"><strong>Frame data</strong>'
-                   "<span>Startup, active, recovery and advantage for every move of every fighter.</span></a></div></section>")
+            out.append(f'<section class="doc-section"><h2>{html.escape(section)}</h2><ul class="doc-list">')
+            out += [f'<li><a href="{g.url}">{html.escape(g.title)}</a><span>{html.escape(summaries[g.source])}</span></li>'
+                    for g in guides]
+            out.append("</ul></section>")
+        out.append('<section class="doc-section"><h2>Frame data</h2><ul class="doc-list">'
+                   '<li><a href="/frame-data">Frame data</a>'
+                   "<span>Startup, active, recovery and advantage for every move of every fighter.</span></li></ul></section>")
         return Page(file="docs.html", title="Ember guides", content="\n".join(out), nav="docs", path="/docs",
                     description="Guides for playing Ultra Street Fighter IV online with Ember: installing it, rooms, "
                                 "training, tournaments and troubleshooting.", styles=["docs"], scripts=["docs"])

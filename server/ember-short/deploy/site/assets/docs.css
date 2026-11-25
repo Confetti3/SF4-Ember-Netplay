@@ -3,12 +3,14 @@
    right. `.prose` is what scripts/site/prose.py writes from a guide. */
 .doc {
   display: grid;
-  grid-template-columns: 14rem minmax(0, 46rem) minmax(0, 13rem);
+  grid-template-columns: 14rem minmax(0, 42rem) minmax(0, 13rem);
   justify-content: space-between;
   align-items: start;
   gap: 0 40px;
   padding-top: 36px;
 }
+/* A guide without headings of its own has no list of them: the guide sits beside the list of guides. */
+.doc.no-toc { grid-template-columns: 14rem minmax(0, 42rem); justify-content: start; gap: 0 72px; }
 .doc-nav, .doc-toc { position: sticky; top: calc(var(--header) + 20px); max-height: calc(100vh - var(--header) - 40px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; font-size: 0.9rem; }
 .doc-nav h2, .doc-toc h2 { margin: 18px 0 6px; color: var(--meta); font-size: 0.8rem; font-weight: 600; }
 .doc-toc h2 { margin-top: 0; }
@@ -42,14 +44,16 @@
 .doc-results .words { color: var(--muted); }
 .doc-results .none { padding: 7px 10px; color: var(--muted); }
 
-/* The guides' own front page: each section's guides as a row of cards. */
-.doc-section { margin: 32px 0 0; }
-.doc-section h2 { margin-bottom: 12px; }
-.doc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: 12px; }
-.doc-card { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; color: var(--muted); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; font-size: 0.9375rem; text-decoration: none; }
-.doc-card:visited { color: var(--muted); }
-.doc-card:hover { color: var(--muted); border-color: var(--ember); background: var(--raised); }
-.doc-card strong { font-size: 1.0625rem; }
+/* The guides' own front page: each section's guides as a list, a guide's name and a line on it. */
+.doc-section { display: grid; grid-template-columns: 14rem minmax(0, 1fr); gap: 0 40px; margin: 0; padding: 22px 0; border-top: 1px solid var(--hairline); }
+.doc-search.wide + .doc-results + .doc-section { margin-top: 24px; }
+.doc-section h2 { font-size: 1.125rem; }
+.doc-list { margin: 0; padding: 0; list-style: none; }
+.doc-list li { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 2px 24px; margin: 0 0 10px; padding: 0; }
+.doc-list li:last-child { margin-bottom: 0; }
+.doc-list a { font-weight: 600; text-decoration: none; }
+.doc-list a:hover { text-decoration: underline; }
+.doc-list span { color: var(--muted); }
 
 /* A guide's text. */
 .prose { min-width: 0; }
@@ -95,7 +99,9 @@
   .doc-toc { display: none; }
 }
 @media (max-width: 860px) {
-  .doc { grid-template-columns: minmax(0, 1fr); padding-top: 24px; }
+  .doc, .doc.no-toc { grid-template-columns: minmax(0, 1fr); padding-top: 24px; }
+  .doc-section, .doc-list li { grid-template-columns: minmax(0, 1fr); }
+  .doc-section h2 { margin-bottom: 12px; }
   .doc-nav { position: static; order: 2; max-height: none; margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border); }
   .prose h2 { font-size: 1.3125rem; }
 }

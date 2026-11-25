@@ -126,7 +126,7 @@ function resultOf(set) {
   const set_ = known(set);
   if (set_) return { score: set_.score, what: plural(set.games.length, 'game', 'games') };
   const first = set.games[0];
-  if (set.games.length === 1) return winnerOf(first) == null ? null : { score: first.rounds, what: 'rounds' };
+  if (set.games.length === 1) return winnerOf(first) == null ? null : { score: first.rounds, what: 'rounds', rounds: true };
   const [left, right] = first.names;
   if (!left || !right || left === right) return null;
   const score = [0, 0];
@@ -138,8 +138,12 @@ function resultOf(set) {
   }
   const scored = score[0] + score[1];
   if (!scored) return null;
-  const games = plural(set.games.length, 'game', 'games');
-  return { score, what: scored < set.games.length ? `${scored} of ${games}` : games };
+  return { score, what: counted(set.games.length, scored) };
+}
+
+// "4 games", and how many of them have no result when some do not.
+function counted(games, scored) {
+  return plural(games, 'game', 'games') + (scored < games ? `, ${games - scored} without a result` : '');
 }
 
 // A session's player's record over the games that have a result.
@@ -155,10 +159,10 @@ function recordOf(set) {
 // Which side of a result is ahead, 0 or 1, or none when level.
 const ahead = (result) => (result && result.score[0] !== result.score[1] ? (result.score[0] > result.score[1] ? 0 : 1) : null);
 
-// A score as two numbers, the higher one lit.
-function scoreLine(score) {
+// A score as two numbers, the higher one lit; one game's rounds are set smaller than a set's games.
+function scoreLine(score, rounds = false) {
   const number = (at) => el('b', { className: score[at] > score[1 - at] ? 'up' : '', textContent: score[at] });
-  return el('span', { className: 'score' }, number(0), ' – ', number(1));
+  return el('span', { className: 'score' + (rounds ? ' rounds' : '') }, number(0), ' – ', number(1));
 }
 
 // The middle of a match: its score when it has one, else "vs", and under it
@@ -167,7 +171,7 @@ function middle(set, withMeta) {
   const result = resultOf(set);
   const what = result ? result.what : set.games.length > 1 ? plural(set.games.length, 'game', 'games') : null;
   return el('div', { className: 'mid' },
-    result ? scoreLine(result.score) : el('span', { className: 'score vs', textContent: 'vs' }),
+    result ? scoreLine(result.score, result.rounds) : el('span', { className: 'score vs', textContent: 'vs' }),
     withMeta && what ? el('span', { className: 'meta', textContent: what }) : null);
 }
 
@@ -182,10 +186,9 @@ function versus(set, withMeta) {
 function sessionMiddle(set) {
   const record = recordOf(set);
   const scored = record.won + record.lost;
-  const games = plural(set.games.length, 'game', 'games');
   return el('div', { className: 'mid' },
     scored ? el('span', { className: 'score record', textContent: `${record.won} W  ${record.lost} L` }) : el('span', { className: 'score vs', textContent: 'vs' }),
-    el('span', { className: 'meta', textContent: scored && scored < set.games.length ? `${scored} of ${games}` : games }));
+    el('span', { className: 'meta', textContent: scored ? counted(set.games.length, scored) : plural(set.games.length, 'game', 'games') }));
 }
 
 function downloadLink(href, text, main) {
@@ -492,7 +495,7 @@ function gameRow(game, i) {
     el('div', { className: 'pair' }, face(game.fighters[0]), face(game.fighters[1], 'b'),
       el('span', { className: 'players' }, who(0), ' vs ', who(1)),
       el('span', { className: 'meta', textContent: clock(game.saved_at) })),
-    won == null ? el('span', { className: 'score vs', textContent: 'No result' }) : scoreLine(game.rounds),
+    won == null ? el('span', { className: 'score vs', textContent: 'No result' }) : scoreLine(game.rounds, true),
     downloadLink(game.url, 'Download'));
 }
 

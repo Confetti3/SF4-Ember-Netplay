@@ -66,12 +66,13 @@ main > section + section { margin-top: 28px; }
 .score { color: var(--muted); font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; white-space: pre; }
 .score b { font-weight: 600; }
 .score b.up { color: var(--ivory); }
-.score.record { color: var(--ivory); font-size: 1rem; }
+.score.record, .score.rounds { color: var(--ivory); font-size: 1rem; }
+.score.rounds { color: var(--muted); }
 .score.vs { color: var(--meta); font-size: 0.875rem; font-weight: 400; }
-.meta { color: var(--meta); font-size: 0.8125rem; white-space: nowrap; }
+.meta { color: var(--meta); font-size: 0.8125rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .match .act { position: relative; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .match .act .meta { overflow: hidden; text-overflow: ellipsis; }
-.ghost { min-height: 36px; padding: 0 10px 0 12px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border); border-radius: 4px; color: var(--ivory); font-size: 0.875rem; font-weight: 600; white-space: nowrap; pointer-events: none; }
+.ghost { min-height: 36px; padding: 0 12px 0 14px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--button-border); border-radius: 4px; color: var(--ivory); font-size: 0.875rem; font-weight: 600; white-space: nowrap; pointer-events: none; }
 .match:hover .ghost { border-color: var(--button-border); }
 
 /* One set. */
@@ -81,7 +82,7 @@ main > section + section { margin-top: 28px; }
 .set-hero .face { width: 96px; height: 96px; border-radius: 6px; }
 .set-hero .name { font-size: 1.25rem; }
 .set-hero .score { font-size: 2.125rem; }
-.set-hero .score.record { font-size: 1.5rem; }
+.set-hero .score.record, .set-hero .score.rounds { font-size: 1.5rem; }
 .set-hero .score.vs { font-size: 1rem; }
 .set-hero .note { margin: 0; }
 .games { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
@@ -92,7 +93,6 @@ main > section + section { margin-top: 28px; }
 .game .pair .face.b { transform: scaleX(-1); }
 .game .players { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .game .player.won { color: var(--ivory); font-weight: 600; }
-.game .score { font-size: 1.0625rem; }
 .side.met { justify-content: flex-start; }
 .faces { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 .side.b .face.small { transform: scaleX(-1); }
@@ -123,9 +123,12 @@ dialog::backdrop { background: rgba(10, 9, 8, 0.72); }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
 
 /* Narrow screens: the two players stack, faces smaller, the download under them. */
-@media (max-width: 640px) {
+/* A row's times and its button go under the players before the players' names are squeezed. */
+@media (max-width: 860px) {
   .match { grid-template-columns: minmax(0, 1fr); }
   .match .act { justify-content: space-between; }
+}
+@media (max-width: 640px) {
   .match .face { width: 40px; height: 40px; }
   /* The two players one above the other, the score beside them. */
   .versus { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "a mid" "b mid"; gap: 8px 10px; }
@@ -144,6 +147,7 @@ dialog::backdrop { background: rgba(10, 9, 8, 0.72); }
   .game .pair { grid-column: 1 / -1; flex-wrap: wrap; }
 }
 @media (min-width: 900px) {
-  .toolbar { flex-direction: row; align-items: center; }
-  .search { flex: 1 1 320px; }
+  .toolbar { flex-direction: row; align-items: flex-start; }
+  .search { flex: 1 1 14rem; }
+  .filters { flex: 0 1 auto; }
 }

@@ -32,7 +32,7 @@ ARCHIVE_SOURCE = ROOT / "server/ember/archive-site/site"
 WIKI = "https://github.com/Confetti3/SF4-Ember-Netplay.wiki.git"
 # Screenshots the home page shows, by the name it serves them under (assets/shots/<name>.webp).
 SHOTS = {
-    "match": "docs/images/guides/user_netplay/match-hud.webp",
+    "fighters": "docs/images/ember-fighter-selection.png",
     "room": "docs/images/ember-room.png",
     "king": "docs/images/ember-king-of-the-hill.png",
     "training": "docs/images/guides/training_lab/meter.webp",

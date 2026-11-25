@@ -41,11 +41,11 @@ Frames at 60 per second.
 
 ## Normals
 
-| Move | Startup | On hit | On block | Notes |
-|---|---:|---:|---:|---|
-| Close LP<br>`cl.LP` | 3 | +5° | -2 | Whiffs cr. |
-| Sweep<br>`cr.HK` | 5 | KD | 0° | <script>x</script> |
-| Throw<br>`LP+LK` | 3 | - | - |  |
+| Move | Startup | On hit | On block | Notes | Total |
+|---|---:|---:|---:|---|---:|
+| Close LP<br>`cl.LP` | 3 | +5° | -2 | Whiffs cr. | 11 |
+| Sweep<br>`cr.HK` | 5 | KD | 0° | <script>x</script> | 36 |
+| Throw<br>`LP+LK` | 3 | - | - |  | 24 |
 """
 
 # The markdown reader: what a guide may write as HTML stays, the rest is shown as text, and a column's
@@ -147,6 +147,10 @@ with tempfile.TemporaryDirectory() as folder:
     assert 'class="face f0 large"' in ryu and 'href="/frame-data/c-viper"' in ryu, "Ryu's page lacks his face or the roster"
     assert '<td class="plus num">+5°</td>' in ryu and '<td class="minus num">-2</td>' in ryu and '<td class="kd num">KD</td>' in ryu
     assert "&lt;script&gt;x&lt;/script&gt;" in ryu and "banner-" not in ryu
+    # The numbers of a row read across: the Notes column, which the wiki has among them, is last.
+    assert "<th>Notes</th>\n</tr>" in ryu and '<td class="num">11</td>\n<td>Whiffs cr.</td>\n</tr>' in ryu, "Notes is not the last column"
+    # The list of guides says each in a written line, never the cut-off start of its text.
+    assert "Why Defender flags Sidecar.dll" in pages["docs.html"] and "..." not in pages["docs.html"]
     index = pages["frame-data.html"]
     assert 'href="/frame-data/ryu#normals"' in index and "Pick a fighter" not in index
     assert 'class="fd-roster"' in pages["index.html"], "the home page lacks the fighters"

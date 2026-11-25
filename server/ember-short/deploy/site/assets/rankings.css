@@ -15,7 +15,7 @@
   font-variant-numeric: tabular-nums;
   line-height: 18px;
 }
-.rank-chip.empty { opacity: 0.5; }
+.rank-chip.empty { opacity: 0.72; }
 .rank-chip[aria-pressed="true"] { color: var(--ink); background: var(--ember); border-color: var(--ember); }
 .rank-chip[aria-pressed="true"]:hover { color: var(--ink); background: var(--ember-light); }
 .rank-chip[aria-pressed="true"] .rank-chip-count { color: var(--ivory); }

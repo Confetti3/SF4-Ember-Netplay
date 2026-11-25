@@ -19,6 +19,8 @@ PAGE_LINK = re.compile(r"\]\((Frame-Data(?:-[\w-]+)?)((?:#[^)]*)?)\)")
 FIGHTER_LINK = re.compile(r"\[([^\]]+)\]\(Frame-Data-([\w-]+)\)")
 BANNER = re.compile(r"^!\[[^\]]*\]\(images/banner-[^)]*\)\s*$")
 ADVANTAGE = {"On hit", "On block"}
+# The column of words among the numbers, which the site puts last so a row's numbers read across.
+NOTES = "Notes"
 
 
 @dataclass
@@ -79,6 +81,38 @@ def mark_advantage(tokens):
             column += 1
 
 
+def cells(tokens, row):
+    """The cells of the table row that opens at `row`, each the slice of its tokens, and where the row closes."""
+    spans, at = [], row + 1
+    while tokens[at].type != "tr_close":
+        end = next(i for i in range(at, len(tokens)) if tokens[i].type in ("th_close", "td_close"))
+        spans.append(slice(at, end + 1))
+        at = end + 1
+    return spans, at
+
+
+def notes_last(tokens):
+    """The tokens with each table's Notes column moved to its end."""
+    out, at, notes = [], 0, None
+    while at < len(tokens):
+        token = tokens[at]
+        if token.type != "tr_open":
+            out.append(token)
+            at += 1
+            continue
+        spans, close = cells(tokens, at)
+        if tokens[spans[0].start].type == "th_open":
+            names = [plain(tokens[span.start + 1]) for span in spans]
+            notes = names.index(NOTES) if NOTES in names else None
+        if notes is not None and notes < len(spans):
+            spans.append(spans.pop(notes))
+        out.append(token)
+        for span in spans:
+            out += tokens[span]
+        at = close
+    return out
+
+
 def face(fighter, size=""):
     label = html.escape(fighter.name)
     return f'<span class="face f{fighter.id}{" " + size if size else ""}" role="img" aria-label="{label}"></span>'
@@ -126,7 +160,7 @@ class Site:
 
     def _fighter(self, at):
         fighter = self.fighters[at]
-        tokens = self.prose.parse("\n".join(body_lines(self.folder / f"{INDEX}-{fighter.wiki}.md")))
+        tokens = notes_last(self.prose.parse("\n".join(body_lines(self.folder / f"{INDEX}-{fighter.wiki}.md"))))
         mark_advantage(tokens)
         body = self.prose.render(tokens)
         jump = "".join(f'<a href="#{h.id}">{html.escape(h.text)}</a>' for h in body.headings if h.level == 2)

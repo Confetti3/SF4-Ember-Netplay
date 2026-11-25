@@ -56,16 +56,30 @@
 .frames td { padding: 6px 12px; white-space: nowrap; }
 .frames td:first-child { color: var(--ivory); font-weight: 600; line-height: 1.3; white-space: normal; min-width: 11rem; }
 .frames td:first-child code { padding: 0; color: var(--meta); background: none; font-size: 0.8rem; }
-.frames th { position: sticky; top: 0; }
-.frames tbody tr:hover td { background: var(--accent-wash); }
+/* Every other row a shade apart, so the eye keeps its row across ten columns. The shade is the
+   row's, and the first cell takes it, since on a narrow window that cell stays put over the rest. */
+.frames tbody tr { background: var(--ink); }
+.frames tbody tr:nth-child(even) { background: var(--row-alt); }
+.frames tbody tr:hover { background: var(--raised); }
+.frames td:first-child { position: sticky; left: 0; background: inherit; }
+.frames th:first-child { position: sticky; left: 0; z-index: 1; }
+/* Where the table fits the page it does not scroll sideways, and its head stays under the site's
+   header while its rows pass. */
+@media (min-width: 1180px) {
+  .frames .table-wrap { overflow: visible; }
+  .frames th { position: sticky; top: var(--header); z-index: 2; }
+  .frames th:first-child { border-top-left-radius: 5px; }
+  .frames th:last-child { border-top-right-radius: 5px; }
+}
 .frames td.plus { color: var(--ready); font-weight: 600; }
 .frames td.minus { color: var(--behind); }
 .frames td.kd { color: var(--ember-light); font-weight: 600; }
 .frames td.even { color: var(--ivory); }
-/* The notes column may wrap; the key's table reads as text. */
-.frames td:nth-child(7) { white-space: normal; min-width: 9rem; color: var(--muted); }
-.frames details td { white-space: normal; }
+/* The notes column, the last, may wrap; the key's table reads as text. */
+.frames td:last-child { white-space: normal; min-width: 9rem; color: var(--muted); }
+.frames details td { white-space: normal; color: inherit; }
 .frames details td:first-child { min-width: 7rem; }
+.frames details tbody tr { background: none; }
 .frames tr[hidden] + tr td { border-top: 0; }
 
 @media (max-width: 860px) {
