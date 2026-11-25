@@ -90,7 +90,7 @@ def build_site(src, out, frame_folder, host):
     write(out / "assets/faces.css", frames.faces_css(len(frames.roster())))
 
     frame_site = frames.Site(frame_folder)
-    guide_site = guides.Site(src, frame_data=True)
+    guide_site = guides.Site(src)
     layout = (SOURCE / "layout.html").read_text(encoding="utf-8")
     pages = [shell.source_page(path, host, roster=frame_site.roster()) for path in sorted((SOURCE / "pages").glob("*.html"))]
     for page in pages + guide_site.pages + frame_site.pages:

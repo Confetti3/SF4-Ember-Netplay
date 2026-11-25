@@ -78,10 +78,12 @@ for file in "${FILES[@]}"; do
         *) ASSETS+=("$file") ;;
     esac
 done
+declare -A LISTED=()
+for file in "${FILES[@]}"; do LISTED["$file"]=1; done
 listed() {
-    printf '%s\n' "${FILES[@]}" | grep -qxF -- "$1"
+    [[ -n ${LISTED[$1]-} ]]
 }
-for file in open.html index.html rooms.html rankings.html 404.html docs/index.html frame-data/index.html favicon.ico assets/site.css; do
+for file in open.html index.html rooms.html rankings.html 404.html docs.html frame-data.html favicon.ico assets/site.css; do
     if ! listed "$file"; then
         echo "The site's MANIFEST lacks $file: site/ must be the built site." >&2
         exit 1
@@ -200,7 +202,7 @@ done
 echo "service: $(curl -fsS http://127.0.0.1:47810/s/health || echo 'no answer')"
 echo "public:  $(curl -fsS --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/s/health || echo 'no answer')"
 for page in '' rooms rooms.json rooms-sfv.json rooms.html rankings rankings.json rankings-sfv.json rankings.html assets/rankings.js assets/game.js assets/sfv-ember-mark.png assets/og.jpg j j/K7QM-4XRT-9PZD v v/K7QM-4XRT-9PZD m r start open.html assets/site.css assets/fonts/inter-latin-400.woff2 \
-    assets/ember-background.webp docs docs/install docs/install.html docs/search.json docs/no-such-guide frame-data frame-data/ryu assets/docs.css no-such-page; do
+    assets/ember-background.webp docs docs/ docs.html docs/install docs/install.html docs/search.json docs/no-such-guide frame-data frame-data/ryu assets/docs.css no-such-page; do
     echo "/$page:  $(curl -sS -o /dev/null -w '%{http_code} %{content_type}' --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/$page)"
 done
 echo "=== done ==="

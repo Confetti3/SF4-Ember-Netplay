@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from prose import Prose, plain
-from shell import ROOT, Page
+from shell import ROOT, Page, slug
 
 INDEX = "Frame-Data"
 # A link from one frame data page to another, as the wiki writes it.
@@ -31,7 +31,7 @@ class Fighter:
 
     @property
     def url(self):
-        return f"/frame-data/{self.wiki.lower()}"
+        return f"/frame-data/{slug(self.wiki)}"
 
 
 def roster():
@@ -41,7 +41,7 @@ def roster():
 
 
 def url_of(page):
-    return "/frame-data" if page == INDEX else "/frame-data/" + page.removeprefix(INDEX + "-").lower()
+    return "/frame-data" if page == INDEX else "/frame-data/" + slug(page.removeprefix(INDEX + "-"))
 
 
 def body_lines(path):
@@ -119,10 +119,10 @@ class Site:
 <article class="prose fd-about">
 {body.html}
 </article>"""
-        return Page(file="frame-data/index.html", title="USF4 frame data - Ember", content=content, nav="frame-data",
+        return Page(file="frame-data.html", title="USF4 frame data - Ember", content=content, nav="frame-data",
                     path="/frame-data", styles=["faces", "docs", "frames"], scripts=["frames"],
-                    description="Frame data for all 44 fighters of Ultra Street Fighter IV: startup, active, recovery, "
-                                "on hit and on block, measured by Ember and checked in the game.")
+                    description=f"Frame data for all {len(self.fighters)} fighters of Ultra Street Fighter IV: startup, "
+                                "active, recovery, on hit and on block, measured by Ember and checked in the game.")
 
     def _fighter(self, at):
         fighter = self.fighters[at]
@@ -149,7 +149,7 @@ class Site:
 </article>
 <h2 class="fd-more">Other fighters</h2>
 {self.roster(fighter)}"""
-        return Page(file=f"frame-data/{fighter.wiki.lower()}.html", title=f"{fighter.name} frame data - Ember", content=content,
+        return Page(file=f"{fighter.url[1:]}.html", title=f"{fighter.name} frame data - Ember", content=content,
                     nav="frame-data", path=fighter.url, styles=["faces", "docs", "frames"], scripts=["frames"],
                     description=f"{fighter.name}'s frame data in Ultra Street Fighter IV: startup, active, recovery, "
                                 "on hit and on block for every move.")

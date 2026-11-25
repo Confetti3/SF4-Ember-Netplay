@@ -12,6 +12,7 @@ from pathlib import Path
 
 import frames
 import make
+import preview
 import prose
 import shell
 from shell import ARCHIVE, MAIN, ROOT
@@ -57,6 +58,17 @@ assert "&lt;id&gt;" in out.html and "&lt;script&gt;" in out.html and "onerror" n
 assert '<td class="num">2</td>' in out.html and "style=" not in out.html, out.html
 assert [(h.id, h.body) for h in out.headings] == [("two-words", "text under"), ("two-words-1", "")], out.headings
 assert out.summary.startswith("A F10") and out.opening.startswith("A F10"), (out.summary, out.opening)
+# Whatever a guide writes that is not one of those tags comes out as text, however it is spelt: a
+# tag closed off with a slash, one left open, a comment. A link goes only where a page may.
+for written in ('<meta/http-equiv="refresh"/content="0;url=https://x.example">', "<script/x>alert(1)</script/x>",
+                "<svg/onload=alert(1)>", '<iframe\nsrc="https://x.example">', "<!-- the rest of the page", "<base/href=//x.example"):
+    shown = prose.allowed(f"<div>\n{written}\n</div>")
+    assert shown.startswith("<div>") and shown.endswith("</div>") and shown.count("<") == 2, shown
+for link, kept in (("https://x.example/a?b=1&amp;c=2", True), ("/docs/install#x", True), ("mailto:a@x.example", True),
+                   ("javascript:alert(1)", False), (" JavaScript:alert(1)", False), ("java\tscript:alert(1)", False),
+                   ("&#106;avascript:alert(1)", False), ("data:text/html,x", False)):
+    assert (prose.allowed(f'<a href="{link}">x</a>') == f'<a href="{link}">x</a>') == kept, (link, prose.allowed(f'<a href="{link}">x</a>'))
+assert prose.allowed("<a href='/a' onclick='x()' style='color:red'>x</a>") == '<a href="/a">x</a>'
 
 # A frame data cell's class is its sign; a throw's dash has none.
 assert [frames.advantage_class(text) for text in ("+5°", "-2", "0°", "KD", "-", "")] == ["plus", "minus", "even", "kd", "", ""]
@@ -87,8 +99,8 @@ with tempfile.TemporaryDirectory() as folder:
     # MANIFEST lists every file, and the pages nginx serves by name are there.
     assert files == (site / "MANIFEST").read_text(encoding="utf-8").split(), "MANIFEST is not the file list"
     assert all((site / file).is_file() for file in files)
-    needed = ["index.html", "rooms.html", "rankings.html", "open.html", "404.html", "docs/index.html", "docs/install.html",
-              "docs/troubleshooting.html", "frame-data/index.html", "frame-data/ryu.html", "frame-data/c-viper.html",
+    needed = ["index.html", "rooms.html", "rankings.html", "open.html", "404.html", "docs.html", "docs/install.html",
+              "docs/troubleshooting.html", "frame-data.html", "frame-data/ryu.html", "frame-data/c-viper.html",
               "docs/search.json", "assets/site.css", "assets/faces.css", "favicon.ico"]
     assert not [file for file in needed if file not in files], [file for file in needed if file not in files]
     assert not [file for file in files if re.search(r"\s", file)], "a file name with a space"
@@ -103,10 +115,14 @@ with tempfile.TemporaryDirectory() as folder:
         assert text.count("<header class=\"site-header\">") == 1 and text.count("</footer>") == 1, f"{file}: not one shell"
         assert text.count('aria-current="page"') >= (0 if file in ("open.html", "404.html", "index.html") else 1), file
 
-    # Every link and file a page of the main site names from its root exists as nginx serves it.
+    # Every link and file a page of the main site names from its root exists as nginx serves it: the
+    # pages with a location of their own, the guides and frame data pages by the one location that
+    # serves a path's own name with ".html", and every other file by its name.
+    _, built = preview.site_rules()
     served = {"/": "index.html", "/rooms": "rooms.html", "/rankings": "rankings.html", "/start": "open.html"}
-    served |= {"/" + file.removesuffix("/index.html").removesuffix(".html"): file for file in files
-               if file.startswith(("docs/", "frame-data/")) and file.endswith(".html")}
+    made = [file for file in files if file.endswith(".html") and file not in served.values() and file != "404.html"]
+    assert not [file for file in made if not built.match("/" + file.removesuffix(".html"))], "a page nginx has no location for"
+    served |= {"/" + file.removesuffix(".html"): file for file in made}
     served |= {"/" + file: file for file in files if not file.endswith(".html")}
     for file, text in pages.items():
         if file == "archive":
@@ -131,7 +147,7 @@ with tempfile.TemporaryDirectory() as folder:
     assert 'class="face f0 large"' in ryu and 'href="/frame-data/c-viper"' in ryu, "Ryu's page lacks his face or the roster"
     assert '<td class="plus num">+5°</td>' in ryu and '<td class="minus num">-2</td>' in ryu and '<td class="kd num">KD</td>' in ryu
     assert "&lt;script&gt;x&lt;/script&gt;" in ryu and "banner-" not in ryu
-    index = pages["frame-data/index.html"]
+    index = pages["frame-data.html"]
     assert 'href="/frame-data/ryu#normals"' in index and "Pick a fighter" not in index
     assert 'class="fd-roster"' in pages["index.html"], "the home page lacks the fighters"
     css = (site / "assets/faces.css").read_text(encoding="utf-8")

@@ -18,6 +18,11 @@ from check import anchor  # noqa: E402  GitHub's id for a heading, which links b
 # The HTML a guide may write itself, and the attributes kept on it.
 TAGS = {"a", "b", "br", "code", "details", "div", "em", "i", "img", "kbd", "p", "span", "strong", "sub", "summary", "sup"}
 ATTRIBUTES = {"alt", "height", "href", "id", "src", "title", "width"}
+# The attributes that are links, and where a link may go besides a path on the site.
+LINKS = {"href", "src"}
+SCHEMES = {"http", "https", "mailto"}
+# What turns markup into the text it is written with.
+SHOWN = str.maketrans({"<": "&lt;", ">": "&gt;", '"': "&quot;"})
 TAG = re.compile(r"<(/?)([A-Za-z][\w-]*)((?:\s+[^<>]*?)?)\s*/?>")
 ATTRIBUTE = re.compile(r"""([A-Za-z][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')""")
 ALIGN = {"text-align:right": "num", "text-align:center": "mid", "text-align:left": ""}
@@ -47,19 +52,36 @@ class Rendered:
     opening: str = ""
 
 
-def allowed(text):
-    """`text` with the tags a guide may write kept, down to their kept attributes, and every other one shown."""
-    def tag(match):
-        closing, name, attributes = match.groups()
-        if name.lower() not in TAGS:
-            return html.escape(match.group(0))
-        if closing:
-            return f"</{name.lower()}>"
-        kept = [(key.lower(), a if a is not None else b) for key, a, b in ATTRIBUTE.findall(attributes)]
-        kept = [(key, value) for key, value in kept if key in ATTRIBUTES and not value.lower().startswith("javascript:")]
-        return f"<{name.lower()}" + "".join(f' {key}="{html.escape(value)}"' for key, value in kept) + ">"
+def goes_somewhere_safe(link):
+    """Whether a link a guide wrote as HTML is a path or has one of SCHEMES, read as a browser reads it."""
+    scheme = re.match(r"([a-z][a-z0-9+.-]*):", re.sub(r"[\x00-\x20]+", "", html.unescape(link)).lower())
+    return not scheme or scheme.group(1) in SCHEMES
 
-    return TAG.sub(tag, text)
+
+def kept_tag(match):
+    """A tag a guide may write, with only its kept attributes; any other tag as the text it is."""
+    closing, name, attributes = match.groups()
+    name = name.lower()
+    if name not in TAGS:
+        return match.group(0).translate(SHOWN)
+    if closing:
+        return f"</{name}>"
+    kept = [(key.lower(), double or single) for key, double, single in ATTRIBUTE.findall(attributes)]
+    kept = [(key, value) for key, value in kept if key in ATTRIBUTES and (key not in LINKS or goes_somewhere_safe(value))]
+    return f"<{name}" + "".join(f' {key}="{value.translate(SHOWN)}"' for key, value in kept) + ">"
+
+
+def allowed(text):
+    """The HTML a guide wrote, down to the tags and attributes it may write.
+
+    Every `<` and `>` that is not one of those tags comes out as text, whatever it was part of: a tag
+    this does not know, one written in a way `TAG` does not read, a comment.
+    """
+    out, at = [], 0
+    for match in TAG.finditer(text):
+        out += [text[at:match.start()].translate(SHOWN), kept_tag(match)]
+        at = match.end()
+    return "".join(out) + text[at:].translate(SHOWN)
 
 
 def plain(inline):

@@ -57,6 +57,12 @@ class Page:
     index: bool = True
 
 
+def slug(name):
+    """A name as the last part of a page's address: lower-case letters, digits and hyphens, which is
+    all the server's location for the guides and the frame data serves."""
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
 def front_matter(text):
     """A page source's leading comment of `key: value` lines, and the content after it."""
     match = re.match(r"<!--\n(.*?)\n-->\n", text, re.S)

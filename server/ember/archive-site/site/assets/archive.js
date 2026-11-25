@@ -132,7 +132,9 @@ function resultOf(set) {
   const score = [0, 0];
   for (const game of set.games) {
     const won = winnerOf(game);
-    if (won != null) score[game.names[won] === left ? 0 : 1] += 1;
+    // Only a win by one of the two: a side with another name, or none, is not theirs to count.
+    const at = won == null ? -1 : [left, right].indexOf(game.names[won]);
+    if (at >= 0) score[at] += 1;
   }
   const scored = score[0] + score[1];
   if (!scored) return null;
@@ -463,7 +465,7 @@ function renderSet(set) {
     el('span', { className: 'label', textContent: title }),
     session
       ? el('div', { className: 'versus' }, side(first, sideOf(first, set.player), 0), sessionMiddle(set), metSide(set, 12))
-      : versus(set, true),
+      : versus(set, false),
     el('p', { className: 'note', textContent: `${day(first.saved_at)} · ${plural(set.games.length, 'game', 'games')} · ${Math.ceil(size / 1024)} KB` }));
   const actions = [];
   if (set_ && set_.pack) actions.push(downloadLink(set_.pack, 'Download set (.emberpack)', true));

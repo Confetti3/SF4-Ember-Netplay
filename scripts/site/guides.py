@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 from PIL import Image
 
 from prose import Prose
-from shell import Page
+from shell import Page, slug
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "wiki"))
 import build as wiki  # noqa: E402
@@ -35,12 +35,8 @@ class Guide:
     lines: list[str]
 
     @property
-    def slug(self):
-        return self.title.lower().replace(" ", "-")
-
-    @property
     def url(self):
-        return f"/docs/{self.slug}"
+        return f"/docs/{slug(self.title)}"
 
 
 def collect(src):
@@ -81,9 +77,8 @@ class Site:
     address and the words under it.
     """
 
-    def __init__(self, src, frame_data):
+    def __init__(self, src):
         self.src = src
-        self.frame_data = frame_data
         self.guides = collect(src)
         self.by_source = {guide.source: guide for guide in self.guides}
         # Served path under /docs/files/ to the file it is made from.
@@ -128,8 +123,7 @@ class Site:
             here = lambda g: ' aria-current="page"' if g is current else ""
             out += [f'<li><a href="{g.url}"{here(g)}>{html.escape(g.title)}</a></li>' for g in guides]
             out.append("</ul>")
-        if self.frame_data:
-            out.append('<h2>Frame data</h2>\n<ul><li><a href="/frame-data">Every fighter\'s frame data</a></li></ul>')
+        out.append('<h2>Frame data</h2>\n<ul><li><a href="/frame-data">Every fighter\'s frame data</a></li></ul>')
         return "\n".join(out + ["</nav>"])
 
     def _page(self, guide, body):
@@ -149,7 +143,7 @@ class Site:
 </article>
 {f'<aside class="doc-toc" aria-label="On this page"><h2>On this page</h2><ul>{toc}</ul></aside>' if toc else ''}
 </div>"""
-        return Page(file=f"docs/{guide.slug}.html", title=f"{guide.title} - Ember guides", content=content,
+        return Page(file=f"{guide.url[1:]}.html", title=f"{guide.title} - Ember guides", content=content,
                     description=body.summary[:200], path=guide.url, nav="docs", styles=["docs"], scripts=["docs"])
 
     def _index(self, rendered):
@@ -164,11 +158,10 @@ class Site:
             out += [f'<a class="doc-card" href="{g.url}"><strong>{html.escape(g.title)}</strong>'
                     f'<span>{html.escape(shorten(summaries[g.source]))}</span></a>' for g in guides]
             out.append("</div></section>")
-        if self.frame_data:
-            out.append('<section class="doc-section"><h2>Frame data</h2><div class="doc-cards">'
-                       '<a class="doc-card" href="/frame-data"><strong>Frame data</strong>'
-                       "<span>Startup, active, recovery and advantage for every move of every fighter.</span></a></div></section>")
-        return Page(file="docs/index.html", title="Ember guides", content="\n".join(out), nav="docs", path="/docs",
+        out.append('<section class="doc-section"><h2>Frame data</h2><div class="doc-cards">'
+                   '<a class="doc-card" href="/frame-data"><strong>Frame data</strong>'
+                   "<span>Startup, active, recovery and advantage for every move of every fighter.</span></a></div></section>")
+        return Page(file="docs.html", title="Ember guides", content="\n".join(out), nav="docs", path="/docs",
                     description="Guides for playing Ultra Street Fighter IV online with Ember: installing it, rooms, "
                                 "training, tournaments and troubleshooting.", styles=["docs"], scripts=["docs"])
 
